@@ -10,7 +10,7 @@ include mk/paths.mk
 
 ## Phony targets ##########################################################
 
-.PHONY : default all clean install full core debug doc
+.PHONY : default all clean install full core debug doc dist
 
 ## Default target #########################################################
 
@@ -40,6 +40,33 @@ full :
 
 core :
 	$(MAKE) -C $(CORE_SRC_DIR)
+
+## Making the source distribution #########################################
+
+ifeq ($(HAVE_DARCS),Yes)
+ifeq ($(shell if test -d _darcs; then echo darcs; fi),darcs)
+  is_darcs_repo = Yes
+else
+  is_darcs_repo = No
+endif
+else
+  is_darcs_repo = No
+endif
+
+ifeq ($(is_darcs_repo),Yes)
+
+dist : agda2.tar.gz
+
+agda2.tar.gz :
+	$(DARCS) dist -d agda2
+
+else
+
+dist :
+	@echo You can only "'make dist'" from the darcs repository.
+	@$(FALSE)
+
+endif
 
 ## Debugging the Makefile #################################################
 
