@@ -23,14 +23,14 @@ import Data.Generics
 
 -- | Represents a point in the input (file, line, col) or
 --   an unknown position
-data Position   = Pn { srcFile  :: FilePath
-		 , posLine  :: !Int
-		 , posCol   :: !Int
-		 }
+data Position = Pn { srcFile :: FilePath
+		   , posLine :: !Int
+		   , posCol  :: !Int
+		   }
 	    | NoPos
     deriving (Typeable, Data, Eq)
 
--- | A range is a pair of positions. The rEnd position is
+-- | A range is a pair of positions. The @rEnd@ position is
 --   not included in the range.
 data Range = Range { rStart, rEnd :: Position }
     deriving (Typeable, Data, Eq)
@@ -81,8 +81,8 @@ noRange :: Range
 noRange = Range noPos noPos
 
 -- | Advance the position by one character.
---   A tab character ('\t') will move the position to the next
---   tabstop (tab size is 8). A newline character ('\n') moves
+--   A tab character (@'\t'@) will move the position to the next
+--   tabstop (tab size is 8). A newline character (@'\n'@) moves
 --   the position to the first character in the next line. Any
 --   other character moves the position to the next column.
 movePos :: Position -> Char -> Position
