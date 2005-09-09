@@ -29,6 +29,7 @@ aclocal.m4 : $(m4_macros)
 ## Making the documentation ###############################################
 
 doc :
+	$(MAKE) -C $(HADDOCK_DIR)
 
 ## Making the full language ###############################################
 

@@ -10,4 +10,5 @@ FULL_OUT_DIR	= $(OUT)/full
 CORE_OUT_DIR	= $(OUT)/core
 
 DOC_DIR			= $(TOP)/doc
+HADDOCK_DIR		= $(DOC_DIR)/haddock
 

@@ -41,6 +41,12 @@ AS_IF([test $HAVE_LATEX == No -a $HAVE_PDFLATEX == No],
       ]
 )
 
+# Utility programs
+AC_PROG_CC
+AC_PROG_INSTALL
+AGDA_WITH_OPTIONAL_PROG(WGET,wget)
+AGDA_WITH_PROG(FALSE,false)
+
 # Output
 AC_CONFIG_FILES([mk/config.mk])
 AC_OUTPUT
