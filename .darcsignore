@@ -6,3 +6,4 @@
 ^config.status$
 ^mk/config.mk$
 ^aclocal.m4$
+^out$
