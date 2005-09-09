@@ -45,7 +45,7 @@ AC_DEFUN(AGDA_VERSION,
 dnl Combines AGDA_WITH_PROG and AGDA_VERSION. Checks that the version is high enough.
 AC_DEFUN(AGDA_WITH_PROG_VERSION,
     [AGDA_WITH_PROG($1,$2)
-     AGDA_VERSION($1,$2,[-lt],$3)
+     AGDA_VERSION($1,$2,[-ge],$3)
     ]
 )
 
@@ -66,8 +66,8 @@ else
     $2_version=""
 fi
 		   ])
-    FP_COMPARE_VERSIONS([${$2_version}],[$3],[$4],
-			[AC_MSG_ERROR([$2 version $5 or later required])])
+    FP_COMPARE_VERSIONS([${$2_version}],[$3],[$4],[],
+			[AC_MSG_ERROR([$2 version $4 or later required])])
     $1_VERSION=${$2_version}
     AC_SUBST($1_VERSION)
 ])
