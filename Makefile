@@ -68,6 +68,21 @@ dist :
 
 endif
 
+## Clean ##################################################################
+
+clean :
+	$(MAKE) -C $(FULL_SRC_DIR) clean
+	$(MAKE) -C $(CORE_SRC_DIR) clean
+	$(MAKE) -C $(HADDOCK_DIR) clean
+	rm -rf $(OUT_DIR)
+
+veryclean :
+	$(MAKE) -C $(FULL_SRC_DIR) veryclean
+	$(MAKE) -C $(CORE_SRC_DIR) veryclean
+	$(MAKE) -C $(HADDOCK_DIR) veryclean
+	rm -rf $(OUT_DIR)
+	rm -rf configure config.log config.status aclocal.m4 autom4te.cache
+
 ## Debugging the Makefile #################################################
 
 debug :
