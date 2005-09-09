@@ -23,7 +23,7 @@ default : $(OUT)/agdacore
 
 ## Creating the output directory structure ################################
 
-dirs		= $(shell find . -type d -not -name CVS)
+dirs		= $(shell $(FIND) . -type d -not -name CVS)
 out_dirs	= $(filter-out .,$(patsubst ./%,$(OUT)/%,$(dirs)))
 out_dirs_p	= $(filter-out .,$(patsubst ./%,$(OUT_P)/%,$(dirs)))
 
@@ -39,7 +39,7 @@ $(out_dirs) $(out_dirs_p) :
 
 ifeq ($(HAVE_GHC_6_4),No)
 
-src_hi_boot_files	= $(shell find . -name '*.hi-boot')
+src_hi_boot_files	= $(shell $(FIND) . -name '*.hi-boot')
 hi_boot_files		= $(patsubst ./%,$(OUT)/%,$(src_hi_boot_files))
 hi_boot_files_p		= $(patsubst ./%,$(OUT_P)/%,$(src_hi_boot_files))
 
