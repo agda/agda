@@ -1,2 +1,8 @@
 (^|/)CVS$
 (^|/)\..*\.swp$
+^autom4te.cache$
+^config.log$
+^configure$
+^config.status$
+^mk/config.mk$
+^aclocal.m4$
