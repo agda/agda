@@ -1,0 +1,50 @@
+
+Inductive families and pattern matching
+
+  Pattern matching only if we can figure out which constructors are
+  allowed (by first order unification).
+  Meaning constructor targets and scrutinee should be indexed by
+  constructor patterns.
+
+  Allow repeated variables in patterns as long as the type checker can
+  figure out that they have to be equal anyway.
+  
+  No: Force the user call equal things by the same name.
+
+  Not allowed:
+
+    f : (n : Nat) -> Vec A n -> ...
+    f n (cons m x xs) = ...
+
+  Allowed
+
+    f (s m) (cons m x xs) = ...
+
+  Issues: what about (m is hidden)
+
+      f n (x::xs) = ...
+
+    Not allowed.
+
+  When can we translate to Core?
+
+  Completeness: the dot notation
+
+      f 0 tt = e
+      f (s n) .
+
+    You can leave out clauses if the missing cases immediately lead to an
+    empty type.
+
+      -- corresponds to pattern matching on the Even
+      f : (n : Nat) -> Even n -> X
+      f 0 even0		     = a
+      -- missing case for (s 0). Even (s 0) is decidably empty.
+      f (s (s n)) (evenSS n) = b
+
+      -- pattern matching on the number and then the Even
+      f 0 even0		     = a
+      f (s 0) .
+      f (s (s n)) (evenSS n) = b
+
+vim: sts=2 sw=2 tw=75

@@ -1,0 +1,159 @@
+
+Syntax - concrete, internal and values
+--------------------------------------
+
+  Nice syntax for hidden arguments:
+
+    {x:A} -> B
+    {A} -> B
+    \{x:A} -> e
+    \{x} y -> e
+    {x:A}(y:B)
+    e {e}
+    {x, y : A, b : B} -> A
+
+  Scope of telescope is only the right of the colon:
+
+    id {A : Set} : A -> A
+    id x = x, or
+    id {A} x = x
+
+    id {A : Set}(x : A) : A
+    id x = x
+
+  Value datatype
+
+    data Value = Var Nat
+	       | App Value Value Hidden
+	       | Lam Type (Abs Value)
+	       | Lit Literal
+	       | Def Name
+	       | Meta MId
+    data Type  = El Value Sort
+	       | Pi Type (Abs Type)
+	       | Sort Sort
+	       | Meta MId
+    data Sort  = Prop | Set Nat
+
+    data Abs a = Abs Name a
+
+    Everything also has an explanation on it.
+    Note: No sorts on metas.
+
+    data Expl = InYourCode Range
+	      | DefinedAt Range	  -- for variables/names
+	      | Expl :+: Expl
+	      | ...
+
+  Very cool idea
+
+    Have type checker return proof objects:
+
+      inferType : Term -> TCM InferenceDerivation
+
+    Purpose
+      - give better error messages
+
+    Possibilities
+      - allow the user to explore the derivation to find an error
+
+    First (bad) approximation:
+
+      data InferenceDerivation = Inferred Value Type
+
+    Add constructor (functions) for each judgement in the type system.
+
+  User syntax
+
+    A, e ::= x | e e | e {e} | λ αs -> e | λ Δ -> e
+	   | {A} -> A | A -> A | Δ -> A | Set | Prop | Seti
+	   | let Locals in e | e es of Bs | c | lit | ? | _
+    
+    α ::= x | {x}
+    B ::= es -> e
+    Δ ::= ε | (xs:A,..,xs:A)Δ | {xs:A,..,xs:A}Δ
+
+    D ::= Local | Module | postulate xΔ:A .. xΔ:A | Prefix D
+    Prefix ::= abstract | private
+
+    Local ::= Def | Data | mutual Locals
+
+    Data ::= data x Δ : A where
+	       c : A
+	       ...
+	       c : A
+    
+    Def ::= [ x Δ : A ]
+            x ps = e
+	    ...
+	    x ps = e
+
+    p ::= c ps | x | {p}
+
+    Module ::= package x Δ where
+		 Ds
+
+? and _
+-------
+
+  ? means hole and _ means implicit argument style meta variable.
+  No ? implies no _ in top level def (D). In other words _ in top level
+  definitions should be solved locally. This means that when we do have
+  open holes in a definition we should still take care to not make the _
+  depend on things defined later on.
+  Solution: if we get a constraint involving an _ from a previous
+	    definition, we report an error.
+  
+
+The State and Environment
+-------------------------
+
+  State
+    - Meta variable stuff
+    - Signature
+
+  Environment
+    - Context
+
+  Signature
+    - def -> type, def, fixity
+    - data -> type, constructors, fixity
+
+  Meta variable stuff
+
+    - gensym (= Int)
+
+    - instantiation:
+	data MetaInfo = InstantiatedV Value
+		      | InstantiatedT Type
+		      | Underscore [ConstraintId]
+		      | QuestionmarkV Context Type [ConstraintId]
+		      | QuestionmarkT Context (Maybe Sort) [ConstraintId]
+
+    - the stuff in the questionmarks correspond to the following
+      constraints
+	Γ ⊢ ? : V
+	Γ ⊢ ? type^i  -- sometimes we care (? in type of constructor)
+	Γ ⊢ ? type    -- and sometimes we don't (? in type of definition)
+
+    - constraints: 
+ 
+	Γ ⊢ v = w : V
+	Γ ⊢ V = W
+      
+      also need Σ everywhere.
+
+Cool interactions
+-----------------
+
+  * Abstract over uninstantiated questionmarks (without constraints).
+  * Select things (names?) and do things
+      - pattern match on pattern variable
+	  x + y = e  --{expand y}--> x + 0   = e[0/y]
+				     x + S y = e[S y/y]
+      - what's my type
+      - where's my definition/declaration
+      - rename
+  * Hide and unhide arguments.
+
+vim: sts=2 sw=2 tw=75

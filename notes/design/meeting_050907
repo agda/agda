@@ -1,0 +1,256 @@
+
+Modules
+-------
+
+  $(root)/A/Foo.agda:
+
+  module Foo (A:Set)(op:A -> A -> A) where
+
+    f : A -> A
+    f = ..
+
+    module Bar (x:A) where
+      ...
+
+    import .Baz	  -- looks for $(root)/A/Baz.agda
+    import B.Baz  -- looks for $(include_dirs)/B/Baz.agda
+
+  Observations:
+    - You can only import actual files.
+    - The name of the top level module in a file as to match the file name.
+
+  Local ::= ... | open m es [ as x | (xs) | ε ]
+
+  D ::= ... | import x.x.x.x [ as x | ε ]
+
+  open Foo Nat eq as FooNat (f, g)  -- import f and g into the new name
+				    -- space FooNat.
+  open FooNat (f)		    -- import f into the current name space
+  open FooNat			    -- import everything from FooNat into
+				    -- the current name space
+
+  At the moment there is a distinction between modules and name spaces.
+  Above
+
+    Foo Nat eq	  is a module
+    FooNat	  is a name space
+
+  You can refer to things using name spaces, as in FooNat.f. You cannot do
+  this with modules. A name space is a sequence of names separated by dot.
+  Not allowed:
+
+    (Foo Nat eq).f
+
+  You can open both name spaces and modules. For each non-parameterised
+  module there is a name space with the same name.
+
+  What does abstract and private mean?
+
+    abstract takes a list of definitions:
+
+      abstract Stack : Set
+	       Stack = List
+
+	       empty : Stack
+	       empty = []
+
+	       ...
+    
+    Outside the abstract block the definitions are not known (even inside
+    the same module).
+
+    private just means that the user cannot refer to the name outside the
+    module. You can still compute with private things.
+
+  How to translate to core?
+
+    We can just forget about private and abstract. For abstract this means
+    that the core type checker has more information than the full language
+    checker. This shouldn't be a problem.
+
+    Note: make sure that the type of something in an abstract block doesn't
+    depend on the value of one of the earlier definitions (the type is
+    exported).
+
+Typing rules
+------------
+
+       Γ ⊢ M : Set_i
+    -------------------
+    Γ ⊢ El_i M : type^i
+
+    Also for prop.
+
+  Algorithm
+
+    Judgement forms:
+
+      Γ ⊢ A s --> V	  check that A is a type and infer the sort
+      Γ ⊢ e ↑ V --> v	  check that e has type V
+      Γ ⊢ e ↓ V --> v	  infer the type of e
+
+    Rules:
+
+      Γ ⊢ M ↓ V --> v    v = Sort ?s
+      ------------------------------
+	   Γ ⊢ M ?s --> El_?s v
+
+      Γ ⊢ f ↓ V -> v   V = (x : ?A) -> ?B   Γ ⊢ e ↑ ?A --> w
+      ------------------------------------------------------
+		      Γ ⊢ f e ↓ ?B w --> v w
+
+  We need sort meta variables: Γ ⊢ ? ? --> ?
+
+    data Type = ... | Sort Sort
+    data Sort = Type Nat | Prop | Meta MId | Lub Sort Sort
+
+  So this means that we don't need the Maybe in the metainfo
+
+    data MetaInfo = InstantiatedV Value
+		  | InstantiatedT Type
+		  | Underscore [ConstraintId]
+		  | QuestionmarkV Signature Context Type [ConstraintId]
+		  | QuestionmarkT Signature Context Sort [ConstraintId]
+
+  Important observation:
+
+    We don't have subtyping, only subsorting.
+
+    Γ ⊢ e ↓ W --> v   W = V
+    -----------------------
+       Γ ⊢ e ↑ V --> v
+
+Plan
+----
+
+  Things to do/figure out
+
+    - Typing rules for the full language
+    - Translation to Core
+    - Explanations
+    - User interactions
+    - Testing
+    - Plug-ins
+    - Documentation
+    - ( Classes )
+
+    This will be done mainly at Chalmers
+
+  Things we know how to do
+
+    C - concrete and abstract syntax, translation
+    C - parser, lexer
+    C - pretty printing
+    C - infrastructure (Makefile, directories)
+    J - internal syntax
+    J - unification and constraints
+    J - monad and state (partially)
+
+  C = Chalmers (Ulf)
+  J = Japan (Jeff)
+
+  Time plan
+
+    Sep
+	  Fix signature datatype.
+	  Final version of typing rules.
+	  Finish(ing) infrastructure code ("Things we know how to do").
+    Oct
+	  Start implementing type checker.
+
+	  Finish(ing) first version.
+    Nov
+	  Have a running system.
+
+File organisation
+-----------------
+
+  src
+    Syntax
+      Lexer
+      Parser
+      ParseMonad
+      Position
+
+      Concrete
+      Abstract
+      Internal
+
+      Pretty
+      ConcreteToAbstract
+    TypeChecker
+      Monad
+      Unification
+      (MetaVariables, Computation, .. ?)
+    Testing
+      ... fine grained testing
+    Interaction
+      ... interaction protocol, ...
+    Plugins
+      ...
+
+The Haddock trick
+-----------------
+
+  Haddock doesn't handle circular module dependencies.
+  Solution: Use a preprocessor before calling Haddock which removes lines
+	    containing REMOVE_IF_HADDOCK.
+  Example:
+
+  import {-# SOURCE #-} Foo (foo) -- REMOVE_IF_HADDOCK
+
+  {- REMOVE_IF_HADDOCK
+  -- | This function is really 'Foo.foo'. It's here to fool Haddock into
+  --   accept circular module dependencies.
+  foo :: Int -> Int
+     REMOVE_IF_HADDOCK -}
+
+Coding conventions
+------------------
+
+  - Write typesignatures and haddock comments.
+  - Never use booleans.
+  - Datatypes should be abstract and accessed by views.
+  - Scrap boilerplate locally. That is, define useful combinators using
+    generics, but export non-generic functions. Another way of saying it:
+    only use generics in close proximity to the definition of the datatype.
+
+The keeping-abstraction-when-splitting-a-module trick
+-----------------------------------------------------
+
+  You have:
+
+  --- A.hs ---
+  module A ( Foo -- abstract type
+	   , foo
+	   ) where
+  data Foo = Foo Int
+  foo :: Foo -> Int
+  foo (Foo n) = n
+  ------------
+
+  You want to split this module into two (because it's too big), without
+  breaking the abstraction of Foo.
+
+  Solution: You split the module into three, with the added advantage that
+	    you don't have to change modules importing A.
+
+  --- A.hs ---
+  module A ( Foo, foo ) where
+  import A.Implementation
+  import A.Foo
+  ------------
+
+  --- A/Implementation.hs ---
+  module A.Implementation ( Foo(..) ) where -- exports definition of Foo
+  data Foo = Foo Int
+  ---------------------------
+
+  --- A/Foo.hs ---
+  module A.Foo (foo) where
+  import A.Implementation
+  foo :: Foo -> Int
+  foo (Foo n) = n
+  ----------------
+
+vim: sts=2 sw=2 tw=75

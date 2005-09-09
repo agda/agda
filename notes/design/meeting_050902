@@ -1,0 +1,35 @@
+
+Overall structure
+
+  It might be useful to distinguish between meta variables and holes.
+  Meta variables: id _ x, only filled in internally
+  Holes: f x = ?, used for interaction, filled in by the user
+
+		 	  scope		        type
+        parser	         analysis	      checking
+  Text  ----->  Concrete  ------->  Internal  ------->  Value
+                 syntax	             syntax
+
+Internal syntax
+
+  Abstract with views, otherwise as agdaLight
+
+Values
+
+  No types, split into values and types with explicit El. Types annotated
+  with sorts. We think we can infer the different types of lam and app.
+
+    app : (A : El Set)(B : El A -> El Set) : El (Fun A B) -> ((x : El A) -> El (B x))
+    lam : (A : El Set)(B : El A -> El Set) : ((x : El A) -> El (B x)) -> El (Fun A B)
+
+  Idea: change the conversion algorithm to put in the coercions:
+
+    m:A ≤ m':A', meaning m of type A can be coerced to m' of type A'.
+
+  Type checking rule:
+
+    Γ ⊢ e => m' : A'   m':A' ≤ m:A
+    ------------------------------
+             Γ ⊢ e : A => m
+
+vim: sts=2 sw=2 tw=75

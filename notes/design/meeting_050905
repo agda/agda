@@ -1,0 +1,103 @@
+
+Pattern matching revisited
+--------------------------
+
+  Don't allow
+
+    f A 0 (nil A)
+
+  But still allow
+
+    f (s m) (cons m x xs)
+
+  Always bind to the first m.
+
+  Decision: don't implement this at first. No pattern matching at all on
+  inductive families.
+
+Meta variables
+--------------
+
+  Do not identify communication points and meta variables.
+
+El and universes
+----------------
+
+  Abstract syntax for values
+
+    data Value = ...
+    data Type  = El Value Sort
+	       | Pi Type Type
+    data Sort  = Prop | Set Nat
+
+  Rules for the subtyping with coercions:
+
+    Γ, x:V ⊢ x : V ≤ El A --> v'   Γ, x:V ⊢ app v v' : El (B v') ≤ W --> w
+    ----------------------------------------------------------------------
+                   Γ ⊢ v : El (πAB) ≤ ∏x:A.B --> λx. w
+
+    Γ, x:El A ⊢ x : El A ≤ V --> v'   Γ, x:El A ⊢ v v' : W ≤ El (B v') --> w
+    ------------------------------------------------------------------------
+                   Γ ⊢ v : ∏x:A.B ≤ El (πAB) --> lam (λx. w)
+
+  The problem: We don't have eta.
+    app (lam f) == f, but
+    lam (app f) != f
+
+  Thierry says this might not be easy to get.
+
+  Decision: Stick to what we know we can get.
+
+    Type level definitions only with datatypes:
+
+    data Ref (R : El A -> El A -> Set) : Set where
+      mkRef : ((x : El A) -> R x x) -> Ref R
+
+    data Rel (A : Set) : Set_1 where
+      mkRel : (El A -> El A -> Set) -> Rel A
+
+    Wrapping and unwrapping have to be done explicitly.  This is slightly
+    better than the alternative definition of Rel (with the small pi) since
+    we only have to unwrap once instead of unwrapping each application.
+
+  Core type judgement
+
+      M : Set_i
+    -------------
+    El_i M type_i
+
+    A type_i    B type_i [x:A]
+    --------------------------
+	(x:A) -> B type_i
+
+    A type_j   j < i
+    ----------------
+       A type_i
+
+    --------------
+    Set_i type_i+1
+
+Mutual inductive recursive definitions
+--------------------------------------
+
+  Definitions:
+
+    x1 : A1 = M1
+    .
+    .
+    .
+    xn : An = Mn
+
+  Type check
+
+    (x1:A1)...(xn:An), and then
+    M1:A1
+    M2:A2 (x1=M1)
+    ...
+    Mn:An (x1=M1, x2=M2, ..)
+
+  For datatypes, constructors are only visible in the rhs of the other
+  definitions (not in the types). In other words we treat the constructors
+  as the _definition_ of the datatype.
+
+vim: sts=2 sw=2 tw=75
