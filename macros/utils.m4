@@ -1,5 +1,22 @@
 dnl General macros.
 
+dnl AGDA_CHECK_TOOL( PROGRAM-VARIABLE, PROGRAM-NAME. IF-FOUND, IF-NOT-FOUND )
+AC_DEFUN(AGDA_CHECK_TOOL,
+[AC_CHECK_TOOL($1,$2)
+ AS_IF([test x"${$1}" != x], [$3], [$4])
+])
+
+dnl AGDA_CHECK_OPTIONAL_TOOL( PROGRAM-VARIABLE, PROGRAM-NAME, IF-NOT-FOUND )
+AC_DEFUN(AGDA_CHECK_OPTIONAL_TOOL,
+    [AGDA_CHECK_TOOL($1,$2,
+		     [HAVE_$1=Yes],
+		     [HAVE_$1=No
+		      [$3]
+		     ]
+		    )
+    ]
+)
+
 dnl AGDA_GEN_WITH_PROG( PROGRAM-VARIABLE
 dnl		      , PROGRAM-NAME
 dnl		      , IF-FOUND
@@ -9,9 +26,8 @@ AC_DEFUN(AGDA_GEN_WITH_PROG,
 [AC_ARG_WITH($2,
     [AC_HELP_STRING([--with-$2=$1],[use $1 as the path to $2 [default=autodetect]])],
     [$1=$withval],
-    [AC_CHECK_TOOL($1,$2)
-     AS_IF([test x"${$1}" != x], [$3], [$4])
-    ])
+    [AGDA_CHECK_TOOL($1,$2,$3,$4)]
+   )
 ])
 
 dnl AGDA_WITH_PROG(PROG,prog)
@@ -21,7 +37,7 @@ AC_DEFUN(AGDA_WITH_PROG,
     [AGDA_GEN_WITH_PROG($1,$2,[],[AC_MSG_ERROR([$2 is required])])]
 )
 
-dnl AGDA_WITH_OPTIONAL_PROG(PROG,prog)
+dnl AGDA_WITH_OPTIONAL_PROG(PROG,prog,IF-NOT-FOUND)
 dnl Looks for optional program prog, creates --with-prog flag and
 dnl sets PROG to the path to the program.
 dnl Sets the variable HAVE_PROG to Yes or No.
