@@ -1,0 +1,4 @@
+.*.swp
+*~
+*.html *.css *.js *.gif base.haddock
+src
