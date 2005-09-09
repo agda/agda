@@ -8,7 +8,6 @@ TOP = ../..
 include $(TOP)/mk/config.mk
 include $(TOP)/mk/paths.mk
 
-
 ## Directories ############################################################
 
 OUT		= $(FULL_OUT_DIR)
@@ -31,8 +30,8 @@ default : $(OUT)/agda
 ## Creating the output directory structure ################################
 
 dirs		= $(shell find . -type d -not -name CVS)
-out_dirs	= $(patsubst ./%,$(OUT)/%,$(dirs))
-out_dirs_p	= $(patsubst ./%,$(OUT_P)/%,$(dirs))
+out_dirs	= $(filter-out .,$(patsubst ./%,$(OUT)/%,$(dirs)))
+out_dirs_p	= $(filter-out .,$(patsubst ./%,$(OUT_P)/%,$(dirs)))
 
 $(out_dirs) $(out_dirs_p) :
 	mkdir -p $@
@@ -78,4 +77,6 @@ $(OUT_P)/agda : $(out_dirs_p) $(all_hs_files) $(hi_boot_files_p)
 
 clean :
 	rm -f $(generated_files)
+
+veryclean : clean
 
