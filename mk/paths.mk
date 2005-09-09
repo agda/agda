@@ -2,12 +2,12 @@
 MACRO_DIR		= $(TOP)/macros
 
 SRC_DIR			= $(TOP)/src
-FULL_SRC_DIR	= $(SRC)/full
-CORE_SRC_DIR	= $(SRC)/core
+FULL_SRC_DIR	= $(SRC_DIR)/full
+CORE_SRC_DIR	= $(SRC_DIR)/core
 
 OUT_DIR			= $(TOP)/out
-FULL_OUT_DIR	= $(OUT)/full
-CORE_OUT_DIR	= $(OUT)/core
+FULL_OUT_DIR	= $(OUT_DIR)/full
+CORE_OUT_DIR	= $(OUT_DIR)/core
 
 DOC_DIR			= $(TOP)/doc
 HADDOCK_DIR		= $(DOC_DIR)/haddock
