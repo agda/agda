@@ -8,6 +8,9 @@ AC_INIT([Agda], [2.0], [ulfn@cs.chalmers.se])
 # Check for programs
 #
 
+# C compiler (also does other stuff like figure out extension of executables)
+AC_PROG_CC
+
 # Building Agda
 AGDA_WITH_PROG_VERSION(GHC,ghc,6.2)
 AGDA_WITH_PROG_VERSION(ALEX,alex,2.0)
@@ -33,7 +36,6 @@ AS_IF([test $HAVE_LATEX == No -a $HAVE_PDFLATEX == No],
 )
 
 # Utility programs
-AC_PROG_CC
 AC_PROG_INSTALL
 AGDA_WITH_OPTIONAL_PROG(WGET,wget)
 AGDA_WITH_PROG(FALSE,false)
