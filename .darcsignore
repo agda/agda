@@ -7,3 +7,5 @@
 ^mk/config.mk$
 ^aclocal.m4$
 ^out$
+^doc/haddock/src$
+^doc/haddock/(.*\.(gif|html|css|js)|base.haddock)
