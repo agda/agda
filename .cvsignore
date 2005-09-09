@@ -1,1 +1,5 @@
 _darcs
+.*.swp
+*~
+out
+autom4te.cache aclocal.m4 configure config.status config.log
