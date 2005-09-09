@@ -8,15 +8,6 @@ AC_INIT([Agda], [2.0], [ulfn@cs.chalmers.se])
 # Check for programs
 #
 
-# C compiler
-AC_PROG_CC
-
-# install
-AC_PROG_INSTALL
-
-# GNU make
-# AC_PROG_MAKE
-
 # Building Agda
 AGDA_WITH_PROG_VERSION(GHC,ghc,6.2)
 AGDA_WITH_PROG_VERSION(ALEX,alex,2.0)
