@@ -23,7 +23,7 @@ FP_COMPARE_VERSIONS($GHC_VERSION,[-ge],6.4,
 AC_SUBST(HAVE_GHC_6_4)
 
 # Building the documentation
-AGDA_WITH_OPTIONAL_PROG(HADDOCK,haddock,
+AGDA_WITH_OPTIONAL_PROG_VERSION(HADDOCK,haddock,0.6,
     [AC_MSG_WARN(haddock is needed to build parts of the documentation.)]
 )
 
@@ -39,6 +39,7 @@ AS_IF([test $HAVE_LATEX == No -a $HAVE_PDFLATEX == No],
 AC_PROG_INSTALL
 AGDA_WITH_OPTIONAL_PROG(WGET,wget)
 AGDA_WITH_PROG(FALSE,false)
+AGDA_WITH_PROG(FIND,find)
 AGDA_WITH_OPTIONAL_PROG(DARCS,darcs)
 
 # Output
