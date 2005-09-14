@@ -34,7 +34,7 @@ out_dirs	= $(filter-out .,$(patsubst ./%,$(OUT)/%,$(dirs)))
 out_dirs_p	= $(filter-out .,$(patsubst ./%,$(OUT_P)/%,$(dirs)))
 
 $(out_dirs) $(out_dirs_p) :
-	mkdir -p $@
+	$(MKDIR) -p $@
 
 ## Boot files pre 6.4 #####################################################
 

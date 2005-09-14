@@ -79,11 +79,11 @@ endif
 
 src/% : $(FULL_SRC_DIR)/% src
 	@echo Preprocessing $* for haddock
-	@mkdir -p $(dir $@)
-	@ghc -E -D__HADDOCK__ -o $@ $<
+	@$(MKDIR) -p $(dir $@)
+	@$(GHC) -E -D__HADDOCK__ -o $@ $<
 
 src :
-	mkdir -p src
+	$(MKDIR) -p src
 
 ## Building the haddock documentation #####################################
 
