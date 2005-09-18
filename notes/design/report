@@ -1,0 +1,204 @@
+
+Pattern matching
+----------------
+
+  - equations instead of case
+  - completeness:
+
+    IsZero 0	 = One
+    IsZero (S n) = Zero
+
+    f : (n : Nat) -> IsZero n -> X
+
+    What is a complete set of equations?
+
+    IsZero 0	      = One
+    IsZero (S 0)      = Zero
+    IsZero (S (S n))  = Zero
+
+Pattern matching on inductive families
+--------------------------------------
+
+  - We know how to do it (and recover alf-style pattern matching)
+  - We don't know how to translate to core.
+  - Conclusion: no pattern matching on inductive families (yet).
+
+El and different kinds of arrows
+--------------------------------
+
+  We can infer El. We also know how to infer app and lam.
+  Problem: we don't have eta equality on the small pi
+    lam (app f) != f
+  Conclusion: stick with what's in core.
+
+  -- Not allowed
+  Rel : Set -> Set1
+  Rel A = A -> A -> Prop
+
+  -- Allowed
+  data Rel (A : Set) : Set1
+    relI : (A -> A -> Prop) -> Rel A
+
+  relE : (A : Set) -> Rel A -> (A -> A -> Prop)
+  relE A (relI R) = R
+
+  Universe hierarchy:
+
+    Prop <= Set1
+    Set <= Set1 <= Set2, ..
+
+  Note that we DON'T have
+    Set : Set1
+
+Mutually (inductive) recursive definitions
+------------------------------------------
+
+  Definitions only visible in later defs. For types definition =
+  constructors.
+
+Modules
+-------
+
+  Principle: modules should be simple, static entities.
+
+  - Each file is a module with the same name as the file
+  - Modules can be parameterised
+  - Modules can be nested
+  - Example:
+      
+      --- [ example/A/Foo.agda ] ---
+      module Foo (A:Set)(op : A -> A -> A) where
+
+	f : A -> A
+	f x = op x x
+
+	module Bar (e : A) where
+	  ...
+      ------------------------------
+
+  - You can (only) import files
+
+      --- [ example/A/Foo.agda ] ---
+      module Foo where
+
+	import .Baz   -- look for 'example/A/Baz.agda'
+	import B.Baz  -- look for '${include_dirs}/B/Baz.agda'
+      ------------------------------
+
+  - Modules vs. name spaces
+
+    You can refer to things in a name space using the dot notation:
+      X.f     -- f from the name space X
+      X.Y.g   -- g from the name space X.Y
+      f	      -- f from the current name space
+
+    A module is not a name space, but for each non-parameterised module
+    there is a corresponing name space.
+
+    Not ok:  (Foo Nat (+)).f
+
+    Creating name spaces:
+
+      open H as X   -- H is something containing names
+		    -- (module/name space/struct)
+		    -- X is the name of a new name space.
+
+      open H as X (f,g)	-- only import the names f and g from H
+			-- into X
+
+      open H (f,g)	-- importing into the current name space
+      open H		-- import everything into the current name space
+
+    Open is a definition.
+
+    Example:
+
+      let open Foo Nat (+) as FooNat
+	  open FooNat.Bar 0
+      in  FooNat.f 3
+
+    Clashes? Complain at use site rather than import site.
+
+    Abstract and private
+
+      private: you can't say the name
+      abstract: you don't know the definition
+
+      abstract is a block thing:
+
+	abstract
+	  Stack : Set
+	  Stack = List
+
+	  empty : Stack
+	  empty = []
+
+	  ...
+
+Meta variables
+--------------
+
+  Two kinds of meta variables: ? and _
+    ? is used for interaction
+    _ is used for hidden arguments
+
+  Requirement: _ should be solvable locally
+	      (block of mutually recursive defs)
+
+Syntax for hidden arguments
+---------------------------
+
+  {x:A} -> B
+  {x,y : A} -> B
+  {A} -> B
+  \{x:A} -> t
+  \{x} y -> t
+  e {e}
+
+Telescopes in definitions
+-------------------------
+
+  Open question. Suggestion: don't allow.
+  Issue: what's the scope.
+
+Error messages
+--------------
+
+  Idea: Have type checker return proof objects.
+  Vision: Interactive/navigatable error messages.
+  Issue: How to represent a failed derivation.
+
+The Plan
+--------
+
+  Jeff leaves AIST beginning of November.
+  By then we plan to have a running system (minus emacs interface).
+
+Notes from the presentation
+---------------------------
+
+  Opening modules:
+
+    Don't allow opening (into the current name space) and instantiation at
+    the same time. Because: how would you print private/non-imported names
+    from that module.
+
+    It might be a good idea to separate instantiation and opening. Issue:
+    you might want to give explicit import lists when instantiating. This
+    is also true for imports (which acts as instantiation for
+    non-parameterised modules).
+
+    Top level modules (corresponding to files) should have fully qualified
+    names:
+
+      module A.Foo where
+	module B where
+
+    The reason for this is that there is no context that explains where the
+    module is in the hierarchy, so we should write it down explicitly. For
+    the local module it's clear that its full name is A.Foo.B.
+    The principle is to make a module hierarchy independant of the actual
+    file system (the only place we need to know about the file system is
+    when we do import chasing, and then only for technical reasons).
+
+ vim: sts=2 sw=2 tw=75
