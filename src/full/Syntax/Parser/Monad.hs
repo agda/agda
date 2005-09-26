@@ -15,7 +15,6 @@ module Syntax.Parser.Monad
     , parse'
     , parseFile'
       -- * Manipulating the state
-    , getLexInput, setLexInput
     , setLastPos, getParseRange
     , setPrevToken
     , getParseFlags
@@ -25,9 +24,6 @@ module Syntax.Parser.Monad
     , pushCurrentContext, getOffside
       -- ** Errors
     , parseError
-      -- * Lex actions
-    , LexAction, LexPredicate
-    , PreviousInput, CurrentInput, TokenLength
     )
     where
 
@@ -36,7 +32,6 @@ import Data.Char
 import Control.Monad.State
 import Control.Monad.Error
 
-import Syntax.Parser.Alex
 import Syntax.Position
 
 import Utils.Monads
@@ -182,23 +177,6 @@ parseFile' flags st p file =
     Manipulating the state
  --------------------------------------------------------------------------}
 
-getLexInput :: Parser AlexInput
-getLexInput = getInp <$> get
-    where
-	getInp s = AlexInput
-		    { lexPos	    = parsePos s
-		    , lexInput	    = parseInp s
-		    , lexPrevChar   = parsePrevChar s
-		    }
-
-setLexInput :: AlexInput -> Parser ()
-setLexInput inp = modify upd
-    where
-	upd s = s { parsePos	    = lexPos inp
-		  , parseInp	    = lexInput inp
-		  , parsePrevChar   = lexPrevChar inp
-		  }
-
 setLastPos :: Position -> Parser ()
 setLastPos p = modify $ \s -> s { parseLastPos = p }
 
@@ -270,30 +248,4 @@ pushCurrentContext :: Parser ()
 pushCurrentContext =
     do	p <- getLastPos
 	pushContext (Layout (posCol p))
-
--- | Compute the relative position of a location to the
---   current layout context.
-getOffside :: Position -> Parser Ordering
-getOffside loc =
-    do	ctx <- getContext
-	return $ case ctx of
-	    Layout n : _    -> compare (posCol loc) n
-	    _		    -> GT
-
-{--------------------------------------------------------------------------
-    Lex actions
- --------------------------------------------------------------------------}
-
-type PreviousInput  = AlexInput
-type CurrentInput   = AlexInput
-type TokenLength    = Int
-
--- | In the lexer, regular expressions are associated with lex actions who's
---   task it is to construct the tokens.
-type LexAction r    = PreviousInput -> CurrentInput -> TokenLength -> Parser r
-
--- | Sometimes regular expressions aren't enough. Alex provides a way to do
---   arbitrary computations to see if the input matches. This is done with a
---   lex predicate.
-type LexPredicate   = () -> PreviousInput -> TokenLength -> CurrentInput -> Bool
 

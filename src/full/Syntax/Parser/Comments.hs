@@ -5,6 +5,7 @@ module Syntax.Parser.Comments
 import Syntax.Parser.LexActions
 import Syntax.Parser.Monad
 import Syntax.Parser.Tokens
+import Syntax.Parser.Alex
 
 -- | Nested comments require traversing by hand, since they can't be parsed
 --   using regular expressions.
