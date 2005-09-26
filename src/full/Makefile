@@ -15,8 +15,9 @@ OUT_P	= $(FULL_OUT_DIR)/prof
 
 ## Source files ###########################################################
 
-src_files		= $(shell $(FIND) . -name '.hs' -o -name '.lhs')
-all_hs_files	= $(src_files) $(OUT)/Syntax/Parser.hs $(OUT)/Syntax/Lexer.hs
+src_files		= $(shell $(FIND) . -name '*.hs' -o -name '*.lhs')
+all_hs_files	= $(src_files) $(OUT)/Syntax/Parser/Parser.hs \
+							   $(OUT)/Syntax/Parser/Lexer.hs
 
 ## Phony targets ##########################################################
 
@@ -45,23 +46,34 @@ $(out_dirs) $(out_dirs_p) :
 ifeq ($(HAVE_GHC_6_4),No)
 
 src_hi_boot_files	= $(shell $(FIND) . -name '*.hi-boot')
-hi_boot_files		= $(patsubst ./%,$(OUT)/%,$(src_hi_boot_files))
-hi_boot_files_p		= $(patsubst ./%,$(OUT_P)/%,$(src_hi_boot_files))
+boot_files			= $(patsubst ./%,$(OUT)/%,$(src_hi_boot_files))
+boot_files_p		= $(patsubst ./%,$(OUT_P)/%,$(src_hi_boot_files))
 
-$(OUT)/%.hi-boot : $(hi_boot_files) : %.hi-boot
+$(OUT)/%.hi-boot : $(boot_files) : %.hi-boot
 	cp $< $@
 
-$(OUT_P)/%.hi-boot : $(hi_boot_files_p) : %.hi-boot
+$(OUT_P)/%.hi-boot : $(boot_files_p) : %.hi-boot
 	cp $< $@
+
+else
+
+# hs-boot files have to be in the same place as the corresponding hs file.
+# Thus we have to copy the boot files for the generated files (Lexer and
+# Parser) to the out directiory.
+
+boot_files = $(OUT)/Syntax/Parser/Lexer.hs-boot
+
+$(OUT)/% : %
+	@cp $< $@
 
 endif
 
 ## Compiling agda #########################################################
 
-$(OUT)/agda : $(out_dirs) $(all_hs_files) $(hi_boot_files)
+$(OUT)/agda : $(out_dirs) $(all_hs_files) $(boot_files)
 	$(GHC) --make -o $@ -i$(OUT) -odir $(OUT) -hidir $(OUT) $(GHC_FLAGS) Main.hs
 
-$(OUT_P)/agda : $(out_dirs_p) $(all_hs_files) $(hi_boot_files_p)
+$(OUT_P)/agda : $(out_dirs_p) $(all_hs_files) $(boot_files_p)
 	$(GHC) --make -o $@ -i$(OUT) -odir $(OUT_P) -hidir $(OUT_P) $(GHC_FLAGS) Main.hs -prof -auto-all
 
 ## Rules for happy and alex ###############################################
