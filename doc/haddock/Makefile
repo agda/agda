@@ -80,7 +80,7 @@ endif
 src/% : $(FULL_SRC_DIR)/% src
 	@echo Preprocessing $* for haddock
 	@$(MKDIR) -p $(dir $@)
-	@$(GHC) -E -D__HADDOCK__ -o $@ $<
+	@$(GHC) -E -optP-P -D__HADDOCK__ -o $@ $<
 
 src :
 	$(MKDIR) -p src
