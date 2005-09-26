@@ -15,6 +15,8 @@ module Syntax.Parser.Alex
     )
     where
 
+import Control.Monad.State
+
 import Syntax.Position
 import Syntax.Parser.Monad
 
