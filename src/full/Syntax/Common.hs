@@ -10,3 +10,8 @@ data Hiding = Hidden | NotHidden
 
 type Nat = Int
 
+data Literal = LitInt Range Integer
+	     | LitString Range String
+	     | LitChar Range Char
+	     | LitDouble Range Double
+

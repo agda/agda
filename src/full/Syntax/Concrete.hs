@@ -44,11 +44,6 @@ data RawExpr
 	    | SetN Range Nat			-- ^ . @Set0, Set1, ..@
 	    | Let Range [LocalDefinition] Expr	-- ^ . @let Ds in e@
 
-data Literal = LitInt Range Integer
-	     | LitString Range String
-	     | LitChar Range Char
-	     | LitDouble Range Double
-
 data LamBinding
 	= DomainFree Hiding Name		-- x or {x}
 	| DomainFull TypedBinding		-- (xs:e) or {xs:e}
