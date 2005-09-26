@@ -23,7 +23,7 @@ module Syntax.Parser.Monad
     , topContext, popContext, pushContext
     , pushCurrentContext
       -- ** Errors
-    , parseError
+    , parseError, parseErrorAt
     )
     where
 
@@ -100,7 +100,7 @@ instance Monad Parser where
 				ParseFailed e	-> ParseFailed e
 				ParseOk s' x	-> unP (f x) s'
     fail msg	= P $ \s -> ParseFailed $
-				ParseError  { errPos	    = parsePos s
+				ParseError  { errPos	    = parseLastPos s -- ?
 					    , errInput	    = parseInp s
 					    , errPrevToken  = parsePrevToken s
 					    , errMsg	    = msg
@@ -215,6 +215,15 @@ getParseFlags = parseFlags <$> get
 -- | @parseError = fail@
 parseError :: String -> Parser a
 parseError = fail
+
+-- | Fake a parse error at the specified position. Used, for instance, when
+--   lexing nested comments, which when failing will always fail at the end
+--   of the file. A more informative position is the beginning of the failing
+--   comment.
+parseErrorAt :: Position -> String -> Parser a
+parseErrorAt p msg =
+    do	setLastPos p
+	parseError msg
 
 {--------------------------------------------------------------------------
     Layout

@@ -53,7 +53,7 @@ lexToken =
 	    AlexEOF			-> returnEOF inp
 	    AlexError _			-> parseError "Lexical error"
 	    AlexSkip inp' len		-> skipTo (newInput inp inp' len)
-	    Atoken inp' len action	-> action inp (newInput inp inp' len) len
+	    AlexToken inp' len action	-> action inp (newInput inp inp' len) len
 		
 -- | Use the input string from the previous input (with the appropriate
 --   number of characters dropped) instead of the fake input string that

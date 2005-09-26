@@ -13,6 +13,7 @@ import Data.List
 import Data.Char
 
 import Syntax.Parser.Alex
+import Syntax.Parser.Comments
 import Syntax.Parser.Layout
 import Syntax.Parser.LexActions
 import Syntax.Parser.Monad
@@ -37,8 +38,8 @@ $white_nonl = $white # \n
 tokens :-
 
 <tex>	 ^ \\ "begin{code}" \n	{ begin_ code }
-<tex>	 ^ .* \n		{ withRange $ \_ -> TkTeX }
-<tex>	 ^ .+			{ withRange $ \_ -> TkTeX }
+<tex>	 ^ .* \n		{ withRange $ TkTeX . snd }
+<tex>	 ^ .+			{ withRange $ TkTeX . snd }
 <code>   ^ \\ "end{code}" \n	{ end_ }
 
 <0,code,bol_,layout_,empty_layout_>
@@ -65,9 +66,6 @@ tokens :-
     }
 <empty_layout_> ()		{ emptyLayout }
 
-<0,code> Star \+ $digit+	{ withRange tkStar }
-<0,code> Star			{ withRange tkStar }
-<0,code> ISet			{ withRange_ TkISet }
 <0,code> Set			{ withRange_ TkSet }
 <0,code> Prop			{ withRange_ TkProp }
 <0,code> Type			{ withRange_ TkType }
@@ -82,12 +80,12 @@ tokens :-
 <0,code> infixl			{ withRange_ TkInfixL }
 <0,code> infixr			{ withRange_ TkInfixR }
 <0,code> $idstart $alphanum* \- plugin
-				{ withRange $ \r s -> TkPlugin (r, takeWhile ('-'/=) s) }
-<0,code> $idstart $alphanum*	{ withRange (curry TkId) }
-<0,code> \_ $alphanum+		{ withRange (curry TkId) }
-<0,code> $digit+		{ withRange $ \r s -> TkInt (r,read s) }
+				{ withRange' (takeWhile ('-'/=)) TkPlugin }
+<0,code> $idstart $alphanum*	{ withRange TkId }
+<0,code> \_ $alphanum+		{ withRange TkId }
+<0,code> $digit+		{ withRange' read TkInt }
 <0,code> \_			{ withRange_ TkUnderscore }    
-<0,code> \#$digit+		{ withRange $ \r s -> TkUniverse (r, read (tail s)) }
+<0,code> \#$digit+		{ withRange' (read . tail) TkUniverse }
 <0,code> \(			{ withRange_ TkLParen }
 <0,code> \)			{ withRange_ TkRParen }
 <0,code> \\			{ withRange_ TkLambda }
@@ -103,7 +101,7 @@ tokens :-
 <0,code> \}			{ closeBrace }
 <0,code> \[			{ withRange_ TkOpenSquare }
 <0,code> \]			{ withRange_ TkCloseSquare }
-<0,code> $symstart $symbol*	{ withRange (curry TkOp) }
+<0,code> $symstart $symbol*	{ withRange TkOp }
 <0,code> \"			{ lex_atom }
 
 {
@@ -146,7 +144,7 @@ empty_layout = empty_layout_
 bol :: LexState
 bol = bol_
 
--- | Lex a single token. This is the function Happy is using.
+-- | Return the next token. This is the function used by Happy in the parser.
 --
 --   @lexer k = 'lexToken' >>= k@
 lexer :: (Token -> Parser a) -> Parser a

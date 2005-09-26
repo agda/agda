@@ -84,7 +84,7 @@ withLayout a i1 i2 n =
 -}
 offsideRule :: LexAction Token
 offsideRule inp _ _ =
-    do	offs <- getOffside $ lexPos p
+    do	offs <- getOffside p
 	case offs of
 	    LT	-> do	popContext
 			return (TkVCloseBrace (Range p p))
@@ -92,6 +92,8 @@ offsideRule inp _ _ =
 			return (TkVSemi (Range p p))
 	    GT	-> do	popLexState
 			lexToken
+    where
+	p = lexPos inp
 
 {-| This action is only executed from the 'Syntax.Parser.Lexer.empty_layout'
     state. It will exit this state, enter the 'Syntax.Parser.Lexer.bol' state,
@@ -129,16 +131,17 @@ emptyLayout inp _ _ =
 -}
 newLayoutContext :: LexAction Token
 newLayoutContext inp _ _ =
-    do	let offset = posCol $ lexPos inp
+    do	let offset = posCol p
 	ctx <- topContext
 	case ctx of
-	    Layout prev_off | prev_off >= offset ->
-		do  -- token is indented to the left of the previous context.
-		    -- we must generate a {} sequence now.
-		    pushLexState layout_left
+	    Layout prevOffs | prevOffs >= offset ->
+		do  pushLexState empty_layout
 		    return (TkVOpenBrace (Range p p))
-	    _ -> do pushContext (Layout offset)
+	    _ ->
+		do  pushContext (Layout offset)
 		    return (TkVOpenBrace (Range p p))
+    where
+	p = lexPos inp
 
 
 -- | Compute the relative position of a location to the
