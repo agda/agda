@@ -43,8 +43,11 @@ returnEOF inp =
 skipTo :: AlexInput -> Parser Token
 skipTo inp = setLexInput inp >> lexToken
 
--- | Scan the input to find the next token. Calls 'Syntax.Parser.Lexer.alexScan'.
---   This is the main lexing function.
+{-| Scan the input to find the next token. Calls
+    'Syntax.Parser.Lexer.alexScan'.  This is the main lexing function where all
+    the work happens.  The function 'Syntax.Parser.Lexer.lexer', used by the
+    parser is the continuation version of this function.
+-}
 lexToken :: Parser Token
 lexToken =
     do	inp <- getLexInput
