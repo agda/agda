@@ -15,9 +15,8 @@ OUT_P	= $(FULL_OUT_DIR)/prof
 
 ## Source files ###########################################################
 
-generated_files = Syntax/Parser.hs Syntax/Lexer.hs
-all_hs_files	= $(shell $(FIND) . -name '.hs' -o -name '.lhs')
-src_files		= $(filter-out $(generated_files),$(all_hs_files))
+src_files		= $(shell $(FIND) . -name '.hs' -o -name '.lhs')
+all_hs_files	= $(src_files) $(OUT)/Syntax/Parser.hs $(OUT)/Syntax/Lexer.hs
 
 ## Phony targets ##########################################################
 
@@ -60,23 +59,16 @@ endif
 ## Compiling agda #########################################################
 
 $(OUT)/agda : $(out_dirs) $(all_hs_files) $(hi_boot_files)
-	$(GHC) --make -o $@ -odir $(OUT) -hidir $(OUT) $(GHC_FLAGS) Main.hs
+	$(GHC) --make -o $@ -i$(OUT) -odir $(OUT) -hidir $(OUT) $(GHC_FLAGS) Main.hs
 
 $(OUT_P)/agda : $(out_dirs_p) $(all_hs_files) $(hi_boot_files_p)
-	$(GHC) --make -o $@ -odir $(OUT_P) -hidir $(OUT_P) $(GHC_FLAGS) Main.hs -prof -auto-all
+	$(GHC) --make -o $@ -i$(OUT) -odir $(OUT_P) -hidir $(OUT_P) $(GHC_FLAGS) Main.hs -prof -auto-all
 
 ## Rules for happy and alex ###############################################
 
-%.hs : %.x
-	$(ALEX) $(ALEX_FLAGS) $<
+$(OUT)/%.hs : %.x
+	$(ALEX) $(ALEX_FLAGS) -o $@ $<
 
-%.hs : %.y
-	$(HAPPY) $(HAPPY_FLAGS) --info=$(OUT)/$*.happy.out $<
-
-## Clean ##################################################################
-
-clean :
-	rm -f $(generated_files)
-
-veryclean : clean
+$(OUT)/%.hs : %.y
+	$(HAPPY) $(HAPPY_FLAGS) -o $@ --info=$(OUT)/$*.happy.out $<
 
