@@ -16,8 +16,12 @@ haddockBase		= $(haddockBaseURL),base.haddock
 haddockBaseFile = $(haddockBaseURL)/base.haddock
 
 # Haskell files
+lexer			= Syntax/Parser/Lexer
+parser			= Syntax/Parser/Parser
+gen_hs_files	= $(FULL_OUT_DIR)/$(lexer).hs $(FULL_OUT_DIR)/$(parser).hs
 src_hs_files	= $(shell $(FIND) $(FULL_SRC_DIR) -name '*.hs' -o -name '*.lhs')
-dst_hs_files	= $(patsubst $(FULL_SRC_DIR)/%,src/%,$(src_hs_files))
+dst_hs_files	= $(patsubst $(FULL_SRC_DIR)/%,src/%,$(src_hs_files)) \
+				  $(patsubst $(FULL_OUT_DIR)/%,src/%,$(gen_hs_files))
 
 # The prologue. Contains an introduction to the documentation
 prologue		= prologue
@@ -82,8 +86,19 @@ src/% : $(FULL_SRC_DIR)/% src
 	@$(MKDIR) -p $(dir $@)
 	@$(GHC) -E -optP-P -D__HADDOCK__ -o $@ $<
 
+src/% : $(FULL_OUT_DIR)/% src
+	@echo Preprocessing $* for haddock
+	@$(MKDIR) -p $(dir $@)
+	@$(GHC) -E -optP-P -D__HADDOCK__ -o $@ $<
+
 src :
 	$(MKDIR) -p src
+
+$(FULL_OUT_DIR)/$(parser).hs : $(FULL_SRC_DIR)/$(parser).y
+	@$(MAKE) -C $(FULL_SRC_DIR) $@
+
+$(FULL_OUT_DIR)/$(lexer).hs : $(FULL_SRC_DIR)/$(lexer).x
+	@$(MAKE) -C $(FULL_SRC_DIR) $@
 
 ## Building the haddock documentation #####################################
 
