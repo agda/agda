@@ -26,7 +26,7 @@ module Syntax.Parser.Monad
       -- ** Errors
     , parseError
       -- * Lex actions
-    , LexAction
+    , LexAction, LexPredicate
     , PreviousInput, CurrentInput, TokenLength
     )
     where
@@ -233,7 +233,7 @@ popLexState = do _:ls <- getLexState
 getParseFlags :: Parser ParseFlags
 getParseFlags = parseFlags <$> get
 
--- | @parseError = fail@.
+-- | @parseError = fail@
 parseError :: String -> Parser a
 parseError = fail
 
@@ -288,5 +288,12 @@ type PreviousInput  = AlexInput
 type CurrentInput   = AlexInput
 type TokenLength    = Int
 
+-- | In the lexer, regular expressions are associated with lex actions who's
+--   task it is to construct the tokens.
 type LexAction r    = PreviousInput -> CurrentInput -> TokenLength -> Parser r
+
+-- | Sometimes regular expressions aren't enough. Alex provides a way to do
+--   arbitrary computations to see if the input matches. This is done with a
+--   lex predicate.
+type LexPredicate   = () -> PreviousInput -> TokenLength -> CurrentInput -> Bool
 

@@ -1,7 +1,8 @@
 {
 module Syntax.Parser.Lexer
     ( lexer
-    , normal, layout, literate
+    , normal, literate
+    , layout, bol
     , AlexReturn(..), alexScan
     ) where
 
@@ -55,7 +56,7 @@ tokens :-
 	()		{ beginningOfLine }
     }
 <layout>
-    {	\{ / { notFollowedBy '-' }  { popAnd openBrace }
+    {	\{ / { notFollowedBy '-' }  { endWith openBrace }
 	\n			    ;
 	()			    { newLayoutContext }
     }
@@ -115,6 +116,11 @@ normal = 0
 
 -- | The layout state. Entered when we see a layout keywork. See 'withLayout'.
 layout :: LexState
+
+-- | This state is entered at the beginning of each line. You can't lex
+--   anything in this state, and to exit you have to check the layout rule.
+--   Done with 'beginningOfLine'.
+bol :: LexState
 
 -- | Lex a single token. This is the function Happy is using.
 --
