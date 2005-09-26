@@ -1,19 +1,17 @@
 {-# OPTIONS -cpp #-}
 
+{-| This module contains the building blocks used to construct the lexer.
+-}
 module Syntax.Parser.LexActions
-    ( -- * Scan functions
-      scanToken
+    ( -- * Main function
+      lexToken
       -- * Lex actions
-    , lexToken
+    , token
     , withRange, withRange', withRange_
     , begin, endWith
     , begin_, end_
       -- * Lex predicates
     , notFollowedBy, atEOL
-#ifdef __HADDOCK__
-      -- * Circular dependencies
-    , AlexReturn
-#endif
     ) where
 
 import Data.List (isPrefixOf)
@@ -30,36 +28,32 @@ import Syntax.Position
 import Utils.Pairs
 import Utils.Unicode
 
-#ifdef __HADDOCK__
--- | Recursive import.
-type AlexReturn = Syntax.Parser.Lexer.AlexReturn
-#endif
-
 {--------------------------------------------------------------------------
     Scan functions
  --------------------------------------------------------------------------}
 
 -- | Called at the end of a file. Returns 'TkEOF'.
-scanEOF :: AlexInput -> Parser Token
-scanEOF inp =
+returnEOF :: AlexInput -> Parser Token
+returnEOF inp =
     do  setLastPos $ lexPos inp
 	setPrevToken "<EOF>"
 	return TkEOF
 
--- | Set the current input and lex a new token (calls 'scanToken').
-scanSkip :: AlexInput -> Parser Token
-scanSkip inp = setLexInput inp >> scanToken
+-- | Set the current input and lex a new token (calls 'lexToken').
+skipTo :: AlexInput -> Parser Token
+skipTo inp = setLexInput inp >> lexToken
 
 -- | Scan the input to find the next token. Calls 'Syntax.Parser.Lexer.alexScan'.
-scanToken :: Parser Token
-scanToken =
+--   This is the main lexing function.
+lexToken :: Parser Token
+lexToken =
     do	inp <- getLexInput
 	ls:_ <- getLexState
 	case alexScan (foolAlex inp) ls of
-	    AlexEOF			-> scanEOF inp
+	    AlexEOF			-> returnEOF inp
 	    AlexError _			-> parseError "Lexical error"
-	    AlexSkip inp' len		-> scanSkip (newInput inp inp' len)
-	    AlexToken inp' len action	-> action inp (newInput inp inp' len) len
+	    AlexSkip inp' len		-> skipTo (newInput inp inp' len)
+	    Atoken inp' len action	-> action inp (newInput inp inp' len) len
 		
 -- | Use the input string from the previous input (with the appropriate
 --   number of characters dropped) instead of the fake input string that
@@ -87,8 +81,8 @@ foolAlex inp = inp { lexInput = map fool $ lexInput inp }
  --------------------------------------------------------------------------}
 
 -- | The most general way of lexing a token.
-lexToken :: (String -> Parser tok) -> LexAction tok
-lexToken action inp inp' len =
+token :: (String -> Parser tok) -> LexAction tok
+token action inp inp' len =
     do  setLexInput inp'
 	setPrevToken t
 	setLastPos $ lexPos inp
@@ -98,7 +92,7 @@ lexToken action inp inp' len =
 
 -- | Build a token from a 'Range' and the lexed string.
 withRange :: ((Range,String) -> tok) -> LexAction tok
-withRange f = lexToken $ \s ->
+withRange f = token $ \s ->
 		do  r <- getParseRange
 		    return $ f (r,s)
 
@@ -114,19 +108,19 @@ withRange_ f = withRange (f . fst)
 begin :: LexState -> LexAction Token
 begin code _ _ _ =
     do	pushLexState code
-	scanToken
+	lexToken
 
 -- | Enter a new state throwing away the current lexeme.
 begin_ :: LexState -> LexAction Token
 begin_ code _ inp' _ =
     do	pushLexState code
-	scanSkip inp'
+	skipTo inp'
 
 -- | Exit the current state throwing away the current lexeme.
 end_ :: LexAction Token
 end_ _ inp' _ =
     do	popLexState
-	scanSkip inp'
+	skipTo inp'
 
 -- | Exit the current state and perform the given action.
 endWith :: LexAction a -> LexAction a
@@ -139,14 +133,13 @@ endWith a inp inp' n =
  --------------------------------------------------------------------------}
 
 -- | True when the given character is not the next character of the input string.
---   Used when lexing open braces (should not be followed by @\'-\'@).
 notFollowedBy :: Char -> LexPredicate
 notFollowedBy c' _ _ _ inp =
     case lexInput inp of
 	[]  -> True
 	c:_ -> c /= c'
 
--- | True when we have just lexed a newline.
+-- | True when we are looking at a newline.
 atEOL :: LexPredicate
 atEOL _ _ _ inp = null (lexInput inp) || lexPrevChar inp == '\n'
 

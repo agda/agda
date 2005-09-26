@@ -1,6 +1,8 @@
 {
 module Syntax.Parser.Lexer
-    ( lexer
+    ( -- * The main function
+      lexer
+      -- * Lex states
     , normal, literate
     , layout, empty_layout, bol
       -- * Alex generated functions

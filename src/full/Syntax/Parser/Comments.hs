@@ -14,7 +14,7 @@ nestedComment (p,_,_) i1 n =
 	go 1 i1
     where
 	go 0 input = do	setLexInput input
-			scanToken
+			lexToken
 	go n input =
 	    case alexGetChar input of
 		Nothing		-> err

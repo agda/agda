@@ -61,10 +61,10 @@ data ParseState = PState
     }
     deriving Show
 
--- | To do context sensitive lexing alex provides what is called /start
---   codes/ in the Alex documentation. It is really an integer
---   representing the state of the lexer, so we call it @LexState@ instead
---   of start code.
+{-| To do context sensitive lexing alex provides what is called /start codes/
+    in the Alex documentation. It is really an integer representing the state
+    of the lexer, so we call it @LexState@ instead.
+-}
 type LexState = Int
 
 -- | We need to keep track of the context to do layout. The context
