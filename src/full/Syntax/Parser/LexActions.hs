@@ -6,7 +6,6 @@ module Syntax.Parser.LexActions
       -- * Lex actions
     , lexToken
     , withRange, withRange', withRange_
-    , withLayout
     , begin, endWith
     , begin_, end_
       -- * Lex predicates
@@ -110,12 +109,6 @@ withRange' f t = withRange (t . (id -*- f))
 -- | Build a token without looking at the lexed string.
 withRange_ :: (Range -> r) -> LexAction r
 withRange_ f = withRange (f . fst)
-
--- | Perform action and enter layout mode.
-withLayout :: LexAction r -> LexAction r
-withLayout a i1 i2 n =
-    do	pushLexState layout
-	a i1 i2 n
 
 -- | Enter a new state without consuming any input.
 begin :: LexState -> LexAction Token

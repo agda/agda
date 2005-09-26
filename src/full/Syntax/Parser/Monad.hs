@@ -21,7 +21,7 @@ module Syntax.Parser.Monad
     , getLexState, pushLexState, popLexState
       -- ** Layout
     , topContext, popContext, pushContext
-    , pushCurrentContext, getOffside
+    , pushCurrentContext
       -- ** Errors
     , parseError
     )
@@ -68,7 +68,8 @@ data ParseState = PState
 type LexState = Int
 
 -- | We need to keep track of the context to do layout. The context
---   specifies the indentation of the current (if any) layout block.
+--   specifies the indentation (if any) of a layout block. See
+--   "Syntax.Parser.Layout" for more informaton.
 data LayoutContext  = NoLayout	    -- ^ no layout
 		    | Layout Int    -- ^ layout at specified column
     deriving Show

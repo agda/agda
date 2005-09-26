@@ -13,5 +13,5 @@ data AlexReturn	r
 	| AlexSkip !AlexInput !TokenLength
 	| AlexToken !AlexInput !TokenLength r
 
-layout :: LexState
+bol, layout, empty_layout :: LexState
 

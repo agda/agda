@@ -8,5 +8,4 @@ data AlexReturn	= AlexEOF
 		| AlexSkip !Syntax.Parser.Alex.AlexInput !Syntax.Parser.Monad.Syntax.Parser.Monad.TokenLength
 		| AlexToken !Syntax.Parser.Alex.AlexInput !Syntax.Parser.Monad.TokenLength (Syntax.Parser.Monad.LexAction Syntax.Parser.Tokens.Token)
 
-layout :: Syntax.Parser.Monad.LexState
-
+bol, layout, empty_layout :: Syntax.Parser.Monad.LexState
