@@ -9,3 +9,4 @@
 ^out$
 ^doc/haddock/src$
 ^doc/haddock/(.*\.(gif|html|css|js)|base.haddock)
+^tmp$
