@@ -1,10 +1,13 @@
 {-# OPTIONS -fglasgow-exts #-}
 
-{-| The code to lex string and character literals. Shamelessly stolen
-    from ghc.
+{-| The code to lex string and character literals. Basically the same code
+    as in GHC.
 -}
-module Syntax.Parser.StringLiterals where
+module Syntax.Parser.StringLiterals
+    ( litString, litChar
+    ) where
 
+import Control.Monad.State
 import Data.Char
 
 import Syntax.Parser.Alex
@@ -15,133 +18,242 @@ import Syntax.Position
 import Utils.List ( maybePrefixMatch )
 import Utils.Char ( decDigit, hexDigit, octDigit )
 
-lit_error = parseError "lexical error in string literal"
+{--------------------------------------------------------------------------
+    Exported actions
+ --------------------------------------------------------------------------}
 
-lex_atom :: LexAction Token
-lex_atom = lex_string_tok '"' (curry TkAtom)
+-- | Lex a string literal. Assumes that a double quote has been lexed.
+litString :: LexAction Token
+litString = stringToken '"' (return . TkLitString)
 
-lex_string_tok :: Char -> (Range -> String -> a) -> LexAction a
-lex_string_tok del mkTok i1 i2 n =
-    do	setLexInput i2
-	tok <- lex_string del ""
-	r <- getParseRange
-	return $ mkTok r tok
+{-| Lex a character literal. Assumes that a single quote has been lexed.  A
+    character literal is lexed in exactly the same way as a string literal.
+    Only before returning the token do we check that the lexed string is of
+    length 1. This is maybe not the most efficient way of doing things, but on
+    the other hand it will only be inefficient if there is a lexical error.
+-}
+litChar :: LexAction Token
+litChar = stringToken '\'' $ \(r,s) ->
+	    do	case s of
+		    [c]	-> return $ TkLitChar (r,c)
+		    _	-> runLitM $ litError
+			    "character literal must contain a single character"
 
-lex_string :: Char -> String -> Parser String
-lex_string del s =
-    do	i <- getLexInput
-	case alexGetChar i of
-	    Nothing -> lit_error
 
-	    Just (c,i) | c == del  ->
-		do  setLexInput i
-		    return (reverse s)
+{--------------------------------------------------------------------------
+    The literal monad
+ --------------------------------------------------------------------------}
 
-	    Just ('\\',i)
-		| Just ('&',i) <- next ->
-		    do setLexInput i
-		       lex_string del s
-		| Just (c,i) <- next, isSpace c ->
-		    do setLexInput i
-		       lex_stringgap del s
-		where next = alexGetChar i
+{-| When lexing string literals we need to do some looking ahead. For this
+    purpose we wrap an extra state monad around the parse monad to keep track
+    of the input we're currently looking at.
+-}
+type LitM = StateT AlexInput Parser
 
-	    Just _ ->
-		do c <- lex_char
-		   lex_string del (c:s)
 
-lex_stringgap del s =
-    do	c <- getCharOrFail
+getInput :: LitM AlexInput
+getInput = get
+
+
+setInput :: AlexInput -> LitM ()
+setInput = put
+
+
+-- | Lex a character from the current input. Does not affect the 'ParseState'.
+nextChar :: LitM Char
+nextChar =
+    do	inp <- getInput
+	case alexGetChar inp of
+	    Nothing	    -> eofError
+	    Just (c,inp')   ->
+		do  setInput inp'
+		    return c
+
+
+-- | Save the current input in the 'ParseState'.
+sync :: LitM ()
+sync =
+    do	inp <- getInput
+	lift $ setLexInput inp
+
+
+-- | Undo look-ahead. Restores the input from the 'ParseState'.
+rollback :: LitM ()
+rollback =
+    do	inp <- lift getLexInput
+	setInput inp
+
+
+-- | Lex a character from the current input and 'sync'.
+getNextChar :: LitM Char
+getNextChar =
+    do	c <- nextChar
+	sync
+	return c
+
+
+-- | Run a 'LitM' computation.
+runLitM :: LitM a -> Parser a
+runLitM m =
+    do	inp <- getLexInput
+	evalStateT m inp
+
+{--------------------------------------------------------------------------
+    Errors
+ --------------------------------------------------------------------------}
+
+-- | Custom error function.
+litError :: String -> LitM a
+litError msg =
+    do	sync
+	lift $ lexError $
+	    "Lexical error in string or character literal: " ++ msg
+
+
+-- | End of file error. Thrown by 'nextChar'.
+eofError :: LitM a
+eofError = litError "unexpected end of file."
+
+
+{--------------------------------------------------------------------------
+    The meat
+ --------------------------------------------------------------------------}
+
+-- | The general function to lex a string or character literal token. The
+--   character argument is the delimiter (@\"@ for strings and @\'@ for
+--   characters).
+stringToken :: Char -> ((Range,String) -> Parser tok) -> LexAction tok
+stringToken del mkTok inp inp' n =
+    do	setLexInput inp'
+	tok <- runLitM $ lexString del ""
+	r   <- getParseRange
+	mkTok (r,tok)
+
+
+-- | This is where the work happens. The string argument is an accumulating
+--   parameter for the string being lexed.
+lexString :: Char -> String -> LitM String
+lexString del s =
+
+    do	c <- nextChar
 	case c of
-	    '\\'	    -> lex_string del s
-	    c | isSpace c   -> lex_stringgap del s
-	    _other	    -> lit_error
 
-lex_char :: Parser Char
-lex_char =
-    do	mc <- getCharOrFail
-	case mc of
-	    '\\'    -> lex_escape
-	    c	    -> return c
+	    c | c == del  -> sync >> return (reverse s)
 
-lex_escape :: Parser Char
-lex_escape =
-    do	c <- getCharOrFail
+	    '\\' ->
+		do  c' <- nextChar
+		    case c' of
+			'&'		-> sync >> lexString del s
+			c | isSpace c	-> sync >> lexStringGap del s
+			_		-> normalChar
+
+	    _ -> normalChar
+    where
+	normalChar =
+	    do	rollback
+		c <- lexChar
+		lexString del (c:s)
+
+
+-- | A string gap consists of whitespace (possibly including line breaks)
+--   enclosed in backslashes. The gap is not part of the resulting string.
+lexStringGap :: Char -> String -> LitM String
+lexStringGap del s =
+    do	c <- getNextChar
 	case c of
-	    'a'   -> return '\a'
-	    'b'   -> return '\b'
-	    'f'   -> return '\f'
-	    'n'   -> return '\n'
-	    'r'   -> return '\r'
-	    't'   -> return '\t'
-	    'v'   -> return '\v'
-	    '\\'  -> return '\\'
-	    '"'   -> return '\"'
-	    '\''  -> return '\''
-	    '^'   -> do c <- getCharOrFail
-			if c >= '@' && c <= '_'
+	    '\\'	    -> lexString del s
+	    c | isSpace c   -> lexStringGap del s
+	    _		    -> litError "non-space in string gap."
+
+-- | Lex a single character.
+lexChar :: LitM Char
+lexChar =
+    do	c <- getNextChar
+	case c of
+	    '\\'    -> lexEscape
+	    _	    -> return c
+
+-- | Lex an escaped character. Assumes the backslash has been lexed.
+lexEscape :: LitM Char
+lexEscape =
+    do	c <- getNextChar
+	case c of
+	    'a'	    -> return '\a'
+	    'b'	    -> return '\b'
+	    'f'	    -> return '\f'
+	    'n'	    -> return '\n'
+	    'r'	    -> return '\r'
+	    't'	    -> return '\t'
+	    'v'	    -> return '\v'
+	    '\\'    -> return '\\'
+	    '"'	    -> return '\"'
+	    '\''    -> return '\''
+	    '^'	    -> do c <- getNextChar
+			  if c >= '@' && c <= '_'
 			    then return (chr (ord c - ord '@'))
-			    else lit_error
+			    else litError "invalid control character."
 
-	    'x'   -> readNum isHexDigit 16 hexDigit
-	    'o'   -> readNum isOctDigit  8 octDecDigit
-	    x | isDigit x -> readNum2 isDigit 10 octDecDigit (octDecDigit x)
+	    'x'	    -> readNum isHexDigit 16 hexDigit
+	    'o'	    -> readNum isOctDigit  8 octDigit
+	    x | isDigit x
+		    -> readNumAcc isDigit 10 decDigit (decDigit x)
 
 	    c1 ->
-		do  i <- getLexInput
-		    case alexGetChar i of
-			Nothing		-> lit_error
-			Just (c2,i2)	-> 
-			    case alexGetChar i2 of
-				Nothing		-> lit_error
-				Just (c3,i3)	-> 
-				   let str = [c1,c2,c3] in
-				   case [ (c,rest) | (p,c) <- silly_escape_chars,
-						     Just rest <- [maybePrefixMatch p str] ] of
-					  (escape_char,[]):_ -> do
-						setLexInput i3
-						return escape_char
-					  (escape_char,_:_):_ -> do
-						setLexInput i2
-						return escape_char
-					  [] -> lit_error
+		do  c2	<- nextChar
+		    inp <- getInput -- we might not need c3 so let's save
+				    -- this input
+		    c3	<- nextChar
+		    let -- The escape codes are at most 3 characters long
+			str	    = [c1,c2,c3]
+			-- Match str against the escape codes. Return the
+			-- corresponding character together with any left
+			-- over characters in str.
+			matchEscape =
+			    [ (c,rest)
+			    | (esc,c)   <- sillyEscapeChars
+			    , Just rest <- [maybePrefixMatch esc str]
+			    ]
+		    case matchEscape of
 
-maybePrefixMatch :: String -> String -> Maybe String
-maybePrefixMatch []    rest = Just rest
-maybePrefixMatch (_:_) []   = Nothing
-maybePrefixMatch (p:pat) (r:rest)
-  | p == r    = maybePrefixMatch pat rest
-  | otherwise = Nothing
+			-- We found a code of length 3 (nothing left of str)
+			(esc,[]):_  -> sync >> return esc
 
-hexDigit :: Char -> Int
-hexDigit c | isDigit c = ord c - ord '0'
-           | otherwise  = ord (toLower c) - ord 'a' + 10
+			-- We found a code of length 2, so we have to unlex
+			-- the last character (restore the input saved above)
+			(esc,_:_):_ ->
+			    do	setInput inp
+				sync
+				return esc
 
-octDecDigit :: Char -> Int
-octDecDigit c = ord c - ord '0'
+			-- No matching code
+			[]	    -> litError "bad escape code."
 
-readNum :: (Char -> Bool) -> Int -> (Char -> Int) -> Parser Char
-readNum is_digit base conv =
-    do	c <- getCharOrFail
-	if is_digit c 
-	    then readNum2 is_digit base conv (conv c)
-	    else lit_error
 
-readNum2 is_digit base conv i =
-    do	input <- getLexInput
-	read i input
+-- | Read a number in the specified base.
+readNum :: (Char -> Bool) -> Int -> (Char -> Int) -> LitM Char
+readNum isDigit base conv =
+    do	c <- getNextChar
+	if isDigit c 
+	    then readNumAcc isDigit base conv (conv c)
+	    else litError "non-digit in numeral."
+
+-- | Same as 'readNum' but with an accumulating parameter.
+readNumAcc :: (Char -> Bool) -> Int -> (Char -> Int) -> Int -> LitM Char
+readNumAcc isDigit base conv i = scan i
     where
-	read i input =
-	    case alexGetChar input of
-		Just (c,input') | is_digit c ->
-		    read (i*base + conv c) input'
-		_other ->
-		    do	setLexInput input
-			if i >= 0 && i <= 0x10FFFF
-			    then return (chr i)
-			    else lit_error
+	scan i =
+	    do	c <- nextChar
+		case c of
+		    c | isDigit c -> scan (i*base + conv c)
+		    _		  ->
+			do  sync
+			    if i >= ord minBound && i <= ord maxBound
+				then return (chr i)
+				else litError "character literal out of bounds."
 
-silly_escape_chars = [
+-- | The escape codes.
+sillyEscapeChars :: [(String, Char)]
+sillyEscapeChars = [
 	("NUL", '\NUL'),
 	("SOH", '\SOH'),
 	("STX", '\STX'),
@@ -177,12 +289,4 @@ silly_escape_chars = [
 	("SP", '\SP'),
 	("DEL", '\DEL')
 	]
-
-getCharOrFail :: Parser Char
-getCharOrFail =
-    do	i <- getLexInput
-	case alexGetChar i of
-	    Nothing	-> parseError "unexpected end-of-file in string literal"
-	    Just (c,i)	-> do setLexInput i
-			      return c
 

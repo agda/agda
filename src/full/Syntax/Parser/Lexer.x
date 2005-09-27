@@ -102,7 +102,8 @@ tokens :-
 <0,code> \[			{ withRange_ TkOpenSquare }
 <0,code> \]			{ withRange_ TkCloseSquare }
 <0,code> $symstart $symbol*	{ withRange TkOp }
-<0,code> \"			{ lex_atom }
+<0,code> \"			{ litString }
+<0,code> \'			{ litChar }
 
 {
 
