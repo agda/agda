@@ -24,6 +24,7 @@ module Syntax.Parser.Monad
     , pushCurrentContext
       -- ** Errors
     , parseError, parseErrorAt
+    , lexError
     )
     where
 
@@ -100,7 +101,7 @@ instance Monad Parser where
 				ParseFailed e	-> ParseFailed e
 				ParseOk s' x	-> unP (f x) s'
     fail msg	= P $ \s -> ParseFailed $
-				ParseError  { errPos	    = parseLastPos s -- ?
+				ParseError  { errPos	    = parseLastPos s
 					    , errInput	    = parseInp s
 					    , errPrevToken  = parsePrevToken s
 					    , errMsg	    = msg
@@ -126,7 +127,7 @@ instance Show ParseError where
 	    pos = show (errPos err)
 
 	    showInp ""  = "at end of file"
-	    showInp t   = "on input '" ++ elide 10 t ++ "'"
+	    showInp t   = "on input " ++ elide 5 t
 
 	    elide 3 s
 		| length (take 4 s) < 4 = s
@@ -226,6 +227,16 @@ parseErrorAt :: Position -> String -> Parser a
 parseErrorAt p msg =
     do	setLastPos p
 	parseError msg
+
+
+-- | For lexical errors we want to report the current position as the site of
+--   the error, whereas for parse errors the previous position is the one
+--   we're interested in (since this will be the position of the token we just
+--   lexed). This function does 'parseErrorAt' the current position.
+lexError :: String -> Parser a
+lexError msg =
+    do	p <- parsePos <$> get
+	parseErrorAt p msg
 
 {--------------------------------------------------------------------------
     Layout
