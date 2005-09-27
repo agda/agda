@@ -151,7 +151,7 @@ initState file flags inp st =
 		, parsePrevChar	    = '\n'
 		, parsePrevToken    = ""
 		, parseLexState	    = [st]
-		, parseLayout	    = []
+		, parseLayout	    = [NoLayout]
 		, parseFlags	    = flags
 		}
     where
@@ -250,14 +250,20 @@ setContext ctx =
     do	s <- get
 	put $ s { parseLayout = ctx }
 
--- | The context stack is never empty, so this function always succeeds.
+-- | Return the current layout context.
 topContext :: Parser LayoutContext
-topContext = head . parseLayout <$> get
+topContext =
+    do	ctx <- getContext
+	case ctx of
+	    []  -> parseError "No layout context in scope"
+	    l:_ -> return l
 
 popContext :: Parser ()
 popContext =
-    do	_:ctx <- getContext
-	setContext ctx
+    do	ctx <- getContext
+	case ctx of
+	    []	    -> parseError "There is no layout block to close at this point."
+	    _:ctx   -> setContext ctx
 
 pushContext :: LayoutContext -> Parser ()
 pushContext l =
