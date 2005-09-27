@@ -7,7 +7,7 @@
 
     > f x = x'
     >   where
-    >     x' = case x of { True -> ...
+    >     x' = case x of { True -> False; False -> ...
 
     At the @...@ the layout context would be
 
@@ -37,6 +37,7 @@ import Syntax.Parser.Tokens
 import Syntax.Parser.LexActions
 import Syntax.Position
 
+
 -- | Executed upon lexing an open brace (@\'{\'@). Enters the 'NoLayout'
 --   context.
 openBrace :: LexAction Token
@@ -44,6 +45,7 @@ openBrace = token $ \_ ->
     do	pushContext NoLayout
 	r <- getParseRange
 	return (TkOpenBrace r)
+
 
 {-| Executed upon lexing a close brace (@\'}\'@). Exits the current layout
     context. This might look a bit funny--the lexer will happily use a close
@@ -56,6 +58,7 @@ closeBrace = token $ \_ ->
 	r <- getParseRange
 	return (TkCloseBrace r)
 
+
 {-| Executed for layout keywords. Enters the 'Syntax.Parser.Lexer.layout'
     state and performs the given action.
 -}
@@ -63,6 +66,7 @@ withLayout :: LexAction r -> LexAction r
 withLayout a i1 i2 n =
     do	pushLexState layout
 	a i1 i2 n
+
 
 {-| Executed for the first token in each line (see 'Syntax.Parser.Lexer.bol').
     Checks the position of the token relative to the current layout context.
@@ -95,6 +99,7 @@ offsideRule inp _ _ =
     where
 	p = lexPos inp
 
+
 {-| This action is only executed from the 'Syntax.Parser.Lexer.empty_layout'
     state. It will exit this state, enter the 'Syntax.Parser.Lexer.bol' state,
     and return a virtual close brace (closing the empty layout block started
@@ -107,6 +112,7 @@ emptyLayout inp _ _ =
 	return (TkVCloseBrace (Range p p))
     where
 	p = lexPos inp
+
 
 {-| Start a new layout context. This is one of two ways to get out of the
     'Syntax.Parser.Lexer.layout' state (the other is 'openBrace'). There are

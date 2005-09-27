@@ -212,9 +212,11 @@ popLexState = do _:ls <- getLexState
 getParseFlags :: Parser ParseFlags
 getParseFlags = parseFlags <$> get
 
+
 -- | @parseError = fail@
 parseError :: String -> Parser a
 parseError = fail
+
 
 -- | Fake a parse error at the specified position. Used, for instance, when
 --   lexing nested comments, which when failing will always fail at the end
