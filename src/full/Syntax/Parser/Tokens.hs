@@ -19,7 +19,9 @@ data Token  = TkLambda Range	| TkArrow Range  | TkId (Range, String)
 	    | TkLet Range	| TkIn Range	    | TkPlugin (Range,String)
 	    | TkSig Range	| TkStruct Range    | TkOf Range
             | TkUnderscore Range| TkOp (Range, String)
-	    | TkTeX String	| TkAtom (Range,String)
+	    | TkTeX String
+	    | TkLitString (Range,String)
+	    | TkLitChar (Range, Char)
 	    | TkEOF
     deriving Show
 

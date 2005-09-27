@@ -160,7 +160,7 @@ initState file flags inp st =
 defaultParseFlags :: ParseFlags
 defaultParseFlags = ()
 
--- | The most general way of parsing a string. The "Parser" will define
+-- | The most general way of parsing a string. The "Syntax.Parser" will define
 --   more specialised functions that supply the 'ParseFlags' and the
 --   'LexState'.
 parse' :: ParseFlags -> LexState -> Parser a -> String -> ParseResult a
