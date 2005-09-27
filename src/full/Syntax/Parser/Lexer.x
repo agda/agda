@@ -49,10 +49,8 @@ tokens :-
     "{-"	    { nestedComment }
 
 -- Dashes followed by an operator symbol should be parsed as an operator.
-<0,code,bol_,layout_,empty_layout_>
-    "--"\-* [^$notdash] .*  ;
-<0,code,bol_,layout_,empty_layout_>
-    "--"\-* / { atEOL }	    ;
+<0,code,bol_,layout_,empty_layout_>   "--"\-* [^$symbol] .* ;
+<0,code,bol_,layout_,empty_layout_>   "--"\-* $		    ;
 <0,code> \n	{ begin bol_ }
 <bol_>
     {

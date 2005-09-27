@@ -142,7 +142,3 @@ notFollowedBy c' _ _ _ inp =
 	[]  -> True
 	c:_ -> c /= c'
 
--- | True when we are looking at a newline.
-atEOL :: LexPredicate
-atEOL _ _ _ inp = null (lexInput inp) || lexPrevChar inp == '\n'
-
