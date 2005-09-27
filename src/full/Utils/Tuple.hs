@@ -1,5 +1,5 @@
 
-module Utils.Pairs where
+module Utils.Tuple where
 
 infix 2 -*-
 (-*-) :: (a -> c) -> (b -> d) -> (a,b) -> (c,d)

@@ -20,7 +20,7 @@ import Control.Monad.State
 import Syntax.Position
 import Syntax.Parser.Monad
 
-import Utils.Monads
+import Utils.Monad
 
 -- | This is what the lexer manipulates.
 data AlexInput = AlexInput

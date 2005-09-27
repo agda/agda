@@ -25,7 +25,7 @@ import Syntax.Parser.Monad
 import Syntax.Parser.Tokens
 import Syntax.Position
 
-import Utils.Pairs
+import Utils.Tuple
 import Utils.Unicode
 
 {--------------------------------------------------------------------------

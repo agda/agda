@@ -34,7 +34,7 @@ import Control.Monad.Error
 
 import Syntax.Position
 
-import Utils.Monads
+import Utils.Monad
 import Utils.Unicode
 
 {--------------------------------------------------------------------------

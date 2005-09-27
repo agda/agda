@@ -11,7 +11,7 @@ module Utils.Unicode
 import Data.Bits
 import Data.List
 
-import Utils.Monads
+import Utils.Monad
 
 -- Unicode ----------------------------------------------------------------
 

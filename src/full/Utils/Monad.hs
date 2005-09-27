@@ -1,5 +1,5 @@
 
-module Utils.Monads where
+module Utils.Monad where
 
 import Control.Monad
 

@@ -12,7 +12,8 @@ import Syntax.Parser.Monad
 import Syntax.Parser.Tokens
 import Syntax.Position
 
--- Strings and atoms
+import Utils.List ( maybePrefixMatch )
+import Utils.Char ( decDigit, hexDigit, octDigit )
 
 lit_error = parseError "lexical error in string literal"
 
