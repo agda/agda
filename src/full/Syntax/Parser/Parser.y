@@ -62,6 +62,8 @@ import Utils.Monad
 
     id		{ TokId $$ }
     op		{ TokOp $$ }
+    qid		{ TokQId $$ }
+    qop		{ TokQOp $$ }
 
     int		{ TokLitInt $$ }
     float	{ TokLitFloat $$ }
@@ -112,6 +114,8 @@ Token
 
     | id	    { TokId $1 }
     | op	    { TokOp $1 }
+    | qid	    { TokQId $1 }
+    | qop	    { TokQOp $1 }
 
     | int	    { TokLitInt $1 }
     | float	    { TokLitFloat $1 }
@@ -123,7 +127,6 @@ Tokens	: Token Tokens	{ $1 : $2 }
 
 topen :			{% pushCurrentContext }
 
-{
 
 -- Parsing
 

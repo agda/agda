@@ -6,6 +6,9 @@ import Syntax.Position
 
 data Hiding = Hidden | NotHidden
 
+data Name = Name Range String
+    deriving (Eq, Show)
+
 type Nat = Int
 
 data Literal = LitInt Range Integer

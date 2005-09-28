@@ -28,7 +28,7 @@ import Syntax.Parser.Alex
 import Syntax.Parser.Monad
 import Syntax.Parser.Tokens
 import Syntax.Position
-import Syntax.Concrete (Name(..))
+import Syntax.Concrete (QName(..), Name(..))
 
 import Utils.List
 import Utils.Tuple
@@ -166,20 +166,20 @@ symbol s = withRange_ (TokSymbol s)
 -- | Parse an identifier. Identifiers can be qualified (see 'Name').
 --   Example: @Foo.Bar.f@
 identifier :: LexAction Token
-identifier = qualified TokId
+identifier = qualified (either TokId TokQId)
 
 -- | Parse an operator. Operators can be qualified (see 'Name').
 --   Example: @Nat.Operations.+@
 operator :: LexAction Token
-operator = qualified TokOp
+operator = qualified (either TokOp TokQOp)
 
 -- | Parse a possibly qualified name.
-qualified :: (Name -> a) -> LexAction a
+qualified :: (Either Name QName -> a) -> LexAction a
 qualified tok =
     withRange $ \ (r,s) ->
 	case wordsBy (=='.') s of
-	    [x]	-> tok $ Unqual r x
-	    xs	-> tok $ Qual r (init xs) (last xs)
+	    [x]	-> tok $ Left $ Name r x
+	    xs	-> tok $ Right $ QName (init xs) $ Name r (last xs)
 
 {--------------------------------------------------------------------------
     Predicates

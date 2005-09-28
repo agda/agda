@@ -14,7 +14,7 @@ module Syntax.Concrete
     , LocalDefinitions
     , TypeSignature
     , Constructor
-    , Name(..)
+    , Name(..), QName(..)
     , Branch(..)
     , LamBinding(..)
     , TypedBinding(..)
@@ -96,13 +96,12 @@ unRawTypeSig = TypeSignature
 
 -- | A name can be qualified by a name space. Name spaces are hierarchical
 --   so we use a list of strings to represent them.
-data Name = Qual Range [String] String
-	  | Unqual Range String
+data QName = QName [String] Name
     deriving (Eq, Show)
 
 -- | The raw view. Should represent exactly what the user wrote.
 data RawExpr
-	    = Name Name				    -- ^ . @x@
+	    = Ident QName			    -- ^ . @x@
 	    | Lit Literal			    -- ^ . @1@ or @\"foo\"@
 	    | QuestionMark Range		    -- ^ . @?@ or @{! ... !}@
 	    | Underscore Range			    -- ^ . @_@
