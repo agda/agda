@@ -13,30 +13,31 @@ import Syntax.Parser.LexActions
 import Syntax.Parser.Monad
 import Syntax.Parser.Tokens
 import Syntax.Parser.Alex
+import Syntax.Parser.LookAhead
 
 -- | Manually lexing a block comment. Assumes an /open comment/ has been lexed.
 --   In the end the comment is discarded and 'lexToken' is called to lex a real
 --   token.
 nestedComment :: LexAction Token
-nestedComment inp inp' n =
-	go 1 inp'
+nestedComment inp inp' _ =
+    do	setLexInput inp'
+	runLookAhead err (scan 1)
+	lexToken
     where
-	go 0 inp = do setLexInput inp
-		      lexToken
-	go n inp =
-	    case alexGetChar inp of
-		Nothing		-> err
-		Just (c,inp)	->
-		    case c of
-			'-' -> case alexGetChar inp of
-				Nothing		-> err
-				Just ('}',inp') -> go (n-1) inp'
-				Just (c, _)	-> go n inp
-			'{' -> case alexGetChar inp of
-				Nothing		-> err
-				Just ('-',inp') -> go (n+1) inp'
-				Just (c,inp)	-> go n inp
-			c -> go n inp
+	scan 0 = sync
+	scan n =
+	    do	c1  <- nextChar
+		inp <- getInput
+		case c1 of
+		    '-'	-> do c2 <- nextChar
+			      case c2 of
+				'}' -> scan (n - 1)
+				_   -> setInput inp >> scan n
+		    '{'	-> do c2 <- nextChar
+			      case c2 of
+				'-' -> scan (n + 1)
+				_   -> setInput inp >> scan n
+		    _	-> scan n
 
-        err = parseErrorAt (lexPos inp) "Unterminated `{-'"
+        err _ = liftP $ parseErrorAt (lexPos inp) "Unterminated '{-'"
 
