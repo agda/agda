@@ -1,0 +1,7 @@
+
+To build Agda II run
+
+  > make
+  > ./configure
+  > make
+

@@ -5,26 +5,45 @@
 
 TOP = .
 
+is_configured = $(shell if test -f mk/config.mk; \
+						then echo Yes; \
+						else echo No; \
+						fi \
+				 )
+
+ifeq ($(is_configured),Yes)
 include mk/config.mk
+endif
 include mk/paths.mk
+
 
 ## Phony targets ##########################################################
 
-.PHONY : default all clean install full core debug doc dist
+.PHONY : default all clean install full core debug doc dist make_configure
 
 ## Default target #########################################################
 
+ifeq ($(is_configured),Yes)
 default : full
+else
+default : make_configure
+endif
 
 ## Making the make system #################################################
 
 m4_macros	= $(wildcard $(MACRO_DIR)/*.m4)
 
-configure : aclocal.m4 configure.ac
+make_configure : configure
+	@echo "Run './configure' to set up the build system."
+
+configure : aclocal.m4 $(m4_macros) configure.ac
 	autoconf
 
-aclocal.m4 : $(m4_macros)
-	aclocal -I $(MACRO_DIR)
+##
+## The following targets are only available after running configure #######
+##
+
+ifeq ($(is_configured),Yes)
 
 ## Making the documentation ###############################################
 
@@ -43,12 +62,8 @@ core :
 
 ## Making the source distribution #########################################
 
-ifeq ($(HAVE_DARCS),Yes)
-ifeq ($(shell if test -d _darcs; then echo darcs; fi),darcs)
+ifeq ($(HAVE_DARCS)-$(shell if test -d _darcs; then echo darcs; fi),Yes-darcs)
   is_darcs_repo = Yes
-else
-  is_darcs_repo = No
-endif
 else
   is_darcs_repo = No
 endif
@@ -81,6 +96,21 @@ veryclean :
 
 ## Debugging the Makefile #################################################
 
-debug :
+info :
 	@echo "Do we have ghc 6.4?            $(HAVE_GHC_6_4)"
 	@echo "Is this the darcs repository?  $(is_darcs_repo)"
+
+else	# is_configured
+
+info :
+	@echo "You haven't run configure."
+
+clean :
+	rm -rf $(OUT_DIR)
+
+veryclean :
+	rm -rf $(OUT_DIR)
+	rm -rf configure config.log config.status autom4te.cache mk/config.mk
+
+endif	# is_configured
+
