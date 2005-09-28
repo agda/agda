@@ -14,6 +14,7 @@ module Syntax.Concrete
     , LocalDefinitions
     , TypeSignature
     , Constructor
+    , Name(..)
     , Branch(..)
     , LamBinding(..)
     , TypedBinding(..)
@@ -92,6 +93,12 @@ rawTypeSig (TypeSignature ds) = ds
 -- | Unfold the raw view of type signature.
 unRawTypeSig :: RawTypeSignature -> TypeSignature
 unRawTypeSig = TypeSignature
+
+-- | A name can be qualified by a name space. Name spaces are hierarchical
+--   so we use a list of strings to represent them.
+data Name = Qual Range [String] String
+	  | Unqual Range String
+    deriving (Eq, Show)
 
 -- | The raw view. Should represent exactly what the user wrote.
 data RawExpr
