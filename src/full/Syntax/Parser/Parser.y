@@ -62,8 +62,8 @@ import Utils.Monad
 
     id		{ TokId $$ }
     op		{ TokOp $$ }
-    qid		{ TokQId $$ }
-    qop		{ TokQOp $$ }
+    q_id	{ TokQId $$ }
+    q_op	{ TokQOp $$ }
 
     int		{ TokLitInt $$ }
     float	{ TokLitFloat $$ }
@@ -72,7 +72,19 @@ import Utils.Monad
 
 %%
 
--- Parsing the token stream. Used by the TeX compiler.
+{--------------------------------------------------------------------------
+    Parsing the token stream. Used by the TeX compiler.
+ --------------------------------------------------------------------------}
+
+-- Parse a list of tokens.
+Tokens : TokensR	{ reverse $1 }
+
+-- Happy is much better at parsing left recursive grammars (constant
+-- stack size vs. linear stack size for right recursive).
+TokensR	: TokensR Token	{ $2 : $1 }
+	|		{ [] }
+
+-- Parse single token.
 Token
     : 'let'	    { TokKeyword KwLet $1 }
     | 'in'	    { TokKeyword KwIn $1 }
@@ -114,25 +126,81 @@ Token
 
     | id	    { TokId $1 }
     | op	    { TokOp $1 }
-    | qid	    { TokQId $1 }
-    | qop	    { TokQOp $1 }
+    | q_id	    { TokQId $1 }
+    | q_op	    { TokQOp $1 }
 
     | int	    { TokLitInt $1 }
     | float	    { TokLitFloat $1 }
     | char	    { TokLitChar $1 }
     | string	    { TokLitString $1 }
 
-Tokens	: Token Tokens	{ $1 : $2 }
-	|		{ [] }
+{--------------------------------------------------------------------------
+    Meta rules
+ --------------------------------------------------------------------------}
 
-topen :			{% pushCurrentContext }
+-- The first token in a file decides the indentation of the top
+-- level layout block.
+topen :	{- empty -}	{% pushCurrentContext }
 
 
--- Parsing
+{-  A layout block might have to be closed by a parse error. Example:
+	let x = e in e'
+    Here the 'let' starts a layout block which should end before the 'in'.  The
+    problem is that the lexer doesn't know this, so there is no virtual close
+    brace. However when the parser sees the 'in' there will be a parse error.
+    This is our cue to close the layout block.
+-}
+close : vclose	{ () }
+      | error	{% popContext }
+
+
+-- You can use concrete semi colons in a layout block started with a virtual
+-- brace, so we don't have to distinguish between the two semi colons. You can't
+-- use a virtual semi colon in a block started by a concrete brace, but this is
+-- simply because the lexer will not generate virtual semis in this case.
+semi : ';'	{ $1 }
+     | vsemi	{ $1 }
+
+
+{--------------------------------------------------------------------------
+    Helper rules
+ --------------------------------------------------------------------------}
+
+-- Unqualifed identifiers. This is something that could appear in a binding
+-- position.
+Id  : id	    { $1 }
+    | '(' op ')'    { $2 }
+
+-- Qualified operators are treated as identifiers, i.e. they have to be back
+-- quoted to appear infix.
+QId : q_id	    { $1 }
+    | q_op	    { $1 }
+    | Id	    { QName [] $1 }
+
+-- Infix operator. All names except unqualified operators have to be back
+-- quoted.
+Op  : op	    { QName [] $1 }
+    | '`' id '`'    { QName [] $2 }
+    | '`' q_id '`'  { $2 }
+    | '`' q_op '`'  { $2 }
+
+-- An unqualified name (identifier or operator). This is what you write in
+-- import lists.
+Name : id   { $1 }
+     | op   { $1 }
+
+{-
+import Ring, using (sum, +, *), renaming (product to foo)
+namespace NatRing = Ring Nat (+) 0, hiding (sum)
+open NatRing, renaming (product to prod', * to times)
+-}
+
+{
 
 -- | Parse the token stream. Used by the TeX compiler.
 tokensParser	:: Parser [Token]
 
+-- | Required by Happy.
 happyError :: Parser a
 happyError = parseError "Parse error"
 
