@@ -19,6 +19,7 @@ module Syntax.Concrete
     , LamBinding(..)
     , TypedBinding(..)
     , Telescope
+    , ImportDirective(..)
     , LHS, RHS, WhereClause
       -- * The raw view
       -- ** Expressions
@@ -133,6 +134,13 @@ data TypedBinding
 --   in later types.
 type Telescope = [TypedBinding]
 
+-- | The things you are allowed to say when you shuffle names between name
+--   spaces (i.e. in @import@, @namespace@, or @open@ declarations).
+data ImportDirective
+	= Hiding [Name]
+	| Using  [Name]
+	| Renaming [(Name, Name)]   -- ^ Contains @(oldName,newName)@ pairs.
+
 -- | To be able to parse infix definitions properly left hand sides are parsed
 --   as expressions. For instance, @x::xs ++ ys = x :: (xs ++ ys)@ should be a
 --   valid definition of @++@ provided @::@ has higher precedence than @++@.
@@ -174,14 +182,23 @@ type RawDefinition	= RawDefinitionI MaybeTypeSig TopLevel
     The intended targets of the constructors are in the comments.
 -}
 data RawDefinitionI typesig local
-	= TypeSig Name Expr				-- ^ . @RawDefinitionI typesig local@
-	| FunClause LHS RHS WhereClause			-- ^ . @RawDefinitionI 'MaybeTypeSig' local@
-	| Data Range Name Telescope Expr [Constructor]	-- ^ . @RawDefinitionI 'MaybeTypeSig' local@
-	| Mutual Range Definitions			-- ^ . @RawDefinitionI 'MaybeTypeSig' local@
-	| Abstract Range Definitions			-- ^ . @RawDefinitionI 'MaybeTypeSig' local@
-	| Private Range Definitions			-- ^ . @RawDefinitionI 'MaybeTypeSig' 'TopLevel'@
-	| Postulate Range [TypeSignature]		-- ^ . @RawDefinitionI 'MaybeTypeSig' 'TopLevel'@
-	| Module Range Name Telescope Definitions	-- ^ . @RawDefinitionI 'MaybeTypeSig' 'TopLevel'@
+	= TypeSig Name Expr		    -- ^ . @RawDefinitionI typesig local@
+	| FunClause LHS RHS
+	    WhereClause			    -- ^ . @RawDefinitionI 'MaybeTypeSig' local@
+	| Data Range Name Telescope
+	    Expr [Constructor]		    -- ^ . @RawDefinitionI 'MaybeTypeSig' local@
+	| Mutual Range Definitions	    -- ^ . @RawDefinitionI 'MaybeTypeSig' local@
+	| Abstract Range Definitions	    -- ^ . @RawDefinitionI 'MaybeTypeSig' local@
+	| Open Range QName
+	    [ImportDirective]		    -- ^ . @RawDefinitionI 'MaybeTypeSig' local@
+	| NameSpace Range QName Expr
+	    [ImportDirective]		    -- ^ . @RawDefinitionI 'MaybeTypeSig' local@
+	| Import Range QName
+	    [ImportDirective]		    -- ^ . @RawDefinitionI 'MaybeTypeSig' 'TopLevel'@
+	| Private Range Definitions	    -- ^ . @RawDefinitionI 'MaybeTypeSig' 'TopLevel'@
+	| Postulate Range [TypeSignature]   -- ^ . @RawDefinitionI 'MaybeTypeSig' 'TopLevel'@
+	| Module Range Name Telescope
+	    Definitions			    -- ^ . @RawDefinitionI 'MaybeTypeSig' 'TopLevel'@
 
 #else
 -}
@@ -193,6 +210,12 @@ data RawDefinitionI typesig local where
 						-> RawDefinitionI MaybeTypeSig local
 	Mutual	    :: Range -> Definitions	-> RawDefinitionI MaybeTypeSig local
 	Abstract    :: Range -> Definitions	-> RawDefinitionI MaybeTypeSig local
+	Open	    :: Range -> QName -> [ImportDirective]
+						-> RawDefinitionI MaybeTypeSig local
+	NameSpace   :: Range -> QName -> Expr -> [ImportDirective]
+						-> RawDefinitionI MaybeTypeSig local
+	Import	    :: Range -> QName -> [ImportDirective]
+						-> RawDefinitionI MaybeTypeSig TopLevel
 	Private	    :: Range -> Definitions	-> RawDefinitionI MaybeTypeSig TopLevel
 	Postulate   :: Range -> [TypeSignature] -> RawDefinitionI MaybeTypeSig TopLevel
 	Module	    :: Range -> Name -> Telescope -> Definitions
