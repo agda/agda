@@ -46,6 +46,10 @@ $white_nonl = $white # \n
 @ident	    = $idstart $alphanum*
 @operator   = $symstart $symbol*
 
+@namespace  = (@ident \.)*
+@q_ident    = @namespace @ident
+@q_operator = @namespace @operator
+
 tokens :-
 
 -- Lexing literate files
@@ -121,8 +125,8 @@ tokens :-
 <0,code> "}"		{ closeBrace }
 
 -- Identifiers and operators
-<0,code> @ident		{ identifier }
-<0,code> @operator	{ operator }
+<0,code> @q_ident	{ identifier }
+<0,code> @q_operator	{ operator }
 
 -- Literals
 <0,code> \'		{ litChar }
