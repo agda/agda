@@ -144,36 +144,6 @@ lexEscape =
 				    (fail "bad escape code")
 		    sync
 		    return esc
-{-
-		do  c2	<- nextChar
-		    inp <- getInput -- we might not need c3 so let's save
-				    -- this input
-		    c3	<- nextChar
-		    let -- The escape codes are at most 3 characters long
-			str	    = [c1,c2,c3]
-			-- Match str against the escape codes. Return the
-			-- corresponding character together with any left
-			-- over characters in str.
-			matchEscape =
-			    [ (c,rest)
-			    | (esc,c)   <- sillyEscapeChars
-			    , Just rest <- [maybePrefixMatch esc str]
-			    ]
-		    case matchEscape of
-
-			-- We found a code of length 3 (nothing left of str)
-			(esc,[]):_  -> sync >> return esc
-
-			-- We found a code of length 2, so we have to unlex
-			-- the last character (restore the input saved above)
-			(esc,_:_):_ ->
-			    do	setInput inp
-				sync
-				return esc
-
-			-- No matching code
-			[]	    -> fail "bad escape code"
--}
 
 -- | Read a number in the specified base.
 readNum :: (Char -> Bool) -> Int -> (Char -> Int) -> LookAhead Char
