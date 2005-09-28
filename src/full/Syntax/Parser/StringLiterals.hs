@@ -16,8 +16,9 @@ import Syntax.Parser.Tokens
 import Syntax.Parser.LookAhead
 import Syntax.Position
 
-import Utils.List ( maybePrefixMatch )
-import Utils.Char ( decDigit, hexDigit, octDigit )
+import Utils.List   ( maybePrefixMatch )
+import Utils.Char   ( decDigit, hexDigit, octDigit )
+import Utils.Tuple  ( (-*-) )
 
 {--------------------------------------------------------------------------
     Exported actions
@@ -136,7 +137,14 @@ lexEscape =
 	    x | isDigit x
 		    -> readNumAcc isDigit 10 decDigit (decDigit x)
 
-	    c1 ->
+	    c ->
+		-- Try to match the input (starting with c) against the
+		-- silly escape codes.
+		do  esc <- match' c (map (id -*- return) sillyEscapeChars)
+				    (fail "bad escape code")
+		    sync
+		    return esc
+{-
 		do  c2	<- nextChar
 		    inp <- getInput -- we might not need c3 so let's save
 				    -- this input
@@ -165,7 +173,7 @@ lexEscape =
 
 			-- No matching code
 			[]	    -> fail "bad escape code"
-
+-}
 
 -- | Read a number in the specified base.
 readNum :: (Char -> Bool) -> Int -> (Char -> Int) -> LookAhead Char
@@ -191,40 +199,40 @@ readNumAcc isDigit base conv i = scan i
 
 -- | The escape codes.
 sillyEscapeChars :: [(String, Char)]
-sillyEscapeChars = [
-	("NUL", '\NUL'),
-	("SOH", '\SOH'),
-	("STX", '\STX'),
-	("ETX", '\ETX'),
-	("EOT", '\EOT'),
-	("ENQ", '\ENQ'),
-	("ACK", '\ACK'),
-	("BEL", '\BEL'),
-	("BS", '\BS'),
-	("HT", '\HT'),
-	("LF", '\LF'),
-	("VT", '\VT'),
-	("FF", '\FF'),
-	("CR", '\CR'),
-	("SO", '\SO'),
-	("SI", '\SI'),
-	("DLE", '\DLE'),
-	("DC1", '\DC1'),
-	("DC2", '\DC2'),
-	("DC3", '\DC3'),
-	("DC4", '\DC4'),
-	("NAK", '\NAK'),
-	("SYN", '\SYN'),
-	("ETB", '\ETB'),
-	("CAN", '\CAN'),
-	("EM", '\EM'),
-	("SUB", '\SUB'),
-	("ESC", '\ESC'),
-	("FS", '\FS'),
-	("GS", '\GS'),
-	("RS", '\RS'),
-	("US", '\US'),
-	("SP", '\SP'),
-	("DEL", '\DEL')
-	]
+sillyEscapeChars =
+    [ ("NUL", '\NUL')
+    , ("SOH", '\SOH')
+    , ("STX", '\STX')
+    , ("ETX", '\ETX')
+    , ("EOT", '\EOT')
+    , ("ENQ", '\ENQ')
+    , ("ACK", '\ACK')
+    , ("BEL", '\BEL')
+    , ("BS", '\BS')
+    , ("HT", '\HT')
+    , ("LF", '\LF')
+    , ("VT", '\VT')
+    , ("FF", '\FF')
+    , ("CR", '\CR')
+    , ("SO", '\SO')
+    , ("SI", '\SI')
+    , ("DLE", '\DLE')
+    , ("DC1", '\DC1')
+    , ("DC2", '\DC2')
+    , ("DC3", '\DC3')
+    , ("DC4", '\DC4')
+    , ("NAK", '\NAK')
+    , ("SYN", '\SYN')
+    , ("ETB", '\ETB')
+    , ("CAN", '\CAN')
+    , ("EM", '\EM')
+    , ("SUB", '\SUB')
+    , ("ESC", '\ESC')
+    , ("FS", '\FS')
+    , ("GS", '\GS')
+    , ("RS", '\RS')
+    , ("US", '\US')
+    , ("SP", '\SP')
+    , ("DEL", '\DEL')
+    ]
 

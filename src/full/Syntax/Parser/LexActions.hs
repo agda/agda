@@ -168,10 +168,12 @@ symbol s = withRange_ (TokSymbol s)
 identifier :: LexAction Token
 identifier = qualified (either TokId TokQId)
 
+
 -- | Parse an operator. Operators can be qualified (see 'Name').
 --   Example: @Nat.Operations.+@
 operator :: LexAction Token
 operator = qualified (either TokOp TokQOp)
+
 
 -- | Parse a possibly qualified name.
 qualified :: (Either Name QName -> a) -> LexAction a
@@ -180,6 +182,7 @@ qualified tok =
 	case wordsBy (=='.') s of
 	    [x]	-> tok $ Left $ Name r x
 	    xs	-> tok $ Right $ QName (init xs) $ Name r (last xs)
+
 
 {--------------------------------------------------------------------------
     Predicates
