@@ -11,7 +11,7 @@ module Syntax.Parser.LexActions
     , begin, endWith
     , begin_, end_
       -- * Lex predicates
-    , notFollowedBy, atEOL
+    , notFollowedBy
     ) where
 
 import Data.List (isPrefixOf)
