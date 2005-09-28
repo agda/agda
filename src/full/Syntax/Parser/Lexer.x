@@ -121,8 +121,8 @@ tokens :-
 <0,code> \}		{ closeBrace }
 
 -- Identifiers and operators
-<0,code> @ident		{ withRange TokId }
-<0,code> @operator	{ withRange TokOp }
+<0,code> @ident		{ identifier }
+<0,code> @operator	{ operator }
 
 -- Literals
 <0,code> \'		{ litChar }

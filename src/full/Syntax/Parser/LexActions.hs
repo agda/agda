@@ -6,12 +6,14 @@ module Syntax.Parser.LexActions
     ( -- * Main function
       lexToken
       -- * Lex actions
+      -- ** General actions
     , token
     , withRange, withRange', withRange_
     , withLayout
-    , keyword, symbol
     , begin, endWith
     , begin_, end_
+      -- ** Specialized actions
+    , keyword, symbol, identifier, operator
       -- * Lex predicates
     , notFollowedBy
     ) where
@@ -26,7 +28,9 @@ import Syntax.Parser.Alex
 import Syntax.Parser.Monad
 import Syntax.Parser.Tokens
 import Syntax.Position
+import Syntax.Concrete (Name(..))
 
+import Utils.List
 import Utils.Tuple
 import Utils.Unicode
 
@@ -85,7 +89,7 @@ foolAlex inp = inp { lexInput = map fool $ lexInput inp }
     Lex actions
  --------------------------------------------------------------------------}
 
--- | The most general way of lexing a token.
+-- | The most general way of parsing a token.
 token :: (String -> Parser tok) -> LexAction tok
 token action inp inp' len =
     do  setLexInput inp'
@@ -95,7 +99,7 @@ token action inp inp' len =
     where
 	t = take len $ lexInput inp
 
--- | Build a token from a 'Range' and the lexed string.
+-- | Parse a token from a 'Range' and the lexed string.
 withRange :: ((Range,String) -> tok) -> LexAction tok
 withRange f = token $ \s ->
 		do  r <- getParseRange
@@ -105,7 +109,7 @@ withRange f = token $ \s ->
 withRange' :: (String -> a) -> ((Range,a) -> tok) -> LexAction tok
 withRange' f t = withRange (t . (id -*- f))
 
--- | Build a token without looking at the lexed string.
+-- | Return a token without looking at the lexed string.
 withRange_ :: (Range -> r) -> LexAction r
 withRange_ f = withRange (f . fst)
 
@@ -118,23 +122,12 @@ withLayout a i1 i2 n =
 	a i1 i2 n
 
 
--- | Build a keyword token, triggers layout for 'layoutKeywords'.
-keyword :: Keyword -> LexAction Token
-keyword k = layout $ withRange_ (TokKeyword k)
-    where
-	layout | elem k layoutKeywords	= withLayout
-	       | otherwise		= id
-
-
--- | Build a symbol token.
-symbol :: Symbol -> LexAction Token
-symbol s = withRange_ (TokSymbol s)
-
 -- | Enter a new state without consuming any input.
 begin :: LexState -> LexAction Token
 begin code _ _ _ =
     do	pushLexState code
 	lexToken
+
 
 -- | Enter a new state throwing away the current lexeme.
 begin_ :: LexState -> LexAction Token
@@ -142,17 +135,51 @@ begin_ code _ inp' _ =
     do	pushLexState code
 	skipTo inp'
 
+
 -- | Exit the current state throwing away the current lexeme.
 end_ :: LexAction Token
 end_ _ inp' _ =
     do	popLexState
 	skipTo inp'
 
+
 -- | Exit the current state and perform the given action.
 endWith :: LexAction a -> LexAction a
 endWith a inp inp' n =
     do	popLexState
 	a inp inp' n
+
+
+-- | Parse a 'Keyword' token, triggers layout for 'layoutKeywords'.
+keyword :: Keyword -> LexAction Token
+keyword k = layout $ withRange_ (TokKeyword k)
+    where
+	layout | elem k layoutKeywords	= withLayout
+	       | otherwise		= id
+
+
+-- | Parse a 'Symbol' token.
+symbol :: Symbol -> LexAction Token
+symbol s = withRange_ (TokSymbol s)
+
+
+-- | Parse an identifier. Identifiers can be qualified (see 'Name').
+--   Example: @Foo.Bar.f@
+identifier :: LexAction Token
+identifier = qualified TokId
+
+-- | Parse an operator. Operators can be qualified (see 'Name').
+--   Example: @Nat.Operations.+@
+operator :: LexAction Token
+operator = qualified TokOp
+
+-- | Parse a possibly qualified name.
+qualified :: (Name -> a) -> LexAction a
+qualified tok =
+    withRange $ \ (r,s) ->
+	case wordsBy (=='.') s of
+	    [x]	-> tok $ Unqual r x
+	    xs	-> tok $ Qual r (init xs) (last xs)
 
 {--------------------------------------------------------------------------
     Predicates

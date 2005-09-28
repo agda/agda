@@ -6,6 +6,7 @@ module Syntax.Parser.Tokens
     , Symbol(..)
     ) where
 
+import Syntax.Concrete (Name(..))
 import Syntax.Position
 
 data Keyword
@@ -33,8 +34,8 @@ data Token
 	  -- Keywords
 	= TokKeyword Keyword Range
 	  -- Identifiers and operators
-	| TokId		(Range, String)
-	| TokOp		(Range, String)
+	| TokId		Name
+	| TokOp		Name
 	  -- Literals
 	| TokLitString	(Range, String)
 	| TokLitChar	(Range, Char)
