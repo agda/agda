@@ -8,6 +8,8 @@ module Syntax.Parser.LexActions
       -- * Lex actions
     , token
     , withRange, withRange', withRange_
+    , withLayout
+    , keyword, symbol
     , begin, endWith
     , begin_, end_
       -- * Lex predicates
@@ -32,12 +34,12 @@ import Utils.Unicode
     Scan functions
  --------------------------------------------------------------------------}
 
--- | Called at the end of a file. Returns 'TkEOF'.
+-- | Called at the end of a file. Returns 'TokEOF'.
 returnEOF :: AlexInput -> Parser Token
 returnEOF inp =
     do  setLastPos $ lexPos inp
 	setPrevToken "<EOF>"
-	return TkEOF
+	return TokEOF
 
 -- | Set the current input and lex a new token (calls 'lexToken').
 skipTo :: AlexInput -> Parser Token
@@ -106,6 +108,27 @@ withRange' f t = withRange (t . (id -*- f))
 -- | Build a token without looking at the lexed string.
 withRange_ :: (Range -> r) -> LexAction r
 withRange_ f = withRange (f . fst)
+
+
+-- | Executed for layout keywords. Enters the 'Syntax.Parser.Lexer.layout'
+--   state and performs the given action.
+withLayout :: LexAction r -> LexAction r
+withLayout a i1 i2 n =
+    do	pushLexState layout
+	a i1 i2 n
+
+
+-- | Build a keyword token, triggers layout for 'layoutKeywords'.
+keyword :: Keyword -> LexAction Token
+keyword k = layout $ withRange_ (TokKeyword k)
+    where
+	layout | elem k layoutKeywords	= withLayout
+	       | otherwise		= id
+
+
+-- | Build a symbol token.
+symbol :: Symbol -> LexAction Token
+symbol s = withRange_ (TokSymbol s)
 
 -- | Enter a new state without consuming any input.
 begin :: LexState -> LexAction Token

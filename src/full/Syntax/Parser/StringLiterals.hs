@@ -24,7 +24,7 @@ import Utils.Char ( decDigit, hexDigit, octDigit )
 
 -- | Lex a string literal. Assumes that a double quote has been lexed.
 litString :: LexAction Token
-litString = stringToken '"' (return . TkLitString)
+litString = stringToken '"' (return . TokLitString)
 
 {-| Lex a character literal. Assumes that a single quote has been lexed.  A
     character literal is lexed in exactly the same way as a string literal.
@@ -35,7 +35,7 @@ litString = stringToken '"' (return . TkLitString)
 litChar :: LexAction Token
 litChar = stringToken '\'' $ \(r,s) ->
 	    do	case s of
-		    [c]	-> return $ TkLitChar (r,c)
+		    [c]	-> return $ TokLitChar (r,c)
 		    _	-> runLitM $ litError
 			    "character literal must contain a single character"
 

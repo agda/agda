@@ -44,7 +44,7 @@ openBrace :: LexAction Token
 openBrace = token $ \_ ->
     do	pushContext NoLayout
 	r <- getParseRange
-	return (TkOpenBrace r)
+	return (TokSymbol SymOpenBrace r)
 
 
 {-| Executed upon lexing a close brace (@\'}\'@). Exits the current layout
@@ -56,16 +56,7 @@ closeBrace :: LexAction Token
 closeBrace = token $ \_ ->
     do	popContext
 	r <- getParseRange
-	return (TkCloseBrace r)
-
-
-{-| Executed for layout keywords. Enters the 'Syntax.Parser.Lexer.layout'
-    state and performs the given action.
--}
-withLayout :: LexAction r -> LexAction r
-withLayout a i1 i2 n =
-    do	pushLexState layout
-	a i1 i2 n
+	return (TokSymbol SymCloseBrace r)
 
 
 {-| Executed for the first token in each line (see 'Syntax.Parser.Lexer.bol').
@@ -91,9 +82,9 @@ offsideRule inp _ _ =
     do	offs <- getOffside p
 	case offs of
 	    LT	-> do	popContext
-			return (TkVCloseBrace (Range p p))
+			return (TokSymbol SymCloseVirtualBrace (Range p p))
 	    EQ	-> do	popLexState
-			return (TkVSemi (Range p p))
+			return (TokSymbol SymVirtualSemi (Range p p))
 	    GT	-> do	popLexState
 			lexToken
     where
@@ -109,7 +100,7 @@ emptyLayout :: LexAction Token
 emptyLayout inp _ _ =
     do	popLexState
 	pushLexState bol
-	return (TkVCloseBrace (Range p p))
+	return (TokSymbol SymCloseVirtualBrace (Range p p))
     where
 	p = lexPos inp
 
@@ -142,10 +133,10 @@ newLayoutContext inp _ _ =
 	case ctx of
 	    Layout prevOffs | prevOffs >= offset ->
 		do  pushLexState empty_layout
-		    return (TkVOpenBrace (Range p p))
+		    return (TokSymbol SymOpenVirtualBrace (Range p p))
 	    _ ->
 		do  pushContext (Layout offset)
-		    return (TkVOpenBrace (Range p p))
+		    return (TokSymbol SymOpenVirtualBrace (Range p p))
     where
 	p = lexPos inp
 

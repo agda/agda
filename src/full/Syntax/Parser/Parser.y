@@ -18,100 +18,106 @@ import Utils.Monad
 %name tokensParser Tokens
 %tokentype { Token }
 %monad { Parser }
-%lexer { lexer } { TkEOF }
+%lexer { lexer } { TokEOF }
 -- %expect 3
 
 %token
-    '('	    { TkLParen $$ }
-    ')'	    { TkRParen $$ }
-    '\\'    { TkLambda $$ }
-    '->'    { TkArrow $$ }
-    '_'     { TkUnderscore $$ }
-    id	    { TkId $$ }
-    int	    { TkInt $$ }
-    string  { TkLitString $$ }
-    char    { TkLitChar $$ }
-    ':'	    { TkColon $$ }
-    univ    { TkUniverse $$ }
-    let	    { TkLet $$ }
-    in	    { TkIn $$ }
-    of	    { TkOf $$ }
-    data    { TkData $$ }
-    where   { TkWhere $$ }
-    Star    { TkStar $$ }
-    Set	    { TkSet $$ }
-    ISet    { TkISet $$ }
-    Prop    { TkProp $$ }
-    Type    { TkType $$ }
-    infix   { TkInfix $$ }
-    infixl  { TkInfixL $$ }
-    infixr  { TkInfixR $$ }
-    plugin  { TkPlugin $$ }
-    sig	    { TkSig $$ }
-    struct  { TkStruct $$ }
-    '{'	    { TkOpenBrace $$ }
-    '}'	    { TkCloseBrace $$ }
-    '['	    { TkOpenSquare $$ }
-    ']'	    { TkCloseSquare $$ }
-    vopen   { TkVOpenBrace $$ }
-    vclose  { TkVCloseBrace $$ }
-    '='	    { TkEqual $$ }
-    ';'	    { TkSemi $$ }
-    vsemi   { TkVSemi $$ }
-    ','	    { TkComma $$ }
-    '`'	    { TkBackQuote $$ }
-    '.'	    { TkDot $$ }
-    '?'	    { TkOp ($$,"?") }
-    op	    { TkOp $$ }
-    TeX	    { TkTeX $$ }
+    let		{ TokKeyword KwLet $$ }
+    in		{ TokKeyword KwIn $$ }
+    where	{ TokKeyword KwWhere $$ }
+    postulate	{ TokKeyword KwPostulate $$ }
+    open	{ TokKeyword KwOpen $$ }
+    module	{ TokKeyword KwModule $$ }
+    data	{ TokKeyword KwData $$ }
+    infix	{ TokKeyword KwInfix $$ }
+    infixl	{ TokKeyword KwInfixL $$ }
+    infixr	{ TokKeyword KwInfixR $$ }
+    mutual	{ TokKeyword KwMutual $$ }
+    abstract	{ TokKeyword KwAbstract $$ }
+    private	{ TokKeyword KwPrivate $$ }
+    Prop	{ TokKeyword KwProp $$ }
+    Set		{ TokKeyword KwSet $$ }
+
+    SetN	{ TokSetN $$ }
+    tex		{ TokTeX $$ }
+
+    '.'		{ TokSymbol SymDot $$ }
+    ','		{ TokSymbol SymComma $$ }
+    ';'		{ TokSymbol SymSemi $$ }
+    '`'		{ TokSymbol SymBackQuote $$ }
+    ':'		{ TokSymbol SymColon $$ }
+    '='		{ TokSymbol SymEqual $$ }
+    '_'		{ TokSymbol SymUnderscore $$ }
+    '?'		{ TokSymbol SymQuestionMark $$ }
+    '->'	{ TokSymbol SymArrow $$ }
+    '('		{ TokSymbol SymOpenParen $$ }
+    ')'		{ TokSymbol SymCloseParen $$ }
+    '['		{ TokSymbol SymOpenBracket $$ }
+    ']'		{ TokSymbol SymCloseBracket $$ }
+    '{'		{ TokSymbol SymOpenBrace $$ }
+    '}'		{ TokSymbol SymCloseBrace $$ }
+    vopen	{ TokSymbol SymOpenVirtualBrace $$ }
+    vclose	{ TokSymbol SymCloseVirtualBrace $$ }
+    vsemi	{ TokSymbol SymVirtualSemi $$ }
+
+    id		{ TokId $$ }
+    op		{ TokOp $$ }
+
+    int		{ TokLitInt $$ }
+    float	{ TokLitFloat $$ }
+    char	{ TokLitChar $$ }
+    string	{ TokLitString $$ }
 
 %%
 
 -- Tokens
 
 Token
-    : '('	{ TkLParen $1 }
-    | ')'	{ TkRParen $1 }
-    | '\\'	{ TkLambda $1 }
-    | '->'	{ TkArrow $1 }
-    | '_'	{ TkUnderscore $1 }
-    | id	{ TkId $1 }
-    | string	{ TkLitString $1 }
-    | char	{ TkLitChar $1 }
-    | int	{ TkInt $1 }
-    | ':'	{ TkColon $1 }
-    | univ	{ TkUniverse $1 }
-    | let	{ TkLet $1 }
-    | in	{ TkIn $1 }
-    | of	{ TkOf $1 }
-    | data	{ TkData $1 }
-    | where	{ TkWhere $1 }
-    | Star	{ TkStar $1 }
-    | Set	{ TkSet $1 }
-    | ISet	{ TkISet $1 }
-    | Prop	{ TkProp $1 }
-    | Type	{ TkType $1 }
-    | infix	{ TkInfix $1 }
-    | infixl	{ TkInfixL $1 }
-    | infixr	{ TkInfixR $1 }
-    | plugin	{ TkPlugin $1 }
-    | sig	{ TkSig $1 }
-    | struct	{ TkStruct $1 }
-    | '{'	{ TkOpenBrace $1 }
-    | '}'	{ TkCloseBrace $1 }
-    | '['	{ TkOpenSquare $1 }
-    | ']'	{ TkCloseSquare $1 }
-    | vopen	{ TkVOpenBrace $1 }
-    | vclose	{ TkVCloseBrace $1 }
-    | '='	{ TkEqual $1 }
-    | ';'	{ TkSemi $1 }
-    | vsemi	{ TkVSemi $1 }
-    | ','	{ TkComma $1 }
-    | '`'	{ TkBackQuote $1 }
-    | '.'	{ TkDot $1 }
-    | '?'	{ TkOp ($1,"?") }
-    | op	{ TkOp $1 }
-    | TeX	{ TkTeX $1 }
+    : let	{ TokKeyword KwLet $1 }
+    | in	{ TokKeyword KwIn $1 }
+    | where	{ TokKeyword KwWhere $1 }
+    | postulate { TokKeyword KwPostulate $1 }
+    | open	{ TokKeyword KwOpen $1 }
+    | module	{ TokKeyword KwModule $1 }
+    | data	{ TokKeyword KwData $1 }
+    | infix	{ TokKeyword KwInfix $1 }
+    | infixl	{ TokKeyword KwInfixL $1 }
+    | infixr	{ TokKeyword KwInfixR $1 }
+    | mutual	{ TokKeyword KwMutual $1 }
+    | abstract	{ TokKeyword KwAbstract $1 }
+    | private	{ TokKeyword KwPrivate $1 }
+    | Prop	{ TokKeyword KwProp $1 }
+    | Set	{ TokKeyword KwSet $1 }
+
+    | SetN	{ TokSetN $1 }
+    | tex	{ TokTeX $1 }
+
+    | '.'	{ TokSymbol SymDot $1 }
+    | ','	{ TokSymbol SymComma $1 }
+    | ';'	{ TokSymbol SymSemi $1 }
+    | '`'	{ TokSymbol SymBackQuote $1 }
+    | ':'	{ TokSymbol SymColon $1 }
+    | '='	{ TokSymbol SymEqual $1 }
+    | '_'	{ TokSymbol SymUnderscore $1 }
+    | '?'	{ TokSymbol SymQuestionMark $1 }
+    | '->'	{ TokSymbol SymArrow $1 }
+    | '('	{ TokSymbol SymOpenParen $1 }
+    | ')'	{ TokSymbol SymCloseParen $1 }
+    | '['	{ TokSymbol SymOpenBracket $1 }
+    | ']'	{ TokSymbol SymCloseBracket $1 }
+    | '{'	{ TokSymbol SymOpenBrace $1 }
+    | '}'	{ TokSymbol SymCloseBrace $1 }
+    | vopen	{ TokSymbol SymOpenVirtualBrace $1 }
+    | vclose	{ TokSymbol SymCloseVirtualBrace $1 }
+    | vsemi	{ TokSymbol SymVirtualSemi $1 }
+
+    | id	{ TokId $1 }
+    | op	{ TokOp $1 }
+
+    | int	{ TokLitInt $1 }
+    | float	{ TokLitFloat $1 }
+    | char	{ TokLitChar $1 }
+    | string	{ TokLitString $1 }
 
 Tokens	: Token Tokens	{ $1 : $2 }
 	|		{ [] }
