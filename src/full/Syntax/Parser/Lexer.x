@@ -104,21 +104,21 @@ tokens :-
 <0,code> Set @number	{ withRange' (read . drop 3) TokSetN }
 
 -- Special symbols
-<0,code> \.		{ symbol SymDot }
-<0,code> \,		{ symbol SymComma }
-<0,code> \;		{ symbol SymSemi }
-<0,code> \`		{ symbol SymBackQuote }
-<0,code> \:		{ symbol SymColon }
-<0,code> \=		{ symbol SymEqual }
-<0,code> \_		{ symbol SymUnderscore }
-<0,code> \?		{ symbol SymQuestionMark }
-<0,code> \(		{ symbol SymOpenParen }
-<0,code> \)		{ symbol SymCloseParen }
-<0,code> \[		{ symbol SymOpenBracket }
-<0,code> \]		{ symbol SymCloseBracket }
-<0,code> \-\>		{ symbol SymArrow }
-<0,code> \{		{ openBrace }
-<0,code> \}		{ closeBrace }
+<0,code> "."		{ symbol SymDot }
+<0,code> ","		{ symbol SymComma }
+<0,code> ";"		{ symbol SymSemi }
+<0,code> "`"		{ symbol SymBackQuote }
+<0,code> ":"		{ symbol SymColon }
+<0,code> "="		{ symbol SymEqual }
+<0,code> "_"		{ symbol SymUnderscore }
+<0,code> "?"		{ symbol SymQuestionMark }
+<0,code> "("		{ symbol SymOpenParen }
+<0,code> ")"		{ symbol SymCloseParen }
+<0,code> "["		{ symbol SymOpenBracket }
+<0,code> "]"		{ symbol SymCloseBracket }
+<0,code> "->"		{ symbol SymArrow }
+<0,code> "{"		{ openBrace }
+<0,code> "}"		{ closeBrace }
 
 -- Identifiers and operators
 <0,code> @ident		{ identifier }
