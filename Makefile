@@ -77,7 +77,7 @@ clean :
 veryclean :
 	$(MAKE) -C $(HADDOCK_DIR) veryclean
 	rm -rf $(OUT_DIR)
-	rm -rf configure config.log config.status aclocal.m4 autom4te.cache
+	rm -rf configure config.log config.status autom4te.cache mk/config.mk
 
 ## Debugging the Makefile #################################################
 
