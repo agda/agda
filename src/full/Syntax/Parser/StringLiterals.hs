@@ -117,16 +117,6 @@ lexEscape :: LookAhead Char
 lexEscape =
     do	c <- eatNextChar
 	case c of
-	    'a'	    -> return '\a'
-	    'b'	    -> return '\b'
-	    'f'	    -> return '\f'
-	    'n'	    -> return '\n'
-	    'r'	    -> return '\r'
-	    't'	    -> return '\t'
-	    'v'	    -> return '\v'
-	    '\\'    -> return '\\'
-	    '"'	    -> return '\"'
-	    '\''    -> return '\''
 	    '^'	    -> do c <- eatNextChar
 			  if c >= '@' && c <= '_'
 			    then return (chr (ord c - ord '@'))
@@ -170,7 +160,17 @@ readNumAcc isDigit base conv i = scan i
 -- | The escape codes.
 sillyEscapeChars :: [(String, Char)]
 sillyEscapeChars =
-    [ ("NUL", '\NUL')
+    [ ("a", '\a')
+    , ("b", '\b')
+    , ("f", '\f')
+    , ("n", '\n')
+    , ("r", '\r')
+    , ("t", '\t')
+    , ("v", '\v')
+    , ("\\", '\\')
+    , ("\"", '\"')
+    , ("'", '\'')
+    , ("NUL", '\NUL')
     , ("SOH", '\SOH')
     , ("STX", '\STX')
     , ("ETX", '\ETX')
