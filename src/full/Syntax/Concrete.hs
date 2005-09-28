@@ -107,7 +107,7 @@ data RawExpr
 	    | QuestionMark Range		    -- ^ . @?@ or @{! ... !}@
 	    | Underscore Range			    -- ^ . @_@
 	    | App Hiding Expr Expr		    -- ^ . @e e@ or @e {e}@
-	    | InfixApp Expr Name Expr		    -- ^ . @e + e@ (no hiding)
+	    | InfixApp Expr QName Expr		    -- ^ . @e + e@ (no hiding)
 	    | Lam Range [LamBinding] Expr	    -- ^ . @\L -> e@
 	    | Fun Hiding Expr Expr		    -- ^ . @e -> e@ or @{e} -> e@
 	    | Pi TypedBinding Expr		    -- ^ . @(xs:e) -> e@ or @{xs:e} -> e@
@@ -115,6 +115,7 @@ data RawExpr
 	    | SetN Range Nat			    -- ^ . @Set0, Set1, ..@
 	    | Let Range LocalDefinitions Expr	    -- ^ . @let Ds in e@
 	    | Elim Range Expr (Maybe Expr) [Branch] -- ^ . @by e with P of bs@
+	    | Paren Range Expr			    -- ^ . @(e)@
 
 -- | A (fancy) case branch is on the form @p1 .. pn -> e@ where @pi@ are arbitrary
 --   expressions.
