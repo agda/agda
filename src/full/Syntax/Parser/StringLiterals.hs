@@ -148,11 +148,13 @@ readNumAcc :: (Char -> Bool) -> Int -> (Char -> Int) -> Int -> LookAhead Char
 readNumAcc isDigit base conv i = scan i
     where
 	scan i =
-	    do	c <- nextChar
+	    do	inp <- getInput
+		c   <- nextChar
 		case c of
 		    c | isDigit c -> scan (i*base + conv c)
 		    _		  ->
-			do  sync
+			do  setInput inp
+			    sync
 			    if i >= ord minBound && i <= ord maxBound
 				then return (chr i)
 				else fail "character literal out of bounds"
