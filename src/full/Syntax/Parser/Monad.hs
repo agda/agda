@@ -12,8 +12,8 @@ module Syntax.Parser.Monad
       -- * Running the parser
     , initState
     , defaultParseFlags
-    , parse'
-    , parseFile'
+    , parse
+    , parseFile
       -- * Manipulating the state
     , setLastPos, getParseRange
     , setPrevToken
@@ -164,14 +164,14 @@ defaultParseFlags = ()
 -- | The most general way of parsing a string. The "Syntax.Parser" will define
 --   more specialised functions that supply the 'ParseFlags' and the
 --   'LexState'.
-parse' :: ParseFlags -> LexState -> Parser a -> String -> ParseResult a
-parse' flags st p input = unP p (initState "" flags input st)
+parse :: ParseFlags -> LexState -> Parser a -> String -> ParseResult a
+parse flags st p input = unP p (initState "" flags input st)
 
--- | The most general way of parsing a file. The "Parser" will define
+-- | The most general way of parsing a file. The "Syntax.Parser" will define
 --   more specialised functions that supply the 'ParseFlags' and the
 --   'LexState'.
-parseFile' :: ParseFlags -> LexState -> Parser a -> FilePath -> IO (ParseResult a)
-parseFile' flags st p file =
+parseFile :: ParseFlags -> LexState -> Parser a -> FilePath -> IO (ParseResult a)
+parseFile flags st p file =
     do	input <- liftIO $ readFileUTF8 file
 	return $ unP p (initState file flags input st)
 
