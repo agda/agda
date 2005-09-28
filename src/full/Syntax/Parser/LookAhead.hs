@@ -13,6 +13,7 @@ module Syntax.Parser.LookAhead
     , getInput, setInput, liftP
     , nextChar, eatNextChar
     , sync, rollback
+    , match, match'
     )
     where
 
@@ -101,6 +102,32 @@ eatNextChar =
 	sync
 	return c
 
+
+{-| Do a case on the current input string. If any of the given strings match we
+    move past it at execute the corresponding action. If no string matches, we
+    execute the default action, advancing the input one character. This
+    function only affects the look-ahead position.
+-}
+match :: [(String, LookAhead a)] -> LookAhead a -> LookAhead a
+match xs def =
+    do	c <- nextChar
+	match' c xs def
+
+{-| Same as 'match' but starts with the given character. Consequently in the
+    default case the input is not advanced.
+-}
+match' :: Char -> [(String, LookAhead a)] -> LookAhead a -> LookAhead a
+match' c xs def =
+    do	inp <- getInput
+	match'' inp xs c
+    where
+	match'' inp bs c =
+	    case bs' of
+		[]	    -> setInput inp >> def
+		[("",p)]    -> p
+		_	    -> match'' inp bs' =<< nextChar
+	    where
+		bs' = [ (s, p) | (c':s, p) <- bs, c == c' ]
 
 -- | Run a 'LookAhead' computation. The first argument is the error function.
 runLookAhead :: (forall b. String -> LookAhead b) -> LookAhead a -> Parser a

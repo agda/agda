@@ -14,6 +14,9 @@ import Syntax.Parser.Monad
 import Syntax.Parser.Tokens
 import Syntax.Parser.Alex
 import Syntax.Parser.LookAhead
+import Syntax.Position
+
+import Utils.Monad
 
 -- | Manually lexing a block comment. Assumes an /open comment/ has been lexed.
 --   In the end the comment is discarded and 'lexToken' is called to lex a real
@@ -21,23 +24,33 @@ import Syntax.Parser.LookAhead
 nestedComment :: LexAction Token
 nestedComment inp inp' _ =
     do	setLexInput inp'
-	runLookAhead err (scan 1)
+	runLookAhead err $ skipBlock "{-" "-}"
 	lexToken
     where
-	scan 0 = sync
-	scan n =
-	    do	c1  <- nextChar
-		inp <- getInput
-		case c1 of
-		    '-'	-> do c2 <- nextChar
-			      case c2 of
-				'}' -> scan (n - 1)
-				_   -> setInput inp >> scan n
-		    '{'	-> do c2 <- nextChar
-			      case c2 of
-				'-' -> scan (n + 1)
-				_   -> setInput inp >> scan n
-		    _	-> scan n
-
         err _ = liftP $ parseErrorAt (lexPos inp) "Unterminated '{-'"
+
+-- | Lex a hole (@{! ... !}@). Holes can be nested.
+--   Returns @'TokSymbol' 'SymQuestionMark'@.
+hole :: LexAction Token
+hole inp inp' _ =
+    do	setLexInput inp'
+	runLookAhead err $ skipBlock "{!" "!}"
+	p <- lexPos <$> getLexInput
+	return $ TokSymbol SymQuestionMark (Range (lexPos inp) p)
+    where
+        err _ = liftP $ parseErrorAt (lexPos inp) "Unterminated '{!'"
+
+-- | Skip a block of text enclosed by the given open and close strings. Assumes
+--   the first open string has been consumed. Open-close pairs may be nested.
+skipBlock :: String -> String -> LookAhead ()
+skipBlock open close = scan 1
+    where
+	scan 0 = sync
+	scan n = match [ open	-->  scan (n + 1)
+		       , close	-->  scan (n - 1)
+		       ] `other` scan n
+	    where
+		(-->) = (,)
+		other = ($)
+
 

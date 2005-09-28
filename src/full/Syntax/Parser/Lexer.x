@@ -107,6 +107,9 @@ tokens :-
 <0,code> Prop		{ keyword KwProp }
 <0,code> Set @number	{ withRange' (read . drop 3) TokSetN }
 
+-- Holes
+<0,code> "{!"		{ hole }
+
 -- Special symbols
 <0,code> "."		{ symbol SymDot }
 <0,code> ","		{ symbol SymComma }
