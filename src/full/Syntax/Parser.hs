@@ -6,6 +6,7 @@ module Syntax.Parser
     , parseLiterate
     , parseLiterateFile
       -- * Parsers
+    , exprParser
     , tokensParser
       -- * Parse results
     , ParseResult(..)
