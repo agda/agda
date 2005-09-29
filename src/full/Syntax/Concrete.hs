@@ -38,10 +38,10 @@ data Expr   = Ident QName			    -- ^ . @x@
 	    | Lit Literal			    -- ^ . @1@ or @\"foo\"@
 	    | QuestionMark Range		    -- ^ . @?@ or @{! ... !}@
 	    | Underscore Range			    -- ^ . @_@
-	    | App Hiding Expr Expr		    -- ^ . @e e@ or @e {e}@
+	    | App Range Hiding Expr Expr	    -- ^ . @e e@ or @e {e}@
 	    | InfixApp Expr QName Expr		    -- ^ . @e + e@ (no hiding)
 	    | Lam Range [LamBinding] Expr	    -- ^ . @\L -> e@
-	    | Fun Hiding Expr Expr		    -- ^ . @e -> e@ or @{e} -> e@
+	    | Fun Range Hiding Expr Expr	    -- ^ . @e -> e@ or @{e} -> e@
 	    | Pi TypedBinding Expr		    -- ^ . @(xs:e) -> e@ or @{xs:e} -> e@
 	    | Set Range | Prop Range		    -- ^ . @Set, Prop@
 	    | SetN Range Nat			    -- ^ . @Set0, Set1, ..@
