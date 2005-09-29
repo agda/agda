@@ -17,8 +17,20 @@ data QName = QName [String] Name
 type Nat = Int
 
 data Literal = LitInt Range Integer
+	     | LitFloat Range Double
 	     | LitString Range String
 	     | LitChar Range Char
-	     | LitFloat Range Double
     deriving (Eq, Show)
+
+instance HasRange Name where
+    getRange (Name r _)	    = r
+
+instance HasRange QName where
+    getRange (QName _ x)    = getRange x
+
+instance HasRange Literal where
+    getRange (LitInt r _)	= r
+    getRange (LitFloat r _)	= r
+    getRange (LitString r _)	= r
+    getRange (LitChar r _)	= r
 

@@ -43,11 +43,9 @@ data Range = Range { rStart, rEnd :: Position }
 -- | Things that have a range are instances of this class.
 class HasRange t where
     getRange :: t -> Range
-    setRange :: Range -> t -> t
 
 instance HasRange Range where
     getRange = id
-    setRange = const
 
 
 {--------------------------------------------------------------------------
