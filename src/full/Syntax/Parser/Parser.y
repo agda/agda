@@ -51,6 +51,7 @@ import Utils.Monad
     '_'		{ TokSymbol SymUnderscore $$ }
     '?'		{ TokSymbol SymQuestionMark $$ }
     '->'	{ TokSymbol SymArrow $$ }
+    '\\'	{ TokSymbol SymLambda $$ }
     '('		{ TokSymbol SymOpenParen $$ }
     ')'		{ TokSymbol SymCloseParen $$ }
     '['		{ TokSymbol SymOpenBracket $$ }
@@ -112,6 +113,7 @@ Token
     | '_'	    { TokSymbol SymUnderscore $1 }
     | '?'	    { TokSymbol SymQuestionMark $1 }
     | '->'	    { TokSymbol SymArrow $1 }
+    | '\\'	    { TokSymbol SymLambda $1 }
     | '('	    { TokSymbol SymOpenParen $1 }
     | ')'	    { TokSymbol SymCloseParen $1 }
     | '['	    { TokSymbol SymOpenBracket $1 }
@@ -166,11 +168,13 @@ semi : ';'	{ $1 }
 Id  : id	    { $1 }
     | '(' op ')'    { $2 }
 
+
 -- Qualified operators are treated as identifiers, i.e. they have to be back
 -- quoted to appear infix.
 QId : q_id	    { $1 }
     | q_op	    { $1 }
     | Id	    { QName [] $1 }
+
 
 -- Infix operator. All names except unqualified operators have to be back
 -- quoted.
@@ -178,6 +182,7 @@ Op  : op	    { QName [] $1 }
     | '`' id '`'    { QName [] $2 }
     | '`' q_id '`'  { $2 }
     | '`' q_op '`'  { $2 }
+
 
 -- An unqualified name (identifier or operator). This is what you write in
 -- import lists.

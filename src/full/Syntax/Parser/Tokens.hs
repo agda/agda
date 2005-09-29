@@ -22,7 +22,7 @@ layoutKeywords = [ KwLet, KwWhere, KwPostulate, KwMutual, KwAbstract ]
 
 data Symbol
 	= SymDot | SymComma | SymSemi | SymVirtualSemi
-	| SymBackQuote  | SymColon | SymArrow | SymEqual
+	| SymBackQuote  | SymColon | SymArrow | SymEqual | SymLambda
 	| SymUnderscore	| SymQuestionMark
 	| SymOpenParen	      | SymCloseParen
 	| SymOpenBrace	      | SymCloseBrace
