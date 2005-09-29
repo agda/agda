@@ -32,11 +32,6 @@ import Syntax.Common
 -- | A constructor declaration is just a type signature.
 type Constructor = TypeSignature
 
--- | A name can be qualified by a name space. Name spaces are hierarchical
---   so we use a list of strings to represent them.
-data QName = QName [String] Name
-    deriving (Eq, Show)
-
 -- | The raw view. Should represent exactly what the user wrote.
 data Expr   = Ident QName			    -- ^ . @x@
 	    | Lit Literal			    -- ^ . @1@ or @\"foo\"@
