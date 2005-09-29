@@ -125,7 +125,7 @@ tokens :-
 <0,code> "["		{ symbol SymOpenBracket }
 <0,code> "]"		{ symbol SymCloseBracket }
 <0,code> "->"		{ symbol SymArrow }
-<0,code> "\\"		{ symbol SymLambda }
+<0,code> "\"		{ symbol SymLambda }
 <0,code> "{"		{ openBrace }
 <0,code> "}"		{ closeBrace }
 
