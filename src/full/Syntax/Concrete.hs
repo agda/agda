@@ -18,7 +18,7 @@ module Syntax.Concrete
     , TopLevelDefinition
     , LocalDefinition
     , TypeSignature
-    , TopLevelDefinition(..)
+    , Definition(..)
     , Local, TopLevel, MaybeTypeSig, OnlyTypeSig
     , Constructor
     , ImportDirective(..)
