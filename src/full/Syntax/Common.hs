@@ -19,5 +19,6 @@ type Nat = Int
 data Literal = LitInt Range Integer
 	     | LitString Range String
 	     | LitChar Range Char
-	     | LitDouble Range Double
+	     | LitFloat Range Double
+    deriving (Eq, Show)
 

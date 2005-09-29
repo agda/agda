@@ -13,7 +13,7 @@ module Syntax.Parser.LexActions
     , begin, endWith
     , begin_, end_
       -- ** Specialized actions
-    , keyword, symbol, identifier, operator
+    , keyword, symbol, identifier, operator, literal
       -- * Lex predicates
     , notFollowedBy
     ) where
@@ -28,7 +28,7 @@ import Syntax.Parser.Alex
 import Syntax.Parser.Monad
 import Syntax.Parser.Tokens
 import Syntax.Position
-import Syntax.Concrete (QName(..), Name(..))
+import Syntax.Common
 
 import Utils.List
 import Utils.Tuple
@@ -162,6 +162,10 @@ keyword k = layout $ withRange_ (TokKeyword k)
 symbol :: Symbol -> LexAction Token
 symbol s = withRange_ (TokSymbol s)
 
+
+-- | Parse a literal.
+literal :: Read a => (Range -> a -> Literal) -> LexAction Token
+literal lit = withRange' read (TokLiteral . uncurry lit)
 
 -- | Parse an identifier. Identifiers can be qualified (see 'Name').
 --   Example: @Foo.Bar.f@

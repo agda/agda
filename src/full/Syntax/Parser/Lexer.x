@@ -24,6 +24,7 @@ import Syntax.Parser.Monad
 import Syntax.Parser.StringLiterals
 import Syntax.Parser.Tokens
 import Syntax.Position
+import Syntax.Common
 
 import Utils.Unicode (isUnicodeId, isUnicodeOp)
 
@@ -134,8 +135,8 @@ tokens :-
 -- Literals
 <0,code> \'		{ litChar }
 <0,code> \"		{ litString }
-<0,code> @number	{ withRange' read TokLitInt }
-<0,code> @float		{ withRange' read TokLitFloat }
+<0,code> @number	{ literal LitInt }
+<0,code> @float		{ literal LitFloat }
 
 {
 

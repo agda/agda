@@ -6,7 +6,7 @@ module Syntax.Parser.Tokens
     , Symbol(..)
     ) where
 
-import Syntax.Concrete (Name, QName)
+import Syntax.Common (Name, QName, Literal)
 import Syntax.Position
 
 data Keyword
@@ -39,10 +39,7 @@ data Token
 	| TokQId	QName	-- non empty namespace
 	| TokQOp	QName	-- non empty namespace
 	  -- Literals
-	| TokLitString	(Range, String)
-	| TokLitChar	(Range, Char)
-	| TokLitInt	(Range, Integer)
-	| TokLitFloat	(Range, Double)
+	| TokLiteral	Literal
 	  -- Special symbols
 	| TokSymbol Symbol Range
 	  -- Other tokens

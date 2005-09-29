@@ -10,6 +10,7 @@ import Syntax.Parser.Monad
 import Syntax.Parser.Lexer
 import Syntax.Parser.Tokens
 import Syntax.Concrete
+import Syntax.Common
 
 import Utils.Monad
 
@@ -65,10 +66,7 @@ import Utils.Monad
     q_id	{ TokQId $$ }
     q_op	{ TokQOp $$ }
 
-    int		{ TokLitInt $$ }
-    float	{ TokLitFloat $$ }
-    char	{ TokLitChar $$ }
-    string	{ TokLitString $$ }
+    literal	{ TokLiteral $$ }
 
 %%
 
@@ -129,10 +127,7 @@ Token
     | q_id	    { TokQId $1 }
     | q_op	    { TokQOp $1 }
 
-    | int	    { TokLitInt $1 }
-    | float	    { TokLitFloat $1 }
-    | char	    { TokLitChar $1 }
-    | string	    { TokLitString $1 }
+    | literal	    { TokLiteral $1 }
 
 {--------------------------------------------------------------------------
     Meta rules
