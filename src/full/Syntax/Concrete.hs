@@ -4,96 +4,33 @@
     without any desugaring at all.  This is what the parser produces.
     The idea is that if we figure out how to keep the concrete syntax
     around, it can be printed exactly as the user wrote it.
-
-    The concrete syntax supports both a sugared and a desugared view.
 -}
 module Syntax.Concrete
-    ( -- * The concrete syntax
-      Expr
-    , Definitions
-    , LocalDefinitions
-    , TypeSignature
-    , Constructor
+    ( -- * Expressions
+      Expr(..)
     , Name(..), QName(..)
     , Branch(..)
+      -- * Bindings
     , LamBinding(..)
     , TypedBinding(..)
     , Telescope
+      -- * Definitions
+    , TopLevelDefinition
+    , LocalDefinition
+    , TypeSignature
+    , TopLevelDefinition(..)
+    , Local, TopLevel, MaybeTypeSig, OnlyTypeSig
+    , Constructor
     , ImportDirective(..)
     , LHS, RHS, WhereClause
-      -- * The raw view
-      -- ** Expressions
-    , RawExpr(..)
-    , rawExpr
-    , unRawExpr
-      -- ** Definitions
-    , RawDefinition
-    , RawLocalDefinition
-    , RawTypeSignature
-    , RawDefinitionI(..)
-    , Local, TopLevel, MaybeTypeSig, OnlyTypeSig
-    , rawLocalDef
-    , unRawLocalDef
-    , rawDef
-    , unRawDef
-    , rawTypeSig
-    , unRawTypeSig
-      -- * The desugared view
     )
     where
 
 import Syntax.Position
 import Syntax.Common
 
--- | The concrete syntax representation. Abstract.
-newtype Expr = Expr RawExpr
-
--- | Reveal the raw structure of an expression.
-rawExpr :: Expr -> RawExpr
-rawExpr (Expr e) = e
-
--- | Unfold the raw view.
-unRawExpr :: RawExpr -> Expr
-unRawExpr = Expr
-
--- | Local definitions are the definitions that can appear in a let.
---   Everything but modules and postulates.
-newtype LocalDefinitions = LocalDefs [RawLocalDefinition]
-
--- | Reveal the raw structure of a block of local definitions.
-rawLocalDef :: LocalDefinitions -> [RawLocalDefinition]
-rawLocalDef (LocalDefs ds) = ds
-
--- | Unfold the raw view of a block of local definitions.
-unRawLocalDef :: [RawLocalDefinition] -> LocalDefinitions
-unRawLocalDef = LocalDefs
-
--- | Top level definitions include local definitions plus modules and
---   postulates.
-newtype Definitions = Defs [RawDefinition]
-
--- | Reveal the raw structure of a block of top level definitions.
-rawDef :: Definitions -> [RawDefinition]
-rawDef (Defs ds) = ds
-
--- | Unfold the raw view of a block of top level definitions.
-unRawDef :: [RawDefinition] -> Definitions
-unRawDef = Defs
-
--- | A type signature is a special kind of definition.
---   Occurs in 'Postulate's and 'Data' constructor definitions.
-newtype TypeSignature = TypeSignature RawTypeSignature
-
 -- | A constructor declaration is just a type signature.
 type Constructor = TypeSignature
-
--- | Reveal the raw structure of a type signature.
-rawTypeSig :: TypeSignature -> RawTypeSignature
-rawTypeSig (TypeSignature ds) = ds
-
--- | Unfold the raw view of type signature.
-unRawTypeSig :: RawTypeSignature -> TypeSignature
-unRawTypeSig = TypeSignature
 
 -- | A name can be qualified by a name space. Name spaces are hierarchical
 --   so we use a list of strings to represent them.
@@ -101,8 +38,7 @@ data QName = QName [String] Name
     deriving (Eq, Show)
 
 -- | The raw view. Should represent exactly what the user wrote.
-data RawExpr
-	    = Ident QName			    -- ^ . @x@
+data Expr   = Ident QName			    -- ^ . @x@
 	    | Lit Literal			    -- ^ . @1@ or @\"foo\"@
 	    | QuestionMark Range		    -- ^ . @?@ or @{! ... !}@
 	    | Underscore Range			    -- ^ . @_@
@@ -113,7 +49,7 @@ data RawExpr
 	    | Pi TypedBinding Expr		    -- ^ . @(xs:e) -> e@ or @{xs:e} -> e@
 	    | Set Range | Prop Range		    -- ^ . @Set, Prop@
 	    | SetN Range Nat			    -- ^ . @Set0, Set1, ..@
-	    | Let Range LocalDefinitions Expr	    -- ^ . @let Ds in e@
+	    | Let Range [LocalDefinition] Expr	    -- ^ . @let Ds in e@
 	    | Elim Range Expr (Maybe Expr) [Branch] -- ^ . @by e with P of bs@
 	    | Paren Range Expr			    -- ^ . @(e)@
 
@@ -148,10 +84,10 @@ data ImportDirective
 type LHS = Expr
 
 type RHS	    = Expr
-type WhereClause    = LocalDefinitions
+type WhereClause    = [LocalDefinition]
 
 {--------------------------------------------------------------------------
-    The raw view
+    Definitions
  --------------------------------------------------------------------------}
 
 data Local
@@ -159,11 +95,11 @@ data TopLevel
 data OnlyTypeSig
 data MaybeTypeSig
 
-type RawLocalDefinition = RawDefinitionI MaybeTypeSig Local
-type RawTypeSignature	= RawDefinitionI OnlyTypeSig Local
-type RawDefinition	= RawDefinitionI MaybeTypeSig TopLevel
+type LocalDefinition	= Definition MaybeTypeSig Local
+type TypeSignature	= Definition OnlyTypeSig Local
+type TopLevelDefinition = Definition MaybeTypeSig TopLevel
 
-{-| RawDefinitionI is family of datatypes indexed by the datakinds
+{-| Definition is family of datatypes indexed by the datakinds
 
     @
     datakind TypeSig = 'OnlyTypeSig' | 'MaybeTypeSig'
@@ -182,44 +118,61 @@ type RawDefinition	= RawDefinitionI MaybeTypeSig TopLevel
 #endif
     The intended targets of the constructors are in the comments.
 -}
-data RawDefinitionI typesig local
-	= TypeSig Name Expr		    -- ^ . @RawDefinitionI typesig local@
+data Definition typesig local
+	= TypeSig Name Expr		    -- ^ . @Definition typesig local@
 	| FunClause LHS RHS
-	    WhereClause			    -- ^ . @RawDefinitionI 'MaybeTypeSig' local@
+	    WhereClause			    -- ^ . @Definition 'MaybeTypeSig' local@
 	| Data Range Name Telescope
-	    Expr [Constructor]		    -- ^ . @RawDefinitionI 'MaybeTypeSig' local@
-	| Mutual Range Definitions	    -- ^ . @RawDefinitionI 'MaybeTypeSig' local@
-	| Abstract Range Definitions	    -- ^ . @RawDefinitionI 'MaybeTypeSig' local@
+	    Expr [Constructor]		    -- ^ . @Definition 'MaybeTypeSig' local@
+	| Mutual Range [LocalDefinition]    -- ^ . @Definition 'MaybeTypeSig' local@
+	| Abstract Range [LocalDefinition]  -- ^ . @Definition 'MaybeTypeSig' local@
 	| Open Range QName
-	    [ImportDirective]		    -- ^ . @RawDefinitionI 'MaybeTypeSig' local@
+	    [ImportDirective]		    -- ^ . @Definition 'MaybeTypeSig' local@
 	| NameSpace Range QName Expr
-	    [ImportDirective]		    -- ^ . @RawDefinitionI 'MaybeTypeSig' local@
+	    [ImportDirective]		    -- ^ . @Definition 'MaybeTypeSig' local@
 	| Import Range QName
-	    [ImportDirective]		    -- ^ . @RawDefinitionI 'MaybeTypeSig' 'TopLevel'@
-	| Private Range Definitions	    -- ^ . @RawDefinitionI 'MaybeTypeSig' 'TopLevel'@
-	| Postulate Range [TypeSignature]   -- ^ . @RawDefinitionI 'MaybeTypeSig' 'TopLevel'@
+	    [ImportDirective]		    -- ^ . @Definition 'MaybeTypeSig' 'TopLevel'@
+	| Private Range [LocalDefinition]   -- ^ . @Definition 'MaybeTypeSig' 'TopLevel'@
+	| Postulate Range [TypeSignature]   -- ^ . @Definition 'MaybeTypeSig' 'TopLevel'@
 	| Module Range Name Telescope
-	    Definitions			    -- ^ . @RawDefinitionI 'MaybeTypeSig' 'TopLevel'@
+	    [TopLevelDefinition]	    -- ^ . @Definition 'MaybeTypeSig' 'TopLevel'@
 
 #else
 -}
-data RawDefinitionI typesig local where
-	TypeSig	    :: Name -> Expr		-> RawDefinitionI typesig local
+data Definition typesig local where
+
+	TypeSig	    :: Name -> Expr
+		    -> Definition typesig local
+
 	FunClause   :: LHS -> RHS -> WhereClause
-						-> RawDefinitionI MaybeTypeSig local
+		    -> Definition MaybeTypeSig local
+
 	Data	    :: Range -> Name -> Telescope -> Expr -> [Constructor] 
-						-> RawDefinitionI MaybeTypeSig local
-	Mutual	    :: Range -> Definitions	-> RawDefinitionI MaybeTypeSig local
-	Abstract    :: Range -> Definitions	-> RawDefinitionI MaybeTypeSig local
+		    -> Definition MaybeTypeSig local
+
+	Mutual	    :: Range -> [LocalDefinition]
+		    -> Definition MaybeTypeSig local
+
+	Abstract    :: Range -> [LocalDefinition]
+		    -> Definition MaybeTypeSig local
+
 	Open	    :: Range -> QName -> [ImportDirective]
-						-> RawDefinitionI MaybeTypeSig local
+		    -> Definition MaybeTypeSig local
+
 	NameSpace   :: Range -> QName -> Expr -> [ImportDirective]
-						-> RawDefinitionI MaybeTypeSig local
+		    -> Definition MaybeTypeSig local
+
 	Import	    :: Range -> QName -> [ImportDirective]
-						-> RawDefinitionI MaybeTypeSig TopLevel
-	Private	    :: Range -> Definitions	-> RawDefinitionI MaybeTypeSig TopLevel
-	Postulate   :: Range -> [TypeSignature] -> RawDefinitionI MaybeTypeSig TopLevel
-	Module	    :: Range -> Name -> Telescope -> Definitions
-						-> RawDefinitionI MaybeTypeSig TopLevel
+		    -> Definition MaybeTypeSig TopLevel
+
+	Private	    :: Range -> [LocalDefinition]
+		    -> Definition MaybeTypeSig TopLevel
+
+	Postulate   :: Range -> [TypeSignature]
+		    -> Definition MaybeTypeSig TopLevel
+
+	Module	    :: Range -> Name -> Telescope -> [TopLevelDefinition]
+		    -> Definition MaybeTypeSig TopLevel
+
 #endif
 
