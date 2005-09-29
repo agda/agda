@@ -19,7 +19,7 @@ module Syntax.Concrete
     , LocalDefinition
     , TypeSignature
     , Definition(..)
-    , Local, TopLevel, MaybeTypeSig, OnlyTypeSig
+    , Local, TypeSig, Private, DontCare
     , Constructor
     , ImportDirective(..)
     , LHS, RHS, WhereClause
@@ -95,24 +95,28 @@ type WhereClause    = [LocalDefinition]
  --------------------------------------------------------------------------}
 
 data Local
-data TopLevel
-data OnlyTypeSig
-data MaybeTypeSig
+data TypeSig
+data Private
+data DontCare
 
-type LocalDefinition	= Definition MaybeTypeSig Local
-type TypeSignature	= Definition OnlyTypeSig Local
-type TopLevelDefinition = Definition MaybeTypeSig TopLevel
+type TypeSignature	= Definition TypeSig DontCare DontCare
+type LocalDefinition	= Definition DontCare Local DontCare
+type PrivateDefinition	= Definition DontCare DontCare Private
+type TopLevelDefinition = Definition DontCare DontCare DontCare
 
 
 {-| Definition is family of datatypes indexed by the datakinds
 
     @
-    datakind TypeSig = 'OnlyTypeSig' | 'MaybeTypeSig'
-    datakind Local   = 'Local' | 'TopLevel'
+    datakind TypeSig = 'TypeSig' | 'DontCare'
+    datakind Local   = 'Local' | 'DontCare'
+    datakind Private = 'Private' | 'DontCare'
     @
 
-    In the raw view of a definition there is no grouping of function clauses
-    and\/or type signatures.
+    Of course, there is no such thing as a @datakind@ in Haskell, so we just
+    define phantom types for the intended constructors.  There is no grouping
+    of function clauses and\/or type signatures in the concrete syntax. That
+    happens in the desugarer.
 #if __GLASGOW_HASKELL__ < 604 || __HADDOCK__
 #if __GLASGOW_HASKELL__ < 604
     Without inductive families (introduced in ghc 6.4) the type checker
@@ -123,61 +127,61 @@ type TopLevelDefinition = Definition MaybeTypeSig TopLevel
 #endif
     The intended targets of the constructors are in the comments.
 -}
-data Definition typesig local
-	= TypeSig Name Expr		    -- ^ . @Definition typesig local@
+data Definition typesig local private
+	= TypeSig Name Expr		    -- ^ . @Definition typesig local private@
 	| FunClause LHS RHS
-	    WhereClause			    -- ^ . @Definition 'MaybeTypeSig' local@
+	    WhereClause			    -- ^ . @Definition 'DontCare' local private@
 	| Data Range Name Telescope
-	    Expr [Constructor]		    -- ^ . @Definition 'MaybeTypeSig' local@
-	| Mutual Range [LocalDefinition]    -- ^ . @Definition 'MaybeTypeSig' local@
-	| Abstract Range [LocalDefinition]  -- ^ . @Definition 'MaybeTypeSig' local@
+	    Expr [Constructor]		    -- ^ . @Definition 'DontCare' local private@
+	| Mutual Range [LocalDefinition]    -- ^ . @Definition 'DontCare' local private@
+	| Abstract Range [LocalDefinition]  -- ^ . @Definition 'DontCare' local private@
 	| Open Range QName
-	    [ImportDirective]		    -- ^ . @Definition 'MaybeTypeSig' local@
+	    [ImportDirective]		    -- ^ . @Definition 'DontCare' local private@
 	| NameSpace Range QName Expr
-	    [ImportDirective]		    -- ^ . @Definition 'MaybeTypeSig' local@
+	    [ImportDirective]		    -- ^ . @Definition 'DontCare' local private@
 	| Import Range QName
-	    [ImportDirective]		    -- ^ . @Definition 'MaybeTypeSig' 'TopLevel'@
-	| Private Range [LocalDefinition]   -- ^ . @Definition 'MaybeTypeSig' 'TopLevel'@
-	| Postulate Range [TypeSignature]   -- ^ . @Definition 'MaybeTypeSig' 'TopLevel'@
+	    [ImportDirective]		    -- ^ . @Definition 'DontCare' 'DontCare' 'DontCare'@
+	| Private Range [PrivateDefinition] -- ^ . @Definition 'DontCare' 'DontCare' 'DontCare'@
+	| Postulate Range [TypeSignature]   -- ^ . @Definition 'DontCare' 'DontCare' private@
 	| Module Range Name Telescope
-	    [TopLevelDefinition]	    -- ^ . @Definition 'MaybeTypeSig' 'TopLevel'@
+	    [TopLevelDefinition]	    -- ^ . @Definition 'DontCare' 'DontCare' private@
 
 #else
 -}
-data Definition typesig local where
+data Definition typesig local private where
 
 	TypeSig	    :: Name -> Expr
-		    -> Definition typesig local
+		    -> Definition typesig local private
 
 	FunClause   :: LHS -> RHS -> WhereClause
-		    -> Definition MaybeTypeSig local
+		    -> Definition DontCare local private
 
 	Data	    :: Range -> Name -> Telescope -> Expr -> [Constructor] 
-		    -> Definition MaybeTypeSig local
+		    -> Definition DontCare local private
 
 	Mutual	    :: Range -> [LocalDefinition]
-		    -> Definition MaybeTypeSig local
+		    -> Definition DontCare local private
 
 	Abstract    :: Range -> [LocalDefinition]
-		    -> Definition MaybeTypeSig local
+		    -> Definition DontCare local private
 
 	Open	    :: Range -> QName -> [ImportDirective]
-		    -> Definition MaybeTypeSig local
+		    -> Definition DontCare local private
 
 	NameSpace   :: Range -> QName -> Expr -> [ImportDirective]
-		    -> Definition MaybeTypeSig local
+		    -> Definition DontCare local private
 
 	Import	    :: Range -> QName -> [ImportDirective]
-		    -> Definition MaybeTypeSig TopLevel
+		    -> Definition DontCare DontCare DontCare
 
 	Private	    :: Range -> [LocalDefinition]
-		    -> Definition MaybeTypeSig TopLevel
+		    -> Definition DontCare DontCare DontCare
 
 	Postulate   :: Range -> [TypeSignature]
-		    -> Definition MaybeTypeSig TopLevel
+		    -> Definition DontCare DontCare private
 
 	Module	    :: Range -> Name -> Telescope -> [TopLevelDefinition]
-		    -> Definition MaybeTypeSig TopLevel
+		    -> Definition DontCare DontCare private
 
 #endif
 
@@ -207,4 +211,22 @@ instance HasRange Expr where
 
 instance HasRange TypedBinding where
     getRange (TypedBinding r _ _ _) = r
+
+instance HasRange LamBinding where
+    getRange (DomainFree _ x)	= getRange x
+    getRange (DomainFull b)	= getRange b
+
+instance HasRange (Definition typesig local private) where
+    getRange (TypeSig x t)	    = fuseRange x t
+    getRange (FunClause lhs rhs []) = fuseRange lhs rhs
+    getRange (FunClause lhs rhs wh) = fuseRange lhs (last wh)
+    getRange (Data r _ _ _ _)	    = r
+    getRange (Mutual r _)	    = r
+    getRange (Abstract r _)	    = r
+    getRange (Open r _ _)	    = r
+    getRange (NameSpace r _ _ _)    = r
+    getRange (Import r _ _)	    = r
+    getRange (Private r _)	    = r
+    getRange (Postulate r _)	    = r
+    getRange (Module r _ _ _)	    = r
 
