@@ -21,7 +21,7 @@ all_hs_files	= $(src_files) $(OUT)/Syntax/Parser/Parser.hs \
 
 ## Phony targets ##########################################################
 
-.PHONY : default clean 
+.PHONY : default clean prof
 
 ## Default target #########################################################
 
@@ -69,6 +69,8 @@ $(OUT)/% : %
 endif
 
 ## Compiling agda #########################################################
+
+prof : $(OUT_P)/agda
 
 $(OUT)/agda : $(out_dirs) $(all_hs_files) $(boot_files)
 	$(GHC) --make -o $@ -i$(OUT) -odir $(OUT) -hidir $(OUT) $(GHC_FLAGS) Main.hs

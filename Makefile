@@ -19,7 +19,8 @@ include mk/paths.mk
 
 ## Phony targets ##########################################################
 
-.PHONY : default all clean install full core debug doc dist make_configure
+.PHONY : default all clean install full prof core \
+		 debug doc dist make_configure
 
 ## Default target #########################################################
 
@@ -54,6 +55,9 @@ doc :
 
 full :
 	$(MAKE) -C $(FULL_SRC_DIR)
+
+prof :
+	$(MAKE) -C $(FULL_SRC_DIR) prof
 
 ## Making the core language ###############################################
 
