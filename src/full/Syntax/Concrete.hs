@@ -14,13 +14,15 @@ module Syntax.Concrete
     , LamBinding(..)
     , TypedBinding(..)
     , Telescope
-      -- * Definitions
-    , TopLevelDefinition
-    , LocalDefinition
+      -- * Declarations
+    , TopLevelDeclaration
     , TypeSignature
-    , Definition(..)
-    , Local, TypeSig, Private, DontCare
+    , LocalDeclaration, PrivateDeclaration
+    , MutualDeclaration, AbstractDeclaration
+    , Declaration(..)
+    , Local, TypeSig, Private, Abstract, DontCare
     , Constructor
+    , Assoc(..)
     , ImportDirective(..)
     , LHS, RHS, WhereClause
     )
@@ -45,7 +47,7 @@ data Expr   = Ident QName			    -- ^ . @x@
 	    | Pi TypedBinding Expr		    -- ^ . @(xs:e) -> e@ or @{xs:e} -> e@
 	    | Set Range | Prop Range		    -- ^ . @Set, Prop@
 	    | SetN Range Nat			    -- ^ . @Set0, Set1, ..@
-	    | Let Range [LocalDefinition] Expr	    -- ^ . @let Ds in e@
+	    | Let Range [LocalDeclaration] Expr	    -- ^ . @let Ds in e@
 	    | Elim Range Expr (Maybe Expr) [Branch] -- ^ . @by e with P of bs@
 	    | Paren Range Expr			    -- ^ . @(e)@
 
@@ -80,43 +82,66 @@ data ImportDirective
 	| Renaming [(Name, Name)]   -- ^ Contains @(oldName,newName)@ pairs.
 
 
--- | To be able to parse infix definitions properly left hand sides are parsed
+-- | To be able to parse infix declarations properly left hand sides are parsed
 --   as expressions. For instance, @x::xs ++ ys = x :: (xs ++ ys)@ should be a
---   valid definition of @++@ provided @::@ has higher precedence than @++@.
+--   valid declaration of @++@ provided @::@ has higher precedence than @++@.
 type LHS = Expr
 
 
 type RHS	    = Expr
-type WhereClause    = [LocalDefinition]
+type WhereClause    = [LocalDeclaration]
 
 
 {--------------------------------------------------------------------------
-    Definitions
+    Declarations
  --------------------------------------------------------------------------}
 
 data Local
 data TypeSig
 data Private
+data Mutual
+data Abstract
 data DontCare
 
-type TypeSignature	= Definition TypeSig DontCare DontCare
-type LocalDefinition	= Definition DontCare Local DontCare
-type PrivateDefinition	= Definition DontCare DontCare Private
-type TopLevelDefinition = Definition DontCare DontCare DontCare
+-- | Just type signatures.
+type TypeSignature	 = Declaration TypeSig DontCare DontCare DontCare DontCare
 
+-- | Declarations that can appear in a 'Let' or a 'WhereClause'.
+type LocalDeclaration	 = Declaration DontCare Local DontCare DontCare DontCare
 
-{-| Definition is family of datatypes indexed by the datakinds
+-- | Declarations that can appear in a 'Private' block.
+type PrivateDeclaration	 = Declaration DontCare DontCare Private DontCare DontCare
+
+-- | Declarations that can appear in a 'Mutual' block.
+type MutualDeclaration	 = Declaration DontCare DontCare DontCare Mutual DontCare
+
+-- | Declarations that can appear in a 'Abstract' block.
+type AbstractDeclaration = Declaration DontCare DontCare DontCare DontCare Abstract
+
+-- | Everything can appear at top-level.
+type TopLevelDeclaration = Declaration DontCare DontCare DontCare DontCare DontCare
+
+-- | Associativity of infix operators.
+data Assoc = LeftAssoc | RightAssoc | NonAssoc
+
+{-| Declaration is a family of datatypes indexed by the datakinds
 
     @
-    datakind TypeSig = 'TypeSig' | 'DontCare'
-    datakind Local   = 'Local' | 'DontCare'
-    datakind Private = 'Private' | 'DontCare'
+    datakind TypeSig  = 'TypeSig' | 'DontCare'
+    datakind Local    = 'Local' | 'DontCare'
+    datakind Private  = 'Private' | 'DontCare'
+    datakind Mutual   = 'Mutual' | 'DontCare'
+    datakind Abstract = 'Abstract' | 'DontCare'
     @
 
     Of course, there is no such thing as a @datakind@ in Haskell, so we just
-    define phantom types for the intended constructors.  There is no grouping
-    of function clauses and\/or type signatures in the concrete syntax. That
-    happens in the desugarer.
+    define phantom types for the intended constructors.  The indices should be
+    interpreted as follows: The type indexed by 'Local' contains only the
+    declarations that can appear in a local declaration. If the index is
+    'DontCare' the type contains all declarations regardless of whether they can
+    appear in a local declaration.  There is no grouping of function clauses
+    and\/or type signatures in the concrete syntax. That happens in the
+    desugarer.
 #if __GLASGOW_HASKELL__ < 604 || __HADDOCK__
 #if __GLASGOW_HASKELL__ < 604
     Without inductive families (introduced in ghc 6.4) the type checker
@@ -127,61 +152,65 @@ type TopLevelDefinition = Definition DontCare DontCare DontCare
 #endif
     The intended targets of the constructors are in the comments.
 -}
-data Definition typesig local private
-	= TypeSig Name Expr		    -- ^ . @Definition typesig local private@
+data Declaration typesig local private mutual abstract
+	= TypeSig Name Expr		    -- ^ . @Declaration typesig local private mutual abstract@
 	| FunClause LHS RHS
-	    WhereClause			    -- ^ . @Definition 'DontCare' local private@
+	    WhereClause			    -- ^ . @Declaration 'DontCare' local private mutual abstract@
 	| Data Range Name Telescope
-	    Expr [Constructor]		    -- ^ . @Definition 'DontCare' local private@
-	| Mutual Range [LocalDefinition]    -- ^ . @Definition 'DontCare' local private@
-	| Abstract Range [LocalDefinition]  -- ^ . @Definition 'DontCare' local private@
+	    Expr [Constructor]		    -- ^ . @Declaration 'DontCare' local private mutual abstract@
+	| Infix Range Assoc Integer [QName] -- ^ . @Declaration 'DontCare' local private mutual abstract@
+	| Mutual Range [MutualDeclaration]  -- ^ . @Declaration 'DontCare' local private 'DontCare' abstract@
+	| Abstract Range [LocalDeclaration] -- ^ . @Declaration 'DontCare' local private 'DontCare' 'DontCare'@
+	| Private Range [PrivateDeclaration]-- ^ . @Declaration 'DontCare' 'DontCare' 'DontCare' 'DontCare' 'DontCare'@
+	| Postulate Range [TypeSignature]   -- ^ . @Declaration 'DontCare' 'DontCare' private 'DontCare' 'DontCare'@
 	| Open Range QName
-	    [ImportDirective]		    -- ^ . @Definition 'DontCare' local private@
-	| NameSpace Range QName Expr
-	    [ImportDirective]		    -- ^ . @Definition 'DontCare' local private@
+	    [ImportDirective]		    -- ^ . @Declaration 'DontCare' local private 'DontCare' abstract@
+	| NameSpace Range Name Expr
+	    [ImportDirective]		    -- ^ . @Declaration 'DontCare' local private 'DontCare' abstract@
 	| Import Range QName
-	    [ImportDirective]		    -- ^ . @Definition 'DontCare' 'DontCare' 'DontCare'@
-	| Private Range [PrivateDefinition] -- ^ . @Definition 'DontCare' 'DontCare' 'DontCare'@
-	| Postulate Range [TypeSignature]   -- ^ . @Definition 'DontCare' 'DontCare' private@
-	| Module Range Name Telescope
-	    [TopLevelDefinition]	    -- ^ . @Definition 'DontCare' 'DontCare' private@
+	    [ImportDirective]		    -- ^ . @Declaration 'DontCare' 'DontCare' 'DontCare' 'DontCare' 'DontCare'@
+	| Module Range QName Telescope
+	    [TopLevelDeclaration]	    -- ^ . @Declaration 'DontCare' 'DontCare' private 'DontCare' 'DontCare'@
 
 #else
 -}
-data Definition typesig local private where
+data Declaration typesig local private mutual abstract where
 
 	TypeSig	    :: Name -> Expr
-		    -> Definition typesig local private
+		    -> Declaration typesig local private mutual abstract
 
 	FunClause   :: LHS -> RHS -> WhereClause
-		    -> Definition DontCare local private
+		    -> Declaration DontCare local private mutual abstract
 
 	Data	    :: Range -> Name -> Telescope -> Expr -> [Constructor] 
-		    -> Definition DontCare local private
+		    -> Declaration DontCare local private mutual abstract
 
-	Mutual	    :: Range -> [LocalDefinition]
-		    -> Definition DontCare local private
+	Infix	    :: Range -> Assoc -> Integer -> [QName]
+		    -> Declaration DontCare local private mutual abstract
 
-	Abstract    :: Range -> [LocalDefinition]
-		    -> Definition DontCare local private
+	Mutual	    :: Range -> [MutualDeclaration]
+		    -> Declaration DontCare local private DontCare abstract
 
-	Open	    :: Range -> QName -> [ImportDirective]
-		    -> Definition DontCare local private
+	Abstract    :: Range -> [AbstractDeclaration]
+		    -> Declaration DontCare local private DontCare DontCare
 
-	NameSpace   :: Range -> QName -> Expr -> [ImportDirective]
-		    -> Definition DontCare local private
-
-	Import	    :: Range -> QName -> [ImportDirective]
-		    -> Definition DontCare DontCare DontCare
-
-	Private	    :: Range -> [LocalDefinition]
-		    -> Definition DontCare DontCare DontCare
+	Private	    :: Range -> [PrivateDeclaration]
+		    -> Declaration DontCare DontCare DontCare DontCare DontCare
 
 	Postulate   :: Range -> [TypeSignature]
-		    -> Definition DontCare DontCare private
+		    -> Declaration DontCare DontCare private DontCare DontCare
 
-	Module	    :: Range -> Name -> Telescope -> [TopLevelDefinition]
-		    -> Definition DontCare DontCare private
+	Open	    :: Range -> QName -> [ImportDirective]
+		    -> Declaration DontCare local private DontCare abstract
+
+	NameSpace   :: Range -> Name -> Expr -> [ImportDirective]
+		    -> Declaration DontCare local private DontCare abstract
+
+	Import	    :: Range -> QName -> [ImportDirective]
+		    -> Declaration DontCare DontCare DontCare DontCare DontCare
+
+	Module	    :: Range -> QName -> Telescope -> [TopLevelDeclaration]
+		    -> Declaration DontCare DontCare private DontCare DontCare
 
 #endif
 
@@ -216,7 +245,7 @@ instance HasRange LamBinding where
     getRange (DomainFree _ x)	= getRange x
     getRange (DomainFull b)	= getRange b
 
-instance HasRange (Definition typesig local private) where
+instance HasRange (Declaration typesig local private mutual abstract) where
     getRange (TypeSig x t)	    = fuseRange x t
     getRange (FunClause lhs rhs []) = fuseRange lhs rhs
     getRange (FunClause lhs rhs wh) = fuseRange lhs (last wh)
@@ -229,4 +258,9 @@ instance HasRange (Definition typesig local private) where
     getRange (Private r _)	    = r
     getRange (Postulate r _)	    = r
     getRange (Module r _ _ _)	    = r
+
+instance HasRange ImportDirective where
+    getRange (Using xs)	    = getRange xs
+    getRange (Hiding xs)    = getRange xs
+    getRange (Renaming xs)  = getRange xs
 
