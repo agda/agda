@@ -10,7 +10,7 @@ module Syntax.Parser.LexActions
     , token
     , withRange, withRange', withRange_
     , withLayout
-    , begin, endWith
+    , begin, end, endWith
     , begin_, end_
       -- ** Specialized actions
     , keyword, symbol, identifier, operator, literal
@@ -149,6 +149,12 @@ endWith a inp inp' n =
     do	popLexState
 	a inp inp' n
 
+
+-- | Exit the current state without consuming any input
+end :: LexAction Token
+end _ _ _ =
+    do	popLexState
+	lexToken
 
 -- | Parse a 'Keyword' token, triggers layout for 'layoutKeywords'.
 keyword :: Keyword -> LexAction Token

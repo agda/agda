@@ -88,7 +88,7 @@ import Utils.Monad
 %%
 
 {--------------------------------------------------------------------------
-    Parsing the token stream. Used by the TeX compiler(?).
+    Parsing the token stream. Used by the TeX compiler.
  --------------------------------------------------------------------------}
 
 -- Parse a list of tokens.
@@ -161,7 +161,8 @@ Token
  --------------------------------------------------------------------------}
 
 File :: { TopLevelDeclaration }
-File : TopModule    { $1 }
+File : TopModule	{ $1 }
+     | tex File		{ $2 }
 
 {--------------------------------------------------------------------------
     Meta rules
@@ -641,18 +642,20 @@ AbstractDeclarations1
 -- Top-level declarations
 TopLevelDeclarations :: { [TopLevelDeclaration] }
 TopLevelDeclarations
-    : '{' TopLevelDeclarations1 '}'	    { reverse $2 }
+    : '{' TopLevelDeclarations1 '}'	{ reverse $2 }
     | vopen TopLevelDeclarations1 close { reverse $2 }
 
 TopLevelDeclarations1 :: { [TopLevelDeclaration] }
 TopLevelDeclarations1
     : TopLevelDeclarations1 semi TopLevelDeclaration	{ $3 : $1 }
+    | TopLevelDeclarations1 tex				{ $1 }
     | TopLevelDeclaration				{ [$1] }
+    | tex TopLevelDeclaration				{ [$2] }
 
 
 {
 
--- | Parse the token stream. Used only for debugging.
+-- | Parse the token stream. Used by the TeX compiler.
 tokensParser :: Parser [Token]
 
 -- | Parse an expression. Could be used in interactions.
