@@ -121,7 +121,7 @@ instance Show ParseError where
     show err =
 	unlines
 	    [ pos ++ ": " ++ errMsg err
-	    , replicate (length pos + 2) ' ' ++ showInp (errInput err)
+	    , replicate (length pos + 2) ' ' ++ "on '" ++ errPrevToken err ++ "'"
 	    ]
 	where
 	    pos = show (errPos err)
