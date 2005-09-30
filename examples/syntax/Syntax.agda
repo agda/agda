@@ -294,6 +294,17 @@ module examples.syntax.Syntax where
     underscore : ({A,B,C:Set} -> (A -> A) -> B -> C) -> X
     underscore f = f {_} {X} {_} (\y -> y) x
 
+    -- Note that '_' is not an identifier character. The current use of
+    -- underscore is not the real reason for this. The idea is rather that
+    -- underscore will be used for subscripts.
+    id : (A : Set) -> A -> A
+    id A x = x
+
+    postulate X : Set
+	      x : X
+
+    x' = id_x -- this means id _ x
+
   -- The parser supports four types of literals. The syntax is the same as in
   -- Haskell.
   module Literals where
