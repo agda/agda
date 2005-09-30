@@ -1,0 +1,12 @@
+
+Syntax
+------
+
+  * Invent syntax for fancy case.
+
+Parsing
+-------
+
+  * Check out lex/parse errors (what position and what input is reported).
+
+ vim: sts=2 sw=2 ts=80
