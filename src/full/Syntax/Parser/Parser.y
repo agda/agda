@@ -161,7 +161,7 @@ Token
  --------------------------------------------------------------------------}
 
 File :: { TopLevelDeclaration }
-File : Module	{ $1 }
+File : TopModule    { $1 }
 
 {--------------------------------------------------------------------------
     Meta rules
@@ -390,6 +390,7 @@ LocalDeclaration
     : TypeSig	{ $1 }
     | FunClause { $1 }
     | Data	{ $1 }
+    | Infix	{ $1 }
     | Mutual	{ $1 }
     | Abstract	{ $1 }
     | Open	{ $1 }
@@ -469,8 +470,15 @@ WhereClause
 
 -- Data declaration. Can be local.
 Data :: { Declaration DontCare local private mutual abstract }
-Data : 'data' Id Telescope ':' Expr 'where'
+Data : 'data' Id MaybeTelescope ':' Sort 'where'
 	    Constructors	{ Data (getRange ($1, $6, $7)) $2 $3 $5 $7 }
+
+
+-- Sorts
+Sort :: { Expr }
+Sort : 'Prop'		{ Prop $1 }
+     | 'Set'		{ Set $1 }
+     | setN		{ uncurry SetN $1 }
 
 
 -- Fixity declarations.
@@ -508,7 +516,7 @@ Open : 'open' ModuleName ImportDirectives   { Open (getRange ($1,$2,$3)) $2 $3 }
 
 -- NameSpace
 NameSpace :: { Declaration DontCare local private DontCare abstract }
-NameSpace : 'namespace' Id '=' Expr ImportDirectives
+NameSpace : 'namespace' id '=' Expr ImportDirectives
 		    { NameSpace (getRange ($1, $4, $5)) $2 $4 $5 }
 
 
@@ -542,7 +550,12 @@ Renaming
 
 -- Module
 Module :: { Declaration DontCare DontCare private DontCare DontCare }
-Module : 'module' ModuleName MaybeTelescope 'where' TopLevelDeclarations
+Module : 'module' id MaybeTelescope 'where' TopLevelDeclarations
+		    { Module (getRange ($1,$4,$5)) (QName [] $2) $3 $5 }
+
+-- The top-level module. Can have a qualified name.
+TopModule :: { TopLevelDeclaration }
+TopModule : 'module' ModuleName MaybeTelescope 'where' TopLevelDeclarations
 		    { Module (getRange ($1,$4,$5)) $2 $3 $5 }
 
 MaybeTelescope :: { Telescope }
@@ -557,7 +570,7 @@ MaybeTelescope : {- empty -}	{ [] }
 TypeSignatures :: { [Declaration typesig local private mutual abstract] }
 TypeSignatures
     : '{' TypeSignatures1 '}'	    { reverse $2 }
-    | vopen TypeSignatures close    { reverse $2 }
+    | vopen TypeSignatures1 close   { reverse $2 }
 
 -- Inside the layout block.
 TypeSignatures1 :: { [Declaration typesig local private mutual abstract] }
