@@ -15,7 +15,7 @@ module Syntax.Parser.LexActions
       -- ** Specialized actions
     , keyword, symbol, identifier, operator, literal
       -- * Lex predicates
-    , notFollowedBy
+    , notFollowedBy, notEOF
     ) where
 
 import Data.List (isPrefixOf)
@@ -198,4 +198,8 @@ notFollowedBy c' _ _ _ inp =
     case lexInput inp of
 	[]  -> True
 	c:_ -> c /= c'
+
+-- | True if we are not at the end of the file.
+notEOF :: LexPredicate
+notEOF _ _ _ inp = not $ null $ lexInput inp
 

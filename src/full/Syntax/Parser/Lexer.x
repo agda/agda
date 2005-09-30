@@ -71,12 +71,14 @@ tokens :-
 <0,code,bol_,layout_,empty_layout_>   "--"\-* [^$symbol] .* ;
 <0,code,bol_,layout_,empty_layout_>   "--"\-* $		    ;
 
--- We need to check the offside rule for the first token on each line.
+-- We need to check the offside rule for the first token on each line.  We
+-- should not check the offside rule for the end of file token though (hence
+-- the 'notEOF').
 <0,code> \n	{ begin bol_ }
 <bol_>
     {
-	\n	;
-	()	{ offsideRule }
+	\n		;
+	() / { notEOF }	{ offsideRule }
     }
 
 -- After a layout keyword there is either an open brace (no layout) or the
