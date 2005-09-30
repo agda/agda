@@ -19,4 +19,13 @@
   implemented), which will typeset the agda code super nicely to produce a
   {\em machine-checkable human-readable proof document}.
 
+\begin{code}
+
+    anotherDefinition : Set -> Set -> Set
+    anotherDefinition A B = A
+
+\end{code}
+
+  The literate parser doesn't work.
+
 \end{document}
