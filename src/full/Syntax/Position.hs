@@ -47,6 +47,14 @@ class HasRange t where
 instance HasRange Range where
     getRange = id
 
+instance HasRange a => HasRange [a] where
+    getRange = foldr fuseRange noRange
+
+instance (HasRange a, HasRange b) => HasRange (a,b) where
+    getRange = uncurry fuseRange
+
+instance (HasRange a, HasRange b, HasRange c) => HasRange (a,b,c) where
+    getRange (x,y,z) = getRange (x,(y,z))
 
 {--------------------------------------------------------------------------
     Pretty printing
@@ -109,5 +117,14 @@ movePos NoPos _		= NoPos
 -- | Finds the least interval that covers its arguments. The left argument
 --   is assumed to be to the left of the right argument.
 fuseRange :: (HasRange t, HasRange u) => t -> u -> Range
-fuseRange x y = Range (rStart $ getRange x) (rEnd $ getRange y)
+fuseRange x y = Range start end
+    where
+	rx = getRange x
+	ry = getRange y
+	start = case rStart rx of
+		    NoPos   -> rStart ry
+		    p	    -> p
+	end   = case rEnd ry of
+		    NoPos   -> rEnd rx
+		    p	    -> p
 
