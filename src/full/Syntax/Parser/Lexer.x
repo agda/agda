@@ -8,7 +8,7 @@ module Syntax.Parser.Lexer
       lexer
       -- * Lex states
     , normal, literate
-    , layout, empty_layout, bol
+    , layout, empty_layout, bol, imp_dir
       -- * Alex generated functions
     , AlexReturn(..), alexScan
     ) where
@@ -60,16 +60,16 @@ tokens :-
 <code>   ^ \\ "end{code}" \n	{ end_ }
 
 -- White space
-<0,code,bol_,layout_,empty_layout_>
+<0,code,bol_,layout_,empty_layout_,imp_dir_>
     $white_nonl+    ;
 
 -- Comments
-<0,code,bol_,layout_,empty_layout_>
+<0,code,bol_,layout_,empty_layout_,imp_dir_>
     "{-"	    { nestedComment }
 
 -- Dashes followed by an operator symbol should be parsed as an operator.
-<0,code,bol_,layout_,empty_layout_>   "--"\-* [^$symbol] .* ;
-<0,code,bol_,layout_,empty_layout_>   "--"\-* $		    ;
+<0,code,bol_,layout_,empty_layout_,imp_dir_>   "--"\-* [^$symbol] .* ;
+<0,code,bol_,layout_,empty_layout_,imp_dir_>   "--"\-* $		    ;
 
 -- We need to check the offside rule for the first token on each line.  We
 -- should not check the offside rule for the end of file token though (hence
@@ -98,6 +98,8 @@ tokens :-
 <0,code> where		{ keyword KwWhere }
 <0,code> postulate	{ keyword KwPostulate }
 <0,code> open		{ keyword KwOpen }
+<0,code> namespace	{ keyword KwNameSpace }
+<0,code> import		{ keyword KwImport }
 <0,code> module		{ keyword KwModule }
 <0,code> data		{ keyword KwData }
 <0,code> infix		{ keyword KwInfix }
@@ -109,6 +111,14 @@ tokens :-
 <0,code> Set		{ keyword KwSet }
 <0,code> Prop		{ keyword KwProp }
 <0,code> Set @number	{ withRange' (read . drop 3) TokSetN }
+
+-- The parser is responsible to put the lexer in the imp_dir_ state when it
+-- expects an import directive keyword. This means that if you run the
+-- tokensParser you will never see these keywords.
+<imp_dir_> using	{ endWith $ keyword KwUsing }
+<imp_dir_> hiding	{ endWith $ keyword KwHiding }
+<imp_dir_> renaming	{ endWith $ keyword KwRenaming }
+<imp_dir_> to		{ endWith $ keyword KwTo }
 
 -- Holes
 <0,code> "{!"		{ hole }
@@ -148,9 +158,11 @@ tokens :-
 literate :: LexState
 literate = tex
 
+
 -- | This is the initial state for parsing a regular, non-literate file.
 normal :: LexState
 normal = 0
+
 
 {-| The layout state. Entered when we see a layout keyword ('withLayout') and
     exited either when seeing an open brace ('openBrace') or at the next token
@@ -158,6 +170,7 @@ normal = 0
 -}
 layout :: LexState
 layout = layout_
+
 
 {-| We enter this state from 'newLayoutContext' when the token following a
     layout keyword is to the left of (or at the same column as) the current
@@ -175,11 +188,21 @@ layout = layout_
 empty_layout :: LexState
 empty_layout = empty_layout_
 
+
 -- | This state is entered at the beginning of each line. You can't lex
 --   anything in this state, and to exit you have to check the layout rule.
 --   Done with 'offsideRule'.
 bol :: LexState
 bol = bol_
+
+
+-- | This state can only be entered by the parser. In this state you can only
+--   lex the keywords @using@, @hiding@, @renaming@ and @to@. Moreover they are
+--   only keywords in this particular state. The lexer will never enter this
+--   state by itself, that has to be done in the parser.
+imp_dir :: LexState
+imp_dir = imp_dir_
+
 
 -- | Return the next token. This is the function used by Happy in the parser.
 --

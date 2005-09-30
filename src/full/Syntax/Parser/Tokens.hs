@@ -10,15 +10,17 @@ import Syntax.Common (Name, QName, Literal)
 import Syntax.Position
 
 data Keyword
-	= KwLet | KwIn | KwWhere
-	| KwPostulate | KwOpen | KwModule | KwData
+	= KwLet | KwIn | KwWhere | KwData
+	| KwPostulate | KwMutual | KwAbstract | KwPrivate
+	| KwOpen | KwImport | KwNameSpace | KwModule
 	| KwInfix | KwInfixL | KwInfixR
-	| KwMutual | KwAbstract | KwPrivate
 	| KwSet | KwProp
+	| KwHiding | KwUsing | KwRenaming | KwTo
     deriving (Eq, Show)
 
 layoutKeywords :: [Keyword]
-layoutKeywords = [ KwLet, KwWhere, KwPostulate, KwMutual, KwAbstract ]
+layoutKeywords =
+    [ KwLet, KwWhere, KwPostulate, KwMutual, KwAbstract, KwPrivate ]
 
 data Symbol
 	= SymDot | SymComma | SymSemi | SymVirtualSemi
