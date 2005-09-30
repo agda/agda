@@ -13,7 +13,12 @@ import Syntax.Parser.Tokens
 
 main =
     do	[file] <- getArgs
-	r <- parseFile exprParser file
+	r <- parseFile moduleParser file
 	case r of
-	    ParseOk _ e	    -> putStrLn "Parse OK"
-	    ParseFailed err -> print err
+	    ParseOk _ m	    -> putStrLn "Parse OK"
+	    ParseFailed err ->
+		do  print err
+		    r <- parseFile tokensParser file
+		    case r of
+			ParseOk _ ts	-> mapM_ print ts
+			ParseFailed err	-> print err
