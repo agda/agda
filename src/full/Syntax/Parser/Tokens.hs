@@ -47,6 +47,8 @@ data Token
 	  -- Other tokens
 	| TokSetN (Range, Int)
 	| TokTeX String
+	| TokDummy	-- Dummy token to make Happy not complain
+			-- about overlapping cases.
 	| TokEOF
     deriving (Eq, Show)
 
