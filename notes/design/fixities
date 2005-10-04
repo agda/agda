@@ -1,0 +1,159 @@
+
+Some thoughts on fixities
+-------------------------
+
+** The target of a fixity declaration
+
+  When you declare a fixity it should refer to a particular binding of that
+  name, not (as in Haskell) the name in general. The reason for this is: it's a
+  good design. A particular name might mean different things at different times,
+  and so you should be able to assign it different fixities.
+
+  One option then is to somehow attach the fixity declaration to the binding
+  site of the name. An argument against this is that it's very nice to give all
+  the fixity information in one place:
+
+    infixl 8  +, -
+    infixl 10 *, /
+
+  Instead of attaching it to the different definitions.
+
+** The scope of a fixity declaration
+
+  So the question is then what declaration are we referring to when we say
+
+    infix 5 <>
+
+  A simple answer is: the <> in scope. Consider then the following example:
+
+    suc x + y = suc (x + y)
+    infixl 10 +
+
+  What's the fixity of + in the body? It clearly has to be infixl 10, since how
+  else would you declare it? This illustrates that fixity declarations follow
+  different scoping rules from normal declarations.
+
+  If we accept that the scoping for fixity declarations is weird, would there be
+  any problems in allowing the fixity to appear before the definition of the
+  name?
+
+    infixl 10 +
+    suc x + y = suc (x + y)
+
+  Not really. We just get weird scoping in a different way.
+
+** Local fixity declarations
+
+  The examples, so far has been about fixities of declared names. You could also
+  imaging declaring fixities for bound names:
+
+    \(+) -> let infixl 9 + in 1 + 2 + 3
+
+  We'll get back to that shortly.
+
+  Another thing to consider is whether it should be possible to redefine the
+  fixity of a function. Let's look at the consequences:
+
+  Yes:
+
+    We should be able to write something like the following
+
+      infixl 10 +
+      (+) = ...
+      foo = 1 + 2 + 3
+	where
+	  infixr 8 +
+
+    So far nothing strange. What about this example:
+    
+      infixl 10 +
+      (+) = ...
+      foo = let infixr 8 +
+		x = 1 + 2 + 3
+		(+) = ...
+		y = 4 + 5 + 6
+	    in x + y
+
+    Following what we've said the fixity of + in x should be infixl 10, but this
+    looks really weird, considering that we declare the fixity of + in the line
+    above x to be infixr 8. In fact it's not even clear which definition of +
+    this fixity declaration refers to.
+
+  No:
+
+    Considering the example above this seems like the best choice. There is a
+    problem with declaring the fixity of bound names, though. For declared names
+    the restriction is simply that the fixity declaration must appear at the
+    same level (same module/abstract/private/mutual/let-block), for bound names
+    it's not that simple. For instance, we would expect the example above to be
+    correct:
+
+      \(+) -> let infixl 9 + in 1 + 2 + 3
+
+    But then we get into the same problem as if we allow redefinition of
+    fixities:
+
+      \(+) -> let infixl 9 +
+		  foo = 1 + 2 + 3
+		  x + y = ...
+		  bar = 4 + 5 + 6
+	      in foo + bar
+
+    Which + are we declaring the fixity of? To solve this problem we don't allow
+    fixity declarations for bound names.
+
+The same block
+
+  Actually the restriction on where the fixity declaration can appear isn't that
+  simple as let on above. As mentioned in the beginning it's nice to group the
+  fixity declarations of related functions. If some of these functions are
+  abstract, private or mutually recursive you wouldn't be able to do this. The
+  solution is to use the scoping rule for the blocks. If a name declared inside
+  a block is visible outside the block, then the fixity declaration can appear
+  outside the block. This means that you can pull fixity declarations out of
+  abstract, private, and mutual blocks, but not out of modules of local
+  definitions.
+
+  A natural question is if we are allowed to push fixities inside these blocks:
+
+  (+) = ...
+  private infixl 10 +
+
+  There's not really a problem with doing this except that since the declaration
+  modifiers (private/abstract/mutual) doesn't affect fixity declarations the
+  example above could give you the wrong idea (that the fixity isn't exported
+  outside the module). For this reason, the example above is disallowed.
+
+Conclusions
+
+  You can declare the fixity of a declared name (but not a bound name). The
+  fixity declaration has to appear on the same level as the declaration. The
+  only exception to this rule is that fixity declarations can be lifted out of
+  abstract, private and mutual blocks.
+
+  The following would be OK:
+
+    infixl 8  +, -
+    abstract (+) = ...
+    (-) = ...
+  --
+    abstract (+) = ...
+    (-) = ...
+    infixl 8  +, -
+  --
+    abstract infixl 8 +
+	     (+) = ...
+    infixl 8 -
+    (-) = ...
+    
+  but the following would not be
+
+    abstract infixl 8 +, -
+	     (+) = ...
+    (-) = ...
+  --
+    infixl 8 +
+    module Plus where
+      (+) = ...
+
+ vim: sts=2 sw=2 tw=80
