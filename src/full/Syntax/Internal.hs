@@ -31,7 +31,7 @@ data Value = Var Nat Expl
 	   | App Value Value Hidden Expl
 	   | Lam Type (Abs Value) Expl
 	   | Lit Literal Expl
-	   | Def NamePath Expl 
+	   | Def Name Expl 
 	   | MetaV MId Expl
   deriving (Typeable, Data, Show)
 
@@ -49,7 +49,7 @@ data Sort = Type Nat Expl
 	  | Lub Sort Sort Expl
   deriving (Typeable, Data, Show)
 
-data Abs a = Abs Name a deriving (Typeable, Data, Show)
+data Abs a = Abs NameID a deriving (Typeable, Data, Show)
 
 -- | check if given term is an abstraction
 isAbs x = dataTypeName (dataTypeOf x) == dataTypeName (dataTypeOf (Abs "" ()))
@@ -90,7 +90,7 @@ data BasicValue = VarBV Nat
 		| AppBV Value Value 
 		| LamBV Type (Abs Value)
 		| LitBV Literal 
-		| DefBV NamePath 
+		| DefBV Name 
 		| MetaVBV MId
   deriving (Typeable, Data)
 
@@ -133,7 +133,7 @@ basicSort s = case s of
 data SpineValue = VarSV Nat [Value]
 		| LamSV Type (Abs Value) [Value]
 		| LitSV Literal -- ^ literals can't be applied
-		| DefSV NamePath [Value]
+		| DefSV Name [Value]
 		| MetaVSV MId [Value]
   deriving (Typeable, Data, Show)
 
@@ -156,11 +156,9 @@ type Nat = Int
 type MId = Int
 newtype Range = Range (Int, Int) deriving (Typeable, Data, Show)
 type Hidden = Bool
-type Name = String
-type NameSpace = String
--- | @NamePath@ is a list of namespaces, with their arguments, 
---     and the name of the constant
-type NamePath = ([(NameSpace,[Value])],Name)
+type NameID = String
+-- | @Name@ is a list of namespaces and the name of the constant
+data Name = Path NameID Name | Name NameID
 data Literal = String String | Int Int deriving (Typeable, Data, Show)
 
 --
@@ -191,9 +189,9 @@ type Store = [(MId, MetaInfo)]
 type Context = [CtxElm]
 type Signature = Context
 
-data CtxElm = Decl Name Type
-	    | Defn Name [Clause]
-	    | NameSpace Name Context
+data CtxElm = Decl NameID Type
+	    | Defn NameID [Clause]
+	    | NameSpace NameID Context
   deriving (Typeable, Data)
 
 isDecl ce = case ce of Decl _ _ -> True; _ -> False
@@ -218,8 +216,13 @@ defOfConst :: Name -> TCM [Clause]
 defOfConst c = do
   ctx <- ask  -- need to look in context for local definitions
   sig <- gets sigSt
-  case L.find (\ (Defn x _) -> x == c) (filter isDefn $ ctx++sig) of
-    Just (Defn _ cls) -> return cls
+  go (ctx++sig) c
+ where
+  go ctx ([], c) =
+    case L.find (\ (Defn x _) -> x == c) (filter isDefn $ ctx++sig) of
+      Just (Defn _ cls) -> return cls
+  go ctx ((x,
+
 
 --
 -- Definitions
@@ -227,8 +230,8 @@ defOfConst c = do
 data Clause = Clause [Pattern] Value
   deriving (Typeable, Data) 
 
-data Pattern = VarP Name
-	     | ConP Name [Pattern]
+data Pattern = VarP NameID
+	     | ConP NameID [Pattern]
 	     | PairP Pattern Pattern
              | WildP
   deriving (Typeable, Data)
@@ -243,7 +246,7 @@ reduce v = case spineValue v of
   	    Just _ -> return v
     DefSV f args -> case defOfConst f of
         [] -> return v -- no definition for head
-        cls@(Clause ps v : _) -> 
+        cls@(Clause ps _ : _) -> 
             if length ps == length args then appDef f cls args
             else return v
     _ -> return v
