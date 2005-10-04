@@ -26,6 +26,6 @@
 
 \end{code}
 
-  The literate parser doesn't work.
+  The literate parser works.
 
 \end{document}
