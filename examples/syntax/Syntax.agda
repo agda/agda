@@ -50,10 +50,10 @@ module examples.syntax.Syntax where
     const3 = \{A}{B} -> \(x:A)(y:B) -> x
 
     -- Implicit arguments can be omitted in applications.
-    x = const x1 x2
+    x = const1 x1 x2
 
     -- Or made explicit.
-    x' = const {X} {X} x1 x2
+    x' = const1 {X} {X} x1 x2
 
     -- Infix operators can be bound by lambdas. See ComplexDeclarations for
     -- more information about infix operators.
