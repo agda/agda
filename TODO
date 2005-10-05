@@ -9,4 +9,7 @@ Parsing
 
   * Check out lex/parse errors (what position and what input is reported).
 
+  * Write pretty printer for concrete syntax, to use in parse errors and
+    errors converting to abstract syntax.
+
  vim: sts=2 sw=2 ts=80
