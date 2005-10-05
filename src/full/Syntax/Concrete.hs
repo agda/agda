@@ -22,7 +22,8 @@ module Syntax.Concrete
     , Declaration(..)
     , Local, TypeSig, Private, Abstract, DontCare
     , Constructor
-    , Assoc(..)
+    , Fixity(..)
+    , defaultFixity
     , ImportDirective(..)
     , LHS, RHS, WhereClause
     )
@@ -121,8 +122,12 @@ type AbstractDeclaration = Declaration DontCare DontCare DontCare DontCare Abstr
 -- | Everything can appear at top-level.
 type TopLevelDeclaration = Declaration DontCare DontCare DontCare DontCare DontCare
 
--- | Associativity of infix operators.
-data Assoc = LeftAssoc | RightAssoc | NonAssoc
+-- | Fixity of infix operators.
+data Fixity = LeftAssoc Integer | RightAssoc Integer | NonAssoc Integer
+
+-- | The default fixity. Currently defined to be @'LeftAssoc' 20@.
+defaultFixity :: Fixity
+defaultFixity = LeftAssoc 20
 
 {-| Declaration is a family of datatypes indexed by the datakinds
 
@@ -158,7 +163,7 @@ data Declaration typesig local private mutual abstract
 	    WhereClause			    -- ^ . @Declaration 'DontCare' local private mutual abstract@
 	| Data Range Name Telescope
 	    Expr [Constructor]		    -- ^ . @Declaration 'DontCare' local private mutual abstract@
-	| Infix Range Assoc Integer [QName] -- ^ . @Declaration 'DontCare' local private mutual abstract@
+	| Infix Range Fixity [Name]	    -- ^ . @Declaration 'DontCare' local private mutual abstract@
 	| Mutual Range [MutualDeclaration]  -- ^ . @Declaration 'DontCare' local private 'DontCare' abstract@
 	| Abstract Range [LocalDeclaration] -- ^ . @Declaration 'DontCare' local private 'DontCare' 'DontCare'@
 	| Private Range [PrivateDeclaration]-- ^ . @Declaration 'DontCare' 'DontCare' 'DontCare' 'DontCare' 'DontCare'@
@@ -185,7 +190,7 @@ data Declaration typesig local private mutual abstract where
 	Data	    :: Range -> Name -> Telescope -> Expr -> [Constructor] 
 		    -> Declaration DontCare local private mutual abstract
 
-	Infix	    :: Range -> Assoc -> Integer -> [QName]
+	Infix	    :: Range -> Fixity -> [Name]
 		    -> Declaration DontCare local private mutual abstract
 
 	Mutual	    :: Range -> [MutualDeclaration]
