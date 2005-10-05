@@ -25,7 +25,8 @@ module Syntax.Concrete
     , Fixity(..)
     , defaultFixity
     , ImportDirective(..)
-    , LHS, RHS, WhereClause
+    , LHS(..), Argument(..), Pattern(..)
+    , RHS, WhereClause
     )
     where
 
@@ -36,7 +37,7 @@ import Syntax.Common
 type Constructor = TypeSignature
 
 
--- | The raw view. Should represent exactly what the user wrote.
+-- | Concrete expressions. Should represent exactly what the user wrote.
 data Expr   = Ident QName			    -- ^ . @x@
 	    | Lit Literal			    -- ^ . @1@ or @\"foo\"@
 	    | QuestionMark Range		    -- ^ . @?@ or @{! ... !}@
@@ -51,6 +52,14 @@ data Expr   = Ident QName			    -- ^ . @x@
 	    | Let Range [LocalDeclaration] Expr	    -- ^ . @let Ds in e@
 	    | Elim Range Expr (Maybe Expr) [Branch] -- ^ . @by e with P of bs@
 	    | Paren Range Expr			    -- ^ . @(e)@
+
+
+-- | Concrete patterns. No literals in patterns at the moment.
+data Pattern
+	= IdentP QName
+	| AppP Pattern Pattern
+	| InfixAppP Pattern QName Pattern
+	| ParenP Range Pattern
 
 
 -- | A (fancy) case branch is on the form @p1 .. pn -> e@ where @pi@ are arbitrary
@@ -83,10 +92,21 @@ data ImportDirective
 	| Renaming [(Name, Name)]   -- ^ Contains @(oldName,newName)@ pairs.
 
 
--- | To be able to parse infix declarations properly left hand sides are parsed
---   as expressions. For instance, @x::xs ++ ys = x :: (xs ++ ys)@ should be a
---   valid declaration of @++@ provided @::@ has higher precedence than @++@.
-type LHS = Expr
+{-| Left hand sides can be written in infix style. For example:
+
+    > n + suc m = suc (n + m)
+    > (f . g) x = f (g x)
+
+    It must always be clear which name is defined, independently of fixities.
+    Hence the following definition is never ok:
+
+    > x::xs ++ ys = x :: (xs ++ ys)
+
+-}
+data LHS = LHS Range IsInfix Name [Argument]
+
+-- | An function argument is a pattern which might be hidden.
+data Argument = Argument Hiding Pattern
 
 
 type RHS	    = Expr
@@ -268,4 +288,7 @@ instance HasRange ImportDirective where
     getRange (Using xs)	    = getRange xs
     getRange (Hiding xs)    = getRange xs
     getRange (Renaming xs)  = getRange xs
+
+instance HasRange LHS where
+    getRange (LHS r _ _ _)  = r
 

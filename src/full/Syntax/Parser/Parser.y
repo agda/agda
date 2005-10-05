@@ -221,6 +221,11 @@ Id  : id	    { $1 }
     | '(' op ')'    { $2 }
 
 
+-- Unqualified operators. Used in left hand sides.
+Op :: { Name }
+Op : op		{ $1 }
+   | '`' id '`'	{ $2 }
+
 -- Qualified operators are treated as identifiers, i.e. they have to be back
 -- quoted to appear infix.
 QId :: { QName }
@@ -237,9 +242,8 @@ ModuleName
 
 -- Infix operator. All names except unqualified operators have to be back
 -- quoted.
-Op :: { QName }
-Op  : op	    { QName [] $1 }
-    | '`' id '`'    { QName [] $2 }
+QOp :: { QName }
+QOp : Op	    { QName [] $1 }
     | '`' q_id '`'  { $2 }
     | '`' q_op '`'  { $2 }
 
@@ -272,7 +276,7 @@ CommaIds
 
 
 -- Comma separated list of operators. Used in infix declarations.
-CommaOps :: { [QName] }
+CommaOps :: { [Name] }
 CommaOps
     : Op ',' CommaOps	{ $1 : $3 }
     | Op		{ [$1] }
@@ -309,7 +313,7 @@ Expr
 
 -- Level 1: Infix operators
 Expr1
-    : Expr1 Op Expr2		{ InfixApp $1 $2 $3 }
+    : Expr1 QOp Expr2		{ InfixApp $1 $2 $3 }
     | Expr2			{ $1 }
 
 
@@ -338,6 +342,58 @@ Expr4
     | setN		{ uncurry SetN $1 }
     | '(' Expr ')'	{ Paren (fuseRange $1 $3) $2 }
 
+
+{--------------------------------------------------------------------------
+    Patterns
+ --------------------------------------------------------------------------}
+
+{-
+-- Level 0: Infix operators
+Pattern
+    : Pattern QOp Pattern1  { InfixAppP $1 $2 $3 }
+    | Pattern1		    { $1 }
+
+-- Level 1: Application
+Pattern1
+    : Pattern1 Pattern2	    { AppP (fuseRange $1 $2) $1 $2 }
+    | Pattern2		    { $1 }
+
+-- Level 2: Atoms
+Pattern2
+    : QId		{ IdentP $1 }
+    | '(' Pattern ')'	{ ParenP (fuseRange $1 $3) $2 }
+-}
+
+-- A left hand side of a function clause. We parse it as an expression, and
+-- then check that it is a valid left hand side.
+LHS :: { LHS }
+LHS : Expr  {% exprToLHS $1 }
+
+{-
+LHS : Pattern1 QOp Pattern1  { LHS InfixDef $2
+				[ Argument (getRange $1) NotHidden $1
+				, Argument (getRange $3) NotHidden $3
+				]
+			    }
+    | '(' Pattern1 QOp Pattern1 ')' Arguments
+			    { LHS InfixDef $3 $
+				Argument (getRange $2) NotHidden $2
+				: Argument (getRange $4) NotHidden $4
+				: $6
+			    }
+    | QId Arguments	    { LHS PrefixDef $1 $2 }
+
+-- Arguments in a left hand side can be hidden or not.
+Argument :: { Argument }
+Argument
+    : Pattern2		{ Argument (getRange $1) NotHidden $1 }
+    | '{' Pattern '}'	{ Argument (fuseRange $1 $3) Hidden $2 }
+
+Arguments :: { [Argument] }
+Arguments
+    : {- empty -}	    { [] }
+    | Argument Arguments    { $1 $2 }
+-}
 
 {--------------------------------------------------------------------------
     Bindings
@@ -460,7 +516,7 @@ TypeSig : Id ':' Expr   { TypeSig $1 $3 }
 -- Function declarations. The left hand side is parsed as an expression to allow
 -- declarations like 'x::xs ++ ys = e', when '::' has higher precedence than '++'.
 FunClause :: { Declaration DontCare local private mutual abstract }
-FunClause : Expr '=' Expr WhereClause	{ FunClause $1 $3 $4 }
+FunClause : LHS '=' Expr WhereClause	{ FunClause $1 $3 $4 }
 
 -- Where clauses are optional.
 WhereClause :: { WhereClause }
@@ -484,9 +540,9 @@ Sort : 'Prop'		{ Prop $1 }
 
 -- Fixity declarations.
 Infix :: { Declaration DontCare local private mutual abstract }
-Infix : 'infix' Int CommaOps	{ Infix (fuseRange $1 $3) NonAssoc $2 $3 }
-      | 'infixl' Int CommaOps	{ Infix (fuseRange $1 $3) LeftAssoc $2 $3 }
-      | 'infixr' Int CommaOps	{ Infix (fuseRange $1 $3) RightAssoc $2 $3 }
+Infix : 'infix' Int CommaOps	{ Infix (fuseRange $1 $3) (NonAssoc $2) $3 }
+      | 'infixl' Int CommaOps	{ Infix (fuseRange $1 $3) (LeftAssoc $2) $3 }
+      | 'infixr' Int CommaOps	{ Infix (fuseRange $1 $3) (RightAssoc $2) $3 }
 
 
 -- Mutually recursive declarations.
@@ -667,5 +723,41 @@ moduleParser :: Parser TopLevelDeclaration
 -- | Required by Happy.
 happyError :: Parser a
 happyError = parseError "Parse error"
+
+-- | Turn an expression into a left hand side. Fails if the expression is not a
+--   valid lhs.
+exprToLHS :: Expr -> Parser LHS
+exprToLHS e =
+    case spine e of
+	(_, Ident (QName [] x)) : es ->
+	    do	args <- mapM (uncurry exprToArg) es
+		return $ LHS r PrefixDef x args
+	(_, InfixApp e1 (QName [] x) e2) : es ->
+	    do	args <- mapM (uncurry exprToArg) $
+			    (NotHidden,e1) : (NotHidden,e2) : es
+		return $ LHS r InfixDef x args
+	_   -> parseError "Parse error in left hand side."
+    where
+	r = getRange e
+	spine (App _ h e1 e2)	= spine e1 ++ [(h, e2)]
+	spine (Paren _ e)	= spine e
+	spine e			= [(NotHidden,e)]
+
+	exprToArg :: Hiding -> Expr -> Parser Argument
+	exprToArg h e = Argument h <$> exprToPattern e
+
+	exprToPattern :: Expr -> Parser Pattern
+	exprToPattern e =
+	    case e of
+		Ident x			-> return $ IdentP x
+		App _ NotHidden e1 e2	-> AppP <$> exprToPattern e1
+						<*> exprToPattern e2
+		InfixApp e1 op e2	-> InfixAppP
+						<$> exprToPattern e1
+						<*> return op
+						<*> exprToPattern e2
+		Paren r e		-> ParenP r
+						<$> exprToPattern e
+		_			-> parseError "Parse error in pattern"
 
 }

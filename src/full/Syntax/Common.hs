@@ -4,7 +4,11 @@ module Syntax.Common where
 
 import Syntax.Position
 
-data Hiding = Hidden | NotHidden
+data Hiding  = Hidden | NotHidden
+
+-- | Functions can be defined in both infix and prefix style. See
+--   'Syntax.Concrete.LHS'.
+data IsInfix = InfixDef | PrefixDef
 
 data Name = Name Range String
     deriving (Eq, Show)
