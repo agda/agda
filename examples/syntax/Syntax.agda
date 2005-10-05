@@ -106,6 +106,17 @@ module examples.syntax.Syntax where
     and (true::xs)  = nested xs
     and (false::xs) = false
 
+    -- Functions can be defined in an infix style. When doing this it must be
+    -- clear what name is being defined without looking at fixities. Hence we
+    -- could never remove the parenthesis around x::xs in the second clause.
+    (++) : List X -> List X -> List X
+    nil	    ++ ys = ys
+    (x::xs) ++ ys = x :: (xs ++ ys)
+
+    -- You can also use a combination of infix and prefix.
+    (@) : {A, B, C : Set} -> (B -> C) -> (A -> B) -> A -> C
+    (f @ g) x = f (g x)
+
   -- Declarations can appear in many different contexts and not all
   -- declarations are allowed everywhere.
   module ComplexDeclarations (X : Set) where
