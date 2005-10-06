@@ -7,7 +7,7 @@
 -}
 module Syntax.Concrete
     ( -- * Expressions
-      Expr(..)
+      Expr'(..), Expr
     , Name(..), QName(..)
     , Branch(..)
       -- * Bindings
@@ -15,12 +15,14 @@ module Syntax.Concrete
     , TypedBinding(..)
     , Telescope
       -- * Declarations
+    , Declaration, Declaration'(..)
+    , Local, TypeSig, Private, Mutual, Abstract, DontCare
     , TopLevelDeclaration
     , TypeSignature
     , LocalDeclaration, PrivateDeclaration
     , MutualDeclaration, AbstractDeclaration
-    , Declaration(..)
-    , Local, TypeSig, Private, Abstract, DontCare
+    , typeSig, funClause, dataDecl, infixDecl, mutual, abstract
+    , private, postulate, open, nameSpace, importDecl, moduleDecl
     , Constructor
     , Fixity(..)
     , defaultFixity
@@ -40,20 +42,26 @@ type Constructor = TypeSignature
 
 
 -- | Concrete expressions. Should represent exactly what the user wrote.
-data Expr   = Ident QName			    -- ^ . @x@
-	    | Lit Literal			    -- ^ . @1@ or @\"foo\"@
-	    | QuestionMark Range		    -- ^ . @?@ or @{! ... !}@
-	    | Underscore Range			    -- ^ . @_@
-	    | App Range Hiding Expr Expr	    -- ^ . @e e@ or @e {e}@
-	    | InfixApp Expr QName Expr		    -- ^ . @e + e@ (no hiding)
-	    | Lam Range [LamBinding] Expr	    -- ^ . @\L -> e@
-	    | Fun Range Hiding Expr Expr	    -- ^ . @e -> e@ or @{e} -> e@
-	    | Pi TypedBinding Expr		    -- ^ . @(xs:e) -> e@ or @{xs:e} -> e@
-	    | Set Range | Prop Range		    -- ^ . @Set, Prop@
-	    | SetN Range Nat			    -- ^ . @Set0, Set1, ..@
-	    | Let Range [LocalDeclaration] Expr	    -- ^ . @let Ds in e@
-	    | Elim Range Expr (Maybe Expr) [Branch] -- ^ . @by e with P of bs@
-	    | Paren Range Expr			    -- ^ . @(e)@
+--   Parameterised over the type of local declarations.
+data Expr' local
+	= Ident QName						    -- ^ . @x@
+	| Lit Literal						    -- ^ . @1@ or @\"foo\"@
+	| QuestionMark Range					    -- ^ . @?@ or @{! ... !}@
+	| Underscore Range					    -- ^ . @_@
+	| App Range Hiding (Expr' local) (Expr' local)		    -- ^ . @e e@ or @e {e}@
+	| InfixApp (Expr' local) QName (Expr' local)		    -- ^ . @e + e@ (no hiding)
+	| Lam Range [LamBinding] (Expr' local)			    -- ^ . @\L -> e@
+	| Fun Range Hiding (Expr' local) (Expr' local)		    -- ^ . @e -> e@ or @{e} -> e@
+	| Pi TypedBinding (Expr' local)				    -- ^ . @(xs:e) -> e@ or @{xs:e} -> e@
+	| Set Range | Prop Range				    -- ^ . @Set, Prop@
+	| SetN Range Nat					    -- ^ . @Set0, Set1, ..@
+	| Let Range [local] (Expr' local)			    -- ^ . @let Ds in e@
+	| Elim Range (Expr' local) (Maybe (Expr' local)) [Branch]   -- ^ . @by e with P of bs@
+	| Paren Range (Expr' local)				    -- ^ . @(e)@
+    deriving (Typeable, Data, Eq, Show)
+
+-- | Concrete expressions. Local declarations are 'LocalDeclaration's.
+type Expr = Expr' LocalDeclaration
 
 
 -- | Concrete patterns. No literals in patterns at the moment.
@@ -175,19 +183,20 @@ defaultFixity = LeftAssoc 20
     declarations that can appear in a local declaration. If the index is
     'DontCare' the type contains all declarations regardless of whether they can
     appear in a local declaration.  There is no grouping of function clauses
-    and\/or type signatures in the concrete syntax. That happens in the
-    desugarer.
-#if __GLASGOW_HASKELL__ < 604 || __HADDOCK__
-#if __GLASGOW_HASKELL__ < 604
-    Without inductive families (introduced in ghc 6.4) the type checker
-    cannot help us out here.
-#else
-    Unfortunately Haddock doesn't support inductive families (yet), but in the
-    source code it is an inductive familily.
-#endif
-    The intended targets of the constructors are in the comments.
+    and\/or type signatures in the concrete syntax. That happens in
+    "Syntax.Concrete.Definitions".
+
+    We could use a real inductive family (from ghc 6.4) to do this, but since 
+    they don't work with the deriving mechanism, and is not supported by older
+    versions of the compiler we use the poor man's version of using type
+    synonyms and constructor functions.
 -}
-data Declaration typesig local private mutual abstract
+type Declaration typesig local private mutual abstract = Declaration'
+
+{-| The representation type of a declaration. The comments indicate the which
+    type in the intended family the constructor targets.
+-}
+data Declaration'
 	= TypeSig Name Expr		    -- ^ . @Declaration typesig local private mutual abstract@
 	| FunClause LHS RHS
 	    WhereClause			    -- ^ . @Declaration 'DontCare' local private mutual abstract@
@@ -208,43 +217,42 @@ data Declaration typesig local private mutual abstract
 	    [TopLevelDeclaration]	    -- ^ . @Declaration 'DontCare' 'DontCare' private 'DontCare' 'DontCare'@
     deriving (Eq, Show, Typeable, Data)
 
-	TypeSig	    :: Name -> Expr
-		    -> Declaration typesig local private mutual abstract
 
-	FunClause   :: LHS -> RHS -> WhereClause
-		    -> Declaration DontCare local private mutual abstract
+typeSig	:: Name -> Expr -> Declaration typesig local private mutual abstract
+typeSig = TypeSig
 
-	Data	    :: Range -> Name -> Telescope -> Expr -> [Constructor] 
-		    -> Declaration DontCare local private mutual abstract
+funClause :: LHS -> RHS -> WhereClause -> Declaration DontCare local private mutual abstract
+funClause = FunClause
 
-	Infix	    :: Range -> Fixity -> [Name]
-		    -> Declaration DontCare local private mutual abstract
+dataDecl :: Range -> Name -> Telescope -> Expr -> [Constructor]  -> Declaration DontCare local private mutual abstract
+dataDecl = Data
 
-	Mutual	    :: Range -> [MutualDeclaration]
-		    -> Declaration DontCare local private DontCare abstract
+infixDecl :: Range -> Fixity -> [Name] -> Declaration DontCare local private mutual abstract
+infixDecl = Infix
 
-	Abstract    :: Range -> [AbstractDeclaration]
-		    -> Declaration DontCare local private DontCare DontCare
+mutual :: Range -> [MutualDeclaration] -> Declaration DontCare local private DontCare abstract
+mutual = Mutual
 
-	Private	    :: Range -> [PrivateDeclaration]
-		    -> Declaration DontCare DontCare DontCare DontCare DontCare
+abstract :: Range -> [AbstractDeclaration] -> Declaration DontCare local private DontCare DontCare
+abstract = Abstract
 
-	Postulate   :: Range -> [TypeSignature]
-		    -> Declaration DontCare DontCare private DontCare DontCare
+private	:: Range -> [PrivateDeclaration] -> Declaration DontCare DontCare DontCare DontCare DontCare
+private = Private
 
-	Open	    :: Range -> QName -> [ImportDirective]
-		    -> Declaration DontCare local private DontCare abstract
+postulate :: Range -> [TypeSignature] -> Declaration DontCare DontCare private DontCare DontCare
+postulate = Postulate
 
-	NameSpace   :: Range -> Name -> Expr -> [ImportDirective]
-		    -> Declaration DontCare local private DontCare abstract
+open :: Range -> QName -> [ImportDirective] -> Declaration DontCare local private DontCare abstract
+open = Open
 
-	Import	    :: Range -> QName -> [ImportDirective]
-		    -> Declaration DontCare DontCare DontCare DontCare DontCare
+nameSpace :: Range -> Name -> Expr -> [ImportDirective] -> Declaration DontCare local private DontCare abstract
+nameSpace = NameSpace
 
-	Module	    :: Range -> QName -> Telescope -> [TopLevelDeclaration]
-		    -> Declaration DontCare DontCare private DontCare DontCare
+importDecl :: Range -> QName -> [ImportDirective] -> Declaration DontCare DontCare DontCare DontCare DontCare
+importDecl = Import
 
-#endif
+moduleDecl :: Range -> QName -> Telescope -> [TopLevelDeclaration] -> Declaration DontCare DontCare private DontCare DontCare
+moduleDecl = Module
 
 
 {--------------------------------------------------------------------------
@@ -277,7 +285,7 @@ instance HasRange LamBinding where
     getRange (DomainFree _ x)	= getRange x
     getRange (DomainFull b)	= getRange b
 
-instance HasRange (Declaration typesig local private mutual abstract) where
+instance HasRange Declaration' where
     getRange (TypeSig x t)	    = fuseRange x t
     getRange (FunClause lhs rhs []) = fuseRange lhs rhs
     getRange (FunClause lhs rhs wh) = fuseRange lhs (last wh)

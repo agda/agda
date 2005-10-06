@@ -344,58 +344,6 @@ Expr4
 
 
 {--------------------------------------------------------------------------
-    Patterns
- --------------------------------------------------------------------------}
-
-{-
--- Level 0: Infix operators
-Pattern
-    : Pattern QOp Pattern1  { InfixAppP $1 $2 $3 }
-    | Pattern1		    { $1 }
-
--- Level 1: Application
-Pattern1
-    : Pattern1 Pattern2	    { AppP (fuseRange $1 $2) $1 $2 }
-    | Pattern2		    { $1 }
-
--- Level 2: Atoms
-Pattern2
-    : QId		{ IdentP $1 }
-    | '(' Pattern ')'	{ ParenP (fuseRange $1 $3) $2 }
--}
-
--- A left hand side of a function clause. We parse it as an expression, and
--- then check that it is a valid left hand side.
-LHS :: { LHS }
-LHS : Expr  {% exprToLHS $1 }
-
-{-
-LHS : Pattern1 QOp Pattern1  { LHS InfixDef $2
-				[ Argument (getRange $1) NotHidden $1
-				, Argument (getRange $3) NotHidden $3
-				]
-			    }
-    | '(' Pattern1 QOp Pattern1 ')' Arguments
-			    { LHS InfixDef $3 $
-				Argument (getRange $2) NotHidden $2
-				: Argument (getRange $4) NotHidden $4
-				: $6
-			    }
-    | QId Arguments	    { LHS PrefixDef $1 $2 }
-
--- Arguments in a left hand side can be hidden or not.
-Argument :: { Argument }
-Argument
-    : Pattern2		{ Argument (getRange $1) NotHidden $1 }
-    | '{' Pattern '}'	{ Argument (fuseRange $1 $3) Hidden $2 }
-
-Arguments :: { [Argument] }
-Arguments
-    : {- empty -}	    { [] }
-    | Argument Arguments    { $1 $2 }
--}
-
-{--------------------------------------------------------------------------
     Bindings
  --------------------------------------------------------------------------}
 
@@ -510,13 +458,18 @@ TopLevelDeclaration
 -- Type signatures can appear everywhere, so the type is completely polymorphic
 -- in the indices.
 TypeSig :: { Declaration typesig local private mutual abstract }
-TypeSig : Id ':' Expr   { TypeSig $1 $3 }
+TypeSig : Id ':' Expr   { typeSig $1 $3 }
 
 
 -- Function declarations. The left hand side is parsed as an expression to allow
 -- declarations like 'x::xs ++ ys = e', when '::' has higher precedence than '++'.
 FunClause :: { Declaration DontCare local private mutual abstract }
-FunClause : LHS '=' Expr WhereClause	{ FunClause $1 $3 $4 }
+FunClause : LHS '=' Expr WhereClause	{ funClause $1 $3 $4 }
+
+-- A left hand side of a function clause. We parse it as an expression, and
+-- then check that it is a valid left hand side.
+LHS :: { LHS }
+LHS : Expr  {% exprToLHS $1 }
 
 -- Where clauses are optional.
 WhereClause :: { WhereClause }
@@ -528,8 +481,7 @@ WhereClause
 -- Data declaration. Can be local.
 Data :: { Declaration DontCare local private mutual abstract }
 Data : 'data' Id MaybeTelescope ':' Sort 'where'
-	    Constructors	{ Data (getRange ($1, $6, $7)) $2 $3 $5 $7 }
-
+	    Constructors	{ dataDecl (getRange ($1, $6, $7)) $2 $3 $5 $7 }
 
 -- Sorts
 Sort :: { Expr }
@@ -540,52 +492,52 @@ Sort : 'Prop'		{ Prop $1 }
 
 -- Fixity declarations.
 Infix :: { Declaration DontCare local private mutual abstract }
-Infix : 'infix' Int CommaOps	{ Infix (fuseRange $1 $3) (NonAssoc $2) $3 }
-      | 'infixl' Int CommaOps	{ Infix (fuseRange $1 $3) (LeftAssoc $2) $3 }
-      | 'infixr' Int CommaOps	{ Infix (fuseRange $1 $3) (RightAssoc $2) $3 }
+Infix : 'infix' Int CommaOps	{ infixDecl (fuseRange $1 $3) (NonAssoc $2) $3 }
+      | 'infixl' Int CommaOps	{ infixDecl (fuseRange $1 $3) (LeftAssoc $2) $3 }
+      | 'infixr' Int CommaOps	{ infixDecl (fuseRange $1 $3) (RightAssoc $2) $3 }
 
 
 -- Mutually recursive declarations.
 Mutual :: { Declaration DontCare local private DontCare abstract }
-Mutual : 'mutual' MutualDeclarations  { Mutual (fuseRange $1 $2) $2 }
+Mutual : 'mutual' MutualDeclarations  { mutual (fuseRange $1 $2) $2 }
 
 
 -- Abstract declarations.
 Abstract :: { Declaration DontCare local private DontCare DontCare }
-Abstract : 'abstract' AbstractDeclarations  { Abstract (fuseRange $1 $2) $2 }
+Abstract : 'abstract' AbstractDeclarations  { abstract (fuseRange $1 $2) $2 }
 
 
 -- Private can only appear on the top-level (or rather the module level).
 Private :: { TopLevelDeclaration }
-Private : 'private' PrivateDeclarations	{ Private (fuseRange $1 $2) $2 }
+Private : 'private' PrivateDeclarations	{ private (fuseRange $1 $2) $2 }
 
 
 -- Postulates. Only on top-level or in a private block.
 -- NOTE: Does it make sense to allow private postulates?
 Postulate :: { Declaration DontCare DontCare private DontCare DontCare }
-Postulate : 'postulate' TypeSignatures	{ Postulate (fuseRange $1 $2) $2 }
+Postulate : 'postulate' TypeSignatures	{ postulate (fuseRange $1 $2) $2 }
 
 
 -- Open
 Open :: { Declaration DontCare local private DontCare abstract }
-Open : 'open' ModuleName ImportDirectives   { Open (getRange ($1,$2,$3)) $2 $3 }
+Open : 'open' ModuleName ImportDirectives   { open (getRange ($1,$2,$3)) $2 $3 }
 
 
 -- NameSpace
 NameSpace :: { Declaration DontCare local private DontCare abstract }
 NameSpace : 'namespace' id '=' Expr ImportDirectives
-		    { NameSpace (getRange ($1, $4, $5)) $2 $4 $5 }
+		    { nameSpace (getRange ($1, $4, $5)) $2 $4 $5 }
 
 
 -- Import
 Import :: { TopLevelDeclaration }
-Import : 'import' ModuleName ImportDirectives    { Import (getRange ($1,$2,$3)) $2 $3 }
+Import : 'import' ModuleName ImportDirectives    { importDecl (getRange ($1,$2,$3)) $2 $3 }
 
 
 -- Import directives
 ImportDirectives :: { [ImportDirective] }
 ImportDirectives
-    : {- empty -}			    { [] }
+    : {- empty -}			{ [] }
     | ImportDirective ImportDirectives  { $1 : $2 }
 
 -- An import directive
@@ -608,7 +560,7 @@ Renaming
 -- Module
 Module :: { Declaration DontCare DontCare private DontCare DontCare }
 Module : 'module' id MaybeTelescope 'where' TopLevelDeclarations
-		    { Module (getRange ($1,$4,$5)) (QName [] $2) $3 $5 }
+		    { moduleDecl (getRange ($1,$4,$5)) (QName [] $2) $3 $5 }
 
 -- The top-level module. Can have a qualified name.
 TopModule :: { TopLevelDeclaration }
