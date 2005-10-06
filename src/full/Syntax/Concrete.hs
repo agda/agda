@@ -30,6 +30,8 @@ module Syntax.Concrete
     )
     where
 
+import Data.Generics hiding (Fixity, Infix)
+
 import Syntax.Position
 import Syntax.Common
 
@@ -60,23 +62,27 @@ data Pattern
 	| AppP Pattern Pattern
 	| InfixAppP Pattern QName Pattern
 	| ParenP Range Pattern
+    deriving (Typeable, Data, Eq, Show)
 
 
 -- | A (fancy) case branch is on the form @p1 .. pn -> e@ where @pi@ are arbitrary
 --   expressions.
 data Branch = Branch [Expr] Expr
+    deriving (Typeable, Data, Eq, Show)
 
 
 -- | A lambda binding is either domain free or typed.
 data LamBinding
 	= DomainFree Hiding Name		-- ^ . @x@ or @{x}@
 	| DomainFull TypedBinding		-- ^ . @(xs:e)@ or @{xs:e}@
+    deriving (Typeable, Data, Eq, Show)
 
 
 -- | A typed binding. Appears in dependent function spaces, typed lambdas, and
 --   telescopes.
 data TypedBinding
 	= TypedBinding Range Hiding [Name] Expr -- (xs:e) or {xs:e}
+    deriving (Typeable, Data, Eq, Show)
 
 
 -- | A telescope is a sequence of typed bindings. Bound variables are in scope
@@ -90,6 +96,7 @@ data ImportDirective
 	= Hiding [Name]
 	| Using  [Name]
 	| Renaming [(Name, Name)]   -- ^ Contains @(oldName,newName)@ pairs.
+    deriving (Typeable, Data, Show, Eq)
 
 
 {-| Left hand sides can be written in infix style. For example:
@@ -104,9 +111,11 @@ data ImportDirective
 
 -}
 data LHS = LHS Range IsInfix Name [Argument]
+    deriving (Typeable, Data, Show, Eq)
 
 -- | An function argument is a pattern which might be hidden.
 data Argument = Argument Hiding Pattern
+    deriving (Typeable, Data, Show, Eq)
 
 
 type RHS	    = Expr
@@ -144,6 +153,7 @@ type TopLevelDeclaration = Declaration DontCare DontCare DontCare DontCare DontC
 
 -- | Fixity of infix operators.
 data Fixity = LeftAssoc Integer | RightAssoc Integer | NonAssoc Integer
+    deriving (Typeable, Data, Show, Eq)
 
 -- | The default fixity. Currently defined to be @'LeftAssoc' 20@.
 defaultFixity :: Fixity
@@ -196,10 +206,7 @@ data Declaration typesig local private mutual abstract
 	    [ImportDirective]		    -- ^ . @Declaration 'DontCare' 'DontCare' 'DontCare' 'DontCare' 'DontCare'@
 	| Module Range QName Telescope
 	    [TopLevelDeclaration]	    -- ^ . @Declaration 'DontCare' 'DontCare' private 'DontCare' 'DontCare'@
-
-#else
--}
-data Declaration typesig local private mutual abstract where
+    deriving (Eq, Show, Typeable, Data)
 
 	TypeSig	    :: Name -> Expr
 		    -> Declaration typesig local private mutual abstract
