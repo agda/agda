@@ -10,6 +10,7 @@ import Syntax.Position
 import Syntax.Concrete
 import Syntax.Parser
 import Syntax.Parser.Tokens
+import Syntax.Concrete.Definitions
 --import Syntax.Internal
 
 parseFile' p file
