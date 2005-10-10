@@ -227,7 +227,7 @@ typeOfBV n = do
 --
 getConstInfo :: (Signature -> Name -> TCM a) -> QName -> TCM a
 getConstInfo fun c = do
-    ctx <- ask  -- ^ need to look here for local definitions
+    ctx <- ask  -- need to look here for local definitions
     sig <- gets sigSt 
     go (ctx++sig) c
   where
