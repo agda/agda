@@ -170,12 +170,14 @@ type AbstractDeclaration = Declaration DontCare DontCare DontCare DontCare Abstr
 type TopLevelDeclaration = Declaration DontCare DontCare DontCare DontCare DontCare
 
 -- | Fixity of infix operators.
-data Fixity = LeftAssoc Integer | RightAssoc Integer | NonAssoc Integer
-    deriving (Typeable, Data, Show, Eq)
+data Fixity = LeftAssoc Range Integer
+	    | RightAssoc Range Integer
+	    | NonAssoc Range Integer
+    deriving (Typeable, Data, Eq, Show)
 
 -- | The default fixity. Currently defined to be @'LeftAssoc' 20@.
 defaultFixity :: Fixity
-defaultFixity = LeftAssoc 20
+defaultFixity = LeftAssoc noRange 20
 
 {-| Declaration is a family of datatypes indexed by the datakinds
 
@@ -212,7 +214,7 @@ data Declaration'
 	    WhereClause			    -- ^ . @Declaration 'DontCare' locals private mutual abstract@
 	| Data Range Name Telescope
 	    Expr [Constructor]		    -- ^ . @Declaration 'DontCare' locals private mutual abstract@
-	| Infix Range Fixity [Name]	    -- ^ . @Declaration 'DontCare' locals private mutual abstract@
+	| Infix Fixity [Name]	    	    -- ^ . @Declaration 'DontCare' locals private mutual abstract@
 	| Mutual Range [MutualDeclaration]  -- ^ . @Declaration 'DontCare' locals private 'DontCare' abstract@
 	| Abstract Range [LocalDeclaration] -- ^ . @Declaration 'DontCare' locals private 'DontCare' 'DontCare'@
 	| Private Range [PrivateDeclaration]-- ^ . @Declaration 'DontCare' 'DontCare' 'DontCare' 'DontCare' 'DontCare'@
@@ -237,7 +239,7 @@ funClause = FunClause
 dataDecl :: Range -> Name -> Telescope -> Expr -> [Constructor]  -> Declaration DontCare locals private mutual abstract
 dataDecl = Data
 
-infixDecl :: Range -> Fixity -> [Name] -> Declaration DontCare locals private mutual abstract
+infixDecl :: Fixity -> [Name] -> Declaration DontCare locals private mutual abstract
 infixDecl = Infix
 
 mutual :: Range -> [MutualDeclaration] -> Declaration DontCare locals private DontCare abstract
@@ -347,6 +349,7 @@ instance HasRange Declaration' where
     getRange (Private r _)	    = r
     getRange (Postulate r _)	    = r
     getRange (Module r _ _ _)	    = r
+    getRange (Infix f _)	    = getRange f
 
 instance HasRange ImportDirective where
     getRange (Using xs)	    = getRange xs
@@ -355,4 +358,9 @@ instance HasRange ImportDirective where
 
 instance HasRange LHS where
     getRange (LHS r _ _ _)  = r
+
+instance HasRange Fixity where
+    getRange (LeftAssoc r _)	= r
+    getRange (RightAssoc r _)	= r
+    getRange (NonAssoc r _)	= r
 

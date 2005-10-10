@@ -492,9 +492,9 @@ Sort : 'Prop'		{ Prop $1 }
 
 -- Fixity declarations.
 Infix :: { Declaration DontCare local private mutual abstract }
-Infix : 'infix' Int CommaOps	{ infixDecl (fuseRange $1 $3) (NonAssoc $2) $3 }
-      | 'infixl' Int CommaOps	{ infixDecl (fuseRange $1 $3) (LeftAssoc $2) $3 }
-      | 'infixr' Int CommaOps	{ infixDecl (fuseRange $1 $3) (RightAssoc $2) $3 }
+Infix : 'infix' Int CommaOps	{ infixDecl (NonAssoc (fuseRange $1 $3) $2) $3 }
+      | 'infixl' Int CommaOps	{ infixDecl (LeftAssoc (fuseRange $1 $3) $2) $3 }
+      | 'infixr' Int CommaOps	{ infixDecl (RightAssoc (fuseRange $1 $3) $2) $3 }
 
 
 -- Mutually recursive declarations.

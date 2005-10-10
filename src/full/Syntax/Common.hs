@@ -20,16 +20,20 @@ data IsInfix = InfixDef | PrefixDef
 data Access = PrivateDecl | PublicDecl
     deriving (Typeable, Data, Show, Eq)
 
+-- | Equality and ordering on @Name@ are defined to ignore range so same names
+--   in different locations are equal.
 data Name = Name Range String
-    deriving (Typeable, Data, Show)
+    deriving (Typeable, Data)
 
--- | Define equality on @Name@ to ignore range so same names in different
---     locations are equal.
---
---   Is there a reason not to do this? -Jeff
---
 instance Eq Name where
     (Name _ x) == (Name _ y) = x == y
+
+instance Ord Name where
+    compare (Name _ x) (Name _ y) = compare x y
+
+
+instance Show Name where
+    show (Name _ x) = x
 
 -- | @QName@ is a list of namespaces and the name of the constant.
 --   For the moment assumes namespaces are just NameID and not
