@@ -98,6 +98,12 @@ veryclean :
 	rm -rf $(OUT_DIR)
 	rm -rf configure config.log config.status autom4te.cache mk/config.mk
 
+## Test ###################################################################
+
+test : $(FULL_OUT_DIR)/agda
+	$(FULL_OUT_DIR)/agda examples/syntax/Syntax.agda
+	$(FULL_OUT_DIR)/agda examples/syntax/Literate.lagda
+
 ## Debugging the Makefile #################################################
 
 info :
