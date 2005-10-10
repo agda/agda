@@ -9,11 +9,11 @@ module Syntax.Concrete
     ( -- * Expressions
       Expr'(..), Expr
     , Name(..), QName(..)
-    , Branch(..)
+    , Branch'(..), Branch
       -- * Bindings
-    , LamBinding(..)
-    , TypedBinding(..)
-    , Telescope
+    , LamBinding'(..), LamBinding
+    , TypedBinding'(..), TypedBinding
+    , Telescope', Telescope
       -- * Declarations
     , Declaration, Declaration'(..)
     , Local, TypeSig, Private, Mutual, Abstract, DontCare
@@ -28,7 +28,7 @@ module Syntax.Concrete
     , defaultFixity
     , ImportDirective(..)
     , LHS(..), Argument(..), Pattern(..)
-    , RHS, WhereClause
+    , RHS, RHS', WhereClause, WhereClause'
     )
     where
 
@@ -42,26 +42,27 @@ type Constructor = TypeSignature
 
 
 -- | Concrete expressions. Should represent exactly what the user wrote.
---   Parameterised over the type of local declarations.
-data Expr' local
-	= Ident QName						    -- ^ . @x@
-	| Lit Literal						    -- ^ . @1@ or @\"foo\"@
-	| QuestionMark Range					    -- ^ . @?@ or @{! ... !}@
-	| Underscore Range					    -- ^ . @_@
-	| App Range Hiding (Expr' local) (Expr' local)		    -- ^ . @e e@ or @e {e}@
-	| InfixApp (Expr' local) QName (Expr' local)		    -- ^ . @e + e@ (no hiding)
-	| Lam Range [LamBinding] (Expr' local)			    -- ^ . @\L -> e@
-	| Fun Range Hiding (Expr' local) (Expr' local)		    -- ^ . @e -> e@ or @{e} -> e@
-	| Pi TypedBinding (Expr' local)				    -- ^ . @(xs:e) -> e@ or @{xs:e} -> e@
-	| Set Range | Prop Range				    -- ^ . @Set, Prop@
-	| SetN Range Nat					    -- ^ . @Set0, Set1, ..@
-	| Let Range [local] (Expr' local)			    -- ^ . @let Ds in e@
-	| Elim Range (Expr' local) (Maybe (Expr' local)) [Branch]   -- ^ . @by e with P of bs@
-	| Paren Range (Expr' local)				    -- ^ . @(e)@
+--   Parameterised over the type of locals declarations.
+data Expr' locals
+	= Ident QName					    -- ^ . @x@
+	| Lit Literal					    -- ^ . @1@ or @\"foo\"@
+	| QuestionMark Range				    -- ^ . @?@ or @{! ... !}@
+	| Underscore Range				    -- ^ . @_@
+	| App Range Hiding (Expr' locals) (Expr' locals)    -- ^ . @e e@ or @e {e}@
+	| InfixApp (Expr' locals) QName (Expr' locals)	    -- ^ . @e + e@ (no hiding)
+	| Lam Range [LamBinding' locals] (Expr' locals)	    -- ^ . @\L -> e@
+	| Fun Range Hiding (Expr' locals) (Expr' locals)    -- ^ . @e -> e@ or @{e} -> e@
+	| Pi (TypedBinding' locals) (Expr' locals)	    -- ^ . @(xs:e) -> e@ or @{xs:e} -> e@
+	| Set Range | Prop Range			    -- ^ . @Set, Prop@
+	| SetN Range Nat				    -- ^ . @Set0, Set1, ..@
+	| Let Range locals (Expr' locals)		    -- ^ . @let Ds in e@
+	| Elim Range (Expr' locals) (Maybe (Expr' locals)) [Branch' locals]
+							    -- ^ . @by e with P of bs@
+	| Paren Range (Expr' locals)			    -- ^ . @(e)@
     deriving (Typeable, Data, Eq, Show)
 
 -- | Concrete expressions. Local declarations are 'LocalDeclaration's.
-type Expr = Expr' LocalDeclaration
+type Expr = Expr' [LocalDeclaration]
 
 
 -- | Concrete patterns. No literals in patterns at the moment.
@@ -75,27 +76,34 @@ data Pattern
 
 -- | A (fancy) case branch is on the form @p1 .. pn -> e@ where @pi@ are arbitrary
 --   expressions.
-data Branch = Branch [Expr] Expr
+data Branch' locals = Branch [Expr' locals] (Expr' locals)
     deriving (Typeable, Data, Eq, Show)
 
+type Branch = Branch' [LocalDeclaration]
 
 -- | A lambda binding is either domain free or typed.
-data LamBinding
+data LamBinding' locals
 	= DomainFree Hiding Name		-- ^ . @x@ or @{x}@
-	| DomainFull TypedBinding		-- ^ . @(xs:e)@ or @{xs:e}@
+	| DomainFull (TypedBinding' locals)	-- ^ . @(xs:e)@ or @{xs:e}@
     deriving (Typeable, Data, Eq, Show)
 
+type LamBinding = LamBinding' [LocalDeclaration]
 
 -- | A typed binding. Appears in dependent function spaces, typed lambdas, and
 --   telescopes.
-data TypedBinding
-	= TypedBinding Range Hiding [Name] Expr -- (xs:e) or {xs:e}
+data TypedBinding' locals
+	= TypedBinding Range Hiding [Name] (Expr' locals)
+	    -- ^ . @(xs:e)@ or @{xs:e}@
     deriving (Typeable, Data, Eq, Show)
 
+type TypedBinding = TypedBinding' [LocalDeclaration]
 
 -- | A telescope is a sequence of typed bindings. Bound variables are in scope
 --   in later types.
-type Telescope = [TypedBinding]
+type Telescope' locals = [TypedBinding' locals]
+
+-- | The non-parameterised telescope.
+type Telescope = Telescope' [LocalDeclaration]
 
 
 -- | The things you are allowed to say when you shuffle names between name
@@ -126,8 +134,10 @@ data Argument = Argument Hiding Pattern
     deriving (Typeable, Data, Show, Eq)
 
 
-type RHS	    = Expr
-type WhereClause    = [LocalDeclaration]
+type RHS'		    = Expr'
+type RHS		    = RHS' [LocalDeclaration]
+type WhereClause' locals    = locals
+type WhereClause	    = WhereClause' [LocalDeclaration]
 
 
 {--------------------------------------------------------------------------
@@ -180,9 +190,9 @@ defaultFixity = LeftAssoc 20
     Of course, there is no such thing as a @datakind@ in Haskell, so we just
     define phantom types for the intended constructors.  The indices should be
     interpreted as follows: The type indexed by 'Local' contains only the
-    declarations that can appear in a local declaration. If the index is
+    declarations that can appear in a locals declaration. If the index is
     'DontCare' the type contains all declarations regardless of whether they can
-    appear in a local declaration.  There is no grouping of function clauses
+    appear in a locals declaration.  There is no grouping of function clauses
     and\/or type signatures in the concrete syntax. That happens in
     "Syntax.Concrete.Definitions".
 
@@ -191,26 +201,26 @@ defaultFixity = LeftAssoc 20
     versions of the compiler we use the poor man's version of using type
     synonyms and constructor functions.
 -}
-type Declaration typesig local private mutual abstract = Declaration'
+type Declaration typesig locals private mutual abstract = Declaration'
 
 {-| The representation type of a declaration. The comments indicate the which
     type in the intended family the constructor targets.
 -}
 data Declaration'
-	= TypeSig Name Expr		    -- ^ . @Declaration typesig local private mutual abstract@
+	= TypeSig Name Expr		    -- ^ . @Declaration typesig locals private mutual abstract@
 	| FunClause LHS RHS
-	    WhereClause			    -- ^ . @Declaration 'DontCare' local private mutual abstract@
+	    WhereClause			    -- ^ . @Declaration 'DontCare' locals private mutual abstract@
 	| Data Range Name Telescope
-	    Expr [Constructor]		    -- ^ . @Declaration 'DontCare' local private mutual abstract@
-	| Infix Range Fixity [Name]	    -- ^ . @Declaration 'DontCare' local private mutual abstract@
-	| Mutual Range [MutualDeclaration]  -- ^ . @Declaration 'DontCare' local private 'DontCare' abstract@
-	| Abstract Range [LocalDeclaration] -- ^ . @Declaration 'DontCare' local private 'DontCare' 'DontCare'@
+	    Expr [Constructor]		    -- ^ . @Declaration 'DontCare' locals private mutual abstract@
+	| Infix Range Fixity [Name]	    -- ^ . @Declaration 'DontCare' locals private mutual abstract@
+	| Mutual Range [MutualDeclaration]  -- ^ . @Declaration 'DontCare' locals private 'DontCare' abstract@
+	| Abstract Range [LocalDeclaration] -- ^ . @Declaration 'DontCare' locals private 'DontCare' 'DontCare'@
 	| Private Range [PrivateDeclaration]-- ^ . @Declaration 'DontCare' 'DontCare' 'DontCare' 'DontCare' 'DontCare'@
 	| Postulate Range [TypeSignature]   -- ^ . @Declaration 'DontCare' 'DontCare' private 'DontCare' 'DontCare'@
 	| Open Range QName
-	    [ImportDirective]		    -- ^ . @Declaration 'DontCare' local private 'DontCare' abstract@
+	    [ImportDirective]		    -- ^ . @Declaration 'DontCare' locals private 'DontCare' abstract@
 	| NameSpace Range Name Expr
-	    [ImportDirective]		    -- ^ . @Declaration 'DontCare' local private 'DontCare' abstract@
+	    [ImportDirective]		    -- ^ . @Declaration 'DontCare' locals private 'DontCare' abstract@
 	| Import Range QName
 	    [ImportDirective]		    -- ^ . @Declaration 'DontCare' 'DontCare' 'DontCare' 'DontCare' 'DontCare'@
 	| Module Range QName Telescope
@@ -218,22 +228,22 @@ data Declaration'
     deriving (Eq, Show, Typeable, Data)
 
 
-typeSig	:: Name -> Expr -> Declaration typesig local private mutual abstract
+typeSig	:: Name -> Expr -> Declaration typesig locals private mutual abstract
 typeSig = TypeSig
 
-funClause :: LHS -> RHS -> WhereClause -> Declaration DontCare local private mutual abstract
+funClause :: LHS -> RHS -> WhereClause -> Declaration DontCare locals private mutual abstract
 funClause = FunClause
 
-dataDecl :: Range -> Name -> Telescope -> Expr -> [Constructor]  -> Declaration DontCare local private mutual abstract
+dataDecl :: Range -> Name -> Telescope -> Expr -> [Constructor]  -> Declaration DontCare locals private mutual abstract
 dataDecl = Data
 
-infixDecl :: Range -> Fixity -> [Name] -> Declaration DontCare local private mutual abstract
+infixDecl :: Range -> Fixity -> [Name] -> Declaration DontCare locals private mutual abstract
 infixDecl = Infix
 
-mutual :: Range -> [MutualDeclaration] -> Declaration DontCare local private DontCare abstract
+mutual :: Range -> [MutualDeclaration] -> Declaration DontCare locals private DontCare abstract
 mutual = Mutual
 
-abstract :: Range -> [AbstractDeclaration] -> Declaration DontCare local private DontCare DontCare
+abstract :: Range -> [AbstractDeclaration] -> Declaration DontCare locals private DontCare DontCare
 abstract = Abstract
 
 private	:: Range -> [PrivateDeclaration] -> Declaration DontCare DontCare DontCare DontCare DontCare
@@ -242,10 +252,10 @@ private = Private
 postulate :: Range -> [TypeSignature] -> Declaration DontCare DontCare private DontCare DontCare
 postulate = Postulate
 
-open :: Range -> QName -> [ImportDirective] -> Declaration DontCare local private DontCare abstract
+open :: Range -> QName -> [ImportDirective] -> Declaration DontCare locals private DontCare abstract
 open = Open
 
-nameSpace :: Range -> Name -> Expr -> [ImportDirective] -> Declaration DontCare local private DontCare abstract
+nameSpace :: Range -> Name -> Expr -> [ImportDirective] -> Declaration DontCare locals private DontCare abstract
 nameSpace = NameSpace
 
 importDecl :: Range -> QName -> [ImportDirective] -> Declaration DontCare DontCare DontCare DontCare DontCare
@@ -259,7 +269,43 @@ moduleDecl = Module
     Instances
  --------------------------------------------------------------------------}
 
-instance HasRange Expr where
+instance Functor Expr' where
+    fmap f e =
+	case e of
+	    Ident x		-> Ident x
+	    Lit x		-> Lit x
+	    QuestionMark r	-> QuestionMark r
+	    Underscore r	-> Underscore r
+	    App r h e1 e2	-> App r h (fmap f e1) (fmap f e2)
+	    InfixApp e1 op e2	-> InfixApp (fmap f e1) op (fmap f e2)
+	    Lam r xs e		-> Lam r (fmap (fmap f) xs) (fmap f e)
+	    Fun r h e1 e2	-> Fun r h (fmap f e1) (fmap f e2)
+	    Pi b e		-> Pi (fmap f b) (fmap f e)
+	    Set r		-> Set r
+	    Prop r		-> Prop r
+	    SetN r n		-> SetN r n
+	    Let r defs e	-> Let r (f defs) (fmap f e)
+	    Elim r t p bs	-> Elim r (fmap f t) (fmap (fmap f) p)
+						     (fmap (fmap f) bs)
+	    Paren r e		-> Paren r (fmap f e)
+
+
+instance Functor LamBinding' where
+    fmap f b =
+	case b of
+	    DomainFree h x	-> DomainFree h x
+	    DomainFull b	-> DomainFull (fmap f b)
+
+
+instance Functor TypedBinding' where
+    fmap f (TypedBinding r h xs t) = TypedBinding r h xs (fmap f t)
+
+
+instance Functor Branch' where
+    fmap f (Branch ps e) = Branch (fmap (fmap f) ps) (fmap f e)
+
+
+instance HasRange (Expr' locals) where
     getRange e =
 	case e of
 	    Ident x		-> getRange x
@@ -278,12 +324,15 @@ instance HasRange Expr where
 	    Elim r _ _ _	-> r
 	    Paren r _		-> r
 
-instance HasRange TypedBinding where
+instance HasRange (TypedBinding' locals) where
     getRange (TypedBinding r _ _ _) = r
 
-instance HasRange LamBinding where
+instance HasRange (LamBinding' locals) where
     getRange (DomainFree _ x)	= getRange x
     getRange (DomainFull b)	= getRange b
+
+instance HasRange (Branch' locals) where
+    getRange (Branch ps e)  = fuseRange ps e
 
 instance HasRange Declaration' where
     getRange (TypeSig x t)	    = fuseRange x t
