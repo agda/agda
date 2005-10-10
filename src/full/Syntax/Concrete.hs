@@ -44,22 +44,22 @@ type Constructor = TypeSignature
 -- | Concrete expressions. Should represent exactly what the user wrote.
 --   Parameterised over the type of locals declarations.
 data Expr' locals
-	= Ident QName					    -- ^ . @x@
-	| Lit Literal					    -- ^ . @1@ or @\"foo\"@
-	| QuestionMark Range				    -- ^ . @?@ or @{! ... !}@
-	| Underscore Range				    -- ^ . @_@
-	| App Range Hiding (Expr' locals) (Expr' locals)    -- ^ . @e e@ or @e {e}@
-	| InfixApp (Expr' locals) QName (Expr' locals)	    -- ^ . @e + e@ (no hiding)
-	| Lam Range [LamBinding' locals] (Expr' locals)	    -- ^ . @\\x {y} -> e@ or @\\(x:A){y:B} -> e@
-	| Fun Range Hiding (Expr' locals) (Expr' locals)    -- ^ . @e -> e@ or @{e} -> e@
-	| Pi (TypedBinding' locals) (Expr' locals)	    -- ^ . @(xs:e) -> e@ or @{xs:e} -> e@
-	| Set Range					    -- ^ . @Set@
-	| Prop Range					    -- ^ . @Prop@
-	| SetN Range Nat				    -- ^ . @Set0, Set1, ..@
-	| Let Range locals (Expr' locals)		    -- ^ . @let Ds in e@
+	= Ident QName					    -- ^ ex: @x@
+	| Lit Literal					    -- ^ ex: @1@ or @\"foo\"@
+	| QuestionMark Range				    -- ^ ex: @?@ or @{! ... !}@
+	| Underscore Range				    -- ^ ex: @_@
+	| App Range Hiding (Expr' locals) (Expr' locals)    -- ^ ex: @e e@ or @e {e}@
+	| InfixApp (Expr' locals) QName (Expr' locals)	    -- ^ ex: @e + e@ (no hiding)
+	| Lam Range [LamBinding' locals] (Expr' locals)	    -- ^ ex: @\\x {y} -> e@ or @\\(x:A){y:B} -> e@
+	| Fun Range Hiding (Expr' locals) (Expr' locals)    -- ^ ex: @e -> e@ or @{e} -> e@
+	| Pi (TypedBinding' locals) (Expr' locals)	    -- ^ ex: @(xs:e) -> e@ or @{xs:e} -> e@
+	| Set Range					    -- ^ ex: @Set@
+	| Prop Range					    -- ^ ex: @Prop@
+	| SetN Range Nat				    -- ^ ex: @Set0, Set1, ..@
+	| Let Range locals (Expr' locals)		    -- ^ ex: @let Ds in e@
 	| Elim Range (Expr' locals) (Maybe (Expr' locals)) [Branch' locals]
-							    -- ^ there's no syntax for this yet
-	| Paren Range (Expr' locals)			    -- ^ . @(e)@
+							    -- ^ there's no syntax for the fancy case yet
+	| Paren Range (Expr' locals)			    -- ^ ex: @(e)@
     deriving (Typeable, Data, Eq, Show)
 
 -- | Concrete expressions. Local declarations are 'LocalDeclaration's.
