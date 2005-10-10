@@ -18,8 +18,6 @@ module Syntax.Parser.LexActions
     , notFollowedBy, notEOF
     ) where
 
-import Data.List (isPrefixOf)
-
 #ifndef __HADDOCK__
 import {-# SOURCE #-} Syntax.Parser.Lexer
 #endif
@@ -73,6 +71,7 @@ newInput inp inp' len =
 	c:s'	-> inp' { lexInput    = s'
 			, lexPrevChar = c
 			}
+	[]	-> error $ __FILE__ ++ ":" ++ show __LINE__ ++ ": impossible"
 
 -- | Alex can't handle unicode characters. To solve this we translate all
 --   unicode identifiers to @z@ and all unicode operator characters to @+@.
@@ -195,6 +194,7 @@ qualified tok =
     where
 	-- Compute the ranges for the substrings (separated by '.') of a name.
 	mkName :: Range -> [String] -> [Name]
+	mkName _ []	= error $ __FILE__ ++ ":" ++ show __LINE__ ++ ": impossible"
 	mkName r [x]	= [Name r x]
 	mkName r (x:xs) = Name r0 x : mkName r1 xs
 	    where

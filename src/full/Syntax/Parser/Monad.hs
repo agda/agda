@@ -126,14 +126,14 @@ instance Show ParseError where
 	where
 	    pos = show (errPos err)
 
-	    showInp ""  = "at end of file"
-	    showInp t   = "on input " ++ elide 5 t
-
-	    elide 3 s
-		| length (take 4 s) < 4 = s
-		| otherwise		    = "..."
-	    elide n (c:s)		    = c : elide (n - 1) s
-	    elide _ ""		    = ""
+-- 	    showInp ""  = "at end of file"
+-- 	    showInp t   = "on input " ++ elide 5 t
+-- 
+-- 	    elide 3 s
+-- 		| length (take 4 s) < 4 = s
+-- 		| otherwise		    = "..."
+-- 	    elide n (c:s)		    = c : elide (n - 1) s
+-- 	    elide _ ""		    = ""
 
 
 {--------------------------------------------------------------------------

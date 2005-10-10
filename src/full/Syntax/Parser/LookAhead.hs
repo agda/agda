@@ -24,8 +24,6 @@ import Control.Monad.State
 import Syntax.Parser.Alex
 import Syntax.Parser.Monad
 
-import Utils.Monad
-
 {--------------------------------------------------------------------------
     The look-ahead monad
  --------------------------------------------------------------------------}

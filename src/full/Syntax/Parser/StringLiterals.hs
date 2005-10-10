@@ -17,7 +17,6 @@ import Syntax.Parser.LookAhead
 import Syntax.Position
 import Syntax.Common
 
-import Utils.List   ( maybePrefixMatch )
 import Utils.Char   ( decDigit, hexDigit, octDigit )
 import Utils.Tuple  ( (-*-) )
 

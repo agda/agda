@@ -56,11 +56,6 @@ What are the options?
   Ok, representation of left hand sides are not expressions anymore and we
   always now which name a left hand side defines.
 
-  It seems to be a bit overkill to use GADTs here as well. Using a GADTs as the
-  target of the parser ensures that what we parse is correct and keeping it
-  correct when doing these kinds of transformations doesn't seem that difficult
-  (it's certainly easier than keeping the parser from doing the wrong thing).
-
 -}
 
 import Syntax.Concrete

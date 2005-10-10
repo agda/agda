@@ -6,11 +6,8 @@ module Main where
 import Data.List
 import System.Environment
 
-import Syntax.Position
-import Syntax.Concrete
 import Syntax.Parser
-import Syntax.Parser.Tokens
-import Syntax.Concrete.Definitions
+import Syntax.Concrete.Definitions ()
 --import Syntax.Internal
 
 parseFile' p file

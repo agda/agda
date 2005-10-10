@@ -20,10 +20,18 @@ maybePrefixMatch (p:pat) (r:rest)
 --
 --   > words xs == wordsBy isSpace xs
 wordsBy :: (a -> Bool) -> [a] -> [[a]]
-wordsBy p xs = wordsBy' p (dropWhile p xs)
+wordsBy p xs = yesP xs
     where
-	wordsBy' p []	= []
-	wordsBy' p xs	= ys : wordsBy p zs
+	yesP xs = noP (dropWhile p xs)
+
+	noP []	= []
+	noP xs	= ys : yesP zs
 	    where
 		(ys,zs) = break p xs
+
+-- | Chop up a list in chunks of a given length.
+chop :: Int -> [a] -> [[a]]
+chop _ [] = []
+chop n xs = ys : chop n zs
+    where (ys,zs) = splitAt n xs
 

@@ -10,7 +10,13 @@ OBJEXT		= @OBJEXT@
 GHC		= @GHC@
 GHC_VERSION	= @GHC_VERSION@
 HAVE_GHC_6_4	= @HAVE_GHC_6_4@
-GHC_FLAGS	= -O
+GHC_FLAGS	= -O -Wall -Werror \
+			-fno-warn-missing-signatures \
+			-fno-warn-name-shadowing \
+			-fno-warn-simple-patterns \
+			-fno-warn-unused-matches \
+			-fno-warn-unused-binds \
+			-fno-warn-type-defaults
 
 HAPPY		= @HAPPY@
 HAPPY_VERSION	= @HAPPY_VERSION@

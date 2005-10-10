@@ -96,7 +96,7 @@ uAssertion				= '\x22a6'
 uModels					= '\x22a7'
 uTrue					= '\x22a8'
 uForces					= '\x22a9'
-uArrows	= ['\x2190'..'\x21e5']
+uArrows					= ['\x2190'..'\x21e5']
 
 uNotSign		= '\xac'
 uForAll			= '\x2200'
@@ -297,7 +297,7 @@ toUTF8 = concatMap utf8
 	    | otherwise	    = error $ "toUTF8: invalid unicode character " ++ show c
 	    where
 		n	= fromEnum c
-		bits i	= reverse $ take i $ map (testBit n) [0..7]
+		--bits i    = reverse $ take i $ map (testBit n) [0..7]
 		byte0 i	= foldl setBit 0 $ take i [7,6..0]
 		byte1	= byte0 1
 		mk0 i n	= toEnum $ byte0 i .|. n .&. mask (8 - i)
@@ -334,13 +334,12 @@ fromUTF8 = map decode . chop
 			k	= 6 * (len - 1)
 			n0 : ns = map fromEnum cs
 
-chop n [] = []
-chop n xs = take n xs : chop n (drop n xs)
 
+{-
 showBits :: Char -> String
 showBits c = unwords $ dropWhile (all (=='0')) $ chop 8 $ map f [31,30..0]
     where
 	n = fromEnum c
 	f i | testBit n i   = '1'
 	    | otherwise	    = '0'
-
+-}

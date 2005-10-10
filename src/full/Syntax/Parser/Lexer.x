@@ -14,7 +14,6 @@ module Syntax.Parser.Lexer
     ) where
 
 import Data.List
-import Data.Char
 
 import Syntax.Parser.Alex
 import Syntax.Parser.Comments
@@ -23,10 +22,7 @@ import Syntax.Parser.LexActions
 import Syntax.Parser.Monad
 import Syntax.Parser.StringLiterals
 import Syntax.Parser.Tokens
-import Syntax.Position
 import Syntax.Common
-
-import Utils.Unicode (isUnicodeId, isUnicodeOp)
 
 }
 
