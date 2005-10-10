@@ -50,14 +50,15 @@ data Expr' locals
 	| Underscore Range				    -- ^ . @_@
 	| App Range Hiding (Expr' locals) (Expr' locals)    -- ^ . @e e@ or @e {e}@
 	| InfixApp (Expr' locals) QName (Expr' locals)	    -- ^ . @e + e@ (no hiding)
-	| Lam Range [LamBinding' locals] (Expr' locals)	    -- ^ . @\L -> e@
+	| Lam Range [LamBinding' locals] (Expr' locals)	    -- ^ . @\\x {y} -> e@ or @\\(x:A){y:B} -> e@
 	| Fun Range Hiding (Expr' locals) (Expr' locals)    -- ^ . @e -> e@ or @{e} -> e@
 	| Pi (TypedBinding' locals) (Expr' locals)	    -- ^ . @(xs:e) -> e@ or @{xs:e} -> e@
-	| Set Range | Prop Range			    -- ^ . @Set, Prop@
+	| Set Range					    -- ^ . @Set@
+	| Prop Range					    -- ^ . @Prop@
 	| SetN Range Nat				    -- ^ . @Set0, Set1, ..@
 	| Let Range locals (Expr' locals)		    -- ^ . @let Ds in e@
 	| Elim Range (Expr' locals) (Maybe (Expr' locals)) [Branch' locals]
-							    -- ^ . @by e with P of bs@
+							    -- ^ there's no syntax for this yet
 	| Paren Range (Expr' locals)			    -- ^ . @(e)@
     deriving (Typeable, Data, Eq, Show)
 
