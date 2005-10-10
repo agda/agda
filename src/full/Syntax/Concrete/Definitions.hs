@@ -55,11 +55,13 @@ What are the options?
   always now which name a left hand side defines.
 
 -}
-module Syntax.Concrete.Definitions where
-
-{-
-
--}
+module Syntax.Concrete.Definitions
+    ( NiceDeclaration(..), Clause(..)
+    , DeclarationException(..)
+    , NiceExpr, NiceRHS, NiceWhereClause, NiceTelescope
+    , NiceConstructor
+    , niceDeclarations
+    ) where
 
 import Control.Exception
 
@@ -96,12 +98,14 @@ data NiceDeclaration
 	| NiceNameSpace Range Name NiceExpr [ImportDirective]
 	| NiceImport Range QName [ImportDirective]
 	| NiceModule Range Access QName NiceTelescope [NiceDeclaration]
+    deriving (Show)
 
 -- | In a nice expression local declarations are nice.
 type NiceExpr = Expr' [NiceDeclaration]
 
 -- | One clause in a function definition.
 data Clause = Clause LHS NiceRHS NiceWhereClause
+    deriving (Show)
 
 type NiceRHS		= RHS' [NiceDeclaration]
 type NiceWhereClause	= WhereClause' [NiceDeclaration]
@@ -114,7 +118,7 @@ type NiceConstructor	= NiceDeclaration
 data DeclarationException
 	= MultipleFixityDecls [(Name, [Fixity])]
 	| MissingDefinition Name
-    deriving (Typeable)
+    deriving (Typeable, Show)
 
 {--------------------------------------------------------------------------
     The niceifier
@@ -207,7 +211,7 @@ niceDeclarations ds = nice (fixities ds) ds
 				    (niceDeclarations ds)
 				]
 
-			    Infix _ _   -> __UNDEFINED__
+			    Infix _ _   -> []
 
 			    _   -> undefined
 

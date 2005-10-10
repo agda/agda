@@ -7,7 +7,8 @@ import Data.List
 import System.Environment
 
 import Syntax.Parser
-import Syntax.Concrete.Definitions ()
+import Syntax.Concrete.Definitions
+import Syntax.Concrete.Fixity ()
 --import Syntax.Internal
 
 parseFile' p file
@@ -18,7 +19,9 @@ main =
     do	[file] <- getArgs
 	r <- parseFile' moduleParser file
 	case r of
-	    ParseOk _ m	    -> putStrLn "Parse OK"
+	    ParseOk _ m	    ->
+		do  print $ niceDeclarations [m]
+		    putStrLn "Parse OK"
 	    ParseFailed err ->
 		do  print err
 		    r <- parseFile' tokensParser file
