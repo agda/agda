@@ -1,4 +1,4 @@
-{-# OPTIONS -fglasgow-exts #-}
+{-# OPTIONS -cpp -fglasgow-exts #-}
 
 {-| In the concrete syntax the clauses of a function are not grouped together.
     Neither is the fixity declaration attached to its corresponding definition.
