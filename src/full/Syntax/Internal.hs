@@ -205,12 +205,12 @@ type TCM a = StateT TCState (ReaderT Context TCErrMon) a
 type Context = [CtxElm]
 type Signature = Context
 
-data CtxElm = Decl Name Type
+data CtxElm = Decl Name Type (Maybe [Name])
 	    | Defn Name [Clause]
 	    | NameSpace Name Context
   deriving (Typeable, Data, Show)
 
-isDecl ce = case ce of Decl _ _ -> True; _ -> False
+isDecl ce = case ce of Decl _ _ _ -> True; _ -> False
 isDefn ce = case ce of Defn _ _ -> True; _ -> False
 isNmsp ce = case ce of NameSpace _ _ -> True; _ -> False
 
@@ -219,7 +219,7 @@ typeOfBV :: Nat -> TCM Type
 typeOfBV n = do
     ctx <- ask
     case (filter isDecl ctx) !! n of
-        Decl _ a -> return a
+        Decl _ a _ -> return a
 
 -- | get either type or definition of a constant. 
 --   this navigates namespace structure and uses passed
@@ -239,8 +239,8 @@ getConstInfo fun c = do
 -- | get type of a constant 
 typeOfConst :: QName -> TCM Type
 typeOfConst = getConstInfo find where
-    find sig c = case L.find (\ (Decl x _) -> x == c) (filter isDecl sig) of
-        Just (Decl _ a) -> return a
+    find sig c = case L.find (\ (Decl x _ _) -> x == c) (filter isDecl sig) of
+        Just (Decl _ a _) -> return a
 
 -- | get definition of a constant (i.e. a list of clauses)
 defOfConst :: QName -> TCM [Clause]
@@ -312,6 +312,10 @@ reduce v = case spineValue v of
             [] -> return v -- no definition for head
             cls@(Clause ps _ : _) -> 
                 if length ps == length args then appDef f cls args
+                else if length ps > length args then do
+                  let (args1,args2) = splitAt (length ps) args 
+                  v' <- appDef f cls args1
+                  reduce $ addArgs v' args2
                 else return v
     _ -> return v
 
@@ -348,10 +352,12 @@ testSt = TCSt {
 testSig = [ -- probably wrong way to handle a datatype, but enough for now...
 
   -- nat : set_0
-  Decl (Name noRange "nat") (Sort (Type 0 Duh) Duh),
+  Decl (Name noRange "nat") (Sort (Type 0 Duh) Duh) 
+    (Just [Name noRange "Z", Name noRange "S"]),
 
   -- Z : nat
-  Decl (Name noRange "Z") (El (Def (QName $ Name noRange "nat") Duh) (Type 0 Duh) Duh),
+  Decl (Name noRange "Z") (El (Def (QName $ Name noRange "nat") Duh) (Type 0 Duh) Duh) 
+    Nothing,
   Defn (Name noRange "Z") [],
 
   -- S : nat -> nat
@@ -359,7 +365,7 @@ testSig = [ -- probably wrong way to handle a datatype, but enough for now...
     Pi (El (Def (QName $ Name noRange "nat") Duh) (Type 0 Duh) Duh) 
        (Abs (Name noRange "_") $ El (Def (QName $ Name noRange "nat") Duh) (Type 0 Duh) Duh) 
        Duh 
-  ),
+  ) Nothing,
   Defn (Name noRange "S") [],
 
   -- plus : nat -> nat -> nat
@@ -367,12 +373,13 @@ testSig = [ -- probably wrong way to handle a datatype, but enough for now...
     Pi (El (Def (QName $ Name noRange "nat") Duh) (Type 0 Duh) Duh) (Abs (Name noRange "_") $
     Pi (El (Def (QName $ Name noRange "nat") Duh) (Type 0 Duh) Duh) (Abs (Name noRange "_") $
     El (Def (QName $ Name noRange "nat") Duh) (Type 0 Duh) Duh) Duh) Duh 
-  ),
+  ) Nothing,
 
   Defn (Name noRange "plus") [ 
 
     -- plus Z n = n
-    Clause [ConP (QName $ Name noRange "Z") [], VarP $ Name noRange "n"] $ Body $ Var 0 Duh,
+    Clause [ConP (QName $ Name noRange "Z") [], VarP $ Name noRange "n"] $ 
+      Bind $ Abs (Name noRange "n") $ Body $ Var 0 Duh,
 
     -- plus (S m) n = S (plus m n)
     Clause 
