@@ -38,19 +38,9 @@ instance Eq Name where
 --     equality. We will have to define an equality instance to
 --     non-generative namespaces (as well as having some sort of
 --     lookup table for namespace names).
---
--- data QName = Qual Name QName
---            | QName Name 
---   deriving (Typeable, Data, Show, Eq)
-
--- Ulf's version of QName
-
--- | A name can be qualified by a name space. Name spaces are hierarchical
---   so we use a list of strings to represent them.
-data QName = QName [String] Name
-    deriving (Typeable, Data, Eq, Show)
-
---
+data QName = Qual Name QName
+           | QName Name 
+  deriving (Typeable, Data, Show, Eq)
 
 
 type Nat = Int
@@ -79,10 +69,11 @@ instance HasRange Expl where
     getRange Duh = noRange
 
 instance HasRange Name where
-    getRange (Name r _)	    = r
+    getRange (Name r _)	= r
 
 instance HasRange QName where
-    getRange (QName _ x)    = getRange x
+    getRange (QName x)  = getRange x
+    getRange (Qual n x)	= fuseRange n x
 
 instance HasRange Literal where
     getRange (LitInt r _)	= r

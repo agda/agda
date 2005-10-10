@@ -9,6 +9,7 @@ module Syntax.Position
   , startPos
   , noPos
   , movePos
+  , movePosByString
 
     -- * Ranges
   , Range(..)
@@ -18,7 +19,7 @@ module Syntax.Position
   ) where
 
 import Data.Generics
-
+import Data.List
 
 {--------------------------------------------------------------------------
     Types and classes
@@ -112,6 +113,13 @@ movePos (Pn f l c) '\t'	= Pn f l (div (c + 7) 8 * 8 + 1)
 movePos (Pn f l c) '\n'	= Pn f (l + 1) 1
 movePos (Pn f l c) _	= Pn f l (c + 1)
 movePos NoPos _		= NoPos
+
+
+-- | Advance the position by a string.
+--
+--   > movePosByString = foldl' movePos
+movePosByString :: Position -> String -> Position
+movePosByString = foldl' movePos
 
 
 -- | Finds the least interval that covers its arguments. The left argument

@@ -231,19 +231,19 @@ Op : op		{ $1 }
 QId :: { QName }
 QId : q_id	    { $1 }
     | q_op	    { $1 }
-    | Id	    { QName [] $1 }
+    | Id	    { QName $1 }
 
 
 -- Qualified identifier which isn't an operator
 ModuleName :: { QName }
 ModuleName
     : q_id  { $1 }
-    | id    { QName [] $1 }
+    | id    { QName $1 }
 
 -- Infix operator. All names except unqualified operators have to be back
 -- quoted.
 QOp :: { QName }
-QOp : Op	    { QName [] $1 }
+QOp : Op	    { QName $1 }
     | '`' q_id '`'  { $2 }
     | '`' q_op '`'  { $2 }
 
@@ -560,7 +560,7 @@ Renaming
 -- Module
 Module :: { Declaration DontCare DontCare private DontCare DontCare }
 Module : 'module' id MaybeTelescope 'where' TopLevelDeclarations
-		    { moduleDecl (getRange ($1,$4,$5)) (QName [] $2) $3 $5 }
+		    { moduleDecl (getRange ($1,$4,$5)) (QName $2) $3 $5 }
 
 -- The top-level module. Can have a qualified name.
 TopModule :: { TopLevelDeclaration }
@@ -681,10 +681,10 @@ happyError = parseError "Parse error"
 exprToLHS :: Expr -> Parser LHS
 exprToLHS e =
     case spine e of
-	(_, Ident (QName [] x)) : es ->
+	(_, Ident (QName x)) : es ->
 	    do	args <- mapM (uncurry exprToArg) es
 		return $ LHS r PrefixDef x args
-	(_, InfixApp e1 (QName [] x) e2) : es ->
+	(_, InfixApp e1 (QName x) e2) : es ->
 	    do	args <- mapM (uncurry exprToArg) $
 			    (NotHidden,e1) : (NotHidden,e2) : es
 		return $ LHS r InfixDef x args

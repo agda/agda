@@ -189,9 +189,20 @@ operator = qualified (either TokOp TokQOp)
 qualified :: (Either Name QName -> a) -> LexAction a
 qualified tok =
     withRange $ \ (r,s) ->
-	case wordsBy (=='.') s of
-	    [x]	-> tok $ Left $ Name r x
-	    xs	-> tok $ Right $ QName (init xs) $ Name r (last xs)
+	case mkName r $ wordsBy (=='.') s of
+	    [x]	-> tok $ Left  $ x
+	    xs	-> tok $ Right $ foldr Qual (QName $ last xs) (init xs)
+    where
+	-- Compute the ranges for the substrings (separated by '.') of a name.
+	mkName :: Range -> [String] -> [Name]
+	mkName r [x]	= [Name r x]
+	mkName r (x:xs) = Name r0 x : mkName r1 xs
+	    where
+		p0 = rStart r
+		p1 = rEnd r
+		p' = movePosByString p0 x
+		r0 = Range p0 p'
+		r1 = Range (movePos p' '.') p1
 
 
 {--------------------------------------------------------------------------
