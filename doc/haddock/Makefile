@@ -84,12 +84,12 @@ endif
 src/% : $(FULL_SRC_DIR)/% src
 	@echo Preprocessing $* for haddock
 	@$(MKDIR) -p $(dir $@)
-	@$(GHC) -E -optP-P -D__HADDOCK__ -o $@ $<
+	@$(GHC) -E -optP-P -optP-I$(FULL_SRC_DIR) -D__HADDOCK__ -o $@ $<
 
 src/% : $(FULL_OUT_DIR)/% src
 	@echo Preprocessing $* for haddock
 	@$(MKDIR) -p $(dir $@)
-	@$(GHC) -E -optP-P -D__HADDOCK__ -o $@ $<
+	@$(GHC) -E -optP-P -optP-I$(FULL_SRC_DIR) -D__HADDOCK__ -o $@ $<
 
 src :
 	$(MKDIR) -p src
