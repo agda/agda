@@ -433,6 +433,7 @@ AbstractDeclaration
     | FunClause { $1 }
     | Data	{ $1 }
     | Infix	{ $1 }
+    | Abstract	{ $1 }
     | Mutual	{ $1 }
     | Open	{ $1 }
     | NameSpace { $1 }
