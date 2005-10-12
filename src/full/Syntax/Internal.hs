@@ -1,4 +1,4 @@
-{-# OPTIONS -fglasgow-exts #-}
+{-# OPTIONS -fglasgow-exts -fno-warn-incomplete-patterns #-}
 
 {- Notes
 
@@ -17,7 +17,7 @@
 
 module Syntax.Internal where
 
-import Debug.Trace
+--import Debug.Trace
 
 import qualified Data.List as L
 import Data.Generics
@@ -27,6 +27,7 @@ import Control.Monad.Reader
 import Control.Monad.Error
 
 import Syntax.Common
+import Syntax.Explanation
 import Syntax.Position
 
 -- | Raw values.
