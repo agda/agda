@@ -9,7 +9,8 @@ import System.Environment
 import Syntax.Parser
 import Syntax.Concrete.Definitions
 import Syntax.Concrete.Fixity ()
---import Syntax.Internal
+import Syntax.Internal ()
+import Syntax.Abstract ()
 
 parseFile' p file
     | "lagda" `isSuffixOf` file	= parseLiterateFile p file
