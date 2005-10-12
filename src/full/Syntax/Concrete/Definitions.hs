@@ -59,7 +59,6 @@ module Syntax.Concrete.Definitions
     ( NiceDeclaration(..), Clause(..)
     , DeclarationException(..)
     , NiceExpr, NiceRHS, NiceWhereClause, NiceTelescope
-    , NiceConstructor
     , niceDeclarations
     ) where
 
@@ -91,28 +90,31 @@ import Utils.Map
 data NiceDeclaration
 	= Axiom Range Fixity Access Name NiceExpr
 	| FunDef Range Fixity Access Name (Maybe NiceExpr) [Clause]
-	| NiceData Range Fixity Access Name NiceTelescope NiceExpr [NiceConstructor]
-	| NiceMutual Range [NiceDeclaration]
-	| NiceAbstract Range [NiceDeclaration]
+	| NiceData Range Fixity Access Name NiceTelescope NiceExpr [NiceDeclaration]
+	| NiceMutual Range NiceDeclarations
+	| NiceAbstract Range NiceDeclarations
 	| NiceOpen Range QName [ImportDirective]
 	| NiceNameSpace Range Name NiceExpr [ImportDirective]
 	| NiceImport Range QName [ImportDirective]
-	| NiceModule Range Access QName NiceTelescope [NiceDeclaration]
+	| NiceModule Range Access QName NiceTelescope NiceDeclarations
+    deriving (Show)
+
+data NiceDeclarations = NiceDecls { concreteDecls :: [Declaration']
+				  , niceDecls	  :: [NiceDeclaration]
+				  }
     deriving (Show)
 
 -- | In a nice expression local declarations are nice.
-type NiceExpr = Expr' [NiceDeclaration]
+type NiceExpr = Expr' NiceDeclarations
 
 -- | One clause in a function definition.
 data Clause = Clause LHS NiceRHS NiceWhereClause
     deriving (Show)
 
-type NiceRHS		= RHS' [NiceDeclaration]
-type NiceWhereClause	= WhereClause' [NiceDeclaration]
-type NiceTelescope	= Telescope' [NiceDeclaration]
+type NiceRHS		= RHS' NiceDeclarations
+type NiceWhereClause	= WhereClause' NiceDeclarations
+type NiceTelescope	= Telescope' NiceDeclarations
 
--- | Alway 'Axiom'.
-type NiceConstructor	= NiceDeclaration
 
 -- | The exception type.
 data DeclarationException
@@ -145,8 +147,8 @@ data DeclarationException
     TODO: check that every fixity declaration has a corresponding definition.
     How to do this?
 -}
-niceDeclarations :: [Declaration'] -> [NiceDeclaration]
-niceDeclarations ds = nice (fixities ds) ds
+niceDeclarations :: [Declaration'] -> NiceDeclarations
+niceDeclarations ds = NiceDecls ds (nice (fixities ds) ds)
     where
 
 	-- If no fixity is given we return the default fixity.
@@ -186,12 +188,12 @@ niceDeclarations ds = nice (fixities ds) ds
 				]
 
 			    Mutual r ds ->
-				[ NiceMutual r $
+				[ NiceMutual r $ NiceDecls ds $
 				    nice (fixities ds `plusFixities` fixs) ds
 				]
 
 			    Abstract r ds ->
-				[ NiceAbstract r $
+				[ NiceAbstract r $ NiceDecls ds $
 				    nice (fixities ds `plusFixities` fixs) ds
 				]
 
@@ -216,11 +218,14 @@ niceDeclarations ds = nice (fixities ds) ds
 			    _   -> undefined
 
 	-- Translate axioms
-	niceAxioms fixs [] = []
-	niceAxioms fixs (d@(TypeSig x t) : ds) =
-	    Axiom (getRange d) (fixity x fixs) PublicDecl x (fmapNice t)
-	    : niceAxioms fixs ds
-	niceAxioms _ _ = __UNDEFINED__
+	niceAxioms :: Map Name Fixity -> [TypeSignature] -> [NiceDeclaration]
+	niceAxioms fixs ds = nice ds
+	    where
+		nice [] = []
+		nice (d@(TypeSig x t) : ds) =
+		    Axiom (getRange d) (fixity x fixs) PublicDecl x (fmapNice t)
+		    : nice ds
+		nice _ = __UNDEFINED__
 
 	-- Create a function definition.
 	mkFunDef fixs x mt ds0 =
@@ -245,10 +250,12 @@ niceDeclarations ds = nice (fixities ds) ds
 		FunDef r f _ x t cs	  -> FunDef r f PrivateDecl x t cs
 		NiceData r f _ x tel s cs -> NiceData r f PrivateDecl x tel s $
 						map mkPrivate cs
-		NiceMutual r ds		  -> NiceMutual r (map mkPrivate ds)
-		NiceAbstract r ds	  -> NiceAbstract r (map mkPrivate ds)
+		NiceMutual r ds		  -> NiceMutual r (mkPrivates ds)
+		NiceAbstract r ds	  -> NiceAbstract r (mkPrivates ds)
 		NiceModule r _ x tel ds	  -> NiceModule r PrivateDecl x tel ds
 		_			  -> d
+	mkPrivates (NiceDecls ds nds) =
+	    NiceDecls ds (map mkPrivate nds)
 
 
 -- | Add more fixities. Throw an exception for multiple fixity declarations.

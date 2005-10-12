@@ -211,8 +211,7 @@ type Declaration typesig locals private mutual abstract = Declaration'
 -}
 data Declaration'
 	= TypeSig Name Expr		    -- ^ . @Declaration typesig locals private mutual abstract@
-	| FunClause LHS RHS
-	    WhereClause			    -- ^ . @Declaration 'DontCare' locals private mutual abstract@
+	| FunClause LHS RHS WhereClause	    -- ^ . @Declaration 'DontCare' locals private mutual abstract@
 	| Data Range Name Telescope
 	    Expr [Constructor]		    -- ^ . @Declaration 'DontCare' locals private mutual abstract@
 	| Infix Fixity [Name]	    	    -- ^ . @Declaration 'DontCare' locals private mutual abstract@
