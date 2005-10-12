@@ -28,21 +28,24 @@ rotateInfixApp :: (QName -> Fixity) -> Expr' local -> Expr' local
 rotateInfixApp fixity e =
     case e of
 	Paren _ e'  -> rotateInfixApp fixity e'
-	InfixApp (InfixApp e1 op' e2) op e3
-	    | fixity op' `lowerThan` fixity op
-		    -> InfixApp e1 op' (InfixApp e2 op e3)
-	    where
-		lowerThan (LeftAssoc _ p1) (LeftAssoc _ p2)	= p1 < p2
-		lowerThan (RightAssoc _ p1) (RightAssoc _ p2)	= p1 <= p2
-		lowerThan f1 f2
-		    | prec f1 == prec f2    =
-			throwDyn $ BadInfixApp (fuseRange e1 e3)
-					       (op',f1) (op,f2)
-		    | otherwise		    = prec f1 < prec f2
+	InfixApp e1@(InfixApp _ _ _) op e2 ->
+	    case rotateInfixApp fixity e1 of
+		InfixApp e1a op' e1b
+		    | fixity op' `lowerThan` fixity op
+			-> InfixApp e1a op' (InfixApp e1b op e2)
+		    where
+			lowerThan (LeftAssoc _ p1) (LeftAssoc _ p2)	= p1 < p2
+			lowerThan (RightAssoc _ p1) (RightAssoc _ p2)	= p1 <= p2
+			lowerThan f1 f2
+			    | prec f1 == prec f2    =
+				throwDyn $ BadInfixApp (fuseRange e1a e2)
+						       (op',f1) (op,f2)
+			    | otherwise		    = prec f1 < prec f2
 
-		prec (LeftAssoc _ p)	= p
-		prec (RightAssoc _ p)	= p
-		prec (NonAssoc _ p)	= p
+			prec (LeftAssoc _ p)	= p
+			prec (RightAssoc _ p)	= p
+			prec (NonAssoc _ p)	= p
 
-	_	    -> e
+		_   -> e
+	_   -> e
 
