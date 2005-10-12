@@ -57,21 +57,6 @@ data Literal = LitInt Range Integer
     deriving (Typeable, Data, Eq, Show)
 
 
--- | Explanations should contain enough information to 
---   reconstruct a derivation
---
-data Expl = InCode Range
-	  | DefinedAt Range
-	  | Expl :+: Expl
-	  | Duh -- ^ this is a default for development which should disappear
-  deriving (Typeable, Data, Show)
-
-instance HasRange Expl where
-    getRange (InCode r) = r
-    getRange (DefinedAt r) = r
-    getRange (ex1 :+: ex2) = fuseRange ex1 ex2
-    getRange Duh = noRange
-
 instance HasRange Name where
     getRange (Name r _)	= r
 
