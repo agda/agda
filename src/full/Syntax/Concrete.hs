@@ -160,16 +160,6 @@ type AbstractDeclaration = Declaration DontCare DontCare DontCare DontCare Abstr
 -- | Everything can appear at top-level.
 type TopLevelDeclaration = Declaration DontCare DontCare DontCare DontCare DontCare
 
--- | Fixity of infix operators.
-data Fixity = LeftAssoc Range Integer
-	    | RightAssoc Range Integer
-	    | NonAssoc Range Integer
-    deriving (Typeable, Data, Eq, Show)
-
--- | The default fixity. Currently defined to be @'LeftAssoc' 20@.
-defaultFixity :: Fixity
-defaultFixity = LeftAssoc noRange 20
-
 {-| Declaration is a family of datatypes indexed by the datakinds
 
     @

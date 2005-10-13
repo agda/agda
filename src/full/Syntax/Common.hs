@@ -4,7 +4,7 @@
 -}
 module Syntax.Common where
 
-import Data.Generics
+import Data.Generics hiding (Fixity)
 
 import Syntax.Position
 
@@ -62,6 +62,17 @@ data Literal = LitInt Range Integer
     deriving (Typeable, Data, Eq, Show)
 
 
+-- | Fixity of infix operators.
+data Fixity = LeftAssoc Range Integer
+	    | RightAssoc Range Integer
+	    | NonAssoc Range Integer
+    deriving (Typeable, Data, Eq)
+
+-- | The default fixity. Currently defined to be @'LeftAssoc' 20@.
+defaultFixity :: Fixity
+defaultFixity = LeftAssoc noRange 20
+
+
 instance HasRange Name where
     getRange (Name r _)	= r
 
@@ -74,4 +85,9 @@ instance HasRange Literal where
     getRange (LitFloat r _)	= r
     getRange (LitString r _)	= r
     getRange (LitChar r _)	= r
+
+instance HasRange Fixity where
+    getRange (LeftAssoc r _)	= r
+    getRange (RightAssoc r _)	= r
+    getRange (NonAssoc r _)	= r
 
