@@ -9,7 +9,6 @@ module Syntax.Concrete
     ( -- * Expressions
       Expr'(..), Expr
     , Name(..), QName(..)
-    , Branch'(..), Branch
       -- * Bindings
     , LamBinding'(..), LamBinding
     , TypedBinding'(..), TypedBinding
@@ -57,8 +56,6 @@ data Expr' locals
 	| Prop Range					    -- ^ ex: @Prop@
 	| SetN Range Nat				    -- ^ ex: @Set0, Set1, ..@
 	| Let Range locals (Expr' locals)		    -- ^ ex: @let Ds in e@
-	| Elim Range (Expr' locals) (Maybe (Expr' locals)) [Branch' locals]
-							    -- ^ there's no syntax for the fancy case yet
 	| Paren Range (Expr' locals)			    -- ^ ex: @(e)@
     deriving (Typeable, Data, Eq, Show)
 
@@ -74,13 +71,6 @@ data Pattern
 	| ParenP Range Pattern
     deriving (Typeable, Data, Eq, Show)
 
-
--- | A (fancy) case branch is on the form @p1 .. pn -> e@ where @pi@ are arbitrary
---   expressions.
-data Branch' locals = Branch [Expr' locals] (Expr' locals)
-    deriving (Typeable, Data, Eq, Show)
-
-type Branch = Branch' [LocalDeclaration]
 
 -- | A lambda binding is either domain free or typed.
 data LamBinding' locals
@@ -287,8 +277,6 @@ instance Functor Expr' where
 	    Prop r		-> Prop r
 	    SetN r n		-> SetN r n
 	    Let r defs e	-> Let r (f defs) (fmap f e)
-	    Elim r t p bs	-> Elim r (fmap f t) (fmap (fmap f) p)
-						     (fmap (fmap f) bs)
 	    Paren r e		-> Paren r (fmap f e)
 
 
@@ -301,10 +289,6 @@ instance Functor LamBinding' where
 
 instance Functor TypedBinding' where
     fmap f (TypedBinding r h xs t) = TypedBinding r h xs (fmap f t)
-
-
-instance Functor Branch' where
-    fmap f (Branch ps e) = Branch (fmap (fmap f) ps) (fmap f e)
 
 
 instance HasRange (Expr' locals) where
@@ -323,7 +307,6 @@ instance HasRange (Expr' locals) where
 	    Prop r		-> r
 	    SetN r _		-> r
 	    Let r _ _		-> r
-	    Elim r _ _ _	-> r
 	    Paren r _		-> r
 
 instance HasRange (TypedBinding' locals) where
@@ -332,9 +315,6 @@ instance HasRange (TypedBinding' locals) where
 instance HasRange (LamBinding' locals) where
     getRange (DomainFree _ x)	= getRange x
     getRange (DomainFull b)	= getRange b
-
-instance HasRange (Branch' locals) where
-    getRange (Branch ps e)  = fuseRange ps e
 
 instance HasRange Declaration' where
     getRange (TypeSig x t)	    = fuseRange x t
