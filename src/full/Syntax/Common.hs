@@ -32,9 +32,6 @@ instance Ord Name where
     compare (Name _ x) (Name _ y) = compare x y
 
 
-instance Show Name where
-    show (Name _ x) = x
-
 -- | @QName@ is a list of namespaces and the name of the constant.
 --   For the moment assumes namespaces are just NameID and not
 --     explicitly applied modules.
@@ -44,7 +41,15 @@ instance Show Name where
 --     lookup table for namespace names).
 data QName = Qual Name QName
            | QName Name 
-  deriving (Typeable, Data, Show, Eq)
+  deriving (Typeable, Data, Eq)
+
+
+instance Show Name where
+    show (Name _ x) = x
+
+instance Show QName where
+    show (Qual m x) = show m ++ "." ++ show x
+    show (QName x)  = show x
 
 
 type Nat = Int

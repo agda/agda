@@ -20,8 +20,10 @@ data Expl = InCode Range
 	  | ConcreteDecls [Declaration']
 	  | Expl :+: Expl
 	  | Duh -- ^ this is a default for development which should disappear
-  deriving (Typeable, Data, Show)
+  deriving (Typeable, Data)
 
+instance Show Expl where
+    show e = "<explanation>"
 
 -- | If an explanation contains a piece of concrete syntax, return this.
 getConcreteExpr :: Expl -> Maybe Expr
