@@ -58,7 +58,6 @@ What are the options?
 module Syntax.Concrete.Definitions
     ( NiceDeclaration(..), Clause(..)
     , DeclarationException(..)
-    , NiceExpr, NiceRHS, NiceWhereClause, NiceTelescope
     , niceDeclarations
     ) where
 
@@ -88,39 +87,24 @@ import Utils.Map
     would not pay off here.
 -}
 data NiceDeclaration
-	= Axiom Range Fixity Access Name NiceExpr
-	| FunDef Range Fixity Access Name (Maybe NiceExpr) [Clause]
-	| NiceData Range Fixity Access Name NiceTelescope NiceExpr [NiceDeclaration]
-	| NiceMutual Range NiceDeclarations
-	| NiceAbstract Range NiceDeclarations
-	| NiceOpen Range QName [ImportDirective]
-	| NiceNameSpace Range Name NiceExpr [ImportDirective]
-	| NiceImport Range QName [ImportDirective]
-	| NiceModule Range Access QName NiceTelescope NiceDeclarations
-    deriving (Show)
+	= Axiom Range Fixity Access Name Expr
+	| FunDef Range Fixity Access Name (Maybe Expr) [Clause]
+	| NiceData Range Fixity Access Name Telescope Expr [NiceDeclaration]
+	| NiceAbstract Range [NiceDeclaration]
+	| NiceMutual Range [NiceDeclaration]
+	| NiceModule Range Access QName Telescope [TopLevelDeclaration]
+	| Other Declaration'
 
-data NiceDeclarations = NiceDecls { concreteDecls :: [Declaration']
-				  , niceDecls	  :: [NiceDeclaration]
-				  }
-    deriving (Show)
-
--- | In a nice expression local declarations are nice.
-type NiceExpr = Expr' NiceDeclarations
 
 -- | One clause in a function definition.
-data Clause = Clause LHS NiceRHS NiceWhereClause
-    deriving (Show)
-
-type NiceRHS		= RHS' NiceDeclarations
-type NiceWhereClause	= WhereClause' NiceDeclarations
-type NiceTelescope	= Telescope' NiceDeclarations
+data Clause = Clause LHS RHS WhereClause
 
 
 -- | The exception type.
 data DeclarationException
 	= MultipleFixityDecls [(Name, [Fixity])]
 	| MissingDefinition Name
-    deriving (Typeable, Show)
+    deriving (Typeable)
 
 {--------------------------------------------------------------------------
     The niceifier
@@ -147,8 +131,8 @@ data DeclarationException
     TODO: check that every fixity declaration has a corresponding definition.
     How to do this?
 -}
-niceDeclarations :: [Declaration'] -> NiceDeclarations
-niceDeclarations ds = NiceDecls ds (nice (fixities ds) ds)
+niceDeclarations :: [Declaration'] -> [NiceDeclaration]
+niceDeclarations ds = nice (fixities ds) ds
     where
 
 	-- If no fixity is given we return the default fixity.
@@ -183,17 +167,16 @@ niceDeclarations ds = NiceDecls ds (nice (fixities ds) ds)
 			nds = case d of
 			    Data r x tel t cs   ->
 				[ NiceData r (fixity x fixs) PublicDecl
-					 x (map fmapNice tel)
-					 (fmapNice t) (niceAxioms fixs cs)
+					 x tel t (niceAxioms fixs cs)
 				]
 
 			    Mutual r ds ->
-				[ NiceMutual r $ NiceDecls ds $
+				[ NiceMutual r $
 				    nice (fixities ds `plusFixities` fixs) ds
 				]
 
 			    Abstract r ds ->
-				[ NiceAbstract r $ NiceDecls ds $
+				[ NiceAbstract r $
 				    nice (fixities ds `plusFixities` fixs) ds
 				]
 
@@ -203,19 +186,14 @@ niceDeclarations ds = NiceDecls ds (nice (fixities ds) ds)
 
 			    Postulate _ ds -> niceAxioms fixs ds
 
-			    Open r m is		-> [NiceOpen r m is]
-			    NameSpace r m e is	-> [NiceNameSpace r m
-							(fmapNice e) is
-						   ]
-			    Import r m is	-> [NiceImport r m is]
 			    Module r x tel ds	->
-				[ NiceModule r PublicDecl x (map fmapNice tel)
-				    (niceDeclarations ds)
+				[ NiceModule r PublicDecl x tel ds
 				]
 
 			    Infix _ _   -> []
 
-			    _   -> undefined
+			    d		-> [Other d]
+
 
 	-- Translate axioms
 	niceAxioms :: Map Name Fixity -> [TypeSignature] -> [NiceDeclaration]
@@ -223,20 +201,18 @@ niceDeclarations ds = NiceDecls ds (nice (fixities ds) ds)
 	    where
 		nice [] = []
 		nice (d@(TypeSig x t) : ds) =
-		    Axiom (getRange d) (fixity x fixs) PublicDecl x (fmapNice t)
+		    Axiom (getRange d) (fixity x fixs) PublicDecl x t
 		    : nice ds
 		nice _ = __UNDEFINED__
 
 	-- Create a function definition.
 	mkFunDef fixs x mt ds0 =
 	    FunDef (fuseRange x ds0) (fixity x fixs)
-		   PublicDecl x (fmap fmapNice mt)
+		   PublicDecl x mt
 		   (map mkClause ds0)
 
 	-- Turn a function clause into a nice function clause.
-	mkClause (FunClause lhs rhs wh) =
-	    Clause lhs (fmapNice rhs)
-		       (niceDeclarations wh)
+	mkClause (FunClause lhs rhs wh) = Clause lhs rhs wh
 	mkClause _ = __UNDEFINED__
 
 	-- Check if a declaration is a definition of a particular function.
@@ -250,12 +226,10 @@ niceDeclarations ds = NiceDecls ds (nice (fixities ds) ds)
 		FunDef r f _ x t cs	  -> FunDef r f PrivateDecl x t cs
 		NiceData r f _ x tel s cs -> NiceData r f PrivateDecl x tel s $
 						map mkPrivate cs
-		NiceMutual r ds		  -> NiceMutual r (mkPrivates ds)
-		NiceAbstract r ds	  -> NiceAbstract r (mkPrivates ds)
+		NiceMutual r ds		  -> NiceMutual r (map mkPrivate ds)
+		NiceAbstract r ds	  -> NiceAbstract r (map mkPrivate ds)
 		NiceModule r _ x tel ds	  -> NiceModule r PrivateDecl x tel ds
 		_			  -> d
-	mkPrivates (NiceDecls ds nds) =
-	    NiceDecls ds (map mkPrivate nds)
 
 
 -- | Add more fixities. Throw an exception for multiple fixity declarations.

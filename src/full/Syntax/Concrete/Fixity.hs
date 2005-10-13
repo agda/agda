@@ -24,7 +24,7 @@ data InfixException = BadInfixApp Range (QName, Fixity) (QName, Fixity)
     over how to get the fixity of a name. Throws an 'InfixException' if the
     correct bracketing cannot be deduced.
 -}
-rotateInfixApp :: (QName -> Fixity) -> Expr' local -> Expr' local
+rotateInfixApp :: (QName -> Fixity) -> Expr -> Expr
 rotateInfixApp fixity e =
     case e of
 	Paren _ e'  -> rotateInfixApp fixity e'
