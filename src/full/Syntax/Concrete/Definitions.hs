@@ -88,7 +88,7 @@ import Utils.Map
 -}
 data NiceDeclaration
 	= Axiom Range Fixity Access Name Expr
-	| FunDef Range Fixity Access Name (Maybe Expr) [Clause]
+	| FunDef Range [Declaration'] Fixity Access Name (Maybe Expr) [Clause]
 	| NiceData Range Fixity Access Name Telescope Expr [NiceDeclaration]
 	| NiceAbstract Range [NiceDeclaration]
 	| NiceMutual Range [NiceDeclaration]
@@ -207,9 +207,14 @@ niceDeclarations ds = nice (fixities ds) ds
 
 	-- Create a function definition.
 	mkFunDef fixs x mt ds0 =
-	    FunDef (fuseRange x ds0) (fixity x fixs)
+	    FunDef (fuseRange x ds0)
+		   (ts ++ ds0)
+		   (fixity x fixs)
 		   PublicDecl x mt
 		   (map mkClause ds0)
+	    where
+		ts = maybe [] (\t -> [TypeSig x t]) mt
+
 
 	-- Turn a function clause into a nice function clause.
 	mkClause (FunClause lhs rhs wh) = Clause lhs rhs wh
@@ -223,7 +228,7 @@ niceDeclarations ds = nice (fixities ds) ds
 	mkPrivate d =
 	    case d of
 		Axiom r f _ x e		  -> Axiom r f PrivateDecl x e
-		FunDef r f _ x t cs	  -> FunDef r f PrivateDecl x t cs
+		FunDef r ds f _ x t cs	  -> FunDef r ds f PrivateDecl x t cs
 		NiceData r f _ x tel s cs -> NiceData r f PrivateDecl x tel s $
 						map mkPrivate cs
 		NiceMutual r ds		  -> NiceMutual r (map mkPrivate ds)
