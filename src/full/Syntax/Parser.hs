@@ -9,6 +9,7 @@ module Syntax.Parser
     , moduleParser
     , exprParser
     , tokensParser
+    , interfaceParser
       -- * Parse results
     , ParseResult(..)
     , ParseError(..)

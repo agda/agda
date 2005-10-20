@@ -6,6 +6,7 @@ module Syntax.Parser.Parser (
       moduleParser
     , exprParser
     , tokensParser
+    , interfaceParser
     ) where
 
 import Syntax.Position
@@ -13,6 +14,7 @@ import Syntax.Parser.Monad
 import Syntax.Parser.Lexer
 import Syntax.Parser.Tokens
 import Syntax.Concrete
+import Syntax.Interface
 import Syntax.Common
 
 import Utils.Monad
@@ -22,6 +24,7 @@ import Utils.Monad
 %name tokensParser Tokens
 %name exprParser Expr
 %name moduleParser File
+%name interfaceParser Interface
 %tokentype { Token }
 %monad { Parser }
 %lexer { lexer } { TokEOF }
@@ -163,6 +166,17 @@ Token
 File :: { TopLevelDeclaration }
 File : TopModule	{ $1 }
      | tex File		{ $2 }
+
+
+{--------------------------------------------------------------------------
+    Interface files
+ --------------------------------------------------------------------------}
+
+Interface :: { Interface }
+Interface
+    : CommaNames ';'
+      CommaNames ';'
+      CommaNames ';'	{ Interface $1 $3 $5 }
 
 {--------------------------------------------------------------------------
     Meta rules
@@ -672,6 +686,10 @@ exprParser :: Parser Expr
 
 -- | Parse a module.
 moduleParser :: Parser TopLevelDeclaration
+
+-- | Parse an interface.
+interfaceParser :: Parser Interface
+
 
 -- | Required by Happy.
 happyError :: Parser a

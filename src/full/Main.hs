@@ -18,13 +18,19 @@ parseFile' p file
     | otherwise			= parseFile p file
 
 main =
-    do	[file] <- getArgs
-	r <- parseFile' moduleParser file
-	case r of
-	    ParseOk _ m	    -> print $ m
-	    ParseFailed err ->
-		do  print err
-		    r <- parseFile' tokensParser file
-		    case r of
-			ParseOk _ ts	-> mapM_ print ts
-			ParseFailed err	-> print err
+    do	args <- getArgs
+	let [file] = filter ((/=) "-" . take 1) args
+	    go	| "-i" `elem` args  = stuff file interfaceParser
+		| otherwise	    = stuff file moduleParser
+	go
+    where
+	stuff file p =
+	    do	r <- parseFile' p file
+		case r of
+		    ParseOk _ m	    -> print m
+		    ParseFailed err ->
+			do  print err
+--			    r <- parseFile' tokensParser file
+--			    case r of
+--				ParseOk _ ts	-> mapM_ print ts
+--				ParseFailed err	-> print err
