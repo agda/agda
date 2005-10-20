@@ -454,8 +454,8 @@ checkArgs args = go [] args where
 -- | Find position of a value in a list.
 --   Used to change metavar argument indices during assignment.
 --
-findIdx v vs = go 0 vs where
-    go i (v' : vs) | v' == v = return i
+findIdx p vs = go 0 vs where
+    go i (v : vs) | p v = return i
     go i (_ : vs) = go (i + 1) vs
     go _ [] = fail "findIdx"
 
@@ -463,11 +463,12 @@ findIdx v vs = go 0 vs where
 -- | Extended occurs check
 --   Assumes value to be checked already in whnf
 occ :: MId -> [Value] -> GenericM TCM
-occ y okVars v = go v where
-    go = walk $ mkM occVal `extM` occTyp
+occ y okVars v = runReaderT (go v) 0 where
+    go = walk (mkM occVal) -- `extM` occTyp
     occVal v = case spineValue v of
         VarSV i args -> do
-            j <- findIdx v okVars
+            j <- findIdx undefined {- should be (v==) -}
+			 okVars
             
             return $ var j
 
