@@ -25,6 +25,15 @@ data Access = PrivateDecl | PublicDecl
 data Name = Name Range String
     deriving (Typeable, Data)
 
+-- | @noName = 'Name' 'noRange' \"_\"@
+noName :: Name
+noName = Name noRange "_"
+
+-- Define equality on @Name@ to ignore range so same names in different
+--     locations are equal.
+--
+--   Is there a reason not to do this? -Jeff
+--
 instance Eq Name where
     (Name _ x) == (Name _ y) = x == y
 
@@ -33,7 +42,7 @@ instance Ord Name where
 
 
 -- | @QName@ is a list of namespaces and the name of the constant.
---   For the moment assumes namespaces are just NameID and not
+--   For the moment assumes namespaces are just @Name@s and not
 --     explicitly applied modules.
 --   Also assumes namespaces are generative by just using derived
 --     equality. We will have to define an equality instance to
@@ -53,7 +62,6 @@ instance Show QName where
 
 
 type Nat = Int
-
 
 data Literal = LitInt Range Integer
 	     | LitFloat Range Double
