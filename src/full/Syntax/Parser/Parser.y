@@ -703,8 +703,8 @@ exprToLHS e =
 	exprToPattern e =
 	    case e of
 		Ident x			-> return $ IdentP x
-		App _ NotHidden e1 e2	-> AppP <$> exprToPattern e1
-						<*> exprToPattern e2
+		App _ h e1 e2		-> AppP h <$> exprToPattern e1
+						  <*> exprToPattern e2
 		InfixApp e1 op e2	-> InfixAppP
 						<$> exprToPattern e1
 						<*> return op

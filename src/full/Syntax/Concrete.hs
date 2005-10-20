@@ -71,7 +71,7 @@ appView e = id -*- reverse $ spine e
 -- | Concrete patterns. No literals in patterns at the moment.
 data Pattern
 	= IdentP QName
-	| AppP Pattern Pattern
+	| AppP Hiding Pattern Pattern
 	| InfixAppP Pattern QName Pattern
 	| ParenP Range Pattern
     deriving (Typeable, Data, Eq)

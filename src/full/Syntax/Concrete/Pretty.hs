@@ -178,7 +178,7 @@ instance Pretty Pattern where
     pretty p =
 	case p of
 	    IdentP x		-> prettyId x
-	    AppP p1 p2		-> sep [ pretty p1, nest 2 $ pretty p2 ]
+	    AppP h p1 p2	-> sep [ pretty p1, nest 2 $ pHidden h p2 ]
 	    InfixAppP p1 op p2	-> sep [ pretty p1
 				       , prettyOp op <+> pretty p2
 				       ]
