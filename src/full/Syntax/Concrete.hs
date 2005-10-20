@@ -26,7 +26,6 @@ module Syntax.Concrete
     , Constructor
     , Fixity(..)
     , defaultFixity
-    , ImportDirective(..)
     , LHS(..), Argument(..), Pattern(..)
     , RHS, WhereClause
     )
@@ -96,15 +95,6 @@ data TypedBinding
 -- | A telescope is a sequence of typed bindings. Bound variables are in scope
 --   in later types.
 type Telescope = [TypedBinding]
-
-
--- | The things you are allowed to say when you shuffle names between name
---   spaces (i.e. in @import@, @namespace@, or @open@ declarations).
-data ImportDirective
-	= Hiding [Name]
-	| Using  [Name]
-	| Renaming [(Name, Name)]   -- ^ Contains @(oldName,newName)@ pairs.
-    deriving (Typeable, Data, Eq)
 
 
 {-| Left hand sides can be written in infix style. For example:
@@ -290,11 +280,6 @@ instance HasRange Declaration' where
     getRange (Postulate r _)	    = r
     getRange (Module r _ _ _)	    = r
     getRange (Infix f _)	    = getRange f
-
-instance HasRange ImportDirective where
-    getRange (Using xs)	    = getRange xs
-    getRange (Hiding xs)    = getRange xs
-    getRange (Renaming xs)  = getRange xs
 
 instance HasRange LHS where
     getRange (LHS r _ _ _)  = r

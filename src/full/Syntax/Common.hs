@@ -81,6 +81,15 @@ defaultFixity :: Fixity
 defaultFixity = LeftAssoc noRange 20
 
 
+-- | The things you are allowed to say when you shuffle names between name
+--   spaces (i.e. in @import@, @namespace@, or @open@ declarations).
+data ImportDirective
+	= Hiding [Name]
+	| Using  [Name]
+	| Renaming [(Name, Name)]   -- ^ Contains @(oldName,newName)@ pairs.
+    deriving (Typeable, Data, Eq)
+
+
 instance HasRange Name where
     getRange (Name r _)	= r
 
@@ -98,4 +107,9 @@ instance HasRange Fixity where
     getRange (LeftAssoc r _)	= r
     getRange (RightAssoc r _)	= r
     getRange (NonAssoc r _)	= r
+
+instance HasRange ImportDirective where
+    getRange (Using xs)	    = getRange xs
+    getRange (Hiding xs)    = getRange xs
+    getRange (Renaming xs)  = getRange xs
 
