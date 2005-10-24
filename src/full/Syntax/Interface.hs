@@ -8,10 +8,20 @@ module Syntax.Interface where
 import Syntax.Common
 
 data Interface =
-	Interface   { definedNames	:: [Name]
+	Interface   { moduleName	:: QName
+		    , arity		:: Integer
+		    , definedNames	:: [Name]
 		    , constructorNames	:: [Name]
 		    , datatypeNames	:: [Name]
+		    , subModules	:: [Interface]
 		    -- here should go types and definitions
 		    }
     deriving (Show)
+
+{-
+
+How to treat submodules?
+    sub-interfaces? yes
+
+-}
 

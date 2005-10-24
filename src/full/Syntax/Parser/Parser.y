@@ -174,9 +174,29 @@ File : TopModule	{ $1 }
 
 Interface :: { Interface }
 Interface
-    : CommaNames ';'
-      CommaNames ';'
-      CommaNames ';'	{ Interface $1 $3 $5 }
+    : 'module' ModuleName Slash Int 'where'
+      vopen
+	functions ':' CommaNames vsemi
+	constructors ':' CommaNames vsemi
+	datatypes ':' CommaNames
+	Interfaces
+      close
+			{ Interface { moduleName	= $2
+				    , arity		= $4
+				    , definedNames	= $9
+				    , constructorNames	= $13
+				    , datatypeNames	= $17
+				    , subModules	= $18
+				    }
+			}
+
+Interfaces : {- empty -}		{ [] }
+	   | vsemi Interface Interfaces { $2 : $3 }
+
+Slash		: op	{% isName "/" $1 }
+functions	: id	{% isName "functions" $1 }
+constructors	: id	{% isName "constructors" $1 }
+datatypes	: id	{% isName "datatypes" $1 }
 
 {--------------------------------------------------------------------------
     Meta rules
@@ -219,7 +239,7 @@ beginImpDir : {- empty -}   {% pushLexState imp_dir }
 Int :: { Integer }
 Int : literal	{% case $1 of {
 		     LitInt _ n	-> return n;
-		     _		-> fail $ "Expected integer precedence level"
+		     _		-> fail $ "Expected integer"
 		   }
 		}
 
