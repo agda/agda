@@ -233,10 +233,11 @@ module examples.syntax.Syntax where
     Nat1 = A.Nat
     Nat2 = A'.Nat
 
-    -- For parameterised modules we don't get a name space. They have to be
-    -- instantiated first. The only thing that happens here is that the module
-    -- name 'examples.syntax.ModuleB' is brought into scope (and the type
-    -- checker goes away and type checks this module).
+    {- You can't project from a parameterised module. It has to be instantiated
+       first. The only thing that happens when importing is that the module name
+       'examples.syntax.ModuleB' is brought into scope (and the type checker
+       goes away and type checks this module).
+    -}
     import examples.syntax.ModuleB
 
     -- To instantiate ModuleB we need something to instantiate it with.
@@ -244,8 +245,8 @@ module examples.syntax.Syntax where
 	      (==) : X -> X -> Prop
 	      refl : (x : X) -> x == x
 
-    -- Instead of defining a new module you can declare a module to be equal
-    -- to another module. This is how you instantiate parameterised modules.
+    -- To instantiate a module you create a new module and define it as the
+    -- instantiation in question.
     module B = examples.syntax.ModuleB X (==) refl
 
     -- Now the module B contains all the names from ModuleB.
@@ -358,12 +359,18 @@ module examples.syntax.Syntax where
        fancy case statement.  The difficulty is that we should make it clear
        what arguments to the elimination rule will appear as patterns (the
        targets). Suggestions are welcome.
+
+       Also I'm not sure that we want the fancy case. It would be better to
+       have a good way of doing actual pattern matching on inductive families.
     -}
 
     {- Relative imports. You might want to be able to say
 
 	import .ModuleA
 
-       to import the module 'current.directory.ModuleA'.
+       to import the module 'current.directory.ModuleA'. Easy to implement but
+       I'm not sure it's that painful to write the complete name (not a problem
+       in Haskell for instance). Drawbacks: it looks kind of funny and it adds
+       an extra bit of syntax to remember.
     -}
 
