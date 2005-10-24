@@ -61,7 +61,8 @@ instance Show QName where
     show (QName x)  = show x
 
 
-type Nat = Int
+type Nat    = Int
+type Arity  = Nat
 
 data Literal = LitInt Range Integer
 	     | LitFloat Range Double
@@ -71,9 +72,9 @@ data Literal = LitInt Range Integer
 
 
 -- | Fixity of infix operators.
-data Fixity = LeftAssoc Range Integer
-	    | RightAssoc Range Integer
-	    | NonAssoc Range Integer
+data Fixity = LeftAssoc Range Int
+	    | RightAssoc Range Int
+	    | NonAssoc Range Int
     deriving (Typeable, Data, Eq)
 
 -- | The default fixity. Currently defined to be @'LeftAssoc' 20@.

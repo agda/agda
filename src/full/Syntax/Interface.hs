@@ -9,7 +9,7 @@ import Syntax.Common
 
 data Interface =
 	Interface   { moduleName	:: QName
-		    , arity		:: Integer
+		    , arity		:: Arity
 		    , definedNames	:: [Name]
 		    , constructorNames	:: [Name]
 		    , datatypeNames	:: [Name]
