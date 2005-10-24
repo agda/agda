@@ -362,13 +362,13 @@ reduce store ctx sig v = go v where
             Just (InstV v) -> go $ addArgs v args 
             Just _ -> v
         DefSV f args -> case defOfConst f of
-            [] -> v -- ^ no definition for head
+            [] -> v -- no definition for head
             cls@(Clause ps _ : _) -> 
                 if length ps == length args then appDef v cls args
                 else if length ps > length args then
                     let (args1,args2) = splitAt (length ps) args 
                     in go $ addArgs (appDef v cls args1) args2
-                else v -- ^ partial application
+                else v -- partial application
         _ -> v
 
     -- | get definition of a constant (i.e. a list of clauses)
@@ -383,7 +383,7 @@ reduce store ctx sig v = go v where
     --
     appDef :: Value -> [Clause] -> [Value] -> Value
     appDef v cls args = goCls cls args where
-        goCls [] _ = v -- ^ no clause matched, can happen with parameter arguments
+        goCls [] _ = v -- no clause matched, can happen with parameter arguments
         goCls (cl@(Clause pats body) : cls) args =
             case matchPats [] pats args of
                 Just args' -> app args' body
