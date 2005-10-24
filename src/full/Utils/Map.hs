@@ -34,6 +34,9 @@ lookupMap' e x m = lookupWithDefaultFM m e x
 updateMap :: Ord a => a -> b -> Map a b -> Map a b
 updateMap x v m = addToFM m x v
 
+deleteMap :: Ord a => a -> Map a b -> Map a b
+deleteMap x m = delFromFM m x
+
 isInMap :: Ord a => a -> Map a b -> Bool
 isInMap x m = elemFM x m
 
@@ -79,6 +82,9 @@ lookupMap' e x m = Map.findWithDefault e x m
 
 updateMap :: Ord a => a -> b -> Map a b -> Map a b
 updateMap x v m = Map.insert x v m
+
+deleteMap :: Ord a => a -> Map a b -> Map a b
+deleteMap x m = Map.delete x m
 
 isInMap :: Ord a => a -> Map a b -> Bool
 isInMap x m = Map.member x m
