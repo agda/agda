@@ -143,7 +143,10 @@ instance Pretty Declaration' where
 		sep [ text "namespace" <+> prettyId x
 		    , nest 2 $ text "=" <+> pretty e <> directives is
 		    ]
-	    Import _ x is   -> text "import" <+> prettyId x <> directives is
+	    Import _ x rn is   -> text "import" <+> prettyId x <+> as rn <> directives is
+		where
+		    as Nothing	= empty
+		    as (Just x) = text "as" <+> prettyName x
 	where
 	    directives is = cat [ comma <+> pretty i | i <- is ]
 

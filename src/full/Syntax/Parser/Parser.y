@@ -546,8 +546,13 @@ NameSpace : 'namespace' id '=' Expr ImportDirectives
 
 -- Import
 Import :: { TopLevelDeclaration }
-Import : 'import' ModuleName ImportDirectives    { importDecl (getRange ($1,$2,$3)) $2 $3 }
+Import : 'import' ModuleName RenamedImport ImportDirectives
+	    { importDecl (getRange ($1,$2,$4)) $2 $3 $4 }
 
+-- You can rename imports
+RenamedImport :: { Maybe Name }
+RenamedImport : {- empty -} { Nothing }
+	      | id id	    {% isName "as" $1 >> return (Just $2) }
 
 -- Import directives
 ImportDirectives :: { [ImportDirective] }
@@ -694,6 +699,12 @@ interfaceParser :: Parser Interface
 -- | Required by Happy.
 happyError :: Parser a
 happyError = parseError "Parse error"
+
+-- | Match a particular name.
+isName :: String -> Name -> Parser ()
+isName s x = case x of
+		Name _ s' | s == s' -> return ()
+		_		    -> happyError
 
 -- | Turn an expression into a left hand side. Fails if the expression is not a
 --   valid lhs.

@@ -225,6 +225,14 @@ module examples.syntax.Syntax where
     -- declaration.
     FunnyNat = examples.syntax.ModuleA.Nat
 
+    -- If the name of an imported module clashes with a local module we might
+    -- have to rename the module we are importing
+    import examples.syntax.ModuleA as A
+    import examples.syntax.ModuleA as A', using (Nat)
+
+    Nat1 = A.Nat
+    Nat2 = A'.Nat
+
     -- For parameterised modules we don't get a name space. They have to be
     -- instantiated first. The only thing that happens here is that the module
     -- name 'examples.syntax.ModuleB' is brought into scope (and the type

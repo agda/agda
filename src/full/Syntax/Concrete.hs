@@ -193,7 +193,7 @@ data Declaration'
 	    [ImportDirective]			-- ^ . @Declaration 'DontCare' locals private 'DontCare' abstract@
 	| NameSpace Range Name Expr
 	    [ImportDirective]			-- ^ . @Declaration 'DontCare' locals private 'DontCare' abstract@
-	| Import Range QName
+	| Import Range QName (Maybe Name)
 	    [ImportDirective]			-- ^ . @Declaration 'DontCare' 'DontCare' 'DontCare' 'DontCare' 'DontCare'@
 	| Module Range QName Telescope
 	    [TopLevelDeclaration]		-- ^ . @Declaration 'DontCare' 'DontCare' private 'DontCare' 'DontCare'@
@@ -230,7 +230,7 @@ open = Open
 nameSpace :: Range -> Name -> Expr -> [ImportDirective] -> Declaration DontCare locals private DontCare abstract
 nameSpace = NameSpace
 
-importDecl :: Range -> QName -> [ImportDirective] -> Declaration DontCare DontCare DontCare DontCare DontCare
+importDecl :: Range -> QName -> Maybe Name -> [ImportDirective] -> Declaration DontCare DontCare DontCare DontCare DontCare
 importDecl = Import
 
 moduleDecl :: Range -> QName -> Telescope -> [TopLevelDeclaration] -> Declaration DontCare DontCare private DontCare DontCare
@@ -275,7 +275,7 @@ instance HasRange Declaration' where
     getRange (Abstract r _)	    = r
     getRange (Open r _ _)	    = r
     getRange (NameSpace r _ _ _)    = r
-    getRange (Import r _ _)	    = r
+    getRange (Import r _ _ _)	    = r
     getRange (Private r _)	    = r
     getRange (Postulate r _)	    = r
     getRange (Module r _ _ _)	    = r
