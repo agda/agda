@@ -103,16 +103,20 @@ veryclean :
 agda = $(FULL_OUT_DIR)/agda
 
 test_files = $(patsubst %,examples/syntax/%,Syntax.agda Literate.lagda)
-out_files  = $(patsubst %,%.pretty,$(test_files))
+out_files  = $(patsubst %,%.diff,$(test_files))
 
 test : $(agda) $(out_files)
 
-$(out_files) : %.pretty : %
-	@echo Testing file $< ...
+%.pretty.1 : %
+	@echo "Testing $<..."
 	@$(agda) $< > $@
-	@$(agda) $@ > $@.2
-	@$(DIFF) $@ $@.2
-	@rm $@ $@.2
+
+%.pretty.2 : %.pretty.1
+	@$(agda) $< > $@
+
+$(out_files) : %.diff : %.pretty.1 %.pretty.2
+	@$(DIFF) $*.pretty.1 $*.pretty.2
+	@rm $*.pretty.1 $*.pretty.2
 	@echo "  pretty . parse is idempotent"
 
 ## Debugging the Makefile #################################################
