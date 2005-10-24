@@ -9,6 +9,9 @@ module examples.syntax.ModuleB
   infix 10 ==
   infix 5 /\
 
+  module SubModule where
+    postulate dummy : A
+
   data True : Prop where
     tt : True
 

@@ -244,35 +244,35 @@ module examples.syntax.Syntax where
 	      (==) : X -> X -> Prop
 	      refl : (x : X) -> x == x
 
-    -- To instantiate a parameterised module you use the namespace declaration
-    -- that creates new name spaces.
-    namespace B = examples.syntax.ModuleB X (==) refl
+    -- Instead of defining a new module you can declare a module to be equal
+    -- to another module. This is how you instantiate parameterised modules.
+    module B = examples.syntax.ModuleB X (==) refl
 
-    -- Now the name space B contains all the names from ModuleB.
+    -- Now the module B contains all the names from ModuleB.
     XList = B.List
     And	  = B./\    -- qualified operators are not infix symbols
 
-    -- The namespace declaration doesn't have to instantiate parameterised
-    -- modules. A namespace can be created from any namespace or module.
-    namespace B' = B
+    -- This of course works for non-parameterised modules as well.
+    module B' = B
 
-    -- To bring names from a namespace into scope you use an open declaration.
+    -- And you can create parameterised modules this way.
+    module BX ((==) : X -> X -> Prop)(refl : (x : X) -> x == x) = B X (==) refl
+
+    -- To bring names from a module into scope you use an open declaration.
     open examples.syntax.ModuleA
 
     two : FunnyNat
     two = eval (plus (suc zero) (suc zero))
 
-    {- In all three declarations (import, namespace and open) you can give
-       modifiers that affect the names which are imported. There are three
-       modifiers:
+    {- In all three declarations (import, module instantiation and open) you
+       can give modifiers that affect the names which are imported. There are
+       three modifiers:
 
 	using (x1,..,xn)		only import x1,..,xn
 	hiding (x1,..,xn)		import everything but x1,..,xn
 	renaming (x1 to y1,..,xn to yn)	import x1,..,xn but call them y1,..,yn
 
       Restrictions:
-	- you cannot give modifiers to an import of a parameterised module
-	  (since this doesn't import any names)
 	- a modifier can appear only once
 	- 'using' and 'hiding' cannot appear together
 	- imported names must be distinct (e.g. you cannot rename to a name
@@ -280,15 +280,21 @@ module examples.syntax.Syntax where
     -}
 
     -- B1 only contains True and False
-    namespace B1 = B, using (True, False)
+    module B1 = B, using (True, False)
 
     -- B2 contains True, False and And where And = B./\
-    namespace B2 = B, using (True, False), renaming (/\ to And)
+    module B2 = B, using (True, False), renaming (/\ to And)
 
     -- B3 contains everything from B except reflEqList and eqList, plus ===
     -- where (===) = B.eqList.
-    namespace B3 = B, hiding (reflEqList), renaming (eqList to ===)
+    module B3 = B, hiding (reflEqList), renaming (eqList to ===)
 
+    -- When referring to sub modules you have to be explicitly about it being
+    -- a module
+    module B4 = B, renaming (module SubModule to Sub)
+
+    dummy : X
+    dummy = B4.Sub.dummy
 
   -- There are two kinds of meta variables; question marks and underscores.
   -- Question marks are used for interaction and underscores for implicit
