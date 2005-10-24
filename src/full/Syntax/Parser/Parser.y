@@ -41,7 +41,6 @@ import Utils.Monad
     'where'	{ TokKeyword KwWhere $$ }
     'postulate' { TokKeyword KwPostulate $$ }
     'open'	{ TokKeyword KwOpen $$ }
-    'namespace'	{ TokKeyword KwNameSpace $$ }
     'import'	{ TokKeyword KwImport $$ }
     'using'	{ TokKeyword KwUsing $$ }
     'hiding'	{ TokKeyword KwHiding $$ }
@@ -112,7 +111,6 @@ Token
     | 'where'	    { TokKeyword KwWhere $1 }
     | 'postulate'   { TokKeyword KwPostulate $1 }
     | 'open'	    { TokKeyword KwOpen $1 }
-    | 'namespace'   { TokKeyword KwNameSpace $1 }
     | 'import'	    { TokKeyword KwImport $1 }
     | 'using'	    { TokKeyword KwUsing $1 }
     | 'hiding'	    { TokKeyword KwHiding $1 }
@@ -373,6 +371,13 @@ Expr4
     | '(' Expr ')'	{ Paren (fuseRange $1 $3) $2 }
 
 
+-- Sorts
+Sort :: { Expr }
+Sort : 'Prop'		{ Prop $1 }
+     | 'Set'		{ Set $1 }
+     | setN		{ uncurry SetN $1 }
+
+
 {--------------------------------------------------------------------------
     Bindings
  --------------------------------------------------------------------------}
@@ -490,35 +495,35 @@ WhereClause
 
 
 {--------------------------------------------------------------------------
-    Single declarations
+    Different kinds of declarations
  --------------------------------------------------------------------------}
 
 -- Local declarations.
 LocalDeclaration :: { LocalDeclaration }
 LocalDeclaration
-    : TypeSig	{ $1 }
-    | FunClause { $1 }
-    | Data	{ $1 }
-    | Infix	{ $1 }
-    | Mutual	{ $1 }
-    | Abstract	{ $1 }
-    | Open	{ $1 }
-    | NameSpace { $1 }
-
+    : TypeSig	    { $1 }
+    | FunClause	    { $1 }
+    | Data	    { $1 }
+    | Infix	    { $1 }
+    | Mutual	    { $1 }
+    | Abstract	    { $1 }
+    | Open	    { $1 }
+    | ModuleMacro   { $1 }
+    | Module	    { $1 }  -- why not have local modules?
 
 -- Declarations that can appear in a private block.
 PrivateDeclaration :: { PrivateDeclaration }
 PrivateDeclaration
-    : TypeSig	{ $1 }
-    | FunClause { $1 }
-    | Data	{ $1 }
-    | Infix	{ $1 }
-    | Mutual	{ $1 }
-    | Abstract	{ $1 }
-    | Postulate { $1 }
-    | Open	{ $1 }
-    | NameSpace { $1 }
-    | Module	{ $1 }
+    : TypeSig	    { $1 }
+    | FunClause	    { $1 }
+    | Data	    { $1 }
+    | Infix	    { $1 }
+    | Mutual	    { $1 }
+    | Abstract	    { $1 }
+    | Postulate	    { $1 }
+    | Open	    { $1 }
+    | ModuleMacro   { $1 }
+    | Module	    { $1 }
 
 
 -- Declarations that can appear in a mutual block.
@@ -530,35 +535,38 @@ MutualDeclaration
     | Infix	{ $1 }
 
 
--- Declarations that can appead in an abstract block.
+-- Declarations that can appear in an abstract block.
 AbstractDeclaration :: { AbstractDeclaration }
 AbstractDeclaration
-    : TypeSig	{ $1 }
-    | FunClause { $1 }
-    | Data	{ $1 }
-    | Infix	{ $1 }
-    | Abstract	{ $1 }
-    | Mutual	{ $1 }
-    | Open	{ $1 }
-    | NameSpace { $1 }
+    : TypeSig	    { $1 }
+    | FunClause	    { $1 }
+    | Data	    { $1 }
+    | Infix	    { $1 }
+    | Abstract	    { $1 }
+    | Mutual	    { $1 }
+    | Open	    { $1 }
 
 
 -- Top-level defintions.
 TopLevelDeclaration :: { TopLevelDeclaration }
 TopLevelDeclaration
-    : TypeSig	{ $1 }
-    | FunClause { $1 }
-    | Data	{ $1 }
-    | Infix	{ $1 }
-    | Mutual	{ $1 }
-    | Abstract	{ $1 }
-    | Private	{ $1 }
-    | Postulate { $1 }
-    | Open	{ $1 }
-    | NameSpace { $1 }
-    | Import	{ $1 }
-    | Module	{ $1 }
+    : TypeSig	    { $1 }
+    | FunClause	    { $1 }
+    | Data	    { $1 }
+    | Infix	    { $1 }
+    | Mutual	    { $1 }
+    | Abstract	    { $1 }
+    | Private	    { $1 }
+    | Postulate	    { $1 }
+    | Open	    { $1 }
+    | Import	    { $1 }
+    | ModuleMacro   { $1 }
+    | Module	    { $1 }
 
+
+{--------------------------------------------------------------------------
+    Individual declarations
+ --------------------------------------------------------------------------}
 
 -- Type signatures can appear everywhere, so the type is completely polymorphic
 -- in the indices.
@@ -631,10 +639,6 @@ Module : 'module' id MaybeTelescope 'where' TopLevelDeclarations
 TopModule :: { Declaration }
 TopModule : 'module' ModuleName MaybeTelescope 'where' TopLevelDeclarations
 		    { Module (getRange ($1,$4,$5)) $2 $3 $5 }
-
-MaybeTelescope :: { Telescope }
-MaybeTelescope : {- empty -}	{ [] }
-	       | Telescope	{ $1 }
 
 {--------------------------------------------------------------------------
     Sequences of declarations

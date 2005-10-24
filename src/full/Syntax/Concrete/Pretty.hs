@@ -138,11 +138,11 @@ instance Pretty Declaration where
 		     , fcat (map pretty tel)
 		     , text "where"
 		     ] $$ nest 2 (vcat $ map pretty ds)
-	    Open _ x is	-> text "open" <+> prettyId x <> directives is
-	    NameSpace _ x e is ->
-		sep [ text "namespace" <+> prettyId x
+	    ModuleMacro _ x tel e is ->
+		sep [ text "module" <+> prettyId x <+> fcat (map pretty tel)
 		    , nest 2 $ text "=" <+> pretty e <> directives is
 		    ]
+	    Open _ x is	-> text "open" <+> prettyId x <> directives is
 	    Import _ x rn is   -> text "import" <+> prettyId x <+> as rn <> directives is
 		where
 		    as Nothing	= empty

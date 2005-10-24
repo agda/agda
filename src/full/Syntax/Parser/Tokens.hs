@@ -12,7 +12,7 @@ import Syntax.Position
 data Keyword
 	= KwLet | KwIn | KwWhere | KwData
 	| KwPostulate | KwMutual | KwAbstract | KwPrivate
-	| KwOpen | KwImport | KwNameSpace | KwModule
+	| KwOpen | KwImport | KwModule
 	| KwInfix | KwInfixL | KwInfixR
 	| KwSet | KwProp
 	| KwHiding | KwUsing | KwRenaming | KwTo

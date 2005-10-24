@@ -95,7 +95,6 @@ tokens :-
 <0,code> where		{ keyword KwWhere }
 <0,code> postulate	{ keyword KwPostulate }
 <0,code> open		{ keyword KwOpen }
-<0,code> namespace	{ keyword KwNameSpace }
 <0,code> import		{ keyword KwImport }
 <0,code> module		{ keyword KwModule }
 <0,code> data		{ keyword KwData }
