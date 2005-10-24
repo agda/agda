@@ -331,7 +331,7 @@ module examples.syntax.Syntax where
     x' = id_x -- this means id _ x
 
   -- The parser supports four types of literals. The syntax is the same as in
-  -- Haskell.
+  -- Haskell (since that meant I could steal the lexer for them from ghc).
   module Literals where
 
     -- We haven't decided how to handle built-in types.
