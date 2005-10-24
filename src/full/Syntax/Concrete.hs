@@ -26,6 +26,7 @@ module Syntax.Concrete
     , Constructor
     , Fixity(..)
     , defaultFixity
+    , ImportDirective(..)
     , LHS(..), Argument(..), Pattern(..)
     , RHS, WhereClause
     )
@@ -118,6 +119,15 @@ data Argument = Argument Hiding Pattern
 
 type RHS	    = Expr
 type WhereClause    = [LocalDeclaration]
+
+
+-- | The things you are allowed to say when you shuffle names between name
+--   spaces (i.e. in @import@, @namespace@, or @open@ declarations).
+data ImportDirective
+	= Hiding [Name]
+	| Using  [Name]
+	| Renaming [(Name, Name)]   -- ^ Contains @(oldName,newName)@ pairs.
+    deriving (Typeable, Data, Eq)
 
 
 {--------------------------------------------------------------------------
@@ -283,4 +293,9 @@ instance HasRange Declaration' where
 
 instance HasRange LHS where
     getRange (LHS r _ _ _)  = r
+
+instance HasRange ImportDirective where
+    getRange (Using xs)	    = getRange xs
+    getRange (Hiding xs)    = getRange xs
+    getRange (Renaming xs)  = getRange xs
 

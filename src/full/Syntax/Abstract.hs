@@ -31,9 +31,8 @@ data Declaration
 	| Abstract Expl [Declaration]
 	| Mutual Expl [Declaration]
 	| Module Expl Access QName Telescope [Declaration]
-	| Open Expl QName [ImportDirective]
-	| NameSpace Expl Name Expr [ImportDirective]
-	| Import Expl QName [ImportDirective]
+	| NameSpace Expl Name Expr
+	| Import Expl QName
 
 -- | A lambda binding is either domain free or typed.
 data LamBinding
