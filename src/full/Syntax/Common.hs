@@ -29,6 +29,11 @@ data Name = Name Range String
 noName :: Name
 noName = Name noRange "_"
 
+-- | @qualify "A.B" "x" == "A.B.x"@
+qualify :: QName -> Name -> QName
+qualify (QName m) x	= Qual m (QName x)
+qualify (Qual m m') x	= Qual m $ qualify m' x
+
 -- Define equality on @Name@ to ignore range so same names in different
 --     locations are equal.
 --
