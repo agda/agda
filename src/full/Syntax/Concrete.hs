@@ -15,14 +15,11 @@ module Syntax.Concrete
     , TypedBinding(..)
     , Telescope
       -- * Declarations
-    , Declaration, Declaration'(..)
-    , Local, TypeSig, Private, Mutual, Abstract, DontCare
+    , Declaration(..)
     , TopLevelDeclaration
     , TypeSignature
     , LocalDeclaration, PrivateDeclaration
     , MutualDeclaration, AbstractDeclaration
-    , typeSig, funClause, dataDecl, infixDecl, mutual, abstract
-    , private, postulate, open, nameSpace, importDecl, moduleDecl
     , Constructor
     , Fixity(..)
     , defaultFixity
@@ -134,117 +131,46 @@ data ImportDirective
     Declarations
  --------------------------------------------------------------------------}
 
-data Local
-data TypeSig
-data Private
-data Mutual
-data Abstract
-data DontCare
-
 -- | Just type signatures.
-type TypeSignature	 = Declaration TypeSig DontCare DontCare DontCare DontCare
+type TypeSignature	 = Declaration
 
 -- | Declarations that can appear in a 'Let' or a 'WhereClause'.
-type LocalDeclaration	 = Declaration DontCare Local DontCare DontCare DontCare
+type LocalDeclaration	 = Declaration
 
 -- | Declarations that can appear in a 'Private' block.
-type PrivateDeclaration	 = Declaration DontCare DontCare Private DontCare DontCare
+type PrivateDeclaration	 = Declaration
 
 -- | Declarations that can appear in a 'Mutual' block.
-type MutualDeclaration	 = Declaration DontCare DontCare DontCare Mutual DontCare
+type MutualDeclaration	 = Declaration
 
 -- | Declarations that can appear in a 'Abstract' block.
-type AbstractDeclaration = Declaration DontCare DontCare DontCare DontCare Abstract
+type AbstractDeclaration = Declaration
 
 -- | Everything can appear at top-level.
-type TopLevelDeclaration = Declaration DontCare DontCare DontCare DontCare DontCare
-
-{-| Declaration is a family of datatypes indexed by the datakinds
-
-    @
-    datakind TypeSig  = 'TypeSig' | 'DontCare'
-    datakind Local    = 'Local' | 'DontCare'
-    datakind Private  = 'Private' | 'DontCare'
-    datakind Mutual   = 'Mutual' | 'DontCare'
-    datakind Abstract = 'Abstract' | 'DontCare'
-    @
-
-    Of course, there is no such thing as a @datakind@ in Haskell, so we just
-    define phantom types for the intended constructors.  The indices should be
-    interpreted as follows: The type indexed by 'Local' contains only the
-    declarations that can appear in a locals declaration. If the index is
-    'DontCare' the type contains all declarations regardless of whether they can
-    appear in a locals declaration.  There is no grouping of function clauses
-    and\/or type signatures in the concrete syntax. That happens in
-    "Syntax.Concrete.Definitions".
-
-    We could use a real inductive family (from ghc 6.4) to do this, but since 
-    they don't work with the deriving mechanism, and is not supported by older
-    versions of the compiler we use the poor man's version of using type
-    synonyms and constructor functions. Of course this doesn't work (silly me).
-    The type synonym will be unfolded and we gain nothing.
--}
-type Declaration typesig locals private mutual abstract = Declaration'
+type TopLevelDeclaration = Declaration
 
 {-| The representation type of a declaration. The comments indicate the which
     type in the intended family the constructor targets.
 -}
-data Declaration'
-	= TypeSig Name Expr			-- ^ . @Declaration typesig locals private mutual abstract@
-	| FunClause LHS RHS WhereClause		-- ^ . @Declaration 'DontCare' locals private mutual abstract@
+data Declaration
+	= TypeSig Name Expr
+	| FunClause LHS RHS WhereClause
 	| Data Range Name Telescope
-	    Expr [Constructor]			-- ^ . @Declaration 'DontCare' locals private mutual abstract@
-	| Infix Fixity [Name]			-- ^ . @Declaration 'DontCare' locals private mutual abstract@
-	| Mutual Range [MutualDeclaration]	-- ^ . @Declaration 'DontCare' locals private 'DontCare' abstract@
-	| Abstract Range [AbstractDeclaration]	-- ^ . @Declaration 'DontCare' locals private 'DontCare' 'DontCare'@
-	| Private Range [PrivateDeclaration]	-- ^ . @Declaration 'DontCare' 'DontCare' 'DontCare' 'DontCare' 'DontCare'@
-	| Postulate Range [TypeSignature]	-- ^ . @Declaration 'DontCare' 'DontCare' private 'DontCare' 'DontCare'@
+	    Expr [Constructor]
+	| Infix Fixity [Name]
+	| Mutual Range [MutualDeclaration]
+	| Abstract Range [AbstractDeclaration]
+	| Private Range [PrivateDeclaration]
+	| Postulate Range [TypeSignature]
 	| Open Range QName
-	    [ImportDirective]			-- ^ . @Declaration 'DontCare' locals private 'DontCare' abstract@
-	| NameSpace Range Name Expr
-	    [ImportDirective]			-- ^ . @Declaration 'DontCare' locals private 'DontCare' abstract@
+	    [ImportDirective]
 	| Import Range QName (Maybe Name)
-	    [ImportDirective]			-- ^ . @Declaration 'DontCare' 'DontCare' 'DontCare' 'DontCare' 'DontCare'@
+	    [ImportDirective]
+	| ModuleMacro Range Name Telescope Expr
+	    [ImportDirective]
 	| Module Range QName Telescope
-	    [TopLevelDeclaration]		-- ^ . @Declaration 'DontCare' 'DontCare' private 'DontCare' 'DontCare'@
+	    [TopLevelDeclaration]
     deriving (Eq, Typeable, Data)
-
-
-typeSig	:: Name -> Expr -> Declaration typesig locals private mutual abstract
-typeSig = TypeSig
-
-funClause :: LHS -> RHS -> WhereClause -> Declaration DontCare locals private mutual abstract
-funClause = FunClause
-
-dataDecl :: Range -> Name -> Telescope -> Expr -> [Constructor]  -> Declaration DontCare locals private mutual abstract
-dataDecl = Data
-
-infixDecl :: Fixity -> [Name] -> Declaration DontCare locals private mutual abstract
-infixDecl = Infix
-
-mutual :: Range -> [MutualDeclaration] -> Declaration DontCare locals private DontCare abstract
-mutual = Mutual
-
-abstract :: Range -> [AbstractDeclaration] -> Declaration DontCare locals private DontCare DontCare
-abstract = Abstract
-
-private	:: Range -> [PrivateDeclaration] -> Declaration DontCare DontCare DontCare DontCare DontCare
-private = Private
-
-postulate :: Range -> [TypeSignature] -> Declaration DontCare DontCare private DontCare DontCare
-postulate = Postulate
-
-open :: Range -> QName -> [ImportDirective] -> Declaration DontCare locals private DontCare abstract
-open = Open
-
-nameSpace :: Range -> Name -> Expr -> [ImportDirective] -> Declaration DontCare locals private DontCare abstract
-nameSpace = NameSpace
-
-importDecl :: Range -> QName -> Maybe Name -> [ImportDirective] -> Declaration DontCare DontCare DontCare DontCare DontCare
-importDecl = Import
-
-moduleDecl :: Range -> QName -> Telescope -> [TopLevelDeclaration] -> Declaration DontCare DontCare private DontCare DontCare
-moduleDecl = Module
 
 
 {--------------------------------------------------------------------------
@@ -276,20 +202,20 @@ instance HasRange LamBinding where
     getRange (DomainFree _ x)	= getRange x
     getRange (DomainFull b)	= getRange b
 
-instance HasRange Declaration' where
-    getRange (TypeSig x t)	    = fuseRange x t
-    getRange (FunClause lhs rhs []) = fuseRange lhs rhs
-    getRange (FunClause lhs rhs wh) = fuseRange lhs (last wh)
-    getRange (Data r _ _ _ _)	    = r
-    getRange (Mutual r _)	    = r
-    getRange (Abstract r _)	    = r
-    getRange (Open r _ _)	    = r
-    getRange (NameSpace r _ _ _)    = r
-    getRange (Import r _ _ _)	    = r
-    getRange (Private r _)	    = r
-    getRange (Postulate r _)	    = r
-    getRange (Module r _ _ _)	    = r
-    getRange (Infix f _)	    = getRange f
+instance HasRange Declaration where
+    getRange (TypeSig x t)		= fuseRange x t
+    getRange (FunClause lhs rhs [])	= fuseRange lhs rhs
+    getRange (FunClause lhs rhs wh)	= fuseRange lhs (last wh)
+    getRange (Data r _ _ _ _)		= r
+    getRange (Mutual r _)		= r
+    getRange (Abstract r _)		= r
+    getRange (Open r _ _)		= r
+    getRange (ModuleMacro r _ _ _ _)	= r
+    getRange (Import r _ _ _)		= r
+    getRange (Private r _)		= r
+    getRange (Postulate r _)		= r
+    getRange (Module r _ _ _)		= r
+    getRange (Infix f _)		= getRange f
 
 instance HasRange LHS where
     getRange (LHS r _ _ _)  = r

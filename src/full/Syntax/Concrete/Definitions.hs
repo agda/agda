@@ -88,12 +88,12 @@ import Utils.Map
 -}
 data NiceDeclaration
 	= Axiom Range Fixity Access Name Expr
-	| FunDef Range [Declaration'] Fixity Access Name (Maybe Expr) [Clause]
+	| FunDef Range [Declaration] Fixity Access Name (Maybe Expr) [Clause]
 	| NiceData Range Fixity Access Name Telescope Expr [NiceDeclaration]
 	| NiceAbstract Range [NiceDeclaration]
 	| NiceMutual Range [NiceDeclaration]
 	| NiceModule Range Access QName Telescope [TopLevelDeclaration]
-	| Other Declaration'
+	| Other Declaration
 
 
 -- | One clause in a function definition.
@@ -131,7 +131,7 @@ data DeclarationException
     TODO: check that every fixity declaration has a corresponding definition.
     How to do this?
 -}
-niceDeclarations :: [Declaration'] -> [NiceDeclaration]
+niceDeclarations :: [Declaration] -> [NiceDeclaration]
 niceDeclarations ds = nice (fixities ds) ds
     where
 
@@ -252,7 +252,7 @@ plusFixities m1 m2
 --   The reason for this is that fixity declarations have to appear at the same
 --   level (or possibly outside an abstract or mutual block) as its target
 --   declaration.
-fixities :: [Declaration'] -> Map Name Fixity
+fixities :: [Declaration] -> Map Name Fixity
 fixities (d:ds) =
     case d of
 	Infix f xs  -> buildMap [ (x,f) | x <- xs ]

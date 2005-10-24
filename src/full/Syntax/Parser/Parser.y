@@ -344,12 +344,10 @@ Expr
     | Expr1 '->' Expr		{ Fun (fuseRange $1 $3) NotHidden $1 $3 }
     | Expr1 %prec LOWEST	{ $1 }
 
-
 -- Level 1: Infix operators
 Expr1
     : Expr1 QOp Expr2		{ InfixApp $1 $2 $3 }
     | Expr2			{ $1 }
-
 
 -- Level 2: Lambdas and lets
 Expr2
@@ -357,13 +355,11 @@ Expr2
     | 'let' LocalDeclarations 'in' Expr	{ Let (fuseRange $1 $4) $2 $4 }
     | Expr3				{ $1 }
 
-
 -- Level 3: Application
 Expr3
     : Expr3 Expr4	    { App (fuseRange $1 $2) NotHidden $1 $2 }
     | Expr3 '{' Expr '}'    { App (fuseRange $1 $4) Hidden $1 $3 }
     | Expr4		    { $1 }
-
 
 -- Level 4: Atoms
 Expr4
@@ -417,6 +413,80 @@ DomainFreeBinding :: { LamBinding }
 DomainFreeBinding
     : Id	    { DomainFree NotHidden $1 }
     | '{' Id '}'    { DomainFree Hidden $2 }
+
+
+MaybeTelescope :: { Telescope }
+MaybeTelescope : {- empty -}	{ [] }
+	       | Telescope	{ $1 }
+
+
+{--------------------------------------------------------------------------
+    Modules and imports
+ --------------------------------------------------------------------------}
+
+-- You can rename imports
+RenamedImport :: { Maybe Name }
+RenamedImport : {- empty -} { Nothing }
+	      | id id	    {% isName "as" $1 >> return (Just $2) }
+
+-- Import directives
+ImportDirectives :: { [ImportDirective] }
+ImportDirectives
+    : {- empty -}			{ [] }
+    | ImportDirective ImportDirectives  { $1 : $2 }
+
+-- An import directive
+ImportDirective :: { ImportDirective }
+ImportDirective
+    : beginImpDir ',' 'using' '(' CommaImportNames ')'   { Using $5 }
+	-- only using can have an empty list
+    | beginImpDir ',' 'hiding' '(' CommaImportNames1 ')' { Hiding $5 }
+    | beginImpDir ',' 'renaming' '(' Renamings ')'	 { Renaming $5 }
+
+-- Renamings of the form 'x to y'
+Renamings :: { [(ImportedName,Name)] }
+Renamings
+    : Renaming ',' Renamings	{ $1 : $3 }
+    | Renaming			{ [$1] }
+
+Renaming :: { (ImportedName, Name) }
+Renaming
+    : ImportName_ 'to' Name	{ ($1,$3) }
+
+-- We need a special imported name here, since we have to trigger
+-- the imp_dir state exactly one token before the 'to'
+ImportName_ :: { ImportedName }
+ImportName_
+    : beginImpDir Name		{ ImportedName $2 }
+    | 'module' beginImpDir Name	{ ImportedModule $3 }
+
+ImportName :: { ImportedName }
+ImportName : Name	    { ImportedName $1 }
+	   | 'module' Name  { ImportedModule $2 }
+
+CommaImportNames :: { [ImportedName] }
+CommaImportNames
+    : {- empty -}	{ [] }
+    | CommaImportNames1	{ $1 }
+
+CommaImportNames1
+    : ImportName			{ [$1] }
+    | ImportName ',' CommaImportNames1	{ $1 : $3 }
+
+{--------------------------------------------------------------------------
+    Function clauses
+ --------------------------------------------------------------------------}
+
+-- A left hand side of a function clause. We parse it as an expression, and
+-- then check that it is a valid left hand side.
+LHS :: { LHS }
+LHS : Expr  {% exprToLHS $1 }
+
+-- Where clauses are optional.
+WhereClause :: { WhereClause }
+WhereClause
+    : {- empty -}		{ [] }
+    | 'where' LocalDeclarations	{ $2 }
 
 
 {--------------------------------------------------------------------------
@@ -492,118 +562,73 @@ TopLevelDeclaration
 
 -- Type signatures can appear everywhere, so the type is completely polymorphic
 -- in the indices.
-TypeSig :: { Declaration typesig local private mutual abstract }
-TypeSig : Id ':' Expr   { typeSig $1 $3 }
+TypeSig :: { Declaration }
+TypeSig : Id ':' Expr   { TypeSig $1 $3 }
 
 
 -- Function declarations. The left hand side is parsed as an expression to allow
 -- declarations like 'x::xs ++ ys = e', when '::' has higher precedence than '++'.
-FunClause :: { Declaration DontCare local private mutual abstract }
-FunClause : LHS '=' Expr WhereClause	{ funClause $1 $3 $4 }
-
--- A left hand side of a function clause. We parse it as an expression, and
--- then check that it is a valid left hand side.
-LHS :: { LHS }
-LHS : Expr  {% exprToLHS $1 }
-
--- Where clauses are optional.
-WhereClause :: { WhereClause }
-WhereClause
-    : {- empty -}		{ [] }
-    | 'where' LocalDeclarations	{ $2 }
+FunClause :: { Declaration }
+FunClause : LHS '=' Expr WhereClause	{ FunClause $1 $3 $4 }
 
 
 -- Data declaration. Can be local.
-Data :: { Declaration DontCare local private mutual abstract }
+Data :: { Declaration }
 Data : 'data' Id MaybeTelescope ':' Sort 'where'
-	    Constructors	{ dataDecl (getRange ($1, $6, $7)) $2 $3 $5 $7 }
-
--- Sorts
-Sort :: { Expr }
-Sort : 'Prop'		{ Prop $1 }
-     | 'Set'		{ Set $1 }
-     | setN		{ uncurry SetN $1 }
+	    Constructors	{ Data (getRange ($1, $6, $7)) $2 $3 $5 $7 }
 
 
 -- Fixity declarations.
-Infix :: { Declaration DontCare local private mutual abstract }
-Infix : 'infix' Int CommaOps	{ infixDecl (NonAssoc (fuseRange $1 $3) $2) $3 }
-      | 'infixl' Int CommaOps	{ infixDecl (LeftAssoc (fuseRange $1 $3) $2) $3 }
-      | 'infixr' Int CommaOps	{ infixDecl (RightAssoc (fuseRange $1 $3) $2) $3 }
+Infix :: { Declaration }
+Infix : 'infix' Int CommaOps	{ Infix (NonAssoc (fuseRange $1 $3) $2) $3 }
+      | 'infixl' Int CommaOps	{ Infix (LeftAssoc (fuseRange $1 $3) $2) $3 }
+      | 'infixr' Int CommaOps	{ Infix (RightAssoc (fuseRange $1 $3) $2) $3 }
 
 
 -- Mutually recursive declarations.
-Mutual :: { Declaration DontCare local private DontCare abstract }
-Mutual : 'mutual' MutualDeclarations  { mutual (fuseRange $1 $2) $2 }
+Mutual :: { Declaration }
+Mutual : 'mutual' MutualDeclarations  { Mutual (fuseRange $1 $2) $2 }
 
 
 -- Abstract declarations.
-Abstract :: { Declaration DontCare local private DontCare DontCare }
-Abstract : 'abstract' AbstractDeclarations  { abstract (fuseRange $1 $2) $2 }
+Abstract :: { Declaration }
+Abstract : 'abstract' AbstractDeclarations  { Abstract (fuseRange $1 $2) $2 }
 
 
 -- Private can only appear on the top-level (or rather the module level).
-Private :: { TopLevelDeclaration }
-Private : 'private' PrivateDeclarations	{ private (fuseRange $1 $2) $2 }
+Private :: { Declaration }
+Private : 'private' PrivateDeclarations	{ Private (fuseRange $1 $2) $2 }
 
 
 -- Postulates. Only on top-level or in a private block.
 -- NOTE: Does it make sense to allow private postulates?
-Postulate :: { Declaration DontCare DontCare private DontCare DontCare }
-Postulate : 'postulate' TypeSignatures	{ postulate (fuseRange $1 $2) $2 }
+Postulate :: { Declaration }
+Postulate : 'postulate' TypeSignatures	{ Postulate (fuseRange $1 $2) $2 }
 
 
 -- Open
-Open :: { Declaration DontCare local private DontCare abstract }
-Open : 'open' ModuleName ImportDirectives   { open (getRange ($1,$2,$3)) $2 $3 }
+Open :: { Declaration }
+Open : 'open' ModuleName ImportDirectives   { Open (getRange ($1,$2,$3)) $2 $3 }
 
 
--- NameSpace
-NameSpace :: { Declaration DontCare local private DontCare abstract }
-NameSpace : 'namespace' id '=' Expr ImportDirectives
-		    { nameSpace (getRange ($1, $4, $5)) $2 $4 $5 }
+-- ModuleMacro
+ModuleMacro :: { Declaration }
+ModuleMacro : 'module' id MaybeTelescope '=' Expr ImportDirectives
+		    { ModuleMacro (getRange ($1, $5, $6)) $2 $3 $5 $6 }
 
 
 -- Import
-Import :: { TopLevelDeclaration }
+Import :: { Declaration }
 Import : 'import' ModuleName RenamedImport ImportDirectives
-	    { importDecl (getRange ($1,$2,$4)) $2 $3 $4 }
-
--- You can rename imports
-RenamedImport :: { Maybe Name }
-RenamedImport : {- empty -} { Nothing }
-	      | id id	    {% isName "as" $1 >> return (Just $2) }
-
--- Import directives
-ImportDirectives :: { [ImportDirective] }
-ImportDirectives
-    : {- empty -}			{ [] }
-    | ImportDirective ImportDirectives  { $1 : $2 }
-
--- An import directive
-ImportDirective :: { ImportDirective }
-ImportDirective
-    : beginImpDir ',' 'using' '(' CommaNames ')'    { Using $5 }    -- only using can have an empty list
-    | beginImpDir ',' 'hiding' '(' CommaNames1 ')'  { Hiding $5 }
-    | beginImpDir ',' 'renaming' '(' Renamings ')'  { Renaming $5 }
-
--- Renamings of the form 'x to y'
-Renamings :: { [(Name,Name)] }
-Renamings
-    : Renaming ',' Renamings	{ $1 : $3 }
-    | Renaming			{ [$1] }
-
-Renaming :: { (Name, Name) }
-Renaming
-    : beginImpDir Name 'to' Name    { ($2,$4) }
+	    { Import (getRange ($1,$2,$4)) $2 $3 $4 }
 
 -- Module
-Module :: { Declaration DontCare DontCare private DontCare DontCare }
+Module :: { Declaration }
 Module : 'module' id MaybeTelescope 'where' TopLevelDeclarations
-		    { moduleDecl (getRange ($1,$4,$5)) (QName $2) $3 $5 }
+		    { Module (getRange ($1,$4,$5)) (QName $2) $3 $5 }
 
--- The top-level module. Can have a qualified name.
-TopModule :: { TopLevelDeclaration }
+-- The top-level module can have a qualified name.
+TopModule :: { Declaration }
 TopModule : 'module' ModuleName MaybeTelescope 'where' TopLevelDeclarations
 		    { Module (getRange ($1,$4,$5)) $2 $3 $5 }
 
@@ -616,13 +641,13 @@ MaybeTelescope : {- empty -}	{ [] }
  --------------------------------------------------------------------------}
 
 -- Non-empty list of type signatures. Used in postulates.
-TypeSignatures :: { [Declaration typesig local private mutual abstract] }
+TypeSignatures :: { [TypeSignature] }
 TypeSignatures
     : '{' TypeSignatures1 '}'	    { reverse $2 }
     | vopen TypeSignatures1 close   { reverse $2 }
 
 -- Inside the layout block.
-TypeSignatures1 :: { [Declaration typesig local private mutual abstract] }
+TypeSignatures1 :: { [TypeSignature] }
 TypeSignatures1
     : TypeSignatures1 semi TypeSig  { $3 : $1 }
     | TypeSig			    { [$1] }

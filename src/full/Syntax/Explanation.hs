@@ -17,7 +17,7 @@ import Syntax.Concrete
 data Expl = InCode Range
 	  | DefinedAt Range
 	  | ConcreteExpr Expr
-	  | ConcreteDecls [Declaration']
+	  | ConcreteDecls [Declaration]
 	  | Expl :+: Expl
 	  | Duh -- ^ this is a default for development which should disappear
   deriving (Typeable, Data)

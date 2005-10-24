@@ -15,7 +15,7 @@ import Utils.Unicode
 #include "undefined.h"
 
 instance Show Expr where	    show = show . pretty
-instance Show Declaration' where    show = show . pretty
+instance Show Declaration where    show = show . pretty
 
 pHidden :: Pretty a => Hiding -> a -> Doc
 pHidden Hidden	    = braces . pretty
@@ -98,7 +98,7 @@ instance Pretty TypedBinding where
 			Hidden	    -> braces
 			NotHidden   -> parens
 
-instance Pretty Declaration' where
+instance Pretty Declaration where
     pretty d =
 	case d of
 	    TypeSig x e	-> sep [ prettyId x <+> text ":"
