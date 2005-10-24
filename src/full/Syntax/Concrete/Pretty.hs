@@ -189,11 +189,15 @@ instance Pretty Pattern where
 
 instance Pretty ImportDirective where
     pretty (Hiding xs)	 =
-	text "hiding" <+> parens (fsep $ punctuate comma $ map prettyName xs)
+	text "hiding" <+> parens (fsep $ punctuate comma $ map pretty xs)
     pretty (Using xs)	 =
-	text "using" <+> parens (fsep $ punctuate comma $ map prettyName xs)
+	text "using" <+> parens (fsep $ punctuate comma $ map pretty xs)
     pretty (Renaming xs) =
 	text "renaming" <+> parens (fsep $ punctuate comma $ map pr xs)
 	where
-	    pr (x,y) = prettyName x <+> text "to" <+> prettyName y
+	    pr (x,y) = pretty x <+> text "to" <+> prettyName y
+
+instance Pretty ImportedName where
+    pretty (ImportedName x)	= prettyName x
+    pretty (ImportedModule x)	= text "module" <+> prettyName x
 

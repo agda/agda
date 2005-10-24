@@ -23,7 +23,7 @@ module Syntax.Concrete
     , Constructor
     , Fixity(..)
     , defaultFixity
-    , ImportDirective(..)
+    , ImportDirective(..), ImportedName(..)
     , LHS(..), Argument(..), Pattern(..)
     , RHS, WhereClause
     )
@@ -121,9 +121,14 @@ type WhereClause    = [LocalDeclaration]
 -- | The things you are allowed to say when you shuffle names between name
 --   spaces (i.e. in @import@, @namespace@, or @open@ declarations).
 data ImportDirective
-	= Hiding [Name]
-	| Using  [Name]
-	| Renaming [(Name, Name)]   -- ^ Contains @(oldName,newName)@ pairs.
+	= Hiding [ImportedName]
+	| Using  [ImportedName]
+	| Renaming [(ImportedName, Name)]   -- ^ Contains @(oldName,newName)@ pairs.
+    deriving (Typeable, Data, Eq)
+
+-- | An imported name can be a module or a defined name
+data ImportedName = ImportedModule Name
+		  | ImportedName Name
     deriving (Typeable, Data, Eq)
 
 
@@ -224,4 +229,8 @@ instance HasRange ImportDirective where
     getRange (Using xs)	    = getRange xs
     getRange (Hiding xs)    = getRange xs
     getRange (Renaming xs)  = getRange xs
+
+instance HasRange ImportedName where
+    getRange (ImportedName x)	= getRange x
+    getRange (ImportedModule x)	= getRange x
 
