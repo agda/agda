@@ -133,6 +133,7 @@ data ResolvedName
 
 data DefinedName =
 	DefinedName { kindOfName :: KindOfName
+		    , access	 :: Access
 		    , theName    :: QName
 		    }
 
@@ -216,8 +217,8 @@ resolvePatternName = resolve r
     where
 	r vs ns x =
 	    case lookupMap x $ definedNames ns of
-		Just c@(DefinedName ConName _)  -> DefName c
-		_				-> VarName x
+		Just c@(DefinedName ConName _ _) -> DefName c
+		_				 -> VarName x
 
 -- | Figure out what module a qualified name refers to.
 resolveModule :: QName -> ScopeM ResolvedNameSpace
@@ -240,14 +241,14 @@ addDef :: KindOfName -> Name -> ScopeInfo -> ScopeInfo
 addDef k x si@ScopeInfo{currentNameSpace = ns} = si { currentNameSpace = ns' }
     where
 	m   = moduleName ns
-	qx  = DefinedName k (qualify m x)
+	qx  = DefinedName k PublicDecl (qualify m x)
 	ns' = ns { definedNames = updateMap x qx (definedNames ns) }
 
 addPrivate :: KindOfName -> Name -> ScopeInfo -> ScopeInfo
 addPrivate k x si = si { privateNames = updateMap x qx $ privateNames si }
     where
 	m   = moduleName $ currentNameSpace si
-	qx  = DefinedName k (qualify m x)
+	qx  = DefinedName k PrivateDecl (qualify m x)
 
 -- | Assumes that the name of the @NameSpace@ is the right one (fully
 --   qualified).
