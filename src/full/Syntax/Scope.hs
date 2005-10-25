@@ -137,16 +137,22 @@ data DefinedName =
 		    , theName    :: QName
 		    }
 
+data ModuleInfo	=
+	ModuleInfo  { moduleArity	:: Arity
+		    , moduleAccess	:: Access
+		    , moduleContents	:: NameSpace
+		    }
+
 data KindOfName = FunName | ConName | DataName
 
 data ResolvedNameSpace
-	= ModuleName Arity NameSpace
+	= ModuleName ModuleInfo
 	| UnknownModule
 
 -- | The reason for this not being @Set Name@ is that we want
 --   to know the position of the binding.
 type LocalVariables = Map Name Name
-type Modules	    = Map Name (Arity, NameSpace)
+type Modules	    = Map Name ModuleInfo
 type DefinedNames   = Map Name DefinedName
 
 data NameSpace =
@@ -196,9 +202,9 @@ resolve f x =
 	res (QName x) vs ns = f vs ns x
 	res (Qual m x) vs ns =
 	    case lookupMap m $ modules ns of
-		Nothing		-> throwDyn $ NoSuchModule m
-		Just (0, ns')	-> res x emptyMap ns'
-		Just (_, ns')	-> throwDyn $ UninstantiatedModule m
+		Nothing			    -> throwDyn $ NoSuchModule m
+		Just (ModuleInfo 0 _ ns')   -> res x emptyMap ns'
+		Just _			    -> throwDyn $ UninstantiatedModule m
 
 -- | Figure out what a qualified name refers to.
 resolveName :: QName -> ScopeM ResolvedName
@@ -225,7 +231,7 @@ resolveModule :: QName -> ScopeM ResolvedNameSpace
 resolveModule = resolve r
     where
 	r _ ns x = fromMaybe UnknownModule $
-		    uncurry ModuleName <$> lookupMap x (modules ns)
+		    ModuleName <$> lookupMap x (modules ns)
 
 {--------------------------------------------------------------------------
     Updating the scope
@@ -256,7 +262,9 @@ addModule :: Name -> Arity -> NameSpace -> ScopeInfo -> ScopeInfo
 addModule x ar m si@ScopeInfo{currentNameSpace = ns} =
 	si { currentNameSpace = ns' }
     where
-	ns' = ns { modules = updateMap x (ar,m) $ modules ns }
+	ns' = ns { modules = updateMap x (ModuleInfo ar PublicDecl m)
+				$ modules ns
+		 }
 
 addPrivateModule :: Name -> Arity -> NameSpace -> ScopeInfo -> ScopeInfo
 addPrivateModule = undefined
@@ -297,8 +305,9 @@ defineModule :: Access -> Name -> Arity -> NameSpace -> ScopeM a -> ScopeM a
 defineModule a x ar m cont =
     do	qx <- resolveModule $ QName x
 	case qx of
-	    UnknownModule   -> local (add x ar m) cont
-	    ModuleName _ m' -> throwDyn $ ClashingModule x (moduleName m')
+	    UnknownModule -> local (add x ar m) cont
+	    ModuleName m' -> throwDyn $ ClashingModule x
+					    (moduleName $ moduleContents m')
     where
 	add = case a of
 		PublicDecl  -> addModule
