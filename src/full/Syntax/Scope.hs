@@ -82,6 +82,35 @@ Why not?
 This way there the name space concept disappear. There are only modules.
 This would be a Good Thing.
 
+Above it says that you can refer to the current module. What happens in this
+example:
+
+> module A where
+>   module A where
+>     module A where x = e
+>     A.x -- which A? Current, parent or child?
+
+Solution: don't allow references to the current or parent modules. A
+similar problem crops up when a sibling module clashes with a child module:
+
+> module Foo where
+>   module A where x = e
+>   module B where
+>     module A where x = e'
+>     A.x
+
+In this case it is clear, however, that the child module shadows the
+sibling. It would be nice if we could refer to the sibling module in some
+way though. We can:
+
+> module Foo where
+>   module A where x = e
+>   module B where
+>     private module A' = A
+>     module A where x = e'
+>     A'.x
+
+Conclusion: disallow referring to the current modules (modules are non-recursive).
 -}
 
 {--------------------------------------------------------------------------
@@ -130,6 +159,7 @@ data NameSpace =
     'definedNames' of the @currentNameSpace@. The reason for breaking out the
     private things and not store them in the name space is that they are only
     visible locally, so submodules never contain private things.
+
 -}
 data ScopeInfo = ScopeInfo
 	{ currentNameSpace  :: NameSpace
