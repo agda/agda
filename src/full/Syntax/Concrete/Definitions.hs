@@ -93,6 +93,7 @@ data NiceDeclaration
 	| NiceAbstract Range [NiceDeclaration]
 	| NiceMutual Range [NiceDeclaration]
 	| NiceModule Range Access QName Telescope [TopLevelDeclaration]
+	| NiceModuleMacro Range Access Name Telescope Expr [ImportDirective]
 	| Other Declaration
 
 
@@ -187,8 +188,10 @@ niceDeclarations ds = nice (fixities ds) ds
 			    Postulate _ ds -> niceAxioms fixs ds
 
 			    Module r x tel ds	->
-				[ NiceModule r PublicDecl x tel ds
-				]
+				[ NiceModule r PublicDecl x tel ds ]
+
+			    ModuleMacro r x tel e is ->
+				[ NiceModuleMacro r PublicDecl x tel e is ]
 
 			    Infix _ _   -> []
 
@@ -227,14 +230,15 @@ niceDeclarations ds = nice (fixities ds) ds
 	-- Make a declaration private
 	mkPrivate d =
 	    case d of
-		Axiom r f _ x e		  -> Axiom r f PrivateDecl x e
-		FunDef r ds f _ x t cs	  -> FunDef r ds f PrivateDecl x t cs
-		NiceData r f _ x tel s cs -> NiceData r f PrivateDecl x tel s $
-						map mkPrivate cs
-		NiceMutual r ds		  -> NiceMutual r (map mkPrivate ds)
-		NiceAbstract r ds	  -> NiceAbstract r (map mkPrivate ds)
-		NiceModule r _ x tel ds	  -> NiceModule r PrivateDecl x tel ds
-		_			  -> d
+		Axiom r f _ x e			-> Axiom r f PrivateDecl x e
+		FunDef r ds f _ x t cs		-> FunDef r ds f PrivateDecl x t cs
+		NiceData r f _ x tel s cs	-> NiceData r f PrivateDecl x tel s $
+						    map mkPrivate cs
+		NiceMutual r ds			-> NiceMutual r (map mkPrivate ds)
+		NiceAbstract r ds		-> NiceAbstract r (map mkPrivate ds)
+		NiceModule r _ x tel ds		-> NiceModule r PrivateDecl x tel ds
+		NiceModuleMacro r _ x tel e is	-> NiceModuleMacro r PrivateDecl x tel e is
+		_				-> d
 
 
 -- | Add more fixities. Throw an exception for multiple fixity declarations.
