@@ -138,18 +138,16 @@ instance Pretty Declaration where
 		     , fcat (map pretty tel)
 		     , text "where"
 		     ] $$ nest 2 (vcat $ map pretty ds)
-	    ModuleMacro _ x tel e is ->
+	    ModuleMacro _ x tel e i ->
 		sep [ text "module" <+> prettyId x <+> fcat (map pretty tel)
-		    , nest 2 $ text "=" <+> pretty e <> directives is
+		    , nest 2 $ text "=" <+> pretty e <> pretty i
 		    ]
-	    Open _ x is	-> text "open" <+> prettyId x <> directives is
-	    Import _ x rn is   -> text "import" <+> prettyId x <+> as rn <> directives is
+	    Open _ x i	-> text "open" <+> prettyId x <> pretty i
+	    Import _ x rn i   -> text "import" <+> prettyId x <+> as rn <> pretty i
 		where
 		    as Nothing	= empty
 		    as (Just x) = text "as" <+> prettyName x
 	where
-	    directives is = cat [ comma <+> pretty i | i <- is ]
-
 	    namedBlock s ds =
 		sep [ text s
 		    , nest 2 $ vcat $ map pretty ds
@@ -188,14 +186,24 @@ instance Pretty Pattern where
 	    ParenP _ p		-> parens $ pretty p
 
 instance Pretty ImportDirective where
-    pretty (Hiding xs)	 =
-	text "hiding" <+> parens (fsep $ punctuate comma $ map pretty xs)
-    pretty (Using xs)	 =
-	text "using" <+> parens (fsep $ punctuate comma $ map pretty xs)
-    pretty (Renaming xs) =
-	text "renaming" <+> parens (fsep $ punctuate comma $ map pr xs)
+    pretty i =
+	cat [ pretty $ usingOrHiding i
+	    , rename $ renaming i
+	    ]
 	where
-	    pr (x,y) = pretty x <+> text "to" <+> prettyName y
+	    rename [] = empty
+	    rename xs =	hsep [ comma, text "renaming"
+			     , parens $ fsep $ punctuate comma $ map pr xs
+			     ]
+
+	    pr (x,y) = hsep [ pretty x, text "to", prettyName y ]
+
+instance Pretty UsingOrHiding where
+    pretty (Hiding [])	= empty
+    pretty (Hiding xs)	=
+	comma <+> text "hiding" <+> parens (fsep $ punctuate comma $ map pretty xs)
+    pretty (Using xs)	 =
+	comma <+> text "using" <+> parens (fsep $ punctuate comma $ map pretty xs)
 
 instance Pretty ImportedName where
     pretty (ImportedName x)	= prettyName x

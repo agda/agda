@@ -23,7 +23,7 @@ module Syntax.Concrete
     , Constructor
     , Fixity(..)
     , defaultFixity
-    , ImportDirective(..), ImportedName(..)
+    , ImportDirective(..), UsingOrHiding(..), ImportedName(..)
     , LHS(..), Argument(..), Pattern(..)
     , RHS, WhereClause
     )
@@ -121,16 +121,22 @@ type WhereClause    = [LocalDeclaration]
 -- | The things you are allowed to say when you shuffle names between name
 --   spaces (i.e. in @import@, @namespace@, or @open@ declarations).
 data ImportDirective
+	= ImportDirective
+	    { importDirRange	:: Range
+	    , usingOrHiding	:: UsingOrHiding
+	    , renaming		:: [(ImportedName, Name)]
+	    }
+    deriving (Typeable, Data, Eq)
+
+data UsingOrHiding
 	= Hiding [ImportedName]
 	| Using  [ImportedName]
-	| Renaming [(ImportedName, Name)]   -- ^ Contains @(oldName,newName)@ pairs.
     deriving (Typeable, Data, Eq)
 
 -- | An imported name can be a module or a defined name
-data ImportedName = ImportedModule Name
-		  | ImportedName Name
+data ImportedName = ImportedModule  { importedName :: Name }
+		  | ImportedName    { importedName :: Name }
     deriving (Typeable, Data, Eq)
-
 
 {--------------------------------------------------------------------------
     Declarations
@@ -160,21 +166,16 @@ type TopLevelDeclaration = Declaration
 data Declaration
 	= TypeSig Name Expr
 	| FunClause LHS RHS WhereClause
-	| Data Range Name Telescope
-	    Expr [Constructor]
+	| Data Range Name Telescope Expr [Constructor]
 	| Infix Fixity [Name]
 	| Mutual Range [MutualDeclaration]
 	| Abstract Range [AbstractDeclaration]
 	| Private Range [PrivateDeclaration]
 	| Postulate Range [TypeSignature]
-	| Open Range QName
-	    [ImportDirective]
-	| Import Range QName (Maybe Name)
-	    [ImportDirective]
-	| ModuleMacro Range Name Telescope Expr
-	    [ImportDirective]
-	| Module Range QName Telescope
-	    [TopLevelDeclaration]
+	| Open Range QName ImportDirective
+	| Import Range QName (Maybe Name) ImportDirective
+	| ModuleMacro Range Name Telescope Expr ImportDirective
+	| Module Range QName Telescope [TopLevelDeclaration]
     deriving (Eq, Typeable, Data)
 
 
@@ -225,10 +226,12 @@ instance HasRange Declaration where
 instance HasRange LHS where
     getRange (LHS r _ _ _)  = r
 
-instance HasRange ImportDirective where
+instance HasRange UsingOrHiding where
     getRange (Using xs)	    = getRange xs
     getRange (Hiding xs)    = getRange xs
-    getRange (Renaming xs)  = getRange xs
+
+instance HasRange ImportDirective where
+    getRange = importDirRange
 
 instance HasRange ImportedName where
     getRange (ImportedName x)	= getRange x

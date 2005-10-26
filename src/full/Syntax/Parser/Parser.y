@@ -435,18 +435,22 @@ RenamedImport : {- empty -} { Nothing }
 	      | id id	    {% isName "as" $1 >> return (Just $2) }
 
 -- Import directives
-ImportDirectives :: { [ImportDirective] }
-ImportDirectives
-    : {- empty -}			{ [] }
-    | ImportDirective ImportDirectives  { $1 : $2 }
-
--- An import directive
 ImportDirective :: { ImportDirective }
 ImportDirective
+    : UsingOrHiding RenamingDir	{ ImportDirective (fuseRange $1 $2) $1 $2 }
+    | RenamingDir		{ ImportDirective (getRange $1) (Hiding []) $1 }
+    | UsingOrHiding		{ ImportDirective (getRange $1) $1 [] }
+    | {- empty -}		{ ImportDirective noRange (Hiding []) [] }
+
+UsingOrHiding :: { UsingOrHiding }
+UsingOrHiding
     : beginImpDir ',' 'using' '(' CommaImportNames ')'   { Using $5 }
 	-- only using can have an empty list
     | beginImpDir ',' 'hiding' '(' CommaImportNames1 ')' { Hiding $5 }
-    | beginImpDir ',' 'renaming' '(' Renamings ')'	 { Renaming $5 }
+
+RenamingDir :: { [(ImportedName, Name)] }
+RenamingDir
+    : beginImpDir ',' 'renaming' '(' Renamings ')'	{ $5 }
 
 -- Renamings of the form 'x to y'
 Renamings :: { [(ImportedName,Name)] }
@@ -616,18 +620,18 @@ Postulate : 'postulate' TypeSignatures	{ Postulate (fuseRange $1 $2) $2 }
 
 -- Open
 Open :: { Declaration }
-Open : 'open' ModuleName ImportDirectives   { Open (getRange ($1,$2,$3)) $2 $3 }
+Open : 'open' ModuleName ImportDirective   { Open (getRange ($1,$2,$3)) $2 $3 }
 
 
 -- ModuleMacro
 ModuleMacro :: { Declaration }
-ModuleMacro : 'module' id MaybeTelescope '=' Expr ImportDirectives
+ModuleMacro : 'module' id MaybeTelescope '=' Expr ImportDirective
 		    { ModuleMacro (getRange ($1, $5, $6)) $2 $3 $5 $6 }
 
 
 -- Import
 Import :: { Declaration }
-Import : 'import' ModuleName RenamedImport ImportDirectives
+Import : 'import' ModuleName RenamedImport ImportDirective
 	    { Import (getRange ($1,$2,$4)) $2 $3 $4 }
 
 -- Module
@@ -754,6 +758,10 @@ isName :: String -> Name -> Parser ()
 isName s x = case x of
 		Name _ s' | s == s' -> return ()
 		_		    -> happyError
+
+{--------------------------------------------------------------------------
+    Patterns
+ --------------------------------------------------------------------------}
 
 -- | Turn an expression into a left hand side. Fails if the expression is not a
 --   valid lhs.

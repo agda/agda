@@ -92,7 +92,7 @@ data NiceDeclaration
 	| NiceAbstract Range [NiceDeclaration]
 	| NiceMutual Range [NiceDeclaration]
 	| NiceModule Range Access QName Telescope [TopLevelDeclaration]
-	| NiceModuleMacro Range Access Name Telescope Expr [ImportDirective]
+	| NiceModuleMacro Range Access Name Telescope Expr ImportDirective
 	| Other Declaration
 
 
