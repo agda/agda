@@ -64,12 +64,11 @@ module Syntax.Concrete.Definitions
 import Control.Exception
 
 import Data.Typeable
+import qualified Data.Map as Map
 
 import Syntax.Concrete
 import Syntax.Common
 import Syntax.Position
-
-import Utils.Map
 
 #include "undefined.h"
 
@@ -137,7 +136,7 @@ niceDeclarations ds = nice (fixities ds) ds
     where
 
 	-- If no fixity is given we return the default fixity.
-	fixity = lookupMap' defaultFixity
+	fixity = Map.findWithDefault defaultFixity
 
 	-- We forget all fixities in recursive calls. This is because
 	-- fixity declarations have to appear at the same level as the
@@ -199,7 +198,7 @@ niceDeclarations ds = nice (fixities ds) ds
 
 
 	-- Translate axioms
-	niceAxioms :: Map Name Fixity -> [TypeSignature] -> [NiceDeclaration]
+	niceAxioms :: Map.Map Name Fixity -> [TypeSignature] -> [NiceDeclaration]
 	niceAxioms fixs ds = nice ds
 	    where
 		nice [] = []
@@ -242,25 +241,25 @@ niceDeclarations ds = nice (fixities ds) ds
 
 
 -- | Add more fixities. Throw an exception for multiple fixity declarations.
-plusFixities :: Map Name Fixity -> Map Name Fixity -> Map Name Fixity
+plusFixities :: Map.Map Name Fixity -> Map.Map Name Fixity -> Map.Map Name Fixity
 plusFixities m1 m2
-    | isEmptyMap isect	= plusMap m1 m2
+    | Map.null isect	= Map.union m1 m2
     | otherwise		=
-	throwDyn $ MultipleFixityDecls $ map decls (keysMap isect)
+	throwDyn $ MultipleFixityDecls $ map decls (Map.keys isect)
     where
-	isect	= intersectMap m1 m2
-	decls x = (x, map (lookupMap' {-'-} __UNDEFINED__ x) [m1,m2])
+	isect	= Map.intersection m1 m2
+	decls x = (x, map (Map.findWithDefault __UNDEFINED__ x) [m1,m2])
 				-- cpp doesn't know about primes
 
 -- | Get the fixities from the current block. Doesn't go inside /any/ blocks.
 --   The reason for this is that fixity declarations have to appear at the same
 --   level (or possibly outside an abstract or mutual block) as its target
 --   declaration.
-fixities :: [Declaration] -> Map Name Fixity
+fixities :: [Declaration] -> Map.Map Name Fixity
 fixities (d:ds) =
     case d of
-	Infix f xs  -> buildMap [ (x,f) | x <- xs ]
+	Infix f xs  -> Map.fromList [ (x,f) | x <- xs ]
 			`plusFixities` fixities ds
 	_	    -> fixities ds
-fixities [] = emptyMap
+fixities [] = Map.empty
 

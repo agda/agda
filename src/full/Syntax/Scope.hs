@@ -142,9 +142,11 @@ import Control.Exception
 import Control.Monad.Reader
 import Data.Monoid
 import Data.Typeable
+import Data.Map as Map
 
 import Syntax.Common
-import Utils.Map
+import Syntax.Concrete
+
 import Utils.Monad
 import Utils.Maybe
 
@@ -237,9 +239,9 @@ resolve f x =
     where
 	res (QName x) vs ns = f vs ns x
 	res (Qual m x) vs ns =
-	    case lookupMap m $ modules ns of
+	    case Map.lookup m $ modules ns of
 		Nothing			    -> throwDyn $ NoSuchModule m
-		Just (ModuleInfo 0 _ ns')   -> res x emptyMap ns'
+		Just (ModuleInfo 0 _ ns')   -> res x empty ns'
 		Just _			    -> throwDyn $ UninstantiatedModule m
 
 -- | Figure out what a qualified name refers to.
@@ -248,8 +250,8 @@ resolveName = resolve r
     where
 	r vs ns x =
 	    fromMaybe UnknownName $ mconcat
-	    [ VarName <$> lookupMap x vs
-	    , DefName <$> lookupMap x (definedNames ns)
+	    [ VarName <$> Map.lookup x vs
+	    , DefName <$> Map.lookup x (definedNames ns)
 	    ]
 
 -- | In a pattern there are only two possibilities: either it's a constructor
@@ -258,8 +260,8 @@ resolvePatternName :: QName -> ScopeM ResolvedName
 resolvePatternName = resolve r
     where
 	r vs ns x =
-	    case lookupMap x $ definedNames ns of
-		Just c@(DefinedName ConName _ _) -> DefName c
+	    case Map.lookup x $ definedNames ns of
+		Just c@(DefinedName _ ConName _) -> DefName c
 		_				 -> VarName x
 
 -- | Figure out what module a qualified name refers to.
@@ -267,17 +269,17 @@ resolveModule :: QName -> ScopeM ResolvedNameSpace
 resolveModule = resolve r
     where
 	r _ ns x = fromMaybe UnknownModule $
-		    ModuleName <$> lookupMap x (modules ns)
+		    ModuleName <$> Map.lookup x (modules ns)
 
 {--------------------------------------------------------------------------
     Updating the name spaces
  --------------------------------------------------------------------------}
 
 addModules :: Modules -> NameSpace -> NameSpace
-addModules ms ns = ns { modules = modules ns `plusMap` ms }
+addModules ms ns = ns { modules = modules ns `Map.union` ms }
 
 addNames :: DefinedNames -> NameSpace -> NameSpace
-addNames ds ns = ns { definedNames = definedNames ns `plusMap` ds }
+addNames ds ns = ns { definedNames = definedNames ns `Map.union` ds }
 
 addName :: KindOfName -> Name -> NameSpace -> NameSpace
 addName k x ns = ns { definedNames = updateMap x qx $ definedNames ns }
@@ -286,7 +288,7 @@ addName k x ns = ns { definedNames = updateMap x qx $ definedNames ns }
 	qx  = DefinedName k PublicDecl (qualify m x)
 
 addModule :: Name -> ModuleInfo -> NameSpace -> NameSpace
-addModule x mi = ns { modules = updateMap x mi $ modules ns }
+addModule x mi ns = ns { modules = Map.insert x mi $ modules ns }
 
 {--------------------------------------------------------------------------
     Import directives
@@ -325,9 +327,7 @@ defModule :: Name -> ModuleInfo -> ScopeInfo -> ScopeInfo
 defModule x mi si@ScopeInfo{currentNameSpace = ns} =
 	si { currentNameSpace = ns' }
     where
-	ns' = ns { modules = updateMap x mi
-				$ modules ns
-		 }
+	f ns = ns { modules = Map.insert x mi $ modules ns }
 
 defPrivateModule :: Name -> Arity -> NameSpace -> ScopeInfo -> ScopeInfo
 defPrivateModule = undefined

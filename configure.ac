@@ -12,7 +12,7 @@ AC_INIT([Agda], [2.0], [ulfn@cs.chalmers.se])
 AC_PROG_CC
 
 # Building Agda
-AGDA_WITH_PROG_VERSION(GHC,ghc,6.2)
+AGDA_WITH_PROG_VERSION(GHC,ghc,6.4)
 AGDA_WITH_PROG_VERSION(ALEX,alex,2.0)
 AGDA_WITH_PROG_VERSION(HAPPY,happy,1.14)
 
