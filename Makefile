@@ -20,7 +20,7 @@ include mk/paths.mk
 ## Phony targets ##########################################################
 
 .PHONY : default all clean install full prof core \
-		 debug doc dist make_configure
+		 debug doc dist make_configure clean_test
 
 ## Default target #########################################################
 
@@ -87,25 +87,18 @@ dist :
 
 endif
 
-## Clean ##################################################################
-
-clean :
-	$(MAKE) -C $(HADDOCK_DIR) clean
-	rm -rf $(OUT_DIR)
-
-veryclean :
-	$(MAKE) -C $(HADDOCK_DIR) veryclean
-	rm -rf $(OUT_DIR)
-	rm -rf configure config.log config.status autom4te.cache mk/config.mk
-
 ## Test ###################################################################
 
 agda = $(FULL_OUT_DIR)/agda
 
-test_files = $(patsubst %,examples/syntax/%,Syntax.agda Literate.lagda)
-out_files  = $(patsubst %,%.diff,$(test_files))
+test_files			= $(patsubst %,examples/syntax/%,Syntax.agda Literate.lagda)
+out_files			= $(patsubst %,%.diff,$(test_files))
+intermediate_files	= $(patsubst %,%.pretty.1 %.pretty.2,$(test_files))
 
-test : $(agda) $(out_files)
+clean_test :
+	@rm -f $(intermediate_files)
+
+test : $(agda) clean_test $(out_files)
 
 %.pretty.1 : %
 	@echo "Testing $<..."
@@ -119,6 +112,17 @@ $(out_files) : %.diff : %.pretty.1 %.pretty.2
 	@rm $*.pretty.1 $*.pretty.2
 	@echo "  pretty . parse is idempotent"
 
+## Clean ##################################################################
+
+clean :
+	$(MAKE) -C $(HADDOCK_DIR) clean
+	rm -rf $(OUT_DIR)
+
+veryclean :
+	$(MAKE) -C $(HADDOCK_DIR) veryclean
+	rm -rf $(OUT_DIR)
+	rm -rf configure config.log config.status autom4te.cache mk/config.mk
+
 ## Debugging the Makefile #################################################
 
 info :
@@ -129,13 +133,6 @@ else	# is_configured
 
 info :
 	@echo "You haven't run configure."
-
-clean :
-	rm -rf $(OUT_DIR)
-
-veryclean :
-	rm -rf $(OUT_DIR)
-	rm -rf configure config.log config.status autom4te.cache mk/config.mk
 
 endif	# is_configured
 
