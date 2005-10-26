@@ -1,4 +1,4 @@
-{-# OPTIONS -fglasgow-exts #-}
+{-# OPTIONS -fglasgow-exts -cpp #-}
 
 {-|
 
@@ -150,6 +150,7 @@ import Syntax.Concrete
 import Utils.Monad
 import Utils.Maybe
 
+#include "undefined.h"
 
 {--------------------------------------------------------------------------
     Types
@@ -170,8 +171,8 @@ data ResolvedName
 	| UnknownName
 
 data DefinedName =
-	DefinedName { kindOfName :: KindOfName
-		    , access	 :: Access
+	DefinedName { access	 :: Access
+		    , kindOfName :: KindOfName
 		    , theName    :: QName
 		    }
 
@@ -199,18 +200,17 @@ data NameSpace =
 		, modules	:: Modules
 		}
 
-{-| The @importedModules@, the @privateModules@ and the 'modules' of the
-    @currentNameSpace@ don't clash. The @privateNames@ don't clash with the
-    'definedNames' of the @currentNameSpace@. The reason for breaking out the
-    private things and not store them in the name space is that they are only
-    visible locally, so submodules never contain private things.
+{-| The @privateModules@ and the 'modules' of the @currentNameSpace@ don't
+    clash. The @privateNames@ don't clash with the 'definedNames' of the
+    @currentNameSpace@. The reason for breaking out the private things and not
+    store them in the name space is that they are only visible locally, so
+    submodules never contain private things.
 
+    The @privateModules@ also contain imported modules.
 -}
 data ScopeInfo = ScopeInfo
-	{ currentNameSpace  :: NameSpace
-	, importedModules   :: Modules
-	, privateNames	    :: DefinedNames
-	, privateModules    :: Modules
+	{ publicNameSpace   :: NameSpace
+	, privateNameSpace  :: NameSpace
 	, localVariables    :: LocalVariables
 	}
 
@@ -230,12 +230,10 @@ resolve :: (LocalVariables -> NameSpace -> Name -> a) ->
 	   QName -> ScopeM a
 resolve f x =
     do	si <- ask
-	let vs = localVariables si
-	    im = importedModules si
-	    pn = privateNames si
-	    pm = privateModules si
-	    ns = currentNameSpace si
-	return $ res x vs (addNames pn $ foldr addModules ns [im, pm])
+	let vs	= localVariables si
+	    ns	= publicNameSpace si
+	    ns'	= privateNameSpace si
+	return $ res x vs (ns `plusNameSpace` ns')
     where
 	res (QName x) vs ns = f vs ns x
 	res (Qual m x) vs ns =
@@ -281,11 +279,15 @@ addModules ms ns = ns { modules = modules ns `Map.union` ms }
 addNames :: DefinedNames -> NameSpace -> NameSpace
 addNames ds ns = ns { definedNames = definedNames ns `Map.union` ds }
 
-addName :: KindOfName -> Name -> NameSpace -> NameSpace
-addName k x ns = ns { definedNames = updateMap x qx $ definedNames ns }
-    where
-	m   = moduleName ns
-	qx  = DefinedName k PublicDecl (qualify m x)
+-- | The names of the name spaces should be the same. Assumes there
+--   are no clashes.
+plusNameSpace :: NameSpace -> NameSpace -> NameSpace
+plusNameSpace (NSpace name ds1 m1) (NSpace _ ds2 m2) =
+	NSpace name (Map.unionWith __UNDEFINED__ ds1 ds2)
+		    (Map.unionWith __UNDEFINED__ m1 m2)
+
+addName :: Name -> DefinedName -> NameSpace -> NameSpace
+addName x qx ns = ns { definedNames = Map.insert x qx $ definedNames ns }
 
 addModule :: Name -> ModuleInfo -> NameSpace -> NameSpace
 addModule x mi ns = ns { modules = Map.insert x mi $ modules ns }
@@ -294,12 +296,65 @@ addModule x mi ns = ns { modules = Map.insert x mi $ modules ns }
     Import directives
  --------------------------------------------------------------------------}
 
+{-
+
+Where should we check that the import directives are well-formed? I.e. that
+    - you only refer to things that exist
+    - you don't mix using and hiding
+    - you don't rename to something that's also imported
+	using (x), renaming (y to x)
+	renaming (y to x)   -- where x already exists
+	hiding (x), renaming (y to x), should be ok though
+    - you don't repeat names, either in the same clause or in different
+	using (x, x)
+	using (x), renaming (x to y)
+	hiding (x), renaming (x to y)
+Idea:
+    - check for repeated names
+    - start with all names in the module
+    - check that mentioned names exist
+
+import and open preserve canonical names
+implicit modules create new canonical names
+
+-}
+
+-- | A name filter decides how a name is changed by an import directive.
 type NameFilter = ImportedName -> Maybe Name
+
+{-
+createFilter :: [ImportDirective] -> NameFilter
+createFilter is = \x -> mconcat [ renaming x, usingOrHiding x ]
+    where
+	rens = concat [ rs | Renaming rs <- is ]
+	-- a funny thing is that an empty using clause is different from no
+	-- using clause
+	uses = case [ xs | Using xs <- is ] of
+		    []	-> Nothing
+		    xss	-> Just $ concat xss
+	hids = concat [ xs | Hiding xs <- is ]
+
+	renaming x  = Prelude.lookup x rens
+	usingOrHiding x
+	    | elem x hids		    = Nothing
+	    | Just xs <- uses, notElem x xs = Nothing
+	    | otherwise			    = Just $ importedName x
+-}
+
+-- | Opening a module puts it into the current private name space.
+open :: NameFilter -> ModuleInfo -> ScopeInfo -> ScopeInfo
+open filtr mi si =
+	si { privateNameSpace = opened `plusNameSpace` privateNameSpace si }
+    where
+	opened = undefined
 
 filteredAddName :: NameFilter -> KindOfName -> Name -> NameSpace -> NameSpace
 filteredAddName filtr k x ns =
     case filtr $ ImportedName x of
-	Just x'	-> addName k x' ns
+	Just x'	-> addName x' (DefinedName PublicDecl k undefined) ns
+		    -- The choice here depends on what we're doing.
+		    -- * If we're opening or importing we should keep the old name.
+		    -- * If we're creating a new module we should use the new name.
 	_	-> ns
 
 filteredAddModule :: NameFilter -> Name -> ModuleInfo -> NameSpace -> NameSpace
@@ -312,54 +367,43 @@ filteredAddModule filtr x mi ns =
     Updating the scope
  --------------------------------------------------------------------------}
 
-defName :: KindOfName -> Name -> ScopeInfo -> ScopeInfo
-defName k x si = si { currentNameSpace = addName (currentNameSpace si) }
+updateNameSpace :: Access -> (NameSpace -> NameSpace) ->
+		   ScopeInfo -> ScopeInfo
+updateNameSpace PublicDecl f si =
+    si { publicNameSpace = f $ publicNameSpace si }
+updateNameSpace PrivateDecl f si =
+    si { privateNameSpace = f $ privateNameSpace si }
 
-defPrivate :: KindOfName -> Name -> ScopeInfo -> ScopeInfo
-defPrivate k x si = si { privateNames = updateMap x qx $ privateNames si }
+defName :: Access -> KindOfName -> Name -> ScopeInfo -> ScopeInfo
+defName a k x si = updateNameSpace a (addName x qx) si
     where
-	m   = moduleName $ currentNameSpace si
-	qx  = DefinedName k PrivateDecl (qualify m x)
+	m   = moduleName $ publicNameSpace si
+	qx  = DefinedName a k (qualify m x)
 
--- | Assumes that the name of the @NameSpace@ is the right one (fully
---   qualified).
+-- | Assumes that the name in the 'ModuleInfo' fully qualified.
 defModule :: Name -> ModuleInfo -> ScopeInfo -> ScopeInfo
-defModule x mi si@ScopeInfo{currentNameSpace = ns} =
-	si { currentNameSpace = ns' }
+defModule x mi = updateNameSpace (moduleAccess mi) f
     where
 	f ns = ns { modules = Map.insert x mi $ modules ns }
 
-defPrivateModule :: Name -> Arity -> NameSpace -> ScopeInfo -> ScopeInfo
-defPrivateModule = undefined
-
 bindVar, shadowVar :: Name -> ScopeInfo -> ScopeInfo
-bindVar x si = si { localVariables = updateMap x x (localVariables si) }
-shadowVar x si = si { localVariables = deleteMap x (localVariables si) }
+bindVar x si	= si { localVariables = Map.insert x x (localVariables si) }
+shadowVar x si	= si { localVariables = Map.delete x (localVariables si) }
 
 
 {--------------------------------------------------------------------------
     Updating the scope monadically
  --------------------------------------------------------------------------}
 
-{-| Add a defined name to the current scope. It should also add the name to the
-    qualified versions of the current module:
-
-    > module A where
-    >   module B where
-    >	  x   = e
-    >     foo = x + B.x + A.B.x
+{-| Add a defined name to the current scope.
 -}
 defineName :: Access -> KindOfName -> Name -> ScopeM a -> ScopeM a
 defineName a k x cont =
     do	qx <- resolveName (QName x)
 	case qx of
-	    UnknownName	-> local (add k x) cont
-	    VarName _	-> local (add k x . shadowVar x) cont
+	    UnknownName	-> local (defName a k x) cont
+	    VarName _	-> local (defName a k x . shadowVar x) cont
 	    DefName y   -> throwDyn $ ClashingDefinition x (theName y)
-    where
-	add = case a of
-		PrivateDecl -> defPrivate
-		PublicDecl  -> defName
 
 {-| If a variable shadows a defined name we still keep the defined name.  The
     reason for this is in patterns, where constructors should take precedence
@@ -368,15 +412,14 @@ defineName a k x cont =
 bindVariable :: Name -> ScopeM a -> ScopeM a
 bindVariable x = local (bindVar x)
 
+{-| Defining a module. For explicit modules this should be done after scope
+    checking the module.
+-}
 defineModule :: Name -> ModuleInfo -> ScopeM a -> ScopeM a
 defineModule x mi cont =
     do	qx <- resolveModule $ QName x
 	case qx of
-	    UnknownModule -> local (add x mi) cont
+	    UnknownModule -> local (defModule x mi) cont
 	    ModuleName m' -> throwDyn $ ClashingModule x
 					    (moduleName $ moduleContents m')
-    where
-	add = case moduleAccess mi of
-		PublicDecl  -> defModule
-		PrivateDecl -> defPrivateModule
 
