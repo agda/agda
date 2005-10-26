@@ -5,6 +5,8 @@ module Main where
 
 import Data.List
 import System.Environment
+import System.IO
+import System.Exit
 
 import Syntax.Parser
 import Syntax.Concrete.Definitions ()
@@ -30,7 +32,8 @@ main =
 		case r of
 		    ParseOk _ m	    -> print m
 		    ParseFailed err ->
-			do  print err
+			do  hPutStrLn stderr $ show err
+			    exitWith $ ExitFailure 1
 --			    r <- parseFile' tokensParser file
 --			    case r of
 --				ParseOk _ ts	-> mapM_ print ts
