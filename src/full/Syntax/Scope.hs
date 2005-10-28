@@ -143,6 +143,7 @@ import Control.Monad.Reader
 import Data.Monoid
 import Data.Typeable
 import Data.Map as Map
+import Data.List as List
 
 import Syntax.Common
 import Syntax.Concrete
@@ -163,6 +164,8 @@ data ScopeException
 	| UninstantiatedModule Name
 	| ClashingDefinition Name QName
 	| ClashingModule Name QName
+	| ClashingImport Name Name
+	| ClashingModuleImport Name Name
 	| ModuleDoesntExport QName [ImportedName]
     deriving (Typeable)
 
@@ -238,11 +241,18 @@ plusNameSpace (NSpace name ds1 m1) (NSpace _ ds2 m2) =
 	NSpace name (Map.unionWith __UNDEFINED__ ds1 ds2)
 		    (Map.unionWith __UNDEFINED__ m1 m2)
 
+-- | Throws an exception if the name exists.
 addName :: Name -> DefinedName -> NameSpace -> NameSpace
-addName x qx ns = ns { definedNames = Map.insert x qx $ definedNames ns }
+addName x qx ns =
+	ns { definedNames = Map.insertWithKey clash x qx $ definedNames ns }
+    where
+	clash x' qx qx' = throwDyn $ ClashingImport x x'
 
 addModule :: Name -> ModuleInfo -> NameSpace -> NameSpace
-addModule x mi ns = ns { modules = Map.insert x mi $ modules ns }
+addModule x mi ns =
+	ns { modules = Map.insertWithKey clash x mi $ modules ns }
+    where
+	clash x' qx qx' = throwDyn $ ClashingModuleImport x x'
 
 {--------------------------------------------------------------------------
     Import directives
@@ -276,7 +286,7 @@ invalidImportDirective ns i =
 	[]  -> Nothing
 	xs  -> Just $ ModuleDoesntExport (moduleName ns) xs
     where
-	referredNames = names (usingOrHiding i) ++ Prelude.map fst (renaming i)
+	referredNames = names (usingOrHiding i) ++ List.map fst (renaming i)
 	badNames    = [ x | x@(ImportedName x') <- referredNames
 			  , Nothing <- [Map.lookup x' $ definedNames ns]
 		      ]
@@ -287,12 +297,37 @@ invalidImportDirective ns i =
 	names (Using xs)    = xs
 	names (Hiding xs)   = xs
 
+-- | Figure out how an import directive affects a name.
+applyDirective :: ImportDirective -> ImportedName -> Maybe Name
+applyDirective i x
+    | Just x' <- renamed x  = Just x'
+    | hidden x		    = Nothing
+    | otherwise		    = Just $ importedName x
+    where
+	renamed x = List.lookup x (renaming i)
+	hidden x =
+	    case usingOrHiding i of
+		Hiding xs   -> elem x xs
+		Using xs    -> notElem x xs
+
 -- | Import names from a module. Preserves canonical names.
 importNames :: ModuleInfo -> ImportDirective -> NameSpace
 importNames m i =
-    case invalidImportDirective (moduleContents m) i of
+    case invalidImportDirective ns i of
 	Just e	-> throwDyn e
-	Nothing	-> undefined
+	Nothing	->
+	    flip (foldr (uncurry addModule)) newModules
+	    $ foldr (uncurry addName) ns newNames
+    where
+	ns = moduleContents m
+	newNames = [ (x',qx)
+		   | (x,qx)  <- Map.assocs (definedNames ns)
+		   , Just x' <- [applyDirective i $ ImportedName x]
+		   ]
+	newModules = [ (x',m)
+		     | (x,m)  <- Map.assocs (modules ns)
+		     , Just x' <- [applyDirective i $ ImportedModule x]
+		     ]
 
 {--------------------------------------------------------------------------
     Updating the scope
