@@ -222,55 +222,6 @@ type ScopeM = ReaderT ScopeInfo IO
  --------------------------------------------------------------------------}
 
 {--------------------------------------------------------------------------
-    Resolving names
- --------------------------------------------------------------------------}
-
--- | Resolve a qualified name. Peals off name spaces until it gets
---   to an unqualified name and then applies the first argument.
-resolve :: (LocalVariables -> NameSpace -> Name -> a) ->
-	   QName -> ScopeM a
-resolve f x =
-    do	si <- ask
-	let vs	= localVariables si
-	    ns	= publicNameSpace si
-	    ns'	= privateNameSpace si
-	return $ res x vs (ns `plusNameSpace` ns')
-    where
-	res (QName x) vs ns = f vs ns x
-	res (Qual m x) vs ns =
-	    case Map.lookup m $ modules ns of
-		Nothing			    -> throwDyn $ NoSuchModule m
-		Just (ModuleInfo 0 _ ns')   -> res x empty ns'
-		Just _			    -> throwDyn $ UninstantiatedModule m
-
--- | Figure out what a qualified name refers to.
-resolveName :: QName -> ScopeM ResolvedName
-resolveName = resolve r
-    where
-	r vs ns x =
-	    fromMaybe UnknownName $ mconcat
-	    [ VarName <$> Map.lookup x vs
-	    , DefName <$> Map.lookup x (definedNames ns)
-	    ]
-
--- | In a pattern there are only two possibilities: either it's a constructor
---   or it's a variable. It's never undefined or a defined name.
-resolvePatternName :: QName -> ScopeM ResolvedName
-resolvePatternName = resolve r
-    where
-	r vs ns x =
-	    case Map.lookup x $ definedNames ns of
-		Just c@(DefinedName _ ConName _) -> DefName c
-		_				 -> VarName x
-
--- | Figure out what module a qualified name refers to.
-resolveModule :: QName -> ScopeM ResolvedNameSpace
-resolveModule = resolve r
-    where
-	r _ ns x = fromMaybe UnknownModule $
-		    ModuleName <$> Map.lookup x (modules ns)
-
-{--------------------------------------------------------------------------
     Updating the name spaces
  --------------------------------------------------------------------------}
 
@@ -370,6 +321,55 @@ bindVar, shadowVar :: Name -> ScopeInfo -> ScopeInfo
 bindVar x si	= si { localVariables = Map.insert x x (localVariables si) }
 shadowVar x si	= si { localVariables = Map.delete x (localVariables si) }
 
+
+{--------------------------------------------------------------------------
+    Resolving names
+ --------------------------------------------------------------------------}
+
+-- | Resolve a qualified name. Peals off name spaces until it gets
+--   to an unqualified name and then applies the first argument.
+resolve :: (LocalVariables -> NameSpace -> Name -> a) ->
+	   QName -> ScopeM a
+resolve f x =
+    do	si <- ask
+	let vs	= localVariables si
+	    ns	= publicNameSpace si
+	    ns'	= privateNameSpace si
+	return $ res x vs (ns `plusNameSpace` ns')
+    where
+	res (QName x) vs ns = f vs ns x
+	res (Qual m x) vs ns =
+	    case Map.lookup m $ modules ns of
+		Nothing			    -> throwDyn $ NoSuchModule m
+		Just (ModuleInfo 0 _ ns')   -> res x empty ns'
+		Just _			    -> throwDyn $ UninstantiatedModule m
+
+-- | Figure out what a qualified name refers to.
+resolveName :: QName -> ScopeM ResolvedName
+resolveName = resolve r
+    where
+	r vs ns x =
+	    fromMaybe UnknownName $ mconcat
+	    [ VarName <$> Map.lookup x vs
+	    , DefName <$> Map.lookup x (definedNames ns)
+	    ]
+
+-- | In a pattern there are only two possibilities: either it's a constructor
+--   or it's a variable. It's never undefined or a defined name.
+resolvePatternName :: QName -> ScopeM ResolvedName
+resolvePatternName = resolve r
+    where
+	r vs ns x =
+	    case Map.lookup x $ definedNames ns of
+		Just c@(DefinedName _ ConName _) -> DefName c
+		_				 -> VarName x
+
+-- | Figure out what module a qualified name refers to.
+resolveModule :: QName -> ScopeM ResolvedNameSpace
+resolveModule = resolve r
+    where
+	r _ ns x = fromMaybe UnknownModule $
+		    ModuleName <$> Map.lookup x (modules ns)
 
 {--------------------------------------------------------------------------
     Updating the scope monadically
