@@ -315,9 +315,7 @@ importNames :: ModuleInfo -> ImportDirective -> NameSpace
 importNames m i =
     case invalidImportDirective ns i of
 	Just e	-> throwDyn e
-	Nothing	->
-	    flip (foldr (uncurry addModule)) newModules
-	    $ foldr (uncurry addName) ns newNames
+	Nothing	-> addModules newModules $ addNames newNames ns
     where
 	ns = moduleContents m
 	newNames = [ (x',qx)
@@ -325,9 +323,11 @@ importNames m i =
 		   , Just x' <- [applyDirective i $ ImportedName x]
 		   ]
 	newModules = [ (x',m)
-		     | (x,m)  <- Map.assocs (modules ns)
+		     | (x,m)   <- Map.assocs (modules ns)
 		     , Just x' <- [applyDirective i $ ImportedModule x]
 		     ]
+	addModules ms ns = foldr (uncurry addModule) ns ms
+	addNames ds ns	 = foldr (uncurry addName) ns ds
 
 {--------------------------------------------------------------------------
     Updating the scope
