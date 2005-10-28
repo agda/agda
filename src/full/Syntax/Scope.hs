@@ -163,6 +163,7 @@ data ScopeException
 	| UninstantiatedModule Name
 	| ClashingDefinition Name QName
 	| ClashingModule Name QName
+	| ModuleDoesntExport QName [ImportedName]
     deriving (Typeable)
 
 data ResolvedName
@@ -300,68 +301,47 @@ addModule x mi ns = ns { modules = Map.insert x mi $ modules ns }
 
 Where should we check that the import directives are well-formed? I.e. that
     - you only refer to things that exist
-    - you don't mix using and hiding
     - you don't rename to something that's also imported
 	using (x), renaming (y to x)
 	renaming (y to x)   -- where x already exists
 	hiding (x), renaming (y to x), should be ok though
-    - you don't repeat names, either in the same clause or in different
-	using (x, x)
-	using (x), renaming (x to y)
-	hiding (x), renaming (x to y)
 Idea:
-    - check for repeated names
     - start with all names in the module
     - check that mentioned names exist
+    - check that there are no internal clashes
 
 import and open preserve canonical names
 implicit modules create new canonical names
 
+for implicit modules we can change the canonical names afterwards
+
 -}
 
--- | A name filter decides how a name is changed by an import directive.
-type NameFilter = ImportedName -> Maybe Name
-
-{-
-createFilter :: [ImportDirective] -> NameFilter
-createFilter is = \x -> mconcat [ renaming x, usingOrHiding x ]
+-- | Check that all names referred to in the import directive is exported by
+--   the module.
+invalidImportDirective :: NameSpace -> ImportDirective -> Maybe ScopeException
+invalidImportDirective ns i =
+    case badNames ++ badModules of
+	[]  -> Nothing
+	xs  -> Just $ ModuleDoesntExport (moduleName ns) xs
     where
-	rens = concat [ rs | Renaming rs <- is ]
-	-- a funny thing is that an empty using clause is different from no
-	-- using clause
-	uses = case [ xs | Using xs <- is ] of
-		    []	-> Nothing
-		    xss	-> Just $ concat xss
-	hids = concat [ xs | Hiding xs <- is ]
+	referredNames = names (usingOrHiding i) ++ Prelude.map fst (renaming i)
+	badNames    = [ x | x@(ImportedName x') <- referredNames
+			  , Nothing <- [Map.lookup x' $ definedNames ns]
+		      ]
+	badModules  = [ x | x@(ImportedModule x') <- referredNames
+			  , Nothing <- [Map.lookup x' $ modules ns]
+		      ]
 
-	renaming x  = Prelude.lookup x rens
-	usingOrHiding x
-	    | elem x hids		    = Nothing
-	    | Just xs <- uses, notElem x xs = Nothing
-	    | otherwise			    = Just $ importedName x
--}
+	names (Using xs)    = xs
+	names (Hiding xs)   = xs
 
--- | Opening a module puts it into the current private name space.
-open :: NameFilter -> ModuleInfo -> ScopeInfo -> ScopeInfo
-open filtr mi si =
-	si { privateNameSpace = opened `plusNameSpace` privateNameSpace si }
-    where
-	opened = undefined
-
-filteredAddName :: NameFilter -> KindOfName -> Name -> NameSpace -> NameSpace
-filteredAddName filtr k x ns =
-    case filtr $ ImportedName x of
-	Just x'	-> addName x' (DefinedName PublicDecl k undefined) ns
-		    -- The choice here depends on what we're doing.
-		    -- * If we're opening or importing we should keep the old name.
-		    -- * If we're creating a new module we should use the new name.
-	_	-> ns
-
-filteredAddModule :: NameFilter -> Name -> ModuleInfo -> NameSpace -> NameSpace
-filteredAddModule filtr x mi ns =
-    case filtr $ ImportedModule x of
-	Just x'	-> addModule x' mi ns
-	Nothing	-> ns
+-- | Import names from a module. Preserves canonical names.
+importNames :: ModuleInfo -> ImportDirective -> NameSpace
+importNames m i =
+    case invalidImportDirective (moduleContents m) i of
+	Just e	-> throwDyn e
+	Nothing	-> undefined
 
 {--------------------------------------------------------------------------
     Updating the scope
