@@ -329,6 +329,22 @@ importNames m i =
 	addModules ms ns = foldr (uncurry addModule) ns ms
 	addNames ds ns	 = foldr (uncurry addName) ns ds
 
+-- | Recompute canonical names. All mappings will be @x -> M.x@ where
+--   @M@ is the name of the name space. Recursively renames sub-modules.
+makeFreshCanonicalNames :: NameSpace -> NameSpace
+makeFreshCanonicalNames ns =
+    ns { definedNames = Map.mapWithKey newName $ definedNames ns
+       , modules      = Map.mapWithKey undefined $ modules ns
+       }
+    where
+	m = moduleName ns
+	newName x d = d { theName = qualify m x }
+	newModule x mi =
+	    mi { moduleContents = makeFreshCanonicalNames
+				  $ (moduleContents mi)
+				    { moduleName = qualify m x }
+	       }
+
 {--------------------------------------------------------------------------
     Updating the scope
  --------------------------------------------------------------------------}
