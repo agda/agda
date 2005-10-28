@@ -9,6 +9,8 @@ module Syntax.Parser.Parser (
     , interfaceParser
     ) where
 
+import Data.List
+
 import Syntax.Position
 import Syntax.Parser.Monad
 import Syntax.Parser.Lexer
@@ -436,7 +438,10 @@ RenamedImport : {- empty -} { Nothing }
 
 -- Import directives
 ImportDirective :: { ImportDirective }
-ImportDirective
+ImportDirective : ImportDirective_ {% verifyImportDirective $1 }
+
+ImportDirective_ :: { ImportDirective }
+ImportDirective_
     : UsingOrHiding RenamingDir	{ ImportDirective (fuseRange $1 $2) $1 $2 }
     | RenamingDir		{ ImportDirective (getRange $1) (Hiding []) $1 }
     | UsingOrHiding		{ ImportDirective (getRange $1) $1 [] }
@@ -736,6 +741,10 @@ TopLevelDeclarations1
 
 {
 
+{--------------------------------------------------------------------------
+    Parsers
+ --------------------------------------------------------------------------}
+
 -- | Parse the token stream. Used by the TeX compiler.
 tokensParser :: Parser [Token]
 
@@ -749,15 +758,44 @@ moduleParser :: Parser TopLevelDeclaration
 interfaceParser :: Parser Interface
 
 
+{--------------------------------------------------------------------------
+    Happy stuff
+ --------------------------------------------------------------------------}
+
 -- | Required by Happy.
 happyError :: Parser a
 happyError = parseError "Parse error"
+
+
+{--------------------------------------------------------------------------
+    Utility functions
+ --------------------------------------------------------------------------}
 
 -- | Match a particular name.
 isName :: String -> Name -> Parser ()
 isName s x = case x of
 		Name _ s' | s == s' -> return ()
 		_		    -> happyError
+
+-- | Check that an import directive doesn't contain repeated names
+verifyImportDirective :: ImportDirective -> Parser ImportDirective
+verifyImportDirective i =
+    case filter ((>1) . length)
+	 $ group
+	 $ sort xs
+    of
+	[]  -> return i
+	yss -> parseErrorAt (rStart $ getRange $ head $ concat yss) $
+		"repeated name" ++ s ++ " in import directive: " ++
+		concat (intersperse ", " $ map (show . head) yss)
+	    where
+		s = case yss of
+			[_] -> ""
+			_   -> "s"
+    where
+	xs = names (usingOrHiding i) ++ map fst (renaming i)
+	names (Using xs)    = xs
+	names (Hiding xs)   = xs
 
 {--------------------------------------------------------------------------
     Patterns

@@ -136,7 +136,11 @@ data UsingOrHiding
 -- | An imported name can be a module or a defined name
 data ImportedName = ImportedModule  { importedName :: Name }
 		  | ImportedName    { importedName :: Name }
-    deriving (Typeable, Data, Eq)
+    deriving (Typeable, Data, Eq, Ord)
+
+instance Show ImportedName where
+    show (ImportedModule x) = "module " ++ show x
+    show (ImportedName x) = show x
 
 {--------------------------------------------------------------------------
     Declarations
