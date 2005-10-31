@@ -161,10 +161,10 @@ import Utils.Maybe
 -- | Thrown by the scope analysis
 data ScopeException
 	= NotInScope QName
-	| NoSuchModule Name
-	| UninstantiatedModule Name
+	| NoSuchModule QName
+	| UninstantiatedModule QName
 	| ClashingDefinition Name QName
-	| ClashingModule Name QName
+	| ClashingModule QName QName
 	| ClashingImport Name Name
 	| ClashingModuleImport Name Name
 	| ModuleDoesntExport QName [ImportedName]
@@ -441,9 +441,9 @@ resolve f x =
 	res (QName x) vs ns = f vs ns x
 	res (Qual m x) vs ns =
 	    case Map.lookup m $ modules ns of
-		Nothing			    -> throwDyn $ NoSuchModule m
+		Nothing			    -> throwDyn $ NoSuchModule (QName m)
 		Just (ModuleInfo 0 _ ns')   -> res x empty ns'
-		Just _			    -> throwDyn $ UninstantiatedModule m
+		Just _			    -> throwDyn $ UninstantiatedModule (QName m)
 
 -- | Figure out what a qualified name refers to.
 resolveName :: QName -> ScopeM ResolvedName
@@ -501,8 +501,8 @@ defineModule x mi cont =
     do	qx <- resolveModule $ QName x
 	case qx of
 	    UnknownModule -> local (defModule x mi) cont
-	    ModuleName m' -> throwDyn $ ClashingModule x
-					    (moduleName $ moduleContents m')
+	    ModuleName m' -> throwDyn $ ClashingModule (QName x)
+				      $ moduleName $ moduleContents m'
 
 -- | Opening a module.
 openModule :: QName -> ImportDirective -> ScopeM a -> ScopeM a
