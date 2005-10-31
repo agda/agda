@@ -166,7 +166,7 @@ niceDeclarations ds = nice (fixities ds) ds
 		    where
 			nds = case d of
 			    Data r x tel t cs   ->
-				[ NiceData r (fixity x fixs) PublicDecl
+				[ NiceData r (fixity x fixs) PublicAccess
 					 x tel t (niceAxioms fixs cs)
 				]
 
@@ -187,10 +187,10 @@ niceDeclarations ds = nice (fixities ds) ds
 			    Postulate _ ds -> niceAxioms fixs ds
 
 			    Module r x tel ds	->
-				[ NiceModule r PublicDecl x tel ds ]
+				[ NiceModule r PublicAccess x tel ds ]
 
 			    ModuleMacro r x tel e is ->
-				[ NiceModuleMacro r PublicDecl x tel e is ]
+				[ NiceModuleMacro r PublicAccess x tel e is ]
 
 			    Infix _ _   -> []
 
@@ -203,7 +203,7 @@ niceDeclarations ds = nice (fixities ds) ds
 	    where
 		nice [] = []
 		nice (d@(TypeSig x t) : ds) =
-		    Axiom (getRange d) (fixity x fixs) PublicDecl x t
+		    Axiom (getRange d) (fixity x fixs) PublicAccess x t
 		    : nice ds
 		nice _ = __UNDEFINED__
 
@@ -212,7 +212,7 @@ niceDeclarations ds = nice (fixities ds) ds
 	    FunDef (fuseRange x ds0)
 		   (ts ++ ds0)
 		   (fixity x fixs)
-		   PublicDecl x mt
+		   PublicAccess x mt
 		   (map mkClause ds0)
 	    where
 		ts = maybe [] (\t -> [TypeSig x t]) mt
@@ -229,14 +229,14 @@ niceDeclarations ds = nice (fixities ds) ds
 	-- Make a declaration private
 	mkPrivate d =
 	    case d of
-		Axiom r f _ x e			-> Axiom r f PrivateDecl x e
-		FunDef r ds f _ x t cs		-> FunDef r ds f PrivateDecl x t cs
-		NiceData r f _ x tel s cs	-> NiceData r f PrivateDecl x tel s $
+		Axiom r f _ x e			-> Axiom r f PrivateAccess x e
+		FunDef r ds f _ x t cs		-> FunDef r ds f PrivateAccess x t cs
+		NiceData r f _ x tel s cs	-> NiceData r f PrivateAccess x tel s $
 						    map mkPrivate cs
 		NiceMutual r ds			-> NiceMutual r (map mkPrivate ds)
 		NiceAbstract r ds		-> NiceAbstract r (map mkPrivate ds)
-		NiceModule r _ x tel ds		-> NiceModule r PrivateDecl x tel ds
-		NiceModuleMacro r _ x tel e is	-> NiceModuleMacro r PrivateDecl x tel e is
+		NiceModule r _ x tel ds		-> NiceModule r PrivateAccess x tel ds
+		NiceModuleMacro r _ x tel e is	-> NiceModuleMacro r PrivateAccess x tel e is
 		_				-> d
 
 

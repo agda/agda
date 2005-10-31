@@ -351,9 +351,9 @@ makeFreshCanonicalNames ns =
 
 updateNameSpace :: Access -> (NameSpace -> NameSpace) ->
 		   ScopeInfo -> ScopeInfo
-updateNameSpace PublicDecl f si =
+updateNameSpace PublicAccess f si =
     si { publicNameSpace = f $ publicNameSpace si }
-updateNameSpace PrivateDecl f si =
+updateNameSpace PrivateAccess f si =
     si { privateNameSpace = f $ privateNameSpace si }
 
 defName :: Access -> KindOfName -> Name -> ScopeInfo -> ScopeInfo

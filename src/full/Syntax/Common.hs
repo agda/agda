@@ -17,7 +17,7 @@ data IsInfix = InfixDef | PrefixDef
     deriving (Typeable, Data, Show, Eq)
 
 -- | Access modifier.
-data Access = PrivateDecl | PublicDecl
+data Access = PrivateAccess | PublicAccess
     deriving (Typeable, Data, Show, Eq)
 
 -- | Equality and ordering on @Name@ are defined to ignore range so same names
