@@ -57,16 +57,25 @@ lam m = Lam (Abs noName m) Duh
 app m n = App m n NotHidden Duh
 metaV x = MetaV x Duh
 
-addArgs = foldl app 
+addArgs :: [Value] -> GenericT
+addArgs args = mkT addTrm `extT` addTyp where
+    addTrm m = foldl app m args 
+    addTyp a = case basicType a of
+        MetaTBT x args' -> metaT (args'++args) x
 
 data Type = El Value Sort Expl
 	  | Pi Type (Abs Type) Expl
 	  | Sort Sort Expl
-	  | MetaT MId [Value] Expl
+	  | MetaT MId [Value] Expl -- ^ list of dependencies for metavars
+          | LamT (Abs Type) Expl -- ^ abstraction needed for metavar dependency management
   deriving (Typeable, Data, Show)
 
+pi a b = Pi a b Duh
 metaT deps x = MetaT x deps Duh
+lamT a = LamT (Abs noName a) Duh
 set0 = Sort (Type 0 Duh) Duh
+set n = Sort (Type n Duh) Duh
+sort s = Sort s Duh
 
 data Sort = Type Nat Expl
 	  | Prop Expl
@@ -74,6 +83,7 @@ data Sort = Type Nat Expl
 	  | Lub Sort Sort Expl
   deriving (Typeable, Data, Show)
 
+prop = Prop Duh
 metaS x = MetaS x Duh
 
 data Abs a = Abs Name a deriving (Typeable, Data, Show)
@@ -157,6 +167,7 @@ data BasicType = ElBT Value Sort
 	       | PiBT Type (Abs Type)
 	       | SortBT Sort
 	       | MetaTBT MId [Value]
+               | LamTBT (Abs Type)
   deriving (Typeable, Data)
 
 data BasicSort = TypeBS Nat
@@ -180,6 +191,7 @@ basicType a = case a of
     Pi a b _ -> PiBT a b
     Sort s _ -> SortBT s
     MetaT x deps _ -> MetaTBT x deps
+    LamT a _ -> LamTBT a
 				  
 basicSort :: Sort -> BasicSort
 basicSort s = case s of
@@ -223,7 +235,7 @@ data TCState = TCSt {
   metaSt :: Store,
   cnstrSt :: Constraints,
   sigSt :: Signature
-}
+} deriving Show
 
 -- | Type Checking errors
 --
@@ -261,6 +273,7 @@ type ConstraintId = Int
 
 data Constraint = ValueEq Type Value Value
 		| TypeEq Type Type
+  deriving Show
 
 -- | Catch pattern violation errors and adds a constraint.
 --
@@ -299,7 +312,7 @@ wakeup cId = do
     cnstrs <- gets cnstrSt
     case lookup cId cnstrs of
         Just (sig, ctx, ValueEq a m1 m2) -> go sig ctx $ equalVal Why a m1 m2
---        Just (sig, ctx, TypeEq a1 a2) -> go sig ctx $ equalTyp a1 a2
+        Just (sig, ctx, TypeEq a1 a2) -> go sig ctx $ equalTyp Why a1 a2
   where
     go sig ctx v = do
         sigCurrent <- gets sigSt
@@ -320,6 +333,7 @@ data MetaInfo = InstV Value
 	      | UnderScoreS [ConstraintId]
 	      | HoleV Type [ConstraintId]
 	      | HoleT Sort [ConstraintId]
+  deriving Show
 
 type Store = [(MId, MetaInfo)]
 
@@ -350,28 +364,29 @@ newMeta meta initialVal = do
 
 -- | Used to give an initial value to newMeta.  
 --
+getMeta :: MId -> TCM (MetaInfo)
 getMeta x = do
     store <- gets metaSt
     deps <- allCtxVars -- !!! ok for generated type metavars below?
     case lookup x store of
         Just (UnderScoreV _ _) -> do
             s <- newMeta metaS $ UnderScoreS []
-            a <- newMeta (metaT deps) $ UnderScoreT s []
-            return $ UnderScoreV a []
-        Just (UnderScoreT s _) -> return $ UnderScoreT s []
-        Just (UnderScoreS _) -> return $ UnderScoreS []
+            a <- newMeta (metaT deps) $ UnderScoreT s [] -- !!! sketchy
+            return $ (UnderScoreV a [])
+        Just (UnderScoreT s _) -> return $ (UnderScoreT s [])
+        Just (UnderScoreS _) -> return $ (UnderScoreS [])
         Just (HoleV a _) -> do
             s <- newMeta metaS $ UnderScoreS []
-            a <- newMeta (metaT deps) $ UnderScoreT s []
-            return $ HoleV a []
-        Just (HoleT s _) -> return $ HoleT s []
+            a <- newMeta (metaT deps) $ UnderScoreT s [] -- !!! sketchy
+            return $ (HoleV a [])
+        Just (HoleT s _) -> return $ (HoleT s [])
           
 -- | Generate new metavar of same kind (@Hole@X or @UnderScore@X) as that
 --     pointed to by @MId@ arg.
 --
 newMetaSame :: MId -> (MId -> a) -> TCM a
 newMetaSame x meta = do
-    v <- getMeta x
+    (v) <- getMeta x
     newMeta meta v
 
 -- | instantiate a type 
@@ -382,9 +397,14 @@ instType a = case basicType a of
     (MetaTBT x deps) -> do 
         store <- gets metaSt
         case lookup x store of
-            Just (InstT a') -> instType a'
+            Just (InstT a') -> instType $ reduceType a' deps
             Just _ -> return a
     _ -> return a
+
+reduceType :: Type -> [Value] -> Type
+reduceType a args = case basicType a of
+    LamTBT (Abs _ a) -> reduceType (subst (head args) a) $ tail args
+    _ | args == [] -> a
 
 -- | instantiate a sort 
 --   results is open meta variable or a non meta variable sort.
@@ -490,9 +510,9 @@ data Pattern = VarP Name
 reduce :: Store -> Context -> Signature -> Value -> Value
 reduce store ctx sig v = go v where
     go v = case spineValue v of
-        LamSV (Abs _ v') (arg:args) -> go $ addArgs (subst (go arg) v') args
+        LamSV (Abs _ v') (arg:args) -> go $ addArgs args (subst (go arg) v')
         MetaVSV x args -> case lookup x store of
-            Just (InstV v) -> go $ addArgs v args 
+            Just (InstV v) -> go $ addArgs args v
             Just _ -> v
         DefSV f args -> case defOfConst f of
             [] -> v -- no definition for head
@@ -500,7 +520,7 @@ reduce store ctx sig v = go v where
                 if length ps == length args then appDef v cls args
                 else if length ps > length args then
                     let (args1,args2) = splitAt (length ps) args 
-                    in go $ addArgs (appDef v cls args1) args2
+                    in go $ addArgs args2 (appDef v cls args1)
                 else v -- partial application
         _ -> v
 
@@ -598,31 +618,27 @@ findIdx vs v = go 0 vs where
     go i (_ : vs) = go (i + 1) vs
     go _ [] = fail "findIdx"
 
-abstractVal v args = foldl (\v a -> lam v) v args
+abstract :: [Value] -> GenericT
+abstract args = mkT absV `extT` absT where
+    absV v = foldl (\v _ -> lam v) v args
+    absT a = foldl (\a _ -> lamT a) a args 
 
 -- | Extended occurs check
 --
 occ :: MId -> [Int] -> GenericM TCM
 occ y okVars v = go v where
     go v = walk (mkM occVal) v --`extM` occTyp
-    occVal v = do
-        v' <- lift $ lift $ whnfValue v -- would spineValue work here or not? 
-        case v' of 
-            VarWV i args -> do
-                j <- findIdx okVars i
-                args' <- mapM occVal args -- necessary because addArgs returns @Value@
-                endWalk $ addArgs (var j) args'
-            MetaVWV x args ->
-                if x == y then fail "occ"
-                else do
-                    (args', newArgs) <- occArgs x args
-                    if length args' == length newArgs
-                        then return ()
-                        else lift $ lift $ do
-                            v1 <-  newMetaSame x metaV 
-                            setRef Why x $ InstV $ abstractVal (addArgs v1 newArgs) args
-                    endWalk $ addArgs (metaV x) args'
-    occArgs x args = ocA ([],[]) [] 0 args where
+    occVar inst meta x args =
+        if x == y then fail "occ"
+        else do
+            (args', newArgs) <- occVarArgs x args
+            if length args' == length newArgs
+                then return ()
+                else lift $ lift $ do
+                    v1 <-  newMetaSame x meta
+                    setRef Why x $ inst $ abstract args (addArgs newArgs v1)
+            endWalk $ addArgs args' (meta x)
+    occVarArgs x args = ocA ([],[]) [] 0 args where
         ocA res _ _ [] = return res
         ocA (old, new) ids idx (arg:args) = do
             v <- lift $ lift $ whnfValue arg
@@ -632,17 +648,49 @@ occ y okVars v = go v where
                         Just j -> ocA (old++[var j], new++[var idx]) (i:ids) (idx+1) args
                         Nothing -> ocA (old++[arg], new) ids (idx+1) args
                 _ -> patternViolation x
+    occVal v = do
+        v' <- lift $ lift $ whnfValue v -- would spineValue work here or not? 
+        case v' of 
+            VarWV i args -> do
+                j <- findIdx okVars i
+                args' <- mapM occVal args -- necessary because addArgs returns @Value@
+                endWalk $ addArgs args' (var j)
+            MetaVWV x args -> occVar InstV metaV x args
+    occTyp v = do
+        v' <- lift $ lift $ instType v
+        case basicType v' of
+           MetaTBT x args -> occVar (InstT) (metaT []) x args
+           _ -> return v'
            
         
--- | Assign a value to an open metavar.
+-- | Assign to an open metavar.
 --   First check that metavar args are in pattern fragment.
---     Then do extended occurs check on given value.
+--     Then do extended occurs check on given thing.
 --
-assign :: Data a => a -> MId  -> [Value] -> Value -> TCM ()
-assign _ x args v = do
-    ids <- checkArgs x args
-    v' <- occ x ids v    
-    setRef Why x $ InstV v'
+assign :: MId -> [Value] -> GenericQ (TCM ())
+assign x args = mkQ (fail "assign") (ass InstV) `extQ` (ass InstT) where
+    ass :: Data a => (a -> MetaInfo) -> a -> TCM ()
+    ass inst v = do
+        ids <- checkArgs x args
+        v' <- occ x ids v    
+        setRef Why x $ inst v'
+
+
+-- | Equality of two instances of the same metavar
+--
+equalSameVar :: Data a => 
+                (MId -> a) -> (a -> MetaInfo) -> MId -> [Value] -> [Value] -> TCM ()
+equalSameVar meta inst x args1 args2 =
+    if length args1 == length args2 then do
+        -- next 2 checks could probably be nicely merged into construction 
+        --   of newArgs using ListT, but then can't use list comprehension.
+        checkArgs x args1 
+        checkArgs x args2 
+        let idx = [0 .. length args1 - 1]
+        let newArgs = [var n | (n, (a,b)) <- zip idx $ zip args1 args2, a == b]
+        v <- newMetaSame x meta
+        setRef Why x $ inst $ abstract args1 (addArgs newArgs v)
+    else fail $ "equalSameVar"
 
 
 -- | Type directed equality on values.
@@ -673,21 +721,11 @@ equalAtm _ m n = do
         (DefSV x xArgs, DefSV y yArgs) | x == y -> do
             a <- typeOfConst x
             equalArg Why a xArgs yArgs
-        (MetaVSV x xArgs, MetaVSV y yArgs) | x == y ->
-            if length xArgs == length yArgs then do
-                -- next 2 checks could probably be nicely merged into construction 
-                --   of newArgs using ListT, but then can't use list comprehension.
-                checkArgs x xArgs 
-                checkArgs y yArgs 
-                let idx = [0 .. length xArgs - 1]
-                let newArgs = [var n | (n, (a,b)) <- zip idx $ zip xArgs yArgs, a == b]
-                v <- newMetaSame x metaV
-                setRef Why x $ InstV $ abstractVal (addArgs v newArgs) xArgs
-                setRef Why y $ InstV $ abstractVal (addArgs v newArgs) yArgs
-            else fail $ "equalAtm "++(show m)++(show n)
-        (MetaVSV x xArgs, _) -> assign Why x xArgs nVal
-        (_, MetaVSV x xArgs) -> assign Why x xArgs mVal
+        (MetaVSV x xArgs, MetaVSV y yArgs) | x == y -> equalSameVar metaV InstV x xArgs yArgs
+        (MetaVSV x xArgs, _) -> assign x xArgs nVal
+        (_, MetaVSV x xArgs) -> assign x xArgs mVal
         _ -> fail $ "equalAtm "++(show m)++" "++(show n)
+
 
 -- | Type-directed equality on argument lists
 --
@@ -702,10 +740,41 @@ equalArg _ a args1 args2 = do
         _ -> fail $ "equalArg "++(show a)++" "++(show args1)++" "++(show args2)
 
 
+-- | Equality on Types
+--   Assumes @Type@s being compared are at the same @Sort@
+--   !!! Safe to not have @LamT@ case? @LamT@s shouldn't surface?
+--
+equalTyp :: Data a => a -> Type -> Type -> TCM ()
+equalTyp _ a1 a2 = do
+    a1' <- instType a1
+    a2' <- instType a2
+    case (basicType a1', basicType a2') of
+        (ElBT m1 s1, ElBT m2 s2) ->
+            equalVal Why (sort s1) m1 m2
+        (PiBT a1 (Abs name a2), PiBT b1 (Abs _ b2)) -> do
+            equalTyp Why a1 b1
+            addCtx name a1 $ equalTyp Why (subst (var 0) a2) (subst (var 0) b2)
+        (SortBT s1, SortBT s2) -> return ()
+        (MetaTBT x xDeps, MetaTBT y yDeps) | x == y -> 
+            equalSameVar (metaT []) InstT x xDeps yDeps
+        (MetaTBT x xDeps, a) -> assign x xDeps a 
+        (a, MetaTBT x xDeps) -> assign x xDeps a 
+
+
 ---------------------------------------------------------------------------
 --
 -- Example
 --
+test x = runReaderT (runStateT x testSt{sigSt = []}) []
+
+newmetaT = newMeta (metaT []) $ UnderScoreT prop []
+newmetaV = newMeta metaV $ UnderScoreV set0 []
+eqTest = do
+    x <- newmetaV
+    equalVal Why set0 x x
+    
+   
+
 testRed v = runReaderT (evalStateT (reduceM v) testSt) []
 
 normalize :: GenericM TCM
