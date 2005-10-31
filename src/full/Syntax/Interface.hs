@@ -10,9 +10,9 @@ import Syntax.Common
 data Interface =
 	Interface   { moduleName	:: QName
 		    , arity		:: Arity
-		    , definedNames	:: [Name]
-		    , constructorNames	:: [Name]
-		    , datatypeNames	:: [Name]
+		    , definedNames	:: [(Name, Fixity)]
+		    , constructorNames	:: [(Name, Fixity)]
+		    , datatypeNames	:: [(Name, Fixity)]
 		    , subModules	:: [Interface]
 			-- ^ names of sub-modules are not fully qualified
 		    -- here should go types and definitions

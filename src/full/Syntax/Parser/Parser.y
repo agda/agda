@@ -176,9 +176,9 @@ Interface :: { Interface }
 Interface
     : 'module' ModuleName Slash Int 'where'
       vopen
-	functions ':' CommaNames vsemi
-	constructors ':' CommaNames vsemi
-	datatypes ':' CommaNames
+	functions ':' CommaNamesWithFixities vsemi
+	constructors ':' CommaNamesWithFixities vsemi
+	datatypes ':' CommaNamesWithFixities
 	Interfaces
       close
 			{ Interface { moduleName	= $2
@@ -190,8 +190,24 @@ Interface
 				    }
 			}
 
+Interfaces :: { [Interface] }
 Interfaces : {- empty -}		{ [] }
 	   | vsemi Interface Interfaces { $2 : $3 }
+
+NameWithFixity :: { (Name, Fixity) }
+NameWithFixity
+    : Name		{ ($1, defaultFixity) }
+    | 'infix' Int Name	{ ($3, NonAssoc (fuseRange $1 $3) $2) }
+    | 'infixl' Int Name	{ ($3, LeftAssoc (fuseRange $1 $3) $2) }
+    | 'infixr' Int Name	{ ($3, RightAssoc (fuseRange $1 $3) $2) }
+
+CommaNamesWithFixities
+    : {- empty -}		{ [] }
+    | CommaNamesWithFixities1	{ $1 }
+
+CommaNamesWithFixities1
+    : NameWithFixity				    { [$1] }
+    | NameWithFixity ',' CommaNamesWithFixities1    { $1 : $3 }
 
 Slash		: op	{% isName "/" $1 }
 functions	: id	{% isName "functions" $1 }
@@ -289,17 +305,17 @@ Name : id   { $1 }
      | op   { $1 }
 
 
--- Comma separated list of names.
-CommaNames :: { [Name] }
-CommaNames
-    : CommaNames1   { $1 }
-    | {- empty -}   { [] }
-
--- Non-empty comma separated list of names.
-CommaNames1 :: { [Name] }
-CommaNames1
-    : Name ',' CommaNames1  { $1 : $3 }
-    | Name		    { [$1] }
+-- -- Comma separated list of names.
+-- CommaNames :: { [Name] }
+-- CommaNames
+--     : CommaNames1   { $1 }
+--     | {- empty -}   { [] }
+-- 
+-- -- Non-empty comma separated list of names.
+-- CommaNames1 :: { [Name] }
+-- CommaNames1
+--     : Name ',' CommaNames1  { $1 : $3 }
+--     | Name		    { [$1] }
 
 -- Comma separated list of unqualified identifiers. Used in dependent
 -- function spaces: (x,y,z : Nat) -> ...

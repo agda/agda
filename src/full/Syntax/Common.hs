@@ -80,7 +80,7 @@ data Literal = LitInt Range Integer
 data Fixity = LeftAssoc Range Int
 	    | RightAssoc Range Int
 	    | NonAssoc Range Int
-    deriving (Typeable, Data, Eq)
+    deriving (Typeable, Data, Eq, Show)
 
 -- | The default fixity. Currently defined to be @'LeftAssoc' 20@.
 defaultFixity :: Fixity

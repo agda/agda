@@ -178,6 +178,7 @@ data ResolvedName
 data DefinedName =
 	DefinedName { access	 :: Access
 		    , kindOfName :: KindOfName
+		    , fixity	 :: Fixity
 		    , theName    :: QName
 		    }
 
@@ -217,6 +218,7 @@ data ScopeInfo = ScopeInfo
 	{ publicNameSpace   :: NameSpace
 	, privateNameSpace  :: NameSpace
 	, localVariables    :: LocalVariables
+	, contextPrecedence :: Fixity
 	}
 
 type ScopeM = ReaderT ScopeInfo IO
@@ -378,18 +380,20 @@ interfaceToModule i =
 	    { moduleName    = name
 	    , definedNames  =
 		Map.fromList $
-		       [ (x, mkName FunName x)	| x <- I.definedNames i ]
-		    ++ [ (x, mkName ConName x)	| x <- I.constructorNames i ]
-		    ++ [ (x, mkName DataName x) | x <- I.datatypeNames i ]
+		       [ (x, mkName FunName f x)  | (x,f) <- I.definedNames i ]
+		    ++ [ (x, mkName ConName f x)  | (x,f) <- I.constructorNames i ]
+		    ++ [ (x, mkName DataName f x) | (x,f) <- I.datatypeNames i ]
 	    , modules	    =
 		Map.fromList $ [ mkModule i' | i' <- I.subModules i ]
 	    }
 	    where
 		name = I.moduleName i
-		mkName k x = DefinedName { access	= PublicAccess
-					 , kindOfName	= k
-					 , theName	= qualify name x
-					 }
+		mkName k f x =
+		    DefinedName { access	= PublicAccess
+				, kindOfName	= k
+				, fixity	= f
+				, theName	= qualify name x
+				}
 		mkModule i' = (x, interfaceToModule $ i { I.moduleName = qx })
 		    where
 			QName x = I.moduleName i'
@@ -406,11 +410,11 @@ updateNameSpace PublicAccess f si =
 updateNameSpace PrivateAccess f si =
     si { privateNameSpace = f $ privateNameSpace si }
 
-defName :: Access -> KindOfName -> Name -> ScopeInfo -> ScopeInfo
-defName a k x si = updateNameSpace a (addName x qx) si
+defName :: Access -> KindOfName -> Fixity -> Name -> ScopeInfo -> ScopeInfo
+defName a k f x si = updateNameSpace a (addName x qx) si
     where
 	m   = moduleName $ publicNameSpace si
-	qx  = DefinedName a k (qualify m x)
+	qx  = DefinedName a k f (qualify m x)
 
 -- | Assumes that the name in the 'ModuleInfo' fully qualified.
 defModule :: Name -> ModuleInfo -> ScopeInfo -> ScopeInfo
@@ -462,8 +466,8 @@ resolvePatternName = resolve r
     where
 	r vs ns x =
 	    case Map.lookup x $ definedNames ns of
-		Just c@(DefinedName _ ConName _) -> DefName c
-		_				 -> VarName x
+		Just c@(DefinedName _ ConName _ _)  -> DefName c
+		_				    -> VarName x
 
 -- | Figure out what module a qualified name refers to.
 resolveModule :: QName -> ScopeM ResolvedNameSpace
@@ -476,14 +480,13 @@ resolveModule = resolve r
     Updating the scope monadically
  --------------------------------------------------------------------------}
 
-{-| Add a defined name to the current scope.
--}
-defineName :: Access -> KindOfName -> Name -> ScopeM a -> ScopeM a
-defineName a k x cont =
+-- | Add a defined name to the current scope.
+defineName :: Access -> KindOfName -> Fixity -> Name -> ScopeM a -> ScopeM a
+defineName a k f x cont =
     do	qx <- resolveName (QName x)
 	case qx of
-	    UnknownName	-> local (defName a k x) cont
-	    VarName _	-> local (defName a k x . shadowVar x) cont
+	    UnknownName	-> local (defName a k f x) cont
+	    VarName _	-> local (defName a k f x . shadowVar x) cont
 	    DefName y   -> throwDyn $ ClashingDefinition x (theName y)
 
 {-| If a variable shadows a defined name we still keep the defined name.  The
