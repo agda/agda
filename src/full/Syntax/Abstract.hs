@@ -10,10 +10,10 @@ import Syntax.Explanation
 import Syntax.Common
 
 data Expr
-	= Var Expl Name
-	| Def Expl QName
-	| Con Expl QName
-	| Data Expl QName
+	= Var NameExpl Name
+	| Def NameExpl QName
+	| Con NameExpl QName
+	| Data NameExpl QName
 	| QuestionMark Expl
 	| Underscore Expl
 	| App Expl Hiding Expr Expr

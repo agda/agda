@@ -7,23 +7,34 @@
 module Syntax.Explanation where
 
 import Control.Monad
-import Data.Generics
+import Data.Generics hiding (Fixity)
 
+import Syntax.Common
 import Syntax.Position
 import Syntax.Concrete
 
 -- | Explanations should contain enough information to 
 --   reconstruct a derivation
 data Expl = InCode Range
-	  | DefinedAt Range
 	  | ConcreteExpr Expr
 	  | ConcreteDecls [Declaration]
 	  | Expl :+: Expl
 	  | Duh -- ^ this is a default for development which should disappear
   deriving (Typeable, Data)
 
+explain :: [Expl] -> Expl
+explain [] = Duh
+explain xs = foldr1 (:+:) xs
+
 instance Show Expl where
     show e = "<explanation>"
+
+data NameExpl =
+	NameExpl    { bindingSite   :: Range
+		    , concreteName  :: QName
+		    , nameFixity    :: Fixity
+		    , nameAccess    :: Access
+		    }
 
 -- | If an explanation contains a piece of concrete syntax, return this.
 getConcreteExpr :: Expl -> Maybe Expr
