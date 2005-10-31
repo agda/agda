@@ -14,6 +14,7 @@ data Interface =
 		    , constructorNames	:: [Name]
 		    , datatypeNames	:: [Name]
 		    , subModules	:: [Interface]
+			-- ^ names of sub-modules are not fully qualified
 		    -- here should go types and definitions
 		    }
     deriving (Show)

@@ -147,6 +147,7 @@ import Data.List as List
 
 import Syntax.Common
 import Syntax.Concrete
+import qualified Syntax.Interface as I
 
 import Utils.Monad
 import Utils.Maybe
@@ -228,12 +229,6 @@ type ScopeM = ReaderT ScopeInfo IO
     Updating the name spaces
  --------------------------------------------------------------------------}
 
-addModules :: Modules -> NameSpace -> NameSpace
-addModules ms ns = ns { modules = modules ns `Map.union` ms }
-
-addNames :: DefinedNames -> NameSpace -> NameSpace
-addNames ds ns = ns { definedNames = definedNames ns `Map.union` ds }
-
 -- | The names of the name spaces should be the same. Assumes there
 --   are no clashes.
 plusNameSpace :: NameSpace -> NameSpace -> NameSpace
@@ -253,6 +248,34 @@ addModule x mi ns =
 	ns { modules = Map.insertWithKey clash x mi $ modules ns }
     where
 	clash x' qx qx' = throwDyn $ ClashingModuleImport x x'
+
+addQModule :: QName -> ModuleInfo -> NameSpace -> NameSpace
+addQModule (QName x) mi ns  = addModule x mi ns
+addQModule (Qual m x) mi ns = addQModule x mi' ns
+    where
+	mi' = ModuleInfo { moduleAccess	    = PublicAccess
+			 , moduleArity	    = 0
+			 , moduleContents   =
+			    NSpace { moduleName	    = QName m -- TODO: wrong
+				   , definedNames   = Map.empty
+				   , modules	    = Map.singleton (next x) mi
+				   }
+			 }
+	next (QName x)	= x
+	next (Qual m x) = m
+
+addModules :: [(Name, ModuleInfo)] -> NameSpace -> NameSpace
+addModules ms ns = foldr (uncurry addModule) ns ms
+
+addNames :: [(Name, DefinedName)] -> NameSpace -> NameSpace
+addNames ds ns	 = foldr (uncurry addName) ns ds
+
+-- | Add the names from the first name space to the second. Throws an
+--   exception on clashes.
+addNameSpace :: NameSpace -> NameSpace -> NameSpace
+addNameSpace ns0 ns =
+    addNames (Map.assocs $ definedNames ns0)
+    $ addModules (Map.assocs $ modules ns0) ns
 
 {--------------------------------------------------------------------------
     Import directives
@@ -310,9 +333,9 @@ applyDirective i x
 		Hiding xs   -> elem x xs
 		Using xs    -> notElem x xs
 
--- | Import names from a module. Preserves canonical names.
-importNames :: ModuleInfo -> ImportDirective -> NameSpace
-importNames m i =
+-- | Compute the imported names from a module. Preserves canonical names.
+importedNames :: ModuleInfo -> ImportDirective -> NameSpace
+importedNames m i =
     case invalidImportDirective ns i of
 	Just e	-> throwDyn e
 	Nothing	-> addModules newModules $ addNames newNames ns
@@ -326,8 +349,6 @@ importNames m i =
 		     | (x,m)   <- Map.assocs (modules ns)
 		     , Just x' <- [applyDirective i $ ImportedModule x]
 		     ]
-	addModules ms ns = foldr (uncurry addModule) ns ms
-	addNames ds ns	 = foldr (uncurry addName) ns ds
 
 -- | Recompute canonical names. All mappings will be @x -> M.x@ where
 --   @M@ is the name of the name space. Recursively renames sub-modules.
@@ -344,6 +365,35 @@ makeFreshCanonicalNames ns =
 				  $ (moduleContents mi)
 				    { moduleName = qualify m x }
 	       }
+
+interfaceToModule :: I.Interface -> ModuleInfo
+interfaceToModule i =
+    ModuleInfo	{ moduleAccess	    = PublicAccess
+		, moduleArity	    = I.arity i
+		, moduleContents    = mkNameSpace i
+		}
+    where
+	mkNameSpace i =
+	    NSpace
+	    { moduleName    = name
+	    , definedNames  =
+		Map.fromList $
+		       [ (x, mkName FunName x)	| x <- I.definedNames i ]
+		    ++ [ (x, mkName ConName x)	| x <- I.constructorNames i ]
+		    ++ [ (x, mkName DataName x) | x <- I.datatypeNames i ]
+	    , modules	    =
+		Map.fromList $ [ mkModule i' | i' <- I.subModules i ]
+	    }
+	    where
+		name = I.moduleName i
+		mkName k x = DefinedName { access	= PublicAccess
+					 , kindOfName	= k
+					 , theName	= qualify name x
+					 }
+		mkModule i' = (x, interfaceToModule $ i { I.moduleName = qx })
+		    where
+			QName x = I.moduleName i'
+			qx = qualify name x
 
 {--------------------------------------------------------------------------
     Updating the scope
@@ -454,3 +504,28 @@ defineModule x mi cont =
 	    ModuleName m' -> throwDyn $ ClashingModule x
 					    (moduleName $ moduleContents m')
 
+-- | Opening a module.
+openModule :: QName -> ImportDirective -> ScopeM a -> ScopeM a
+openModule x i cont =
+    do	qx <- resolveModule x
+	case qx of
+	    UnknownModule   -> throwDyn $ NoSuchModule x
+	    ModuleName m    -> local ( updateNameSpace PrivateAccess
+				       (addNameSpace ns)
+				     ) cont
+		where
+		    ns = importedNames m i
+
+-- | Importing a module. The first argument is the name the module is imported
+--   /as/. If there is no /as/ clause it should be the name of the module.
+importModule :: QName -> I.Interface -> ImportDirective -> ScopeM a -> ScopeM a
+importModule x iface dir cont =
+    do	qx <- resolveModule x
+	case qx of
+	    ModuleName m    -> throwDyn $ ClashingModule x
+					$ moduleName $ moduleContents m
+	    UnknownModule   -> local ( updateNameSpace PrivateAccess
+				       (addQModule x m)
+				     ) cont
+		where
+		    m = interfaceToModule iface
