@@ -356,8 +356,8 @@ importedNames m i =
 --   @M@ is the name of the name space. Recursively renames sub-modules.
 makeFreshCanonicalNames :: NameSpace -> NameSpace
 makeFreshCanonicalNames ns =
-    ns { definedNames = Map.mapWithKey newName $ definedNames ns
-       , modules      = Map.mapWithKey undefined $ modules ns
+    ns { definedNames = Map.mapWithKey newName	 $ definedNames ns
+       , modules      = Map.mapWithKey newModule $ modules ns
        }
     where
 	m = moduleName ns
@@ -368,6 +368,7 @@ makeFreshCanonicalNames ns =
 				    { moduleName = qualify m x }
 	       }
 
+-- | Turn an interface to a module info structure.
 interfaceToModule :: I.Interface -> ModuleInfo
 interfaceToModule i =
     ModuleInfo	{ moduleAccess	    = PublicAccess
@@ -476,6 +477,29 @@ resolveModule = resolve r
 	r _ ns x = fromMaybe UnknownModule $
 		    ModuleName <$> Map.lookup x (modules ns)
 
+
+{--------------------------------------------------------------------------
+    Wrappers for the resolve functions
+ --------------------------------------------------------------------------}
+
+-- | Make sure that a module hasn't been defined.
+noModuleClash :: QName -> ScopeM ()
+noModuleClash x =
+    do	qx <- resolveModule x
+	case qx of
+	    UnknownModule   -> return ()
+	    ModuleName m    -> throwDyn $ ClashingModule x
+					$ moduleName $ moduleContents m
+
+-- | Get the module referred to by a name. Throws an exception if the module
+--   doesn't exist.
+getModule :: QName -> ScopeM ModuleInfo
+getModule x =
+    do	qx <- resolveModule x
+	case qx of
+	    UnknownModule   -> throwDyn $ NoSuchModule x
+	    ModuleName m    -> return m
+
 {--------------------------------------------------------------------------
     Updating the scope monadically
  --------------------------------------------------------------------------}
@@ -496,39 +520,39 @@ defineName a k f x cont =
 bindVariable :: Name -> ScopeM a -> ScopeM a
 bindVariable x = local (bindVar x)
 
-{-| Defining a module. For explicit modules this should be done after scope
-    checking the module.
--}
+-- | Defining a module. For explicit modules this should be done after scope
+--   checking the module.
 defineModule :: Name -> ModuleInfo -> ScopeM a -> ScopeM a
 defineModule x mi cont =
-    do	qx <- resolveModule $ QName x
-	case qx of
-	    UnknownModule -> local (defModule x mi) cont
-	    ModuleName m' -> throwDyn $ ClashingModule (QName x)
-				      $ moduleName $ moduleContents m'
+    do	noModuleClash (QName x)
+	local (defModule x mi) cont
 
 -- | Opening a module.
 openModule :: QName -> ImportDirective -> ScopeM a -> ScopeM a
 openModule x i cont =
-    do	qx <- resolveModule x
-	case qx of
-	    UnknownModule   -> throwDyn $ NoSuchModule x
-	    ModuleName m    -> local ( updateNameSpace PrivateAccess
-				       (addNameSpace ns)
-				     ) cont
-		where
-		    ns = importedNames m i
+    do	m <- getModule x
+	let ns = importedNames m i
+	local (updateNameSpace PrivateAccess
+			       (addNameSpace ns)
+	      ) cont
 
 -- | Importing a module. The first argument is the name the module is imported
 --   /as/. If there is no /as/ clause it should be the name of the module.
 importModule :: QName -> I.Interface -> ImportDirective -> ScopeM a -> ScopeM a
 importModule x iface dir cont =
-    do	qx <- resolveModule x
-	case qx of
-	    ModuleName m    -> throwDyn $ ClashingModule x
-					$ moduleName $ moduleContents m
-	    UnknownModule   -> local ( updateNameSpace PrivateAccess
-				       (addQModule x m)
-				     ) cont
-		where
-		    m = interfaceToModule iface
+    do	noModuleClash x
+	local ( updateNameSpace PrivateAccess
+				(addQModule x m)
+	      ) cont
+    where
+	m = interfaceToModule iface
+
+-- | Implicit module declaration.
+implicitModule :: Name -> Access -> Arity -> QName -> ImportDirective ->
+		  ScopeM a -> ScopeM a
+implicitModule x ac ar x' i cont =
+    do	noModuleClash (QName x)
+	m <- getModule x'
+	let ns = makeFreshCanonicalNames $ importedNames m i
+	local (updateNameSpace ac (addNameSpace ns)) cont
+
