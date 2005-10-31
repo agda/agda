@@ -224,8 +224,16 @@ data ScopeInfo = ScopeInfo
 type ScopeM = ReaderT ScopeInfo IO
 
 {--------------------------------------------------------------------------
-    Stuff
+    Exceptions
  --------------------------------------------------------------------------}
+
+notInScope x		    = throwDyn $ NotInScope x
+clashingImport x x'	    = throwDyn $ ClashingImport x x'
+clashingModuleImport x x'   = throwDyn $ ClashingModuleImport x x'
+noSuchModule x		    = throwDyn $ NoSuchModule x
+uninstantiatedModule x	    = throwDyn $ UninstantiatedModule x
+clashingModule x y	    = throwDyn $ ClashingModule x y
+clashingDefinition x y	    = throwDyn $ ClashingDefinition x y
 
 {--------------------------------------------------------------------------
     Updating the name spaces
@@ -243,13 +251,13 @@ addName :: Name -> DefinedName -> NameSpace -> NameSpace
 addName x qx ns =
 	ns { definedNames = Map.insertWithKey clash x qx $ definedNames ns }
     where
-	clash x' qx qx' = throwDyn $ ClashingImport x x'
+	clash x' qx qx' = clashingImport x x'
 
 addModule :: Name -> ModuleInfo -> NameSpace -> NameSpace
 addModule x mi ns =
 	ns { modules = Map.insertWithKey clash x mi $ modules ns }
     where
-	clash x' qx qx' = throwDyn $ ClashingModuleImport x x'
+	clash x' qx qx' = clashingModuleImport x x'
 
 addQModule :: QName -> ModuleInfo -> NameSpace -> NameSpace
 addQModule (QName x) mi ns  = addModule x mi ns
@@ -446,9 +454,9 @@ resolve f x =
 	res (QName x) vs ns = f vs ns x
 	res (Qual m x) vs ns =
 	    case Map.lookup m $ modules ns of
-		Nothing			    -> throwDyn $ NoSuchModule (QName m)
+		Nothing			    -> noSuchModule (QName m)
 		Just (ModuleInfo 0 _ ns')   -> res x empty ns'
-		Just _			    -> throwDyn $ UninstantiatedModule (QName m)
+		Just _			    -> uninstantiatedModule (QName m)
 
 -- | Figure out what a qualified name refers to.
 resolveName :: QName -> ScopeM ResolvedName
@@ -488,8 +496,7 @@ noModuleClash x =
     do	qx <- resolveModule x
 	case qx of
 	    UnknownModule   -> return ()
-	    ModuleName m    -> throwDyn $ ClashingModule x
-					$ moduleName $ moduleContents m
+	    ModuleName m    -> clashingModule x $ moduleName $ moduleContents m
 
 -- | Get the module referred to by a name. Throws an exception if the module
 --   doesn't exist.
@@ -497,7 +504,7 @@ getModule :: QName -> ScopeM ModuleInfo
 getModule x =
     do	qx <- resolveModule x
 	case qx of
-	    UnknownModule   -> throwDyn $ NoSuchModule x
+	    UnknownModule   -> noSuchModule x
 	    ModuleName m    -> return m
 
 {--------------------------------------------------------------------------
@@ -511,7 +518,8 @@ defineName a k f x cont =
 	case qx of
 	    UnknownName	-> local (defName a k f x) cont
 	    VarName _	-> local (defName a k f x . shadowVar x) cont
-	    DefName y   -> throwDyn $ ClashingDefinition x (theName y)
+	    DefName y   -> clashingDefinition x (theName y)
+
 
 {-| If a variable shadows a defined name we still keep the defined name.  The
     reason for this is in patterns, where constructors should take precedence
