@@ -46,11 +46,11 @@ skipBlock :: String -> String -> LookAhead ()
 skipBlock open close = scan 1
     where
 	scan 0 = sync
-	scan n = match [ open	-->  scan (n + 1)
-		       , close	-->  scan (n - 1)
+	scan n = match [ open	==>  scan (n + 1)
+		       , close	==>  scan (n - 1)
 		       ] `other` scan n
 	    where
-		(-->) = (,)
+		(==>) = (,)
 		other = ($)
 
 
