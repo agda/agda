@@ -15,6 +15,7 @@ import Syntax.Concrete.Fixity ()
 import Syntax.Internal ()
 import Syntax.Abstract ()
 import Syntax.Scope ()
+import Syntax.Translation.ConcreteToAbstract ()
 
 parseFile' p file
     | "lagda" `isSuffixOf` file	= parseLiterateFile p file
