@@ -73,10 +73,10 @@ endif
 prof : $(OUT_P)/agda
 
 $(OUT)/agda : $(out_dirs) $(all_hs_files) $(boot_files)
-	$(GHC) --make -o $@ -i$(OUT) -odir $(OUT) -hidir $(OUT) $(GHC_FLAGS) Main.hs
+	$(GHC) --make -o $@ -i$(OUT) -I. -odir $(OUT) -hidir $(OUT) $(GHC_FLAGS) Main.hs
 
 $(OUT_P)/agda : $(out_dirs_p) $(all_hs_files) $(boot_files_p)
-	$(GHC) --make -o $@ -i$(OUT) -odir $(OUT_P) -hidir $(OUT_P) $(GHC_FLAGS) Main.hs -prof -auto-all
+	$(GHC) --make -o $@ -i$(OUT) -I. -odir $(OUT_P) -hidir $(OUT_P) $(GHC_FLAGS) Main.hs -prof -auto-all
 
 ## Rules for happy and alex ###############################################
 
