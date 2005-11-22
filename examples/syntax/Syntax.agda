@@ -11,7 +11,7 @@ module examples.syntax.Syntax where
   -- It is recommended that the body of the top-level module is indented by a
   -- small amount, but this is not enforced in the syntax.
 
-  -- You can have modules inside modules. The name of sub-module isn't
+  -- You can have modules inside modules. The name of a sub-module isn't
   -- qualified.
   module Expressions (X : Set)(x1, x2 : X) where
 
@@ -103,7 +103,7 @@ module examples.syntax.Syntax where
     -- Patterns can be nested (and functions can be recursive).
     and : List Bool -> Bool
     and nil	    = true
-    and (true::xs)  = nested xs
+    and (true::xs)  = and xs
     and (false::xs) = false
 
     -- Functions can be defined in an infix style. When doing this it must be
@@ -182,7 +182,7 @@ module examples.syntax.Syntax where
       empty : Stack
       empty = nil
 
-      push : Stack
+      push : A -> Stack -> Stack
       push = cons
 
     -- Local declarations are introduces either with a let or in a where
@@ -219,10 +219,11 @@ module examples.syntax.Syntax where
     -- name as the module is created.
     import examples.syntax.ModuleA
 
-    -- We can now refer to things from ModuleA using the created name space.
-    -- Note that no new names were brought into scope (except the name of the
-    -- name space). To bring names into scope we have to use the 'open'
-    -- declaration.
+    -- We can now refer to things from ModuleA using the created name
+    -- space.  Note that no unqualified names were brought into scope
+    -- (except, perhaps, the name of the name space). [To bring
+    -- unqualified names into scope we have to use the 'open'
+    -- declaration.]
     FunnyNat = examples.syntax.ModuleA.Nat
 
     -- If the name of an imported module clashes with a local module we might
@@ -233,10 +234,11 @@ module examples.syntax.Syntax where
     Nat1 = A.Nat
     Nat2 = A'.Nat
 
-    {- You can't project from a parameterised module. It has to be instantiated
-       first. The only thing that happens when importing is that the module name
-       'examples.syntax.ModuleB' is brought into scope (and the type checker
-       goes away and type checks this module).
+    {- You can't project from a parameterised module. It has to be
+       instantiated first. The only thing that happens when importing
+       is that the module name 'examples.syntax.ModuleB' is brought
+       into scope (and the type checker goes away and type checks this
+       module).
     -}
     import examples.syntax.ModuleB
 

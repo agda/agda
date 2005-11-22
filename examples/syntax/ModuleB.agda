@@ -25,11 +25,10 @@ module examples.syntax.ModuleB
     cons  : A -> List -> List
 
   eqList : List -> List -> Prop
-  eqList nil nil	  = True
-  eqList (cons x xs) nil  = False
-  eqList nil (cons y ys)  = False
-  eqList (cons x xs) (cons y ys) =
-      x == y /\ eqList xs ys
+  eqList nil         nil	  =  True
+  eqList (cons x xs) nil          =  False
+  eqList nil         (cons y ys)  =  False
+  eqList (cons x xs) (cons y ys)  =  x == y /\ eqList xs ys
 
   reflEqList : (xs : List) -> eqList xs xs
   reflEqList nil	  = tt
