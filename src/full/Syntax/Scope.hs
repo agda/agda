@@ -152,7 +152,7 @@ import qualified Syntax.Interface as I
 import Utils.Monad
 import Utils.Maybe
 
-#include "undefined.h"
+#include "../undefined.h"
 
 {--------------------------------------------------------------------------
     Types

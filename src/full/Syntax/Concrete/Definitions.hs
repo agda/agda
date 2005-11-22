@@ -70,7 +70,7 @@ import Syntax.Concrete
 import Syntax.Common
 import Syntax.Position
 
-#include "undefined.h"
+#include "../../undefined.h"
 
 {--------------------------------------------------------------------------
     Types

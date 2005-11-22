@@ -12,7 +12,7 @@ import Syntax.Concrete
 import Utils.Pretty
 import Utils.Unicode
 
-#include "undefined.h"
+#include "../../undefined.h"
 
 instance Show Expr where	    show = show . pretty
 instance Show Declaration where    show = show . pretty
