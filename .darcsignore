@@ -9,3 +9,4 @@
 ^doc/haddock/src$
 ^doc/haddock/(.*\.(gif|html|css|js)|base.haddock)
 ^tmp$
+^doc/pfe/fake/Syntax/Parser/(Parser|Lexer)\.hs$
