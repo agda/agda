@@ -1,0 +1,18 @@
+051117: PJ reading code (code review)
+
+  Syntax.Explanation:
+
+    I don't get this type (and it is hardly used)
+      InCode: is only used in this module (in def. of getRange)
+      ConcreteExpr: only used in getConcreteExpr - returns first Expr only
+      ConcreteDecls: never used, and I don't understand it
+      explain: never used, strange to allow empty list (breaks invariant)
+
+    Explanation: what is a "derivation"? word never used elsewhere in
+      the Agda2 code.
+
+  Syntax.Abstract:
+
+    What is Expl used for in most Expr?
+
+  {- trying to get pfe going to use it to find uses -}
