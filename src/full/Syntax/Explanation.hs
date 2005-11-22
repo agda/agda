@@ -15,11 +15,16 @@ import Syntax.Concrete
 
 -- | Explanations should contain enough information to 
 --   reconstruct a derivation
-data Expl = InCode Range
+data Expl = InCode Range 
+          -- ^ the position ('Range') of a concrete "?" which can be solved
 	  | ConcreteExpr Expr
+          -- ^ or the Concrete.Expr it came from
 	  | ConcreteDecls [Declaration]
+          -- ^ or PJ:**What would this mean?**
 	  | Expl :+: Expl
-	  | Duh -- ^ this is a default for development which should disappear
+          -- ^ Alternative explanations (PJ:**meaning?**)
+	  | Duh 
+          -- ^ this is a default for development which should disappear
   deriving (Typeable, Data)
 
 explain :: [Expl] -> Expl

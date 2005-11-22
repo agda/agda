@@ -53,7 +53,7 @@ instance Ord Name where
 --     equality. We will have to define an equality instance to
 --     non-generative namespaces (as well as having some sort of
 --     lookup table for namespace names).
-data QName = Qual Name QName
+data QName = Qual  Name QName
            | QName Name 
   deriving (Typeable, Data, Eq)
 
@@ -69,17 +69,17 @@ instance Show QName where
 type Nat    = Int
 type Arity  = Nat
 
-data Literal = LitInt Range Integer
-	     | LitFloat Range Double
+data Literal = LitInt    Range Integer
+	     | LitFloat  Range Double
 	     | LitString Range String
-	     | LitChar Range Char
+	     | LitChar   Range Char
     deriving (Typeable, Data, Eq, Show)
 
 
 -- | Fixity of infix operators.
-data Fixity = LeftAssoc Range Int
+data Fixity = LeftAssoc  Range Int
 	    | RightAssoc Range Int
-	    | NonAssoc Range Int
+	    | NonAssoc   Range Int
     deriving (Typeable, Data, Eq, Show)
 
 -- | The default fixity. Currently defined to be @'LeftAssoc' 20@.
@@ -91,17 +91,17 @@ instance HasRange Name where
     getRange (Name r _)	= r
 
 instance HasRange QName where
-    getRange (QName x)  = getRange x
+    getRange (QName  x) = getRange x
     getRange (Qual n x)	= fuseRange n x
 
 instance HasRange Literal where
-    getRange (LitInt r _)	= r
-    getRange (LitFloat r _)	= r
+    getRange (LitInt    r _)	= r
+    getRange (LitFloat  r _)	= r
     getRange (LitString r _)	= r
-    getRange (LitChar r _)	= r
+    getRange (LitChar   r _)	= r
 
 instance HasRange Fixity where
-    getRange (LeftAssoc r _)	= r
+    getRange (LeftAssoc  r _)	= r
     getRange (RightAssoc r _)	= r
-    getRange (NonAssoc r _)	= r
+    getRange (NonAssoc   r _)	= r
 

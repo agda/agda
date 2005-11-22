@@ -109,7 +109,7 @@ type Telescope = [TypedBinding]
 data LHS = LHS Range IsInfix Name [Argument]
     deriving (Typeable, Data, Eq)
 
--- | An function argument is a pattern which might be hidden.
+-- | A function argument is a pattern which might be hidden.
 data Argument = Argument Hiding Pattern
     deriving (Typeable, Data, Eq)
 
@@ -140,7 +140,7 @@ data ImportedName = ImportedModule  { importedName :: Name }
 
 instance Show ImportedName where
     show (ImportedModule x) = "module " ++ show x
-    show (ImportedName x) = show x
+    show (ImportedName   x) = show x
 
 {--------------------------------------------------------------------------
     Declarations
@@ -164,22 +164,22 @@ type AbstractDeclaration = Declaration
 -- | Everything can appear at top-level.
 type TopLevelDeclaration = Declaration
 
-{-| The representation type of a declaration. The comments indicate the which
-    type in the intended family the constructor targets.
+{-| The representation type of a declaration. The comments indicate
+    which type in the intended family the constructor targets.
 -}
 data Declaration
 	= TypeSig Name Expr
 	| FunClause LHS RHS WhereClause
-	| Data Range Name Telescope Expr [Constructor]
+	| Data        Range Name Telescope Expr [Constructor]
 	| Infix Fixity [Name]
-	| Mutual Range [MutualDeclaration]
-	| Abstract Range [AbstractDeclaration]
-	| Private Range [PrivateDeclaration]
-	| Postulate Range [TypeSignature]
-	| Open Range QName ImportDirective
-	| Import Range QName (Maybe Name) ImportDirective
-	| ModuleMacro Range Name Telescope Expr ImportDirective
-	| Module Range QName Telescope [TopLevelDeclaration]
+	| Mutual      Range [MutualDeclaration]
+	| Abstract    Range [AbstractDeclaration]
+	| Private     Range [PrivateDeclaration]
+	| Postulate   Range [TypeSignature]
+	| Open        Range QName ImportDirective
+	| Import      Range QName (Maybe Name) ImportDirective
+	| ModuleMacro Range  Name Telescope Expr ImportDirective
+	| Module      Range QName Telescope [TopLevelDeclaration]
     deriving (Eq, Typeable, Data)
 
 

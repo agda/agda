@@ -2,10 +2,11 @@
 module Utils.Tuple where
 
 infix 2 -*-
+infix 3 /\
+
 (-*-) :: (a -> c) -> (b -> d) -> (a,b) -> (c,d)
 (f -*- g) (x,y) = (f x, g y)
 
-infix 3 /\
 (/\) :: (a -> b) -> (a -> c) -> a -> (b,c)
 (f /\ g) x = (f x, g x)
 

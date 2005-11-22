@@ -10,29 +10,31 @@ import Syntax.Explanation
 import Syntax.Common
 
 data Expr
-	= Var NameExpl Name
-	| Def NameExpl QName
-	| Con NameExpl QName
-	| Data NameExpl QName
-	| QuestionMark Expl
-	| Underscore Expl
-	| App Expl Hiding Expr Expr
-	| Lam Expl LamBinding Expr
-	| Pi Expl TypedBinding Expr
-	| Set Expl Nat
-	| Prop Expl
-	| Let Expl [Declaration] Expr
+        = Var  NameExpl  Name         -- ^ Variables
+        | Def  NameExpl QName         -- ^ Defined name (~=bound variable)
+        | Con  NameExpl QName         -- ^ Constructors
+        | Data NameExpl QName         -- ^ Defined name repr. a datatype(?)
+        | QuestionMark Expl           -- ^ meta variable for interaction
+        | Underscore   Expl           -- ^ meta variable for hidden argument (must be inferred locally)
+        | App  Expl Hiding Expr Expr  -- ^ Hiding tells if the argument (second Expr) should be hidden
+        | Lam  Expl LamBinding Expr   -- ^ 
+        | Pi   Expl TypedBinding Expr -- ^ 
+        | Set  Expl Nat               -- ^ 
+        | Prop Expl                   -- ^ 
+        | Let  Expl [Declaration] Expr-- ^ 
+
+-- | what is Expl used for (above and below)? which invariants apply?
 
 data Declaration
-	= Axiom Expl Fixity Access Name Expr
-	| FunDef Expl Fixity Access Name (Maybe Expr) [Clause]
-	| DataDecl Expl Fixity Access Name Telescope Expr [Declaration]
+	= Axiom     Expl Fixity Access Name Expr
+	| FunDef    Expl Fixity Access Name (Maybe Expr) [Clause]
+	| DataDecl  Expl Fixity Access Name Telescope Expr [Declaration]
 	    -- ^ only axioms
-	| Abstract Expl [Declaration]
-	| Mutual Expl [Declaration]
-	| Module Expl Access QName Telescope [Declaration]
+	| Abstract  Expl [Declaration]
+	| Mutual    Expl [Declaration]
+	| Module    Expl Access QName Telescope [Declaration]
 	| NameSpace Expl Name Expr
-	| Import Expl QName
+	| Import    Expl QName
 
 -- | A lambda binding is either domain free or typed.
 data LamBinding
@@ -56,3 +58,6 @@ data Pattern	= VarP Name
 		| ConP Expl QName [Argument]
 		| WildP Expl
 
+-- | why has Var in Expr above a NameExpl but VarP no Expl?
+-- | why has Con in Expr above a NameExpl but ConP an Expl?
+-- | why Underscore above and WildP here? (UnderscoreP better?)

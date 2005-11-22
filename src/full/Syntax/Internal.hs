@@ -38,24 +38,25 @@ import Syntax.Position
 --     every constant, even if the definition is an empty
 --     list of clauses.
 --
-data Value = Var Nat Expl
+--   **PJ: why is Expl last here and first in Abstract.hs
+data Value = Var Nat                Expl
 	   | App Value Value Hiding Expl
-	   | Lam (Abs Value) Expl
-	   | Lit Literal Expl
-	   | Def QName Expl 
-	   | MetaV MId Expl
+	   | Lam (Abs Value)        Expl
+	   | Lit Literal            Expl
+	   | Def QName              Expl 
+	   | MetaV MId              Expl
   deriving (Typeable, Data, Show)
 
 -- | this instance declaration is used in flex-flex unifier case
 --
 instance Eq Value where
     Var i _ == Var j _ = i == j
-    v1 == v2 = False
+    v1      == v2      = False
 
-var i = Var i Duh
-lam m = Lam (Abs noName m) Duh
-app m n = App m n NotHidden Duh
-metaV x = MetaV x Duh
+var i   = Var i              Duh
+lam m   = Lam (Abs noName m) Duh
+app m n = App m n NotHidden  Duh
+metaV x = MetaV x            Duh
 
 addArgs :: [Value] -> GenericT
 addArgs args = mkT addTrm `extT` addTyp where
@@ -63,19 +64,19 @@ addArgs args = mkT addTrm `extT` addTyp where
     addTyp a = case basicType a of
         MetaTBT x args' -> metaT (args'++args) x
 
-data Type = El Value Sort Expl
+data Type = El Value Sort      Expl
 	  | Pi Type (Abs Type) Expl
-	  | Sort Sort Expl
-	  | MetaT MId [Value] Expl -- ^ list of dependencies for metavars
-          | LamT (Abs Type) Expl -- ^ abstraction needed for metavar dependency management
+	  | Sort Sort          Expl
+	  | MetaT MId [Value]  Expl -- ^ list of dependencies for metavars
+          | LamT (Abs Type)    Expl -- ^ abstraction needed for metavar dependency management
   deriving (Typeable, Data, Show)
 
-pi a b = Pi a b Duh
-metaT deps x = MetaT x deps Duh
+pi a b = Pi a b              Duh
 lamT a = LamT (Abs noName a) Duh
-set0 = Sort (Type 0 Duh) Duh
-set n = Sort (Type n Duh) Duh
-sort s = Sort s Duh
+set0   = Sort (Type 0 Duh)   Duh
+set n  = Sort (Type n Duh)   Duh
+sort s = Sort s              Duh
+metaT deps x = MetaT x deps  Duh
 
 data Sort = Type Nat Expl
 	  | Prop Expl
@@ -83,11 +84,11 @@ data Sort = Type Nat Expl
 	  | Lub Sort Sort Expl
   deriving (Typeable, Data, Show)
 
-prop = Prop Duh
+prop    = Prop Duh
 metaS x = MetaS x Duh
 
 data Abs a = Abs Name a deriving (Typeable, Data, Show)
-data Why = Why deriving (Typeable, Data, Show)
+data Why   = Why        deriving (Typeable, Data, Show)
 
 -- | Check if given term is an abstraction.
 --
@@ -111,16 +112,17 @@ walk f x = do
     go f x = do
         (v, continue) <- listen $ f x
         case continue of
-            Done -> return v
+            Done     -> return v
             Continue -> 
-                if isAbs x then local (+ 1) $ gmapM (go f) v else gmapM (go f) v
+                if isAbs x then local (+ 1) $ gmapM (go f) v 
+                                         else gmapM (go f) v
 
 data WalkDone = Done | Continue 
 instance Monoid WalkDone where
     mempty = Continue
-    mappend Continue x = x
-    mappend Done Continue = Done
-    mappend Done Done = Done
+    mappend Continue x        = x
+    mappend Done     Continue = Done
+    mappend Done     Done     = Done
 
 -- | @endWalk@ is used, instead of @return@, by a traversal function 
 --     which wants to stop the term traversal.
@@ -178,26 +180,26 @@ data BasicSort = TypeBS Nat
 
 basicValue :: Value -> BasicValue
 basicValue v = case v of
-    Var i _ -> VarBV i
+    Var i       _ -> VarBV i
     App v1 v2 _ _ -> AppBV v1 v2
-    Lam v _ -> LamBV v
-    Lit l _ -> LitBV l
-    Def f _ -> DefBV f
-    MetaV x _ -> MetaVBV x
+    Lam v       _ -> LamBV v
+    Lit l       _ -> LitBV l
+    Def f       _ -> DefBV f
+    MetaV x     _ -> MetaVBV x
 
 basicType :: Type -> BasicType
 basicType a = case a of
-    El v s _ -> ElBT v s
-    Pi a b _ -> PiBT a b
-    Sort s _ -> SortBT s
+    El v s       _ -> ElBT v s
+    Pi a b       _ -> PiBT a b
+    Sort s       _ -> SortBT s
     MetaT x deps _ -> MetaTBT x deps
-    LamT a _ -> LamTBT a
+    LamT a       _ -> LamTBT a
 				  
 basicSort :: Sort -> BasicSort
 basicSort s = case s of
-    Type n _ -> TypeBS n
-    Prop _ -> PropBS
-    MetaS x _ -> MetaSBS x
+    Type n    _ -> TypeBS n
+    Prop      _ -> PropBS
+    MetaS x   _ -> MetaSBS x
     Lub s1 s2 _ -> LubBS s1 s2
 
 
@@ -213,12 +215,12 @@ data SpineValue = VarSV Nat [Value]
 spineValue :: Value -> SpineValue
 spineValue v = app [] $ basicValue v where
     app args v = case v of
-        VarBV i -> VarSV i args
+        VarBV i     -> VarSV i args
 	AppBV v1 v2 -> app (v2 : args) (basicValue v1)
-	LamBV v -> LamSV v args
-	LitBV l -> case args of [] -> LitSV l
-	DefBV f -> DefSV f args
-	MetaVBV x -> MetaVSV x args
+	LamBV v     -> LamSV v args
+	LitBV l     -> case args of [] -> LitSV l
+	DefBV f     -> DefSV f args
+	MetaVBV x   -> MetaVSV x args
 
 
 --------------------------------------------------------------
@@ -232,16 +234,17 @@ spineValue v = app [] $ basicValue v where
 --
 data TCState = TCSt {
   genSymSt :: Int,
-  metaSt :: Store,
-  cnstrSt :: Constraints,
-  sigSt :: Signature
+  metaSt   :: Store,
+  cnstrSt  :: Constraints,
+  sigSt    :: Signature
 } deriving Show
 
 -- | Type Checking errors
 --
 data TCErr = Fatal String 
-	   | Pattern MId -- ^ for pattern violations, carries invovled metavar
+	   | Pattern MId -- ^ for pattern violations, carries involved metavar
   deriving Show
+
 instance Error TCErr where
     noMsg = Fatal ""
     strMsg s = Fatal s
@@ -281,7 +284,8 @@ catchConstr :: Constraint -> TCM () -> TCM ()
 catchConstr cnstr v =
    catchError v (\ err -> case err of
        Pattern mId -> addCnstr [mId] cnstr
-       _ -> throwError err)
+       _           -> throwError err
+       )
 
 type Constraints = [(ConstraintId,(Signature,Context,Constraint))]
 
@@ -302,9 +306,9 @@ addCnstr mIds c = do
       let mi' = if elem id mIds then case mi of
                     UnderScoreV a cIds -> UnderScoreV a $ cId : cIds
                     UnderScoreT s cIds -> UnderScoreT s $ cId : cIds
-                    UnderScoreS cIds -> UnderScoreS $ cId : cIds
-                    HoleV a cIds -> HoleV a $ cId : cIds
-                    HoleT s cIds -> HoleT s $ cId : cIds
+                    UnderScoreS cIds   -> UnderScoreS   $ cId : cIds
+                    HoleV       a cIds -> HoleV a       $ cId : cIds
+                    HoleT       s cIds -> HoleT s       $ cId : cIds
                 else mi
       in (id, mi')
 
@@ -312,7 +316,7 @@ wakeup cId = do
     cnstrs <- gets cnstrSt
     case lookup cId cnstrs of
         Just (sig, ctx, ValueEq a m1 m2) -> go sig ctx $ equalVal Why a m1 m2
-        Just (sig, ctx, TypeEq a1 a2) -> go sig ctx $ equalTyp Why a1 a2
+        Just (sig, ctx, TypeEq a1 a2)    -> go sig ctx $ equalTyp Why a1 a2
   where
     go sig ctx v = do
         sigCurrent <- gets sigSt
@@ -330,18 +334,18 @@ data MetaInfo = InstV Value
               | InstS Sort
 	      | UnderScoreV Type [ConstraintId]
 	      | UnderScoreT Sort [ConstraintId]
-	      | UnderScoreS [ConstraintId]
-	      | HoleV Type [ConstraintId]
-	      | HoleT Sort [ConstraintId]
+	      | UnderScoreS      [ConstraintId]
+	      | HoleV       Type [ConstraintId]
+	      | HoleT       Sort [ConstraintId]
   deriving Show
 
 type Store = [(MId, MetaInfo)]
 
 getCIds (UnderScoreV _ cIds) = cIds
 getCIds (UnderScoreT _ cIds) = cIds
-getCIds (UnderScoreS cIds) = cIds
-getCIds (HoleV _ cIds) = cIds
-getCIds (HoleT _ cIds) = cIds
+getCIds (UnderScoreS   cIds) = cIds
+getCIds (HoleV       _ cIds) = cIds
+getCIds (HoleT       _ cIds) = cIds
 
 setRef :: Data a => a -> MId -> MetaInfo -> TCM ()
 setRef _ x v = do
@@ -398,13 +402,13 @@ instType a = case basicType a of
         store <- gets metaSt
         case lookup x store of
             Just (InstT a') -> instType $ reduceType a' deps
-            Just _ -> return a
+            Just _          -> return a
     _ -> return a
 
 reduceType :: Type -> [Value] -> Type
 reduceType a args = case basicType a of
     LamTBT (Abs _ a) -> reduceType (subst (head args) a) $ tail args
-    _ | args == [] -> a
+    _    | null args -> a
 
 -- | instantiate a sort 
 --   results is open meta variable or a non meta variable sort.
@@ -415,7 +419,7 @@ instSort s = case basicSort s of
         store <- gets metaSt
         case lookup x store of
             Just (InstS s') -> instSort s'
-            Just _ -> return s
+            Just _          -> return s
     _ -> return s
 
 --
@@ -429,8 +433,8 @@ data CtxElm = Decl Name Type (Maybe [Name]) -- ^ ind. types have list of constru
 	    | NameSpace Name Context
   deriving (Typeable, Data, Show)
 
-isDecl ce = case ce of Decl _ _ _ -> True; _ -> False
-isDefn ce = case ce of Defn _ _ -> True; _ -> False
+isDecl ce = case ce of Decl _ _ _    -> True; _ -> False
+isDefn ce = case ce of Defn _ _      -> True; _ -> False
 isNmsp ce = case ce of NameSpace _ _ -> True; _ -> False
 
 -- | add a declaration to the context
@@ -513,9 +517,9 @@ reduce store ctx sig v = go v where
         LamSV (Abs _ v') (arg:args) -> go $ addArgs args (subst (go arg) v')
         MetaVSV x args -> case lookup x store of
             Just (InstV v) -> go $ addArgs args v
-            Just _ -> v
+            Just _         -> v
         DefSV f args -> case defOfConst f of
-            [] -> v -- no definition for head
+            []                    -> v -- no definition for head
             cls@(Clause ps _ : _) -> 
                 if length ps == length args then appDef v cls args
                 else if length ps > length args then
@@ -569,8 +573,8 @@ reduce store ctx sig v = go v where
 reduceM :: Value -> TCM Value
 reduceM v = do
     store <- gets metaSt
-    ctx <- ask
-    sig <- gets sigSt
+    ctx   <- ask
+    sig   <- gets sigSt
     return $ reduce store ctx sig v
 
 
@@ -588,10 +592,10 @@ whnfValue :: Value -> TCM WhnfValue
 whnfValue v = do 
     v' <- reduceM v
     return $ case spineValue v' of
-        VarSV i args -> VarWV i args
-        LitSV c -> LitWV c
-        LamSV v [] -> LamWV v
-        DefSV f args -> DefWV f args
+        VarSV i args   -> VarWV i args
+        LitSV c        -> LitWV c
+        LamSV v []     -> LamWV v
+        DefSV f args   -> DefWV f args
         MetaVSV x args -> MetaVWV x args
 
 
@@ -604,10 +608,10 @@ whnfValue v = do
 --
 checkArgs :: MId -> [Value] -> TCM [Int]
 checkArgs x args = go [] args where
-    go ids [] = return ids
+    go ids  []           = return ids
     go done (arg : args) = case basicValue arg of 
         VarBV i | not $ elem i done -> go (i:done) args
-        _ -> patternViolation x 
+        _                           -> patternViolation x 
 
 -- | Find position of a value in a list.
 --   Used to change metavar argument indices during assignment.
@@ -615,12 +619,12 @@ checkArgs x args = go [] args where
 findIdx :: (Eq a, Monad m) => [a] -> a -> m Int
 findIdx vs v = go 0 vs where
     go i (v' : vs) | v' == v = return i
-    go i (_ : vs) = go (i + 1) vs
-    go _ [] = fail "findIdx"
+    go i (_  : vs)           = go (i + 1) vs
+    go _ []                  = fail "findIdx"
 
 abstract :: [Value] -> GenericT
 abstract args = mkT absV `extT` absT where
-    absV v = foldl (\v _ -> lam v) v args
+    absV v = foldl (\v _ -> lam v ) v args
     absT a = foldl (\a _ -> lamT a) a args 
 
 -- | Extended occurs check
@@ -783,9 +787,9 @@ testNrm v = runReaderT (evalStateT (normalize v) testSt) []
 
 testSt = TCSt {
   genSymSt = 0,
-  metaSt = [],
-  cnstrSt = [],
-  sigSt = testSig
+  metaSt   = [],
+  cnstrSt  = [],
+  sigSt    = testSig
  }
 
 testSig = [
