@@ -281,8 +281,8 @@ clashingDefinition x y	    = throwDyn $ ClashingDefinition x y
 --   are no clashes.
 plusNameSpace :: NameSpace -> NameSpace -> NameSpace
 plusNameSpace (NSpace name ds1 m1) (NSpace _ ds2 m2) =
-	NSpace name (Map.unionWith __UNDEFINED__ ds1 ds2)
-		    (Map.unionWith __UNDEFINED__ m1 m2)
+	NSpace name (Map.unionWith __IMPOSSIBLE__ ds1 ds2)
+		    (Map.unionWith __IMPOSSIBLE__ m1 m2)
 
 -- | Throws an exception if the name exists.
 addName :: Name -> DefinedName -> NameSpace -> NameSpace

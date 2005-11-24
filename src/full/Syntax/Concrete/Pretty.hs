@@ -27,13 +27,13 @@ name :: String -> Doc
 name s@(c:_)
     | isOpChar c    = parens $ text s
     | otherwise	    = text s
-name _ = __UNDEFINED__
+name _ = __IMPOSSIBLE__
 
 op :: String -> Doc
 op s@(c:_)
     | isOpChar c    = text s
     | otherwise	    = text "`" <> text s <> text "`"
-op _ = __UNDEFINED__
+op _ = __IMPOSSIBLE__
 
 prettyOp, prettyId, prettyName :: Show a => a -> Doc
 prettyId    = name . show
@@ -170,7 +170,7 @@ instance Pretty LHS where
 	where
 	    par | null es   = id
 		| otherwise = parens
-    pretty _ = __UNDEFINED__
+    pretty _ = __IMPOSSIBLE__
 
 instance Pretty Argument where
     pretty (Argument h p) = pHidden h p

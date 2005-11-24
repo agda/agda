@@ -73,7 +73,7 @@ newInput inp inp' len =
 	c:s'	-> inp' { lexInput    = s'
 			, lexPrevChar = c
 			}
-	[]	-> __UNDEFINED__
+	[]	-> __IMPOSSIBLE__
 
 -- | Alex can't handle unicode characters. To solve this we translate all
 --   unicode identifiers to @z@ and all unicode operator characters to @+@.
@@ -196,7 +196,7 @@ qualified tok =
     where
 	-- Compute the ranges for the substrings (separated by '.') of a name.
 	mkName :: Range -> [String] -> [Name]
-	mkName _ []	= __UNDEFINED__
+	mkName _ []	= __IMPOSSIBLE__
 	mkName r [x]	= [Name r x]
 	mkName r (x:xs) = Name r0 x : mkName r1 xs
 	    where

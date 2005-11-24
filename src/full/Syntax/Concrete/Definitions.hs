@@ -158,7 +158,7 @@ niceDeclarations ds = nice (fixities ds) ds
 		    -- If we see a function clause at this point, there
 		    -- was no corresponding type signature.
 		    case span (isDefinitionOf x) (d:ds) of
-			([], _)	    -> __UNDEFINED__
+			([], _)	    -> __IMPOSSIBLE__
 			(ds0,ds1)   -> mkFunDef fixs x Nothing ds0
 					: nice fixs ds1
 
@@ -194,7 +194,8 @@ niceDeclarations ds = nice (fixities ds) ds
 
 			    Infix _ _   -> []
 
-			    d		-> [Other d]
+			    _			-> __IMPOSSIBLE__
+				-- FunClause and TypeSig have been taken care of
 
 
 	-- Translate axioms
@@ -205,7 +206,7 @@ niceDeclarations ds = nice (fixities ds) ds
 		nice (d@(TypeSig x t) : ds) =
 		    Axiom (getRange d) (fixity x fixs) PublicAccess x t
 		    : nice ds
-		nice _ = __UNDEFINED__
+		nice _ = __IMPOSSIBLE__
 
 	-- Create a function definition.
 	mkFunDef fixs x mt ds0 =
@@ -220,7 +221,7 @@ niceDeclarations ds = nice (fixities ds) ds
 
 	-- Turn a function clause into a nice function clause.
 	mkClause (FunClause lhs rhs wh) = Clause lhs rhs wh
-	mkClause _ = __UNDEFINED__
+	mkClause _ = __IMPOSSIBLE__
 
 	-- Check if a declaration is a definition of a particular function.
 	isDefinitionOf x (FunClause (LHS _ _ y _) _ _)	= x == y
@@ -248,7 +249,7 @@ plusFixities m1 m2
 	throwDyn $ MultipleFixityDecls $ map decls (Map.keys isect)
     where
 	isect	= Map.intersection m1 m2
-	decls x = (x, map (Map.findWithDefault __UNDEFINED__ x) [m1,m2])
+	decls x = (x, map (Map.findWithDefault __IMPOSSIBLE__ x) [m1,m2])
 				-- cpp doesn't know about primes
 
 -- | Get the fixities from the current block. Doesn't go inside /any/ blocks.
