@@ -60,6 +60,19 @@ instance HasRange ExprInfo where
 
 
 {--------------------------------------------------------------------------
+    Definition information (declarations that actually defines somethis)
+ --------------------------------------------------------------------------}
+
+data DefInfo =
+	DefInfo	{ defFixity :: Fixity
+		, defAccess :: Access
+		, defInfo   :: DeclInfo
+		}
+
+instance HasRange DefInfo where
+    getRange = getRange . defInfo
+
+{--------------------------------------------------------------------------
     General declaration information
  --------------------------------------------------------------------------}
 
@@ -70,4 +83,26 @@ data DeclInfo
 instance HasRange DeclInfo where
     getRange (DeclRange  r)  = r
     getRange (DeclSource ds) = getRange ds
+
+
+{--------------------------------------------------------------------------
+    Left hand side information
+ --------------------------------------------------------------------------}
+
+data LHSInfo = LHSSource LHS
+
+instance HasRange LHSInfo where
+    getRange (LHSSource lhs) = getRange lhs
+
+
+{--------------------------------------------------------------------------
+    Pattern information
+ --------------------------------------------------------------------------}
+
+data PatInfo = PatRange Range
+	     | PatSource Pattern
+
+instance HasRange PatInfo where
+    getRange (PatRange r)  = r
+    getRange (PatSource p) = getRange p
 

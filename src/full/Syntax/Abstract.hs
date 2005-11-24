@@ -8,6 +8,7 @@ module Syntax.Abstract
 
 import Syntax.Info
 import Syntax.Common
+import Syntax.Position
 
 data Expr
         = Var  NameInfo  Name		    -- ^ Bound variables
@@ -27,14 +28,14 @@ data Expr
 -- | what is Info used for (above and below)? which invariants apply?
 
 data Declaration
-	= Axiom     DeclInfo Fixity Access Name Expr
-	| FunDef    DeclInfo Fixity Access Name (Maybe Expr) [Clause]
-	| DataDecl  DeclInfo Fixity Access Name Telescope Expr [Declaration]
+	= Axiom     DefInfo Name Expr
+	| FunDef    DefInfo Name (Maybe Expr) [Clause]
+	| DataDecl  DefInfo Name Telescope Expr [Declaration]
 	    -- ^ only axioms
 	| Abstract  DeclInfo [Declaration]
 	| Mutual    DeclInfo [Declaration]
-	| Module    DeclInfo Access QName Telescope [Declaration]
-	| NameSpace DeclInfo Name Expr
+	| Module    DefInfo QName Telescope [Declaration]
+	| ModuleDef DefInfo Name Expr
 	| Import    DeclInfo QName
 
 -- | A lambda binding is either domain free or typed.
@@ -49,20 +50,72 @@ data LamBinding
 --   several times (@(x,y:A)@ vs. @(x:A)(y:A)@). In most cases this wouldn't
 --   really be a problem, but it's good principle to not do extra work unless
 --   you have to.
-data TypedBinding = TypedBinding Info Hiding [Name] Expr
+data TypedBinding = TypedBinding Range Hiding [Name] Expr
 	    -- ^ . @(xs:e)@ or @{xs:e}@
 
 type Telescope	= [TypedBinding]
 
-data Clause	= Clause Info LHS RHS [Declaration]
+-- | We could throw away @where@ clauses at this point and translate them to
+--   @let@. It's not obvious how to remember that the @let@ was really a
+--   @where@ clause though, so for the time being we keep it here.
+data Clause	= Clause LHS RHS [Declaration]
 type RHS	= Expr
 
-data LHS	= LHS Info Name [Argument]
+data LHS	= LHS LHSInfo Name [Argument]
 data Argument	= Argument Hiding Pattern
-data Pattern	= VarP Name
-		| ConP Info QName [Argument]
-		| WildP Info
+data Pattern	= VarP Name	-- ^ the only thing we need to know about a
+				-- pattern variable is its 'Range'. This is
+				-- stored in the 'Name', so we don't need a
+				-- 'NameInfo' here.
+		| ConP PatInfo QName [Argument]
+		| WildP PatInfo
 
 -- | why has Var in Expr above a NameInfo but VarP no Info?
 -- | why has Con in Expr above a NameInfo but ConP an Info?
 -- | why Underscore above and WildP here? (UnderscoreP better?)
+
+
+{--------------------------------------------------------------------------
+    Instances
+ --------------------------------------------------------------------------}
+
+instance HasRange LamBinding where
+    getRange (DomainFree _ x) = getRange x
+    getRange (DomainFull b)   = getRange b
+
+instance HasRange TypedBinding where
+    getRange (TypedBinding r _ _ _) = r
+
+instance HasRange Expr where
+    getRange (Var i _)		= getRange i
+    getRange (Def i _)		= getRange i
+    getRange (Con i _)		= getRange i
+    getRange (Data i _)		= getRange i
+    getRange (Lit l)		= getRange l
+    getRange (QuestionMark i)	= getRange i
+    getRange (Underscore  i)	= getRange i
+    getRange (App i _ _ _)	= getRange i
+    getRange (Lam i _ _)	= getRange i
+    getRange (Pi i _ _)		= getRange i
+    getRange (Set i _)		= getRange i
+    getRange (Prop i)		= getRange i
+    getRange (Let i _ _)	= getRange i
+
+instance HasRange Declaration where
+    getRange (Axiom     i _ _	  ) = getRange i
+    getRange (FunDef    i _ _ _	  ) = getRange i
+    getRange (DataDecl  i _ _ _ _ ) = getRange i
+    getRange (Abstract  i _	  ) = getRange i
+    getRange (Mutual    i _	  ) = getRange i
+    getRange (Module    i _ _ _	  ) = getRange i
+    getRange (ModuleDef i _ _	  ) = getRange i
+    getRange (Import    i _	  ) = getRange i
+
+instance HasRange Pattern where
+    getRange (VarP x)	    = getRange x
+    getRange (ConP i _ _)   = getRange i
+    getRange (WildP i)	    = getRange i
+
+instance HasRange LHS where
+    getRange (LHS i _ _)    = getRange i
+
