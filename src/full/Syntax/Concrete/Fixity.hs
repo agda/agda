@@ -17,22 +17,41 @@ import Syntax.Position
 data InfixException = BadInfixApp Range (QName, Fixity) (QName, Fixity)
     deriving (Typeable)
 
+data InfixView e = IVParen e
+		 | IVApp e QName e
+		 | IVOther e
+
+infixView :: Expr -> InfixView Expr
+infixView (Paren _ e)	      = IVParen e
+infixView (InfixApp e1 op e2) = IVApp e1 op e2
+infixView e		      = IVOther e
+
+infixViewP :: Pattern -> InfixView Pattern
+infixViewP (ParenP _ p)	      = IVParen p
+infixViewP (InfixAppP p op q) = IVApp p op q
+infixViewP p		      = IVOther p
+
 {-| Makes sure that the top-level constructor of the expression is the correct
     one. Never returns a 'Paren' and if it returns an 'InfixApp' the operator
     is the right one. Note that it only ever rotates the top-level of the
     expression, sub-expressions are not rotated. The function is parameterised
     over how to get the fixity of a name. Throws an 'InfixException' if the
-    correct bracketing cannot be deduced.
+    correct bracketing cannot be deduced. It is parameterised over the type of
+    expressions and how to get the fixity of a name.
 -}
-rotateInfixApp :: (QName -> Fixity) -> Expr -> Expr
-rotateInfixApp fixity e =
-    case e of
-	Paren _ e'  -> rotateInfixApp fixity e'
-	InfixApp e1@(InfixApp _ _ _) op e2 ->
-	    case rotateInfixApp fixity e1 of
-		InfixApp e1a op' e1b
+rotateInfixApp' :: HasRange expr => 
+		   (expr -> InfixView expr) ->		-- ^ how to analyse an @expr@
+		   (expr -> QName -> expr -> expr) ->	-- ^ how to build an infix application in @expr@
+		   (QName -> Fixity) ->			-- ^ how to get the fixity of a name
+		   expr -> expr
+rotateInfixApp' view infixApp fixity e =
+    case view e of
+	IVParen e'     -> rotateInfixApp' view infixApp fixity e'
+	IVApp e1 op e2 ->
+	    case view $ rotateInfixApp' view infixApp fixity e1 of
+		IVApp e1a op' e1b
 		    | fixity op' `lowerThan` fixity op
-			-> InfixApp e1a op' (InfixApp e1b op e2)
+			-> infixApp e1a op' (infixApp e1b op e2)
 		    where
 			lowerThan (LeftAssoc _ p1) (LeftAssoc _ p2)	= p1 < p2
 			lowerThan (RightAssoc _ p1) (RightAssoc _ p2)	= p1 <= p2
@@ -47,5 +66,13 @@ rotateInfixApp fixity e =
 			prec (NonAssoc _ p)	= p
 
 		_   -> e
-	_   -> e
+	IVOther e   -> e
+
+-- | Instantiation of 'rotateInfixApp'' to 'Expr'.
+rotateInfixApp :: (QName -> Fixity) -> Expr -> Expr
+rotateInfixApp f = rotateInfixApp' infixView InfixApp f
+
+-- | Instantiation of 'rotateInfixApp'' to 'Pattern'.
+rotateInfixAppP :: (QName -> Fixity) -> Pattern -> Pattern
+rotateInfixAppP f = rotateInfixApp' infixViewP InfixAppP f
 
