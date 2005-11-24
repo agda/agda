@@ -235,7 +235,26 @@ instance BindToAbstract NiceDeclaration A.Declaration where
 	    ret $ A.Mutual (DeclRange r) ds'
 
     bindToAbstract (NiceModule r a x tel ds) ret =
-	undefined
+	do  (tel',ds',ns) <-
+		insideModule x $
+		bindToAbstract (tel,ds) $ \ (tel',ds') ->
+		    do	ns <- currentNameSpace
+			return (tel',ds',ns)
+	    let m = ModuleInfo { moduleArity	= length tel
+			       , moduleAccess	= a
+			       , moduleContents = ns
+			       }
+	    case x of
+		QName x	-> defineModule x m $
+			   ret $ A.Module info (QName x) tel' ds'
+		_	-> ret $ A.Module info x tel' ds'
+				-- We don't 'define' the top-level module since
+				-- nothing follows it.
+	where
+	    info = DefInfo { defAccess = a
+			   , defFixity = defaultFixity
+			   , defInfo   = DeclRange r
+			   }
 
     bindToAbstract (NiceModuleMacro r a x tel e is) ret =
 	undefined

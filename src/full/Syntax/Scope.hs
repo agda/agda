@@ -343,6 +343,12 @@ makeFreshCanonicalNames ns =
 				    { moduleName = qualify m x }
 	       }
 
+emptyNameSpace :: QName -> NameSpace
+emptyNameSpace x = NSpace { moduleName	 = x
+			  , definedNames = Map.empty
+			  , modules	 = Map.empty
+			  }
+
 ---------------------------------------------------------------------------
 -- * Updating the scope
 ---------------------------------------------------------------------------
@@ -370,6 +376,12 @@ bindVar, shadowVar :: Name -> ScopeInfo -> ScopeInfo
 bindVar x si	= si { localVariables = Map.insert x x (localVariables si) }
 shadowVar x si	= si { localVariables = Map.delete x (localVariables si) }
 
+emptyScopeInfo :: QName -> ScopeInfo
+emptyScopeInfo x = ScopeInfo { publicNameSpace	    = emptyNameSpace x
+			     , privateNameSpace	    = emptyNameSpace x
+			     , localVariables	    = Map.empty
+			     , contextPrecedence    = NonAssoc noRange 0
+			     }
 
 ---------------------------------------------------------------------------
 -- * Resolving names
@@ -593,9 +605,29 @@ getFixityFunction =
 		DefName d   -> fixity d
 		_	    -> notInScope x
 
+-- | Get the current (public) name space.
+currentNameSpace :: ScopeM NameSpace
+currentNameSpace = publicNameSpace <$> getScopeInfo
+
 ---------------------------------------------------------------------------
 -- * Top-level functions
 ---------------------------------------------------------------------------
+
+-- | Work inside a module. This means moving everything in the
+--   'publicNameSpace' to the 'privateNameSpace' and updating the names of
+--   the both name spaces.
+insideModule :: QName -> ScopeM a -> ScopeM a
+insideModule qx@(Qual _ _)  = local $ const (emptyScopeInfo qx)
+    -- if the module is qualified it's a top level module so we start a fresh scope.
+insideModule (QName x) = local upd
+    where
+	upd si = si { publicNameSpace = emptyNameSpace qx
+		    , privateNameSpace = plusNameSpace pri pub
+		    }
+	    where
+		pub = publicNameSpace si
+		pri = (privateNameSpace si) { moduleName = qx }
+		qx  = qualify (moduleName pub) x
 
 -- | Add a defined name to the current scope.
 defineName :: Access -> KindOfName -> Fixity -> Name -> ScopeM a -> ScopeM a
