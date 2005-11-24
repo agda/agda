@@ -6,35 +6,36 @@
 module Syntax.Abstract
     where
 
-import Syntax.Explanation
+import Syntax.Info
 import Syntax.Common
 
 data Expr
-        = Var  NameExpl  Name         -- ^ Bound variables
-        | Def  NameExpl QName         -- ^ Defined constants
-        | Con  NameExpl QName         -- ^ Constructors
-        | Data NameExpl QName         -- ^ Names of datatypes
-        | QuestionMark Expl           -- ^ meta variable for interaction
-        | Underscore   Expl           -- ^ meta variable for hidden argument (must be inferred locally)
-        | App  Expl Hiding Expr Expr  -- ^ Hiding says if this is an hidden application (@s {t}@) or a normal application (@s t@).
-        | Lam  Expl LamBinding Expr   -- ^ 
-        | Pi   Expl TypedBinding Expr -- ^ 
-        | Set  Expl Nat               -- ^ 
-        | Prop Expl                   -- ^ 
-        | Let  Expl [Declaration] Expr-- ^ 
+        = Var  NameInfo  Name         -- ^ Bound variables
+        | Def  NameInfo QName         -- ^ Defined constants
+        | Con  NameInfo QName         -- ^ Constructors
+        | Data NameInfo QName         -- ^ Names of datatypes
+	| Lit Literal		      -- ^ Literals
+        | QuestionMark Info           -- ^ meta variable for interaction
+        | Underscore   Info           -- ^ meta variable for hidden argument (must be inferred locally)
+        | App  Info Hiding Expr Expr  -- ^ Hiding says if this is an hidden application (@s {t}@) or a normal application (@s t@).
+        | Lam  Info LamBinding Expr   -- ^ 
+        | Pi   Info TypedBinding Expr -- ^ 
+        | Set  Info Nat               -- ^ 
+        | Prop Info                   -- ^ 
+        | Let  Info [Declaration] Expr-- ^ 
 
--- | what is Expl used for (above and below)? which invariants apply?
+-- | what is Info used for (above and below)? which invariants apply?
 
 data Declaration
-	= Axiom     Expl Fixity Access Name Expr
-	| FunDef    Expl Fixity Access Name (Maybe Expr) [Clause]
-	| DataDecl  Expl Fixity Access Name Telescope Expr [Declaration]
+	= Axiom     Info Fixity Access Name Expr
+	| FunDef    Info Fixity Access Name (Maybe Expr) [Clause]
+	| DataDecl  Info Fixity Access Name Telescope Expr [Declaration]
 	    -- ^ only axioms
-	| Abstract  Expl [Declaration]
-	| Mutual    Expl [Declaration]
-	| Module    Expl Access QName Telescope [Declaration]
-	| NameSpace Expl Name Expr
-	| Import    Expl QName
+	| Abstract  Info [Declaration]
+	| Mutual    Info [Declaration]
+	| Module    Info Access QName Telescope [Declaration]
+	| NameSpace Info Name Expr
+	| Import    Info QName
 
 -- | A lambda binding is either domain free or typed.
 data LamBinding
@@ -43,21 +44,25 @@ data LamBinding
 
 
 -- | A typed binding. Appears in dependent function spaces, typed lambdas, and
---   telescopes.
-data TypedBinding = TypedBinding Expl Hiding [Name] Expr
+--   telescopes. I might be tempting to simplify this to only bind a single
+--   name at a time. This would mean that we would have to typecheck the type
+--   several times (@(x,y:A)@ vs. @(x:A)(y:A)@). In most cases this wouldn't
+--   really be a problem, but it's good principle to not do extra work unless
+--   you have to.
+data TypedBinding = TypedBinding Info Hiding [Name] Expr
 	    -- ^ . @(xs:e)@ or @{xs:e}@
 
 type Telescope	= [TypedBinding]
 
-data Clause	= Clause Expl LHS RHS [Declaration]
+data Clause	= Clause Info LHS RHS [Declaration]
 type RHS	= Expr
 
-data LHS	= LHS Expl Name [Argument]
+data LHS	= LHS Info Name [Argument]
 data Argument	= Argument Hiding Pattern
 data Pattern	= VarP Name
-		| ConP Expl QName [Argument]
-		| WildP Expl
+		| ConP Info QName [Argument]
+		| WildP Info
 
--- | why has Var in Expr above a NameExpl but VarP no Expl?
--- | why has Con in Expr above a NameExpl but ConP an Expl?
+-- | why has Var in Expr above a NameInfo but VarP no Info?
+-- | why has Con in Expr above a NameInfo but ConP an Info?
 -- | why Underscore above and WildP here? (UnderscoreP better?)

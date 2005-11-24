@@ -9,7 +9,7 @@ import Syntax.Concrete as C
 import Syntax.Abstract as A
 import Syntax.Position
 import Syntax.Common
-import Syntax.Explanation
+import Syntax.Info
 --import Syntax.Interface
 --import Syntax.Concrete.Definitions
 --import Syntax.Concrete.Fixity
@@ -23,7 +23,7 @@ instance ToAbstract C.Expr A.Expr where
 	do  qx <- resolveName x
 	    return $
 		case qx of
-		    VarName x'  -> Var (NameExpl
+		    VarName x'  -> Var (NameInfo
 					{ bindingSite	= getRange x'
 					, concreteName	= x
 					, nameFixity	= defaultFixity
@@ -32,9 +32,15 @@ instance ToAbstract C.Expr A.Expr where
 				       ) x'
 		    DefName d   ->
 			case kindOfName d of
-			    FunName  -> undefined
-			    ConName  -> undefined
-			    DataName -> undefined
+			    FunName  -> Def info $ theName d
+			    ConName  -> Con info $ theName d
+			    DataName -> A.Data info $ theName d
+			where
+			    info = NameInfo { bindingSite   = getRange d
+					    , concreteName  = x
+					    , nameFixity    = fixity d
+					    , nameAccess    = access d
+					    }
 		    UnknownName	-> notInScope x
     toAbstract _    = undefined
 

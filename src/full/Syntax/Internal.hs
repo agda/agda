@@ -28,7 +28,7 @@ import Control.Monad.Writer
 import Control.Monad.Error
 
 import Syntax.Common
-import Syntax.Explanation
+import Syntax.Info
 import Syntax.Position
 
 -- | Raw values.
@@ -38,13 +38,13 @@ import Syntax.Position
 --     every constant, even if the definition is an empty
 --     list of clauses.
 --
---   **PJ: why is Expl last here and first in Abstract.hs
-data Value = Var Nat                Expl
-	   | App Value Value Hiding Expl
-	   | Lam (Abs Value)        Expl
-	   | Lit Literal            Expl
-	   | Def QName              Expl 
-	   | MetaV MId              Expl
+--   **PJ: why is Info last here and first in Abstract.hs
+data Value = Var Nat                Info
+	   | App Value Value Hiding Info
+	   | Lam (Abs Value)        Info
+	   | Lit Literal            Info
+	   | Def QName              Info 
+	   | MetaV MId              Info
   deriving (Typeable, Data, Show)
 
 -- | this instance declaration is used in flex-flex unifier case
@@ -64,11 +64,11 @@ addArgs args = mkT addTrm `extT` addTyp where
     addTyp a = case basicType a of
         MetaTBT x args' -> metaT (args'++args) x
 
-data Type = El Value Sort      Expl
-	  | Pi Type (Abs Type) Expl
-	  | Sort Sort          Expl
-	  | MetaT MId [Value]  Expl -- ^ list of dependencies for metavars
-          | LamT (Abs Type)    Expl -- ^ abstraction needed for metavar dependency management
+data Type = El Value Sort      Info
+	  | Pi Type (Abs Type) Info
+	  | Sort Sort          Info
+	  | MetaT MId [Value]  Info -- ^ list of dependencies for metavars
+          | LamT (Abs Type)    Info -- ^ abstraction needed for metavar dependency management
   deriving (Typeable, Data, Show)
 
 pi a b = Pi a b              Duh
@@ -78,10 +78,10 @@ set n  = Sort (Type n Duh)   Duh
 sort s = Sort s              Duh
 metaT deps x = MetaT x deps  Duh
 
-data Sort = Type Nat Expl
-	  | Prop Expl
-	  | MetaS MId Expl 
-	  | Lub Sort Sort Expl
+data Sort = Type Nat Info
+	  | Prop Info
+	  | MetaS MId Info 
+	  | Lub Sort Sort Info
   deriving (Typeable, Data, Show)
 
 prop    = Prop Duh
@@ -329,7 +329,7 @@ wakeup cId = do
 --
 type MId = Int
 
-data MetaInfo = InstV Value
+data MetaVariable = InstV Value
 	      | InstT Type
               | InstS Sort
 	      | UnderScoreV Type [ConstraintId]
@@ -339,7 +339,7 @@ data MetaInfo = InstV Value
 	      | HoleT       Sort [ConstraintId]
   deriving Show
 
-type Store = [(MId, MetaInfo)]
+type Store = [(MId, MetaVariable)]
 
 getCIds (UnderScoreV _ cIds) = cIds
 getCIds (UnderScoreT _ cIds) = cIds
@@ -347,7 +347,7 @@ getCIds (UnderScoreS   cIds) = cIds
 getCIds (HoleV       _ cIds) = cIds
 getCIds (HoleT       _ cIds) = cIds
 
-setRef :: Data a => a -> MId -> MetaInfo -> TCM ()
+setRef :: Data a => a -> MId -> MetaVariable -> TCM ()
 setRef _ x v = do
     store <- gets metaSt
     let (cIds, store') = replace [] store
@@ -358,9 +358,9 @@ setRef _ x v = do
         else replace (passed++[(y,var)]) mIds
 
 -- | Generate new meta variable.
---   The @MetaInfo@ arg is meant to be either @UnderScore@X or @Hole@X.
+--   The @MetaVariable@ arg is meant to be either @UnderScore@X or @Hole@X.
 --
-newMeta :: (MId -> a) -> MetaInfo -> TCM a
+newMeta :: (MId -> a) -> MetaVariable -> TCM a
 newMeta meta initialVal = do
     x <- genSym
     modify (\st -> st{metaSt = (x, initialVal):(metaSt st)})
@@ -368,7 +368,7 @@ newMeta meta initialVal = do
 
 -- | Used to give an initial value to newMeta.  
 --
-getMeta :: MId -> TCM (MetaInfo)
+getMeta :: MId -> TCM (MetaVariable)
 getMeta x = do
     store <- gets metaSt
     deps <- allCtxVars -- !!! ok for generated type metavars below?
@@ -673,7 +673,7 @@ occ y okVars v = go v where
 --
 assign :: MId -> [Value] -> GenericQ (TCM ())
 assign x args = mkQ (fail "assign") (ass InstV) `extQ` (ass InstT) where
-    ass :: Data a => (a -> MetaInfo) -> a -> TCM ()
+    ass :: Data a => (a -> MetaVariable) -> a -> TCM ()
     ass inst v = do
         ids <- checkArgs x args
         v' <- occ x ids v    
@@ -683,7 +683,7 @@ assign x args = mkQ (fail "assign") (ass InstV) `extQ` (ass InstT) where
 -- | Equality of two instances of the same metavar
 --
 equalSameVar :: Data a => 
-                (MId -> a) -> (a -> MetaInfo) -> MId -> [Value] -> [Value] -> TCM ()
+                (MId -> a) -> (a -> MetaVariable) -> MId -> [Value] -> [Value] -> TCM ()
 equalSameVar meta inst x args1 args2 =
     if length args1 == length args2 then do
         -- next 2 checks could probably be nicely merged into construction 
