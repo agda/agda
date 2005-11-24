@@ -145,6 +145,7 @@ import Data.Typeable
 import Data.Map as Map
 import Data.List as List
 
+import Syntax.Position
 import Syntax.Common
 import Syntax.Concrete
 import qualified Syntax.Interface as I
@@ -251,6 +252,14 @@ data ScopeInfo = ScopeInfo
 -- | We need to go away and read interface files when scope checking an import
 --   statement, so the scope monad must be an @IO@.
 type ScopeM = ReaderT ScopeInfo IO
+
+
+{--------------------------------------------------------------------------
+    Instances
+ --------------------------------------------------------------------------}
+
+instance HasRange DefinedName where
+    getRange = getRange . theName
 
 {--------------------------------------------------------------------------
     Exceptions
