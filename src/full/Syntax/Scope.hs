@@ -567,6 +567,10 @@ interfaceToModule i =
 -- * Top-level functions
 ---------------------------------------------------------------------------
 
+-- | Get the current 'ScopeInfo'.
+getScopeInfo :: ScopeM ScopeInfo
+getScopeInfo = ask
+
 -- | Add a defined name to the current scope.
 defineName :: Access -> KindOfName -> Fixity -> Name -> ScopeM a -> ScopeM a
 defineName a k f x cont =
