@@ -475,7 +475,16 @@ invalidImportDirective ns i =
 	names (Using xs)    = xs
 	names (Hiding xs)   = xs
 
--- | Figure out how an import directive affects a name.
+{-| Figure out how an import directive affects a name.
+
+  - @applyDirective d x == Just y@, if @d@ contains a renaming @x to y@.
+
+  - else @applyDirective d x == Just x@, if @d@ doesn't mention @x@ in a hiding clause and
+    if @d@ has a @using@ clause, it mentions @x@.
+
+  - @applyDirective d x == Nothing@, otherwise.
+
+-}
 applyDirective :: ImportDirective -> ImportedName -> Maybe Name
 applyDirective i x
     | Just x' <- renamed x  = Just x'
@@ -488,7 +497,13 @@ applyDirective i x
 		Hiding xs   -> elem x xs
 		Using xs    -> notElem x xs
 
--- | Compute the imported names from a module. Preserves canonical names.
+-- | Compute the imported names from a module. When importing canonical names doesn't
+--   change. For instance, if the module @A@ contains a function @f@ and we say
+--
+--   > import A as B, renaming (f to g)
+--
+--   the canonical form of @B.g@ is @A.f@. Compare this to implicit module definitions
+--   which creates new canonical names.
 importedNames :: ModuleInfo -> ImportDirective -> NameSpace
 importedNames m i =
     case invalidImportDirective ns i of
@@ -505,7 +520,9 @@ importedNames m i =
 		     , Just x' <- [applyDirective i $ ImportedModule x]
 		     ]
 
--- | Turn an interface to a module info structure.
+-- | Turn an interface to a module info structure. The main difference between
+--   module interfaces and the module info structure is that submodules aren't
+--   fully qualified in interface files.
 interfaceToModule :: I.Interface -> ModuleInfo
 interfaceToModule i =
     ModuleInfo	{ moduleAccess	    = PublicAccess

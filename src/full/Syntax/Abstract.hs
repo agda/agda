@@ -10,13 +10,13 @@ import Syntax.Explanation
 import Syntax.Common
 
 data Expr
-        = Var  NameExpl  Name         -- ^ Variables
-        | Def  NameExpl QName         -- ^ Defined name (~=bound variable)
+        = Var  NameExpl  Name         -- ^ Bound variables
+        | Def  NameExpl QName         -- ^ Defined constants
         | Con  NameExpl QName         -- ^ Constructors
-        | Data NameExpl QName         -- ^ Defined name repr. a datatype(?)
+        | Data NameExpl QName         -- ^ Names of datatypes
         | QuestionMark Expl           -- ^ meta variable for interaction
         | Underscore   Expl           -- ^ meta variable for hidden argument (must be inferred locally)
-        | App  Expl Hiding Expr Expr  -- ^ Hiding tells if the argument (second Expr) should be hidden
+        | App  Expl Hiding Expr Expr  -- ^ Hiding says if this is an hidden application (@s {t}@) or a normal application (@s t@).
         | Lam  Expl LamBinding Expr   -- ^ 
         | Pi   Expl TypedBinding Expr -- ^ 
         | Set  Expl Nat               -- ^ 
