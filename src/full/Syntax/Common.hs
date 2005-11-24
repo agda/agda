@@ -4,7 +4,7 @@
 -}
 module Syntax.Common where
 
-import Data.Generics hiding (Fixity)
+import Data.Generics hiding (Fixity, GT)
 
 import Syntax.Position
 
@@ -23,11 +23,12 @@ data Access = PrivateAccess | PublicAccess
 -- | Equality and ordering on @Name@ are defined to ignore range so same names
 --   in different locations are equal.
 data Name = Name Range String
+	  | NoName Range	-- ^ instead of @Name r \"_\"@
     deriving (Typeable, Data)
 
--- | @noName = 'Name' 'noRange' \"_\"@
+-- | @noName = 'NoName' 'noRange'@
 noName :: Name
-noName = Name noRange "_"
+noName = NoName noRange
 
 -- | @qualify "A.B" "x" == "A.B.x"@
 qualify :: QName -> Name -> QName
@@ -39,11 +40,20 @@ qualify (Qual m m') x	= Qual m $ qualify m' x
 --
 --   Is there a reason not to do this? -Jeff
 --
+--   No. But there are tons of reasons to do it. For instance, when using
+--   names as keys in maps you really don't want to have to get the range
+--   right to be able to do a lookup. -Ulf
+
 instance Eq Name where
     (Name _ x) == (Name _ y) = x == y
+    (NoName _) == (NoName _) = True	-- we really shouldn't compare NoNames...
+    _ == _  = False
 
 instance Ord Name where
     compare (Name _ x) (Name _ y) = compare x y
+    compare (NoName _) (Name _ _) = LT
+    compare (Name _ _) (NoName _) = GT
+    compare (NoName _) (NoName _) = EQ
 
 
 -- | @QName@ is a list of namespaces and the name of the constant.
@@ -60,6 +70,7 @@ data QName = Qual  Name QName
 
 instance Show Name where
     show (Name _ x) = x
+    show (NoName _) = "_"
 
 instance Show QName where
     show (Qual m x) = show m ++ "." ++ show x
@@ -89,6 +100,7 @@ defaultFixity = LeftAssoc noRange 20
 
 instance HasRange Name where
     getRange (Name r _)	= r
+    getRange (NoName r)	= r
 
 instance HasRange QName where
     getRange (QName  x) = getRange x
