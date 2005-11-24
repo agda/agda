@@ -79,11 +79,7 @@ import Syntax.Position
 {-| The nice declarations. No fixity declarations and function definitions are
     contained in a single constructor instead of spread out between type
     signatures and clauses. The @private@ and @postulate@ modifiers have been
-    distributed to the individual declarations. The type information obtained
-    from using an (fake) inductive family for the concrete declarations is
-    discarded here. The motivation is that it's easier to maintain correctness
-    than to establish it and so the extra work of having an inductive family
-    would not pay off here.
+    distributed to the individual declarations.
 -}
 data NiceDeclaration
 	= Axiom Range Fixity Access Name Expr
@@ -93,7 +89,8 @@ data NiceDeclaration
 	| NiceMutual Range [NiceDeclaration]
 	| NiceModule Range Access QName Telescope [TopLevelDeclaration]
 	| NiceModuleMacro Range Access Name Telescope Expr ImportDirective
-	| Other Declaration
+	| NiceOpen Range QName ImportDirective
+	| NiceImport Range QName (Maybe Name) ImportDirective
 
 
 -- | One clause in a function definition.
@@ -192,7 +189,9 @@ niceDeclarations ds = nice (fixities ds) ds
 			    ModuleMacro r x tel e is ->
 				[ NiceModuleMacro r PublicAccess x tel e is ]
 
-			    Infix _ _   -> []
+			    Infix _ _		-> []
+			    Open r x is		-> [NiceOpen r x is]
+			    Import r x as is	-> [NiceImport r x as is]
 
 			    _			-> __IMPOSSIBLE__
 				-- FunClause and TypeSig have been taken care of
