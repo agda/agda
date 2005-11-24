@@ -197,6 +197,7 @@ data DefinedName =
     color different kinds of names in pretty colors.
 -}
 data KindOfName = FunName | ConName | DataName
+    deriving (Eq)
 
 -- | In addition to the names a module contains (which are stored in the
 --   'NameSpace') we need to keep track of the arity of a module and whether
@@ -377,14 +378,13 @@ shadowVar x si	= si { localVariables = Map.delete x (localVariables si) }
 -- | Resolve a qualified name. Peals off name spaces until it gets
 --   to an unqualified name and then applies the first argument.
 resolve :: (LocalVariables -> NameSpace -> Name -> a) ->
-	   QName -> ScopeM a
-resolve f x =
-    do	si <- ask
-	let vs	= localVariables si
-	    ns	= publicNameSpace si
-	    ns'	= privateNameSpace si
-	return $ res x vs (ns `plusNameSpace` ns')
+	   QName -> ScopeInfo -> a
+resolve f x si = res x vs (ns `plusNameSpace` ns')
     where
+	vs  = localVariables si
+	ns  = publicNameSpace si
+	ns' = privateNameSpace si
+
 	res (QName x) vs ns = f vs ns x
 	res (Qual m x) vs ns =
 	    case Map.lookup m $ modules ns of
@@ -393,7 +393,7 @@ resolve f x =
 		Just _			    -> uninstantiatedModule (QName m)
 
 -- | Figure out what a qualified name refers to.
-resolveName :: QName -> ScopeM ResolvedName
+resolveName :: QName -> ScopeInfo -> ResolvedName
 resolveName = resolve r
     where
 	r vs ns x =
@@ -402,9 +402,13 @@ resolveName = resolve r
 	    , DefName <$> Map.lookup x (definedNames ns)
 	    ]
 
+-- | Monadic version of 'resolveName'.
+resolveNameM :: QName -> ScopeM ResolvedName
+resolveNameM x = resolveName x <$> getScopeInfo
+
 -- | In a pattern there are only two possibilities: either it's a constructor
 --   or it's a variable. It's never undefined or a defined name.
-resolvePatternName :: QName -> ScopeM ResolvedName
+resolvePatternName :: QName -> ScopeInfo -> ResolvedName
 resolvePatternName = resolve r
     where
 	r vs ns x =
@@ -412,8 +416,12 @@ resolvePatternName = resolve r
 		Just c@(DefinedName _ ConName _ _)  -> DefName c
 		_				    -> VarName x
 
+-- | Monadic version of 'resolvePatternName'.
+resolvePatternNameM :: QName -> ScopeM ResolvedName
+resolvePatternNameM x = resolvePatternName x <$> getScopeInfo
+
 -- | Figure out what module a qualified name refers to.
-resolveModule :: QName -> ScopeM ResolvedModule
+resolveModule :: QName -> ScopeInfo -> ResolvedModule
 resolveModule = resolve r
     where
 	r _ ns x = fromMaybe UnknownModule $
@@ -427,8 +435,8 @@ resolveModule = resolve r
 -- | Make sure that a module hasn't been defined.
 noModuleClash :: QName -> ScopeM ()
 noModuleClash x =
-    do	qx <- resolveModule x
-	case qx of
+    do	si <- getScopeInfo
+	case resolveModule x si of
 	    UnknownModule   -> return ()
 	    ModuleName m    -> clashingModule x $ moduleName $ moduleContents m
 
@@ -436,8 +444,8 @@ noModuleClash x =
 --   doesn't exist.
 getModule :: QName -> ScopeM ModuleInfo
 getModule x =
-    do	qx <- resolveModule x
-	case qx of
+    do	si <- getScopeInfo
+	case resolveModule x si of
 	    UnknownModule   -> noSuchModule x
 	    ModuleName m    -> return m
 
@@ -563,19 +571,37 @@ interfaceToModule i =
 			QName x = I.moduleName i'
 			qx = qualify name x
 
+
 ---------------------------------------------------------------------------
--- * Top-level functions
+-- * Utility functions
 ---------------------------------------------------------------------------
 
 -- | Get the current 'ScopeInfo'.
 getScopeInfo :: ScopeM ScopeInfo
 getScopeInfo = ask
 
+
+-- | Get a function that returns the fixity of a name.
+getFixityFunction :: ScopeM (QName -> Fixity)
+getFixityFunction =
+    do	scope <- getScopeInfo
+	return (f scope)
+    where
+	f scope x =
+	    case resolveName x scope of
+		VarName _   -> defaultFixity
+		DefName d   -> fixity d
+		_	    -> notInScope x
+
+---------------------------------------------------------------------------
+-- * Top-level functions
+---------------------------------------------------------------------------
+
 -- | Add a defined name to the current scope.
 defineName :: Access -> KindOfName -> Fixity -> Name -> ScopeM a -> ScopeM a
 defineName a k f x cont =
-    do	qx <- resolveName (QName x)
-	case qx of
+    do	si <- getScopeInfo
+	case resolveName (QName x) si of
 	    UnknownName	-> local (defName a k f x) cont
 	    VarName _	-> local (defName a k f x . shadowVar x) cont
 	    DefName y   -> clashingDefinition x (theName y)
@@ -587,6 +613,10 @@ defineName a k f x cont =
 -}
 bindVariable :: Name -> ScopeM a -> ScopeM a
 bindVariable x = local (bindVar x)
+
+-- | Bind multiple variables.
+bindVariables :: [Name] -> ScopeM a -> ScopeM a
+bindVariables = foldr (.) id . List.map bindVariable
 
 -- | Defining a module. For explicit modules this should be done after scope
 --   checking the module.
