@@ -851,6 +851,7 @@ exprToLHS e =
 						<*> exprToPattern e2
 		Paren r e		-> ParenP r
 						<$> exprToPattern e
+		Underscore r		-> return $ WildP r
 		_			-> parseError "Parse error in pattern"
 
 }

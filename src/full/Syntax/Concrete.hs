@@ -72,6 +72,7 @@ data Pattern
 	| AppP Hiding Pattern Pattern
 	| InfixAppP Pattern QName Pattern
 	| ParenP Range Pattern
+	| WildP Range
     deriving (Typeable, Data, Eq)
 
 
@@ -240,4 +241,11 @@ instance HasRange ImportDirective where
 instance HasRange ImportedName where
     getRange (ImportedName x)	= getRange x
     getRange (ImportedModule x)	= getRange x
+
+instance HasRange Pattern where
+    getRange (IdentP x)		= getRange x
+    getRange (AppP _ p q)	= fuseRange p q
+    getRange (InfixAppP p _ q)	= fuseRange p q
+    getRange (ParenP r _)	= r
+    getRange (WildP r)		= r
 

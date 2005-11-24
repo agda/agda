@@ -184,6 +184,7 @@ instance Pretty Pattern where
 				       , prettyOp op <+> pretty p2
 				       ]
 	    ParenP _ p		-> parens $ pretty p
+	    WildP _		-> text "_"
 
 instance Pretty ImportDirective where
     pretty i =
