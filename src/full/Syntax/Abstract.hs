@@ -10,32 +10,32 @@ import Syntax.Info
 import Syntax.Common
 
 data Expr
-        = Var  NameInfo  Name         -- ^ Bound variables
-        | Def  NameInfo QName         -- ^ Defined constants
-        | Con  NameInfo QName         -- ^ Constructors
-        | Data NameInfo QName         -- ^ Names of datatypes
-	| Lit Literal		      -- ^ Literals
-        | QuestionMark Info           -- ^ meta variable for interaction
-        | Underscore   Info           -- ^ meta variable for hidden argument (must be inferred locally)
-        | App  Info Hiding Expr Expr  -- ^ Hiding says if this is an hidden application (@s {t}@) or a normal application (@s t@).
-        | Lam  Info LamBinding Expr   -- ^ 
-        | Pi   Info TypedBinding Expr -- ^ 
-        | Set  Info Nat               -- ^ 
-        | Prop Info                   -- ^ 
-        | Let  Info [Declaration] Expr-- ^ 
+        = Var  NameInfo  Name		    -- ^ Bound variables
+        | Def  NameInfo QName		    -- ^ Defined constants
+        | Con  NameInfo QName		    -- ^ Constructors
+        | Data NameInfo QName		    -- ^ Names of datatypes
+	| Lit Literal			    -- ^ Literals
+	| QuestionMark MetaInfo		    -- ^ meta variable for interaction
+        | Underscore   MetaInfo		    -- ^ meta variable for hidden argument (must be inferred locally)
+        | App  ExprInfo Hiding Expr Expr    -- ^ Hiding says if this is an hidden application (@s {t}@) or a normal application (@s t@).
+        | Lam  ExprInfo LamBinding Expr	    -- ^ 
+        | Pi   ExprInfo TypedBinding Expr   -- ^ 
+        | Set  ExprInfo Nat		    -- ^ 
+        | Prop ExprInfo			    -- ^ 
+        | Let  ExprInfo [Declaration] Expr  -- ^ 
 
 -- | what is Info used for (above and below)? which invariants apply?
 
 data Declaration
-	= Axiom     Info Fixity Access Name Expr
-	| FunDef    Info Fixity Access Name (Maybe Expr) [Clause]
-	| DataDecl  Info Fixity Access Name Telescope Expr [Declaration]
+	= Axiom     DeclInfo Fixity Access Name Expr
+	| FunDef    DeclInfo Fixity Access Name (Maybe Expr) [Clause]
+	| DataDecl  DeclInfo Fixity Access Name Telescope Expr [Declaration]
 	    -- ^ only axioms
-	| Abstract  Info [Declaration]
-	| Mutual    Info [Declaration]
-	| Module    Info Access QName Telescope [Declaration]
-	| NameSpace Info Name Expr
-	| Import    Info QName
+	| Abstract  DeclInfo [Declaration]
+	| Mutual    DeclInfo [Declaration]
+	| Module    DeclInfo Access QName Telescope [Declaration]
+	| NameSpace DeclInfo Name Expr
+	| Import    DeclInfo QName
 
 -- | A lambda binding is either domain free or typed.
 data LamBinding

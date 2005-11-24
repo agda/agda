@@ -28,8 +28,13 @@ import Control.Monad.Writer
 import Control.Monad.Error
 
 import Syntax.Common
-import Syntax.Info
 import Syntax.Position
+
+-- | It's not clear what kind of information we want in the internal syntax.
+--   Since we will be manipulating internal syntax quite a lot it's important
+--   that it's easy to maintain the information.
+data Info = Duh
+    deriving (Show, Typeable, Data)
 
 -- | Raw values.
 --
