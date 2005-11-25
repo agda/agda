@@ -193,6 +193,21 @@ instance BindToAbstract C.TypedBinding A.TypedBinding where
 	do  t' <- toAbstract t
 	    bindVariables xs $ ret (A.TypedBinding r h xs t')
 
+-- Note: only for top level modules!
+instance ToAbstract C.Declaration A.Declaration where
+    toAbstract (C.Module r x@(Qual _ _) tel ds) =
+	insideModule x $
+	bindToAbstract (tel,ds) $ \(tel',ds') ->    -- order matter!
+	    return $ A.Module info x tel' ds'
+	where
+	    info = DefInfo { defAccess = PublicAccess
+			   , defFixity = defaultFixity
+			   , defInfo   = DeclRange r
+				-- We could save the concrete module here but
+				-- seems a bit over-kill.
+			   }
+    toAbstract _ = __IMPOSSIBLE__   -- only for top-level modules.
+
 instance BindToAbstract [C.Declaration] [A.Declaration] where
     bindToAbstract ds = bindToAbstract (niceDeclarations ds)
 
@@ -310,6 +325,13 @@ instance ToAbstract (Constr CD.NiceDeclaration) A.Declaration where
 			   , defFixity = f
 			   , defInfo   = DeclRange r
 			   }
+
+    toAbstract _ = __IMPOSSIBLE__    -- a constructor is always an axiom
+
+instance BindToAbstract (Constr A.Declaration) () where
+    bindToAbstract (Constr (A.Axiom info x t)) ret =
+	defineName (defAccess info) ConName (defFixity info) x
+	    $ ret ()
 
     bindToAbstract _ _ = __IMPOSSIBLE__    -- a constructor is always an axiom
 
