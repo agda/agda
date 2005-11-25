@@ -101,7 +101,11 @@ data Clause = Clause LHS RHS WhereClause
 data DeclarationException
 	= MultipleFixityDecls [(Name, [Fixity])]
 	| MissingDefinition Name
-    deriving (Typeable)
+    deriving (Typeable, Show)
+
+instance HasRange DeclarationException where
+    getRange (MultipleFixityDecls xs) = getRange (fst $ head xs)
+    getRange (MissingDefinition x)    = getRange x
 
 {--------------------------------------------------------------------------
     The niceifier

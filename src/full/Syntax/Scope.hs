@@ -169,7 +169,7 @@ data ScopeException
 	| ClashingImport Name Name
 	| ClashingModuleImport Name Name
 	| ModuleDoesntExport QName [ImportedName]
-    deriving (Typeable)
+    deriving (Typeable, Show)
 
 -- | A concrete name can be either a bound variable, a defined name (function,
 --   constructor or datatype name) or unknown. 'resolv'ing a name gives you one
@@ -187,6 +187,7 @@ data DefinedName =
 		    , fixity	 :: Fixity
 		    , theName    :: QName
 		    }
+    deriving (Show)
 
 {-| There are three kinds of defined names: function names, constructor names,
     and datatype names. It's probably a good idea to single out constructor
@@ -197,7 +198,7 @@ data DefinedName =
     color different kinds of names in pretty colors.
 -}
 data KindOfName = FunName | ConName | DataName
-    deriving (Eq)
+    deriving (Eq, Show)
 
 -- | In addition to the names a module contains (which are stored in the
 --   'NameSpace') we need to keep track of the arity of a module and whether
@@ -207,6 +208,7 @@ data ModuleInfo	=
 		    , moduleAccess	:: Access
 		    , moduleContents	:: NameSpace
 		    }
+    deriving (Show)
 
 -- | When you 'resolveModule', this is what you get back.
 data ResolvedModule
@@ -231,6 +233,7 @@ data NameSpace =
 		, definedNames	:: DefinedNames
 		, modules	:: Modules
 		}
+    deriving (Show)
 
 {-| The @privateNameSpace@ and the @publicNameSpace@ don't clash. The reason
     for separating the private and the public name space is that when we leave
@@ -261,6 +264,16 @@ type ScopeM = ReaderT ScopeInfo IO
 
 instance HasRange DefinedName where
     getRange = getRange . theName
+
+instance HasRange ScopeException where
+    getRange (NotInScope x)		= getRange x
+    getRange (ClashingImport x _)	= getRange x
+    getRange (ClashingModuleImport x _) = getRange x
+    getRange (NoSuchModule x)		= getRange x
+    getRange (UninstantiatedModule x)	= getRange x
+    getRange (ClashingModule x _)	= getRange x
+    getRange (ClashingDefinition x _)	= getRange x
+    getRange (ModuleDoesntExport _ xs)	= getRange xs
 
 {--------------------------------------------------------------------------
     Exceptions

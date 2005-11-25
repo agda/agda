@@ -9,6 +9,7 @@ import Control.Exception
 import Data.Typeable
 
 import Syntax.Concrete as C
+import Syntax.Concrete.Pretty ()    -- TODO: only needed for Show for the exceptions
 import Syntax.Abstract as A
 import Syntax.Position
 import Syntax.Common
@@ -27,14 +28,22 @@ import Utils.Monad
     Exceptions
  --------------------------------------------------------------------------}
 
-data ToAbstractException =
-	HigherOrderPattern C.Pattern A.Pattern
+data ToAbstractException
+	= HigherOrderPattern C.Pattern A.Pattern
 	    -- ^ the concrete pattern is an application and the abstract
 	    --	 pattern is the translation of the function part (and it's not
 	    --	 a constructor pattern).
-    deriving (Typeable)
+	| NotAModuleExpr C.Expr
+	    -- ^ The expr was used in the right hand side of an implicit module
+	    --	 definition, but it wasn't of the form @m Delta@.
+    deriving (Typeable, Show)
 
 higherOrderPattern p0 p = throwDyn $ HigherOrderPattern p0 p
+notAModuleExpr e	= throwDyn $ NotAModuleExpr e
+
+instance HasRange ToAbstractException where
+    getRange (HigherOrderPattern p _) = getRange p
+    getRange (NotAModuleExpr e)	      = getRange e
 
 {--------------------------------------------------------------------------
     Translation

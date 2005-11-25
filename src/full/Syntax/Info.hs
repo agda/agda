@@ -10,6 +10,7 @@ module Syntax.Info where
 import Syntax.Common
 import Syntax.Position
 import Syntax.Concrete
+import Syntax.Concrete.Pretty () -- TODO: only needed for deriving Show for PatInfo
 import Syntax.Scope
 
 {--------------------------------------------------------------------------
@@ -28,6 +29,7 @@ data NameInfo =
 		 , nameFixity    :: Fixity
 		 , nameAccess    :: Access
 		 }
+    deriving (Show)
 
 instance HasRange NameInfo where
     getRange = getRange . concreteName
@@ -40,6 +42,7 @@ data MetaInfo =
 	MetaInfo { metaRange	:: Range
 		 , metaScope	:: ScopeInfo
 		 }
+    deriving (Show)
 
 instance HasRange MetaInfo where
     getRange = metaRange
@@ -53,6 +56,7 @@ instance HasRange MetaInfo where
 data ExprInfo
 	= ExprRange  Range
 	| ExprSource Expr
+    deriving (Show)
 
 instance HasRange ExprInfo where
     getRange (ExprRange  r) = r
@@ -68,6 +72,7 @@ data DefInfo =
 		, defAccess :: Access
 		, defInfo   :: DeclInfo
 		}
+    deriving (Show)
 
 instance HasRange DefInfo where
     getRange = getRange . defInfo
@@ -79,6 +84,7 @@ instance HasRange DefInfo where
 data DeclInfo
 	= DeclRange  Range
 	| DeclSource [Declaration]
+    deriving (Show)
 
 instance HasRange DeclInfo where
     getRange (DeclRange  r)  = r
@@ -90,6 +96,7 @@ instance HasRange DeclInfo where
  --------------------------------------------------------------------------}
 
 data LHSInfo = LHSSource LHS
+    deriving (Show)
 
 instance HasRange LHSInfo where
     getRange (LHSSource lhs) = getRange lhs
@@ -101,6 +108,7 @@ instance HasRange LHSInfo where
 
 data PatInfo = PatRange Range
 	     | PatSource Pattern
+    deriving (Show)
 
 instance HasRange PatInfo where
     getRange (PatRange r)  = r

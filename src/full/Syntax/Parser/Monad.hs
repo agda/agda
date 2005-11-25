@@ -29,6 +29,7 @@ module Syntax.Parser.Monad
     where
 
 import Data.Char
+import Data.Typeable
 
 import Control.Monad.State
 import Control.Monad.Error
@@ -86,6 +87,7 @@ data ParseError	= ParseError
 		    , errMsg	    :: String	-- ^ hopefully an explanation
 						--   of what happened
 		    }
+    deriving (Typeable)
 
 -- | The result of parsing something.
 data ParseResult a  = ParseOk ParseState a
@@ -135,6 +137,8 @@ instance Show ParseError where
 -- 	    elide n (c:s)		    = c : elide (n - 1) s
 -- 	    elide _ ""		    = ""
 
+instance HasRange ParseError where
+    getRange err = Range (errPos err) (errPos err)
 
 {--------------------------------------------------------------------------
     Running the parser

@@ -15,7 +15,10 @@ import Syntax.Position
 
 -- | Thrown by 'rotateInfixApp' if the correct bracketing cannot be deduced.
 data InfixException = BadInfixApp Range (QName, Fixity) (QName, Fixity)
-    deriving (Typeable)
+    deriving (Typeable, Show)
+
+instance HasRange InfixException where
+    getRange (BadInfixApp r _ _) = r
 
 data InfixView e = IVParen e
 		 | IVApp e QName e
