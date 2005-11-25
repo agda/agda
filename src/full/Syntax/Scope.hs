@@ -298,31 +298,56 @@ plusNameSpace (NSpace name ds1 m1) (NSpace _ ds2 m2) =
 	NSpace name (Map.unionWith __IMPOSSIBLE__ ds1 ds2)
 		    (Map.unionWith __IMPOSSIBLE__ m1 m2)
 
+-- | Same as 'plusNameSpace' but allows the modules to overlap.
+plusNameSpace_ :: NameSpace -> NameSpace -> NameSpace
+plusNameSpace_ (NSpace name ds1 m1) (NSpace _ ds2 m2) =
+	NSpace name (Map.unionWith __IMPOSSIBLE__ ds1 ds2)
+		    (Map.unionWith plusModules m1 m2)
+
+-- | Merges to modules.
+plusModules :: ModuleInfo -> ModuleInfo -> ModuleInfo
+plusModules mi1 mi2
+    | moduleAccess mi1 /= moduleAccess mi2 || moduleArity mi1 /= moduleArity mi2
+	= clashingModule (moduleName $ moduleContents mi1)
+			 (moduleName $ moduleContents mi2)    -- TODO: different exception?
+    | otherwise	= mi1 { moduleContents = moduleContents mi1 `plusNameSpace_`
+					 moduleContents mi2
+		      }
+
 -- | Throws an exception if the name exists.
 addName :: Name -> DefinedName -> NameSpace -> NameSpace
 addName x qx ns =
 	ns { definedNames = Map.insertWithKey clash x qx $ definedNames ns }
     where
-	clash x' qx qx' = clashingImport x x'
+	clash x' _ _ = clashingImport x x'
 
 addModule :: Name -> ModuleInfo -> NameSpace -> NameSpace
 addModule x mi ns =
 	ns { modules = Map.insertWithKey clash x mi $ modules ns }
     where
-	clash x' qx qx' = clashingModuleImport x x'
+	clash x' _ _ = clashingModuleImport x x'
+
+-- | Allows the module to already be defined. Used when adding modules
+--   corresponding to directories (from imports).
+addModule_ :: Name -> ModuleInfo -> NameSpace -> NameSpace
+addModule_ x mi ns =
+	ns { modules = Map.insertWithKey clash x mi $ modules ns }
+    where
+	clash x' mi mi' = plusModules mi mi'
+	    -- TODO: we should only allow overlap of the pseudo-modules!
 
 addQModule :: QName -> ModuleInfo -> NameSpace -> NameSpace
-addQModule (QName x) mi ns  = addModule x mi ns
-addQModule (Qual m x) mi ns = addQModule x mi' ns
+addQModule x mi ns = addQ [] x mi ns
     where
-	mi' = ModuleInfo { moduleAccess	    = PublicAccess
-			 , moduleArity	    = 0
-			 , moduleContents   =
-			    NSpace { moduleName	    = QName m -- TODO: wrong
-				   , definedNames   = Map.empty
-				   , modules	    = Map.singleton (next x) mi
-				   }
-			 }
+	addQ _  (QName x)  mi ns = addModule x mi ns
+	addQ ms (Qual m x) mi ns = addModule_ m mi' ns
+	    where
+		mi' = ModuleInfo { moduleAccess	    = PublicAccess
+				 , moduleArity	    = 0
+				 , moduleContents   = addQ (ms ++ [m]) x mi
+							(emptyNameSpace $ mkQual ms m)
+				 }
+		mkQual ms x = foldr Qual (QName x) ms
 	next (QName x)	= x
 	next (Qual m x) = m
 
@@ -402,9 +427,9 @@ emptyScopeInfo x = ScopeInfo { publicNameSpace	    = emptyNameSpace x
 
 -- | Resolve a qualified name. Peals off name spaces until it gets
 --   to an unqualified name and then applies the first argument.
-resolve :: (LocalVariables -> NameSpace -> Name -> a) ->
+resolve :: a -> (LocalVariables -> NameSpace -> Name -> a) ->
 	   QName -> ScopeInfo -> a
-resolve f x si = res x vs (ns `plusNameSpace` ns')
+resolve def f x si = res x vs (ns `plusNameSpace` ns')
     where
 	vs  = localVariables si
 	ns  = publicNameSpace si
@@ -413,13 +438,13 @@ resolve f x si = res x vs (ns `plusNameSpace` ns')
 	res (QName x) vs ns = f vs ns x
 	res (Qual m x) vs ns =
 	    case Map.lookup m $ modules ns of
-		Nothing			    -> noSuchModule (QName m)
+		Nothing			    -> def
 		Just (ModuleInfo 0 _ ns')   -> res x empty ns'
 		Just _			    -> uninstantiatedModule (QName m)
 
 -- | Figure out what a qualified name refers to.
 resolveName :: QName -> ScopeInfo -> ResolvedName
-resolveName = resolve r
+resolveName = resolve UnknownName r
     where
 	r vs ns x =
 	    fromMaybe UnknownName $ mconcat
@@ -431,10 +456,10 @@ resolveName = resolve r
 resolveNameM :: QName -> ScopeM ResolvedName
 resolveNameM x = resolveName x <$> getScopeInfo
 
--- | In a pattern there are only two possibilities: either it's a constructor
---   or it's a variable. It's never undefined or a defined name.
+-- | In a pattern there are only three possibilities: either it's a constructor,
+--   a variable or an unknown name. Only qualified names can be unknown.
 resolvePatternName :: QName -> ScopeInfo -> ResolvedName
-resolvePatternName = resolve r
+resolvePatternName = resolve UnknownName r
     where
 	r vs ns x =
 	    case Map.lookup x $ definedNames ns of
@@ -447,7 +472,7 @@ resolvePatternNameM x = resolvePatternName x <$> getScopeInfo
 
 -- | Figure out what module a qualified name refers to.
 resolveModule :: QName -> ScopeInfo -> ResolvedModule
-resolveModule = resolve r
+resolveModule = resolve UnknownModule r
     where
 	r _ ns x = fromMaybe UnknownModule $
 		    ModuleName <$> Map.lookup x (modules ns)
@@ -550,8 +575,9 @@ importedNames :: ModuleInfo -> ImportDirective -> NameSpace
 importedNames m i =
     case invalidImportDirective ns i of
 	Just e	-> throwDyn e
-	Nothing	-> addModules newModules $ addNames newNames ns
+	Nothing	-> addModules newModules $ addNames newNames $ emptyNameSpace name
     where
+	name = moduleName ns
 	ns = moduleContents m
 	newNames = [ (x',qx)
 		   | (x,qx)  <- Map.assocs (definedNames ns)
@@ -591,7 +617,7 @@ interfaceToModule i =
 				, fixity	= f
 				, theName	= qualify name x
 				}
-		mkModule i' = (x, interfaceToModule $ i { I.moduleName = qx })
+		mkModule i' = (x, interfaceToModule $ i' { I.moduleName = qx })
 		    where
 			QName x = I.moduleName i'
 			qx = qualify name x
@@ -696,6 +722,15 @@ implicitModule :: Name -> Access -> Arity -> QName -> ImportDirective ->
 implicitModule x ac ar x' i cont =
     do	noModuleClash (QName x)
 	m <- getModule x'
-	let ns = makeFreshCanonicalNames $ importedNames m i
-	local (updateNameSpace ac (addNameSpace ns)) cont
+	let ns = makeFreshCanonicalNames $ 
+		    (importedNames m i) { moduleName = QName x }
+	    m' = ModuleInfo { moduleAccess   = ac
+			    , moduleArity    = ar
+			    , moduleContents = ns
+			    }
+	local (updateNameSpace ac (addModule x m')) cont
+
+-- | Running the scope monad.
+runScopeM :: ScopeM a -> IO a
+runScopeM m = runReaderT m (emptyScopeInfo $ QName noName)
 
