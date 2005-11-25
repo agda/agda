@@ -9,7 +9,7 @@ module Syntax.Concrete
     ( -- * Expressions
       Expr(..)
     , Name(..), QName(..)
-    , appView
+    , appView, AppView(..)
       -- * Bindings
     , LamBinding(..)
     , TypedBinding(..)
@@ -24,7 +24,7 @@ module Syntax.Concrete
     , Fixity(..)
     , defaultFixity
     , ImportDirective(..), UsingOrHiding(..), ImportedName(..)
-    , LHS(..), Argument(..), Pattern(..)
+    , LHS(..), Pattern(..)
     , RHS, WhereClause
     )
     where
@@ -33,8 +33,6 @@ import Data.Generics hiding (Fixity, Infix)
 
 import Syntax.Position
 import Syntax.Common
-
-import Utils.Tuple
 
 -- | A constructor declaration is just a type signature.
 type Constructor = TypeSignature
@@ -58,13 +56,6 @@ data Expr
 	| Paren Range Expr		    -- ^ ex: @(e)@
     deriving (Typeable, Data, Eq)
 
-
--- | The application view
-appView :: Expr -> (Expr, [(Hiding, Expr)])
-appView e = id -*- reverse $ spine e
-    where
-	spine (App _ h e1 e2) = id -*- ((h,e2):) $ spine e1
-	spine e		      = (e, [])
 
 -- | Concrete patterns. No literals in patterns at the moment.
 data Pattern
@@ -107,13 +98,8 @@ type Telescope = [TypedBinding]
     > x::xs ++ ys = x :: (xs ++ ys)
 
 -}
-data LHS = LHS Range IsInfix Name [Argument]
+data LHS = LHS Range IsInfix Name [Arg Pattern]
     deriving (Typeable, Data, Eq)
-
--- | A function argument is a pattern which might be hidden.
-data Argument = Argument Hiding Pattern
-    deriving (Typeable, Data, Eq)
-
 
 type RHS	    = Expr
 type WhereClause    = [LocalDeclaration]
@@ -183,6 +169,19 @@ data Declaration
 	| Module      Range QName Telescope [TopLevelDeclaration]
     deriving (Eq, Typeable, Data)
 
+
+{--------------------------------------------------------------------------
+    Views
+ --------------------------------------------------------------------------}
+
+-- | The 'Expr' is not an application.
+data AppView = AppView Expr [Arg Expr]
+
+appView :: Expr -> AppView
+appView (App r h e1 e2) = vApp (appView e1) (Arg h e2)
+    where
+	vApp (AppView e es) arg = AppView e (es ++ [arg])
+appView e = AppView e []
 
 {--------------------------------------------------------------------------
     Instances

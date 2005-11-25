@@ -35,7 +35,7 @@ data Declaration
 	| Abstract  DeclInfo [Declaration]
 	| Mutual    DeclInfo [Declaration]
 	| Module    DefInfo QName Telescope [Declaration]
-	| ModuleDef DefInfo Name Expr
+	| ModuleDef DefInfo Name  Telescope QName [Arg Expr]
 	| Import    DeclInfo QName
 
 -- | A lambda binding is either domain free or typed.
@@ -61,13 +61,13 @@ type Telescope	= [TypedBinding]
 data Clause	= Clause LHS RHS [Declaration]
 type RHS	= Expr
 
-data LHS	= LHS LHSInfo Name [Argument]
-data Argument	= Argument Hiding Pattern
+data LHS	= LHS LHSInfo Name [Arg Pattern]
+    deriving (Show)
 data Pattern	= VarP Name	-- ^ the only thing we need to know about a
 				-- pattern variable is its 'Range'. This is
 				-- stored in the 'Name', so we don't need a
 				-- 'NameInfo' here.
-		| ConP PatInfo QName [Argument]
+		| ConP PatInfo QName [Arg Pattern]
 		| WildP PatInfo
 
 -- | why has Var in Expr above a NameInfo but VarP no Info?
@@ -108,7 +108,7 @@ instance HasRange Declaration where
     getRange (Abstract  i _	  ) = getRange i
     getRange (Mutual    i _	  ) = getRange i
     getRange (Module    i _ _ _	  ) = getRange i
-    getRange (ModuleDef i _ _	  ) = getRange i
+    getRange (ModuleDef i _ _ _ _ ) = getRange i
     getRange (Import    i _	  ) = getRange i
 
 instance HasRange Pattern where

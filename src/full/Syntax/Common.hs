@@ -11,6 +11,9 @@ import Syntax.Position
 data Hiding  = Hidden | NotHidden
     deriving (Typeable, Data, Show, Eq)
 
+data Arg e  = Arg Hiding e
+    deriving (Typeable, Data, Show, Eq)
+
 -- | Functions can be defined in both infix and prefix style. See
 --   'Syntax.Concrete.LHS'.
 data IsInfix = InfixDef | PrefixDef

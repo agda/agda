@@ -836,8 +836,8 @@ exprToLHS e =
 	spine (Paren _ e)	= spine e
 	spine e			= [(NotHidden,e)]
 
-	exprToArg :: Hiding -> Expr -> Parser Argument
-	exprToArg h e = Argument h <$> exprToPattern e
+	exprToArg :: Hiding -> Expr -> Parser (Arg Pattern)
+	exprToArg h e = Arg h <$> exprToPattern e
 
 	exprToPattern :: Expr -> Parser Pattern
 	exprToPattern e =

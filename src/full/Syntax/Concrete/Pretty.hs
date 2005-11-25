@@ -55,9 +55,9 @@ instance Pretty Expr where
 	    Underscore _    -> text "_"
 	    App _ _ _ _	    ->
 		case appView e of
-		    (e1, args)	->
+		    AppView e1 args	->
 			sep [ pretty e1
-			    , nest 2 $ fsep $ map (uncurry pHidden) args
+			    , nest 2 $ fsep $ map pretty args
 			    ]
 	    InfixApp e1 op e2 ->
 		sep [ pretty e1
@@ -172,8 +172,8 @@ instance Pretty LHS where
 		| otherwise = parens
     pretty _ = __IMPOSSIBLE__
 
-instance Pretty Argument where
-    pretty (Argument h p) = pHidden h p
+instance Pretty e => Pretty (Arg e) where
+    pretty (Arg h e) = pHidden h e
 
 instance Pretty Pattern where
     pretty p =
