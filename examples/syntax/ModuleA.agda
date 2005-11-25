@@ -1,6 +1,6 @@
 
 -- This module is used to illustrate how to import a non-parameterised module.
-module ModuleA where
+module examples.syntax.ModuleA where
 
   data Nat : Set where
     zero  : Nat

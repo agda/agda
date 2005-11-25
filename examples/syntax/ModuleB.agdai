@@ -1,0 +1,8 @@
+module examples.syntax.ModuleB/3 where
+    functions: eqList, reflEqList
+    constructors: tt, andI, nil, cons
+    datatypes: True, False, infix 5 /\, List
+    module SubModule/0 where
+	functions: dummy
+	constructors:
+	datatypes:

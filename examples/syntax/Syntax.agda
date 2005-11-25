@@ -255,6 +255,8 @@ module examples.syntax.Syntax where
     XList = B.List
     And	  = B./\    -- qualified operators are not infix symbols
 
+    dummyX = B.SubModule.dummy	-- submodules of ModuleB are also in scope
+
     -- This of course works for non-parameterised modules as well.
     module B' = B
 

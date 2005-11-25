@@ -6,7 +6,6 @@ module examples.syntax.ModuleB
 	(refl : (x : A) -> x == x)
     where
 
-  infix 10 ==
   infix 5 /\
 
   module SubModule where
