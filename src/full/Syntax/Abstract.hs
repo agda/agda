@@ -24,6 +24,7 @@ data Expr
         | Set  ExprInfo Nat		    -- ^ 
         | Prop ExprInfo			    -- ^ 
         | Let  ExprInfo [Declaration] Expr  -- ^ 
+    deriving (Show)
 
 -- | what is Info used for (above and below)? which invariants apply?
 
@@ -37,11 +38,13 @@ data Declaration
 	| Module    DefInfo QName Telescope [Declaration]
 	| ModuleDef DefInfo Name  Telescope QName [Arg Expr]
 	| Import    DeclInfo QName
+    deriving (Show)
 
 -- | A lambda binding is either domain free or typed.
 data LamBinding
 	= DomainFree Hiding Name    -- ^ . @x@ or @{x}@
 	| DomainFull TypedBinding   -- ^ . @(xs:e)@ or @{xs:e}@
+    deriving (Show)
 
 
 -- | A typed binding. Appears in dependent function spaces, typed lambdas, and
@@ -52,6 +55,7 @@ data LamBinding
 --   you have to.
 data TypedBinding = TypedBinding Range Hiding [Name] Expr
 	    -- ^ . @(xs:e)@ or @{xs:e}@
+    deriving (Show)
 
 type Telescope	= [TypedBinding]
 
@@ -59,6 +63,7 @@ type Telescope	= [TypedBinding]
 --   @let@. It's not obvious how to remember that the @let@ was really a
 --   @where@ clause though, so for the time being we keep it here.
 data Clause	= Clause LHS RHS [Declaration]
+    deriving (Show)
 type RHS	= Expr
 
 data LHS	= LHS LHSInfo Name [Arg Pattern]
@@ -69,6 +74,7 @@ data Pattern	= VarP Name	-- ^ the only thing we need to know about a
 				-- 'NameInfo' here.
 		| ConP PatInfo QName [Arg Pattern]
 		| WildP PatInfo
+    deriving Show
 
 -- | why has Var in Expr above a NameInfo but VarP no Info?
 -- | why has Con in Expr above a NameInfo but ConP an Info?

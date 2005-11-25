@@ -144,6 +144,7 @@ import Data.Monoid
 import Data.Typeable
 import Data.Map as Map
 import Data.List as List
+import Data.Tree
 
 import Syntax.Position
 import Syntax.Common
@@ -734,3 +735,24 @@ implicitModule x ac ar x' i cont =
 runScopeM :: ScopeM a -> IO a
 runScopeM m = runReaderT m (emptyScopeInfo $ QName noName)
 
+---------------------------------------------------------------------------
+-- * Debugging
+---------------------------------------------------------------------------
+
+scopeTree :: NameSpace -> Tree String
+scopeTree ns =
+    Node (show $ moduleName ns)
+	 $  (List.map leaf $ Map.assocs $ definedNames ns)
+	 ++ (List.map (scopeTree . moduleContents) $ Map.elems $ modules ns)
+    where
+	leaf (x,d) = Node (unwords [show x,"-->",show $ theName d]) []
+
+instance Show ScopeInfo where
+    show si =
+	unlines [ "Public name space:"
+		, drawTree $ scopeTree $ publicNameSpace si
+		, "Private name space:"
+		, drawTree $ scopeTree $ privateNameSpace si
+		, "Local variables: " ++ show (localVariables si)
+		, "Precedence: " ++ show (contextPrecedence si)
+		]
