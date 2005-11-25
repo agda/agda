@@ -25,8 +25,6 @@ data Expr
         | Let  ExprInfo [Declaration] Expr  -- ^ 
     deriving (Show)
 
--- | what is Info used for (above and below)? which invariants apply?
-
 data Declaration
 	= Axiom     DefInfo Name Expr
 	| FunDef    DefInfo Name (Maybe Expr) [Clause]

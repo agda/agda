@@ -1,0 +1,32 @@
+
+Thoughts on mutual declarations
+-------------------------------
+
+When checking block of mutual declarations
+
+    x1 : A1
+    x1 = e1
+    ...
+    xn : An
+    xn = en
+
+you first check that (x1:A1)..(xn:An) is a well-formed context and then you
+check that e1..en fits this context. Basically we decouple the types from the
+definitions.
+
+How can we extend this to datatypes and definitions by pattern matching? What
+would the ei's be? An attempt:
+
+data Declaration = ... | Definition Telescope [Definition]
+
+data Definition = FunDef  DefInfo Name [Clause]
+		| DataDef DefInfo [LamBinding] [Constructor]
+				-- ^ domain-free bindings matching the telescope
+
+I don't see a problem with this approach. Let's try it and see how far we get...
+
+Untyped definitions doesn't fit this.. but they shouldn't appear in a mutual
+anyway so let's make a special case for those:
+
+data Declaration = ... | UntypedDefinition DefInfo Name Expr [Declaration]
+
