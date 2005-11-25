@@ -31,7 +31,7 @@ main =
 	stuff file =
 	    failOnException $
 	    do	m <- parseFile' moduleParser file
-		m' <- runScopeM (toAbstract m)
+		--m' <- runScopeM (toAbstract m)
 		--print m'
 		print m
 
