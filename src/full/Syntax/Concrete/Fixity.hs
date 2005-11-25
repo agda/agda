@@ -42,11 +42,11 @@ infixViewP p		      = IVOther p
     correct bracketing cannot be deduced. It is parameterised over the type of
     expressions and how to get the fixity of a name.
 -}
-rotateInfixApp' :: HasRange expr => 
-		   (expr -> InfixView expr) ->		-- ^ how to analyse an @expr@
-		   (expr -> QName -> expr -> expr) ->	-- ^ how to build an infix application in @expr@
-		   (QName -> Fixity) ->			-- ^ how to get the fixity of a name
-		   expr -> expr
+rotateInfixApp' :: HasRange expr
+		   => (expr -> InfixView expr)		-- ^ how to analyse an @expr@
+		   -> (expr -> QName -> expr -> expr)	-- ^ how to build an infix application in @expr@
+		   -> (QName -> Fixity)			-- ^ how to get the fixity of a name
+		   -> expr -> expr
 rotateInfixApp' view infixApp fixity e =
     case view e of
 	IVParen e'     -> rotateInfixApp' view infixApp fixity e'
