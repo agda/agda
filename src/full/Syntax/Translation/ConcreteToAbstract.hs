@@ -19,6 +19,8 @@ import Syntax.Concrete.Definitions as CD
 import Syntax.Concrete.Fixity
 import Syntax.Scope
 
+import Interaction.Imports
+
 import Utils.Monad
 
 #include "../../undefined.h"
@@ -194,13 +196,20 @@ instance BindToAbstract C.TypedBinding A.TypedBinding where
 instance BindToAbstract [C.Declaration] [A.Declaration] where
     bindToAbstract ds = bindToAbstract (niceDeclarations ds)
 
-instance BindToAbstract NiceDeclaration A.Declaration where
+instance BindToAbstract [NiceDeclaration] [A.Declaration] where
+    bindToAbstract [] ret = ret []
+    bindToAbstract (x:xs) ret =
+	bindToAbstract (x,xs) $ \ (y,ys) -> ret (y ++ ys)
+
+-- The only reason why we return a list is that open declarations disappears.
+-- For every other declaration we get a singleton list.
+instance BindToAbstract NiceDeclaration [A.Declaration] where
 
     -- Axiom
     bindToAbstract (CD.Axiom r f a x t) ret =
 	do  t' <- toAbstract t
 	    defineName a FunName f x $
-		ret (A.Axiom info x t')
+		ret [A.Axiom info x t']
 	where
 	    info = DefInfo { defFixity = f
 			   , defAccess = a
@@ -214,7 +223,7 @@ instance BindToAbstract NiceDeclaration A.Declaration where
 	do  mt' <- toAbstract mt
 	    defineName a FunName f x $
 		do  cs' <- toAbstract cs
-		    ret (A.FunDef info x mt' cs')
+		    ret [A.FunDef info x mt' cs']
 	where
 	    info = DefInfo { defFixity = f
 			   , defAccess = a
@@ -223,12 +232,15 @@ instance BindToAbstract NiceDeclaration A.Declaration where
 
     -- Data declaration
     bindToAbstract (NiceData r f a x tel e cons) ret =
-	do  (tel',e') <- bindToAbstract tel $ \tel' ->
-			    do	e' <- toAbstract e
-				return (tel', e')
+	do  (tel',e',cons')
+		<- bindToAbstract tel $ \tel' ->
+		    do	e'    <- toAbstract e
+			cons' <- defineName a DataName f x
+				 $ toAbstract $ map Constr cons
+			return (tel', e', cons')
 	    defineName a DataName f x $
-		bindToAbstract (map Constr cons) $ \cons' ->
-		ret $ DataDecl info x tel' e' cons'
+		bindToAbstract (map Constr cons') $ \_ ->
+		ret [DataDecl info x tel' e' cons']
 	where
 	    info = DefInfo { defAccess = a
 			   , defFixity = f
@@ -237,15 +249,15 @@ instance BindToAbstract NiceDeclaration A.Declaration where
 
     bindToAbstract (NiceAbstract r ds) ret =
 	bindToAbstract ds $ \ds' ->
-	    ret $ A.Abstract (DeclRange r) ds'
+	    ret [A.Abstract (DeclRange r) ds']
 
-    bindToAbstract (NiceMutual r ds) ret =
+    bindToAbstract (NiceMutual r ds) ret =  -- TODO: this is wrong
 	bindToAbstract ds $ \ds' ->
-	    ret $ A.Mutual (DeclRange r) ds'
+	    ret [A.Mutual (DeclRange r) ds']
 
-    bindToAbstract (NiceModule r a x tel ds) ret =
+    bindToAbstract (NiceModule r a (QName x) tel ds) ret =
 	do  (tel',ds',ns) <-
-		insideModule x $
+		insideModule (QName x) $
 		bindToAbstract (tel,ds) $ \ (tel',ds') ->
 		    do	ns <- currentNameSpace
 			return (tel',ds',ns)
@@ -253,34 +265,46 @@ instance BindToAbstract NiceDeclaration A.Declaration where
 			       , moduleAccess	= a
 			       , moduleContents = ns
 			       }
-	    case x of
-		QName x	-> defineModule x m $
-			   ret $ A.Module info (QName x) tel' ds'
-		_	-> ret $ A.Module info x tel' ds'
-				-- We don't 'define' the top-level module since
-				-- nothing follows it.
+	    defineModule x m $
+		ret [A.Module info (QName x) tel' ds']
 	where
 	    info = DefInfo { defAccess = a
 			   , defFixity = defaultFixity
 			   , defInfo   = DeclRange r
 			   }
 
-    bindToAbstract (NiceModuleMacro r a x tel e is) ret =
-	undefined
+    -- Top-level modules are translated with toAbstract.
+    bindToAbstract (NiceModule _ _ _ _ _) _ = __IMPOSSIBLE__
 
-    bindToAbstract (NiceOpen r x is) ret =
-	undefined
+    bindToAbstract (NiceModuleMacro r a x tel e is) ret =
+	case appView e of
+	    AppView (Ident m) args  ->
+		bindToAbstract tel $ \tel' ->
+		    do  args' <- toAbstract args
+			implicitModule x a (length tel) m is $
+			    ret [ModuleDef info x tel' m args']
+		where
+		    info = DefInfo { defAccess = a
+				   , defFixity = defaultFixity	-- modules don't have fixities
+				   , defInfo   = DeclRange r
+				   }
+		    
+	    _	-> notAModuleExpr e
+
+    bindToAbstract (NiceOpen r x is) ret = openModule x is $ ret []
 
     bindToAbstract (NiceImport r x as is) ret =
-	undefined
+	do  iface <- getModuleInterface x
+	    importModule name iface is $ ret [A.Import (DeclRange r) x]
+	where
+	    name = maybe x QName as
 
-newtype Constr = Constr CD.NiceDeclaration
+newtype Constr a = Constr a
 
-instance BindToAbstract Constr A.Declaration where
-    bindToAbstract (Constr (CD.Axiom r f a x t)) ret =
+instance ToAbstract (Constr CD.NiceDeclaration) A.Declaration where
+    toAbstract (Constr (CD.Axiom r f a x t)) =
 	do  t' <- toAbstract t
-	    defineName a ConName f x
-		$ ret (A.Axiom info x t')
+	    return (A.Axiom info x t')
 	where
 	    info = DefInfo { defAccess = a
 			   , defFixity = f
@@ -301,21 +325,25 @@ instance BindToAbstract C.LHS A.LHS where
 	bindToAbstract as $ \as' ->
 	ret (A.LHS (LHSSource lhs) x as')
 
-instance BindToAbstract C.Argument A.Argument where
-    bindToAbstract (C.Argument h p) ret = bindToAbstract p $ ret . A.Argument h
+instance BindToAbstract c a => BindToAbstract (Arg c) (Arg a) where
+    bindToAbstract (Arg h e) ret = bindToAbstract e $ ret . Arg h
+
+instance ToAbstract c a => ToAbstract (Arg c) (Arg a) where
+    toAbstract (Arg h e) = Arg h <$> toAbstract e
 
 instance BindToAbstract C.Pattern A.Pattern where
     bindToAbstract p@(C.IdentP x) ret =
-	do  rx <- resolvePatternNameM x	-- only returns VarName or ConName
+	do  rx <- resolvePatternNameM x	-- only returns VarName, ConName or UnknownName
 	    case rx of
 		VarName y   -> bindVariable y $ ret (VarP y)
 		DefName d | kindOfName d == ConName
 			    -> ret $ ConP (PatSource p) (theName d) []
+		UnknownName -> notInScope x
 		_	    -> __IMPOSSIBLE__
     bindToAbstract p0@(AppP h p q) ret =
 	bindToAbstract (p,q) $ \(p',q') ->
 	case p' of
-	    ConP _ x as -> ret $ ConP (PatSource p0) x (as ++ [A.Argument h q'])
+	    ConP _ x as -> ret $ ConP (PatSource p0) x (as ++ [Arg h q'])
 	    _		-> higherOrderPattern p0 p'
     bindToAbstract p0@(InfixAppP _ _ _) ret =
 	do  f <- getFixityFunction
@@ -326,7 +354,7 @@ instance BindToAbstract C.Pattern A.Pattern where
 			ConP _ op' []   ->
 			    bindToAbstract (p,q) $ \ (p',q') ->
 			    ret $ ConP (PatSource p0) op'
-				$ map (A.Argument NotHidden) [p',q']
+				$ map (Arg NotHidden) [p',q']
 			_ -> higherOrderPattern p0 pop
 		_ -> __IMPOSSIBLE__ -- rotating an infix app produces an infix app
     bindToAbstract p@(C.WildP _) ret  = ret $ A.WildP (PatSource p)
