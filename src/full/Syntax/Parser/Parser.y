@@ -177,16 +177,14 @@ Interface
     : 'module' ModuleName Slash Int 'where'
       vopen
 	functions ':' CommaNamesWithFixities vsemi
-	constructors ':' CommaNamesWithFixities vsemi
-	datatypes ':' CommaNamesWithFixities
+	constructors ':' CommaNamesWithFixities
 	Interfaces
       close
 			{ Interface { moduleName	= $2
 				    , arity		= $4
 				    , definedNames	= $9
 				    , constructorNames	= $13
-				    , datatypeNames	= $17
-				    , subModules	= $18
+				    , subModules	= $14
 				    }
 			}
 
@@ -212,7 +210,6 @@ CommaNamesWithFixities1
 Slash		: op	{% isName "/" $1 }
 functions	: id	{% isName "functions" $1 }
 constructors	: id	{% isName "constructors" $1 }
-datatypes	: id	{% isName "datatypes" $1 }
 
 {--------------------------------------------------------------------------
     Meta rules

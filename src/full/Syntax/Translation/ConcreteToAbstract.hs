@@ -107,7 +107,6 @@ instance ToAbstract C.Expr A.Expr where
 		    case kindOfName d of
 			FunName  -> return $ Def info $ theName d
 			ConName  -> return $ Con info $ theName d
-			DataName -> return $ A.Data info $ theName d
 		    where
 			info = NameInfo { bindingSite   = getRange d
 					, concreteName  = x
@@ -250,10 +249,10 @@ instance BindToAbstract NiceDeclaration [A.Declaration] where
 	do  (tel',e',cons')
 		<- bindToAbstract tel $ \tel' ->
 		    do	e'    <- toAbstract e
-			cons' <- defineName a DataName f x
+			cons' <- defineName a FunName f x
 				 $ toAbstract $ map Constr cons
 			return (tel', e', cons')
-	    defineName a DataName f x $
+	    defineName a FunName f x $
 		bindToAbstract (map Constr cons') $ \_ ->
 		ret [DataDecl info x tel' e' cons']
 	where

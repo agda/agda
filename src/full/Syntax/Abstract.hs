@@ -12,9 +12,8 @@ import Syntax.Position
 
 data Expr
         = Var  NameInfo  Name		    -- ^ Bound variables
-        | Def  NameInfo QName		    -- ^ Defined constants
+        | Def  NameInfo QName		    -- ^ Constants (i.e. axioms, functions, and datatypes)
         | Con  NameInfo QName		    -- ^ Constructors
-        | Data NameInfo QName		    -- ^ Names of datatypes
 	| Lit Literal			    -- ^ Literals
 	| QuestionMark MetaInfo		    -- ^ meta variable for interaction
         | Underscore   MetaInfo		    -- ^ meta variable for hidden argument (must be inferred locally)
@@ -96,7 +95,6 @@ instance HasRange Expr where
     getRange (Var i _)		= getRange i
     getRange (Def i _)		= getRange i
     getRange (Con i _)		= getRange i
-    getRange (Data i _)		= getRange i
     getRange (Lit l)		= getRange l
     getRange (QuestionMark i)	= getRange i
     getRange (Underscore  i)	= getRange i

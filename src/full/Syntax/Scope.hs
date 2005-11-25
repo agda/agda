@@ -198,7 +198,8 @@ data DefinedName =
     application of these fine-grained names is to have the interactive system
     color different kinds of names in pretty colors.
 -}
-data KindOfName = FunName | ConName | DataName
+data KindOfName = FunName   -- ^ also includes datatypes
+		| ConName
     deriving (Eq, Show)
 
 -- | In addition to the names a module contains (which are stored in the
@@ -606,7 +607,6 @@ interfaceToModule i =
 		Map.fromList $
 		       [ (x, mkName FunName f x)  | (x,f) <- I.definedNames i ]
 		    ++ [ (x, mkName ConName f x)  | (x,f) <- I.constructorNames i ]
-		    ++ [ (x, mkName DataName f x) | (x,f) <- I.datatypeNames i ]
 	    , modules	    =
 		Map.fromList $ [ mkModule i' | i' <- I.subModules i ]
 	    }
