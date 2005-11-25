@@ -2,11 +2,13 @@
 Syntax
 ------
 
-  * Invent syntax for fancy case.
+  * Invent syntax for fancy case (should we have fancy case?)
 
-Parsing
--------
+Error reporting
+---------------
 
   * Check out lex/parse errors (what position and what input is reported).
+
+  * Think about laziness and exceptions. In particular in the scope checking.
 
  vim: sts=2 sw=2 ts=80
