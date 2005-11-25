@@ -11,7 +11,7 @@ import System.IO
 import Syntax.Parser
 import Syntax.Concrete.Pretty ()
 import Syntax.Internal ()
-import Syntax.Scope
+import Syntax.Scope ()
 import Syntax.Translation.ConcreteToAbstract
 import Interaction.Exceptions
 
