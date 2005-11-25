@@ -94,27 +94,27 @@ instance ToAbstract C.Expr A.Expr where
     -- Names
     toAbstract (Ident x) =
 	do  qx <- resolveNameM x
-	    return $
-		case qx of
-		    VarName x'  -> Var (NameInfo
-					{ bindingSite	= getRange x'
-					, concreteName	= x
-					, nameFixity	= defaultFixity
-					, nameAccess	= PrivateAccess
+	    case qx of
+		VarName x'  -> return $
+				Var (NameInfo
+				    { bindingSite	= getRange x'
+				    , concreteName	= x
+				    , nameFixity	= defaultFixity
+				    , nameAccess	= PrivateAccess
+				    }
+				   ) x'
+		DefName d   ->
+		    case kindOfName d of
+			FunName  -> return $ Def info $ theName d
+			ConName  -> return $ Con info $ theName d
+			DataName -> return $ A.Data info $ theName d
+		    where
+			info = NameInfo { bindingSite   = getRange d
+					, concreteName  = x
+					, nameFixity    = fixity d
+					, nameAccess    = access d
 					}
-				       ) x'
-		    DefName d   ->
-			case kindOfName d of
-			    FunName  -> Def info $ theName d
-			    ConName  -> Con info $ theName d
-			    DataName -> A.Data info $ theName d
-			where
-			    info = NameInfo { bindingSite   = getRange d
-					    , concreteName  = x
-					    , nameFixity    = fixity d
-					    , nameAccess    = access d
-					    }
-		    UnknownName	-> notInScope x
+		UnknownName	-> notInScope x
 
     -- Literals
     toAbstract (C.Lit l)    = return $ A.Lit l
