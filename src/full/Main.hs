@@ -11,8 +11,8 @@ import System.IO
 import Syntax.Parser
 import Syntax.Concrete.Pretty ()
 import Syntax.Internal ()
-import Syntax.Scope ()
-import Syntax.Translation.ConcreteToAbstract ()
+import Syntax.Scope
+import Syntax.Translation.ConcreteToAbstract
 import Interaction.Exceptions
 
 parseFile' p file
@@ -30,8 +30,8 @@ main =
     where
 	stuff file =
 	    failOnException $
-	    do	m <- parseFile' moduleParser file
-		--m' <- runScopeM (toAbstract m)
+	    do	m	   <- parseFile' moduleParser file
+		(m',scope) <- runScopeM (toAbstract m)
 		--print m'
 		print m
 
