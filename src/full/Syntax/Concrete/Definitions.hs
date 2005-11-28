@@ -56,7 +56,10 @@ What are the options?
 
 -}
 module Syntax.Concrete.Definitions
-    ( NiceDeclaration(..), Clause(..)
+    ( NiceDeclaration(..)
+    , NiceDefinition(..)
+    , NiceConstructor, NiceTypeSignature
+    , Clause(..)
     , DeclarationException(..)
     , niceDeclarations
     ) where
@@ -69,6 +72,7 @@ import qualified Data.Map as Map
 import Syntax.Concrete
 import Syntax.Common
 import Syntax.Position
+import Syntax.Concrete.Pretty ()    -- need Show instance for Declaration
 
 #include "../../undefined.h"
 
@@ -83,15 +87,27 @@ import Syntax.Position
 -}
 data NiceDeclaration
 	= Axiom Range Fixity Access Name Expr
-	| FunDef Range [Declaration] Fixity Access Name (Maybe Expr) [Clause]
-	| NiceData Range Fixity Access Name Telescope Expr [NiceDeclaration]
+	| Synonym Range Fixity Access Name Expr	WhereClause -- ^ Definition with no type signature: @x = e@
+	| NiceDef Range [NiceTypeSignature] [NiceDefinition]	-- ^ A bunch of mutually recursive functions\/datatypes. The lists have the same length.
 	| NiceAbstract Range [NiceDeclaration]
-	| NiceMutual Range [NiceDeclaration]
 	| NiceModule Range Access QName Telescope [TopLevelDeclaration]
 	| NiceModuleMacro Range Access Name Telescope Expr ImportDirective
 	| NiceOpen Range QName ImportDirective
 	| NiceImport Range QName (Maybe Name) ImportDirective
 
+-- 	| NiceData Range Fixity Access Name Telescope Expr [NiceDeclaration]
+-- 	| FunDef Range [Declaration] Fixity Access Name (Maybe Expr) [Clause]
+
+-- | A definition without its type signature.
+data NiceDefinition
+	= FunDef  Range [Declaration] Fixity Access Name [Clause]
+	| DataDef Range Fixity Access Name [LamBinding] [NiceConstructor]
+
+-- | Only 'Axiom's.
+type NiceConstructor = NiceDeclaration
+
+-- | Only 'Axiom's.
+type NiceTypeSignature	= NiceDeclaration
 
 -- | One clause in a function definition.
 data Clause = Clause LHS RHS WhereClause
@@ -101,11 +117,13 @@ data Clause = Clause LHS RHS WhereClause
 data DeclarationException
 	= MultipleFixityDecls [(Name, [Fixity])]
 	| MissingDefinition Name
+	| BadSynonym Name [Declaration]
     deriving (Typeable, Show)
 
 instance HasRange DeclarationException where
     getRange (MultipleFixityDecls xs) = getRange (fst $ head xs)
     getRange (MissingDefinition x)    = getRange x
+    getRange (BadSynonym _ ds)	      = getRange ds
 
 {--------------------------------------------------------------------------
     The niceifier
@@ -131,6 +149,9 @@ instance HasRange DeclarationException where
 
     TODO: check that every fixity declaration has a corresponding definition.
     How to do this?
+
+    Update the fixity map with usage counters? It would need to be a state
+    monad rather than a reader monad in that case.
 -}
 niceDeclarations :: [Declaration] -> [NiceDeclaration]
 niceDeclarations ds = nice (fixities ds) ds
@@ -167,12 +188,21 @@ niceDeclarations ds = nice (fixities ds) ds
 		    where
 			nds = case d of
 			    Data r x tel t cs   ->
-				[ NiceData r (fixity x fixs) PublicAccess
-					 x tel t (niceAxioms fixs cs)
+				[ NiceDef r [ Axiom (fuseRange x t) f PublicAccess
+						    x (foldr Pi t tel)
+					    ]
+					    [ DataDef (getRange cs) f PublicAccess x
+						      (concatMap binding tel)
+						      (niceAxioms fixs cs)
+					    ]
 				]
+				where
+				    f = fixity x fixs
+				    binding (TypedBinding _ h xs _) =
+					map (DomainFree h) xs
 
 			    Mutual r ds ->
-				[ NiceMutual r $
+				[ mkMutual r $
 				    nice (fixities ds `plusFixities` fixs) ds
 				]
 
@@ -212,14 +242,17 @@ niceDeclarations ds = nice (fixities ds) ds
 		nice _ = __IMPOSSIBLE__
 
 	-- Create a function definition.
-	mkFunDef fixs x mt ds0 =
-	    FunDef (fuseRange x ds0)
-		   (ts ++ ds0)
-		   (fixity x fixs)
-		   PublicAccess x mt
-		   (map mkClause ds0)
+	mkFunDef fixs x Nothing ds@[FunClause (LHS r PrefixDef _ []) rhs wh] =
+	    Synonym (getRange ds) (fixity x fixs) PublicAccess x rhs wh
+	mkFunDef _ x Nothing ds	= throwDyn $ BadSynonym x ds
+	mkFunDef fixs x (Just t) ds0 =
+	    NiceDef (fuseRange x ds0)
+		    [ Axiom (fuseRange x t) f PublicAccess x t ]
+		    [ FunDef (getRange ds0) ds0 f PublicAccess x
+			     (map mkClause ds0)
+		    ]
 	    where
-		ts = maybe [] (\t -> [TypeSig x t]) mt
+		f  = fixity x fixs
 
 
 	-- Turn a function clause into a nice function clause.
@@ -230,19 +263,30 @@ niceDeclarations ds = nice (fixities ds) ds
 	isDefinitionOf x (FunClause (LHS _ _ y _) _ _)	= x == y
 	isDefinitionOf x _				= False
 
+	-- Make a mutual declaration
+	mkMutual :: Range -> [NiceDeclaration] -> NiceDeclaration
+	mkMutual r ds = foldr smash (NiceDef r [] []) ds
+	    where
+		smash (NiceDef r0 ts0 ds0) (NiceDef r1 ts1 ds1) =
+		    NiceDef (fuseRange r0 r1) (ts0 ++ ts1) (ds0 ++ ds1)
+		smash _ _ = __IMPOSSIBLE__  -- only definitions can appear in a mutual
+
 	-- Make a declaration private
 	mkPrivate d =
 	    case d of
 		Axiom r f _ x e			-> Axiom r f PrivateAccess x e
-		FunDef r ds f _ x t cs		-> FunDef r ds f PrivateAccess x t cs
-		NiceData r f _ x tel s cs	-> NiceData r f PrivateAccess x tel s $
-						    map mkPrivate cs
-		NiceMutual r ds			-> NiceMutual r (map mkPrivate ds)
+		Synonym r f _ x e wh		-> Synonym r f PrivateAccess x e wh
+		NiceDef r ts ds			-> NiceDef r (map mkPrivate ts)
+							   (map mkPrivateDef ds)
 		NiceAbstract r ds		-> NiceAbstract r (map mkPrivate ds)
 		NiceModule r _ x tel ds		-> NiceModule r PrivateAccess x tel ds
 		NiceModuleMacro r _ x tel e is	-> NiceModuleMacro r PrivateAccess x tel e is
 		_				-> d
 
+	mkPrivateDef d =
+	    case d of
+		FunDef r ds f _ x cs	-> FunDef r ds f PrivateAccess x cs
+		DataDef r f _ x ps cs	-> DataDef r f PrivateAccess x ps cs
 
 -- | Add more fixities. Throw an exception for multiple fixity declarations.
 plusFixities :: Map.Map Name Fixity -> Map.Map Name Fixity -> Map.Map Name Fixity

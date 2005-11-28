@@ -193,18 +193,16 @@ instance BindToAbstract C.TypedBinding A.TypedBinding where
 	    bindVariables xs $ ret (A.TypedBinding r h xs t')
 
 -- Note: only for top level modules!
-instance ToAbstract C.Declaration A.Declaration where
+instance ToAbstract C.Declaration (A.Declaration, ScopeInfo) where
     toAbstract (C.Module r x@(Qual _ _) tel ds) =
 	insideModule x $
 	bindToAbstract (tel,ds) $ \(tel',ds') ->    -- order matter!
-	    return $ A.Module info x tel' ds'
+	    do	scope <- getScopeInfo
+		return (A.Module info x tel' ds', scope)
 	where
-	    info = DefInfo { defAccess = PublicAccess
-			   , defFixity = defaultFixity
-			   , defInfo   = DeclRange r
-				-- We could save the concrete module here but
-				-- seems a bit over-kill.
-			   }
+	    info = mkRangedDefInfo defaultFixity PublicAccess r
+			-- We could save the concrete module here but
+			-- seems a bit over-kill.
     toAbstract _ = __IMPOSSIBLE__   -- only for top-level modules.
 
 instance BindToAbstract [C.Declaration] [A.Declaration] where
@@ -215,6 +213,23 @@ instance BindToAbstract [NiceDeclaration] [A.Declaration] where
     bindToAbstract (x:xs) ret =
 	bindToAbstract (x,xs) $ \ (y,ys) -> ret (y ++ ys)
 
+-- Only constructor names are bound by definitions.
+instance BindToAbstract NiceDefinition Definition where
+
+    -- Function definitions
+    bindToAbstract (CD.FunDef r ds f a x cs) ret =
+	do  cs' <- toAbstract cs
+	    ret $ A.FunDef (mkRangedDefInfo f a r) x cs'
+
+    -- Data definitions
+    bindToAbstract (CD.DataDef r f a x pars cons) ret =
+	do  (pars', cons') <- bindToAbstract pars $ \pars' ->
+				do  cons' <- toAbstract $ map Constr cons
+				    return (pars', cons')
+	    -- bring the constructor names into scope
+	    bindToAbstract (map Constr cons') $ \_ ->
+		ret $ A.DataDef (mkRangedDefInfo f a r) x pars' cons'
+
 -- The only reason why we return a list is that open declarations disappears.
 -- For every other declaration we get a singleton list.
 instance BindToAbstract NiceDeclaration [A.Declaration] where
@@ -223,51 +238,27 @@ instance BindToAbstract NiceDeclaration [A.Declaration] where
     bindToAbstract (CD.Axiom r f a x t) ret =
 	do  t' <- toAbstract t
 	    defineName a FunName f x $
-		ret [A.Axiom info x t']
-	where
-	    info = DefInfo { defFixity = f
-			   , defAccess = a
-			   , defInfo   = DeclRange r
+		ret [A.Axiom (mkRangedDefInfo f a r) x t']
 				-- we can easily reconstruct the original decl
 				-- so we don't bother save it
-			   }
 
-    -- Function definition
-    bindToAbstract (CD.FunDef r ds f a x mt cs) ret =
-	do  mt' <- toAbstract mt
+    -- Function synonym
+    bindToAbstract (CD.Synonym r f a x e wh) ret =
+	do  (e',wh') <- bindToAbstract wh $ \wh' ->
+			    do	e' <- toAbstract e
+				return (e',wh')
 	    defineName a FunName f x $
-		do  cs' <- toAbstract cs
-		    ret [A.FunDef info x mt' cs']
-	where
-	    info = DefInfo { defFixity = f
-			   , defAccess = a
-			   , defInfo   = DeclSource ds
-			   }
+		ret [A.Synonym (mkRangedDefInfo f a r) x e' wh']
 
-    -- Data declaration
-    bindToAbstract (NiceData r f a x tel e cons) ret =
-	do  (tel',e',cons')
-		<- bindToAbstract tel $ \tel' ->
-		    do	e'    <- toAbstract e
-			cons' <- defineName a FunName f x
-				 $ toAbstract $ map Constr cons
-			return (tel', e', cons')
-	    defineName a FunName f x $
-		bindToAbstract (map Constr cons') $ \_ ->
-		ret [DataDecl info x tel' e' cons']
-	where
-	    info = DefInfo { defAccess = a
-			   , defFixity = f
-			   , defInfo   = DeclRange r
-			   }
+    -- Definitions (possibly mutual)
+    bindToAbstract (NiceDef r ts ds) ret =
+	bindToAbstract (ts,ds) $ \ (ts',ds') ->
+	    ret [Definition (DeclRange r) ts' ds']
+
 
     bindToAbstract (NiceAbstract r ds) ret =
 	bindToAbstract ds $ \ds' ->
 	    ret [A.Abstract (DeclRange r) ds']
-
-    bindToAbstract (NiceMutual r ds) ret =  -- TODO: this is wrong
-	bindToAbstract ds $ \ds' ->
-	    ret [A.Mutual (DeclRange r) ds']
 
     bindToAbstract (NiceModule r a (QName x) tel ds) ret =
 	do  (tel',ds',ns) <-
@@ -280,12 +271,8 @@ instance BindToAbstract NiceDeclaration [A.Declaration] where
 			       , moduleContents = ns
 			       }
 	    defineModule x m $
-		ret [A.Module info (QName x) tel' ds']
-	where
-	    info = DefInfo { defAccess = a
-			   , defFixity = defaultFixity
-			   , defInfo   = DeclRange r
-			   }
+		ret [A.Module (mkRangedDefInfo defaultFixity a r)
+			      (QName x) tel' ds']
 
     -- Top-level modules are translated with toAbstract.
     bindToAbstract (NiceModule _ _ _ _ _) _ = __IMPOSSIBLE__
@@ -296,12 +283,9 @@ instance BindToAbstract NiceDeclaration [A.Declaration] where
 		bindToAbstract tel $ \tel' ->
 		    do  args' <- toAbstract args
 			implicitModule x a (length tel) m is $
-			    ret [ModuleDef info x tel' m args']
-		where
-		    info = DefInfo { defAccess = a
-				   , defFixity = defaultFixity	-- modules don't have fixities
-				   , defInfo   = DeclRange r
-				   }
+			    ret [ ModuleDef (mkRangedDefInfo defaultFixity a r)
+					    x tel' m args'
+				]
 		    
 	    _	-> notAModuleExpr e
 
@@ -318,12 +302,7 @@ newtype Constr a = Constr a
 instance ToAbstract (Constr CD.NiceDeclaration) A.Declaration where
     toAbstract (Constr (CD.Axiom r f a x t)) =
 	do  t' <- toAbstract t
-	    return (A.Axiom info x t')
-	where
-	    info = DefInfo { defAccess = a
-			   , defFixity = f
-			   , defInfo   = DeclRange r
-			   }
+	    return (A.Axiom (mkRangedDefInfo f a r) x t')
 
     toAbstract _ = __IMPOSSIBLE__    -- a constructor is always an axiom
 

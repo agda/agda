@@ -74,6 +74,12 @@ data DefInfo =
 		}
     deriving (Show)
 
+mkRangedDefInfo :: Fixity -> Access -> Range -> DefInfo
+mkRangedDefInfo f a r = DefInfo f a (DeclRange r)
+
+mkSourcedDefInfo :: Fixity -> Access -> [Declaration] -> DefInfo
+mkSourcedDefInfo f a ds = DefInfo f a (DeclSource ds)
+
 instance HasRange DefInfo where
     getRange = getRange . defInfo
 

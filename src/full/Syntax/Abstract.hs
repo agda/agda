@@ -26,16 +26,24 @@ data Expr
     deriving (Show)
 
 data Declaration
-	= Axiom     DefInfo Name Expr
-	| FunDef    DefInfo Name (Maybe Expr) [Clause]
-	| DataDecl  DefInfo Name Telescope Expr [Declaration]
-	    -- ^ only axioms
-	| Abstract  DeclInfo [Declaration]
-	| Mutual    DeclInfo [Declaration]
-	| Module    DefInfo QName Telescope [Declaration]
-	| ModuleDef DefInfo Name  Telescope QName [Arg Expr]
-	| Import    DeclInfo QName
+	= Axiom      DefInfo Name Expr				-- ^ postulate
+	| Synonym    DefInfo Name Expr [Declaration]		-- ^ definition of the form @x = e@
+	| Definition DeclInfo [TypeSignature] [Definition]	-- ^ a bunch of mutually recursive definitions
+	| Abstract   DeclInfo [Declaration]
+	| Module     DefInfo QName Telescope [Declaration]
+	| ModuleDef  DefInfo Name  Telescope QName [Arg Expr]
+	| Import     DeclInfo QName
     deriving (Show)
+
+-- | A definition without its type signature.
+data Definition
+	= FunDef     DefInfo Name [Clause]
+	| DataDef    DefInfo Name [LamBinding] [Constructor]	-- ^ the 'LamBinding's are 'DomainFree' and binds the parameters of the datatype.
+    deriving (Show)
+
+-- | Only 'Axiom's.
+type TypeSignature  = Declaration
+type Constructor    = TypeSignature
 
 -- | A lambda binding is either domain free or typed.
 data LamBinding
@@ -104,14 +112,17 @@ instance HasRange Expr where
     getRange (Let i _ _)	= getRange i
 
 instance HasRange Declaration where
-    getRange (Axiom     i _ _	  ) = getRange i
-    getRange (FunDef    i _ _ _	  ) = getRange i
-    getRange (DataDecl  i _ _ _ _ ) = getRange i
-    getRange (Abstract  i _	  ) = getRange i
-    getRange (Mutual    i _	  ) = getRange i
-    getRange (Module    i _ _ _	  ) = getRange i
-    getRange (ModuleDef i _ _ _ _ ) = getRange i
-    getRange (Import    i _	  ) = getRange i
+    getRange (Axiom      i _ _	  ) = getRange i
+    getRange (Synonym	 i _ _ _  ) = getRange i
+    getRange (Definition i _ _	  ) = getRange i
+    getRange (Abstract   i _	  ) = getRange i
+    getRange (Module     i _ _ _  ) = getRange i
+    getRange (ModuleDef  i _ _ _ _) = getRange i
+    getRange (Import     i _	  ) = getRange i
+
+instance HasRange Definition where
+    getRange (FunDef  i _ _   ) = getRange i
+    getRange (DataDef i _ _ _ ) = getRange i
 
 instance HasRange Pattern where
     getRange (VarP x)	    = getRange x
