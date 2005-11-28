@@ -195,7 +195,7 @@ module examples.syntax.Syntax where
 	      in  f (local x)
       where
 	data Local : Set where
-	  local : A -> local
+	  local : A -> Local
 
     -- You can declare things to be private to the current module. This means
     -- that they cannot be accessed outside the module (but they're still
@@ -306,6 +306,9 @@ module examples.syntax.Syntax where
   -- arguments.
   module MetaVariables where
 
+    postulate X : Set
+	      x : X
+
     -- There are two ways of writing a question mark: ? and {! ... !}
     -- The type checker will not complain about unsolved question marks (unless
     -- you claim you are done).
@@ -329,9 +332,6 @@ module examples.syntax.Syntax where
     -- underscore will be used for subscripts.
     id : (A : Set) -> A -> A
     id A x = x
-
-    postulate X : Set
-	      x : X
 
     x' = id_x -- this means id _ x
 
