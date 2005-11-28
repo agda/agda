@@ -1,4 +1,3 @@
 module examples.syntax.ModuleA/0 where
-    functions: eval
+    functions: eval, Nat
     constructors: zero, suc, plus
-    datatypes: Nat
