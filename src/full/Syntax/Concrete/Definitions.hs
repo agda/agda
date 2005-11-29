@@ -87,8 +87,11 @@ import Syntax.Concrete.Pretty ()    -- need Show instance for Declaration
 -}
 data NiceDeclaration
 	= Axiom Range Fixity Access Name Expr
-	| Synonym Range Fixity Access Name Expr	WhereClause -- ^ Definition with no type signature: @x = e@
-	| NiceDef Range [NiceTypeSignature] [NiceDefinition]	-- ^ A bunch of mutually recursive functions\/datatypes. The lists have the same length.
+	| Synonym Range Fixity Access Name Expr	WhereClause		    -- ^ Definition with no type signature: @x = e@
+	| NiceDef Range [Declaration] [NiceTypeSignature] [NiceDefinition]
+	    -- ^ A bunch of mutually recursive functions\/datatypes.
+	    --   The last two lists have the same length. The first list is the
+	    --   concrete declarations these definitions came from.
 	| NiceAbstract Range [NiceDeclaration]
 	| NiceModule Range Access QName Telescope [TopLevelDeclaration]
 	| NiceModuleMacro Range Access Name Telescope Expr ImportDirective
@@ -188,7 +191,8 @@ niceDeclarations ds = nice (fixities ds) ds
 		    where
 			nds = case d of
 			    Data r x tel t cs   ->
-				[ NiceDef r [ Axiom (fuseRange x t) f PublicAccess
+				[ NiceDef r [d]
+					    [ Axiom (fuseRange x t) f PublicAccess
 						    x (foldr Pi t tel)
 					    ]
 					    [ DataDef (getRange cs) f PublicAccess x
@@ -202,7 +206,7 @@ niceDeclarations ds = nice (fixities ds) ds
 					map (DomainFree h) xs
 
 			    Mutual r ds ->
-				[ mkMutual r $
+				[ mkMutual r [d] $
 				    nice (fixities ds `plusFixities` fixs) ds
 				]
 
@@ -247,6 +251,7 @@ niceDeclarations ds = nice (fixities ds) ds
 	mkFunDef _ x Nothing ds	= throwDyn $ BadSynonym x ds
 	mkFunDef fixs x (Just t) ds0 =
 	    NiceDef (fuseRange x ds0)
+		    (TypeSig x t : ds0)
 		    [ Axiom (fuseRange x t) f PublicAccess x t ]
 		    [ FunDef (getRange ds0) ds0 f PublicAccess x
 			     (map mkClause ds0)
@@ -264,11 +269,14 @@ niceDeclarations ds = nice (fixities ds) ds
 	isDefinitionOf x _				= False
 
 	-- Make a mutual declaration
-	mkMutual :: Range -> [NiceDeclaration] -> NiceDeclaration
-	mkMutual r ds = foldr smash (NiceDef r [] []) ds
+	mkMutual :: Range -> [Declaration] -> [NiceDeclaration] -> NiceDeclaration
+	mkMutual r cs ds = setConcrete cs $ foldr smash (NiceDef r [] [] []) ds
 	    where
-		smash (NiceDef r0 ts0 ds0) (NiceDef r1 ts1 ds1) =
-		    NiceDef (fuseRange r0 r1) (ts0 ++ ts1) (ds0 ++ ds1)
+		setConcrete cs (NiceDef r _ ts ds)  = NiceDef r cs ts ds
+		setConcrete cs _		    = __IMPOSSIBLE__
+
+		smash (NiceDef r0 _ ts0 ds0) (NiceDef r1 _ ts1 ds1) =
+		    NiceDef (fuseRange r0 r1) [] (ts0 ++ ts1) (ds0 ++ ds1)
 		smash _ _ = __IMPOSSIBLE__  -- only definitions can appear in a mutual
 
 	-- Make a declaration private
@@ -276,8 +284,8 @@ niceDeclarations ds = nice (fixities ds) ds
 	    case d of
 		Axiom r f _ x e			-> Axiom r f PrivateAccess x e
 		Synonym r f _ x e wh		-> Synonym r f PrivateAccess x e wh
-		NiceDef r ts ds			-> NiceDef r (map mkPrivate ts)
-							   (map mkPrivateDef ds)
+		NiceDef r cs ts ds		-> NiceDef r cs (map mkPrivate ts)
+								(map mkPrivateDef ds)
 		NiceAbstract r ds		-> NiceAbstract r (map mkPrivate ds)
 		NiceModule r _ x tel ds		-> NiceModule r PrivateAccess x tel ds
 		NiceModuleMacro r _ x tel e is	-> NiceModuleMacro r PrivateAccess x tel e is

@@ -248,7 +248,7 @@ instance BindToAbstract NiceDefinition Definition where
     -- Function definitions
     bindToAbstract (CD.FunDef r ds f a x cs) ret =
 	do  cs' <- toAbstract cs
-	    ret $ A.FunDef (mkRangedDefInfo f a r) x cs'
+	    ret $ A.FunDef (mkSourcedDefInfo f a ds) x cs'
 
     -- Data definitions
     bindToAbstract (CD.DataDef r f a x pars cons) ret =
@@ -280,9 +280,9 @@ instance BindToAbstract NiceDeclaration [A.Declaration] where
 		ret [A.Synonym (mkRangedDefInfo f a r) x e' wh']
 
     -- Definitions (possibly mutual)
-    bindToAbstract (NiceDef r ts ds) ret =
+    bindToAbstract (NiceDef r cs ts ds) ret =
 	bindToAbstract (ts,ds) $ \ (ts',ds') ->
-	    ret [Definition (DeclRange r) ts' ds']
+	    ret [Definition (DeclSource cs) ts' ds']
 
 
     bindToAbstract (NiceAbstract r ds) ret =
