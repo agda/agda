@@ -1,4 +1,4 @@
-{-# OPTIONS -fglasgow-exts -fallow-overlapping-instances #-}
+{-# OPTIONS -cpp -fglasgow-exts -fallow-overlapping-instances #-}
 
 {-| The translation of abstract syntax to concrete syntax has two purposes.
     First it allows us to pretty print abstract syntax values without having to
@@ -18,6 +18,9 @@ import Syntax.Abstract as A
 
 import Utils.Maybe
 import Utils.Monad
+import Utils.Tuple
+
+#include "../../undefined.h"
 
 -- Flags ------------------------------------------------------------------
 
@@ -159,16 +162,76 @@ instance ToConcrete A.Expr C.Expr where
 -- Binder instances -------------------------------------------------------
 
 instance ToConcrete A.LamBinding C.LamBinding where
-    toConcrete = undefined
+    toConcrete (A.DomainFree h x) = return $ C.DomainFree h x
+    toConcrete (A.DomainFull b)   = C.DomainFull <$> toConcrete b
 
 instance ToConcrete A.TypedBinding C.TypedBinding where
-    toConcrete = undefined
+    toConcrete (A.TypedBinding r h xs e) =
+	C.TypedBinding r h xs <$> toConcreteCtx TopCtx e
 
 -- Declaration instances --------------------------------------------------
 
 instance ToConcrete [A.Declaration] [C.Declaration] where
     toConcrete ds = concat <$> mapM toConcrete ds
 
+instance ToConcrete (A.TypeSignature, A.Definition) [C.Declaration] where
+
+    toConcrete (Axiom _ x t, FunDef i _ cs) =
+	do  t'  <- toConcreteCtx TopCtx t
+	    cs' <- withStored i $ toConcrete cs
+	    return $ TypeSig x t' : cs'
+
+    toConcrete (Axiom _ x t, DataDef i _ bs cs) =
+	withStored i $
+	do  tel' <- toConcrete tel
+	    t'   <- toConcreteCtx TopCtx t0
+	    cs'  <- toConcrete cs
+	    return [ C.Data (getRange i) x tel' t' cs' ]
+	where
+	    (tel, t0) = mkTel (length bs) t
+	    mkTel 0 t		    = ([], t)
+	    mkTel n (A.Pi _ b t)    = (b:) -*- id $ mkTel (n - 1) t
+	    mkTel _ _		    = __IMPOSSIBLE__
+
+    toConcrete _ = __IMPOSSIBLE__
+
+instance ToConcrete A.Clause C.Declaration where
+    toConcrete (A.Clause lhs rhs wh) =
+	do  lhs' <- toConcrete lhs
+	    rhs' <- toConcreteCtx TopCtx rhs
+	    wh'  <- toConcrete wh
+	    return $ FunClause lhs' rhs' wh'
+
 instance ToConcrete A.Declaration [C.Declaration] where
+
+    toConcrete (Axiom i x t) =
+	withStored i $
+	do  t' <- toConcreteCtx TopCtx t
+	    return [C.TypeSig x t']
+
+    toConcrete (Synonym i x e wh) =
+	withStored i $
+	do  e'  <- toConcreteCtx TopCtx e
+	    wh' <- toConcrete wh
+	    return [C.FunClause (C.LHS (getRange x) PrefixDef x []) e' wh']
+
+    toConcrete (Definition i ts ds) =
+	withStored i $
+	do  ds' <- concat <$> toConcrete (zip ts ds)
+	    return [C.Mutual (getRange i) ds']
+
+    toConcrete (A.Abstract i ds) =
+	withStored i $
+	    do	ds' <- toConcrete ds
+		return [C.Abstract (getRange i) ds']
+
+    toConcrete _ = undefined
+
+-- Left hand sides --------------------------------------------------------
+
+instance ToConcrete A.LHS C.LHS where
+    toConcrete = undefined
+
+instance ToConcrete A.Pattern C.Pattern where
     toConcrete = undefined
 
