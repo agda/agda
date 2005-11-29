@@ -20,26 +20,23 @@ data InfixException = BadInfixApp Range (QName, Fixity) (QName, Fixity)
 instance HasRange InfixException where
     getRange (BadInfixApp r _ _) = r
 
-data InfixView e = IVParen e
-		 | IVApp e QName e
+data InfixView e = IVApp e QName e
 		 | IVOther e
 
 infixView :: Expr -> InfixView Expr
-infixView (Paren _ e)	      = IVParen e
 infixView (InfixApp e1 op e2) = IVApp e1 op e2
 infixView e		      = IVOther e
 
 infixViewP :: Pattern -> InfixView Pattern
-infixViewP (ParenP _ p)	      = IVParen p
 infixViewP (InfixAppP p op q) = IVApp p op q
 infixViewP p		      = IVOther p
 
 {-| Makes sure that the top-level constructor of the expression is the correct
-    one. Never returns a 'Paren' and if it returns an 'InfixApp' the operator
-    is the right one. Note that it only ever rotates the top-level of the
-    expression, sub-expressions are not rotated. The function is parameterised
-    over how to get the fixity of a name. Throws an 'InfixException' if the
-    correct bracketing cannot be deduced. It is parameterised over the type of
+    one. Given an 'InfixApp' it returns an 'InfixApp' and the operator is the
+    right one. Note that it only ever rotates the top-level of the expression,
+    sub-expressions are not rotated. The function is parameterised over how to
+    get the fixity of a name. Throws an 'InfixException' if the correct
+    bracketing cannot be deduced. It is parameterised over the type of
     expressions and how to get the fixity of a name.
 -}
 rotateInfixApp' :: HasRange expr
@@ -49,7 +46,6 @@ rotateInfixApp' :: HasRange expr
 		   -> expr -> expr
 rotateInfixApp' view infixApp fixity e =
     case view e of
-	IVParen e'     -> rotateInfixApp' view infixApp fixity e'
 	IVApp e1 op e2 ->
 	    case view $ rotateInfixApp' view infixApp fixity e1 of
 		IVApp e1a op' e1b
