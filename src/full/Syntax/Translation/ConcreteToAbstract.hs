@@ -318,7 +318,8 @@ instance BindToAbstract NiceDeclaration [A.Declaration] where
 		    
 	    _	-> notAModuleExpr e
 
-    bindToAbstract (NiceOpen r x is) ret = openModule x is $ ret []
+    bindToAbstract (NiceOpen r x is) ret =
+	openModule x is $ ret [A.Open $ DeclSource [C.Open r x is]]
 
     bindToAbstract (NiceImport r x as is) ret =
 	do  iface <- getModuleInterface x

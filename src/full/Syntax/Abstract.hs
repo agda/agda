@@ -33,6 +33,8 @@ data Declaration
 	| Module     DefInfo QName Telescope [Declaration]
 	| ModuleDef  DefInfo Name  Telescope QName [Arg Expr]
 	| Import     DeclInfo QName
+	| Open	     DeclInfo	    -- ^ this one is here only to enable translation
+				    --   back to concrete syntax
     deriving (Show)
 
 -- | A definition without its type signature.
@@ -119,6 +121,7 @@ instance HasRange Declaration where
     getRange (Module     i _ _ _  ) = getRange i
     getRange (ModuleDef  i _ _ _ _) = getRange i
     getRange (Import     i _	  ) = getRange i
+    getRange (Open	 i	  ) = getRange i
 
 instance HasRange Definition where
     getRange (FunDef  i _ _   ) = getRange i
