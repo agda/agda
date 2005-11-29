@@ -89,17 +89,60 @@ data Literal = LitInt    Range Integer
 	     | LitChar   Range Char
     deriving (Typeable, Data, Eq, Show)
 
-
 -- | Fixity of infix operators.
 data Fixity = LeftAssoc  Range Int
 	    | RightAssoc Range Int
 	    | NonAssoc   Range Int
     deriving (Typeable, Data, Eq, Show)
 
+fixityLevel :: Fixity -> Int
+fixityLevel (LeftAssoc	_ n) = n
+fixityLevel (RightAssoc _ n) = n
+fixityLevel (NonAssoc	_ n) = n
+
 -- | The default fixity. Currently defined to be @'LeftAssoc' 20@.
 defaultFixity :: Fixity
 defaultFixity = LeftAssoc noRange 20
 
+
+-- | Precedence is associated with a context.
+data Precedence = TopCtx | FunctionSpaceDomainCtx
+		| LeftOperandCtx Fixity | RightOperandCtx Fixity
+		| FunctionCtx | ArgumentCtx
+    deriving (Show)
+
+-- | Do we need to bracket an infix application of the given fixity in a
+--   context with the given precedence.
+infixBrackets :: Precedence -> Fixity -> Bool
+infixBrackets TopCtx _			= False
+infixBrackets FunctionSpaceDomainCtx _	= False
+infixBrackets (LeftOperandCtx (LeftAssoc _ n)) (LeftAssoc _ m)
+					= m < n
+infixBrackets (LeftOperandCtx f0) f1	= fixityLevel f1 <= fixityLevel f0
+infixBrackets (RightOperandCtx (RightAssoc _ n)) (RightAssoc _ m)
+					= m < n
+infixBrackets (RightOperandCtx f0) f1	= fixityLevel f1 <= fixityLevel f0
+infixBrackets FunctionCtx _		= True
+infixBrackets ArgumentCtx _		= True
+
+-- | Does a lambda-like thing (lambda, let or pi) need brackets in the given
+--   context. A peculiar thing with lambdas is that they don't need brackets
+--   in a right operand context. For instance: @m >>= \x -> m'@ is a valid
+--   infix application.
+lambdaBrackets :: Precedence -> Bool
+lambdaBrackets TopCtx		    = False
+lambdaBrackets (RightOperandCtx _)  = False
+lambdaBrackets _		    = True
+
+-- | Does a function application need brackets?
+appBrackets :: Precedence -> Bool
+appBrackets ArgumentCtx	= True
+appBrackets _		= False
+
+-- | Does a function space need brackets?
+piBrackets :: Precedence -> Bool
+piBrackets TopCtx   = False
+piBrackets _	    = True
 
 instance HasRange Name where
     getRange (Name r _)	= r

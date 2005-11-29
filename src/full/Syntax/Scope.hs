@@ -252,7 +252,7 @@ data ScopeInfo = ScopeInfo
 	{ publicNameSpace   :: NameSpace
 	, privateNameSpace  :: NameSpace
 	, localVariables    :: LocalVariables
-	, contextPrecedence :: Fixity
+	, contextPrecedence :: Precedence
 	}
 
 -- | We need to go away and read interface files when scope checking an import
@@ -420,7 +420,7 @@ emptyScopeInfo :: QName -> ScopeInfo
 emptyScopeInfo x = ScopeInfo { publicNameSpace	    = emptyNameSpace x
 			     , privateNameSpace	    = emptyNameSpace x
 			     , localVariables	    = Map.empty
-			     , contextPrecedence    = NonAssoc noRange 0
+			     , contextPrecedence    = TopCtx
 			     }
 
 ---------------------------------------------------------------------------
@@ -652,6 +652,13 @@ currentNameSpace = publicNameSpace <$> getScopeInfo
 ---------------------------------------------------------------------------
 -- * Top-level functions
 ---------------------------------------------------------------------------
+
+-- | Set the precedence of the current context. It's important to remember
+--   to do this everywhere. It would be nice to have something that ensures
+--   this.
+setContext :: Precedence -> ScopeM a -> ScopeM a
+setContext p =
+    local $ \s -> s { contextPrecedence = p }
 
 -- | Work inside a module. This means moving everything in the
 --   'publicNameSpace' to the 'privateNameSpace' and updating the names of
