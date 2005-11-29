@@ -157,6 +157,28 @@ module examples.syntax.Syntax where
 
     plus = (+)
 
+    -- The following code is to stress test the handling of infix applications.
+
+    infixl 10 @
+    infixl 11 @@
+    infixr 10 #
+    infixr 11 ##
+    postulate
+      (@)  : Nat -> Nat -> Nat
+      (#)  : Nat -> Nat -> Nat
+      (@@) : Nat -> Nat -> Nat
+      (##) : Nat -> Nat -> Nat
+
+    z = zero
+
+    test1 = z @ (z # z)
+    test2 = (z @ z) # z
+    test3 = z # (z @ z)
+    test4 = (z # z) @ z
+    test5 = z ## z # z ## z # z
+    test6 = z @@ z @ z @@ z @ z
+    test7 = z # z @@ z @@ z # z
+
     -- Mutually recursive definition are introduced using the 'mutual' keyword.
     -- A mutual block can contain function definitions, datatypes
     -- (induction-recursion) and fixity declarations.
