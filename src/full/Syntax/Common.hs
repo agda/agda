@@ -113,17 +113,17 @@ data Precedence = TopCtx | FunctionSpaceDomainCtx
 
 -- | Do we need to bracket an infix application of the given fixity in a
 --   context with the given precedence.
-infixBrackets :: Precedence -> Fixity -> Bool
-infixBrackets TopCtx _			= False
-infixBrackets FunctionSpaceDomainCtx _	= False
-infixBrackets (LeftOperandCtx (LeftAssoc _ n)) (LeftAssoc _ m)
+infixBrackets :: Fixity -> Precedence -> Bool
+infixBrackets _ TopCtx			= False
+infixBrackets _ FunctionSpaceDomainCtx	= False
+infixBrackets (LeftAssoc _ m) (LeftOperandCtx (LeftAssoc _ n))
 					= m < n
-infixBrackets (LeftOperandCtx f0) f1	= fixityLevel f1 <= fixityLevel f0
-infixBrackets (RightOperandCtx (RightAssoc _ n)) (RightAssoc _ m)
+infixBrackets f1 (LeftOperandCtx f0)	= fixityLevel f1 <= fixityLevel f0
+infixBrackets (RightAssoc _ m) (RightOperandCtx (RightAssoc _ n))
 					= m < n
-infixBrackets (RightOperandCtx f0) f1	= fixityLevel f1 <= fixityLevel f0
-infixBrackets FunctionCtx _		= True
-infixBrackets ArgumentCtx _		= True
+infixBrackets f1 (RightOperandCtx f0)	= fixityLevel f1 <= fixityLevel f0
+infixBrackets _ FunctionCtx		= True
+infixBrackets _ ArgumentCtx		= True
 
 -- | Does a lambda-like thing (lambda, let or pi) need brackets in the given
 --   context. A peculiar thing with lambdas is that they don't need brackets
