@@ -54,7 +54,14 @@ instance HasRange ToAbstractException where
 -- | Things that can be translated to abstract syntax are instances of this
 --   class.
 class ToAbstract concrete abstract | concrete -> abstract where
-    toAbstract :: concrete -> ScopeM abstract
+
+    toAbstract	  :: concrete -> ScopeM abstract
+
+-- | This function should be used instead of 'toAbstract' for things that need
+--   to keep track of precedences to make sure that we don't forget about it.
+toAbstractCtx :: ToAbstract concrete abstract =>
+		 Precedence -> concrete -> ScopeM abstract
+toAbstractCtx ctx c = setContext ctx $ toAbstract c
 
 -- | Things that can be translated to abstract syntax and in the process
 --   update the scope are instances of this class.
@@ -132,14 +139,20 @@ instance ToAbstract C.Expr A.Expr where
 
     -- Application
     toAbstract e@(C.App r h e1 e2) =
-	uncurry (A.App (ExprSource e) h) <$> toAbstract (e1,e2)
+	do  e1' <- toAbstractCtx FunctionCtx e1
+	    e2' <- toAbstractCtx ArgumentCtx e2
+	    return $ A.App (ExprSource e) h e1' e2'
 
     -- Infix application
     toAbstract e@(C.InfixApp _ _ _) =
 	do  f <- getFixityFunction
 	    -- Rotating an infix application always returns an infix application.
 	    let C.InfixApp e1 op e2 = rotateInfixApp f e
-	    (e1',op',e2') <- toAbstract (e1, Ident op, e2)
+		fx		    = f op
+
+	    e1' <- toAbstractCtx (LeftOperandCtx fx) e1
+	    op' <- toAbstractCtx TopCtx $ Ident op
+	    e2' <- toAbstractCtx (RightOperandCtx fx) e2
 	    return $ A.App (ExprSource e) NotHidden
 			   (A.App (ExprRange $ fuseRange e1' op')
 				  NotHidden op' e1'
@@ -148,21 +161,22 @@ instance ToAbstract C.Expr A.Expr where
     -- Lambda
     toAbstract e0@(C.Lam r bs e) =
 	bindToAbstract bs $ \ (b:bs') ->
-	    do  e' <- toAbstract e
+	    do  e' <- toAbstractCtx TopCtx e
 		return $ A.Lam (ExprSource e0) b $ foldr mkLam e' bs'
 	where
 	    mkLam b e = A.Lam (ExprRange $ fuseRange b e) b e
 
     -- Function types
     toAbstract e@(Fun r h e1 e2) =
-	do  (e1',e2') <- toAbstract (e1,e2)
+	do  e1' <- toAbstractCtx FunctionSpaceDomainCtx e1
+	    e2' <- toAbstractCtx TopCtx e2
 	    return $ A.Pi (ExprSource e)
 			  (A.TypedBinding (getRange e1) h [noName] e1')
 			  e2'
 
     toAbstract e0@(C.Pi b e) =
 	bindToAbstract b $ \b' ->
-	do  e' <- toAbstract e
+	do  e' <- toAbstractCtx TopCtx e
 	    return $ A.Pi (ExprSource e0) b' e'
 
     -- Sorts
@@ -173,11 +187,11 @@ instance ToAbstract C.Expr A.Expr where
     -- Let
     toAbstract e0@(C.Let _ ds e) =
 	bindToAbstract ds $ \ds' ->
-	do  e' <- toAbstract e
+	do  e' <- toAbstractCtx TopCtx e
 	    return $ A.Let (ExprSource e0) ds' e'
 
     -- Parenthesis
-    toAbstract (C.Paren _ e) = toAbstract e
+    toAbstract (C.Paren _ e) = toAbstractCtx TopCtx e
 	-- You could imagine remembering parenthesis. I don't really see the
 	-- point though.
 
@@ -189,7 +203,7 @@ instance BindToAbstract C.LamBinding A.LamBinding where
 
 instance BindToAbstract C.TypedBinding A.TypedBinding where
     bindToAbstract (C.TypedBinding r h xs t) ret =
-	do  t' <- toAbstract t
+	do  t' <- toAbstractCtx TopCtx t
 	    bindVariables xs $ ret (A.TypedBinding r h xs t')
 
 -- Note: only for top level modules!
@@ -236,7 +250,7 @@ instance BindToAbstract NiceDeclaration [A.Declaration] where
 
     -- Axiom
     bindToAbstract (CD.Axiom r f a x t) ret =
-	do  t' <- toAbstract t
+	do  t' <- toAbstractCtx TopCtx t
 	    defineName a FunName f x $
 		ret [A.Axiom (mkRangedDefInfo f a r) x t']
 				-- we can easily reconstruct the original decl
@@ -245,7 +259,7 @@ instance BindToAbstract NiceDeclaration [A.Declaration] where
     -- Function synonym
     bindToAbstract (CD.Synonym r f a x e wh) ret =
 	do  (e',wh') <- bindToAbstract wh $ \wh' ->
-			    do	e' <- toAbstract e
+			    do	e' <- toAbstractCtx TopCtx e
 				return (e',wh')
 	    defineName a FunName f x $
 		ret [A.Synonym (mkRangedDefInfo f a r) x e' wh']
@@ -301,7 +315,7 @@ newtype Constr a = Constr a
 
 instance ToAbstract (Constr CD.NiceDeclaration) A.Declaration where
     toAbstract (Constr (CD.Axiom r f a x t)) =
-	do  t' <- toAbstract t
+	do  t' <- toAbstractCtx TopCtx t
 	    return (A.Axiom (mkRangedDefInfo f a r) x t')
 
     toAbstract _ = __IMPOSSIBLE__    -- a constructor is always an axiom
@@ -317,7 +331,7 @@ instance ToAbstract CD.Clause A.Clause where
     toAbstract (CD.Clause lhs rhs wh) =
 	bindToAbstract lhs $ \lhs' ->	-- the order matters here!
 	bindToAbstract wh  $ \wh'  ->
-	    do	rhs' <- toAbstract rhs
+	    do	rhs' <- toAbstractCtx TopCtx rhs
 		return $ A.Clause lhs' rhs' wh'
 
 instance BindToAbstract C.LHS A.LHS where
@@ -329,7 +343,11 @@ instance BindToAbstract c a => BindToAbstract (Arg c) (Arg a) where
     bindToAbstract (Arg h e) ret = bindToAbstract e $ ret . Arg h
 
 instance ToAbstract c a => ToAbstract (Arg c) (Arg a) where
-    toAbstract (Arg h e) = Arg h <$> toAbstract e
+    toAbstract (Arg h e) = Arg h <$> toAbstractCtx ctx e
+	where
+	    ctx = case h of
+		    NotHidden	-> ArgumentCtx
+		    Hidden	-> TopCtx
 
 instance BindToAbstract C.Pattern A.Pattern where
     bindToAbstract p@(C.IdentP x) ret =
