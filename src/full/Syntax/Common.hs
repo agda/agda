@@ -111,6 +111,11 @@ data Precedence = TopCtx | FunctionSpaceDomainCtx
 		| FunctionCtx | ArgumentCtx
     deriving (Show)
 
+-- | The precedence corresponding to a possibly hidden argument.
+hiddenArgumentCtx :: Hiding -> Precedence
+hiddenArgumentCtx NotHidden = ArgumentCtx
+hiddenArgumentCtx Hidden    = TopCtx
+
 -- | Do we need to bracket an infix application of the given fixity in a
 --   context with the given precedence.
 infixBrackets :: Fixity -> Precedence -> Bool

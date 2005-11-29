@@ -140,7 +140,7 @@ instance ToAbstract C.Expr A.Expr where
     -- Application
     toAbstract e@(C.App r h e1 e2) =
 	do  e1' <- toAbstractCtx FunctionCtx e1
-	    e2' <- toAbstractCtx ArgumentCtx e2
+	    e2' <- toAbstractCtx (hiddenArgumentCtx h) e2
 	    return $ A.App (ExprSource e) h e1' e2'
 
     -- Infix application
@@ -343,11 +343,7 @@ instance BindToAbstract c a => BindToAbstract (Arg c) (Arg a) where
     bindToAbstract (Arg h e) ret = bindToAbstract e $ ret . Arg h
 
 instance ToAbstract c a => ToAbstract (Arg c) (Arg a) where
-    toAbstract (Arg h e) = Arg h <$> toAbstractCtx ctx e
-	where
-	    ctx = case h of
-		    NotHidden	-> ArgumentCtx
-		    Hidden	-> TopCtx
+    toAbstract (Arg h e) = Arg h <$> toAbstractCtx (hiddenArgumentCtx h) e
 
 instance BindToAbstract C.Pattern A.Pattern where
     bindToAbstract p@(C.IdentP x) ret =
