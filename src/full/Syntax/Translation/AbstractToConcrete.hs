@@ -52,6 +52,9 @@ stored x =
     do	b <- useStoredConcreteSyntax <$> ask
 	return $ if b then Just x else Nothing
 
+withStored :: ToConcrete i (Maybe c) => i -> AbsToCon c -> AbsToCon c
+withStored i m = fromMaybeM m (toConcrete i)
+
 -- Dealing with precedences -----------------------------------------------
 
 -- | General bracketing function.
@@ -63,17 +66,25 @@ bracket' paren needParen e =
 	return $ if needParen p then paren e else e
 
 -- | Expression bracketing
-bracket :: (Precedence -> Bool) -> C.Expr -> AbsToCon C.Expr
-bracket par e = bracket' (Paren (getRange e)) par e
+bracket :: (Precedence -> Bool) -> AbsToCon C.Expr -> AbsToCon C.Expr
+bracket par m =
+    do	e <- m
+	bracket' (Paren (getRange e)) par e
 
 -- | Pattern bracketing
-bracketP :: (Precedence -> Bool) -> C.Pattern -> AbsToCon C.Pattern
-bracketP par e = bracket' (ParenP (getRange e)) par e
+bracketP :: (Precedence -> Bool) -> AbsToCon C.Pattern -> AbsToCon C.Pattern
+bracketP par m =
+    do	e <- m
+	bracket' (ParenP (getRange e)) par e
 
 -- The To Concrete Class --------------------------------------------------
 
 class ToConcrete a c | a -> c where
     toConcrete :: a -> AbsToCon c
+
+-- | Translate something in a context of the given precedence.
+toConcreteCtx :: ToConcrete a c => Precedence -> a -> AbsToCon c
+toConcreteCtx p x = local (\f -> f { precedenceLevel = p }) $ toConcrete x
 
 -- Info instances ---------------------------------------------------------
 
@@ -94,10 +105,20 @@ instance ToConcrete A.Expr C.Expr where
     toConcrete (Var i _) = return $ Ident (concreteName i)
     toConcrete (Def i _) = return $ Ident (concreteName i)
     toConcrete (Con i _) = return $ Ident (concreteName i)
-	-- for names we have to use the name from the info, since the abstract name has been
-	-- resolved to a fully qualified name (except for variables)
+	-- for names we have to use the name from the info, since the abstract
+	-- name has been resolved to a fully qualified name (except for
+	-- variables)
     toConcrete (A.Lit l)	    = return $ C.Lit l
     toConcrete (A.QuestionMark i)   = return $ C.QuestionMark (getRange i)
     toConcrete (A.Underscore i)	    = return $ C.Underscore (getRange i)
+	-- we don't have to do anything to recognise infix applications since
+	-- they have been stored away (and if we're not using the stored
+	-- information we don't care).
+    toConcrete (A.App i h e1 e2)    =
+	withStored i
+	$ bracket appBrackets
+	$ do e1' <- toConcreteCtx FunctionCtx e1
+	     e2' <- toConcreteCtx (hiddenArgumentCtx h) e2
+	     return $ C.App (getRange i) h e1' e2'
     toConcrete _ = undefined
 
