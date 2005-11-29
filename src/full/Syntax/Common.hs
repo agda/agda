@@ -134,10 +134,10 @@ infixBrackets _ ArgumentCtx		= True
 --   context. A peculiar thing with lambdas is that they don't need brackets
 --   in a right operand context. For instance: @m >>= \x -> m'@ is a valid
 --   infix application.
-lambdaBrackets :: Precedence -> Bool
-lambdaBrackets TopCtx		    = False
-lambdaBrackets (RightOperandCtx _)  = False
-lambdaBrackets _		    = True
+lamBrackets :: Precedence -> Bool
+lamBrackets TopCtx		    = False
+lamBrackets (RightOperandCtx _)  = False
+lamBrackets _		    = True
 
 -- | Does a function application need brackets?
 appBrackets :: Precedence -> Bool
