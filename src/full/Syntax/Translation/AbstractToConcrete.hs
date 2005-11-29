@@ -104,6 +104,13 @@ instance ToConcrete DeclInfo (Maybe [C.Declaration]) where
 instance ToConcrete DefInfo (Maybe [C.Declaration]) where
     toConcrete info = toConcrete $ defInfo info
 
+instance ToConcrete LHSInfo (Maybe C.LHS) where
+    toConcrete (LHSSource lhs) = stored lhs
+
+instance ToConcrete PatInfo (Maybe C.Pattern) where
+    toConcrete (PatSource p) = stored p
+    toConcrete (PatRange _) = return Nothing
+
 -- General instances ------------------------------------------------------
 
 instance ToConcrete a c => ToConcrete [a] [c] where
@@ -222,16 +229,48 @@ instance ToConcrete A.Declaration [C.Declaration] where
 
     toConcrete (A.Abstract i ds) =
 	withStored i $
-	    do	ds' <- toConcrete ds
-		return [C.Abstract (getRange i) ds']
+	do  ds' <- toConcrete ds
+	    return [C.Abstract (getRange i) ds']
 
-    toConcrete _ = undefined
+    toConcrete (A.Module i x tel ds) =
+	withStored i $
+	do  tel' <- toConcrete tel
+	    ds'  <- toConcrete ds
+	    return [C.Module (getRange i) x tel' ds']
+
+    -- There is no way we could restore module defs, imports and opens
+    -- without having the concrete version stored away.
+    toConcrete (A.ModuleDef (DefInfo _ _ (DeclSource ds)) _ _ _ _)
+					= return ds
+    toConcrete (A.ModuleDef _ _ _ _ _)	= __IMPOSSIBLE__
+
+    toConcrete (A.Import (DeclSource ds) _) = return ds
+    toConcrete (A.Import _ _) = __IMPOSSIBLE__
+
+    toConcrete (A.Open (DeclSource ds))	= return ds
+    toConcrete (A.Open _) = __IMPOSSIBLE__
 
 -- Left hand sides --------------------------------------------------------
 
+instance ToConcrete a c => ToConcrete (Arg a) (Arg c) where
+    toConcrete (Arg h x) =
+	Arg h <$> toConcreteCtx (hiddenArgumentCtx h) x
+
 instance ToConcrete A.LHS C.LHS where
-    toConcrete = undefined
+    toConcrete (A.LHS i x args) =
+	withStored i $
+	do  args' <- toConcrete args
+	    return $ C.LHS (getRange i) PrefixDef x args'
 
 instance ToConcrete A.Pattern C.Pattern where
-    toConcrete = undefined
+    toConcrete (VarP x)		= return $ IdentP (QName x)
+    toConcrete (A.WildP i)	=
+	withStored i $ return $ C.WildP (getRange i)
+    toConcrete (ConP i x args)	=
+	withStored i $
+	do  args' <- toConcrete args
+	    return $ foldl appP (IdentP x) args'
+	where
+	    appP p (Arg h q) = AppP h p q
+	
 
