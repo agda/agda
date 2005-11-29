@@ -23,6 +23,7 @@ pHidden :: Pretty a => Hiding -> a -> Doc
 pHidden Hidden	    = braces . pretty
 pHidden NotHidden   = pretty
 
+isOpChar '_' = False	-- for wildcards (NoName)
 isOpChar c = not $ isAlpha c || isUnicodeId c
 
 name :: String -> Doc

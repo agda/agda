@@ -295,31 +295,23 @@ QOp : Op	    { QName $1 }
     | '`' q_op '`'  { $2 }
 
 
+-- A binding variable. Can be '_'
+BId :: { Name }
+BId : Id    { $1 }
+    | '_'   { NoName $1 }
+
 -- An unqualified name (identifier or operator). This is what you write in
 -- import lists.
 Name :: { Name }
 Name : id   { $1 }
      | op   { $1 }
 
-
--- -- Comma separated list of names.
--- CommaNames :: { [Name] }
--- CommaNames
---     : CommaNames1   { $1 }
---     | {- empty -}   { [] }
--- 
--- -- Non-empty comma separated list of names.
--- CommaNames1 :: { [Name] }
--- CommaNames1
---     : Name ',' CommaNames1  { $1 : $3 }
---     | Name		    { [$1] }
-
--- Comma separated list of unqualified identifiers. Used in dependent
+-- Comma separated list of binding identifiers. Used in dependent
 -- function spaces: (x,y,z : Nat) -> ...
-CommaIds :: { [Name] }
-CommaIds
-    : Id ',' CommaIds	{ $1 : $3 }
-    | Id		{ [$1] }
+CommaBIds :: { [Name] }
+CommaBIds
+    : BId ',' CommaBIds	{ $1 : $3 }
+    | BId		{ [$1] }
 
 
 -- Comma separated list of operators. Used in infix declarations.
@@ -407,9 +399,9 @@ Telescope
 -- A typed binding is either (x1,..,xn:A) or {x1,..,xn:A}.
 TypedBinding :: { TypedBinding }
 TypedBinding
-    : '(' CommaIds ':' Expr ')'
+    : '(' CommaBIds ':' Expr ')'
 			    { TypedBinding (fuseRange $1 $5) NotHidden $2 $4 }
-    | '{' CommaIds ':' Expr '}'
+    | '{' CommaBIds ':' Expr '}'
 			    { TypedBinding (fuseRange $1 $5) Hidden $2 $4 }
 
 
@@ -431,8 +423,8 @@ DomainFreeBindings
 -- A domain free binding is either x or {x}
 DomainFreeBinding :: { LamBinding }
 DomainFreeBinding
-    : Id	    { DomainFree NotHidden $1 }
-    | '{' Id '}'    { DomainFree Hidden $2 }
+    : BId	    { DomainFree NotHidden $1 }
+    | '{' BId '}'   { DomainFree Hidden $2 }
 
 
 MaybeTelescope :: { Telescope }

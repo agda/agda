@@ -38,6 +38,11 @@ module examples.syntax.Syntax where
     fun4 : {A:Set} -> A -> A
     fun4 x = x
 
+    -- You can also write independent functions using the dependent function
+    -- space syntax. Not that you'd ever want to.
+    fun5 : (_:X) -> X
+    fun5 x = x
+
     -- Lambdas can be domain free.
     const1 : {A, B : Set} -> A -> B -> A
     const1 = \x y -> x
@@ -48,6 +53,10 @@ module examples.syntax.Syntax where
     -- You cannot mix typed and untyped arguments in the same lambda.
     const3 : {A, B : Set} -> A -> B -> A
     const3 = \{A}{B} -> \(x:A)(y:B) -> x
+
+    -- You can have wildcards in lambdas
+    const4 : {A, B : Set} -> A -> B -> A
+    const4 = \x _ -> x
 
     -- Implicit arguments can be omitted in applications.
     x = const1 x1 x2
