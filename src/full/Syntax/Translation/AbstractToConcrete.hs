@@ -1,4 +1,4 @@
-{-# OPTIONS -fglasgow-exts #-}
+{-# OPTIONS -fglasgow-exts -fallow-overlapping-instances #-}
 
 {-| The translation of abstract syntax to concrete syntax has two purposes.
     First it allows us to pretty print abstract syntax values without having to
@@ -89,7 +89,9 @@ toConcreteCtx p x = local (\f -> f { precedenceLevel = p }) $ toConcrete x
 -- Info instances ---------------------------------------------------------
 
 instance ToConcrete ExprInfo (Maybe C.Expr) where
-    toConcrete (ExprSource e)	= stored e
+    toConcrete (ExprSource _ f)	=
+	do  p <- precedenceLevel <$> ask
+	    stored (f p)
     toConcrete _		= return Nothing
 
 instance ToConcrete DeclInfo (Maybe [C.Declaration]) where
@@ -98,6 +100,11 @@ instance ToConcrete DeclInfo (Maybe [C.Declaration]) where
 
 instance ToConcrete DefInfo (Maybe [C.Declaration]) where
     toConcrete info = toConcrete $ defInfo info
+
+-- General instances ------------------------------------------------------
+
+instance ToConcrete a c => ToConcrete [a] [c] where
+    toConcrete = mapM toConcrete
 
 -- Expression instance ----------------------------------------------------
 
@@ -111,14 +118,57 @@ instance ToConcrete A.Expr C.Expr where
     toConcrete (A.Lit l)	    = return $ C.Lit l
     toConcrete (A.QuestionMark i)   = return $ C.QuestionMark (getRange i)
     toConcrete (A.Underscore i)	    = return $ C.Underscore (getRange i)
-	-- we don't have to do anything to recognise infix applications since
-	-- they have been stored away (and if we're not using the stored
-	-- information we don't care).
+
+    -- We don't have to do anything to recognise infix applications since
+    -- they have been stored away (and if we're not using the stored
+    -- information we don't care).
     toConcrete (A.App i h e1 e2)    =
 	withStored i
 	$ bracket appBrackets
 	$ do e1' <- toConcreteCtx FunctionCtx e1
 	     e2' <- toConcreteCtx (hiddenArgumentCtx h) e2
 	     return $ C.App (getRange i) h e1' e2'
-    toConcrete _ = undefined
+
+    -- Similar to the application case we don't try to recover lambda sugar
+    -- (i.e. @\\x -> \\y -> e@ to @\\x y -> e@).
+    toConcrete (A.Lam i b e)	    =
+	withStored i
+	$ bracket lamBrackets
+	$ do b' <- toConcrete b
+	     e' <- toConcreteCtx TopCtx e
+	     return $ C.Lam (getRange i) [b'] e'
+
+    -- Same thing goes for pis. We don't care if it was a 'Fun' or a 'Pi'.
+    toConcrete (A.Pi i b e)	    =
+	withStored i
+	$ bracket piBrackets
+	$ do b' <- toConcrete b
+	     e' <- toConcreteCtx TopCtx e
+	     return $ C.Pi b' e'
+
+    toConcrete (A.Set i n)  = withStored i $ return $ C.SetN (getRange i) n
+    toConcrete (A.Prop i)   = withStored i $ return $ C.Prop (getRange i)
+
+    toConcrete (A.Let i ds e) =
+	withStored i
+	$ bracket lamBrackets
+	$ do ds' <- toConcrete ds
+	     e'  <- toConcreteCtx TopCtx e
+	     return $ C.Let (getRange i) ds' e'
+
+-- Binder instances -------------------------------------------------------
+
+instance ToConcrete A.LamBinding C.LamBinding where
+    toConcrete = undefined
+
+instance ToConcrete A.TypedBinding C.TypedBinding where
+    toConcrete = undefined
+
+-- Declaration instances --------------------------------------------------
+
+instance ToConcrete [A.Declaration] [C.Declaration] where
+    toConcrete ds = concat <$> mapM toConcrete ds
+
+instance ToConcrete A.Declaration [C.Declaration] where
+    toConcrete = undefined
 
