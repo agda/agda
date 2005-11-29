@@ -4,12 +4,16 @@
     operators left associatively with the same precedence. This module
     contains the function that rotates infix applications, taking precedence
     information into account.
+
+    It also contains the function that puts parenthesis back given the
+    precedence of the context.
 -}
 module Syntax.Concrete.Fixity where
 
 import Control.Exception
 import Data.Typeable
 
+import Syntax.Common
 import Syntax.Concrete
 import Syntax.Position
 
@@ -74,4 +78,18 @@ rotateInfixApp f = rotateInfixApp' infixView InfixApp f
 -- | Instantiation of 'rotateInfixApp'' to 'Pattern'.
 rotateInfixAppP :: (QName -> Fixity) -> Pattern -> Pattern
 rotateInfixAppP f = rotateInfixApp' infixViewP InfixAppP f
+
+-- Inserting parenthesis --------------------------------------------------
+
+paren :: (QName -> Fixity) -> Expr -> Precedence -> Expr
+paren _   e@(App _ _ _ _)     p = mparen (appBrackets p) e
+paren fix e@(InfixApp _ op _) p = mparen (infixBrackets (fix op) p) e
+paren _   e@(Lam _ _ _)	      p = mparen (lamBrackets p) e
+paren _   e@(Fun _ _ _ _)     p = mparen (lamBrackets p) e
+paren _   e@(Pi _ _)	      p = mparen (lamBrackets p) e
+paren _   e@(Let _ _ _)	      p = mparen (lamBrackets p) e
+paren _   e		      _ = e
+
+mparen True  e = Paren (getRange e) e
+mparen False e = e
 

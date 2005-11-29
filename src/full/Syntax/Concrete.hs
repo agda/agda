@@ -21,8 +21,6 @@ module Syntax.Concrete
     , LocalDeclaration, PrivateDeclaration
     , MutualDeclaration, AbstractDeclaration
     , Constructor
-    , Fixity(..)
-    , defaultFixity
     , ImportDirective(..), UsingOrHiding(..), ImportedName(..)
     , LHS(..), Pattern(..)
     , RHS, WhereClause

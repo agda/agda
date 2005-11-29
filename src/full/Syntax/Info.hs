@@ -55,12 +55,17 @@ instance HasRange MetaInfo where
 --   position or the entire concrete expression it came from.
 data ExprInfo
 	= ExprRange  Range
-	| ExprSource Expr
-    deriving (Show)
+	| ExprSource Range (Precedence -> Expr)
+	    -- ^ Even if we store the original expression we have to know
+	    --	 whether to put parenthesis around it.
+
+instance Show ExprInfo where
+    show (ExprRange r)	    = "ExprRange " ++ show r
+    show (ExprSource _ f)   = "ExprSource " ++ show (f ArgumentCtx)
 
 instance HasRange ExprInfo where
-    getRange (ExprRange  r) = r
-    getRange (ExprSource e) = getRange e
+    getRange (ExprRange  r  ) = r
+    getRange (ExprSource r _) = r
 
 
 {--------------------------------------------------------------------------

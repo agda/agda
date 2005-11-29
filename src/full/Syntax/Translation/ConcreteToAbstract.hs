@@ -48,6 +48,15 @@ instance HasRange ToAbstractException where
     getRange (NotAModuleExpr e)	      = getRange e
 
 {--------------------------------------------------------------------------
+    Helpers
+ --------------------------------------------------------------------------}
+
+exprSource :: C.Expr -> ScopeM ExprInfo
+exprSource e =
+    do	f <- getFixityFunction
+	return $ ExprSource (getRange e) (paren f e)
+
+{--------------------------------------------------------------------------
     Translation
  --------------------------------------------------------------------------}
 
@@ -139,9 +148,10 @@ instance ToAbstract C.Expr A.Expr where
 
     -- Application
     toAbstract e@(C.App r h e1 e2) =
-	do  e1' <- toAbstractCtx FunctionCtx e1
-	    e2' <- toAbstractCtx (hiddenArgumentCtx h) e2
-	    return $ A.App (ExprSource e) h e1' e2'
+	do  e1'  <- toAbstractCtx FunctionCtx e1
+	    e2'  <- toAbstractCtx (hiddenArgumentCtx h) e2
+	    info <- exprSource e
+	    return $ A.App info h e1' e2'
 
     -- Infix application
     toAbstract e@(C.InfixApp _ _ _) =
@@ -150,10 +160,11 @@ instance ToAbstract C.Expr A.Expr where
 	    let C.InfixApp e1 op e2 = rotateInfixApp f e
 		fx		    = f op
 
-	    e1' <- toAbstractCtx (LeftOperandCtx fx) e1
-	    op' <- toAbstractCtx TopCtx $ Ident op
-	    e2' <- toAbstractCtx (RightOperandCtx fx) e2
-	    return $ A.App (ExprSource e) NotHidden
+	    e1'  <- toAbstractCtx (LeftOperandCtx fx) e1
+	    op'  <- toAbstractCtx TopCtx $ Ident op
+	    e2'  <- toAbstractCtx (RightOperandCtx fx) e2
+	    info <- exprSource e
+	    return $ A.App info NotHidden
 			   (A.App (ExprRange $ fuseRange e1' op')
 				  NotHidden op' e1'
 			   ) e2'    -- infix applications are never hidden
@@ -161,34 +172,38 @@ instance ToAbstract C.Expr A.Expr where
     -- Lambda
     toAbstract e0@(C.Lam r bs e) =
 	bindToAbstract bs $ \ (b:bs') ->
-	    do  e' <- toAbstractCtx TopCtx e
-		return $ A.Lam (ExprSource e0) b $ foldr mkLam e' bs'
+	    do  e'   <- toAbstractCtx TopCtx e
+		info <- exprSource e0
+		return $ A.Lam info b $ foldr mkLam e' bs'
 	where
 	    mkLam b e = A.Lam (ExprRange $ fuseRange b e) b e
 
     -- Function types
     toAbstract e@(Fun r h e1 e2) =
-	do  e1' <- toAbstractCtx FunctionSpaceDomainCtx e1
-	    e2' <- toAbstractCtx TopCtx e2
-	    return $ A.Pi (ExprSource e)
+	do  e1'  <- toAbstractCtx FunctionSpaceDomainCtx e1
+	    e2'  <- toAbstractCtx TopCtx e2
+	    info <- exprSource e
+	    return $ A.Pi info
 			  (A.TypedBinding (getRange e1) h [noName] e1')
 			  e2'
 
     toAbstract e0@(C.Pi b e) =
 	bindToAbstract b $ \b' ->
-	do  e' <- toAbstractCtx TopCtx e
-	    return $ A.Pi (ExprSource e0) b' e'
+	do  e'	 <- toAbstractCtx TopCtx e
+	    info <- exprSource e0
+	    return $ A.Pi info b' e'
 
     -- Sorts
-    toAbstract e@(C.Set _)    = return $ A.Set (ExprSource e) 0
-    toAbstract e@(C.SetN _ n) = return $ A.Set (ExprSource e) n
-    toAbstract e@(C.Prop _)   = return $ A.Prop (ExprSource e)
+    toAbstract e@(C.Set _)    = flip A.Set 0 <$> exprSource e
+    toAbstract e@(C.SetN _ n) = flip A.Set n <$> exprSource e
+    toAbstract e@(C.Prop _)   = A.Prop <$> exprSource e
 
     -- Let
     toAbstract e0@(C.Let _ ds e) =
 	bindToAbstract ds $ \ds' ->
-	do  e' <- toAbstractCtx TopCtx e
-	    return $ A.Let (ExprSource e0) ds' e'
+	do  e'   <- toAbstractCtx TopCtx e
+	    info <- exprSource e0
+	    return $ A.Let info ds' e'
 
     -- Parenthesis
     toAbstract (C.Paren _ e) = toAbstractCtx TopCtx e
