@@ -13,6 +13,7 @@ import Syntax.Concrete.Pretty ()
 import Syntax.Internal ()
 import Syntax.Scope
 import Syntax.Translation.ConcreteToAbstract
+import Syntax.Translation.AbstractToConcrete ()
 import Interaction.Exceptions
 
 parseFile' p file
