@@ -84,20 +84,32 @@ bracketP par m =
 
 -- | If a name is defined with a fixity that differs from the default, we have
 --   to generate a fixity declaration for that name.
-infixDecl :: DefInfo -> Name -> [C.Declaration]
-infixDecl i x
-    | defFixity i == defaultFixity  = []
-    | otherwise			    = [C.Infix (defFixity i) [x]]
+withInfixDecl :: DefInfo -> Name -> AbsToCon [C.Declaration] -> AbsToCon [C.Declaration]
+withInfixDecl i x m
+    | defFixity i == defaultFixity  = m
+    | otherwise			    =
+	do  ds <- m
+	    return $ C.Infix (defFixity i) [x] : ds
+
+withInfixDecls :: [(DefInfo, Name)] -> AbsToCon [C.Declaration] -> AbsToCon [C.Declaration]
+withInfixDecls = foldr (.) id . map (uncurry withInfixDecl)
 
 -- Dealing with private definitions ---------------------------------------
 
-mkPrivate :: DefInfo -> AbsToCon [C.Declaration] -> AbsToCon [C.Declaration]
-mkPrivate i m =
+withPrivate :: DefInfo -> AbsToCon [C.Declaration] -> AbsToCon [C.Declaration]
+withPrivate i m =
     case defAccess i of
 	PublicAccess	-> m
 	PrivateAccess	->
 	    do	ds <- m
 		return [ C.Private (getRange ds) ds ]
+
+withPrivates :: [DefInfo] -> AbsToCon [C.Declaration] -> AbsToCon [C.Declaration]
+withPrivates is m
+    | all (== PrivateAccess) $ map defAccess is	=
+	do  ds <- m
+	    return  [ C.Private (getRange ds) ds ]
+    | otherwise	= m
 
 -- The To Concrete Class --------------------------------------------------
 
@@ -212,19 +224,21 @@ instance ToConcrete [A.Declaration] [C.Declaration] where
 
 instance ToConcrete (A.TypeSignature, A.Definition) [C.Declaration] where
 
+    -- We don't do withInfixDecl here. It's done at the declaration level.
+
     toConcrete (Axiom _ x t, FunDef i _ cs) =
-	mkPrivate i $
+	withPrivate i $
 	do  t'  <- toConcreteCtx TopCtx t
 	    cs' <- withStored i $ toConcrete cs
-	    return $ infixDecl i x ++ TypeSig x t' : cs'
+	    return $ TypeSig x t' : cs'
 
     toConcrete (Axiom _ x t, DataDef i _ bs cs) =
-	mkPrivate  i $	-- mkPrivate has to be applied outside the withStored
-	withStored i $
+	withPrivate i $
+	withStored  i $
 	do  tel' <- toConcrete tel
 	    t'   <- toConcreteCtx TopCtx t0
 	    cs'  <- toConcrete $ map Constr cs
-	    return $ infixDecl i x ++ [ C.Data (getRange i) x tel' t' cs' ]
+	    return [ C.Data (getRange i) x tel' t' cs' ]
 	where
 	    (tel, t0) = mkTel (length bs) t
 	    mkTel 0 t		    = ([], t)
@@ -250,24 +264,31 @@ instance ToConcrete A.Clause C.Declaration where
 instance ToConcrete A.Declaration [C.Declaration] where
 
     toConcrete (Axiom i x t) =
-	mkPrivate  i $
-	withStored i $
+	withPrivate   i   $
+	withInfixDecl i x $
+	withStored    i   $
 	do  t' <- toConcreteCtx TopCtx t
-	    return $ infixDecl i x ++
-		     [C.Postulate (getRange i) [C.TypeSig x t']]
+	    return [C.Postulate (getRange i) [C.TypeSig x t']]
 
     toConcrete (Synonym i x e wh) =
-	mkPrivate  i $
-	withStored i $
+	withPrivate   i   $
+	withInfixDecl i x $
+	withStored    i   $
 	do  e'  <- toConcreteCtx TopCtx e
 	    wh' <- toConcrete wh
-	    return $ infixDecl i x ++
-		     [C.FunClause (C.LHS (getRange x) PrefixDef x []) e' wh']
+	    return [C.FunClause (C.LHS (getRange x) PrefixDef x []) e' wh']
 
     toConcrete (Definition i ts ds) =
-	withStored i $
+	withPrivates   is  $
+	withInfixDecls ixs $
+	withStored     i   $
 	do  ds' <- concat <$> toConcrete (zip ts ds)
 	    return [C.Mutual (getRange i) ds']
+	where
+	    ixs = map getInfoAndName ts
+	    is  = map fst ixs
+	    getInfoAndName (A.Axiom i x _)  = (i,x)
+	    getInfoAndName _		    = __IMPOSSIBLE__
 
     toConcrete (A.Abstract i ds) =
 	withStored i $
