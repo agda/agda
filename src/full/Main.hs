@@ -11,9 +11,8 @@ import System.IO
 import Syntax.Parser
 import Syntax.Concrete.Pretty ()
 import Syntax.Internal ()
-import Syntax.Scope
 import Syntax.Translation.ConcreteToAbstract
-import Syntax.Translation.AbstractToConcrete ()
+import Syntax.Translation.AbstractToConcrete
 import Interaction.Exceptions
 
 parseFile' p file
@@ -32,7 +31,9 @@ main =
 	stuff file =
 	    failOnException $
 	    do	m	   <- parseFile' moduleParser file
-		(m',scope) <- runScopeM (toAbstract m)
-		--print m'
-		print m
+		(m',scope) <- concreteToAbstract m
+		let [m''] = abstractToConcrete
+				(defaultFlags { useStoredConcreteSyntax = False })
+				m'
+		print m''
 
