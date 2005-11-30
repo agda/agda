@@ -1,4 +1,4 @@
-{-# OPTIONS -cpp -fglasgow-exts -fallow-overlapping-instances #-}
+{-# OPTIONS -cpp -fglasgow-exts -fallow-overlapping-instances -fallow-undecidable-instances #-}
 
 {-| The translation of abstract syntax to concrete syntax has two purposes.
     First it allows us to pretty print abstract syntax values without having to
@@ -108,8 +108,18 @@ instance ToConcrete LHSInfo (Maybe C.LHS) where
     toConcrete (LHSSource lhs) = stored lhs
 
 instance ToConcrete PatInfo (Maybe C.Pattern) where
-    toConcrete (PatSource p) = stored p
+    toConcrete (PatSource _ f) =
+	do  p <- precedenceLevel <$> ask
+	    stored (f p)
     toConcrete (PatRange _) = return Nothing
+
+newtype Force a = Force a
+
+instance ToConcrete i (Maybe c) => ToConcrete (Force i) c where
+    toConcrete (Force i) =
+	do  Just c <- local (\s -> s { useStoredConcreteSyntax = True })
+			$ toConcrete i
+	    return c
 
 -- General instances ------------------------------------------------------
 
@@ -266,11 +276,14 @@ instance ToConcrete A.Pattern C.Pattern where
     toConcrete (VarP x)		= return $ IdentP (QName x)
     toConcrete (A.WildP i)	=
 	withStored i $ return $ C.WildP (getRange i)
-    toConcrete (ConP i x args)	=
-	withStored i $
-	do  args' <- toConcrete args
-	    return $ foldl appP (IdentP x) args'
-	where
-	    appP p (Arg h q) = AppP h p q
+    toConcrete (ConP i x args)  = toConcrete (Force i)
+
+--  We can't figure out the original name without looking at the stored
+--  pattern.
+-- 	withStored i $
+-- 	do  args' <- toConcrete args
+-- 	    return $ foldl appP (IdentP x) args'
+-- 	where
+-- 	    appP p (Arg h q) = AppP h p q
 	
 
