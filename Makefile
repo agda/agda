@@ -110,7 +110,7 @@ test : $(agda) clean_test $(out_files)
 $(out_files) : %.diff : %.pretty.1 %.pretty.2
 	@$(DIFF) $*.pretty.1 $*.pretty.2
 	@rm $*.pretty.1 $*.pretty.2
-	@echo "  pretty . parse is idempotent"
+	@echo "  pretty . toConcrete . toAbstract . parse is idempotent"
 
 ## Clean ##################################################################
 
