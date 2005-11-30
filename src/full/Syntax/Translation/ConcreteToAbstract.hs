@@ -60,6 +60,9 @@ exprSource e =
     Translation
  --------------------------------------------------------------------------}
 
+concreteToAbstract :: ToAbstract c a => c -> IO a
+concreteToAbstract x = runScopeM (toAbstract x)
+
 -- | Things that can be translated to abstract syntax are instances of this
 --   class.
 class ToAbstract concrete abstract | concrete -> abstract where
@@ -312,7 +315,10 @@ instance BindToAbstract NiceDeclaration [A.Declaration] where
 		bindToAbstract tel $ \tel' ->
 		    do  args' <- toAbstract args
 			implicitModule x a (length tel) m is $
-			    ret [ ModuleDef (mkRangedDefInfo defaultFixity a r)
+			    ret [ ModuleDef (mkSourcedDefInfo
+						defaultFixity a
+						[C.ModuleMacro r x tel e is]
+					    )
 					    x tel' m args'
 				]
 		    
@@ -323,7 +329,8 @@ instance BindToAbstract NiceDeclaration [A.Declaration] where
 
     bindToAbstract (NiceImport r x as is) ret =
 	do  iface <- getModuleInterface x
-	    importModule name iface is $ ret [A.Import (DeclRange r) x]
+	    importModule name iface is $
+		ret [A.Import (DeclSource [C.Import r x as is]) x]
 	where
 	    name = maybe x QName as
 
