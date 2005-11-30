@@ -102,6 +102,8 @@ test : $(agda) clean_test $(out_files)
 
 %.pretty.1 : %
 	@echo "Testing $<..."
+	@$(agda) --test $< > /dev/null
+	@echo "  toAbstract . parse . pretty . toConcrete == id"
 	@$(agda) $< > $@
 
 %.pretty.2 : %.pretty.1
