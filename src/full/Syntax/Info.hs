@@ -10,7 +10,6 @@ module Syntax.Info where
 import Syntax.Common
 import Syntax.Position
 import Syntax.Concrete
-import Syntax.Concrete.Pretty () -- TODO: only needed for deriving Show for PatInfo
 import Syntax.Scope
 
 {--------------------------------------------------------------------------
@@ -29,7 +28,6 @@ data NameInfo =
 		 , nameFixity    :: Fixity
 		 , nameAccess    :: Access
 		 }
-    deriving (Show)
 
 instance HasRange NameInfo where
     getRange = getRange . concreteName
@@ -42,7 +40,6 @@ data MetaInfo =
 	MetaInfo { metaRange	:: Range
 		 , metaScope	:: ScopeInfo
 		 }
-    deriving (Show)
 
 instance HasRange MetaInfo where
     getRange = metaRange
@@ -59,10 +56,6 @@ data ExprInfo
 	    -- ^ Even if we store the original expression we have to know
 	    --	 whether to put parenthesis around it.
 
-instance Show ExprInfo where
-    show (ExprRange r)	    = "ExprRange " ++ show r
-    show (ExprSource _ f)   = "ExprSource " ++ show (f ArgumentCtx)
-
 instance HasRange ExprInfo where
     getRange (ExprRange  r  ) = r
     getRange (ExprSource r _) = r
@@ -77,7 +70,6 @@ data DefInfo =
 		, defAccess :: Access
 		, defInfo   :: DeclInfo
 		}
-    deriving (Show)
 
 mkRangedDefInfo :: Fixity -> Access -> Range -> DefInfo
 mkRangedDefInfo f a r = DefInfo f a (DeclRange r)
@@ -95,7 +87,6 @@ instance HasRange DefInfo where
 data DeclInfo
 	= DeclRange  Range
 	| DeclSource [Declaration]
-    deriving (Show)
 
 instance HasRange DeclInfo where
     getRange (DeclRange  r)  = r
@@ -107,7 +98,6 @@ instance HasRange DeclInfo where
  --------------------------------------------------------------------------}
 
 data LHSInfo = LHSSource LHS
-    deriving (Show)
 
 instance HasRange LHSInfo where
     getRange (LHSSource lhs) = getRange lhs

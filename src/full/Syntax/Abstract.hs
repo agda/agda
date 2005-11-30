@@ -23,7 +23,6 @@ data Expr
         | Set  ExprInfo Nat		    -- ^ 
         | Prop ExprInfo			    -- ^ 
         | Let  ExprInfo [Declaration] Expr  -- ^ 
-    deriving (Show)
 
 data Declaration
 	= Axiom      DefInfo Name Expr				-- ^ postulate
@@ -35,13 +34,11 @@ data Declaration
 	| Import     DeclInfo QName
 	| Open	     DeclInfo	    -- ^ this one is here only to enable translation
 				    --   back to concrete syntax
-    deriving (Show)
 
 -- | A definition without its type signature.
 data Definition
 	= FunDef     DefInfo Name [Clause]
 	| DataDef    DefInfo Name [LamBinding] [Constructor]	-- ^ the 'LamBinding's are 'DomainFree' and binds the parameters of the datatype.
-    deriving (Show)
 
 -- | Only 'Axiom's.
 type TypeSignature  = Declaration
@@ -51,7 +48,6 @@ type Constructor    = TypeSignature
 data LamBinding
 	= DomainFree Hiding Name    -- ^ . @x@ or @{x}@
 	| DomainFull TypedBinding   -- ^ . @(xs:e)@ or @{xs:e}@
-    deriving (Show)
 
 
 -- | A typed binding. Appears in dependent function spaces, typed lambdas, and
@@ -62,7 +58,6 @@ data LamBinding
 --   you have to.
 data TypedBinding = TypedBinding Range Hiding [Name] Expr
 	    -- ^ . @(xs:e)@ or @{xs:e}@
-    deriving (Show)
 
 type Telescope	= [TypedBinding]
 
@@ -70,18 +65,15 @@ type Telescope	= [TypedBinding]
 --   @let@. It's not obvious how to remember that the @let@ was really a
 --   @where@ clause though, so for the time being we keep it here.
 data Clause	= Clause LHS RHS [Declaration]
-    deriving (Show)
 type RHS	= Expr
 
 data LHS	= LHS LHSInfo Name [Arg Pattern]
-    deriving (Show)
 data Pattern	= VarP Name	-- ^ the only thing we need to know about a
 				-- pattern variable is its 'Range'. This is
 				-- stored in the 'Name', so we don't need a
 				-- 'NameInfo' here.
 		| ConP PatInfo QName [Arg Pattern]
 		| WildP PatInfo
-    deriving Show
 
 -- | why has Var in Expr above a NameInfo but VarP no Info?
 -- | why has Con in Expr above a NameInfo but ConP an Info?

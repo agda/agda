@@ -31,9 +31,9 @@ import Utils.Monad
  --------------------------------------------------------------------------}
 
 data ToAbstractException
-	= HigherOrderPattern C.Pattern A.Pattern
-	    -- ^ the concrete pattern is an application and the abstract
-	    --	 pattern is the translation of the function part (and it's not
+	= HigherOrderPattern C.Pattern C.Pattern
+	    -- ^ the first pattern is an application and the second
+	    --	 pattern is the function part (and it's not
 	    --	 a constructor pattern).
 	| NotAModuleExpr C.Expr
 	    -- ^ The expr was used in the right hand side of an implicit module
@@ -385,7 +385,7 @@ instance BindToAbstract C.Pattern A.Pattern where
 			    bindToAbstract (p,q) $ \ (p',q') ->
 			    ret $ ConP (PatSource p0) op'
 				$ map (Arg NotHidden) [p',q']
-			_ -> higherOrderPattern p0 pop
+			_ -> higherOrderPattern p0 (C.IdentP op)
 		_ -> __IMPOSSIBLE__ -- rotating an infix app produces an infix app
     bindToAbstract p@(C.WildP _) ret  = ret $ A.WildP (PatSource p)
     bindToAbstract (C.ParenP _ p) ret = bindToAbstract p ret
