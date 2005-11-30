@@ -1,16 +1,14 @@
 New try (again):
 # First make proper Haskell versions (not ghc-specific):
-rm ../../out/full/Syntax/Parser/Lexer.hs
-make ALEX_FLAGS= ../../out/full/Syntax/Parser/Lexer.hs
-rm ../../out/full/Syntax/Parser/Parser.hs
-make HAPPY_FLAGS=-a ../../out/full/Syntax/Parser/Parser.hs
+make ALEX_FLAGS= OUT=../../doc/pfe/fake ../../doc/pfe/fake/Syntax/Parser/Lexer.hs
+make HAPPY_FLAGS=-a OUT=../../doc/pfe/fake ../../doc/pfe/fake/Syntax/Parser/Parser.hs
 # create missing file
-touch ../../out/full/Syntax/Parser/config.h
+touch ../../doc/pfe/fake/Syntax/Parser/config.h
 # use hierarchical libraries (+h)
 # use the preprocessor
 # search in out and fake directories
 # chase modules from Main.hs
-pfesetup +h cpp -I../../out/full:fake Main.hs
+pfesetup +h cpp -I../../doc/pfe/fake Main.hs
 pfe classmetrics # works
 pfe graph -dot Main > Main.dot # works
 pfe iface Main
@@ -25,6 +23,8 @@ pfe dead works even longer
   ~/src/programatica/tools/base/transforms/Deriving/Deriving.hs:43
     proper addition is tiresome - possible to fake?
 
+----
+Everything below is older (newest try at the top)
 ------------------
 New try:
 pfesetup cpp Main.hs

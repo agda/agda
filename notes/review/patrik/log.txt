@@ -1,3 +1,11 @@
+051128: Trying to use pfe
+
+  Had to change one use of (Just x <- rename x) in a guard. The result
+  is quite as nice, but it is Haskell98.
+
+  Next problem: deriving Data is accepted by pfe - sending an email to
+    hallgren@cse.ogi.edu asking to pointers.
+
 051117: PJ reading code (code review)
 
   Syntax.Explanation:

@@ -555,16 +555,17 @@ invalidImportDirective ns i =
 
 -}
 applyDirective :: ImportDirective -> ImportedName -> Maybe Name
-applyDirective i x
-    | Just x' <- renamed x  = Just x'
-    | hidden x		    = Nothing
-    | otherwise		    = Just $ importedName x
+applyDirective d x
+    | renamed   = just_renamed
+    | hidden    = Nothing
+    | otherwise = Just $ importedName x
     where
-	renamed x = List.lookup x (renaming i)
-	hidden x =
-	    case usingOrHiding i of
-		Hiding xs   -> elem x xs
-		Using xs    -> notElem x xs
+        renamed      = isJust just_renamed
+        just_renamed = List.lookup x (renaming d)
+        hidden       =
+            case usingOrHiding d of
+                Hiding xs   ->    elem x xs
+                Using  xs   -> notElem x xs
 
 -- | Compute the imported names from a module. When importing canonical names doesn't
 --   change. For instance, if the module @A@ contains a function @f@ and we say
