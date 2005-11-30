@@ -91,28 +91,18 @@ endif
 
 agda = $(FULL_OUT_DIR)/agda
 
-test_files			= $(patsubst %,examples/syntax/%,Syntax.agda Literate.lagda)
-out_files			= $(patsubst %,%.diff,$(test_files))
-intermediate_files	= $(patsubst %,%.pretty.1 %.pretty.2,$(test_files))
+test_files	= $(patsubst %,examples/syntax/%,Syntax.agda Literate.lagda)
+tests		= $(patsubst %,%.test,$(test_files))
 
 clean_test :
 	@rm -f $(intermediate_files)
 
-test : $(agda) clean_test $(out_files)
+test : $(agda) $(tests)
 
-%.pretty.1 : %
+$(tests) : %.test : %
 	@echo "Testing $<..."
 	@$(agda) --test $< > /dev/null
 	@echo "  toAbstract . parse . pretty . toConcrete == id"
-	@$(agda) $< > $@
-
-%.pretty.2 : %.pretty.1
-	@$(agda) $< > $@
-
-$(out_files) : %.diff : %.pretty.1 %.pretty.2
-	@$(DIFF) $*.pretty.1 $*.pretty.2
-	@rm $*.pretty.1 $*.pretty.2
-	@echo "  pretty . toConcrete . toAbstract . parse is idempotent"
 
 ## Clean ##################################################################
 

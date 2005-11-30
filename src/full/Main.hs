@@ -34,17 +34,21 @@ main =
 	    failOnException $
 	    do	m	   <- parseFile' moduleParser file
 		(m',scope) <- concreteToAbstract m
-		let [m''] = abstractToConcrete
+		let [m1] = abstractToConcrete
+				(defaultFlags { useStoredConcreteSyntax = True })
+				m'
+		    [m2] = abstractToConcrete
 				(defaultFlags { useStoredConcreteSyntax = False })
 				m'
-		print m''
-		if test then checkAbstract m' m''
-			else return ()
+		if test then do	checkAbstract m' m1
+				checkAbstract m' m2
+			else print m1
 	checkAbstract am cm =
 	    do	(am',_) <- concreteToAbstract $ parse moduleParser $ show cm
 		case am === am' of
 		    Equal	    -> putStrLn "OK"
 		    Unequal r1 r2   ->
-			do  putStrLn $ "Original and generated module differs at " ++ show r1 ++ " and " ++ show r2
+			do  print cm
+			    putStrLn $ "Original and generated module differs at " ++ show r1 ++ " and " ++ show r2
 			    exitWith (ExitFailure 1)
 
