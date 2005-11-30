@@ -535,6 +535,9 @@ PrivateDeclaration
     | Mutual	    { $1 }
     | Abstract	    { $1 }
     | Postulate	    { $1 }
+    | Private	    { $1 }  -- we allow private inside private because we can,
+			    -- and because generated code might want to use it
+			    -- to simplify things
     | Open	    { $1 }
     | ModuleMacro   { $1 }
     | Module	    { $1 }
@@ -547,6 +550,7 @@ MutualDeclaration
     | FunClause { $1 }
     | Data	{ $1 }
     | Infix	{ $1 }
+    | Private	{ $1 }
 
 
 -- Declarations that can appear in an abstract block.
@@ -558,6 +562,7 @@ AbstractDeclaration
     | Infix	    { $1 }
     | Abstract	    { $1 }
     | Mutual	    { $1 }
+    | Private	    { $1 }
     | Open	    { $1 }
 
 

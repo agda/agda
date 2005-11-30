@@ -80,6 +80,25 @@ bracketP par m =
     do	e <- m
 	bracket' (ParenP (getRange e)) par e
 
+-- Dealing with infix declarations ----------------------------------------
+
+-- | If a name is defined with a fixity that differs from the default, we have
+--   to generate a fixity declaration for that name.
+infixDecl :: DefInfo -> Name -> [C.Declaration]
+infixDecl i x
+    | defFixity i == defaultFixity  = []
+    | otherwise			    = [C.Infix (defFixity i) [x]]
+
+-- Dealing with private definitions ---------------------------------------
+
+mkPrivate :: DefInfo -> AbsToCon [C.Declaration] -> AbsToCon [C.Declaration]
+mkPrivate i m =
+    case defAccess i of
+	PublicAccess	-> m
+	PrivateAccess	->
+	    do	ds <- m
+		return [ C.Private (getRange ds) ds ]
+
 -- The To Concrete Class --------------------------------------------------
 
 class ToConcrete a c | a -> c where
@@ -194,16 +213,18 @@ instance ToConcrete [A.Declaration] [C.Declaration] where
 instance ToConcrete (A.TypeSignature, A.Definition) [C.Declaration] where
 
     toConcrete (Axiom _ x t, FunDef i _ cs) =
+	mkPrivate i $
 	do  t'  <- toConcreteCtx TopCtx t
 	    cs' <- withStored i $ toConcrete cs
-	    return $ TypeSig x t' : cs'
+	    return $ infixDecl i x ++ TypeSig x t' : cs'
 
     toConcrete (Axiom _ x t, DataDef i _ bs cs) =
+	mkPrivate  i $	-- mkPrivate has to be applied outside the withStored
 	withStored i $
 	do  tel' <- toConcrete tel
 	    t'   <- toConcreteCtx TopCtx t0
 	    cs'  <- toConcrete $ map Constr cs
-	    return [ C.Data (getRange i) x tel' t' cs' ]
+	    return $ infixDecl i x ++ [ C.Data (getRange i) x tel' t' cs' ]
 	where
 	    (tel, t0) = mkTel (length bs) t
 	    mkTel 0 t		    = ([], t)
@@ -229,15 +250,19 @@ instance ToConcrete A.Clause C.Declaration where
 instance ToConcrete A.Declaration [C.Declaration] where
 
     toConcrete (Axiom i x t) =
+	mkPrivate  i $
 	withStored i $
 	do  t' <- toConcreteCtx TopCtx t
-	    return [C.Postulate (getRange i) [C.TypeSig x t']]
+	    return $ infixDecl i x ++
+		     [C.Postulate (getRange i) [C.TypeSig x t']]
 
     toConcrete (Synonym i x e wh) =
+	mkPrivate  i $
 	withStored i $
 	do  e'  <- toConcreteCtx TopCtx e
 	    wh' <- toConcrete wh
-	    return [C.FunClause (C.LHS (getRange x) PrefixDef x []) e' wh']
+	    return $ infixDecl i x ++
+		     [C.FunClause (C.LHS (getRange x) PrefixDef x []) e' wh']
 
     toConcrete (Definition i ts ds) =
 	withStored i $
