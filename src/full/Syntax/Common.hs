@@ -93,7 +93,13 @@ data Literal = LitInt    Range Integer
 data Fixity = LeftAssoc  Range Int
 	    | RightAssoc Range Int
 	    | NonAssoc   Range Int
-    deriving (Typeable, Data, Eq, Show)
+    deriving (Typeable, Data, Show)
+
+instance Eq Fixity where
+    LeftAssoc _ n   == LeftAssoc _ m	= n == m
+    RightAssoc _ n  == RightAssoc _ m	= n == m
+    NonAssoc _ n    == NonAssoc _ m	= n == m
+    _		    == _		= False
 
 fixityLevel :: Fixity -> Int
 fixityLevel (LeftAssoc	_ n) = n
