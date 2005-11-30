@@ -108,10 +108,9 @@ instance HasRange LHSInfo where
  --------------------------------------------------------------------------}
 
 data PatInfo = PatRange Range
-	     | PatSource Pattern
-    deriving (Show)
+	     | PatSource Range (Precedence -> Pattern)
 
 instance HasRange PatInfo where
     getRange (PatRange r)  = r
-    getRange (PatSource p) = getRange p
+    getRange (PatSource r _) = r
 

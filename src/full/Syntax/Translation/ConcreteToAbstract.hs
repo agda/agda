@@ -367,14 +367,19 @@ instance BindToAbstract C.Pattern A.Pattern where
 	    case rx of
 		VarName y   -> bindVariable y $ ret (VarP y)
 		DefName d | kindOfName d == ConName
-			    -> ret $ ConP (PatSource p) (theName d) []
+			    -> ret $ ConP (PatSource (getRange p) $ const p)
+					  (theName d) []
 		UnknownName -> notInScope x
 		_	    -> __IMPOSSIBLE__
     bindToAbstract p0@(AppP h p q) ret =
 	bindToAbstract (p,q) $ \(p',q') ->
 	case p' of
-	    ConP _ x as -> ret $ ConP (PatSource p0) x (as ++ [Arg h q'])
-	    _		-> higherOrderPattern p0 p'
+	    ConP _ x as -> ret $ ConP info x (as ++ [Arg h q'])
+	    _		-> higherOrderPattern p0 p
+	where
+	    r = getRange p0
+	    info = PatSource r $ \pr -> if appBrackets pr then ParenP r p0 else p0
+
     bindToAbstract p0@(InfixAppP _ _ _) ret =
 	do  f <- getFixityFunction
 	    case rotateInfixAppP f p0 of
@@ -383,10 +388,17 @@ instance BindToAbstract C.Pattern A.Pattern where
 		    case pop of
 			ConP _ op' []   ->
 			    bindToAbstract (p,q) $ \ (p',q') ->
-			    ret $ ConP (PatSource p0) op'
+			    ret $ ConP info op'
 				$ map (Arg NotHidden) [p',q']
 			_ -> higherOrderPattern p0 (C.IdentP op)
 		_ -> __IMPOSSIBLE__ -- rotating an infix app produces an infix app
-    bindToAbstract p@(C.WildP _) ret  = ret $ A.WildP (PatSource p)
+	where
+	    r = getRange p0
+	    info = PatSource r $ \pr -> if piBrackets pr
+					then ParenP r p0
+					else p0
+		-- TODO: get the real fixity of the operator and use infixBrackets
+
+    bindToAbstract p@(C.WildP r) ret  = ret $ A.WildP (PatSource r $ const p)
     bindToAbstract (C.ParenP _ p) ret = bindToAbstract p ret
 
