@@ -202,7 +202,7 @@ instance ToConcrete (A.TypeSignature, A.Definition) [C.Declaration] where
 	withStored i $
 	do  tel' <- toConcrete tel
 	    t'   <- toConcreteCtx TopCtx t0
-	    cs'  <- toConcrete cs
+	    cs'  <- toConcrete $ map Constr cs
 	    return [ C.Data (getRange i) x tel' t' cs' ]
 	where
 	    (tel, t0) = mkTel (length bs) t
@@ -210,6 +210,13 @@ instance ToConcrete (A.TypeSignature, A.Definition) [C.Declaration] where
 	    mkTel n (A.Pi _ b t)    = (b:) -*- id $ mkTel (n - 1) t
 	    mkTel _ _		    = __IMPOSSIBLE__
 
+    toConcrete _ = __IMPOSSIBLE__
+
+newtype Constr a = Constr a
+
+instance ToConcrete (Constr A.Constructor) C.Declaration where
+    toConcrete (Constr (A.Axiom i x t)) =
+	C.TypeSig x <$> toConcreteCtx TopCtx t
     toConcrete _ = __IMPOSSIBLE__
 
 instance ToConcrete A.Clause C.Declaration where
@@ -224,7 +231,7 @@ instance ToConcrete A.Declaration [C.Declaration] where
     toConcrete (Axiom i x t) =
 	withStored i $
 	do  t' <- toConcreteCtx TopCtx t
-	    return [C.TypeSig x t']
+	    return [C.Postulate (getRange i) [C.TypeSig x t']]
 
     toConcrete (Synonym i x e wh) =
 	withStored i $
