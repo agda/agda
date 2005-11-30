@@ -4,6 +4,12 @@ Syntax
 
   * Invent syntax for fancy case (should we have fancy case?)
 
+ToConcrete
+----------
+
+  * private
+  * fixity declarations
+
 Error reporting
 ---------------
 
