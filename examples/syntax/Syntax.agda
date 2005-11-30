@@ -237,6 +237,22 @@ module examples.syntax.Syntax where
       bar : X -> X
       bar x = x
 
+    -- Private declarations can go inside mutual and abstract blocks.
+    mutual
+      private f : Nat -> Nat
+	      f zero	= zero
+	      f (suc n) = g n
+
+      g : Nat -> Nat
+      g n = f n
+
+    abstract
+      Nat' : Set
+      Nat' = Nat
+
+      private h : Nat' -> Nat
+	      h n = n
+
 
   -- A name space is something that contains names. You can create new
   -- name spaces and bring names from a name space into scope.
