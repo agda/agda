@@ -1,0 +1,137 @@
+\documentclass[a4paper,11pt]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[latin1]{inputenc}
+\usepackage{amsmath,amssymb,amsfonts}
+
+\usepackage{proof}
+
+\newcommand\keyword[1]{\mathbf{#1}}
+\newcommand\Coloneqq{\mathrel{::=}}
+\newcommand\OR{~~|~~}
+\newcommand\Hid[1]{\{#1\}}
+\newcommand\lam[1]{\lambda#1.\,}
+\newcommand\hlam[1]{\lam{\Hid{#1}}}
+\newcommand\tlam[2]{\lam{(#1:#2)}}
+\newcommand\thlam[2]{\lam{\Hid{#1:#2}}}
+\newcommand\ePi[3]{(#1:#2)\to#3}
+\newcommand\ehPi[3]{\{#1:#2\}\to#3}
+\newcommand\vPi[2]{\Pi#1:#2.\,}
+\newcommand\vhPi[2]{\Pi\{#1:#2\}.\,}
+\newcommand\Let[2]{\keyword{let}~#1~\keyword{in}~#2}
+\newcommand\Set[1]{\mathsf{Set}_#1}
+\newcommand\Prop{\mathsf{Prop}}
+\newcommand\el{\mathsf{El}}
+\newcommand\El[1]{\el_{#1}\,}
+
+% Judgement forms
+\renewcommand\Check[5]{#1\,;\,#2\vdash#3\uparrow#4:#5}
+\newcommand\Infer[5]{#1\,;\,#2\vdash#3\downarrow#4:#5}
+\newcommand\IsType[4]{#1\,;\,#2\vdash#3\uparrow#4~\mathbf{type}}
+\newcommand\Equal[5]{#1\,;\,#2\vdash#3=#4:#5}
+\newcommand\TEqual[4]{#1\,;\,#2\vdash#3=#4}
+\newcommand\Expand[6]{#1\,;\,#2\vdash#3:#4\prec#5:#6}
+
+\title{Agda II Type Checking Algorithm}
+\author{Ulf Norell}
+
+\begin{document}
+\maketitle
+
+\section{Introduction}
+
+    Write something nice here.
+
+\section{Syntax}
+
+\subsection{Expressions}
+
+    Expressions have been scope checked, but not type checked. Hence the mix
+    between terms, types and sorts.
+
+    \[\begin{array}{lcl}
+	e & \Coloneqq & x \OR c \OR l \OR ? \OR \_ \\
+	  & \OR & \lam xe \OR \hlam xe \OR \tlam xee \OR \thlam xee \\
+	  & \OR & e\,e \OR e\,\Hid e \OR \Let{\vec\delta}e \\
+	  & \OR & \ePi xee \OR \ehPi xee \OR \Set n \OR \Prop \\
+	l & \Coloneqq & \mathit{integer} \OR \mathit{float} \OR \mathit{string} \OR \mathit{character} \\
+    \end{array}\]
+
+    Constants ($c$) are names of constructors, defined functions, postulates and datatypes.
+
+\subsection{Declarations}
+
+    \[\begin{array}{lcl}
+	\delta & \Coloneqq & \ldots
+    \end{array}\]
+
+\subsection{Terms}
+
+    Terms are type checked versions of expressions (that aren't types). The
+    type checking algorithm produces one of these when type checking. The
+    implementation uses deBruijn variables, but to simplify the presentation
+    we don't do that here.
+
+    \[\begin{array}{lcl}
+	s,t & \Coloneqq & x \OR c \OR l \OR ?_i \\
+	    & \OR & \lam xt \OR \hlam xt \OR s\,t \OR s\,\Hid t
+    \end{array}\]
+
+    Worth noting is that meta variables are now named and that there are no
+    typed lambdas left.
+
+\subsection{Types and Sorts}
+
+    After type checking we distinguish between terms, types and sorts.
+
+    \[\begin{array}{lcl}
+	A,B & \Coloneqq & \El\alpha t \OR \vPi xAB \OR \vhPi xAB \\
+	    & \OR & ?_i \OR \alpha \\
+	\alpha,\beta & \Coloneqq & \Set n \OR \Prop \OR ?_i \OR \alpha\sqcup\beta \\
+    \end{array}\]
+
+    We need type and sort meta variables. I can't remember why exactly, but
+    there is good reason for it.
+
+\section{Judgement forms}
+
+    In the judgement forms below $\Sigma$ is the signature and contains the
+    type and definition (if any) of the constants currently in scope. $\Gamma$
+    is the context and contains the types of the bound variables.
+
+    \[\begin{array}{ll}
+	\Check\Sigma\Gamma etA	    & \mbox{Type checking, computes $t$.} \\
+	\Infer\Sigma\Gamma etA	    & \mbox{Type inference, computes $t$ and $A$.} \\
+	\IsType\Sigma\Gamma eA	    & \mbox{Checking that $e$ is a type, computes $A$.} \\
+	\Equal\Sigma\Gamma stA	    & \mbox{Typed conversion.} \\
+	\TEqual\Sigma\Gamma AB	    & \mbox{Type conversion.} \\
+	\Expand\Sigma\Gamma sAtB    & \mbox{Coercing conversion, computes $t$.} \\
+    \end{array}\]
+
+    The only non-standard judgement is the coercing conversion. The purpose of
+    this judgement form is to insert things that have been hidden. For
+    instance, suppose that $f:\vhPi A{\Set0}\vPi xAA$ in $\Sigma$ and we want
+    to check $\Check\Sigma\Gamma ft{\vPi xBB}$. This should succeed with $t =
+    f\,\Hid{B}$. The reason it does succeed is because we can coerce $f$ to
+    have the desired type:
+    \[
+	\Expand\Sigma\Gamma f{\vhPi A{\Set0}\vPi xAA}{f\,\Hid{B}}{\vPi xBB}
+    \]
+
+\section{Judgements}
+
+\subsection{Checking}
+
+\subsection{Inference}
+
+\subsection{Is type}
+
+\subsection{Hidden argument expansion}
+
+\subsection{Conversion}
+
+\subsection{Type conversion}
+
+\subsection{Declarations}
+
+\end{document}
