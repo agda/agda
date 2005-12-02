@@ -18,6 +18,8 @@
 \newcommand\ehPi[3]{\{#1:#2\}\to#3}
 \newcommand\vPi[2]{\Pi#1:#2.\,}
 \newcommand\vhPi[2]{\Pi\{#1:#2\}.\,}
+\newcommand\vPiTel[1]{\Pi#1.\,}
+\newcommand\vhPiTel[1]{\vPiTel{\{#1\}}}
 \newcommand\Let[2]{\keyword{let}~#1~\keyword{in}~#2}
 \newcommand\Set[1]{\mathsf{Set}_#1}
 \newcommand\Prop{\mathsf{Prop}}
@@ -31,6 +33,7 @@
 \newcommand\Equal[5]{#1\,;\,#2\vdash#3=#4:#5}
 \newcommand\TEqual[4]{#1\,;\,#2\vdash#3=#4}
 \newcommand\Expand[6]{#1\,;\,#2\vdash#3:#4\prec#5:#6}
+\newcommand\CheckDecl[4]{#1\,;\,#2\vdash#3\to#4}
 
 \title{Agda II Type Checking Algorithm}
 \author{Ulf Norell}
@@ -106,6 +109,7 @@
 	\Equal\Sigma\Gamma stA	    & \mbox{Typed conversion.} \\
 	\TEqual\Sigma\Gamma AB	    & \mbox{Type conversion.} \\
 	\Expand\Sigma\Gamma sAtB    & \mbox{Coercing conversion, computes $t$.} \\
+	\CheckDecl\Sigma\Gamma\delta{\Sigma'} & \mbox{Checking declarations, computes $\Sigma'$.}
     \end{array}\]
 
     The only non-standard judgement is the coercing conversion. The purpose of
@@ -121,6 +125,38 @@
 \section{Judgements}
 
 \subsection{Checking}
+
+    We can't infer the type of domain free lambdas.
+
+    \[\begin{array}{c}
+	\infer{ \Check\Sigma\Gamma{\lam xe}{\lam xt}{\vPi xAB} }
+	      { \Check\Sigma{\Gamma,x:A}etB }
+	\\{}\\
+	\infer{ \Check\Sigma\Gamma{\hlam xe}{\hlam xt}{\vhPi xAB} }
+	      { \Check\Sigma{\Gamma,x:A}etB }
+    \end{array}\]
+
+    If we're checking a non-hidden lambda against a hidden function type we
+    should insert the appropriate number of hidden lambdas. There is some
+    abuse of notation to make the rule more readable: If $\Delta =
+    (x_1:A_1)\ldots(x_n:A_n)$, then $\hlam\Delta t$ means $\hlam{x_1}\ldots\hlam{x_n}t$ and
+    $\vhPiTel\Delta B$ means $\vhPi{x_1}{A_1}\ldots\vhPi{x_n}{A_n}B$.
+
+    \[\begin{array}{c}
+	\infer{ \Check\Sigma\Gamma{\lam xe}{\hlam\Delta\lam xt}{\vhPiTel\Delta\vPi xAB} }
+	{ \Check\Sigma{\Gamma,\Delta,x:A} etB
+	}
+    \end{array}\]
+
+    Let bindings can be inferred only if the body can be inferred, so we need a
+    checking rule.
+
+    \[\begin{array}{c}
+	\infer{ \Check\Sigma\Gamma{\Let\delta e}tA }
+	{ \CheckDecl\Sigma\Gamma\delta{\Sigma'}
+	& \Check{\Sigma'}\Gamma etA
+	}
+    \end{array}\]
 
 \subsection{Inference}
 
