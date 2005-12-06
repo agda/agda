@@ -63,12 +63,6 @@ lam m   = Lam (Abs noName m) Duh
 app m n = App m n NotHidden  Duh
 metaV x = MetaV x            Duh
 
-addArgs :: [Value] -> GenericT
-addArgs args = mkT addTrm `extT` addTyp where
-    addTrm m = foldl app m args 
-    addTyp a = case basicType a of
-        MetaTBT x args' -> metaT (args'++args) x
-
 data Type = El Value Sort      Info
 	  | Pi Type (Abs Type) Info
 	  | Sort Sort          Info
@@ -82,6 +76,12 @@ set0   = Sort (Type 0 Duh)   Duh
 set n  = Sort (Type n Duh)   Duh
 sort s = Sort s              Duh
 metaT deps x = MetaT x deps  Duh
+
+addArgs :: [Value] -> GenericT
+addArgs args = mkT addTrm `extT` addTyp where
+    addTrm m = foldl app m args 
+    addTyp a = case basicType a of
+        MetaTBT x args' -> metaT (args'++args) x
 
 data Sort = Type Nat Info
 	  | Prop Info
@@ -120,7 +120,7 @@ walk f x = do
             Done     -> return v
             Continue -> 
                 if isAbs x then local (+ 1) $ gmapM (go f) v 
-                                         else gmapM (go f) v
+		else gmapM (go f) v
 
 data WalkDone = Done | Continue 
 instance Monoid WalkDone where
@@ -135,9 +135,7 @@ instance Monoid WalkDone where
 --     is used instead.
 --
 endWalk :: Monad m => a -> ReaderT Int (WriterT WalkDone m) a
-endWalk x = do
-    tell Done
-    return x
+endWalk x = do tell Done; return x
 
 
 -- | Substitute @repl@ for @(Var 0 _)@ in @x@.
@@ -147,7 +145,7 @@ subst repl x = runIdentity $ walk (mkM goVal) x where
   goVal (Var i expl) = do
       n <- ask
       endWalk $ if i == n then adjust n repl 
-               else Var (if i > n then i - 1 else i) expl
+                else Var (if i > n then i - 1 else i) expl
   goVal x = return x
 
 -- | Add @k@ to index of each open variable in @x@.
@@ -608,7 +606,7 @@ whnfValue v = do
 --   Assumes all arguments already in whnf.
 --   Parameters are represented as @Var@s so @checkArgs@ really
 --     checks that all args are unique @Var@s and returns the
---     list of corresponding indices for each arg; this is done
+--     list of corresponding indices for each arg-- done
 --     to not define equality on @Value@.
 --
 checkArgs :: MId -> [Value] -> TCM [Int]
@@ -662,9 +660,9 @@ occ y okVars v = go v where
         case v' of 
             VarWV i args -> do
                 j <- findIdx okVars i
-                args' <- mapM occVal args -- necessary because addArgs returns @Value@
-                endWalk $ addArgs args' (var j)
+                return $ addArgs args (var j) -- continues walking along args
             MetaVWV x args -> occVar InstV metaV x args
+            _ -> return v
     occTyp v = do
         v' <- lift $ lift $ instType v
         case basicType v' of
