@@ -2,8 +2,8 @@
 default : algorithm.ps
 
 %.dvi : %.tex
-	latex $<
-	latex $<
+	latex --interaction=nonstopmode $<
+	latex --interaction=nonstopmode $<
 
 %.ps : %.dvi
 	dvips -o $@ $<

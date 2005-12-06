@@ -11,3 +11,4 @@
 ^tmp$
 ^doc/pfe/fake/Syntax/Parser/(Parser|Lexer)\.hs$
 \.(log|ps|aux|bbl)$
+\.dvi$

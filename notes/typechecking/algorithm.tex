@@ -26,6 +26,10 @@
 \newcommand\el{\mathsf{El}}
 \newcommand\El[1]{\el_{#1}\,}
 
+\newcommand\APP[2]{\mathsf{app}(#1,#2)}
+\newcommand\HAPP[2]{\mathsf{happ}(#1,#2)}
+\newcommand\Subst[3]{#1[#2/#3]}\newcommand\Subst[3]{#1[{}^#2/{}_#3]}
+
 % Judgement forms
 \renewcommand\Check[5]{#1\,;\,#2\vdash#3\uparrow#4:#5}
 \newcommand\Infer[5]{#1\,;\,#2\vdash#3\downarrow#4:#5}
@@ -34,6 +38,9 @@
 \newcommand\TEqual[4]{#1\,;\,#2\vdash#3=#4}
 \newcommand\Expand[6]{#1\,;\,#2\vdash#3:#4\prec#5:#6}
 \newcommand\CheckDecl[4]{#1\,;\,#2\vdash#3\to#4}
+
+\newcommand\AddGlobalMeta[4]{#1\,;\,#2\vdash{?_{#3}}:#4}
+\newcommand\AddLocalMeta[4]{#1\,;\,#2\vdash{?_{#3}}:#4}
 
 \title{Agda II Type Checking Algorithm}
 \author{Ulf Norell}
@@ -88,13 +95,20 @@
     After type checking we distinguish between terms, types and sorts.
 
     \[\begin{array}{lcl}
-	A,B & \Coloneqq & \El\alpha t \OR \vPi xAB \OR \vhPi xAB \\
-	    & \OR & ?_i \OR \alpha \\
-	\alpha,\beta & \Coloneqq & \Set n \OR \Prop \OR ?_i \OR \alpha\sqcup\beta \\
+	A,B & \Coloneqq & \El\alpha t \OR \vPi xAB \OR \vhPi xAB \OR \alpha \\
+	\alpha,\beta & \Coloneqq & \Set n \OR \Prop \OR \alpha\sqcup\beta \\
     \end{array}\]
 
-    We need type and sort meta variables. I can't remember why exactly, but
-    there is good reason for it.
+    In some presentation of the system design we had type and sort meta
+    variables. I will try to do without them. What this means is that we can't,
+    for instance, infer the type of a domain-free lambda by introducing a meta
+    variable for the domain type.
+
+    The reason for not having type meta variables is that I'm not sure how they
+    interact with coercions.  Depending on the order you solve constraints you
+    might end up with different instantiations (since different coercions were
+    applied).  It might be that it doesn't matter, but until we're sure I
+    prefer to err on the side of caution.
 
 \section{Judgement forms}
 
@@ -126,6 +140,19 @@
 
 \subsection{Checking}
 
+    Type checking is used only as a last resort. If we can infer the type,
+    that's what we do.
+
+    \[\begin{array}{c}
+	\infer{ \Check\Sigma\Gamma etB }
+	{ \Infer\Sigma\Gamma esA
+	& \Expand\Sigma\Gamma sAtB
+	}
+    \end{array}\]
+
+    The coercing conversion inserts any hidden lambdas or applications that are
+    missing from $s$.
+
     We can't infer the type of domain free lambdas.
 
     \[\begin{array}{c}
@@ -148,8 +175,16 @@
 	}
     \end{array}\]
 
+    The type of meta variables can't be inferred either.
+
+    \[\begin{array}{ccc}
+	\infer[\AddGlobalMeta\Sigma\Gamma iA]{\Check\Sigma\Gamma{{?}}{{?_i}}A}{}
+	    &&
+	\infer[\AddLocalMeta\Sigma\Gamma iA]{\Check\Sigma\Gamma\_{{?_i}}A}{}
+    \end{array}\]
+
     Let bindings can be inferred only if the body can be inferred, so we need a
-    checking rule.
+    checking rule in case it can't.
 
     \[\begin{array}{c}
 	\infer{ \Check\Sigma\Gamma{\Let\delta e}tA }
@@ -158,11 +193,45 @@
 	}
     \end{array}\]
 
+    An alternative approach would be to infer the type of everything, inserting
+    meta variables when we don't know.  This would require type and sort meta
+    variables, though.
+
 \subsection{Inference}
+
+    Inferring the type of a variable or a constant amounts to looking it up in
+    the context or signature. This will never fail, since the expressions have
+    been scope checked prior to type checking.
+
+    \[\begin{array}{ccc}
+	\infer{\Infer\Sigma\Gamma xx{\Gamma(x)}}{} &&
+	\infer{\Infer\Sigma\Gamma cc{\Sigma(x)}}{}
+    \end{array}\]
+
+    Literals have predefined types.
+    \[\begin{array}{c}
+	\infer{\Infer\Sigma\Gamma ll{\mathsf{typeof}(l)}}{}
+    \end{array}\]
+
+    There are three rules for application. The first two are for the easy cases
+    where all implicit arguments have been made explicit.
+    \[\begin{array}{c}
+	\infer{ \Infer\Sigma\Gamma{e_1\,e_2}{\APP st}{\Subst Btx} }
+	{ \Infer\Sigma\Gamma{e_1}s{\vPi xAB}
+	& \Check\Sigma\Gamma{e_2}tA
+	}
+	\\{}\\
+	\infer{ \Infer\Sigma\Gamma{e_1\,\Hid{e_2}}{\HAPP st}{\Subst Btx} }
+	{ \Infer\Sigma\Gamma{e_1}s{\vhPi xAB}
+	& \Check\Sigma\Gamma{e_2}tA
+	}
+    \end{array}\]
+    The functions $\APP --$ and $\HAPP --$ perform $\beta$-reductions if
+    necessary and otherwise act as syntactic application.
 
 \subsection{Is type}
 
-\subsection{Hidden argument expansion}
+\subsection{Coercing conversion}
 
 \subsection{Conversion}
 
