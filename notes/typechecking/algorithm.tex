@@ -21,14 +21,17 @@
 \newcommand\vPiTel[1]{\Pi#1.\,}
 \newcommand\vhPiTel[1]{\vPiTel{\{#1\}}}
 \newcommand\Let[2]{\keyword{let}~#1~\keyword{in}~#2}
-\newcommand\Set[1]{\mathsf{Set}_#1}
+\newcommand\Set[1]{\mathsf{Set}_{#1}}
 \newcommand\Prop{\mathsf{Prop}}
 \newcommand\el{\mathsf{El}}
 \newcommand\El[1]{\el_{#1}\,}
+\newcommand\lub{\sqcup}
 
 \newcommand\APP[2]{\mathsf{app}(#1,#2)}
 \newcommand\HAPP[2]{\mathsf{happ}(#1,#2)}
-\newcommand\Subst[3]{#1[#2/#3]}\newcommand\Subst[3]{#1[{}^#2/{}_#3]}
+\newcommand\Subst[3]{#1[#2/#3]}
+
+\newcommand\GetSort[1]{\mathsf{sortof}(#1)}
 
 % Judgement forms
 \renewcommand\Check[5]{#1\,;\,#2\vdash#3\uparrow#4:#5}
@@ -39,8 +42,8 @@
 \newcommand\Expand[6]{#1\,;\,#2\vdash#3:#4\prec#5:#6}
 \newcommand\CheckDecl[4]{#1\,;\,#2\vdash#3\to#4}
 
-\newcommand\AddGlobalMeta[4]{#1\,;\,#2\vdash{?_{#3}}:#4}
-\newcommand\AddLocalMeta[4]{#1\,;\,#2\vdash{?_{#3}}:#4}
+\newcommand\AddGlobalMeta[4]{#1\,;\,#2\vdash{#3}:#4}
+\newcommand\AddLocalMeta[4]{#1\,;\,#2\vdash{#3}:#4}
 
 \title{Agda II Type Checking Algorithm}
 \author{Ulf Norell}
@@ -96,7 +99,7 @@
 
     \[\begin{array}{lcl}
 	A,B & \Coloneqq & \El\alpha t \OR \vPi xAB \OR \vhPi xAB \OR \alpha \\
-	\alpha,\beta & \Coloneqq & \Set n \OR \Prop \OR \alpha\sqcup\beta \\
+	\alpha,\beta & \Coloneqq & \Set n \OR \Prop \\
     \end{array}\]
 
     In some presentation of the system design we had type and sort meta
@@ -178,9 +181,9 @@
     The type of meta variables can't be inferred either.
 
     \[\begin{array}{ccc}
-	\infer[\AddGlobalMeta\Sigma\Gamma iA]{\Check\Sigma\Gamma{{?}}{{?_i}}A}{}
+	\infer[\AddGlobalMeta\Sigma\Gamma{?_i}A]{\Check\Sigma\Gamma{{?}}{{?_i}}A}{}
 	    &&
-	\infer[\AddLocalMeta\Sigma\Gamma iA]{\Check\Sigma\Gamma\_{{?_i}}A}{}
+	\infer[\AddLocalMeta\Sigma\Gamma{?_i}A]{\Check\Sigma\Gamma\_{{?_i}}A}{}
     \end{array}\]
 
     Let bindings can be inferred only if the body can be inferred, so we need a
@@ -227,11 +230,112 @@
 	}
     \end{array}\]
     The functions $\APP --$ and $\HAPP --$ perform $\beta$-reductions if
-    necessary and otherwise act as syntactic application.
+    necessary and otherwise act as syntactic application.  The third rule
+    handles the case when you apply a function expecting hidden arguments to a
+    non-hidden argument, in which case we have to fill in the hidden arguments
+    with meta variables.
+    \[\begin{array}{c}
+	\infer[\AddLocalMeta\Sigma\Gamma{\vec ?}\Delta]
+	{ \Infer\Sigma\Gamma{e_1\,e_2}{\APP{\HAPP{s}{\vec{?}}}t}{B[\vec{?}/\Delta,t/x]} }
+	{ \Infer\Sigma\Gamma{e_1}s{\vhPiTel\Delta\vPi xAB}
+	& \Check\Sigma\Gamma{e_2}t{\Subst A{\vec ?}\Delta}
+	}
+    \end{array}\]
+    A consequence of these rules is that when you give a hidden argument
+    explicitly it is always interpreted as the left-most hidden argument, so
+    $f\,\Hid{x}\,y$ is the same as $f\,\Hid{x}\,\Hid{\_}\,y$ for an $f$ of the
+    appropriate type.
+
+    The inference rule for let is the same as the checking rule.
+    \[\begin{array}{c}
+	\infer{ \Infer\Sigma\Gamma{\Let\delta e}tA }
+	{ \CheckDecl\Sigma\Gamma\delta{\Sigma'}
+	& \Infer{\Sigma'}\Gamma etA
+	}
+    \end{array}\]
+
+\subsection{Computing sorts}
+
+    Types contain enough information to retrieve the sort.
+
+    \[\begin{array}{lcl}
+	\GetSort{\El\alpha t} & = & \alpha \\
+	\GetSort{\vPi xAB} & = & \GetSort A\lub\GetSort B \\
+	\GetSort{\vhPi xAB} & = & \GetSort A\lub\GetSort B \\
+	\GetSort{\Set n} & = & \Set{n+1} \\
+	\GetSort{\Prop} & = & \Set1 \\
+	{}\\
+	\Set n\lub\Set m & = & \Set{\mathsf{max}(n,m)} \\
+	\Prop\lub\Prop & = & \Prop \\
+	\Prop\lub\Set n & = & \Set1\lub\Set n \\
+	\Set n\lub\Prop & = & \Set n\lub\Set 1 \\
+    \end{array}\]
+
+    In PTS terms we have the rule $(\alpha,\beta,\alpha\lub\beta)$.
+    We might want to consider having $(\Set0,\Prop,\Prop)$ as well.
 
 \subsection{Is type}
 
+    The {\em is type} judgement checks that an expression is a valid type and
+    returns that type.  It could also compute its sort but since we can easily get the
+    sort of a type, it isn't necessary.
+
+    \[\begin{array}{c}
+	\infer
+	{ \IsType\Sigma\Gamma e{\El\alpha t} }
+	{ \Infer\Sigma\Gamma et\alpha }
+    \end{array}\]
+    
+    \[\begin{array}{c}
+	\infer
+	{ \IsType\Sigma\Gamma{\ePi x{e_1}{e_2}}{\vPi xAB} }
+	{ \IsType\Sigma\Gamma{e_1}A
+	& \IsType\Sigma{\Gamma,x:A}{e_2}B
+	} \\{}\\
+	\infer
+	{ \IsType\Sigma\Gamma{\ehPi x{e_1}{e_2}}{\vhPi xAB} }
+	{ \IsType\Sigma\Gamma{e_1}A
+	& \IsType\Sigma{\Gamma,x:A}{e_2}B
+	}
+    \end{array}\]
+
+    \[\begin{array}{c}
+	\infer
+	{ \IsType\Sigma\Gamma\alpha{\GetSort\alpha} }
+	{}
+    \end{array}\]
+
 \subsection{Coercing conversion}
+
+    The coercing conversion $\Expand\Sigma\Gamma sAtB$ computes a $t$ of type
+    $B$ given an $s$ of type $A$, by adding hidden applications or lambdas to
+    $s$ until the types $A$ and $B$ match.
+
+    In the following two rules $C$ should not be a hidden function space
+    ($\vhPi xAB$).
+    \[\begin{array}{c}
+	\infer[\AddLocalMeta\Sigma\Gamma{?_i}A]
+	{ \Expand\Sigma\Gamma s{\vhPi xAB}tC }
+	{ \Expand\Sigma\Gamma{\HAPP s{?_i}}{\Subst B{?_i}x}tC }
+	\\{}\\
+	\infer
+	{ \Expand\Sigma\Gamma sC{\hlam xt}{\vhPi xAB} }
+	{ \Expand\Sigma{\Gamma,x:A}sCtB }
+    \end{array}\]
+    An alternative would be to apply the second rule also when $C$ is a hidden lambda,
+    effectively $\eta$-expanding hidden things. This would give a more flexible
+    system, allowing, for instance, $s:\vhPiTel{A,B:\Set0}A\to B\to A$ to be
+    coerced to $\hlam As\,\Hid A\,\Hid A : \vhPi A{\Set0}A\to A\to A$.
+
+    If none of the rules above apply we resort to normal conversion.
+    \[\begin{array}{c}
+	\infer
+	{ \Expand\Sigma\Gamma tAtB }
+	{ \TEqual\Sigma\Gamma AB }
+    \end{array}\]
+    If we go with the alternative suggestion above, this rule applies only if
+    none of $A$ or $B$ are hidden function spaces, otherwise it also applies if
+    both are hidden function spaces.
 
 \subsection{Conversion}
 
