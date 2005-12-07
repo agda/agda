@@ -93,6 +93,9 @@
     Worth noting is that meta variables are now named and that there are no
     typed lambdas left.
 
+    Terms are supposed to always be on normal form. We do some work in the
+    rules to ensure that this is the case.
+
 \subsection{Types and Sorts}
 
     After type checking we distinguish between terms, types and sorts.
@@ -113,6 +116,8 @@
     applied).  It might be that it doesn't matter, but until we're sure I
     prefer to err on the side of caution.
 
+    If $x\notin\mathit{FV}(B)$ I will sometimes write $A\to B$ for $\vPi xAB$.
+
 \section{Judgement forms}
 
     In the judgement forms below $\Sigma$ is the signature and contains the
@@ -124,15 +129,16 @@
 	\Infer\Sigma\Gamma etA	    & \mbox{Type inference, computes $t$ and $A$.} \\
 	\IsType\Sigma\Gamma eA	    & \mbox{Checking that $e$ is a type, computes $A$.} \\
 	\Equal\Sigma\Gamma stA	    & \mbox{Typed conversion.} \\
-	\TEqual\Sigma\Gamma AB	    & \mbox{Type conversion.} \\
+%	\TEqual\Sigma\Gamma AB	    & \mbox{Type conversion.} \\
 	\Expand\Sigma\Gamma sAtB    & \mbox{Coercing conversion, computes $t$.} \\
 	\CheckDecl\Sigma\Gamma\delta{\Sigma'} & \mbox{Checking declarations, computes $\Sigma'$.}
     \end{array}\]
 
-    The only non-standard judgement is the coercing conversion. The purpose of
-    this judgement form is to insert things that have been hidden. For
-    instance, suppose that $f:\vhPi A{\Set0}\vPi xAA$ in $\Sigma$ and we want
-    to check $\Check\Sigma\Gamma ft{\vPi xBB}$. This should succeed with $t =
+    The only non-standard judgement is the coercing conversion which replaces
+    the convertibility judgement for types. The purpose of this judgement form
+    is to insert things that have been hidden. For instance, suppose that
+    $f:\vhPi A{\Set0}\vPi xAA$ in $\Sigma$ and we want to check
+    $\Check\Sigma\Gamma ft{\vPi xBB}$. This should succeed with $t =
     f\,\Hid{B}$. The reason it does succeed is because we can coerce $f$ to
     have the desired type:
     \[
@@ -229,11 +235,11 @@
 	& \Check\Sigma\Gamma{e_2}tA
 	}
     \end{array}\]
-    The functions $\APP --$ and $\HAPP --$ perform $\beta$-reductions if
-    necessary and otherwise act as syntactic application.  The third rule
-    handles the case when you apply a function expecting hidden arguments to a
-    non-hidden argument, in which case we have to fill in the hidden arguments
-    with meta variables.
+    The functions $\APP --$ and $\HAPP --$ perform $\beta$-reductions and
+    definition unfolding if necessary, to make sure that terms are on normal
+    form. The third rule handles the case when you apply a function expecting
+    hidden arguments to a non-hidden argument, in which case we have to fill in
+    the hidden arguments with meta variables.
     \[\begin{array}{c}
 	\infer[\AddLocalMeta\Sigma\Gamma{\vec ?}\Delta]
 	{ \Infer\Sigma\Gamma{e_1\,e_2}{\APP{\HAPP{s}{\vec{?}}}t}{B[\vec{?}/\Delta,t/x]} }
@@ -311,8 +317,8 @@
     $B$ given an $s$ of type $A$, by adding hidden applications or lambdas to
     $s$ until the types $A$ and $B$ match.
 
-    In the following two rules $C$ should not be a hidden function space
-    ($\vhPi xAB$).
+%     In the following two rules $C$ should not be a hidden function space
+%     ($\vhPi xAB$).
     \[\begin{array}{c}
 	\infer[\AddLocalMeta\Sigma\Gamma{?_i}A]
 	{ \Expand\Sigma\Gamma s{\vhPi xAB}tC }
@@ -322,24 +328,87 @@
 	{ \Expand\Sigma\Gamma sC{\hlam xt}{\vhPi xAB} }
 	{ \Expand\Sigma{\Gamma,x:A}sCtB }
     \end{array}\]
-    An alternative would be to apply the second rule also when $C$ is a hidden lambda,
-    effectively $\eta$-expanding hidden things. This would give a more flexible
-    system, allowing, for instance, $s:\vhPiTel{A,B:\Set0}A\to B\to A$ to be
-    coerced to $\hlam As\,\Hid A\,\Hid A : \vhPi A{\Set0}A\to A\to A$.
+    The first rule applies when $C$ is not a hidden function space, and the
+    second rule is applicable for any $C$. This has the effect of
+    $\eta$-expanding functions with hidden arguments. This allows, for
+    instance, $s:\vhPiTel{A,B:\Set0}A\to B\to A$ to be coerced to $\hlam
+    As\,\Hid A\,\Hid A : \vhPi A{\Set0}A\to A\to A$.
 
-    If none of the rules above apply we resort to normal conversion.
+    If both types are normal function spaces we $\eta$-expand.
     \[\begin{array}{c}
 	\infer
-	{ \Expand\Sigma\Gamma tAtB }
-	{ \TEqual\Sigma\Gamma AB }
+	{ \Expand\Sigma\Gamma s{\vPi xAB}{\lam ys'}{\vPi y{A'}B'} }
+	{ \Expand\Sigma{\Gamma,y:A'}y{A'}tA
+	& \Expand\Sigma{\Gamma,y:A'}{s\,t}{\Subst Btx}{s'}{B'}
+	}
     \end{array}\]
-    If we go with the alternative suggestion above, this rule applies only if
-    none of $A$ or $B$ are hidden function spaces, otherwise it also applies if
-    both are hidden function spaces.
+    This allows us to perform coercions in higher order functions. For instance, 
+    \[
+	\Expand\Sigma\Gamma f{(B\to B)\to C}
+	    {\lam xf\,(x\,\Hid{B})}
+	    {(\vhPi A{\Set0}A\to A)\to C}
+    \]
+    The last two cases are when the types are $\el$s or sorts. In neither case
+    are there any coercions.
+    \[\begin{array}{c}
+	\infer
+	{ \Expand\Sigma\Gamma t\alpha t\alpha }
+	{}
+	\\{}\\
+	\infer
+	{ \Expand\Sigma\Gamma s{\El\alpha t_1}s{\El\alpha t_2} }
+	{ \Equal\Sigma\Gamma{t_1}{t_2}\alpha }
+    \end{array}\]
+
+%     If none of the types are hidden functions spaces the following rule applies.
+%     \[\begin{array}{c}
+% 	\infer
+% 	{ \Expand\Sigma\Gamma tAtB }
+% 	{ \TEqual\Sigma\Gamma AB }
+%     \end{array}\]
+
+% \subsection{Type conversion}
+% 
+%     The type conversion judgement checks that two types are convertible. Note
+%     that we don't have any sort subtyping at the moment (except in the rule for
+%     datatypes).
+% 
+%     \[\begin{array}{ccc}
+% 	\infer
+% 	{ \TEqual\Sigma\Gamma{\El\alpha s}{\El\alpha t} }
+% 	{ \Equal\Sigma\Gamma st\alpha } &&
+% 	\infer
+% 	{ \TEqual\Sigma\Gamma\alpha\alpha }
+% 	{}
+% 	\\{}\\
+% 	\multicolumn3c{
+% 	\infer
+% 	{ \TEqual\Sigma\Gamma{\vPi x{A_1}{B_1}}{\vPi x{A_2}{B_2}} }
+% 	{ \TEqual\Sigma\Gamma{A_1}{A_2}
+% 	& \TEqual\Sigma{\Gamma,x:A_1}{B_1}{B_2}
+% 	} }
+% 	\\{}\\
+% 	\multicolumn3c{
+% 	\infer
+% 	{ \TEqual\Sigma\Gamma{\vhPi x{A_1}{B_1}}{\vhPi x{A_2}{B_2}} }
+% 	{ \TEqual\Sigma\Gamma{A_1}{A_2}
+% 	& \TEqual\Sigma{\Gamma,x:A_1}{B_1}{B_2}
+% 	} } 
+%     \end{array}\]
 
 \subsection{Conversion}
 
-\subsection{Type conversion}
+    Conversion checking is typed. This gives us $\eta$-equality for functions
+    in a nice way. It also makes it possible to introduce proof irrelevance
+    with a rule like this:
+    \[\left(\begin{array}{c}
+	\infer
+	{ \Equal\Sigma\Gamma pqP }
+	{ \GetSort{P} = \Prop }
+    \end{array}\right)\]
+    We don't do that at this point though.
+
+    
 
 \subsection{Declarations}
 
