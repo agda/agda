@@ -367,35 +367,6 @@
 % 	{ \TEqual\Sigma\Gamma AB }
 %     \end{array}\]
 
-% \subsection{Type conversion}
-% 
-%     The type conversion judgement checks that two types are convertible. Note
-%     that we don't have any sort subtyping at the moment (except in the rule for
-%     datatypes).
-% 
-%     \[\begin{array}{ccc}
-% 	\infer
-% 	{ \TEqual\Sigma\Gamma{\El\alpha s}{\El\alpha t} }
-% 	{ \Equal\Sigma\Gamma st\alpha } &&
-% 	\infer
-% 	{ \TEqual\Sigma\Gamma\alpha\alpha }
-% 	{}
-% 	\\{}\\
-% 	\multicolumn3c{
-% 	\infer
-% 	{ \TEqual\Sigma\Gamma{\vPi x{A_1}{B_1}}{\vPi x{A_2}{B_2}} }
-% 	{ \TEqual\Sigma\Gamma{A_1}{A_2}
-% 	& \TEqual\Sigma{\Gamma,x:A_1}{B_1}{B_2}
-% 	} }
-% 	\\{}\\
-% 	\multicolumn3c{
-% 	\infer
-% 	{ \TEqual\Sigma\Gamma{\vhPi x{A_1}{B_1}}{\vhPi x{A_2}{B_2}} }
-% 	{ \TEqual\Sigma\Gamma{A_1}{A_2}
-% 	& \TEqual\Sigma{\Gamma,x:A_1}{B_1}{B_2}
-% 	} } 
-%     \end{array}\]
-
 \subsection{Conversion}
 
     Conversion checking is typed. This gives us $\eta$-equality for functions
