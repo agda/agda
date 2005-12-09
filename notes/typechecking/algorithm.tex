@@ -350,11 +350,11 @@
     \]
     The last two cases are when the types are $\el$s or sorts. In neither case
     are there any coercions.
-    \[\begin{array}{c}
+    \[\begin{array}{ccc}
 	\infer
 	{ \Expand\Sigma\Gamma t\alpha t\alpha }
 	{}
-	\\{}\\
+	&&
 	\infer
 	{ \Expand\Sigma\Gamma s{\El\alpha t_1}s{\El\alpha t_2} }
 	{ \Equal\Sigma\Gamma{t_1}{t_2}\alpha }
@@ -362,16 +362,46 @@
 
 \subsection{Conversion}
 
-    Conversion checking is typed. This gives us $\eta$-equality for functions
-    in a nice way. It also makes it possible to introduce proof irrelevance
-    with a rule like this:
+    The conversion checking is type directed. This gives us $\eta$-equality for
+    functions in a nice way. It also makes it possible to introduce proof
+    irrelevance with a rule like this:
     \[\left(\begin{array}{c}
 	\infer
 	{ \Equal\Sigma\Gamma pqP }
 	{ \GetSort{P} = \Prop }
     \end{array}\right)\]
-    We don't do that at this point though.
+    We don't do that at this point though, but only make use of the types in the
+    function case:
+    \[\begin{array}{c}
+	\infer
+	{ \Equal\Sigma\Gamma st{\vPi xAB} }
+	{ \Equal\Sigma{\Gamma,x:A}{\APP sx}{\APP tx}B
+	}
+	\\{}\\
+	\infer
+	{ \Equal\Sigma\Gamma st{\vhPi xAB} }
+	{ \Equal\Sigma{\Gamma,x:A}{\HAPP sx}{\HAPP tx}B
+	}
+    \end{array}\]
 
+    There are a number of notation abuses in the following two rules. Firstly,
+    $\Equal\Sigma\Gamma{\vec s}{\vec t}\Delta$ denotes the extension of the
+    conversion judgement to sequences of terms. I am also a bit sloppy with the
+    hiding: in $\vPiTel\Delta A$, $\Delta$ can contain both hidden and non-hidden
+    things. Consequently when I say $x\,\vec s$ it includes hidden applications.
+    \[\begin{array}{c}
+	\infer
+	{ \Equal\Sigma\Gamma{x\,\vec s}{x\,\vec t}A }
+	{ x:\vPiTel\Delta A'\in\Gamma
+	& \Equal\Sigma\Gamma{\vec s}{\vec t}\Delta
+	}
+	\\{}\\
+	\infer
+	{ \Equal\Sigma\Gamma{c\,\vec s}{c\,\vec t}A }
+	{ c:\vPiTel\Delta A'\in\Sigma
+	& \Equal\Sigma\Gamma{\vec s}{\vec t}\Delta
+	}
+    \end{array}\]
     
 
 \subsection{Declarations}
