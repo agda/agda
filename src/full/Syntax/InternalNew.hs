@@ -305,16 +305,7 @@ data MetaVariable = InstV Value
                   | UnderScoreS      [ConstraintId]
                   | HoleV       Type [ConstraintId]
                   | HoleT       Sort [ConstraintId]
-  deriving Show
-
-applyStore = do
-    st <- gets metaSt
-    st' <- mapM apply st
-    modify (\x -> x{metaSt= st'})
-  where
-    apply (x, InstV v) = do v' <- normalize v; return (x, InstV v')
-    apply (x, InstT a) = do a' <- instType a; return (x, InstT a')
-    apply x = return x
+  deriving (Typeable, Data, Show)
 
 newtype StoreElm = StoreElm (MId, MetaVariable)
 instance Show StoreElm where show (StoreElm x) = storeElm2str x
@@ -616,11 +607,13 @@ occ y okVars v = go v where
         if x == y then fail "occ"
         else do
             (args', newArgs) <- occMVarArgs x args
-            trace ("occMVar: okVars="++(show okVars)++", args="++(show args)++", args'="++(show args')++", newArgs="++(show newArgs)++"\n") $ if length args' == length newArgs
+            --trace ("occMVar: okVars="++(show okVars)++", args="++(show args)++", args'="++(show args')++", newArgs="++(show newArgs)++"\n") $ 
+            if length args' == length newArgs
                 then return ()
                 else lift $ lift $ do
                     v1 <-  newMetaSame x args meta -- !!! is args right here?
-                    trace ("occMVar prune: v1="++(show v1)++"\n") $ setRef Why x $ inst $ abstract args (addArgs newArgs v1)
+                    --trace ("occMVar prune: v1="++(show v1)++"\n") $ 
+                    setRef Why x $ inst $ abstract args (addArgs newArgs v1)
             endWalk $ addArgs args' (meta x)
     occMVarArgs x args = ocA ([],[]) [] (length args - 1) args where
         ocA res _ _ [] = return res
@@ -628,7 +621,8 @@ occ y okVars v = go v where
             v <- lift $ lift $ reduceM arg
             case v of
                 Var i [] | not $ elem i ids -> 
-                    trace ("occMVarArgs: findIdx "++(show okVars)++" "++(show i)++" = "++(show $ (findIdx okVars i:: Maybe Int))++"\n") $ case findIdx okVars i of
+                    --trace ("occMVarArgs: findIdx "++(show okVars)++" "++(show i)++" = "++(show $ (findIdx okVars i:: Maybe Int))++"\n") $ 
+                    case findIdx okVars i of
                         Just j -> ocA (old++[Var j []], new++[Var idx []]) (i:ids) (idx-1) args
                         Nothing -> ocA (old++[arg], new) ids (idx-1) args
                 _ -> patternViolation x
@@ -657,7 +651,8 @@ assign x args = mkQ (fail "assign") (ass InstV) `extQ` (ass InstT) where
     ass inst v = do
         ids <- checkArgs x args
         v' <- occ x ids v    
-        trace ("assign: args="++(show args)++", v'="++(show v')++"\n") $ setRef Why x $ inst $ abstract args v'
+        --trace ("assign: args="++(show args)++", v'="++(show v')++"\n") $ 
+        setRef Why x $ inst $ abstract args v'
 
 
 -- | Equality of two instances of the same metavar
@@ -680,7 +675,7 @@ equalSameVar meta inst x args1 args2 =
 -- | Type directed equality on values.
 --
 equalVal :: Data a => a -> Type -> Value -> Value -> TCM ()
-equalVal _ a m n = trace ("equalVal ("++(show a)++") ("++(show m)++") ("++(show n)++")\n") $ do
+equalVal _ a m n = do --trace ("equalVal ("++(show a)++") ("++(show m)++") ("++(show n)++")\n") $ do
     a' <- instType a
     case a' of
         Pi a (Abs name b) -> 
@@ -697,7 +692,8 @@ equalAtm :: Data a => a -> Value -> Value -> TCM ()
 equalAtm _ m n = do
     mVal <- reduceM m  -- need mVal for the metavar case
     nVal <- reduceM n  -- need nVal for the metavar case
-    trace ("equalAtm ("++(show mVal)++") ("++(show nVal)++")\n") $ case (mVal, nVal) of
+    --trace ("equalAtm ("++(show mVal)++") ("++(show nVal)++")\n") $ 
+    case (mVal, nVal) of
         (Lit l1, Lit l2) | l1 == l2 -> return ()
         (Var i iArgs, Var j jArgs) | i == j -> do
             a <- typeOfBV i
@@ -735,9 +731,18 @@ equalTyp _ a1 a2 = do
     case (a1', a2') of
         (El m1 s1, El m2 s2) ->
             equalVal Why (sort s1) m1 m2
-        (Pi a1 (Abs name a2), Pi b1 (Abs _ b2)) -> do
+        (Pi a1 (a2), Pi b1 (b2)) -> do
             equalTyp Why a1 b1
-            addCtx name a1 $ equalTyp Why (subst (Var 0 []) a2) (subst (Var 0 []) b2)
+            let Abs name a2' = adjust 1 a2
+            let Abs _ b2' = adjust 1 b2
+            addCtx name a1 $ equalTyp Why (subst (Var 0 []) a2') (subst (Var 0 []) b2')
+{-
+        Pi a (Abs name b) -> 
+            let p = Var 0 []
+                m' = adjust 1 m
+                n' = adjust 1 n
+            in addCtx name a $ equalVal Why b (addArgs [p] m') (addArgs [p] n')
+-}
         (Sort s1, Sort s2) -> return ()
         (MetaT x xDeps, MetaT y yDeps) | x == y -> 
             equalSameVar (\x -> MetaT x []) InstT x xDeps yDeps -- !!! MetaT???
@@ -781,6 +786,14 @@ eqTest4 = do
     equalVal Why (arr set0 $ arr set0 $ arr set0 set0) (lam $ lam $ lam $ app (app x $ Var 0 []) $ Var 1 [])
                                                        (lam $ lam $ lam $ app (app y $ Var 1 []) $ Var 2 [])
 
+{-
+eqTest5 = do
+    x <- newmetaT
+    y <- newmetaT
+    equalTyp Why (lam $ lam $ lam $ app (app x $ Var 0 []) $ Var 1 [])
+                 (lam $ lam $ lam $ app (app y $ Var 1 []) $ Var 2 [])
+-}
+
 lam v = Lam (Abs noName v) []
 app x y = addArgs [y] x
 arr x y = Pi x $ Abs noName y
@@ -789,8 +802,16 @@ arr x y = Pi x $ Abs noName y
 testRed v = runReaderT (evalStateT (reduceM v) testSt) []
 
 normalize :: GenericM TCM
-normalize v = walk (mkM (\v -> lift $ lift  $ reduceM v)) v
+normalize v = walk (mkM trmFun `extM` typFun) v where
+    trmFun v = lift $ lift  $ reduceM v
+    typFun a = lift $ lift $ instType a
+
 testNrm v = runReaderT (evalStateT (normalize v) testSt) []
+
+applyStore = do 
+    st <- gets metaSt 
+    st' <- normalize st 
+    modify (\x -> x{metaSt= st'})
 
 testSt = TCSt {
   genSymSt = 0,
