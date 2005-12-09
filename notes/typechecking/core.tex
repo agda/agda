@@ -1,0 +1,936 @@
+% Specification of agdaLight
+% Author: Thierry Coquand
+
+%\documentclass[12pt,a4paper]{amsart}
+\documentclass[11pt]{article}
+
+\newcommand{\mkbox}[1]{\ensuremath{#1}}
+
+\newcommand{\pair}[1]{{\langle #1 \rangle}}
+
+\usepackage{amsthm}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{definition}[theorem]{Definition}
+
+
+\usepackage{epsf}
+\usepackage{epsfig}
+\usepackage{isolatin1}
+\usepackage{a4wide}
+\usepackage{verbatim}
+\usepackage{proof}
+\usepackage{latexsym}
+\usepackage{amssymb}
+\usepackage{stmaryrd}
+
+% evaluation
+\newcommand{\evObj}[2]{\mkbox{#1{\downarrow}#2}}
+\newcommand{\evTyp}[2]{\mkbox{#1{\uparrow}#2}}
+\newcommand{\evPr}[2]{\mkbox{#1{\updownarrow}#2}}
+
+%\documentstyle{article}
+
+\setlength{\oddsidemargin}{0in} % so, left margin is 1in
+\setlength{\textwidth}{6.27in} % so, right margin is 1in
+\setlength{\topmargin}{0in} % so, top margin is 1in
+\setlength{\headheight}{0in}
+\setlength{\headsep}{0in}
+\setlength{\textheight}{9.19in} % so, foot margin is 1.5in
+\setlength{\footskip}{.8in}
+
+% Definition of \placetitle
+% Want to do an alternative which takes arguments
+% for the names, authors etc. 
+
+\def\fin{\enspace\vbox{\hrule\hbox{\vrule\kern4pt
+\vbox{\kern4pt\kern4pt}\kern4pt\vrule}\hrule}} 
+
+\def\ZZ{\hbox{\sf Z}}
+\def\DD{\hbox{\sf D}}
+\def\Ex{\hbox{\sf E}}
+\def\FUN{\hbox{\sf Fun}}
+\def\TOP{\nabla}
+\def\TOT{{\cal T}}
+\def\fun{\hbox{\sf fun}}
+\def\SET{\hbox{\sf Set}}
+\def\BSET{\hbox{\sf Bset}}
+\def\EL{\hbox{\sf El}}
+\def\PROOF{\hbox{\sf Prf}}
+\def\NAT{\hbox{\sf Nat}}
+\def\INTRO{\hbox{\sf intro}}
+\def\ELIM{\hbox{\sf elim}}
+\def\NATREC{\hbox{\sf natrec}}
+\def\BOOLREC{\hbox{\sf boolrec}}
+\def\LISTREC{\hbox{\sf listrec}}
+\def\LIST{\hbox{\sf List}}
+\def\ZERO{\hbox{\sf O}}
+\def\SUCC{\hbox{\sf succ}}
+\def\NIL{\hbox{\sf nil}}
+\def\CONS{\hbox{\sf cons}}
+\def\BOOL{\hbox{\sf Bool}}
+\def\TRUE{\hbox{\sf true}}
+\def\FALSE{\hbox{\sf false}}
+\def\correct{\hbox{\sf correct}}
+\def\fits{~\hbox{\sf fits}~}
+\def\subtype{\sqsubseteq}
+\def\fills{~\hbox{\sf fills}~}
+\def\prop{o}
+\newcommand\object[1]{{<}#1{>}}
+\newcommand\env[1]{(#1)}
+\def\spec{\sqsubseteq}
+\def\Def{{\sf def}}
+\def\Undef{{\sf undef}}
+\def\cont{\hbox {\sf cont}}
+\newcommand\coerce[2]{#1/#2}
+\def\implies{\Longrightarrow}
+\def\tel{\hbox {\sf tel}}
+\def\case{\hbox {\sf case}}
+\def\data{\hbox {\sf data}}
+\def\rec{\hbox {\sf rec}}
+\def\val{\hbox {\sf val}}
+\def\CC{\hbox{\sf C}}
+\def\hd{\hbox{\sf hd}}
+\def\tl{\hbox{\sf tl}}
+\def\Pos{\hbox{\sf Pos}}
+\def\NN{\hbox{\sf N}}
+\def\nat{\hbox{\sf nat}}
+\def\add{\hbox{\sf add}}
+\def\Pt{\hbox{\sf Pt}}
+%global environments
+\newcommand{\EnvDfn}[3]{\mkbox{#1+#2{=}#3}}
+\newcommand{\EnvDcl}[4]{\mkbox{#1+#2{:}#3{=}#4}}
+\newcommand{\EnvMty}{\mkbox{[]}}
+
+% typed equality
+\newcommand{\teq}[3]{\mkbox{#1=#2:#3}}
+\newcommand{\subtyp}[2]{\mkbox{#1\sesubseteq #2}}
+%\newcommand{\proj}[2]{\mkbox{\msf{proj}_{#1}#2}}
+%\newcommand{\sig}[3]{\mkbox{<\!\!#1:#2\!\!>#3}}
+\newcommand{\product}[3]{\{#1:#2\}#3}
+\newcommand{\Adh}[1]{\bar{#1}}
+\newcommand{\entails}{\vdash}
+
+\newcommand{\covers}{\lhd}
+\newcommand{\Cov}{\hbox{\sf Cov}}
+\newcommand{\cover}{\lhd}
+\def\cov{\hbox{\sf Cov}}
+
+\newcommand{\arrow}{\mbox {$\rightarrow$}}
+\newcommand{\inv}[1]{#1^{-1}}
+\newcommand{\OO}{\hbox{\cal O}}
+\newcommand{\MM}{\hbox{\cal M}}
+\newcommand{\R}{\hbox{\bf R}} 
+\newcommand{\RR}{\hbox{\bf R}} 
+\newcommand{\LL}{\hbox{\bf L}} 
+\newcommand{\Type}{\hbox{\bf Type}} 
+\newcommand{\kind}{\hbox{\bf kind}} 
+\newcommand{\Sig}{\hbox{\bf Sig}} 
+\newcommand{\type}{\hbox{\bf type}} 
+\newcommand{\sig}{\hbox{\bf sig}} 
+\newcommand{\RType}{\hbox{\bf RType}} 
+\newcommand{\Kind}{\hbox{\bf Kind}} 
+
+%\newcommand{\nil}{\mbox{$<\!>$}}
+%\newcommand{\abs}[1]{\mbox{$<\!#1\!>$}}
+
+\newcommand{\nil}{\mbox{$\{\}$}}
+\newcommand{\abs}[1]{\mbox{$\{#1\}$}}
+\newcommand{\abst}[1]{\mbox{$\{\!|#1|\!\}$}}
+%\newcommand{\lbr}{\lbrack\!\lbrack}
+\newcommand{\lbr}{\mathopen{\lbrack\!\lbrack}}
+%\newcommand{\rbr}{\rbrack\!\rbrack}
+\newcommand{\rbr}{\mathopen{\rbrack\!\rbrack}}
+%\newcommand{\sem}[1]{\mbox{$\lbr #1 \rbr$}}
+%\newcommand{\sem}[1]{{\lbr #1 \rbr}}
+%\newcommand{\typ}[1]{{(\!| #1 |\!)}}
+\newcommand{\sem}[1]{#1}
+\newcommand{\hypEl}[3]{#2{:}#3~[#1]}
+\newcommand{\hypFa}[3]{#2{:}#3~[#1]}
+\newcommand{\hypEq}[4]{#2=#3{:}#4~[#1]}
+\newcommand{\hypSu}[3]{#2\subseteq #3~[#1]}
+\newcommand{\hypTy}[2]{#2~\type~[#1]}
+\newcommand{\hypKi}[2]{#2~\kind~[#1]}
+\newcommand{\hypSi}[2]{#2~\sig~[#1]}
+\newcommand{\typ}[1]{#1|}
+\newcommand{\proj}[2]{\eta ~{#1}~{#2}}
+\newcommand{\Fun}[2]{{\sf Fun}~{#1}~{#2}}
+\newcommand{\Sum}[2]{{\sf Sum}~{#1}~{#2}}
+\newcommand{\Elem}[1]{{\sf El}~{#1}}
+\newcommand{\STAR}{*}
+
+\begin{document}
+
+
+\title{Presentation of core agda}
+
+\author{Thierry Coquand and Makoto Takeyama}
+\date{\today}
+\maketitle
+\title{}
+
+\section*{Introduction}
+
+ We present the typing system of core agda.
+
+ The syntax of the core version is the one of pure lambda-calculus with constants
+$$ M ~::=~ n~|~M~M~|~\lambda x.M~~~~~~~~~~n~::=~x~|~f~|~c$$
+
+ There are two kind of constants: {\em primitive} $c$ or {\em defined} $f$. The definition
+of $f$ may be {\em explicit}, of the form $f=M$, or {\em implicit}. It is then defined recursively
+using pattern-matching equations.
+
+ We can define a priori $\beta,\iota$ conversion on terms.
+
+ The typing rules are essentially the one of Martin-L\"of Logical Framework. 
+The difference with his presentation is that substitution is taken as granted on
+$\lambda$ terms.
+
+\section{The language}
+
+ Defined constants $f$ are defined by equations (computation rules) of the form
+$$f~x_1~\dots~x_n~(c~y_1~\dots~y_k)\rightarrow M$$
+that we shall write
+$$f~{\bf x}~(c~{\bf y})\rightarrow M$$
+
+ Each constant has an arity $ar(f) = n+1,ar(c)=k$. We write $h,h',\dots$ for a constant $f$ or $c$
+
+ We define {\em conversion} to be the equality generated by the usual $\beta$ rules and
+the computation rules for constants, called $\iota$ rules. It is standard that $\beta,\iota$
+reduction is confluent. We write $M = N$ to say that $M$ and $N$ are convertible.
+
+ We assume given constants $\FUN,\SET,\EL$. We write $(x{:}A)\rightarrow B$ instead of
+$\FUN~A~(\lambda x.B)$, and we write $A\rightarrow B$ for $\FUN~A~(\lambda x.B)$ if $x$
+is not free in $B$. %Similarly we write $\lambda x{:}A.B$ for $\fun~A~(\lambda x.M)$.
+We write $N(x=M)$ the result of substituting the free occurences of $x$ by $M$ in $N$
+and may write it $N[M]$ if $x$ is clear from the context.
+We consider terms up to $\alpha$-conversion.
+
+\section{Typing rules}
+
+ We have three syntactical categories, for {\em types} $A,B,\dots$, for
+{\em terms} $M,N,\dots$ and for {\em contexts} $\Gamma,\Delta,\dots$ We have
+a special type $\SET$ of (data) types, i.e. primitive types given with
+constructors. The syntax is
+$$\begin{array}{lclr}
+A  & ::= & \SET~|~El~M~|~(x{:}A)\rightarrow A  & types \\
+M & ::= & x~|~M~M~|~\lambda x.M & terms \\
+\Gamma & ::= & ()~|~\Gamma,x{:}A & contexts
+\end{array}$$
+
+ There are five kinds of judgement $\Delta\vdash,~\Delta\vdash A,~\Delta\vdash M:A,~\Delta\vdash A_1=A_2$
+and $\Delta\vdash M_1=M_2:A$.
+The first $\Delta\vdash$ expresses that $\Delta$ is a correct context. 
+
+ The typing rules are as follows:
+
+\medskip
+ {\em rules for contexts}
+
+$$
+\frac{}{\vdash}~~~~
+\frac{\Gamma\vdash~~~~~\Gamma\vdash A}{\Gamma,x{:}A\vdash}
+$$
+
+ {\em rules for types}
+
+$$
+\frac{\Gamma\vdash}{\Gamma\vdash \SET}~~~~
+\frac{\Gamma\vdash M:\SET}{\Gamma\vdash \EL~M}~~~~~~
+\frac{\Gamma,x{:}A\vdash B}{\Gamma\vdash (x{:}A)\rightarrow B}
+$$
+
+ {\em rules for terms}
+
+$$
+\frac{\Gamma\vdash~~~~~(x{:}A)~\in~\Gamma}{\Gamma\vdash x{:}A}~~~~~~~~~
+\frac{\Gamma,x{:}A\vdash M:B}{\Gamma\vdash \lambda x.M:(x{:}A)\rightarrow B}~~~~~~
+\frac{\Gamma\vdash M:(x{:}A)\rightarrow B~~~~\Gamma\vdash N:A}{\Gamma\vdash M~N:B(x=N)}
+$$
+
+ {\em conversion rule}
+
+$$
+\frac{\Gamma\vdash M:A~~~~\Gamma\vdash A=B}{\Gamma\vdash M:B}
+$$
+
+\medskip
+\medskip
+
+
+ The general conversion rules are
+
+$$
+\frac{\Gamma\vdash A}{\Gamma\vdash A=A}~~~~~~
+\frac{\Gamma\vdash A=B}{\Gamma\vdash B=A}~~~~~~
+\frac{\Gamma\vdash A=B~~~\Gamma\vdash B=C}{\Gamma\vdash A=C}
+$$
+
+$$
+\frac{\Gamma\vdash M:A}{\Gamma\vdash M=M:A}~~~~~
+\frac{\Gamma\vdash M=N:A}{\Gamma\vdash N=M:A}~~~~
+\frac{\Gamma\vdash M=N:A~~~~\Gamma\vdash N=P:A}{\Gamma\vdash M=P:A}
+$$
+
+$$
+\frac{\Gamma\vdash M=N:A~~~~~\Gamma\vdash A = B}
+     {\Gamma\vdash M=N:B}
+$$
+
+$$
+\frac{\Gamma,x{:}A\vdash B~~~~~\Gamma\vdash M_1=M_2:A}
+     {\Gamma\vdash B(x=M_1) = B(x=M_2)}
+$$
+
+\medskip
+
+ The last rule expresses
+that a family of types depends in an extensional way of its argument. 
+It may be admissible, but it simplifies the metatheory to take
+it as primitive. One could think
+of including the substitution rule as well, for instance
+the fact that $\Gamma\vdash B_1(x=M)=B_2(x=M)$
+follows from $\Gamma\vdash M:A$ and $\Gamma,x{:}A\vdash B_1=B_2$.
+As we shall see
+below, the substitution rule is directly admissible. Furthermore, to include the substitution as a
+rule may complicate some arguments, especially for proving {\em inversion} lemmas. It is
+direct now that $\Gamma\vdash (x{:}A)\rightarrow B$ implies $\Gamma\vdash A$ and
+$\Gamma,x{:}A\vdash B$. This would be a little more complicated to prove in presence of
+a substitution rule.
+
+ The conversion rules for type theory are
+
+$$
+\frac{}{\Gamma\vdash\SET=\SET}~~~~
+\frac{\Gamma\vdash M_1=M_2:\SET}{\Gamma\vdash\EL~M_1=\EL~M_2}~~~~~~
+\frac{\Gamma\vdash A_1=A_2~~~~~\Gamma,x{:}A_1\vdash B_1=B_2}{\Gamma\vdash (x{:}A_1)\rightarrow B_1 = (x{:}A_2)\rightarrow B_2}
+$$
+
+$$
+\frac{\Gamma,x{:}A\vdash M_1=M_2:B}{\Gamma\vdash \lambda x.M_1=\lambda x.M_2:(x{:}A)\rightarrow B}
+$$
+
+$$
+\frac{\Gamma,x{:}A\vdash B~~~~\Gamma\vdash N_1=N_2:(x{:}A)\rightarrow B~~~~\Gamma\vdash M_1=M_2:A}
+     {\Gamma\vdash N_1~M_1 = N_2~M_2:B(x=M_1)}
+$$
+
+$$
+\frac{\Gamma,x{:}A\vdash N:B~~~~~\Gamma\vdash M:A}
+     {\Gamma\vdash (\lambda x.N)~M = N(x=M): B(x=M)}~~~~~~~
+\frac{\Gamma\vdash A~~~~\Gamma\vdash M:(x{:}A)\rightarrow B}
+     {\Gamma\vdash M = \lambda x.M~x : (x{:}A)\rightarrow B}
+$$
+
+ In this presentation of rules, we consider $\lambda$ terms up to  $\alpha$-conversion.
+
+ This system is quite close to the substitution calculus of P. Martin-L\"of. We note
+however that the following judgement is derivable
+$$
+A{:}\SET,P{:}A\rightarrow\SET\vdash \lambda x.\lambda x.x:(x{:}A)\rightarrow P~x\rightarrow P~x
+$$
+while it is not in the substitution calculus (as noticed by R. Pollack).
+
+
+\begin{lemma}
+If $\Gamma\vdash J$ then $\Gamma$ and all free variables of $J$ are declared in $\Gamma$.
+\end{lemma}
+
+ In particular, if $\vdash A$ then $A$ is closed and if $\vdash M:A$ then both $M$ and
+$A$ are closed.
+
+
+ Notice that, because of the conversion rule, the strengthening property, stating that
+$\Gamma\vdash J$ follows from $\Gamma,x{:}A\vdash J$ if $x$ is not free in $J$, is not
+clear {\em a priori}. It will be a consequence of the normalisation property. 
+
+
+ If $\sigma$ is a substitution we define $\Delta\vdash\sigma:\Gamma$ to mean that $\Delta\vdash x\sigma:A\sigma$ for
+all $x{:}A$ in $\Gamma$
+
+\begin{lemma}
+If $\Gamma\vdash J$ and $\Delta\vdash\sigma:\Gamma$ then $\Delta\vdash J\sigma$
+\end{lemma}
+
+\begin{proof}
+We first prove the lemma in the case where $\sigma$ is a renaming by induction on
+the proof of $\Gamma\vdash J$.
+This contains {\em weakening}: if $\Gamma'\vdash$ and $x{:}A$ is in $\Gamma'$ whenever it is in
+$\Gamma$ and if $\Gamma\vdash J$ then $\Gamma'\vdash J$. After weakening is proved, it is
+direct to prove the lemma in the general case by induction on
+the proof of $\Gamma\vdash J$.
+\end{proof}
+
+
+\begin{corollary}
+If $\Gamma,x{:}A\vdash J$ and $\Gamma\vdash M:A$
+then $\Gamma\vdash J(x=M)$.
+\end{corollary}
+
+
+
+\begin{corollary}
+If $\Gamma\vdash A=B$ then $\Gamma\vdash A$ and $\Gamma\vdash B$. If $\Gamma\vdash M_1=M_2:A$ then
+$\Gamma\vdash M_1:A$ and $\Gamma\vdash M_2:A$. If $\Gamma\vdash M:A$
+then $\Gamma\vdash A$. If
+$\Gamma\vdash M=N:A$ then $\Gamma\vdash A$.
+\end{corollary}
+
+ As a remark we can notice that the extensionality property for terms is derivable.
+
+\begin{lemma}
+If $\Gamma,x{:}A\vdash N:B$ and $\Gamma\vdash M_1=M_2:A$ then
+$\Gamma\vdash N(x=M_1) = N(x=M_2)\in B(x=M_1)$.
+\end{lemma}
+
+\begin{lemma}
+If $\Gamma\vdash (x{:}A_1)\rightarrow B_1=(x{:}A_2)\rightarrow B_2$ then $\Gamma\vdash A_1=A_2$
+and $\Gamma,x{:}A_1\vdash B_1=B_2$.
+\end{lemma}
+
+ We write $M\rightarrow M'$ if we get $M'$ from $M$ by one step of $\beta,\iota$ reduction.
+
+\begin{corollary}\label{red}
+If $\Gamma\vdash M:A$ and $M\rightarrow M'$ then $\Gamma\vdash M':A$
+\end{corollary}
+
+\begin{corollary}\label{conv}
+If $\Gamma\vdash M:A$ and $\Gamma\vdash M':A$ and $M=M'$ then
+$\Gamma\vdash M=M':A$
+\end{corollary}
+
+\begin{proof}
+This is direct from Corollary \ref{red} and the Church-Rosser property of
+$\beta,\iota$ reduction.
+\end{proof}
+
+ We have also a notion of signature $\Sigma$ which is a list of type declaration
+$f:A$ or $c:A$. If $h:A$ is in the signature we should add the rule
+$$
+\frac{}{\Gamma\vdash h:A}
+$$
+
+ Any type is of the form $(x_1{:}A_1)\rightarrow\dots\rightarrow (x_n{:}A_n)\rightarrow \SET$
+or $(x_1{:}A_1)\rightarrow\dots\rightarrow (x_n{:}A_n)\rightarrow \EL~M$. We write it
+$\Delta\rightarrow\SET$ or $\Delta\rightarrow\EL~M$ where $\Delta$ is the context
+$x_1{:}A_1,\dots,x_n{:}A_n$. Similarly we may write $\lambda\Delta.M$ instead of
+$\lambda x_1.\dots.\lambda x_n.M$.
+
+ We have an alternative presentation for typing terms and infering the types with rules
+
+$$
+\frac{(x{:}A)~\in~\Gamma}{\Gamma\vdash x\downarrow A}~~~~~~~~~
+\frac{\Gamma\vdash M\downarrow (x{:}A)\rightarrow B~~~~\Gamma\vdash N\uparrow A}
+     {\Gamma\vdash M~N\downarrow B(x=N)}
+$$
+and
+$$
+\frac{\Gamma,x{:}A\vdash M\uparrow B}{\Gamma\vdash \lambda x.M\uparrow (x{:}A)\rightarrow B}~~~~
+\frac{\Gamma\vdash M\downarrow A~~~~\Gamma\vdash A = B}{\Gamma\vdash M\uparrow B}
+$$
+
+ The rules for types can then be replaced by
+$$
+\frac{}{\Gamma\vdash \SET\downarrow}~~~~
+\frac{\Gamma\vdash M\downarrow\SET}{\Gamma\vdash \EL~M\downarrow}~~~~~~
+\frac{\Gamma\vdash A\downarrow~~~~~\Gamma,x{:}A\vdash B\downarrow}{\Gamma\vdash (x{:}A)\rightarrow B\downarrow}
+$$
+%and the rules for checking contexts are
+%$$
+%\frac{\Gamma\downarrow~~~~\Gamma\vdash A\downarrow}{\Gamma,x{:}A\downarrow}
+%$$
+\begin{theorem}
+If $M$ is in $\beta$-normal form and $\Gamma\vdash M{:}A$ then $\Gamma\vdash M\uparrow A$.
+\end{theorem}
+
+
+\section{Models}
+
+ We assume given a model $\DD$ with a subset $E\subseteq \DD$ of {\em existing} elements. 
+We may write $\Ex~u$ for $u\in E$.
+We have an interpretation
+$M\rho\in\DD$ for each environment $\rho:V\rightarrow\DD$.
+If ${\bf u}$ is a sequence of elements
+$u_1,\dots,u_k$ we write $\Ex~{\bf u}$ for $u_1\in E\wedge\dots\wedge u_k\in E$. If ${\bf u}$
+and ${\bf v}$ are sequences of the same length $u_1,\dots,u_k$ and $v_1,\dots,v_k$
+we write ${\bf u} = {\bf v}$ for $u_1=v_1,\dots,u_k=v_k$.
+We assume that we have an interpretation $h\in\DD$ for each constant $h$ in the signature.
+
+
+\medskip
+
+ $f~{\bf u}~(c~{\bf v}) = M({\bf x} = {\bf u},{\bf y}={\bf v})$ if $\Ex~{\bf u}$ and $\Ex~{\bf v}$
+and  $f~{\bf x}~(c~{\bf y}) = M$
+
+\medskip
+
+ $(\lambda x.M)\rho~u = M(\rho,x=u)$ if $\Ex~u$
+
+\medskip
+
+$\Ex~(c~{\bf u})$ if $\Ex~{\bf u}$
+
+\medskip
+
+ $x\rho = \rho(x)$
+
+\medskip
+
+ $(M~N)\rho = M\rho~(N\rho)$
+
+\medskip
+
+ $M(x=N)\rho = M(\rho,x=N\rho)$
+
+\medskip
+
+ $M\rho = M\nu$ if $\rho(x) = \nu(x)$ for all free variables $x$ of $M$
+
+\medskip
+
+ We assume also that we have a special element $\TOP\in\DD$ such that
+
+\medskip
+
+ $\Ex~\TOP$ 
+
+\medskip
+
+$\TOP~u = \TOP$ if $\Ex~u$
+
+\medskip
+
+$f~{\bf u}~\TOP = \TOP$ whenever $\Ex~{\bf u}$.
+
+\medskip
+
+\medskip
+
+%\begin{lemma}
+%If $\Ex~(M\rho)$ and $M\rightarrow M'$ then $M\rho = M'\rho$ in $\DD$.
+%If $M=N$ and $\Ex~(M\rho)$ and $\Ex~(N\rho)$ then $M\rho = N\rho$ in $\DD$.
+%\end{lemma}
+
+A {\em totality} on $\DD$
+is a PER, partial equivalence relation, on $\DD$, that is a subset $X\subseteq \DD$ with
+an equivalence relation $=_X$, such that $\Ex~u$ if $u\in X$ and $\nabla\in X$. We write
+$u_1=u_2\in X$ instead of $u_1=_X u_2$.
+We let $\TOT$ be the collection of all totality.
+
+\begin{lemma}
+If $X\in\TOT$ is a totality and $F:X\rightarrow\TOT$ such that
+$F(u_1)=F(u_2)$ if $u_1= u_2\in X$ we define $\Pi(X,F)$ to be the set
+$ \{v\in\DD~|~u_1= u_2\in X\Rightarrow v~u_1 = v~u_2\in {F(u_1)}\}$
+with the equivalence relation $v_1{=}v_2\in {\Pi(X,F)}$ iff $v_1~u{=}~ v_2~u\in {F(u)}$ for
+all $u\in X.$ Then $\Pi(X,F)$ is a totality.
+\end{lemma}
+
+\begin{proof}
+We have $\nabla\in X$. If $v\in\Pi(X,F)$  then  $v~\nabla\in F(\nabla)$ and so $\Ex~(v~\nabla)$ and
+$\Ex~v$ holds. If $u\in X$ then $\Ex~u$ so that $\nabla~u =\nabla\in F(u)$. This shows $\nabla\in \Pi(X,F)$.
+\end{proof}
+
+ We assume give a totality $S\in\TOT$ together with a function $Y:S\rightarrow\TOT$ which
+is {\em extensional}, that is such that $Y(s_1) = Y(s_2)$ if $s_1= s_2\in S$
+
+
+ We define now $T\in\TOT$ and an extensional function $X{:}T\rightarrow\TOT$.
+
+\medskip
+
+ (1) $\SET=\SET\in T$ and $X(\SET) = S$
+
+\medskip
+
+ (2) $\FUN~U_1~F_1 = \FUN~U_2~F_2\in T$ if $U_1=U_2\in T$ and $F_1~u_1=F_2~u_2\in T$ whenever $u_1=u_2\in X(U_1)$. We
+define then $X(\FUN~U_1~F_1)=X(\FUN~U_2~F_2)$ to be $\Pi(X(U_1),\lambda u.X(F_1~u))$
+
+\medskip
+
+ (3) $\EL~u_1=\EL~u_2\in T$ if $u_1=u_2\in S$ and $X(\EL~u_1) = X(\EL~u_2) = Y(u_1)$
+
+\medskip
+
+ If $\Delta$ is a context $x_1{:}A_1,\dots,x_k{:}A_k$ we write $\rho\Vdash\Delta$ to
+express that $A_i\rho\in\TOT$ and $\rho(x_i)\in X(A_i\rho)$ for $i=1,\dots,k$ and
+we write $\rho_1=\rho_2\Vdash\Delta$ to express that $A_i\rho_1=A_i\rho_2$ and
+$x_i\rho_1 = x_i\rho_2\in A_i\rho_1$ for $i=1,\dots,k$.
+
+ For the next theorem, we assume $A\rho\in T$ and $h\in X(A\rho)$ for all
+constant $h{:}A$ in the given signature $\Sigma$.
+
+\begin{lemma}
+If $x$ is not declared in $\Delta$ and all the free variables of $A$ are declared
+in $\Delta$ and $\rho\Vdash\Delta$ and $A\rho\in T$ and $u\in X(A\rho)$ then
+$(\rho,x=u)\Vdash \Delta,x{:}A$.
+\end{lemma}
+
+ The next result states the soundness of PER semantics for the type system.
+
+\begin{theorem}\label{sem}
+  Assume $\rho_1=\rho_2\Vdash\Delta$. If $\Delta\vdash A$ then $A\rho_1=A\rho_2\in T$. If
+$\Delta\vdash M{:}A$ then $A\rho_1=A\rho_2\in T$ and $M\rho_1=M\rho_2\in X(A\rho_1)$.
+\end{theorem}
+
+\begin{corollary}
+If $\vdash A$ then $\Ex~A()$. If $\vdash M:A$ then $\Ex~M()$.
+\end{corollary}
+
+
+\section{Strong normalisation and decidability of equality}
+
+ If we specialise Corollary \ref{sem} to the strict filter domain, we get
+
+\begin{theorem}
+If $\vdash A$ then $A$ is strongly normalisable. If $\vdash M:A$ then $M$
+is strongly normalisable.
+\end{theorem}
+
+ In order to get decidability of conversion, we first define the $\eta$-expansion
+$\eta~A~M$ in a syntactical way.
+$$
+\eta~\SET~M = M~~~~~
+\eta~(\EL~M')~M = M~~~~
+\eta~(\FUN~A~F)~M = \lambda x.\eta~(F~(\eta~A~x))~(M~(\eta~A~x))
+$$
+
+\begin{lemma}\label{exp}
+If $\Gamma\vdash M:A$ then $\Gamma\vdash M = \eta~A~M:A$
+\end{lemma}
+
+\begin{proof}
+This is clear if $A$ is $\SET$ or of the form $\EL~M'$ because in this case
+$\eta~A~M = M$ and $\Gamma\vdash M:A$ implies $\Gamma\vdash M = M :A$.
+
+ If $A$ is $(x{:}B)\rightarrow C$ then we have
+$\eta~A~M = \lambda x.\eta~(C[\eta~B~x])~(M~(\eta~B~x))$. We have $\Gamma,x:B\vdash M~x:C$.
+By induction on $A$ we have furthermore
+$\Gamma,x:B\vdash x = \eta~B~x:B$ and so $\Gamma,x:B\vdash C = C[\eta~B~x]$ and
+hence $\Gamma\vdash A = (x:B)\rightarrow C[\eta~B~x]$ and 
+ $\Gamma,x:B\vdash M~x = M~(\eta~B~x):C[\eta~B~x].$ By induction on $A$
+we deduce 
+$$\Gamma,x:B\vdash M~x = \eta~(C[\eta~B~x])~(M~(\eta~B~x)):C[\eta~B~x]$$
+and so
+$$\Gamma\vdash \lambda x.M~x = \lambda x.\eta~(C[\eta~B~x])~(M~(\eta~B~x)):(x:B)\rightarrow C[\eta~B~x]$$
+Since $\Gamma\vdash A = (x:B)\rightarrow C[\eta~B~x]$ we deduce
+$$\Gamma\vdash \lambda x.M~x = \lambda x.\eta~(C[\eta~B~x])~(M~(\eta~B~x)):A$$
+and since $\Gamma\vdash M = \lambda x.M~x:A$ we have finally
+$\Gamma\vdash M = \eta~A~M:A$ \end{proof}
+
+We recall that $M_1=M_2$ means that $M_1$ and $M_2$ are $\beta,\iota$ convertible.
+The intuition between the next statement is clear: if we work with the $\eta$ expansion
+of the terms, we don't need the $\eta$ rule. For a precise proof, we rely on
+the soundness of  a particular PER model for our type system.
+
+\begin{lemma}\label{betaiota}
+If $\vdash M_1=M_2:A$ then $\eta~A~M_1 = \eta~A~M_2$
+\end{lemma}
+
+\begin{proof}
+For the proof we use the following PER model. The domain $D$ is the set of all terms, with
+$\beta,\iota$-conversion as equality. The PER $\SET$ is interpreted by the conversion: we
+have $M_1=M_2:\SET$ iff $M_1=M_2$, and for any $M$ the PER $\EL~M$ is also the conversion.
+We can then define $A_1=A_2$ and if it is the case when we have $M_1=M_2\in A_1$.
+This is the case if $A_1=A_2=\SET$ or $A_1=A_2=\EL~M$ for some $M$ or
+if $A_1=(x:B_1)\rightarrow C_1,~A_2=(x:B_2)\rightarrow C_2$ and $B_1 = B_2$
+and $M_1=M_2\in B_1$ implies $C_1[M_1] = C_2[M_2]$. 
+For instance all terms are in $\SET\rightarrow\SET$ but we have
+$f=\lambda x.f~x\in\SET\rightarrow\SET$, and not all terms are
+in $(\SET\rightarrow\SET)\rightarrow\SET$.
+We have then
+$N_1=N_2\in (x:B_1)\rightarrow C_1$ iff $M_1=M_2\in B_1$ implies
+$N_1~M_1=N_2~M_2\in C_1[M_1]$.
+We then show by induction that if $A$ is a type that
+
+\medskip
+
+ $\eta~A~M$ is of type $A$ for any $M$
+
+\medskip
+
+ $M_1=M_2\in A$ iff $\eta~A~M_1=\eta~A~M_2$
+
+\medskip
+
+ By interpretation in this model we have that if $\vdash M_1=M_2:A$ then $A$
+is a type and $M_1=M_2\in A$. This is equivalent to  $\eta~A~M_1=\eta~A~M_2$.
+\end{proof}
+
+
+ In presence of constant, we interpret $h$ by $\eta~A~h$ if $h$ is declared of type
+$A$. If $h=f$ is a defined constant, we need then to check that $\eta~A~f$ satisfies
+the same equality as $f$. For instance, we have
+(to simplify the notations, we write simply $X$ instead of $\EL~X$ if $X:\SET$)
+$$
+\NATREC:(C{:}\NAT\rightarrow\SET)\rightarrow C~\ZERO\rightarrow ((n{:}\NAT)\rightarrow C~n~\rightarrow C~(\SUCC~n))
+                \rightarrow (n{:}\NAT)\rightarrow C~n
+$$
+with the equation
+$$
+\NATREC~C~a~b~(\SUCC~n) = b~n~(\NATREC~C~a~b)
+$$
+The $\eta$-expanded form of $\NATREC$ is 
+$$\NATREC^*=\lambda C.\lambda a.\lambda b.\lambda n.\NATREC~(\lambda x.C~x)~a~(\lambda x.\lambda y.b~x~y)~n$$
+and we can check that we have
+$$
+\begin{array}{ccl}
+\NATREC^*~C~a~b~(\SUCC~n) & = & \NATREC~(\lambda x.C~x)~a~(\lambda x.\lambda y.b~x~y)~(\SUCC~n) \\
+                          & = & b~n~(\NATREC~(\lambda x.C~x)~a~(\lambda x.\lambda y.b~x~y)~n) \\
+                          & = & b~n~(\NATREC^*~C~a~b~n)
+\end{array}
+$$
+
+
+
+\begin{theorem}
+If $\vdash M_1:A$ and $\vdash M_2:A$ then $\vdash M_1=M_2:A$ iff
+$\eta~A~M_1=\eta~A~M_2$
+\end{theorem}
+
+\begin{proof}
+This follows from Lemmas \ref{exp} and \ref{betaiota} and Corollary \ref{conv}.
+\end{proof}
+
+\begin{corollary}
+Assume $\Delta\vdash M_1:A$ and $\Delta\vdash M_2:A$. We have $\Delta\vdash M_1=M_2:A$ iff
+$\eta~(\Delta\rightarrow A)~(\lambda\Delta.M_1)=\eta~(\Delta\rightarrow A)~(\lambda\Delta.M_2)$
+\end{corollary}
+
+\begin{proof}
+We have $\Delta\vdash M_1=M_2:A$ iff $\vdash \lambda\Delta.M_1 = \lambda\Delta.M_2:\Delta\rightarrow A$.
+\end{proof}
+
+\begin{corollary}
+If $A$ is in $\beta$-normal form then $\vdash A$ is decidable. If $\vdash A$ and $M$ is
+in $\beta$-normal form then $\vdash M:A$ is decidable.
+\end{corollary}
+
+\section{Representation of type theory}
+
+ We add the primitive constants
+$$
+\BOOL:\SET,~~~~\NAT:\SET,~~~~\LIST:\SET\rightarrow\SET,~~~~\TRUE:\BOOL,~~~~\FALSE:\BOOL,~~~
+\ZERO:\NAT,~~~~\SUCC:\NAT\rightarrow\NAT
+$$ 
+ It is convenient to give the typing rules
+$$
+\frac{\Gamma\vdash A:\SET}{\Gamma\vdash \NIL:\EL~(\LIST~A)}~~~~~~~
+\frac{\Gamma\vdash A:\SET}{\Gamma\vdash \CONS:\EL~A\rightarrow \EL~(\LIST~A)\rightarrow \EL~(\LIST~A)}
+$$
+ We add also $\BOOLREC,\NATREC,\LISTREC$ with computation rules
+$$
+\begin{array}{lcl}
+\BOOLREC~C~a~b~\TRUE = a & & \BOOLREC~C~a~b~\FALSE = b \\
+\NATREC~C~a~b~\ZERO = a  & & \NATREC~C~a~b~(\SUCC~n) = b~n~(\NATREC~C~a~b~n) \\
+\LISTREC~A~C~a~b~\NIL = a  & & \LISTREC~A~C~a~b~(\CONS~x~xs) = b~x~xs~(\LISTREC~A~C~a~b~xs)
+\end{array}
+$$
+and types
+$$
+\begin{array}{lcl}
+\BOOLREC:& & (C{:}\BOOL\rightarrow\SET)\rightarrow C~\TRUE\rightarrow C~\FALSE
+                \rightarrow (b{:}\BOOL)\rightarrow C~b \\
+\NATREC:& & (C{:}\NAT\rightarrow\SET)\rightarrow C~\ZERO\rightarrow ((n{:}\NAT)\rightarrow C~n~\rightarrow C~(\SUCC~n))
+                \rightarrow (n{:}\NAT)\rightarrow C~n \\
+\LISTREC:& & (A:\SET)\rightarrow (C{:}\LIST~A\rightarrow\SET)\rightarrow \\
+ & &  C~\NIL\rightarrow ((x{:}A)\rightarrow (xs:\LIST~A)\rightarrow C~xs~\rightarrow C~(\CONS~x~xs)) \rightarrow \\
+ & & (xs{:}\LIST~A)\rightarrow C~xs 
+\end{array}
+$$
+
+
+
+ In this system, we show that the constants $\BOOLREC,\NATREC,\LISTREC$ are total.
+
+\begin{theorem}
+If $A$ is in $\beta$-normal form then $\vdash A$ is decidable. If $\vdash A$ and $M$ is
+in $\beta$-normal form then $\vdash M:A$ is decidable.
+\end{theorem}
+
+\section{A simple module system}
+
+ As a simple module system, we can take contexts as interface. We have the typing rules
+$$
+\frac{\Gamma,x:A\vdash\Delta}{\Gamma\vdash x:A,\Delta}
+$$
+$$
+\frac{\Gamma\vdash M:A~~~~~~\Gamma\vdash {\bf M}:\Delta(x=M)}
+     {\Gamma\vdash M,{\bf M}:(x:A,\Delta)}
+$$
+
+ If we have $\Gamma\vdash {\bf M}:\Delta$ we can extend the context $\Gamma$ to
+$\Gamma,\Delta$. Intuitively, we hide the definitions of the variables declared
+in $\Delta$, but we still have access to their types.
+
+ This a simple, but robust, notion of modular construction of terms.
+
+\section{Defined constants}
+
+ A {\em small} type is a type which does not contain $\SET$. If $\Delta\vdash A$
+and $A$ is a small type, we can always introduce a new primitive constant
+$c:\Delta\rightarrow\SET$ such that $c~{\bf M}$  is ``equivalent'' to $A[{\bf M}]$ if
+${\bf M}$ is an instance of $\Delta$. We introduce also two constants
+$$
+\frac{\Gamma\vdash {\bf M}:\Delta~~~~~\Gamma\vdash N:A[{\bf M}]}{\Gamma\vdash \INTRO~N:c~{\bf M}}~~~~
+\frac{\Gamma\vdash {\bf M}:\Delta~~~~~\Gamma\vdash P:c~{\bf M}}{\Gamma\vdash \ELIM~P:A[{\bf M}]}
+$$
+with the computation rule $\ELIM~(\INTRO~N) = N$.
+
+ This is an example of a uniform extension of the Logical Framework in a way that 
+preserves strong normalisation. A special case is the addition of a $\Pi$ operation
+where $\Delta$
+is the context $X:\SET,Y:\EL~A\rightarrow\SET$ and $A$ is $(x{:}\EL~X)\rightarrow\EL~(Y~x)$.
+
+\section{Sigma types}
+
+ We can extend the Logical Framework with sigma types. The proofs of strong normalisation
+and decidability of type-checking extend without problems. 
+
+ The new typing rules are
+$$
+\frac{\Gamma,x{:}A\vdash B}{\Gamma\vdash (x{:}A)\times B}~~~~~~~
+\frac{\Gamma\vdash M:A~~~~~\Gamma\vdash N:B(x=M)}{\Gamma\vdash M,N:(x{:}A)\times B}~~~
+\frac{\Gamma\vdash P:(x{:}A)\times B}{\Gamma\vdash P.1:A}~~~
+\frac{\Gamma\vdash P:(x{:}A)\times B}{\Gamma\vdash P.2:B(x=P.1)}
+$$
+and the new conversion rules are
+$$
+\frac{\Gamma\vdash A_1=A_2~~~~~\Gamma,x{:}A_1\vdash B_1=B_2}
+     {\Gamma\vdash (x{:}A_1)\times B_1 = (x{:}A_2)\times B_2}
+$$
+$$
+\frac{\Gamma,x:A\vdash B~~~\Gamma\vdash M_1=M_2:A~~~~~\Gamma\vdash N_1=N_2:B(x=M_1)}
+     {\Gamma\vdash (M_1,N_1) = (M_2,N_2):(x:A)\times B}$$
+$$
+\frac{\Gamma\vdash M:A~~~~~\Gamma\vdash N:B(x=M)}
+     {\Gamma\vdash (M,N).1 = M:A}$$
+$$
+\frac{\Gamma,x:A\vdash B~~~~\Gamma\vdash M:A~~~~~\Gamma\vdash N:B(x=M)}
+     {\Gamma\vdash (M,N).2 = N:B(x=M)}$$
+$$
+\frac{\Gamma\vdash P:(x{:}A)\times B}{\Gamma\vdash P = (P.1,P.2):(x{:}A)\times B}
+$$
+
+ The types are interfaces and can be thought of as (generalised) context. We need a system
+of pattern notations, so that we can write
+$\lambda (x,y).M:((x:A)\times B)\rightarrow C$ if $x{:}A,y{:}B\vdash M:C$.
+When we instanciate a given interface $x_1{:}A_1,\dots,x_k{:}A_k$ by elements
+$M_1,\dots,M_k$ the typing rules are that $M_i:A_i[M_1,\dots,M_{i-1}]$. Intuitively,
+during the instantiation we have access to the values of $x_1,\dots,x_k$. But
+these values are hidden outside the module.
+
+\section{Sorts}
+
+ In order to represent the collection of all ``Bishop'' sets (sets with an equivalence
+relation), we can introduce a new type $\SET_1$, with a new type forming operation
+$$\frac{\Gamma\vdash M:\SET_1}{\Gamma\vdash \EL_1~M}$$
+In combination with sigma types, and defined constants, one can then represent
+for instance the collection of all Bishop sets as a constant
+$\BSET:\SET_1$ with rules
+$$
+\frac{\Gamma\vdash A:\SET~~~~\Gamma\vdash R:A\rightarrow A\rightarrow\SET~~~~
+      \Gamma\vdash M:equiv~A~R}
+     {\Gamma\vdash \INTRO~(A,R,M):\BSET}
+$$
+$$
+\frac{\Gamma\vdash P:\BSET}
+     {\Gamma\vdash \ELIM~P:(A{:}\SET)\times (R{:}A\rightarrow A\rightarrow\SET)\times equiv~A~R}
+$$
+
+ In this way, we keep the structure of the types close to simple type
+theory. The new atomic types are of the form $\SET_1$ or $\EL_1~M$. 
+
+\section{Extension with bar recursion}
+
+ Using the filter domain model for strong normalisation, it can be shown, using
+impredicative means, that the constant for bar recursion, or for modified
+bar recursion are totals.
+
+ We write $a:l$ for $\CONS~a~l$
+We define $\lambda l.|l|:\LIST~A\rightarrow \NAT$, and  $\hat{l}:\NAT\rightarrow A$ if $l:\LIST~A$
+
+ $|\NIL| = \ZERO~~~~~~|a:l| = \SUCC~|l|$
+
+ $\NIL:x = x:\NIL~~~~~~~(a:l):x = a:(l:x)$
+
+ $\widehat{\NIL}~n = \ZERO~~~~~~~\widehat{a:l}~\ZERO = a~~~~~\widehat{a:l}~(\SUCC~n) = \widehat{l}~n$
+
+ We introduce then $\Phi,\Psi$ with the equations
+
+ $\Phi~y~g~h~s = \Psi~y~g~h~s~(y~|s|<\hat{s})$
+
+ $\Psi~y~g~h~s~\TRUE = g~s$
+
+ $\Psi~y~g~h~s~\FALSE = h~s~(\lambda x.\Phi~y~g~h~(s:x))$
+
+where
+
+ $y:(\NAT\rightarrow A)\rightarrow\NAT$
+
+ $h:\LIST~ A\rightarrow (A\rightarrow B)\rightarrow B$
+
+ $g:\LIST~A\rightarrow B$
+
+ It can then be shown that $\Phi,\Psi$ are total. 
+
+\section{Proof irrelevance}
+
+ We add two new constants $\PROOF$ and $\ZERO$ with the rules
+
+$$
+\frac{\Gamma\vdash A:\SET}{\Gamma\vdash \PROOF~A}~~~~~~
+\frac{\Gamma\vdash M:\PROOF~A}{\Gamma\vdash \ZERO: \PROOF~A}~~~~~
+\frac{\Gamma\vdash A_1=A_2:\SET}{\Gamma\vdash \PROOF~A_1 = \PROOF~A_2}
+$$
+
+$$
+\frac{\Gamma\vdash M_1:\PROOF~A~~~~~\Gamma\vdash M_2:\PROOF~A}{\Gamma\vdash M_1=M_2:\PROOF~A}
+$$
+
+ Conversion is still decidable and type-checking for terms in $\beta$-normal
+form which do not contain $\ZERO.$ 
+
+ Another reading of $\Gamma\vdash \ZERO:\PROOF~A$ is $\Gamma\vdash A~\TRUE$. We know
+that $A$ has a proof but the proof has been hidden.
+
+ 
+
+
+ Notice that the strengthening property does not hold for this system.
+
+ The PER model extends directly to this system by interpreting $\ZERO$
+by $\nabla$ and letting $\PROOF~u$ be the set $\EL~u$ with the universal
+equivalence relation. So strong normalisation still holds for this system.
+
+ This is also a semantics for the following rule.
+$$
+\frac{\Gamma\vdash M:\EL~A}{\Gamma\vdash M:\PROOF~A}
+$$
+
+ For proving the decidability of convertibility, we update the
+definition of $\eta~A~M$ by taking $\eta~(\PROOF~M')~M = \ZERO$. It is then still
+the case that $\vdash M_1=M_2:A$ iff $\eta~A~M_1=\eta~A~M_2$ if
+$\vdash M_1:A$ and $\vdash M_2:A$.
+
+\begin{theorem}
+If $A$ is in $\beta$-normal form and does not contain $\ZERO$
+then $\vdash A$ is decidable. If $\vdash A$ and $M$ is
+in $\beta$-normal form and does not contain $\ZERO$ then $\vdash M:A$ is decidable.
+\end{theorem}
+
+
+
+\begin{thebibliography}{9}
+
+\bibitem{Type}
+B. Nordstr\"om, K. Petersson, J. Smith.
+\newblock{{\em Programming in Martin-L\"of's Type Theory.}}
+\newblock{Oxford Science Publications, 1990.}
+
+
+
+\end{thebibliography}
+
+\end{document}
+
