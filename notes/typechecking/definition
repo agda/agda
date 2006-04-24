@@ -1,0 +1,182 @@
+A calculus of definitions, with normalisation as evaluation
+-------------------------
+
+ We present a small calculus with constructors and functions
+defined by pattern-matching. The difficulty is to do computations
+on open terms and to give the result in the expected form.
+
+ Example: f 0 = 0, f (S x) = f x
+
+ We may want to evaluate f (S (S X)), X variable. The expected form
+for the result is f X.
+
+ We give a simple way to implement this language, using the idea
+of normalisation as evaluation. We describe a notion of values for the
+language, and the normal form of an expression will be its semantics.
+
+
+
+ More example: we want to be able to define (all definitions are recursive)
+
+  f 0 = 0
+  f (S n) = g n
+  g 0 = S 0
+  g (S n) = f n
+
+  h 0 = g (f 0)
+  h (S n) = g (h n)
+
+and then to evaluate symbolically, for instance
+
+ h (S (S x))
+
+the result should be g (g (h x))
+
+ We want also to have definitions inside a definition. For instance
+
+  f x = let 
+         h 0 = x
+         h (S n) = f (h n)
+        in h x
+
+ If we evaluate symbolically f (S y), the result will be f ((f y).h y)
+
+ If we rewrite this naively we get f (h y).
+ Notice that the name h is local to the function f. We represent this
+by writing (f y).h instead of h. We indicate that this is the function
+h, which occurs in the definition of f, with the argument y.
+
+
+ 1. Basic language
+    --------------
+
+ Language: syntax of terms
+
+ M ::= x | M M | \x M | c M1 ... Mk 
+
+ The name x can be a variable bound by an abstraction, or by a definition.
+
+ The definitions are
+
+ E ::= \ x E | D E | H
+ H ::= M | F
+ F ::= <c1 M1,...,ck Mk>
+ D ::= x1=E1,...,xn=En
+
+ The definitions are recursive.
+
+ V ::= Lam f | N | c V1 ... Vk 
+ N ::= P | N V | P N
+ P ::= () | P.x | P V
+
+ We define [M]r as usual.
+
+ [x]r = r(x)
+ [M1 M2]r = [M1]r ([M2]r)
+ [\x M]r = Lam f where f V = [M](r,x=V)
+
+ The crucial point is the definition of [D](P,r)
+
+ [D](P,r) is x1 = V1,...,xn = Vn
+ where
+
+ Vi = [Ei](P.xi,r')      with r' = r,x1=V1,...,xn=Vn
+
+ [\x E](P,r) = Lam f where f V = [E](P V,(r,x=V))
+ [D E] (P,r) = [E](P,r') where r' = r + [D](P,r)
+ [M](P,r) = [M]r
+ [<c1 M1,...,ck Mk>](P,r) = Lam f
+ where f (ci w) = [Mi]r w 
+       f V = P V      if V is not of the form ci w
+
+
+
+
+ 2. Addition of infinite objects
+   -----------------------------
+
+ To see how we can represent infinite objects, we can add records
+(that may be infinite)
+
+ M ::= x | M M | \x M | c M1 ... Mk | M.x
+ E ::= \ x E | D E | H
+ H ::= M | F | R
+ R ::= (x1=M1,...,xn=Mn)
+
+ The new values are
+
+ V ::= Lam f | N | c V1 ... Vk | (P,W)
+ N ::= P | N V | P N
+ P ::= () | P.x | P V
+ W ::= (x1 = V1,...,xn=Vn)
+
+ We have added "infinite values" (P,W) that have
+two components.
+
+ If R = (x1=M1,...,xn=Mn) we define [R](P,r) as
+
+ (P,(x1 = [M1]r,...,xn = [Mn]r))
+
+
+
+ Examples:
+
+ f = (u = f,v = 0)
+
+ This is an infinite object. If we compute [f] we get
+
+ (f,(u=[f],v=0))
+
+ If we compute [f.u] we get the same as [f] and if we
+compute [f.v] we get 0.
+
+ Another example is
+
+ f = \ x (u = f 0,v = f (f x))
+
+ We can then form 
+
+ f (S 0)
+
+the value is [f (S 0)] = (f (S 0),V) where
+
+ V = (u = [f 0],v = [f (f (S 0))])
+ 
+ Thus if we take (f (S 0)).u we get something of the form
+(f 0,...).
+
+
+
+ 3. Package
+    -------
+
+ We can package the definitions arbitrarily, with parameters. This is actually
+definable as soon as we have records. 
+
+ p = \ x1...\ xk D1...Dn (y1 = y1,...,ym = ym)        
+
+ where y1,...,ym are the definitions among D1,...,Dn that we want to make
+accessible for outside.
+
+ For instance
+
+ p = \ x 
+        let
+         w = (u = x,v = f 0)
+         f 0 = x
+         f (S n) = (u = f n,v = w)
+        in
+         (w=w,f = f)
+
+ We can then consider
+
+ (p 0).f (S 0) 
+
+which has for values
+
+ (p 0).f (S 0), (u = 0,v = p.w)
+
+ Thus if we compute ((p 0).f (S 0)).v we get p.w
+
+ 
+

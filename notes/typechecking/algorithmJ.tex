@@ -1,0 +1,332 @@
+\documentclass[a4paper,11pt]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[latin1]{inputenc}
+\usepackage{amsmath,amssymb,amsfonts}
+
+\usepackage{proof}
+
+\newcommand\ignore[1]{}
+
+\newcommand\keyword[1]{\mathbf{#1}}
+\newcommand\Coloneqq{\mathrel{::=}}
+\newcommand\OR{~~|~~}
+\newcommand\Hid[1]{\{#1\}}
+\newcommand\lam[1]{\lambda#1.\,}
+\newcommand\hlam[1]{\lam{\Hid{#1}}}
+\newcommand\tlam[2]{\lam{(#1:#2)}}
+\newcommand\thlam[2]{\lam{\Hid{#1:#2}}}
+\newcommand\ePi[3]{(#1:#2)\to#3}
+\newcommand\ehPi[3]{\{#1:#2\}\to#3}
+\newcommand\vPi[2]{\Pi#1:#2.\,}
+\newcommand\vhPi[2]{\Pi\{#1:#2\}.\,}
+\newcommand\vPiTel[1]{\Pi#1.\,}
+\newcommand\vhPiTel[1]{\vPiTel{\{#1\}}}
+\newcommand\Let[2]{\keyword{let}~#1~\keyword{in}~#2}
+\newcommand\Set[1]{\mathsf{Set}_{#1}}
+\newcommand\Prop{\mathsf{Prop}}
+\newcommand\el{\mathsf{El}}
+\newcommand\El[1]{\el_{#1}\,}
+\newcommand\lub{\sqcup}
+
+\newcommand\openV[1]{\epsilon(#1)}
+\newcommand\sortV[2]{(#1\,,\, #2)}
+\newcommand\typeV[3]{(#1\,,\, #2 \,::\,#3)}
+\newcommand\termV[3]{(#1\,,\, #2\,:\,#3)}
+
+\newcommand\APP[2]{\mathsf{app}(#1,#2)}
+\newcommand\HAPP[2]{\mathsf{happ}(#1,#2)}
+\newcommand\Subst[3]{#1[#2/#3]}
+
+\newcommand\GetSort[1]{\mathsf{sortof}(\Theta,#1)}
+
+% Judgement forms
+\renewcommand\Check[5]{#1\,;\,#2\vdash#3\uparrow#4:#5}
+\newcommand\Infer[6]{#1\,;\,#2\vdash#3\Rightarrow#4:#5\,;\,#6}
+\newcommand\InferType[5]{#1\,;\,#2\vdash#3\Rightarrow#4~\mathbf{type}\,;\,#5}
+\newcommand\IsType[4]{#1\,;\,#2\vdash#3\uparrow#4~\mathbf{type}}
+\newcommand\Equal[5]{#1\,;\,#2\vdash#3=#4:#5}
+\newcommand\TEqual[5]{#1\,;\,#2\vdash#3\equiv#4\,;\,#5}
+\newcommand\Expand[7]{#1\,;\,#2\vdash#3:#4{\,\hookrightarrow\,}#5:#6\,;\,#7}
+\newcommand\ExpandAll[7]{#1\,;\,#2\vdash#3:#4{\hookrightarrow^*}#5:#6\,;\,#7}
+\newcommand\CheckDecl[4]{#1\,;\,#2\vdash#3\to#4}
+
+\newcommand\AddGlobalMeta[4]{#1\,;\,#2\vdash{#3}:#4}
+\newcommand\AddLocalMeta[4]{#1\,;\,#2\vdash{#3}:#4}
+
+\title{Agda II Alternative Low-Level Type Checking Algorithm}
+\author{Ulf Norell \and Jeff Polakow}
+
+\begin{document}
+\maketitle
+
+\section{Introduction}
+
+    Write something nice here.
+
+\section{Syntax}
+
+\subsection{Expressions}
+
+    Expressions have been scope checked, but not type checked. Hence the mix
+    between terms, types and sorts.
+
+    \[\begin{array}{lcl}
+        e & \Coloneqq & x \OR ? \\
+          & \OR & \lam xe \OR \hlam xe \OR \tlam xee \OR \thlam xee \\
+          & \OR & e\,e \OR e\,\Hid e \\ % \OR \Let{\vec\delta}e \\
+          & \OR & \ePi xee \OR \ehPi xee \OR \Set n \OR \Prop \\
+    \end{array}\]
+
+\ignore{
+\subsection{Declarations}
+
+    \[\begin{array}{lcl}
+        \delta & \Coloneqq & \ldots
+    \end{array}\]
+}
+
+\subsection{Terms}
+
+    Terms are type checked versions of expressions (that aren't types). The
+    type checking algorithm produces one of these when type checking. The
+    implementation uses deBruijn variables, but to simplify the presentation
+    we don't do that here.
+
+    \[\begin{array}{lcl}
+        s,t & \Coloneqq & x \OR ?_i \\
+            & \OR & \lam xt \OR \hlam xt \OR s\,t \OR s\,\Hid t
+    \end{array}\]
+
+    Worth noting is that meta variables are now named and that there are no
+    typed lambdas left.
+
+    Terms are supposed to always be on normal form. We do some work in the
+    rules to ensure that this is the case.
+
+\subsection{Types and Sorts}
+
+    After type checking we distinguish between terms, types and sorts.
+
+    \[\begin{array}{lcl}
+        A,B & \Coloneqq & \El\alpha t \OR \vPi xAB \OR \vhPi xAB \OR \alpha \OR ?_i\\
+        \alpha,\beta & \Coloneqq & \Set n \OR \Prop \OR ?_i\\
+    \end{array}\]
+
+%    If $x\notin\mathit{FV}(B)$ I will sometimes write $A\to B$ for $\vPi xAB$.
+
+\section{Meta variable store}
+
+    \[\begin{array}{lcl@{\qquad}l}
+        \Theta & \Coloneqq & \cdot \OR & \mbox{empty} \\
+        && \Theta\,,\,\sortV i{\openV {}} \OR \Theta\,,\,\sortV i\alpha \OR & \mbox{sorts}\\
+        && \Theta\,,\,\typeV i{\openV \Gamma} \alpha \OR \Theta\,,\,\typeV iA\alpha \OR & \mbox{types}\\
+        && \Theta\,,\,\termV i{\openV \Gamma} A \OR \Theta\,,\,\termV isA & \mbox{terms}\\
+    \end{array}\]
+    
+    $\openV \Gamma$ denotes an open meta variable which can depend
+    upon the variables in the context $\Gamma$. This is not quite how
+    the implementation will work, but it avoids the need to get into
+    type-level lambdas to carry around dependencies for type meta
+    variables.
+
+\section{Judgements}
+
+In the judgement forms below $\Theta$ are the input and output meta
+variable stores. $\Gamma$ is the context and contains the types of the
+bound variables. $\Theta_I$ and $\Gamma$ are always given, while
+$\Theta_O$ is always computed.
+
+    \[\begin{array}{ll}
+        \Infer{\Theta_I}\Gamma esA{\Theta_O}      & \mbox{Given $e$, computes $s$ and $A$.} \\
+        \InferType{\Theta_I}\Gamma eA{\Theta_O}      & \mbox{Given $e$, computes $A$.} \\
+%        \Equal\Theta\Gamma stA      & \mbox{Typed conversion.} \\
+        \Expand{\Theta_I}\Gamma sA{s'}{A'}{\Theta_O}    & \mbox{Given $s,A,s'$, computes $s'$.} \\
+        \TEqual{\Theta_I}\Gamma A{A'}\Theta_O  & \mbox{Given $A,A'$.}
+%        \CheckDecl\Theta\Gamma\delta{\Theta'} & \mbox{Checking declarations, computes $\Theta'$.}
+    \end{array}\]
+    
+
+\section{Derivation rules}
+
+    \[\begin{array}{c}
+        \infer{ \Infer{\Theta}{\Gamma}xx{\Gamma(x)}{\Theta} }{}
+        \\{}\\
+        \infer{ \Infer{\Theta}{\Gamma}?{?_i}{?_j}
+                      {\Theta, \termV i{\openV \Gamma}{?_j}, \typeV j{\openV \Gamma}{?_k}, \sortV k{\openV{}}} }
+              {i,j,k \not\in \Theta}
+        \\{}\\
+        \infer[(i,j \not\in\Theta_I)]
+              { \Infer{\Theta_I}
+                      \Gamma{\lam xe}{\lam xt}{\vPi x{?_i}A}{\Theta_O} }
+              { \Infer{\Theta_I , \typeV i{\openV \Gamma}{?_j} , \sortV j{\openV{}}}
+                      {\Gamma,x:?_i}etA{\Theta_O} }
+        \\{}\\
+        \infer[(i,j \not\in\Theta_I)]
+              { \Infer{\Theta_I}
+                      \Gamma{\hlam xe}{\hlam xt}{\vhPi x{?_i}A}{\Theta_O} }
+              { \Infer{\Theta_I , \typeV i{\openV \Gamma}{?_j} , \sortV j{\openV{}}}
+                      {\Gamma,x:?_i}etA{\Theta_O} }
+        \\{}\\
+        \infer
+              { \Infer{\Theta_I}\Gamma{\tlam x{e_1}{e_2}}{\lam xt}{\vPi x{A_1}{A_2}}{\Theta_O} } 
+              { \InferType{\Theta_I}\Gamma{e_1}{A_1}{\Theta_1} &
+                \Infer{\Theta_1}{\Gamma,x:A_1}{e_2}t{A_2}{\Theta_O} }
+        \\{}\\
+        \infer
+              { \Infer{\Theta_I}\Gamma{\thlam x{e_1}{e_2}}{\hlam xt}{\vhPi x{A_1}{A_2}}{\Theta_O} } 
+              { \InferType{\Theta_I}\Gamma{e_1}{A_1}{\Theta_1} &
+                \Infer{\Theta_1}{\Gamma,x:A_1}{e_2}t{A_2}{\Theta_O} }
+        \\{}\\
+        \infer{ \Infer{\Theta_I}\Gamma{e\,e'}{\APP{s}{s'}}{\Subst{A}{s'}x}{\Theta_O} }
+              { \begin{array}{c}
+                    \Infer{\Theta_I}\Gamma{e}{s_1}{A_1}{\Theta_1} \\
+                    \Expand{\Theta_1}\Gamma{s_1}{A_1}{s}{\vPi{x}{A'}{A}}{\Theta_2} 
+                \end{array} &
+                \begin{array}{c}
+                    \Infer{\Theta_2}\Gamma{e'}{s'_1}{A'_1}{\Theta_3} \\
+                    \Expand{\Theta_3}\Gamma{s'_1}{A'_1}{s'}{A'}{\Theta_O} 
+                \end{array} } 
+        \\{}\\
+        \infer{ \Infer{\Theta_I}\Gamma{e\,\Hid{e'}}{\HAPP{s}{s'}}{\Subst{A}{s'}x}{\Theta_O} }
+              { \begin{array}{c}
+                    \Infer{\Theta_I}\Gamma{e}{s_1}{A_1}{\Theta_1} \\
+                    \Expand{\Theta_1}\Gamma{s_1}{A_1}{s}{\vhPi{x}{A'}{A}}{\Theta_2} 
+                \end{array} &
+                \begin{array}{c}
+                    \Infer{\Theta_2}\Gamma{e'}{s'_1}{A'_1}{\Theta_3} \\
+                    \Expand{\Theta_3}\Gamma{s'_1}{A'_1}{s'}{A'}{\Theta_O} 
+                \end{array} } 
+    \end{array}\]
+    The implementation of the application rules would generate meta
+    variables for $A'$ and $A$, which would be unified with whatever
+    $A_1$ actually is, and that way satisfy the mode requirements of
+    the coercing type equivalence judgement.
+
+    \[\begin{array}{c}
+        \infer{ \InferType{\Theta}{\Gamma}?{?_j}
+                          {\Theta, \typeV j{\openV \Gamma}{?_k}, \sortV k{\openV{}}} }
+              {j,k \not\in \Theta}
+        \\{}\\
+        \infer{ \InferType{\Theta_I}{\Gamma}e{\El\alpha s}{\Theta_O} }
+              { \Infer{\Theta_I}{\Gamma}e{s'}A{\Theta_1} &
+                \Expand{\Theta_1}{\Gamma}{s'}As\alpha{\Theta_O} }         
+        \\{}\\
+        \infer{ \InferType{\Theta_I}{\Gamma}{\ePi x{e_1}{e_2}}{\vPi x{A_1}{A_2}}{\Theta_O} }
+              { \InferType{\Theta_I}{\Gamma}{e_1}{A_1}{\Theta_1} &
+                \InferType{\Theta_1}{\Gamma, x:A_1}{e_2}{A_2}{\Theta_O} }
+        \\{}\\
+        \infer{ \InferType{\Theta_I}{\Gamma}{\ehPi x{e_1}{e_2}}{\vhPi x{A_1}{A_2}}{\Theta_O} }
+              { \InferType{\Theta_I}{\Gamma}{e_1}{A_1}{\Theta_1} &
+                \InferType{\Theta_1}{\Gamma, x:A_1}{e_2}{A_2}{\Theta_O} }
+        \\{}\\
+        \infer{ \InferType{\Theta}{\Gamma}\alpha{\GetSort\alpha}{\Theta} }{}
+    \end{array}\]
+
+\ignore{
+    The inference rule for let is the same as the checking rule.
+    \[\begin{array}{c}
+        \infer{ \Infer\Sigma\Gamma{\Let\delta e}tA }
+        { \CheckDecl\Sigma\Gamma\delta{\Sigma'}
+        & \Infer{\Sigma'}\Gamma etA
+        }
+    \end{array}\]
+}
+
+
+\ignore{
+\subsection{Computing sorts}
+
+Types contain enough information to retrieve the sort. We assume the
+given store has already been ``applied'' to the given type so that a
+meta variable type input is really uninstantiated.
+
+    \[\begin{array}{lcl}
+        \GetSort{\El\alpha t} & = & \alpha \\
+        \GetSort{\vPi xAB} & = & \GetSort A\lub\GetSort B \\
+        \GetSort{\vhPi xAB} & = & \GetSort A\lub\GetSort B \\
+        \GetSort{\Set n} & = & \Set{n+1} \\
+        \GetSort{\Prop} & = & \Set1 \\
+        \GetSort{?_i} & = & \alpha \quad \mbox{where} \quad \typeV i{\openV\Gamma}\alpha \in \Theta \\
+        {}\\
+        \Set n\lub\Set m & = & \Set{\mathsf{max}(n,m)} \\
+        \Prop\lub\Prop & = & \Prop \\
+        \Prop\lub\Set n & = & \Set1\lub\Set n \\
+        \Set n\lub\Prop & = & \Set n\lub\Set 1 \\
+    \end{array}\]
+
+    We probably have to think about what to do when sort itself is a variable.
+
+    In PTS terms we have the rule $(\alpha,\beta,\alpha\lub\beta)$.
+    We might want to consider having $(\Set0,\Prop,\Prop)$ as well.
+}
+
+\subsection{Coercing type equivalence}
+
+This really only generates and applies some hidden arguments before
+checking that the two given types are equivalent.
+
+    \[\begin{array}{c}
+        \infer{ \Expand{\Theta_I}\Gamma s{\vhPi x{A_1}{A_2}}{s'}{A'}\Theta_O }
+              { \Expand{\Theta_I,\termV i{\openV\Gamma}{A_1}}\Gamma{\HAPP s{?_i}}{\Subst B{?_i}x}{s'}{A'}\Theta_O }
+        \\{}\\
+        \infer{ \Expand{\Theta_I}\Gamma sAs{A'}\Theta_O }
+              { \TEqual{\Theta_I}\Gamma A{A'}\Theta_O }
+    \end{array}\]
+    
+    The second rule may be applied at any time. This allows us to
+    coerce $\vhPi{x_1}{A_1}{\vhPi{x_2}{A_2}{A_3}}$ to
+    $\vhPi{x_2}{A_2}{A_3}$. The regular type eqivalence in the second
+    rule makes coercing type equivalence derivations deterministic.
+    The implementation would actually stop applying rule one when the
+    number of hidden arguments in the two types is the same.
+
+\ignore{
+\subsection{Conversion}
+
+    The conversion checking is type directed. This gives us $\eta$-equality for
+    functions in a nice way. It also makes it possible to introduce proof
+    irrelevance with a rule like this:
+    \[\left(\begin{array}{c}
+        \infer
+        { \Equal\Sigma\Gamma pqP }
+        { \GetSort{P} = \Prop }
+    \end{array}\right)\]
+    We don't do that at this point though, but only make use of the types in the
+    function case:
+    \[\begin{array}{c}
+        \infer
+        { \Equal\Sigma\Gamma st{\vPi xAB} }
+        { \Equal\Sigma{\Gamma,x:A}{\APP sx}{\APP tx}B
+        }
+        \\{}\\
+        \infer
+        { \Equal\Sigma\Gamma st{\vhPi xAB} }
+        { \Equal\Sigma{\Gamma,x:A}{\HAPP sx}{\HAPP tx}B
+        }
+    \end{array}\]
+
+    There are a number of notation abuses in the following two rules. Firstly,
+    $\Equal\Sigma\Gamma{\vec s}{\vec t}\Delta$ denotes the extension of the
+    conversion judgement to sequences of terms. I am also a bit sloppy with the
+    hiding: in $\vPiTel\Delta A$, $\Delta$ can contain both hidden and non-hidden
+    things. Consequently when I say $x\,\vec s$ it includes hidden applications.
+    \[\begin{array}{c}
+        \infer
+        { \Equal\Sigma\Gamma{x\,\vec s}{x\,\vec t}A }
+        { x:\vPiTel\Delta A'\in\Gamma
+        & \Equal\Sigma\Gamma{\vec s}{\vec t}\Delta
+        }
+        \\{}\\
+        \infer
+        { \Equal\Sigma\Gamma{c\,\vec s}{c\,\vec t}A }
+        { c:\vPiTel\Delta A'\in\Sigma
+        & \Equal\Sigma\Gamma{\vec s}{\vec t}\Delta
+        }
+    \end{array}\]
+    
+
+\subsection{Declarations}
+}
+
+\end{document}
