@@ -21,11 +21,17 @@ OUT_P	= $(CORE_OUT_DIR)/prof
 
 default : $(OUT)/agdacore
 
+## Files ##################################################################
+
+gen_hs_files = $(OUT)/ParCore.hs $(OUT)/LexCore.hs $(OUT)/AbsCore.hs \
+				$(OUT)/PrintCore.hs $(OUT)/LayoutCore.hs
+all_hs_files = $(shell $(FIND) . -name '*hs') $(gen_hs_files)
+
 ## Creating the output directory structure ################################
 
 dirs		= $(shell $(FIND) . -type d -not -name CVS)
-out_dirs	= $(filter-out .,$(patsubst ./%,$(OUT)/%,$(dirs)))
-out_dirs_p	= $(filter-out .,$(patsubst ./%,$(OUT_P)/%,$(dirs)))
+out_dirs	= $(patsubst .%,$(OUT)%,$(dirs))
+out_dirs_p	= $(filter-out .,$(patsubst .%,$(OUT_P)%,$(dirs)))
 
 $(out_dirs) $(out_dirs_p) :
 	$(MKDIR) -p $@
@@ -54,18 +60,23 @@ endif
 ## Compiling agda #########################################################
 
 $(OUT)/agdacore : $(out_dirs) $(all_hs_files) $(hi_boot_files)
-	$(GHC) --make -o $@ -odir $(OUT) -hidir $(OUT) $(GHC_FLAGS) Main.hs
+	$(GHC) --make -o $@ -odir $(OUT) -hidir $(OUT) -i$(OUT) $(GHC_FLAGS) Main.hs
 
 $(OUT_P)/agdacore : $(out_dirs_p) $(all_hs_files) $(hi_boot_files_p)
-	$(GHC) --make -o $@ -odir $(OUT_P) -hidir $(OUT_P) $(GHC_FLAGS) Main.hs -prof -auto-all
+	$(GHC) --make -o $@ -odir $(OUT_P) -hidir $(OUT_P) -i$(OUT) $(GHC_FLAGS) Main.hs -prof -auto-all
+
+## BNFC rules #############################################################
+
+$(OUT)/Par%.y $(OUT)/Lex%.x $(OUT)/Abs%.hs : %.cf
+	(cd $(OUT); bnfc -haskell $(CORE_SRC_DIR)/$<)
 
 ## Rules for happy and alex ###############################################
 
 %.hs : %.x
-	$(ALEX) $(ALEX_FLAGS) $<
+	$(ALEX) $(ALEX_FLAGS) $< -o $@
 
 %.hs : %.y
-	$(HAPPY) $(HAPPY_FLAGS) --info=$(OUT)/$*.happy.out $<
+	$(HAPPY) $(HAPPY_FLAGS) --info=$*.happy.out $< -o $@
 
 ## Clean ##################################################################
 
@@ -73,4 +84,7 @@ clean :
 	rm -f $(generated_files)
 
 veryclean : clean
+
+debug :
+	@echo $(out_dirs)
 
