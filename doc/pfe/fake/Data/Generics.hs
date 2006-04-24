@@ -16,3 +16,5 @@ class Typeable a => Data a where
 data TypeRep = Dummy
 
 dummy_declaration = True
+
+newtype GenericT'   = GT { unGT :: a -> a }
