@@ -25,7 +25,7 @@ include mk/paths.mk
 ## Default target #########################################################
 
 ifeq ($(is_configured),Yes)
-default : full
+default : full core
 else
 default : make_configure
 endif
