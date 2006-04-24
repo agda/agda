@@ -135,6 +135,38 @@ be able to after scope analysis.
 >   module CNat = C Nat
 >   -- * CNat.x -> A.CNat.x
 
+Argh! This whole fully qualified name business doesn't quite cut it for local functions.
+We could try some contrived naming scheme numbering clauses and stuff but we probably want
+to just use unique identifiers (numbers). It would still be useful to keep the fully
+qualified name around, though, so the work is not completely in vain.
+
+How does this influence interfaces and imported modules? Consider:
+
+> module A where x = e
+> module B where
+>   import A
+>   y = A.x
+> module C where
+>   import A
+>   y = A.x
+> module D where
+>   import B
+>   import C
+>   h : B.y == C.y
+>   h = refl
+
+It would be reasonable to expect this to work. For this to happen it's important that we
+only choose identifiers for the names in A once. [Aside] There is another issue here. A.x
+has to be available during type checking of D (for computations) even though it's not in
+scope [/Aside]. That might actually hold the key to the solution. We need to read
+interface files for all modules, not just the ones needed for their scope. In other words
+interface files must contain references to imported modules. There's still the question of
+when to assign unique identifiers. At the moment, scope checking and import chasing is
+intertwined. We would have to keep track of the files we've generated uids for and check
+for each import whether we need to generate new names. How about the type signatures and
+definitions in the interface files? Maybe it would be easier to come up with a way of naming
+local functions and just stick to the fully qualifed names idea...
+
 -}
 module Syntax.Scope where
 
