@@ -11,9 +11,9 @@ include $(TOP)/mk/paths.mk
 ## Variables ##############################################################
 
 # Haddock interface for the base package
-haddockBaseURL	= http://www.haskell.org/ghc/docs/$(GHC_VERSION)/html/libraries/base
-haddockBase		= $(haddockBaseURL),base.haddock
-haddockBaseFile = $(haddockBaseURL)/base.haddock
+haddockURL	= http://www.haskell.org/ghc/docs/$(GHC_VERSION)/html/libraries
+haddockArg	= $(haddockURL)/$(1),$(1).haddock
+haddockFile = $(haddockURL)/$(1)/$(1).haddock
 
 # Haskell files
 lexer			= Syntax/Parser/Lexer
@@ -48,13 +48,13 @@ endif
 
 ifeq ($(HAVE_WGET),Yes)
 
-base.haddock :
-	wget $(haddockBaseFile)
+%.haddock :
+	wget $(call haddockFile,$*)
 
 else
 
-base.haddock :
-	@echo $(haddockBaseFile) have to be downloaded manually since wget could not be found.
+%.haddock :
+	@echo $(call haddockFile,$*) have to be downloaded manually since wget could not be found.
 	@$(FALSE)
 
 endif
@@ -121,15 +121,12 @@ check_version :
 	@echo "         able to link to library definitions."
 endif
 
-# The naming convention in haddock has changed from . to - for
-# hierarchical modules, but the standard library documentation
-# still uses . so the links are all wrong. Better not link at all.
-# base.haddock check_version 
-#			--read-interface=$(haddockBase)
-index.html : $(prologue) $(dst_hs_files)
+index.html : $(prologue) $(dst_hs_files) base.haddock mtl.haddock check_version 
 	$(HADDOCK) --odir=. --html \
 			--prologue=$(prologue) \
 			--title="Agda II Documentation" \
+			--read-interface=$(call haddockArg,base) \
+			--read-interface=$(call haddockArg,mtl) \
 			$(dst_hs_files)
 
 ## Clean ##################################################################

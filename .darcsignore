@@ -7,7 +7,7 @@
 ^mk/config.mk$
 ^out$
 ^doc/haddock/src$
-^doc/haddock/(.*\.(gif|html|css|js)|base.haddock)
+^doc/haddock/.*\.(gif|html|css|js|haddock)
 ^tmp$
 ^doc/pfe/fake/Syntax/Parser/(Parser|Lexer)\.hs$
 \.(log|ps|aux|bbl)$
