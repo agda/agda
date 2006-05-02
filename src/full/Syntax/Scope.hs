@@ -156,9 +156,9 @@ How does this influence interfaces and imported modules? Consider:
 >   h = refl
 
 It would be reasonable to expect this to work. For this to happen it's important that we
-only choose identifiers for the names in A once. [Aside] There is another issue here. A.x
+only choose identifiers for the names in A once. Aside: /There is another issue here. A.x
 has to be available during type checking of D (for computations) even though it's not in
-scope [/Aside]. That might actually hold the key to the solution. We need to read
+scope/. That might actually hold the key to the solution. We need to read
 interface files for all modules, not just the ones needed for their scope. In other words
 interface files must contain references to imported modules. There's still the question of
 when to assign unique identifiers. At the moment, scope checking and import chasing is
@@ -167,11 +167,17 @@ for each import whether we need to generate new names. How about the type signat
 definitions in the interface files? Maybe it would be easier to come up with a way of naming
 local functions and just stick to the fully qualifed names idea...
 
+Or, we could go with qualified unique identifiers. A (qualified) name has two uids: one for
+the top-level module (file) and one for the name. That way we can generate uids once and store
+them in the interface file and we only have to generate uids for new modules, or maybe just
+stick with the module name as the uid for the time being.
+
 -}
 module Syntax.Scope where
 
 import Control.Exception
 import Control.Monad.Reader
+import Control.Monad.State
 import Data.Monoid
 import Data.Typeable
 import Data.Map as Map
@@ -181,10 +187,14 @@ import Data.Tree
 import Syntax.Position
 import Syntax.Common
 import Syntax.Concrete
+import Syntax.Concrete.Name as CName
+import Syntax.Abstract.Name as AName
+import Syntax.Fixity
 import qualified Syntax.Interface as I
 
 import Utils.Monad
 import Utils.Maybe
+import Utils.Fresh
 
 #include "../undefined.h"
 
@@ -194,21 +204,21 @@ import Utils.Maybe
 
 -- | Exceptions thrown by the scope analysis.
 data ScopeException
-	= NotInScope QName
-	| NoSuchModule QName
-	| UninstantiatedModule QName
-	| ClashingDefinition Name QName
-	| ClashingModule QName QName
-	| ClashingImport Name Name
-	| ClashingModuleImport Name Name
-	| ModuleDoesntExport QName [ImportedName]
+	= NotInScope CName.QName
+	| NoSuchModule CName.QName
+	| UninstantiatedModule CName.QName
+	| ClashingDefinition CName.Name AName.QName
+	| ClashingModule AName.ModuleName AName.ModuleName
+	| ClashingImport CName.Name CName.Name
+	| ClashingModuleImport CName.Name CName.Name
+	| ModuleDoesntExport AName.ModuleName [ImportedName]
     deriving (Typeable, Show)
 
 -- | A concrete name can be either a bound variable, a defined name (function,
---   constructor or datatype name) or unknown. 'resolv'ing a name gives you one
+--   constructor or datatype name) or unknown. 'resolve'ing a name gives you one
 --   of these.
 data ResolvedName
-	= VarName Name
+	= VarName AName.Name
 	| DefName DefinedName
 	| UnknownName
 
@@ -218,7 +228,7 @@ data DefinedName =
 	DefinedName { access	 :: Access
 		    , kindOfName :: KindOfName
 		    , fixity	 :: Fixity
-		    , theName    :: QName
+		    , theName    :: AName.QName
 		    }
     deriving (Show)
 
@@ -229,6 +239,9 @@ data DefinedName =
     between names of defined functions and names of postulates. One possible
     application of these fine-grained names is to have the interactive system
     color different kinds of names in pretty colors.
+
+    At the moment we only distinguish between constructor names and other
+    names, though.
 -}
 data KindOfName = FunName   -- ^ also includes datatypes
 		| ConName
@@ -237,8 +250,8 @@ data KindOfName = FunName   -- ^ also includes datatypes
 -- | In addition to the names a module contains (which are stored in the
 --   'NameSpace') we need to keep track of the arity of a module and whether
 --   it is private or public.
-data ModuleInfo	=
-	ModuleInfo  { moduleArity	:: Arity
+data ModuleScope	=
+	ModuleScope { moduleArity	:: Arity
 		    , moduleAccess	:: Access
 		    , moduleContents	:: NameSpace
 		    }
@@ -246,24 +259,24 @@ data ModuleInfo	=
 
 -- | When you 'resolveModule', this is what you get back.
 data ResolvedModule
-	= ModuleName ModuleInfo
+	= ModuleName ModuleScope
 	| UnknownModule
 
--- | The reason for this not being @Set Name@ is that we want to know the
---   position of the binding. A value in the map is the binding occurence of a
---   variable.
-type LocalVariables = Map Name Name
+-- | The value in the map is the binding occurence of a variable, so care should
+--   be taken to update the 'Range' to the actual occurence. The 'Range' of the
+--   binding occurence should be stored in the 'Syntax.Info.NameInfo'.
+type LocalVariables = Map CName.Name AName.Name
 
-type Modules	    = Map Name ModuleInfo
-type DefinedNames   = Map Name DefinedName
+type Modules	    = Map CName.Name ModuleScope
+type DefinedNames   = Map CName.Name DefinedName
 
 {-| A name space is a collection of names (defined names and module names). It
-    also has a name of it's own. The name is used when recomputing canonical
+    also has a name of its own. The name is used when recomputing canonical
     names for implicit module declarations (which creates new names rather than
     new ways of referring to things). It is also used for error messages.
 -}
 data NameSpace =
-	NSpace	{ moduleName	:: QName
+	NSpace	{ moduleName	:: AName.ModuleName
 		, definedNames	:: DefinedNames
 		, modules	:: Modules
 		}
@@ -271,7 +284,7 @@ data NameSpace =
 
 {-| The @privateNameSpace@ and the @publicNameSpace@ don't clash. The reason
     for separating the private and the public name space is that when we leave
-    the current module we should pack it up in a 'ModuleInfo' containing only
+    the current module we should pack it up in a 'ModuleScope' containing only
     the public stuff.
 
     Imported modules go in the private namespace since they aren't visible
@@ -287,14 +300,19 @@ data ScopeInfo = ScopeInfo
 	, contextPrecedence :: Precedence
 	}
 
+-- | We need to generate fresh name ids when scope checking.
+data ScopeState = ScopeState
+	{ freshId   :: NameId
+	}
+
 -- | We need to go away and read interface files when scope checking an import
 --   statement, so the scope monad must be an @IO@.
-type ScopeM = ReaderT ScopeInfo IO
+type ScopeM = StateT ScopeState (ReaderT ScopeInfo IO)
 
 
-{--------------------------------------------------------------------------
-    Instances
- --------------------------------------------------------------------------}
+---------------------------------------------------------------------------
+-- * Instances
+---------------------------------------------------------------------------
 
 instance HasRange DefinedName where
     getRange = getRange . theName
@@ -309,16 +327,39 @@ instance HasRange ScopeException where
     getRange (ClashingDefinition x _)	= getRange x
     getRange (ModuleDoesntExport _ xs)	= getRange xs
 
-{--------------------------------------------------------------------------
-    Exceptions
- --------------------------------------------------------------------------}
+instance HasFresh NameId ScopeState where
+    nextFresh s = (i, s { freshId = i + 1})
+	where
+	    i = freshId s
 
+freshName :: CName.Name -> ScopeM AName.Name
+freshName x =
+    do	i <- fresh
+	return $ AName.Name i x
+
+---------------------------------------------------------------------------
+-- * Exceptions
+---------------------------------------------------------------------------
+
+notInScope :: CName.QName -> a
 notInScope x		    = throwDyn $ NotInScope x
+
+clashingImport :: CName.Name -> CName.Name -> a
 clashingImport x x'	    = throwDyn $ ClashingImport x x'
+
+clashingModuleImport :: CName.Name -> CName.Name -> a
 clashingModuleImport x x'   = throwDyn $ ClashingModuleImport x x'
+
+noSuchModule :: CName.QName -> a
 noSuchModule x		    = throwDyn $ NoSuchModule x
+
+uninstantiatedModule :: CName.QName -> a
 uninstantiatedModule x	    = throwDyn $ UninstantiatedModule x
+
+clashingModule :: AName.ModuleName -> AName.ModuleName -> a
 clashingModule x y	    = throwDyn $ ClashingModule x y
+
+clashingDefinition :: CName.Name -> AName.QName -> a
 clashingDefinition x y	    = throwDyn $ ClashingDefinition x y
 
 ---------------------------------------------------------------------------
@@ -339,7 +380,7 @@ plusNameSpace_ (NSpace name ds1 m1) (NSpace _ ds2 m2) =
 		    (Map.unionWith plusModules m1 m2)
 
 -- | Merges to modules.
-plusModules :: ModuleInfo -> ModuleInfo -> ModuleInfo
+plusModules :: ModuleScope -> ModuleScope -> ModuleScope
 plusModules mi1 mi2
     | moduleAccess mi1 /= moduleAccess mi2 || moduleArity mi1 /= moduleArity mi2
 	= clashingModule (moduleName $ moduleContents mi1)
@@ -349,13 +390,13 @@ plusModules mi1 mi2
 		      }
 
 -- | Throws an exception if the name exists.
-addName :: Name -> DefinedName -> NameSpace -> NameSpace
+addName :: CName.Name -> DefinedName -> NameSpace -> NameSpace
 addName x qx ns =
 	ns { definedNames = Map.insertWithKey clash x qx $ definedNames ns }
     where
 	clash x' _ _ = clashingImport x x'
 
-addModule :: Name -> ModuleInfo -> NameSpace -> NameSpace
+addModule :: CName.Name -> ModuleScope -> NameSpace -> NameSpace
 addModule x mi ns =
 	ns { modules = Map.insertWithKey clash x mi $ modules ns }
     where
@@ -363,32 +404,32 @@ addModule x mi ns =
 
 -- | Allows the module to already be defined. Used when adding modules
 --   corresponding to directories (from imports).
-addModule_ :: Name -> ModuleInfo -> NameSpace -> NameSpace
+addModule_ :: CName.Name -> ModuleScope -> NameSpace -> NameSpace
 addModule_ x mi ns =
 	ns { modules = Map.insertWithKey clash x mi $ modules ns }
     where
 	clash x' mi mi' = plusModules mi mi'
 	    -- TODO: we should only allow overlap of the pseudo-modules!
 
-addQModule :: QName -> ModuleInfo -> NameSpace -> NameSpace
+addQModule :: CName.QName -> ModuleScope -> NameSpace -> NameSpace
 addQModule x mi ns = addQ [] x mi ns
     where
-	addQ _  (QName x)  mi ns = addModule x mi ns
+	addQ _  (CName.QName x)  mi ns = addModule x mi ns
 	addQ ms (Qual m x) mi ns = addModule_ m mi' ns
 	    where
-		mi' = ModuleInfo { moduleAccess	    = PublicAccess
-				 , moduleArity	    = 0
-				 , moduleContents   = addQ (ms ++ [m]) x mi
-							(emptyNameSpace $ mkQual ms m)
-				 }
-		mkQual ms x = foldr Qual (QName x) ms
-	next (QName x)	= x
+		mi' = ModuleScope { moduleAccess   = PublicAccess
+				  , moduleArity	   = 0
+				  , moduleContents = addQ (ms ++ [m]) x mi
+							  (emptyNameSpace $ mkQual ms m)
+				  }
+		mkQual ms x = mkModuleName $ foldr Qual (CName.QName x) ms
+	next (CName.QName x)	= x
 	next (Qual m x) = m
 
-addModules :: [(Name, ModuleInfo)] -> NameSpace -> NameSpace
+addModules :: [(CName.Name, ModuleScope)] -> NameSpace -> NameSpace
 addModules ms ns = foldr (uncurry addModule) ns ms
 
-addNames :: [(Name, DefinedName)] -> NameSpace -> NameSpace
+addNames :: [(CName.Name, DefinedName)] -> NameSpace -> NameSpace
 addNames ds ns	 = foldr (uncurry addName) ns ds
 
 -- | Add the names from the first name space to the second. Throws an
@@ -401,6 +442,7 @@ addNameSpace ns0 ns =
 
 -- | Recompute canonical names. All mappings will be @x -> M.x@ where
 --   @M@ is the name of the name space. Recursively renames sub-modules.
+{-
 makeFreshCanonicalNames :: NameSpace -> NameSpace
 makeFreshCanonicalNames ns =
     ns { definedNames = Map.mapWithKey newName	 $ definedNames ns
@@ -414,8 +456,9 @@ makeFreshCanonicalNames ns =
 				  $ (moduleContents mi)
 				    { moduleName = qualify m x }
 	       }
+-}
 
-emptyNameSpace :: QName -> NameSpace
+emptyNameSpace :: AName.ModuleName -> NameSpace
 emptyNameSpace x = NSpace { moduleName	 = x
 			  , definedNames = Map.empty
 			  , modules	 = Map.empty
@@ -432,28 +475,31 @@ updateNameSpace PublicAccess f si =
 updateNameSpace PrivateAccess f si =
     si { privateNameSpace = f $ privateNameSpace si }
 
-defName :: Access -> KindOfName -> Fixity -> Name -> ScopeInfo -> ScopeInfo
-defName a k f x si = updateNameSpace a (addName x qx) si
+defName :: Access -> KindOfName -> Fixity -> AName.Name -> ScopeInfo -> ScopeInfo
+defName a k f x si = updateNameSpace a (addName (nameConcrete x) qx) si
     where
 	m   = moduleName $ publicNameSpace si
-	qx  = DefinedName a k f (qualify m x)
+	qx  = DefinedName a k f (AName.qualify m x)
 
--- | Assumes that the name in the 'ModuleInfo' fully qualified.
-defModule :: Name -> ModuleInfo -> ScopeInfo -> ScopeInfo
+-- | Assumes that the name in the 'ModuleScope' fully qualified.
+defModule :: CName.Name -> ModuleScope -> ScopeInfo -> ScopeInfo
 defModule x mi = updateNameSpace (moduleAccess mi) f
     where
 	f ns = ns { modules = Map.insert x mi $ modules ns }
 
-bindVar, shadowVar :: Name -> ScopeInfo -> ScopeInfo
-bindVar x si	= si { localVariables = Map.insert x x (localVariables si) }
-shadowVar x si	= si { localVariables = Map.delete x (localVariables si) }
+bindVar, shadowVar :: AName.Name -> ScopeInfo -> ScopeInfo
+bindVar x si	= si { localVariables = Map.insert (nameConcrete x) x (localVariables si) }
+shadowVar x si	= si { localVariables = Map.delete (nameConcrete x)   (localVariables si) }
 
-emptyScopeInfo :: QName -> ScopeInfo
+emptyScopeInfo :: AName.ModuleName -> ScopeInfo
 emptyScopeInfo x = ScopeInfo { publicNameSpace	    = emptyNameSpace x
 			     , privateNameSpace	    = emptyNameSpace x
 			     , localVariables	    = Map.empty
 			     , contextPrecedence    = TopCtx
 			     }
+
+initScopeState :: ScopeState
+initScopeState = ScopeState { freshId = 0 }
 
 ---------------------------------------------------------------------------
 -- * Resolving names
@@ -461,23 +507,23 @@ emptyScopeInfo x = ScopeInfo { publicNameSpace	    = emptyNameSpace x
 
 -- | Resolve a qualified name. Peals off name spaces until it gets
 --   to an unqualified name and then applies the first argument.
-resolve :: a -> (LocalVariables -> NameSpace -> Name -> a) ->
-	   QName -> ScopeInfo -> a
+resolve :: a -> (LocalVariables -> NameSpace -> CName.Name -> a) ->
+	   CName.QName -> ScopeInfo -> a
 resolve def f x si = res x vs (ns `plusNameSpace` ns')
     where
 	vs  = localVariables si
 	ns  = publicNameSpace si
 	ns' = privateNameSpace si
 
-	res (QName x) vs ns = f vs ns x
+	res (CName.QName x) vs ns = f vs ns x
 	res (Qual m x) vs ns =
 	    case Map.lookup m $ modules ns of
-		Nothing			    -> def
-		Just (ModuleInfo 0 _ ns')   -> res x empty ns'
-		Just _			    -> uninstantiatedModule (QName m)
+		Nothing			   -> def
+		Just (ModuleScope 0 _ ns') -> res x empty ns'
+		Just _			   -> uninstantiatedModule (CName.QName m)
 
 -- | Figure out what a qualified name refers to.
-resolveName :: QName -> ScopeInfo -> ResolvedName
+resolveName :: CName.QName -> ScopeInfo -> ResolvedName
 resolveName = resolve UnknownName r
     where
 	r vs ns x =
@@ -487,25 +533,23 @@ resolveName = resolve UnknownName r
 	    ]
 
 -- | Monadic version of 'resolveName'.
-resolveNameM :: QName -> ScopeM ResolvedName
+resolveNameM :: CName.QName -> ScopeM ResolvedName
 resolveNameM x = resolveName x <$> getScopeInfo
 
--- | In a pattern there are only three possibilities: either it's a constructor,
---   a variable or an unknown name. Only qualified names can be unknown.
-resolvePatternName :: QName -> ScopeInfo -> ResolvedName
-resolvePatternName = resolve UnknownName r
+-- | Unqualified, non-constructor names are always variables in a pattern.
+--   This function doesn't bind 'VarName's, the caller has that responsibility.
+resolvePatternNameM :: CName.QName -> ScopeM ResolvedName
+resolvePatternNameM x =
+    do	scope <- getScopeInfo
+	resolve (return UnknownName) r x scope
     where
 	r vs ns x =
 	    case Map.lookup x $ definedNames ns of
-		Just c@(DefinedName _ ConName _ _)  -> DefName c
-		_				    -> VarName x
-
--- | Monadic version of 'resolvePatternName'.
-resolvePatternNameM :: QName -> ScopeM ResolvedName
-resolvePatternNameM x = resolvePatternName x <$> getScopeInfo
+		Just c@(DefinedName _ ConName _ _) -> return $ DefName c
+		_   -> VarName <$> freshName x
 
 -- | Figure out what module a qualified name refers to.
-resolveModule :: QName -> ScopeInfo -> ResolvedModule
+resolveModule :: CName.QName -> ScopeInfo -> ResolvedModule
 resolveModule = resolve UnknownModule r
     where
 	r _ ns x = fromMaybe UnknownModule $
@@ -517,16 +561,16 @@ resolveModule = resolve UnknownModule r
  --------------------------------------------------------------------------}
 
 -- | Make sure that a module hasn't been defined.
-noModuleClash :: QName -> ScopeM ()
+noModuleClash :: CName.QName -> ScopeM ()
 noModuleClash x =
     do	si <- getScopeInfo
 	case resolveModule x si of
 	    UnknownModule   -> return ()
-	    ModuleName m    -> clashingModule x $ moduleName $ moduleContents m
+	    ModuleName m    -> clashingModule (mkModuleName x) $ moduleName $ moduleContents m
 
 -- | Get the module referred to by a name. Throws an exception if the module
 --   doesn't exist.
-getModule :: QName -> ScopeM ModuleInfo
+getModule :: CName.QName -> ScopeM ModuleScope
 getModule x =
     do	si <- getScopeInfo
 	case resolveModule x si of
@@ -586,7 +630,7 @@ invalidImportDirective ns i =
   - @applyDirective d x == Nothing@, otherwise.
 
 -}
-applyDirective :: ImportDirective -> ImportedName -> Maybe Name
+applyDirective :: ImportDirective -> ImportedName -> Maybe CName.Name
 applyDirective d x
     | renamed   = just_renamed
     | hidden    = Nothing
@@ -606,7 +650,7 @@ applyDirective d x
 --
 --   the canonical form of @B.g@ is @A.f@. Compare this to implicit module definitions
 --   which creates new canonical names.
-importedNames :: ModuleInfo -> ImportDirective -> NameSpace
+importedNames :: ModuleScope -> ImportDirective -> NameSpace
 importedNames m i =
     case invalidImportDirective ns i of
 	Just e	-> throwDyn e
@@ -626,9 +670,9 @@ importedNames m i =
 -- | Turn an interface to a module info structure. The main difference between
 --   module interfaces and the module info structure is that submodules aren't
 --   fully qualified in interface files.
-interfaceToModule :: I.Interface -> ModuleInfo
+interfaceToModule :: I.Interface -> ModuleScope
 interfaceToModule i =
-    ModuleInfo	{ moduleAccess	    = PublicAccess
+    ModuleScope	{ moduleAccess	    = PublicAccess
 		, moduleArity	    = I.arity i
 		, moduleContents    = mkNameSpace i
 		}
@@ -638,8 +682,8 @@ interfaceToModule i =
 	    { moduleName    = name
 	    , definedNames  =
 		Map.fromList $
-		       [ (x, mkName FunName f x)  | (x,f) <- I.definedNames i ]
-		    ++ [ (x, mkName ConName f x)  | (x,f) <- I.constructorNames i ]
+		       [ (nameConcrete x, mkName FunName f x)  | (x,f) <- I.definedNames i ]
+		    ++ [ (nameConcrete x, mkName ConName f x)  | (x,f) <- I.constructorNames i ]
 	    , modules	    =
 		Map.fromList $ [ mkModule i' | i' <- I.subModules i ]
 	    }
@@ -649,12 +693,12 @@ interfaceToModule i =
 		    DefinedName { access	= PublicAccess
 				, kindOfName	= k
 				, fixity	= f
-				, theName	= qualify name x
+				, theName	= AName.qualify name x
 				}
 		mkModule i' = (x, interfaceToModule $ i' { I.moduleName = qx })
 		    where
-			QName x = I.moduleName i'
-			qx = qualify name x
+			MName (CName.QName x) _ = I.moduleName i'
+			qx = qualifyModule name x
 
 
 ---------------------------------------------------------------------------
@@ -667,7 +711,7 @@ getScopeInfo = ask
 
 
 -- | Get a function that returns the fixity of a name.
-getFixityFunction :: ScopeM (QName -> Fixity)
+getFixityFunction :: ScopeM (CName.QName -> Fixity)
 getFixityFunction =
     do	scope <- getScopeInfo
 	return (f scope)
@@ -696,10 +740,10 @@ setContext p =
 -- | Work inside a module. This means moving everything in the
 --   'publicNameSpace' to the 'privateNameSpace' and updating the names of
 --   the both name spaces.
-insideModule :: QName -> ScopeM a -> ScopeM a
-insideModule qx@(Qual _ _)  = local $ const (emptyScopeInfo qx)
+insideModule :: CName.QName -> ScopeM a -> ScopeM a
+insideModule qx@(Qual _ _)  = local $ const (emptyScopeInfo $ mkModuleName qx)
     -- if the module is qualified it's a top level module so we start a fresh scope.
-insideModule (QName x) = local upd
+insideModule (CName.QName x) = local upd
     where
 	upd si = si { publicNameSpace = emptyNameSpace qx
 		    , privateNameSpace = plusNameSpace pri pub
@@ -707,15 +751,19 @@ insideModule (QName x) = local upd
 	    where
 		pub = publicNameSpace si
 		pri = (privateNameSpace si) { moduleName = qx }
-		qx  = qualify (moduleName pub) x
+		qx  = qualifyModule (moduleName pub) x
 
 -- | Add a defined name to the current scope.
-defineName :: Access -> KindOfName -> Fixity -> Name -> ScopeM a -> ScopeM a
+defineName :: Access -> KindOfName -> Fixity -> CName.Name -> ScopeM a -> ScopeM a
 defineName a k f x cont =
     do	si <- getScopeInfo
-	case resolveName (QName x) si of
-	    UnknownName	-> local (defName a k f x) cont
-	    VarName _	-> local (defName a k f x . shadowVar x) cont
+	case resolveName (CName.QName x) si of
+	    UnknownName	->
+		do  x' <- freshName x
+		    local (defName a k f x') cont
+	    VarName _	->
+		do  x' <- freshName x
+		    local (defName a k f x' . shadowVar x') cont
 	    DefName y   -> clashingDefinition x (theName y)
 
 
@@ -723,22 +771,22 @@ defineName a k f x cont =
     reason for this is in patterns, where constructors should take precedence
     over variables (and that it would be some work to remove the defined name).
 -}
-bindVariable :: Name -> ScopeM a -> ScopeM a
+bindVariable :: AName.Name -> ScopeM a -> ScopeM a
 bindVariable x = local (bindVar x)
 
 -- | Bind multiple variables.
-bindVariables :: [Name] -> ScopeM a -> ScopeM a
+bindVariables :: [AName.Name] -> ScopeM a -> ScopeM a
 bindVariables = foldr (.) id . List.map bindVariable
 
 -- | Defining a module. For explicit modules this should be done after scope
 --   checking the module.
-defineModule :: Name -> ModuleInfo -> ScopeM a -> ScopeM a
+defineModule :: CName.Name -> ModuleScope -> ScopeM a -> ScopeM a
 defineModule x mi cont =
-    do	noModuleClash (QName x)
+    do	noModuleClash (CName.QName x)
 	local (defModule x mi) cont
 
 -- | Opening a module.
-openModule :: QName -> ImportDirective -> ScopeM a -> ScopeM a
+openModule :: CName.QName -> ImportDirective -> ScopeM a -> ScopeM a
 openModule x i cont =
     do	m <- getModule x
 	let ns = importedNames m i
@@ -748,7 +796,7 @@ openModule x i cont =
 
 -- | Importing a module. The first argument is the name the module is imported
 --   /as/. If there is no /as/ clause it should be the name of the module.
-importModule :: QName -> I.Interface -> ImportDirective -> ScopeM a -> ScopeM a
+importModule :: CName.QName -> I.Interface -> ImportDirective -> ScopeM a -> ScopeM a
 importModule x iface dir cont =
     do	noModuleClash x
 	local ( updateNameSpace PrivateAccess
@@ -758,22 +806,24 @@ importModule x iface dir cont =
 	m = interfaceToModule iface
 
 -- | Implicit module declaration.
-implicitModule :: Name -> Access -> Arity -> QName -> ImportDirective ->
+implicitModule :: CName.Name -> Access -> Arity -> CName.QName -> ImportDirective ->
 		  ScopeM a -> ScopeM a
 implicitModule x ac ar x' i cont =
-    do	noModuleClash (QName x)
+    do	noModuleClash (CName.QName x)
 	m <- getModule x'
-	let ns = makeFreshCanonicalNames $ 
-		    (importedNames m i) { moduleName = QName x }
-	    m' = ModuleInfo { moduleAccess   = ac
-			    , moduleArity    = ar
-			    , moduleContents = ns
-			    }
+	let ns = --makeFreshCanonicalNames $ 
+		    (importedNames m i) { moduleName = mkModuleName $ CName.QName x }
+	    m' = ModuleScope { moduleAccess   = ac
+			     , moduleArity    = ar
+			     , moduleContents = ns
+			     }
 	local (updateNameSpace ac (addModule x m')) cont
 
 -- | Running the scope monad.
 runScopeM :: ScopeM a -> IO a
-runScopeM m = runReaderT m (emptyScopeInfo $ QName noName)
+runScopeM m = flip runReaderT (emptyScopeInfo $ mkModuleName $ CName.QName noName)
+	    $ flip evalStateT initScopeState
+	    $ m
 
 ---------------------------------------------------------------------------
 -- * Debugging

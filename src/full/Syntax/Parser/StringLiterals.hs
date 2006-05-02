@@ -15,7 +15,7 @@ import Syntax.Parser.Monad
 import Syntax.Parser.Tokens
 import Syntax.Parser.LookAhead
 import Syntax.Position
-import Syntax.Common
+import Syntax.Literal
 
 import Utils.Char   ( decDigit, hexDigit, octDigit )
 import Utils.Tuple  ( (-*-) )

@@ -9,6 +9,8 @@ import Syntax.Position
 import Syntax.Common
 import Syntax.Abstract
 import Syntax.Info
+import Syntax.Literal
+import Syntax.Abstract.Name
 
 -- Comparisons ------------------------------------------------------------
 
@@ -60,6 +62,12 @@ instance Equal DefInfo where
     i === j = fromBool i j $ defFixity i == defFixity j
 			  && defAccess i == defAccess j
 
+instance Equal ModuleInfo where
+    i === j = fromBool i j $ minfoAccess i == minfoAccess j
+
+instance Equal DeclSource where
+    i === j = fromBool i j $ i == j
+
 -- Simple instances -------------------------------------------------------
 
 instance Equal Literal where
@@ -69,6 +77,9 @@ instance Equal Name where
     x === y = fromBool x y $ x == y
 
 instance Equal QName where
+    x === y = fromBool x y $ x == y
+
+instance Equal ModuleName where
     x === y = fromBool x y $ x == y
 
 -- Expression instances ---------------------------------------------------

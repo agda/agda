@@ -72,6 +72,7 @@ import qualified Data.Map as Map
 import Syntax.Concrete
 import Syntax.Common
 import Syntax.Position
+import Syntax.Fixity
 import Syntax.Concrete.Pretty ()    -- need Show instance for Declaration
 
 #include "../../undefined.h"

@@ -6,9 +6,11 @@
 module Syntax.Interface where
 
 import Syntax.Common
+import Syntax.Fixity
+import Syntax.Abstract.Name
 
 data Interface =
-	Interface   { moduleName	:: QName
+	Interface   { moduleName	:: ModuleName
 		    , arity		:: Arity
 		    , definedNames	:: [(Name, Fixity)]
 		    , constructorNames	:: [(Name, Fixity)]

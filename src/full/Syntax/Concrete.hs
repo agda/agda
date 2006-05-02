@@ -8,7 +8,7 @@
 module Syntax.Concrete
     ( -- * Expressions
       Expr(..)
-    , Name(..), QName(..)
+    , module Syntax.Concrete.Name
     , appView, AppView(..)
       -- * Bindings
     , LamBinding(..)
@@ -31,6 +31,10 @@ import Data.Generics hiding (Fixity, Infix)
 
 import Syntax.Position
 import Syntax.Common
+import Syntax.Fixity
+import Syntax.Literal
+
+import Syntax.Concrete.Name
 
 -- | A constructor declaration is just a type signature.
 type Constructor = TypeSignature

@@ -29,7 +29,8 @@ import Control.Monad.Error
 
 import Syntax.Common
 import Syntax.Position
-
+import Syntax.Abstract.Name
+import Syntax.Literal
 
 -- ! Type of argument lists. Might want to later add hidden info...
 --

@@ -22,7 +22,7 @@ import Syntax.Parser.LexActions
 import Syntax.Parser.Monad
 import Syntax.Parser.StringLiterals
 import Syntax.Parser.Tokens
-import Syntax.Common
+import Syntax.Literal
 
 }
 

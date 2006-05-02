@@ -13,9 +13,9 @@ module Syntax.Concrete.Fixity where
 import Control.Exception
 import Data.Typeable
 
-import Syntax.Common
 import Syntax.Concrete
 import Syntax.Position
+import Syntax.Fixity
 
 -- | Thrown by 'rotateInfixApp' if the correct bracketing cannot be deduced.
 data InfixException = BadInfixApp Range (QName, Fixity) (QName, Fixity)

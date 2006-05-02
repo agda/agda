@@ -13,6 +13,7 @@ import Control.Monad.Reader
 import Syntax.Common
 import Syntax.Position
 import Syntax.Info
+import Syntax.Fixity
 import Syntax.Concrete as C
 import Syntax.Abstract as A
 
@@ -84,14 +85,14 @@ bracketP par m =
 
 -- | If a name is defined with a fixity that differs from the default, we have
 --   to generate a fixity declaration for that name.
-withInfixDecl :: DefInfo -> Name -> AbsToCon [C.Declaration] -> AbsToCon [C.Declaration]
+withInfixDecl :: DefInfo -> C.Name -> AbsToCon [C.Declaration] -> AbsToCon [C.Declaration]
 withInfixDecl i x m
     | defFixity i == defaultFixity  = m
     | otherwise			    =
 	do  ds <- m
 	    return $ C.Infix (defFixity i) [x] : ds
 
-withInfixDecls :: [(DefInfo, Name)] -> AbsToCon [C.Declaration] -> AbsToCon [C.Declaration]
+withInfixDecls :: [(DefInfo, C.Name)] -> AbsToCon [C.Declaration] -> AbsToCon [C.Declaration]
 withInfixDecls = foldr (.) id . map (uncurry withInfixDecl)
 
 -- Dealing with private definitions ---------------------------------------
@@ -129,6 +130,9 @@ instance ToConcrete ExprInfo (Maybe C.Expr) where
     toConcrete _		= return Nothing
 
 instance ToConcrete DeclInfo (Maybe [C.Declaration]) where
+    toConcrete = toConcrete . declSource
+
+instance ToConcrete DeclSource (Maybe [C.Declaration]) where
     toConcrete (DeclSource ds)	= stored ds
     toConcrete _		= return Nothing
 
@@ -144,18 +148,48 @@ instance ToConcrete PatInfo (Maybe C.Pattern) where
 	    stored (f p)
     toConcrete (PatRange _) = return Nothing
 
-newtype Force a = Force a
-
-instance ToConcrete i (Maybe c) => ToConcrete (Force i) c where
-    toConcrete (Force i) =
-	do  Just c <- local (\s -> s { useStoredConcreteSyntax = True })
-			$ toConcrete i
-	    return c
+instance ToConcrete ModuleInfo (Maybe [C.Declaration]) where
+    toConcrete = toConcrete . minfoSource
 
 -- General instances ------------------------------------------------------
 
 instance ToConcrete a c => ToConcrete [a] [c] where
     toConcrete = mapM toConcrete
+
+instance (ToConcrete a1 c1, ToConcrete a2 c2) => ToConcrete (a1,a2) (c1,c2) where
+    toConcrete (x,y) = liftM2 (,) (toConcrete x) (toConcrete y)
+
+instance (ToConcrete a1 c1, ToConcrete a2 c2, ToConcrete a3 c3) =>
+	 ToConcrete (a1,a2,a3) (c1,c2,c3) where
+    toConcrete (x,y,z) = reorder <$> toConcrete (x,(y,z))
+	where
+	    reorder (x,(y,z)) = (x,y,z)
+
+newtype DontTouchMe a = DontTouchMe a
+
+instance ToConcrete (DontTouchMe a) a where
+    toConcrete (DontTouchMe x) = return x
+
+-- | @Force@ is the type level equivalent of @fromJust@.
+--   If @toConcrete a :: Maybe c@, then @toConcrete (Force a) :: c@
+newtype Force a = Force a
+
+instance ToConcrete a (Maybe c) => ToConcrete (Force a) c where
+    toConcrete (Force a) =
+	do  Just c <- local (\s -> s { useStoredConcreteSyntax = True })
+			$ toConcrete a
+	    return c
+
+-- Names ------------------------------------------------------------------
+
+instance ToConcrete A.Name C.Name where
+    toConcrete = return . nameConcrete
+
+instance ToConcrete A.QName C.QName where
+    toConcrete = return . qnameConcrete
+
+instance ToConcrete A.ModuleName C.QName where
+    toConcrete = return . mnameConcrete
 
 -- Expression instance ----------------------------------------------------
 
@@ -210,35 +244,38 @@ instance ToConcrete A.Expr C.Expr where
 -- Binder instances -------------------------------------------------------
 
 instance ToConcrete A.LamBinding C.LamBinding where
-    toConcrete (A.DomainFree h x) = return $ C.DomainFree h x
+    toConcrete (A.DomainFree h x) = C.DomainFree h <$> toConcrete x
     toConcrete (A.DomainFull b)   = C.DomainFull <$> toConcrete b
 
 instance ToConcrete A.TypedBinding C.TypedBinding where
     toConcrete (A.TypedBinding r h xs e) =
-	C.TypedBinding r h xs <$> toConcreteCtx TopCtx e
+	C.TypedBinding r h <$> toConcrete xs <*> toConcreteCtx TopCtx e
 
 -- Declaration instances --------------------------------------------------
 
 instance ToConcrete [A.Declaration] [C.Declaration] where
     toConcrete ds = concat <$> mapM toConcrete ds
 
-instance ToConcrete (A.TypeSignature, A.Definition) [C.Declaration] where
+data TypeAndDef = TypeAndDef A.TypeSignature A.Definition
+
+instance ToConcrete TypeAndDef [C.Declaration] where
 
     -- We don't do withInfixDecl here. It's done at the declaration level.
 
-    toConcrete (Axiom _ x t, FunDef i _ cs) =
+    toConcrete (TypeAndDef (Axiom _ x t) (FunDef i _ cs)) =
 	withPrivate i $
 	do  t'  <- toConcreteCtx TopCtx t
 	    cs' <- withStored i $ toConcrete cs
-	    return $ TypeSig x t' : cs'
+	    x'  <- toConcrete x
+	    return $ TypeSig x' t' : cs'
 
-    toConcrete (Axiom _ x t, DataDef i _ bs cs) =
+    toConcrete (TypeAndDef (Axiom _ x t) (DataDef i _ bs cs)) =
 	withPrivate i $
 	withStored  i $
-	do  tel' <- toConcrete tel
-	    t'   <- toConcreteCtx TopCtx t0
-	    cs'  <- toConcrete $ map Constr cs
-	    return [ C.Data (getRange i) x tel' t' cs' ]
+	do  tel'     <- toConcrete tel
+	    t'	     <- toConcreteCtx TopCtx t0
+	    (x',cs') <- toConcrete (x, map Constr cs)
+	    return [ C.Data (getRange i) x' tel' t' cs' ]
 	where
 	    (tel, t0) = mkTel (length bs) t
 	    mkTel 0 t		    = ([], t)
@@ -251,7 +288,7 @@ newtype Constr a = Constr a
 
 instance ToConcrete (Constr A.Constructor) C.Declaration where
     toConcrete (Constr (A.Axiom i x t)) =
-	C.TypeSig x <$> toConcreteCtx TopCtx t
+	C.TypeSig <$> toConcrete x <*> toConcreteCtx TopCtx t
     toConcrete _ = __IMPOSSIBLE__
 
 instance ToConcrete A.Clause C.Declaration where
@@ -264,26 +301,29 @@ instance ToConcrete A.Clause C.Declaration where
 instance ToConcrete A.Declaration [C.Declaration] where
 
     toConcrete (Axiom i x t) =
-	withPrivate   i   $
-	withInfixDecl i x $
-	withStored    i   $
-	do  t' <- toConcreteCtx TopCtx t
-	    return [C.Postulate (getRange i) [C.TypeSig x t']]
+	do  x' <- toConcrete x
+	    withPrivate	      i    $
+		withInfixDecl i x' $
+		withStored    i    $
+		do  t' <- toConcreteCtx TopCtx t
+		    return [C.Postulate (getRange i) [C.TypeSig x' t']]
 
     toConcrete (Synonym i x e wh) =
-	withPrivate   i   $
-	withInfixDecl i x $
-	withStored    i   $
-	do  e'  <- toConcreteCtx TopCtx e
-	    wh' <- toConcrete wh
-	    return [C.FunClause (C.LHS (getRange x) PrefixDef x []) e' wh']
+	do  x' <- toConcrete x
+	    withPrivate	      i    $
+		withInfixDecl i x' $
+		withStored    i    $
+		do  e'  <- toConcreteCtx TopCtx e
+		    wh' <- toConcrete wh
+		    return [C.FunClause (C.LHS (getRange x) PrefixDef x' []) e' wh']
 
     toConcrete (Definition i ts ds) =
-	withPrivates   is  $
-	withInfixDecls ixs $
-	withStored     i   $
-	do  ds' <- concat <$> toConcrete (zip ts ds)
-	    return [C.Mutual (getRange i) ds']
+	do  ixs' <- toConcrete $ map (DontTouchMe -*- id) ixs
+	    withPrivates       is   $
+		withInfixDecls ixs' $
+		withStored     i    $
+		do  ds' <- concat <$> toConcrete (zipWith TypeAndDef ts ds)
+		    return [C.Mutual (getRange i) ds']
 	where
 	    ixs = map getInfoAndName ts
 	    is  = map fst ixs
@@ -297,17 +337,16 @@ instance ToConcrete A.Declaration [C.Declaration] where
 
     toConcrete (A.Module i x tel ds) =
 	withStored i $
-	do  tel' <- toConcrete tel
-	    ds'  <- toConcrete ds
-	    return [C.Module (getRange i) x tel' ds']
+	do  (x',tel',ds')  <- toConcrete (x,tel,ds)
+	    return [C.Module (getRange i) x' tel' ds']
 
     -- There is no way we could restore module defs, imports and opens
     -- without having the concrete version stored away.
-    toConcrete (A.ModuleDef (DefInfo _ _ (DeclSource ds)) _ _ _ _)
+    toConcrete (A.ModuleDef (ModuleInfo _ (DeclSource ds)) _ _ _ _)
 					= return ds
     toConcrete (A.ModuleDef _ _ _ _ _)	= __IMPOSSIBLE__
 
-    toConcrete (A.Import (DeclSource ds) _) = return ds
+    toConcrete (A.Import (ModuleInfo _ (DeclSource ds)) _) = return ds
     toConcrete (A.Import _ _) = __IMPOSSIBLE__
 
     toConcrete (A.Open (DeclSource ds))	= return ds
@@ -322,11 +361,11 @@ instance ToConcrete a c => ToConcrete (Arg a) (Arg c) where
 instance ToConcrete A.LHS C.LHS where
     toConcrete (A.LHS i x args) =
 	withStored i $
-	do  args' <- toConcrete args
-	    return $ C.LHS (getRange i) PrefixDef x args'
+	do  (x',args') <- toConcrete (x,args)
+	    return $ C.LHS (getRange i) PrefixDef x' args'
 
 instance ToConcrete A.Pattern C.Pattern where
-    toConcrete (VarP x)		= return $ IdentP (QName x)
+    toConcrete (VarP x)		= IdentP . C.QName <$> toConcrete x
     toConcrete (A.WildP i)	=
 	withStored i $ return $ C.WildP (getRange i)
     toConcrete (ConP i x args)  = toConcrete (Force i)

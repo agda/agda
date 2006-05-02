@@ -16,8 +16,12 @@ import Syntax.Parser.Monad
 import Syntax.Parser.Lexer
 import Syntax.Parser.Tokens
 import Syntax.Concrete
+import Syntax.Concrete.Name
 import Syntax.Interface
 import Syntax.Common
+import Syntax.Fixity
+import Syntax.Literal
+import qualified Syntax.Abstract.Name as A
 
 import Utils.Monad
 
@@ -180,7 +184,7 @@ Interface
 	constructors ':' CommaNamesWithFixities
 	Interfaces
       close
-			{ Interface { moduleName	= $2
+			{ Interface { moduleName	= A.mkModuleName $2
 				    , arity		= $4
 				    , definedNames	= $9
 				    , constructorNames	= $13
@@ -192,24 +196,28 @@ Interfaces :: { [Interface] }
 Interfaces : {- empty -}		{ [] }
 	   | vsemi Interface Interfaces { $2 : $3 }
 
-NameWithFixity :: { (Name, Fixity) }
-NameWithFixity
-    : Name		{ ($1, defaultFixity) }
-    | 'infix' Int Name	{ ($3, NonAssoc (fuseRange $1 $3) $2) }
-    | 'infixl' Int Name	{ ($3, LeftAssoc (fuseRange $1 $3) $2) }
-    | 'infixr' Int Name	{ ($3, RightAssoc (fuseRange $1 $3) $2) }
+AbsName :: { A.Name }
+AbsName : Name At Int	   { A.Name $3 $1 }
+
+AbsNameWithFixity :: { (A.Name, Fixity) }
+AbsNameWithFixity
+    : AbsName		   { ($1, defaultFixity) }
+    | 'infix'  Int AbsName { ($3, NonAssoc (fuseRange $1 $3) $2) }
+    | 'infixl' Int AbsName { ($3, LeftAssoc (fuseRange $1 $3) $2) }
+    | 'infixr' Int AbsName { ($3, RightAssoc (fuseRange $1 $3) $2) }
 
 CommaNamesWithFixities
     : {- empty -}		{ [] }
     | CommaNamesWithFixities1	{ $1 }
 
 CommaNamesWithFixities1
-    : NameWithFixity				    { [$1] }
-    | NameWithFixity ',' CommaNamesWithFixities1    { $1 : $3 }
+    : AbsNameWithFixity				    { [$1] }
+    | AbsNameWithFixity ',' CommaNamesWithFixities1 { $1 : $3 }
 
-Slash		: op	{% isName "/" $1 }
-functions	: id	{% isName "functions" $1 }
-constructors	: id	{% isName "constructors" $1 }
+Slash	     : op {% isName "/" $1 }
+At	     : op {% isName "@" $1 }
+functions    : id {% isName "functions" $1 }
+constructors : id {% isName "constructors" $1 }
 
 {--------------------------------------------------------------------------
     Meta rules

@@ -6,7 +6,8 @@ module Syntax.Parser.Tokens
     , Symbol(..)
     ) where
 
-import Syntax.Common (Name, QName, Literal)
+import Syntax.Literal (Literal)
+import Syntax.Concrete.Name (Name, QName)
 import Syntax.Position
 
 data Keyword

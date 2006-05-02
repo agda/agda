@@ -11,7 +11,7 @@ import System.Exit
 
 import Syntax.Parser
 import Syntax.Concrete.Pretty ()
-import Syntax.Internal ()
+-- import Syntax.Internal ()
 import Syntax.Translation.ConcreteToAbstract
 import Syntax.Translation.AbstractToConcrete
 import Interaction.Exceptions
@@ -40,7 +40,9 @@ main =
 		    [m2] = abstractToConcrete
 				(defaultFlags { useStoredConcreteSyntax = False })
 				m'
-		if test then do	checkAbstract m' m1
+		if test then do	putStrLn "With stored concrete syntax"
+				checkAbstract m' m1
+				putStrLn "Without stored concrete syntax"
 				checkAbstract m' m2
 			else print m1
 	checkAbstract am cm =

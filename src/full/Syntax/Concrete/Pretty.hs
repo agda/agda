@@ -8,6 +8,8 @@ import Data.Char
 
 import Syntax.Common
 import Syntax.Concrete
+import Syntax.Fixity
+import Syntax.Literal
 
 import Utils.Pretty
 import Utils.Unicode

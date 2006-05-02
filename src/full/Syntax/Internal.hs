@@ -28,7 +28,8 @@ import Control.Monad.Writer
 import Control.Monad.Error
 
 import Syntax.Common
-import Syntax.Position
+import Syntax.Literal
+import Syntax.Abstract.Name
 
 -- | It's not clear what kind of information we want in the internal syntax.
 --   Since we will be manipulating internal syntax quite a lot it's important
@@ -59,7 +60,7 @@ instance Eq Value where
     v1      == v2      = False
 
 var i   = Var i              Duh
-lam m   = Lam (Abs noName m) Duh
+lam m   = Lam (Abs "x" m)    Duh
 app m n = App m n NotHidden  Duh
 metaV x = MetaV x            Duh
 
@@ -71,7 +72,7 @@ data Type = El Value Sort      Info
   deriving (Typeable, Data, Show)
 
 pi a b = Pi a b              Duh
-lamT a = LamT (Abs noName a) Duh
+lamT a = LamT (Abs "A" a)    Duh
 set0   = Sort (Type 0 Duh)   Duh
 set n  = Sort (Type n Duh)   Duh
 sort s = Sort s              Duh
@@ -92,13 +93,13 @@ data Sort = Type Nat Info
 prop    = Prop Duh
 metaS x = MetaS x Duh
 
-data Abs a = Abs Name a deriving (Typeable, Data, Show)
+data Abs a = Abs String a deriving (Typeable, Data, Show)
 data Why   = Why        deriving (Typeable, Data, Show)
 
 -- | Check if given term is an abstraction.
 --
 isAbs :: Data a => a -> Bool
-isAbs x = dataTypeName (dataTypeOf x) == dataTypeName (dataTypeOf (Abs (Name noRange "") ()))
+isAbs x = dataTypeName (dataTypeOf x) == dataTypeName (dataTypeOf (Abs "" ()))
 
 -- | Apply @f@ everywhere in a term, until told not to. 
 --   Local reader state keeps track of how many binders have been passed.
@@ -263,6 +264,12 @@ genSym = do
     v <- gets genSymSt
     modify (\st -> st{ genSymSt = v + 1})
     return v
+
+-- | Create a fresh name
+freshName :: String -> TCM Name
+freshName s =
+    do	i <- genSym
+	return $ mkName i s
 
 -- | Generate [Var 0 Duh, Var 1 Duh, ...] for all declarations in context.
 --   Used to make arguments for newly generated @Type@ metavars.
@@ -433,7 +440,7 @@ type Signature = Context
 
 data CtxElm = Decl Name Type (Maybe [Name]) -- ^ ind. types have list of constructors
 	    | Defn Name [Clause]
-	    | NameSpace Name Context
+	    | NameSpace ModuleName Context
   deriving (Typeable, Data, Show)
 
 isDecl ce = case ce of Decl _ _ _    -> True; _ -> False
@@ -465,10 +472,12 @@ getConstInfoM fun c = do
     return $ getConstInfo fun (ctx++sig) c
 
 getConstInfo :: (Signature -> Name -> a) -> Context -> QName -> a
-getConstInfo fun ctx (Qual pkg name) = 
+getConstInfo fun ctx c = -- (Qual pkg name) = 
     case L.find (\ (NameSpace x _) -> x == pkg) (filter isNmsp ctx) of
-        Just (NameSpace _ ctx') -> getConstInfo fun ctx' name
-getConstInfo fun ctx (QName c) = fun ctx c
+        Just (NameSpace _ ctx') -> fun ctx' name
+    where
+	pkg  = qnameModule c
+	name = qnameName c
 
 -- | get type of a constant 
 --
@@ -707,10 +716,11 @@ equalVal _ a m n = do
     a' <- instType a
     case basicType a' of
         PiBT a (Abs name b) -> 
-            let p = var 0
-                m' = adjust 1 m
-                n' = adjust 1 n
-            in addCtx name a $ equalVal Why b (app m' p) (app n' p)
+            do	let p = var 0
+		    m' = adjust 1 m
+		    n' = adjust 1 n
+		x <- freshName name
+		addCtx x a $ equalVal Why b (app m' p) (app n' p)
         MetaTBT x _ -> addCnstr [x] (ValueEq a m n)
         _ -> catchConstr (ValueEq a' m n) $ equalAtm Why m n
 
@@ -760,18 +770,25 @@ equalTyp _ a1 a2 = do
             equalVal Why (sort s1) m1 m2
         (PiBT a1 (Abs name a2), PiBT b1 (Abs _ b2)) -> do
             equalTyp Why a1 b1
-            addCtx name a1 $ equalTyp Why (subst (var 0) a2) (subst (var 0) b2)
+	    x <- freshName name
+            addCtx x a1 $ equalTyp Why (subst (var 0) a2) (subst (var 0) b2)
         (SortBT s1, SortBT s2) -> return ()
         (MetaTBT x xDeps, MetaTBT y yDeps) | x == y -> 
             equalSameVar (metaT []) InstT x xDeps yDeps
         (MetaTBT x xDeps, a) -> assign x xDeps a 
         (a, MetaTBT x xDeps) -> assign x xDeps a 
 
+-- Normalize --------------------------------------------------------------
+
+normalize :: GenericM TCM
+normalize v = walk (mkM (\v -> lift $ lift  $ reduceM v)) v
+
 
 ---------------------------------------------------------------------------
 --
 -- Example
 --
+{-
 test x = runReaderT (runStateT x testSt{sigSt = []}) []
 
 newmetaT = newMeta (metaT []) $ UnderScoreT prop []
@@ -782,10 +799,8 @@ eqTest = do
     
    
 
-testRed v = runReaderT (evalStateT (reduceM v) testSt) []
+--testRed v = runReaderT (evalStateT (reduceM v) testSt) []
 
-normalize :: GenericM TCM
-normalize v = walk (mkM (\v -> lift $ lift  $ reduceM v)) v
 testNrm v = runReaderT (evalStateT (normalize v) testSt) []
 
 testSt = TCSt {
@@ -842,12 +857,4 @@ testSig = [
             Duh
   ]
  ]
-
-s = Def (QName $ Name noRange "S") Duh
-z = Def (QName $ Name noRange "Z") Duh
-plus = Def (QName $ Name noRange "plus") Duh
-
-two = app s (app s z)
-three = app s (app s (app s z))
-
-
+-}

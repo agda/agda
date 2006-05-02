@@ -12,7 +12,7 @@ import Data.Typeable
 import System.Directory
 
 import Syntax.Position
-import Syntax.Common
+import Syntax.Concrete.Name
 import Syntax.Interface
 import Syntax.Parser
 

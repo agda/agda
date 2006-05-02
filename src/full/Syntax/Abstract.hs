@@ -4,11 +4,15 @@
     producing internal syntax ("Syntax.Internal").
 -}
 module Syntax.Abstract
-    where
+    ( module Syntax.Abstract
+    , module Syntax.Abstract.Name
+    ) where
 
 import Syntax.Info
 import Syntax.Common
 import Syntax.Position
+import Syntax.Abstract.Name
+import Syntax.Literal
 
 data Expr
         = Var  NameInfo  Name		    -- ^ Bound variables
@@ -29,10 +33,10 @@ data Declaration
 	| Synonym    DefInfo Name Expr [Declaration]		-- ^ definition of the form @x = e@
 	| Definition DeclInfo [TypeSignature] [Definition]	-- ^ a bunch of mutually recursive definitions
 	| Abstract   DeclInfo [Declaration]
-	| Module     DefInfo QName Telescope [Declaration]
-	| ModuleDef  DefInfo Name  Telescope QName [Arg Expr]
-	| Import     DeclInfo QName
-	| Open	     DeclInfo	    -- ^ this one is here only to enable translation
+	| Module     ModuleInfo ModuleName Telescope [Declaration]
+	| ModuleDef  ModuleInfo ModuleName Telescope ModuleName [Arg Expr]
+	| Import     ModuleInfo ModuleName
+	| Open	     DeclSource	    -- ^ this one is here only to enable translation
 				    --   back to concrete syntax
 
 -- | A definition without its type signature.

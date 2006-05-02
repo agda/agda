@@ -26,7 +26,8 @@ import Syntax.Parser.Alex
 import Syntax.Parser.Monad
 import Syntax.Parser.Tokens
 import Syntax.Position
-import Syntax.Common
+import Syntax.Literal
+import Syntax.Concrete.Name
 
 import Utils.List
 import Utils.Tuple

@@ -11,6 +11,7 @@ import Syntax.Common
 import Syntax.Position
 import Syntax.Concrete
 import Syntax.Scope
+import Syntax.Fixity
 
 {--------------------------------------------------------------------------
     No information
@@ -62,7 +63,25 @@ instance HasRange ExprInfo where
 
 
 {--------------------------------------------------------------------------
-    Definition information (declarations that actually defines somethis)
+    Module information
+ --------------------------------------------------------------------------}
+
+data ModuleInfo =
+	ModuleInfo { minfoAccess :: Access
+		   , minfoSource :: DeclSource
+		   }
+
+mkRangedModuleInfo :: Access -> Range -> ModuleInfo
+mkRangedModuleInfo a r = ModuleInfo a (DeclRange r)
+
+mkSourcedModuleInfo :: Access -> [Declaration] -> ModuleInfo
+mkSourcedModuleInfo a ds = ModuleInfo a (DeclSource ds)
+
+instance HasRange ModuleInfo where
+    getRange = getRange . minfoSource
+
+{--------------------------------------------------------------------------
+    Definition information (declarations that actually defines something)
  --------------------------------------------------------------------------}
 
 data DefInfo =
@@ -71,11 +90,11 @@ data DefInfo =
 		, defInfo   :: DeclInfo
 		}
 
-mkRangedDefInfo :: Fixity -> Access -> Range -> DefInfo
-mkRangedDefInfo f a r = DefInfo f a (DeclRange r)
+mkRangedDefInfo :: Name -> Fixity -> Access -> Range -> DefInfo
+mkRangedDefInfo x f a r = DefInfo f a (DeclInfo x $ DeclRange r)
 
-mkSourcedDefInfo :: Fixity -> Access -> [Declaration] -> DefInfo
-mkSourcedDefInfo f a ds = DefInfo f a (DeclSource ds)
+mkSourcedDefInfo :: Name -> Fixity -> Access -> [Declaration] -> DefInfo
+mkSourcedDefInfo x f a ds = DefInfo f a (DeclInfo x $ DeclSource ds)
 
 instance HasRange DefInfo where
     getRange = getRange . defInfo
@@ -84,11 +103,21 @@ instance HasRange DefInfo where
     General declaration information
  --------------------------------------------------------------------------}
 
-data DeclInfo
+data DeclInfo =
+	DeclInfo { declName   :: Name
+		 , declSource :: DeclSource
+		 }
+	deriving (Eq)
+
+data DeclSource
 	= DeclRange  Range
 	| DeclSource [Declaration]
+	deriving (Eq)
 
 instance HasRange DeclInfo where
+    getRange = getRange . declSource
+
+instance HasRange DeclSource where
     getRange (DeclRange  r)  = r
     getRange (DeclSource ds) = getRange ds
 
