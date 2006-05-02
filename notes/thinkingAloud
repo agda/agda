@@ -1,0 +1,29 @@
+
+Topic: Unique names in abstract syntax.
+
+  * The names of local functions can clash and it's not clear how to
+    disambiguate them if names are (qualified) strings.
+
+  * So unique identifiers (numbers) for names sounds like a good idea.
+
+  * Problem: Module system, in particular separate type checking and
+    interface files. If names are identified by globally unique
+    numbers we're in trouble.
+
+  * Solution: qualified unique numbers. A name is a pair of a module
+    and a unique number.
+
+  * Question: How qualified (top-level modules or also sub-modules)?
+
+  * Answer: It feels better to treat top-level modules and sub-modules
+    the same as far as possible, so each module (including
+    sub-modules) should have its own set of unique identifiers.
+
+Topic: Module names vs. function names
+
+  * Since there is no confusion between module names and function
+  names (they can never appear in the same place) it makes sense to
+  have different representations for them. For clarity if nothing
+  else.
+
+ vim: sts=2 sw=2 tw=70
