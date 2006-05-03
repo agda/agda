@@ -12,6 +12,7 @@ import TypeChecking.Monad
 import TypeChecking.Reduce
 import TypeChecking.Substitute
 import TypeChecking.Constraints
+import Utils.Fresh
 
 #include "../undefined.h"
 
@@ -35,11 +36,11 @@ allCtxVars = do
     ctx <- ask
     return $ map (\i -> Var i []) $ [0 .. length ctx - 1]
 
-setRef :: Data a => a -> MId -> MetaVariable -> TCM ()
+setRef :: Data a => a -> MetaId -> MetaVariable -> TCM ()
 setRef _ x v = do
-    store <- gets metaSt
+    store <- gets stMetaStore
     let (cIds, store') = replace [] store
-    modify (\st -> st{metaSt = store'})
+    modify (\st -> st{stMetaStore = store'})
     mapM_ wakeup cIds
   where
     replace passed ((y,var):mIds) = 
@@ -50,18 +51,18 @@ setRef _ x v = do
 -- | Generate new meta variable.
 --   The @MetaVariable@ arg (2nd arg) is meant to be either @UnderScore@X or @Hole@X.
 --
-newMeta :: (MId -> a) -> MetaVariable -> TCM a
+newMeta :: (MetaId -> a) -> MetaVariable -> TCM a
 newMeta meta initialVal = do
-    x <- genSym
-    modify (\st -> st{metaSt = (x, initialVal):(metaSt st)})
+    x <- fresh
+    modify (\st -> st{stMetaStore = (x, initialVal):(stMetaStore st)})
     return $ meta x
 
 -- | Used to give an initial value to newMeta.  
 --   The constraint list will be filled-in as needed during assignment.
 --
-getMeta :: MId -> Args -> TCM (MetaVariable)
+getMeta :: MetaId -> Args -> TCM MetaVariable
 getMeta x args = do
-    store <- gets metaSt
+    store <- gets stMetaStore
     case lookup x store of
         Just (UnderScoreV _ _) -> do
             s <- newMeta MetaS $ UnderScoreS []
@@ -77,16 +78,16 @@ getMeta x args = do
 	_   -> __IMPOSSIBLE__
 
 -- | Generate new metavar of same kind (@Hole@X or @UnderScore@X) as that
---     pointed to by @MId@ arg.
+--     pointed to by @MetaId@ arg.
 --
-newMetaSame :: MId -> Args -> (MId -> a) -> TCM a
+newMetaSame :: MetaId -> Args -> (MetaId -> a) -> TCM a
 newMetaSame x args meta = do
     (v) <- getMeta x args
     newMeta meta v
 
 -- | Extended occurs check
 --
-occ :: MId -> [Int] -> GenericM TCM
+occ :: MetaId -> [Int] -> GenericM TCM
 occ y okVars v = go v where
     go v = walk (mkM occVal) v --`extM` occTyp
     occMVar inst meta x args =
@@ -131,7 +132,7 @@ occ y okVars v = go v where
 --   First check that metavar args are in pattern fragment.
 --     Then do extended occurs check on given thing.
 --
-assign :: MId -> [Value] -> GenericQ (TCM ())
+assign :: MetaId -> [Value] -> GenericQ (TCM ())
 assign x args = mkQ (fail "assign") (ass InstV) `extQ` (ass InstT) where
     ass :: (Show a, Data a) => (a -> MetaVariable) -> a -> TCM ()
     ass inst v = do
@@ -149,7 +150,7 @@ assign x args = mkQ (fail "assign") (ass InstV) `extQ` (ass InstT) where
 --
 --   @reverse@ is necessary because we are directly abstracting over this list @ids@.
 --
-checkArgs :: MId -> [Value] -> TCM [Int]
+checkArgs :: MetaId -> [Value] -> TCM [Int]
 checkArgs x args = go [] args where
     go ids  []           = return $ reverse ids
     go done (arg : args) = case arg of 

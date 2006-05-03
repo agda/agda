@@ -17,7 +17,7 @@ import TypeChecking.Constraints
 -- | Equality of two instances of the same metavar
 --
 equalSameVar :: Data a => 
-                (MId -> a) -> (a -> MetaVariable) -> MId -> [Value] -> [Value] -> TCM ()
+                (MetaId -> a) -> (a -> MetaVariable) -> MetaId -> [Value] -> [Value] -> TCM ()
 equalSameVar meta inst x args1 args2 =
     if length args1 == length args2 then do
         -- next 2 checks could probably be nicely merged into construction 

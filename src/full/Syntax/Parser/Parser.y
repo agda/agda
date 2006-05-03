@@ -197,7 +197,7 @@ Interfaces : {- empty -}		{ [] }
 	   | vsemi Interface Interfaces { $2 : $3 }
 
 AbsName :: { A.Name }
-AbsName : Name At Int	   { A.Name $3 $1 }
+AbsName : Name At Int	   { A.Name (A.NameId $3) $1 }
 
 AbsNameWithFixity :: { (A.Name, Fixity) }
 AbsNameWithFixity

@@ -21,7 +21,7 @@ import TypeChecking.Substitute
 instType :: Type -> TCM Type
 instType a = case a of
     (MetaT x args) -> do 
-        store <- gets metaSt
+        store <- gets stMetaStore
         case lookup x store of
             Just (InstT a') -> instType $ reduceType a' args
             Just _          -> return a
@@ -40,7 +40,7 @@ reduceType a args = case a of
 instSort :: Sort -> TCM Sort
 instSort s = case s of
     (MetaS x) -> do 
-        store <- gets metaSt
+        store <- gets stMetaStore
         case lookup x store of
             Just (InstS s') -> instSort s'
             Just _          -> return s
@@ -58,7 +58,7 @@ instSort s = case s of
 --     So @reduce st ctx sig (c m1 m2) == c m1 m2@ when @c@ is an 
 --     undefined constant.
 --
-reduce :: Store -> Context -> Signature -> Value -> Value
+reduce :: MetaStore -> Context -> Signature -> Value -> Value
 reduce store ctx sig v = go v where
     go v = case v of
         Lam (Abs _ v') (arg:args) -> go $ addArgs args (subst (go arg) v')
@@ -123,9 +123,9 @@ reduce store ctx sig v = go v where
 --
 reduceM :: Value -> TCM Value
 reduceM v = do
-    store <- gets metaSt
+    store <- gets stMetaStore
     ctx   <- ask
-    sig   <- gets sigSt
+    sig   <- gets stSignature
     return $ reduce store ctx sig v
 
 

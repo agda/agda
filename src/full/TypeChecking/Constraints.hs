@@ -11,6 +11,8 @@ import TypeChecking.Monad
 import {-# SOURCE #-} TypeChecking.Conversion
 #endif
 
+import Utils.Fresh
+
 #include "../undefined.h"
 
 -- | Catch pattern violation errors and adds a constraint.
@@ -23,32 +25,32 @@ catchConstr cnstr v =
        )
 
 -- | add a new constraint
---   first arg is a list of @MId@s which should wake-up the constraint
+--   first arg is a list of @MetaId@s which should wake-up the constraint
 --
-addCnstr :: MId -> Constraint -> TCM ()
+addCnstr :: MetaId -> Constraint -> TCM ()
 addCnstr mId c = do
     ctx <- ask
-    sig <- gets sigSt
-    cId <- genSym
+    sig <- gets stSignature
+    cId <- fresh
     modify (\st -> st{
-        cnstrSt = (cId,(sig,ctx,c)) : cnstrSt st,
-        metaSt = map (addTrigger cId) $ metaSt st
+        stConstraints = (cId,(sig,ctx,c)) : stConstraints st,
+        stMetaStore = map (addTrigger cId) $ stMetaStore st
         })        
   where
     addTrigger cId (id, mInfo) =  (id, if id == mId then addCId cId mInfo else mInfo)
 
 wakeup cId = do
-    cnstrs <- gets cnstrSt
+    cnstrs <- gets stConstraints
     case lookup cId cnstrs of
         Just (sig, ctx, ValueEq a m1 m2) -> go sig ctx $ equalVal Why a m1 m2
         Just (sig, ctx, TypeEq a1 a2)    -> go sig ctx $ equalTyp Why a1 a2
 	_				 -> __IMPOSSIBLE__
   where
     go sig ctx v = do
-        sigCurrent <- gets sigSt
-        modify (\st -> st{sigSt = sig})
+        sigCurrent <- gets stSignature
+        modify (\st -> st{stSignature = sig})
         local (\_ -> ctx) v
-        modify (\st -> st{sigSt = sigCurrent})
+        modify (\st -> st{stSignature = sigCurrent})
 
 getCIds (UnderScoreV _ cIds) = cIds
 getCIds (UnderScoreT _ cIds) = cIds

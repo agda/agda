@@ -1,4 +1,4 @@
-{-# OPTIONS -fglasgow-exts -fno-warn-incomplete-patterns #-}
+{-# OPTIONS -fglasgow-exts #-}
 
 module Syntax.Internal
     ( module Syntax.Internal
@@ -22,13 +22,13 @@ data Value = Var Nat Args
 	   | Lam (Abs Value) Args -- ^ allow for redexes
 	   | Lit Literal
 	   | Def QName Args
-	   | MetaV MId Args
+	   | MetaV MetaId Args
   deriving (Typeable, Data)
 
 data Type = El Value Sort     
 	  | Pi Type (Abs Type)
 	  | Sort Sort         
-	  | MetaT MId Args  -- ^ list of dependencies for metavars
+	  | MetaT MetaId Args  -- ^ list of dependencies for metavars
           | LamT (Abs Type) -- ^ abstraction needed for metavar dependency management, !!! is a type necessary?
   deriving (Typeable, Data)
 
@@ -38,7 +38,7 @@ type Args = [Value]
 
 data Sort = Type Nat
 	  | Prop 
-	  | MetaS MId 
+	  | MetaS MetaId 
 	  | Lub Sort Sort 
   deriving (Typeable, Data)
 
@@ -69,7 +69,11 @@ data Pattern = VarP Name
              | WildP
   deriving (Typeable, Data)
 
-type MId = Int
+newtype MetaId = MetaId Nat
+    deriving (Eq, Ord, Num, Typeable, Data)
+
+instance Show MetaId where
+    show (MetaId n) = show n
 
 ---------------------------------------------------------------------------
 -- * Smart constructors

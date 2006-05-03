@@ -14,7 +14,8 @@ import qualified Syntax.Concrete.Name as C
 import Utils.Fresh
 
 -- | The unique identifier of a name.
-type NameId = Nat
+newtype NameId = NameId Nat
+    deriving (Eq, Ord, Show, Num, Typeable, Data)
 
 -- | Modules are (temporarily) identified by their concrete names.
 type ModuleId = C.QName

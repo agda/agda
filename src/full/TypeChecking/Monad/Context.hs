@@ -39,7 +39,7 @@ typeOfBV n = do
 getConstInfoM :: (Signature -> Name -> a) -> QName -> TCM a
 getConstInfoM fun c = do
     ctx <- ask  -- need to look here for local definitions
-    sig <- gets sigSt 
+    sig <- gets stSignature 
     return $ getConstInfo fun (ctx++sig) c
 
 getConstInfo :: (Signature -> Name -> a) -> Context -> QName -> a
