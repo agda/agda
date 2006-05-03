@@ -291,7 +291,8 @@ instance BindToAbstract NiceDefinition Definition where
 		    ret $ A.DataDef (mkRangedDefInfo x f a r) x' pars' cons'
 
 -- The only reason why we return a list is that open declarations disappears.
--- For every other declaration we get a singleton list.
+-- For every other declaration we get a singleton list. Except we keep open
+-- declarations. Oh well...
 instance BindToAbstract NiceDeclaration [A.Declaration] where
 
     -- Axiom

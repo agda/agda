@@ -2,6 +2,7 @@
 module TypeChecking.Monad.Debug where
 
 import qualified Data.Map as Map
+import System.IO.Unsafe
 
 import Syntax.Internal
 import TypeChecking.Monad
@@ -27,4 +28,7 @@ instance Show TCState where
         ", sigSt="++(show $ stSignature st)++
         "}"
 
+debug :: String -> TCM ()
+debug s =
+    unsafePerformIO (putStrLn s) `seq` return ()
 

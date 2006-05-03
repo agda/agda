@@ -32,6 +32,14 @@ data FreshThings =
 	      }
     deriving (Show)
 
+initState :: TCState
+initState =
+    TCSt { stFreshThings = Fresh 0 0 0
+	 , stMetaStore	 = Map.empty
+	 , stConstraints = Map.empty
+	 , stSignature   = Map.empty
+	 }
+
 instance HasFresh MetaId FreshThings where
     nextFresh s = (i, s { fMeta = i + 1 })
 	where
@@ -89,6 +97,7 @@ type Signature = Map QName Definition
 
 data Definition = Axiom	      { defType    :: Type			      }
 		| Function    { funClauses :: [Clause], defType     :: Type   }
+		| Synonym     { synValue   :: Value   , defType	    :: Type   }
 		| Datatype    { defType    :: Type    , dataConstrs :: [Name] }
 		| Constructor { defType    :: Type    , conDatatype :: Name   }
 		    -- ^ The type of the constructor and the name of the datatype.
@@ -103,8 +112,14 @@ defClauses _		   = []
 ---------------------------------------------------------------------------
 
 data TCEnv =
-    TCEnv { envContext :: Context
+    TCEnv { envContext	     :: Context
+	  , envCurrentModule :: ModuleName
 	  }
+
+initEnv :: TCEnv
+initEnv = TCEnv { envContext	   = []
+		, envCurrentModule = error "panic: no current module"
+		}
 
 ---------------------------------------------------------------------------
 -- ** Context
@@ -132,4 +147,9 @@ patternViolation mId = throwError $ PatternErr mId
 
 type TCErrMon = Either TCErr
 type TCM a = StateT TCState (ReaderT TCEnv TCErrMon) a
+
+runTCM :: TCM a -> Either TCErr a
+runTCM m = flip runReaderT initEnv
+	 $ flip evalStateT initState
+	 $ m
 

@@ -1,4 +1,4 @@
-{-# OPTIONS -fglasgow-exts #-}
+{-# OPTIONS -fglasgow-exts -cpp #-}
 
 {-| Abstract names should carry unique identifiers and stuff. Not right now though.
 -}
@@ -12,6 +12,8 @@ import Syntax.Common
 import qualified Syntax.Concrete.Name as C
 
 import Utils.Fresh
+
+#include "../../undefined.h"
 
 -- | The unique identifier of a name.
 newtype NameId = NameId Nat
@@ -52,6 +54,10 @@ qualify m x = QName { qnameName	    = x
 qualifyModule :: ModuleName -> C.Name -> ModuleName
 qualifyModule (MName i c) x = MName (C.qualify i x) (C.qualify c x)
 
+qualifyModuleHack :: ModuleName -> ModuleName -> ModuleName
+qualifyModuleHack m (MName (C.QName x) _) = qualifyModule m x
+qualifyModuleHack _ m' = m'
+
 freshName :: (MonadState s m, HasFresh NameId s) => Range -> String -> m Name
 freshName r s =
     do	i <- fresh
@@ -70,7 +76,7 @@ instance Show Name where
     show = show . nameConcrete
 
 instance Show QName where
-    show q = show (qnameModule q) ++ "." ++ show (qnameConcrete q)
+    show = show . qnameConcrete
 
 instance Eq QName where
     x == y = (qnameModule x, qnameName x) == (qnameModule y, qnameName y)

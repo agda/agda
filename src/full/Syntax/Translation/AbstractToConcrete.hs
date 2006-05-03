@@ -47,6 +47,9 @@ type AbsToCon = Reader Flags
 abstractToConcrete :: ToConcrete a c => Flags -> a -> c
 abstractToConcrete flags a = runReader (toConcrete a) flags
 
+abstractToConcrete_ :: ToConcrete a c => a -> c
+abstractToConcrete_ = abstractToConcrete defaultFlags
+
 -- Dealing with stored syntax ---------------------------------------------
 
 -- | Indicates that the argument is a stored piece of syntax which

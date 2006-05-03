@@ -118,7 +118,6 @@ reduce store ctx sig v = go v where
             Def c' args | c' == c -> matchPats curArgs pats args 
             _ -> Nothing
 
-
 -- | Monadic version of reduce.
 --
 reduceM :: Value -> TCM Value
@@ -127,5 +126,4 @@ reduceM v = do
     ctx   <- asks envContext
     sig   <- gets stSignature
     return $ reduce store ctx sig v
-
 

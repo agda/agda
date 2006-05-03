@@ -15,11 +15,28 @@ import Utils.Monad
 
 #include "../../undefined.h"
 
+-- | Get the name of the current module.
+currentModule :: TCM ModuleName
+currentModule = asks envCurrentModule
+
+-- | Set the name of the current module.
+withCurrentModule :: ModuleName -> TCM a -> TCM a
+withCurrentModule m =
+    local $ \e -> e { envCurrentModule = m }
+
 -- | add a variable to the context
 --
 addCtx :: Name -> Type -> TCM a -> TCM a
 addCtx x a = local (\e -> e { envContext = (x,a) : raise 1 (envContext e) })
-    
+
+-- | add a bunch of variables with the same type to the context
+addCtxs :: [Name] -> Type -> TCM a -> TCM a
+addCtxs []     _ k = k
+addCtxs (x:xs) t k = addCtx x t $ addCtxs xs (raise 1 t) k
+
+-- | Add a constant to the signature.
+addConstant :: QName -> Definition -> TCM ()
+addConstant q d = modify $ \s -> s { stSignature = Map.insert q d $ stSignature s }
 
 -- | get type of bound variable (i.e. deBruijn index)
 --

@@ -90,5 +90,11 @@ Topic: Things to think about.
 
   * Meta variables need to be scope checked (probably) so when
     creating a new meta we should have access to scope information.
+    It'll probably be enough to annotate declarations with scope and
+    make sure that the type checker updates the current scope when
+    passing a definition. Not having to bother with lambda bound
+    things makes it easier.
+
+  * Check that meta variables have been solved at appropriate times.
 
  vim: sts=2 sw=2 tw=70

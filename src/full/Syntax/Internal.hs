@@ -82,4 +82,5 @@ instance Show MetaId where
 set0   = Sort (Type 0)
 set n  = Sort (Type n)
 sort s = Sort s       
+prop   = Sort Prop
 

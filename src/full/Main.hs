@@ -4,6 +4,7 @@
 -}
 module Main where
 
+import Control.Monad.State
 import Data.List
 import System.Environment
 import System.IO
@@ -18,7 +19,8 @@ import Syntax.Abstract.Test
 
 import Interaction.Exceptions
 
-import TypeChecker ()
+import TypeChecker
+import TypeChecking.Monad
 
 parseFile' p file
     | "lagda" `isSuffixOf` file	= parseLiterateFile p file
@@ -33,7 +35,16 @@ main =
 		| otherwise	    = stuff ("--test" `elem` args) file
 	go
     where
-	stuff test file =
+	stuff False file =
+	    do	m	    <- parseFile' moduleParser file
+		(m', scope) <- concreteToAbstract m
+		let debugCheck m = checkDecl m' >> get
+		case runTCM $ debugCheck m' of
+		    Left err	-> putStrLn $ "FAIL: " ++ show err
+		    Right st	->
+			do  putStrLn "OK"
+			    print st
+	stuff True file =
 	    failOnException $
 	    do	m	   <- parseFile' moduleParser file
 		(m',scope) <- concreteToAbstract m
@@ -43,11 +54,10 @@ main =
 		    [m2] = abstractToConcrete
 				(defaultFlags { useStoredConcreteSyntax = False })
 				m'
-		if test then do	putStrLn "With stored concrete syntax"
-				checkAbstract m' m1
-				putStrLn "Without stored concrete syntax"
-				checkAbstract m' m2
-			else print m1
+		putStrLn "With stored concrete syntax"
+		checkAbstract m' m1
+		putStrLn "Without stored concrete syntax"
+		checkAbstract m' m2
 	checkAbstract am cm =
 	    do	(am',_) <- concreteToAbstract $ parse moduleParser $ show cm
 		case am === am' of

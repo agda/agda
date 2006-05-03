@@ -59,6 +59,20 @@ newMeta meta initialVal = do
     modify (\st -> st{stMetaStore = Map.insert x initialVal $ stMetaStore st})
     return $ meta x
 
+newSortMeta :: TCM Sort
+newSortMeta = newMeta MetaS $ UnderScoreS []
+
+newTypeMeta :: TCM Type
+newTypeMeta =
+    do	s  <- newSortMeta
+	vs <- allCtxVars
+	newMeta (\m -> MetaT m vs) $ UnderScoreT s []
+
+newValueMeta :: Type -> TCM Value
+newValueMeta t =
+    do	vs <- allCtxVars
+	newMeta (\m -> MetaV m vs) $ UnderScoreV t []
+
 -- | Used to give an initial value to newMeta.  
 --   The constraint list will be filled-in as needed during assignment.
 --
