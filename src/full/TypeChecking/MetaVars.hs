@@ -5,6 +5,8 @@ module TypeChecking.MetaVars where
 import Control.Monad.Reader
 import Control.Monad.State
 import Data.Generics
+import Data.Map as Map
+import Data.List as List
 
 import Syntax.Internal
 import Syntax.Internal.Walk
@@ -34,19 +36,19 @@ findIdx vs v = go 0 (reverse vs) where
 allCtxVars :: TCM Args
 allCtxVars = do
     ctx <- ask
-    return $ map (\i -> Var i []) $ [0 .. length ctx - 1]
+    return $ List.map (\i -> Var i []) $ [0 .. length ctx - 1]
 
 setRef :: Data a => a -> MetaId -> MetaVariable -> TCM ()
 setRef _ x v = do
     store <- gets stMetaStore
-    let (cIds, store') = replace [] store
+    let (cIds, store') = replace x v store
     modify (\st -> st{stMetaStore = store'})
     mapM_ wakeup cIds
   where
-    replace passed ((y,var):mIds) = 
-        if x == y then (getCIds var, passed++((y,v):mIds)) 
-        else replace (passed++[(y,var)]) mIds
-    replace passed [] = __IMPOSSIBLE__	-- TODO: ?
+    replace x v store =
+	case Map.updateLookupWithKey (\_ _ -> Just v) x store of
+	    (Just var, store')	-> (getCIds var, store')
+	    _			-> __IMPOSSIBLE__
 
 -- | Generate new meta variable.
 --   The @MetaVariable@ arg (2nd arg) is meant to be either @UnderScore@X or @Hole@X.
@@ -54,7 +56,7 @@ setRef _ x v = do
 newMeta :: (MetaId -> a) -> MetaVariable -> TCM a
 newMeta meta initialVal = do
     x <- fresh
-    modify (\st -> st{stMetaStore = (x, initialVal):(stMetaStore st)})
+    modify (\st -> st{stMetaStore = Map.insert x initialVal $ stMetaStore st})
     return $ meta x
 
 -- | Used to give an initial value to newMeta.  
@@ -63,7 +65,7 @@ newMeta meta initialVal = do
 getMeta :: MetaId -> Args -> TCM MetaVariable
 getMeta x args = do
     store <- gets stMetaStore
-    case lookup x store of
+    case Map.lookup x store of
         Just (UnderScoreV _ _) -> do
             s <- newMeta MetaS $ UnderScoreS []
             a <- newMeta (\x -> MetaT x args) $ UnderScoreT s [] 

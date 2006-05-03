@@ -4,6 +4,8 @@ module TypeChecking.Constraints where
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Error
+import Data.Map as Map
+import Data.List as List
 
 import Syntax.Internal
 import TypeChecking.Monad
@@ -33,15 +35,13 @@ addCnstr mId c = do
     sig <- gets stSignature
     cId <- fresh
     modify (\st -> st{
-        stConstraints = (cId,(sig,ctx,c)) : stConstraints st,
-        stMetaStore = map (addTrigger cId) $ stMetaStore st
+        stConstraints = Map.insert cId (sig,ctx,c) $ stConstraints st,
+        stMetaStore = Map.adjust (addCId cId) mId $ stMetaStore st
         })        
-  where
-    addTrigger cId (id, mInfo) =  (id, if id == mId then addCId cId mInfo else mInfo)
 
 wakeup cId = do
     cnstrs <- gets stConstraints
-    case lookup cId cnstrs of
+    case Map.lookup cId cnstrs of
         Just (sig, ctx, ValueEq a m1 m2) -> go sig ctx $ equalVal Why a m1 m2
         Just (sig, ctx, TypeEq a1 a2)    -> go sig ctx $ equalTyp Why a1 a2
 	_				 -> __IMPOSSIBLE__

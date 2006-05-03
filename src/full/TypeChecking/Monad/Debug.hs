@@ -1,6 +1,8 @@
 
 module TypeChecking.Monad.Debug where
 
+import qualified Data.Map as Map
+
 import Syntax.Internal
 import TypeChecking.Monad
 
@@ -19,8 +21,8 @@ storeElm2str (x, mv) = "?"++(show x)++(case mv of
 
 instance Show TCState where 
     show st = 
-        "{genSymSt="++(show $ stNextMeta st)++
-        ", metaSt="++(show $ map StoreElm $ stMetaStore st)++
+        "{genSymSt="++(show $ stFreshThings st)++
+        ", metaSt="++(show $ map StoreElm $ Map.assocs $ stMetaStore st)++
         ", cnstrSt="++(show $ stConstraints st)++
         ", sigSt="++(show $ stSignature st)++
         "}"

@@ -6,6 +6,7 @@ import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Identity
 import Data.List as List
+import Data.Map as Map
 
 import Syntax.Internal
 
@@ -22,7 +23,7 @@ instType :: Type -> TCM Type
 instType a = case a of
     (MetaT x args) -> do 
         store <- gets stMetaStore
-        case lookup x store of
+        case Map.lookup x store of
             Just (InstT a') -> instType $ reduceType a' args
             Just _          -> return a
 	    Nothing	    -> __IMPOSSIBLE__
@@ -31,7 +32,7 @@ instType a = case a of
 reduceType :: Type -> [Value] -> Type
 reduceType a args = case a of
     LamT (Abs _ a) -> reduceType (subst (head args) a) $ tail args
-    _    | null args -> a
+    _    | List.null args -> a
     _		     -> __IMPOSSIBLE__
 
 -- | instantiate a sort 
@@ -41,7 +42,7 @@ instSort :: Sort -> TCM Sort
 instSort s = case s of
     (MetaS x) -> do 
         store <- gets stMetaStore
-        case lookup x store of
+        case Map.lookup x store of
             Just (InstS s') -> instSort s'
             Just _          -> return s
 	    _		    -> __IMPOSSIBLE__
@@ -62,7 +63,7 @@ reduce :: MetaStore -> Context -> Signature -> Value -> Value
 reduce store ctx sig v = go v where
     go v = case v of
         Lam (Abs _ v') (arg:args) -> go $ addArgs args (subst (go arg) v')
-        MetaV x args -> case lookup x store of
+        MetaV x args -> case Map.lookup x store of
             Just (InstV v) -> go $ addArgs args v
             Just _ -> v
 	    _	    -> __IMPOSSIBLE__
@@ -80,7 +81,7 @@ reduce store ctx sig v = go v where
     --
     defOfConst :: QName -> [Clause]
     defOfConst = getConstInfo find (ctx++sig) where
-        find sig c = case List.find (\ (Defn x _) -> x == c) (filter isDefn sig) of
+        find sig c = case List.find (\ (Defn x _) -> x == c) (List.filter isDefn sig) of
             Just (Defn _ cls) -> cls
 	    _	-> __IMPOSSIBLE__
 

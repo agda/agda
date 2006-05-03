@@ -1,5 +1,7 @@
-{-# OPTIONS -fglasgow-exts #-}
+{-# OPTIONS -fglasgow-exts -fallow-undecidable-instances #-}
 module TypeChecking.Monad where
+
+import Data.Map as Map
 
 import Control.Monad.Error
 import Control.Monad.State
@@ -17,28 +19,38 @@ import Utils.Fresh
 ---------------------------------------------------------------------------
 
 data TCState =
-    TCSt { stNextMeta	    :: MetaId
-	 , stNextName	    :: NameId
-	 , stNextConstraint :: ConstraintId
+    TCSt { stFreshThings    :: FreshThings
 	 , stMetaStore	    :: MetaStore
 	 , stConstraints    :: Constraints
 	 , stSignature	    :: Signature
 	 }
 
-instance HasFresh MetaId TCState where
-    nextFresh s = (i, s { stNextMeta = i + 1 })
-	where
-	    i = stNextMeta s
+data FreshThings =
+	Fresh { fMeta	    :: MetaId
+	      , fName	    :: NameId
+	      , fConstraint :: ConstraintId
+	      }
+    deriving (Show)
 
-instance HasFresh NameId TCState where
-    nextFresh s = (i, s { stNextName = i + 1 })
+instance HasFresh MetaId FreshThings where
+    nextFresh s = (i, s { fMeta = i + 1 })
 	where
-	    i = stNextName s
+	    i = fMeta s
 
-instance HasFresh ConstraintId TCState where
-    nextFresh s = (i, s { stNextConstraint = i + 1 })
+instance HasFresh NameId FreshThings where
+    nextFresh s = (i, s { fName = i + 1 })
 	where
-	    i = stNextConstraint s
+	    i = fName s
+
+instance HasFresh ConstraintId FreshThings where
+    nextFresh s = (i, s { fConstraint = i + 1 })
+	where
+	    i = fConstraint s
+
+instance HasFresh i FreshThings => HasFresh i TCState where
+    nextFresh s = (i, s { stFreshThings = f })
+	where
+	    (i,f) = nextFresh $ stFreshThings s
 
 ---------------------------------------------------------------------------
 -- ** Constraints
@@ -51,7 +63,7 @@ data Constraint = ValueEq Type Value Value
 		| TypeEq Type Type
   deriving Show
 
-type Constraints = [(ConstraintId,(Signature,Context,Constraint))]
+type Constraints = Map ConstraintId (Signature,Context,Constraint)
 
 ---------------------------------------------------------------------------
 -- ** Meta variables
@@ -67,7 +79,7 @@ data MetaVariable = InstV Value
                   | HoleT       Sort [ConstraintId]
   deriving (Typeable, Data, Show)
 
-type MetaStore = [(MetaId, MetaVariable)]
+type MetaStore = Map MetaId MetaVariable
 
 ---------------------------------------------------------------------------
 -- * Type checking environment
