@@ -54,7 +54,7 @@ instance Ord Name where
 --     lookup table for namespace names).
 data QName = Qual  Name QName
            | QName Name 
-  deriving (Typeable, Data, Eq)
+  deriving (Typeable, Data, Eq, Ord)
 
 
 instance Show Name where

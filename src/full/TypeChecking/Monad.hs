@@ -82,8 +82,35 @@ data MetaVariable = InstV Value
 type MetaStore = Map MetaId MetaVariable
 
 ---------------------------------------------------------------------------
+-- ** Signature
+---------------------------------------------------------------------------
+
+type Signature = Map QName Definition
+
+data Definition = Axiom	      { defType    :: Type			      }
+		| Function    { funClauses :: [Clause], defType     :: Type   }
+		| Datatype    { defType    :: Type    , dataConstrs :: [Name] }
+		| Constructor { defType    :: Type    , conDatatype :: Name   }
+		    -- ^ The type of the constructor and the name of the datatype.
+    deriving (Show)
+
+defClauses :: Definition -> [Clause]
+defClauses (Function cs _) = cs
+defClauses _		   = []
+
+---------------------------------------------------------------------------
 -- * Type checking environment
 ---------------------------------------------------------------------------
+
+data TCEnv =
+    TCEnv { envContext :: Context
+	  }
+
+---------------------------------------------------------------------------
+-- ** Context
+---------------------------------------------------------------------------
+
+type Context = [(Name, Type)]
 
 ---------------------------------------------------------------------------
 -- * Type checking errors
@@ -99,22 +126,10 @@ instance Error TCErr where
 
 patternViolation mId = throwError $ PatternErr mId
 
+---------------------------------------------------------------------------
+-- * Type checking monad
+---------------------------------------------------------------------------
+
 type TCErrMon = Either TCErr
-type TCM a = StateT TCState (ReaderT Context TCErrMon) a
-
---
--- Context and Signature
---
-type Context = [CtxElm]
-type Signature = Context
-
-data CtxElm = Decl Name Type (Maybe [Name]) -- ^ ind. types have list of constructors
-	    | Defn Name [Clause]
-	    | NameSpace Name Context
-  deriving (Typeable, Data, Show)
-
--- | get globally new symbol (@Int@)
---
-genSym :: TCM MetaId
-genSym = fresh
+type TCM a = StateT TCState (ReaderT TCEnv TCErrMon) a
 

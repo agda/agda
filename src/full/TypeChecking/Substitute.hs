@@ -37,14 +37,14 @@ subst repl x = runIdentity $ walk (mkM goVal) x where
       if i == n 
           then do 
               args' <- mapM goVal args
-              endWalk $ addArgs args' $ adjust n repl 
+              endWalk $ addArgs args' $ raise n repl 
           else return $ Var (if i > n then i - 1 else i) args
   goVal x = return x
 
 -- | Add @k@ to index of each open variable in @x@.
 --
-adjust :: Int -> GenericT
-adjust k x = runIdentity $ walk (mkM goTm) x where
+raise :: Int -> GenericT
+raise k x = runIdentity $ walk (mkM goTm) x where
   goTm (Var i args) = do
       n <- ask
       return $ Var (if i >= n then i + k else i) args

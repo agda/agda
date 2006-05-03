@@ -42,8 +42,8 @@ equalVal _ a m n = do --trace ("equalVal ("++(show a)++") ("++(show m)++") ("++(
     case a' of
         Pi a (Abs x b) -> 
             let p = Var 0 []
-                m' = adjust 1 m
-                n' = adjust 1 n
+                m' = raise 1 m
+                n' = raise 1 n
             in do name <- freshName_ x
 		  addCtx name a $ equalVal Why b (addArgs [p] m') (addArgs [p] n')
         MetaT x _ -> addCnstr x (ValueEq a m n)
@@ -96,8 +96,8 @@ equalTyp _ a1 a2 = do
             equalVal Why (sort s1) m1 m2
         (Pi a1 (a2), Pi b1 (b2)) -> do
             equalTyp Why a1 b1
-            let Abs x a2' = adjust 1 a2
-            let Abs _ b2' = adjust 1 b2
+            let Abs x a2' = raise 1 a2
+            let Abs _ b2' = raise 1 b2
 	    name <- freshName_ x
             addCtx name a1 $ equalTyp Why (subst (Var 0 []) a2') (subst (Var 0 []) b2')
 				-- TODO: this looks dangerous.. what does subst really do?

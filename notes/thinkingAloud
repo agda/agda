@@ -63,6 +63,32 @@ Topic: Module structure of the type checker
     - Monad
 
   Where to put subst and adjust? Let's put them in Reduce for the time
-  being.
+  being. No, that doesn't quite work. They'll have to go in
+  Substitute.
+
+Topic: Structure of the signature.
+
+  * The module system is hierarchical so it seems resonable to
+    structure the signature accordingly.
+
+  * We need to be able to look up a QName in the signature.
+
+  * Why does it have to be hierarchical? When do we need to manipulate
+    an entire subtree?
+
+  * A problem is that QNames aren't well thought out yet. Currently a
+    moduleId is a concrete name. That's not very good.
+
+  * Let's make it flat for the time being, that should be a simple
+    thing to change at a later stage.
+
+  * We would also have to think about what happens when modules are
+    instantiated (module Foo = Bar Nat), but that can also be
+    postponed.
+
+Topic: Things to think about.
+
+  * Meta variables need to be scope checked (probably) so when
+    creating a new meta we should have access to scope information.
 
  vim: sts=2 sw=2 tw=70

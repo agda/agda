@@ -35,7 +35,7 @@ findIdx vs v = go 0 (reverse vs) where
 --
 allCtxVars :: TCM Args
 allCtxVars = do
-    ctx <- ask
+    ctx <- asks envContext
     return $ List.map (\i -> Var i []) $ [0 .. length ctx - 1]
 
 setRef :: Data a => a -> MetaId -> MetaVariable -> TCM ()

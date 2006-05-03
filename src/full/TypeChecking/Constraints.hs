@@ -31,7 +31,7 @@ catchConstr cnstr v =
 --
 addCnstr :: MetaId -> Constraint -> TCM ()
 addCnstr mId c = do
-    ctx <- ask
+    ctx <- asks envContext
     sig <- gets stSignature
     cId <- fresh
     modify (\st -> st{
@@ -49,7 +49,7 @@ wakeup cId = do
     go sig ctx v = do
         sigCurrent <- gets stSignature
         modify (\st -> st{stSignature = sig})
-        local (\_ -> ctx) v
+        local (\e -> e { envContext = ctx }) v
         modify (\st -> st{stSignature = sigCurrent})
 
 getCIds (UnderScoreV _ cIds) = cIds

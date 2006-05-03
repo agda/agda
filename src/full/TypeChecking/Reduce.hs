@@ -11,7 +11,6 @@ import Data.Map as Map
 import Syntax.Internal
 
 import TypeChecking.Monad
-import TypeChecking.Monad.Context
 import TypeChecking.Substitute
 
 #include "../undefined.h"
@@ -80,10 +79,10 @@ reduce store ctx sig v = go v where
     -- get definition of a constant (i.e. a list of clauses)
     --
     defOfConst :: QName -> [Clause]
-    defOfConst = getConstInfo find (ctx++sig) where
-        find sig c = case List.find (\ (Defn x _) -> x == c) (List.filter isDefn sig) of
-            Just (Defn _ cls) -> cls
-	    _	-> __IMPOSSIBLE__
+    defOfConst q = 
+	case Map.lookup q sig of
+	    Just d  -> defClauses d
+	    Nothing -> __IMPOSSIBLE__
 
     -- Apply a defined function to it's arguments.
     --   First arg is original value which is needed in case no clause matches.
@@ -125,7 +124,7 @@ reduce store ctx sig v = go v where
 reduceM :: Value -> TCM Value
 reduceM v = do
     store <- gets stMetaStore
-    ctx   <- ask
+    ctx   <- asks envContext
     sig   <- gets stSignature
     return $ reduce store ctx sig v
 

@@ -5,57 +5,38 @@ module TypeChecking.Monad.Context where
 import Control.Monad.Reader
 import Control.Monad.State
 import Data.List as List
+import Data.Map as Map
 
 import Syntax.Common
 import Syntax.Internal
 import TypeChecking.Monad
 import TypeChecking.Substitute
+import Utils.Monad
 
 #include "../../undefined.h"
 
-isDecl ce = case ce of Decl _ _ _    -> True; _ -> False
-isDefn ce = case ce of Defn _ _      -> True; _ -> False
-isNmsp ce = case ce of NameSpace _ _ -> True; _ -> False
-
--- | add a declaration to the context
+-- | add a variable to the context
 --
 addCtx :: Name -> Type -> TCM a -> TCM a
-addCtx x a v = local ((Decl x a Nothing :) . adjust 1) v
+addCtx x a = local (\e -> e { envContext = (x,a) : raise 1 (envContext e) })
     
 
 -- | get type of bound variable (i.e. deBruijn index)
 --
 typeOfBV :: Nat -> TCM Type
 typeOfBV n = do
-    ctx <- ask
-    case (filter isDecl ctx) !! n of
-        Decl _ a _ -> return a
-	_	   -> __IMPOSSIBLE__
+    ctx <- asks envContext
+    return $ snd $ ctx !! n
 
--- | get either type or definition of a constant. 
---   this navigates namespace structure and uses passed
---     function to find data after right namespace is reached
---
-getConstInfoM :: (Signature -> Name -> a) -> QName -> TCM a
-getConstInfoM fun c = do
-    ctx <- ask  -- need to look here for local definitions
-    sig <- gets stSignature 
-    return $ getConstInfo fun (ctx++sig) c
-
-getConstInfo :: (Signature -> Name -> a) -> Context -> QName -> a
-getConstInfo = error "use abstract names here"
--- getConstInfo fun ctx (Qual pkg name) = 
---     case List.find (\ (NameSpace x _) -> x == pkg) (filter isNmsp ctx) of
---         Just (NameSpace _ ctx') -> getConstInfo fun ctx' name
--- getConstInfo fun ctx (QName c) = fun ctx c
+getConstInfo :: QName -> TCM Definition
+getConstInfo q =
+    do	sig <- gets stSignature
+	case Map.lookup q sig of
+	    Just d  -> return d
+	    _	    -> fail $ "Not in scope: " ++ show q
 
 -- | get type of a constant 
 --
 typeOfConst :: QName -> TCM Type
-typeOfConst = getConstInfoM find where
-    find sig c = case List.find (\ (Decl x _ _) -> x == c) (filter isDecl sig) of
-        Just (Decl _ a _) -> a
-	_		  -> __IMPOSSIBLE__
-
-
+typeOfConst q = defType <$> getConstInfo q
 

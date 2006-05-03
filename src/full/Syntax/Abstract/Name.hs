@@ -73,13 +73,19 @@ instance Show QName where
     show q = show (qnameModule q) ++ "." ++ show (qnameConcrete q)
 
 instance Eq QName where
-    x == y = qnameModule x == qnameModule y && qnameName x == qnameName y
+    x == y = (qnameModule x, qnameName x) == (qnameModule y, qnameName y)
+
+instance Ord QName where
+    compare x y = compare (qnameModule x, qnameName x) (qnameModule y, qnameName y)
 
 instance Show ModuleName where
     show m = show (mnameConcrete m)
 
 instance Eq ModuleName where
     m1 == m2 = mnameId m1 == mnameId m2
+
+instance Ord ModuleName where
+    compare m1 m2 = compare (mnameId m1) (mnameId m2)
 
 instance HasRange Name where
     getRange = getRange . nameConcrete
