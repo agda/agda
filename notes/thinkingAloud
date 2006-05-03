@@ -22,8 +22,47 @@ Topic: Unique names in abstract syntax.
 Topic: Module names vs. function names
 
   * Since there is no confusion between module names and function
-  names (they can never appear in the same place) it makes sense to
-  have different representations for them. For clarity if nothing
-  else.
+    names (they can never appear in the same place) it makes sense to
+    have different representations for them. For clarity if nothing
+    else.
+
+Topic: Figuring out what's in Syntax.Internal(New)
+
+  * type Args = [Value]
+
+  * xxx2str :: xxx -> Reader Int String
+    Generates fresh names.
+
+  * Values can be beta redexes. Why? Maybe it will allow a better
+    reduction strategy than call-by-name. I'm not sure it matters.
+
+  * instance Eq Value. Only variables can be equal. Not very nice.
+    Make a type wrapper (or define another function).
+
+  * addArgs = flip apply (but generically)
+
+  * data Sort = ... | Lub Sort Sort -- do we need this?
+
+  * data TCErr = Fatal String | PatternErr MId
+
+    This is nice. Pattern unification failure might go away if we wait
+    a bit, PatternErr is used to signal such a failure.
+
+  * reduce is parameterised by the stuff that's in the monad. This
+    will probably make it more efficient than if it had been monadic.
+    We can do this since it'll never change the state.
+
+Topic: Module structure of the type checker
+
+  - Syntax
+    - Internal
+  - TypeChecker
+  - TypeChecking/
+    - Conversion
+    - Reduce
+    - Monad
+
+  Where to put subst and adjust? Let's put them in Reduce for the time
+  being.
 
  vim: sts=2 sw=2 tw=70

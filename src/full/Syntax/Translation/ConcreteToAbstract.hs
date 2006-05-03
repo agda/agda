@@ -112,11 +112,11 @@ instance BindToAbstract c a => BindToAbstract [c] [a] where
 -- Names ------------------------------------------------------------------
 
 instance ToAbstract C.Name A.Name where
-    toAbstract x = freshName x
+    toAbstract x = abstractName x
 
 instance BindToAbstract C.Name A.Name where
     bindToAbstract x ret =
-	do  x' <- freshName x
+	do  x' <- abstractName x
 	    bindVariable x' $ ret x'
 
 newtype CModuleName = CModuleName C.QName

@@ -332,8 +332,8 @@ instance HasFresh NameId ScopeState where
 	where
 	    i = freshId s
 
-freshName :: CName.Name -> ScopeM AName.Name
-freshName x =
+abstractName :: CName.Name -> ScopeM AName.Name
+abstractName x =
     do	i <- fresh
 	return $ AName.Name i x
 
@@ -546,7 +546,7 @@ resolvePatternNameM x =
 	r vs ns x =
 	    case Map.lookup x $ definedNames ns of
 		Just c@(DefinedName _ ConName _ _) -> return $ DefName c
-		_   -> VarName <$> freshName x
+		_   -> VarName <$> abstractName x
 
 -- | Figure out what module a qualified name refers to.
 resolveModule :: CName.QName -> ScopeInfo -> ResolvedModule
@@ -759,10 +759,10 @@ defineName a k f x cont =
     do	si <- getScopeInfo
 	case resolveName (CName.QName x) si of
 	    UnknownName	->
-		do  x' <- freshName x
+		do  x' <- abstractName x
 		    local (defName a k f x') cont
 	    VarName _	->
-		do  x' <- freshName x
+		do  x' <- abstractName x
 		    local (defName a k f x' . shadowVar x') cont
 	    DefName y   -> clashingDefinition x (theName y)
 

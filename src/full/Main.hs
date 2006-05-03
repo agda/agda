@@ -11,11 +11,14 @@ import System.Exit
 
 import Syntax.Parser
 import Syntax.Concrete.Pretty ()
--- import Syntax.Internal ()
+import Syntax.Internal ()
 import Syntax.Translation.ConcreteToAbstract
 import Syntax.Translation.AbstractToConcrete
-import Interaction.Exceptions
 import Syntax.Abstract.Test
+
+import Interaction.Exceptions
+
+import TypeChecker ()
 
 parseFile' p file
     | "lagda" `isSuffixOf` file	= parseLiterateFile p file

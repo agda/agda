@@ -4,11 +4,14 @@
 -}
 module Syntax.Abstract.Name where
 
+import Control.Monad.State
 import Data.Generics (Typeable, Data)
 
 import Syntax.Position
 import Syntax.Common
 import qualified Syntax.Concrete.Name as C
+
+import Utils.Fresh
 
 -- | The unique identifier of a name.
 type NameId = Nat
@@ -47,6 +50,14 @@ qualify m x = QName { qnameName	    = x
 
 qualifyModule :: ModuleName -> C.Name -> ModuleName
 qualifyModule (MName i c) x = MName (C.qualify i x) (C.qualify c x)
+
+freshName :: (MonadState s m, HasFresh NameId s) => Range -> String -> m Name
+freshName r s =
+    do	i <- fresh
+	return $ Name i (C.Name r s)
+
+freshName_ :: (MonadState s m, HasFresh NameId s) => String -> m Name
+freshName_ = freshName noRange
 
 instance Eq Name where
     x == y  = nameId x == nameId y
