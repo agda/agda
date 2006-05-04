@@ -6,6 +6,7 @@
 module Syntax.Translation.ConcreteToAbstract where
 
 import Control.Exception
+import Control.Monad.Reader
 import Data.Typeable
 
 import Syntax.Concrete.Pretty ()    -- TODO: only needed for Show for the exceptions
@@ -111,25 +112,21 @@ instance BindToAbstract c a => BindToAbstract [c] [a] where
 
 -- Names ------------------------------------------------------------------
 
-instance ToAbstract C.Name A.Name where
-    toAbstract x = abstractName x
+newtype NewName = NewName C.Name
 
-instance BindToAbstract C.Name A.Name where
+instance ToAbstract NewName A.Name where
+    toAbstract (NewName x) = abstractName x
+
+instance BindToAbstract NewName A.Name where
     bindToAbstract x ret =
-	do  x' <- abstractName x
+	do  x' <- toAbstract x
 	    bindVariable x' $ ret x'
 
-newtype CModuleName = CModuleName C.QName
+newtype OldQName = OldQName C.QName
+newtype OldName = OldName C.Name
 
-instance ToAbstract CModuleName A.ModuleName where
-    toAbstract (CModuleName q) = return $ A.MName q q
-
--- Expressions ------------------------------------------------------------
-
-instance ToAbstract C.Expr A.Expr where
-
-    -- Names
-    toAbstract (Ident x) =
+instance ToAbstract OldQName A.Expr where
+    toAbstract (OldQName x) =
 	do  qx <- resolveNameM x
 	    case qx of
 		VarName x'  ->
@@ -156,6 +153,26 @@ instance ToAbstract C.Expr A.Expr where
 					, nameAccess    = access d
 					}
 		UnknownName	-> notInScope x
+
+-- Should be a defined name.
+instance ToAbstract OldName A.Name where
+    toAbstract (OldName x) =
+	do  qx <- resolveNameM (C.QName x)
+	    case qx of
+		DefName d   -> return $ qnameName $ theName d
+		_	    -> fail $ "panic: " ++ show x ++ " should have been defined (not " ++ show qx ++ ")"
+
+newtype CModuleName = CModuleName C.QName
+
+instance ToAbstract CModuleName A.ModuleName where
+    toAbstract (CModuleName q) = return $ A.MName q q
+
+-- Expressions ------------------------------------------------------------
+
+instance ToAbstract C.Expr A.Expr where
+
+    -- Names
+    toAbstract (Ident x) = toAbstract (OldQName x)
 
     -- Literals
     toAbstract (C.Lit l)    = return $ A.Lit l
@@ -207,7 +224,7 @@ instance ToAbstract C.Expr A.Expr where
     -- Function types
     toAbstract e@(Fun r h e1 e2) =
 	do  e1'  <- toAbstractCtx FunctionSpaceDomainCtx e1
-	    x    <- toAbstract $ C.NoName $ getRange e1
+	    x    <- toAbstract $ NewName $ C.NoName $ getRange e1
 	    e2'  <- toAbstractCtx TopCtx e2
 	    info <- exprSource e
 	    return $ A.Pi info
@@ -239,7 +256,7 @@ instance ToAbstract C.Expr A.Expr where
 
 instance BindToAbstract C.LamBinding A.LamBinding where
     bindToAbstract (C.DomainFree h x) ret =
-	bindToAbstract x $ \x' ->
+	bindToAbstract (NewName x) $ \x' ->
 	    ret (A.DomainFree h x')
     bindToAbstract (C.DomainFull tb) ret =
 	bindToAbstract tb $ \tb' -> ret (A.DomainFull tb')
@@ -247,7 +264,7 @@ instance BindToAbstract C.LamBinding A.LamBinding where
 instance BindToAbstract C.TypedBinding A.TypedBinding where
     bindToAbstract (C.TypedBinding r h xs t) ret =
 	do  t' <- toAbstractCtx TopCtx t
-	    bindToAbstract xs $ \xs' ->
+	    bindToAbstract (map NewName xs) $ \xs' ->
 		ret (A.TypedBinding r h xs' t')
 
 -- Note: only for top level modules!
@@ -277,7 +294,7 @@ instance BindToAbstract NiceDefinition Definition where
 
     -- Function definitions
     bindToAbstract (CD.FunDef r ds f a x cs) ret =
-	do  (x',cs') <- toAbstract (x,cs)
+	do  (x',cs') <- toAbstract (NewName x,cs)
 	    ret $ A.FunDef (mkSourcedDefInfo x f a ds) x' cs'
 
     -- Data definitions
@@ -287,7 +304,7 @@ instance BindToAbstract NiceDefinition Definition where
 				    return (pars', cons')
 	    -- bring the constructor names into scope
 	    bindToAbstract (map Constr cons') $ \_ ->
-		do  x' <- toAbstract x
+		do  x' <- toAbstract (NewName x)
 		    ret $ A.DataDef (mkRangedDefInfo x f a r) x' pars' cons'
 
 -- The only reason why we return a list is that open declarations disappears.
@@ -298,8 +315,7 @@ instance BindToAbstract NiceDeclaration [A.Declaration] where
     -- Axiom
     bindToAbstract (CD.Axiom r f a x t) ret =
 	do  t' <- toAbstractCtx TopCtx t
-	    x' <- toAbstract x
-	    defineName a FunName f x $
+	    defineName a FunName f x $ \x' ->
 		ret [A.Axiom (mkRangedDefInfo x f a r) x' t']
 				-- we can easily reconstruct the original decl
 				-- so we don't bother save it
@@ -309,8 +325,7 @@ instance BindToAbstract NiceDeclaration [A.Declaration] where
 	do  (e',wh') <- bindToAbstract wh $ \wh' ->
 			    do	e' <- toAbstractCtx TopCtx e
 				return (e',wh')
-	    x' <- toAbstract x
-	    defineName a FunName f x $
+	    defineName a FunName f x $ \x' ->
 		ret [A.Synonym (mkRangedDefInfo x f a r) x' e' wh']
 
     -- Definitions (possibly mutual)
@@ -376,17 +391,17 @@ newtype Constr a = Constr a
 instance ToAbstract (Constr CD.NiceDeclaration) A.Declaration where
     toAbstract (Constr (CD.Axiom r f a x t)) =
 	do  t' <- toAbstractCtx TopCtx t
-	    x' <- toAbstract x
+	    x' <- toAbstract (NewName x)
 	    return (A.Axiom (mkRangedDefInfo x f a r) x' t')
 
     toAbstract _ = __IMPOSSIBLE__    -- a constructor is always an axiom
 
 instance BindToAbstract (Constr A.Declaration) () where
-    bindToAbstract (Constr (A.Axiom info _ _)) ret =
-	defineName (defAccess info) ConName (defFixity info) x
-	    $ ret ()
-	where
-	    x = declName $ defInfo info
+    bindToAbstract (Constr (A.Axiom info x _)) ret =
+	local (defName a ConName f x) $ ret ()	-- TODO: local not so nice
+	    where
+		a = defAccess info
+		f = defFixity info
 
     bindToAbstract _ _ = __IMPOSSIBLE__    -- a constructor is always an axiom
 
@@ -400,7 +415,7 @@ instance ToAbstract CD.Clause A.Clause where
 instance BindToAbstract C.LHS A.LHS where
     bindToAbstract lhs@(C.LHS _ _ x as) ret =
 	bindToAbstract as $ \as' ->
-	do  x <- toAbstract x
+	do  x <- toAbstract (OldName x)
 	    ret (A.LHS (LHSSource lhs) x as')
 
 instance BindToAbstract c a => BindToAbstract (Arg c) (Arg a) where

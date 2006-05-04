@@ -221,6 +221,7 @@ data ResolvedName
 	= VarName AName.Name
 	| DefName DefinedName
 	| UnknownName
+    deriving (Show)
 
 -- | A defined name carries some extra information, such as whether it's private
 --   or public and what fixity it has.
@@ -342,25 +343,25 @@ abstractName x =
 ---------------------------------------------------------------------------
 
 notInScope :: CName.QName -> a
-notInScope x		    = throwDyn $ NotInScope x
+notInScope x = throwDyn $ NotInScope x
 
 clashingImport :: CName.Name -> CName.Name -> a
-clashingImport x x'	    = throwDyn $ ClashingImport x x'
+clashingImport x x' = throwDyn $ ClashingImport x x'
 
 clashingModuleImport :: CName.Name -> CName.Name -> a
-clashingModuleImport x x'   = throwDyn $ ClashingModuleImport x x'
+clashingModuleImport x x' = throwDyn $ ClashingModuleImport x x'
 
 noSuchModule :: CName.QName -> a
-noSuchModule x		    = throwDyn $ NoSuchModule x
+noSuchModule x = throwDyn $ NoSuchModule x
 
 uninstantiatedModule :: CName.QName -> a
-uninstantiatedModule x	    = throwDyn $ UninstantiatedModule x
+uninstantiatedModule x = throwDyn $ UninstantiatedModule x
 
 clashingModule :: AName.ModuleName -> AName.ModuleName -> a
-clashingModule x y	    = throwDyn $ ClashingModule x y
+clashingModule x y = throwDyn $ ClashingModule x y
 
 clashingDefinition :: CName.Name -> AName.QName -> a
-clashingDefinition x y	    = throwDyn $ ClashingDefinition x y
+clashingDefinition x y = throwDyn $ ClashingDefinition x y
 
 ---------------------------------------------------------------------------
 -- * Updating name spaces
@@ -754,16 +755,16 @@ insideModule (CName.QName x) = local upd
 		qx  = qualifyModule (moduleName pub) x
 
 -- | Add a defined name to the current scope.
-defineName :: Access -> KindOfName -> Fixity -> CName.Name -> ScopeM a -> ScopeM a
+defineName :: Access -> KindOfName -> Fixity -> CName.Name -> (AName.Name -> ScopeM a) -> ScopeM a
 defineName a k f x cont =
     do	si <- getScopeInfo
 	case resolveName (CName.QName x) si of
 	    UnknownName	->
 		do  x' <- abstractName x
-		    local (defName a k f x') cont
+		    local (defName a k f x') $ cont x'
 	    VarName _	->
 		do  x' <- abstractName x
-		    local (defName a k f x' . shadowVar x') cont
+		    local (defName a k f x' . shadowVar x') $ cont x'
 	    DefName y   -> clashingDefinition x (theName y)
 
 

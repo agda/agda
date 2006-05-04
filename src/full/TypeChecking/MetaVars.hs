@@ -8,13 +8,17 @@ import Data.Generics
 import Data.Map as Map
 import Data.List as List
 
+import Syntax.Common
 import Syntax.Internal
-import Syntax.Internal.Walk
+
 import TypeChecking.Monad
+import TypeChecking.Monad.Debug
 import TypeChecking.Reduce
 import TypeChecking.Substitute
 import TypeChecking.Constraints
+
 import Utils.Fresh
+import Utils.List
 
 #include "../undefined.h"
 
@@ -36,7 +40,7 @@ findIdx vs v = go 0 (reverse vs) where
 allCtxVars :: TCM Args
 allCtxVars = do
     ctx <- asks envContext
-    return $ List.map (\i -> Var i []) $ [0 .. length ctx - 1]
+    return $ List.map (\i -> Arg NotHidden $ Var i []) $ [0 .. length ctx - 1]
 
 setRef :: Data a => a -> MetaId -> MetaVariable -> TCM ()
 setRef _ x v = do
@@ -46,7 +50,7 @@ setRef _ x v = do
     mapM_ wakeup cIds
   where
     replace x v store =
-	case Map.updateLookupWithKey (\_ _ -> Just v) x store of
+	case Map.insertLookupWithKey (\_ v _ -> v) x v store of
 	    (Just var, store')	-> (getCIds var, store')
 	    _			-> __IMPOSSIBLE__
 
@@ -68,7 +72,7 @@ newTypeMeta =
 	vs <- allCtxVars
 	newMeta (\m -> MetaT m vs) $ UnderScoreT s []
 
-newValueMeta :: Type -> TCM Value
+newValueMeta :: Type -> TCM Term
 newValueMeta t =
     do	vs <- allCtxVars
 	newMeta (\m -> MetaV m vs) $ UnderScoreV t []
@@ -98,80 +102,131 @@ getMeta x args = do
 --
 newMetaSame :: MetaId -> Args -> (MetaId -> a) -> TCM a
 newMetaSame x args meta = do
-    (v) <- getMeta x args
+    v <- getMeta x args
     newMeta meta v
+
+-- | If @restrictParameters ok ps = qs@ then @(\xs -> c qs) ps@ will
+--   reduce to @c rs@ where @rs@ is the intersection of @ok@ and @ps@.
+restrictParameters :: [Nat] -> [Arg Term] -> Maybe [Arg Term]
+restrictParameters ok ps
+    | all isVar ps = Just $
+	do  (n,p@(Arg _ (Var i []))) <- reverse $ zip [0..] $ reverse ps
+	    unless (elem i ok) []
+	    return $ Arg NotHidden $ Var n []
+    | otherwise	     = Nothing
+
 
 -- | Extended occurs check
 --
-occ :: MetaId -> [Int] -> GenericM TCM
-occ y okVars v = go v where
-    go v = walk (mkM occVal) v --`extM` occTyp
-    occMVar inst meta x args =
-        if x == y then fail "occ"
-        else do
-            (args', newArgs) <- occMVarArgs x args
-            --trace ("occMVar: okVars="++(show okVars)++", args="++(show args)++", args'="++(show args')++", newArgs="++(show newArgs)++"\n") $ 
-            if length args' == length newArgs
-                then return ()
-                else lift $ lift $ do
-                    v1 <-  newMetaSame x args meta -- !!! is args right here?
-                    --trace ("occMVar prune: v1="++(show v1)++"\n") $ 
-                    setRef Why x $ inst $ abstract args (addArgs newArgs v1)
-            endWalk $ addArgs args' (meta x)
-    occMVarArgs x args = ocA ([],[]) [] (length args - 1) args where
-        ocA res _ _ [] = return res
-        ocA (old, new) ids idx (arg:args) = do
-            v <- lift $ lift $ reduceM arg
-            case v of
-                Var i [] | not $ elem i ids -> 
-                    --trace ("occMVarArgs: findIdx "++(show okVars)++" "++(show i)++" = "++(show $ (findIdx okVars i:: Maybe Int))++"\n") $ 
-                    case findIdx okVars i of
-                        Just j -> ocA (old++[Var j []], new++[Var idx []]) (i:ids) (idx-1) args
-                        Nothing -> ocA (old++[arg], new) ids (idx-1) args
-                _ -> patternViolation x
-    occVal v = do
-        v' <- lift $ lift $ reduceM v 
-        case v' of 
-            Var i args -> do
-                j <- findIdx okVars i
-                return $ addArgs args (Var j []) -- continues walking along args
-            MetaV x args -> occMVar InstV (\x -> MetaV x []) x args -- !!! MetaV should have no args?
-            _ -> return v'
-    occTyp v = do
-        v' <- lift $ lift $ instType v
-        case v' of
-           MetaT x args -> occMVar (InstT) (\x -> MetaT x []) x args -- !!! MetaT should have no args?
-           _ -> return v'
-           
-        
+data MetaThing a =
+	MetaThing (MetaId -> Args -> a)
+		  (a -> MetaVariable)
+		  MetaId Args
+
+class Occurs a where
+    occ :: MetaId -> [Nat] -> a -> TCM ()
+
+instance Occurs Term where
+    occ m ok v =
+	do  v' <- reduceM v
+	    case v of
+		Var n vs    -> occ m ok vs
+		Lam f []    -> occ m ok f
+		Lit l	    -> return ()
+		Def c vs    -> occ m ok vs
+		Con c vs    -> occ m ok vs
+		MetaV m' vs -> occ m ok $ MetaThing MetaV InstV m' vs
+		Lam f _	    -> __IMPOSSIBLE__
+
+instance Occurs Type where
+    occ m ok t =
+	do  t' <- instType t
+	    case t' of
+		El v s	    -> occ m ok (v,s)
+		Pi _ w f    -> occ m ok (w,f)
+		Sort s	    -> occ m ok s
+		MetaT m' vs -> occ m ok $ MetaThing MetaT InstT m' vs
+		LamT _	    -> __IMPOSSIBLE__	-- ?
+
+instance Occurs Sort where
+    occ m ok s =
+	do  s' <- instSort s
+	    case s' of
+		MetaS m' | m == m' -> fail $ "?" ++ show m ++ " occurs in itself"
+		Lub s1 s2	   -> occ m ok (s1,s2)
+		_		   -> return ()
+
+instance Data a => Occurs (MetaThing a) where
+    occ m ok (MetaThing meta inst m' vs)
+	| m == m'	= fail $ "?" ++ show m ++ " occurs in itself"
+	| otherwise	=
+	    do  vs' <- case restrictParameters ok vs of
+			 Nothing  -> patternViolation [m,m']
+			 Just vs' -> return vs'
+		v1 <-  newMetaSame m' [] (\mi -> meta mi [])
+		setRef Why m' $ inst $ abstract vs (v1 `apply` vs')
+
+instance Occurs a => Occurs (Abs a) where
+    occ m ok (Abs _ x) = occ m (0 : List.map (+1) ok) x
+
+instance Occurs a => Occurs (Arg a) where
+    occ m ok (Arg _ x) = occ m ok x
+
+instance (Occurs a, Occurs b) => Occurs (a,b) where
+    occ m ok (x,y) = occ m ok x >> occ m ok y
+
+instance Occurs a => Occurs [a] where
+    occ m ok xs = mapM_ (occ m ok) xs
+
+
 -- | Assign to an open metavar.
 --   First check that metavar args are in pattern fragment.
 --     Then do extended occurs check on given thing.
 --
-assign :: MetaId -> [Value] -> GenericQ (TCM ())
+assign :: (Show a, Data a, Occurs a) => MetaId -> Args -> a -> TCM ()
 assign x args = mkQ (fail "assign") (ass InstV) `extQ` (ass InstT) where
-    ass :: (Show a, Data a) => (a -> MetaVariable) -> a -> TCM ()
+    ass :: (Show a, Data a, Occurs a) => (a -> MetaVariable) -> a -> TCM ()
     ass inst v = do
+	let pshow (Arg NotHidden x) = show x
+	    pshow (Arg Hidden x) = "{" ++ show x ++ "}"
+	debug $ "assign " ++ unwords (show x : List.map pshow args) ++ " := " ++ show v
+	store <- gets stMetaStore
+	debug $ "  " ++ show x ++ " = " ++ show (Map.lookup x store :: Maybe MetaVariable)
         ids <- checkArgs x args
-        v' <- occ x ids v    
+        occ x ids v    
         --trace ("assign: args="++(show args)++", v'="++(show v')++"\n") $ 
-        setRef Why x $ inst $ abstract args v'
+        setRef Why x $ inst $ abstract args v
 
 -- | Check that arguments to a metavar are in pattern fragment.
 --   Assumes all arguments already in whnf.
 --   Parameters are represented as @Var@s so @checkArgs@ really
 --     checks that all args are unique @Var@s and returns the
 --     list of corresponding indices for each arg-- done
---     to not define equality on @Value@.
+--     to not define equality on @Term@.
 --
 --   @reverse@ is necessary because we are directly abstracting over this list @ids@.
 --
-checkArgs :: MetaId -> [Value] -> TCM [Int]
-checkArgs x args = go [] args where
-    go ids  []           = return $ reverse ids
-    go done (arg : args) = case arg of 
-        Var i [] | not $ elem i done -> go (i:done) args
-        _                         -> patternViolation x 
+checkArgs :: MetaId -> Args -> TCM [Nat]
+checkArgs x args =
+    case validParameters args of
+	Just ids    -> return ids
+	Nothing	    -> patternViolation [x]
 
+-- 	= return = go [] args where
+--     go ids  []           = return $ reverse ids
+--     go done (Arg _ arg : args) = case arg of 
+--         Var i [] | not $ elem i done -> go (i:done) args
+--         _                         -> patternViolation x 
 
+-- | Check that the parameters to a meta variable are distinct variables.
+validParameters :: Monad m => Args -> m [Nat]
+validParameters args
+    | all isVar args && distinct vars	= return $ reverse vars
+    | otherwise				= fail "invalid parameters"
+    where
+	vars = [ i | Arg _ (Var i []) <- args ]
+
+isVar :: Arg Term -> Bool
+isVar (Arg _ (Var _ [])) = True
+isVar _			 = False
 

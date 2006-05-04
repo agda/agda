@@ -9,6 +9,8 @@ import Data.Monoid
 
 import Syntax.Internal
 
+type WalkT m = ReaderT Int (WriterT WalkDone m)
+
 -- | Check if given term is an abstraction.
 --
 isAbs :: Data a => a -> Bool
@@ -21,13 +23,12 @@ isAbs x = dataTypeName (dataTypeOf x) == dataTypeName (dataTypeOf (Abs undefined
 --   Might want to add some way to not traverse explanations (with something like 
 --     @isabs@ above).
 --
-walk :: Monad m => GenericM (ReaderT Int (WriterT WalkDone m)) -> GenericM m
+walk :: Monad m => GenericM (WalkT m) -> GenericM m
 walk f x = do
     (v, _) <- runWriterT $ runReaderT (go f x) 0
     return v 
   where
-    go :: Monad m => GenericM (ReaderT Int (WriterT WalkDone m)) -> 
-                     GenericM (ReaderT Int (WriterT WalkDone m))
+    go :: Monad m => GenericM (WalkT m) -> GenericM (WalkT m)
     go f x = do
         (v, continue) <- listen $ f x
         case continue of
@@ -47,7 +48,7 @@ instance Monoid WalkDone where
 --   If traversal function wants to continue traversal, then @return@
 --     is used instead.
 --
-endWalk :: Monad m => a -> ReaderT Int (WriterT WalkDone m) a
+endWalk :: Monad m => a -> WalkT m a
 endWalk x = do tell Done; return x
 
 

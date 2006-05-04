@@ -67,7 +67,7 @@ instance HasFresh i FreshThings => HasFresh i TCState where
 newtype ConstraintId = CId Nat
     deriving (Eq, Ord, Show, Num, Typeable, Data)
 
-data Constraint = ValueEq Type Value Value
+data Constraint = ValueEq Type Term Term
 		| TypeEq Type Type
   deriving Show
 
@@ -77,7 +77,7 @@ type Constraints = Map ConstraintId (Signature,Context,Constraint)
 -- ** Meta variables
 ---------------------------------------------------------------------------
 
-data MetaVariable = InstV Value
+data MetaVariable = InstV Term
                   | InstT Type
                   | InstS Sort
                   | UnderScoreV Type [ConstraintId]
@@ -97,7 +97,7 @@ type Signature = Map QName Definition
 
 data Definition = Axiom	      { defType    :: Type			      }
 		| Function    { funClauses :: [Clause], defType     :: Type   }
-		| Synonym     { synValue   :: Value   , defType	    :: Type   }
+		| Synonym     { synDef	   :: Term    , defType	    :: Type   }
 		| Datatype    { defType    :: Type    , dataConstrs :: [Name] }
 		| Constructor { defType    :: Type    , conDatatype :: Name   }
 		    -- ^ The type of the constructor and the name of the datatype.
@@ -132,21 +132,21 @@ type Context = [(Name, Type)]
 ---------------------------------------------------------------------------
 
 data TCErr = Fatal String 
-	   | PatternErr MetaId -- ^ for pattern violations, carries involved metavar
+	   | PatternErr [MetaId] -- ^ for pattern violations, carries involved metavars
   deriving Show
 
 instance Error TCErr where
     noMsg = Fatal ""
     strMsg s = Fatal s
 
-patternViolation mId = throwError $ PatternErr mId
+patternViolation mIds = throwError $ PatternErr mIds
 
 ---------------------------------------------------------------------------
 -- * Type checking monad
 ---------------------------------------------------------------------------
 
 type TCErrMon = Either TCErr
-type TCM a = StateT TCState (ReaderT TCEnv TCErrMon) a
+type TCM = StateT TCState (ReaderT TCEnv TCErrMon)
 
 runTCM :: TCM a -> Either TCErr a
 runTCM m = flip runReaderT initEnv

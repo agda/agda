@@ -17,7 +17,7 @@ import Utils.Fresh
 
 -- | The unique identifier of a name.
 newtype NameId = NameId Nat
-    deriving (Eq, Ord, Show, Num, Typeable, Data)
+    deriving (Eq, Ord, Num, Typeable, Data)
 
 -- | Modules are (temporarily) identified by their concrete names.
 type ModuleId = C.QName
@@ -66,6 +66,9 @@ freshName r s =
 freshName_ :: (MonadState s m, HasFresh NameId s) => String -> m Name
 freshName_ = freshName noRange
 
+instance Show NameId where
+    show (NameId x) = show x
+
 instance Eq Name where
     x == y  = nameId x == nameId y
 
@@ -73,10 +76,10 @@ instance Ord Name where
     compare x y = compare (nameId x) (nameId y)
 
 instance Show Name where
-    show = show . nameConcrete
+    show x = show (nameConcrete x) ++ "_" ++ show (nameId x)
 
 instance Show QName where
-    show = show . qnameConcrete
+    show q = show (qnameModule q) ++ "." ++ show (qnameName q)
 
 instance Eq QName where
     x == y = (qnameModule x, qnameName x) == (qnameModule y, qnameName y)

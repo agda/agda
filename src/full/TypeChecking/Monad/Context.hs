@@ -43,14 +43,22 @@ addConstant q d = modify $ \s -> s { stSignature = Map.insert q d $ stSignature 
 typeOfBV :: Nat -> TCM Type
 typeOfBV n = do
     ctx <- asks envContext
-    return $ snd $ ctx !! n
+    return $ raise (n + 1) $ snd $ ctx !! n
+
+-- | Get the deBruijn index of a named variable
+varIndex :: Name -> TCM Nat
+varIndex x =
+    do	ctx <- asks envContext
+	case List.findIndex ((==x) . fst) ctx of
+	    Just n  -> return n
+	    _	    -> fail $ "unbound variable " ++ show x
 
 getConstInfo :: QName -> TCM Definition
 getConstInfo q =
     do	sig <- gets stSignature
 	case Map.lookup q sig of
 	    Just d  -> return d
-	    _	    -> fail $ "Not in scope: " ++ show q
+	    _	    -> fail $ "Not in scope: " ++ show q ++ " in " ++ show sig
 
 -- | get type of a constant 
 --

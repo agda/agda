@@ -4,6 +4,7 @@ module TypeChecking.Conversion where
 
 import Data.Generics
 
+import Syntax.Common
 import Syntax.Internal
 import TypeChecking.Monad
 import TypeChecking.Monad.Context
@@ -17,7 +18,7 @@ import TypeChecking.Constraints
 -- | Equality of two instances of the same metavar
 --
 equalSameVar :: Data a => 
-                (MetaId -> a) -> (a -> MetaVariable) -> MetaId -> [Value] -> [Value] -> TCM ()
+                (MetaId -> a) -> (a -> MetaVariable) -> MetaId -> Args -> Args -> TCM ()
 equalSameVar meta inst x args1 args2 =
     if length args1 == length args2 then do
         -- next 2 checks could probably be nicely merged into construction 
@@ -25,33 +26,33 @@ equalSameVar meta inst x args1 args2 =
         checkArgs x args1 
         checkArgs x args2 
         let idx = [0 .. length args1 - 1]
-        let newArgs = [Var n [] | (n, (a,b)) <- zip idx $ zip args1 args2, a === b]
+        let newArgs = [Arg NotHidden $ Var n [] | (n, (a,b)) <- zip idx $ zip args1 args2, a === b]
         v <- newMetaSame x args1 meta -- !!! is args1 right here?
-        setRef Why x $ inst $ abstract args1 (addArgs newArgs v)
+        setRef Why x $ inst $ abstract args1 (v `apply` newArgs)
     else fail $ "equalSameVar"
     where
-	Var i [] === Var j [] = i == j
-	v1       === v2       = False
+	Arg _ (Var i []) === Arg _ (Var j []) = i == j
+	_		 === _		      = False
 
 
 -- | Type directed equality on values.
 --
-equalVal :: Data a => a -> Type -> Value -> Value -> TCM ()
+equalVal :: Data a => a -> Type -> Term -> Term -> TCM ()
 equalVal _ a m n = do --trace ("equalVal ("++(show a)++") ("++(show m)++") ("++(show n)++")\n") $ do
     a' <- instType a
     case a' of
-        Pi a (Abs x b) -> 
-            let p = Var 0 []
+        Pi h a (Abs x b) -> 
+            let p = Arg h $ Var 0 []	-- TODO: this must be wrong!
                 m' = raise 1 m
                 n' = raise 1 n
             in do name <- freshName_ x
-		  addCtx name a $ equalVal Why b (addArgs [p] m') (addArgs [p] n')
-        MetaT x _ -> addCnstr x (ValueEq a m n)
+		  addCtx name a $ equalVal Why b (m' `apply` [p]) (n' `apply` [p])
+        MetaT x _ -> addCnstr [x] (ValueEq a m n)
         _ -> catchConstr (ValueEq a' m n) $ equalAtm Why m n
 
 -- | Syntax directed equality on atomic values
 --
-equalAtm :: Data a => a -> Value -> Value -> TCM ()
+equalAtm :: Data a => a -> Term -> Term -> TCM ()
 equalAtm _ m n = do
     mVal <- reduceM m  -- need mVal for the metavar case
     nVal <- reduceM n  -- need nVal for the metavar case
@@ -72,12 +73,12 @@ equalAtm _ m n = do
 
 -- | Type-directed equality on argument lists
 --
-equalArg :: Data a => a -> Type -> [Value] -> [Value] -> TCM ()
+equalArg :: Data a => a -> Type -> Args -> Args -> TCM ()
 equalArg _ a args1 args2 = do
     a' <- instType a
     case (a', args1, args2) of 
         (_, [], []) -> return ()
-        (Pi b (Abs _ c), (arg1 : args1), (arg2 : args2)) -> do
+        (Pi h b (Abs _ c), (Arg _ arg1 : args1), (Arg _ arg2 : args2)) -> do
             equalVal Why b arg1 arg2
             equalArg Why (subst arg1 c) args1 args2
         _ -> fail $ "equalArg "++(show a)++" "++(show args1)++" "++(show args2)
@@ -94,7 +95,7 @@ equalTyp _ a1 a2 = do
     case (a1', a2') of
         (El m1 s1, El m2 s2) ->
             equalVal Why (sort s1) m1 m2
-        (Pi a1 (a2), Pi b1 (b2)) -> do
+        (Pi h a1 a2, Pi h' b1 b2) -> do
             equalTyp Why a1 b1
             let Abs x a2' = raise 1 a2
             let Abs _ b2' = raise 1 b2
@@ -106,8 +107,8 @@ equalTyp _ a1 a2 = do
             equalSameVar (\x -> MetaT x []) InstT x xDeps yDeps -- !!! MetaT???
         (MetaT x xDeps, a) -> assign x xDeps a 
         (a, MetaT x xDeps) -> assign x xDeps a 
-	(LamT _, _) -> __IMPOSSIBLE__
-	(El _ _, _) -> fail "not equal"
-	(Pi _ _, _) -> fail "not equal"
-	(Sort _, _) -> fail "not equal"
+	(LamT _, _)   -> __IMPOSSIBLE__
+	(El _ _, _)   -> fail "not equal"
+	(Pi _ _ _, _) -> fail "not equal"
+	(Sort _, _)   -> fail "not equal"
 

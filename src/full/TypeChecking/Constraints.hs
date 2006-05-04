@@ -22,21 +22,21 @@ import Utils.Fresh
 catchConstr :: Constraint -> TCM () -> TCM ()
 catchConstr cnstr v =
    catchError v (\ err -> case err of
-       PatternErr mId -> addCnstr mId cnstr
+       PatternErr mIds -> addCnstr mIds cnstr
        _           -> throwError err
        )
 
 -- | add a new constraint
 --   first arg is a list of @MetaId@s which should wake-up the constraint
 --
-addCnstr :: MetaId -> Constraint -> TCM ()
-addCnstr mId c = do
+addCnstr :: [MetaId] -> Constraint -> TCM ()
+addCnstr mIds c = do
     ctx <- asks envContext
     sig <- gets stSignature
     cId <- fresh
     modify (\st -> st{
         stConstraints = Map.insert cId (sig,ctx,c) $ stConstraints st,
-        stMetaStore = Map.adjust (addCId cId) mId $ stMetaStore st
+        stMetaStore   = foldr (Map.adjust $ addCId cId) (stMetaStore st) mIds
         })        
 
 wakeup cId = do
@@ -57,7 +57,7 @@ getCIds (UnderScoreT _ cIds) = cIds
 getCIds (UnderScoreS   cIds) = cIds
 getCIds (HoleV       _ cIds) = cIds
 getCIds (HoleT       _ cIds) = cIds
-getCIds _		     = __IMPOSSIBLE__
+getCIds m		     = error $ "getCIds: " ++ show m -- __IMPOSSIBLE__
 
 addCId cId mInfo = case mInfo of
     UnderScoreV a cIds -> UnderScoreV a $ cId : cIds

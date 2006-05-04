@@ -16,10 +16,12 @@ import Utils.Unicode
 
 #include "../../undefined.h"
 
-instance Show Expr	  where	show = show . pretty
-instance Show Declaration where show = show . pretty
-instance Show Pattern	  where show = show . pretty
-instance Show LHS	  where show = show . pretty
+instance Show Expr	   where show = show . pretty
+instance Show Declaration  where show = show . pretty
+instance Show Pattern	   where show = show . pretty
+instance Show LHS	   where show = show . pretty
+instance Show TypedBinding where show = show . pretty
+instance Show LamBinding   where show = show . pretty
 
 pHidden :: Pretty a => Hiding -> a -> Doc
 pHidden Hidden	    = braces . pretty

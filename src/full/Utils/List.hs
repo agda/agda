@@ -35,3 +35,8 @@ chop _ [] = []
 chop n xs = ys : chop n zs
     where (ys,zs) = splitAt n xs
 
+-- | Check whether all elements in a list are distinct from each other.
+distinct :: Eq a => [a] -> Bool
+distinct []	= True
+distinct (x:xs) = x `notElem` xs && distinct xs
+

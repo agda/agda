@@ -19,12 +19,16 @@ Topic: Unique names in abstract syntax.
     the same as far as possible, so each module (including
     sub-modules) should have its own set of unique identifiers.
 
+EndTopic
+
 Topic: Module names vs. function names
 
   * Since there is no confusion between module names and function
     names (they can never appear in the same place) it makes sense to
     have different representations for them. For clarity if nothing
     else.
+
+EndTopic
 
 Topic: Figuring out what's in Syntax.Internal(New)
 
@@ -52,6 +56,8 @@ Topic: Figuring out what's in Syntax.Internal(New)
     will probably make it more efficient than if it had been monadic.
     We can do this since it'll never change the state.
 
+EndTopic
+
 Topic: Module structure of the type checker
 
   - Syntax
@@ -65,6 +71,8 @@ Topic: Module structure of the type checker
   Where to put subst and adjust? Let's put them in Reduce for the time
   being. No, that doesn't quite work. They'll have to go in
   Substitute.
+
+EndTopic
 
 Topic: Structure of the signature.
 
@@ -86,6 +94,8 @@ Topic: Structure of the signature.
     instantiated (module Foo = Bar Nat), but that can also be
     postponed.
 
+EndTopic
+
 Topic: Things to think about.
 
   * Meta variables need to be scope checked (probably) so when
@@ -97,4 +107,46 @@ Topic: Things to think about.
 
   * Check that meta variables have been solved at appropriate times.
 
- vim: sts=2 sw=2 tw=70
+EndTopic
+
+Topic: Sort meta variables
+
+  * How can we solve them?
+  * When do we have to?
+
+EndTopic
+
+Topic: Debugging
+
+  * How to make debugging smooth?
+
+  * We need different levels of information in print-outs.
+
+EndTopic
+
+Topic: Generics
+
+  * How much do we gain by the generics? Is it worth it?
+  * Maybe there is a more light-weight approach.
+
+EndTopic
+
+Topic: n-ary application in terms.
+
+  * Some things might be simpler with binary application. Check it
+    out.
+
+EndTopic
+
+Topic: Meta variable dependencies and hidden application
+
+  * Currently meta variable dependencies are represented as
+    applications. This means that they contain hiding information.
+
+  * Is this a problem? It does clutter up some things, but on the
+    other hand it's possible that a meta variable _is_ applied to an
+    hidden argument.
+
+EndTopic
+
+ vim: sts=2 sw=2 tw=70 fdm=marker foldmarker=Topic\:,EndTopic

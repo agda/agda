@@ -4,6 +4,8 @@ module TypeChecker where
 import Control.Monad
 
 import qualified Syntax.Abstract as A
+import Syntax.Abstract.Pretty
+import Syntax.Abstract.Views
 import Syntax.Common
 import Syntax.Info
 import Syntax.Internal
@@ -16,10 +18,13 @@ import TypeChecking.Monad
 import TypeChecking.Monad.Debug
 import TypeChecking.Monad.Context
 import TypeChecking.Constraints ()
-import TypeChecking.Conversion ()
+import TypeChecking.Conversion
 import TypeChecking.MetaVars
 import TypeChecking.Reduce
 import TypeChecking.Substitute
+
+__debug x = debug x
+__showA x = showA x
 
 ---------------------------------------------------------------------------
 -- * Declarations
@@ -48,11 +53,8 @@ checkDecl d =
 -- | Type check an axiom.
 checkAxiom :: DefInfo -> Name -> A.Expr -> TCM ()
 checkAxiom _ x e =
-    do	debug $ "checking axiom: " ++ show x ++ " : " ++ show (abstractToConcrete_ e)
-	t <- isType e
+    do	t <- isType e
 	m <- currentModule
-	debug $ "  current module: " ++ show m
-	debug $ "  qualified name: " ++ show (qualify m x)
 	addConstant (qualify m x) (Axiom t)
 
 
@@ -85,9 +87,7 @@ checkModule :: ModuleInfo -> ModuleName -> A.Telescope -> [A.Declaration] -> TCM
 checkModule _ _ (_:_) _ = fail "checkModule: parameterised modules not implemented"
 checkModule i x tel ds =
     do	m <- currentModule
-	debug $ "checking module: " ++ show x
 	let m' = A.qualifyModuleHack m x
-	debug $ "  new current module: " ++ show m'
 	withCurrentModule m' $ checkDecls ds
 
 
@@ -106,6 +106,7 @@ checkImport i m = fail "checkImport: not implemented"
 -- * Sorts
 ---------------------------------------------------------------------------
 
+-- | Check that an expression is a sort. Used when checking datatypes.
 isSort :: A.Expr -> TCM Sort
 isSort e = fail "isSort: not implemented"
 
@@ -114,7 +115,7 @@ isSort e = fail "isSort: not implemented"
 forceSort :: Type -> TCM Sort
 forceSort t =
     do	t' <- instType t
-	case t of
+	case t' of
 	    Sort s	 -> return s
 	    MetaT m args ->
 		do  s <- newSortMeta
@@ -127,26 +128,27 @@ forceSort t =
 -- * Types
 ---------------------------------------------------------------------------
 
+-- | Check that an expression is a type.
 isType :: A.Expr -> TCM Type
 isType e =
     case e of
 	A.Prop _   -> return $ prop
 	A.Set _ n  -> return $ set n
 	A.Pi _ b e -> checkPiBinder b $ isType e
-	_	   ->
-	    do	(v,t) <- inferExpr e
-		s <- forceSort t
-		return $ El v s
+	_	   -> inferTypeExpr e
 
+-- | Check the binding in a 'A.Pi'. The second argument is run with the bound
+--   variables in scope, and the resulting type is a 'Pi' ending in whatever
+--   the second argument returns.
 checkPiBinder :: A.TypedBinding -> TCM Type -> TCM Type
-checkPiBinder (A.TypedBinding _ h xs e) k =
+checkPiBinder b@(A.TypedBinding _ h xs e) k =
     do	t <- isType e
 	addCtxs xs t $
 	    do	t' <- k
 		return $ mkPi xs t t'
     where
 	mkPi []	    _ t	= t
-	mkPi (x:xs) s t = Pi s $ Abs (show x) $ mkPi xs (raise 1 s) t
+	mkPi (x:xs) s t = Pi h s $ Abs (show x) $ mkPi xs (raise 1 s) t
 	
 
 ---------------------------------------------------------------------------
@@ -154,15 +156,57 @@ checkPiBinder (A.TypedBinding _ h xs e) k =
 ---------------------------------------------------------------------------
 
 -- | Type check an expression.
-checkExpr :: A.Expr -> Type -> TCM Value
-checkExpr e t = fail "checkExpr: not implemented"
+checkExpr :: A.Expr -> Type -> TCM Term
+checkExpr e t =
+    case appView e of
+	Application hd args ->
+	    do	(v,t0) <- inferHead hd
+		vs     <- checkArguments args t0 t
+		return $ v `apply` vs
+	_ ->
+	    case e of
+		A.Lam i b e	 -> fail "checkExpr: lambdas not implemented"
+		A.QuestionMark i -> fail "checkExpr: question marks not implemented"
+		A.Underscore i	 -> fail "checkExpr: underscores not implemented"
+		A.Lit lit	 -> fail "checkExpr: literals not implemented"
+		A.Let i ds e	 -> fail "checkExpr: let not implemented"
+		_		 -> fail $ "not a proper term: " ++ show (abstractToConcrete_ e)
+
+
+-- | Infer the type of a head thing (variable, function symbol, or constructor)
+inferHead :: Head -> TCM (Term, Type)
+inferHead (HeadVar _ x) =
+    do	n <- varIndex x
+	t <- typeOfBV n
+	return (Var n [], t)
+inferHead (HeadCon _ x) =
+    do	t <- typeOfConst x
+	return (Con x [], t)
+inferHead (HeadDef _ x) =
+    do	t <- typeOfConst x
+	return (Def x [], t)
+
+
+-- | Check a list of arguments: @checkArgs args t0 t1@ checks that
+--   @t0 = Delta -> t1@ and @args : Delta@. Inserts hidden arguments to
+--   make this happen.
+checkArguments :: [Arg A.Expr] -> Type -> Type -> TCM Args
+checkArguments [] t0 t1 = equalTyp () t0 t1 >> return []
+checkArguments args t0 t1 = fail "checkArgs: not implemented"
 
 
 -- | Infer the type of an expression. Implemented by checking agains a meta
 --   variable.
-inferExpr :: A.Expr -> TCM (Value, Type)
+inferExpr :: A.Expr -> TCM (Term, Type)
 inferExpr e =
     do	t <- newTypeMeta
 	v <- checkExpr e t
 	return (v,t)
+
+-- | Infer the sort of an expression which should be a type. Always returns 'El' something.
+inferTypeExpr :: A.Expr -> TCM Type
+inferTypeExpr e =
+    do	s <- newSortMeta
+	v <- checkExpr e (Sort s)
+	return $ El v s
 

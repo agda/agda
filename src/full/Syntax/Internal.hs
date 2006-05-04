@@ -18,15 +18,16 @@ import Syntax.Abstract.Name
 --     every constant, even if the definition is an empty
 --     list of clauses.
 --
-data Value = Var Nat Args
-	   | Lam (Abs Value) Args -- ^ allow for redexes
+data Term = Var Nat Args
+	   | Lam (Abs Term) Args -- ^ allow for redexes
 	   | Lit Literal
 	   | Def QName Args
+	   | Con QName Args
 	   | MetaV MetaId Args
   deriving (Typeable, Data)
 
-data Type = El Value Sort     
-	  | Pi Type (Abs Type)
+data Type = El Term Sort     
+	  | Pi Hiding Type (Abs Type)
 	  | Sort Sort         
 	  | MetaT MetaId Args  -- ^ list of dependencies for metavars
           | LamT (Abs Type) -- ^ abstraction needed for metavar dependency management, !!! is a type necessary?
@@ -34,7 +35,7 @@ data Type = El Value Sort
 
 -- ! Type of argument lists. Might want to later add hidden info...
 --
-type Args = [Value]
+type Args = [Arg Term]
 
 data Sort = Type Nat
 	  | Prop 
@@ -54,7 +55,7 @@ data Why   = Why	  deriving (Typeable, Data)
 --     match the number of @Bind@s in the body
 --
 data Clause = Clause [Pattern] ClauseBody deriving (Typeable, Data) 
-data ClauseBody = Body Value 
+data ClauseBody = Body Term 
 		| Bind (Abs ClauseBody)
   deriving (Typeable, Data)
 
