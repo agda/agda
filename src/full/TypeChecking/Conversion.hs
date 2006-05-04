@@ -13,6 +13,9 @@ import TypeChecking.Substitute
 import TypeChecking.Reduce
 import TypeChecking.Constraints
 
+import TypeChecking.Monad.Debug
+debug' = debug
+
 #include "../undefined.h"
 
 -- | Equality of two instances of the same metavar
@@ -26,8 +29,9 @@ equalSameVar meta inst x args1 args2 =
         checkArgs x args1 
         checkArgs x args2 
         let idx = [0 .. length args1 - 1]
-        let newArgs = [Arg NotHidden $ Var n [] | (n, (a,b)) <- zip idx $ zip args1 args2, a === b]
-        v <- newMetaSame x args1 meta -- !!! is args1 right here?
+        let newArgs = [Arg NotHidden $ Var n [] | (n, (a,b)) <- zip idx $ reverse $ zip args1 args2
+						, a === b]
+        v <- newMetaSame x args1 meta
         setRef Why x $ inst $ abstract args1 (v `apply` newArgs)
     else fail $ "equalSameVar"
     where
@@ -40,6 +44,7 @@ equalSameVar meta inst x args1 args2 =
 equalVal :: Data a => a -> Type -> Term -> Term -> TCM ()
 equalVal _ a m n = do --trace ("equalVal ("++(show a)++") ("++(show m)++") ("++(show n)++")\n") $ do
     a' <- instType a
+    --debug $ "equalVal " ++ show m ++ " == " ++ show n ++ " : " ++ show a'
     case a' of
         Pi h a (Abs x b) -> 
             let p = Arg h $ Var 0 []	-- TODO: this must be wrong!
@@ -56,6 +61,8 @@ equalAtm :: Data a => a -> Term -> Term -> TCM ()
 equalAtm _ m n = do
     mVal <- reduceM m  -- need mVal for the metavar case
     nVal <- reduceM n  -- need nVal for the metavar case
+--     debug $ "equalAtm " ++ show m ++ " == " ++ show n
+--     debug $ "         " ++ show mVal ++ " == " ++ show nVal
     --trace ("equalAtm ("++(show mVal)++") ("++(show nVal)++")\n") $ 
     case (mVal, nVal) of
         (Lit l1, Lit l2) | l1 == l2 -> return ()
@@ -65,10 +72,11 @@ equalAtm _ m n = do
         (Def x xArgs, Def y yArgs) | x == y -> do
             a <- typeOfConst x
             equalArg Why a xArgs yArgs
-        (MetaV x xArgs, MetaV y yArgs) | x == y -> equalSameVar (\x -> MetaV x []) InstV x xArgs yArgs -- !!! MetaV args???
+        (MetaV x xArgs, MetaV y yArgs) | x == y ->
+	    equalSameVar (\x -> MetaV x []) InstV x xArgs yArgs -- !!! MetaV args???
         (MetaV x xArgs, _) -> assign x xArgs nVal
         (_, MetaV x xArgs) -> assign x xArgs mVal
-        _ -> fail $ "equalAtm "++(show m)++" ==/== "++(show n)
+        _ -> fail $ "equalAtm "++(show mVal)++" ==/== "++(show nVal)
 
 
 -- | Type-directed equality on argument lists
@@ -92,6 +100,8 @@ equalTyp :: Data a => a -> Type -> Type -> TCM ()
 equalTyp _ a1 a2 = do
     a1' <- instType a1
     a2' <- instType a2
+--     debug $ "equalTyp " ++ show a1 ++ " == " ++ show a2
+--     debug $ "         " ++ show a1' ++ " == " ++ show a2'
     case (a1', a2') of
         (El m1 s1, El m2 s2) ->
             equalVal Why (sort s1) m1 m2

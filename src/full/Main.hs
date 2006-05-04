@@ -5,7 +5,8 @@
 module Main where
 
 import Control.Monad.State
-import Data.List
+import Data.List as List
+import Data.Map as Map
 import System.Environment
 import System.IO
 import System.Exit
@@ -28,7 +29,7 @@ parseFile' p file
 
 main =
     do	args <- getArgs
-	let [file] = filter ((/=) "-" . take 1) args
+	let [file] = List.filter ((/=) "-" . take 1) args
 	    go	| "-i" `elem` args  =
 		    do	i <- parseFile interfaceParser file
 			print i
@@ -44,6 +45,13 @@ main =
 		    Right st	->
 			do  putStrLn "OK"
 			    print st
+			    mapM_ prm $ Map.assocs $ stMetaStore st
+			    mapM_ pr $ Map.assocs $ stSignature st
+	    where
+		prm (x,i)	   = putStrLn $ "?" ++ show x ++ " := " ++ show i
+		pr (x,Axiom t)	   = putStrLn $ show x ++ " : " ++ show t
+		pr (x,Synonym v t) = putStrLn $ show x ++ " : " ++ show t ++ " = " ++ show v
+		pr (x,_)	   = putStrLn $ show x ++ "..."
 	stuff True file =
 	    failOnException $
 	    do	m	   <- parseFile' moduleParser file

@@ -105,6 +105,7 @@ data Definition = Axiom	      { defType    :: Type			      }
 
 defClauses :: Definition -> [Clause]
 defClauses (Function cs _) = cs
+defClauses (Synonym v _)   = [Clause [] (Body v)]
 defClauses _		   = []
 
 ---------------------------------------------------------------------------

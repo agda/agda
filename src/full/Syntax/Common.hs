@@ -11,7 +11,11 @@ data Hiding  = Hidden | NotHidden
 
 -- | A function argument can be hidden.
 data Arg e  = Arg Hiding e
-    deriving (Typeable, Data, Show, Eq)
+    deriving (Typeable, Data, Eq)
+
+instance Show a => Show (Arg a) where
+    show (Arg Hidden x) = "{" ++ show x ++ "}"
+    show (Arg NotHidden x) = "(" ++ show x ++ ")"
 
 -- | Functions can be defined in both infix and prefix style. See
 --   'Syntax.Concrete.LHS'.

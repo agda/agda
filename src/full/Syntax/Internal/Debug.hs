@@ -22,14 +22,16 @@ val2str (Var i args) = do
 val2str (Lam (Abs _ v) args) = do
     hd <- local (+ 1) $ val2str v
     n <- ask
-    args2str ("(x"++(show $ n + 1)++" \\ "++hd++")") args
+    args2str ("(\\x"++(show $ n + 1)++" -> "++hd++")") args
 val2str (Lit l) = return $ show l
 val2str (Def c args) = args2str (show c) args
 val2str (Con c args) = args2str (show c) args
 val2str (MetaV x args) = args2str ("?"++(show x)) args
 
 typ2str :: (MonadReader Int m) => Type -> m String
-typ2str (El v _) = val2str v
+typ2str (El v _) =
+    do	s <- val2str v
+	return $ "(El " ++ s ++ ")"
 typ2str (Pi h a (Abs _ b)) = do
     aStr <- typ2str a
     bStr <- local (+ 1) $ typ2str b
@@ -53,7 +55,7 @@ srt2str (Type n)    = "set"++(show n)
 srt2str Prop	    = "prop"
 srt2str (MetaS x)   = "?"++(show x)
 srt2str (Lub s1 s2) = (srt2str s1)++" \\/ "++(srt2str s2)
-
+srt2str (Suc s)	    = show s ++ "+1"
 
 instance Show Term where show v = runReader (val2str v) 0
 instance Show Type where show a = runReader (typ2str a) 0

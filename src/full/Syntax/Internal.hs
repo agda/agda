@@ -40,7 +40,8 @@ type Args = [Arg Term]
 data Sort = Type Nat
 	  | Prop 
 	  | MetaS MetaId 
-	  | Lub Sort Sort 
+	  | Lub Sort Sort
+	  | Suc Sort
   deriving (Typeable, Data)
 
 data Abs a = Abs String a deriving (Typeable, Data)

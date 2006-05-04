@@ -96,26 +96,6 @@ Topic: Structure of the signature.
 
 EndTopic
 
-Topic: Things to think about.
-
-  * Meta variables need to be scope checked (probably) so when
-    creating a new meta we should have access to scope information.
-    It'll probably be enough to annotate declarations with scope and
-    make sure that the type checker updates the current scope when
-    passing a definition. Not having to bother with lambda bound
-    things makes it easier.
-
-  * Check that meta variables have been solved at appropriate times.
-
-EndTopic
-
-Topic: Sort meta variables
-
-  * How can we solve them?
-  * When do we have to?
-
-EndTopic
-
 Topic: Debugging
 
   * How to make debugging smooth?
@@ -138,6 +118,8 @@ Topic: n-ary application in terms.
 
 EndTopic
 
+Topic: Meta variables
+
 Topic: Meta variable dependencies and hidden application
 
   * Currently meta variable dependencies are represented as
@@ -146,6 +128,38 @@ Topic: Meta variable dependencies and hidden application
   * Is this a problem? It does clutter up some things, but on the
     other hand it's possible that a meta variable _is_ applied to an
     hidden argument.
+
+EndTopic
+
+Topic: Sort meta variables
+
+  * How can we solve them?
+  * When do we have to?
+
+  * One option could be to instantiate all unsolved (unconstrained)
+    sort metas to Set.
+
+EndTopic
+
+Topic: Dependency juggling
+  
+  * Juggling parameters is a mess. There is a dire need for a nice
+    clean API.
+
+EndTopic
+
+EndTopic
+
+Topic: Things to think about.
+
+  * Meta variables need to be scope checked (probably) so when
+    creating a new meta we should have access to scope information.
+    It'll probably be enough to annotate declarations with scope and
+    make sure that the type checker updates the current scope when
+    passing a definition. Not having to bother with lambda bound
+    things makes it easier.
+
+  * Check that meta variables have been solved at appropriate times.
 
 EndTopic
 

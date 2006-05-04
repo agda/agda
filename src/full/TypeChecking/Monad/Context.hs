@@ -27,7 +27,7 @@ withCurrentModule m =
 -- | add a variable to the context
 --
 addCtx :: Name -> Type -> TCM a -> TCM a
-addCtx x a = local (\e -> e { envContext = (x,a) : raise 1 (envContext e) })
+addCtx x a = local (\e -> e { envContext = (x,a) : envContext e })
 
 -- | add a bunch of variables with the same type to the context
 addCtxs :: [Name] -> Type -> TCM a -> TCM a
@@ -64,4 +64,8 @@ getConstInfo q =
 --
 typeOfConst :: QName -> TCM Type
 typeOfConst q = defType <$> getConstInfo q
+
+
+escapeContext :: Int -> TCM a -> TCM a
+escapeContext n = local $ \e -> e { envContext = drop n $ envContext e }
 

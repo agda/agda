@@ -46,3 +46,4 @@ failOnException m = m `catchDyn` handleParseException
 		      `catchDyn` handleInfixException
 		      `catchDyn` handleToAbstractException
 		      `catchDyn` handleImportException
+

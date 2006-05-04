@@ -14,10 +14,10 @@ storeElm2str (x, mv) = "?"++(show x)++(case mv of
     InstT a -> ":="++(show a)
     InstS s -> ":="++(show s)
     UnderScoreV a cIds -> ":"++(show a)++"|"++(show cIds)
-    UnderScoreT s cIds -> ":"++(show s)++"|"++(show cIds)
+    UnderScoreT s cIds -> "::"++(show s)++"|"++(show cIds)
     UnderScoreS cIds -> "|"++(show cIds)
     HoleV a cIds -> ":"++(show a)++"|"++(show cIds)
-    HoleT s cIds -> ":"++(show s)++"|"++(show cIds)
+    HoleT s cIds -> "::"++(show s)++"|"++(show cIds)
   )
 
 instance Show TCState where 

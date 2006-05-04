@@ -11,8 +11,7 @@ import Syntax.Internal.Walk
 
 import Utils.Monad
 
--- | This can never be right! Isn't this going to add the arguments everywhere,
---   not just at top-level?
+-- | Apply something to a bunch of arguments.
 apply :: Data a => a -> Args -> a
 apply x args = (mkT addTrm `extT` addTyp) x
     where
@@ -26,11 +25,11 @@ apply x args = (mkT addTrm `extT` addTyp) x
 	    MetaT x args' -> MetaT x (args'++args)
 	    _	      -> a
 
--- | Also wrong?
-abstract :: Args -> GenericT
+-- | @(abstract args v) args --> v[args]@.
+abstract :: Data a => Args -> a -> a
 abstract args = mkT absV `extT` absT where
-    absV v = foldl (\v _ -> Lam  (Abs "x" v) []) v args
-    absT a = foldl (\a _ -> LamT (Abs "x" a)   ) a args 
+    absV v = foldl (\v _ -> Lam  (Abs "x" v) []) v $ reverse args
+    absT a = foldl (\a _ -> LamT (Abs "x" a)   ) a $ reverse args 
 
 -- | Substitute @repl@ for @(Var 0 _)@ in @x@.
 --
@@ -46,6 +45,10 @@ subst repl x = runIdentity $ walk (mkM goVal) x where
   goVal x = return x
   
   goArg (Arg h v) = Arg h <$> goVal v
+
+-- | Instantiate an abstraction
+substAbs :: Data a => Term -> Abs a -> a
+substAbs u (Abs _ v) = subst u v
 
 -- | Add @k@ to index of each open variable in @x@.
 --
