@@ -15,14 +15,22 @@ import Utils.Monad
 
 #include "../../undefined.h"
 
--- | Get the name of the current module.
-currentModule :: TCM ModuleName
+-- | Get the name of the current module, if any.
+currentModule :: TCM (Maybe ModuleName)
 currentModule = asks envCurrentModule
+
+-- | Get the name of the current module. Assumes there is one.
+currentModule_ :: TCM ModuleName
+currentModule_ =
+    do	m <- currentModule
+	case m of
+	    Just m  -> return m
+	    Nothing -> fail "panic: no current module!"
 
 -- | Set the name of the current module.
 withCurrentModule :: ModuleName -> TCM a -> TCM a
 withCurrentModule m =
-    local $ \e -> e { envCurrentModule = m }
+    local $ \e -> e { envCurrentModule = Just m }
 
 -- | add a variable to the context
 --

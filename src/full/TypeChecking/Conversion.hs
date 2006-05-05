@@ -100,8 +100,8 @@ equalTyp :: Data a => a -> Type -> Type -> TCM ()
 equalTyp _ a1 a2 = do
     a1' <- instType a1
     a2' <- instType a2
---     debug $ "equalTyp " ++ show a1 ++ " == " ++ show a2
---     debug $ "         " ++ show a1' ++ " == " ++ show a2'
+    debug $ "equalTyp " ++ show a1 ++ " == " ++ show a2
+    debug $ "         " ++ show a1' ++ " == " ++ show a2'
     case (a1', a2') of
         (El m1 s1, El m2 s2) ->
             equalVal Why (sort s1) m1 m2

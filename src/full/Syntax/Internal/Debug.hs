@@ -4,6 +4,8 @@ module Syntax.Internal.Debug where
 
 import Control.Monad.Reader
 
+import Data.Char
+
 import Syntax.Common
 import Syntax.Internal
 
@@ -15,6 +17,9 @@ bracket :: Hiding -> String -> String
 bracket Hidden	  s = "{" ++ s ++ "}"
 bracket NotHidden s = "(" ++ s ++ ")"
 
+isOp (c:_) = not $ isAlpha c
+isOp [] = False
+
 val2str :: (MonadReader Int m) => Term -> m String
 val2str (Var i args) = do
     n <- ask
@@ -24,6 +29,16 @@ val2str (Lam (Abs _ v) args) = do
     n <- ask
     args2str ("(\\x"++(show $ n + 1)++" -> "++hd++")") args
 val2str (Lit l) = return $ show l
+val2str (Con c [Arg NotHidden v1,Arg NotHidden v2])
+    | isOp (show c) =
+	do  s1 <- val2str v1
+	    s2 <- val2str v2
+	    return $ "(" ++ s1 ++ " " ++ show c ++ " " ++ s2 ++ ")"
+val2str (Def c [Arg NotHidden v1,Arg NotHidden v2])
+    | isOp (show c) =
+	do  s1 <- val2str v1
+	    s2 <- val2str v2
+	    return $ "(" ++ s1 ++ " " ++ show c ++ " " ++ s2 ++ ")"
 val2str (Def c args) = args2str (show c) args
 val2str (Con c args) = args2str (show c) args
 val2str (MetaV x args) = args2str ("?"++(show x)) args

@@ -22,6 +22,7 @@ import Interaction.Exceptions
 
 import TypeChecker
 import TypeChecking.Monad
+import TypeChecking.Reduce
 
 parseFile' p file
     | "lagda" `isSuffixOf` file	= parseLiterateFile p file
@@ -37,21 +38,41 @@ main =
 	go
     where
 	stuff False file =
+	    failOnException $
 	    do	m	    <- parseFile' moduleParser file
 		(m', scope) <- concreteToAbstract m
-		let debugCheck m = checkDecl m' >> get
 		case runTCM $ debugCheck m' of
 		    Left err	-> putStrLn $ "FAIL: " ++ show err
-		    Right st	->
+		    Right s	->
 			do  putStrLn "OK"
-			    print st
-			    mapM_ prm $ Map.assocs $ stMetaStore st
-			    mapM_ pr $ Map.assocs $ stSignature st
+			    putStr s
 	    where
-		prm (x,i)	   = putStrLn $ "?" ++ show x ++ " := " ++ show i
-		pr (x,Axiom t)	   = putStrLn $ show x ++ " : " ++ show t
-		pr (x,Synonym v t) = putStrLn $ show x ++ " : " ++ show t ++ " = " ++ show v
-		pr (x,_)	   = putStrLn $ show x ++ "..."
+		debugCheck m =
+		    do	checkDecl m
+			st <- get
+			let store = stMetaStore st
+			    sig   = stSignature st
+			    cnstr = stConstraints st
+			store' <- refresh store
+			sig'   <- refresh sig
+			cnstr' <- refresh cnstr
+			return $ unlines
+			    [ pr store cnstr sig
+			    , replicate 50 '+'
+			    , pr store' cnstr' sig'
+			    ]
+
+		pr store cnstr sig =
+			unlines (List.map prm $ Map.assocs store)
+		     ++ unlines (List.map prc $ Map.assocs cnstr)
+		     ++ unlines (List.map prd $ Map.assocs sig)
+
+		prm (x,i)	    = "?" ++ show x ++ " := " ++ show i
+		prc (x,(_,ctx,c))   = show x ++ "> " ++ show ctx ++ " |- " ++ show c
+		prd (x,Axiom t)	    = show x ++ " : " ++ show t
+		prd (x,Synonym v t) = show x ++ " : " ++ show t ++ " = " ++ show v
+		prd (x,_)	    = show x ++ "..."
+
 	stuff True file =
 	    failOnException $
 	    do	m	   <- parseFile' moduleParser file

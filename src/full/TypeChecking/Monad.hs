@@ -69,7 +69,7 @@ newtype ConstraintId = CId Nat
 
 data Constraint = ValueEq Type Term Term
 		| TypeEq Type Type
-  deriving Show
+  deriving (Show, Typeable, Data)
 
 type Constraints = Map ConstraintId (Signature,Context,Constraint)
 
@@ -101,7 +101,7 @@ data Definition = Axiom	      { defType    :: Type			      }
 		| Datatype    { defType    :: Type    , dataConstrs :: [Name] }
 		| Constructor { defType    :: Type    , conDatatype :: Name   }
 		    -- ^ The type of the constructor and the name of the datatype.
-    deriving (Show)
+    deriving (Show, Typeable, Data)
 
 defClauses :: Definition -> [Clause]
 defClauses (Function cs _) = cs
@@ -114,12 +114,12 @@ defClauses _		   = []
 
 data TCEnv =
     TCEnv { envContext	     :: Context
-	  , envCurrentModule :: ModuleName
+	  , envCurrentModule :: Maybe ModuleName
 	  }
 
 initEnv :: TCEnv
 initEnv = TCEnv { envContext	   = []
-		, envCurrentModule = error "panic: no current module"
+		, envCurrentModule = Nothing
 		}
 
 ---------------------------------------------------------------------------

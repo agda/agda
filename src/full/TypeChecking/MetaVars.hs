@@ -47,7 +47,7 @@ allCtxVars = do
 
 setRef :: Data a => a -> MetaId -> MetaVariable -> TCM ()
 setRef _ x v = do
-    --debug $ "?" ++ show x ++ " := " ++ show v
+    debug $ "?" ++ show x ++ " := " ++ show v
     store <- gets stMetaStore
     let (cIds, store') = replace x v store
     modify (\st -> st{stMetaStore = store'})
@@ -153,7 +153,7 @@ instance Occurs Term where
 		Lit l	    -> return $ Lit l
 		Def c vs    -> Def c <$> occ m ok vs
 		Con c vs    -> Con c <$> occ m ok vs
-		MetaV m' vs -> occMeta MetaV InstV m ok m' vs
+		MetaV m' vs -> occMeta MetaV InstV reduceM m ok m' vs
 		Lam f _	    -> __IMPOSSIBLE__
 
 instance Occurs Type where
@@ -163,7 +163,7 @@ instance Occurs Type where
 		El v s	    -> uncurry El <$> occ m ok (v,s)
 		Pi h w f    -> uncurry (Pi h) <$> occ m ok (w,f)
 		Sort s	    -> Sort <$> occ m ok s
-		MetaT m' vs -> occMeta MetaT InstT m ok m' vs
+		MetaT m' vs -> occMeta MetaT InstT instType m ok m' vs
 		LamT _	    -> __IMPOSSIBLE__	-- ?
 
 instance Occurs Sort where
@@ -174,8 +174,8 @@ instance Occurs Sort where
 		Lub s1 s2	   -> uncurry Lub <$> occ m ok (s1,s2)
 		_		   -> return s'
 
-occMeta :: (Show a, Data a) => (MetaId -> Args -> a) -> (a -> MetaVariable) -> MetaId -> [Nat] -> MetaId -> Args -> TCM a
-occMeta meta inst m ok m' vs
+occMeta :: (Show a, Data a) => (MetaId -> Args -> a) -> (a -> MetaVariable) -> (a -> TCM a) -> MetaId -> [Nat] -> MetaId -> Args -> TCM a
+occMeta meta inst red m ok m' vs
     | m == m'	= fail $ "?" ++ show m ++ " occurs in itself"
     | otherwise	=
 	do  vs' <- case restrictParameters ok vs of
@@ -184,7 +184,14 @@ occMeta meta inst m ok m' vs
 	    when (length vs' /= length vs) $
 		do  v1 <-  newMetaSame m' [] (\mi -> meta mi [])
 		    setRef Why m' $ inst $ abstract vs (v1 `apply` vs')
-	    return $ meta m' vs
+	    let vs0 = List.map rename vs
+	    return $ meta m' vs0
+    where
+	rename (Arg h (Var i [])) =
+	    case findIdx ok i of
+		Just i'	-> Arg h $ Var i' []
+		Nothing	-> Arg h $ Var i []
+	rename v = v
 
 instance Occurs a => Occurs (Abs a) where
     occ m ok (Abs s x) = Abs s <$> occ m (List.map (+1) ok ++ [0]) x

@@ -40,14 +40,17 @@ data ToAbstractException
 	| NotAModuleExpr C.Expr
 	    -- ^ The expr was used in the right hand side of an implicit module
 	    --	 definition, but it wasn't of the form @m Delta@.
+	| NoTopLevelModule C.Declaration
     deriving (Typeable, Show)
 
 higherOrderPattern p0 p = throwDyn $ HigherOrderPattern p0 p
 notAModuleExpr e	= throwDyn $ NotAModuleExpr e
+noTopLevelModule d	= throwDyn $ NoTopLevelModule d
 
 instance HasRange ToAbstractException where
     getRange (HigherOrderPattern p _) = getRange p
     getRange (NotAModuleExpr e)	      = getRange e
+    getRange (NoTopLevelModule d)     = getRange d
 
 {--------------------------------------------------------------------------
     Helpers
@@ -269,8 +272,8 @@ instance BindToAbstract C.TypedBinding A.TypedBinding where
 
 -- Note: only for top level modules!
 instance ToAbstract C.Declaration (A.Declaration, ScopeInfo) where
-    toAbstract (C.Module r x@(C.Qual _ _) tel ds) =
-	insideModule x $
+    toAbstract (C.Module r x tel ds) =
+	insideTopLevelModule x $
 	bindToAbstract (tel,ds) $ \(tel',ds') ->    -- order matter!
 	    do	scope <- getScopeInfo
 		x' <- toAbstract $ CModuleName x
@@ -279,7 +282,7 @@ instance ToAbstract C.Declaration (A.Declaration, ScopeInfo) where
 	    info = mkRangedModuleInfo PublicAccess r
 			-- We could save the concrete module here but
 			-- seems a bit over-kill.
-    toAbstract _ = __IMPOSSIBLE__   -- only for top-level modules.
+    toAbstract d = noTopLevelModule d	-- only for top-level modules.
 
 instance BindToAbstract [C.Declaration] [A.Declaration] where
     bindToAbstract ds = bindToAbstract (niceDeclarations ds)
@@ -342,7 +345,7 @@ instance BindToAbstract NiceDeclaration [A.Declaration] where
 
     bindToAbstract (NiceModule r a name@(C.QName x) tel ds) ret =
 	do  (tel',ds',ns) <-
-		insideModule name $
+		insideModule x $
 		bindToAbstract (tel,ds) $ \ (tel',ds') ->
 		    do	ns <- currentNameSpace
 			return (tel',ds',ns)

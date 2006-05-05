@@ -8,14 +8,23 @@ import Control.Monad.Reader
 import Control.Monad.Identity
 import Data.List as List
 import Data.Map as Map
+import Data.Generics
 
 import Syntax.Common
 import Syntax.Internal
+import Syntax.Internal.Walk
 
 import TypeChecking.Monad
 import TypeChecking.Substitute
 
 #include "../undefined.h"
+
+refresh :: Data a => a -> TCM a
+refresh = walk (mkM refType `extM` refTerm `extM` refSort)
+    where
+	refType = lift . lift . instType
+	refTerm = lift . lift . reduceM
+	refSort = lift . lift . instSort
 
 -- | instantiate a type 
 --   results is open meta variable or a non meta variable type.

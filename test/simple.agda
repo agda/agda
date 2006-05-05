@@ -35,15 +35,12 @@ module prop where
 
   Not = \(P:Prop) -> P ==> False
 
-  EM = \(P:Prop) -> P \/ Not P
-
   notnotEM = \(P:Prop) ->
-    impI -- {Not (P \/ Not P)} {False}
-      (\ (nEM : Not (P \/ Not P)) ->
-	    impE {-P \/ Not P} {False-} nEM (
-		inr {-P} {Not P-} (
-		  impI {-P} {False-} (\ (p:P) ->
-		    impE {-P \/ Not P} {False-} nEM (inl {-P} {Not P-} p)
+    impI (\ (nEM : Not (P \/ Not P)) ->
+	    impE nEM (
+		inr (
+		  impI (\ p ->
+		    impE nEM (inl p)
 		  )
 		)
 	      )

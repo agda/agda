@@ -54,9 +54,10 @@ qualify m x = QName { qnameName	    = x
 qualifyModule :: ModuleName -> C.Name -> ModuleName
 qualifyModule (MName i c) x = MName (C.qualify i x) (C.qualify c x)
 
-qualifyModuleHack :: ModuleName -> ModuleName -> ModuleName
-qualifyModuleHack m (MName (C.QName x) _) = qualifyModule m x
-qualifyModuleHack _ m' = m'
+qualifyModuleHack :: Maybe ModuleName -> ModuleName -> ModuleName
+qualifyModuleHack (Just m) (MName (C.QName x) _) = qualifyModule m x
+qualifyModuleHack Nothing  m' = m'
+qualifyModuleHack _ _ = __IMPOSSIBLE__
 
 freshName :: (MonadState s m, HasFresh NameId s) => Range -> String -> m Name
 freshName r s =
@@ -79,7 +80,7 @@ instance Show Name where
     show x = show (nameConcrete x)
 
 instance Show QName where
-    show q = {- show (qnameModule q) ++ "." ++ -} show (qnameName q)
+    show q = {-show (qnameModule q) ++ "." ++-} show (qnameName q)
 
 instance Eq QName where
     x == y = (qnameModule x, qnameName x) == (qnameModule y, qnameName y)

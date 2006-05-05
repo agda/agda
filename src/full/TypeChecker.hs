@@ -12,6 +12,7 @@ import Syntax.Abstract.Pretty
 import Syntax.Abstract.Views
 import Syntax.Common
 import Syntax.Info
+--import Syntax.Position
 import Syntax.Internal
 import Syntax.Internal.Walk ()
 import Syntax.Internal.Debug ()
@@ -62,7 +63,7 @@ checkDecl d =
 checkAxiom :: DefInfo -> Name -> A.Expr -> TCM ()
 checkAxiom _ x e =
     do	t <- isType e
-	m <- currentModule
+	m <- currentModule_
 	addConstant (qualify m x) (Axiom t)
 
 
@@ -71,7 +72,7 @@ checkSynonym :: DefInfo -> Name -> A.Expr -> [A.Declaration] -> TCM ()
 checkSynonym i x e loc =
     do	unless (null loc) $ fail "checkSynonym: local definitions not implemented"
 	(v,t) <- inferExpr e
-	m <- currentModule
+	m <- currentModule_
 	addConstant (qualify m x) (Synonym v t)
 
 
@@ -132,11 +133,6 @@ forceSort t =
 	    _	-> fail $ "not a sort " ++ show t
 
 
--- | Get the next higher sort. Move somewhere else and do some reductions
---   (@suc (set n) --> suc (set (n + 1))@)
-sSuc :: Sort -> TCM Sort
-sSuc = return . Suc
-
 ---------------------------------------------------------------------------
 -- * Types
 ---------------------------------------------------------------------------
@@ -168,6 +164,8 @@ checkTypedBinding b@(A.TypedBinding _ h xs e) ret =
 forcePi :: Hiding -> Type -> TCM Type
 forcePi h t =
     do	t' <- instType t
+	debug $ "forcePi " ++ show t
+	debug $ "    --> " ++ show t'
 	case t' of
 	    Pi _ _ _	-> return t'
 	    MetaT m vs	->
@@ -210,7 +208,15 @@ checkExpr e t =
 		    where
 			name (Arg h (x,_)) = Arg h x
 
-		A.Lam i (A.DomainFree h x) e -> fail "checkExpr: domain free lambdas not implemented"
+		A.Lam i (A.DomainFree h x) e ->
+		    do	t' <- forcePi h t
+			case t' of
+			    Pi h' a (Abs _ b) | h == h' ->
+				addCtx x a $
+				do  v <- checkExpr e b
+				    return $ Lam (Abs (show x) v) []
+			    _	-> fail $ "expected " ++ show h ++ " function space, found " ++ show t'
+
 		A.QuestionMark i -> newQuestionMark t
 		A.Underscore i	 -> newValueMeta t
 		A.Lit lit	 -> fail "checkExpr: literals not implemented"
@@ -307,4 +313,9 @@ buildPi tel t = foldr (\ (Arg h (x,a)) b -> Pi h a (Abs x b) ) t tel
 
 buildLam :: [Arg String] -> Term -> Term
 buildLam xs t = foldr (\ (Arg _ x) t -> Lam (Abs x t) []) t xs
+
+-- | Get the next higher sort. Move somewhere else and do some reductions
+--   (@suc (set n) --> suc (set (n + 1))@)
+sSuc :: Sort -> TCM Sort
+sSuc = return . Suc
 

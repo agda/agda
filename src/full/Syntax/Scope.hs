@@ -738,13 +738,15 @@ setContext :: Precedence -> ScopeM a -> ScopeM a
 setContext p =
     local $ \s -> s { contextPrecedence = p }
 
+-- | Work inside the top-level module.
+insideTopLevelModule :: CName.QName -> ScopeM a -> ScopeM a
+insideTopLevelModule qx = local $ const $ emptyScopeInfo $ mkModuleName qx
+
 -- | Work inside a module. This means moving everything in the
 --   'publicNameSpace' to the 'privateNameSpace' and updating the names of
 --   the both name spaces.
-insideModule :: CName.QName -> ScopeM a -> ScopeM a
-insideModule qx@(Qual _ _)  = local $ const (emptyScopeInfo $ mkModuleName qx)
-    -- if the module is qualified it's a top level module so we start a fresh scope.
-insideModule (CName.QName x) = local upd
+insideModule :: CName.Name -> ScopeM a -> ScopeM a
+insideModule x = local upd
     where
 	upd si = si { publicNameSpace = emptyNameSpace qx
 		    , privateNameSpace = plusNameSpace pri pub
