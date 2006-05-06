@@ -1,0 +1,30 @@
+
+entrypoints Program;
+
+token Name (letter (letter | digit | '\'') *) ('.' letter (letter | digit | '\'') *) *;
+
+layout toplevel;
+layout "where";
+
+Program. Program ::= [Declaration];
+
+TypeSig.   Declaration ::= Name ":" Type;
+FunClause. Declaration ::= Name [Pattern1] "=" Term;
+
+separator Declaration ";";
+
+separator Pattern1 "";
+
+AppP. Pattern  ::= Pattern Pattern1;
+VarP. Pattern1 ::= Name;
+coercions Pattern 1;
+
+Pi.  Type ::= "(" Name ":" Type ")" "->" Type ;
+El.  Type ::= Term ;
+Set. Type ::= "Set" ;
+
+Lam.  Term  ::= "\\" Name "->" Term;
+App.  Term1 ::= Term1 Term2;
+Var.  Term2 ::= Name;
+coercions Term 2;
+
