@@ -297,7 +297,7 @@ instance BindToAbstract NiceDefinition Definition where
 
     -- Function definitions
     bindToAbstract (CD.FunDef r ds f a x cs) ret =
-	do  (x',cs') <- toAbstract (NewName x,cs)
+	do  (x',cs') <- toAbstract (OldName x,cs)
 	    ret $ A.FunDef (mkSourcedDefInfo x f a ds) x' cs'
 
     -- Data definitions
@@ -307,7 +307,7 @@ instance BindToAbstract NiceDefinition Definition where
 				    return (pars', cons')
 	    -- bring the constructor names into scope
 	    bindToAbstract (map Constr cons') $ \_ ->
-		do  x' <- toAbstract (NewName x)
+		do  x' <- toAbstract (OldName x)
 		    ret $ A.DataDef (mkRangedDefInfo x f a r) x' pars' cons'
 
 -- The only reason why we return a list is that open declarations disappears.

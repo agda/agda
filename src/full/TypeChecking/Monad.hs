@@ -95,11 +95,17 @@ type MetaStore = Map MetaId MetaVariable
 
 type Signature = Map QName Definition
 
-data Definition = Axiom	      { defType    :: Type			      }
-		| Function    { funClauses :: [Clause], defType     :: Type   }
-		| Synonym     { synDef	   :: Term    , defType	    :: Type   }
-		| Datatype    { defType    :: Type    , dataConstrs :: [Name] }
-		| Constructor { defType    :: Type    , conDatatype :: Name   }
+data Definition = Axiom	      { defType    :: Type			       }
+		| Function    { funClauses :: [Clause], defType     :: Type    }
+		| Synonym     { synDef	   :: Term    , defType	    :: Type    }
+		| Datatype    { defType	       :: Type
+			      , dataParameters :: Int
+			      , dataConstrs    :: [QName]
+			      }
+		| Constructor { defType	      :: Type
+			      , conParameters :: Int
+			      , conDatatype   :: QName
+			      }
 		    -- ^ The type of the constructor and the name of the datatype.
     deriving (Show, Typeable, Data)
 

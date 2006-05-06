@@ -1,6 +1,47 @@
 
 module test.simple where
 
+module Nat where
+
+  data Nat : Set where
+    zero : Nat
+    suc  : Nat -> Nat
+
+  (+) : Nat -> Nat -> Nat
+  zero + m = m
+  suc n + m = suc (n + m)
+
+data List (A:Set) : Set where
+  nil : List A
+  cons : A -> List A -> List A
+
+mutual
+  data Even : Set where
+    evenZero : Even
+    evenSuc  : Odd -> Even
+
+  data Odd : Set where
+    oddSuc : Even -> Odd
+
+data Monad (m:Set -> Set) : Set1 where
+  monad : ((a:Set) -> a -> m a) ->
+	  ((a,b:Set) -> m a -> (a -> m b) -> m b) ->
+	  Monad m
+
+postulate
+  return : {m:Set -> Set} -> {a:Set} -> Monad m -> a -> m a
+
+infix 5 ==
+
+postulate
+  (==) : {A:Set} -> A -> A -> Prop
+  refl : {A:Set} -> {a:A} -> a == a
+
+open Nat
+
+zzz = suc zero + suc zero
+
+{-
 postulate
   A   : Set
 --   idA : A -> A
@@ -45,5 +86,4 @@ module prop where
 		)
 	      )
 	    )
-
-
+-}

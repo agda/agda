@@ -9,6 +9,7 @@ import Data.Map as Map
 
 import Syntax.Common
 import Syntax.Internal
+import Syntax.Position
 import TypeChecking.Monad
 import TypeChecking.Substitute
 import Utils.Monad
@@ -66,7 +67,7 @@ getConstInfo q =
     do	sig <- gets stSignature
 	case Map.lookup q sig of
 	    Just d  -> return d
-	    _	    -> fail $ "Not in scope: " ++ show q ++ " in " ++ show sig
+	    _	    -> fail $ show (getRange q) ++ ": not in scope " ++ show q ++ " in " ++ show sig
 
 -- | get type of a constant 
 --

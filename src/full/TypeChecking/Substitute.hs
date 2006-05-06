@@ -19,6 +19,7 @@ apply x args = (mkT addTrm `extT` addTyp) x
 	    Var i args' -> Var i (args'++args)
 	    Lam m args' -> Lam m (args'++args)
 	    Def c args' -> Def c (args'++args)
+	    Con c args' -> Con c (args'++args)
 	    MetaV x args' -> MetaV x (args'++args) 
 	    _	      -> m
 	addTyp a = case a of
@@ -45,6 +46,11 @@ subst repl x = runIdentity $ walk (mkM goVal) x where
   goVal x = return x
   
   goArg (Arg h v) = Arg h <$> goVal v
+
+-- | Substitute a lot of terms.
+substs :: [Term] -> GenericT
+substs []     x = x
+substs (t:ts) x = subst t (substs (raise 1 ts) x)
 
 -- | Instantiate an abstraction
 substAbs :: Data a => Term -> Abs a -> a

@@ -47,7 +47,7 @@ allCtxVars = do
 
 setRef :: Data a => a -> MetaId -> MetaVariable -> TCM ()
 setRef _ x v = do
-    debug $ "?" ++ show x ++ " := " ++ show v
+--     debug $ "?" ++ show x ++ " := " ++ show v
     store <- gets stMetaStore
     let (cIds, store') = replace x v store
     modify (\st -> st{stMetaStore = store'})
@@ -82,6 +82,13 @@ newValueMeta :: Type -> TCM Term
 newValueMeta t =
     do	vs <- allCtxVars
 	newMeta (\m -> MetaV m vs) $ UnderScoreV t []
+
+newArgsMeta :: Type -> TCM Args
+newArgsMeta (Pi h a b) =
+    do	v    <- newValueMeta a
+	args <- newArgsMeta (substAbs v b)
+	return $ Arg h v : args
+newArgsMeta _ = return []
 
 newQuestionMark :: Type -> TCM Term
 newQuestionMark t =

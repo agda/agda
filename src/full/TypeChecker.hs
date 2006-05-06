@@ -12,7 +12,7 @@ import Syntax.Abstract.Pretty
 import Syntax.Abstract.Views
 import Syntax.Common
 import Syntax.Info
---import Syntax.Position
+import Syntax.Position
 import Syntax.Internal
 import Syntax.Internal.Walk ()
 import Syntax.Internal.Debug ()
@@ -29,6 +29,7 @@ import TypeChecking.Reduce
 import TypeChecking.Substitute
 
 import Utils.Monad
+import Utils.List
 
 #include "undefined.h"
 
@@ -50,7 +51,7 @@ checkDecl d =
     case d of
 	A.Axiom i x e		   -> checkAxiom i x e
 	A.Synonym i x e loc	   -> checkSynonym i x e loc
-	A.Definition i ts ds	   -> checkDefinition i ts ds
+	A.Definition i ts ds	   -> checkMutual i ts ds
 	A.Abstract i ds		   -> checkAbstract i ds
 	A.Module i x tel ds	   -> checkModule i x tel ds
 	A.ModuleDef i x tel m args -> checkModuleDef i x tel m args
@@ -76,10 +77,23 @@ checkSynonym i x e loc =
 	addConstant (qualify m x) (Synonym v t)
 
 
--- | Type check a definition by pattern matching.
-checkDefinition :: DeclInfo -> [A.TypeSignature] -> [A.Definition] -> TCM ()
-checkDefinition i ts ds = fail "checkDefinition: not implemented"
+-- | Type check a bunch of mutual inductive recursive definitions.
+checkMutual :: DeclInfo -> [A.TypeSignature] -> [A.Definition] -> TCM ()
+checkMutual i ts ds =
+    do	mapM_ checkTypeSignature ts
+	mapM_ checkDefinition ds
 
+
+-- | Type check the type signature of an inductive or recursive definition.
+checkTypeSignature :: A.TypeSignature -> TCM ()
+checkTypeSignature (A.Axiom i x e) = checkAxiom i x e
+checkTypeSignature _ = __IMPOSSIBLE__	-- type signatures are always axioms
+
+
+-- | Check an inductive or recursive definition. Assumes the type has has been
+--   checked and added to the signature.
+checkDefinition (A.FunDef i x cs)     = checkFunDef i x cs
+checkDefinition (A.DataDef i x ps cs) = checkDataDef i x ps cs
 
 {-| Type check a block of declarations declared abstract.
 
@@ -111,14 +125,141 @@ checkModuleDef i m tel m' args = fail "checkModuleDef: not implemented"
 checkImport :: ModuleInfo -> ModuleName -> TCM ()
 checkImport i m = fail "checkImport: not implemented"
 
+
+---------------------------------------------------------------------------
+-- * Datatypes
+---------------------------------------------------------------------------
+
+-- | Type check a datatype definition. Assumes that the type has already been
+--   checked.
+checkDataDef :: DefInfo -> Name -> [A.LamBinding] -> [A.Constructor] -> TCM ()
+checkDataDef i x ps cs =
+    do	m	<- currentModule_
+	let name  = qualify m x
+	    npars = length ps
+	Axiom t <- getConstInfo name
+	bindParameters ps t $ \s ->
+	    do	mapM_ (checkConstructor name npars s) cs
+		addConstant name (Datatype t npars $ map (cname m) cs)
+    where
+	cname m (A.Axiom _ x _) = qualify m x
+	cname _ _		= __IMPOSSIBLE__ -- constructors are axioms
+
+
+-- | Type check a constructor declaration. Checks that the constructor targets
+--   the datatype and that it fits inside the declared sort.
+checkConstructor :: QName -> Int -> Sort -> A.Constructor -> TCM ()
+checkConstructor d npars s (A.Axiom i c e) =
+    do	t  <- isType e
+	s' <- getSort t
+	s' `leqSort` s
+	t `constructs` d
+	m <- currentModule_
+	addConstant (qualify m c) (Constructor t npars d)
+checkConstructor _ _ _ _ = __IMPOSSIBLE__ -- constructors are axioms
+
+
+-- | Bind the parameters of a datatype. The bindings should be domain free.
+bindParameters :: [A.LamBinding] -> Type -> (Sort -> TCM a) -> TCM a
+bindParameters [] (Sort s) ret = ret s
+bindParameters [] _ _ = __IMPOSSIBLE__ -- the syntax prohibits anything but a sort here
+bindParameters (A.DomainFree h x : ps) (Pi h' a b) ret
+    | h /= h'	=
+	__IMPOSSIBLE__
+    | otherwise = addCtx x a $ bindParameters ps (absBody b) ret
+bindParameters _ _ _ = __IMPOSSIBLE__
+
+
+-- | Check that a type constructs something of the given datatype.
+--   TODO: what if there's a meta here?
+constructs :: Type -> QName -> TCM ()
+constructs (Pi _ _ b) d = constructs (absBody b) d
+constructs (El (Def d' _) _) d
+    | d == d'	= return ()
+constructs t d = fail $ show t ++ " should be application of " ++ show d
+
+
+-- | Force a type to be a specific datatype.
+forceData :: QName -> Type -> TCM Type
+forceData d t =
+    do	t' <- instType t
+	case t' of
+	    El (Def d' _) _
+		| d == d'   -> return t'
+	    MetaT m vs	    ->
+		do  Datatype t n _ <- getConstInfo d
+		    ps <- newArgsMeta t
+		    s  <- getSort t'
+		    assign m vs $ El (Def d ps) s
+		    instType t'
+	    _		    -> fail $ show t ++ " should be application of " ++ show d
+
+---------------------------------------------------------------------------
+-- * Definitions by pattern matching
+---------------------------------------------------------------------------
+
+-- | Type check a definition by pattern matching.
+checkFunDef :: DefInfo -> Name -> [A.Clause] -> TCM ()
+checkFunDef i x cs =
+
+    do	-- Get the type of the function
+	name	<- flip qualify x <$> currentModule_
+	Axiom t <- getConstInfo name
+
+	-- Check that all clauses have the same number of arguments
+	unless (allEqual $ map npats cs) $ fail $ "equations give different arities for function " ++ show x
+
+	-- Check the clauses
+	cs' <- mapM (checkClause t) cs
+
+	-- Add the definition
+	m   <- currentModule_
+	addConstant (qualify m x) $ Function cs' t
+    where
+	npats (A.Clause (A.LHS _ _ ps) _ _) = length ps
+
+
+-- | Type check a function clause.
+checkClause :: Type -> A.Clause -> TCM Clause
+checkClause _ (A.Clause _ _ (_:_))  = fail "checkClause: local definitions not implemented"
+checkClause t (A.Clause (A.LHS i x ps) rhs []) =
+    checkPatterns ps t $ \xs ps t' ->
+	do  v <- checkExpr rhs t'
+	    return $ Clause ps $ foldr (\x t -> Bind $ Abs x t) (Body v) xs
+
+
+-- | Check the patterns of a left-hand-side. Binds the variables of the pattern.
+--   TODO: add hidden arguments.
+checkPatterns :: [Arg A.Pattern] -> Type -> ([String] -> [Arg Pattern] -> Type -> TCM a) -> TCM a
+checkPatterns [] t ret	   = ret [] [] t
+checkPatterns (Arg h p:ps) t ret =
+    do	t' <- forcePi h t
+	case t' of
+	    Pi h' a b | h == h' ->
+		checkPattern p a    $ \xs p' ->
+		do  v <- patToTerm p'
+		    checkPatterns ps (substAbs v b) $ \ys ps' t'' ->
+			ret (xs ++ ys) (Arg h p':ps') t''
+	    _ -> fail $ show t ++ " should be a " ++ show h ++ " function type"
+
+
+-- | Type check a pattern and bind the variables.
+checkPattern :: A.Pattern -> Type -> ([String] -> Pattern -> TCM a) -> TCM a
+checkPattern (A.VarP x) t ret =
+    addCtx x t $ ret [show x] (VarP x)
+checkPattern (A.WildP i) t ret =
+    do	x <- freshNoName (getRange i)
+	addCtx x t $ ret [show x] (VarP x)
+checkPattern (A.ConP i c ps) t ret =
+    do	Constructor t' n d <- getConstInfo c
+	El (Def _ vs) _ <- forceData d t
+	checkPatterns ps (substs (map unArg vs) t') $ \xs ps' _ ->
+	    ret xs (ConP c ps')
+
+
 ---------------------------------------------------------------------------
 -- * Sorts
 ---------------------------------------------------------------------------
-
--- | Check that an expression is a sort. Used when checking datatypes.
-isSort :: A.Expr -> TCM Sort
-isSort e = fail "isSort: not implemented"
-
 
 -- | Make sure that a type is a sort (instantiate meta variables if necessary).
 forceSort :: Type -> TCM Sort
@@ -133,6 +274,21 @@ forceSort t =
 	    _	-> fail $ "not a sort " ++ show t
 
 
+-- | Check that the first sort is less or equal to the second.
+--   The second sort is always 'Prop' or @'Type' n@.
+leqSort :: Sort -> Sort -> TCM ()
+leqSort s1 s2 =
+    do	s1' <- instSort s1
+	s2' <- instSort s2
+	case (s1',s2') of
+	    (Prop, Prop)	      -> return ()
+	    (Prop, Type n)   | n >= 1 -> return ()
+	    (Type n, Type m) | n <= m -> return ()
+	    (Lub s1a s1b, _)	      -> leqSort s1a s2' >> leqSort s1b s2'
+	    (Suc s, Type n)  | n >= 1 -> leqSort s (Type $ n - 1)
+	    (MetaS m, _)	      -> setRef () m (InstS s2')
+	    _			      -> fail $ show s1 ++ " is not less or equal to " ++ show s2
+
 ---------------------------------------------------------------------------
 -- * Types
 ---------------------------------------------------------------------------
@@ -141,12 +297,15 @@ forceSort t =
 isType :: A.Expr -> TCM Type
 isType e =
     case e of
-	A.Prop _   -> return $ prop
-	A.Set _ n  -> return $ set n
-	A.Pi _ b e -> checkTypedBinding b $ \tel ->
-			do  t <- isType e
-			    return $ buildPi tel t
-	_	   -> inferTypeExpr e
+	A.Prop _	 -> return $ prop
+	A.Set _ n	 -> return $ set n
+	A.Pi _ b e	 ->
+	    checkTypedBinding b $ \tel ->
+		do  t <- isType e
+		    return $ buildPi tel t
+	A.QuestionMark _ -> newQuestionMarkT_
+	A.Underscore _	 -> newTypeMeta_
+	_		 -> inferTypeExpr e
 
 -- | Check a typed binding and extends the context with the bound variables.
 --   The telescope passed to the continuation is valid in the original context.
@@ -164,8 +323,8 @@ checkTypedBinding b@(A.TypedBinding _ h xs e) ret =
 forcePi :: Hiding -> Type -> TCM Type
 forcePi h t =
     do	t' <- instType t
-	debug $ "forcePi " ++ show t
-	debug $ "    --> " ++ show t'
+-- 	debug $ "forcePi " ++ show t
+-- 	debug $ "    --> " ++ show t'
 	case t' of
 	    Pi _ _ _	-> return t'
 	    MetaT m vs	->
@@ -180,6 +339,15 @@ forcePi h t =
 		    assign m vs c
 		    instType t'
 	    _		-> fail $ "Not a pi: " ++ show t
+
+
+-- | Infer the sort of an expression which should be a type. Always returns 'El' something.
+inferTypeExpr :: A.Expr -> TCM Type
+inferTypeExpr e =
+    do	s <- newSortMeta
+	v <- checkExpr e (Sort s)
+	return $ El v s
+
 
 ---------------------------------------------------------------------------
 -- * Terms
@@ -231,8 +399,10 @@ inferHead (HeadVar _ x) =
 	t <- typeOfBV n
 	return (Var n [], t)
 inferHead (HeadCon _ x) =
-    do	t <- typeOfConst x
-	return (Con x [], t)
+    do	Constructor t n d <- getConstInfo x
+	t0		  <- newTypeMeta_   -- TODO: not so nice
+	El (Def _ vs) _	  <- forceData d t0
+	return (Con x [], substs (map unArg vs) t)
 inferHead (HeadDef _ x) =
     do	t <- typeOfConst x
 	return (Def x [], t)
@@ -281,13 +451,6 @@ inferExpr e =
 	v <- checkExpr e t
 	return (v,t)
 
--- | Infer the sort of an expression which should be a type. Always returns 'El' something.
-inferTypeExpr :: A.Expr -> TCM Type
-inferTypeExpr e =
-    do	s <- newSortMeta
-	v <- checkExpr e (Sort s)
-	return $ El v s
-
 ---------------------------------------------------------------------------
 -- * To be moved somewhere else
 ---------------------------------------------------------------------------
@@ -318,4 +481,18 @@ buildLam xs t = foldr (\ (Arg _ x) t -> Lam (Abs x t) []) t xs
 --   (@suc (set n) --> suc (set (n + 1))@)
 sSuc :: Sort -> TCM Sort
 sSuc = return . Suc
+
+
+unArg :: Arg a -> a
+unArg (Arg _ x) = x
+
+
+-- | Convert a pattern to a term.
+patToTerm :: Pattern -> TCM Term
+patToTerm (VarP x) =
+    do	n <- varIndex x
+	return $ Var n []
+patToTerm (ConP c ps) = Con c <$> mapM patToTerm' ps
+    where
+	patToTerm' (Arg h p) = Arg h <$> patToTerm p
 

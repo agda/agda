@@ -71,7 +71,11 @@ main =
 		prc (x,(_,ctx,c))   = show x ++ "> " ++ show ctx ++ " |- " ++ show c
 		prd (x,Axiom t)	    = show x ++ " : " ++ show t
 		prd (x,Synonym v t) = show x ++ " : " ++ show t ++ " = " ++ show v
-		prd (x,_)	    = show x ++ "..."
+		prd (x,Datatype t n cs)	=
+		    "data " ++ show x ++ " : " ++ show t ++ " where " ++
+			unwords (List.map show cs)
+		prd (x,Constructor t n d) = show x ++ "[" ++ show n ++ "] : " ++ show t
+		prd (x,Function t cs) = show x ++ " : " ++ show t ++ " = " ++ show cs
 
 	stuff True file =
 	    failOnException $

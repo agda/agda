@@ -44,7 +44,11 @@ data Sort = Type Nat
 	  | Suc Sort
   deriving (Typeable, Data)
 
-data Abs a = Abs String a deriving (Typeable, Data)
+data Abs a = Abs { absName :: String
+		 , absBody :: a
+		 }
+    deriving (Typeable, Data)
+
 data Why   = Why	  deriving (Typeable, Data)
 
 --
@@ -55,7 +59,7 @@ data Why   = Why	  deriving (Typeable, Data)
 --   the number of binding patterns in a clause should
 --     match the number of @Bind@s in the body
 --
-data Clause = Clause [Pattern] ClauseBody deriving (Typeable, Data) 
+data Clause = Clause [Arg Pattern] ClauseBody deriving (Typeable, Data) 
 data ClauseBody = Body Term 
 		| Bind (Abs ClauseBody)
   deriving (Typeable, Data)
@@ -67,8 +71,7 @@ data ClauseBody = Body Term
 --     the arguments we are matching with) use @Name@.
 --
 data Pattern = VarP Name
-	     | ConP QName [Pattern]
-             | WildP
+	     | ConP QName [Arg Pattern]
   deriving (Typeable, Data)
 
 newtype MetaId = MetaId Nat

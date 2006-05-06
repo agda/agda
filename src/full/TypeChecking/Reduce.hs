@@ -81,10 +81,10 @@ reduce store ctx sig v = go v where
         Def f args -> case defOfConst f of
             [] -> v -- no definition for head
             cls@(Clause ps _ : _) -> 
-                if length ps == length args then appDef v cls args
+                if length ps == length args then appDef v cls args  -- no-go here
                 else if length ps < length args then
                     let (args1,args2) = splitAt (length ps) args 
-                    in go $ appDef v cls args1 `apply` args2
+                    in go $ appDef v cls args1 `apply` args2	    -- and go here
                 else v -- partial application
         _ -> v
 
@@ -114,20 +114,19 @@ reduce store ctx sig v = go v where
     -- Match the given patterns to the given arguments.
     --   Returns updated list of values to instantiate the
     --     bound variables in the patterns.
-    --
-    matchPats :: [Term] -> [Pattern] -> Args -> Maybe [Term]
-    matchPats curArgs (pat:pats) (Arg _ arg:args) = do
+    -- TODO: data Match = Yes [Term] | No | DontKnow
+    matchPats :: [Term] -> [Arg Pattern] -> Args -> Maybe [Term]
+    matchPats curArgs (Arg _ pat:pats) (Arg _ arg:args) = do
         newArgs <- matchPat curArgs pat arg 
         matchPats newArgs pats args
     matchPats curArgs [] [] = Just curArgs
     matchPats _ _ _ = __IMPOSSIBLE__
 
     matchPat :: [Term] -> Pattern -> Term -> Maybe [Term]
-    matchPat curArgs WildP _ = Just curArgs
     matchPat curArgs (VarP x) arg = Just $ curArgs++[arg]
     matchPat curArgs (ConP c pats) arg =
         case go arg of 
-            Def c' args | c' == c -> matchPats curArgs pats args 
+            Con c' args | c' == c -> matchPats curArgs pats args 
             _ -> Nothing
 
 -- | Monadic version of reduce.

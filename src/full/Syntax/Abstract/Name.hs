@@ -67,6 +67,14 @@ freshName r s =
 freshName_ :: (MonadState s m, HasFresh NameId s) => String -> m Name
 freshName_ = freshName noRange
 
+freshNoName :: (MonadState s m, HasFresh NameId s) => Range -> m Name
+freshNoName r =
+    do	i <- fresh
+	return $ Name i (C.NoName r)
+
+freshNoName_ :: (MonadState s m, HasFresh NameId s) => m Name
+freshNoName_ = freshNoName noRange
+
 instance Show NameId where
     show (NameId x) = show x
 

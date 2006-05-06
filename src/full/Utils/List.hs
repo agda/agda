@@ -40,3 +40,8 @@ distinct :: Eq a => [a] -> Bool
 distinct []	= True
 distinct (x:xs) = x `notElem` xs && distinct xs
 
+-- | Check whether all elements in a list are equal.
+allEqual :: Eq a => [a] -> Bool
+allEqual []	= True
+allEqual (x:xs) = all (x==) xs
+
