@@ -85,5 +85,5 @@ instance Show Pattern where
 
 instance Show ClauseBody where
     show (Body v) = show v
-    show (Bind (Abs x b)) = "\\ " ++ show x ++ " -> " ++ show b
+    show (Bind (Abs x b)) = "\\" ++ x ++ " -> " ++ show b
 

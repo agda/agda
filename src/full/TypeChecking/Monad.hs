@@ -101,9 +101,6 @@ data Definition = Axiom	      { defType	       :: Type
 			      , defType	       :: Type
 			      , isAbstract     :: IsAbstract
 			      }
-		| Synonym     { synDef	       :: Term
-			      , defType	       :: Type
-			      }
 		| Datatype    { defType	       :: Type
 			      , dataParameters :: Int
 			      , dataConstrs    :: [QName]
@@ -119,7 +116,6 @@ data Definition = Axiom	      { defType	       :: Type
 
 defClauses :: Definition -> [Clause]
 defClauses (Function cs _ _) = cs
-defClauses (Synonym v _)     = [Clause [] (Body v)]
 defClauses _		     = []
 
 ---------------------------------------------------------------------------

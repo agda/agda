@@ -323,14 +323,6 @@ instance BindToAbstract NiceDeclaration [A.Declaration] where
 				-- we can easily reconstruct the original decl
 				-- so we don't bother save it
 
-    -- Function synonym
-    bindToAbstract (CD.Synonym r f p a x e wh) ret =
-	do  (e',wh') <- bindToAbstract wh $ \wh' ->
-			    do	e' <- toAbstractCtx TopCtx e
-				return (e',wh')
-	    defineName p FunName f x $ \x' ->
-		ret [A.Synonym (mkRangedDefInfo x f p a r) x' e' wh']
-
     -- Definitions (possibly mutual)
     bindToAbstract (NiceDef r cs ts ds) ret =
 	bindToAbstract (ts,ds) $ \ (ts',ds') ->

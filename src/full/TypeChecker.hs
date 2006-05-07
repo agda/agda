@@ -50,7 +50,6 @@ checkDecl :: A.Declaration -> TCM ()
 checkDecl d =
     case d of
 	A.Axiom i x e		   -> checkAxiom i x e
-	A.Synonym i x e loc	   -> checkSynonym i x e loc
 	A.Definition i ts ds	   -> checkMutual i ts ds
 	A.Module i x tel ds	   -> checkModule i x tel ds
 	A.ModuleDef i x tel m args -> checkModuleDef i x tel m args
@@ -65,15 +64,6 @@ checkAxiom _ x e =
     do	t <- isType e
 	m <- currentModule_
 	addConstant (qualify m x) (Axiom t)
-
-
--- | Type check a synonym definition.
-checkSynonym :: DefInfo -> Name -> A.Expr -> [A.Declaration] -> TCM ()
-checkSynonym i x e loc =
-    do	unless (null loc) $ fail "checkSynonym: local definitions not implemented"
-	(v,t) <- inferExpr e
-	m <- currentModule_
-	addConstant (qualify m x) (Synonym v t)
 
 
 -- | Type check a bunch of mutual inductive recursive definitions.
@@ -482,10 +472,12 @@ buildPi tel t = foldr (\ (Arg h (x,a)) b -> Pi h a (Abs x b) ) t tel
 buildLam :: [Arg String] -> Term -> Term
 buildLam xs t = foldr (\ (Arg _ x) t -> Lam (Abs x t) []) t xs
 
--- | Get the next higher sort. Move somewhere else and do some reductions
---   (@suc (set n) --> suc (set (n + 1))@)
+-- | Get the next higher sort. Move somewhere else.
 sSuc :: Sort -> TCM Sort
-sSuc = return . Suc
+sSuc Prop	 = return $ Type 1
+sSuc (Type n)	 = return $ Type $ n + 1
+sSuc (Lub s1 s2) = Lub <$> sSuc s1 <*> sSuc s2
+sSuc s		 = return $ Suc s
 
 
 unArg :: Arg a -> a

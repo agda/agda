@@ -327,15 +327,6 @@ instance ToConcrete A.Declaration [C.Declaration] where
 		do  t' <- toConcreteCtx TopCtx t
 		    return [C.Postulate (getRange i) [C.TypeSig x' t']]
 
-    toConcrete (Synonym i x e wh) =
-	do  x' <- toConcrete x
-	    withAbstractPrivate	      i    $
-		withInfixDecl i x' $
-		withStored    i    $
-		do  e'  <- toConcreteCtx TopCtx e
-		    wh' <- toConcrete wh
-		    return [C.FunClause (C.LHS (getRange x) PrefixDef x' []) e' wh']
-
     toConcrete (Definition i ts ds) =
 	do  ixs' <- toConcrete $ map (DontTouchMe -*- id) ixs
 	    withAbstractPrivates is $

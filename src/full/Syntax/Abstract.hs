@@ -30,7 +30,6 @@ data Expr
 
 data Declaration
 	= Axiom      DefInfo Name Expr				-- ^ postulate
-	| Synonym    DefInfo Name Expr [Declaration]		-- ^ definition of the form @x = e@
 	| Definition DeclInfo [TypeSignature] [Definition]	-- ^ a bunch of mutually recursive definitions
 	| Module     ModuleInfo ModuleName Telescope [Declaration]
 	| ModuleDef  ModuleInfo ModuleName Telescope ModuleName [Arg Expr]
@@ -110,7 +109,6 @@ instance HasRange Expr where
 
 instance HasRange Declaration where
     getRange (Axiom      i _ _	  ) = getRange i
-    getRange (Synonym	 i _ _ _  ) = getRange i
     getRange (Definition i _ _	  ) = getRange i
     getRange (Module     i _ _ _  ) = getRange i
     getRange (ModuleDef  i _ _ _ _) = getRange i

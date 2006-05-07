@@ -11,33 +11,31 @@ module Nat where
   zero + m = m
   suc n + m = suc (n + m)
 
-data List (A:Set) : Set where
-  nil : List A
-  cons : A -> List A -> List A
+module List where
 
-mutual
-  data Even : Set where
-    evenZero : Even
-    evenSuc  : Odd -> Even
+  data List (A:Set) : Set where
+    nil : List A
+    cons : A -> List A -> List A
 
-  data Odd : Set where
-    oddSuc : Even -> Odd
+module EvenOdd where
 
-data Monad (m:Set -> Set) : Set1 where
-  monad : ((a:Set) -> a -> m a) ->
-	  ((a,b:Set) -> m a -> (a -> m b) -> m b) ->
-	  Monad m
+  mutual
+    data Even : Set where
+      evenZero : Even
+      evenSuc  : Odd -> Even
 
-postulate
+    data Odd : Set where
+      oddSuc : Even -> Odd
+
+module Monad where
+
+  data Monad (m:Set -> Set) : Set1 where
+    monad : ({a:Set} -> a -> m a) ->
+	    ({a,b:Set} -> m a -> (a -> m b) -> m b) ->
+	    Monad m
+
   return : {m:Set -> Set} -> {a:Set} -> Monad m -> a -> m a
-
-infix 5 ==
-
-postulate
-  (==) : {A:Set} -> A -> A -> Prop
-  refl : {A:Set} -> {a:A} -> a == a
-
-open Nat
+  return {_} {a} (monad ret _) x = ret x
 
 module Stack where
 
@@ -58,31 +56,35 @@ module Stack where
     unit : {A:Set} -> A -> Stack A
     unit {A} x = push x empty
 
-open Stack
-open Ops
+module TestStack where
 
-zzz = push zero (unit (suc zero))
+  open Stack, using (Stack)
+  open Stack.Ops
+  open Nat
 
-{-
-postulate
-  A   : Set
---   idA : A -> A
---   F   : Set -> Set
---   H   : (A,B:Set) -> Prop
---   id  : (A:Set) -> A -> A
---   idH : {A:Set} -> A -> A
---   fa  : F A
-  a   : A
+  zzz = push zero (unit (suc zero))
 
--- test1 = id (F A) fa
--- test2 = idH fa
--- test3 = id _ fa
--- test4 = idH {! foo bar !}
--- test5 = id id	-- we can't do this (on purpose)!
+module TestIdentity where
 
-id = \{A:Set}(x:A) -> x
+  postulate
+    A   : Set
+    idA : A -> A
+    F   : Set -> Set
+    H   : (A,B:Set) -> Prop
+    id0 : (A:Set) -> A -> A
+    idH : {A:Set} -> A -> A
+    fa  : F A
+    a   : A
 
-test = id a
+  test1 = id0 (F A) fa
+  test2 = idH fa
+  test3 = id0 _ fa
+  test4 = idH {! foo bar !}
+  -- test5 = id id	-- we can't do this (on purpose)!
+
+  id = \{A:Set}(x:A) -> x
+
+  test = id a
 
 module prop where
 
@@ -108,4 +110,4 @@ module prop where
 		)
 	      )
 	    )
--}
+

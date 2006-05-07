@@ -112,7 +112,6 @@ instance Equal TypedBinding where
 
 instance Equal Declaration where
     Axiom i x s			=== Axiom j y t			= (i,x,s) === (j,y,t)
-    Synonym i x e wh		=== Synonym j y d wh'		= (i,x,e,wh) === (j,y,d,wh')
     Definition _ ts ds		=== Definition _ ts' ds'	= (ts,ds) === (ts',ds')
     Module i x tel ds		=== Module j y tel' ds'		= (i,x,tel,ds) === (j,y,tel',ds')
     ModuleDef i x tel y args	=== ModuleDef j z tel' w args'	= (i,x,tel,y,args) === (j,z,tel',w,args')

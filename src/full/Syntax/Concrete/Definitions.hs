@@ -83,12 +83,11 @@ import Syntax.Concrete.Pretty ()    -- need Show instance for Declaration
 
 {-| The nice declarations. No fixity declarations and function definitions are
     contained in a single constructor instead of spread out between type
-    signatures and clauses. The @private@ and @postulate@ modifiers have been
-    distributed to the individual declarations.
+    signatures and clauses. The @private@, @postulate@, and @abstract@
+    modifiers have been distributed to the individual declarations.
 -}
 data NiceDeclaration
 	= Axiom Range Fixity Access IsAbstract Name Expr
-	| Synonym Range Fixity Access IsAbstract Name Expr WhereClause		    -- ^ Definition with no type signature: @x = e@
 	| NiceDef Range [Declaration] [NiceTypeSignature] [NiceDefinition]
 	    -- ^ A bunch of mutually recursive functions\/datatypes.
 	    --   The last two lists have the same length. The first list is the
@@ -120,13 +119,11 @@ data Clause = Clause LHS RHS WhereClause
 data DeclarationException
 	= MultipleFixityDecls [(Name, [Fixity])]
 	| MissingDefinition Name
-	| BadSynonym Name [Declaration]
     deriving (Typeable, Show)
 
 instance HasRange DeclarationException where
     getRange (MultipleFixityDecls xs) = getRange (fst $ head xs)
     getRange (MissingDefinition x)    = getRange x
-    getRange (BadSynonym _ ds)	      = getRange ds
 
 {--------------------------------------------------------------------------
     The niceifier
@@ -141,7 +138,7 @@ instance HasRange DeclarationException where
 
     Niklas suggested using exceptions. Can be thrown by a pure function but
     have to be caught in IO. The advantage is that things whose only side
-    effect is the possibility of failure doesn't need a monad. If one uses
+    effect is the possibility of failure don't need a monad. If one uses
     dynamic exceptions each function can define it's own exception type in a
     modular way.
 
@@ -245,10 +242,7 @@ niceDeclarations ds = nice (fixities ds) ds
 		nice _ = __IMPOSSIBLE__
 
 	-- Create a function definition.
-	mkFunDef fixs x Nothing ds@[FunClause (LHS r PrefixDef _ []) rhs wh] =
-	    Synonym (getRange ds) (fixity x fixs) PublicAccess ConcreteDef x rhs wh
-	mkFunDef _ x Nothing ds	= throwDyn $ BadSynonym x ds
-	mkFunDef fixs x (Just t) ds0 =
+	mkFunDef fixs x mt ds0 =
 	    NiceDef (fuseRange x ds0)
 		    (TypeSig x t : ds0)
 		    [ Axiom (fuseRange x t) f PublicAccess ConcreteDef x t ]
@@ -257,6 +251,9 @@ niceDeclarations ds = nice (fixities ds) ds
 		    ]
 	    where
 		f  = fixity x fixs
+		t = case mt of
+			Just t	-> t
+			Nothing	-> Underscore (getRange x)
 
 
 	-- Turn a function clause into a nice function clause.
@@ -282,7 +279,6 @@ niceDeclarations ds = nice (fixities ds) ds
 	mkAbstract d =
 	    case d of
 		Axiom r f a _ x e		 -> Axiom r f a AbstractDef x e
-		Synonym r f a _ x e wh		 -> Synonym r f a AbstractDef x e wh
 		NiceDef r cs ts ds		 -> NiceDef r cs (map mkAbstract ts)
 								 (map mkAbstractDef ds)
 		NiceModule r a _ x tel ds	 -> NiceModule r a AbstractDef x tel ds
@@ -298,7 +294,6 @@ niceDeclarations ds = nice (fixities ds) ds
 	mkPrivate d =
 	    case d of
 		Axiom r f _ a x e		 -> Axiom r f PrivateAccess a x e
-		Synonym r f _ a x e wh		 -> Synonym r f PrivateAccess a x e wh
 		NiceDef r cs ts ds		 -> NiceDef r cs (map mkPrivate ts)
 								 (map mkPrivateDef ds)
 		NiceModule r _ a x tel ds	 -> NiceModule r PrivateAccess a x tel ds
