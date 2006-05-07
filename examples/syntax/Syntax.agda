@@ -201,10 +201,10 @@ module examples.syntax.Syntax where
       odd (suc n)   = even n
 
     -- If a function is declared abstract the definition of the function is not
-    -- visible outside the abstract block. For an abstract datatype the
-    -- constructors are hidden. Definitions that can appear in an abstract
-    -- block are: function definitions, data declarations, fixity declarations,
-    -- mutual blocks, open and name space declarations (see NameSpaces).
+    -- visible outside the module. For an abstract datatype the constructors
+    -- are hidden. Definitions that can appear in an abstract block are:
+    -- function definitions, data declarations, fixity declarations, mutual
+    -- blocks, open and name space declarations (see NameSpaces).
     abstract
       data Stack : Set where
 	nil  : Stack

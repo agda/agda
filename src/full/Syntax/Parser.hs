@@ -1,7 +1,9 @@
 
 module Syntax.Parser
-    ( -- * Parse functions
-      Syntax.Parser.parse
+    ( -- * Types
+      Monad.Parser
+      -- * Parse functions
+    , Syntax.Parser.parse
     , Syntax.Parser.parseFile
     , parseLiterate
     , parseLiterateFile

@@ -559,6 +559,7 @@ MutualDeclaration
     | Data	{ $1 }
     | Infix	{ $1 }
     | Private	{ $1 }
+    | Abstract	{ $1 }
 
 
 -- Declarations that can appear in an abstract block.

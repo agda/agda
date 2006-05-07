@@ -20,7 +20,6 @@ import Syntax.Abstract as A
 import Utils.Maybe
 import Utils.Monad
 import Utils.Tuple
-import Utils.List
 
 #include "../../undefined.h"
 
@@ -109,23 +108,6 @@ withAbstractPrivate i m =
 	    do	ds <- m
 		return $ abst a $ priv p $ ds
     where
-	priv PrivateAccess ds = [ C.Private (getRange ds) ds ]
-	priv _ ds	      = ds
-	abst AbstractDef ds   = [ C.Abstract (getRange ds) ds ]
-	abst _ ds	      = ds
-
-withAbstractPrivates :: [DefInfo] -> AbsToCon [C.Declaration] -> AbsToCon [C.Declaration]
-withAbstractPrivates is m
-    | allEqual aps =
-	case aps of
-	    []	-> m
-	    (PublicAccess, ConcreteDef):_   -> m
-	    (p,a):_ ->
-		do  ds <- m
-		    return  $ abst a $ priv p $ ds
-    | otherwise	= m
-    where
-	aps = map (defAccess /\ defAbstract) is
 	priv PrivateAccess ds = [ C.Private (getRange ds) ds ]
 	priv _ ds	      = ds
 	abst AbstractDef ds   = [ C.Abstract (getRange ds) ds ]
@@ -321,7 +303,7 @@ instance ToConcrete A.Declaration [C.Declaration] where
 
     toConcrete (Axiom i x t) =
 	do  x' <- toConcrete x
-	    withAbstractPrivate	      i    $
+	    withAbstractPrivate	i  $
 		withInfixDecl i x' $
 		withStored    i    $
 		do  t' <- toConcreteCtx TopCtx t
@@ -329,9 +311,7 @@ instance ToConcrete A.Declaration [C.Declaration] where
 
     toConcrete (Definition i ts ds) =
 	do  ixs' <- toConcrete $ map (DontTouchMe -*- id) ixs
-	    withAbstractPrivates is $
-		withInfixDecls ixs' $
-		withStored     i    $
+	    withInfixDecls ixs' $
 		do  ds' <- concat <$> toConcrete (zipWith TypeAndDef ts ds)
 		    return [C.Mutual (getRange i) ds']
 	where

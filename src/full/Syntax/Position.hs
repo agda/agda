@@ -100,7 +100,7 @@ noPos = NoPos
 
 -- | Ranges between two unknown positions
 noRange :: Range
-noRange = Range noPos noPos
+noRange = Range NoPos NoPos
 
 
 -- | Advance the position by one character.

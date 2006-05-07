@@ -13,7 +13,7 @@ import System.Exit
 
 import Syntax.Parser
 import Syntax.Concrete.Pretty ()
-import Syntax.Internal ()
+import qualified Syntax.Abstract as A
 import Syntax.Translation.ConcreteToAbstract
 import Syntax.Translation.AbstractToConcrete
 import Syntax.Abstract.Test
@@ -24,6 +24,7 @@ import TypeChecker
 import TypeChecking.Monad
 import TypeChecking.Reduce
 
+parseFile' :: Parser a -> FilePath -> IO a
 parseFile' p file
     | "lagda" `isSuffixOf` file	= parseLiterateFile p file
     | otherwise			= parseFile p file
@@ -46,36 +47,6 @@ main =
 		    Right s	->
 			do  putStrLn "OK"
 			    putStr s
-	    where
-		debugCheck m =
-		    do	checkDecl m
-			st <- get
-			let store = stMetaStore st
-			    sig   = stSignature st
-			    cnstr = stConstraints st
-			store' <- refresh store
-			sig'   <- refresh sig
-			cnstr' <- refresh cnstr
-			return $ unlines
-			    [ pr store cnstr sig
-			    , replicate 50 '+'
-			    , pr store' cnstr' sig'
-			    ]
-
-		pr store cnstr sig =
-			unlines (List.map prm $ Map.assocs store)
-		     ++ unlines (List.map prc $ Map.assocs cnstr)
-		     ++ unlines (List.map prd $ Map.assocs sig)
-
-		prm (x,i)		    = "?" ++ show x ++ " := " ++ show i
-		prc (x,(_,ctx,c))	    = show x ++ "> " ++ show ctx ++ " |- " ++ show c
-		prd (x,Axiom t)		    = show x ++ " : " ++ show t
-		prd (x,Datatype t n cs _)   =
-		    "data " ++ show x ++ " : " ++ show t ++ " where " ++
-			unwords (List.map show cs)
-		prd (x,Constructor t n d _) = show x ++ "[" ++ show n ++ "] : " ++ show t
-		prd (x,Function cs t _)	    = show x ++ " : " ++ show t ++ " = " ++ show cs
-
 	stuff True file =
 	    failOnException $
 	    do	m	   <- parseFile' moduleParser file
@@ -98,4 +69,34 @@ main =
 			do  print cm
 			    putStrLn $ "Original and generated module differs at " ++ show r1 ++ " and " ++ show r2
 			    exitWith (ExitFailure 1)
+
+debugCheck :: A.Declaration -> TCM String
+debugCheck m =
+    do	checkDecl m
+	st <- get
+	let store = stMetaStore st
+	    sig   = stSignature st
+	    cnstr = stConstraints st
+	store' <- refresh store
+	sig'   <- refresh sig
+	cnstr' <- refresh cnstr
+	return $ unlines
+	    [ pr store cnstr sig
+	    , replicate 50 '+'
+	    , pr store' cnstr' sig'
+	    ]
+    where
+	pr store cnstr sig =
+		unlines (List.map prm $ Map.assocs store)
+	     ++ unlines (List.map prc $ Map.assocs cnstr)
+	     ++ unlines (List.map prd $ Map.assocs sig)
+
+	prm (x,i)		    = "?" ++ show x ++ " := " ++ show i
+	prc (x,(_,ctx,c))	    = show x ++ "> " ++ show ctx ++ " |- " ++ show c
+	prd (x,Axiom t)		    = show x ++ " : " ++ show t
+	prd (x,Datatype t n cs _)   =
+	    "data " ++ show x ++ " : " ++ show t ++ " where " ++
+		unwords (List.map show cs)
+	prd (x,Constructor t n d _) = show x ++ "[" ++ show n ++ "] : " ++ show t
+	prd (x,Function cs t _)	    = show x ++ " : " ++ show t ++ " = " ++ show cs
 
