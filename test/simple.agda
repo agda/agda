@@ -39,7 +39,29 @@ postulate
 
 open Nat
 
-zzz = suc zero + suc zero
+module Stack where
+
+  abstract
+    data Stack (A:Set) : Set where
+      snil : Stack A
+      scons : A -> Stack A -> Stack A
+
+  module Ops where
+
+    abstract
+      empty : {A:Set} -> Stack A
+      empty {A} = snil
+
+      push : {A:Set} -> A -> Stack A -> Stack A
+      push {A} x s = scons x s
+
+    unit : {A:Set} -> A -> Stack A
+    unit {A} x = push x empty
+
+open Stack
+open Ops
+
+zzz = push zero (unit (suc zero))
 
 {-
 postulate

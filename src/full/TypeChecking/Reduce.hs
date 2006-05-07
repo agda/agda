@@ -15,7 +15,11 @@ import Syntax.Internal
 import Syntax.Internal.Walk
 
 import TypeChecking.Monad
+import TypeChecking.Monad.Context
 import TypeChecking.Substitute
+
+import TypeChecking.Monad.Debug
+__debug = debug
 
 #include "../undefined.h"
 
@@ -70,8 +74,8 @@ instSort s = case s of
 --     So @reduce st ctx sig (c m1 m2) == c m1 m2@ when @c@ is an 
 --     undefined constant.
 --
-reduce :: MetaStore -> Context -> Signature -> Term -> Term
-reduce store ctx sig v = go v where
+reduce :: TCEnv -> MetaStore -> Context -> Signature -> Term -> Term
+reduce env store ctx sig v = go v where
     go v = case v of
         Lam (Abs _ v') (Arg h arg:args) -> go $ subst (go arg) v' `apply` args
         MetaV x args -> case Map.lookup x store of
@@ -92,7 +96,7 @@ reduce store ctx sig v = go v where
     --
     defOfConst :: QName -> [Clause]
     defOfConst q = 
-	case Map.lookup q sig of
+	case makeAbstract' env q =<< Map.lookup q sig of
 	    Just d  -> defClauses d
 	    Nothing -> __IMPOSSIBLE__
 
@@ -136,5 +140,6 @@ reduceM v = do
     store <- gets stMetaStore
     ctx   <- asks envContext
     sig   <- gets stSignature
-    return $ reduce store ctx sig v
+    env	  <- ask
+    return $ reduce env store ctx sig v
 

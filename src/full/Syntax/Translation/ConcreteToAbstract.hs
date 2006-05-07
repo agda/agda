@@ -296,19 +296,19 @@ instance BindToAbstract [NiceDeclaration] [A.Declaration] where
 instance BindToAbstract NiceDefinition Definition where
 
     -- Function definitions
-    bindToAbstract (CD.FunDef r ds f a x cs) ret =
+    bindToAbstract (CD.FunDef r ds f p a x cs) ret =
 	do  (x',cs') <- toAbstract (OldName x,cs)
-	    ret $ A.FunDef (mkSourcedDefInfo x f a ds) x' cs'
+	    ret $ A.FunDef (mkSourcedDefInfo x f p a ds) x' cs'
 
     -- Data definitions
-    bindToAbstract (CD.DataDef r f a x pars cons) ret =
+    bindToAbstract (CD.DataDef r f p a x pars cons) ret =
 	do  (pars', cons') <- bindToAbstract pars $ \pars' ->
 				do  cons' <- toAbstract $ map Constr cons
 				    return (pars', cons')
 	    -- bring the constructor names into scope
 	    bindToAbstract (map Constr cons') $ \_ ->
 		do  x' <- toAbstract (OldName x)
-		    ret $ A.DataDef (mkRangedDefInfo x f a r) x' pars' cons'
+		    ret $ A.DataDef (mkRangedDefInfo x f p a r) x' pars' cons'
 
 -- The only reason why we return a list is that open declarations disappears.
 -- For every other declaration we get a singleton list. Except we keep open
@@ -316,20 +316,20 @@ instance BindToAbstract NiceDefinition Definition where
 instance BindToAbstract NiceDeclaration [A.Declaration] where
 
     -- Axiom
-    bindToAbstract (CD.Axiom r f a x t) ret =
+    bindToAbstract (CD.Axiom r f p a x t) ret =
 	do  t' <- toAbstractCtx TopCtx t
-	    defineName a FunName f x $ \x' ->
-		ret [A.Axiom (mkRangedDefInfo x f a r) x' t']
+	    defineName p FunName f x $ \x' ->
+		ret [A.Axiom (mkRangedDefInfo x f p a r) x' t']
 				-- we can easily reconstruct the original decl
 				-- so we don't bother save it
 
     -- Function synonym
-    bindToAbstract (CD.Synonym r f a x e wh) ret =
+    bindToAbstract (CD.Synonym r f p a x e wh) ret =
 	do  (e',wh') <- bindToAbstract wh $ \wh' ->
 			    do	e' <- toAbstractCtx TopCtx e
 				return (e',wh')
-	    defineName a FunName f x $ \x' ->
-		ret [A.Synonym (mkRangedDefInfo x f a r) x' e' wh']
+	    defineName p FunName f x $ \x' ->
+		ret [A.Synonym (mkRangedDefInfo x f p a r) x' e' wh']
 
     -- Definitions (possibly mutual)
     bindToAbstract (NiceDef r cs ts ds) ret =
@@ -338,30 +338,26 @@ instance BindToAbstract NiceDeclaration [A.Declaration] where
 		-- TODO: remember name
 
 
-    bindToAbstract (NiceAbstract r ds) ret =
-	bindToAbstract ds $ \ds' ->
-	    ret [A.Abstract (DeclInfo C.noName $ DeclRange r) ds']
-		-- TODO: remember name
-
-    bindToAbstract (NiceModule r a name@(C.QName x) tel ds) ret =
+    -- TODO: what does an abstract module mean? The syntax doesn't allow it.
+    bindToAbstract (NiceModule r p _ name@(C.QName x) tel ds) ret =
 	do  (tel',ds',ns) <-
 		insideModule x $
 		bindToAbstract (tel,ds) $ \ (tel',ds') ->
 		    do	ns <- currentNameSpace
 			return (tel',ds',ns)
 	    let m = ModuleScope { moduleArity	 = length tel
-			        , moduleAccess	 = a
+			        , moduleAccess	 = p
 			        , moduleContents = ns
 			        }
 	    name' <- toAbstract $ CModuleName name
 	    defineModule x m $
-		ret [A.Module (mkRangedModuleInfo a r)
+		ret [A.Module (mkRangedModuleInfo p r)
 			      name' tel' ds']
 
     -- Top-level modules are translated with toAbstract.
-    bindToAbstract (NiceModule _ _ _ _ _) _ = __IMPOSSIBLE__
+    bindToAbstract (NiceModule _ _ _ _ _ _) _ = __IMPOSSIBLE__
 
-    bindToAbstract (NiceModuleMacro r a x tel e is) ret =
+    bindToAbstract (NiceModuleMacro r p _ x tel e is) ret =
 	case appView e of
 	    AppView (Ident m) args  ->
 		bindToAbstract tel $ \tel' ->
@@ -369,8 +365,8 @@ instance BindToAbstract NiceDeclaration [A.Declaration] where
 						    , CModuleName m
 						    , args
 						    )
-			implicitModule x a (length tel) m is $
-			    ret [ ModuleDef (mkSourcedModuleInfo a
+			implicitModule x p (length tel) m is $
+			    ret [ ModuleDef (mkSourcedModuleInfo p
 						[C.ModuleMacro r x tel e is]
 					    )
 					    x' tel' m' args'
@@ -392,10 +388,10 @@ instance BindToAbstract NiceDeclaration [A.Declaration] where
 newtype Constr a = Constr a
 
 instance ToAbstract (Constr CD.NiceDeclaration) A.Declaration where
-    toAbstract (Constr (CD.Axiom r f a x t)) =
+    toAbstract (Constr (CD.Axiom r f p a x t)) =
 	do  t' <- toAbstractCtx TopCtx t
 	    x' <- toAbstract (NewName x)
-	    return (A.Axiom (mkRangedDefInfo x f a r) x' t')
+	    return (A.Axiom (mkRangedDefInfo x f p a r) x' t')
 
     toAbstract _ = __IMPOSSIBLE__    -- a constructor is always an axiom
 
@@ -403,7 +399,12 @@ instance BindToAbstract (Constr A.Declaration) () where
     bindToAbstract (Constr (A.Axiom info x _)) ret =
 	local (defName a ConName f x) $ ret ()	-- TODO: local not so nice
 	    where
-		a = defAccess info
+		-- An abstract constructor is private (abstract constructor means
+		-- abstract datatype, so the constructor should not be exported).
+		a = case (defAccess info, defAbstract info) of
+			(PrivateAccess, _)  -> PrivateAccess
+			(_, AbstractDef)    -> PrivateAccess
+			_		    -> PublicAccess
 		f = defFixity info
 
     bindToAbstract _ _ = __IMPOSSIBLE__    -- a constructor is always an axiom

@@ -26,6 +26,10 @@ data IsInfix = InfixDef | PrefixDef
 data Access = PrivateAccess | PublicAccess
     deriving (Typeable, Data, Show, Eq)
 
+-- | Abstract or concrete
+data IsAbstract = AbstractDef | ConcreteDef
+    deriving (Typeable, Data, Show, Eq)
+
 type Nat    = Int
 type Arity  = Nat
 

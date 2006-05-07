@@ -58,10 +58,18 @@ substAbs u (Abs _ v) = subst u v
 
 -- | Add @k@ to index of each open variable in @x@.
 --
+raiseFrom :: Int -> Int -> GenericT
+raiseFrom m k x = runIdentity $ walk (mkM goTm) x
+    where
+	goTm (Var i args) = do
+	  n <- ask
+	  return $ Var (newVar i n) args
+	goTm x = return x
+
+	newVar i n
+	    | i >= n + m    = i + k
+	    | otherwise	    = i
+
 raise :: Int -> GenericT
-raise k x = runIdentity $ walk (mkM goTm) x where
-  goTm (Var i args) = do
-      n <- ask
-      return $ Var (if i >= n then i + k else i) args
-  goTm x = return x
+raise = raiseFrom 0
 

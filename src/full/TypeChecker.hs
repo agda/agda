@@ -52,7 +52,6 @@ checkDecl d =
 	A.Axiom i x e		   -> checkAxiom i x e
 	A.Synonym i x e loc	   -> checkSynonym i x e loc
 	A.Definition i ts ds	   -> checkMutual i ts ds
-	A.Abstract i ds		   -> checkAbstract i ds
 	A.Module i x tel ds	   -> checkModule i x tel ds
 	A.ModuleDef i x tel m args -> checkModuleDef i x tel m args
 	A.Import i x		   -> checkImport i x
@@ -86,23 +85,23 @@ checkMutual i ts ds =
 
 -- | Type check the type signature of an inductive or recursive definition.
 checkTypeSignature :: A.TypeSignature -> TCM ()
-checkTypeSignature (A.Axiom i x e) = checkAxiom i x e
+checkTypeSignature (A.Axiom i x e) =
+    case defAccess i of
+	PublicAccess	-> inAbstractMode $ checkAxiom i x e
+	_		-> checkAxiom i x e
 checkTypeSignature _ = __IMPOSSIBLE__	-- type signatures are always axioms
 
 
 -- | Check an inductive or recursive definition. Assumes the type has has been
 --   checked and added to the signature.
-checkDefinition (A.FunDef i x cs)     = checkFunDef i x cs
-checkDefinition (A.DataDef i x ps cs) = checkDataDef i x ps cs
-
-{-| Type check a block of declarations declared abstract.
-
-    TODO: Declarations in this block should be tagged in some way, so that when
-    we leave the current module we can hide the definitions. Also we need to
-    hide the definition when checking the types of public things.
--}
-checkAbstract :: DeclInfo -> [A.Declaration] -> TCM ()
-checkAbstract _ ds = checkDecls ds
+checkDefinition d =
+    case d of
+	A.FunDef i x cs	    -> abstract (defAbstract i) $ checkFunDef i x cs
+	A.DataDef i x ps cs -> abstract (defAbstract i) $ checkDataDef i x ps cs
+    where
+	-- Concrete definitions cannot use information about abstract things.
+	abstract ConcreteDef = inAbstractMode
+	abstract _	     = id
 
 
 -- | Type check a module.
@@ -140,7 +139,9 @@ checkDataDef i x ps cs =
 	Axiom t <- getConstInfo name
 	bindParameters ps t $ \s ->
 	    do	mapM_ (checkConstructor name npars s) cs
-		addConstant name (Datatype t npars $ map (cname m) cs)
+		addConstant name (Datatype t npars (map (cname m) cs)
+						   (defAbstract i)
+				 )
     where
 	cname m (A.Axiom _ x _) = qualify m x
 	cname _ _		= __IMPOSSIBLE__ -- constructors are axioms
@@ -155,7 +156,7 @@ checkConstructor d npars s (A.Axiom i c e) =
 	s' `leqSort` s
 	t `constructs` d
 	m <- currentModule_
-	addConstant (qualify m c) (Constructor t npars d)
+	addConstant (qualify m c) (Constructor t npars d $ defAbstract i)
 checkConstructor _ _ _ _ = __IMPOSSIBLE__ -- constructors are axioms
 
 
@@ -187,7 +188,7 @@ forceData d t =
 	    El (Def d' _) _
 		| d == d'   -> return t'
 	    MetaT m vs	    ->
-		do  Datatype t n _ <- getConstInfo d
+		do  Datatype t n _ _ <- getConstInfo d
 		    ps <- newArgsMeta t
 		    s  <- getSort t'
 		    assign m vs $ El (Def d ps) s
@@ -214,7 +215,7 @@ checkFunDef i x cs =
 
 	-- Add the definition
 	m   <- currentModule_
-	addConstant (qualify m x) $ Function cs' t
+	addConstant (qualify m x) $ Function cs' t $ defAbstract i
     where
 	npats (A.Clause (A.LHS _ _ ps) _ _) = length ps
 
@@ -234,11 +235,13 @@ checkPatterns :: [Arg A.Pattern] -> Type -> ([String] -> [Arg Pattern] -> Type -
 checkPatterns [] t ret	   = ret [] [] t
 checkPatterns (Arg h p:ps) t ret =
     do	t' <- forcePi h t
+-- 	debug $ "checkPatterns " ++ showA (Arg h p:ps) ++ " : " ++ show t'
 	case t' of
 	    Pi h' a b | h == h' ->
-		checkPattern p a    $ \xs p' ->
+		checkPattern p a $ \xs p' ->
 		do  v <- patToTerm p'
-		    checkPatterns ps (substAbs v b) $ \ys ps' t'' ->
+		    let b' = raise (length xs) b
+		    checkPatterns ps (substAbs v b') $ \ys ps' t'' ->
 			ret (xs ++ ys) (Arg h p':ps') t''
 	    _ -> fail $ show t ++ " should be a " ++ show h ++ " function type"
 
@@ -251,8 +254,8 @@ checkPattern (A.WildP i) t ret =
     do	x <- freshNoName (getRange i)
 	addCtx x t $ ret [show x] (VarP x)
 checkPattern (A.ConP i c ps) t ret =
-    do	Constructor t' n d <- getConstInfo c
-	El (Def _ vs) _ <- forceData d t
+    do	Constructor t' n d _ <- getConstInfo c
+	El (Def _ vs) _	     <- forceData d t
 	checkPatterns ps (substs (map unArg vs) t') $ \xs ps' _ ->
 	    ret xs (ConP c ps')
 
@@ -399,10 +402,12 @@ inferHead (HeadVar _ x) =
 	t <- typeOfBV n
 	return (Var n [], t)
 inferHead (HeadCon _ x) =
-    do	Constructor t n d <- getConstInfo x
-	t0		  <- newTypeMeta_   -- TODO: not so nice
-	El (Def _ vs) _	  <- forceData d t0
-	return (Con x [], substs (map unArg vs) t)
+    do	Constructor t n d _ <- getConstInfo x
+	t0		    <- newTypeMeta_   -- TODO: not so nice
+	El (Def _ vs) _	    <- forceData d t0
+	let t1 = substs (map unArg vs) t
+-- 	debug $ "HeadCon " ++ show x ++ " : " ++ show t1
+	return (Con x [], t1)
 inferHead (HeadDef _ x) =
     do	t <- typeOfConst x
 	return (Def x [], t)

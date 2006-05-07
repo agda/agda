@@ -95,24 +95,32 @@ type MetaStore = Map MetaId MetaVariable
 
 type Signature = Map QName Definition
 
-data Definition = Axiom	      { defType    :: Type			       }
-		| Function    { funClauses :: [Clause], defType     :: Type    }
-		| Synonym     { synDef	   :: Term    , defType	    :: Type    }
+data Definition = Axiom	      { defType	       :: Type
+			      }
+		| Function    { funClauses     :: [Clause]
+			      , defType	       :: Type
+			      , isAbstract     :: IsAbstract
+			      }
+		| Synonym     { synDef	       :: Term
+			      , defType	       :: Type
+			      }
 		| Datatype    { defType	       :: Type
 			      , dataParameters :: Int
 			      , dataConstrs    :: [QName]
+			      , isAbstract     :: IsAbstract
 			      }
-		| Constructor { defType	      :: Type
-			      , conParameters :: Int
-			      , conDatatype   :: QName
+		| Constructor { defType	       :: Type
+			      , conParameters  :: Int
+			      , conDatatype    :: QName
+			      , isAbstract     :: IsAbstract
 			      }
 		    -- ^ The type of the constructor and the name of the datatype.
     deriving (Show, Typeable, Data)
 
 defClauses :: Definition -> [Clause]
-defClauses (Function cs _) = cs
-defClauses (Synonym v _)   = [Clause [] (Body v)]
-defClauses _		   = []
+defClauses (Function cs _ _) = cs
+defClauses (Synonym v _)     = [Clause [] (Body v)]
+defClauses _		     = []
 
 ---------------------------------------------------------------------------
 -- * Type checking environment
@@ -121,11 +129,18 @@ defClauses _		   = []
 data TCEnv =
     TCEnv { envContext	     :: Context
 	  , envCurrentModule :: Maybe ModuleName
+	  , envAbstractMode  :: Bool
+		-- ^ When checking the typesignature of a public definition
+		--   or the body of a non-abstract definition this is true.
+		--   To prevent information about abstract things leaking
+		--   outside the module.
 	  }
+    deriving (Show)
 
 initEnv :: TCEnv
 initEnv = TCEnv { envContext	   = []
 		, envCurrentModule = Nothing
+		, envAbstractMode  = False
 		}
 
 ---------------------------------------------------------------------------

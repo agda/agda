@@ -87,15 +87,14 @@ import Syntax.Concrete.Pretty ()    -- need Show instance for Declaration
     distributed to the individual declarations.
 -}
 data NiceDeclaration
-	= Axiom Range Fixity Access Name Expr
-	| Synonym Range Fixity Access Name Expr	WhereClause		    -- ^ Definition with no type signature: @x = e@
+	= Axiom Range Fixity Access IsAbstract Name Expr
+	| Synonym Range Fixity Access IsAbstract Name Expr WhereClause		    -- ^ Definition with no type signature: @x = e@
 	| NiceDef Range [Declaration] [NiceTypeSignature] [NiceDefinition]
 	    -- ^ A bunch of mutually recursive functions\/datatypes.
 	    --   The last two lists have the same length. The first list is the
 	    --   concrete declarations these definitions came from.
-	| NiceAbstract Range [NiceDeclaration]
-	| NiceModule Range Access QName Telescope [TopLevelDeclaration]
-	| NiceModuleMacro Range Access Name Telescope Expr ImportDirective
+	| NiceModule Range Access IsAbstract QName Telescope [TopLevelDeclaration]
+	| NiceModuleMacro Range Access IsAbstract Name Telescope Expr ImportDirective
 	| NiceOpen Range QName ImportDirective
 	| NiceImport Range QName (Maybe Name) ImportDirective
 
@@ -104,8 +103,8 @@ data NiceDeclaration
 
 -- | A definition without its type signature.
 data NiceDefinition
-	= FunDef  Range [Declaration] Fixity Access Name [Clause]
-	| DataDef Range Fixity Access Name [LamBinding] [NiceConstructor]
+	= FunDef  Range [Declaration] Fixity Access IsAbstract Name [Clause]
+	| DataDef Range Fixity Access IsAbstract Name [LamBinding] [NiceConstructor]
 
 -- | Only 'Axiom's.
 type NiceConstructor = NiceDeclaration
@@ -193,10 +192,10 @@ niceDeclarations ds = nice (fixities ds) ds
 			nds = case d of
 			    Data r x tel t cs   ->
 				[ NiceDef r [d]
-					    [ Axiom (fuseRange x t) f PublicAccess
+					    [ Axiom (fuseRange x t) f PublicAccess ConcreteDef
 						    x (foldr Pi t tel)
 					    ]
-					    [ DataDef (getRange cs) f PublicAccess x
+					    [ DataDef (getRange cs) f PublicAccess ConcreteDef x
 						      (concatMap binding tel)
 						      (niceAxioms fixs cs)
 					    ]
@@ -212,9 +211,8 @@ niceDeclarations ds = nice (fixities ds) ds
 				]
 
 			    Abstract r ds ->
-				[ NiceAbstract r $
-				    nice (fixities ds `plusFixities` fixs) ds
-				]
+				map mkAbstract
+				$ nice (fixities ds `plusFixities` fixs) ds
 
 			    Private _ ds ->
 				map mkPrivate
@@ -223,10 +221,10 @@ niceDeclarations ds = nice (fixities ds) ds
 			    Postulate _ ds -> niceAxioms fixs ds
 
 			    Module r x tel ds	->
-				[ NiceModule r PublicAccess x tel ds ]
+				[ NiceModule r PublicAccess ConcreteDef x tel ds ]
 
 			    ModuleMacro r x tel e is ->
-				[ NiceModuleMacro r PublicAccess x tel e is ]
+				[ NiceModuleMacro r PublicAccess ConcreteDef x tel e is ]
 
 			    Infix _ _		-> []
 			    Open r x is		-> [NiceOpen r x is]
@@ -242,19 +240,19 @@ niceDeclarations ds = nice (fixities ds) ds
 	    where
 		nice [] = []
 		nice (d@(TypeSig x t) : ds) =
-		    Axiom (getRange d) (fixity x fixs) PublicAccess x t
+		    Axiom (getRange d) (fixity x fixs) PublicAccess ConcreteDef x t
 		    : nice ds
 		nice _ = __IMPOSSIBLE__
 
 	-- Create a function definition.
 	mkFunDef fixs x Nothing ds@[FunClause (LHS r PrefixDef _ []) rhs wh] =
-	    Synonym (getRange ds) (fixity x fixs) PublicAccess x rhs wh
+	    Synonym (getRange ds) (fixity x fixs) PublicAccess ConcreteDef x rhs wh
 	mkFunDef _ x Nothing ds	= throwDyn $ BadSynonym x ds
 	mkFunDef fixs x (Just t) ds0 =
 	    NiceDef (fuseRange x ds0)
 		    (TypeSig x t : ds0)
-		    [ Axiom (fuseRange x t) f PublicAccess x t ]
-		    [ FunDef (getRange ds0) ds0 f PublicAccess x
+		    [ Axiom (fuseRange x t) f PublicAccess ConcreteDef x t ]
+		    [ FunDef (getRange ds0) ds0 f PublicAccess ConcreteDef x
 			     (map mkClause ds0)
 		    ]
 	    where
@@ -280,22 +278,37 @@ niceDeclarations ds = nice (fixities ds) ds
 		    NiceDef (fuseRange r0 r1) [] (ts0 ++ ts1) (ds0 ++ ds1)
 		smash _ _ = __IMPOSSIBLE__  -- only definitions can appear in a mutual
 
+	-- Make a declaration abstract
+	mkAbstract d =
+	    case d of
+		Axiom r f a _ x e		 -> Axiom r f a AbstractDef x e
+		Synonym r f a _ x e wh		 -> Synonym r f a AbstractDef x e wh
+		NiceDef r cs ts ds		 -> NiceDef r cs (map mkAbstract ts)
+								 (map mkAbstractDef ds)
+		NiceModule r a _ x tel ds	 -> NiceModule r a AbstractDef x tel ds
+		NiceModuleMacro r a _ x tel e is -> NiceModuleMacro r a AbstractDef x tel e is
+		_				 -> d
+
+	mkAbstractDef d =
+	    case d of
+		FunDef r ds f a _ x cs	-> FunDef r ds f a AbstractDef x cs
+		DataDef r f a _ x ps cs	-> DataDef r f a AbstractDef x ps $ map mkAbstract cs
+
 	-- Make a declaration private
 	mkPrivate d =
 	    case d of
-		Axiom r f _ x e			-> Axiom r f PrivateAccess x e
-		Synonym r f _ x e wh		-> Synonym r f PrivateAccess x e wh
-		NiceDef r cs ts ds		-> NiceDef r cs (map mkPrivate ts)
-								(map mkPrivateDef ds)
-		NiceAbstract r ds		-> NiceAbstract r (map mkPrivate ds)
-		NiceModule r _ x tel ds		-> NiceModule r PrivateAccess x tel ds
-		NiceModuleMacro r _ x tel e is	-> NiceModuleMacro r PrivateAccess x tel e is
-		_				-> d
+		Axiom r f _ a x e		 -> Axiom r f PrivateAccess a x e
+		Synonym r f _ a x e wh		 -> Synonym r f PrivateAccess a x e wh
+		NiceDef r cs ts ds		 -> NiceDef r cs (map mkPrivate ts)
+								 (map mkPrivateDef ds)
+		NiceModule r _ a x tel ds	 -> NiceModule r PrivateAccess a x tel ds
+		NiceModuleMacro r _ a x tel e is -> NiceModuleMacro r PrivateAccess a x tel e is
+		_				 -> d
 
 	mkPrivateDef d =
 	    case d of
-		FunDef r ds f _ x cs	-> FunDef r ds f PrivateAccess x cs
-		DataDef r f _ x ps cs	-> DataDef r f PrivateAccess x ps cs
+		FunDef r ds f _ a x cs	-> FunDef r ds f PrivateAccess a x cs
+		DataDef r f _ a x ps cs	-> DataDef r f PrivateAccess a x ps cs
 
 -- | Add more fixities. Throw an exception for multiple fixity declarations.
 plusFixities :: Map.Map Name Fixity -> Map.Map Name Fixity -> Map.Map Name Fixity

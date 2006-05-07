@@ -32,7 +32,6 @@ data Declaration
 	= Axiom      DefInfo Name Expr				-- ^ postulate
 	| Synonym    DefInfo Name Expr [Declaration]		-- ^ definition of the form @x = e@
 	| Definition DeclInfo [TypeSignature] [Definition]	-- ^ a bunch of mutually recursive definitions
-	| Abstract   DeclInfo [Declaration]
 	| Module     ModuleInfo ModuleName Telescope [Declaration]
 	| ModuleDef  ModuleInfo ModuleName Telescope ModuleName [Arg Expr]
 	| Import     ModuleInfo ModuleName
@@ -113,7 +112,6 @@ instance HasRange Declaration where
     getRange (Axiom      i _ _	  ) = getRange i
     getRange (Synonym	 i _ _ _  ) = getRange i
     getRange (Definition i _ _	  ) = getRange i
-    getRange (Abstract   i _	  ) = getRange i
     getRange (Module     i _ _ _  ) = getRange i
     getRange (ModuleDef  i _ _ _ _) = getRange i
     getRange (Import     i _	  ) = getRange i

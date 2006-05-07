@@ -85,16 +85,17 @@ instance HasRange ModuleInfo where
  --------------------------------------------------------------------------}
 
 data DefInfo =
-	DefInfo	{ defFixity :: Fixity
-		, defAccess :: Access
-		, defInfo   :: DeclInfo
+	DefInfo	{ defFixity   :: Fixity
+		, defAccess   :: Access
+		, defAbstract :: IsAbstract
+		, defInfo     :: DeclInfo
 		}
 
-mkRangedDefInfo :: Name -> Fixity -> Access -> Range -> DefInfo
-mkRangedDefInfo x f a r = DefInfo f a (DeclInfo x $ DeclRange r)
+mkRangedDefInfo :: Name -> Fixity -> Access -> IsAbstract -> Range -> DefInfo
+mkRangedDefInfo x f a ab r = DefInfo f a ab (DeclInfo x $ DeclRange r)
 
-mkSourcedDefInfo :: Name -> Fixity -> Access -> [Declaration] -> DefInfo
-mkSourcedDefInfo x f a ds = DefInfo f a (DeclInfo x $ DeclSource ds)
+mkSourcedDefInfo :: Name -> Fixity -> Access -> IsAbstract -> [Declaration] -> DefInfo
+mkSourcedDefInfo x f a ab ds = DefInfo f a ab (DeclInfo x $ DeclSource ds)
 
 instance HasRange DefInfo where
     getRange = getRange . defInfo

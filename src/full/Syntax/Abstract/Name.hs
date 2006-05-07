@@ -59,6 +59,14 @@ qualifyModuleHack (Just m) (MName (C.QName x) _) = qualifyModule m x
 qualifyModuleHack Nothing  m' = m'
 qualifyModuleHack _ _ = __IMPOSSIBLE__
 
+isSubModuleOf :: ModuleName -> ModuleName -> Bool
+isSubModuleOf x y = isSub (mnameId x) (mnameId y)
+    where
+	isSub (C.QName x)  (C.QName z)	= x == z
+	isSub (C.Qual x y) (C.QName z)	= x == z
+	isSub (C.Qual x y) (C.Qual z w) = x == z && isSub y w
+	isSub (C.QName _)  (C.Qual _ _) = False
+
 freshName :: (MonadState s m, HasFresh NameId s) => Range -> String -> m Name
 freshName r s =
     do	i <- fresh

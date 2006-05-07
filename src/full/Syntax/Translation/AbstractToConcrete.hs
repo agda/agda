@@ -20,6 +20,7 @@ import Syntax.Abstract as A
 import Utils.Maybe
 import Utils.Monad
 import Utils.Tuple
+import Utils.List
 
 #include "../../undefined.h"
 
@@ -100,20 +101,35 @@ withInfixDecls = foldr (.) id . map (uncurry withInfixDecl)
 
 -- Dealing with private definitions ---------------------------------------
 
-withPrivate :: DefInfo -> AbsToCon [C.Declaration] -> AbsToCon [C.Declaration]
-withPrivate i m =
-    case defAccess i of
-	PublicAccess	-> m
-	PrivateAccess	->
+withAbstractPrivate :: DefInfo -> AbsToCon [C.Declaration] -> AbsToCon [C.Declaration]
+withAbstractPrivate i m =
+    case (defAccess i, defAbstract i) of
+	(PublicAccess, ConcreteDef) -> m
+	(p,a)			    -> 
 	    do	ds <- m
-		return [ C.Private (getRange ds) ds ]
+		return $ abst a $ priv p $ ds
+    where
+	priv PrivateAccess ds = [ C.Private (getRange ds) ds ]
+	priv _ ds	      = ds
+	abst AbstractDef ds   = [ C.Abstract (getRange ds) ds ]
+	abst _ ds	      = ds
 
-withPrivates :: [DefInfo] -> AbsToCon [C.Declaration] -> AbsToCon [C.Declaration]
-withPrivates is m
-    | all (== PrivateAccess) $ map defAccess is	=
-	do  ds <- m
-	    return  [ C.Private (getRange ds) ds ]
+withAbstractPrivates :: [DefInfo] -> AbsToCon [C.Declaration] -> AbsToCon [C.Declaration]
+withAbstractPrivates is m
+    | allEqual aps =
+	case aps of
+	    []	-> m
+	    (PublicAccess, ConcreteDef):_   -> m
+	    (p,a):_ ->
+		do  ds <- m
+		    return  $ abst a $ priv p $ ds
     | otherwise	= m
+    where
+	aps = map (defAccess /\ defAbstract) is
+	priv PrivateAccess ds = [ C.Private (getRange ds) ds ]
+	priv _ ds	      = ds
+	abst AbstractDef ds   = [ C.Abstract (getRange ds) ds ]
+	abst _ ds	      = ds
 
 -- The To Concrete Class --------------------------------------------------
 
@@ -266,14 +282,14 @@ instance ToConcrete TypeAndDef [C.Declaration] where
     -- We don't do withInfixDecl here. It's done at the declaration level.
 
     toConcrete (TypeAndDef (Axiom _ x t) (FunDef i _ cs)) =
-	withPrivate i $
+	withAbstractPrivate i $
 	do  t'  <- toConcreteCtx TopCtx t
 	    cs' <- withStored i $ toConcrete cs
 	    x'  <- toConcrete x
 	    return $ TypeSig x' t' : cs'
 
     toConcrete (TypeAndDef (Axiom _ x t) (DataDef i _ bs cs)) =
-	withPrivate i $
+	withAbstractPrivate i $
 	withStored  i $
 	do  tel'     <- toConcrete tel
 	    t'	     <- toConcreteCtx TopCtx t0
@@ -305,7 +321,7 @@ instance ToConcrete A.Declaration [C.Declaration] where
 
     toConcrete (Axiom i x t) =
 	do  x' <- toConcrete x
-	    withPrivate	      i    $
+	    withAbstractPrivate	      i    $
 		withInfixDecl i x' $
 		withStored    i    $
 		do  t' <- toConcreteCtx TopCtx t
@@ -313,7 +329,7 @@ instance ToConcrete A.Declaration [C.Declaration] where
 
     toConcrete (Synonym i x e wh) =
 	do  x' <- toConcrete x
-	    withPrivate	      i    $
+	    withAbstractPrivate	      i    $
 		withInfixDecl i x' $
 		withStored    i    $
 		do  e'  <- toConcreteCtx TopCtx e
@@ -322,7 +338,7 @@ instance ToConcrete A.Declaration [C.Declaration] where
 
     toConcrete (Definition i ts ds) =
 	do  ixs' <- toConcrete $ map (DontTouchMe -*- id) ixs
-	    withPrivates       is   $
+	    withAbstractPrivates is $
 		withInfixDecls ixs' $
 		withStored     i    $
 		do  ds' <- concat <$> toConcrete (zipWith TypeAndDef ts ds)
@@ -332,11 +348,6 @@ instance ToConcrete A.Declaration [C.Declaration] where
 	    is  = map fst ixs
 	    getInfoAndName (A.Axiom i x _)  = (i,x)
 	    getInfoAndName _		    = __IMPOSSIBLE__
-
-    toConcrete (A.Abstract i ds) =
-	withStored i $
-	do  ds' <- toConcrete ds
-	    return [C.Abstract (getRange i) ds']
 
     toConcrete (A.Module i x tel ds) =
 	withStored i $
