@@ -1,0 +1,20 @@
+
+Agda II -- Take One
+
+I will present the first version of the Agda II language and some of the
+motivations behind it. In particular I will talk about what is in the language:
+
+  * implicit arguments
+  * datatypes and functions by pattern matching
+  * fancy module system
+
+and what is not:
+
+  * pi in set
+  * signatures and structures
+  * inductive families
+
+and try to convey the reasons why this is so. The presentation will be
+accompanied by a healthy amount of simple examples illustratating the syntax of
+the language and how the different features can be used.
+

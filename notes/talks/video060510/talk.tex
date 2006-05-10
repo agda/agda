@@ -1,0 +1,539 @@
+\documentclass{beamer}
+
+\usetheme{JuanLesPins}
+%\usetheme{Darmstadt}
+
+\usepackage{beamerthemesplit}
+\usepackage{pxfonts}
+\usepackage{proof}
+%\usepackage{fleqn}
+
+\title{Agda II -- Take One}
+\author{Ulf Norell}
+\date{\today}
+
+\newcommand\PI[2]{(#1:#2)\to{}}
+\newcommand\hPI[2]{\{#1:#2\}\to{}}
+\newcommand\Fun[2]{#1\to#2}
+\newcommand\lam[1]{\lambda #1\to{}}
+\newcommand\Cons{\mathrel{::}}
+
+\newcommand\To{\Rightarrow}
+\newcommand\GoFig{\_}
+
+\newcommand\Data[3]{\ensuremath{
+    \mathbf{data}~#1 : #2~\mathbf{where} \\
+    \quad\begin{array}{lcl}
+	#3
+    \end{array}
+}}
+\newcommand\Module[2]{\ensuremath{
+    \mathbf{module}~#1~\mathbf{where} \\
+    \quad\begin{array}{l}
+	#2
+    \end{array}
+}}
+
+\newenvironment{code}{
+\begin{block}{}\(\begin{array}{l}
+}{
+\end{array}\)\end{block}
+}
+
+\renewcommand\Bar{~~|~~}
+
+\begin{document}
+
+\frame{\titlepage}
+
+\section{Introduction}
+\frame{\tableofcontents}
+
+\subsection{Motivation}
+\frame{
+    \frametitle{What's the point?}
+
+    \begin{itemize}
+	\item of Agda II
+	\begin{itemize}
+	    \item Solid theoretical foundation (lacking in Agda)
+	    \begin{itemize}
+	    \item Small well-defined core language with nice metatheory.
+	    \item Transparent translation from the full language to the core language.
+	    \end{itemize}
+	\end{itemize}
+	\item of this talk
+	\begin{itemize}
+	    \item Present the (full) language from a user's perspective.
+	\end{itemize}
+    \end{itemize}
+}
+
+\subsection{The Basics}
+\frame{
+    \frametitle{The Logical Framework}
+
+    {\small \begin{block}{The Basic Language}\(\begin{array}{llcl}
+	\mbox{(Terms)} & s, t & \Coloneqq & x \Bar c \Bar f \Bar s\,t \Bar \lam xt \Bar \lam{(x:A)}t \\
+	\mbox{(Types)} & A, B & \Coloneqq & \PI xAB \Bar A\to B \Bar t \Bar \alpha \\
+	\mbox{(Sorts)} & \alpha, \beta & \Coloneqq & Set_i \Bar Set \Bar Prop \\
+	\end{array}\)
+    \end{block}}
+
+    \begin{itemize}
+	\item Note: $Set \neq Prop$.
+    \end{itemize}
+
+    {\small\begin{block}{Example: polymorphic identity}\(\begin{array}{l}
+	id : \PI A{Set} A\to A \\
+	id = \lam{(A:{Set})(x:A)}x
+    \end{array}\)\end{block} }
+}
+
+\subsection{Features and Not}
+
+\frame{
+    \frametitle{What's there and what's not}
+
+    \begin{itemize}
+	\item Features
+	\begin{itemize}
+	    \item Inductive datatypes
+	    \item Functions by pattern matching
+	    \item Implicit arguments
+	    \item Module system
+	\end{itemize}
+    ~
+	\item Not Yet Features
+	\begin{itemize}
+	    \item $\Pi$ in Set
+	    \item Signatures and structures
+	    \item Inductive families
+	\end{itemize}
+    \end{itemize}
+}
+
+\section{Not Yet Features}
+
+\subsection{Pi in Set}
+
+\frame{
+    \frametitle{$\Pi$ in Set}
+
+    \begin{itemize}
+	\item What does it mean?
+	\begin{block}{We don't have}\[
+	    \infer{\Gamma\vdash\PI xAB:{Set}}
+		{ \Gamma\vdash A:{Set}
+		& \Gamma,x:A\vdash B:{Set}
+		}
+	\]\end{block}
+
+	\item Consequences:
+	    {\small \begin{block}{We can't do}\(\begin{array}{l}
+		    Rel~A = A\to A\to{Prop} \\
+		    apply : List~(Nat\to Nat)\to List~Nat\to List~Nat \\
+	    \end{array}\)\end{block} }
+    \end{itemize}
+}
+
+\frame{
+    \frametitle{$\Pi$ in Set}
+    \begin{itemize}
+	\item Why don't we have it?
+	    \begin{itemize}
+		\item Ask Thierry... (The metatheory gets tricky when you combine
+		      $\eta$-equality and $\Pi$ in ${Set}$.)
+	    \end{itemize}
+	~
+	\item What to do about it:
+	\begin{itemize}
+	    \item Get the metatheory straightened out (e.g. $\eta$-equality for datatypes).
+	    \item Abandon $\eta$-equality.
+	    \item Abandon $\Pi$ in ${Set}$.
+	\end{itemize}
+    \end{itemize}
+}
+
+\subsection{Signatures and Structures}
+
+\frame{
+    \frametitle{Signatures and Structures}
+
+    \begin{itemize}
+	\item What does it mean?
+	\begin{itemize}
+	    \item In Agda you can say (something like)
+		{\small \begin{code}
+		    Pair~A~B = \mathbf{sig}\begin{array}[t]{lcl}
+			    fst & : & A \\
+			    snd & : & B \\
+			\end{array} \\
+		    p : Pair~Nat~Nat \\
+		    p = \mathbf{struct}\begin{array}[t]{lcl}
+			    fst & = & 3 \\
+			    snd & = & 7 \\
+			\end{array} \\
+		    three = p.fst
+		\end{code} }
+	\end{itemize}
+	\item Why don't we have it?
+	\begin{itemize}
+	    \item We want to start simple.
+	    \item Signatures and structures will appear in Agda II -- Take Two
+	    (but probably not in the same form as in Agda).
+	\end{itemize}
+    \end{itemize}
+}
+
+\subsection{Inductive Families}
+
+\frame{
+    \frametitle{Inductive Families}
+
+    \begin{itemize}
+	\item What does it mean?
+	\begin{itemize}
+	    \item For instance:
+	    \begin{code}
+		\Data{Vec~(A:{Set})}{Nat\to{Set}}{
+		    vnil  & : & Vec~A~zero \\
+		    vcons & : & \PI n{Nat}A\to Vec~A~n\to Vec~A~(suc~n) \\
+		}
+	    \end{code}
+	\end{itemize}
+	\item Why don't we have it?
+	\begin{itemize}
+	    \item The inductive families in Agda are very limited in terms of
+		  what you can do with them.
+	    \item We want something better, which will require some thinking.
+	\end{itemize}
+    \end{itemize}
+}
+
+\section{Features}
+
+\subsection{Datatypes}
+
+\frame{
+    \frametitle{Datatypes}
+
+    \begin{itemize}
+	\item Standard, garden-variety, strictly positive datatypes:
+	{\small \begin{code}
+	    \Data{Nat}{Set}{
+		zero & : & Nat \\
+		suc & : & Nat\to Nat \\
+	    } \\{}\\
+	    \Data{Exist~(A:{Set})~(P:A\to{Prop})}{Prop}{
+		witness & : & \PI xA P~x\to Exist~A~P
+	    } \\{}\\
+	    \Data{Acc~(A:{Set})~((<):A\to A\to{Prop})~(x:A)}{Prop}{
+		acc & : & (\PI yA y<x\to Acc~A~(<)~y)\to Acc~A~(<)~x
+	    }
+	\end{code} }
+	\item Note that $\mathbf{data}\ldots$ is a declaration (not a term or type).
+    \end{itemize}
+}
+
+\subsection{Definitions by Pattern Matching}
+
+\frame{
+    \frametitle{Definitions by Pattern Matching}
+
+    \begin{itemize}
+	\item Functions are defined by pattern matching
+	\begin{itemize}
+	    \item Arbitrarily nested, exhaustive, possibly overlapping patterns.
+	    \item No case expressions!
+	    {\small \begin{code}
+		\begin{array}{lclcl}
+		\multicolumn5l{(+) : Nat\to Nat\to Nat} \\
+		zero &+& m &=& m \\
+		suc~n &+& m &=& suc~(n + m) \\
+		\end{array}\\
+		{}\\
+		\begin{array}{lllcl}
+		eqNat : &Nat\to&Nat\to&&Bool \\
+		eqNat&zero&zero &=& true \\
+		eqNat&(suc~n)&(suc~m) &=& eqNat~n~m \\
+		eqNat&\_&\_ &=& false \\
+		\end{array}
+	    \end{code} }
+	\end{itemize}
+    \end{itemize}
+}
+
+\frame{
+    \frametitle{Mutual induction-recursion}
+
+    \begin{itemize}
+	\item You can have mutually inductive-recursive definitions:
+	{\small \begin{code}
+	    \mathbf{mutual} \\
+	    \quad\begin{array}{llcl}
+		even : &Nat\to&&Bool \\
+		even&zero &=& true \\
+		even&(suc~n) &=& odd~n \\
+		\\
+		odd : &Nat\to&&Bool \\
+		odd&zero &=& false \\
+		odd&(suc~n) &=& even~n \\
+	    \end{array}
+	\end{code} }
+	\item I'd show the standard universe construction example of
+	      induction-recursion, but you need $\Pi$ in ${Set}$ for that.
+    \end{itemize}
+
+}
+
+\frame{
+    \frametitle{Local functions}
+
+    \begin{itemize}
+	\item Functions (and datatypes) can be local to a definition:
+	{\small \begin{code}
+	    reverse : (A:{Set})\to List~A\to List~A \\
+	    reverse~A~xs = rev~xs~nil \\
+	    \quad\mathbf{where} \\
+	    \qquad\begin{array}[t]{lllcl}
+		    rev : &List~A\to&List~A\to&&List~A \\
+		    rev&nil&ys & = & ys \\
+		    rev&(x\Cons xs)&ys & = & rev~xs~(x\Cons ys) \\
+		\end{array}
+	\end{code} }
+    \end{itemize}
+}
+
+\frame{
+    \frametitle{Termination}
+
+    \begin{itemize}
+	\item We allow general recursion.
+	\item Termination checking is done separately (as in Agda).
+	\item Example:
+	{\small \begin{code}\begin{array}{llcl}
+	    qsort : &List~Nat\to&&List~Nat \\
+	    qsort &nil &=& nil \\
+	    qsort &(x\Cons xs) &=& filter~(\lam yy<x)~xs\mathrel{++} \\
+	    &&& x\Cons filter~(\lam yy\geq x)~xs
+	\end{array}\end{code} }
+    \end{itemize}
+}
+
+\subsection{Implicit Arguments}
+
+\frame{
+    \frametitle{Meta Variables}
+
+    \begin{itemize}
+	\item There are two kinds of meta variables (only one in Agda):
+	\begin{itemize}
+	    \item Interaction points: $?$ and $\{!~\ldots~!\}$
+	    \item Go figure\footnote{Conorism}: $\GoFig$
+	\end{itemize}
+	\item The type checker should be able to figure out the value of a go
+	      figure without user intervention...
+	\item ...whereas the value of an interaction point is supplied by the user.
+	\item We use go figures to implement implicit arguments.
+    \end{itemize}
+
+}
+
+\frame{
+    \frametitle{Implicit Arguments}
+    \begin{itemize}
+	\item Curly braces $\{~\}$ are used to indicate implicitness:
+	{\small \begin{block}{Syntax}\(\begin{array}{lcl}
+	    s,t & \Coloneqq & \ldots \Bar s~\{t\} \Bar \lam{\{x\}}t \Bar \lam{\{x:A\}}t \Bar \GoFig \\
+	    A,B & \Coloneqq & \ldots \Bar \hPI xAB \Bar \{A\}\to B \\
+	\end{array}\)\end{block} }
+	{\small \begin{code}
+	    id~:~\hPI A{Set} A\to A \\
+	    id~\{A\}~x = x \\
+	    zero' = id~\{Nat\}~zero \\
+	\end{code} }
+	\item Implicit arguments can be omitted: $id~x$ means $id~\{\GoFig\}~x$.
+	\item Both in left-hand-sides and right-hand-sides:
+	{\small \begin{code}
+	    id~:~\hPI A{Set} A\to A \\
+	    id~x = x \\
+	\end{code} }
+    \end{itemize}
+}
+
+\frame{
+    \frametitle{Example}
+
+    \begin{code}
+	\begin{array}{l}
+	    \Data{List~(A:{Set})}{Set}{
+		nil & : & List~A \\
+		(\Cons) & : & A\to List~A\to List~A \\
+	    }
+	\end{array} \\{}\\
+	\begin{array}{lclcl}
+	\multicolumn5l{(++) : \hPI A{Set} List~A\to List~A\to List~A} \\
+	nil & ++ & ys &=& ys \\
+	(x::xs) & ++ & ys &=& x::(xs \mathrel{++} ys) \\
+	\end{array}
+    \end{code}
+    \begin{itemize}
+	\item Note that constructors are polymorphic:
+	\begin{itemize}
+	    \item $\vdash nil : List~A$, for any $A$
+	    \item $\not\vdash nil : \hPI A{Set}List~A$.
+	\end{itemize}
+    \end{itemize}
+}
+
+\subsection{Module System}
+
+\frame{
+    \frametitle{Module System}
+
+    \begin{itemize}
+	\item Purpose:
+	\begin{itemize}
+	    \item Control the scope of names.
+	    \item (Not to model algebraic structures.)
+	\end{itemize}
+	\item Guiding principle:
+	\begin{itemize}
+	    \item Scope checking should not require type
+	      checking or computation.
+	\end{itemize}
+	\item Consequence:
+	\begin{itemize}
+	    \item Modules are not first class.
+	\end{itemize}
+    \end{itemize}
+}
+
+\frame{
+    \frametitle{Submodules}
+
+    \begin{itemize}
+	\item Each source file contains a single module, which in turn can
+	contain any number of submodules:
+	{\small \begin{code}
+	    \Module{Prelude}{
+		\Module{Nat}{\ldots} \\
+		\Module{List}{
+		    \ldots \\
+		    \Module{Fold}{\ldots} \\
+		    \ldots \\
+		} \\
+	    }
+	\end{code} }
+    \end{itemize}
+}
+
+\frame{
+    \frametitle{Accessing the Module Contents}
+
+    \begin{itemize}
+	\item To use a module from a file the module has to be {\em imported}\\
+	\begin{code}
+	    \mathbf{import}~Prelude
+	\end{code}
+	\item We can then use the names in the module fully qualified
+	\begin{code}
+	    one = Prelude.Nat.suc~Prelude.Nat.zero
+	\end{code}
+	\item Or we can {\em open} a module
+	\begin{code}
+	    \mathbf{open}~Prelude.Nat \\
+	    one = suc~zero
+	\end{code}
+    \end{itemize}
+}
+
+\frame{
+    \frametitle{Controlling what is imported}
+    \begin{itemize}
+	\item We can exercise finer control over what is imported or opened.
+	\begin{code}
+	    \mathbf{import}~Prelude~as~P \\
+	    \mathbf{open}~P.Nat,~hiding~(+),~renaming~(zero~to~z) \\
+	    \mathbf{open}~P.List,~using~(replicate) \\
+	    zz : P.List.List~Nat \\
+	    zz = replicate~(suc~(suc~z))~z
+	\end{code}
+    \end{itemize}
+}
+
+\frame{
+    \frametitle{Controlling what is exported}
+    \begin{itemize}
+	\item Private things are not exported.
+	{\small \begin{code}
+	    \Module{BigProof}{
+		\mathbf{private}~minorLemma = \ldots \\
+		mainTheorem : P == NP \\
+		mainTheorem = \ldots minorLemma \ldots
+	    }
+	\end{code} }
+	\item Abstract things export only their type.
+	{\small \begin{code}
+	    \Module{Stack}{
+		\mathbf{abstract} \\
+		\quad\begin{array}{l}
+		    Stack : Set\to Set \\
+		    Stack = List \\
+		\end{array} \\
+	    }
+	\end{code} }
+	\item Private things still reduce, abstract things don't.
+    \end{itemize}
+}
+
+\frame{
+    \frametitle{Parameterised Modules}
+
+    \begin{itemize}
+	\item Modules can be parameterised.
+	{\small \begin{code}
+	    \mathbf{module}~Monad\begin{array}[t]{l}
+		    (M:Set\to Set) \\
+		    (return:\hPI{A}{Set}A\to M~A) \\
+		    ((>>=):\hPI{A,B}{Set}M~A\to(A\to M~B)\to M~B)
+		\end{array} \\
+		~~~\mathbf{where} \\
+		\quad\begin{array}{l}
+		    liftM : \hPI{A,B}{Set}(A\to B)\to M~A\to M~B \\
+		    liftM~f~m = m \mathrel{>>=} \lam x return~(f~x)
+		\end{array}
+	\end{code}}
+	\item And instantiated
+	{\small \begin{code}
+	    \mathbf{module}~MonadList = Monad~List~singleton~(flip~concatMap) \\
+	    lemma : \begin{array}[t]{l}
+		    \hPI{A,B}{Set}\PI{f}{A\to B}\PI{xs}{List~A} \\
+		    map~f~xs == MonadList.liftM~f~xs \\
+		\end{array}
+	\end{code} }
+	\item You need to instantiate a parameterised module to use it.
+    \end{itemize}
+}
+
+\section{Conclusions}
+
+\frame{
+    \frametitle{That's it folks}
+
+    \begin{itemize}
+	\item Agda II is very much work in progress.
+	\item At this point very little is set in stone, so if you think things
+	      should be a different way now is the time to speak up.
+	\item Most of what you've seen will be available for use during the 4th
+	      Agda Implementors Meeting starting next week in Japan.
+    \end{itemize}
+}
+% \section{Examples}
+% 
+% \frame{
+% }
+
+\end{document}
+
