@@ -1,7 +1,12 @@
 
-module Utils.Monad where
+module Utils.Monad
+    ( module Utils.Monad
+    , module Control.Monad
+    , module Data.FunctorM
+    ) where
 
 import Control.Monad
+import Data.FunctorM
 
 -- Monads -----------------------------------------------------------------
 
@@ -40,6 +45,9 @@ concatMapM f xs = concat <$> mapM f xs
 force :: Monad m => [a] -> m ()
 force xs = do () <- length xs `seq` return ()
 	      return ()
+
+commuteM :: (FunctorM f, Monad m) => f (m a) -> m (f a)
+commuteM = fmapM id
 
 -- Maybe ------------------------------------------------------------------
 

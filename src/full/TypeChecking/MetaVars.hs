@@ -150,7 +150,7 @@ class Occurs a where
 
 instance Occurs Term where
     occ m ok v =
-	do  v' <- reduceM v
+	do  v' <- reduce v
 	    case v' of
 		Var n vs    ->
 		    case findIdx ok n of
@@ -160,7 +160,7 @@ instance Occurs Term where
 		Lit l	    -> return $ Lit l
 		Def c vs    -> Def c <$> occ m ok vs
 		Con c vs    -> Con c <$> occ m ok vs
-		MetaV m' vs -> occMeta MetaV InstV reduceM m ok m' vs
+		MetaV m' vs -> occMeta MetaV InstV reduce m ok m' vs
 		Lam f _	    -> __IMPOSSIBLE__
 
 instance Occurs Type where
@@ -181,7 +181,8 @@ instance Occurs Sort where
 		Lub s1 s2	   -> uncurry Lub <$> occ m ok (s1,s2)
 		_		   -> return s'
 
-occMeta :: (Show a, Data a) => (MetaId -> Args -> a) -> (a -> MetaVariable) -> (a -> TCM a) -> MetaId -> [Nat] -> MetaId -> Args -> TCM a
+occMeta :: (Show a, Data a, Abstract a, Apply a) =>
+	   (MetaId -> Args -> a) -> (a -> MetaVariable) -> (a -> TCM a) -> MetaId -> [Nat] -> MetaId -> Args -> TCM a
 occMeta meta inst red m ok m' vs
     | m == m'	= fail $ "?" ++ show m ++ " occurs in itself"
     | otherwise	=
@@ -217,9 +218,9 @@ instance Occurs a => Occurs [a] where
 --   First check that metavar args are in pattern fragment.
 --     Then do extended occurs check on given thing.
 --
-assign :: (Show a, Data a, Occurs a) => MetaId -> Args -> a -> TCM ()
+assign :: (Show a, Data a, Occurs a, Abstract a) => MetaId -> Args -> a -> TCM ()
 assign x args = mkQ (fail "assign") (ass InstV) `extQ` (ass InstT) where
-    ass :: (Show a, Data a, Occurs a) => (a -> MetaVariable) -> a -> TCM ()
+    ass :: (Show a, Data a, Occurs a, Abstract a) => (a -> MetaVariable) -> a -> TCM ()
     ass inst v = do
 	let pshow (Arg NotHidden x) = show x
 	    pshow (Arg Hidden x) = "{" ++ show x ++ "}"

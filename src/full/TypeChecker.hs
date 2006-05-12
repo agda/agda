@@ -62,8 +62,9 @@ checkDecl d =
 checkAxiom :: DefInfo -> Name -> A.Expr -> TCM ()
 checkAxiom _ x e =
     do	t <- isType e
-	m <- currentModule_
-	addConstant (qualify m x) (Axiom t)
+	m <- currentModule
+	n <- asks (length . envContext)
+	addConstant (qualify m x) (Defn t n Axiom)
 
 
 -- | Type check a bunch of mutual inductive recursive definitions.
@@ -96,16 +97,77 @@ checkDefinition d =
 
 -- | Type check a module.
 checkModule :: ModuleInfo -> ModuleName -> A.Telescope -> [A.Declaration] -> TCM ()
-checkModule _ _ (_:_) _ = fail "checkModule: parameterised modules not implemented"
 checkModule i x tel ds =
-    do	m <- currentModule
-	let m' = A.qualifyModuleHack m x
-	withCurrentModule m' $ checkDecls ds
+    do	tel0 <- getContextTelescope
+	checkTelescope tel $ \tel' ->
+	    do	m'   <- flip qualifyModule x <$> currentModule
+		addModule m' $ MExplicit
+				{ mdefName	= m'
+				, mdefTelescope = tel0 ++ tel'
+				, mdefNofParams = length tel'
+				, mdefDefs	= Map.empty
+				}
+		withCurrentModule m' $ checkDecls ds
 
 
--- | Type check a module definition.
+{-| Type check a module definition.
+    If M' is qualified we know that its parent is fully instantiated. In other
+    words M' is a valid module in a prefix of the current context.
+
+    Current context: ΓΔ
+
+    Without bothering about submodules of M':
+	Γ   ⊢ module M' Ω
+	ΓΔ  ⊢ module M Θ = M' us
+	ΓΔΘ ⊢ us : Ω
+
+	Expl ΓΩ _ = lookupModule M'
+	addModule M ΓΔΘ = M' Γ us
+
+    Submodules of M':
+
+	Forall submodules A
+	    ΓΩΦ ⊢ module M'.A Ψ ...
+
+	addModule M.A ΓΔΘΦΨ = M'.A Γ us ΦΨ
+-}
 checkModuleDef :: ModuleInfo -> ModuleName -> A.Telescope -> ModuleName -> [Arg A.Expr] -> TCM ()
-checkModuleDef i m tel m' args = fail "checkModuleDef: not implemented"
+checkModuleDef i x tel m' args =
+    do	m <- flip qualifyModule x <$> currentModule
+	gammaDelta <- getContextTelescope
+	md' <- lookupModule m'
+	let gammaOmega	  = mdefTelescope md'
+	    (gamma,omega) = splitAt (length gammaOmega - mdefNofParams md') gammaOmega
+	    delta	  = drop (length gamma) gammaDelta
+	checkTelescope tel $ \theta ->
+	    do	--debug $ "module " ++ show m ++ " " ++ show theta ++ " = " ++ show m' ++ " " ++ show args
+		--debug $ "module " ++ show m' ++ " " ++ show gamma ++ show omega
+		vs <- checkArguments_ args omega
+		let vs0 = reverse [ Arg Hidden
+				  $ Var (i + length delta + length theta) []
+				  | i <- [0..length gamma - 1]
+				  ]
+		qm <- flip qualifyModule m <$> currentModule
+		addModule qm $ MDef { mdefName	     = qm
+				    , mdefTelescope  = gammaDelta ++ theta
+				    , mdefNofParams  = length theta
+				    , mdefModuleName = m'
+				    , mdefArgs	     = vs0 ++ vs
+				    }
+		forEachModule_ (`isSubModuleOf` m') $ \m'a ->
+		    do	md <- lookupModule m'a
+			let gammaOmegaPhiPsi = mdefTelescope md
+			    ma = requalifyModule m' m m'a
+			    phiPsi  = drop (length gammaOmega) gammaOmegaPhiPsi
+			    vs1	    = reverse [ Arg Hidden $ Var i []
+					      | i <- [0..length phiPsi - 1]
+					      ]
+			addModule ma $ MDef { mdefName	     = ma
+					    , mdefTelescope  = gammaDelta ++ theta ++ phiPsi
+					    , mdefNofParams  = mdefNofParams md
+					    , mdefModuleName = m'a
+					    , mdefArgs	     = vs0 ++ vs ++ vs1
+					    }
 
 
 -- | Type check an import declaration. Goes away and reads the interface file.
@@ -123,15 +185,16 @@ checkImport i m = fail "checkImport: not implemented"
 --   checked.
 checkDataDef :: DefInfo -> Name -> [A.LamBinding] -> [A.Constructor] -> TCM ()
 checkDataDef i x ps cs =
-    do	m	<- currentModule_
+    do	m <- currentModule
 	let name  = qualify m x
 	    npars = length ps
-	Axiom t <- getConstInfo name
+	t <- typeOfConst name
+	n <- asks $ length . envContext
 	bindParameters ps t $ \s ->
-	    do	mapM_ (checkConstructor name npars s) cs
-		addConstant name (Datatype t npars (map (cname m) cs)
-						   (defAbstract i)
-				 )
+	    mapM_ (checkConstructor name npars s) cs
+	addConstant name (Defn t n $ Datatype npars (map (cname m) cs)
+					      (defAbstract i)
+			 )
     where
 	cname m (A.Axiom _ x _) = qualify m x
 	cname _ _		= __IMPOSSIBLE__ -- constructors are axioms
@@ -145,8 +208,10 @@ checkConstructor d npars s (A.Axiom i c e) =
 	s' <- getSort t
 	s' `leqSort` s
 	t `constructs` d
-	m <- currentModule_
-	addConstant (qualify m c) (Constructor t npars d $ defAbstract i)
+	m <- currentModule
+	n <- asks $ length . envContext
+	addConstant (qualify m c) $
+	    Defn t (n - npars) $ Constructor npars d $ defAbstract i
 checkConstructor _ _ _ _ = __IMPOSSIBLE__ -- constructors are axioms
 
 
@@ -178,7 +243,7 @@ forceData d t =
 	    El (Def d' _) _
 		| d == d'   -> return t'
 	    MetaT m vs	    ->
-		do  Datatype t n _ _ <- getConstInfo d
+		do  Defn t _ (Datatype n _ _) <- getConstInfo d
 		    ps <- newArgsMeta t
 		    s  <- getSort t'
 		    assign m vs $ El (Def d ps) s
@@ -194,8 +259,8 @@ checkFunDef :: DefInfo -> Name -> [A.Clause] -> TCM ()
 checkFunDef i x cs =
 
     do	-- Get the type of the function
-	name	<- flip qualify x <$> currentModule_
-	Axiom t <- getConstInfo name
+	name <- flip qualify x <$> currentModule
+	t    <- typeOfConst name
 
 	-- Check that all clauses have the same number of arguments
 	unless (allEqual $ map npats cs) $ fail $ "equations give different arities for function " ++ show x
@@ -204,8 +269,9 @@ checkFunDef i x cs =
 	cs' <- mapM (checkClause t) cs
 
 	-- Add the definition
-	m   <- currentModule_
-	addConstant (qualify m x) $ Function cs' t $ defAbstract i
+	m   <- currentModule
+	n   <- asks $ length . envContext
+	addConstant (qualify m x) $ Defn t n $ Function cs' $ defAbstract i
     where
 	npats (A.Clause (A.LHS _ _ ps) _ _) = length ps
 
@@ -214,40 +280,41 @@ checkFunDef i x cs =
 checkClause :: Type -> A.Clause -> TCM Clause
 checkClause _ (A.Clause _ _ (_:_))  = fail "checkClause: local definitions not implemented"
 checkClause t (A.Clause (A.LHS i x ps) rhs []) =
-    checkPatterns ps t $ \xs ps t' ->
+    checkPatterns ps t $ \xs ps _ t' ->
 	do  v <- checkExpr rhs t'
 	    return $ Clause ps $ foldr (\x t -> Bind $ Abs x t) (Body v) xs
 
 
 -- | Check the patterns of a left-hand-side. Binds the variables of the pattern.
 --   TODO: add hidden arguments.
-checkPatterns :: [Arg A.Pattern] -> Type -> ([String] -> [Arg Pattern] -> Type -> TCM a) -> TCM a
-checkPatterns [] t ret	   = ret [] [] t
+checkPatterns :: [Arg A.Pattern] -> Type -> ([String] -> [Arg Pattern] -> [Arg Term] -> Type -> TCM a) -> TCM a
+checkPatterns [] t ret	   = ret [] [] [] t
 checkPatterns (Arg h p:ps) t ret =
     do	t' <- forcePi h t
 -- 	debug $ "checkPatterns " ++ showA (Arg h p:ps) ++ " : " ++ show t'
 	case t' of
 	    Pi h' a b | h == h' ->
-		checkPattern p a $ \xs p' ->
-		do  v <- patToTerm p'
-		    let b' = raise (length xs) b
-		    checkPatterns ps (substAbs v b') $ \ys ps' t'' ->
-			ret (xs ++ ys) (Arg h p':ps') t''
+		checkPattern p a $ \xs p' v ->
+		do  let b' = raise (length xs) b
+		    checkPatterns ps (substAbs v b') $ \ys ps' vs t'' ->
+			do  let v' = raise (length ys) v
+			    ret (xs ++ ys) (Arg h p':ps')(Arg h v':vs) t''
 	    _ -> fail $ show t ++ " should be a " ++ show h ++ " function type"
 
 
 -- | Type check a pattern and bind the variables.
-checkPattern :: A.Pattern -> Type -> ([String] -> Pattern -> TCM a) -> TCM a
+checkPattern :: A.Pattern -> Type -> ([String] -> Pattern -> Term -> TCM a) -> TCM a
 checkPattern (A.VarP x) t ret =
-    addCtx x t $ ret [show x] (VarP x)
+    addCtx x t $ ret [show x] (VarP $ show x) (Var 0 [])
 checkPattern (A.WildP i) t ret =
     do	x <- freshNoName (getRange i)
-	addCtx x t $ ret [show x] (VarP x)
+	addCtx x t $ ret [show x] (VarP "_") (Var 0 [])
 checkPattern (A.ConP i c ps) t ret =
-    do	Constructor t' n d _ <- getConstInfo c
-	El (Def _ vs) _	     <- forceData d t
-	checkPatterns ps (substs (map unArg vs) t') $ \xs ps' _ ->
-	    ret xs (ConP c ps')
+    do	Defn t' _ (Constructor n d _) <- getConstInfo c
+	El (Def _ vs) _		      <- forceData d t
+	c'			      <- canonicalConstructor c
+	checkPatterns ps (substs (map unArg vs) t') $ \xs ps' ts' _ ->
+	    ret xs (ConP c' ps') (Con c' ts')
 
 
 ---------------------------------------------------------------------------
@@ -300,16 +367,6 @@ isType e =
 	A.Underscore _	 -> newTypeMeta_
 	_		 -> inferTypeExpr e
 
--- | Check a typed binding and extends the context with the bound variables.
---   The telescope passed to the continuation is valid in the original context.
-checkTypedBinding :: A.TypedBinding -> ([Arg (String,Type)] -> TCM a) -> TCM a
-checkTypedBinding b@(A.TypedBinding _ h xs e) ret =
-    do	t <- isType e
-	addCtxs xs t $ ret $ mkTel xs t
-    where
-	mkTel [] t     = []
-	mkTel (x:xs) t = Arg h (show x,t) : mkTel xs (raise 1 t)
-
 
 -- | Force a type to be a Pi. Instantiates if necessary. The 'Hiding' is only
 --   used when instantiating a meta variable.
@@ -340,6 +397,30 @@ inferTypeExpr e =
     do	s <- newSortMeta
 	v <- checkExpr e (Sort s)
 	return $ El v s
+
+
+---------------------------------------------------------------------------
+-- * Telescopes
+---------------------------------------------------------------------------
+
+-- | Type check a telescope. Binds the variables defined by the telescope.
+checkTelescope :: A.Telescope -> (Telescope -> TCM a) -> TCM a
+checkTelescope [] ret = ret []
+checkTelescope (b : tel) ret =
+    checkTypedBinding b $ \xs ->
+    checkTelescope tel  $ \tel' ->
+	ret $ map (fmap snd) xs ++ tel'
+
+
+-- | Check a typed binding and extends the context with the bound variables.
+--   The telescope passed to the continuation is valid in the original context.
+checkTypedBinding :: A.TypedBinding -> ([Arg (String,Type)] -> TCM a) -> TCM a
+checkTypedBinding b@(A.TypedBinding _ h xs e) ret =
+    do	t <- isType e
+	addCtxs xs t $ ret $ mkTel xs t
+    where
+	mkTel [] t     = []
+	mkTel (x:xs) t = Arg h (show x,t) : mkTel xs (raise 1 t)
 
 
 ---------------------------------------------------------------------------
@@ -392,15 +473,24 @@ inferHead (HeadVar _ x) =
 	t <- typeOfBV n
 	return (Var n [], t)
 inferHead (HeadCon _ x) =
-    do	Constructor t n d _ <- getConstInfo x
-	t0		    <- newTypeMeta_   -- TODO: not so nice
-	El (Def _ vs) _	    <- forceData d t0
+    do	Defn t _ (Constructor n d _)
+			<- instantiateDef =<< getConstInfo x
+	t0		<- newTypeMeta_   -- TODO: not so nice
+	El (Def _ vs) _ <- forceData d t0
 	let t1 = substs (map unArg vs) t
 -- 	debug $ "HeadCon " ++ show x ++ " : " ++ show t1
 	return (Con x [], t1)
 inferHead (HeadDef _ x) =
-    do	t <- typeOfConst x
-	return (Def x [], t)
+    do	d <- instantiateDef =<< getConstInfo x
+	gammaDelta <- getContextTelescope
+	let t	  = defType d
+	    gamma = take (defFreeVars d) gammaDelta
+	    k	  = length gammaDelta - defFreeVars d
+	    vs	  = reverse [ Arg h $ Var (i + k) []
+			    | (Arg h _,i) <- zip gamma [0..]
+			    ]
+-- 	debug $ "inferHead " ++ show x ++ " : " ++ show t ++ " = " ++ show (Def x vs)
+	return (Def x vs, t)
 
 
 -- | Check a list of arguments: @checkArgs args t0 t1@ checks that
@@ -436,6 +526,12 @@ checkArguments (Arg h e : args) t0 t1 =
 	    (Hidden, Pi NotHidden _ _) ->
 		fail $ "can't give hidden argument " ++ showA e ++ " to something of type " ++ show t0
 	    _ -> __IMPOSSIBLE__
+
+
+-- | Check that a list of arguments fits a telescope.
+checkArguments_ :: [Arg A.Expr] -> Telescope -> TCM Args
+checkArguments_ args tel =
+    checkArguments args (telePi tel $ Sort Prop) (Sort Prop)
 
 
 -- | Infer the type of an expression. Implemented by checking agains a meta
@@ -479,17 +575,4 @@ sSuc (Type n)	 = return $ Type $ n + 1
 sSuc (Lub s1 s2) = Lub <$> sSuc s1 <*> sSuc s2
 sSuc s		 = return $ Suc s
 
-
-unArg :: Arg a -> a
-unArg (Arg _ x) = x
-
-
--- | Convert a pattern to a term.
-patToTerm :: Pattern -> TCM Term
-patToTerm (VarP x) =
-    do	n <- varIndex x
-	return $ Var n []
-patToTerm (ConP c ps) = Con c <$> mapM patToTerm' ps
-    where
-	patToTerm' (Arg h p) = Arg h <$> patToTerm p
 

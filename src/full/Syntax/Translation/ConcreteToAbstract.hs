@@ -168,7 +168,15 @@ instance ToAbstract OldName A.Name where
 newtype CModuleName = CModuleName C.QName
 
 instance ToAbstract CModuleName A.ModuleName where
-    toAbstract (CModuleName q) = return $ A.MName q q
+    toAbstract (CModuleName q) = return $ A.mkModuleName q
+
+-- | A reference to a module. Should be fully qualified when translated to
+--   abstract syntax.
+newtype CModuleNameRef = CModuleNameRef C.QName
+
+instance ToAbstract CModuleNameRef A.ModuleName where
+    toAbstract (CModuleNameRef q) =
+	moduleName . moduleContents <$> getModule q
 
 -- Expressions ------------------------------------------------------------
 
@@ -354,7 +362,7 @@ instance BindToAbstract NiceDeclaration [A.Declaration] where
 	    AppView (Ident m) args  ->
 		bindToAbstract tel $ \tel' ->
 		    do	(x',m',args') <- toAbstract ( CModuleName $ C.QName x
-						    , CModuleName m
+						    , CModuleNameRef m
 						    , args
 						    )
 			implicitModule x p (length tel) m is $

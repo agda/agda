@@ -6,6 +6,7 @@ module Syntax.Abstract.Name where
 
 import Control.Monad.State
 import Data.Generics (Typeable, Data)
+import Data.List
 
 import Syntax.Position
 import Syntax.Common
@@ -19,8 +20,8 @@ import Utils.Fresh
 newtype NameId = NameId Nat
     deriving (Eq, Ord, Num, Typeable, Data)
 
--- | Modules are (temporarily) identified by their concrete names.
-type ModuleId = C.QName
+-- | Modules are (temporarily) identified by a list of concrete names.
+type ModuleId = [C.Name]
 
 data Name = Name { nameId       :: NameId
 		 , nameConcrete :: C.Name
@@ -42,30 +43,37 @@ data ModuleName =
 mkName :: NameId -> String -> Name
 mkName i s = Name i (C.Name noRange s)
 
+mkModuleId :: C.QName -> ModuleId
+mkModuleId (C.QName x)	= [x]
+mkModuleId (C.Qual m x) = m : mkModuleId x
+
 mkModuleName :: C.QName -> ModuleName
-mkModuleName x = MName x x
+mkModuleName x = MName (mkModuleId x) x
+
+noModuleName :: ModuleName
+noModuleName = MName [] $ C.QName $ C.NoName noRange
 
 qualify :: ModuleName -> Name -> QName
 qualify m x = QName { qnameName	    = x
 		    , qnameModule   = m
-		    , qnameConcrete = C.qualify (mnameConcrete m) (nameConcrete x)
+		    , qnameConcrete = C.QName (nameConcrete x)
 		    }
 
-qualifyModule :: ModuleName -> C.Name -> ModuleName
-qualifyModule (MName i c) x = MName (C.qualify i x) (C.qualify c x)
+qualifyModule' :: ModuleName -> C.Name -> ModuleName
+qualifyModule' (MName i c) x = MName (i ++ [x]) (C.QName x)
 
-qualifyModuleHack :: Maybe ModuleName -> ModuleName -> ModuleName
-qualifyModuleHack (Just m) (MName (C.QName x) _) = qualifyModule m x
-qualifyModuleHack Nothing  m' = m'
-qualifyModuleHack _ _ = __IMPOSSIBLE__
+qualifyModule :: ModuleName -> ModuleName -> ModuleName
+qualifyModule (MName i _) (MName i' c) = MName (i ++ i') c
+
+-- | @requalifyModule A B.C A.D.E = B.C.D.E@. The third argument should be a
+--   submodule of the first argument. Doesn't change the concrete representation.
+requalifyModule :: ModuleName -> ModuleName -> ModuleName -> ModuleName
+requalifyModule (MName old _) (MName new _) (MName i c) = MName i' c
+    where
+	i' = new ++ drop (length old) i
 
 isSubModuleOf :: ModuleName -> ModuleName -> Bool
-isSubModuleOf x y = isSub (mnameId x) (mnameId y)
-    where
-	isSub (C.QName x)  (C.QName z)	= x == z
-	isSub (C.Qual x y) (C.QName z)	= x == z
-	isSub (C.Qual x y) (C.Qual z w) = x == z && isSub y w
-	isSub (C.QName _)  (C.Qual _ _) = False
+isSubModuleOf x y = mnameId y `isPrefixOf` mnameId x
 
 freshName :: (MonadState s m, HasFresh NameId s) => Range -> String -> m Name
 freshName r s =

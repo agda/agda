@@ -93,30 +93,43 @@ type MetaStore = Map MetaId MetaVariable
 -- ** Signature
 ---------------------------------------------------------------------------
 
-type Signature = Map QName Definition
+type Signature	 = Map ModuleName ModuleDef
+type Definitions = Map Name Definition
 
-data Definition = Axiom	      { defType	       :: Type
-			      }
-		| Function    { funClauses     :: [Clause]
-			      , defType	       :: Type
-			      , isAbstract     :: IsAbstract
-			      }
-		| Datatype    { defType	       :: Type
-			      , dataParameters :: Int
-			      , dataConstrs    :: [QName]
-			      , isAbstract     :: IsAbstract
-			      }
-		| Constructor { defType	       :: Type
-			      , conParameters  :: Int
-			      , conDatatype    :: QName
-			      , isAbstract     :: IsAbstract
-			      }
-		    -- ^ The type of the constructor and the name of the datatype.
+data ModuleDef = MDef { mdefName       :: ModuleName
+		      , mdefTelescope  :: Telescope
+		      , mdefNofParams  :: Nat
+		      , mdefModuleName :: ModuleName
+		      , mdefArgs       :: Args
+		      }
+	       | MExplicit
+		      { mdefName       :: ModuleName
+		      , mdefTelescope  :: Telescope
+		      , mdefNofParams  :: Nat
+		      , mdefDefs       :: Definitions
+		      }
+    deriving (Show, Typeable, Data)
+
+data Definition = Defn { defType     :: Type
+		       , defFreeVars :: Nat
+		       , theDef	     :: Defn
+		       }
+    deriving (Show, Typeable, Data)
+
+data Defn = Axiom
+	  | Function [Clause] IsAbstract
+	  | Datatype Nat	-- nof parameters
+		     [QName]	-- constructor names
+		     IsAbstract
+	  | Constructor Nat	-- nof parameters
+			QName	-- name of datatype
+			IsAbstract
     deriving (Show, Typeable, Data)
 
 defClauses :: Definition -> [Clause]
-defClauses (Function cs _ _) = cs
-defClauses _		     = []
+defClauses (Defn _ _ (Function cs _)) = cs
+defClauses _			      = []
+
 
 ---------------------------------------------------------------------------
 -- * Type checking environment
@@ -124,7 +137,7 @@ defClauses _		     = []
 
 data TCEnv =
     TCEnv { envContext	     :: Context
-	  , envCurrentModule :: Maybe ModuleName
+	  , envCurrentModule :: ModuleName
 	  , envAbstractMode  :: Bool
 		-- ^ When checking the typesignature of a public definition
 		--   or the body of a non-abstract definition this is true.
@@ -135,7 +148,7 @@ data TCEnv =
 
 initEnv :: TCEnv
 initEnv = TCEnv { envContext	   = []
-		, envCurrentModule = Nothing
+		, envCurrentModule = noModuleName
 		, envAbstractMode  = False
 		}
 

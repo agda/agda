@@ -5,7 +5,6 @@ module TypeChecking.Reduce where
 
 import Control.Monad.State
 import Control.Monad.Reader
-import Control.Monad.Identity
 import Data.List as List
 import Data.Map as Map
 import Data.Generics
@@ -18,6 +17,8 @@ import TypeChecking.Monad
 import TypeChecking.Monad.Context
 import TypeChecking.Substitute
 
+import Utils.Monad
+
 import TypeChecking.Monad.Debug
 __debug = debug
 
@@ -27,8 +28,22 @@ refresh :: Data a => a -> TCM a
 refresh = walk (mkM refType `extM` refTerm `extM` refSort)
     where
 	refType = lift . lift . instType
-	refTerm = lift . lift . reduceM
+	refTerm = lift . lift . reduce
 	refSort = lift . lift . instSort
+
+-- | instantiate a term
+--   results in an open meta variable or a non meta term.
+--   Doesn't do any reduction.
+instTerm :: Term -> TCM Term
+instTerm a =
+    case a of
+	MetaV x args ->
+	    do	store <- gets stMetaStore
+		case Map.lookup x store of
+		    Just (InstV a') -> instTerm $ a' `apply` args
+		    Just _	    -> return a
+		    _		    -> __IMPOSSIBLE__
+	_ -> return a
 
 -- | instantiate a type 
 --   results is open meta variable or a non meta variable type.
@@ -68,50 +83,53 @@ instSort s = case s of
 --
 
 -- | Reduce a value to head-normal form.
---   Taking this function out of the monad allows us to get
---     call-by-need semantics for free.
 --   Arguments are not evaluated until just before being substituted.
 --     So @reduce st ctx sig (c m1 m2) == c m1 m2@ when @c@ is an 
 --     undefined constant.
 --
-reduce :: TCEnv -> MetaStore -> Context -> Signature -> Term -> Term
-reduce env store ctx sig v = go v where
-    go v = case v of
-        Lam (Abs _ v') (Arg h arg:args) -> go $ subst (go arg) v' `apply` args
-        MetaV x args -> case Map.lookup x store of
-            Just (InstV v) -> go $ v `apply` args
-            Just _	   -> v
-	    _		   -> __IMPOSSIBLE__
-        Def f args -> case defOfConst f of
-            [] -> v -- no definition for head
-            cls@(Clause ps _ : _) -> 
-                if length ps == length args then appDef v cls args  -- no-go here
-                else if length ps < length args then
-                    let (args1,args2) = splitAt (length ps) args 
-                    in go $ appDef v cls args1 `apply` args2	    -- and go here
-                else v -- partial application
-        _ -> v
-
-    -- get definition of a constant (i.e. a list of clauses)
-    --
-    defOfConst :: QName -> [Clause]
-    defOfConst q = 
-	case makeAbstract' env q =<< Map.lookup q sig of
-	    Just d  -> defClauses d
-	    Nothing -> __IMPOSSIBLE__
+reduce :: Term -> TCM Term
+reduce v = go v where
+    go v =
+	do  v <- instTerm v
+	    case v of
+		Lam (Abs _ v') (Arg h arg:args) ->
+		    do	a <- go arg
+			go $ subst a v' `apply` args
+		MetaV _ _ -> return v
+		Def f args ->
+		    do	def <- defClauses <$> getConstInfo f
+			case def of
+			    [] -> return v -- no definition for head
+			    cls@(Clause ps _ : _) -> 
+				if length ps == length args then
+				    do	ev <- appDef v cls args
+					either return go ev
+				else if length ps < length args then
+				    let (args1,args2) = splitAt (length ps) args 
+				    in do   ev <- appDef v cls args1
+					    case ev of
+						Left v	-> return v
+						Right v	-> go $ v `apply` args2
+				else return v -- partial application
+		Con c args ->
+		    do	c' <- canonicalConstructor c
+			return $ Con c' args
+		_ -> return v
 
     -- Apply a defined function to it's arguments.
     --   First arg is original value which is needed in case no clause matches.
-    --
-    appDef :: Term -> [Clause] -> Args -> Term
-    appDef v cls args = goCls cls args where
-        goCls [] _ = v -- no clause matched, can happen with parameter arguments
+    --	 'Left' means no match and 'Right' means match.
+    appDef :: Term -> [Clause] -> Args -> TCM (Either Term Term)
+    appDef v cls args = goCls cls =<< (fmapM . fmapM) go args where
+        goCls [] _ = return $ Left v -- no clause matched, can happen with parameter arguments
         goCls (cl@(Clause pats body) : cls) args =
-            case matchPats [] pats args of
-                Just args' -> app args' body
-                Nothing -> goCls cls args
-        app [] (Body v') = go v'
-        app (arg : args) (Bind (Abs _ body)) = app args $ subst (go arg) body
+	    case matchPats [] pats args of
+		Just args' -> Right <$> app args' body
+		Nothing -> goCls cls args
+        app [] (Body v') = return v'
+        app (arg : args) (Bind (Abs _ body)) =
+	    do	v <- go arg	-- call by value
+		app args $ subst v body
 	app _ _ = __IMPOSSIBLE__
 	
 
@@ -129,17 +147,7 @@ reduce env store ctx sig v = go v where
     matchPat :: [Term] -> Pattern -> Term -> Maybe [Term]
     matchPat curArgs (VarP x) arg = Just $ curArgs++[arg]
     matchPat curArgs (ConP c pats) arg =
-        case go arg of 
+        case arg of 
             Con c' args | c' == c -> matchPats curArgs pats args 
             _ -> Nothing
-
--- | Monadic version of reduce.
---
-reduceM :: Term -> TCM Term
-reduceM v = do
-    store <- gets stMetaStore
-    ctx   <- asks envContext
-    sig   <- gets stSignature
-    env	  <- ask
-    return $ reduce env store ctx sig v
 

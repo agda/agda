@@ -20,7 +20,7 @@ debug' = debug
 
 -- | Equality of two instances of the same metavar
 --
-equalSameVar :: Data a => 
+equalSameVar :: (Data a, Abstract a, Apply a) => 
                 (MetaId -> a) -> (a -> MetaVariable) -> MetaId -> Args -> Args -> TCM ()
 equalSameVar meta inst x args1 args2 =
     if length args1 == length args2 then do
@@ -59,8 +59,8 @@ equalVal _ a m n = do --trace ("equalVal ("++(show a)++") ("++(show m)++") ("++(
 --
 equalAtm :: Data a => a -> Term -> Term -> TCM ()
 equalAtm _ m n = do
-    mVal <- reduceM m  -- need mVal for the metavar case
-    nVal <- reduceM n  -- need nVal for the metavar case
+    mVal <- reduce m  -- need mVal for the metavar case
+    nVal <- reduce n  -- need nVal for the metavar case
 --     debug $ "equalAtm " ++ show m ++ " == " ++ show n
 --     debug $ "         " ++ show mVal ++ " == " ++ show nVal
     --trace ("equalAtm ("++(show mVal)++") ("++(show nVal)++")\n") $ 

@@ -17,6 +17,7 @@ import qualified Syntax.Abstract as A
 import Syntax.Translation.ConcreteToAbstract
 import Syntax.Translation.AbstractToConcrete
 import Syntax.Abstract.Test
+import Syntax.Abstract.Name
 
 import Interaction.Exceptions
 
@@ -89,14 +90,21 @@ debugCheck m =
 	pr store cnstr sig =
 		unlines (List.map prm $ Map.assocs store)
 	     ++ unlines (List.map prc $ Map.assocs cnstr)
-	     ++ unlines (List.map prd $ Map.assocs sig)
+	     ++ unlines (List.map prM $ Map.assocs sig)
 
-	prm (x,i)		    = "?" ++ show x ++ " := " ++ show i
-	prc (x,(_,ctx,c))	    = show x ++ "> " ++ show ctx ++ " |- " ++ show c
-	prd (x,Axiom t)		    = show x ++ " : " ++ show t
-	prd (x,Datatype t n cs _)   =
-	    "data " ++ show x ++ " : " ++ show t ++ " where " ++
+	prm (x,i)			     = "?" ++ show x ++ " := " ++ show i
+	prc (x,(_,ctx,c))		     = show x ++ "> " ++ show ctx ++ " |- " ++ show c
+	prM (x,MDef _ tel _ m vs)	     = "module " ++ show' x ++ " " ++ concatMap show tel ++ " = " ++ unwords (show m : List.map show vs)
+	prM (x,MExplicit _ tel _ ds)	     = "module " ++ show' x ++ " " ++ concatMap show tel ++ " where\n"
+					       ++ unlines' (List.map prd $ Map.assocs ds)
+	prd (x,Defn t _ Axiom)		     = "  " ++ show x ++ " : " ++ show t
+	prd (x,Defn t _ (Datatype n cs _))   =
+	    "  data " ++ show x ++ " : " ++ show t ++ " where " ++
 		unwords (List.map show cs)
-	prd (x,Constructor t n d _) = show x ++ "[" ++ show n ++ "] : " ++ show t
-	prd (x,Function cs t _)	    = show x ++ " : " ++ show t ++ " = " ++ show cs
+	prd (x,Defn t _ (Constructor n d _)) = "  " ++ show x ++ "[" ++ show n ++ "] : " ++ show t
+	prd (x,Defn t _ (Function cs _))     = "  " ++ show x ++ " : " ++ show t ++ " = " ++ show cs
+
+	show' x = concat $ intersperse "." $ List.map show $ mnameId x
+	unlines' [] = []
+	unlines' xs = init $ unlines xs
 

@@ -33,9 +33,13 @@ data Type = El Term Sort
           | LamT (Abs Type) -- ^ abstraction needed for metavar dependency management, !!! is a type necessary?
   deriving (Typeable, Data)
 
--- ! Type of argument lists. Might want to later add hidden info...
+-- | Type of argument lists. Might want to later add hidden info...
 --
 type Args = [Arg Term]
+
+-- | Sequence of types. An argument of the first type is bound in later types
+--   and so on.
+type Telescope = [Arg Type]
 
 data Sort = Type Nat
 	  | Prop 
@@ -70,7 +74,7 @@ data ClauseBody = Body Term
 --     This also meshes well with the fact that values (i.e.
 --     the arguments we are matching with) use @Name@.
 --
-data Pattern = VarP Name
+data Pattern = VarP String  -- name suggestion
 	     | ConP QName [Arg Pattern]
   deriving (Typeable, Data)
 
@@ -88,4 +92,9 @@ set0   = Sort (Type 0)
 set n  = Sort (Type n)
 sort s = Sort s       
 prop   = Sort Prop
+
+-- | TODO: name suggestion
+telePi :: Telescope -> Type -> Type
+telePi [] t = t
+telePi (Arg h a : tel) t = Pi h a $ Abs "x" $ telePi tel t
 

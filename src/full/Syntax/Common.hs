@@ -5,13 +5,20 @@
 module Syntax.Common where
 
 import Data.Generics (Typeable, Data)
+import Utils.Monad
 
 data Hiding  = Hidden | NotHidden
     deriving (Typeable, Data, Show, Eq)
 
 -- | A function argument can be hidden.
-data Arg e  = Arg Hiding e
+data Arg e  = Arg { argHiding :: Hiding, unArg :: e }
     deriving (Typeable, Data, Eq)
+
+instance Functor Arg where
+    fmap f (Arg h x) = Arg h $ f x
+
+instance FunctorM Arg where
+    fmapM f (Arg h x) = Arg h <$> f x
 
 instance Show a => Show (Arg a) where
     show (Arg Hidden x) = "{" ++ show x ++ "}"

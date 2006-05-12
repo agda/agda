@@ -443,7 +443,6 @@ addNameSpace ns0 ns =
 
 -- | Recompute canonical names. All mappings will be @x -> M.x@ where
 --   @M@ is the name of the name space. Recursively renames sub-modules.
-{-
 makeFreshCanonicalNames :: NameSpace -> NameSpace
 makeFreshCanonicalNames ns =
     ns { definedNames = Map.mapWithKey newName	 $ definedNames ns
@@ -451,13 +450,12 @@ makeFreshCanonicalNames ns =
        }
     where
 	m = moduleName ns
-	newName x d = d { theName = qualify m x }
+	newName x d = d { theName = (theName d) { qnameModule = m } }
 	newModule x mi =
 	    mi { moduleContents = makeFreshCanonicalNames
 				  $ (moduleContents mi)
-				    { moduleName = qualify m x }
+				    { moduleName = qualifyModule' m x }
 	       }
--}
 
 emptyNameSpace :: AName.ModuleName -> NameSpace
 emptyNameSpace x = NSpace { moduleName	 = x
@@ -698,8 +696,8 @@ interfaceToModule i =
 				}
 		mkModule i' = (x, interfaceToModule $ i' { I.moduleName = qx })
 		    where
-			MName (CName.QName x) _ = I.moduleName i'
-			qx = qualifyModule name x
+			MName [x] _ = I.moduleName i'
+			qx = qualifyModule' name x
 
 
 ---------------------------------------------------------------------------
@@ -709,6 +707,11 @@ interfaceToModule i =
 -- | Get the current 'ScopeInfo'.
 getScopeInfo :: ScopeM ScopeInfo
 getScopeInfo = ask
+
+
+-- | Get the name of the current module.
+getCurrentModule :: ScopeM ModuleName
+getCurrentModule = moduleName . publicNameSpace <$> getScopeInfo
 
 
 -- | Get a function that returns the fixity of a name.
@@ -754,7 +757,7 @@ insideModule x = local upd
 	    where
 		pub = publicNameSpace si
 		pri = (privateNameSpace si) { moduleName = qx }
-		qx  = qualifyModule (moduleName pub) x
+		qx  = qualifyModule' (moduleName pub) x
 
 -- | Add a defined name to the current scope.
 defineName :: Access -> KindOfName -> Fixity -> CName.Name -> (AName.Name -> ScopeM a) -> ScopeM a
@@ -813,9 +816,10 @@ implicitModule :: CName.Name -> Access -> Arity -> CName.QName -> ImportDirectiv
 		  ScopeM a -> ScopeM a
 implicitModule x ac ar x' i cont =
     do	noModuleClash (CName.QName x)
-	m <- getModule x'
-	let ns = --makeFreshCanonicalNames $ 
-		    (importedNames m i) { moduleName = mkModuleName $ CName.QName x }
+	m    <- getModule x'
+	this <- getCurrentModule
+	let ns = makeFreshCanonicalNames $ 
+		    (importedNames m i) { moduleName = AName.qualifyModule' this x }
 	    m' = ModuleScope { moduleAccess   = ac
 			     , moduleArity    = ar
 			     , moduleContents = ns
