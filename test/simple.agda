@@ -1,5 +1,5 @@
 
-module test.simple where
+module T where
 
 module Nat where
 
@@ -11,11 +11,30 @@ module Nat where
   zero + m = m
   suc n + m = suc (n + m)
 
-module List where
+module N = Nat
 
-  data List (A:Set) : Set where
-    nil : List A
-    cons : A -> List A -> List A
+z = N.+ (N.suc N.zero) (N.suc N.zero)
+
+zz : Nat.Nat
+zz = Nat.suc Nat.zero `Nat.+` Nat.suc Nat.zero
+
+module List (A:Set) where
+
+  data List : Set where
+    nil  : List
+    (::) : A -> List -> List
+
+  (++) : List -> List -> List
+  nil	  ++ ys = ys
+  (x::xs) ++ ys = x :: (xs ++ ys)
+
+module TestList where
+
+  open Nat
+  module ListNat = List Nat
+  open ListNat, using (++, ::, nil)
+
+  zzz = (zero :: nil) ++ (suc zero :: nil)
 
 module EvenOdd where
 
