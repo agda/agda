@@ -1,0 +1,135 @@
+
+Here are some good remarks from people listening to the talk.
+
+Catarina:
+
+  How will you distinguish between record projection and module projection
+  when you add records?
+
+  Good question. One option is to use a different syntax for record
+  projection. For instance, p!x.
+
+Conor:
+
+  We won't be able to satisfy all equations of Berry's majority function
+  definitionally in the core language, so if we do that in the full
+  language we are in trouble.
+
+    maj T T T = T
+    maj T F x = x
+    maj F x T = x
+    maj x T F = x
+    maj F F F = F
+
+  Possible solution: Match patterns left-to-right, as soon as there is an
+  inconclusive match the whole matching is inconclusive. Example:
+
+    f T F = F
+    f _ _ = T
+
+  With the standard approach we have
+
+    f x T --> T
+
+  but instead we say that this doesn't reduce (since x is blocking the
+  pattern T in the first clause). With this approach order does matter! Are
+  there any problems? Example:
+
+    f  x     0	  = 1
+    f  0    (s y) = y
+    f (s x) (s y) = x
+
+  With left to right matching we still have f x 0 --> 1, but the
+  tranlation will yield(?)
+
+    f 0	    = \y -> f1 y
+    f (s x) = \y -> f2 x y
+
+    f1  0    = 0
+    f1 (s y) = y
+
+    f2 x  0    = 1
+    f2 x (s y) = x
+
+  That is pattern matching first on the first argument. So f x 0 will not
+  reduce. Hm.
+
+Makoto:
+
+  When lifting local definitions you might not want to abstract over all
+  variables in the context, but only those which are in scope. Example:
+
+    foo x y z = bar y
+      where
+	bar true  = true
+	bar false = z
+
+  Abstracting over all variables gives the following:
+
+    lift_bar x y z true  = true
+    lift_bar x y z false = z
+
+    foo x y z  --> lift_bar x  y z y
+    foo x' y z --> lift_bar x' y z y
+
+  So foo x y z != foo x' y z, even though foo never uses its first
+  argument. If we instead abstract only over things that are actually used
+  we get:
+
+    lift_bar z true  = true
+    lift_bar z false = z
+
+    foo x y z  --> lift_bar y z
+    foo x' y z --> lift_bar y z
+
+Andreas:
+
+  Would it be possible to add rewriting rules for definitional equalities which
+  hold inside a module (where we know the values of abstract things) when
+  working outside the module?
+
+  Example:
+
+    module Stack where
+      abstract
+	Stack : Set -> Set
+	Stack = List
+	push : A -> Stack A -> Stack A
+	push = cons
+	pop : Stack A -> Maybe (Stack A)
+	pop nil = nothing
+	pop (x::xs) = just xs
+
+	rewrite pop (push x s) == just s
+
+  The type of the rewrite should be checked without knowing the definitions
+  and the left-hand-side and the right-hand-side should be convertible when
+  knowing the definitions.
+
+Conor:
+
+  It would be nice to have a parameterised module containing all the local
+  definitions for each definition. This way you could actually refer to the
+  local functions by instantiating this module.
+
+    f : (x:A) -> (y:B) -> C
+    f x y = e
+      where
+	g : (z:C) -> D
+	g z = e'
+
+  would mean something like
+
+    module f (x:A)(y:B) where
+      g : (z:C) -> D
+      g z = e'
+
+    f : (x:A) -> (y:B) -> C
+    f x y = e
+      where
+	module Local = f x y
+	open Local
+
+  Open problem: How to handle definitions with multiple clauses?
+
+ vim: sts=2 sw=2 tw=75
