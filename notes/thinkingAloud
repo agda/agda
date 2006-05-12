@@ -1,4 +1,266 @@
 
+Topic: Modules
+
+Topic: Structure of the signature.
+
+  * The module system is hierarchical so it seems resonable to
+    structure the signature accordingly.
+
+  * We need to be able to look up a QName in the signature.
+
+  * Why does it have to be hierarchical? When do we need to manipulate
+    an entire subtree?
+
+  * A problem is that QNames aren't well thought out yet. Currently a
+    moduleId is a concrete name. That's not very good.
+
+  * Let's make it flat for the time being, that should be a simple
+    thing to change at a later stage.
+
+  * We would also have to think about what happens when modules are
+    instantiated (module Foo = Bar Nat), but that can also be
+    postponed.
+
+EndTopic
+
+Topic: Parameterised modules
+
+  * Turns out to be a major headache to keep track of free variables.
+
+  * We need to structure things nicely.
+
+  * Attempt 1: Hierarchical signature.
+
+      notes/ModulesAttempt1.hs
+
+    Not necessary(?)
+
+  * Attempt 2: Flat signature
+
+      notes/Modules.hs
+
+EndTopic
+
+Topic: Rewriting for abstract things
+
+  * Remark by Andreas during the video talk
+
+    Would it be possible to add rewriting rules for definitional
+    equalities which hold inside a module (where we know the values of
+    abstract things) when working outside the module?
+
+    Example:
+
+      module Stack where
+	abstract
+	  Stack : Set -> Set
+	  Stack = List
+	  push : A -> Stack A -> Stack A
+	  push = cons
+	  pop : Stack A -> Maybe (Stack A)
+	  pop nil = nothing
+	  pop (x::xs) = just xs
+
+	  rewrite pop (push x s) == just s
+
+    The type of the rewrite should be checked without knowing the
+    definitions and the left-hand-side and the right-hand-side should
+    be convertible when knowing the definitions.
+
+EndTopic
+
+EndTopic
+
+Topic: Local functions
+  
+Topic: Functions as parameterised modules
+
+  * Remark by Conor during the video talk
+
+    It would be nice to have a parameterised module containing all the local
+    definitions for each definition. This way you could actually refer to the
+    local functions by instantiating this module.
+
+      f : (x:A) -> (y:B) -> C
+      f x y = e
+	where
+	  g : (z:C) -> D
+	  g z = e'
+
+    would mean something like
+
+      module f (x:A)(y:B) where
+	g : (z:C) -> D
+	g z = e'
+
+      f : (x:A) -> (y:B) -> C
+      f x y = e
+	where
+	  module Local = f x y
+	  open Local
+
+    Open problem: How to handle definitions with multiple clauses?
+
+EndTopic
+
+Topic: Lifting
+
+  * Remark by Makoto during the video meeting
+
+    When lifting local definitions you might not want to abstract over all
+    variables in the context, but only those which are in scope. Example:
+
+      foo x y z = bar y
+	where
+	  bar true  = true
+	  bar false = z
+
+    Abstracting over all variables gives the following:
+
+      lift_bar x y z true  = true
+      lift_bar x y z false = z
+
+      foo x y z  --> lift_bar x  y z y
+      foo x' y z --> lift_bar x' y z y
+
+    So foo x y z != foo x' y z, even though foo never uses its first
+    argument. If we instead abstract only over things that are actually used
+    we get:
+
+      lift_bar z true  = true
+      lift_bar z false = z
+
+      foo x y z  --> lift_bar y z
+      foo x' y z --> lift_bar y z
+
+EndTopic
+
+EndTopic
+
+Topic: Pattern Matching
+
+Topic: Berry's majority function
+
+  * Remark by Conor during the video talk:
+
+    We won't be able to satisfy all equations of Berry's majority
+    function definitionally in the core language, so if we do that in
+    the full language we are in trouble.
+
+      maj T T T = T
+      maj T F x = x
+      maj F x T = x
+      maj x T F = x
+      maj F F F = F
+
+    Possible solution: Match patterns left-to-right, as soon as there
+    is an inconclusive match the whole matching is inconclusive.
+    Example:
+
+      f T F = F
+      f _ _ = T
+
+    With the standard approach we have
+
+      f x T --> T
+
+    but instead we say that this doesn't reduce (since x is blocking
+    the pattern T in the first clause). With this approach order does
+    matter! Are there any problems? Example:
+
+      f  x     0    = 1
+      f  0    (s y) = y
+      f (s x) (s y) = x
+
+    With left to right matching we still have f x 0 --> 1, but the
+    tranlation will yield(?)
+
+      f 0	    = \y -> f1 y
+      f (s x) = \y -> f2 x y
+
+      f1  0    = 0
+      f1 (s y) = y
+
+      f2 x  0    = 1
+      f2 x (s y) = x
+
+    That is pattern matching first on the first argument. So f x 0
+    will not reduce. Hm.
+
+    Can we figure out the correct order in which to pattern match?
+    Maybe. We can decide in which order to pattern match by scanning
+    the clauses left to right, top to bottom. The first constructor
+    pattern appears (in the example) in the second argument of the
+    first clause, so we should start by matching on the second
+    argument.
+
+EndTopic
+
+EndTopic
+
+Topic: Meta variables
+
+Topic: Meta variable dependencies and hidden application
+
+  * Currently meta variable dependencies are represented as
+    applications. This means that they contain hiding information.
+
+  * Is this a problem? It does clutter up some things, but on the
+    other hand it's possible that a meta variable _is_ applied to an
+    hidden argument.
+
+EndTopic
+
+Topic: Sort meta variables
+
+  * How can we solve them?
+  * When do we have to?
+
+  * One option could be to instantiate all unsolved (unconstrained)
+    sort metas to Set.
+
+EndTopic
+
+Topic: Dependency juggling
+  
+  * Juggling parameters is a mess. There is a dire need for a nice
+    clean API.
+
+EndTopic
+
+Topic: Scope
+
+  * Meta variables need to be scope checked (probably) so when
+    creating a new meta we should have access to scope information.
+    It'll probably be enough to annotate declarations with scope and
+    make sure that the type checker updates the current scope when
+    passing a definition. Not having to bother with lambda bound
+    things makes it easier.
+
+    In any case interaction points need to have their scope. This we
+    have when type checking (and thus when creating the meta).
+
+EndTopic
+
+Topic: Question mark numbers
+
+  * We probably want to separate the numbers on question marks from
+    those on underscores.
+    
+  * Possible solution:
+    - generate question mark numbers during scope checking
+    - generate MetaIds as before (both underscores and question marks)
+    - keep a map from question mark numbers to meta ids
+    - the interface will use question mark numbers
+
+EndTopic
+
+EndTopic
+
+Topic: Implementation details
+
+Topic: Representation
+
 Topic: Unique names in abstract syntax.
 
   * The names of local functions can clash and it's not clear how to
@@ -27,6 +289,30 @@ Topic: Module names vs. function names
     names (they can never appear in the same place) it makes sense to
     have different representations for them. For clarity if nothing
     else.
+
+EndTopic
+
+Topic: n-ary application in terms.
+
+  * Some things might be simpler with binary application. Check it
+    out.
+
+EndTopic
+
+EndTopic
+
+Topic: Generics
+
+  * How much do we gain by the generics? Is it worth it?
+  * Maybe there is a more light-weight approach.
+
+EndTopic
+
+Topic: Debugging
+
+  * How to make debugging smooth?
+
+  * We need different levels of information in print-outs.
 
 EndTopic
 
@@ -74,92 +360,17 @@ Topic: Module structure of the type checker
 
 EndTopic
 
-Topic: Structure of the signature.
-
-  * The module system is hierarchical so it seems resonable to
-    structure the signature accordingly.
-
-  * We need to be able to look up a QName in the signature.
-
-  * Why does it have to be hierarchical? When do we need to manipulate
-    an entire subtree?
-
-  * A problem is that QNames aren't well thought out yet. Currently a
-    moduleId is a concrete name. That's not very good.
-
-  * Let's make it flat for the time being, that should be a simple
-    thing to change at a later stage.
-
-  * We would also have to think about what happens when modules are
-    instantiated (module Foo = Bar Nat), but that can also be
-    postponed.
-
 EndTopic
 
-Topic: Debugging
-
-  * How to make debugging smooth?
-
-  * We need different levels of information in print-outs.
-
-EndTopic
-
-Topic: Generics
-
-  * How much do we gain by the generics? Is it worth it?
-  * Maybe there is a more light-weight approach.
-
-EndTopic
-
-Topic: n-ary application in terms.
-
-  * Some things might be simpler with binary application. Check it
-    out.
-
-EndTopic
-
-Topic: Meta variables
-
-Topic: Meta variable dependencies and hidden application
-
-  * Currently meta variable dependencies are represented as
-    applications. This means that they contain hiding information.
-
-  * Is this a problem? It does clutter up some things, but on the
-    other hand it's possible that a meta variable _is_ applied to an
-    hidden argument.
-
-EndTopic
-
-Topic: Sort meta variables
-
-  * How can we solve them?
-  * When do we have to?
-
-  * One option could be to instantiate all unsolved (unconstrained)
-    sort metas to Set.
-
-EndTopic
-
-Topic: Dependency juggling
-  
-  * Juggling parameters is a mess. There is a dire need for a nice
-    clean API.
-
-EndTopic
-
-EndTopic
-
-Topic: Things to think about.
-
-  * Meta variables need to be scope checked (probably) so when
-    creating a new meta we should have access to scope information.
-    It'll probably be enough to annotate declarations with scope and
-    make sure that the type checker updates the current scope when
-    passing a definition. Not having to bother with lambda bound
-    things makes it easier.
+Topic: TODO
 
   * Check that meta variables have been solved at appropriate times.
+
+  * Keep the type on instantiated interaction meta variables. Also
+    remember which metas are interaction points and which are go
+    figures after instantiation.
+
+  * Meta variable scope (see Meta variables - Scope).
 
 EndTopic
 
