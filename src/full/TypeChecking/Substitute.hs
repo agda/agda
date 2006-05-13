@@ -36,7 +36,9 @@ instance Apply Type where
     apply _ _				  = __IMPOSSIBLE__
 
 instance Apply Definition where
-    apply (Defn t n d) args = Defn (apply t args) n (apply d args)
+    apply (Defn t n d@(Constructor _ _ _)) args =
+	Defn (substs (map unArg args) t) n (apply d args)
+    apply (Defn t n d) args = Defn (piApply t args) n (apply d args)
 
 instance Apply Defn where
     apply Axiom _		     = Axiom
@@ -55,9 +57,14 @@ instance Apply ClauseBody where
 instance Apply t => Apply [t] where
     apply ts args = map (`apply` args) ts
 
+piApply :: Type -> Args -> Type
+piApply t []			  = t
+piApply (Pi _ _ b) (Arg _ v:args) = substAbs v b `piApply` args
+piApply _ _			  = __IMPOSSIBLE__
+
 -- | @(abstract args v) args --> v[args]@.
 class Abstract t where
-    abstract :: [Arg a] -> t -> t
+    abstract :: Telescope -> t -> t
 
 instance Abstract Term where
     abstract tel v = foldl (\v _ -> Lam (Abs "x" v) []) v $ reverse tel
@@ -66,7 +73,8 @@ instance Abstract Type where
     abstract tel a = foldl (\a _ -> LamT (Abs "x" a)   ) a $ reverse tel
 
 instance Abstract Definition where
-    abstract tel (Defn t n d) = Defn (abstract tel t) n (abstract tel d)
+    abstract tel (Defn t n d@(Constructor _ _ _)) = Defn t n (abstract tel d)
+    abstract tel (Defn t n d) = Defn (telePi tel t) n (abstract tel d)
 
 instance Abstract Defn where
     abstract tel Axiom		       = Axiom

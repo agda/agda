@@ -2,6 +2,7 @@
 module Utils.Unicode
     ( UTF8
     , readFileUTF8
+    , writeFileUTF8
     , toUTF8
     , fromUTF8
     , isUnicodeId
@@ -19,6 +20,10 @@ import Utils.Monad
 uPlusMinusSign				= '\xb1'
 uMultiplicationSign			= '\xd7'
 uDivisionSign				= '\xf7'
+uPrime  				= '\x2032'
+uDoublePrime  				= '\x2033'
+uTriplePrime  				= '\x2034'
+uQuadruplePrime				= '\x2057'
 uElementOf				= '\x2208'
 uNotAnElementOf				= '\x2209'
 uSmallElementOf				= '\x220a'
@@ -41,6 +46,7 @@ uLogicalAnd				= '\x2227'
 uLogicalOr				= '\x2228'
 uIntersection				= '\x2229'
 uUnion					= '\x222a'
+uDotMinus				= '\x2238'
 uTildeOperator				= '\x223c'
 uAsymptoticallyEqualTo			= '\x2243'
 uNotAsymptoticallyEqualTo		= '\x2244'
@@ -96,7 +102,8 @@ uAssertion				= '\x22a6'
 uModels					= '\x22a7'
 uTrue					= '\x22a8'
 uForces					= '\x22a9'
-uArrows					= ['\x2190'..'\x21e5']
+uArrows	= ['\x2190'..'\x21ff']
+uGeometricShapes = ['\x25a0' .. '\x25ff']
 
 uNotSign		= '\xac'
 uForAll			= '\x2200'
@@ -132,6 +139,15 @@ uNaryUnion		= '\x22c3'
 uGreekCapitalLetters	= ['\x391'..'\x3a1']
 			++['\x3a3'..'\x3a9']
 uGreekSmallLetters	= ['\x3b1'..'\x3c9']
+uBlackStar		= '\x2605'
+uWhiteStar		= '\x2606'
+uSubscriptNumbers       = ['\x2080' .. '\x2089'] -- ₀₁₂₃₄₅₆₇₈₉
+uSuperscriptNumbers     = ['\x2070', '\xb9', '\xb2', '\xb3']
+                          ++ ['\x2074' .. '\x2079']
+                          -- ⁰¹²³⁴⁵⁶⁷⁸⁹
+uOtherSubscripts        = ['\x208a' .. '\x208e'] -- ₊₋₌₍₎
+uOtherSuperscripts      = ['\x207a' .. '\x207f'] -- ⁺⁻⁼⁽⁾ⁿ
+uLetterlikeSymbols      = ['\x2100' .. '\x214c']
 
 -- | Check if a character is a unicode operator symbol.
 isUnicodeOp :: Char -> Bool
@@ -140,6 +156,10 @@ isUnicodeOp x =
     [ uPlusMinusSign
     , uMultiplicationSign
     , uDivisionSign
+    , uPrime
+    , uDoublePrime
+    , uTriplePrime
+    , uQuadruplePrime
     , uElementOf
     , uNotAnElementOf
     , uSmallElementOf
@@ -162,6 +182,7 @@ isUnicodeOp x =
     , uLogicalOr
     , uIntersection
     , uUnion
+    , uDotMinus
     , uTildeOperator
     , uAsymptoticallyEqualTo
     , uNotAsymptoticallyEqualTo
@@ -218,6 +239,7 @@ isUnicodeOp x =
     , uTrue
     , uForces
     ] ++ uArrows
+      ++ uGeometricShapes
 
 -- | Check if a character is a unicode identifier symbol.
 isUnicodeId :: Char -> Bool
@@ -254,8 +276,15 @@ isUnicodeId x =
     , uNaryLogicalOr
     , uNaryIntersection
     , uNaryUnion
+    , uBlackStar
+    , uWhiteStar
     ] ++ uGreekSmallLetters
       ++ uGreekCapitalLetters
+      ++ uSubscriptNumbers
+      ++ uSuperscriptNumbers
+      ++ uOtherSubscripts
+      ++ uOtherSuperscripts
+      ++ uLetterlikeSymbols
 
 -- UTF-8 ------------------------------------------------------------------
 

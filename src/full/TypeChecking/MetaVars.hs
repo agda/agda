@@ -191,7 +191,8 @@ occMeta meta inst red m ok m' vs
 		     Just vs' -> return vs'
 	    when (length vs' /= length vs) $
 		do  v1 <-  newMetaSame m' [] (\mi -> meta mi [])
-		    setRef Why m' $ inst $ abstract vs (v1 `apply` vs')
+		    let tel = List.map (fmap $ const $ Sort Prop) vs	-- types don't matter here
+		    setRef Why m' $ inst $ abstract tel (v1 `apply` vs')
 	    let vs0 = List.map rename vs
 	    return $ meta m' vs0
     where
@@ -229,7 +230,8 @@ assign x args = mkQ (fail "assign") (ass InstV) `extQ` (ass InstT) where
         v' <- occ x ids v
 	--debug $ "assign ?" ++ show x ++ " " ++ show args ++ " := " ++ show v'
         --trace ("assign: args="++(show args)++", v'="++(show v')++"\n") $ 
-        setRef Why x $ inst $ abstract args v'
+	let tel = List.map (fmap $ const $ Sort Prop) args -- types don't matter here
+        setRef Why x $ inst $ abstract tel v'
 
 -- | Check that arguments to a metavar are in pattern fragment.
 --   Assumes all arguments already in whnf.

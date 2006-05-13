@@ -20,7 +20,6 @@ import Syntax.Translation.AbstractToConcrete
 import Syntax.Concrete.Pretty ()
 
 import TypeChecking.Monad
-import TypeChecking.Monad.Debug
 import TypeChecking.Monad.Context
 import TypeChecking.Constraints ()
 import TypeChecking.Conversion
@@ -28,13 +27,12 @@ import TypeChecking.MetaVars
 import TypeChecking.Reduce
 import TypeChecking.Substitute
 
+import TypeChecking.Monad.Debug
+
 import Utils.Monad
 import Utils.List
 
 #include "undefined.h"
-
-__debug x = debug x
-__showA x = showA x
 
 ---------------------------------------------------------------------------
 -- * Declarations
@@ -310,7 +308,7 @@ checkPattern (A.WildP i) t ret =
     do	x <- freshNoName (getRange i)
 	addCtx x t $ ret [show x] (VarP "_") (Var 0 [])
 checkPattern (A.ConP i c ps) t ret =
-    do	Defn t' _ (Constructor n d _) <- getConstInfo c
+    do	Defn t' _ (Constructor n d _) <- instantiateDef =<< getConstInfo c
 	El (Def _ vs) _		      <- forceData d t
 	c'			      <- canonicalConstructor c
 	checkPatterns ps (substs (map unArg vs) t') $ \xs ps' ts' _ ->
@@ -474,11 +472,14 @@ inferHead (HeadVar _ x) =
 	return (Var n [], t)
 inferHead (HeadCon _ x) =
     do	Defn t _ (Constructor n d _)
-			<- instantiateDef =<< getConstInfo x
+			<- getConstInfo x
 	t0		<- newTypeMeta_   -- TODO: not so nice
 	El (Def _ vs) _ <- forceData d t0
 	let t1 = substs (map unArg vs) t
+	ctx <- getContext
 -- 	debug $ "HeadCon " ++ show x ++ " : " ++ show t1
+-- 	debug $ "        " ++ show vs ++ " " ++ show t
+-- 	debug $ "        " ++ show ctx
 	return (Con x [], t1)
 inferHead (HeadDef _ x) =
     do	d <- instantiateDef =<< getConstInfo x

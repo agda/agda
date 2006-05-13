@@ -13,6 +13,8 @@ import TypeChecking.Substitute
 import TypeChecking.Reduce
 import TypeChecking.Constraints
 
+import Utils.Monad
+
 import TypeChecking.Monad.Debug
 debug' = debug
 
@@ -32,7 +34,8 @@ equalSameVar meta inst x args1 args2 =
         let newArgs = [Arg NotHidden $ Var n [] | (n, (a,b)) <- zip idx $ reverse $ zip args1 args2
 						, a === b]
         v <- newMetaSame x args1 meta
-        setRef Why x $ inst $ abstract args1 (v `apply` newArgs)
+	let tel = map (fmap $ const $ Sort Prop) args1 -- types don't matter here
+        setRef Why x $ inst $ abstract tel (v `apply` newArgs)
     else fail $ "equalSameVar"
     where
 	Arg _ (Var i []) === Arg _ (Var j []) = i == j
@@ -70,7 +73,7 @@ equalAtm _ m n = do
             a <- typeOfBV i
             equalArg Why a iArgs jArgs
         (Def x xArgs, Def y yArgs) | x == y -> do
-            a <- typeOfConst x
+            a <- defType <$> getConstInfo x
             equalArg Why a xArgs yArgs
         (Con x xArgs, Con y yArgs) | x == y -> do
             a <- typeOfConst x
