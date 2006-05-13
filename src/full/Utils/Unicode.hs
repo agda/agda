@@ -293,6 +293,9 @@ type UTF8 = String
 readFileUTF8 :: FilePath -> IO String
 readFileUTF8 file = fromUTF8 <$> readFile file
 
+writeFileUTF8 :: FilePath -> String -> IO ()
+writeFileUTF8 file s = writeFile file $ toUTF8 s
+
 toUTF8 :: String -> UTF8
 toUTF8 = concatMap utf8
     where
