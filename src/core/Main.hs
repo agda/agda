@@ -3,10 +3,10 @@
 
 module Main where
 
-import ParCore
-import PrintCore
-import LayoutCore
-import ErrM
+import Core.Par
+import Core.Print
+import Core.Layout
+import Core.ErrM
 
 import System.Environment
 

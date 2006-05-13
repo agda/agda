@@ -15,7 +15,7 @@ OUT_P	= $(CORE_OUT_DIR)/prof
 
 ## Phony targets ##########################################################
 
-.PHONY : default clean 
+.PHONY : default clean
 
 ## Default target #########################################################
 
@@ -23,8 +23,8 @@ default : $(OUT)/agdacore
 
 ## Files ##################################################################
 
-gen_hs_files = $(OUT)/ParCore.hs $(OUT)/LexCore.hs $(OUT)/AbsCore.hs \
-				$(OUT)/PrintCore.hs $(OUT)/LayoutCore.hs
+gen_hs_files = $(OUT)/Core/Par.hs $(OUT)/Core/Lex.hs $(OUT)/Core/Abs.hs \
+				$(OUT)/Core/Print.hs $(OUT)/Core/Layout.hs
 all_hs_files = $(shell $(FIND) . -name '*hs') $(gen_hs_files)
 
 ## Creating the output directory structure ################################
@@ -67,8 +67,10 @@ $(OUT_P)/agdacore : $(out_dirs_p) $(all_hs_files) $(hi_boot_files_p)
 
 ## BNFC rules #############################################################
 
-$(OUT)/Par%.y $(OUT)/Lex%.x $(OUT)/Abs%.hs : %.cf
-	(cd $(OUT); bnfc -haskell $(CORE_SRC_DIR)/$<)
+$(OUT)/%/Par.y $(OUT)/%/Lex.x $(OUT)/%/Abs.hs : %.cf
+	bnfc -haskell -d $<
+	-rm -rf $(OUT)/$*
+	mv $* $(OUT)
 
 ## Rules for happy and alex ###############################################
 
