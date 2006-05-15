@@ -1,0 +1,381 @@
+\NeedsTeXFormat{LaTeX2e}
+\documentclass[25pt,dvips,fleqn]{foils}
+\usepackage[a4paper,landscape,margin=25pt]{geometry}
+\usepackage{alltt}
+\usepackage[dvips]{color}
+\usepackage{proof}
+\title{Agda2 Core Language Proposal}
+\author{}
+% foiltex parameters
+\date{2006-03-22}
+\MyLogo{}
+\leftheader{}
+\rightheader{}
+\rightfooter{}
+% foiltex modification for possibly tighter lineskip.
+\makeatletter
+\setlength\foilheadskip{-30pt}
+\setlength\parskip{18\p@ \@plus 4\p@ \@minus 18\p@}
+\renewcommand\@listIa{\leftmargin\leftmargini
+\topsep 14\p@ \@plus 2\p@ \@minus 14\p@
+\parsep 14\p@ \@plus 4\p@ \@minus 14\p@
+\itemsep 14\p@ \@plus 4\p@ \@minus 14\p@}
+%
+\def\normalsize{\@setfontsize\normalsize\@xxvpt{32}%
+\abovedisplayskip 30\p@ \@plus 3\p@ \@minus 30\p@
+\belowdisplayskip \abovedisplayskip
+\abovedisplayshortskip \z@ \@plus 3\p@
+\belowdisplayshortskip 7\p@ \@plus 3\p@ \@minus 7\p@
+\let\@listi\@listIa}
+%\normalsize
+\def\small{\@setfontsize\small\@xxpt\@xxvpt
+\abovedisplayskip 30\p@ \@plus 3\p@ \@minus 30\p@
+\belowdisplayskip \abovedisplayskip
+\abovedisplayshortskip \z@ \@plus 3\p@
+\belowdisplayshortskip 7\p@ \@plus 3\p@ \@minus 7\p@
+\if@compatibility
+ \let\@listi\@listIb
+\else
+ \let\@listi\@listIa\fi
+}
+\makeatother
+% proof.sty parameter
+\inferLineSkip=8pt
+% latex parameter
+\def\arraystretch{1.2}
+% colors
+\newcommand\blue{\color{blue}}
+\newcommand\red{\color{red}}
+\newcommand\gray{\color[gray]{0.4}}
+
+\newcommand{\lbr}{\lbrack\!\lbrack}
+\newcommand{\rbr}{\rbrack\!\rbrack}
+\newcommand{\sem}[1]{\mbox{$\lbr #1 \rbr$}}
+
+% abbreviations
+\newcommand\ar{\mathop{\mathrm{ar}}}
+\newcommand\add{\mathop{\mathsf{add}}}
+\newcommand\suc{\mathop{\mathsf{suc}}}
+\newcommand\Label{\mathop{\mathsf{Label}}}
+\newcommand\SN{\mathop{\mathsf{SN}}}
+\newcommand\DD{\sf D}
+\newcommand\El{\mathop{\mathsf{El}}}
+\newcommand\Fun{\mathop{\mathsf{Fun}}}
+\newcommand\Sum{\mathop{\mathsf{Sum}}}
+\newcommand\E{\mathop{\mathsf{E}}}%{\sf E}
+\newcommand\len{\mathop{\mathrm{length}}}
+\newcommand\llet{\mathop{\mathrm{let}}}
+\newcommand\Nat{\mathsf{Nat}}
+\newcommand\Unit{\mathsf{Unit}}
+\newcommand\Prop{\mathsf{Prop}}
+\newcommand\Prf{\mathsf{Proof}}
+\newcommand\Set{\mathsf{Set}}
+\newcommand\where{\mathsf{where}}
+\newcommand\type{\mathsf{type}}
+\newcommand\Kind{\mathsf{Kind}}
+\newcommand\data{\mbox{\sffamily\slshape data}}
+\newcommand\fun{\mbox{\sffamily\slshape fun}}
+\newcommand\with{\mbox{\sffamily\slshape with}}
+%\newcommand\where{\mbox{\sffamily\slshape where}}
+\newcommand\correct{\mathrm{correct}}
+\newcommand\Type{\mathrm{Type}}
+\newcommand\lam{}\let\lam\lambda
+\newcommand\Down{}\let\Down\Downarrow
+\newcommand\down{}\let\down\downarrow
+\newcommand\Up{}\let\Up\Uparrow
+\newcommand\up{}\let\up\uparrow
+\newcommand\hdrs{\mathrel{\succ}^*}
+\newcommand\hdr{\mathrel{\succ}}
+\newcommand\redQ{{\red ???}}
+\newcommand\mbf[1]{\textbf{\slshape #1}} 
+\newcommand\Tparam{\mbf T_{\mathrm{param}}}
+\newcommand\Tindex{\mbf T_{\mathrm{index}}}
+\newcommand\Mparam{\mbf M_{\mathrm{param}}}
+\newcommand\Mindex{\mbf M_{\mathrm{index}}}
+\begin{document}
+%\begin{abstract}
+%\end{abstract}
+\maketitle
+\rm
+%\rightfooter{}
+
+\foilhead{Untyped Programming Language}
+
+Untyped $\lambda$-calculus
++ primitive constants $c$ + defined constants $f$
+$$
+M,N ~::= ~n ~|~ M\,N ~|~ \lambda x.M ~~~~~~ n ::= x ~|~ c ~|~ f
+$$
+Fixed arities for constants:
+\tabular[t]l $\ar(0)=0$, $\ar(\suc)=1$, $\ar(\add)=2$, $\cdots$ \endtabular
+
+\foilhead{Untyped Programming Language}
+
+ We write $p,q,\dots$ for vectors of variables. Each $f$ is defined
+by left-linear mutually-disjoint pattern-matching clauses:
+$$f~p~(c_i~q_i) = M_i$$
+
+ $\lambda (x,p).M = \lambda x.\lambda p.M$
+
+ $\lambda ().M = M$
+
+ We have also non-recursive abreviations $f=M$
+
+\foilhead{Telescopes}
+
+ $$\Delta~::=~()~|~(x:A,\Delta)$$
+
+ We define the context $p:\Delta$ 
+
+ $(x,p):(x:A,\Delta)$ is $x:A,p:\Delta$
+
+ Telescopes (as types) and vectors (of elements) form a model
+of type theory with $\Sigma$-types
+
+ $(M,u):(x:A,\Delta)$ iff $M:A$ and $u:\Delta(x=M)$
+
+\foilhead{Telescopes}
+
+ If $p:\Delta\vdash A$ we define $(p:\Delta)\rightarrow A$ by induction on $\Delta$
+
+ If $\Delta$ is $()$ this is $A$ 
+
+ $((y,q):(y:B,V))\rightarrow A = (y:B)\rightarrow (q:V)\rightarrow A$
+
+ We define $(p:\Delta)\rightarrow U$ by
+
+ $(p:\Delta)\rightarrow () = ()$
+
+ $(p:\Delta)\rightarrow (y:B,V) = (g:(p:\Delta)\rightarrow B,(p:\Delta)\rightarrow V(y=g~p))$
+
+ If $v:(p:\Delta)\rightarrow U$ and $u:\Delta$ then $v~u:U(p=u)$
+
+\foilhead{Telescopes}
+
+ We define $(p:\Delta,V)$ by induction on $\Delta$
+
+ If $\Delta = ()$ this is $V$ and if $((x,q):(x:A,U),V) = (x:A,(q:U,V))$
+
+ We then have $((p,q):(p:\Delta,V))\rightarrow W = (p:\Delta)\rightarrow (q:V)\rightarrow W$
+
+\foilhead{Telescopes}
+
+ If we have $p:\Delta\vdash u:U$ then $\lambda p.u :(p:\Delta)\rightarrow U$ 
+
+ $\lambda p.() = ()$
+
+ $\lambda p.(M,u) = (\lambda p.M,\lambda p.u)$
+
+ We define also $()~v = ()$ and $(M,u)~v = (M~v,u~v)$ 
+
+ We have $(\lambda p.u)~v = u(p=v)$
+
+\foilhead{Terms in $\beta$-normal form}
+
+ $N~::=~\lambda x.N~|~h~u,~~~~~~~h~::=~x|~c~|~d~|~f$
+
+ Type-checking
+
+ $$\frac{\Gamma,x:A\vdash N:B}{\Gamma\vdash \lambda x.N\uparrow (x:A)\rightarrow B}$$
+
+ $$\frac{\Gamma\vdash u\uparrow \Delta~~~~\Gamma\vdash B = A(p=u)}{\Gamma\vdash h~u\uparrow B}
+        {~~~h:(p:\Delta)\rightarrow A}$$
+
+ $$\frac{\Gamma\vdash u\uparrow \Delta_i(q=v)}{\Gamma\vdash c_i~u\uparrow d~v}$$
+
+with $d = \lambda q.(c_1~\Delta_1,\dots,c_k~\Delta_k)$
+
+\foilhead{Type-checking}
+
+$$\frac{\Gamma\vdash A~\type _0~~~~~\Gamma,x:A\vdash B~\type _0}
+       {\Gamma\vdash (x:A)\rightarrow B~\type _0}$$
+
+$$\frac{\Gamma\vdash N\uparrow \Set}{\Gamma\vdash N~\type _0}$$
+
+\foilhead{Conversion algorithm}
+
+ $$\frac{\Gamma,x:A\vdash M_1~x = M_2~x\uparrow B}{\Gamma\vdash M_1=M_2\uparrow (x:A)\rightarrow B}$$
+
+ $$\frac{\Gamma\vdash u=u'\uparrow \Delta}{\Gamma\vdash h~u=h~u'}~~~{h:\Delta\rightarrow A}$$
+
+ $$\frac{\Gamma\vdash u=u'\uparrow \Delta_i(q=v)}{\Gamma\vdash c_i~u = c_i~u'\uparrow d~v}$$
+
+with $d = \lambda q.(c_1~\Delta_1,\dots,c_k~\Delta_k)$
+
+ $$\frac{\Gamma\vdash M=M'\uparrow A~~~~~\Gamma\vdash u=u'\uparrow \Delta(x=M)}
+        {\Gamma\vdash (M,u)=(M',u')\uparrow (x:A,\Delta)}~~~~~~~
+   \frac{}{\Gamma\vdash () = ()\uparrow ()}$$
+
+\foilhead{Signature}
+
+ Collection of constants with types $c:A$ and definitions
+
+ We can add
+
+ (1) new constant $c:A$ if $\vdash A$, $c$ fresh name
+
+ (2) new definition for a constant $d:A$ or $f:A$ already declared
+
+
+ 2 kind of definitions: constants for {\em data types} and for 
+{\em recursively defined functions} over these data types
+
+\foilhead{Signature}
+
+ Constants for data types
+
+ For $d:\Delta\rightarrow\Set$, and $p:\Delta\vdash \Delta_i~\type _0$
+
+ $d = \lambda p.(c_1~\Delta_1,\dots,c_k~\Delta_k)$
+
+ Typing rules
+
+ $$\frac{}{\Gamma\vdash d:\Delta\rightarrow\Set}$$
+
+ $$\frac{\Gamma\vdash u:\Delta~~~~~\Gamma\vdash v:\Delta_i(p=u)}{\Gamma\vdash c_i~v:d~v}$$
+
+
+%This definition adds also $c_i:(p:\Delta)\rightarrow \Delta_i\rightarrow c~p$
+
+\foilhead{Signature}
+
+ Constants for recursively defined functions
+
+ If we have $d:U\rightarrow\Set$ 
+and $d =  \lambda q.(c_1~\Delta_1,\dots,c_k~\Delta_k)$ and
+
+ $f:(p:\Delta)\rightarrow (x:d~u)\rightarrow A$ 
+
+ Notice that $p:\Delta\vdash u:U$
+
+ We can add the definition
+
+ $f = \lambda p.(c_1~p_1\rightarrow M_1,\dots,c_k~p_k\rightarrow M_k)$
+
+provided $p:\Delta,p_i:\Delta_i(q=u)\vdash M_i:A(x=c_i~p_i)$
+
+\foilhead{Signature}
+
+ New conversion rule
+
+ $$\frac{\Gamma\vdash v:\Delta~~~~~\Gamma\vdash w:\Delta_i(q=u(p=v))}
+        {\Gamma\vdash f~v~(c_i~w) = M_i(p=v,p_i=w):A(p=v,x=c_i~w)}$$
+
+ This can be also interpreted as an untyped reduction rule
+
+ $f~v~(c_i~w)\rightarrow M_i(p=v,p_i=w)$
+
+\foilhead{Signature}
+
+ {\bf Example}: universe
+
+ $U:\Set,~T:U\rightarrow\Set$
+
+ We can define $U = (\hat{n},\hat{\pi}~(x:U,f:T~x\rightarrow U))$
+
+ After this, we can define
+
+ $T = (\hat{n}\rightarrow N,\hat{\pi}~x~f\rightarrow \Pi~(T~x)~(\lambda y.T~(f~y)))$
+
+ $T~\hat{n} = N$
+
+ $T~(\hat{\pi}~x~f) = \Pi~(T~x)~(\lambda y.T~(f~y))$
+
+ \foilhead{Type-checking}
+
+$$\frac{\Gamma\vdash A~\type _m~~~~~\Gamma,x:A\vdash B~\type _m}
+       {\Gamma\vdash (x:A)\rightarrow B~\type _m}$$
+
+$$\frac{\Gamma\vdash N\uparrow \Set _l~~~l\leq m}
+       {\Gamma\vdash N~\type _m}$$
+
+$$\frac{l<m}{\Gamma\vdash \Set _l~\type _m}$$
+
+\foilhead{Where clause}
+
+$$N~::=~\lambda x.N~|~n~u~|~N~\where~D$$
+
+$$D~::=~p:\Delta = u$$
+
+ The simplest typing rule is
+
+ $$\frac{\Gamma\vdash~\Delta~~~~~~\Gamma\vdash u:\Delta~~~~~~\Gamma,p:\Delta\vdash N:A}
+        {\Gamma\vdash N~\where~p:\Delta=u~:~A}$$
+
+\foilhead{Example}
+
+ $V:\Set,~a_0:V,~comp:V\rightarrow (V\rightarrow\Set)\rightarrow V,
+  ~(\epsilon):V\rightarrow V\rightarrow\Set$
+
+ $h:(a,x:V)\rightarrow (P:V\rightarrow\Set)\rightarrow
+         x\epsilon (comp~a~P)\Leftrightarrow x\epsilon a\wedge P~x$
+
+ We can then compute a witness for the telescopes
+
+ $\emptyset:V,h_0:(x:V)\rightarrow \neg x\epsilon \emptyset$
+
+ $\emptyset = comp~ a_0~ (\lambda x.\perp),~~~h_0=\dots$
+
+ $(\cap):V\rightarrow V\rightarrow\Set,
+  h_1:(x,y,z:V)\rightarrow x\epsilon y\cap z\Leftrightarrow x\epsilon y\wedge x\epsilon z$
+
+ $(\cap) = \lambda x.\lambda y.comp~x~(\lambda z.z\epsilon y),~h_1=\dots$
+
+
+\foilhead{Where clause}
+
+ The proof development has the following structure
+
+ $p_1:\Delta_1,p_2:\Delta_2,p_3:\Delta_3,\dots$
+
+ At each level we have $p_1:\Delta_1,\dots,p_{n-1}:\Delta_{n-1}\vdash u_{n}:\Delta_{n}$
+
+ $\Delta_n$ should be an abstract specification of $u_n$
+
+\foilhead{Where clause}
+
+ So far, we have tried (like in Automath $\lambda\Delta$) a more complicated
+type-checking for the where-clause
+
+ $p_1:\Delta_1=u_1,\dots$
+
+ The type-checking of $\dots$ depends not only on the {\em type}
+of $p_1$ but also on its {\em definition} $u_1$
+
+ It may be that $\dots$ is not correct in the context $p_1:\Delta_1$
+
+\foilhead{Where clause}
+
+ {\bf Example}: give the data type $N_2=(0,1)$
+
+ If we declare $Bool:\Set = N_2$ we don't have
+
+ $Bool:\Set\vdash 0:Bool$
+
+but $(N_2,0)$ is of type $(Bool:\Set,x:Bool)$
+
+ In $\lambda\Delta$ we have
+
+ $Bool:\Set=N_2\vdash 0:Bool$
+
+ One can argue that this is not {\em modular}: further type-checking
+depends not only on the types (the interface), but also on the actual
+{\em definition}
+
+\foilhead{Example}
+
+ Danko Ilik has formalised Zermelo's 1904 proof of the well-ordering 
+theorem in type theory extended with the extensional axiom of choice
+
+ From type theory, one needs $\Pi,\Sigma,N_2,N_1,N_0$ and the function
+
+ $T:N_2\rightarrow\Set$ with $T~0=N_0,~T~1 = N_1$
+
+ It would be very interesting to see if this proof can be represented
+with this primitive $\where$ mechanism
+
+
+
+
+\end{document}     
+ 

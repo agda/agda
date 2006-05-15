@@ -60,7 +60,7 @@ h, which occurs in the definition of f, with the argument y.
 
  E ::= \ x E | D E | H
  H ::= M | F
- F ::= <c1 M1,...,ck Mk>
+ F ::= <c1 E1,...,ck Ek>
  D ::= x1=E1,...,xn=En
 
  The definitions are recursive.
@@ -75,7 +75,7 @@ h, which occurs in the definition of f, with the argument y.
  [M1 M2]r = [M1]r ([M2]r)
  [\x M]r = Lam f where f V = [M](r,x=V)
 
- The crucial point is the definition of [D](P,r)
+ The crucial point is the computation of [D](P,r)
 
  [D](P,r) is x1 = V1,...,xn = Vn
  where
@@ -85,11 +85,9 @@ h, which occurs in the definition of f, with the argument y.
  [\x E](P,r) = Lam f where f V = [E](P V,(r,x=V))
  [D E] (P,r) = [E](P,r') where r' = r + [D](P,r)
  [M](P,r) = [M]r
- [<c1 M1,...,ck Mk>](P,r) = Lam f
- where f (ci w) = [Mi]r w 
+ [<c1 E1,...,ck Ek>](P,r) = Lam f
+ where f (ci w) = [Ei](P,r) w 
        f V = P V      if V is not of the form ci w
-
-
 
 
  2. Addition of infinite objects
@@ -106,7 +104,7 @@ h, which occurs in the definition of f, with the argument y.
  The new values are
 
  V ::= Lam f | N | c V1 ... Vk | (P,W)
- N ::= P | N V | P N
+ N ::= P | N V | P N | N.x
  P ::= () | P.x | P V
  W ::= (x1 = V1,...,xn=Vn)
 
@@ -174,9 +172,9 @@ accessible for outside.
 
 which has for values
 
- (p 0).f (S 0), (u = 0,v = p.w)
+ (p 0).f (S 0), (u = 0,v = (p 0).w)
 
- Thus if we compute ((p 0).f (S 0)).v we get p.w
+ Thus if we compute ((p 0).f (S 0)).v we get (p 0).w
 
  
 

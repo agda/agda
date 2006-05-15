@@ -37,5 +37,6 @@ eqs n (Fun a f) (u1:us1) (u2:us2) =
  do
   eq n a u1 u2
   eqs n (f u1) us1 us2
-eqs n a [u1] [u2] = eq n a u1 u2
+eqs _ _ [] [] = return ()
 eqs _ _ _ _ = fail "eqs"
+
