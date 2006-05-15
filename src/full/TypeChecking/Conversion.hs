@@ -66,7 +66,6 @@ equalAtm _ m n = do
     nVal <- reduce n  -- need nVal for the metavar case
 --     debug $ "equalAtm " ++ show m ++ " == " ++ show n
 --     debug $ "         " ++ show mVal ++ " == " ++ show nVal
-    --trace ("equalAtm ("++(show mVal)++") ("++(show nVal)++")\n") $ 
     case (mVal, nVal) of
         (Lit l1, Lit l2) | l1 == l2 -> return ()
         (Var i iArgs, Var j jArgs) | i == j -> do

@@ -236,7 +236,7 @@ constructs t d = fail $ show t ++ " should be application of " ++ show d
 -- | Force a type to be a specific datatype.
 forceData :: QName -> Type -> TCM Type
 forceData d t =
-    do	t' <- instType t
+    do	t' <- reduceType t
 	case t' of
 	    El (Def d' _) _
 		| d == d'   -> return t'
@@ -245,7 +245,7 @@ forceData d t =
 		    ps <- newArgsMeta t
 		    s  <- getSort t'
 		    assign m vs $ El (Def d ps) s
-		    instType t'
+		    reduceType t'
 	    _		    -> fail $ show t ++ " should be application of " ++ show d
 
 ---------------------------------------------------------------------------
@@ -322,7 +322,7 @@ checkPattern (A.ConP i c ps) t ret =
 -- | Make sure that a type is a sort (instantiate meta variables if necessary).
 forceSort :: Type -> TCM Sort
 forceSort t =
-    do	t' <- instType t
+    do	t' <- reduceType t
 	case t' of
 	    Sort s	 -> return s
 	    MetaT m args ->
@@ -370,7 +370,7 @@ isType e =
 --   used when instantiating a meta variable.
 forcePi :: Hiding -> Type -> TCM Type
 forcePi h t =
-    do	t' <- instType t
+    do	t' <- reduceType t
 -- 	debug $ "forcePi " ++ show t
 -- 	debug $ "    --> " ++ show t'
 	case t' of
@@ -385,7 +385,7 @@ forcePi h t =
 		    let c = Pi h (a `apply` ps) $
 			    Abs "x" $ b `apply` ps'
 		    assign m vs c
-		    instType t'
+		    reduceType t'
 	    _		-> fail $ "Not a pi: " ++ show t
 
 
@@ -499,8 +499,8 @@ inferHead (HeadDef _ x) =
 --   make this happen.
 checkArguments :: [Arg A.Expr] -> Type -> Type -> TCM Args
 checkArguments []   t0 t1 =
-    do	t0' <- instType t0
-	t1' <- instType t1
+    do	t0' <- reduceType t0
+	t1' <- reduceType t1
 	case t0' of
 	    Pi Hidden a b | notMetaOrHPi t1'  ->
 		    do	v  <- newValueMeta a
@@ -550,7 +550,7 @@ inferExpr e =
 -- | Get the sort of a type. Should be moved somewhere else.
 getSort :: Type -> TCM Sort
 getSort t =
-    do	t' <- instType t
+    do	t' <- reduceType t
 	case t' of
 	    El _ s	     -> return s
 	    Pi _ a (Abs _ b) -> Lub <$> getSort a <*> getSort b

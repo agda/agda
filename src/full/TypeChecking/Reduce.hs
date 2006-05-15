@@ -50,20 +50,22 @@ instTerm a =
 --
 instType :: Type -> TCM Type
 instType a = case a of
-    (MetaT x args) -> do 
+    MetaT x args -> do 
         store <- gets stMetaStore
         case Map.lookup x store of
-            Just (InstT a') -> instType $ reduceType a' args
+            Just (InstT a') -> instType $ a' `apply` args
             Just _          -> return a
 	    Nothing	    -> __IMPOSSIBLE__
     _ -> return a
 
-reduceType :: Type -> Args -> Type
-reduceType a [] = a
-reduceType a (Arg _ v : args) =
-    case a of
-	LamT (Abs _ a) -> reduceType (subst v a) args
-	_	       -> __IMPOSSIBLE__
+reduceType :: Type -> TCM Type
+reduceType a =
+    do	b <- instType a
+	case b of
+	    El t s ->
+		do  v <- reduce t
+		    return $ El v s
+	    _	   -> return b
 
 -- | instantiate a sort 
 --   results is open meta variable or a non meta variable sort.
