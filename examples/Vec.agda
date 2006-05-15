@@ -10,8 +10,15 @@ module examples.Vec where
   data (*) (A,B : Set) : Set where
     pair : A -> B -> A * B
 
+  infixr 20 =>
   data (=>) (A,B : Set) : Set where
     lam : (A -> B) -> A =>  B
+
+  lam2 : {A, B, C : Set} -> (A -> B -> C) -> (A => B => C)
+  lam2 {A}{B}{C} f = lam (\x -> lam (f x))
+
+  app : {A, B : Set} -> (A => B) -> A -> B
+  app {A}{B} (lam f) x = f x
 
   Vec : Nat -> Set -> Set
   Vec zero X = One
@@ -25,145 +32,137 @@ module examples.Vec where
   vTail : {X : Set} -> (n : Nat)-> Vec (suc n) X -> Vec n X
   vTail {X} n (pair a b) = b
 
+  {- safe destructors for nonempty vectors -}
 
-{-
+  {- useful vector programming operators -}
 
-{- safe destructors for nonempty vectors -}
+  vec : {X : Set} -> (n : Nat) -> X -> Vec n X
+  vec {X} zero    x = unit
+  vec {X} (suc n) x = pair x (vec n x)
 
-{- useful vector programming operators -}
+  vapp : {S, T : Set} -> (n : Nat) -> Vec n (S => T) -> Vec n S -> Vec n T
+  vapp {S}{T} zero unit unit = unit
+  vapp {S}{T} (suc n) (pair f fs) (pair s ss) = pair (app f s) (vapp n fs ss)
 
-vec (X : Set) : (n : Nat)-> X -> Vec n X
-vec n x = case n of 
-              (zero)-> unit 
-              (suc n')-> pair x (vec n' x )
+  {- mapping and zipping come from these -}
 
-vapp (S,T : Set) : (n : Nat) -> Vec n (S -> T) -> Vec n S -> Vec n T
-vapp n fs ss = case n of 
-  (zero)-> unit   
-  (suc n')-> case fs of 
-    (pair f fs')-> case ss of 
-      (pair s ss')-> pair (f s ) (vapp n' fs' ss' )
+  vMap : {S, T : Set} -> (n : Nat) -> (S -> T) -> Vec n S -> Vec n T
+  vMap {S}{T} n f ss = vapp n (vec n (lam f)) ss
 
-{- mapping and zipping come from these -}
+  {- transposition gets the type it deserves -}
 
-vMap (S,T : Set) : (n : Nat)-> (S -> T) -> Vec n S -> Vec n T
-vMap n f ss = vapp n (vec n f) ss
+  transpose : {X : Set} -> (m,n : Nat)-> Vec m (Vec n X) -> Vec n (Vec m X)
+  transpose {X} zero n xss = vec n unit
+  transpose {X} (suc m) n (pair xs xss) =
+    vapp n (vapp n (vec n (lam2 pair)) xs)
+	   (transpose m n xss)
 
-{- transposition gets the type it deserves -}
+  {- Sets of a given finite size may be computed as follows... -}
 
-transpose (X : Set) : (m,n : Nat)-> Vec m (Vec n X) -> Vec n (Vec m X)
-transpose m n xss = case m of 
-  (zero)->   vec n unit 
-  (suc m')-> case xss of 
-    (pair xs xss')-> vapp n (vapp n (vec n pair) xs) (transpose m' n xss' ) 
+  {- Resist the temptation to mention idioms. -}
 
-{- Resist the temptation to mention Idioms. -}
+  data Zero : Set where
 
-{- Sets of a given finite size may be computed as follows... -}
+  data (+) (A,B:Set) : Set where
+    inl : A -> A + B
+    inr : B -> A + B
 
-data Zero              =
-data (+)  (A,B : Set) = inl (a : A) | inr (b : B)
+  Fin : Nat -> Set
+  Fin zero    = Zero
+  Fin (suc n) = One + Fin n
 
-Fin : Nat -> Set
-Fin n = case n of 
-  (zero)-> Zero 
-  (suc n')-> One + Fin n' 
+  {- We can use these sets to index vectors safely. -}
 
-{- We can use these sets to index vectors safely. -}
+  vProj : {X : Set} -> (n : Nat)-> Vec n X -> Fin n -> X
+  -- vProj {X} zero () we can pretend that there is an exhaustiveness check
+  vProj {X} (suc n) (pair x xs) (inl unit) = x
+  vProj {X} (suc n) (pair x xs) (inr i)	   = vProj n xs i
 
-vProj (X : Set) : (n : Nat)-> Vec n X -> Fin n -> X
-vProj n xs i = case n of 
-  (zero)-> case i of { }
-  (suc n')-> case i of 
-    (inl u)-> case xs of 
-      (pair x xs')-> x 
-    (inr i')-> case xs of 
-      (pair x xs')-> vProj n' xs' i'
+  {- We can also tabulate a function as a vector. Resist
+     the temptation to mention logarithms. -}
 
-{- We can also tabulate a function as a vector. Resist
-   the temptation to mention logarithms. -}
+  vTab : {X : Set} -> (n : Nat)-> (Fin n -> X) -> Vec n X
+  vTab {X} zero    _ = unit
+  vTab {X} (suc n) f = pair (f (inl unit)) (vTab n (\x -> f (inr x)))
 
-vTab (X : Set) : (n : Nat)-> (Fin n -> X) -> Vec n X
-vTab n f = case n of 
-  (zero)-> unit 
-  (suc n')-> pair (f (inl unit ))
-                  (vTab n' (\x -> f (inr x) ))
+  {- Question to ponder in your own time:
+     if we use functional vectors, what are vec and vapp? -}
 
-{- Question to ponder in your own time:
-   if we use functional vectors, what are vec and vapp? -}
+  {- Answer: K and S -}
 
-{- Inductive datatypes of the unfocused variety -}
+  {- Inductive datatypes of the unfocused variety -}
 
-{- Every constructor must target the whole family, rather
-   than focusing on specific indices. -}
+  {- Every constructor must target the whole family, rather
+     than focusing on specific indices. -}
 
-data Tm (n : Nat) : Set
-  = var (i : Fin n)
-  | app (f,s : Tm n)
-  | lda (t : Tm (suc n))
+  data Tm (n : Nat) : Set where
+    evar : Fin n -> Tm n
+    eapp : Tm n -> Tm n -> Tm n
+    elam : Tm (suc n) -> Tm n
 
-{- Renamings -}
+  {- Renamings -}
 
-Ren : Nat -> Nat -> Set
-Ren m n = Vec m (Fin n)
+  Ren : Nat -> Nat -> Set
+  Ren m n = Vec m (Fin n)
 
-{- identity and composition -}
+  {- identity and composition -}
 
-idR : (n : Nat)-> n `Ren` n
-idR n = vTab n (\i -> i) 
+  idR : (n : Nat) -> n `Ren` n
+  idR n = vTab n (\i -> i) 
+  
+  coR : (l,m,n : Nat) -> m `Ren` n -> l `Ren` m -> l `Ren` n
+  coR l m n m2n l2m = vMap l (vProj m m2n) l2m
 
-coR : (l,m,n : Nat)-> m `Ren` n -> l `Ren` m -> l `Ren` n
-coR l m n m2n l2m = vMap l (vProj m m2n) l2m
+  {- what theorems should we prove? -}
 
-{- what theorems should we prove? -}
+  {- the lifting functor for Ren -}
 
-{- the lifting functor for Ren -}
+  liftR : (m,n : Nat) -> m `Ren` n -> suc m `Ren` suc n
+  liftR m n m2n = pair (inl unit) (vMap m inr m2n)
 
-liftR : (m,n : Nat)-> m `Ren` n -> suc m `Ren` suc n
-liftR m n m2n = pair (inl unit ) (vMap m inr m2n )
+  {- what theorems should we prove? -}
 
-{- what theorems should we prove? -}
+  {- the functor from Ren to Tm-arrows -}
 
-{- the functor from Ren to Tm-arrows -}
+  rename : {m,n : Nat} -> (m `Ren` n) -> Tm m -> Tm n
+  rename {m}{n} m2n (evar i)   = evar (vProj m m2n i)
+  rename {m}{n} m2n (eapp f s) = eapp (rename m2n f) (rename m2n s)
+  rename {m}{n} m2n (elam t)   = elam (rename {suc m} {suc n} (liftR m n m2n) t)
+				  -- not good ^^^^^^^^^^^^^^^
 
-rename (m,n : Nat) : (m `Ren` n) -> Tm m -> Tm n
-rename m2n t = case t of 
-  (var i)-> var (vProj m m2n i) 
-  (app f s)-> app (rename m2n f) (rename m2n s) 
-  (lda t')-> lda (rename (liftR m n m2n) t')
+  {- Substitutions -}
 
-{- Substitutions -}
+  Sub : Nat -> Nat -> Set
+  Sub m n = Vec m (Tm n)
 
-Sub : Nat -> Nat -> Set
-Sub m n = Vec m (Tm n)
+  {- identity; composition must wait; why? -}
 
-{- identity; composition must wait; why? -}
+  idS : (n : Nat) -> n `Sub` n
+  idS n = vTab n evar
 
-idS : (n : Nat)-> n `Sub` n
-idS n = vTab n var 
+  {- functor from renamings to substitutions -}
 
-{- functor from renamings to substitutions -}
+  Ren2Sub : (m,n : Nat) -> m `Ren` n -> m `Sub` n
+  Ren2Sub m n m2n = vMap m evar m2n
 
-Ren2Sub : (m,n : Nat)-> m `Ren` n -> m `Sub` n
-Ren2Sub m n m2n = vMap m (\(x : Fin n) -> var x) m2n
+  {- lifting functor for substitution -}
 
-{- lifting functor for substitution -}
+  evar' : {n:Nat} -> Fin n -> Tm n
+  evar' {n} i = evar i
 
-liftS : (m,n : Nat)-> m `Sub` n -> suc m `Sub` suc n
-liftS m n m2n = pair (var (inl unit ))
-                     (vMap m (rename (vMap n inr (idR n) )) m2n )
+  liftS : (m,n : Nat) -> m `Sub` n -> suc m `Sub` suc n
+  liftS m n m2n = pair (evar' {suc n} (inl unit))
+		       (vMap m (rename{n}{suc n} (vMap n inr (idR n))) m2n)
 
-{- functor from Sub to Tm-arrows -}
+  {- functor from Sub to Tm-arrows -}
 
-subst (m,n : Nat) : m `Sub` n -> Tm m -> Tm n
-subst m2n t = case t of 
-  (var i)-> vProj m m2n i 
-  (app f s)-> app (subst m2n f) (subst m2n s) 
-  (lda t')-> lda (subst (liftS m n m2n ) t' )
+  subst : {m,n : Nat} -> m `Sub` n -> Tm m -> Tm n
+  subst {m}{n} m2n (evar i)   = vProj m m2n i
+  subst {m}{n} m2n (eapp f s) = subst m2n f `eapp` subst m2n s
+  subst {m}{n} m2n (elam t)   = elam (subst{suc m}{suc n} (liftS m n m2n ) t)
 
-{- and now we can define composition -}
+  {- and now we can define composition -}
 
-coS : (l,m,n : Nat)-> m `Sub` n -> l `Sub` m -> l `Sub` n
-coS l m n m2n l2m = vMap l (subst m2n) l2m
+  coS : (l,m,n : Nat) -> m `Sub` n -> l `Sub` m -> l `Sub` n
+  coS l m n m2n l2m = vMap l (subst m2n) l2m
 
--}
