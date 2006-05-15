@@ -1,6 +1,7 @@
 
 module Syntax.Abstract.Views where
 
+import Syntax.Position
 import Syntax.Common
 import Syntax.Abstract
 import Syntax.Info
@@ -26,4 +27,9 @@ appView e =
 	    case v of
 		Application hd es -> Application hd $ es ++ [arg]
 		NonApplication e  -> NonApplication (App i h e e')
+
+instance HasRange Head where
+    getRange (HeadVar i _) = getRange i
+    getRange (HeadDef i _) = getRange i
+    getRange (HeadCon i _) = getRange i
 

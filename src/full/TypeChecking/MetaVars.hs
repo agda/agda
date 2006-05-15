@@ -10,8 +10,10 @@ import Data.List as List
 
 import Syntax.Common
 import Syntax.Internal
+import Syntax.Position
 
 import TypeChecking.Monad
+import TypeChecking.Monad.Context
 import TypeChecking.Reduce
 import TypeChecking.Substitute
 import TypeChecking.Constraints
@@ -54,9 +56,15 @@ setRef _ x v = do
     mapM_ wakeup cIds
   where
     replace x v store =
-	case Map.insertLookupWithKey (\_ v _ -> v) x v store of
+	case Map.insertLookupWithKey upd x v store of
 	    (Just var, store')	-> (getCIds var, store')
 	    _			-> __IMPOSSIBLE__
+    upd _ (InstV _ v _) (UnderScoreV i t _) = InstV i v t
+    upd _ (InstV _ v _) (HoleV i t _)	    = InstV i v t
+    upd _ (InstT _ t)	(UnderScoreT i _ _) = InstT i t
+    upd _ (InstT _ t)	(HoleT i _ _)	    = InstT i t
+    upd _ (InstS _ s)	(UnderScoreS i _)   = InstS i s
+    upd _ _ _ = __IMPOSSIBLE__
 
 -- | Generate new meta variable.
 --   The @MetaVariable@ arg (2nd arg) is meant to be either @UnderScore@X or @Hole@X.
@@ -67,41 +75,49 @@ newMeta meta initialVal = do
     modify (\st -> st{stMetaStore = Map.insert x initialVal $ stMetaStore st})
     return $ meta x
 
-newSortMeta :: TCM Sort
-newSortMeta = newMeta MetaS $ UnderScoreS []
+newSortMeta :: MetaInfo -> TCM Sort
+newSortMeta i = newMeta MetaS $ UnderScoreS i []
 
-newTypeMeta :: Sort -> TCM Type
-newTypeMeta s =
+newTypeMeta :: MetaInfo -> Sort -> TCM Type
+newTypeMeta i s =
     do	vs <- allCtxVars
-	newMeta (\m -> MetaT m vs) $ UnderScoreT s []
+	newMeta (\m -> MetaT m vs) $ UnderScoreT i s []
 
-newTypeMeta_ :: TCM Type
-newTypeMeta_ = newTypeMeta =<< newSortMeta
+newTypeMeta_ :: MetaInfo -> TCM Type
+newTypeMeta_ i = newTypeMeta i =<< newSortMeta i
 
-newValueMeta :: Type -> TCM Term
-newValueMeta t =
+newValueMeta :: MetaInfo -> Type -> TCM Term
+newValueMeta i t =
     do	vs <- allCtxVars
-	newMeta (\m -> MetaV m vs) $ UnderScoreV t []
+	newMeta (\m -> MetaV m vs) $ UnderScoreV i t []
 
-newArgsMeta :: Type -> TCM Args
-newArgsMeta (Pi h a b) =
-    do	v    <- newValueMeta a
-	args <- newArgsMeta (substAbs v b)
+newArgsMeta :: MetaInfo -> Type -> TCM Args
+newArgsMeta i (Pi h a b) =
+    do	v    <- newValueMeta i a
+	args <- newArgsMeta i (substAbs v b)
 	return $ Arg h v : args
-newArgsMeta _ = return []
+newArgsMeta _ _ = return []
 
-newQuestionMark :: Type -> TCM Term
-newQuestionMark t =
+newQuestionMark :: MetaInfo -> Type -> TCM Term
+newQuestionMark i t =
     do	vs <- allCtxVars
-	newMeta (\m -> MetaV m vs) $ HoleV t []
+	newMeta (\m -> MetaV m vs) $ HoleV i t []
 
-newQuestionMarkT :: Sort -> TCM Type
-newQuestionMarkT s =
+newQuestionMarkT :: MetaInfo -> Sort -> TCM Type
+newQuestionMarkT i s =
     do	vs <- allCtxVars
-	newMeta (\m -> MetaT m vs) $ HoleT s []
+	newMeta (\m -> MetaT m vs) $ HoleT i s []
 
-newQuestionMarkT_ :: TCM Type
-newQuestionMarkT_ = newQuestionMarkT =<< newSortMeta
+newQuestionMarkT_ :: MetaInfo -> TCM Type
+newQuestionMarkT_ i = newQuestionMarkT i =<< newSortMeta i
+
+-- | Lookup a meta variable
+lookupMeta :: MetaId -> TCM MetaVariable
+lookupMeta m =
+    do	mmv <- Map.lookup m <$> getMetaStore
+	case mmv of
+	    Just mv -> return mv
+	    _	    -> __IMPOSSIBLE__
 
 -- | Used to give an initial value to newMeta.  
 --   The constraint list will be filled-in as needed during assignment.
@@ -110,17 +126,17 @@ getMeta :: MetaId -> Args -> TCM MetaVariable
 getMeta x args = do
     store <- gets stMetaStore
     case Map.lookup x store of
-        Just (UnderScoreV _ _) -> do
-            s <- newMeta MetaS $ UnderScoreS []
-            a <- newMeta (\x -> MetaT x args) $ UnderScoreT s [] 
-            return $ (UnderScoreV a [])
-        Just (UnderScoreT s _) -> return $ (UnderScoreT s [])
-        Just (UnderScoreS _) -> return $ (UnderScoreS [])
-        Just (HoleV a _) -> do
-            s <- newMeta MetaS $ UnderScoreS []
-            a <- newMeta (\x -> MetaT x args) $ UnderScoreT s [] 
-            return $ (HoleV a [])
-        Just (HoleT s _) -> return $ (HoleT s [])
+        Just (UnderScoreV i _ _) -> do
+            s <- newMeta MetaS $ UnderScoreS i []
+            a <- newMeta (\x -> MetaT x args) $ UnderScoreT i s [] 
+            return $ (UnderScoreV i a [])
+        Just (UnderScoreT i s _) -> return $ (UnderScoreT i s [])
+        Just (UnderScoreS i _) -> return $ (UnderScoreS i [])
+        Just (HoleV i a _) -> do
+            s <- newMeta MetaS $ UnderScoreS i []
+            a <- newMeta (\x -> MetaT x args) $ UnderScoreT i s [] 
+            return $ (HoleV i a [])
+        Just (HoleT i s _) -> return $ (HoleT i s [])
 	mv   -> error $ "getMeta: ?" ++ show x ++ " = " ++ show mv
 
 -- | Generate new metavar of same kind (@Hole@X or @UnderScore@X) as that
@@ -142,6 +158,9 @@ restrictParameters ok ps
     | otherwise	     = Nothing
 
 
+instV v = InstV noRange v __IMPOSSIBLE__
+instT = InstT noRange
+
 -- | Extended occurs check
 --
 
@@ -160,7 +179,7 @@ instance Occurs Term where
 		Lit l	    -> return $ Lit l
 		Def c vs    -> Def c <$> occ m ok vs
 		Con c vs    -> Con c <$> occ m ok vs
-		MetaV m' vs -> occMeta MetaV InstV reduce m ok m' vs
+		MetaV m' vs -> occMeta MetaV instV reduce m ok m' vs
 		Lam f _	    -> __IMPOSSIBLE__
 
 instance Occurs Type where
@@ -170,7 +189,7 @@ instance Occurs Type where
 		El v s	    -> uncurry El <$> occ m ok (v,s)
 		Pi h w f    -> uncurry (Pi h) <$> occ m ok (w,f)
 		Sort s	    -> Sort <$> occ m ok s
-		MetaT m' vs -> occMeta MetaT InstT instType m ok m' vs
+		MetaT m' vs -> occMeta MetaT instT instType m ok m' vs
 		LamT _	    -> __IMPOSSIBLE__	-- ?
 
 instance Occurs Sort where
@@ -220,7 +239,7 @@ instance Occurs a => Occurs [a] where
 --     Then do extended occurs check on given thing.
 --
 assign :: (Show a, Data a, Occurs a, Abstract a) => MetaId -> Args -> a -> TCM ()
-assign x args = mkQ (fail "assign") (ass InstV) `extQ` (ass InstT) where
+assign x args = mkQ (fail "assign") (ass instV) `extQ` (ass instT) where
     ass :: (Show a, Data a, Occurs a, Abstract a) => (a -> MetaVariable) -> a -> TCM ()
     ass inst v = do
 	let pshow (Arg NotHidden x) = show x

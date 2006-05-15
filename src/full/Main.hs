@@ -20,9 +20,11 @@ import Syntax.Abstract.Test
 import Syntax.Abstract.Name
 
 import Interaction.Exceptions
+import Interaction.CommandLine
 
 import TypeChecker
 import TypeChecking.Monad
+import TypeChecking.Monad.Context
 import TypeChecking.Reduce
 
 parseFile' :: Parser a -> FilePath -> IO a
@@ -40,18 +42,23 @@ main =
 	go
     where
 	stuff False file =
-	    failOnException $
-	    do	m	    <- parseFile' moduleParser file
-		(m', scope) <- concreteToAbstract m
-		case runTCM $ debugCheck m' of
+	    crashOnException $
+	    do	putStrLn splashScreen
+		res <- runTCM $ interactionLoop $
+			    do	(m', scope) <- liftIO $
+				    do	m <- parseFile' moduleParser file
+					concreteToAbstract_ m
+				resetState
+				checkDecl m'
+				setScope scope
+		case res of
 		    Left err	-> putStrLn $ "FAIL: " ++ show err
 		    Right s	->
 			do  putStrLn "OK"
-			    putStr s
 	stuff True file =
-	    failOnException $
+	    crashOnException $
 	    do	m	   <- parseFile' moduleParser file
-		(m',scope) <- concreteToAbstract m
+		(m',scope) <- concreteToAbstract_ m
 		let [m1] = abstractToConcrete
 				(defaultFlags { useStoredConcreteSyntax = True })
 				m'
@@ -63,7 +70,7 @@ main =
 		putStrLn "Without stored concrete syntax"
 		checkAbstract m' m2
 	checkAbstract am cm =
-	    do	(am',_) <- concreteToAbstract $ parse moduleParser $ show cm
+	    do	(am',_) <- concreteToAbstract_ $ parse moduleParser $ show cm
 		case am === am' of
 		    Equal	    -> putStrLn "OK"
 		    Unequal r1 r2   ->

@@ -65,8 +65,11 @@ exprSource e =
     Translation
  --------------------------------------------------------------------------}
 
-concreteToAbstract :: ToAbstract c a => c -> IO a
-concreteToAbstract x = runScopeM (toAbstract x)
+concreteToAbstract_ :: ToAbstract c a => c -> IO a
+concreteToAbstract_ x = runScopeM_ (toAbstract x)
+
+concreteToAbstract :: ToAbstract c a => ScopeState -> ScopeInfo -> c -> IO a
+concreteToAbstract s i x = runScopeM s i (toAbstract x)
 
 -- | Things that can be translated to abstract syntax are instances of this
 --   class.

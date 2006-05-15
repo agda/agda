@@ -81,7 +81,7 @@ module TestStack where
   open Stack.Ops
   open Nat
 
-  zzz = push zero (unit (suc zero))
+  zzzz = push zero (unit (suc zero))
 
 module TestIdentity where
 
@@ -129,3 +129,4 @@ module prop where
 		)
 	      )
 	    )
+

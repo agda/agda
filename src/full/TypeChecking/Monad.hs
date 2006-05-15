@@ -8,9 +8,11 @@ import Control.Monad.State
 import Control.Monad.Reader
 import Data.Generics
 
+import Syntax.Position
 import Syntax.Common
 import Syntax.Internal
 import Syntax.Internal.Debug ()
+import Syntax.Scope
 
 import Utils.Fresh
 
@@ -23,6 +25,7 @@ data TCState =
 	 , stMetaStore	    :: MetaStore
 	 , stConstraints    :: Constraints
 	 , stSignature	    :: Signature
+	 , stScopeInfo	    :: ScopeInfo
 	 }
 
 data FreshThings =
@@ -38,6 +41,7 @@ initState =
 	 , stMetaStore	 = Map.empty
 	 , stConstraints = Map.empty
 	 , stSignature   = Map.empty
+	 , stScopeInfo	 = emptyScopeInfo_
 	 }
 
 instance HasFresh MetaId FreshThings where
@@ -77,17 +81,32 @@ type Constraints = Map ConstraintId (Signature,Context,Constraint)
 -- ** Meta variables
 ---------------------------------------------------------------------------
 
-data MetaVariable = InstV Term
-                  | InstT Type
-                  | InstS Sort
-                  | UnderScoreV Type [ConstraintId]
-                  | UnderScoreT Sort [ConstraintId]
-                  | UnderScoreS      [ConstraintId]
-                  | HoleV       Type [ConstraintId]
-                  | HoleT       Sort [ConstraintId]
+data MetaVariable = InstV MetaInfo Term Type
+                  | InstT MetaInfo Type
+                  | InstS MetaInfo Sort
+                  | UnderScoreV MetaInfo Type [ConstraintId]
+                  | UnderScoreT MetaInfo Sort [ConstraintId]
+                  | UnderScoreS MetaInfo      [ConstraintId]
+                  | HoleV       MetaInfo Type [ConstraintId]
+                  | HoleT       MetaInfo Sort [ConstraintId]
   deriving (Typeable, Data, Show)
 
 type MetaStore = Map MetaId MetaVariable
+type MetaInfo = Range
+
+instance HasRange MetaVariable where
+    getRange m = case m of
+	InstV i _ _	  -> getRange i
+	InstT i _	  -> getRange i
+	InstS i _	  -> getRange i
+	UnderScoreV i _ _ -> getRange i
+	UnderScoreT i _ _ -> getRange i
+	UnderScoreS i _   -> getRange i
+	HoleV i _ _	  -> getRange i
+	HoleT i _ _	  -> getRange i
+
+getMetaInfo :: MetaVariable -> MetaInfo
+getMetaInfo m = getRange m
 
 ---------------------------------------------------------------------------
 -- ** Signature
@@ -176,11 +195,12 @@ patternViolation mIds = throwError $ PatternErr mIds
 -- * Type checking monad
 ---------------------------------------------------------------------------
 
-type TCErrMon = Either TCErr
-type TCM = StateT TCState (ReaderT TCEnv TCErrMon)
+type TCErrT = ErrorT TCErr
+type TCM = StateT TCState (ReaderT TCEnv (TCErrT IO))
 
-runTCM :: TCM a -> Either TCErr a
-runTCM m = flip runReaderT initEnv
+runTCM :: TCM a -> IO (Either TCErr a)
+runTCM m = runErrorT
+	 $ flip runReaderT initEnv
 	 $ flip evalStateT initState
 	 $ m
 

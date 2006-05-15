@@ -78,7 +78,7 @@ equalAtm _ m n = do
             a <- typeOfConst x
             equalArg Why a xArgs yArgs
         (MetaV x xArgs, MetaV y yArgs) | x == y ->
-	    equalSameVar (\x -> MetaV x []) InstV x xArgs yArgs -- !!! MetaV args???
+	    equalSameVar (\x -> MetaV x []) instV x xArgs yArgs -- !!! MetaV args???
         (MetaV x xArgs, _) -> assign x xArgs nVal
         (_, MetaV x xArgs) -> assign x xArgs mVal
         _ -> fail $ "equalAtm "++(show mVal)++" ==/== "++(show nVal)
@@ -119,7 +119,7 @@ equalTyp _ a1 a2 = do
 				-- TODO: this looks dangerous.. what does subst really do?
         (Sort s1, Sort s2) -> return ()
         (MetaT x xDeps, MetaT y yDeps) | x == y -> 
-            equalSameVar (\x -> MetaT x []) InstT x xDeps yDeps -- !!! MetaT???
+            equalSameVar (\x -> MetaT x []) instT x xDeps yDeps -- !!! MetaT???
         (MetaT x xDeps, a) -> assign x xDeps a 
         (a, MetaT x xDeps) -> assign x xDeps a 
 	(LamT _, _)   -> __IMPOSSIBLE__

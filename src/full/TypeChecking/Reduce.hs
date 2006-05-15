@@ -40,9 +40,9 @@ instTerm a =
 	MetaV x args ->
 	    do	store <- gets stMetaStore
 		case Map.lookup x store of
-		    Just (InstV a') -> instTerm $ a' `apply` args
-		    Just _	    -> return a
-		    _		    -> __IMPOSSIBLE__
+		    Just (InstV _ a' _) -> instTerm $ a' `apply` args
+		    Just _		-> return a
+		    _			-> __IMPOSSIBLE__
 	_ -> return a
 
 -- | instantiate a type 
@@ -53,9 +53,9 @@ instType a = case a of
     MetaT x args -> do 
         store <- gets stMetaStore
         case Map.lookup x store of
-            Just (InstT a') -> instType $ a' `apply` args
-            Just _          -> return a
-	    Nothing	    -> __IMPOSSIBLE__
+            Just (InstT _ a') -> instType $ a' `apply` args
+            Just _	      -> return a
+	    Nothing	      -> __IMPOSSIBLE__
     _ -> return a
 
 reduceType :: Type -> TCM Type
@@ -75,9 +75,9 @@ instSort s = case s of
     (MetaS x) -> do 
         store <- gets stMetaStore
         case Map.lookup x store of
-            Just (InstS s') -> instSort s'
-            Just _          -> return s
-	    _		    -> __IMPOSSIBLE__
+            Just (InstS _ s') -> instSort s'
+            Just _	      -> return s
+	    _		      -> __IMPOSSIBLE__
     _ -> return s
 
 --

@@ -4,6 +4,7 @@
 module Interaction.Exceptions where
 
 import Control.Exception
+import Control.Monad.Trans
 import System.Exit
 
 import Syntax.Position
@@ -39,11 +40,11 @@ handleImportException :: ImportException -> IO a
 handleImportException e = crash e
 
 -- | Crash on exception.
-failOnException :: IO a -> IO a
-failOnException m = m `catchDyn` handleParseException
-		      `catchDyn` handleDeclarationException
-		      `catchDyn` handleScopeException
-		      `catchDyn` handleInfixException
-		      `catchDyn` handleToAbstractException
-		      `catchDyn` handleImportException
+crashOnException :: IO a -> IO a
+crashOnException m = m `catchDyn` handleParseException
+		       `catchDyn` handleDeclarationException
+		       `catchDyn` handleScopeException
+		       `catchDyn` handleInfixException
+		       `catchDyn` handleToAbstractException
+		       `catchDyn` handleImportException
 

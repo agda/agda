@@ -52,18 +52,18 @@ wakeup cId = do
         local (\e -> e { envContext = ctx }) v
         modify (\st -> st{stSignature = sigCurrent})
 
-getCIds (UnderScoreV _ cIds) = cIds
-getCIds (UnderScoreT _ cIds) = cIds
-getCIds (UnderScoreS   cIds) = cIds
-getCIds (HoleV       _ cIds) = cIds
-getCIds (HoleT       _ cIds) = cIds
+getCIds (UnderScoreV _ _ cIds) = cIds
+getCIds (UnderScoreT _ _ cIds) = cIds
+getCIds (UnderScoreS _   cIds) = cIds
+getCIds (HoleV       _ _ cIds) = cIds
+getCIds (HoleT       _ _ cIds) = cIds
 getCIds m		     = error $ "getCIds: " ++ show m -- __IMPOSSIBLE__
 
 addCId cId mInfo = case mInfo of
-    UnderScoreV a cIds -> UnderScoreV a $ cId : cIds
-    UnderScoreT s cIds -> UnderScoreT s $ cId : cIds
-    UnderScoreS cIds   -> UnderScoreS   $ cId : cIds
-    HoleV       a cIds -> HoleV a       $ cId : cIds
-    HoleT       s cIds -> HoleT s       $ cId : cIds
-    _		       -> __IMPOSSIBLE__
+    UnderScoreV i a cIds -> UnderScoreV i a $ cId : cIds
+    UnderScoreT i s cIds -> UnderScoreT i s $ cId : cIds
+    UnderScoreS i   cIds -> UnderScoreS i   $ cId : cIds
+    HoleV       i a cIds -> HoleV i a       $ cId : cIds
+    HoleT       i s cIds -> HoleT i s       $ cId : cIds
+    _			 -> __IMPOSSIBLE__
 

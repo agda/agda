@@ -11,6 +11,8 @@ import Data.Maybe
 import Syntax.Position
 import Syntax.Common
 import Syntax.Internal
+import Syntax.Scope
+
 import TypeChecking.Monad
 import TypeChecking.Monad.Debug
 import TypeChecking.Substitute
@@ -28,6 +30,25 @@ currentModule = asks envCurrentModule
 withCurrentModule :: ModuleName -> TCM a -> TCM a
 withCurrentModule m =
     local $ \e -> e { envCurrentModule = m }
+
+-- | Set the current scope.
+setScope :: ScopeInfo -> TCM ()
+setScope scope = modify $ \s -> s { stScopeInfo = scope }
+
+-- | Get the current scope.
+getScope :: TCM ScopeInfo
+getScope = gets stScopeInfo
+
+-- | Get the constraints
+getConstraints :: TCM Constraints
+getConstraints = gets stConstraints
+
+getMetaStore :: TCM MetaStore
+getMetaStore = gets stMetaStore
+
+-- | Reset the type checking state.
+resetState :: TCM ()
+resetState = put initState
 
 -- | add a variable to the context
 --

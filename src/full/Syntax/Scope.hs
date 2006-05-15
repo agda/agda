@@ -497,6 +497,9 @@ emptyScopeInfo x = ScopeInfo { publicNameSpace	    = emptyNameSpace x
 			     , contextPrecedence    = TopCtx
 			     }
 
+emptyScopeInfo_ :: ScopeInfo
+emptyScopeInfo_ = emptyScopeInfo $ mkModuleName $ CName.QName noName
+
 initScopeState :: ScopeState
 initScopeState = ScopeState { freshId = 0 }
 
@@ -827,10 +830,14 @@ implicitModule x ac ar x' i cont =
 	local (updateNameSpace ac (addModule x m')) cont
 
 -- | Running the scope monad.
-runScopeM :: ScopeM a -> IO a
-runScopeM m = flip runReaderT (emptyScopeInfo $ mkModuleName $ CName.QName noName)
-	    $ flip evalStateT initScopeState
+runScopeM :: ScopeState -> ScopeInfo -> ScopeM a -> IO a
+runScopeM s i m =
+	    flip runReaderT i
+	    $ flip evalStateT s
 	    $ m
+
+runScopeM_ :: ScopeM a -> IO a
+runScopeM_ = runScopeM initScopeState emptyScopeInfo_
 
 ---------------------------------------------------------------------------
 -- * Debugging
