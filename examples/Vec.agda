@@ -12,7 +12,7 @@ module examples.Vec where
 
   infixr 20 =>
   data (=>) (A,B : Set) : Set where
-    lam : (A -> B) -> A =>  B
+    lam : (A -> B) -> A => B
 
   lam2 : {A, B, C : Set} -> (A -> B -> C) -> (A => B => C)
   lam2 f = lam (\x -> lam (f x))
@@ -21,7 +21,7 @@ module examples.Vec where
   app (lam f) x = f x
 
   Vec : Nat -> Set -> Set
-  Vec zero X = One
+  Vec  zero   X = One
   Vec (suc n) X = X * Vec n X
 
   {- ... construct the vectors of a given length -}
