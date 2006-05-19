@@ -110,7 +110,7 @@ showMetas [m] =
 	liftIO $ putStrLn $ "?" ++ show i ++ " " ++ show mv
 showMetas [] =
     do	m <- Map.filter interesting <$> getMetaStore
-	m <- normalise m
+	--m <- normalise m
 	liftIO $ putStrLn $ unlines $ List.map prm $ Map.assocs m
     where
 	prm (x,i) = "?" ++ show x ++ " " ++ show i
