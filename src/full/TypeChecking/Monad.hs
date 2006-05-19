@@ -94,12 +94,26 @@ data MetaVariable = InstV MetaInfo Term Type
                   | UnderScoreS MetaInfo      [ConstraintId]
                   | HoleV       MetaInfo Type [ConstraintId]
                   | HoleT       MetaInfo Sort [ConstraintId]
-  deriving (Typeable, Data, Show)
+  deriving (Typeable, Data)
 
 type MetaStore = Map MetaId MetaVariable
 
 instance HasRange MetaVariable where
     getRange m = getRange $ getMetaInfo m
+
+instance Show MetaVariable where
+    show mv =
+	case mv of
+	    InstV _ v t -> r ++ " := " ++ show v ++ " : " ++ show t
+	    InstT _ t	-> r ++ " := " ++ show t
+	    InstS _ s	-> r ++ " := " ++ show s
+	    UnderScoreV _ t _	-> r ++ " : " ++ show t
+	    UnderScoreT _ s _	-> r ++ " type " ++ show s
+	    UnderScoreS _ _	-> r ++ " sort"
+	    HoleV _ t _		-> r ++ " : " ++ show t
+	    HoleT _ s _		-> r ++ " type " ++ show s
+	where
+	    r = "(" ++ show (getRange mv) ++ ")"
 
 getMetaScope :: MetaVariable -> ScopeInfo
 getMetaScope m = metaScope $ getMetaInfo m
