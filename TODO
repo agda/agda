@@ -8,9 +8,10 @@ AIM4
   constructors and probably for everything else as well (reducing to the
   instantiated versions from the instantiated module).
 
-* Monomorphic constructors.
+* get rid of distinction between Hole and Underscore. Instead keep a map of
+  interaction meta variables (introduce separate id numbers for this map).
 
-* Blocked constructor in Terms and Types(?)
+* Monomorphic constructors.
 
 * actually check sorts
 
@@ -19,6 +20,8 @@ AIM4
 * debug information
 
 * optimise
+
+(done) Blocked constructor in Terms and Types
 
 (done) insert hidden arguments in lhss
 
