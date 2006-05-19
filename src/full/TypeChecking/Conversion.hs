@@ -56,12 +56,12 @@ equalVal _ a m n = do --trace ("equalVal ("++(show a)++") ("++(show m)++") ("++(
             in do name <- freshName_ x
 		  addCtx name a $ equalVal Why b (m' `apply` [p]) (n' `apply` [p])
         MetaT x _ -> addCnstr [x] (ValueEq a m n)
-        _ -> catchConstr (ValueEq a' m n) $ equalAtm Why m n
+        _ -> catchConstr (ValueEq a' m n) $ equalAtm Why a m n
 
 -- | Syntax directed equality on atomic values
 --
-equalAtm :: Data a => a -> Term -> Term -> TCM ()
-equalAtm _ m n = do
+equalAtm :: Data a => a -> Type -> Term -> Term -> TCM ()
+equalAtm _ t m n = do
     mVal <- reduce m  -- need mVal for the metavar case
     nVal <- reduce n  -- need nVal for the metavar case
 --     debug $ "equalAtm " ++ show m ++ " == " ++ show n
@@ -78,9 +78,12 @@ equalAtm _ m n = do
             a <- typeOfConst x
             equalArg Why a xArgs yArgs
         (MetaV x xArgs, MetaV y yArgs) | x == y ->
-	    equalSameVar (\x -> MetaV x []) instV x xArgs yArgs -- !!! MetaV args???
+	    equalSameVar (\x -> MetaV x []) instV x xArgs yArgs
         (MetaV x xArgs, _) -> assign x xArgs nVal
         (_, MetaV x xArgs) -> assign x xArgs mVal
+	(BlockedV b1, BlockedV b2) -> addCnstr [blockingMeta b1,blockingMeta b2] (ValueEq t mVal nVal)
+	(BlockedV b, _)		   -> addCnstr [blockingMeta b] (ValueEq t mVal nVal)
+	(_,BlockedV b)		   -> addCnstr [blockingMeta b] (ValueEq t mVal nVal)
         _ -> fail $ "equalAtm "++(show mVal)++" ==/== "++(show nVal)
 
 
@@ -124,7 +127,10 @@ equalTyp _ a1 a2 = do
         (MetaT x xDeps, a) -> assign x xDeps a 
         (a, MetaT x xDeps) -> assign x xDeps a 
 	(LamT _, _)   -> __IMPOSSIBLE__
-	(El _ _, _)   -> fail $ show a1' ++ " != " ++ show a2'
-	(Pi _ _ _, _) -> fail $ show a1' ++ " != " ++ show a2'
-	(Sort _, _)   -> fail $ show a1' ++ " != " ++ show a2'
+	(BlockedT b1, BlockedT b2) -> addCnstr [blockingMeta b1,blockingMeta b2] (TypeEq a1' a2')
+	(BlockedT b, _)		   -> addCnstr [blockingMeta b] (TypeEq a1' a2')
+	(_,BlockedT b)		   -> addCnstr [blockingMeta b] (TypeEq a1' a2')
+	(El _ _, _)		   -> fail $ show a1' ++ " != " ++ show a2'
+	(Pi _ _ _, _)		   -> fail $ show a1' ++ " != " ++ show a2'
+	(Sort _, _)		   -> fail $ show a1' ++ " != " ++ show a2'
 

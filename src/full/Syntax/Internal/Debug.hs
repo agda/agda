@@ -5,9 +5,12 @@ module Syntax.Internal.Debug where
 import Control.Monad.Reader
 
 import Data.Char
+import Data.FunctorM
 
 import Syntax.Common
 import Syntax.Internal
+
+import Utils.Monad
 
 ---------------------------------------------------------------------------
 -- * Debugging
@@ -19,6 +22,9 @@ bracket NotHidden s = "(" ++ s ++ ")"
 
 isOp (c:_) = not $ isAlpha c
 isOp [] = False
+
+block2str :: Blocked String -> String
+block2str (Blocked x s) = "[?" ++ show x ++ "] " ++ s
 
 val2str :: (MonadReader Int m) => Term -> m String
 val2str (Var i args) = do
@@ -42,6 +48,7 @@ val2str (Def c [Arg NotHidden v1,Arg NotHidden v2])
 val2str (Def c args) = args2str (show c) args
 val2str (Con c args) = args2str (show c) args
 val2str (MetaV x args) = args2str ("?"++(show x)) args
+val2str (BlockedV b) = block2str <$> fmapM val2str b
 
 typ2str :: (MonadReader Int m) => Type -> m String
 typ2str (El v _) =
@@ -58,6 +65,7 @@ typ2str (LamT (Abs _ a)) = do
     aStr <- local (+ 1) $ typ2str a
     n <- ask
     return $ "[x"++(show $ n + 1)++"] "++aStr
+typ2str (BlockedT b) = block2str <$> fmapM typ2str b
 
 args2str :: (MonadReader Int m) => String -> Args -> m String
 args2str hd [] = return hd
@@ -71,6 +79,7 @@ srt2str Prop	    = "prop"
 srt2str (MetaS x)   = "?"++(show x)
 srt2str (Lub s1 s2) = (srt2str s1)++" \\/ "++(srt2str s2)
 srt2str (Suc s)	    = show s ++ "+1"
+srt2str (BlockedS b) = block2str $ fmap srt2str b
 
 instance Show Term where show v = runReader (val2str v) 0
 instance Show Type where show a = runReader (typ2str a) 0

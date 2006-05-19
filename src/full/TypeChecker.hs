@@ -605,6 +605,7 @@ getSort t =
 			Just (UnderScoreT _ s _) -> return s
 			Just (HoleT _ s _)	 -> return s
 			_			 -> __IMPOSSIBLE__
+	    BlockedT b	    -> getSort $ blockee b
 	    LamT _	    -> __IMPOSSIBLE__
 
 buildPi :: [Arg (String,Type)] -> Type -> Type

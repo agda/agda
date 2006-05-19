@@ -101,13 +101,13 @@ showConstraints =
 	cs <- normalise cs
 	liftIO $ putStrLn $ unlines $ List.map prc $ Map.assocs cs
     where
-	prc (x,(_,ctx,c)) = show x ++ ": " ++ show ctx ++ " |- " ++ show c
+	prc (x,(_,ctx,c)) = show x ++ ": " ++ show (List.map fst $ envContext ctx) ++ " |- " ++ show c
 
 showMetas :: [String] -> TCM ()
-showMetas [m]
-    | [(i,"")] <- reads m   =
-	do  mv <- lookupMeta (MetaId i)
-	    liftIO $ putStrLn $ "?" ++ show i ++ " " ++ show mv
+showMetas [m] =
+    do	i  <- readM m
+	mv <- lookupMeta (MetaId i)
+	liftIO $ putStrLn $ "?" ++ show i ++ " " ++ show mv
 showMetas [] =
     do	m <- Map.filter interesting <$> getMetaStore
 	m <- normalise m

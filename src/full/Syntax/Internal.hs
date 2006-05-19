@@ -6,10 +6,13 @@ module Syntax.Internal
     ) where
 
 import Data.Generics
+import Data.FunctorM
 
 import Syntax.Common
 import Syntax.Literal
 import Syntax.Abstract.Name
+
+import Utils.Monad
 
 -- | Raw values.
 --
@@ -19,20 +22,42 @@ import Syntax.Abstract.Name
 --     list of clauses.
 --
 data Term = Var Nat Args
-	  | Lam (Abs Term) Args -- ^ allow for redexes
+	  | Lam (Abs Term) Args	    -- ^ allow for redexes
 	  | Lit Literal
 	  | Def QName Args
 	  | Con QName Args
 	  | MetaV MetaId Args
+	  | BlockedV (Blocked Term) -- ^ returned by 'TypeChecking.Reduce.reduce'
   deriving (Typeable, Data)
 
 data Type = El Term Sort
 	  | Pi Hiding Type (Abs Type)
 	  | Sort Sort
-	  | MetaT MetaId Args  -- ^ list of dependencies for metavars
-          | LamT (Abs Type) -- ^ abstraction needed for metavar dependency management, !!! is a type necessary?
+	  | MetaT MetaId Args	    -- ^ list of dependencies for metavars
+          | LamT (Abs Type)	    -- ^ abstraction needed for metavar dependency management
+	  | BlockedT (Blocked Type) -- ^ returned by 'TypeChecking.Reduce.reduce'
   deriving (Typeable, Data) 
-                            
+
+data Sort = Type Nat
+	  | Prop 
+	  | Lub Sort Sort
+	  | Suc Sort
+	  | MetaS MetaId 
+	  | BlockedS (Blocked Sort) -- ^ returned by 'TypeChecking.Reduce.reduce'
+  deriving (Typeable, Data, Eq)
+
+-- | Something where a particular meta variable blocks reduction.
+data Blocked t = Blocked { blockingMeta :: MetaId
+			 , blockee	:: t
+			 }
+    deriving (Typeable, Data, Eq)
+
+instance Functor Blocked where
+    fmap f (Blocked m t) = Blocked m $ f t
+
+instance FunctorM Blocked where
+    fmapM f (Blocked m t) = Blocked m <$> f t
+
 -- | Type of argument lists.
 --                          
 type Args = [Arg Term]      
@@ -41,17 +66,17 @@ type Args = [Arg Term]
 --   and so on.
 type Telescope = [Arg Type]
 
-data Sort = Type Nat
-	  | Prop 
-	  | MetaS MetaId 
-	  | Lub Sort Sort
-	  | Suc Sort
-  deriving (Typeable, Data, Eq)
-
+-- | The body has (at least) one free variable.
 data Abs a = Abs { absName :: String
 		 , absBody :: a
 		 }
     deriving (Typeable, Data)
+
+instance Functor Abs where
+    fmap f (Abs x t) = Abs x $ f t
+
+instance FunctorM Abs where 
+    fmapM f (Abs x t) = Abs x <$> f t
 
 data Why   = Why	  deriving (Typeable, Data)
 
@@ -87,6 +112,15 @@ instance Show MetaId where
 ---------------------------------------------------------------------------
 -- * Smart constructors
 ---------------------------------------------------------------------------
+
+blockedTerm :: MetaId -> Term -> Term
+blockedTerm x t = BlockedV $ Blocked x t
+
+blockedType :: MetaId -> Type -> Type
+blockedType x t = BlockedT $ Blocked x t
+
+blockedSort :: MetaId -> Sort -> Sort
+blockedSort x t = BlockedS $ Blocked x t
 
 set0   = Sort (Type 0)
 set n  = Sort (Type n)

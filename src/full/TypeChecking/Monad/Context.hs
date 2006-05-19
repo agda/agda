@@ -43,6 +43,13 @@ getScope = gets stScopeInfo
 getConstraints :: TCM Constraints
 getConstraints = gets stConstraints
 
+-- | Take constraints (clear all constraints).
+takeConstraints :: TCM Constraints
+takeConstraints =
+    do	cs <- getConstraints
+	modify $ \s -> s { stConstraints = Map.empty }
+	return cs
+
 -- | Get the meta store.
 getMetaStore :: TCM MetaStore
 getMetaStore = gets stMetaStore
@@ -70,6 +77,16 @@ getContext = asks envContext
 
 getSignature :: TCM Signature
 getSignature = gets stSignature
+
+setSignature :: Signature -> TCM ()
+setSignature sig = modify $ \s -> s { stSignature = sig }
+
+withSignature :: Signature -> TCM () -> TCM ()
+withSignature sig m =
+    do	sig0 <- getSignature
+	setSignature sig
+	m
+	setSignature sig0
 
 -- | Get the current context as a 'Telescope' (everything 'Hidden').
 getContextTelescope :: TCM Telescope

@@ -11,6 +11,8 @@ import Syntax.Internal
 import TypeChecking.Monad
 import TypeChecking.Monad.Context
 
+import TypeChecking.Monad.Debug
+
 #ifndef __HADDOCK__
 import {-# SOURCE #-} TypeChecking.Conversion
 #endif
@@ -41,21 +43,20 @@ addCnstr mIds c = do
         stMetaStore   = foldr (Map.adjust $ addCId cId) (stMetaStore st) mIds
         })        
 
--- TODO: remove constraint.
--- Alternative (used in Agda) retry all constraints every time.
--- We probably generate very few constraints.
-wakeup cId = do
-    cnstrs <- getConstraints
-    case Map.lookup cId cnstrs of
-        Just (sig, env, ValueEq a m1 m2) -> go sig env $ equalVal Why a m1 m2
-        Just (sig, env, TypeEq a1 a2)    -> go sig env $ equalTyp Why a1 a2
-	_				 -> __IMPOSSIBLE__
+-- | We ignore the constraint ids and (as in Agda) retry all constraints every time.
+--   We probably generate very few constraints.
+wakeupConstraints :: TCM ()
+wakeupConstraints =
+    do	cs <- takeConstraints
+	mapM_ retry $ Map.elems cs
   where
-    go sig env v = do
-        sigCurrent <- gets stSignature
-        modify (\st -> st{stSignature = sig})
-        local (const env) v
-        modify (\st -> st{stSignature = sigCurrent})
+    retry (sig,env,c) =
+	withSignature sig
+	$ local (const env)
+	$ try c
+
+    try (ValueEq a u v) = equalVal Why a u v
+    try (TypeEq a b)	= equalTyp Why a b
 
 getCIds (UnderScoreV _ _ cIds) = cIds
 getCIds (UnderScoreT _ _ cIds) = cIds

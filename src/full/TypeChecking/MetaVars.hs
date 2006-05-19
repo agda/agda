@@ -54,7 +54,7 @@ setRef _ x v = do
     store <- gets stMetaStore
     let (cIds, store') = replace x v store
     modify (\st -> st{stMetaStore = store'})
-    mapM_ wakeup cIds
+    wakeupConstraints
   where
     replace x v store =
 	case Map.insertLookupWithKey upd x v store of
@@ -170,26 +170,24 @@ instV v = InstV __IMPOSSIBLE__ v __IMPOSSIBLE__
 
 instT = InstT __IMPOSSIBLE__
 
--- | Extended occurs check
---
-
+-- | Extended occurs check.
 class Occurs a where
     occ :: MetaId -> [Nat] -> a -> TCM a
 
 instance Occurs Term where
     occ m ok v =
-	do  v' <- reduce v
+	do  v' <- instantiate v
 	    case v' of
 		Var n vs    ->
 		    case findIdx ok n of
 			Just n'	-> Var n' <$> occ m ok vs
 			Nothing	-> patternViolation [m]
-		Lam f []    -> flip Lam [] <$> occ m ok f
+		Lam f vs    -> Lam <$> occ m ok f <*> occ m ok vs
 		Lit l	    -> return $ Lit l
 		Def c vs    -> Def c <$> occ m ok vs
 		Con c vs    -> Con c <$> occ m ok vs
-		MetaV m' vs -> occMeta MetaV instV reduce m ok m' vs
-		Lam f _	    -> __IMPOSSIBLE__
+		MetaV m' vs -> occMeta MetaV instV instantiate m ok m' vs
+		BlockedV b  -> occ m ok $ blockee b
 
 instance Occurs Type where
     occ m ok t =
@@ -199,6 +197,7 @@ instance Occurs Type where
 		Pi h w f    -> uncurry (Pi h) <$> occ m ok (w,f)
 		Sort s	    -> Sort <$> occ m ok s
 		MetaT m' vs -> occMeta MetaT instT instantiate m ok m' vs
+		BlockedT b  -> occ m ok $ blockee b
 		LamT _	    -> __IMPOSSIBLE__
 
 instance Occurs Sort where

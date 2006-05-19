@@ -17,6 +17,7 @@ import Syntax.Internal.Walk
 import TypeChecking.Monad
 import TypeChecking.Monad.Context
 import TypeChecking.Substitute
+import TypeChecking.Patterns.Match
 
 import Utils.Monad
 
@@ -39,7 +40,8 @@ normalise = walk (mkM redType `extM` redTerm `extM` redSort)
 
 -- | Instantiate something.
 --   Results in an open meta variable or a non meta.
---   Doesn't do any reduction.
+--   Doesn't do any reduction, and preserves blocking tags (when blocking meta
+--   is uninstantiated).
 class Instantiate t where
     instantiate :: t -> TCM t
 
@@ -49,6 +51,11 @@ instance Instantiate Term where
 	    case mv of
 		InstV _ a' _ -> instantiate $ a' `apply` args
 		_	     -> return t
+    instantiate v@(BlockedV (Blocked x u)) =
+	do  mv <- lookupMeta x
+	    case mv of
+		InstV _ _ _ -> instantiate u
+		_	    -> return v
     instantiate t = return t
 
 instance Instantiate Type where
@@ -57,6 +64,7 @@ instance Instantiate Type where
 	    case mv of
 		InstT _ a' -> instantiate $ a' `apply` args
 		_	       -> return t
+    instantiate (BlockedT b) = instantiate $ blockee b
     instantiate t = return t
 
 instance Instantiate Sort where
@@ -102,66 +110,50 @@ instance Reduce t => Reduce (Arg t) where
     reduce = fmapM reduce
 
 instance Reduce Term where
-    reduce v = go v where
-	go v =
-	    do  v <- instantiate v
-		case v of
-		    Lam (Abs _ v') (Arg h arg:args) ->
-			do  a <- go arg
-			    go $ subst a v' `apply` args
-		    MetaV _ _ -> return v
-		    Def f args ->
-			do  def <- defClauses <$> getConstInfo f
-			    case def of
-				[] -> return v -- no definition for head
-				cls@(Clause ps _ : _) -> 
-				    if length ps == length args then
-					do  ev <- appDef v cls args
-					    either return go ev
-				    else if length ps < length args then
-					let (args1,args2) = splitAt (length ps) args 
-					in do   ev <- appDef v cls args1
-						case ev of
-						    Left v	-> return v
-						    Right v	-> go $ v `apply` args2
-				    else return v -- partial application
-		    Con c args ->
-			do  c' <- canonicalConstructor c
-			    return $ Con c' args
-		    _ -> return v
+    reduce v =
+	do  v <- instantiate v
+	    case v of
+		Lam (Abs _ v') (Arg h arg:args) ->
+		    do  a <- reduce arg
+			reduce $ subst a v' `apply` args
+		MetaV _ _ -> return v
+		Def f args ->
+		    do  def <- defClauses <$> getConstInfo f
+			case def of
+			    [] -> return v -- no definition for head
+			    cls@(Clause ps _ : _) -> 
+				if length ps == length args then
+				    do	ev <- appDef v cls args
+					either return reduce ev
+				else if length ps < length args then
+				    let (args1,args2) = splitAt (length ps) args 
+				    in do   ev <- appDef v cls args1
+					    case ev of
+						Left v	-> return v
+						Right v	-> reduce $ v `apply` args2
+				else return v -- partial application
+		Con c args ->
+		    do  c' <- canonicalConstructor c
+			return $ Con c' args
+		BlockedV _ -> return v
+		Lit _	   -> return v
+		Var _ _	   -> return v
+		Lam _ []   -> return v
+	where
 
-	-- Apply a defined function to it's arguments.
-	--   First arg is original value which is needed in case no clause matches.
-	--	 'Left' means no match and 'Right' means match.
-	appDef :: Term -> [Clause] -> Args -> TCM (Either Term Term)
-	appDef v cls args = goCls cls =<< (fmapM . fmapM) go args where
-	    goCls [] _ = return $ Left v -- no clause matched, can happen with parameter arguments
-	    goCls (cl@(Clause pats body) : cls) args =
-		case matchPats [] pats args of
-		    Just args' -> Right <$> app args' body
-		    Nothing -> goCls cls args
-	    app [] (Body v') = return v'
-	    app (arg : args) (Bind (Abs _ body)) =
-		do  v <- go arg	-- call by value
-		    app args $ subst v body
-	    app _ _ = __IMPOSSIBLE__
-	    
-
-	-- Match the given patterns to the given arguments.
-	--   Returns updated list of values to instantiate the
-	--     bound variables in the patterns.
-	-- TODO: data Match = Yes [Term] | No | DontKnow
-	matchPats :: [Term] -> [Arg Pattern] -> Args -> Maybe [Term]
-	matchPats curArgs (Arg _ pat:pats) (Arg _ arg:args) = do
-	    newArgs <- matchPat curArgs pat arg 
-	    matchPats newArgs pats args
-	matchPats curArgs [] [] = Just curArgs
-	matchPats _ _ _ = __IMPOSSIBLE__
-
-	matchPat :: [Term] -> Pattern -> Term -> Maybe [Term]
-	matchPat curArgs (VarP x) arg = Just $ curArgs++[arg]
-	matchPat curArgs (ConP c pats) arg =
-	    case arg of 
-		Con c' args | c' == c -> matchPats curArgs pats args 
-		_ -> Nothing
+	    -- Apply a defined function to it's arguments.
+	    --   First arg is original value which is needed in case no clause matches.
+	    --	 'Left' means no match and 'Right' means match.
+	    appDef :: Term -> [Clause] -> Args -> TCM (Either Term Term)
+	    appDef v cls args = goCls cls =<< reduce args where
+		goCls [] _ = return $ Left v -- no clause matched, can happen with parameter arguments
+		goCls (cl@(Clause pats body) : cls) args =
+		    case matchPatterns pats args of
+			Yes args'	      -> Right <$> app args' body
+			No		      -> goCls cls args
+			DontKnow Nothing  -> return $ Left v
+			DontKnow (Just m) -> return $ Left $ blockedTerm m v
+		app [] (Body v') = return v'
+		app (arg : args) (Bind (Abs _ body)) = app args $ subst arg body -- CBV
+		app _ _ = __IMPOSSIBLE__
 

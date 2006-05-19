@@ -127,8 +127,7 @@ module examples.Vec where
   rename : {m,n : Nat} -> (m `Ren` n) -> Tm m -> Tm n
   rename {m}{n} m2n (evar i)   = evar (vProj m m2n i)
   rename {m}{n} m2n (eapp f s) = eapp (rename m2n f) (rename m2n s)
-  rename {m}{n} m2n (elam t)   = elam (rename {suc m} {suc n} (liftR m n m2n) t)
-				  -- not good ^^^^^^^^^^^^^^^
+  rename {m}{n} m2n (elam t)   = elam (rename (liftR m n m2n) t)
 
   {- Substitutions -}
 
@@ -147,19 +146,16 @@ module examples.Vec where
 
   {- lifting functor for substitution -}
 
-  evar' : {n:Nat} -> Fin n -> Tm n
-  evar' = evar
-
   liftS : (m,n : Nat) -> m `Sub` n -> suc m `Sub` suc n
-  liftS m n m2n = pair (evar' {suc n} (inl unit))
-		       (vMap m (rename{n}{suc n} (vMap n inr (idR n))) m2n)
+  liftS m n m2n = pair (evar (inl unit))
+		       (vMap m (rename (vMap n inr (idR n))) m2n)
 
   {- functor from Sub to Tm-arrows -}
 
   subst : {m,n : Nat} -> m `Sub` n -> Tm m -> Tm n
   subst {m}{n} m2n (evar i)   = vProj m m2n i
   subst {m}{n} m2n (eapp f s) = subst m2n f `eapp` subst m2n s
-  subst {m}{n} m2n (elam t)   = elam (subst{suc m}{suc n} (liftS m n m2n ) t)
+  subst {m}{n} m2n (elam t)   = elam (subst (liftS m n m2n) t)
 
   {- and now we can define composition -}
 

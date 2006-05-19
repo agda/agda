@@ -16,6 +16,7 @@ import Utils.Monad
 #include "../undefined.h"
 
 -- | Apply something to a bunch of arguments.
+--   Preserves blocking tags (application can never resolve blocking).
 class Apply t where
     apply :: t -> Args -> t
 
@@ -27,13 +28,17 @@ instance Apply Term where
 	    Def c args'   -> Def c (args'++args)
 	    Con c args'   -> Con c (args'++args)
 	    MetaV x args' -> MetaV x (args'++args) 
-	    _		  -> __IMPOSSIBLE__
+	    BlockedV b	  -> BlockedV $ b `apply` args
+	    Lit l	  -> __IMPOSSIBLE__
 
 instance Apply Type where
     apply a []	= a
     apply (MetaT x args') args		  = MetaT x (args' ++ args)
     apply (LamT (Abs _ a)) (Arg _ v:args) = subst v a `apply` args
-    apply _ _				  = __IMPOSSIBLE__
+    apply (BlockedT b) args		  = BlockedT $ b `apply` args
+    apply (Sort s) _			  = __IMPOSSIBLE__
+    apply (Pi _ _ _) _			  = __IMPOSSIBLE__
+    apply (El _ _) _			  = __IMPOSSIBLE__
 
 instance Apply Definition where
     apply (Defn t n d@(Constructor _ _ _)) args =
@@ -56,6 +61,9 @@ instance Apply ClauseBody where
 
 instance Apply t => Apply [t] where
     apply ts args = map (`apply` args) ts
+
+instance Apply t => Apply (Blocked t) where
+    apply b args = fmap (`apply` args) b
 
 piApply :: Type -> Args -> Type
 piApply t []			  = t
@@ -114,6 +122,7 @@ instance Subst Term where
 	    Con c vs	    -> Con c $ substAt n u vs
 	    MetaV x vs	    -> MetaV x $ substAt n u vs
 	    Lit l	    -> Lit l
+	    BlockedV b	    -> BlockedV $ substAt n u b
 
 instance Subst Type where
     substAt n u t =
@@ -123,6 +132,10 @@ instance Subst Type where
 	    Sort s     -> Sort s
 	    MetaT x vs -> MetaT x $ substAt n u vs
 	    LamT b     -> LamT $ substAt n u b
+	    BlockedT b -> BlockedT $ substAt n u b
+
+instance Subst t => Subst (Blocked t) where
+    substAt n u b = fmap (substAt n u) b
 
 instance (Data a, Subst a) => Subst (Abs a) where
     substAt n u (Abs x t) = Abs x $ substAt (n + 1) (raise 1 u) t
