@@ -19,6 +19,7 @@ import Syntax.Abstract
 import Syntax.Translation.ConcreteToAbstract
 import Syntax.Parser
 import Syntax.Scope
+import Syntax.Internal
 
 import TypeChecker
 import TypeChecking.Monad
@@ -86,7 +87,7 @@ interactionLoop typeCheck =
 	    , "reload"	|>  \_ -> do reload
 				     ContinueIn <$> ask
 	    , "constraints" |> \_ -> continueAfter showConstraints
-	    , "meta" |> \_ -> continueAfter showMetas
+	    , "meta" |> \args -> continueAfter $ showMetas args
 	    ]
 	    where
 		(|>) = (,)
@@ -102,19 +103,25 @@ showConstraints =
     where
 	prc (x,(_,ctx,c)) = show x ++ ": " ++ show ctx ++ " |- " ++ show c
 
-showMetas :: TCM ()
-showMetas =
+showMetas :: [String] -> TCM ()
+showMetas [m]
+    | [(i,"")] <- reads m   =
+	do  mv <- lookupMeta (MetaId i)
+	    liftIO $ putStrLn $ "?" ++ show i ++ " " ++ show mv
+showMetas [] =
     do	m <- Map.filter interesting <$> getMetaStore
 	m <- normalise m
 	liftIO $ putStrLn $ unlines $ List.map prm $ Map.assocs m
     where
-	prm (x,i) = "?" ++ show x ++ " := " ++ show i
+	prm (x,i) = "?" ++ show x ++ " " ++ show i
 
 	interesting (HoleV _ _ _)	= True
 	interesting (HoleT _ _ _)	= True
 	interesting (UnderScoreV _ _ _) = True
 	interesting (UnderScoreT _ _ _) = True
 	interesting _			= False
+showMetas _ = liftIO $ putStrLn $ ":meta [metaid]"
+
 {-
 parseExprMeta :: Int -> String -> TCM Expr
     do	i <- fresh
