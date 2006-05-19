@@ -509,6 +509,12 @@ initScopeState = ScopeState { freshId = 0 }
 -- * Resolving names
 ---------------------------------------------------------------------------
 
+setConcreteName :: CName.Name -> AName.Name -> AName.Name
+setConcreteName c a = a { nameConcrete = c }
+
+setConcreteQName :: CName.QName -> DefinedName -> DefinedName
+setConcreteQName c d = d { theName = (theName d) { qnameConcrete = c } }
+
 -- | Resolve a qualified name. Peals off name spaces until it gets
 --   to an unqualified name and then applies the first argument.
 resolve :: a -> (LocalVariables -> NameSpace -> CName.Name -> a) ->
@@ -528,12 +534,12 @@ resolve def f x si = res x vs (ns `plusNameSpace` ns')
 
 -- | Figure out what a qualified name refers to.
 resolveName :: CName.QName -> ScopeInfo -> ResolvedName
-resolveName = resolve UnknownName r
+resolveName q = resolve UnknownName r q
     where
 	r vs ns x =
 	    fromMaybe UnknownName $ mconcat
-	    [ VarName <$> Map.lookup x vs
-	    , DefName <$> Map.lookup x (definedNames ns)
+	    [ VarName . setConcreteName x  <$> Map.lookup x vs
+	    , DefName . setConcreteQName q <$> Map.lookup x (definedNames ns)
 	    ]
 
 -- | Monadic version of 'resolveName'.
