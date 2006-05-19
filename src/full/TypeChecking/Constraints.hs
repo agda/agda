@@ -57,6 +57,8 @@ wakeupConstraints =
 
     try (ValueEq a u v) = equalVal Why a u v
     try (TypeEq a b)	= equalTyp Why a b
+    try (SortLeq s1 s2)	= leqSort s1 s2
+    try (SortEq s1 s2)	= equalSort s1 s2
 
 getCIds (UnderScoreV _ _ cIds) = cIds
 getCIds (UnderScoreT _ _ cIds) = cIds

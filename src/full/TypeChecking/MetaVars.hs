@@ -50,10 +50,10 @@ allCtxVars = do
 
 setRef :: Data a => a -> MetaId -> MetaVariable -> TCM ()
 setRef _ x v = do
---     debug $ "?" ++ show x ++ " := " ++ show v
     store <- gets stMetaStore
     let (cIds, store') = replace x v store
     modify (\st -> st{stMetaStore = store'})
+--     debug $ "?" ++ show x ++ show (Map.findWithDefault __IMPOSSIBLE__ x store')
     wakeupConstraints
   where
     replace x v store =
@@ -167,8 +167,8 @@ restrictParameters ok ps
 
 
 instV v = InstV __IMPOSSIBLE__ v __IMPOSSIBLE__
-
-instT = InstT __IMPOSSIBLE__
+instT	= InstT __IMPOSSIBLE__
+instS	= InstS __IMPOSSIBLE__
 
 -- | Extended occurs check.
 class Occurs a where
@@ -197,7 +197,6 @@ instance Occurs Type where
 		Pi h w f    -> uncurry (Pi h) <$> occ m ok (w,f)
 		Sort s	    -> Sort <$> occ m ok s
 		MetaT m' vs -> occMeta MetaT instT instantiate m ok m' vs
-		BlockedT b  -> occ m ok $ blockee b
 		LamT _	    -> __IMPOSSIBLE__
 
 instance Occurs Sort where
@@ -247,12 +246,11 @@ instance Occurs a => Occurs [a] where
 --     Then do extended occurs check on given thing.
 --
 assign :: (Show a, Data a, Occurs a, Abstract a) => MetaId -> Args -> a -> TCM ()
-assign x args = mkQ (fail "assign") (ass instV) `extQ` (ass instT) where
+assign x args = mkQ (fail "assign") (ass instV) `extQ` ass instT `extQ` ass instS where
     ass :: (Show a, Data a, Occurs a, Abstract a) => (a -> MetaVariable) -> a -> TCM ()
     ass inst v = do
 	let pshow (Arg NotHidden x) = show x
 	    pshow (Arg Hidden x) = "{" ++ show x ++ "}"
-	store <- gets stMetaStore
         ids <- checkArgs x args
         v' <- occ x ids v
 	--debug $ "assign ?" ++ show x ++ " " ++ show args ++ " := " ++ show v'

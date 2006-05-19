@@ -78,6 +78,8 @@ newtype ConstraintId = CId Nat
 
 data Constraint = ValueEq Type Term Term
 		| TypeEq Type Type
+		| SortLeq Sort Sort
+		| SortEq Sort Sort
   deriving (Show, Typeable, Data)
 
 type Constraints = Map ConstraintId (Signature,TCEnv,Constraint)
@@ -164,6 +166,7 @@ data Defn = Axiom
 	  | Function [Clause] IsAbstract
 	  | Datatype Nat	-- nof parameters
 		     [QName]	-- constructor names
+		     Sort
 		     IsAbstract
 	  | Constructor Nat	-- nof parameters
 			QName	-- name of datatype

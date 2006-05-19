@@ -188,10 +188,11 @@ checkDataDef i x ps cs =
 	    npars = length ps
 	t <- typeOfConst name
 	n <- asks $ length . envContext
-	bindParameters ps t $ \s ->
-	    mapM_ (checkConstructor name npars s) cs
+	s <- bindParameters ps t $ \s ->
+	    do	mapM_ (checkConstructor name npars s) cs
+		return s
 	addConstant name (Defn t n $ Datatype npars (map (cname m) cs)
-					      (defAbstract i)
+					      s (defAbstract i)
 			 )
     where
 	cname m (A.Axiom _ x _) = qualify m x
@@ -253,9 +254,10 @@ forceData d t =
 	    El (Def d' _) _
 		| d == d'   -> return t'
 	    MetaT m vs	    ->
-		do  Defn t _ (Datatype n _ _) <- getConstInfo d
+		do  Defn t _ (Datatype n _ s _) <- getConstInfo d
 		    ps <- newArgsMeta t
-		    s  <- getSort t'
+		    s' <- getSort t'
+		    equalSort s s'
 		    assign m vs $ El (Def d ps) s
 		    reduce t'
 	    _		    -> fail $ show t ++ " should be application of " ++ show d
@@ -357,24 +359,6 @@ forceSort r t =
 	    _	-> fail $ "not a sort " ++ show t
 
 
--- | Check that the first sort is less or equal to the second.
---   The second sort is always 'Prop' or @'Type' n@.
-leqSort :: Sort -> Sort -> TCM ()
-leqSort s1 s2 =
-    do	s1' <- instantiate s1
-	s2' <- instantiate s2
-
-	case (s1',s2') of
-	    (Prop, Prop)	      -> return ()
-	    (Prop, Type n)   | n >= 1 -> return ()
-	    (Type n, Type m) | n <= m -> return ()
-	    (Lub s1a s1b, _)	      -> leqSort s1a s2' >> leqSort s1b s2'
-	    (Suc s, Type n)  | n >= 1 -> leqSort s (Type $ n - 1)
-	    (MetaS m, _)	      -> 
-                do  i <- createMetaInfo 
-                    setRef () m (InstS i s2')
-	    _			      -> fail $ show s1 ++ " is not less or equal to " ++ show s2
-
 ---------------------------------------------------------------------------
 -- * Types
 ---------------------------------------------------------------------------
@@ -405,16 +389,21 @@ isType e =
 forcePi :: Hiding -> Type -> TCM Type
 forcePi h t =
     do	t' <- reduce t
--- 	debug $ "forcePi " ++ show t
--- 	debug $ "    --> " ++ show t'
+-- 	debug $ "forcePi " ++ show t'
 	case t' of
 	    Pi _ _ _	-> return t'
 	    MetaT m vs	->
 		do  s <- getSort t'
 		    i <- getMetaInfo <$> lookupMeta m
-		    a <- newTypeMeta s
+
+		    sa <- newSortMeta
+		    sb <- newSortMeta
+		    equalSort s (sLub sa sb)
+
+		    a <- newTypeMeta sa
 		    x <- freshName (getRange i) "x"
-		    b <- addCtx x a $ newTypeMeta s
+		    b <- addCtx x a $ newTypeMeta sb
+		    
 		    assign m vs $ Pi h a $ Abs "x" b
 		    reduce t'
 	    _		-> fail $ "Not a pi: " ++ show t
@@ -474,12 +463,11 @@ checkExpr e t =
 	    _ ->
 		case e of
 		    A.Lam i (A.DomainFull b) e ->
-			do  s  <- getSort t
-			    checkTypedBinding b $ \tel ->
-				do  t1 <- newTypeMeta s
-				    escapeContext (length tel) $ equalTyp () t (buildPi tel t1)
-				    v <- checkExpr e t1
-				    return $ buildLam (map name tel) v
+			checkTypedBinding b $ \tel ->
+			    do  t1 <- newTypeMeta_
+				escapeContext (length tel) $ equalTyp () t (buildPi tel t1)
+				v <- checkExpr e t1
+				return $ buildLam (map name tel) v
 			where
 			    name (Arg h (x,_)) = Arg h x
 
@@ -512,10 +500,10 @@ inferHead (HeadVar _ x) =
 	return (Var n [], t)
 inferHead (HeadCon i x) =
     do	workingOn x
-	Defn t _ (Constructor n d _)
-			<- getConstInfo x
-	t0		<- newTypeMeta_    -- TODO: not so nice
-	El (Def _ vs) _ <- forceData  d t0
+	Defn t _ (Constructor n d _) <- getConstInfo x
+	s			     <- sortOfConst d
+	t0			     <- newTypeMeta s    -- TODO: not so nice
+	El (Def _ vs) _		     <- forceData d t0
 	let t1 = substs (map unArg vs) t
 	ctx <- getContext
 -- 	debug $ "HeadCon " ++ show x ++ " : " ++ show t1
@@ -590,23 +578,6 @@ inferExpr e =
 ---------------------------------------------------------------------------
 -- * To be moved somewhere else
 ---------------------------------------------------------------------------
-
--- | Get the sort of a type. Should be moved somewhere else.
-getSort :: Type -> TCM Sort
-getSort t =
-    do	t' <- reduce t
-	case t' of
-	    El _ s	     -> return s
-	    Pi _ a (Abs _ b) -> Lub <$> getSort a <*> getSort b
-	    Sort s	     -> return $ sSuc s
-	    MetaT m _	     ->
-		do  store <- gets stMetaStore
-		    case Map.lookup m store of
-			Just (UnderScoreT _ s _) -> return s
-			Just (HoleT _ s _)	 -> return s
-			_			 -> __IMPOSSIBLE__
-	    BlockedT b	    -> getSort $ blockee b
-	    LamT _	    -> __IMPOSSIBLE__
 
 buildPi :: [Arg (String,Type)] -> Type -> Type
 buildPi tel t = foldr (\ (Arg h (x,a)) b -> Pi h a (Abs x b) ) t tel

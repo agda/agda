@@ -119,6 +119,7 @@ showMetas [] =
 	interesting (HoleT _ _ _)	= True
 	interesting (UnderScoreV _ _ _) = True
 	interesting (UnderScoreT _ _ _) = True
+	interesting (UnderScoreS _ _)	= True
 	interesting _			= False
 showMetas _ = liftIO $ putStrLn $ ":meta [metaid]"
 

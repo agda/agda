@@ -101,36 +101,115 @@ equalArg _ a args1 args2 = do
 
 
 -- | Equality on Types
---   Assumes @Type@s being compared are at the same @Sort@
---   !!! Safe to not have @LamT@ case? @LamT@s shouldn't surface?
---
 equalTyp :: Data a => a -> Type -> Type -> TCM ()
-equalTyp _ a1 a2 = do
-    a1' <- instantiate a1
-    a2' <- instantiate a2
-    ctx <- map fst <$> getContext
---     debug $ "equalTyp in " ++ show ctx
---     debug $ "            " ++ show a1 ++ " == " ++ show a2
---     debug $ "            " ++ show a1' ++ " == " ++ show a2'
-    case (a1', a2') of
-        (El m1 s1, El m2 s2) ->
-            equalVal Why (sort s1) m1 m2
-        (Pi h a1 a2, Pi h' b1 b2) -> do
-            equalTyp Why a1 b1
-            let Abs x a2' = raise 1 a2
-            let Abs _ b2' = raise 1 b2
-	    name <- freshName_ x
-            addCtx name a1 $ equalTyp Why (subst (Var 0 []) a2') (subst (Var 0 []) b2')
-        (Sort s1, Sort s2) -> return ()
-        (MetaT x xDeps, MetaT y yDeps) | x == y -> 
-            equalSameVar (\x -> MetaT x []) instT x xDeps yDeps -- !!! MetaT???
-        (MetaT x xDeps, a) -> assign x xDeps a 
-        (a, MetaT x xDeps) -> assign x xDeps a 
-	(LamT _, _)   -> __IMPOSSIBLE__
-	(BlockedT b1, BlockedT b2) -> addCnstr [blockingMeta b1,blockingMeta b2] (TypeEq a1' a2')
-	(BlockedT b, _)		   -> addCnstr [blockingMeta b] (TypeEq a1' a2')
-	(_,BlockedT b)		   -> addCnstr [blockingMeta b] (TypeEq a1' a2')
-	(El _ _, _)		   -> fail $ show a1' ++ " != " ++ show a2'
-	(Pi _ _ _, _)		   -> fail $ show a1' ++ " != " ++ show a2'
-	(Sort _, _)		   -> fail $ show a1' ++ " != " ++ show a2'
+equalTyp _ a1 a2 =
+    do	do  s1 <- getSort a1
+	    s2 <- getSort a2
+	    equalSort s1 s2
+	a1' <- instantiate a1
+	a2' <- instantiate a2
+-- 	ctx <- map fst <$> getContext
+-- 	debug $ "equalTyp in " ++ show ctx
+-- 	debug $ "            " ++ show a1 ++ " == " ++ show a2
+-- 	debug $ "            " ++ show a1' ++ " == " ++ show a2'
+	case (a1', a2') of
+	    (El m1 s1, El m2 s2) ->
+		equalVal Why (sort s1) m1 m2
+	    (Pi h a1 a2, Pi h' b1 b2) -> do
+		equalTyp Why a1 b1
+		let Abs x a2' = raise 1 a2
+		let Abs _ b2' = raise 1 b2
+		name <- freshName_ x
+		addCtx name a1 $ equalTyp Why (subst (Var 0 []) a2') (subst (Var 0 []) b2')
+	    (Sort s1, Sort s2) -> return ()
+	    (MetaT x xDeps, MetaT y yDeps) | x == y -> 
+		equalSameVar (\x -> MetaT x []) instT x xDeps yDeps -- !!! MetaT???
+	    (MetaT x xDeps, a) -> assign x xDeps a 
+	    (a, MetaT x xDeps) -> assign x xDeps a 
+	    (LamT _, _)   -> __IMPOSSIBLE__
+	    (El _ _, _)		   -> fail $ show a1' ++ " != " ++ show a2'
+	    (Pi _ _ _, _)		   -> fail $ show a1' ++ " != " ++ show a2'
+	    (Sort _, _)		   -> fail $ show a1' ++ " != " ++ show a2'
+
+---------------------------------------------------------------------------
+-- * Sorts
+---------------------------------------------------------------------------
+
+-- | Check that the first sort is less or equal to the second.
+leqSort :: Sort -> Sort -> TCM ()
+leqSort s1 s2 =
+    do	(s1,s2) <- reduce (s1,s2)
+-- 	debug $ "leqSort " ++ show s1 ++ " <= " ++ show s2
+	case (s1,s2) of
+
+	    (Prop    , Prop    )	     -> return ()
+	    (Type _  , Prop    )	     -> notLeq s1 s2
+	    (Suc _   , Prop    )	     -> notLeq s1 s2
+
+	    (Prop    , Type 0  )	     -> notLeq s1 s2
+	    (Prop    , Type n  )	     -> return ()
+	    (Type n  , Type m  ) | n <= m    -> return ()
+				 | otherwise -> notLeq s1 s2
+	    (Suc s   , Type n  ) | n >= 1    -> leqSort s (Type $ n - 1)
+				 | otherwise -> notLeq s1 s2
+	    (Suc s1  , Suc s2  )	     -> leqSort s1 s2
+	    (_	     , Suc _   )	     -> addCnstr [] (SortLeq s1 s2)
+
+	    (Lub a b , _       )	     -> leqSort a s2 >> leqSort b s2
+	    (_	     , Lub _ _ )	     -> addCnstr [] (SortLeq s1 s2)
+
+	    (MetaS x , MetaS y ) | x == y    -> return ()
+	    (MetaS x , _       )	     -> addCnstr [x] (SortLeq s1 s2)
+	    (_	     , MetaS x )	     -> addCnstr [x] (SortLeq s1 s2)
+    where
+	notLeq s1 s2 = fail $ show s1 ++ " is not less or equal to " ++ show s2
+
+-- | Check that the first sort equal to the second.
+equalSort :: Sort -> Sort -> TCM ()
+equalSort s1 s2 =
+    do	(s1,s2) <- reduce (s1,s2)
+-- 	debug $ "equalSort " ++ show s1 ++ " == " ++ show s2
+	case (s1,s2) of
+
+	    (Prop    , Prop    )	     -> return ()
+	    (Type _  , Prop    )	     -> notEq s1 s2
+	    (Prop    , Type _  )	     -> notEq s1 s2
+	    (Suc _   , Prop    )	     -> notEq s1 s2
+	    (Prop    , Suc _   )	     -> notEq s1 s2
+
+	    (Type n  , Type m  ) | n == m    -> return ()
+				 | otherwise -> notEq s1 s2
+	    (Suc s   , Type n  ) | n >= 1    -> equalSort s (Type $ n - 1)
+				 | otherwise -> notEq s1 s2
+	    (Type n  , Suc s   ) | n >= 1    -> equalSort (Type $ n - 1) s
+	    (Suc s1  , Suc s2  )	     -> equalSort s1 s2
+	    (_	     , Suc _   )	     -> addCnstr [] (SortEq s1 s2)
+	    (Suc _   , _       )	     -> addCnstr [] (SortEq s1 s2)
+
+	    (Lub _ _ , _       )	     -> addCnstr [] (SortEq s1 s2)
+	    (_	     , Lub _ _ )	     -> addCnstr [] (SortEq s1 s2)
+
+	    (MetaS x , MetaS y ) | x == y    -> return ()
+				 | otherwise -> assign x [] s2
+	    (MetaS x , Type _  )	     -> assign x [] s2
+	    (MetaS x , Prop    )	     -> assign x [] s2
+	    (_	     , MetaS x )	     -> equalSort s2 s1
+    where
+	notEq s1 s2 = fail $ show s1 ++ " is not less or equal to " ++ show s2
+
+-- | Get the sort of a type. Should be moved somewhere else.
+getSort :: Type -> TCM Sort
+getSort t =
+    do	t' <- reduce t
+	case t' of
+	    El _ s	     -> return s
+	    Pi _ a (Abs _ b) -> sLub <$> getSort a <*> getSort b
+	    Sort s	     -> return $ sSuc s
+	    MetaT m _	     ->
+		do  mv <- lookupMeta m
+		    case mv of
+			UnderScoreT _ s _ -> return s
+			HoleT _ s _	  -> return s
+			_		  -> __IMPOSSIBLE__
+	    LamT _	    -> __IMPOSSIBLE__
 

@@ -204,7 +204,7 @@ makeAbstract :: Definition -> Maybe Definition
 makeAbstract d = do def <- makeAbs $ theDef d
 		    return d { theDef = def }
     where
-	makeAbs (Datatype _ _ AbstractDef)    = Just Axiom
+	makeAbs (Datatype _ _ _ AbstractDef)  = Just Axiom
 	makeAbs (Function _ AbstractDef)      = Just Axiom
 	makeAbs (Constructor _ _ AbstractDef) = Nothing
 	makeAbs d			      = Just d
@@ -227,10 +227,16 @@ treatAbstractly' q env
 	m = envCurrentModule env
 
 -- | get type of a constant 
---
 typeOfConst :: QName -> TCM Type
 typeOfConst q = defType <$> (instantiateDef =<< getConstInfo q)
 
+-- | The name must be a datatype.
+sortOfConst :: QName -> TCM Sort
+sortOfConst q =
+    do	d <- theDef <$> getConstInfo q
+	case d of
+	    Datatype _ _ s _	-> return s
+	    _			-> fail $ "Expected " ++ show q ++ " to be a datatype."
 
 escapeContext :: Int -> TCM a -> TCM a
 escapeContext n = local $ \e -> e { envContext = drop n $ envContext e }

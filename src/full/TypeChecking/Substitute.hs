@@ -35,10 +35,13 @@ instance Apply Type where
     apply a []	= a
     apply (MetaT x args') args		  = MetaT x (args' ++ args)
     apply (LamT (Abs _ a)) (Arg _ v:args) = subst v a `apply` args
-    apply (BlockedT b) args		  = BlockedT $ b `apply` args
     apply (Sort s) _			  = __IMPOSSIBLE__
     apply (Pi _ _ _) _			  = __IMPOSSIBLE__
     apply (El _ _) _			  = __IMPOSSIBLE__
+
+instance Apply Sort where
+    apply s [] = s
+    apply s _  = __IMPOSSIBLE__
 
 instance Apply Definition where
     apply (Defn t n d@(Constructor _ _ _)) args =
@@ -48,7 +51,7 @@ instance Apply Definition where
 instance Apply Defn where
     apply Axiom _		     = Axiom
     apply (Function cs a) args	     = Function (apply cs args) a
-    apply (Datatype np cs a) args    = Datatype (np - length args) cs a
+    apply (Datatype np cs s a) args  = Datatype (np - length args) cs s a
     apply (Constructor np cs a) args = Constructor (np - length args) cs a
 
 instance Apply Clause where
@@ -80,6 +83,10 @@ instance Abstract Term where
 instance Abstract Type where
     abstract tel a = foldl (\a _ -> LamT (Abs "x" a)   ) a $ reverse tel
 
+instance Abstract Sort where
+    abstract [] s = s
+    abstract _ s = __IMPOSSIBLE__
+
 instance Abstract Definition where
     abstract tel (Defn t n d@(Constructor _ _ _)) = Defn t n (abstract tel d)
     abstract tel (Defn t n d) = Defn (telePi tel t) n (abstract tel d)
@@ -87,7 +94,7 @@ instance Abstract Definition where
 instance Abstract Defn where
     abstract tel Axiom		       = Axiom
     abstract tel (Function cs a)       = Function (abstract tel cs) a
-    abstract tel (Datatype np cs a)    = Datatype (length tel + np) cs a	-- TODO?
+    abstract tel (Datatype np cs s a)  = Datatype (length tel + np) cs s a
     abstract tel (Constructor np cs a) = Constructor (length tel + np) cs a
 
 instance Abstract Clause where
@@ -132,7 +139,6 @@ instance Subst Type where
 	    Sort s     -> Sort s
 	    MetaT x vs -> MetaT x $ substAt n u vs
 	    LamT b     -> LamT $ substAt n u b
-	    BlockedT b -> BlockedT $ substAt n u b
 
 instance Subst t => Subst (Blocked t) where
     substAt n u b = fmap (substAt n u) b

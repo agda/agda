@@ -65,7 +65,6 @@ typ2str (LamT (Abs _ a)) = do
     aStr <- local (+ 1) $ typ2str a
     n <- ask
     return $ "[x"++(show $ n + 1)++"] "++aStr
-typ2str (BlockedT b) = block2str <$> fmapM typ2str b
 
 args2str :: (MonadReader Int m) => String -> Args -> m String
 args2str hd [] = return hd
@@ -79,7 +78,6 @@ srt2str Prop	    = "prop"
 srt2str (MetaS x)   = "?"++(show x)
 srt2str (Lub s1 s2) = (srt2str s1)++" \\/ "++(srt2str s2)
 srt2str (Suc s)	    = show s ++ "+1"
-srt2str (BlockedS b) = block2str $ fmap srt2str b
 
 instance Show Term where show v = runReader (val2str v) 0
 instance Show Type where show a = runReader (typ2str a) 0

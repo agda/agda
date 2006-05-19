@@ -35,7 +35,6 @@ data Type = El Term Sort
 	  | Sort Sort
 	  | MetaT MetaId Args	    -- ^ list of dependencies for metavars
           | LamT (Abs Type)	    -- ^ abstraction needed for metavar dependency management
-	  | BlockedT (Blocked Type) -- ^ returned by 'TypeChecking.Reduce.reduce'
   deriving (Typeable, Data) 
 
 data Sort = Type Nat
@@ -43,7 +42,6 @@ data Sort = Type Nat
 	  | Lub Sort Sort
 	  | Suc Sort
 	  | MetaS MetaId 
-	  | BlockedS (Blocked Sort) -- ^ returned by 'TypeChecking.Reduce.reduce'
   deriving (Typeable, Data, Eq)
 
 -- | Something where a particular meta variable blocks reduction.
@@ -113,14 +111,8 @@ instance Show MetaId where
 -- * Smart constructors
 ---------------------------------------------------------------------------
 
-blockedTerm :: MetaId -> Term -> Term
-blockedTerm x t = BlockedV $ Blocked x t
-
-blockedType :: MetaId -> Type -> Type
-blockedType x t = BlockedT $ Blocked x t
-
-blockedSort :: MetaId -> Sort -> Sort
-blockedSort x t = BlockedS $ Blocked x t
+blocked :: MetaId -> Term -> Term
+blocked x t = BlockedV $ Blocked x t
 
 set0   = Sort (Type 0)
 set n  = Sort (Type n)

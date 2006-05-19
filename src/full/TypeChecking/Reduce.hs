@@ -64,7 +64,6 @@ instance Instantiate Type where
 	    case mv of
 		InstT _ a' -> instantiate $ a' `apply` args
 		_	       -> return t
-    instantiate (BlockedT b) = instantiate $ blockee b
     instantiate t = return t
 
 instance Instantiate Sort where
@@ -80,6 +79,9 @@ instance Instantiate t => Instantiate (Arg t) where
 
 instance Instantiate t => Instantiate [t] where
     instantiate = mapM instantiate
+
+instance (Instantiate a, Instantiate b) => Instantiate (a,b) where
+    instantiate (x,y) = (,) <$> instantiate x <*> instantiate y
 
 --
 -- Reduction to weak head normal form.
@@ -108,6 +110,9 @@ instance Reduce t => Reduce [t] where
 
 instance Reduce t => Reduce (Arg t) where
     reduce = fmapM reduce
+
+instance (Reduce a, Reduce b) => Reduce (a,b) where
+    reduce (x,y) = (,) <$> reduce x <*> reduce y
 
 instance Reduce Term where
     reduce v =
@@ -152,8 +157,8 @@ instance Reduce Term where
 			Yes args'	      -> Right <$> app args' body
 			No		      -> goCls cls args
 			DontKnow Nothing  -> return $ Left v
-			DontKnow (Just m) -> return $ Left $ blockedTerm m v
+			DontKnow (Just m) -> return $ Left $ blocked m v
 		app [] (Body v') = return v'
-		app (arg : args) (Bind (Abs _ body)) = app args $ subst arg body -- CBV
+		app (arg : args) (Bind (Abs _ body)) = app args $ subst arg body -- CBN
 		app _ _ = __IMPOSSIBLE__
 
