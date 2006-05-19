@@ -272,18 +272,18 @@ checkFunDef i x cs =
 	name <- flip qualify x <$> currentModule
 	t    <- typeOfConst name
 
-	-- Check that all clauses have the same number of arguments
-	unless (allEqual $ map npats cs) $ fail $ "equations give different arities for function " ++ show x
-
 	-- Check the clauses
 	cs' <- mapM (checkClause t) cs
+
+	-- Check that all clauses have the same number of arguments
+	unless (allEqual $ map npats cs') $ fail $ "equations give different arities for function " ++ show x
 
 	-- Add the definition
 	m   <- currentModule
 	n   <- asks $ length . envContext
 	addConstant (qualify m x) $ Defn t n $ Function cs' $ defAbstract i
     where
-	npats (A.Clause (A.LHS _ _ ps) _ _) = length ps
+	npats (Clause ps _) = length ps
 
 
 -- | Type check a function clause.
