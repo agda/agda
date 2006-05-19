@@ -178,6 +178,7 @@ module Syntax.Scope where
 import Control.Exception
 import Control.Monad.Reader
 import Control.Monad.State
+import Data.Generics (Data,Typeable)
 import Data.Monoid
 import Data.Typeable
 import Data.Map as Map
@@ -231,7 +232,7 @@ data DefinedName =
 		    , fixity	 :: Fixity
 		    , theName    :: AName.QName
 		    }
-    deriving (Show)
+    deriving (Data,Typeable,Show)
 
 {-| There are three kinds of defined names: function names, constructor names,
     and datatype names. It's probably a good idea to single out constructor
@@ -246,7 +247,7 @@ data DefinedName =
 -}
 data KindOfName = FunName   -- ^ also includes datatypes
 		| ConName
-    deriving (Eq, Show)
+    deriving (Eq, Show,Typeable,Data)
 
 -- | In addition to the names a module contains (which are stored in the
 --   'NameSpace') we need to keep track of the arity of a module and whether
@@ -256,7 +257,7 @@ data ModuleScope	=
 		    , moduleAccess	:: Access
 		    , moduleContents	:: NameSpace
 		    }
-    deriving (Show)
+    deriving (Show,Typeable,Data)
 
 -- | When you 'resolveModule', this is what you get back.
 data ResolvedModule
@@ -281,7 +282,7 @@ data NameSpace =
 		, definedNames	:: DefinedNames
 		, modules	:: Modules
 		}
-    deriving (Show)
+    deriving (Data,Typeable,Show)
 
 {-| The @privateNameSpace@ and the @publicNameSpace@ don't clash. The reason
     for separating the private and the public name space is that when we leave
@@ -300,6 +301,7 @@ data ScopeInfo = ScopeInfo
 	, localVariables    :: LocalVariables
 	, contextPrecedence :: Precedence
 	}
+   deriving (Data,Typeable)
 
 -- | We need to generate fresh name ids when scope checking.
 data ScopeState = ScopeState

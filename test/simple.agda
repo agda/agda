@@ -54,7 +54,7 @@ module Monad where
 	    Monad m
 
   return : {m:Set -> Set} -> {a:Set} -> Monad m -> a -> m a
-  return {_} {a} (monad ret _) x = ret x
+  return (monad ret _) x = ret x
 
 module Stack where
 
@@ -67,13 +67,13 @@ module Stack where
 
     abstract
       empty : {A:Set} -> Stack A
-      empty {A} = snil
+      empty = snil
 
       push : {A:Set} -> A -> Stack A -> Stack A
-      push {A} x s = scons x s
+      push x s = scons x s
 
     unit : {A:Set} -> A -> Stack A
-    unit {A} x = push x empty
+    unit x = push x empty
 
 module TestStack where
 

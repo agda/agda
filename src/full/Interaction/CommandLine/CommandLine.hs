@@ -1,6 +1,6 @@
 {-# OPTIONS -cpp -fglasgow-exts #-}
 
-module Interaction.CommandLine where
+module Interaction.CommandLine.CommandLine where
 
 import Prelude hiding (print, putStr, putStrLn)
 import Utils.IO
@@ -97,7 +97,7 @@ continueAfter m = m >> return Continue
 showConstraints :: TCM ()
 showConstraints =
     do	cs <- getConstraints
-	cs <- refresh cs
+	cs <- normalise cs
 	liftIO $ putStrLn $ unlines $ List.map prc $ Map.assocs cs
     where
 	prc (x,(_,ctx,c)) = show x ++ ": " ++ show ctx ++ " |- " ++ show c
@@ -105,7 +105,7 @@ showConstraints =
 showMetas :: TCM ()
 showMetas =
     do	m <- Map.filter interesting <$> getMetaStore
-	m <- refresh m
+	m <- normalise m
 	liftIO $ putStrLn $ unlines $ List.map prm $ Map.assocs m
     where
 	prm (x,i) = "?" ++ show x ++ " := " ++ show i
@@ -115,6 +115,16 @@ showMetas =
 	interesting (UnderScoreV _ _ _) = True
 	interesting (UnderScoreT _ _ _) = True
 	interesting _			= False
+{-
+parseExprMeta :: Int -> String -> TCM Expr
+    do	i <- fresh
+	scope <- getScope
+	let ss = ScopeState { freshId = i }
+	liftIO $ concreteToAbstract ss scope c
+    where
+	c = parse exprParser s
+
+-}
 
 parseExpr :: String -> TCM Expr
 parseExpr s =
@@ -127,10 +137,10 @@ parseExpr s =
 
 evalTerm s =
     do	e <- parseExpr s
-	t <- newTypeMeta_ (getRange e)
+	t <- newTypeMeta_ 
 	v <- checkExpr e t
-	t' <- refresh t
-	v' <- refresh v
+	t' <- normalise t
+	v' <- normalise v
 	liftIO $ putStrLn $ show v' ++ " : " ++ show t'
 	return Continue
 

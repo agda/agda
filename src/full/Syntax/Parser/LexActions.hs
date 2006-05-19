@@ -197,7 +197,7 @@ qualified tok =
     where
 	-- Compute the ranges for the substrings (separated by '.') of a name.
 	mkName :: Range -> [String] -> [Name]
-	mkName _ []	= __IMPOSSIBLE__
+	mkName _ []	= []
 	mkName r [x]	= [Name r x]
 	mkName r (x:xs) = Name r0 x : mkName r1 xs
 	    where

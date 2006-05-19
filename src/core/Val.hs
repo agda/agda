@@ -38,10 +38,12 @@ apps (App h us) vs = App h (us ++ vs)
 app :: Val -> Val -> Val
 app u1 u2 = apps u1 [u2]
 
+-- itCurry u ((x1:A1,...,xn:An) -> A) F is (x1:A1,...,xn:An) -> F (u x1...xn)
 itCurry :: Val -> Val -> (Val -> Val) -> Val
 itCurry u (Fun v g) f = Fun v (\ w -> itCurry (app u w) (g w) f)
 itCurry u _ f = f u
 
+-- inst ((x1:A1,...,xn:An) -> A) (u1 ... un) is A[u1,...,un]
 inst :: Val -> [Val] -> Val
 inst w [] = w
 inst (Fun _ f) (u:us) = inst (f u) us

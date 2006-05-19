@@ -8,10 +8,12 @@ import Control.Monad.State
 import Control.Monad.Reader
 import Data.Generics
 
-import Syntax.Position
+
 import Syntax.Common
+import Syntax.Info
 import Syntax.Internal
 import Syntax.Internal.Debug ()
+import Syntax.Position
 import Syntax.Scope
 
 import Utils.Fresh
@@ -26,6 +28,8 @@ data TCState =
 	 , stConstraints    :: Constraints
 	 , stSignature	    :: Signature
 	 , stScopeInfo	    :: ScopeInfo
+	 , stTrace	    :: Trace
+	    -- ^ record what is happening (for error msgs)
 	 }
 
 data FreshThings =
@@ -42,6 +46,7 @@ initState =
 	 , stConstraints = Map.empty
 	 , stSignature   = Map.empty
 	 , stScopeInfo	 = emptyScopeInfo_
+	 , stTrace	 = noTrace
 	 }
 
 instance HasFresh MetaId FreshThings where
@@ -75,7 +80,7 @@ data Constraint = ValueEq Type Term Term
 		| TypeEq Type Type
   deriving (Show, Typeable, Data)
 
-type Constraints = Map ConstraintId (Signature,Context,Constraint)
+type Constraints = Map ConstraintId (Signature,TCEnv,Constraint)
 
 ---------------------------------------------------------------------------
 -- ** Meta variables
@@ -92,21 +97,27 @@ data MetaVariable = InstV MetaInfo Term Type
   deriving (Typeable, Data, Show)
 
 type MetaStore = Map MetaId MetaVariable
-type MetaInfo = Range
 
 instance HasRange MetaVariable where
-    getRange m = case m of
-	InstV i _ _	  -> getRange i
-	InstT i _	  -> getRange i
-	InstS i _	  -> getRange i
-	UnderScoreV i _ _ -> getRange i
-	UnderScoreT i _ _ -> getRange i
-	UnderScoreS i _   -> getRange i
-	HoleV i _ _	  -> getRange i
-	HoleT i _ _	  -> getRange i
+    getRange m = getRange $ getMetaInfo m
 
+getMetaScope :: MetaVariable -> ScopeInfo
+getMetaScope m = metaScope $ getMetaInfo m
+
+ 
 getMetaInfo :: MetaVariable -> MetaInfo
-getMetaInfo m = getRange m
+getMetaInfo m = 
+     case m of
+	InstV i _ _	  -> i
+	InstT i _	  -> i
+	InstS i _	  -> i
+	UnderScoreV i _ _ -> i
+	UnderScoreT i _ _ -> i
+	UnderScoreS i _   -> i
+	HoleV i _ _	  -> i
+	HoleT i _ _	  -> i
+
+
 
 ---------------------------------------------------------------------------
 -- ** Signature
@@ -129,7 +140,7 @@ data ModuleDef = MDef { mdefName       :: ModuleName
 		      }
     deriving (Show, Typeable, Data)
 
-data Definition = Defn { defType     :: Type
+data Definition = Defn { defType     :: Type	-- type of the lifted definition
 		       , defFreeVars :: Nat
 		       , theDef	     :: Defn
 		       }
@@ -151,6 +162,19 @@ defClauses _			      = []
 
 
 ---------------------------------------------------------------------------
+-- * Trace
+---------------------------------------------------------------------------
+
+-- | The trace is just a range at the moment.
+newtype Trace = Trace { traceRange :: Range }
+
+noTrace :: Trace
+noTrace = Trace noRange
+
+instance HasRange Trace where
+    getRange (Trace r) = r
+
+---------------------------------------------------------------------------
 -- * Type checking environment
 ---------------------------------------------------------------------------
 
@@ -163,7 +187,7 @@ data TCEnv =
 		--   To prevent information about abstract things leaking
 		--   outside the module.
 	  }
-    deriving (Show)
+    deriving (Typeable, Data, Show)
 
 initEnv :: TCEnv
 initEnv = TCEnv { envContext	   = []
@@ -181,13 +205,13 @@ type Context = [(Name, Type)]
 -- * Type checking errors
 ---------------------------------------------------------------------------
 
-data TCErr = Fatal String 
+data TCErr = Fatal Range String
 	   | PatternErr [MetaId] -- ^ for pattern violations, carries involved metavars
   deriving Show
 
 instance Error TCErr where
-    noMsg = Fatal ""
-    strMsg s = Fatal s
+    noMsg    = Fatal noRange ""
+    strMsg s = Fatal noRange s
 
 patternViolation mIds = throwError $ PatternErr mIds
 
@@ -196,11 +220,20 @@ patternViolation mIds = throwError $ PatternErr mIds
 ---------------------------------------------------------------------------
 
 type TCErrT = ErrorT TCErr
-type TCM = StateT TCState (ReaderT TCEnv (TCErrT IO))
+newtype TCM a = TCM { unTCM :: StateT TCState (ReaderT TCEnv (TCErrT IO)) a }
+    deriving (MonadState TCState, MonadReader TCEnv, MonadError TCErr, MonadIO)
 
+-- We want a special monad implementation of fail.
+instance Monad TCM where
+    return  = TCM . return
+    m >>= k = TCM $ unTCM m >>= unTCM . k
+    fail s  = TCM $ do	r <- gets $ getRange . stTrace
+			throwError $ Fatal r s
+
+-- | Running the type checking monad
 runTCM :: TCM a -> IO (Either TCErr a)
 runTCM m = runErrorT
 	 $ flip runReaderT initEnv
 	 $ flip evalStateT initState
-	 $ m
+	 $ unTCM m
 

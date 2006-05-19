@@ -40,7 +40,8 @@ data Declaration
 -- | A definition without its type signature.
 data Definition
 	= FunDef     DefInfo Name [Clause]
-	| DataDef    DefInfo Name [LamBinding] [Constructor]	-- ^ the 'LamBinding's are 'DomainFree' and binds the parameters of the datatype.
+	| DataDef    DefInfo Name [LamBinding] [Constructor]
+	    -- ^ the 'LamBinding's are 'DomainFree' and binds the parameters of the datatype.
 
 -- | Only 'Axiom's.
 type TypeSignature  = Declaration

@@ -227,25 +227,37 @@ bindParameters _ _ _ = __IMPOSSIBLE__
 -- | Check that a type constructs something of the given datatype.
 --   TODO: what if there's a meta here?
 constructs :: Type -> QName -> TCM ()
-constructs (Pi _ _ b) d = constructs (absBody b) d
-constructs (El (Def d' _) _) d
-    | d == d'	= return ()
-constructs t d = fail $ show t ++ " should be application of " ++ show d
+constructs t q = constr 0 t q
+    where
+	constr n (Pi _ _ b) d = constr (n + 1) (absBody b) d
+	constr n (El (Def d' vs) _) d
+	    | d == d'	= checkParams n =<< mapM (reduce . unArg) vs
+	constr _ t d = fail $ show t ++ " should be application of " ++ show d
+
+	checkParams n vs
+	    | vs `sameVars` ps = return ()
+	    | otherwise	       = fail $ show q ++ " should be applied to its parameters in the target of a constructor"
+				    ++ show vs ++ show ps
+	    where
+		ps = reverse [ Var i [] | (i,_) <- zip [n..] vs ]
+		sameVar (Var i []) (Var j []) = i == j
+		sameVar _ _		      = False
+		sameVars xs ys = and $ zipWith sameVar xs ys
 
 
 -- | Force a type to be a specific datatype.
-forceData :: Range -> QName -> Type -> TCM Type
-forceData r d t =
-    do	t' <- reduceType t
+forceData :: QName -> Type -> TCM Type
+forceData d t =
+    do	t' <- reduce t
 	case t' of
 	    El (Def d' _) _
 		| d == d'   -> return t'
 	    MetaT m vs	    ->
 		do  Defn t _ (Datatype n _ _) <- getConstInfo d
-		    ps <- newArgsMeta r t
+		    ps <- newArgsMeta t
 		    s  <- getSort t'
 		    assign m vs $ El (Def d ps) s
-		    reduceType t'
+		    reduce t'
 	    _		    -> fail $ show t ++ " should be application of " ++ show d
 
 ---------------------------------------------------------------------------
@@ -278,23 +290,33 @@ checkFunDef i x cs =
 checkClause :: Type -> A.Clause -> TCM Clause
 checkClause _ (A.Clause _ _ (_:_))  = fail "checkClause: local definitions not implemented"
 checkClause t (A.Clause (A.LHS i x ps) rhs []) =
-    checkPatterns ps t $ \xs ps _ t' ->
-	do  v <- checkExpr rhs t'
-	    return $ Clause ps $ foldr (\x t -> Bind $ Abs x t) (Body v) xs
+    do	workingOn i
+	checkPatterns ps t $ \xs ps _ t' ->
+	    do  ctx <- getContext
+		v <- checkExpr rhs t'
+		return $ Clause ps $ foldr (\x t -> Bind $ Abs x t) (Body v) xs
 
 
 -- | Check the patterns of a left-hand-side. Binds the variables of the pattern.
 --   TODO: add hidden arguments.
 checkPatterns :: [Arg A.Pattern] -> Type -> ([String] -> [Arg Pattern] -> [Arg Term] -> Type -> TCM a) -> TCM a
-checkPatterns [] t ret	   = ret [] [] [] t
-checkPatterns (Arg h p:ps) t ret =
-    do	t' <- forcePi h t
--- 	debug $ "checkPatterns " ++ showA (Arg h p:ps) ++ " : " ++ show t'
+checkPatterns [] t ret	   =
+    do	t' <- instantiate t
 	case t' of
-	    Pi h' a b | h == h' ->
+	    Pi Hidden a b   ->
+		do  r <- whereAmI
+		    checkPatterns [Arg Hidden $ A.WildP $ PatRange r] t' ret
+	    _		    -> ret [] [] [] t
+checkPatterns (Arg h p:ps) t ret =
+    do	workingOn p
+	t' <- forcePi h t
+	case (h,t') of
+	    (NotHidden, Pi Hidden _ _) ->
+		checkPatterns (Arg Hidden (A.WildP $ PatRange $ getRange p) : Arg h p : ps) t' ret
+	    (_,Pi h' a b) | h == h' ->
 		checkPattern p a $ \xs p' v ->
 		do  let b' = raise (length xs) b
-		    checkPatterns ps (substAbs v b') $ \ys ps' vs t'' ->
+		    checkPatterns ps (absApp v b') $ \ys ps' vs t'' ->
 			do  let v' = raise (length ys) v
 			    ret (xs ++ ys) (Arg h p':ps')(Arg h v':vs) t''
 	    _ -> fail $ show t ++ " should be a " ++ show h ++ " function type"
@@ -308,11 +330,13 @@ checkPattern (A.WildP i) t ret =
     do	x <- freshNoName (getRange i)
 	addCtx x t $ ret [show x] (VarP "_") (Var 0 [])
 checkPattern (A.ConP i c ps) t ret =
-    do	Defn t' _ (Constructor n d _) <- instantiateDef =<< getConstInfo c
-	El (Def _ vs) _		      <- forceData (getRange i) d t
+    do	workingOn i
+	Defn t' _ (Constructor n d _) <- instantiateDef =<< getConstInfo c
+	El (Def _ vs) _		      <- forceData d t
 	c'			      <- canonicalConstructor c
-	checkPatterns ps (substs (map unArg vs) t') $ \xs ps' ts' _ ->
-	    ret xs (ConP c' ps') (Con c' ts')
+	checkPatterns ps (substs (map unArg vs) t') $ \xs ps' ts' rest ->
+	    do	equalTyp () rest (raise (length xs) t)
+		ret xs (ConP c' ps') (Con c' ts')
 
 
 ---------------------------------------------------------------------------
@@ -322,11 +346,12 @@ checkPattern (A.ConP i c ps) t ret =
 -- | Make sure that a type is a sort (instantiate meta variables if necessary).
 forceSort :: Range -> Type -> TCM Sort
 forceSort r t =
-    do	t' <- reduceType t
+    do	workingOn r
+	t' <- reduce t
 	case t' of
 	    Sort s	 -> return s
 	    MetaT m args ->
-		do  s <- newSortMeta r
+		do  s <- newSortMeta
 		    assign m args (Sort s)
 		    return s
 	    _	-> fail $ "not a sort " ++ show t
@@ -336,15 +361,18 @@ forceSort r t =
 --   The second sort is always 'Prop' or @'Type' n@.
 leqSort :: Sort -> Sort -> TCM ()
 leqSort s1 s2 =
-    do	s1' <- instSort s1
-	s2' <- instSort s2
+    do	s1' <- instantiate s1
+	s2' <- instantiate s2
+
 	case (s1',s2') of
 	    (Prop, Prop)	      -> return ()
 	    (Prop, Type n)   | n >= 1 -> return ()
 	    (Type n, Type m) | n <= m -> return ()
 	    (Lub s1a s1b, _)	      -> leqSort s1a s2' >> leqSort s1b s2'
 	    (Suc s, Type n)  | n >= 1 -> leqSort s (Type $ n - 1)
-	    (MetaS m, _)	      -> setRef () m (InstS noRange s2')
+	    (MetaS m, _)	      -> 
+                do  i <- createMetaInfo 
+                    setRef () m (InstS i s2')
 	    _			      -> fail $ show s1 ++ " is not less or equal to " ++ show s2
 
 ---------------------------------------------------------------------------
@@ -354,23 +382,29 @@ leqSort s1 s2 =
 -- | Check that an expression is a type.
 isType :: A.Expr -> TCM Type
 isType e =
-    case e of
-	A.Prop _	 -> return $ prop
-	A.Set _ n	 -> return $ set n
-	A.Pi _ b e	 ->
-	    checkTypedBinding b $ \tel ->
-		do  t <- isType e
-		    return $ buildPi tel t
-	A.QuestionMark i -> newQuestionMarkT_ (getRange i)
-	A.Underscore i	 -> newTypeMeta_ (getRange i)
-	_		 -> inferTypeExpr e
+    do	workingOn e
+        
+	case e of
+	    A.Prop _	     -> return $ prop
+	    A.Set _ n	     -> return $ set n
+	    A.Pi _ b e	     ->
+		checkTypedBinding b $ \tel ->
+		    do  t <- isType e
+			return $ buildPi tel t
+	    A.QuestionMark i -> 
+                do  setScope (metaScope i)
+                    newQuestionMarkT_ 
+	    A.Underscore i   -> 
+                do  setScope (metaScope i)
+                    newTypeMeta_ 
+	    _		     -> inferTypeExpr e
 
 
 -- | Force a type to be a Pi. Instantiates if necessary. The 'Hiding' is only
 --   used when instantiating a meta variable.
 forcePi :: Hiding -> Type -> TCM Type
 forcePi h t =
-    do	t' <- reduceType t
+    do	t' <- reduce t
 -- 	debug $ "forcePi " ++ show t
 -- 	debug $ "    --> " ++ show t'
 	case t' of
@@ -378,18 +412,18 @@ forcePi h t =
 	    MetaT m vs	->
 		do  s <- getSort t'
 		    i <- getMetaInfo <$> lookupMeta m
-		    a <- newTypeMeta i s
+		    a <- newTypeMeta s
 		    x <- freshName (getRange i) "x"
-		    b <- addCtx x a $ newTypeMeta i s
+		    b <- addCtx x a $ newTypeMeta s
 		    assign m vs $ Pi h a $ Abs "x" b
-		    reduceType t'
+		    reduce t'
 	    _		-> fail $ "Not a pi: " ++ show t
 
 
 -- | Infer the sort of an expression which should be a type. Always returns 'El' something.
 inferTypeExpr :: A.Expr -> TCM Type
 inferTypeExpr e =
-    do	s <- newSortMeta (getRange e)
+    do	s <- newSortMeta 
 	v <- checkExpr e (Sort s)
 	return $ El v s
 
@@ -410,7 +444,7 @@ checkTelescope (b : tel) ret =
 -- | Check a typed binding and extends the context with the bound variables.
 --   The telescope passed to the continuation is valid in the original context.
 checkTypedBinding :: A.TypedBinding -> ([Arg (String,Type)] -> TCM a) -> TCM a
-checkTypedBinding b@(A.TypedBinding _ h xs e) ret =
+checkTypedBinding b@(A.TypedBinding i h xs e) ret =
     do	t <- isType e
 	addCtxs xs t $ ret $ mkTel xs t
     where
@@ -425,53 +459,63 @@ checkTypedBinding b@(A.TypedBinding _ h xs e) ret =
 -- | Type check an expression.
 checkExpr :: A.Expr -> Type -> TCM Term
 checkExpr e t =
-    case appView e of
-	Application hd args ->
-	    do	--debug $ "checkExpr " ++ showA e ++ " : " ++ show t
-		(v,t0) <- inferHead hd
-		---debug $ "  head " ++ show v ++ " : " ++ show t0
-		vs     <- checkArguments (getRange hd) args t0 t
-		--debug $ "  args " ++ show vs
-		return $ v `apply` vs
-	_ ->
-	    case e of
-		A.Lam i (A.DomainFull b) e ->
-		    do	s  <- getSort t
-			checkTypedBinding b $ \tel ->
-			    do	t1 <- newTypeMeta (getRange e) s
-				escapeContext (length tel) $ equalTyp () t (buildPi tel t1)
-				v <- checkExpr e t1
-				return $ buildLam (map name tel) v
-		    where
-			name (Arg h (x,_)) = Arg h x
+    do	workingOn e
+	case appView e of
+	    Application hd args ->
+		do  
+		    ctx <- getContext
+-- 		    debug $ "checkExpr " ++ showA e ++ " : " ++ show t
+-- 		    debug $ "       in\n" ++ unlines (map (("   " ++) . show) ctx)
+		    (v,t0) <- inferHead hd
+-- 		    debug $ "  head " ++ show v ++ " : " ++ show t0
+		    vs     <- checkArguments (getRange hd) args t0 t
+-- 		    debug $ "  args " ++ show vs
+		    return $ v `apply` vs
+	    _ ->
+		case e of
+		    A.Lam i (A.DomainFull b) e ->
+			do  s  <- getSort t
+			    checkTypedBinding b $ \tel ->
+				do  t1 <- newTypeMeta s
+				    escapeContext (length tel) $ equalTyp () t (buildPi tel t1)
+				    v <- checkExpr e t1
+				    return $ buildLam (map name tel) v
+			where
+			    name (Arg h (x,_)) = Arg h x
 
-		A.Lam i (A.DomainFree h x) e ->
-		    do	t' <- forcePi h t
-			case t' of
-			    Pi h' a (Abs _ b) | h == h' ->
-				addCtx x a $
-				do  v <- checkExpr e b
-				    return $ Lam (Abs (show x) v) []
-			    _	-> fail $ "expected " ++ show h ++ " function space, found " ++ show t'
+		    A.Lam i (A.DomainFree h x) e ->
+			do  t' <- forcePi h t
+			    case t' of
+				Pi h' a (Abs _ b) | h == h' ->
+				    addCtx x a $
+				    do  v <- checkExpr e b
+					return $ Lam (Abs (show x) v) []
+				_	-> fail $ "expected " ++ show h ++ " function space, found " ++ show t'
 
-		A.QuestionMark i -> newQuestionMark (getRange i) t
-		A.Underscore i	 -> newValueMeta (getRange i) t
-		A.Lit lit	 -> fail "checkExpr: literals not implemented"
-		A.Let i ds e	 -> fail "checkExpr: let not implemented"
-		_		 -> fail $ "not a proper term: " ++ show (abstractToConcrete_ e)
+		    A.QuestionMark i -> 
+                        do  setScope (metaScope i)
+                            newQuestionMark  t
+		    A.Underscore i   -> 
+                        do  setScope (metaScope i)
+                            newValueMeta t
+		    A.Lit lit	     -> fail "checkExpr: literals not implemented"
+		    A.Let i ds e     -> fail "checkExpr: let not implemented"
+		    _		     -> fail $ "not a proper term: " ++ show (abstractToConcrete_ e)
 
 
 -- | Infer the type of a head thing (variable, function symbol, or constructor)
 inferHead :: Head -> TCM (Term, Type)
 inferHead (HeadVar _ x) =
-    do	n <- varIndex x
+    do	workingOn x
+	n <- varIndex x
 	t <- typeOfBV n
 	return (Var n [], t)
 inferHead (HeadCon i x) =
-    do	Defn t _ (Constructor n d _)
+    do	workingOn x
+	Defn t _ (Constructor n d _)
 			<- getConstInfo x
-	t0		<- newTypeMeta_ (getRange x)   -- TODO: not so nice
-	El (Def _ vs) _ <- forceData (getRange i) d t0
+	t0		<- newTypeMeta_    -- TODO: not so nice
+	El (Def _ vs) _ <- forceData  d t0
 	let t1 = substs (map unArg vs) t
 	ctx <- getContext
 -- 	debug $ "HeadCon " ++ show x ++ " : " ++ show t1
@@ -479,7 +523,8 @@ inferHead (HeadCon i x) =
 -- 	debug $ "        " ++ show ctx
 	return (Con x [], t1)
 inferHead (HeadDef _ x) =
-    do	d <- instantiateDef =<< getConstInfo x
+    do	workingOn x
+	d <- instantiateDef =<< getConstInfo x
 	gammaDelta <- getContextTelescope
 	let t	  = defType d
 	    gamma = take (defFreeVars d) gammaDelta
@@ -496,12 +541,13 @@ inferHead (HeadDef _ x) =
 --   make this happen.
 checkArguments :: Range -> [Arg A.Expr] -> Type -> Type -> TCM Args
 checkArguments r [] t0 t1 =
-    do	t0' <- reduceType t0
-	t1' <- reduceType t1
+    do	workingOn r
+	t0' <- reduce t0
+	t1' <- reduce t1
 	case t0' of
 	    Pi Hidden a b | notMetaOrHPi t1'  ->
-		    do	v  <- newValueMeta r a
-			vs <- checkArguments r [] (substAbs v b) t1'
+		    do	v  <- newValueMeta a
+			vs <- checkArguments r [] (absApp v b) t1'
 			return $ Arg Hidden v : vs
 	    _ ->    do	equalTyp () t0' t1'
 			return []
@@ -511,15 +557,16 @@ checkArguments r [] t0 t1 =
 	notMetaOrHPi _		     = True
 
 checkArguments r (Arg h e : args) t0 t1 =
-    do	t0' <- forcePi h t0
+    do	workingOn r
+	t0' <- forcePi h t0
 	case (h, t0') of
 	    (NotHidden, Pi Hidden a b) ->
-		do  u  <- newValueMeta r a
-		    us <- checkArguments r (Arg h e : args) (substAbs u b) t1
+		do  u  <- newValueMeta a
+		    us <- checkArguments r (Arg h e : args) (absApp u b) t1
 		    return $ Arg Hidden u : us
 	    (_, Pi h' a b) | h == h' ->
 		do  u  <- checkExpr e a
-		    us <- checkArguments (fuseRange r e) args (substAbs u b) t1
+		    us <- checkArguments (fuseRange r e) args (absApp u b) t1
 		    return $ Arg h u : us
 	    (Hidden, Pi NotHidden _ _) ->
 		fail $ "can't give hidden argument " ++ showA e ++ " to something of type " ++ show t0
@@ -536,7 +583,7 @@ checkArguments_ r args tel =
 --   variable.
 inferExpr :: A.Expr -> TCM (Term, Type)
 inferExpr e =
-    do	t <- newTypeMeta_ (getRange e)
+    do	t <- newTypeMeta_ 
 	v <- checkExpr e t
 	return (v,t)
 
@@ -547,11 +594,11 @@ inferExpr e =
 -- | Get the sort of a type. Should be moved somewhere else.
 getSort :: Type -> TCM Sort
 getSort t =
-    do	t' <- reduceType t
+    do	t' <- reduce t
 	case t' of
 	    El _ s	     -> return s
 	    Pi _ a (Abs _ b) -> Lub <$> getSort a <*> getSort b
-	    Sort s	     -> sSuc s
+	    Sort s	     -> return $ sSuc s
 	    MetaT m _	     ->
 		do  store <- gets stMetaStore
 		    case Map.lookup m store of
@@ -565,12 +612,5 @@ buildPi tel t = foldr (\ (Arg h (x,a)) b -> Pi h a (Abs x b) ) t tel
 
 buildLam :: [Arg String] -> Term -> Term
 buildLam xs t = foldr (\ (Arg _ x) t -> Lam (Abs x t) []) t xs
-
--- | Get the next higher sort. Move somewhere else.
-sSuc :: Sort -> TCM Sort
-sSuc Prop	 = return $ Type 1
-sSuc (Type n)	 = return $ Type $ n + 1
-sSuc (Lub s1 s2) = Lub <$> sSuc s1 <*> sSuc s2
-sSuc s		 = return $ Suc s
 
 

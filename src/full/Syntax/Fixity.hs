@@ -35,7 +35,7 @@ defaultFixity = LeftAssoc noRange 20
 data Precedence = TopCtx | FunctionSpaceDomainCtx
 		| LeftOperandCtx Fixity | RightOperandCtx Fixity
 		| FunctionCtx | ArgumentCtx
-    deriving (Show)
+    deriving (Show,Typeable,Data)
 
 -- | The precedence corresponding to a possibly hidden argument.
 hiddenArgumentCtx :: Hiding -> Precedence

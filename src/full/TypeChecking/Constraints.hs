@@ -9,6 +9,8 @@ import Data.List as List
 
 import Syntax.Internal
 import TypeChecking.Monad
+import TypeChecking.Monad.Context
+
 #ifndef __HADDOCK__
 import {-# SOURCE #-} TypeChecking.Conversion
 #endif
@@ -31,25 +33,28 @@ catchConstr cnstr v =
 --
 addCnstr :: [MetaId] -> Constraint -> TCM ()
 addCnstr mIds c = do
-    ctx <- asks envContext
-    sig <- gets stSignature
+    env <- ask
+    sig <- getSignature
     cId <- fresh
     modify (\st -> st{
-        stConstraints = Map.insert cId (sig,ctx,c) $ stConstraints st,
+        stConstraints = Map.insert cId (sig,env,c) $ stConstraints st,
         stMetaStore   = foldr (Map.adjust $ addCId cId) (stMetaStore st) mIds
         })        
 
+-- TODO: remove constraint.
+-- Alternative (used in Agda) retry all constraints every time.
+-- We probably generate very few constraints.
 wakeup cId = do
-    cnstrs <- gets stConstraints
+    cnstrs <- getConstraints
     case Map.lookup cId cnstrs of
-        Just (sig, ctx, ValueEq a m1 m2) -> go sig ctx $ equalVal Why a m1 m2
-        Just (sig, ctx, TypeEq a1 a2)    -> go sig ctx $ equalTyp Why a1 a2
+        Just (sig, env, ValueEq a m1 m2) -> go sig env $ equalVal Why a m1 m2
+        Just (sig, env, TypeEq a1 a2)    -> go sig env $ equalTyp Why a1 a2
 	_				 -> __IMPOSSIBLE__
   where
-    go sig ctx v = do
+    go sig env v = do
         sigCurrent <- gets stSignature
         modify (\st -> st{stSignature = sig})
-        local (\e -> e { envContext = ctx }) v
+        local (const env) v
         modify (\st -> st{stSignature = sigCurrent})
 
 getCIds (UnderScoreV _ _ cIds) = cIds

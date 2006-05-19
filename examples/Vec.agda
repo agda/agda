@@ -15,10 +15,10 @@ module examples.Vec where
     lam : (A -> B) -> A =>  B
 
   lam2 : {A, B, C : Set} -> (A -> B -> C) -> (A => B => C)
-  lam2 {A}{B}{C} f = lam (\x -> lam (f x))
+  lam2 f = lam (\x -> lam (f x))
 
   app : {A, B : Set} -> (A => B) -> A -> B
-  app {A}{B} (lam f) x = f x
+  app (lam f) x = f x
 
   Vec : Nat -> Set -> Set
   Vec zero X = One
@@ -27,33 +27,33 @@ module examples.Vec where
   {- ... construct the vectors of a given length -}
 
   vHead : {X : Set} -> (n : Nat)-> Vec (suc n) X -> X
-  vHead {X} n (pair a b) = a
+  vHead n (pair a b) = a
 
   vTail : {X : Set} -> (n : Nat)-> Vec (suc n) X -> Vec n X
-  vTail {X} n (pair a b) = b
+  vTail n (pair a b) = b
 
   {- safe destructors for nonempty vectors -}
 
   {- useful vector programming operators -}
 
   vec : {X : Set} -> (n : Nat) -> X -> Vec n X
-  vec {X} zero    x = unit
-  vec {X} (suc n) x = pair x (vec n x)
+  vec zero    x = unit
+  vec (suc n) x = pair x (vec n x)
 
   vapp : {S, T : Set} -> (n : Nat) -> Vec n (S => T) -> Vec n S -> Vec n T
-  vapp {S}{T} zero unit unit = unit
-  vapp {S}{T} (suc n) (pair f fs) (pair s ss) = pair (app f s) (vapp n fs ss)
+  vapp zero unit unit = unit
+  vapp (suc n) (pair f fs) (pair s ss) = pair (app f s) (vapp n fs ss)
 
   {- mapping and zipping come from these -}
 
   vMap : {S, T : Set} -> (n : Nat) -> (S -> T) -> Vec n S -> Vec n T
-  vMap {S}{T} n f ss = vapp n (vec n (lam f)) ss
+  vMap n f ss = vapp n (vec n (lam f)) ss
 
   {- transposition gets the type it deserves -}
 
   transpose : {X : Set} -> (m,n : Nat)-> Vec m (Vec n X) -> Vec n (Vec m X)
-  transpose {X} zero n xss = vec n unit
-  transpose {X} (suc m) n (pair xs xss) =
+  transpose zero n xss = vec n unit
+  transpose (suc m) n (pair xs xss) =
     vapp n (vapp n (vec n (lam2 pair)) xs)
 	   (transpose m n xss)
 
@@ -74,16 +74,16 @@ module examples.Vec where
   {- We can use these sets to index vectors safely. -}
 
   vProj : {X : Set} -> (n : Nat)-> Vec n X -> Fin n -> X
-  -- vProj {X} zero () we can pretend that there is an exhaustiveness check
-  vProj {X} (suc n) (pair x xs) (inl unit) = x
-  vProj {X} (suc n) (pair x xs) (inr i)	   = vProj n xs i
+  -- vProj zero () we can pretend that there is an exhaustiveness check
+  vProj (suc n) (pair x xs) (inl unit) = x
+  vProj (suc n) (pair x xs) (inr i)    = vProj n xs i
 
   {- We can also tabulate a function as a vector. Resist
      the temptation to mention logarithms. -}
 
   vTab : {X : Set} -> (n : Nat)-> (Fin n -> X) -> Vec n X
-  vTab {X} zero    _ = unit
-  vTab {X} (suc n) f = pair (f (inl unit)) (vTab n (\x -> f (inr x)))
+  vTab zero    _ = unit
+  vTab (suc n) f = pair (f (inl unit)) (vTab n (\x -> f (inr x)))
 
   {- Question to ponder in your own time:
      if we use functional vectors, what are vec and vapp? -}
@@ -148,7 +148,7 @@ module examples.Vec where
   {- lifting functor for substitution -}
 
   evar' : {n:Nat} -> Fin n -> Tm n
-  evar' {n} i = evar i
+  evar' = evar
 
   liftS : (m,n : Nat) -> m `Sub` n -> suc m `Sub` suc n
   liftS m n m2n = pair (evar' {suc n} (inl unit))

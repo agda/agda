@@ -20,12 +20,13 @@ import Syntax.Abstract.Test
 import Syntax.Abstract.Name
 
 import Interaction.Exceptions
-import Interaction.CommandLine
+import Interaction.CommandLine.CommandLine
 
 import TypeChecker
 import TypeChecking.Monad
 import TypeChecking.Monad.Context
 import TypeChecking.Reduce
+import Interaction.Monad
 
 parseFile' :: Parser a -> FilePath -> IO a
 parseFile' p file
@@ -85,9 +86,9 @@ debugCheck m =
 	let store = stMetaStore st
 	    sig   = stSignature st
 	    cnstr = stConstraints st
-	store' <- refresh store
-	sig'   <- refresh sig
-	cnstr' <- refresh cnstr
+	store' <- normalise store
+	sig'   <- normalise sig
+	cnstr' <- normalise cnstr
 	return $ unlines
 	    [ pr store cnstr sig
 	    , replicate 50 '+'

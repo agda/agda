@@ -43,8 +43,17 @@ getScope = gets stScopeInfo
 getConstraints :: TCM Constraints
 getConstraints = gets stConstraints
 
+-- | Get the meta store.
 getMetaStore :: TCM MetaStore
 getMetaStore = gets stMetaStore
+
+-- | Lookup a meta variable
+lookupMeta :: MetaId -> TCM MetaVariable
+lookupMeta m =
+    do	mmv <- Map.lookup m <$> getMetaStore
+	case mmv of
+	    Just mv -> return mv
+	    _	    -> __IMPOSSIBLE__
 
 -- | Reset the type checking state.
 resetState :: TCM ()
@@ -78,7 +87,7 @@ addCtxTel (Arg _ t : tel) ret =
     do	x <- freshNoName_
 	addCtx x t $ addCtxTel tel ret
 
--- | Add a constant to the signature.
+-- | Add a constant to the signature. Lifts the definition to top level.
 addConstant :: QName -> Definition -> TCM ()
 addConstant q d =
     do	tel <- getContextTelescope
@@ -103,9 +112,14 @@ addModule m d = modify $ \s -> s { stSignature = Map.insert m d $ stSignature s 
 -- | get type of bound variable (i.e. deBruijn index)
 --
 typeOfBV :: Nat -> TCM Type
-typeOfBV n = do
-    ctx <- asks envContext
-    return $ raise (n + 1) $ snd $ ctx !! n
+typeOfBV n =
+    do	ctx <- getContext
+	(_,t) <- ctx !!! n
+	return $ raise (n + 1) t
+    where
+	[]     !!! _ = fail $ "deBruijn index out of scope: " ++ show n
+	(x:_)  !!! 0 = return x
+	(_:xs) !!! n = xs !!! (n - 1)
 
 -- | Get the deBruijn index of a named variable
 varIndex :: Name -> TCM Nat
@@ -137,15 +151,21 @@ lookupModule m =
 --   variables have been abstracted over.
 getConstInfo :: QName -> TCM Definition
 getConstInfo q =
-    do	md <- lookupModule m
+    do	ab <- treatAbstractly q
+	md <- lookupModule m
 	let tel  = mdefTelescope md
 	    defs = mdefDefs md
 	case Map.lookup x defs of
 	    Nothing -> fail $ show (getRange q) ++ ": no such name " ++ show x ++ " in module " ++ show m
-	    Just d  -> return $ d { defFreeVars = length tel }
+	    Just d  -> return $ mkAbs ab $ d { defFreeVars = length tel }
     where
 	m = qnameModule q
 	x = qnameName q
+	mkAbs True d =
+	    case makeAbstract d of
+		Just d	-> d
+		Nothing	-> __IMPOSSIBLE__
+	mkAbs False d = d
 
 -- | Instantiate a closed definition with the correct part of the current
 --   context. Precondition: the variables abstracted over should be a prefix of
@@ -223,4 +243,18 @@ forEachModule p go =
 
 forEachModule_ :: (ModuleName -> Bool) -> (ModuleName -> TCM a) -> TCM ()
 forEachModule_ p go = forEachModule p go >> return ()
+
+---------------------------------------------------------------------------
+-- * Trace
+---------------------------------------------------------------------------
+
+getTrace :: TCM Trace
+getTrace = gets stTrace
+
+workingOn :: HasRange a => a -> TCM ()
+workingOn x = modify $ \s -> s { stTrace = (stTrace s) { traceRange = getRange x } }
+
+whereAmI :: TCM Range
+whereAmI = getRange <$> getTrace
+
 

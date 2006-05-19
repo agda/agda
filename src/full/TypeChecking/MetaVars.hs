@@ -9,6 +9,7 @@ import Data.Map as Map
 import Data.List as List
 
 import Syntax.Common
+import Syntax.Info
 import Syntax.Internal
 import Syntax.Position
 
@@ -75,49 +76,56 @@ newMeta meta initialVal = do
     modify (\st -> st{stMetaStore = Map.insert x initialVal $ stMetaStore st})
     return $ meta x
 
-newSortMeta :: MetaInfo -> TCM Sort
-newSortMeta i = newMeta MetaS $ UnderScoreS i []
+createMetaInfo :: TCM MetaInfo
+createMetaInfo = 
+    do  r <- whereAmI
+        s <- getScope
+        return $ MetaInfo r s 
 
-newTypeMeta :: MetaInfo -> Sort -> TCM Type
-newTypeMeta i s =
-    do	vs <- allCtxVars
+
+newSortMeta ::  TCM Sort
+newSortMeta = 
+    do  i <- createMetaInfo
+	newMeta MetaS $ UnderScoreS i []
+
+newTypeMeta :: Sort -> TCM Type
+newTypeMeta s =
+    do	i <- createMetaInfo
+        vs <- allCtxVars
 	newMeta (\m -> MetaT m vs) $ UnderScoreT i s []
 
-newTypeMeta_ :: MetaInfo -> TCM Type
-newTypeMeta_ i = newTypeMeta i =<< newSortMeta i
+newTypeMeta_ ::  TCM Type
+newTypeMeta_  = 
+    do  newTypeMeta =<< newSortMeta 
 
-newValueMeta :: MetaInfo -> Type -> TCM Term
-newValueMeta i t =
-    do	vs <- allCtxVars
+newValueMeta ::  Type -> TCM Term
+newValueMeta t =
+    do	i <- createMetaInfo 
+        vs <- allCtxVars
 	newMeta (\m -> MetaV m vs) $ UnderScoreV i t []
 
-newArgsMeta :: MetaInfo -> Type -> TCM Args
-newArgsMeta i (Pi h a b) =
-    do	v    <- newValueMeta i a
-	args <- newArgsMeta i (substAbs v b)
+newArgsMeta ::  Type -> TCM Args
+newArgsMeta (Pi h a b) =
+    do	v    <- newValueMeta a
+	args <- newArgsMeta (absApp v b)
 	return $ Arg h v : args
-newArgsMeta _ _ = return []
+newArgsMeta _ = return []
 
-newQuestionMark :: MetaInfo -> Type -> TCM Term
-newQuestionMark i t =
-    do	vs <- allCtxVars
+newQuestionMark ::  Type -> TCM Term
+newQuestionMark t =
+    do	i <- createMetaInfo 
+        vs <- allCtxVars
 	newMeta (\m -> MetaV m vs) $ HoleV i t []
 
-newQuestionMarkT :: MetaInfo -> Sort -> TCM Type
-newQuestionMarkT i s =
-    do	vs <- allCtxVars
+newQuestionMarkT ::  Sort -> TCM Type
+newQuestionMarkT s =
+    do	i <- createMetaInfo 
+        vs <- allCtxVars
 	newMeta (\m -> MetaT m vs) $ HoleT i s []
 
-newQuestionMarkT_ :: MetaInfo -> TCM Type
-newQuestionMarkT_ i = newQuestionMarkT i =<< newSortMeta i
-
--- | Lookup a meta variable
-lookupMeta :: MetaId -> TCM MetaVariable
-lookupMeta m =
-    do	mmv <- Map.lookup m <$> getMetaStore
-	case mmv of
-	    Just mv -> return mv
-	    _	    -> __IMPOSSIBLE__
+newQuestionMarkT_ ::  TCM Type
+newQuestionMarkT_ = 
+    do  newQuestionMarkT =<< newSortMeta
 
 -- | Used to give an initial value to newMeta.  
 --   The constraint list will be filled-in as needed during assignment.
@@ -158,8 +166,9 @@ restrictParameters ok ps
     | otherwise	     = Nothing
 
 
-instV v = InstV noRange v __IMPOSSIBLE__
-instT = InstT noRange
+instV v = InstV __IMPOSSIBLE__ v __IMPOSSIBLE__
+
+instT = InstT __IMPOSSIBLE__
 
 -- | Extended occurs check
 --
@@ -184,17 +193,17 @@ instance Occurs Term where
 
 instance Occurs Type where
     occ m ok t =
-	do  t' <- instType t
+	do  t' <- instantiate t
 	    case t' of
 		El v s	    -> uncurry El <$> occ m ok (v,s)
 		Pi h w f    -> uncurry (Pi h) <$> occ m ok (w,f)
 		Sort s	    -> Sort <$> occ m ok s
-		MetaT m' vs -> occMeta MetaT instT instType m ok m' vs
-		LamT _	    -> __IMPOSSIBLE__	-- ?
+		MetaT m' vs -> occMeta MetaT instT instantiate m ok m' vs
+		LamT _	    -> __IMPOSSIBLE__
 
 instance Occurs Sort where
     occ m ok s =
-	do  s' <- instSort s
+	do  s' <- instantiate s
 	    case s' of
 		MetaS m' | m == m' -> fail $ "?" ++ show m ++ " occurs in itself"
 		Lub s1 s2	   -> uncurry Lub <$> occ m ok (s1,s2)

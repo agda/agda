@@ -46,11 +46,11 @@ equalSameVar meta inst x args1 args2 =
 --
 equalVal :: Data a => a -> Type -> Term -> Term -> TCM ()
 equalVal _ a m n = do --trace ("equalVal ("++(show a)++") ("++(show m)++") ("++(show n)++")\n") $ do
-    a' <- instType a
-    --debug $ "equalVal " ++ show m ++ " == " ++ show n ++ " : " ++ show a'
+    a' <- instantiate a
+--     debug $ "equalVal " ++ show m ++ " == " ++ show n ++ " : " ++ show a'
     case a' of
         Pi h a (Abs x b) -> 
-            let p = Arg h $ Var 0 []	-- TODO: this must be wrong!
+            let p = Arg h $ Var 0 []
                 m' = raise 1 m
                 n' = raise 1 n
             in do name <- freshName_ x
@@ -88,7 +88,7 @@ equalAtm _ m n = do
 --
 equalArg :: Data a => a -> Type -> Args -> Args -> TCM ()
 equalArg _ a args1 args2 = do
-    a' <- instType a
+    a' <- instantiate a
     case (a', args1, args2) of 
         (_, [], []) -> return ()
         (Pi h b (Abs _ c), (Arg _ arg1 : args1), (Arg _ arg2 : args2)) -> do
@@ -103,10 +103,12 @@ equalArg _ a args1 args2 = do
 --
 equalTyp :: Data a => a -> Type -> Type -> TCM ()
 equalTyp _ a1 a2 = do
-    a1' <- instType a1
-    a2' <- instType a2
---     debug $ "equalTyp " ++ show a1 ++ " == " ++ show a2
---     debug $ "         " ++ show a1' ++ " == " ++ show a2'
+    a1' <- instantiate a1
+    a2' <- instantiate a2
+    ctx <- map fst <$> getContext
+--     debug $ "equalTyp in " ++ show ctx
+--     debug $ "            " ++ show a1 ++ " == " ++ show a2
+--     debug $ "            " ++ show a1' ++ " == " ++ show a2'
     case (a1', a2') of
         (El m1 s1, El m2 s2) ->
             equalVal Why (sort s1) m1 m2
@@ -116,14 +118,13 @@ equalTyp _ a1 a2 = do
             let Abs _ b2' = raise 1 b2
 	    name <- freshName_ x
             addCtx name a1 $ equalTyp Why (subst (Var 0 []) a2') (subst (Var 0 []) b2')
-				-- TODO: this looks dangerous.. what does subst really do?
         (Sort s1, Sort s2) -> return ()
         (MetaT x xDeps, MetaT y yDeps) | x == y -> 
             equalSameVar (\x -> MetaT x []) instT x xDeps yDeps -- !!! MetaT???
         (MetaT x xDeps, a) -> assign x xDeps a 
         (a, MetaT x xDeps) -> assign x xDeps a 
 	(LamT _, _)   -> __IMPOSSIBLE__
-	(El _ _, _)   -> fail "not equal"
-	(Pi _ _ _, _) -> fail "not equal"
-	(Sort _, _)   -> fail "not equal"
+	(El _ _, _)   -> fail $ show a1' ++ " != " ++ show a2'
+	(Pi _ _ _, _) -> fail $ show a1' ++ " != " ++ show a2'
+	(Sort _, _)   -> fail $ show a1' ++ " != " ++ show a2'
 

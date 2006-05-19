@@ -1,14 +1,39 @@
 
+AIM4
+----
+
+* good error messages
+
+* when instantiating a module we should generate functions for the axioms and
+  constructors and probably for everything else as well (reducing to the
+  instantiated versions from the instantiated module).
+
+* Monomorphic constructors.
+
+* Blocked constructor in Terms and Types(?)
+
+* getopts
+
+* debug information
+
+* optimise
+
+(done) insert hidden arguments in lhss
+
+(done) ranges in error messages
+
+(done) abstract info on constraints (TCEnv instead of Context)
+       and interaction meta vars
+
+
+
+
+
+
 Syntax
 ------
 
   * Invent syntax for fancy case (should we have fancy case?)
-
-ToConcrete
-----------
-
-  * private
-  * fixity declarations
 
 Error reporting
 ---------------

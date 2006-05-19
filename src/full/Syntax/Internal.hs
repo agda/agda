@@ -19,24 +19,24 @@ import Syntax.Abstract.Name
 --     list of clauses.
 --
 data Term = Var Nat Args
-	   | Lam (Abs Term) Args -- ^ allow for redexes
-	   | Lit Literal
-	   | Def QName Args
-	   | Con QName Args
-	   | MetaV MetaId Args
+	  | Lam (Abs Term) Args -- ^ allow for redexes
+	  | Lit Literal
+	  | Def QName Args
+	  | Con QName Args
+	  | MetaV MetaId Args
   deriving (Typeable, Data)
 
-data Type = El Term Sort     
+data Type = El Term Sort
 	  | Pi Hiding Type (Abs Type)
-	  | Sort Sort         
+	  | Sort Sort
 	  | MetaT MetaId Args  -- ^ list of dependencies for metavars
           | LamT (Abs Type) -- ^ abstraction needed for metavar dependency management, !!! is a type necessary?
-  deriving (Typeable, Data)
-
--- | Type of argument lists. Might want to later add hidden info...
---
-type Args = [Arg Term]
-
+  deriving (Typeable, Data) 
+                            
+-- | Type of argument lists.
+--                          
+type Args = [Arg Term]      
+                            
 -- | Sequence of types. An argument of the first type is bound in later types
 --   and so on.
 type Telescope = [Arg Type]
@@ -46,7 +46,7 @@ data Sort = Type Nat
 	  | MetaS MetaId 
 	  | Lub Sort Sort
 	  | Suc Sort
-  deriving (Typeable, Data)
+  deriving (Typeable, Data, Eq)
 
 data Abs a = Abs { absName :: String
 		 , absBody :: a
@@ -97,4 +97,19 @@ prop   = Sort Prop
 telePi :: Telescope -> Type -> Type
 telePi [] t = t
 telePi (Arg h a : tel) t = Pi h a $ Abs "x" $ telePi tel t
+
+-- | Get the next higher sort.
+sSuc :: Sort -> Sort
+sSuc Prop	 = Type 1
+sSuc (Type n)	 = Type (n + 1)
+sSuc (Lub s1 s2) = sSuc s1 `sLub` sSuc s2
+sSuc s		 = Suc s
+
+sLub :: Sort -> Sort -> Sort
+sLub Prop (Type 0)     = Type 1
+sLub (Type 0) Prop     = Prop   -- (x:A) -> B prop if A type0, B prop [x:A]
+sLub (Type n) (Type m) = Type $ max n m
+sLub s1 s2
+    | s1 == s2	= s1
+    | otherwise	= Lub s1 s2
 

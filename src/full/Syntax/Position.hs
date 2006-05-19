@@ -32,13 +32,13 @@ data Position = Pn { srcFile :: FilePath
 		   , posCol  :: !Int
 		   }
 	    | NoPos
-    deriving (Typeable, Data, Eq)
+    deriving (Typeable, Data, Eq, Ord)
 
 
 -- | A range is a pair of positions. The @rEnd@ position is
 --   not included in the range.
 data Range = Range { rStart, rEnd :: Position }
-    deriving (Typeable, Data, Eq)
+    deriving (Typeable, Data, Eq, Ord)
 
 
 -- | Things that have a range are instances of this class.
@@ -122,13 +122,11 @@ movePosByString :: Position -> String -> Position
 movePosByString = foldl' movePos
 
 
--- | Finds the least interval that covers its arguments. The left argument
---   is assumed to be to the left of the right argument.
+-- | Finds the least interval that covers its arguments.
 fuseRange :: (HasRange t, HasRange u) => t -> u -> Range
 fuseRange x y = Range start end
     where
-	rx = getRange x
-	ry = getRange y
+	[rx,ry] = sort [getRange x, getRange y]
 	start = case rStart rx of
 		    NoPos   -> rStart ry
 		    p	    -> p

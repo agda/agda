@@ -7,6 +7,7 @@
 
 module Syntax.Info where
 
+import Data.Generics(Data,Typeable) 
 import Syntax.Common
 import Syntax.Position
 import Syntax.Concrete
@@ -41,6 +42,7 @@ data MetaInfo =
 	MetaInfo { metaRange	:: Range
 		 , metaScope	:: ScopeInfo
 		 }
+  deriving (Typeable, Data, Show)
 
 instance HasRange MetaInfo where
     getRange = metaRange

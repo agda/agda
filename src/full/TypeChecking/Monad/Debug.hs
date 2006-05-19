@@ -2,7 +2,7 @@
 module TypeChecking.Monad.Debug where
 
 import qualified Data.Map as Map
-import System.IO.Unsafe
+import Control.Monad.Trans
 
 import Syntax.Internal
 import TypeChecking.Monad
@@ -29,6 +29,5 @@ instance Show TCState where
         "}"
 
 debug :: String -> TCM ()
-debug s =
-    unsafePerformIO (putStrLn s) `seq` return ()
+debug s = liftIO $ putStrLn s
 
