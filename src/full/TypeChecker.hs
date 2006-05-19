@@ -231,7 +231,7 @@ constructs t q = constr 0 t q
     where
 	constr n (Pi _ _ b) d = constr (n + 1) (absBody b) d
 	constr n (El (Def d' vs) _) d
-	    | d == d'	= checkParams n =<< mapM (reduce . unArg) vs
+	    | d == d'	= checkParams n . map unArg =<< reduce vs
 	constr _ t d = fail $ show t ++ " should be application of " ++ show d
 
 	checkParams n vs

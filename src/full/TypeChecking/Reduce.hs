@@ -95,6 +95,12 @@ instance Reduce Sort where
 		Lub s1 s2 -> sLub <$> reduce s1 <*> reduce s2
 		_	  -> return s
 
+instance Reduce t => Reduce [t] where
+    reduce = mapM reduce
+
+instance Reduce t => Reduce (Arg t) where
+    reduce = fmapM reduce
+
 instance Reduce Term where
     reduce v = go v where
 	go v =
