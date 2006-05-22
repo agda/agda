@@ -51,9 +51,7 @@ val2str (MetaV x args) = args2str (show x) args
 val2str (BlockedV b) = block2str <$> fmapM val2str b
 
 typ2str :: (MonadReader Int m) => Type -> m String
-typ2str (El v _) =
-    do	s <- val2str v
-	return $ "(El " ++ s ++ ")"
+typ2str (El v _) = val2str v
 typ2str (Pi h a (Abs _ b)) = do
     aStr <- typ2str a
     bStr <- local (+ 1) $ typ2str b

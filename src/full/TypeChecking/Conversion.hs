@@ -47,45 +47,47 @@ equalSameVar meta inst x args1 args2 =
 -- | Type directed equality on values.
 --
 equalVal :: Data a => a -> Type -> Term -> Term -> TCM ()
-equalVal _ a m n = do --trace ("equalVal ("++(show a)++") ("++(show m)++") ("++(show n)++")\n") $ do
-    a' <- instantiate a
+equalVal _ a m n =
+    catchConstraint (ValueEq a m n) $
+    do	a' <- instantiate a
 --     debug $ "equalVal " ++ show m ++ " == " ++ show n ++ " : " ++ show a'
-    case a' of
-        Pi h a (Abs x b) -> 
-            let p = Arg h $ Var 0 []
-                m' = raise 1 m
-                n' = raise 1 n
-            in do name <- freshName_ x
-		  addCtx name a $ equalVal Why b (m' `apply` [p]) (n' `apply` [p])
-        MetaT x _ -> addConstraint (ValueEq a m n)
-        _ -> catchConstraint (ValueEq a' m n) $ equalAtm Why a m n
+	case a' of
+	    Pi h a (Abs x b) -> 
+		let p = Arg h $ Var 0 []
+		    m' = raise 1 m
+		    n' = raise 1 n
+		in do name <- freshName_ x
+		      addCtx name a $ equalVal Why b (m' `apply` [p]) (n' `apply` [p])
+	    MetaT x _ -> addConstraint (ValueEq a m n)
+	    _ -> equalAtm Why a m n
 
 -- | Syntax directed equality on atomic values
 --
 equalAtm :: Data a => a -> Type -> Term -> Term -> TCM ()
-equalAtm _ t m n = do
-    mVal <- reduce m  -- need mVal for the metavar case
-    nVal <- reduce n  -- need nVal for the metavar case
---     debug $ "equalAtm " ++ show m ++ " == " ++ show n
---     debug $ "         " ++ show mVal ++ " == " ++ show nVal
-    case (mVal, nVal) of
-        (Lit l1, Lit l2) | l1 == l2 -> return ()
-        (Var i iArgs, Var j jArgs) | i == j -> do
-            a <- typeOfBV i
-            equalArg Why a iArgs jArgs
-        (Def x xArgs, Def y yArgs) | x == y -> do
-            a <- defType <$> getConstInfo x
-            equalArg Why a xArgs yArgs
-        (Con x xArgs, Con y yArgs) | x == y -> do
-            a <- typeOfConst x
-            equalArg Why a xArgs yArgs
-        (MetaV x xArgs, MetaV y yArgs) | x == y ->
-	    equalSameVar (\x -> MetaV x []) InstV x xArgs yArgs
-        (MetaV x xArgs, _) -> assign x xArgs nVal
-        (_, MetaV x xArgs) -> assign x xArgs mVal
-	(BlockedV b, _)		   -> addConstraint (ValueEq t mVal nVal)
-	(_,BlockedV b)		   -> addConstraint (ValueEq t mVal nVal)
-        _ -> fail $ "equalAtm "++(show mVal)++" ==/== "++(show nVal)
+equalAtm _ t m n =
+    catchConstraint (ValueEq t m n) $
+    do	mVal <- reduce m  -- need mVal for the metavar case
+	nVal <- reduce n  -- need nVal for the metavar case
+--	debug $ "equalAtm " ++ show m ++ " == " ++ show n
+--	debug $ "         " ++ show mVal ++ " == " ++ show nVal
+	case (mVal, nVal) of
+	    (Lit l1, Lit l2) | l1 == l2 -> return ()
+	    (Var i iArgs, Var j jArgs) | i == j -> do
+		a <- typeOfBV i
+		equalArg Why a iArgs jArgs
+	    (Def x xArgs, Def y yArgs) | x == y -> do
+		a <- defType <$> getConstInfo x
+		equalArg Why a xArgs yArgs
+	    (Con x xArgs, Con y yArgs) | x == y -> do
+		a <- typeOfConst x
+		equalArg Why a xArgs yArgs
+	    (MetaV x xArgs, MetaV y yArgs) | x == y ->
+		equalSameVar (\x -> MetaV x []) InstV x xArgs yArgs
+	    (MetaV x xArgs, _) -> assign x xArgs nVal
+	    (_, MetaV x xArgs) -> assign x xArgs mVal
+	    (BlockedV b, _)		   -> addConstraint (ValueEq t mVal nVal)
+	    (_,BlockedV b)		   -> addConstraint (ValueEq t mVal nVal)
+	    _ -> fail $ "equalAtm "++(show mVal)++" ==/== "++(show nVal)
 
 
 -- | Type-directed equality on argument lists
@@ -104,6 +106,7 @@ equalArg _ a args1 args2 = do
 -- | Equality on Types
 equalTyp :: Data a => a -> Type -> Type -> TCM ()
 equalTyp _ a1 a2 =
+    catchConstraint (TypeEq a1 a2) $
     do	do  s1 <- getSort a1
 	    s2 <- getSort a2
 	    equalSort s1 s2
@@ -139,6 +142,7 @@ equalTyp _ a1 a2 =
 -- | Check that the first sort is less or equal to the second.
 leqSort :: Sort -> Sort -> TCM ()
 leqSort s1 s2 =
+    catchConstraint (SortLeq s1 s2) $
     do	(s1,s2) <- reduce (s1,s2)
 -- 	debug $ "leqSort " ++ show s1 ++ " <= " ++ show s2
 	case (s1,s2) of
@@ -168,6 +172,7 @@ leqSort s1 s2 =
 -- | Check that the first sort equal to the second.
 equalSort :: Sort -> Sort -> TCM ()
 equalSort s1 s2 =
+    catchConstraint (SortEq s1 s2) $
     do	(s1,s2) <- reduce (s1,s2)
 -- 	debug $ "equalSort " ++ show s1 ++ " == " ++ show s2
 	case (s1,s2) of

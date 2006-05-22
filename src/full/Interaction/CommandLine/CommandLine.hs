@@ -117,10 +117,8 @@ showMetas [m] =
 showMetas [] =
     do	m <- Map.filter interesting <$> getMetaStore
 	--m <- normalise m
-	liftIO $ putStrLn $ unlines $ List.map prm $ Map.assocs m
+	liftIO $ putStrLn $ unlines $ List.map show $ Map.elems m
     where
-	prm (x,i) = "?" ++ show x ++ " " ++ show i
-
 	interesting (MetaVar _ _ Open) = True
 	interesting _		       = False
 showMetas _ = liftIO $ putStrLn $ ":meta [metaid]"

@@ -258,7 +258,7 @@ forceData d t =
 		    ps <- newArgsMeta t
 		    s' <- getSort t'
 		    equalSort s s'
-		    assign m vs $ El (Def d ps) s
+		    equalTyp () t' $ El (Def d ps) s
 		    reduce t'
 	    _		    -> fail $ show t ++ " should be application of " ++ show d
 
@@ -354,7 +354,7 @@ forceSort r t =
 	    Sort s	 -> return s
 	    MetaT m args ->
 		do  s <- newSortMeta
-		    assign m args (Sort s)
+		    equalTyp () t' (Sort s)
 		    return s
 	    _	-> fail $ "not a sort " ++ show t
 
@@ -416,7 +416,7 @@ forcePi h t =
 		    x <- freshName (getRange i) "x"
 		    b <- addCtx x a $ newTypeMeta sb
 		    
-		    assign m vs $ Pi h a $ Abs "x" b
+		    equalTyp () t' $ Pi h a (Abs "x" b)
 		    reduce t'
 	    _		-> fail $ "Not a pi: " ++ show t
 
