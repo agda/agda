@@ -19,6 +19,8 @@ AIM4
 
 * allow more things in postulates (infix, private?, ..)
 
+* speed up normalise
+
 (done) Monomorphic constructors.
 
 (done) ? should not be a valid operator characted
