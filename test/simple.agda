@@ -20,6 +20,8 @@ zz = Nat.suc Nat.zero `Nat.+` Nat.suc Nat.zero
 
 module List (A:Set) where
 
+  infixr 15 ::, ++
+
   data List : Set where
     nil  : List
     (::) : A -> List -> List
@@ -130,5 +132,16 @@ module prop where
 	      )
 	    )
 
-open TestList.ListNat
+module Tests where
+
+  infix 5 ==
+  postulate
+    (==) : {A:Set} -> A -> A -> Set
+    refl : {A:Set} -> {x:A} -> x == x
+
+  open TestList.ListNat
+  open Nat
+
+  test1 : TestList.zzz == zero :: suc zero :: nil
+  test1 = refl
 
