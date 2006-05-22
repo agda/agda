@@ -191,13 +191,7 @@ newtype InteractionId = InteractionId Nat
 type Signature	 = Map ModuleName ModuleDef
 type Definitions = Map Name Definition
 
-data ModuleDef = MDef { mdefName       :: ModuleName
-		      , mdefTelescope  :: Telescope
-		      , mdefNofParams  :: Nat
-		      , mdefModuleName :: ModuleName
-		      , mdefArgs       :: Args
-		      }
-	       | MExplicit
+data ModuleDef = ModuleDef
 		      { mdefName       :: ModuleName
 		      , mdefTelescope  :: Telescope
 		      , mdefNofParams  :: Nat

@@ -126,29 +126,31 @@ instance Reduce Term where
 		    do  a <- reduce arg
 			reduce $ subst a v' `apply` args
 		MetaV _ _ -> return v
-		Def f args ->
-		    do  def <- defClauses <$> getConstInfo f
-			case def of
-			    [] -> return v -- no definition for head
-			    cls@(Clause ps _ : _) -> 
-				if length ps == length args then
-				    do	ev <- appDef v cls args
-					either return reduce ev
-				else if length ps < length args then
-				    let (args1,args2) = splitAt (length ps) args 
-				    in do   ev <- appDef v cls args1
-					    case ev of
-						Left v	-> return v
-						Right v	-> reduce $ v `apply` args2
-				else return v -- partial application
-		Con c args ->
-		    do  v <- canonicalConstructor c
-			return $ v `apply` args
+		Def f args -> reduceDef f args
+		Con c args -> reduceDef c args	-- constructors can have definitions
+						-- when they come from an instantiated module
+						-- (change this)
 		BlockedV _ -> return v
 		Lit _	   -> return v
 		Var _ _	   -> return v
 		Lam _ []   -> return v
 	where
+
+	    reduceDef f args =
+		do  def <- defClauses <$> getConstInfo f
+		    case def of
+			[] -> return v -- no definition for head
+			cls@(Clause ps _ : _) -> 
+			    if length ps == length args then
+				do  ev <- appDef v cls args
+				    either return reduce ev
+			    else if length ps < length args then
+				let (args1,args2) = splitAt (length ps) args 
+				in do   ev <- appDef v cls args1
+					case ev of
+					    Left v	-> return v
+					    Right v	-> reduce $ v `apply` args2
+			    else return v -- partial application
 
 	    -- Apply a defined function to it's arguments.
 	    --   First arg is original value which is needed in case no clause matches.

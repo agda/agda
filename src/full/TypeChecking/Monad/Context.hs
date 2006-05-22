@@ -165,24 +165,27 @@ varIndex x =
 	    Just n  -> return n
 	    _	    -> fail $ "unbound variable " ++ show x
 
--- | Always returns 'MExplicit' (instantiates modules on the fly).
+-- | Lookup a module.
 lookupModule :: ModuleName -> TCM ModuleDef
 lookupModule m =
     do	sig <- getSignature
 	case Map.lookup m sig of
 	    Nothing -> fail $ show (getRange m) ++ ": no such module " ++ show m
-	    Just (MDef _ tel n m' args)	->
-		do  defs <- mdefDefs <$> lookupModule m'
-		    return $ MExplicit
-			     { mdefName      = m
-			     , mdefTelescope = tel
-			     , mdefNofParams = n
-			     , mdefDefs      = Map.map inst defs
-			     }
-		where
-		    inst d = abstract tel $ d `apply` args
-
 	    Just md -> return md
+
+implicitModuleDefs :: Telescope -> ModuleName -> Args -> Definitions -> Definitions
+implicitModuleDefs tel m args defs = Map.mapWithKey redirect defs
+    where
+	redirect x d = abstract tel
+			$ setDef
+			$ d `apply` args
+	    where
+		old = theDef d
+		mkRHS = case old of
+			    Constructor _ _ _ -> Con
+			    _		      -> Def
+		clause = Clause [] $ Body $ mkRHS (qualify m x) args
+		setDef d = d { theDef = Function [clause] ConcreteDef }
 
 -- | Lookup the definition of a name. The result is a closed thing, all free
 --   variables have been abstracted over.
@@ -261,19 +264,6 @@ sortOfConst q =
 escapeContext :: Int -> TCM a -> TCM a
 escapeContext n = local $ \e -> e { envContext = drop n $ envContext e }
 
-
--- | Get the canonical name of a constructor (i.e. the module in which it was defined).
-canonicalConstructor :: QName -> TCM Term
-canonicalConstructor q = chaseModule $ qnameModule q
-    where
-	chaseModule m =
-	    do	sig <- getSignature
-		case Map.lookup m sig of
-		    Just (MDef _ tel _ m' vs)->
-			do  v <- chaseModule m'
-			    return $ abstract tel $ v `apply` vs
-		    Just (MExplicit m _ _ _) -> return $ Con (q { qnameModule = m }) []
-		    Nothing		     -> __IMPOSSIBLE__
 
 -- | Do something for each module with a certain kind of name.
 forEachModule :: (ModuleName -> Bool) -> (ModuleName -> TCM a) -> TCM [a]

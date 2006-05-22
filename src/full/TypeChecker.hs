@@ -99,7 +99,7 @@ checkModule i x tel ds =
     do	tel0 <- getContextTelescope
 	checkTelescope tel $ \tel' ->
 	    do	m'   <- flip qualifyModule x <$> currentModule
-		addModule m' $ MExplicit
+		addModule m' $ ModuleDef
 				{ mdefName	= m'
 				, mdefTelescope = tel0 ++ tel'
 				, mdefNofParams = length tel'
@@ -146,25 +146,31 @@ checkModuleDef i x tel m' args =
 				  | i <- [0..length gamma - 1]
 				  ]
 		qm <- flip qualifyModule m <$> currentModule
-		addModule qm $ MDef { mdefName	     = qm
+		addModule qm $ ModuleDef
+				    { mdefName	     = qm
 				    , mdefTelescope  = gammaDelta ++ theta
 				    , mdefNofParams  = length theta
-				    , mdefModuleName = m'
-				    , mdefArgs	     = vs0 ++ vs
+				    , mdefDefs	     = implicitModuleDefs
+							(gammaDelta ++ theta)
+							m' (vs0 ++ vs)
+							(mdefDefs md')
 				    }
 		forEachModule_ (`isSubModuleOf` m') $ \m'a ->
-		    do	md <- lookupModule m'a
+		    do	md <- lookupModule m'a	-- lookup twice (could be optimised)
 			let gammaOmegaPhiPsi = mdefTelescope md
 			    ma = requalifyModule m' m m'a
 			    phiPsi  = drop (length gammaOmega) gammaOmegaPhiPsi
 			    vs1	    = reverse [ Arg Hidden $ Var i []
 					      | i <- [0..length phiPsi - 1]
 					      ]
-			addModule ma $ MDef { mdefName	     = ma
-					    , mdefTelescope  = gammaDelta ++ theta ++ phiPsi
+			    tel	    = gammaDelta ++ theta ++ phiPsi
+			addModule ma $ ModuleDef
+					    { mdefName	     = ma
+					    , mdefTelescope  = tel
 					    , mdefNofParams  = mdefNofParams md
-					    , mdefModuleName = m'a
-					    , mdefArgs	     = vs0 ++ vs ++ vs1
+					    , mdefDefs	     = implicitModuleDefs
+								tel m'a (vs0 ++ vs ++ vs1)
+								(mdefDefs md)
 					    }
 
 
@@ -336,7 +342,7 @@ checkPattern (A.ConP i c ps) t ret =
     do	setCurrentRange i
 	Defn t' _ (Constructor n d _) <- getConstInfo c -- don't instantiate this
 	El (Def _ vs) _		      <- forceData d t	-- because this guy won't be
-	Con c' us		      <- canonicalConstructor c
+	Con c' us		      <- reduce $ Con c vs
 	checkPatterns ps (piApply t' vs) $ \xs ps' ts' rest ->
 	    do	equalTyp () rest (raise (length xs) t)
 		ret xs (ConP c' ps') (Con c' $ us ++ ts')
