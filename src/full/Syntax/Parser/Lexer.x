@@ -29,7 +29,7 @@ import Syntax.Literal
 $digit	    = 0-9
 $idstart    = [ A-Z a-z ]
 $alphanum   = [ $idstart $digit ' ]
-$sym	    = [ \!\#\$\%\&\*\+\.\/\<\=\>\?\@\\\^\|\~\: ]
+$sym	    = [ \!\#\$\%\&\*\+\.\/\<\=\>\@\\\^\|\~\: ]
 $symstart   = [ \- $sym ]
 $notdash    = [ ' $sym ]
 $symbol	    = [ \- ' $sym ]
