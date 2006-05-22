@@ -28,6 +28,8 @@ import TypeChecking.Monad.Context
 import TypeChecking.Reduce
 import Interaction.Monad
 
+import Utils.Monad.Undo
+
 parseFile' :: Parser a -> FilePath -> IO a
 parseFile' p file
     | "lagda" `isSuffixOf` file	= parseLiterateFile p file
