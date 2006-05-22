@@ -4,14 +4,15 @@ AIM4
 
 * good error messages
 
-* when instantiating a module we should generate functions for the axioms and
+* Monomorphic constructors.
+
+* When instantiating a module we should generate functions for the axioms and
   constructors and probably for everything else as well (reducing to the
-  instantiated versions from the instantiated module).
+  instantiated versions from the instantiated module). Together with
+  monomorphic constructors.
 
 * get rid of distinction between Hole and Underscore. Instead keep a map of
   interaction meta variables (introduce separate id numbers for this map).
-
-* Monomorphic constructors.
 
 * actually check sorts
 
