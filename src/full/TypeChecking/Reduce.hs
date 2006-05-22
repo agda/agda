@@ -142,8 +142,8 @@ instance Reduce Term where
 						Right v	-> reduce $ v `apply` args2
 				else return v -- partial application
 		Con c args ->
-		    do  c' <- canonicalConstructor c
-			return $ Con c' args
+		    do  v <- canonicalConstructor c
+			return $ v `apply` args
 		BlockedV _ -> return v
 		Lit _	   -> return v
 		Var _ _	   -> return v

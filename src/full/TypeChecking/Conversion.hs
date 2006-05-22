@@ -79,7 +79,7 @@ equalAtm _ t m n =
 		a <- defType <$> getConstInfo x
 		equalArg Why a xArgs yArgs
 	    (Con x xArgs, Con y yArgs) | x == y -> do
-		a <- typeOfConst x
+		a <- defType <$> getConstInfo x
 		equalArg Why a xArgs yArgs
 	    (MetaV x xArgs, MetaV y yArgs) | x == y ->
 		equalSameVar (\x -> MetaV x []) InstV x xArgs yArgs

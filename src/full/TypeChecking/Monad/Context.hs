@@ -263,16 +263,17 @@ escapeContext n = local $ \e -> e { envContext = drop n $ envContext e }
 
 
 -- | Get the canonical name of a constructor (i.e. the module in which it was defined).
-canonicalConstructor :: QName -> TCM QName
-canonicalConstructor q =
-    do	m <- chaseModule $ qnameModule q
-	return $ q { qnameModule = m }
+canonicalConstructor :: QName -> TCM Term
+canonicalConstructor q = chaseModule $ qnameModule q
     where
 	chaseModule m =
-	    do	md <- lookupModule m
-		case md of
-		    MDef _ _ _ m' _   -> chaseModule m'
-		    MExplicit m _ _ _ -> return m
+	    do	sig <- getSignature
+		case Map.lookup m sig of
+		    Just (MDef _ tel _ m' vs)->
+			do  v <- chaseModule m'
+			    return $ abstract tel $ v `apply` vs
+		    Just (MExplicit m _ _ _) -> return $ Con (q { qnameModule = m }) []
+		    Nothing		     -> __IMPOSSIBLE__
 
 -- | Do something for each module with a certain kind of name.
 forEachModule :: (ModuleName -> Bool) -> (ModuleName -> TCM a) -> TCM [a]

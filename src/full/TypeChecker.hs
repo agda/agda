@@ -336,10 +336,10 @@ checkPattern (A.ConP i c ps) t ret =
     do	setCurrentRange i
 	Defn t' _ (Constructor n d _) <- getConstInfo c -- don't instantiate this
 	El (Def _ vs) _		      <- forceData d t	-- because this guy won't be
-	c'			      <- canonicalConstructor c
+	Con c' us		      <- canonicalConstructor c
 	checkPatterns ps (piApply t' vs) $ \xs ps' ts' rest ->
 	    do	equalTyp () rest (raise (length xs) t)
-		ret xs (ConP c' ps') (Con c' ts')
+		ret xs (ConP c' ps') (Con c' $ us ++ ts')
 
 
 ---------------------------------------------------------------------------
