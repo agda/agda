@@ -24,7 +24,7 @@ isOp (c:_) = not $ isAlpha c
 isOp [] = False
 
 block2str :: Blocked String -> String
-block2str (Blocked x s) = "[?" ++ show x ++ "] " ++ s
+block2str (Blocked x s) = "[" ++ show x ++ "] " ++ s
 
 val2str :: (MonadReader Int m) => Term -> m String
 val2str (Var i args) = do
@@ -47,7 +47,7 @@ val2str (Def c [Arg NotHidden v1,Arg NotHidden v2])
 	    return $ "(" ++ s1 ++ " " ++ show c ++ " " ++ s2 ++ ")"
 val2str (Def c args) = args2str (show c) args
 val2str (Con c args) = args2str (show c) args
-val2str (MetaV x args) = args2str ("?"++(show x)) args
+val2str (MetaV x args) = args2str (show x) args
 val2str (BlockedV b) = block2str <$> fmapM val2str b
 
 typ2str :: (MonadReader Int m) => Type -> m String
@@ -60,7 +60,7 @@ typ2str (Pi h a (Abs _ b)) = do
     n <- ask
     return $ bracket h ("x"++(show $ n + 1)++" : "++aStr) ++ " -> "++bStr
 typ2str (Sort s) = return $ srt2str s
-typ2str (MetaT x args) = args2str ("?"++(show x)) args
+typ2str (MetaT x args) = args2str (show x) args
 typ2str (LamT (Abs _ a)) = do
     aStr <- local (+ 1) $ typ2str a
     n <- ask
@@ -75,7 +75,7 @@ args2str hd (Arg h arg:args) = do
 srt2str :: Sort -> String
 srt2str (Type n)    = "set"++(show n)
 srt2str Prop	    = "prop"
-srt2str (MetaS x)   = "?"++(show x)
+srt2str (MetaS x)   = show x
 srt2str (Lub s1 s2) = (srt2str s1)++" \\/ "++(srt2str s2)
 srt2str (Suc s)	    = show s ++ "+1"
 

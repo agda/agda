@@ -16,9 +16,9 @@ import Syntax.Scope
 import TypeChecking.Monad
 import TypeChecking.Monad.Debug
 import TypeChecking.Substitute
-import Utils.Monad
 
-__debug = debug
+import Utils.Monad
+import Utils.Fresh
 
 #include "../../undefined.h"
 
@@ -304,6 +304,14 @@ addInteractionPoint ii mi =
     modify $ \s -> s { stInteractionPoints =
 			Map.insert ii mi $ stInteractionPoints s
 		     }
+
+-- | Generate new meta variable.
+newMeta :: MetaInfo -> Judgement Type Sort a -> TCM MetaId
+newMeta mi j =
+    do	x <- fresh
+	let mv = MetaVar mi (fmap (const x) j) Open
+	modify (\st -> st{stMetaStore = Map.insert x mv $ stMetaStore st})
+	return x
 
 ---------------------------------------------------------------------------
 -- * Trace

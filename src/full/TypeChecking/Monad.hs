@@ -7,7 +7,7 @@ import Control.Monad.Error
 import Control.Monad.State
 import Control.Monad.Reader
 import Data.Generics
-
+import Data.FunctorM
 
 import Syntax.Common
 import Syntax.Internal
@@ -16,6 +16,7 @@ import Syntax.Position
 import Syntax.Scope
 
 import Utils.Fresh
+import Utils.Monad
 
 ---------------------------------------------------------------------------
 -- * Type checking state
@@ -92,29 +93,46 @@ data Constraint = ValueEq Type Term Term
 type Constraints = Map ConstraintId (Signature,TCEnv,Constraint)
 
 ---------------------------------------------------------------------------
+-- * Judgements
+---------------------------------------------------------------------------
+
+data Judgement t s a
+	= HasType a t
+	| IsType  a s
+	| IsSort  a
+    deriving (Typeable, Data)
+
+instance (Show t, Show s, Show a) => Show (Judgement t s a) where
+    show (HasType a t) = show a ++ " : " ++ show t
+    show (IsType  a s) = show a ++ " type " ++ show s
+    show (IsSort  a)   = show a ++ " sort"
+
+instance Functor (Judgement t s) where
+    fmap f (HasType x t) = HasType (f x) t
+    fmap f (IsType  x s) = IsType (f x) s
+    fmap f (IsSort  x)	 = IsSort (f x)
+
+instance FunctorM (Judgement t s) where
+    fmapM f (HasType x t) = flip HasType t <$> f x
+    fmapM f (IsType  x s) = flip IsType s <$> f x
+    fmapM f (IsSort  x)   = IsSort <$> f x
+
+---------------------------------------------------------------------------
 -- ** Meta variables
 ---------------------------------------------------------------------------
 
-data MetaVariable = Inst { getMetaInfo	    :: MetaInfo
-			 , instantiatedMeta :: InstantiatedMeta
-			 }
-		  | Open { getMetaInfo :: MetaInfo
-			 , openMeta    :: OpenMeta
-			 }
+data MetaVariable = 
+	MetaVar	{ getMetaInfo	  :: MetaInfo
+		, mvJudgement	  :: Judgement Type Sort MetaId
+		, mvInstantiation :: MetaInstantiation
+		}
     deriving (Typeable, Data)
 
--- | The type of an 'InstV' is after application to the dependency variables.
-data InstantiatedMeta
-	= InstV Term Type
+data MetaInstantiation
+	= InstV Term
 	| InstT Type
 	| InstS Sort
-    deriving (Typeable, Data)
-
--- | The type of an 'OpenV' is after application to the dependency variables.
-data OpenMeta
-	= OpenV Type
-	| OpenT Sort
-	| OpenS
+	| Open
     deriving (Typeable, Data)
 
 data MetaInfo =
@@ -137,21 +155,15 @@ instance HasRange MetaVariable where
 instance Show MetaVariable where
     show mv =
 	case mv of
-	    Inst _ i	-> r ++ " := " ++ show i
-	    Open _ o	-> r ++ " " ++ show o
-
+	    MetaVar mi j i  -> show j ++ show i ++ r
 	where
-	    r = "(" ++ show (getRange mv) ++ ")"
+	    r = " [" ++ show (getRange mv) ++ "]"
 
-instance Show InstantiatedMeta where
-    show (InstV v t) = show v  ++ " : " ++ show t
-    show (InstT t)   = show t
-    show (InstS s)   = show s
-
-instance Show OpenMeta where
-    show (OpenV t) = ": " ++ show t
-    show (OpenT s) = "type " ++ show s
-    show OpenS	   = "sort"
+instance Show MetaInstantiation where
+    show (InstV v) = " := " ++ show v
+    show (InstT t) = " := " ++ show t
+    show (InstS s) = " := " ++ show s
+    show  Open	   = ""
 
 getMetaScope :: MetaVariable -> ScopeInfo
 getMetaScope m = metaScope $ getMetaInfo m

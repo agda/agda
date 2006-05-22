@@ -23,7 +23,7 @@ debug' = debug
 -- | Equality of two instances of the same metavar
 --
 equalSameVar :: (Data a, Abstract a, Apply a) => 
-                (MetaId -> a) -> (a -> MetaVariable) -> MetaId -> Args -> Args -> TCM ()
+                (MetaId -> a) -> (a -> MetaInstantiation) -> MetaId -> Args -> Args -> TCM ()
 equalSameVar meta inst x args1 args2 =
     if length args1 == length args2 then do
         -- next 2 checks could probably be nicely merged into construction 
@@ -31,9 +31,11 @@ equalSameVar meta inst x args1 args2 =
         checkArgs x args1 
         checkArgs x args2 
         let idx = [0 .. length args1 - 1]
-        let newArgs = [Arg NotHidden $ Var n [] | (n, (a,b)) <- zip idx $ reverse $ zip args1 args2
-						, a === b]
-        v <- newMetaSame x args1 meta
+        let newArgs = [ Arg NotHidden $ Var n []
+		      | (n, (a,b)) <- zip idx $ reverse $ zip args1 args2
+		      , a === b
+		      ]
+        v <- newMetaSame x meta
 	let tel = map (fmap $ const $ Sort Prop) args1 -- types don't matter here
         setRef Why x $ inst $ abstract tel (v `apply` newArgs)
     else fail $ "equalSameVar"
@@ -78,7 +80,7 @@ equalAtm _ t m n = do
             a <- typeOfConst x
             equalArg Why a xArgs yArgs
         (MetaV x xArgs, MetaV y yArgs) | x == y ->
-	    equalSameVar (\x -> MetaV x []) instV x xArgs yArgs
+	    equalSameVar (\x -> MetaV x []) InstV x xArgs yArgs
         (MetaV x xArgs, _) -> assign x xArgs nVal
         (_, MetaV x xArgs) -> assign x xArgs mVal
 	(BlockedV b, _)		   -> addConstraint (ValueEq t mVal nVal)
@@ -122,7 +124,7 @@ equalTyp _ a1 a2 =
 		addCtx name a1 $ equalTyp Why (subst (Var 0 []) a2') (subst (Var 0 []) b2')
 	    (Sort s1, Sort s2) -> return ()
 	    (MetaT x xDeps, MetaT y yDeps) | x == y -> 
-		equalSameVar (\x -> MetaT x []) instT x xDeps yDeps -- !!! MetaT???
+		equalSameVar (\x -> MetaT x []) InstT x xDeps yDeps -- !!! MetaT???
 	    (MetaT x xDeps, a) -> assign x xDeps a 
 	    (a, MetaT x xDeps) -> assign x xDeps a 
 	    (LamT _, _)   -> __IMPOSSIBLE__
@@ -194,7 +196,7 @@ equalSort s1 s2 =
 	    (MetaS x , Prop    )	     -> assign x [] s2
 	    (_	     , MetaS x )	     -> equalSort s2 s1
     where
-	notEq s1 s2 = fail $ show s1 ++ " is not less or equal to " ++ show s2
+	notEq s1 s2 = fail $ show s1 ++ " is not equal to " ++ show s2
 
 -- | Get the sort of a type. Should be moved somewhere else.
 getSort :: Type -> TCM Sort
@@ -204,10 +206,9 @@ getSort t =
 	Pi _ a (Abs _ b) -> sLub <$> getSort a <*> getSort b
 	Sort s		 -> return $ sSuc s
 	MetaT m _	 ->
-	    do  mv <- lookupMeta m
+	    do  mv <- mvJudgement <$> lookupMeta m
 		case mv of
-		    Open _ (OpenT s) -> return s
-		    Inst _ (InstT t) -> getSort t
-		    _		     -> __IMPOSSIBLE__
+		    IsType _ s -> return s
+		    _	       -> __IMPOSSIBLE__
 	LamT _ -> __IMPOSSIBLE__
 

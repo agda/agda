@@ -48,40 +48,28 @@ allCtxVars = do
     ctx <- asks envContext
     return $ reverse $ List.map (\i -> Arg NotHidden $ Var i []) $ [0 .. length ctx - 1]
 
-setRef :: Data a => a -> MetaId -> MetaVariable -> TCM ()
-setRef _ x v = do
-    store <- getMetaStore
-    modify (\st -> st{ stMetaStore = ins x v store })
-    wakeupConstraints
+-- | The instantiation should not be 'Open' and the 'MetaId' should point to
+--   something 'Open'.
+setRef :: Data a => a -> MetaId -> MetaInstantiation -> TCM ()
+setRef _ x i =
+    do	store <- getMetaStore
+	modify $ \st -> st { stMetaStore = ins x i store }
+	wakeupConstraints
   where
-    ins x v store = Map.insertWith copy x v store
-
-    copy (Inst _ i) (Open mi o) = Inst mi (copy' i o)
-	where
-	    copy' (InstV v _) (OpenV t) = InstV v t
-	    copy' i _			= i
-    copy _ _ = __IMPOSSIBLE__
-
--- | Generate new meta variable.
---
-newMeta :: (MetaId -> a) -> MetaInfo -> OpenMeta -> TCM a
-newMeta meta mi initialVal = do
-    x <- fresh
-    let m = Open mi initialVal
-    modify (\st -> st{stMetaStore = Map.insert x m $ stMetaStore st})
-    return $ meta x
-
+    ins x i store = Map.adjust (inst i) x store
+    inst i mv = mv { mvInstantiation = i }
 
 newSortMeta ::  TCM Sort
 newSortMeta = 
     do  i <- createMetaInfo
-	newMeta MetaS i OpenS
+	MetaS <$> newMeta i (IsSort ())
 
 newTypeMeta :: Sort -> TCM Type
 newTypeMeta s =
     do	i <- createMetaInfo
         vs <- allCtxVars
-	newMeta (\m -> MetaT m vs) i $ OpenT s
+	x  <- newMeta i (IsType () s)
+	return $ MetaT x vs
 
 newTypeMeta_ ::  TCM Type
 newTypeMeta_  = 
@@ -89,9 +77,10 @@ newTypeMeta_  =
 
 newValueMeta ::  Type -> TCM Term
 newValueMeta t =
-    do	i <- createMetaInfo
+    do	i  <- createMetaInfo
         vs <- allCtxVars
-	newMeta (\m -> MetaV m vs) i $ OpenV t
+	x  <- newMeta i (HasType () t)
+	return $ MetaV x vs
 
 newArgsMeta ::  Type -> TCM Args
 newArgsMeta (Pi h a b) =
@@ -118,23 +107,13 @@ newQuestionMarkT_ ::  TCM Type
 newQuestionMarkT_ = 
     do  newQuestionMarkT =<< newSortMeta
 
--- | Used to give an initial value to newMeta.  
---   Get the 'MetaVariable' referred to by a 'MetaId' and make sure that it's
---   'Open'.
-getMeta :: MetaId -> Args -> TCM MetaVariable
-getMeta x args =
-    do	mv <- lookupMeta x
-	case mv of
-	    Open _ _ -> return mv
-	    _	     -> __IMPOSSIBLE__
-
 -- | Generate new metavar of same kind ('Open'X) as that
 --     pointed to by @MetaId@ arg.
 --
-newMetaSame :: MetaId -> Args -> (MetaId -> a) -> TCM a
-newMetaSame x args meta =
-    do	Open i o <- getMeta x args
-	newMeta meta i o
+newMetaSame :: MetaId -> (MetaId -> a) -> TCM a
+newMetaSame x meta =
+    do	mv <- lookupMeta x
+	meta <$> newMeta (getMetaInfo mv) (mvJudgement mv)
 
 -- | If @restrictParameters ok ps = qs@ then @(\xs -> c qs) ps@ will
 --   reduce to @c rs@ where @rs@ is the intersection of @ok@ and @ps@.
@@ -146,10 +125,6 @@ restrictParameters ok ps
 	    return $ Arg NotHidden $ Var n []
     | otherwise	     = Nothing
 
-
-instV v = Inst __IMPOSSIBLE__ $ InstV v __IMPOSSIBLE__
-instT	= Inst __IMPOSSIBLE__ . InstT
-instS	= Inst __IMPOSSIBLE__ . InstS
 
 -- | Extended occurs check.
 class Occurs a where
@@ -167,7 +142,7 @@ instance Occurs Term where
 		Lit l	    -> return $ Lit l
 		Def c vs    -> Def c <$> occ m ok vs
 		Con c vs    -> Con c <$> occ m ok vs
-		MetaV m' vs -> occMeta MetaV instV instantiate m ok m' vs
+		MetaV m' vs -> occMeta MetaV InstV instantiate m ok m' vs
 		BlockedV b  -> occ m ok $ blockee b
 
 instance Occurs Type where
@@ -177,7 +152,7 @@ instance Occurs Type where
 		El v s	    -> uncurry El <$> occ m ok (v,s)
 		Pi h w f    -> uncurry (Pi h) <$> occ m ok (w,f)
 		Sort s	    -> Sort <$> occ m ok s
-		MetaT m' vs -> occMeta MetaT instT instantiate m ok m' vs
+		MetaT m' vs -> occMeta MetaT InstT instantiate m ok m' vs
 		LamT _	    -> __IMPOSSIBLE__
 
 instance Occurs Sort where
@@ -189,7 +164,7 @@ instance Occurs Sort where
 		_		   -> return s'
 
 occMeta :: (Show a, Data a, Abstract a, Apply a) =>
-	   (MetaId -> Args -> a) -> (a -> MetaVariable) -> (a -> TCM a) -> MetaId -> [Nat] -> MetaId -> Args -> TCM a
+	   (MetaId -> Args -> a) -> (a -> MetaInstantiation) -> (a -> TCM a) -> MetaId -> [Nat] -> MetaId -> Args -> TCM a
 occMeta meta inst red m ok m' vs
     | m == m'	= fail $ "?" ++ show m ++ " occurs in itself"
     | otherwise	=
@@ -197,7 +172,7 @@ occMeta meta inst red m ok m' vs
 		     Nothing  -> patternViolation [m,m']
 		     Just vs' -> return vs'
 	    when (length vs' /= length vs) $
-		do  v1 <-  newMetaSame m' [] (\mi -> meta mi [])
+		do  v1 <-  newMetaSame m' (\mi -> meta mi [])
 		    let tel = List.map (fmap $ const $ Sort Prop) vs	-- types don't matter here
 		    setRef Why m' $ inst $ abstract tel (v1 `apply` vs')
 	    let vs0 = List.map rename vs
@@ -227,8 +202,8 @@ instance Occurs a => Occurs [a] where
 --     Then do extended occurs check on given thing.
 --
 assign :: (Show a, Data a, Occurs a, Abstract a) => MetaId -> Args -> a -> TCM ()
-assign x args = mkQ (fail "assign") (ass instV) `extQ` ass instT `extQ` ass instS where
-    ass :: (Show a, Data a, Occurs a, Abstract a) => (a -> MetaVariable) -> a -> TCM ()
+assign x args = fail "assign" `mkQ` ass InstV `extQ` ass InstT `extQ` ass InstS where
+    ass :: (Show a, Data a, Occurs a, Abstract a) => (a -> MetaInstantiation) -> a -> TCM ()
     ass inst v = do
 	let pshow (Arg NotHidden x) = show x
 	    pshow (Arg Hidden x) = "{" ++ show x ++ "}"

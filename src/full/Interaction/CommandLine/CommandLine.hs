@@ -121,8 +121,8 @@ showMetas [] =
     where
 	prm (x,i) = "?" ++ show x ++ " " ++ show i
 
-	interesting (Open _ _) = True
-	interesting _	       = False
+	interesting (MetaVar _ _ Open) = True
+	interesting _		       = False
 showMetas _ = liftIO $ putStrLn $ ":meta [metaid]"
 
 
@@ -146,23 +146,20 @@ giveMeta [is,es] =
          withMetaInfo (getMetaInfo mv) $ metaTypeCheck' mi e mv
 
  where  metaTypeCheck' mi e mv = 
-            case mv of 
-		 Open _ (OpenV t)    ->
+            case mvJudgement mv of 
+		 HasType _ t  ->
 		    do	v <- checkExpr e t
+			case mvInstantiation mv of
+			    InstV v' -> equalVal () t v v'
+			    _	     -> __IMPOSSIBLE__
 			updateMeta mi v
-		 Open _ (OpenT s)    ->
+		 IsType _ s ->
 		    do	t <- isType e s
+			case mvInstantiation mv of
+			    InstT t' -> equalTyp () t t'
+			    _	     -> __IMPOSSIBLE__
 			updateMeta mi t
-		 Inst _ (InstV v' t) ->
-		     do  v <- checkExpr e t
-                         equalVal () t v v' -- Move
-                         updateMeta mi v
-                 Inst _ (InstT t)    -> 
-                     do  s <- getSort t
-			 v <- isType e s
-                         equalTyp () t v
-                         updateMeta mi v
-                 _		     -> __IMPOSSIBLE__
+		 IsSort _ -> __IMPOSSIBLE__
 
 giveMeta _ = liftIO $ putStrLn "give takes a number of a meta and expression"
 

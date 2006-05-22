@@ -2,8 +2,6 @@
 AIM4
 ----
 
-* ? should not be a valid operator characted
-
 * good error messages
 
 * Monomorphic constructors.
@@ -21,7 +19,12 @@ AIM4
 
 * check that underscores have been solved
 
+(done) ? should not be a valid operator characted
+
 (done) actually check sorts
+
+(done) Get rid of distinction between hole and underscore. Instead keep a
+       separate list of which metas are interaction points.
 
 (done) Blocked constructor in Terms and Types
 

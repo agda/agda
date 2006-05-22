@@ -105,7 +105,7 @@ newtype MetaId = MetaId Nat
     deriving (Eq, Ord, Num, Typeable, Data)
 
 instance Show MetaId where
-    show (MetaId n) = show n
+    show (MetaId n) = "?" ++ show n
 
 ---------------------------------------------------------------------------
 -- * Smart constructors
