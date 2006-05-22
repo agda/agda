@@ -2,6 +2,8 @@
 AIM4
 ----
 
+* ? should not be a valid operator characted
+
 * good error messages
 
 * Monomorphic constructors.
