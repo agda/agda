@@ -96,14 +96,13 @@ data NiceDeclaration
 	| NiceModuleMacro Range Access IsAbstract Name Telescope Expr ImportDirective
 	| NiceOpen Range QName ImportDirective
 	| NiceImport Range QName (Maybe Name) ImportDirective
-
--- 	| NiceData Range Fixity Access Name Telescope Expr [NiceDeclaration]
--- 	| FunDef Range [Declaration] Fixity Access Name (Maybe Expr) [Clause]
+    deriving Show
 
 -- | A definition without its type signature.
 data NiceDefinition
 	= FunDef  Range [Declaration] Fixity Access IsAbstract Name [Clause]
 	| DataDef Range Fixity Access IsAbstract Name [LamBinding] [NiceConstructor]
+    deriving Show
 
 -- | Only 'Axiom's.
 type NiceConstructor = NiceDeclaration
@@ -113,17 +112,27 @@ type NiceTypeSignature	= NiceDeclaration
 
 -- | One clause in a function definition.
 data Clause = Clause LHS RHS WhereClause
-
+    deriving Show
 
 -- | The exception type.
 data DeclarationException
 	= MultipleFixityDecls [(Name, [Fixity])]
 	| MissingDefinition Name
+	| NotAllowedInMutual NiceDeclaration
     deriving (Typeable, Show)
 
 instance HasRange DeclarationException where
     getRange (MultipleFixityDecls xs) = getRange (fst $ head xs)
     getRange (MissingDefinition x)    = getRange x
+    getRange (NotAllowedInMutual x)   = getRange x
+
+instance HasRange NiceDeclaration where
+    getRange (Axiom r _ _ _ _ _)	     = r
+    getRange (NiceDef r _ _ _)		     = r
+    getRange (NiceModule r _ _ _ _ _)	     = r
+    getRange (NiceModuleMacro r _ _ _ _ _ _) = r
+    getRange (NiceOpen r _ _)		     = r
+    getRange (NiceImport r _ _ _)	     = r
 
 {--------------------------------------------------------------------------
     The niceifier
@@ -269,11 +278,12 @@ niceDeclarations ds = nice (fixities ds) ds
 	mkMutual r cs ds = setConcrete cs $ foldr smash (NiceDef r [] [] []) ds
 	    where
 		setConcrete cs (NiceDef r _ ts ds)  = NiceDef r cs ts ds
-		setConcrete cs _		    = __IMPOSSIBLE__
+		setConcrete cs d		    = throwDyn $ NotAllowedInMutual d
 
 		smash (NiceDef r0 _ ts0 ds0) (NiceDef r1 _ ts1 ds1) =
 		    NiceDef (fuseRange r0 r1) [] (ts0 ++ ts1) (ds0 ++ ds1)
-		smash _ _ = __IMPOSSIBLE__  -- only definitions can appear in a mutual
+		smash (NiceDef _ _ _ _) d = throwDyn $ NotAllowedInMutual d
+		smash d _		  = throwDyn $ NotAllowedInMutual d
 
 	-- Make a declaration abstract
 	mkAbstract d =

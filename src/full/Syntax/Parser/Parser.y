@@ -522,58 +522,19 @@ WhereClause
 
 -- Local declarations.
 LocalDeclaration :: { LocalDeclaration }
-LocalDeclaration
-    : TypeSig	    { $1 }
-    | FunClause	    { $1 }
-    | Data	    { $1 }
-    | Infix	    { $1 }
-    | Mutual	    { $1 }
-    | Abstract	    { $1 }
-    | Open	    { $1 }
-    | ModuleMacro   { $1 }
-    | Module	    { $1 }  -- why not have local modules?
+LocalDeclaration : TopLevelDeclaration { $1 }
 
 -- Declarations that can appear in a private block.
 PrivateDeclaration :: { PrivateDeclaration }
-PrivateDeclaration
-    : TypeSig	    { $1 }
-    | FunClause	    { $1 }
-    | Data	    { $1 }
-    | Infix	    { $1 }
-    | Mutual	    { $1 }
-    | Abstract	    { $1 }
-    | Postulate	    { $1 }
-    | Private	    { $1 }  -- we allow private inside private because we can,
-			    -- and because generated code might want to use it
-			    -- to simplify things
-    | Open	    { $1 }
-    | ModuleMacro   { $1 }
-    | Module	    { $1 }
-
+PrivateDeclaration : TopLevelDeclaration { $1 }
 
 -- Declarations that can appear in a mutual block.
 MutualDeclaration :: { MutualDeclaration }
-MutualDeclaration
-    : TypeSig	{ $1 }
-    | FunClause { $1 }
-    | Data	{ $1 }
-    | Infix	{ $1 }
-    | Private	{ $1 }
-    | Abstract	{ $1 }
-
+MutualDeclaration : TopLevelDeclaration { $1 }
 
 -- Declarations that can appear in an abstract block.
 AbstractDeclaration :: { AbstractDeclaration }
-AbstractDeclaration
-    : TypeSig	    { $1 }
-    | FunClause	    { $1 }
-    | Data	    { $1 }
-    | Infix	    { $1 }
-    | Abstract	    { $1 }
-    | Mutual	    { $1 }
-    | Private	    { $1 }
-    | Open	    { $1 }
-
+AbstractDeclaration : TopLevelDeclaration { $1 }
 
 -- Top-level defintions.
 TopLevelDeclaration :: { TopLevelDeclaration }
