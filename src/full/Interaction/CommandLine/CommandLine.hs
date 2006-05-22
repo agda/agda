@@ -14,14 +14,17 @@ import Data.List as List
 import Data.Maybe
 import Text.PrettyPrint
 
-import Syntax.Position
-import Syntax.Abstract
-import Syntax.Translation.ConcreteToAbstract
-import Syntax.Parser
-import Syntax.Scope
+import qualified Syntax.Abstract as A
 import Syntax.Internal
+import Syntax.Parser
+import Syntax.Position
+import Syntax.Scope
+import Syntax.Translation.ConcreteToAbstract
+
+
 
 import TypeChecker
+import TypeChecking.Conversion
 import TypeChecking.Monad
 import TypeChecking.Monad.Context
 import TypeChecking.MetaVars
@@ -30,6 +33,8 @@ import TypeChecking.Reduce
 import Utils.ReadLine
 import Utils.Monad
 import Utils.Fresh
+
+#include "../../undefined.h"
 
 data ExitCode a = Continue | ContinueIn TCEnv | Return a
 
@@ -87,6 +92,7 @@ interactionLoop typeCheck =
 	    , "reload"	|>  \_ -> do reload
 				     ContinueIn <$> ask
 	    , "constraints" |> \_ -> continueAfter showConstraints
+            , "give" |> \args -> continueAfter $ giveMeta args
 	    , "meta" |> \args -> continueAfter $ showMetas args
 	    ]
 	    where
@@ -115,26 +121,50 @@ showMetas [] =
     where
 	prm (x,i) = "?" ++ show x ++ " " ++ show i
 
-	interesting (HoleV _ _ _)	= True
-	interesting (HoleT _ _ _)	= True
-	interesting (UnderScoreV _ _ _) = True
-	interesting (UnderScoreT _ _ _) = True
-	interesting (UnderScoreS _ _)	= True
-	interesting _			= False
+	interesting (Open _ _) = True
+	interesting _	       = False
 showMetas _ = liftIO $ putStrLn $ ":meta [metaid]"
 
-{-
-parseExprMeta :: Int -> String -> TCM Expr
+
+
+metaParseExpr ::  MetaId -> String -> TCM A.Expr
+metaParseExpr m s = 
     do	i <- fresh
-	scope <- getScope
+        scope <- getMetaScope <$> lookupMeta m
+        liftIO $ putStrLn $ show scope
 	let ss = ScopeState { freshId = i }
 	liftIO $ concreteToAbstract ss scope c
     where
 	c = parse exprParser s
 
--}
+metaTypeCheck :: MetaId -> A.Expr -> TCM ()
+metaTypeCheck m e = 
+    do 	mv <- lookupMeta m
+        let mI = getMetaInfo mv
+        withMetaInfo mI $  metaTypeCheck' mv
+ where  metaTypeCheck' mv = 
+            case mv of
+		 Open _ (OpenV t)    -> checkExpr e t >> return ()
+		 Open _ (OpenT s)    -> isType e      >> return () -- TODO: Not correct 
+		 Inst _ (InstV v' t) ->
+		     do  v <- checkExpr e t
+                         equalVal () t v v'
+                 Inst _ (InstT t)    -> 
+                     do  v <- isType e
+                         equalTyp () t v
+                 _		     -> __IMPOSSIBLE__
 
-parseExpr :: String -> TCM Expr
+
+giveMeta :: [String] -> TCM ()
+giveMeta [is,es] = 
+     do  i <- readM is
+         let mi = MetaId i 
+         e <- metaParseExpr mi es 
+         metaTypeCheck mi e
+giveMeta _ = liftIO $ putStrLn "give takes a number of a meta and expression"
+
+
+parseExpr :: String -> TCM A.Expr
 parseExpr s =
     do	i <- fresh
 	scope <- getScope

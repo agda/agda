@@ -292,7 +292,7 @@ checkFunDef i x cs =
 checkClause :: Type -> A.Clause -> TCM Clause
 checkClause _ (A.Clause _ _ (_:_))  = fail "checkClause: local definitions not implemented"
 checkClause t (A.Clause (A.LHS i x ps) rhs ds) =
-    do	workingOn i
+    do	setCurrentRange i
 	checkPatterns ps t $ \xs ps _ t' ->
 	    do  checkDecls ds
 		v <- checkExpr rhs t'
@@ -306,11 +306,11 @@ checkPatterns [] t ret	   =
     do	t' <- instantiate t
 	case t' of
 	    Pi Hidden a b   ->
-		do  r <- whereAmI
+		do  r <- getCurrentRange
 		    checkPatterns [Arg Hidden $ A.WildP $ PatRange r] t' ret
 	    _		    -> ret [] [] [] t
 checkPatterns (Arg h p:ps) t ret =
-    do	workingOn p
+    do	setCurrentRange p
 	t' <- forcePi h t
 	case (h,t') of
 	    (NotHidden, Pi Hidden _ _) ->
@@ -332,7 +332,7 @@ checkPattern (A.WildP i) t ret =
     do	x <- freshNoName (getRange i)
 	addCtx x t $ ret [show x] (VarP "_") (Var 0 [])
 checkPattern (A.ConP i c ps) t ret =
-    do	workingOn i
+    do	setCurrentRange i
 	Defn t' _ (Constructor n d _) <- instantiateDef =<< getConstInfo c
 	El (Def _ vs) _		      <- forceData d t
 	c'			      <- canonicalConstructor c
@@ -348,7 +348,7 @@ checkPattern (A.ConP i c ps) t ret =
 -- | Make sure that a type is a sort (instantiate meta variables if necessary).
 forceSort :: Range -> Type -> TCM Sort
 forceSort r t =
-    do	workingOn r
+    do	setCurrentRange r
 	t' <- reduce t
 	case t' of
 	    Sort s	 -> return s
@@ -366,7 +366,7 @@ forceSort r t =
 -- | Check that an expression is a type.
 isType :: A.Expr -> TCM Type
 isType e =
-    do	workingOn e
+    do	setCurrentRange e
         
 	case e of
 	    A.Prop _	     -> return $ prop
@@ -376,10 +376,10 @@ isType e =
 		    do  t <- isType e
 			return $ buildPi tel t
 	    A.QuestionMark i -> 
-                do  setScope (metaScope i)
+                do  setScope (Syntax.Info.metaScope i)
                     newQuestionMarkT_ 
 	    A.Underscore i   -> 
-                do  setScope (metaScope i)
+                do  setScope (Syntax.Info.metaScope i)
                     newTypeMeta_ 
 	    _		     -> inferTypeExpr e
 
@@ -448,7 +448,7 @@ checkTypedBinding b@(A.TypedBinding i h xs e) ret =
 -- | Type check an expression.
 checkExpr :: A.Expr -> Type -> TCM Term
 checkExpr e t =
-    do	workingOn e
+    do	setCurrentRange e
 	case appView e of
 	    Application hd args ->
 		do  
@@ -481,10 +481,10 @@ checkExpr e t =
 				_	-> fail $ "expected " ++ show h ++ " function space, found " ++ show t'
 
 		    A.QuestionMark i -> 
-                        do  setScope (metaScope i)
+                        do  setScope (Syntax.Info.metaScope i)
                             newQuestionMark  t
 		    A.Underscore i   -> 
-                        do  setScope (metaScope i)
+                        do  setScope (Syntax.Info.metaScope i)
                             newValueMeta t
 		    A.Lit lit	     -> fail "checkExpr: literals not implemented"
 		    A.Let i ds e     -> fail "checkExpr: let not implemented"
@@ -494,12 +494,12 @@ checkExpr e t =
 -- | Infer the type of a head thing (variable, function symbol, or constructor)
 inferHead :: Head -> TCM (Term, Type)
 inferHead (HeadVar _ x) =
-    do	workingOn x
+    do	setCurrentRange x
 	n <- varIndex x
 	t <- typeOfBV n
 	return (Var n [], t)
 inferHead (HeadCon i x) =
-    do	workingOn x
+    do	setCurrentRange x
 	Defn t _ (Constructor n d _) <- getConstInfo x
 	s			     <- sortOfConst d
 	t0			     <- newTypeMeta s    -- TODO: not so nice
@@ -511,7 +511,7 @@ inferHead (HeadCon i x) =
 -- 	debug $ "        " ++ show ctx
 	return (Con x [], t1)
 inferHead (HeadDef _ x) =
-    do	workingOn x
+    do	setCurrentRange x
 	d <- instantiateDef =<< getConstInfo x
 	gammaDelta <- getContextTelescope
 	let t	  = defType d
@@ -529,7 +529,7 @@ inferHead (HeadDef _ x) =
 --   make this happen.
 checkArguments :: Range -> [Arg A.Expr] -> Type -> Type -> TCM Args
 checkArguments r [] t0 t1 =
-    do	workingOn r
+    do	setCurrentRange r
 	t0' <- reduce t0
 	t1' <- reduce t1
 	case t0' of
@@ -545,7 +545,7 @@ checkArguments r [] t0 t1 =
 	notMetaOrHPi _		     = True
 
 checkArguments r (Arg h e : args) t0 t1 =
-    do	workingOn r
+    do	setCurrentRange r
 	t0' <- forcePi h t0
 	case (h, t0') of
 	    (NotHidden, Pi Hidden a b) ->

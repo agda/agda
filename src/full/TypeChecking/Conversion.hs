@@ -55,8 +55,8 @@ equalVal _ a m n = do --trace ("equalVal ("++(show a)++") ("++(show m)++") ("++(
                 n' = raise 1 n
             in do name <- freshName_ x
 		  addCtx name a $ equalVal Why b (m' `apply` [p]) (n' `apply` [p])
-        MetaT x _ -> addCnstr [x] (ValueEq a m n)
-        _ -> catchConstr (ValueEq a' m n) $ equalAtm Why a m n
+        MetaT x _ -> addConstraint (ValueEq a m n)
+        _ -> catchConstraint (ValueEq a' m n) $ equalAtm Why a m n
 
 -- | Syntax directed equality on atomic values
 --
@@ -81,9 +81,8 @@ equalAtm _ t m n = do
 	    equalSameVar (\x -> MetaV x []) instV x xArgs yArgs
         (MetaV x xArgs, _) -> assign x xArgs nVal
         (_, MetaV x xArgs) -> assign x xArgs mVal
-	(BlockedV b1, BlockedV b2) -> addCnstr [blockingMeta b1,blockingMeta b2] (ValueEq t mVal nVal)
-	(BlockedV b, _)		   -> addCnstr [blockingMeta b] (ValueEq t mVal nVal)
-	(_,BlockedV b)		   -> addCnstr [blockingMeta b] (ValueEq t mVal nVal)
+	(BlockedV b, _)		   -> addConstraint (ValueEq t mVal nVal)
+	(_,BlockedV b)		   -> addConstraint (ValueEq t mVal nVal)
         _ -> fail $ "equalAtm "++(show mVal)++" ==/== "++(show nVal)
 
 
@@ -146,21 +145,21 @@ leqSort s1 s2 =
 	    (Type _  , Prop    )	     -> notLeq s1 s2
 	    (Suc _   , Prop    )	     -> notLeq s1 s2
 
-	    (Prop    , Type 0  )	     -> notLeq s1 s2
+	    (_	     , Type 0  )	     -> equalSort s1 s2
 	    (Prop    , Type n  )	     -> return ()
 	    (Type n  , Type m  ) | n <= m    -> return ()
 				 | otherwise -> notLeq s1 s2
 	    (Suc s   , Type n  ) | n >= 1    -> leqSort s (Type $ n - 1)
 				 | otherwise -> notLeq s1 s2
 	    (Suc s1  , Suc s2  )	     -> leqSort s1 s2
-	    (_	     , Suc _   )	     -> addCnstr [] (SortLeq s1 s2)
+	    (_	     , Suc _   )	     -> addConstraint (SortLeq s1 s2)
 
 	    (Lub a b , _       )	     -> leqSort a s2 >> leqSort b s2
-	    (_	     , Lub _ _ )	     -> addCnstr [] (SortLeq s1 s2)
+	    (_	     , Lub _ _ )	     -> addConstraint (SortLeq s1 s2)
 
 	    (MetaS x , MetaS y ) | x == y    -> return ()
-	    (MetaS x , _       )	     -> addCnstr [x] (SortLeq s1 s2)
-	    (_	     , MetaS x )	     -> addCnstr [x] (SortLeq s1 s2)
+	    (MetaS x , _       )	     -> addConstraint (SortLeq s1 s2)
+	    (_	     , MetaS x )	     -> addConstraint (SortLeq s1 s2)
     where
 	notLeq s1 s2 = fail $ show s1 ++ " is not less or equal to " ++ show s2
 
@@ -183,11 +182,11 @@ equalSort s1 s2 =
 				 | otherwise -> notEq s1 s2
 	    (Type n  , Suc s   ) | n >= 1    -> equalSort (Type $ n - 1) s
 	    (Suc s1  , Suc s2  )	     -> equalSort s1 s2
-	    (_	     , Suc _   )	     -> addCnstr [] (SortEq s1 s2)
-	    (Suc _   , _       )	     -> addCnstr [] (SortEq s1 s2)
+	    (_	     , Suc _   )	     -> addConstraint (SortEq s1 s2)
+	    (Suc _   , _       )	     -> addConstraint (SortEq s1 s2)
 
-	    (Lub _ _ , _       )	     -> addCnstr [] (SortEq s1 s2)
-	    (_	     , Lub _ _ )	     -> addCnstr [] (SortEq s1 s2)
+	    (Lub _ _ , _       )	     -> addConstraint (SortEq s1 s2)
+	    (_	     , Lub _ _ )	     -> addConstraint (SortEq s1 s2)
 
 	    (MetaS x , MetaS y ) | x == y    -> return ()
 				 | otherwise -> assign x [] s2
@@ -200,16 +199,15 @@ equalSort s1 s2 =
 -- | Get the sort of a type. Should be moved somewhere else.
 getSort :: Type -> TCM Sort
 getSort t =
-    do	t' <- reduce t
-	case t' of
-	    El _ s	     -> return s
-	    Pi _ a (Abs _ b) -> sLub <$> getSort a <*> getSort b
-	    Sort s	     -> return $ sSuc s
-	    MetaT m _	     ->
-		do  mv <- lookupMeta m
-		    case mv of
-			UnderScoreT _ s _ -> return s
-			HoleT _ s _	  -> return s
-			_		  -> __IMPOSSIBLE__
-	    LamT _	    -> __IMPOSSIBLE__
+    case t of
+	El _ s		 -> return s
+	Pi _ a (Abs _ b) -> sLub <$> getSort a <*> getSort b
+	Sort s		 -> return $ sSuc s
+	MetaT m _	 ->
+	    do  mv <- lookupMeta m
+		case mv of
+		    Open _ (OpenT s) -> return s
+		    Inst _ (InstT t) -> getSort t
+		    _		     -> __IMPOSSIBLE__
+	LamT _ -> __IMPOSSIBLE__
 

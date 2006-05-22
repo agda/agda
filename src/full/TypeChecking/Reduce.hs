@@ -49,29 +49,33 @@ instance Instantiate Term where
     instantiate t@(MetaV x args) =
 	do  mv <- lookupMeta x
 	    case mv of
-		InstV _ a' _ -> instantiate $ a' `apply` args
-		_	     -> return t
+		Inst _ (InstV a' _) -> instantiate $ a' `apply` args
+		Open _ _	    -> return t
+		_		    -> __IMPOSSIBLE__
     instantiate v@(BlockedV (Blocked x u)) =
 	do  mv <- lookupMeta x
 	    case mv of
-		InstV _ _ _ -> instantiate u
-		_	    -> return v
+		Inst _ (InstV _ _) -> instantiate u
+		Open _ _	   -> return v
+		_		   -> __IMPOSSIBLE__
     instantiate t = return t
 
 instance Instantiate Type where
     instantiate t@(MetaT x args) =
 	do  mv <- lookupMeta x
 	    case mv of
-		InstT _ a' -> instantiate $ a' `apply` args
-		_	       -> return t
+		Inst _ (InstT a') -> instantiate $ a' `apply` args
+		Open _ _	  -> return t
+		_		  -> __IMPOSSIBLE__
     instantiate t = return t
 
 instance Instantiate Sort where
     instantiate s@(MetaS x) =
 	do  mv <- lookupMeta x
 	    case mv of
-		InstS _ s' -> instantiate s'
-		_	   -> return s
+		Inst _ (InstS s') -> instantiate s'
+		Open _ _	  -> return s
+		_		  -> __IMPOSSIBLE__
     instantiate s = return s
 
 instance Instantiate t => Instantiate (Arg t) where

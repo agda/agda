@@ -10,7 +10,6 @@ import Data.Generics
 
 
 import Syntax.Common
-import Syntax.Info
 import Syntax.Internal
 import Syntax.Internal.Debug ()
 import Syntax.Position
@@ -23,36 +22,44 @@ import Utils.Fresh
 ---------------------------------------------------------------------------
 
 data TCState =
-    TCSt { stFreshThings    :: FreshThings
-	 , stMetaStore	    :: MetaStore
-	 , stConstraints    :: Constraints
-	 , stSignature	    :: Signature
-	 , stScopeInfo	    :: ScopeInfo
-	 , stTrace	    :: Trace
+    TCSt { stFreshThings       :: FreshThings
+	 , stMetaStore	       :: MetaStore
+	 , stInteractionPoints :: InteractionPoints
+	 , stConstraints       :: Constraints
+	 , stSignature	       :: Signature
+	 , stScopeInfo	       :: ScopeInfo
+	 , stTrace	       :: Trace
 	    -- ^ record what is happening (for error msgs)
 	 }
 
 data FreshThings =
-	Fresh { fMeta	    :: MetaId
-	      , fName	    :: NameId
-	      , fConstraint :: ConstraintId
+	Fresh { fMeta	     :: MetaId
+	      , fInteraction :: InteractionId
+	      , fName	     :: NameId
+	      , fConstraint  :: ConstraintId
 	      }
     deriving (Show)
 
 initState :: TCState
 initState =
-    TCSt { stFreshThings = Fresh 0 0 0
-	 , stMetaStore	 = Map.empty
-	 , stConstraints = Map.empty
-	 , stSignature   = Map.empty
-	 , stScopeInfo	 = emptyScopeInfo_
-	 , stTrace	 = noTrace
+    TCSt { stFreshThings       = Fresh 0 0 0 0
+	 , stMetaStore	       = Map.empty
+	 , stInteractionPoints = Map.empty
+	 , stConstraints       = Map.empty
+	 , stSignature	       = Map.empty
+	 , stScopeInfo	       = emptyScopeInfo_
+	 , stTrace	       = noTrace
 	 }
 
 instance HasFresh MetaId FreshThings where
     nextFresh s = (i, s { fMeta = i + 1 })
 	where
 	    i = fMeta s
+
+instance HasFresh InteractionId FreshThings where
+    nextFresh s = (i, s { fInteraction = i + 1 })
+	where
+	    i = fInteraction s
 
 instance HasFresh NameId FreshThings where
     nextFresh s = (i, s { fName = i + 1 })
@@ -88,17 +95,41 @@ type Constraints = Map ConstraintId (Signature,TCEnv,Constraint)
 -- ** Meta variables
 ---------------------------------------------------------------------------
 
-data MetaVariable = InstV MetaInfo Term Type
-                  | InstT MetaInfo Type
-                  | InstS MetaInfo Sort
-                  | UnderScoreV MetaInfo Type [ConstraintId]
-                  | UnderScoreT MetaInfo Sort [ConstraintId]
-                  | UnderScoreS MetaInfo      [ConstraintId]
-                  | HoleV       MetaInfo Type [ConstraintId]
-                  | HoleT       MetaInfo Sort [ConstraintId]
-  deriving (Typeable, Data)
+data MetaVariable = Inst { getMetaInfo	    :: MetaInfo
+			 , instantiatedMeta :: InstantiatedMeta
+			 }
+		  | Open { getMetaInfo :: MetaInfo
+			 , openMeta    :: OpenMeta
+			 }
+    deriving (Typeable, Data)
+
+-- | The type of an 'InstV' is after application to the dependency variables.
+data InstantiatedMeta
+	= InstV Term Type
+	| InstT Type
+	| InstS Sort
+    deriving (Typeable, Data)
+
+-- | The type of an 'OpenV' is after application to the dependency variables.
+data OpenMeta
+	= OpenV Type
+	| OpenT Sort
+	| OpenS
+    deriving (Typeable, Data)
+
+data MetaInfo =
+	MetaInfo { metaRange :: Range
+		 , metaScope :: ScopeInfo
+                 , metaEnv   :: TCEnv
+                 , metaSig   :: Signature
+		 }
+  deriving (Typeable, Data, Show)
 
 type MetaStore = Map MetaId MetaVariable
+
+
+instance HasRange MetaInfo where
+    getRange = metaRange
 
 instance HasRange MetaVariable where
     getRange m = getRange $ getMetaInfo m
@@ -106,34 +137,40 @@ instance HasRange MetaVariable where
 instance Show MetaVariable where
     show mv =
 	case mv of
-	    InstV _ v t -> r ++ " := " ++ show v ++ " : " ++ show t
-	    InstT _ t	-> r ++ " := " ++ show t
-	    InstS _ s	-> r ++ " := " ++ show s
-	    UnderScoreV _ t _	-> r ++ " : " ++ show t
-	    UnderScoreT _ s _	-> r ++ " type " ++ show s
-	    UnderScoreS _ _	-> r ++ " sort"
-	    HoleV _ t _		-> r ++ " : " ++ show t
-	    HoleT _ s _		-> r ++ " type " ++ show s
+	    Inst _ i	-> r ++ " := " ++ show i
+	    Open _ o	-> r ++ " " ++ show o
+
 	where
 	    r = "(" ++ show (getRange mv) ++ ")"
+
+instance Show InstantiatedMeta where
+    show (InstV v t) = show v  ++ " : " ++ show t
+    show (InstT t)   = show t
+    show (InstS s)   = show s
+
+instance Show OpenMeta where
+    show (OpenV t) = ": " ++ show t
+    show (OpenT s) = "type " ++ show s
+    show OpenS	   = "sort"
 
 getMetaScope :: MetaVariable -> ScopeInfo
 getMetaScope m = metaScope $ getMetaInfo m
 
- 
-getMetaInfo :: MetaVariable -> MetaInfo
-getMetaInfo m = 
-     case m of
-	InstV i _ _	  -> i
-	InstT i _	  -> i
-	InstS i _	  -> i
-	UnderScoreV i _ _ -> i
-	UnderScoreT i _ _ -> i
-	UnderScoreS i _   -> i
-	HoleV i _ _	  -> i
-	HoleT i _ _	  -> i
+getMetaEnv :: MetaVariable -> TCEnv
+getMetaEnv m = metaEnv $ getMetaInfo m
+
+getMetaSig :: MetaVariable -> Signature
+getMetaSig m = metaSig $ getMetaInfo m
 
 
+---------------------------------------------------------------------------
+-- ** Interaction meta variables
+---------------------------------------------------------------------------
+
+type InteractionPoints = Map InteractionId MetaId
+
+newtype InteractionId = InteractionId Nat
+    deriving (Eq,Ord,Show,Num)
 
 ---------------------------------------------------------------------------
 -- ** Signature

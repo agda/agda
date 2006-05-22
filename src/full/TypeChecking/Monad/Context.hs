@@ -39,6 +39,23 @@ setScope scope = modify $ \s -> s { stScopeInfo = scope }
 getScope :: TCM ScopeInfo
 getScope = gets stScopeInfo
 
+
+withScope :: ScopeInfo -> TCM () -> TCM ()
+withScope scope m =
+    do	scope0 <- getScope
+	setScope scope
+	m
+	setScope scope0
+
+
+-- | Set the current environment to the given 
+withEnv :: TCEnv -> TCM a -> TCM a
+withEnv env m = local (const env) m
+
+-- | Get the current environmnet
+getEnv :: TCM TCEnv
+getEnv = ask
+
 -- | Get the constraints
 getConstraints :: TCM Constraints
 getConstraints = gets stConstraints
@@ -87,6 +104,7 @@ withSignature sig m =
 	setSignature sig
 	m
 	setSignature sig0
+
 
 -- | Get the current context as a 'Telescope' (everything 'Hidden').
 getContextTelescope :: TCM Telescope
@@ -269,16 +287,49 @@ forEachModule_ :: (ModuleName -> Bool) -> (ModuleName -> TCM a) -> TCM ()
 forEachModule_ p go = forEachModule p go >> return ()
 
 ---------------------------------------------------------------------------
+-- * Meta variables
+---------------------------------------------------------------------------
+
+createMetaInfo :: TCM MetaInfo
+createMetaInfo = 
+    do  r <- getCurrentRange
+        s <- getScope
+        env <- ask 
+        sig <- getSignature 
+        return $ MetaInfo r s env sig
+
+addInteractionPoint :: InteractionId -> MetaId -> TCM ()
+addInteractionPoint ii mi =
+    modify $ \s -> s { stInteractionPoints =
+			Map.insert ii mi $ stInteractionPoints s
+		     }
+
+---------------------------------------------------------------------------
 -- * Trace
 ---------------------------------------------------------------------------
 
 getTrace :: TCM Trace
 getTrace = gets stTrace
 
-workingOn :: HasRange a => a -> TCM ()
-workingOn x = modify $ \s -> s { stTrace = (stTrace s) { traceRange = getRange x } }
+setCurrentRange :: HasRange a => a -> TCM ()
+setCurrentRange x = modify $ \s -> s { stTrace = (stTrace s) { traceRange = getRange x } }
 
-whereAmI :: TCM Range
-whereAmI = getRange <$> getTrace
+getCurrentRange :: TCM Range
+getCurrentRange = getRange <$> getTrace
+
+withRange :: Range -> TCM () -> TCM ()
+withRange r m =
+    do	r0 <- getCurrentRange
+	setCurrentRange r
+	m
+	setCurrentRange r0
+
+
+withMetaInfo :: MetaInfo -> TCM() -> TCM()
+withMetaInfo mI m = 
+          withRange (metaRange mI) 
+        $ withScope (metaScope mI) 
+        $ withSignature (metaSig mI) 
+        $ withEnv (metaEnv mI) m
 
 
