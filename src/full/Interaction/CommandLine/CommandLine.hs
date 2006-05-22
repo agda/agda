@@ -151,14 +151,15 @@ giveMeta [is,es] =
 		    do	v <- checkExpr e t
 			updateMeta mi v
 		 Open _ (OpenT s)    ->
-		    do	t <- isType e
+		    do	t <- isType e s
 			updateMeta mi t
 		 Inst _ (InstV v' t) ->
 		     do  v <- checkExpr e t
                          equalVal () t v v' -- Move
                          updateMeta mi v
                  Inst _ (InstT t)    -> 
-                     do  v <- isType e
+                     do  s <- getSort t
+			 v <- isType e s
                          equalTyp () t v
                          updateMeta mi v
                  _		     -> __IMPOSSIBLE__

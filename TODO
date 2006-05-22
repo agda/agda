@@ -13,16 +13,15 @@ AIM4
   instantiated versions from the instantiated module). Together with
   monomorphic constructors.
 
-* get rid of distinction between Hole and Underscore. Instead keep a map of
-  interaction meta variables (introduce separate id numbers for this map).
-
-* actually check sorts
-
 * getopts
 
 * debug information
 
 * optimise
+
+* check that underscores have been solved
+
+(done) actually check sorts
 
 (done) Blocked constructor in Terms and Types
 

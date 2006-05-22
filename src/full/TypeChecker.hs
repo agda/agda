@@ -59,7 +59,7 @@ checkDecl d =
 -- | Type check an axiom.
 checkAxiom :: DefInfo -> Name -> A.Expr -> TCM ()
 checkAxiom _ x e =
-    do	t <- isType e
+    do	t <- isType_ e
 	m <- currentModule
 	n <- asks (length . envContext)
 	addConstant (qualify m x) (Defn t n Axiom)
@@ -203,7 +203,7 @@ checkDataDef i x ps cs =
 --   the datatype and that it fits inside the declared sort.
 checkConstructor :: QName -> Int -> Sort -> A.Constructor -> TCM ()
 checkConstructor d npars s (A.Axiom i c e) =
-    do	t  <- isType e
+    do	t  <- isType_ e
 	s' <- getSort t
 	s' `leqSort` s
 	t `constructs` d
@@ -364,24 +364,36 @@ forceSort r t =
 ---------------------------------------------------------------------------
 
 -- | Check that an expression is a type.
-isType :: A.Expr -> TCM Type
-isType e =
+isType :: A.Expr -> Sort -> TCM Type
+isType e s =
     do	setCurrentRange e
-        
-	case e of
-	    A.Prop _	     -> return $ prop
-	    A.Set _ n	     -> return $ set n
-	    A.Pi _ b e	     ->
-		checkTypedBinding b $ \tel ->
-		    do  t <- isType e
-			return $ buildPi tel t
-	    A.QuestionMark i -> 
-                do  setScope (Syntax.Info.metaScope i)
-                    newQuestionMarkT_ 
-	    A.Underscore i   -> 
-                do  setScope (Syntax.Info.metaScope i)
-                    newTypeMeta_ 
-	    _		     -> inferTypeExpr e
+	t <- case e of
+		A.Prop _	 -> return $ prop
+		A.Set _ n	 -> return $ set n
+		A.Pi _ b e	 ->
+		    checkTypedBinding b $ \tel ->
+			do  t <- isType_ e
+			    return $ buildPi tel t
+		A.QuestionMark i -> 
+		    do  setScope (Syntax.Info.metaScope i)
+			newQuestionMarkT s
+		A.Underscore i	 -> 
+		    do  setScope (Syntax.Info.metaScope i)
+			newTypeMeta s
+		_		 ->
+		    do	v <- checkExpr e (Sort s)
+			return $ El v s
+	s' <- getSort t
+	equalSort s s'
+	return t
+
+
+-- | Check that an expression is a type without knowing the sort.
+isType_ :: A.Expr -> TCM Type
+isType_ e =
+    do	setCurrentRange e
+	s <- newSortMeta
+	isType e s
 
 
 -- | Force a type to be a Pi. Instantiates if necessary. The 'Hiding' is only
@@ -409,14 +421,6 @@ forcePi h t =
 	    _		-> fail $ "Not a pi: " ++ show t
 
 
--- | Infer the sort of an expression which should be a type. Always returns 'El' something.
-inferTypeExpr :: A.Expr -> TCM Type
-inferTypeExpr e =
-    do	s <- newSortMeta 
-	v <- checkExpr e (Sort s)
-	return $ El v s
-
-
 ---------------------------------------------------------------------------
 -- * Telescopes
 ---------------------------------------------------------------------------
@@ -434,7 +438,7 @@ checkTelescope (b : tel) ret =
 --   The telescope passed to the continuation is valid in the original context.
 checkTypedBinding :: A.TypedBinding -> ([Arg (String,Type)] -> TCM a) -> TCM a
 checkTypedBinding b@(A.TypedBinding i h xs e) ret =
-    do	t <- isType e
+    do	t <- isType_ e
 	addCtxs xs t $ ret $ mkTel xs t
     where
 	mkTel [] t     = []
