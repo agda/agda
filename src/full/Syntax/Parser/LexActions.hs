@@ -12,6 +12,7 @@ module Syntax.Parser.LexActions
     , withLayout
     , begin, end, endWith
     , begin_, end_
+    , lexError
       -- ** Specialized actions
     , keyword, symbol, identifier, operator, literal
       -- * Lex predicates
@@ -190,10 +191,12 @@ operator = qualified (either TokOp TokQOp)
 -- | Parse a possibly qualified name.
 qualified :: (Either Name QName -> a) -> LexAction a
 qualified tok =
-    withRange $ \ (r,s) ->
+    token $ \s ->
+    do  r <- getParseRange
 	case mkName r $ wordsBy (=='.') s of
-	    [x]	-> tok $ Left  $ x
-	    xs	-> tok $ Right $ foldr Qual (QName $ last xs) (init xs)
+	    []	-> lexError "lex error on .."
+	    [x]	-> return $ tok $ Left  $ x
+	    xs	-> return $ tok $ Right $ foldr Qual (QName $ last xs) (init xs)
     where
 	-- Compute the ranges for the substrings (separated by '.') of a name.
 	mkName :: Range -> [String] -> [Name]
