@@ -137,30 +137,32 @@ metaParseExpr m s =
     where
 	c = parse exprParser s
 
-metaTypeCheck :: MetaId -> A.Expr -> TCM ()
-metaTypeCheck m e = 
-    do 	mv <- lookupMeta m
-        let mI = getMetaInfo mv
-        withMetaInfo mI $  metaTypeCheck' mv
- where  metaTypeCheck' mv = 
-            case mv of
-		 Open _ (OpenV t)    -> checkExpr e t >> return ()
-		 Open _ (OpenT s)    -> isType e      >> return () -- TODO: Not correct 
-		 Inst _ (InstV v' t) ->
-		     do  v <- checkExpr e t
-                         equalVal () t v v'
-                 Inst _ (InstT t)    -> 
-                     do  v <- isType e
-                         equalTyp () t v
-                 _		     -> __IMPOSSIBLE__
-
-
 giveMeta :: [String] -> TCM ()
 giveMeta [is,es] = 
      do  i <- readM is
          let mi = MetaId i 
-         e <- metaParseExpr mi es 
-         metaTypeCheck mi e
+         e <- metaParseExpr mi es
+         mv <- lookupMeta mi 
+         withMetaInfo (getMetaInfo mv) $ metaTypeCheck' mi e mv
+
+ where  metaTypeCheck' mi e mv = 
+            case mv of 
+		 Open _ (OpenV t)    ->
+		    do	v <- checkExpr e t
+			updateMeta mi v
+		 Open _ (OpenT s)    ->
+		    do	t <- isType e
+			updateMeta mi t
+		 Inst _ (InstV v' t) ->
+		     do  v <- checkExpr e t
+                         equalVal () t v v' -- Move
+                         updateMeta mi v
+                 Inst _ (InstT t)    -> 
+                     do  v <- isType e
+                         equalTyp () t v
+                         updateMeta mi v
+                 _		     -> __IMPOSSIBLE__
+
 giveMeta _ = liftIO $ putStrLn "give takes a number of a meta and expression"
 
 

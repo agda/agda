@@ -273,7 +273,7 @@ isVar (Arg _ (Var _ [])) = True
 isVar _			 = False
 
 
-updateMeta :: MetaId -> Term -> TCM ()
+updateMeta :: (Show a, Data a, Occurs a, Abstract a) => MetaId -> a -> TCM ()
 updateMeta mI t = 
    do i <- getMetaInfo <$> lookupMeta mI
       withEnv (metaEnv i) (allCtxVars >>= \args -> assign mI args t)

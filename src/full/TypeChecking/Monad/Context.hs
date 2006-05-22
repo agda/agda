@@ -40,13 +40,13 @@ getScope :: TCM ScopeInfo
 getScope = gets stScopeInfo
 
 
-withScope :: ScopeInfo -> TCM () -> TCM ()
+withScope :: ScopeInfo -> TCM a -> TCM a
 withScope scope m =
     do	scope0 <- getScope
 	setScope scope
-	m
+	r <- m
 	setScope scope0
-
+        return r
 
 -- | Set the current environment to the given 
 withEnv :: TCEnv -> TCM a -> TCM a
@@ -98,12 +98,13 @@ getSignature = gets stSignature
 setSignature :: Signature -> TCM ()
 setSignature sig = modify $ \s -> s { stSignature = sig }
 
-withSignature :: Signature -> TCM () -> TCM ()
+withSignature :: Signature -> TCM a -> TCM a
 withSignature sig m =
     do	sig0 <- getSignature
 	setSignature sig
-	m
+	r <- m
 	setSignature sig0
+        return r
 
 
 -- | Get the current context as a 'Telescope' (everything 'Hidden').
@@ -317,15 +318,16 @@ setCurrentRange x = modify $ \s -> s { stTrace = (stTrace s) { traceRange = getR
 getCurrentRange :: TCM Range
 getCurrentRange = getRange <$> getTrace
 
-withRange :: Range -> TCM () -> TCM ()
+withRange :: Range -> TCM a -> TCM a
 withRange r m =
     do	r0 <- getCurrentRange
 	setCurrentRange r
-	m
+	x <- m
 	setCurrentRange r0
+	return x
 
 
-withMetaInfo :: MetaInfo -> TCM() -> TCM()
+withMetaInfo :: MetaInfo -> TCM a -> TCM a
 withMetaInfo mI m = 
           withRange (metaRange mI) 
         $ withScope (metaScope mI) 
