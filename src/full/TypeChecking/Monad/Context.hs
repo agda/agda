@@ -162,6 +162,7 @@ lookupModule m =
 			     }
 		where
 		    inst d = abstract tel $ d `apply` args
+
 	    Just md -> return md
 
 -- | Lookup the definition of a name. The result is a closed thing, all free

@@ -72,6 +72,9 @@ requalifyModule (MName old _) (MName new _) (MName i c) = MName i' c
     where
 	i' = new ++ drop (length old) i
 
+requalify :: ModuleName -> ModuleName -> QName -> QName
+requalify old new (QName x m c) = QName x (requalifyModule old new m) c
+
 isSubModuleOf :: ModuleName -> ModuleName -> Bool
 isSubModuleOf x y = mnameId y `isPrefixOf` mnameId x
 
