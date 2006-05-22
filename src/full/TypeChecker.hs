@@ -291,10 +291,10 @@ checkFunDef i x cs =
 -- | Type check a function clause.
 checkClause :: Type -> A.Clause -> TCM Clause
 checkClause _ (A.Clause _ _ (_:_))  = fail "checkClause: local definitions not implemented"
-checkClause t (A.Clause (A.LHS i x ps) rhs []) =
+checkClause t (A.Clause (A.LHS i x ps) rhs ds) =
     do	workingOn i
 	checkPatterns ps t $ \xs ps _ t' ->
-	    do  ctx <- getContext
+	    do  checkDecls ds
 		v <- checkExpr rhs t'
 		return $ Clause ps $ foldr (\x t -> Bind $ Abs x t) (Body v) xs
 
