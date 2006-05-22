@@ -4,8 +4,6 @@ AIM4
 
 * good error messages
 
-* Monomorphic constructors.
-
 * When instantiating a module we should generate functions for the axioms and
   constructors and probably for everything else as well (reducing to the
   instantiated versions from the instantiated module). Together with
@@ -18,6 +16,10 @@ AIM4
 * optimise
 
 * check that underscores have been solved
+
+* allow more things in postulates (infix, private?, ..)
+
+(done) Monomorphic constructors.
 
 (done) ? should not be a valid operator characted
 
