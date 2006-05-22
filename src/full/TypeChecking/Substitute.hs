@@ -44,8 +44,6 @@ instance Apply Sort where
     apply s _  = __IMPOSSIBLE__
 
 instance Apply Definition where
-    apply (Defn t n d@(Constructor _ _ _)) args =
-	Defn (substs (map unArg args) t) n (apply d args)
     apply (Defn t n d) args = Defn (piApply t args) n (apply d args)
 
 instance Apply Defn where
@@ -88,7 +86,6 @@ instance Abstract Sort where
     abstract _ s = __IMPOSSIBLE__
 
 instance Abstract Definition where
-    abstract tel (Defn t n d@(Constructor _ _ _)) = Defn t n (abstract tel d)
     abstract tel (Defn t n d) = Defn (telePi tel t) n (abstract tel d)
 
 instance Abstract Defn where

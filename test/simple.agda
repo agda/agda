@@ -8,7 +8,7 @@ module Nat where
     suc  : Nat -> Nat
 
   (+) : Nat -> Nat -> Nat
-  zero + m = m
+  zero  + m = m
   suc n + m = suc (n + m)
 
 module N = Nat
@@ -129,4 +129,6 @@ module prop where
 		)
 	      )
 	    )
+
+open TestList.ListNat
 

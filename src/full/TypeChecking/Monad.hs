@@ -273,11 +273,14 @@ type Context = [(Name, Type)]
 
 data TCErr = Fatal Range String
 	   | PatternErr [MetaId] -- ^ for pattern violations, carries involved metavars
-  deriving Show
 
 instance Error TCErr where
     noMsg    = Fatal noRange ""
     strMsg s = Fatal noRange s
+
+instance Show TCErr where
+    show (Fatal r s) = show r ++ ": " ++ s
+    show (PatternErr xs) = "Pattern violation for " ++ unwords (Prelude.map show xs)
 
 patternViolation mIds = throwError $ PatternErr mIds
 

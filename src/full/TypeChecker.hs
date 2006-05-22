@@ -11,7 +11,7 @@ import qualified Syntax.Abstract as A
 import Syntax.Abstract.Pretty
 import Syntax.Abstract.Views
 import Syntax.Common
-import Syntax.Info
+import Syntax.Info as Info
 import Syntax.Position
 import Syntax.Internal
 import Syntax.Internal.Walk ()
@@ -188,7 +188,7 @@ checkDataDef i x ps cs =
 	    npars = length ps
 	t <- typeOfConst name
 	n <- asks $ length . envContext
-	s <- bindParameters ps t $ \s ->
+	s <- bindParameters ps t $ \_ s ->
 	    do	mapM_ (checkConstructor name npars s) cs
 		return s
 	addConstant name (Defn t n $ Datatype npars (map (cname m) cs)
@@ -206,7 +206,7 @@ checkConstructor d npars s (A.Axiom i c e) =
     do	t  <- isType_ e
 	s' <- getSort t
 	s' `leqSort` s
-	t `constructs` d
+	t  `constructs` d
 	m <- currentModule
 	n <- asks $ length . envContext
 	addConstant (qualify m c) $
@@ -215,13 +215,14 @@ checkConstructor _ _ _ _ = __IMPOSSIBLE__ -- constructors are axioms
 
 
 -- | Bind the parameters of a datatype. The bindings should be domain free.
-bindParameters :: [A.LamBinding] -> Type -> (Sort -> TCM a) -> TCM a
-bindParameters [] (Sort s) ret = ret s
+bindParameters :: [A.LamBinding] -> Type -> (Telescope -> Sort -> TCM a) -> TCM a
+bindParameters [] (Sort s) ret = ret [] s
 bindParameters [] _ _ = __IMPOSSIBLE__ -- the syntax prohibits anything but a sort here
 bindParameters (A.DomainFree h x : ps) (Pi h' a b) ret
     | h /= h'	=
 	__IMPOSSIBLE__
-    | otherwise = addCtx x a $ bindParameters ps (absBody b) ret
+    | otherwise = addCtx x a $ bindParameters ps (absBody b) $ \tel s ->
+		    ret (Arg h a : tel) s
 bindParameters _ _ _ = __IMPOSSIBLE__
 
 
@@ -333,10 +334,10 @@ checkPattern (A.WildP i) t ret =
 	addCtx x t $ ret [show x] (VarP "_") (Var 0 [])
 checkPattern (A.ConP i c ps) t ret =
     do	setCurrentRange i
-	Defn t' _ (Constructor n d _) <- instantiateDef =<< getConstInfo c
-	El (Def _ vs) _		      <- forceData d t
+	Defn t' _ (Constructor n d _) <- getConstInfo c -- don't instantiate this
+	El (Def _ vs) _		      <- forceData d t	-- because this guy won't be
 	c'			      <- canonicalConstructor c
-	checkPatterns ps (substs (map unArg vs) t') $ \xs ps' ts' rest ->
+	checkPatterns ps (piApply t' vs) $ \xs ps' ts' rest ->
 	    do	equalTyp () rest (raise (length xs) t)
 		ret xs (ConP c' ps') (Con c' ts')
 
@@ -375,10 +376,10 @@ isType e s =
 			do  t <- isType_ e
 			    return $ buildPi tel t
 		A.QuestionMark i -> 
-		    do  setScope (Syntax.Info.metaScope i)
+		    do  setScope (Info.metaScope i)
 			newQuestionMarkT s
 		A.Underscore i	 -> 
-		    do  setScope (Syntax.Info.metaScope i)
+		    do  setScope (Info.metaScope i)
 			newTypeMeta s
 		_		 ->
 		    do	v <- checkExpr e (Sort s)
@@ -485,10 +486,10 @@ checkExpr e t =
 				_	-> fail $ "expected " ++ show h ++ " function space, found " ++ show t'
 
 		    A.QuestionMark i -> 
-                        do  setScope (Syntax.Info.metaScope i)
+                        do  setScope (Info.metaScope i)
                             newQuestionMark  t
 		    A.Underscore i   -> 
-                        do  setScope (Syntax.Info.metaScope i)
+                        do  setScope (Info.metaScope i)
                             newValueMeta t
 		    A.Lit lit	     -> fail "checkExpr: literals not implemented"
 		    A.Let i ds e     -> fail "checkExpr: let not implemented"
@@ -502,19 +503,11 @@ inferHead (HeadVar _ x) =
 	n <- varIndex x
 	t <- typeOfBV n
 	return (Var n [], t)
-inferHead (HeadCon i x) =
-    do	setCurrentRange x
-	Defn t _ (Constructor n d _) <- getConstInfo x
-	s			     <- sortOfConst d
-	t0			     <- newTypeMeta s    -- TODO: not so nice
-	El (Def _ vs) _		     <- forceData d t0
-	let t1 = substs (map unArg vs) t
-	ctx <- getContext
--- 	debug $ "HeadCon " ++ show x ++ " : " ++ show t1
--- 	debug $ "        " ++ show vs ++ " " ++ show t
--- 	debug $ "        " ++ show ctx
-	return (Con x [], t1)
-inferHead (HeadDef _ x) =
+inferHead (HeadCon i x) = inferDef Con i x
+inferHead (HeadDef i x) = inferDef Def i x
+
+inferDef :: (QName -> Args -> Term) -> NameInfo -> QName -> TCM (Term, Type)
+inferDef mkTerm i x =
     do	setCurrentRange x
 	d <- instantiateDef =<< getConstInfo x
 	gammaDelta <- getContextTelescope
@@ -524,8 +517,8 @@ inferHead (HeadDef _ x) =
 	    vs	  = reverse [ Arg h $ Var (i + k) []
 			    | (Arg h _,i) <- zip gamma [0..]
 			    ]
--- 	debug $ "inferHead " ++ show x ++ " : " ++ show t ++ " = " ++ show (Def x vs)
-	return (Def x vs, t)
+-- 	debug $ "inferDef " ++ show x ++ " : " ++ show t ++ " = " ++ show (Def x vs)
+	return (mkTerm x vs, t)
 
 
 -- | Check a list of arguments: @checkArgs args t0 t1@ checks that
