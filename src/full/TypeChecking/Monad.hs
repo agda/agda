@@ -187,7 +187,10 @@ getMetaSig m = metaSig $ getMetaInfo m
 type InteractionPoints = Map InteractionId MetaId
 
 newtype InteractionId = InteractionId Nat
-    deriving (Eq,Ord,Show,Num)
+    deriving (Eq,Ord,Num)
+
+instance Show InteractionId where
+    show (InteractionId x) = "?" ++ show x
 
 ---------------------------------------------------------------------------
 -- ** Signature
