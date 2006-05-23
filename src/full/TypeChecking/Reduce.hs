@@ -128,15 +128,15 @@ instance Reduce Term where
 		Lam (Abs _ v') (Arg h arg:args) ->
 		    do  a <- reduce arg
 			reduce $ subst a v' `apply` args
-		MetaV _ _ -> return v
-		Def f args -> reduceDef (Def f []) f args
-		Con c args -> reduceDef (Con c []) c args
+		MetaV x args -> MetaV x <$> reduce args
+		Def f args   -> reduceDef (Def f []) f args
+		Con c args   -> reduceDef (Con c []) c args
 						-- constructors can have definitions
 						-- when they come from an instantiated module
 						-- (change this)
 		BlockedV _ -> return v
 		Lit _	   -> return v
-		Var _ _	   -> return v
+		Var x args -> Var x <$> reduce args
 		Lam _ []   -> return v
 	where
 
