@@ -11,6 +11,8 @@ import Control.Monad.Error
 class MonadState s m => MonadUndo s m | m -> s where
     undo    :: m ()
     setUndo :: m ()
+    getUndoStack :: m [s]
+    putUndoStack :: [s] -> m ()
 
 -- | The undo monad transformer turns any state monad into an undo monad.
 newtype UndoT s m a = UndoT { unUndoT :: StateT [s] m a }
@@ -27,6 +29,9 @@ instance (MonadState s m, Monad m) => MonadUndo s (UndoT s m) where
     setUndo =
 	do  x <- lift get
 	    UndoT $ modify (x:)
+
+    getUndoStack    = UndoT $ get
+    putUndoStack ss = UndoT $ put ss
 
 instance MonadState s m => MonadState s (UndoT s' m) where
     get = lift get
