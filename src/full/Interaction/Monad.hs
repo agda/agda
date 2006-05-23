@@ -1,12 +1,16 @@
-{-# OPTIONS -fglasgow-exts -fallow-undecidable-instances #-}
+{-# OPTIONS -fglasgow-exts  #-}
 module Interaction.Monad where
 
-import TypeChecking.Monad(TCM,runTCM,TCErr)
+import TypeChecking.Monad
+import Control.Monad.Error
+import Utils.Monad.Undo
 
-newtype IM a = IM (TCM a)
+type IM = TCM
+--newtype IM a = IM (TCM a) 
 
 liftTCM :: TCM a -> IM a
-liftTCM s = IM s
+liftTCM s = s
 
-runIM :: IM a -> IO (Either TCErr a)
-runIM (IM m) = runTCM m 
+--runIM :: IM a -> IO (Either TCErr a)
+--runIM (IM m) = runTCM m 
+

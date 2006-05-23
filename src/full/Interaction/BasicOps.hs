@@ -5,34 +5,110 @@ module Interaction.BasicOps where
 --import Prelude hiding (print, putStr, putStrLn)
 --import Utils.IO
 
---import Control.Monad.Error
---import Control.Monad.Reader
+import Control.Monad.Error
+import Control.Monad.Reader
 --import Data.Char
 --import Data.Set as Set
---import Data.Map as Map
---import Data.List as List
+import Data.Map as Map
+import Data.List as List
 --import Data.Maybe
+
+import Interaction.Monad 
 --import Text.PrettyPrint
 
 --import Syntax.Position
---import Syntax.Abstract
+import Syntax.Abstract 
+import Syntax.Internal (MetaId)
 --import Syntax.Translation.ConcreteToAbstract
 --import Syntax.Parser
 --import Syntax.Scope
 
---import TypeChecker
---import TypeChecking.Monad
---import TypeChecking.Monad.Context
---import TypeChecking.MetaVars
---import TypeChecking.Reduce
+import TypeChecker
+import TypeChecking.Conversion
+import TypeChecking.Monad as M
+import TypeChecking.Monad.Context
+import TypeChecking.MetaVars
+import TypeChecking.Reduce
+import TypeChecking.Substitute
 
 --import Utils.ReadLine
---import Utils.Monad
+import Utils.Monad.Undo
 --import Utils.Fresh
 
+#include "../undefined.h"
+
+-- TODO: Modify all operations so that they return abstract syntax and not 
+-- stringd
+
+give :: InteractionId -> Expr -> IM ([InteractionId])
+give ii e = liftTCM $  
+     do  setUndo
+         mi <- lookupInteractionId ii 
+         mis <- getInteractionPoints
+         mv <- lookupMeta mi 
+         withMetaInfo (getMetaInfo mv) $
+		do vs <- allCtxVars
+		   metaTypeCheck' mi e mv vs
+         removeInteractionPoint ii 
+         mis' <- getInteractionPoints
+         return ((List.\\) mis' mis) 
+  where  metaTypeCheck' mi e mv vs = 
+            case mvJudgement mv of 
+		 HasType _ t  ->
+		    do	v <- checkExpr e t
+			case mvInstantiation mv of
+			    InstV v' -> equalVal () t v (v' `apply` vs)
+			    _	     -> return ()
+			updateMeta mi v
+		 IsType _ s ->
+		    do	t <- isType e s
+			case mvInstantiation mv of
+			    InstT t' -> equalTyp () t (t' `apply` vs)
+			    _	     -> return ()
+			updateMeta mi t
+		 IsSort _ -> __IMPOSSIBLE__
+
+getConstraints :: IM [String] -- should be changed to Expr something
+getConstraints = liftTCM $
+    do	cs <- TypeChecking.Monad.Context.getConstraints
+	cs <- normalise cs
+        return $ List.map prc $ Map.assocs cs
+    where
+	prc (x,(_,ctx,c)) = show x ++ ": " ++ show (List.map fst $ envContext ctx) ++ " |- " ++ show c
 
 
+getMeta :: InteractionId -> IM String
+getMeta ii = 
+     do j <- judgementInteractionId ii
+        let j' = fmap (\_ -> ii) j
+        return $ show j'
+        
+getMetas :: IM [String]
+getMetas = liftTCM $
+    do	ips <- getInteractionPoints 
+        js <- mapM judgementInteractionId ips
+        js' <- zipWithM mkJudg js ips   -- TODO: write nicer
+        return $ List.map show js'
+   where mkJudg (HasType _ t) ii = 
+             do t <- normalise t 
+                return $ HasType ii t
+         mkJudg (IsType _ s) ii  = return $ IsType ii s
+         mkJudg (IsSort _) ii    = return $ IsSort ii
 
+
+mkUndo :: IM ()
+mkUndo = undo
+
+
+{-
+showMeta :: InteractionId -> TCM (Judgement InteractionId String String)
+showMeta ii = do
+   mi <- lookupInteractionId ii
+   mv <-  lookupMeta mi 
+   
+   
+
+{-
 showConstraints :: IM Constraints 
 showConstraints =
     do	cs <- getConstraints
@@ -95,3 +171,5 @@ help = unlines
     , "<exp> Infer type of expression <exp> and evaluate it."
     ]
 
+-}
+-}

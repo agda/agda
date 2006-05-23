@@ -12,7 +12,9 @@ import Data.Set as Set
 import Data.Map as Map
 import Data.List as List
 import Data.Maybe
-import Text.PrettyPrint
+
+import Interaction.BasicOps
+import Interaction.Monad
 
 import qualified Syntax.Abstract as A
 import Syntax.Internal
@@ -21,7 +23,7 @@ import Syntax.Position
 import Syntax.Scope
 import Syntax.Translation.ConcreteToAbstract
 
-
+import Text.PrettyPrint
 
 import TypeChecker
 import TypeChecking.Conversion
@@ -33,20 +35,21 @@ import TypeChecking.Reduce
 import Utils.ReadLine
 import Utils.Monad
 import Utils.Fresh
+import Utils.Monad.Undo
 
 #include "../../undefined.h"
 
 data ExitCode a = Continue | ContinueIn TCEnv | Return a
 
-type Command a = (String, [String] -> TCM (ExitCode a))
+type Command a = (String, [String] -> IM (ExitCode a))
 
-matchCommand :: String -> [Command a] -> Either [String] ([String] -> TCM (ExitCode a))
+matchCommand :: String -> [Command a] -> Either [String] ([String] -> IM (ExitCode a))
 matchCommand x cmds =
     case List.filter (isPrefixOf x . fst) cmds of
 	[(_,m)]	-> Right m
 	xs	-> Left $ List.map fst xs
 
-interaction :: String -> [Command a] -> (String -> TCM (ExitCode a)) -> TCM a
+interaction :: String -> [Command a] -> (String -> IM (ExitCode a)) -> IM a
 interaction prompt cmds eval = loop
     where
 	go (Return x)	    = return x
@@ -76,12 +79,12 @@ interaction prompt cmds eval = loop
 		    loop
 
 -- | The interaction loop.
-interactionLoop :: TCM () -> TCM ()
+interactionLoop :: IM () -> IM ()
 interactionLoop typeCheck =
     do	reload
 	interaction "Main> " commands evalTerm
     where
-	reload = typeCheck `catchError`
+	reload = (setUndo >> typeCheck) `catchError`
 		    \e -> liftIO $ do print e
 				      putStrLn "Failed."
 
@@ -94,70 +97,52 @@ interactionLoop typeCheck =
 	    , "constraints" |> \_ -> continueAfter showConstraints
             , "give" |> \args -> continueAfter $ giveMeta args
 	    , "meta" |> \args -> continueAfter $ showMetas args
+            , "undo" |> \_ -> continueAfter $ mkUndo
 	    ]
 	    where
 		(|>) = (,)
 
-continueAfter :: TCM a -> TCM (ExitCode b)
+continueAfter :: IM a -> IM (ExitCode b)
 continueAfter m = m >> return Continue
 
-showConstraints :: TCM ()
+showConstraints :: IM ()
 showConstraints =
-    do	cs <- getConstraints
-	cs <- normalise cs
-	liftIO $ putStrLn $ unlines $ List.map prc $ Map.assocs cs
-    where
-	prc (x,(_,ctx,c)) = show x ++ ": " ++ show (List.map fst $ envContext ctx) ++ " |- " ++ show c
+    do	cs <- Interaction.BasicOps.getConstraints
+	liftIO $ putStrLn $ unlines cs
 
-showMetas :: [String] -> TCM ()
+	
+
+showMetas :: [String] -> IM ()
 showMetas [m] =
     do	i  <- readM m
-	mv <- lookupMeta (MetaId i)
-	liftIO $ putStrLn $ "?" ++ show i ++ " " ++ show mv
-showMetas [] =
-    do	m <- Map.filter interesting <$> getMetaStore
-	--m <- normalise m
-	liftIO $ putStrLn $ unlines $ List.map show $ Map.elems m
-    where
-	interesting (MetaVar _ _ Open) = True
-	interesting _		       = False
+	s <- getMeta (InteractionId i)
+	liftIO $ putStrLn $ s
+showMetas [] = 
+    do ms <- getMetas
+       liftIO $ putStrLn $ unlines ms
+
 showMetas _ = liftIO $ putStrLn $ ":meta [metaid]"
 
 
 
-metaParseExpr ::  MetaId -> String -> TCM A.Expr
-metaParseExpr m s = 
-    do	i <- fresh
+metaParseExpr ::  InteractionId -> String -> IM A.Expr
+metaParseExpr ii s = 
+    do	m <- lookupInteractionId ii
+        i <- fresh
         scope <- getMetaScope <$> lookupMeta m
-        liftIO $ putStrLn $ show scope
+        --liftIO $ putStrLn $ show scope
 	let ss = ScopeState { freshId = i }
 	liftIO $ concreteToAbstract ss scope c
     where
 	c = parse exprParser s
 
-giveMeta :: [String] -> TCM ()
-giveMeta [is,es] = 
+giveMeta :: [String] -> IM ()
+giveMeta (is:es) = 
      do  i <- readM is
-         let mi = MetaId i 
-         e <- metaParseExpr mi es
-         mv <- lookupMeta mi 
-         withMetaInfo (getMetaInfo mv) $ metaTypeCheck' mi e mv
-
- where  metaTypeCheck' mi e mv = 
-            case mvJudgement mv of 
-		 HasType _ t  ->
-		    do	v <- checkExpr e t
-			case mvInstantiation mv of
-			    InstV v' -> equalVal () t v v'
-			    _	     -> __IMPOSSIBLE__
-			updateMeta mi v
-		 IsType _ s ->
-		    do	t <- isType e s
-			case mvInstantiation mv of
-			    InstT t' -> equalTyp () t t'
-			    _	     -> __IMPOSSIBLE__
-			updateMeta mi t
-		 IsSort _ -> __IMPOSSIBLE__
+         let ii = InteractionId i 
+         e <- metaParseExpr ii (concat es)
+         give ii e
+         return ()       
 
 giveMeta _ = liftIO $ putStrLn "give takes a number of a meta and expression"
 

@@ -298,6 +298,31 @@ addInteractionPoint ii mi =
 			Map.insert ii mi $ stInteractionPoints s
 		     }
 
+
+removeInteractionPoint :: InteractionId -> TCM ()
+removeInteractionPoint ii =
+    modify $ \s -> s { stInteractionPoints =
+			Map.delete ii $ stInteractionPoints s
+		     }
+
+
+getInteractionPoints :: TCM [InteractionId]
+getInteractionPoints = keys <$> gets stInteractionPoints
+
+lookupInteractionId :: InteractionId -> TCM MetaId
+lookupInteractionId ii = 
+    do  mmi <- Map.lookup ii <$> gets stInteractionPoints
+	case mmi of
+	    Just mi -> return mi
+	    _	    -> __IMPOSSIBLE__
+
+judgementInteractionId :: InteractionId -> TCM (Judgement Type Sort MetaId)
+judgementInteractionId ii = 
+    do  mi <- lookupInteractionId ii
+        mvJudgement  <$> lookupMeta mi
+        
+
+
 -- | Generate new meta variable.
 newMeta :: MetaInfo -> Judgement Type Sort a -> TCM MetaId
 newMeta mi j =

@@ -17,6 +17,7 @@ import Syntax.Scope
 
 import Utils.Fresh
 import Utils.Monad
+import Utils.Monad.Undo
 
 ---------------------------------------------------------------------------
 -- * Type checking state
@@ -283,8 +284,8 @@ patternViolation mIds = throwError $ PatternErr mIds
 ---------------------------------------------------------------------------
 
 type TCErrT = ErrorT TCErr
-newtype TCM a = TCM { unTCM :: StateT TCState (ReaderT TCEnv (TCErrT IO)) a }
-    deriving (MonadState TCState, MonadReader TCEnv, MonadError TCErr, MonadIO)
+newtype TCM a = TCM { unTCM :: UndoT TCState (StateT TCState (ReaderT TCEnv (TCErrT IO))) a}
+    deriving (MonadState TCState, MonadReader TCEnv, MonadError TCErr, MonadIO,MonadUndo TCState)
 
 -- We want a special monad implementation of fail.
 instance Monad TCM where
@@ -298,5 +299,6 @@ runTCM :: TCM a -> IO (Either TCErr a)
 runTCM m = runErrorT
 	 $ flip runReaderT initEnv
 	 $ flip evalStateT initState
+	 $ runUndoT
 	 $ unTCM m
 
