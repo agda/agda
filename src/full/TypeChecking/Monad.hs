@@ -6,6 +6,7 @@ import Data.Map as Map
 import Control.Monad.Error
 import Control.Monad.State
 import Control.Monad.Reader
+import Control.Exception
 import Data.Generics
 import Data.FunctorM
 
@@ -275,6 +276,7 @@ type Context = [(Name, Type)]
 
 data TCErr = Fatal Range String
 	   | PatternErr [MetaId] -- ^ for pattern violations, carries involved metavars
+  deriving (Typeable)
 
 instance Error TCErr where
     noMsg    = Fatal noRange ""
@@ -292,7 +294,7 @@ patternViolation mIds = throwError $ PatternErr mIds
 
 type TCErrT = ErrorT TCErr
 newtype TCM a = TCM { unTCM :: UndoT TCState (StateT TCState (ReaderT TCEnv (TCErrT IO))) a}
-    deriving (MonadState TCState, MonadReader TCEnv, MonadError TCErr, MonadIO,MonadUndo TCState)
+    deriving (MonadState TCState, MonadReader TCEnv, MonadError TCErr, MonadUndo TCState)
 
 -- We want a special monad implementation of fail.
 instance Monad TCM where
@@ -300,6 +302,12 @@ instance Monad TCM where
     m >>= k = TCM $ unTCM m >>= unTCM . k
     fail s  = TCM $ do	r <- gets $ getRange . stTrace
 			throwError $ Fatal r s
+
+instance MonadIO TCM where
+  liftIO m = TCM $ do r <- gets $ getRange . stTrace
+                      lift $ lift $ lift $ ErrorT $
+                           handle (return . throwError . Fatal r . show)
+                                  (do {a <- m; return (return a)})
 
 -- | Running the type checking monad
 runTCM :: TCM a -> IO (Either TCErr a)
