@@ -61,6 +61,13 @@ getEnv = ask
 getConstraints :: TCM Constraints
 getConstraints = gets stConstraints
 
+lookupConstraint :: ConstraintId -> TCM (Signature,TCEnv,Constraint)
+lookupConstraint i =
+    do	cs <- getConstraints
+	case Map.lookup i cs of
+	    Just c  -> return c
+	    _	    -> fail $ "no such constraint: " ++ show i
+
 -- | Take constraints (clear all constraints).
 takeConstraints :: TCM Constraints
 takeConstraints =

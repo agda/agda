@@ -26,7 +26,7 @@ import Syntax.Internal (MetaId)
 import TypeChecker
 import TypeChecking.Conversion
 import TypeChecking.Monad as M
-import TypeChecking.Monad.Context
+import TypeChecking.Monad.Context as Context
 import TypeChecking.MetaVars
 import TypeChecking.Reduce
 import TypeChecking.Substitute
@@ -70,8 +70,8 @@ give ii e = liftTCM $
 
 getConstraints :: IM [String] -- should be changed to Expr something
 getConstraints = liftTCM $
-    do	cs <- TypeChecking.Monad.Context.getConstraints
-	cs <- normalise cs
+    do	cs <- Context.getConstraints
+	--cs <- normalise cs
         return $ List.map prc $ Map.assocs cs
     where
 	prc (x,(_,ctx,c)) = show x ++ ": " ++ show (List.map fst $ envContext ctx) ++ " |- " ++ show c

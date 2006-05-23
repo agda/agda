@@ -89,13 +89,22 @@ instance HasFresh i FreshThings => HasFresh i TCState where
 ---------------------------------------------------------------------------
 
 newtype ConstraintId = CId Nat
-    deriving (Eq, Ord, Show, Num, Typeable, Data)
+    deriving (Eq, Ord, Num, Typeable, Data)
+
+instance Show ConstraintId where
+    show (CId x) = show x
 
 data Constraint = ValueEq Type Term Term
 		| TypeEq Type Type
 		| SortLeq Sort Sort
 		| SortEq Sort Sort
-  deriving (Show, Typeable, Data)
+  deriving (Typeable, Data)
+
+instance Show Constraint where
+    show (ValueEq t u v) = show u ++ "  =  " ++ show v ++ "  :  " ++ show t
+    show (TypeEq a b)	 = show a ++ "  =  " ++ show b
+    show (SortEq a b)	 = show a ++ "  =  " ++ show b
+    show (SortLeq a b)	 = show a ++ "  <=  " ++ show b
 
 type Constraints = Map ConstraintId (Signature,TCEnv,Constraint)
 

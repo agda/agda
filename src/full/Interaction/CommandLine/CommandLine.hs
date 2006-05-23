@@ -94,7 +94,7 @@ interactionLoop typeCheck =
 	    , "?"	    |>  \_ -> continueAfter $ liftIO $ putStr help
 	    , "reload"	    |>  \_ -> do reload
 					 ContinueIn <$> ask
-	    , "constraints" |> \_ -> continueAfter showConstraints
+	    , "constraints" |> \args -> continueAfter $ showConstraints args
             , "give"	    |> \args -> continueAfter $ giveMeta args
 	    , "meta"	    |> \args -> continueAfter $ showMetas args
 	    , "hidden"	    |> \args -> continueAfter $ showHidden args
@@ -107,10 +107,18 @@ interactionLoop typeCheck =
 continueAfter :: IM a -> IM (ExitCode b)
 continueAfter m = m >> return Continue
 
-showConstraints :: IM ()
-showConstraints =
+showConstraints :: [String] -> IM ()
+showConstraints [c] =
+    do	i <- readM c
+	(sig,env,c) <- lookupConstraint (CId i)
+	c <- withSignature sig
+	     $ withEnv env
+	     $ normalise c
+	liftIO $ print c
+showConstraints [] =
     do	cs <- BasicOps.getConstraints
 	liftIO $ putStrLn $ unlines cs
+showConstraints _ = fail ":constraints [cid]"
 
 	
 showHidden :: [String] -> IM ()
