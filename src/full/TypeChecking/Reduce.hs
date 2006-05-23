@@ -17,7 +17,10 @@ import Syntax.Internal.Walk
 import TypeChecking.Monad
 import TypeChecking.Monad.Context
 import TypeChecking.Substitute
-import TypeChecking.Patterns.Match
+
+#ifndef __HADDOCK__
+import {-# SOURCE #-} TypeChecking.Patterns.Match
+#endif
 
 import Utils.Monad
 
@@ -126,8 +129,9 @@ instance Reduce Term where
 		    do  a <- reduce arg
 			reduce $ subst a v' `apply` args
 		MetaV _ _ -> return v
-		Def f args -> reduceDef f args
-		Con c args -> reduceDef c args	-- constructors can have definitions
+		Def f args -> reduceDef (Def f []) f args
+		Con c args -> reduceDef (Con c []) c args
+						-- constructors can have definitions
 						-- when they come from an instantiated module
 						-- (change this)
 		BlockedV _ -> return v
@@ -136,34 +140,35 @@ instance Reduce Term where
 		Lam _ []   -> return v
 	where
 
-	    reduceDef f args =
+	    reduceDef v0 f args =
 		do  def <- defClauses <$> getConstInfo f
 		    case def of
 			[] -> return v -- no definition for head
 			cls@(Clause ps _ : _) -> 
 			    if length ps == length args then
-				do  ev <- appDef v cls args
+				do  ev <- appDef v0 cls args
 				    either return reduce ev
 			    else if length ps < length args then
 				let (args1,args2) = splitAt (length ps) args 
-				in do   ev <- appDef v cls args1
+				in do   ev <- appDef v0 cls args1
 					case ev of
-					    Left v	-> return v
+					    Left v	-> return $ v `apply` args2
 					    Right v	-> reduce $ v `apply` args2
 			    else return v -- partial application
 
 	    -- Apply a defined function to it's arguments.
-	    --   First arg is original value which is needed in case no clause matches.
+	    --   The original term is the first argument applied to the third.
 	    --	 'Left' means no match and 'Right' means match.
 	    appDef :: Term -> [Clause] -> Args -> TCM (Either Term Term)
-	    appDef v cls args = goCls cls =<< reduce args where
+	    appDef v cls args = goCls cls args where
 		goCls [] _ = return $ Left v -- no clause matched, can happen with parameter arguments
 		goCls (cl@(Clause pats body) : cls) args =
-		    case matchPatterns pats args of
-			Yes args'	      -> Right <$> app args' body
-			No		      -> goCls cls args
-			DontKnow Nothing  -> return $ Left v
-			DontKnow (Just m) -> return $ Left $ blocked m v
+		    do	(m, args) <- matchPatterns pats args
+			case m of
+			    Yes args'	      -> Right <$> app args' body
+			    No		      -> goCls cls args
+			    DontKnow Nothing  -> return $ Left $ v `apply` args
+			    DontKnow (Just m) -> return $ Left $ blocked m $ v `apply` args
 		app [] (Body v') = return v'
 		app (arg : args) (Bind (Abs _ body)) = app args $ subst arg body -- CBN
 		app _ _ = __IMPOSSIBLE__
