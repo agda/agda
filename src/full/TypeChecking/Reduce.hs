@@ -29,18 +29,6 @@ __debug = debug
 
 #include "../undefined.h"
 
-normalise :: Data a => a -> TCM a
-normalise = walk (mkM redType `extM` redTerm `extM` redSort)
-    where
-	redTerm :: Term -> WalkT TCM Term
-	redTerm = lift . lift . reduce
-
-	redType :: Type -> WalkT TCM Type
-	redType = lift . lift . reduce
-
-	redSort :: Sort -> WalkT TCM Sort
-	redSort = lift . lift . reduce
-
 -- | Instantiate something.
 --   Results in an open meta variable or a non meta.
 --   Doesn't do any reduction, and preserves blocking tags (when blocking meta
@@ -172,4 +160,62 @@ instance Reduce Term where
 		app [] (Body v') = return v'
 		app (arg : args) (Bind (Abs _ body)) = app args $ subst arg body -- CBN
 		app _ _ = __IMPOSSIBLE__
+
+---------------------------------------------------------------------------
+-- * Normalisation
+---------------------------------------------------------------------------
+
+class Normalise t where
+    normalise :: t -> TCM t
+
+instance Normalise Sort where
+    normalise = reduce
+
+instance Normalise Type where
+    normalise t =
+	do  t <- reduce t
+	    case t of
+		El v s	   -> El <$> normalise v <*> normalise s
+		Sort s	   -> Sort <$> normalise s
+		Pi h a b   -> Pi h <$> normalise a <*> normalise b
+		MetaT x vs -> MetaT x <$> normalise vs
+		LamT _	   -> __IMPOSSIBLE__
+
+instance Normalise Term where
+    normalise v =
+	do  v <- reduce v
+	    case ignoreBlocking v of
+		Var n vs    -> Var n <$> normalise vs
+		Con c vs    -> Con c <$> normalise vs
+		Def f vs    -> Def f <$> normalise vs
+		MetaV x vs  -> MetaV x <$> normalise vs
+		Lit _	    -> return v
+		Lam _ []    -> return v
+		Lam _ (_:_) -> __IMPOSSIBLE__
+		BlockedV _  -> __IMPOSSIBLE__
+
+instance Normalise t => Normalise (Abs t) where
+    normalise = fmapM normalise
+
+instance Normalise t => Normalise (Arg t) where
+    normalise = fmapM normalise
+
+instance Normalise t => Normalise [t] where
+    normalise = fmapM normalise
+
+instance (Normalise a, Normalise b) => Normalise (a,b) where
+    normalise (x,y) = (,) <$> normalise x <*> normalise y
+
+instance (Normalise a, Normalise b, Normalise c) => Normalise (a,b,c) where
+    normalise (x,y,z) =
+	do  (x,(y,z)) <- normalise (x,(y,z))
+	    return (x,y,z)
+
+instance Normalise Constraint where
+    normalise (ValueEq t u v) =
+	do  (t,u,v) <- normalise (t,u,v)
+	    return $ ValueEq t u v
+    normalise (TypeEq a b)  = uncurry TypeEq <$> normalise (a,b)
+    normalise (SortEq a b)  = uncurry SortEq <$> normalise (a,b)
+    normalise (SortLeq a b) = uncurry SortLeq <$> normalise (a,b)
 
