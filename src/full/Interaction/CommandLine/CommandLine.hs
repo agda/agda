@@ -154,7 +154,7 @@ giveMeta :: [String] -> IM ()
 giveMeta (is:es) = 
      do  i <- readM is
          let ii = InteractionId i 
-         e <- metaParseExpr ii (concat es)
+         e <- metaParseExpr ii (unwords es)
          give ii e
          return ()       
 
