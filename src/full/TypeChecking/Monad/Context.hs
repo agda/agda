@@ -15,6 +15,7 @@ import Syntax.Scope
 
 import TypeChecking.Monad
 import TypeChecking.Monad.Debug
+import TypeChecking.Monad.Options
 import TypeChecking.Substitute
 
 import Utils.Monad
@@ -81,7 +82,10 @@ lookupMeta m =
 
 -- | Reset the type checking state.
 resetState :: TCM ()
-resetState = put initState
+resetState =
+    do	opts <- commandLineOptions
+	put initState
+	setCommandLineOptions opts
 
 -- | add a variable to the context
 --
