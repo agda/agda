@@ -85,9 +85,9 @@ equalAtm _ t m n =
 		equalSameVar (\x -> MetaV x []) InstV x xArgs yArgs
 	    (MetaV x xArgs, _) -> assign x xArgs nVal
 	    (_, MetaV x xArgs) -> assign x xArgs mVal
-	    (BlockedV b, _)		   -> addConstraint (ValueEq t mVal nVal)
-	    (_,BlockedV b)		   -> addConstraint (ValueEq t mVal nVal)
-	    _ -> fail $ "equalAtm "++(show mVal)++" ==/== "++(show nVal)
+	    (BlockedV b, _)    -> addConstraint (ValueEq t mVal nVal)
+	    (_,BlockedV b)     -> addConstraint (ValueEq t mVal nVal)
+	    _		       -> fail $ "equalAtm "++(show mVal)++" ==/== "++(show nVal)
 
 
 -- | Type-directed equality on argument lists

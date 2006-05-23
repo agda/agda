@@ -132,22 +132,22 @@ class Occurs a where
 
 instance Occurs Term where
     occ m ok v =
-	do  v' <- instantiate v
-	    case v' of
+	do  v <- reduce v
+	    case ignoreBlocking v of
 		Var n vs    ->
 		    case findIdx ok n of
 			Just n'	-> Var n' <$> occ m ok vs
-			Nothing	-> patternViolation [m]
+			Nothing	-> fail $ show m ++ " cannot depend on p" ++ show n
 		Lam f vs    -> Lam <$> occ m ok f <*> occ m ok vs
 		Lit l	    -> return $ Lit l
 		Def c vs    -> Def c <$> occ m ok vs
 		Con c vs    -> Con c <$> occ m ok vs
 		MetaV m' vs -> occMeta MetaV InstV instantiate m ok m' vs
-		BlockedV b  -> occ m ok $ blockee b
+		BlockedV b  -> __IMPOSSIBLE__
 
 instance Occurs Type where
     occ m ok t =
-	do  t' <- instantiate t
+	do  t' <- reduce t
 	    case t' of
 		El v s	    -> uncurry El <$> occ m ok (v,s)
 		Pi h w f    -> uncurry (Pi h) <$> occ m ok (w,f)
@@ -157,7 +157,7 @@ instance Occurs Type where
 
 instance Occurs Sort where
     occ m ok s =
-	do  s' <- instantiate s
+	do  s' <- reduce s
 	    case s' of
 		MetaS m' | m == m' -> fail $ "?" ++ show m ++ " occurs in itself"
 		Lub s1 s2	   -> uncurry Lub <$> occ m ok (s1,s2)
@@ -205,12 +205,8 @@ assign :: (Show a, Data a, Occurs a, Abstract a) => MetaId -> Args -> a -> TCM (
 assign x args = fail "assign" `mkQ` ass InstV `extQ` ass InstT `extQ` ass InstS where
     ass :: (Show a, Data a, Occurs a, Abstract a) => (a -> MetaInstantiation) -> a -> TCM ()
     ass inst v = do
-	let pshow (Arg NotHidden x) = show x
-	    pshow (Arg Hidden x) = "{" ++ show x ++ "}"
         ids <- checkArgs x args
         v' <- occ x ids v
-	--debug $ "assign ?" ++ show x ++ " " ++ show args ++ " := " ++ show v'
-        --trace ("assign: args="++(show args)++", v'="++(show v')++"\n") $ 
 	let tel = List.map (fmap $ const $ Sort Prop) args -- types don't matter here
         setRef Why x $ inst $ abstract tel v'
 

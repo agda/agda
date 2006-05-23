@@ -114,6 +114,10 @@ instance Show MetaId where
 blocked :: MetaId -> Term -> Term
 blocked x t = BlockedV $ Blocked x t
 
+ignoreBlocking :: Term -> Term
+ignoreBlocking (BlockedV b) = blockee b
+ignoreBlocking v	    = v
+
 set0   = Sort (Type 0)
 set n  = Sort (Type n)
 sort s = Sort s       
