@@ -18,7 +18,7 @@ import Interaction.Imports		     ( ImportException(..)	)
 crash :: Range -> String -> IO b
 crash r x =
     do	print r
-	print $ show x
+	putStrLn x
 	exitWith (ExitFailure 1)
 
 handleParseException :: (ParseError -> IO a) -> ParseError -> IO a
