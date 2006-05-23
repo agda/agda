@@ -13,7 +13,7 @@ import Data.Map as Map
 import Data.List as List
 import Data.Maybe
 
-import Interaction.BasicOps
+import Interaction.BasicOps as BasicOps
 import Interaction.Monad
 
 import qualified Syntax.Abstract as A
@@ -89,15 +89,16 @@ interactionLoop typeCheck =
 				      putStrLn "Failed."
 
 	commands =
-	    [ "quit"	|>  \_ -> return $ Return ()
-	    , "help"	|>  \_ -> continueAfter $ liftIO $ putStr help
-	    , "?"	|>  \_ -> continueAfter $ liftIO $ putStr help
-	    , "reload"	|>  \_ -> do reload
-				     ContinueIn <$> ask
+	    [ "quit"	    |>  \_ -> return $ Return ()
+	    , "help"	    |>  \_ -> continueAfter $ liftIO $ putStr help
+	    , "?"	    |>  \_ -> continueAfter $ liftIO $ putStr help
+	    , "reload"	    |>  \_ -> do reload
+					 ContinueIn <$> ask
 	    , "constraints" |> \_ -> continueAfter showConstraints
-            , "give" |> \args -> continueAfter $ giveMeta args
-	    , "meta" |> \args -> continueAfter $ showMetas args
-            , "undo" |> \_ -> continueAfter $ mkUndo
+            , "give"	    |> \args -> continueAfter $ giveMeta args
+	    , "meta"	    |> \args -> continueAfter $ showMetas args
+	    , "hidden"	    |> \args -> continueAfter $ showHidden args
+            , "undo"	    |> \_ -> continueAfter $ mkUndo
             --, "load" |> \f -> continueAfter $ readFile
 	    ]
 	    where
@@ -108,10 +109,23 @@ continueAfter m = m >> return Continue
 
 showConstraints :: IM ()
 showConstraints =
-    do	cs <- Interaction.BasicOps.getConstraints
+    do	cs <- BasicOps.getConstraints
 	liftIO $ putStrLn $ unlines cs
 
 	
+showHidden :: [String] -> IM ()
+showHidden [m] =
+    do	i <- readM m
+	m <- lookupMeta (MetaId i)
+	liftIO $ print m
+showHidden [] = 
+    do store <- Map.filter open <$> getMetaStore
+       liftIO $ mapM_ print $ Map.elems store
+    where
+	open (MetaVar _ _ Open) = True
+	open _			= False
+showHidden _ = liftIO $ putStrLn $ ":hidden [metaid]"
+
 
 showMetas :: [String] -> IM ()
 showMetas [m] =
@@ -121,7 +135,6 @@ showMetas [m] =
 showMetas [] = 
     do ms <- getMetas
        liftIO $ putStrLn $ unlines ms
-
 showMetas _ = liftIO $ putStrLn $ ":meta [metaid]"
 
 
