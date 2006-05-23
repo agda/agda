@@ -303,6 +303,11 @@ createMetaInfo =
         sig <- getSignature 
         return $ MetaInfo r s env sig
 
+updateMetaRange :: MetaId -> Range -> TCM ()
+updateMetaRange mi r = modify (\st -> st{stMetaStore = Map.adjust (\mv -> setRange mv r) mi $ stMetaStore st})
+
+
+
 addInteractionPoint :: InteractionId -> MetaId -> TCM ()
 addInteractionPoint ii mi =
     modify $ \s -> s { stInteractionPoints =

@@ -188,8 +188,10 @@ getMetaEnv :: MetaVariable -> TCEnv
 getMetaEnv m = metaEnv $ getMetaInfo m
 
 getMetaSig :: MetaVariable -> Signature
-getMetaSig m = metaSig $ getMetaInfo m
+getMetaSig m = metaSig $ getMetaInfo m 
 
+setRange :: MetaVariable -> Range -> MetaVariable
+setRange (MetaVar mi j inst) r = MetaVar (mi{metaRange = r}) j inst
 
 ---------------------------------------------------------------------------
 -- ** Interaction meta variables

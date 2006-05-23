@@ -96,6 +96,7 @@ interactionLoop typeCheck =
 					 ContinueIn <$> ask
 	    , "constraints" |> \args -> continueAfter $ showConstraints args
             , "give"	    |> \args -> continueAfter $ giveMeta args
+            , "refine"	    |> \args -> continueAfter $ refineMeta args
 	    , "meta"	    |> \args -> continueAfter $ showMetas args
 	    , "hidden"	    |> \args -> continueAfter $ showHidden args
             , "undo"	    |> \_ -> continueAfter $ mkUndo
@@ -165,15 +166,28 @@ metaParseExpr ii s =
     where
 	c = parse exprParser s
 
-giveMeta :: [String] -> IM ()
-giveMeta (is:es) = 
+actOnMeta :: String -> (InteractionId -> A.Expr -> IM a) -> [String] -> IM ()
+actOnMeta _  f (is:es) = 
      do  i <- readM is
          let ii = InteractionId i 
          e <- metaParseExpr ii (unwords es)
-         give ii e
+         f ii e
          return ()       
+actOnMeta cmd _ _ = liftIO $ putStrLn $ ":" ++ cmd ++ " metaid expr"
 
-giveMeta _ = liftIO $ putStrLn ":give metaid expr"
+
+giveMeta :: [String] -> IM ()
+giveMeta  = 
+     actOnMeta "give" (\ii -> \e  -> give ii Nothing e)
+
+
+refineMeta :: [String] -> IM ()
+refineMeta  = 
+     actOnMeta "refine" (\ii -> \e  -> refine ii Nothing e)
+
+
+
+
 
 evalIn :: [String] -> TCM ()
 evalIn (m:t) =

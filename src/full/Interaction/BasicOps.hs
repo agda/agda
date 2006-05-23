@@ -16,12 +16,14 @@ import Data.List as List
 import Interaction.Monad 
 --import Text.PrettyPrint
 
---import Syntax.Position
+import Syntax.Position
 import Syntax.Abstract 
+import Syntax.Common
+import Syntax.Info(ExprInfo(..),MetaInfo(..))
 import Syntax.Internal (MetaId)
 --import Syntax.Translation.ConcreteToAbstract
 --import Syntax.Parser
---import Syntax.Scope
+import Syntax.Scope
 
 import TypeChecker
 import TypeChecking.Conversion
@@ -40,18 +42,19 @@ import Utils.Monad.Undo
 -- TODO: Modify all operations so that they return abstract syntax and not 
 -- stringd
 
-give :: InteractionId -> Expr -> IM ([InteractionId])
-give ii e = liftTCM $  
+give :: InteractionId -> Maybe Range -> Expr -> IM (Expr,[InteractionId])
+give ii mr e = liftTCM $  
      do  setUndo
          mi <- lookupInteractionId ii 
          mis <- getInteractionPoints
          mv <- lookupMeta mi 
+         updateMetaRange mi $ chooseRange mv mr
          withMetaInfo (getMetaInfo mv) $
 		do vs <- allCtxVars
 		   metaTypeCheck' mi e mv vs
          removeInteractionPoint ii 
          mis' <- getInteractionPoints
-         return ((List.\\) mis' mis) 
+         return (e,(List.\\) mis' mis) 
   where  metaTypeCheck' mi e mv vs = 
             case mvJudgement mv of 
 		 HasType _ t  ->
@@ -68,6 +71,47 @@ give ii e = liftTCM $
 			updateMeta mi t
 		 IsSort _ -> __IMPOSSIBLE__
 
+addDecl :: Declaration -> TCM ([InteractionId])
+addDecl d = 
+    do   setUndo
+         mis <- getInteractionPoints
+         checkDecl d
+         mis' <- getInteractionPoints
+         return ((List.\\) mis' mis) 
+
+
+refine :: InteractionId -> Maybe Range -> Expr -> TCM (Expr,[InteractionId])
+refine ii mr e = 
+    do  mi <- lookupInteractionId ii
+        mv <- lookupMeta mi 
+        let range = chooseRange mv mr
+        let scope = M.getMetaScope mv
+        tryRefine 10 range scope e
+  where tryRefine :: Int -> Range -> ScopeInfo -> Expr -> TCM (Expr,[InteractionId])
+        tryRefine nrOfMetas r scope e = try nrOfMetas e
+           where try 0 e = throwError (strMsg "Can not refine")
+                 try n e = give ii (Just r) e `catchError` (\_ -> try (n-1) (appMeta e))
+                 appMeta :: Expr -> Expr
+                 appMeta e = 
+                      let metaVar = QuestionMark $ Syntax.Info.MetaInfo {Syntax.Info.metaRange = r,
+                                                 Syntax.Info.metaScope = scope}
+                      in App (ExprRange $ r) NotHidden e metaVar    
+                 --ToDo: The position of metaVar is not correct
+{-
+
+abstract :: InteractionId -> Maybe Range -> TCM (Expr,[InteractionId])
+abstract ii mr 
+
+
+refineExact :: InteractionId -> Expr -> TCM (Expr,[InteractionId])
+refineExact ii e = 
+    do  
+-}
+
+mkUndo :: IM ()
+mkUndo = undo
+
+--- Printing Operations
 getConstraints :: IM [String] -- should be changed to Expr something
 getConstraints = liftTCM $
     do	cs <- Context.getConstraints
@@ -95,9 +139,18 @@ getMetas = liftTCM $
          mkJudg (IsType _ s) ii  = return $ IsType ii s
          mkJudg (IsSort _) ii    = return $ IsSort ii
 
+-------------------------------
+----- Help Functions ----------
+-------------------------------
 
-mkUndo :: IM ()
-mkUndo = undo
+--saturate :: MetaId -> Expr -> TCM Expr
+--saturate mi e =
+    
+chooseRange :: MetaVariable -> Maybe Range -> Range
+chooseRange  _ (Just r) = r
+chooseRange mv Nothing = getRange mv 
+
+
 
 
 {-
