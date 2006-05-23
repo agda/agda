@@ -13,6 +13,7 @@ module Syntax.Parser.Monad
     , initState
     , defaultParseFlags
     , parse
+    , parsePosString
     , parseFile
       -- * Manipulating the state
     , setLastPos, getParseRange
@@ -124,6 +125,7 @@ instance Show ParseError where
 	unlines
 	    [ pos ++ ": " ++ errMsg err
 	    --, replicate (length pos + 2) ' ' ++ "on '" ++ errPrevToken err ++ "'"
+            , errPrevToken err ++ "<ERROR>\n" ++ take 30 (errInput err) ++ "..."
 	    ]
 	where
 	    pos = show (errPos err)
@@ -144,13 +146,10 @@ instance HasRange ParseError where
     Running the parser
  --------------------------------------------------------------------------}
 
--- | Constructs the initial state of the parser. The string argument
---   is the input string, the file path is only there because it's part
---   of a position.
-initState :: FilePath -> ParseFlags -> String -> LexState -> ParseState
-initState file flags inp st =
-	PState  { parsePos	    = p
-		, parseLastPos	    = p
+initStatePos :: Position -> ParseFlags -> String -> LexState -> ParseState
+initStatePos pos flags inp st =
+	PState  { parsePos	    = pos
+		, parseLastPos	    = pos
 		, parseInp	    = inp
 		, parsePrevChar	    = '\n'
 		, parsePrevToken    = ""
@@ -158,8 +157,12 @@ initState file flags inp st =
 		, parseLayout	    = [NoLayout]
 		, parseFlags	    = flags
 		}
-    where
-	p = startPos file
+
+-- | Constructs the initial state of the parser. The string argument
+--   is the input string, the file path is only there because it's part
+--   of a position.
+initState :: FilePath -> ParseFlags -> String -> LexState -> ParseState
+initState file = initStatePos (startPos file)
 
 -- | The default flags.
 defaultParseFlags :: ParseFlags
@@ -170,6 +173,11 @@ defaultParseFlags = ()
 --   'LexState'.
 parse :: ParseFlags -> LexState -> Parser a -> String -> ParseResult a
 parse flags st p input = unP p (initState "" flags input st)
+
+-- | The even more general way of parsing a string.
+parsePosString :: Position -> ParseFlags -> LexState -> Parser a -> String ->
+                  ParseResult a
+parsePosString pos flags st p input = unP p (initStatePos pos flags input st)
 
 -- | The most general way of parsing a file. The "Syntax.Parser" will define
 --   more specialised functions that supply the 'ParseFlags' and the

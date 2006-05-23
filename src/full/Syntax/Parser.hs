@@ -1,9 +1,10 @@
 
 module Syntax.Parser
     ( -- * Types
-      Monad.Parser
+      M.Parser
       -- * Parse functions
     , Syntax.Parser.parse
+    , Syntax.Parser.parsePosString
     , Syntax.Parser.parseFile
     , parseLiterate
     , parseLiterateFile
@@ -18,7 +19,8 @@ module Syntax.Parser
 
 import Control.Exception
 
-import Syntax.Parser.Monad as Monad
+import Syntax.Position
+import Syntax.Parser.Monad as M
 import Syntax.Parser.Parser
 import Syntax.Parser.Lexer
 
@@ -38,15 +40,17 @@ wrapM m =
 -- Parse functions --------------------------------------------------------
 
 parse :: Parser a -> String -> a
-parse p = wrap . Monad.parse defaultParseFlags normal p
+parse p = wrap . M.parse defaultParseFlags normal p
 
 parseFile :: Parser a -> FilePath -> IO a
-parseFile p = wrapM . Monad.parseFile defaultParseFlags normal p
+parseFile p = wrapM . M.parseFile defaultParseFlags normal p
 
 parseLiterate :: Parser a -> String -> a
-parseLiterate p = wrap . Monad.parse defaultParseFlags literate p
+parseLiterate p = wrap . M.parse defaultParseFlags literate p
 
 parseLiterateFile :: Parser a -> FilePath -> IO a
-parseLiterateFile p = wrapM . Monad.parseFile defaultParseFlags literate p
+parseLiterateFile p = wrapM . M.parseFile defaultParseFlags literate p
 
 
+parsePosString :: Parser a -> Position -> String -> a
+parsePosString p pos = wrap . M.parsePosString pos defaultParseFlags normal p
