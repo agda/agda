@@ -16,6 +16,7 @@ import Syntax.Internal.Debug ()
 import Syntax.Position
 import Syntax.Scope
 
+import Interaction.Exceptions
 import Interaction.Options
 
 import Utils.Fresh
@@ -306,8 +307,10 @@ instance Monad TCM where
 instance MonadIO TCM where
   liftIO m = TCM $ do r <- gets $ getRange . stTrace
                       lift $ lift $ lift $ ErrorT $
-                           handle (return . throwError . Fatal r . show)
-                                  (do {a <- m; return (return a)})
+                        handle (return . throwError . Fatal r . show)
+                        (failOnException
+                         (\r' -> return . throwError . Fatal r')
+                         (return <$> m) )
 
 -- | Running the type checking monad
 runTCM :: TCM a -> IO (Either TCErr a)
