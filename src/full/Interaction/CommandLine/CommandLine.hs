@@ -29,6 +29,7 @@ import TypeChecker
 import TypeChecking.Conversion
 import TypeChecking.Monad
 import TypeChecking.Monad.Context
+import TypeChecking.Monad.Options
 import TypeChecking.MetaVars
 import TypeChecking.Reduce
 
@@ -90,7 +91,6 @@ interactionLoop typeCheck =
 
 	commands =
 	    [ "quit"	    |>  \_ -> return $ Return ()
-	    , "help"	    |>  \_ -> continueAfter $ liftIO $ putStr help
 	    , "?"	    |>  \_ -> continueAfter $ liftIO $ putStr help
 	    , "reload"	    |>  \_ -> do reload
 					 ContinueIn <$> ask
@@ -99,13 +99,19 @@ interactionLoop typeCheck =
 	    , "meta"	    |> \args -> continueAfter $ showMetas args
 	    , "hidden"	    |> \args -> continueAfter $ showHidden args
             , "undo"	    |> \_ -> continueAfter $ mkUndo
-            --, "load" |> \f -> continueAfter $ readFile
+            , "load"	    |> \args -> continueAfter $ loadFile reload args
 	    ]
 	    where
 		(|>) = (,)
 
 continueAfter :: IM a -> IM (ExitCode b)
 continueAfter m = m >> return Continue
+
+loadFile :: IM () -> [String] -> IM ()
+loadFile reload [file] =
+    do	setInputFile file
+	reload
+loadFile _ _ = liftIO $ putStrLn ":load file"
 
 showConstraints :: [String] -> IM ()
 showConstraints [c] =
@@ -118,7 +124,7 @@ showConstraints [c] =
 showConstraints [] =
     do	cs <- BasicOps.getConstraints
 	liftIO $ putStrLn $ unlines cs
-showConstraints _ = fail ":constraints [cid]"
+showConstraints _ = liftIO $ putStrLn ":constraints [cid]"
 
 	
 showHidden :: [String] -> IM ()
