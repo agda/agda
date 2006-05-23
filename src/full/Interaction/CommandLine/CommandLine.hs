@@ -100,6 +100,7 @@ interactionLoop typeCheck =
 	    , "hidden"	    |> \args -> continueAfter $ showHidden args
             , "undo"	    |> \_ -> continueAfter $ mkUndo
             , "load"	    |> \args -> continueAfter $ loadFile reload args
+	    , "eval"	    |> \args -> continueAfter $ evalIn args
 	    ]
 	    where
 		(|>) = (,)
@@ -172,8 +173,17 @@ giveMeta (is:es) =
          give ii e
          return ()       
 
-giveMeta _ = liftIO $ putStrLn "give takes a number of a meta and expression"
+giveMeta _ = liftIO $ putStrLn ":give metaid expr"
 
+evalIn :: [String] -> TCM ()
+evalIn (m:t) =
+    do	i <- readM m
+	m <- lookupInteractionId (InteractionId i)
+	mi <- getMetaInfo <$> lookupMeta m
+	withMetaInfo mi $
+	    evalTerm (unwords t)
+	return ()
+evalIn [] = liftIO $ putStrLn ":eval metaid expr"
 
 parseExpr :: String -> TCM A.Expr
 parseExpr s =
