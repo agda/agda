@@ -15,6 +15,8 @@ import Syntax.Internal.Debug ()
 import Syntax.Position
 import Syntax.Scope
 
+import Interaction.Options
+
 import Utils.Fresh
 import Utils.Monad
 import Utils.Monad.Undo
@@ -31,6 +33,7 @@ data TCState =
 	 , stSignature	       :: Signature
 	 , stScopeInfo	       :: ScopeInfo
 	 , stTrace	       :: Trace
+	 , stOptions	       :: CommandLineOptions
 	    -- ^ record what is happening (for error msgs)
 	 }
 
@@ -51,6 +54,7 @@ initState =
 	 , stSignature	       = Map.empty
 	 , stScopeInfo	       = emptyScopeInfo_
 	 , stTrace	       = noTrace
+	 , stOptions	       = defaultOptions
 	 }
 
 instance HasFresh MetaId FreshThings where

@@ -1,30 +1,62 @@
+---  Core Syntax ---
 
-entrypoints Program;
-
-token Name (letter (letter | digit | '\'') *) ('.' letter (letter | digit | '\'') *) *;
-
-layout toplevel;
 layout "where";
 
-Program. Program ::= [Declaration];
+-- A program is a list of declarations:
+Module.   Program   ::= [Decl] ;
+separator Decl ";" ;
 
-TypeSig.   Declaration ::= Name ":" Type;
-FunClause. Declaration ::= Name [Pattern1] "=" Term;
+-- An expression is either \x -> e or i e1 ... en
 
-separator Declaration ";";
+EIdent.   Exp2   ::= Ident ;                 -- without arguments
+EApp.     Exp1   ::= Ident  [Exp2] ;        -- with arguments
+EAbs.     Exp    ::= "\\" Ident "->" Exp ;
+_.        Exp2   ::= "("Exp")" ;             -- nontrivial arguments
+separator nonempty Exp2 "" ;
 
-separator Pattern1 "";
+-- A type expression is either "Set" or "(x : A) -> B" or a term: 
 
-AppP. Pattern  ::= Pattern Pattern1;
-VarP. Pattern1 ::= Name;
-coercions Pattern 1;
+TFun.   TExp     ::= "(" VarDecl ")" "->" TExp ;
+TSet.   TExp     ::= "Set" ;
+TEl.    TExp     ::= Exp ;
+VDecl.   VarDecl ::= Ident ":" TExp  ;
 
-Pi.  Type ::= "(" Name ":" Type ")" "->" Type ;
-El.  Type ::= Term ;
-Set. Type ::= "Set" ;
+-- A declaration is either a typing declaration or a definition.
+-- A typing declaration is of the form "i : e":
 
-Lam.  Term  ::= "\\" Name "->" Term;
-App.  Term1 ::= Term1 Term2;
-Var.  Term2 ::= Name;
-coercions Term 2;
+Var.  Decl    ::= VarDecl ; 
+
+-- An explicit definition is of the form "i = e"
+
+Def.  Decl    ::= Ident "=" Exp ;
+
+-- An implicit definition is of the form
+
+--  fun f (x1:t1) ... (xn:tn) : te =
+--              c1 y1 ... ym -> e1 |
+--                  ...
+--              ck z1 ... zm -> ek
+
+DecImpl.    Decl        ::= "fun" ImplTyping "=" [Branch] ;
+Implt.      ImplTyping  ::= Ident Telescope ":" TExp ;
+Telcon.   Telescope     ::= [VarDecl];
+[].      [VarDecl]     ::= ;
+(:).     [VarDecl]     ::= "(" VarDecl ")" [VarDecl];
+BranchCon. Branch       ::= ApplVars "->" Exp ;
+AppPattern.  ApplVars   ::= [Ident] ;    -- an application to variables
+separator nonempty Ident "" ;
+separator Branch "|" ;
+
+
+-- A data type definition is of the form
+
+--  data D (x1:t1) ... (xn:tn) :tm =
+--                c1 : e1| 
+--                   ... 
+--                cn : en
+DecData.   Decl     ::= "data" ImplTyping "=" [ConstrDecl] ;
+Const.    ConstrDecl::= Ident ":" Exp;
+separator ConstrDecl "|" ;
+comment "--" ;
+comment "{-" "-}" ;
 

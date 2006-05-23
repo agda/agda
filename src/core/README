@@ -9,6 +9,10 @@
 
  type checking: abstract syntax -> stack of values/value types
 
+  only the last declared constant can be given a definition
+
+  all declared constants are unique.
+
 
 Information checked for scope:
 

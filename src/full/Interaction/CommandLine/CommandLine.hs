@@ -81,7 +81,7 @@ interaction prompt cmds eval = loop
 -- | The interaction loop.
 interactionLoop :: IM () -> IM ()
 interactionLoop typeCheck =
-    do	reload
+    do  reload
 	interaction "Main> " commands evalTerm
     where
 	reload = (setUndo >> typeCheck) `catchError`
@@ -98,6 +98,7 @@ interactionLoop typeCheck =
             , "give" |> \args -> continueAfter $ giveMeta args
 	    , "meta" |> \args -> continueAfter $ showMetas args
             , "undo" |> \_ -> continueAfter $ mkUndo
+            --, "load" |> \f -> continueAfter $ readFile
 	    ]
 	    where
 		(|>) = (,)
