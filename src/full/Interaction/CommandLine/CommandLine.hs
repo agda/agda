@@ -27,6 +27,7 @@ import Text.PrettyPrint
 
 import TypeChecker
 import TypeChecking.Conversion
+import TypeChecking.Constraints
 import TypeChecking.Monad
 import TypeChecking.Monad.Context
 import TypeChecking.Monad.Options
@@ -102,6 +103,7 @@ interactionLoop typeCheck =
             , "undo"	    |> \_ -> continueAfter $ mkUndo
             , "load"	    |> \args -> continueAfter $ loadFile reload args
 	    , "eval"	    |> \args -> continueAfter $ evalIn args
+	    , "wakeup"	    |> \_ -> continueAfter $ retryConstraints
 	    ]
 	    where
 		(|>) = (,)
@@ -186,7 +188,8 @@ refineMeta  =
      actOnMeta "refine" (\ii -> \e  -> refine ii Nothing e)
 
 
-
+retryConstraints :: IM ()
+retryConstraints = liftTCM wakeupConstraints
 
 
 evalIn :: [String] -> TCM ()
