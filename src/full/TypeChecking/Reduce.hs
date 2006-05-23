@@ -118,7 +118,7 @@ instance Reduce Term where
 			reduce $ subst a v' `apply` args
 		MetaV x args -> MetaV x <$> reduce args
 		Def f args   -> reduceDef (Def f []) f args
-		Con c args   -> reduceDef (Con c []) c args
+		Con c args   -> reduceDef (Con c []) c =<< reduce args
 						-- constructors can have definitions
 						-- when they come from an instantiated module
 						-- (change this)
@@ -131,8 +131,8 @@ instance Reduce Term where
 	    reduceDef v0 f args =
 		do  def <- defClauses <$> getConstInfo f
 		    case def of
-			[] -> return v -- no definition for head
-			cls@(Clause ps _ : _) -> 
+			[] -> return $ v0 `apply` args -- no definition for head
+			cls@(Clause ps _ : _) ->
 			    if length ps == length args then
 				do  ev <- appDef v0 cls args
 				    either return reduce ev
