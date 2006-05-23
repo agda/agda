@@ -344,8 +344,9 @@ checkPattern (A.ConP i c ps) t ret =
 	El (Def _ vs) _		      <- forceData d t	-- because this guy won't be
 	Con c' us		      <- reduce $ Con c $ map hide vs
 	checkPatterns ps (piApply t' vs) $ \xs ps' ts' rest ->
-	    do	equalTyp () rest (raise (length xs) t)
-		ret xs (ConP c' ps') (Con c' $ us ++ ts')
+	    do	let n = length xs
+		equalTyp () rest (raise n t)
+		ret xs (ConP c' ps') (Con c' $ raise n us ++ ts')
     where
 	hide (Arg _ x) = Arg Hidden x
 
