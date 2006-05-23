@@ -34,16 +34,15 @@ canonify (drive:':':xs) ys =
 	    | drive == drive'	-> canonify' xs ys'
 	    | otherwise		-> ys
 	_			-> canonify' xs ys
-#else
-canonify = canonify'
 #endif
-    where
-	canonify' (x:xs) (y:ys)
-	    | x == y	    = canonify' xs ys
-	canonify' [] ys	    = ys
-	canonify' (s:_) ys
-	    | s == slash    = ys
-	canonify' xs ys	    = dotdot xs ++ ys
+canonify xs ys = canonify' xs ys
+
+canonify' (x:xs) (y:ys)
+    | x == y	    = canonify' xs ys
+canonify' [] ys	    = ys
+canonify' (s:_) ys
+    | s == slash    = ys
+canonify' xs ys	    = dotdot xs ++ ys
 
 dotdot []	    = []
 dotdot (s:xs)
