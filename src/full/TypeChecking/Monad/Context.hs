@@ -139,7 +139,6 @@ addConstant :: QName -> Definition -> TCM ()
 addConstant q d =
     do	tel <- getContextTelescope
 	let d' = abstract tel d
--- 	debug $ "addConstant " ++ show q ++ " " ++ show tel ++ " " ++ show d'
 	modify $ \s ->
 	    s { stSignature = 
 		    Map.adjust (\md -> md { mdefDefs = Map.insert x d'
@@ -210,7 +209,7 @@ getConstInfo q =
 	    defs = mdefDefs md
 	case Map.lookup x defs of
 	    Nothing -> fail $ show (getRange q) ++ ": no such name " ++ show x ++ " in module " ++ show m
-	    Just d  -> return $ mkAbs ab $ d { defFreeVars = length tel }
+	    Just d  -> return $ mkAbs ab d
     where
 	m = qnameModule q
 	x = qnameName q

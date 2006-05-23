@@ -61,8 +61,7 @@ checkAxiom :: DefInfo -> Name -> A.Expr -> TCM ()
 checkAxiom _ x e =
     do	t <- isType_ e
 	m <- currentModule
-	n <- asks (length . envContext)
-	addConstant (qualify m x) (Defn t n Axiom)
+	addConstant (qualify m x) (Defn t 0 Axiom)
 
 
 -- | Type check a bunch of mutual inductive recursive definitions.
@@ -193,30 +192,31 @@ checkDataDef i x ps cs =
 	let name  = qualify m x
 	    npars = length ps
 	t <- typeOfConst name
-	n <- asks $ length . envContext
-	s <- bindParameters ps t $ \_ s ->
-	    do	mapM_ (checkConstructor name npars s) cs
+	s <- bindParameters ps t $ \tel s ->
+	    do	let tel' = map hide tel
+		mapM_ (checkConstructor name tel' s) cs
 		return s
-	addConstant name (Defn t n $ Datatype npars (map (cname m) cs)
+	addConstant name (Defn t 0 $ Datatype npars (map (cname m) cs)
 					      s (defAbstract i)
 			 )
     where
 	cname m (A.Axiom _ x _) = qualify m x
 	cname _ _		= __IMPOSSIBLE__ -- constructors are axioms
 
+	hide (Arg _ x) = Arg Hidden x
 
 -- | Type check a constructor declaration. Checks that the constructor targets
 --   the datatype and that it fits inside the declared sort.
-checkConstructor :: QName -> Int -> Sort -> A.Constructor -> TCM ()
-checkConstructor d npars s (A.Axiom i c e) =
+checkConstructor :: QName -> Telescope -> Sort -> A.Constructor -> TCM ()
+checkConstructor d tel s (A.Axiom i c e) =
     do	t  <- isType_ e
 	s' <- getSort t
 	s' `leqSort` s
 	t  `constructs` d
 	m <- currentModule
-	n <- asks $ length . envContext
-	addConstant (qualify m c) $
-	    Defn t (n - npars) $ Constructor npars d $ defAbstract i
+	escapeContext (length tel)
+	    $ addConstant (qualify m c)
+	    $ Defn (telePi tel t) 0 $ Constructor (length tel) d $ defAbstract i
 checkConstructor _ _ _ _ = __IMPOSSIBLE__ -- constructors are axioms
 
 
@@ -288,16 +288,14 @@ checkFunDef i x cs =
 	unless (allEqual $ map npats cs') $ fail $ "equations give different arities for function " ++ show x
 
 	-- Add the definition
-	m   <- currentModule
-	n   <- asks $ length . envContext
-	addConstant (qualify m x) $ Defn t n $ Function cs' $ defAbstract i
+	addConstant name $ Defn t 0 $ Function cs' $ defAbstract i
     where
 	npats (Clause ps _) = length ps
 
 
 -- | Type check a function clause.
 checkClause :: Type -> A.Clause -> TCM Clause
-checkClause _ (A.Clause _ _ (_:_))  = fail "checkClause: local definitions not implemented"
+--checkClause _ (A.Clause _ _ (_:_))  = fail "checkClause: local definitions not implemented"
 checkClause t (A.Clause (A.LHS i x ps) rhs ds) =
     do	setCurrentRange i
 	checkPatterns ps t $ \xs ps _ t' ->
@@ -518,9 +516,10 @@ inferHead (HeadDef i x) = inferDef Def i x
 inferDef :: (QName -> Args -> Term) -> NameInfo -> QName -> TCM (Term, Type)
 inferDef mkTerm i x =
     do	setCurrentRange x
-	d <- instantiateDef =<< getConstInfo x
+	d  <- getConstInfo x
+	d' <- instantiateDef d
 	gammaDelta <- getContextTelescope
-	let t	  = defType d
+	let t	  = defType d'
 	    gamma = take (defFreeVars d) gammaDelta
 	    k	  = length gammaDelta - defFreeVars d
 	    vs	  = reverse [ Arg h $ Var (i + k) []

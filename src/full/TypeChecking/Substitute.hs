@@ -44,7 +44,7 @@ instance Apply Sort where
     apply s _  = __IMPOSSIBLE__
 
 instance Apply Definition where
-    apply (Defn t n d) args = Defn (piApply t args) n (apply d args)
+    apply (Defn t n d) args = Defn (piApply t args) (n - length args) (apply d args)
 
 instance Apply Defn where
     apply Axiom _		     = Axiom
@@ -86,7 +86,7 @@ instance Abstract Sort where
     abstract _ s = __IMPOSSIBLE__
 
 instance Abstract Definition where
-    abstract tel (Defn t n d) = Defn (telePi tel t) n (abstract tel d)
+    abstract tel (Defn t n d) = Defn (telePi tel t) (length tel + n) (abstract tel d)
 
 instance Abstract Defn where
     abstract tel Axiom		       = Axiom
