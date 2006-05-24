@@ -4,6 +4,7 @@ module TypeChecking.MetaVars where
 
 import Control.Monad.Reader
 import Control.Monad.State
+import Control.Monad.Error
 import Data.Generics
 import Data.Map as Map
 import Data.List as List
@@ -19,12 +20,15 @@ import TypeChecking.Reduce
 import TypeChecking.Substitute
 import TypeChecking.Constraints
 
+#ifndef __HADDOCK__
+import {-# SOURCE #-} TypeChecking.Conversion
+#endif
+
 import Utils.Fresh
 import Utils.List
 import Utils.Monad
 
 import TypeChecking.Monad.Debug
-__debug = debug
 
 #include "../undefined.h"
 
@@ -83,9 +87,13 @@ newValueMeta t =
 	return $ MetaV x vs
 
 newArgsMeta ::  Type -> TCM Args
-newArgsMeta (Pi h a b) =
+newArgsMeta (Pi (Arg h a) b) =
     do	v    <- newValueMeta a
 	args <- newArgsMeta (absApp v b)
+	return $ Arg h v : args
+newArgsMeta (Fun (Arg h a) b) =
+    do	v    <- newValueMeta a
+	args <- newArgsMeta b
 	return $ Arg h v : args
 newArgsMeta _ = return []
 
@@ -150,7 +158,8 @@ instance Occurs Type where
 	do  t' <- reduce t
 	    case t' of
 		El v s	    -> uncurry El <$> occ m ok (v,s)
-		Pi h w f    -> uncurry (Pi h) <$> occ m ok (w,f)
+		Pi a b	    -> uncurry Pi <$> occ m ok (a,b)
+		Fun a b	    -> uncurry Fun <$> occ m ok (a,b)
 		Sort s	    -> Sort <$> occ m ok s
 		MetaT m' vs -> occMeta MetaT InstT instantiate m ok m' vs
 		LamT _	    -> __IMPOSSIBLE__
@@ -160,8 +169,11 @@ instance Occurs Sort where
 	do  s' <- reduce s
 	    case s' of
 		MetaS m' | m == m' -> fail $ "?" ++ show m ++ " occurs in itself"
+		MetaS _		   -> return s'
 		Lub s1 s2	   -> uncurry Lub <$> occ m ok (s1,s2)
-		_		   -> return s'
+		Suc s		   -> Suc <$> occ m ok s
+		Type _		   -> return s'
+		Prop		   -> return s'
 
 occMeta :: (Show a, Data a, Abstract a, Apply a) =>
 	   (MetaId -> Args -> a) -> (a -> MetaInstantiation) -> (a -> TCM a) -> MetaId -> [Nat] -> MetaId -> Args -> TCM a
@@ -175,6 +187,9 @@ occMeta meta inst red m ok m' vs
 		do  v1 <-  newMetaSame m' (\mi -> meta mi [])
 		    let tel = List.map (fmap $ const $ Sort Prop) vs	-- types don't matter here
 		    setRef Why m' $ inst $ abstract tel (v1 `apply` vs')
+		    abortAssign -- setRef wakes up the constraints and solving them
+				-- might invalidate the current assignment, so we
+				-- abort.
 	    let vs0 = List.map rename vs
 	    return $ meta m' vs0
     where
@@ -196,19 +211,43 @@ instance (Occurs a, Occurs b) => Occurs (a,b) where
 instance Occurs a => Occurs [a] where
     occ m ok xs = mapM (occ m ok) xs
 
+abortAssign :: TCM a
+abortAssign =
+    do	s <- get
+	throwError $ AbortAssign s
+
+handleAbort :: TCM a -> TCM a -> TCM a
+handleAbort h m =
+    m `catchError` \e ->
+	case e of
+	    AbortAssign s -> do put s; h
+	    _		  -> throwError e
 
 -- | Assign to an open metavar.
 --   First check that metavar args are in pattern fragment.
 --     Then do extended occurs check on given thing.
 --
+assignV :: Type -> MetaId -> Args -> Term -> TCM ()
+assignV t x args v =
+    handleAbort (equalVal () t (MetaV x args) v) $ assign x args v
+
+assignT :: MetaId -> Args -> Type -> TCM ()
+assignT x args t =
+    handleAbort (equalTyp () (MetaT x args) t) $ assign x args t
+
+assignS :: MetaId -> Sort -> TCM ()
+assignS x s =
+    handleAbort (equalSort (MetaS x) s) $ assign x [] s
+
+-- | TODO: don't export
 assign :: (Show a, Data a, Occurs a, Abstract a) => MetaId -> Args -> a -> TCM ()
 assign x args = fail "assign" `mkQ` ass InstV `extQ` ass InstT `extQ` ass InstS where
     ass :: (Show a, Data a, Occurs a, Abstract a) => (a -> MetaInstantiation) -> a -> TCM ()
-    ass inst v = do
-        ids <- checkArgs x args
-        v' <- occ x ids v
-	let tel = List.map (fmap $ const $ Sort Prop) args -- types don't matter here
-        setRef Why x $ inst $ abstract tel v'
+    ass inst v =
+	do  ids <- checkArgs x args
+	    v'  <- occ x ids v
+	    let tel = List.map (fmap $ const $ Sort Prop) args -- types don't matter here
+	    setRef Why x $ inst $ abstract tel v'
 
 -- | Check that arguments to a metavar are in pattern fragment.
 --   Assumes all arguments already in whnf.
@@ -246,5 +285,16 @@ isVar _			 = False
 
 updateMeta :: (Show a, Data a, Occurs a, Abstract a) => MetaId -> a -> TCM ()
 updateMeta mI t = 
-   do i <- getMetaInfo <$> lookupMeta mI
-      withEnv (metaEnv i) (allCtxVars >>= \args -> assign mI args t)
+    do	mv <- lookupMeta mI
+	withMetaInfo (getMetaInfo mv) $
+	    do	args <- allCtxVars
+		upd mI args (mvJudgement mv) t
+    where
+	upd mI args j t = (__IMPOSSIBLE__ `mkQ` updV j `extQ` updT `extQ` updS) t
+	    where
+		updV (HasType _ t) v = assignV t mI args v
+		updV _ _	     = __IMPOSSIBLE__
+
+		updT t = assignT mI args t
+		updS s = assignS mI s
+

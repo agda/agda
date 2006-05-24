@@ -55,7 +55,7 @@ ioTCM cmd = do
   env <- readIORef theTCEnv
   (runTCM $ putUndoStack us >> put st >>
             liftM3 (,,) (local (const env) cmd) get getUndoStack)
-    >>= either (\ err         -> print err >> flushExitWith(ExitFailure 1))
+    >>= either (\ err         -> print err >> exitWith(ExitFailure 1))
                (\ (a,st',ss') -> writeIORef theTCState st' >>
                                  writeIORef theUndoStack ss' >> return a)
 cmd_load :: String -> IO ()
@@ -65,8 +65,7 @@ cmd_load file = crashOnException $ do
       
 cmd_constraints :: IO ()
 cmd_constraints = crashOnException $ do
-    cs <- ioTCM $ normalise =<< getConstraints
-    putStrLn $ unlines $ List.map prc $ Map.assocs cs
+    putStrLn . unlines . List.map prc . Map.assocs =<< ioTCM getConstraints
   where prc (x,(_,ctx,c)) = show x ++ ": " ++ show ctx ++ " |- " ++ show c
 
 cmd_metas :: IO ()
@@ -75,9 +74,10 @@ cmd_metas = crashOnException $ ioTCM BO.getMetas >>= putStrLn . unlines
 cmd_undo :: IO ()
 cmd_undo = ioTCM $ undo
 
-cmd_give :: InteractionId -> String -> IO([InteractionId])
+cmd_give :: InteractionId -> String -> IO(String,[InteractionId])
 cmd_give ii s = crashOnException $ ioTCM $ do
-    BO.give ii =<< parseExprIn ii s
+    (e, iis) <- BO.give ii Nothing =<< parseExprIn ii s
+    return (show e, iis)
 
 parseExprIn :: InteractionId -> String -> TCM(Expr)
 parseExprIn ii s = do

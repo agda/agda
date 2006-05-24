@@ -36,7 +36,8 @@ instance Apply Type where
     apply (MetaT x args') args		  = MetaT x (args' ++ args)
     apply (LamT (Abs _ a)) (Arg _ v:args) = subst v a `apply` args
     apply (Sort s) _			  = __IMPOSSIBLE__
-    apply (Pi _ _ _) _			  = __IMPOSSIBLE__
+    apply (Pi _ _) _			  = __IMPOSSIBLE__
+    apply (Fun _ _) _			  = __IMPOSSIBLE__
     apply (El _ _) _			  = __IMPOSSIBLE__
 
 instance Apply Sort where
@@ -66,10 +67,17 @@ instance Apply t => Apply [t] where
 instance Apply t => Apply (Blocked t) where
     apply b args = fmap (`apply` args) b
 
+instance (Apply a, Apply b) => Apply (a,b) where
+    apply (x,y) args = (apply x args, apply y args)
+
+instance (Apply a, Apply b, Apply c) => Apply (a,b,c) where
+    apply (x,y,z) args = (apply x args, apply y args, apply z args)
+
 piApply :: Type -> Args -> Type
-piApply t []			  = t
-piApply (Pi _ _ b) (Arg _ v:args) = absApp v b `piApply` args
-piApply _ _			  = __IMPOSSIBLE__
+piApply t []			 = t
+piApply (Pi  _ b) (Arg _ v:args) = absApp v b `piApply` args
+piApply (Fun _ b) (_:args)	 = b
+piApply _ _			 = __IMPOSSIBLE__
 
 -- | @(abstract args v) args --> v[args]@.
 class Abstract t where
@@ -132,7 +140,8 @@ instance Subst Type where
     substAt n u t =
 	case t of
 	    El t s     -> flip El s $ substAt n u t
-	    Pi h a b   -> uncurry (Pi h) $ substAt n u (a,b)
+	    Pi a b     -> uncurry Pi $ substAt n u (a,b)
+	    Fun a b    -> uncurry Fun $ substAt n u (a,b)
 	    Sort s     -> Sort s
 	    MetaT x vs -> MetaT x $ substAt n u vs
 	    LamT b     -> LamT $ substAt n u b

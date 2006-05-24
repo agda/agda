@@ -16,7 +16,6 @@ import TypeChecking.Constraints
 import Utils.Monad
 
 import TypeChecking.Monad.Debug
-debug' = debug
 
 #include "../undefined.h"
 
@@ -52,14 +51,23 @@ equalVal _ a m n =
     do	a' <- instantiate a
 --     debug $ "equalVal " ++ show m ++ " == " ++ show n ++ " : " ++ show a'
 	case a' of
-	    Pi h a (Abs x b) -> 
-		let p = Arg h $ Var 0 []
-		    m' = raise 1 m
-		    n' = raise 1 n
-		in do name <- freshName_ x
-		      addCtx name a $ equalVal Why b (m' `apply` [p]) (n' `apply` [p])
+	    Pi a _    -> equalFun (a,a') m n
+	    Fun a _   -> equalFun (a,a') m n
 	    MetaT x _ -> addConstraint (ValueEq a m n)
-	    _ -> equalAtm Why a m n
+	    El _ _    -> equalAtm Why a m n
+	    Sort _    -> equalAtm Why a m n
+	    LamT _    -> __IMPOSSIBLE__
+    where
+	equalFun (a,t) m n =
+	    do	name <- freshName_ (suggest t)
+		addCtx name (unArg a) $ equalVal Why t' m' n'
+	    where
+		p	= fmap (const $ Var 0 []) a
+		(m',n') = raise 1 (m,n) `apply` [p]
+		t'	= raise 1 t `piApply` [p]
+		suggest (Fun _ _) = "_"
+		suggest (Pi _ (Abs x _)) = x
+		suggest _ = __IMPOSSIBLE__
 
 -- | Syntax directed equality on atomic values
 --
@@ -68,8 +76,8 @@ equalAtm _ t m n =
     catchConstraint (ValueEq t m n) $
     do	mVal <- reduce m  -- need mVal for the metavar case
 	nVal <- reduce n  -- need nVal for the metavar case
---	debug $ "equalAtm " ++ show m ++ " == " ++ show n
---	debug $ "         " ++ show mVal ++ " == " ++ show nVal
+-- 	debug $ "equalAtm " ++ show m ++ " == " ++ show n
+-- 	debug $ "         " ++ show mVal ++ " == " ++ show nVal
 	case (mVal, nVal) of
 	    (Lit l1, Lit l2) | l1 == l2 -> return ()
 	    (Var i iArgs, Var j jArgs) | i == j -> do
@@ -78,13 +86,14 @@ equalAtm _ t m n =
 	    (Def x xArgs, Def y yArgs) | x == y -> do
 		a <- defType <$> getConstInfo x
 		equalArg Why a xArgs yArgs
-	    (Con x xArgs, Con y yArgs) | x == y -> do
-		a <- defType <$> getConstInfo x
-		equalArg Why a xArgs yArgs
+	    (Con x xArgs, Con y yArgs)
+		| x == y -> do
+		    a <- defType <$> getConstInfo x
+		    equalArg Why a xArgs yArgs
 	    (MetaV x xArgs, MetaV y yArgs) | x == y ->
 		equalSameVar (\x -> MetaV x []) InstV x xArgs yArgs
-	    (MetaV x xArgs, _) -> assign x xArgs nVal
-	    (_, MetaV x xArgs) -> assign x xArgs mVal
+	    (MetaV x xArgs, _) -> assignV t x xArgs nVal
+	    (_, MetaV x xArgs) -> assignV t x xArgs mVal
 	    (BlockedV b, _)    -> addConstraint (ValueEq t mVal nVal)
 	    (_,BlockedV b)     -> addConstraint (ValueEq t mVal nVal)
 	    _		       -> fail $ "equalAtm "++(show mVal)++" ==/== "++(show nVal)
@@ -97,9 +106,12 @@ equalArg _ a args1 args2 = do
     a' <- instantiate a
     case (a', args1, args2) of 
         (_, [], []) -> return ()
-        (Pi h b (Abs _ c), (Arg _ arg1 : args1), (Arg _ arg2 : args2)) -> do
+        (Pi (Arg _ b) (Abs _ c), (Arg _ arg1 : args1), (Arg _ arg2 : args2)) -> do
             equalVal Why b arg1 arg2
             equalArg Why (subst arg1 c) args1 args2
+        (Fun (Arg _ b) c, (Arg _ arg1 : args1), (Arg _ arg2 : args2)) -> do
+            equalVal Why b arg1 arg2
+            equalArg Why c args1 args2
         _ -> fail $ "equalArg "++(show a)++" "++(show args1)++" "++(show args2)
 
 
@@ -112,28 +124,46 @@ equalTyp _ a1 a2 =
 	    equalSort s1 s2
 	a1' <- instantiate a1
 	a2' <- instantiate a2
--- 	ctx <- map fst <$> getContext
+	ctx <- map fst <$> getContext
 -- 	debug $ "equalTyp in " ++ show ctx
 -- 	debug $ "            " ++ show a1 ++ " == " ++ show a2
 -- 	debug $ "            " ++ show a1' ++ " == " ++ show a2'
 	case (a1', a2') of
 	    (El m1 s1, El m2 s2) ->
 		equalVal Why (sort s1) m1 m2
-	    (Pi h a1 a2, Pi h' b1 b2) -> do
-		equalTyp Why a1 b1
-		let Abs x a2' = raise 1 a2
-		let Abs _ b2' = raise 1 b2
-		name <- freshName_ x
-		addCtx name a1 $ equalTyp Why (subst (Var 0 []) a2') (subst (Var 0 []) b2')
+	    (Pi a _, Pi b _)   -> equalFun (a,a1') (b,a2')
+	    (Pi a _, Fun b _)  -> equalFun (a,a1') (b,a2')
+	    (Fun a _, Pi b _)  -> equalFun (a,a1') (b,a2')
+	    (Fun a _, Fun b _) -> equalFun (a,a1') (b,a2')
 	    (Sort s1, Sort s2) -> return ()
 	    (MetaT x xDeps, MetaT y yDeps) | x == y -> 
-		equalSameVar (\x -> MetaT x []) InstT x xDeps yDeps -- !!! MetaT???
-	    (MetaT x xDeps, a) -> assign x xDeps a 
-	    (a, MetaT x xDeps) -> assign x xDeps a 
-	    (LamT _, _)   -> __IMPOSSIBLE__
-	    (El _ _, _)		   -> fail $ show a1' ++ " != " ++ show a2'
-	    (Pi _ _ _, _)		   -> fail $ show a1' ++ " != " ++ show a2'
-	    (Sort _, _)		   -> fail $ show a1' ++ " != " ++ show a2'
+		equalSameVar (\x -> MetaT x []) InstT x xDeps yDeps
+	    (MetaT x xDeps, a) -> assignT x xDeps a 
+	    (a, MetaT x xDeps) -> assignT x xDeps a 
+	    (LamT _, _)  -> __IMPOSSIBLE__
+	    (El _ _, _)  -> fail $ show a1' ++ " != " ++ show a2'
+	    (Pi _ _, _)  -> fail $ show a1' ++ " != " ++ show a2'
+	    (Fun _ _, _) -> fail $ show a1' ++ " != " ++ show a2'
+	    (Sort _, _)  -> fail $ show a1' ++ " != " ++ show a2'
+
+    where
+	equalFun (Arg h1 a1, t1) (Arg h2 a2, t2)
+	    | h1 /= h2	= fail $ show a1 ++ " != " ++ show a2
+	    | otherwise =
+		do  equalTyp Why a1 a2
+		    let (t1',t2') = raise 1 (t1,t2)
+			arg	  = Arg h1 (Var 0 [])
+		    name <- freshName_ (suggest t1 t2)
+		    addCtx name a1 $ equalTyp Why (piApply t1' [arg]) (piApply t2' [arg])
+	    where
+		suggest t1 t2 = case concatMap name [t1,t2] of
+				    []	-> "_"
+				    x:_	-> x
+		    where
+			name (Pi _ (Abs x _)) = [x]
+			name (Fun _ _)	      = []
+			name _		      = __IMPOSSIBLE__
+
 
 ---------------------------------------------------------------------------
 -- * Sorts
@@ -196,9 +226,9 @@ equalSort s1 s2 =
 	    (_	     , Lub _ _ )	     -> addConstraint (SortEq s1 s2)
 
 	    (MetaS x , MetaS y ) | x == y    -> return ()
-				 | otherwise -> assign x [] s2
-	    (MetaS x , Type _  )	     -> assign x [] s2
-	    (MetaS x , Prop    )	     -> assign x [] s2
+				 | otherwise -> assignS x s2
+	    (MetaS x , Type _  )	     -> assignS x s2
+	    (MetaS x , Prop    )	     -> assignS x s2
 	    (_	     , MetaS x )	     -> equalSort s2 s1
     where
 	notEq s1 s2 = fail $ show s1 ++ " is not equal to " ++ show s2
@@ -207,10 +237,11 @@ equalSort s1 s2 =
 getSort :: Type -> TCM Sort
 getSort t =
     case t of
-	El _ s		 -> return s
-	Pi _ a (Abs _ b) -> sLub <$> getSort a <*> getSort b
-	Sort s		 -> return $ sSuc s
-	MetaT m _	 ->
+	El _ s		       -> return s
+	Pi (Arg _ a) (Abs _ b) -> sLub <$> getSort a <*> getSort b
+	Fun (Arg _ a) b	       -> sLub <$> getSort a <*> getSort b
+	Sort s		       -> return $ sSuc s
+	MetaT m _	       ->
 	    do  mv <- mvJudgement <$> lookupMeta m
 		case mv of
 		    IsType _ s -> return s

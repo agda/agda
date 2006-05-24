@@ -208,7 +208,7 @@ instance ToConcrete A.Expr C.Expr where
     -- We don't have to do anything to recognise infix applications since
     -- they have been stored away (and if we're not using the stored
     -- information we don't care).
-    toConcrete (A.App i h e1 e2)    =
+    toConcrete (A.App i e1 (Arg h e2))    =
 	withStored i
 	$ bracket appBrackets
 	$ do e1' <- toConcreteCtx FunctionCtx e1
@@ -224,13 +224,19 @@ instance ToConcrete A.Expr C.Expr where
 	     e' <- toConcreteCtx TopCtx e
 	     return $ C.Lam (getRange i) [b'] e'
 
-    -- Same thing goes for pis. We don't care if it was a 'Fun' or a 'Pi'.
     toConcrete (A.Pi i b e)	    =
 	withStored i
 	$ bracket piBrackets
 	$ do b' <- toConcrete b
 	     e' <- toConcreteCtx TopCtx e
 	     return $ C.Pi b' e'
+
+    toConcrete (A.Fun i (Arg h a) b) =
+	withStored i
+	$ bracket piBrackets
+	$ do a' <- toConcreteCtx FunctionSpaceDomainCtx a 
+	     b' <- toConcreteCtx TopCtx b
+	     return $ C.Fun (getRange i) h a' b'
 
     toConcrete (A.Set i n)  = withStored i $ return $ C.SetN (getRange i) n
     toConcrete (A.Prop i)   = withStored i $ return $ C.Prop (getRange i)

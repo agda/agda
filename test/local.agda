@@ -18,6 +18,6 @@ reverse : {A:Set} -> List A -> List A
 reverse xs = rev xs nil
   where
     rev : List _ -> List _ -> List _
-    rev nil	ys = ys
+    rev  nil	ys = ys
     rev (x::xs) ys = rev xs (x::ys)
 

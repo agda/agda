@@ -52,11 +52,15 @@ val2str (BlockedV b) = block2str <$> fmapM val2str b
 
 typ2str :: (MonadReader Int m) => Type -> m String
 typ2str (El v _) = val2str v
-typ2str (Pi h a (Abs _ b)) = do
+typ2str (Pi (Arg h a) (Abs _ b)) = do
     aStr <- typ2str a
     bStr <- local (+ 1) $ typ2str b
     n <- ask
     return $ bracket h ("x"++(show $ n + 1)++" : "++aStr) ++ " -> "++bStr
+typ2str (Fun (Arg h a) b) = do
+    aStr <- typ2str a
+    bStr <- typ2str b
+    return $ bracket h aStr ++ " -> "++bStr
 typ2str (Sort s) = return $ srt2str s
 typ2str (MetaT x args) = args2str (show x) args
 typ2str (LamT (Abs _ a)) = do

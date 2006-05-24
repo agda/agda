@@ -208,7 +208,7 @@ instance ToAbstract C.Expr A.Expr where
 	do  e1'  <- toAbstractCtx FunctionCtx e1
 	    e2'  <- toAbstractCtx (hiddenArgumentCtx h) e2
 	    info <- exprSource e
-	    return $ A.App info h e1' e2'
+	    return $ A.App info e1' (Arg h e2')
 
     -- Infix application
     toAbstract e@(C.InfixApp _ _ _) =
@@ -221,10 +221,10 @@ instance ToAbstract C.Expr A.Expr where
 	    op'  <- toAbstractCtx TopCtx $ Ident op
 	    e2'  <- toAbstractCtx (RightOperandCtx fx) e2
 	    info <- exprSource e
-	    return $ A.App info NotHidden
+	    return $ A.App info
 			   (A.App (ExprRange $ fuseRange e1' op')
-				  NotHidden op' e1'
-			   ) e2'    -- infix applications are never hidden
+				  op' (Arg NotHidden e1')
+			   ) (Arg NotHidden e2')    -- infix applications are never hidden
 
     -- Lambda
     toAbstract e0@(C.Lam r bs e) =
@@ -236,14 +236,11 @@ instance ToAbstract C.Expr A.Expr where
 	    mkLam b e = A.Lam (ExprRange $ fuseRange b e) b e
 
     -- Function types
-    toAbstract e@(Fun r h e1 e2) =
+    toAbstract e@(C.Fun r h e1 e2) =
 	do  e1'  <- toAbstractCtx FunctionSpaceDomainCtx e1
-	    x    <- toAbstract $ NewName $ C.NoName $ getRange e1
 	    e2'  <- toAbstractCtx TopCtx e2
 	    info <- exprSource e
-	    return $ A.Pi info
-			  (A.TypedBinding (getRange e1) h [x] e1')
-			  e2'
+	    return $ A.Fun info (Arg h e1') e2'
 
     toAbstract e0@(C.Pi b e) =
 	bindToAbstract b $ \b' ->

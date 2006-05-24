@@ -21,12 +21,13 @@ data Expr
 	| Lit Literal			    -- ^ Literals
 	| QuestionMark MetaInfo		    -- ^ meta variable for interaction
         | Underscore   MetaInfo		    -- ^ meta variable for hidden argument (must be inferred locally)
-        | App  ExprInfo Hiding Expr Expr    -- ^ Hiding says if this is an hidden application (@s {t}@) or a normal application (@s t@).
-        | Lam  ExprInfo LamBinding Expr	    -- ^ 
-        | Pi   ExprInfo TypedBinding Expr   -- ^ 
-        | Set  ExprInfo Nat		    -- ^ 
-        | Prop ExprInfo			    -- ^ 
-        | Let  ExprInfo [Declaration] Expr  -- ^ 
+        | App  ExprInfo Expr (Arg Expr)	    -- ^
+        | Lam  ExprInfo LamBinding Expr	    -- ^
+        | Pi   ExprInfo TypedBinding Expr   -- ^
+	| Fun  ExprInfo (Arg Expr) Expr	    -- ^ independent function space
+        | Set  ExprInfo Nat		    -- ^
+        | Prop ExprInfo			    -- ^
+        | Let  ExprInfo [Declaration] Expr  -- ^
 
 data Declaration
 	= Axiom      DefInfo Name Expr				-- ^ postulate
@@ -101,9 +102,10 @@ instance HasRange Expr where
     getRange (Lit l)		= getRange l
     getRange (QuestionMark i)	= getRange i
     getRange (Underscore  i)	= getRange i
-    getRange (App i _ _ _)	= getRange i
+    getRange (App i _ _)	= getRange i
     getRange (Lam i _ _)	= getRange i
     getRange (Pi i _ _)		= getRange i
+    getRange (Fun i _ _)	= getRange i
     getRange (Set i _)		= getRange i
     getRange (Prop i)		= getRange i
     getRange (Let i _ _)	= getRange i

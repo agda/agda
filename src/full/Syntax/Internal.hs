@@ -31,7 +31,8 @@ data Term = Var Nat Args
   deriving (Typeable, Data)
 
 data Type = El Term Sort
-	  | Pi Hiding Type (Abs Type)
+	  | Pi (Arg Type) (Abs Type)
+	  | Fun (Arg Type) Type
 	  | Sort Sort
 	  | MetaT MetaId Args	    -- ^ list of dependencies for metavars
           | LamT (Abs Type)	    -- ^ abstraction needed for metavar dependency management
@@ -108,13 +109,16 @@ instance Show MetaId where
     show (MetaId n) = "?" ++ show n
 
 
-
 arity :: Type -> Int
-arity (Pi NotHidden t (Abs _ b))  = 1 + arity b
-arity (Pi Hidden  t (Abs _ b)) = arity b
-arity  _                        = 0
-
-
+arity t =
+    case t of
+	Pi  (Arg h _) (Abs _ b) -> count h + arity b
+	Fun (Arg h _)	     b	-> count h + arity b
+	_			-> 0
+    where
+	count Hidden	= 0
+	count NotHidden = 1
+   
 
 ---------------------------------------------------------------------------
 -- * Smart constructors
@@ -135,7 +139,7 @@ prop   = Sort Prop
 -- | TODO: name suggestion
 telePi :: Telescope -> Type -> Type
 telePi [] t = t
-telePi (Arg h a : tel) t = Pi h a $ Abs "x" $ telePi tel t
+telePi (arg : tel) t = Pi arg $ Abs "x" $ telePi tel t
 
 -- | Get the next higher sort.
 sSuc :: Sort -> Sort

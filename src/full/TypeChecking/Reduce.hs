@@ -88,9 +88,12 @@ instance Reduce Type where
     reduce a =
 	do  b <- instantiate a
 	    case b of
-		El t s -> El <$> reduce t <*> reduce s
-		Sort s -> Sort <$> reduce s
-		_      -> return b
+		El t s	  -> El <$> reduce t <*> reduce s
+		Sort s	  -> Sort <$> reduce s
+		Pi _ _	  -> return b
+		Fun _ _   -> return b
+		MetaT _ _ -> return b
+		LamT _	  -> __IMPOSSIBLE__
 
 instance Reduce Sort where
     reduce s =
@@ -98,7 +101,9 @@ instance Reduce Sort where
 	    case s of
 		Suc s'	  -> sSuc <$> reduce s'
 		Lub s1 s2 -> sLub <$> reduce s1 <*> reduce s2
-		_	  -> return s
+		Prop	  -> return s
+		Type _	  -> return s
+		MetaS _   -> return s
 
 instance Reduce t => Reduce [t] where
     reduce = mapM reduce
@@ -177,7 +182,8 @@ instance Normalise Type where
 	    case t of
 		El v s	   -> El <$> normalise v <*> normalise s
 		Sort s	   -> Sort <$> normalise s
-		Pi h a b   -> Pi h <$> normalise a <*> normalise b
+		Pi a b	   -> uncurry Pi <$> normalise (a,b)
+		Fun a b    -> uncurry Fun <$> normalise (a,b)
 		MetaT x vs -> MetaT x <$> normalise vs
 		LamT _	   -> __IMPOSSIBLE__
 

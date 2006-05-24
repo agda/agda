@@ -294,6 +294,7 @@ type Context = [(Name, Type)]
 
 data TCErr = Fatal Range String
 	   | PatternErr [MetaId] -- ^ for pattern violations, carries involved metavars
+	   | AbortAssign TCState -- ^ used to abort assignment to meta when there are instantiations
   deriving (Typeable)
 
 instance Error TCErr where
@@ -301,8 +302,9 @@ instance Error TCErr where
     strMsg s = Fatal noRange s
 
 instance Show TCErr where
-    show (Fatal r s) = show r ++ ": " ++ s
+    show (Fatal r s)	 = show r ++ ": " ++ s
     show (PatternErr xs) = "Pattern violation for " ++ unwords (Prelude.map show xs)
+    show (AbortAssign _) = "Abort assignment (you shouldn't see this)"
 
 patternViolation mIds = throwError $ PatternErr mIds
 

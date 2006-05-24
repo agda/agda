@@ -17,16 +17,16 @@ data Head = HeadVar NameInfo Name
 appView :: Expr -> AppView
 appView e =
     case e of
-	Var i x	      -> Application (HeadVar i x) []
-	Def i x	      -> Application (HeadDef i x) []
-	Con i x	      -> Application (HeadCon i x) []
-	App i h e1 e2 -> apply i (appView e1) (Arg h e2)
-	_	      -> NonApplication e
+	Var i x	     -> Application (HeadVar i x) []
+	Def i x	     -> Application (HeadDef i x) []
+	Con i x	     -> Application (HeadCon i x) []
+	App i e1 arg -> apply i (appView e1) arg
+	_	     -> NonApplication e
     where
-	apply i v arg@(Arg h e') =
+	apply i v arg =
 	    case v of
 		Application hd es -> Application hd $ es ++ [arg]
-		NonApplication e  -> NonApplication (App i h e e')
+		NonApplication e  -> NonApplication (App i e arg)
 
 instance HasRange Head where
     getRange (HeadVar i _) = getRange i

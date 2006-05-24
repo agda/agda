@@ -224,7 +224,7 @@ checkConstructor _ _ _ _ = __IMPOSSIBLE__ -- constructors are axioms
 bindParameters :: [A.LamBinding] -> Type -> (Telescope -> Sort -> TCM a) -> TCM a
 bindParameters [] (Sort s) ret = ret [] s
 bindParameters [] _ _ = __IMPOSSIBLE__ -- the syntax prohibits anything but a sort here
-bindParameters (A.DomainFree h x : ps) (Pi h' a b) ret
+bindParameters (A.DomainFree h x : ps) (Pi (Arg h' a) b) ret	-- always dependent function
     | h /= h'	=
 	__IMPOSSIBLE__
     | otherwise = addCtx x a $ bindParameters ps (absBody b) $ \tel s ->
@@ -237,7 +237,8 @@ bindParameters _ _ _ = __IMPOSSIBLE__
 constructs :: Type -> QName -> TCM ()
 constructs t q = constr 0 t q
     where
-	constr n (Pi _ _ b) d = constr (n + 1) (absBody b) d
+	constr n (Pi _ b) d  = constr (n + 1) (absBody b) d
+	constr n (Fun _ b) d = constr n b d
 	constr n (El (Def d' vs) _) d
 	    | d == d'	= checkParams n . map unArg =<< reduce vs
 	constr _ t d = fail $ show t ++ " should be application of " ++ show d
@@ -299,7 +300,7 @@ checkClause :: Type -> A.Clause -> TCM Clause
 checkClause t (A.Clause (A.LHS i x ps) rhs ds) =
     do	setCurrentRange i
 	checkPatterns ps t $ \xs ps _ t' ->
-	    do  checkDecls ds
+	    do	checkDecls ds
 		v <- checkExpr rhs t'
 		return $ Clause ps $ foldr (\x t -> Bind $ Abs x t) (Body v) xs
 
@@ -310,7 +311,10 @@ checkPatterns :: [Arg A.Pattern] -> Type -> ([String] -> [Arg Pattern] -> [Arg T
 checkPatterns [] t ret	   =
     do	t' <- instantiate t
 	case t' of
-	    Pi Hidden a b   ->
+	    Pi (Arg Hidden _) _   ->
+		do  r <- getCurrentRange
+		    checkPatterns [Arg Hidden $ A.WildP $ PatRange r] t' ret
+	    Fun (Arg Hidden _) _   ->
 		do  r <- getCurrentRange
 		    checkPatterns [Arg Hidden $ A.WildP $ PatRange r] t' ret
 	    _		    -> ret [] [] [] t
@@ -318,12 +322,20 @@ checkPatterns (Arg h p:ps) t ret =
     do	setCurrentRange p
 	t' <- forcePi h t
 	case (h,t') of
-	    (NotHidden, Pi Hidden _ _) ->
+	    (NotHidden, Fun (Arg Hidden _) _) ->
 		checkPatterns (Arg Hidden (A.WildP $ PatRange $ getRange p) : Arg h p : ps) t' ret
-	    (_,Pi h' a b) | h == h' ->
+	    (NotHidden, Pi (Arg Hidden _) _) ->
+		checkPatterns (Arg Hidden (A.WildP $ PatRange $ getRange p) : Arg h p : ps) t' ret
+	    (_,Pi (Arg h' a) b) | h == h' ->
 		checkPattern p a $ \xs p' v ->
 		do  let b' = raise (length xs) b
 		    checkPatterns ps (absApp v b') $ \ys ps' vs t'' ->
+			do  let v' = raise (length ys) v
+			    ret (xs ++ ys) (Arg h p':ps')(Arg h v':vs) t''
+	    (_,Fun (Arg h' a) b) | h == h' ->
+		checkPattern p a $ \xs p' v ->
+		do  let b' = raise (length xs) b
+		    checkPatterns ps b' $ \ys ps' vs t'' ->
 			do  let v' = raise (length ys) v
 			    ret (xs ++ ys) (Arg h p':ps')(Arg h v':vs) t''
 	    _ -> fail $ show t ++ " should be a " ++ show h ++ " function type"
@@ -382,6 +394,10 @@ isType e s =
 		    checkTypedBinding b $ \tel ->
 			do  t <- isType_ e
 			    return $ buildPi tel t
+		A.Fun _ (Arg h a) b	 ->
+		    do	t <- isType_ a
+			t' <- isType_ b
+			return $ Fun (Arg h t) t'
 		A.QuestionMark i -> 
 		    do  setScope (Info.metaScope i)
 			newQuestionMarkT s
@@ -409,9 +425,9 @@ isType_ e =
 forcePi :: Hiding -> Type -> TCM Type
 forcePi h t =
     do	t' <- reduce t
--- 	debug $ "forcePi " ++ show t'
 	case t' of
-	    Pi _ _ _	-> return t'
+	    Pi _ _	-> return t'
+	    Fun _ _	-> return t'
 	    MetaT m vs	->
 		do  s <- getSort t'
 		    i <- getMetaInfo <$> lookupMeta m
@@ -424,7 +440,7 @@ forcePi h t =
 		    x <- freshName (getRange i) "x"
 		    b <- addCtx x a $ newTypeMeta sb
 		    
-		    equalTyp () t' $ Pi h a (Abs "x" b)
+		    equalTyp () t' $ Pi (Arg h a) (Abs "x" b)
 		    reduce t'
 	    _		-> fail $ "Not a pi: " ++ show t
 
@@ -463,14 +479,8 @@ checkExpr e t =
     do	setCurrentRange e
 	case appView e of
 	    Application hd args ->
-		do  
-		    ctx <- getContext
--- 		    debug $ "checkExpr " ++ showA e ++ " : " ++ show t
--- 		    debug $ "       in\n" ++ unlines (map (("   " ++) . show) ctx)
-		    (v,t0) <- inferHead hd
--- 		    debug $ "  head " ++ show v ++ " : " ++ show t0
+		do  (v,t0) <- inferHead hd
 		    vs     <- checkArguments (getRange hd) args t0 t
--- 		    debug $ "  args " ++ show vs
 		    return $ v `apply` vs
 	    _ ->
 		case e of
@@ -486,9 +496,13 @@ checkExpr e t =
 		    A.Lam i (A.DomainFree h x) e ->
 			do  t' <- forcePi h t
 			    case t' of
-				Pi h' a (Abs _ b) | h == h' ->
+				Pi (Arg h' a) (Abs _ b) | h == h' ->
 				    addCtx x a $
 				    do  v <- checkExpr e b
+					return $ Lam (Abs (show x) v) []
+				Fun (Arg h' a) b | h == h' ->
+				    addCtx x a $
+				    do  v <- checkExpr e (raise 1 b)
 					return $ Lam (Abs (show x) v) []
 				_	-> fail $ "expected " ++ show h ++ " function space, found " ++ show t'
 
@@ -525,7 +539,6 @@ inferDef mkTerm i x =
 	    vs	  = reverse [ Arg h $ Var (i + k) []
 			    | (Arg h _,i) <- zip gamma [0..]
 			    ]
--- 	debug $ "inferDef " ++ show x ++ " : " ++ show t ++ " = " ++ show (Def x vs)
 	return (mkTerm x vs, t)
 
 
@@ -537,31 +550,46 @@ checkArguments r [] t0 t1 =
     do	setCurrentRange r
 	t0' <- reduce t0
 	t1' <- reduce t1
-	case t0' of
-	    Pi Hidden a b | notMetaOrHPi t1'  ->
+	case t0' of -- TODO: clean
+	    Fun (Arg Hidden a) b | notMetaOrHPi t1'  ->
+		    do	v  <- newValueMeta a
+			vs <- checkArguments r [] b t1'
+			return $ Arg Hidden v : vs
+	    Pi (Arg Hidden a) b | notMetaOrHPi t1'  ->
 		    do	v  <- newValueMeta a
 			vs <- checkArguments r [] (absApp v b) t1'
 			return $ Arg Hidden v : vs
 	    _ ->    do	equalTyp () t0' t1'
 			return []
     where
-	notMetaOrHPi (MetaT _ _)     = False
-	notMetaOrHPi (Pi Hidden _ _) = False
-	notMetaOrHPi _		     = True
+	notMetaOrHPi (MetaT _ _)	    = False
+	notMetaOrHPi (Pi  (Arg Hidden _) _) = False
+	notMetaOrHPi (Fun (Arg Hidden _) _) = False
+	notMetaOrHPi _			    = True
 
 checkArguments r (Arg h e : args) t0 t1 =
     do	setCurrentRange r
 	t0' <- forcePi h t0
-	case (h, t0') of
-	    (NotHidden, Pi Hidden a b) ->
+	case (h, t0') of    -- TODO: clean
+	    (NotHidden, Pi (Arg Hidden a) b) ->
 		do  u  <- newValueMeta a
 		    us <- checkArguments r (Arg h e : args) (absApp u b) t1
 		    return $ Arg Hidden u : us
-	    (_, Pi h' a b) | h == h' ->
+	    (NotHidden, Fun (Arg Hidden a) b) ->
+		do  u  <- newValueMeta a
+		    us <- checkArguments r (Arg h e : args) b t1
+		    return $ Arg Hidden u : us
+	    (_, Pi (Arg h' a) b) | h == h' ->
 		do  u  <- checkExpr e a
 		    us <- checkArguments (fuseRange r e) args (absApp u b) t1
 		    return $ Arg h u : us
-	    (Hidden, Pi NotHidden _ _) ->
+	    (_, Fun (Arg h' a) b) | h == h' ->
+		do  u  <- checkExpr e a
+		    us <- checkArguments (fuseRange r e) args b t1
+		    return $ Arg h u : us
+	    (Hidden, Fun (Arg NotHidden _) _) ->
+		fail $ "can't give hidden argument " ++ showA e ++ " to something of type " ++ show t0
+	    (Hidden, Pi (Arg NotHidden _) _) ->
 		fail $ "can't give hidden argument " ++ showA e ++ " to something of type " ++ show t0
 	    _ -> __IMPOSSIBLE__
 
@@ -585,7 +613,7 @@ inferExpr e =
 ---------------------------------------------------------------------------
 
 buildPi :: [Arg (String,Type)] -> Type -> Type
-buildPi tel t = foldr (\ (Arg h (x,a)) b -> Pi h a (Abs x b) ) t tel
+buildPi tel t = foldr (\ (Arg h (x,a)) b -> Pi (Arg h a) (Abs x b) ) t tel
 
 buildLam :: [Arg String] -> Term -> Term
 buildLam xs t = foldr (\ (Arg _ x) t -> Lam (Abs x t) []) t xs

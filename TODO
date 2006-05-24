@@ -14,7 +14,9 @@ AIM4
 
 * clean up TypeChecking.Monad.Context
 
-* replace explicit Hidden with Arg in Pi and App (and more?)
+(done) replace explicit Hidden with Arg in Pi and App (and more?)
+
+(done) independent functions in Type
 
 (done) local functions
 

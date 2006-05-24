@@ -91,9 +91,10 @@ instance Equal Expr where
     Lit l	    === Lit k		= l === k
     QuestionMark _  === QuestionMark _	= Equal
     Underscore _    === Underscore _	= Equal
-    App _ h e1 e2   === App _ h' d1 d2	= fromBool e2 d2 (h == h') &&& (e1,e2) === (d1,d2)
+    App _ e1 e2	    === App _ d1 d2	= (e1,e2) === (d1,d2)
     Lam _ b1 e1	    === Lam _ b2 e2	= (b1,e1) === (b2,e2)
     Pi _ b1 e1	    === Pi _ b2 e2	= (b1,e1) === (b2,e2)
+    Fun _ e1 e2	    === Fun _ d1 d2	= (e1,e2) === (d1,d2)
     Set i n	    === Set j m		= fromBool i j $ n == m
     Prop _	    === Prop _		= Equal
     Let _ ds e	    === Let _ ds' e'	= (ds,e) === (ds',e')
