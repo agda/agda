@@ -118,13 +118,13 @@ instance Reduce Term where
 			reduce $ subst a v' `apply` args
 		MetaV x args -> MetaV x <$> reduce args
 		Def f args   -> reduceDef (Def f []) f args
-		Con c args   -> reduceDef (Con c []) c =<< reduce args
+		Con c args   -> reduceDef (Con c []) c args
 						-- constructors can have definitions
 						-- when they come from an instantiated module
 						-- (change this)
 		BlockedV _ -> return v
 		Lit _	   -> return v
-		Var x args -> Var x <$> reduce args
+		Var x args -> return v
 		Lam _ []   -> return v
 	where
 
