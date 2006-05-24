@@ -14,11 +14,10 @@ data List (A:Set) : Set where
 postulate
   xs : List Nat
 
---reverse : {A:Set} -> List A -> List A
-reverse : List Nat -> List Nat
+reverse : {A:Set} -> List A -> List A
 reverse xs = rev xs nil
   where
-    rev : {A:Set} -> List A -> List A -> List A
+    rev : List _ -> List _ -> List _
     rev nil	ys = ys
     rev (x::xs) ys = rev xs (x::ys)
 
