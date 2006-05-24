@@ -12,11 +12,11 @@ AIM4
 
 * allow more things in postulates (infix, private?, ..)
 
-* local functions
-
 * clean up TypeChecking.Monad.Context
 
 * replace explicit Hidden with Arg in Pi and App (and more?)
+
+(done) local functions
 
 (don't) check that underscores have been solved
 
