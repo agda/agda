@@ -1,11 +1,11 @@
 {-# OPTIONS -cpp #-}
 
-{-| A wrapper for readline. Makes it easier to handle the absence of readline
-    (not handled at the moment, though).
+{-| A wrapper for readline. Makes it easier to handle absence of readline.
 -}
 module Utils.ReadLine where
 
 import qualified System.Console.Readline as RL
+import System.IO
 
 import Utils.Unicode
 import Utils.Monad
@@ -13,7 +13,11 @@ import Utils.Monad
 readline   :: String -> IO (Maybe String)
 addHistory :: String -> IO ()
 #ifdef mingw32_HOST_OS
-readline   s = putStr s >> Just <$> getLine
+readline s = do
+  putStr s
+  hFlush stdout
+  l <- getLine
+  return $ Just $ fromUTF8 l
 addHistory s = return ()
 #else
 readline   s = fmap fromUTF8 <$> RL.readline s
