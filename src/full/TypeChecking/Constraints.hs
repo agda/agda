@@ -38,7 +38,7 @@ addConstraint c =
     do	env <- getEnv
 	sig <- getSignature
 	cId <- fresh
-	modify $ \st -> st { stConstraints = Map.insert cId (sig,env,c)
+	modify $ \st -> st { stConstraints = Map.insert cId (CC sig env c)
 						$ stConstraints st
 			   }
 
@@ -47,15 +47,10 @@ addConstraint c =
 wakeupConstraints :: TCM ()
 wakeupConstraints =
     do	cs <- takeConstraints
-	mapM_ retry $ Map.elems cs
+	mapM_ (withConstraint retry) $ Map.elems cs
   where
-    retry (sig,env,c) =
-	withSignature sig
-	$ local (const env)
-	$ try c
-
-    try (ValueEq a u v) = equalVal Why a u v
-    try (TypeEq a b)	= equalTyp Why a b
-    try (SortLeq s1 s2)	= leqSort s1 s2
-    try (SortEq s1 s2)	= equalSort s1 s2
+    retry (ValueEq a u v) = equalVal Why a u v
+    retry (TypeEq a b)	  = equalTyp Why a b
+    retry (SortLeq s1 s2) = leqSort s1 s2
+    retry (SortEq s1 s2)  = equalSort s1 s2
 

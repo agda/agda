@@ -119,12 +119,9 @@ loadFile _ _ = liftIO $ putStrLn ":load file"
 
 showConstraints :: [String] -> IM ()
 showConstraints [c] =
-    do	i <- readM c
-	(sig,env,c) <- lookupConstraint (CId i)
-	c <- withSignature sig
-	     $ withEnv env
-	     $ normalise c
-	liftIO $ print c
+    do	i  <- readM c
+	cc <- normalise =<< lookupConstraint (CId i)
+	liftIO $ print $ ccConstraint cc
 showConstraints [] =
     do	cs <- BasicOps.getConstraints
 	liftIO $ putStrLn $ unlines cs

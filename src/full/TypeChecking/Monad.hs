@@ -94,6 +94,12 @@ newtype ConstraintId = CId Nat
 instance Show ConstraintId where
     show (CId x) = show x
 
+data ConstraintClosure = CC { ccSignature  :: Signature
+			    , ccEnv	   :: TCEnv
+			    , ccConstraint :: Constraint
+			    }
+    deriving (Typeable, Data)
+
 data Constraint = ValueEq Type Term Term
 		| TypeEq Type Type
 		| SortLeq Sort Sort
@@ -106,7 +112,7 @@ instance Show Constraint where
     show (SortEq a b)	 = show a ++ "  =  " ++ show b
     show (SortLeq a b)	 = show a ++ "  <=  " ++ show b
 
-type Constraints = Map ConstraintId (Signature,TCEnv,Constraint)
+type Constraints = Map ConstraintId ConstraintClosure
 
 ---------------------------------------------------------------------------
 -- * Judgements

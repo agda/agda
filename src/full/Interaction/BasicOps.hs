@@ -149,10 +149,10 @@ mkUndo = undo
 getConstraints :: IM [String] -- should be changed to Expr something
 getConstraints = liftTCM $
     do	cs <- Context.getConstraints
-	--cs <- normalise cs
+	cs <- normalise cs
         return $ List.map prc $ Map.assocs cs
     where
-	prc (x,(_,ctx,c)) = show x ++ ": " ++ show (List.map fst $ envContext ctx) ++ " |- " ++ show c
+	prc (x,CC _ ctx c) = show x ++ ": " ++ show (List.map fst $ envContext ctx) ++ " |- " ++ show c
 
 
 getMeta :: InteractionId -> IM String  --TODO: 

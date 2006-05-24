@@ -61,7 +61,7 @@ getEnv = ask
 getConstraints :: TCM Constraints
 getConstraints = gets stConstraints
 
-lookupConstraint :: ConstraintId -> TCM (Signature,TCEnv,Constraint)
+lookupConstraint :: ConstraintId -> TCM ConstraintClosure
 lookupConstraint i =
     do	cs <- getConstraints
 	case Map.lookup i cs of
@@ -74,6 +74,12 @@ takeConstraints =
     do	cs <- getConstraints
 	modify $ \s -> s { stConstraints = Map.empty }
 	return cs
+
+withConstraint :: (Constraint -> TCM a) -> ConstraintClosure -> TCM a
+withConstraint f (CC sig env c) =
+    withSignature sig
+    $ withEnv env
+    $ f c
 
 -- | Get the meta store.
 getMetaStore :: TCM MetaStore

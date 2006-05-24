@@ -211,6 +211,9 @@ instance (Normalise a, Normalise b, Normalise c) => Normalise (a,b,c) where
 	do  (x,(y,z)) <- normalise (x,(y,z))
 	    return (x,y,z)
 
+instance Normalise ConstraintClosure where
+    normalise cc@(CC sig env _) = CC sig env <$> withConstraint normalise cc
+
 instance Normalise Constraint where
     normalise (ValueEq t u v) =
 	do  (t,u,v) <- normalise (t,u,v)
@@ -218,4 +221,11 @@ instance Normalise Constraint where
     normalise (TypeEq a b)  = uncurry TypeEq <$> normalise (a,b)
     normalise (SortEq a b)  = uncurry SortEq <$> normalise (a,b)
     normalise (SortLeq a b) = uncurry SortLeq <$> normalise (a,b)
+
+instance (Ord k, Normalise e) => Normalise (Map k e) where
+    normalise m =
+	do  let (ks,es) = unzip $ Map.toList m
+	    es <- normalise es
+	    return $ Map.fromList $ zip ks es
+	-- Argh! No instance FunctorM (Map k).
 
