@@ -1,4 +1,4 @@
-{-# OPTIONS -cpp #-}
+{-# OPTIONS -cpp -fglasgow-exts #-}
 
 module TypeChecking.Conversion where
 
@@ -129,12 +129,10 @@ equalTyp _ a1 a2 =
 -- 	debug $ "            " ++ show a1 ++ " == " ++ show a2
 -- 	debug $ "            " ++ show a1' ++ " == " ++ show a2'
 	case (a1', a2') of
+	    _ | f1@(FunV _ _) <- funView a1'
+	      , f2@(FunV _ _) <- funView a2' -> equalFun f1 f2
 	    (El m1 s1, El m2 s2) ->
 		equalVal Why (sort s1) m1 m2
-	    (Pi a _, Pi b _)   -> equalFun (a,a1') (b,a2')
-	    (Pi a _, Fun b _)  -> equalFun (a,a1') (b,a2')
-	    (Fun a _, Pi b _)  -> equalFun (a,a1') (b,a2')
-	    (Fun a _, Fun b _) -> equalFun (a,a1') (b,a2')
 	    (Sort s1, Sort s2) -> return ()
 	    (MetaT x xDeps, MetaT y yDeps) | x == y -> 
 		equalSameVar (\x -> MetaT x []) InstT x xDeps yDeps
@@ -147,7 +145,7 @@ equalTyp _ a1 a2 =
 	    (Sort _, _)  -> fail $ show a1' ++ " != " ++ show a2'
 
     where
-	equalFun (Arg h1 a1, t1) (Arg h2 a2, t2)
+	equalFun (FunV (Arg h1 a1) t1) (FunV (Arg h2 a2) t2)
 	    | h1 /= h2	= fail $ show a1 ++ " != " ++ show a2
 	    | otherwise =
 		do  equalTyp Why a1 a2
@@ -163,6 +161,7 @@ equalTyp _ a1 a2 =
 			name (Pi _ (Abs x _)) = [x]
 			name (Fun _ _)	      = []
 			name _		      = __IMPOSSIBLE__
+	equalFun _ _ = __IMPOSSIBLE__
 
 
 ---------------------------------------------------------------------------

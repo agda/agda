@@ -395,9 +395,9 @@ isType e s =
 			do  t <- isType_ e
 			    return $ buildPi tel t
 		A.Fun _ (Arg h a) b	 ->
-		    do	t <- isType_ a
-			t' <- isType_ b
-			return $ Fun (Arg h t) t'
+		    do	a' <- isType_ a
+			b' <- isType_ b
+			return $ Fun (Arg h a') b'
 		A.QuestionMark i -> 
 		    do  setScope (Info.metaScope i)
 			newQuestionMarkT s
@@ -550,15 +550,12 @@ checkArguments r [] t0 t1 =
     do	setCurrentRange r
 	t0' <- reduce t0
 	t1' <- reduce t1
-	case t0' of -- TODO: clean
-	    Fun (Arg Hidden a) b | notMetaOrHPi t1'  ->
+	case funView t0' of -- TODO: clean
+	    FunV (Arg Hidden a) t0' | notMetaOrHPi t1'  ->
 		    do	v  <- newValueMeta a
-			vs <- checkArguments r [] b t1'
-			return $ Arg Hidden v : vs
-	    Pi (Arg Hidden a) b | notMetaOrHPi t1'  ->
-		    do	v  <- newValueMeta a
-			vs <- checkArguments r [] (absApp v b) t1'
-			return $ Arg Hidden v : vs
+			let arg = Arg Hidden v
+			vs <- checkArguments r [] (piApply t0' [arg]) t1'
+			return $ arg : vs
 	    _ ->    do	equalTyp () t0' t1'
 			return []
     where
@@ -570,26 +567,19 @@ checkArguments r [] t0 t1 =
 checkArguments r (Arg h e : args) t0 t1 =
     do	setCurrentRange r
 	t0' <- forcePi h t0
-	case (h, t0') of    -- TODO: clean
-	    (NotHidden, Pi (Arg Hidden a) b) ->
+	case (h, funView t0') of
+	    (NotHidden, FunV (Arg Hidden a) t0') ->
 		do  u  <- newValueMeta a
-		    us <- checkArguments r (Arg h e : args) (absApp u b) t1
-		    return $ Arg Hidden u : us
-	    (NotHidden, Fun (Arg Hidden a) b) ->
-		do  u  <- newValueMeta a
-		    us <- checkArguments r (Arg h e : args) b t1
-		    return $ Arg Hidden u : us
-	    (_, Pi (Arg h' a) b) | h == h' ->
+		    let arg = Arg Hidden u
+		    us <- checkArguments r (Arg h e : args)
+					   (piApply t0' [arg]) t1
+		    return $ arg : us
+	    (_, FunV (Arg h' a) t0') | h == h' ->
 		do  u  <- checkExpr e a
-		    us <- checkArguments (fuseRange r e) args (absApp u b) t1
-		    return $ Arg h u : us
-	    (_, Fun (Arg h' a) b) | h == h' ->
-		do  u  <- checkExpr e a
-		    us <- checkArguments (fuseRange r e) args b t1
-		    return $ Arg h u : us
-	    (Hidden, Fun (Arg NotHidden _) _) ->
-		fail $ "can't give hidden argument " ++ showA e ++ " to something of type " ++ show t0
-	    (Hidden, Pi (Arg NotHidden _) _) ->
+		    let arg = Arg h u
+		    us <- checkArguments (fuseRange r e) args (piApply t0' [arg]) t1
+		    return $ arg : us
+	    (Hidden, FunV (Arg NotHidden _) _) ->
 		fail $ "can't give hidden argument " ++ showA e ++ " to something of type " ++ show t0
 	    _ -> __IMPOSSIBLE__
 

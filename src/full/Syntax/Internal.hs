@@ -121,6 +121,19 @@ arity t =
    
 
 ---------------------------------------------------------------------------
+-- * Views
+---------------------------------------------------------------------------
+
+data FunView
+	= FunV (Arg Type) Type	-- ^ second arg is the entire function ('Pi' or 'Fun').
+	| NoFunV Type
+
+funView :: Type -> FunView
+funView t@(Pi  arg _) = FunV arg t
+funView t@(Fun arg _) = FunV arg t
+funView t	      = NoFunV t
+
+---------------------------------------------------------------------------
 -- * Smart constructors
 ---------------------------------------------------------------------------
 
