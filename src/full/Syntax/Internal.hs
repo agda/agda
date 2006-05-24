@@ -107,6 +107,15 @@ newtype MetaId = MetaId Nat
 instance Show MetaId where
     show (MetaId n) = "?" ++ show n
 
+
+
+arity :: Type -> Int
+arity (Pi NotHidden t (Abs _ b))  = 1 + arity b
+arity (Pi Hidden  t (Abs _ b)) = arity b
+arity  _                        = 0
+
+
+
 ---------------------------------------------------------------------------
 -- * Smart constructors
 ---------------------------------------------------------------------------
@@ -142,4 +151,5 @@ sLub (Type n) (Type m) = Type $ max n m
 sLub s1 s2
     | s1 == s2	= s1
     | otherwise	= Lub s1 s2
+
 

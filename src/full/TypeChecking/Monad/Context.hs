@@ -346,6 +346,11 @@ newMeta mi j =
 	modify (\st -> st{stMetaStore = Map.insert x mv $ stMetaStore st})
 	return x
 
+getInteractionRange :: InteractionId -> TCM Range
+getInteractionRange ii = 
+    do mi <- lookupInteractionId ii
+       mv <- lookupMeta mi
+       return (getRange mv)
 ---------------------------------------------------------------------------
 -- * Trace
 ---------------------------------------------------------------------------

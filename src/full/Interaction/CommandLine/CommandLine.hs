@@ -162,11 +162,12 @@ metaParseExpr ii s =
     do	m <- lookupInteractionId ii
         i <- fresh
         scope <- getMetaScope <$> lookupMeta m
+        r <- getRange <$> lookupMeta m
         --liftIO $ putStrLn $ show scope
 	let ss = ScopeState { freshId = i }
-	liftIO $ concreteToAbstract ss scope c
+	liftIO $ concreteToAbstract ss scope (c r)
     where
-	c = parse exprParser s
+	c r = parsePosString exprParser (rStart r) s
 
 actOnMeta :: String -> (InteractionId -> A.Expr -> IM a) -> [String] -> IM ()
 actOnMeta _  f (is:es) = 
