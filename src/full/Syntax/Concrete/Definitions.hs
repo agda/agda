@@ -297,7 +297,8 @@ niceDeclarations ds = nice (fixities ds) ds
 
 	mkAbstractDef d =
 	    case d of
-		FunDef r ds f a _ x cs	-> FunDef r ds f a AbstractDef x cs
+		FunDef r ds f a _ x cs	-> FunDef r [Abstract (getRange ds) ds]
+						  f a AbstractDef x cs
 		DataDef r f a _ x ps cs	-> DataDef r f a AbstractDef x ps $ map mkAbstract cs
 
 	-- Make a declaration private
@@ -312,7 +313,8 @@ niceDeclarations ds = nice (fixities ds) ds
 
 	mkPrivateDef d =
 	    case d of
-		FunDef r ds f _ a x cs	-> FunDef r ds f PrivateAccess a x cs
+		FunDef r ds f _ a x cs	-> FunDef r [Private (getRange ds) ds]
+						  f PrivateAccess a x cs
 		DataDef r f _ a x ps cs	-> DataDef r f PrivateAccess a x ps cs
 
 -- | Add more fixities. Throw an exception for multiple fixity declarations.
