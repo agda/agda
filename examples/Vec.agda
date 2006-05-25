@@ -18,7 +18,7 @@ module examples.Vec where
   lam2 f = lam (\x -> lam (f x))
 
   app : {A, B : Set} -> (A => B) -> A -> B
-  app (lam f) x = f x
+  app (lam f) x =  f x
 
   Vec : Nat -> Set -> Set
   Vec  zero   X = One
@@ -86,7 +86,7 @@ module examples.Vec where
   vTab (suc n) f = pair (f (inl unit)) (vTab n (\x -> f (inr x)))
 
   {- Question to ponder in your own time:
-     if we use functional vectors, what are vec and vapp? -}
+     if we use functional vectors, what are vec and vapp -}
 
   {- Answer: K and S -}
 
@@ -113,14 +113,14 @@ module examples.Vec where
   coR : (l,m,n : Nat) -> m `Ren` n -> l `Ren` m -> l `Ren` n
   coR l m n m2n l2m = vMap l (vProj m m2n) l2m
 
-  {- what theorems should we prove? -}
+  {- what theorems should we prove -}
 
   {- the lifting functor for Ren -}
 
   liftR : (m,n : Nat) -> m `Ren` n -> suc m `Ren` suc n
   liftR m n m2n = pair (inl unit) (vMap m inr m2n)
 
-  {- what theorems should we prove? -}
+  {- what theorems should we prove -}
 
   {- the functor from Ren to Tm-arrows -}
 
@@ -134,7 +134,7 @@ module examples.Vec where
   Sub : Nat -> Nat -> Set
   Sub m n = Vec m (Tm n)
 
-  {- identity; composition must wait; why? -}
+  {- identity; composition must wait; why -}
 
   idS : (n : Nat) -> n `Sub` n
   idS n = vTab n evar
