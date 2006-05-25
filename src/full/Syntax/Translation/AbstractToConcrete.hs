@@ -48,6 +48,10 @@ type AbsToCon = Reader Flags
 abstractToConcrete :: ToConcrete a c => Flags -> a -> c
 abstractToConcrete flags a = runReader (toConcrete a) flags
 
+abstractToConcreteCtx :: ToConcrete a c => Precedence -> a -> c
+abstractToConcreteCtx ctx x =
+    abstractToConcrete (defaultFlags { precedenceLevel = ctx }) x
+
 abstractToConcrete_ :: ToConcrete a c => a -> c
 abstractToConcrete_ = abstractToConcrete defaultFlags
 
