@@ -344,7 +344,7 @@ lookupInteractionId ii =
     do  mmi <- Map.lookup ii <$> gets stInteractionPoints
 	case mmi of
 	    Just mi -> return mi
-	    _	    -> __IMPOSSIBLE__
+	    _	    -> liftIO __IMPOSSIBLE__
 
 judgementInteractionId :: InteractionId -> TCM (Judgement Type Sort MetaId)
 judgementInteractionId ii = 

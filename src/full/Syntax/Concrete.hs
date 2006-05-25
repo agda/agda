@@ -44,8 +44,8 @@ type Constructor = TypeSignature
 data Expr
 	= Ident QName			    -- ^ ex: @x@
 	| Lit Literal			    -- ^ ex: @1@ or @\"foo\"@
-	| QuestionMark Range		    -- ^ ex: @?@ or @{! ... !}@
-	| Underscore Range		    -- ^ ex: @_@
+	| QuestionMark Range (Maybe Nat)    -- ^ ex: @?@ or @{! ... !}@
+	| Underscore Range (Maybe Nat)	    -- ^ ex: @_@
 	| App Range Hiding Expr Expr	    -- ^ ex: @e e@ or @e {e}@
 	| InfixApp Expr QName Expr	    -- ^ ex: @e + e@ (no hiding)
 	| Lam Range [LamBinding] Expr	    -- ^ ex: @\\x {y} -> e@ or @\\(x:A){y:B} -> e@
@@ -194,8 +194,8 @@ instance HasRange Expr where
 	case e of
 	    Ident x		-> getRange x
 	    Lit x		-> getRange x
-	    QuestionMark r	-> r
-	    Underscore r	-> r
+	    QuestionMark r _	-> r
+	    Underscore r _	-> r
 	    App r _ _ _		-> r
 	    InfixApp e1 _ e2	-> fuseRange e1 e2
 	    Lam r _ _		-> r

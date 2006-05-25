@@ -207,8 +207,12 @@ instance ToConcrete A.Expr C.Expr where
 	-- name has been resolved to a fully qualified name (except for
 	-- variables)
     toConcrete (A.Lit l)	    = return $ C.Lit l
-    toConcrete (A.QuestionMark i)   = return $ C.QuestionMark (getRange i)
-    toConcrete (A.Underscore i)	    = return $ C.Underscore (getRange i)
+    toConcrete (A.QuestionMark i)   = return $ C.QuestionMark
+						(getRange i)
+						(metaNumber i)
+    toConcrete (A.Underscore i)	    = return $ C.Underscore
+						(getRange i)
+						(metaNumber i)
 
     toConcrete (A.App i (A.App _ eop (Arg NotHidden e1)) (Arg NotHidden e2))
 	| Just (fx,op) <- isOp eop =

@@ -110,7 +110,9 @@ refine ii mr e =
                  appMeta :: Expr -> Expr
                  appMeta e = 
                       let metaVar = QuestionMark $ Syntax.Info.MetaInfo {Syntax.Info.metaRange = r,
-                                                 Syntax.Info.metaScope = scope}
+                                                 Syntax.Info.metaScope = scope
+						 , metaNumber = Nothing
+						 }
                       in App (ExprRange $ r) e (Arg NotHidden metaVar)
                  --ToDo: The position of metaVar is not correct
 

@@ -57,11 +57,11 @@ instance Pretty Literal where
 instance Pretty Expr where
     pretty e =
 	case e of
-	    Ident x	    -> prettyId x
-	    Lit l	    -> pretty l
-	    QuestionMark _  -> text "?"
-	    Underscore _    -> text "_"
-	    App _ _ _ _	    ->
+	    Ident x	     -> prettyId x
+	    Lit l	     -> pretty l
+	    QuestionMark _ n -> text "?" <> maybe empty (text . show) n
+	    Underscore _ n   -> text "_" <> maybe empty (text . show) n
+	    App _ _ _ _	     ->
 		case appView e of
 		    AppView e1 args	->
 			sep [ pretty e1

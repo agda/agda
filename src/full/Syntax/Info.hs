@@ -41,6 +41,7 @@ instance HasRange NameInfo where
 data MetaInfo =
 	MetaInfo { metaRange	:: Range
 		 , metaScope	:: ScopeInfo
+		 , metaNumber	:: Maybe Nat
 		 }
   deriving (Typeable, Data, Show)
 

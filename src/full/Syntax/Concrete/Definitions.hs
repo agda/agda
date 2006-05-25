@@ -262,7 +262,7 @@ niceDeclarations ds = nice (fixities ds) ds
 		f  = fixity x fixs
 		t = case mt of
 			Just t	-> t
-			Nothing	-> Underscore (getRange x)
+			Nothing	-> Underscore (getRange x) Nothing
 
 
 	-- Turn a function clause into a nice function clause.

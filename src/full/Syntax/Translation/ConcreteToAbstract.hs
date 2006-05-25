@@ -192,16 +192,18 @@ instance ToAbstract C.Expr A.Expr where
     toAbstract (C.Lit l)    = return $ A.Lit l
 
     -- Meta variables
-    toAbstract (C.QuestionMark r) =
+    toAbstract (C.QuestionMark r n) =
 	do  scope <- getScopeInfo
-	    return $ A.QuestionMark $ MetaInfo { metaRange = r
-					       , metaScope = scope
+	    return $ A.QuestionMark $ MetaInfo { metaRange  = r
+					       , metaScope  = scope
+					       , metaNumber = n
 					       }
-    toAbstract (C.Underscore r) =
+    toAbstract (C.Underscore r n) =
 	do  scope <- getScopeInfo
-	    return $ A.Underscore $ MetaInfo { metaRange = r
-					       , metaScope = scope
-					       }
+	    return $ A.Underscore $ MetaInfo { metaRange  = r
+					     , metaScope  = scope
+					     , metaNumber = n
+					     }
 
     -- Application
     toAbstract e@(C.App r h e1 e2) =

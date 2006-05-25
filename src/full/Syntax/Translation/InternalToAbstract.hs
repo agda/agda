@@ -75,13 +75,16 @@ class Reify i a | i -> a where
     reify :: i -> TCM a
 
 instance Reify MetaId Expr where
-    reify x =
+    reify x@(MetaId n) =
 	do  mi  <- getMetaInfo <$> lookupMeta x
-	    let mi' = Info.MetaInfo (getRange mi) (M.metaScope mi)
+	    let mi' = Info.MetaInfo (getRange mi)
+				    (M.metaScope mi)
+				    (Just n)
 	    iis <- List.map (snd /\ fst) . Map.assocs
 		    <$> gets stInteractionPoints
 	    case List.lookup x iis of
-		Just ii	-> return $ A.QuestionMark mi'
+		Just ii@(InteractionId n)
+			-> return $ A.QuestionMark $ mi' {metaNumber = Just n}
 		Nothing	-> return $ A.Underscore mi'
 
 instance Reify Term Expr where

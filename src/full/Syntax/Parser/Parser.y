@@ -378,8 +378,8 @@ Expr3
 Expr4
     : QId		{ Ident $1 }
     | literal		{ Lit $1 }
-    | '?'		{ QuestionMark $1 }
-    | '_'		{ Underscore $1 }
+    | '?'		{ QuestionMark $1 Nothing }
+    | '_'		{ Underscore $1 Nothing }
     | 'Prop'		{ Prop $1 }
     | 'Set'		{ Set $1 }
     | setN		{ uncurry SetN $1 }
@@ -815,7 +815,7 @@ exprToLHS e =
 						<*> exprToPattern e2
 		Paren r e		-> ParenP r
 						<$> exprToPattern e
-		Underscore r		-> return $ WildP r
+		Underscore r _		-> return $ WildP r
 		_			-> parseError "Parse error in pattern"
 
 }
