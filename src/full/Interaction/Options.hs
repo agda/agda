@@ -38,12 +38,13 @@ instance Functor ArgDescr where
     fmap f (OptArg p s) = OptArg (f . p) s
 
 data CommandLineOptions =
-    Options { optInputFile		:: Maybe FilePath
-	    , optIncludeDirs		:: [FilePath]
-	    , optShowVersion		:: Bool
-	    , optShowHelp		:: Bool
-	    , optInteractive		:: Bool
-	    , optVerbose		:: Int
+    Options { optInputFile   :: Maybe FilePath
+	    , optIncludeDirs :: [FilePath]
+	    , optShowVersion :: Bool
+	    , optShowHelp    :: Bool
+	    , optInteractive :: Bool
+	    , optEmacsMode   :: Bool
+	    , optVerbose     :: Int
 	    }
     deriving Show
 
@@ -54,12 +55,13 @@ mapFlag f (Option _ long arg descr) = Option [] (map f long) arg descr
 
 defaultOptions :: CommandLineOptions
 defaultOptions =
-    Options { optInputFile		= Nothing
-	    , optIncludeDirs		= []
-	    , optShowVersion		= False
-	    , optShowHelp		= False
-	    , optInteractive		= False
-	    , optVerbose		= 1
+    Options { optInputFile   = Nothing
+	    , optIncludeDirs = []
+	    , optShowVersion = False
+	    , optShowHelp    = False
+	    , optInteractive = False
+	    , optEmacsMode   = False
+	    , optVerbose     = 1
 	    }
 
 {- | @f :: Flag opts@  is an action on the option record that results from
@@ -74,7 +76,12 @@ inputFlag f o	    =
 	Just _	 -> fail "only one input file allowed"
 versionFlag o	    = return $ o { optShowVersion   = True }
 helpFlag o	    = return $ o { optShowHelp	    = True }
-interactiveFlag o   = return $ o { optInteractive   = True }
+interactiveFlag o
+    | optEmacsMode o = fail "cannot have both emacs mode and interactive mode"
+    | otherwise	     = return $ o { optInteractive   = True }
+emacsModeFlag o
+    | optInteractive o = fail "cannot have both emacs mode and interactive mode"
+    | otherwise	       = return $ o { optEmacsMode = True }
 includeFlag d o	    = return $ o { optIncludeDirs   = d : optIncludeDirs o   }
 verboseFlag s o	    =
     do	n <- integerArgument "--verbose" s
@@ -95,6 +102,8 @@ standardOptions =
 		    "look for imports in DIR"
     , Option ['I']  ["interactive"] (NoArg interactiveFlag)
 		    "start in interactive mode"
+    , Option []	    ["emacs-mode"] (NoArg emacsModeFlag)
+		    "start in emacs mode"
     ]
 
 -- | Used for printing usage info.

@@ -3,6 +3,7 @@
 module TypeChecking.Monad.Options where
 
 import Control.Monad.State
+import Data.Maybe
 
 import TypeChecking.Monad
 import Interaction.Options
@@ -22,10 +23,14 @@ setInputFile file =
     do	opts <- commandLineOptions
 	setCommandLineOptions $ opts { optInputFile = Just file }
 
+-- | Should only be run if 'hasInputFile'.
 getInputFile :: TCM FilePath
 getInputFile =
     do	mf <- optInputFile <$> commandLineOptions
 	case mf of
 	    Just file	-> return file
 	    Nothing	-> __IMPOSSIBLE__
+
+hasInputFile :: TCM Bool
+hasInputFile = isJust <$> optInputFile <$> commandLineOptions
 

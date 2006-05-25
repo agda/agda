@@ -55,6 +55,8 @@ runAgda =
 		| optShowHelp opts	-> liftIO printUsage
 		| optShowVersion opts	-> liftIO printVersion
 		| isNothing (optInputFile opts)
+		    && not (optInteractive opts)
+		    && not (optEmacsMode opts)
 					-> liftIO printUsage
 		| otherwise		-> do setCommandLineOptions opts
 					      checkFile
@@ -66,13 +68,15 @@ runAgda =
 		let interaction | i	    = interactionLoop
 				| otherwise = id
 		interaction $ liftTCM $
-		    do	file <- getInputFile
-			(m, scope) <- liftIO $
-			    do	m <- parseFile' moduleParser file
-				concreteToAbstract_ m
+		    do	hasFile <- hasInputFile
 			resetState
-			checkDecl m
-			setScope scope
+			when hasFile $
+			    do	file <- getInputFile
+				(m, scope) <- liftIO $
+				    do	m <- parseFile' moduleParser file
+					concreteToAbstract_ m
+				checkDecl m
+				setScope scope
 
 -- | Print usage information.
 printUsage :: IO ()
