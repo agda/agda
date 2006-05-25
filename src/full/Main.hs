@@ -25,6 +25,7 @@ import Syntax.Abstract.Name
 
 import Interaction.Exceptions
 import Interaction.CommandLine.CommandLine
+import Interaction.EmacsInterface.EmacsAgda2
 import Interaction.Options
 import Interaction.Monad
 
@@ -42,7 +43,7 @@ parseFile' :: Parser a -> FilePath -> IO a
 parseFile' p file
     | "lagda" `isSuffixOf` file	= parseLiterateFile p file
     | otherwise			= parseFile p file
-
+ 
 
 -- | The main function
 runAgda :: IM ()
@@ -65,8 +66,10 @@ runAgda =
 	checkFile :: IM ()
 	checkFile =
 	    do	i <- optInteractive <$> liftTCM commandLineOptions
+		emacs <- optEmacsMode <$> liftTCM commandLineOptions
 		when i $ liftIO $ putStr splashScreen
 		let interaction | i	    = interactionLoop
+				| emacs	    = emacsModeLoop
 				| otherwise = id
 		interaction $ liftTCM $
 		    do	hasFile <- hasInputFile

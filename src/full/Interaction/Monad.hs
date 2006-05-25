@@ -2,19 +2,33 @@
 module Interaction.Monad where
 
 import TypeChecking.Monad
+import Control.Monad.State
 import Control.Monad.Error
 import Utils.Monad.Undo
 
 type IM = TCM 
 
 {-
-data CurrentPoint = InInteractionPoint InteractionPoint | TopLevel
+data CurrentPoint = InInteractionPoint InteractionId | TopLevel
 
-newtype IM a = IM {unIM :: StateT [CurrentPoint] TCM}
+newtype IM a = IM {unIM :: StateT [CurrentPoint] TCM a}
+   deriving (Monad,MonadIO)
+
+
+instance MonadError e IM where
+    throwError	   = lift . throwError
+    catchError m h = IM $ catchError (unIM m) (unIM . h)
+
+
 
 instance MonadUndo [CurrentPoint] IM where
-    undo (IM s) 
+    undo = 
+        
+
+run
+
 -}
+
 liftTCM :: TCM a -> IM a 
 liftTCM s = s
 

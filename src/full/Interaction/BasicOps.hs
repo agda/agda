@@ -96,7 +96,7 @@ addDecl d =
 
 refine :: InteractionId -> Maybe Range -> Expr -> TCM (Expr,[InteractionId])
 -- If constants has a fixed arity, then it might be better to do 
--- 
+-- exact refinement.
 refine ii mr e = 
     do  mi <- lookupInteractionId ii
         mv <- lookupMeta mi 
@@ -218,6 +218,14 @@ typeOfMetas norm = liftTCM $
                open (MetaVar _ _ M.Open) = True
 	       open _	        	= False
 
+contextOfMeta :: InteractionId -> IM String
+contextOfMeta ii =
+     do  mi <- lookupInteractionId ii
+         env <- getMetaEnv <$> lookupMeta mi
+         let localVars = List.map (\(x,t) -> show x ++ " : " ++ show t) $ List.filter visibleVar $ envContext env
+--         let constantsInScope =
+         return (unlines localVars)
+  where visibleVar (x,_) = (show x) /= "_"
 
 data Normal = Normalised | AsIs 
 
@@ -240,8 +248,6 @@ typeInMeta ii norm e =
 	mi <- getMetaInfo <$> lookupMeta m
 	withMetaInfo mi $
 	    typeInCurrent norm e
-
-
 
 
 -------------------------------
