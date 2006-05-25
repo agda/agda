@@ -19,6 +19,7 @@ import Syntax.Concrete.Pretty ()
 import qualified Syntax.Abstract as A
 import Syntax.Translation.ConcreteToAbstract
 import Syntax.Translation.AbstractToConcrete
+import Syntax.Translation.InternalToAbstract
 import Syntax.Abstract.Test
 import Syntax.Abstract.Name
 

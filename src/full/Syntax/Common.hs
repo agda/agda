@@ -5,6 +5,7 @@
 module Syntax.Common where
 
 import Data.Generics (Typeable, Data)
+import Syntax.Position
 import Utils.Monad
 
 data Hiding  = Hidden | NotHidden
@@ -19,6 +20,9 @@ instance Functor Arg where
 
 instance FunctorM Arg where
     fmapM f (Arg h x) = Arg h <$> f x
+
+instance HasRange a => HasRange (Arg a) where
+    getRange = getRange . unArg
 
 instance Show a => Show (Arg a) where
     show (Arg Hidden x) = "{" ++ show x ++ "}"

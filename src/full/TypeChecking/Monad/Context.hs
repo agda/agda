@@ -168,10 +168,19 @@ typeOfBV n =
     do	ctx <- getContext
 	(_,t) <- ctx !!! n
 	return $ raise (n + 1) t
+
+nameOfBV :: Nat -> TCM Name
+nameOfBV n =
+    do	ctx <- getContext
+	(x,_) <- ctx !!! n
+	return x
+
+-- | TODO: move
+xs !!! n = xs !!!! n
     where
-	[]     !!! _ = fail $ "deBruijn index out of scope: " ++ show n
-	(x:_)  !!! 0 = return x
-	(_:xs) !!! n = xs !!! (n - 1)
+	[]     !!!! _ = fail $ "deBruijn index out of scope: " ++ show n
+	(x:_)  !!!! 0 = return x
+	(_:xs) !!!! n = xs !!!! (n - 1)
 
 -- | Get the deBruijn index of a named variable
 varIndex :: Name -> TCM Nat

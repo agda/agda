@@ -22,6 +22,8 @@ import Syntax.Parser
 import Syntax.Position
 import Syntax.Scope
 import Syntax.Translation.ConcreteToAbstract
+import Syntax.Translation.InternalToAbstract
+import Syntax.Abstract.Pretty
 
 import Text.PrettyPrint
 
@@ -92,17 +94,17 @@ interactionLoop typeCheck =
 
 	commands =
 	    [ "quit"	    |>  \_ -> return $ Return ()
-	    , "?"	    |>  \_ -> continueAfter $ liftIO $ putStr help
+	    , "?"	    |>  \_ -> continueAfter $ liftIO $ help commands
 	    , "reload"	    |>  \_ -> do reload
 					 ContinueIn <$> ask
 	    , "constraints" |> \args -> continueAfter $ showConstraints args
             , "give"	    |> \args -> continueAfter $ giveMeta args
             , "refine"	    |> \args -> continueAfter $ refineMeta args
 	    , "meta"	    |> \args -> continueAfter $ showMetas args
-	    , "hidden"	    |> \args -> continueAfter $ showHidden args
             , "undo"	    |> \_ -> continueAfter $ mkUndo
             , "load"	    |> \args -> continueAfter $ loadFile reload args
 	    , "eval"	    |> \args -> continueAfter $ evalIn args
+            , "typeOf"      |> \args -> continueAfter $ typeOf args
 	    , "wakeup"	    |> \_ -> continueAfter $ retryConstraints
 	    ]
 	    where
@@ -128,29 +130,19 @@ showConstraints [] =
 showConstraints _ = liftIO $ putStrLn ":constraints [cid]"
 
 	
-showHidden :: [String] -> IM ()
-showHidden [m] =
-    do	i <- readM m
-	m <- lookupMeta (MetaId i)
-	liftIO $ print m
-showHidden [] = 
-    do store <- Map.filter open <$> getMetaStore
-       liftIO $ mapM_ print $ Map.elems store
-    where
-	open (MetaVar _ _ Open) = True
-	open _			= False
-showHidden _ = liftIO $ putStrLn $ ":hidden [metaid]"
-
-
 showMetas :: [String] -> IM ()
 showMetas [m] =
-    do	i  <- readM m
-	s <- getMeta (InteractionId i)
-	liftIO $ putStrLn $ s
+    do	i <- readM m
+	s <- typeOfMeta AsIs (InteractionId i)
+	liftIO $ putStrLn s
+showMetas [m,"normal"] =
+    do	i <- readM m
+	s <- typeOfMeta Normalised (InteractionId i)
+	liftIO $ putStrLn s
 showMetas [] = 
-    do ms <- getMetas
-       liftIO $ putStrLn $ unlines ms
-showMetas _ = liftIO $ putStrLn $ ":meta [metaid]"
+    do  (interactionMetas,hiddenMetas) <- typeOfMetas AsIs 
+        liftIO $ mapM_ putStrLn $ interactionMetas ++ hiddenMetas
+showMetas _ = liftIO $ putStrLn $ ":hidden [metaid]"
 
 
 
@@ -166,24 +158,29 @@ metaParseExpr ii s =
     where
 	c r = parsePosString exprParser (rStart r) s
 
-actOnMeta :: String -> (InteractionId -> A.Expr -> IM a) -> [String] -> IM ()
-actOnMeta _  f (is:es) = 
+actOnMeta :: (InteractionId -> A.Expr -> IM a) -> [String] -> IM a
+actOnMeta f (is:es) = 
      do  i <- readM is
          let ii = InteractionId i 
          e <- metaParseExpr ii (unwords es)
          f ii e
-         return ()       
-actOnMeta cmd _ _ = liftIO $ putStrLn $ ":" ++ cmd ++ " metaid expr"
+actOnMeta _ _ = __IMPOSSIBLE__
 
 
 giveMeta :: [String] -> IM ()
-giveMeta  = 
-     actOnMeta "give" (\ii -> \e  -> give ii Nothing e)
+giveMeta s | length s >= 2 = 
+    do  actOnMeta (\ii -> \e  -> give ii Nothing e) s
+        return ()
+giveMeta _ = liftIO $ putStrLn $ ": give" ++ " metaid expr"
+
 
 
 refineMeta :: [String] -> IM ()
-refineMeta  = 
-     actOnMeta "refine" (\ii -> \e  -> refine ii Nothing e)
+refineMeta s | length s >= 2 = 
+    do  actOnMeta (\ii -> \e  -> refine ii Nothing e) s
+        return ()
+refineMeta _ = liftIO $ putStrLn $ ": refine" ++ " metaid expr"
+
 
 
 retryConstraints :: IM ()
@@ -191,14 +188,10 @@ retryConstraints = liftTCM wakeupConstraints
 
 
 evalIn :: [String] -> TCM ()
-evalIn (m:t) =
-    do	i <- readM m
-	m <- lookupInteractionId (InteractionId i)
-	mi <- getMetaInfo <$> lookupMeta m
-	withMetaInfo mi $
-	    evalTerm (unwords t)
-	return ()
-evalIn [] = liftIO $ putStrLn ":eval metaid expr"
+evalIn s | length s >= 2 =
+    do	v <- actOnMeta evalInMeta s 
+        liftIO $ putStrLn v
+evalIn _ = liftIO $ putStrLn ":eval metaid expr"
 
 parseExpr :: String -> TCM A.Expr
 parseExpr s =
@@ -209,14 +202,38 @@ parseExpr s =
     where
 	c = parse exprParser s
 
+-- evalTerm :: String -> TCM ()
 evalTerm s =
     do	e <- parseExpr s
-	t <- newTypeMeta_ 
-	v <- checkExpr e t
-	t' <- normalise t
-	v' <- normalise v
-	liftIO $ putStrLn $ show v' ++ " : " ++ show t'
+        v <- evalInCurrent e
+	e <- reify v
+	liftIO $ putStrLn $ showA e
 	return Continue
+    where
+	evalInCurrent e = 
+	    do  t <- newTypeMeta_ 
+		v <- checkExpr e t
+		v' <- normalise v
+		return v'
+
+
+typeOf :: [String] -> TCM ()
+typeOf s = 
+    do  e  <- parseExpr (unwords s)
+        v  <- typeInCurrent Normalised e
+        v' <- typeInCurrent AsIs e
+	e  <- reify v
+	e' <- reify v'
+       	liftIO $ putStrLn $   "Normal form:\n  " ++ showA e ++ 
+                            "\nHead Normal Form:\n  " ++ showA e'
+    where
+	typeInCurrent norm e =
+	    do 	t <- newTypeMeta_ 
+		checkExpr e t
+		if doNormalise norm
+		    then normalise t
+		    else return t
+
 
 -- | The logo that prints when agdaLight is started in interactive mode.
 splashScreen :: String
@@ -233,12 +250,10 @@ splashScreen = unlines
     ]
 
 -- | The help message
-help :: String
-help = unlines
-    [ "Command overview"
-    , ":quit         Quit."
-    , ":help or :?   Help (this message)."
-    , ":reload       Reload input files."
-    , "<exp> Infer type of expression <exp> and evaluate it."
-    ]
+help :: [Command a] -> IO ()
+help cs = putStr $ unlines $
+    [ "Command overview" ] ++ List.map explain cs ++
+    [ "<exp> Infer type of expression <exp> and evaluate it." ]
+    where
+	explain (x,_) = ":" ++ x
 

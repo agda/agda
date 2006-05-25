@@ -9,6 +9,7 @@
 module Syntax.Translation.AbstractToConcrete where
 
 import Control.Monad.Reader
+import Data.Char
 
 import Syntax.Common
 import Syntax.Position
@@ -205,9 +206,24 @@ instance ToConcrete A.Expr C.Expr where
     toConcrete (A.QuestionMark i)   = return $ C.QuestionMark (getRange i)
     toConcrete (A.Underscore i)	    = return $ C.Underscore (getRange i)
 
-    -- We don't have to do anything to recognise infix applications since
-    -- they have been stored away (and if we're not using the stored
-    -- information we don't care).
+    toConcrete (A.App i (A.App _ eop (Arg NotHidden e1)) (Arg NotHidden e2))
+	| Just (fx,op) <- isOp eop =
+	    bracket (infixBrackets fx)
+	    $ do e1 <- toConcreteCtx (LeftOperandCtx fx) e1
+		 e2 <- toConcreteCtx (RightOperandCtx fx) e2
+		 return $ C.InfixApp e1 op e2
+	where
+	    isOp (A.Var i x)
+		| opStr (show x) = Just (nameFixity i, concreteName i)
+	    isOp (A.Con i x)
+		| opStr (show x) = Just (nameFixity i, concreteName i)
+	    isOp (A.Def i x)
+		| opStr (show x) = Just (nameFixity i, concreteName i)
+	    isOp _ = Nothing
+
+	    opStr (c:_) = not (isAlphaNum c)
+	    opStr _	= __IMPOSSIBLE__
+
     toConcrete (A.App i e1 (Arg h e2))    =
 	withStored i
 	$ bracket appBrackets
@@ -238,6 +254,7 @@ instance ToConcrete A.Expr C.Expr where
 	     b' <- toConcreteCtx TopCtx b
 	     return $ C.Fun (getRange i) h a' b'
 
+    toConcrete (A.Set i 0)  = withStored i $ return $ C.Set (getRange i)
     toConcrete (A.Set i n)  = withStored i $ return $ C.SetN (getRange i) n
     toConcrete (A.Prop i)   = withStored i $ return $ C.Prop (getRange i)
 

@@ -7,6 +7,8 @@ import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Error
 
+import Utils.Monad
+
 -- | An undo monad is a state monad with backtracking.
 class MonadState s m => MonadUndo s m | m -> s where
     undo    :: m ()
@@ -47,3 +49,7 @@ instance MonadError e m => MonadError e (UndoT s m) where
 
 runUndoT :: Monad m => UndoT s m a -> m a
 runUndoT (UndoT sm) = evalStateT sm []
+
+getUndoStateNumber :: MonadUndo s m => m Int
+getUndoStateNumber = length <$> getUndoStack
+
