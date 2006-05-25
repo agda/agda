@@ -1,6 +1,10 @@
 {-# OPTIONS -cpp -fglasgow-exts #-}
 
 module Interaction.BasicOps where
+{- TODO: The operations in this module should return Expr and not String, 
+         for this we need to write a translator from Internal to Abstract syntax.
+-}
+
 
 --import Prelude hiding (print, putStr, putStrLn)
 --import Utils.IO
@@ -20,7 +24,7 @@ import Syntax.Position
 import Syntax.Abstract 
 import Syntax.Common
 import Syntax.Info(ExprInfo(..),MetaInfo(..))
-import Syntax.Internal (MetaId)
+import Syntax.Internal (MetaId,Type,Sort)
 --import Syntax.Translation.ConcreteToAbstract
 --import Syntax.Parser
 import Syntax.Scope
@@ -34,7 +38,9 @@ import TypeChecking.Reduce
 import TypeChecking.Substitute
 
 --import Utils.ReadLine
+import Utils.Monad
 import Utils.Monad.Undo
+
 --import Utils.Fresh
 
 #include "../undefined.h"
@@ -77,6 +83,7 @@ give ii mr e = liftTCM $
          removeInteractionPoint ii 
          mis' <- getInteractionPoints
          return (e,(List.\\) mis' mis) 
+
 
 addDecl :: Declaration -> TCM ([InteractionId])
 addDecl d = 
@@ -142,11 +149,30 @@ refineExact ii e =
     do  
 -}
 
+
+{-| Evaluate the given expression in the current environment -}
+evalInCurrent :: Expr -> IM String
+evalInCurrent e = 
+    do  t <- newTypeMeta_ 
+	v <- checkExpr e t
+	v' <- normalise v
+	return (show v')
+
+
+evalInMeta :: InteractionId -> Expr -> IM String 
+evalInMeta ii e = 
+   do 	m <- lookupInteractionId ii
+	mi <- getMetaInfo <$> lookupMeta m
+	withMetaInfo mi $
+	    evalInCurrent e
+
+
+
 mkUndo :: IM ()
 mkUndo = undo
 
 --- Printing Operations
-getConstraints :: IM [String] -- should be changed to Expr something
+getConstraints :: IM [String] 
 getConstraints = liftTCM $
     do	cs <- Context.getConstraints
 	cs <- normalise cs
@@ -155,25 +181,66 @@ getConstraints = liftTCM $
 	prc (x,CC _ ctx c) = show x ++ ": " ++ show (List.map fst $ envContext ctx) ++ " |- " ++ show c
 
 
-getMeta :: InteractionId -> IM String  --TODO: 
-getMeta ii = 
-     do j <- judgementInteractionId ii
-        let j' = fmap (\_ -> ii) j
-        return $ show j'
-        
-getMetas :: IM [String]
-getMetas = liftTCM $
+typeOfMetaMI :: Normal -> MetaId -> IM (Judgement Type Sort MetaId)
+typeOfMetaMI norm mi = 
+     do mv <- lookupMeta mi
+        normJudg mv $ mvJudgement mv -- TODO: Better name
+   where normJudg mv (HasType i t) = 
+             do t <- if (doNormalise norm) then 
+                          withMetaInfo (getMetaInfo mv) $ normalise t 
+                     else return t
+                return $ HasType i t
+         normJudg mv (IsType i s)  = IsType i <$> normalise s
+         normJudg mv (IsSort i)    = return $ IsSort i
+
+typeOfMeta :: Normal -> InteractionId -> IM String  --TODO: 
+typeOfMeta norm ii = 
+     do mi <- lookupInteractionId ii
+        j <- typeOfMetaMI norm mi
+        return $ show $ fmap (\_ -> ii) j 
+
+typeOfMetas :: Normal -> IM ([String],[String])
+-- First visible metas, then hidden
+typeOfMetas norm = liftTCM $
     do	ips <- getInteractionPoints 
-        js <- mapM judgementInteractionId ips
-        js' <- zipWithM mkJudg js ips   -- TODO: write nicer
-        return $ List.map show js'
-   where mkJudg (HasType _ t) ii = 
-             do mi <- lookupInteractionId ii
-                mv <- lookupMeta mi 
-                t <- withMetaInfo (getMetaInfo mv) $ normalise t 
-                return $ HasType ii t
-         mkJudg (IsType _ s) ii  = return $ IsType ii s
-         mkJudg (IsSort _) ii    = return $ IsSort ii
+        js <- mapM (typeOfMeta norm) ips
+        hiddens <- hiddenMetas
+        return $ (List.map show js,List.map show hiddens)
+   where hiddenMetas :: TCM [Judgement Type Sort MetaId]
+         hiddenMetas =    --TODO: Change so that it uses getMetaMI above 
+            do store <- Map.filter open <$> getMetaStore
+               let mvs = Map.keys store
+               mapM (typeOfMetaMI norm) mvs
+          where
+	       open :: MetaVariable -> Bool
+               open (MetaVar _ _ M.Open) = True
+	       open _	        	= False
+
+
+data Normal = Normalised | AsIs 
+
+doNormalise Normalised = True
+doNormalise AsIs = False
+
+
+
+{-| Returns the type of the expression in the current environment -}
+typeInCurrent :: Normal -> Expr -> TCM String
+typeInCurrent norm e =
+    do 	t <- newTypeMeta_ 
+	checkExpr e t
+        if doNormalise norm then show <$> normalise t else return $ show t
+
+
+typeInMeta :: InteractionId -> Normal -> Expr -> TCM String
+typeInMeta ii norm e =
+   do 	m <- lookupInteractionId ii
+	mi <- getMetaInfo <$> lookupMeta m
+	withMetaInfo mi $
+	    typeInCurrent norm e
+
+
+
 
 -------------------------------
 ----- Help Functions ----------
