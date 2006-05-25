@@ -6,7 +6,6 @@
 
     TODO
 
-	- fixities
 	- numbers on metas
 	- fake dependent functions to independent functions
 	- meta parameters
@@ -28,6 +27,7 @@ import Syntax.Abstract as A
 import qualified Syntax.Concrete as C
 import Syntax.Internal as I
 import Syntax.Internal.Debug
+import Syntax.Scope
 
 import TypeChecking.Monad as M
 import TypeChecking.Monad.Context
@@ -48,16 +48,22 @@ apps (e, arg:args)	    =
 nameInfo :: Name -> NameInfo
 nameInfo x = NameInfo { bindingSite  = getRange x
 		      , concreteName = C.QName $ nameConcrete x
-		      , nameFixity   = NonAssoc noRange 10 -- TODO
+		      , nameFixity   = NonAssoc noRange 10
 		      , nameAccess   = PublicAccess
 		      }
 
-qnameInfo :: QName -> NameInfo
-qnameInfo x = NameInfo { bindingSite  = noRange
-		       , concreteName = qnameConcrete x
-		       , nameFixity   = NonAssoc noRange 10 -- TODO
-		       , nameAccess   = PublicAccess
-		       }
+qnameInfo :: QName -> TCM NameInfo
+qnameInfo x =
+    do	scope <- getScope
+	let fx = case resolveName (qnameConcrete x) scope of
+		    DefName d -> fixity d
+		    _	      -> __IMPOSSIBLE__
+	return $ NameInfo
+		 { bindingSite  = noRange
+		 , concreteName = qnameConcrete x
+		 , nameFixity   = fx
+		 , nameAccess   = PublicAccess
+		 }
 
 exprInfo :: ExprInfo
 exprInfo = ExprRange noRange
@@ -85,8 +91,12 @@ instance Reify Term Expr where
 		I.Var n vs   ->
 		    do  x  <- nameOfBV n
 			reifyApp (A.Var (nameInfo x) x) vs
-		I.Def x vs   -> reifyApp (A.Def (qnameInfo x) x) vs
-		I.Con x vs   -> reifyApp (A.Con (qnameInfo x) x) vs
+		I.Def x vs   ->
+		    do	i <- qnameInfo x
+			reifyApp (A.Def i x) vs
+		I.Con x vs   ->
+		    do	i <- qnameInfo x
+			reifyApp (A.Con i x) vs
 		I.Lam b vs   ->
 		    do	(x,e) <- reify b
 			A.Lam exprInfo (DomainFree NotHidden x) e -- TODO: hiding
