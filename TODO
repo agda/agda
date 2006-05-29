@@ -1,5 +1,5 @@
 
-AIM4
+Todo
 ----
 
 * good error messages
@@ -14,56 +14,54 @@ AIM4
 
 * clean up TypeChecking.Monad.Context
 
-(done) replace explicit Hidden with Arg in Pi and App (and more?)
+* Check out lex/parse errors (what position and what input is reported).
 
-(done) independent functions in Type
+* check that underscores have been solved (when? at the end of the file)
 
-(done) local functions
+* Hidden info on lambdas.
 
-(don't) check that underscores have been solved
+* as-patterns
 
-(done) speed up normalise
+* absurd patterns
 
-(done) getopts
+* name suggestions in telescopes
 
-(done) When instantiating a module we should generate functions for the axioms
-       and constructors and probably for everything else as well (reducing to
-       the instantiated versions from the instantiated module). Together with
-       monomorphic constructors.
+Done
+----
 
-(done) Monomorphic constructors.
+* better names for implicit args in lhs
 
-(done) ? should not be a valid operator characted
+* replace explicit Hidden with Arg in Pi and App (and more?)
 
-(done) actually check sorts
+* independent functions in Type
 
-(done) Get rid of distinction between hole and underscore. Instead keep a
-       separate list of which metas are interaction points.
+* local functions
 
-(done) Blocked constructor in Terms and Types
+* speed up normalise
 
-(done) insert hidden arguments in lhss
+* getopts
 
-(done) ranges in error messages
+* When instantiating a module we should generate functions for the axioms and
+  constructors and probably for everything else as well (reducing to the
+  instantiated versions from the instantiated module). Together with
+  monomorphic constructors.
 
-(done) abstract info on constraints (TCEnv instead of Context)
-       and interaction meta vars
+* Monomorphic constructors.
 
+* ? should not be a valid operator characted
 
+* actually check sorts
 
+* Get rid of distinction between hole and underscore. Instead keep a separate
+  list of which metas are interaction points.
 
+* Blocked constructor in Terms and Types
 
+* insert hidden arguments in lhss
 
-Syntax
-------
+* ranges in error messages
 
-  * Invent syntax for fancy case (should we have fancy case?)
-
-Error reporting
----------------
-
-  * Check out lex/parse errors (what position and what input is reported).
-
-  * Think about laziness and exceptions. In particular in the scope checking.
+* abstract info on constraints (TCEnv instead of Context) and interaction meta
+  vars.
 
  vim: sts=2 sw=2 ts=80
