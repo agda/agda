@@ -26,6 +26,9 @@ Todo
 
 * name suggestions in telescopes
 
+* Use substitutions for meta dependencies (at least for printing).
+  We'll need to remember the number of dependency args.
+
 Done
 ----
 
