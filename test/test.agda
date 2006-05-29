@@ -1,16 +1,16 @@
 
 module test where
 
-module List (A:Set) where
+id : {A:Set} -> A -> A
+id x = x
 
-  data List : Set where
-    nil  : List
-    (::) : A -> List -> List
+foo : {A:Set} -> A -> A -> ?
+foo x y = id ?
 
 data Nat : Set where
   zero : Nat
   suc  : Nat -> Nat
 
-module ListNat = List Nat
-open ListNat
-
+(+) : Nat -> Nat -> Nat
+zero  + m = m
+suc n + m = suc (n + m)
