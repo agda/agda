@@ -20,12 +20,14 @@ import Data.List as List
 import Interaction.Monad 
 --import Text.PrettyPrint
 
+import qualified Syntax.Concrete -- ToDo: Remove with instance of ToConcrete
 import Syntax.Position
 import Syntax.Abstract 
 import Syntax.Common
 import Syntax.Info(ExprInfo(..),MetaInfo(..))
-import Syntax.Internal (MetaId,Type,Sort)
---import Syntax.Translation.ConcreteToAbstract
+import Syntax.Internal (MetaId(..),Type,Sort)
+import Syntax.Translation.InternalToAbstract
+import Syntax.Translation.AbstractToConcrete
 --import Syntax.Parser
 import Syntax.Scope
 
@@ -48,14 +50,15 @@ import Utils.Monad.Undo
 -- TODO: Modify all operations so that they return abstract syntax and not 
 -- stringd
 
-giveExpr :: MetaId -> Expr -> IM ()
+giveExpr :: MetaId -> Expr -> IM Expr
 -- When translater from internal to abstract is given, this function might return
 -- the expression returned by the type checker.
 giveExpr mi e = 
     do  mv <- lookupMeta mi 
         withMetaInfo (getMetaInfo mv) $
-		do vs <- allCtxVars
+	  	do vs <- allCtxVars
 		   metaTypeCheck' mi e mv vs
+        
   where  metaTypeCheck' mi e mv vs = 
             case mvJudgement mv of 
 		 HasType _ t  ->
@@ -64,12 +67,14 @@ giveExpr mi e =
 			    InstV v' -> equalVal () t v (v' `apply` vs)
 			    _	     -> return ()
 			updateMeta mi v
+                        reify v
 		 IsType _ s ->
 		    do	t <- isType e s
 			case mvInstantiation mv of
 			    InstT t' -> equalTyp () t (t' `apply` vs)
 			    _	     -> return ()
 			updateMeta mi t
+                        reify t 
 		 IsSort _ -> __IMPOSSIBLE__
 
 give :: InteractionId -> Maybe Range -> Expr -> IM (Expr,[InteractionId])
@@ -101,7 +106,7 @@ refine ii mr e =
     do  mi <- lookupInteractionId ii
         mv <- lookupMeta mi 
         let range = maybe (getRange mv) id mr
-        let scope = M.getMetaScope mv
+        let scope = M.getMetaScope mv  
         tryRefine 10 range scope e
   where tryRefine :: Int -> Range -> ScopeInfo -> Expr -> TCM (Expr,[InteractionId])
         tryRefine nrOfMetas r scope e = try nrOfMetas e
@@ -115,6 +120,7 @@ refine ii mr e =
 						 }
                       in App (ExprRange $ r) e (Arg NotHidden metaVar)
                  --ToDo: The position of metaVar is not correct
+                 --ToDo: The fixity of metavars is not correct
 
 {-
 refineExact :: InteractionId -> Maybe Range -> Expr -> TCM (Expr,[InteractionId])
@@ -153,15 +159,15 @@ refineExact ii e =
 
 
 {-| Evaluate the given expression in the current environment -}
-evalInCurrent :: Expr -> IM String
+evalInCurrent :: Expr -> IM Expr
 evalInCurrent e = 
     do  t <- newTypeMeta_ 
 	v <- checkExpr e t
 	v' <- normalise v
-	return (show v')
+	reify v'
 
 
-evalInMeta :: InteractionId -> Expr -> IM String 
+evalInMeta :: InteractionId -> Expr -> IM Expr
 evalInMeta ii e = 
    do 	m <- lookupInteractionId ii
 	mi <- getMetaInfo <$> lookupMeta m
@@ -169,80 +175,124 @@ evalInMeta ii e =
 	    evalInCurrent e
 
 
+data Rewrite =  AsIs | Instantiated | HeadNormal | Normalised 
+
+--rewrite :: Rewrite -> Term -> TCM Term
+rewrite AsIs	     t = return t
+rewrite Instantiated t = return t   -- reify does instantiation
+rewrite HeadNormal   t = reduce t
+rewrite Normalised   t = normalise t
+
+
+data OutputForm a b =
+      OfType b a | JustType b | EqInType a b b | EqTypes b b
+
+
+instance Functor (OutputForm a) where
+    fmap f (OfType e t) = OfType (f e) t
+    fmap f (JustType e) = JustType (f e)
+    fmap f (EqInType t e e') = EqInType t (f e) (f e')
+    fmap f (EqTypes e e') = EqTypes (f e) (f e')
+
+instance Reify Constraint (OutputForm Expr Expr) where
+    reify (ValueEq t u v) = EqInType <$> reify t <*> reify u <*> reify v 
+    reify (TypeEq t t') = EqTypes <$> reify t <*> reify t'
+    reify _ = __IMPOSSIBLE__
+
+instance (Show a,Show b) => Show (OutputForm a b) where
+    show (OfType e t) = show e ++ " : " ++ show t
+    show (JustType e) = "Type " ++ show e
+    show (EqInType t e e') = show e ++ " = " ++ show e' ++ " : " ++ show t
+    show (EqTypes  t t') = show t ++ " = " ++ show t'
+
+instance (ToConcrete a c, ToConcrete b d) => 
+         ToConcrete (OutputForm a b) (OutputForm c d) where
+    toConcrete (OfType e t) = OfType <$> toConcrete e <*> toConcrete t
+    toConcrete (JustType e) = JustType <$> toConcrete e
+    toConcrete (EqInType t e e') = 
+             EqInType <$> toConcrete t <*> toConcrete e <*> toConcrete e'
+    toConcrete (EqTypes e e') = EqTypes <$> toConcrete e <*> toConcrete e'
+
+--ToDo: Move somewhere else
+instance ToConcrete InteractionId Syntax.Concrete.Expr where
+    toConcrete (InteractionId i) = return $ Syntax.Concrete.QuestionMark noRange (Just i)
+instance ToConcrete MetaId Syntax.Concrete.Expr where
+    toConcrete (MetaId i) = return $ Syntax.Concrete.QuestionMark noRange (Just i)
+
+judgToOutputForm :: Judgement a b c -> OutputForm a c
+judgToOutputForm (HasType e t) = OfType e t
+judgToOutputForm (IsType t s) = JustType t
+judgToOutputForm _            = __IMPOSSIBLE__
+
 
 mkUndo :: IM ()
 mkUndo = undo
 
 --- Printing Operations
-getConstraints :: IM [String] 
+getConstraints :: IM [OutputForm Expr Expr] 
 getConstraints = liftTCM $
     do	cs <- Context.getConstraints
-	cs <- normalise cs
-        return $ List.map prc $ Map.assocs cs
-    where
-	prc (x,CC _ ctx c) = show x ++ ": " ++ show (List.map fst $ envContext ctx) ++ " |- " ++ show c
+	cs <- mapM reduce $ Map.elems cs
+        mapM reify $ List.map ccConstraint cs
 
 
-typeOfMetaMI :: Normal -> MetaId -> IM (Judgement Type Sort MetaId)
+
+typeOfMetaMI :: Rewrite -> MetaId -> IM (OutputForm Expr MetaId)
 typeOfMetaMI norm mi = 
      do mv <- lookupMeta mi
-        normJudg mv $ mvJudgement mv -- TODO: Better name
-   where normJudg mv (HasType i t) = 
-             do t <- if (doNormalise norm) then 
-                          withMetaInfo (getMetaInfo mv) $ normalise t 
-                     else return t
-                return $ HasType i t
-         normJudg mv (IsType i s)  = IsType i <$> normalise s
-         normJudg mv (IsSort i)    = return $ IsSort i
+        let j = mvJudgement mv
+        rewriteJudg mv j
+   where rewriteJudg mv (HasType i t) = 
+             withMetaInfo (getMetaInfo mv) $
+                 do  t <- rewrite norm t 
+                     OfType i <$> reify t
+         rewriteJudg mv (IsType i s)  = return $ JustType i 
+         rewriteJudg mv (IsSort i)    = __IMPOSSIBLE__
 
-typeOfMeta :: Normal -> InteractionId -> IM String  --TODO: 
+
+typeOfMeta :: Rewrite -> InteractionId -> IM (OutputForm Expr InteractionId)
 typeOfMeta norm ii = 
      do mi <- lookupInteractionId ii
-        j <- typeOfMetaMI norm mi
-        return $ show $ fmap (\_ -> ii) j 
+        out <- typeOfMetaMI norm mi
+        return $ fmap (\_ -> ii) out
 
-typeOfMetas :: Normal -> IM ([String],[String])
+
+typeOfMetas :: Rewrite -> IM ([OutputForm Expr InteractionId],[OutputForm Expr MetaId])
 -- First visible metas, then hidden
 typeOfMetas norm = liftTCM $
     do	ips <- getInteractionPoints 
         js <- mapM (typeOfMeta norm) ips
-        hiddens <- hiddenMetas
-        return $ (List.map show js,List.map show hiddens)
-   where hiddenMetas :: TCM [Judgement Type Sort MetaId]
-         hiddenMetas =    --TODO: Change so that it uses getMetaMI above 
-            do store <- Map.filter open <$> getMetaStore
+        hidden <- hiddenMetas
+        return $ (js,hidden)
+   where hiddenMetas =    --TODO: Change so that it uses getMetaMI above 
+            do is <- getInteractionMetas
+	       store <- Map.filterWithKey (openAndImplicit is) <$> getMetaStore
                let mvs = Map.keys store
                mapM (typeOfMetaMI norm) mvs
           where
-	       open :: MetaVariable -> Bool
-               open (MetaVar _ _ M.Open) = True
-	       open _	        	= False
+               openAndImplicit is x (MetaVar _ _ M.Open) = x `notElem` is
+	       openAndImplicit _ _ _			 = False
 
-contextOfMeta :: InteractionId -> IM String
+contextOfMeta :: InteractionId -> IM [OutputForm Expr Name]
 contextOfMeta ii =
      do  mi <- lookupInteractionId ii
          env <- getMetaEnv <$> lookupMeta mi
-         let localVars = List.map (\(x,t) -> show x ++ " : " ++ show t) $ List.filter visibleVar $ envContext env
---         let constantsInScope =
-         return (unlines localVars)
+         let localVars =  List.filter visibleVar $ envContext env
+         mapM translate localVars
   where visibleVar (x,_) = (show x) /= "_"
-
-data Normal = Normalised | AsIs 
-
-doNormalise Normalised = True
-doNormalise AsIs = False
-
+        translate (x,t) = OfType x <$> reify t
 
 
 {-| Returns the type of the expression in the current environment -}
-typeInCurrent :: Normal -> Expr -> TCM String
+typeInCurrent :: Rewrite -> Expr -> TCM Expr
 typeInCurrent norm e =
-    do 	t <- newTypeMeta_ 
-	checkExpr e t
-        if doNormalise norm then show <$> normalise t else return $ show t
+    do 	(_,t) <- inferExpr e
+        v <- rewrite norm t
+        reify v
 
 
-typeInMeta :: InteractionId -> Normal -> Expr -> TCM String
+
+typeInMeta :: InteractionId -> Rewrite -> Expr -> TCM Expr
 typeInMeta ii norm e =
    do 	m <- lookupInteractionId ii
 	mi <- getMetaInfo <$> lookupMeta m
@@ -253,7 +303,6 @@ typeInMeta ii norm e =
 -------------------------------
 ----- Help Functions ----------
 -------------------------------
-
 
 
 

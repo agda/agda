@@ -126,7 +126,7 @@ showConstraints [c] =
 	liftIO $ print $ ccConstraint cc
 showConstraints [] =
     do	cs <- BasicOps.getConstraints
-	liftIO $ putStrLn $ unlines cs
+	liftIO $ putStrLn $ unlines $ List.map show cs
 showConstraints _ = liftIO $ putStrLn ":constraints [cid]"
 
 	
@@ -134,14 +134,16 @@ showMetas :: [String] -> IM ()
 showMetas [m] =
     do	i <- readM m
 	s <- typeOfMeta AsIs (InteractionId i)
-	liftIO $ putStrLn s
+	liftIO $ putStrLn $ show s
 showMetas [m,"normal"] =
     do	i <- readM m
 	s <- typeOfMeta Normalised (InteractionId i)
-	liftIO $ putStrLn s
+	liftIO $ putStrLn $ show s
 showMetas [] = 
     do  (interactionMetas,hiddenMetas) <- typeOfMetas AsIs 
-        liftIO $ mapM_ putStrLn $ interactionMetas ++ hiddenMetas
+        let ims =  List.map show interactionMetas 
+            hms =  List.map show hiddenMetas
+        liftIO $ putStrLn $ unlines $ ims ++ hms
 showMetas _ = liftIO $ putStrLn $ ":hidden [metaid]"
 
 
@@ -190,7 +192,7 @@ retryConstraints = liftTCM wakeupConstraints
 evalIn :: [String] -> TCM ()
 evalIn s | length s >= 2 =
     do	v <- actOnMeta evalInMeta s 
-        liftIO $ putStrLn v
+        liftIO $ putStrLn $ show v
 evalIn _ = liftIO $ putStrLn ":eval metaid expr"
 
 parseExpr :: String -> TCM A.Expr
@@ -230,9 +232,8 @@ typeOf s =
 	typeInCurrent norm e =
 	    do 	t <- newTypeMeta_ 
 		checkExpr e t
-		if doNormalise norm
-		    then normalise t
-		    else return t
+		rewrite norm t
+
 
 
 -- | The logo that prints when agdaLight is started in interactive mode.
