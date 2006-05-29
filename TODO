@@ -28,6 +28,8 @@ Todo
 
 * for an as-pattern x@p x should reduce to p during type checking
 
+* write better tests
+
 Cleaning
 --------
 
