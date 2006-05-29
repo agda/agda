@@ -217,7 +217,7 @@ instance (ToConcrete a c, ToConcrete b d) =>
 instance ToConcrete InteractionId Syntax.Concrete.Expr where
     toConcrete (InteractionId i) = return $ Syntax.Concrete.QuestionMark noRange (Just i)
 instance ToConcrete MetaId Syntax.Concrete.Expr where
-    toConcrete (MetaId i) = return $ Syntax.Concrete.QuestionMark noRange (Just i)
+    toConcrete (MetaId i) = return $ Syntax.Concrete.Underscore noRange (Just i)
 
 judgToOutputForm :: Judgement a b c -> OutputForm a c
 judgToOutputForm (HasType e t) = OfType e t
