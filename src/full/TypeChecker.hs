@@ -327,13 +327,13 @@ checkPatterns (Arg h p:ps) t ret =
 	    (NotHidden, Pi (Arg Hidden _) _) ->
 		checkPatterns (Arg Hidden (A.WildP $ PatRange $ getRange p) : Arg h p : ps) t' ret
 	    (_,Pi (Arg h' a) b) | h == h' ->
-		checkPattern p a $ \xs p' v ->
+		checkPattern ("_" ++ absName b) p a $ \xs p' v ->
 		do  let b' = raise (length xs) b
 		    checkPatterns ps (absApp b' v) $ \ys ps' vs t'' ->
 			do  let v' = raise (length ys) v
 			    ret (xs ++ ys) (Arg h p':ps')(Arg h v':vs) t''
 	    (_,Fun (Arg h' a) b) | h == h' ->
-		checkPattern p a $ \xs p' v ->
+		checkPattern "_" p a $ \xs p' v ->
 		do  let b' = raise (length xs) b
 		    checkPatterns ps b' $ \ys ps' vs t'' ->
 			do  let v' = raise (length ys) v
@@ -341,14 +341,15 @@ checkPatterns (Arg h p:ps) t ret =
 	    _ -> fail $ show t ++ " should be a " ++ show h ++ " function type"
 
 
--- | Type check a pattern and bind the variables.
-checkPattern :: A.Pattern -> Type -> ([String] -> Pattern -> Term -> TCM a) -> TCM a
-checkPattern (A.VarP x) t ret =
+-- | Type check a pattern and bind the variables. First argument is a name
+--   suggestion for wildcard patterns.
+checkPattern :: String -> A.Pattern -> Type -> ([String] -> Pattern -> Term -> TCM a) -> TCM a
+checkPattern name (A.VarP x) t ret =
     addCtx x t $ ret [show x] (VarP $ show x) (Var 0 [])
-checkPattern (A.WildP i) t ret =
-    do	x <- freshNoName (getRange i)
-	addCtx x t $ ret [show x] (VarP "_") (Var 0 [])
-checkPattern (A.ConP i c ps) t ret =
+checkPattern name (A.WildP i) t ret =
+    do	x <- freshName (getRange i) name
+	addCtx x t $ ret [show x] (VarP name) (Var 0 [])
+checkPattern name (A.ConP i c ps) t ret =
     do	setCurrentRange i
 	Defn t' _ (Constructor n d _) <- getConstInfo c -- don't instantiate this
 	El (Def _ vs) _		      <- forceData d t	-- because this guy won't be
