@@ -18,6 +18,8 @@ OUT_P	= $(FULL_OUT_DIR)/prof
 src_files		= $(shell $(FIND) . -name '*.hs' -o -name '*.lhs')
 all_hs_files	= $(src_files) $(OUT)/Syntax/Parser/Parser.hs \
 							   $(OUT)/Syntax/Parser/Lexer.hs
+all_hs_files_p	= $(src_files) $(OUT_P)/Syntax/Parser/Parser.hs \
+							   $(OUT_P)/Syntax/Parser/Lexer.hs
 
 ## Phony targets ##########################################################
 
@@ -62,6 +64,7 @@ else
 # Parser) to the out directiory.
 
 boot_files = $(OUT)/Syntax/Parser/Lexer.hs-boot
+boot_files_p = $(OUT)/Syntax/Parser/Lexer.hs-boot
 
 $(OUT)/% : %
 	@cp $< $@
@@ -85,4 +88,10 @@ $(OUT)/%.hs : %.x
 
 $(OUT)/%.hs : %.y
 	$(HAPPY) $(HAPPY_FLAGS) -o $@ --info=$(OUT)/$*.happy.out $<
+
+$(OUT_P)/%.hs : %.x
+	$(ALEX) $(ALEX_FLAGS) -o $@ $<
+
+$(OUT_P)/%.hs : %.y
+	$(HAPPY) $(HAPPY_FLAGS) -o $@ --info=$(OUT_P)/$*.happy.out $<
 
