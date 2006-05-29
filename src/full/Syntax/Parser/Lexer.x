@@ -82,7 +82,7 @@ tokens :-
 -- indentation of the first token decides the column of the layout block.
 <layout_>
     {	\n	;
-	\{	{ endWith openBrace }
+--	\{	{ endWith openBrace }
 	()	{ endWith newLayoutContext }
     }
 
@@ -134,8 +134,9 @@ tokens :-
 <0,code> "]"		{ symbol SymCloseBracket }
 <0,code> "->"		{ symbol SymArrow }
 <0,code> "\"		{ symbol SymLambda }
-<0,code> "{"		{ openBrace }
-<0,code> "}"		{ closeBrace }
+<0,code> "@"		{ symbol SymAs }
+<0,code> "{"		{ symbol SymOpenBrace }	    -- you can't use braces for layout
+<0,code> "}"		{ symbol SymCloseBrace }
 
 -- Identifiers and operators
 <0,code> @q_ident	{ identifier }
@@ -163,6 +164,8 @@ normal = 0
 {-| The layout state. Entered when we see a layout keyword ('withLayout') and
     exited either when seeing an open brace ('openBrace') or at the next token
     ('newLayoutContext').
+
+    Update: we don't use braces for layout anymore.
 -}
 layout :: LexState
 layout = layout_

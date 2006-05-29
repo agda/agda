@@ -96,10 +96,11 @@ data ClauseBody = Body Term
 --   @QName@ is used in @ConP@ rather than @Name@ since
 --     a constructor might come from a particular namespace.
 --     This also meshes well with the fact that values (i.e.
---     the arguments we are matching with) use @Name@.
+--     the arguments we are matching with) use @QName@.
 --
 data Pattern = VarP String  -- name suggestion
 	     | ConP QName [Arg Pattern]
+	     | AsP String Pattern
   deriving (Typeable, Data)
 
 newtype MetaId = MetaId Nat

@@ -26,7 +26,7 @@ layoutKeywords =
 data Symbol
 	= SymDot | SymComma | SymSemi | SymVirtualSemi
 	| SymBackQuote  | SymColon | SymArrow | SymEqual | SymLambda
-	| SymUnderscore	| SymQuestionMark
+	| SymUnderscore	| SymQuestionMark   | SymAs
 	| SymOpenParen	      | SymCloseParen
 	| SymOpenBrace	      | SymCloseBrace
 	| SymOpenBracket      | SymCloseBracket

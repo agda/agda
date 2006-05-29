@@ -82,10 +82,10 @@ rotateInfixAppP f = rotateInfixApp' infixViewP InfixAppP f
 -- Inserting parenthesis --------------------------------------------------
 
 paren :: (QName -> Fixity) -> Expr -> Precedence -> Expr
-paren _   e@(App _ _ _ _)     p = mparen (appBrackets p) e
+paren _   e@(App _ _ _)	      p = mparen (appBrackets p) e
 paren fix e@(InfixApp _ op _) p = mparen (infixBrackets (fix op) p) e
 paren _   e@(Lam _ _ _)	      p = mparen (lamBrackets p) e
-paren _   e@(Fun _ _ _ _)     p = mparen (lamBrackets p) e
+paren _   e@(Fun _ _ _)	      p = mparen (lamBrackets p) e
 paren _   e@(Pi _ _)	      p = mparen (lamBrackets p) e
 paren _   e@(Let _ _ _)	      p = mparen (lamBrackets p) e
 paren _   e		      _ = e

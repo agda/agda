@@ -46,26 +46,30 @@ data Expr
 	| Lit Literal			    -- ^ ex: @1@ or @\"foo\"@
 	| QuestionMark Range (Maybe Nat)    -- ^ ex: @?@ or @{! ... !}@
 	| Underscore Range (Maybe Nat)	    -- ^ ex: @_@
-	| App Range Hiding Expr Expr	    -- ^ ex: @e e@ or @e {e}@
+	| App Range Expr (Arg Expr)	    -- ^ ex: @e e@ or @e {e}@
 	| InfixApp Expr QName Expr	    -- ^ ex: @e + e@ (no hiding)
 	| Lam Range [LamBinding] Expr	    -- ^ ex: @\\x {y} -> e@ or @\\(x:A){y:B} -> e@
-	| Fun Range Hiding Expr Expr	    -- ^ ex: @e -> e@ or @{e} -> e@
+	| Fun Range (Arg Expr) Expr	    -- ^ ex: @e -> e@ or @{e} -> e@
 	| Pi TypedBinding Expr		    -- ^ ex: @(xs:e) -> e@ or @{xs:e} -> e@
 	| Set Range			    -- ^ ex: @Set@
 	| Prop Range			    -- ^ ex: @Prop@
 	| SetN Range Nat		    -- ^ ex: @Set0, Set1, ..@
 	| Let Range [LocalDeclaration] Expr -- ^ ex: @let Ds in e@
 	| Paren Range Expr		    -- ^ ex: @(e)@
+	| Absurd Range			    -- ^ ex: @()@ or @{}@, only in patterns
+	| As Range Name Expr		    -- ^ ex: @x\@p@, only in patterns
     deriving (Typeable, Data, Eq)
 
 
 -- | Concrete patterns. No literals in patterns at the moment.
 data Pattern
 	= IdentP QName
-	| AppP Hiding Pattern Pattern
+	| AppP Pattern (Arg Pattern)
 	| InfixAppP Pattern QName Pattern
 	| ParenP Range Pattern
 	| WildP Range
+	| AbsurdP Range
+	| AsP Range Name Pattern
     deriving (Typeable, Data, Eq)
 
 
@@ -180,7 +184,7 @@ data Declaration
 data AppView = AppView Expr [Arg Expr]
 
 appView :: Expr -> AppView
-appView (App r h e1 e2) = vApp (appView e1) (Arg h e2)
+appView (App r e1 e2) = vApp (appView e1) e2
     where
 	vApp (AppView e es) arg = AppView e (es ++ [arg])
 appView e = AppView e []
@@ -196,16 +200,18 @@ instance HasRange Expr where
 	    Lit x		-> getRange x
 	    QuestionMark r _	-> r
 	    Underscore r _	-> r
-	    App r _ _ _		-> r
+	    App r _ _		-> r
 	    InfixApp e1 _ e2	-> fuseRange e1 e2
 	    Lam r _ _		-> r
-	    Fun r _ _ _		-> r
+	    Fun r _ _		-> r
 	    Pi b e		-> fuseRange b e
 	    Set r		-> r
 	    Prop r		-> r
 	    SetN r _		-> r
 	    Let r _ _		-> r
 	    Paren r _		-> r
+	    As r _ _		-> r
+	    Absurd r		-> r
 
 instance HasRange TypedBinding where
     getRange (TypedBinding r _ _ _) = r
@@ -245,8 +251,10 @@ instance HasRange ImportedName where
 
 instance HasRange Pattern where
     getRange (IdentP x)		= getRange x
-    getRange (AppP _ p q)	= fuseRange p q
+    getRange (AppP p q)		= fuseRange p q
     getRange (InfixAppP p _ q)	= fuseRange p q
     getRange (ParenP r _)	= r
     getRange (WildP r)		= r
+    getRange (AsP r _ _)	= r
+    getRange (AbsurdP r)	= r
 

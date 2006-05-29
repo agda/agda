@@ -61,7 +61,7 @@ instance Pretty Expr where
 	    Lit l	     -> pretty l
 	    QuestionMark _ n -> text "?" <> maybe empty (text . show) n
 	    Underscore _ n   -> text "_" <> maybe empty (text . show) n
-	    App _ _ _ _	     ->
+	    App _ _ _	     ->
 		case appView e of
 		    AppView e1 args	->
 			sep [ pretty e1
@@ -75,8 +75,8 @@ instance Pretty Expr where
 		sep [ text "\\" <> fsep (map pretty bs) <+> text "->"
 		    , nest 2 $ pretty e
 		    ]
-	    Fun _ h e1 e2 ->
-		sep [ pHidden h e1 <+> text "->"
+	    Fun _ e1 e2 ->
+		sep [ pretty e1 <+> text "->"
 		    , pretty e2
 		    ]
 	    Pi b e ->
@@ -90,7 +90,9 @@ instance Pretty Expr where
 		sep [ text "let" <+> vcat (map pretty ds)
 		    , text "in" <+> pretty e
 		    ]
-	    Paren _ e	-> parens $ pretty e
+	    Paren _ e -> parens $ pretty e
+	    As _ x e  -> prettyId x <> text "@" <> pretty e
+	    Absurd _  -> text "()"
 
 instance Pretty LamBinding where
     pretty (DomainFree h x) = pHidden h (prettyId x)
@@ -186,13 +188,15 @@ instance Pretty e => Pretty (Arg e) where
 instance Pretty Pattern where
     pretty p =
 	case p of
-	    IdentP x		-> prettyId x
-	    AppP h p1 p2	-> sep [ pretty p1, nest 2 $ pHidden h p2 ]
-	    InfixAppP p1 op p2	-> sep [ pretty p1
-				       , prettyOp op <+> pretty p2
-				       ]
-	    ParenP _ p		-> parens $ pretty p
-	    WildP _		-> text "_"
+	    IdentP x	       -> prettyId x
+	    AppP p1 p2	       -> sep [ pretty p1, nest 2 $ pretty p2 ]
+	    InfixAppP p1 op p2 -> sep [ pretty p1
+				      , prettyOp op <+> pretty p2
+				      ]
+	    ParenP _ p	       -> parens $ pretty p
+	    WildP _	       -> text "_"
+	    AsP _ x p	       -> prettyId x <> text "@" <> pretty p
+	    AbsurdP _	       -> text "()"
 
 instance Pretty ImportDirective where
     pretty i =

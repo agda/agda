@@ -14,3 +14,8 @@ data Nat : Set where
 (+) : Nat -> Nat -> Nat
 zero  + m = m
 suc n + m = suc (n + m)
+
+bar : Nat -> Nat
+bar n@(suc m) = n + m
+bar zero      = suc zero
+

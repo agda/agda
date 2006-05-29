@@ -10,6 +10,7 @@ module Syntax.Parser.Parser (
     ) where
 
 import Data.List
+import Data.FunctorM
 
 import Syntax.Position
 import Syntax.Parser.Monad
@@ -76,6 +77,7 @@ import Utils.Monad
     '?'		{ TokSymbol SymQuestionMark $$ }
     '->'	{ TokSymbol SymArrow $$ }
     '\\'	{ TokSymbol SymLambda $$ }
+    '@'		{ TokSymbol SymAs $$ }
     '('		{ TokSymbol SymOpenParen $$ }
     ')'		{ TokSymbol SymCloseParen $$ }
     '['		{ TokSymbol SymOpenBracket $$ }
@@ -146,6 +148,7 @@ Token
     | '?'	    { TokSymbol SymQuestionMark $1 }
     | '->'	    { TokSymbol SymArrow $1 }
     | '\\'	    { TokSymbol SymLambda $1 }
+    | '@'	    { TokSymbol SymAs $1 }
     | '('	    { TokSymbol SymOpenParen $1 }
     | ')'	    { TokSymbol SymCloseParen $1 }
     | '['	    { TokSymbol SymOpenBracket $1 }
@@ -167,7 +170,7 @@ Token
     Top level
  --------------------------------------------------------------------------}
 
-File :: { TopLevelDeclaration }
+File :: { Declaration }
 File : TopModule	{ $1 }
      | tex File		{ $2 }
 
@@ -353,8 +356,8 @@ CommaOps
 Expr :: { Expr }
 Expr
     : TypedBinding '->' Expr	{ Pi $1 $3 }
-    | '{' Expr '}' '->' Expr	{ Fun (fuseRange $1 $5) Hidden $2 $5 }
-    | Expr1 '->' Expr		{ Fun (fuseRange $1 $3) NotHidden $1 $3 }
+    | '{' Expr '}' '->' Expr	{ Fun (fuseRange $1 $5) (Arg Hidden $2) $5 }
+    | Expr1 '->' Expr		{ Fun (fuseRange $1 $3) (Arg NotHidden $1) $3 }
     | Expr1 %prec LOWEST	{ $1 }
 
 -- Level 1: Infix operators
@@ -364,14 +367,15 @@ Expr1
 
 -- Level 2: Lambdas and lets
 Expr2
-    : '\\' LamBindings '->' Expr	{ Lam (fuseRange $1 $4) $2 $4 }
-    | 'let' LocalDeclarations 'in' Expr	{ Let (fuseRange $1 $4) $2 $4 }
-    | Expr3				{ $1 }
+    : '\\' LamBindings '->' Expr   { Lam (fuseRange $1 $4) $2 $4 }
+    | 'let' Declarations 'in' Expr { Let (fuseRange $1 $4) $2 $4 }
+    | Expr3			   { $1 }
 
 -- Level 3: Application
 Expr3
-    : Expr3 Expr4	    { App (fuseRange $1 $2) NotHidden $1 $2 }
-    | Expr3 '{' Expr '}'    { App (fuseRange $1 $4) Hidden $1 $3 }
+    : Expr3 Expr4	    { App (fuseRange $1 $2) $1 (Arg NotHidden $2) }
+    | Expr3 '{' Expr '}'    { App (fuseRange $1 $4) $1 (Arg Hidden $3) }
+    | Expr3 '{' '}'	    { App (fuseRange $1 $3) $1 (Arg Hidden (Absurd (fuseRange $2 $3))) }
     | Expr4		    { $1 }
 
 -- Level 4: Atoms
@@ -384,6 +388,8 @@ Expr4
     | 'Set'		{ Set $1 }
     | setN		{ uncurry SetN $1 }
     | '(' Expr ')'	{ Paren (fuseRange $1 $3) $2 }
+    | '(' ')'		{ Absurd (fuseRange $1 $2) }
+    | Id '@' Expr4	{ As (fuseRange $1 $3) $1 $3 }
 
 
 -- Sorts
@@ -512,33 +518,17 @@ LHS : Expr  {% exprToLHS $1 }
 -- Where clauses are optional.
 WhereClause :: { WhereClause }
 WhereClause
-    : {- empty -}		{ [] }
-    | 'where' LocalDeclarations	{ $2 }
+    : {- empty -}	   { [] }
+    | 'where' Declarations { $2 }
 
 
 {--------------------------------------------------------------------------
     Different kinds of declarations
  --------------------------------------------------------------------------}
 
--- Local declarations.
-LocalDeclaration :: { LocalDeclaration }
-LocalDeclaration : TopLevelDeclaration { $1 }
-
--- Declarations that can appear in a private block.
-PrivateDeclaration :: { PrivateDeclaration }
-PrivateDeclaration : TopLevelDeclaration { $1 }
-
--- Declarations that can appear in a mutual block.
-MutualDeclaration :: { MutualDeclaration }
-MutualDeclaration : TopLevelDeclaration { $1 }
-
--- Declarations that can appear in an abstract block.
-AbstractDeclaration :: { AbstractDeclaration }
-AbstractDeclaration : TopLevelDeclaration { $1 }
-
 -- Top-level defintions.
-TopLevelDeclaration :: { TopLevelDeclaration }
-TopLevelDeclaration
+Declaration :: { Declaration }
+Declaration
     : TypeSig	    { $1 }
     | FunClause	    { $1 }
     | Data	    { $1 }
@@ -584,21 +574,20 @@ Infix : 'infix' Int CommaOps	{ Infix (NonAssoc (fuseRange $1 $3) $2) $3 }
 
 -- Mutually recursive declarations.
 Mutual :: { Declaration }
-Mutual : 'mutual' MutualDeclarations  { Mutual (fuseRange $1 $2) $2 }
+Mutual : 'mutual' Declarations  { Mutual (fuseRange $1 $2) $2 }
 
 
 -- Abstract declarations.
 Abstract :: { Declaration }
-Abstract : 'abstract' AbstractDeclarations  { Abstract (fuseRange $1 $2) $2 }
+Abstract : 'abstract' Declarations  { Abstract (fuseRange $1 $2) $2 }
 
 
 -- Private can only appear on the top-level (or rather the module level).
 Private :: { Declaration }
-Private : 'private' PrivateDeclarations	{ Private (fuseRange $1 $2) $2 }
+Private : 'private' Declarations	{ Private (fuseRange $1 $2) $2 }
 
 
--- Postulates. Only on top-level or in a private block.
--- NOTE: Does it make sense to allow private postulates?
+-- Postulates. Can only contain type signatures. TODO: relax this.
 Postulate :: { Declaration }
 Postulate : 'postulate' TypeSignatures	{ Postulate (fuseRange $1 $2) $2 }
 
@@ -621,12 +610,12 @@ Import : 'import' ModuleName RenamedImport ImportDirective
 
 -- Module
 Module :: { Declaration }
-Module : 'module' id MaybeTelescope 'where' TopLevelDeclarations
+Module : 'module' id MaybeTelescope 'where' Declarations
 		    { Module (getRange ($1,$4,$5)) (QName $2) $3 $5 }
 
 -- The top-level module can have a qualified name.
 TopModule :: { Declaration }
-TopModule : 'module' ModuleName MaybeTelescope 'where' TopLevelDeclarations
+TopModule : 'module' ModuleName MaybeTelescope 'where' Declarations
 		    { Module (getRange ($1,$4,$5)) $2 $3 $5 }
 
 {--------------------------------------------------------------------------
@@ -636,8 +625,7 @@ TopModule : 'module' ModuleName MaybeTelescope 'where' TopLevelDeclarations
 -- Non-empty list of type signatures. Used in postulates.
 TypeSignatures :: { [TypeSignature] }
 TypeSignatures
-    : '{' TypeSignatures1 '}'	    { reverse $2 }
-    | vopen TypeSignatures1 close   { reverse $2 }
+    : vopen TypeSignatures1 close   { reverse $2 }
 
 -- Inside the layout block.
 TypeSignatures1 :: { [TypeSignature] }
@@ -649,74 +637,19 @@ TypeSignatures1
 Constructors :: { [Constructor] }
 Constructors
     : TypeSignatures		    { $1 }
-    | '{' '}'			    { [] }
     | vopen close		    { [] }
 
+-- Arbitrary declarations
+Declarations :: { [Declaration] }
+Declarations
+    : vopen Declarations1 close { reverse $2 }
 
--- Sequences of local declarations are controlled by layout.  To improve Happy
--- performance we parse the lists left recursively, which means we have to
--- reverse the list in the end.
-LocalDeclarations :: { [LocalDeclaration] }
-LocalDeclarations
-    : '{' LocalDeclarations1 '}'	    { reverse $2 }
-    | vopen LocalDeclarations1 close { reverse $2 }
-
-
--- Inside the layout block. Declaration lists have to be non-empty.
-LocalDeclarations1 :: { [LocalDeclaration] }
-LocalDeclarations1
-    : LocalDeclarations1 semi LocalDeclaration	{ $3 : $1 }
-    | LocalDeclaration				{ [$1] }
-
-
--- Private declarations
-PrivateDeclarations :: { [PrivateDeclaration] }
-PrivateDeclarations
-    : '{' PrivateDeclarations1 '}'	    { reverse $2 }
-    | vopen PrivateDeclarations1 close { reverse $2 }
-
-PrivateDeclarations1 :: { [PrivateDeclaration] }
-PrivateDeclarations1
-    : PrivateDeclarations1 semi PrivateDeclaration	{ $3 : $1 }
-    | PrivateDeclaration				{ [$1] }
-
-
--- Mutual declarations
-MutualDeclarations :: { [MutualDeclaration] }
-MutualDeclarations
-    : '{' MutualDeclarations1 '}'	{ reverse $2 }
-    | vopen MutualDeclarations1 close	{ reverse $2 }
-
-MutualDeclarations1 :: { [MutualDeclaration] }
-MutualDeclarations1
-    : MutualDeclarations1 semi MutualDeclaration    { $3 : $1 }
-    | MutualDeclaration				    { [$1] }
-
-
--- Abstract declarations
-AbstractDeclarations :: { [AbstractDeclaration] }
-AbstractDeclarations
-    : '{' AbstractDeclarations1 '}'	{ reverse $2 }
-    | vopen AbstractDeclarations1 close { reverse $2 }
-
-AbstractDeclarations1 :: { [AbstractDeclaration] }
-AbstractDeclarations1
-    : AbstractDeclarations1 semi AbstractDeclaration	{ $3 : $1 }
-    | AbstractDeclaration				{ [$1] }
-
-
--- Top-level declarations
-TopLevelDeclarations :: { [TopLevelDeclaration] }
-TopLevelDeclarations
-    : '{' TopLevelDeclarations1 '}'	{ reverse $2 }
-    | vopen TopLevelDeclarations1 close { reverse $2 }
-
-TopLevelDeclarations1 :: { [TopLevelDeclaration] }
-TopLevelDeclarations1
-    : TopLevelDeclarations1 semi TopLevelDeclaration	{ $3 : $1 }
-    | TopLevelDeclarations1 tex				{ $1 }
-    | TopLevelDeclaration				{ [$1] }
-    | tex TopLevelDeclaration				{ [$2] }
+Declarations1 :: { [Declaration] }
+Declarations1
+    : Declarations1 semi Declaration { $3 : $1 }
+    | Declarations1 tex		     { $1 }
+    | Declaration		     { [$1] }
+    | tex Declaration		     { [$2] }
 
 
 {
@@ -732,7 +665,7 @@ tokensParser :: Parser [Token]
 exprParser :: Parser Expr
 
 -- | Parse a module.
-moduleParser :: Parser TopLevelDeclaration
+moduleParser :: Parser Declaration
 
 -- | Parse an interface.
 interfaceParser :: Parser Interface
@@ -786,29 +719,26 @@ verifyImportDirective i =
 exprToLHS :: Expr -> Parser LHS
 exprToLHS e =
     case spine e of
-	(_, Ident (QName x)) : es ->
-	    do	args <- mapM (uncurry exprToArg) es
+	Arg _ (Ident (QName x)) : es ->
+	    do	args <- mapM (fmapM exprToPattern) es
 		return $ LHS r PrefixDef x args
-	(_, InfixApp e1 (QName x) e2) : es ->
-	    do	args <- mapM (uncurry exprToArg) $
-			    (NotHidden,e1) : (NotHidden,e2) : es
+	Arg _ (InfixApp e1 (QName x) e2) : es ->
+	    do	args <- mapM (fmapM exprToPattern) $
+			    Arg NotHidden e1 : Arg NotHidden e2 : es
 		return $ LHS r InfixDef x args
 	_   -> parseError "Parse error in left hand side."
     where
 	r = getRange e
-	spine (App _ h e1 e2)	= spine e1 ++ [(h, e2)]
+	spine (App _ e1 e2)	= spine e1 ++ [e2]
 	spine (Paren _ e)	= spine e
-	spine e			= [(NotHidden,e)]
-
-	exprToArg :: Hiding -> Expr -> Parser (Arg Pattern)
-	exprToArg h e = Arg h <$> exprToPattern e
+	spine e			= [Arg NotHidden e]
 
 	exprToPattern :: Expr -> Parser Pattern
 	exprToPattern e =
 	    case e of
 		Ident x			-> return $ IdentP x
-		App _ h e1 e2		-> AppP h <$> exprToPattern e1
-						  <*> exprToPattern e2
+		App _ e1 e2		-> AppP <$> exprToPattern e1
+						<*> fmapM exprToPattern e2
 		InfixApp e1 op e2	-> InfixAppP
 						<$> exprToPattern e1
 						<*> return op
@@ -816,6 +746,8 @@ exprToLHS e =
 		Paren r e		-> ParenP r
 						<$> exprToPattern e
 		Underscore r _		-> return $ WildP r
-		_			-> parseError "Parse error in pattern"
+		Absurd r		-> return $ AbsurdP r
+		As r x e		-> AsP r x <$> exprToPattern e
+		_			-> parseErrorAt (rStart $ getRange e) "Parse error in pattern"
 
 }

@@ -233,12 +233,12 @@ instance ToConcrete A.Expr C.Expr where
 	    opStr (c:_) = not (isAlphaNum c)
 	    opStr _	= __IMPOSSIBLE__
 
-    toConcrete (A.App i e1 (Arg h e2))    =
+    toConcrete (A.App i e1 e2)    =
 	withStored i
 	$ bracket appBrackets
 	$ do e1' <- toConcreteCtx FunctionCtx e1
-	     e2' <- toConcreteCtx (hiddenArgumentCtx h) e2
-	     return $ C.App (getRange i) h e1' e2'
+	     e2' <- toConcreteCtx ArgumentCtx e2
+	     return $ C.App (getRange i) e1' e2'
 
     -- Similar to the application case we don't try to recover lambda sugar
     -- (i.e. @\\x -> \\y -> e@ to @\\x y -> e@).
@@ -256,12 +256,12 @@ instance ToConcrete A.Expr C.Expr where
 	     e' <- toConcreteCtx TopCtx e
 	     return $ C.Pi b' e'
 
-    toConcrete (A.Fun i (Arg h a) b) =
+    toConcrete (A.Fun i a b) =
 	withStored i
 	$ bracket piBrackets
 	$ do a' <- toConcreteCtx FunctionSpaceDomainCtx a 
 	     b' <- toConcreteCtx TopCtx b
-	     return $ C.Fun (getRange i) h a' b'
+	     return $ C.Fun (getRange i) a' b'
 
     toConcrete (A.Set i 0)  = withStored i $ return $ C.Set (getRange i)
     toConcrete (A.Set i n)  = withStored i $ return $ C.SetN (getRange i) n
@@ -386,6 +386,8 @@ instance ToConcrete A.Pattern C.Pattern where
     toConcrete (A.WildP i)	=
 	withStored i $ return $ C.WildP (getRange i)
     toConcrete (ConP i x args)  = toConcrete (Force i)
+    toConcrete (A.AsP i x p)	= C.AsP (getRange i) <$> toConcrete x <*> toConcrete p
+    toConcrete (A.AbsurdP i)	= return $ C.AbsurdP (getRange i)
 
 --  We can't figure out the original name without looking at the stored
 --  pattern.

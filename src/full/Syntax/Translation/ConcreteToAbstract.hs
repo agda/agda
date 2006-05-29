@@ -41,16 +41,19 @@ data ToAbstractException
 	    -- ^ The expr was used in the right hand side of an implicit module
 	    --	 definition, but it wasn't of the form @m Delta@.
 	| NoTopLevelModule C.Declaration
+	| NotAnExpression C.Expr
     deriving (Typeable, Show)
 
 higherOrderPattern p0 p = throwDyn $ HigherOrderPattern p0 p
 notAModuleExpr e	= throwDyn $ NotAModuleExpr e
 noTopLevelModule d	= throwDyn $ NoTopLevelModule d
+notAnExpression e	= throwDyn $ NotAnExpression e
 
 instance HasRange ToAbstractException where
     getRange (HigherOrderPattern p _) = getRange p
     getRange (NotAModuleExpr e)	      = getRange e
     getRange (NoTopLevelModule d)     = getRange d
+    getRange (NotAnExpression e)      = getRange e
 
 {--------------------------------------------------------------------------
     Helpers
@@ -206,11 +209,11 @@ instance ToAbstract C.Expr A.Expr where
 					     }
 
     -- Application
-    toAbstract e@(C.App r h e1 e2) =
+    toAbstract e@(C.App r e1 e2) =
 	do  e1'  <- toAbstractCtx FunctionCtx e1
-	    e2'  <- toAbstractCtx (hiddenArgumentCtx h) e2
+	    e2'  <- toAbstract e2
 	    info <- exprSource e
-	    return $ A.App info e1' (Arg h e2')
+	    return $ A.App info e1' e2'
 
     -- Infix application
     toAbstract e@(C.InfixApp _ _ _) =
@@ -238,11 +241,11 @@ instance ToAbstract C.Expr A.Expr where
 	    mkLam b e = A.Lam (ExprRange $ fuseRange b e) b e
 
     -- Function types
-    toAbstract e@(C.Fun r h e1 e2) =
+    toAbstract e@(C.Fun r e1 e2) =
 	do  e1'  <- toAbstractCtx FunctionSpaceDomainCtx e1
 	    e2'  <- toAbstractCtx TopCtx e2
 	    info <- exprSource e
-	    return $ A.Fun info (Arg h e1') e2'
+	    return $ A.Fun info e1' e2'
 
     toAbstract e0@(C.Pi b e) =
 	bindToAbstract b $ \b' ->
@@ -266,6 +269,10 @@ instance ToAbstract C.Expr A.Expr where
     toAbstract (C.Paren _ e) = toAbstractCtx TopCtx e
 	-- You could imagine remembering parenthesis. I don't really see the
 	-- point though.
+
+    -- Pattern things
+    toAbstract e@(C.As _ _ _) = notAnExpression e
+    toAbstract e@(C.Absurd _) = notAnExpression e
 
 instance BindToAbstract C.LamBinding A.LamBinding where
     bindToAbstract (C.DomainFree h x) ret =
@@ -441,10 +448,10 @@ instance BindToAbstract C.Pattern A.Pattern where
 					     y []
 		UnknownName -> notInScope x
 		_	    -> __IMPOSSIBLE__
-    bindToAbstract p0@(AppP h p q) ret =
+    bindToAbstract p0@(AppP p q) ret =
 	bindToAbstract (p,q) $ \(p',q') ->
 	case p' of
-	    ConP _ x as -> ret $ ConP info x (as ++ [Arg h q'])
+	    ConP _ x as -> ret $ ConP info x (as ++ [q'])
 	    _		-> higherOrderPattern p0 p
 	where
 	    r = getRange p0
@@ -471,4 +478,13 @@ instance BindToAbstract C.Pattern A.Pattern where
 
     bindToAbstract p@(C.WildP r) ret  = ret $ A.WildP (PatSource r $ const p)
     bindToAbstract (C.ParenP _ p) ret = bindToAbstract p ret
+    bindToAbstract p0@(C.AsP r x p) ret  =
+	bindToAbstract (NewName x) $ \x ->
+	bindToAbstract p $ \p ->
+	    ret (A.AsP info x p)
+	where
+	    info = PatSource r $ \_ -> p0
+    bindToAbstract p0@(C.AbsurdP r) ret = ret (A.AbsurdP info)
+	where
+	    info = PatSource r $ \_ -> p0
 

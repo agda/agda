@@ -78,6 +78,8 @@ data Pattern	= VarP Name	-- ^ the only thing we need to know about a
 				-- 'NameInfo' here.
 		| ConP PatInfo QName [Arg Pattern]
 		| WildP PatInfo
+		| AsP PatInfo Name Pattern
+		| AbsurdP PatInfo
 
 -- | why has Var in Expr above a NameInfo but VarP no Info?
 -- | why has Con in Expr above a NameInfo but ConP an Info?
@@ -126,6 +128,8 @@ instance HasRange Pattern where
     getRange (VarP x)	    = getRange x
     getRange (ConP i _ _)   = getRange i
     getRange (WildP i)	    = getRange i
+    getRange (AsP i _ _)    = getRange i
+    getRange (AbsurdP i)    = getRange i
 
 instance HasRange LHS where
     getRange (LHS i _ _)    = getRange i

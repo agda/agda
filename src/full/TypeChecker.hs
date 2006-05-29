@@ -355,6 +355,29 @@ checkPattern name (A.ConP i c ps) t ret =
 		ret xs (ConP c' ps') (Con c' $ raise n us ++ ts')
     where
 	hide (Arg _ x) = Arg Hidden x
+checkPattern name (A.AbsurdP i) t ret =
+    do	setCurrentRange i
+	isEmptyType t
+	x <- freshName (getRange i) name    -- TODO: actually do something about absurd patterns
+	addCtx x t $ ret [show x] (VarP name) (Var 0 [])
+checkPattern name (A.AsP i x p) t ret =
+    checkPattern name p t $ \xs p v ->
+    addCtx x t $ ret (xs ++ [show x]) (AsP (show x) p) v
+	-- TODO: in x@p we would like x to reduce to p during the typechecking of the rhs
+
+-- | Make sure that a type is empty. TODO: Move.
+isEmptyType :: Type -> TCM ()
+isEmptyType t =
+    do	t <- reduce t
+	case t of
+	    El (Def d _) _ ->
+		do  Defn _ _ di <- getConstInfo d
+		    case di of
+			Datatype _ [] _ _ -> return ()
+			_		  -> notEmpty
+	    _ -> notEmpty
+    where
+	notEmpty = fail $ show t ++ " is not empty"
 
 
 ---------------------------------------------------------------------------
