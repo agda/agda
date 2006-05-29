@@ -78,6 +78,33 @@ instance Instantiate t => Instantiate [t] where
 instance (Instantiate a, Instantiate b) => Instantiate (a,b) where
     instantiate (x,y) = (,) <$> instantiate x <*> instantiate y
 
+
+instance (Instantiate a, Instantiate b,Instantiate c) => Instantiate (a,b,c) where
+    instantiate (x,y,z) = (,,) <$> instantiate x <*> instantiate y <*> instantiate z
+
+
+
+instance Instantiate ConstraintClosure where
+    instantiate cc@(CC sig env _) = CC sig env <$> withConstraint instantiate cc
+
+instance Instantiate Constraint where
+    instantiate (ValueEq t u v) =
+	do  (t,u,v) <- instantiate (t,u,v)
+	    return $ ValueEq t u v
+    instantiate (TypeEq a b)  = uncurry TypeEq <$> instantiate (a,b)
+    instantiate (SortEq a b)  = uncurry SortEq <$> instantiate (a,b)
+    instantiate (SortLeq a b) = uncurry SortLeq <$> instantiate (a,b)
+
+instance (Ord k, Instantiate e) => Instantiate (Map k e) where
+    instantiate m =
+	do  let (ks,es) = unzip $ Map.toList m
+	    es <- instantiate es
+	    return $ Map.fromList $ zip ks es
+	-- Argh! No instance FunctorM (Map k).
+
+
+
+
 --
 -- Reduction to weak head normal form.
 --
@@ -113,6 +140,9 @@ instance Reduce t => Reduce (Arg t) where
 
 instance (Reduce a, Reduce b) => Reduce (a,b) where
     reduce (x,y) = (,) <$> reduce x <*> reduce y
+
+instance (Reduce a, Reduce b,Reduce c) => Reduce (a,b,c) where
+    reduce (x,y,z) = (,,) <$> reduce x <*> reduce y <*> reduce z
 
 instance Reduce Term where
     reduce v =
@@ -162,6 +192,26 @@ instance Reduce Term where
 		app [] (Body v') = return v'
 		app (arg : args) (Bind (Abs _ body)) = app args $ subst arg body -- CBN
 		app _ _ = __IMPOSSIBLE__
+
+
+instance Reduce ConstraintClosure where
+    reduce cc@(CC sig env _) = CC sig env <$> withConstraint reduce cc
+
+instance Reduce Constraint where
+    reduce (ValueEq t u v) =
+	do  (t,u,v) <- reduce (t,u,v)
+	    return $ ValueEq t u v
+    reduce (TypeEq a b)  = uncurry TypeEq <$> reduce (a,b)
+    reduce (SortEq a b)  = uncurry SortEq <$> reduce (a,b)
+    reduce (SortLeq a b) = uncurry SortLeq <$> reduce (a,b)
+
+instance (Ord k, Reduce e) => Reduce (Map k e) where
+    reduce m =
+	do  let (ks,es) = unzip $ Map.toList m
+	    es <- reduce es
+	    return $ Map.fromList $ zip ks es
+	-- Argh! No instance FunctorM (Map k).
+
 
 ---------------------------------------------------------------------------
 -- * Normalisation
