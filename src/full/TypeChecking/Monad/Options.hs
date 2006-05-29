@@ -5,7 +5,7 @@ module TypeChecking.Monad.Options where
 import Control.Monad.State
 import Data.Maybe
 
-import TypeChecking.Monad
+import TypeChecking.Monad.Base
 import Interaction.Options
 import Utils.Monad
 

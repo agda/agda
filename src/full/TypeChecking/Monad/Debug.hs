@@ -1,11 +1,12 @@
 
 module TypeChecking.Monad.Debug where
 
-import qualified Data.Map as Map
-import Control.Monad.Trans
+import Prelude hiding ( putStrLn )
+import Utils.IO	      ( putStrLn )
 
-import Syntax.Internal
-import TypeChecking.Monad
+import Control.Monad.Trans ( liftIO )
+
+import TypeChecking.Monad.Base
 
 debug :: String -> TCM ()
 debug s = liftIO $ putStrLn s

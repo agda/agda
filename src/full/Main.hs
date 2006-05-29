@@ -25,14 +25,12 @@ import Syntax.Abstract.Name
 
 import Interaction.Exceptions
 import Interaction.CommandLine.CommandLine
-import Interaction.EmacsInterface.EmacsAgda2
+import Interaction.EmacsInterface.EmacsAgda
 import Interaction.Options
 import Interaction.Monad
 
 import TypeChecker
 import TypeChecking.Monad
-import TypeChecking.Monad.Context
-import TypeChecking.Monad.Options
 import TypeChecking.Reduce
 
 import Utils.Monad

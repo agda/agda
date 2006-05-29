@@ -31,8 +31,6 @@ import TypeChecker
 import TypeChecking.Conversion
 import TypeChecking.Constraints
 import TypeChecking.Monad
-import TypeChecking.Monad.Context
-import TypeChecking.Monad.Options
 import TypeChecking.MetaVars
 import TypeChecking.Reduce
 

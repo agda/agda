@@ -34,7 +34,6 @@ import Syntax.Scope
 import TypeChecker
 import TypeChecking.Conversion
 import TypeChecking.Monad as M
-import TypeChecking.Monad.Context as Context
 import TypeChecking.MetaVars
 import TypeChecking.Reduce
 import TypeChecking.Substitute
@@ -231,7 +230,7 @@ mkUndo = undo
 --- Printing Operations
 getConstraints :: IM [OutputForm Expr Expr] 
 getConstraints = liftTCM $
-    do	cs <- Context.getConstraints
+    do	cs <- M.getConstraints
 	cs <- mapM reduce $ Map.elems cs
         mapM reify $ List.map ccConstraint cs
 

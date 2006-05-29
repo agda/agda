@@ -30,9 +30,7 @@ import Syntax.Internal.Debug
 import Syntax.Scope
 
 import TypeChecking.Monad as M
-import TypeChecking.Monad.Context
 import TypeChecking.Reduce
-import TypeChecking.Monad.Debug
 
 import Utils.Monad
 import Utils.Tuple

@@ -22,7 +22,6 @@ import System.Exit
 
 import TypeChecker
 import TypeChecking.Monad
-import TypeChecking.Monad.Context
 import TypeChecking.MetaVars
 import TypeChecking.Reduce
 

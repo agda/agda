@@ -7,7 +7,6 @@ import Data.Generics
 import Syntax.Common
 import Syntax.Internal
 import TypeChecking.Monad
-import TypeChecking.Monad.Context
 import TypeChecking.MetaVars
 import TypeChecking.Substitute
 import TypeChecking.Reduce

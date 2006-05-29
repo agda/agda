@@ -14,20 +14,15 @@ import Syntax.Common
 import Syntax.Info as Info
 import Syntax.Position
 import Syntax.Internal
-import Syntax.Internal.Walk ()
 import Syntax.Internal.Debug ()
 import Syntax.Translation.AbstractToConcrete
 import Syntax.Concrete.Pretty ()
 
 import TypeChecking.Monad
-import TypeChecking.Monad.Context
-import TypeChecking.Constraints ()
 import TypeChecking.Conversion
 import TypeChecking.MetaVars
 import TypeChecking.Reduce
 import TypeChecking.Substitute
-
-import TypeChecking.Monad.Debug
 
 import Utils.Monad
 import Utils.List

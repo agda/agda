@@ -9,9 +9,6 @@ import Data.List as List
 
 import Syntax.Internal
 import TypeChecking.Monad
-import TypeChecking.Monad.Context
-
-import TypeChecking.Monad.Debug
 
 #ifndef __HADDOCK__
 import {-# SOURCE #-} TypeChecking.Conversion

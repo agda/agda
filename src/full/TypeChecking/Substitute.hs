@@ -9,7 +9,7 @@ import Syntax.Common
 import Syntax.Internal
 import Syntax.Internal.Walk
 
-import TypeChecking.Monad
+import TypeChecking.Monad.Base
 
 import Utils.Monad
 
