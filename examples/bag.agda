@@ -352,7 +352,6 @@ module ParserC where
 		      y
 		      (\z zs ih -> insert z ih)
 		      x
-{-
     symbol' :  {s : Datoid} -> List (El s) -> El (Bag (parserDatoid s s))
     symbol' nil       = empty
     symbol' (x :: xs) = insert (pair x xs) empty
@@ -368,4 +367,3 @@ module ParserC where
 
 --   return :  {s, a : Datoid} -> (x : a) -> Parsing s a
 --   return = \x s -> P (insert (pair x s) empty)
--}
