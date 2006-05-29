@@ -26,8 +26,9 @@ Todo
 
 * name suggestions in telescopes
 
-* Use substitutions for meta dependencies (at least for printing).
-  We'll need to remember the number of dependency args.
+* Use substitutions for meta dependencies (at least for printing).  We'll need
+  to remember the number (or names?) of dependency args. How to show that a
+  meta variable cannot depend on a particular variable?
 
 Done
 ----

@@ -4,7 +4,7 @@ module test where
 id : {A:Set} -> A -> A
 id x = x
 
-foo : {A:Set} -> A -> A -> ?
+foo : {A:Set} -> A -> A -> {!!}
 foo x y = id ?
 
 data Nat : Set where
