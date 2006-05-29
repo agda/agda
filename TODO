@@ -12,17 +12,13 @@ Todo
 
 * allow more things in postulates (infix, private?, ..)
 
-* clean up TypeChecking.Monad.Context
-
 * Check out lex/parse errors (what position and what input is reported).
 
 * check that underscores have been solved (when? at the end of the file)
 
 * Hiding info on lambdas.
 
-* as-patterns
-
-* absurd patterns
+* handle absurd patterns (how? like in agdaLight or differently?)
 
 * name suggestions in telescopes
 
@@ -30,8 +26,21 @@ Todo
   to remember the number (or names?) of dependency args. How to show that a
   meta variable cannot depend on a particular variable?
 
+* for an as-pattern x@p x should reduce to p during type checking
+
+Cleaning
+--------
+
+* TypeChecking.Monad.*
+
+* TypeChecking.Reduce
+
 Done
 ----
+
+* as-patterns
+
+* split TypeChecking.Monad.Context
 
 * better names for implicit args in lhs
 
