@@ -21,24 +21,25 @@ class Apply t where
     apply :: t -> Args -> t
 
 instance Apply Term where
-    apply m args =
+    apply m [] = m
+    apply m args@(Arg _ v:args0) =
 	case m of
 	    Var i args'   -> Var i (args'++args)
-	    Lam m args'   -> Lam m (args'++args)
 	    Def c args'   -> Def c (args'++args)
 	    Con c args'   -> Con c (args'++args)
+	    Lam u	  -> absApp u v `apply` args0
 	    MetaV x args' -> MetaV x (args'++args) 
 	    BlockedV b	  -> BlockedV $ b `apply` args
 	    Lit l	  -> __IMPOSSIBLE__
 
 instance Apply Type where
     apply a []	= a
-    apply (MetaT x args') args		  = MetaT x (args' ++ args)
-    apply (LamT (Abs _ a)) (Arg _ v:args) = subst v a `apply` args
-    apply (Sort s) _			  = __IMPOSSIBLE__
-    apply (Pi _ _) _			  = __IMPOSSIBLE__
-    apply (Fun _ _) _			  = __IMPOSSIBLE__
-    apply (El _ _) _			  = __IMPOSSIBLE__
+    apply (MetaT x args') args	  = MetaT x (args' ++ args)
+    apply (LamT a) (Arg _ v:args) = absApp a v `apply` args
+    apply (Sort s) _		  = __IMPOSSIBLE__
+    apply (Pi _ _) _		  = __IMPOSSIBLE__
+    apply (Fun _ _) _		  = __IMPOSSIBLE__
+    apply (El _ _) _		  = __IMPOSSIBLE__
 
 instance Apply Sort where
     apply s [] = s
@@ -75,7 +76,7 @@ instance (Apply a, Apply b, Apply c) => Apply (a,b,c) where
 
 piApply :: Type -> Args -> Type
 piApply t []			 = t
-piApply (Pi  _ b) (Arg _ v:args) = absApp v b `piApply` args
+piApply (Pi  _ b) (Arg _ v:args) = absApp b v `piApply` args
 piApply (Fun _ b) (_:args)	 = b
 piApply _ _			 = __IMPOSSIBLE__
 
@@ -84,7 +85,7 @@ class Abstract t where
     abstract :: Telescope -> t -> t
 
 instance Abstract Term where
-    abstract tel v = foldl (\v _ -> Lam (Abs "x" v) []) v $ reverse tel
+    abstract tel v = foldl (\v _ -> Lam (Abs "x" v)) v $ reverse tel
 
 instance Abstract Type where
     abstract tel a = foldl (\a _ -> LamT (Abs "x" a)   ) a $ reverse tel
@@ -129,7 +130,7 @@ instance Subst Term where
 		| i < n	    -> Var i $ substAt n u vs
 		| i == n    -> u `apply` substAt n u vs
 		| otherwise -> Var (i - 1) $ substAt n u vs
-	    Lam m vs	    -> uncurry Lam $ substAt n u (m,vs)
+	    Lam m	    -> Lam $ substAt n u m
 	    Def c vs	    -> Def c $ substAt n u vs
 	    Con c vs	    -> Con c $ substAt n u vs
 	    MetaV x vs	    -> MetaV x $ substAt n u vs
@@ -184,8 +185,8 @@ substs []     x = x
 substs (t:ts) x = subst t (substs (raise 1 ts) x)
 
 -- | Instantiate an abstraction
-absApp :: Subst t => Term -> Abs t -> t
-absApp u (Abs _ v) = subst u v
+absApp :: Subst t => Abs t -> Term -> t
+absApp (Abs _ v) u = subst u v
 
 -- | Add @k@ to index of each open variable in @x@.
 --

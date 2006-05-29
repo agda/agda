@@ -100,10 +100,9 @@ instance Reify Term Expr where
 		I.Con x vs   ->
 		    do	i <- qnameInfo x
 			reifyApp (A.Con i x) vs
-		I.Lam b vs   ->
+		I.Lam b	->
 		    do	(x,e) <- reify b
-			A.Lam exprInfo (DomainFree NotHidden x) e -- TODO: hiding
-			    `reifyApp` vs
+			return $ A.Lam exprInfo (DomainFree NotHidden x) e -- TODO: hiding
 		I.Lit l	     -> return $ A.Lit l
 		I.MetaV x vs -> apps <$> reify (x,vs)
 		I.BlockedV _ -> __IMPOSSIBLE__
@@ -148,5 +147,11 @@ instance Reify i a => Reify [i] [a] where
 
 instance (Reify i1 a1, Reify i2 a2) => Reify (i1,i2) (a1,a2) where
     reify (x,y) = (,) <$> reify x <*> reify y
+
+instance (Reify t t', Reify s s', Reify a a') 
+         => Reify (Judgement t s a) (Judgement t' s' a') where
+    reify (HasType i t) = HasType <$> reify i <*> reify t
+    reify (IsType i t)  = IsType <$> reify i <*> reify t
+    reify (IsSort i) = IsSort <$> reify i
 
 

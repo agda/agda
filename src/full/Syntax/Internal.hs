@@ -22,7 +22,7 @@ import Utils.Monad
 --     list of clauses.
 --
 data Term = Var Nat Args
-	  | Lam (Abs Term) Args	    -- ^ allow for redexes
+	  | Lam (Abs Term)	    -- ^ terms are beta normal
 	  | Lit Literal
 	  | Def QName Args
 	  | Con QName Args
@@ -106,7 +106,7 @@ newtype MetaId = MetaId Nat
     deriving (Eq, Ord, Num, Typeable, Data)
 
 instance Show MetaId where
-    show (MetaId n) = "?" ++ show n
+    show (MetaId n) = "_" ++ show n
 
 
 arity :: Type -> Int

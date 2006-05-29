@@ -89,7 +89,7 @@ newValueMeta t =
 newArgsMeta ::  Type -> TCM Args
 newArgsMeta (Pi (Arg h a) b) =
     do	v    <- newValueMeta a
-	args <- newArgsMeta (absApp v b)
+	args <- newArgsMeta $ absApp b v
 	return $ Arg h v : args
 newArgsMeta (Fun (Arg h a) b) =
     do	v    <- newValueMeta a
@@ -146,7 +146,7 @@ instance Occurs Term where
 		    case findIdx ok n of
 			Just n'	-> Var n' <$> occ m ok vs
 			Nothing	-> fail $ show m ++ " cannot depend on p" ++ show n
-		Lam f vs    -> Lam <$> occ m ok f <*> occ m ok vs
+		Lam f	    -> Lam <$> occ m ok f
 		Lit l	    -> return $ Lit l
 		Def c vs    -> Def c <$> occ m ok vs
 		Con c vs    -> Con c <$> occ m ok vs

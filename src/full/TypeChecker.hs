@@ -329,7 +329,7 @@ checkPatterns (Arg h p:ps) t ret =
 	    (_,Pi (Arg h' a) b) | h == h' ->
 		checkPattern p a $ \xs p' v ->
 		do  let b' = raise (length xs) b
-		    checkPatterns ps (absApp v b') $ \ys ps' vs t'' ->
+		    checkPatterns ps (absApp b' v) $ \ys ps' vs t'' ->
 			do  let v' = raise (length ys) v
 			    ret (xs ++ ys) (Arg h p':ps')(Arg h v':vs) t''
 	    (_,Fun (Arg h' a) b) | h == h' ->
@@ -499,11 +499,11 @@ checkExpr e t =
 				Pi (Arg h' a) (Abs _ b) | h == h' ->
 				    addCtx x a $
 				    do  v <- checkExpr e b
-					return $ Lam (Abs (show x) v) []
+					return $ Lam (Abs (show x) v)
 				Fun (Arg h' a) b | h == h' ->
 				    addCtx x a $
 				    do  v <- checkExpr e (raise 1 b)
-					return $ Lam (Abs (show x) v) []
+					return $ Lam (Abs (show x) v)
 				_	-> fail $ "expected " ++ show h ++ " function space, found " ++ show t'
 
 		    A.QuestionMark i -> 
@@ -606,6 +606,6 @@ buildPi :: [Arg (String,Type)] -> Type -> Type
 buildPi tel t = foldr (\ (Arg h (x,a)) b -> Pi (Arg h a) (Abs x b) ) t tel
 
 buildLam :: [Arg String] -> Term -> Term
-buildLam xs t = foldr (\ (Arg _ x) t -> Lam (Abs x t) []) t xs
+buildLam xs t = foldr (\ (Arg _ x) t -> Lam (Abs x t)) t xs
 
 

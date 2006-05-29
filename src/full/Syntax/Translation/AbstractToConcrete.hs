@@ -157,6 +157,7 @@ instance ToConcrete PatInfo (Maybe C.Pattern) where
 instance ToConcrete ModuleInfo (Maybe [C.Declaration]) where
     toConcrete = toConcrete . minfoSource
 
+
 -- General instances ------------------------------------------------------
 
 instance ToConcrete a c => ToConcrete [a] [c] where

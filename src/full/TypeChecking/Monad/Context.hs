@@ -339,6 +339,9 @@ removeInteractionPoint ii =
 getInteractionPoints :: TCM [InteractionId]
 getInteractionPoints = keys <$> gets stInteractionPoints
 
+getInteractionMetas :: TCM [MetaId]
+getInteractionMetas = elems <$> gets stInteractionPoints
+
 lookupInteractionId :: InteractionId -> TCM MetaId
 lookupInteractionId ii = 
     do  mmi <- Map.lookup ii <$> gets stInteractionPoints
@@ -365,7 +368,16 @@ getInteractionRange :: InteractionId -> TCM Range
 getInteractionRange ii = 
     do mi <- lookupInteractionId ii
        mv <- lookupMeta mi
-       return (getRange mv)
+       return $ getRange mv
+
+
+
+getInteractionScope :: InteractionId -> TCM ScopeInfo
+getInteractionScope ii = 
+    do mi <- lookupInteractionId ii
+       mv <- lookupMeta mi
+       return $ metaScope $ getMetaInfo mv
+
 ---------------------------------------------------------------------------
 -- * Trace
 ---------------------------------------------------------------------------

@@ -118,9 +118,6 @@ instance Reduce Term where
     reduce v =
 	do  v <- instantiate v
 	    case v of
-		Lam (Abs _ v') (Arg h arg:args) ->
-		    do  a <- reduce arg
-			reduce $ subst a v' `apply` args
 		MetaV x args -> MetaV x <$> reduce args
 		Def f args   -> reduceDef (Def f []) f args
 		Con c args   -> reduceDef (Con c []) c args
@@ -130,7 +127,7 @@ instance Reduce Term where
 		BlockedV _ -> return v
 		Lit _	   -> return v
 		Var x args -> return v
-		Lam _ []   -> return v
+		Lam _	   -> return v
 	where
 
 	    reduceDef v0 f args =
@@ -196,8 +193,7 @@ instance Normalise Term where
 		Def f vs    -> Def f <$> normalise vs
 		MetaV x vs  -> MetaV x <$> normalise vs
 		Lit _	    -> return v
-		Lam _ []    -> return v
-		Lam _ (_:_) -> __IMPOSSIBLE__
+		Lam _	    -> return v
 		BlockedV _  -> __IMPOSSIBLE__
 
 instance Normalise t => Normalise (Abs t) where

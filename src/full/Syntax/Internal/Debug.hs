@@ -30,10 +30,10 @@ val2str :: (MonadReader Int m) => Term -> m String
 val2str (Var i args) = do
     n <- ask
     args2str (if n > i then "x"++(show $ n - i) else "p"++(show $ i - n)) args
-val2str (Lam (Abs _ v) args) = do
+val2str (Lam (Abs _ v)) = do
     hd <- local (+ 1) $ val2str v
     n <- ask
-    args2str ("(\\x"++(show $ n + 1)++" -> "++hd++")") args
+    return $ "(\\x"++(show $ n + 1)++" -> "++hd++")"
 val2str (Lit l) = return $ show l
 val2str (Con c [Arg NotHidden v1,Arg NotHidden v2])
     | isOp (show c) =
