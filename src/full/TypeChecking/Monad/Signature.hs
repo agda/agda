@@ -88,15 +88,15 @@ getConstInfo q =
 	    defs = mdefDefs md
 	case Map.lookup x defs of
 	    Nothing -> fail $ show (getRange q) ++ ": no such name " ++ show x ++ " in module " ++ show m
-	    Just d  -> return $ mkAbs ab d
+	    Just d  -> mkAbs ab d
     where
 	m = qnameModule q
 	x = qnameName q
 	mkAbs True d =
 	    case makeAbstract d of
-		Just d	-> d
-		Nothing	-> __IMPOSSIBLE__
-	mkAbs False d = d
+		Just d	-> return d
+		Nothing	-> fail $ "Not in scope " ++ show q -- __IMPOSSIBLE__
+	mkAbs False d = return d
 
 -- | Instantiate a closed definition with the correct part of the current
 --   context. Precondition: the variables abstracted over should be a prefix of
