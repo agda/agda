@@ -31,6 +31,10 @@ Todo
 
 * let-bindings (only x = e definitions)
 
+* doesn't scope checking check for name clashes when opening?
+
+* make scope checking aware of abstract? or maybe this is too much work
+
 Cleaning
 --------
 
