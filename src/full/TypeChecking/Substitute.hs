@@ -4,6 +4,7 @@ module TypeChecking.Substitute where
 import Control.Monad.Identity
 import Control.Monad.Reader
 import Data.Generics
+import Data.Map (Map)
 
 import Syntax.Common
 import Syntax.Internal
@@ -166,19 +167,6 @@ instance Subst ClauseBody where
     substAt n u (Body t) = Body $ substAt n u t
     substAt n u (Bind b) = Bind $ substAt n u b
 
--- subst :: Data a => Term -> a -> a
--- subst repl x = runIdentity $ walk (mkM goVal) x where
---   goVal (Var i args) = do
---       n <- ask
---       if i == n
---           then do 
---               args' <- mapM goArg args	-- TODO: will this traverse more than the top-level?
---               endWalk $ apply (raise n repl) args'
---           else return $ Var (if i > n then i - 1 else i) args
---   goVal x = return x
---   
---   goArg (Arg h v) = Arg h <$> goVal v
-
 -- | Substitute a lot of terms.
 substs :: Subst t => [Term] -> t -> t
 substs []     x = x
@@ -189,19 +177,54 @@ absApp :: Subst t => Abs t -> Term -> t
 absApp (Abs _ v) u = subst u v
 
 -- | Add @k@ to index of each open variable in @x@.
---
-raiseFrom :: Int -> Int -> GenericT
-raiseFrom m k x = runIdentity $ walk (mkM goTm) x
-    where
-	goTm (Var i args) = do
-	  n <- ask
-	  return $ Var (newVar i n) args
-	goTm x = return x
+class Raise t where
+    raiseFrom :: Int -> Int -> t -> t
 
-	newVar i n
-	    | i >= n + m    = i + k
-	    | otherwise	    = i
+instance Raise Term where
+    raiseFrom m k v =
+	case v of
+	    Var i vs
+		| i < m	    -> Var i $ rf vs
+		| otherwise -> Var (i + k) $ rf vs
+	    Lam m	    -> Lam $ rf m
+	    Def c vs	    -> Def c $ rf vs
+	    Con c vs	    -> Con c $ rf vs
+	    MetaV x vs	    -> MetaV x $ rf vs
+	    Lit l	    -> Lit l
+	    BlockedV b	    -> BlockedV $ rf b
+	where
+	    rf x = raiseFrom m k x
 
-raise :: Int -> GenericT
+instance Raise Type where
+    raiseFrom m k t =
+	case t of
+	    El t s     -> flip El s $ rf t
+	    Pi a b     -> uncurry Pi $ rf (a,b)
+	    Fun a b    -> uncurry Fun $ rf (a,b)
+	    Sort s     -> Sort s
+	    MetaT x vs -> MetaT x $ rf vs
+	    LamT b     -> LamT $ rf b
+	where
+	    rf x = raiseFrom m k x
+
+instance Raise t => Raise (Abs t) where
+    raiseFrom m k = fmap (raiseFrom (m + 1) k)
+
+instance Raise t => Raise (Arg t) where
+    raiseFrom m k = fmap (raiseFrom m k)
+
+instance Raise t => Raise (Blocked t) where
+    raiseFrom m k = fmap (raiseFrom m k)
+
+instance Raise t => Raise [t] where
+    raiseFrom m k = fmap (raiseFrom m k)
+
+instance Raise v => Raise (Map k v) where
+    raiseFrom m k = fmap (raiseFrom m k)
+
+instance (Raise a, Raise b) => Raise (a,b) where
+    raiseFrom m k (x,y) = (raiseFrom m k x, raiseFrom m k y)
+
+raise :: Raise t => Int -> t -> t
 raise = raiseFrom 0
 
