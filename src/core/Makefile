@@ -59,6 +59,8 @@ endif
 
 ## Compiling agda #########################################################
 
+GHC_FLAGS += -fno-warn-incomplete-patterns -fno-warn-overlapping-patterns
+
 $(OUT)/agdacore : $(out_dirs) $(all_hs_files) $(hi_boot_files)
 	$(GHC) --make -o $@ -odir $(OUT) -hidir $(OUT) -i$(OUT) $(GHC_FLAGS) Main.hs
 
