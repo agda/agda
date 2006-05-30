@@ -141,6 +141,9 @@ module Eq where
   leibnizRefl : {a : Set} -> (x : a) -> x =^= x
   leibnizRefl x = leibniz (\P p -> p)
 
+  leibnizSubst : {a : Set} -> (P : a -> Set) -> {x, y : a} -> x =^= y -> P x -> P y
+  leibnizSubst P (leibniz subst) px = subst P px
+
 module Nat where
 
   data Nat : Set where
@@ -175,6 +178,15 @@ module Pos where
 
     toNat : Pos -> Nat.Nat
     toNat = suc
+
+  data PosView : Set where
+    posOne : PosView
+    posSuc : Pos -> PosView
+
+  abstract
+    posView : Pos -> PosView
+    posView Nat.zero    = posOne
+    posView (Nat.suc n) = posSuc n
 
 module List where
 
@@ -221,6 +233,7 @@ module Bag where
   open Datoid
   open Eq
   open Nat
+  open Pos, renaming (suc to psuc, one to pone)
   open List
 
   private
@@ -258,51 +271,52 @@ module Bag where
     insert : {a : Datoid} -> El a -> El (Bag a) -> El (Bag a)
     insert x b = insert' x (lookup x b)
 
-    data Traverse (a : Datoid) : Set where
-      Empty  : Traverse a
-      Insert : (x : El a) -> (b : El (Bag a)) -> Traverse a
+  data Traverse (a : Datoid) : Set where
+    Empty  : Traverse a
+    Insert : (x : El a) -> (b : El (Bag a)) -> Traverse a
+
+  abstract
 
     run : {a : Datoid} -> Traverse a -> El (Bag a)
     run Empty        = empty
     run (Insert x b) = insert x b
 
-  postulate
-
     traverse : {a : Datoid} -> El (Bag a) -> Traverse a
-  --   traverse nil                         = Empty
-  --   -- traverse (pair zero x :: b) = -- Missing case.
-  --   traverse (pair (suc zero)    x :: b) = Insert x b
-  --   traverse (pair (suc (suc n)) x :: b) = Insert x (pair (suc n) x :: b)
+    traverse (bt nil)             = Empty
+    traverse (bt (pair k x :: b)) = help (posView k)
+      where
+	help : PosView -> Traverse _
+	help posOne	= Insert x (bt b)
+	help (posSuc k) = Insert x (bt (pair k x :: b))
 
-    traverseTraverses
-      :  {a : Datoid} -> (b : El (Bag a)) -> run (traverse b) =^= b
-  --   traverseTraverses (==) nil                      = leibnizRefl nil
-  --   -- traverseTraverses (==) (pair zero    x :: b) = -- Missing case.
-  --   traverseTraverses (==) (pair (suc zero) x :: b) =
-  --     -- We can't show that b doesn't contain any x-s.
-  --     -- insert (==) x b =^= (pair (suc zero) x :: b)
-  --   traverseTraverses (==) (pair (suc (suc n)) x :: b) =
-  --     -- Possible if DecidableEquiv includes substitutivity.
+    postulate -- we need access to the help-function above
+      traverseTraverses
+	:  {a : Datoid} -> (b : El (Bag a)) -> run (traverse b) =^= b
+--       traverseTraverses (==) nil                      = leibnizRefl nil
+--       -- traverseTraverses (==) (pair zero    x :: b) = -- Missing case.
+--       traverseTraverses (==) (pair (suc zero) x :: b) = ?
+--       -- We can't show that b doesn't contain any x-s.
+--       -- insert (==) x b =^= (pair (suc zero) x :: b)
+--       traverseTraverses (==) (pair (suc (suc n)) x :: b) = ?
+--       -- Possible if DecidableEquiv includes substitutivity.
 
-  private
+    private
 
-    postulate
+      --postulate
 
       bagElim'
-        :  {a : Datoid}
-        -> (P : El (Bag a) -> Set)
-        -> P empty
-        -> ((x : El a) -> (b : El (Bag a)) -> P b -> P (insert x b))
-        -> (b : El (Bag a))
-        -> (t : Traverse a)
-        -> run t =^= b
-        -> P b
-  --     bagElim' P e i b Empty         (leibniz subst) = subst P e
-  --     bagElim' P e i b (Insert x b') (leibniz subst) =
-  --       subst P (i x b' (bagElim' P e i b' (traverse b')
-  --                                          (traverseTraverses b')))
-
-  postulate
+	:  {a : Datoid}
+	-> (P : El (Bag a) -> Set)
+	-> P empty
+	-> ((x : El a) -> (b : El (Bag a)) -> P b -> P (insert x b))
+	-> (b : El (Bag a))
+	-> (t : Traverse a)
+	-> run t =^= b
+	-> P b
+      bagElim' P e i b Empty         (leibniz subst) = subst P e
+      bagElim' P e i b (Insert x b') (leibniz subst) =
+	subst P (i x b' (bagElim' P e i b' (traverse b')
+					   (traverseTraverses b')))
 
     bagElim
       :  {a : Datoid}
@@ -311,8 +325,8 @@ module Bag where
       -> ((x : El a) -> (b : El (Bag a)) -> P b -> P (insert x b))
       -> (b : El (Bag a))
       -> P b
-    -- bagElim P e i b =
-    --   bagElim' P e i b (traverse b) (traverseTraverses b)
+    bagElim P e i b =
+      bagElim' P e i b (traverse b) (traverseTraverses b)
 
 module ParserC where
   open Prelude
@@ -330,18 +344,6 @@ module ParserC where
   data Parsing (s, a : Datoid) : Set1 where
     P :  (List (El s) -> El (Bag (parserDatoid a s)))
       -> Parsing s a
-
-
--- insert : {a : Datoid} -> El a -> El (Bag a) -> El (Bag a)
--- pairDatoid : Datoid -> Datoid -> Datoid
---(empty {Bag (pairDatoid s (listDatoid s))})
---  bagElim
---    :  {a : Datoid}
---    -> (P : El (Bag a) -> Set)
---    -> P empty
---    -> ((x : El a) -> (b : El (Bag a)) -> P b -> P (insert x b))
---    -> (b : El (Bag a))
---    -> P b
 
   private
     (<+>) :  {s, a : Datoid}
@@ -365,5 +367,6 @@ module ParserC where
   (+++) : {s, a : Datoid} -> Parsing s a -> Parsing s a -> Parsing s a
   P p +++ P q = P (\s -> p s <+> q s)
 
---   return :  {s, a : Datoid} -> (x : a) -> Parsing s a
---   return = \x s -> P (insert (pair x s) empty)
+  return :  {s, a : Datoid} -> (x : El a) -> Parsing s a
+  return x = P (\s -> insert (pair x s) empty)
+
