@@ -7,6 +7,7 @@ Todo
 * structured verbosity
 
 * debug information
+* move trace to environment
 
 * optimise
 
@@ -26,9 +27,9 @@ Todo
   to remember the number (or names?) of dependency args. How to show that a
   meta variable cannot depend on a particular variable?
 
-* for an as-pattern x@p x should reduce to p during type checking
-
 * write better tests
+
+* let-bindings (only x = e definitions)
 
 Cleaning
 --------
@@ -39,6 +40,8 @@ Cleaning
 
 Done
 ----
+
+* for an as-pattern x@p x should reduce to p during type checking
 
 * as-patterns
 
