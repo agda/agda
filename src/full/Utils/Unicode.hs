@@ -10,7 +10,8 @@ module Utils.Unicode
     ) where
 
 import Data.Bits
-import Data.List
+import Data.List as List
+import Data.IntSet as Set
 
 import Utils.Monad
 
@@ -151,140 +152,142 @@ uLetterlikeSymbols      = ['\x2100' .. '\x214c']
 
 -- | Check if a character is a unicode operator symbol.
 isUnicodeOp :: Char -> Bool
-isUnicodeOp x =
-    elem x $
-    [ uPlusMinusSign
-    , uMultiplicationSign
-    , uDivisionSign
-    , uPrime
-    , uDoublePrime
-    , uTriplePrime
-    , uQuadruplePrime
-    , uElementOf
-    , uNotAnElementOf
-    , uSmallElementOf
-    , uContainsAsMember
-    , uDoesNotContainAsMember
-    , uSmallContainsAsMember
-    , uMinusOrPlusSign
-    , uDotPlus
-    , uDivisionSlash
-    , uSetMinus
-    , uAsteriskOperator
-    , uRingOperator
-    , uBulletOperator
-    , uProportionalTo
-    , uDivides
-    , uDoesNotDivide
-    , uParallelTo
-    , uNotParallelTo
-    , uLogicalAnd
-    , uLogicalOr
-    , uIntersection
-    , uUnion
-    , uDotMinus
-    , uTildeOperator
-    , uAsymptoticallyEqualTo
-    , uNotAsymptoticallyEqualTo
-    , uApproximatelyEqualTo
-    , uNotApproximatelyButNotActuallyEqualTo
-    , uNeitherApproximatelyNorActuallyEqualTo
-    , uAlmostEqualTo
-    , uNotAlmostEqualTo
-    , uAlmostEqualOrEqualTo
-    , uTripleTilde
-    , uApprochesTheLimit
-    , uColonEquals
-    , uDeltaEqualTo
-    , uEqualToByDefinition
-    , uMeasuredBy
-    , uQuestionedEqualTo
-    , uNotEqualTo
-    , uIdenticalTo
-    , uNotIdenticalTo
-    , uStrictlyEquivalentTo
-    , uLessThanOrEqualTo
-    , uGreaterThanOrEqualTo
-    , uLessThanOverEqualTo
-    , uGreaterThanOverEqualTo
-    , uMuchLessThan
-    , uMuchGreaterThan
-    , uSubsetOf
-    , uSuperSetOf
-    , uNotASubsetOf
-    , uNotASupersetOf
-    , uSubsetOfOrEqualTo
-    , uSupersetOfOrEqualTo
-    , uNeitherASubsetOfNorEqualTo
-    , uNeitherASupersetOfNorEqualTo
-    , uSquareImageOf
-    , uSquareOriginalOf
-    , uSquareImageOfOrEqualTo
-    , uSquareOriginalOfOrEqualTo
-    , uSquareCap
-    , uSquareCup
-    , uCircledPlus
-    , uCircledMinus
-    , uCircledTimes
-    , uCircledDivisionSlash
-    , uCircledDotOperator
-    , uCircledRingOperator
-    , uCircledAsteriskOperator
-    , uCircledEquals
-    , uCircledDash
-    , uRightTack
-    , uLeftTack
-    , uAssertion
-    , uModels
-    , uTrue
-    , uForces
-    ] ++ uArrows
-      ++ uGeometricShapes
+isUnicodeOp = \x -> Set.member (fromEnum x) ops
+    where
+	ops = Set.fromList $ List.map fromEnum $
+	    [ uPlusMinusSign
+	    , uMultiplicationSign
+	    , uDivisionSign
+	    , uPrime
+	    , uDoublePrime
+	    , uTriplePrime
+	    , uQuadruplePrime
+	    , uElementOf
+	    , uNotAnElementOf
+	    , uSmallElementOf
+	    , uContainsAsMember
+	    , uDoesNotContainAsMember
+	    , uSmallContainsAsMember
+	    , uMinusOrPlusSign
+	    , uDotPlus
+	    , uDivisionSlash
+	    , uSetMinus
+	    , uAsteriskOperator
+	    , uRingOperator
+	    , uBulletOperator
+	    , uProportionalTo
+	    , uDivides
+	    , uDoesNotDivide
+	    , uParallelTo
+	    , uNotParallelTo
+	    , uLogicalAnd
+	    , uLogicalOr
+	    , uIntersection
+	    , uUnion
+	    , uDotMinus
+	    , uTildeOperator
+	    , uAsymptoticallyEqualTo
+	    , uNotAsymptoticallyEqualTo
+	    , uApproximatelyEqualTo
+	    , uNotApproximatelyButNotActuallyEqualTo
+	    , uNeitherApproximatelyNorActuallyEqualTo
+	    , uAlmostEqualTo
+	    , uNotAlmostEqualTo
+	    , uAlmostEqualOrEqualTo
+	    , uTripleTilde
+	    , uApprochesTheLimit
+	    , uColonEquals
+	    , uDeltaEqualTo
+	    , uEqualToByDefinition
+	    , uMeasuredBy
+	    , uQuestionedEqualTo
+	    , uNotEqualTo
+	    , uIdenticalTo
+	    , uNotIdenticalTo
+	    , uStrictlyEquivalentTo
+	    , uLessThanOrEqualTo
+	    , uGreaterThanOrEqualTo
+	    , uLessThanOverEqualTo
+	    , uGreaterThanOverEqualTo
+	    , uMuchLessThan
+	    , uMuchGreaterThan
+	    , uSubsetOf
+	    , uSuperSetOf
+	    , uNotASubsetOf
+	    , uNotASupersetOf
+	    , uSubsetOfOrEqualTo
+	    , uSupersetOfOrEqualTo
+	    , uNeitherASubsetOfNorEqualTo
+	    , uNeitherASupersetOfNorEqualTo
+	    , uSquareImageOf
+	    , uSquareOriginalOf
+	    , uSquareImageOfOrEqualTo
+	    , uSquareOriginalOfOrEqualTo
+	    , uSquareCap
+	    , uSquareCup
+	    , uCircledPlus
+	    , uCircledMinus
+	    , uCircledTimes
+	    , uCircledDivisionSlash
+	    , uCircledDotOperator
+	    , uCircledRingOperator
+	    , uCircledAsteriskOperator
+	    , uCircledEquals
+	    , uCircledDash
+	    , uRightTack
+	    , uLeftTack
+	    , uAssertion
+	    , uModels
+	    , uTrue
+	    , uForces
+	    ] ++ uArrows
+	      ++ uGeometricShapes
 
 -- | Check if a character is a unicode identifier symbol.
 isUnicodeId :: Char -> Bool
-isUnicodeId x =
-    elem x $
-    [ uNotSign
-    , uForAll
-    , uComplement
-    , uPartialDifferential
-    , uThereExists
-    , uThereDoesNotExist
-    , uEmptySet
-    , uIncrement
-    , uNabla
-    , uEndOfProof
-    , uNaryProduct
-    , uNaryCoproduct
-    , uNarySummations
-    , uSquareRoot
-    , uCubeRoot
-    , uFourthRoot
-    , uInfinity
-    , uRightAngle
-    , uAngle
-    , uMeasuredAngle
-    , uSphericalAngle
-    , uIntegral
-    , uDoubleIntegral
-    , uTripleIntegral
-    , uContourIntegral
-    , uDownTack
-    , uUpTack
-    , uNaryLogicalAnd
-    , uNaryLogicalOr
-    , uNaryIntersection
-    , uNaryUnion
-    , uBlackStar
-    , uWhiteStar
-    ] ++ uGreekSmallLetters
-      ++ uGreekCapitalLetters
-      ++ uSubscriptNumbers
-      ++ uSuperscriptNumbers
-      ++ uOtherSubscripts
-      ++ uOtherSuperscripts
-      ++ uLetterlikeSymbols
+isUnicodeId = \x -> Set.member (fromEnum x) ids
+    where
+	ids = Set.fromList $ List.map fromEnum $
+	    [ uNotSign
+	    , uForAll
+	    , uComplement
+	    , uPartialDifferential
+	    , uThereExists
+	    , uThereDoesNotExist
+	    , uEmptySet
+	    , uIncrement
+	    , uNabla
+	    , uEndOfProof
+	    , uNaryProduct
+	    , uNaryCoproduct
+	    , uNarySummations
+	    , uSquareRoot
+	    , uCubeRoot
+	    , uFourthRoot
+	    , uInfinity
+	    , uRightAngle
+	    , uAngle
+	    , uMeasuredAngle
+	    , uSphericalAngle
+	    , uIntegral
+	    , uDoubleIntegral
+	    , uTripleIntegral
+	    , uContourIntegral
+	    , uDownTack
+	    , uUpTack
+	    , uNaryLogicalAnd
+	    , uNaryLogicalOr
+	    , uNaryIntersection
+	    , uNaryUnion
+	    , uBlackStar
+	    , uWhiteStar
+	    ] ++ uGreekSmallLetters
+	      ++ uGreekCapitalLetters
+	      ++ uSubscriptNumbers
+	      ++ uSuperscriptNumbers
+	      ++ uOtherSubscripts
+	      ++ uOtherSuperscripts
+	      ++ uLetterlikeSymbols
 
 -- UTF-8 ------------------------------------------------------------------
 
@@ -338,7 +341,7 @@ toUTF8 = concatMap utf8
 mask i	= foldl setBit 0 $ take i [0..]
 
 fromUTF8 :: UTF8 -> String
-fromUTF8 = map decode . chop
+fromUTF8 = List.map decode . chop
     where
 	chop []	     = []
 	chop s@(c:_) = w : chop s'
@@ -364,7 +367,7 @@ fromUTF8 = map decode . chop
 			i	= 7 - len
 			len	= length cs
 			k	= 6 * (len - 1)
-			n0 : ns = map fromEnum cs
+			n0 : ns = List.map fromEnum cs
 
 
 {-
