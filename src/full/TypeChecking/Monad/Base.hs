@@ -1,12 +1,11 @@
 {-# OPTIONS -fglasgow-exts -fallow-undecidable-instances #-}
 module TypeChecking.Monad.Base where
 
-import Data.Map as Map
-
 import Control.Monad.Error
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Exception
+import Data.Map as Map
 import Data.Generics
 import Data.FunctorM
 
@@ -267,6 +266,7 @@ instance HasRange Trace where
 
 data TCEnv =
     TCEnv { envContext	     :: Context
+	  , envLetBindings   :: LetBindings
 	  , envCurrentModule :: ModuleName
 	  , envAbstractMode  :: Bool
 		-- ^ When checking the typesignature of a public definition
@@ -278,6 +278,7 @@ data TCEnv =
 
 initEnv :: TCEnv
 initEnv = TCEnv { envContext	   = []
+		, envLetBindings   = Map.empty
 		, envCurrentModule = noModuleName
 		, envAbstractMode  = False
 		}
@@ -287,6 +288,12 @@ initEnv = TCEnv { envContext	   = []
 ---------------------------------------------------------------------------
 
 type Context = [(Name, Type)]
+
+---------------------------------------------------------------------------
+-- ** Let bindings
+---------------------------------------------------------------------------
+
+type LetBindings = Map Name (Term, Type)
 
 ---------------------------------------------------------------------------
 -- * Type checking errors

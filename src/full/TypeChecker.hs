@@ -362,8 +362,7 @@ checkPattern name (A.AbsurdP i) t ret =
 	addCtx x t $ ret [show x] (VarP name) (Var 0 [])
 checkPattern name (A.AsP i x p) t ret =
     checkPattern name p t $ \xs p v ->
-    addCtx x t $ ret (xs ++ [show x]) (AsP (show x) p) v
-	-- TODO: in x@p we would like x to reduce to p during the typechecking of the rhs
+    addLetBinding x v (raise (length xs) t) $ ret xs p v
 
 -- | Make sure that a type is empty. TODO: Move.
 isEmptyType :: Type -> TCM ()
@@ -540,9 +539,7 @@ checkExpr e t =
 inferHead :: Head -> TCM (Term, Type)
 inferHead (HeadVar _ x) =
     do	setCurrentRange x
-	n <- varIndex x
-	t <- typeOfBV n
-	return (Var n [], t)
+	getVarInfo x
 inferHead (HeadCon i x) = inferDef Con i x
 inferHead (HeadDef i x) = inferDef Def i x
 

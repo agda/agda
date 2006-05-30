@@ -4,6 +4,7 @@ module TypeChecking.Monad.Context where
 
 import Control.Monad.Reader
 import Data.List as List
+import Data.Map as Map
 
 import Syntax.Abstract.Name
 import Syntax.Common
@@ -20,7 +21,10 @@ import Utils.Monad
 -- | add a variable to the context
 --
 addCtx :: Name -> Type -> TCM a -> TCM a
-addCtx x a = local (\e -> e { envContext = (x,a) : envContext e })
+addCtx x a = local $ \e ->
+		e { envContext	   = (x,a) : envContext e
+		  , envLetBindings = raise 1 $ envLetBindings e
+		  }
 
 -- | Get the current context.
 getContext :: TCM Context
@@ -41,6 +45,11 @@ addCtxTel [] ret = ret
 addCtxTel (Arg _ t : tel) ret =
     do	x <- freshNoName_
 	addCtx x t $ addCtxTel tel ret
+
+-- | Add a let bound variable
+addLetBinding :: Name -> Term -> Type -> TCM a -> TCM a
+addLetBinding x v t =
+    local $ \e -> e { envLetBindings = Map.insert x (v,t) $ envLetBindings e }
 
 -- | get type of bound variable (i.e. deBruijn index)
 --
@@ -63,13 +72,21 @@ xs !!! n = xs !!!! n
 	(x:_)  !!!! 0 = return x
 	(_:xs) !!!! n = xs !!!! (n - 1)
 
--- | Get the deBruijn index of a named variable
-varIndex :: Name -> TCM Nat
-varIndex x =
+-- | Get the term corresponding to a named variable. If it is a lambda bound
+--   variable the deBruijn index is returned and if it is a let bound variable
+--   its definition is returned.
+getVarInfo :: Name -> TCM (Term, Type)
+getVarInfo x =
     do	ctx <- asks envContext
+	def <- asks envLetBindings
 	case List.findIndex ((==x) . fst) ctx of
-	    Just n  -> return n
-	    _	    -> fail $ "unbound variable " ++ show x
+	    Just n  ->
+		do  t <- typeOfBV n
+		    return (Var n [], t)
+	    _	    ->
+		case Map.lookup x def of
+		    Just vt -> return vt
+		    _	    -> fail $ "unbound variable " ++ show x
 
 escapeContext :: Int -> TCM a -> TCM a
 escapeContext n = local $ \e -> e { envContext = drop n $ envContext e }
