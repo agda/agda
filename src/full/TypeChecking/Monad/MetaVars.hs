@@ -10,7 +10,7 @@ import Syntax.Position
 import Syntax.Scope
 
 import TypeChecking.Monad.Base
-import TypeChecking.Monad.Context
+import TypeChecking.Monad.Env
 import TypeChecking.Monad.Signature
 import TypeChecking.Monad.State
 import TypeChecking.Monad.Trace
@@ -42,8 +42,10 @@ createMetaInfo =
         return $ MetaInfo r s env sig
 
 updateMetaRange :: MetaId -> Range -> TCM ()
-updateMetaRange mi r = modify (\st -> st{stMetaStore = Map.adjust (\mv -> setRange mv r) mi $ stMetaStore st})
-
+updateMetaRange mi r =
+    modify $ \st -> st { stMetaStore = Map.adjust (\mv -> setRange mv r) mi
+				     $ stMetaStore st
+		       }
 
 
 addInteractionPoint :: InteractionId -> MetaId -> TCM ()

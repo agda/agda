@@ -6,7 +6,7 @@ import Data.Map as Map
 
 import TypeChecking.Monad.Base
 import TypeChecking.Monad.Signature
-import TypeChecking.Monad.Context
+import TypeChecking.Monad.Env
 
 -- | Get the constraints
 getConstraints :: TCM Constraints
