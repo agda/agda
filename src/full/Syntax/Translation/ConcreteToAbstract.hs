@@ -42,18 +42,21 @@ data ToAbstractException
 	    --	 definition, but it wasn't of the form @m Delta@.
 	| NoTopLevelModule C.Declaration
 	| NotAnExpression C.Expr
+	| NotAValidLetBinding NiceDeclaration
     deriving (Typeable, Show)
 
 higherOrderPattern p0 p = throwDyn $ HigherOrderPattern p0 p
 notAModuleExpr e	= throwDyn $ NotAModuleExpr e
 noTopLevelModule d	= throwDyn $ NoTopLevelModule d
 notAnExpression e	= throwDyn $ NotAnExpression e
+notAValidLetBinding d	= throwDyn $ NotAValidLetBinding d
 
 instance HasRange ToAbstractException where
     getRange (HigherOrderPattern p _) = getRange p
     getRange (NotAModuleExpr e)	      = getRange e
     getRange (NoTopLevelModule d)     = getRange d
     getRange (NotAnExpression e)      = getRange e
+    getRange (NotAValidLetBinding d)  = getRange d
 
 {--------------------------------------------------------------------------
     Helpers
@@ -260,7 +263,7 @@ instance ToAbstract C.Expr A.Expr where
 
     -- Let
     toAbstract e0@(C.Let _ ds e) =
-	bindToAbstract ds $ \ds' ->
+	bindToAbstract (LetDefs ds) $ \ds' ->
 	do  e'   <- toAbstractCtx TopCtx e
 	    info <- exprSource e0
 	    return $ A.Let info ds' e'
@@ -308,6 +311,35 @@ instance BindToAbstract [NiceDeclaration] [A.Declaration] where
     bindToAbstract [] ret = ret []
     bindToAbstract (x:xs) ret =
 	bindToAbstract (x,xs) $ \ (y,ys) -> ret (y ++ ys)
+
+newtype LetDefs = LetDefs [C.Declaration]
+newtype LetDef = LetDef NiceDeclaration
+
+instance BindToAbstract LetDefs [A.LetBinding] where
+    bindToAbstract (LetDefs ds) = bindToAbstract (map LetDef $ niceDeclarations ds)
+
+instance BindToAbstract LetDef A.LetBinding where
+    bindToAbstract (LetDef d) ret =
+	case d of
+	    NiceDef _ c [CD.Axiom _ _ _ _ x t] [CD.FunDef _ _ _ _ _ _ cs] ->
+		do  e <- letRHS =<< toAbstract cs
+		    t <- toAbstract t
+		    bindToAbstract (NewName x) $ \x ->
+			ret (A.LetBind (LetSource c) x t e)
+	    _	-> notAValidLetBinding d
+	where
+	    letRHS [A.Clause (A.LHS _ _ args) rhs []] = foldM lambda rhs $ reverse args
+	    letRHS _ = notAValidLetBinding d
+
+	    lambda e (Arg h (A.VarP x)) = return $ A.Lam i (A.DomainFree h x) e
+		where
+		    i = ExprRange (fuseRange x e)
+	    lambda e (Arg h (A.WildP i)) =
+		do  x <- freshNoName (getRange i)
+		    return $ A.Lam i' (A.DomainFree h x) e
+		where
+		    i' = ExprRange (fuseRange i e)
+	    lambda _ _ = notAValidLetBinding d
 
 -- Only constructor names are bound by definitions.
 instance BindToAbstract NiceDefinition Definition where

@@ -157,6 +157,10 @@ instance ToConcrete PatInfo (Maybe C.Pattern) where
 instance ToConcrete ModuleInfo (Maybe [C.Declaration]) where
     toConcrete = toConcrete . minfoSource
 
+instance ToConcrete LetInfo (Maybe [C.Declaration]) where
+    toConcrete (LetSource ds) = stored ds
+    toConcrete _	      = return Nothing
+
 
 -- General instances ------------------------------------------------------
 
@@ -270,7 +274,7 @@ instance ToConcrete A.Expr C.Expr where
     toConcrete (A.Let i ds e) =
 	withStored i
 	$ bracket lamBrackets
-	$ do ds' <- toConcrete ds
+	$ do ds' <- concat <$> toConcrete ds
 	     e'  <- toConcreteCtx TopCtx e
 	     return $ C.Let (getRange i) ds' e'
 
@@ -288,6 +292,12 @@ instance ToConcrete A.TypedBinding C.TypedBinding where
 
 instance ToConcrete [A.Declaration] [C.Declaration] where
     toConcrete ds = concat <$> mapM toConcrete ds
+
+instance ToConcrete LetBinding [C.Declaration] where
+    toConcrete (LetBind i x t e) =
+	withStored i $
+	do  (x,t,e) <- toConcrete (x,t,e)
+	    return [C.TypeSig x t, C.FunClause (C.LHS (getRange x) PrefixDef x []) e []]
 
 data TypeAndDef = TypeAndDef A.TypeSignature A.Definition
 

@@ -16,10 +16,7 @@ module Syntax.Concrete
     , Telescope
       -- * Declarations
     , Declaration(..)
-    , TopLevelDeclaration
     , TypeSignature
-    , LocalDeclaration, PrivateDeclaration
-    , MutualDeclaration, AbstractDeclaration
     , Constructor
     , ImportDirective(..), UsingOrHiding(..), ImportedName(..)
     , LHS(..), Pattern(..)
@@ -54,7 +51,7 @@ data Expr
 	| Set Range			    -- ^ ex: @Set@
 	| Prop Range			    -- ^ ex: @Prop@
 	| SetN Range Nat		    -- ^ ex: @Set0, Set1, ..@
-	| Let Range [LocalDeclaration] Expr -- ^ ex: @let Ds in e@
+	| Let Range [Declaration] Expr	    -- ^ ex: @let Ds in e@
 	| Paren Range Expr		    -- ^ ex: @(e)@
 	| Absurd Range			    -- ^ ex: @()@ or @{}@, only in patterns
 	| As Range Name Expr		    -- ^ ex: @x\@p@, only in patterns
@@ -108,7 +105,7 @@ data LHS = LHS Range IsInfix Name [Arg Pattern]
     deriving (Typeable, Data, Eq)
 
 type RHS	    = Expr
-type WhereClause    = [LocalDeclaration]
+type WhereClause    = [Declaration]
 
 
 -- | The things you are allowed to say when you shuffle names between name
@@ -142,21 +139,6 @@ instance Show ImportedName where
 -- | Just type signatures.
 type TypeSignature	 = Declaration
 
--- | Declarations that can appear in a 'Let' or a 'WhereClause'.
-type LocalDeclaration	 = Declaration
-
--- | Declarations that can appear in a 'Private' block.
-type PrivateDeclaration	 = Declaration
-
--- | Declarations that can appear in a 'Mutual' block.
-type MutualDeclaration	 = Declaration
-
--- | Declarations that can appear in a 'Abstract' block.
-type AbstractDeclaration = Declaration
-
--- | Everything can appear at top-level.
-type TopLevelDeclaration = Declaration
-
 {-| The representation type of a declaration. The comments indicate
     which type in the intended family the constructor targets.
 -}
@@ -165,14 +147,14 @@ data Declaration
 	| FunClause LHS RHS WhereClause
 	| Data        Range Name Telescope Expr [Constructor]
 	| Infix Fixity [Name]
-	| Mutual      Range [MutualDeclaration]
-	| Abstract    Range [AbstractDeclaration]
-	| Private     Range [PrivateDeclaration]
+	| Mutual      Range [Declaration]
+	| Abstract    Range [Declaration]
+	| Private     Range [Declaration]
 	| Postulate   Range [TypeSignature]
 	| Open        Range QName ImportDirective
 	| Import      Range QName (Maybe Name) ImportDirective
 	| ModuleMacro Range  Name Telescope Expr ImportDirective
-	| Module      Range QName Telescope [TopLevelDeclaration]
+	| Module      Range QName Telescope [Declaration]
     deriving (Eq, Typeable, Data)
 
 

@@ -83,6 +83,17 @@ mkSourcedModuleInfo a ds = ModuleInfo a (DeclSource ds)
 instance HasRange ModuleInfo where
     getRange = getRange . minfoSource
 
+---------------------------------------------------------------------------
+-- Let info
+---------------------------------------------------------------------------
+
+data LetInfo = LetRange Range
+	     | LetSource [Declaration]
+
+instance HasRange LetInfo where
+    getRange (LetRange r)   = r
+    getRange (LetSource ds) = getRange ds
+
 {--------------------------------------------------------------------------
     Definition information (declarations that actually defines something)
  --------------------------------------------------------------------------}

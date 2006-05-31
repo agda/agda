@@ -125,6 +125,9 @@ instance Equal Definition where
     DataDef i x bs cs	=== DataDef j y bs' cs'	= (i,x,bs,cs) === (j,y,bs',cs')
     d			=== d'			= unequal d d'
 
+instance Equal LetBinding where
+    LetBind _ x t v === LetBind _ y s u = (x,t,v) === (y,s,u)
+
 instance Equal Clause where
     Clause lhs rhs wh === Clause lhs' rhs' wh'	= (lhs,rhs,wh) === (lhs',rhs',wh')
 

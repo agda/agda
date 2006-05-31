@@ -27,7 +27,7 @@ data Expr
 	| Fun  ExprInfo (Arg Expr) Expr	    -- ^ independent function space
         | Set  ExprInfo Nat		    -- ^
         | Prop ExprInfo			    -- ^
-        | Let  ExprInfo [Declaration] Expr  -- ^
+        | Let  ExprInfo [LetBinding] Expr   -- ^
 
 data Declaration
 	= Axiom      DefInfo Name Expr				-- ^ postulate
@@ -37,6 +37,8 @@ data Declaration
 	| Import     ModuleInfo ModuleName
 	| Open	     DeclSource	    -- ^ this one is here only to enable translation
 				    --   back to concrete syntax
+
+data LetBinding = LetBind LetInfo Name Expr Expr    -- ^ LetBind info name type defn
 
 -- | A definition without its type signature.
 data Definition

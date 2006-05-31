@@ -92,7 +92,7 @@ data NiceDeclaration
 	    -- ^ A bunch of mutually recursive functions\/datatypes.
 	    --   The last two lists have the same length. The first list is the
 	    --   concrete declarations these definitions came from.
-	| NiceModule Range Access IsAbstract QName Telescope [TopLevelDeclaration]
+	| NiceModule Range Access IsAbstract QName Telescope [Declaration]
 	| NiceModuleMacro Range Access IsAbstract Name Telescope Expr ImportDirective
 	| NiceOpen Range QName ImportDirective
 	| NiceImport Range QName (Maybe Name) ImportDirective

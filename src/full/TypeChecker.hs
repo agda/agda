@@ -378,6 +378,19 @@ isEmptyType t =
     where
 	notEmpty = fail $ show t ++ " is not empty"
 
+---------------------------------------------------------------------------
+-- * Let bindings
+---------------------------------------------------------------------------
+
+checkLetBindings :: [A.LetBinding] -> TCM a -> TCM a
+checkLetBindings = foldr (.) id . map checkLetBinding
+
+checkLetBinding :: A.LetBinding -> TCM a -> TCM a
+checkLetBinding (A.LetBind i x t e) ret =
+    do	setCurrentRange i
+	t <- isType_ t
+	v <- checkExpr e t
+	addLetBinding x v t ret
 
 ---------------------------------------------------------------------------
 -- * Sorts
@@ -535,8 +548,14 @@ checkExpr e t =
                         do  setScope (Info.metaScope i)
                             newValueMeta t
 		    A.Lit lit	     -> fail "checkExpr: literals not implemented"
-		    A.Let i ds e     -> fail "checkExpr: let not implemented"
-		    _		     -> fail $ "not a proper term: " ++ show (abstractToConcrete_ e)
+		    A.Let i ds e     -> checkLetBindings ds $ checkExpr e t
+		    A.Pi _ _ _	-> fail $ "not a proper term " ++ showA e
+		    A.Fun _ _ _ -> fail $ "not a proper term " ++ showA e
+		    A.Set _ _	-> fail $ "not a proper term " ++ showA e
+		    A.Prop _	-> fail $ "not a proper term " ++ showA e
+		    A.Var _ _	-> __IMPOSSIBLE__
+		    A.Def _ _	-> __IMPOSSIBLE__
+		    A.Con _ _	-> __IMPOSSIBLE__
 
 
 -- | Infer the type of a head thing (variable, function symbol, or constructor)
