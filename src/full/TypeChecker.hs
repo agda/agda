@@ -502,6 +502,10 @@ checkExpr e t =
 		    return $ v `apply` vs
 	    _ ->
 		case e of
+		    A.App i e arg ->
+			do  (v0,t0) <- inferExpr e
+			    [v1]    <- checkArguments (getRange e) [arg] t0 t
+			    return $ v0 `apply` [v1]
 		    A.Lam i (A.DomainFull b) e ->
 			checkTypedBinding b $ \tel ->
 			    do  t1 <- newTypeMeta_
