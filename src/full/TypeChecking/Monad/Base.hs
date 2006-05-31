@@ -68,8 +68,10 @@ instance HasFresh InteractionId FreshThings where
 	where
 	    i = fInteraction s
 
+-- Name ids are always even. Makes sure that there are no clashes with names
+-- generated during scope checking (which are always odd).
 instance HasFresh NameId FreshThings where
-    nextFresh s = (i, s { fName = i + 1 })
+    nextFresh s = (2 * i, s { fName = i + 1 })
 	where
 	    i = fName s
 
