@@ -244,7 +244,7 @@ instance Normalise Term where
 		Def f vs    -> Def f <$> normalise vs
 		MetaV x vs  -> MetaV x <$> normalise vs
 		Lit _	    -> return v
-		Lam _	    -> return v
+		Lam b	    -> Lam <$> normalise b
 		BlockedV _  -> __IMPOSSIBLE__
 
 instance Normalise t => Normalise (Abs t) where
