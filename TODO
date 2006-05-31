@@ -14,6 +14,8 @@ Features
   to remember the number (or names?) of dependency args. How to show that a
   meta variable cannot depend on a particular variable?
 
+* imports
+
 Fixes
 -----
 
@@ -36,6 +38,8 @@ Fixes
 * make scope checking aware of abstract? or maybe this is too much work
 
 * Context to abstract thinks that the types are valid in the entire context.
+
+* emacs interface gets the metas in the wrong order for local definitions (?)
 
 Cleaning
 --------
