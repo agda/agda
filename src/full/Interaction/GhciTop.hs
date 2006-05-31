@@ -1,6 +1,6 @@
 {-# OPTIONS -cpp -fglasgow-exts#-}
 
-module Interacton.GhciTop where
+module Interaction.GhciTop where
 
 import Prelude hiding (print, putStr, putStrLn)
 import System.IO hiding (print, putStr, putStrLn)
@@ -37,26 +37,38 @@ import Syntax.Abstract.Name
 
 import Interaction.Exceptions
 import qualified Interaction.BasicOps as BO
+import qualified Interaction.CommandLine.CommandLine as CL
 
-theTCState :: IORef(TCState)
-theTCState   = unsafePerformIO $ newIORef(initState)
+theTCState :: IORef TCState
+theTCState   = unsafePerformIO $ newIORef initState
 
-theTCEnv   :: IORef(TCEnv)
-theTCEnv   = unsafePerformIO $ newIORef(initEnv)
+theTCEnv   :: IORef TCEnv
+theTCEnv   = unsafePerformIO $ newIORef initEnv
 
-theUndoStack :: IORef([TCState])
-theUndoStack = unsafePerformIO $ newIORef([])
+theUndoStack :: IORef [TCState]
+theUndoStack = unsafePerformIO $ newIORef []
 
 ioTCM :: TCM a -> IO a
 ioTCM cmd = do 
   us  <- readIORef theUndoStack
   st  <- readIORef theTCState
   env <- readIORef theTCEnv
-  (runTCM $ putUndoStack us >> put st >>
-            liftM3 (,,) (local (const env) cmd) get getUndoStack)
-    >>= either (\ err         -> print err >> exitWith(ExitFailure 1))
-               (\ (a,st',ss') -> writeIORef theTCState st' >>
-                                 writeIORef theUndoStack ss' >> return a)
+  res <- runTCM $ do
+    putUndoStack us
+    put st
+    x <- withEnv env cmd
+    st <- get
+    us <- getUndoStack
+    return (x,st,us)
+  case res of
+    Left err -> do
+	print err
+	exitWith $ ExitFailure 1
+    Right (a,st',ss') -> do
+	writeIORef theTCState st'
+	writeIORef theUndoStack ss'
+	return a
+
 cmd_load :: String -> IO ()
 cmd_load file = crashOnException $ do
     (m',scope) <- concreteToAbstract_ =<< parseFile moduleParser file
@@ -65,20 +77,20 @@ cmd_load file = crashOnException $ do
 cmd_constraints :: IO ()
 cmd_constraints = crashOnException $ do
     putStrLn . unlines . List.map prc . Map.assocs =<< ioTCM getConstraints
-  where prc (x,(_,ctx,c)) = show x ++ ": " ++ show ctx ++ " |- " ++ show c
+  where prc (x,CC _ ctx c) = show x ++ ": " ++ show ctx ++ " |- " ++ show c
 
 cmd_metas :: IO ()
-cmd_metas = crashOnException $ ioTCM BO.getMetas >>= putStrLn . unlines
+cmd_metas = crashOnException $ ioTCM $ CL.showMetas []
 
 cmd_undo :: IO ()
 cmd_undo = ioTCM $ undo
 
-cmd_give :: InteractionId -> String -> IO(String,[InteractionId])
+cmd_give :: InteractionId -> String -> IO (String,[InteractionId])
 cmd_give ii s = crashOnException $ ioTCM $ do
     (e, iis) <- BO.give ii Nothing =<< parseExprIn ii s
     return (show e, iis)
 
-parseExprIn :: InteractionId -> String -> TCM(Expr)
+parseExprIn :: InteractionId -> String -> TCM Expr
 parseExprIn ii s = do
     mi <- getMetaInfo <$> (lookupMeta =<< lookupInteractionId ii)
     i  <- fresh

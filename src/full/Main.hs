@@ -28,6 +28,7 @@ import Interaction.CommandLine.CommandLine
 import Interaction.EmacsInterface.EmacsAgda
 import Interaction.Options
 import Interaction.Monad
+import Interaction.GhciTop ()	-- to make sure it compiles
 
 import TypeChecker
 import TypeChecking.Monad
