@@ -165,6 +165,8 @@ sSuc s		 = Suc s
 sLub :: Sort -> Sort -> Sort
 sLub Prop (Type 0)     = Type 1
 sLub (Type 0) Prop     = Prop   -- (x:A) -> B prop if A type0, B prop [x:A]
+sLub Prop (Type n)     = Type n
+sLub (Type n) Prop     = Type n
 sLub (Type n) (Type m) = Type $ max n m
 sLub s1 s2
     | s1 == s2	= s1
