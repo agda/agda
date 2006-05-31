@@ -49,6 +49,14 @@ force xs = do () <- length xs `seq` return ()
 commuteM :: (FunctorM f, Monad m) => f (m a) -> m (f a)
 commuteM = fmapM id
 
+type Cont r a = (a -> r) -> r
+
+-- | 'mapM' for the continuation monad. Terribly useful.
+thread :: (a -> Cont r b) -> [a] -> Cont r [b]
+thread f [] ret = ret []
+thread f (x:xs) ret =
+    f x $ \y -> thread f xs $ \ys -> ret (y:ys)
+
 -- Maybe ------------------------------------------------------------------
 
 mapMaybeM :: Monad m => (a -> m b) -> Maybe a -> m (Maybe b)
