@@ -9,8 +9,6 @@ Todo
 * debug information
 * move trace to environment
 
-* optimise
-
 * allow more things in postulates (infix, private?, ..)
 
 * Check out lex/parse errors (what position and what input is reported).
@@ -44,6 +42,8 @@ Cleaning
 
 Done
 ----
+
+* optimise
 
 * for an as-pattern x@p x should reduce to p during type checking
 
