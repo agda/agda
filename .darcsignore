@@ -13,3 +13,4 @@
 \.(log|ps|aux|bbl|nav|bak|snm|toc|out)$
 \.dvi$
 \.pdf$
+~$
