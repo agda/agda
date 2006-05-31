@@ -184,23 +184,26 @@ rewrite Normalised   t = normalise t
 
 
 data OutputForm a b =
-      OfType b a | JustType b | EqInType a b b | EqTypes b b
+      OfType b a | JustType b | EqInType a b b | EqTypes b b | JustSort b
 
 
 instance Functor (OutputForm a) where
     fmap f (OfType e t) = OfType (f e) t
     fmap f (JustType e) = JustType (f e)
+    fmap f (JustSort e) = JustSort (f e)
     fmap f (EqInType t e e') = EqInType t (f e) (f e')
     fmap f (EqTypes e e') = EqTypes (f e) (f e')
 
 instance Reify Constraint (OutputForm Expr Expr) where
     reify (ValueEq t u v) = EqInType <$> reify t <*> reify u <*> reify v 
     reify (TypeEq t t') = EqTypes <$> reify t <*> reify t'
-    reify _ = __IMPOSSIBLE__
+    reify (SortEq _ _) = __IMPOSSIBLE__
+    reify (SortLeq _ _) = __IMPOSSIBLE__
 
 instance (Show a,Show b) => Show (OutputForm a b) where
     show (OfType e t) = show e ++ " : " ++ show t
     show (JustType e) = "Type " ++ show e
+    show (JustSort e) = "Sort " ++ show e
     show (EqInType t e e') = show e ++ " = " ++ show e' ++ " : " ++ show t
     show (EqTypes  t t') = show t ++ " = " ++ show t'
 
@@ -208,6 +211,7 @@ instance (ToConcrete a c, ToConcrete b d) =>
          ToConcrete (OutputForm a b) (OutputForm c d) where
     toConcrete (OfType e t) = OfType <$> toConcrete e <*> toConcrete t
     toConcrete (JustType e) = JustType <$> toConcrete e
+    toConcrete (JustSort e) = JustSort <$> toConcrete e
     toConcrete (EqInType t e e') = 
              EqInType <$> toConcrete t <*> toConcrete e <*> toConcrete e'
     toConcrete (EqTypes e e') = EqTypes <$> toConcrete e <*> toConcrete e'
@@ -221,7 +225,7 @@ instance ToConcrete MetaId Syntax.Concrete.Expr where
 judgToOutputForm :: Judgement a b c -> OutputForm a c
 judgToOutputForm (HasType e t) = OfType e t
 judgToOutputForm (IsType t s) = JustType t
-judgToOutputForm _            = __IMPOSSIBLE__
+judgToOutputForm (IsSort s) = JustSort s
 
 
 mkUndo :: IM ()
@@ -251,7 +255,7 @@ typeOfMetaMI norm mi =
                  do  t <- rewrite norm t 
                      OfType i <$> reify t
          rewriteJudg mv (IsType i s)  = return $ JustType i 
-         rewriteJudg mv (IsSort i)    = __IMPOSSIBLE__
+         rewriteJudg mv (IsSort i)    = return $ JustSort i
 
 
 typeOfMeta :: Rewrite -> InteractionId -> IM (OutputForm Expr InteractionId)
