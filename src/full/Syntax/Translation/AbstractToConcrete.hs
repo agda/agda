@@ -234,7 +234,7 @@ instance ToConcrete A.Expr C.Expr where
 		| opStr (show x) = Just (nameFixity i, concreteName i)
 	    isOp _ = Nothing
 
-	    opStr (c:_) = not (isAlphaNum c)
+	    opStr (c:_) = not (isAlpha c || c == '_')
 	    opStr _	= __IMPOSSIBLE__
 
     toConcrete (A.App i e1 e2)    =

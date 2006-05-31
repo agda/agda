@@ -127,8 +127,15 @@ instance Reify Sort Expr where
 		I.Type n  -> return $ A.Set exprInfo n
 		I.Prop	  -> return $ A.Prop exprInfo
 		I.MetaS x -> reify x
-		I.Suc _	  -> fail "TODO: translate Suc"
-		I.Lub _ _ -> fail "TODO: translate Lub"
+		I.Suc s	  ->
+		    do	suc <- freshName_ "suc"	-- TODO: hack
+			e   <- reify s
+			return $ A.App exprInfo (A.Var (nameInfo suc) suc) (Arg NotHidden e)
+		I.Lub s1 s2 ->
+		    do	lub <- freshName_ "\\/"	-- TODO: hack
+			(e1,e2) <- reify (s1,s2)
+			let app x y = A.App exprInfo x (Arg NotHidden y)
+			return $ A.Var (nameInfo lub) lub `app` e1 `app` e2
 
 instance Reify i a => Reify (Abs i) (Name, a) where
     reify (Abs s v) =
