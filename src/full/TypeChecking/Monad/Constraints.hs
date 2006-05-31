@@ -7,6 +7,7 @@ import Data.Map as Map
 import TypeChecking.Monad.Base
 import TypeChecking.Monad.Signature
 import TypeChecking.Monad.Env
+import TypeChecking.Monad.State
 
 -- | Get the constraints
 getConstraints :: TCM Constraints
@@ -27,8 +28,9 @@ takeConstraints =
 	return cs
 
 withConstraint :: (Constraint -> TCM a) -> ConstraintClosure -> TCM a
-withConstraint f (CC sig env c) =
+withConstraint f (CC sig env scope c) =
     withSignature sig
     $ withEnv env
+    $ withScope scope
     $ f c
 

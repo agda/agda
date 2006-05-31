@@ -40,10 +40,10 @@ import qualified Interaction.BasicOps as BO
 import qualified Interaction.CommandLine.CommandLine as CL
 
 theTCState :: IORef TCState
-theTCState   = unsafePerformIO $ newIORef initState
+theTCState = unsafePerformIO $ newIORef initState
 
-theTCEnv   :: IORef TCEnv
-theTCEnv   = unsafePerformIO $ newIORef initEnv
+theTCEnv :: IORef TCEnv
+theTCEnv = unsafePerformIO $ newIORef initEnv
 
 theUndoStack :: IORef [TCState]
 theUndoStack = unsafePerformIO $ newIORef []
@@ -77,7 +77,7 @@ cmd_load file = crashOnException $ do
 cmd_constraints :: IO ()
 cmd_constraints = crashOnException $ do
     putStrLn . unlines . List.map prc . Map.assocs =<< ioTCM getConstraints
-  where prc (x,CC _ ctx c) = show x ++ ": " ++ show ctx ++ " |- " ++ show c
+  where prc (x,CC _ ctx _ c) = show x ++ ": " ++ show ctx ++ " |- " ++ show c
 
 cmd_metas :: IO ()
 cmd_metas = crashOnException $ ioTCM $ CL.showMetas []

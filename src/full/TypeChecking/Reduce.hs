@@ -85,7 +85,8 @@ instance (Instantiate a, Instantiate b,Instantiate c) => Instantiate (a,b,c) whe
 
 
 instance Instantiate ConstraintClosure where
-    instantiate cc@(CC sig env _) = CC sig env <$> withConstraint instantiate cc
+    instantiate cc@(CC sig env scope _) = 
+        CC sig env scope <$> withConstraint instantiate cc
 
 instance Instantiate Constraint where
     instantiate (ValueEq t u v) =
@@ -195,7 +196,7 @@ instance Reduce Term where
 
 
 instance Reduce ConstraintClosure where
-    reduce cc@(CC sig env _) = CC sig env <$> withConstraint reduce cc
+    reduce cc@(CC sig env scope _) = CC sig env scope <$> withConstraint reduce  cc
 
 instance Reduce Constraint where
     reduce (ValueEq t u v) =
@@ -264,7 +265,7 @@ instance (Normalise a, Normalise b, Normalise c) => Normalise (a,b,c) where
 	    return (x,y,z)
 
 instance Normalise ConstraintClosure where
-    normalise cc@(CC sig env _) = CC sig env <$> withConstraint normalise cc
+    normalise cc@(CC sig env scope _) = CC sig env scope <$> withConstraint normalise cc
 
 instance Normalise Constraint where
     normalise (ValueEq t u v) =

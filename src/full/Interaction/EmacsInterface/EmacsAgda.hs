@@ -158,7 +158,7 @@ interaction prompt cmds eval = loop
 				    do	liftIO $ putStrLn $ "More than one command match: " ++ concat (intersperse ", " xs)
 					loop
 	    `catchError` \e ->
-		do  liftIO $ putStrLn $ printError e --Add: errorCommand $ 
+		do  liftIO $ putStrLn $ errorCommand $ printError e 
 		    loop
 
 printRange (Range NoPos _) = "Unknown Position " 
@@ -170,8 +170,8 @@ printRange (Range s e) = "At: " ++ file ++ line ++ col
 	    file
 		| List.null f    = ""
 		| otherwise = "\"" ++ f ++ "\"" 
-	    line = " ,line  " ++ show sl
-	    col = " ,column " ++ show sc
+	    line = ", line " ++ show sl
+	    col = ", column " ++ show sc
 
 printError :: TCErr -> String
 printError (Fatal r s) = printRange r ++ "\n" ++ s
@@ -196,9 +196,9 @@ emacsModeLoop typeCheck =
     do  reload
 	interaction "Main> " commands evalTerm
     where
-	reload = (setUndo >> typeCheck) `catchError`
-		    \e -> liftIO $ do print e
-				      putStrLn "Failed."
+	reload = (setUndo >> typeCheck) -- `catchError`
+		    -- \e -> liftIO $ do print e
+			--	      putStrLn "Failed."
 
 	commands =
 	    [ "quit"	    |>  \_ -> return $ Return ()
@@ -231,13 +231,6 @@ updateActionIM action = do
         action
         showMetas []
         showConstraints []
-        --printOutput
-
-
-
---    `handle` \e -> do liftIOIM(putStrLn (mkError e))
---                      flushOutput
---                      return ()
 
 loadFile :: IM () -> [String] -> IM ()
 loadFile reload [file,buffer] =
@@ -252,10 +245,10 @@ loadFile reload [file,buffer] =
 loadFile _ _ = liftIO $ putStrLn ":load file"
 
 showConstraints :: [String] -> IM ()
---showConstraints [c] =
---    do	i  <- readM c
---	cc <- normalise =<< lookupConstraint (CId i)
---	liftIO $ putStrLn $ infoCommand constraintBuffer $ show ccConstraint cc
+showConstraints [c] =
+    do	i  <- readM c
+	cc <- abstractToConcrete_ <$>  BasicOps.getConstraint (CId i)
+	liftIO $ putStrLn $ infoCommand constraintBuffer $ show cc
 showConstraints [] =
     do	cs <- BasicOps.getConstraints
         let concrete = List.map abstractToConcrete_ cs

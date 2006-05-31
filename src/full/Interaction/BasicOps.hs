@@ -228,12 +228,17 @@ mkUndo :: IM ()
 mkUndo = undo
 
 --- Printing Operations
+getConstraint :: ConstraintId -> IM (OutputForm Expr Expr)
+getConstraint ci = 
+    do  cc <- lookupConstraint ci 
+        cc <- reduce cc
+        withConstraint reify cc
+
+
 getConstraints :: IM [OutputForm Expr Expr] 
 getConstraints = liftTCM $
-    do	cs <- M.getConstraints
-	cs <- mapM reduce $ Map.elems cs
-        mapM reify $ List.map ccConstraint cs
-
+    do	cis <- Map.keys <$> M.getConstraints
+        mapM getConstraint cis
 
 
 typeOfMetaMI :: Rewrite -> MetaId -> IM (OutputForm Expr MetaId)
@@ -275,9 +280,10 @@ typeOfMetas norm = liftTCM $
 contextOfMeta :: InteractionId -> IM [OutputForm Expr Name]
 contextOfMeta ii =
      do  mi <- lookupInteractionId ii
-         env <- getMetaEnv <$> lookupMeta mi
+         metaInfo <- getMetaInfo <$> lookupMeta mi
+         let env = metaEnv metaInfo
          let localVars =  List.filter visibleVar $ envContext env
-         mapM translate localVars
+         withMetaInfo metaInfo $ mapM translate localVars
   where visibleVar (x,_) = (show x) /= "_"
         translate (x,t) = OfType x <$> reify t
 

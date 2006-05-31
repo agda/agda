@@ -95,6 +95,7 @@ instance Show ConstraintId where
 
 data ConstraintClosure = CC { ccSignature  :: Signature
 			    , ccEnv	   :: TCEnv
+                            , ccScope      :: ScopeInfo
 			    , ccConstraint :: Constraint
 			    }
     deriving (Typeable, Data)

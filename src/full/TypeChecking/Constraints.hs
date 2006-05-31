@@ -34,8 +34,9 @@ addConstraint :: Constraint -> TCM ()
 addConstraint c =
     do	env <- getEnv
 	sig <- getSignature
+        scope <- getScope
 	cId <- fresh
-	modify $ \st -> st { stConstraints = Map.insert cId (CC sig env c)
+	modify $ \st -> st { stConstraints = Map.insert cId (CC sig env scope c)
 						$ stConstraints st
 			   }
 

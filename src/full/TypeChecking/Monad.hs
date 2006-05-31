@@ -1,4 +1,3 @@
-
 module TypeChecking.Monad
     ( module TypeChecking.Monad.Base
     , module TypeChecking.Monad.Constraints
@@ -22,4 +21,5 @@ import TypeChecking.Monad.Options
 import TypeChecking.Monad.Signature
 import TypeChecking.Monad.State
 import TypeChecking.Monad.Trace
+
 
