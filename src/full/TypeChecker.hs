@@ -305,35 +305,28 @@ checkClause t (A.Clause (A.LHS i x ps) rhs ds) =
 checkPatterns :: [Arg A.Pattern] -> Type -> ([String] -> [Arg Pattern] -> [Arg Term] -> Type -> TCM a) -> TCM a
 checkPatterns [] t ret	   =
     do	t' <- instantiate t
-	case t' of
-	    Pi (Arg Hidden _) _   ->
-		do  r <- getCurrentRange
-		    checkPatterns [Arg Hidden $ A.WildP $ PatRange r] t' ret
-	    Fun (Arg Hidden _) _   ->
+	case funView t' of
+	    FunV (Arg Hidden _) _   ->
 		do  r <- getCurrentRange
 		    checkPatterns [Arg Hidden $ A.WildP $ PatRange r] t' ret
 	    _		    -> ret [] [] [] t
 checkPatterns (Arg h p:ps) t ret =
     do	setCurrentRange p
 	t' <- forcePi h t
-	case (h,t') of
-	    (NotHidden, Fun (Arg Hidden _) _) ->
+	case (h,funView t') of
+	    (NotHidden, FunV (Arg Hidden _) _) ->
 		checkPatterns (Arg Hidden (A.WildP $ PatRange $ getRange p) : Arg h p : ps) t' ret
-	    (NotHidden, Pi (Arg Hidden _) _) ->
-		checkPatterns (Arg Hidden (A.WildP $ PatRange $ getRange p) : Arg h p : ps) t' ret
-	    (_,Pi (Arg h' a) b) | h == h' ->
-		checkPattern ("_" ++ absName b) p a $ \xs p' v ->
-		do  let b' = raise (length xs) b
-		    checkPatterns ps (absApp b' v) $ \ys ps' vs t'' ->
-			do  let v' = raise (length ys) v
-			    ret (xs ++ ys) (Arg h p':ps')(Arg h v':vs) t''
-	    (_,Fun (Arg h' a) b) | h == h' ->
-		checkPattern "_" p a $ \xs p' v ->
-		do  let b' = raise (length xs) b
-		    checkPatterns ps b' $ \ys ps' vs t'' ->
+	    (_, FunV (Arg h' a) _) | h == h' ->
+		checkPattern (hName t') p a $ \xs p' v ->
+		do  let t0 = raise (length xs) t'
+		    checkPatterns ps (piApply t0 [Arg h' v]) $ \ys ps' vs t'' ->
 			do  let v' = raise (length ys) v
 			    ret (xs ++ ys) (Arg h p':ps')(Arg h v':vs) t''
 	    _ -> fail $ show t ++ " should be a " ++ show h ++ " function type"
+    where
+	hName (Pi _ b)	= "_" ++ absName b
+	hName (Fun _ _) = "_"
+	hName _		= __IMPOSSIBLE__
 
 
 -- | Type check a pattern and bind the variables. First argument is a name
@@ -343,7 +336,7 @@ checkPattern name (A.VarP x) t ret =
     addCtx x t $ ret [show x] (VarP $ show x) (Var 0 [])
 checkPattern name (A.WildP i) t ret =
     do	x <- freshName (getRange i) name
-	addCtx x t $ ret [show x] (VarP name) (Var 0 [])
+	addCtx x t $ ret [name] (VarP name) (Var 0 [])
 checkPattern name (A.ConP i c ps) t ret =
     do	setCurrentRange i
 	Defn t' _ (Constructor n d _) <- getConstInfo c -- don't instantiate this
