@@ -55,7 +55,7 @@ qnameInfo x =
     do	scope <- getScope
 	let fx = case resolveName (qnameConcrete x) scope of
 		    DefName d -> fixity d
-		    _	      -> __IMPOSSIBLE__
+		    _	      -> NonAssoc noRange 10 -- out of scope
 	return $ NameInfo
 		 { bindingSite  = noRange
 		 , concreteName = qnameConcrete x
