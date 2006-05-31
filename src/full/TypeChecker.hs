@@ -132,9 +132,7 @@ checkModuleDef i x tel m' args =
 	    (gamma,omega) = splitAt (length gammaOmega - mdefNofParams md') gammaOmega
 	    delta	  = drop (length gamma) gammaDelta
 	checkTelescope tel $ \theta ->
-	    do	--debug $ "module " ++ show m ++ " " ++ show theta ++ " = " ++ show m' ++ " " ++ show args
-		--debug $ "module " ++ show m' ++ " " ++ show gamma ++ show omega
-		vs <- checkArguments_ (getRange m') args omega
+	    do	vs <- checkArguments_ (getRange m') args omega
 		let vs0 = reverse [ Arg Hidden
 				  $ Var (i + length delta + length theta) []
 				  | i <- [0..length gamma - 1]

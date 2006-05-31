@@ -132,7 +132,7 @@ equalTyp _ a1 a2 =
 	      , f2@(FunV _ _) <- funView a2' -> equalFun f1 f2
 	    (El m1 s1, El m2 s2) ->
 		equalVal Why (sort s1) m1 m2
-	    (Sort s1, Sort s2) -> return ()
+	    (Sort s1, Sort s2) -> equalSort s1 s2
 	    (MetaT x xDeps, MetaT y yDeps) | x == y -> 
 		equalSameVar (\x -> MetaT x []) InstT x xDeps yDeps
 	    (MetaT x xDeps, a) -> assignT x xDeps a 
@@ -213,10 +213,9 @@ equalSort s1 s2 =
 
 	    (Type n  , Type m  ) | n == m    -> return ()
 				 | otherwise -> notEq s1 s2
-	    (Suc s   , Type n  ) | n >= 1    -> equalSort s (Type $ n - 1)
+	    (Suc s   , Type n  ) | n >= 2    -> equalSort s (Type $ n - 1)
 				 | otherwise -> notEq s1 s2
-	    (Type n  , Suc s   ) | n >= 1    -> equalSort (Type $ n - 1) s
-	    (Suc s1  , Suc s2  )	     -> equalSort s1 s2
+	    (Type n  , Suc s   ) | n >= 2    -> equalSort (Type $ n - 1) s
 	    (_	     , Suc _   )	     -> addConstraint (SortEq s1 s2)
 	    (Suc _   , _       )	     -> addConstraint (SortEq s1 s2)
 
