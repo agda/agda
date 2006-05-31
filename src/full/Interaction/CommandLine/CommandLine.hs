@@ -103,6 +103,7 @@ interactionLoop typeCheck =
             , "load"	    |> \args -> continueAfter $ loadFile reload args
 	    , "eval"	    |> \args -> continueAfter $ evalIn args
             , "typeOf"      |> \args -> continueAfter $ typeOf args
+            , "typeIn"      |> \args -> continueAfter $ typeIn args
 	    , "wakeup"	    |> \_ -> continueAfter $ retryConstraints
 	    ]
 	    where
@@ -158,8 +159,8 @@ metaParseExpr ii s =
     where
 	c r = parsePosString exprParser (rStart r) s
 
-actOnMeta :: (InteractionId -> A.Expr -> IM a) -> [String] -> IM a
-actOnMeta f (is:es) = 
+actOnMeta :: [String] -> (InteractionId -> A.Expr -> IM a) -> IM a
+actOnMeta (is:es) f = 
      do  i <- readM is
          let ii = InteractionId i 
          e <- metaParseExpr ii (unwords es)
@@ -169,7 +170,7 @@ actOnMeta _ _ = __IMPOSSIBLE__
 
 giveMeta :: [String] -> IM ()
 giveMeta s | length s >= 2 = 
-    do  actOnMeta (\ii -> \e  -> give ii Nothing e) s
+    do  actOnMeta s (\ii -> \e  -> give ii Nothing e)
         return ()
 giveMeta _ = liftIO $ putStrLn $ ": give" ++ " metaid expr"
 
@@ -177,7 +178,7 @@ giveMeta _ = liftIO $ putStrLn $ ": give" ++ " metaid expr"
 
 refineMeta :: [String] -> IM ()
 refineMeta s | length s >= 2 = 
-    do  actOnMeta (\ii -> \e  -> refine ii Nothing e) s
+    do  actOnMeta s (\ii -> \e  -> refine ii Nothing e)
         return ()
 refineMeta _ = liftIO $ putStrLn $ ": refine" ++ " metaid expr"
 
@@ -189,7 +190,7 @@ retryConstraints = liftTCM wakeupConstraints
 
 evalIn :: [String] -> TCM ()
 evalIn s | length s >= 2 =
-    do	v <- actOnMeta evalInMeta s 
+    do	v <- actOnMeta s evalInMeta
         liftIO $ putStrLn $ show v
 evalIn _ = liftIO $ putStrLn ":eval metaid expr"
 
@@ -220,17 +221,19 @@ evalTerm s =
 typeOf :: [String] -> TCM ()
 typeOf s = 
     do  e  <- parseExpr (unwords s)
-        v  <- typeInCurrent Normalised e
-        v' <- typeInCurrent AsIs e
-	e  <- reify v
-	e' <- reify v'
+        e  <- typeInCurrent Normalised e
+        e' <- typeInCurrent AsIs e
        	liftIO $ putStrLn $   "Normal form:\n  " ++ showA e ++ 
                             "\nHead Normal Form:\n  " ++ showA e'
-    where
-	typeInCurrent norm e =
-	    do 	t <- newTypeMeta_ 
-		checkExpr e t
-		rewrite norm t
+
+typeIn :: [String] -> TCM ()
+typeIn s@(_:_:_) = 
+    actOnMeta s $ \i e ->
+    do	e1  <- typeInMeta i Normalised e
+        e2 <- typeInMeta i AsIs e
+       	liftIO $ putStrLn $   "Normal form:\n  " ++ showA e1 ++ 
+                            "\nHead Normal Form:\n  " ++ showA e2
+typeIn _ = liftIO $ putStrLn ":typeIn meta expr"
 
 
 
