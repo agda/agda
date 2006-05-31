@@ -41,6 +41,8 @@ Fixes
 
 * emacs interface gets the metas in the wrong order for local definitions (?)
 
+* scope checking yields impossible when things clash
+
 Cleaning
 --------
 
