@@ -142,7 +142,7 @@ showMetas [] =
         let ims =  List.map show interactionMetas 
             hms =  List.map show hiddenMetas
         liftIO $ putStrLn $ unlines $ ims ++ hms
-showMetas _ = liftIO $ putStrLn $ ":hidden [metaid]"
+showMetas _ = liftIO $ putStrLn $ ":meta [metaid]"
 
 
 

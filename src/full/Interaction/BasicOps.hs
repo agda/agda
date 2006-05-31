@@ -183,9 +183,10 @@ rewrite HeadNormal   t = reduce t
 rewrite Normalised   t = normalise t
 
 
-data OutputForm a b =
-      OfType b a | JustType b | EqInType a b b | EqTypes b b | JustSort b
-
+data OutputForm a b
+      = OfType b a | EqInType a b b
+      | JustType b | EqTypes b b
+      | JustSort b | EqSorts b b | LeqSorts b b
 
 instance Functor (OutputForm a) where
     fmap f (OfType e t) = OfType (f e) t
@@ -193,12 +194,14 @@ instance Functor (OutputForm a) where
     fmap f (JustSort e) = JustSort (f e)
     fmap f (EqInType t e e') = EqInType t (f e) (f e')
     fmap f (EqTypes e e') = EqTypes (f e) (f e')
+    fmap f (EqSorts e e') = EqSorts (f e) (f e')
+    fmap f (LeqSorts e e') = LeqSorts (f e) (f e')
 
 instance Reify Constraint (OutputForm Expr Expr) where
     reify (ValueEq t u v) = EqInType <$> reify t <*> reify u <*> reify v 
     reify (TypeEq t t') = EqTypes <$> reify t <*> reify t'
-    reify (SortEq _ _) = __IMPOSSIBLE__
-    reify (SortLeq _ _) = __IMPOSSIBLE__
+    reify (SortEq s s') = EqSorts <$> reify s <*> reify s'
+    reify (SortLeq s s') = LeqSorts <$> reify s <*> reify s'
 
 instance (Show a,Show b) => Show (OutputForm a b) where
     show (OfType e t) = show e ++ " : " ++ show t
@@ -206,6 +209,8 @@ instance (Show a,Show b) => Show (OutputForm a b) where
     show (JustSort e) = "Sort " ++ show e
     show (EqInType t e e') = show e ++ " = " ++ show e' ++ " : " ++ show t
     show (EqTypes  t t') = show t ++ " = " ++ show t'
+    show (EqSorts s s') = show s ++ " = " ++ show s'
+    show (LeqSorts s s') = show s ++ " <= " ++ show s'
 
 instance (ToConcrete a c, ToConcrete b d) => 
          ToConcrete (OutputForm a b) (OutputForm c d) where
@@ -215,6 +220,8 @@ instance (ToConcrete a c, ToConcrete b d) =>
     toConcrete (EqInType t e e') = 
              EqInType <$> toConcrete t <*> toConcrete e <*> toConcrete e'
     toConcrete (EqTypes e e') = EqTypes <$> toConcrete e <*> toConcrete e'
+    toConcrete (EqSorts e e') = EqSorts <$> toConcrete e <*> toConcrete e'
+    toConcrete (LeqSorts e e') = LeqSorts <$> toConcrete e <*> toConcrete e'
 
 --ToDo: Move somewhere else
 instance ToConcrete InteractionId Syntax.Concrete.Expr where
