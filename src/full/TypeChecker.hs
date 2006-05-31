@@ -1,4 +1,4 @@
-{-# OPTIONS -cpp #-}
+{-# OPTIONS -cpp -fglasgow-exts #-}
 
 module TypeChecker where
 
@@ -315,16 +315,17 @@ checkPatterns (Arg h p:ps) t ret =
 	    (NotHidden, FunV (Arg Hidden _) _) ->
 		checkPatterns (Arg Hidden (A.WildP $ PatRange $ getRange p) : Arg h p : ps) t' ret
 	    (_, FunV (Arg h' a) _) | h == h' ->
-		checkPattern (hName t') p a $ \xs p' v ->
+		checkPattern (argName t') p a $ \xs p' v ->
 		do  let t0 = raise (length xs) t'
 		    checkPatterns ps (piApply t0 [Arg h' v]) $ \ys ps' vs t'' ->
 			do  let v' = raise (length ys) v
 			    ret (xs ++ ys) (Arg h p':ps')(Arg h v':vs) t''
 	    _ -> fail $ show t ++ " should be a " ++ show h ++ " function type"
-    where
-	hName (Pi _ b)	= "_" ++ absName b
-	hName (Fun _ _) = "_"
-	hName _		= __IMPOSSIBLE__
+
+-- | TODO: move
+argName (Pi _ b)  = "_" ++ absName b
+argName (Fun _ _) = "_"
+argName _	  = __IMPOSSIBLE__
 
 
 -- | Type check a pattern and bind the variables. First argument is a name
@@ -510,6 +511,7 @@ checkExpr e t =
 			do  (v0,t0) <- inferExpr e
 			    [v1]    <- checkArguments (getRange e) [arg] t0 t
 			    return $ v0 `apply` [v1]
+
 		    A.Lam i (A.DomainFull b) e ->
 			checkTypedBinding b $ \tel ->
 			    do  t1 <- newTypeMeta_
@@ -519,17 +521,26 @@ checkExpr e t =
 			where
 			    name (Arg h (x,_)) = Arg h x
 
-		    A.Lam i (A.DomainFree h x) e ->
+		    A.Lam i (A.DomainFree h x) e0 ->
 			do  t' <- forcePi h t
 			    case t' of
-				Pi (Arg h' a) (Abs _ b) | h == h' ->
-				    addCtx x a $
-				    do  v <- checkExpr e b
-					return $ Lam (Abs (show x) v)
-				Fun (Arg h' a) b | h == h' ->
-				    addCtx x a $
-				    do  v <- checkExpr e (raise 1 b)
-					return $ Lam (Abs (show x) v)
+				Pi (Arg h' a) (Abs _ b)
+				    | h == h' ->
+					addCtx x a $
+					do  v <- checkExpr e0 b
+					    return $ Lam (Abs (show x) v)
+				    | (NotHidden, Hidden) <- (h, h') ->
+					do  x <- freshName (getRange x) (argName t')
+					    checkExpr (A.Lam i (A.DomainFree Hidden x) e) t'
+
+				Fun (Arg h' a) b
+				    | h == h' ->
+					addCtx x a $
+					do  v <- checkExpr e0 (raise 1 b)
+					    return $ Lam (Abs (show x) v)
+				    | (NotHidden, Hidden) <- (h, h') ->
+					do  x <- freshName (getRange x) (argName t')
+					    checkExpr (A.Lam i (A.DomainFree Hidden x) e) t'
 				_	-> fail $ "expected " ++ show h ++ " function space, found " ++ show t'
 
 		    A.QuestionMark i -> 
