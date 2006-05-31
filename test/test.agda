@@ -45,3 +45,6 @@ f zero	    t = t
 foo_ : Nat -> Nat
 foo_ n = n
 
+--beta : Nat -> Nat
+beta n = (\x -> x) n
+
