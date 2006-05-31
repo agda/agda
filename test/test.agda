@@ -42,3 +42,6 @@ f : (n:Nat) -> T n -> T n
 f n@(suc _) t = mkT n
 f zero	    t = t
 
+foo_ : Nat -> Nat
+foo_ n = n
+
