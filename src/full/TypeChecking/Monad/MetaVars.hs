@@ -30,7 +30,7 @@ lookupMeta m =
     do	mmv <- Map.lookup m <$> getMetaStore
 	case mmv of
 	    Just mv -> return mv
-	    _	    -> __IMPOSSIBLE__
+	    _	    -> fail $ "no such meta variable " ++ show m
 
 
 createMetaInfo :: TCM MetaInfo
@@ -73,7 +73,7 @@ lookupInteractionId ii =
     do  mmi <- Map.lookup ii <$> gets stInteractionPoints
 	case mmi of
 	    Just mi -> return mi
-	    _	    -> liftIO __IMPOSSIBLE__
+	    _	    -> fail $ "no such interaction point: " ++ show ii
 
 judgementInteractionId :: InteractionId -> TCM (Judgement Type Sort MetaId)
 judgementInteractionId ii = 
