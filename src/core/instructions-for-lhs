@@ -1,0 +1,6 @@
+You execute the lhs-files by ghc to run them as haskell programs
+and by lhs2TeX to produce a tex-file:
+
+lhs2TeX --poly main.lhs>main.tex
+
+
