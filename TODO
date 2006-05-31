@@ -1,12 +1,22 @@
 
-Todo
-----
+Features
+--------
 
 * good error messages
 
 * structured verbosity
 
 * debug information
+
+* handle absurd patterns (how? like in agdaLight or differently?)
+
+* Use substitutions for meta dependencies (at least for printing).  We'll need
+  to remember the number (or names?) of dependency args. How to show that a
+  meta variable cannot depend on a particular variable?
+
+Fixes
+-----
+
 * move trace to environment
 
 * allow more things in postulates (infix, private?, ..)
@@ -17,19 +27,15 @@ Todo
 
 * Hiding info on lambdas.
 
-* handle absurd patterns (how? like in agdaLight or differently?)
-
 * name suggestions in telescopes
-
-* Use substitutions for meta dependencies (at least for printing).  We'll need
-  to remember the number (or names?) of dependency args. How to show that a
-  meta variable cannot depend on a particular variable?
 
 * write better tests
 
 * doesn't scope checking check for name clashes when opening?
 
 * make scope checking aware of abstract? or maybe this is too much work
+
+* Context to abstract thinks that the types are valid in the entire context.
 
 Cleaning
 --------
