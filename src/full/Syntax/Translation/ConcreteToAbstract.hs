@@ -321,15 +321,18 @@ instance BindToAbstract LetDefs [A.LetBinding] where
 instance BindToAbstract LetDef A.LetBinding where
     bindToAbstract (LetDef d) ret =
 	case d of
-	    NiceDef _ c [CD.Axiom _ _ _ _ x t] [CD.FunDef _ _ _ _ _ _ cs] ->
-		do  e <- letRHS =<< toAbstract cs
+	    NiceDef _ c [CD.Axiom _ _ _ _ x t] [CD.FunDef _ _ _ _ _ _ [cl]] ->
+		do  e <- letToAbstract cl
 		    t <- toAbstract t
 		    bindToAbstract (NewName x) $ \x ->
 			ret (A.LetBind (LetSource c) x t e)
 	    _	-> notAValidLetBinding d
 	where
-	    letRHS [A.Clause (A.LHS _ _ args) rhs []] = foldM lambda rhs $ reverse args
-	    letRHS _ = notAValidLetBinding d
+	    letToAbstract (CD.Clause (C.LHS _ _ _ args) rhs []) =
+		bindToAbstract args $ \args ->
+		    do	rhs <- toAbstract rhs
+			foldM lambda rhs $ reverse args
+	    letToAbstract _ = notAValidLetBinding d
 
 	    lambda e (Arg h (A.VarP x)) = return $ A.Lam i (A.DomainFree h x) e
 		where
@@ -459,9 +462,9 @@ instance ToAbstract CD.Clause A.Clause where
 
 instance BindToAbstract C.LHS A.LHS where
     bindToAbstract lhs@(C.LHS _ _ x as) ret =
-	bindToAbstract as $ \as' ->
 	do  x <- toAbstract (OldName x)
-	    ret (A.LHS (LHSSource lhs) x as')
+	    bindToAbstract as $ \as' ->
+		ret (A.LHS (LHSSource lhs) x as')
 
 instance BindToAbstract c a => BindToAbstract (Arg c) (Arg a) where
     bindToAbstract (Arg h e) ret = bindToAbstract e $ ret . Arg h
