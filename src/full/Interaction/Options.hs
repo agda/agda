@@ -46,6 +46,7 @@ data CommandLineOptions =
 	    , optEmacsMode	  :: Bool
 	    , optVerbose	  :: Int
 	    , optProofIrrelevance :: Bool
+	    , optShowImplicit	  :: Bool
 	    }
     deriving Show
 
@@ -64,6 +65,7 @@ defaultOptions =
 	    , optEmacsMode	  = False
 	    , optVerbose	  = 1
 	    , optProofIrrelevance = False
+	    , optShowImplicit	  = False
 	    }
 
 {- | @f :: Flag opts@  is an action on the option record that results from
@@ -80,6 +82,7 @@ inputFlag f o	    =
 versionFlag	     o = return $ o { optShowVersion	  = True }
 helpFlag	     o = return $ o { optShowHelp	  = True }
 proofIrrelevanceFlag o = return $ o { optProofIrrelevance = True }
+showImplicitFlag     o = return $ o { optShowImplicit	  = True }
 
 interactiveFlag o
     | optEmacsMode o = fail "cannot have both emacs mode and interactive mode"
@@ -112,6 +115,8 @@ standardOptions =
 		    "start in emacs mode"
     , Option []	    ["proof-irrelevance"] (NoArg proofIrrelevanceFlag)
 		    "enable proof irrelevance (experimental feature)"
+    , Option []	    ["show-implicit"] (NoArg showImplicitFlag)
+		    "show implicit arguments when printing"
     ]
 
 -- | Used for printing usage info.

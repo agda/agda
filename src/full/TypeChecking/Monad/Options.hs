@@ -37,3 +37,6 @@ hasInputFile = isJust <$> optInputFile <$> commandLineOptions
 proofIrrelevance :: TCM Bool
 proofIrrelevance = optProofIrrelevance <$> commandLineOptions
 
+showImplicitArguments :: TCM Bool
+showImplicitArguments = optShowImplicit <$> commandLineOptions
+

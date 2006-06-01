@@ -37,9 +37,12 @@ import Utils.Tuple
 
 #include "../../undefined.h"
 
-apps :: (Expr, [Arg Expr]) -> Expr
-apps (e, [])		    = e
-apps (e, Arg Hidden _:args) = apps (e, args)
+apps :: (Expr, [Arg Expr]) -> TCM Expr
+apps (e, [])		    = return e
+apps (e, arg@(Arg Hidden _) : args) =
+    do	showImp <- showImplicitArguments
+	if showImp then apps (App exprInfo e arg, args)
+		   else apps (e, args)
 apps (e, arg:args)	    =
     apps (App exprInfo e arg, args)
 
@@ -67,7 +70,7 @@ exprInfo :: ExprInfo
 exprInfo = ExprRange noRange
 
 reifyApp :: Expr -> [Arg Term] -> TCM Expr
-reifyApp e vs = curry apps e <$> reify vs
+reifyApp e vs = curry apps e =<< reify vs
 
 class Reify i a | i -> a where
     reify :: i -> TCM a
@@ -102,7 +105,7 @@ instance Reify Term Expr where
 		    do	(x,e) <- reify b
 			return $ A.Lam exprInfo (DomainFree NotHidden x) e -- TODO: hiding
 		I.Lit l	     -> return $ A.Lit l
-		I.MetaV x vs -> apps <$> reify (x,vs)
+		I.MetaV x vs -> apps =<< reify (x,vs)
 		I.BlockedV _ -> __IMPOSSIBLE__
 
 instance Reify Type Expr where
@@ -117,7 +120,7 @@ instance Reify Type Expr where
 		I.Fun a b    -> uncurry (A.Fun $ exprInfo)
 				<$> reify (a,b)
 		I.Sort s     -> reify s
-		I.MetaT x vs -> apps <$> reify (x,vs)
+		I.MetaT x vs -> apps =<< reify (x,vs)
 		I.LamT _     -> __IMPOSSIBLE__
 
 instance Reify Sort Expr where
