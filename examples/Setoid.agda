@@ -96,70 +96,6 @@ module EqChain (A:Setoid.Setoid) where
   since : {x:El A} -> (y:El A) -> x == y -> x == y
   since _ eq = eq
 
-module Nat where
-
-  open Logic
-  open Setoid
-
-  data Nat : Set where
-    zero : Nat
-    suc  : Nat -> Nat
-
-  NAT : Setoid
-  NAT = setoid Nat eqNat r s t
-    where
-      eqNat : Nat -> Nat -> Prop
-      eqNat zero     zero   = True
-      eqNat zero    (suc _) = False
-      eqNat (suc _)  zero   = False
-      eqNat (suc n) (suc m) = eqNat n m
-
-      r : (x:Nat) -> eqNat x x
-      r zero	= tt
-      r (suc n) = r n
-
-      s : (x,y:Nat) -> eqNat x y -> eqNat y x
-      s  zero    zero   _ = tt
-      s (suc n) (suc m) h = s n m h
-
-      t : (x,y,z:Nat) -> eqNat x y -> eqNat y z -> eqNat x z
-      t  zero    zero    z      xy yz = yz
-      t (suc x) (suc y) (suc z) xy yz = t x y z xy yz
-
-module List where
-
-  open Logic
-  open Setoid
-
-  data List (A:Set) : Set where
-    nil  : List A
-    (::) : A -> List A -> List A
-
-  LIST : Setoid -> Setoid
-  LIST A = setoid (List (El A)) eqList r s t
-    where
-      module EqA = Equality A
-      open EqA
-
-      eqList : List (El A) -> List (El A) -> Prop
-      eqList nil      nil    = True
-      eqList nil     (_::_)  = False
-      eqList (_::_)   nil    = False
-      eqList (x::xs) (y::ys) = x == y /\ eqList xs ys
-
-      r : (x:List (El A)) -> eqList x x
-      r  nil	= tt
-      r (x::xs) = andI refl (r xs)
-
-      s : (x,y:List (El A)) -> eqList x y -> eqList y x
-      s  nil     nil     h            = h
-      s (x::xs) (y::ys) (andI xy xys) = andI (sym xy) (s xs ys xys)
-
-      t : (x,y,z:List (El A)) -> eqList x y -> eqList y z -> eqList x z
-      t  nil     nil     zs      _             h            = h
-      t (x::xs) (y::ys) (z::zs) (andI xy xys) (andI yz yzs) =
-        andI (trans xy yz) (t xs ys zs xys yzs)
-
 module Fun where
 
   open Logic
@@ -238,7 +174,7 @@ module Fun where
 	  {y,y':El B} -> eq B y y' ->
 	  {z,z':El C} -> eq C z z' -> eq D (f x y z) (f x' y' z')
 	 ) -> El (A ==> B ==> C ==> D)
-  lam3 {A}{B}{C}{D} f h =
+  lam3 {A} f h =
     lam (\x -> lam2 (\y z -> f x y z)
 		    (\y z -> h EqA'.refl y z))
 	(\x -> eqFunI (\y -> eqFunI (\z -> h x y z)))
@@ -259,8 +195,93 @@ module Fun where
     lam3 (\f g x -> f $ (g $ x))
 	 (\f g x -> f `eqFunE` (g `eqFunE` x))
 
+  (∘) : {A,B,C:Setoid} -> El (B ==> C) -> El (A ==> B) -> El (A ==> C)
+  f ∘ g = compose $ f $ g
+
   const : {A,B:Setoid} -> El (A ==> B ==> A)
   const = lam2 (\x y -> x) (\x y -> x)
+
+module Nat where
+
+  open Logic
+  open Setoid
+  open Fun
+
+  infixl 10 +
+
+  data Nat : Set where
+    zero : Nat
+    suc  : Nat -> Nat
+
+  NAT : Setoid
+  NAT = setoid Nat eqNat r s t
+    where
+      eqNat : Nat -> Nat -> Prop
+      eqNat zero     zero   = True
+      eqNat zero    (suc _) = False
+      eqNat (suc _)  zero   = False
+      eqNat (suc n) (suc m) = eqNat n m
+
+      r : (x:Nat) -> eqNat x x
+      r zero	= tt
+      r (suc n) = r n
+
+      s : (x,y:Nat) -> eqNat x y -> eqNat y x
+      s  zero    zero   _ = tt
+      s (suc n) (suc m) h = s n m h
+
+      t : (x,y,z:Nat) -> eqNat x y -> eqNat y z -> eqNat x z
+      t  zero    zero    z      xy yz = yz
+      t (suc x) (suc y) (suc z) xy yz = t x y z xy yz
+
+  (+) : Nat -> Nat -> Nat
+  zero  + m = m
+  suc n + m = suc (n + m)
+
+  plus : El (NAT ==> NAT ==> NAT)
+  plus = lam2 (\n m -> n + m)
+	      (\{n}{n'} nn {m}{m'} mm -> eqPlus n n' nn m m' mm)
+    where
+      module EqNat = Equality NAT
+      open EqNat
+
+      eqPlus : (n, n' : Nat) -> n == n' -> (m, m' : Nat) -> m == m' -> n + m == n' + m'
+      eqPlus  zero    zero    tt m m' mm = mm
+      eqPlus (suc n) (suc n') nn m m' mm = eqPlus n n' nn m m' mm
+
+module List where
+
+  open Logic
+  open Setoid
+
+  data List (A:Set) : Set where
+    nil  : List A
+    (::) : A -> List A -> List A
+
+  LIST : Setoid -> Setoid
+  LIST A = setoid (List (El A)) eqList r s t
+    where
+      module EqA = Equality A
+      open EqA
+
+      eqList : List (El A) -> List (El A) -> Prop
+      eqList nil      nil    = True
+      eqList nil     (_::_)  = False
+      eqList (_::_)   nil    = False
+      eqList (x::xs) (y::ys) = x == y /\ eqList xs ys
+
+      r : (x:List (El A)) -> eqList x x
+      r  nil	= tt
+      r (x::xs) = andI refl (r xs)
+
+      s : (x,y:List (El A)) -> eqList x y -> eqList y x
+      s  nil     nil     h            = h
+      s (x::xs) (y::ys) (andI xy xys) = andI (sym xy) (s xs ys xys)
+
+      t : (x,y,z:List (El A)) -> eqList x y -> eqList y z -> eqList x z
+      t  nil     nil     zs      _             h            = h
+      t (x::xs) (y::ys) (z::zs) (andI xy xys) (andI yz yzs) =
+        andI (trans xy yz) (t xs ys zs xys yzs)
 
 open Fun
 
