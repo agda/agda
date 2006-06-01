@@ -1,0 +1,52 @@
+\section{Overview of the core language}
+\subsection{Expressions}
+There are two kind of expressions for an object in a type:
+\begin{description}
+\item[Application:] This is always on the form \verb|i e1 ... en|,
+  where \verb|i| is an identifier (a constant or a variable).
+\item[Abstraction:] This is always on the form \verb|\x -> e| where
+  \verb|x| is a variable.
+\end{description}
+We have the following expressions for types:
+\begin{description}
+\item[Set:] The type of sets is \verb|Set|.
+\item[Functions:] The dependent function type is denoted by  \verb|(x : E) -> E'|.
+\item[Elements in a set:] If the object expression \verb|E| has the
+  type \verb|Set|, then we use the notation \verb|E| for the type of
+  elements in \verb|E|. Hence, we can use applications and
+  abstractions to form type expressions.
+\end{description}
+
+\subsection{Declarations}
+A program is a list of declarations, each of which is on one of the
+forms:
+\begin{description}
+\item[Typing declaration:] This has the form \verb|c : E| and it
+  introduces the constant \verb|c| of the type \verb|E|.
+\item[Explicit definition:] This has the form \verb|c = e| and defines
+  the constant \verb|c| to be equal to the expression \verb|e|.
+\item[Implicit definition:] A declaration of an implicitly defined
+  constant \verb|f| has the shape
+\begin{verbatim}
+fun f (x1:t1) ... (xn:tn) : te =
+                 c1 y1 ... ym -> e1 |
+                    ...
+                 ck z1 ... zm -> ek
+\end{verbatim}
+Here \verb|c1| \dots \verb|ck| are constructors for the data type \verb|te|.
+The intuition is that the constant \verb|f| is defined so that 
+\begin{verbatim}
+f x1 ... xn (c1 y1 ... ym) = e1
+                          ...
+f x1 ... xn (ck z1 ... zl) = ek
+\end{verbatim}
+
+\item[Data declaration:] A data type (i.e. an object in \verb|Set|) is
+  defined by giving the typing of its constructors:
+\begin{verbatim}
+ data D (x1:t1) ... (xn:tn) :tm =
+                c1 : e1| 
+                  ... 
+                cn : en
+\end{verbatim}
+\end{description}
