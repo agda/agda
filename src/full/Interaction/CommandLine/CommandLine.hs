@@ -221,10 +221,10 @@ evalTerm s =
 typeOf :: [String] -> TCM ()
 typeOf s = 
     do  e  <- parseExpr (unwords s)
-        e  <- typeInCurrent Normalised e
-        e' <- typeInCurrent AsIs e
-       	liftIO $ putStrLn $   "Normal form:\n  " ++ showA e ++ 
-                            "\nHead Normal Form:\n  " ++ showA e'
+        e0 <- typeInCurrent Normalised e
+        e1 <- typeInCurrent AsIs e
+       	liftIO $ putStrLn $   "Normal form:\n  " ++ showA e0 ++ 
+                            "\nHead Normal Form:\n  " ++ showA e1
 
 typeIn :: [String] -> TCM ()
 typeIn s@(_:_:_) = 
