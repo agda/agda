@@ -252,9 +252,8 @@ module Fun where
   id : {A:Setoid} -> El (A ==> A)
   id = lam (\x -> x) (\x -> x)
 
-  -- Whopee! There should be an easier way...
-  -- (but this is a _big_ improvement over the first attempt)
-  -- ... now it looks okay. But it's incredibly slow!
+  -- Now it looks okay. But it's incredibly slow!
+  -- Proof irrelevance makes it go fast again...
   compose : {A,B,C:Setoid} -> El ((B ==> C) ==> (A ==> B) ==> (A ==> C))
   compose =
     lam3 (\f g x -> f $ (g $ x))
