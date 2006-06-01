@@ -51,3 +51,6 @@ g : Nat -> Nat
 g n = let f z = n + suc z
       in  f (f n)
 
+id' : Nat -> {A:Set} -> A -> A
+id' = \_ -> id {_}
+
