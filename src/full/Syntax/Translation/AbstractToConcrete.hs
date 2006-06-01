@@ -244,14 +244,26 @@ instance ToConcrete A.Expr C.Expr where
 	     e2' <- toConcreteCtx ArgumentCtx e2
 	     return $ C.App (getRange i) e1' e2'
 
-    -- Similar to the application case we don't try to recover lambda sugar
-    -- (i.e. @\\x -> \\y -> e@ to @\\x y -> e@).
-    toConcrete (A.Lam i b e)	    =
+    toConcrete e@(A.Lam i _ _)	    =
 	withStored i
 	$ bracket lamBrackets
-	$ do b' <- toConcrete b
-	     e' <- toConcreteCtx TopCtx e
-	     return $ C.Lam (getRange i) [b'] e'
+	$ case lamView e of
+	    (bs, e) ->
+		do  bs <- toConcrete bs
+		    e  <- toConcreteCtx TopCtx e
+		    return $ C.Lam (getRange i) bs e
+	where
+	    lamView (A.Lam _ b@(A.DomainFree _ _) e) =
+		case lamView e of
+		    ([], e)			   -> ([b], e)
+		    (bs@(A.DomainFree _ _ : _), e) -> (b:bs, e)
+		    _				   -> ([b], e)
+	    lamView (A.Lam _ b@(A.DomainFull _) e) =
+		case lamView e of
+		    ([], e)			   -> ([b], e)
+		    (bs@(A.DomainFull _ : _), e)   -> (b:bs, e)
+		    _				   -> ([b], e)
+	    lamView e = ([], e)
 
     toConcrete (A.Pi i b e)	    =
 	withStored i
