@@ -220,21 +220,47 @@ module Fun where
   ($) : {A,B:Setoid} -> El (A ==> B) -> El A -> El B
   ($) = app
 
+  lam2 : {A,B,C:Setoid} ->
+	 (f : El A -> El B -> El C) ->
+	 ({x,x':El A} -> eq A x x' ->
+	  {y,y':El B} -> eq B y y' -> eq C (f x y) (f x' y')
+	 ) -> El (A ==> B ==> C)
+  lam2 {A} f h = lam (\x -> lam (\y -> f x y)
+				(\y -> h EqA.refl y))
+		     (\x -> eqFunI (\y -> h x y))
+    where
+      module EqA = Equality A
+
+  lam3 : {A,B,C,D:Setoid} ->
+	 (f : El A -> El B -> El C -> El D) ->
+	 ({x,x':El A} -> eq A x x' ->
+	  {y,y':El B} -> eq B y y' ->
+	  {z,z':El C} -> eq C z z' -> eq D (f x y z) (f x' y' z')
+	 ) -> El (A ==> B ==> C ==> D)
+  lam3 {A}{B}{C}{D} f h =
+    lam (\x -> lam2 (\y z -> f x y z)
+		    (\y z -> h EqA'.refl y z))
+	(\x -> eqFunI (\y -> eqFunI (\z -> h x y z)))
+    where
+      module EqA' = Equality A	-- bug: remove the prime and all hell breaks loose
+
   eta : {A,B:Setoid} -> (f : El (A ==> B)) ->
 	eq (A ==> B) f (lam (\x -> f $ x) (\xy -> cong f xy))
   eta f = eqFunI (\xy -> cong f xy)
 
   id : {A:Setoid} -> El (A ==> A)
-  id = lam (\x -> x) (\xy -> xy)
+  id = lam (\x -> x) (\x -> x)
 
   -- Whopee! There should be an easier way...
   -- (but this is a _big_ improvement over the first attempt)
+  -- ... now it looks okay. But it's incredibly slow!
   compose : {A,B,C:Setoid} -> El ((B ==> C) ==> (A ==> B) ==> (A ==> C))
-  compose {A}{B}{C} =
-    lam (\f -> lam (\g -> lam (\x -> f $ (g $ x))
-			      (\x -> f `cong` (g `cong` x))
-		   ) (\g -> eqFunI (\x -> f `cong` (g `eqFunE` x)))
-	) (\f -> eqFunI (\g -> eqFunI (\x -> f `eqFunE` (g `eqFunE` x))))
+  compose =
+    lam3 (\f g x -> f $ (g $ x))
+	 (\f g x -> f `eqFunE` (g `eqFunE` x))
+
+  const : {A,B:Setoid} -> El (A ==> B ==> A)
+  const = lam2 (\x y -> x) (\x y -> x)
 
 open Fun
 
