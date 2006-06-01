@@ -15,6 +15,7 @@ module Logic where
   data (/\) (P,Q:Prop) : Prop where
     andI : P -> Q -> P /\ Q
 
+--   Not allowed if we have proof irrelevance
 --   data (\/) (P,Q:Prop) : Prop where
 --     orIL : P -> P \/ Q
 --     orIR : Q -> P \/ Q
