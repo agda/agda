@@ -64,9 +64,10 @@ instance Pretty Expr where
 	    App _ _ _	     ->
 		case appView e of
 		    AppView e1 args	->
-			sep [ pretty e1
-			    , nest 2 $ fsep $ map pretty args
-			    ]
+			fsep $ pretty e1 : map pretty args
+-- 			sep [ pretty e1
+-- 			    , nest 2 $ fsep $ map pretty args
+-- 			    ]
 	    InfixApp e1 op e2 ->
 		sep [ pretty e1
 		    , prettyOp op <+> pretty e2
