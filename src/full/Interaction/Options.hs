@@ -38,13 +38,14 @@ instance Functor ArgDescr where
     fmap f (OptArg p s) = OptArg (f . p) s
 
 data CommandLineOptions =
-    Options { optInputFile   :: Maybe FilePath
-	    , optIncludeDirs :: [FilePath]
-	    , optShowVersion :: Bool
-	    , optShowHelp    :: Bool
-	    , optInteractive :: Bool
-	    , optEmacsMode   :: Bool
-	    , optVerbose     :: Int
+    Options { optInputFile	  :: Maybe FilePath
+	    , optIncludeDirs	  :: [FilePath]
+	    , optShowVersion	  :: Bool
+	    , optShowHelp	  :: Bool
+	    , optInteractive	  :: Bool
+	    , optEmacsMode	  :: Bool
+	    , optVerbose	  :: Int
+	    , optProofIrrelevance :: Bool
 	    }
     deriving Show
 
@@ -55,13 +56,14 @@ mapFlag f (Option _ long arg descr) = Option [] (map f long) arg descr
 
 defaultOptions :: CommandLineOptions
 defaultOptions =
-    Options { optInputFile   = Nothing
-	    , optIncludeDirs = []
-	    , optShowVersion = False
-	    , optShowHelp    = False
-	    , optInteractive = False
-	    , optEmacsMode   = False
-	    , optVerbose     = 1
+    Options { optInputFile	  = Nothing
+	    , optIncludeDirs	  = []
+	    , optShowVersion	  = False
+	    , optShowHelp	  = False
+	    , optInteractive	  = False
+	    , optEmacsMode	  = False
+	    , optVerbose	  = 1
+	    , optProofIrrelevance = False
 	    }
 
 {- | @f :: Flag opts@  is an action on the option record that results from
@@ -74,14 +76,18 @@ inputFlag f o	    =
     case optInputFile o of
 	Nothing  -> return $ o { optInputFile = Just f }
 	Just _	 -> fail "only one input file allowed"
-versionFlag o	    = return $ o { optShowVersion   = True }
-helpFlag o	    = return $ o { optShowHelp	    = True }
+
+versionFlag	     o = return $ o { optShowVersion	  = True }
+helpFlag	     o = return $ o { optShowHelp	  = True }
+proofIrrelevanceFlag o = return $ o { optProofIrrelevance = True }
+
 interactiveFlag o
     | optEmacsMode o = fail "cannot have both emacs mode and interactive mode"
     | otherwise	     = return $ o { optInteractive   = True }
 emacsModeFlag o
     | optInteractive o = fail "cannot have both emacs mode and interactive mode"
     | otherwise	       = return $ o { optEmacsMode = True }
+
 includeFlag d o	    = return $ o { optIncludeDirs   = d : optIncludeDirs o   }
 verboseFlag s o	    =
     do	n <- integerArgument "--verbose" s
@@ -104,6 +110,8 @@ standardOptions =
 		    "start in interactive mode"
     , Option []	    ["emacs-mode"] (NoArg emacsModeFlag)
 		    "start in emacs mode"
+    , Option []	    ["proof-irrelevance"] (NoArg proofIrrelevanceFlag)
+		    "enable proof irrelevance (experimental feature)"
     ]
 
 -- | Used for printing usage info.

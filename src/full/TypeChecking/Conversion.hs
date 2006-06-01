@@ -49,13 +49,18 @@ equalVal _ a m n =
     catchConstraint (ValueEq a m n) $
     do	a' <- instantiate a
 --     debug $ "equalVal " ++ show m ++ " == " ++ show n ++ " : " ++ show a'
-	case a' of
-	    Pi a _    -> equalFun (a,a') m n
-	    Fun a _   -> equalFun (a,a') m n
-	    MetaT x _ -> addConstraint (ValueEq a m n)
-	    El _ _    -> equalAtm Why a m n
-	    Sort _    -> equalAtm Why a m n
-	    LamT _    -> __IMPOSSIBLE__
+	proofIrr <- proofIrrelevance
+	s <- reduce =<< getSort a'
+	case (proofIrr, s) of
+	    (True, Prop)    -> return ()
+	    _		    ->
+		case a' of
+		    Pi a _    -> equalFun (a,a') m n
+		    Fun a _   -> equalFun (a,a') m n
+		    MetaT x _ -> addConstraint (ValueEq a m n)
+		    El _ _    -> equalAtm Why a m n
+		    Sort _    -> equalAtm Why a m n
+		    LamT _    -> __IMPOSSIBLE__
     where
 	equalFun (a,t) m n =
 	    do	name <- freshName_ (suggest t)

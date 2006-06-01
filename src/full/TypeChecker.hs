@@ -189,6 +189,11 @@ checkDataDef i x ps cs =
 	    do	let tel' = map hide tel
 		mapM_ (checkConstructor name tel' s) cs
 		return s
+	do  proofIrr <- proofIrrelevance
+	    s	     <- reduce s
+	    case (proofIrr, s, cs) of
+		(True, Prop, _:_:_) -> fail $ "datatypes in Prop can have at most one constructor (when proof irrelevance is enabled)"
+		_		    -> return ()
 	addConstant name (Defn t 0 $ Datatype npars (map (cname m) cs)
 					      s (defAbstract i)
 			 )

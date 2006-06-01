@@ -34,3 +34,6 @@ getInputFile =
 hasInputFile :: TCM Bool
 hasInputFile = isJust <$> optInputFile <$> commandLineOptions
 
+proofIrrelevance :: TCM Bool
+proofIrrelevance = optProofIrrelevance <$> commandLineOptions
+
