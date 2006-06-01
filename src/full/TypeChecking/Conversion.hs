@@ -179,13 +179,11 @@ leqSort s1 s2 =
 	    (Type _  , Prop    )	     -> notLeq s1 s2
 	    (Suc _   , Prop    )	     -> notLeq s1 s2
 
-	    (_	     , Type 0  )	     -> equalSort s1 s2
-	    (Prop    , Type n  )	     -> return ()
+	    (Prop    , Type _  )	     -> return ()
 	    (Type n  , Type m  ) | n <= m    -> return ()
 				 | otherwise -> notLeq s1 s2
-	    (Suc s   , Type n  ) | n >= 1    -> leqSort s (Type $ n - 1)
+	    (Suc s   , Type n  ) | 1 <= n    -> leqSort s (Type $ n - 1)
 				 | otherwise -> notLeq s1 s2
-	    (Suc s1  , Suc s2  )	     -> leqSort s1 s2
 	    (_	     , Suc _   )	     -> addConstraint (SortLeq s1 s2)
 
 	    (Lub a b , _       )	     -> leqSort a s2 >> leqSort b s2
@@ -208,14 +206,17 @@ equalSort s1 s2 =
 	    (Prop    , Prop    )	     -> return ()
 	    (Type _  , Prop    )	     -> notEq s1 s2
 	    (Prop    , Type _  )	     -> notEq s1 s2
-	    (Suc _   , Prop    )	     -> notEq s1 s2
-	    (Prop    , Suc _   )	     -> notEq s1 s2
 
 	    (Type n  , Type m  ) | n == m    -> return ()
 				 | otherwise -> notEq s1 s2
-	    (Suc s   , Type n  ) | n >= 2    -> equalSort s (Type $ n - 1)
-				 | otherwise -> notEq s1 s2
-	    (Type n  , Suc s   ) | n >= 2    -> equalSort (Type $ n - 1) s
+	    (Suc s   , Prop    )	     -> notEq s1 s2
+	    (Suc s   , Type 0  )	     -> notEq s1 s2
+	    (Suc s   , Type 1  )	     -> addConstraint (SortEq s1 s2)
+	    (Suc s   , Type n  )	     -> equalSort s (Type $ n - 1)
+	    (Prop    , Suc s   )	     -> notEq s1 s2
+	    (Type 0  , Suc s   )	     -> notEq s1 s2
+	    (Type 1  , Suc s   )	     -> addConstraint (SortEq s1 s2)
+	    (Type n  , Suc s   )	     -> equalSort (Type $ n - 1) s
 	    (_	     , Suc _   )	     -> addConstraint (SortEq s1 s2)
 	    (Suc _   , _       )	     -> addConstraint (SortEq s1 s2)
 

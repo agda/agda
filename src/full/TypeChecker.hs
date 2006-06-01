@@ -202,10 +202,9 @@ checkDataDef i x ps cs =
 --   the datatype and that it fits inside the declared sort.
 checkConstructor :: QName -> Telescope -> Sort -> A.Constructor -> TCM ()
 checkConstructor d tel s (A.Axiom i c e) =
-    do	t  <- isType_ e
-	s' <- getSort t
-	s' `leqSort` s
-	t  `constructs` d
+    do	t <- isType_ e
+	t `constructs` d
+	t `fitsIn` s
 	m <- currentModule
 	escapeContext (length tel)
 	    $ addConstant (qualify m c)
@@ -224,6 +223,21 @@ bindParameters (A.DomainFree h x : ps) (Pi (Arg h' a) b) ret	-- always dependent
 		    ret (Arg h a : tel) s
 bindParameters _ _ _ = __IMPOSSIBLE__
 
+
+-- | Check that the arguments to a constructor fits inside the sort of the datatype.
+--   The first argument is the type of the constructor.
+fitsIn :: Type -> Sort -> TCM ()
+fitsIn t s =
+    do	t <- instantiate t
+	case funView t of
+	    FunV (Arg h a) _ ->
+		do  s' <- getSort a
+		    s' `leqSort` s
+		    x <- freshName_ (argName t)
+		    let v  = Arg h $ Var 0 []
+			t' = piApply (raise 1 t) [v]
+		    addCtx x a $ fitsIn t' s
+	    _		     -> return ()
 
 -- | Check that a type constructs something of the given datatype.
 --   TODO: what if there's a meta here?
