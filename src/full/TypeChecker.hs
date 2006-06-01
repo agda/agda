@@ -519,64 +519,69 @@ checkTypedBinding b@(A.TypedBinding i h xs e) ret =
 checkExpr :: A.Expr -> Type -> TCM Term
 checkExpr e t =
     do	setCurrentRange e
-	case appView e of
-	    Application hd args ->
-		do  (v,t0) <- inferHead hd
-		    vs     <- checkArguments (getRange hd) args t0 t
-		    return $ v `apply` vs
-	    _ ->
-		case e of
-		    A.App i e arg ->
-			do  (v0,t0) <- inferExpr e
-			    [v1]    <- checkArguments (getRange e) [arg] t0 t
-			    return $ v0 `apply` [v1]
+	t <- instantiate t
+	case e of
 
-		    A.Lam i (A.DomainFull b) e ->
-			checkTypedBinding b $ \tel ->
-			    do  t1 <- newTypeMeta_
-				escapeContext (length tel) $ equalTyp () t (buildPi tel t1)
-				v <- checkExpr e t1
-				return $ buildLam (map name tel) v
+	    -- Insert hidden lambda if appropriate
+	    _	| not (hiddenLambda e)
+		, FunV (Arg Hidden _) _ <- funView t ->
+		    do  x <- freshName r (argName t)
+			checkExpr (A.Lam (ExprRange $ getRange e) (A.DomainFree Hidden x) e) t
+		where
+		    r = emptyR (rStart $ getRange e)
 			where
-			    name (Arg h (x,_)) = Arg h x
+			    emptyR r = Range r r
 
-		    A.Lam i (A.DomainFree h x) e0 ->
-			do  t' <- forcePi h t
-			    case t' of
-				Pi (Arg h' a) (Abs _ b)
-				    | h == h' ->
-					addCtx x a $
-					do  v <- checkExpr e0 b
-					    return $ Lam (Abs (show x) v)
-				    | (NotHidden, Hidden) <- (h, h') ->
-					do  x <- freshName (getRange x) (argName t')
-					    checkExpr (A.Lam i (A.DomainFree Hidden x) e) t'
+		    hiddenLambda (A.Lam _ (A.DomainFree Hidden _) _)			  = True
+		    hiddenLambda (A.Lam _ (A.DomainFull (A.TypedBinding _ Hidden _ _)) _) = True
+		    hiddenLambda _							  = False
 
-				Fun (Arg h' a) b
-				    | h == h' ->
-					addCtx x a $
-					do  v <- checkExpr e0 (raise 1 b)
-					    return $ Lam (Abs (show x) v)
-				    | (NotHidden, Hidden) <- (h, h') ->
-					do  x <- freshName (getRange x) (argName t')
-					    checkExpr (A.Lam i (A.DomainFree Hidden x) e) t'
-				_	-> fail $ "expected " ++ show h ++ " function space, found " ++ show t'
+	    -- Variable or constant application
+	    _	| Application hd args <- appView e ->
+		    do  (v,t0) <- inferHead hd
+			vs     <- checkArguments (getRange hd) args t0 t
+			return $ v `apply` vs
 
-		    A.QuestionMark i -> 
-                        do  setScope (Info.metaScope i)
-                            newQuestionMark  t
-		    A.Underscore i   -> 
-                        do  setScope (Info.metaScope i)
-                            newValueMeta t
-		    A.Lit lit	     -> fail "checkExpr: literals not implemented"
-		    A.Let i ds e     -> checkLetBindings ds $ checkExpr e t
-		    A.Pi _ _ _	-> fail $ "not a proper term " ++ showA e
-		    A.Fun _ _ _ -> fail $ "not a proper term " ++ showA e
-		    A.Set _ _	-> fail $ "not a proper term " ++ showA e
-		    A.Prop _	-> fail $ "not a proper term " ++ showA e
-		    A.Var _ _	-> __IMPOSSIBLE__
-		    A.Def _ _	-> __IMPOSSIBLE__
-		    A.Con _ _	-> __IMPOSSIBLE__
+	    A.App i e arg ->
+		do  (v0,t0) <- inferExpr e
+		    [v1]    <- checkArguments (getRange e) [arg] t0 t
+		    return $ v0 `apply` [v1]
+
+	    A.Lam i (A.DomainFull b) e ->
+		checkTypedBinding b $ \tel ->
+		    do  t1 <- newTypeMeta_
+			escapeContext (length tel) $ equalTyp () t (buildPi tel t1)
+			v <- checkExpr e t1
+			return $ buildLam (map name tel) v
+		where
+		    name (Arg h (x,_)) = Arg h x
+
+	    A.Lam i (A.DomainFree h x) e0 ->
+		do  t' <- forcePi h t
+		    case funView t' of
+			FunV (Arg h' a) _ | h == h' ->
+			    addCtx x a $
+			    do	let arg = Arg h (Var 0 [])
+				    tb  = raise 1 t' `piApply` [arg]
+				v <- checkExpr e0 tb
+				return $ Lam (Abs (show x) v)
+			_   -> fail $ "expected " ++ show h ++ " function space, found " ++ show t'
+
+	    A.QuestionMark i -> 
+		do  setScope (Info.metaScope i)
+		    newQuestionMark  t
+	    A.Underscore i   -> 
+		do  setScope (Info.metaScope i)
+		    newValueMeta t
+	    A.Lit lit	     -> fail "checkExpr: literals not implemented"
+	    A.Let i ds e     -> checkLetBindings ds $ checkExpr e t
+	    A.Pi _ _ _	-> fail $ "not a proper term " ++ showA e
+	    A.Fun _ _ _ -> fail $ "not a proper term " ++ showA e
+	    A.Set _ _	-> fail $ "not a proper term " ++ showA e
+	    A.Prop _	-> fail $ "not a proper term " ++ showA e
+	    A.Var _ _	-> __IMPOSSIBLE__
+	    A.Def _ _	-> __IMPOSSIBLE__
+	    A.Con _ _	-> __IMPOSSIBLE__
 
 
 -- | Infer the type of a head thing (variable, function symbol, or constructor)
