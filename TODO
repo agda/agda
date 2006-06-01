@@ -16,6 +16,8 @@ Features
 
 * imports
 
+* pragmas
+
 Fixes
 -----
 
@@ -53,7 +55,18 @@ Cleaning
 Done
 ----
 
+* flag for printing all implicit arguments (handled in internal to abstract)
+
+* proof irrelevance
+
+* Prop <= Set
+
+* sort checking of datatypes check that all constructor arguments fit inside
+  the datatype sort (rather than checking that the types of the constructor fit)
+
 * let-bindings (only x = e definitions)
+
+* insertion of hidden lambdas when appropriate
 
 * optimise
 
