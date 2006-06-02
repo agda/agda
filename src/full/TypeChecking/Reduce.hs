@@ -114,6 +114,7 @@ class Reduce t where
 
 instance Reduce Type where
     reduce a =
+	{-# SCC "reduce<Type>" #-}
 	do  b <- instantiate a
 	    case b of
 		El t s	  -> El <$> reduce t <*> reduce s
@@ -125,6 +126,7 @@ instance Reduce Type where
 
 instance Reduce Sort where
     reduce s =
+	{-# SCC "reduce<Sort>" #-}
 	do  s <- instantiate s
 	    case s of
 		Suc s'	  -> sSuc <$> reduce s'
@@ -147,6 +149,7 @@ instance (Reduce a, Reduce b,Reduce c) => Reduce (a,b,c) where
 
 instance Reduce Term where
     reduce v =
+	{-# SCC "reduce<Term>" #-}
 	do  v <- instantiate v
 	    case v of
 		MetaV x args -> MetaV x <$> reduce args
