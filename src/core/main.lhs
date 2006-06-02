@@ -1,10 +1,12 @@
 \documentclass{article} 
 %include polycode.fmt 
-%include lhs2TeX.fmt
+\framedhs
+%%include lhs2TeX.fmt
 %%include polytt.fmt
-%%subst code a = "\begin{colorcode}\thinmuskip=10mu\medmuskip=10mu\thickmuskip=10mu\relax'n" a "\end{colorcode}\resethooks'n" 
 \input{ttinit}
 \input{ttinitmore}
+\renewcommand{\Varid}[1]{\mathsf{#1}}% or rm for serif
+\renewcommand{\Conid}[1]{\mathsf{#1}}% or rm for serif
 \newcommand{\Val}{\mathbf{Val}}
 \newcommand{\Set}{\mathbf{Set}}
 \newcommand{\Fun}{\mathbf{Fun}}
