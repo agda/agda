@@ -73,37 +73,6 @@ equalVal _ a m n =
 		suggest (Pi _ (Abs x _)) = x
 		suggest _ = __IMPOSSIBLE__
 
--- | Type directed equality on values.
---
-equalValArg :: Data a => a -> Type -> Term -> Term -> TCM ()
-equalValArg _ a m n =
-    catchConstraint (ValueEq a m n) $
-    do	a' <- instantiate a
---     debug $ "equalVal " ++ show m ++ " == " ++ show n ++ " : " ++ show a'
-	proofIrr <- proofIrrelevance
-	s <- reduce =<< getSort a'
-	case (proofIrr, s) of
-	    (True, Prop)    -> return ()
-	    _		    ->
-		case a' of
-		    Pi a _    -> equalFun (a,a') m n
-		    Fun a _   -> equalFun (a,a') m n
-		    MetaT x _ -> addConstraint (ValueEq a m n)
-		    El _ _    -> equalAtmArg Why a m n
-		    Sort _    -> equalAtmArg Why a m n
-		    LamT _    -> __IMPOSSIBLE__
-    where
-	equalFun (a,t) m n =
-	    do	name <- freshName_ (suggest t)
-		addCtx name (unArg a) $ equalValArg Why t' m' n'
-	    where
-		p	= fmap (const $ Var 0 []) a
-		(m',n') = raise 1 (m,n) `apply` [p]
-		t'	= raise 1 t `piApply` [p]
-		suggest (Fun _ _) = "_"
-		suggest (Pi _ (Abs x _)) = x
-		suggest _ = __IMPOSSIBLE__
-
 -- | Syntax directed equality on atomic values
 --
 equalAtm :: Data a => a -> Type -> Term -> Term -> TCM ()
@@ -114,14 +83,14 @@ equalAtm _ t m n =
 	    (Lit l1, Lit l2) | l1 == l2 -> return ()
 	    (Var i iArgs, Var j jArgs) | i == j -> do
 		a <- typeOfBV i
-		equalArg Why a iArgs jArgs
+		equalVarArg Why a iArgs jArgs
 	    (Def x xArgs, Def y yArgs) | x == y -> do
 		a <- defType <$> getConstInfo x
-		equalArg Why a xArgs yArgs
+		equalDefArg Why a xArgs yArgs
 	    (Con x xArgs, Con y yArgs)
 		| x == y -> do
 		    a <- defType <$> getConstInfo x
-		    equalArg Why a xArgs yArgs
+		    equalConArg Why a xArgs yArgs
 	    (MetaV x xArgs, MetaV y yArgs) | x == y ->
 		equalSameVar (\x -> MetaV x []) InstV x xArgs yArgs
 	    (MetaV x xArgs, _) -> assignV t x xArgs n
@@ -130,47 +99,51 @@ equalAtm _ t m n =
 	    (_,BlockedV b)     -> addConstraint (ValueEq t m n)
 	    _		       -> fail $ "equalAtm "++(show m)++" ==/== "++(show n)
 
--- | Syntax directed equality on atomic values
---
-equalAtmArg :: Data a => a -> Type -> Term -> Term -> TCM ()
-equalAtmArg _ t m n =
-    catchConstraint (ValueEq t m n) $
-    do	(m, n) <- {-# SCC "equalAtmArg.reduce" #-} reduce (m, n)
-	case (m, n) of
-	    (Lit l1, Lit l2) | l1 == l2 -> return ()
-	    (Var i iArgs, Var j jArgs) | i == j -> do
-		a <- typeOfBV i
-		equalArg Why a iArgs jArgs
-	    (Def x xArgs, Def y yArgs) | x == y -> do
-		a <- defType <$> getConstInfo x
-		equalArg Why a xArgs yArgs
-	    (Con x xArgs, Con y yArgs)
-		| x == y -> do
-		    a <- defType <$> getConstInfo x
-		    equalArg Why a xArgs yArgs
-	    (MetaV x xArgs, MetaV y yArgs) | x == y ->
-		equalSameVar (\x -> MetaV x []) InstV x xArgs yArgs
-	    (MetaV x xArgs, _) -> assignV t x xArgs n
-	    (_, MetaV x xArgs) -> assignV t x xArgs m
-	    (BlockedV b, _)    -> addConstraint (ValueEq t m n)
-	    (_,BlockedV b)     -> addConstraint (ValueEq t m n)
-	    _		       -> fail $ "equalAtmArg "++(show m)++" ==/== "++(show n)
-
 
 -- | Type-directed equality on argument lists
 --
-equalArg :: Data a => a -> Type -> Args -> Args -> TCM ()
-equalArg _ a args1 args2 = do
+equalConArg :: Data a => a -> Type -> Args -> Args -> TCM ()
+equalConArg _ a args1 args2 = do
     a' <- instantiate a
     case (a', args1, args2) of 
         (_, [], []) -> return ()
         (Pi (Arg _ b) (Abs _ c), (Arg _ arg1 : args1), (Arg _ arg2 : args2)) -> do
-            equalValArg Why b arg1 arg2
-            equalArg Why (subst arg1 c) args1 args2
+            equalVal Why b arg1 arg2
+            equalConArg Why (subst arg1 c) args1 args2
         (Fun (Arg _ b) c, (Arg _ arg1 : args1), (Arg _ arg2 : args2)) -> do
-            equalValArg Why b arg1 arg2
-            equalArg Why c args1 args2
-        _ -> fail $ "equalArg "++(show a)++" "++(show args1)++" "++(show args2)
+            equalVal Why b arg1 arg2
+            equalConArg Why c args1 args2
+        _ -> fail $ "equalConArg "++(show a)++" "++(show args1)++" "++(show args2)
+
+-- | Type-directed equality on argument lists
+--
+equalVarArg :: Data a => a -> Type -> Args -> Args -> TCM ()
+equalVarArg _ a args1 args2 = do
+    a' <- instantiate a
+    case (a', args1, args2) of 
+        (_, [], []) -> return ()
+        (Pi (Arg _ b) (Abs _ c), (Arg _ arg1 : args1), (Arg _ arg2 : args2)) -> do
+            equalVal Why b arg1 arg2
+            equalVarArg Why (subst arg1 c) args1 args2
+        (Fun (Arg _ b) c, (Arg _ arg1 : args1), (Arg _ arg2 : args2)) -> do
+            equalVal Why b arg1 arg2
+            equalVarArg Why c args1 args2
+        _ -> fail $ "equalVarArg "++(show a)++" "++(show args1)++" "++(show args2)
+
+-- | Type-directed equality on argument lists
+--
+equalDefArg :: Data a => a -> Type -> Args -> Args -> TCM ()
+equalDefArg _ a args1 args2 = do
+    a' <- instantiate a
+    case (a', args1, args2) of 
+        (_, [], []) -> return ()
+        (Pi (Arg _ b) (Abs _ c), (Arg _ arg1 : args1), (Arg _ arg2 : args2)) -> do
+            equalVal Why b arg1 arg2
+            equalDefArg Why (subst arg1 c) args1 args2
+        (Fun (Arg _ b) c, (Arg _ arg1 : args1), (Arg _ arg2 : args2)) -> do
+            equalVal Why b arg1 arg2
+            equalDefArg Why c args1 args2
+        _ -> fail $ "equalDefArg "++(show a)++" "++(show args1)++" "++(show args2)
 
 
 -- | Equality on Types
