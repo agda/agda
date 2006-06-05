@@ -78,11 +78,8 @@ equalVal _ a m n =
 equalAtm :: Data a => a -> Type -> Term -> Term -> TCM ()
 equalAtm _ t m n =
     catchConstraint (ValueEq t m n) $
-    do	mVal <- reduce m  -- need mVal for the metavar case
-	nVal <- reduce n  -- need nVal for the metavar case
--- 	debug $ "equalAtm " ++ show m ++ " == " ++ show n
--- 	debug $ "         " ++ show mVal ++ " == " ++ show nVal
-	case (mVal, nVal) of
+    do	(m, n) <- {-# SCC "equalAtm.reduce" #-} reduce (m, n)
+	case (m, n) of
 	    (Lit l1, Lit l2) | l1 == l2 -> return ()
 	    (Var i iArgs, Var j jArgs) | i == j -> do
 		a <- typeOfBV i
@@ -96,11 +93,11 @@ equalAtm _ t m n =
 		    equalArg Why a xArgs yArgs
 	    (MetaV x xArgs, MetaV y yArgs) | x == y ->
 		equalSameVar (\x -> MetaV x []) InstV x xArgs yArgs
-	    (MetaV x xArgs, _) -> assignV t x xArgs nVal
-	    (_, MetaV x xArgs) -> assignV t x xArgs mVal
-	    (BlockedV b, _)    -> addConstraint (ValueEq t mVal nVal)
-	    (_,BlockedV b)     -> addConstraint (ValueEq t mVal nVal)
-	    _		       -> fail $ "equalAtm "++(show mVal)++" ==/== "++(show nVal)
+	    (MetaV x xArgs, _) -> assignV t x xArgs n
+	    (_, MetaV x xArgs) -> assignV t x xArgs m
+	    (BlockedV b, _)    -> addConstraint (ValueEq t m n)
+	    (_,BlockedV b)     -> addConstraint (ValueEq t m n)
+	    _		       -> fail $ "equalAtm "++(show m)++" ==/== "++(show n)
 
 
 -- | Type-directed equality on argument lists
