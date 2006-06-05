@@ -181,7 +181,7 @@ occMeta meta inst red m ok m' vs
     | m == m'	= fail $ "?" ++ show m ++ " occurs in itself"
     | otherwise	=
 	do  vs' <- case restrictParameters ok vs of
-		     Nothing  -> patternViolation [m,m']
+		     Nothing  -> patternViolation
 		     Just vs' -> return vs'
 	    when (length vs' /= length vs) $
 		do  v1 <-  newMetaSame m' (\mi -> meta mi [])
@@ -262,13 +262,7 @@ checkArgs :: MetaId -> Args -> TCM [Nat]
 checkArgs x args =
     case validParameters args of
 	Just ids    -> return $ reverse ids
-	Nothing	    -> patternViolation [x]
-
--- 	= return = go [] args where
---     go ids  []           = return $ reverse ids
---     go done (Arg _ arg : args) = case arg of 
---         Var i [] | not $ elem i done -> go (i:done) args
---         _                         -> patternViolation x 
+	Nothing	    -> patternViolation
 
 -- | Check that the parameters to a meta variable are distinct variables.
 validParameters :: Monad m => Args -> m [Nat]

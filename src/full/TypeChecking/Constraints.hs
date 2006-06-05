@@ -24,8 +24,8 @@ catchConstraint :: Constraint -> TCM () -> TCM ()
 catchConstraint c v =
    catchError v $ \err ->
    case err of
-       PatternErr mIds -> addConstraint c
-       _	       -> throwError err
+       PatternErr s -> put s >> addConstraint c
+       _	    -> throwError err
 
 -- | add a new constraint
 --   first arg is a list of @MetaId@s which should wake-up the constraint

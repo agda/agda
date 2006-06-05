@@ -320,7 +320,7 @@ type LetBindings = Map Name (Term, Type)
 ---------------------------------------------------------------------------
 
 data TCErr = Fatal Range String
-	   | PatternErr [MetaId] -- ^ for pattern violations, carries involved metavars
+	   | PatternErr  TCState -- ^ for pattern violations
 	   | AbortAssign TCState -- ^ used to abort assignment to meta when there are instantiations
   deriving (Typeable)
 
@@ -330,10 +330,13 @@ instance Error TCErr where
 
 instance Show TCErr where
     show (Fatal r s)	 = show r ++ ": " ++ s
-    show (PatternErr xs) = "Pattern violation for " ++ unwords (Prelude.map show xs)
+    show (PatternErr _)  = "Pattern violation (you shouldn't see this)"
     show (AbortAssign _) = "Abort assignment (you shouldn't see this)"
 
-patternViolation mIds = throwError $ PatternErr mIds
+patternViolation :: TCM a
+patternViolation =
+    do	s <- get
+	throwError $ PatternErr s
 
 ---------------------------------------------------------------------------
 -- * Type checking monad
