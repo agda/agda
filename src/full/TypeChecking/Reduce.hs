@@ -160,7 +160,7 @@ instance Reduce Term where
 						-- (change this)
 		BlockedV _ -> return v
 		Lit _	   -> return v
-		Var x args -> return v
+		Var _ _	   -> return v
 		Lam _	   -> return v
 	where
 
@@ -168,24 +168,22 @@ instance Reduce Term where
 		do  def <- defClauses <$> getConstInfo f
 		    case def of
 			[] -> return $ v0 `apply` args -- no definition for head
-			cls@(Clause ps _ : _) ->
-			    if length ps == length args then
-				do  ev <- appDef v0 cls args
-				    either return reduce ev
-			    else if length ps < length args then
-				let (args1,args2) = splitAt (length ps) args 
-				in do   ev <- appDef v0 cls args1
-					case ev of
-					    Left v	-> return $ v `apply` args2
-					    Right v	-> reduce $ v `apply` args2
-			    else return v -- partial application
+			cls@(Clause ps _ : _)
+			    | length ps <= length args ->
+				do  let (args1,args2) = splitAt (length ps) args 
+				    ev <- appDef v0 cls args1
+				    case ev of
+					Left v	-> return $ v `apply` args2
+					Right v	-> reduce $ v `apply` args2
+			    | otherwise	-> return $ v0 `apply` args -- partial application
 
 	    -- Apply a defined function to it's arguments.
 	    --   The original term is the first argument applied to the third.
 	    --	 'Left' means no match and 'Right' means match.
 	    appDef :: Term -> [Clause] -> Args -> TCM (Either Term Term)
 	    appDef v cls args = goCls cls args where
-		goCls [] _ = return $ Left v -- no clause matched, can happen with parameter arguments
+
+		goCls [] _ = fail $ "incomplete patterns for " ++ show v
 		goCls (cl@(Clause pats body) : cls) args =
 		    do	(m, args) <- matchPatterns pats args
 			case m of
@@ -193,6 +191,7 @@ instance Reduce Term where
 			    No		      -> goCls cls args
 			    DontKnow Nothing  -> return $ Left $ v `apply` args
 			    DontKnow (Just m) -> return $ Left $ blocked m $ v `apply` args
+
 		app [] (Body v') = return v'
 		app (arg : args) (Bind (Abs _ body)) = app args $ subst arg body -- CBN
 		app _ _ = __IMPOSSIBLE__
