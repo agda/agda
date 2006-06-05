@@ -64,9 +64,12 @@ else
 # Parser) to the out directiory.
 
 boot_files = $(OUT)/Syntax/Parser/Lexer.hs-boot
-boot_files_p = $(OUT)/Syntax/Parser/Lexer.hs-boot
+boot_files_p = $(OUT_P)/Syntax/Parser/Lexer.hs-boot
 
 $(OUT)/% : %
+	@cp $< $@
+
+$(OUT_P)/% : %
 	@cp $< $@
 
 endif
@@ -78,8 +81,8 @@ prof : $(OUT_P)/agda
 $(OUT)/agda : $(out_dirs) $(all_hs_files) $(boot_files)
 	$(GHC) --make -o $@ -i$(OUT) -I. -odir $(OUT) -hidir $(OUT) $(GHC_FLAGS) Main.hs
 
-$(OUT_P)/agda : $(out_dirs_p) $(all_hs_files) $(boot_files_p)
-	$(GHC) --make -o $@ -i$(OUT) -I. -odir $(OUT_P) -hidir $(OUT_P) $(GHC_FLAGS) Main.hs -prof -auto-all
+$(OUT_P)/agda : $(out_dirs_p) $(all_hs_files_p) $(boot_files_p)
+	$(GHC) --make -o $@ -i$(OUT_P) -I. -odir $(OUT_P) -hidir $(OUT_P) $(GHC_FLAGS) Main.hs -prof -auto-all
 
 ## Rules for happy and alex ###############################################
 
