@@ -63,6 +63,7 @@ equalVal _ a m n =
 		    LamT _    -> __IMPOSSIBLE__
     where
 	equalFun (a,t) m n =
+	    {-# SCC "equalFun" #-}
 	    do	name <- freshName_ (suggest t)
 		addCtx name (unArg a) $ equalVal Why t' m' n'
 	    where
