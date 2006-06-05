@@ -109,7 +109,7 @@ equalArg _ a args1 args2 = do
     case (a', args1, args2) of 
         (_, [], []) -> return ()
         (Pi (Arg _ b) (Abs _ c), (Arg _ arg1 : args1), (Arg _ arg2 : args2)) -> do
-            equalVal Why b arg1 arg2
+            {-# SCC "equalArg.equalVal" #-} equalVal Why b arg1 arg2
             equalArg Why (subst arg1 c) args1 args2
         (Fun (Arg _ b) c, (Arg _ arg1 : args1), (Arg _ arg2 : args2)) -> do
             equalVal Why b arg1 arg2
