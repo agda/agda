@@ -39,9 +39,6 @@ matchPattern :: Arg Pattern -> Arg Term -> TCM (Match, Arg Term)
 matchPattern (Arg h' p) (Arg h v) =
     do	v <- reduce v
 	case (p, v) of
-	    (AsP _ p, v) ->
-		do  (m, arg) <- matchPattern (Arg h' p) (Arg h v)
-		    return (m `mappend` Yes [v], arg)
 	    (VarP _, v) -> return (Yes [v], Arg h v)
 	    (ConP c ps, Con c' vs)
 		| c == c'		->
