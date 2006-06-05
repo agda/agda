@@ -89,8 +89,8 @@ equalValArg _ a m n =
 		    Pi a _    -> equalFun (a,a') m n
 		    Fun a _   -> equalFun (a,a') m n
 		    MetaT x _ -> addConstraint (ValueEq a m n)
-		    El _ _    -> equalAtm Why a m n
-		    Sort _    -> equalAtm Why a m n
+		    El _ _    -> equalAtmArg Why a m n
+		    Sort _    -> equalAtmArg Why a m n
 		    LamT _    -> __IMPOSSIBLE__
     where
 	equalFun (a,t) m n =
@@ -129,6 +129,32 @@ equalAtm _ t m n =
 	    (BlockedV b, _)    -> addConstraint (ValueEq t m n)
 	    (_,BlockedV b)     -> addConstraint (ValueEq t m n)
 	    _		       -> fail $ "equalAtm "++(show m)++" ==/== "++(show n)
+
+-- | Syntax directed equality on atomic values
+--
+equalAtmArg :: Data a => a -> Type -> Term -> Term -> TCM ()
+equalAtmArg _ t m n =
+    catchConstraint (ValueEq t m n) $
+    do	(m, n) <- {-# SCC "equalAtmArg.reduce" #-} reduce (m, n)
+	case (m, n) of
+	    (Lit l1, Lit l2) | l1 == l2 -> return ()
+	    (Var i iArgs, Var j jArgs) | i == j -> do
+		a <- typeOfBV i
+		equalArg Why a iArgs jArgs
+	    (Def x xArgs, Def y yArgs) | x == y -> do
+		a <- defType <$> getConstInfo x
+		equalArg Why a xArgs yArgs
+	    (Con x xArgs, Con y yArgs)
+		| x == y -> do
+		    a <- defType <$> getConstInfo x
+		    equalArg Why a xArgs yArgs
+	    (MetaV x xArgs, MetaV y yArgs) | x == y ->
+		equalSameVar (\x -> MetaV x []) InstV x xArgs yArgs
+	    (MetaV x xArgs, _) -> assignV t x xArgs n
+	    (_, MetaV x xArgs) -> assignV t x xArgs m
+	    (BlockedV b, _)    -> addConstraint (ValueEq t m n)
+	    (_,BlockedV b)     -> addConstraint (ValueEq t m n)
+	    _		       -> fail $ "equalAtmArg "++(show m)++" ==/== "++(show n)
 
 
 -- | Type-directed equality on argument lists
