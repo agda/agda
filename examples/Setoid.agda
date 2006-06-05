@@ -130,28 +130,31 @@ module Fun where
   (==>) : Setoid -> Setoid -> Setoid
   A ==> B = setoid (A => B) EqFun r s t
     where
-      module EqChainB = EqChain B; open EqChainB
-      module EqA = Equality A
-      module EqB = Equality B; open EqB
+      module Proof where
+	module EqChainB = EqChain B; open EqChainB
+	module EqA = Equality A
+	module EqB = Equality B; open EqB
 
-      r : (f : A => B) -> EqFun f f
-      r f = eqFunI (\xy -> cong f xy)
+	abstract
+	  r : (f : A => B) -> EqFun f f
+	  r f = eqFunI (\xy -> cong f xy)
 
-      s : (f, g : A => B) -> EqFun f g -> EqFun g f
-      s f g fg =
-        eqFunI (\{x} {y} xy ->
-	  app g x -== app g y `since` cong g xy
-		  === app f x `since` sym (eqFunE fg xy)
-		  === app f y `since` cong f xy
-        )
+	  s : (f, g : A => B) -> EqFun f g -> EqFun g f
+	  s f g fg =
+	    eqFunI (\{x} {y} xy ->
+	      app g x -== app g y `since` cong g xy
+		      === app f x `since` sym (eqFunE fg xy)
+		      === app f y `since` cong f xy
+	    )
 
-      t : (f, g, h : A => B) -> EqFun f g -> EqFun g h -> EqFun f h
-      t f g h fg gh =
-	eqFunI (\{x}{y} xy ->
-	  app f x -== app g y `since` eqFunE fg xy
-		  === app g x `since` cong g (EqA.sym xy)
-		  === app h y `since` eqFunE gh xy
-	)
+	  t : (f, g, h : A => B) -> EqFun f g -> EqFun g h -> EqFun f h
+	  t f g h fg gh =
+	    eqFunI (\{x}{y} xy ->
+	      app f x -== app g y `since` eqFunE fg xy
+		      === app g x `since` cong g (EqA.sym xy)
+		      === app h y `since` eqFunE gh xy
+	    )
+      open Proof
 
   infixl 100 $
   ($) : {A,B:Setoid} -> El (A ==> B) -> El A -> El B
@@ -188,17 +191,22 @@ module Fun where
   id : {A:Setoid} -> El (A ==> A)
   id = lam (\x -> x) (\x -> x)
 
-  -- Now it looks okay. But it's incredibly slow!
-  -- Proof irrelevance makes it go fast again...
+  {- Now it looks okay. But it's incredibly slow!  Proof irrelevance makes it
+     go fast again...  The problem is equality checking of (function type)
+     setoids, which without proof irrelevance checks equality of the proof that
+     EqFun is an equivalence relation.  It's not clear why using lam3 involves
+     so many more equality checks than using lam. Making the proofs abstract
+     makes the problem go away.
+  -}
   compose : {A,B,C:Setoid} -> El ((B ==> C) ==> (A ==> B) ==> (A ==> C))
   compose =
---     lam3 (\f g x -> f $ (g $ x))
--- 	 (\f g x -> f `eqFunE` (g `eqFunE` x))
-    lam (\f -> lam (\g -> lam (\x -> app f (app g x))
-			      (\x -> cong f (cong g x)))
-		   (\g -> eqFunI (\x -> cong f (eqFunE g x))))
-	(\f -> eqFunI (\g -> eqFunI (\x -> eqFunE f (eqFunE g x))))
+    lam3 (\f g x -> f $ (g $ x))
+	 (\f g x -> f `eqFunE` (g `eqFunE` x))
 
+--     lam (\f -> lam (\g -> lam (\x -> app f (app g x))
+-- 			      (\x -> cong f (cong g x)))
+-- 		   (\g -> eqFunI (\x -> cong f (eqFunE g x))))
+-- 	(\f -> eqFunI (\g -> eqFunI (\x -> eqFunE f (eqFunE g x))))
 
   (∘) : {A,B,C:Setoid} -> El (B ==> C) -> El (A ==> B) -> El (A ==> C)
   f ∘ g = compose $ f $ g
