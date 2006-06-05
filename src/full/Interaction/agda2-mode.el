@@ -4,7 +4,7 @@
 (when (fboundp 'dolist)
   (dolist (b (buffer-list))
     (with-current-buffer b
-      (if (or (equal (buffer-name) "*agda2*") (eq major-mode 'agda2-mode))
+      (if (or (equal (buffer-name) "*ghci*") (eq major-mode 'agda2-mode))
           (kill-buffer b)))))
 (if (featurep 'agda2) (unload-feature 'agda2))
 
@@ -55,10 +55,10 @@ properties to add to the result."
 
 (defgroup agda2 nil "User options for agda2-mode")
 (defcustom agda2-root-dir "m:/Agda2"
-  "The root of cvs Agda2 module working directory")
-(defcustom agda2-toplevel-module "GhciTop"
-  "*The name of the Agda2 toplevel module"
+  "The root of cvs Agda2 module working directory.  Customizing this takes
+effect only after doing 'erase-customization' for `agda2-ghci-options' below"
   :type 'string :group 'agda2)
+
 (defcustom agda2-ghci-options
   (let ((outdir (concat agda2-root-dir "/out/full")))
     (list
@@ -78,6 +78,10 @@ properties to add to the result."
      "-fno-warn-type-defaults"))
   "*The options for ghci to load `agda2-toplevel-module'."
   :type '(repeat string) :group 'agda2)
+
+(defcustom agda2-toplevel-module "GhciTop"
+  "*The name of the Agda2 toplevel module"
+  :type 'string :group 'agda2)
   
 (defcustom agda2-mode-hook '(turn-on-agda2-indent turn-on-agda2-font-lock)
   "*Hooks for agda2-mode.
@@ -97,6 +101,7 @@ those features." :type 'hook :group 'agda2)
   "Keymap for agda2 goal menu")
 (let ((l 
        '(
+         (agda2-restart             "\C-c\C-x\C-c"  "Restart"               )
          (agda2-quit                "\C-c\C-q"      "Quit"                  )
          (agda2-load                "\C-c\C-x\C-b"  "Load"                  )
          (agda2-show-constraints    "\C-c\C-e"      "Show constraints"      )
@@ -105,8 +110,11 @@ those features." :type 'hook :group 'agda2)
          (agda2-text-state          "\C-c'"         "Text state"            )
          (agda2-next-goal           "\C-c\C-f"      "Next goal"             )
          (agda2-previous-goal       "\C-c\C-b"      "Previous goal"         )
-         (agda2-give                "\C-c\C-g"      nil "Give"              )
-         (agda2-refine              "\C-c\C-r"      nil "Refine"            )
+         (agda2-give                "\C-c\C-g"  nil "Give"                  )
+         (agda2-refine              "\C-c\C-r"  nil "Refine"                )
+         (agda2-show-context        "\C-c|"     nil "Context"               )
+         (agda2-infer-type          "\C-c:"     nil "Infer type"            )
+         (agda2-infer-type-normalised "\C-c\C-x:" nil "Infer type (normalised)" )
          (agda2-submit-bug-report   nil             "Submit bug report"     )
          )))
   (define-key agda2-mode-map [menu-bar Agda2]
@@ -196,7 +204,7 @@ consumed at `agda2-undo'.  It is a list of list
   "Load agda2-toplevel-module to ghci"
   (interactive)
   (if (or force (not (eq 'run (agda2-process-status))))
-    (save-excursion (let ((agda2-bufname "*agda2*"))
+    (save-excursion (let ((agda2-bufname "*ghci*"))
                       (agda2-protect (kill-buffer agda2-bufname))
                       (haskell-ghci-start-process nil)
                       (setq agda2-process  haskell-ghci-process
@@ -333,6 +341,18 @@ annotate new goals NEW-GS"
   (agda2-protect (progn (haskell-ghci-go ":quit")
                         (kill-buffer agda2-buffer)
                         (kill-buffer (current-buffer)))))
+(defun agda2-show-context ()
+  "Show context of the goal at point" (interactive)
+  (agda2-goal-cmd "cmd_context"))
+
+(defun agda2-infer-type ()
+  "Infer type of the goal at point" (interactive)
+  (agda2-goal-cmd "cmd_infer B.Instantiated" "expression to type"))
+
+(defun agda2-infer-type-normalised()
+  "Infer normalised type of the goal at point" (interactive)
+  (agda2-goal-cmd "cmd_infer B.Normalised" "expression to type"))
+  
 ;;;;
 
 (defun agda2-annotate (goals pos)
@@ -430,7 +450,7 @@ NEW-TXT is a string to replace OLD-G, or `'paren', or `'no-paren'"
     (if g (list o g))))
 
 (defun agda2-goal-overlay (g)
-  "Return overlay of the goal number GN"
+  "Return overlay of the goal number G"
   (car(agda2-goal-at(text-property-any(point-min)(point-max) 'agda2-gn g))))
 
 (defun agda2-range-of-goal (g)
@@ -466,6 +486,7 @@ NEW-TXT is a string to replace OLD-G, or `'paren', or `'no-paren'"
 (defalias 'turn-off-agda2-indent 'turn-off-haskell-indent)
 
 ;;;; Font-lock support
+
 (defvar agda2-re-font-lock nil)
 (defvar agda2-re-vars nil)
 (defvar agda2-re-param nil)
