@@ -192,8 +192,13 @@ module Fun where
   -- Proof irrelevance makes it go fast again...
   compose : {A,B,C:Setoid} -> El ((B ==> C) ==> (A ==> B) ==> (A ==> C))
   compose =
-    lam3 (\f g x -> f $ (g $ x))
-	 (\f g x -> f `eqFunE` (g `eqFunE` x))
+--     lam3 (\f g x -> f $ (g $ x))
+-- 	 (\f g x -> f `eqFunE` (g `eqFunE` x))
+    lam (\f -> lam (\g -> lam (\x -> app f (app g x))
+			      (\x -> cong f (cong g x)))
+		   (\g -> eqFunI (\x -> cong f (eqFunE g x))))
+	(\f -> eqFunI (\g -> eqFunI (\x -> eqFunE f (eqFunE g x))))
+
 
   (∘) : {A,B,C:Setoid} -> El (B ==> C) -> El (A ==> B) -> El (A ==> C)
   f ∘ g = compose $ f $ g
