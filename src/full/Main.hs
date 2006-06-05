@@ -87,7 +87,8 @@ runAgda =
 				    _	-> liftIO $ do
 					putStrLn "Statistics"
 					putStrLn "----------"
-					mapM_ (\ (s,n) -> putStrLn $ s ++ " : " ++ show n) stats
+					mapM_ (\ (s,n) -> putStrLn $ s ++ " : " ++ show n) $
+					    List.sortBy (\x y -> compare (snd x) (snd y)) stats
 
 
 -- | Print usage information.

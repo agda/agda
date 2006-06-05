@@ -8,6 +8,7 @@ module TypeChecking.Monad
     , module TypeChecking.Monad.Options
     , module TypeChecking.Monad.Signature
     , module TypeChecking.Monad.State
+    , module TypeChecking.Monad.Statistics
     , module TypeChecking.Monad.Trace
     ) where
 
@@ -20,6 +21,7 @@ import TypeChecking.Monad.MetaVars
 import TypeChecking.Monad.Options
 import TypeChecking.Monad.Signature
 import TypeChecking.Monad.State
+import TypeChecking.Monad.Statistics
 import TypeChecking.Monad.Trace
 
 

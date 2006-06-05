@@ -258,15 +258,6 @@ defClauses _			      = []
 
 type Statistics = Map String Int
 
-tick :: String -> TCM ()
-tick x = modify $ \s ->
-    s { stStatistics = Map.insertWith (\n _ -> n + 1) x 1
-		     $ stStatistics s
-      }
-
-getStatistics :: TCM Statistics
-getStatistics = gets stStatistics
-
 ---------------------------------------------------------------------------
 -- ** Trace
 ---------------------------------------------------------------------------

@@ -166,8 +166,7 @@ instance Reduce Term where
 
 	    reduceDef v0 f args =
 		{-# SCC "reduceDef" #-}
-		do  --tick (show f)
-		    def <- defClauses <$> getConstInfo f
+		do  def <- defClauses <$> getConstInfo f
 		    case def of
 			[] -> return $ v0 `apply` args -- no definition for head
 			cls@(Clause ps _ : _)
