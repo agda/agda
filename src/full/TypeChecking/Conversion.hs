@@ -63,9 +63,39 @@ equalVal _ a m n =
 		    LamT _    -> __IMPOSSIBLE__
     where
 	equalFun (a,t) m n =
-	    {-# SCC "equalFun" #-}
 	    do	name <- freshName_ (suggest t)
 		addCtx name (unArg a) $ equalVal Why t' m' n'
+	    where
+		p	= fmap (const $ Var 0 []) a
+		(m',n') = raise 1 (m,n) `apply` [p]
+		t'	= raise 1 t `piApply` [p]
+		suggest (Fun _ _) = "_"
+		suggest (Pi _ (Abs x _)) = x
+		suggest _ = __IMPOSSIBLE__
+
+-- | Type directed equality on values.
+--
+equalValArg :: Data a => a -> Type -> Term -> Term -> TCM ()
+equalValArg _ a m n =
+    catchConstraint (ValueEq a m n) $
+    do	a' <- instantiate a
+--     debug $ "equalVal " ++ show m ++ " == " ++ show n ++ " : " ++ show a'
+	proofIrr <- proofIrrelevance
+	s <- reduce =<< getSort a'
+	case (proofIrr, s) of
+	    (True, Prop)    -> return ()
+	    _		    ->
+		case a' of
+		    Pi a _    -> equalFun (a,a') m n
+		    Fun a _   -> equalFun (a,a') m n
+		    MetaT x _ -> addConstraint (ValueEq a m n)
+		    El _ _    -> equalAtm Why a m n
+		    Sort _    -> equalAtm Why a m n
+		    LamT _    -> __IMPOSSIBLE__
+    where
+	equalFun (a,t) m n =
+	    do	name <- freshName_ (suggest t)
+		addCtx name (unArg a) $ equalValArg Why t' m' n'
 	    where
 		p	= fmap (const $ Var 0 []) a
 		(m',n') = raise 1 (m,n) `apply` [p]
@@ -109,10 +139,10 @@ equalArg _ a args1 args2 = do
     case (a', args1, args2) of 
         (_, [], []) -> return ()
         (Pi (Arg _ b) (Abs _ c), (Arg _ arg1 : args1), (Arg _ arg2 : args2)) -> do
-            {-# SCC "equalArg.equalVal" #-} equalVal Why b arg1 arg2
+            equalValArg Why b arg1 arg2
             equalArg Why (subst arg1 c) args1 args2
         (Fun (Arg _ b) c, (Arg _ arg1 : args1), (Arg _ arg2 : args2)) -> do
-            equalVal Why b arg1 arg2
+            equalValArg Why b arg1 arg2
             equalArg Why c args1 args2
         _ -> fail $ "equalArg "++(show a)++" "++(show args1)++" "++(show args2)
 
