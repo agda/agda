@@ -34,8 +34,9 @@ data TCState =
 	 , stSignature	       :: Signature
 	 , stScopeInfo	       :: ScopeInfo
 	 , stTrace	       :: Trace
-	 , stOptions	       :: CommandLineOptions
 	    -- ^ record what is happening (for error msgs)
+	 , stOptions	       :: CommandLineOptions
+	 , stStatistics	       :: Statistics
 	 }
 
 data FreshThings =
@@ -56,6 +57,7 @@ initState =
 	 , stScopeInfo	       = emptyScopeInfo_
 	 , stTrace	       = noTrace
 	 , stOptions	       = defaultOptions
+	 , stStatistics	       = Map.empty
 	 }
 
 instance HasFresh MetaId FreshThings where
@@ -251,7 +253,22 @@ defClauses _			      = []
 
 
 ---------------------------------------------------------------------------
--- * Trace
+-- ** Statistics
+---------------------------------------------------------------------------
+
+type Statistics = Map String Int
+
+tick :: String -> TCM ()
+tick x = modify $ \s ->
+    s { stStatistics = Map.insertWith (\n _ -> n + 1) x 1
+		     $ stStatistics s
+      }
+
+getStatistics :: TCM Statistics
+getStatistics = gets stStatistics
+
+---------------------------------------------------------------------------
+-- ** Trace
 ---------------------------------------------------------------------------
 
 -- | The trace is just a range at the moment.

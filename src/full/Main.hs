@@ -80,6 +80,15 @@ runAgda =
 					concreteToAbstract_ m
 				checkDecl m
 				setScope scope
+				-- Print stats
+				stats <- Map.toList <$> getStatistics
+				case stats of
+				    []	-> return ()
+				    _	-> liftIO $ do
+					putStrLn "Statistics"
+					putStrLn "----------"
+					mapM_ (\ (s,n) -> putStrLn $ s ++ " : " ++ show n) stats
+
 
 -- | Print usage information.
 printUsage :: IO ()
