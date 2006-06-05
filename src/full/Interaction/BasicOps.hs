@@ -30,6 +30,7 @@ import Syntax.Translation.InternalToAbstract
 import Syntax.Translation.AbstractToConcrete
 --import Syntax.Parser
 import Syntax.Scope
+import Syntax.Fixity(Precedence(..))
 
 import TypeChecker
 import TypeChecking.Conversion
@@ -114,12 +115,12 @@ refine ii mr e =
                  appMeta :: Expr -> Expr
                  appMeta e = 
                       let metaVar = QuestionMark $ Syntax.Info.MetaInfo {Syntax.Info.metaRange = r,
-                                                 Syntax.Info.metaScope = scope
+                                                 Syntax.Info.metaScope = scope{contextPrecedence = ArgumentCtx}
 						 , metaNumber = Nothing
 						 }
                       in App (ExprRange $ r) e (Arg NotHidden metaVar)
                  --ToDo: The position of metaVar is not correct
-                 --ToDo: The fixity of metavars is not correct
+                 --ToDo: The fixity of metavars is not correct -- fixed? MT
 
 {-
 refineExact :: InteractionId -> Maybe Range -> Expr -> TCM (Expr,[InteractionId])

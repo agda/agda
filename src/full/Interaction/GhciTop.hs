@@ -11,6 +11,7 @@ import Utils.Fresh
 import Utils.Monad
 import Utils.Monad.Undo
 import Utils.IO
+import Utils.Pretty
 
 import Control.Monad.Error
 import Control.Monad.Reader
@@ -27,6 +28,7 @@ import TypeChecking.Reduce
 
 import Syntax.Position
 import Syntax.Parser
+import qualified Syntax.Concrete as SC
 import Syntax.Concrete.Pretty ()
 import Syntax.Abstract
 import Syntax.Scope
@@ -36,7 +38,7 @@ import Syntax.Abstract.Test
 import Syntax.Abstract.Name
 
 import Interaction.Exceptions
-import qualified Interaction.BasicOps as BO
+import qualified Interaction.BasicOps as B
 import qualified Interaction.CommandLine.CommandLine as CL
 
 theTCState :: IORef TCState
@@ -67,35 +69,72 @@ ioTCM cmd = do
     Right (a,st',ss') -> do
 	writeIORef theTCState st'
 	writeIORef theUndoStack ss'
+        putStrLn $ "debug: stack depth = " ++ show (length ss')
 	return a
 
 cmd_load :: String -> IO ()
 cmd_load file = crashOnException $ do
     (m',scope) <- concreteToAbstract_ =<< parseFile moduleParser file
-    ioTCM $ setUndo >> resetState >> checkDecl m' >> setScope scope
-      
+    is <- ioTCM $ do setUndo; resetState; checkDecl m'; setScope scope; lispIP
+    putStrLn $ response $ L[A"agda2-load-action", is]
+  where lispIP  = format . sortRng <$> (tagRng =<< getInteractionPoints)
+        tagRng  = mapM (\i -> (,)i <$> getInteractionRange i)
+        sortRng = sortBy ((.snd) . compare . snd)
+        format  = Q . L . List.map (A . tail . show . fst)
+                  
 cmd_constraints :: IO ()
-cmd_constraints = crashOnException $ do
-    putStrLn . unlines . List.map prc . Map.assocs =<< ioTCM getConstraints
-  where prc (x,CC _ ctx _ c) = show x ++ ": " ++ show ctx ++ " |- " ++ show c
+cmd_constraints = crashOnException $
+    ioTCM B.getConstraints >>= mapM_ (putStrLn . show . abstractToConcrete_)
 
 cmd_metas :: IO ()
 cmd_metas = crashOnException $ ioTCM $ CL.showMetas []
 
 cmd_undo :: IO ()
-cmd_undo = ioTCM $ undo
+cmd_undo = ioTCM undo
 
-cmd_give :: InteractionId -> String -> IO (String,[InteractionId])
-cmd_give ii s = crashOnException $ ioTCM $ do
-    (e, iis) <- BO.give ii Nothing =<< parseExprIn ii s
-    return (show e, iis)
+cmd_give :: InteractionId -> Range -> String -> IO()
+cmd_give = give_gen B.give $ \s ce -> case ce of (SC.Paren _ _)-> "'paren"
+                                                 _             -> "'no-paren"
 
-parseExprIn :: InteractionId -> String -> TCM Expr
-parseExprIn ii s = do
-    mi <- getMetaInfo <$> (lookupMeta =<< lookupInteractionId ii)
-    i  <- fresh
+cmd_refine :: InteractionId -> Range -> String -> IO ()
+cmd_refine = give_gen B.refine $ \s -> show . show
+
+give_gen give_ref mk_newtxt ii rng s = crashOnException $ ioTCM $ do
+    prec      <- contextPrecedence <$> getInteractionScope ii
+    (ae, iis) <- give_ref ii Nothing =<< parseExprIn ii rng s
+    let newtxt = A . mk_newtxt s $ abstractToConcreteCtx prec ae
+        newgs  = Q . L $ List.map showNumIId iis
+    liftIO $ putStrLn $ response $
+           L[A"agda2-give-action", showNumIId ii, newtxt, newgs]
+
+
+parseExprIn :: InteractionId -> Range -> String -> TCM(Expr)
+parseExprIn ii rng s = do
+    mId <- lookupInteractionId ii
+    updateMetaRange mId rng       
+    mi  <- getMetaInfo <$> lookupMeta mId
+    i   <- fresh
     liftIO $ concreteToAbstract
              (ScopeState {freshId = i})
              (metaScope mi)
              (parsePosString exprParser (rStart (metaRange mi)) s)
 
+response :: Lisp String -> String
+response l = show (text "agda2_mode_code" <+> pretty l)
+
+data Lisp a = A a | L [Lisp a] | Q (Lisp a)
+
+instance Pretty a => Pretty (Lisp a) where
+  pretty (A a ) = pretty a
+  pretty (L xs) = parens (sep (List.map pretty xs))
+  pretty (Q x)  = text "'"<>pretty x
+
+instance Pretty String where pretty = text
+
+instance Pretty a => Show (Lisp a) where show = show . pretty
+
+showNumIId = A . tail . show
+quoteString s = '"':concatMap q s++"\"" where
+  q '\n' = "\\n"
+  q ch   = [ch]
+  
