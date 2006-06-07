@@ -33,11 +33,12 @@ Fixes
 
 [Scope]
 
-* doesn't scope checking check for name clashes when opening? it should.
-
 * scope checking yields impossible when things clash
+  (doesn't scope checking check for name clashes when opening? it should.)
 
 * local modules can clash
+
+* handle clashing of concrete names (in abstractToConcrete)
 
 [Internals]
 
@@ -49,13 +50,14 @@ Fixes
 
 * write better tests
 
-* check that underscores have been solved (when? at the end of the file)
-
-* Context to abstract thinks that the types are valid in the entire context.
+[Bugs]
 
 * emacs interface gets the metas in the wrong order for local definitions (?)
 
-* handle clashing of concrete names (in abstractToConcrete)
+[Interaction]
+
+* check that underscores have been solved (when? at the end of the file)
+  only for interactive mode and batch mode
 
 Speculative
 -----------
@@ -71,6 +73,8 @@ Cleaning
 
 Done
 ----
+
+* Context to abstract thinks that the types are valid in the entire context.
 
 * Hiding info on lambdas.
 
