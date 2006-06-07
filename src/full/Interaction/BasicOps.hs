@@ -20,7 +20,7 @@ import Data.List as List
 import Interaction.Monad 
 --import Text.PrettyPrint
 
-import qualified Syntax.Concrete -- ToDo: Remove with instance of ToConcrete
+import qualified Syntax.Concrete as C -- ToDo: Remove with instance of ToConcrete
 import Syntax.Position
 import Syntax.Abstract 
 import Syntax.Common
@@ -225,10 +225,10 @@ instance (ToConcrete a c, ToConcrete b d) =>
     toConcrete (LeqSorts e e') = LeqSorts <$> toConcrete e <*> toConcrete e'
 
 --ToDo: Move somewhere else
-instance ToConcrete InteractionId Syntax.Concrete.Expr where
-    toConcrete (InteractionId i) = return $ Syntax.Concrete.QuestionMark noRange (Just i)
-instance ToConcrete MetaId Syntax.Concrete.Expr where
-    toConcrete (MetaId i) = return $ Syntax.Concrete.Underscore noRange (Just i)
+instance ToConcrete InteractionId C.Expr where
+    toConcrete (InteractionId i) = return $ C.QuestionMark noRange (Just i)
+instance ToConcrete MetaId C.Expr where
+    toConcrete (MetaId i) = return $ C.Underscore noRange (Just i)
 
 judgToOutputForm :: Judgement a b c -> OutputForm a c
 judgToOutputForm (HasType e t) = OfType e t
