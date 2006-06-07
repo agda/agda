@@ -290,14 +290,13 @@ typeOfMetas norm = liftTCM $
 	       openAndImplicit _ _ _			 = False
 
 contextOfMeta :: InteractionId -> IM [OutputForm Expr Name]
-contextOfMeta ii =
-     do  mi <- lookupInteractionId ii
-         metaInfo <- getMetaInfo <$> lookupMeta mi
-         let env = metaEnv metaInfo
-         let localVars =  List.filter visibleVar $ envContext env
-         withMetaInfo metaInfo $ mapM translate localVars
-  where visibleVar (x,_) = (show x) /= "_"
-        translate (x,t) = OfType x <$> reify t
+contextOfMeta ii = do
+  info <- getMetaInfo <$> (lookupMeta =<< lookupInteractionId ii)
+  let localVars = List.filter visible . envContext . metaEnv $ info
+  withMetaInfo info $ reifyContext localVars
+  where visible (x,_)  = show x /= "_"
+        reifyContext   = foldr out (return []) . reverse
+        out (x,t) rest = liftM2 (:) (OfType x <$> reify t) (addCtx x t rest)
 
 
 {-| Returns the type of the expression in the current environment -}
