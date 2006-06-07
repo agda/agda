@@ -146,7 +146,7 @@ instance Occurs Term where
 		    case findIdx ok n of
 			Just n'	-> Var n' <$> occ m ok vs
 			Nothing	-> fail $ show m ++ " cannot depend on p" ++ show n
-		Lam f	    -> Lam <$> occ m ok f
+		Lam h f	    -> Lam h <$> occ m ok f
 		Lit l	    -> return $ Lit l
 		Def c vs    -> Def c <$> occ m ok vs
 		Con c vs    -> Con c <$> occ m ok vs

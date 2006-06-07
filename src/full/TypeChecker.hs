@@ -564,7 +564,7 @@ checkExpr e t =
 			    do	let arg = Arg h (Var 0 [])
 				    tb  = raise 1 t' `piApply` [arg]
 				v <- checkExpr e0 tb
-				return $ Lam (Abs (show x) v)
+				return $ Lam h (Abs (show x) v)
 			_   -> fail $ "expected " ++ show h ++ " function space, found " ++ show t'
 
 	    A.QuestionMark i -> 
@@ -671,6 +671,6 @@ buildPi :: [Arg (String,Type)] -> Type -> Type
 buildPi tel t = foldr (\ (Arg h (x,a)) b -> Pi (Arg h a) (Abs x b) ) t tel
 
 buildLam :: [Arg String] -> Term -> Term
-buildLam xs t = foldr (\ (Arg _ x) t -> Lam (Abs x t)) t xs
+buildLam xs t = foldr (\ (Arg h x) t -> Lam h (Abs x t)) t xs
 
 

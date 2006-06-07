@@ -101,9 +101,9 @@ instance Reify Term Expr where
 		I.Con x vs   ->
 		    do	i <- qnameInfo x
 			reifyApp (A.Con i x) vs
-		I.Lam b	->
+		I.Lam h b    ->
 		    do	(x,e) <- reify b
-			return $ A.Lam exprInfo (DomainFree NotHidden x) e -- TODO: hiding
+			return $ A.Lam exprInfo (DomainFree h x) e
 		I.Lit l	     -> return $ A.Lit l
 		I.MetaV x vs -> apps =<< reify (x,vs)
 		I.BlockedV _ -> __IMPOSSIBLE__

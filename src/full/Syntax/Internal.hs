@@ -22,7 +22,7 @@ import Utils.Monad
 --     list of clauses.
 --
 data Term = Var Nat Args
-	  | Lam (Abs Term)	    -- ^ terms are beta normal
+	  | Lam Hiding (Abs Term)   -- ^ terms are beta normal
 	  | Lit Literal
 	  | Def QName Args
 	  | Con QName Args

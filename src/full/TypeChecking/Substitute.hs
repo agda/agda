@@ -28,7 +28,7 @@ instance Apply Term where
 	    Var i args'   -> Var i (args'++args)
 	    Def c args'   -> Def c (args'++args)
 	    Con c args'   -> Con c (args'++args)
-	    Lam u	  -> absApp u v `apply` args0
+	    Lam _ u	  -> absApp u v `apply` args0
 	    MetaV x args' -> MetaV x (args'++args) 
 	    BlockedV b	  -> BlockedV $ b `apply` args
 	    Lit l	  -> __IMPOSSIBLE__
@@ -86,7 +86,7 @@ class Abstract t where
     abstract :: Telescope -> t -> t
 
 instance Abstract Term where
-    abstract tel v = foldl (\v _ -> Lam (Abs "x" v)) v $ reverse tel
+    abstract tel v = foldl (\v (Arg h _) -> Lam h (Abs "x" v)) v $ reverse tel
 
 instance Abstract Type where
     abstract tel a = foldl (\a _ -> LamT (Abs "x" a)   ) a $ reverse tel
@@ -131,7 +131,7 @@ instance Subst Term where
 		| i < n	    -> Var i $ substAt n u vs
 		| i == n    -> u `apply` substAt n u vs
 		| otherwise -> Var (i - 1) $ substAt n u vs
-	    Lam m	    -> Lam $ substAt n u m
+	    Lam h m	    -> Lam h $ substAt n u m
 	    Def c vs	    -> Def c $ substAt n u vs
 	    Con c vs	    -> Con c $ substAt n u vs
 	    MetaV x vs	    -> MetaV x $ substAt n u vs
@@ -186,7 +186,7 @@ instance Raise Term where
 	    Var i vs
 		| i < m	    -> Var i $ rf vs
 		| otherwise -> Var (i + k) $ rf vs
-	    Lam m	    -> Lam $ rf m
+	    Lam h m	    -> Lam h $ rf m
 	    Def c vs	    -> Def c $ rf vs
 	    Con c vs	    -> Con c $ rf vs
 	    MetaV x vs	    -> MetaV x $ rf vs

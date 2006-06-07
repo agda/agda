@@ -161,7 +161,7 @@ instance Reduce Term where
 		BlockedV _ -> return v
 		Lit _	   -> return v
 		Var _ _	   -> return v
-		Lam _	   -> return v
+		Lam _ _	   -> return v
 	where
 
 	    reduceDef v0 f args =
@@ -247,7 +247,7 @@ instance Normalise Term where
 		Def f vs    -> Def f <$> normalise vs
 		MetaV x vs  -> MetaV x <$> normalise vs
 		Lit _	    -> return v
-		Lam b	    -> Lam <$> normalise b
+		Lam h b	    -> Lam h <$> normalise b
 		BlockedV _  -> __IMPOSSIBLE__
 
 instance Normalise t => Normalise (Abs t) where

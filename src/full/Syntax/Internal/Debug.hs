@@ -20,6 +20,10 @@ bracket :: Hiding -> String -> String
 bracket Hidden	  s = "{" ++ s ++ "}"
 bracket NotHidden s = "(" ++ s ++ ")"
 
+bracket' :: Hiding -> String -> String
+bracket' Hidden	   s = "{" ++ s ++ "}"
+bracket' NotHidden s = s
+
 isOp (c:_) = not $ isAlpha c
 isOp [] = False
 
@@ -30,10 +34,10 @@ val2str :: (MonadReader Int m) => Term -> m String
 val2str (Var i args) = do
     n <- ask
     args2str (if n > i then "x"++(show $ n - i) else "p"++(show $ i - n)) args
-val2str (Lam (Abs _ v)) = do
+val2str (Lam h (Abs _ v)) = do
     hd <- local (+ 1) $ val2str v
     n <- ask
-    return $ "(\\x"++(show $ n + 1)++" -> "++hd++")"
+    return $ "(\\" ++ bracket' h ("x" ++ (show $ n + 1)) ++ " -> " ++ hd ++ ")"
 val2str (Lit l) = return $ show l
 val2str (Con c [Arg NotHidden v1,Arg NotHidden v2])
     | isOp (show c) =
