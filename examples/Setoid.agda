@@ -135,6 +135,8 @@ module Fun where
 	module EqA = Equality A
 	module EqB = Equality B; open EqB
 
+	-- either abstract or --proof-irrelevance needed
+	-- (we don't want to compare the proofs for equality)
 	abstract
 	  r : (f : A => B) -> EqFun f f
 	  r f = eqFunI (\xy -> cong f xy)
