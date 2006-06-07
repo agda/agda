@@ -25,29 +25,42 @@ Features
 Fixes
 -----
 
-* move trace to environment
+[Parsing]
 
-* allow more things in postulates (infix, private?, ..)
+* allow more things in postulates (infix, private, ..)
 
 * Check out lex/parse errors (what position and what input is reported).
 
-* check that underscores have been solved (when? at the end of the file)
+[Scope]
 
-* Hiding info on lambdas.
+* doesn't scope checking check for name clashes when opening? it should.
+
+* scope checking yields impossible when things clash
+
+* local modules can clash
+
+[Internals]
+
+* move trace to environment
 
 * name suggestions in telescopes
 
+[Testing]
+
 * write better tests
 
-* doesn't scope checking check for name clashes when opening?
-
-* make scope checking aware of abstract? or maybe this is too much work
+* check that underscores have been solved (when? at the end of the file)
 
 * Context to abstract thinks that the types are valid in the entire context.
 
 * emacs interface gets the metas in the wrong order for local definitions (?)
 
-* scope checking yields impossible when things clash
+* handle clashing of concrete names (in abstractToConcrete)
+
+Speculative
+-----------
+
+* make scope checking aware of abstract? or maybe this is too much work
 
 Cleaning
 --------
@@ -58,6 +71,8 @@ Cleaning
 
 Done
 ----
+
+* Hiding info on lambdas.
 
 * flag for printing all implicit arguments (handled in internal to abstract)
 
