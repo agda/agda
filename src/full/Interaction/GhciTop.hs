@@ -22,15 +22,17 @@ import Data.Map as Map
 import System.Exit
 
 import TypeChecker
-import TypeChecking.Monad
+import TypeChecking.Monad as TM
 import TypeChecking.MetaVars
 import TypeChecking.Reduce
 
 import Syntax.Position
 import Syntax.Parser
 import qualified Syntax.Concrete as SC
+import Syntax.Common as SCo
 import Syntax.Concrete.Pretty ()
-import Syntax.Abstract
+import Syntax.Abstract as SA
+import Syntax.Internal as SI
 import Syntax.Scope
 import Syntax.Translation.ConcreteToAbstract
 import Syntax.Translation.AbstractToConcrete
@@ -69,7 +71,6 @@ ioTCM cmd = do
     Right (a,st',ss') -> do
 	writeIORef theTCState st'
 	writeIORef theUndoStack ss'
-        putStrLn $ "debug: stack depth = " ++ show (length ss')
 	return a
 
 cmd_load :: String -> IO ()
@@ -92,11 +93,13 @@ cmd_metas = crashOnException $ ioTCM $ CL.showMetas []
 cmd_undo :: IO ()
 cmd_undo = ioTCM undo
 
-cmd_give :: InteractionId -> Range -> String -> IO()
+type GoalCommand = InteractionId -> Range -> String -> IO()
+
+cmd_give :: GoalCommand
 cmd_give = give_gen B.give $ \s ce -> case ce of (SC.Paren _ _)-> "'paren"
                                                  _             -> "'no-paren"
 
-cmd_refine :: InteractionId -> Range -> String -> IO ()
+cmd_refine :: GoalCommand
 cmd_refine = give_gen B.refine $ \s -> show . show
 
 give_gen give_ref mk_newtxt ii rng s = crashOnException $ ioTCM $ do
@@ -107,8 +110,7 @@ give_gen give_ref mk_newtxt ii rng s = crashOnException $ ioTCM $ do
     liftIO $ putStrLn $ response $
            L[A"agda2-give-action", showNumIId ii, newtxt, newgs]
 
-
-parseExprIn :: InteractionId -> Range -> String -> TCM(Expr)
+parseExprIn :: InteractionId -> Range -> String -> TCM Expr
 parseExprIn ii rng s = do
     mId <- lookupInteractionId ii
     updateMetaRange mId rng       
@@ -118,6 +120,22 @@ parseExprIn ii rng s = do
              (ScopeState {freshId = i})
              (metaScope mi)
              (parsePosString exprParser (rStart (metaRange mi)) s)
+
+cmd_context :: GoalCommand
+cmd_context ii _ _ = putStrLn . unlines . List.map show
+                   =<< ioTCM (B.contextOfMeta ii)
+
+cmd_infer :: B.Rewrite -> GoalCommand
+cmd_infer norm ii rng s = crashOnException $ ioTCM $ do
+    liftIO . putStrLn . show =<< B.typeInMeta ii norm =<< parseExprIn ii rng s
+
+
+cmd_goal_type :: B.Rewrite -> GoalCommand
+cmd_goal_type norm ii _ _ = crashOnException $ ioTCM $ do
+    liftIO . putStrLn . show =<< B.typeOfMeta norm ii
+
+
+
 
 response :: Lisp String -> String
 response l = show (text "agda2_mode_code" <+> pretty l)
@@ -134,7 +152,29 @@ instance Pretty String where pretty = text
 instance Pretty a => Show (Lisp a) where show = show . pretty
 
 showNumIId = A . tail . show
-quoteString s = '"':concatMap q s++"\"" where
-  q '\n' = "\\n"
-  q ch   = [ch]
+
+quoteString s = '"':concatMap q s++"\"" where q '\n' = "\\n"
+                                              q ch   = [ch]
+test :: GoalCommand
+test ii rng s = crashOnException $ ioTCM $ do
+  mId  <- lookupInteractionId ii
+  mfo  <- getMetaInfo <$> lookupMeta mId
+  x <- parseExprIn ii rng s
+  liftIO . putStrLn . show =<< return x
+  where
+  findClause wanted = Map.foldWithKey go1 (fail "test: can't find") --"
+                 =<< getSignature
+    where
+    go1 mnam mbdy rest = Map.foldWithKey go2 rest (mdefDefs mbdy)
+    go2 dnam dbdy rest = case theDef dbdy of
+      (Function cls _) -> foldr go3 rest (zip cls [0..])
+      _                -> rest 
+      where go3 (SI.Clause pats cbdy, nth) rest = case deAbs cbdy of
+              (MetaV x args) | x == wanted -> return (dnam, pats)
+              _ -> rest
   
+  deAbs (Bind (Abs _ b)) = deAbs b
+  deAbs (Body t        ) = t
+
+
+
