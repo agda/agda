@@ -48,16 +48,16 @@ module Setoid where
   module Projections where
 
     eq : (A:Setoid) -> El A -> El A -> Prop
-    eq (setoid _ eq _ _ _) = eq
+    eq (setoid _ e _ _ _) = e
 
     refl : (A:Setoid) -> {x:El A} -> eq A x x
-    refl (setoid _ _ refl _ _) = refl _
+    refl (setoid _ _ r _ _) = r _
 
     sym : (A:Setoid) -> {x,y:El A} -> eq A x y -> eq A y x
-    sym (setoid _ _ _ sym _) = sym _ _
+    sym (setoid _ _ _ s _) = s _ _
 
     trans : (A:Setoid) -> {x,y,z:El A} -> eq A x y -> eq A y z -> eq A x z
-    trans (setoid _ _ _ _ trans) = trans _ _ _
+    trans (setoid _ _ _ _ t) = t _ _ _
 
   module Equality (A:Setoid) where
 
