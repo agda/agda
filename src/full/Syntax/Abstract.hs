@@ -79,6 +79,7 @@ data Pattern	= VarP Name	-- ^ the only thing we need to know about a
 				-- stored in the 'Name', so we don't need a
 				-- 'NameInfo' here.
 		| ConP PatInfo QName [Arg Pattern]
+		| DefP PatInfo QName [Arg Pattern]  -- ^ defined pattern
 		| WildP PatInfo
 		| AsP PatInfo Name Pattern
 		| AbsurdP PatInfo
@@ -129,6 +130,7 @@ instance HasRange Definition where
 instance HasRange Pattern where
     getRange (VarP x)	    = getRange x
     getRange (ConP i _ _)   = getRange i
+    getRange (DefP i _ _)   = getRange i
     getRange (WildP i)	    = getRange i
     getRange (AsP i _ _)    = getRange i
     getRange (AbsurdP i)    = getRange i

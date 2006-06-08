@@ -498,11 +498,19 @@ instance BindToConcrete A.LHS C.LHS where
 	    bindToConcrete args $ \args ->
 		ret $ C.LHS (getRange i) PrefixDef x args
 
+instance ToConcrete A.Pattern C.Pattern where
+    toConcrete p = bindToConcrete p return
+
 instance BindToConcrete A.Pattern C.Pattern where
     bindToConcrete (VarP x)	   ret = bindToConcrete x $ ret . IdentP . C.QName
     bindToConcrete (A.WildP i)	   ret =
 	bindWithStored i ret $ ret $ C.WildP (getRange i)
     bindToConcrete (ConP i x args) ret =
+	bindWithStored i ret $
+	do  x <- toConcrete x
+	    bindToConcrete args $ \args ->
+		ret $ foldl AppP (C.IdentP x) args
+    bindToConcrete (DefP i x args) ret =
 	bindWithStored i ret $
 	do  x <- toConcrete x
 	    bindToConcrete args $ \args ->

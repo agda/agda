@@ -474,19 +474,23 @@ instance ToAbstract c a => ToAbstract (Arg c) (Arg a) where
 
 instance BindToAbstract C.Pattern A.Pattern where
     bindToAbstract p@(C.IdentP x) ret =
-	do  rx <- resolvePatternNameM x	-- only returns VarName, ConName or UnknownName
+	do  rx <- resolvePatternNameM x
 	    case rx of
 		VarName y   -> bindVariable y $ ret $ VarP y
-		DefName d | kindOfName d == ConName
-			    -> do let y = theName d
-				  ret $ ConP (PatSource (getRange p) $ const p)
-					     y []
+		DefName d
+		    | kindOfName d == ConName -> do
+			let y = theName d
+			ret $ ConP (PatSource (getRange p) $ const p) y []
+		    | kindOfName d == FunName -> do
+			let y = theName d
+			ret $ DefP (PatSource (getRange p) $ const p) y []
 		UnknownName -> notInScope x
 		_	    -> __IMPOSSIBLE__
     bindToAbstract p0@(AppP p q) ret =
 	bindToAbstract (p,q) $ \(p',q') ->
 	case p' of
 	    ConP _ x as -> ret $ ConP info x (as ++ [q'])
+	    DefP _ x as -> ret $ DefP info x (as ++ [q'])
 	    _		-> higherOrderPattern p0 p
 	where
 	    r = getRange p0
@@ -501,6 +505,10 @@ instance BindToAbstract C.Pattern A.Pattern where
 			ConP _ op' []   ->
 			    bindToAbstract (p,q) $ \ (p',q') ->
 			    ret $ ConP info op'
+				$ map (Arg NotHidden) [p',q']
+			DefP _ op' []	-> 
+			    bindToAbstract (p,q) $ \ (p',q') ->
+			    ret $ DefP info op'
 				$ map (Arg NotHidden) [p',q']
 			_ -> higherOrderPattern p0 (C.IdentP op)
 		_ -> __IMPOSSIBLE__ -- rotating an infix app produces an infix app

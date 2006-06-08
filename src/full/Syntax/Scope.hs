@@ -548,8 +548,7 @@ resolveName q = resolve UnknownName r q
 resolveNameM :: CName.QName -> ScopeM ResolvedName
 resolveNameM x = resolveName x <$> getScopeInfo
 
--- | Unqualified, non-constructor names are always variables in a pattern.
---   This function doesn't bind 'VarName's, the caller has that responsibility.
+-- | This function doesn't bind 'VarName's, the caller has that responsibility.
 resolvePatternNameM :: CName.QName -> ScopeM ResolvedName
 resolvePatternNameM x =
     do	scope <- getScopeInfo
@@ -558,6 +557,7 @@ resolvePatternNameM x =
 	r vs ns x =
 	    case Map.lookup x $ definedNames ns of
 		Just c@(DefinedName _ ConName _ _) -> return $ DefName c
+		Just c@(DefinedName _ FunName _ _) -> return $ DefName c
 		_   -> VarName <$> abstractName x
 
 -- | Figure out what module a qualified name refers to.
