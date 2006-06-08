@@ -251,9 +251,17 @@ constructs t q = constr 0 t q
     where
 	constr n (Pi _ b) d  = constr (n + 1) (absBody b) d
 	constr n (Fun _ b) d = constr n b d
-	constr n (El (Def d' vs) _) d
-	    | d == d'	= checkParams n . map unArg =<< reduce vs
-	constr _ t d = fail $ show t ++ " should be application of " ++ show d
+	constr n (El v _) d = do
+	    v <- reduce v
+	    case v of
+		Def d' vs
+		    | d == d' -> checkParams n . map unArg =<< reduce vs
+		_ -> bad
+	constr _ (Sort _) _    = bad
+	constr _ (MetaT _ _) _ = bad
+	constr _ (LamT _) _    = __IMPOSSIBLE__
+
+	bad = fail $ show t ++ " should end in application of " ++ show q
 
 	checkParams n vs
 	    | vs `sameVars` ps = return ()
@@ -308,7 +316,6 @@ checkFunDef i x cs =
 
 -- | Type check a function clause.
 checkClause :: Type -> A.Clause -> TCM Clause
---checkClause _ (A.Clause _ _ (_:_))  = fail "checkClause: local definitions not implemented"
 checkClause t (A.Clause (A.LHS i x ps) rhs ds) =
     do	setCurrentRange i
 	checkPatterns ps t $ \xs ts t' ->
@@ -329,7 +336,7 @@ termsToPatterns xs ts = do
 	t2p   n xs t  $ \n xs p ->
 	ts2ps n xs ts $ \n xs ps ->
 	ret n xs (Arg h p : ps)
-    
+
     t2p n (x:xs) (Var i []) ret
 	| n == i	= ret (n - 1) xs $ VarP x
 	| otherwise	= fail $ "expected binding of " ++ x
@@ -498,10 +505,10 @@ isType e s =
 		    do	a' <- isType_ a
 			b' <- isType_ b
 			return $ Fun (Arg h a') b'
-		A.QuestionMark i -> 
+		A.QuestionMark i ->
 		    do  setScope (Info.metaScope i)
 			newQuestionMarkT s
-		A.Underscore i	 -> 
+		A.Underscore i	 ->
 		    do  setScope (Info.metaScope i)
 			newTypeMeta s
 		_		 ->
@@ -539,7 +546,7 @@ forcePi h t =
 		    a <- newTypeMeta sa
 		    x <- freshName (getRange i) "x"
 		    b <- addCtx x a $ newTypeMeta sb
-		    
+
 		    equalTyp () t' $ Pi (Arg h a) (Abs "x" b)
 		    reduce t'
 	    _		-> fail $ "Not a pi: " ++ show t
@@ -625,10 +632,10 @@ checkExpr e t =
 				return $ Lam h (Abs (show x) v)
 			_   -> fail $ "expected " ++ show h ++ " function space, found " ++ show t'
 
-	    A.QuestionMark i -> 
+	    A.QuestionMark i ->
 		do  setScope (Info.metaScope i)
 		    newQuestionMark  t
-	    A.Underscore i   -> 
+	    A.Underscore i   ->
 		do  setScope (Info.metaScope i)
 		    newValueMeta t
 	    A.Lit lit	     -> fail "checkExpr: literals not implemented"
@@ -717,7 +724,7 @@ checkArguments_ r args tel =
 --   variable.
 inferExpr :: A.Expr -> TCM (Term, Type)
 inferExpr e =
-    do	t <- newTypeMeta_ 
+    do	t <- newTypeMeta_
 	v <- checkExpr e t
 	return (v,t)
 
