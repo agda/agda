@@ -19,6 +19,7 @@ import Syntax.Translation.AbstractToConcrete
 import Syntax.Concrete.Pretty ()
 
 import TypeChecking.Monad
+import TypeChecking.Monad.Name
 import TypeChecking.Conversion
 import TypeChecking.MetaVars
 import TypeChecking.Reduce
@@ -544,10 +545,9 @@ forcePi h t =
 		    equalSort s (sLub sa sb)
 
 		    a <- newTypeMeta sa
-		    x <- freshName (getRange i) "x"
+		    x <- refreshName (getRange i) "x"
 		    b <- addCtx x a $ newTypeMeta sb
-
-		    equalTyp () t' $ Pi (Arg h a) (Abs "x" b)
+		    equalTyp () t' $ Pi (Arg h a) (Abs (show x) b)
 		    reduce t'
 	    _		-> fail $ "Not a pi: " ++ show t
 
