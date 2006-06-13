@@ -315,9 +315,9 @@ module NBE where
       dI : D_ n τ -> D n τ
 
     data NatD (n:Nat) : Set where
-      zeroD_ : D_ n nat
+      zeroD_ :		  D_ n nat
       sucD_  : D n nat -> D_ n nat
-      neD_   : Term n -> D_ n nat
+      neD_   : Term n  -> D_ n nat
 
     -- Will this pass the positivity check?
     data FunD (n:Nat)(σ,τ:Type) : Set where
