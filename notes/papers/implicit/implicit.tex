@@ -1,0 +1,215 @@
+% Implicit arguments
+% Author: Catarina Coquand and Ulf Norell
+
+%\documentclass[12pt,a4paper]{amsart}
+\documentclass[11pt]{article}
+
+\usepackage{amsthm}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{definition}[theorem]{Definition}
+
+
+\usepackage{epsf}
+\usepackage{epsfig}
+%\usepackage{isolatin1}
+%\usepackage{a4wide}
+\usepackage{verbatim}
+\usepackage{proof}
+\usepackage{latexsym}
+\usepackage{amssymb,amsmath}
+\usepackage{stmaryrd}
+
+\input{macros}
+
+\title{Implicit Arguments}
+\author{Catarina Coquand and Ulf Norell}
+\date{\today}
+
+\begin{document}
+
+
+\maketitle
+
+\section{Core}
+
+\[\begin{array}{lclr}
+    A	   & ::= & \SET \Or \EL M \Or \PI xAA		& types \\
+    M	   & ::= & x \Or c \Or f \Or M\,M \Or \LAM xM	& terms \\
+    \Gamma & ::= & () \Or \Gamma,x:A			& contexts \\
+    \Sigma & ::= & () \Or \Sigma,c:A \Or \Sigma,f:A=M	& signatures \\
+\end{array}\]
+
+ There are six kinds of judgement 
+\[\begin{array}{ll}
+    \IsSigCS\Sigma & \mbox{$\Sigma$ is a valid signature} \\
+    \IsCtxCS\Sigma\Gamma & \mbox{$\Gamma$ is a valid context} \\
+    \IsTypeCS\Sigma\Gamma A & \mbox{$A$ is a valid type in $\Gamma$} \\
+    \HasTypeCS\Sigma\Gamma MA & \mbox{$M$ has type $A$ in $\Gamma$} \\
+    \EqualTypeCS\Sigma\Gamma AB & \mbox{$A$ and $B$ are convertible types in $\Gamma$}\\
+    \EqualCS\Sigma\Gamma MNA & \mbox{$M$ and $N$ are convertible terms of type $A$ in $\Gamma$} \\
+\end{array}\]
+
+ We will leave $\Sigma$ implicit whenever possible.
+
+ The typing rules are as follows:
+
+\TODO{where should we put $\IsSigCS\Sigma$?}
+
+\medskip
+
+ {\em rules for contexts}
+
+\[\begin{array}{ccc}
+    \infer{\IsCtxC{}}{}
+&&  \infer{\IsCtxC{\Gamma,x:A}}{
+      \IsCtxC\Gamma
+    & \IsTypeC\Gamma A
+    }
+\end{array}\]
+
+ {\em rules for types}
+
+\[\begin{array}{ccccc}
+    \infer{\IsTypeC\Gamma\SET}{\IsCtxC\Gamma}
+&&  \infer{\IsTypeC\Gamma{\EL M}}{\HasTypeC\Gamma M\SET}
+&&  \infer{\IsTypeC\Gamma{\PI xAB}}{\IsTypeC{\Gamma,x:A}B}
+\end{array}\]
+
+ {\em rules for terms}
+
+\[\begin{array}{ccccc}
+    \infer{\HasTypeC\Gamma xA}{
+      \IsCtxC\Gamma
+    & x:A\in\Gamma
+    }
+&&  \infer{\HasTypeCS\Sigma\Gamma cA}{
+    & \IsCtxC\Gamma
+    & c:A\in\Sigma
+    }
+&&  \infer{\HasTypeCS\Sigma\Gamma fA}{
+      \IsCtxC\Gamma
+    & f:A=M\in\Sigma
+    }
+\\{}\\
+\multicolumn5c{\begin{array}{ccc}
+    \infer{\HasTypeC\Gamma{\LAM xM}{\PI xAB}}{
+      \HasTypeC{\Gamma,x:A}MB
+    }
+&&  \infer{\HasTypeC\Gamma{M\,N}{\Subst BxN}}{
+      \HasTypeC\Gamma M{\PI xAB}
+    & \HasTypeC\Gamma NA
+    }
+\end{array}}
+\end{array}\]
+
+ {\em conversion rule}
+
+\[
+    \infer{\HasTypeC\Gamma MB}{
+      \HasTypeC\Gamma MA
+    & \EqualTypeC\Gamma AB
+    }
+\]
+
+% \medskip
+% \medskip
+% 
+% 
+%  The general conversion rules are
+% 
+% $$
+% \frac{\Gamma\vdash A}{\Gamma\vdash A=A}~~~~~~
+% \frac{\Gamma\vdash A=B}{\Gamma\vdash B=A}~~~~~~
+% \frac{\Gamma\vdash A=B~~~\Gamma\vdash B=C}{\Gamma\vdash A=C}
+% $$
+% 
+% $$
+% \frac{\Gamma\vdash M:A}{\Gamma\vdash M=M:A}~~~~~
+% \frac{\Gamma\vdash M=N:A}{\Gamma\vdash N=M:A}~~~~
+% \frac{\Gamma\vdash M=N:A~~~~\Gamma\vdash N=P:A}{\Gamma\vdash M=P:A}
+% $$
+% 
+% $$
+% \frac{\Gamma\vdash M=N:A~~~~~\Gamma\vdash A = B}
+%      {\Gamma\vdash M=N:B}
+% $$
+% 
+% $$
+% \frac{\Gamma,x{:}A\vdash B~~~~~\Gamma\vdash M_1=M_2:A}
+%      {\Gamma\vdash B(x=M_1) = B(x=M_2)}
+% $$
+% 
+% \medskip
+% 
+% The conversion rules for type theory are
+% 
+% $$
+% \frac{}{\Gamma\vdash\SET=\SET}~~~~
+% \frac{\Gamma\vdash M_1=M_2:\SET}{\Gamma\vdash\EL~M_1=\EL~M_2}~~~~~~
+% \frac{\Gamma\vdash A_1=A_2~~~~~\Gamma,x{:}A_1\vdash B_1=B_2}{\Gamma\vdash (x{:}A_1)\rightarrow B_1 = (x{:}A_2)\rightarrow B_2}
+% $$
+% 
+% $$
+% \frac{\Gamma,x{:}A\vdash M_1=M_2:B}{\Gamma\vdash \lambda x.M_1=\lambda x.M_2:(x{:}A)\rightarrow B}
+% $$
+% 
+% $$
+% \frac{\Gamma,x{:}A\vdash B~~~~\Gamma\vdash N_1=N_2:(x{:}A)\rightarrow B~~~~\Gamma\vdash M_1=M_2:A}
+%      {\Gamma\vdash N_1~M_1 = N_2~M_2:B(x=M_1)}
+% $$
+% 
+% $$
+% \frac{\Gamma,x{:}A\vdash N:B~~~~~\Gamma\vdash M:A}
+%      {\Gamma\vdash (\lambda x.N)~M = N(x=M): B(x=M)}~~~~~~~
+% \frac{\Gamma\vdash A~~~~\Gamma\vdash M:(x{:}A)\rightarrow B}
+%      {\Gamma\vdash M = \lambda x.M~x : (x{:}A)\rightarrow B}
+% $$
+% 
+% $$
+% \frac{f : A = M \in \Sigma}
+%      {\Gamma\vdash f = M : A}
+% $$
+% 
+%  In this presentation of rules, we consider $\lambda$ terms up to  $\alpha$-conversion.
+% 
+% \subsection{Type checking}
+% 
+% $$
+% \frac{(x{:}A)~\in~\Gamma}{\Gamma\vdash x\downarrow A}~~~~~~~~~
+% \frac{\Gamma\vdash M\downarrow (x{:}A)\rightarrow B~~~~\Gamma\vdash N\uparrow A}
+%      {\Gamma\vdash M~N\downarrow B(x=N)}
+% $$
+% and
+% $$
+% \frac{\Gamma,x{:}A\vdash M\uparrow B}{\Gamma\vdash \lambda x.M\uparrow (x{:}A)\rightarrow B}~~~~
+% \frac{\Gamma\vdash M\downarrow A~~~~\Gamma\vdash A = B}{\Gamma\vdash M\uparrow B}
+% $$
+% 
+% $$
+% \frac{}{\Gamma\vdash \SET\downarrow}~~~~
+% \frac{\Gamma\vdash M\downarrow\SET}{\Gamma\vdash \EL~M\downarrow}~~~~~~
+% \frac{\Gamma\vdash A\downarrow~~~~~\Gamma,x{:}A\vdash B\downarrow}{\Gamma\vdash (x{:}A)\rightarrow B\downarrow}
+% $$
+% 
+% \begin{theorem}
+% If $M$ is in $\beta$-normal form and $\Gamma\vdash M{:}A$ then $\Gamma\vdash M\uparrow A$.
+% \end{theorem}
+
+
+\section{Implicit Core}
+
+\begin{thebibliography}{9}
+
+\bibitem{Type}
+B. Nordstr\"om, K. Petersson, J. Smith.
+\newblock{{\em Programming in Martin-L\"of's Type Theory.}}
+\newblock{Oxford Science Publications, 1990.}
+
+
+
+\end{thebibliography}
+
+\end{document}
+
