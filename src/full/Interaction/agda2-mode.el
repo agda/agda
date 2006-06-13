@@ -80,7 +80,7 @@ effect only after doing 'erase-customization' for `agda2-ghci-options' below"
   :type '(repeat string) :group 'agda2)
 
 (defcustom agda2-toplevel-module "GhciTop"
-  "*The name of the Agda2 toplevel module"
+  "*The name of the Agda2 toplevel module (this must be INTERPRETED, for now)"
   :type 'string :group 'agda2)
   
 (defcustom agda2-mode-hook '(turn-on-agda2-indent turn-on-agda2-font-lock)
@@ -112,6 +112,7 @@ those features." :type 'hook :group 'agda2)
          (agda2-text-state          "\C-c'"         "Text state"            )
          (agda2-give                "\C-c\C-g"  nil "Give"                  )
          (agda2-refine              "\C-c\C-r"  nil "Refine"                )
+         (agda2-make-case           "\C-c\C-c"  nil "Case"                  )
          (agda2-goal-type           "\C-c\C-t"  nil "Goal type"             )
          (agda2-goal-type-normalised "\C-c\C-x\C-r" nil "Goal type (normalised)"  )
          (agda2-show-context        "\C-c|"     nil "Context"               )
@@ -253,21 +254,21 @@ WANT is an optional prompt.  When ASK is non-nil, use minibuffer."
 
 (defun agda2-respond (response)
   "Execute 'agda2_mode_code<sexp>' within RESPONSE string"
-  (save-excursion
     (while (string-match "agda2_mode_code" response)
       (setq response (substring response (match-end 0)))
       (let ((inhibit-read-only t)
             (inhibit-point-motion-hooks t))
-        (eval (read response))))))
+        (eval (read response)))))
 
 ;;;; User commands and response processing
 
 (defun agda2-load ()
   "Load current buffer" (interactive)
-  (agda2-go "cmd_load" (concat "\"" (buffer-file-name) "\"")))
+  (agda2-go "cmd_load" (agda2-string-quote (buffer-file-name))))
+
 (defun agda2-load-action (gs)
   "Annotate new goals GS in current buffer."
-  (agda2-undoable
+  (agda2-undoable 
    (agda2-forget-all-goals)
    (agda2-annotate gs (point-min))
    (setq agda2-buffer-state "Type Checked")))
@@ -284,9 +285,42 @@ annotate new goals NEW-GS"
   "Refine the goal at point by the expression in it" (interactive)
   (agda2-goal-cmd "cmd_refine" "expression to refine"))
 
+(defun agda2-make-case ()
+  "Refine the pattern var given in the goal. Assumes that
+<clause> = {!<var>!} is on one line"
+  (interactive)
+  (agda2-goal-cmd "cmd_make_case" "partten var to case"))
+
+(defun agda2-make-case-action (newcls)
+  "Replace the line at point with new clauses NEWCLS and reload"
+  (agda2-undoable
+   (agda2-forget-all-goals);; we reload later anyway.
+   (let* ((p0 (point))
+          (p1 (goto-char (agda2-decl-beginning)))
+          (indent (current-column))
+          cl)
+     (goto-char p0)
+     (message "p0=%d" p0)
+     (re-search-forward "!}" (line-end-position) 'noerr)
+     (delete-region p1 (point))
+     (while (setq cl (pop newcls))
+       (insert cl)
+       (if newcls (insert "\n" (make-string indent ?  ))))
+     (goto-char p1)))
+  (agda2-load)
+  ;; merge two actions' undo
+  (let ((load-undo (car  agda2-undo-list))
+        (case-undo (cadr agda2-undo-list))
+        (rest-undo (cddr agda2-undo-list)))
+    (setq agda2-undo-list (cons (list (append (car load-undo) (car case-undo))
+                                      (cadr case-undo)
+                                      (elt  case-undo 2))
+                                rest-undo))))
+
 (defun agda2-show-goals()
   "Show all goals" (interactive)
   (agda2-go "cmd_metas"))
+
 (defun agda2-show-constraints()
   "Show constraints" (interactive)
   (agda2-go "cmd_constraints"))
@@ -477,7 +511,26 @@ NEW-TXT is a string to replace OLD-G, or `'paren', or `'no-paren'"
   (let ((p (point-min)) g)
     (while (setq p (next-single-property-change p 'agda2-gn))
       (agda2-forget-goal (get-text-property p 'agda2-gn)))))
-  
+
+(defun agda2-decl-beginning ()
+  "Find the beginning point of the declaration containing the point. To do: dealing with semicolon separated decls."
+  (interactive)
+  (save-excursion
+    (let* ((pEnd (point))
+           (pDef (progn (goto-char (point-min))
+                        (re-search-forward "\\s *" pEnd t)))
+           (cDef (current-column)))
+      (while (re-search-forward
+              "where\\(\\s +\\)\\S \\|^\\(\\s *\\)\\S " pEnd t)
+        (if (match-end 1)
+            (setq pDef (goto-char (match-end 1))
+                  cDef (current-column))
+          (goto-char (match-end 2))
+          (if (>= cDef (current-column))
+              (setq pDef (point)
+                    cDef (current-column))))
+        (forward-char))
+      pDef)))
 
 (defun turn-on-agda2-indent ()
   "A copy of `turn-on-haskell-indent' with additional off-side words"
@@ -490,6 +543,7 @@ NEW-TXT is a string to replace OLD-G, or `'paren', or `'no-paren'"
   (local-set-key "\t"    'haskell-indent-cycle)
   (setq haskell-indent-mode t)
   (run-hooks 'haskell-indent-hook))
+
 (defalias 'turn-off-agda2-indent 'turn-off-haskell-indent)
 
 ;;;; Font-lock support

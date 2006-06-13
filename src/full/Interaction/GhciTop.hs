@@ -1,11 +1,13 @@
-{-# OPTIONS -cpp -fglasgow-exts#-}
+{-# OPTIONS -cpp -fglasgow-exts #-}
 
 module Interaction.GhciTop where
 
 import Prelude hiding (print, putStr, putStrLn)
 import System.IO hiding (print, putStr, putStrLn)
 import System.IO.Unsafe
+import Data.Char
 import Data.IORef
+import qualified Text.PrettyPrint as P
 
 import Utils.Fresh
 import Utils.Monad
@@ -23,6 +25,7 @@ import System.Exit
 
 import TypeChecker
 import TypeChecking.Monad as TM
+import TypeChecking.Monad.Name as TMN
 import TypeChecking.MetaVars
 import TypeChecking.Reduce
 
@@ -34,14 +37,18 @@ import Syntax.Concrete.Pretty ()
 import Syntax.Abstract as SA
 import Syntax.Internal as SI
 import Syntax.Scope
+import qualified Syntax.Info as Info
 import Syntax.Translation.ConcreteToAbstract
 import Syntax.Translation.AbstractToConcrete
+import Syntax.Translation.InternalToAbstract
 import Syntax.Abstract.Test
 import Syntax.Abstract.Name
 
 import Interaction.Exceptions
 import qualified Interaction.BasicOps as B
 import qualified Interaction.CommandLine.CommandLine as CL
+
+#include "../undefined.h"
 
 theTCState :: IORef TCState
 theTCState = unsafePerformIO $ newIORef initState
@@ -155,26 +162,89 @@ showNumIId = A . tail . show
 
 quoteString s = '"':concatMap q s++"\"" where q '\n' = "\\n"
                                               q ch   = [ch]
-test :: GoalCommand
-test ii rng s = crashOnException $ ioTCM $ do
-  mId  <- lookupInteractionId ii
-  mfo  <- getMetaInfo <$> lookupMeta mId
-  x <- parseExprIn ii rng s
-  liftIO . putStrLn . show =<< return x
+
+cmd_make_case :: GoalCommand
+cmd_make_case ii rng s = crashOnException $ ioTCM $ do
+  mId <- lookupInteractionId ii
+  mfo <- getMetaInfo <$> lookupMeta mId
+  ex  <- parseExprIn ii rng s
+  passAVar ex -- the pattern variable to case on
+  let sx = show ex
+  -- find the clause to refine
+  -- (dnam, oldpas) <- findClause mId =<< getSignature -- not the metaSig.
+  targetPat <- findClause mId =<< getSignature -- not the metaSig.
+  withMetaInfo mfo $ do
+    -- gather constructors for ex
+    (vx,tx) <- inferExpr ex
+    El(SI.Def d _) _ <- passElDef =<< reduce tx
+    Defn _ _ (Datatype _ ctors _ _) <- passData  =<< getConstInfo d
+    replpas <- (`mkPats` ctors) =<< List.delete sx <$> takenNameStr
+    -- make new clauses
+    let newpas = [repl sx pa targetPat | pa <- replpas]
+    --
+    liftIO $ putStrLn $ response $
+      L[A"agda2-make-case-action",
+        Q $ L $ List.map (A . show . (++ " = ?") . show . ppPa 0) newpas]
+
   where
-  findClause wanted = Map.foldWithKey go1 (fail "test: can't find") --"
-                 =<< getSignature
-    where
-    go1 mnam mbdy rest = Map.foldWithKey go2 rest (mdefDefs mbdy)
-    go2 dnam dbdy rest = case theDef dbdy of
-      (Function cls _) -> foldr go3 rest (zip cls [0..])
-      _                -> rest 
-      where go3 (SI.Clause pats cbdy, nth) rest = case deAbs cbdy of
-              (MetaV x args) | x == wanted -> return (dnam, pats)
-              _ -> rest
-  
+  findClause wanted sig = case
+       [dropUscore(SI.ConP (qualify mnam dnam) (drop (defFreeVars dbdy) pats))
+        |(mnam, md) <- assocs sig
+       , (dnam, dbdy) <- assocs $ mdefDefs md
+       , Function cls _ <- [theDef dbdy]
+       , SI.Clause pats cbdy <- cls
+       , MetaV x _ <- [deAbs cbdy]
+       , x == wanted ] of
+    (h : _ ) -> return h;
+    _ -> fail $ "findClause: can't find <clause = " ++ show ii ++ ">"
+
+  mkPats tkn (c:cs) = do (tkn1, pa)<- mkPat tkn c; (pa:)<$> mkPats tkn1 cs
+
+  mkPats tkn []     = return []
+  mkPat tkn c = do Defn tc _ (Constructor n _ _) <- getConstInfo c
+                   (tkn', pas) <- piToArgPats tkn <$> dePi n tc
+                   return (tkn', SI.ConP c pas)
+  repl sx replpa = go where
+    go pa@(SI.VarP y) | y == sx   = replpa
+                      | otherwise = pa
+    go (SI.ConP c argpas) = SI.ConP c $ List.map (fmap go) argpas
+
+  dePi 0 t = return t
+  dePi i (SI.Pi _ (Abs _ t)) = dePi (i-1) t
+  dePi i (SI.Fun _       t)  = dePi (i-1) t
+  dePi i t = fail "dePi: not a pi"
+ 
+  piToArgPats tkn t = case t of SI.Pi (Arg h _) (Abs s t) -> go h s   t
+                                SI.Fun (Arg h _) t        -> go h "x" t
+                                _                         -> (tkn, [])
+    where go h ('_':s) t = go h s t
+          go h s t = let (tkn1, s1 ) = refreshStr tkn s
+                         (tkn2, pas) = piToArgPats tkn1 t
+                     in  (tkn2, Arg h (SI.VarP s1) : pas)
+
   deAbs (Bind (Abs _ b)) = deAbs b
   deAbs (Body t        ) = t
 
+  passAVar e@(SA.Var _ _) = return e
+  passAVar x   = fail("passAVar: got "++show x)
+  passElDef t@(El(SI.Def _ _) _) = return t
+  passElDef t  = fail . ("passElDef: got "++) . show =<< reify t
+  passData  d@(Defn _ _ (Datatype _ _ _ _)) = return d
+  passData  d  = fail $ "passData: got "++ show d
 
+  dropUscore (SI.VarP ('_':s)) = dropUscore (SI.VarP s)
+  dropUscore p@(SI.VarP s) = p
+  dropUscore (SI.ConP c apas) = SI.ConP c (List.map (fmap dropUscore) apas)
 
+  -- | To do : precedence of ops
+  ppPa prec (SI.VarP n) = P.text n
+  ppPa prec (SI.ConP qn []) = P.text (show qn)
+  ppPa prec (SI.ConP qn [apa1,apa2])
+      | (c:_) <- show qn, not(isAlpha c || c == '_') =
+    (if prec > 9 then P.parens else id) $
+    ppAPa 10 apa1 P.<+> P.text (show qn) <+> ppAPa 10 apa2
+  ppPa prec (SI.ConP qn apas) =
+    (if prec > 9 then P.parens else id) $
+    P.text (show qn) <+> P.sep (List.map (ppAPa 10) apas)
+  ppAPa prec (Arg Hidden pa) = P.braces (ppPa 0 pa)
+  ppAPa prec (Arg _      pa) = ppPa prec pa
