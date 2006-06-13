@@ -354,13 +354,10 @@ instance BindToAbstract NiceDefinition Definition where
 
     -- Data definitions
     bindToAbstract (CD.DataDef r f p a x pars cons) ret =
-	do  (pars', cons') <- bindToAbstract pars $ \pars' ->
-				do  cons' <- toAbstract $ map Constr cons
-				    return (pars', cons')
-	    -- bring the constructor names into scope
-	    bindToAbstract (map Constr cons') $ \_ ->
-		do  x' <- toAbstract (OldName x)
-		    ret $ A.DataDef (mkRangedDefInfo x f p a r) x' pars' cons'
+	bindToAbstract pars $ \pars' ->
+	bindToAbstract (map Constr cons) $ \cons' -> do
+	    x' <- toAbstract (OldName x)
+	    ret $ A.DataDef (mkRangedDefInfo x f p a r) x' pars' cons'
 
 -- The only reason why we return a list is that open declarations disappears.
 -- For every other declaration we get a singleton list. Except we keep open
@@ -431,25 +428,17 @@ instance BindToAbstract NiceDeclaration [A.Declaration] where
 
 newtype Constr a = Constr a
 
-instance ToAbstract (Constr CD.NiceDeclaration) A.Declaration where
-    toAbstract (Constr (CD.Axiom r f p a x t)) =
-	do  t' <- toAbstractCtx TopCtx t
-	    x' <- toAbstract (NewName x)
-	    return (A.Axiom (mkRangedDefInfo x f p a r) x' t')
-
-    toAbstract _ = __IMPOSSIBLE__    -- a constructor is always an axiom
-
-instance BindToAbstract (Constr A.Declaration) () where
-    bindToAbstract (Constr (A.Axiom info x _)) ret =
-	local (defName a ConName f x) $ ret ()	-- TODO: local not so nice
-	    where
-		-- An abstract constructor is private (abstract constructor means
-		-- abstract datatype, so the constructor should not be exported).
-		a = case (defAccess info, defAbstract info) of
-			(PrivateAccess, _)  -> PrivateAccess
-			(_, AbstractDef)    -> PrivateAccess
-			_		    -> PublicAccess
-		f = defFixity info
+instance BindToAbstract (Constr CD.NiceDeclaration) A.Declaration where
+    bindToAbstract (Constr (CD.Axiom r f p a x t)) ret = do
+	t' <- toAbstractCtx TopCtx t
+	defineName p' ConName f x $ \x' ->
+	    ret (A.Axiom (mkRangedDefInfo x f p a r) x' t')
+	where
+	    -- An abstract constructor is private (abstract constructor means
+	    -- abstract datatype, so the constructor should not be exported).
+	    p' = case (a, p) of
+		    (AbstractDef, _) -> PrivateAccess
+		    (_, p)	     -> p
 
     bindToAbstract _ _ = __IMPOSSIBLE__    -- a constructor is always an axiom
 
