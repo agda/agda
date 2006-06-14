@@ -181,42 +181,81 @@
 
  In this presentation of rules, we consider $\lambda$ terms up to  $\alpha$-conversion.
 
-\subsection{Type checking}
-
-$$
-\frac{(x{:}A)~\in~\Gamma}{\Gamma\vdash x\downarrow A}~~~~~~~~~
-\frac{\Gamma\vdash M\downarrow (x{:}A)\rightarrow B~~~~\Gamma\vdash N\uparrow A}
-     {\Gamma\vdash M~N\downarrow B(x=N)}
-$$
-and
-$$
-\frac{\Gamma,x{:}A\vdash M\uparrow B}{\Gamma\vdash \lambda x.M\uparrow (x{:}A)\rightarrow B}~~~~
-\frac{\Gamma\vdash M\downarrow A~~~~\Gamma\vdash A = B}{\Gamma\vdash M\uparrow B}
-$$
-
-$$
-\frac{}{\Gamma\vdash \SET\downarrow}~~~~
-\frac{\Gamma\vdash M\downarrow\SET}{\Gamma\vdash \EL~M\downarrow}~~~~~~
-\frac{\Gamma\vdash A\downarrow~~~~~\Gamma,x{:}A\vdash B\downarrow}{\Gamma\vdash (x{:}A)\rightarrow B\downarrow}
-$$
-
-\begin{theorem}
-If $M$ is in $\beta$-normal form and $\HasTypeC\Gamma MA$ then $\Gamma\vdash M\uparrow A$.
-\end{theorem}
-
+% \subsection{Type checking}
+% 
+% $$
+% \frac{(x{:}A)~\in~\Gamma}{\Gamma\vdash x\downarrow A}~~~~~~~~~
+% \frac{\Gamma\vdash M\downarrow (x{:}A)\rightarrow B~~~~\Gamma\vdash N\uparrow A}
+%      {\Gamma\vdash M~N\downarrow B(x=N)}
+% $$
+% and
+% $$
+% \frac{\Gamma,x{:}A\vdash M\uparrow B}{\Gamma\vdash \lambda x.M\uparrow (x{:}A)\rightarrow B}~~~~
+% \frac{\Gamma\vdash M\downarrow A~~~~\Gamma\vdash A = B}{\Gamma\vdash M\uparrow B}
+% $$
+% 
+% $$
+% \frac{}{\Gamma\vdash \SET\downarrow}~~~~
+% \frac{\Gamma\vdash M\downarrow\SET}{\Gamma\vdash \EL~M\downarrow}~~~~~~
+% \frac{\Gamma\vdash A\downarrow~~~~~\Gamma,x{:}A\vdash B\downarrow}{\Gamma\vdash (x{:}A)\rightarrow B\downarrow}
+% $$
+% 
+% \begin{theorem}
+% If $M$ is in $\beta$-normal form and $\HasTypeC\Gamma MA$ then $\Gamma\vdash M\uparrow A$.
+% \end{theorem}
+% 
 
 \section{Implicit Core}
 
-\begin{thebibliography}{9}
+\[\begin{array}{lclr}
+    M	   & ::= & \ldots \Or \Meta n	  & terms \\
+    \Sigma & ::= & \ldots \Or \Meta n : A & signatures \\
+\end{array}\]
 
-\bibitem{Type}
-B. Nordstr\"om, K. Petersson, J. Smith.
-\newblock{{\em Programming in Martin-L\"of's Type Theory.}}
-\newblock{Oxford Science Publications, 1990.}
+We make the typing rules relative to a set of constraints of the form
+$\Constr\Gamma MNA$.
 
+\[\begin{array}{l}
+    \IsSigIS\C\Sigma \\
+    \IsCtxIS\C\Sigma\Gamma \\
+    \IsTypeIS\C\Sigma\Gamma A \\
+    \HasTypeIS\C\Sigma\Gamma MA \\
+    \EqualTypeIS\C\Sigma\Gamma AB \\
+    \EqualIS\C\Sigma\Gamma MNA \\
+\end{array}\]
 
+The rules are otherwise unchanged and we add the new rules:
 
-\end{thebibliography}
+\[\begin{array}{ccccc}
+    \infer{\IsSigIS\C{\Sigma,\Meta n:A}}{\IsSigIS\C\Sigma & \IsTypeIS\C\Sigma{()}A}
+&&  \infer{\HasTypeIS\C\Sigma\Gamma{\Meta n}A}{\Meta n:A\in\Sigma}
+&&  \infer{\EqualI\C\Gamma MNA}{\Constr\Gamma MNA\in\C}
+\end{array}\]
+
+\begin{definition}
+    We say that $\gamma$ is an {\em instantiation} of a well-formed signature
+    $\Sigma$ if it to each declaration $\Meta n:A$ in $\Sigma$ assigns a term
+    $M$ such that the signature acquired by replacing $\Meta n:A$ by $f_n:A=M$
+    (and all occurences of $\Meta n$ by $f_n$) is still well-formed. We write
+    $\gamma\Sigma$ for this instantiated signature.
+\end{definition}
+
+\TODO{we need scope in the constraints}
+
+\begin{definition}
+    An instantiation $\gamma$ of a signature $\Sigma$ is a {\em solution} to a
+    set of constraints $\C$, written $\gamma\Solves\C$, if for all
+    $\Constr\Gamma MNA\in\C$ it is the case that $\EqualCS{\gamma\Sigma}\Gamma MNA$.
+\end{definition}
+
+\begin{theorem}[Soundness]
+    If $\HasTypeIS\C\Sigma\Gamma MA$ and $\gamma\Solves\C$ then $\HasTypeCS{\gamma\Sigma}\Gamma MA$.
+\end{theorem}
+
+\begin{theorem}[Completeness]
+    If $\HasTypeCS{\gamma\Sigma}\Gamma MA$ then $\HasTypeIS{\hat\gamma}\Sigma\Gamma MA$, where
+    $\hat\gamma = \{ \Constr{()}{\Meta n}MA \Or f_n:A=M\in\gamma\Sigma \}$
+\end{theorem}
 
 \end{document}
 
