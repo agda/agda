@@ -55,14 +55,27 @@
 
  The typing rules are as follows:
 
-\TODO{where should we put $\IsSigCS\Sigma$?}
-
 \medskip
+
+ {\em rules for signatures}
+
+\[\begin{array}{ccccc}
+    \infer{\IsSigCS{()}}{}
+&&  \infer{\IsSigCS{\Sigma,c:A}}{
+      \IsSigCS\Sigma
+    & \IsTypeCS\Sigma{()}A
+    }
+&&  \infer{\IsSigCS{\Sigma,f:A=M}}{
+      \IsSigCS\Sigma
+    & \IsTypeCS\Sigma{()}A
+    & \HasTypeCS\Sigma{()}MA
+    }
+\end{array}\]
 
  {\em rules for contexts}
 
 \[\begin{array}{ccc}
-    \infer{\IsCtxC{}}{}
+    \infer{\IsCtxCS\Sigma{()}}{\IsSigCS\Sigma}
 &&  \infer{\IsCtxC{\Gamma,x:A}}{
       \IsCtxC\Gamma
     & \IsTypeC\Gamma A
@@ -102,100 +115,94 @@
     & \HasTypeC\Gamma NA
     }
 \end{array}}
-\end{array}\]
-
- {\em conversion rule}
-
-\[
+\\{}\\
+&&
     \infer{\HasTypeC\Gamma MB}{
       \HasTypeC\Gamma MA
     & \EqualTypeC\Gamma AB
     }
-\]
+\end{array}\]
 
-% \medskip
-% \medskip
-% 
-% 
-%  The general conversion rules are
-% 
-% $$
-% \frac{\Gamma\vdash A}{\Gamma\vdash A=A}~~~~~~
-% \frac{\Gamma\vdash A=B}{\Gamma\vdash B=A}~~~~~~
-% \frac{\Gamma\vdash A=B~~~\Gamma\vdash B=C}{\Gamma\vdash A=C}
-% $$
-% 
-% $$
-% \frac{\Gamma\vdash M:A}{\Gamma\vdash M=M:A}~~~~~
-% \frac{\Gamma\vdash M=N:A}{\Gamma\vdash N=M:A}~~~~
-% \frac{\Gamma\vdash M=N:A~~~~\Gamma\vdash N=P:A}{\Gamma\vdash M=P:A}
-% $$
-% 
-% $$
-% \frac{\Gamma\vdash M=N:A~~~~~\Gamma\vdash A = B}
-%      {\Gamma\vdash M=N:B}
-% $$
-% 
-% $$
-% \frac{\Gamma,x{:}A\vdash B~~~~~\Gamma\vdash M_1=M_2:A}
-%      {\Gamma\vdash B(x=M_1) = B(x=M_2)}
-% $$
-% 
-% \medskip
-% 
-% The conversion rules for type theory are
-% 
-% $$
-% \frac{}{\Gamma\vdash\SET=\SET}~~~~
-% \frac{\Gamma\vdash M_1=M_2:\SET}{\Gamma\vdash\EL~M_1=\EL~M_2}~~~~~~
-% \frac{\Gamma\vdash A_1=A_2~~~~~\Gamma,x{:}A_1\vdash B_1=B_2}{\Gamma\vdash (x{:}A_1)\rightarrow B_1 = (x{:}A_2)\rightarrow B_2}
-% $$
-% 
-% $$
-% \frac{\Gamma,x{:}A\vdash M_1=M_2:B}{\Gamma\vdash \lambda x.M_1=\lambda x.M_2:(x{:}A)\rightarrow B}
-% $$
-% 
-% $$
-% \frac{\Gamma,x{:}A\vdash B~~~~\Gamma\vdash N_1=N_2:(x{:}A)\rightarrow B~~~~\Gamma\vdash M_1=M_2:A}
-%      {\Gamma\vdash N_1~M_1 = N_2~M_2:B(x=M_1)}
-% $$
-% 
-% $$
-% \frac{\Gamma,x{:}A\vdash N:B~~~~~\Gamma\vdash M:A}
-%      {\Gamma\vdash (\lambda x.N)~M = N(x=M): B(x=M)}~~~~~~~
-% \frac{\Gamma\vdash A~~~~\Gamma\vdash M:(x{:}A)\rightarrow B}
-%      {\Gamma\vdash M = \lambda x.M~x : (x{:}A)\rightarrow B}
-% $$
-% 
-% $$
-% \frac{f : A = M \in \Sigma}
-%      {\Gamma\vdash f = M : A}
-% $$
-% 
-%  In this presentation of rules, we consider $\lambda$ terms up to  $\alpha$-conversion.
-% 
-% \subsection{Type checking}
-% 
-% $$
-% \frac{(x{:}A)~\in~\Gamma}{\Gamma\vdash x\downarrow A}~~~~~~~~~
-% \frac{\Gamma\vdash M\downarrow (x{:}A)\rightarrow B~~~~\Gamma\vdash N\uparrow A}
-%      {\Gamma\vdash M~N\downarrow B(x=N)}
-% $$
-% and
-% $$
-% \frac{\Gamma,x{:}A\vdash M\uparrow B}{\Gamma\vdash \lambda x.M\uparrow (x{:}A)\rightarrow B}~~~~
-% \frac{\Gamma\vdash M\downarrow A~~~~\Gamma\vdash A = B}{\Gamma\vdash M\uparrow B}
-% $$
-% 
-% $$
-% \frac{}{\Gamma\vdash \SET\downarrow}~~~~
-% \frac{\Gamma\vdash M\downarrow\SET}{\Gamma\vdash \EL~M\downarrow}~~~~~~
-% \frac{\Gamma\vdash A\downarrow~~~~~\Gamma,x{:}A\vdash B\downarrow}{\Gamma\vdash (x{:}A)\rightarrow B\downarrow}
-% $$
-% 
-% \begin{theorem}
-% If $M$ is in $\beta$-normal form and $\Gamma\vdash M{:}A$ then $\Gamma\vdash M\uparrow A$.
-% \end{theorem}
+  {\em general converion rules}
+
+\[\begin{array}{c}
+\begin{array}{ccccc}
+    \infer{\EqualTypeC\Gamma AA}{\IsTypeC\Gamma A}
+&&  \infer{\EqualTypeC\Gamma BA}{\EqualTypeC\Gamma AB}
+&&  \infer{\EqualTypeC\Gamma AC}{\EqualTypeC\Gamma AB & \EqualTypeC\Gamma BC}
+\end{array} \\{}\\
+\begin{array}{ccccc}
+    \infer{\EqualC\Gamma MMA}{\HasTypeC\Gamma MA}
+&&  \infer{\EqualC\Gamma NMA}{\EqualC\Gamma MNA}
+&&  \infer{\EqualC\Gamma MPA}{\EqualC\Gamma MNA & \EqualC\Gamma NPA}
+\end{array} \\{}\\
+\begin{array}{ccc}
+    \infer{\EqualC\Gamma MNB}{\EqualC\Gamma MNA & \EqualTypeC\Gamma AB}
+&&  \infer{\EqualTypeC\Gamma{\Subst BxM}{\Subst BxN}}{
+      \IsTypeC{\Gamma,x:A}B
+    & \EqualC\Gamma MNA
+    }
+\end{array}
+\end{array}\]
+
+  {\em conversion rules for type theory}
+
+\[\begin{array}{c}
+\begin{array}{ccccc}
+    \infer{\EqualTypeC\Gamma\SET\SET}{}
+&&  \infer{\EqualTypeC\Gamma{\EL M}{\EL N}}{\EqualC\Gamma MN\SET}
+&&  \infer{\EqualTypeC\Gamma{\PI x{A_1}{B_1}}{\PI x{A_2}{B_2}}}{
+      \EqualTypeC\Gamma{A_1}{A_2}
+    & \EqualTypeC{\Gamma,x:A_2}{B_1}{B_2}
+    }
+\end{array}
+\\{}\\
+    \infer{\EqualC\Gamma{\LAM xM}{\LAM xN}{\PI xAB}}{\EqualC{\Gamma,x:A}MNB}
+\\{}\\
+    \infer{\EqualC\Gamma{M_1\,N_1}{M_2\,N_2}{\Subst Bx{N_1}}}{
+      \IsTypeC{\Gamma,x:A}B
+    & \EqualC\Gamma{M_1}{M_2}{\PI xAB}
+    & \EqualC\Gamma{N_1}{N_2}A
+    }
+\\{}\\
+\begin{array}{ccc}
+    \infer{\EqualC\Gamma{(\LAM xM)\,N}{\Subst MxN}{\Subst BxN}}{
+      \HasTypeC{\Gamma,x:A}MB
+    & \HasTypeC\Gamma MA
+    }
+&&  \infer{\EqualC\Gamma M{\LAM xM\,x}{\PI xAB}}{
+      \IsTypeC\Gamma A
+    & \HasTypeC\Gamma M{\PI xAB}
+    }
+\end{array}
+\\{}\\
+    \infer{\EqualCS\Sigma\Gamma fMA}{f:A=M \in \Sigma}
+\end{array}\]
+
+ In this presentation of rules, we consider $\lambda$ terms up to  $\alpha$-conversion.
+
+\subsection{Type checking}
+
+$$
+\frac{(x{:}A)~\in~\Gamma}{\Gamma\vdash x\downarrow A}~~~~~~~~~
+\frac{\Gamma\vdash M\downarrow (x{:}A)\rightarrow B~~~~\Gamma\vdash N\uparrow A}
+     {\Gamma\vdash M~N\downarrow B(x=N)}
+$$
+and
+$$
+\frac{\Gamma,x{:}A\vdash M\uparrow B}{\Gamma\vdash \lambda x.M\uparrow (x{:}A)\rightarrow B}~~~~
+\frac{\Gamma\vdash M\downarrow A~~~~\Gamma\vdash A = B}{\Gamma\vdash M\uparrow B}
+$$
+
+$$
+\frac{}{\Gamma\vdash \SET\downarrow}~~~~
+\frac{\Gamma\vdash M\downarrow\SET}{\Gamma\vdash \EL~M\downarrow}~~~~~~
+\frac{\Gamma\vdash A\downarrow~~~~~\Gamma,x{:}A\vdash B\downarrow}{\Gamma\vdash (x{:}A)\rightarrow B\downarrow}
+$$
+
+\begin{theorem}
+If $M$ is in $\beta$-normal form and $\HasTypeC\Gamma MA$ then $\Gamma\vdash M\uparrow A$.
+\end{theorem}
 
 
 \section{Implicit Core}
