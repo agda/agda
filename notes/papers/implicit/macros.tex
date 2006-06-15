@@ -10,14 +10,17 @@
 
 % Misc
 \newcommand\Or{~~|~~}
+\newcommand\C{\mathcal C}
+\newcommand\Pair[1]{\langle#1\rangle}
 
 % Syntax
 \newcommand\SET{\mathsf{Set}}
 \newcommand\EL{\mathsf{El}\,}
 \newcommand\PI[2]{(#1:#2)\to{}}
 \newcommand\LAM[1]{\lambda #1.{}}
+\newcommand\Meta[1]{{?_{#1}}}
 
-\newcommand\Subst[3]{#1[#2 = #3]}
+\newcommand\Subst[3]{#1[#3/#2]}
 
 % Judgement forms
 
@@ -36,4 +39,22 @@
 \newcommand\EqualC[4]{\EqualCS{}{#1}{#2}{#3}{#4}}
 
 % Implicit core
+\newcommand\WithCnstr[2]{#1\rhd{}#2}
+\newcommand\Constr[5]{\Pair{#1,#2,#3,#4,#5}}
+\newcommand\Solves{\models}
+\newcommand\SigConstr[1]{\left|#1\right|}
+
+\newcommand\IsSigIS[2]{\WithCnstr{#1}{\IsSigCS{#2}}}
+\newcommand\IsCtxIS[3]{\WithCnstr{#1}{\IsCtxCS{#2}{#3}}}
+\newcommand\IsTypeIS[4]{\WithCnstr{#1}{\IsTypeCS{#2}{#3}{#4}}}
+\newcommand\HasTypeIS[5]{\WithCnstr{#1}{\HasTypeCS{#2}{#3}{#4}{#5}}}
+\newcommand\EqualTypeIS[5]{\WithCnstr{#1}{\EqualTypeCS{#2}{#3}{#4}{#5}}}
+\newcommand\EqualIS[6]{\WithCnstr{#1}{\EqualCS{#2}{#3}{#4}{#5}{#6}}}
+
+\newcommand\IsCtxI[2]{\IsCtxIS{#1}{}{#2}}
+\newcommand\IsTypeI[3]{\IsTypeIS{#1}{}{#2}{#3}}
+\newcommand\HasTypeI[4]{\HasTypeIS{#1}{}{#2}{#3}{#4}}
+\newcommand\EqualTypeI[4]{\EqualTypeIS{#1}{}{#2}{#3}{#4}}
+\newcommand\EqualI[5]{\EqualIS{#1}{}{#2}{#3}{#4}{#5}}
+
 

@@ -207,13 +207,12 @@
 
 \section{Implicit Core}
 
-\[\begin{array}{lclr}
-    M	   & ::= & \ldots \Or \Meta n	  & terms \\
-    \Sigma & ::= & \ldots \Or \Meta n : A & signatures \\
-\end{array}\]
+Meta variables in Implicit Core are represented by function symbols. We
+will use $\Meta n$ for these function symbols to distinguish them from
+constants ($c$) and defined functions ($f$).
 
 We make the typing rules relative to a set of constraints of the form
-$\Constr\Gamma MNA$.
+$\Constr\Sigma\Gamma MNA$.
 
 \[\begin{array}{l}
     \IsSigIS\C\Sigma \\
@@ -224,37 +223,48 @@ $\Constr\Gamma MNA$.
     \EqualIS\C\Sigma\Gamma MNA \\
 \end{array}\]
 
-The rules are otherwise unchanged and we add the new rules:
+The rules are otherwise unchanged and we add the new rule:
 
-\[\begin{array}{ccccc}
-    \infer{\IsSigIS\C{\Sigma,\Meta n:A}}{\IsSigIS\C\Sigma & \IsTypeIS\C\Sigma{()}A}
-&&  \infer{\HasTypeIS\C\Sigma\Gamma{\Meta n}A}{\Meta n:A\in\Sigma}
-&&  \infer{\EqualI\C\Gamma MNA}{\Constr\Gamma MNA\in\C}
+\[\begin{array}{c}
+    \infer{\EqualIS\Sigma\C\Gamma MNA}{\Constr\Sigma\Gamma MNA\in\C}
 \end{array}\]
 
 \begin{definition}
     We say that $\gamma$ is an {\em instantiation} of a well-formed signature
-    $\Sigma$ if it to each declaration $\Meta n:A$ in $\Sigma$ assigns a term
-    $M$ such that the signature acquired by replacing $\Meta n:A$ by $f_n:A=M$
-    (and all occurences of $\Meta n$ by $f_n$) is still well-formed. We write
-    $\gamma\Sigma$ for this instantiated signature.
+    $\Sigma$, written $\gamma:\Sigma$, if it to each declaration $\Meta n:A$ in
+    $\Sigma$ assigns a term $M$ such that the signature acquired by replacing
+    $\Meta n:A$ by $\Meta n:A=M$ is well-formed in Core. We write $\gamma\Sigma$
+    for this instantiated signature.
 \end{definition}
 
-\TODO{we need scope in the constraints}
+\begin{definition}
+    An instantiation $\gamma:\Sigma_0$ is a {\em solution} to a set of
+    constraints $\C$, written $\gamma\Solves\C$, if for all
+    $\Constr\Sigma\Gamma MNA\in\C$ it is the case that $\Sigma$ is a prefix of
+    $\Sigma_0$ and $\EqualCS{\gamma\Sigma}\Gamma MNA$.
+\end{definition}
+
+Note that if $\gamma:\Sigma_0$ and $\Sigma$ is a prefix of $\Sigma_0$ then $\gamma:\Sigma$.
 
 \begin{definition}
-    An instantiation $\gamma$ of a signature $\Sigma$ is a {\em solution} to a
-    set of constraints $\C$, written $\gamma\Solves\C$, if for all
-    $\Constr\Gamma MNA\in\C$ it is the case that $\EqualCS{\gamma\Sigma}\Gamma MNA$.
+    Given an signature $\Sigma$ we define the constraint set $\SigConstr\Sigma$ as follows
+    \[\begin{array}{lcl}
+	\SigConstr{()}		 & = & \emptyset \\
+	\SigConstr{\Sigma,c:A}	 & = & \SigConstr\Sigma \\
+	\SigConstr{\Sigma,f:A=M} & = & \{\Constr\Sigma{()}fMA\}\cup\SigConstr\Sigma \\
+    \end{array}\]
 \end{definition}
 
 \begin{theorem}[Soundness]
     If $\HasTypeIS\C\Sigma\Gamma MA$ and $\gamma\Solves\C$ then $\HasTypeCS{\gamma\Sigma}\Gamma MA$.
 \end{theorem}
 
+\begin{proof}
+    By simultaneous induction on the derivations.
+\end{proof}
+
 \begin{theorem}[Completeness]
-    If $\HasTypeCS{\gamma\Sigma}\Gamma MA$ then $\HasTypeIS{\hat\gamma}\Sigma\Gamma MA$, where
-    $\hat\gamma = \{ \Constr{()}{\Meta n}MA \Or f_n:A=M\in\gamma\Sigma \}$
+    If $\HasTypeCS{\gamma\Sigma}\Gamma MA$ then $\HasTypeIS{\SigConstr{\gamma\Sigma}}\Sigma\Gamma MA$.
 \end{theorem}
 
 \end{document}
