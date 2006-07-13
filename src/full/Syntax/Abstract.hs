@@ -23,7 +23,7 @@ data Expr
         | Underscore   MetaInfo		    -- ^ meta variable for hidden argument (must be inferred locally)
         | App  ExprInfo Expr (Arg Expr)	    -- ^
         | Lam  ExprInfo LamBinding Expr	    -- ^
-        | Pi   ExprInfo TypedBindings Expr  -- ^
+        | Pi   ExprInfo Telescope Expr	    -- ^
 	| Fun  ExprInfo (Arg Expr) Expr	    -- ^ independent function space
         | Set  ExprInfo Nat		    -- ^
         | Prop ExprInfo			    -- ^
@@ -32,8 +32,8 @@ data Expr
 data Declaration
 	= Axiom      DefInfo Name Expr				-- ^ postulate
 	| Definition DeclInfo [TypeSignature] [Definition]	-- ^ a bunch of mutually recursive definitions
-	| Module     ModuleInfo ModuleName Telescope [Declaration]
-	| ModuleDef  ModuleInfo ModuleName Telescope ModuleName [Arg Expr]
+	| Module     ModuleInfo ModuleName [TypedBindings] [Declaration]
+	| ModuleDef  ModuleInfo ModuleName [TypedBindings] ModuleName [Arg Expr]
 	| Import     ModuleInfo ModuleName
 	| Open	     DeclSource	    -- ^ this one is here only to enable translation
 				    --   back to concrete syntax

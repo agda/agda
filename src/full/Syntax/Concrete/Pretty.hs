@@ -80,8 +80,8 @@ instance Pretty Expr where
 		sep [ pretty e1 <+> text "->"
 		    , pretty e2
 		    ]
-	    Pi b e ->
-		sep [ pretty b <+> text "->"
+	    Pi tel e ->
+		sep [ fsep (map pretty tel ++ [text "->"])
 		    , pretty e
 		    ]
 	    Set _   -> text "Set"

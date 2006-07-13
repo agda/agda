@@ -439,7 +439,7 @@ instance ToConcrete TypeAndDef [C.Declaration] where
 	where
 	    (tel, t0) = mkTel (length bs) t
 	    mkTel 0 t		    = ([], t)
-	    mkTel n (A.Pi _ b t)    = (b:) -*- id $ mkTel (n - 1) t
+	    mkTel n (A.Pi _ b t)    = (b++) -*- id $ mkTel (n - 1) t
 	    mkTel _ _		    = __IMPOSSIBLE__
 
     toConcrete _ = __IMPOSSIBLE__

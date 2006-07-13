@@ -199,7 +199,7 @@ niceDeclarations ds = nice (fixities ds) ds
 			    Data r x tel t cs   ->
 				[ NiceDef r [d]
 					    [ Axiom (fuseRange x t) f PublicAccess ConcreteDef
-						    x (foldr Pi t tel)
+						    x (Pi tel t)
 					    ]
 					    [ DataDef (getRange cs) f PublicAccess ConcreteDef x
 						      (concatMap binding tel)

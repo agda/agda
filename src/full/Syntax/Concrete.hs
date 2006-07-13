@@ -14,7 +14,7 @@ module Syntax.Concrete
     , LamBinding(..)
     , TypedBindings(..)
     , TypedBinding(..)
-    , Telescope
+    , Telescope -- (..)
       -- * Declarations
     , Declaration(..)
     , TypeSignature
@@ -48,7 +48,7 @@ data Expr
 	| InfixApp Expr QName Expr	    -- ^ ex: @e + e@ (no hiding)
 	| Lam Range [LamBinding] Expr	    -- ^ ex: @\\x {y} -> e@ or @\\(x:A){y:B} -> e@
 	| Fun Range (Arg Expr) Expr	    -- ^ ex: @e -> e@ or @{e} -> e@
-	| Pi TypedBindings Expr		    -- ^ ex: @(xs:e) -> e@ or @{xs:e} -> e@
+	| Pi Telescope Expr		    -- ^ ex: @(xs:e) -> e@ or @{xs:e} -> e@
 	| Set Range			    -- ^ ex: @Set@
 	| Prop Range			    -- ^ ex: @Prop@
 	| SetN Range Nat		    -- ^ ex: @Set0, Set1, ..@
@@ -93,8 +93,11 @@ data TypedBinding
 
 
 -- | A telescope is a sequence of typed bindings. Bound variables are in scope
---   in later types.
+--   in later types. Or it's the mysterious Thierry-function-telescope. Only it's not.
 type Telescope = [TypedBindings]
+-- data Telescope = TeleBind [TypedBindings]
+-- 	       | TeleFun Telescope Telescope
+--     deriving (Typeable, Data, Eq)
 
 
 {-| Left hand sides can be written in infix style. For example:
@@ -152,7 +155,7 @@ type TypeSignature	 = Declaration
 data Declaration
 	= TypeSig Name Expr
 	| FunClause LHS RHS WhereClause
-	| Data        Range Name Telescope Expr [Constructor]
+	| Data        Range Name [TypedBindings] Expr [Constructor]
 	| Infix Fixity [Name]
 	| Mutual      Range [Declaration]
 	| Abstract    Range [Declaration]
@@ -160,8 +163,8 @@ data Declaration
 	| Postulate   Range [TypeSignature]
 	| Open        Range QName ImportDirective
 	| Import      Range QName (Maybe Name) ImportDirective
-	| ModuleMacro Range  Name Telescope Expr ImportDirective
-	| Module      Range QName Telescope [Declaration]
+	| ModuleMacro Range  Name [TypedBindings] Expr ImportDirective
+	| Module      Range QName [TypedBindings] [Declaration]
     deriving (Eq, Typeable, Data)
 
 
@@ -201,6 +204,10 @@ instance HasRange Expr where
 	    Paren r _		-> r
 	    As r _ _		-> r
 	    Absurd r		-> r
+
+-- instance HasRange Telescope where
+--     getRange (TeleBind bs) = getRange bs
+--     getRange (TeleFun x y) = fuseRange x y
 
 instance HasRange TypedBindings where
     getRange (TypedBindings r _ _) = r

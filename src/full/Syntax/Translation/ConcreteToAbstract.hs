@@ -250,11 +250,11 @@ instance ToAbstract C.Expr A.Expr where
 	    info <- exprSource e
 	    return $ A.Fun info e1' e2'
 
-    toAbstract e0@(C.Pi b e) =
-	bindToAbstract b $ \b' ->
+    toAbstract e0@(C.Pi tel e) =
+	bindToAbstract tel $ \tel ->
 	do  e'	 <- toAbstractCtx TopCtx e
 	    info <- exprSource e0
-	    return $ A.Pi info b' e'
+	    return $ A.Pi info tel e'
 
     -- Sorts
     toAbstract e@(C.Set _)    = flip A.Set 0 <$> exprSource e

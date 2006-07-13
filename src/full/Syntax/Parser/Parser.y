@@ -355,10 +355,10 @@ CommaOps
 -- Top level: Function types.
 Expr :: { Expr }
 Expr
-    : Telescope '->' Expr	{ foldr Pi $3 $1 }
-    | '{' Expr '}' '->' Expr	{ Fun (fuseRange $1 $5) (Arg Hidden $2) $5 }
-    | Expr1 '->' Expr		{ Fun (fuseRange $1 $3) (Arg NotHidden $1) $3 }
-    | Expr1 %prec LOWEST	{ $1 }
+    : TeleArrow Expr	     { Pi $1 $2 }
+    | '{' Expr '}' '->' Expr { Fun (fuseRange $1 $5) (Arg Hidden $2) $5 }
+    | Expr1 '->' Expr	     { Fun (fuseRange $1 $3) (Arg NotHidden $1) $3 }
+    | Expr1 %prec LOWEST     { $1 }
 
 -- Level 1: Infix operators
 Expr1
@@ -367,7 +367,7 @@ Expr1
 
 -- Level 2: Lambdas and lets
 Expr2
-    : '\\' LamBindings '->' Expr   { Lam (fuseRange $1 $4) $2 $4 }
+    : '\\' LamBindings Expr	   { Lam (fuseRange $1 $3) $2 $3 }
     | 'let' Declarations 'in' Expr { Let (fuseRange $1 $4) $2 $4 }
     | Expr3			   { $1 }
 
@@ -403,11 +403,27 @@ Sort : 'Prop'		{ Prop $1 }
     Bindings
  --------------------------------------------------------------------------}
 
+-- "Delta ->" to avoid conflict between Delta -> Gamma and Delta -> A.
+TeleArrow : Telescope1 '->' { $1 }
+
 -- A telescope is a non-empty sequence of typed bindingss.
 Telescope :: { Telescope }
 Telescope
-    : TypedBindings Telescope	{ $1 : $2 }
-    | TypedBindings		{ [$1] }
+    : Telescope1	    { $1 }
+--    | TeleArrow Telescope   { TeleFun $1 $2 }
+
+Telescope1
+    : TypedBindingss	{ {-TeleBind-} $1 }
+--    | '(' Telescope ')'	{ $2 }
+
+TypedBindingss0
+    : {- empty -}    { [] }
+    | TypedBindingss { $1 }
+
+TypedBindingss :: { [TypedBindings] }
+TypedBindingss
+    : TypedBindings TypedBindingss { $1 : $2 }
+    | TypedBindings		   { [$1] }
 
 
 -- A typed binding is either (x1,..,xn:A;..;y1,..,ym:B) or {x1,..,xn:A;..;y1,..,ym:B}.
@@ -437,8 +453,8 @@ TBind : CommaBIds ':' Expr  { TBind (fuseRange $1 $3) $1 $3 }
 -- disallow mixing typed and untyped bindings in lambdas.
 LamBindings :: { [LamBinding] }
 LamBindings
-    : Telescope		    { map DomainFull $1 }
-    | DomainFreeBindings    { $1 }
+    : TypedBindingss '->'     { map DomainFull $1 }
+    | DomainFreeBindings '->' { $1 }
 
 
 -- A non-empty sequence of domain-free bindings
@@ -453,11 +469,6 @@ DomainFreeBinding :: { LamBinding }
 DomainFreeBinding
     : BId	    { DomainFree NotHidden $1 }
     | '{' BId '}'   { DomainFree Hidden $2 }
-
-
-MaybeTelescope :: { Telescope }
-MaybeTelescope : {- empty -}	{ [] }
-	       | Telescope	{ $1 }
 
 
 {--------------------------------------------------------------------------
@@ -575,7 +586,7 @@ FunClause : LHS '=' Expr WhereClause	{ FunClause $1 $3 $4 }
 
 -- Data declaration. Can be local.
 Data :: { Declaration }
-Data : 'data' Id MaybeTelescope ':' Sort 'where'
+Data : 'data' Id TypedBindingss0 ':' Sort 'where'
 	    Constructors	{ Data (getRange ($1, $6, $7)) $2 $3 $5 $7 }
 
 
@@ -613,7 +624,7 @@ Open : 'open' ModuleName ImportDirective   { Open (getRange ($1,$2,$3)) $2 $3 }
 
 -- ModuleMacro
 ModuleMacro :: { Declaration }
-ModuleMacro : 'module' id MaybeTelescope '=' Expr ImportDirective
+ModuleMacro : 'module' id TypedBindingss0 '=' Expr ImportDirective
 		    { ModuleMacro (getRange ($1, $5, $6)) $2 $3 $5 $6 }
 
 
@@ -624,12 +635,12 @@ Import : 'import' ModuleName RenamedImport ImportDirective
 
 -- Module
 Module :: { Declaration }
-Module : 'module' id MaybeTelescope 'where' Declarations
+Module : 'module' id TypedBindingss0 'where' Declarations
 		    { Module (getRange ($1,$4,$5)) (QName $2) $3 $5 }
 
 -- The top-level module can have a qualified name.
 TopModule :: { Declaration }
-TopModule : 'module' ModuleName MaybeTelescope 'where' Declarations
+TopModule : 'module' ModuleName TypedBindingss0 'where' Declarations
 		    { Module (getRange ($1,$4,$5)) $2 $3 $5 }
 
 {--------------------------------------------------------------------------

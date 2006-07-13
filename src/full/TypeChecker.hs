@@ -498,8 +498,8 @@ isType e s =
 	t <- case e of
 		A.Prop _	 -> return $ prop
 		A.Set _ n	 -> return $ set n
-		A.Pi _ b e	 ->
-		    checkTypedBindings b $ \tel ->
+		A.Pi _ tel e	 ->
+		    checkTelescope tel $ \tel ->
 			do  t <- isType_ e
 			    return $ buildPi tel t
 		A.Fun _ (Arg h a) b	 ->

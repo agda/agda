@@ -117,7 +117,7 @@ instance Reify Type Expr where
 		I.Pi a b     ->
 		    do	Arg h a <- reify a
 			(x,b)   <- reify b
-			return $ A.Pi exprInfo (TypedBindings noRange h [TBind noRange [x] a]) b
+			return $ A.Pi exprInfo [TypedBindings noRange h [TBind noRange [x] a]] b
 		I.Fun a b    -> uncurry (A.Fun $ exprInfo)
 				<$> reify (a,b)
 		I.Sort s     -> reify s
