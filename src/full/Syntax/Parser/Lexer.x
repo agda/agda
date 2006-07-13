@@ -106,6 +106,7 @@ tokens :-
 <0,code> private	{ keyword KwPrivate }
 <0,code> Set		{ keyword KwSet }
 <0,code> Prop		{ keyword KwProp }
+<0,code> forall		{ keyword KwForall }
 <0,code> Set @number	{ withRange' (read . drop 3) TokSetN }
 
 -- The parser is responsible to put the lexer in the imp_dir_ state when it

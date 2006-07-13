@@ -63,6 +63,7 @@ import Utils.Monad
     'private'	{ TokKeyword KwPrivate $$ }
     'Prop'	{ TokKeyword KwProp $$ }
     'Set'	{ TokKeyword KwSet $$ }
+    'forall'	{ TokKeyword KwForall $$ }
 
     setN	{ TokSetN $$ }
     tex		{ TokTeX $$ }
@@ -134,6 +135,7 @@ Token
     | 'private'	    { TokKeyword KwPrivate $1 }
     | 'Prop'	    { TokKeyword KwProp $1 }
     | 'Set'	    { TokKeyword KwSet $1 }
+    | 'forall'	    { TokKeyword KwForall $1 }
 
     | setN	    { TokSetN $1 }
     | tex	    { TokTeX $1 }
@@ -355,10 +357,11 @@ CommaOps
 -- Top level: Function types.
 Expr :: { Expr }
 Expr
-    : TeleArrow Expr	     { Pi $1 $2 }
-    | '{' Expr '}' '->' Expr { Fun (fuseRange $1 $5) (Arg Hidden $2) $5 }
-    | Expr1 '->' Expr	     { Fun (fuseRange $1 $3) (Arg NotHidden $1) $3 }
-    | Expr1 %prec LOWEST     { $1 }
+    : TeleArrow Expr		{ Pi $1 $2 }
+    | 'forall' LamBindings Expr	{ forallPi $2 $3 }
+    | '{' Expr '}' '->' Expr	{ Fun (fuseRange $1 $5) (Arg Hidden $2) $5 }
+    | Expr1 '->' Expr		{ Fun (fuseRange $1 $3) (Arg NotHidden $1) $3 }
+    | Expr1 %prec LOWEST	{ $1 }
 
 -- Level 1: Infix operators
 Expr1
@@ -407,9 +410,9 @@ Sort : 'Prop'		{ Prop $1 }
 TeleArrow : Telescope1 '->' { $1 }
 
 -- A telescope is a non-empty sequence of typed bindingss.
-Telescope :: { Telescope }
-Telescope
-    : Telescope1	    { $1 }
+-- Telescope :: { Telescope }
+-- Telescope
+--     : Telescope1	    { $1 }
 --    | TeleArrow Telescope   { TeleFun $1 $2 }
 
 Telescope1
@@ -714,6 +717,15 @@ isName :: String -> Name -> Parser ()
 isName s x = case x of
 		Name _ s' | s == s' -> return ()
 		_		    -> happyError
+
+-- | Build a forall pi (forall x y z -> ...)
+forallPi :: [LamBinding] -> Expr -> Expr
+forallPi bs e = Pi (map addType bs) e
+    where
+	addType (DomainFull b)	 = b
+	addType (DomainFree h x) = TypedBindings r h [TBind r [x] $ Underscore r Nothing]
+	    where
+		r = getRange x
 
 -- | Check that an import directive doesn't contain repeated names
 verifyImportDirective :: ImportDirective -> Parser ImportDirective
