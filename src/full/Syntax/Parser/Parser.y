@@ -355,7 +355,7 @@ CommaOps
 -- Top level: Function types.
 Expr :: { Expr }
 Expr
-    : TypedBinding '->' Expr	{ Pi $1 $3 }
+    : Telescope '->' Expr	{ foldr Pi $3 $1 }
     | '{' Expr '}' '->' Expr	{ Fun (fuseRange $1 $5) (Arg Hidden $2) $5 }
     | Expr1 '->' Expr		{ Fun (fuseRange $1 $3) (Arg NotHidden $1) $3 }
     | Expr1 %prec LOWEST	{ $1 }
@@ -403,20 +403,34 @@ Sort : 'Prop'		{ Prop $1 }
     Bindings
  --------------------------------------------------------------------------}
 
--- A telescope is a non-empty sequence of typed bindings.
+-- A telescope is a non-empty sequence of typed bindingss.
 Telescope :: { Telescope }
 Telescope
-    : TypedBinding Telescope	{ $1 : $2 }
-    | TypedBinding		{ [$1] }
+    : TypedBindings Telescope	{ $1 : $2 }
+    | TypedBindings		{ [$1] }
 
 
--- A typed binding is either (x1,..,xn:A) or {x1,..,xn:A}.
-TypedBinding :: { TypedBinding }
-TypedBinding
-    : '(' CommaBIds ':' Expr ')'
-			    { TypedBinding (fuseRange $1 $5) NotHidden $2 $4 }
-    | '{' CommaBIds ':' Expr '}'
-			    { TypedBinding (fuseRange $1 $5) Hidden $2 $4 }
+-- A typed binding is either (x1,..,xn:A;..;y1,..,ym:B) or {x1,..,xn:A;..;y1,..,ym:B}.
+TypedBindings :: { TypedBindings }
+TypedBindings
+    : '(' TBinds ')' { TypedBindings (fuseRange $1 $3) NotHidden $2 }
+    | '{' TBinds '}' { TypedBindings (fuseRange $1 $3) Hidden    $2 }
+
+
+-- A semicolon separated list of TypedBindings
+TBinds :: { [TypedBinding] }
+TBinds : TBind		   { [$1] }
+       | TBind ';' TBinds2 { $1 : $3 }
+
+TBinds2 :: { [TypedBinding] }
+TBinds2 : TBinds	   { $1 }
+	| Expr ';' TBinds2 { TNoBind $1 : $3 }
+	| Expr		   { [TNoBind $1] }
+
+
+-- x1,..,xn:A
+TBind :: { TypedBinding }
+TBind : CommaBIds ':' Expr  { TBind (fuseRange $1 $3) $1 $3 }
 
 
 -- A non-empty sequence of lambda bindings. For purely aestethical reasons we

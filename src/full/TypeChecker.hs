@@ -499,7 +499,7 @@ isType e s =
 		A.Prop _	 -> return $ prop
 		A.Set _ n	 -> return $ set n
 		A.Pi _ b e	 ->
-		    checkTypedBinding b $ \tel ->
+		    checkTypedBindings b $ \tel ->
 			do  t <- isType_ e
 			    return $ buildPi tel t
 		A.Fun _ (Arg h a) b	 ->
@@ -560,20 +560,28 @@ forcePi h t =
 checkTelescope :: A.Telescope -> (Telescope -> TCM a) -> TCM a
 checkTelescope [] ret = ret []
 checkTelescope (b : tel) ret =
-    checkTypedBinding b $ \xs ->
+    checkTypedBindings b $ \xs ->
     checkTelescope tel  $ \tel' ->
 	ret $ map (fmap snd) xs ++ tel'
 
 
 -- | Check a typed binding and extends the context with the bound variables.
 --   The telescope passed to the continuation is valid in the original context.
-checkTypedBinding :: A.TypedBinding -> ([Arg (String,Type)] -> TCM a) -> TCM a
-checkTypedBinding b@(A.TypedBinding i h xs e) ret =
-    do	t <- isType_ e
-	addCtxs xs t $ ret $ mkTel xs t
+checkTypedBindings :: A.TypedBindings -> ([Arg (String,Type)] -> TCM a) -> TCM a
+checkTypedBindings (A.TypedBindings i h bs) ret =
+    thread checkTypedBinding bs $ \bss ->
+    ret $ map (Arg h) (concat bss)
+
+checkTypedBinding :: A.TypedBinding -> ([(String,Type)] -> TCM a) -> TCM a
+checkTypedBinding (A.TBind i xs e) ret = do
+    t <- isType_ e
+    addCtxs xs t $ ret $ mkTel xs t
     where
 	mkTel [] t     = []
-	mkTel (x:xs) t = Arg h (show x,t) : mkTel xs (raise 1 t)
+	mkTel (x:xs) t = (show x,t) : mkTel xs (raise 1 t)
+checkTypedBinding (A.TNoBind e) ret = do
+    t <- isType_ e
+    ret [("_",t)]
 
 
 ---------------------------------------------------------------------------
@@ -597,9 +605,9 @@ checkExpr e t =
 			where
 			    emptyR r = Range r r
 
-		    hiddenLambda (A.Lam _ (A.DomainFree Hidden _) _)			  = True
-		    hiddenLambda (A.Lam _ (A.DomainFull (A.TypedBinding _ Hidden _ _)) _) = True
-		    hiddenLambda _							  = False
+		    hiddenLambda (A.Lam _ (A.DomainFree Hidden _) _)			 = True
+		    hiddenLambda (A.Lam _ (A.DomainFull (A.TypedBindings _ Hidden _)) _) = True
+		    hiddenLambda _							 = False
 
 	    -- Variable or constant application
 	    _	| Application hd args <- appView e ->
@@ -613,7 +621,7 @@ checkExpr e t =
 		    return $ v0 `apply` [v1]
 
 	    A.Lam i (A.DomainFull b) e ->
-		checkTypedBinding b $ \tel ->
+		checkTypedBindings b $ \tel ->
 		    do  t1 <- newTypeMeta_
 			escapeContext (length tel) $ equalTyp () t (buildPi tel t1)
 			v <- checkExpr e t1

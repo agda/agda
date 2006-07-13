@@ -16,12 +16,12 @@ import Utils.Unicode
 
 #include "../../undefined.h"
 
-instance Show Expr	   where show = show . pretty
-instance Show Declaration  where show = show . pretty
-instance Show Pattern	   where show = show . pretty
-instance Show LHS	   where show = show . pretty
-instance Show TypedBinding where show = show . pretty
-instance Show LamBinding   where show = show . pretty
+instance Show Expr	      where show = show . pretty
+instance Show Declaration     where show = show . pretty
+instance Show Pattern	      where show = show . pretty
+instance Show LHS	      where show = show . pretty
+instance Show TypedBindings   where show = show . pretty
+instance Show LamBinding      where show = show . pretty
 instance Show ImportDirective where show = show . pretty
 
 pHidden :: Pretty a => Hiding -> a -> Doc
@@ -99,15 +99,20 @@ instance Pretty LamBinding where
     pretty (DomainFree h x) = pHidden h (prettyId x)
     pretty (DomainFull b)   = pretty b
 
-instance Pretty TypedBinding where
-    pretty (TypedBinding _ h xs e) =
-	bracks $ sep [ fsep (punctuate comma $ map prettyId xs)
-		     , text ":" <+> pretty e
-		     ]
+instance Pretty TypedBindings where
+    pretty (TypedBindings _ h bs) =
+	bracks $ fsep $ punctuate semi $ map pretty bs
 	where
 	    bracks = case h of
 			Hidden	    -> braces
 			NotHidden   -> parens
+
+instance Pretty TypedBinding where
+    pretty (TNoBind e) = pretty e
+    pretty (TBind _ xs e) =
+	sep [ fsep (punctuate comma $ map prettyId xs)
+	    , text ":" <+> pretty e
+	    ]
 
 instance Pretty Declaration where
     pretty d =

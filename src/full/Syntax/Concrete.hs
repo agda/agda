@@ -12,6 +12,7 @@ module Syntax.Concrete
     , appView, AppView(..)
       -- * Bindings
     , LamBinding(..)
+    , TypedBindings(..)
     , TypedBinding(..)
     , Telescope
       -- * Declarations
@@ -47,7 +48,7 @@ data Expr
 	| InfixApp Expr QName Expr	    -- ^ ex: @e + e@ (no hiding)
 	| Lam Range [LamBinding] Expr	    -- ^ ex: @\\x {y} -> e@ or @\\(x:A){y:B} -> e@
 	| Fun Range (Arg Expr) Expr	    -- ^ ex: @e -> e@ or @{e} -> e@
-	| Pi TypedBinding Expr		    -- ^ ex: @(xs:e) -> e@ or @{xs:e} -> e@
+	| Pi TypedBindings Expr		    -- ^ ex: @(xs:e) -> e@ or @{xs:e} -> e@
 	| Set Range			    -- ^ ex: @Set@
 	| Prop Range			    -- ^ ex: @Prop@
 	| SetN Range Nat		    -- ^ ex: @Set0, Set1, ..@
@@ -72,22 +73,28 @@ data Pattern
 
 -- | A lambda binding is either domain free or typed.
 data LamBinding
-	= DomainFree Hiding Name    -- ^ . @x@ or @{x}@
-	| DomainFull TypedBinding   -- ^ . @(xs:e)@ or @{xs:e}@
+	= DomainFree Hiding Name     -- ^ . @x@ or @{x}@
+	| DomainFull TypedBindings   -- ^ . @(xs:e,..,ys:e')@ or @{xs:e,..,ys:e'}@
     deriving (Typeable, Data, Eq)
 
 
--- | A typed binding. Appears in dependent function spaces, typed lambdas, and
---   telescopes.
+-- | A sequence of typed bindings with hiding information. Appears in dependent
+--   function spaces, typed lambdas, and telescopes.
+data TypedBindings = TypedBindings Range Hiding [TypedBinding]
+	-- ^ . @(xs:e;..;ys:e')@ or @{xs:e;..;ys:e'}@
+    deriving (Typeable, Data, Eq)
+
+
+-- | A typed binding.
 data TypedBinding
-	= TypedBinding Range Hiding [Name] Expr
-	    -- ^ . @(xs:e)@ or @{xs:e}@
+	= TBind Range [Name] Expr   -- Binding @x1,..,xn:A@
+	| TNoBind Expr		    -- No binding @A@, equivalent to @_ : A@.
     deriving (Typeable, Data, Eq)
 
 
 -- | A telescope is a sequence of typed bindings. Bound variables are in scope
 --   in later types.
-type Telescope = [TypedBinding]
+type Telescope = [TypedBindings]
 
 
 {-| Left hand sides can be written in infix style. For example:
@@ -195,8 +202,12 @@ instance HasRange Expr where
 	    As r _ _		-> r
 	    Absurd r		-> r
 
+instance HasRange TypedBindings where
+    getRange (TypedBindings r _ _) = r
+
 instance HasRange TypedBinding where
-    getRange (TypedBinding r _ _ _) = r
+    getRange (TBind r _ _) = r
+    getRange (TNoBind e)   = getRange e
 
 instance HasRange LamBinding where
     getRange (DomainFree _ x)	= getRange x

@@ -105,6 +105,7 @@ those features." :type 'hook :group 'agda2)
          (agda2-quit                "\C-c\C-q"      "Quit"                  )
          (agda2-load                "\C-c\C-x\C-b"  "Load"                  )
          (agda2-show-constraints    "\C-c\C-e"      "Show constraints"      )
+         (agda2-solveAll            "\C-c="         "Solve constraints"     )
          (agda2-show-goals          "\C-c\C-x\C-a"  "Show goals"            )
          (agda2-next-goal           "\C-c\C-f"      "Next goal"             )
          (agda2-previous-goal       "\C-c\C-b"      "Previous goal"         )
@@ -118,6 +119,7 @@ those features." :type 'hook :group 'agda2)
          (agda2-show-context        "\C-c|"     nil "Context"               )
          (agda2-infer-type          "\C-c:"     nil "Infer type"            )
          (agda2-infer-type-normalised "\C-c\C-x:" nil "Infer type (normalised)" )
+         (agda2-compute-normalised  "\C-c\C-xn" nil "Compute normal form")
          (agda2-submit-bug-report   nil             "Submit bug report"     )
          )))
   (define-key agda2-mode-map [menu-bar Agda2]
@@ -300,7 +302,6 @@ annotate new goals NEW-GS"
           (indent (current-column))
           cl)
      (goto-char p0)
-     (message "p0=%d" p0)
      (re-search-forward "!}" (line-end-position) 'noerr)
      (delete-region p1 (point))
      (while (setq cl (pop newcls))
@@ -330,15 +331,13 @@ annotate new goals NEW-GS"
   (dolist (o (overlays-in (point-min) (point-max)))
     (delete-overlay o))
   (agda2-go "ioTCM $ do putUndoStack []; resetState")
-  (let ((old-undo buffer-undo-list)
-        (inhibit-read-only t)
-        (inhibit-point-motion-hooks t))
-    (remove-text-properties
-     (point-min) (point-max)
-     '(category intangible read-only invisible agda2-gn))
-    (setq agda2-undo-list  nil
-          buffer-undo-list old-undo
-          agda2-buffer-state "Text")
+  (let ((inhibit-read-only t) (inhibit-point-motion-hooks t))
+    (let (buffer-undo-list)
+      (remove-text-properties
+       (point-min) (point-max)
+       '(category intangible read-only invisible agda2-gn)))
+    (agda2-flatten-undo)
+    (setq agda2-buffer-state "Text")
     (force-mode-line-update)))
 
 (defun agda2-next-goal ()     "Go to the next goal, if any"     (interactive)
@@ -394,6 +393,22 @@ annotate new goals NEW-GS"
   "Infer normalised type of the goal at point" (interactive)
   (agda2-goal-cmd "cmd_infer B.Normalised" "expression to type"))
   
+(defun agda2-solveAll ()
+  "Solve all goals that are internally already instantiated" (interactive)
+  (agda2-go "cmd_solveAll" ))
+
+(defun agda2-solveAll-action (iss)
+  (save-excursion
+    (while iss
+      (let* ((g (pop iss)) (txt (pop iss)))
+        (agda2-replace-goal g txt)
+        (agda2-goto-goal g)
+        (agda2-give)))))
+
+(defun agda2-compute-normalised ()
+  "Compute the normal form of exp in the goal at point" (interactive)
+  (agda2-goal-cmd "cmd_compute B.Normalised" "expression to normalise"))
+
 ;;;;
 
 (defun agda2-annotate (goals pos)
@@ -444,17 +459,12 @@ NEW-TXT is a string to replace OLD-G, or `'paren', or `'no-paren'"
   (multiple-value-bind (p q) (agda2-range-of-goal old-g)
     (if (not p) (message "ignoring an update for the missing goal %d" old-g)
         (save-excursion
-          (agda2-forget-goal old-g)
-          (if (stringp new-txt)
-              ;; replace <p>{!...!}<q> as a rectangle
-              (let ((indent (and (goto-char p) (current-column))))
-                (delete-region p q) (insert new-txt)
-                (while (re-search-backward "^" p t)
-                  (insert-char ?  indent) (backward-char (1+ indent))))
-              ;; else, remove braces from <p>{! !}<q> [and add parens]
-              (flet ((doit (x y z) (goto-char x) (delete-char y)
-                           (when (equal new-txt 'paren) (insert z))))
-                (doit q -2 ")") (doit p 2 "(")))
+          (cond ((stringp new-txt)
+                 (agda2-replace-goal old-g new-txt))
+                ((equal new-txt 'paren)
+                 (goto-char (- q 2)) (insert ")")
+                 (goto-char (+ p 2)) (insert "(")))
+          (agda2-forget-goal old-g 'remove-braces)
           (agda2-annotate new-gs p)))))
 
 
@@ -499,18 +509,36 @@ NEW-TXT is a string to replace OLD-G, or `'paren', or `'no-paren'"
   (let ((o (agda2-goal-overlay g)))
     (if o (list (overlay-start o) (overlay-end o)))))
 
-(defun agda2-forget-goal (g)
-  (let ((o (agda2-goal-overlay g)))
-    (when o
-      (remove-text-properties
-       (overlay-start o) (overlay-end o)
-       '(category intangible read-only invisible agda2-gn))
+(defun agda2-goto-goal (g)
+  (message "agda2-goto-goal(%S,%S)" g (agda2-range-of-goal g))
+  (let ((p (+ 2 (car (agda2-range-of-goal g)))))
+    (if p (goto-char p))))
+
+(defun agda2-replace-goal (g newtxt)
+  "Replace the content of goal G with newtxt" (interactive)
+  (save-excursion
+    (multiple-value-bind (p q) (agda2-range-of-goal g)
+      (setq p (+ p 2) q (- q 2))
+      (let ((indent (and (goto-char p) (current-column))))
+        (delete-region p q) (insert newtxt)
+        (while (re-search-backward "^" p t)
+          (insert-char ?  indent) (backward-char (1+ indent)))))))
+
+(defun agda2-forget-goal (g &optional remove-braces)
+  (multiple-value-bind (p q) (agda2-range-of-goal g)
+    (let ((o (agda2-goal-overlay g)))
+      (remove-text-properties p q
+        '(category intangible read-only invisible agda2-gn))
+      (when remove-braces
+        (delete-region (- q 2) q)
+        (delete-region p (+ p 2)))
       (delete-overlay o))))
 
 (defun agda2-forget-all-goals ()
-  (let ((p (point-min)) g)
+  (let ((p (point-min)))
     (while (setq p (next-single-property-change p 'agda2-gn))
       (agda2-forget-goal (get-text-property p 'agda2-gn)))))
+
 
 (defun agda2-decl-beginning ()
   "Find the beginning point of the declaration containing the point. To do: dealing with semicolon separated decls."
@@ -531,6 +559,28 @@ NEW-TXT is a string to replace OLD-G, or `'paren', or `'no-paren'"
                     cDef (current-column))))
         (forward-char))
       pDef)))
+
+(defun agda2-flatten-undo ()
+  "Flatten agda2-undo-list onto buffer-undo-list,
+ignoring text-property undos."
+  (let (flat-undo)
+    (dolist (au agda2-undo-list)
+      (dolist (u (car au))
+        (cond
+          ((and (listp u) (listp (cdr u))
+                (null (car u))
+                (or (equal 'category (cadr u))
+                    (equal 'agda2-gn (cadr u))))
+           'ignore)
+          ((and (listp u) (stringp (car u)))
+           (set-text-properties 0 (length (car u))
+                                '(category nil agda2-gn nil)
+                                (car u))
+           (push u flat-undo))
+          (t (push u flat-undo))))
+      (setq flat-undo (append (reverse (cadr au)) flat-undo)))
+    (setq buffer-undo-list (append buffer-undo-list (reverse flat-undo))
+          agda2-undo-list nil)))
 
 (defun turn-on-agda2-indent ()
   "A copy of `turn-on-haskell-indent' with additional off-side words"

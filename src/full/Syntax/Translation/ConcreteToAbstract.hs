@@ -284,11 +284,19 @@ instance BindToAbstract C.LamBinding A.LamBinding where
     bindToAbstract (C.DomainFull tb) ret =
 	bindToAbstract tb $ \tb' -> ret (A.DomainFull tb')
 
+instance BindToAbstract C.TypedBindings A.TypedBindings where
+    bindToAbstract (C.TypedBindings r h bs) ret =
+	bindToAbstract bs $ \bs ->
+	ret (A.TypedBindings r h bs)
+
 instance BindToAbstract C.TypedBinding A.TypedBinding where
-    bindToAbstract (C.TypedBinding r h xs t) ret =
+    bindToAbstract (C.TBind r xs t) ret =
 	do  t' <- toAbstractCtx TopCtx t
 	    bindToAbstract (map NewName xs) $ \xs' ->
-		ret (A.TypedBinding r h xs' t')
+		ret (A.TBind r xs' t')
+    bindToAbstract (C.TNoBind e) ret =
+	do  e <- toAbstractCtx TopCtx e
+	    ret (A.TNoBind e)
 
 -- Note: only for top level modules!
 instance ToAbstract C.Declaration (A.Declaration, ScopeInfo) where

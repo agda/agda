@@ -23,7 +23,7 @@ data Expr
         | Underscore   MetaInfo		    -- ^ meta variable for hidden argument (must be inferred locally)
         | App  ExprInfo Expr (Arg Expr)	    -- ^
         | Lam  ExprInfo LamBinding Expr	    -- ^
-        | Pi   ExprInfo TypedBinding Expr   -- ^
+        | Pi   ExprInfo TypedBindings Expr  -- ^
 	| Fun  ExprInfo (Arg Expr) Expr	    -- ^ independent function space
         | Set  ExprInfo Nat		    -- ^
         | Prop ExprInfo			    -- ^
@@ -53,19 +53,22 @@ type Constructor    = TypeSignature
 -- | A lambda binding is either domain free or typed.
 data LamBinding
 	= DomainFree Hiding Name    -- ^ . @x@ or @{x}@
-	| DomainFull TypedBinding   -- ^ . @(xs:e)@ or @{xs:e}@
+	| DomainFull TypedBindings  -- ^ . @(xs:e)@ or @{xs:e}@
 
+-- | Typed bindings with hiding information.
+data TypedBindings = TypedBindings Range Hiding [TypedBinding]
+	    -- ^ . @(xs:e;..;ys:e')@ or @{xs:e;..;ys:e'}@
 
 -- | A typed binding. Appears in dependent function spaces, typed lambdas, and
 --   telescopes. I might be tempting to simplify this to only bind a single
 --   name at a time. This would mean that we would have to typecheck the type
---   several times (@(x,y:A)@ vs. @(x:A)(y:A)@). In most cases this wouldn't
+--   several times (@x,y:A@ vs. @x:A; y:A@). In most cases this wouldn't
 --   really be a problem, but it's good principle to not do extra work unless
 --   you have to.
-data TypedBinding = TypedBinding Range Hiding [Name] Expr
-	    -- ^ . @(xs:e)@ or @{xs:e}@
+data TypedBinding = TBind Range [Name] Expr
+		  | TNoBind Expr
 
-type Telescope	= [TypedBinding]
+type Telescope	= [TypedBindings]
 
 -- | We could throw away @where@ clauses at this point and translate them to
 --   @let@. It's not obvious how to remember that the @let@ was really a
@@ -97,8 +100,12 @@ instance HasRange LamBinding where
     getRange (DomainFree _ x) = getRange x
     getRange (DomainFull b)   = getRange b
 
+instance HasRange TypedBindings where
+    getRange (TypedBindings r _ _) = r
+
 instance HasRange TypedBinding where
-    getRange (TypedBinding r _ _ _) = r
+    getRange (TBind r _ _) = r
+    getRange (TNoBind e)   = getRange e
 
 instance HasRange Expr where
     getRange (Var i _)		= getRange i

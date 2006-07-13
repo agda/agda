@@ -30,6 +30,7 @@ import Syntax.Internal.Debug
 import Syntax.Scope
 
 import TypeChecking.Monad as M
+import TypeChecking.Monad.Name
 import TypeChecking.Reduce
 
 import Utils.Monad
@@ -116,7 +117,7 @@ instance Reify Type Expr where
 		I.Pi a b     ->
 		    do	Arg h a <- reify a
 			(x,b)   <- reify b
-			return $ A.Pi exprInfo (TypedBinding noRange h [x] a) b
+			return $ A.Pi exprInfo (TypedBindings noRange h [TBind noRange [x] a]) b
 		I.Fun a b    -> uncurry (A.Fun $ exprInfo)
 				<$> reify (a,b)
 		I.Sort s     -> reify s
@@ -142,7 +143,7 @@ instance Reify Sort Expr where
 
 instance Reify i a => Reify (Abs i) (Name, a) where
     reify (Abs s v) =
-	do  x <- freshName_ s
+	do  x <- refreshName_ s
 	    e <- addCtx x __IMPOSSIBLE__ -- type doesn't matter
 		 $ reify v
 	    return (x,e)

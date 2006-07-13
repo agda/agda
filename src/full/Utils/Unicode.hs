@@ -294,7 +294,8 @@ isUnicodeId = \x -> Set.member (fromEnum x) ids
 type UTF8 = String
 
 readFileUTF8 :: FilePath -> IO String
-readFileUTF8 file = fromUTF8 <$> readFile file
+readFileUTF8 file = fromUTF8 . readAll <$> readFile file
+  where readAll s = if s == s then s else s
 
 writeFileUTF8 :: FilePath -> String -> IO ()
 writeFileUTF8 file s = writeFile file $ toUTF8 s

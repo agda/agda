@@ -208,8 +208,12 @@ niceDeclarations ds = nice (fixities ds) ds
 				]
 				where
 				    f = fixity x fixs
-				    binding (TypedBinding _ h xs _) =
+				    binding (TypedBindings _ h bs) =
+					concatMap (bind h) bs
+				    bind h (TBind _ xs _) =
 					map (DomainFree h) xs
+				    bind h (TNoBind e) =
+					[ DomainFree h $ NoName (getRange e) ]
 
 			    Mutual r ds ->
 				[ mkMutual r [d] $

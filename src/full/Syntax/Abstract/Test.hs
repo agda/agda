@@ -107,9 +107,14 @@ instance Equal LamBinding where
     DomainFull b   === DomainFull b'	= b === b'
     b1		   === b2		= unequal b1 b2
 
+instance Equal TypedBindings where
+    TypedBindings r h bs === TypedBindings r' h' bs' =
+	fromBool r r' (h == h') &&& bs === bs'
+
 instance Equal TypedBinding where
-    TypedBinding r h xs e === TypedBinding r' h' ys e'	= fromBool r r' (h == h')
-							    &&& (xs,e) === (ys,e')
+    TBind _ xs e === TBind _ ys e' = xs === ys &&& e === e'
+    TNoBind e	 === TNoBind e'    = e === e'
+    b		 === b'		   = unequal b b'
 
 instance Equal Declaration where
     Axiom i x s			=== Axiom j y t			= (i,x,s) === (j,y,t)

@@ -390,10 +390,19 @@ instance BindToConcrete A.LamBinding C.LamBinding where
     bindToConcrete (A.DomainFree h x) ret = bindToConcrete x $ ret . C.DomainFree h
     bindToConcrete (A.DomainFull b)   ret = bindToConcrete b $ ret . C.DomainFull
 
+instance BindToConcrete A.TypedBindings C.TypedBindings where
+    bindToConcrete (A.TypedBindings r h bs) ret =
+	bindToConcrete bs $ \bs ->
+	ret (C.TypedBindings r h bs)
+
 instance BindToConcrete A.TypedBinding C.TypedBinding where
-    bindToConcrete (A.TypedBinding r h xs e) ret =
-	bindToConcrete xs $ \xs ->
-	ret . C.TypedBinding r h xs =<< toConcreteCtx TopCtx e
+    bindToConcrete (A.TBind r xs e) ret =
+	bindToConcrete xs $ \xs -> do
+	e <- toConcreteCtx TopCtx e
+	ret (C.TBind r xs e)
+    bindToConcrete (A.TNoBind e) ret = do
+	e <- toConcreteCtx TopCtx e
+	ret (C.TNoBind e)
 
 instance BindToConcrete LetBinding [C.Declaration] where
     bindToConcrete (LetBind i x t e) ret =
