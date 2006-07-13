@@ -11,6 +11,7 @@
 \newcommand{\Set}{\mathbf{Set}}
 \newcommand{\Fun}{\mathbf{Fun}}
 \newcommand{\App}{\mathbf{App}}
+\newcommand{\Hh}{\mathbf{H}}
 \begin{document}
 \include{overview} 
 %include Decl.lhs

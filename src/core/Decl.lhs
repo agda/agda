@@ -28,26 +28,40 @@ checkDecl                     :: Decl -> Cont -> G Cont
 \end{code}
 It takes a declaration and a context
 (i.e. the result of type-checked declarations)
-and checks the declaration and add it to the context.
+and checks the declaration and add it to the context. We have the following cases:
+\begin{itemize}
+\item \verb|c : E|, a typing of an identifier. We first check that the
+  expression \verb|E| is a type, then we compute the value of it and
+  update the context with the identifier and its type
 \begin{code}
--- we can define only the last declared variable
-
 checkDecl  (Var s a)    con   =
   do
   checkT con a
   v <- return (evalCon con a)
   return (upCon v (mconst s v) con)
+\end{code}
+\item \verb|c = e|, the definition of a constant. We can only define
+  the last declared constant. We lookup the type of this and check
+  that the right hand side |e| has this type...
+\begin{code}
 checkDecl  (Def s e)    con   =
   do
   (u,v,con1) <- lastCon con
   check con1 v e
   return (upCon (evalBodyCon con1 (mconst s v) e) v con1)
+\end{code}
+\item 
+\verb|...|, a recursive definition.
+\begin{code}
 checkDecl  (DefRec s e) con   =
  do
   (_,v,con1) <- lastCon con
   check con v e
   return (mNewCon con1 v s e)
-
+\end{code}
+\item 
+\end{itemize}
+\begin{code}
 mNewCon con1 v s e =
   newcon
     where
