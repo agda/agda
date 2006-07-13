@@ -361,11 +361,13 @@ instance BindToAbstract NiceDefinition Definition where
 	    ret $ A.FunDef (mkSourcedDefInfo x f p a ds) x' cs'
 
     -- Data definitions
-    bindToAbstract (CD.DataDef r f p a x pars cons) ret =
-	bindToAbstract pars $ \pars' ->
-	bindToAbstract (map Constr cons) $ \cons' -> do
-	    x' <- toAbstract (OldName x)
-	    ret $ A.DataDef (mkRangedDefInfo x f p a r) x' pars' cons'
+    bindToAbstract (CD.DataDef r f p a x pars cons) ret = do
+	(pars,cons) <- bindToAbstract pars $ \pars ->
+		       bindToAbstract (map Constr cons) $ \cons ->
+		       return (pars,cons)
+	x' <- toAbstract (OldName x)
+	bindToAbstract (map Constr cons) $ \_ ->
+	    ret $ A.DataDef (mkRangedDefInfo x f p a r) x' pars cons
 
 -- The only reason why we return a list is that open declarations disappears.
 -- For every other declaration we get a singleton list. Except we keep open
@@ -449,6 +451,17 @@ instance BindToAbstract (Constr CD.NiceDeclaration) A.Declaration where
 		    (_, p)	     -> p
 
     bindToAbstract _ _ = __IMPOSSIBLE__    -- a constructor is always an axiom
+
+instance BindToAbstract (Constr A.Declaration) () where
+    bindToAbstract (Constr (A.Axiom info x _)) ret =
+	    local (defName p ConName f x) $ ret ()
+	where
+	    a = defAccess info
+	    f = defFixity info
+	    p = case (defAbstract info, defAccess info) of
+		    (AbstractDef, _) -> PrivateAccess
+		    (_, p)	     -> p
+    bindToAbstract _ _ = __IMPOSSIBLE__ -- a constructor is always an axiom
 
 instance ToAbstract CD.Clause A.Clause where
     toAbstract (CD.Clause lhs rhs wh) =
