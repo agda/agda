@@ -261,8 +261,8 @@ instance (BindToConcrete a1 c1, BindToConcrete a2 c2, BindToConcrete a3 c3) =>
 	    reorder (x,(y,z)) = (x,y,z)
 
 instance ToConcrete a c => ToConcrete (Arg a) (Arg c) where
-    toConcrete (Arg h x) =
-	Arg h <$> toConcreteCtx (hiddenArgumentCtx h) x
+    toConcrete (Arg h@Hidden    x) = Arg h <$> toConcreteCtx TopCtx x
+    toConcrete (Arg h@NotHidden x) = Arg h <$> toConcrete x
 
 instance BindToConcrete a c => BindToConcrete (Arg a) (Arg c) where
     bindToConcrete (Arg h x) ret = bindToConcreteCtx (hiddenArgumentCtx h) x $ ret . Arg h
