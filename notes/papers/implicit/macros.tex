@@ -16,6 +16,8 @@
 % Syntax
 \newcommand\SET{\mathsf{Set}}
 \newcommand\EL{\mathsf{El}\,}
+\newcommand\unify{\mathsf{unify}}
+\newcommand\inscope{\mathsf{InScope}}
 \newcommand\PI[2]{(#1:#2)\to{}}
 \newcommand\LAM[1]{\lambda #1.{}}
 \newcommand\Meta[1]{{?_{#1}}}
@@ -29,17 +31,21 @@
 \newcommand\IsCtxCS[2]{#2\vdash_{#1}}
 \newcommand\IsTypeCS[3]{#2\vdash_{#1}#3}
 \newcommand\HasTypeCS[4]{#2\vdash_{#1}#3:#4}
+\newcommand\CheckTypeCS[4]{#2\vdash_{#1}#3\uparrow#4}
+\newcommand\InferTypeCS[4]{#2\vdash_{#1}#3\downarrow#4}
 \newcommand\EqualTypeCS[4]{#2\vdash_{#1}#3=#4}
 \newcommand\EqualCS[5]{#2\vdash_{#1}#3=#4:#5}
 
 \newcommand\IsCtxC[1]{\IsCtxCS{}{#1}}
 \newcommand\IsTypeC[2]{\IsTypeCS{}{#1}{#2}}
 \newcommand\HasTypeC[3]{\HasTypeCS{}{#1}{#2}{#3}}
+\newcommand\CheckTypeC[3]{\CheckTypeCS{}{#1}{#2}{#3}}
+\newcommand\InferTypeC[3]{\InferTypeCS{}{#1}{#2}{#3}}
 \newcommand\EqualTypeC[3]{\EqualTypeCS{}{#1}{#2}{#3}}
 \newcommand\EqualC[4]{\EqualCS{}{#1}{#2}{#3}{#4}}
 
 % Implicit core
-\newcommand\WithCnstr[2]{#1\rhd{}#2}
+\newcommand\WithCnstr[2]{#2{}\Rightarrow{}#1}
 \newcommand\Constr[5]{\Pair{#1,#2,#3,#4,#5}}
 \newcommand\Solves{\models}
 \newcommand\SigConstr[1]{\left|#1\right|}
@@ -48,6 +54,8 @@
 \newcommand\IsCtxIS[3]{\WithCnstr{#1}{\IsCtxCS{#2}{#3}}}
 \newcommand\IsTypeIS[4]{\WithCnstr{#1}{\IsTypeCS{#2}{#3}{#4}}}
 \newcommand\HasTypeIS[5]{\WithCnstr{#1}{\HasTypeCS{#2}{#3}{#4}{#5}}}
+\newcommand\CheckTypeIS[5]{\WithCnstr{#1}{\CheckTypeCS{#2}{#3}{#4}{#5}}}
+\newcommand\InferTypeIS[5]{\WithCnstr{#1}{\InferTypeCS{#2}{#3}{#4}{#5}}}
 \newcommand\EqualTypeIS[5]{\WithCnstr{#1}{\EqualTypeCS{#2}{#3}{#4}{#5}}}
 \newcommand\EqualIS[6]{\WithCnstr{#1}{\EqualCS{#2}{#3}{#4}{#5}{#6}}}
 
@@ -57,4 +65,20 @@
 \newcommand\EqualTypeI[4]{\EqualTypeIS{#1}{}{#2}{#3}{#4}}
 \newcommand\EqualI[5]{\EqualIS{#1}{}{#2}{#3}{#4}{#5}}
 
+\newcommand\whnfS[5]{#2\vdash_{#1}#3\leadsto#4:#5}
+\newcommand\whnf[4]{\whnfS{}{#1}{#2}{#3}{#4}}
 
+\newcommand\Unify[5]{{#2},{#3} \vdash_{#1} \unify({#4}) \rightarrow {#5}} 
+\newcommand\SubstUpdate[3]{#1(\Meta{#2} = {#3})}
+\newcommand\Indep[3]{{#1} \vdash {#2} \rightarrow {#3}}
+\newcommand\UIndep[4]{{#1}(\Meta{#2} \mathrel{{\cup}{=}} \{{#3} ~|~ {#4}\})}
+\newcommand\InScope[3]{\inscope_#1(#2,#3)}
+\newcommand\PhiArgs[2]{\Phi(\Meta{#1},#2)}
+\newcommand\PhiSet[1]{\Phi(\Meta{#1})}
+\newcommand\FV[2]{\mathit{FV}_{#1}(#2)}
+\newcommand\proj[2]{\mathsf{proj}(#1,#2)}
+\newcommand\Simplify[2]{{#1}{#2}}
+\newcommand\respects{\mathrel{\mathsf{respects}}}
+\newcommand\Convertible[3]{{#2}\approx_{#1}{#3}}
+\newcommand\Normalise[3]{{#2}\downarrow_{#1}{#3}}
+\newcommand\Valid[3]{#1~\mathsf{valid}_{#2,#3}}
