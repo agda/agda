@@ -32,18 +32,20 @@ getContext = asks envContext
 
 -- | Get the current context as a 'Telescope' (everything 'Hidden').
 getContextTelescope :: TCM Telescope
-getContextTelescope = List.map (Arg Hidden . snd) . reverse <$> getContext
+getContextTelescope = List.map arg . reverse <$> getContext
+    where
+	arg (x,t) = Arg Hidden (show x, t)
 
 -- | add a bunch of variables with the same type to the context
 addCtxs :: [Name] -> Type -> TCM a -> TCM a
 addCtxs []     _ k = k
 addCtxs (x:xs) t k = addCtx x t $ addCtxs xs (raise 1 t) k
 
--- | Add a telescope to the context. Uses dummy names.
+-- | Add a telescope to the context.
 addCtxTel :: Telescope -> TCM a -> TCM a
 addCtxTel [] ret = ret
-addCtxTel (Arg _ t : tel) ret =
-    do	x <- freshNoName_
+addCtxTel (Arg _ (x,t) : tel) ret =
+    do	x <- freshName_ x
 	addCtx x t $ addCtxTel tel ret
 
 -- | Add a let bound variable

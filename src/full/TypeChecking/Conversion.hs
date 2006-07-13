@@ -34,7 +34,8 @@ equalSameVar meta inst x args1 args2 =
 		      , a === b
 		      ]
         v <- newMetaSame x meta
-	let tel = map (fmap $ const $ Sort Prop) args1 -- types don't matter here
+	let tel = map (fmap $ const ("_",Sort Prop)) args1
+		-- only hiding matters
         setRef Why x $ inst $ abstract tel (v `apply` newArgs)
     else fail $ "equalSameVar"
     where

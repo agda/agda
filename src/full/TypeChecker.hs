@@ -226,7 +226,7 @@ bindParameters (A.DomainFree h x : ps) (Pi (Arg h' a) b) ret	-- always dependent
     | h /= h'	=
 	__IMPOSSIBLE__
     | otherwise = addCtx x a $ bindParameters ps (absBody b) $ \tel s ->
-		    ret (Arg h a : tel) s
+		    ret (Arg h (show x,a) : tel) s
 bindParameters _ _ _ = __IMPOSSIBLE__
 
 
@@ -560,14 +560,14 @@ forcePi h t =
 checkTelescope :: A.Telescope -> (Telescope -> TCM a) -> TCM a
 checkTelescope [] ret = ret []
 checkTelescope (b : tel) ret =
-    checkTypedBindings b $ \xs ->
-    checkTelescope tel  $ \tel' ->
-	ret $ map (fmap snd) xs ++ tel'
+    checkTypedBindings b $ \tel1 ->
+    checkTelescope tel   $ \tel2 ->
+	ret $ tel1 ++ tel2
 
 
 -- | Check a typed binding and extends the context with the bound variables.
 --   The telescope passed to the continuation is valid in the original context.
-checkTypedBindings :: A.TypedBindings -> ([Arg (String,Type)] -> TCM a) -> TCM a
+checkTypedBindings :: A.TypedBindings -> (Telescope -> TCM a) -> TCM a
 checkTypedBindings (A.TypedBindings i h bs) ret =
     thread checkTypedBinding bs $ \bss ->
     ret $ map (Arg h) (concat bss)

@@ -185,7 +185,8 @@ occMeta meta inst red m ok m' vs
 		     Just vs' -> return vs'
 	    when (length vs' /= length vs) $
 		do  v1 <-  newMetaSame m' (\mi -> meta mi [])
-		    let tel = List.map (fmap $ const $ Sort Prop) vs	-- types don't matter here
+		    let tel = List.map (fmap $ const $ ("_",Sort Prop)) vs
+				-- only hiding matters
 		    setRef Why m' $ inst $ abstract tel (v1 `apply` vs')
 		    abortAssign -- setRef wakes up the constraints and solving them
 				-- might invalidate the current assignment, so we
@@ -246,7 +247,8 @@ assign x args = fail "assign" `mkQ` ass InstV `extQ` ass InstT `extQ` ass InstS 
     ass inst v =
 	do  ids <- checkArgs x args
 	    v'  <- occ x ids v
-	    let tel = List.map (fmap $ const $ Sort Prop) args -- types don't matter here
+	    let tel = List.map (fmap $ const ("_",Sort Prop)) args
+		-- only hiding matters
 	    setRef Why x $ inst $ abstract tel v'
 
 -- | Check that arguments to a metavar are in pattern fragment.

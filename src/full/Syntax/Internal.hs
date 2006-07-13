@@ -63,7 +63,7 @@ type Args = [Arg Term]
                             
 -- | Sequence of types. An argument of the first type is bound in later types
 --   and so on.
-type Telescope = [Arg Type]
+type Telescope = [Arg (String,Type)]
 
 -- | The body has (at least) one free variable.
 data Abs a = Abs { absName :: String
@@ -149,10 +149,9 @@ set n  = Sort (Type n)
 sort s = Sort s       
 prop   = Sort Prop
 
--- | TODO: name suggestion
 telePi :: Telescope -> Type -> Type
 telePi [] t = t
-telePi (arg : tel) t = Pi arg $ Abs "x" $ telePi tel t
+telePi (Arg h (x,s) : tel) t = Pi (Arg h s) $ Abs x $ telePi tel t
 
 -- | Get the next higher sort.
 sSuc :: Sort -> Sort
