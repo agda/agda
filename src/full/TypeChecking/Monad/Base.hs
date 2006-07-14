@@ -33,8 +33,6 @@ data TCState =
 	 , stConstraints       :: Constraints
 	 , stSignature	       :: Signature
 	 , stScopeInfo	       :: ScopeInfo
-	 , stTrace	       :: Trace
-	    -- ^ record what is happening (for error msgs)
 	 , stOptions	       :: CommandLineOptions
 	 , stStatistics	       :: Statistics
 	 }
@@ -55,7 +53,6 @@ initState =
 	 , stConstraints       = Map.empty
 	 , stSignature	       = Map.empty
 	 , stScopeInfo	       = emptyScopeInfo_
-	 , stTrace	       = noTrace
 	 , stOptions	       = defaultOptions
 	 , stStatistics	       = Map.empty
 	 }
@@ -264,6 +261,7 @@ type Statistics = Map String Int
 
 -- | The trace is just a range at the moment.
 newtype Trace = Trace { traceRange :: Range }
+    deriving (Show, Typeable, Data)
 
 noTrace :: Trace
 noTrace = Trace noRange
@@ -279,6 +277,8 @@ data TCEnv =
     TCEnv { envContext	     :: Context
 	  , envLetBindings   :: LetBindings
 	  , envCurrentModule :: ModuleName
+	  , envTrace	     :: Trace
+	     -- ^ record what is happening (for error msgs)
 	  , envAbstractMode  :: Bool
 		-- ^ When checking the typesignature of a public definition
 		--   or the body of a non-abstract definition this is true.
@@ -291,6 +291,7 @@ initEnv :: TCEnv
 initEnv = TCEnv { envContext	   = []
 		, envLetBindings   = Map.empty
 		, envCurrentModule = noModuleName
+		, envTrace	   = noTrace
 		, envAbstractMode  = False
 		}
 
@@ -341,11 +342,11 @@ newtype TCM a = TCM { unTCM :: UndoT TCState (StateT TCState (ReaderT TCEnv (TCE
 instance Monad TCM where
     return  = TCM . return
     m >>= k = TCM $ unTCM m >>= unTCM . k
-    fail s  = TCM $ do	r <- gets $ getRange . stTrace
+    fail s  = TCM $ do	r <- asks $ getRange . envTrace
 			throwError $ Fatal r s
 
 instance MonadIO TCM where
-  liftIO m = TCM $ do r <- gets $ getRange . stTrace
+  liftIO m = TCM $ do r <- asks $ getRange . envTrace
                       lift $ lift $ lift $ ErrorT $
                         handle (return . throwError . Fatal r . show)
                         (failOnException

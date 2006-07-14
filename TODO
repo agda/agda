@@ -42,8 +42,6 @@ Fixes
 
 [Internals]
 
-* move trace to environment
-
 [Testing]
 
 * write better tests
@@ -69,6 +67,8 @@ Cleaning
 
 Done
 ----
+
+* move trace to environment
 
 * name suggestions in telescopes
 
