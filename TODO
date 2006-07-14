@@ -44,8 +44,6 @@ Fixes
 
 * move trace to environment
 
-* name suggestions in telescopes
-
 [Testing]
 
 * write better tests
@@ -67,12 +65,16 @@ Speculative
 Cleaning
 --------
 
-* TypeChecking.Monad.*
-
 * TypeChecking.Reduce
 
 Done
 ----
+
+* name suggestions in telescopes
+
+* forall x y z -> A  =  (x:_)(y:_)(z:_) -> A
+
+* cleaning up of TypeChecking.Monad.*
 
 * Context to abstract thinks that the types are valid in the entire context.
 
