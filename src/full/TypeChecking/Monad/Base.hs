@@ -35,6 +35,8 @@ data TCState =
 	 , stScopeInfo	       :: ScopeInfo
 	 , stOptions	       :: CommandLineOptions
 	 , stStatistics	       :: Statistics
+	 , stTrace	       :: Trace
+	     -- ^ record what is happening (for error msgs)
 	 }
 
 data FreshThings =
@@ -55,6 +57,7 @@ initState =
 	 , stScopeInfo	       = emptyScopeInfo_
 	 , stOptions	       = defaultOptions
 	 , stStatistics	       = Map.empty
+	 , stTrace	       = noTrace
 	 }
 
 instance HasFresh MetaId FreshThings where
@@ -277,8 +280,6 @@ data TCEnv =
     TCEnv { envContext	     :: Context
 	  , envLetBindings   :: LetBindings
 	  , envCurrentModule :: ModuleName
-	  , envTrace	     :: Trace
-	     -- ^ record what is happening (for error msgs)
 	  , envAbstractMode  :: Bool
 		-- ^ When checking the typesignature of a public definition
 		--   or the body of a non-abstract definition this is true.
@@ -291,7 +292,6 @@ initEnv :: TCEnv
 initEnv = TCEnv { envContext	   = []
 		, envLetBindings   = Map.empty
 		, envCurrentModule = noModuleName
-		, envTrace	   = noTrace
 		, envAbstractMode  = False
 		}
 
@@ -342,11 +342,11 @@ newtype TCM a = TCM { unTCM :: UndoT TCState (StateT TCState (ReaderT TCEnv (TCE
 instance Monad TCM where
     return  = TCM . return
     m >>= k = TCM $ unTCM m >>= unTCM . k
-    fail s  = TCM $ do	r <- asks $ getRange . envTrace
+    fail s  = TCM $ do	r <- gets $ getRange . stTrace
 			throwError $ Fatal r s
 
 instance MonadIO TCM where
-  liftIO m = TCM $ do r <- asks $ getRange . envTrace
+  liftIO m = TCM $ do r <- gets $ getRange . stTrace
                       lift $ lift $ lift $ ErrorT $
                         handle (return . throwError . Fatal r . show)
                         (failOnException
