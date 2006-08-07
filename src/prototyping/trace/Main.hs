@@ -17,9 +17,8 @@ action s =
 	    putStrLn ""
 	    putStrLn $ printTree e
 	    case runTC $ infer e of
-		Left (tr,s)	-> do
-		    putStrLn $ "ERROR " ++ s
-		    putStr $ indent 2 $ show tr
+		Left e	-> do
+		    putStrLn $ "ERROR " ++ displayError e
 		Right t ->
 		    putStrLn $ "OK " ++ printTree t
 	Bad err -> putStrLn err

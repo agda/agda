@@ -20,12 +20,15 @@ emptyContext = Map.empty
 
 -- Trace ------------------------------------------------------------------
 
-newtype Trace = Trace [CallTree]
+type Trace   = Current
+type Sibling = Child
 
-data CallTree = CallTree Call Trace
+data Current = Current Call Parent [Sibling] [Child] | TopLevel [Child]
+data Parent  = Parent  Call Parent [Sibling] | NoParent
+data Child   = Child   Call [Child]
 
 noTrace :: Trace
-noTrace = Trace []
+noTrace = TopLevel []
 
 data Call = Infer Exp		(Maybe Type)
 	  | Check Exp Type	(Maybe ())
@@ -40,19 +43,18 @@ indent n s  = unlines . concatMap ind . lines $ s
 	ind "" = []
 	ind s = [replicate n ' ' ++ s]
 
-prune :: Trace -> Trace
-prune (Trace []) = Trace []
-prune (Trace [CallTree c t]) = Trace [CallTree c $ prune t]
-prune (Trace (CallTree c t : cs)) = Trace $ CallTree c (prune t) : map snip cs
-    where
-	snip (CallTree c _) = CallTree c $ Trace []
+-- | Turn the tree the right way up (TopLevel at the root).
+topLevelView :: Trace -> Trace
+topLevelView t@(TopLevel _)	 = t
+topLevelView t@(Current c _ _ _) = topLevelView $ updateCall c t
 
-instance Show Trace where
-    show t = case prune t of
-	Trace cs -> unlines $ map show $ reverse cs
+instance Show Current where
+    show t = case topLevelView t of
+	TopLevel cs -> unlines $ map show cs
 
-instance Show CallTree where
-    show (CallTree c t) = indent 0 (show c) ++ indent 2 (show t)
+instance Show Child where
+    show (Child c cs) =
+	indent 0 (show c) ++ indent 2 (unlines $ map show $ reverse cs)
 
 instance Show Call where
     show e = case e of
@@ -80,23 +82,14 @@ inProgress c = case c of
     IsFunctionType _ r -> isNothing r
 
 newCall :: Call -> Trace -> Trace
-newCall c (Trace cs) = Trace $ case cs of
-    []	-> [call]
-    CallTree c' t : cs'
-	| inProgress c'	-> CallTree c' (newCall c t) : cs'
-	| otherwise	-> call : cs
-    where
-	call = CallTree c $ Trace []
+newCall c (TopLevel cs)	       = Current c NoParent cs []
+newCall c (Current c' p ss cs) = Current c (Parent c' p ss) cs []
 
 updateCall :: Call -> Trace -> Trace
-updateCall c (Trace cs) = Trace $ case cs of
-    []	-> error $ "updateCall: can't update an empty trace"
-    CallTree c' t : cs'
-	| inProgress c' -> case t of
-	    Trace (CallTree c'' _ : _)
-		| inProgress c'' -> CallTree c' (updateCall c t) : cs'
-	    _			 -> CallTree c t : cs'
-	| otherwise	-> error $ "updateCall: no call in progress"
+updateCall c (TopLevel _)	 = error $ "updateCall: no call in progress"
+updateCall c (Current _ p ss cs) = case p of
+    NoParent	     -> TopLevel $ Child c cs : ss
+    Parent c' p' ss' -> Current c' p' ss' $ Child c cs : ss
 
 call :: (Maybe r -> Call) -> TC r -> TC r
 call mkCall m = do
@@ -187,3 +180,53 @@ isFunctionType t = call (IsFunctionType t) $ case t of
     FunT t1 t2	-> return (t1, t2)
     _		-> failure $ NotFunctionType t
 
+-- Error message presentation ---------------------------------------------
+
+matchCall :: (Call -> Maybe a) -> Trace -> Maybe a
+matchCall f = matchTrace f'
+    where
+	f' (Child c _) = f c
+
+matchTrace :: (Child -> Maybe a) -> Trace -> Maybe a
+matchTrace f (TopLevel _) = Nothing
+matchTrace f t@(Current c _ _ cs) =
+    f (Child c cs) `mplus` matchTrace f (updateCall c t)
+
+displayError :: TypeError -> String
+displayError (tr, e) = case e of
+    InternalError s	-> unlines [ "internal error: " ++ s ]
+    UnboundVar x	-> unlines [ "unbound variable " ++ printTree x ]
+    NotFunctionType t	->
+	indent 0 $ unlines
+		[ "the expression"
+		, "  " ++ printTree f
+		, "is applied to an argument, but has type"
+		, "  " ++ printTree t
+		, "which is not a function type"
+		] -- show tr
+	where
+	    f = case matchCall isInferApp tr of
+		    Just f  -> f
+		    Nothing -> error "displayError: can't find function" 
+	    isInferApp (Infer (App f _) Nothing) = Just f
+	    isInferApp _			 = Nothing
+
+    TypeMismatch s t ->
+	indent 0 $ unlines
+	    [ "When checking the type of"
+	    , "  " ++ printTree e
+	    , "the inferred type"
+	    , "  " ++ printTree t'
+	    , "does not match the expected type"
+	    , "  " ++ printTree s'
+	    , "because"
+	    , "  " ++ printTree s ++ " != " ++ printTree t
+	    ]
+	-- show tr
+	where
+	    isCheck (Child (Check e _ Nothing) (Child (EqualType s t _) _ : _)) = Just (e,s,t)
+	    isCheck _ = Nothing
+
+	    (e,s',t') = case matchTrace isCheck tr of
+		Just (e,s,t) -> (e,s,t)
+		Nothing	     -> error $ "displayError: weird type mismatch"
