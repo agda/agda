@@ -125,8 +125,8 @@ parseExprIn ii rng s = do
     i   <- fresh
     liftIO $ concreteToAbstract
              (ScopeState {freshId = i})
-             (metaScope mi)
-             (parsePosString exprParser (rStart (metaRange mi)) s)
+             (clScope mi)
+             (parsePosString exprParser (rStart (getRange mi)) s)
 
 cmd_context :: GoalCommand
 cmd_context ii _ _ = putStrLn . unlines . List.map show

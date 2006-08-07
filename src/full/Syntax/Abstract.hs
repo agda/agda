@@ -145,3 +145,9 @@ instance HasRange Pattern where
 instance HasRange LHS where
     getRange (LHS i _ _)    = getRange i
 
+instance HasRange Clause where
+    getRange (Clause lhs rhs ds) = getRange (lhs,rhs,ds)
+
+instance HasRange LetBinding where
+    getRange (LetBind i _ _ _) = getRange i
+

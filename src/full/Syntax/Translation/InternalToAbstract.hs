@@ -80,7 +80,7 @@ instance Reify MetaId Expr where
     reify x@(MetaId n) =
 	do  mi  <- getMetaInfo <$> lookupMeta x
 	    let mi' = Info.MetaInfo (getRange mi)
-				    (M.metaScope mi)
+				    (M.clScope mi)
 				    (Just n)
 	    iis <- List.map (snd /\ fst) . Map.assocs
 		    <$> gets stInteractionPoints

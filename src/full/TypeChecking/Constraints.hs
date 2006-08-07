@@ -36,7 +36,7 @@ addConstraint c =
 	sig <- getSignature
         scope <- getScope
 	cId <- fresh
-	modify $ \st -> st { stConstraints = Map.insert cId (CC sig env scope c)
+	modify $ \st -> st { stConstraints = Map.insert cId (Closure sig env scope c)
 						$ stConstraints st
 			   }
 

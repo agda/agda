@@ -8,6 +8,7 @@ import TypeChecking.Monad.Base
 import TypeChecking.Monad.Signature
 import TypeChecking.Monad.Env
 import TypeChecking.Monad.State
+import TypeChecking.Monad.Closure
 
 -- | Get the constraints
 getConstraints :: TCM Constraints
@@ -28,9 +29,5 @@ takeConstraints =
 	return cs
 
 withConstraint :: (Constraint -> TCM a) -> ConstraintClosure -> TCM a
-withConstraint f (CC sig env scope c) =
-    withSignature sig
-    $ withEnv env
-    $ withScope scope
-    $ f c
+withConstraint = flip enterClosure
 

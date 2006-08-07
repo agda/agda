@@ -292,7 +292,7 @@ typeOfMetas norm = liftTCM $
 contextOfMeta :: InteractionId -> IM [OutputForm Expr Name]
 contextOfMeta ii = do
   info <- getMetaInfo <$> (lookupMeta =<< lookupInteractionId ii)
-  let localVars = List.filter visible . envContext . metaEnv $ info
+  let localVars = List.filter visible . envContext . clEnv $ info
   withMetaInfo info $ reifyContext localVars
   where visible (x,_)  = show x /= "_"
         reifyContext   = foldr out (return []) . reverse

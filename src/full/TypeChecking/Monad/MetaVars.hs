@@ -14,6 +14,7 @@ import TypeChecking.Monad.Env
 import TypeChecking.Monad.Signature
 import TypeChecking.Monad.State
 import TypeChecking.Monad.Trace
+import TypeChecking.Monad.Closure
 
 import Utils.Monad
 import Utils.Fresh
@@ -36,10 +37,7 @@ lookupMeta m =
 createMetaInfo :: TCM MetaInfo
 createMetaInfo = 
     do  r <- getCurrentRange
-        s <- getScope
-        env <- ask 
-        sig <- getSignature 
-        return $ MetaInfo r s env sig
+	buildClosure r
 
 updateMetaRange :: MetaId -> Range -> TCM ()
 updateMetaRange mi r =
@@ -102,12 +100,11 @@ getInteractionScope :: InteractionId -> TCM ScopeInfo
 getInteractionScope ii = 
     do mi <- lookupInteractionId ii
        mv <- lookupMeta mi
-       return $ metaScope $ getMetaInfo mv
+       return $ getMetaScope mv
 
 withMetaInfo :: MetaInfo -> TCM a -> TCM a
 withMetaInfo mI m = 
-          withRange (metaRange mI) 
-        $ withScope (metaScope mI) 
-        $ withSignature (metaSig mI) 
-        $ withEnv (metaEnv mI) m
+	traceCall_ (WithMetaInfo mI)
+	$ enterClosure mI
+	$ \_ -> m
 

@@ -317,9 +317,9 @@ checkFunDef i x cs =
 
 -- | Type check a function clause.
 checkClause :: Type -> A.Clause -> TCM Clause
-checkClause t (A.Clause (A.LHS i x ps) rhs ds) =
-    withRange i $
-    checkPatterns ps t $ \xs ts t' -> do
+checkClause t c@(A.Clause (A.LHS i x ps) rhs ds) =
+    traceCall (CheckClause t c) $
+    checkPatterns ps t $ \ (xs, ts, t') -> do
 	ps <- termsToPatterns xs ts
 	checkDecls ds
 	v <- checkExpr rhs t'
@@ -354,26 +354,27 @@ termsToPatterns xs ts = do
 
 
 -- | Check the patterns of a left-hand-side. Binds the variables of the pattern.
-checkPatterns :: [Arg A.Pattern] -> Type -> ([String] -> [Arg Term] -> Type -> TCM a) -> TCM a
-checkPatterns [] t ret = do
+checkPatterns :: [Arg A.Pattern] -> Type -> (([String], [Arg Term], Type) -> TCM a) -> TCM a
+checkPatterns [] t ret =
+    traceCallCPS (CheckPatterns [] t) ret $ \ret -> do
     t' <- instantiate t
     case funView t' of
 	FunV (Arg Hidden _) _   -> do
 	    r <- getCurrentRange
 	    checkPatterns [Arg Hidden $ A.WildP $ PatRange r] t' ret
-	_ -> ret [] [] t
-checkPatterns (Arg h p:ps) t ret =
-    withRange p $ do
+	_ -> ret ([], [], t)
+checkPatterns ps0@(Arg h p:ps) t ret =
+    traceCallCPS (CheckPatterns ps0 t) ret $ \ret -> do
     t' <- forcePi h t
     case (h,funView t') of
 	(NotHidden, FunV (Arg Hidden _) _) ->
 	    checkPatterns (Arg Hidden (A.WildP $ PatRange $ getRange p) : Arg h p : ps) t' ret
 	(_, FunV (Arg h' a) _) | h == h' ->
-	    checkPattern (argName t') p a $ \xs v -> do
+	    checkPattern (argName t') p a $ \ (xs, v) -> do
 	    let t0 = raise (length xs) t'
-	    checkPatterns ps (piApply t0 [Arg h' v]) $ \ys vs t'' -> do
+	    checkPatterns ps (piApply t0 [Arg h' v]) $ \ (ys, vs, t'') -> do
 		let v' = raise (length ys) v
-		ret (xs ++ ys) (Arg h v':vs) t''
+		ret (xs ++ ys, Arg h v':vs, t'')
 	_ -> fail $ show t ++ " should be a " ++ show h ++ " function type"
 
 -- | TODO: move
@@ -384,15 +385,33 @@ argName _	  = __IMPOSSIBLE__
 
 -- | Type check a pattern and bind the variables. First argument is a name
 --   suggestion for wildcard patterns.
-checkPattern :: String -> A.Pattern -> Type -> ([String] -> Term -> TCM a) -> TCM a
-checkPattern name (A.VarP x) t ret =
-    addCtx x t $ ret [show x] (Var 0 [])
-checkPattern name (A.WildP i) t ret =
-    do	x <- freshName (getRange i) name
-	addCtx x t $ ret [name] (Var 0 [])
-checkPattern name p@(A.DefP i f ps) t ret =
-    withRange i $ do
-    fail "defined patterns doesn't quite work yet"
+checkPattern :: String -> A.Pattern -> Type -> (([String], Term) -> TCM a) -> TCM a
+checkPattern name p t ret =
+    traceCallCPS (CheckPattern name p t) ret $ \ret -> case p of
+	A.VarP x    ->
+	    addCtx x t $ ret ([show x], Var 0 [])
+	A.WildP i   -> do
+	    x <- freshName (getRange i) name
+	    addCtx x t $ ret ([name], Var 0 [])
+	A.ConP i c ps -> do
+	    Defn t' _ (Constructor n d _) <- getConstInfo c -- don't instantiate this
+	    El (Def _ vs) _		  <- forceData d t  -- because this guy won't be
+	    Con c' us			  <- reduce $ Con c $ map hide vs
+	    checkPatterns ps (piApply t' vs) $ \ (xs, ts', rest) -> do
+		let n = length xs
+		equalTyp () rest (raise n t)
+		ret (xs, Con c' $ raise n us ++ ts')
+	    where
+		hide (Arg _ x) = Arg Hidden x
+	A.AbsurdP i -> do
+	    isEmptyType t
+	    x <- freshName (getRange i) name    -- TODO: actually do something about absurd patterns
+	    addCtx x t $ ret ([show x], Var 0 [])
+	A.AsP i x p ->
+	    checkPattern name p t $ \ (xs, v) ->
+	    addLetBinding x v (raise (length xs) t) $ ret (xs, v)
+	A.DefP i f ps ->
+	    fail "defined patterns doesn't quite work yet"
 {-
     t		    <- reduce t
     Defn t' _ _	    <- getConstInfo f
@@ -421,26 +440,6 @@ checkPattern name p@(A.DefP i f ps) t ret =
 				show t1 ++ " should match the parameters in " ++ show t0
 -}
 
-checkPattern name (A.ConP i c ps) t ret =
-    withRange i $ do
-	Defn t' _ (Constructor n d _) <- getConstInfo c -- don't instantiate this
-	El (Def _ vs) _		      <- forceData d t  -- because this guy won't be
-	Con c' us		      <- reduce $ Con c $ map hide vs
-	checkPatterns ps (piApply t' vs) $ \xs ts' rest -> do
-	    let n = length xs
-	    equalTyp () rest (raise n t)
-	    ret xs (Con c' $ raise n us ++ ts')
-    where
-	hide (Arg _ x) = Arg Hidden x
-checkPattern name (A.AbsurdP i) t ret =
-    withRange i $ do
-	isEmptyType t
-	x <- freshName (getRange i) name    -- TODO: actually do something about absurd patterns
-	addCtx x t $ ret [show x] (Var 0 [])
-checkPattern name (A.AsP i x p) t ret =
-    withRange i $
-    checkPattern name p t $ \xs v ->
-    addLetBinding x v (raise (length xs) t) $ ret xs v
 
 -- | Make sure that a type is empty. TODO: Move.
 isEmptyType :: Type -> TCM ()
@@ -464,8 +463,8 @@ checkLetBindings :: [A.LetBinding] -> TCM a -> TCM a
 checkLetBindings = foldr (.) id . map checkLetBinding
 
 checkLetBinding :: A.LetBinding -> TCM a -> TCM a
-checkLetBinding (A.LetBind i x t e) ret =
-    withRange i $ do
+checkLetBinding b@(A.LetBind i x t e) ret =
+    traceCallCPS_ (CheckLetBinding b) ret $ \ret -> do
 	t <- isType_ t
 	v <- checkExpr e t
 	addLetBinding x v t ret
@@ -477,7 +476,7 @@ checkLetBinding (A.LetBind i x t e) ret =
 -- | Make sure that a type is a sort (instantiate meta variables if necessary).
 forceSort :: Range -> Type -> TCM Sort
 forceSort r t =
-    withRange r $ do
+    traceCall (ForceSort r t) $ do
 	t' <- reduce t
 	case t' of
 	    Sort s	 -> return s
@@ -495,7 +494,7 @@ forceSort r t =
 -- | Check that an expression is a type.
 isType :: A.Expr -> Sort -> TCM Type
 isType e s =
-    withRange e $ do
+    traceCall (IsTypeCall e s) $ do
     t <- case e of
 	    A.Prop _	 -> return $ prop
 	    A.Set _ n	 -> return $ set n
@@ -524,7 +523,7 @@ isType e s =
 -- | Check that an expression is a type without knowing the sort.
 isType_ :: A.Expr -> TCM Type
 isType_ e =
-    withRange e $ do
+    traceCall (IsType_ e) $ do
     s <- newSortMeta
     isType e s
 
@@ -592,7 +591,7 @@ checkTypedBinding (A.TNoBind e) ret = do
 -- | Type check an expression.
 checkExpr :: A.Expr -> Type -> TCM Term
 checkExpr e t =
-    withRange e $ do
+    traceCall (CheckExpr e t) $ do
     t <- instantiate t
     case e of
 
@@ -660,13 +659,13 @@ checkExpr e t =
 
 -- | Infer the type of a head thing (variable, function symbol, or constructor)
 inferHead :: Head -> TCM (Term, Type)
-inferHead (HeadVar _ x) = withRange x $ getVarInfo x
+inferHead (HeadVar _ x) = traceCall (InferVar x) $ getVarInfo x
 inferHead (HeadCon i x) = inferDef Con i x
 inferHead (HeadDef i x) = inferDef Def i x
 
 inferDef :: (QName -> Args -> Term) -> NameInfo -> QName -> TCM (Term, Type)
 inferDef mkTerm i x =
-    withRange x $ do
+    traceCall (InferDef i x) $ do
     d  <- getConstInfo x
     d' <- instantiateDef d
     gammaDelta <- getContextTelescope
@@ -684,7 +683,7 @@ inferDef mkTerm i x =
 --   make this happen.
 checkArguments :: Range -> [Arg A.Expr] -> Type -> Type -> TCM Args
 checkArguments r [] t0 t1 =
-    withRange r $ do
+    traceCall (CheckArguments r [] t0 t1) $ do
 	t0' <- reduce t0
 	t1' <- reduce t1
 	case funView t0' of -- TODO: clean
@@ -702,8 +701,8 @@ checkArguments r [] t0 t1 =
 	notMetaOrHPi (Fun (Arg Hidden _) _) = False
 	notMetaOrHPi _			    = True
 
-checkArguments r (Arg h e : args) t0 t1 =
-    withRange r $ do
+checkArguments r args0@(Arg h e : args) t0 t1 =
+    traceCall (CheckArguments r args0 t0 t1) $ do
 	t0' <- forcePi h t0
 	case (h, funView t0') of
 	    (NotHidden, FunV (Arg Hidden a) t0') -> do

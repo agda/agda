@@ -10,10 +10,12 @@ import Data.Generics
 import Data.FunctorM
 
 import Syntax.Common
+import qualified Syntax.Abstract as A
 import Syntax.Internal
 import Syntax.Internal.Debug ()
 import Syntax.Position
 import Syntax.Scope
+import Syntax.Info (NameInfo)
 
 import Interaction.Exceptions
 import Interaction.Options
@@ -88,6 +90,20 @@ instance HasFresh i FreshThings => HasFresh i TCState where
 	    (i,f) = nextFresh $ stFreshThings s
 
 ---------------------------------------------------------------------------
+-- ** Closure
+---------------------------------------------------------------------------
+
+data Closure a = Closure { clSignature  :: Signature
+			 , clEnv	:: TCEnv
+			 , clScope	:: ScopeInfo
+			 , clValue	:: a
+			 }
+    deriving (Typeable, Data)
+
+instance HasRange a => HasRange (Closure a) where
+    getRange = getRange . clValue
+
+---------------------------------------------------------------------------
 -- ** Constraints
 ---------------------------------------------------------------------------
 
@@ -97,12 +113,7 @@ newtype ConstraintId = CId Nat
 instance Show ConstraintId where
     show (CId x) = show x
 
-data ConstraintClosure = CC { ccSignature  :: Signature
-			    , ccEnv	   :: TCEnv
-                            , ccScope      :: ScopeInfo
-			    , ccConstraint :: Constraint
-			    }
-    deriving (Typeable, Data)
+type ConstraintClosure = Closure Constraint
 
 data Constraint = ValueEq Type Term Term
 		| TypeEq Type Type
@@ -161,19 +172,10 @@ data MetaInstantiation
 	| Open
     deriving (Typeable, Data)
 
-data MetaInfo =
-	MetaInfo { metaRange :: Range
-		 , metaScope :: ScopeInfo
-                 , metaEnv   :: TCEnv
-                 , metaSig   :: Signature
-		 }
-  deriving (Typeable, Data, Show)
+-- | TODO: Not so nice.
+type MetaInfo = Closure Range
 
 type MetaStore = Map MetaId MetaVariable
-
-
-instance HasRange MetaInfo where
-    getRange = metaRange
 
 instance HasRange MetaVariable where
     getRange m = getRange $ getMetaInfo m
@@ -192,16 +194,16 @@ instance Show MetaInstantiation where
     show  Open	   = ""
 
 getMetaScope :: MetaVariable -> ScopeInfo
-getMetaScope m = metaScope $ getMetaInfo m
+getMetaScope m = clScope $ getMetaInfo m
 
 getMetaEnv :: MetaVariable -> TCEnv
-getMetaEnv m = metaEnv $ getMetaInfo m
+getMetaEnv m = clEnv $ getMetaInfo m
 
 getMetaSig :: MetaVariable -> Signature
-getMetaSig m = metaSig $ getMetaInfo m 
+getMetaSig m = clSignature $ getMetaInfo m 
 
 setRange :: MetaVariable -> Range -> MetaVariable
-setRange (MetaVar mi j inst) r = MetaVar (mi{metaRange = r}) j inst
+setRange (MetaVar mi j inst) r = MetaVar (mi {clValue = r}) j inst
 
 ---------------------------------------------------------------------------
 -- ** Interaction meta variables
@@ -262,15 +264,50 @@ type Statistics = Map String Int
 -- ** Trace
 ---------------------------------------------------------------------------
 
--- | The trace is just a range at the moment.
-newtype Trace = Trace { traceRange :: Range }
-    deriving (Show, Typeable, Data)
+type Trace	 = CurrentCall
+type SiblingCall = ChildCall
+
+data CurrentCall = Current (Closure Call) ParentCall [SiblingCall] [ChildCall]
+		 | TopLevel [ChildCall]
+data ParentCall  = Parent  (Closure Call) ParentCall [SiblingCall] | NoParent
+data ChildCall   = Child   (Closure Call) [ChildCall]
 
 noTrace :: Trace
-noTrace = Trace noRange
+noTrace = TopLevel []
+
+data Call = CheckClause Type A.Clause (Maybe Clause)
+	  | CheckPatterns [Arg A.Pattern] Type (Maybe ([String], [Arg Term], Type))
+	  | CheckPattern String A.Pattern Type (Maybe ([String], Term))
+	  | CheckLetBinding A.LetBinding (Maybe ())
+	  | InferExpr A.Expr (Maybe (Term, Type))
+	  | CheckExpr A.Expr Type (Maybe Term)
+	  | WithMetaInfo MetaInfo (Maybe ())
+	  | ForceSort Range Type (Maybe Sort)
+	  | IsTypeCall A.Expr Sort (Maybe Type)
+	  | IsType_ A.Expr (Maybe Type)
+	  | InferVar Name (Maybe (Term, Type))
+	  | InferDef NameInfo QName (Maybe (Term, Type))
+	  | CheckArguments Range [Arg A.Expr] Type Type (Maybe Args)
+    deriving (Typeable)
 
 instance HasRange Trace where
-    getRange (Trace r) = r
+    getRange (TopLevel _)      = noRange
+    getRange (Current c _ _ _) = getRange c
+
+instance HasRange Call where
+    getRange (CheckClause _ c _)	= getRange c
+    getRange (CheckPatterns ps _ _)	= getRange ps
+    getRange (CheckPattern _ p _ _)	= getRange p
+    getRange (InferExpr e _)		= getRange e
+    getRange (CheckExpr e _ _)		= getRange e
+    getRange (WithMetaInfo mi _)	= getRange mi
+    getRange (CheckLetBinding b _)	= getRange b
+    getRange (ForceSort r _ _)		= r
+    getRange (IsTypeCall e s _)		= getRange e
+    getRange (IsType_ e _)		= getRange e
+    getRange (InferVar x _)		= getRange x
+    getRange (InferDef _ f _)		= getRange f
+    getRange (CheckArguments r _ _ _ _) = r
 
 ---------------------------------------------------------------------------
 -- * Type checking environment

@@ -1,5 +1,6 @@
 module TypeChecking.Monad
     ( module TypeChecking.Monad.Base
+    , module TypeChecking.Monad.Closure
     , module TypeChecking.Monad.Constraints
     , module TypeChecking.Monad.Context
     , module TypeChecking.Monad.Debug
@@ -13,6 +14,7 @@ module TypeChecking.Monad
     ) where
 
 import TypeChecking.Monad.Base
+import TypeChecking.Monad.Closure
 import TypeChecking.Monad.Constraints
 import TypeChecking.Monad.Context
 import TypeChecking.Monad.Debug
