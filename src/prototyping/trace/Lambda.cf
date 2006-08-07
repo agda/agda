@@ -1,0 +1,10 @@
+
+Lam. Exp  ::= "\\" "(" Ident ":" Type ")" "->" Exp;
+App. Exp1 ::= Exp1 Exp2;
+Var. Exp2 ::= Ident;
+Lit. Exp2 ::= Integer;
+coercions Exp 2;
+
+FunT. Type  ::= Type1 "->" Type;
+ConT. Type1 ::= Ident;
+coercions Type 1;
