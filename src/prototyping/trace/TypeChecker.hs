@@ -40,8 +40,16 @@ indent n s  = unlines . concatMap ind . lines $ s
 	ind "" = []
 	ind s = [replicate n ' ' ++ s]
 
+prune :: Trace -> Trace
+prune (Trace []) = Trace []
+prune (Trace [CallTree c t]) = Trace [CallTree c $ prune t]
+prune (Trace (CallTree c t : cs)) = Trace $ CallTree c (prune t) : map snip cs
+    where
+	snip (CallTree c _) = CallTree c $ Trace []
+
 instance Show Trace where
-    show (Trace cs) = unlines $ map show $ reverse cs
+    show t = case prune t of
+	Trace cs -> unlines $ map show $ reverse cs
 
 instance Show CallTree where
     show (CallTree c t) = indent 0 (show c) ++ indent 2 (show t)
@@ -99,11 +107,23 @@ call mkCall m = do
 
 -- Type errors ------------------------------------------------------------
 
-type TypeError = (Trace, String)
+data ErrorMsg = UnboundVar Ident
+	      | TypeMismatch Type Type
+	      | NotFunctionType Type
+	      | InternalError String
+
+instance Show ErrorMsg where
+    show e = case e of
+	UnboundVar x	  -> "Unbound variable " ++ printTree x
+	TypeMismatch s t  -> printTree s ++ " != " ++ printTree t
+	NotFunctionType t -> printTree t ++ " is not a function type"
+	InternalError s   -> "Internal error: " ++ s
+
+type TypeError = (Trace, ErrorMsg)
 
 instance Error TypeError where
-    noMsg    = (noTrace,"")
-    strMsg s = (noTrace,s)
+    noMsg    = (noTrace,InternalError "")
+    strMsg s = (noTrace,InternalError s)
 
 -- Typechecking monad -----------------------------------------------------
 
@@ -113,9 +133,12 @@ newtype TC a = TC { unTC :: ReaderT Context (StateT Trace (Either TypeError)) a 
 instance Monad TC where
     return = TC . return
     TC m >>= k = TC $ m >>= unTC . k
-    fail s = do
-	tr <- get
-	TC $ lift $ lift $ Left (tr,s)
+    fail = failure . InternalError
+
+failure :: ErrorMsg -> TC a
+failure msg = do
+    tr <- get
+    TC $ lift $ lift $ Left (tr, msg)
 
 runTC :: TC a -> Either TypeError a
 runTC (TC tc) = evalStateT (runReaderT tc emptyContext) noTrace
@@ -127,7 +150,7 @@ lookupVar x = call (LookupVar x) $ do
     ctx <- ask
     case Map.lookup x ctx of
 	Just t	-> return t
-	Nothing	-> fail $ "unbound variable " ++ show x
+	Nothing	-> failure $ UnboundVar x
 
 addToContext :: Ident -> Type -> TC a -> TC a
 addToContext x t = local $ Map.insert x t
@@ -157,10 +180,10 @@ s === t = call (EqualType s t) $ case (s,t) of
     (FunT s1 t1, FunT s2 t2) -> do
 	s1 === s2
 	t1 === t2
-    _ -> fail $ "type mismatch " ++ printTree s ++ " != " ++ printTree t
+    _ -> failure $ TypeMismatch s t
 
 isFunctionType :: Type -> TC (Type, Type)
 isFunctionType t = call (IsFunctionType t) $ case t of
     FunT t1 t2	-> return (t1, t2)
-    _		-> fail $ "expected function type: " ++ printTree t
+    _		-> failure $ NotFunctionType t
 
