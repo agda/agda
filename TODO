@@ -42,6 +42,8 @@ Fixes
 
 [Internals]
 
+* lazy evaluation
+
 [Testing]
 
 * write better tests

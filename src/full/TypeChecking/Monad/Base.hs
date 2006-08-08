@@ -23,6 +23,7 @@ import Interaction.Options
 import Utils.Fresh
 import Utils.Monad
 import Utils.Monad.Undo
+import Utils.Trace
 
 ---------------------------------------------------------------------------
 -- * Type checking state
@@ -37,7 +38,7 @@ data TCState =
 	 , stScopeInfo	       :: ScopeInfo
 	 , stOptions	       :: CommandLineOptions
 	 , stStatistics	       :: Statistics
-	 , stTrace	       :: Trace
+	 , stTrace	       :: CallTrace
 	     -- ^ record what is happening (for error msgs)
 	 }
 
@@ -264,15 +265,9 @@ type Statistics = Map String Int
 -- ** Trace
 ---------------------------------------------------------------------------
 
-type Trace	 = CurrentCall
-type SiblingCall = ChildCall
+type CallTrace = Trace (Closure Call)
 
-data CurrentCall = Current (Closure Call) ParentCall [SiblingCall] [ChildCall]
-		 | TopLevel [ChildCall]
-data ParentCall  = Parent  (Closure Call) ParentCall [SiblingCall] | NoParent
-data ChildCall   = Child   (Closure Call) [ChildCall]
-
-noTrace :: Trace
+noTrace :: CallTrace
 noTrace = TopLevel []
 
 data Call = CheckClause Type A.Clause (Maybe Clause)
@@ -290,7 +285,7 @@ data Call = CheckClause Type A.Clause (Maybe Clause)
 	  | CheckArguments Range [Arg A.Expr] Type Type (Maybe Args)
     deriving (Typeable)
 
-instance HasRange Trace where
+instance HasRange CallTrace where
     getRange (TopLevel _)      = noRange
     getRange (Current c _ _ _) = getRange c
 
