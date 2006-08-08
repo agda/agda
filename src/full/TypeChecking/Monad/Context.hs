@@ -26,6 +26,12 @@ addCtx x a = local $ \e ->
 		  , envLetBindings = raise 1 $ envLetBindings e
 		  }
 
+-- | Go under an abstraction.
+underAbstraction :: Type -> Abs a -> (a -> TCM b) -> TCM b
+underAbstraction t a k = do
+    x <- freshName_ $ absName a
+    addCtx x t $ k $ absBody a
+
 -- | Get the current context.
 getContext :: TCM Context
 getContext = asks envContext

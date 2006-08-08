@@ -15,7 +15,7 @@ import Syntax.Internal
 import Syntax.Internal.Debug ()
 import Syntax.Position
 import Syntax.Scope
-import Syntax.Info (NameInfo)
+import Syntax.Info (NameInfo, DefInfo)
 
 import Interaction.Exceptions
 import Interaction.Options
@@ -283,26 +283,32 @@ data Call = CheckClause Type A.Clause (Maybe Clause)
 	  | InferVar Name (Maybe (Term, Type))
 	  | InferDef NameInfo QName (Maybe (Term, Type))
 	  | CheckArguments Range [Arg A.Expr] Type Type (Maybe Args)
+	  | CheckDataDef DefInfo Name [A.LamBinding] [A.Constructor] (Maybe ())
+	  | CheckConstructor QName Telescope Sort A.Constructor (Maybe ())
+	  | CheckFunDef DefInfo Name [A.Clause] (Maybe ())
     deriving (Typeable)
 
-instance HasRange CallTrace where
+instance HasRange a => HasRange (Trace a) where
     getRange (TopLevel _)      = noRange
     getRange (Current c _ _ _) = getRange c
 
 instance HasRange Call where
-    getRange (CheckClause _ c _)	= getRange c
-    getRange (CheckPatterns ps _ _)	= getRange ps
-    getRange (CheckPattern _ p _ _)	= getRange p
-    getRange (InferExpr e _)		= getRange e
-    getRange (CheckExpr e _ _)		= getRange e
-    getRange (WithMetaInfo mi _)	= getRange mi
-    getRange (CheckLetBinding b _)	= getRange b
-    getRange (ForceSort r _ _)		= r
-    getRange (IsTypeCall e s _)		= getRange e
-    getRange (IsType_ e _)		= getRange e
-    getRange (InferVar x _)		= getRange x
-    getRange (InferDef _ f _)		= getRange f
-    getRange (CheckArguments r _ _ _ _) = r
+    getRange (CheckClause _ c _)	  = getRange c
+    getRange (CheckPatterns ps _ _)	  = getRange ps
+    getRange (CheckPattern _ p _ _)	  = getRange p
+    getRange (InferExpr e _)		  = getRange e
+    getRange (CheckExpr e _ _)		  = getRange e
+    getRange (WithMetaInfo mi _)	  = getRange mi
+    getRange (CheckLetBinding b _)	  = getRange b
+    getRange (ForceSort r _ _)		  = r
+    getRange (IsTypeCall e s _)		  = getRange e
+    getRange (IsType_ e _)		  = getRange e
+    getRange (InferVar x _)		  = getRange x
+    getRange (InferDef _ f _)		  = getRange f
+    getRange (CheckArguments r _ _ _ _)   = r
+    getRange (CheckDataDef i _ _ _ _)	  = getRange i
+    getRange (CheckConstructor _ _ _ c _) = getRange c
+    getRange (CheckFunDef i _ _ _)	  = getRange i
 
 ---------------------------------------------------------------------------
 -- * Type checking environment
@@ -343,49 +349,92 @@ type LetBindings = Map Name (Term, Type)
 -- * Type checking errors
 ---------------------------------------------------------------------------
 
-data TCErr = Fatal CallTrace String
+data TypeError
+	= InternalError String
+	| NotImplemented String
+	| PropMustBeSingleton
+	| ShouldEndInApplicationOfTheDatatype Type
+	    -- ^ The target of a constructor isn't an application of its
+	    -- datatype. The 'Type' records what it does target.
+	| ShouldBeAppliedToTheDatatypeParameters Term Term
+	    -- ^ The target of a constructor isn't its datatype applied to
+	    --	 something that isn't the parameters. First term is the correct
+	    --	 target and the second term is the actual target.
+	| ShouldBeApplicationOf Type QName
+	    -- ^ Expected a type to be an application of a particular datatype.
+	| DifferentArities
+	    -- ^ Varying number of arguments for a function.
+	| TooManyPatterns Hiding Type
+	    -- ^ The left hand side of a function defintion has more arguments
+	    --	 than the function specifies.
+	| ShouldBeEmpty Type
+	| ShouldBeASort Type
+	    -- ^ The given type should have been a sort.
+	| ShouldBePi Type
+	    -- ^ The given type should have been a pi.
+	| WrongKindOfFunction Hiding Hiding
+	    -- ^ Expected a function of the first hiding kind and found one of the second.
+	| NotAProperTerm
+	| BadHiddenApplication Type
+    deriving (Typeable, Show)
+
+data TCErr = TypeError CallTrace TypeError
 	   | Exception Range String
 	   | PatternErr  TCState -- ^ for pattern violations
 	   | AbortAssign TCState -- ^ used to abort assignment to meta when there are instantiations
   deriving (Typeable)
 
+instance Error TypeError where
+    noMsg  = strMsg ""
+    strMsg = InternalError
+
 instance Error TCErr where
-    noMsg    = Fatal noTrace ""
-    strMsg s = Fatal noTrace s
+    noMsg  = strMsg ""
+    strMsg = TypeError noTrace . strMsg
 
 instance Show TCErr where
-    show (Fatal tr s)	 = show (getRange tr) ++ ": " ++ s
-    show (Exception r s) = show r ++ ": " ++ s
-    show (PatternErr _)  = "Pattern violation (you shouldn't see this)"
-    show (AbortAssign _) = "Abort assignment (you shouldn't see this)"
+    show (TypeError tr e) = show (getRange tr) ++ ": " ++ show e
+    show (Exception r s)  = show r ++ ": " ++ s
+    show (PatternErr _)   = "Pattern violation (you shouldn't see this)"
+    show (AbortAssign _)  = "Abort assignment (you shouldn't see this)"
 
 patternViolation :: TCM a
 patternViolation =
     do	s <- get
 	throwError $ PatternErr s
 
+internalError :: CallTrace -> String -> TCErr
+internalError tr s = TypeError tr $ InternalError s
+
 ---------------------------------------------------------------------------
 -- * Type checking monad
 ---------------------------------------------------------------------------
 
-type TCErrT = ErrorT TCErr
-newtype TCM a = TCM { unTCM :: UndoT TCState (StateT TCState (ReaderT TCEnv (TCErrT IO))) a}
+newtype TCM a = TCM { unTCM :: UndoT TCState
+			      (StateT TCState
+			      (ReaderT TCEnv
+			      (ErrorT TCErr IO))) a
+		    }
     deriving (MonadState TCState, MonadReader TCEnv, MonadError TCErr, MonadUndo TCState)
 
 -- We want a special monad implementation of fail.
 instance Monad TCM where
     return  = TCM . return
     m >>= k = TCM $ unTCM m >>= unTCM . k
-    fail s  = TCM $ do	tr <- gets stTrace
-			throwError $ Fatal tr s
+    fail s  = typeError $ InternalError s
 
 instance MonadIO TCM where
   liftIO m = TCM $ do tr <- gets stTrace
                       lift $ lift $ lift $ ErrorT $
-                        handle (return . throwError . Fatal tr . show)
+                        handle (return . throwError . Exception (getRange tr) . show)
                         (failOnException
                          (\r -> return . throwError . Exception r)
                          (return <$> m) )
+
+typeError :: TypeError -> TCM a
+typeError err  = TCM $ do
+    tr <- gets stTrace
+    throwError $ TypeError tr err
 
 -- | Running the type checking monad
 runTCM :: TCM a -> IO (Either TCErr a)

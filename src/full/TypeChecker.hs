@@ -171,7 +171,7 @@ checkModuleDef i x tel m' args =
 --   Maybe it would be a good idea to have the scope checker store away the
 --   interfaces so that we don't have to redo the work.
 checkImport :: ModuleInfo -> ModuleName -> TCM ()
-checkImport i m = fail "checkImport: not implemented"
+checkImport i m = typeError $ NotImplemented "imports"
 
 
 ---------------------------------------------------------------------------
@@ -182,7 +182,8 @@ checkImport i m = fail "checkImport: not implemented"
 --   checked.
 checkDataDef :: DefInfo -> Name -> [A.LamBinding] -> [A.Constructor] -> TCM ()
 checkDataDef i x ps cs =
-    do	m <- currentModule
+    traceCall (CheckDataDef i x ps cs) $ do
+	m <- currentModule
 	let name  = qualify m x
 	    npars = length ps
 	t <- typeOfConst name
@@ -193,7 +194,7 @@ checkDataDef i x ps cs =
 	do  proofIrr <- proofIrrelevance
 	    s	     <- reduce s
 	    case (proofIrr, s, cs) of
-		(True, Prop, _:_:_) -> fail $ "datatypes in Prop can have at most one constructor (when proof irrelevance is enabled)"
+		(True, Prop, _:_:_) -> typeError PropMustBeSingleton
 		_		    -> return ()
 	addConstant name (Defn t 0 $ Datatype npars (map (cname m) cs)
 					      s (defAbstract i)
@@ -207,8 +208,9 @@ checkDataDef i x ps cs =
 -- | Type check a constructor declaration. Checks that the constructor targets
 --   the datatype and that it fits inside the declared sort.
 checkConstructor :: QName -> Telescope -> Sort -> A.Constructor -> TCM ()
-checkConstructor d tel s (A.Axiom i c e) =
-    do	t <- isType_ e
+checkConstructor d tel s con@(A.Axiom i c e) =
+    traceCall (CheckConstructor d tel s con) $ do
+	t <- isType_ e
 	t `constructs` d
 	t `fitsIn` s
 	m <- currentModule
@@ -248,31 +250,35 @@ fitsIn t s =
 -- | Check that a type constructs something of the given datatype.
 --   TODO: what if there's a meta here?
 constructs :: Type -> QName -> TCM ()
-constructs t q = constr 0 t q
+constructs t q = constr 0 t
     where
-	constr n (Pi _ b) d  = constr (n + 1) (absBody b) d
-	constr n (Fun _ b) d = constr n b d
-	constr n (El v _) d = do
+	constr n (Pi a b) =
+	    underAbstraction (unArg a) b $ \t ->
+	    constr (n + 1) t
+	constr n (Fun _ b) = constr n b
+	constr n (El v s) = do
 	    v <- reduce v
 	    case v of
-		Def d' vs
-		    | d == d' -> checkParams n . map unArg =<< reduce vs
-		_ -> bad
-	constr _ (Sort _) _    = bad
-	constr _ (MetaT _ _) _ = bad
-	constr _ (LamT _) _    = __IMPOSSIBLE__
+		Def d vs
+		    | d == q -> checkParams n =<< reduce vs
+		_ -> bad $ El v s
+	constr _ t@(Sort _)    = bad t
+	constr _ t@(MetaT _ _) = bad t
+	constr _ t@(LamT _)    = __IMPOSSIBLE__
 
-	bad = fail $ show t ++ " should end in application of " ++ show q
+	bad v = typeError $ ShouldEndInApplicationOfTheDatatype v
 
 	checkParams n vs
 	    | vs `sameVars` ps = return ()
-	    | otherwise	       = fail $ show q ++ " should be applied to its parameters in the target of a constructor"
-				    ++ show vs ++ show ps
+	    | otherwise	       =
+		typeError $ ShouldBeAppliedToTheDatatypeParameters
+			    (apply def ps) (apply def vs)
 	    where
-		ps = reverse [ Var i [] | (i,_) <- zip [n..] vs ]
+		def = Def q []
+		ps = reverse [ Arg h $ Var i [] | (i,Arg h _) <- zip [n..] vs ]
 		sameVar (Var i []) (Var j []) = i == j
 		sameVar _ _		      = False
-		sameVars xs ys = and $ zipWith sameVar xs ys
+		sameVars xs ys = and $ zipWith sameVar (map unArg xs) (map unArg ys)
 
 
 -- | Force a type to be a specific datatype.
@@ -289,7 +295,7 @@ forceData d t =
 		    equalSort s s'
 		    equalTyp () t' $ El (Def d ps) s
 		    reduce t'
-	    _		    -> fail $ show t ++ " should be application of " ++ show d
+	    _ -> typeError $ ShouldBeApplicationOf t d
 
 ---------------------------------------------------------------------------
 -- * Definitions by pattern matching
@@ -299,7 +305,8 @@ forceData d t =
 checkFunDef :: DefInfo -> Name -> [A.Clause] -> TCM ()
 checkFunDef i x cs =
 
-    do	-- Get the type of the function
+    traceCall (CheckFunDef i x cs) $ do
+	-- Get the type of the function
 	name <- flip qualify x <$> currentModule
 	t    <- typeOfConst name
 
@@ -307,7 +314,7 @@ checkFunDef i x cs =
 	cs' <- mapM (checkClause t) cs
 
 	-- Check that all clauses have the same number of arguments
-	unless (allEqual $ map npats cs') $ fail $ "equations give different arities for function " ++ show x
+	unless (allEqual $ map npats cs') $ typeError DifferentArities
 
 	-- Add the definition
 	addConstant name $ Defn t 0 $ Function cs' $ defAbstract i
@@ -375,7 +382,7 @@ checkPatterns ps0@(Arg h p:ps) t ret =
 	    checkPatterns ps (piApply t0 [Arg h' v]) $ \ (ys, vs, t'') -> do
 		let v' = raise (length ys) v
 		ret (xs ++ ys, Arg h v':vs, t'')
-	_ -> fail $ show t ++ " should be a " ++ show h ++ " function type"
+	_ -> typeError $ TooManyPatterns h t'
 
 -- | TODO: move
 argName (Pi _ b)  = "_" ++ absName b
@@ -411,7 +418,7 @@ checkPattern name p t ret =
 	    checkPattern name p t $ \ (xs, v) ->
 	    addLetBinding x v (raise (length xs) t) $ ret (xs, v)
 	A.DefP i f ps ->
-	    fail "defined patterns doesn't quite work yet"
+	    typeError $ NotImplemented "defined patterns"
 {-
     t		    <- reduce t
     Defn t' _ _	    <- getConstInfo f
@@ -450,10 +457,10 @@ isEmptyType t = do
 	    Defn _ _ di <- getConstInfo d
 	    case di of
 		Datatype _ [] _ _ -> return ()
-		_		  -> notEmpty
-	_ -> notEmpty
+		_		  -> notEmpty t
+	_ -> notEmpty t
     where
-	notEmpty = fail $ show t ++ " is not empty"
+	notEmpty t = typeError $ ShouldBeEmpty t
 
 ---------------------------------------------------------------------------
 -- * Let bindings
@@ -484,7 +491,7 @@ forceSort r t =
 		s <- newSortMeta
 		equalTyp () t' (Sort s)
 		return s
-	    _	-> fail $ "not a sort " ++ show t
+	    _	-> typeError $ ShouldBeASort t'
 
 
 ---------------------------------------------------------------------------
@@ -549,7 +556,7 @@ forcePi h t =
 		    b <- addCtx x a $ newTypeMeta sb
 		    equalTyp () t' $ Pi (Arg h a) (Abs (show x) b)
 		    reduce t'
-	    _		-> fail $ "Not a pi: " ++ show t
+	    _		-> typeError $ ShouldBePi t'
 
 
 ---------------------------------------------------------------------------
@@ -632,13 +639,16 @@ checkExpr e t =
 	A.Lam i (A.DomainFree h x) e0 -> do
 	    t' <- forcePi h t
 	    case funView t' of
-		FunV (Arg h' a) _ | h == h' ->
-		    addCtx x a $ do
-		    let arg = Arg h (Var 0 [])
-			tb  = raise 1 t' `piApply` [arg]
-		    v <- checkExpr e0 tb
-		    return $ Lam h (Abs (show x) v)
-		_   -> fail $ "expected " ++ show h ++ " function space, found " ++ show t'
+		FunV (Arg h' a) _
+		    | h == h' ->
+			addCtx x a $ do
+			let arg = Arg h (Var 0 [])
+			    tb  = raise 1 t' `piApply` [arg]
+			v <- checkExpr e0 tb
+			return $ Lam h (Abs (show x) v)
+		    | otherwise ->
+			typeError $ WrongKindOfFunction h h'
+		_   -> __IMPOSSIBLE__
 
 	A.QuestionMark i -> do
 	    setScope (Info.metaScope i)
@@ -646,12 +656,12 @@ checkExpr e t =
 	A.Underscore i   -> do
 	    setScope (Info.metaScope i)
 	    newValueMeta t
-	A.Lit lit    -> fail "checkExpr: literals not implemented"
+	A.Lit lit    -> typeError $ NotImplemented "literals"
 	A.Let i ds e -> checkLetBindings ds $ checkExpr e t
-	A.Pi _ _ _   -> fail $ "not a proper term " ++ showA e
-	A.Fun _ _ _  -> fail $ "not a proper term " ++ showA e
-	A.Set _ _    -> fail $ "not a proper term " ++ showA e
-	A.Prop _     -> fail $ "not a proper term " ++ showA e
+	A.Pi _ _ _   -> typeError NotAProperTerm
+	A.Fun _ _ _  -> typeError NotAProperTerm
+	A.Set _ _    -> typeError NotAProperTerm
+	A.Prop _     -> typeError NotAProperTerm
 	A.Var _ _    -> __IMPOSSIBLE__
 	A.Def _ _    -> __IMPOSSIBLE__
 	A.Con _ _    -> __IMPOSSIBLE__
@@ -717,7 +727,7 @@ checkArguments r args0@(Arg h e : args) t0 t1 =
 		us <- checkArguments (fuseRange r e) args (piApply t0' [arg]) t1
 		return $ arg : us
 	    (Hidden, FunV (Arg NotHidden _) _) ->
-		fail $ "can't give hidden argument " ++ showA e ++ " to something of type " ++ show t0
+		typeError $ BadHiddenApplication t0'
 	    _ -> __IMPOSSIBLE__
 
 

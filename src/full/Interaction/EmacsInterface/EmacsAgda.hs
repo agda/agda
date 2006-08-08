@@ -174,9 +174,9 @@ printRange (Range s e) = "At: " ++ file ++ line ++ col
 	    col = ", column " ++ show sc
 
 printError :: TCErr -> String
-printError (Fatal tr s)    = printRange (getRange tr) ++ "\n" ++ s
-printError (Exception r s) = printRange r ++ "\n" ++ s
-printError e		   = show e
+printError (TypeError tr e) = printRange (getRange tr) ++ "\n" ++ show e
+printError (Exception r s)  = printRange r ++ "\n" ++ s
+printError e		    = show e
 
 
 
