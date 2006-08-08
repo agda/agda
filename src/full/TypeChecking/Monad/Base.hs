@@ -343,17 +343,19 @@ type LetBindings = Map Name (Term, Type)
 -- * Type checking errors
 ---------------------------------------------------------------------------
 
-data TCErr = Fatal Range String
+data TCErr = Fatal CallTrace String
+	   | Exception Range String
 	   | PatternErr  TCState -- ^ for pattern violations
 	   | AbortAssign TCState -- ^ used to abort assignment to meta when there are instantiations
   deriving (Typeable)
 
 instance Error TCErr where
-    noMsg    = Fatal noRange ""
-    strMsg s = Fatal noRange s
+    noMsg    = Fatal noTrace ""
+    strMsg s = Fatal noTrace s
 
 instance Show TCErr where
-    show (Fatal r s)	 = show r ++ ": " ++ s
+    show (Fatal tr s)	 = show (getRange tr) ++ ": " ++ s
+    show (Exception r s) = show r ++ ": " ++ s
     show (PatternErr _)  = "Pattern violation (you shouldn't see this)"
     show (AbortAssign _) = "Abort assignment (you shouldn't see this)"
 
@@ -374,15 +376,15 @@ newtype TCM a = TCM { unTCM :: UndoT TCState (StateT TCState (ReaderT TCEnv (TCE
 instance Monad TCM where
     return  = TCM . return
     m >>= k = TCM $ unTCM m >>= unTCM . k
-    fail s  = TCM $ do	r <- gets $ getRange . stTrace
-			throwError $ Fatal r s
+    fail s  = TCM $ do	tr <- gets stTrace
+			throwError $ Fatal tr s
 
 instance MonadIO TCM where
-  liftIO m = TCM $ do r <- gets $ getRange . stTrace
+  liftIO m = TCM $ do tr <- gets stTrace
                       lift $ lift $ lift $ ErrorT $
-                        handle (return . throwError . Fatal r . show)
+                        handle (return . throwError . Fatal tr . show)
                         (failOnException
-                         (\r' -> return . throwError . Fatal r')
+                         (\r -> return . throwError . Exception r)
                          (return <$> m) )
 
 -- | Running the type checking monad
