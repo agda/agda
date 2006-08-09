@@ -35,7 +35,7 @@ import TypeChecking.Monad.Debug
 -- | Find position of a value in a list.
 --   Used to change metavar argument indices during assignment.
 --
---   @reverse@ is necessary because we are directly abstracting over this list @vs@.
+--   @reverse@ is necessary because we are directly abstracting over the list.
 --
 findIdx :: (Eq a, Monad m) => [a] -> a -> m Int
 findIdx vs v = go 0 $ reverse vs where
@@ -145,7 +145,7 @@ instance Occurs Term where
 		Var n vs    ->
 		    case findIdx ok n of
 			Just n'	-> Var n' <$> occ m ok vs
-			Nothing	-> fail $ show m ++ " cannot depend on p" ++ show n
+			Nothing	-> typeError $ MetaCannotDependOn m ok n
 		Lam h f	    -> Lam h <$> occ m ok f
 		Lit l	    -> return $ Lit l
 		Def c vs    -> Def c <$> occ m ok vs
@@ -168,7 +168,7 @@ instance Occurs Sort where
     occ m ok s =
 	do  s' <- reduce s
 	    case s' of
-		MetaS m' | m == m' -> fail $ "?" ++ show m ++ " occurs in itself"
+		MetaS m' | m == m' -> typeError $ MetaOccursInItself m
 		MetaS _		   -> return s'
 		Lub s1 s2	   -> uncurry Lub <$> occ m ok (s1,s2)
 		Suc s		   -> Suc <$> occ m ok s
@@ -178,7 +178,7 @@ instance Occurs Sort where
 occMeta :: (Show a, Data a, Abstract a, Apply a) =>
 	   (MetaId -> Args -> a) -> (a -> MetaInstantiation) -> (a -> TCM a) -> MetaId -> [Nat] -> MetaId -> Args -> TCM a
 occMeta meta inst red m ok m' vs
-    | m == m'	= fail $ "?" ++ show m ++ " occurs in itself"
+    | m == m'	= typeError $ MetaOccursInItself m
     | otherwise	=
 	do  vs' <- case restrictParameters ok vs of
 		     Nothing  -> patternViolation

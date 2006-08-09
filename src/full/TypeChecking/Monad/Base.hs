@@ -383,6 +383,10 @@ data TypeError
 	    -- ^ The two function types have different hiding.
 	| UnequalSort Sort Sort
 	| NotLeqSort Sort Sort
+	| MetaCannotDependOn MetaId [Int] Int
+	    -- ^ The arguments are the meta variable, the parameters it can
+	    --	 depend on and the paratemeter that it wants to depend on.
+	| MetaOccursInItself MetaId
     deriving (Typeable, Show)
 
 data TCErr = TypeError CallTrace TypeError
