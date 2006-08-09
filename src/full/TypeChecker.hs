@@ -292,7 +292,6 @@ forceData d t =
 		do  Defn t _ (Datatype n _ s _) <- getConstInfo d
 		    ps <- newArgsMeta t
 		    s' <- getSort t'
-		    equalSort s s'
 		    equalTyp () t' $ El (Def d ps) s
 		    reduce t'
 	    _ -> typeError $ ShouldBeApplicationOf t d
@@ -382,7 +381,7 @@ checkPatterns ps0@(Arg h p:ps) t ret =
 	    checkPatterns ps (piApply t0 [Arg h' v]) $ \ (ys, vs, t'') -> do
 		let v' = raise (length ys) v
 		ret (xs ++ ys, Arg h v':vs, t'')
-	_ -> typeError $ TooManyPatterns h t'
+	_ -> typeError $ WrongHidingInLHS t'
 
 -- | TODO: move
 argName (Pi _ b)  = "_" ++ absName b
@@ -612,9 +611,9 @@ checkExpr e t =
 		    where
 			emptyR r = Range r r
 
-		hiddenLambda (A.Lam _ (A.DomainFree Hidden _) _)			 = True
+		hiddenLambda (A.Lam _ (A.DomainFree Hidden _) _)		     = True
 		hiddenLambda (A.Lam _ (A.DomainFull (A.TypedBindings _ Hidden _)) _) = True
-		hiddenLambda _							 = False
+		hiddenLambda _							     = False
 
 	-- Variable or constant application
 	_   | Application hd args <- appView e -> do
@@ -647,7 +646,7 @@ checkExpr e t =
 			v <- checkExpr e0 tb
 			return $ Lam h (Abs (show x) v)
 		    | otherwise ->
-			typeError $ WrongKindOfFunction h h'
+			typeError $ WrongHidingInLambda t'
 		_   -> __IMPOSSIBLE__
 
 	A.QuestionMark i -> do
@@ -727,7 +726,7 @@ checkArguments r args0@(Arg h e : args) t0 t1 =
 		us <- checkArguments (fuseRange r e) args (piApply t0' [arg]) t1
 		return $ arg : us
 	    (Hidden, FunV (Arg NotHidden _) _) ->
-		typeError $ BadHiddenApplication t0'
+		typeError $ WrongHidingInApplication t0'
 	    _ -> __IMPOSSIBLE__
 
 

@@ -114,7 +114,7 @@ equalArg _ a args1 args2 = do
         (Fun (Arg _ b) c, (Arg _ arg1 : args1), (Arg _ arg2 : args2)) -> do
             equalVal Why b arg1 arg2
             equalArg Why c args1 args2
-        _ -> typeError $ UnequalArgs args1 args2 a'
+        _ -> fail $ "equalArg " ++ show a ++ " " ++ show args1 ++ " " ++ show args2
 
 
 -- | Equality on Types
@@ -232,7 +232,7 @@ equalSort s1 s2 =
 	    (MetaS x , Prop    )	     -> assignS x s2
 	    (_	     , MetaS x )	     -> equalSort s2 s1
     where
-	notEq s1 s2 = typeError $ UnequalSort s1 s2
+	notEq s1 s2 = typeError $ UnequalSorts s1 s2
 
 -- | Get the sort of a type. Should be moved somewhere else.
 getSort :: Type -> TCM Sort

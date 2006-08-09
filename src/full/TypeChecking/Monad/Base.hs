@@ -364,24 +364,24 @@ data TypeError
 	    -- ^ Expected a type to be an application of a particular datatype.
 	| DifferentArities
 	    -- ^ Varying number of arguments for a function.
-	| TooManyPatterns Hiding Type
-	    -- ^ The left hand side of a function defintion has more arguments
-	    --	 than the function specifies.
+	| WrongHidingInLHS Type
+	    -- ^ The left hand side of a function defintion has a hidden argument
+	    --	 where a non-hidden was expected.
+	| WrongHidingInLambda Type
+	    -- ^ Expected a non-hidden function and found a hidden lambda.
+	| WrongHidingInApplication Type
+	    -- ^ A function is applied to a hidden argument where a non-hidden was expected.
 	| ShouldBeEmpty Type
 	| ShouldBeASort Type
 	    -- ^ The given type should have been a sort.
 	| ShouldBePi Type
 	    -- ^ The given type should have been a pi.
-	| WrongKindOfFunction Hiding Hiding
-	    -- ^ Expected a function of the first hiding kind and found one of the second.
 	| NotAProperTerm
-	| BadHiddenApplication Type
 	| UnequalTerms Term Term Type
-	| UnequalArgs Args Args Type
 	| UnequalTypes Type Type
 	| UnequalHiding Type Type
 	    -- ^ The two function types have different hiding.
-	| UnequalSort Sort Sort
+	| UnequalSorts Sort Sort
 	| NotLeqSort Sort Sort
 	| MetaCannotDependOn MetaId [Int] Int
 	    -- ^ The arguments are the meta variable, the parameters it can
