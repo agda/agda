@@ -376,6 +376,13 @@ data TypeError
 	    -- ^ Expected a function of the first hiding kind and found one of the second.
 	| NotAProperTerm
 	| BadHiddenApplication Type
+	| UnequalTerms Term Term Type
+	| UnequalArgs Args Args Type
+	| UnequalTypes Type Type
+	| UnequalHiding Type Type
+	    -- ^ The two function types have different hiding.
+	| UnequalSort Sort Sort
+	| NotLeqSort Sort Sort
     deriving (Typeable, Show)
 
 data TCErr = TypeError CallTrace TypeError

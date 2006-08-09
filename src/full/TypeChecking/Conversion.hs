@@ -98,7 +98,7 @@ equalAtm _ t m n =
 	    (_, MetaV x xArgs) -> assignV t x xArgs m
 	    (BlockedV b, _)    -> addConstraint (ValueEq t m n)
 	    (_,BlockedV b)     -> addConstraint (ValueEq t m n)
-	    _		       -> fail $ "equalAtm "++(show m)++" ==/== "++(show n)
+	    _		       -> typeError $ UnequalTerms m n t
 
 
 -- | Type-directed equality on argument lists
@@ -114,7 +114,7 @@ equalArg _ a args1 args2 = do
         (Fun (Arg _ b) c, (Arg _ arg1 : args1), (Arg _ arg2 : args2)) -> do
             equalVal Why b arg1 arg2
             equalArg Why c args1 args2
-        _ -> fail $ "equalArg "++(show a)++" "++(show args1)++" "++(show args2)
+        _ -> typeError $ UnequalArgs args1 args2 a'
 
 
 -- | Equality on Types
@@ -141,14 +141,14 @@ equalTyp _ a1 a2 =
 	    (MetaT x xDeps, a) -> assignT x xDeps a 
 	    (a, MetaT x xDeps) -> assignT x xDeps a 
 	    (LamT _, _)  -> __IMPOSSIBLE__
-	    (El _ _, _)  -> fail $ show a1' ++ " != " ++ show a2'
-	    (Pi _ _, _)  -> fail $ show a1' ++ " != " ++ show a2'
-	    (Fun _ _, _) -> fail $ show a1' ++ " != " ++ show a2'
-	    (Sort _, _)  -> fail $ show a1' ++ " != " ++ show a2'
+	    (El _ _, _)  -> typeError $ UnequalTypes a1' a2'
+	    (Pi _ _, _)  -> typeError $ UnequalTypes a1' a2'
+	    (Fun _ _, _) -> typeError $ UnequalTypes a1' a2'
+	    (Sort _, _)  -> typeError $ UnequalTypes a1' a2'
 
     where
 	equalFun (FunV (Arg h1 a1) t1) (FunV (Arg h2 a2) t2)
-	    | h1 /= h2	= fail $ show a1 ++ " != " ++ show a2
+	    | h1 /= h2	= typeError $ UnequalHiding t1 t2
 	    | otherwise =
 		do  equalTyp Why a1 a2
 		    let (t1',t2') = raise 1 (t1,t2)
@@ -196,7 +196,7 @@ leqSort s1 s2 =
 	    (MetaS x , _       )	     -> addConstraint (SortLeq s1 s2)
 	    (_	     , MetaS x )	     -> addConstraint (SortLeq s1 s2)
     where
-	notLeq s1 s2 = fail $ show s1 ++ " is not less or equal to " ++ show s2
+	notLeq s1 s2 = typeError $ NotLeqSort s1 s2
 
 -- | Check that the first sort equal to the second.
 equalSort :: Sort -> Sort -> TCM ()
@@ -232,7 +232,7 @@ equalSort s1 s2 =
 	    (MetaS x , Prop    )	     -> assignS x s2
 	    (_	     , MetaS x )	     -> equalSort s2 s1
     where
-	notEq s1 s2 = fail $ show s1 ++ " is not equal to " ++ show s2
+	notEq s1 s2 = typeError $ UnequalSort s1 s2
 
 -- | Get the sort of a type. Should be moved somewhere else.
 getSort :: Type -> TCM Sort
