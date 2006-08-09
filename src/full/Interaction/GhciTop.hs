@@ -28,6 +28,7 @@ import TypeChecking.Monad as TM
 import TypeChecking.Monad.Name as TMN
 import TypeChecking.MetaVars
 import TypeChecking.Reduce
+import TypeChecking.Errors
 
 import Syntax.Position
 import Syntax.Parser
@@ -64,21 +65,20 @@ ioTCM cmd = do
   us  <- readIORef theUndoStack
   st  <- readIORef theTCState
   env <- readIORef theTCEnv
-  res <- runTCM $ do
-    putUndoStack us
-    put st
-    x <- withEnv env cmd
-    st <- get
-    us <- getUndoStack
-    return (x,st,us)
-  case res of
-    Left err -> do
-	print err
-	exitWith $ ExitFailure 1
-    Right (a,st',ss') -> do
-	writeIORef theTCState st'
-	writeIORef theUndoStack ss'
-	return a
+  Right (a,st',ss') <- runTCM $ do
+      putUndoStack us
+      put st
+      x <- withEnv env cmd
+      st <- get
+      us <- getUndoStack
+      return (x,st,us)
+    `catchError` \err -> do
+	s <- prettyError err
+	liftIO $ putStrLn s
+	liftIO $ exitWith $ ExitFailure 1
+  writeIORef theTCState st'
+  writeIORef theUndoStack ss'
+  return a
 
 cmd_load :: String -> IO ()
 cmd_load file = crashOnException $ do

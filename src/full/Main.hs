@@ -5,6 +5,7 @@
 module Main where
 
 import Control.Monad.State
+import Control.Monad.Error
 
 import Data.List as List
 import Data.Map as Map
@@ -33,6 +34,7 @@ import Interaction.GhciTop ()	-- to make sure it compiles
 import TypeChecker
 import TypeChecking.Monad
 import TypeChecking.Reduce
+import TypeChecking.Errors
 
 import Utils.Monad
 
@@ -111,10 +113,10 @@ optionError err =
 
 -- | Main
 main :: IO ()
-main =
-    do	r <- runIM runAgda
-	case r of
-	    Left err -> do print err
-			   exitFailure
-	    Right () -> return ()
+main = do
+    runIM $ runAgda `catchError` \err -> do
+	s <- prettyError err
+	liftIO $ putStrLn s
+	liftIO $ exitFailure
+    return ()
 

@@ -32,6 +32,7 @@ import TypeChecking.Constraints
 import TypeChecking.Monad
 import TypeChecking.MetaVars
 import TypeChecking.Reduce
+import TypeChecking.Errors
 
 import Utils.ReadLine
 import Utils.Monad
@@ -158,7 +159,8 @@ interaction prompt cmds eval = loop
 				    do	liftIO $ putStrLn $ "More than one command match: " ++ concat (intersperse ", " xs)
 					loop
 	    `catchError` \e ->
-		do  liftIO $ putStrLn $ errorCommand $ printError e 
+		do  s <- prettyError e
+		    liftIO $ putStrLn $ errorCommand s
 		    loop
 
 printRange (Range NoPos _) = "Unknown Position " 
