@@ -33,6 +33,7 @@ import TypeChecking.Constraints
 import TypeChecking.Monad
 import TypeChecking.MetaVars
 import TypeChecking.Reduce
+import TypeChecking.Errors
 
 import Utils.ReadLine
 import Utils.Monad
@@ -77,7 +78,8 @@ interaction prompt cmds eval = loop
 			do  liftIO $ addHistory (fromJust ms)
 			    go =<< eval (fromJust ms)
 	    `catchError` \e ->
-		do  liftIO $ print e
+		do  s <- prettyError e
+		    liftIO $ putStrLn s
 		    loop
 
 -- | The interaction loop.
@@ -86,9 +88,10 @@ interactionLoop typeCheck =
     do  reload
 	interaction "Main> " commands evalTerm
     where
-	reload = (setUndo >> typeCheck) `catchError`
-		    \e -> liftIO $ do print e
-				      putStrLn "Failed."
+	reload = (setUndo >> typeCheck) `catchError` \e -> do
+		    s <- prettyError e
+		    liftIO $ putStrLn s
+		    liftIO $ putStrLn "Failed."
 
 	commands =
 	    [ "quit"	    |>  \_ -> return $ Return ()

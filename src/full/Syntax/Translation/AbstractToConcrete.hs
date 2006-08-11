@@ -411,6 +411,9 @@ instance BindToConcrete LetBinding [C.Declaration] where
 	do  (t,e) <- toConcrete (t,e)
 	    ret [C.TypeSig x t, C.FunClause (C.LHS (getRange x) PrefixDef x []) e []]
 
+instance ToConcrete LetBinding [C.Declaration] where
+    toConcrete b = bindToConcrete b return
+
 -- Declaration instances --------------------------------------------------
 
 instance ToConcrete [A.Declaration] [C.Declaration] where

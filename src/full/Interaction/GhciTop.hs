@@ -1,4 +1,4 @@
-{-# OPTIONS -cpp -fglasgow-exts #-}
+{-# OPTIONS -cpp -fglasgow-exts -fallow-overlapping-instances #-}
 
 module Interaction.GhciTop where
 

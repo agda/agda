@@ -481,16 +481,15 @@ checkLetBinding b@(A.LetBind i x t e) ret =
 
 -- | Make sure that a type is a sort (instantiate meta variables if necessary).
 forceSort :: Range -> Type -> TCM Sort
-forceSort r t =
-    traceCall (ForceSort r t) $ do
-	t' <- reduce t
-	case t' of
-	    Sort s	 -> return s
-	    MetaT m args -> do
-		s <- newSortMeta
-		equalTyp () t' (Sort s)
-		return s
-	    _	-> typeError $ ShouldBeASort t'
+forceSort r t = do
+    t' <- reduce t
+    case t' of
+	Sort s	     -> return s
+	MetaT m args -> do
+	    s <- newSortMeta
+	    equalTyp () t' (Sort s)
+	    return s
+	_	-> typeError $ ShouldBeASort t'
 
 
 ---------------------------------------------------------------------------

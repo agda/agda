@@ -103,8 +103,5 @@ getInteractionScope ii =
        return $ getMetaScope mv
 
 withMetaInfo :: MetaInfo -> TCM a -> TCM a
-withMetaInfo mI m = 
-	traceCall_ (WithMetaInfo mI)
-	$ enterClosure mI
-	$ \_ -> m
+withMetaInfo mI m = enterClosure mI $ \_ -> m
 

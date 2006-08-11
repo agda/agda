@@ -17,7 +17,8 @@ GHC_FLAGS	= -O -Wall -Werror \
 			-fno-warn-unused-matches \
 			-fno-warn-unused-binds \
 			-fno-warn-unused-imports \
-			-fno-warn-type-defaults
+			-fno-warn-type-defaults \
+			-fno-warn-orphans
 
 HAPPY		= @HAPPY@
 HAPPY_VERSION	= @HAPPY_VERSION@

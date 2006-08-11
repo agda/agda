@@ -175,12 +175,6 @@ printRange (Range s e) = "At: " ++ file ++ line ++ col
 	    line = ", line " ++ show sl
 	    col = ", column " ++ show sc
 
-printError :: TCErr -> String
-printError (TypeError tr e) = printRange (getRange tr) ++ "\n" ++ show e
-printError (Exception r s)  = printRange r ++ "\n" ++ s
-printError e		    = show e
-
-
 
 removeDQ,removeDQ' :: String -> String
 removeDQ ('\"':s) = removeDQ' s -- "

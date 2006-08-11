@@ -17,3 +17,9 @@ class Pretty a where
 instance Pretty Doc where
     pretty = id
 
+pwords :: String -> [Doc]
+pwords = map text . words
+
+fwords :: String -> Doc
+fwords = fsep . pwords
+

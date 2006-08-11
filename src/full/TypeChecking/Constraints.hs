@@ -32,13 +32,10 @@ catchConstraint c v =
 --
 addConstraint :: Constraint -> TCM ()
 addConstraint c =
-    do	env <- getEnv
-	sig <- getSignature
-        scope <- getScope
+    do	cl <- buildClosure c
 	cId <- fresh
-	modify $ \st -> st { stConstraints = Map.insert cId (Closure sig env scope c)
-						$ stConstraints st
-			   }
+	modify $ \st ->
+	    st { stConstraints = Map.insert cId cl $ stConstraints st }
 
 -- | We ignore the constraint ids and (as in Agda) retry all constraints every time.
 --   We probably generate very few constraints.

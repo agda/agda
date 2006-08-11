@@ -97,12 +97,21 @@ instance HasFresh i FreshThings => HasFresh i TCState where
 data Closure a = Closure { clSignature  :: Signature
 			 , clEnv	:: TCEnv
 			 , clScope	:: ScopeInfo
+			 , clTrace	:: CallTrace
 			 , clValue	:: a
 			 }
-    deriving (Typeable, Data)
+    deriving (Typeable)
 
 instance HasRange a => HasRange (Closure a) where
     getRange = getRange . clValue
+
+buildClosure :: a -> TCM (Closure a)
+buildClosure x = do
+    env   <- ask
+    sig   <- gets stSignature
+    scope <- gets stScopeInfo
+    trace <- gets stTrace
+    return $ Closure sig env scope trace x
 
 ---------------------------------------------------------------------------
 -- ** Constraints
@@ -164,7 +173,7 @@ data MetaVariable =
 		, mvJudgement	  :: Judgement Type Sort MetaId
 		, mvInstantiation :: MetaInstantiation
 		}
-    deriving (Typeable, Data)
+    deriving (Typeable)
 
 data MetaInstantiation
 	= InstV Term
@@ -276,8 +285,6 @@ data Call = CheckClause Type A.Clause (Maybe Clause)
 	  | CheckLetBinding A.LetBinding (Maybe ())
 	  | InferExpr A.Expr (Maybe (Term, Type))
 	  | CheckExpr A.Expr Type (Maybe Term)
-	  | WithMetaInfo MetaInfo (Maybe ())
-	  | ForceSort Range Type (Maybe Sort)
 	  | IsTypeCall A.Expr Sort (Maybe Type)
 	  | IsType_ A.Expr (Maybe Type)
 	  | InferVar Name (Maybe (Term, Type))
@@ -298,9 +305,7 @@ instance HasRange Call where
     getRange (CheckPattern _ p _ _)	  = getRange p
     getRange (InferExpr e _)		  = getRange e
     getRange (CheckExpr e _ _)		  = getRange e
-    getRange (WithMetaInfo mi _)	  = getRange mi
     getRange (CheckLetBinding b _)	  = getRange b
-    getRange (ForceSort r _ _)		  = r
     getRange (IsTypeCall e s _)		  = getRange e
     getRange (IsType_ e _)		  = getRange e
     getRange (InferVar x _)		  = getRange x
@@ -389,33 +394,27 @@ data TypeError
 	| MetaOccursInItself MetaId
     deriving (Typeable, Show)
 
-data TCErr = TypeError CallTrace TypeError
+data TCErr = TypeError TCState (Closure TypeError)
 	   | Exception Range String
 	   | PatternErr  TCState -- ^ for pattern violations
 	   | AbortAssign TCState -- ^ used to abort assignment to meta when there are instantiations
   deriving (Typeable)
 
-instance Error TypeError where
-    noMsg  = strMsg ""
-    strMsg = InternalError
-
 instance Error TCErr where
     noMsg  = strMsg ""
-    strMsg = TypeError noTrace . strMsg
+    strMsg = Exception noRange . strMsg
 
 instance Show TCErr where
-    show (TypeError tr e) = show (getRange tr) ++ ": " ++ show e
-    show (Exception r s)  = show r ++ ": " ++ s
-    show (PatternErr _)   = "Pattern violation (you shouldn't see this)"
-    show (AbortAssign _)  = "Abort assignment (you shouldn't see this)"
+    show (TypeError _ e) = show (getRange $ clTrace e) ++ ": " ++ show (clValue e)
+    show (Exception r s) = show r ++ ": " ++ s
+    show (PatternErr _)  = "Pattern violation (you shouldn't see this)"
+    show (AbortAssign _) = "Abort assignment (you shouldn't see this)"
 
-patternViolation :: TCM a
-patternViolation =
-    do	s <- get
-	throwError $ PatternErr s
-
-internalError :: CallTrace -> String -> TCErr
-internalError tr s = TypeError tr $ InternalError s
+instance HasRange TCErr where
+    getRange (TypeError _ cl) = getRange $ clTrace cl
+    getRange (Exception r _)  = r
+    getRange (PatternErr s)   = getRange $ stTrace s
+    getRange (AbortAssign s)  = getRange $ stTrace s
 
 ---------------------------------------------------------------------------
 -- * Type checking monad
@@ -428,11 +427,25 @@ newtype TCM a = TCM { unTCM :: UndoT TCState
 		    }
     deriving (MonadState TCState, MonadReader TCEnv, MonadError TCErr, MonadUndo TCState)
 
+patternViolation :: TCM a
+patternViolation = do
+    s <- get
+    throwError $ PatternErr s
+
+internalError :: String -> TCM a
+internalError s = typeError $ InternalError s
+
+typeError :: TypeError -> TCM a
+typeError err = do
+    cl <- buildClosure err
+    s  <- get
+    throwError $ TypeError s cl
+
 -- We want a special monad implementation of fail.
 instance Monad TCM where
     return  = TCM . return
     m >>= k = TCM $ unTCM m >>= unTCM . k
-    fail s  = typeError $ InternalError s
+    fail    = internalError
 
 instance MonadIO TCM where
   liftIO m = TCM $ do tr <- gets stTrace
@@ -441,11 +454,6 @@ instance MonadIO TCM where
                         (failOnException
                          (\r -> return . throwError . Exception r)
                          (return <$> m) )
-
-typeError :: TypeError -> TCM a
-typeError err  = TCM $ do
-    tr <- gets stTrace
-    throwError $ TypeError tr err
 
 -- | Running the type checking monad
 runTCM :: TCM a -> IO (Either TCErr a)

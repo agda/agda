@@ -5,19 +5,14 @@ import TypeChecking.Monad.Base
 import TypeChecking.Monad.Env
 import TypeChecking.Monad.State
 import TypeChecking.Monad.Signature
-
-buildClosure :: a -> TCM (Closure a)
-buildClosure x = do
-    env   <- getEnv
-    sig   <- getSignature
-    scope <- getScope
-    return $ Closure sig env scope x
+import TypeChecking.Monad.Trace
 
 enterClosure :: Closure a -> (a -> TCM b) -> TCM b
-enterClosure (Closure sig env scope x) k =
+enterClosure (Closure sig env scope trace x) k =
     withScope scope
     $ withSignature sig
     $ withEnv env
+    $ withTrace trace
     $ k x
     
 

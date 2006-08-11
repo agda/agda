@@ -5,7 +5,6 @@ import Control.Monad.State
 
 import Syntax.Position
 import TypeChecking.Monad.Base
-import TypeChecking.Monad.Closure
 import Utils.Monad
 import Utils.Trace
 
@@ -51,11 +50,11 @@ onTrace f = do
     tr <- getTrace
     setTrace (f tr)
 
-withTrace :: (CallTrace -> CallTrace) -> TCM a -> TCM a
-withTrace f m = do
-    tr <- getTrace
-    setTrace (f tr)
-    x <- m
+withTrace :: CallTrace -> TCM a -> TCM a
+withTrace tr m = do
+    tr0 <- getTrace
     setTrace tr
+    x <- m
+    setTrace tr0
     return x
 
