@@ -28,11 +28,11 @@ import Syntax.Literal
 
 $digit	    = 0-9
 $idstart    = [ A-Z a-z ]
-$alphanum   = [ $idstart $digit ' _ ]
-$sym	    = [ \!\#\$\%\&\*\+\.\/\<\=\>\@\\\^\|\~\: ]
-$symstart   = [ \- $sym ]
-$notdash    = [ ' $sym ]
-$symbol	    = [ \- ' $sym ]
+$symstart   = [ \- \! \# \$ \% \& \* \+ \/ \< \= \> \@ \^ \| \~ ]
+$specialsym = [ \\ \: \. ]
+$idchar	    = [ $symstart $idstart $digit ' _ ]
+$namechar   = [ $idchar $specialsym ]
+$endcomment = ~ $namechar
 
 $white_nonl = $white # \n
 
@@ -40,8 +40,11 @@ $white_nonl = $white # \n
 @exponent   = [eE] [\-\+]? @number
 @float	    = @number \. @number @exponent? | @number @exponent
 
-@ident	    = $idstart $alphanum*
-@operator   = $symstart $symbol*
+@ident	    = $idstart $idchar*
+-- operators starting with a special char cannot have an $idstart as second
+-- char (to allow \x -> x and x:A)
+@specialop  = $specialsym [ $symstart $specialsym ] $namechar*
+@operator   = $symstart $namechar* | @specialop
 
 @namespace  = (@ident \.)*
 @q_ident    = @namespace @ident
@@ -64,7 +67,7 @@ tokens :-
     "{-"	    { nestedComment }
 
 -- Dashes followed by an operator symbol should be parsed as an operator.
-<0,code,bol_,layout_,empty_layout_,imp_dir_>   "--"\-* [^$symbol] .* ;
+<0,code,bol_,layout_,empty_layout_,imp_dir_>   "--"\-* $endcomment .* ;
 <0,code,bol_,layout_,empty_layout_,imp_dir_>   "--"\-* $		    ;
 
 -- We need to check the offside rule for the first token on each line.  We

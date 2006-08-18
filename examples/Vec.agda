@@ -63,7 +63,7 @@ module examples.Vec where
 
   data Zero : Set where
 
-  data (+) (A,B:Set) : Set where
+  data (+) (A,B : Set) : Set where
     inl : A -> A + B
     inr : B -> A + B
 
