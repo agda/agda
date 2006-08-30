@@ -28,7 +28,7 @@ import Syntax.Literal
 
 $digit	    = 0-9
 $idstart    = [ A-Z a-z ]
-$symstart   = [ \- \! \# \$ \% \& \* \+ \/ \< \= \> \@ \^ \| \~ ]
+$symstart   = [ \- \! \# \$ \% \& \* \+ \/ \< \= \> \@ \^ \| \~ \? ]
 $specialsym = [ \\ \: \. ]
 $idchar	    = [ $symstart $idstart $digit ' _ ]
 $namechar   = [ $idchar $specialsym ]
