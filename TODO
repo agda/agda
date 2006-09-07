@@ -67,6 +67,13 @@ Cleaning
 
 * TypeChecking.Reduce
 
+Performance
+-----------
+
+* a lot of memory created by subst is never used
+
+* space leak in lexer (positions too lazy?)
+
 Done
 ----
 
