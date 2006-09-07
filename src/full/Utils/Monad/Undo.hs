@@ -1,4 +1,4 @@
-{-# OPTIONS -fglasgow-exts #-}
+{-# OPTIONS -fglasgow-exts -fallow-undecidable-instances #-}
 
 module Utils.Monad.Undo where
 
