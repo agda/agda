@@ -194,9 +194,12 @@ instance Reduce Term where
 			    DontKnow Nothing  -> return $ Left $ v `apply` args
 			    DontKnow (Just m) -> return $ Left $ blocked m $ v `apply` args
 
-		app [] (Body v') = return v'
+		app []		 (Body v')	     = return v'
 		app (arg : args) (Bind (Abs _ body)) = app args $ subst arg body -- CBN
-		app _ _ = __IMPOSSIBLE__
+		app (_   : args) (NoBind body)	     = app args body
+		app (_ : _)	 (Body _)	     = __IMPOSSIBLE__
+		app []		 (Bind _)	     = __IMPOSSIBLE__
+		app []		 (NoBind _)	     = __IMPOSSIBLE__
 
 
 instance Reduce a => Reduce (Closure a) where
@@ -252,6 +255,11 @@ instance Normalise Term where
 		Lit _	    -> return v
 		Lam h b	    -> Lam h <$> normalise b
 		BlockedV _  -> __IMPOSSIBLE__
+
+instance Normalise ClauseBody where
+    normalise (Body   t) = Body   <$> normalise t
+    normalise (Bind   b) = Bind   <$> normalise b
+    normalise (NoBind b) = NoBind <$> normalise b
 
 instance Normalise t => Normalise (Abs t) where
     normalise = fmapM normalise

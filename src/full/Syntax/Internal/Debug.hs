@@ -97,6 +97,7 @@ instance Show Pattern where
     show (ConP c ps) = "(" ++ unwords (show c : map show ps) ++ ")"
 
 instance Show ClauseBody where
-    show (Body v) = show v
+    show (Body v)	  = show v
     show (Bind (Abs x b)) = "\\" ++ x ++ " -> " ++ show b
+    show (NoBind b)	  = "\\_ -> " ++ show b
 

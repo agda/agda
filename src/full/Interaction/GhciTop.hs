@@ -220,6 +220,7 @@ cmd_make_case ii rng s = crashOnException $ ioTCM $ do
                      in  (tkn2, Arg h (SI.VarP s1) : pas)
 
   deAbs (Bind (Abs _ b)) = deAbs b
+  deAbs (NoBind b)	 = deAbs b  -- TODO: right?
   deAbs (Body t        ) = t
 
   passAVar e@(SA.Var _ _) = return e

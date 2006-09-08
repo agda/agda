@@ -83,13 +83,16 @@ data Why   = Why	  deriving (Typeable, Data)
 -- Definitions
 --
 
--- | a clause is a list of patterns and a clause body
+-- | A clause is a list of patterns and a clause body
 --   the number of binding patterns in a clause should
---     match the number of @Bind@s in the body
+--   match the number of @Bind@s and @NoBind@s in the body
+--   The @NoBind@ constructor is an optimisation to avoid
+--   substituting for variables that aren't used.
 --
 data Clause = Clause [Arg Pattern] ClauseBody deriving (Typeable, Data) 
 data ClauseBody = Body Term 
 		| Bind (Abs ClauseBody)
+		| NoBind ClauseBody
   deriving (Typeable, Data)
 
 -- | Patterns are variables, constructors, or wildcards.

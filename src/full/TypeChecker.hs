@@ -24,6 +24,8 @@ import TypeChecking.Conversion
 import TypeChecking.MetaVars
 import TypeChecking.Reduce
 import TypeChecking.Substitute
+import TypeChecking.Rebind
+import TypeChecking.Strict
 
 import Utils.Monad
 import Utils.List
@@ -310,13 +312,16 @@ checkFunDef i x cs =
 	t    <- typeOfConst name
 
 	-- Check the clauses
-	cs' <- mapM (checkClause t) cs
+	cs <- mapM (checkClause t) cs
 
 	-- Check that all clauses have the same number of arguments
-	unless (allEqual $ map npats cs') $ typeError DifferentArities
+	unless (allEqual $ map npats cs) $ typeError DifferentArities
+
+	-- Annotate the clauses with which arguments are actually used.
+	cs <- mapM rebindClause cs
 
 	-- Add the definition
-	addConstant name $ Defn t 0 $ Function cs' $ defAbstract i
+	addConstant name $ Defn t 0 $ Function cs $ defAbstract i
     where
 	npats (Clause ps _) = length ps
 

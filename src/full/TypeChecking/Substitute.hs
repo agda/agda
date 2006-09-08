@@ -61,6 +61,7 @@ instance Apply Clause where
 instance Apply ClauseBody where
     apply b []				  = b
     apply (Bind (Abs _ b)) (Arg _ v:args) = subst v b `apply` args
+    apply (NoBind b) (_:args)		  = b `apply` args
     apply (Body _) (_:_)		  = __IMPOSSIBLE__
 
 instance Apply t => Apply [t] where
@@ -164,8 +165,9 @@ instance (Subst a, Subst b) => Subst (a,b) where
     substAt n u (x,y) = (substAt n u x, substAt n u y)
 
 instance Subst ClauseBody where
-    substAt n u (Body t) = Body $ substAt n u t
-    substAt n u (Bind b) = Bind $ substAt n u b
+    substAt n u (Body t)   = Body $ substAt n u t
+    substAt n u (Bind b)   = Bind $ substAt n u b
+    substAt n u (NoBind b) = NoBind $ substAt n u b
 
 -- | Substitute a lot of terms.
 substs :: Subst t => [Term] -> t -> t
