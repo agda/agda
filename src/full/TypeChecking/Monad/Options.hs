@@ -8,7 +8,7 @@ import Data.Maybe
 import TypeChecking.Monad.Base
 import Interaction.Options
 import Utils.Monad
-import Syntax.Common
+import Syntax.Abstract
 
 #include "../../undefined.h"
 
@@ -25,6 +25,7 @@ setOptionsFromPragma (OptionsPragma xs) = do
     case parsePragmaOptions xs opts of
 	Left err    -> typeError $ GenericError err
 	Right opts' -> setCommandLineOptions opts'
+setOptionsFromPragma _ = return ()
 
 setOptionsFromPragmas :: [Pragma] -> TCM ()
 setOptionsFromPragmas = foldr (>>) (return ()) . map setOptionsFromPragma

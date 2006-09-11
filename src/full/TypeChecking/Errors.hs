@@ -167,6 +167,17 @@ instance PrettyTCM TypeError where
 		return $ fsep $
 		    pwords "cannot construct infinite solution of metavariable" ++ [dm]
 	    GenericError s  -> return $ fsep $ pwords s
+	    NoSuchBuiltinName s ->
+		return $ fsep $ pwords "there is no built-in thing called" ++ [text s]
+	    DuplicateBuiltinBinding b x y -> do
+		dx <- prettyTCM x
+		return $ fsep $ pwords "duplicate binding for built-in thing" ++ [text b <> comma]
+			     ++ pwords "previous binding to" ++ [dx]
+	    NoBindingForBuiltin x ->
+		return $ fsep $ pwords "no binding for builtin thing" ++ [text x <> comma]
+			     ++ pwords ("use {-# BUILTIN " ++ x ++ " name #-} to bind it to 'name'")
+	    NoSuchPrimitiveFunction x ->
+		return $ fsep $ pwords "there is no primitive function called" ++ [prettyName x]
 
 instance PrettyTCM Call where
     prettyTCM c = case c of
@@ -220,6 +231,11 @@ instance PrettyTCM Call where
 	CheckConstructor _ _ _ _ _ -> __IMPOSSIBLE__
 	CheckFunDef _ f _ _ -> do
 	    return $ fsep $ pwords "When checking the definition of" ++ [prettyName f]
+	CheckPragma _ p _ ->
+	    return $ fsep $ pwords "When checking the pragma" ++ [prettyA $ RangeAndPragma noRange p]
+	CheckPrimitive _ x e _ ->
+	    return $ fsep $ pwords "When checking that the type of the primitive function"
+		  ++ [prettyName x] ++ pwords "is" ++ [prettyA e]
 	_ -> return $ fwords "When doing something for which there is no pretty printer implemented"
 	where
 	    hPretty a@(Arg h _) = pretty $ abstractToConcreteCtx (hiddenArgumentCtx h) a

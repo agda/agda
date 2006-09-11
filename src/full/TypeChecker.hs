@@ -18,13 +18,16 @@ import Syntax.Internal.Debug ()
 import Syntax.Translation.AbstractToConcrete
 import Syntax.Concrete.Pretty ()
 import Syntax.Strict
+import Syntax.Literal
 
 import TypeChecking.Monad
 import TypeChecking.Monad.Name
+import TypeChecking.Monad.Builtin
 import TypeChecking.Conversion
 import TypeChecking.MetaVars
 import TypeChecking.Reduce
 import TypeChecking.Substitute
+import TypeChecking.Primitive
 import TypeChecking.Rebind
 
 import Utils.Monad
@@ -66,13 +69,21 @@ checkAxiom _ x e =
 
 -- | Type check a primitive function declaration.
 checkPrimitive :: DefInfo -> Name -> A.Expr -> TCM ()
-checkPrimitive _ x e =
-    typeError $ NotImplemented "primitive functions"
+checkPrimitive i x e =
+    traceCall (CheckPrimitive i x e) $ do
+    PrimImpl t' pf <- lookupPrimitiveFunction x
+    t <- isType_ e
+    equalTyp () t t'
+    m <- currentModule
+    addConstant (qualify m x) (Defn t 0 $ Primitive (defAbstract i) pf)
 
 
 -- | Check a pragma.
-checkPragma :: Range -> Pragma -> TCM ()
-checkPragma _ _ = __IMPOSSIBLE__    -- we don't parse declaration pragmas yet
+checkPragma :: Range -> A.Pragma -> TCM ()
+checkPragma r p =
+    traceCall (CheckPragma r p) $ case p of
+	A.BuiltinPragma x e -> bindBuiltin x e
+	A.OptionsPragma _   -> __IMPOSSIBLE__	-- not allowed here
 
 -- | Type check a bunch of mutual inductive recursive definitions.
 checkMutual :: DeclInfo -> [A.TypeSignature] -> [A.Definition] -> TCM ()
@@ -671,7 +682,7 @@ checkExpr e t =
 	A.Underscore i   -> do
 	    setScope (Info.metaScope i)
 	    newValueMeta t
-	A.Lit lit    -> typeError $ NotImplemented "literals"
+	A.Lit lit    -> checkLiteral lit t
 	A.Let i ds e -> checkLetBindings ds $ checkExpr e t
 	A.Pi _ _ _   -> typeError NotAProperTerm
 	A.Fun _ _ _  -> typeError NotAProperTerm
@@ -759,6 +770,80 @@ inferExpr e = do
     t <- newTypeMeta_
     v <- checkExpr e t
     return (v,t)
+
+---------------------------------------------------------------------------
+-- * Literal
+---------------------------------------------------------------------------
+
+checkLiteral :: Literal -> Type -> TCM Term
+checkLiteral lit t = do
+    t' <- litType lit
+    equalTyp () t t'
+    return $ Lit lit
+    where
+	el t = El t (Type 0)
+	litType l = case l of
+	    LitInt _ _	  -> el <$> primInteger
+	    LitFloat _ _  -> el <$> primFloat
+	    LitChar _ _   -> el <$> primChar
+	    LitString _ _ -> el <$> primString
+
+---------------------------------------------------------------------------
+-- * Checking builtin pragmas
+---------------------------------------------------------------------------
+
+bindBuiltinType :: String -> A.Expr -> TCM ()
+bindBuiltinType b e = do
+    t <- checkExpr e (Sort $ Type 0)
+    bindBuiltinName b t
+
+bindBuiltinBool :: String -> A.Expr -> TCM ()
+bindBuiltinBool b e = do
+    bool <- primBool
+    t	 <- checkExpr e $ El bool (Type 0)
+    bindBuiltinName b t
+
+-- | The built-in list should have type @Set -> Set@
+bindBuiltinList :: A.Expr -> TCM ()
+bindBuiltinList e = do
+    let set	 = Sort (Type 0)
+	setToSet = Fun (Arg NotHidden set) set
+    list <- checkExpr e setToSet
+    bindBuiltinName builtinList list
+
+-- | Built-in nil should have type @{A:Set} -> List A@
+bindBuiltinNil :: A.Expr -> TCM ()
+bindBuiltinNil e = do
+    list' <- primList
+    let set	= Sort (Type 0)
+	list a	= El (list' `apply` [Arg NotHidden a]) (Type 0)
+	nilType = Pi (Arg Hidden set) $ Abs "A" $ list (Var 0 [])
+    nil <- checkExpr e nilType
+    bindBuiltinName builtinNil nil
+
+-- | Built-in cons should have type @{A:Set} -> A -> List A -> List A@
+bindBuiltinCons :: A.Expr -> TCM ()
+bindBuiltinCons e = do
+    list' <- primList
+    let set	  = Sort (Type 0)
+	el t	  = El t (Type 0)
+	a	  = Var 0 []
+	list x	  = el $ list' `apply` [Arg NotHidden x]
+	hPi x a b = Pi (Arg Hidden a) $ Abs x b
+	fun a b	  = Fun (Arg NotHidden a) b
+	consType  = hPi "A" set $ el a `fun` (list a `fun` list a)
+    cons <- checkExpr e consType
+    bindBuiltinName builtinCons cons
+
+-- | Bind a builtin thing to an expression.
+bindBuiltin :: String -> A.Expr -> TCM ()
+bindBuiltin b e
+    | elem b builtinTypes		 = bindBuiltinType b e
+    | elem b [builtinTrue, builtinFalse] = bindBuiltinBool b e
+    | b == builtinList			 = bindBuiltinList e
+    | b == builtinNil			 = bindBuiltinNil e
+    | b == builtinCons			 = bindBuiltinCons e
+    | otherwise				 = typeError $ NoSuchBuiltinName b
 
 ---------------------------------------------------------------------------
 -- * To be moved somewhere else

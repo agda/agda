@@ -83,7 +83,8 @@ ioTCM cmd = do
 cmd_load :: String -> IO ()
 cmd_load file = crashOnException $ do
     (pragmas, m) <- parseFile moduleParser file
-    (m',scope)   <- concreteToAbstract_ m
+    pragmas	 <- concreteToAbstract_ pragmas	-- identity for top-level pragmas at the moment
+    (m',scope)	 <- concreteToAbstract_ m
     is <- ioTCM $ do
 	    setUndo
 	    resetState
@@ -234,8 +235,11 @@ cmd_make_case ii rng s = crashOnException $ ioTCM $ do
   passAVar x   = fail("passAVar: got "++show x)
   passElDef t@(El(SI.Def _ _) _) = return t
   passElDef t  = fail . ("passElDef: got "++) . show =<< reify t
-  passData  d@(Defn _ _ (Datatype _ _ _ _)) = return d
-  passData  d  = fail $ "passData: got "++ show d
+  passData  d@(Defn _ _ (Datatype _ _ _ _))  = return d
+  passData  d@(Defn _ _ (Function _ _))	     = fail $ "passData: got function"
+  passData  d@(Defn _ _ TM.Axiom)	     = fail $ "passData: got axiom"
+  passData  d@(Defn _ _ (Constructor _ _ _)) = fail $ "passData: got constructor"
+  passData  d@(Defn _ _ (TM.Primitive _ _))  = fail $ "passData: got primitive"
 
   dropUscore (SI.VarP ('_':s)) = dropUscore (SI.VarP s)
   dropUscore p@(SI.VarP s) = p
@@ -326,7 +330,7 @@ instance LowerMeta SC.Declaration where
       SC.Primitive r sigs     -> SC.Primitive r (lowerMeta sigs)
       SC.Open _ _ _           -> d
       SC.Import _ _ _ _       -> d
-      SC.Pragma _ _	      -> d
+      SC.Pragma _	      -> d
       ModuleMacro r n tel e1 dir -> ModuleMacro r n
                                     (lowerMeta tel) (lowerMeta e1) dir
       SC.Module r qn tel ds   -> SC.Module r qn (lowerMeta tel) (lowerMeta ds)

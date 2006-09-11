@@ -16,9 +16,7 @@ Features
 
 * imports
 
-* built-in things
-
-* literals (needs built-in things)
+* lazy evaluation
 
 Fixes
 -----
@@ -40,10 +38,6 @@ Fixes
 
 * handle command line options (import path)
 
-[Internals]
-
-* lazy evaluation
-
 [Testing]
 
 * write better tests
@@ -56,6 +50,15 @@ Fixes
 
 * check that underscores have been solved (when? at the end of the file)
   only for interactive mode and batch mode
+
+[Errors]
+
+* Remember/figure out range of previous binding in DuplicateBuiltinBinding.
+
+[Type checking]
+
+* When do we have to turn on abstractMode. When checking anything public? Not
+  done at the moment.
 
 Speculative
 -----------
@@ -81,6 +84,10 @@ Performance
 
 Done
 ----
+
+* literals
+
+* built-in things
 
 * pragmas
 

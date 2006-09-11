@@ -17,7 +17,7 @@ data Keyword
 	| KwInfix | KwInfixL | KwInfixR
 	| KwSet | KwProp | KwForall
 	| KwHiding | KwUsing | KwRenaming | KwTo
-	| KwOPTIONS
+	| KwOPTIONS | KwBUILTIN
     deriving (Eq, Show)
 
 layoutKeywords :: [Keyword]

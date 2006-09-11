@@ -509,7 +509,18 @@ instance ToConcrete A.Declaration [C.Declaration] where
     toConcrete (A.Open (DeclSource ds))	= return ds
     toConcrete (A.Open _) = __IMPOSSIBLE__
 
-    toConcrete (A.Pragma i p)	= return [C.Pragma (getRange i) p]
+    toConcrete (A.Pragma i p)	= do
+	p <- toConcrete $ RangeAndPragma (getRange i) p
+	return [C.Pragma p]
+
+data RangeAndPragma = RangeAndPragma Range A.Pragma
+
+instance ToConcrete RangeAndPragma C.Pragma where
+    toConcrete (RangeAndPragma r p) = case p of
+	A.OptionsPragma xs  -> return $ C.OptionsPragma r xs
+	A.BuiltinPragma b x -> do
+	    x <- toConcrete x
+	    return $ C.BuiltinPragma r b x
 
 -- Left hand sides --------------------------------------------------------
 

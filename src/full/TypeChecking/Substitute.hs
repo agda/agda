@@ -54,6 +54,10 @@ instance Apply Defn where
     apply (Function cs a) args	     = Function (apply cs args) a
     apply (Datatype np cs s a) args  = Datatype (np - length args) cs s a
     apply (Constructor np cs a) args = Constructor (np - length args) cs a
+    apply (Primitive a pf) args	     = Primitive a $ pf `apply` args
+
+instance Apply PrimFun where
+    apply (PrimFun ar def) args	= PrimFun (ar - length args) $ \vs -> def (args ++ vs)
 
 instance Apply Clause where
     apply (Clause ps b) args = Clause (drop (length args) ps) $ apply b args
@@ -104,6 +108,11 @@ instance Abstract Defn where
     abstract tel (Function cs a)       = Function (abstract tel cs) a
     abstract tel (Datatype np cs s a)  = Datatype (length tel + np) cs s a
     abstract tel (Constructor np cs a) = Constructor (length tel + np) cs a
+    abstract tel (Primitive a pf)      = Primitive a $ abstract tel pf
+
+instance Abstract PrimFun where
+    abstract tel (PrimFun ar def)      = PrimFun (ar + n) $ \ts -> def $ drop n ts
+	where n = length tel
 
 instance Abstract Clause where
     abstract tel (Clause ps b) = Clause (ps0 ++ ps) $ abstract tel b

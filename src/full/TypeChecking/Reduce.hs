@@ -167,7 +167,26 @@ instance Reduce Term where
 
 	    reduceDef v0 f args =
 		{-# SCC "reduceDef" #-}
-		do  def <- defClauses <$> getConstInfo f
+		do  info <- getConstInfo f
+		    case info of
+			Defn _ _ (Primitive ConcreteDef pf) -> reducePrimitive v0 f args pf
+			_				    -> reduceNormal v0 f args $ defClauses info
+
+	    reducePrimitive v0 f args pf
+		| n < ar    = return $ v0 `apply` args	-- not fully applied
+		| otherwise = do
+		    let (args1,args2) = splitAt n args
+		    r <- def args1
+		    case r of
+			NoReduction args1'  -> return $ v0 `apply` (args1' ++ args2)
+			YesReduction v	    -> reduce $ v  `apply` args2
+		where
+		    n	= length args
+		    ar  = primFunArity pf
+		    def = primFunImplementation pf
+
+	    reduceNormal v0 f args def = do
+		    def <- defClauses <$> getConstInfo f
 		    case def of
 			[] -> return $ v0 `apply` args -- no definition for head
 			cls@(Clause ps _ : _)
@@ -175,26 +194,25 @@ instance Reduce Term where
 				do  let (args1,args2) = splitAt (length ps) args 
 				    ev <- appDef v0 cls args1
 				    case ev of
-					Left v	-> return $ v `apply` args2
-					Right v	-> reduce $ v `apply` args2
+					NoReduction v  -> return $ v `apply` args2
+					YesReduction v -> reduce $ v `apply` args2
 			    | otherwise	-> return $ v0 `apply` args -- partial application
 
 	    -- Apply a defined function to it's arguments.
 	    --   The original term is the first argument applied to the third.
-	    --	 'Left' means no match and 'Right' means match.
-	    appDef :: Term -> [Clause] -> Args -> TCM (Either Term Term)
+	    appDef :: Term -> [Clause] -> Args -> TCM (Reduced Term Term)
 	    appDef v cls args = goCls cls args where
 
 		goCls [] _ = fail $ "incomplete patterns for " ++ show v
 		goCls (cl@(Clause pats body) : cls) args =
 		    do	(m, args) <- matchPatterns pats args
 			case m of
-			    Yes args'	      -> Right <$> app args' body
+			    Yes args'	      -> return $ YesReduction $ app args' body
 			    No		      -> goCls cls args
-			    DontKnow Nothing  -> return $ Left $ v `apply` args
-			    DontKnow (Just m) -> return $ Left $ blocked m $ v `apply` args
+			    DontKnow Nothing  -> return $ NoReduction $ v `apply` args
+			    DontKnow (Just m) -> return $ NoReduction $ blocked m $ v `apply` args
 
-		app []		 (Body v')	     = return v'
+		app []		 (Body v')	     = v'
 		app (arg : args) (Bind (Abs _ body)) = app args $ subst arg body -- CBN
 		app (_   : args) (NoBind body)	     = app args body
 		app (_ : _)	 (Body _)	     = __IMPOSSIBLE__

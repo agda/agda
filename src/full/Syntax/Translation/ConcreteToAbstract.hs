@@ -352,6 +352,12 @@ instance BindToAbstract LetDef A.LetBinding where
 		    i' = ExprRange (fuseRange i e)
 	    lambda _ _ = notAValidLetBinding d
 
+instance ToAbstract C.Pragma A.Pragma where
+    toAbstract (C.OptionsPragma _ opts) = return $ A.OptionsPragma opts
+    toAbstract (C.BuiltinPragma _ b e) = do
+	e <- toAbstract e
+	return $ A.BuiltinPragma b e
+
 -- Only constructor names are bound by definitions.
 instance BindToAbstract NiceDefinition Definition where
 
@@ -436,7 +442,8 @@ instance BindToAbstract NiceDeclaration [A.Declaration] where
     bindToAbstract (NiceOpen r x is) ret =
 	openModule x is $ ret [A.Open $ DeclSource [C.Open r x is]]
 
-    bindToAbstract (NicePragma r p) ret =
+    bindToAbstract (NicePragma r p) ret = do
+	p <- toAbstract p
 	ret [A.Pragma r p]
 
     bindToAbstract (NiceImport r x as is) ret =

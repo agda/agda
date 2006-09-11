@@ -67,12 +67,16 @@ tokens :-
 <pragma_>   "{-#"		{ symbol SymOpenPragma }
 <pragma_>   "#-}"		{ endWith $ symbol SymClosePragma }
 <pragma_>   "OPTIONS"		{ keyword KwOPTIONS }
+<pragma_>   "BUILTIN"		{ keyword KwBUILTIN }
 <pragma_>   ","			{ symbol SymComma }
 <pragma_>   . # [ \, $white ] + { withRange $ TokString . snd }
 
 -- Comments
+    -- We need to rule out pragmas here. Usually longest match would take
+    -- precedence, but in some states pragmas aren't valid but comments are.
 <0,code,bol_,layout_,empty_layout_,imp_dir_>
-    "{-"	    { nestedComment }
+    "{-" / { notFollowedBy '#' }    { nestedComment }
+
 
 -- Dashes followed by an operator symbol should be parsed as an operator.
 <0,code,bol_,layout_,empty_layout_,imp_dir_>   "--"\-* $endcomment .* ;

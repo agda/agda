@@ -23,6 +23,7 @@ instance Show LHS	      where show = show . pretty
 instance Show TypedBindings   where show = show . pretty
 instance Show LamBinding      where show = show . pretty
 instance Show ImportDirective where show = show . pretty
+instance Show Pragma	      where show = show . pretty
 
 pHidden :: Pretty a => Hiding -> a -> Doc
 pHidden Hidden	    = braces . pretty
@@ -164,7 +165,7 @@ instance Pretty Declaration where
 		where
 		    as Nothing	= empty
 		    as (Just x) = text "as" <+> prettyName x
-	    Pragma _ pr	-> sep [ text "{-#" <+> pretty pr, text "#-}" ]
+	    Pragma pr	-> sep [ text "{-#" <+> pretty pr, text "#-}" ]
 	where
 	    namedBlock s ds =
 		sep [ text s
@@ -172,7 +173,8 @@ instance Pretty Declaration where
 		    ]
 
 instance Pretty Pragma where
-    pretty (OptionsPragma opts) = fsep $ map text $ "OPTIONS" : opts
+    pretty (OptionsPragma _ opts) = fsep $ map text $ "OPTIONS" : opts
+    pretty (BuiltinPragma _ b x)  = hsep [ text "BUILTIN", text b, prettyName x ]
 
 instance Pretty Fixity where
     pretty (LeftAssoc _ n)  = text "infixl" <+> text (show n)

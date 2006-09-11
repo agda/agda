@@ -22,6 +22,7 @@ module Syntax.Concrete
     , ImportDirective(..), UsingOrHiding(..), ImportedName(..)
     , LHS(..), Pattern(..)
     , RHS, WhereClause
+    , Pragma(..)
     )
     where
 
@@ -157,14 +158,22 @@ data Declaration
 	| FunClause LHS RHS WhereClause
 	| Data        !Range Name [TypedBindings] Expr [Constructor]
 	| Infix Fixity [Name]
-	| Mutual      Range [Declaration]
-	| Abstract    Range [Declaration]
-	| Private     Range [Declaration]
-	| Postulate   Range [TypeSignature]
-	| Open        Range QName ImportDirective
-	| Import      Range QName (Maybe Name) ImportDirective
-	| ModuleMacro Range  Name [TypedBindings] Expr ImportDirective
-	| Module      Range QName [TypedBindings] [Declaration]
+	| Mutual      !Range [Declaration]
+	| Abstract    !Range [Declaration]
+	| Private     !Range [Declaration]
+	| Postulate   !Range [TypeSignature]
+	| Primitive   !Range [TypeSignature]
+	| Open        !Range QName ImportDirective
+	| Import      !Range QName (Maybe Name) ImportDirective
+	| ModuleMacro !Range  Name [TypedBindings] Expr ImportDirective
+	| Module      !Range QName [TypedBindings] [Declaration]
+	| Pragma      Pragma
+    deriving (Eq, Typeable, Data)
+
+-- Pragmas ----------------------------------------------------------------
+
+data Pragma = OptionsPragma !Range [String]
+	    | BuiltinPragma !Range String Expr
     deriving (Eq, Typeable, Data)
 
 {--------------------------------------------------------------------------
@@ -234,7 +243,11 @@ instance HasRange Declaration where
     getRange (Primitive r _)		= r
     getRange (Module r _ _ _)		= r
     getRange (Infix f _)		= getRange f
-    getRange (Pragma r _)		= r
+    getRange (Pragma p)			= getRange p
+
+instance HasRange Pragma where
+    getRange (OptionsPragma r _)   = r
+    getRange (BuiltinPragma r _ _) = r
 
 instance HasRange LHS where
     getRange (LHS r _ _ _)  = r

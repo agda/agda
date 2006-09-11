@@ -40,6 +40,9 @@ data Declaration
 				    --   back to concrete syntax
 	| Pragma     Range	Pragma
 
+data Pragma = OptionsPragma [String]
+	    | BuiltinPragma String Expr
+
 data LetBinding = LetBind LetInfo Name Expr Expr    -- ^ LetBind info name type defn
 
 -- | A definition without its type signature.

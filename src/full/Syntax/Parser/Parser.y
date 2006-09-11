@@ -66,6 +66,7 @@ import Utils.Monad
     'Set'	{ TokKeyword KwSet $$ }
     'forall'	{ TokKeyword KwForall $$ }
     'OPTIONS'	{ TokKeyword KwOPTIONS $$ }
+    'BUILTIN'	{ TokKeyword KwBUILTIN $$ }
 
     setN	{ TokSetN $$ }
     tex		{ TokTeX $$ }
@@ -671,13 +672,16 @@ TopModule : 'module' ModuleName TypedBindingss0 'where' Declarations
 		    { Module (getRange ($1,$4,$5)) $2 $3 $5 }
 
 Pragma :: { Declaration }
-Pragma : '{-#' DeclarationPragma '#-}'	{ Pragma (fuseRange $1 $3) $2 }
+Pragma : DeclarationPragma  { Pragma $1 }
 
 TopLevelPragma :: { Pragma }
-TopLevelPragma : '{-#' 'OPTIONS' PragmaStrings '#-}' { OptionsPragma $3 }
+TopLevelPragma : '{-#' 'OPTIONS' PragmaStrings '#-}' { OptionsPragma (fuseRange $1 $4) $3 }
 
 DeclarationPragma :: { Pragma }
-DeclarationPragma : {- empty -}	{% fail "Can't have pragma here" }
+DeclarationPragma
+    : '{-#' 'BUILTIN' string string '#-}'   { let r = fuseRange $1 $5 in
+					      BuiltinPragma r $3 (Ident $ QName $ Name r $4)
+					    }
 
 {--------------------------------------------------------------------------
     Sequences of declarations

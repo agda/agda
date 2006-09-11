@@ -98,13 +98,13 @@ data NiceDeclaration
 	| NiceOpen Range QName ImportDirective
 	| NiceImport Range QName (Maybe Name) ImportDirective
 	| NicePragma Range Pragma
-    deriving Show
+    deriving (Show)
 
 -- | A definition without its type signature.
 data NiceDefinition
 	= FunDef  Range [Declaration] Fixity Access IsAbstract Name [Clause]
 	| DataDef Range Fixity Access IsAbstract Name [LamBinding] [NiceConstructor]
-    deriving Show
+    deriving (Show)
 
 -- | Only 'Axiom's.
 type NiceConstructor = NiceDeclaration
@@ -114,7 +114,7 @@ type NiceTypeSignature	= NiceDeclaration
 
 -- | One clause in a function definition.
 data Clause = Clause LHS RHS WhereClause
-    deriving Show
+    deriving (Show)
 
 -- | The exception type.
 data DeclarationException
@@ -246,7 +246,7 @@ niceDeclarations ds = nice (fixities ds) ds
 			    Open r x is		-> [NiceOpen r x is]
 			    Import r x as is	-> [NiceImport r x as is]
 
-			    Pragma r p		-> [NicePragma r p]
+			    Pragma p		-> [NicePragma (getRange p) p]
 
 			    FunClause _ _ _	-> __IMPOSSIBLE__
 			    TypeSig _ _		-> __IMPOSSIBLE__

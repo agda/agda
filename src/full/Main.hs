@@ -80,6 +80,7 @@ runAgda =
 			    do	file <- getInputFile
 				(m, scope, pragmas) <- liftIO $
 				    do	(pragmas, m) <- parseFile' moduleParser file
+					pragmas	   <- concreteToAbstract_ pragmas -- identity for top-level pragmas
 					(m, scope) <- concreteToAbstract_ m
 					return (m, scope, pragmas)
 				setOptionsFromPragmas pragmas

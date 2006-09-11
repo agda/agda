@@ -52,6 +52,9 @@ instance Strict C.Expr where
 instance Strict C.Declaration where
     force e = everything (+) (const 1) e
 
+instance Strict C.Pragma where
+    force e = everything (+) (const 1) e
+
 instance Strict Interface where
     force e = everything (+) (const 1) e
 

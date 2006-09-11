@@ -39,6 +39,7 @@ data TCState =
 	 , stOptions	       :: CommandLineOptions
 	 , stStatistics	       :: Statistics
 	 , stTrace	       :: CallTrace
+	 , stBuiltinThings     :: BuiltinThings
 	     -- ^ record what is happening (for error msgs)
 	 }
 
@@ -61,6 +62,7 @@ initState =
 	 , stOptions	       = defaultOptions
 	 , stStatistics	       = Map.empty
 	 , stTrace	       = noTrace
+	 , stBuiltinThings     = Map.empty
 	 }
 
 instance HasFresh MetaId FreshThings where
@@ -240,13 +242,13 @@ data ModuleDef = ModuleDef
 		      , mdefNofParams  :: Nat
 		      , mdefDefs       :: Definitions
 		      }
-    deriving (Show, Typeable, Data)
+    deriving (Typeable)
 
 data Definition = Defn { defType     :: Type	-- type of the lifted definition
 		       , defFreeVars :: Nat
 		       , theDef	     :: Defn
 		       }
-    deriving (Show, Typeable, Data)
+    deriving (Typeable)
 
 data Defn = Axiom
 	  | Function [Clause] IsAbstract
@@ -257,7 +259,17 @@ data Defn = Axiom
 	  | Constructor Nat	-- nof parameters
 			QName	-- name of datatype
 			IsAbstract
-    deriving (Show, Typeable, Data)
+	  | Primitive IsAbstract PrimFun
+    deriving (Typeable)
+
+data Reduced no yes = NoReduction no | YesReduction yes
+    deriving (Typeable)
+
+data PrimFun = PrimFun
+	{ primFunArity		:: Arity
+	, primFunImplementation :: [Arg Term] -> TCM (Reduced [Arg Term] Term)
+	}
+    deriving (Typeable)
 
 defClauses :: Definition -> [Clause]
 defClauses (Defn _ _ (Function cs _)) = cs
@@ -293,6 +305,8 @@ data Call = CheckClause Type A.Clause (Maybe Clause)
 	  | CheckDataDef DefInfo Name [A.LamBinding] [A.Constructor] (Maybe ())
 	  | CheckConstructor QName Telescope Sort A.Constructor (Maybe ())
 	  | CheckFunDef DefInfo Name [A.Clause] (Maybe ())
+	  | CheckPragma Range A.Pragma (Maybe ())
+	  | CheckPrimitive DefInfo Name A.Expr (Maybe ())
     deriving (Typeable)
 
 instance HasRange a => HasRange (Trace a) where
@@ -314,6 +328,14 @@ instance HasRange Call where
     getRange (CheckDataDef i _ _ _ _)	  = getRange i
     getRange (CheckConstructor _ _ _ c _) = getRange c
     getRange (CheckFunDef i _ _ _)	  = getRange i
+    getRange (CheckPragma r _ _)	  = r
+    getRange (CheckPrimitive i _ _ _)	  = getRange i
+
+---------------------------------------------------------------------------
+-- ** Builtin things
+---------------------------------------------------------------------------
+
+type BuiltinThings = Map String Term
 
 ---------------------------------------------------------------------------
 -- * Type checking environment
@@ -393,6 +415,10 @@ data TypeError
 	    --	 depend on and the paratemeter that it wants to depend on.
 	| MetaOccursInItself MetaId
 	| GenericError String
+	| NoSuchBuiltinName String
+	| DuplicateBuiltinBinding String Term Term
+	| NoBindingForBuiltin String
+	| NoSuchPrimitiveFunction Name
     deriving (Typeable, Show)
 
 data TCErr = TypeError TCState (Closure TypeError)
