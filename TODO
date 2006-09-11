@@ -42,6 +42,8 @@ Fixes
 
 * write better tests
 
+* test how primitive/builtin things work together with (parameterised) modules
+
 [Bugs]
 
 * emacs interface gets the metas in the wrong order for local definitions (?)

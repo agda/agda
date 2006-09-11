@@ -203,8 +203,9 @@ el t = flip El (Type 0) <$> t
 
 primitiveFunctions :: Map String (TCM PrimitiveImpl)
 primitiveFunctions = Map.fromList
-    [ "integerPlus"  |-> primIntPlus
-    , "integerMinus" |-> primIntMinus
+    [ "integerPlus"   |-> primIntPlus
+    , "integerMinus"  |-> primIntMinus
+    , "integerEquals" |-> primIntEquals
     ]
     where
 	(|->) = (,)
@@ -218,6 +219,7 @@ lookupPrimitiveFunction x =
 	nameString (Name _ (C.Name _ s)) = s
 	nameString (Name _ (C.NoName _)) = "_"
 
-primIntPlus  = primitiveFunction2 ((+) :: Integer -> Integer -> Integer)
-primIntMinus = primitiveFunction2 ((-) :: Integer -> Integer -> Integer)
+primIntPlus   = primitiveFunction2 ((+)  :: Integer -> Integer -> Integer)
+primIntMinus  = primitiveFunction2 ((-)  :: Integer -> Integer -> Integer)
+primIntEquals = primitiveFunction2 ((==) :: Integer -> Integer -> Bool)
 
