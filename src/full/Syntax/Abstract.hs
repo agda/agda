@@ -31,12 +31,14 @@ data Expr
 
 data Declaration
 	= Axiom      DefInfo Name Expr				-- ^ postulate
+	| Primitive  DefInfo Name Expr				-- ^ primitive function
 	| Definition DeclInfo [TypeSignature] [Definition]	-- ^ a bunch of mutually recursive definitions
 	| Module     ModuleInfo ModuleName [TypedBindings] [Declaration]
 	| ModuleDef  ModuleInfo ModuleName [TypedBindings] ModuleName [Arg Expr]
 	| Import     ModuleInfo ModuleName
 	| Open	     DeclSource	    -- ^ this one is here only to enable translation
 				    --   back to concrete syntax
+	| Pragma     Range	Pragma
 
 data LetBinding = LetBind LetInfo Name Expr Expr    -- ^ LetBind info name type defn
 
@@ -129,6 +131,8 @@ instance HasRange Declaration where
     getRange (ModuleDef  i _ _ _ _) = getRange i
     getRange (Import     i _	  ) = getRange i
     getRange (Open	 i	  ) = getRange i
+    getRange (Primitive  i _ _	  ) = getRange i
+    getRange (Pragma	 i _	  ) = getRange i
 
 instance HasRange Definition where
     getRange (FunDef  i _ _   ) = getRange i

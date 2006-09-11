@@ -148,6 +148,7 @@ instance Pretty Declaration where
 	    Abstract _ ds   -> namedBlock "abstract" ds
 	    Private _ ds    -> namedBlock "private" ds
 	    Postulate _ ds  -> namedBlock "postulate" ds
+	    Primitive _ ds  -> namedBlock "primitive" ds
 	    Module _ x tel ds ->
 		hsep [ text "module"
 		     , prettyId x
@@ -163,11 +164,15 @@ instance Pretty Declaration where
 		where
 		    as Nothing	= empty
 		    as (Just x) = text "as" <+> prettyName x
+	    Pragma _ pr	-> sep [ text "{-#" <+> pretty pr, text "#-}" ]
 	where
 	    namedBlock s ds =
 		sep [ text s
 		    , nest 2 $ vcat $ map pretty ds
 		    ]
+
+instance Pretty Pragma where
+    pretty (OptionsPragma opts) = fsep $ map text $ "OPTIONS" : opts
 
 instance Pretty Fixity where
     pretty (LeftAssoc _ n)  = text "infixl" <+> text (show n)

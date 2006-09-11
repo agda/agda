@@ -166,6 +166,7 @@ instance PrettyTCM TypeError where
 		dm <- prettyTCM $ MetaV m []
 		return $ fsep $
 		    pwords "cannot construct infinite solution of metavariable" ++ [dm]
+	    GenericError s  -> return $ fsep $ pwords s
 
 instance PrettyTCM Call where
     prettyTCM c = case c of

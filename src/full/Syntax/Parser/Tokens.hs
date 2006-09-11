@@ -13,15 +13,16 @@ import Syntax.Position
 data Keyword
 	= KwLet | KwIn | KwWhere | KwData
 	| KwPostulate | KwMutual | KwAbstract | KwPrivate
-	| KwOpen | KwImport | KwModule
+	| KwOpen | KwImport | KwModule | KwPrimitive
 	| KwInfix | KwInfixL | KwInfixR
 	| KwSet | KwProp | KwForall
 	| KwHiding | KwUsing | KwRenaming | KwTo
+	| KwOPTIONS
     deriving (Eq, Show)
 
 layoutKeywords :: [Keyword]
 layoutKeywords =
-    [ KwLet, KwWhere, KwPostulate, KwMutual, KwAbstract, KwPrivate ]
+    [ KwLet, KwWhere, KwPostulate, KwMutual, KwAbstract, KwPrivate, KwPrimitive ]
 
 data Symbol
 	= SymDot | SymComma | SymSemi | SymVirtualSemi
@@ -31,6 +32,7 @@ data Symbol
 	| SymOpenBrace	      | SymCloseBrace
 	| SymOpenBracket      | SymCloseBracket
 	| SymOpenVirtualBrace | SymCloseVirtualBrace
+	| SymOpenPragma	      | SymClosePragma
     deriving (Eq, Show)
 
 data Token
@@ -46,6 +48,7 @@ data Token
 	  -- Special symbols
 	| TokSymbol Symbol Range
 	  -- Other tokens
+	| TokString String  -- arbitrary string, used in pragmas
 	| TokSetN (Range, Int)
 	| TokTeX String
 	| TokDummy	-- Dummy token to make Happy not complain

@@ -471,6 +471,14 @@ instance ToConcrete A.Declaration [C.Declaration] where
 		do  t' <- toConcreteCtx TopCtx t
 		    return [C.Postulate (getRange i) [C.TypeSig x' t']]
 
+    toConcrete (A.Primitive i x t) =
+	do  x' <- toConcrete x
+	    withAbstractPrivate	i  $
+		withInfixDecl i x' $
+		withStored    i    $
+		do  t' <- toConcreteCtx TopCtx t
+		    return [C.Primitive (getRange i) [C.TypeSig x' t']]
+
     toConcrete (Definition i ts ds) =
 	do  ixs' <- toConcrete $ map (DontTouchMe -*- id) ixs
 	    withInfixDecls ixs' $
@@ -500,6 +508,8 @@ instance ToConcrete A.Declaration [C.Declaration] where
 
     toConcrete (A.Open (DeclSource ds))	= return ds
     toConcrete (A.Open _) = __IMPOSSIBLE__
+
+    toConcrete (A.Pragma i p)	= return [C.Pragma (getRange i) p]
 
 -- Left hand sides --------------------------------------------------------
 

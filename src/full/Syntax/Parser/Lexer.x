@@ -59,8 +59,16 @@ tokens :-
 <code>   ^ \\ "end{code}" \n	{ end_ }
 
 -- White space
-<0,code,bol_,layout_,empty_layout_,imp_dir_>
+<0,code,bol_,layout_,empty_layout_,imp_dir_,pragma_>
     $white_nonl+    ;
+
+-- Pragmas
+<0,code>    "{-#"		{ begin pragma }
+<pragma_>   "{-#"		{ symbol SymOpenPragma }
+<pragma_>   "#-}"		{ endWith $ symbol SymClosePragma }
+<pragma_>   "OPTIONS"		{ keyword KwOPTIONS }
+<pragma_>   ","			{ symbol SymComma }
+<pragma_>   . # [ \, $white ] + { withRange $ TokString . snd }
 
 -- Comments
 <0,code,bol_,layout_,empty_layout_,imp_dir_>
@@ -68,7 +76,7 @@ tokens :-
 
 -- Dashes followed by an operator symbol should be parsed as an operator.
 <0,code,bol_,layout_,empty_layout_,imp_dir_>   "--"\-* $endcomment .* ;
-<0,code,bol_,layout_,empty_layout_,imp_dir_>   "--"\-* $		    ;
+<0,code,bol_,layout_,empty_layout_,imp_dir_>   "--"\-* $	      ;
 
 -- We need to check the offside rule for the first token on each line.  We
 -- should not check the offside rule for the end of file token or an
@@ -97,6 +105,7 @@ tokens :-
 <0,code> in		{ keyword KwIn }
 <0,code> where		{ keyword KwWhere }
 <0,code> postulate	{ keyword KwPostulate }
+<0,code> primitive	{ keyword KwPrimitive }
 <0,code> open		{ keyword KwOpen }
 <0,code> import		{ keyword KwImport }
 <0,code> module		{ keyword KwModule }
@@ -174,6 +183,11 @@ normal = 0
 layout :: LexState
 layout = layout_
 
+
+{-| The state inside a pragma.
+-}
+pragma :: LexState
+pragma = pragma_
 
 {-| We enter this state from 'newLayoutContext' when the token following a
     layout keyword is to the left of (or at the same column as) the current

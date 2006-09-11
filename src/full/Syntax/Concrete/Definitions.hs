@@ -88,6 +88,7 @@ import Syntax.Concrete.Pretty ()    -- need Show instance for Declaration
 -}
 data NiceDeclaration
 	= Axiom Range Fixity Access IsAbstract Name Expr
+	| PrimitiveFunction Range Fixity Access IsAbstract Name Expr
 	| NiceDef Range [Declaration] [NiceTypeSignature] [NiceDefinition]
 	    -- ^ A bunch of mutually recursive functions\/datatypes.
 	    --   The last two lists have the same length. The first list is the
@@ -96,6 +97,7 @@ data NiceDeclaration
 	| NiceModuleMacro Range Access IsAbstract Name Telescope Expr ImportDirective
 	| NiceOpen Range QName ImportDirective
 	| NiceImport Range QName (Maybe Name) ImportDirective
+	| NicePragma Range Pragma
     deriving Show
 
 -- | A definition without its type signature.
@@ -133,6 +135,8 @@ instance HasRange NiceDeclaration where
     getRange (NiceModuleMacro r _ _ _ _ _ _) = r
     getRange (NiceOpen r _ _)		     = r
     getRange (NiceImport r _ _ _)	     = r
+    getRange (NicePragma r _)		     = r
+    getRange (PrimitiveFunction r _ _ _ _ _) = r
 
 {--------------------------------------------------------------------------
     The niceifier
@@ -230,6 +234,8 @@ niceDeclarations ds = nice (fixities ds) ds
 
 			    Postulate _ ds -> niceAxioms fixs ds
 
+			    Primitive _ ds -> map toPrim $ niceAxioms fixs ds
+
 			    Module r x tel ds	->
 				[ NiceModule r PublicAccess ConcreteDef x tel ds ]
 
@@ -240,8 +246,10 @@ niceDeclarations ds = nice (fixities ds) ds
 			    Open r x is		-> [NiceOpen r x is]
 			    Import r x as is	-> [NiceImport r x as is]
 
-			    _			-> __IMPOSSIBLE__
-				-- FunClause and TypeSig have been taken care of
+			    Pragma r p		-> [NicePragma r p]
+
+			    FunClause _ _ _	-> __IMPOSSIBLE__
+			    TypeSig _ _		-> __IMPOSSIBLE__
 
 
 	-- Translate axioms
@@ -253,6 +261,10 @@ niceDeclarations ds = nice (fixities ds) ds
 		    Axiom (getRange d) (fixity x fixs) PublicAccess ConcreteDef x t
 		    : nice ds
 		nice _ = __IMPOSSIBLE__
+
+	toPrim :: NiceDeclaration -> NiceDeclaration
+	toPrim (Axiom r f a c x t) = PrimitiveFunction r f a c x t
+	toPrim _		   = __IMPOSSIBLE__
 
 	-- Create a function definition.
 	mkFunDef fixs x mt ds0 =
@@ -293,11 +305,14 @@ niceDeclarations ds = nice (fixities ds) ds
 	mkAbstract d =
 	    case d of
 		Axiom r f a _ x e		 -> Axiom r f a AbstractDef x e
+		PrimitiveFunction r f a _ x e	 -> Axiom r f a AbstractDef x e
 		NiceDef r cs ts ds		 -> NiceDef r cs (map mkAbstract ts)
 								 (map mkAbstractDef ds)
 		NiceModule r a _ x tel ds	 -> NiceModule r a AbstractDef x tel ds
 		NiceModuleMacro r a _ x tel e is -> NiceModuleMacro r a AbstractDef x tel e is
-		_				 -> d
+		NicePragma _ _			 -> d
+		NiceOpen _ _ _			 -> d
+		NiceImport _ _ _ _		 -> d
 
 	mkAbstractDef d =
 	    case d of
@@ -313,11 +328,14 @@ niceDeclarations ds = nice (fixities ds) ds
 	mkPrivate d =
 	    case d of
 		Axiom r f _ a x e		 -> Axiom r f PrivateAccess a x e
+		PrimitiveFunction r f _ a x e	 -> Axiom r f PrivateAccess a x e
 		NiceDef r cs ts ds		 -> NiceDef r cs (map mkPrivate ts)
 								 (map mkPrivateDef ds)
 		NiceModule r _ a x tel ds	 -> NiceModule r PrivateAccess a x tel ds
 		NiceModuleMacro r _ a x tel e is -> NiceModuleMacro r PrivateAccess a x tel e is
-		_				 -> d
+		NicePragma _ _			 -> d
+		NiceOpen _ _ _			 -> d
+		NiceImport _ _ _ _		 -> d
 
 	mkPrivateDef d =
 	    case d of

@@ -78,9 +78,11 @@ runAgda =
 			resetState
 			when hasFile $
 			    do	file <- getInputFile
-				(m, scope) <- liftIO $
-				    do	m <- parseFile' moduleParser file
-					concreteToAbstract_ m
+				(m, scope, pragmas) <- liftIO $
+				    do	(pragmas, m) <- parseFile' moduleParser file
+					(m, scope) <- concreteToAbstract_ m
+					return (m, scope, pragmas)
+				setOptionsFromPragmas pragmas
 				checkDecl m
 				setScope scope
 				-- Print stats

@@ -392,6 +392,7 @@ data TypeError
 	    -- ^ The arguments are the meta variable, the parameters it can
 	    --	 depend on and the paratemeter that it wants to depend on.
 	| MetaOccursInItself MetaId
+	| GenericError String
     deriving (Typeable, Show)
 
 data TCErr = TypeError TCState (Closure TypeError)

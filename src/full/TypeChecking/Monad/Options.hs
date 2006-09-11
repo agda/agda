@@ -8,6 +8,7 @@ import Data.Maybe
 import TypeChecking.Monad.Base
 import Interaction.Options
 import Utils.Monad
+import Syntax.Common
 
 #include "../../undefined.h"
 
@@ -17,6 +18,23 @@ setCommandLineOptions opts =
 
 commandLineOptions :: TCM CommandLineOptions
 commandLineOptions = gets stOptions
+
+setOptionsFromPragma :: Pragma -> TCM ()
+setOptionsFromPragma (OptionsPragma xs) = do
+    opts <- commandLineOptions
+    case parsePragmaOptions xs opts of
+	Left err    -> typeError $ GenericError err
+	Right opts' -> setCommandLineOptions opts'
+
+setOptionsFromPragmas :: [Pragma] -> TCM ()
+setOptionsFromPragmas = foldr (>>) (return ()) . map setOptionsFromPragma
+
+bracketOptions :: TCM a -> TCM a
+bracketOptions m = do
+    opts <- commandLineOptions
+    x    <- m
+    setCommandLineOptions opts
+    return x
 
 setInputFile :: FilePath -> TCM ()
 setInputFile file =

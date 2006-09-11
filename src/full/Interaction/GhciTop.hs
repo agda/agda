@@ -82,8 +82,15 @@ ioTCM cmd = do
 
 cmd_load :: String -> IO ()
 cmd_load file = crashOnException $ do
-    (m',scope) <- concreteToAbstract_ =<< parseFile moduleParser file
-    is <- ioTCM $ do setUndo; resetState; checkDecl m'; setScope scope; lispIP
+    (pragmas, m) <- parseFile moduleParser file
+    (m',scope)   <- concreteToAbstract_ m
+    is <- ioTCM $ do
+	    setUndo
+	    resetState
+	    setOptionsFromPragmas pragmas
+	    checkDecl m'
+	    setScope scope
+	    lispIP
     putStrLn $ response $ L[A"agda2-load-action", is]
   where lispIP  = format . sortRng <$> (tagRng =<< getInteractionPoints)
         tagRng  = mapM (\i -> (,)i <$> getInteractionRange i)
@@ -316,8 +323,10 @@ instance LowerMeta SC.Declaration where
       Abstract r ds           -> Abstract r (lowerMeta ds)
       Private r ds            -> Private r (lowerMeta ds)
       Postulate r sigs        -> Postulate r (lowerMeta sigs)
+      SC.Primitive r sigs     -> SC.Primitive r (lowerMeta sigs)
       SC.Open _ _ _           -> d
       SC.Import _ _ _ _       -> d
+      SC.Pragma _ _	      -> d
       ModuleMacro r n tel e1 dir -> ModuleMacro r n
                                     (lowerMeta tel) (lowerMeta e1) dir
       SC.Module r qn tel ds   -> SC.Module r qn (lowerMeta tel) (lowerMeta ds)

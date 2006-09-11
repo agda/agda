@@ -382,6 +382,14 @@ instance BindToAbstract NiceDeclaration [A.Declaration] where
 				-- we can easily reconstruct the original decl
 				-- so we don't bother save it
 
+    -- Primitive function
+    bindToAbstract (PrimitiveFunction r f p a x t) ret = do
+	t' <- toAbstractCtx TopCtx t
+	defineName p FunName f x $ \x' ->
+	    ret [A.Primitive (mkRangedDefInfo x f p a r) x' t']
+			    -- we can easily reconstruct the original decl
+			    -- so we don't bother save it
+
     -- Definitions (possibly mutual)
     bindToAbstract (NiceDef r cs ts ds) ret =
 	bindToAbstract (ts,ds) $ \ (ts',ds') ->
@@ -427,6 +435,9 @@ instance BindToAbstract NiceDeclaration [A.Declaration] where
 
     bindToAbstract (NiceOpen r x is) ret =
 	openModule x is $ ret [A.Open $ DeclSource [C.Open r x is]]
+
+    bindToAbstract (NicePragma r p) ret =
+	ret [A.Pragma r p]
 
     bindToAbstract (NiceImport r x as is) ret =
 	do  iface <- getModuleInterface x

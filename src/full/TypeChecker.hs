@@ -46,10 +46,12 @@ checkDecl :: A.Declaration -> TCM ()
 checkDecl d =
     case d of
 	A.Axiom i x e		   -> checkAxiom i x e
+	A.Primitive i x e	   -> checkPrimitive i x e
 	A.Definition i ts ds	   -> checkMutual i ts ds
 	A.Module i x tel ds	   -> checkModule i x tel ds
 	A.ModuleDef i x tel m args -> checkModuleDef i x tel m args
 	A.Import i x		   -> checkImport i x
+	A.Pragma i p		   -> checkPragma i p
 	A.Open _		   -> return ()
 	    -- open is just an artifact from the concrete syntax
 
@@ -61,6 +63,16 @@ checkAxiom _ x e =
 	m <- currentModule
 	addConstant (qualify m x) (Defn t 0 Axiom)
 
+
+-- | Type check a primitive function declaration.
+checkPrimitive :: DefInfo -> Name -> A.Expr -> TCM ()
+checkPrimitive _ x e =
+    typeError $ NotImplemented "primitive functions"
+
+
+-- | Check a pragma.
+checkPragma :: Range -> Pragma -> TCM ()
+checkPragma _ _ = __IMPOSSIBLE__    -- we don't parse declaration pragmas yet
 
 -- | Type check a bunch of mutual inductive recursive definitions.
 checkMutual :: DeclInfo -> [A.TypeSignature] -> [A.Definition] -> TCM ()

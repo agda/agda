@@ -4,6 +4,7 @@ module Interaction.Options
     ( CommandLineOptions(..)
     , Flag
     , parseStandardOptions
+    , parsePragmaOptions
     , parsePluginOptions
     , defaultOptions
     , standardOptions_
@@ -38,7 +39,8 @@ instance Functor ArgDescr where
     fmap f (OptArg p s) = OptArg (f . p) s
 
 data CommandLineOptions =
-    Options { optInputFile	  :: Maybe FilePath
+    Options { optProgramName	  :: String
+	    , optInputFile	  :: Maybe FilePath
 	    , optIncludeDirs	  :: [FilePath]
 	    , optShowVersion	  :: Bool
 	    , optShowHelp	  :: Bool
@@ -57,7 +59,8 @@ mapFlag f (Option _ long arg descr) = Option [] (map f long) arg descr
 
 defaultOptions :: CommandLineOptions
 defaultOptions =
-    Options { optInputFile	  = Nothing
+    Options { optProgramName	  = "agda"
+	    , optInputFile	  = Nothing
 	    , optIncludeDirs	  = []
 	    , optShowVersion	  = False
 	    , optShowHelp	  = False
@@ -107,16 +110,20 @@ standardOptions =
     , Option ['?']  ["help"]	(NoArg helpFlag)    "show this help"
     , Option ['v']  ["verbose"]	(ReqArg verboseFlag "N")
 		    "set verbosity level to N"
-    , Option ['i']  ["include-path"] (ReqArg includeFlag "DIR")
-		    "look for imports in DIR"
     , Option ['I']  ["interactive"] (NoArg interactiveFlag)
 		    "start in interactive mode"
     , Option []	    ["emacs-mode"] (NoArg emacsModeFlag)
 		    "start in emacs mode"
-    , Option []	    ["proof-irrelevance"] (NoArg proofIrrelevanceFlag)
-		    "enable proof irrelevance (experimental feature)"
     , Option []	    ["show-implicit"] (NoArg showImplicitFlag)
 		    "show implicit arguments when printing"
+    ] ++ pragmaOptions
+
+pragmaOptions :: [OptDescr (Flag CommandLineOptions)]
+pragmaOptions =
+    [ Option ['i']  ["include-path"] (ReqArg includeFlag "DIR")
+		    "look for imports in DIR"
+    , Option []	    ["proof-irrelevance"] (NoArg proofIrrelevanceFlag)
+		    "enable proof irrelevance (experimental feature)"
     ]
 
 -- | Used for printing usage info.
@@ -136,6 +143,14 @@ parseOptions' progName argv defaults opts fileArg =
 parseStandardOptions :: String -> [String] -> Either String CommandLineOptions
 parseStandardOptions progName argv =
     parseOptions' progName argv defaultOptions standardOptions inputFlag
+
+-- | Parse options from an options pragma.
+parsePragmaOptions :: [String] -> CommandLineOptions -> Either String CommandLineOptions
+parsePragmaOptions argv opts =
+    parseOptions' progName argv opts pragmaOptions $
+    \s _ -> fail $ "Bad option in pragma: " ++ s
+    where
+	progName = optProgramName opts
 
 -- | Parse options for a plugin.
 parsePluginOptions ::

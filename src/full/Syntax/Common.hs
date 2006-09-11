@@ -44,3 +44,8 @@ data IsAbstract = AbstractDef | ConcreteDef
 type Nat    = Int
 type Arity  = Nat
 
+-- Pragmas ----------------------------------------------------------------
+
+data Pragma = OptionsPragma [String]
+    deriving (Eq, Show, Typeable, Data)
+

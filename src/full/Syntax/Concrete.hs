@@ -157,16 +157,15 @@ data Declaration
 	| FunClause LHS RHS WhereClause
 	| Data        !Range Name [TypedBindings] Expr [Constructor]
 	| Infix Fixity [Name]
-	| Mutual      !Range [Declaration]
-	| Abstract    !Range [Declaration]
-	| Private     !Range [Declaration]
-	| Postulate   !Range [TypeSignature]
-	| Open        !Range QName ImportDirective
-	| Import      !Range QName (Maybe Name) ImportDirective
-	| ModuleMacro !Range  Name [TypedBindings] Expr ImportDirective
-	| Module      !Range QName [TypedBindings] [Declaration]
+	| Mutual      Range [Declaration]
+	| Abstract    Range [Declaration]
+	| Private     Range [Declaration]
+	| Postulate   Range [TypeSignature]
+	| Open        Range QName ImportDirective
+	| Import      Range QName (Maybe Name) ImportDirective
+	| ModuleMacro Range  Name [TypedBindings] Expr ImportDirective
+	| Module      Range QName [TypedBindings] [Declaration]
     deriving (Eq, Typeable, Data)
-
 
 {--------------------------------------------------------------------------
     Views
@@ -232,8 +231,10 @@ instance HasRange Declaration where
     getRange (Import r _ _ _)		= r
     getRange (Private r _)		= r
     getRange (Postulate r _)		= r
+    getRange (Primitive r _)		= r
     getRange (Module r _ _ _)		= r
     getRange (Infix f _)		= getRange f
+    getRange (Pragma r _)		= r
 
 instance HasRange LHS where
     getRange (LHS r _ _ _)  = r

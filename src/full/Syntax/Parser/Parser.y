@@ -47,6 +47,7 @@ import Utils.Monad
     'in'	{ TokKeyword KwIn $$ }
     'where'	{ TokKeyword KwWhere $$ }
     'postulate' { TokKeyword KwPostulate $$ }
+    'primitive' { TokKeyword KwPrimitive $$ }
     'open'	{ TokKeyword KwOpen $$ }
     'import'	{ TokKeyword KwImport $$ }
     'using'	{ TokKeyword KwUsing $$ }
@@ -64,6 +65,7 @@ import Utils.Monad
     'Prop'	{ TokKeyword KwProp $$ }
     'Set'	{ TokKeyword KwSet $$ }
     'forall'	{ TokKeyword KwForall $$ }
+    'OPTIONS'	{ TokKeyword KwOPTIONS $$ }
 
     setN	{ TokSetN $$ }
     tex		{ TokTeX $$ }
@@ -88,12 +90,15 @@ import Utils.Monad
     vopen	{ TokSymbol SymOpenVirtualBrace $$ }
     vclose	{ TokSymbol SymCloseVirtualBrace $$ }
     vsemi	{ TokSymbol SymVirtualSemi $$ }
+    '{-#'	{ TokSymbol SymOpenPragma $$ }
+    '#-}'	{ TokSymbol SymClosePragma $$ }
 
     id		{ TokId $$ }
     op		{ TokOp $$ }
     q_id	{ TokQId $$ }
     q_op	{ TokQOp $$ }
 
+    string	{ TokString $$ }
     literal	{ TokLiteral $$ }
 
 %%
@@ -119,6 +124,7 @@ Token
     | 'in'	    { TokKeyword KwIn $1 }
     | 'where'	    { TokKeyword KwWhere $1 }
     | 'postulate'   { TokKeyword KwPostulate $1 }
+    | 'primitive'   { TokKeyword KwPrimitive $1 }
     | 'open'	    { TokKeyword KwOpen $1 }
     | 'import'	    { TokKeyword KwImport $1 }
     | 'using'	    { TokKeyword KwUsing $1 }
@@ -136,6 +142,7 @@ Token
     | 'Prop'	    { TokKeyword KwProp $1 }
     | 'Set'	    { TokKeyword KwSet $1 }
     | 'forall'	    { TokKeyword KwForall $1 }
+    | 'OPTIONS'	    { TokKeyword KwOPTIONS $1 }
 
     | setN	    { TokSetN $1 }
     | tex	    { TokTeX $1 }
@@ -160,11 +167,14 @@ Token
     | vopen	    { TokSymbol SymOpenVirtualBrace $1 }
     | vclose	    { TokSymbol SymCloseVirtualBrace $1 }
     | vsemi	    { TokSymbol SymVirtualSemi $1 }
+    | '{-#'	    { TokSymbol SymOpenPragma $1 }
+    | '#-}'	    { TokSymbol SymClosePragma $1 }
 
     | id	    { TokId $1 }
     | op	    { TokOp $1 }
     | q_id	    { TokQId $1 }
     | q_op	    { TokQOp $1 }
+    | string	    { TokString $1 }
 
     | literal	    { TokLiteral $1 }
 
@@ -172,9 +182,10 @@ Token
     Top level
  --------------------------------------------------------------------------}
 
-File :: { Declaration }
-File : TopModule	{ $1 }
-     | tex File		{ $2 }
+File :: { ([Pragma], Declaration) }
+File : TopModule	   { ([], $1) }
+     | TopLevelPragma File { let (ps,m) = $2 in ($1 : ps, m) }
+     | tex File		   { $2 }
 
 
 {--------------------------------------------------------------------------
@@ -332,6 +343,12 @@ CommaOps :: { [Name] }
 CommaOps
     : Op ',' CommaOps	{ $1 : $3 }
     | Op		{ [$1] }
+
+-- Space separated list of strings in a pragma.
+PragmaStrings :: { [String] }
+PragmaStrings
+    : {- empty -}	    { [] }
+    | string PragmaStrings  { $1 : $2 }
 
 {--------------------------------------------------------------------------
     Expressions (terms and types)
@@ -565,10 +582,12 @@ Declaration
     | Abstract	    { $1 }
     | Private	    { $1 }
     | Postulate	    { $1 }
+    | Primitive	    { $1 }
     | Open	    { $1 }
     | Import	    { $1 }
     | ModuleMacro   { $1 }
     | Module	    { $1 }
+    | Pragma	    { $1 }
 
 
 {--------------------------------------------------------------------------
@@ -620,6 +639,11 @@ Postulate :: { Declaration }
 Postulate : 'postulate' TypeSignatures	{ Postulate (fuseRange $1 $2) $2 }
 
 
+-- Primitives. Can only contain type signatures.
+Primitive :: { Declaration }
+Primitive : 'primitive' TypeSignatures	{ Primitive (fuseRange $1 $2) $2 }
+
+
 -- Open
 Open :: { Declaration }
 Open : 'open' ModuleName ImportDirective   { Open (getRange ($1,$2,$3)) $2 $3 }
@@ -645,6 +669,15 @@ Module : 'module' id TypedBindingss0 'where' Declarations
 TopModule :: { Declaration }
 TopModule : 'module' ModuleName TypedBindingss0 'where' Declarations
 		    { Module (getRange ($1,$4,$5)) $2 $3 $5 }
+
+Pragma :: { Declaration }
+Pragma : '{-#' DeclarationPragma '#-}'	{ Pragma (fuseRange $1 $3) $2 }
+
+TopLevelPragma :: { Pragma }
+TopLevelPragma : '{-#' 'OPTIONS' PragmaStrings '#-}' { OptionsPragma $3 }
+
+DeclarationPragma :: { Pragma }
+DeclarationPragma : {- empty -}	{% fail "Can't have pragma here" }
 
 {--------------------------------------------------------------------------
     Sequences of declarations
@@ -693,7 +726,7 @@ tokensParser :: Parser [Token]
 exprParser :: Parser Expr
 
 -- | Parse a module.
-moduleParser :: Parser Declaration
+moduleParser :: Parser ([Pragma], Declaration)
 
 -- | Parse an interface.
 interfaceParser :: Parser Interface
