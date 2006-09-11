@@ -36,10 +36,11 @@ alexInputPrevChar = lexPrevChar
 
 -- | Lex a character. No surprises.
 alexGetChar :: AlexInput -> Maybe (Char, AlexInput)
-alexGetChar	(AlexInput { lexInput = []  })	= Nothing
-alexGetChar inp@(AlexInput { lexInput = c:s })	=
-    Just (c, inp { lexInput	= s
-		 , lexPos	= movePos (lexPos inp) c
+alexGetChar (AlexInput { lexInput = []  }) = Nothing
+alexGetChar (AlexInput { lexInput = c:s, lexPos = p }) =
+    Just (c, AlexInput
+		 { lexInput	= s
+		 , lexPos	= movePos p c
 		 , lexPrevChar	= c
 		 }
 	 )

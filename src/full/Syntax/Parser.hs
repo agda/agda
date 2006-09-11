@@ -23,14 +23,15 @@ import Syntax.Position
 import Syntax.Parser.Monad as M
 import Syntax.Parser.Parser
 import Syntax.Parser.Lexer
+import Syntax.Strict
 
 -- Wrapping parse results -------------------------------------------------
 
-wrap :: ParseResult a -> a
+wrap :: Strict a => ParseResult a -> a
 wrap (ParseOk _ x)	= x
 wrap (ParseFailed err)	= throwDyn err
 
-wrapM:: Monad m => m (ParseResult a) -> m a
+wrapM:: (Strict a, Monad m) => m (ParseResult a) -> m a
 wrapM m =
     do	r <- m
 	case r of
@@ -39,18 +40,18 @@ wrapM m =
 
 -- Parse functions --------------------------------------------------------
 
-parse :: Parser a -> String -> a
+parse :: Strict a => Parser a -> String -> a
 parse p = wrap . M.parse defaultParseFlags normal p
 
-parseFile :: Parser a -> FilePath -> IO a
+parseFile :: Strict a => Parser a -> FilePath -> IO a
 parseFile p = wrapM . M.parseFile defaultParseFlags normal p
 
-parseLiterate :: Parser a -> String -> a
+parseLiterate :: Strict a => Parser a -> String -> a
 parseLiterate p = wrap . M.parse defaultParseFlags literate p
 
-parseLiterateFile :: Parser a -> FilePath -> IO a
+parseLiterateFile :: Strict a => Parser a -> FilePath -> IO a
 parseLiterateFile p = wrapM . M.parseFile defaultParseFlags literate p
 
-
-parsePosString :: Parser a -> Position -> String -> a
+parsePosString :: Strict a => Parser a -> Position -> String -> a
 parsePosString p pos = wrap . M.parsePosString pos defaultParseFlags normal p
+

@@ -170,9 +170,9 @@ instance Subst ClauseBody where
     substAt n u (NoBind b) = NoBind $ substAt n u b
 
 -- | Substitute a lot of terms.
-substs :: Subst t => [Term] -> t -> t
-substs []     x = x
-substs (t:ts) x = subst t (substs (raise 1 ts) x)
+-- substs :: Subst t => [Term] -> t -> t
+-- substs []     x = x
+-- substs (t:ts) x = subst t (substs (raise 1 ts) x)
 
 -- | Instantiate an abstraction
 absApp :: Subst t => Abs t -> Term -> t

@@ -23,6 +23,7 @@ import Syntax.Translation.AbstractToConcrete
 import Syntax.Translation.InternalToAbstract
 import Syntax.Abstract.Test
 import Syntax.Abstract.Name
+import Syntax.Strict
 
 import Interaction.Exceptions
 import Interaction.CommandLine.CommandLine
@@ -40,7 +41,7 @@ import Utils.Monad
 
 import Version
 
-parseFile' :: Parser a -> FilePath -> IO a
+parseFile' :: Strict a => Parser a -> FilePath -> IO a
 parseFile' p file
     | "lagda" `isSuffixOf` file	= parseLiterateFile p file
     | otherwise			= parseFile p file

@@ -37,7 +37,7 @@ data Position = Pn { srcFile :: FilePath
 
 -- | A range is a pair of positions. The @rEnd@ position is
 --   not included in the range.
-data Range = Range { rStart, rEnd :: Position }
+data Range = Range { rStart, rEnd :: !Position }
     deriving (Typeable, Data, Eq, Ord)
 
 

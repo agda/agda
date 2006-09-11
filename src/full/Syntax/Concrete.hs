@@ -42,20 +42,20 @@ type Constructor = TypeSignature
 data Expr
 	= Ident QName			    -- ^ ex: @x@
 	| Lit Literal			    -- ^ ex: @1@ or @\"foo\"@
-	| QuestionMark Range (Maybe Nat)    -- ^ ex: @?@ or @{! ... !}@
-	| Underscore Range (Maybe Nat)	    -- ^ ex: @_@
-	| App Range Expr (Arg Expr)	    -- ^ ex: @e e@ or @e {e}@
+	| QuestionMark !Range (Maybe Nat)    -- ^ ex: @?@ or @{! ... !}@
+	| Underscore !Range (Maybe Nat)	    -- ^ ex: @_@
+	| App !Range Expr (Arg Expr)	    -- ^ ex: @e e@ or @e {e}@
 	| InfixApp Expr QName Expr	    -- ^ ex: @e + e@ (no hiding)
-	| Lam Range [LamBinding] Expr	    -- ^ ex: @\\x {y} -> e@ or @\\(x:A){y:B} -> e@
-	| Fun Range (Arg Expr) Expr	    -- ^ ex: @e -> e@ or @{e} -> e@
+	| Lam !Range [LamBinding] Expr	    -- ^ ex: @\\x {y} -> e@ or @\\(x:A){y:B} -> e@
+	| Fun !Range (Arg Expr) Expr	    -- ^ ex: @e -> e@ or @{e} -> e@
 	| Pi Telescope Expr		    -- ^ ex: @(xs:e) -> e@ or @{xs:e} -> e@
-	| Set Range			    -- ^ ex: @Set@
-	| Prop Range			    -- ^ ex: @Prop@
-	| SetN Range Nat		    -- ^ ex: @Set0, Set1, ..@
-	| Let Range [Declaration] Expr	    -- ^ ex: @let Ds in e@
-	| Paren Range Expr		    -- ^ ex: @(e)@
-	| Absurd Range			    -- ^ ex: @()@ or @{}@, only in patterns
-	| As Range Name Expr		    -- ^ ex: @x\@p@, only in patterns
+	| Set !Range			    -- ^ ex: @Set@
+	| Prop !Range			    -- ^ ex: @Prop@
+	| SetN !Range Nat		    -- ^ ex: @Set0, Set1, ..@
+	| Let !Range [Declaration] Expr	    -- ^ ex: @let Ds in e@
+	| Paren !Range Expr		    -- ^ ex: @(e)@
+	| Absurd !Range			    -- ^ ex: @()@ or @{}@, only in patterns
+	| As !Range Name Expr		    -- ^ ex: @x\@p@, only in patterns
     deriving (Typeable, Data, Eq)
 
 
@@ -64,10 +64,10 @@ data Pattern
 	= IdentP QName
 	| AppP Pattern (Arg Pattern)
 	| InfixAppP Pattern QName Pattern
-	| ParenP Range Pattern
-	| WildP Range
-	| AbsurdP Range
-	| AsP Range Name Pattern
+	| ParenP !Range Pattern
+	| WildP !Range
+	| AbsurdP !Range
+	| AsP !Range Name Pattern
     deriving (Typeable, Data, Eq)
 
 
@@ -80,14 +80,14 @@ data LamBinding
 
 -- | A sequence of typed bindings with hiding information. Appears in dependent
 --   function spaces, typed lambdas, and telescopes.
-data TypedBindings = TypedBindings Range Hiding [TypedBinding]
+data TypedBindings = TypedBindings !Range Hiding [TypedBinding]
 	-- ^ . @(xs:e;..;ys:e')@ or @{xs:e;..;ys:e'}@
     deriving (Typeable, Data, Eq)
 
 
 -- | A typed binding.
 data TypedBinding
-	= TBind Range [Name] Expr   -- Binding @x1,..,xn:A@
+	= TBind !Range [Name] Expr   -- Binding @x1,..,xn:A@
 	| TNoBind Expr		    -- No binding @A@, equivalent to @_ : A@.
     deriving (Typeable, Data, Eq)
 
@@ -111,7 +111,7 @@ type Telescope = [TypedBindings]
     > x::xs ++ ys = x :: (xs ++ ys)
 
 -}
-data LHS = LHS Range IsInfix Name [Arg Pattern]
+data LHS = LHS !Range IsInfix Name [Arg Pattern]
     deriving (Typeable, Data, Eq)
 
 type RHS	    = Expr
@@ -122,7 +122,7 @@ type WhereClause    = [Declaration]
 --   spaces (i.e. in @import@, @namespace@, or @open@ declarations).
 data ImportDirective
 	= ImportDirective
-	    { importDirRange	:: Range
+	    { importDirRange	:: !Range
 	    , usingOrHiding	:: UsingOrHiding
 	    , renaming		:: [(ImportedName, Name)]
 	    }
@@ -155,16 +155,16 @@ type TypeSignature	 = Declaration
 data Declaration
 	= TypeSig Name Expr
 	| FunClause LHS RHS WhereClause
-	| Data        Range Name [TypedBindings] Expr [Constructor]
+	| Data        !Range Name [TypedBindings] Expr [Constructor]
 	| Infix Fixity [Name]
-	| Mutual      Range [Declaration]
-	| Abstract    Range [Declaration]
-	| Private     Range [Declaration]
-	| Postulate   Range [TypeSignature]
-	| Open        Range QName ImportDirective
-	| Import      Range QName (Maybe Name) ImportDirective
-	| ModuleMacro Range  Name [TypedBindings] Expr ImportDirective
-	| Module      Range QName [TypedBindings] [Declaration]
+	| Mutual      !Range [Declaration]
+	| Abstract    !Range [Declaration]
+	| Private     !Range [Declaration]
+	| Postulate   !Range [TypeSignature]
+	| Open        !Range QName ImportDirective
+	| Import      !Range QName (Maybe Name) ImportDirective
+	| ModuleMacro !Range  Name [TypedBindings] Expr ImportDirective
+	| Module      !Range QName [TypedBindings] [Declaration]
     deriving (Eq, Typeable, Data)
 
 

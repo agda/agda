@@ -11,8 +11,8 @@ import Syntax.Position
 
 -- | Equality and ordering on @Name@ are defined to ignore range so same names
 --   in different locations are equal.
-data Name = Name Range String
-	  | NoName Range	-- ^ instead of @Name r \"_\"@
+data Name = Name   !Range String
+	  | NoName !Range	-- ^ instead of @Name r \"_\"@
     deriving (Typeable, Data)
 
 -- | @noName = 'NoName' 'noRange'@

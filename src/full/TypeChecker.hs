@@ -17,6 +17,7 @@ import Syntax.Internal
 import Syntax.Internal.Debug ()
 import Syntax.Translation.AbstractToConcrete
 import Syntax.Concrete.Pretty ()
+import Syntax.Strict
 
 import TypeChecking.Monad
 import TypeChecking.Monad.Name
@@ -25,7 +26,6 @@ import TypeChecking.MetaVars
 import TypeChecking.Reduce
 import TypeChecking.Substitute
 import TypeChecking.Rebind
-import TypeChecking.Strict
 
 import Utils.Monad
 import Utils.List

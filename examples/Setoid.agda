@@ -137,25 +137,25 @@ module Fun where
 
 	-- either abstract or --proof-irrelevance needed
 	-- (we don't want to compare the proofs for equality)
-	abstract
-	  r : (f : A => B) -> EqFun f f
-	  r f = eqFunI (\xy -> cong f xy)
+	-- abstract
+	r : (f : A => B) -> EqFun f f
+	r f = eqFunI (\xy -> cong f xy)
 
-	  s : (f, g : A => B) -> EqFun f g -> EqFun g f
-	  s f g fg =
-	    eqFunI (\{x} {y} xy ->
-	      app g x -== app g y `since` cong g xy
-		      === app f x `since` sym (eqFunE fg xy)
-		      === app f y `since` cong f xy
-	    )
+	s : (f, g : A => B) -> EqFun f g -> EqFun g f
+	s f g fg =
+	  eqFunI (\{x} {y} xy ->
+	    app g x -== app g y `since` cong g xy
+		    === app f x `since` sym (eqFunE fg xy)
+		    === app f y `since` cong f xy
+	  )
 
-	  t : (f, g, h : A => B) -> EqFun f g -> EqFun g h -> EqFun f h
-	  t f g h fg gh =
-	    eqFunI (\{x}{y} xy ->
-	      app f x -== app g y `since` eqFunE fg xy
-		      === app g x `since` cong g (EqA.sym xy)
-		      === app h y `since` eqFunE gh xy
-	    )
+	t : (f, g, h : A => B) -> EqFun f g -> EqFun g h -> EqFun f h
+	t f g h fg gh =
+	  eqFunI (\{x}{y} xy ->
+	    app f x -== app g y `since` eqFunE fg xy
+		    === app g x `since` cong g (EqA.sym xy)
+		    === app h y `since` eqFunE gh xy
+	  )
       open Proof
 
   infixl 100 $
