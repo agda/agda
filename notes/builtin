@@ -1,0 +1,109 @@
+
+Built-in things
+---------------
+
+- Where are they defined?
+
+  + Haskell-module?
+    Not so nice. Hard to find out what's predefined.
+
+  + Agda2 prelude
+    Nicer, but what would this look like?
+
+- How are they accessed?
+
+  + Problem in Agda 1: Bool already defined.
+  + import Prelude / import Builtin ?
+
+- Could we use a more general FFI?
+
+  + Maybe.. but requires more work (hs-plugins, or the like)
+
+Literals/sugar
+--------------
+
+- What does sugar expand to? When?
+
+- What is the type of a literal?
+
+  + Where is it specified?
+
+  + Pragmas?
+
+    {-# LITERAL NATURAL is PRIMITIVE Integer #-}
+    {-# LITERAL LIST is SUGAR nil, (::)  #-}
+
+    Nice, because we can allow either sugar or builtin for some types (like
+    strings or naturals):
+
+      {-# LITERAL NUMBER is PRIMITIVE Integer #-} or
+      {-# LITERAL NUMBER is SUGAR FOR zero, suc #-}
+
+    Builtin: NATURAL, FLOAT, CHAR, STRING
+
+Possible solution
+-----------------
+
+- Add a primitive keyword:
+
+  + primitive integerPlus : Integer -> Integer -> Integer
+
+- Add "primitive" definitions:
+
+  + data Defn = ... | Primitive Arity ([Term] -> TC Term)
+
+  + The function is responsible for normalising its arguments if needed.
+
+- Primitive functions are defined in TypeChecking.Primitive
+
+  + primitives :: Map String (Arity, [Term] -> TC Term)
+    primitives = Map.fromList
+      [ "integerPlus", (2, integerPlus)
+      , ...
+      ]
+
+    integerPlus :: [Term] -> TC Term
+    integerPlus [x, y] = do
+      (x,y) <- normalise (x,y)
+      case (x,y) of
+	(LitInt n, LitInt m) -> return $ LitInt $ n + m
+	_		     -> ...
+
+    integerEquals (Lit n) (Lit m)
+      | n == m	= primTrue
+
+    primTrue :: TC Term
+    primTrue = lookupPrim "TRUE"
+
+- Define a prelude/builtin module
+
+  {-# BUILTIN NATURAL Integer #-}
+  {-# BUILTIN FLOAT   Float   #-}
+  {-# BUILTIN CHAR    Char    #-}
+  postulate Integer : Set
+	    Float   : Set
+	    Char    : Set
+
+  {-# SUGAR LIST nil :: #-}
+  data List (A:Set) : Set where
+    nil  : List A
+    (::) : A -> List A -> List A
+
+  {-# SUGAR STRING nil, (::) #-}
+  String : Set
+  String = List Char
+
+  {-# BUILTIN FALSE false #-}
+  {-# BUILTIN TRUE  true  #-}
+  data Bool : Set where
+    false : Bool
+    true  : Bool
+
+  primitive
+    integerPlus  : Integer -> Integer -> Integer
+    integerEqual : Integer -> Integer -> Bool
+
+  postulate
+    integerPlusAssoc : (x,y,z:Integer) -> 
+
+ vim: sts=2 sw=2 tw=80
