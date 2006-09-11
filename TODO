@@ -16,8 +16,6 @@ Features
 
 * imports
 
-* pragmas
-
 * built-in things
 
 * literals (needs built-in things)
@@ -39,6 +37,8 @@ Fixes
 * local modules can clash
 
 * handle clashing of concrete names (in abstractToConcrete)
+
+* handle command line options (import path)
 
 [Internals]
 
@@ -67,6 +67,11 @@ Cleaning
 
 * TypeChecking.Reduce
 
+* TypeChecking.Errors: redefine pretty printer combinators monadically
+
+* Think about interaction between the different monads: Parser, Scope, TCM.
+  Possible to unify?
+
 Performance
 -----------
 
@@ -76,6 +81,8 @@ Performance
 
 Done
 ----
+
+* pragmas
 
 * move trace to environment
 
