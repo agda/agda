@@ -178,6 +178,9 @@ instance PrettyTCM TypeError where
 			     ++ pwords ("use {-# BUILTIN " ++ x ++ " name #-} to bind it to 'name'")
 	    NoSuchPrimitiveFunction x ->
 		return $ fsep $ pwords "there is no primitive function called" ++ [prettyName x]
+	    BuiltinInParameterisedModule x ->
+		return $ fsep $ pwords "the BUILTIN pragma cannot appear inside a bound context" ++
+				pwords "(for instance, in a parameterised module or as a local declaration)"
 
 instance PrettyTCM Call where
     prettyTCM c = case c of

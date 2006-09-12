@@ -106,4 +106,20 @@ Possible solution
   postulate
     integerPlusAssoc : (x,y,z:Integer) -> 
 
+Built-in things and Parameterised Modules
+-----------------------------------------
+
+What is the type of 1 in the following example:
+
+  module Int (I:Set) where
+    {-# BUILTIN INTEGER I #-}
+
+  postulate Int1 : Set
+	    Int2 : Set
+
+  module Int1 = Int Int1
+  module Int2 = Int Int2
+
+Possible solution: don't allow BUILTIN in parameterised modules.
+
  vim: sts=2 sw=2 tw=80

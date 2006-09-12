@@ -837,13 +837,18 @@ bindBuiltinCons e = do
 
 -- | Bind a builtin thing to an expression.
 bindBuiltin :: String -> A.Expr -> TCM ()
-bindBuiltin b e
-    | elem b builtinTypes		 = bindBuiltinType b e
-    | elem b [builtinTrue, builtinFalse] = bindBuiltinBool b e
-    | b == builtinList			 = bindBuiltinList e
-    | b == builtinNil			 = bindBuiltinNil e
-    | b == builtinCons			 = bindBuiltinCons e
-    | otherwise				 = typeError $ NoSuchBuiltinName b
+bindBuiltin b e = do
+    top <- null <$> getContextTelescope
+    unless top $ typeError $ BuiltinInParameterisedModule b
+    bind b e
+    where
+	bind b e
+	    | elem b builtinTypes		 = bindBuiltinType b e
+	    | elem b [builtinTrue, builtinFalse] = bindBuiltinBool b e
+	    | b == builtinList			 = bindBuiltinList e
+	    | b == builtinNil			 = bindBuiltinNil e
+	    | b == builtinCons			 = bindBuiltinCons e
+	    | otherwise				 = typeError $ NoSuchBuiltinName b
 
 ---------------------------------------------------------------------------
 -- * To be moved somewhere else

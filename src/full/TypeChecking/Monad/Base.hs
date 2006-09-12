@@ -419,6 +419,7 @@ data TypeError
 	| DuplicateBuiltinBinding String Term Term
 	| NoBindingForBuiltin String
 	| NoSuchPrimitiveFunction Name
+	| BuiltinInParameterisedModule String
     deriving (Typeable, Show)
 
 data TCErr = TypeError TCState (Closure TypeError)

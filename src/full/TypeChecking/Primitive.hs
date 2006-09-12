@@ -1,4 +1,4 @@
-{-# OPTIONS -fglasgow-exts #-}
+{-# OPTIONS -fglasgow-exts -fallow-overlapping-instances -fallow-undecidable-instances #-}
 
 {-| Primitive functions, such as addition on builtin integers.
 -}
@@ -6,6 +6,7 @@ module TypeChecking.Primitive where
 
 import Data.Map (Map)
 import qualified Data.Map as Map
+import Data.Char
 
 import Syntax.Position
 import Syntax.Common
@@ -17,6 +18,8 @@ import qualified Syntax.Concrete.Name as C
 import TypeChecking.Monad
 import TypeChecking.Monad.Builtin
 import TypeChecking.Reduce
+import TypeChecking.Substitute
+import TypeChecking.Errors
 
 import Utils.Monad
 
@@ -63,26 +66,26 @@ data PrimitiveImpl = PrimImpl Type PrimFun
 
 -- Haskell type to Agda type
 
+newtype Str = Str { unStr :: String }
+
 class PrimType a where
     primType :: a -> TCM Type
 
 instance (PrimType a, PrimType b) => PrimType (a -> b) where
     primType _ = primType (undefined :: a) --> primType (undefined :: b)
 
-instance PrimType Integer where
-    primType _ = el primInteger
+instance PrimTerm a => PrimType a where
+    primType _ = el $ primTerm (undefined :: a)
 
-instance PrimType Bool where
-    primType _ = el primBool
+class	 PrimTerm a	  where primTerm :: a -> TCM Term
+instance PrimTerm Integer where primTerm _ = primInteger
+instance PrimTerm Bool	  where primTerm _ = primBool
+instance PrimTerm Char	  where primTerm _ = primChar
+instance PrimTerm Double  where primTerm _ = primFloat
+instance PrimTerm Str	  where primTerm _ = primString
 
-instance PrimType Char where
-    primType _ = el primChar
-
-instance PrimType Double where
-    primType _ = el primFloat
-
-instance PrimType String where
-    primType _ = el primString
+instance PrimTerm a => PrimTerm [a] where
+    primTerm _ = list (primTerm (undefined :: a))
 
 -- From Agda term to Haskell value
 
@@ -92,13 +95,23 @@ class ToTerm a where
 instance ToTerm Integer where toTerm = return $ Lit . LitInt noRange
 instance ToTerm Double  where toTerm = return $ Lit . LitFloat noRange
 instance ToTerm Char	where toTerm = return $ Lit . LitChar noRange
-instance ToTerm String	where toTerm = return $ Lit . LitString noRange
+instance ToTerm Str	where toTerm = return $ Lit . LitString noRange . unStr
 
 instance ToTerm Bool where
     toTerm = do
 	true  <- primTrue
 	false <- primFalse
 	return $ \b -> if b then true else false
+
+instance (PrimTerm a, ToTerm a) => ToTerm [a] where
+    toTerm = do
+	nil'  <- primNil
+	cons' <- primCons
+	a     <- primTerm (undefined :: a)
+	let nil       = nil'  `apply` [Arg Hidden a]
+	    cons x xs = cons' `apply` [Arg Hidden a, Arg NotHidden x, Arg NotHidden xs]
+	fromA <- toTerm
+	return $ foldr cons nil . map fromA
 
 -- From Haskell value to Agda term
 
@@ -114,17 +127,17 @@ instance FromTerm Integer where
 
 instance FromTerm Double where
     fromTerm = fromLiteral $ \l -> case l of
-	LitFloat _ n -> Just n
+	LitFloat _ x -> Just x
 	_	     -> Nothing
 
 instance FromTerm Char where
     fromTerm = fromLiteral $ \l -> case l of
-	LitChar _ n -> Just n
+	LitChar _ c -> Just c
 	_	    -> Nothing
 
-instance FromTerm String where
+instance FromTerm Str where
     fromTerm = fromLiteral $ \l -> case l of
-	LitString _ n -> Just n
+	LitString _ s -> Just $ Str s
 	_	      -> Nothing
 
 instance FromTerm Bool where
@@ -141,7 +154,49 @@ instance FromTerm Bool where
 	    Var n [] === Var m []   = n == m
 	    _	     === _	    = False
 
--- Currying
+instance (ToTerm a, FromTerm a) => FromTerm [a] where
+    fromTerm = do
+	nil'  <- primNil
+	cons' <- primCons
+	nil   <- isCon nil'
+	cons  <- isCon cons'
+	toA   <- fromTerm
+	fromA <- toTerm
+	return $ mkList nil cons toA fromA
+	where
+	    isCon (Lam _ b) = isCon $ absBody b
+	    isCon (Con c _) = return c
+	    isCon v	    = do
+		d <- prettyTCM v
+		typeError $ GenericError $ "expected constructor in built-in binding to " ++ show d
+				-- TODO: check this when binding the things
+
+	    mkList nil cons toA fromA t = do
+		t <- reduce t
+		let arg = Arg (argHiding t)
+		case unArg t of
+		    Con c [_]
+			| c == nil  -> return $ YesReduction []
+		    Con c [a,x,xs]
+			| c == cons ->
+			    redBind (toA x)
+				(\x' -> arg $ Con c [a,x',xs]) $ \y ->
+			    redBind
+				(mkList nil cons toA fromA xs)
+				(\xs' -> arg $ Con c [a, Arg NotHidden $ fromA y, xs']) $ \ys ->
+			    redReturn (y : ys)
+		    _ -> return $ NoReduction t
+
+redBind :: TCM (Reduced a a') -> (a -> b) -> 
+	     (a' -> TCM (Reduced b b')) -> TCM (Reduced b b')
+redBind ma f k = do
+    r <- ma
+    case r of
+	NoReduction x	-> return $ NoReduction $ f x
+	YesReduction y	-> k y
+
+redReturn :: a -> TCM (Reduced a' a)
+redReturn = return . YesReduction
 
 fromReducedTerm :: (Term -> Maybe a) -> TCM (FromTermFunction a)
 fromReducedTerm f = return $ \t -> do
@@ -156,35 +211,31 @@ fromLiteral f = fromReducedTerm $ \t -> case t of
     _	    -> Nothing
 
 -- Tying the knot
-primitiveFunction1 :: (PrimType a, PrimType b, FromTerm a, ToTerm b) =>
-		     (a -> b) -> TCM PrimitiveImpl
-primitiveFunction1 f = do
+mkPrimFun1 :: (PrimType a, PrimType b, FromTerm a, ToTerm b) =>
+	      (a -> b) -> TCM PrimitiveImpl
+mkPrimFun1 f = do
     toA   <- fromTerm
     fromB <- toTerm
     t	  <- primType f
-    return $ PrimImpl t $ PrimFun 1 $ \[v] -> do
-	r <- toA v
-	case r of
-	    NoReduction v'  -> return $ NoReduction [v']
-	    YesReduction x  -> return $ YesReduction $ fromB $ f x
+    return $ PrimImpl t $ PrimFun 1 $ \[v] ->
+	redBind (toA v)
+	    (\v' -> [v']) $ \x ->
+	redReturn $ fromB $ f x
 
-primitiveFunction2 :: (PrimType a, PrimType b, PrimType c, FromTerm a, ToTerm a, FromTerm b, ToTerm c) =>
-		     (a -> b -> c) -> TCM PrimitiveImpl
-primitiveFunction2 f = do
+mkPrimFun2 :: (PrimType a, PrimType b, PrimType c, FromTerm a, ToTerm a, FromTerm b, ToTerm c) =>
+	      (a -> b -> c) -> TCM PrimitiveImpl
+mkPrimFun2 f = do
     toA   <- fromTerm
     fromA <- toTerm
     toB	  <- fromTerm
     fromC <- toTerm
     t	  <- primType f
-    return $ PrimImpl t $ PrimFun 1 $ \[v,w] -> do
-	r <- toA v
-	case r of
-	    NoReduction v'  -> return $ NoReduction [v', w]
-	    YesReduction x  -> do
-		r <- toB w
-		case r of
-		    NoReduction w'  -> return $ NoReduction [Arg (argHiding v) (fromA x), w']
-		    YesReduction y  -> return $ YesReduction $ fromC $ f x y
+    return $ PrimImpl t $ PrimFun 1 $ \[v,w] ->
+	redBind (toA v)
+	    (\v' -> [v',w]) $ \x ->
+	redBind (toB w)
+	    (\w' -> [Arg (argHiding v) (fromA x), w']) $ \y ->
+	redReturn $ fromC $ f x y
 
 infixr 4 -->
 
@@ -194,6 +245,12 @@ a --> b = do
     b' <- b
     return $ Fun (Arg NotHidden a') b'
 
+list :: TCM Term -> TCM Term
+list t = do
+    t'	 <- t
+    list <- primList
+    return $ list `apply` [Arg NotHidden t']
+
 el :: TCM Term -> TCM Type
 el t = flip El (Type 0) <$> t
 
@@ -201,14 +258,62 @@ el t = flip El (Type 0) <$> t
 -- * The actual primitive functions
 ---------------------------------------------------------------------------
 
+type Op   a = a -> a -> a
+type Fun  a = a -> a
+type Rel  a = a -> a -> Bool
+type Pred a = a -> Bool
+
 primitiveFunctions :: Map String (TCM PrimitiveImpl)
 primitiveFunctions = Map.fromList
-    [ "integerPlus"   |-> primIntPlus
-    , "integerMinus"  |-> primIntMinus
-    , "integerEquals" |-> primIntEquals
+
+    -- Integer functions
+    [ "primIntegerPlus"	     |-> mkPrimFun2 ((+)	  :: Op Integer)
+    , "primIntegerMinus"     |-> mkPrimFun2 ((-)	  :: Op Integer)
+    , "primIntegerTimes"     |-> mkPrimFun2 ((*)	  :: Op Integer)
+    , "primIntegerDiv"	     |-> mkPrimFun2 (div	  :: Op Integer)    -- partial
+    , "primIntegerMod"	     |-> mkPrimFun2 (mod	  :: Op Integer)    -- partial
+    , "primIntegerEquals"    |-> mkPrimFun2 ((==)	  :: Rel Integer)
+    , "primIntegerLess"	     |-> mkPrimFun2 ((<)	  :: Rel Integer)
+
+    -- Floating point functions
+    , "primIntegerToFloat"   |-> mkPrimFun1 (fromIntegral :: Integer -> Double)
+    , "primFloatPlus"	     |-> mkPrimFun2 ((+)	  :: Op Double)
+    , "primFloatMinus"	     |-> mkPrimFun2 ((-)	  :: Op Double)
+    , "primFloatTimes"	     |-> mkPrimFun2 ((*)	  :: Op Double)
+    , "primFloatDiv"	     |-> mkPrimFun2 ((/)	  :: Op Double)
+    , "primFloatLess"	     |-> mkPrimFun2 ((<)	  :: Rel Double)
+    , "primRound"	     |-> mkPrimFun1 (round	  :: Double -> Integer)
+    , "primFloor"	     |-> mkPrimFun1 (floor	  :: Double -> Integer)
+    , "primCeiling"	     |-> mkPrimFun1 (ceiling	  :: Double -> Integer)
+    , "primFloatExp"	     |-> mkPrimFun1 (exp	  :: Fun Double)
+    , "primFloatLog"	     |-> mkPrimFun1 (log	  :: Fun Double)    -- partial
+    , "primFloatSin"	     |-> mkPrimFun1 (sin	  :: Fun Double)
+
+    -- Character functions
+    , "primIsLower"	     |-> mkPrimFun1 isLower
+    , "primIsDigit"	     |-> mkPrimFun1 isDigit
+    , "primIsAlpha"	     |-> mkPrimFun1 isAlpha
+    , "primIsSpace"	     |-> mkPrimFun1 isSpace
+    , "primIsAscii"	     |-> mkPrimFun1 isAscii
+    , "primIsLatin1"	     |-> mkPrimFun1 isLatin1
+    , "primIsPrint"	     |-> mkPrimFun1 isPrint
+    , "primIsHexDigit"	     |-> mkPrimFun1 isHexDigit
+    , "primToUpper"	     |-> mkPrimFun1 toUpper
+    , "primToLower"	     |-> mkPrimFun1 toLower
+    , "primCharToInteger"    |-> mkPrimFun1 (fromIntegral . fromEnum :: Char -> Integer)
+    , "primIntegerToChar"    |-> mkPrimFun1 (toEnum . fromIntegral   :: Integer -> Char)
+
+    -- String functions
+    , "primStringToList"     |-> mkPrimFun1 unStr
+    , "primStringFromList"   |-> mkPrimFun1 Str
+    , "primStringAppend"     |-> mkPrimFun2 (\s1 s2 -> Str $ unStr s1 ++ unStr s2)
     ]
     where
 	(|->) = (,)
+
+-- What about partial functions?
+--  , "primIntegerDiv"	     |-> mkPrimFun2 (div	  :: Op Integer)
+--  , "primIntegerMod"	     |-> mkPrimFun2 (mod	  :: Op Integer)
 
 lookupPrimitiveFunction :: Name -> TCM PrimitiveImpl
 lookupPrimitiveFunction x =
@@ -218,8 +323,4 @@ lookupPrimitiveFunction x =
     where
 	nameString (Name _ (C.Name _ s)) = s
 	nameString (Name _ (C.NoName _)) = "_"
-
-primIntPlus   = primitiveFunction2 ((+)  :: Integer -> Integer -> Integer)
-primIntMinus  = primitiveFunction2 ((-)  :: Integer -> Integer -> Integer)
-primIntEquals = primitiveFunction2 ((==) :: Integer -> Integer -> Bool)
 

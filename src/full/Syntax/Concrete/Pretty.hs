@@ -52,8 +52,20 @@ prettyName  = text . show
 instance Pretty Literal where
     pretty (LitInt _ n)	    = text $ show n
     pretty (LitFloat _ x)   = text $ show x
-    pretty (LitString _ s)  = text $ show s
-    pretty (LitChar _ c)    = text $ show c
+    pretty (LitString _ s)  = text $ showString' s ""
+    pretty (LitChar _ c)    = text $ "'" ++ showChar' c "" ++ "'"
+
+showString' :: String -> ShowS
+showString' s =
+    foldr (.) id $ [ showString "\"" ] ++ map showChar' s ++ [ showString "\"" ]
+
+showChar' :: Char -> ShowS
+showChar' '"'	= showString "\\\""
+showChar' c
+    | escapeMe c = showLitChar c
+    | otherwise	 = showString [c]
+    where
+	escapeMe c = not (isPrint c) || c == '\\'
 
 instance Pretty Expr where
     pretty e =
