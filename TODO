@@ -10,8 +10,6 @@ Features
 
 * debug information
 
-* handle absurd patterns (how? like in agdaLight or differently?)
-
 * Use substitutions for meta dependencies (at least for printing).  We'll need
   to remember the number (or names?) of dependency args. How to show that a
   meta variable cannot depend on a particular variable?
@@ -88,6 +86,8 @@ Performance
 
 Done
 ----
+
+* handle absurd patterns
 
 * literal patterns
 
