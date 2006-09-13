@@ -37,6 +37,15 @@ matchPatterns ps vs =
 
 matchPattern :: Arg Pattern -> Arg Term -> TCM (Match, Arg Term)
 matchPattern (Arg h' (VarP _))	  arg@(Arg _ v) = return (Yes [v], arg)
+matchPattern (Arg h' (LitP l))	  arg@(Arg h v) = do
+    v <- reduce v
+    case v of
+	Lit l'
+	    | l == l'	-> return (Yes [], Arg h v)
+	    | otherwise	-> return (No, Arg h v)
+	MetaV x _	-> return (DontKnow $ Just x, Arg h v)
+	BlockedV b	-> return (DontKnow $ Just $ blockingMeta b, Arg h v)
+	_		-> return (DontKnow Nothing, Arg h v)
 matchPattern (Arg h' (ConP c ps))     (Arg h v) =
     do	v <- reduce v
 	case v of

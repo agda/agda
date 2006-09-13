@@ -822,6 +822,7 @@ exprToLHS e =
 		Underscore r _		-> return $ WildP r
 		Absurd r		-> return $ AbsurdP r
 		As r x e		-> AsP r x <$> exprToPattern e
+		Lit l			-> return $ LitP l
 		_			-> parseErrorAt (rStart $ getRange e) "Parse error in pattern"
 
 }

@@ -547,9 +547,10 @@ instance BindToAbstract C.Pattern A.Pattern where
 					else p0
 		-- TODO: get the real fixity of the operator and use infixBrackets
 
-    bindToAbstract p@(C.WildP r) ret  = ret $ A.WildP (PatSource r $ const p)
-    bindToAbstract (C.ParenP _ p) ret = bindToAbstract p ret
-    bindToAbstract p0@(C.AsP r x p) ret  =
+    bindToAbstract p@(C.WildP r)    ret = ret $ A.WildP (PatSource r $ const p)
+    bindToAbstract (C.ParenP _ p)   ret = bindToAbstract p ret
+    bindToAbstract (C.LitP l)	    ret = ret $ A.LitP l
+    bindToAbstract p0@(C.AsP r x p) ret =
 	bindToAbstract (NewName x) $ \x ->
 	bindToAbstract p $ \p ->
 	    ret (A.AsP info x p)

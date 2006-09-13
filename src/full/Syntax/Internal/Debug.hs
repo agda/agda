@@ -95,6 +95,7 @@ instance Show Clause where
 instance Show Pattern where
     show (VarP x)    = x
     show (ConP c ps) = "(" ++ unwords (show c : map show ps) ++ ")"
+    show (LitP l)    = show l
 
 instance Show ClauseBody where
     show (Body v)	  = show v

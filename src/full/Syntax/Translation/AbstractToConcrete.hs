@@ -551,6 +551,7 @@ instance BindToConcrete A.Pattern C.Pattern where
     bindToConcrete (A.AsP i x p)   ret = bindToConcrete (x,p) $ \ (x,p) ->
 					    ret $ C.AsP (getRange i) x p
     bindToConcrete (A.AbsurdP i)   ret = ret $ C.AbsurdP (getRange i)
+    bindToConcrete (A.LitP l)	   ret = ret $ C.LitP l
 
 --  We can't figure out the original name without looking at the stored
 --  pattern. Why not?

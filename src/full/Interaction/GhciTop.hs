@@ -213,6 +213,7 @@ cmd_make_case ii rng s = crashOnException $ ioTCM $ do
     go pa@(SI.VarP y) | y == sx   = replpa
                       | otherwise = pa
     go (SI.ConP c argpas) = SI.ConP c $ List.map (fmap go) argpas
+    go (SI.LitP l)	  = SI.LitP l
 
   dePi 0 t = return t
   dePi i (SI.Pi _ (Abs _ t)) = dePi (i-1) t
@@ -244,9 +245,11 @@ cmd_make_case ii rng s = crashOnException $ ioTCM $ do
   dropUscore (SI.VarP ('_':s)) = dropUscore (SI.VarP s)
   dropUscore p@(SI.VarP s) = p
   dropUscore (SI.ConP c apas) = SI.ConP c (List.map (fmap dropUscore) apas)
+  dropUscore (SI.LitP l) = SI.LitP l
 
   -- | To do : precedence of ops
   ppPa prec (SI.VarP n) = P.text n
+  ppPa prec (SI.LitP l) = pretty l
   ppPa prec (SI.ConP qn []) = P.text (show qn)
   ppPa prec (SI.ConP qn [apa1,apa2])
       | (c:_) <- show qn, not(isAlpha c || c == '_') =

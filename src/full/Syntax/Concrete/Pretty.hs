@@ -222,6 +222,7 @@ instance Pretty Pattern where
 	    WildP _	       -> text "_"
 	    AsP _ x p	       -> prettyId x <> text "@" <> pretty p
 	    AbsurdP _	       -> text "()"
+	    LitP l	       -> pretty l
 
 instance Pretty ImportDirective where
     pretty i =

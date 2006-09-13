@@ -380,10 +380,10 @@ termsToPatterns xs ts = do
     t2p n xs (Con c vs)    ret = do
 	Defn _ _ (Constructor npars _ _) <- getConstInfo c
 	ts2ps n xs (drop npars vs) $ \n xs ps -> ret n xs $ ConP c ps
+    t2p n xs (Lit l)	   ret = ret n xs $ LitP l
     t2p _ _  v@(Def _ _)   ret = fail $ "not a proper pattern " ++ show v
     t2p _ _  v@(Lam _ _)   ret = fail $ "not a proper pattern " ++ show v
     t2p _ _  v@(MetaV _ _) ret = fail $ "not a proper pattern " ++ show v
-    t2p _ _  v@(Lit _)	   ret = fail $ "not a proper pattern " ++ show v   -- TODO: literal patterns
     t2p n xs (BlockedV b)  ret = t2p n xs (blockee b) ret
 
 
@@ -444,6 +444,9 @@ checkPattern name p t ret =
 	A.AsP i x p ->
 	    checkPattern name p t $ \ (xs, v) ->
 	    addLetBinding x v (raise (length xs) t) $ ret (xs, v)
+	A.LitP l    -> do
+	    v <- checkLiteral l t
+	    ret ([], v)
 	A.DefP i f ps ->
 	    typeError $ NotImplemented "defined patterns"
 {-

@@ -69,6 +69,7 @@ data Pattern
 	| WildP !Range
 	| AbsurdP !Range
 	| AsP !Range Name Pattern
+	| LitP Literal
     deriving (Typeable, Data, Eq)
 
 
@@ -271,4 +272,5 @@ instance HasRange Pattern where
     getRange (WildP r)		= r
     getRange (AsP r _ _)	= r
     getRange (AbsurdP r)	= r
+    getRange (LitP l)		= getRange l
 
