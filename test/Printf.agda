@@ -4,17 +4,6 @@ module Printf where
 (∘) : {A,B,C:Set} -> (B -> C) -> (A -> B) -> A -> C
 f ∘ g = \x -> f (g x)
 
-postulate
-  Int	 : Set
-  String : Set
-  Float  : Set
-  Char	 : Set
-
-{-# BUILTIN INTEGER Int	   #-}
-{-# BUILTIN STRING  String #-}
-{-# BUILTIN FLOAT   Float  #-}
-{-# BUILTIN CHAR    Char   #-}
-
 infixr 10 ::
 data List (A:Set) : Set where
   nil  : List A
@@ -25,6 +14,17 @@ data List (A:Set) : Set where
 {-# BUILTIN CONS    ::     #-}
 
 module Primitive where
+
+  postulate
+    Int	   : Set
+    String : Set
+    Float  : Set
+    Char   : Set
+
+  {-# BUILTIN INTEGER Int    #-}
+  {-# BUILTIN STRING  String #-}
+  {-# BUILTIN FLOAT   Float  #-}
+  {-# BUILTIN CHAR    Char   #-}
 
   private
     primitive
@@ -74,7 +74,7 @@ format = format' ∘ stringToList
     format' ('%' :: '%' :: fmt) = litChar '%' :: format' fmt
     format' ('%' ::  c  :: fmt) = badFormat c :: format' fmt
     format' (c		:: fmt) = litChar c   :: format' fmt
-    format'  nil		= nil
+    format'  nil		= []
 
 Printf' : List Format -> Set
 Printf' (stringArg   :: fmt) = String  × Printf' fmt
@@ -92,11 +92,11 @@ printf : (fmt : String) -> Printf fmt -> String
 printf fmt = printf' (format fmt)
   where
     printf' : (fmt : List Format) -> Printf' fmt -> String
-    printf' (stringArg   :: fmt) (s ◅ args) = s			      ++ printf' fmt args
-    printf' (intArg      :: fmt) (n ◅ args) = showInt n		      ++ printf' fmt args
-    printf' (floatArg    :: fmt) (x ◅ args) = showFloat x	      ++ printf' fmt args
-    printf' (charArg     :: fmt) (c ◅ args) = showChar c	      ++ printf' fmt args
-    printf' (litChar c   :: fmt) args	    = listToString (c :: nil) ++ printf' fmt args
+    printf' (stringArg   :: fmt) (s ◅ args) = s		       ++ printf' fmt args
+    printf' (intArg      :: fmt) (n ◅ args) = showInt n	       ++ printf' fmt args
+    printf' (floatArg    :: fmt) (x ◅ args) = showFloat x      ++ printf' fmt args
+    printf' (charArg     :: fmt) (c ◅ args) = showChar c       ++ printf' fmt args
+    printf' (litChar c   :: fmt) args	    = listToString [c] ++ printf' fmt args
     printf' (badFormat _ :: fmt) ()
     printf'  nil		 unit	    = ""
 

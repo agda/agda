@@ -57,6 +57,7 @@ data Expr
 	| Paren !Range Expr		    -- ^ ex: @(e)@
 	| Absurd !Range			    -- ^ ex: @()@ or @{}@, only in patterns
 	| As !Range Name Expr		    -- ^ ex: @x\@p@, only in patterns
+	| List !Range [Expr]		    -- ^ ex: @[e1,e2,e3]@
     deriving (Typeable, Data, Eq)
 
 
@@ -216,6 +217,7 @@ instance HasRange Expr where
 	    Paren r _		-> r
 	    As r _ _		-> r
 	    Absurd r		-> r
+	    List r _		-> r
 
 -- instance HasRange Telescope where
 --     getRange (TeleBind bs) = getRange bs

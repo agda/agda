@@ -195,7 +195,11 @@ instance ToAbstract C.Expr A.Expr where
     toAbstract (Ident x) = toAbstract (OldQName x)
 
     -- Literals
-    toAbstract (C.Lit l)    = return $ A.Lit l
+    toAbstract (C.Lit l)     = return $ A.Lit l
+    toAbstract e@(C.List r es) = do
+	es   <- toAbstractCtx TopCtx es
+	info <- exprSource e
+	return $ A.List info es
 
     -- Meta variables
     toAbstract (C.QuestionMark r n) =

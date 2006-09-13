@@ -230,7 +230,7 @@ cmd_make_case ii rng s = crashOnException $ ioTCM $ do
                      in  (tkn2, Arg h (SI.VarP s1) : pas)
 
   deAbs (Bind (Abs _ b)) = deAbs b
-  deAbs (NoBind b)	 = deAbs b  -- TODO: right?
+  deAbs (NoBind b)	 = deAbs b
   deAbs (Body t        ) = Just t
   deAbs  NoBody		 = Nothing
 
@@ -310,6 +310,7 @@ instance LowerMeta SC.Expr where
         e2                            -> Paren r e2
       Absurd _          -> e
       As r n e1         -> As r n (go e1)
+      SC.List r es	-> SC.List r (lowerMeta es)
 
 instance LowerMeta SC.LamBinding where
   lowerMeta b@(SC.DomainFree _ _) = b

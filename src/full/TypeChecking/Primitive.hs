@@ -106,15 +106,22 @@ instance ToTerm Bool where
 	false <- primFalse
 	return $ \b -> if b then true else false
 
+-- | @buildList A ts@ builds a list of type @List A@. Assumes that the terms
+--   @ts@ all have type @A@.
+buildList :: Term -> TCM ([Term] -> Term)
+buildList a = do
+    nil'  <- primNil
+    cons' <- primCons
+    let nil       = nil'  `apply` [Arg Hidden a]
+	cons x xs = cons' `apply` [Arg Hidden a, Arg NotHidden x, Arg NotHidden xs]
+    return $ foldr cons nil
+
 instance (PrimTerm a, ToTerm a) => ToTerm [a] where
     toTerm = do
-	nil'  <- primNil
-	cons' <- primCons
-	a     <- primTerm (undefined :: a)
-	let nil       = nil'  `apply` [Arg Hidden a]
-	    cons x xs = cons' `apply` [Arg Hidden a, Arg NotHidden x, Arg NotHidden xs]
-	fromA <- toTerm
-	return $ foldr cons nil . map fromA
+	a      <- primTerm (undefined :: a)
+	mkList <- buildList a
+	fromA  <- toTerm
+	return $ mkList . map fromA
 
 -- From Haskell value to Agda term
 

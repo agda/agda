@@ -411,7 +411,7 @@ Expr4
     | '(' Expr ')'	{ Paren (fuseRange $1 $3) $2 }
     | '(' ')'		{ Absurd (fuseRange $1 $2) }
     | Id '@' Expr4	{ As (fuseRange $1 $3) $1 $3 }
-
+    | List		{ uncurry List $1 }
 
 -- Sorts
 Sort :: { Expr }
@@ -419,6 +419,15 @@ Sort : 'Prop'		{ Prop $1 }
      | 'Set'		{ Set $1 }
      | setN		{ uncurry SetN $1 }
 
+
+List :: { (Range, [Expr]) }
+List : '[' ']'		    { (fuseRange $1 $2, []) }
+     | '[' CommaExprs ']'   { (fuseRange $1 $3, $2) }
+
+CommaExprs :: { [Expr] }
+CommaExprs
+    : Expr		    { [$1] }
+    | Expr ',' CommaExprs   { $1 : $3 }
 
 {--------------------------------------------------------------------------
     Bindings
