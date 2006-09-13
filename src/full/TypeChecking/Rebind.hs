@@ -22,4 +22,5 @@ rebindClause (Clause ps b) = do
 	    | 0 `freeIn` absBody b  = Bind $ fmap rebind b
 	    | otherwise		    = NoBind $ b `absApp` __IMPOSSIBLE__
 	rebind (NoBind b) = NoBind $ rebind b
+	rebind  NoBody	  = NoBody
 

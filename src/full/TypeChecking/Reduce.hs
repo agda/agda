@@ -215,6 +215,7 @@ instance Reduce Term where
 		app []		 (Body v')	     = v'
 		app (arg : args) (Bind (Abs _ body)) = app args $ subst arg body -- CBN
 		app (_   : args) (NoBind body)	     = app args body
+		app  _		  NoBody	     = __IMPOSSIBLE__
 		app (_ : _)	 (Body _)	     = __IMPOSSIBLE__
 		app []		 (Bind _)	     = __IMPOSSIBLE__
 		app []		 (NoBind _)	     = __IMPOSSIBLE__
@@ -278,6 +279,7 @@ instance Normalise ClauseBody where
     normalise (Body   t) = Body   <$> normalise t
     normalise (Bind   b) = Bind   <$> normalise b
     normalise (NoBind b) = NoBind <$> normalise b
+    normalise  NoBody	 = return NoBody
 
 instance Normalise t => Normalise (Abs t) where
     normalise = fmapM normalise

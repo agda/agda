@@ -24,6 +24,7 @@ instance Show TypedBindings   where show = show . pretty
 instance Show LamBinding      where show = show . pretty
 instance Show ImportDirective where show = show . pretty
 instance Show Pragma	      where show = show . pretty
+instance Show RHS	      where show = show . pretty
 
 pHidden :: Pretty a => Hiding -> a -> Doc
 pHidden Hidden	    = braces . pretty
@@ -127,6 +128,10 @@ instance Pretty TypedBinding where
 	    , text ":" <+> pretty e
 	    ]
 
+instance Pretty RHS where
+    pretty (RHS e)   = text "=" <+> pretty e
+    pretty AbsurdRHS = empty
+
 instance Pretty Declaration where
     pretty d =
 	case d of
@@ -134,7 +139,7 @@ instance Pretty Declaration where
 			       , nest 2 $ pretty e
 			       ]
 	    FunClause lhs rhs wh ->
-		sep [ pretty lhs <+> text "="
+		sep [ pretty lhs
 		    , nest 2 $ pretty rhs
 		    ] $$ nest 2 pwh
 		where

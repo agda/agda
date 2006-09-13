@@ -79,7 +79,8 @@ type Telescope	= [TypedBindings]
 --   @let@. It's not obvious how to remember that the @let@ was really a
 --   @where@ clause though, so for the time being we keep it here.
 data Clause	= Clause LHS RHS [Declaration]
-type RHS	= Expr
+data RHS	= RHS Expr
+		| AbsurdRHS
 
 data LHS	= LHS LHSInfo Name [Arg Pattern]
 data Pattern	= VarP Name	-- ^ the only thing we need to know about a
@@ -156,6 +157,10 @@ instance HasRange LHS where
 
 instance HasRange Clause where
     getRange (Clause lhs rhs ds) = getRange (lhs,rhs,ds)
+
+instance HasRange RHS where
+    getRange AbsurdRHS = noRange
+    getRange (RHS e)   = getRange e
 
 instance HasRange LetBinding where
     getRange (LetBind i _ _ _) = getRange i

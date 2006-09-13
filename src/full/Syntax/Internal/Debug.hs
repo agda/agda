@@ -96,9 +96,11 @@ instance Show Pattern where
     show (VarP x)    = x
     show (ConP c ps) = "(" ++ unwords (show c : map show ps) ++ ")"
     show (LitP l)    = show l
+    show  AbsurdP    = "()"
 
 instance Show ClauseBody where
     show (Body v)	  = show v
     show (Bind (Abs x b)) = "\\" ++ x ++ " -> " ++ show b
     show (NoBind b)	  = "\\_ -> " ++ show b
+    show  NoBody	  = "(absurd)"
 

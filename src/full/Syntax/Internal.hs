@@ -93,6 +93,7 @@ data Clause = Clause [Arg Pattern] ClauseBody deriving (Typeable, Data)
 data ClauseBody = Body Term 
 		| Bind (Abs ClauseBody)
 		| NoBind ClauseBody
+		| NoBody    -- for absurd clauses
   deriving (Typeable, Data)
 
 -- | Patterns are variables, constructors, or wildcards.
@@ -104,6 +105,7 @@ data ClauseBody = Body Term
 data Pattern = VarP String  -- name suggestion
 	     | ConP QName [Arg Pattern]
 	     | LitP Literal
+	     | AbsurdP
   deriving (Typeable, Data)
 
 newtype MetaId = MetaId Nat

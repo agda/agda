@@ -50,6 +50,7 @@ instance Free ClauseBody where
     freeVars (Body t)	= freeVars t
     freeVars (Bind b)	= freeVars b
     freeVars (NoBind b) = freeVars b
+    freeVars  NoBody	= Set.empty
 
 freeIn :: Free a => Nat -> a -> Bool
 freeIn v t = v `Set.member` freeVars t

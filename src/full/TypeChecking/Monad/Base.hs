@@ -292,8 +292,8 @@ noTrace :: CallTrace
 noTrace = TopLevel []
 
 data Call = CheckClause Type A.Clause (Maybe Clause)
-	  | CheckPatterns [Arg A.Pattern] Type (Maybe ([String], [Arg Term], Type))
-	  | CheckPattern String A.Pattern Type (Maybe ([String], Term))
+	  | CheckPatterns [Arg A.Pattern] Type (Maybe ([String], [Arg Pattern], [Arg Term], Type))
+	  | CheckPattern String A.Pattern Type (Maybe ([String], Pattern, Term))
 	  | CheckLetBinding A.LetBinding (Maybe ())
 	  | InferExpr A.Expr (Maybe (Term, Type))
 	  | CheckExpr A.Expr Type (Maybe Term)
@@ -420,7 +420,8 @@ data TypeError
 	| NoBindingForBuiltin String
 	| NoSuchPrimitiveFunction Name
 	| BuiltinInParameterisedModule String
-    deriving (Typeable, Show)
+	| NoRHSRequiresAbsurdPattern [Arg A.Pattern]
+    deriving (Typeable)
 
 data TCErr = TypeError TCState (Closure TypeError)
 	   | Exception Range String
@@ -432,11 +433,13 @@ instance Error TCErr where
     noMsg  = strMsg ""
     strMsg = Exception noRange . strMsg
 
+{-
 instance Show TCErr where
     show (TypeError _ e) = show (getRange $ clTrace e) ++ ": " ++ show (clValue e)
     show (Exception r s) = show r ++ ": " ++ s
     show (PatternErr _)  = "Pattern violation (you shouldn't see this)"
     show (AbortAssign _) = "Abort assignment (you shouldn't see this)"
+-}
 
 instance HasRange TCErr where
     getRange (TypeError _ cl) = getRange $ clTrace cl

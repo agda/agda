@@ -604,8 +604,11 @@ TypeSig : Id ':' Expr   { TypeSig $1 $3 }
 -- Function declarations. The left hand side is parsed as an expression to allow
 -- declarations like 'x::xs ++ ys = e', when '::' has higher precedence than '++'.
 FunClause :: { Declaration }
-FunClause : LHS '=' Expr WhereClause	{ FunClause $1 $3 $4 }
+FunClause : LHS RHS WhereClause	{ FunClause $1 $2 $3 }
 
+RHS :: { RHS }
+RHS : '=' Expr	    { RHS $2 }
+    | {- empty -}   { AbsurdRHS }
 
 -- Data declaration. Can be local.
 Data :: { Declaration }

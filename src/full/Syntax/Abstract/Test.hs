@@ -136,6 +136,11 @@ instance Equal LetBinding where
 instance Equal Clause where
     Clause lhs rhs wh === Clause lhs' rhs' wh'	= (lhs,rhs,wh) === (lhs',rhs',wh')
 
+instance Equal RHS where
+    RHS a     === RHS b	    = a === b
+    AbsurdRHS === AbsurdRHS = Equal
+    rhs       === rhs'	    = unequal rhs rhs'
+
 -- Left hand side instances -----------------------------------------------
 
 instance (HasRange a, Equal a) => Equal (Arg a) where

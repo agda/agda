@@ -181,6 +181,10 @@ instance PrettyTCM TypeError where
 	    BuiltinInParameterisedModule x ->
 		return $ fsep $ pwords "the BUILTIN pragma cannot appear inside a bound context" ++
 				pwords "(for instance, in a parameterised module or as a local declaration)"
+	    NoRHSRequiresAbsurdPattern ps ->
+		return $ fsep $
+		    pwords "the right-hand side can only be omitted if there" ++
+		    pwords "is an absurd pattern, () or {}, in the left-hand side."
 
 instance PrettyTCM Call where
     prettyTCM c = case c of

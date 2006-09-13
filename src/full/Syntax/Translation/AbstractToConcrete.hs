@@ -408,7 +408,7 @@ instance BindToConcrete LetBinding [C.Declaration] where
     bindToConcrete (LetBind i x t e) ret =
 	bindWithStored i ret $
 	bindToConcrete x $ \x ->
-	do  (t,e) <- toConcrete (t,e)
+	do  (t,e) <- toConcrete (t,A.RHS e)
 	    ret [C.TypeSig x t, C.FunClause (C.LHS (getRange x) PrefixDef x []) e []]
 
 instance ToConcrete LetBinding [C.Declaration] where
@@ -418,6 +418,10 @@ instance ToConcrete LetBinding [C.Declaration] where
 
 instance ToConcrete [A.Declaration] [C.Declaration] where
     toConcrete ds = concat <$> mapM toConcrete ds
+
+instance ToConcrete A.RHS C.RHS where
+    toConcrete (A.RHS e)   = C.RHS <$> toConcrete e
+    toConcrete A.AbsurdRHS = return C.AbsurdRHS
 
 data TypeAndDef = TypeAndDef A.TypeSignature A.Definition
 

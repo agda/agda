@@ -351,44 +351,34 @@ checkFunDef i x cs =
 
 -- | Type check a function clause.
 checkClause :: Type -> A.Clause -> TCM Clause
-checkClause t c@(A.Clause (A.LHS i x ps) rhs ds) =
+checkClause t c@(A.Clause (A.LHS i x aps) rhs ds) =
     traceCall (CheckClause t c) $
-    checkPatterns ps t $ \ (xs, ts, t') -> do
-	ps <- termsToPatterns xs ts
+    checkPatterns aps t $ \ (xs, ps, ts, t') -> do
 	checkDecls ds
-	v <- checkExpr rhs t'
-	return $ Clause ps $ foldr (\x t -> Bind $ Abs x t) (Body v) xs
+	body <- case rhs of
+	    A.RHS e -> do
+		v <- checkExpr e t'
+		return $ foldr (\x t -> Bind $ Abs x t) (Body v) xs
+	    A.AbsurdRHS
+		| any (containsAbsurdPattern . unArg) aps
+			    -> return NoBody
+		| otherwise -> typeError $ NoRHSRequiresAbsurdPattern aps
+	return $ Clause ps body
 
--- | Check that the given terms are valid patterns and that they bind the given
---   variables in the correct order. TODO: remember ranges
-termsToPatterns :: [String] -> [Arg Term] -> TCM [Arg Pattern]
-termsToPatterns xs ts = do
-    ts <- normalise ts
-    ts2ps (length xs - 1) xs ts $ \_ _ ps -> return ps
-  where
-    ts2ps n xs []	      ret = ret n xs []
-    ts2ps n xs (Arg h t : ts) ret =
-	t2p   n xs t  $ \n xs p ->
-	ts2ps n xs ts $ \n xs ps ->
-	ret n xs (Arg h p : ps)
-
-    t2p n (x:xs) (Var i []) ret
-	| n == i	= ret (n - 1) xs $ VarP x
-	| otherwise	= fail $ "expected binding of " ++ x
-    t2p _ [] (Var i [])    ret = fail $ "too many variables in pattern"
-    t2p _ _  (Var i _ )    ret = fail $ "higher order pattern"
-    t2p n xs (Con c vs)    ret = do
-	Defn _ _ (Constructor npars _ _) <- getConstInfo c
-	ts2ps n xs (drop npars vs) $ \n xs ps -> ret n xs $ ConP c ps
-    t2p n xs (Lit l)	   ret = ret n xs $ LitP l
-    t2p _ _  v@(Def _ _)   ret = fail $ "not a proper pattern " ++ show v
-    t2p _ _  v@(Lam _ _)   ret = fail $ "not a proper pattern " ++ show v
-    t2p _ _  v@(MetaV _ _) ret = fail $ "not a proper pattern " ++ show v
-    t2p n xs (BlockedV b)  ret = t2p n xs (blockee b) ret
+-- | Check if a pattern contains an absurd pattern. For instance, @suc ()@
+containsAbsurdPattern :: A.Pattern -> Bool
+containsAbsurdPattern p = case p of
+    A.VarP _	  -> False
+    A.ConP _ _ ps -> any (containsAbsurdPattern . unArg) ps
+    A.WildP _	  -> False
+    A.AsP _ _ p   -> containsAbsurdPattern p
+    A.AbsurdP _   -> True
+    A.LitP _	  -> False
+    A.DefP _ _ _  -> __IMPOSSIBLE__
 
 
 -- | Check the patterns of a left-hand-side. Binds the variables of the pattern.
-checkPatterns :: [Arg A.Pattern] -> Type -> (([String], [Arg Term], Type) -> TCM a) -> TCM a
+checkPatterns :: [Arg A.Pattern] -> Type -> (([String], [Arg Pattern], [Arg Term], Type) -> TCM a) -> TCM a
 checkPatterns [] t ret =
     traceCallCPS (CheckPatterns [] t) ret $ \ret -> do
     t' <- instantiate t
@@ -396,7 +386,7 @@ checkPatterns [] t ret =
 	FunV (Arg Hidden _) _   -> do
 	    r <- getCurrentRange
 	    checkPatterns [Arg Hidden $ A.WildP $ PatRange r] t' ret
-	_ -> ret ([], [], t)
+	_ -> ret ([], [], [], t)
 checkPatterns ps0@(Arg h p:ps) t ret =
     traceCallCPS (CheckPatterns ps0 t) ret $ \ret -> do
     t' <- forcePi h t
@@ -404,11 +394,11 @@ checkPatterns ps0@(Arg h p:ps) t ret =
 	(NotHidden, FunV (Arg Hidden _) _) ->
 	    checkPatterns (Arg Hidden (A.WildP $ PatRange $ getRange p) : Arg h p : ps) t' ret
 	(_, FunV (Arg h' a) _) | h == h' ->
-	    checkPattern (argName t') p a $ \ (xs, v) -> do
+	    checkPattern (argName t') p a $ \ (xs, p, v) -> do
 	    let t0 = raise (length xs) t'
-	    checkPatterns ps (piApply t0 [Arg h' v]) $ \ (ys, vs, t'') -> do
+	    checkPatterns ps (piApply t0 [Arg h' v]) $ \ (ys, ps, vs, t'') -> do
 		let v' = raise (length ys) v
-		ret (xs ++ ys, Arg h v':vs, t'')
+		ret (xs ++ ys, Arg h p : ps, Arg h v':vs, t'')
 	_ -> typeError $ WrongHidingInLHS t'
 
 -- | TODO: move
@@ -419,34 +409,34 @@ argName _	  = __IMPOSSIBLE__
 
 -- | Type check a pattern and bind the variables. First argument is a name
 --   suggestion for wildcard patterns.
-checkPattern :: String -> A.Pattern -> Type -> (([String], Term) -> TCM a) -> TCM a
+checkPattern :: String -> A.Pattern -> Type -> (([String], Pattern, Term) -> TCM a) -> TCM a
 checkPattern name p t ret =
     traceCallCPS (CheckPattern name p t) ret $ \ret -> case p of
 	A.VarP x    ->
-	    addCtx x t $ ret ([show x], Var 0 [])
+	    addCtx x t $ ret ([show x], VarP (show x), Var 0 [])
 	A.WildP i   -> do
 	    x <- freshName (getRange i) name
-	    addCtx x t $ ret ([name], Var 0 [])
+	    addCtx x t $ ret ([name], VarP name, Var 0 [])
 	A.ConP i c ps -> do
 	    Defn t' _ (Constructor n d _) <- getConstInfo c -- don't instantiate this
 	    El (Def _ vs) _		  <- forceData d t  -- because this guy won't be
 	    Con c' us			  <- reduce $ Con c $ map hide vs
-	    checkPatterns ps (piApply t' vs) $ \ (xs, ts', rest) -> do
+	    checkPatterns ps (piApply t' vs) $ \ (xs, ps', ts', rest) -> do
 		let n = length xs
 		equalTyp () rest (raise n t)
-		ret (xs, Con c' $ raise n us ++ ts')
+		ret (xs, ConP c' ps', Con c' $ raise n us ++ ts')
 	    where
 		hide (Arg _ x) = Arg Hidden x
 	A.AbsurdP i -> do
 	    isEmptyType t
 	    x <- freshName (getRange i) name    -- TODO: actually do something about absurd patterns
-	    addCtx x t $ ret ([show x], Var 0 [])
+	    addCtx x t $ ret ([show x], AbsurdP, Var 0 [])
 	A.AsP i x p ->
-	    checkPattern name p t $ \ (xs, v) ->
-	    addLetBinding x v (raise (length xs) t) $ ret (xs, v)
+	    checkPattern name p t $ \ (xs, p, v) ->
+	    addLetBinding x v (raise (length xs) t) $ ret (xs, p, v)
 	A.LitP l    -> do
 	    v <- checkLiteral l t
-	    ret ([], v)
+	    ret ([], LitP l, v)
 	A.DefP i f ps ->
 	    typeError $ NotImplemented "defined patterns"
 {-

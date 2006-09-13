@@ -44,8 +44,6 @@ module Primitive where
 
 open Primitive
 
-data FormatError (s:String) : Set where
-
 data Unit : Set where
   unit : Unit
 
@@ -62,6 +60,8 @@ data Format : Set where
   charArg   : Format
   litChar   : Char -> Format
   badFormat : Char -> Format
+
+data BadFormat (c:Char) : Set where
 
 format : String -> List Format
 format = format' ∘ stringToList
@@ -81,7 +81,7 @@ Printf' (stringArg   :: fmt) = String  × Printf' fmt
 Printf' (intArg      :: fmt) = Int     × Printf' fmt
 Printf' (floatArg    :: fmt) = Float   × Printf' fmt
 Printf' (charArg     :: fmt) = Char    × Printf' fmt
-Printf' (badFormat c :: fmt) = FormatError ("Invalid % code: " ++ showChar c)
+Printf' (badFormat c :: fmt) = BadFormat c
 Printf' (litChar _   :: fmt) = Printf' fmt
 Printf'  nil		     = Unit
 
@@ -97,6 +97,6 @@ printf fmt = printf' (format fmt)
     printf' (floatArg    :: fmt) (x ◅ args) = showFloat x	      ++ printf' fmt args
     printf' (charArg     :: fmt) (c ◅ args) = showChar c	      ++ printf' fmt args
     printf' (litChar c   :: fmt) args	    = listToString (c :: nil) ++ printf' fmt args
-    printf' (badFormat _ :: fmt) ()	    = ?
-    printf'  nil		unit	    = ""
+    printf' (badFormat _ :: fmt) ()
+    printf'  nil		 unit	    = ""
 

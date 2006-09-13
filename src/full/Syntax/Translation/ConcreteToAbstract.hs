@@ -326,6 +326,10 @@ newtype LetDef = LetDef NiceDeclaration
 instance BindToAbstract LetDefs [A.LetBinding] where
     bindToAbstract (LetDefs ds) = bindToAbstract (map LetDef $ niceDeclarations ds)
 
+instance ToAbstract C.RHS A.RHS where
+    toAbstract C.AbsurdRHS = return $ A.AbsurdRHS
+    toAbstract (C.RHS e)   = A.RHS <$> toAbstract e
+
 instance BindToAbstract LetDef A.LetBinding where
     bindToAbstract (LetDef d) ret =
 	case d of
@@ -336,7 +340,7 @@ instance BindToAbstract LetDef A.LetBinding where
 			ret (A.LetBind (LetSource c) x t e)
 	    _	-> notAValidLetBinding d
 	where
-	    letToAbstract (CD.Clause (C.LHS _ _ _ args) rhs []) =
+	    letToAbstract (CD.Clause (C.LHS _ _ _ args) (C.RHS rhs) []) =
 		bindToAbstract args $ \args ->
 		    do	rhs <- toAbstract rhs
 			foldM lambda rhs $ reverse args

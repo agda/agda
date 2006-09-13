@@ -21,7 +21,7 @@ module Syntax.Concrete
     , Constructor
     , ImportDirective(..), UsingOrHiding(..), ImportedName(..)
     , LHS(..), Pattern(..)
-    , RHS, WhereClause
+    , RHS(..), WhereClause
     , Pragma(..)
     )
     where
@@ -116,7 +116,10 @@ type Telescope = [TypedBindings]
 data LHS = LHS !Range IsInfix Name [Arg Pattern]
     deriving (Typeable, Data, Eq)
 
-type RHS	    = Expr
+data RHS	    = AbsurdRHS
+		    | RHS Expr
+    deriving (Typeable, Data, Eq)
+
 type WhereClause    = [Declaration]
 
 
@@ -245,6 +248,10 @@ instance HasRange Declaration where
     getRange (Module r _ _ _)		= r
     getRange (Infix f _)		= getRange f
     getRange (Pragma p)			= getRange p
+
+instance HasRange RHS where
+    getRange AbsurdRHS = noRange
+    getRange (RHS e)   = getRange e
 
 instance HasRange Pragma where
     getRange (OptionsPragma r _)   = r

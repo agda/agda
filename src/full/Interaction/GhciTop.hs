@@ -198,7 +198,7 @@ cmd_make_case ii rng s = crashOnException $ ioTCM $ do
        , (dnam, dbdy) <- assocs $ mdefDefs md
        , Function cls _ <- [theDef dbdy]
        , SI.Clause pats cbdy <- cls
-       , MetaV x _ <- [deAbs cbdy]
+       , Just (MetaV x _) <- [deAbs cbdy]
        , x == wanted ] of
     (h : _ ) -> return h;
     _ -> fail $ "findClause: can't find <clause = " ++ show ii ++ ">"
@@ -214,6 +214,7 @@ cmd_make_case ii rng s = crashOnException $ ioTCM $ do
                       | otherwise = pa
     go (SI.ConP c argpas) = SI.ConP c $ List.map (fmap go) argpas
     go (SI.LitP l)	  = SI.LitP l
+    go SI.AbsurdP	  = SI.AbsurdP
 
   dePi 0 t = return t
   dePi i (SI.Pi _ (Abs _ t)) = dePi (i-1) t
@@ -230,7 +231,8 @@ cmd_make_case ii rng s = crashOnException $ ioTCM $ do
 
   deAbs (Bind (Abs _ b)) = deAbs b
   deAbs (NoBind b)	 = deAbs b  -- TODO: right?
-  deAbs (Body t        ) = t
+  deAbs (Body t        ) = Just t
+  deAbs  NoBody		 = Nothing
 
   passAVar e@(SA.Var _ _) = return e
   passAVar x   = fail("passAVar: got "++show x)
@@ -246,8 +248,10 @@ cmd_make_case ii rng s = crashOnException $ ioTCM $ do
   dropUscore p@(SI.VarP s) = p
   dropUscore (SI.ConP c apas) = SI.ConP c (List.map (fmap dropUscore) apas)
   dropUscore (SI.LitP l) = SI.LitP l
+  dropUscore SI.AbsurdP  = SI.AbsurdP
 
   -- | To do : precedence of ops
+  ppPa prec  SI.AbsurdP = P.text "()"
   ppPa prec (SI.VarP n) = P.text n
   ppPa prec (SI.LitP l) = pretty l
   ppPa prec (SI.ConP qn []) = P.text (show qn)
@@ -317,6 +321,10 @@ instance LowerMeta SC.TypedBindings where
 instance LowerMeta SC.TypedBinding where
   lowerMeta (SC.TBind r ns e) = SC.TBind r ns (lowerMeta e)
   lowerMeta (SC.TNoBind e)    = SC.TNoBind (lowerMeta e)
+
+instance LowerMeta SC.RHS where
+    lowerMeta (SC.RHS e) = SC.RHS (lowerMeta e)
+    lowerMeta  SC.AbsurdRHS = SC.AbsurdRHS
 
 instance LowerMeta SC.Declaration where
   lowerMeta = go where
