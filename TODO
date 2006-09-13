@@ -66,6 +66,12 @@ Fixes
 * When do we have to turn on abstractMode. When checking anything public? Not
   done at the moment.
 
+[Misc]
+
+* Allow qualified names in BUILTIN pragma. Currently pragmas are parsed as
+  plain strings, so a qualified name is interpreted as an unqualified name
+  containing a dot.
+
 Speculative
 -----------
 
