@@ -12,6 +12,7 @@ import Syntax.Position
 import Syntax.Common
 import Syntax.Internal
 import Syntax.Literal
+import Syntax.Concrete.Pretty ()
 import Syntax.Abstract.Name
 import qualified Syntax.Concrete.Name as C
 
@@ -22,6 +23,7 @@ import TypeChecking.Substitute
 import TypeChecking.Errors
 
 import Utils.Monad
+import Utils.Pretty (pretty)
 
 ---------------------------------------------------------------------------
 -- * The names of built-in things
@@ -67,6 +69,7 @@ data PrimitiveImpl = PrimImpl Type PrimFun
 -- Haskell type to Agda type
 
 newtype Str = Str { unStr :: String }
+    deriving (Eq, Ord)
 
 class PrimType a where
     primType :: a -> TCM Type
@@ -187,6 +190,7 @@ instance (ToTerm a, FromTerm a) => FromTerm [a] where
 			    redReturn (y : ys)
 		    _ -> return $ NoReduction t
 
+-- | Conceptually: @redBind m f k = either (return . Left . f) k =<< m@
 redBind :: TCM (Reduced a a') -> (a -> b) -> 
 	     (a' -> TCM (Reduced b b')) -> TCM (Reduced b b')
 redBind ma f k = do
@@ -267,53 +271,54 @@ primitiveFunctions :: Map String (TCM PrimitiveImpl)
 primitiveFunctions = Map.fromList
 
     -- Integer functions
-    [ "primIntegerPlus"	     |-> mkPrimFun2 ((+)	  :: Op Integer)
-    , "primIntegerMinus"     |-> mkPrimFun2 ((-)	  :: Op Integer)
-    , "primIntegerTimes"     |-> mkPrimFun2 ((*)	  :: Op Integer)
-    , "primIntegerDiv"	     |-> mkPrimFun2 (div	  :: Op Integer)    -- partial
-    , "primIntegerMod"	     |-> mkPrimFun2 (mod	  :: Op Integer)    -- partial
-    , "primIntegerEquals"    |-> mkPrimFun2 ((==)	  :: Rel Integer)
-    , "primIntegerLess"	     |-> mkPrimFun2 ((<)	  :: Rel Integer)
+    [ "primIntegerPlus"	    |-> mkPrimFun2 ((+)	       :: Op Integer)
+    , "primIntegerMinus"    |-> mkPrimFun2 ((-)	       :: Op Integer)
+    , "primIntegerTimes"    |-> mkPrimFun2 ((*)	       :: Op Integer)
+    , "primIntegerDiv"	    |-> mkPrimFun2 (div	       :: Op Integer)    -- partial
+    , "primIntegerMod"	    |-> mkPrimFun2 (mod	       :: Op Integer)    -- partial
+    , "primIntegerEquals"   |-> mkPrimFun2 ((==)       :: Rel Integer)
+    , "primIntegerLess"	    |-> mkPrimFun2 ((<)	       :: Rel Integer)
+    , "primShowInteger"	    |-> mkPrimFun1 (Str . show :: Integer -> Str)
 
     -- Floating point functions
-    , "primIntegerToFloat"   |-> mkPrimFun1 (fromIntegral :: Integer -> Double)
-    , "primFloatPlus"	     |-> mkPrimFun2 ((+)	  :: Op Double)
-    , "primFloatMinus"	     |-> mkPrimFun2 ((-)	  :: Op Double)
-    , "primFloatTimes"	     |-> mkPrimFun2 ((*)	  :: Op Double)
-    , "primFloatDiv"	     |-> mkPrimFun2 ((/)	  :: Op Double)
-    , "primFloatLess"	     |-> mkPrimFun2 ((<)	  :: Rel Double)
-    , "primRound"	     |-> mkPrimFun1 (round	  :: Double -> Integer)
-    , "primFloor"	     |-> mkPrimFun1 (floor	  :: Double -> Integer)
-    , "primCeiling"	     |-> mkPrimFun1 (ceiling	  :: Double -> Integer)
-    , "primFloatExp"	     |-> mkPrimFun1 (exp	  :: Fun Double)
-    , "primFloatLog"	     |-> mkPrimFun1 (log	  :: Fun Double)    -- partial
-    , "primFloatSin"	     |-> mkPrimFun1 (sin	  :: Fun Double)
+    , "primIntegerToFloat"  |-> mkPrimFun1 (fromIntegral :: Integer -> Double)
+    , "primFloatPlus"	    |-> mkPrimFun2 ((+)		 :: Op Double)
+    , "primFloatMinus"	    |-> mkPrimFun2 ((-)		 :: Op Double)
+    , "primFloatTimes"	    |-> mkPrimFun2 ((*)		 :: Op Double)
+    , "primFloatDiv"	    |-> mkPrimFun2 ((/)		 :: Op Double)
+    , "primFloatLess"	    |-> mkPrimFun2 ((<)		 :: Rel Double)
+    , "primRound"	    |-> mkPrimFun1 (round	 :: Double -> Integer)
+    , "primFloor"	    |-> mkPrimFun1 (floor	 :: Double -> Integer)
+    , "primCeiling"	    |-> mkPrimFun1 (ceiling	 :: Double -> Integer)
+    , "primExp"		    |-> mkPrimFun1 (exp		 :: Fun Double)
+    , "primLog"		    |-> mkPrimFun1 (log		 :: Fun Double)    -- partial
+    , "primSin"		    |-> mkPrimFun1 (sin		 :: Fun Double)
+    , "primShowFloat"	    |-> mkPrimFun1 (Str . show	 :: Double -> Str)
 
     -- Character functions
-    , "primIsLower"	     |-> mkPrimFun1 isLower
-    , "primIsDigit"	     |-> mkPrimFun1 isDigit
-    , "primIsAlpha"	     |-> mkPrimFun1 isAlpha
-    , "primIsSpace"	     |-> mkPrimFun1 isSpace
-    , "primIsAscii"	     |-> mkPrimFun1 isAscii
-    , "primIsLatin1"	     |-> mkPrimFun1 isLatin1
-    , "primIsPrint"	     |-> mkPrimFun1 isPrint
-    , "primIsHexDigit"	     |-> mkPrimFun1 isHexDigit
-    , "primToUpper"	     |-> mkPrimFun1 toUpper
-    , "primToLower"	     |-> mkPrimFun1 toLower
-    , "primCharToInteger"    |-> mkPrimFun1 (fromIntegral . fromEnum :: Char -> Integer)
-    , "primIntegerToChar"    |-> mkPrimFun1 (toEnum . fromIntegral   :: Integer -> Char)
+    , "primIsLower"	    |-> mkPrimFun1 isLower
+    , "primIsDigit"	    |-> mkPrimFun1 isDigit
+    , "primIsAlpha"	    |-> mkPrimFun1 isAlpha
+    , "primIsSpace"	    |-> mkPrimFun1 isSpace
+    , "primIsAscii"	    |-> mkPrimFun1 isAscii
+    , "primIsLatin1"	    |-> mkPrimFun1 isLatin1
+    , "primIsPrint"	    |-> mkPrimFun1 isPrint
+    , "primIsHexDigit"	    |-> mkPrimFun1 isHexDigit
+    , "primToUpper"	    |-> mkPrimFun1 toUpper
+    , "primToLower"	    |-> mkPrimFun1 toLower
+    , "primCharToInteger"   |-> mkPrimFun1 (fromIntegral . fromEnum :: Char -> Integer)
+    , "primIntegerToChar"   |-> mkPrimFun1 (toEnum . fromIntegral   :: Integer -> Char)
+    , "primShowChar"	    |-> mkPrimFun1 (Str . show . pretty . LitChar noRange)
 
     -- String functions
-    , "primStringToList"     |-> mkPrimFun1 unStr
-    , "primStringFromList"   |-> mkPrimFun1 Str
-    , "primStringAppend"     |-> mkPrimFun2 (\s1 s2 -> Str $ unStr s1 ++ unStr s2)
+    , "primStringToList"    |-> mkPrimFun1 unStr
+    , "primStringFromList"  |-> mkPrimFun1 Str
+    , "primStringAppend"    |-> mkPrimFun2 (\s1 s2 -> Str $ unStr s1 ++ unStr s2)
+    , "primStringEqual"	    |-> mkPrimFun2 ((==) :: Rel Str)
+    , "primShowString"	    |-> mkPrimFun1 (Str . show . pretty . LitString noRange . unStr)
     ]
     where
 	(|->) = (,)
-
--- What about partial functions?
---  , "primIntegerDiv"	     |-> mkPrimFun2 (div	  :: Op Integer)
---  , "primIntegerMod"	     |-> mkPrimFun2 (mod	  :: Op Integer)
 
 lookupPrimitiveFunction :: Name -> TCM PrimitiveImpl
 lookupPrimitiveFunction x =

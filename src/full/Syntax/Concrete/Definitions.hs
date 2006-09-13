@@ -305,7 +305,7 @@ niceDeclarations ds = nice (fixities ds) ds
 	mkAbstract d =
 	    case d of
 		Axiom r f a _ x e		 -> Axiom r f a AbstractDef x e
-		PrimitiveFunction r f a _ x e	 -> Axiom r f a AbstractDef x e
+		PrimitiveFunction r f a _ x e	 -> PrimitiveFunction r f a AbstractDef x e
 		NiceDef r cs ts ds		 -> NiceDef r cs (map mkAbstract ts)
 								 (map mkAbstractDef ds)
 		NiceModule r a _ x tel ds	 -> NiceModule r a AbstractDef x tel ds
@@ -328,7 +328,7 @@ niceDeclarations ds = nice (fixities ds) ds
 	mkPrivate d =
 	    case d of
 		Axiom r f _ a x e		 -> Axiom r f PrivateAccess a x e
-		PrimitiveFunction r f _ a x e	 -> Axiom r f PrivateAccess a x e
+		PrimitiveFunction r f _ a x e	 -> PrimitiveFunction r f PrivateAccess a x e
 		NiceDef r cs ts ds		 -> NiceDef r cs (map mkPrivate ts)
 								 (map mkPrivateDef ds)
 		NiceModule r _ a x tel ds	 -> NiceModule r PrivateAccess a x tel ds
