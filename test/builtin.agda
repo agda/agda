@@ -41,6 +41,8 @@ data List (A:Set) : Set where
 {-# BUILTIN CONS    ::     #-}
 
 primitive
+
+  -- Integer functions
   primIntegerPlus    : Int -> Int -> Int
   primIntegerMinus   : Int -> Int -> Int
   primIntegerTimes   : Int -> Int -> Int
@@ -48,6 +50,7 @@ primitive
   primIntegerMod     : Int -> Int -> Int
   primIntegerEquals  : Int -> Int -> Bool
   primIntegerLess    : Int -> Int -> Bool
+  primShowInteger    : Int -> String
 
     -- Floating point functions
   primIntegerToFloat : Int -> Float
@@ -59,9 +62,10 @@ primitive
   primRound	     : Float -> Int
   primFloor	     : Float -> Int
   primCeiling	     : Float -> Int
-  primFloatExp	     : Float -> Float
-  primFloatLog	     : Float -> Float
-  primFloatSin	     : Float -> Float
+  primExp	     : Float -> Float
+  primLog	     : Float -> Float
+  primSin	     : Float -> Float
+  primShowFloat	     : Float -> String
 
     -- Character functions
   primIsLower	     : Char -> Bool
@@ -76,11 +80,14 @@ primitive
   primToLower	     : Char -> Char
   primCharToInteger  : Char -> Int
   primIntegerToChar  : Int  -> Char -- partial
+  primShowChar	     : Char -> String
 
     -- String functions
   primStringToList   : String -> List Char
   primStringFromList : List Char -> String
   primStringAppend   : String -> String -> String
+  primStringEqual    : String -> String -> Bool
+  primShowString     : String -> String
 
 isLower = primIsLower
 isAlpha = primIsAlpha
@@ -88,14 +95,27 @@ isAlpha = primIsAlpha
 isUpper : Char -> Bool
 isUpper c = isAlpha c && not (isLower c)
 
-infixl 12 +, -
-infixl 14 *
+infixl 14 *, /, `div`, `mod`
+infixl 12 +, -, `primFloatMinus`, `primFloatPlus`
 infixl 8  ==
 
 (+)  = primIntegerPlus
 (*)  = primIntegerTimes
 (-)  = primIntegerMinus
 (==) = primIntegerEquals
+
+(/) = primFloatDiv
+
+pi : Float
+pi = 3.141592653589793
+
+sin = primSin
+
+cos : Float -> Float
+cos x = sin (pi / 2.0 `primFloatMinus` x)
+
+tan : Float -> Float
+tan x = sin x / cos x
 
 reverse : {A:Set} -> List A -> List A
 reverse xs = rev xs nil
