@@ -11,13 +11,26 @@ import ReadP
 data Raw = Name String
 	 | RawApp [Raw]
 	 | Paren Raw
+	 | Braces Raw
 	 | RawLit Int
+	 | AppR Raw (Arg Raw)
+	 | OpR [String] [Raw]
     deriving (Show, Eq)
 
 data Exp = Op [String] [Exp]  -- operator application
-	 | App Exp Exp
+	 | App Exp (Arg Exp)
 	 | Lit Int
 	 | Id String
+
+data Hiding = Hidden | NotHidden
+    deriving (Eq)
+
+data Arg e = Arg Hiding e
+    deriving (Eq)
+
+instance Show a => Show (Arg a) where
+    showsPrec p (Arg Hidden e)	  = showString "{" . shows e . showString "}"
+    showsPrec p (Arg NotHidden e) = showsPrec p e
 
 instance Show Exp where
     showsPrec p e = case e of
@@ -51,11 +64,12 @@ parseRaw s = case parse p0 s of
     es	-> error $ "parseRaw: ambiguous parse: " ++ show es
     where
 	p0 = RawApp <$> sepBy1 p1 (many1 $ satisfy isSpace)
-	p1 = choice [ do char '('; x <- p0; char ')'; return x
+	p1 = choice [ do char '('; x <- p0; char ')'; return $ Paren x
+		    , do char '{'; x <- p0; char '}'; return $ Braces x
 		    , RawLit . read <$> many1 (satisfy isDigit)
 		    , Name <$> ((:) <$> satisfy idStart <*> many (satisfy idChar))
 		    ]
-	idChar  c = not $ isSpace c || elem c "()"
+	idChar  c = not $ isSpace c || elem c "(){}"
 	idStart c = idChar c && not (isDigit c)
 
 infixl 8 <$>, <*>
@@ -75,24 +89,24 @@ name s = unName <$> char (Name s)
     where
 	unName (Name s) = s
 
-binop :: P Exp -> P (Exp -> Exp -> Exp)
+binop :: P Raw -> P (Raw -> Raw -> Raw)
 binop opP = do
-    Op op es <- opP
-    return $ \x y -> Op op ([x] ++ es ++ [y])
+    OpR op es <- opP
+    return $ \x y -> OpR op ([x] ++ es ++ [y])
 
-preop :: P Exp -> P (Exp -> Exp)
+preop :: P Raw -> P (Raw -> Raw)
 preop opP = do
-    Op op es <- opP
-    return $ \x -> Op op (es ++ [x])
+    OpR op es <- opP
+    return $ \x -> OpR op (es ++ [x])
 
-postop :: P Exp -> P (Exp -> Exp)
+postop :: P Raw -> P (Raw -> Raw)
 postop opP = do
-    Op op es <- opP
-    return $ \x -> Op op ([x] ++ es)
+    OpR op es <- opP
+    return $ \x -> OpR op ([x] ++ es)
 
-opP :: P Exp -> [String] -> P Exp
+opP :: P Raw -> [String] -> P Raw
 opP p [] = fail "empty mixfix operator"
-opP p ss = Op ss <$> mix ss
+opP p ss = OpR ss <$> mix ss
     where
 	mix [s]	   = do name s; return []
 	mix (s:ss) = do
@@ -101,13 +115,13 @@ opP p ss = Op ss <$> mix ss
 	    es <- mix ss
 	    return $ e : es
 
-prefixP :: P Exp -> P Exp -> P Exp
+prefixP :: P Raw -> P Raw -> P Raw
 prefixP op p = do
     fs <- many (preop op)
     e  <- p
     return $ foldr ( $ ) e fs
 
-postfixP :: P Exp -> P Exp -> P Exp
+postfixP :: P Raw -> P Raw -> P Raw
 postfixP op p = do
     e <- p
     fs <- many (postop op)
@@ -123,38 +137,56 @@ infixP opP p = do
 
 nonfixP op p = op +++ p
 
-appP :: P Exp -> P Exp
-appP p = chainl1 p (return App)
+appP :: P Raw -> P Raw -> P Raw
+appP top p = do
+    h  <- p
+    es <- many (nothidden +++ hidden)
+    return $ foldl AppR h es
+    where
+	isHidden (Braces _) = True
+	isHidden _	    = False
 
-identP :: String -> P Exp
-identP s = Id <$> name s
+	nothidden = Arg NotHidden <$> do
+	    e <- p
+	    case e of
+		Braces _ -> pfail
+		_	 -> return e
 
-otherP :: P Exp -> P Exp
-otherP p = do
-    r <- satisfy notName
-    case parseExp p r of
-	Right e  -> return e
-	Left err -> fail err
+	hidden = do
+	    Braces e <- satisfy isHidden
+	    return $ Arg Hidden e
+
+identP :: String -> P Raw
+identP s = Name <$> name s
+
+otherP :: P Raw -> P Raw
+otherP p = satisfy notName
     where
 	notName (Name _) = False
 	notName _	 = True
 
 -- Running a parser
-parseExp :: P Exp -> Raw -> Either String Exp
+parseExp :: P Raw -> Raw -> Either String Exp
 parseExp p r = case r of
-    Name s	-> parseApp p [Name s]
-    RawApp es	-> parseApp p es
+    Name s	-> return $ Id s
+    RawApp es	-> parseExp p =<< parseApp p es
     Paren e	-> parseExp p e
+    Braces e	-> fail $ "bad hidden app"
     RawLit n	-> return $ Lit n
+    AppR e1 (Arg h e2) -> do
+	e1' <- parseExp p e1
+	e2' <- parseExp p e2
+	return $ App e1' (Arg h e2')
+    OpR x es -> Op x <$> mapM (parseExp p) es
 
-parseApp :: P Exp -> [Raw] -> Either String Exp
+parseApp :: P Raw -> [Raw] -> Either String Raw
 parseApp p es = case parse p es of
     [e]	-> return e
     []	-> fail "no parse"
     es	-> fail $ "ambiguous parse: " ++ show es
 
 -- Tests
-arithP :: P Exp
+arithP :: P Raw
 arithP = recursive
     [ prefixP  $ op ["if","then"]
     , prefixP  $ op ["if","then","else"]
@@ -162,7 +194,7 @@ arithP = recursive
     , prefixP  $ op ["-"]
     , infixlP  $ op ["*"] +++ op ["/"]
     , postfixP $ op ["!"]
-    , appP
+    , appP arithP
     , nonfixP  $ op ["[","]"]
     , \p -> otherP p +++ ident
     ]

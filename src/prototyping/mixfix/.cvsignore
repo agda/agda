@@ -1,0 +1,1 @@
+lam lambda *.hi *.o .*.swp
