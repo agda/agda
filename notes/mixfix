@@ -1,0 +1,14 @@
+
+The idea to handle mix-fix operators is to
+
+  - parse applications as lists of expressions. For instance:
+
+      1 + 2 * 3 will be parsed as [1,+,2,*,3]
+
+    We then generate a parser for the operators in scope and try to parse the
+    application. In this example the grammar would look something like this:
+
+	e0 ::= e0 + e1 | e1
+	e1 ::= e1 * e2 | e2
+	e2 ::= other
+
