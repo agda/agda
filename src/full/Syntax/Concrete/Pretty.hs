@@ -201,7 +201,12 @@ instance Pretty Pattern where
 	    IdentP x	       -> pretty x
 	    AppP p1 p2	       -> sep [ pretty p1, nest 2 $ pretty p2 ]
 	    RawAppP _ ps       -> fsep $ map pretty ps
-	    OpAppP _ _ _       -> text "TODO: operator application in pattern"
+	    OpAppP _ (NameDecl xs) ps -> fsep $ prOp xs ps
+		where
+		    prOp (x:xs) ~(e:es)
+			| x == noName	= pretty e : prOp xs es
+		    prOp (x:xs) es	= pretty x : prOp xs es
+		    prOp []	es	= map pretty es
 	    HiddenP _ p	       -> braces $ pretty p
 	    ParenP _ p	       -> parens $ pretty p
 	    WildP _	       -> text "_"

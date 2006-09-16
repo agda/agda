@@ -112,8 +112,9 @@ type NiceConstructor = NiceDeclaration
 -- | Only 'Axiom's.
 type NiceTypeSignature	= NiceDeclaration
 
--- | One clause in a function definition.
-data Clause = Clause LHS RHS WhereClause
+-- | One clause in a function definition. There is no guarantee that the 'LHS'
+--   actually declares the 'Name'. We will have to check that later.
+data Clause = Clause Name LHS RHS WhereClause
     deriving (Show)
 
 -- | The exception type.
@@ -267,7 +268,7 @@ niceDeclarations ds = nice (fixities ds) ds
 		    (TypeSig x t : ds0)
 		    [ Axiom (fuseRange x t) f PublicAccess ConcreteDef x t ]
 		    [ FunDef (getRange ds0) ds0 f PublicAccess ConcreteDef x
-			     (map mkClause ds0)
+			     (map (mkClause x) ds0)
 		    ]
 	    where
 		f  = fixity x fixs
@@ -277,8 +278,8 @@ niceDeclarations ds = nice (fixities ds) ds
 
 
 	-- Turn a function clause into a nice function clause.
-	mkClause (FunClause lhs rhs wh) = Clause lhs rhs wh
-	mkClause _ = __IMPOSSIBLE__
+	mkClause x (FunClause lhs rhs wh) = Clause (nameDeclName x) lhs rhs wh
+	mkClause _ _ = __IMPOSSIBLE__
 
 	isFunClause (FunClause _ _ _) = True
 	isFunClause _		      = False
@@ -314,9 +315,9 @@ niceDeclarations ds = nice (fixities ds) ds
 						  (map mkAbstractClause cs)
 		DataDef r f a _ x ps cs	-> DataDef r f a AbstractDef x ps $ map mkAbstract cs
 
-	mkAbstractClause c@(Clause _ _ []) = c
-	mkAbstractClause (Clause lhs rhs ds) =
-	    Clause lhs rhs [Abstract (getRange ds) ds]
+	mkAbstractClause c@(Clause _ _ _ []) = c
+	mkAbstractClause (Clause x lhs rhs ds) =
+	    Clause x lhs rhs [Abstract (getRange ds) ds]
 
 	-- Make a declaration private
 	mkPrivate d =
@@ -337,9 +338,9 @@ niceDeclarations ds = nice (fixities ds) ds
 						  (map mkPrivateClause cs)
 		DataDef r f _ a x ps cs	-> DataDef r f PrivateAccess a x ps cs
 
-	mkPrivateClause c@(Clause _ _ []) = c
-	mkPrivateClause (Clause lhs rhs ds) =
-	    Clause lhs rhs [Private (getRange ds) ds]
+	mkPrivateClause c@(Clause _ _ _ []) = c
+	mkPrivateClause (Clause x lhs rhs ds) =
+	    Clause x lhs rhs [Private (getRange ds) ds]
 
 -- | Add more fixities. Throw an exception for multiple fixity declarations.
 plusFixities :: Map.Map Name Fixity -> Map.Map Name Fixity -> Map.Map Name Fixity

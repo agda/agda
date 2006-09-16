@@ -4,18 +4,27 @@ module Syntax.Concrete.Operators.Parser where
 
 import Syntax.Position
 import Syntax.Common
-import Syntax.Concrete
 import Syntax.Fixity
+import Syntax.Concrete.Name
 import Utils.ReadP
 import Utils.Monad
 
 #include "../../../undefined.h"
 
+data ExprView e
+    = LocalV Name
+    | OtherV e
+    | AppV e (Arg e)
+    | OpAppV Range NameDecl [e]
+    | HiddenArgV e
+
+class HasRange e => IsExpr e where
+    exprView   :: e -> ExprView e
+    unExprView :: ExprView e -> e
+
 ---------------------------------------------------------------------------
 -- * Parser combinators
 ---------------------------------------------------------------------------
-
-type OpP = ReadP Expr
 
 -- | Combining a hierarchy of parsers.
 recursive :: (ReadP tok a -> [ReadP tok a -> ReadP tok a]) -> ReadP tok a
@@ -25,30 +34,34 @@ recursive f = p0
 	p0 = foldr ( $ ) p0 fs
 
 -- Specific combinators
-nameP :: Name -> OpP Name
+nameP :: IsExpr e => Name -> ReadP e Name
 nameP x = do
-    Ident (QName x) <- char (Ident $ QName x)
+    LocalV x <- exprView <$> satisfy (isLocal x)
     return x
+    where
+	isLocal x e = case exprView e of
+	    LocalV y -> x == y
+	    _	    -> False
 
-binop :: OpP Expr -> OpP (Expr -> Expr -> Expr)
+binop :: IsExpr e => ReadP e e -> ReadP e (e -> e -> e)
 binop opP = do
-    OpApp r op es <- opP
-    return $ \x y -> OpApp r op ([x] ++ es ++ [y])
+    OpAppV r op es <- exprView <$> opP
+    return $ \x y -> unExprView $ OpAppV r op ([x] ++ es ++ [y])
 
-preop :: OpP Expr -> OpP (Expr -> Expr)
+preop :: IsExpr e => ReadP e e -> ReadP e (e -> e)
 preop opP = do
-    OpApp r op es <- opP
-    return $ \x -> OpApp r op (es ++ [x])
+    OpAppV r op es <- exprView <$> opP
+    return $ \x -> unExprView $ OpAppV r op (es ++ [x])
 
-postop :: OpP Expr -> OpP (Expr -> Expr)
+postop :: IsExpr e => ReadP e e -> ReadP e (e -> e)
 postop opP = do
-    OpApp r op es <- opP
-    return $ \x -> OpApp r op ([x] ++ es)
+    OpAppV r op es <- exprView <$> opP
+    return $ \x -> unExprView $ OpAppV r op ([x] ++ es)
 
-opP :: OpP Expr -> Operator -> OpP Expr
+opP :: IsExpr e => ReadP e e -> Operator -> ReadP e e
 opP p (Operator d@(NameDecl xs) _) = do
     es <- mix xs'
-    return $ OpApp (getRange es) d es
+    return $ unExprView $ OpAppV (getRange es) d es
     where
 	xs'  = filter (/= noName) xs
 
@@ -60,19 +73,19 @@ opP p (Operator d@(NameDecl xs) _) = do
 	    es <- mix xs
 	    return $ e : es
 
-prefixP :: OpP Expr -> OpP Expr -> OpP Expr
+prefixP :: IsExpr e => ReadP e e -> ReadP e e -> ReadP e e
 prefixP op p = do
     fs <- many1 (preop op)
     e  <- p
     return $ foldr ( $ ) e fs
 
-postfixP :: OpP Expr -> OpP Expr -> OpP Expr
+postfixP :: IsExpr e => ReadP e e -> ReadP e e -> ReadP e e
 postfixP op p = do
     e <- p
     fs <- many1 (postop op)
     return $ foldl (flip ( $ )) e fs
 
-infixP, infixrP, infixlP :: OpP Expr -> OpP Expr -> OpP Expr
+infixP, infixrP, infixlP :: IsExpr e => ReadP e e -> ReadP e e -> ReadP e e
 infixlP op p = do
     e  <- chainl1 p (binop op)
     f  <- binop op
@@ -91,38 +104,45 @@ infixP op p = do
     e2 <- p
     return $ op e1 e2
 
-nonfixP :: OpP Expr -> OpP Expr -> OpP Expr
+nonfixP :: IsExpr e => ReadP e e -> ReadP e e -> ReadP e e
 nonfixP op p = op +++ p
 
-appP :: OpP Expr -> OpP Expr -> OpP Expr
+appP :: IsExpr e => ReadP e e -> ReadP e e -> ReadP e e
 appP top p = do
     h  <- p
     es <- many (nothidden +++ hidden)
     return $ foldl app h es
     where
 
-	app e arg = App (fuseRange e arg) e arg
+	app e arg = unExprView $ AppV e arg
 
-	isHidden (HiddenArg _ _) = True
-	isHidden _		 = False
+	isHidden (HiddenArgV _) = True
+	isHidden _	       = False
 
 	nothidden = Arg NotHidden <$> do
 	    e <- p
-	    case e of
-		HiddenArg _ _ -> pfail
-		_	      -> return e
+	    case exprView e of
+		HiddenArgV _ -> pfail
+		_	    -> return e
 
 	hidden = do
-	    HiddenArg _ e <- satisfy isHidden
+	    HiddenArgV e <- exprView <$> satisfy (isHidden . exprView)
 	    return $ Arg Hidden e
 
-identP :: Name -> OpP Expr
-identP x = char (Ident $ QName x)
-
-otherP :: OpP Expr
-otherP = satisfy notLocalName
+localP :: IsExpr e => ReadP e e
+localP = satisfy isLocal
     where
-	notLocalName (Ident (QName _)) = False
-	notLocalName _		       = True
+	isLocal e = case exprView e of
+	    LocalV _	-> True
+	    _		-> False
+
+identP :: IsExpr e => Name -> ReadP e e
+identP x = unExprView . LocalV <$> nameP x
+
+otherP :: IsExpr e => ReadP e e
+otherP = satisfy (notLocalName . exprView)
+    where
+	notLocalName (LocalV _) = False
+	notLocalName _	       = True
 
 

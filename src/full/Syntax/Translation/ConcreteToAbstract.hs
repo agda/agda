@@ -370,10 +370,11 @@ instance BindToAbstract LetDef A.LetBinding where
 			ret (A.LetBind (LetSource c) x t e)
 	    _	-> notAValidLetBinding d
 	where
-	    letToAbstract (CD.Clause clhs (C.RHS rhs) []) =
-		bindToAbstract clhs $ \lhs ->
+	    letToAbstract (CD.Clause top clhs (C.RHS rhs) []) = do
+		p <- parseLHS top clhs
+		bindToAbstract p $ \p ->
 		    do	rhs	 <- toAbstract rhs
-			(x,args) <- lhsArgs clhs lhs
+			(x,args) <- lhsArgs clhs p
 			foldM lambda rhs args
 	    letToAbstract _ = notAValidLetBinding d
 
@@ -517,19 +518,19 @@ instance BindToAbstract (Constr A.Declaration) () where
     bindToAbstract _ _ = __IMPOSSIBLE__ -- a constructor is always an axiom
 
 instance ToAbstract CD.Clause A.Clause where
-    toAbstract (CD.Clause lhs rhs wh) =
-	bindToAbstract (LeftHandSide lhs) $ \lhs' ->	-- the order matters here!
+    toAbstract (CD.Clause top lhs rhs wh) =
+	bindToAbstract (LeftHandSide top lhs) $ \lhs' ->	-- the order matters here!
 	bindToAbstract wh  $ \wh'  ->
 	    do	rhs' <- toAbstractCtx TopCtx rhs
 		return $ A.Clause lhs' rhs' wh'
 
-data LeftHandSide = LeftHandSide C.LHS
+data LeftHandSide = LeftHandSide C.Name C.LHS
 
 instance BindToAbstract LeftHandSide A.LHS where
-    bindToAbstract (LeftHandSide lhs) ret =
-	bindToAbstract lhs $ \p -> do
+    bindToAbstract (LeftHandSide top lhs) ret = do
+	p <- parseLHS top lhs
+	bindToAbstract p $ \p -> do
 	    (x,ps) <- lhsArgs lhs p
-	    -- TODO: check name
 	    ret (A.LHS (LHSSource lhs) x ps)
 
 instance BindToAbstract c a => BindToAbstract (Arg c) (Arg a) where
@@ -574,11 +575,9 @@ instance BindToAbstract C.Pattern A.Pattern where
 	    r = getRange p0
 	    info = PatSource r $ \pr -> if appBrackets pr then ParenP r p0 else p0
 
-    bindToAbstract p0@(HiddenP _ _) ret = nothingAppliedToHiddenPat p0
-
-    bindToAbstract p0@(RawAppP r ps) ret = do
-	p <- parsePattern ps
-	bindToAbstract p ret
+    -- Removed when parsing
+    bindToAbstract (HiddenP _ _) _ = __IMPOSSIBLE__
+    bindToAbstract (RawAppP _ _) _ = __IMPOSSIBLE__
 
     bindToAbstract p@(C.WildP r)    ret = ret $ A.WildP (PatSource r $ const p)
     bindToAbstract (C.ParenP _ p)   ret = bindToAbstract p ret
