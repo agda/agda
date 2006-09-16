@@ -20,7 +20,7 @@ module Syntax.Concrete
     , TypeSignature
     , Constructor
     , ImportDirective(..), UsingOrHiding(..), ImportedName(..)
-    , LHS(..), Pattern(..)
+    , LHS, Pattern(..)
     , RHS(..), WhereClause
     , Pragma(..)
     )
@@ -45,10 +45,12 @@ data Expr
 	| Lit Literal			    -- ^ ex: @1@ or @\"foo\"@
 	| QuestionMark !Range (Maybe Nat)    -- ^ ex: @?@ or @{! ... !}@
 	| Underscore !Range (Maybe Nat)	    -- ^ ex: @_@
+	| RawApp !Range [Expr]		    -- ^ before parsing operators
 	| App !Range Expr (Arg Expr)	    -- ^ ex: @e e@ or @e {e}@
-	| InfixApp Expr QName Expr	    -- ^ ex: @e + e@ (no hiding)
+	| OpApp !Range NameDecl [Expr]	    -- ^ ex: @e + e@
+	| HiddenArg !Range Expr		    -- ^ ex: @{e}@
 	| Lam !Range [LamBinding] Expr	    -- ^ ex: @\\x {y} -> e@ or @\\(x:A){y:B} -> e@
-	| Fun !Range (Arg Expr) Expr	    -- ^ ex: @e -> e@ or @{e} -> e@
+	| Fun !Range Expr Expr		    -- ^ ex: @e -> e@ or @{e} -> e@
 	| Pi Telescope Expr		    -- ^ ex: @(xs:e) -> e@ or @{xs:e} -> e@
 	| Set !Range			    -- ^ ex: @Set@
 	| Prop !Range			    -- ^ ex: @Prop@
@@ -65,7 +67,9 @@ data Expr
 data Pattern
 	= IdentP QName
 	| AppP Pattern (Arg Pattern)
-	| InfixAppP Pattern QName Pattern
+	| RawAppP !Range [Pattern]
+	| OpAppP !Range NameDecl [Pattern]
+	| HiddenP !Range Pattern
 	| ParenP !Range Pattern
 	| WildP !Range
 	| AbsurdP !Range
@@ -106,19 +110,14 @@ type Telescope = [TypedBindings]
 {-| Left hand sides can be written in infix style. For example:
 
     > n + suc m = suc (n + m)
-    > (f . g) x = f (g x)
+    > (f ∘ g) x = f (g x)
 
-    It must always be clear which name is defined, independently of fixities.
-    Hence the following definition is never ok:
-
-    > x::xs ++ ys = x :: (xs ++ ys)
-
+    We use fixity information to see which name is actually defined.
 -}
-data LHS = LHS !Range IsInfix Name [Arg Pattern]
-    deriving (Typeable, Data, Eq)
+type LHS = Pattern
 
-data RHS	    = AbsurdRHS
-		    | RHS Expr
+data RHS = AbsurdRHS
+	 | RHS Expr
     deriving (Typeable, Data, Eq)
 
 type WhereClause    = [Declaration]
@@ -153,15 +152,15 @@ instance Show ImportedName where
  --------------------------------------------------------------------------}
 
 -- | Just type signatures.
-type TypeSignature	 = Declaration
+type TypeSignature   = Declaration
 
 {-| The representation type of a declaration. The comments indicate
     which type in the intended family the constructor targets.
 -}
 data Declaration
-	= TypeSig Name Expr
+	= TypeSig NameDecl Expr
 	| FunClause LHS RHS WhereClause
-	| Data        !Range Name [TypedBindings] Expr [Constructor]
+	| Data        !Range NameDecl [TypedBindings] Expr [Constructor]
 	| Infix Fixity [Name]
 	| Mutual      !Range [Declaration]
 	| Abstract    !Range [Declaration]
@@ -206,7 +205,8 @@ instance HasRange Expr where
 	    QuestionMark r _	-> r
 	    Underscore r _	-> r
 	    App r _ _		-> r
-	    InfixApp e1 _ e2	-> fuseRange e1 e2
+	    RawApp r _		-> r
+	    OpApp r _ _		-> r
 	    Lam r _ _		-> r
 	    Fun r _ _		-> r
 	    Pi b e		-> fuseRange b e
@@ -218,6 +218,7 @@ instance HasRange Expr where
 	    As r _ _		-> r
 	    Absurd r		-> r
 	    List r _		-> r
+	    HiddenArg r _	-> r
 
 -- instance HasRange Telescope where
 --     getRange (TeleBind bs) = getRange bs
@@ -259,9 +260,6 @@ instance HasRange Pragma where
     getRange (OptionsPragma r _)   = r
     getRange (BuiltinPragma r _ _) = r
 
-instance HasRange LHS where
-    getRange (LHS r _ _ _)  = r
-
 instance HasRange UsingOrHiding where
     getRange (Using xs)	    = getRange xs
     getRange (Hiding xs)    = getRange xs
@@ -276,10 +274,12 @@ instance HasRange ImportedName where
 instance HasRange Pattern where
     getRange (IdentP x)		= getRange x
     getRange (AppP p q)		= fuseRange p q
-    getRange (InfixAppP p _ q)	= fuseRange p q
+    getRange (OpAppP r _ _)	= r
+    getRange (RawAppP r _)	= r
     getRange (ParenP r _)	= r
     getRange (WildP r)		= r
     getRange (AsP r _ _)	= r
     getRange (AbsurdP r)	= r
     getRange (LitP l)		= getRange l
+    getRange (HiddenP r _)	= r
 

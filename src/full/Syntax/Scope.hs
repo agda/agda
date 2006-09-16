@@ -229,7 +229,7 @@ data ResolvedName
 data DefinedName =
 	DefinedName { access	 :: Access
 		    , kindOfName :: KindOfName
-		    , fixity	 :: Fixity
+		    , operator	 :: Operator
 		    , theName    :: AName.QName
 		    }
     deriving (Data,Typeable,Show)
@@ -478,11 +478,12 @@ updateNameSpace PublicAccess f si =
 updateNameSpace PrivateAccess f si =
     si { privateNameSpace = f $ privateNameSpace si }
 
-defName :: Access -> KindOfName -> Fixity -> AName.Name -> ScopeInfo -> ScopeInfo
-defName a k f x si = updateNameSpace a (addName (nameConcrete x) qx) si
+defName :: Access -> KindOfName -> Operator -> AName.Name ->
+	   ScopeInfo -> ScopeInfo
+defName a k op x si = updateNameSpace a (addName (nameConcrete x) qx) si
     where
 	m   = moduleName $ publicNameSpace si
-	qx  = DefinedName a k f (AName.qualify m x)
+	qx  = DefinedName a k op (AName.qualify m x)
 
 -- | Assumes that the name in the 'ModuleScope' fully qualified.
 defModule :: CName.Name -> ModuleScope -> ScopeInfo -> ScopeInfo
@@ -694,17 +695,17 @@ interfaceToModule i =
 	    { moduleName    = name
 	    , definedNames  =
 		Map.fromList $
-		       [ (nameConcrete x, mkName FunName f x)  | (x,f) <- I.definedNames i ]
-		    ++ [ (nameConcrete x, mkName ConName f x)  | (x,f) <- I.constructorNames i ]
+		       [ (nameConcrete x, mkName FunName op x) | (x,op) <- I.definedNames i ]
+		    ++ [ (nameConcrete x, mkName ConName op x) | (x,op) <- I.constructorNames i ]
 	    , modules	    =
 		Map.fromList $ [ mkModule i' | i' <- I.subModules i ]
 	    }
 	    where
 		name = I.moduleName i
-		mkName k f x =
+		mkName k op x =
 		    DefinedName { access	= PublicAccess
 				, kindOfName	= k
-				, fixity	= f
+				, operator	= op
 				, theName	= AName.qualify name x
 				}
 		mkModule i' = (x, interfaceToModule $ i' { I.moduleName = qx })
@@ -727,16 +728,16 @@ getCurrentModule :: ScopeM ModuleName
 getCurrentModule = moduleName . publicNameSpace <$> getScopeInfo
 
 
--- | Get a function that returns the fixity of a name.
-getFixityFunction :: ScopeM (CName.QName -> Fixity)
+-- | Get a function that returns the operator version of a name.
+getFixityFunction :: ScopeM (CName.QName -> Operator)
 getFixityFunction =
     do	scope <- getScopeInfo
 	return (f scope)
     where
 	f scope x =
 	    case resolveName x scope of
-		VarName _   -> defaultFixity
-		DefName d   -> fixity d
+		VarName x   -> defaultOperator $ nameConcrete x
+		DefName d   -> operator d
 		_	    -> notInScope x
 
 -- | Get the current (public) name space.
@@ -773,17 +774,20 @@ insideModule x = local upd
 		qx  = qualifyModule' (moduleName pub) x
 
 -- | Add a defined name to the current scope.
-defineName :: Access -> KindOfName -> Fixity -> CName.Name -> (AName.Name -> ScopeM a) -> ScopeM a
-defineName a k f x cont =
-    do	si <- getScopeInfo
+defineName :: Access -> KindOfName -> Fixity -> CName.NameDecl -> (AName.Name -> ScopeM a) -> ScopeM a
+defineName a k f nd cont =
+    do	let x = nameDeclName nd
+	si <- getScopeInfo
 	case resolveName (CName.QName x) si of
 	    UnknownName	->
 		do  x' <- abstractName x
-		    local (defName a k f x') $ cont x'
+		    local (defName a k op x') $ cont x'
 	    VarName _	->
 		do  x' <- abstractName x
-		    local (defName a k f x' . shadowVar x') $ cont x'
+		    local (defName a k op x' . shadowVar x') $ cont x'
 	    DefName y   -> clashingDefinition x (theName y)
+    where
+	op = Operator nd f
 
 
 {-| If a variable shadows a defined name we still keep the defined name.  The

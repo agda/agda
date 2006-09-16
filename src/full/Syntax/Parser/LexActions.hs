@@ -14,7 +14,7 @@ module Syntax.Parser.LexActions
     , begin_, end_
     , lexError
       -- ** Specialized actions
-    , keyword, symbol, identifier, operator, literal
+    , keyword, symbol, identifier, literal
       -- * Lex predicates
     , notFollowedBy, notEOF
     ) where
@@ -85,7 +85,6 @@ foolAlex inp = inp { lexInput = map fool $ lexInput inp }
     where
 	fool c
 	    | isUnicodeId c = 'z'
-	    | isUnicodeOp c = '+'
 	    | otherwise	    = c
 
 {--------------------------------------------------------------------------
@@ -180,12 +179,6 @@ literal lit = withRange' read (TokLiteral . uncurry lit)
 --   Example: @Foo.Bar.f@
 identifier :: LexAction Token
 identifier = qualified (either TokId TokQId)
-
-
--- | Parse an operator. Operators can be qualified (see 'Name').
---   Example: @Nat.Operations.+@
-operator :: LexAction Token
-operator = qualified (either TokOp TokQOp)
 
 
 -- | Parse a possibly qualified name.

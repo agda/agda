@@ -19,7 +19,6 @@ import Utils.Unicode
 instance Show Expr	      where show = show . pretty
 instance Show Declaration     where show = show . pretty
 instance Show Pattern	      where show = show . pretty
-instance Show LHS	      where show = show . pretty
 instance Show TypedBindings   where show = show . pretty
 instance Show LamBinding      where show = show . pretty
 instance Show ImportDirective where show = show . pretty
@@ -30,25 +29,14 @@ pHidden :: Pretty a => Hiding -> a -> Doc
 pHidden Hidden	    = braces . pretty
 pHidden NotHidden   = pretty
 
-isOpChar '_' = False	-- for wildcards (NoName)
-isOpChar c = not $ isAlpha c || isUnicodeId c
+instance Pretty Name where
+    pretty = text . show
 
-name :: String -> Doc
-name s@(c:_)
-    | isOpChar c    = parens $ text s
-    | otherwise	    = text s
-name _ = __IMPOSSIBLE__
+instance Pretty QName where
+    pretty = text . show
 
-op :: String -> Doc
-op s@(c:_)
-    | isOpChar c    = text s
-    | otherwise	    = text "`" <> text s <> text "`"
-op _ = __IMPOSSIBLE__
-
-prettyOp, prettyId, prettyName :: Show a => a -> Doc
-prettyId    = name . show
-prettyOp    = op   . show
-prettyName  = text . show
+instance Pretty NameDecl where
+    pretty (NameDecl xs) = hsep $ map pretty xs
 
 instance Pretty Literal where
     pretty (LitInt _ n)	    = text $ show n
@@ -71,7 +59,7 @@ showChar' c
 instance Pretty Expr where
     pretty e =
 	case e of
-	    Ident x	     -> prettyId x
+	    Ident x	     -> pretty x
 	    Lit l	     -> pretty l
 	    QuestionMark _ n -> text "?" <> maybe empty (text . show) n
 	    Underscore _ n   -> text "_" <> maybe empty (text . show) n
@@ -82,10 +70,15 @@ instance Pretty Expr where
 -- 			sep [ pretty e1
 -- 			    , nest 2 $ fsep $ map pretty args
 -- 			    ]
-	    InfixApp e1 op e2 ->
-		sep [ pretty e1
-		    , prettyOp op <+> pretty e2
-		    ]
+	    RawApp _ es   -> fsep $ map pretty es
+	    OpApp _ (NameDecl xs) es -> fsep $ prOp xs es
+		where
+		    prOp (x:xs) ~(e:es)
+			| x == noName	= pretty e : prOp xs es
+		    prOp (x:xs) es	= pretty x : prOp xs es
+		    prOp []	es	= map pretty es
+
+	    HiddenArg _ e -> braces $ pretty e
 	    Lam _ bs e ->
 		sep [ text "\\" <> fsep (map pretty bs) <+> text "->"
 		    , nest 2 $ pretty e
@@ -106,12 +99,12 @@ instance Pretty Expr where
 		    , text "in" <+> pretty e
 		    ]
 	    Paren _ e -> parens $ pretty e
-	    As _ x e  -> prettyId x <> text "@" <> pretty e
+	    As _ x e  -> pretty x <> text "@" <> pretty e
 	    Absurd _  -> text "()"
 	    List _ es -> brackets $ fsep $ punctuate comma $ map pretty es
 
 instance Pretty LamBinding where
-    pretty (DomainFree h x) = pHidden h (prettyId x)
+    pretty (DomainFree h x) = pHidden h (pretty x)
     pretty (DomainFull b)   = pretty b
 
 instance Pretty TypedBindings where
@@ -125,7 +118,7 @@ instance Pretty TypedBindings where
 instance Pretty TypedBinding where
     pretty (TNoBind e) = pretty e
     pretty (TBind _ xs e) =
-	sep [ fsep (punctuate comma $ map prettyId xs)
+	sep [ fsep (punctuate comma $ map pretty xs)
 	    , text ":" <+> pretty e
 	    ]
 
@@ -136,7 +129,7 @@ instance Pretty RHS where
 instance Pretty Declaration where
     pretty d =
 	case d of
-	    TypeSig x e	-> sep [ prettyId x <+> text ":"
+	    TypeSig x e	-> sep [ pretty x <+> text ":"
 			       , nest 2 $ pretty e
 			       ]
 	    FunClause lhs rhs wh ->
@@ -151,7 +144,7 @@ instance Pretty Declaration where
 				 ]
 	    Data _ x tel e cs ->
 		sep [ hsep  [ text "data"
-			    , prettyId x
+			    , pretty x
 			    , fcat (map pretty tel)
 			    ]
 		    , nest 2 $ hsep
@@ -161,7 +154,7 @@ instance Pretty Declaration where
 			    ]
 		    ] $$ nest 2 (vcat $ map pretty cs)
 	    Infix f xs	->
-		pretty f <+> (fsep $ punctuate comma $ map prettyOp xs)
+		pretty f <+> (fsep $ punctuate comma $ map pretty xs)
 	    
 	    Mutual _ ds	    -> namedBlock "mutual" ds
 	    Abstract _ ds   -> namedBlock "abstract" ds
@@ -170,19 +163,19 @@ instance Pretty Declaration where
 	    Primitive _ ds  -> namedBlock "primitive" ds
 	    Module _ x tel ds ->
 		hsep [ text "module"
-		     , prettyId x
+		     , pretty x
 		     , fcat (map pretty tel)
 		     , text "where"
 		     ] $$ nest 2 (vcat $ map pretty ds)
 	    ModuleMacro _ x tel e i ->
-		sep [ text "module" <+> prettyId x <+> fcat (map pretty tel)
+		sep [ text "module" <+> pretty x <+> fcat (map pretty tel)
 		    , nest 2 $ text "=" <+> pretty e <> pretty i
 		    ]
-	    Open _ x i	-> text "open" <+> prettyId x <> pretty i
-	    Import _ x rn i   -> text "import" <+> prettyId x <+> as rn <> pretty i
+	    Open _ x i	-> text "open" <+> pretty x <> pretty i
+	    Import _ x rn i   -> text "import" <+> pretty x <+> as rn <> pretty i
 		where
 		    as Nothing	= empty
-		    as (Just x) = text "as" <+> prettyName x
+		    as (Just x) = text "as" <+> pretty x
 	    Pragma pr	-> sep [ text "{-#" <+> pretty pr, text "#-}" ]
 	where
 	    namedBlock s ds =
@@ -192,26 +185,12 @@ instance Pretty Declaration where
 
 instance Pretty Pragma where
     pretty (OptionsPragma _ opts) = fsep $ map text $ "OPTIONS" : opts
-    pretty (BuiltinPragma _ b x)  = hsep [ text "BUILTIN", text b, prettyName x ]
+    pretty (BuiltinPragma _ b x)  = hsep [ text "BUILTIN", text b, pretty x ]
 
 instance Pretty Fixity where
     pretty (LeftAssoc _ n)  = text "infixl" <+> text (show n)
     pretty (RightAssoc _ n) = text "infixr" <+> text (show n)
     pretty (NonAssoc _ n)   = text "infix" <+> text (show n)
-
-instance Pretty LHS where
-    pretty (LHS _ PrefixDef x es) =
-	sep [ prettyId x, nest 2 $ fsep $ map pretty es ]
-    pretty (LHS _ InfixDef x (e1:e2:es)) =
-	sep [ par $ sep [ pretty e1 <+> prettyOp x
-			, nest 2  $ pretty e2
-			]
-	    , nest 2 $ fsep $ map pretty es
-	    ]
-	where
-	    par | null es   = id
-		| otherwise = parens
-    pretty _ = __IMPOSSIBLE__
 
 instance Pretty e => Pretty (Arg e) where
     pretty (Arg h e) = pHidden h e
@@ -219,14 +198,14 @@ instance Pretty e => Pretty (Arg e) where
 instance Pretty Pattern where
     pretty p =
 	case p of
-	    IdentP x	       -> prettyId x
+	    IdentP x	       -> pretty x
 	    AppP p1 p2	       -> sep [ pretty p1, nest 2 $ pretty p2 ]
-	    InfixAppP p1 op p2 -> sep [ pretty p1
-				      , prettyOp op <+> pretty p2
-				      ]
+	    RawAppP _ ps       -> fsep $ map pretty ps
+	    OpAppP _ _ _       -> text "TODO: operator application in pattern"
+	    HiddenP _ p	       -> braces $ pretty p
 	    ParenP _ p	       -> parens $ pretty p
 	    WildP _	       -> text "_"
-	    AsP _ x p	       -> prettyId x <> text "@" <> pretty p
+	    AsP _ x p	       -> pretty x <> text "@" <> pretty p
 	    AbsurdP _	       -> text "()"
 	    LitP l	       -> pretty l
 
@@ -241,7 +220,7 @@ instance Pretty ImportDirective where
 			     , parens $ fsep $ punctuate comma $ map pr xs
 			     ]
 
-	    pr (x,y) = hsep [ pretty x, text "to", prettyName y ]
+	    pr (x,y) = hsep [ pretty x, text "to", pretty y ]
 
 instance Pretty UsingOrHiding where
     pretty (Hiding [])	= empty
@@ -251,6 +230,6 @@ instance Pretty UsingOrHiding where
 	comma <+> text "using" <+> parens (fsep $ punctuate comma $ map pretty xs)
 
 instance Pretty ImportedName where
-    pretty (ImportedName x)	= prettyName x
-    pretty (ImportedModule x)	= text "module" <+> prettyName x
+    pretty (ImportedName x)	= pretty x
+    pretty (ImportedModule x)	= text "module" <+> pretty x
 

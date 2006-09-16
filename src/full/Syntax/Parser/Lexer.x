@@ -27,12 +27,10 @@ import Syntax.Literal
 }
 
 $digit	    = 0-9
-$idstart    = [ A-Z a-z ]
-$symstart   = [ \- \! \# \$ \% \& \* \+ \/ \< \= \> \@ \^ \| \~ \? ]
+$idstart    = [ A-Z a-z _ \- \! \# \$ \% \& \* \+ \/ \< \= \> \@ \^ \| \~ \? ]
 $specialsym = [ \\ \: \. ]
-$idchar	    = [ $symstart $idstart $digit ' _ ]
-$namechar   = [ $idchar $specialsym ]
-$endcomment = ~ $namechar
+$idchar	    = [ $idstart $digit ' ]
+$endcomment = ~ $idchar
 
 $white_nonl = $white # \n
 
@@ -41,14 +39,9 @@ $white_nonl = $white # \n
 @float	    = @number \. @number @exponent? | @number @exponent
 
 @ident	    = $idstart $idchar*
--- operators starting with a special char cannot have an $idstart as second
--- char (to allow \x -> x and x:A)
-@specialop  = $specialsym [ $symstart $specialsym ] $namechar*
-@operator   = $symstart $namechar* | @specialop
 
 @namespace  = (@ident \.)*
 @q_ident    = @namespace @ident
-@q_operator = @namespace @operator
 
 tokens :-
 
@@ -78,7 +71,7 @@ tokens :-
     "{-" / { notFollowedBy '#' }    { nestedComment }
 
 
--- Dashes followed by an operator symbol should be parsed as an operator.
+-- Dashes followed by a name symbol should be parsed as a name.
 <0,code,bol_,layout_,empty_layout_,imp_dir_>   "--"\-* $endcomment .* ;
 <0,code,bol_,layout_,empty_layout_,imp_dir_>   "--"\-* $	      ;
 
@@ -155,9 +148,8 @@ tokens :-
 <0,code> "{"		{ symbol SymOpenBrace }	    -- you can't use braces for layout
 <0,code> "}"		{ symbol SymCloseBrace }
 
--- Identifiers and operators
+-- Identifiers
 <0,code> @q_ident	{ identifier }
-<0,code> @q_operator	{ operator }
 
 -- Literals
 <0,code> \'		{ litChar }

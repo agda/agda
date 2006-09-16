@@ -56,10 +56,30 @@ data QName = Qual  Name QName
            | QName Name 
   deriving (Typeable, Data, Eq, Ord)
 
+{-| A name declaration is a non-empty list of alternating 'Name's and
+    'NoName's, containing at least one 'Name'. A normal name is represented by
+    a singleton list, and operators are represented by a list with 'NoName's
+    where the arguments should go. For instance: @[NoName,Name "+",NoName]@ is
+    infix addition.
+-}
+newtype NameDecl = NameDecl [Name]
+    deriving (Typeable, Data, Eq)
+
+nameDeclName :: NameDecl -> Name
+nameDeclName x@(NameDecl xs) = Name (getRange x) $ concatMap show xs
+
+isPrefix, isPostfix, isInfix, isNonfix :: NameDecl -> Bool
+isPrefix  (NameDecl xs) = head xs /= noName && last xs == noName
+isPostfix (NameDecl xs) = head xs == noName && last xs /= noName
+isInfix   (NameDecl xs) = head xs == noName && last xs == noName
+isNonfix  (NameDecl xs) = head xs /= noName && last xs /= noName
 
 instance Show Name where
     show (Name _ x) = x
     show (NoName _) = "_"
+
+instance Show NameDecl where
+    show (NameDecl xs) = unwords $ map show xs
 
 instance Show QName where
     show (Qual m x) = show m ++ "." ++ show x
@@ -72,4 +92,7 @@ instance HasRange Name where
 instance HasRange QName where
     getRange (QName  x) = getRange x
     getRange (Qual n x)	= fuseRange n x
+
+instance HasRange NameDecl where
+    getRange (NameDecl xs) = getRange xs
 

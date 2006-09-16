@@ -55,12 +55,12 @@ instance Equal a => Equal [a] where
 -- Info instances ---------------------------------------------------------
 
 instance Equal NameInfo where
-    i === j = fromBool i j $ nameFixity i == nameFixity j
-			  && nameAccess i == nameAccess j
+    i === j = fromBool i j $ nameOperator i == nameOperator j
+			  && nameAccess   i == nameAccess   j
 
 instance Equal DefInfo where
-    i === j = fromBool i j $ defFixity i == defFixity j
-			  && defAccess i == defAccess j
+    i === j = fromBool i j $ defOperator i == defOperator j
+			  && defAccess   i == defAccess   j
 
 instance Equal ModuleInfo where
     i === j = fromBool i j $ minfoAccess i == minfoAccess j

@@ -3,7 +3,12 @@
 {-| Translation from "Syntax.Concrete" to "Syntax.Abstract". Involves scope analysis,
     figuring out infix operator precedences and tidying up definitions.
 -}
-module Syntax.Translation.ConcreteToAbstract where
+module Syntax.Translation.ConcreteToAbstract
+    ( ToAbstract(..), BindToAbstract(..)
+    , concreteToAbstract_
+    , concreteToAbstract
+    , ToAbstractException(..)
+    ) where
 
 import Control.Exception
 import Control.Monad.Reader
@@ -17,13 +22,14 @@ import Syntax.Common
 import Syntax.Info
 --import Syntax.Interface
 import Syntax.Concrete.Definitions as CD
-import Syntax.Concrete.Fixity
+import Syntax.Concrete.Operators
 import Syntax.Fixity
 import Syntax.Scope
 
 import Interaction.Imports
 
 import Utils.Monad
+import Utils.Tuple
 
 #include "../../undefined.h"
 
@@ -43,20 +49,29 @@ data ToAbstractException
 	| NoTopLevelModule C.Declaration
 	| NotAnExpression C.Expr
 	| NotAValidLetBinding NiceDeclaration
+	| NotAValidLHS C.Pattern
+	| NothingAppliedToHiddenArg C.Expr
+	| NothingAppliedToHiddenPat C.Pattern
     deriving (Typeable, Show)
 
-higherOrderPattern p0 p = throwDyn $ HigherOrderPattern p0 p
-notAModuleExpr e	= throwDyn $ NotAModuleExpr e
-noTopLevelModule d	= throwDyn $ NoTopLevelModule d
-notAnExpression e	= throwDyn $ NotAnExpression e
-notAValidLetBinding d	= throwDyn $ NotAValidLetBinding d
+higherOrderPattern p0 p	    = throwDyn $ HigherOrderPattern p0 p
+notAModuleExpr e	    = throwDyn $ NotAModuleExpr e
+noTopLevelModule d	    = throwDyn $ NoTopLevelModule d
+notAnExpression e	    = throwDyn $ NotAnExpression e
+notAValidLetBinding d	    = throwDyn $ NotAValidLetBinding d
+notAValidLHS p		    = throwDyn $ NotAValidLHS p
+nothingAppliedToHiddenArg e = throwDyn $ NothingAppliedToHiddenArg e
+nothingAppliedToHiddenPat e = throwDyn $ NothingAppliedToHiddenPat e
 
 instance HasRange ToAbstractException where
-    getRange (HigherOrderPattern p _) = getRange p
-    getRange (NotAModuleExpr e)	      = getRange e
-    getRange (NoTopLevelModule d)     = getRange d
-    getRange (NotAnExpression e)      = getRange e
-    getRange (NotAValidLetBinding d)  = getRange d
+    getRange (HigherOrderPattern p _)	   = getRange p
+    getRange (NotAModuleExpr e)		   = getRange e
+    getRange (NoTopLevelModule d)	   = getRange d
+    getRange (NotAnExpression e)	   = getRange e
+    getRange (NotAValidLetBinding d)	   = getRange d
+    getRange (NotAValidLHS p)		   = getRange p
+    getRange (NothingAppliedToHiddenArg e) = getRange e
+    getRange (NothingAppliedToHiddenPat e) = getRange e
 
 {--------------------------------------------------------------------------
     Helpers
@@ -65,7 +80,15 @@ instance HasRange ToAbstractException where
 exprSource :: C.Expr -> ScopeM ExprInfo
 exprSource e =
     do	f <- getFixityFunction
-	return $ ExprSource (getRange e) (paren f e)
+	let f' x = f (C.QName x)    -- TODO
+	return $ ExprSource (getRange e) (paren f' e)
+
+lhsArgs :: C.Pattern -> A.Pattern -> ScopeM (A.Name, [Arg A.Pattern])
+lhsArgs cp p@(A.DefP _ qx args) = do
+    m <- getCurrentModule
+    unless (qnameModule qx == m) $ notAValidLHS cp
+    return (qnameName qx,args)
+lhsArgs cp _		  = notAValidLHS cp
 
 {--------------------------------------------------------------------------
     Translation
@@ -144,10 +167,10 @@ instance ToAbstract OldQName A.Expr where
 		VarName x'  ->
 			return $
 				Var (NameInfo
-				    { bindingSite	= getRange x'
-				    , concreteName	= x
-				    , nameFixity	= defaultFixity
-				    , nameAccess	= PrivateAccess
+				    { bindingSite  = getRange x'
+				    , concreteName = x
+				    , nameOperator = defaultOperator $ nameConcrete x'
+				    , nameAccess   = PrivateAccess
 				    }
 				   ) (setRange (getRange x) x')
 			where
@@ -161,7 +184,7 @@ instance ToAbstract OldQName A.Expr where
 		    where
 			info = NameInfo { bindingSite   = getRange d
 					, concreteName  = x
-					, nameFixity    = fixity d
+					, nameOperator	= operator d
 					, nameAccess    = access d
 					}
 		UnknownName	-> notInScope x
@@ -215,6 +238,9 @@ instance ToAbstract C.Expr A.Expr where
 					     , metaNumber = n
 					     }
 
+    -- Raw application
+    toAbstract e@(C.RawApp r es) = toAbstract =<< parseApplication es
+
     -- Application
     toAbstract e@(C.App r e1 e2) =
 	do  e1'  <- toAbstractCtx FunctionCtx e1
@@ -222,21 +248,18 @@ instance ToAbstract C.Expr A.Expr where
 	    info <- exprSource e
 	    return $ A.App info e1' e2'
 
-    -- Infix application
-    toAbstract e@(C.InfixApp _ _ _) =
-	do  f <- getFixityFunction
-	    -- Rotating an infix application always returns an infix application.
-	    let C.InfixApp e1 op e2 = rotateInfixApp f e
-		fx		    = f op
+    -- Operator application
+    toAbstract e@(C.OpApp r op es) = do
+	x    <- toAbstract (OldQName $ C.QName $ nameDeclName op)
+	es'  <- toAbstract es	-- TODO: parenthesis?
+	info <- exprSource e
+	return $ foldl app x es'
+	where
+	    app e arg = A.App (ExprRange (fuseRange e arg)) e
+		      $ Arg NotHidden arg
 
-	    e1'  <- toAbstractCtx (LeftOperandCtx fx) e1
-	    op'  <- toAbstractCtx TopCtx $ Ident op
-	    e2'  <- toAbstractCtx (RightOperandCtx fx) e2
-	    info <- exprSource e
-	    return $ A.App info
-			   (A.App (ExprRange $ fuseRange e1' op')
-				  op' (Arg NotHidden e1')
-			   ) (Arg NotHidden e2')    -- infix applications are never hidden
+    -- Malplaced hidden argument
+    toAbstract e@(C.HiddenArg _ _) = nothingAppliedToHiddenArg e
 
     -- Lambda
     toAbstract e0@(C.Lam r bs e) =
@@ -249,7 +272,10 @@ instance ToAbstract C.Expr A.Expr where
 
     -- Function types
     toAbstract e@(C.Fun r e1 e2) =
-	do  e1'  <- toAbstractCtx FunctionSpaceDomainCtx e1
+	do  let arg = case e1 of
+			C.HiddenArg _ e1 -> Arg Hidden e1
+			_		 -> Arg NotHidden e1
+	    e1'  <- toAbstractCtx FunctionSpaceDomainCtx arg
 	    e2'  <- toAbstractCtx TopCtx e2
 	    info <- exprSource e
 	    return $ A.Fun info e1' e2'
@@ -340,14 +366,15 @@ instance BindToAbstract LetDef A.LetBinding where
 	    NiceDef _ c [CD.Axiom _ _ _ _ x t] [CD.FunDef _ _ _ _ _ _ [cl]] ->
 		do  e <- letToAbstract cl
 		    t <- toAbstract t
-		    bindToAbstract (NewName x) $ \x ->
+		    bindToAbstract (NewName $ nameDeclName x) $ \x ->
 			ret (A.LetBind (LetSource c) x t e)
 	    _	-> notAValidLetBinding d
 	where
-	    letToAbstract (CD.Clause (C.LHS _ _ _ args) (C.RHS rhs) []) =
-		bindToAbstract args $ \args ->
-		    do	rhs <- toAbstract rhs
-			foldM lambda rhs $ reverse args
+	    letToAbstract (CD.Clause clhs (C.RHS rhs) []) =
+		bindToAbstract clhs $ \lhs ->
+		    do	rhs	 <- toAbstract rhs
+			(x,args) <- lhsArgs clhs lhs
+			foldM lambda rhs args
 	    letToAbstract _ = notAValidLetBinding d
 
 	    lambda e (Arg h (A.VarP x)) = return $ A.Lam i (A.DomainFree h x) e
@@ -371,7 +398,7 @@ instance BindToAbstract NiceDefinition Definition where
 
     -- Function definitions
     bindToAbstract (CD.FunDef r ds f p a x cs) ret =
-	do  (x',cs') <- toAbstract (OldName x,cs)
+	do  (x',cs') <- toAbstract (OldName $ nameDeclName x,cs)
 	    ret $ A.FunDef (mkSourcedDefInfo x f p a ds) x' cs'
 
     -- Data definitions
@@ -379,7 +406,7 @@ instance BindToAbstract NiceDefinition Definition where
 	(pars,cons) <- bindToAbstract pars $ \pars ->
 		       bindToAbstract (map Constr cons) $ \cons ->
 		       return (pars,cons)
-	x' <- toAbstract (OldName x)
+	x' <- toAbstract (OldName $ nameDeclName x)
 	bindToAbstract (map Constr cons) $ \_ ->
 	    ret $ A.DataDef (mkRangedDefInfo x f p a r) x' pars cons
 
@@ -391,7 +418,7 @@ instance BindToAbstract NiceDeclaration [A.Declaration] where
     -- Axiom
     bindToAbstract (CD.Axiom r f p a x t) ret =
 	do  t' <- toAbstractCtx TopCtx t
-	    defineName p FunName f x $ \x' ->
+	    defineName p FunName f x $ \x' -> do
 		ret [A.Axiom (mkRangedDefInfo x f p a r) x' t']
 				-- we can easily reconstruct the original decl
 				-- so we don't bother save it
@@ -480,27 +507,30 @@ instance BindToAbstract (Constr CD.NiceDeclaration) A.Declaration where
 
 instance BindToAbstract (Constr A.Declaration) () where
     bindToAbstract (Constr (A.Axiom info x _)) ret =
-	    local (defName p ConName f x) $ ret ()
+	    local (defName p ConName op x) $ ret ()
 	where
-	    a = defAccess info
-	    f = defFixity info
-	    p = case (defAbstract info, defAccess info) of
+	    a  = defAccess info
+	    op = defOperator info
+	    p  = case (defAbstract info, defAccess info) of
 		    (AbstractDef, _) -> PrivateAccess
 		    (_, p)	     -> p
     bindToAbstract _ _ = __IMPOSSIBLE__ -- a constructor is always an axiom
 
 instance ToAbstract CD.Clause A.Clause where
     toAbstract (CD.Clause lhs rhs wh) =
-	bindToAbstract lhs $ \lhs' ->	-- the order matters here!
+	bindToAbstract (LeftHandSide lhs) $ \lhs' ->	-- the order matters here!
 	bindToAbstract wh  $ \wh'  ->
 	    do	rhs' <- toAbstractCtx TopCtx rhs
 		return $ A.Clause lhs' rhs' wh'
 
-instance BindToAbstract C.LHS A.LHS where
-    bindToAbstract lhs@(C.LHS _ _ x as) ret =
-	do  x <- toAbstract (OldName x)
-	    bindToAbstract as $ \as' ->
-		ret (A.LHS (LHSSource lhs) x as')
+data LeftHandSide = LeftHandSide C.LHS
+
+instance BindToAbstract LeftHandSide A.LHS where
+    bindToAbstract (LeftHandSide lhs) ret =
+	bindToAbstract lhs $ \p -> do
+	    (x,ps) <- lhsArgs lhs p
+	    -- TODO: check name
+	    ret (A.LHS (LHSSource lhs) x ps)
 
 instance BindToAbstract c a => BindToAbstract (Arg c) (Arg a) where
     bindToAbstract (Arg h e) ret = bindToAbstract e $ ret . Arg h
@@ -532,28 +562,23 @@ instance BindToAbstract C.Pattern A.Pattern where
 	    r = getRange p0
 	    info = PatSource r $ \pr -> if appBrackets pr then ParenP r p0 else p0
 
-    bindToAbstract p0@(InfixAppP _ _ _) ret =
-	do  f <- getFixityFunction
-	    case rotateInfixAppP f p0 of
-		InfixAppP p op q ->
-		    bindToAbstract (C.IdentP op) $ \pop ->
-		    case pop of
-			ConP _ op' []   ->
-			    bindToAbstract (p,q) $ \ (p',q') ->
-			    ret $ ConP info op'
-				$ map (Arg NotHidden) [p',q']
-			DefP _ op' []	-> 
-			    bindToAbstract (p,q) $ \ (p',q') ->
-			    ret $ DefP info op'
-				$ map (Arg NotHidden) [p',q']
-			_ -> higherOrderPattern p0 (C.IdentP op)
-		_ -> __IMPOSSIBLE__ -- rotating an infix app produces an infix app
+    bindToAbstract p0@(OpAppP r op ps) ret =
+	bindToAbstract (IdentP $ C.QName $ nameDeclName op)
+			  $ \p ->
+	bindToAbstract ps $ \ps ->
+	    case p of
+		ConP _ x as -> ret $ ConP info x (as ++ map (Arg NotHidden) ps)
+		DefP _ x as -> ret $ DefP info x (as ++ map (Arg NotHidden) ps)
+		_	    -> higherOrderPattern p0 (IdentP $ C.QName $ nameDeclName op)
 	where
 	    r = getRange p0
-	    info = PatSource r $ \pr -> if piBrackets pr
-					then ParenP r p0
-					else p0
-		-- TODO: get the real fixity of the operator and use infixBrackets
+	    info = PatSource r $ \pr -> if appBrackets pr then ParenP r p0 else p0
+
+    bindToAbstract p0@(HiddenP _ _) ret = nothingAppliedToHiddenPat p0
+
+    bindToAbstract p0@(RawAppP r ps) ret = do
+	p <- parsePattern ps
+	bindToAbstract p ret
 
     bindToAbstract p@(C.WildP r)    ret = ret $ A.WildP (PatSource r $ const p)
     bindToAbstract (C.ParenP _ p)   ret = bindToAbstract p ret

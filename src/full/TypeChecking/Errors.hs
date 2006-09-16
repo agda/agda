@@ -60,6 +60,12 @@ instance PrettyTCM Term where prettyTCM x = prettyA <$> reify x
 instance PrettyTCM Type where prettyTCM x = prettyA <$> reify x
 instance PrettyTCM Sort where prettyTCM x = prettyA <$> reify x
 
+instance Pretty Name where
+    pretty = pretty . nameConcrete
+
+instance Pretty QName where
+    pretty = pretty . qnameConcrete
+
 instance PrettyTCM TCErr where
     prettyTCM err = case err of
 	TypeError s e -> do
@@ -92,7 +98,7 @@ instance PrettyTCM TypeError where
 		    pwords "the target of the constructor should be" ++ [ds] ++
 		    pwords "instead of" ++ [dt]
 	    ShouldBeApplicationOf t q -> do
-		let dq = prettyName q
+		let dq = pretty q
 		return $ fsep $
 		    pwords "the pattern constructs an element of" ++ [dq] ++ pwords "which is not the right datatype"
 	    DifferentArities -> do
@@ -177,7 +183,7 @@ instance PrettyTCM TypeError where
 		return $ fsep $ pwords "no binding for builtin thing" ++ [text x <> comma]
 			     ++ pwords ("use {-# BUILTIN " ++ x ++ " name #-} to bind it to 'name'")
 	    NoSuchPrimitiveFunction x ->
-		return $ fsep $ pwords "there is no primitive function called" ++ [prettyName x]
+		return $ fsep $ pwords "there is no primitive function called" ++ [pretty x]
 	    BuiltinInParameterisedModule x ->
 		return $ fsep $ pwords "the BUILTIN pragma cannot appear inside a bound context" ++
 				pwords "(for instance, in a parameterised module or as a local declaration)"
@@ -231,18 +237,18 @@ instance PrettyTCM Call where
 		pwords "When checking that"
 		++ des ++ pwords "are valid arguments to a function of type" ++ [dt]
 	CheckDataDef _ x ps cs _ -> do
-	    return $ fsep $ pwords "When checking the definition of" ++ [prettyName x]
+	    return $ fsep $ pwords "When checking the definition of" ++ [pretty x]
 	CheckConstructor d _ _ (A.Axiom _ c _) _ -> do
-	    return $ fsep $ pwords "When checking the constructor" ++ [prettyName c] ++
-			    pwords "in the declaration of" ++ [prettyName d]
+	    return $ fsep $ pwords "When checking the constructor" ++ [pretty c] ++
+			    pwords "in the declaration of" ++ [pretty d]
 	CheckConstructor _ _ _ _ _ -> __IMPOSSIBLE__
 	CheckFunDef _ f _ _ -> do
-	    return $ fsep $ pwords "When checking the definition of" ++ [prettyName f]
+	    return $ fsep $ pwords "When checking the definition of" ++ [pretty f]
 	CheckPragma _ p _ ->
 	    return $ fsep $ pwords "When checking the pragma" ++ [prettyA $ RangeAndPragma noRange p]
 	CheckPrimitive _ x e _ ->
 	    return $ fsep $ pwords "When checking that the type of the primitive function"
-		  ++ [prettyName x] ++ pwords "is" ++ [prettyA e]
+		  ++ [pretty x] ++ pwords "is" ++ [prettyA e]
 	_ -> return $ fwords "When doing something for which there is no pretty printer implemented"
 	where
 	    hPretty a@(Arg h _) = pretty $ abstractToConcreteCtx (hiddenArgumentCtx h) a

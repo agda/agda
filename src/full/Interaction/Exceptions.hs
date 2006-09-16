@@ -10,7 +10,7 @@ import System.Exit
 import Syntax.Position
 import Syntax.Parser			     ( ParseError(..)		)
 import Syntax.Concrete.Definitions	     ( DeclarationException(..) )
-import Syntax.Concrete.Fixity		     ( InfixException(..)	)
+import Syntax.Concrete.Operators	     ( OperatorException(..)	)
 import Syntax.Scope			     ( ScopeException(..)	)
 import Syntax.Translation.ConcreteToAbstract ( ToAbstractException(..)	)
 import Interaction.Imports		     ( ImportException(..)	)
@@ -27,8 +27,8 @@ handleParseException crash e = crash e
 handleDeclarationException :: (DeclarationException -> IO a) -> DeclarationException -> IO a
 handleDeclarationException crash e = crash e
 
-handleInfixException :: (InfixException -> IO a) -> InfixException -> IO a
-handleInfixException crash e = crash e
+handleOperatorException :: (OperatorException -> IO a) -> OperatorException -> IO a
+handleOperatorException crash e = crash e
 
 handleScopeException :: (ScopeException -> IO a) -> ScopeException -> IO a
 handleScopeException crash e = crash e
@@ -47,7 +47,7 @@ failOnException :: (Range -> String -> IO a) -> IO a -> IO a
 failOnException h m = m `catchDyn` handleParseException handler
 		        `catchDyn` handleDeclarationException handler
 		        `catchDyn` handleScopeException handler
-		        `catchDyn` handleInfixException handler
+		        `catchDyn` handleOperatorException handler
 		        `catchDyn` handleToAbstractException handler
 		        `catchDyn` handleImportException handler
     where

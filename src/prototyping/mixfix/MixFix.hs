@@ -6,7 +6,8 @@ import Control.Monad.Error
 import Data.Char
 import Data.List
 
-import ReadP
+import Utils.ReadP
+import Utils.List
 
 data Raw = Name String
 	 | RawApp [Raw]
@@ -14,10 +15,10 @@ data Raw = Name String
 	 | Braces Raw
 	 | RawLit Int
 	 | AppR Raw (Arg Raw)
-	 | OpR [String] [Raw]
+	 | OpR String [Raw]
     deriving (Show, Eq)
 
-data Exp = Op [String] [Exp]  -- operator application
+data Exp = Op String [Exp]  -- operator application
 	 | App Exp (Arg Exp)
 	 | Lit Int
 	 | Id String
@@ -38,15 +39,15 @@ instance Show Exp where
 	Lit n	    -> shows n
 	App e1 e2   -> showParen (p > 1) $
 	    showsPrec 1 e1 . showString " " . showsPrec 2 e2
-	Op ss es
-	    | n == m -> showParen (p > 0) $ merge ss' es'
-	    | n < m  -> showParen (p > 0) $ merge es' ss'
-	    | n > m  -> merge ss' es'
+	Op op es
+	    | isPrefix op -> showParen (p > 0) $ merge ss' es'
+	    | otherwise	  -> showParen (p > 0) $ merge es' ss'
 	    where
-		n = length ss
-		m = length es
-		ss' = map showString ss
+		ss' = map showString $ wordsBy ('_'==) op
 		es' = map (showsPrec 1) es
+
+		isPrefix ('_':s) = False
+		isPrefix _	 = True
 
 		merge xs ys = foldr (.) id $ intersperse (showString " ") $ merge' xs ys
 
@@ -77,11 +78,13 @@ f <$> m = liftM f m
 f <*> m = ap f m
 
 -- General combinators
-recursive :: [ReadP tok a -> ReadP tok a] -> ReadP tok a
-recursive [] = pfail
-recursive fs = p0
+recursive :: (ReadP tok a -> [ReadP tok a -> ReadP tok a]) -> ReadP tok a
+recursive f = p0
     where
-	p0 = foldr ( $ ) p0 fs
+	fs = f p0
+	p0 = case fs of
+		[]  -> pfail
+		_   -> foldr ( $ ) p0 fs
 
 -- Specific combinators
 name :: String -> P String
@@ -92,22 +95,23 @@ name s = unName <$> char (Name s)
 binop :: P Raw -> P (Raw -> Raw -> Raw)
 binop opP = do
     OpR op es <- opP
-    return $ \x y -> OpR op ([x] ++ es ++ [y])
+    return $ \x y -> OpR ("_" ++ op ++ "_") ([x] ++ es ++ [y])
 
 preop :: P Raw -> P (Raw -> Raw)
 preop opP = do
     OpR op es <- opP
-    return $ \x -> OpR op (es ++ [x])
+    return $ \x -> OpR (op ++ "_") (es ++ [x])
 
 postop :: P Raw -> P (Raw -> Raw)
 postop opP = do
     OpR op es <- opP
-    return $ \x -> OpR op ([x] ++ es)
+    return $ \x -> OpR ("_" ++ op) ([x] ++ es)
 
 opP :: P Raw -> [String] -> P Raw
 opP p [] = fail "empty mixfix operator"
-opP p ss = OpR ss <$> mix ss
+opP p ss = OpR s <$> mix ss
     where
+	s = concat $ intersperse "_" ss
 	mix [s]	   = do name s; return []
 	mix (s:ss) = do
 	    name s
@@ -130,9 +134,9 @@ postfixP op p = do
 infixlP = flip chainl1 . binop
 infixrP = flip chainr1 . binop
 infixP opP p = do
-    e1 <- binop p
-    op <- opP
-    e2 <- binop p
+    e1 <- p
+    op <- binop opP
+    e2 <- p
     return $ op e1 e2
 
 nonfixP op p = op +++ p
@@ -159,8 +163,8 @@ appP top p = do
 identP :: String -> P Raw
 identP s = Name <$> name s
 
-otherP :: P Raw -> P Raw
-otherP p = satisfy notName
+otherP :: P Raw
+otherP = satisfy notName
     where
 	notName (Name _) = False
 	notName _	 = True
@@ -187,18 +191,27 @@ parseApp p es = case parse p es of
 
 -- Tests
 arithP :: P Raw
-arithP = recursive
+arithP = recursive $ \arithP ->
+    let op = opP arithP in
     [ prefixP  $ op ["if","then"]
     , prefixP  $ op ["if","then","else"]
     , infixlP  $ op ["+"] +++ op ["-"]
     , prefixP  $ op ["-"]
     , infixlP  $ op ["*"] +++ op ["/"]
+    , infixrP  $ op ["^"]
     , postfixP $ op ["!"]
     , appP arithP
     , nonfixP  $ op ["[","]"]
-    , \p -> otherP p +++ ident
+    , const $ otherP +++ ident
     ]
     where
-	op = opP arithP
 	ident = choice $ map identP ["x","y","z"]
+
+testP :: P Raw
+testP = recursive $ \testP ->
+    let op = opP testP in
+    [ prefixP  $ op ["if","then","else"]
+    , appP testP
+    , const $ choice $ otherP : map identP ["x","y","Bool","False","True","false","true","tt"]
+    ]
 

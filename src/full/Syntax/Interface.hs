@@ -11,12 +11,13 @@ import Data.Generics (Typeable, Data)
 import Syntax.Common
 import Syntax.Fixity
 import Syntax.Abstract.Name
+import qualified Syntax.Concrete.Name as C
 
 data Interface =
 	Interface   { moduleName	:: ModuleName
 		    , arity		:: Arity
-		    , definedNames	:: [(Name, Fixity)]
-		    , constructorNames	:: [(Name, Fixity)]
+		    , definedNames	:: [(Name, Operator)]
+		    , constructorNames	:: [(Name, Operator)]
 		    , subModules	:: [Interface]
 			-- ^ names of sub-modules are not fully qualified
 		    -- here should go types and definitions

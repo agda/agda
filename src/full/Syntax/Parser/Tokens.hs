@@ -40,9 +40,7 @@ data Token
 	= TokKeyword Keyword Range
 	  -- Identifiers and operators
 	| TokId		Name
-	| TokOp		Name
 	| TokQId	QName	-- non empty namespace
-	| TokQOp	QName	-- non empty namespace
 	  -- Literals
 	| TokLiteral	Literal
 	  -- Special symbols

@@ -297,7 +297,6 @@ instance LowerMeta SC.Expr where
         SC.AppView (SC.QuestionMark _ _) _ -> preMeta
         SC.AppView (SC.Underscore   _ _) _ -> preUscore
         _ -> SC.App r (go e1) (lowerMeta ae2)
-      InfixApp e1 qn e2    -> InfixApp (go e1) qn (go e2)
       SC.Lam r bs e1       -> SC.Lam r (lowerMeta bs) (go e1)
       SC.Fun r ae1 e2      -> SC.Fun r (lowerMeta ae1) (go e2)
       SC.Pi tb e1          -> SC.Pi (lowerMeta tb) (go e1)
@@ -311,6 +310,9 @@ instance LowerMeta SC.Expr where
       Absurd _          -> e
       As r n e1         -> As r n (go e1)
       SC.List r es	-> SC.List r (lowerMeta es)
+      SC.RawApp r es	-> SC.RawApp r (lowerMeta es)
+      SC.OpApp r x es	-> SC.OpApp r x (lowerMeta es)
+      SC.HiddenArg r e	-> SC.HiddenArg r (lowerMeta e)
 
 instance LowerMeta SC.LamBinding where
   lowerMeta b@(SC.DomainFree _ _) = b

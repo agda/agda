@@ -21,6 +21,10 @@ all_hs_files	= $(src_files) $(OUT)/Syntax/Parser/Parser.hs \
 all_hs_files_p	= $(src_files) $(OUT_P)/Syntax/Parser/Parser.hs \
 							   $(OUT_P)/Syntax/Parser/Lexer.hs
 
+h_files			= undefined.h
+out_h_files		= $(patsubst %,$(OUT)/%,$(h_files))
+out_p_h_files	= $(patsubst %,$(OUT_P)/%,$(h_files))
+
 ## Phony targets ##########################################################
 
 .PHONY : default clean prof
@@ -74,14 +78,22 @@ $(OUT_P)/% : %
 
 endif
 
+## Header files ###########################################################
+
+$(out_h_files) : $(OUT)/%.h : %.h
+	@cp $< $@
+
+$(out_p_h_files) : $(OUT_P)/%.h : %.h
+	@cp $< $@
+
 ## Compiling agda #########################################################
 
 prof : $(OUT_P)/agda
 
-$(OUT)/agda : $(out_dirs) $(all_hs_files) $(boot_files)
+$(OUT)/agda : $(out_dirs) $(out_h_files) $(all_hs_files) $(boot_files)
 	$(GHC) --make -o $@ -i$(OUT) -I. -odir $(OUT) -hidir $(OUT) $(GHC_FLAGS) Main.hs
 
-$(OUT_P)/agda : $(out_dirs_p) $(all_hs_files_p) $(boot_files_p)
+$(OUT_P)/agda : $(out_dirs_p) $(out_p_h_files) $(all_hs_files_p) $(boot_files_p)
 	$(GHC) --make -o $@ -i$(OUT_P) -I. -odir $(OUT_P) -hidir $(OUT_P) $(GHC_FLAGS) Main.hs -prof -auto-all
 
 ## Rules for happy and alex ###############################################

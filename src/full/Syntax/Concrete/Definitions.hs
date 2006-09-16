@@ -87,8 +87,8 @@ import Syntax.Concrete.Pretty ()    -- need Show instance for Declaration
     modifiers have been distributed to the individual declarations.
 -}
 data NiceDeclaration
-	= Axiom Range Fixity Access IsAbstract Name Expr
-	| PrimitiveFunction Range Fixity Access IsAbstract Name Expr
+	= Axiom Range Fixity Access IsAbstract NameDecl Expr
+	| PrimitiveFunction Range Fixity Access IsAbstract NameDecl Expr
 	| NiceDef Range [Declaration] [NiceTypeSignature] [NiceDefinition]
 	    -- ^ A bunch of mutually recursive functions\/datatypes.
 	    --   The last two lists have the same length. The first list is the
@@ -102,8 +102,8 @@ data NiceDeclaration
 
 -- | A definition without its type signature.
 data NiceDefinition
-	= FunDef  Range [Declaration] Fixity Access IsAbstract Name [Clause]
-	| DataDef Range Fixity Access IsAbstract Name [LamBinding] [NiceConstructor]
+	= FunDef  Range [Declaration] Fixity Access IsAbstract NameDecl [Clause]
+	| DataDef Range Fixity Access IsAbstract NameDecl [LamBinding] [NiceConstructor]
     deriving (Show)
 
 -- | Only 'Axiom's.
@@ -171,7 +171,8 @@ niceDeclarations ds = nice (fixities ds) ds
     where
 
 	-- If no fixity is given we return the default fixity.
-	fixity = Map.findWithDefault defaultFixity
+	fixity :: NameDecl -> Map.Map Name Fixity -> Fixity
+	fixity = Map.findWithDefault defaultFixity . nameDeclName
 
 	-- We forget all fixities in recursive calls. This is because
 	-- fixity declarations have to appear at the same level as the
@@ -184,18 +185,12 @@ niceDeclarations ds = nice (fixities ds) ds
 		TypeSig x t ->
 		    -- After a type signature there should follow a bunch of
 		    -- clauses.
-		    case span (isDefinitionOf x) ds of
-			([], _)	    -> throwDyn $ MissingDefinition x
+		    case span isFunClause ds of
+			([], _)	    -> throwDyn $ MissingDefinition (nameDeclName x)
 			(ds0,ds1)   -> mkFunDef fixs x (Just t) ds0
 					: nice fixs ds1
 
-		FunClause (LHS _ _ x _) _ _ ->
-		    -- If we see a function clause at this point, there
-		    -- was no corresponding type signature.
-		    case span (isDefinitionOf x) (d:ds) of
-			([], _)	    -> __IMPOSSIBLE__
-			(ds0,ds1)   -> mkFunDef fixs x Nothing ds0
-					: nice fixs ds1
+		FunClause _ _ _ ->  __IMPOSSIBLE__
 
 		_   -> nds ++ nice fixs ds
 		    where
@@ -285,9 +280,8 @@ niceDeclarations ds = nice (fixities ds) ds
 	mkClause (FunClause lhs rhs wh) = Clause lhs rhs wh
 	mkClause _ = __IMPOSSIBLE__
 
-	-- Check if a declaration is a definition of a particular function.
-	isDefinitionOf x (FunClause (LHS _ _ y _) _ _)	= x == y
-	isDefinitionOf x _				= False
+	isFunClause (FunClause _ _ _) = True
+	isFunClause _		      = False
 
 	-- Make a mutual declaration
 	mkMutual :: Range -> [Declaration] -> [NiceDeclaration] -> NiceDeclaration
