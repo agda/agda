@@ -125,6 +125,7 @@ index.html : $(prologue) $(dst_hs_files) base.haddock mtl.haddock check_version
 	$(HADDOCK) --odir=. --html \
 			--prologue=$(prologue) \
 			--title="Agda II Documentation" \
+			--ignore-all-exports \
 			--read-interface=$(call haddockArg,base) \
 			--read-interface=$(call haddockArg,mtl) \
 			$(dst_hs_files)

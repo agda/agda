@@ -1,4 +1,4 @@
-{-# OPTIONS -fglasgow-exts -fallow-undecidable-instances #-}
+{-# OPTIONS -fglasgow-exts -fallow-undecidable-instances -cpp #-}
 module TypeChecking.Monad.Base where
 
 import Control.Monad.Error
@@ -456,7 +456,9 @@ newtype TCM a = TCM { unTCM :: UndoT TCState
 			      (ReaderT TCEnv
 			      (ErrorT TCErr IO))) a
 		    }
+#ifndef __HADDOCK__
     deriving (MonadState TCState, MonadReader TCEnv, MonadError TCErr, MonadUndo TCState)
+#endif
 
 patternViolation :: TCM a
 patternViolation = do

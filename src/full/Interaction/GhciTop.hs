@@ -200,7 +200,7 @@ cmd_make_case ii rng s = crashOnException $ ioTCM $ do
        , SI.Clause pats cbdy <- cls
        , Just (MetaV x _) <- [deAbs cbdy]
        , x == wanted ] of
-    (h : _ ) -> return h;
+    (h : _ ) -> return h
     _ -> fail $ "findClause: can't find <clause = " ++ show ii ++ ">"
 
   mkPats tkn (c:cs) = do (tkn1, pa)<- mkPat tkn c; (pa:)<$> mkPats tkn1 cs
