@@ -83,12 +83,18 @@ exprSource e =
 	let f' x = f (C.QName x)    -- TODO
 	return $ ExprSource (getRange e) (paren f' e)
 
-lhsArgs :: C.Pattern -> A.Pattern -> ScopeM (A.Name, [Arg A.Pattern])
-lhsArgs cp p@(A.DefP _ qx args) = do
-    m <- getCurrentModule
-    unless (qnameModule qx == m) $ notAValidLHS cp
-    return (qnameName qx,args)
-lhsArgs cp _		  = notAValidLHS cp
+lhsArgs :: C.Pattern -> ScopeM [Arg C.Pattern]
+lhsArgs p = case appView p of
+    Arg _ (IdentP _) : ps   -> return ps
+    _			    -> notAValidLHS p
+    where
+	mkHead	  = Arg NotHidden
+	notHidden = Arg NotHidden
+	appView p = case p of
+	    AppP p arg	  -> appView p ++ [arg]
+	    OpAppP _ x ps -> mkHead (IdentP $ C.QName $ nameDeclName x) : map notHidden ps
+	    RawAppP _ _	  -> __IMPOSSIBLE__
+	    _		  -> [ mkHead p ]
 
 {--------------------------------------------------------------------------
     Translation
@@ -371,10 +377,10 @@ instance BindToAbstract LetDef A.LetBinding where
 	    _	-> notAValidLetBinding d
 	where
 	    letToAbstract (CD.Clause top clhs (C.RHS rhs) []) = do
-		p <- parseLHS top clhs
-		bindToAbstract p $ \p ->
-		    do	rhs	 <- toAbstract rhs
-			(x,args) <- lhsArgs clhs p
+		p    <- parseLHS top clhs
+		args <- lhsArgs p
+		bindToAbstract args $ \args ->
+		    do	rhs <- toAbstract rhs
 			foldM lambda rhs args
 	    letToAbstract _ = notAValidLetBinding d
 
@@ -528,10 +534,11 @@ data LeftHandSide = LeftHandSide C.Name C.LHS
 
 instance BindToAbstract LeftHandSide A.LHS where
     bindToAbstract (LeftHandSide top lhs) ret = do
-	p <- parseLHS top lhs
-	bindToAbstract p $ \p -> do
-	    (x,ps) <- lhsArgs lhs p
-	    ret (A.LHS (LHSSource lhs) x ps)
+	p    <- parseLHS top lhs
+	args <- lhsArgs p
+	bindToAbstract args $ \args -> do
+	    x <- toAbstract (OldName top)
+	    ret (A.LHS (LHSSource lhs) x args)
 
 instance BindToAbstract c a => BindToAbstract (Arg c) (Arg a) where
     bindToAbstract (Arg h e) ret = bindToAbstract e $ ret . Arg h

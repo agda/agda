@@ -17,6 +17,7 @@ data ExprView e
     | AppV e (Arg e)
     | OpAppV Range NameDecl [e]
     | HiddenArgV e
+    deriving (Show)
 
 class HasRange e => IsExpr e where
     exprView   :: e -> ExprView e
@@ -75,34 +76,28 @@ opP p (Operator d@(NameDecl xs) _) = do
 
 prefixP :: IsExpr e => ReadP e e -> ReadP e e -> ReadP e e
 prefixP op p = do
-    fs <- many1 (preop op)
+    fs <- many (preop op)
     e  <- p
     return $ foldr ( $ ) e fs
 
 postfixP :: IsExpr e => ReadP e e -> ReadP e e -> ReadP e e
 postfixP op p = do
     e <- p
-    fs <- many1 (postop op)
+    fs <- many (postop op)
     return $ foldl (flip ( $ )) e fs
 
 infixP, infixrP, infixlP :: IsExpr e => ReadP e e -> ReadP e e -> ReadP e e
-infixlP op p = do
-    e  <- chainl1 p (binop op)
-    f  <- binop op
-    e' <- p
-    return $ f e e'
-
-infixrP op p = do
-    e  <- p
-    f  <- binop op
-    e' <- chainr1 p (binop op)
-    return $ f e e'
-
-infixP op p = do
-    e1 <- p
-    op <- binop op
-    e2 <- p
-    return $ op e1 e2
+infixlP op p = chainl1 p (binop op)
+infixrP op p = chainr1 p (binop op)
+infixP  op p = do
+    e <- p
+    f <- restP
+    return $ f e
+    where
+	restP = return id +++ do
+	    f <- binop op 
+	    e <- p
+	    return $ flip f e
 
 nonfixP :: IsExpr e => ReadP e e -> ReadP e e -> ReadP e e
 nonfixP op p = op +++ p
@@ -129,20 +124,10 @@ appP top p = do
 	    HiddenArgV e <- exprView <$> satisfy (isHidden . exprView)
 	    return $ Arg Hidden e
 
-localP :: IsExpr e => ReadP e e
-localP = satisfy isLocal
-    where
-	isLocal e = case exprView e of
-	    LocalV _	-> True
-	    _		-> False
-
-identP :: IsExpr e => Name -> ReadP e e
-identP x = unExprView . LocalV <$> nameP x
-
-otherP :: IsExpr e => ReadP e e
-otherP = satisfy (notLocalName . exprView)
-    where
-	notLocalName (LocalV _) = False
-	notLocalName _	       = True
-
+atomP :: IsExpr e => (Name -> Bool) -> ReadP e e
+atomP p = do
+    e <- get
+    case exprView e of
+	LocalV x | not (p x) -> pfail
+	_		     -> return e
 

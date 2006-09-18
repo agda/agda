@@ -3,7 +3,7 @@
 {-| The parser doesn't know about operators and parses everything as normal
     function application. This module contains the functions that parses the
     operators properly. For a stand-alone implementation of this see
-    @src/prototyping/mixfix@.
+    @src\/prototyping\/mixfix@.
 
     It also contains the function that puts parenthesis back given the
     precedence of the context.
@@ -16,13 +16,14 @@ module Syntax.Concrete.Operators
     , mparen
     ) where
 
-import Prelude hiding (putStrLn)
+import Prelude hiding (putStrLn, print, putStr)
 import Utils.IO
 
 import Control.Monad.Trans
 import Control.Exception
 import Data.Typeable
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import Data.List
 
 import Syntax.Concrete.Pretty ()
@@ -80,18 +81,47 @@ localNames = do
 
 data UseBoundNames = UseBoundNames | DontUseBoundNames
 
-buildParser :: IsExpr e => UseBoundNames -> ScopeM (ReadP e e)
-buildParser use = do
+{-| Builds parser for operator applications from all the operators and function
+    symbols in scope. When parsing a pattern we 'DontUseBoundNames' since a
+    pattern binds new variables, but when parsing an expression we
+    'UseBoundNames' and refute application of things that aren't in scope. The
+    reason for this is to disambiguate things like @x + y@. This could mean
+    both @_+_@ applied to @x@ and @y@, and @x@ applied to @+@ and @y@, but if there
+    is no @+@ in scope it could only be the first.
+
+    To avoid problems with operators of the same precedence but different
+    associativity we decide (completely arbitrary) to fix the precedences of
+    operators with the same given precedence in the following order (from
+    loosest to hardest):
+
+    - non-associative
+
+    - left associative
+
+    - right associative
+
+    - prefix
+
+    - postfix
+
+    This has the effect that if you mix operators with the same precedence but
+    different associativity the parser won't complain. One could argue that
+    this is a Bad Thing, but since it's not trivial to implement the check it
+    will stay this way until people start complaining about it.
+-}
+buildParser :: IsExpr e => Range -> UseBoundNames -> ScopeM (ReadP e e)
+buildParser r use = do
     (names, ops) <- localNames
     let (non, fix) = partition nonfix ops
-	boundP	   = case use of
-	    UseBoundNames     -> choice $ map identP names
-	    DontUseBoundNames -> localP
+	set	   = Set.fromList names
+	isLocal    = case use of
+	    UseBoundNames     -> \x -> Set.member x set
+	    DontUseBoundNames -> \x -> True
     return $ recursive $ \p ->
-	map (mkP p) (order fix)
+	concatMap (mkP p) (order fix)
 	++ [ appP p ]
 	++ map (nonfixP . opP p) non
-	++ [ const $ otherP +++ boundP ]
+	++ [ const $ atomP isLocal ]
     where
 	operator (Operator op _) = op
 	fixity   (Operator _  f) = f
@@ -109,19 +139,24 @@ buildParser use = do
 	on f g x y = f (g x) (g y)
 
 	nonfix = isNonfix . operator
-	order = groupBy ((==) `on` level) . sortBy (flip compare `on` level)
+	order = groupBy ((==) `on` level) . sortBy (compare `on` level)
 
-	mkP p0 ops = choice' [infx, inlfx, inrfx, prefx, postfx, id]
+	mkP p0 ops = case concat [infx, inlfx, inrfx, prefx, postfx] of
+	    []	    -> [id]
+	    fs	    -> fs
 	    where
 		choice' = foldr1 (++++)
 		f ++++ g = \p -> f p +++ g p
-		inlfx	= fixP infixP   isinfixl
-		inrfx	= fixP infixP   isinfixr
+		inlfx	= fixP infixlP  isinfixl
+		inrfx	= fixP infixrP  isinfixr
 		infx	= fixP infixP   isinfix
 		prefx	= fixP prefixP  (isPrefix . operator)
 		postfx	= fixP postfixP (isPostfix . operator)
 
-		fixP f g = f $ choice $ map (opP p0) $ filter g ops
+		fixP f g =
+		    case filter g ops of
+			[]  -> []
+			ops -> [ f $ choice $ map (opP p0) ops ]
 
 ---------------------------------------------------------------------------
 -- * Expression instances
@@ -163,7 +198,7 @@ instance IsExpr Pattern where
 parsePattern :: ReadP Pattern Pattern -> Pattern -> [Pattern]
 parsePattern prs p = case p of
     AppP p (Arg h q) -> AppP <$> parsePattern prs p <*> (Arg h <$> parsePattern prs q)
-    RawAppP _ ps     -> parse prs ps
+    RawAppP _ ps     -> parsePattern prs =<< parse prs ps
     OpAppP r d ps    -> OpAppP r d <$> mapM (parsePattern prs) ps
     HiddenP _ _	     -> fail "bad hidden argument"
     AsP r x p	     -> AsP r x <$> parsePattern prs p
@@ -182,7 +217,7 @@ parsePattern prs p = case p of
 --	check arities this problem won't appear.
 parseLHS :: Name -> Pattern -> ScopeM Pattern
 parseLHS top p = do
-    patP <- buildParser DontUseBoundNames
+    patP <- buildParser (getRange p) DontUseBoundNames
     cons <- getNames [ConName]
     case filter (validPattern top cons) $ parsePattern patP p of
 	[p] -> return p
@@ -217,8 +252,9 @@ parseLHS top p = do
 	    _		     -> [p]
 
 parseApplication :: [Expr] -> ScopeM Expr
+parseApplication [e] = return e
 parseApplication es = do
-    p <- buildParser UseBoundNames
+    p <- buildParser (getRange es) UseBoundNames
     case parse p es of
 	[e] -> return e
 	[]  -> throwDyn $ NoParseForApplication es
@@ -247,6 +283,7 @@ paren _	  e@(Absurd _)	       p = e
 paren _	  e@(RawApp _ _)       p = __IMPOSSIBLE__
 paren _	  e@(HiddenArg _ _)    p = __IMPOSSIBLE__
 
+mparen :: Bool -> Expr -> Expr
 mparen True  e = Paren (getRange e) e
 mparen False e = e
 

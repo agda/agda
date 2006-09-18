@@ -5,6 +5,7 @@ import Control.Monad
 import Control.Monad.Error
 import Data.Char
 import Data.List
+import qualified Data.Set as Set
 
 import Utils.ReadP
 import Utils.List
@@ -55,7 +56,8 @@ instance Show Exp where
 		merge' []      ys    = ys
 		merge' xs      []    = xs
 
-type P = ReadP Raw
+type P = ReadP Raw 
+type Parser = P Raw
 
 -- Parsing raw terms (for testing)
 parseRaw :: String -> Raw
@@ -82,9 +84,9 @@ recursive :: (ReadP tok a -> [ReadP tok a -> ReadP tok a]) -> ReadP tok a
 recursive f = p0
     where
 	fs = f p0
-	p0 = case fs of
-		[]  -> pfail
-		_   -> foldr ( $ ) p0 fs
+	p0 = foldr ( $ ) p0 fs
+	choice' = foldr1 (++++)
+	f ++++ g = \p -> f p +++ g p
 
 -- Specific combinators
 name :: String -> P String
@@ -92,22 +94,22 @@ name s = unName <$> char (Name s)
     where
 	unName (Name s) = s
 
-binop :: P Raw -> P (Raw -> Raw -> Raw)
+binop :: Parser -> P (Raw -> Raw -> Raw)
 binop opP = do
     OpR op es <- opP
     return $ \x y -> OpR ("_" ++ op ++ "_") ([x] ++ es ++ [y])
 
-preop :: P Raw -> P (Raw -> Raw)
+preop :: Parser -> P (Raw -> Raw)
 preop opP = do
     OpR op es <- opP
     return $ \x -> OpR (op ++ "_") (es ++ [x])
 
-postop :: P Raw -> P (Raw -> Raw)
+postop :: Parser -> P (Raw -> Raw)
 postop opP = do
     OpR op es <- opP
     return $ \x -> OpR ("_" ++ op) ([x] ++ es)
 
-opP :: P Raw -> [String] -> P Raw
+opP :: Parser -> [String] -> Parser
 opP p [] = fail "empty mixfix operator"
 opP p ss = OpR s <$> mix ss
     where
@@ -119,30 +121,34 @@ opP p ss = OpR s <$> mix ss
 	    es <- mix ss
 	    return $ e : es
 
-prefixP :: P Raw -> P Raw -> P Raw
+prefixP :: Parser -> Parser -> Parser
 prefixP op p = do
     fs <- many (preop op)
     e  <- p
     return $ foldr ( $ ) e fs
 
-postfixP :: P Raw -> P Raw -> P Raw
+postfixP :: Parser -> Parser -> Parser
 postfixP op p = do
     e <- p
     fs <- many (postop op)
     return $ foldl (flip ( $ )) e fs
 
-infixlP = flip chainl1 . binop
-infixrP = flip chainr1 . binop
-infixP opP p = do
-    e1 <- p
-    op <- binop opP
-    e2 <- p
-    return $ op e1 e2
+infixlP op p = chainl1 p (binop op)
+infixrP op p = chainr1 p (binop op)
+infixP  op p = do
+    e <- p
+    f <- restP
+    return $ f e
+    where
+	restP = return id +++ do
+	    f <- binop op 
+	    e <- p
+	    return $ flip f e
 
 nonfixP op p = op +++ p
 
-appP :: P Raw -> P Raw -> P Raw
-appP top p = do
+appP :: Parser -> Parser
+appP p = do
     h  <- p
     es <- many (nothidden +++ hidden)
     return $ foldl AppR h es
@@ -160,17 +166,18 @@ appP top p = do
 	    Braces e <- satisfy isHidden
 	    return $ Arg Hidden e
 
-identP :: String -> P Raw
-identP s = Name <$> name s
-
-otherP :: P Raw
-otherP = satisfy notName
+atomP :: [String] -> Parser
+atomP xs = do
+    t <- get
+    case t of
+	Name x | not $ Set.member x xs'
+	    -> pfail
+	_   -> return t
     where
-	notName (Name _) = False
-	notName _	 = True
+	xs' = Set.fromList xs
 
 -- Running a parser
-parseExp :: P Raw -> Raw -> Either String Exp
+parseExp :: Parser -> Raw -> Either String Exp
 parseExp p r = case r of
     Name s	-> return $ Id s
     RawApp es	-> parseExp p =<< parseApp p es
@@ -183,35 +190,108 @@ parseExp p r = case r of
 	return $ App e1' (Arg h e2')
     OpR x es -> Op x <$> mapM (parseExp p) es
 
-parseApp :: P Raw -> [Raw] -> Either String Raw
+parseApp :: Parser -> [Raw] -> Either String Raw
 parseApp p es = case parse p es of
     [e]	-> return e
     []	-> fail "no parse"
     es	-> fail $ "ambiguous parse: " ++ show es
 
+-- Building the parser
+data Operator = Prefix  { opPrecedence :: Int, opName :: [String] }
+	      | Postfix { opPrecedence :: Int, opName :: [String] }
+	      | InfixL  { opPrecedence :: Int, opName :: [String] }
+	      | InfixR  { opPrecedence :: Int, opName :: [String] }
+	      | Infix   { opPrecedence :: Int, opName :: [String] }
+	      | Nonfix  { opName :: [String] }
+    deriving Show
+
+buildParser :: [String] -> [Operator] -> Parser
+buildParser local ops =
+    recursive $ \p ->
+	let op = opP p in
+	map (mkP op) (order fixops)
+	++ [ appP ]
+	++ map (nonfixP . op . opName) nonops
+	++ [ const $ atomP local ]
+    where
+
+	(nonops, fixops) = partition nonfix ops
+
+	isprefix (Prefix _ _)	= True
+	isprefix _		= False
+
+	ispostfix (Postfix _ _) = True
+	ispostfix _		= False
+
+	isinfixl (InfixL _ _)	= True
+	isinfixl _		= False
+
+	isinfixr (InfixR _ _)	= True
+	isinfixr _		= False
+
+	isinfix (Infix _ _)	= True
+	isinfix _		= False
+
+	nonfix (Nonfix _)	= True
+	nonfix _		= False
+
+	on f g x y = f (g x) (g y)
+
+	order = groupBy ((==) `on` opPrecedence) . sortBy (compare `on` opPrecedence)
+
+	mkP op ops = case concat [infx, inlfx, inrfx, prefx, postfx] of
+		[]	-> id
+		[(_,f)] -> f
+		xs	-> error $ "cannot mix " ++ show (map fst xs)
+	    where
+		choice' = foldr1 (++++)
+		f ++++ g = \p -> f p +++ g p
+		inlfx	= fixP infixlP  isinfixl
+		inrfx	= fixP infixrP  isinfixr
+		infx	= fixP infixP   isinfix
+		prefx	= fixP prefixP  isprefix
+		postfx	= fixP postfixP ispostfix
+
+		fixP f g = case filter g ops of
+			    []	-> []
+			    os	-> [ (os, f $ choice $ map (op . opName) os) ]
+
 -- Tests
-arithP :: P Raw
-arithP = recursive $ \arithP ->
-    let op = opP arithP in
-    [ prefixP  $ op ["if","then"]
-    , prefixP  $ op ["if","then","else"]
-    , infixlP  $ op ["+"] +++ op ["-"]
-    , prefixP  $ op ["-"]
-    , infixlP  $ op ["*"] +++ op ["/"]
-    , infixrP  $ op ["^"]
-    , postfixP $ op ["!"]
-    , appP arithP
-    , nonfixP  $ op ["[","]"]
-    , const $ otherP +++ ident
+arithP :: Parser
+arithP = buildParser xs ops
+    where
+	xs = map (:[]) ['a'..'z']
+	ops =
+	    [ InfixL  20 ["+"]
+	    , InfixL  30 ["*"]
+	    , InfixR  40 ["^"]
+	    , Postfix 35 ["!"]
+	    , InfixR  15 [":"]
+	    , InfixR  18 ["/\\"]
+	    , InfixR  16 ["\\/"]
+	    ]
+
+testP :: Parser
+testP = buildParser xs ops
+    where
+	xs = map (:[]) ['a'..'z']
+	ops = [ InfixL n ["+" ++ show n] | n <- [0..20] ]
+
+arithP' :: Parser
+arithP' = recursive $ \p ->
+    let op = opP p in
+    [ id ++++ infixrP (op [":"])
+    , id ++++ infixrP (op ["\\/"])
+    , id ++++ infixrP (op ["/\\"])
+    , id ++++ infixlP (op ["+"])
+    , id ++++ infixlP (op ["*"])
+    , id ++++ postfixP (op ["!"])
+    , id ++++ infixrP (op ["^"])
+    , appP
+    , const $ atomP $ map (:[]) ['a'..'z']
     ]
     where
-	ident = choice $ map identP ["x","y","z"]
+	f ++++ g = \p -> f p +++ g p
 
-testP :: P Raw
-testP = recursive $ \testP ->
-    let op = opP testP in
-    [ prefixP  $ op ["if","then","else"]
-    , appP testP
-    , const $ choice $ otherP : map identP ["x","y","Bool","False","True","false","true","tt"]
-    ]
+main = print $ parseExp testP $ parseRaw "1 +0 2 +0 3"
 
