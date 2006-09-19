@@ -61,6 +61,14 @@ instance HasRange OperatorException where
 -- * Building the parser
 ---------------------------------------------------------------------------
 
+getDefinedNames :: [KindOfName] -> ScopeM [(Name, Operator)]
+getDefinedNames kinds = do
+    scope <- getScopeInfo
+    let public  = publicNameSpace scope
+	private = privateNameSpace scope
+	defs	= concatMap (Map.assocs . definedNames) [public, private]
+    return [ (x, operator def) | (x, def) <- defs, kindOfName def `elem` kinds ]
+
 localNames :: ScopeM ([Name], [Operator])
 localNames = do
     scope <- getScopeInfo
@@ -112,17 +120,23 @@ data UseBoundNames = UseBoundNames | DontUseBoundNames
 buildParser :: IsExpr e => Range -> UseBoundNames -> ScopeM (ReadP e e)
 buildParser r use = do
     (names, ops) <- localNames
-    let (non, fix) = partition nonfix ops
+    cons	 <- getDefinedNames [ConName]
+    let conparts   = Set.fromList $ concatMap (parts . snd) cons
+	connames   = Set.fromList $ map fst cons
+	(non, fix) = partition nonfix ops
 	set	   = Set.fromList names
 	isLocal    = case use of
 	    UseBoundNames     -> \x -> Set.member x set
-	    DontUseBoundNames -> \x -> True
+	    DontUseBoundNames -> \x -> Set.member x connames || not (Set.member x conparts)
     return $ recursive $ \p ->
 	concatMap (mkP p) (order fix)
 	++ [ appP p ]
 	++ map (nonfixP . opP p) non
 	++ [ const $ atomP isLocal ]
     where
+	parts (Operator (NameDecl [_]) _) = []
+	parts (Operator (NameDecl xs ) _) = filter (/= noName) xs
+
 	operator (Operator op _) = op
 	fixity   (Operator _  f) = f
 	level = fixityLevel . fixity
@@ -224,12 +238,7 @@ parseLHS top p = do
 	[]  -> throwDyn $ NoParseForLHS p
 	ps  -> throwDyn $ AmbiguousParseForLHS p ps
     where
-	getNames kinds = do
-	    scope <- getScopeInfo
-	    let public  = publicNameSpace scope
-		private = privateNameSpace scope
-		defs	= concatMap (Map.assocs . definedNames) [public, private]
-	    return [ x | (x, def) <- defs, kindOfName def `elem` kinds ]
+	getNames kinds = map fst <$> getDefinedNames kinds
 
 	validPattern :: Name -> [Name] -> Pattern -> Bool
 	validPattern top cons p = case appView p of
