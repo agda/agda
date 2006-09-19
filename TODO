@@ -18,8 +18,6 @@ Features
 
 * lazy evaluation
 
-* mix-fix operators
-
 * list sugar in patterns
 
 Fixes
@@ -41,6 +39,13 @@ Fixes
 * handle clashing of concrete names (in abstractToConcrete)
 
 * handle command line options (import path)
+
+* allow no type signatures for definitions of the form x = e
+
+* check that fixity declarations correspond to actual definitions
+
+* change syntax for fixity declarations (infix is a bit strange for prefix and
+  postfix operators)
 
 [Testing]
 
@@ -72,6 +77,8 @@ Fixes
   plain strings, so a qualified name is interpreted as an unqualified name
   containing a dot.
 
+* pretty printing of operator applications
+
 Speculative
 -----------
 
@@ -96,6 +103,8 @@ Performance
 
 Done
 ----
+
+* mix-fix operators
 
 * list sugar
 
