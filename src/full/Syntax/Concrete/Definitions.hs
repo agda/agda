@@ -121,12 +121,14 @@ data Clause = Clause Name LHS RHS WhereClause
 data DeclarationException
 	= MultipleFixityDecls [(Name, [Fixity])]
 	| MissingDefinition Name
+	| MissingTypeSignature LHS
 	| NotAllowedInMutual NiceDeclaration
     deriving (Typeable, Show)
 
 instance HasRange DeclarationException where
     getRange (MultipleFixityDecls xs) = getRange (fst $ head xs)
     getRange (MissingDefinition x)    = getRange x
+    getRange (MissingTypeSignature x) = getRange x
     getRange (NotAllowedInMutual x)   = getRange x
 
 instance HasRange NiceDeclaration where
@@ -191,7 +193,7 @@ niceDeclarations ds = nice (fixities ds) ds
 			(ds0,ds1)   -> mkFunDef fixs x (Just t) ds0
 					: nice fixs ds1
 
-		FunClause _ _ _ ->  __IMPOSSIBLE__
+		FunClause lhs _ _ ->  throwDyn $ MissingTypeSignature lhs
 
 		_   -> nds ++ nice fixs ds
 		    where
