@@ -28,7 +28,7 @@ import Syntax.Literal
 
 $digit	    = 0-9
 $alpha	    = [ A-Z a-z _ ]
-$op	    = [ \- \! \# \$ \% \& \* \+ \/ \< \= \> \@ \^ \| \~ \? ]
+$op	    = [ \- \! \# \$ \% \& \* \+ \/ \< \= \> \@ \^ \| \~ \? \` ]
 $idstart    = [ $alpha $op ]
 $idchar	    = [ $idstart $digit ' \\ ]
 $endcomment = ~ [ $idchar \: \\ ]
