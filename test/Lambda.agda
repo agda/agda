@@ -24,16 +24,16 @@ module Prelude where
   ¬ false = true
 
   data List (A:Set) : Set where
-    nil	  : List A
-    _ ∷ _ : A -> List A -> List A
+    nil	   : List A
+    _ :: _ : A -> List A -> List A
 
   _ ++ _ : {A:Set} -> List A -> List A -> List A
   nil	   ++ ys = ys
-  (x ∷ xs) ++ ys = x ∷ xs ++ ys
+  (x :: xs) ++ ys = x :: xs ++ ys
 
   filter : {A:Set} -> (A -> Bool) -> List A -> List A
   filter p  nil	    = nil
-  filter p (x ∷ xs) = if p x then x ∷ filter p xs else filter p xs
+  filter p (x :: xs) = if p x then x :: filter p xs else filter p xs
 
   postulate
     String : Set
@@ -48,7 +48,7 @@ module Prelude where
   {-# BUILTIN CHAR    Char   #-}
   {-# BUILTIN LIST    List   #-}
   {-# BUILTIN NIL     nil    #-}
-  {-# BUILTIN CONS    _∷_    #-}
+  {-# BUILTIN CONS    _::_    #-}
 
   primitive
     primStringEqual : String -> String -> Bool
@@ -57,7 +57,7 @@ module Prelude where
   _==_ = primStringEqual
 
   infix 10 if_then_else_
-  infixr 50 _∷_ _++_
+  infixr 50 _::_ _++_
   infixl 5 _∨_
   infixl 7 _∧_
   infix 50 ¬
@@ -79,7 +79,7 @@ infix 80 _⟦_/_⟧
 infix 15 _∈_
 
 _ ∈ _ : Name -> List Name -> Bool
-x ∈ y ∷ ys = x == y ∨ x ∈ ys
+x ∈ y :: ys = x == y ∨ x ∈ ys
 x ∈ nil	   = false
 
 -- Free variables

@@ -19,6 +19,8 @@ module Syntax.Parser.LexActions
     , notFollowedBy, notEOF
     ) where
 
+import Data.Char
+
 #ifndef __HADDOCK__
 import {-# SOURCE #-} Syntax.Parser.Lexer
 #endif
@@ -84,7 +86,7 @@ foolAlex :: AlexInput -> AlexInput
 foolAlex inp = inp { lexInput = map fool $ lexInput inp }
     where
 	fool c
-	    | isUnicodeId c = 'z'
+	    | isUnicodeId c = if isAlpha c then 'z' else '+'
 	    | otherwise	    = c
 
 {--------------------------------------------------------------------------

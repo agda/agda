@@ -27,10 +27,12 @@ import Syntax.Literal
 }
 
 $digit	    = 0-9
-$idstart    = [ A-Z a-z _ \- \! \# \$ \% \& \* \+ \/ \< \= \> \@ \^ \| \~ \? ]
-$specialsym = [ \\ \: \. ]
-$idchar	    = [ $idstart $digit ' ]
-$endcomment = ~ $idchar
+$alpha	    = [ A-Z a-z _ ]
+$op	    = [ \- \! \# \$ \% \& \* \+ \/ \< \= \> \@ \^ \| \~ \? ]
+$idstart    = [ $alpha $op ]
+$idchar	    = [ $idstart $digit ' \\ ]
+$endcomment = ~ [ $idchar \: \\ ]
+$nonalpha   = $idchar # $alpha
 
 $white_nonl = $white # \n
 
@@ -38,7 +40,14 @@ $white_nonl = $white # \n
 @exponent   = [eE] [\-\+]? @number
 @float	    = @number \. @number @exponent? | @number @exponent
 
-@ident	    = $idstart $idchar*
+-- A name can't start with \x (to allow \x -> x). Nor can it
+-- contain x: or :x.
+-- Bug in alex: [ \: op ]+ doesn't seem to work!
+@ops   = [ : _ $op ] [ : _ $op ]*
+@start = $idstart | \\ [ $nonalpha : ] | @ops $nonalpha
+@mid   = $idchar | $nonalpha @ops $nonalpha
+@end   = $idchar | $nonalpha @ops
+@ident = @start @mid* @end? | @ops @ops
 
 @namespace  = (@ident \.)*
 @q_ident    = @namespace @ident
