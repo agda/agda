@@ -7,11 +7,11 @@ module examples.Vec where
     zero : Nat 
     suc  : Nat -> Nat
 
-  data (*) (A,B : Set) : Set where
+  data _ * _ (A,B : Set) : Set where
     pair : A -> B -> A * B
 
-  infixr 20 =>
-  data (=>) (A,B : Set) : Set where
+  infixr 20 _=>_
+  data _ => _ (A,B : Set) : Set where
     lam : (A -> B) -> A => B
 
   lam2 : {A, B, C : Set} -> (A -> B -> C) -> (A => B => C)
@@ -63,7 +63,7 @@ module examples.Vec where
 
   data Zero : Set where
 
-  data (+) (A,B : Set) : Set where
+  data _ + _ (A,B : Set) : Set where
     inl : A -> A + B
     inr : B -> A + B
 
@@ -105,6 +105,9 @@ module examples.Vec where
   Ren : Nat -> Nat -> Set
   Ren m n = Vec m (Fin n)
 
+  _ `Ren` _ : Nat -> Nat -> Set
+  _`Ren`_ = Ren
+
   {- identity and composition -}
 
   idR : (n : Nat) -> n `Ren` n
@@ -134,6 +137,9 @@ module examples.Vec where
   Sub : Nat -> Nat -> Set
   Sub m n = Vec m (Tm n)
 
+  _ `Sub` _ : Nat -> Nat -> Set
+  _`Sub`_ = Sub
+
   {- identity; composition must wait; why -}
 
   idS : (n : Nat) -> n `Sub` n
@@ -154,7 +160,7 @@ module examples.Vec where
 
   subst : {m,n : Nat} -> m `Sub` n -> Tm m -> Tm n
   subst {m}{n} m2n (evar i)   = vProj m m2n i
-  subst {m}{n} m2n (eapp f s) = subst m2n f `eapp` subst m2n s
+  subst {m}{n} m2n (eapp f s) = eapp (subst m2n f) (subst m2n s)
   subst {m}{n} m2n (elam t)   = elam (subst (liftS m n m2n) t)
 
   {- and now we can define composition -}

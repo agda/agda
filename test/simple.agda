@@ -7,26 +7,27 @@ module Nat where
     zero : Nat
     suc  : Nat -> Nat
 
-  (+) : Nat -> Nat -> Nat
+  _ + _ : Nat -> Nat -> Nat
   zero  + m = m
   suc n + m = suc (n + m)
 
 module N = Nat
 
-z = N.+ (N.suc N.zero) (N.suc N.zero)
+z : N.Nat
+z = N._+_ (N.suc N.zero) (N.suc N.zero)
 
 zz : Nat.Nat
-zz = Nat.suc Nat.zero `Nat.+` Nat.suc Nat.zero
+zz = Nat._+_ (Nat.suc Nat.zero) (Nat.suc Nat.zero)
 
 module List (A : Set) where
 
-  infixr 15 ::, ++
+  infixr 15 _::_ _++_
 
   data List : Set where
-    nil  : List
-    (::) : A -> List -> List
+    nil	   : List
+    _ :: _ : A -> List -> List
 
-  (++) : List -> List -> List
+  _ ++ _ : List -> List -> List
   nil	    ++ ys = ys
   (x :: xs) ++ ys = x :: (xs ++ ys)
 
@@ -34,8 +35,9 @@ module TestList where
 
   open Nat
   module ListNat = List Nat
-  open ListNat, using (++, ::, nil)
+  open ListNat, using (_++_, _::_, nil)
 
+  zzz : ListNat.List
   zzz = (zero :: nil) ++ (suc zero :: nil)
 
 module EvenOdd where
@@ -83,6 +85,7 @@ module TestStack where
   open Stack.Ops
   open Nat
 
+  zzzz : Stack Nat
   zzzz = push zero (unit (suc zero))
 
 module TestIdentity where
@@ -97,30 +100,41 @@ module TestIdentity where
     fa  : F A
     a   : A
 
+  test1 : _
   test1 = id0 (F A) fa
+
+  test2 : _
   test2 = idH fa
+
+  test3 : _
   test3 = id0 _ fa
+
+  test4 : _
   test4 = idH {! foo bar !}
   -- test5 = id id	-- we can't do this (on purpose)!
 
+  id : _
   id = \{A : Set}(x : A) -> x
 
+  test : _
   test = id a
 
 module prop where
 
   postulate
-    (\/)  : Prop -> Prop -> Prop
-    inl	  : {P,Q : Prop} -> P -> P \/ Q
-    inr	  : {P,Q : Prop} -> Q -> P \/ Q
-    orE	  : {P,Q,R : Prop} -> P \/ Q -> (P -> R) -> (Q -> R) -> R
-    False : Prop
-    (==>) : Prop -> Prop -> Prop
-    impI  : {P,Q : Prop} -> (P -> Q) -> P ==> Q
-    impE  : {P,Q : Prop} -> P ==> Q -> P -> Q
+    _ \/ _  : Prop -> Prop -> Prop
+    inl	    : {P,Q : Prop} -> P -> P \/ Q
+    inr	    : {P,Q : Prop} -> Q -> P \/ Q
+    orE	    : {P,Q,R : Prop} -> P \/ Q -> (P -> R) -> (Q -> R) -> R
+    False   : Prop
+    _ ==> _ : Prop -> Prop -> Prop
+    impI    : {P,Q : Prop} -> (P -> Q) -> P ==> Q
+    impE    : {P,Q : Prop} -> P ==> Q -> P -> Q
 
+  Not : Prop -> Prop
   Not = \(P : Prop) -> P ==> False
 
+  notnotEM : _
   notnotEM = \(P : Prop) ->
     impI (\ (nEM : Not (P \/ Not P)) ->
 	    impE nEM (
@@ -134,10 +148,10 @@ module prop where
 
 module Tests where
 
-  infix 5 ==
+  infix 5 _==_
   postulate
-    (==) : {A : Set} -> A -> A -> Set
-    refl : {A : Set} -> {x : A} -> x == x
+    _ == _ : {A : Set} -> A -> A -> Set
+    refl   : {A : Set} -> {x : A} -> x == x
 
   open TestList.ListNat
   open Nat

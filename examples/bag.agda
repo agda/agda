@@ -5,16 +5,16 @@ module Prelude where
   id : {a : Set} -> a -> a
   id x = x
 
-  infixr 0 $
+  infixr 0 _$_
 
-  ($) : {a, b : Set} -> (a -> b) -> a -> b
+  _ $ _ : {a, b : Set} -> (a -> b) -> a -> b
   f $ x = f x
 
   data Bool : Set where
     True  : Bool
     False : Bool
 
-  (&&) : Bool -> Bool -> Bool
+  _ && _ : Bool -> Bool -> Bool
   True  && b = b
   False && _ = False
 
@@ -80,7 +80,7 @@ module Prelude where
   notDistribIn (not nab) = pair (not (\a -> nab (left a)))
                                 (not (\b -> nab (right b)))
 
-  data (<->) (a, b : Set) : Set where
+  data _ <-> _ (a, b : Set) : Set where
     iff : (a -> b) -> (b -> a) -> a <-> b
 
   iffLeft : {a, b : Set} -> (a <-> b) -> (a -> b)
@@ -94,7 +94,7 @@ module Eq where
   open Prelude
 
   abstract
-    data (=^=) {a : Set} (x, y : a) : Set1 where
+    data _ =^= _ {a : Set} (x, y : a) : Set1 where
       leibniz : ((P : a -> Set) -> P x <-> P y) -> x =^= y
 
     leibnizSubst :  {a : Set} -> {x, y : a}
@@ -114,17 +114,17 @@ module Equiv where
   open Eq
 
   data Equiv (a : Set) : Set1 where
-    equiv :  ((==) : a -> a -> Set)
-          -> (refl  : (x : a) -> x == x)
-          -> (sym   : (x, y : a) -> x == y -> y == x)
-          -> (trans : (x, y, z : a) -> x == y -> y == z -> x == z)
+    equiv :  (eq    : a -> a -> Set)
+          -> (refl  : (x : a) -> eq x x)
+          -> (sym   : (x, y : a) -> eq x y -> eq y x)
+          -> (trans : (x, y, z : a) -> eq x y -> eq y z -> eq x z)
           -> Equiv a
 
   rel : {a : Set} -> Equiv a -> (a -> a -> Set)
-  rel (equiv (==) _ _ _) = (==)
+  rel (equiv eq _ _ _) = eq
 
-  data Decidable {a : Set} ((==) : a -> a -> Set) : Set where
-    dec : ((x, y : a) -> Either (x == y) (Not (x == y))) -> Decidable (==)
+  data Decidable {a : Set} (eq : a -> a -> Set) : Set where
+    dec : ((x, y : a) -> Either (eq x y) (Not (eq x y))) -> Decidable eq
 
   private
     boolFunctionsDecidable'
@@ -134,8 +134,8 @@ module Equiv where
       -> (b : Bool)
       -> (b =^= f x y)
       -> Either (T' f x y) (Not (T' f x y))
-    boolFunctionsDecidable' (==) x y True  eq = left (leibnizSubst eq T unit)
-    boolFunctionsDecidable' (==) x y False eq =
+    boolFunctionsDecidable' eq x y True  eq = left (leibnizSubst eq T unit)
+    boolFunctionsDecidable' eq x y False eq =
       right (not (\xy -> leibnizSubst (leibnizSym eq) T xy))
 
   boolFunctionsDecidable
@@ -166,8 +166,8 @@ module Equiv where
 
   private
 
-    decRelI :  {a : Set} -> ((==) : a -> a -> Set) -> {x, y : a}
-             -> Either (x == y) (Not (x == y)) -> Bool
+    decRelI :  {a : Set} -> (eq : a -> a -> Set) -> {x, y : a}
+             -> Either (eq x y) (Not (eq x y)) -> Bool
     decRelI _ (left _)  = True
     decRelI _ (right _) = False
 
@@ -276,7 +276,7 @@ module Nat where
   one : Nat
   one = suc zero
 
-  (+) : Nat -> Nat -> Nat
+  _ + _ : Nat -> Nat -> Nat
   zero  + n = n
   suc m + n = suc (m + n)
 
@@ -331,8 +331,8 @@ module Pos where
     suc' : Nat.Nat -> Pos
     suc' n = n
 
-    (+) : Pos -> Pos -> Pos
-    m + n = suc (Nat.+ m n)
+    _ + _ : Pos -> Pos -> Pos
+    m + n = suc (Nat._+_ m n)
 
     -- Returns Nothing if input is 1.
     pred : Pos -> Maybe Pos
@@ -370,8 +370,8 @@ module List where
   open Nat
 
   data List (a : Set) : Set where
-    nil : List a
-    (::) : a -> List a -> List a
+    nil	   : List a
+    _ :: _ : a -> List a -> List a
 
   map : {a, b : Set} -> (a -> b) -> List a -> List b
   map f nil       = nil
