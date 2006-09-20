@@ -20,6 +20,13 @@ Features
 
 * list sugar in patterns
 
+* allow lambda-bound operators (how?)
+  not a problem in Pi: (_ + _ : Nat -> Nat -> Nat) -> Nat
+  but trickier for lambda. Possibility make always write _+_ (hence make underscore
+  in names carry semantics).
+
+* allow no type signatures for definitions of the form x = e
+
 Fixes
 -----
 
@@ -39,8 +46,6 @@ Fixes
 * handle clashing of concrete names (in abstractToConcrete)
 
 * handle command line options (import path)
-
-* allow no type signatures for definitions of the form x = e
 
 * check that fixity declarations correspond to actual definitions
 
