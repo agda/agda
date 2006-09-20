@@ -8,11 +8,11 @@ not : Bool -> Bool
 not true = false
 not false = true
 
-(||) : Bool -> Bool -> Bool
+_ || _ : Bool -> Bool -> Bool
 true  || _ = true
 false || x = x
 
-(&&) : Bool -> Bool -> Bool
+_ && _ : Bool -> Bool -> Bool
 true  && x = x
 false && _ = false
 
@@ -33,12 +33,12 @@ postulate
 
 infixr 10 ::
 data List (A:Set) : Set where
-  nil  : List A
-  (::) : A -> List A -> List A
+  nil    : List A
+  _ :: _ : A -> List A -> List A
 
 {-# BUILTIN LIST    List   #-}
 {-# BUILTIN NIL     nil    #-}
-{-# BUILTIN CONS    ::     #-}
+{-# BUILTIN CONS    _::_   #-}
 
 primitive
 
@@ -89,30 +89,46 @@ primitive
   primStringEqual    : String -> String -> Bool
   primShowString     : String -> String
 
+isLower : Char -> Bool
 isLower = primIsLower
+
+isAlpha : Char -> Bool
 isAlpha = primIsAlpha
 
 isUpper : Char -> Bool
 isUpper c = isAlpha c && not (isLower c)
 
-infixl 14 *, /, `div`, `mod`
-infixl 12 +, -, `primFloatMinus`, `primFloatPlus`
-infixl 8  ==
+infixl 14 _*_ _/_
+infix  12 -_
+infixl 12 _+_ _-_
+infixl 8  _==_
 
-(+)  = primIntegerPlus
-(*)  = primIntegerTimes
-(-)  = primIntegerMinus
-(==) = primIntegerEquals
+_ + _ : Int -> Int -> Int
+_+_ = primIntegerPlus
 
-(/) = primFloatDiv
+_ * _ : Int -> Int -> Int
+_*_  = primIntegerTimes
+
+_ - _ : Int -> Int -> Int
+_-_  = primIntegerMinus
+
+- _ : Int -> Int
+- x = 0 - x
+
+_ == _ : Int -> Int -> Bool
+_==_ = primIntegerEquals
+
+_ / _ : Float -> Float -> Float
+_/_ = primFloatDiv
 
 pi : Float
 pi = 3.141592653589793
 
+sin : Float -> Float
 sin = primSin
 
 cos : Float -> Float
-cos x = sin (pi / 2.0 `primFloatMinus` x)
+cos x = sin (primFloatMinus (pi / 2.0) x)
 
 tan : Float -> Float
 tan x = sin x / cos x
@@ -124,7 +140,7 @@ reverse xs = rev xs nil
     rev nil	  ys = ys
     rev (x :: xs) ys = rev xs (x :: ys)
 
-(∘) : {A,B,C:Set} -> (B -> C) -> (A -> B) -> A -> C
+_ ∘ _ : {A,B,C:Set} -> (B -> C) -> (A -> B) -> A -> C
 f ∘ g = \x -> f (g x)
 
 map : {A,B:Set} -> (A -> B) -> List A -> List B
@@ -141,6 +157,9 @@ mapStr : (Char -> Char) -> String -> String
 mapStr f = stringAsList (map f)
 
 -- Testing unicode literals
+uString : String
 uString = "åäö⊢ξ∀"
+
+uChar : Char
 uChar   = '∀'
 

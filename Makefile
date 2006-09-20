@@ -93,7 +93,8 @@ agda = $(FULL_OUT_DIR)/agda
 
 # test_files	= $(patsubst %,examples/syntax/%,Syntax.agda Literate.lagda)
 
-test_files = examples/Vec.agda test/simple.agda examples/bag.agda examples/Setoid.agda
+test_files = $(wildcard test/*.agda) \
+			 examples/Vec.agda examples/bag.agda examples/Setoid.agda
 tests	   = $(patsubst %,%.test,$(test_files))
 
 # clean_test :

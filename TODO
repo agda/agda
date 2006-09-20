@@ -84,6 +84,8 @@ Fixes
 
 * pretty printing of operator applications
 
+* exitWith ExitFailure on type error
+
 Speculative
 -----------
 

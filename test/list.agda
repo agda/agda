@@ -4,10 +4,10 @@ module T where
 module List (A:Set) where
 
   data List : Set where
-    nil  : List
-    (::) : A -> List -> List
+    nil    : List
+    _ :: _ : A -> List -> List
 
-  (++) : List -> List -> List
+  _ ++ _ : List -> List -> List
   nil	  ++ ys = ys
   (x::xs) ++ ys = x :: (xs ++ ys)
 

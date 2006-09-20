@@ -9,10 +9,7 @@ infixr 15 ::
 
 data List (A:Set) : Set where
   nil : List A
-  (::) : A -> List A -> List A
-
-postulate
-  xs : List Nat
+  _ :: _ : A -> List A -> List A
 
 reverse : {A:Set} -> List A -> List A
 reverse xs = rev xs nil
@@ -20,4 +17,7 @@ reverse xs = rev xs nil
     rev : _ -> _ -> _
     rev  nil	ys = ys
     rev (x::xs) ys = rev xs (x::ys)
+
+postulate
+  xs : List Nat
 
