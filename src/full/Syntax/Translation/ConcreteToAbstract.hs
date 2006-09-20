@@ -464,7 +464,7 @@ instance BindToAbstract NiceDeclaration [A.Declaration] where
     -- Top-level modules are translated with toAbstract.
     bindToAbstract (NiceModule _ _ _ _ _ _) _ = __IMPOSSIBLE__
 
-    bindToAbstract (NiceModuleMacro r p _ x tel e is) ret =
+    bindToAbstract (NiceModuleMacro r p _ x tel e is) ret = do
 	case appView e of
 	    AppView (Ident m) args  ->
 		bindToAbstract tel $ \tel' ->

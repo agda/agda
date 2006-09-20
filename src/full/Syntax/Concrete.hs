@@ -191,6 +191,12 @@ appView :: Expr -> AppView
 appView (App r e1 e2) = vApp (appView e1) e2
     where
 	vApp (AppView e es) arg = AppView e (es ++ [arg])
+appView (OpApp _ op es)   = AppView (Ident $ QName $ nameDeclName op)
+			  $ map (Arg NotHidden) es
+appView (RawApp _ (e:es)) = AppView e $ map arg es
+    where
+	arg (HiddenArg _ e) = Arg Hidden e
+	arg e		    = Arg NotHidden e
 appView e = AppView e []
 
 {--------------------------------------------------------------------------
