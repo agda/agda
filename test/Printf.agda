@@ -1,13 +1,13 @@
 
 module Printf where
 
-_ ∘ _ : {A,B,C:Set} -> (B -> C) -> (A -> B) -> A -> C
+_∘_ : {A,B,C:Set} -> (B -> C) -> (A -> B) -> A -> C
 f ∘ g = \x -> f (g x)
 
 infixr 10 _::_
 data List (A:Set) : Set where
-  nil	 : List A
-  _ :: _ : A -> List A -> List A
+  nil  : List A
+  _::_ : A -> List A -> List A
 
 {-# BUILTIN LIST    List   #-}
 {-# BUILTIN NIL     nil    #-}
@@ -35,22 +35,11 @@ module Primitive where
       primShowInteger	 : Int -> String
       primShowFloat	 : Float -> String
 
-  _ ++ _       : String -> String -> String
   _++_	       = primStringAppend
-
-  showChar     : Char -> String
   showChar     = primShowChar
-
-  showInt      : Int -> String
   showInt      = primShowInteger
-
-  showFloat    : Float -> String
   showFloat    = primShowFloat
-
-  stringToList : String -> List Char
   stringToList = primStringToList
-
-  listToString : List Char -> String
   listToString = primStringFromList
 
 open Primitive
@@ -61,8 +50,8 @@ data Unit : Set where
 infixr 8 _×_
 infixr 8 _◅_
 
-data _ × _ (A,B:Set) : Set where
-  _ ◅ _ : A -> B -> A × B
+data _×_ (A,B:Set) : Set where
+  _◅_ : A -> B -> A × B
 
 data Format : Set where
   stringArg : Format

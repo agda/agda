@@ -35,9 +35,6 @@ instance Pretty Name where
 instance Pretty QName where
     pretty = text . show
 
-instance Pretty NameDecl where
-    pretty (NameDecl xs) = hsep $ map pretty xs
-
 instance Pretty Literal where
     pretty (LitInt _ n)	    = text $ show n
     pretty (LitFloat _ x)   = text $ show x
@@ -71,12 +68,12 @@ instance Pretty Expr where
 -- 			    , nest 2 $ fsep $ map pretty args
 -- 			    ]
 	    RawApp _ es   -> fsep $ map pretty es
-	    OpApp _ (NameDecl xs) es -> fsep $ prOp xs es
+	    OpApp _ (Name _ xs) es -> fsep $ prOp xs es
 		where
-		    prOp (x:xs) ~(e:es)
-			| x == noName	= pretty e : prOp xs es
-		    prOp (x:xs) es	= pretty x : prOp xs es
-		    prOp []	es	= map pretty es
+		    prOp (Hole : xs) (e : es) = pretty e : prOp xs es
+		    prOp (Hole : _)  []	      = __IMPOSSIBLE__
+		    prOp (Id x : xs)  es      = text x : prOp xs es
+		    prOp []	      es      = map pretty es
 
 	    HiddenArg _ e -> braces $ pretty e
 	    Lam _ bs e ->
@@ -201,12 +198,12 @@ instance Pretty Pattern where
 	    IdentP x	       -> pretty x
 	    AppP p1 p2	       -> sep [ pretty p1, nest 2 $ pretty p2 ]
 	    RawAppP _ ps       -> fsep $ map pretty ps
-	    OpAppP _ (NameDecl xs) ps -> fsep $ prOp xs ps
+	    OpAppP _ (Name _ xs) ps -> fsep $ prOp xs ps
 		where
-		    prOp (x:xs) ~(e:es)
-			| x == noName	= pretty e : prOp xs es
-		    prOp (x:xs) es	= pretty x : prOp xs es
-		    prOp []	es	= map pretty es
+		    prOp (Hole : xs) (e : es) = pretty e : prOp xs es
+		    prOp (Hole : _)  []	      = __IMPOSSIBLE__
+		    prOp (Id x : xs)  es      = text x : prOp xs es
+		    prOp []	      es      = map pretty es
 	    HiddenP _ p	       -> braces $ pretty p
 	    ParenP _ p	       -> parens $ pretty p
 	    WildP _	       -> text "_"

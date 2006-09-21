@@ -12,15 +12,15 @@ module Logic where
 
   data False : Prop where
 
-  data _ /\ _ (P,Q : Prop) : Prop where
+  data _/\_ (P,Q : Prop) : Prop where
     andI : P -> Q -> P /\ Q
 
 --   Not allowed if we have proof irrelevance
---   data (\/) (P,Q : Prop) : Prop where
+--   data _\/_ (P,Q : Prop) : Prop where
 --     orIL : P -> P \/ Q
 --     orIR : Q -> P \/ Q
 
-  data _ --> _ (P,Q : Prop) : Prop where
+  data _-->_ (P,Q : Prop) : Prop where
     impI : (P -> Q) -> P --> Q
 
   impE : {P,Q : Prop} -> (P --> Q) -> P -> Q
@@ -36,10 +36,10 @@ module Setoid where
 
   data Setoid : Set1 where
     setoid : (A     : Set)
-	  -> (eq    : A -> A -> Prop)
-	  -> (refl  : (x : A) -> eq x x)
-	  -> (sym   : (x,y : A) -> eq x y -> eq y x)
-	  -> (trans : (x,y,z : A) -> eq x y -> eq y z -> eq x z)
+	  -> (_==_  : A -> A -> Prop)
+	  -> (refl  : (x : A) -> x == x)
+	  -> (sym   : (x,y : A) -> x == y -> y == x)
+	  -> (trans : (x,y,z : A) -> x == y -> y == z -> x == z)
 	  -> Setoid
 
   El : Setoid -> Set
@@ -63,7 +63,7 @@ module Setoid where
 
     infix 6 _==_
 
-    _ == _ : El A -> El A -> Prop
+    _==_ : El A -> El A -> Prop
     _==_ = Projections.eq A
 
     refl : {x : El A} -> x == x
@@ -87,13 +87,13 @@ module EqChain (A : Setoid.Setoid) where
   eqProof : (x : El A) -> x == x
   eqProof x = refl
 
-  _ -== _ : (x : El A) -> {y : El A} -> x == y -> x == y
+  _-==_ : (x : El A) -> {y : El A} -> x == y -> x == y
   x -== eq = eq
 
-  _ === _ : {x,y,z : El A} -> x == y -> y == z -> x == z
+  _===_ : {x,y,z : El A} -> x == y -> y == z -> x == z
   _===_ = trans
 
-  _ since _ : {x : El A} -> (y : El A) -> x == y -> x == y
+  _since_ : {x : El A} -> (y : El A) -> x == y -> x == y
   _ since eq = eq
 
 module Fun where
@@ -105,7 +105,7 @@ module Fun where
 
   open Setoid.Projections, using (eq)
 
-  data _ => _ (A,B : Setoid) : Set where
+  data _=>_ (A,B : Setoid) : Set where
     lam : (f : El A -> El B)
        -> ({x, y : El A} -> eq A x y
 			 -> eq B (f x) (f y)
@@ -127,7 +127,7 @@ module Fun where
 	   EqFun f g -> eq A x y -> eq B (app f x) (app g y)
   eqFunE (eqFunI h) = h
 
-  _ ==> _ : Setoid -> Setoid -> Setoid
+  _==>_ : Setoid -> Setoid -> Setoid
   A ==> B = setoid (A => B) EqFun r s t
     where
       module Proof where
@@ -159,7 +159,7 @@ module Fun where
       open Proof
 
   infixl 100 _$_
-  _ $ _ : {A,B : Setoid} -> El (A ==> B) -> El A -> El B
+  _$_ : {A,B : Setoid} -> El (A ==> B) -> El A -> El B
   _$_ = app
 
   lam2 : {A,B,C : Setoid} ->
@@ -210,7 +210,7 @@ module Fun where
 -- 		   (\g -> eqFunI (\x -> cong f (eqFunE g x))))
 -- 	(\f -> eqFunI (\g -> eqFunI (\x -> eqFunE f (eqFunE g x))))
 
-  _ ∘ _ : {A,B,C : Setoid} -> El (B ==> C) -> El (A ==> B) -> El (A ==> C)
+  _∘_ : {A,B,C : Setoid} -> El (B ==> C) -> El (A ==> B) -> El (A ==> C)
   f ∘ g = compose $ f $ g
 
   const : {A,B : Setoid} -> El (A ==> B ==> A)
@@ -249,7 +249,7 @@ module Nat where
       t  zero    zero    z      xy yz = yz
       t (suc x) (suc y) (suc z) xy yz = t x y z xy yz
 
-  _ + _ : Nat -> Nat -> Nat
+  _+_ : Nat -> Nat -> Nat
   zero  + m = m
   suc n + m = suc (n + m)
 
@@ -270,8 +270,8 @@ module List where
   open Setoid
 
   data List (A : Set) : Set where
-    nil    : List A
-    _ :: _ : A -> List A -> List A
+    nil  : List A
+    _::_ : A -> List A -> List A
 
   LIST : Setoid -> Setoid
   LIST A = setoid (List (El A)) eqList r s t

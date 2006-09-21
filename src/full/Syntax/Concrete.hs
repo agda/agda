@@ -47,7 +47,7 @@ data Expr
 	| Underscore !Range (Maybe Nat)	    -- ^ ex: @_@
 	| RawApp !Range [Expr]		    -- ^ before parsing operators
 	| App !Range Expr (Arg Expr)	    -- ^ ex: @e e@ or @e {e}@
-	| OpApp !Range NameDecl [Expr]	    -- ^ ex: @e + e@
+	| OpApp !Range Name [Expr]	    -- ^ ex: @e + e@
 	| HiddenArg !Range Expr		    -- ^ ex: @{e}@
 	| Lam !Range [LamBinding] Expr	    -- ^ ex: @\\x {y} -> e@ or @\\(x:A){y:B} -> e@
 	| Fun !Range Expr Expr		    -- ^ ex: @e -> e@ or @{e} -> e@
@@ -68,7 +68,7 @@ data Pattern
 	= IdentP QName
 	| AppP Pattern (Arg Pattern)
 	| RawAppP !Range [Pattern]
-	| OpAppP !Range NameDecl [Pattern]
+	| OpAppP !Range Name [Pattern]
 	| HiddenP !Range Pattern
 	| ParenP !Range Pattern
 	| WildP !Range
@@ -158,9 +158,9 @@ type TypeSignature   = Declaration
     which type in the intended family the constructor targets.
 -}
 data Declaration
-	= TypeSig NameDecl Expr
+	= TypeSig Name Expr
 	| FunClause LHS RHS WhereClause
-	| Data        !Range NameDecl [TypedBindings] Expr [Constructor]
+	| Data        !Range Name [TypedBindings] Expr [Constructor]
 	| Infix Fixity [Name]
 	| Mutual      !Range [Declaration]
 	| Abstract    !Range [Declaration]
@@ -191,7 +191,7 @@ appView :: Expr -> AppView
 appView (App r e1 e2) = vApp (appView e1) e2
     where
 	vApp (AppView e es) arg = AppView e (es ++ [arg])
-appView (OpApp _ op es)   = AppView (Ident $ QName $ nameDeclName op)
+appView (OpApp _ op es)   = AppView (Ident $ QName op)
 			  $ map (Arg NotHidden) es
 appView (RawApp _ (e:es)) = AppView e $ map arg es
     where

@@ -40,8 +40,11 @@ data ModuleName =
 	  }
     deriving (Typeable, Data)
 
-mkName :: NameId -> String -> Name
-mkName i s = Name i (C.Name noRange s)
+mkName_ :: NameId -> String -> Name
+mkName_ = mkName noRange
+
+mkName :: Range -> NameId -> String -> Name
+mkName r i s = Name i (C.Name r [C.Id s])
 
 mkModuleId :: C.QName -> ModuleId
 mkModuleId (C.QName x)	= [x]
@@ -51,7 +54,7 @@ mkModuleName :: C.QName -> ModuleName
 mkModuleName x = MName (mkModuleId x) x
 
 noModuleName :: ModuleName
-noModuleName = MName [] $ C.QName $ C.NoName noRange
+noModuleName = MName [] $ C.QName $ C.noName_
 
 qualify :: ModuleName -> Name -> QName
 qualify m x = QName { qnameName	    = x
@@ -81,7 +84,7 @@ isSubModuleOf x y = mnameId y `isPrefixOf` mnameId x
 freshName :: (MonadState s m, HasFresh NameId s) => Range -> String -> m Name
 freshName r s =
     do	i <- fresh
-	return $ Name i (C.Name r s)
+	return $ mkName r i s
 
 freshName_ :: (MonadState s m, HasFresh NameId s) => String -> m Name
 freshName_ = freshName noRange
@@ -89,7 +92,7 @@ freshName_ = freshName noRange
 freshNoName :: (MonadState s m, HasFresh NameId s) => Range -> m Name
 freshNoName r =
     do	i <- fresh
-	return $ Name i (C.NoName r)
+	return $ Name i (C.noName r)
 
 freshNoName_ :: (MonadState s m, HasFresh NameId s) => m Name
 freshNoName_ = freshNoName noRange

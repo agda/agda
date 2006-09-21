@@ -27,7 +27,7 @@ data Info = Nope
 data NameInfo =
 	NameInfo { bindingSite	:: Range
 		 , concreteName :: QName
-		 , nameOperator :: Operator
+		 , nameFixity	:: Fixity
 		 , nameAccess	:: Access
 		 }
 
@@ -99,19 +99,17 @@ instance HasRange LetInfo where
  --------------------------------------------------------------------------}
 
 data DefInfo =
-	DefInfo	{ defOperator :: Operator
+	DefInfo	{ defFixity   :: Fixity
 		, defAccess   :: Access
 		, defAbstract :: IsAbstract
 		, defInfo     :: DeclInfo
 		}
 
-mkRangedDefInfo :: NameDecl -> Fixity -> Access -> IsAbstract -> Range -> DefInfo
-mkRangedDefInfo x f a ab r = DefInfo (Operator x f) a ab (DeclInfo x' $ DeclRange r)
-    where x' = nameDeclName x
+mkRangedDefInfo :: Name -> Fixity -> Access -> IsAbstract -> Range -> DefInfo
+mkRangedDefInfo x f a ab r = DefInfo f a ab (DeclInfo x $ DeclRange r)
 
-mkSourcedDefInfo :: NameDecl -> Fixity -> Access -> IsAbstract -> [Declaration] -> DefInfo
-mkSourcedDefInfo x f a ab ds = DefInfo (Operator x f) a ab (DeclInfo x' $ DeclSource ds)
-    where x' = nameDeclName x
+mkSourcedDefInfo :: Name -> Fixity -> Access -> IsAbstract -> [Declaration] -> DefInfo
+mkSourcedDefInfo x f a ab ds = DefInfo f a ab (DeclInfo x $ DeclSource ds)
 
 instance HasRange DefInfo where
     getRange = getRange . defInfo

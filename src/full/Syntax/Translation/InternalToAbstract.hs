@@ -50,20 +50,20 @@ apps (e, arg:args)	    =
 nameInfo :: Name -> NameInfo
 nameInfo x = NameInfo { bindingSite  = getRange x
 		      , concreteName = C.QName $ nameConcrete x
-		      , nameOperator = defaultOperator $ nameConcrete x
+		      , nameFixity   = defaultFixity
 		      , nameAccess   = PublicAccess
 		      }
 
 qnameInfo :: QName -> TCM NameInfo
 qnameInfo x =
     do	scope <- getScope
-	let op = case resolveName (qnameConcrete x) scope of
-		    DefName d -> operator d
-		    _	      -> defaultOperator $ nameConcrete $ qnameName x
+	let fx = case resolveName (qnameConcrete x) scope of
+		    DefName d -> fixity d
+		    _	      -> defaultFixity
 	return $ NameInfo
 		 { bindingSite  = noRange
 		 , concreteName = qnameConcrete x
-		 , nameOperator = op
+		 , nameFixity   = fx
 		 , nameAccess   = PublicAccess
 		 }
 

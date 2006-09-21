@@ -61,31 +61,34 @@ instance HasRange OperatorException where
 -- * Building the parser
 ---------------------------------------------------------------------------
 
-getDefinedNames :: [KindOfName] -> ScopeM [(Name, Operator)]
+getDefinedNames :: [KindOfName] -> ScopeM [(Name, Fixity)]
 getDefinedNames kinds = do
     scope <- getScopeInfo
     let public  = publicNameSpace scope
 	private = privateNameSpace scope
 	defs	= concatMap (Map.assocs . definedNames) [public, private]
-    return [ (x, operator def) | (x, def) <- defs, kindOfName def `elem` kinds ]
+    return [ (x, fixity def) | (x, def) <- defs, kindOfName def `elem` kinds ]
 
-localNames :: ScopeM ([Name], [Operator])
+localNames :: ScopeM ([Name], [(Name, Fixity)])
 localNames = do
     scope <- getScopeInfo
     let public  = publicNameSpace scope
 	private = privateNameSpace scope
 	local	= localVariables scope
-	(names, ops) = split $ concatMap namespaceOps [public, private]
-    return (Map.keys local ++ names, ops)
+	(names, ops) = split $ localOps local ++ concatMap namespaceOps [public, private]
+    return (names, ops)
     where
-	namespaceOps = map operator . Map.elems . definedNames
+	namespaceOps = map operator . Map.assocs . definedNames
+	localOps     = map localOp . Map.keys
+	localOp x    = (x, defaultFixity)
+	operator (x,def) = (x, fixity def)
 
 	split ops = ([ x | Left x <- zs], [ y | Right y <- zs ])
 	    where
 		zs = concatMap opOrNot ops
 
-	opOrNot (Operator (NameDecl [x]) _) = [Left x]
-	opOrNot op@(Operator d _)	    = [Left (nameDeclName d), Right op]
+	opOrNot (x@(Name _ [_]), fx) = [Left x]
+	opOrNot (x, fx)		     = [Left x, Right (x, fx)]
 
 data UseBoundNames = UseBoundNames | DontUseBoundNames
 
@@ -116,12 +119,14 @@ data UseBoundNames = UseBoundNames | DontUseBoundNames
     different associativity the parser won't complain. One could argue that
     this is a Bad Thing, but since it's not trivial to implement the check it
     will stay this way until people start complaining about it.
+
+    TODO: Clean up (too many fst and snd)
 -}
 buildParser :: IsExpr e => Range -> UseBoundNames -> ScopeM (ReadP e e)
 buildParser r use = do
     (names, ops) <- localNames
     cons	 <- getDefinedNames [ConName]
-    let conparts   = Set.fromList $ concatMap (parts . snd) cons
+    let conparts   = Set.fromList $ concatMap (parts . fst) cons
 	connames   = Set.fromList $ map fst cons
 	(non, fix) = partition nonfix ops
 	set	   = Set.fromList names
@@ -131,28 +136,26 @@ buildParser r use = do
     return $ recursive $ \p ->
 	concatMap (mkP p) (order fix)
 	++ [ appP p ]
-	++ map (nonfixP . opP p) non
+	++ map (nonfixP . opP p . fst) non
 	++ [ const $ atomP isLocal ]
     where
-	parts (Operator (NameDecl [_]) _) = []
-	parts (Operator (NameDecl xs ) _) = filter (/= noName) xs
+	parts (Name _ [_]) = []
+	parts (Name _ xs ) = [ Name noRange [Id s] | Id s <- xs ]
 
-	operator (Operator op _) = op
-	fixity   (Operator _  f) = f
-	level = fixityLevel . fixity
+	level = fixityLevel . snd
 
-	isinfixl (Operator op (LeftAssoc _ _))	= isInfix op
-	isinfixl _				= False
+	isinfixl (op, LeftAssoc _ _)  = isInfix op
+	isinfixl _		      = False
 
-	isinfixr (Operator op (RightAssoc _ _)) = isInfix op
-	isinfixr _				= False
+	isinfixr (op, RightAssoc _ _) = isInfix op
+	isinfixr _		      = False
 
-	isinfix (Operator op (NonAssoc _ _))	= isInfix op
-	isinfix _				= False
+	isinfix (op, NonAssoc _ _)    = isInfix op
+	isinfix _		      = False
 
 	on f g x y = f (g x) (g y)
 
-	nonfix = isNonfix . operator
+	nonfix = isNonfix . fst
 	order = groupBy ((==) `on` level) . sortBy (compare `on` level)
 
 	mkP p0 ops = case concat [infx, inlfx, inrfx, prefx, postfx] of
@@ -164,13 +167,13 @@ buildParser r use = do
 		inlfx	= fixP infixlP  isinfixl
 		inrfx	= fixP infixrP  isinfixr
 		infx	= fixP infixP   isinfix
-		prefx	= fixP prefixP  (isPrefix . operator)
-		postfx	= fixP postfixP (isPostfix . operator)
+		prefx	= fixP prefixP  (isPrefix . fst)
+		postfx	= fixP postfixP (isPostfix . fst)
 
 		fixP f g =
 		    case filter g ops of
 			[]  -> []
-			ops -> [ f $ choice $ map (opP p0) ops ]
+			ops -> [ f $ choice $ map (opP p0 . fst) ops ]
 
 ---------------------------------------------------------------------------
 -- * Expression instances
@@ -254,7 +257,7 @@ parseLHS top p = do
 	appView :: Pattern -> [Pattern]
 	appView p = case p of
 	    AppP p (Arg _ q) -> appView p ++ [q]
-	    OpAppP _ d ps    -> IdentP (QName $ nameDeclName d) : ps
+	    OpAppP _ op ps   -> IdentP (QName op) : ps
 	    ParenP _ p	     -> appView p
 	    RawAppP _ _	     -> __IMPOSSIBLE__
 	    HiddenP _ _	     -> __IMPOSSIBLE__
@@ -271,9 +274,9 @@ parseApplication es = do
 
 -- Inserting parenthesis --------------------------------------------------
 
-paren :: (Name -> Operator) -> Expr -> Precedence -> Expr
+paren :: (Name -> Fixity) -> Expr -> Precedence -> Expr
 paren _   e@(App _ _ _)	       p = mparen (appBrackets p) e
-paren f	  e@(OpApp _ op _)     p = mparen (opBrackets (f $ nameDeclName op) p) e
+paren f	  e@(OpApp _ op _)     p = mparen (opBrackets (f op) p) e
 paren _   e@(Lam _ _ _)	       p = mparen (lamBrackets p) e
 paren _   e@(Fun _ _ _)	       p = mparen (lamBrackets p) e
 paren _   e@(Pi _ _)	       p = mparen (lamBrackets p) e

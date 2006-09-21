@@ -6,7 +6,7 @@ data True : Prop where
   tt : True
 
 -- not allowed with proof irrelevance
-data _ \/ _ (P,Q:Prop) : Prop where
+data _\/_ (P,Q:Prop) : Prop where
   inl : P -> P \/ Q
   inr : Q -> P \/ Q
 

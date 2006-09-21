@@ -92,7 +92,7 @@ lhsArgs p = case appView p of
 	notHidden = Arg NotHidden
 	appView p = case p of
 	    AppP p arg	  -> appView p ++ [arg]
-	    OpAppP _ x ps -> mkHead (IdentP $ C.QName $ nameDeclName x) : map notHidden ps
+	    OpAppP _ x ps -> mkHead (IdentP $ C.QName x) : map notHidden ps
 	    RawAppP _ _	  -> __IMPOSSIBLE__
 	    _		  -> [ mkHead p ]
 
@@ -175,23 +175,22 @@ instance ToAbstract OldQName A.Expr where
 				Var (NameInfo
 				    { bindingSite  = getRange x'
 				    , concreteName = x
-				    , nameOperator = defaultOperator $ nameConcrete x'
+				    , nameFixity   = defaultFixity
 				    , nameAccess   = PrivateAccess
 				    }
 				   ) (setRange (getRange x) x')
 			where
 			    -- TODO: move somewhere else and generalise.
-			    setRange r (A.Name i (C.Name _ x)) = A.Name i (C.Name r x)
-			    setRange r (A.Name i (C.NoName _)) = A.Name i (C.NoName r)
+			    setRange r (A.Name i (C.Name _ xs)) = A.Name i (C.Name r xs)
 		DefName d   ->
 		    case kindOfName d of
 			FunName  -> return $ Def info $ theName d
 			ConName  -> return $ Con info $ theName d
 		    where
-			info = NameInfo { bindingSite   = getRange d
-					, concreteName  = x
-					, nameOperator	= operator d
-					, nameAccess    = access d
+			info = NameInfo { bindingSite  = getRange d
+					, concreteName = x
+					, nameFixity   = fixity d
+					, nameAccess   = access d
 					}
 		UnknownName	-> notInScope x
 
@@ -256,7 +255,7 @@ instance ToAbstract C.Expr A.Expr where
 
     -- Operator application
     toAbstract e@(C.OpApp r op es) = do
-	x    <- toAbstract (OldQName $ C.QName $ nameDeclName op)
+	x    <- toAbstract (OldQName $ C.QName op)
 	es'  <- toAbstract es	-- TODO: parenthesis?
 	info <- exprSource e
 	return $ foldl app x es'
@@ -372,7 +371,7 @@ instance BindToAbstract LetDef A.LetBinding where
 	    NiceDef _ c [CD.Axiom _ _ _ _ x t] [CD.FunDef _ _ _ _ _ _ [cl]] ->
 		do  e <- letToAbstract cl
 		    t <- toAbstract t
-		    bindToAbstract (NewName $ nameDeclName x) $ \x ->
+		    bindToAbstract (NewName x) $ \x ->
 			ret (A.LetBind (LetSource c) x t e)
 	    _	-> notAValidLetBinding d
 	where
@@ -405,7 +404,7 @@ instance BindToAbstract NiceDefinition Definition where
 
     -- Function definitions
     bindToAbstract (CD.FunDef r ds f p a x cs) ret =
-	do  (x',cs') <- toAbstract (OldName $ nameDeclName x,cs)
+	do  (x',cs') <- toAbstract (OldName x,cs)
 	    ret $ A.FunDef (mkSourcedDefInfo x f p a ds) x' cs'
 
     -- Data definitions
@@ -413,7 +412,7 @@ instance BindToAbstract NiceDefinition Definition where
 	(pars,cons) <- bindToAbstract pars $ \pars ->
 		       bindToAbstract (map Constr cons) $ \cons ->
 		       return (pars,cons)
-	x' <- toAbstract (OldName $ nameDeclName x)
+	x' <- toAbstract (OldName x)
 	bindToAbstract (map Constr cons) $ \_ ->
 	    ret $ A.DataDef (mkRangedDefInfo x f p a r) x' pars cons
 
@@ -441,7 +440,7 @@ instance BindToAbstract NiceDeclaration [A.Declaration] where
     -- Definitions (possibly mutual)
     bindToAbstract (NiceDef r cs ts ds) ret =
 	bindToAbstract (ts,ds) $ \ (ts',ds') ->
-	    ret [Definition (DeclInfo C.noName $ DeclSource cs) ts' ds']
+	    ret [Definition (DeclInfo C.noName_ $ DeclSource cs) ts' ds']
 		-- TODO: remember name
 
 
@@ -514,10 +513,10 @@ instance BindToAbstract (Constr CD.NiceDeclaration) A.Declaration where
 
 instance BindToAbstract (Constr A.Declaration) () where
     bindToAbstract (Constr (A.Axiom info x _)) ret =
-	    local (defName p ConName op x) $ ret ()
+	    local (defName p ConName fx x) $ ret ()
 	where
 	    a  = defAccess info
-	    op = defOperator info
+	    fx = defFixity info
 	    p  = case (defAbstract info, defAccess info) of
 		    (AbstractDef, _) -> PrivateAccess
 		    (_, p)	     -> p
@@ -571,13 +570,13 @@ instance BindToAbstract C.Pattern A.Pattern where
 	    info = PatSource r $ \pr -> if appBrackets pr then ParenP r p0 else p0
 
     bindToAbstract p0@(OpAppP r op ps) ret =
-	bindToAbstract (IdentP $ C.QName $ nameDeclName op)
+	bindToAbstract (IdentP $ C.QName op)
 			  $ \p ->
 	bindToAbstract ps $ \ps ->
 	    case p of
 		ConP _ x as -> ret $ ConP info x (as ++ map (Arg NotHidden) ps)
 		DefP _ x as -> ret $ DefP info x (as ++ map (Arg NotHidden) ps)
-		_	    -> higherOrderPattern p0 (IdentP $ C.QName $ nameDeclName op)
+		_	    -> higherOrderPattern p0 (IdentP $ C.QName op)
 	where
 	    r = getRange p0
 	    info = PatSource r $ \pr -> if appBrackets pr then ParenP r p0 else p0

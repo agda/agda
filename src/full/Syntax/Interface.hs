@@ -16,8 +16,8 @@ import qualified Syntax.Concrete.Name as C
 data Interface =
 	Interface   { moduleName	:: ModuleName
 		    , arity		:: Arity
-		    , definedNames	:: [(Name, Operator)]
-		    , constructorNames	:: [(Name, Operator)]
+		    , definedNames	:: [(Name, Fixity)]
+		    , constructorNames	:: [(Name, Fixity)]
 		    , subModules	:: [Interface]
 			-- ^ names of sub-modules are not fully qualified
 		    -- here should go types and definitions

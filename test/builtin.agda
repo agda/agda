@@ -8,11 +8,11 @@ not : Bool -> Bool
 not true = false
 not false = true
 
-_ || _ : Bool -> Bool -> Bool
+_||_ : Bool -> Bool -> Bool
 true  || _ = true
 false || x = x
 
-_ && _ : Bool -> Bool -> Bool
+_&&_ : Bool -> Bool -> Bool
 true  && x = x
 false && _ = false
 
@@ -33,8 +33,8 @@ postulate
 
 infixr 10 ::
 data List (A:Set) : Set where
-  nil    : List A
-  _ :: _ : A -> List A -> List A
+  nil  : List A
+  _::_ : A -> List A -> List A
 
 {-# BUILTIN LIST    List   #-}
 {-# BUILTIN NIL     nil    #-}
@@ -103,28 +103,15 @@ infix  12 -_
 infixl 12 _+_ _-_
 infixl 8  _==_
 
-_ + _ : Int -> Int -> Int
-_+_ = primIntegerPlus
-
-_ * _ : Int -> Int -> Int
+_+_  = primIntegerPlus
 _*_  = primIntegerTimes
-
-_ - _ : Int -> Int -> Int
 _-_  = primIntegerMinus
-
-- _ : Int -> Int
-- x = 0 - x
-
-_ == _ : Int -> Int -> Bool
+-_   = \x -> 0 - x
 _==_ = primIntegerEquals
+_/_  = primFloatDiv
 
-_ / _ : Float -> Float -> Float
-_/_ = primFloatDiv
-
-pi : Float
 pi = 3.141592653589793
 
-sin : Float -> Float
 sin = primSin
 
 cos : Float -> Float
@@ -140,7 +127,7 @@ reverse xs = rev xs nil
     rev nil	  ys = ys
     rev (x :: xs) ys = rev xs (x :: ys)
 
-_ ∘ _ : {A,B,C:Set} -> (B -> C) -> (A -> B) -> A -> C
+_∘_ : {A,B,C:Set} -> (B -> C) -> (A -> B) -> A -> C
 f ∘ g = \x -> f (g x)
 
 map : {A,B:Set} -> (A -> B) -> List A -> List B
@@ -157,9 +144,6 @@ mapStr : (Char -> Char) -> String -> String
 mapStr f = stringAsList (map f)
 
 -- Testing unicode literals
-uString : String
 uString = "åäö⊢ξ∀"
-
-uChar : Char
 uChar   = '∀'
 

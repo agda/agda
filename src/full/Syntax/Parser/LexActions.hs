@@ -184,20 +184,20 @@ identifier = qualified (either TokId TokQId)
 
 
 -- | Parse a possibly qualified name.
-qualified :: (Either Name QName -> a) -> LexAction a
+qualified :: (Either (Range, String) [(Range, String)] -> a) -> LexAction a
 qualified tok =
     token $ \s ->
     do  r <- getParseRange
 	case mkName r $ wordsBy (=='.') s of
 	    []	-> lexError "lex error on .."
-	    [x]	-> return $ tok $ Left  $ x
-	    xs	-> return $ tok $ Right $ foldr Qual (QName $ last xs) (init xs)
+	    [x]	-> return $ tok $ Left  x
+	    xs	-> return $ tok $ Right xs
     where
 	-- Compute the ranges for the substrings (separated by '.') of a name.
-	mkName :: Range -> [String] -> [Name]
+	mkName :: Range -> [String] -> [(Range, String)]
 	mkName _ []	= []
-	mkName r [x]	= [Name r x]
-	mkName r (x:xs) = Name r0 x : mkName r1 xs
+	mkName r [x]	= [(r, x)]
+	mkName r (x:xs) = (r0, x) : mkName r1 xs
 	    where
 		p0 = rStart r
 		p1 = rEnd r

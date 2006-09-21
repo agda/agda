@@ -20,12 +20,12 @@ import TypeChecking.Monad
 #include "../../undefined.h"
 
 
-
+-- | TODO: how does this relate to what's in "Syntax.Translation.AbstractToConcrete"?
 refreshName :: Range -> String -> TCM AN.Name
 refreshName r s = do
    s' <- snd . (`refreshStr` s) <$> takenNameStr
    i <- fresh
-   return $ AN.Name i (CN.Name r s')
+   return $ AN.Name i (CN.Name r [Id s'])
 
 refreshName_ = refreshName noRange
 
@@ -34,7 +34,9 @@ takenNameStr = do
   xss <- sequence [ L.map fst <$> getContext
                   , keys <$> asks envLetBindings
                   , M.fold ((++) . keys . mdefDefs) [] <$> getSignature]
-  return [s | AN.Name _ (CN.Name _ s) <- concat xss]
+  return $ concat [ parts x | AN.Name _ x <- concat xss]
+  where
+    parts (CN.Name _ ps) = [ s | Id s <- ps ]
 
 refreshStr :: [String] -> String -> ([String], String)
 refreshStr taken s = go nameModifiers where

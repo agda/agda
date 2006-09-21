@@ -15,7 +15,7 @@ data ExprView e
     = LocalV Name
     | OtherV e
     | AppV e (Arg e)
-    | OpAppV Range NameDecl [e]
+    | OpAppV Range Name [e]
     | HiddenArgV e
     deriving (Show)
 
@@ -35,14 +35,14 @@ recursive f = p0
 	p0 = foldr ( $ ) p0 fs
 
 -- Specific combinators
-nameP :: IsExpr e => Name -> ReadP e Name
-nameP x = do
-    LocalV x <- exprView <$> satisfy (isLocal x)
-    return x
+partP :: IsExpr e => String -> ReadP e ()
+partP s = do
+    satisfy (isLocal s)
+    return ()
     where
 	isLocal x e = case exprView e of
-	    LocalV y -> x == y
-	    _	    -> False
+	    LocalV (Name _ [Id y]) -> x == y
+	    _			   -> False
 
 binop :: IsExpr e => ReadP e e -> ReadP e (e -> e -> e)
 binop opP = do
@@ -59,17 +59,15 @@ postop opP = do
     OpAppV r op es <- exprView <$> opP
     return $ \x -> unExprView $ OpAppV r op ([x] ++ es)
 
-opP :: IsExpr e => ReadP e e -> Operator -> ReadP e e
-opP p (Operator d@(NameDecl xs) _) = do
-    es <- mix xs'
-    return $ unExprView $ OpAppV (getRange es) d es
+opP :: IsExpr e => ReadP e e -> Name -> ReadP e e
+opP p x@(Name r xs) = do
+    es <- mix [ x | Id x <- xs ]
+    return $ unExprView $ OpAppV r x es
     where
-	xs'  = filter (/= noName) xs
-
 	mix []	   = __IMPOSSIBLE__
-	mix [x]	   = do nameP x; return []
+	mix [x]	   = do partP x; return []
 	mix (x:xs) = do
-	    nameP x
+	    partP x
 	    e  <- p
 	    es <- mix xs
 	    return $ e : es

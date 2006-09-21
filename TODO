@@ -20,11 +20,6 @@ Features
 
 * list sugar in patterns
 
-* allow lambda-bound operators (how?)
-  not a problem in Pi: (_ + _ : Nat -> Nat -> Nat) -> Nat
-  but trickier for lambda. Possibility make always write _+_ (hence make underscore
-  in names carry semantics).
-
 Fixes
 -----
 
@@ -108,6 +103,9 @@ Performance
 
 Done
 ----
+
+* allowing lambda-bound operators by always writing _+_ (hence making underscore
+  in names carry semantics).
 
 * allow no type signatures for definitions of the form x = e
 

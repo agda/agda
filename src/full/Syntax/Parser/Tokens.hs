@@ -39,8 +39,8 @@ data Token
 	  -- Keywords
 	= TokKeyword Keyword Range
 	  -- Identifiers and operators
-	| TokId		Name
-	| TokQId	QName	-- non empty namespace
+	| TokId		(Range, String)
+	| TokQId	[(Range, String)] -- non empty namespace
 	  -- Literals
 	| TokLiteral	Literal
 	  -- Special symbols

@@ -10,9 +10,6 @@ import Syntax.Position
 import Syntax.Common
 import Syntax.Concrete.Name
 
-data Operator = Operator NameDecl Fixity
-    deriving (Typeable, Data, Show, Eq)
-
 -- | Fixity of operators.
 data Fixity = LeftAssoc  Range Int
 	    | RightAssoc Range Int
@@ -34,9 +31,6 @@ fixityLevel (NonAssoc	_ n) = n
 defaultFixity :: Fixity
 defaultFixity = LeftAssoc noRange 20
 
-defaultOperator :: Name -> Operator
-defaultOperator x = Operator (NameDecl [x]) defaultFixity
-
 -- | Precedence is associated with a context.
 data Precedence = TopCtx | FunctionSpaceDomainCtx
 		| LeftOperandCtx Fixity | RightOperandCtx Fixity
@@ -50,7 +44,7 @@ hiddenArgumentCtx Hidden    = TopCtx
 
 -- | Do we need to bracket an operator application of the given fixity
 --   in a context with the given precedence.
-opBrackets :: Operator -> Precedence -> Bool
+opBrackets :: Fixity -> Precedence -> Bool
 opBrackets _ _ = True
 
 -- | Does a lambda-like thing (lambda, let or pi) need brackets in the given

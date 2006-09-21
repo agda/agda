@@ -87,8 +87,8 @@ import Syntax.Concrete.Pretty ()    -- need Show instance for Declaration
     modifiers have been distributed to the individual declarations.
 -}
 data NiceDeclaration
-	= Axiom Range Fixity Access IsAbstract NameDecl Expr
-	| PrimitiveFunction Range Fixity Access IsAbstract NameDecl Expr
+	= Axiom Range Fixity Access IsAbstract Name Expr
+	| PrimitiveFunction Range Fixity Access IsAbstract Name Expr
 	| NiceDef Range [Declaration] [NiceTypeSignature] [NiceDefinition]
 	    -- ^ A bunch of mutually recursive functions\/datatypes.
 	    --   The last two lists have the same length. The first list is the
@@ -102,8 +102,8 @@ data NiceDeclaration
 
 -- | A definition without its type signature.
 data NiceDefinition
-	= FunDef  Range [Declaration] Fixity Access IsAbstract NameDecl [Clause]
-	| DataDef Range Fixity Access IsAbstract NameDecl [LamBinding] [NiceConstructor]
+	= FunDef  Range [Declaration] Fixity Access IsAbstract Name [Clause]
+	| DataDef Range Fixity Access IsAbstract Name [LamBinding] [NiceConstructor]
     deriving (Show)
 
 -- | Only 'Axiom's.
@@ -174,8 +174,8 @@ niceDeclarations ds = nice (fixities ds) ds
     where
 
 	-- If no fixity is given we return the default fixity.
-	fixity :: NameDecl -> Map.Map Name Fixity -> Fixity
-	fixity = Map.findWithDefault defaultFixity . nameDeclName
+	fixity :: Name -> Map.Map Name Fixity -> Fixity
+	fixity = Map.findWithDefault defaultFixity
 
 	-- We forget all fixities in recursive calls. This is because
 	-- fixity declarations have to appear at the same level as the
@@ -188,13 +188,13 @@ niceDeclarations ds = nice (fixities ds) ds
 		TypeSig x t ->
 		    -- After a type signature there should follow a bunch of
 		    -- clauses.
-		    case span (isFunClauseOf $ nameDeclName x) ds of
-			([], _)	    -> throwDyn $ MissingDefinition (nameDeclName x)
+		    case span (isFunClauseOf x) ds of
+			([], _)	    -> throwDyn $ MissingDefinition x
 			(ds0,ds1)   -> mkFunDef fixs x (Just t) ds0
 					: nice fixs ds1
 
 		cl@(FunClause lhs _ _) -> case noSingletonRawAppP lhs of
-		    IdentP (QName x)	-> mkFunDef fixs (NameDecl [x]) Nothing [cl] : nice fixs ds
+		    IdentP (QName x)	-> mkFunDef fixs x Nothing [cl] : nice fixs ds
 		    _			-> throwDyn $ MissingTypeSignature lhs
 
 		_   -> nds ++ nice fixs ds
@@ -217,7 +217,7 @@ niceDeclarations ds = nice (fixities ds) ds
 				    bind h (TBind _ xs _) =
 					map (DomainFree h) xs
 				    bind h (TNoBind e) =
-					[ DomainFree h $ NoName (getRange e) ]
+					[ DomainFree h $ noName (getRange e) ]
 
 			    Mutual r ds ->
 				[ mkMutual r [d] $
@@ -282,7 +282,7 @@ niceDeclarations ds = nice (fixities ds) ds
 
 
 	-- Turn a function clause into a nice function clause.
-	mkClause x (FunClause lhs rhs wh) = Clause (nameDeclName x) lhs rhs wh
+	mkClause x (FunClause lhs rhs wh) = Clause x lhs rhs wh
 	mkClause _ _ = __IMPOSSIBLE__
 
 	noSingletonRawAppP (RawAppP _ [p]) = noSingletonRawAppP p

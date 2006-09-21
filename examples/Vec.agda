@@ -7,11 +7,11 @@ module examples.Vec where
     zero : Nat 
     suc  : Nat -> Nat
 
-  data _ * _ (A,B : Set) : Set where
+  data _*_ (A,B : Set) : Set where
     pair : A -> B -> A * B
 
   infixr 20 _=>_
-  data _ => _ (A,B : Set) : Set where
+  data _=>_ (A,B : Set) : Set where
     lam : (A -> B) -> A => B
 
   lam2 : {A, B, C : Set} -> (A -> B -> C) -> (A => B => C)
@@ -63,7 +63,7 @@ module examples.Vec where
 
   data Zero : Set where
 
-  data _ + _ (A,B : Set) : Set where
+  data _+_ (A,B : Set) : Set where
     inl : A -> A + B
     inr : B -> A + B
 
@@ -105,7 +105,6 @@ module examples.Vec where
   Ren : Nat -> Nat -> Set
   Ren m n = Vec m (Fin n)
 
-  _ `Ren` _ : Nat -> Nat -> Set
   _`Ren`_ = Ren
 
   {- identity and composition -}
@@ -137,7 +136,6 @@ module examples.Vec where
   Sub : Nat -> Nat -> Set
   Sub m n = Vec m (Tm n)
 
-  _ `Sub` _ : Nat -> Nat -> Set
   _`Sub`_ = Sub
 
   {- identity; composition must wait; why -}

@@ -9,6 +9,7 @@ module Syntax.Parser.Parser (
     , interfaceParser
     ) where
 
+import Control.Monad
 import Data.List
 import Data.FunctorM
 
@@ -212,18 +213,15 @@ Interfaces :: { [Interface] }
 Interfaces : {- empty -}		{ [] }
 	   | vsemi Interface Interfaces { $2 : $3 }
 
-AbsName :: { (A.Name, NameDecl) }
-AbsName : Int At DataNameDecl  {
-	let x = nameDeclName $3
-	in  (A.Name (A.NameId $1) x, $3)
-    }
+AbsName :: { A.Name }
+AbsName : Int At Id { (A.Name (A.NameId $1) $3) }
 
-AbsNameWithFixity :: { (A.Name, Operator) }
+AbsNameWithFixity :: { (A.Name, Fixity) }
 AbsNameWithFixity
-    : AbsName		   { let (x,d) = $1 in (x, Operator d $ defaultFixity) }
-    | 'infix'  Int AbsName { let (x,d) = $3 in (x, Operator d $ NonAssoc   (fuseRange $1 x) $2) }
-    | 'infixl' Int AbsName { let (x,d) = $3 in (x, Operator d $ LeftAssoc  (fuseRange $1 x) $2) }
-    | 'infixr' Int AbsName { let (x,d) = $3 in (x, Operator d $ RightAssoc (fuseRange $1 x) $2) }
+    : AbsName		   { ($1, defaultFixity) }
+    | 'infix'  Int AbsName { ($3, NonAssoc   (fuseRange $1 $3) $2) }
+    | 'infixl' Int AbsName { ($3, LeftAssoc  (fuseRange $1 $3) $2) }
+    | 'infixr' Int AbsName { ($3, RightAssoc (fuseRange $1 $3) $2) }
 
 CommaNamesWithFixities
     : {- empty -}		{ [] }
@@ -288,24 +286,27 @@ Int : literal	{% case $1 of {
     Names
  --------------------------------------------------------------------------}
 
+-- A name is really a sequence of parts, but the lexer just sees it as a
+-- string, so we have to do the translation here.
+Id :: { Name }
+Id : id	    {% mkName $1 }
+
 -- Qualified operators are treated as identifiers, i.e. they have to be back
 -- quoted to appear infix.
 QId :: { QName }
-QId : q_id  { $1 }
-    | id    { QName $1 }
+QId : q_id  {% mkQName $1 }
+    | Id    { QName $1 }
 
 
--- Qualified identifier which isn't an operator
+-- A module name is just a qualified name
 ModuleName :: { QName }
-ModuleName
-    : q_id  { $1 }
-    | id    { QName $1 }
+ModuleName : QId { $1 }
 
 
 -- A binding variable. Can be '_'
 BId :: { Name }
-BId : id    { $1 }
-    | '_'   { NoName $1 }
+BId : Id    { $1 }
+    | '_'   { Name $1 [Hole] }
 
 
 -- Space separated list of binding identifiers. Used in fixity
@@ -386,7 +387,7 @@ Expr3
     | '(' Expr ')'	{ Paren (fuseRange $1 $3) $2 }
     | '{' '}'		{ let r = fuseRange $1 $2 in HiddenArg r $ Absurd r }
     | '(' ')'		{ Absurd (fuseRange $1 $2) }
-    | id '@' Expr3	{ As (fuseRange $1 $3) $1 $3 }
+    | Id '@' Expr3	{ As (fuseRange $1 $3) $1 $3 }
     | List		{ uncurry List $1 }
 
 -- Sorts
@@ -477,35 +478,6 @@ DomainFreeBinding
     | '{' BId '}'   { DomainFree Hidden $2 }
 
 
--- The declaration of a name. For instance, '_ + _', or simply 'f'.
--- The result is a list of names with NoName for '_'.
--- We have to parse this as an expression since the parser can't tell if we're
--- starting a type signature or a function clause.
-NameDecl :: { NameDecl }
-NameDecl : Expr1
-    {%
-	let
-	    listOfNames :: Expr -> Maybe [Name]
-	    listOfNames (RawApp _ es) = mapM exprName es
-	    listOfName	_	      = fail "not a list of names"
-
-	    exprName :: Expr -> Maybe Name
-	    exprName (Ident (QName x)) = return x
-	    exprName (Underscore r _)  = return $ NoName r
-	    exprName _		       = fail "not a name"
-
-	in case listOfNames $1 of
-	    Just xs	-> mkNameDecl xs
-	    Nothing	-> fail $ "An operator declaration must be an alternating sequence of identifiers and _. "
-			    ++ show $1 ++ " is not."
-    }
-
--- In data declarations we mustn't parse it as an expression, since then
--- it will conflict with the parameter telescope.
-DataNameDecl :: { NameDecl }
-DataNameDecl : SpaceBIds {% mkNameDecl $1 }
-
-
 {--------------------------------------------------------------------------
     Modules and imports
  --------------------------------------------------------------------------}
@@ -513,7 +485,7 @@ DataNameDecl : SpaceBIds {% mkNameDecl $1 }
 -- You can rename imports
 RenamedImport :: { Maybe Name }
 RenamedImport : {- empty -} { Nothing }
-	      | id id	    {% isName "as" $1 >> return (Just $2) }
+	      | id Id	    {% isName "as" $1 >> return (Just $2) }
 
 -- Import directives
 ImportDirective :: { ImportDirective }
@@ -537,25 +509,25 @@ RenamingDir
     : beginImpDir ',' 'renaming' '(' Renamings ')'	{ $5 }
 
 -- Renamings of the form 'x to y'
-Renamings :: { [(ImportedName,Name)] }
+Renamings :: { [(ImportedName, Name)] }
 Renamings
     : Renaming ',' Renamings	{ $1 : $3 }
     | Renaming			{ [$1] }
 
 Renaming :: { (ImportedName, Name) }
 Renaming
-    : ImportName_ 'to' id { ($1,$3) }
+    : ImportName_ 'to' Id { ($1,$3) }
 
 -- We need a special imported name here, since we have to trigger
 -- the imp_dir state exactly one token before the 'to'
 ImportName_ :: { ImportedName }
 ImportName_
-    : beginImpDir id	      { ImportedName $2 }
-    | 'module' beginImpDir id { ImportedModule $3 }
+    : beginImpDir Id	      { ImportedName $2 }
+    | 'module' beginImpDir Id { ImportedModule $3 }
 
 ImportName :: { ImportedName }
-ImportName : id  	 { ImportedName $1 }
-	   | 'module' id { ImportedModule $2 }
+ImportName : Id  	 { ImportedName $1 }
+	   | 'module' Id { ImportedModule $2 }
 
 CommaImportNames :: { [ImportedName] }
 CommaImportNames
@@ -612,7 +584,7 @@ Declaration
 -- Type signatures can appear everywhere, so the type is completely polymorphic
 -- in the indices.
 TypeSig :: { Declaration }
-TypeSig : NameDecl ':' Expr   { TypeSig $1 $3 }
+TypeSig : Id ':' Expr   { TypeSig $1 $3 }
 
 
 -- Function declarations. The left hand side is parsed as an expression to allow
@@ -626,7 +598,7 @@ RHS : '=' Expr	    { RHS $2 }
 
 -- Data declaration. Can be local.
 Data :: { Declaration }
-Data : 'data' DataNameDecl TypedBindingss0 ':' Sort 'where'
+Data : 'data' Id TypedBindingss0 ':' Sort 'where'
 	    Constructors	{ Data (getRange ($1, $6, $7)) $2 $3 $5 $7 }
 
 
@@ -669,7 +641,7 @@ Open : 'open' ModuleName ImportDirective   { Open (getRange ($1,$2,$3)) $2 $3 }
 
 -- ModuleMacro
 ModuleMacro :: { Declaration }
-ModuleMacro : 'module' id TypedBindingss0 '=' Expr ImportDirective
+ModuleMacro : 'module' Id TypedBindingss0 '=' Expr ImportDirective
 		    { ModuleMacro (getRange ($1, $5, $6)) $2 $3 $5 $6 }
 
 
@@ -680,7 +652,7 @@ Import : 'import' ModuleName RenamedImport ImportDirective
 
 -- Module
 Module :: { Declaration }
-Module : 'module' id TypedBindingss0 'where' Declarations
+Module : 'module' Id TypedBindingss0 'where' Declarations
 		    { Module (getRange ($1,$4,$5)) (QName $2) $3 $5 }
 
 -- The top-level module can have a qualified name.
@@ -696,9 +668,11 @@ TopLevelPragma : '{-#' 'OPTIONS' PragmaStrings '#-}' { OptionsPragma (fuseRange 
 
 DeclarationPragma :: { Pragma }
 DeclarationPragma
-    : '{-#' 'BUILTIN' string string '#-}'   { let r = fuseRange $1 $5 in
-					      BuiltinPragma r $3 (Ident $ QName $ Name r $4)
-					    }
+    : '{-#' 'BUILTIN' string string '#-}' {% do
+	let r = fuseRange $1 $5
+	x <- mkName (r,$4)
+	return $ BuiltinPragma r $3 (Ident $ QName x)
+    }
 
 {--------------------------------------------------------------------------
     Sequences of declarations
@@ -766,11 +740,42 @@ happyError = parseError "Parse error"
     Utility functions
  --------------------------------------------------------------------------}
 
+-- | Create a name from a string
+mkName :: (Range, String) -> Parser Name
+mkName (r,s) = do
+    let xs = parts s
+    mapM_ isValidId xs
+    unless (alternating xs) $ fail $ "a name cannot contain two consecutive underscores"
+    return $ Name r xs
+    where
+	parts :: String -> [NamePart]
+	parts "" = []
+	parts ('_':s) = Hole : parts s
+	parts s	      = Id x : parts s'
+	    where
+		(x,s') = break (=='_') s
+
+	isValidId Hole   = return ()
+	isValidId (Id x) = case parse defaultParseFlags 0 (lexer return) x of
+	    ParseOk _ (TokId _) -> return ()
+	    _			-> fail $ "in the name " ++ s ++ ", the part " ++ x ++ " is not a valid"
+
+	-- we know that there aren't two Ids in a row
+	alternating (Hole : Hole : _) = False
+	alternating (_ : xs)	      = alternating xs
+	alternating []		      = True
+
+-- | Create a qualified name from a list of strings
+mkQName :: [(Range, String)] -> Parser QName
+mkQName ss = do
+    xs <- mapM mkName ss
+    return $ foldr Qual (QName $ last xs) (init xs)
+
 -- | Match a particular name.
-isName :: String -> Name -> Parser ()
-isName s x = case x of
-		Name _ s' | s == s' -> return ()
-		_		    -> happyError
+isName :: String -> (Range, String) -> Parser ()
+isName s (_,s')
+    | s == s'	= return ()
+    | otherwise	= fail $ "expected " ++ s ++ ", found " ++ s'
 
 -- | Build a forall pi (forall x y z -> ...)
 forallPi :: [LamBinding] -> Expr -> Expr
@@ -827,17 +832,4 @@ exprToLHS e = exprToPattern e
 		OpApp r x es		-> OpAppP r x <$> mapM exprToPattern es
 		_			-> parseErrorAt (rStart $ getRange e) "Parse error in pattern"
 
-mkNameDecl :: [Name] -> Parser NameDecl
-mkNameDecl xs = case xs of
-    []			-> __IMPOSSIBLE__
-    [NoName _]		-> fail "no name declared"
-    xs | alternating xs -> return $ NameDecl xs
-    _			-> fail "an operator declaration must be an alternating sequence of identifiers and _"
-    where
-	alternating :: [Name] -> Bool
-	alternating []			       = True
-	alternating [_]			       = True
-	alternating (Name _ _ : xs@(NoName _ : _)) = alternating xs
-	alternating (NoName _ : xs@(Name _ _ : _)) = alternating xs
-	alternating _			       = False
 }

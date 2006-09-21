@@ -84,8 +84,9 @@ bindName x ret = do
 			   }
 		  ) $ ret y
     where
-	dontInsertNoName (C.NoName _) _ m = m
-	dontInsertNoName  y	      x m = Map.insert y x m
+	dontInsertNoName y x m
+	    | y == C.noName_ = m
+	    | otherwise	     = Map.insert y x m
 
 -- | TODO: Move
 data Suffix = NoSuffix | Prime Int | Index Int
@@ -108,11 +109,16 @@ addSuffix s (Prime n) = s ++ replicate n '\''
 addSuffix s (Index i) = s ++ show i
 
 nextName :: A.Name -> A.Name
-nextName x = x { nameConcrete = C.Name r s' }
+nextName x = x { nameConcrete = C.Name r $ nextSuf ps }
     where
-	C.Name r s = nameConcrete x -- NoName cannot appear here
-	s' = case suffixView s of
-		(s0, suf) -> addSuffix s0 (nextSuffix suf)
+	C.Name r ps = nameConcrete x
+	-- NoName cannot appear here
+	nextSuf [Id s]	     = [ Id $ nextStr s ]
+	nextSuf [Id s, Hole] = [ Id $ nextStr s, Hole ]
+	nextSuf (p : ps)     = p : nextSuf ps
+	nextSuf []	     = __IMPOSSIBLE__	-- noName cannot appear here
+	nextStr s = case suffixView s of
+	    (s0, suf) -> addSuffix s0 (nextSuffix suf)
 
 -- Dealing with stored syntax ---------------------------------------------
 
@@ -157,11 +163,10 @@ bracketP par m =
 --   to generate a fixity declaration for that name.
 withInfixDecl :: DefInfo -> C.Name -> AbsToCon [C.Declaration] -> AbsToCon [C.Declaration]
 withInfixDecl i x m
-    | defOperator i == defaultOperator x = m
-    | otherwise				 =
-	do  ds <- m
-	    let Operator _ f = defOperator i
-	    return $ C.Infix f [x] : ds
+    | defFixity i == defaultFixity = m
+    | otherwise			   = do
+	ds <- m
+	return $ C.Infix (defFixity i) [x] : ds
 
 withInfixDecls :: [(DefInfo, C.Name)] -> AbsToCon [C.Declaration] -> AbsToCon [C.Declaration]
 withInfixDecls = foldr (.) id . map (uncurry withInfixDecl)
@@ -399,7 +404,7 @@ instance BindToConcrete LetBinding [C.Declaration] where
 	bindWithStored i ret $
 	bindToConcrete x $ \x ->
 	do  (t,e) <- toConcrete (t,A.RHS e)
-	    ret [C.TypeSig (C.NameDecl [x]) t, C.FunClause (C.IdentP $ C.QName x) e []]
+	    ret [C.TypeSig x t, C.FunClause (C.IdentP $ C.QName x) e []]
 
 instance ToConcrete LetBinding [C.Declaration] where
     toConcrete b = bindToConcrete b return
@@ -424,7 +429,7 @@ instance ToConcrete TypeAndDef [C.Declaration] where
 	do  t'  <- toConcreteCtx TopCtx t
 	    cs' <- withStored i $ toConcrete cs
 	    x'  <- toConcrete x
-	    return $ TypeSig (C.NameDecl [x']) t' : cs'
+	    return $ TypeSig x' t' : cs'
 
     toConcrete (TypeAndDef (Axiom _ x t) (DataDef i _ bs cs)) =
 	withAbstractPrivate i $
@@ -432,7 +437,7 @@ instance ToConcrete TypeAndDef [C.Declaration] where
 	bindToConcrete tel $ \tel' -> do
 	    t'	     <- toConcreteCtx TopCtx t0
 	    (x',cs') <- toConcrete (x, map Constr cs)
-	    return [ C.Data (getRange i) (C.NameDecl [x']) tel' t' cs' ]
+	    return [ C.Data (getRange i) x' tel' t' cs' ]
 	where
 	    (tel, t0) = mkTel (length bs) t
 	    mkTel 0 t		    = ([], t)
@@ -447,7 +452,7 @@ instance ToConcrete (Constr A.Constructor) C.Declaration where
     toConcrete (Constr (A.Axiom i x t)) = do
 	x' <- toConcrete x
 	t' <- toConcreteCtx TopCtx t
-	return $ C.TypeSig (C.NameDecl [x']) t'
+	return $ C.TypeSig x' t'
     toConcrete _ = __IMPOSSIBLE__
 
 instance ToConcrete A.Clause C.Declaration where
@@ -465,7 +470,7 @@ instance ToConcrete A.Declaration [C.Declaration] where
 		withInfixDecl i x' $
 		withStored    i    $
 		do  t' <- toConcreteCtx TopCtx t
-		    return [C.Postulate (getRange i) [C.TypeSig (C.NameDecl [x']) t']]
+		    return [C.Postulate (getRange i) [C.TypeSig x' t']]
 
     toConcrete (A.Primitive i x t) =
 	do  x' <- toConcrete x
@@ -473,7 +478,7 @@ instance ToConcrete A.Declaration [C.Declaration] where
 		withInfixDecl i x' $
 		withStored    i    $
 		do  t' <- toConcreteCtx TopCtx t
-		    return [C.Primitive (getRange i) [C.TypeSig (C.NameDecl [x']) t']]
+		    return [C.Primitive (getRange i) [C.TypeSig x' t']]
 
     toConcrete (Definition i ts ds) =
 	do  ixs' <- toConcrete $ map (DontTouchMe -*- id) ixs

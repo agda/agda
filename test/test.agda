@@ -11,7 +11,7 @@ data Nat : Set where
   zero : Nat
   suc  : Nat -> Nat
 
-_ + _ : Nat -> Nat -> Nat
+_+_ : Nat -> Nat -> Nat
 zero  + m = m
 suc n + m = suc (n + m)
 
@@ -22,10 +22,10 @@ bar zero      = suc zero
 infixr 12 _++_  _::_
 
 data List (A:Set) : Set where
-  nil    : List A
-  _ :: _ : A -> List A -> List A
+  nil  : List A
+  _::_ : A -> List A -> List A
 
-_ ++ _ : {A:Set} -> List A -> List A -> List A
+_++_ : {A:Set} -> List A -> List A -> List A
 nil ++ ys = ys
 (x::xs) ++ ys = x :: (xs ++ ys)
 
@@ -49,8 +49,7 @@ beta : Nat -> Nat
 beta n = (\x -> x) n
 
 g : Nat -> Nat
-g n = let f : Nat -> Nat
-	  f z = n + suc z
+g n = let f = \z -> n + suc z
       in  f (f n)
 
 id' : Nat -> {A:Set} -> A -> A

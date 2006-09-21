@@ -333,6 +333,5 @@ lookupPrimitiveFunction x =
 	Just p	-> p
 	Nothing	-> typeError $ NoSuchPrimitiveFunction x
     where
-	nameString (Name _ (C.Name _ s)) = s
-	nameString (Name _ (C.NoName _)) = "_"
+	nameString (Name _ x) = show x
 
