@@ -188,12 +188,14 @@ niceDeclarations ds = nice (fixities ds) ds
 		TypeSig x t ->
 		    -- After a type signature there should follow a bunch of
 		    -- clauses.
-		    case span isFunClause ds of
+		    case span (isFunClauseOf $ nameDeclName x) ds of
 			([], _)	    -> throwDyn $ MissingDefinition (nameDeclName x)
 			(ds0,ds1)   -> mkFunDef fixs x (Just t) ds0
 					: nice fixs ds1
 
-		FunClause lhs _ _ ->  throwDyn $ MissingTypeSignature lhs
+		cl@(FunClause lhs _ _) -> case noSingletonRawAppP lhs of
+		    IdentP (QName x)	-> mkFunDef fixs (NameDecl [x]) Nothing [cl] : nice fixs ds
+		    _			-> throwDyn $ MissingTypeSignature lhs
 
 		_   -> nds ++ nice fixs ds
 		    where
@@ -283,8 +285,15 @@ niceDeclarations ds = nice (fixities ds) ds
 	mkClause x (FunClause lhs rhs wh) = Clause (nameDeclName x) lhs rhs wh
 	mkClause _ _ = __IMPOSSIBLE__
 
-	isFunClause (FunClause _ _ _) = True
-	isFunClause _		      = False
+	noSingletonRawAppP (RawAppP _ [p]) = noSingletonRawAppP p
+	noSingletonRawAppP p		   = p
+
+	isFunClauseOf x (FunClause lhs _ _) = case noSingletonRawAppP lhs of
+	    IdentP (QName q)	-> x == q
+	    _			-> True
+		-- more complicated lhss must come with type signatures, so we just assume
+		-- it's part of the current definition
+	isFunClauseOf _ _ = False
 
 	-- Make a mutual declaration
 	mkMutual :: Range -> [Declaration] -> [NiceDeclaration] -> NiceDeclaration

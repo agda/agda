@@ -25,8 +25,6 @@ Features
   but trickier for lambda. Possibility make always write _+_ (hence make underscore
   in names carry semantics).
 
-* allow no type signatures for definitions of the form x = e
-
 Fixes
 -----
 
@@ -110,6 +108,8 @@ Performance
 
 Done
 ----
+
+* allow no type signatures for definitions of the form x = e
 
 * mix-fix operators
 
