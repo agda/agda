@@ -1,0 +1,169 @@
+
+The discussion below is a transcript of my thinking process. This means that it
+will contain things that were true (or I thought were true) at the time of
+writing, but were later revised. For instance, it might say something like: the
+canonical form of @x@ is @x@, and then later say that it is @A.x@.
+
+What should the scope analysis do? One option
+would be to compute some of the name space stuff, making
+all names fully qualified. How does this work for parameterised
+modules? We keep namespace declarations and imports, but throw
+away open declarations. We also remove all import directives.
+
+> module A (X : Set) where
+> 
+>   f = e
+>   g = .. f ..	-- what is the fully qualified name of f?
+
+@f -> A.f@. In parameterised modules you get a name space with
+the name of the module:
+
+> module A (X : Set) where
+>   namespace A = A X
+
+> module A where
+>   f = e
+>   namespace A' = A
+>   g = e'
+>   h = A' g -- is this valid? no. A' is a snapshot of A
+
+Example name space maps
+
+> import B, renaming (f to g)         -- B    : g -> B.f
+> namespace B' = B, renaming (g to h) -- B'   : h -> B.f
+> open B', renaming (h to i)          -- local: i -> B.f
+
+With parameterised modules
+
+> import B           -- B/1 : f -> _
+> namespace B' = B e -- B'  : f -> B'.f
+
+The treatment of namespace declarations differ in the two examples.
+Solution: namespace declarations create new names so in the first example
+@B': h -> B'.h@? We lose the connection to B, but this doesn't matter in scope
+checking. We will have to repeat some of the work when type checking, but
+probably not that much.
+
+Argh? The current idea was to compute much of the scoping at this point,
+simplifying the type checking. It might be the case that we would like to
+know what is in scope (for interaction\/plugins) at a particular program
+point. Would we be able to do that with this approach? Yes. Question marks
+and plugin calls get annotated with ScopeInfo.
+
+Modules aren't first class, so in principle we could allow clashes between
+module names and other names. The only place where we mix them is in import
+directives. We could use the Haskell solution:
+
+> open Foo, using (module Bar), renaming (module Q to Z)
+
+What about exporting name spaces? I think it could be useful.
+Simple solution: replace the namespace keyword with 'module':
+
+> module Foo = Bar X, renaming (f to g)
+
+Parameterised?
+
+> module Foo (X : Set) = Bar X, renaming (f to g)?
+
+Why not?
+
+This way there the name space concept disappear. There are only modules.
+This would be a Good Thing.
+
+Above it says that you can refer to the current module. What happens in this
+example:
+
+> module A where
+>   module A where
+>     module A where x = e
+>     A.x -- which A? Current, parent or child?
+
+Solution: don't allow references to the current or parent modules. A
+similar problem crops up when a sibling module clashes with a child module:
+
+> module Foo where
+>   module A where x = e
+>   module B where
+>     module A where x = e'
+>     A.x
+
+In this case it is clear, however, that the child module shadows the
+sibling. It would be nice if we could refer to the sibling module in some
+way though. We can:
+
+> module Foo where
+>   module A where x = e
+>   module B where
+>     private module A' = A
+>     module A where x = e'
+>     A'.x
+
+Conclusion: disallow referring to the current modules (modules are non-recursive).
+
+What does the 'ScopeInfo' really contain? When you 'resolve' a name you should
+get back the canonical version of that name. For instance:
+
+> module A where
+>   x = e
+>   module B where
+>     y = e'
+>     -- x -> x, y -> y
+>   -- B.y -> B.y
+>   ...
+
+What is the canonical form of a name? We would like to remove as much name juggling
+as possible at this point.
+
+Just because the user cannot refer to the current module doesn't mean that we shouldn't
+be able to after scope analysis.
+
+> module A where
+>   x = e
+>   module B where
+>     y = e'
+>     -- * x -> A.x
+>     -- * y -> A.B.y
+>   -- * B.y -> A.B.y
+>   import B as B'
+>   -- * B'.x -> B.x
+>   import C
+>   module CNat = C Nat
+>   -- * CNat.x -> A.CNat.x
+
+Argh! This whole fully qualified name business doesn't quite cut it for local functions.
+We could try some contrived naming scheme numbering clauses and stuff but we probably want
+to just use unique identifiers (numbers). It would still be useful to keep the fully
+qualified name around, though, so the work is not completely in vain.
+
+How does this influence interfaces and imported modules? Consider:
+
+> module A where x = e
+> module B where
+>   import A
+>   y = A.x
+> module C where
+>   import A
+>   y = A.x
+> module D where
+>   import B
+>   import C
+>   h : B.y == C.y
+>   h = refl
+
+It would be reasonable to expect this to work. For this to happen it's important that we
+only choose identifiers for the names in A once. Aside: /There is another issue here. A.x
+has to be available during type checking of D (for computations) even though it's not in
+scope/. That might actually hold the key to the solution. We need to read
+interface files for all modules, not just the ones needed for their scope. In other words
+interface files must contain references to imported modules. There's still the question of
+when to assign unique identifiers. At the moment, scope checking and import chasing is
+intertwined. We would have to keep track of the files we've generated uids for and check
+for each import whether we need to generate new names. How about the type signatures and
+definitions in the interface files? Maybe it would be easier to come up with a way of naming
+local functions and just stick to the fully qualifed names idea...
+
+Or, we could go with qualified unique identifiers. A (qualified) name has two uids: one for
+the top-level module (file) and one for the name. That way we can generate uids once and store
+them in the interface file and we only have to generate uids for new modules, or maybe just
+stick with the module name as the uid for the time being.
+
