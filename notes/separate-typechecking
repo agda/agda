@@ -1,0 +1,31 @@
+
+When and how to create/read interface files
+-------------------------------------------
+
+We need information from imports twice: at scope checking, and at type checking.
+We can go about this in a few different ways:
+
+- read interface file twice, first at scope checking (possibly creating it) and second
+  at type checking
+
+- read the interface once, and store the type information for use at type
+  checking time
+
+Other concerns
+--------------
+
+- What happens when we do import from inside a parameterised module? Top-level
+  modules can be parameterised.
+
+- Can we do imports anywhere? Does it make sense. Probably, but is it a good
+  thing? Options:
+
+  - imports anywhere
+
+  - only in top-level module
+
+  - only first in top-level module (Haskell-style)
+
+  - before the top-level module (java-style)
+
+ vim: tw=80 sts=2 sw=2 fo+=t com=f\:-
