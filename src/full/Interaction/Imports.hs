@@ -59,3 +59,4 @@ type Suffix = String
 moduleNameToFileName :: QName -> Suffix -> FilePath
 moduleNameToFileName (QName x) ext  = show x ++ ext
 moduleNameToFileName (Qual m x) ext = show m ++ "/" ++ moduleNameToFileName x ext
+

@@ -39,6 +39,8 @@ primFalse   = getBuiltin builtinFalse
 primList    = getBuiltin builtinList
 primNil	    = getBuiltin builtinNil
 primCons    = getBuiltin builtinCons
+primIO	    = getBuiltin builtinIO
+primUnit    = getBuiltin builtinUnit
 
 builtinInteger = "INTEGER"
 builtinFloat   = "FLOAT"
@@ -50,6 +52,8 @@ builtinFalse   = "FALSE"
 builtinList    = "LIST"
 builtinNil     = "NIL"
 builtinCons    = "CONS"
+builtinIO      = "IO"
+builtinUnit    = "UNIT"
 
 builtinTypes :: [String]
 builtinTypes =
@@ -58,6 +62,7 @@ builtinTypes =
     , builtinChar
     , builtinString
     , builtinBool
+    , builtinUnit
     ]
 
 ---------------------------------------------------------------------------
@@ -86,9 +91,13 @@ instance PrimTerm Bool	  where primTerm _ = primBool
 instance PrimTerm Char	  where primTerm _ = primChar
 instance PrimTerm Double  where primTerm _ = primFloat
 instance PrimTerm Str	  where primTerm _ = primString
+instance PrimTerm ()	  where primTerm _ = primUnit
 
 instance PrimTerm a => PrimTerm [a] where
     primTerm _ = list (primTerm (undefined :: a))
+
+instance PrimTerm a => PrimTerm (IO a) where
+    primTerm _ = io (primTerm (undefined :: a))
 
 -- From Agda term to Haskell value
 
@@ -248,6 +257,16 @@ mkPrimFun2 f = do
 	    (\w' -> [Arg (argHiding v) (fromA x), w']) $ \y ->
 	redReturn $ fromC $ f x y
 
+-- Abstract primitive functions
+abstractPrim :: PrimType a => a -> TCM PrimitiveImpl
+abstractPrim x = abstractFromType (primType x)
+
+abstractFromType :: TCM Type -> TCM PrimitiveImpl
+abstractFromType mt = do
+    t <- mt
+    return $ PrimImpl t $ PrimFun (arity t) $ \args -> NoReduction <$> normalise args
+
+-- Type combinators
 infixr 4 -->
 
 (-->) :: TCM Type -> TCM Type -> TCM Type
@@ -256,14 +275,36 @@ a --> b = do
     b' <- b
     return $ Fun (Arg NotHidden a') b'
 
+gpi :: Hiding -> TCM Type -> TCM Type -> TCM Type
+gpi h a b = do
+    a' <- a
+    x  <- freshName_ "x"
+    b' <- addCtx x a' b
+    return $ Pi (Arg h a') (Abs "x" b')
+
+hPi = gpi Hidden
+nPi = gpi NotHidden
+
+var :: Int -> TCM Term
+var n = return $ Var n []
+
 list :: TCM Term -> TCM Term
 list t = do
     t'	 <- t
     list <- primList
     return $ list `apply` [Arg NotHidden t']
 
+io :: TCM Term -> TCM Term
+io t = do
+    t' <- t
+    io <- primIO
+    return $ io `apply` [Arg NotHidden t']
+
 el :: TCM Term -> TCM Type
 el t = flip El (Type 0) <$> t
+
+tset :: TCM Type
+tset = return $ Sort (Type 0)
 
 ---------------------------------------------------------------------------
 -- * The actual primitive functions
@@ -323,6 +364,20 @@ primitiveFunctions = Map.fromList
     , "primStringAppend"    |-> mkPrimFun2 (\s1 s2 -> Str $ unStr s1 ++ unStr s2)
     , "primStringEqual"	    |-> mkPrimFun2 ((==) :: Rel Str)
     , "primShowString"	    |-> mkPrimFun1 (Str . show . pretty . LitString noRange . unStr)
+
+    -- IO functions
+    , "primPutStr"	    |-> abstractPrim (putStr . unStr)
+
+				-- we can't build polymorphic types automatically
+    , "primIOReturn"	    |-> abstractFromType (
+				    hPi tset $ el (var 0) --> el (io $ var 0)
+				)
+    , "primIOBind"	    |-> abstractFromType (
+				    hPi tset $ hPi tset $
+				    el (io (var 1))
+				    --> (el (var 1) --> el (io (var 0)))
+				    --> el (io (var 0))
+				)
     ]
     where
 	(|->) = (,)

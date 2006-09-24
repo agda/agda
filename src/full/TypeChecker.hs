@@ -806,13 +806,13 @@ bindBuiltinBool b e = do
     t	 <- checkExpr e $ El bool (Type 0)
     bindBuiltinName b t
 
--- | The built-in list should have type @Set -> Set@
-bindBuiltinList :: A.Expr -> TCM ()
-bindBuiltinList e = do
+-- | Bind something of type @Set -> Set@.
+bindBuiltinType1 :: String -> A.Expr -> TCM ()
+bindBuiltinType1 thing e = do
     let set	 = Sort (Type 0)
 	setToSet = Fun (Arg NotHidden set) set
-    list <- checkExpr e setToSet
-    bindBuiltinName builtinList list
+    f <- checkExpr e setToSet
+    bindBuiltinName thing f
 
 -- | Built-in nil should have type @{A:Set} -> List A@
 bindBuiltinNil :: A.Expr -> TCM ()
@@ -848,7 +848,7 @@ bindBuiltin b e = do
 	bind b e
 	    | elem b builtinTypes		 = bindBuiltinType b e
 	    | elem b [builtinTrue, builtinFalse] = bindBuiltinBool b e
-	    | b == builtinList			 = bindBuiltinList e
+	    | elem b [builtinList, builtinIO]	 = bindBuiltinType1 b e
 	    | b == builtinNil			 = bindBuiltinNil e
 	    | b == builtinCons			 = bindBuiltinCons e
 	    | otherwise				 = typeError $ NoSuchBuiltinName b
