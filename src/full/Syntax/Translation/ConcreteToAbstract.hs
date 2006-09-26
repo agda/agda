@@ -20,13 +20,12 @@ import Syntax.Abstract as A
 import Syntax.Position
 import Syntax.Common
 import Syntax.Info
---import Syntax.Interface
 import Syntax.Concrete.Definitions as CD
 import Syntax.Concrete.Operators
 import Syntax.Fixity
 import Syntax.Scope
 
-import Interaction.Imports
+import Interaction.Imports (scopeCheckModule)
 
 import Utils.Monad
 import Utils.Tuple
@@ -487,11 +486,11 @@ instance BindToAbstract NiceDeclaration [A.Declaration] where
 	p <- toAbstract p
 	ret [A.Pragma r p]
 
-    bindToAbstract (NiceImport r x as is) ret =
-	do  iface <- getModuleInterface x
-	    x' <- toAbstract $ CModuleName x
-	    importModule name iface is $
-		ret [A.Import (mkSourcedModuleInfo PublicAccess [C.Import r x as is]) x']
+    bindToAbstract (NiceImport r x as is) ret = do
+	i <- currentModuleScope . snd <$> scopeCheckModule toAbstract x
+	x' <- toAbstract $ CModuleName x
+	importModule name i is $
+	    ret [A.Import (mkSourcedModuleInfo PublicAccess [C.Import r x as is]) x']
 	where
 	    name = maybe x C.QName as
 

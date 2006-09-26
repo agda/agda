@@ -6,18 +6,19 @@ module Syntax.Parser
     , Syntax.Parser.parse
     , Syntax.Parser.parsePosString
     , Syntax.Parser.parseFile
+    , parseFile'
     , parseLiterate
     , parseLiterateFile
       -- * Parsers
     , moduleParser
     , exprParser
     , tokensParser
-    , interfaceParser
       -- * Parse errors
     , ParseError(..)
     ) where
 
 import Control.Exception
+import Data.List
 
 import Syntax.Position
 import Syntax.Parser.Monad as M
@@ -54,4 +55,10 @@ parseLiterateFile p = wrapM . M.parseFile defaultParseFlags literate p
 
 parsePosString :: Strict a => Parser a -> Position -> String -> a
 parsePosString p pos = wrap . M.parsePosString pos defaultParseFlags normal p
+
+parseFile' :: Strict a => Parser a -> FilePath -> IO a
+parseFile' p file
+    | "lagda" `isSuffixOf` file	= Syntax.Parser.parseLiterateFile p file
+    | otherwise			= Syntax.Parser.parseFile p file
+ 
 

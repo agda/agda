@@ -41,12 +41,6 @@ import Utils.Monad
 
 import Version
 
-parseFile' :: Strict a => Parser a -> FilePath -> IO a
-parseFile' p file
-    | "lagda" `isSuffixOf` file	= parseLiterateFile p file
-    | otherwise			= parseFile p file
- 
-
 -- | The main function
 runAgda :: IM ()
 runAgda =

@@ -5,7 +5,45 @@
 The scope analysis. Translates from concrete to abstract syntax.
 
 -}
-module Syntax.Scope where
+module Syntax.Scope
+    ( -- Types
+      ScopeInfo(..)
+    , Modules
+    , KindOfName(..)
+    , ModuleScope(..)
+    , DefinedName(..)
+    , NameSpace(..)
+    , ResolvedName(..)
+    , ScopeState(..)
+    , ScopeException(..)
+    , ScopeM
+      -- Functions
+    , emptyScopeInfo
+    , emptyScopeInfo_
+    , getScopeInfo
+    , getModule
+    , getFixityFunction
+    , setContext
+    , resolvePatternNameM
+    , resolveNameM
+    , resolveName
+    , abstractName
+    , notInScope
+    , currentModuleScope
+    , currentNameSpace
+    , insideTopLevelModule
+    , insideModule
+    , defName
+    , defineName
+    , bindVariable
+    , bindVariables
+    , defineModule
+    , openModule
+    , importModule
+    , implicitModule
+    , runScopeM
+    , runScopeM_
+    ) where
 
 import Control.Exception
 import Control.Monad.Reader
@@ -23,7 +61,6 @@ import Syntax.Concrete
 import Syntax.Concrete.Name as CName
 import Syntax.Abstract.Name as AName
 import Syntax.Fixity
-import qualified Syntax.Interface as I
 
 import Utils.Monad
 import Utils.Maybe
@@ -61,8 +98,8 @@ data ResolvedName
 data DefinedName =
 	DefinedName { access	 :: Access
 		    , kindOfName :: KindOfName
-		    , fixity :: Fixity
-		    , theName    :: AName.QName
+		    , fixity	 :: Fixity
+		    , theName	 :: AName.QName
 		    }
     deriving (Data,Typeable,Show)
 
@@ -130,6 +167,7 @@ data NameSpace =
 data ScopeInfo = ScopeInfo
 	{ publicNameSpace   :: NameSpace
 	, privateNameSpace  :: NameSpace
+	, importedModules   :: Modules
 	, localVariables    :: LocalVariables
 	, contextPrecedence :: Precedence
 	}
@@ -226,6 +264,11 @@ plusModules mi1 mi2
 					 moduleContents mi2
 		      }
 
+topLevelNameSpace :: Modules -> NameSpace
+topLevelNameSpace ms =
+    (emptyNameSpace $ mkModuleName $ CName.QName CName.noName_)
+	{ modules = ms }
+
 -- | Throws an exception if the name exists.
 addName :: CName.Name -> DefinedName -> NameSpace -> NameSpace
 addName x qx ns =
@@ -248,9 +291,11 @@ addModule_ x mi ns =
 	clash x' mi mi' = plusModules mi mi'
 	    -- TODO: we should only allow overlap of the pseudo-modules!
 
-addQModule :: CName.QName -> ModuleScope -> NameSpace -> NameSpace
-addQModule x mi ns = addQ [] x mi ns
+addQModule :: CName.QName -> ModuleScope -> Modules -> Modules
+addQModule x mi ms = modules $ addQ [] x mi ns
     where
+	ns = topLevelNameSpace ms
+
 	addQ _  (CName.QName x)  mi ns = addModule x mi ns
 	addQ ms (Qual m x) mi ns = addModule_ m mi' ns
 	    where
@@ -310,6 +355,9 @@ updateNameSpace PublicAccess f si =
 updateNameSpace PrivateAccess f si =
     si { privateNameSpace = f $ privateNameSpace si }
 
+updateImports :: (Modules -> Modules) -> ScopeInfo -> ScopeInfo
+updateImports f si = si { importedModules = f $ importedModules si }
+
 defName :: Access -> KindOfName -> Fixity -> AName.Name ->
 	   ScopeInfo -> ScopeInfo
 defName a k fx x si = updateNameSpace a (addName (nameConcrete x) qx) si
@@ -330,6 +378,7 @@ shadowVar x si	= si { localVariables = Map.delete (nameConcrete x)   (localVaria
 emptyScopeInfo :: AName.ModuleName -> ScopeInfo
 emptyScopeInfo x = ScopeInfo { publicNameSpace	    = emptyNameSpace x
 			     , privateNameSpace	    = emptyNameSpace x
+			     , importedModules	    = Map.empty
 			     , localVariables	    = Map.empty
 			     , contextPrecedence    = TopCtx
 			     }
@@ -354,11 +403,12 @@ setConcreteQName c d = d { theName = (theName d) { qnameConcrete = c } }
 --   to an unqualified name and then applies the first argument.
 resolve :: a -> (LocalVariables -> NameSpace -> CName.Name -> a) ->
 	   CName.QName -> ScopeInfo -> a
-resolve def f x si = res x vs (ns `plusNameSpace` ns')
+resolve def f x si = res x vs (ns `plusNameSpace` ns' `plusNameSpace` nsi)
     where
 	vs  = localVariables si
 	ns  = publicNameSpace si
 	ns' = privateNameSpace si
+	nsi = topLevelNameSpace $ importedModules si
 
 	res (CName.QName x) vs ns = f vs ns x
 	res (Qual m x) vs ns =
@@ -512,40 +562,6 @@ importedNames m i =
 		     , Just x' <- [applyDirective i $ ImportedModule x]
 		     ]
 
--- | Turn an interface to a module info structure. The main difference between
---   module interfaces and the module info structure is that submodules aren't
---   fully qualified in interface files.
-interfaceToModule :: I.Interface -> ModuleScope
-interfaceToModule i =
-    ModuleScope	{ moduleAccess	    = PublicAccess
-		, moduleArity	    = I.arity i
-		, moduleContents    = mkNameSpace i
-		}
-    where
-	mkNameSpace i =
-	    NSpace
-	    { moduleName    = name
-	    , definedNames  =
-		Map.fromList $
-		       [ (nameConcrete x, mkName FunName fx x) | (x,fx) <- I.definedNames i ]
-		    ++ [ (nameConcrete x, mkName ConName fx x) | (x,fx) <- I.constructorNames i ]
-	    , modules	    =
-		Map.fromList $ [ mkModule i' | i' <- I.subModules i ]
-	    }
-	    where
-		name = I.moduleName i
-		mkName k fx x =
-		    DefinedName { access	= PublicAccess
-				, kindOfName	= k
-				, fixity	= fx
-				, theName	= AName.qualify name x
-				}
-		mkModule i' = (x, interfaceToModule $ i' { I.moduleName = qx })
-		    where
-			MName [x] _ = I.moduleName i'
-			qx = qualifyModule' name x
-
-
 ---------------------------------------------------------------------------
 -- * Utility functions
 ---------------------------------------------------------------------------
@@ -575,6 +591,14 @@ getFixityFunction =
 -- | Get the current (public) name space.
 currentNameSpace :: ScopeM NameSpace
 currentNameSpace = publicNameSpace <$> getScopeInfo
+
+-- | Extract the 'ModuleScope' of the current module.
+currentModuleScope :: ScopeInfo -> ModuleScope
+currentModuleScope scope = ModuleScope
+    { moduleArity    = Map.size $ localVariables scope	-- TODO: Hack (but should work)
+    , moduleAccess   = PublicAccess
+    , moduleContents = publicNameSpace scope
+    }
 
 ---------------------------------------------------------------------------
 -- * Top-level functions
@@ -648,14 +672,11 @@ openModule x i cont =
 
 -- | Importing a module. The first argument is the name the module is imported
 --   /as/. If there is no /as/ clause it should be the name of the module.
-importModule :: CName.QName -> I.Interface -> ImportDirective -> ScopeM a -> ScopeM a
-importModule x iface dir cont =
+importModule :: CName.QName -> ModuleScope -> ImportDirective -> ScopeM a -> ScopeM a
+importModule x m dir cont =
     do	noModuleClash x
-	local ( updateNameSpace PrivateAccess
-				(addQModule x m)
+	local ( updateImports (addQModule x m)
 	      ) cont
-    where
-	m = interfaceToModule iface
 
 -- | Implicit module declaration.
 implicitModule :: CName.Name -> Access -> Arity -> CName.QName -> ImportDirective ->

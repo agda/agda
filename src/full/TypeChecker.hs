@@ -16,9 +16,12 @@ import Syntax.Position
 import Syntax.Internal
 import Syntax.Internal.Debug ()
 import Syntax.Translation.AbstractToConcrete
+import Syntax.Translation.ConcreteToAbstract
 import Syntax.Concrete.Pretty ()
 import Syntax.Strict
 import Syntax.Literal
+import Syntax.Parser	-- temporary for imports
+import Syntax.Scope
 
 import TypeChecking.Monad
 import TypeChecking.Monad.Name
@@ -29,6 +32,8 @@ import TypeChecking.Reduce
 import TypeChecking.Substitute
 import TypeChecking.Primitive
 import TypeChecking.Rebind
+
+import Interaction.Imports
 
 import Utils.Monad
 import Utils.List
@@ -196,7 +201,33 @@ checkModuleDef i x tel m' args =
 --   Maybe it would be a good idea to have the scope checker store away the
 --   interfaces so that we don't have to redo the work.
 checkImport :: ModuleInfo -> ModuleName -> TCM ()
-checkImport i m = typeError $ NotImplemented "imports"
+checkImport i m = do
+    sig0   <- getSignature
+    scope0 <- getScope
+    opts0  <- commandLineOptions
+    -- reset state
+    setScope emptyScopeInfo_
+    modify $ \st -> st { stSignature = Map.empty }
+
+    (m, scope, pragmas) <- liftIO $ do
+	(pragmas, m) <- parseFile' moduleParser file
+	pragmas	   <- concreteToAbstract_ pragmas -- identity for top-level pragmas
+	(m, scope) <- concreteToAbstract_ m
+	return (m, scope, pragmas)
+    setOptionsFromPragmas pragmas
+    withEnv initEnv $ checkDecl m
+    sig <- getSignature
+    -- TODO: check that metas have been solved..
+
+    -- Restore
+    setScope scope0
+    setSignature sig0
+    setCommandLineOptions opts0
+
+    -- TODO: check for clashes
+    modify $ \st -> st { stSignature = stSignature st `Map.union` sig }
+    where
+	file = moduleNameToFileName (mnameConcrete m) ".agda"
 
 
 ---------------------------------------------------------------------------

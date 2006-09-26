@@ -6,7 +6,6 @@ module Syntax.Parser.Parser (
       moduleParser
     , exprParser
     , tokensParser
-    , interfaceParser
     ) where
 
 import Control.Monad
@@ -20,7 +19,6 @@ import Syntax.Parser.Tokens
 import Syntax.Concrete
 import Syntax.Concrete.Name
 import Syntax.Concrete.Pretty
-import Syntax.Interface
 import Syntax.Common
 import Syntax.Fixity
 import Syntax.Literal
@@ -35,7 +33,6 @@ import Utils.Monad
 %name tokensParser Tokens
 %name exprParser Expr
 %name moduleParser File
-%name interfaceParser Interface
 %tokentype { Token }
 %monad { Parser }
 %lexer { lexer } { TokEOF }
@@ -188,53 +185,6 @@ File : TopModule	   { ([], $1) }
      | TopLevelPragma File { let (ps,m) = $2 in ($1 : ps, m) }
      | tex File		   { $2 }
 
-
-{--------------------------------------------------------------------------
-    Interface files
- --------------------------------------------------------------------------}
-
-Interface :: { Interface }
-Interface
-    : 'module' ModuleName Slash Int 'where'
-      vopen
-	functions ':' CommaNamesWithFixities vsemi
-	constructors ':' CommaNamesWithFixities
-	Interfaces
-      close
-			{ Interface { moduleName	= A.mkModuleName $2
-				    , arity		= $4
-				    , definedNames	= $9
-				    , constructorNames	= $13
-				    , subModules	= $14
-				    }
-			}
-
-Interfaces :: { [Interface] }
-Interfaces : {- empty -}		{ [] }
-	   | vsemi Interface Interfaces { $2 : $3 }
-
-AbsName :: { A.Name }
-AbsName : Int At Id { (A.Name (A.NameId $1) $3) }
-
-AbsNameWithFixity :: { (A.Name, Fixity) }
-AbsNameWithFixity
-    : AbsName		   { ($1, defaultFixity) }
-    | 'infix'  Int AbsName { ($3, NonAssoc   (fuseRange $1 $3) $2) }
-    | 'infixl' Int AbsName { ($3, LeftAssoc  (fuseRange $1 $3) $2) }
-    | 'infixr' Int AbsName { ($3, RightAssoc (fuseRange $1 $3) $2) }
-
-CommaNamesWithFixities
-    : {- empty -}		{ [] }
-    | CommaNamesWithFixities1	{ $1 }
-
-CommaNamesWithFixities1
-    : AbsNameWithFixity				    { [$1] }
-    | AbsNameWithFixity ',' CommaNamesWithFixities1 { $1 : $3 }
-
-Slash	     : id {% isName "/" $1 }
-At	     : id {% isName "@" $1 }
-functions    : id {% isName "functions" $1 }
-constructors : id {% isName "constructors" $1 }
 
 {--------------------------------------------------------------------------
     Meta rules
@@ -722,9 +672,6 @@ exprParser :: Parser Expr
 
 -- | Parse a module.
 moduleParser :: Parser ([Pragma], Declaration)
-
--- | Parse an interface.
-interfaceParser :: Parser Interface
 
 
 {--------------------------------------------------------------------------

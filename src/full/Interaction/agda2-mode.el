@@ -671,3 +671,14 @@ See also `agda2-fontify-included-files'"
   (set (make-local-variable 'font-lock-defaults)
        '(agda2-font-lock-keywords nil nil nil))
   (turn-on-font-lock))
+
+(defun agda2-popup-menu-3 (ev)
+  "If in a goal, popup the goal menu and call chosen command."
+  (interactive "e")
+  (let (choice)
+    (save-excursion
+      (and (agda2-goal-at (goto-char (posn-point (event-end ev))))
+           (setq choice (x-popup-menu ev agda2-goal-map))
+           (call-interactively
+            (lookup-key agda2-goal-map (apply 'vector choice)))))))
+
