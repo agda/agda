@@ -94,7 +94,8 @@ agda = $(FULL_OUT_DIR)/agda
 # test_files	= $(patsubst %,examples/syntax/%,Syntax.agda Literate.lagda)
 
 test_files = $(wildcard test/*.agda) \
-			 examples/Vec.agda examples/bag.agda examples/Setoid.agda
+			 examples/Vec.agda examples/bag.agda examples/Setoid.agda \
+			 $(shell find examples/Introduction -name '*.agda')
 tests	   = $(patsubst %,%.test,$(test_files))
 
 # clean_test :
@@ -103,8 +104,9 @@ tests	   = $(patsubst %,%.test,$(test_files))
 test : $(agda) $(tests)
 
 $(tests) : %.test : %
-	@echo "Testing $<..."
+	@echo -n "Testing $<... "
 	@echo :q | $(agda) $<
+	@echo "ok"
 
 ## Clean ##################################################################
 

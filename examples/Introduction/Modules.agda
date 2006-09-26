@@ -76,7 +76,7 @@ module Datastructures where
 
     _++_ : {A:Set} -> List A -> List A -> List A
     nil	      ++ ys = ys
-    (x :: xs) ++ ys = cons x (xs ++ ys)
+    (x :: xs) ++ ys = x :: (xs ++ ys)
 
     reverse : {A:Set} -> List A -> List A
     reverse  nil      = nil

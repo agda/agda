@@ -17,6 +17,9 @@ Other concerns
 - What happens when we do import from inside a parameterised module? Top-level
   modules can be parameterised.
 
+  - The imported module exists outside the parameterised module, so it shouldn't
+    be affected by the parameters.
+
 - Can we do imports anywhere? Does it make sense. Probably, but is it a good
   thing? Options:
 
@@ -27,5 +30,32 @@ Other concerns
   - only first in top-level module (Haskell-style)
 
   - before the top-level module (java-style)
+
+  Let's stick with imports anywhere for the time being.
+
+Technical issues
+----------------
+
+- How should it work?
+
+  - The interface file simply stores a representation of the internal state
+    (ScopeInfo and Signature). When importing a module we just read the
+    interface file and merge the corresponding internal thing into the current
+    state.
+
+- We need to keep track of what things come from the current module, and what
+  things come from imported modules. In the final version we don't want to store
+  things from an imported module in the interface for a module. But rather store
+  a reference to the imported module. This of course means that reading an
+  interface file might require the reading of other interface files. We need
+  cycle detection.
+
+- First step should be to change the Signature and ScopeInfo to account for
+  imported modules, making sure we recognise what's part of the current module
+  and what is imported.
+
+- In scope checking we need to store the ModuleScope. This means that there
+  should be a function to extract the ModuleScope of the current module from the
+  ScopeInfo.
 
  vim: tw=80 sts=2 sw=2 fo+=t com=f\:-

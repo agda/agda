@@ -91,6 +91,8 @@ Cleaning
 
 * TypeChecking.Errors: redefine pretty printer combinators monadically
 
+* Syntax.Scope
+
 * Think about interaction between the different monads: Parser, Scope, TCM.
   Possible to unify?
 

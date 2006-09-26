@@ -64,7 +64,7 @@ mutual
 -- polymorphism is simulated by having functions take type arguments. For
 -- instance, the polymorphic identity function can be represented as follows:
 
-id : (A:Set) -> A -> A	-- dependent function space is written (x:A) -> B
+id : (A:Set) -> A -> A	-- the dependent function space is written (x:A) -> B
 id A x = x
 
 one : Nat

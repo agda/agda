@@ -68,7 +68,7 @@ id1 : (A:Set) -> A -> A
 id1 _ x = x	-- in left-hand sides _ means "don't care"
 
 id2 : (A:Set) -> A -> A
-id2 = \A x -> x	-- equivalent to id0
+id2 = \A x -> x
 
 id3 = \(A:Set)(x:A) -> x  -- the type signature can be omitted for definitions
 			  -- of the form x = e if the type of e can be
@@ -107,3 +107,4 @@ zero4 = id4 {_}	  zero	-- This is equivalent to zero2, but it can be useful if
 -- not limited to inferring the values of type arguments. For more information
 -- on implicit arguments see, for instance
 --  'Introduction.Data.ByRecursion'
+
