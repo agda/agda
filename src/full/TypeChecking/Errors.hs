@@ -191,6 +191,10 @@ instance PrettyTCM TypeError where
 		return $ fsep $
 		    pwords "the right-hand side can only be omitted if there" ++
 		    pwords "is an absurd pattern, () or {}, in the left-hand side."
+	    LocalVsImportedModuleClash m ->
+		return $ fsep $
+		    pwords "the module" ++ [text $ show m] ++
+		    pwords "can refer to either a local module or an imported module"
 
 instance PrettyTCM Call where
     prettyTCM c = case c of

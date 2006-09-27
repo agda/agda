@@ -22,8 +22,14 @@ import Utils.Monad
 getSignature :: TCM Signature
 getSignature = gets stSignature
 
+getImportedSignature :: TCM Signature
+getImportedSignature = gets stImports
+
 setSignature :: Signature -> TCM ()
 setSignature sig = modify $ \s -> s { stSignature = sig }
+
+setImportedSignature :: Signature -> TCM ()
+setImportedSignature sig = modify $ \s -> s { stImports = sig }
 
 withSignature :: Signature -> TCM a -> TCM a
 withSignature sig m =
@@ -57,10 +63,13 @@ addModule m d = modify $ \s -> s { stSignature = Map.insert m d $ stSignature s 
 -- | Lookup a module.
 lookupModule :: ModuleName -> TCM ModuleDef
 lookupModule m =
-    do	sig <- getSignature
-	case Map.lookup m sig of
-	    Nothing -> fail $ show (getRange m) ++ ": no such module " ++ show m
-	    Just md -> return md
+    do	sig  <- getSignature
+	isig <- getImportedSignature
+	case (Map.lookup m sig, Map.lookup m isig) of
+	    (Nothing, Nothing) -> fail $ show (getRange m) ++ ": no such module " ++ show m
+	    (Just md, Nothing) -> return md
+	    (Nothing, Just md) -> return md
+	    (Just _, Just _)   -> typeError $ LocalVsImportedModuleClash m
 
 implicitModuleDefs :: Telescope -> ModuleName -> Args -> Definitions -> Definitions
 implicitModuleDefs tel m args defs = Map.mapWithKey redirect defs

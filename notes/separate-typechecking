@@ -58,4 +58,15 @@ Technical issues
   should be a function to extract the ModuleScope of the current module from the
   ScopeInfo.
 
+- Now what?
+  
+  Making the type checking monad aware of imports:
+
+    - separate signatures for imported modules and other modules
+
+    - look up things in both signatures. exactly one lookup must succeed.
+
+    - we play around with the signature in a lot of places? what needs to be
+      changed to handle the imported signature?
+
  vim: tw=80 sts=2 sw=2 fo+=t com=f\:-

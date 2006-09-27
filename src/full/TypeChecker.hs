@@ -202,12 +202,17 @@ checkModuleDef i x tel m' args =
 --   interfaces so that we don't have to redo the work.
 checkImport :: ModuleInfo -> ModuleName -> TCM ()
 checkImport i x = do
-    sig0   <- getSignature
-    scope0 <- getScope
-    opts0  <- commandLineOptions
+    sig0     <- getSignature
+    isig0    <- getImportedSignature
+    scope0   <- getScope
+    opts0    <- commandLineOptions
+    builtin0 <- gets stBuiltinThings
     -- reset state
     setScope emptyScopeInfo_
-    modify $ \st -> st { stSignature = Map.empty }
+    modify $ \st -> st { stSignature	 = Map.empty
+		       , stImports	 = Map.empty
+		       , stBuiltinThings = Map.empty
+		       }
 
     (m, scope, pragmas) <- liftIO $ do
 	(pragmas, m) <- parseFile' moduleParser file
@@ -217,16 +222,20 @@ checkImport i x = do
     setOptionsFromPragmas pragmas
     withEnv initEnv $ checkDecl m
 
-    sig <- getSignature
+    sig  <- getSignature
+    isig <- getSignature
     -- TODO: check that metas have been solved..
 
     -- Restore
     setScope scope0
-    setSignature sig0
     setCommandLineOptions opts0
 
     -- TODO: check for clashes
-    modify $ \st -> st { stSignature = stSignature st `Map.union` sig }
+    modify $ \st -> st { stSignature	 = sig0
+		       , stImports	 = Map.unions [isig0, sig, isig]
+		       , stBuiltinThings = builtin0 `Map.union` stBuiltinThings st
+			    -- TODO: not safe ^
+		       }
 
     where
 	file = moduleNameToFileName (mnameConcrete x) ".agda"

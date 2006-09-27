@@ -35,6 +35,7 @@ data TCState =
 	 , stInteractionPoints :: InteractionPoints
 	 , stConstraints       :: Constraints
 	 , stSignature	       :: Signature
+	 , stImports	       :: Signature
 	 , stScopeInfo	       :: ScopeInfo
 	 , stOptions	       :: CommandLineOptions
 	 , stStatistics	       :: Statistics
@@ -58,6 +59,7 @@ initState =
 	 , stInteractionPoints = Map.empty
 	 , stConstraints       = Map.empty
 	 , stSignature	       = Map.empty
+	 , stImports	       = Map.empty
 	 , stScopeInfo	       = emptyScopeInfo_
 	 , stOptions	       = defaultOptions
 	 , stStatistics	       = Map.empty
@@ -421,6 +423,7 @@ data TypeError
 	| NoSuchPrimitiveFunction Name
 	| BuiltinInParameterisedModule String
 	| NoRHSRequiresAbsurdPattern [Arg A.Pattern]
+	| LocalVsImportedModuleClash ModuleName
     deriving (Typeable)
 
 data TCErr = TypeError TCState (Closure TypeError)
