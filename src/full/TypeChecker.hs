@@ -217,9 +217,6 @@ checkImport i x = do
     setOptionsFromPragmas pragmas
     withEnv initEnv $ checkDecl m
 
-    liftIO $ putStrLn $ "import " ++ show x
-    dumpSig
-
     sig <- getSignature
     -- TODO: check that metas have been solved..
 
@@ -231,8 +228,6 @@ checkImport i x = do
     -- TODO: check for clashes
     modify $ \st -> st { stSignature = stSignature st `Map.union` sig }
 
-    liftIO $ putStrLn $ "merged:"
-    dumpSig
     where
 	file = moduleNameToFileName (mnameConcrete x) ".agda"
 

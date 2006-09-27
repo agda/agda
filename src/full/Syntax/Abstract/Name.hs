@@ -107,7 +107,7 @@ instance Ord Name where
     compare x y = compare (nameId x) (nameId y)
 
 instance Show Name where
-    show x = show (nameConcrete x) ++ show (nameId x)
+    show x = show (nameConcrete x)
 
 instance Show QName where
     show q = {-show (qnameModule q) ++ "." ++-} show (qnameName q)
