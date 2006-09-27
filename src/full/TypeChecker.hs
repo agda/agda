@@ -201,7 +201,7 @@ checkModuleDef i x tel m' args =
 --   Maybe it would be a good idea to have the scope checker store away the
 --   interfaces so that we don't have to redo the work.
 checkImport :: ModuleInfo -> ModuleName -> TCM ()
-checkImport i m = do
+checkImport i x = do
     sig0   <- getSignature
     scope0 <- getScope
     opts0  <- commandLineOptions
@@ -216,6 +216,10 @@ checkImport i m = do
 	return (m, scope, pragmas)
     setOptionsFromPragmas pragmas
     withEnv initEnv $ checkDecl m
+
+    liftIO $ putStrLn $ "import " ++ show x
+    dumpSig
+
     sig <- getSignature
     -- TODO: check that metas have been solved..
 
@@ -226,9 +230,19 @@ checkImport i m = do
 
     -- TODO: check for clashes
     modify $ \st -> st { stSignature = stSignature st `Map.union` sig }
-    where
-	file = moduleNameToFileName (mnameConcrete m) ".agda"
 
+    liftIO $ putStrLn $ "merged:"
+    dumpSig
+    where
+	file = moduleNameToFileName (mnameConcrete x) ".agda"
+
+	dumpSig = do
+	    sig <- getSignature
+	    liftIO $
+		flip mapM_ (Map.assocs sig) $ \(x,d) -> putStr $
+		    unlines [ "module " ++ show x
+			    , "  " ++ show (Map.keys $ mdefDefs d)
+			    ]
 
 ---------------------------------------------------------------------------
 -- * Datatypes

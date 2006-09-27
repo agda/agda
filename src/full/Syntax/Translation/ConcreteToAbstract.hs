@@ -487,7 +487,7 @@ instance BindToAbstract NiceDeclaration [A.Declaration] where
 	ret [A.Pragma r p]
 
     bindToAbstract (NiceImport r x as is) ret = do
-	i <- currentModuleScope . snd <$> scopeCheckModule toAbstract x
+	i <- liftIO $ currentModuleScope . snd <$> scopeCheckModule concreteToAbstract_ x
 	x' <- toAbstract $ CModuleName x
 	importModule name i is $
 	    ret [A.Import (mkSourcedModuleInfo PublicAccess [C.Import r x as is]) x']

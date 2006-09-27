@@ -29,6 +29,12 @@ Fixes
 
 * Check out lex/parse errors (what position and what input is reported).
 
+[Printing]
+
+* pretty printing of operator applications
+
+* print names properly qualified (we want to be able to parse it back)
+
 [Scope]
 
 * scope checking yields impossible when things clash
@@ -74,8 +80,6 @@ Fixes
 * Allow qualified names in BUILTIN pragma. Currently pragmas are parsed as
   plain strings, so a qualified name is interpreted as an unqualified name
   containing a dot.
-
-* pretty printing of operator applications
 
 * exitWith ExitFailure on type error
 
