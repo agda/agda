@@ -168,9 +168,8 @@ checkModuleDef i x tel m' args =
 				  $ Var (i + length delta + length theta) []
 				  | i <- [0..length gamma - 1]
 				  ]
-		qm <- flip qualifyModule m <$> currentModule
-		addModule qm $ ModuleDef
-				    { mdefName	     = qm
+		addModule m $ ModuleDef
+				    { mdefName	     = m
 				    , mdefTelescope  = gammaDelta ++ theta
 				    , mdefNofParams  = length theta
 				    , mdefDefs	     = implicitModuleDefs
@@ -223,8 +222,10 @@ checkImport i x = do
     withEnv initEnv $ checkDecl m
 
     sig  <- getSignature
-    isig <- getSignature
+    isig <- getImportedSignature
     -- TODO: check that metas have been solved..
+
+    -- dumpSig "Imported module"
 
     -- Restore
     setScope scope0
@@ -236,17 +237,24 @@ checkImport i x = do
 		       , stBuiltinThings = builtin0 `Map.union` stBuiltinThings st
 			    -- TODO: not safe ^
 		       }
+    -- dumpSig "After import"
 
     where
 	file = moduleNameToFileName (mnameConcrete x) ".agda"
 
-	dumpSig = do
-	    sig <- getSignature
-	    liftIO $
-		flip mapM_ (Map.assocs sig) $ \(x,d) -> putStr $
-		    unlines [ "module " ++ show x
+	dumpSig s = do
+	    sig  <- getSignature
+	    isig <- getImportedSignature
+	    let dumpMod (x,d) = putStr $
+		    unlines [ "module " ++ show (mnameId x)
 			    , "  " ++ show (Map.keys $ mdefDefs d)
 			    ]
+	    liftIO $ do
+		putStrLn $ "+++ " ++ s
+		mapM_ dumpMod (Map.assocs sig)
+		putStrLn "[imports]"
+		mapM_ dumpMod (Map.assocs isig)
+		putStrLn "---"
 
 ---------------------------------------------------------------------------
 -- * Datatypes
