@@ -18,6 +18,8 @@
 (require 'pp)
 (require 'haskell-mode)
 (require 'haskell-indent)
+;; due to a bug in haskell-mode-2.1
+(setq haskell-ghci-mode-map (copy-keymap comint-mode-map))
 (require 'font-lock)
 (unless (fboundp 'overlays-in) (load "overlay")) ; for Xemacs
 (unless (fboundp 'propertize)                    ; for Xemacs 21.4
@@ -59,34 +61,45 @@ properties to add to the result."
 effect only after doing 'erase-customization' for `agda2-ghci-options' below"
   :type 'string :group 'agda2)
 
-(defcustom agda2-ghci-options
-  (let ((outdir (concat agda2-root-dir "/out/full")))
-    (list
-     (concat "-i" agda2-root-dir "/src/full")
-     (concat "-i" outdir)
-     (concat "-hidir " outdir)
-     (concat "-odir  " outdir)
-     "-I."
-     "-Wall"
-     "-Werror"
-     "-fno-warn-missing-signatures"
-     "-fno-warn-name-shadowing"
-     "-fno-warn-simple-patterns"
-     "-fno-warn-unused-matches"
-     "-fno-warn-unused-binds"
-     "-fno-warn-unused-imports"
-     "-fno-warn-type-defaults"))
-  "*The options for ghci to load `agda2-toplevel-module'."
-  :type '(repeat string) :group 'agda2)
+(defcustom agda2-ghci-options2
+  (list
+   "-I."
+   "-Wall"
+   "-Werror"
+   "-fno-warn-missing-signatures"
+   "-fno-warn-name-shadowing"
+   "-fno-warn-simple-patterns"
+   "-fno-warn-unused-matches"
+   "-fno-warn-unused-binds"
+   "-fno-warn-unused-imports"
+   "-fno-warn-type-defaults")
+"*The options for ghci to load `agda2-toplevel-module'."
+:type '(repeat string) :group 'agda2)
 
-(defcustom agda2-toplevel-module "GhciTop"
+(defconst agda2-ghci-options
+  (let ((outdir (concat agda2-root-dir "/out/full")))
+    (append
+     (list
+      (concat "-i" agda2-root-dir "/src/full")
+      (concat "-i" outdir)
+      (concat "-hidir " outdir)
+      (concat "-odir  " outdir))
+     agda2-ghci-options2))
+  "*The options for ghci to load `agda2-toplevel-module'.")
+
+(defcustom agda2-toplevel-module "Interaction.GhciTop"
   "*The name of the Agda2 toplevel module (this must be INTERPRETED, for now)"
   :type 'string :group 'agda2)
   
-(defcustom agda2-mode-hook '(turn-on-agda2-indent turn-on-agda2-font-lock)
+(defcustom agda2-mode-hook
+  '(agda2-fix-ghci-for-windows turn-on-agda2-indent turn-on-agda2-font-lock)
   "*Hooks for agda2-mode.
 Remove `turn-on-agda2-indent', `turn-on-agda2-font-lock' from here to disable
 those features." :type 'hook :group 'agda2)
+
+(defun agda2-fix-ghci-for-windows ()
+     (setq haskell-ghci-program-name "ghc"
+           haskell-ghci-program-args '("--interactive" "-package lang")))
 
 ;;;; Global and buffer-local vars, initialization
 
@@ -230,7 +243,7 @@ wait for output and execute responses, if any"
     (error "Agda2 process is not running.  Please M-x agda2-restart"))
   (save-excursion
     (haskell-ghci-go (apply 'concat (agda2-intersperse " " args)) nil))
-  (display-buffer agda2-buffer 'not-tihs-window)
+  ;;(display-buffer agda2-buffer 'not-tihs-window)
   (let (response)
     (with-current-buffer haskell-ghci-process-buffer
       (haskell-ghci-wait-for-output)
@@ -317,6 +330,21 @@ annotate new goals NEW-GS"
                                       (cadr case-undo)
                                       (elt  case-undo 2))
                                 rest-undo))))
+(defun agda2-info-action (name text)
+  "display buffer NAME with content TEXT"
+  (interactive)
+  (with-current-buffer (get-buffer-create name)
+    (erase-buffer)
+    (insert text)
+    (goto-char (point-min))
+    (save-selected-window
+      (select-window (display-buffer (current-buffer) 'not-this-window))
+      (shrink-window
+       (- (window-height)
+          (min (/ (frame-height) 2)
+               (max window-min-height
+                    (1+ (count-lines(point-min)(point-max))))))))))
+
 
 (defun agda2-show-goals()
   "Show all goals" (interactive)
@@ -330,7 +358,7 @@ annotate new goals NEW-GS"
   "UNDER CONSTRUCTION" (interactive)
   (dolist (o (overlays-in (point-min) (point-max)))
     (delete-overlay o))
-  (agda2-go "ioTCM $ do putUndoStack []; resetState")
+  (agda2-go "cmd_reset")
   (let ((inhibit-read-only t) (inhibit-point-motion-hooks t))
     (let (buffer-undo-list)
       (remove-text-properties
@@ -558,7 +586,10 @@ NEW-TXT is a string to replace OLD-G, or `'paren', or `'no-paren'"
               (setq pDef (point)
                     cDef (current-column))))
         (forward-char))
-      pDef)))
+      (goto-char pDef)
+      (if (equal (current-word) "mutual")
+          (or (match-end 2) (match-end 1))
+        pDef))))
 
 (defun agda2-flatten-undo ()
   "Flatten agda2-undo-list onto buffer-undo-list,
@@ -682,3 +713,4 @@ See also `agda2-fontify-included-files'"
            (call-interactively
             (lookup-key agda2-goal-map (apply 'vector choice)))))))
 
+(provide 'agda2)

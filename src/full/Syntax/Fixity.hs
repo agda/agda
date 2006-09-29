@@ -37,6 +37,7 @@ data Precedence = TopCtx | FunctionSpaceDomainCtx
 		| FunctionCtx | ArgumentCtx
     deriving (Show,Typeable,Data)
 
+
 -- | The precedence corresponding to a possibly hidden argument.
 hiddenArgumentCtx :: Hiding -> Precedence
 hiddenArgumentCtx NotHidden = ArgumentCtx
@@ -45,6 +46,16 @@ hiddenArgumentCtx Hidden    = TopCtx
 -- | Do we need to bracket an operator application of the given fixity
 --   in a context with the given precedence.
 opBrackets :: Fixity -> Precedence -> Bool
+opBrackets (LeftAssoc _ n1)
+           (LeftOperandCtx   (LeftAssoc   _ n2)) | n1 >= n2       = False
+opBrackets (RightAssoc _ n1)
+           (RightOperandCtx  (RightAssoc  _ n2)) | n1 >= n2       = False
+opBrackets f1
+           (LeftOperandCtx  f2) | fixityLevel f1 > fixityLevel f2 = False
+opBrackets f1
+           (RightOperandCtx f2) | fixityLevel f1 > fixityLevel f2 = False
+opBrackets _ TopCtx = False
+opBrackets _ FunctionSpaceDomainCtx = False
 opBrackets _ _ = True
 
 -- | Does a lambda-like thing (lambda, let or pi) need brackets in the given

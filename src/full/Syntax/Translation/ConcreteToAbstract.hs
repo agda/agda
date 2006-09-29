@@ -8,6 +8,7 @@ module Syntax.Translation.ConcreteToAbstract
     , concreteToAbstract_
     , concreteToAbstract
     , ToAbstractException(..)
+    , OldName(..)
     ) where
 
 import Control.Exception
@@ -253,14 +254,8 @@ instance ToAbstract C.Expr A.Expr where
 	    return $ A.App info e1' e2'
 
     -- Operator application
-    toAbstract e@(C.OpApp r op es) = do
-	x    <- toAbstract (OldQName $ C.QName op)
-	es'  <- toAbstract es	-- TODO: parenthesis?
-	info <- exprSource e
-	return $ foldl app x es'
-	where
-	    app e arg = A.App (ExprRange (fuseRange e arg)) e
-		      $ Arg NotHidden arg
+
+    toAbstract e@(C.OpApp r op es) = toAbstractOpApp r op es
 
     -- Malplaced hidden argument
     toAbstract e@(C.HiddenArg _ _) = nothingAppliedToHiddenArg e
@@ -597,3 +592,30 @@ instance BindToAbstract C.Pattern A.Pattern where
 	where
 	    info = PatSource r $ \_ -> p0
 
+-- Helpers for OpApp case
+
+  -- let's deal with the binary case (there should be no special casing
+  -- in future.)
+toAbstractOpApp r op@(C.Name _ [Hole, Id _, Hole]) es@[e1, e2] = do
+        let e = C.OpApp r op es
+	x    <- toAbstract (OldQName $ C.QName op)
+    	f    <- getFixityFunction
+        let  fixity = f (C.QName op)
+	e1'  <- toAbstractCtx (LeftOperandCtx  fixity) e1
+	e2'  <- toAbstractCtx (RightOperandCtx fixity) e2
+	info <- exprSource e
+	return $ foldl app x [e1', e2']
+	where
+	    app e arg = A.App (ExprRange (fuseRange e arg)) e
+		      $ Arg NotHidden arg
+
+  -- other cases are not seriously considered, but should be safe.
+toAbstractOpApp r op es = do
+        let e = C.OpApp r op es
+	x    <- toAbstract (OldQName $ C.QName op)
+	es'  <- toAbstractCtx ArgumentCtx es -- the safe verbose way
+	info <- exprSource e
+	return $ foldl app x es'
+	where
+	    app e arg = A.App (ExprRange (fuseRange e arg)) e
+		      $ Arg NotHidden arg

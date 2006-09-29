@@ -1,6 +1,33 @@
 {-# OPTIONS -cpp -fglasgow-exts -fallow-overlapping-instances #-}
 
-module Interaction.GhciTop where
+module Interaction.GhciTop
+  ( module Interaction.GhciTop
+  , module TypeChecker
+  , module TM
+  , module TMN
+  , module TypeChecking.MetaVars
+  , module TypeChecking.Reduce
+  , module TypeChecking.Errors
+
+  , module Syntax.Position
+  , module Syntax.Parser
+  , module SCo
+--  , module SC  -- trivial clash removal: remove all!
+--  , module SA
+--  , module SI
+  , module Syntax.Scope
+  , module Info
+  , module Syntax.Translation.ConcreteToAbstract
+  , module Syntax.Translation.AbstractToConcrete
+  , module Syntax.Translation.InternalToAbstract
+  , module Syntax.Abstract.Test
+  , module Syntax.Abstract.Name
+
+  , module Interaction.Exceptions
+  , module B
+  , module CL
+  )
+  where
 
 import Prelude hiding (print, putStr, putStrLn)
 import System.IO hiding (print, putStr, putStrLn)
@@ -74,14 +101,14 @@ ioTCM cmd = do
       return (x,st,us)
     `catchError` \err -> do
 	s <- prettyError err
-	liftIO $ putStrLn s
+	liftIO $ display_info "*Error*" s
 	liftIO $ exitWith $ ExitFailure 1
   writeIORef theTCState st'
   writeIORef theUndoStack ss'
   return a
 
 cmd_load :: String -> IO ()
-cmd_load file = crashOnException $ do
+cmd_load file = infoOnException $ do
     (pragmas, m) <- parseFile moduleParser file
     pragmas	 <- concreteToAbstract_ pragmas	-- identity for top-level pragmas at the moment
     (m',scope)	 <- concreteToAbstract_ m
@@ -93,20 +120,29 @@ cmd_load file = crashOnException $ do
 	    setScope scope
 	    lispIP
     putStrLn $ response $ L[A"agda2-load-action", is]
+    cmd_metas
   where lispIP  = format . sortRng <$> (tagRng =<< getInteractionPoints)
         tagRng  = mapM (\i -> (,)i <$> getInteractionRange i)
         sortRng = sortBy ((.snd) . compare . snd)
         format  = Q . L . List.map (A . tail . show . fst)
-                  
+
 cmd_constraints :: IO ()
-cmd_constraints = crashOnException $
-    ioTCM B.getConstraints >>= mapM_ (putStrLn . show . abstractToConcrete_)
+cmd_constraints = infoOnException $ ioTCM $ do
+    cs <- List.map (show . abstractToConcrete_) <$> B.getConstraints
+    liftIO $ display_info "*Constraints*" (unlines cs)
+
 
 cmd_metas :: IO ()
-cmd_metas = crashOnException $ ioTCM $ CL.showMetas []
+cmd_metas = infoOnException $ ioTCM $ do -- CL.showMetas []
+  (ims, hms) <- B.typeOfMetas B.AsIs
+  liftIO $ display_info "*All Goals*" $ unlines $
+    List.map show ims ++ List.map show hms
 
 cmd_undo :: IO ()
 cmd_undo = ioTCM undo
+
+cmd_reset :: IO ()
+cmd_reset = ioTCM $ do putUndoStack []; resetState
 
 type GoalCommand = InteractionId -> Range -> String -> IO()
 
@@ -117,13 +153,15 @@ cmd_give = give_gen B.give $ \s ce -> case ce of (SC.Paren _ _)-> "'paren"
 cmd_refine :: GoalCommand
 cmd_refine = give_gen B.refine $ \s -> emacsStr . show
 
-give_gen give_ref mk_newtxt ii rng s = crashOnException $ ioTCM $ do
-    prec      <- contextPrecedence <$> getInteractionScope ii
-    (ae, iis) <- give_ref ii Nothing =<< parseExprIn ii rng s
-    let newtxt = A . mk_newtxt s $ abstractToConcreteCtx prec ae
-        newgs  = Q . L $ List.map showNumIId iis
-    liftIO $ putStrLn $ response $
-           L[A"agda2-give-action", showNumIId ii, newtxt, newgs]
+give_gen give_ref mk_newtxt ii rng s = infoOnException $ do
+    ioTCM $ do
+      prec      <- contextPrecedence <$> getInteractionScope ii
+      (ae, iis) <- give_ref ii Nothing =<< parseExprIn ii rng s
+      let newtxt = A . mk_newtxt s $ abstractToConcreteCtx prec ae
+          newgs  = Q . L $ List.map showNumIId iis
+      liftIO $ putStrLn $ response $
+                 L[A"agda2-give-action", showNumIId ii, newtxt, newgs]
+    cmd_metas
 
 parseExprIn :: InteractionId -> Range -> String -> TCM SA.Expr
 parseExprIn ii rng s = do
@@ -137,18 +175,24 @@ parseExprIn ii rng s = do
              (parsePosString exprParser (rStart (getRange mi)) s)
 
 cmd_context :: GoalCommand
-cmd_context ii _ _ = putStrLn . unlines . List.map show
-                   =<< ioTCM (B.contextOfMeta ii)
+cmd_context ii _ _ = infoOnException $ do
+  display_info "*Context*" . unlines . List.map show
+      =<< ioTCM (B.contextOfMeta ii)
 
 cmd_infer :: B.Rewrite -> GoalCommand
-cmd_infer norm ii rng s = crashOnException $ ioTCM $ do
-    liftIO . putStrLn . show =<< B.typeInMeta ii norm =<< parseExprIn ii rng s
+cmd_infer norm ii rng s = infoOnException $ do
+  display_info "*Inferred Type*" . show
+      =<< ioTCM (B.typeInMeta ii norm =<< parseExprIn ii rng s)
 
 
 cmd_goal_type :: B.Rewrite -> GoalCommand
-cmd_goal_type norm ii _ _ = crashOnException $ ioTCM $ do
-    liftIO . putStrLn . show =<< B.typeOfMeta norm ii
+cmd_goal_type norm ii _ _ = infoOnException $ do 
+    display_info "*Current Goal*" . show =<< ioTCM (B.typeOfMeta norm ii)
 
+display_info :: String -> String -> IO()
+display_info bufname content =
+  putStrLn . response
+    $ L[A"agda2-info-action", A(show bufname),  A(show content)]
 
 response :: Lisp String -> String
 response l = show (text "agda2_mode_code" <+> pretty l)
@@ -166,11 +210,8 @@ instance Pretty a => Show (Lisp a) where show = show . pretty
 
 showNumIId = A . tail . show
 
-quoteString s = '"':concatMap q s++"\"" where q '\n' = "\\n"
-                                              q ch   = [ch]
-
 cmd_make_case :: GoalCommand
-cmd_make_case ii rng s = crashOnException $ ioTCM $ do
+cmd_make_case ii rng s = infoOnException $ ioTCM $ do
   mId <- lookupInteractionId ii
   mfo <- getMetaInfo <$> lookupMeta mId
   ex  <- passAVar =<< parseExprIn ii rng s -- the pattern variable to case on
@@ -267,7 +308,7 @@ cmd_make_case ii rng s = crashOnException $ ioTCM $ do
 
 
 cmd_solveAll :: IO ()
-cmd_solveAll = crashOnException $ ioTCM $ do
+cmd_solveAll = infoOnException $ ioTCM $ do
     out <- getInsts =<< gets stInteractionPoints
     liftIO $ putStrLn $ response $
       L[ A"agda2-solveAll-action" , Q . L $ concatMap prn out]
@@ -360,8 +401,9 @@ preMeta   = SC.QuestionMark noRange Nothing
 preUscore = SC.Underscore   noRange Nothing
 
 cmd_compute :: B.Rewrite -> GoalCommand
-cmd_compute _ ii rng s = crashOnException $ 
-  putStrLn . show =<< ioTCM (B.evalInMeta ii =<< parseExprIn ii rng s)
+cmd_compute _ ii rng s = infoOnException $ do
+  v <- ioTCM (B.evalInMeta ii =<< parseExprIn ii rng s)
+  display_info "*Normal Form*" (show v)
 
 -- change "\<decimal>" to "\x<hex>"
 emacsStr s = go (show s) where
@@ -371,3 +413,9 @@ emacsStr s = go (show s) where
   go []    = []
   hex8 n = let (h,l) = quotRem n 16 in [d h, d l]
   d i = (['0'..'9'] ++ ['a'..'f'])!! i
+
+
+infoOnException m = failOnException inform m where
+  inform rng msg = do
+    display_info "*Error*" $ unlines [show rng ++ " : ", msg]
+    exitWith (ExitFailure 1)

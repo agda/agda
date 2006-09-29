@@ -19,6 +19,7 @@ import Syntax.Info
 import Syntax.Fixity
 import Syntax.Concrete as C
 import Syntax.Abstract as A
+import Syntax.Abstract.Views as AV
 
 import Utils.Maybe
 import Utils.Monad
@@ -323,10 +324,12 @@ instance ToConcrete A.Expr C.Expr where
 						(getRange i)
 						(metaNumber i)
 
-    toConcrete (A.App i e1 e2)    =
+    toConcrete e@(A.App i e1 e2)    =
 	withStored i
+        $ tryToRecoverOpApp e
+        -- or fallback to App
 	$ bracket appBrackets
-	$ do e1' <- toConcreteCtx FunctionCtx e1
+        $ do e1' <- toConcreteCtx FunctionCtx e1
 	     e2' <- toConcreteCtx ArgumentCtx e2
 	     return $ C.App (getRange i) e1' e2'
 
@@ -562,4 +565,38 @@ instance BindToConcrete A.Pattern C.Pattern where
 -- 	where
 -- 	    appP p (Arg h q) = AppP h p q
 	
+
+-- Helpers for recovering C.OpApp ------------------------------------------
+
+tryToRecoverOpApp :: A.Expr -> AbsToCon C.Expr -> AbsToCon C.Expr
+tryToRecoverOpApp e mdefault = case AV.appView e of
+  NonApplication _ -> mdefault
+  Application head args -> do
+    let  args' = [e | Arg NotHidden e <- args]
+    case head of
+      HeadVar i n  -> doCName i (nameConcrete n) args'
+      HeadDef i qn -> doQName i qn args'
+      HeadCon i qn -> doQName i qn args'
+  where
+  -- let's try the binary case first.
+  doCName i cn@(C.Name _ [Hole, Id _, Hole]) [a1, a2] = do
+        let fixity = nameFixity i
+        e1 <- toConcreteCtx (LeftOperandCtx  fixity) a1
+        e2 <- toConcreteCtx (RightOperandCtx fixity) a2
+        bracket (opBrackets fixity)
+          $ return $ OpApp (getRange [e1,e2]) cn [e1,e2]
+
+  -- other cases are not seriously considered yet.
+  doCName i cn@(C.Name _ parts) args'
+    | simple_case = do
+        es <- toConcreteCtx ArgumentCtx args'
+        bracket (opBrackets (nameFixity i))
+          $ return $ OpApp (getRange es) cn es
+    | otherwise   = mdefault
+    where simple_case = numHoles > 0 && numHoles == length args'
+          numHoles = length [()| Hole <- parts]
+    
+  doQName i qn args = case qnameConcrete qn of
+    C.QName n -> doCName i n args
+    _         -> mdefault
 

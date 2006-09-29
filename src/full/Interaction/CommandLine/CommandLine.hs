@@ -35,6 +35,8 @@ import TypeChecking.MetaVars
 import TypeChecking.Reduce
 import TypeChecking.Errors
 
+import Termination.Dumb(checkTermination)
+
 import Utils.ReadLine
 import Utils.Monad
 import Utils.Fresh
@@ -108,6 +110,7 @@ interactionLoop typeCheck =
             , "typeOf"      |> \args -> continueAfter $ typeOf args
             , "typeIn"      |> \args -> continueAfter $ typeIn args
 	    , "wakeup"	    |> \_ -> continueAfter $ retryConstraints
+	    , "termination" |> \_ -> continueAfter $ checkTermination 
 	    ]
 	    where
 		(|>) = (,)

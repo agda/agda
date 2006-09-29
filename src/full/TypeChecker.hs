@@ -681,7 +681,7 @@ forcePi h t =
 		    x <- refreshName (getRange i) "x"
 		    b <- addCtx x a $ newTypeMeta sb
 		    equalTyp () t' $ Pi (Arg h a) (Abs (show x) b)
-		    reduce t'
+		    reduce $ Pi (Arg h a) (Abs (show x) b)
 	    _		-> typeError $ ShouldBePi t'
 
 
