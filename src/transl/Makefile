@@ -89,3 +89,29 @@ $(OUT)/%.hs : %.x
 $(OUT)/%.hs : %.y
 	$(HAPPY) $(HAPPY_FLAGS) -o $@ --info=$(OUT)/$*.happy.out $<
 
+## Clean
+
+clean	:
+	-rm *~
+	-rm $(OUT)/$(BIN)
+
+realclean :
+	make clean
+	-find $(OUT) -name '*.hi' | xargs rm
+	-find $(OUT) -name '*.o'  | xargs rm
+
+## Run agda1to2
+
+# run	: $(OUT)/$(BIN)
+# 	$(OUT)/$(BIN) test.agda1
+
+
+## Testing
+
+AGDA2=$(TOP)/out/full/agda
+WORK=./examples
+
+%.test	: $(OUT)/$(BIN)
+	$(OUT)/$(BIN) -D $(WORK)/$*.agda | $(GHC) -e "getContents>>=putStr.unlines.(\"module $* where\":).map (\"  \"++).lines" > $(WORK)/$*.ag2
+	-$(AGDA2) $(WORK)/$*.ag2
+	$(GHC) -e "getContents>>=sequence_ . zipWith (Text.Printf.printf \"%5d: %s\n\") ([1..]::[Int]) . lines" < $(WORK)/$*.ag2
