@@ -13,9 +13,9 @@ module Prelude where
   postulate
     falseE : (A:Set) -> False -> A
 
-  infix 3 /\
+  infix 3 _/\_
 
-  data (/\)(P,Q:Prop) : Prop where
+  data _/\_ (P,Q:Prop) : Prop where
     andI : P -> Q -> P /\ Q
 
   -- Zero and One -----------------------------------------------------------
@@ -31,7 +31,7 @@ module Prelude where
     zero : Nat
     suc  : Nat -> Nat
 
-  (+) : Nat -> Nat -> Nat
+  _+_ : Nat -> Nat -> Nat
   zero  + m = m
   suc n + m = suc (n + m)
 
@@ -39,7 +39,7 @@ module Prelude where
 
     infix 5 ==
 
-    (==) : Nat -> Nat -> Prop
+    _==_ : Nat -> Nat -> Prop
     zero  == zero = True
     suc n == suc m = n == m
     _	  == _	   = False
@@ -48,21 +48,22 @@ module Prelude where
     rewrite C {zero}  {zero}  _	 x = x
     rewrite C {suc _} {suc _} eq x = rewrite (\z -> C (suc z)) eq x
 
-module Chain {A:Set}((==) : A -> A -> Prop)
-	     (trans : {x,y,z:A} -> x == y -> y == z -> x == z)
+module Chain {A:Set}(_==_ : A -> A -> Prop)
+	     (_trans_ : {x,y,z:A} -> x == y -> y == z -> x == z)
     where
 
-  infixl 4 =-=, ===
-  infixr 8 `since`
+  infixl 4 _=-=_
+  infixl 4 _===_
+  infixr 8 _since_
 
-  (=-=) : (x:A){y:A} -> x == y -> x == y
+  _=-=_ : (x:A){y:A} -> x == y -> x == y
   x =-= xy = xy
 
-  (===) : {x,y,z:A} -> x == y -> y == z -> x == z
-  xy === yz = trans xy yz
+  _===_ : {x,y,z:A} -> x == y -> y == z -> x == z
+  xy === yz = xy trans yz
 
-  since : {x:A}(y:A) -> x == y -> x == y
-  since y xy = xy
+  _since_ : {x:A}(y:A) -> x == y -> x == y
+  y since xy = xy
 
 module Fin where
 
@@ -71,39 +72,39 @@ module Fin where
   -- Finite sets ------------------------------------------------------------
 
   data Suc (A:Set) : Set where
-    fzero_ : Suc A
-    fsuc_  : A -> Suc A
+    fzero' : Suc A
+    fsuc'  : A -> Suc A
 
   mutual
 
     data Fin (n:Nat) : Set where
-      finI : Fin_ n -> Fin n
+      finI : Fin' n -> Fin n
 
-    Fin_ : Nat -> Set
-    Fin_  zero   = Zero
-    Fin_ (suc n) = Suc (Fin n)
+    Fin' : Nat -> Set
+    Fin'  zero   = Zero
+    Fin' (suc n) = Suc (Fin n)
 
   fzero : {n:Nat} -> Fin (suc n)
-  fzero = finI fzero_
+  fzero = finI fzero'
 
   fsuc : {n:Nat} -> Fin n -> Fin (suc n)
-  fsuc i = finI (fsuc_ i)
+  fsuc i = finI (fsuc' i)
 
-  finE : {n:Nat} -> Fin n -> Fin_ n
+  finE : {n:Nat} -> Fin n -> Fin' n
   finE (finI i) = i
 
   module FinEq where
 
     infix 5 ==
 
-    (==) : {n:Nat} -> Fin n -> Fin n -> Prop
-    (==) {suc _} (finI  fzero_	) (finI  fzero_	 ) = True
-    (==) {suc _} (finI (fsuc_ i)) (finI (fsuc_ j)) = i == j
-    (==)	  _		   _		   = False
+    _==_ : {n:Nat} -> Fin n -> Fin n -> Prop
+    _==_ {suc _} (finI  fzero'	) (finI  fzero'	 ) = True
+    _==_ {suc _} (finI (fsuc' i)) (finI (fsuc' j)) = i == j
+    _==_	  _		   _		   = False
 
     rewrite : {n:Nat}(C:Fin n -> Set){i,j:Fin n} -> i == j -> C j -> C i
-    rewrite {suc _} C {finI  fzero_  } {finI  fzero_  } eq x = x
-    rewrite {suc _} C {finI (fsuc_ i)} {finI (fsuc_ j)} eq x = rewrite (\z -> C (fsuc z)) eq x
+    rewrite {suc _} C {finI  fzero'  } {finI  fzero'  } eq x = x
+    rewrite {suc _} C {finI (fsuc' i)} {finI (fsuc' j)} eq x = rewrite (\z -> C (fsuc z)) eq x
 
 module Vec where
 
@@ -115,27 +116,27 @@ module Vec where
   -- Vectors ----------------------------------------------------------------
 
   data Nil : Set where
-    nil_ : Nil
+    nil' : Nil
 
   data Cons (A,As:Set) : Set where
-    cons_ : A -> As -> Cons A As
+    cons' : A -> As -> Cons A As
 
   mutual
 
     data Vec (A:Set)(n:Nat) : Set where
-      vecI : Vec_ A n -> Vec A n
+      vecI : Vec' A n -> Vec A n
 
-    Vec_ : Set -> Nat -> Set
-    Vec_ A  zero   = Nil
-    Vec_ A (suc n) = Cons A (Vec A n)
+    Vec' : Set -> Nat -> Set
+    Vec' A  zero   = Nil
+    Vec' A (suc n) = Cons A (Vec A n)
 
   nil : {A:Set} -> Vec A zero
-  nil = vecI nil_
+  nil = vecI nil'
 
-  (::) : {A:Set}{n:Nat} -> A -> Vec A n -> Vec A (suc n)
-  x :: xs = vecI (cons_ x xs)
+  _::_ : {A:Set}{n:Nat} -> A -> Vec A n -> Vec A (suc n)
+  x :: xs = vecI (cons' x xs)
 
-  vecE : {A:Set}{n:Nat} -> Vec A n -> Vec_ A n
+  vecE : {A:Set}{n:Nat} -> Vec A n -> Vec' A n
   vecE (vecI xs) = xs
 
   vec : {A:Set}(n:Nat) -> A -> Vec A n
@@ -143,12 +144,12 @@ module Vec where
   vec (suc n) x = x :: vec n x
 
   map : {n:Nat}{A,B:Set} -> (A -> B) -> Vec A n -> Vec B n
-  map {zero}  f (vecI nil_)	    = nil
-  map {suc n} f (vecI (cons_ x xs)) = f x :: map f xs
+  map {zero}  f (vecI nil')	    = nil
+  map {suc n} f (vecI (cons' x xs)) = f x :: map f xs
 
-  (!) : {n:Nat}{A:Set} -> Vec A n -> Fin n -> A
-  (!) {suc n} (vecI (cons_ x _ )) (finI fzero_)    = x
-  (!) {suc n} (vecI (cons_ _ xs)) (finI (fsuc_ i)) = xs ! i
+  _!_ : {n:Nat}{A:Set} -> Vec A n -> Fin n -> A
+  _!_ {suc n} (vecI (cons' x _ )) (finI fzero')    = x
+  _!_ {suc n} (vecI (cons' _ xs)) (finI (fsuc' i)) = xs ! i
 
   tabulate : {n:Nat}{A:Set} -> (Fin n -> A) -> Vec A n
   tabulate {zero}  f = nil
@@ -175,14 +176,14 @@ module Untyped where
 
     infix 5 ==
 
-    (==) : {n:Nat} -> Expr n -> Expr n -> Prop
-    eVar i	        == eVar j		 = FinEq.== i j
+    _==_ : {n:Nat} -> Expr n -> Expr n -> Prop
+    eVar i	        == eVar j		 = FinEq._==_ i j
     eApp e1 e2		== eApp e3 e4		 = e1 == e3 /\ e2 == e4
     eLam e1		== eLam e2		 = e1 == e2
     eSet		== eSet			 = True
     eEl		        == eEl			 = True
     ePi			== ePi			 = True
-    eCon f		== eCon g		 = NatEq.== f g
+    eCon f		== eCon g		 = NatEq._==_ f g
     _			== _			 = False
 
     rewrite : {n:Nat}(C:Expr n -> Set){r,s:Expr n} -> r == s -> C s -> C r
@@ -205,21 +206,21 @@ module Typed where
 
   mutual
 
-    infixl 15 &
-    infix  13 !!
-    infix  5  ==
+    infixl 15 _&_
+    infix  13 _!!_
+    infix  5  _==_
 
     -- Contexts ---------------------------------------------------------------
 
-    Context_ : Nat -> Set
-    Context_ zero    = Nil
-    Context_ (suc n) = CSuc n
+    Context' : Nat -> Set
+    Context' zero    = Nil
+    Context' (suc n) = CSuc n
 
     data CSuc (n:Nat) : Set where
-      ext : (Γ : Context n) -> Type Γ -> Context_ (suc n)
+      ext : (Γ : Context n) -> Type Γ -> Context' (suc n)
 
     data Context (n:Nat) : Set where
-      ctxI : Context_ n -> Context n
+      ctxI : Context' n -> Context n
 
     -- Types ------------------------------------------------------------------
 
@@ -228,21 +229,21 @@ module Typed where
       Pi  : (A:Type Γ) -> Type (Γ & A) -> Type Γ
       El  : Term Γ SET -> Type Γ
 
-    (&) : {n:Nat}(Γ:Context n) -> Type Γ -> Context (suc n)
+    _&_ : {n:Nat}(Γ:Context n) -> Type Γ -> Context (suc n)
     Γ & A = ctxI (ext Γ A)
 
     -- Variables --------------------------------------------------------------
 
-    Var_ : {n:Nat}(Γ:Context n) -> Type Γ -> Set
-    Var_ {zero}	  Γ		  A = Zero
-    Var_ {suc n} (ctxI (ext Γ B)) A = VarSuc Γ B A
+    Var' : {n:Nat}(Γ:Context n) -> Type Γ -> Set
+    Var' {zero}	  Γ		  A = Zero
+    Var' {suc n} (ctxI (ext Γ B)) A = VarSuc Γ B A
 
     data VarSuc {n:Nat}(Γ:Context n)(B:Type Γ)(A:Type (Γ & B)) : Set where
-      vzero_ : A == rename upR B -> Var_ (Γ & B) A
-      vsuc_  : (C:Type Γ) -> A == rename upR C -> Var Γ C -> Var_ (Γ & B) A
+      vzero_ : A == rename upR B -> Var' (Γ & B) A
+      vsuc_  : (C:Type Γ) -> A == rename upR C -> Var Γ C -> Var' (Γ & B) A
 
     data Var {n:Nat}(Γ:Context n)(A:Type Γ) : Set where
-      varI : Var_ Γ A -> Var Γ A
+      varI : Var' Γ A -> Var Γ A
 
     -- Terms ------------------------------------------------------------------
 
@@ -255,23 +256,23 @@ module Typed where
     -- Context manipulation ---------------------------------------------------
 
     ∅ : Context zero
-    ∅ = ctxI nil_
+    ∅ = ctxI nil'
 
-    (!!) : {n:Nat}(Γ:Context n) -> Fin n -> Type Γ
-    (!!) {suc _} (ctxI (ext Γ A)) (finI fzero_)	   = rename upR A
-    (!!) {suc _} (ctxI (ext Γ A)) (finI (fsuc_ i)) = rename upR (Γ !! i)
+    _!!_ : {n:Nat}(Γ:Context n) -> Fin n -> Type Γ
+    _!!_ {suc _} (ctxI (ext Γ A)) (finI fzero')	   = rename upR A
+    _!!_ {suc _} (ctxI (ext Γ A)) (finI (fsuc' i)) = rename upR (Γ !! i)
 
     -- Renamings --------------------------------------------------------------
 
-    Ren_ : {n,m:Nat} -> Context n -> Context m -> Set
-    Ren_ {zero}  {m} (ctxI nil_)      Δ = Nil
-    Ren_ {suc n} {m} (ctxI (ext Γ A)) Δ = ConsRen Γ A Δ
+    Ren' : {n,m:Nat} -> Context n -> Context m -> Set
+    Ren' {zero}  {m} (ctxI nil')      Δ = Nil
+    Ren' {suc n} {m} (ctxI (ext Γ A)) Δ = ConsRen Γ A Δ
 
     data ConsRen {n,m:Nat}(Γ:Context n)(A:Type Γ)(Δ:Context m) : Set where
-      extRen_ : (ρ : Ren Γ Δ) -> Var Δ (rename ρ A) -> Ren_ (Γ & A) Δ
+      extRen' : (ρ : Ren Γ Δ) -> Var Δ (rename ρ A) -> Ren' (Γ & A) Δ
 
     data Ren {n,m:Nat}(Γ:Context n)(Δ:Context m) : Set where
-      renI : Ren_ Γ Δ -> Ren Γ Δ
+      renI : Ren' Γ Δ -> Ren Γ Δ
 
     -- Performing renamings ---------------------------------------------------
 
@@ -289,46 +290,46 @@ module Typed where
     renameTerm ρ (var x)      = var (lookupR ρ x)
     renameTerm {_}{_}{_}{_}{A} ρ (app{_}{C} s t eq) =
 	app (renameTerm ρ s) (renameTerm ρ t)
-	    (cong (rename ρ) eq `trans` renameSubstCommute)
+	    (cong (rename ρ) eq  trans  renameSubstCommute)
     renameTerm ρ (lam t eq)   = lam (renameTerm (liftR ρ) t) (cong (rename ρ) eq)
 
     lookupR : {n,m:Nat}{Γ:Context n}{A:Type Γ}{Δ:Context m}
 	      (ρ:Ren Γ Δ)(x:Var Γ A) -> Var Δ (rename ρ A)
     lookupR {suc n} {_} {ctxI (ext Γ B)} {A} {Δ}
-	    (renI (extRen_ ρ z)) (varI (vzero_ eq)) = ?
+	    (renI (extRen' ρ z)) (varI (vzero_ eq)) = ?
     lookupR {suc n} {_} {ctxI (ext Γ B)} {A} {Δ}
-	    (renI (extRen_ ρ z)) (varI (vsuc_ C eq x)) = ?
+	    (renI (extRen' ρ z)) (varI (vsuc_ C eq x)) = ?
 
     -- Building renamings -----------------------------------------------------
 
     extRen : {n,m:Nat}{Γ:Context n}{A:Type Γ}{Δ:Context m}
 	     (ρ : Ren Γ Δ) -> Var Δ (rename ρ A) -> Ren (Γ & A) Δ
-    extRen ρ x = renI (extRen_ ρ x)
+    extRen ρ x = renI (extRen' ρ x)
 
     liftR : {n,m:Nat}{Γ:Context n}{A:Type Γ}{Δ:Context m} ->
 	    (ρ:Ren Γ Δ) -> Ren (Γ & A) (Δ & rename ρ A)
-    liftR {_}{_}{_}{A} ρ = extRen (coR upR ρ) (varI ?)
+    liftR {_}{_}{_}{A} ρ = extRen (upR coR ρ) (varI ?)
 
     idR : {n:Nat} {Γ:Context n} -> Ren Γ Γ
     idR = ?
 
-    coR : {n,m,p:Nat}{Γ:Context n}{Δ:Context m}{Θ:Context p} -> Ren Δ Θ -> Ren Γ Δ -> Ren Γ Θ
-    coR = ?
+    _coR_ : {n,m,p:Nat}{Γ:Context n}{Δ:Context m}{Θ:Context p} -> Ren Δ Θ -> Ren Γ Δ -> Ren Γ Θ
+    _coR_ = ?
 
     upR : {n:Nat}{Γ:Context n}{A:Type Γ} -> Ren Γ (Γ & A)
     upR = ?
 
     -- Substitutions ----------------------------------------------------------
 
-    Sub_ : {n,m:Nat} -> Context n -> Context m -> Set
-    Sub_ {zero}  {m} (ctxI nil_)      Δ = Nil
-    Sub_ {suc n} {m} (ctxI (ext Γ A)) Δ = ConsSub Γ A Δ
+    Sub' : {n,m:Nat} -> Context n -> Context m -> Set
+    Sub' {zero}  {m} (ctxI nil')      Δ = Nil
+    Sub' {suc n} {m} (ctxI (ext Γ A)) Δ = ConsSub Γ A Δ
 
     data ConsSub {n,m:Nat}(Γ:Context n)(A:Type Γ)(Δ:Context m) : Set where
-      extSub_ : (σ : Sub Γ Δ) -> Term Δ (subst σ A) -> Sub_ (Γ & A) Δ
+      extSub' : (σ : Sub Γ Δ) -> Term Δ (subst σ A) -> Sub' (Γ & A) Δ
 
     data Sub {n,m:Nat}(Γ:Context n)(Δ:Context m) : Set where
-      subI : Sub_ Γ Δ -> Sub Γ Δ
+      subI : Sub' Γ Δ -> Sub Γ Δ
 
     -- Performing substitution ------------------------------------------------
 
@@ -356,19 +357,19 @@ module Typed where
       -- but not here. Weird.
 
     topS : {n:Nat}{Γ:Context n} -> Sub ∅ Γ
-    topS = subI nil_
+    topS = subI nil'
 
     extSub : {n,m:Nat}{Γ:Context n}{A:Type Γ}{Δ:Context m}
 	     (σ : Sub Γ Δ) -> Term Δ (subst σ A) -> Sub (Γ & A) Δ
-    extSub σ t = subI (extSub_ σ t)
+    extSub σ t = subI (extSub' σ t)
 
     idS : {n:Nat}{Γ:Context n} -> Sub Γ Γ
-    idS {zero}  {ctxI nil_}	 = topS
+    idS {zero}  {ctxI nil'}	 = topS
     idS {suc _} {ctxI (ext Γ A)} = ? -- extSub upS (var fzero refl)
 
-    (∘) : {n,m,p:Nat}{Γ:Context n}{Δ:Context m}{Θ:Context p} -> Sub Δ Θ -> Sub Γ Δ -> Sub Γ Θ
-    (∘) {zero} {_}{_} {ctxI nil_}      _  _		      = topS
-    (∘) {suc _}{_}{_} {ctxI (ext Γ A)} σ (subI (extSub_ δ t)) =
+    _∘_ : {n,m,p:Nat}{Γ:Context n}{Δ:Context m}{Θ:Context p} -> Sub Δ Θ -> Sub Γ Δ -> Sub Γ Θ
+    _∘_ {zero} {_}{_} {ctxI nil'}      _  _		      = topS
+    _∘_ {suc _}{_}{_} {ctxI (ext Γ A)} σ (subI (extSub' δ t)) =
       extSub (σ ∘ δ) (convert (substCompose σ δ A) (substTerm σ t))
 
     upS : {n:Nat}{Γ:Context n}{A:Type Γ} -> Sub Γ (Γ & A)
@@ -379,7 +380,7 @@ module Typed where
 
     -- Convertibility ---------------------------------------------------------
 
-    (==) : {n:Nat}{Γ:Context n} -> Type Γ -> Type Γ -> Prop
+    _==_ : {n:Nat}{Γ:Context n} -> Type Γ -> Type Γ -> Prop
     A == B = ?
 
     refl : {n:Nat}{Γ:Context n}{A:Type Γ} -> A == A
@@ -389,8 +390,8 @@ module Typed where
 	   {A,B:Type Γ} -> A == B -> f A == f B
     cong f eq = ?
 
-    trans : {n:Nat}{Γ:Context n}{A,B,C:Type Γ} -> A == B -> B == C -> A == C
-    trans ab bc = ?
+    _trans_ : {n:Nat}{Γ:Context n}{A,B,C:Type Γ} -> A == B -> B == C -> A == C
+    ab trans bc = ?
 
     convert : {n:Nat}{Γ:Context n}{A,B:Type Γ} -> A == B -> Term Γ B -> Term Γ A
     convert eq t = ?
@@ -402,7 +403,7 @@ module Typed where
 
     renameCompose : {n,m,p:Nat}{Γ:Context n}{Δ:Context m}{Θ:Context p}
 		    (σ:Ren Δ Θ)(δ:Ren Γ Δ)(A:Type Γ) -> 
-		    rename (σ `coR` δ) A == rename σ (rename δ A)
+		    rename (σ coR δ) A == rename σ (rename δ A)
     renameCompose σ δ A = ?
 
     substId : {n:Nat}{Γ:Context n}{A:Type Γ} -> subst idS A == A

@@ -23,7 +23,7 @@ module examples.syntax.Syntax where
     -- Independent function space.
     fun1 : X -> X
     fun1 x = x
-    
+
     -- Implicit independent function space. This is mostly included for
     -- symmetry, I can't come up with an example when this would be useful.
     fun2 : {X} -> X
@@ -87,7 +87,7 @@ module examples.syntax.Syntax where
     data Bool : Set where
       false : Bool
       true  : Bool
-    
+
     -- The parameters to the datatype (A in this case) are in scope in the
     -- types of the constructors. At the moment inductive families are not
     -- supported.
@@ -405,7 +405,7 @@ module examples.syntax.Syntax where
     pi = 3.141592
 
   -- There are few things that the parser doesn't implement.
-  
+
     {- Fancy case. I haven't been able to come up with a nice syntax for the
        fancy case statement.  The difficulty is that we should make it clear
        what arguments to the elimination rule will appear as patterns (the

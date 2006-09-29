@@ -102,7 +102,7 @@ suc n == suc m = n == m
 -- Now we are ready to state and prove our theorem. The proof is by induction
 -- (i.e. recursion) on 'n'.
 
-thmPlusZero : (n:Nat) -> plus n zero == n   -- A function from a number n to 
+thmPlusZero : (n:Nat) -> plus n zero == n   -- A function from a number n to
 					    -- P n can be seen as the
 					    -- proposition ∀ n. P n.
 thmPlusZero  zero   = tt
@@ -114,7 +114,7 @@ thmPlusZero (suc n) = thmPlusZero n
     plus zero zero == zero    which reduces to
     zero == zero	      and
     True
- 
+
   In the second case we have
 
     plus (suc n) zero == suc n

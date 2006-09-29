@@ -83,7 +83,7 @@ id5 {A} x = x
 id6 : {A:Set} -> A -> A
 id6 = \x -> x
 
-id7 = \{A:Set}(x:A) -> x  
+id7 = \{A:Set}(x:A) -> x
 
 -- id8 : {A:Set} -> A -> A
 -- id8 = \{A} x -> x	    -- this doesn't work since the type checker assumes
