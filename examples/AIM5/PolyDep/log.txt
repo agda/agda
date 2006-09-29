@@ -1,0 +1,14 @@
+060928: Status and plan
+
+  Module hierarchy:
+
+    Prelude
+    TYPE
+    EqBase
+    Homogenous.Base
+    Homogenous.Nat
+    Homogenous.Equality
+
+  Next in line: Reflexivity of equality
+
+060926: Agda2 examples from Generic programming
