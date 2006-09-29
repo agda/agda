@@ -1,0 +1,4 @@
+y : Set ;
+def x : Set = y ;
+
+

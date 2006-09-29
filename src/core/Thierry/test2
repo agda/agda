@@ -1,0 +1,9 @@
+def x : Set = Set ;
+
+def x : (A:Set) -> A = x
+
+
+
+
+
+

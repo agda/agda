@@ -1,0 +1,58 @@
+---  Core Syntax ---
+
+--layout "where";
+
+-- A program is a list of declarations:
+Module.   Program   ::= [Decl] ;
+terminator Decl ";" ;
+
+-- An expression is either \x -> e or i e1 ... en
+
+ELam.     Exp    ::= "\\" Ident "->" Exp ;
+EFun.     Exp    ::= "(" Ident ":" Exp ")" "->" Exp ;
+Efun.     Exp    ::= "[" [Branch] "]" ;
+
+EApp.     Exp1   ::= Ident  [Exp2] ;        -- with arguments
+
+ESet.     Exp2   ::= "Set" ;
+EIdent.   Exp2   ::= Ident ;                 -- without arguments
+
+separator nonempty Exp2 "" ;
+coercions Exp 2 ;
+
+-- A type expression is either "Set" or "(x : A) -> B" or a term:
+
+Bcon. Branch    ::= Ident "->" Exp ;
+separator Branch "|" ;
+
+Var.  Decl    ::= Ident ":" Exp ;
+
+-- An explicit definition is of the form "i = e"
+
+Def.  Decl    ::= "def" Ident ":" Exp "=" Exp ;
+
+-- An implicit definition is of the form
+
+--  fun f :t = \ x1 -> ... -> \ xk -> [c1 -> e1 | ... | ck -> ek]
+--              c1 y1 ... ym -> e1 |
+--                  ...
+--              ck z1 ... zm -> ek
+
+DefRec.    Decl        ::= "fun" Ident ":" Exp "=" Exp ;
+
+
+-- A data type definition is of the form
+
+--  data D (x1:t1) ... (xn:tn) :tm =
+--                c1 : e1|
+--                   ...
+--                cn : en
+
+Data.   Decl     ::= "data" Ident "(" [VDecl] ")" "where" "[" [ConstrDecl] "]" ;
+CDcon.    ConstrDecl::= Ident ":" Exp ;
+separator ConstrDecl "|" ;
+Vcon.    VDecl::= Ident ":" Exp ;
+separator VDecl "," ;
+comment "--" ;
+comment "{-" "-}" ;
+

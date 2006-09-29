@@ -10,14 +10,14 @@ import Val
 We use deBruijn indexes for representing functional expressions. The
 abstract syntax of expressions is given by the following:
 \begin{code}
-data Exp = 
+data Exp =
        ELam Exp                       -- object expressions
-    |  EApp Int [Exp]                
+    |  EApp Int [Exp]
 
     |  ESet                           -- type expressions
     |  EFun Exp Exp
 
-    |  Efun Int [(Name,Int,Exp)]      -- body of an implicit definition 
+    |  Efun Int [(Name,Int,Exp)]      -- body of an implicit definition
 \end{code}
 The corresponding concrete syntax is the following:
 
@@ -61,7 +61,7 @@ eval  env  (EApp n us)   =  apps (getRef n env) (map (eval env) us)
 
 eval  env  ESet          = Set
 
-eval  env  (EFun a1 a2)  = 
+eval  env  (EFun a1 a2)  =
    Fun (eval env a1) (\ u -> eval (update env u) a2)
 
 eval  env  e             = error "eval"
@@ -76,11 +76,11 @@ evalBody :: Env -> Val -> Exp -> Val
 --  evalBody is used in Decl when typechecking defined constant.
 --  evalBody env v e
 evalBody env v (ELam e) = Lam (\ u -> evalBody (update env u) (app v u) e)
-evalBody env v (Efun k nes) =  
- Lam f 
-  where 
-	f (App (Const c _) us) = apps (get c nvs) (drop k us)
-	f w = app v w
-	nvs = map (\ (c,_,e) -> (c,eval env e)) nes
+evalBody env v (Efun k nes) =
+ Lam f
+  where
+        f (App (Const c _) us) = apps (get c nvs) (drop k us)
+        f w = app v w
+        nvs = map (\ (c,_,e) -> (c,eval env e)) nes
 evalBody env v e = eval env e
 \end{code}

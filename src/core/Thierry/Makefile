@@ -1,16 +1,19 @@
 # Makefile for the core language implementation
 # Author: Ulf Norell
 
+BNFC = bnfc
+# BNFC = BNFC/bnfc
+
 ## Includes ###############################################################
 
-TOP = ../..
+TOP = ../../..
 
 include $(TOP)/mk/config.mk
 include $(TOP)/mk/paths.mk
 
 ## Directories ############################################################
 
-OUT	= $(CORE_OUT_DIR)
+OUT		= $(CORE_OUT_DIR)
 OUT_P	= $(CORE_OUT_DIR)/prof
 
 ## Phony targets ##########################################################
@@ -24,7 +27,7 @@ default : $(OUT)/agdacore
 ## Files ##################################################################
 
 gen_hs_files = $(OUT)/Core/Par.hs $(OUT)/Core/Lex.hs $(OUT)/Core/Abs.hs \
-				$(OUT)/Core/Print.hs $(OUT)/Core/Layout.hs
+				$(OUT)/Core/Print.hs
 all_hs_files = $(shell $(FIND) . -name '*hs') $(gen_hs_files)
 
 ## Creating the output directory structure ################################
@@ -70,7 +73,7 @@ $(OUT_P)/agdacore : $(out_dirs_p) $(all_hs_files) $(hi_boot_files_p)
 ## BNFC rules #############################################################
 
 $(OUT)/%/Par.y $(OUT)/%/Lex.x $(OUT)/%/Abs.hs : %.cf
-	bnfc -haskell -d $<
+	${BNFC} -haskell -d $<
 	-rm -rf $(OUT)/$*
 	mv $* $(OUT)
 

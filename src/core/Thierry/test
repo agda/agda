@@ -1,0 +1,34 @@
+def id : (A:Set) -> (x:A) -> A = \ A -> \ x -> x ;
+
+data Nat () where [Z:Nat | S:(x:Nat) -> Nat] ;
+
+fun zero : (x:Nat) -> Nat = [Z -> Z | S -> \ x -> zero x] ;
+
+data Bool () where [true:Bool | false:Bool] ;
+
+data N1 () where [tt:N1] ;
+
+data N0 () where [] ;
+
+fun elimN0 : (A:Set) -> (x:N0) -> A = \ A -> [] ;
+
+fun T : (b:Bool) -> Set = [true -> N1 | false -> N0] ;
+
+fun eqZ : (y:Nat) -> Bool = [Z -> true | S -> \ y1 -> false];
+
+fun caseNat : (A:Set) -> (a:A) -> (f:(x:Nat) -> A) -> (n:Nat) -> A =
+ \ A -> \ a -> \ f -> [Z -> a | S -> \n1 -> f n1];
+
+fun eq : (x:Nat) -> (y:Nat) -> Bool =
+ [Z -> eqZ |
+  S -> \ x1 -> caseNat Bool false (eq x1)];
+
+def test1 : (x:Nat) -> (h:T (eq (zero x) Z)) -> T (eq (zero (S x)) Z) =
+ \ x -> \ h -> h ;
+
+fun test : (x:Nat) -> T (eq (zero x) Z) =
+ [Z -> tt | S -> \ x1 -> test x1] ;
+
+
+
+
