@@ -1,0 +1,241 @@
+module Termination.Dumb where
+
+--import qualified Syntax.Abstract as A
+import Syntax.Internal as I
+import Syntax.Abstract.Name
+import Syntax.Abstract.Pretty
+import Syntax.Common
+import qualified Syntax.Concrete as C
+import Syntax.Position(noRange)
+import Syntax.Scope
+import Syntax.Translation.ConcreteToAbstract
+import TypeChecking.Monad
+import TypeChecking.Errors
+
+import Termination.Utils
+
+import Utils.Pretty
+import Utils.Monad
+
+import Control.Monad.Error
+import Control.Monad.Reader
+import Control.Monad.State
+import Control.Monad.Trans
+import qualified Data.Map as Map
+import Data.List as List
+import Text.PrettyPrint
+
+import Termination.RCall
+
+checkTermination :: TCM ()
+checkTermination = do
+			liftIO $ putStrLn "Termination check"
+			sig <- getSignature
+			processSig sig
+
+processSig :: Signature -> TCM()
+processSig sig = mapMM processModule mdefs where
+      mdefs {- :: [ModuleDef] -} = List.map snd $ Map.assocs sig
+
+{-
+processSig sig = mapMM processDefinitions defss where
+	defss {- :: [Definitions] -} = List.map mdefDefs mdefs
+	mdefs {- :: [ModuleDef] -} = List.map snd $ Map.assocs sig
+	-- names ds = Map.keys ds
+-}
+
+processModule :: ModuleDef -> TCM ()
+processModule m = withCurrentModule mname $ processDefinitions defss where
+    mname = mdefName m
+    defss = mdefDefs m
+
+processDefinitions :: Definitions -> TCM()
+processDefinitions defs = mapMM processDef $ List.map simpleDef $ Map.assocs defs
+
+simpleDef :: (Name, Definition) -> (Name, Defn)
+simpleDef (n, d) = (n,theDef d)
+ 
+processDef :: (Name, Defn) -> TCM()
+processDef (name, (Function cs isa)) =  processFun name cs
+processDef _ = return ()
+
+
+processFun :: Name -> [Clause] -> TCM()
+processFun name cs = processFun' name 1 cs
+
+processFun' :: Name -> Nat ->[Clause] -> TCM()
+processFun' name num [] = return ()
+processFun' name num (c:cs) = processClause name num c 
+                              >> processFun' name (num+1) cs
+
+processClause :: Name -> Nat -> Clause -> TCM()
+processClause name num c@(Clause args body) = 
+     do
+        let targs = exPatTop args
+        case callsClause name num c of
+          [] -> return ()
+          cs -> do
+		  tcmsg $ show (name) ++ " " ++ (show $ targs)
+		  checkCalls targs cs
+
+findDef :: String -> TCM(Maybe Name)
+findDef s =  (findDef' $ C.Name noRange [C.Id s]) 
+             `catchError` (\e-> return Nothing)
+
+findDef' :: C.Name -> TCM(Maybe Name)
+findDef' s = do
+  info <- gets stScopeInfo
+  name <- liftIO $ concreteToAbstract initScopeState info (OldName s) 
+  return $ Just name 
+
+initScopeState =ScopeState { freshId = 0 }
+
+printCalls :: [RCall] -> TCM()
+checkCalls :: Args -> [RCall] -> TCM()
+
+printCalls cs = do 
+		  liftIO $ putStr " REC " 
+	          -- str <- show <$> prettyTCM cs
+                  tcmsg $ show cs
+
+
+checkCalls targs cs = mapMM (checkCall targs) cs
+
+
+-- For recursive call  
+--   f : A -> B
+--   f(p) = ... f(e) ...
+-- we need:
+-- f-measure : Measure
+-- f-measure = mu {M}
+checkCall :: Args -> RCall -> TCM()
+checkCall [targ] (RCall fun i j [arg]) = do
+  -- tcmsg $ "Looking for " ++ hintName
+  modName <- currentModule
+  mhint <- findDef hintName
+  case mhint of
+    Just name -> foundHint modName name
+    Nothing ->       
+     tcmsg $ if strictSubterm (unArg arg) (unArg targ) 
+          then msgGood 
+          else msgBad 
+  where
+    msgGood = callid ++ " OK: " ++ strLess
+    msgBad =  callid ++ " You need to prove " ++ strLess 
+    strLess = show arg ++ " < " ++ show targ
+    callid = show fun ++ "-" ++ show i ++ "-" ++ show j
+    hintName = callid++"-hint"
+    foundHint modName name = do
+       let qname = qualify modName name
+       hintType <- typeOfConst qname
+       hintTypeDoc <- prettyTCM hintType
+       tcmsg $ "Found hint for " ++ callid 
+       tcmsg $ show hintTypeDoc
+
+checkCall ((Arg Hidden _):tas) (RCall fun i j (a:as)) = 
+    checkCall tas (RCall fun i j as)
+checkCall _ _ = tcmsg "Sorry, don't know how to handle that"
+
+-- cmpArgs takes two lists of args 
+-- and returns a list of good pairs and a list of bad pairs
+cmpArgs :: Args -> Args -> ([(Term,Term)],[(Term,Term)])
+cmpArgs [] [] = ([],[])
+cmpArgs (a:as) (b:bs) = (goodhd++goodtl,badhd++badtl) where
+        (ta,tb) = (unArg a, unArg b)
+	(goodhd,badhd) = if strictSubterm ta tb
+		         then ([(ta,tb)],[])
+			 else ([],[(ta,tb)])
+        (goodtl,badtl) = cmpArgs as bs
+cmpArgs _ _ = ([],[])
+        
+tcmsg :: String -> TCM()
+tcmsg = liftIO . putStrLn 
+
+------------------------------------------------------------
+-- Gathering recursive calls
+------------------------------------------------------------		  
+
+callsClause, callsClause' :: Name -> Nat -> Clause -> [RCall]
+callsClause name num c = fixCallNums $ callsClause' name num c
+callsClause' name num c@(Clause args body) = callsBody name num body
+
+fixCallNums :: [RCall] -> [RCall]
+fixCallNums cs = zipWith fixCallNum cs [1..]
+
+fixCallNum :: RCall -> Int -> RCall
+fixCallNum (RCall fun i _ args) j = RCall fun i j args
+
+callsBody :: Name -> Nat -> ClauseBody -> [RCall]
+callsBody name num (Body t) = callsTerm name num t
+callsBody name num (Bind abs) = callsBody name num (absBody abs)
+callsBody name num (NoBind  cb) = callsBody name num cb
+callsBody name num (NoBody) = []
+
+callsTerm :: Name -> Nat -> Term -> [RCall]
+callsTerm name num (Var n []) = []
+callsTerm name num (Var n args) = callsArgs name num args
+callsTerm name num (Lam _ abs) = callsTerm name num (absBody abs)
+callsTerm name num def@(Def qn args) = callsDef name num def 
+                                       ++ callsArgs name num args
+callsTerm name num (Con _ args) = callsArgs name num args
+callsTerm name num  _ = []
+
+callsArgs :: Name -> Nat -> Args -> [RCall]
+callsArgs name num as = concat  $ List.map ((callsTerm name num).unArg) as
+
+--cmpQn (QName (Name id _) _ _) (Name id' _) = id == id'
+callsDef :: Name -> Nat -> Term -> [RCall]
+callsDef name@(Name nid _) num (Def (QName (Name id' _) _ _)  args)
+  | nid == id' = [RCall name num 0 args]
+  | otherwise = []
+callsDef name num _ = []
+
+
+------------------------------------------------------------
+--   Patterns to Terms
+------------------------------------------------------------
+
+exPatTop :: [Arg Pattern] -> [Arg Term]
+exPatTop args = args' where
+	(n,args') = exPatArgs 0 args
+
+exPatArgs :: Nat -> [Arg Pattern] -> (Nat, [Arg Term])
+exPatArgs n [] = (n,[])
+exPatArgs n (x:xs)  = (n2, arg:args) where
+	(n2,arg) = exPatArg n1 x
+	(n1,args) = exPatArgs n xs
+
+exPatArg :: Nat -> Arg Pattern -> (Nat, Arg Term)
+exPatArg n (Arg hid pat) = (n1, Arg hid t) where
+		(n1, t) = exPat n pat
+
+exPat :: Nat -> Pattern -> (Nat, Term)
+exPat n (VarP _) = (n+1, Var n [])
+exPat n (ConP name as) = (n1, Con name args) where 
+	(n1, args) = exPatArgs n as
+exPat n _ = error "exPat error"
+
+------------------------------------------------------------
+-- Subterm checking
+------------------------------------------------------------
+instance Eq Term where
+  (Var n1 as1) == (Var n2 as2) = n1 == n2 && allArgsEqual as1 as2
+  _ == _ = False
+
+allArgsEqual :: Args -> Args -> Bool
+allArgsEqual [] [] = True
+allArgsEqual (a:as) (b:bs) = unArg a == unArg b && allArgsEqual as bs
+allArgsEqual _ _ = False
+
+subterm, strictSubterm :: Term -> Term -> Bool
+
+subterm t1 t2 = (t1 == t2) || strictSubterm t1 t2
+
+strictSubterm t (Con _ as) = subtermOfAnyArg t as
+  -- any $ map ((subterm t) . unArg) as
+			
+strictSubterm _ _ = False
+
+subtermOfAnyArg :: Term -> Args -> Bool
+subtermOfAnyArg t [] = False
+subtermOfAnyArg t (a:as) = subterm t (unArg a) || subtermOfAnyArg t as
