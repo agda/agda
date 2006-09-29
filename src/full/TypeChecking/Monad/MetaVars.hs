@@ -89,11 +89,12 @@ newMeta mi j =
 	return x
 
 getInteractionRange :: InteractionId -> TCM Range
-getInteractionRange ii = 
-    do mi <- lookupInteractionId ii
-       mv <- lookupMeta mi
-       return $ getRange mv
+getInteractionRange ii = do
+    mi <- lookupInteractionId ii
+    getMetaRange mi
 
+getMetaRange :: MetaId -> TCM Range
+getMetaRange mi = getRange <$> lookupMeta mi
 
 
 getInteractionScope :: InteractionId -> TCM ScopeInfo
@@ -104,4 +105,9 @@ getInteractionScope ii =
 
 withMetaInfo :: MetaInfo -> TCM a -> TCM a
 withMetaInfo mI m = enterClosure mI $ \_ -> m
+
+getOpenMetas :: TCM [MetaId]
+getOpenMetas = do
+    store <- getMetaStore
+    return [ i | (i, MetaVar _ _ Open) <- Map.assocs store ]
 

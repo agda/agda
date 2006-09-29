@@ -183,7 +183,7 @@ instance PrettyTCM TypeError where
 		return $ fsep $ pwords "no binding for builtin thing" ++ [text x <> comma]
 			     ++ pwords ("use {-# BUILTIN " ++ x ++ " name #-} to bind it to 'name'")
 	    NoSuchPrimitiveFunction x ->
-		return $ fsep $ pwords "there is no primitive function called" ++ [pretty x]
+		return $ fsep $ pwords "there is no primitive function called" ++ [text x]
 	    BuiltinInParameterisedModule x ->
 		return $ fsep $ pwords "the BUILTIN pragma cannot appear inside a bound context" ++
 				pwords "(for instance, in a parameterised module or as a local declaration)"
@@ -195,6 +195,10 @@ instance PrettyTCM TypeError where
 		return $ fsep $
 		    pwords "the module" ++ [text $ show m] ++
 		    pwords "can refer to either a local module or an imported module"
+	    UnsolvedMetasInImport rs ->
+		return $ fsep (
+		    pwords "there were unsolved metas in an imported module at the following locations:"
+		    ) $$ nest 2 (vcat $ map (text . show) rs)
 
 instance PrettyTCM Call where
     prettyTCM c = case c of

@@ -20,6 +20,8 @@ Features
 
 * list sugar in patterns
 
+* unify primitive and {-# BUILTIN #-}
+
 Fixes
 -----
 

@@ -9,7 +9,7 @@ import Conv
 \end{code}
 %endif
 All type-checking is done in a context, which consists of an
-environment for storing the values and types of all constants. The
+environment for the values and types of all constants. The
 context contains only type correct declarations.
 \begin{code}
 type Cont = ([Val],[Val])

@@ -67,6 +67,22 @@ Technical issues
     - look up things in both signatures. exactly one lookup must succeed.
 
     - we play around with the signature in a lot of places? what needs to be
-      changed to handle the imported signature?
+      changed to handle the imported signature? don't know, i guess we'll see...
+
+- What does the interface file need to contain?
+
+  - ModuleScope
+  - Signature
+  - BuiltinThings
+  - names of imported modules
+
+- Issues
+
+  - primitive functions: we can't store type-checking computations in the
+    interface file. So we need a different representation. What?
+
+  - remember which module have been imported, so that we don't load the same
+    interface several times. Or don't care? If we want to check for clashes we
+    might want to do this.
 
  vim: tw=80 sts=2 sw=2 fo+=t com=f\:-

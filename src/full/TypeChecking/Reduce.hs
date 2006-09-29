@@ -13,10 +13,13 @@ import Data.FunctorM
 import Syntax.Common
 import Syntax.Internal
 import Syntax.Internal.Walk
+import Syntax.Scope (ModuleScope)
 
 import TypeChecking.Monad
 import TypeChecking.Monad.Context
+import TypeChecking.Monad.Builtin
 import TypeChecking.Substitute
+import TypeChecking.Interface
 
 #ifndef __HADDOCK__
 import {-# SOURCE #-} TypeChecking.Patterns.Match
@@ -169,8 +172,10 @@ instance Reduce Term where
 		{-# SCC "reduceDef" #-}
 		do  info <- getConstInfo f
 		    case info of
-			Defn _ _ (Primitive ConcreteDef pf) -> reducePrimitive v0 f args pf
-			_				    -> reduceNormal v0 f args $ defClauses info
+			Defn _ _ (Primitive ConcreteDef x) -> do
+			    pf <- getPrimitive x
+			    reducePrimitive v0 f args pf
+			_				   -> reduceNormal v0 f args $ defClauses info
 
 	    reducePrimitive v0 f args pf
 		| n < ar    = return $ v0 `apply` args	-- not fully applied
@@ -317,4 +322,128 @@ instance (Ord k, Normalise e) => Normalise (Map k e) where
 	    es <- normalise es
 	    return $ Map.fromList $ zip ks es
 	-- Argh! No instance FunctorM (Map k).
+
+---------------------------------------------------------------------------
+-- * Full instantiation
+---------------------------------------------------------------------------
+
+-- Full instantiatiation = normalisation [ instantiate / reduce ]
+-- How can we express this? We need higher order classes!
+
+class InstantiateFull t where
+    instantiateFull :: t -> TCM t
+
+instance InstantiateFull Sort where
+    instantiateFull = instantiate
+
+instance InstantiateFull Type where
+    instantiateFull t =
+	do  t <- instantiate t
+	    case t of
+		El v s	   -> El <$> instantiateFull v <*> instantiateFull s
+		Sort s	   -> Sort <$> instantiateFull s
+		Pi a b	   -> uncurry Pi <$> instantiateFull (a,b)
+		Fun a b    -> uncurry Fun <$> instantiateFull (a,b)
+		MetaT x vs -> MetaT x <$> instantiateFull vs
+		LamT _	   -> __IMPOSSIBLE__
+
+instance InstantiateFull Term where
+    instantiateFull v =
+	do  v <- instantiate v
+	    case ignoreBlocking v of
+		Var n vs    -> Var n <$> instantiateFull vs
+		Con c vs    -> Con c <$> instantiateFull vs
+		Def f vs    -> Def f <$> instantiateFull vs
+		MetaV x vs  -> MetaV x <$> instantiateFull vs
+		Lit _	    -> return v
+		Lam h b	    -> Lam h <$> instantiateFull b
+		BlockedV _  -> __IMPOSSIBLE__
+
+instance InstantiateFull ClauseBody where
+    instantiateFull (Body   t) = Body   <$> instantiateFull t
+    instantiateFull (Bind   b) = Bind   <$> instantiateFull b
+    instantiateFull (NoBind b) = NoBind <$> instantiateFull b
+    instantiateFull  NoBody    = return NoBody
+
+instance InstantiateFull t => InstantiateFull (Abs t) where
+    instantiateFull = fmapM instantiateFull
+
+instance InstantiateFull t => InstantiateFull (Arg t) where
+    instantiateFull = fmapM instantiateFull
+
+instance InstantiateFull t => InstantiateFull [t] where
+    instantiateFull = fmapM instantiateFull
+
+instance (InstantiateFull a, InstantiateFull b) => InstantiateFull (a,b) where
+    instantiateFull (x,y) = (,) <$> instantiateFull x <*> instantiateFull y
+
+instance (InstantiateFull a, InstantiateFull b, InstantiateFull c) => InstantiateFull (a,b,c) where
+    instantiateFull (x,y,z) =
+	do  (x,(y,z)) <- instantiateFull (x,(y,z))
+	    return (x,y,z)
+
+instance InstantiateFull a => InstantiateFull (Closure a) where
+    instantiateFull cl = do
+	x <- enterClosure cl instantiateFull
+	return $ cl { clValue = x }
+
+instance InstantiateFull Constraint where
+    instantiateFull (ValueEq t u v) =
+	do  (t,u,v) <- instantiateFull (t,u,v)
+	    return $ ValueEq t u v
+    instantiateFull (TypeEq a b)  = uncurry TypeEq <$> instantiateFull (a,b)
+    instantiateFull (SortEq a b)  = uncurry SortEq <$> instantiateFull (a,b)
+    instantiateFull (SortLeq a b) = uncurry SortLeq <$> instantiateFull (a,b)
+
+instance (Ord k, InstantiateFull e) => InstantiateFull (Map k e) where
+    instantiateFull m =
+	do  let (ks,es) = unzip $ Map.toList m
+	    es <- instantiateFull es
+	    return $ Map.fromList $ zip ks es
+	-- Argh! No instance FunctorM (Map k).
+
+instance InstantiateFull ModuleName where
+    instantiateFull = return
+
+instance InstantiateFull ModuleScope where
+    instantiateFull = return
+
+instance InstantiateFull ModuleDef where
+    instantiateFull (ModuleDef n tel p d) =
+	ModuleDef n <$> instantiateFull tel
+		    <*> return p
+		    <*> instantiateFull d
+
+instance InstantiateFull Char where
+    instantiateFull = return
+
+instance InstantiateFull Definition where
+    instantiateFull (Defn t n d) =
+	Defn <$> instantiateFull t
+	     <*> return n
+	     <*> instantiateFull d
+
+instance InstantiateFull Defn where
+    instantiateFull d = case d of
+	Axiom		  -> return Axiom
+	Function cs a	  -> flip Function a <$> instantiateFull cs
+	Datatype n cs s a -> do
+	    s <- instantiateFull s
+	    return $ Datatype n cs s a
+	Constructor n q a -> return $ Constructor n q a
+	Primitive a s	  -> return $ Primitive a s
+
+instance InstantiateFull Clause where
+    instantiateFull (Clause ps b) = Clause ps <$> instantiateFull b
+
+instance InstantiateFull Interface where
+    instantiateFull (Interface scope sig isig b) =
+	Interface scope <$> instantiateFull sig
+			<*> instantiateFull isig
+			<*> instantiateFull b
+
+instance InstantiateFull a => InstantiateFull (Builtin a) where
+    instantiateFull (Builtin t) = Builtin <$> instantiateFull t
+    instantiateFull (Prim x)	= Prim <$> instantiateFull x
+
 

@@ -2,10 +2,15 @@
 
 module TypeChecker where
 
+import Prelude hiding (putStrLn, putStr, print)
+
 --import Control.Monad
 import Control.Monad.State
 import Control.Monad.Reader
+import Control.Monad.Error
 import qualified Data.Map as Map
+import qualified Data.List as List
+import Data.FunctorM
 
 import qualified Syntax.Abstract as A
 import Syntax.Abstract.Pretty
@@ -32,11 +37,15 @@ import TypeChecking.Reduce
 import TypeChecking.Substitute
 import TypeChecking.Primitive
 import TypeChecking.Rebind
+import TypeChecking.Serialise
+import TypeChecking.Interface
 
 import Interaction.Imports
 
 import Utils.Monad
 import Utils.List
+import Utils.Serialise
+import Utils.IO
 
 #include "undefined.h"
 
@@ -76,11 +85,15 @@ checkAxiom _ x e =
 checkPrimitive :: DefInfo -> Name -> A.Expr -> TCM ()
 checkPrimitive i x e =
     traceCall (CheckPrimitive i x e) $ do
-    PrimImpl t' pf <- lookupPrimitiveFunction x
+    PrimImpl t' pf <- lookupPrimitiveFunction (nameString x)
     t <- isType_ e
     equalTyp () t t'
     m <- currentModule
-    addConstant (qualify m x) (Defn t 0 $ Primitive (defAbstract i) pf)
+    let s = show x
+    bindPrimitive s pf
+    addConstant (qualify m x) (Defn t 0 $ Primitive (defAbstract i) s)
+    where
+	nameString (Name _ x) = show x
 
 
 -- | Check a pragma.
@@ -201,60 +214,97 @@ checkModuleDef i x tel m' args =
 --   interfaces so that we don't have to redo the work.
 checkImport :: ModuleInfo -> ModuleName -> TCM ()
 checkImport i x = do
-    sig0     <- getSignature
-    isig0    <- getImportedSignature
-    scope0   <- getScope
-    opts0    <- commandLineOptions
-    builtin0 <- gets stBuiltinThings
-    -- reset state
-    setScope emptyScopeInfo_
-    modify $ \st -> st { stSignature	 = Map.empty
-		       , stImports	 = Map.empty
-		       , stBuiltinThings = Map.empty
-		       }
+    r <- liftIO $ getInterface x
+    i <- case r of
+	    Left err -> throwError err
+	    Right i  -> return i
+    mergeInterface i
 
-    (m, scope, pragmas) <- liftIO $ do
+-- | Merge an interface into the current proof state.
+mergeInterface :: Interface -> TCM ()
+mergeInterface i = do
+    let sig	= iSignature i
+	isig	= iImports i
+	builtin = Map.toList $ iBuiltin i
+	prim	= [ x | (_,Prim x) <- builtin ]
+	bi	= Map.fromList [ (x,Builtin t) | (x,Builtin t) <- builtin ]
+    modify $ \st -> st { stImports	 = Map.unions [stImports st, sig, isig]
+		       , stBuiltinThings = stBuiltinThings st `Map.union` bi
+			    -- TODO: not safe (?) ^
+		       }
+    prim <- Map.fromList <$> mapM rebind prim
+    modify $ \st -> st { stBuiltinThings = stBuiltinThings st `Map.union` prim
+		       }
+    where
+	rebind x = do
+	    pf <- rebindPrimitive x
+	    return (x, Prim pf)
+
+getInterface :: ModuleName -> IO (Either TCErr Interface)
+getInterface x = do
+    putStrLn $ "Importing " ++ concat (List.intersperse "." $ map show $ mnameId x)
+    uptodate <- ifile `isNewerThan` file
+    if uptodate
+	then do
+	    -- putStrLn $ "Interface up-to-date. No type checking needed."
+	    i <- deserialise <$> readBinaryFile ifile
+	    return $ Right i
+	else do
+	    -- putStrLn $ "Interface non-existing or out-of-date. Type checking."
+	    r <- createInterface file
+	    case r of
+		Left err -> return ()
+		Right i  -> writeBinaryFile ifile (serialise i)
+	    return r
+    where
+	file  = moduleNameToFileName (mnameConcrete x) ".agda"
+	ifile = moduleNameToFileName (mnameConcrete x) ".agdai"
+
+createInterface :: FilePath -> IO (Either TCErr Interface)
+createInterface file = do
+
+    (m, scope, pragmas) <- do
 	(pragmas, m) <- parseFile' moduleParser file
 	pragmas	   <- concreteToAbstract_ pragmas -- identity for top-level pragmas
 	(m, scope) <- concreteToAbstract_ m
 	return (m, scope, pragmas)
-    setOptionsFromPragmas pragmas
-    withEnv initEnv $ checkDecl m
 
-    sig  <- getSignature
-    isig <- getImportedSignature
-    -- TODO: check that metas have been solved..
+    runTCM $ do
 
-    -- dumpSig "Imported module"
+	setOptionsFromPragmas pragmas
 
-    -- Restore
-    setScope scope0
-    setCommandLineOptions opts0
+	checkDecl m
 
-    -- TODO: check for clashes
-    modify $ \st -> st { stSignature	 = sig0
-		       , stImports	 = Map.unions [isig0, sig, isig]
-		       , stBuiltinThings = builtin0 `Map.union` stBuiltinThings st
-			    -- TODO: not safe ^
-		       }
-    -- dumpSig "After import"
+	-- check that metas have been solved
+	ms <- getOpenMetas
+	case ms of
+	    []  -> return ()
+	    _   -> do
+		rs <- mapM getMetaRange ms
+		typeError $ UnsolvedMetasInImport $ List.nub rs
 
-    where
-	file = moduleNameToFileName (mnameConcrete x) ".agda"
+	buildInterface
 
-	dumpSig s = do
-	    sig  <- getSignature
-	    isig <- getImportedSignature
-	    let dumpMod (x,d) = putStr $
-		    unlines [ "module " ++ show (mnameId x)
-			    , "  " ++ show (Map.keys $ mdefDefs d)
-			    ]
-	    liftIO $ do
-		putStrLn $ "+++ " ++ s
-		mapM_ dumpMod (Map.assocs sig)
-		putStrLn "[imports]"
-		mapM_ dumpMod (Map.assocs isig)
-		putStrLn "---"
+buildInterface :: TCM Interface
+buildInterface = do
+    scope   <- currentModuleScope <$> getScope
+    sig	    <- getSignature
+    isig    <- getImportedSignature
+    builtin <- getBuiltinThings
+    let	builtin' = Map.mapWithKey (\x b -> fmap (const x) b) builtin
+    instantiateFull $ Interface
+			{ iScope     = scope
+			, iSignature = sig
+			, iImports   = isig
+			, iBuiltin   = builtin'
+			}
+
+-- | TODO: move
+serialiseInterface :: FilePath -> Interface -> IO ()
+serialiseInterface file i = do
+    let	s = serialise i
+	d = deserialise s :: Interface
+    d `seq` return ()
 
 ---------------------------------------------------------------------------
 -- * Datatypes

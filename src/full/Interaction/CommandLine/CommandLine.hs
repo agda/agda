@@ -101,7 +101,7 @@ interactionLoop typeCheck =
 	    , "constraints" |> \args -> continueAfter $ showConstraints args
             , "give"	    |> \args -> continueAfter $ giveMeta args
             , "refine"	    |> \args -> continueAfter $ refineMeta args
-	    , "meta"	    |> \args -> continueAfter $ showMetas args
+	    , "metas"	    |> \args -> continueAfter $ showMetas args
             , "undo"	    |> \_ -> continueAfter $ mkUndo
             , "load"	    |> \args -> continueAfter $ loadFile reload args
 	    , "eval"	    |> \args -> continueAfter $ evalIn args
@@ -136,16 +136,27 @@ showMetas :: [String] -> IM ()
 showMetas [m] =
     do	i <- readM m
 	s <- typeOfMeta AsIs (InteractionId i)
-	liftIO $ putStrLn $ show s
+	r <- getInteractionRange (InteractionId i)
+	liftIO $ putStrLn $ show s ++ " " ++ show r
 showMetas [m,"normal"] =
     do	i <- readM m
 	s <- typeOfMeta Normalised (InteractionId i)
-	liftIO $ putStrLn $ show s
+	r <- getInteractionRange (InteractionId i)
+	liftIO $ putStrLn $ show s ++ " " ++ show r
 showMetas [] = 
     do  (interactionMetas,hiddenMetas) <- typeOfMetas AsIs 
         let ims =  List.map show interactionMetas 
             hms =  List.map show hiddenMetas
-        liftIO $ putStrLn $ unlines $ ims ++ hms
+        mapM_ (liftIO . print) interactionMetas
+	mapM_ print' hiddenMetas
+    where
+	metaId (OfType i _) = i
+	metaId (JustType i) = i
+	metaId (JustSort i) = i
+	metaId _ = __IMPOSSIBLE__
+	print' x = do
+	    r <- getMetaRange (metaId x)
+	    liftIO $ putStrLn $ show x ++ "  [ at " ++ show r ++ " ]"
 showMetas _ = liftIO $ putStrLn $ ":meta [metaid]"
 
 

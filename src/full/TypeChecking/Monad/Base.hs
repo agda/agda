@@ -40,7 +40,7 @@ data TCState =
 	 , stOptions	       :: CommandLineOptions
 	 , stStatistics	       :: Statistics
 	 , stTrace	       :: CallTrace
-	 , stBuiltinThings     :: BuiltinThings
+	 , stBuiltinThings     :: BuiltinThings PrimFun
 	     -- ^ record what is happening (for error msgs)
 	 }
 
@@ -244,13 +244,13 @@ data ModuleDef = ModuleDef
 		      , mdefNofParams  :: Nat
 		      , mdefDefs       :: Definitions
 		      }
-    deriving (Typeable)
+    deriving (Typeable, Data)
 
 data Definition = Defn { defType     :: Type	-- type of the lifted definition
 		       , defFreeVars :: Nat
 		       , theDef	     :: Defn
 		       }
-    deriving (Typeable)
+    deriving (Typeable, Data)
 
 data Defn = Axiom
 	  | Function [Clause] IsAbstract
@@ -261,8 +261,8 @@ data Defn = Axiom
 	  | Constructor Nat	-- nof parameters
 			QName	-- name of datatype
 			IsAbstract
-	  | Primitive IsAbstract PrimFun
-    deriving (Typeable)
+	  | Primitive IsAbstract String -- PrimFun
+    deriving (Typeable, Data)
 
 data Reduced no yes = NoReduction no | YesReduction yes
     deriving (Typeable)
@@ -337,7 +337,19 @@ instance HasRange Call where
 -- ** Builtin things
 ---------------------------------------------------------------------------
 
-type BuiltinThings = Map String Term
+type BuiltinThings pf = Map String (Builtin pf)
+
+data Builtin pf
+	= Builtin Term
+	| Prim pf
+
+instance Functor Builtin where
+    fmap f (Builtin t) = Builtin t
+    fmap f (Prim x)    = Prim $ f x
+
+instance FunctorM Builtin where
+    fmapM f (Builtin t) = return $ Builtin t
+    fmapM f (Prim x)    = Prim <$> f x
 
 ---------------------------------------------------------------------------
 -- * Type checking environment
@@ -420,10 +432,11 @@ data TypeError
 	| NoSuchBuiltinName String
 	| DuplicateBuiltinBinding String Term Term
 	| NoBindingForBuiltin String
-	| NoSuchPrimitiveFunction Name
+	| NoSuchPrimitiveFunction String
 	| BuiltinInParameterisedModule String
 	| NoRHSRequiresAbsurdPattern [Arg A.Pattern]
 	| LocalVsImportedModuleClash ModuleName
+	| UnsolvedMetasInImport [Range]
     deriving (Typeable)
 
 data TCErr = TypeError TCState (Closure TypeError)

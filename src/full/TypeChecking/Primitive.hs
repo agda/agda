@@ -382,11 +382,17 @@ primitiveFunctions = Map.fromList
     where
 	(|->) = (,)
 
-lookupPrimitiveFunction :: Name -> TCM PrimitiveImpl
+lookupPrimitiveFunction :: String -> TCM PrimitiveImpl
 lookupPrimitiveFunction x =
-    case Map.lookup (nameString x) primitiveFunctions of
+    case Map.lookup x primitiveFunctions of
 	Just p	-> p
 	Nothing	-> typeError $ NoSuchPrimitiveFunction x
-    where
-	nameString (Name _ x) = show x
+
+-- | Rebind a primitive. Assumes everything is type correct. Used when
+--   importing a module with primitives.
+rebindPrimitive :: String -> TCM PrimFun
+rebindPrimitive x = do
+    PrimImpl _ pf <- lookupPrimitiveFunction x
+    bindPrimitive x pf
+    return pf
 

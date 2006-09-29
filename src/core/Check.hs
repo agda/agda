@@ -2,7 +2,7 @@ module Check where
 
 import Val
 import Conv
-import Exp
+import Exp1
 import Cont
 
 -- checking the correctness of a type, and of an expression
@@ -29,7 +29,7 @@ check con v (EApp n es) =
  do 
   v' <- checkI con (getType n con) es
   eqT (lengthCon con) v v'
-check con v (Efun _ nes) =
+check con v (Efun nes) =
  mapM_ (checkP con v) nes
 check _ _ _ = fail "check"
 

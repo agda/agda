@@ -17,6 +17,8 @@ import Syntax.Concrete as C
 import Syntax.Abstract as A
 import Syntax.Parser
 
+import Utils.FileName
+
 -- Exceptions -------------------------------------------------------------
 
 data ImportException
@@ -62,13 +64,22 @@ getModuleInterface x = liftIO $ do
 type Suffix = String
 
 {-| Turn a module name into a file name with the given suffix.
-    
-    TODO: Uses @\/@ as path separator. This should be configured, or wait.. all
-	  platforms that supports configure uses @\/@. Hm.. anyway it shouldn't
-	  be hard-wired. We have to think about Windows compatibilty at some
-	  point.
 -}
 moduleNameToFileName :: C.QName -> Suffix -> FilePath
 moduleNameToFileName (C.QName x) ext = show x ++ ext
-moduleNameToFileName (Qual m  x) ext = show m ++ "/" ++ moduleNameToFileName x ext
+moduleNameToFileName (Qual m  x) ext = show m ++ [slash] ++ moduleNameToFileName x ext
+
+-- | True if the first file is newer than the second file. If a file doesn't
+-- exist it is considered to be infinitely old.
+isNewerThan :: FilePath -> FilePath -> IO Bool
+isNewerThan new old = do
+    newExist <- doesFileExist new
+    oldExist <- doesFileExist old
+    if not (newExist && oldExist)
+	then return newExist
+	else do
+	    newT <- getModificationTime new
+	    oldT <- getModificationTime old
+	    return $ newT >= oldT
+
 

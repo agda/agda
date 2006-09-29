@@ -3,32 +3,33 @@
 layout "where";
 
 -- A program is a list of declarations:
-Module.   Program   ::= [Decl] ;
-separator Decl ";" ;
+Module.   Program   ::= [CDecl] ;
+separator CDecl ";" ;
 
 -- An expression is either \x -> e or i e1 ... en
 
-EIdent.   Exp2   ::= Ident ;                 -- without arguments
-EApp.     Exp1   ::= Ident  [Exp2] ;        -- with arguments
-EAbs.     Exp    ::= "\\" Ident "->" Exp ;
-_.        Exp2   ::= "("Exp")" ;             -- nontrivial arguments
-separator nonempty Exp2 "" ;
+EIdent.   CExp2   ::= Ident ;                 -- without arguments
+EApp.     CExp1   ::= Ident  [CExp2] ;        -- with arguments
+EAbs.     CExp    ::= "\\" Ident "->" CExp ;
+_.        CExp2   ::= "("CExp")" ;             -- nontrivial arguments
+separator nonempty CExp2 "" ;
 
 -- A type expression is either "Set" or "(x : A) -> B" or a term: 
 
 TFun.   TExp     ::= "(" VarDecl ")" "->" TExp ;
 TSet.   TExp     ::= "Set" ;
-TEl.    TExp     ::= Exp ;
+TEl.    TExp     ::= CExp ;
 VDecl.   VarDecl ::= Ident ":" TExp  ;
 
 -- A declaration is either a typing declaration or a definition.
 -- A typing declaration is of the form "i : e":
 
-Var.  Decl    ::= VarDecl ; 
+
+Var.  CDecl    ::= VarDecl ; 
 
 -- An explicit definition is of the form "i = e"
 
-Def.  Decl    ::= Ident "=" Exp ;
+Def.  CDecl    ::= Ident ":" TExp "=" CExp ;
 
 -- An implicit definition is of the form
 
@@ -37,12 +38,12 @@ Def.  Decl    ::= Ident "=" Exp ;
 --                  ...
 --              ck z1 ... zm -> ek
 
-DecImpl.    Decl        ::= "fun" ImplTyping "=" [Branch] ;
+DecImpl.    CDecl        ::= "fun" ImplTyping "=" [Branch] ;
 Implt.      ImplTyping  ::= Ident Telescope ":" TExp ;
 Telcon.   Telescope     ::= [VarDecl];
 [].      [VarDecl]     ::= ;
 (:).     [VarDecl]     ::= "(" VarDecl ")" [VarDecl];
-BranchCon. Branch       ::= ApplVars "->" Exp ;
+BranchCon. Branch       ::= ApplVars "->" CExp ;
 AppPattern.  ApplVars   ::= [Ident] ;    -- an application to variables
 separator nonempty Ident "" ;
 separator Branch "|" ;
@@ -54,8 +55,8 @@ separator Branch "|" ;
 --                c1 : e1| 
 --                   ... 
 --                cn : en
-DecData.   Decl     ::= "data" ImplTyping "=" [ConstrDecl] ;
-Const.    ConstrDecl::= Ident ":" Exp;
+DecData.   CDecl     ::= "data" ImplTyping "where" [ConstrDecl] ;
+Const.    ConstrDecl::= Ident ":" CExp;
 separator ConstrDecl "|" ;
 comment "--" ;
 comment "{-" "-}" ;
