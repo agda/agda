@@ -10,12 +10,12 @@ import Data.Generics
 import Data.FunctorM
 
 import Syntax.Common
+import qualified Syntax.Concrete as C
 import qualified Syntax.Abstract as A
 import Syntax.Internal
 import Syntax.Internal.Debug ()
 import Syntax.Position
-import Syntax.Scope
-import Syntax.Info (NameInfo, DefInfo)
+import Syntax.ScopeInfo
 
 import Interaction.Exceptions
 import Interaction.Options
@@ -79,10 +79,8 @@ instance HasFresh InteractionId FreshThings where
 	where
 	    i = fInteraction s
 
--- Name ids are always even. Makes sure that there are no clashes with names
--- generated during scope checking (which are always odd).
 instance HasFresh NameId FreshThings where
-    nextFresh s = (2 * i, s { fName = i + 1 })
+    nextFresh s = (i, s { fName = i + 1 })
 	where
 	    i = fName s
 
@@ -304,13 +302,13 @@ data Call = CheckClause Type A.Clause (Maybe Clause)
 	  | IsTypeCall A.Expr Sort (Maybe Type)
 	  | IsType_ A.Expr (Maybe Type)
 	  | InferVar Name (Maybe (Term, Type))
-	  | InferDef NameInfo QName (Maybe (Term, Type))
+	  | InferDef Range QName (Maybe (Term, Type))
 	  | CheckArguments Range [Arg A.Expr] Type Type (Maybe Args)
-	  | CheckDataDef DefInfo Name [A.LamBinding] [A.Constructor] (Maybe ())
+	  | CheckDataDef Range Name [A.LamBinding] [A.Constructor] (Maybe ())
 	  | CheckConstructor QName Telescope Sort A.Constructor (Maybe ())
-	  | CheckFunDef DefInfo Name [A.Clause] (Maybe ())
+	  | CheckFunDef Range Name [A.Clause] (Maybe ())
 	  | CheckPragma Range A.Pragma (Maybe ())
-	  | CheckPrimitive DefInfo Name A.Expr (Maybe ())
+	  | CheckPrimitive Range Name A.Expr (Maybe ())
     deriving (Typeable)
 
 instance HasRange a => HasRange (Trace a) where
@@ -443,6 +441,16 @@ data TypeError
 	| LocalVsImportedModuleClash ModuleName
 	| UnsolvedMetasInImport [Range]
 	| CyclicModuleDependency [ModuleName]
+	| FileNotFound ModuleName [FilePath]
+	| ClashingFileNamesFor ModuleName [FilePath]
+	| NotInScope C.QName
+	| NoSuchModule C.QName
+	| UninstantiatedModule C.QName
+	| ClashingDefinition C.Name A.QName
+	| ClashingModule A.ModuleName A.ModuleName
+	| ClashingImport C.Name C.Name
+	| ClashingModuleImport C.Name C.Name
+	| ModuleDoesntExport A.ModuleName [C.ImportedName]
     deriving (Typeable)
 
 data TCErr = TypeError TCState (Closure TypeError)
@@ -495,6 +503,11 @@ typeError err = do
     cl <- buildClosure err
     s  <- get
     throwError $ TypeError s cl
+
+handleTypeErrorException :: IO a -> TCM a
+handleTypeErrorException m = do
+    r <- liftIO $ liftM Right m `catchDyn` (return . Left)
+    either typeError return r
 
 -- We want a special monad implementation of fail.
 instance Monad TCM where

@@ -37,6 +37,10 @@ import TypeChecking.Monad
 import TypeChecking.Reduce
 import TypeChecking.Errors
 
+import Compiler.Agate.TranslateName
+import Compiler.Agate.OptimizedPrinter
+import Compiler.Agate.UntypedPrinter
+
 import Utils.Monad
 
 import Version
@@ -72,11 +76,9 @@ runAgda =
 			resetState
 			when hasFile $
 			    do	file <- getInputFile
-				(m, scope, pragmas) <- liftIO $
-				    do	(pragmas, m) <- parseFile' moduleParser file
-					pragmas	   <- concreteToAbstract_ pragmas -- identity for top-level pragmas
-					(m, scope) <- concreteToAbstract_ m
-					return (m, scope, pragmas)
+				(pragmas, m) <- liftIO $ parseFile' moduleParser file
+				pragmas	     <- concreteToAbstract_ pragmas -- identity for top-level pragmas
+				(m, scope)   <- concreteToAbstract_ m
 				setOptionsFromPragmas pragmas
 				checkDecl m
 				setScope scope

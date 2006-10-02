@@ -110,9 +110,9 @@ ioTCM cmd = do
 cmd_load :: String -> IO ()
 cmd_load file = infoOnException $ do
     (pragmas, m) <- parseFile moduleParser file
-    pragmas	 <- concreteToAbstract_ pragmas	-- identity for top-level pragmas at the moment
-    (m',scope)	 <- concreteToAbstract_ m
     is <- ioTCM $ do
+	    pragmas	 <- concreteToAbstract_ pragmas	-- identity for top-level pragmas at the moment
+	    (m',scope)	 <- concreteToAbstract_ m
 	    setUndo
 	    resetState
 	    setOptionsFromPragmas pragmas
@@ -168,10 +168,7 @@ parseExprIn ii rng s = do
     mId <- lookupInteractionId ii
     updateMetaRange mId rng       
     mi  <- getMetaInfo <$> lookupMeta mId
-    i   <- fresh
-    liftIO $ concreteToAbstract
-             (ScopeState {freshId = i})
-             (clScope mi)
+    concreteToAbstract (clScope mi)
              (parsePosString exprParser (rStart (getRange mi)) s)
 
 cmd_context :: GoalCommand

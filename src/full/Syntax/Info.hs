@@ -11,8 +11,8 @@ import Data.Generics(Data,Typeable)
 import Syntax.Common
 import Syntax.Position
 import Syntax.Concrete
-import Syntax.Scope
 import Syntax.Fixity
+import Syntax.ScopeInfo (ScopeInfo)
 
 {--------------------------------------------------------------------------
     No information
@@ -43,7 +43,7 @@ data MetaInfo =
 		 , metaScope	:: ScopeInfo
 		 , metaNumber	:: Maybe Nat
 		 }
-  deriving (Typeable, Data, Show)
+  deriving (Typeable, Data)
 
 instance HasRange MetaInfo where
     getRange = metaRange

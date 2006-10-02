@@ -87,7 +87,7 @@ checkAxiom _ x e =
 -- | Type check a primitive function declaration.
 checkPrimitive :: DefInfo -> Name -> A.Expr -> TCM ()
 checkPrimitive i x e =
-    traceCall (CheckPrimitive i x e) $ do
+    traceCall (CheckPrimitive (getRange i) x e) $ do
     PrimImpl t' pf <- lookupPrimitiveFunction (nameString x)
     t <- isType_ e
     equalTyp () t t'
@@ -256,9 +256,9 @@ findFile ft m = do
 		]
     files' <- liftIO $ filterM doesFileExist files
     case files' of
-	[]	-> fileNotFound x files
+	[]	-> typeError $ FileNotFound m files
 	[file]	-> return file
-	_	-> clashingFileNamesFor x files'
+	_	-> typeError $ ClashingFileNamesFor m files'
     where
 	exts = case ft of
 		SourceFile    -> [".agda", ".lagda", ".agda2", ".lagda2", ".ag2"]
@@ -313,29 +313,26 @@ getInterface x = do
 		    return (i, t)
 
 createInterface :: [ModuleName] -> FilePath -> IO (Either TCErr Interface)
-createInterface path file = do
+createInterface path file = runTCM $ do
 
-    (m, scope, pragmas) <- do
-	(pragmas, m) <- parseFile' moduleParser file
-	pragmas	     <- concreteToAbstract_ pragmas -- identity for top-level pragmas
-	(m, scope)   <- concreteToAbstract_ m
-	return (m, scope, pragmas)
+    (pragmas, m) <- liftIO $ parseFile' moduleParser file
+    pragmas	 <- concreteToAbstract_ pragmas -- identity for top-level pragmas
+    (m, scope)	 <- concreteToAbstract_ m
 
-    runTCM $ do
+    setOptionsFromPragmas pragmas
 
-	setOptionsFromPragmas pragmas
+    withImportPath path $ checkDecl m
+    setScope scope
 
-	withImportPath path $ checkDecl m
+    -- check that metas have been solved
+    ms <- getOpenMetas
+    case ms of
+	[]  -> return ()
+	_   -> do
+	    rs <- mapM getMetaRange ms
+	    typeError $ UnsolvedMetasInImport $ List.nub rs
 
-	-- check that metas have been solved
-	ms <- getOpenMetas
-	case ms of
-	    []  -> return ()
-	    _   -> do
-		rs <- mapM getMetaRange ms
-		typeError $ UnsolvedMetasInImport $ List.nub rs
-
-	buildInterface
+    buildInterface
 
 buildInterface :: TCM Interface
 buildInterface = do
@@ -368,7 +365,7 @@ serialiseInterface file i = do
 --   checked.
 checkDataDef :: DefInfo -> Name -> [A.LamBinding] -> [A.Constructor] -> TCM ()
 checkDataDef i x ps cs =
-    traceCall (CheckDataDef i x ps cs) $ do
+    traceCall (CheckDataDef (getRange i) x ps cs) $ do
 	m <- currentModule
 	let name  = qualify m x
 	    npars = length ps
@@ -490,7 +487,7 @@ forceData d t =
 checkFunDef :: DefInfo -> Name -> [A.Clause] -> TCM ()
 checkFunDef i x cs =
 
-    traceCall (CheckFunDef i x cs) $ do
+    traceCall (CheckFunDef (getRange i) x cs) $ do
 	-- Get the type of the function
 	name <- flip qualify x <$> currentModule
 	t    <- typeOfConst name
@@ -856,7 +853,7 @@ inferHead (HeadDef i x) = inferDef Def i x
 
 inferDef :: (QName -> Args -> Term) -> NameInfo -> QName -> TCM (Term, Type)
 inferDef mkTerm i x =
-    traceCall (InferDef i x) $ do
+    traceCall (InferDef (getRange i) x) $ do
     d  <- getConstInfo x
     d' <- instantiateDef d
     gammaDelta <- getContextTelescope

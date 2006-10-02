@@ -26,7 +26,7 @@ import Syntax.Concrete.Operators
 import Syntax.Fixity
 import Syntax.Scope
 
-import Interaction.Imports (scopeCheckModule)
+-- import Interaction.Imports (scopeCheckModule)
 
 import Utils.Monad
 import Utils.Tuple
@@ -100,11 +100,11 @@ lhsArgs p = case appView p of
     Translation
  --------------------------------------------------------------------------}
 
-concreteToAbstract_ :: ToAbstract c a => c -> IO a
-concreteToAbstract_ x = runScopeM_ (toAbstract x)
+concreteToAbstract_ :: ToAbstract c a => c -> ScopeM a
+concreteToAbstract_ x = toAbstract x
 
-concreteToAbstract :: ToAbstract c a => ScopeState -> ScopeInfo -> c -> IO a
-concreteToAbstract s i x = runScopeM s i (toAbstract x)
+concreteToAbstract :: ToAbstract c a => ScopeInfo -> c -> ScopeM a
+concreteToAbstract i x = modScopeInfo (const i) (toAbstract x)
 
 -- | Things that can be translated to abstract syntax are instances of this
 --   class.
@@ -478,7 +478,8 @@ instance BindToAbstract NiceDeclaration [A.Declaration] where
 	ret [A.Pragma r p]
 
     bindToAbstract (NiceImport r x as is) ret = do
-	i <- liftIO $ currentModuleScope . snd <$> scopeCheckModule concreteToAbstract_ x
+	i <- error "TODO: import"
+	-- i <- liftIO $ currentModuleScope . snd <$> scopeCheckModule concreteToAbstract_ x
 	x' <- toAbstract $ CModuleName x
 	importModule name i is $
 	    ret [A.Import (mkSourcedModuleInfo PublicAccess [C.Import r x as is]) x']
@@ -503,7 +504,7 @@ instance BindToAbstract (Constr CD.NiceDeclaration) A.Declaration where
 
 instance BindToAbstract (Constr A.Declaration) () where
     bindToAbstract (Constr (A.Axiom info x _)) ret =
-	    local (defName p ConName fx x) $ ret ()
+	    modScopeInfo (defName p ConName fx x) $ ret ()
 	where
 	    a  = defAccess info
 	    fx = defFixity info

@@ -202,6 +202,23 @@ instance PrettyTCM TypeError where
 	    CyclicModuleDependency ms ->
 		return $ fsep (pwords "cyclic module dependency:")
 			$$ nest 2 (vcat $ map (text . show) ms)
+	    FileNotFound x files ->
+		return $ fsep ( pwords "failed to find source of module" ++ [text $ show x] ++
+				pwords "in any of the following locations:"
+			      ) $$ nest 2 (vcat $ map text files)
+	    ClashingFileNamesFor x files ->
+		return $ fsep ( pwords "multiple possible sources for module" ++ [text $ show x] ++
+				pwords "found:"
+			      ) $$ nest 2 (vcat $ map text files)
+	    NotInScope x ->
+		return $ fsep $ pwords "not in scope" ++ [pretty x]
+	    NoSuchModule x  -> return empty
+	    UninstantiatedModule x  -> return empty
+	    ClashingDefinition x y  -> return empty
+	    ClashingModule m1 m2    -> return empty
+	    ClashingImport x y	-> return empty
+	    ClashingModuleImport x y	-> return empty
+	    ModuleDoesntExport m xs -> return empty
 
 instance PrettyTCM Call where
     prettyTCM c = case c of

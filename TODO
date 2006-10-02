@@ -55,7 +55,7 @@ Fixes
 
 * write better tests
 
-* test how primitive/builtin things work together with (parameterised) modules
+* failing test (like in agdaLight)
 
 [Bugs]
 

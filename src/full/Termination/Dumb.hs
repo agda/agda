@@ -84,11 +84,8 @@ findDef s =  (findDef' $ C.Name noRange [C.Id s])
 
 findDef' :: C.Name -> TCM(Maybe Name)
 findDef' s = do
-  info <- gets stScopeInfo
-  name <- liftIO $ concreteToAbstract initScopeState info (OldName s) 
+  name <- concreteToAbstract_ (OldName s) 
   return $ Just name 
-
-initScopeState =ScopeState { freshId = 0 }
 
 printCalls :: [RCall] -> TCM()
 checkCalls :: Args -> [RCall] -> TCM()

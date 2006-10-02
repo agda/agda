@@ -21,6 +21,7 @@ import Utils.FileName
 
 -- Exceptions -------------------------------------------------------------
 
+{-
 data ImportException
 	= FileNotFound C.QName [FilePath]
 	    -- ^ Couldn't find the module (@QName@) even though I looked
@@ -47,6 +48,7 @@ scopeCheckModule concreteToAbstract_ x = do
     return scope
     where
 	file = moduleNameToFileName x ".agda"
+-}
 
 {-| Look for an interface file for the given module. In the future this
     function will check that the interface is up-to-date and otherwise re-type

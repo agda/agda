@@ -274,12 +274,9 @@ metaParseExpr ::  InteractionId -> String -> IM A.Expr
 metaParseExpr ii s = 
     do	let s' = List.map (\c -> if c == '~' then '\n' else c) s --Emacsinterface replaces white space with ~
         m <- lookupInteractionId ii
-        i <- fresh
         scope <- getMetaScope <$> lookupMeta m
         r <- getRange <$> lookupMeta m
-        --liftIO $ putStrLn $ show scope
-	let ss = ScopeState { freshId = i }
-	liftIO $ concreteToAbstract ss scope (c r s')
+	concreteToAbstract scope (c r s')
     where
 	c r s = parsePosString exprParser (rStart r) s
 
@@ -334,11 +331,7 @@ showContext [f,l,c,m] =
 showContext _ = liftIO $ putStrLn ":printmc metaid"
 
 parseExpr :: String -> TCM A.Expr
-parseExpr s =
-    do	i <- fresh
-	scope <- getScope
-	let ss = ScopeState { freshId = i }
-	liftIO $ concreteToAbstract ss scope c
+parseExpr s = concreteToAbstract_ c
     where
 	c = parse exprParser s
 

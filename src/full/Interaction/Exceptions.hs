@@ -10,10 +10,10 @@ import System.Exit
 import Syntax.Position
 import Syntax.Parser			     ( ParseError(..)		)
 import Syntax.Concrete.Definitions	     ( DeclarationException(..) )
-import Syntax.Concrete.Operators	     ( OperatorException(..)	)
-import Syntax.Scope			     ( ScopeException(..)	)
-import Syntax.Translation.ConcreteToAbstract ( ToAbstractException(..)	)
-import Interaction.Imports		     ( ImportException(..)	)
+-- import Syntax.Concrete.Operators	     ( OperatorException(..)	)
+-- import Syntax.Scope			     ( ScopeException(..)	)
+-- import Syntax.Translation.ConcreteToAbstract ( ToAbstractException(..)	)
+-- import Interaction.Imports		     ( ImportException(..)	)
 
 crash :: Range -> String -> IO b
 crash r x =
@@ -27,17 +27,17 @@ handleParseException crash e = crash e
 handleDeclarationException :: (DeclarationException -> IO a) -> DeclarationException -> IO a
 handleDeclarationException crash e = crash e
 
-handleOperatorException :: (OperatorException -> IO a) -> OperatorException -> IO a
-handleOperatorException crash e = crash e
+-- handleOperatorException :: (OperatorException -> IO a) -> OperatorException -> IO a
+-- handleOperatorException crash e = crash e
 
-handleScopeException :: (ScopeException -> IO a) -> ScopeException -> IO a
-handleScopeException crash e = crash e
+-- handleScopeException :: (ScopeException -> IO a) -> ScopeException -> IO a
+-- handleScopeException crash e = crash e
 
-handleToAbstractException :: (ToAbstractException -> IO a) -> ToAbstractException -> IO a
-handleToAbstractException crash e = crash e
+-- handleToAbstractException :: (ToAbstractException -> IO a) -> ToAbstractException -> IO a
+-- handleToAbstractException crash e = crash e
 
-handleImportException :: (ImportException -> IO a) -> ImportException -> IO a
-handleImportException crash e = crash e
+-- handleImportException :: (ImportException -> IO a) -> ImportException -> IO a
+-- handleImportException crash e = crash e
 
 -- | Crash on exception.
 crashOnException :: IO a -> IO a
@@ -46,10 +46,10 @@ crashOnException m = failOnException crash m
 failOnException :: (Range -> String -> IO a) -> IO a -> IO a
 failOnException h m = m `catchDyn` handleParseException handler
 		        `catchDyn` handleDeclarationException handler
-		        `catchDyn` handleScopeException handler
-		        `catchDyn` handleOperatorException handler
-		        `catchDyn` handleToAbstractException handler
-		        `catchDyn` handleImportException handler
+-- 		        `catchDyn` handleScopeException handler
+-- 		        `catchDyn` handleOperatorException handler
+-- 		        `catchDyn` handleToAbstractException handler
+-- 		        `catchDyn` handleImportException handler
     where
 	handler x = h (getRange x) (show x)
 
