@@ -6,6 +6,7 @@ module Utils.Monad
     ) where
 
 import Control.Monad
+import Control.Monad.Error
 import Data.FunctorM
 
 -- Monads -----------------------------------------------------------------
@@ -61,6 +62,11 @@ thread f (x:xs) ret =
 
 mapMaybeM :: Monad m => (a -> m b) -> Maybe a -> m (Maybe b)
 mapMaybeM f = maybe (return Nothing) (\x -> Just <$> f x)
+
+-- Either -----------------------------------------------------------------
+
+liftEither :: MonadError e m => Either e a -> m a
+liftEither = either throwError return
 
 -- Read -------------------------------------------------------------------
 
