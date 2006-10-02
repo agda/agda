@@ -30,7 +30,6 @@ data Symbol
 	| SymUnderscore	| SymQuestionMark   | SymAs
 	| SymOpenParen	      | SymCloseParen
 	| SymOpenBrace	      | SymCloseBrace
-	| SymOpenBracket      | SymCloseBracket
 	| SymOpenVirtualBrace | SymCloseVirtualBrace
 	| SymOpenPragma	      | SymClosePragma
     deriving (Eq, Show)

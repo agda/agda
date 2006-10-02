@@ -28,7 +28,7 @@ import Syntax.Literal
 
 $digit	     = 0-9
 $alpha	     = [ A-Z a-z _ ]
-$op	     = [ \- \! \# \$ \% \& \* \+ \/ \< \= \> \@ \^ \| \~ \? \` ]
+$op	     = [ \- \! \# \$ \% \& \* \+ \/ \< \= \> \@ \^ \| \~ \? \` \[ \] ]
 $idstart     = [ $alpha $op ]
 $idchar	     = [ $idstart $digit ' \\ ]
 $endcomment  = ~ [ $idchar \: \\ ]
@@ -150,8 +150,6 @@ tokens :-
 <0,code> "?"		{ symbol SymQuestionMark }
 <0,code> "("		{ symbol SymOpenParen }
 <0,code> ")"		{ symbol SymCloseParen }
-<0,code> "["		{ symbol SymOpenBracket }
-<0,code> "]"		{ symbol SymCloseBracket }
 <0,code> "->"		{ symbol SymArrow }
 <0,code> "\"		{ symbol SymLambda }
 <0,code> "@"		{ symbol SymAs }

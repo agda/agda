@@ -350,7 +350,6 @@ instance LowerMeta SC.Expr where
         e2                            -> Paren r e2
       Absurd _          -> e
       As r n e1         -> As r n (go e1)
-      SC.List r es	-> SC.List r (lowerMeta es)
       SC.RawApp r es	-> SC.RawApp r (lowerMeta es)
       SC.OpApp r x es	-> SC.OpApp r x (lowerMeta es)
       SC.HiddenArg r e	-> SC.HiddenArg r (lowerMeta e)

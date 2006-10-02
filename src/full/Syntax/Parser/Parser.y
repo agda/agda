@@ -85,8 +85,6 @@ import Utils.Monad
     '@'		{ TokSymbol SymAs $$ }
     '('		{ TokSymbol SymOpenParen $$ }
     ')'		{ TokSymbol SymCloseParen $$ }
-    '['		{ TokSymbol SymOpenBracket $$ }
-    ']'		{ TokSymbol SymCloseBracket $$ }
     '{'		{ TokSymbol SymOpenBrace $$ }
     '}'		{ TokSymbol SymCloseBrace $$ }
     vopen	{ TokSymbol SymOpenVirtualBrace $$ }
@@ -160,8 +158,6 @@ Token
     | '@'	    { TokSymbol SymAs $1 }
     | '('	    { TokSymbol SymOpenParen $1 }
     | ')'	    { TokSymbol SymCloseParen $1 }
-    | '['	    { TokSymbol SymOpenBracket $1 }
-    | ']'	    { TokSymbol SymCloseBracket $1 }
     | '{'	    { TokSymbol SymOpenBrace $1 }
     | '}'	    { TokSymbol SymCloseBrace $1 }
     | vopen	    { TokSymbol SymOpenVirtualBrace $1 }
@@ -338,7 +334,6 @@ Expr3
     | '{' '}'		{ let r = fuseRange $1 $2 in HiddenArg r $ Absurd r }
     | '(' ')'		{ Absurd (fuseRange $1 $2) }
     | Id '@' Expr3	{ As (fuseRange $1 $3) $1 $3 }
-    | List		{ uncurry List $1 }
 
 -- Sorts
 Sort :: { Expr }
@@ -346,15 +341,6 @@ Sort : 'Prop'		{ Prop $1 }
      | 'Set'		{ Set $1 }
      | setN		{ uncurry SetN $1 }
 
-
-List :: { (Range, [Expr]) }
-List : '[' ']'		    { (fuseRange $1 $2, []) }
-     | '[' CommaExprs ']'   { (fuseRange $1 $3, $2) }
-
-CommaExprs :: { [Expr] }
-CommaExprs
-    : Expr		    { [$1] }
-    | Expr ',' CommaExprs   { $1 : $3 }
 
 {--------------------------------------------------------------------------
     Bindings

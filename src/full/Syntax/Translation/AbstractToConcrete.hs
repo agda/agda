@@ -313,9 +313,6 @@ instance ToConcrete A.Expr C.Expr where
 	-- name has been resolved to a fully qualified name (except for
 	-- variables)
     toConcrete (A.Lit l)	    = return $ C.Lit l
-    toConcrete (A.List i es)	    = do
-	es <- toConcreteCtx TopCtx es 
-	return $ C.List (getRange i) es
 
     toConcrete (A.QuestionMark i)   = return $ C.QuestionMark
 						(getRange i)

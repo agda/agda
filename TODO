@@ -16,9 +16,9 @@ Features
 
 * lazy evaluation
 
-* list sugar in patterns
-
 * unify primitive and {-# BUILTIN #-}
+
+* syntax highlighting
 
 Fixes
 -----
@@ -122,6 +122,8 @@ Performance
 
 Done
 ----
+
+* removed list sugar (and made [ and ] valid in names)
 
 * create interface files when importing
 

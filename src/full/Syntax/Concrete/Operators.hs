@@ -289,7 +289,6 @@ paren _	  e@(Set _)	       p = e
 paren _	  e@(SetN _ _)	       p = e
 paren _	  e@(Prop _)	       p = e
 paren _	  e@(Paren _ _)	       p = e
-paren _	  e@(List _ _)	       p = e
 paren _	  e@(As _ _ _)	       p = e
 paren _	  e@(Absurd _)	       p = e
 paren _	  e@(RawApp _ _)       p = __IMPOSSIBLE__

@@ -28,7 +28,6 @@ data Expr
         | Set  ExprInfo Nat		    -- ^
         | Prop ExprInfo			    -- ^
         | Let  ExprInfo [LetBinding] Expr   -- ^
-	| List ExprInfo [Expr]		    -- ^ literal list
 
 data Declaration
 	= Axiom      DefInfo Name Expr				-- ^ postulate
@@ -129,7 +128,6 @@ instance HasRange Expr where
     getRange (Set i _)		= getRange i
     getRange (Prop i)		= getRange i
     getRange (Let i _ _)	= getRange i
-    getRange (List i _)		= getRange i
 
 instance HasRange Declaration where
     getRange (Axiom      i _ _	  ) = getRange i

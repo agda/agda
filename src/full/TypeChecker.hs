@@ -836,15 +836,6 @@ checkExpr e t =
 	A.Underscore i   -> do
 	    setScope (Info.metaScope i)
 	    newValueMeta t
-	A.List i es  -> do
-	    list' <- primList
-	    let el t	= El t (Type 0)
-		list x	= el $ list' `apply` [Arg NotHidden x]
-	    a	   <- newValueMeta (Sort (Type 0))
-	    mkList <- buildList a
-	    equalTyp () t (list a)
-	    ts <- mapM (flip checkExpr (el a)) es
-	    return $ mkList ts
 
 	A.Lit lit    -> checkLiteral lit t
 	A.Let i ds e -> checkLetBindings ds $ checkExpr e t

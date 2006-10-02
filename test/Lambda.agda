@@ -75,7 +75,7 @@ data Exp : Set where
 infixl 50 _$_
 infix  20 λ_→_
 
-infix 80 _⟦_/_⟧
+infix 80 _[_/_]
 infix 15 _∈_
 
 _∈_ : Name -> List Name -> Bool
@@ -84,7 +84,7 @@ x ∈ nil	   = false
 
 -- Free variables
 FV : Exp -> List Name
-FV (var x)   = [x]
+FV (var x)   = x :: nil
 FV (s $ t)   = FV s ++ FV t
 FV (λ x → t) = filter (\y -> ¬ (x == y)) (FV t)
 
@@ -96,14 +96,14 @@ fresh x e = fresh' (FV e)
     fresh' xs = "z" -- TODO
 
 -- Substitution
-_⟦_/_⟧ : Exp -> Exp -> Name -> Exp
-var x	  ⟦ r / z ⟧ = if x == z then r else var x
-(s $ t)	  ⟦ r / z ⟧ = s ⟦ r / z ⟧ $ t ⟦ r / z ⟧
-(λ x → t) ⟦ r / z ⟧ =
+_[_/_] : Exp -> Exp -> Name -> Exp
+var x	  [ r / z ] = if x == z then r else var x
+(s $ t)	  [ r / z ] = s [ r / z ] $ t [ r / z ]
+(λ x → t) [ r / z ] =
        if x == z   then λ x → t
   else if x ∈ FV r then ( let y : Name
 			      y = fresh x r
-			  in  λ y → t ⟦ var y / x ⟧ ⟦ r / z ⟧
+			  in  λ y → t [ var y / x ] [ r / z ]
 			)
-  else			λ x → t ⟦ r / z ⟧
+  else			λ x → t [ r / z ]
 

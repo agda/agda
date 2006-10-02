@@ -98,7 +98,6 @@ instance Pretty Expr where
 	    Paren _ e -> parens $ pretty e
 	    As _ x e  -> pretty x <> text "@" <> pretty e
 	    Absurd _  -> text "()"
-	    List _ es -> brackets $ fsep $ punctuate comma $ map pretty es
 
 instance Pretty LamBinding where
     pretty (DomainFree h x) = pHidden h (pretty x)
