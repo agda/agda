@@ -219,9 +219,7 @@ checkImport :: ModuleInfo -> ModuleName -> TCM ()
 checkImport i x =
     unlessM (isImported x) $
     addImport x		   $ do
-	ms    <- getImportPath
-	opts  <- commandLineOptions
-	(i,t) <- liftEither =<< liftIO (getInterface opts ms x)
+	(i,t) <- getInterface x
 	mergeInterface i
 
 -- | Merge an interface into the current proof state.
@@ -266,53 +264,53 @@ findFile ft m = do
 		SourceFile    -> [".agda", ".lagda", ".agda2", ".lagda2", ".ag2"]
 		InterfaceFile -> [".agdai", ".ai"]
 
-getInterface :: CommandLineOptions -> [ModuleName] -> ModuleName ->
-		IO (Either TypeError (Interface, ClockTime))
-getInterface opts path x = do
-
-    file <- findFile opts SourceFile x	-- requires source to exist
+getInterface :: ModuleName -> TCM (Interface, ClockTime)
+getInterface x = do
+    file   <- findFile SourceFile x	-- requires source to exist
     let ifile = setExtension ".agdai" file
 
-    case isImportCycle path of
-	Left err    -> return $ Left err
-	Right ()    -> do
+    ms <- getImportPath
+    liftIO $ putStrLn $ "import path: " ++ show ms
 
-	    uptodate <- ifile `isNewerThan` file
+    checkForImportCycle
 
-	    if uptodate
-		then skip      ifile file
-		else typeCheck ifile file
+    uptodate <- liftIO $ ifile `isNewerThan` file
+
+    if uptodate
+	then skip      ifile file
+	else typeCheck ifile file
 
     where
 	skip ifile file = do
 
 	    -- Read interface file
-	    i  <- deserialise <$> readBinaryFile ifile
+	    i  <- liftIO $ deserialise <$> readBinaryFile ifile
 
 	    -- Check time stamp of imported modules
-	    t  <- getModificationTime ifile
-	    ts <- map snd <$> mapM (\m -> getInterface opts (m:ms) m) (iImportedModules i)
+	    t  <- liftIO $ getModificationTime ifile
+	    ts <- map snd <$> mapM getInterface (iImportedModules i)
 
 	    -- If any of the imports are newer we need to retype check
 	    if any (> t) ts
 		then typeCheck ifile file
-		else do
+		else liftIO $ do
 		    putStrLn $ "Skipping " ++ show x ++ " ( " ++ ifile ++ " )"
 		    return (i, t)
 
 	typeCheck ifile file = do
 
 	    -- Do the type checking
-	    putStrLn $ "Type checking " ++ show x ++ " ( " ++ file ++ " )"
-	    r  <- createInterface ms file
+	    liftIO $ putStrLn $ "Type checking " ++ show x ++ " ( " ++ file ++ " )"
+	    ms <- getImportPath
+	    r  <- liftIO $ createInterface ms file
 
 	    -- Write interface file and return
 	    case r of
-		Left err -> return $ Left err
-		Right i  -> do
+		Left err -> throwError err
+		Right i  -> liftIO $ do
 		    writeBinaryFile ifile (serialise i)
 		    t <- getModificationTime ifile
-		    return $ Right (i, t)
+		    return (i, t)
 
 createInterface :: [ModuleName] -> FilePath -> IO (Either TCErr Interface)
 createInterface path file = do
