@@ -350,6 +350,6 @@ instance Serialisable a => Serialisable (Builtin a) where
 instance Serialisable Interface where
     serialiser = mapS (IFun con des) serialiser
 	where
-	    con = uncurry $ uncurry $ uncurry Interface
-	    des = ((iScope /\ iSignature) /\ iImports) /\ iBuiltin
+	    con = uncurry $ uncurry $ uncurry $ uncurry Interface
+	    des = (((iImportedModules /\ iScope) /\ iSignature) /\ iImports) /\ iBuiltin
 

@@ -5,6 +5,7 @@ module TypeChecking.Monad
     , module TypeChecking.Monad.Context
     , module TypeChecking.Monad.Debug
     , module TypeChecking.Monad.Env
+    , module TypeChecking.Monad.Imports
     , module TypeChecking.Monad.MetaVars
     , module TypeChecking.Monad.Options
     , module TypeChecking.Monad.Signature
@@ -19,6 +20,7 @@ import TypeChecking.Monad.Constraints
 import TypeChecking.Monad.Context
 import TypeChecking.Monad.Debug
 import TypeChecking.Monad.Env
+import TypeChecking.Monad.Imports
 import TypeChecking.Monad.MetaVars
 import TypeChecking.Monad.Options
 import TypeChecking.Monad.Signature

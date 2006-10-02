@@ -36,6 +36,7 @@ data TCState =
 	 , stConstraints       :: Constraints
 	 , stSignature	       :: Signature
 	 , stImports	       :: Signature
+	 , stImportedModules   :: [ModuleName]
 	 , stScopeInfo	       :: ScopeInfo
 	 , stOptions	       :: CommandLineOptions
 	 , stStatistics	       :: Statistics
@@ -60,6 +61,7 @@ initState =
 	 , stConstraints       = Map.empty
 	 , stSignature	       = Map.empty
 	 , stImports	       = Map.empty
+	 , stImportedModules   = []
 	 , stScopeInfo	       = emptyScopeInfo_
 	 , stOptions	       = defaultOptions
 	 , stStatistics	       = Map.empty
@@ -342,6 +344,7 @@ type BuiltinThings pf = Map String (Builtin pf)
 data Builtin pf
 	= Builtin Term
 	| Prim pf
+    deriving (Show)
 
 instance Functor Builtin where
     fmap f (Builtin t) = Builtin t
@@ -359,6 +362,7 @@ data TCEnv =
     TCEnv { envContext	     :: Context
 	  , envLetBindings   :: LetBindings
 	  , envCurrentModule :: ModuleName
+	  , envImportPath    :: [ModuleName]	-- ^ to detect import cycles
 	  , envAbstractMode  :: Bool
 		-- ^ When checking the typesignature of a public definition
 		--   or the body of a non-abstract definition this is true.
@@ -371,6 +375,7 @@ initEnv :: TCEnv
 initEnv = TCEnv { envContext	   = []
 		, envLetBindings   = Map.empty
 		, envCurrentModule = noModuleName
+		, envImportPath	   = []
 		, envAbstractMode  = False
 		}
 
@@ -437,6 +442,7 @@ data TypeError
 	| NoRHSRequiresAbsurdPattern [Arg A.Pattern]
 	| LocalVsImportedModuleClash ModuleName
 	| UnsolvedMetasInImport [Range]
+	| CyclicModuleDependency [ModuleName]
     deriving (Typeable)
 
 data TCErr = TypeError TCState (Closure TypeError)

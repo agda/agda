@@ -199,6 +199,9 @@ instance PrettyTCM TypeError where
 		return $ fsep (
 		    pwords "there were unsolved metas in an imported module at the following locations:"
 		    ) $$ nest 2 (vcat $ map (text . show) rs)
+	    CyclicModuleDependency ms ->
+		return $ fsep (pwords "cyclic module dependency:")
+			$$ nest 2 (vcat $ map (text . show) ms)
 
 instance PrettyTCM Call where
     prettyTCM c = case c of

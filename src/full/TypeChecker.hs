@@ -11,6 +11,8 @@ import Control.Monad.Error
 import qualified Data.Map as Map
 import qualified Data.List as List
 import Data.FunctorM
+import System.Directory
+import System.Time
 
 import qualified Syntax.Abstract as A
 import Syntax.Abstract.Pretty
@@ -46,6 +48,7 @@ import Utils.Monad
 import Utils.List
 import Utils.Serialise
 import Utils.IO
+import Utils.FileName
 
 #include "undefined.h"
 
@@ -213,12 +216,11 @@ checkModuleDef i x tel m' args =
 --   Maybe it would be a good idea to have the scope checker store away the
 --   interfaces so that we don't have to redo the work.
 checkImport :: ModuleInfo -> ModuleName -> TCM ()
-checkImport i x = do
-    r <- liftIO $ getInterface x
-    i <- case r of
-	    Left err -> throwError err
-	    Right i  -> return i
-    mergeInterface i
+checkImport i x =
+    unlessM (isImported x) $
+    addImport x		   $ do
+	(i,t) <- getInterface x
+	mergeInterface i
 
 -- | Merge an interface into the current proof state.
 mergeInterface :: Interface -> TCM ()
@@ -228,8 +230,9 @@ mergeInterface i = do
 	builtin = Map.toList $ iBuiltin i
 	prim	= [ x | (_,Prim x) <- builtin ]
 	bi	= Map.fromList [ (x,Builtin t) | (x,Builtin t) <- builtin ]
-    modify $ \st -> st { stImports	 = Map.unions [stImports st, sig, isig]
-		       , stBuiltinThings = stBuiltinThings st `Map.union` bi
+    modify $ \st -> st { stImportedModules = stImportedModules st ++ iImportedModules i
+		       , stImports	   = Map.unions [stImports st, sig, isig]
+		       , stBuiltinThings   = stBuiltinThings st `Map.union` bi
 			    -- TODO: not safe (?) ^
 		       }
     prim <- Map.fromList <$> mapM rebind prim
@@ -240,40 +243,89 @@ mergeInterface i = do
 	    pf <- rebindPrimitive x
 	    return (x, Prim pf)
 
-getInterface :: ModuleName -> IO (Either TCErr Interface)
-getInterface x = do
-    putStrLn $ "Importing " ++ concat (List.intersperse "." $ map show $ mnameId x)
-    uptodate <- ifile `isNewerThan` file
-    if uptodate
-	then do
-	    -- putStrLn $ "Interface up-to-date. No type checking needed."
-	    i <- deserialise <$> readBinaryFile ifile
-	    return $ Right i
-	else do
-	    -- putStrLn $ "Interface non-existing or out-of-date. Type checking."
-	    r <- createInterface file
-	    case r of
-		Left err -> return ()
-		Right i  -> writeBinaryFile ifile (serialise i)
-	    return r
-    where
-	file  = moduleNameToFileName (mnameConcrete x) ".agda"
-	ifile = moduleNameToFileName (mnameConcrete x) ".agdai"
+-- TODO: move
+data FileType = SourceFile | InterfaceFile
 
-createInterface :: FilePath -> IO (Either TCErr Interface)
-createInterface file = do
+findFile :: FileType -> ModuleName -> TCM FilePath
+findFile ft m = do
+    let x = mnameConcrete m
+    dirs <- getIncludeDirs
+    let files = [ dir ++ [slash] ++ file
+		| dir  <- "." : dirs
+		, file <- map (moduleNameToFileName x) exts
+		]
+    files' <- liftIO $ filterM doesFileExist files
+    case files' of
+	[]	-> fileNotFound x files
+	[file]	-> return file
+	_	-> clashingFileNamesFor x files'
+    where
+	exts = case ft of
+		SourceFile    -> [".agda", ".lagda", ".agda2", ".lagda2", ".ag2"]
+		InterfaceFile -> [".agdai", ".ai"]
+
+getInterface :: ModuleName -> TCM (Interface, ClockTime)
+getInterface x = do
+    file   <- findFile SourceFile x	-- requires source to exist
+    let ifile = setExtension ".agdai" file
+
+    ms <- getImportPath
+    liftIO $ putStrLn $ "import path: " ++ show ms
+
+    checkForImportCycle
+
+    uptodate <- liftIO $ ifile `isNewerThan` file
+
+    if uptodate
+	then skip      ifile file
+	else typeCheck ifile file
+
+    where
+	skip ifile file = do
+
+	    -- Read interface file
+	    i  <- liftIO $ deserialise <$> readBinaryFile ifile
+
+	    -- Check time stamp of imported modules
+	    t  <- liftIO $ getModificationTime ifile
+	    ts <- map snd <$> mapM getInterface (iImportedModules i)
+
+	    -- If any of the imports are newer we need to retype check
+	    if any (> t) ts
+		then typeCheck ifile file
+		else liftIO $ do
+		    putStrLn $ "Skipping " ++ show x ++ " ( " ++ ifile ++ " )"
+		    return (i, t)
+
+	typeCheck ifile file = do
+
+	    -- Do the type checking
+	    liftIO $ putStrLn $ "Type checking " ++ show x ++ " ( " ++ file ++ " )"
+	    ms <- getImportPath
+	    r  <- liftIO $ createInterface ms file
+
+	    -- Write interface file and return
+	    case r of
+		Left err -> throwError err
+		Right i  -> liftIO $ do
+		    writeBinaryFile ifile (serialise i)
+		    t <- getModificationTime ifile
+		    return (i, t)
+
+createInterface :: [ModuleName] -> FilePath -> IO (Either TCErr Interface)
+createInterface path file = do
 
     (m, scope, pragmas) <- do
 	(pragmas, m) <- parseFile' moduleParser file
-	pragmas	   <- concreteToAbstract_ pragmas -- identity for top-level pragmas
-	(m, scope) <- concreteToAbstract_ m
+	pragmas	     <- concreteToAbstract_ pragmas -- identity for top-level pragmas
+	(m, scope)   <- concreteToAbstract_ m
 	return (m, scope, pragmas)
 
     runTCM $ do
 
 	setOptionsFromPragmas pragmas
 
-	checkDecl m
+	withImportPath path $ checkDecl m
 
 	-- check that metas have been solved
 	ms <- getOpenMetas
@@ -291,12 +343,14 @@ buildInterface = do
     sig	    <- getSignature
     isig    <- getImportedSignature
     builtin <- getBuiltinThings
+    ms	    <- getImports
     let	builtin' = Map.mapWithKey (\x b -> fmap (const x) b) builtin
     instantiateFull $ Interface
-			{ iScope     = scope
-			, iSignature = sig
-			, iImports   = isig
-			, iBuiltin   = builtin'
+			{ iImportedModules = ms
+			, iScope	   = scope
+			, iSignature	   = sig
+			, iImports	   = isig
+			, iBuiltin	   = builtin'
 			}
 
 -- | TODO: move

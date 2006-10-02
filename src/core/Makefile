@@ -24,7 +24,7 @@ default : $(OUT)/agdacore
 ## Files ##################################################################
 
 gen_hs_files = $(OUT)/Core/Par.hs $(OUT)/Core/Lex.hs $(OUT)/Core/Abs.hs \
-				$(OUT)/Core/Print.hs $(OUT)/Core/Layout.hs
+				$(OUT)/Core/Print.hs
 all_hs_files = $(shell $(FIND) . -name '*hs') $(gen_hs_files)
 
 ## Creating the output directory structure ################################

@@ -14,8 +14,6 @@ Features
   to remember the number (or names?) of dependency args. How to show that a
   meta variable cannot depend on a particular variable?
 
-* imports
-
 * lazy evaluation
 
 * list sugar in patterns
@@ -77,6 +75,19 @@ Fixes
 * When do we have to turn on abstractMode. When checking anything public? Not
   done at the moment.
 
+[Imports]
+
+* use interface files in scope checking
+
+* check for cyclic imports (we need to use interface files when scope checking)
+
+* handle clashing builtin things
+
+* create interface for top-level module (not so important)
+
+* allow the source to not exist if there is an interface file
+  (what if it needs rebuilding? throw error)
+
 [Misc]
 
 * Allow qualified names in BUILTIN pragma. Currently pragmas are parsed as
@@ -111,6 +122,8 @@ Performance
 
 Done
 ----
+
+* create interface files when importing
 
 * allowing lambda-bound operators by always writing _+_ (hence making underscore
   in names carry semantics).

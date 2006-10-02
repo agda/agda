@@ -110,7 +110,7 @@ instance Show Name where
     show x = show (nameConcrete x)
 
 instance Show QName where
-    show q = {-show (qnameModule q) ++ "." ++-} show (qnameName q)
+    show q = show (qnameConcrete q)
 
 instance Eq QName where
     x == y = (qnameModule x, qnameName x) == (qnameModule y, qnameName y)

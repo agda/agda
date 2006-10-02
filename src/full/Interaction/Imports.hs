@@ -25,12 +25,15 @@ data ImportException
 	= FileNotFound C.QName [FilePath]
 	    -- ^ Couldn't find the module (@QName@) even though I looked
 	    --	 everywhere (@[FilePath]@).
+	| ClashingFileNamesFor C.QName [FilePath]
     deriving (Typeable, Show)
 
 instance HasRange ImportException where
-    getRange (FileNotFound x _) = getRange x
+    getRange (FileNotFound x _)		= getRange x
+    getRange (ClashingFileNamesFor x _) = getRange x
 
 fileNotFound x paths = throwDyn $ FileNotFound x paths
+clashingFileNamesFor x paths = throwDyn $ ClashingFileNamesFor x paths
 
 -- | Parameterised to avoid cyclic module dependencies.
 scopeCheckModule :: MonadIO m => (C.Declaration -> m scopeInfo) -> C.QName -> m scopeInfo

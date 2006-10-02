@@ -37,6 +37,9 @@ bracketOptions m = do
     setCommandLineOptions opts
     return x
 
+getIncludeDirs :: TCM [FilePath]
+getIncludeDirs = optIncludeDirs <$> commandLineOptions
+
 setInputFile :: FilePath -> TCM ()
 setInputFile file =
     do	opts <- commandLineOptions
