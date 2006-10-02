@@ -3,6 +3,7 @@ module TypeChecking.Monad.Imports where
 
 import Control.Monad.State
 import Control.Monad.Reader
+import Control.Monad.Error
 
 import Syntax.Abstract.Name
 import TypeChecking.Monad.Base
@@ -28,8 +29,12 @@ withImportPath path = local $ \e -> e { envImportPath = path }
 -- | Assumes that the first module in the import path is the module we are
 --   worried about.
 checkForImportCycle :: TCM ()
-checkForImportCycle = do
-    m:ms <- getImportPath
-    when (m `elem` ms) $ typeError $ CyclicModuleDependency
-				   $ dropWhile (/= m) $ reverse (m:ms)
+checkForImportCycle = liftEither . isImportCycle =<< getImportPath
+
+isImportCycle :: [ModuleName] -> Either TypeError ()
+isImportCycle (m:ms) =
+    when (m `elem` ms) $ throwError
+		       $ TypeError
+		       $ CyclicModuleDependency
+		       $ dropWhile (/= m) $ reverse (m:ms)
 
