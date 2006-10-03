@@ -77,10 +77,6 @@ Fixes
 
 [Imports]
 
-* use interface files in scope checking
-
-* check for cyclic imports (we need to use interface files when scope checking)
-
 * handle clashing builtin things
 
 * create interface for top-level module (not so important)
@@ -122,6 +118,10 @@ Performance
 
 Done
 ----
+
+* use interface files in scope checking
+
+* check for cyclic imports (we need to use interface files when scope checking)
 
 * removed list sugar (and made [ and ] valid in names)
 

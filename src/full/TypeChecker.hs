@@ -217,8 +217,7 @@ checkModuleDef i x tel m' args =
 --   interfaces so that we don't have to redo the work.
 checkImport :: ModuleInfo -> ModuleName -> TCM ()
 checkImport i x =
-    unlessM (isImported x) $
-    addImportCycleCheck x  $ do
+    unlessM (isImported x) $ do
 	(i,t) <- getInterface x
 	mergeInterface i
 	addImport x
@@ -266,10 +265,10 @@ findFile ft m = do
 		InterfaceFile -> [".agdai", ".ai"]
 
 scopeCheckImport :: ModuleName -> TCM ModuleScope
-scopeCheckImport x = addImportCycleCheck x $ iScope . fst <$> getInterface x
+scopeCheckImport x = iScope . fst <$> getInterface x
 
 getInterface :: ModuleName -> TCM (Interface, ClockTime)
-getInterface x = do
+getInterface x = addImportCycleCheck x $ do
     file   <- findFile SourceFile x	-- requires source to exist
     let ifile = setExtension ".agdai" file
 
@@ -301,7 +300,7 @@ getInterface x = do
 	typeCheck ifile file = do
 
 	    -- Do the type checking
-	    liftIO $ putStrLn $ "Type checking " ++ show x ++ " ( " ++ file ++ " )"
+	    liftIO $ putStrLn $ "Checking " ++ show x ++ " ( " ++ file ++ " )"
 	    ms <- getImportPath
 	    r  <- liftIO $ createInterface ms file
 
@@ -314,7 +313,7 @@ getInterface x = do
 		    return (i, t)
 
 createInterface :: [ModuleName] -> FilePath -> IO (Either TCErr Interface)
-createInterface path file = runTCM $ do
+createInterface path file = runTCM $ withImportPath path $ do
 
     (pragmas, m) <- liftIO $ parseFile' moduleParser file
     pragmas	 <- concreteToAbstract_ pragmas -- identity for top-level pragmas
@@ -322,7 +321,7 @@ createInterface path file = runTCM $ do
 
     setOptionsFromPragmas pragmas
 
-    withImportPath path $ checkDecl m
+    checkDecl m
     setScope scope
 
     -- check that metas have been solved
