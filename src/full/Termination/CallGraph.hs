@@ -203,7 +203,7 @@ type CallGraph = Set Call
 callGraph :: Gen (CallGraph)
 callGraph = do
   indices <- fmap nub arbitrary
-  lengths <- listOfLength (length indices) (choose (0, 3))  -- Not too large.
+  lengths <- listOfLength (length indices) (choose (0, 2))  -- Not too large.
   let indexMap = zip indices lengths
   n <- natural :: Gen Integer
   let noMatrices | null indexMap = 0
