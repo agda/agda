@@ -1,192 +1,273 @@
 -- | Naive implementation of simple matrix library.
 
+-- Originally copied from Agda1 sources.
+
 module Termination.Matrix
-  ( Matrix
-  , Index
+  ( -- * Basic data types
+    Matrix
+  , matrixInvariant
   , Size(..)
+  , sizeInvariant
+  , MIx (..)
+  , mIxInvariant
+    -- * Generating and creating matrices
+  , fromLists
+  , fromIndexList
+  , toLists
   , matrix
+  , matrixUsingRowGen
+    -- * Combining and querying matrices
   , size
-  , fromList
-  , toList
+  , square
   , isEmpty
   , add
+  , mul
+  , diagonal
   ) where
 
 import Data.Array
 import Data.List
 import Test.QuickCheck
 import Termination.TestHelpers
+import Termination.Semiring (Semiring)
+import qualified Termination.Semiring as Semiring
 
--- | Type used for the matrix indices.
+------------------------------------------------------------------------
+-- Basic data types
 
-type Index = Int
+-- | This matrix type is used for tests.
+
+type TM = Matrix Integer Integer
 
 -- | Size of a matrix.
 
-data Size = Size { rows :: Index, cols :: Index }
+data Size i = Size { rows :: i, cols :: i }
   deriving (Eq, Show)
 
-sizeInvariant :: Size -> Bool
+sizeInvariant :: (Ord i, Num i) => Size i -> Bool
 sizeInvariant sz = rows sz >= 0 && cols sz >= 0
 
-instance Arbitrary Size where
+instance (Arbitrary i, Integral i) => Arbitrary (Size i) where
   arbitrary = do
     (r, c) <- two natural
     return $ Size { rows = r, cols = c }
-    where natural = fmap abs arbitrary
 
   coarbitrary (Size rs cs) = coarbitrary rs . coarbitrary cs
 
-prop_Arbitrary_size = sizeInvariant
+prop_Arbitrary_Size :: Size Integer -> Bool
+prop_Arbitrary_Size = sizeInvariant
 
 -- | Converts a size to a set of bounds suitable for use with
 -- the matrices in this module.
 
-toBounds :: Size -> (MIx, MIx)
-toBounds sz = ((1, 1), (rows sz, cols sz))
+toBounds :: Num i => Size i -> (MIx i, MIx i)
+toBounds sz = (MIx { row = 1, col = 1 }, MIx { row = rows sz, col = cols sz })
 
 -- | Type of matrix indices (row, column).
 
-type MIx = (Index, Index)
+data MIx i = MIx { row, col :: i }
+  deriving (Eq, Show, Ix, Ord)
+
+instance (Arbitrary i, Integral i) => Arbitrary (MIx i) where
+  arbitrary = do
+    (r, c) <- two natural
+    return $ MIx { row = r, col = c }
+
+  coarbitrary (MIx r c) = coarbitrary r . coarbitrary c
+
+-- | No negative indices are allowed.
+
+mIxInvariant :: (Ord i, Num i) => MIx i -> Bool
+mIxInvariant i = row i >= 0 && col i >= 0
+
+prop_Arbitrary_MIx :: MIx Integer -> Bool
+prop_Arbitrary_MIx = mIxInvariant
 
 -- | Type of matrices, parameterised on the type of values.
 
-newtype Matrix b = M { unM :: Array MIx b }
-  deriving Eq
+newtype Matrix i b = M { unM :: Array (MIx i) b }
+  deriving (Eq, Ord)
 
-matrixInvariant :: Matrix b -> Bool
+matrixInvariant :: (Num i, Ix i) => Matrix i b -> Bool
 matrixInvariant m =
-  fst (bounds $ unM m) == (1, 1)
+  fst (bounds $ unM m) == MIx 1 1
   &&
   sizeInvariant (size m)
 
-instance Show b => Show (Matrix b) where
+instance (Ix i, Num i, Enum i, Show i, Show b) => Show (Matrix i b) where
   showsPrec _ m =
-    showString "Termination.Matrix.fromList " . shows (toList m)
+    showString "Termination.Matrix.fromLists " . shows (size m) .
+    showString " " . shows (toLists m)
 
-instance Arbitrary b => Arbitrary (Matrix b) where
-  arbitrary = do
-    sz <- arbitrary
-    let colGen = sequence $ genericReplicate (cols sz) arbitrary
-    rows <- sequence $ genericReplicate (rows sz) colGen
-    return $ fromList sz rows
+instance (Arbitrary i, Num i, Integral i, Ix i, Arbitrary b)
+         => Arbitrary (Matrix i b) where
+  arbitrary     = matrix =<< arbitrary
+  coarbitrary m = coarbitrary (toLists m)
 
-  coarbitrary m = coarbitrary (toList m)
+prop_Arbitrary_Matrix :: TM -> Bool
+prop_Arbitrary_Matrix = matrixInvariant
 
-prop_Arbitrary_matrix = matrixInvariant
+------------------------------------------------------------------------
+-- Generating and creating matrices
+
+-- | Generates a matrix of the given size, using the given generator
+-- to generate the rows.
+
+matrixUsingRowGen :: (Arbitrary i, Integral i, Ix i, Arbitrary b)
+  => Size i
+  -> (i -> Gen [b])
+     -- ^ The generator is parameterised on the size of the row.
+  -> Gen (Matrix i b)
+matrixUsingRowGen sz rowGen = do
+  rows <- listOfLength (rows sz) (rowGen $ cols sz)
+  return $ fromLists sz rows
+
+-- | Generates a matrix of the given size.
+
+matrix :: (Arbitrary i, Integral i, Ix i, Arbitrary b)
+  => Size i -> Gen (Matrix i b)
+matrix sz = matrixUsingRowGen sz (\n -> listOfLength n arbitrary)
+
+prop_matrix sz = forAll (matrix sz :: Gen TM) $ \m ->
+  matrixInvariant m &&
+  size m == sz
 
 -- | Constructs a matrix from a list of (index, value)-pairs.
 
-matrix :: Size -> [(MIx, b)] -> Matrix b
-matrix sz = M . array (toBounds sz)
+fromIndexList :: (Num i, Ix i) => Size i -> [(MIx i, b)] -> Matrix i b
+fromIndexList sz = M . array (toBounds sz)
 
-prop_matrix :: Matrix Integer -> Bool
-prop_matrix m = matrixInvariant m' && m' == m
+prop_fromIndexList :: TM -> Bool
+prop_fromIndexList m = matrixInvariant m' && m' == m
   where vs = assocs $ unM m
-        m' = matrix (size m) vs
+        m' = fromIndexList (size m) vs
 
--- | The size of a matrix.
-
-size :: Matrix b -> Size
-size m = Size { rows = r, cols = c }
-  where (_, (r, c)) = bounds $ unM m
-
-prop_size :: Matrix Integer -> Bool
-prop_size m = sizeInvariant (size m)
-
-prop_size_matrix :: Size -> [(MIx, Integer)] -> Bool
-prop_size_matrix sz vs = size (matrix sz vs) == sz
-
--- | @'fromList' sz rows@ constructs a matrix from a list of lists of
+-- | @'fromLists' sz rs@ constructs a matrix from a list of lists of
 -- values (a list of rows).
 --
--- Precondition: @'length' rows = 'fst' sz '&&' 'all' (('==' 'snd' sz) . 'length') rows@.
+-- Precondition: @'length' rs '==' 'rows' sz '&&' 'all' (('==' 'cols' sz) . 'length') rs@.
 
-fromList :: Size -> [[b]] -> Matrix b
-fromList sz bs = matrix sz $ zip (range $ toBounds sz) (concat bs)
+fromLists :: (Num i, Ix i) => Size i -> [[b]] -> Matrix i b
+fromLists sz bs = fromIndexList sz $ zip (range $ toBounds sz) (concat bs)
 
 -- | Converts a matrix to a list of row lists.
 
-toList :: Matrix b -> [[b]]
-toList m = [ [unM m ! (r, c) | c <- [1 .. cols sz] ] | r <- [1 .. rows sz] ]
+toLists :: (Ix i, Num i, Enum i) => Matrix i b -> [[b]]
+toLists m = [ [unM m ! MIx { row = r, col = c }
+            | c <- [1 .. cols sz] ] | r <- [1 .. rows sz] ]
   where sz = size m
 
-prop_fromList_toList :: Matrix Integer -> Bool
-prop_fromList_toList m = fromList (size m) (toList m) == m
+prop_fromLists_toLists :: TM -> Bool
+prop_fromLists_toLists m = fromLists (size m) (toLists m) == m
+
+------------------------------------------------------------------------
+-- Combining and querying matrices
+
+-- | The size of a matrix.
+
+size :: Ix i => Matrix i b -> Size i
+size m = Size { rows = row b, cols = col b }
+  where (_, b) = bounds $ unM m
+
+prop_size :: TM -> Bool
+prop_size m = sizeInvariant (size m)
+
+prop_size_fromIndexList :: Size Int -> Bool
+prop_size_fromIndexList sz =
+  size (fromIndexList sz ([] :: [(MIx Int, Integer)])) == sz
+
+-- | 'True' iff the matrix is square.
+
+square :: Ix i => Matrix i b -> Bool
+square m = rows (size m) == cols (size m)
 
 -- | Returns 'True' iff the matrix is empty.
 
-isEmpty :: Matrix b -> Bool
+isEmpty :: (Num i, Ix i) => Matrix i b -> Bool
 isEmpty m = rows sz <= 0 || cols sz <= 0
   where sz = size m
 
--- | Adds two matrices. Uses the binary operation to add values.
+-- | @'add' (+) m1 m2@ adds @m1@ and @m2@. Uses @(+)@ to add values.
+--
+-- Precondition: @'size' m1 == 'size' m2@.
 
-add :: (a -> b -> c) -> Matrix a -> Matrix b -> Matrix c
+add :: (Ix i, Num i)
+    => (a -> b -> c) -> Matrix i a -> Matrix i b -> Matrix i c
 add (+) m1 m2 =
-  matrix (size m1)
-         [ (i, (unM m1 ! i) + (unM m2 ! i))
-         | i <- range $ toBounds $ size m1 ]
+  fromIndexList (size m1)
+                [ (i, (unM m1 ! i) + (unM m2 ! i))
+                | i <- range $ toBounds $ size m1 ]
 
-prop_add :: Matrix Integer -> Matrix Integer -> Matrix Integer -> Bool
-prop_add m1 m2 m3 =
-  associative (add (+)) m1 m2 m3 &&
-  commutative (add (+)) m1 m2 &&
-  matrixInvariant (add (+) m1 m2)
+prop_add sz =
+  forAll (three (matrix sz :: Gen TM)) $ \(m1, m2, m3) ->
+    let m' = add (+) m1 m2 in
+      associative (add (+)) m1 m2 m3 &&
+      commutative (add (+)) m1 m2 &&
+      matrixInvariant m' &&
+      size m' == size m1
 
-{-
+-- | @'mul' semiring m1 m2@ multiplies @m1@ and @m2@. Uses the
+-- operations of the semiring @semiring@ to perform the
+-- multiplication.
+--
+-- Precondition: @'cols' ('size' m1) == rows ('size' m2)@.
 
-multMatrix :: (a -> b -> c) -> (c -> c -> c) -> Matrix a -> Matrix b -> Matrix c
-multMatrix t p m1 m2 = matrix (mr1,mc2) [((r,c),res) | r <- [1..mr1] , c <- [1..mc2], let res = multiply t p mc1 r c m1 m2 ]
-          where 
-                (mr1,mc1) = sizeMatrix m1
-                (mr2,mc2) = sizeMatrix m2
-                multiply :: (a -> b -> c) -> (c -> c -> c)-> Int -> Int -> Int -> Matrix a -> Matrix b -> c
-                multiply t p size r c m1 m2 =
-                      foldl1 p [ t (m1!(r,i)) (m2!(i,c)) | i <- [1..size]]
+mul :: (Enum i, Num i, Ix i)
+    => Semiring a -> Matrix i a -> Matrix i a -> Matrix i a
+mul semiring m1 m2 =
+  fromIndexList sz' [ (ix, res)
+                    | r <- [1 .. rows $ size m1]
+                    , c <- [1 .. cols $ size m2]
+                    , let ix = MIx { row = r, col = c }
+                    , let res = mulRowCol r c
+                    ]
+    where
+    sz' = Size { rows = rows $ size m1, cols = cols $ size m2 }
 
+    mulRowCol r c =
+      foldl' (Semiring.add semiring) (Semiring.zero semiring)
+             [ (Semiring.mul semiring)
+               (unM m1 ! MIx { row = r, col = i })
+               (unM m2 ! MIx { row = i, col = c })
+             | i <- [1 .. cols (size m1)]]
 
-diagonal :: Matrix b -> Array Int b
-diagonal m = array (1,r)  [(i,m!(i,i)) | i <-[1..r]]
-      where    (r,_) = sizeMatrix m
-                
-printMatrix :: Show b => Matrix b -> String 
-printMatrix m 
-  | r < 1 || c < 1 = "[]"
-  | otherwise = unlines [ printRow i c m | i <- range (1,r)]
-          where printRow :: Show b => Int -> Int -> Matrix b -> String
-                printRow r mc m = unwords [show (m ! (r,j)) | j <- range (1,mc)]
-                (r,c) = sizeMatrix m
+prop_mul sz =
+  forAll (two natural) $ \(c2, c3) ->
+  forAll (matrix sz :: Gen TM) $ \m1 ->
+  forAll (matrix (Size { rows = cols sz, cols = c2 })) $ \m2 ->
+  forAll (matrix (Size { rows = c2, cols = c3 })) $ \m3 ->
+    let m' = mult m1 m2 in
+      associative mult m1 m2 m3 &&
+      matrixInvariant m' &&
+      size m' == Size { rows = rows sz, cols = c2 }
+  where mult = mul Semiring.integerSemiring
 
+-- | @'diagonal' m@ extracts the diagonal of @m@.
+--
+-- Precondition: @'square' m@.
 
-{-
-list1,list2,list3 :: [[Int]]
-list1 = [[1,2,3],[0,2,4]]
-list2 = [[0,2,4],[1,2,3]]
-list3 = [[1,3],[0,5],[1,1]]
+diagonal :: (Enum i, Num i, Ix i) => Matrix i b -> Array i b
+diagonal m = listArray (1, rows sz) [ unM m ! MIx {row = i, col = i}
+                                    | i <- [1 .. rows sz] ]
+  where sz = size m
 
+prop_diagonal =
+  forAll natural $ \n ->
+  forAll (matrix (Size n n) :: Gen TM) $ \m ->
+    bounds (diagonal m) == (1, n)
 
-mat1,mat2,mat3 :: Matrix Int
-mat1 = listMatrix (2,3) list1
+------------------------------------------------------------------------
+-- All tests
 
-mat2 = listMatrix (2,3) list2
-
-mat3 = addMatrix (+) mat1 mat2
-
-mat4,mat6 :: Matrix Int
-mat4 = listMatrix (3,2) list3
-
---mat5 = listMatrix (2,3) (list2 ++ list1)
-
-mat6 = multMatrix (*) (+) mat2 mat4
-
-res4 = printMatrix (2,3) mat2
-
-res5 = printMatrix (3,2) mat4
-
-res6 = printMatrix (2,2) mat6
-
-
-
--}
--}
+tests = do
+  quickCheck prop_Arbitrary_Size
+  quickCheck prop_Arbitrary_Matrix
+  quickCheck prop_Arbitrary_MIx
+  quickCheck prop_fromIndexList
+  quickCheck prop_matrix
+  quickCheck prop_size
+  quickCheck prop_size_fromIndexList
+  quickCheck prop_fromLists_toLists
+  quickCheck prop_add
+  quickCheck prop_mul
+  quickCheck prop_diagonal
