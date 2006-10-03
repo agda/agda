@@ -26,7 +26,9 @@ import Syntax.Concrete.Operators
 import Syntax.Fixity
 import Syntax.Scope
 
--- import Interaction.Imports (scopeCheckModule)
+#ifndef __HADDOCK__
+import {-# SOURCE #-} TypeChecker (scopeCheckImport)
+#endif
 
 import Utils.Monad
 import Utils.Tuple
@@ -478,9 +480,8 @@ instance BindToAbstract NiceDeclaration [A.Declaration] where
 	ret [A.Pragma r p]
 
     bindToAbstract (NiceImport r x as is) ret = do
-	i <- error "TODO: import"
-	-- i <- liftIO $ currentModuleScope . snd <$> scopeCheckModule concreteToAbstract_ x
 	x' <- toAbstract $ CModuleName x
+	i  <- scopeCheckImport x'
 	importModule name i is $
 	    ret [A.Import (mkSourcedModuleInfo PublicAccess [C.Import r x as is]) x']
 	where

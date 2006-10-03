@@ -8,10 +8,13 @@ import Syntax.Abstract.Name
 import TypeChecking.Monad.Base
 import Utils.Monad
 
-addImport :: ModuleName -> TCM a -> TCM a
-addImport m ret = do
+addImport :: ModuleName -> TCM ()
+addImport m =
     modify $ \s -> s { stImportedModules = m : stImportedModules s }
-    flip local ret $ \e -> e { envImportPath = m : envImportPath e }
+
+addImportCycleCheck :: ModuleName -> TCM a -> TCM a
+addImportCycleCheck m =
+    local $ \e -> e { envImportPath = m : envImportPath e }
 
 getImports :: TCM [ModuleName]
 getImports = gets stImportedModules

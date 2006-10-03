@@ -212,13 +212,13 @@ instance PrettyTCM TypeError where
 			      ) $$ nest 2 (vcat $ map text files)
 	    NotInScope x ->
 		return $ fsep $ pwords "not in scope" ++ [pretty x]
-	    NoSuchModule x  -> return empty
-	    UninstantiatedModule x  -> return empty
-	    ClashingDefinition x y  -> return empty
-	    ClashingModule m1 m2    -> return empty
-	    ClashingImport x y	-> return empty
-	    ClashingModuleImport x y	-> return empty
-	    ModuleDoesntExport m xs -> return empty
+	    NoSuchModule x  -> return $ text "error"
+	    UninstantiatedModule x  -> return $ text "error"
+	    ClashingDefinition x y  -> return $ text "error"
+	    ClashingModule m1 m2    -> return $ text "error"
+	    ClashingImport x y	-> return $ text "error"
+	    ClashingModuleImport x y	-> return $ text "error"
+	    ModuleDoesntExport m xs -> return $ text "error"
 
 instance PrettyTCM Call where
     prettyTCM c = case c of

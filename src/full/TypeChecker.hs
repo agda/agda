@@ -218,9 +218,10 @@ checkModuleDef i x tel m' args =
 checkImport :: ModuleInfo -> ModuleName -> TCM ()
 checkImport i x =
     unlessM (isImported x) $
-    addImport x		   $ do
+    addImportCycleCheck x  $ do
 	(i,t) <- getInterface x
 	mergeInterface i
+	addImport x
 
 -- | Merge an interface into the current proof state.
 mergeInterface :: Interface -> TCM ()
@@ -264,13 +265,13 @@ findFile ft m = do
 		SourceFile    -> [".agda", ".lagda", ".agda2", ".lagda2", ".ag2"]
 		InterfaceFile -> [".agdai", ".ai"]
 
+scopeCheckImport :: ModuleName -> TCM ModuleScope
+scopeCheckImport x = addImportCycleCheck x $ iScope . fst <$> getInterface x
+
 getInterface :: ModuleName -> TCM (Interface, ClockTime)
 getInterface x = do
     file   <- findFile SourceFile x	-- requires source to exist
     let ifile = setExtension ".agdai" file
-
-    ms <- getImportPath
-    liftIO $ putStrLn $ "import path: " ++ show ms
 
     checkForImportCycle
 

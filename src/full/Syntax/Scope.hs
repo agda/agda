@@ -134,7 +134,7 @@ plusNameSpace_ (NSpace name ds1 m1) (NSpace _ ds2 m2) =
 	NSpace name (Map.unionWith __IMPOSSIBLE__ ds1 ds2)
 		    (Map.unionWith plusModules m1 m2)
 
--- | Merges to modules.
+-- | Merges two modules.
 plusModules :: ModuleScope -> ModuleScope -> ModuleScope
 plusModules mi1 mi2
     | moduleAccess mi1 /= moduleAccess mi2 || moduleArity mi1 /= moduleArity mi2
@@ -543,7 +543,10 @@ openModule x i cont =
 importModule :: CName.QName -> ModuleScope -> ImportDirective -> ScopeM a -> ScopeM a
 importModule x m dir cont =
     do	noModuleClash x
-	modScopeInfo ( updateImports (addQModule x m) ) cont
+	imps <- importedModules <$> getScopeInfo
+	imps <- handleTypeErrorException $ liftIO $ return $ addQModule x m imps
+		    -- addQModule needs to be strict on failure!
+	modScopeInfo ( updateImports (const imps) ) cont
 
 -- | Implicit module declaration.
 implicitModule :: CName.Name -> Access -> Arity -> CName.QName -> ImportDirective ->
