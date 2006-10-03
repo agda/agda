@@ -37,6 +37,7 @@ data TCState =
 	 , stSignature	       :: Signature
 	 , stImports	       :: Signature
 	 , stImportedModules   :: [ModuleName]
+	 , stVisitedModules    :: [ModuleName]
 	 , stScopeInfo	       :: ScopeInfo
 	 , stOptions	       :: CommandLineOptions
 	 , stStatistics	       :: Statistics
@@ -62,6 +63,7 @@ initState =
 	 , stSignature	       = Map.empty
 	 , stImports	       = Map.empty
 	 , stImportedModules   = []
+	 , stVisitedModules    = []
 	 , stScopeInfo	       = emptyScopeInfo_
 	 , stOptions	       = defaultOptions
 	 , stStatistics	       = Map.empty

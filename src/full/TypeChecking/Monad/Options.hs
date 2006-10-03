@@ -38,7 +38,10 @@ bracketOptions m = do
     return x
 
 getIncludeDirs :: TCM [FilePath]
-getIncludeDirs = optIncludeDirs <$> commandLineOptions
+getIncludeDirs = addDot . optIncludeDirs <$> commandLineOptions
+    where
+	addDot [] = ["."]   -- if there are no include dirs we use .
+	addDot is = is
 
 setInputFile :: FilePath -> TCM ()
 setInputFile file =

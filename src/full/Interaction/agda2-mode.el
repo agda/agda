@@ -361,7 +361,7 @@ annotate new goals NEW-GS"
   (agda2-go "cmd_reset")
   (let ((inhibit-read-only t) (inhibit-point-motion-hooks t))
     (let (buffer-undo-list)
-      (remove-text-properties
+      (agda2-no-modified-p 'remove-text-properties
        (point-min) (point-max)
        '(category intangible read-only invisible agda2-gn)))
     (agda2-flatten-undo)
@@ -538,7 +538,6 @@ NEW-TXT is a string to replace OLD-G, or `'paren', or `'no-paren'"
     (if o (list (overlay-start o) (overlay-end o)))))
 
 (defun agda2-goto-goal (g)
-  (message "agda2-goto-goal(%S,%S)" g (agda2-range-of-goal g))
   (let ((p (+ 2 (car (agda2-range-of-goal g)))))
     (if p (goto-char p))))
 
@@ -591,6 +590,10 @@ NEW-TXT is a string to replace OLD-G, or `'paren', or `'no-paren'"
           (or (match-end 2) (match-end 1))
         pDef))))
 
+(defun agda2-beginning-of-decl ()
+  (interactive)
+  (goto-char (agda2-decl-beginning)))
+
 (defun agda2-flatten-undo ()
   "Flatten agda2-undo-list onto buffer-undo-list,
 ignoring text-property undos."
@@ -627,6 +630,13 @@ ignoring text-property undos."
 
 (defalias 'turn-off-agda2-indent 'turn-off-haskell-indent)
 
+(defun agda2-no-modified-p (func &rest args)
+  "call FUNC without affecting the buffer-modified flag."
+  (interactive)
+  (let ((old-buffer-modified (buffer-modified-p)))
+    (apply func args)
+    (set-buffer-modified-p old-buffer-modified)))
+
 ;;;; Font-lock support
 
 (defvar agda2-re-font-lock nil)
@@ -642,22 +652,20 @@ ignoring text-property undos."
      (t  (r)          (c r "*"))
      (o  (r &rest rs) (apply 'c r (mapcar #'(lambda(x) (c "\\|" x)) rs))))
   (let* ((spc    (t "\\s "))
-         (keywd  (g (regexp-opt '("abstract" "case" "concrete" "data" "in"
-                                 "let" "of" "open" "package" "private"
-                                 "public" "sig" "struct" "use" "mutual"
-                                 "postulate" "idata" "where"
-                                 "class" "exports" "instance"
-                                 "CHEAT" "external"
-                                  "infixr" "infix" "infixl"
-                                 ))))
+         (keywd (g (regexp-opt '("let" "in" "where" "postulate"
+                                 "primitive" "open" "import" "module"
+                                 "data" "infix" "infixl" "infixr"
+                                 "mutual" "abstract" "private"
+                                 "Prop" "forall" "using" "hiding"
+                                 "renaming" "to" ))))
          (op     (c "("(p(g(o "\\s_" "\\s.")))")"))
          (ide    (g (o "\\sw+" op)))
-         (ides   (t(g(c spc "," spc "[|!]?" spc ide))))
+         (ides   (t(g(c spc "," spc ide))))
          (sor    (g (o "Set\\b" "Type\\b"))))
     (setq agda2-re-font-lock (o (g "--.*$") (w (o sor keywd)) ide)
           agda2-re-vars      (c "\\=" ides)
-          agda2-re-param     (c spc "[({][|!]?" ide ides spc ":")
-          agda2-re-in-param  (c "[({][|!]?" ide ides spc "\\=")
+          agda2-re-param     (c spc "[({]" ide ides spc ":")
+          agda2-re-in-param  (c "[({]" ide ides spc "\\=")
           agda2-re-dc        (c spc (g (o ":" "where"))))))
 (defvar agda2-nil6 (make-list 6 nil))
 (defvar agda2-nil8 (make-list 8 nil))
@@ -677,7 +685,7 @@ ignoring text-property undos."
             ok (or (elt md 2) (elt md 4) (elt md 6)
                    (progn (re-search-forward agda2-re-vars end t)
                           (agda2-protect (while (looking-at agda2-re-param)
-                                          (forward-sexp)))
+                                           (forward-sexp)))
                           (when  (looking-at agda2-re-dc)
                             (setcdr (cdr md) nil)
                             (set-match-data
@@ -702,6 +710,8 @@ See also `agda2-fontify-included-files'"
   (set (make-local-variable 'font-lock-defaults)
        '(agda2-font-lock-keywords nil nil nil))
   (turn-on-font-lock))
+
+;;;;
 
 (defun agda2-popup-menu-3 (ev)
   "If in a goal, popup the goal menu and call chosen command."

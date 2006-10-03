@@ -25,6 +25,18 @@ isImported m = elem m <$> getImports
 getImportPath :: TCM [ModuleName]
 getImportPath = asks envImportPath
 
+visitModule :: ModuleName -> TCM ()
+visitModule x = modify $ \s -> s { stVisitedModules = x : stVisitedModules s }
+
+setVisitedModules :: [ModuleName] -> TCM ()
+setVisitedModules ms = modify $ \s -> s { stVisitedModules = ms }
+
+getVisitedModules :: TCM [ModuleName]
+getVisitedModules = gets stVisitedModules
+
+isVisited :: ModuleName -> TCM Bool
+isVisited x = gets $ elem x . stVisitedModules
+
 withImportPath :: [ModuleName] -> TCM a -> TCM a
 withImportPath path = local $ \e -> e { envImportPath = path }
 

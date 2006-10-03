@@ -27,7 +27,7 @@ import Syntax.Fixity
 import Syntax.Scope
 
 #ifndef __HADDOCK__
-import {-# SOURCE #-} TypeChecker (scopeCheckImport)
+import {-# SOURCE #-} Interaction.Imports (scopeCheckImport)
 #endif
 
 import Utils.Monad

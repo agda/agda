@@ -1,5 +1,5 @@
 
-module TypeChecker where
+module Interaction.Imports where
 
 import Syntax.Abstract.Name    ( ModuleName )
 import Syntax.ScopeInfo	       ( ModuleScope )

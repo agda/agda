@@ -5,65 +5,183 @@
 -}
 module Interaction.Imports where
 
-import Control.Monad
-import Control.Monad.State
-import Control.Exception
-import Data.Typeable
-import qualified Data.Map as Map
-import System.Directory
+import Prelude hiding (putStrLn)
 
-import Syntax.Position
-import Syntax.Concrete as C
-import Syntax.Abstract as A
-import Syntax.Parser
+import Control.Monad.Error
+import Control.Monad.State
+import qualified Data.Map as Map
+import qualified Data.List as List
+import System.Directory
+import System.Time
+
+import qualified Syntax.Concrete.Name as C
+import Syntax.Abstract.Name
+import Syntax.Parser 
+import Syntax.Scope
+import Syntax.Translation.ConcreteToAbstract
+
+import TypeChecking.Interface
+import TypeChecking.Reduce
+import TypeChecking.Monad
+import TypeChecking.Monad.Builtin
+import TypeChecking.Serialise
+import TypeChecking.Primitive
+import TypeChecker
+
+import Interaction.Options
 
 import Utils.FileName
+import Utils.Monad
+import Utils.IO
+import Utils.Serialise
 
--- Exceptions -------------------------------------------------------------
-
-{-
-data ImportException
-	= FileNotFound C.QName [FilePath]
-	    -- ^ Couldn't find the module (@QName@) even though I looked
-	    --	 everywhere (@[FilePath]@).
-	| ClashingFileNamesFor C.QName [FilePath]
-    deriving (Typeable, Show)
-
-instance HasRange ImportException where
-    getRange (FileNotFound x _)		= getRange x
-    getRange (ClashingFileNamesFor x _) = getRange x
-
-fileNotFound x paths = throwDyn $ FileNotFound x paths
-clashingFileNamesFor x paths = throwDyn $ ClashingFileNamesFor x paths
-
--- | Parameterised to avoid cyclic module dependencies.
-scopeCheckModule :: MonadIO m => (C.Declaration -> m scopeInfo) -> C.QName -> m scopeInfo
-scopeCheckModule concreteToAbstract_ x = do
-    m <- liftIO $ do
-	exists <- liftIO $ doesFileExist file
-	unless exists $ fileNotFound x [file]
-	(_, m)     <- parseFile' moduleParser file
-	return m
-    scope <- concreteToAbstract_ m
-    return scope
+-- | Merge an interface into the current proof state.
+mergeInterface :: Interface -> TCM ()
+mergeInterface i = do
+    let sig	= iSignature i
+	isig	= iImports i
+	builtin = Map.toList $ iBuiltin i
+	prim	= [ x | (_,Prim x) <- builtin ]
+	bi	= Map.fromList [ (x,Builtin t) | (x,Builtin t) <- builtin ]
+    modify $ \st -> st { stImportedModules = stImportedModules st ++ iImportedModules i
+		       , stImports	   = Map.unions [stImports st, sig, isig]
+		       , stBuiltinThings   = stBuiltinThings st `Map.union` bi
+			    -- TODO: not safe (?) ^
+		       }
+    prim <- Map.fromList <$> mapM rebind prim
+    modify $ \st -> st { stBuiltinThings = stBuiltinThings st `Map.union` prim
+		       }
     where
-	file = moduleNameToFileName x ".agda"
--}
+	rebind x = do
+	    pf <- rebindPrimitive x
+	    return (x, Prim pf)
 
-{-| Look for an interface file for the given module. In the future this
-    function will check that the interface is up-to-date and otherwise re-type
-    check the module. It will also consult the command line options and other
-    appropriate sources to find a reasonable path to look in. At the moment it
-    looks in the current directory and fails if there isn't an interface file
-    there (or in the expected subdirectory).
+-- TODO: move
+data FileType = SourceFile | InterfaceFile
 
-    TODO: the suffix for interface files is hard-wired to @.agdai@.
--}
-getModuleInterface :: MonadIO m => C.QName -> m a
-getModuleInterface x = liftIO $ do
-    fail "imports doesn't work"
+findFile :: FileType -> ModuleName -> TCM FilePath
+findFile ft m = do
+    let x = mnameConcrete m
+    dirs <- getIncludeDirs
+    let files = [ dir ++ [slash] ++ file
+		| dir  <- dirs
+		, file <- map (moduleNameToFileName x) exts
+		]
+    files' <- liftIO $ filterM doesFileExist files
+    case files' of
+	[]	-> typeError $ FileNotFound m files
+	[file]	-> return file
+	_	-> typeError $ ClashingFileNamesFor m files'
     where
-	file = moduleNameToFileName x ".agdai"
+	exts = case ft of
+		SourceFile    -> [".agda", ".lagda", ".agda2", ".lagda2", ".ag2"]
+		InterfaceFile -> [".agdai", ".ai"]
+
+scopeCheckImport :: ModuleName -> TCM ModuleScope
+scopeCheckImport x = do
+    i <- fst <$> getInterface x
+    mergeInterface i
+    addImport x
+    return $ iScope i
+
+getInterface :: ModuleName -> TCM (Interface, ClockTime)
+getInterface x = addImportCycleCheck x $ do
+    file   <- findFile SourceFile x	-- requires source to exist
+    let ifile = setExtension ".agdai" file
+
+    checkForImportCycle
+
+    uptodate <- liftIO $ ifile `isNewerThan` file
+
+    if uptodate
+	then skip      ifile file
+	else typeCheck ifile file
+
+    where
+	skip ifile file = do
+
+	    -- Read interface file
+	    i  <- liftIO $ deserialise <$> readBinaryFile ifile
+
+	    -- Check time stamp of imported modules
+	    t  <- liftIO $ getModificationTime ifile
+	    ts <- map snd <$> mapM getInterface (iImportedModules i)
+
+	    -- If any of the imports are newer we need to retype check
+	    if any (> t) ts
+		then typeCheck ifile file
+		else do
+		    unlessM (isVisited x) $
+			liftIO $ putStrLn $ "Skipping " ++ show x ++ " ( " ++ ifile ++ " )"
+		    visitModule x
+		    return (i, t)
+
+	typeCheck ifile file = do
+
+	    -- Do the type checking
+	    unlessM (isVisited x) $
+		liftIO $ putStrLn $ "Checking " ++ show x ++ " ( " ++ file ++ " )"
+	    visitModule x
+	    ms	 <- getImportPath
+	    vs	 <- getVisitedModules
+	    opts <- commandLineOptions
+	    r  <- liftIO $ createInterface opts ms vs file
+
+	    -- Write interface file and return
+	    case r of
+		Left err -> throwError err
+		Right (vs,i)  -> do
+		    liftIO $ writeBinaryFile ifile (serialise i)
+		    t <- liftIO $ getModificationTime ifile
+		    setVisitedModules vs
+		    return (i, t)
+
+type Visited = [ModuleName]
+
+createInterface :: CommandLineOptions -> [ModuleName] -> Visited -> FilePath ->
+		   IO (Either TCErr (Visited, Interface))
+createInterface opts path visited file = runTCM $ withImportPath path $ do
+
+    setCommandLineOptions opts
+    setVisitedModules visited
+
+    (pragmas, m) <- liftIO $ parseFile' moduleParser file
+    pragmas	 <- concreteToAbstract_ pragmas -- identity for top-level pragmas
+    (m, scope)	 <- concreteToAbstract_ m
+
+    setOptionsFromPragmas pragmas
+
+    checkDecl m
+    setScope scope
+
+    -- check that metas have been solved
+    ms <- getOpenMetas
+    case ms of
+	[]  -> return ()
+	_   -> do
+	    rs <- mapM getMetaRange ms
+	    typeError $ UnsolvedMetasInImport $ List.nub rs
+
+    i  <- buildInterface
+    vs <- getVisitedModules
+    return (vs, i)
+
+buildInterface :: TCM Interface
+buildInterface = do
+    scope   <- currentModuleScope <$> getScope
+    sig	    <- getSignature
+    isig    <- getImportedSignature
+    builtin <- getBuiltinThings
+    ms	    <- getImports
+    let	builtin' = Map.mapWithKey (\x b -> fmap (const x) b) builtin
+    instantiateFull $ Interface
+			{ iImportedModules = ms
+			, iScope	   = scope
+			, iSignature	   = sig
+			, iImports	   = isig
+			, iBuiltin	   = builtin'
+			}
+
 
 -- | Put some of this stuff in a Utils.File
 type Suffix = String
@@ -71,8 +189,8 @@ type Suffix = String
 {-| Turn a module name into a file name with the given suffix.
 -}
 moduleNameToFileName :: C.QName -> Suffix -> FilePath
-moduleNameToFileName (C.QName x) ext = show x ++ ext
-moduleNameToFileName (Qual m  x) ext = show m ++ [slash] ++ moduleNameToFileName x ext
+moduleNameToFileName (C.QName  x) ext = show x ++ ext
+moduleNameToFileName (C.Qual m x) ext = show m ++ [slash] ++ moduleNameToFileName x ext
 
 -- | True if the first file is newer than the second file. If a file doesn't
 -- exist it is considered to be infinitely old.
