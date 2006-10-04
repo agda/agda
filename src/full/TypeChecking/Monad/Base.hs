@@ -450,8 +450,8 @@ data TypeError
 	| UninstantiatedModule C.QName
 	| ClashingDefinition C.Name A.QName
 	| ClashingModule A.ModuleName A.ModuleName
-	| ClashingImport C.Name C.Name
-	| ClashingModuleImport C.Name C.Name
+	| ClashingImport C.Name A.QName
+	| ClashingModuleImport C.Name A.ModuleName
 	| ModuleDoesntExport A.ModuleName [C.ImportedName]
     deriving (Typeable)
 

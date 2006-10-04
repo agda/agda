@@ -505,7 +505,7 @@ instance BindToAbstract (Constr CD.NiceDeclaration) A.Declaration where
 
 instance BindToAbstract (Constr A.Declaration) () where
     bindToAbstract (Constr (A.Axiom info x _)) ret =
-	    modScopeInfo (defName p ConName fx x) $ ret ()
+	    modScopeInfoM (defName p ConName fx x) $ ret ()
 	where
 	    a  = defAccess info
 	    fx = defFixity info

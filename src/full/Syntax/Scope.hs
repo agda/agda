@@ -21,6 +21,7 @@ module Syntax.Scope
     , getScopeInfo
     , setScopeInfo
     , modScopeInfo
+    , modScopeInfoM
     , getModule
     , getFixityFunction
     , setContext
@@ -66,6 +67,7 @@ import TypeChecking.Monad.Base
 import Utils.Monad
 import Utils.Maybe
 import Utils.Fresh
+import Utils.Map
 
 #include "../undefined.h"
 
@@ -99,10 +101,10 @@ abstractName x =
 notInScope :: CName.QName -> ScopeM a
 notInScope x = typeError $ NotInScope x
 
-clashingImport :: CName.Name -> CName.Name -> ScopeM a
+clashingImport :: CName.Name -> AName.QName -> ScopeM a
 clashingImport x x' = typeError $ ClashingImport x x'
 
-clashingModuleImport :: CName.Name -> CName.Name -> ScopeM a
+clashingModuleImport :: CName.Name -> AName.ModuleName -> ScopeM a
 clashingModuleImport x x' = typeError $ ClashingModuleImport x x'
 
 noSuchModule :: CName.QName -> ScopeM a
@@ -129,21 +131,20 @@ plusNameSpace (NSpace name ds1 m1) (NSpace _ ds2 m2) =
 		    (Map.unionWith __IMPOSSIBLE__ m1 m2)
 
 -- | Same as 'plusNameSpace' but allows the modules to overlap.
-plusNameSpace_ :: NameSpace -> NameSpace -> NameSpace
+plusNameSpace_ :: NameSpace -> NameSpace -> ScopeM NameSpace
 plusNameSpace_ (NSpace name ds1 m1) (NSpace _ ds2 m2) =
 	NSpace name (Map.unionWith __IMPOSSIBLE__ ds1 ds2)
-		    (Map.unionWith plusModules m1 m2)
+		<$> unionWithM plusModules m1 m2
 
 -- | Merges two modules.
-plusModules :: ModuleScope -> ModuleScope -> ModuleScope
+plusModules :: ModuleScope -> ModuleScope -> ScopeM ModuleScope
 plusModules mi1 mi2
     | moduleAccess mi1 /= moduleAccess mi2 || moduleArity mi1 /= moduleArity mi2
-	= throwDyn $ ClashingModule
-			(moduleName $ moduleContents mi1)
-			(moduleName $ moduleContents mi2)    -- TODO: different exception?
-    | otherwise	= mi1 { moduleContents = moduleContents mi1 `plusNameSpace_`
-					 moduleContents mi2
-		      }
+	= clashingModule (moduleName $ moduleContents mi1)
+			 (moduleName $ moduleContents mi2)    -- TODO: different exception?
+    | otherwise	= do
+	mc <- moduleContents mi1 `plusNameSpace_` moduleContents mi2
+	return mi1 { moduleContents = mc }
 
 topLevelNameSpace :: Modules -> NameSpace
 topLevelNameSpace ms =
@@ -151,56 +152,61 @@ topLevelNameSpace ms =
 	{ modules = ms }
 
 -- | Throws an exception if the name exists.
-addName :: CName.Name -> DefinedName -> NameSpace -> NameSpace
-addName x qx ns =
-	ns { definedNames = Map.insertWithKey clash x qx $ definedNames ns }
+addName :: CName.Name -> DefinedName -> NameSpace -> ScopeM NameSpace
+addName x qx ns = do
+	defs <- insertWithKeyM clash x qx $ definedNames ns
+	return ns { definedNames = defs }
     where
-	clash x' _ _ = throwDyn $ ClashingImport x x'
+	clash _ _ old = clashingImport x (theName old)
 
-addModule :: CName.Name -> ModuleScope -> NameSpace -> NameSpace
-addModule x mi ns =
-	ns { modules = Map.insertWithKey clash x mi $ modules ns }
+addModule :: CName.Name -> ModuleScope -> NameSpace -> ScopeM NameSpace
+addModule x mi ns = do
+	mods <- insertWithKeyM clash x mi $ modules ns
+	return ns { modules = mods }
     where
-	clash x' _ _ = throwDyn $ ClashingModuleImport x x'
+	clash _ _ old = clashingModuleImport x (moduleName $ moduleContents old)
 
 -- | Allows the module to already be defined. Used when adding modules
 --   corresponding to directories (from imports).
-addModule_ :: CName.Name -> ModuleScope -> NameSpace -> NameSpace
-addModule_ x mi ns =
-	ns { modules = Map.insertWithKey clash x mi $ modules ns }
+addModule_ :: CName.Name -> ModuleScope -> NameSpace -> ScopeM NameSpace
+addModule_ x mi ns = do
+	mods <- insertWithKeyM clash x mi $ modules ns
+	return ns { modules = mods }
     where
 	clash x' mi mi' = plusModules mi mi'
 	    -- TODO: we should only allow overlap of the pseudo-modules!
 
-addQModule :: CName.QName -> ModuleScope -> Modules -> Modules
-addQModule x mi ms = modules $ addQ [] x mi ns
+addQModule :: CName.QName -> ModuleScope -> Modules -> ScopeM Modules
+addQModule x mi ms = modules <$> addQ [] x mi ns
     where
 	ns = topLevelNameSpace ms
 
-	addQ _  (CName.QName x)  mi ns = addModule x mi ns
-	addQ ms (Qual m x) mi ns = addModule_ m mi' ns
-	    where
-		mi' = ModuleScope { moduleAccess   = PublicAccess
+	addQ _  (CName.QName x) mi ns = addModule x mi ns
+	addQ ms (Qual m x)	mi ns = do
+	    mc <- addQ (ms ++ [m]) x mi (emptyNameSpace $ mkQual ms m)
+	    let mi' = ModuleScope { moduleAccess   = PublicAccess
 				  , moduleArity	   = 0
-				  , moduleContents = addQ (ms ++ [m]) x mi
-							  (emptyNameSpace $ mkQual ms m)
+				  , moduleContents = mc
 				  }
+	    addModule_ m mi' ns
+	    where
 		mkQual ms x = mkModuleName $ foldr Qual (CName.QName x) ms
-	next (CName.QName x)	= x
-	next (Qual m x) = m
 
-addModules :: [(CName.Name, ModuleScope)] -> NameSpace -> NameSpace
-addModules ms ns = foldr (uncurry addModule) ns ms
+	next (CName.QName x) = x
+	next (Qual m x)	     = m
 
-addNames :: [(CName.Name, DefinedName)] -> NameSpace -> NameSpace
-addNames ds ns	 = foldr (uncurry addName) ns ds
+addModules :: [(CName.Name, ModuleScope)] -> NameSpace -> ScopeM NameSpace
+addModules ms ns = foldr (=<<) (return ns) $ List.map (uncurry addModule) ms
+
+addNames :: [(CName.Name, DefinedName)] -> NameSpace -> ScopeM NameSpace
+addNames ds ns = foldr (=<<) (return ns) $ List.map (uncurry addName) ds
 
 -- | Add the names from the first name space to the second. Throws an
 --   exception on clashes.
-addNameSpace :: NameSpace -> NameSpace -> NameSpace
+addNameSpace :: NameSpace -> NameSpace -> ScopeM NameSpace
 addNameSpace ns0 ns =
     addNames (Map.assocs $ definedNames ns0)
-    $ addModules (Map.assocs $ modules ns0) ns
+    =<< addModules (Map.assocs $ modules ns0) ns
 
 
 -- | Recompute canonical names. All mappings will be @x -> M.x@ where
@@ -223,19 +229,27 @@ makeFreshCanonicalNames ns =
 -- * Updating the scope
 ---------------------------------------------------------------------------
 
-updateNameSpace :: Access -> (NameSpace -> NameSpace) ->
-		   ScopeInfo -> ScopeInfo
+updateNameSpace :: Access -> (NameSpace -> NameSpace) -> ScopeInfo -> ScopeInfo
 updateNameSpace PublicAccess f si =
     si { publicNameSpace = f $ publicNameSpace si }
 updateNameSpace PrivateAccess f si =
     si { privateNameSpace = f $ privateNameSpace si }
 
+updateNameSpaceM :: Access -> (NameSpace -> ScopeM NameSpace) ->
+		   ScopeInfo -> ScopeM ScopeInfo
+updateNameSpaceM PublicAccess f si = do
+    ns <- f $ publicNameSpace si
+    return si { publicNameSpace = ns }
+updateNameSpaceM PrivateAccess f si = do
+    ns <- f $ privateNameSpace si
+    return si { privateNameSpace = ns }
+
 updateImports :: (Modules -> Modules) -> ScopeInfo -> ScopeInfo
 updateImports f si = si { importedModules = f $ importedModules si }
 
 defName :: Access -> KindOfName -> Fixity -> AName.Name ->
-	   ScopeInfo -> ScopeInfo
-defName a k fx x si = updateNameSpace a (addName (nameConcrete x) qx) si
+	   ScopeInfo -> ScopeM ScopeInfo
+defName a k fx x si = updateNameSpaceM a (addName (nameConcrete x) qx) si
     where
 	m   = moduleName $ publicNameSpace si
 	qx  = DefinedName a k fx (AName.qualify m x)
@@ -410,7 +424,7 @@ importedNames :: ModuleScope -> ImportDirective -> ScopeM NameSpace
 importedNames m i =
     case invalidImportDirective ns i of
 	Just e	-> typeError e
-	Nothing	-> return $ addModules newModules $ addNames newNames $ emptyNameSpace name
+	Nothing	-> addModules newModules =<< addNames newNames (emptyNameSpace name)
     where
 	name = moduleName ns
 	ns = moduleContents m
@@ -434,13 +448,16 @@ getScopeInfo = gets stScopeInfo
 setScopeInfo :: ScopeInfo -> ScopeM ()
 setScopeInfo scope = modify $ \s -> s { stScopeInfo = scope }
 
-modScopeInfo :: (ScopeInfo -> ScopeInfo) -> ScopeM a -> ScopeM a
-modScopeInfo f ret = do
+modScopeInfoM :: (ScopeInfo -> ScopeM ScopeInfo) -> ScopeM a -> ScopeM a
+modScopeInfoM f ret = do
     scope <- getScopeInfo
-    setScopeInfo $ f scope
+    setScopeInfo =<< f scope
     x <- ret
     setScopeInfo scope
     return x
+
+modScopeInfo :: (ScopeInfo -> ScopeInfo) -> ScopeM a -> ScopeM a
+modScopeInfo f = modScopeInfoM (return . f)
 
 -- | Get the name of the current module.
 getCurrentModule :: ScopeM ModuleName
@@ -504,10 +521,10 @@ defineName a k f x cont = do
     case resolveName (CName.QName x) si of
 	UnknownName -> do
 	    x' <- abstractName x
-	    modScopeInfo (defName a k f x') $ cont x'
+	    modScopeInfoM (defName a k f x') $ cont x'
 	VarName _ -> do
 	    x' <- abstractName x
-	    modScopeInfo (defName a k f x' . shadowVar x') $ cont x'
+	    modScopeInfoM (defName a k f x' . shadowVar x') $ cont x'
 	DefName y   -> clashingDefinition x (theName y)
 
 
@@ -534,18 +551,16 @@ openModule :: CName.QName -> ImportDirective -> ScopeM a -> ScopeM a
 openModule x i cont =
     do	m <- getModule x
 	ns <- importedNames m i
-	modScopeInfo (updateNameSpace PrivateAccess
+	modScopeInfoM (updateNameSpaceM PrivateAccess
 			       (addNameSpace ns)
-		     ) cont
+		      ) cont
 
 -- | Importing a module. The first argument is the name the module is imported
 --   /as/. If there is no /as/ clause it should be the name of the module.
 importModule :: CName.QName -> ModuleScope -> ImportDirective -> ScopeM a -> ScopeM a
 importModule x m dir cont =
     do	noModuleClash x
-	imps <- importedModules <$> getScopeInfo
-	imps <- handleTypeErrorException $ liftIO $ return $ addQModule x m imps
-		    -- addQModule needs to be strict on failure!
+	imps <- addQModule x m . importedModules =<< getScopeInfo
 	modScopeInfo ( updateImports (const imps) ) cont
 
 -- | Implicit module declaration.
@@ -562,7 +577,7 @@ implicitModule x ac ar x' i cont =
 			     , moduleArity    = ar
 			     , moduleContents = ns
 			     }
-	modScopeInfo (updateNameSpace ac (addModule x m')) cont
+	modScopeInfoM (updateNameSpaceM ac (addModule x m')) cont
 
 -- | Running the scope monad.
 -- runScopeM :: ScopeState -> ScopeInfo -> ScopeM a -> IO a
