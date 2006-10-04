@@ -13,6 +13,7 @@ module Termination.TestHelpers
   , allEqual
     -- * Generators
   , natural
+  , positive
   , list
   , listOfLength
   )
@@ -97,6 +98,11 @@ allEqual (x : xs) = all (== x) xs
 
 natural :: (Arbitrary i, Integral i) => Gen i
 natural = fmap abs arbitrary
+
+-- | Generates positive numbers.
+
+positive :: (Arbitrary i, Integral i) => Gen i
+positive = fmap ((+ 1) . abs) arbitrary
 
 -- | Generates a list of the given length, using the given generator
 -- to generate the elements.

@@ -70,15 +70,15 @@ data MIx i = MIx { row, col :: i }
 
 instance (Arbitrary i, Integral i) => Arbitrary (MIx i) where
   arbitrary = do
-    (r, c) <- two natural
+    (r, c) <- two positive
     return $ MIx { row = r, col = c }
 
   coarbitrary (MIx r c) = coarbitrary r . coarbitrary c
 
--- | No negative indices are allowed.
+-- | No nonpositive indices are allowed.
 
 mIxInvariant :: (Ord i, Num i) => MIx i -> Bool
-mIxInvariant i = row i >= 0 && col i >= 0
+mIxInvariant i = row i >= 1 && col i >= 1
 
 prop_Arbitrary_MIx :: MIx Integer -> Bool
 prop_Arbitrary_MIx = mIxInvariant

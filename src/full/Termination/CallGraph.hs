@@ -159,48 +159,65 @@ prop_cmMul sz =
 --   The structural ordering used is defined in the paper referred to
 --   above.
 
-data Call =
+data Call call =
   Call { source :: Index   -- ^ The function making the call.
        , target :: Index   -- ^ The function being called.
+       , callId :: call    -- ^ An identifier for this particular call. 
+                           --   This identifier is not used when
+                           --   comparing calls in the 'Eq' and 'Ord'
+                           --   instances.
        , cm :: CallMatrix  -- ^ The call matrix describing the call.
        }
-  deriving (Eq, Ord, Show)
+  deriving Show
 
-instance Arbitrary Call where
+callInfo c = (source c, target c, cm c)
+
+instance Eq (Call call) where
+  (==) = (==) `on` callInfo
+
+instance Ord (Call call) where
+  compare = compare `on` callInfo
+
+instance Arbitrary call => Arbitrary (Call call) where
   arbitrary = do
     (s, t) <- two arbitrary
     cm     <- arbitrary
-    return (Call { source = s, target = t, cm = cm })
+    callId <- arbitrary
+    return (Call { source = s, target = t, callId = callId, cm = cm })
 
-  coarbitrary (Call s t cm) =
-    coarbitrary s . coarbitrary t . coarbitrary cm
+  coarbitrary (Call s t callId cm) =
+    coarbitrary s . coarbitrary t . coarbitrary callId . coarbitrary cm
 
+prop_Arbitrary_Call :: Call Integer -> Bool
 prop_Arbitrary_Call = callInvariant
 
 -- | 'Call' invariant.
 
-callInvariant :: Call -> Bool
+callInvariant :: Call call -> Bool
 callInvariant = callMatrixInvariant . cm
 
--- | Call combination.
+-- | 'Call' combination. The new 'callId' is the 'callId' of the left
+-- call, since that call is the one whose 'target' is preserved. (We
+-- are interested in the source location of the call.)
 --
 -- Precondition: see '<*>'; furthermore the 'source' of the first
 -- argument should be equal to the 'target' of the second one.
 
-(>*<) :: Call -> Call -> Call
+(>*<) :: Call call -> Call call -> Call call
 c1 >*< c2 =
-  Call { source = source c2, target = target c1, cm = cm c1 <*> cm c2 }
+  Call { source = source c2, target = target c1, callId = callId c1
+       , cm = cm c1 <*> cm c2 }
 
 ------------------------------------------------------------------------
 -- Call graphs
 
 -- | A call graph is a set of calls.
 
-type CallGraph = Set Call
+type CallGraph call = Set (Call call)
 
 -- | Generates a call set satisfying 'completePrecondition'.
 
-callGraph :: Gen (CallGraph)
+callGraph :: (Ord call, Arbitrary call) => Gen (CallGraph call)
 callGraph = do
   indices <- fmap nub arbitrary
   lengths <- listOfLength (length indices) (choose (0, 2))  -- Not too large.
@@ -213,11 +230,12 @@ callGraph = do
   matGen indexMap = do
     ((s, c), (t, r)) <- two (elements indexMap)
     m <- matrix (Size { rows = r, cols = c })
-    return $ Call { source = s, target = t
+    callId <- arbitrary
+    return $ Call { source = s, target = t, callId = callId
                   , cm = CallMatrix { mat = m } }
 
 prop_callGraph =
-  forAll callGraph $ \cs ->
+  forAll (callGraph :: Gen (CallGraph Integer)) $ \cs ->
     completePrecondition cs
 
 -- | Call graph combination. (Application of '>*<' to all pairs @(c1,
@@ -225,7 +243,7 @@ prop_callGraph =
 --
 -- Precondition: see '<*>'.
 
-combine :: CallGraph -> CallGraph -> CallGraph
+combine :: Ord call => CallGraph call -> CallGraph call -> CallGraph call
 combine s1 s2 =
   Set.fromList [ c1 >*< c2
                | c1 <- Set.toList s1, c2 <- Set.toList s2
@@ -238,7 +256,7 @@ combine s1 s2 =
 --
 -- Precondition: @'completePrecondition' cs@.
 
-complete :: CallGraph -> CallGraph
+complete :: Ord call => CallGraph call -> CallGraph call
 complete c = complete' c
   where
   complete' cs | cs' == cs = cs
@@ -246,12 +264,12 @@ complete c = complete' c
     where cs' = Set.union cs (combine cs c)
 
 prop_complete =
-  forAll callGraph $ \cs ->
+  forAll (callGraph :: Gen (CallGraph Integer)) $ \cs ->
     isComplete (complete cs)
 
 -- | Returns 'True' iff the call graph is complete.
 
-isComplete :: CallGraph -> Bool
+isComplete :: Ord call => CallGraph call -> Bool
 isComplete s = all (`Set.member` s) combinations
   where
   calls = Set.toList s
@@ -261,7 +279,7 @@ isComplete s = all (`Set.member` s) combinations
 -- | Checks whether every 'Index' used in the call graph corresponds
 -- to a fixed number of arguments (i.e. rows\/columns).
 
-completePrecondition :: CallGraph -> Bool
+completePrecondition :: CallGraph call -> Bool
 completePrecondition cs =
   all (allEqual . map snd) $
   groupOn fst $

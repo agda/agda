@@ -2,108 +2,215 @@
 --      \"A Predicative Analysis of Structural Recursion\" by
 --      Andreas Abel and Thorsten Altenkirch.
 
--- Note that this module can be optimised by using Data.Sequence
--- instead of ordinary lists. It is unclear if this is necessary,
--- though.
-
 module Termination.Lexicographic
   ( LexOrder
-  , RecBehaviour
+  , RecBehaviour(..)
+  , Column
+  , recBehaviourInvariant
+  , fromDiagonals
   , lexOrder
   ) where
 
 import Test.QuickCheck
-import Termination.TestHelpers
 import Termination.Utilities
+import Termination.Matrix (Size (..))
+import qualified Termination.Matrix as M
+import Termination.TestHelpers
 import Termination.CallGraph
-import Data.List
-import Data.Maybe
 import Control.Arrow
+import Data.List
+import Data.Map (Map, (!))
+import qualified Data.Map as Map
+import Data.Array (Array, Ix)
+import qualified Data.Array as Array
+import Data.Set (Set)
 
 -- | A lexicographic ordering for the recursion behaviour of a
 -- given function is a permutation of the argument indices which can
 -- be used to show that the function terminates. See the paper
 -- referred to above for more details.
 
-type LexOrder = [Index]
+type LexOrder arg = [arg]
 
 -- | A recursion behaviour expresses how a certain function calls
--- itself (transitively). The outer list contains one element for
--- every (syntactic) recursive call. The @n@-th element in an inner
--- list expresses size changes in the @n@-th argument for a certain
--- recursive call.
+-- itself (transitively). For every argument position there is a value
+-- ('Column') describing how the function calls itself for that
+-- particular argument. See also 'recBehaviourInvariant'.
 
-type RecBehaviour = [[Order]]
+data RecBehaviour arg call =
+  RB { columns :: Map arg (Column call)
+     , size    :: Size Integer
+     }
+  deriving Show
 
--- | All the inner lists should have the same length.
+-- | A column expresses how the size of a certain argument changes in
+-- the various recursive calls a function makes to itself
+-- (transitively).
 
-recBehaviourInvariant :: RecBehaviour -> Bool
-recBehaviourInvariant = allEqual . map length
+type Column call = Map call Order
+
+-- | 'RecBehaviour' invariant: the size must match the real size of
+-- the recursion behaviour, and all columns must have the same
+-- indices.
+
+recBehaviourInvariant :: Eq call => RecBehaviour arg call -> Bool
+recBehaviourInvariant rb =
+  genericLength (Map.elems $ columns rb) == cols (size rb)
+  &&
+  all (== rows (size rb))
+      (map (genericLength . Map.elems) $ Map.elems $ columns rb)
+  &&
+  allEqual (map Map.keysSet $ Map.elems $ columns rb)
 
 -- | Generates a recursion behaviour.
 
-recBehaviour :: Gen RecBehaviour
-recBehaviour = do
-  n <- natural :: Gen Integer
-  list (listOfLength n arbitrary)
+instance (Arbitrary call, Arbitrary arg, Ord arg, Ord call)
+  => Arbitrary (RecBehaviour call arg) where
+  arbitrary = do
+    calls <- fmap nub $ list arbitrary
+    args  <- fmap nub $ list arbitrary
+    let rows = genericLength calls
+        cols = genericLength args
+        sz   = Size { rows = rows, cols = cols }
+        colGen = do
+          col <- fmap (zip calls) $ listOfLength rows arbitrary
+          return $ Map.fromList col
+    cols <- fmap (zip args) $ listOfLength cols colGen
+    return $ RB { columns = Map.fromList cols, size = sz }
 
-prop_recBehaviour = forAll recBehaviour recBehaviourInvariant
+  coarbitrary (RB c s) =
+    coarbitrary (map (id *** Map.toList) $ Map.toList c) .
+    coarbitrary s
 
--- | Checks if this argument is well-behaved (all calls decreasing, at
--- least one strictly decreasing).
+prop_recBehaviour_Arbitrary :: RecBehaviour Integer Integer -> Bool
+prop_recBehaviour_Arbitrary = recBehaviourInvariant
 
-okArgument :: [Order] -> Bool
-okArgument col = any ((==) Lt) col && all ((/=) Unknown) col
+-- | Checks whether a recursion behaviour is empty (either no columns
+-- or all columns empty).
 
--- | Computes a new recursion behaviour by removing all rows for which
--- the @n@-th element is 'Lt', and also completely removing the @n@-th
--- column.
+isEmpty :: RecBehaviour arg call -> Bool
+isEmpty rb = cols (size rb) == 0 || rows (size rb) == 0
 
-newBehaviour :: Index -> RecBehaviour -> RecBehaviour
+prop_isEmpty :: RecBehaviour Integer Integer -> Bool
+prop_isEmpty rb =
+  isEmpty rb == all Map.null (Map.elems $ columns rb)
+
+-- | Constructs a recursion behaviour from a list of matrix diagonals
+-- (\"rows\"). Note that the @call@ indices do not need to be
+-- distinct, since they are paired up with unique 'Integer's.
+--
+-- Precondition: all arrays should have the same bounds.
+
+fromDiagonals :: (Ord call, Ix arg)
+              => [(call, Array arg Order)] -> RecBehaviour arg (Integer, call)
+fromDiagonals []   = RB { columns = Map.fromList [], size = Size 0 0 }
+fromDiagonals rows = RB { columns = Map.fromList $ zip args cols
+                        , size = Size { rows = genericLength rows
+                                      , cols = genericLength cols }
+                        }
+  where
+  calls = zip [1 ..] $ map fst rows
+  cols = map Map.fromList $ map (zip calls) $ transpose $
+         map (Array.elems . snd) rows
+  args = Array.range $ Array.bounds $ snd $ head rows
+
+prop_fromDiagonals m =
+  forAll (listOfLength (rows $ M.size m) arbitrary) $ \calls ->
+    let oss = zip calls $
+              map (Array.listArray (1, cols $ M.size m)) $
+              M.toLists m
+        rb = fromDiagonals oss :: RecBehaviour Integer (Integer, Bool)
+    in
+    recBehaviourInvariant rb
+    &&
+    if rows (M.size m) == 0 then
+      rows (size rb) == 0
+     else
+      size rb == M.size m
+
+-- | Checks if this \"column\" is well-behaved (all calls decreasing,
+-- at least one strictly decreasing).
+
+okColumn :: Column call -> Bool
+okColumn col = any (== Lt) col' && all (/= Unknown) col'
+  where col' = Map.elems col
+
+-- | @'newBehaviour' n rb@ computes a new recursion behaviour from
+-- @rb@ by removing all \"rows\" (calls) for which the @n@-th element
+-- is 'Lt', and also completely removing the @n@-th column.
+--
+-- Precondition: there has to be an @n@-th column.
+
+newBehaviour :: (Ord arg, Ord call)
+             => arg -> RecBehaviour arg call -> RecBehaviour arg call
 newBehaviour n rb =
-  catMaybes $
-    map (\(o, os) -> if o == Lt then Nothing else Just os) $
-      map (extractNthElement n) rb
+  RB { columns = Map.map remove $ Map.delete n $ columns rb
+     , size = Size { rows = rows (size rb) - genericLength indicesToRemove
+                   , cols = cols (size rb) - 1 }
+     }
+  where
+  Just colN = Map.lookup n $ columns rb
+  indicesToRemove = map fst $ filter ((== Lt) . snd) $ Map.toList colN
+  remove colJ = foldr Map.delete colJ indicesToRemove
+
+prop_newBehaviour :: RecBehaviour Integer Integer -> Property
+prop_newBehaviour rb =
+  not (cols (size rb) == 0) ==>
+    forAll (elements $ Map.keys $ columns rb) $ \n ->
+      recBehaviourInvariant (newBehaviour n rb)
 
 -- | @'correctLexOrder' rs ps@ checks that the permutation @ps@ really
 -- induces a lexicographic ordering which shows that the function
 -- represented by the recursion behaviour @rs@ terminates.
 
-correctLexOrder :: RecBehaviour -> LexOrder -> Bool
-correctLexOrder []      []        = True
-correctLexOrder (_ : _) []        = False
-correctLexOrder rb      (p0 : ps) =
-  okArgument (transpose rb `genericIndex` p0) &&
-  correctLexOrder (newBehaviour p0 rb) ps'
-  where
-  ps' = map (\p -> if p < p0 then p else p - 1) ps
+correctLexOrder :: (Ord arg, Ord call)
+                => RecBehaviour arg call -> LexOrder arg -> Bool
+correctLexOrder rb []        = isEmpty rb
+correctLexOrder rb (p0 : ps) =
+  okColumn (columns rb ! p0) && correctLexOrder (newBehaviour p0 rb) ps
 
 -- | Tries to compute a lexicographic ordering for the given recursion
 -- behaviour. This algorithm should be complete.
+--
+-- If no lexicographic ordering can be found, then two sets are
+-- returned:
+--
+-- * A set of argument positions which are not properly decreasing, and
+--
+-- * the calls where these problems show up.
 
-lexOrder :: RecBehaviour -> Maybe LexOrder
-lexOrder [] = Just []
-lexOrder rb = case okArguments of
-  []      -> Nothing
-  (n : _) -> do
-    ps <- lexOrder (newBehaviour n rb)
-    return $ n : map (\p -> if p >= n then p + 1 else p) ps
+lexOrder :: (Ord arg, Ord call) =>
+  RecBehaviour arg call -> Either (Set arg, Set call) (LexOrder arg)
+lexOrder rb | isEmpty rb  = Right []
+            | otherwise   = case okColumns of
+  []      -> Left errMsg
+  (n : _) -> case lexOrder (newBehaviour n rb) of
+    Left err -> Left err
+    Right ps -> Right $ n : ps
   where
-  okArguments = map fst $ filter snd $
-                map (id *** okArgument) $
-                zip [0 ..] (transpose rb)
+  okColumns = map fst $ filter snd $
+              map (id *** okColumn) $
+              Map.toList $ columns rb
 
-prop_lexOrder =
-  forAll recBehaviour $ \rb ->
-    let mPerm = lexOrder rb
-        Just perm = mPerm
-    in
-    mPerm /= Nothing ==>
-      correctLexOrder rb perm
+  errMsg = ( Map.keysSet $ columns rb
+           , Map.keysSet $ head $ Map.elems $ columns rb
+           )
+
+prop_lexOrder :: RecBehaviour Integer Integer -> Property
+prop_lexOrder rb =
+  let mPerm = lexOrder rb
+      Right perm = mPerm
+  in
+  isRight mPerm ==>
+    classify (cols (size rb) >= 2) "interesting" $
+    correctLexOrder rb perm
 
 ------------------------------------------------------------------------
 -- All tests
 
 tests = do
-  quickCheck prop_recBehaviour
+  quickCheck prop_recBehaviour_Arbitrary
+  quickCheck prop_isEmpty
+  quickCheck prop_fromDiagonals
+  quickCheck prop_newBehaviour
   quickCheck prop_lexOrder
