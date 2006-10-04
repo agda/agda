@@ -2,6 +2,7 @@
 module TypeChecking.Errors where
 
 import Control.Monad.State
+import Control.Monad.Error
 
 import Syntax.Common
 import Syntax.Fixity
@@ -26,7 +27,18 @@ import Utils.Trace
 ---------------------------------------------------------------------------
 
 prettyError :: TCErr -> TCM String
-prettyError err = show <$> prettyTCM err
+prettyError err = liftM show $
+    prettyTCM err
+    `catchError` \err' -> do
+	d <- prettyTCM err'
+	return $ text "panic: error when printing error!" $$ d
+    `catchError` \err'' -> do
+	d <- prettyTCM err''
+	return $ text "much panic: error when printing error from printing error!" $$ d
+    `catchError` \err''' -> return $ fsep (
+	pwords "total panic: error when printing error from printing error from printing error." ++
+	pwords "I give up! Approximations of errors:" )
+	$$ vcat (map (text . tcErrString) [err,err',err'',err'''])
 
 ---------------------------------------------------------------------------
 -- * Helpers
@@ -45,6 +57,69 @@ sayWhen tr m = case matchCall interestingCall tr of
 
 panic :: String -> Doc
 panic s = fwords $ "Panic: " ++ s
+
+tcErrString :: TCErr -> String
+tcErrString err = show (getRange err) ++ " " ++ case err of
+    TypeError _ cl -> errorString $ clValue cl
+    Exception r s  -> show r ++ " " ++ s
+    PatternErr _   -> "PatternErr"
+    AbortAssign _  -> "AbortAssign"
+
+errorString :: TypeError -> String
+errorString err = case err of
+    InternalError _			       -> "InternalError"
+    NotImplemented _			       -> "NotImplemented"
+    PropMustBeSingleton			       -> "PropMustBeSingleton"
+    ShouldEndInApplicationOfTheDatatype _      -> "ShouldEndInApplicationOfTheDatatype"
+    ShouldBeAppliedToTheDatatypeParameters _ _ -> "ShouldBeAppliedToTheDatatypeParameters"
+    ShouldBeApplicationOf _ _		       -> "ShouldBeApplicationOf"
+    DifferentArities			       -> "DifferentArities"
+    WrongHidingInLHS _			       -> "WrongHidingInLHS"
+    WrongHidingInLambda _		       -> "WrongHidingInLambda"
+    WrongHidingInApplication _		       -> "WrongHidingInApplication"
+    ShouldBeEmpty _			       -> "ShouldBeEmpty"
+    ShouldBeASort _			       -> "ShouldBeASort"
+    ShouldBePi _			       -> "ShouldBePi"
+    NotAProperTerm			       -> "NotAProperTerm"
+    UnequalTerms _ _ _			       -> "UnequalTerms"
+    UnequalTypes _ _			       -> "UnequalTypes"
+    UnequalHiding _ _			       -> "UnequalHiding"
+    UnequalSorts _ _			       -> "UnequalSorts"
+    NotLeqSort _ _			       -> "NotLeqSort"
+    MetaCannotDependOn _ _ _		       -> "MetaCannotDependOn"
+    MetaOccursInItself _		       -> "MetaOccursInItself"
+    GenericError _			       -> "GenericError"
+    NoSuchBuiltinName _			       -> "NoSuchBuiltinName"
+    DuplicateBuiltinBinding _ _ _	       -> "DuplicateBuiltinBinding"
+    NoBindingForBuiltin _		       -> "NoBindingForBuiltin"
+    NoSuchPrimitiveFunction _		       -> "NoSuchPrimitiveFunction"
+    BuiltinInParameterisedModule _	       -> "BuiltinInParameterisedModule"
+    NoRHSRequiresAbsurdPattern _	       -> "NoRHSRequiresAbsurdPattern"
+    LocalVsImportedModuleClash _	       -> "LocalVsImportedModuleClash"
+    UnsolvedMetasInImport _		       -> "UnsolvedMetasInImport"
+    CyclicModuleDependency _		       -> "CyclicModuleDependency"
+    FileNotFound _ _			       -> "FileNotFound"
+    ClashingFileNamesFor _ _		       -> "ClashingFileNamesFor"
+    NotInScope _			       -> "NotInScope"
+    NoSuchModule _			       -> "NoSuchModule"
+    UninstantiatedModule _		       -> "UninstantiatedModule"
+    ClashingDefinition _ _		       -> "ClashingDefinition"
+    ClashingModule _ _			       -> "ClashingModule"
+    ClashingImport _ _			       -> "ClashingImport"
+    ClashingModuleImport _ _		       -> "ClashingModuleImport"
+    ModuleDoesntExport _ _		       -> "ModuleDoesntExport"
+    HigherOrderPattern _ _		       -> "HigherOrderPattern"
+    NotAModuleExpr _			       -> "NotAModuleExpr"
+    NoTopLevelModule _			       -> "NoTopLevelModule"
+    NotAnExpression _			       -> "NotAnExpression"
+    NotAValidLetBinding _		       -> "NotAValidLetBinding"
+    NotAValidLHS _			       -> "NotAValidLHS"
+    NothingAppliedToHiddenArg _		       -> "NothingAppliedToHiddenArg"
+    NothingAppliedToHiddenPat _		       -> "NothingAppliedToHiddenPat"
+    NoParseForApplication _		       -> "NoParseForApplication"
+    AmbiguousParseForApplication _ _	       -> "AmbiguousParseForApplication"
+    NoParseForLHS _			       -> "NoParseForLHS"
+    AmbiguousParseForLHS _ _		       -> "AmbiguousParseForLHS"
 
 ---------------------------------------------------------------------------
 -- * The PrettyTCM class

@@ -92,7 +92,7 @@ ioTCM cmd = do
   us  <- readIORef theUndoStack
   st  <- readIORef theTCState
   env <- readIORef theTCEnv
-  Right (a,st',ss') <- runTCM $ do
+  r   <- runTCM $ do
       putUndoStack us
       put st
       x <- withEnv env cmd
@@ -102,10 +102,13 @@ ioTCM cmd = do
     `catchError` \err -> do
 	s <- prettyError err
 	liftIO $ display_info "*Error*" s
-	liftIO $ exitWith $ ExitFailure 1
-  writeIORef theTCState st'
-  writeIORef theUndoStack ss'
-  return a
+	fail "exit"
+  case r of
+    Right (a,st',ss') -> do
+      writeIORef theTCState st'
+      writeIORef theUndoStack ss'
+      return a
+    Left _ -> exitWith $ ExitFailure 1
 
 cmd_load :: String -> IO ()
 cmd_load file = infoOnException $ do

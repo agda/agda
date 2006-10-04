@@ -55,14 +55,17 @@ nameInfo x = NameInfo { bindingSite  = getRange x
 		      }
 
 qnameInfo :: QName -> TCM NameInfo
-qnameInfo x =
-    do	fx <- getFixity (qnameConcrete x)
-	return $ NameInfo
-		 { bindingSite  = noRange
-		 , concreteName = qnameConcrete x
-		 , nameFixity   = fx
-		 , nameAccess   = PublicAccess
-		 }
+qnameInfo x = do
+    d <- resolveName (qnameConcrete x)
+    let fx = case d of
+		DefName x   -> fixity x
+		_	    -> defaultFixity
+    return $ NameInfo
+	     { bindingSite  = noRange
+	     , concreteName = qnameConcrete x
+	     , nameFixity   = fx
+	     , nameAccess   = PublicAccess
+	     }
 
 exprInfo :: ExprInfo
 exprInfo = ExprRange noRange
