@@ -119,6 +119,8 @@ Performance
 Done
 ----
 
+* throwing not-in-scope error rather than no parse for application wheneven possible
+
 * use interface files in scope checking
 
 * check for cyclic imports (we need to use interface files when scope checking)

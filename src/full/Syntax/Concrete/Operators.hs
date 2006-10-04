@@ -22,6 +22,7 @@ import Control.Monad.Trans
 import Data.Typeable
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import Data.Set (Set)
 import Data.List
 
 import Syntax.Concrete.Pretty ()
@@ -36,12 +37,21 @@ import TypeChecking.Monad.Base (typeError, TypeError(..))
 
 import Utils.ReadP
 import Utils.Monad
+import Utils.Tuple
 
 #include "../../undefined.h"
 
 ---------------------------------------------------------------------------
 -- * Building the parser
 ---------------------------------------------------------------------------
+
+partsInScope :: ScopeM (Set Name)
+partsInScope = do
+    xs <- uncurry (++) . (id -*- map fst) <$> localNames
+    return $ Set.fromList $ concatMap parts xs
+    where
+	parts x@(Name _ [_]) = [x]
+	parts x@(Name _ xs ) = x : [ Name noRange [Id s] | Id s <- xs ]
 
 getDefinedNames :: [KindOfName] -> ScopeM [(Name, Fixity)]
 getDefinedNames kinds = do
@@ -248,7 +258,18 @@ parseLHS top p = do
 parseApplication :: [Expr] -> ScopeM Expr
 parseApplication [e] = return e
 parseApplication es = do
+
+    -- Check that all parts of the application are in scope (else it won't
+    -- parse and we can just as well give a nice error).
+    inScope <- partsInScope
+    case [ QName x | Ident (QName x) <- es, not (Set.member x inScope) ] of
+	[]  -> return ()
+	xs  -> typeError $ NotInScope xs
+
+    -- Build the parser
     p <- buildParser (getRange es) UseBoundNames
+
+    -- Parse
     case parse p es of
 	[e] -> return e
 	[]  -> typeError $ NoParseForApplication es
