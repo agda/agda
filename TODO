@@ -35,6 +35,9 @@ Fixes
 
 * print names properly qualified (we want to be able to parse it back)
 
+* get precedences right for things that aren't visible at the top level
+  (requires having the right scope during type checking)
+
 [Scope]
 
 * scope checking yields impossible when things clash
