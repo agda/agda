@@ -3,7 +3,7 @@ module MetaOccursInItself where
 
 data List (A:Set) : Set where
   nil  : List A
-  (::) : A -> List A -> List A
+  _::_ : A -> List A -> List A
 
 data One : Set where one : One
 

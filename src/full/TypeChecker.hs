@@ -27,7 +27,6 @@ import Syntax.Translation.ConcreteToAbstract
 import Syntax.Concrete.Pretty ()
 import Syntax.Strict
 import Syntax.Literal
-import Syntax.Parser	-- temporary for imports
 import Syntax.Scope
 
 import TypeChecking.Monad

@@ -2,5 +2,5 @@
 -- This error never occurs.
 module ShouldBeASort where
 
-err = ShouldBeASort_Never_Occurs
+err = ShouldBeASort-Never-Occurs
 

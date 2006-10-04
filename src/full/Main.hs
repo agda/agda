@@ -114,9 +114,11 @@ optionError err =
 -- | Main
 main :: IO ()
 main = do
-    runIM $ runAgda `catchError` \err -> do
+    r <- runIM $ runAgda `catchError` \err -> do
 	s <- prettyError err
 	liftIO $ putStrLn s
-	liftIO $ exitFailure
-    return ()
+	throwError err
+    case r of
+	Right _	-> return ()
+	Left _	-> exitFailure
 

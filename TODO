@@ -58,8 +58,6 @@ Fixes
 
 * write better tests
 
-* failing test (like in agdaLight)
-
 [Bugs]
 
 * emacs interface gets the metas in the wrong order for local definitions (?)
@@ -121,6 +119,10 @@ Performance
 
 Done
 ----
+
+* proper make test (agda now exits with failure on error)
+
+* failing test (like in agdaLight)
 
 * throwing not-in-scope error rather than no parse for application wheneven possible
 

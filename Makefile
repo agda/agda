@@ -20,7 +20,7 @@ include mk/paths.mk
 ## Phony targets ##########################################################
 
 .PHONY : default all clean install full prof core \
-		 debug doc dist make_configure clean_test
+		 debug doc dist make_configure clean_test examples
 
 ## Default target #########################################################
 
@@ -87,28 +87,27 @@ dist :
 
 endif
 
-## Test ###################################################################
+## Testing ###########################################################
 
-agda = $(FULL_OUT_DIR)/agda
+test : succeed examples fail
 
-# test_files	= $(patsubst %,examples/syntax/%,Syntax.agda Literate.lagda)
+succeed : 
+	@echo "======================================================================"
+	@echo "===================== Suite of successfull tests ====================="
+	@echo "======================================================================"
+	@$(MAKE) -C test/succeed 
 
-test_files = $(wildcard test/*.agda) \
-             examples/Vec.agda examples/bag.agda examples/Setoid.agda \
-             examples/TT.agda \
-             examples/AIM5/PolyDep/Prelude.agda \
-             $(shell find examples/Introduction -name '*.agda')
-tests	   = $(patsubst %,%.test,$(test_files))
+examples :
+	@echo "======================================================================"
+	@echo "========================= Suite of examples =========================="
+	@echo "======================================================================"
+	@$(MAKE) -C examples
 
-# clean_test :
-# 	@rm -f $(intermediate_files)
-
-test : $(agda) $(tests)
-
-$(tests) : %.test : %
-	@echo -n "Testing $<... "
-	@echo :q | $(agda) $<
-	@echo "ok"
+fail :
+	@echo "======================================================================"
+	@echo "======================= Suite of failing tests ======================="
+	@echo "======================================================================"
+	@$(MAKE) -C test/fail
 
 ## Clean ##################################################################
 
