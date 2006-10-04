@@ -11,6 +11,7 @@ import Data.FunctorM
 
 import Syntax.Common
 import qualified Syntax.Concrete as C
+import qualified Syntax.Concrete.Definitions as D
 import qualified Syntax.Abstract as A
 import Syntax.Internal
 import Syntax.Internal.Debug ()
@@ -440,12 +441,14 @@ data TypeError
 	| NoSuchPrimitiveFunction String
 	| BuiltinInParameterisedModule String
 	| NoRHSRequiresAbsurdPattern [Arg A.Pattern]
+    -- Import errors
 	| LocalVsImportedModuleClash ModuleName
 	| UnsolvedMetasInImport [Range]
 	| CyclicModuleDependency [ModuleName]
 	| FileNotFound ModuleName [FilePath]
 	| ClashingFileNamesFor ModuleName [FilePath]
-	| NotInScope C.QName
+    -- Scope errors
+	| NotInScope [C.QName]
 	| NoSuchModule C.QName
 	| UninstantiatedModule C.QName
 	| ClashingDefinition C.Name A.QName
@@ -453,6 +456,25 @@ data TypeError
 	| ClashingImport C.Name A.QName
 	| ClashingModuleImport C.Name A.ModuleName
 	| ModuleDoesntExport A.ModuleName [C.ImportedName]
+    -- Concrete to Abstract errors
+	| HigherOrderPattern C.Pattern C.Pattern
+	    -- ^ the first pattern is an application and the second
+	    --	 pattern is the function part (and it's not
+	    --	 a constructor pattern).
+	| NotAModuleExpr C.Expr
+	    -- ^ The expr was used in the right hand side of an implicit module
+	    --	 definition, but it wasn't of the form @m Delta@.
+	| NoTopLevelModule C.Declaration
+	| NotAnExpression C.Expr
+	| NotAValidLetBinding D.NiceDeclaration
+	| NotAValidLHS C.Pattern
+	| NothingAppliedToHiddenArg C.Expr
+	| NothingAppliedToHiddenPat C.Pattern
+    -- Operator errors
+	| NoParseForApplication [C.Expr]
+	| AmbiguousParseForApplication [C.Expr] [C.Expr]
+	| NoParseForLHS C.Pattern
+	| AmbiguousParseForLHS C.Pattern [C.Pattern]
     deriving (Typeable)
 
 data TCErr = TypeError TCState (Closure TypeError)

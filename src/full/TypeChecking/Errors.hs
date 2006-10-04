@@ -210,15 +210,28 @@ instance PrettyTCM TypeError where
 		return $ fsep ( pwords "multiple possible sources for module" ++ [text $ show x] ++
 				pwords "found:"
 			      ) $$ nest 2 (vcat $ map text files)
-	    NotInScope x ->
-		return $ fsep $ pwords "not in scope" ++ [pretty x]
-	    NoSuchModule x  -> return $ text "error"
-	    UninstantiatedModule x  -> return $ text "error"
-	    ClashingDefinition x y  -> return $ text "error"
-	    ClashingModule m1 m2    -> return $ text "error"
-	    ClashingImport x y	-> return $ text "error"
-	    ClashingModuleImport x y	-> return $ text "error"
-	    ModuleDoesntExport m xs -> return $ text "error"
+	    NotInScope xs ->
+		return $ fsep (pwords "not in scope:") $$ nest 2 (vcat $ map name xs)
+		where name x = hsep [ pretty x, text "at", text $ show $ getRange x ]
+	    NoSuchModule x			-> return $ text "NoSuchModule"
+	    UninstantiatedModule x		-> return $ text "UninstantiatedModule"
+	    ClashingDefinition x y		-> return $ text "ClashingDefinition"
+	    ClashingModule m1 m2		-> return $ text "ClashingModule"
+	    ClashingImport x y			-> return $ text "ClashingImport"
+	    ClashingModuleImport x y		-> return $ text "ClashingModuleImport"
+	    ModuleDoesntExport m xs		-> return $ text "ModuleDoesntExport"
+	    HigherOrderPattern p q		-> return $ text "HigherOrderPattern"
+	    NotAModuleExpr e			-> return $ text "NotAModuleExpr"
+	    NoTopLevelModule d			-> return $ text "NoTopLevelModule"
+	    NotAnExpression e			-> return $ text "NotAnExpression"
+	    NotAValidLetBinding nd		-> return $ text "NotAValidLetBinding"
+	    NotAValidLHS p			-> return $ text "NotAValidLHS"
+	    NothingAppliedToHiddenArg e		-> return $ text "NothingAppliedToHiddenArg"
+	    NothingAppliedToHiddenPat p		-> return $ text "NothingAppliedToHiddenPat"
+	    NoParseForApplication es		-> return $ text "NoParseForApplication"
+	    AmbiguousParseForApplication es es' -> return $ text "AmbiguousParseForApplication"
+	    NoParseForLHS p			-> return $ text "NoParseForLHS"
+	    AmbiguousParseForLHS p ps		-> return $ text "AmbiguousParseForLHS"
 
 instance PrettyTCM Call where
     prettyTCM c = case c of

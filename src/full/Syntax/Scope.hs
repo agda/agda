@@ -23,10 +23,9 @@ module Syntax.Scope
     , modScopeInfo
     , modScopeInfoM
     , getModule
-    , getFixityFunction
+    , getFixity
     , setContext
     , resolvePatternNameM
-    , resolveNameM
     , resolveName
     , abstractName
     , notInScope
@@ -99,7 +98,7 @@ abstractName x =
 ---------------------------------------------------------------------------
 
 notInScope :: CName.QName -> ScopeM a
-notInScope x = typeError $ NotInScope x
+notInScope x = typeError $ NotInScope [x]
 
 clashingImport :: CName.Name -> AName.QName -> ScopeM a
 clashingImport x x' = typeError $ ClashingImport x x'
@@ -276,8 +275,8 @@ setConcreteQName c d = d { theName = (theName d) { qnameConcrete = c } }
 
 -- | Resolve a qualified name. Peals off name spaces until it gets
 --   to an unqualified name and then applies the first argument.
-resolve :: a -> (LocalVariables -> NameSpace -> CName.Name -> a) ->
-	   CName.QName -> ScopeInfo -> a
+resolve :: a -> (LocalVariables -> NameSpace -> CName.Name -> ScopeM a) ->
+	   CName.QName -> ScopeInfo -> ScopeM a
 resolve def f x si = res x vs (ns `plusNameSpace` ns' `plusNameSpace` nsi)
     where
 	vs  = localVariables si
@@ -288,29 +287,25 @@ resolve def f x si = res x vs (ns `plusNameSpace` ns' `plusNameSpace` nsi)
 	res (CName.QName x) vs ns = f vs ns x
 	res (Qual m x) vs ns =
 	    case Map.lookup m $ modules ns of
-		Nothing			   -> def
+		Nothing			   -> return $ def
 		Just (ModuleScope 0 _ ns') -> res x empty ns'
-		Just _			   -> throwDyn $ UninstantiatedModule (CName.QName m)
+		Just _			   -> uninstantiatedModule (CName.QName m)
 
 -- | Figure out what a qualified name refers to.
-resolveName :: CName.QName -> ScopeInfo -> ResolvedName
-resolveName q = resolve UnknownName r q
+resolveName :: CName.QName -> ScopeM ResolvedName
+resolveName q = resolve UnknownName r q =<< getScopeInfo
     where
 	r vs ns x =
-	    fromMaybe UnknownName $ mconcat
+	    return $ fromMaybe UnknownName $ mconcat
 	    [ VarName . setConcreteName x  <$> Map.lookup x vs
 	    , DefName . setConcreteQName q <$> Map.lookup x (definedNames ns)
 	    ]
-
--- | Monadic version of 'resolveName'.
-resolveNameM :: CName.QName -> ScopeM ResolvedName
-resolveNameM x = resolveName x <$> getScopeInfo
 
 -- | This function doesn't bind 'VarName's, the caller has that responsibility.
 resolvePatternNameM :: CName.QName -> ScopeM ResolvedName
 resolvePatternNameM x =
     do	scope <- getScopeInfo
-	resolve (return UnknownName) r x scope
+	resolve UnknownName r x scope
     where
 	r vs ns x =
 	    case Map.lookup x $ definedNames ns of
@@ -319,10 +314,10 @@ resolvePatternNameM x =
 		_   -> VarName <$> abstractName x
 
 -- | Figure out what module a qualified name refers to.
-resolveModule :: CName.QName -> ScopeInfo -> ResolvedModule
-resolveModule = resolve UnknownModule r
+resolveModule :: CName.QName -> ScopeM ResolvedModule
+resolveModule x = resolve UnknownModule r x =<< getScopeInfo
     where
-	r _ ns x = fromMaybe UnknownModule $
+	r _ ns x = return $ fromMaybe UnknownModule $
 		    ModuleName <$> Map.lookup x (modules ns)
 
 
@@ -332,20 +327,20 @@ resolveModule = resolve UnknownModule r
 
 -- | Make sure that a module hasn't been defined.
 noModuleClash :: CName.QName -> ScopeM ()
-noModuleClash x =
-    do	si <- getScopeInfo
-	case resolveModule x si of
-	    UnknownModule   -> return ()
-	    ModuleName m    -> clashingModule (mkModuleName x) $ moduleName $ moduleContents m
+noModuleClash x = do
+    m <- resolveModule x
+    case m of
+	UnknownModule -> return ()
+	ModuleName m  -> clashingModule (mkModuleName x) $ moduleName $ moduleContents m
 
 -- | Get the module referred to by a name. Throws an exception if the module
 --   doesn't exist.
 getModule :: CName.QName -> ScopeM ModuleScope
-getModule x =
-    do	si <- getScopeInfo
-	case resolveModule x si of
-	    UnknownModule   -> noSuchModule x
-	    ModuleName m    -> return m
+getModule x = do
+    m <- resolveModule x
+    case m of
+	UnknownModule -> noSuchModule x
+	ModuleName m  -> return m
 
 ---------------------------------------------------------------------------
 -- * Import directives
@@ -465,13 +460,13 @@ getCurrentModule = moduleName . publicNameSpace <$> getScopeInfo
 
 
 -- | Get a function that returns the operator version of a name.
-getFixityFunction :: ScopeM (CName.QName -> Fixity)
-getFixityFunction =
-    do	scope <- getScopeInfo
-	return $ \x -> case resolveName x scope of
-	    VarName x -> defaultFixity
-	    DefName d -> fixity d
-	    _	      -> throwDyn $ NotInScope x
+getFixity :: CName.QName -> ScopeM Fixity
+getFixity x = do
+    d <- resolveName x
+    case d of
+	VarName x -> return defaultFixity
+	DefName d -> return $ fixity d
+	_	  -> notInScope x
 
 -- | Get the current (public) name space.
 currentNameSpace :: ScopeM NameSpace
@@ -517,8 +512,8 @@ insideModule x = modScopeInfo upd
 -- | Add a defined name to the current scope.
 defineName :: Access -> KindOfName -> Fixity -> CName.Name -> (AName.Name -> ScopeM a) -> ScopeM a
 defineName a k f x cont = do
-    si <- getScopeInfo
-    case resolveName (CName.QName x) si of
+    d  <- resolveName (CName.QName x)
+    case d of
 	UnknownName -> do
 	    x' <- abstractName x
 	    modScopeInfoM (defName a k f x') $ cont x'

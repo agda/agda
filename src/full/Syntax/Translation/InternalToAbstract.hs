@@ -56,10 +56,7 @@ nameInfo x = NameInfo { bindingSite  = getRange x
 
 qnameInfo :: QName -> TCM NameInfo
 qnameInfo x =
-    do	scope <- getScope
-	let fx = case resolveName (qnameConcrete x) scope of
-		    DefName d -> fixity d
-		    _	      -> defaultFixity
+    do	fx <- getFixity (qnameConcrete x)
 	return $ NameInfo
 		 { bindingSite  = noRange
 		 , concreteName = qnameConcrete x

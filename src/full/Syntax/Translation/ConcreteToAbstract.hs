@@ -7,11 +7,9 @@ module Syntax.Translation.ConcreteToAbstract
     ( ToAbstract(..), BindToAbstract(..)
     , concreteToAbstract_
     , concreteToAbstract
-    , ToAbstractException(..)
     , OldName(..)
     ) where
 
-import Control.Exception
 import Control.Monad.Reader
 import Data.Typeable
 
@@ -25,6 +23,8 @@ import Syntax.Concrete.Definitions as CD
 import Syntax.Concrete.Operators
 import Syntax.Fixity
 import Syntax.Scope
+
+import TypeChecking.Monad.Base (TypeError(..), typeError)
 
 #ifndef __HADDOCK__
 import {-# SOURCE #-} Interaction.Imports (scopeCheckImport)
@@ -40,50 +40,23 @@ import Utils.Tuple
     Exceptions
  --------------------------------------------------------------------------}
 
-data ToAbstractException
-	= HigherOrderPattern C.Pattern C.Pattern
-	    -- ^ the first pattern is an application and the second
-	    --	 pattern is the function part (and it's not
-	    --	 a constructor pattern).
-	| NotAModuleExpr C.Expr
-	    -- ^ The expr was used in the right hand side of an implicit module
-	    --	 definition, but it wasn't of the form @m Delta@.
-	| NoTopLevelModule C.Declaration
-	| NotAnExpression C.Expr
-	| NotAValidLetBinding NiceDeclaration
-	| NotAValidLHS C.Pattern
-	| NothingAppliedToHiddenArg C.Expr
-	| NothingAppliedToHiddenPat C.Pattern
-    deriving (Typeable, Show)
-
-higherOrderPattern p0 p	    = throwDyn $ HigherOrderPattern p0 p
-notAModuleExpr e	    = throwDyn $ NotAModuleExpr e
-noTopLevelModule d	    = throwDyn $ NoTopLevelModule d
-notAnExpression e	    = throwDyn $ NotAnExpression e
-notAValidLetBinding d	    = throwDyn $ NotAValidLetBinding d
-notAValidLHS p		    = throwDyn $ NotAValidLHS p
-nothingAppliedToHiddenArg e = throwDyn $ NothingAppliedToHiddenArg e
-nothingAppliedToHiddenPat e = throwDyn $ NothingAppliedToHiddenPat e
-
-instance HasRange ToAbstractException where
-    getRange (HigherOrderPattern p _)	   = getRange p
-    getRange (NotAModuleExpr e)		   = getRange e
-    getRange (NoTopLevelModule d)	   = getRange d
-    getRange (NotAnExpression e)	   = getRange e
-    getRange (NotAValidLetBinding d)	   = getRange d
-    getRange (NotAValidLHS p)		   = getRange p
-    getRange (NothingAppliedToHiddenArg e) = getRange e
-    getRange (NothingAppliedToHiddenPat e) = getRange e
+higherOrderPattern p0 p	    = typeError $ HigherOrderPattern p0 p
+notAModuleExpr e	    = typeError $ NotAModuleExpr e
+noTopLevelModule d	    = typeError $ NoTopLevelModule d
+notAnExpression e	    = typeError $ NotAnExpression e
+notAValidLetBinding d	    = typeError $ NotAValidLetBinding d
+notAValidLHS p		    = typeError $ NotAValidLHS p
+nothingAppliedToHiddenArg e = typeError $ NothingAppliedToHiddenArg e
+nothingAppliedToHiddenPat e = typeError $ NothingAppliedToHiddenPat e
 
 {--------------------------------------------------------------------------
     Helpers
  --------------------------------------------------------------------------}
 
 exprSource :: C.Expr -> ScopeM ExprInfo
-exprSource e =
-    do	f <- getFixityFunction
-	let f' x = f (C.QName x)    -- TODO
-	return $ ExprSource (getRange e) (paren f' e)
+exprSource e = do
+    par <- paren (getFixity . C.QName) e    -- TODO
+    return $ ExprSource (getRange e) par
 
 lhsArgs :: C.Pattern -> ScopeM [Arg C.Pattern]
 lhsArgs p = case appView p of
@@ -170,7 +143,7 @@ newtype OldName = OldName C.Name
 
 instance ToAbstract OldQName A.Expr where
     toAbstract (OldQName x) =
-	do  qx <- resolveNameM x
+	do  qx <- resolveName x
 	    case qx of
 		VarName x'  ->
 			return $
@@ -199,7 +172,7 @@ instance ToAbstract OldQName A.Expr where
 -- Should be a defined name.
 instance ToAbstract OldName A.Name where
     toAbstract (OldName x) =
-	do  qx <- resolveNameM (C.QName x)
+	do  qx <- resolveName (C.QName x)
 	    case qx of
 		DefName d   -> return $ qnameName $ theName d
 		_	    -> fail $ "panic: " ++ show x ++ " should have been defined (not " ++ show qx ++ ")"
@@ -597,10 +570,9 @@ instance BindToAbstract C.Pattern A.Pattern where
 toAbstractOpApp r op@(C.Name _ [Hole, Id _, Hole]) es@[e1, e2] = do
         let e = C.OpApp r op es
 	x    <- toAbstract (OldQName $ C.QName op)
-    	f    <- getFixityFunction
-        let  fixity = f (C.QName op)
-	e1'  <- toAbstractCtx (LeftOperandCtx  fixity) e1
-	e2'  <- toAbstractCtx (RightOperandCtx fixity) e2
+    	f    <- getFixity (C.QName op)
+	e1'  <- toAbstractCtx (LeftOperandCtx  f) e1
+	e2'  <- toAbstractCtx (RightOperandCtx f) e2
 	info <- exprSource e
 	return $ foldl app x [e1', e2']
 	where

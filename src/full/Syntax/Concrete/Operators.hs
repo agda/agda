@@ -9,8 +9,7 @@
     precedence of the context.
 -}
 module Syntax.Concrete.Operators
-    ( OperatorException(..)
-    , parseApplication
+    ( parseApplication
     , parseLHS
     , paren
     , mparen
@@ -20,7 +19,6 @@ import Prelude hiding (putStrLn, print, putStr)
 import Utils.IO
 
 import Control.Monad.Trans
-import Control.Exception
 import Data.Typeable
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -34,28 +32,12 @@ import Syntax.Position
 import Syntax.Fixity
 import Syntax.Scope
 
+import TypeChecking.Monad.Base (typeError, TypeError(..))
+
 import Utils.ReadP
 import Utils.Monad
 
 #include "../../undefined.h"
-
----------------------------------------------------------------------------
--- * Exceptions
----------------------------------------------------------------------------
-
--- | Thrown by 'parseApplication' if the correct bracketing cannot be deduced.
-data OperatorException
-	= NoParseForApplication [Expr]
-	| AmbiguousParseForApplication [Expr] [Expr]
-	| NoParseForLHS Pattern
-	| AmbiguousParseForLHS Pattern [Pattern]
-    deriving (Typeable, Show)
-
-instance HasRange OperatorException where
-    getRange (NoParseForApplication es)		 = getRange es
-    getRange (AmbiguousParseForApplication es _) = getRange es
-    getRange (NoParseForLHS es)			 = getRange es
-    getRange (AmbiguousParseForLHS es _)	 = getRange es
 
 ---------------------------------------------------------------------------
 -- * Building the parser
@@ -238,8 +220,8 @@ parseLHS top p = do
     cons <- getNames [ConName]
     case filter (validPattern top cons) $ parsePattern patP p of
 	[p] -> return p
-	[]  -> throwDyn $ NoParseForLHS p
-	ps  -> throwDyn $ AmbiguousParseForLHS p ps
+	[]  -> typeError $ NoParseForLHS p
+	ps  -> typeError $ AmbiguousParseForLHS p ps
     where
 	getNames kinds = map fst <$> getDefinedNames kinds
 
@@ -269,30 +251,30 @@ parseApplication es = do
     p <- buildParser (getRange es) UseBoundNames
     case parse p es of
 	[e] -> return e
-	[]  -> throwDyn $ NoParseForApplication es
-	es' -> throwDyn $ AmbiguousParseForApplication es es'
+	[]  -> typeError $ NoParseForApplication es
+	es' -> typeError $ AmbiguousParseForApplication es es'
 
 -- Inserting parenthesis --------------------------------------------------
 
-paren :: (Name -> Fixity) -> Expr -> Precedence -> Expr
-paren _   e@(App _ _ _)	       p = mparen (appBrackets p) e
-paren f	  e@(OpApp _ op _)     p = mparen (opBrackets (f op) p) e
-paren _   e@(Lam _ _ _)	       p = mparen (lamBrackets p) e
-paren _   e@(Fun _ _ _)	       p = mparen (lamBrackets p) e
-paren _   e@(Pi _ _)	       p = mparen (lamBrackets p) e
-paren _   e@(Let _ _ _)	       p = mparen (lamBrackets p) e
-paren _	  e@(Ident _)	       p = e
-paren _	  e@(Lit _)	       p = e
-paren _	  e@(QuestionMark _ _) p = e
-paren _	  e@(Underscore _ _)   p = e
-paren _	  e@(Set _)	       p = e
-paren _	  e@(SetN _ _)	       p = e
-paren _	  e@(Prop _)	       p = e
-paren _	  e@(Paren _ _)	       p = e
-paren _	  e@(As _ _ _)	       p = e
-paren _	  e@(Absurd _)	       p = e
-paren _	  e@(RawApp _ _)       p = __IMPOSSIBLE__
-paren _	  e@(HiddenArg _ _)    p = __IMPOSSIBLE__
+paren :: Monad m => (Name -> m Fixity) -> Expr -> m (Precedence -> Expr)
+paren _   e@(App _ _ _)	       = return $ \p -> mparen (appBrackets p) e
+paren f	  e@(OpApp _ op _)     = do fx <- f op; return $ \p -> mparen (opBrackets fx p) e
+paren _   e@(Lam _ _ _)	       = return $ \p -> mparen (lamBrackets p) e
+paren _   e@(Fun _ _ _)	       = return $ \p -> mparen (lamBrackets p) e
+paren _   e@(Pi _ _)	       = return $ \p -> mparen (lamBrackets p) e
+paren _   e@(Let _ _ _)	       = return $ \p -> mparen (lamBrackets p) e
+paren _	  e@(Ident _)	       = return $ \p -> e
+paren _	  e@(Lit _)	       = return $ \p -> e
+paren _	  e@(QuestionMark _ _) = return $ \p -> e
+paren _	  e@(Underscore _ _)   = return $ \p -> e
+paren _	  e@(Set _)	       = return $ \p -> e
+paren _	  e@(SetN _ _)	       = return $ \p -> e
+paren _	  e@(Prop _)	       = return $ \p -> e
+paren _	  e@(Paren _ _)	       = return $ \p -> e
+paren _	  e@(As _ _ _)	       = return $ \p -> e
+paren _	  e@(Absurd _)	       = return $ \p -> e
+paren _	  e@(RawApp _ _)       = __IMPOSSIBLE__
+paren _	  e@(HiddenArg _ _)    = __IMPOSSIBLE__
 
 mparen :: Bool -> Expr -> Expr
 mparen True  e = Paren (getRange e) e
