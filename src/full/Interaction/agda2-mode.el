@@ -407,19 +407,19 @@ annotate new goals NEW-GS"
 
 (defun agda2-goal-type ()
   "Show the type of the goal at point" (interactive)
-  (agda2-goal-cmd "cmd_goal_type B.Instantiated"))
+  (agda2-goal-cmd "cmd_goal_type Interaction.BasicOps.Instantiated"))
 
 (defun agda2-goal-type-normalised ()
   "Show the normalised type of the goal at point" (interactive)
-  (agda2-goal-cmd "cmd_goal_type B.Normalised"))
+  (agda2-goal-cmd "cmd_goal_type Interaction.BasicOps.Normalised"))
 
 (defun agda2-infer-type ()
   "Infer type of the goal at point" (interactive)
-  (agda2-goal-cmd "cmd_infer B.Instantiated" "expression to type"))
+  (agda2-goal-cmd "cmd_infer Interaction.BasicOps.Instantiated" "expression to type"))
 
 (defun agda2-infer-type-normalised()
   "Infer normalised type of the goal at point" (interactive)
-  (agda2-goal-cmd "cmd_infer B.Normalised" "expression to type"))
+  (agda2-goal-cmd "cmd_infer Interaction.BasicOps.Normalised" "expression to type"))
   
 (defun agda2-solveAll ()
   "Solve all goals that are internally already instantiated" (interactive)
@@ -435,7 +435,7 @@ annotate new goals NEW-GS"
 
 (defun agda2-compute-normalised ()
   "Compute the normal form of exp in the goal at point" (interactive)
-  (agda2-goal-cmd "cmd_compute B.Normalised" "expression to normalise"))
+  (agda2-goal-cmd "cmd_compute Interaction.BasicOps.Normalised" "expression to normalise"))
 
 ;;;;
 

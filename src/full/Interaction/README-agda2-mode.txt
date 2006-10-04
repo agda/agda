@@ -37,11 +37,14 @@ To use emacs mode for Agda2
      set agda2-root-dir to <AGDA2-TOP>
 3.5. click "save for future sessions"
 
-4. Give a new modification time to the file
-
-   <AGDA2-TOP>/src/full/Interaction/GhciTop.hs
-
-   (by opening and re-saving it, or by doing "touch", for example)
+;;;; This step is no longer needed for normal use.
+;;
+;; 4. Give a new modification time to the file
+;; 
+;;    <AGDA2-TOP>/src/full/Interaction/GhciTop.hs
+;; 
+;;    (by opening and re-saving it, or by doing "touch", for example)
+;;
 
 5. Restart emacs again.
    Now opening a file XXX.ag2 (or whatever suffix you chose at Step 2)
