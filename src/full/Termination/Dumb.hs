@@ -192,25 +192,31 @@ callsDef name num _ = []
 --   Patterns to Terms
 ------------------------------------------------------------
 
+type NatState a = State Nat a
+
 exPatTop :: [Arg Pattern] -> [Arg Term]
 exPatTop args = args' where
-	(n,args') = exPatArgs 0 args
+	(args',n) = runState (exPatArgs args) 0
 
-exPatArgs :: Nat -> [Arg Pattern] -> (Nat, [Arg Term])
-exPatArgs n [] = (n,[])
-exPatArgs n (x:xs)  = (n2, arg:args) where
-	(n2,arg) = exPatArg n1 x
-	(n1,args) = exPatArgs n xs
+exPatArgs :: [Arg Pattern] -> State Nat [Arg Term]
+exPatArgs [] = return []
+exPatArgs (x:xs)  = do 
+	arg <- exPatArg x
+	args <- exPatArgs xs
+	return (arg:args)
 
-exPatArg :: Nat -> Arg Pattern -> (Nat, Arg Term)
-exPatArg n (Arg hid pat) = (n1, Arg hid t) where
-		(n1, t) = exPat n pat
+exPatArg :: Arg Pattern -> State Nat (Arg Term)
+exPatArg  (Arg hid pat) = exPat pat >>= return . (Arg hid )
 
-exPat :: Nat -> Pattern -> (Nat, Term)
-exPat n (VarP _) = (n+1, Var n [])
-exPat n (ConP name as) = (n1, Con name args) where 
-	(n1, args) = exPatArgs n as
-exPat n _ = error "exPat error"
+exPat :: Pattern -> State Nat Term
+exPat (VarP _) = do
+   n <- get 
+   put (n+1)
+   return $ Var n []
+exPat (ConP name as) = do
+	args <- exPatArgs as
+        return $ Con name args
+exPat _ = error "exPat error"
 
 ------------------------------------------------------------
 -- Subterm checking
