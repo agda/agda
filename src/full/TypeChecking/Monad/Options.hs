@@ -2,13 +2,16 @@
 
 module TypeChecking.Monad.Options where
 
+import Prelude hiding (putStr, putStrLn)
+
 import Control.Monad.State
 import Data.Maybe
 
 import TypeChecking.Monad.Base
 import Interaction.Options
-import Utils.Monad
 import Syntax.Abstract
+import Utils.Monad
+import Utils.IO
 
 #include "../../undefined.h"
 
@@ -64,4 +67,18 @@ proofIrrelevance = optProofIrrelevance <$> commandLineOptions
 
 showImplicitArguments :: TCM Bool
 showImplicitArguments = optShowImplicit <$> commandLineOptions
+
+getVerbosity :: TCM Int
+getVerbosity = optVerbose <$> commandLineOptions
+
+verbose :: Int -> TCM () -> TCM ()
+verbose n action = do
+    m <- getVerbosity
+    when (n <= m) action
+
+report :: Int -> String -> TCM ()
+report n s = verbose n $ liftIO $ putStr s
+
+reportLn :: Int -> String -> TCM ()
+reportLn n s = verbose n $ liftIO $ putStrLn s
 

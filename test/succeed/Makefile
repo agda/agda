@@ -8,6 +8,9 @@ TOP=../..
 # Pathes to agdaLight and Property.agda
 agda=$(TOP)/out/full/agda
 
+# Verbosity
+V = 0
+
 # Getting all agda files
 allagda=$(patsubst %.agda,%,$(shell find . -name "*.agda"))
 alllagda=$(patsubst %.lagda,%,$(shell find . -name "*.lagda"))
@@ -17,11 +20,11 @@ all : $(allagda) $(alllagda)
 
 $(allagda) : % : %.agda
 	@echo $<
-	@$(agda) $<
+	@$(agda) -v$(V) $<
 
 $(alllagda) : % : %.lagda
 	@echo $<
-	@$(agda) $<
+	@$(agda) -v$(V) $<
 
 clean :
 	-rm *~

@@ -21,6 +21,9 @@ include $(TOP)/mk/paths.mk
 # Path to Agda
 agda=$(FULL_OUT_DIR)/agda
 
+# Verbosity default = 0, can be overridden
+V = 0
+
 # Getting all agda files
 allagda=$(shell find . -name "*.agda")
 allstems=$(patsubst %.agda,%,$(allagda))
@@ -38,13 +41,13 @@ debug :
 
 $(allout) : %.err : %.agda
 	@echo "$*.agda"
-	@if $(agda) $(shell if [ -e $*.flags ]; then cat $*.flags; fi) $< > $@; then echo "Unexpected success"; rm $@; false; \
+	@if $(agda) -v$(V) $(shell if [ -e $*.flags ]; then cat $*.flags; fi) $< > $@; then echo "Unexpected success"; rm $@; false; \
          else if [ -s $@ ]; then cat $@; else rm $@; false; fi; fi
 # Agda should fail with non-empty output
 
 $(allstems) : % : %.err
 	@echo "$*.agda"
-	@if $(agda) $(shell if [ -e $*.flags ]; then cat $*.flags; fi) $*.agda > $*.tmp; then echo "Unexpected success"; false; \
+	@if $(agda) -v$(V) $(shell if [ -e $*.flags ]; then cat $*.flags; fi) $*.agda > $*.tmp; then echo "Unexpected success"; false; \
           else true; fi
 	@if cmp $*.err $*.tmp; \
 		then rm $*.tmp; \

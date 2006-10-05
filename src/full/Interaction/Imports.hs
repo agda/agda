@@ -5,8 +5,6 @@
 -}
 module Interaction.Imports where
 
-import Prelude hiding (putStrLn)
-
 import Control.Monad.Error
 import Control.Monad.State
 import qualified Data.Map as Map
@@ -112,7 +110,7 @@ getInterface x = addImportCycleCheck x $ do
 		then typeCheck ifile file
 		else do
 		    unlessM (isVisited x) $
-			liftIO $ putStrLn $ "Skipping " ++ show x ++ " ( " ++ ifile ++ " )"
+			reportLn 1 $ "Skipping " ++ show x ++ " ( " ++ ifile ++ " )"
 		    visitModule x
 		    return (i, t)
 
@@ -120,7 +118,7 @@ getInterface x = addImportCycleCheck x $ do
 
 	    -- Do the type checking
 	    unlessM (isVisited x) $
-		liftIO $ putStrLn $ "Checking " ++ show x ++ " ( " ++ file ++ " )"
+		reportLn 1 $ "Checking " ++ show x ++ " ( " ++ file ++ " )"
 	    visitModule x
 	    ms	 <- getImportPath
 	    vs	 <- getVisitedModules
