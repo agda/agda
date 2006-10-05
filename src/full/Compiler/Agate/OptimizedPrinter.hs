@@ -186,7 +186,7 @@ class ShowAsOptimizedKind a where
     showAsOptimizedKind :: a -> IM Doc 
 
 instance ShowAsOptimizedKind Type where
-    showAsOptimizedKind (El t s) = return $ text "*" -- ^ assumes Pi not in Set
+    showAsOptimizedKind (El t s) = return $ text "*" -- assumes Pi not in Set
     showAsOptimizedKind (Pi arg abs) = do
     	dk1 <- showAsOptimizedKind $ unArg arg
 	dk2 <- showAsOptimizedKind $ absBody abs

@@ -90,7 +90,7 @@ splitType (MetaT id args) = return __IMPOSSIBLE__
 splitType (LamT abs)      = return __IMPOSSIBLE__
 
 forEachArgM :: (Type -> TCM a) -> Type -> TCM [a]
-forEachArgM f (El t s)     = return [] -- ^ assumes Pi not in Set
+forEachArgM f (El t s)     = return [] -- assumes Pi not in Set
 forEachArgM f (Pi arg abs) = do
     newname <- freshName_ $ absName abs
     res <- f $ unArg arg
@@ -106,7 +106,7 @@ forEachArgM f (MetaT id args) = return __IMPOSSIBLE__
 forEachArgM f (LamT abs)      = return __IMPOSSIBLE__
 
 underContext :: Type -> TCM a -> TCM a
-underContext (El t s)        k = k -- ^ assumes Pi not in Set
+underContext (El t s)        k = k -- assumes Pi not in Set
 underContext (Pi arg abs)    k =
     underAbstraction (unArg arg) abs $ flip underContext k
 underContext (Fun arg ty)    k = underContext ty k
