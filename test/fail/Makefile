@@ -25,7 +25,7 @@ agda=$(FULL_OUT_DIR)/agda
 V = 0
 
 # Getting all agda files
-allagda=$(shell find . -name "*.agda")
+allagda=$(shell find . -name '*agda' -o -name Imports -prune -a -name '*agda')
 allstems=$(patsubst %.agda,%,$(allagda))
 allout=$(patsubst %.agda,%.err,$(allagda))
 
