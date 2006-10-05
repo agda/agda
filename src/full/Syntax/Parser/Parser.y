@@ -588,12 +588,12 @@ Import : 'import' ModuleName RenamedImport ImportDirective
 
 -- Module
 Module :: { Declaration }
-Module : 'module' Id TypedBindingss0 'where' Declarations
+Module : 'module' Id TypedBindingss0 'where' Declarations0
 		    { Module (getRange ($1,$4,$5)) (QName $2) $3 $5 }
 
 -- The top-level module can have a qualified name.
 TopModule :: { Declaration }
-TopModule : 'module' ModuleName TypedBindingss0 'where' Declarations
+TopModule : 'module' ModuleName TypedBindingss0 'where' Declarations0
 		    { Module (getRange ($1,$4,$5)) $2 $3 $5 }
 
 Pragma :: { Declaration }
@@ -635,6 +635,12 @@ Constructors
 Declarations :: { [Declaration] }
 Declarations
     : vopen Declarations1 close { reverse $2 }
+
+-- Arbitrary declarations
+Declarations0 :: { [Declaration] }
+Declarations0
+    : vopen close  { [] }
+    | Declarations { $1 }
 
 Declarations1 :: { [Declaration] }
 Declarations1

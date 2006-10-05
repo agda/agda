@@ -47,8 +47,6 @@ Fixes
 
 * handle clashing of concrete names (in abstractToConcrete)
 
-* handle command line options (import path)
-
 * check that fixity declarations correspond to actual definitions
 
 * change syntax for fixity declarations (infix is a bit strange for prefix and
@@ -85,13 +83,18 @@ Fixes
 * allow the source to not exist if there is an interface file
   (what if it needs rebuilding? throw error)
 
+[Builtin]
+
+* check that bindings to list and bool binds to datatypes of the right shape
+
 [Misc]
 
 * Allow qualified names in BUILTIN pragma. Currently pragmas are parsed as
   plain strings, so a qualified name is interpreted as an unqualified name
   containing a dot.
 
-* exitWith ExitFailure on type error
+* check that the module name matches the file name. Also when importing the
+  module name should be the one we're trying to import.
 
 Speculative
 -----------
@@ -106,9 +109,6 @@ Cleaning
 * TypeChecking.Errors: redefine pretty printer combinators monadically
 
 * Syntax.Scope
-
-* Think about interaction between the different monads: Parser, Scope, TCM.
-  Possible to unify?
 
 Performance
 -----------
