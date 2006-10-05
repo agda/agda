@@ -64,6 +64,7 @@ lhsArgs p = case appView p of
 	appView p = case p of
 	    AppP p arg	  -> appView p ++ [arg]
 	    OpAppP _ x ps -> mkHead (IdentP $ C.QName x) : map notHidden ps
+	    ParenP _ p	  -> appView p
 	    RawAppP _ _	  -> __IMPOSSIBLE__
 	    _		  -> [ mkHead p ]
 

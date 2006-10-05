@@ -1,1 +1,1 @@
-NotAValidLetBinding
+Let-definitions cannot do pattern matching or be recursive.

@@ -17,6 +17,7 @@ data ExprView e
     | AppV e (Arg e)
     | OpAppV Range Name [e]
     | HiddenArgV e
+    | ParenV e
     deriving (Show)
 
 class HasRange e => IsExpr e where

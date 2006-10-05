@@ -1,1 +1,2 @@
-NothingAppliedToHiddenArg
+{x} cannot appear by itself. It needs to be the argument to a
+function expecting an implicit argument.

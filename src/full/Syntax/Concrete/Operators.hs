@@ -177,12 +177,14 @@ instance IsExpr Expr where
 	App _ e1 e2	-> AppV e1 e2
 	OpApp r d es	-> OpAppV r d es
 	HiddenArg _ e	-> HiddenArgV e
+	Paren _ e	-> ParenV e
 	_		-> OtherV e
     unExprView e = case e of
 	LocalV x      -> Ident (QName x)
 	AppV e1 e2    -> App (fuseRange e1 e2) e1 e2
 	OpAppV r d es -> OpApp r d es
 	HiddenArgV e  -> HiddenArg (getRange e) e
+	ParenV e      -> Paren (getRange e) e
 	OtherV e      -> e
 
 instance IsExpr Pattern where
@@ -191,12 +193,14 @@ instance IsExpr Pattern where
 	AppP e1 e2	 -> AppV e1 e2
 	OpAppP r d es	 -> OpAppV r d es
 	HiddenP _ e	 -> HiddenArgV e
+	ParenP _ e	 -> ParenV e
 	_		 -> OtherV e
     unExprView e = case e of
 	LocalV x	 -> IdentP (QName x)
 	AppV e1 e2	 -> AppP e1 e2
 	OpAppV r d es	 -> OpAppP r d es
 	HiddenArgV e	 -> HiddenP (getRange e) e
+	ParenV e	 -> ParenP (getRange e) e
 	OtherV e	 -> e
 
 ---------------------------------------------------------------------------
@@ -206,12 +210,12 @@ instance IsExpr Pattern where
 -- | Returns the list of possible parses.
 parsePattern :: ReadP Pattern Pattern -> Pattern -> [Pattern]
 parsePattern prs p = case p of
-    AppP p (Arg h q) -> AppP <$> parsePattern prs p <*> (Arg h <$> parsePattern prs q)
-    RawAppP _ ps     -> parsePattern prs =<< parse prs ps
-    OpAppP r d ps    -> OpAppP r d <$> mapM (parsePattern prs) ps
+    AppP p (Arg h q) -> fullParen' <$> (AppP <$> parsePattern prs p <*> (Arg h <$> parsePattern prs q))
+    RawAppP _ ps     -> fullParen' <$> (parsePattern prs =<< parse prs ps)
+    OpAppP r d ps    -> fullParen' . OpAppP r d <$> mapM (parsePattern prs) ps
     HiddenP _ _	     -> fail "bad hidden argument"
     AsP r x p	     -> AsP r x <$> parsePattern prs p
-    ParenP r p	     -> ParenP r <$> parsePattern prs p
+    ParenP r p	     -> fullParen' <$> parsePattern prs p
     WildP _	     -> return p
     AbsurdP _	     -> return p
     LitP _	     -> return p
@@ -231,7 +235,7 @@ parseLHS top p = do
     case filter (validPattern top cons) $ parsePattern patP p of
 	[p] -> return p
 	[]  -> typeError $ NoParseForLHS p
-	ps  -> typeError $ AmbiguousParseForLHS p ps
+	ps  -> typeError $ AmbiguousParseForLHS p $ map fullParen ps
     where
 	getNames kinds = map fst <$> getDefinedNames kinds
 
@@ -273,9 +277,29 @@ parseApplication es = do
     case parse p es of
 	[e] -> return e
 	[]  -> typeError $ NoParseForApplication es
-	es' -> typeError $ AmbiguousParseForApplication es es'
+	es' -> typeError $ AmbiguousParseForApplication es $ map fullParen es'
 
 -- Inserting parenthesis --------------------------------------------------
+
+fullParen :: IsExpr e => e -> e
+fullParen e = case exprView $ fullParen' e of
+    ParenV e	-> e
+    e'		-> unExprView e'
+
+fullParen' :: IsExpr e => e -> e
+fullParen' e = case exprView e of
+    LocalV _	 -> e
+    OtherV _	 -> e
+    HiddenArgV _ -> e
+    ParenV _	 -> e
+    AppV e1 (Arg h e2) -> par $ unExprView $ AppV (fullParen' e1) (Arg h e2')
+	where
+	    e2' = case h of
+		Hidden	  -> e2
+		NotHidden -> fullParen' e2
+    OpAppV r x es -> par $ unExprView $ OpAppV r x $ map fullParen' es
+    where
+	par = unExprView . ParenV
 
 paren :: Monad m => (Name -> m Fixity) -> Expr -> m (Precedence -> Expr)
 paren _   e@(App _ _ _)	       = return $ \p -> mparen (appBrackets p) e
