@@ -40,14 +40,10 @@ import Utils.Tuple
     Exceptions
  --------------------------------------------------------------------------}
 
-higherOrderPattern p0 p	    = typeError $ HigherOrderPattern p0 p
 notAModuleExpr e	    = typeError $ NotAModuleExpr e
-noTopLevelModule d	    = typeError $ NoTopLevelModule d
 notAnExpression e	    = typeError $ NotAnExpression e
 notAValidLetBinding d	    = typeError $ NotAValidLetBinding d
-notAValidLHS p		    = typeError $ NotAValidLHS p
 nothingAppliedToHiddenArg e = typeError $ NothingAppliedToHiddenArg e
-nothingAppliedToHiddenPat e = typeError $ NothingAppliedToHiddenPat e
 
 {--------------------------------------------------------------------------
     Helpers
@@ -58,10 +54,10 @@ exprSource e = do
     par <- paren (getFixity . C.QName) e    -- TODO
     return $ ExprSource (getRange e) par
 
-lhsArgs :: C.Pattern -> ScopeM [Arg C.Pattern]
+lhsArgs :: C.Pattern -> [Arg C.Pattern]
 lhsArgs p = case appView p of
-    Arg _ (IdentP _) : ps   -> return ps
-    _			    -> notAValidLHS p
+    Arg _ (IdentP _) : ps   -> ps
+    _			    -> __IMPOSSIBLE__
     where
 	mkHead	  = Arg NotHidden
 	notHidden = Arg NotHidden
@@ -310,7 +306,7 @@ instance ToAbstract C.Declaration (A.Declaration, ScopeInfo) where
 	    info = mkRangedModuleInfo PublicAccess r
 			-- We could save the concrete module here but
 			-- seems a bit over-kill.
-    toAbstract d = noTopLevelModule d	-- only for top-level modules.
+    toAbstract d = __IMPOSSIBLE__
 
 instance BindToAbstract [C.Declaration] [A.Declaration] where
     bindToAbstract ds = bindToAbstract (niceDeclarations ds)
@@ -342,8 +338,7 @@ instance BindToAbstract LetDef A.LetBinding where
 	where
 	    letToAbstract (CD.Clause top clhs (C.RHS rhs) []) = do
 		p    <- parseLHS top clhs
-		args <- lhsArgs p
-		bindToAbstract args $ \args ->
+		bindToAbstract (lhsArgs p) $ \args ->
 		    do	rhs <- toAbstract rhs
 			foldM lambda rhs args
 	    letToAbstract _ = notAValidLetBinding d
@@ -499,8 +494,7 @@ data LeftHandSide = LeftHandSide C.Name C.LHS
 instance BindToAbstract LeftHandSide A.LHS where
     bindToAbstract (LeftHandSide top lhs) ret = do
 	p    <- parseLHS top lhs
-	args <- lhsArgs p
-	bindToAbstract args $ \args -> do
+	bindToAbstract (lhsArgs p) $ \args -> do
 	    x <- toAbstract (OldName top)
 	    ret (A.LHS (LHSSource lhs) x args)
 
@@ -529,7 +523,7 @@ instance BindToAbstract C.Pattern A.Pattern where
 	case p' of
 	    ConP _ x as -> ret $ ConP info x (as ++ [q'])
 	    DefP _ x as -> ret $ DefP info x (as ++ [q'])
-	    _		-> higherOrderPattern p0 p
+	    _		-> __IMPOSSIBLE__
 	where
 	    r = getRange p0
 	    info = PatSource r $ \pr -> if appBrackets pr then ParenP r p0 else p0
@@ -541,7 +535,7 @@ instance BindToAbstract C.Pattern A.Pattern where
 	    case p of
 		ConP _ x as -> ret $ ConP info x (as ++ map (Arg NotHidden) ps)
 		DefP _ x as -> ret $ DefP info x (as ++ map (Arg NotHidden) ps)
-		_	    -> higherOrderPattern p0 (IdentP $ C.QName op)
+		_	    -> __IMPOSSIBLE__
 	where
 	    r = getRange p0
 	    info = PatSource r $ \pr -> if appBrackets pr then ParenP r p0 else p0

@@ -457,19 +457,12 @@ data TypeError
 	| ClashingModuleImport C.Name A.ModuleName
 	| ModuleDoesntExport A.ModuleName [C.ImportedName]
     -- Concrete to Abstract errors
-	| HigherOrderPattern C.Pattern C.Pattern
-	    -- ^ the first pattern is an application and the second
-	    --	 pattern is the function part (and it's not
-	    --	 a constructor pattern).
 	| NotAModuleExpr C.Expr
 	    -- ^ The expr was used in the right hand side of an implicit module
 	    --	 definition, but it wasn't of the form @m Delta@.
-	| NoTopLevelModule C.Declaration
 	| NotAnExpression C.Expr
 	| NotAValidLetBinding D.NiceDeclaration
-	| NotAValidLHS C.Pattern
 	| NothingAppliedToHiddenArg C.Expr
-	| NothingAppliedToHiddenPat C.Pattern
     -- Operator errors
 	| NoParseForApplication [C.Expr]
 	| AmbiguousParseForApplication [C.Expr] [C.Expr]
