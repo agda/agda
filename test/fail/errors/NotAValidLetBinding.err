@@ -1,1 +1,7 @@
+errors/NotAValidLetBinding.agda:8,7-11,24
 Let-definitions cannot do pattern matching or be recursive.
+when scope checking
+let pred : N -> N
+    pred z = z
+    pred (s n) = n
+in pred (s (s z))

@@ -24,7 +24,8 @@ import Syntax.Concrete.Operators
 import Syntax.Fixity
 import Syntax.Scope
 
-import TypeChecking.Monad.Base (TypeError(..), typeError)
+import TypeChecking.Monad.Base (TypeError(..), Call(..), typeError)
+import TypeChecking.Monad.Trace (traceCall, traceCallCPS)
 
 #ifndef __HADDOCK__
 import {-# SOURCE #-} Interaction.Imports (scopeCheckImport)
@@ -191,55 +192,57 @@ instance ToAbstract CModuleNameRef A.ModuleName where
 
 instance ToAbstract C.Expr A.Expr where
 
+    toAbstract e = traceCall (ScopeCheckExpr e) $ case e of
+
     -- Names
-    toAbstract (Ident x) = toAbstract (OldQName x)
+	Ident x	-> toAbstract (OldQName x)
 
     -- Literals
-    toAbstract (C.Lit l)     = return $ A.Lit l
+	C.Lit l	-> return $ A.Lit l
 
     -- Meta variables
-    toAbstract (C.QuestionMark r n) =
-	do  scope <- getScopeInfo
+	C.QuestionMark r n -> do
+	    scope <- getScopeInfo
 	    return $ A.QuestionMark $ MetaInfo { metaRange  = r
 					       , metaScope  = scope
 					       , metaNumber = n
 					       }
-    toAbstract (C.Underscore r n) =
-	do  scope <- getScopeInfo
+	C.Underscore r n -> do
+	    scope <- getScopeInfo
 	    return $ A.Underscore $ MetaInfo { metaRange  = r
 					     , metaScope  = scope
 					     , metaNumber = n
 					     }
 
     -- Raw application
-    toAbstract e@(C.RawApp r es) = toAbstract =<< parseApplication es
+	C.RawApp r es -> toAbstract =<< parseApplication es
 
     -- Application
-    toAbstract e@(C.App r e1 e2) =
-	do  e1'  <- toAbstractCtx FunctionCtx e1
+	C.App r e1 e2 -> do
+	    e1'  <- toAbstractCtx FunctionCtx e1
 	    e2'  <- toAbstract e2
 	    info <- exprSource e
 	    return $ A.App info e1' e2'
 
     -- Operator application
 
-    toAbstract e@(C.OpApp r op es) = toAbstractOpApp r op es
+	C.OpApp r op es -> toAbstractOpApp r op es
 
     -- Malplaced hidden argument
-    toAbstract e@(C.HiddenArg _ _) = nothingAppliedToHiddenArg e
+	C.HiddenArg _ _ -> nothingAppliedToHiddenArg e
 
     -- Lambda
-    toAbstract e0@(C.Lam r bs e) =
-	bindToAbstract bs $ \ (b:bs') ->
-	    do  e'   <- toAbstractCtx TopCtx e
+	e0@(C.Lam r bs e) ->
+	    bindToAbstract bs $ \ (b:bs') -> do
+		e'   <- toAbstractCtx TopCtx e
 		info <- exprSource e0
 		return $ A.Lam info b $ foldr mkLam e' bs'
-	where
-	    mkLam b e = A.Lam (ExprRange $ fuseRange b e) b e
+	    where
+		mkLam b e = A.Lam (ExprRange $ fuseRange b e) b e
 
     -- Function types
-    toAbstract e@(C.Fun r e1 e2) =
-	do  let arg = case e1 of
+	C.Fun r e1 e2 -> do
+	    let arg = case e1 of
 			C.HiddenArg _ e1 -> Arg Hidden e1
 			_		 -> Arg NotHidden e1
 	    e1'  <- toAbstractCtx FunctionSpaceDomainCtx arg
@@ -247,32 +250,32 @@ instance ToAbstract C.Expr A.Expr where
 	    info <- exprSource e
 	    return $ A.Fun info e1' e2'
 
-    toAbstract e0@(C.Pi tel e) =
-	bindToAbstract tel $ \tel ->
-	do  e'	 <- toAbstractCtx TopCtx e
-	    info <- exprSource e0
-	    return $ A.Pi info tel e'
+	e0@(C.Pi tel e) ->
+	    bindToAbstract tel $ \tel -> do
+		e'   <- toAbstractCtx TopCtx e
+		info <- exprSource e0
+		return $ A.Pi info tel e'
 
     -- Sorts
-    toAbstract e@(C.Set _)    = flip A.Set 0 <$> exprSource e
-    toAbstract e@(C.SetN _ n) = flip A.Set n <$> exprSource e
-    toAbstract e@(C.Prop _)   = A.Prop <$> exprSource e
+	C.Set _    -> flip A.Set 0 <$> exprSource e
+	C.SetN _ n -> flip A.Set n <$> exprSource e
+	C.Prop _   -> A.Prop <$> exprSource e
 
     -- Let
-    toAbstract e0@(C.Let _ ds e) =
-	bindToAbstract (LetDefs ds) $ \ds' ->
-	do  e'   <- toAbstractCtx TopCtx e
-	    info <- exprSource e0
-	    return $ A.Let info ds' e'
+	e0@(C.Let _ ds e) ->
+	    bindToAbstract (LetDefs ds) $ \ds' -> do
+		e'   <- toAbstractCtx TopCtx e
+		info <- exprSource e0
+		return $ A.Let info ds' e'
 
     -- Parenthesis
-    toAbstract (C.Paren _ e) = toAbstractCtx TopCtx e
+	C.Paren _ e -> toAbstractCtx TopCtx e
 	-- You could imagine remembering parenthesis. I don't really see the
 	-- point though.
 
     -- Pattern things
-    toAbstract e@(C.As _ _ _) = notAnExpression e
-    toAbstract e@(C.Absurd _) = notAnExpression e
+	C.As _ _ _ -> notAnExpression e
+	C.Absurd _ -> notAnExpression e
 
 instance BindToAbstract C.LamBinding A.LamBinding where
     bindToAbstract (C.DomainFree h x) ret =

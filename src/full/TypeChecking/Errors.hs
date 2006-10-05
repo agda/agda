@@ -353,6 +353,8 @@ instance PrettyTCM Call where
 	    fsep $ pwords "when inferring the type of" ++ [pretty x]
 	InferDef _ x _ ->
 	    fsep $ pwords "when inferring the type of" ++ [pretty x]
+	ScopeCheckExpr e _ ->
+	    fsep $ pwords "when scope checking" ++ [pretty e]
 	where
 	    hPretty a@(Arg h _) = pretty $ abstractToConcreteCtx (hiddenArgumentCtx h) a
 

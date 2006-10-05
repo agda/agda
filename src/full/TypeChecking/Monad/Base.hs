@@ -312,6 +312,7 @@ data Call = CheckClause Type A.Clause (Maybe Clause)
 	  | CheckFunDef Range Name [A.Clause] (Maybe ())
 	  | CheckPragma Range A.Pragma (Maybe ())
 	  | CheckPrimitive Range Name A.Expr (Maybe ())
+	  | ScopeCheckExpr C.Expr (Maybe A.Expr)
     deriving (Typeable)
 
 instance HasRange a => HasRange (Trace a) where
@@ -335,6 +336,7 @@ instance HasRange Call where
     getRange (CheckFunDef i _ _ _)	  = getRange i
     getRange (CheckPragma r _ _)	  = r
     getRange (CheckPrimitive i _ _ _)	  = getRange i
+    getRange (ScopeCheckExpr e _)	  = getRange e
 
 ---------------------------------------------------------------------------
 -- ** Builtin things
