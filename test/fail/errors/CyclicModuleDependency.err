@@ -1,0 +1,4 @@
+Checking CyclicModuleDependency ( errors/CyclicModuleDependency.agda )
+cyclic module dependency:
+  CyclicModuleDependency
+  CyclicModuleDependency

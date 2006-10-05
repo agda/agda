@@ -1,0 +1,4 @@
+errors/ShouldBeApplicationOf.agda:8,3-6
+The pattern constructs an element of Two which is not the right
+datatype
+when checking that the pattern two has type One

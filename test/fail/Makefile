@@ -7,20 +7,24 @@
 # ===================
 #
 # Whenever a .agda file is modified,
-# a corresponding .out file is generated to save the model error message
+# a corresponding .err file is generated to save the model error message
 # for this file.  When the test suite is processed the next time, e.g.,
 # after some hacking on the Agda 2 implementation, the new error message
 # is compared to the saved one.  If they do not match, this is considered
 # an error.  Then one has to verify the new error message is actually the
-# intended one (manually), and remove the .out file.
+# intended one (manually), and remove the .err file.
 
-# Pathes to agdaLight and Property.agda
-agda=../../out/full/agda
+TOP = ../..
+
+include $(TOP)/mk/paths.mk
+
+# Path to Agda
+agda=$(FULL_OUT_DIR)/agda
 
 # Getting all agda files
 allagda=$(shell find . -name "*.agda")
 allstems=$(patsubst %.agda,%,$(allagda))
-allout=$(patsubst %.agda,%.out,$(allagda))
+allout=$(patsubst %.agda,%.err,$(allagda))
 
 .PHONY : $(allstems)
 
@@ -32,19 +36,20 @@ debug :
 
 # Pure agdaLight
 
-$(allout) : %.out : %.agda
-	@if $(agda) $< > $@; then echo "Unexpected success"; rm $@; false; \
-          else if [ -s $@ ]; then cat $@; else rm $@; false; fi; fi
+$(allout) : %.err : %.agda
+	@echo "$*.agda"
+	@if $(agda) $(shell if [ -e $*.flags ]; then cat $*.flags; fi) $< > $@; then echo "Unexpected success"; rm $@; false; \
+         else if [ -s $@ ]; then cat $@; else rm $@; false; fi; fi
 # Agda should fail with non-empty output
 
-$(allstems) : % : %.out
+$(allstems) : % : %.err
 	@echo "$*.agda"
-	@if $(agda) $*.agda > $*.tmp; then echo "Unexpected success"; false; \
+	@if $(agda) $(shell if [ -e $*.flags ]; then cat $*.flags; fi) $*.agda > $*.tmp; then echo "Unexpected success"; false; \
           else true; fi
-	@if cmp $*.out $*.tmp; \
+	@if cmp $*.err $*.tmp; \
 		then rm $*.tmp; \
 		else echo "== Old error ==="; \
-			 cat $*.out; \
+			 cat $*.err; \
 			 echo "== New error ==="; \
 			 cat $*.tmp; \
 			 rm $*.tmp; \
@@ -54,6 +59,6 @@ $(allstems) : % : %.out
 # Clean
 
 clean :
-	-rm *.out *.tmp *~
+	-rm *.err *.tmp *~
 
 # EOF

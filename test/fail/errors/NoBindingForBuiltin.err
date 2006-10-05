@@ -1,0 +1,4 @@
+errors/NoBindingForBuiltin.agda:3,7-9
+No binding for builtin thing INTEGER, use {-# BUILTIN INTEGER name
+#-} to bind it to 'name'
+when checking that the expression 42 has type _1
