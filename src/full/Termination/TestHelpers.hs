@@ -16,6 +16,8 @@ module Termination.TestHelpers
   , positive
   , list
   , listOfLength
+    -- * Tests
+  , tests
   )
   where
 

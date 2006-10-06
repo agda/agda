@@ -14,6 +14,7 @@ module Termination.CallGraph
   , CallGraph
   , complete
   , completePrecondition
+  , Termination.CallGraph.tests
   ) where
 
 import Test.QuickCheck

@@ -23,6 +23,8 @@ module Termination.Matrix
   , add
   , mul
   , diagonal
+    -- * Tests
+  , Termination.Matrix.tests
   ) where
 
 import Data.Array

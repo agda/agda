@@ -6,6 +6,7 @@ module Termination.Utilities
   , on
   , isRight
   , isLeft
+  , tests
   ) where
 
 import Test.QuickCheck

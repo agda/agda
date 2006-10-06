@@ -49,6 +49,7 @@ data CommandLineOptions =
 	    , optVerbose	  :: Int
 	    , optProofIrrelevance :: Bool
 	    , optShowImplicit	  :: Bool
+	    , optRunTests	  :: Bool
 	    }
     deriving Show
 
@@ -69,6 +70,7 @@ defaultOptions =
 	    , optVerbose	  = 1
 	    , optProofIrrelevance = False
 	    , optShowImplicit	  = False
+	    , optRunTests	  = False
 	    }
 
 {- | @f :: Flag opts@  is an action on the option record that results from
@@ -86,6 +88,7 @@ versionFlag	     o = return $ o { optShowVersion	  = True }
 helpFlag	     o = return $ o { optShowHelp	  = True }
 proofIrrelevanceFlag o = return $ o { optProofIrrelevance = True }
 showImplicitFlag     o = return $ o { optShowImplicit	  = True }
+runTestsFlag	     o = return $ o { optRunTests	  = True }
 
 interactiveFlag o
     | optEmacsMode o = fail "cannot have both emacs mode and interactive mode"
@@ -110,19 +113,21 @@ standardOptions =
     , Option ['?']  ["help"]	(NoArg helpFlag)    "show this help"
     , Option ['v']  ["verbose"]	(ReqArg verboseFlag "N")
 		    "set verbosity level to N"
+    , Option ['i']  ["include-path"] (ReqArg includeFlag "DIR")
+		    "look for imports in DIR"
     , Option ['I']  ["interactive"] (NoArg interactiveFlag)
 		    "start in interactive mode"
     , Option []	    ["emacs-mode"] (NoArg emacsModeFlag)
 		    "start in emacs mode"
     , Option []	    ["show-implicit"] (NoArg showImplicitFlag)
 		    "show implicit arguments when printing"
+    , Option []	    ["test"] (NoArg runTestsFlag)
+		    "run internal test suite"
     ] ++ pragmaOptions
 
 pragmaOptions :: [OptDescr (Flag CommandLineOptions)]
 pragmaOptions =
-    [ Option ['i']  ["include-path"] (ReqArg includeFlag "DIR")
-		    "look for imports in DIR"
-    , Option []	    ["proof-irrelevance"] (NoArg proofIrrelevanceFlag)
+    [ Option []	    ["proof-irrelevance"] (NoArg proofIrrelevanceFlag)
 		    "enable proof irrelevance (experimental feature)"
     ]
 

@@ -5,6 +5,7 @@ module Termination.Semiring
   , semiringInvariant
   , integerSemiring
   , boolSemiring
+  , Termination.Semiring.tests
   ) where
 
 import Test.QuickCheck

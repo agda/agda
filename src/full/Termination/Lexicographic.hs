@@ -9,6 +9,7 @@ module Termination.Lexicographic
   , recBehaviourInvariant
   , fromDiagonals
   , lexOrder
+  , Termination.Lexicographic.tests
   ) where
 
 import Test.QuickCheck

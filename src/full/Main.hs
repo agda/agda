@@ -43,6 +43,7 @@ import Compiler.Agate.UntypedPrinter
 
 import Utils.Monad
 
+import Tests
 import Version
 
 -- | The main function
@@ -56,6 +57,7 @@ runAgda =
 	    Right opts
 		| optShowHelp opts	-> liftIO printUsage
 		| optShowVersion opts	-> liftIO printVersion
+		| optRunTests opts	-> liftIO runTests
 		| isNothing (optInputFile opts)
 		    && not (optInteractive opts)
 		    && not (optEmacsMode opts)
