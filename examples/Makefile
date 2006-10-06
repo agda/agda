@@ -20,6 +20,6 @@ polydep : AIM5/PolyDep/Main.agda
 test : $(agda) $(tests)
 
 $(tests) : %.test : %
-	@echo -n "Checking $<... "
+	@echo -n "Testing $<... "
 	@echo :q | $(agda) $<
 	@echo "ok"

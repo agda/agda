@@ -71,9 +71,14 @@ instance Serialisable Char where
     serialiser = Ser (:) (do x:xs <- get; put xs; return x)
 
 instance Serialisable Int where
-    serialiser = mapS (fromChars `IFun` toChars) $ sequenceS $ replicate nChars serialiser
+    serialiser = bindS small serialiser $ \c -> case c of
+	'\255'	-> mapS (fromChars `IFun` toChars) $ sequenceS $ replicate nChars serialiser
+	_	-> returnS $ fromEnum c
 	where
 	    nChars = 4
+
+	    small n | n >= 0 && n < 255	= toEnum n
+		    | otherwise		= '\255'
 
 	    toChars :: Int -> [Char]
 	    toChars n = map (toEnum . (`mod` 256))
