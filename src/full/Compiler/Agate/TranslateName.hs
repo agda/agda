@@ -7,8 +7,7 @@
 
 module Compiler.Agate.TranslateName where
 
-import Char(isDigit,intToDigit,isAlpha,isLower,isUpper,ord)
-import GHC.Base (map)
+import Char
 
 import Syntax.Internal
 import Syntax.Scope

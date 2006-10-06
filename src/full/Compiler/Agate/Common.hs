@@ -8,58 +8,12 @@
 module Compiler.Agate.Common where
 
 import Compiler.Agate.TranslateName
-import TypeChecking.MetaVars
 
-import Char(isDigit,intToDigit,isAlpha,isLower,isUpper,ord)
-import GHC.Base (map)
-
-import Syntax.Internal
-import Syntax.Scope
-import Text.PrettyPrint
 import Syntax.Common
-{-
-import Control.Monad.State
-import Control.Monad.Error
--}
-
-import Data.List as List
-import Data.Map as Map
-import Data.Maybe
-{-
-import System.Environment
-import System.IO
-import System.Exit
--}
-
-import Syntax.Parser
-import Syntax.Concrete.Pretty ()
-import qualified Syntax.Abstract as A
-import Syntax.Translation.ConcreteToAbstract
-import Syntax.Translation.AbstractToConcrete
-import Syntax.Translation.InternalToAbstract
-import Syntax.Abstract.Test
-import Syntax.Abstract.Name
-import Syntax.Strict
 import Syntax.Literal
-
-
-import Interaction.Exceptions
-import Interaction.CommandLine.CommandLine
-import Interaction.EmacsInterface.EmacsAgda
-import Interaction.Options
-import Interaction.Monad
-import Interaction.GhciTop ()	-- to make sure it compiles
-
-import TypeChecker
+import Syntax.Internal
 import TypeChecking.Monad
-import TypeChecking.Reduce
-import TypeChecking.Errors
-{-
-import Utils.Monad
-
-import Version
--}
-
+import Utils.Pretty
 
 ----------------------------------------------------------------
 
@@ -68,7 +22,7 @@ psep [x] = x
 psep xs = parens $ sep xs
 
 
-dropArgs :: Int -> Type -> IM Type
+dropArgs :: Int -> Type -> TCM Type
 dropArgs 0 ty              = return ty
 dropArgs n (El t s)        = return __IMPOSSIBLE__
 dropArgs n (Pi arg abs)    = dropArgs (n - 1) $ absBody abs
@@ -77,7 +31,7 @@ dropArgs n (Sort s)        = return __IMPOSSIBLE__
 dropArgs n (MetaT id args) = return __IMPOSSIBLE__
 dropArgs n (LamT abs)      = return __IMPOSSIBLE__
 
-splitType :: Type -> IM ([Type],Type)
+splitType :: Type -> TCM ([Type],Type)
 splitType (El t s) = return ([],El t s)
 splitType (Pi arg abs) = do
     (tys,res) <- splitType $ absBody abs

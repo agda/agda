@@ -11,58 +11,18 @@ import Compiler.Agate.TranslateName
 import Compiler.Agate.Common
 import Compiler.Agate.OptimizedPrinter
 
-import Char(isDigit,intToDigit,isAlpha,isLower,isUpper,ord)
-import GHC.Base (map)
-
-import Syntax.Internal
-import Syntax.Scope
-import Text.PrettyPrint
 import Syntax.Common
-
-import Control.Monad.State
-import Control.Monad.Error
-
-import Data.List as List
-import Data.Map as Map
-import Data.Maybe
-
-import System.Environment
-import System.IO
-import System.Exit
-
-import Syntax.Parser
-import Syntax.Concrete.Pretty ()
-import qualified Syntax.Abstract as A
-import Syntax.Translation.ConcreteToAbstract
-import Syntax.Translation.AbstractToConcrete
-import Syntax.Translation.InternalToAbstract
-import Syntax.Abstract.Test
-import Syntax.Abstract.Name
-import Syntax.Strict
+import Syntax.Internal
 import Syntax.Literal
-
-import Interaction.Exceptions
-import Interaction.CommandLine.CommandLine
-import Interaction.EmacsInterface.EmacsAgda
-import Interaction.Options
-import Interaction.Monad
-import Interaction.GhciTop ()	-- to make sure it compiles
-
-import TypeChecker
 import TypeChecking.Monad
 import TypeChecking.Reduce
-import TypeChecking.Errors
-
-import Utils.Monad
-
-import Version
-
+import Utils.Pretty
 
 ----------------------------------------------------------------
 -- implementation of the "X" function
 
 class ShowAsUntypedTerm a where
-    showAsUntypedTerm :: a -> IM Doc 
+    showAsUntypedTerm :: a -> TCM Doc 
 
 instance ShowAsUntypedTerm Name where
     showAsUntypedTerm t = return $ text $ translateNameAsUntypedTerm t
@@ -74,7 +34,7 @@ instance ShowAsUntypedTerm Term where
     showAsUntypedTerm (Var n args) =
      do varname <- nameOfBV n
     	dvar <- showAsUntypedTerm varname
-    	dargs <- mapM showAsUntypedTerm (GHC.Base.map unArg args)
+    	dargs <- mapM showAsUntypedTerm (map unArg args)
         return $ foldl (\f a -> parens (f <+> text "|$|" <+> a)) dvar dargs
     showAsUntypedTerm (Lam h abs@(Abs v b)) =
      do newname <- freshName_ (absName abs)
@@ -85,11 +45,11 @@ instance ShowAsUntypedTerm Term where
 		     parens (sep [ text "\\" <> dvar, text "->", dbody ])
     showAsUntypedTerm (Con nm as) =
      do dnm <- showQNameAsUntypedConstructor nm
-        das <- mapM showAsUntypedTerm (GHC.Base.map unArg as)
+        das <- mapM showAsUntypedTerm (map unArg as)
         return $ parens $ text "VCon" <> text (show (length as)) <+> dnm <+> hsep das
     showAsUntypedTerm (Def qname args) =
      do dname <- showAsUntypedTerm qname
-    	dargs <- mapM showAsUntypedTerm (GHC.Base.map unArg args)
+    	dargs <- mapM showAsUntypedTerm (map unArg args)
         return $ foldl (\f a -> parens (f <+> text "|$|" <+> a)) dname dargs
     showAsUntypedTerm (Lit (LitInt    _ i)) = return $ parens $ text "VInt" <+> text (show i)
     showAsUntypedTerm (Lit (LitString _ s)) = return $ parens $ text "VString" <+> text (show s)
@@ -107,11 +67,11 @@ instance ShowAsUntypedTerm ClauseBody where
 
 
 
-showAsUntypedConstructor :: Name -> IM Doc
+showAsUntypedConstructor :: Name -> TCM Doc
 showAsUntypedConstructor name =
     return $ text $ translateNameAsUntypedConstructor name
 
-showQNameAsUntypedConstructor :: QName -> IM Doc
+showQNameAsUntypedConstructor :: QName -> TCM Doc
 showQNameAsUntypedConstructor qname =
     return $ text $ translateNameAsUntypedConstructor qname
 
@@ -119,7 +79,7 @@ showQNameAsUntypedConstructor qname =
 ----------------------------------------------------------------
 
 class ShowAsUntyped a where
-    showAsUntyped :: a -> IM Doc 
+    showAsUntyped :: a -> TCM Doc 
 
 instance ShowAsUntyped Pattern where
     showAsUntyped (VarP s)          =
@@ -132,8 +92,8 @@ instance ShowAsUntyped Pattern where
     showAsUntyped (LitP lit) = return $ text "Literal" -- TODO: not allowed?
     showAsUntyped AbsurdP    = return $ text "()"      -- __IMPOSSIBLE__
 
-showClause :: Clause -> IM Doc
-showClause (Clause pats NoBody) = return Text.PrettyPrint.empty
+showClause :: Clause -> TCM Doc
+showClause (Clause pats NoBody) = return empty
 showClause (Clause pats body)   = do
     dpats <- mapM (showAsUntyped . unArg) pats 
     dbody <- showAsUntypedTerm body
@@ -142,7 +102,7 @@ showClause (Clause pats body)   = do
 
 ----------------------------------------------------------------
 
-showNDefinition :: (Name,Definition) -> IM Doc
+showNDefinition :: (Name,Definition) -> TCM Doc
 showNDefinition (name,defn) = do
     dname <- showAsUntypedTerm name
     case theDef defn of
@@ -153,7 +113,7 @@ showNDefinition (name,defn) = do
       Function clauses a -> do
         let (Clause pats body) = head clauses
 	let patsize = length pats
-	let dvars = GHC.Base.map (\i -> text ("v" ++ show i)) [1..patsize]
+	let dvars = map (\i -> text ("v" ++ show i)) [1..patsize]
 	let drhs = untypedAbs dvars $ sep (text "f" : dvars)
 	dclauses <- mapM showClause clauses
 	return $ (dname <+> equals) <+> drhs <+> text "where" $+$
@@ -161,7 +121,7 @@ showNDefinition (name,defn) = do
       Datatype np qcnames s a -> do
 	ty <- instantiate $ defType defn
 	(args,_) <- splitType ty
-	let dvars = GHC.Base.map (\i -> text ("v" ++ show i)) [1..np]
+	let dvars = map (\i -> text ("v" ++ show i)) [1..np]
 	let drhs = untypedAbs dvars $ text "VNonData"
 	return $ sep [ dname, equals ] <+> drhs <+> text "{- datatype -}"
       Constructor np qtname a -> do
@@ -169,7 +129,7 @@ showNDefinition (name,defn) = do
 	ty <- instantiate $ defType defn
 	(args,_) <- splitType ty
 	let argsize = length args - np
-	let dvars = GHC.Base.map (\i -> text ("v" ++ show i)) [1..argsize]
+	let dvars = map (\i -> text ("v" ++ show i)) [1..argsize]
 	let drhs = untypedAbs dvars $ sep $
 		    text "VCon" <> text (show argsize) : dcname : dvars
 	return $ sep [ dname, equals ] <+> drhs

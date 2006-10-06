@@ -7,70 +7,33 @@
 
 module Compiler.Agate.OptimizedPrinter where
 
+import Control.Monad.Trans
+import qualified Data.Map as Map
+import Data.Map ((!))
+
 import Compiler.Agate.Classify
 import Compiler.Agate.TranslateName
 import Compiler.Agate.Common
-import TypeChecking.MetaVars
 
-import Char(isDigit,intToDigit,isAlpha,isLower,isUpper,ord)
-import GHC.Base (map)
-
-import Syntax.Internal
-import Syntax.Scope
-import Text.PrettyPrint
 import Syntax.Common
-
-import Control.Monad.State
-import Control.Monad.Error
-
-import Data.List as List
-import Data.Map as Map
-import Data.Maybe
-
-import System.Environment
-import System.IO
-import System.Exit
-
-import Syntax.Parser
-import Syntax.Concrete.Pretty ()
-import qualified Syntax.Abstract as A
-import Syntax.Translation.ConcreteToAbstract
-import Syntax.Translation.AbstractToConcrete
-import Syntax.Translation.InternalToAbstract
-import Syntax.Abstract.Test
-import Syntax.Abstract.Name
-import Syntax.Strict
-
-import Interaction.Exceptions
-import Interaction.CommandLine.CommandLine
-import Interaction.EmacsInterface.EmacsAgda
-import Interaction.Options
-import Interaction.Monad
-import Interaction.GhciTop ()	-- to make sure it compiles
-
-import TypeChecker
+import Syntax.Internal
 import TypeChecking.Monad
 import TypeChecking.Reduce
-import TypeChecking.Errors
-
-import TypeChecking.Free (freeIn)
-
-import Utils.Monad
-
-import Version
+import TypeChecking.Free
+import Utils.Pretty
 
 ----------------------------------------------------------------
 
-showQNameAsOptimizedConstructor :: QName -> IM Doc
+showQNameAsOptimizedConstructor :: QName -> TCM Doc
 showQNameAsOptimizedConstructor s =
     return $ text $ translateNameAsOptimizedConstructor s
     
-showNameAsOptimizedConstructor :: Name -> IM Doc
+showNameAsOptimizedConstructor :: Name -> TCM Doc
 showNameAsOptimizedConstructor s =
     return $ text $ translateNameAsOptimizedConstructor s
 ----------------------------------------------------------------
 
-showOptimizedDefinitions :: Definitions -> IM ()
+showOptimizedDefinitions :: Definitions -> TCM ()
 showOptimizedDefinitions definitions = do
     liftIO $ putStrLn ("\n-----\n")
     let allDatatypes = enumDatatypes definitions
@@ -86,12 +49,12 @@ showOptimizedDefinitions definitions = do
 ----------------------------------------------------------------
 -- Generating GHC Type Declarations
 
-showTypeDeclarations :: Definitions -> [Name] -> IM Doc
+showTypeDeclarations :: Definitions -> [Name] -> TCM Doc
 showTypeDeclarations definitions compilableDatatypes = do
     dtypedecls <- mapM (showTypeDeclaration definitions) compilableDatatypes
     return $ vcat dtypedecls
 
-showTypeDeclaration :: Definitions -> Name -> IM Doc
+showTypeDeclaration :: Definitions -> Name -> TCM Doc
 showTypeDeclaration definitions name = do
     let defn = definitions ! name
     let (Datatype np qcnames s a) = theDef defn
@@ -108,7 +71,7 @@ showTypeDeclaration definitions name = do
 				sep (dtypename : dparams) <+> equals :
 				punctuate (text " |") dargs)
 
-showTypeParameter :: Nat -> IM Doc
+showTypeParameter :: Nat -> TCM Doc
 showTypeParameter n = do
     dname <- showAsOptimizedTerm $ Var n []
     ty <- typeOfBV n
@@ -120,7 +83,7 @@ showTypeParameter n = do
 		dk <- showAsOptimizedKind ty
 		return $ parens $ sep [ dname <+> text "::", dk ]
 
-showConstructorDeclaration :: Definitions -> Int -> QName -> IM Doc
+showConstructorDeclaration :: Definitions -> Int -> QName -> TCM Doc
 showConstructorDeclaration definitions np qcname = do
     let con = qnameName qcname
     dcon <- showNameAsOptimizedConstructor con -- qcname
@@ -134,13 +97,13 @@ showConstructorDeclaration definitions np qcname = do
 ----------------------------------------------------------------
 -- Generating GHC Value Definitions
 
-showValueDefinitions :: Definitions -> [Name] -> IM Doc
+showValueDefinitions :: Definitions -> [Name] -> TCM Doc
 showValueDefinitions definitions compilableDatatypes = do
-    let defs = toList definitions
+    let defs = Map.toList definitions
     dvaluedefs <- mapM (showValueDefinition definitions compilableDatatypes) defs
     return $ vcat dvaluedefs
 
-showValueDefinition :: Definitions -> [Name] -> (Name,Definition) -> IM Doc
+showValueDefinition :: Definitions -> [Name] -> (Name,Definition) -> TCM Doc
 showValueDefinition definitions compilableDatatypes (name,defn) = do
     dname <- showAsOptimizedTerm name
     ddef  <- case theDef defn of
@@ -159,7 +122,7 @@ showValueDefinition definitions compilableDatatypes (name,defn) = do
 			 text "()"
       Constructor np qtname a -> do
 	dcname <- showNameAsOptimizedConstructor name
-	let dparams = GHC.Base.map (const $ text "_") [0..(np - 1)]
+	let dparams = map (const $ text "_") [0..(np - 1)]
 	return $ sep [ sep (dname : dparams), equals ] <+> dcname
       Primitive a pf -> do
 	doptname <- showAsOptimizedTerm name
@@ -171,8 +134,8 @@ showValueDefinition definitions compilableDatatypes (name,defn) = do
     return $ dtype $+$ ddef		
 
 
-showClauseAsOptimized :: Name -> Clause -> IM Doc
-showClauseAsOptimized name (Clause pats NoBody) = return Text.PrettyPrint.empty
+showClauseAsOptimized :: Name -> Clause -> TCM Doc
+showClauseAsOptimized name (Clause pats NoBody) = return empty
 showClauseAsOptimized name (Clause pats body)   = do
     dname <- showAsOptimizedTerm name
     dpats <- mapM (showAsOptimized . unArg) pats 
@@ -183,7 +146,7 @@ showClauseAsOptimized name (Clause pats body)   = do
 -- implementation of the "K" function
 
 class ShowAsOptimizedKind a where
-    showAsOptimizedKind :: a -> IM Doc 
+    showAsOptimizedKind :: a -> TCM Doc 
 
 instance ShowAsOptimizedKind Type where
     showAsOptimizedKind (El t s) = return $ text "*" -- assumes Pi not in Set
@@ -203,7 +166,7 @@ instance ShowAsOptimizedKind Type where
 -- implementation of the "T" function
 
 class ShowAsOptimizedType a where
-    showAsOptimizedType :: a -> IM Doc 
+    showAsOptimizedType :: a -> TCM Doc 
 
 instance ShowAsOptimizedType Name where
     showAsOptimizedType s = return $ text $ translateNameAsOptimizedType s
@@ -251,7 +214,7 @@ instance ShowAsOptimizedType Type where
 -- implementation of the "O" function
 
 class ShowAsOptimizedTerm a where
-    showAsOptimizedTerm :: a -> IM Doc 
+    showAsOptimizedTerm :: a -> TCM Doc 
 
 instance ShowAsOptimizedTerm Name where
     showAsOptimizedTerm s = return $ text $ translateNameAsOptimizedTerm s
@@ -294,7 +257,7 @@ instance ShowAsOptimizedTerm ClauseBody where
 ----------------------------------------------------------------
 
 class ShowAsOptimized a where
-    showAsOptimized :: a -> IM Doc 
+    showAsOptimized :: a -> TCM Doc 
 
 instance ShowAsOptimized Pattern where
     showAsOptimized (VarP s) =
