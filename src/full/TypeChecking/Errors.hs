@@ -11,6 +11,7 @@ import Syntax.Common
 import Syntax.Fixity
 import Syntax.Position
 import qualified Syntax.Concrete as C
+import qualified Syntax.Concrete.Definitions as D
 import Syntax.Abstract as A
 import Syntax.Internal as I
 import qualified Syntax.Abstract.Pretty as P
@@ -355,8 +356,24 @@ instance PrettyTCM Call where
 	    fsep $ pwords "when inferring the type of" ++ [pretty x]
 	ScopeCheckExpr e _ ->
 	    fsep $ pwords "when scope checking" ++ [pretty e]
+	ScopeCheckDeclaration d _ ->
+	    fwords "when scope checking the declaration" $$
+	    nest 2 (pretty $ simpleDecl d)
+	ScopeCheckLHS x p _ ->
+	    fsep $ pwords "when scope checking the left-hand side" ++ [pretty p] ++
+		   pwords "in the definition of" ++ [pretty x]
 	where
 	    hPretty a@(Arg h _) = pretty $ abstractToConcreteCtx (hiddenArgumentCtx h) a
+
+	    simpleDecl d = case d of
+		D.Axiom _ _ _ _ x e		    -> C.TypeSig x e
+		D.PrimitiveFunction r _ _ _ x e	    -> C.Primitive r [C.TypeSig x e]
+		D.NiceDef r ds _ _		    -> C.Mutual r ds
+		D.NiceModule r _ _ x tel _	    -> C.Module r x tel []
+		D.NiceModuleMacro r _ _ x tel e dir -> C.ModuleMacro r x tel e dir
+		D.NiceOpen r x dir		    -> C.Open r x dir
+		D.NiceImport r x as dir		    -> C.Import r x as dir
+		D.NicePragma _ p		    -> C.Pragma p
 
 interestingCall :: Closure Call -> Maybe (Closure Call)
 interestingCall cl = case clValue cl of

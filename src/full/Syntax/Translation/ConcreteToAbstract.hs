@@ -313,7 +313,8 @@ instance ToAbstract C.Declaration (A.Declaration, ScopeInfo) where
     toAbstract d = __IMPOSSIBLE__
 
 instance BindToAbstract [C.Declaration] [A.Declaration] where
-    bindToAbstract ds = bindToAbstract (niceDeclarations ds)
+    bindToAbstract ds =
+	bindToAbstract (niceDeclarations ds)
 
 instance BindToAbstract [NiceDeclaration] [A.Declaration] where
     bindToAbstract [] ret = ret []
@@ -385,32 +386,35 @@ instance BindToAbstract NiceDefinition Definition where
 -- declarations. Oh well...
 instance BindToAbstract NiceDeclaration [A.Declaration] where
 
+    bindToAbstract d ret = 
+	traceCallCPS (ScopeCheckDeclaration d) ret $ \ret -> case d of
+
     -- Axiom
-    bindToAbstract (CD.Axiom r f p a x t) ret =
-	do  t' <- toAbstractCtx TopCtx t
+	CD.Axiom r f p a x t -> do
+	    t' <- toAbstractCtx TopCtx t
 	    defineName p FunName f x $ \x' -> do
 		ret [A.Axiom (mkRangedDefInfo x f p a r) x' t']
 				-- we can easily reconstruct the original decl
 				-- so we don't bother save it
 
     -- Primitive function
-    bindToAbstract (PrimitiveFunction r f p a x t) ret = do
-	t' <- toAbstractCtx TopCtx t
-	defineName p FunName f x $ \x' ->
-	    ret [A.Primitive (mkRangedDefInfo x f p a r) x' t']
-			    -- we can easily reconstruct the original decl
-			    -- so we don't bother save it
+	PrimitiveFunction r f p a x t -> do
+	    t' <- toAbstractCtx TopCtx t
+	    defineName p FunName f x $ \x' ->
+		ret [A.Primitive (mkRangedDefInfo x f p a r) x' t']
+				-- we can easily reconstruct the original decl
+				-- so we don't bother save it
 
     -- Definitions (possibly mutual)
-    bindToAbstract (NiceDef r cs ts ds) ret =
-	bindToAbstract (ts,ds) $ \ (ts',ds') ->
-	    ret [Definition (DeclInfo C.noName_ $ DeclSource cs) ts' ds']
-		-- TODO: remember name
+	NiceDef r cs ts ds ->
+	    bindToAbstract (ts,ds) $ \ (ts',ds') ->
+		ret [Definition (DeclInfo C.noName_ $ DeclSource cs) ts' ds']
+		    -- TODO: remember name
 
 
     -- TODO: what does an abstract module mean? The syntax doesn't allow it.
-    bindToAbstract (NiceModule r p _ name@(C.QName x) tel ds) ret =
-	do  (tel',ds',ns) <-
+	NiceModule r p _ name@(C.QName x) tel ds -> do
+	    (tel',ds',ns) <-
 		insideModule x $
 		bindToAbstract (tel,ds) $ \ (tel',ds') ->
 		    do	ns <- currentNameSpace
@@ -425,10 +429,9 @@ instance BindToAbstract NiceDeclaration [A.Declaration] where
 			      name' tel' ds']
 
     -- Top-level modules are translated with toAbstract.
-    bindToAbstract (NiceModule _ _ _ _ _ _) _ = __IMPOSSIBLE__
+	NiceModule _ _ _ _ _ _ -> __IMPOSSIBLE__
 
-    bindToAbstract (NiceModuleMacro r p _ x tel e is) ret = do
-	case appView e of
+	NiceModuleMacro r p _ x tel e is -> case appView e of
 	    AppView (Ident m) args  ->
 		bindToAbstract tel $ \tel' ->
 		    do	(x',m',args') <- toAbstract ( CModuleName $ C.QName x
@@ -444,20 +447,20 @@ instance BindToAbstract NiceDeclaration [A.Declaration] where
 		    
 	    _	-> notAModuleExpr e
 
-    bindToAbstract (NiceOpen r x is) ret =
-	openModule x is $ ret [A.Open $ DeclSource [C.Open r x is]]
+	NiceOpen r x is ->
+	    openModule x is $ ret [A.Open $ DeclSource [C.Open r x is]]
 
-    bindToAbstract (NicePragma r p) ret = do
-	p <- toAbstract p
-	ret [A.Pragma r p]
+	NicePragma r p -> do
+	    p <- toAbstract p
+	    ret [A.Pragma r p]
 
-    bindToAbstract (NiceImport r x as is) ret = do
-	x' <- toAbstract $ CModuleName x
-	i  <- scopeCheckImport x'
-	importModule name i is $
-	    ret [A.Import (mkSourcedModuleInfo PublicAccess [C.Import r x as is]) x']
-	where
-	    name = maybe x C.QName as
+	NiceImport r x as is -> do
+	    x' <- toAbstract $ CModuleName x
+	    i  <- scopeCheckImport x'
+	    importModule name i is $
+		ret [A.Import (mkSourcedModuleInfo PublicAccess [C.Import r x as is]) x']
+	    where
+		name = maybe x C.QName as
 
 newtype Constr a = Constr a
 
@@ -496,8 +499,9 @@ instance ToAbstract CD.Clause A.Clause where
 data LeftHandSide = LeftHandSide C.Name C.LHS
 
 instance BindToAbstract LeftHandSide A.LHS where
-    bindToAbstract (LeftHandSide top lhs) ret = do
-	p    <- parseLHS top lhs
+    bindToAbstract (LeftHandSide top lhs) ret =
+	traceCallCPS (ScopeCheckLHS top lhs) ret $ \ret -> do
+	p <- parseLHS top lhs
 	bindToAbstract (lhsArgs p) $ \args -> do
 	    x <- toAbstract (OldName top)
 	    ret (A.LHS (LHSSource lhs) x args)

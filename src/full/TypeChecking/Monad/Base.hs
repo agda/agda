@@ -313,6 +313,8 @@ data Call = CheckClause Type A.Clause (Maybe Clause)
 	  | CheckPragma Range A.Pragma (Maybe ())
 	  | CheckPrimitive Range Name A.Expr (Maybe ())
 	  | ScopeCheckExpr C.Expr (Maybe A.Expr)
+	  | ScopeCheckDeclaration D.NiceDeclaration (Maybe [A.Declaration])
+	  | ScopeCheckLHS C.Name C.Pattern (Maybe A.LHS)
     deriving (Typeable)
 
 instance HasRange a => HasRange (Trace a) where
@@ -337,6 +339,8 @@ instance HasRange Call where
     getRange (CheckPragma r _ _)	  = r
     getRange (CheckPrimitive i _ _ _)	  = getRange i
     getRange (ScopeCheckExpr e _)	  = getRange e
+    getRange (ScopeCheckDeclaration d _)  = getRange d
+    getRange (ScopeCheckLHS _ p _)	  = getRange p
 
 ---------------------------------------------------------------------------
 -- ** Builtin things

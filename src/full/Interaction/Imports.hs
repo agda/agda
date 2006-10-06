@@ -133,10 +133,11 @@ getInterface x = addImportCycleCheck x $ do
 	    unlessM (isVisited x) $
 		reportLn 1 $ "Checking " ++ show x ++ " ( " ++ file ++ " )"
 	    visitModule x
-	    ms	 <- getImportPath
-	    vs	 <- getVisitedModules
-	    opts <- commandLineOptions
-	    r  <- liftIO $ createInterface opts ms vs file
+	    ms	  <- getImportPath
+	    vs	  <- getVisitedModules
+	    opts  <- commandLineOptions
+	    trace <- getTrace
+	    r  <- liftIO $ createInterface opts trace ms vs file
 
 	    -- Write interface file and return
 	    case r of
@@ -149,10 +150,11 @@ getInterface x = addImportCycleCheck x $ do
 
 type Visited = [ModuleName]
 
-createInterface :: CommandLineOptions -> [ModuleName] -> Visited -> FilePath ->
+createInterface :: CommandLineOptions -> CallTrace -> [ModuleName] -> Visited -> FilePath ->
 		   IO (Either TCErr (Visited, Interface))
-createInterface opts path visited file = runTCM $ withImportPath path $ do
+createInterface opts trace path visited file = runTCM $ withImportPath path $ do
 
+    setTrace trace
     setCommandLineOptions opts
     setVisitedModules visited
 

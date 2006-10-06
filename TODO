@@ -83,6 +83,9 @@ Fixes
 * allow the source to not exist if there is an interface file
   (what if it needs rebuilding? throw error)
 
+* use Data.ByteString for interfaces?. Do some profiling to see what's taking
+  time when importing.
+
 [Builtin]
 
 * check that bindings to list and bool binds to datatypes of the right shape

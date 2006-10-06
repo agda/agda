@@ -1,1 +1,4 @@
+errors/ClashingDefinition.agda:6,3-10
 Multiple definitions of X
+when scope checking the declaration
+  X : Set
