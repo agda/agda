@@ -123,13 +123,23 @@ instance (Serialisable a, Serialisable b) => Serialisable (a,b) where
     serialiser = serialiser >-> serialiser
 
 instance (Serialisable a, Serialisable b, Serialisable c) => Serialisable (a,b,c) where
-    serialiser = mapS (IFun (\(x,(y,z)) -> (x,y,z)) (\(x,y,z) -> (x,(y,z)))) $
-		 serialiser >-> serialiser
+    serialiser = mapS (IFun (\(x,(y,z)) -> (x,y,z)) (\(x,y,z) -> (x,(y,z))))
+		 serialiser
 
 instance (Serialisable a, Serialisable b, Serialisable c, Serialisable d)
 	=> Serialisable (a,b,c,d) where
-    serialiser = mapS (IFun (\((x,y),(z,w)) -> (x,y,z,w)) (\(x,y,z,w) -> ((x,y),(z,w)))) $
-		 serialiser >-> serialiser
+    serialiser = mapS (IFun (\((x,y),(z,w)) -> (x,y,z,w)) (\(x,y,z,w) -> ((x,y),(z,w))))
+		 serialiser
+
+instance (Serialisable a, Serialisable b, Serialisable c, Serialisable d, Serialisable e)
+	=> Serialisable (a,b,c,d,e) where
+    serialiser = mapS (IFun (\((x,y),(z,w,u)) -> (x,y,z,w,u)) (\(x,y,z,w,u) -> ((x,y),(z,w,u))))
+		 serialiser
+
+instance (Serialisable a, Serialisable b, Serialisable c, Serialisable d, Serialisable e, Serialisable f)
+	=> Serialisable (a,b,c,d,e,f) where
+    serialiser = mapS (IFun (\((x,y,v),(z,w,u)) -> (x,y,v,z,w,u)) (\(x,y,v,z,w,u) -> ((x,y,v),(z,w,u))))
+		 serialiser
 
 instance Serialisable a => Serialisable [a] where
     serialiser = bindS length serialiser $ \n -> replicateS n serialiser
@@ -150,4 +160,11 @@ deserialise' :: Serialiser a -> String -> a
 deserialise' (Ser _ d) s = case runState d s of
     (x,"") -> x
     _	   -> error "deserialise: no parse"
+
+-- | Force the Bool to force the a. True means ok and false means left-over garbage.
+deserialiseLazy :: Serialisable a => String -> (a, Bool)
+deserialiseLazy s = case runState d s of
+    (x, s)  -> (x, null s)
+    where
+	Ser _ d = serialiser
 

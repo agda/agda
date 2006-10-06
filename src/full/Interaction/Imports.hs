@@ -99,20 +99,33 @@ getInterface x = addImportCycleCheck x $ do
 	skip ifile file = do
 
 	    -- Read interface file
-	    i  <- liftIO $ deserialise <$> readBinaryFile ifile
+	    (s, close)  <- liftIO $ readBinaryFile' ifile
+	    let (i, ok) = deserialiseLazy s
 
-	    -- Check time stamp of imported modules
-	    t  <- liftIO $ getModificationTime ifile
-	    ts <- map snd <$> mapM getInterface (iImportedModules i)
-
-	    -- If any of the imports are newer we need to retype check
-	    if any (> t) ts
-		then typeCheck ifile file
+	    -- Check that it's the right version
+	    if iVersion i /= currentInterfaceVersion || not ok
+		then do
+		    -- We need to explicitly close the handle to make sure we
+		    -- can write the new interface. We can't trust that the
+		    -- garbage collect will close it for us in time.
+		    liftIO close
+		    typeCheck ifile file
 		else do
-		    unlessM (isVisited x) $
-			reportLn 1 $ "Skipping " ++ show x ++ " ( " ++ ifile ++ " )"
-		    visitModule x
-		    return (i, t)
+
+		-- Check time stamp of imported modules
+		t  <- liftIO $ getModificationTime ifile
+		ts <- map snd <$> mapM getInterface (iImportedModules i)
+
+		-- If any of the imports are newer we need to retype check
+		if any (> t) ts
+		    then do
+			liftIO close	-- Close the interface file. See above.
+			typeCheck ifile file
+		    else do
+			unlessM (isVisited x) $
+			    reportLn 1 $ "Skipping " ++ show x ++ " ( " ++ ifile ++ " )"
+			visitModule x
+			return (i, t)
 
 	typeCheck ifile file = do
 
@@ -173,7 +186,8 @@ buildInterface = do
     ms	    <- getImports
     let	builtin' = Map.mapWithKey (\x b -> fmap (const x) b) builtin
     instantiateFull $ Interface
-			{ iImportedModules = ms
+			{ iVersion	   = currentInterfaceVersion
+			, iImportedModules = ms
 			, iScope	   = scope
 			, iSignature	   = sig
 			, iImports	   = isig

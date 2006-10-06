@@ -3,6 +3,7 @@ module Utils.IO where
 
 import qualified Prelude (print, putStr, putStrLn)
 import Prelude hiding (print, putStr, putStrLn)
+import Control.Monad
 import Utils.Unicode
 import System.IO hiding (print, putStr, putStrLn)
 
@@ -22,9 +23,14 @@ putErr :: String -> IO ()
 putErr = hPutStr stderr . toUTF8
 
 readBinaryFile :: FilePath -> IO String
-readBinaryFile file = do
+readBinaryFile file = liftM fst $ readBinaryFile' file
+
+-- | Returns a close function for the file together with the contents.
+readBinaryFile' :: FilePath -> IO (String, IO ())
+readBinaryFile' file = do
     h <- openBinaryFile file ReadMode
-    hGetContents h
+    s <- hGetContents h
+    return (s, hClose h)
 
 writeBinaryFile :: FilePath -> String -> IO ()
 writeBinaryFile file s = do
