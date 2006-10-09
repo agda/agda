@@ -104,7 +104,7 @@ equalAtm _ t m n =
 --
 equalArg :: Data a => a -> Type -> Args -> Args -> TCM ()
 equalArg _ a args1 args2 = do
-    a' <- instantiate a
+    a' <- reduce a
     case (unEl a', args1, args2) of 
         (_, [], []) -> return ()
         (Pi (Arg _ b) (Abs _ c), (Arg _ arg1 : args1), (Arg _ arg2 : args2)) -> do
