@@ -221,7 +221,7 @@ cmd_make_case ii rng s = infoOnException $ ioTCM $ do
   withMetaInfo mfo $ do
     -- gather constructors for ex
     (vx,tx) <- inferExpr ex
-    El(SI.Def d _) _ <- passElDef =<< reduce tx
+    El _ (SI.Def d _) <- passElDef =<< reduce tx
     Defn _ _ (Datatype _ ctors _ _) <- passData =<< getConstInfo d
     replpas <- (`mkPats` ctors) =<< List.delete sx <$> takenNameStr
     -- make new clauses
@@ -258,13 +258,14 @@ cmd_make_case ii rng s = infoOnException $ ioTCM $ do
     go SI.AbsurdP	  = SI.AbsurdP
 
   dePi 0 t = return t
-  dePi i (SI.Pi _ (Abs _ t)) = dePi (i-1) t
-  dePi i (SI.Fun _       t)  = dePi (i-1) t
+  dePi i (El _ (SI.Pi _ (Abs _ t))) = dePi (i-1) t
+  dePi i (El _ (SI.Fun _       t))  = dePi (i-1) t
   dePi i t = fail "dePi: not a pi"
  
-  piToArgPats tkn t = case t of SI.Pi (Arg h _) (Abs s t) -> go h s   t
-                                SI.Fun (Arg h _) t        -> go h "x" t
-                                _                         -> (tkn, [])
+  piToArgPats tkn t = case unEl t of
+    SI.Pi (Arg h _) (Abs s t) -> go h s   t
+    SI.Fun (Arg h _) t        -> go h "x" t
+    _                         -> (tkn, [])
     where go h ('_':s) t = go h s t
           go h s t = let (tkn1, s1 ) = refreshStr tkn s
                          (tkn2, pas) = piToArgPats tkn1 t
@@ -277,7 +278,7 @@ cmd_make_case ii rng s = infoOnException $ ioTCM $ do
 
   passAVar e@(SA.Var _ _) = return e
   passAVar x   = fail("passAVar: got "++show x)
-  passElDef t@(El(SI.Def _ _) _) = return t
+  passElDef t@(El _ (SI.Def _ _)) = return t
   passElDef t  = fail . ("passElDef: got "++) . show =<< reify t
   passData  d@(Defn _ _ (Datatype _ _ _ _))  = return d
   passData  d@(Defn _ _ (Function _ _))	     = fail $ "passData: got function"
@@ -321,7 +322,6 @@ cmd_solveAll = infoOnException $ ioTCM $ do
         let out m = do e <- lowerMeta . abstractToConcrete_ <$> reify m;
                        ((ii, e):) <$> rest
         case mvInstantiation mv of InstV _  -> out (MetaV mi args)
-                                   InstT _  -> out (MetaT mi args)
                                    InstS _  -> out (MetaS mi)
                                    TM.Open  -> rest
   prn (ii,e)= [showNumIId ii, A $ emacsStr $ show e]

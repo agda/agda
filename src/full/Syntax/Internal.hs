@@ -26,16 +26,14 @@ data Term = Var Nat Args
 	  | Lit Literal
 	  | Def QName Args
 	  | Con QName Args
+	  | Pi (Arg Type) (Abs Type)
+	  | Fun (Arg Type) Type
+	  | Sort Sort
 	  | MetaV MetaId Args
 	  | BlockedV (Blocked Term) -- ^ returned by 'TypeChecking.Reduce.reduce'
   deriving (Typeable, Data)
 
-data Type = El Term Sort
-	  | Pi (Arg Type) (Abs Type)
-	  | Fun (Arg Type) Type
-	  | Sort Sort
-	  | MetaT MetaId Args	    -- ^ list of dependencies for metavars
-          | LamT (Abs Type)	    -- ^ abstraction needed for metavar dependency management
+data Type = El Sort Term
   deriving (Typeable, Data) 
 
 data Sort = Type Nat
@@ -114,10 +112,10 @@ newtype MetaId = MetaId Nat
 instance Show MetaId where
     show (MetaId n) = "_" ++ show n
 
-
+-- | Doesn't do any reduction.
 arity :: Type -> Int
 arity t =
-    case t of
+    case unEl t of
 	Pi  (Arg h _) (Abs _ b) -> count h + arity b
 	Fun (Arg h _)	     b	-> count h + arity b
 	_			-> 0
@@ -131,10 +129,10 @@ arity t =
 ---------------------------------------------------------------------------
 
 data FunView
-	= FunV (Arg Type) Type	-- ^ second arg is the entire function ('Pi' or 'Fun').
-	| NoFunV Type
+	= FunV (Arg Type) Term	-- ^ second arg is the entire type ('Pi' or 'Fun').
+	| NoFunV Term
 
-funView :: Type -> FunView
+funView :: Term -> FunView
 funView t@(Pi  arg _) = FunV arg t
 funView t@(Fun arg _) = FunV arg t
 funView t	      = NoFunV t
@@ -150,14 +148,23 @@ ignoreBlocking :: Term -> Term
 ignoreBlocking (BlockedV b) = blockee b
 ignoreBlocking v	    = v
 
-set0   = Sort (Type 0)
-set n  = Sort (Type n)
-sort s = Sort s       
-prop   = Sort Prop
+set0   = sort (Type 0)
+set n  = sort (Type n)
+prop   = sort Prop
+sort s = El (sSuc s) $ Sort s
 
 telePi :: Telescope -> Type -> Type
 telePi [] t = t
-telePi (Arg h (x,s) : tel) t = Pi (Arg h s) $ Abs x $ telePi tel t
+telePi (Arg h (x,u) : tel) t = El (sLub s1 s2) $ Pi (Arg h u) $ Abs x $ telePi tel t
+    where
+	s1 = getSort u
+	s2 = getSort t
+
+getSort :: Type -> Sort
+getSort (El s _) = s
+
+unEl :: Type -> Term
+unEl (El _ t) = t
 
 -- | Get the next higher sort.
 sSuc :: Sort -> Sort

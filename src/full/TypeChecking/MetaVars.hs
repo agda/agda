@@ -7,7 +7,7 @@ import Control.Monad.State
 import Control.Monad.Error
 import Data.Generics
 import Data.Map as Map
-import Data.List as List
+import Data.List as List hiding (sort)
 
 import Syntax.Common
 import qualified Syntax.Info as Info
@@ -69,15 +69,10 @@ newSortMeta =
 	MetaS <$> newMeta i (IsSort ())
 
 newTypeMeta :: Sort -> TCM Type
-newTypeMeta s =
-    do	i <- createMetaInfo
-        vs <- allCtxVars
-	x  <- newMeta i (IsType () s)
-	return $ MetaT x vs
+newTypeMeta s = El s <$> newValueMeta (sort s)
 
 newTypeMeta_ ::  TCM Type
-newTypeMeta_  = 
-    do  newTypeMeta =<< newSortMeta
+newTypeMeta_  = newTypeMeta =<< newSortMeta
 
 newValueMeta ::  Type -> TCM Term
 newValueMeta t =
@@ -86,16 +81,15 @@ newValueMeta t =
 	x  <- newMeta i (HasType () t)
 	return $ MetaV x vs
 
-newArgsMeta ::  Type -> TCM Args
-newArgsMeta (Pi (Arg h a) b) =
-    do	v    <- newValueMeta a
-	args <- newArgsMeta $ absApp b v
-	return $ Arg h v : args
-newArgsMeta (Fun (Arg h a) b) =
-    do	v    <- newValueMeta a
-	args <- newArgsMeta b
-	return $ Arg h v : args
-newArgsMeta _ = return []
+newArgsMeta :: Type -> TCM Args
+newArgsMeta (El s tm) = do
+    tm <- reduce tm
+    case funView tm of
+	FunV (Arg h a) _  -> do
+	    v	 <- newValueMeta a
+	    args <- newArgsMeta $ piApply' (El s tm) [Arg h v]
+	    return $ Arg h v : args
+	NoFunV _    -> return []
 
 newQuestionMark ::  Type -> TCM Term
 newQuestionMark t =
@@ -103,17 +97,6 @@ newQuestionMark t =
 	ii	      <- fresh
 	addInteractionPoint ii x
 	return m
-
-newQuestionMarkT ::  Sort -> TCM Type
-newQuestionMarkT s =
-    do	m@(MetaT x _) <- newTypeMeta s
-	ii	      <- fresh
-	addInteractionPoint ii x
-	return m
-
-newQuestionMarkT_ ::  TCM Type
-newQuestionMarkT_ = 
-    do  newQuestionMarkT =<< newSortMeta
 
 -- | Generate new metavar of same kind ('Open'X) as that
 --     pointed to by @MetaId@ arg.
@@ -150,19 +133,14 @@ instance Occurs Term where
 		Lit l	    -> return $ Lit l
 		Def c vs    -> Def c <$> occ m ok vs
 		Con c vs    -> Con c <$> occ m ok vs
+		Pi a b	    -> uncurry Pi <$> occ m ok (a,b)
+		Fun a b	    -> uncurry Fun <$> occ m ok (a,b)
+		Sort s	    -> Sort <$> occ m ok s
 		MetaV m' vs -> occMeta MetaV InstV instantiate m ok m' vs
 		BlockedV b  -> __IMPOSSIBLE__
 
 instance Occurs Type where
-    occ m ok t =
-	do  t' <- reduce t
-	    case t' of
-		El v s	    -> uncurry El <$> occ m ok (v,s)
-		Pi a b	    -> uncurry Pi <$> occ m ok (a,b)
-		Fun a b	    -> uncurry Fun <$> occ m ok (a,b)
-		Sort s	    -> Sort <$> occ m ok s
-		MetaT m' vs -> occMeta MetaT InstT instantiate m ok m' vs
-		LamT _	    -> __IMPOSSIBLE__
+    occ m ok (El s v) = uncurry El <$> occ m ok (s,v)
 
 instance Occurs Sort where
     occ m ok s =
@@ -175,7 +153,7 @@ instance Occurs Sort where
 		Type _		   -> return s'
 		Prop		   -> return s'
 
-occMeta :: (Show a, Data a, Abstract a, Apply a) =>
+occMeta :: (Data a, Abstract a, Apply a) =>
 	   (MetaId -> Args -> a) -> (a -> MetaInstantiation) -> (a -> TCM a) -> MetaId -> [Nat] -> MetaId -> Args -> TCM a
 occMeta meta inst red m ok m' vs
     | m == m'	= typeError $ MetaOccursInItself m
@@ -185,7 +163,7 @@ occMeta meta inst red m ok m' vs
 		     Just vs' -> return vs'
 	    when (length vs' /= length vs) $
 		do  v1 <-  newMetaSame m' (\mi -> meta mi [])
-		    let tel = List.map (fmap $ const $ ("_",Sort Prop)) vs
+		    let tel = List.map (fmap $ const $ ("_", sort Prop)) vs
 				-- only hiding matters
 		    setRef Why m' $ inst $ abstract tel (v1 `apply` vs')
 		    abortAssign -- setRef wakes up the constraints and solving them
@@ -233,21 +211,21 @@ assignV t x args v =
     handleAbort (equalVal () t (MetaV x args) v) $ assign x args v
 
 assignT :: MetaId -> Args -> Type -> TCM ()
-assignT x args t =
-    handleAbort (equalTyp () (MetaT x args) t) $ assign x args t
+assignT x args ty@(El s v) =
+    handleAbort (equalTyp () (El s $ MetaV x args) ty) $ assign x args v
 
 assignS :: MetaId -> Sort -> TCM ()
 assignS x s =
     handleAbort (equalSort (MetaS x) s) $ assign x [] s
 
 -- | TODO: don't export
-assign :: (Show a, Data a, Occurs a, Abstract a) => MetaId -> Args -> a -> TCM ()
-assign x args = fail "assign" `mkQ` ass InstV `extQ` ass InstT `extQ` ass InstS where
-    ass :: (Show a, Data a, Occurs a, Abstract a) => (a -> MetaInstantiation) -> a -> TCM ()
+assign :: (Data a, Occurs a, Abstract a) => MetaId -> Args -> a -> TCM ()
+assign x args = fail "assign" `mkQ` ass InstV `extQ` ass InstS where
+    ass :: (Data a, Occurs a, Abstract a) => (a -> MetaInstantiation) -> a -> TCM ()
     ass inst v =
 	do  ids <- checkArgs x args
 	    v'  <- occ x ids v
-	    let tel = List.map (fmap $ const ("_",Sort Prop)) args
+	    let tel = List.map (fmap $ const ("_", sort Prop)) args
 		-- only hiding matters
 	    setRef Why x $ inst $ abstract tel v'
 
@@ -279,7 +257,7 @@ isVar (Arg _ (Var _ [])) = True
 isVar _			 = False
 
 
-updateMeta :: (Show a, Data a, Occurs a, Abstract a) => MetaId -> a -> TCM ()
+updateMeta :: (Data a, Occurs a, Abstract a) => MetaId -> a -> TCM ()
 updateMeta mI t = 
     do	mv <- lookupMeta mI
 	withMetaInfo (getMetaInfo mv) $

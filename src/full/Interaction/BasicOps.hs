@@ -25,7 +25,7 @@ import Syntax.Position
 import Syntax.Abstract 
 import Syntax.Common
 import Syntax.Info(ExprInfo(..),MetaInfo(..))
-import Syntax.Internal (MetaId(..),Type,Sort)
+import Syntax.Internal (MetaId(..),Type(..),Sort)
 import Syntax.Translation.InternalToAbstract
 import Syntax.Translation.AbstractToConcrete
 --import Syntax.Parser
@@ -71,7 +71,7 @@ giveExpr mi e =
 		 IsType _ s ->
 		    do	t <- isType e s
 			case mvInstantiation mv of
-			    InstT t' -> equalTyp () t (t' `apply` vs)
+			    InstV t' -> equalTyp () t (El s $ t' `apply` vs)
 			    _	     -> return ()
 			updateMeta mi t
                         reify t 

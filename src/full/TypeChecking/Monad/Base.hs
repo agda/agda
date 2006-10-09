@@ -14,7 +14,6 @@ import qualified Syntax.Concrete as C
 import qualified Syntax.Concrete.Definitions as D
 import qualified Syntax.Abstract as A
 import Syntax.Internal
-import Syntax.Internal.Debug ()
 import Syntax.Position
 import Syntax.ScopeInfo
 
@@ -138,12 +137,6 @@ data Constraint = ValueEq Type Term Term
 		| SortEq Sort Sort
   deriving (Typeable, Data)
 
-instance Show Constraint where
-    show (ValueEq t u v) = show u ++ "  =  " ++ show v ++ "  :  " ++ show t
-    show (TypeEq a b)	 = show a ++ "  =  " ++ show b
-    show (SortEq a b)	 = show a ++ "  =  " ++ show b
-    show (SortLeq a b)	 = show a ++ "  <=  " ++ show b
-
 type Constraints = Map ConstraintId ConstraintClosure
 
 ---------------------------------------------------------------------------
@@ -184,7 +177,6 @@ data MetaVariable =
 
 data MetaInstantiation
 	= InstV Term
-	| InstT Type
 	| InstS Sort
 	| Open
     deriving (Typeable, Data)
@@ -196,19 +188,6 @@ type MetaStore = Map MetaId MetaVariable
 
 instance HasRange MetaVariable where
     getRange m = getRange $ getMetaInfo m
-
-instance Show MetaVariable where
-    show mv =
-	case mv of
-	    MetaVar mi j i  -> show j ++ show i ++ r
-	where
-	    r = " [" ++ show (getRange mv) ++ "]"
-
-instance Show MetaInstantiation where
-    show (InstV v) = " := " ++ show v
-    show (InstT t) = " := " ++ show t
-    show (InstS s) = " := " ++ show s
-    show  Open	   = ""
 
 getMetaScope :: MetaVariable -> ScopeInfo
 getMetaScope m = clScope $ getMetaInfo m
@@ -351,7 +330,6 @@ type BuiltinThings pf = Map String (Builtin pf)
 data Builtin pf
 	= Builtin Term
 	| Prim pf
-    deriving (Show)
 
 instance Functor Builtin where
     fmap f (Builtin t) = Builtin t
@@ -376,7 +354,7 @@ data TCEnv =
 		--   To prevent information about abstract things leaking
 		--   outside the module.
 	  }
-    deriving (Typeable, Data, Show)
+    deriving (Typeable, Data)
 
 initEnv :: TCEnv
 initEnv = TCEnv { envContext	   = []
@@ -447,6 +425,7 @@ data TypeError
 	| NoSuchPrimitiveFunction String
 	| BuiltinInParameterisedModule String
 	| NoRHSRequiresAbsurdPattern [Arg A.Pattern]
+	| IncompletePatternMatching Term Args
     -- Import errors
 	| LocalVsImportedModuleClash ModuleName
 	| UnsolvedMetasInImport [Range]

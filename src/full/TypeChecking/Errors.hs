@@ -53,6 +53,7 @@ empty	       = return P.empty :: TCM Doc
 pwords s       = map return $ P.pwords s
 fwords s       = return $ P.fwords s
 comma	       = return P.comma
+sep ds	       = P.sep <$> sequence ds
 fsep ds	       = P.fsep <$> sequence ds
 hsep ds	       = P.hsep <$> sequence ds
 vcat ds	       = P.vcat <$> sequence ds
@@ -139,6 +140,7 @@ errorString err = case err of
     AmbiguousParseForApplication _ _	       -> "AmbiguousParseForApplication"
     NoParseForLHS _			       -> "NoParseForLHS"
     AmbiguousParseForLHS _ _		       -> "AmbiguousParseForLHS"
+    IncompletePatternMatching _ _	       -> "IncompletePatternMatching"
 
 ---------------------------------------------------------------------------
 -- * The PrettyTCM class
@@ -153,6 +155,31 @@ instance PrettyTCM a => PrettyTCM (Closure a) where
 instance PrettyTCM Term where prettyTCM x = prettyA =<< reify x
 instance PrettyTCM Type where prettyTCM x = prettyA =<< reify x
 instance PrettyTCM Sort where prettyTCM x = prettyA =<< reify x
+
+instance (Reify a e, ToConcrete e c, P.Pretty c) => PrettyTCM (Arg a) where
+    prettyTCM x = prettyA =<< reify x
+
+instance PrettyTCM Constraint where
+    prettyTCM c = case c of
+	ValueEq ty s t ->
+	    sep [ sep [ prettyTCM s
+		      , text "==" <+> prettyTCM t
+		      ]
+		, nest 2 $ text ":" <+> prettyTCM ty
+		]
+	TypeEq a b ->
+	    sep [ prettyTCM a
+		, text "==" <+> prettyTCM b
+		]
+	SortLeq s1 s2 ->
+	    sep [ prettyTCM s1
+		, text "<=" <+> prettyTCM s2
+		]
+	SortEq s1 s2 ->
+	    sep [ prettyTCM s1
+		, text "==" <+> prettyTCM s2
+		]
+
 
 instance P.Pretty Name where
     pretty = P.pretty . nameConcrete
@@ -309,6 +336,9 @@ instance PrettyTCM TypeError where
 		    pwords "Don't know how to parse" ++ [pretty p <> text "."] ++
 		    pwords "Could mean any one of:"
 		) $$ nest 2 (vcat $ map pretty ps)
+	    IncompletePatternMatching v args -> fsep $
+		pwords "Incomplete pattern matching for" ++ [prettyTCM v <> text"."] ++
+		pwords "No match for" ++ map prettyTCM args
 
 instance PrettyTCM Call where
     prettyTCM c = case c of

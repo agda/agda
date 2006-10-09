@@ -75,7 +75,8 @@ processClause name num c@(Clause args body) =
         case callsClause name num c of
           [] -> return ()
           cs -> do
-		  tcmsg $ show (name) ++ " " ++ (show $ targs)
+		  d <- prettyTCM targs
+		  tcmsg $ show name ++ " " ++ show d
 		  checkCalls targs cs
 
 findDef :: String -> TCM(Maybe Name)
@@ -93,7 +94,7 @@ checkCalls :: Args -> [RCall] -> TCM()
 printCalls cs = do 
 		  liftIO $ putStr " REC " 
 	          -- str <- show <$> prettyTCM cs
-                  tcmsg $ show cs
+                  tcmsg . show =<< prettyTCM cs
 
 
 checkCalls targs cs = mapMM (checkCall targs) cs
@@ -110,16 +111,18 @@ checkCall [targ] (RCall fun i j [arg]) = do
   -- tcmsg $ "Looking for " ++ hintName
   modName <- currentModule
   mhint <- findDef hintName
+  pArg <- prettyTCM arg
+  pTArg <- prettyTCM targ
+  let strLess = show pArg ++ " < " ++ show pTArg
   case mhint of
     Just name -> foundHint modName name
     Nothing ->       
      tcmsg $ if strictSubterm (unArg arg) (unArg targ) 
-          then msgGood 
-          else msgBad 
+          then msgGood strLess
+          else msgBad  strLess
   where
-    msgGood = callid ++ " OK: " ++ strLess
-    msgBad =  callid ++ " You need to prove " ++ strLess 
-    strLess = show arg ++ " < " ++ show targ
+    msgGood strLess = callid ++ " OK: " ++ strLess
+    msgBad  strLess =  callid ++ " You need to prove " ++ strLess 
     callid = show fun ++ "-" ++ show i ++ "-" ++ show j
     hintName = callid++"-hint"
     foundHint modName name = do

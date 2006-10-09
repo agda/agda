@@ -79,8 +79,8 @@ newtype Str = Str { unStr :: String }
 class PrimType a where
     primType :: a -> TCM Type
 
-instance (PrimType a, PrimType b) => PrimType (a -> b) where
-    primType _ = primType (undefined :: a) --> primType (undefined :: b)
+instance (PrimType a, PrimType b) => PrimTerm (a -> b) where
+    primTerm _ = unEl <$> (primType (undefined :: a) --> primType (undefined :: b))
 
 instance PrimTerm a => PrimType a where
     primType _ = el $ primTerm (undefined :: a)
@@ -273,14 +273,14 @@ infixr 4 -->
 a --> b = do
     a' <- a
     b' <- b
-    return $ Fun (Arg NotHidden a') b'
+    return $ El (getSort a' `sLub` getSort b') $ Fun (Arg NotHidden a') b'
 
 gpi :: Hiding -> TCM Type -> TCM Type -> TCM Type
 gpi h a b = do
     a' <- a
     x  <- freshName_ "x"
     b' <- addCtx x a' b
-    return $ Pi (Arg h a') (Abs "x" b')
+    return $ El (getSort a' `sLub` getSort b') $ Pi (Arg h a') (Abs "x" b')
 
 hPi = gpi Hidden
 nPi = gpi NotHidden
@@ -301,10 +301,10 @@ io t = do
     return $ io `apply` [Arg NotHidden t']
 
 el :: TCM Term -> TCM Type
-el t = flip El (Type 0) <$> t
+el t = El (Type 0) <$> t
 
 tset :: TCM Type
-tset = return $ Sort (Type 0)
+tset = return $ sort (Type 0)
 
 ---------------------------------------------------------------------------
 -- * The actual primitive functions

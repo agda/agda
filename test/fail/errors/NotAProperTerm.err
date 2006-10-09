@@ -1,3 +1,0 @@
-errors/NotAProperTerm.agda:5,9-23
-Found a malformed term
-when checking that the expression A -> A -> Prop has type Set

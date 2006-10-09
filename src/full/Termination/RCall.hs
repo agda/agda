@@ -32,9 +32,6 @@ data  RCall = RCall {
 } 
 
 
-instance Show RCall where
-  show r = (show $ callFun r) ++  (show $ callArgs r)
-
 instance PrettyTCM RCall where
   prettyTCM r = do
 		  dargs <- prettyTCM  (callArgs r)
@@ -49,5 +46,4 @@ instance PrettyTCM  a => PrettyTCM [a] where
 			dr <- prettyTCM r 
 			ds <- prettyTCM rs
                         return $ dr <> comma <> ds
-instance PrettyTCM a => PrettyTCM (Arg a) where
-  prettyTCM (Arg h x) = prettyTCM x
+

@@ -8,7 +8,6 @@ import Data.Map (Map)
 
 import Syntax.Common
 import Syntax.Internal
-import Syntax.Internal.Walk
 
 import TypeChecking.Monad.Base
 
@@ -32,22 +31,20 @@ instance Apply Term where
 	    MetaV x args' -> MetaV x (args'++args) 
 	    BlockedV b	  -> BlockedV $ b `apply` args
 	    Lit l	  -> __IMPOSSIBLE__
+	    Pi _ _	  -> __IMPOSSIBLE__
+	    Fun _ _	  -> __IMPOSSIBLE__
+	    Sort _	  -> __IMPOSSIBLE__
 
 instance Apply Type where
-    apply a []	= a
-    apply (MetaT x args') args	  = MetaT x (args' ++ args)
-    apply (LamT a) (Arg _ v:args) = absApp a v `apply` args
-    apply (Sort s) _		  = __IMPOSSIBLE__
-    apply (Pi _ _) _		  = __IMPOSSIBLE__
-    apply (Fun _ _) _		  = __IMPOSSIBLE__
-    apply (El _ _) _		  = __IMPOSSIBLE__
+    apply a []		= a
+    apply (El s t) args	= El s $ t `apply` args
 
 instance Apply Sort where
     apply s [] = s
     apply s _  = __IMPOSSIBLE__
 
 instance Apply Definition where
-    apply (Defn t n d) args = Defn (piApply t args) (n - length args) (apply d args)
+    apply (Defn t n d) args = Defn (piApply' t args) (n - length args) (apply d args)
 
 instance Apply Defn where
     apply Axiom _		     = Axiom
@@ -81,11 +78,14 @@ instance (Apply a, Apply b) => Apply (a,b) where
 instance (Apply a, Apply b, Apply c) => Apply (a,b,c) where
     apply (x,y,z) args = (apply x args, apply y args, apply z args)
 
-piApply :: Type -> Args -> Type
-piApply t []			 = t
-piApply (Pi  _ b) (Arg _ v:args) = absApp b v `piApply` args
-piApply (Fun _ b) (_:args)	 = b
-piApply _ _			 = __IMPOSSIBLE__
+-- | The type must contain the right number of pis without have to perform any
+-- reduction.
+piApply' :: Type -> Args -> Type
+piApply' t []				 = t
+piApply' (El _ (Pi  _ b)) (Arg _ v:args) = absApp b v `piApply'` args
+piApply' (El _ (Fun _ b)) (_:args)	 = b
+piApply' _ _				 =
+    __IMPOSSIBLE__
 
 -- | @(abstract args v) args --> v[args]@.
 class Abstract t where
@@ -95,7 +95,7 @@ instance Abstract Term where
     abstract tel v = foldl (\v (Arg h _) -> Lam h (Abs "x" v)) v $ reverse tel
 
 instance Abstract Type where
-    abstract tel a = foldl (\a _ -> LamT (Abs "x" a)   ) a $ reverse tel
+    abstract tel (El s t) = El s $ abstract tel t
 
 instance Abstract Sort where
     abstract [] s = s
@@ -147,17 +147,13 @@ instance Subst Term where
 	    Con c vs	    -> Con c $ substAt n u vs
 	    MetaV x vs	    -> MetaV x $ substAt n u vs
 	    Lit l	    -> Lit l
+	    Pi a b	    -> uncurry Pi $ substAt n u (a,b)
+	    Fun a b	    -> uncurry Fun $ substAt n u (a,b)
+	    Sort s	    -> Sort s
 	    BlockedV b	    -> BlockedV $ substAt n u b
 
 instance Subst Type where
-    substAt n u t =
-	case t of
-	    El t s     -> flip El s $ substAt n u t
-	    Pi a b     -> uncurry Pi $ substAt n u (a,b)
-	    Fun a b    -> uncurry Fun $ substAt n u (a,b)
-	    Sort s     -> Sort s
-	    MetaT x vs -> MetaT x $ substAt n u vs
-	    LamT b     -> LamT $ substAt n u b
+    substAt n u (El s t) = El s $ substAt n u t
 
 instance Subst t => Subst (Blocked t) where
     substAt n u b = fmap (substAt n u) b
@@ -204,21 +200,15 @@ instance Raise Term where
 	    Con c vs	    -> Con c $ rf vs
 	    MetaV x vs	    -> MetaV x $ rf vs
 	    Lit l	    -> Lit l
+	    Pi a b	    -> uncurry Pi $ rf (a,b)
+	    Fun a b	    -> uncurry Fun $ rf (a,b)
+	    Sort s	    -> Sort s
 	    BlockedV b	    -> BlockedV $ rf b
 	where
 	    rf x = raiseFrom m k x
 
 instance Raise Type where
-    raiseFrom m k t =
-	case t of
-	    El t s     -> flip El s $ rf t
-	    Pi a b     -> uncurry Pi $ rf (a,b)
-	    Fun a b    -> uncurry Fun $ rf (a,b)
-	    Sort s     -> Sort s
-	    MetaT x vs -> MetaT x $ rf vs
-	    LamT b     -> LamT $ rf b
-	where
-	    rf x = raiseFrom m k x
+    raiseFrom m k (El s t) = El s $ raiseFrom m k t
 
 instance Raise t => Raise (Abs t) where
     raiseFrom m k = fmap (raiseFrom (m + 1) k)

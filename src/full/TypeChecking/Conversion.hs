@@ -34,7 +34,7 @@ equalSameVar meta inst x args1 args2 =
 		      , a === b
 		      ]
         v <- newMetaSame x meta
-	let tel = map (fmap $ const ("_",Sort Prop)) args1
+	let tel = map (fmap $ const ("_", sort Prop)) args1
 		-- only hiding matters
         setRef Why x $ inst $ abstract tel (v `apply` newArgs)
     else fail $ "equalSameVar"
@@ -51,25 +51,24 @@ equalVal _ a m n =
     do	a' <- instantiate a
 --     debug $ "equalVal " ++ show m ++ " == " ++ show n ++ " : " ++ show a'
 	proofIrr <- proofIrrelevance
-	s <- reduce =<< getSort a'
+	s <- reduce $ getSort a'
 	case (proofIrr, s) of
 	    (True, Prop)    -> return ()
 	    _		    ->
-		case a' of
+		case unEl a' of
 		    Pi a _    -> equalFun (a,a') m n
 		    Fun a _   -> equalFun (a,a') m n
-		    MetaT x _ -> addConstraint (ValueEq a m n)
-		    El _ _    -> equalAtm Why a m n
-		    Sort _    -> equalAtm Why a m n
-		    LamT _    -> __IMPOSSIBLE__
+		    MetaV x _ -> addConstraint (ValueEq a m n)
+		    Lam _ _   -> __IMPOSSIBLE__
+		    _	      -> equalAtm Why a' m n
     where
 	equalFun (a,t) m n =
-	    do	name <- freshName_ (suggest t)
+	    do	name <- freshName_ (suggest $ unEl t)
 		addCtx name (unArg a) $ equalVal Why t' m' n'
 	    where
 		p	= fmap (const $ Var 0 []) a
 		(m',n') = raise 1 (m,n) `apply` [p]
-		t'	= raise 1 t `piApply` [p]
+		t'	= raise 1 t `piApply'` [p]
 		suggest (Fun _ _) = "_"
 		suggest (Pi _ (Abs x _)) = x
 		suggest _ = __IMPOSSIBLE__
@@ -106,7 +105,7 @@ equalAtm _ t m n =
 equalArg :: Data a => a -> Type -> Args -> Args -> TCM ()
 equalArg _ a args1 args2 = do
     a' <- instantiate a
-    case (a', args1, args2) of 
+    case (unEl a', args1, args2) of 
         (_, [], []) -> return ()
         (Pi (Arg _ b) (Abs _ c), (Arg _ arg1 : args1), (Arg _ arg2 : args2)) -> do
             equalVal Why b arg1 arg2
@@ -114,48 +113,38 @@ equalArg _ a args1 args2 = do
         (Fun (Arg _ b) c, (Arg _ arg1 : args1), (Arg _ arg2 : args2)) -> do
             equalVal Why b arg1 arg2
             equalArg Why c args1 args2
-        _ -> fail $ "equalArg " ++ show a ++ " " ++ show args1 ++ " " ++ show args2
+        _ -> __IMPOSSIBLE__
 
 
 -- | Equality on Types
 equalTyp :: Data a => a -> Type -> Type -> TCM ()
-equalTyp _ a1 a2 =
-    catchConstraint (TypeEq a1 a2) $
-    do	do  s1 <- getSort a1
-	    s2 <- getSort a2
-	    equalSort s1 s2
-	a1' <- instantiate a1
-	a2' <- instantiate a2
+equalTyp _ ty1@(El s1 a1) ty2@(El s2 a2) =
+    catchConstraint (TypeEq ty1 ty2) $ do
+	equalSort s1 s2
+	a1' <- reduce a1
+	a2' <- reduce a2
 	ctx <- map fst <$> getContext
--- 	debug $ "equalTyp in " ++ show ctx
--- 	debug $ "            " ++ show a1 ++ " == " ++ show a2
--- 	debug $ "            " ++ show a1' ++ " == " ++ show a2'
 	case (a1', a2') of
 	    _ | f1@(FunV _ _) <- funView a1'
 	      , f2@(FunV _ _) <- funView a2' -> equalFun f1 f2
-	    (El m1 s1, El m2 s2) ->
-		equalVal Why (sort s1) m1 m2
+
 	    (Sort s1, Sort s2) -> equalSort s1 s2
-	    (MetaT x xDeps, MetaT y yDeps) | x == y -> 
-		equalSameVar (\x -> MetaT x []) InstT x xDeps yDeps
-	    (MetaT x xDeps, a) -> assignT x xDeps a 
-	    (a, MetaT x xDeps) -> assignT x xDeps a 
-	    (LamT _, _)  -> __IMPOSSIBLE__
-	    (El _ _, _)  -> typeError $ UnequalTypes a1' a2'
-	    (Pi _ _, _)  -> typeError $ UnequalTypes a1' a2'
-	    (Fun _ _, _) -> typeError $ UnequalTypes a1' a2'
-	    (Sort _, _)  -> typeError $ UnequalTypes a1' a2'
+
+	    (m1, m2) ->
+		equalVal Why (sort s1) m1 m2
 
     where
 	equalFun (FunV (Arg h1 a1) t1) (FunV (Arg h2 a2) t2)
-	    | h1 /= h2	= typeError $ UnequalHiding t1 t2
+	    | h1 /= h2	= typeError $ UnequalHiding ty1 ty2
 	    | otherwise =
 		do  equalTyp Why a1 a2
-		    let (t1',t2') = raise 1 (t1,t2)
+		    let (ty1',ty2') = raise 1 (ty1,ty2)
 			arg	  = Arg h1 (Var 0 [])
 		    name <- freshName_ (suggest t1 t2)
-		    addCtx name a1 $ equalTyp Why (piApply t1' [arg]) (piApply t2' [arg])
+		    addCtx name a1 $ equalTyp Why (piApply' ty1' [arg]) (piApply' ty2' [arg])
 	    where
+		ty1 = El s1 t1
+		ty2 = El s2 t2
 		suggest t1 t2 = case concatMap name [t1,t2] of
 				    []	-> "_"
 				    x:_	-> x
@@ -233,19 +222,4 @@ equalSort s1 s2 =
 	    (_	     , MetaS x )	     -> equalSort s2 s1
     where
 	notEq s1 s2 = typeError $ UnequalSorts s1 s2
-
--- | Get the sort of a type. Should be moved somewhere else.
-getSort :: Type -> TCM Sort
-getSort t =
-    case t of
-	El _ s		       -> return s
-	Pi (Arg _ a) (Abs _ b) -> sLub <$> getSort a <*> getSort b
-	Fun (Arg _ a) b	       -> sLub <$> getSort a <*> getSort b
-	Sort s		       -> return $ sSuc s
-	MetaT m _	       ->
-	    do  mv <- mvJudgement <$> lookupMeta m
-		case mv of
-		    IsType _ s -> return s
-		    _	       -> __IMPOSSIBLE__
-	LamT _ -> __IMPOSSIBLE__
 

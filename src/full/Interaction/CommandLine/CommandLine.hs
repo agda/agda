@@ -128,7 +128,8 @@ showConstraints :: [String] -> IM ()
 showConstraints [c] =
     do	i  <- readM c
 	cc <- normalise =<< lookupConstraint (CId i)
-	liftIO $ print $ clValue cc
+	d  <- prettyTCM $ clValue cc
+	liftIO $ print d
 showConstraints [] =
     do	cs <- BasicOps.getConstraints
 	liftIO $ putStrLn $ unlines $ List.map show cs

@@ -55,7 +55,11 @@ instance ShowAsUntypedTerm Term where
     showAsUntypedTerm (Lit (LitString _ s)) = return $ parens $ text "VString" <+> text (show s)
     showAsUntypedTerm (Lit (LitFloat  _ f)) = return $ parens $ text "VFloat" <+> text (show f)
     showAsUntypedTerm (Lit (LitChar   _ c)) = return $ parens $ text "VChar" <+> text (show c)
-    showAsUntypedTerm _ = return __IMPOSSIBLE__
+    showAsUntypedTerm (Pi _ _)	   = __IMPOSSIBLE__ -- not impossible
+    showAsUntypedTerm (Fun _ _)    = __IMPOSSIBLE__ -- not impossible
+    showAsUntypedTerm (Sort _)	   = __IMPOSSIBLE__ -- not impossible
+    showAsUntypedTerm (MetaV _ _)  = __IMPOSSIBLE__
+    showAsUntypedTerm (BlockedV _) = __IMPOSSIBLE__
 
 instance ShowAsUntypedTerm ClauseBody where
     showAsUntypedTerm (Body t)      = showAsUntypedTerm t
@@ -83,7 +87,7 @@ class ShowAsUntyped a where
 
 instance ShowAsUntyped Pattern where
     showAsUntyped (VarP s)          =
-	return $ text $ translateNameAsUntypedTerm (VarP s)
+	return $ text $ translateNameAsUntypedTerm s
     showAsUntyped (ConP qname args) = do
 	dname <- showQNameAsUntypedConstructor qname
 	dargs <- mapM (showAsUntyped . unArg) args

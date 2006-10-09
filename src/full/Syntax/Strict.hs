@@ -20,17 +20,14 @@ instance Strict Term where
 	Con _ ts   -> force ts
 	Lam _ t    -> force t
 	Lit _	   -> 0
+	Pi a b	   -> force (a,b)
+	Fun a b    -> force (a,b)
+	Sort s	   -> force s
 	MetaV _ ts -> force ts
 	BlockedV _ -> __IMPOSSIBLE__
 
 instance Strict Type where
-    force a = case a of
-	Pi a b	   -> force (a,b)
-	Fun a b    -> force (a,b)
-	El t s	   -> force (t,s)
-	MetaT _ ts -> force ts
-	LamT t	   -> force t
-	Sort s	   -> force s
+    force (El s t) = force (s,t)
 
 instance Strict Sort where
     force s = case s of

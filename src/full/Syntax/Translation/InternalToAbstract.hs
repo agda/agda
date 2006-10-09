@@ -26,7 +26,6 @@ import Syntax.Fixity
 import Syntax.Abstract as A
 import qualified Syntax.Concrete as C
 import Syntax.Internal as I
-import Syntax.Internal.Debug
 import Syntax.Scope
 
 import TypeChecking.Monad as M
@@ -106,14 +105,6 @@ instance Reify Term Expr where
 		    do	(x,e) <- reify b
 			return $ A.Lam exprInfo (DomainFree h x) e
 		I.Lit l	     -> return $ A.Lit l
-		I.MetaV x vs -> apps =<< reify (x,vs)
-		I.BlockedV _ -> __IMPOSSIBLE__
-
-instance Reify Type Expr where
-    reify t =
-	do  t <- instantiate t
-	    case t of
-		I.El v _     -> reify v
 		I.Pi a b     ->
 		    do	Arg h a <- reify a
 			(x,b)   <- reify b
@@ -121,8 +112,11 @@ instance Reify Type Expr where
 		I.Fun a b    -> uncurry (A.Fun $ exprInfo)
 				<$> reify (a,b)
 		I.Sort s     -> reify s
-		I.MetaT x vs -> apps =<< reify (x,vs)
-		I.LamT _     -> __IMPOSSIBLE__
+		I.MetaV x vs -> apps =<< reify (x,vs)
+		I.BlockedV _ -> __IMPOSSIBLE__
+
+instance Reify Type Expr where
+    reify (I.El _ t) = reify t
 
 instance Reify Sort Expr where
     reify s =

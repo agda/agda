@@ -351,7 +351,8 @@ instance ToConcrete A.Expr C.Expr where
 		    _				   -> ([b], e)
 	    lamView e = ([], e)
 
-    toConcrete (A.Pi i b e)	    =
+    toConcrete (A.Pi _ [] e) = toConcrete e
+    toConcrete (A.Pi i b e)  =
 	withStored i
 	$ bracket piBrackets
 	$ bindToConcrete b $ \b' -> do

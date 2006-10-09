@@ -21,7 +21,6 @@ import Syntax.Common
 import Syntax.Info as Info
 import Syntax.Position
 import Syntax.Internal
-import Syntax.Internal.Debug ()
 import Syntax.Translation.AbstractToConcrete
 import Syntax.Translation.ConcreteToAbstract
 import Syntax.Concrete.Pretty ()
@@ -261,9 +260,9 @@ checkConstructor _ _ _ _ = __IMPOSSIBLE__ -- constructors are axioms
 
 -- | Bind the parameters of a datatype. The bindings should be domain free.
 bindParameters :: [A.LamBinding] -> Type -> (Telescope -> Sort -> TCM a) -> TCM a
-bindParameters [] (Sort s) ret = ret [] s
+bindParameters [] (El _ (Sort s)) ret = ret [] s
 bindParameters [] _ _ = __IMPOSSIBLE__ -- the syntax prohibits anything but a sort here
-bindParameters (A.DomainFree h x : ps) (Pi (Arg h' a) b) ret	-- always dependent function
+bindParameters (A.DomainFree h x : ps) (El _ (Pi (Arg h' a) b)) ret	-- always dependent function
     | h /= h'	=
 	__IMPOSSIBLE__
     | otherwise = addCtx x a $ bindParameters ps (absBody b) $ \tel s ->
@@ -276,36 +275,34 @@ bindParameters _ _ _ = __IMPOSSIBLE__
 fitsIn :: Type -> Sort -> TCM ()
 fitsIn t s =
     do	t <- instantiate t
-	case funView t of
-	    FunV (Arg h a) _ ->
-		do  s' <- getSort a
-		    s' `leqSort` s
-		    x <- freshName_ (argName t)
-		    let v  = Arg h $ Var 0 []
-			t' = piApply (raise 1 t) [v]
-		    addCtx x a $ fitsIn t' s
+	case funView $ unEl t of
+	    FunV (Arg h a) _ -> do
+		let s' = getSort a
+		s' `leqSort` s
+		x <- freshName_ (argName t)
+		let v  = Arg h $ Var 0 []
+		    t' = piApply' (raise 1 t) [v]
+		addCtx x a $ fitsIn t' s
 	    _		     -> return ()
 
 -- | Check that a type constructs something of the given datatype.
 --   TODO: what if there's a meta here?
 constructs :: Type -> QName -> TCM ()
-constructs t q = constr 0 t
+constructs t q = constrT 0 t
     where
-	constr n (Pi a b) =
-	    underAbstraction (unArg a) b $ \t ->
-	    constr (n + 1) t
-	constr n (Fun _ b) = constr n b
-	constr n (El v s) = do
+	constrT n (El s v) = constr n s v
+
+	constr n s v = do
 	    v <- reduce v
 	    case v of
+		Pi a b	-> underAbstraction (unArg a) b $ \t ->
+			   constrT (n + 1) t
+		Fun _ b -> constrT n b
 		Def d vs
 		    | d == q -> checkParams n =<< reduce vs
-		_ -> bad $ El v s
-	constr _ t@(Sort _)    = bad t
-	constr _ t@(MetaT _ _) = bad t
-	constr _ t@(LamT _)    = __IMPOSSIBLE__
+		_ -> bad $ El s v
 
-	bad v = typeError $ ShouldEndInApplicationOfTheDatatype v
+	bad t = typeError $ ShouldEndInApplicationOfTheDatatype t
 
 	checkParams n vs
 	    | vs `sameVars` ps = return ()
@@ -322,18 +319,17 @@ constructs t q = constr 0 t
 
 -- | Force a type to be a specific datatype.
 forceData :: QName -> Type -> TCM Type
-forceData d t =
-    do	t' <- reduce t
-	case t' of
-	    El (Def d' _) _
-		| d == d'   -> return t'
-	    MetaT m vs	    ->
-		do  Defn t _ (Datatype n _ s _) <- getConstInfo d
-		    ps <- newArgsMeta t
-		    s' <- getSort t'
-		    equalTyp () t' $ El (Def d ps) s
-		    reduce t'
-	    _ -> typeError $ ShouldBeApplicationOf t d
+forceData d (El s0 t) = do
+    t' <- reduce t
+    case t' of
+	Def d' _
+	    | d == d'   -> return $ El s0 t'
+	MetaV m vs	    -> do
+	    Defn t _ (Datatype n _ s _) <- getConstInfo d
+	    ps <- newArgsMeta t
+	    equalTyp () (El s0 t') $ El s (Def d ps)
+	    reduce $ El s0 t'
+	_ -> typeError $ ShouldBeApplicationOf (El s0 t) d
 
 ---------------------------------------------------------------------------
 -- * Definitions by pattern matching
@@ -396,7 +392,7 @@ checkPatterns :: [Arg A.Pattern] -> Type -> (([String], [Arg Pattern], [Arg Term
 checkPatterns [] t ret =
     traceCallCPS (CheckPatterns [] t) ret $ \ret -> do
     t' <- instantiate t
-    case funView t' of
+    case funView $ unEl t' of
 	FunV (Arg Hidden _) _   -> do
 	    r <- getCurrentRange
 	    checkPatterns [Arg Hidden $ A.WildP $ PatRange r] t' ret
@@ -404,21 +400,23 @@ checkPatterns [] t ret =
 checkPatterns ps0@(Arg h p:ps) t ret =
     traceCallCPS (CheckPatterns ps0 t) ret $ \ret -> do
     t' <- forcePi h t
-    case (h,funView t') of
+    case (h,funView $ unEl t') of
 	(NotHidden, FunV (Arg Hidden _) _) ->
 	    checkPatterns (Arg Hidden (A.WildP $ PatRange $ getRange p) : Arg h p : ps) t' ret
 	(_, FunV (Arg h' a) _) | h == h' ->
 	    checkPattern (argName t') p a $ \ (xs, p, v) -> do
 	    let t0 = raise (length xs) t'
-	    checkPatterns ps (piApply t0 [Arg h' v]) $ \ (ys, ps, vs, t'') -> do
+	    checkPatterns ps (piApply' t0 [Arg h' v]) $ \ (ys, ps, vs, t'') -> do
 		let v' = raise (length ys) v
 		ret (xs ++ ys, Arg h p : ps, Arg h v':vs, t'')
 	_ -> typeError $ WrongHidingInLHS t'
 
 -- | TODO: move
-argName (Pi _ b)  = "_" ++ absName b
-argName (Fun _ _) = "_"
-argName _	  = __IMPOSSIBLE__
+argName = argN . unEl
+    where
+	argN (Pi _ b)  = "_" ++ absName b
+	argN (Fun _ _) = "_"
+	argN _	  = __IMPOSSIBLE__
 
 
 -- | Type check a pattern and bind the variables. First argument is a name
@@ -433,9 +431,9 @@ checkPattern name p t ret =
 	    addCtx x t $ ret ([name], VarP name, Var 0 [])
 	A.ConP i c ps -> do
 	    Defn t' _ (Constructor n d _) <- getConstInfo c -- don't instantiate this
-	    El (Def _ vs) _		  <- forceData d t  -- because this guy won't be
+	    El _ (Def _ vs)		  <- forceData d t  -- because this guy won't be
 	    Con c' us			  <- reduce $ Con c $ map hide vs
-	    checkPatterns ps (piApply t' vs) $ \ (xs, ps', ts', rest) -> do
+	    checkPatterns ps (piApply' t' vs) $ \ (xs, ps', ts', rest) -> do
 		let n = length xs
 		equalTyp () rest (raise n t)
 		ret (xs, ConP c' ps', Con c' $ raise n us ++ ts')
@@ -476,7 +474,7 @@ checkPattern name p t ret =
 	    case (t0,t1) of
 		(Pi (Arg _ a0) b0, Pi (Arg Hidden a1) b1) -> do
 		    equalTyp () a0 a1
-		    matchTel vs (piApply t0 [v]) (piApply t1 [v])
+		    matchTel vs (piApply' t0 [v]) (piApply' t1 [v])
 		_   -> fail $ "a defined pattern must take the datatype parameters as hidden arguments " ++
 				show t1 ++ " should match the parameters in " ++ show t0
 -}
@@ -487,7 +485,7 @@ isEmptyType :: Type -> TCM ()
 isEmptyType t = do
     t <- reduce t
     case t of
-	El (Def d _) _ -> do
+	El _ (Def d _) -> do
 	    Defn _ _ di <- getConstInfo d
 	    case di of
 		Datatype _ [] _ _ -> return ()
@@ -511,23 +509,6 @@ checkLetBinding b@(A.LetBind i x t e) ret =
 	addLetBinding x v t ret
 
 ---------------------------------------------------------------------------
--- * Sorts
----------------------------------------------------------------------------
-
--- | Make sure that a type is a sort (instantiate meta variables if necessary).
-forceSort :: Range -> Type -> TCM Sort
-forceSort r t = do
-    t' <- reduce t
-    case t' of
-	Sort s	     -> return s
-	MetaT m args -> do
-	    s <- newSortMeta
-	    equalTyp () t' (Sort s)
-	    return s
-	_	-> typeError $ ShouldBeASort t'
-
-
----------------------------------------------------------------------------
 -- * Types
 ---------------------------------------------------------------------------
 
@@ -535,30 +516,8 @@ forceSort r t = do
 isType :: A.Expr -> Sort -> TCM Type
 isType e s =
     traceCall (IsTypeCall e s) $ do
-    t <- case e of
-	    A.Prop _	 -> return $ prop
-	    A.Set _ n	 -> return $ set n
-	    A.Pi _ tel e ->
-		checkTelescope tel $ \tel -> do
-		t <- isType_ e
-		return $ buildPi tel t
-	    A.Fun _ (Arg h a) b	 -> do
-		a' <- isType_ a
-		b' <- isType_ b
-		return $ Fun (Arg h a') b'
-	    A.QuestionMark i -> do
-		setScope (Info.metaScope i)
-		newQuestionMarkT s
-	    A.Underscore i   -> do
-		setScope (Info.metaScope i)
-		newTypeMeta s
-	    _		     -> do
-		v <- checkExpr e (Sort s)
-		return $ El v s
-    s' <- getSort t
-    equalSort s s'
-    return t
-
+    v <- checkExpr e (sort s)
+    return $ El s v
 
 -- | Check that an expression is a type without knowing the sort.
 isType_ :: A.Expr -> TCM Type
@@ -571,25 +530,26 @@ isType_ e =
 -- | Force a type to be a Pi. Instantiates if necessary. The 'Hiding' is only
 --   used when instantiating a meta variable.
 forcePi :: Hiding -> Type -> TCM Type
-forcePi h t =
+forcePi h (El s t) =
     do	t' <- reduce t
 	case t' of
-	    Pi _ _	-> return t'
-	    Fun _ _	-> return t'
-	    MetaT m vs	->
-		do  s <- getSort t'
-		    i <- getMetaInfo <$> lookupMeta m
+	    Pi _ _	-> return $ El s t'
+	    Fun _ _	-> return $ El s t'
+	    MetaV m vs	-> do
+		i <- getMetaInfo <$> lookupMeta m
 
-		    sa <- newSortMeta
-		    sb <- newSortMeta
-		    equalSort s (sLub sa sb)
+		sa <- newSortMeta
+		sb <- newSortMeta
+		let s' = sLub sa sb
 
-		    a <- newTypeMeta sa
-		    x <- refreshName (getRange i) "x"
-		    b <- addCtx x a $ newTypeMeta sb
-		    equalTyp () t' $ Pi (Arg h a) (Abs (show x) b)
-		    reduce $ Pi (Arg h a) (Abs (show x) b)
-	    _		-> typeError $ ShouldBePi t'
+		a <- newTypeMeta sa
+		x <- refreshName (getRange i) "x"
+		b <- addCtx x a $ newTypeMeta sb
+
+		let ty = El s' $ Pi (Arg h a) (Abs (show x) b)
+		equalTyp () (El s t') ty
+		reduce ty
+	    _ -> typeError $ ShouldBePi (El s t')
 
 
 ---------------------------------------------------------------------------
@@ -637,7 +597,7 @@ checkExpr e t =
 
 	-- Insert hidden lambda if appropriate
 	_   | not (hiddenLambda e)
-	    , FunV (Arg Hidden _) _ <- funView t -> do
+	    , FunV (Arg Hidden _) _ <- funView (unEl t) -> do
 		x <- freshName r (argName t)
 		checkExpr (A.Lam (ExprRange $ getRange e) (A.DomainFree Hidden x) e) t
 	    where
@@ -663,7 +623,7 @@ checkExpr e t =
 	A.Lam i (A.DomainFull b) e ->
 	    checkTypedBindings b $ \tel -> do
 	    t1 <- newTypeMeta_
-	    escapeContext (length tel) $ equalTyp () t (buildPi tel t1)
+	    escapeContext (length tel) $ equalTyp () t (telePi tel t1)
 	    v <- checkExpr e t1
 	    return $ buildLam (map name tel) v
 	    where
@@ -671,12 +631,12 @@ checkExpr e t =
 
 	A.Lam i (A.DomainFree h x) e0 -> do
 	    t' <- forcePi h t
-	    case funView t' of
+	    case funView $ unEl t' of
 		FunV (Arg h' a) _
 		    | h == h' ->
 			addCtx x a $ do
 			let arg = Arg h (Var 0 [])
-			    tb  = raise 1 t' `piApply` [arg]
+			    tb  = raise 1 t' `piApply'` [arg]
 			v <- checkExpr e0 tb
 			return $ Lam h (Abs (show x) v)
 		    | otherwise ->
@@ -692,10 +652,23 @@ checkExpr e t =
 
 	A.Lit lit    -> checkLiteral lit t
 	A.Let i ds e -> checkLetBindings ds $ checkExpr e t
-	A.Pi _ _ _   -> typeError NotAProperTerm
-	A.Fun _ _ _  -> typeError NotAProperTerm
-	A.Set _ _    -> typeError NotAProperTerm
-	A.Prop _     -> typeError NotAProperTerm
+	A.Pi _ tel e ->
+	    checkTelescope tel $ \tel -> do
+	    t' <- telePi tel <$> isType_ e
+	    equalTyp () (sort $ getSort t') t
+	    return $ unEl t'
+	A.Fun _ (Arg h a) b -> do
+	    a' <- isType_ a
+	    b' <- isType_ b
+	    let s = getSort a' `sLub` getSort b'
+	    equalTyp () (sort s) t
+	    return $ Fun (Arg h a') b'
+	A.Set _ n    -> do
+	    equalTyp () (sort $ Type $ n + 1) t
+	    return $ Sort (Type n)
+	A.Prop _     -> do
+	    equalTyp () (sort $ Type 1) t
+	    return $ Sort Prop
 	A.Var _ _    -> __IMPOSSIBLE__
 	A.Def _ _    -> __IMPOSSIBLE__
 	A.Con _ _    -> __IMPOSSIBLE__
@@ -730,35 +703,34 @@ checkArguments r [] t0 t1 =
     traceCall (CheckArguments r [] t0 t1) $ do
 	t0' <- reduce t0
 	t1' <- reduce t1
-	case funView t0' of -- TODO: clean
-	    FunV (Arg Hidden a) t0' | notMetaOrHPi t1'  -> do
+	case funView $ unEl t0' of -- TODO: clean
+	    FunV (Arg Hidden a) _ | notHPi $ unEl t1'  -> do
 		v  <- newValueMeta a
 		let arg = Arg Hidden v
-		vs <- checkArguments r [] (piApply t0' [arg]) t1'
+		vs <- checkArguments r [] (piApply' t0' [arg]) t1'
 		return $ arg : vs
 	    _ -> do
 		equalTyp () t0' t1'
 		return []
     where
-	notMetaOrHPi (MetaT _ _)	    = False
-	notMetaOrHPi (Pi  (Arg Hidden _) _) = False
-	notMetaOrHPi (Fun (Arg Hidden _) _) = False
-	notMetaOrHPi _			    = True
+	notHPi (Pi  (Arg Hidden _) _) = False
+	notHPi (Fun (Arg Hidden _) _) = False
+	notHPi _		      = True
 
 checkArguments r args0@(Arg h e : args) t0 t1 =
     traceCall (CheckArguments r args0 t0 t1) $ do
 	t0' <- forcePi h t0
-	case (h, funView t0') of
-	    (NotHidden, FunV (Arg Hidden a) t0') -> do
+	case (h, funView $ unEl t0') of
+	    (NotHidden, FunV (Arg Hidden a) _) -> do
 		u  <- newValueMeta a
 		let arg = Arg Hidden u
 		us <- checkArguments r (Arg h e : args)
-				       (piApply t0' [arg]) t1
+				       (piApply' t0' [arg]) t1
 		return $ arg : us
-	    (_, FunV (Arg h' a) t0') | h == h' -> do
+	    (_, FunV (Arg h' a) _) | h == h' -> do
 		u  <- checkExpr e a
 		let arg = Arg h u
-		us <- checkArguments (fuseRange r e) args (piApply t0' [arg]) t1
+		us <- checkArguments (fuseRange r e) args (piApply' t0' [arg]) t1
 		return $ arg : us
 	    (Hidden, FunV (Arg NotHidden _) _) ->
 		typeError $ WrongHidingInApplication t0'
@@ -768,7 +740,7 @@ checkArguments r args0@(Arg h e : args) t0 t1 =
 -- | Check that a list of arguments fits a telescope.
 checkArguments_ :: Range -> [Arg A.Expr] -> Telescope -> TCM Args
 checkArguments_ r args tel =
-    checkArguments r args (telePi tel $ Sort Prop) (Sort Prop)
+    checkArguments r args (telePi tel $ sort Prop) (sort Prop)
 
 
 -- | Infer the type of an expression. Implemented by checking agains a meta
@@ -789,7 +761,7 @@ checkLiteral lit t = do
     equalTyp () t t'
     return $ Lit lit
     where
-	el t = El t (Type 0)
+	el t = El (Type 0) t
 	litType l = case l of
 	    LitInt _ _	  -> el <$> primInteger
 	    LitFloat _ _  -> el <$> primFloat
@@ -802,20 +774,20 @@ checkLiteral lit t = do
 
 bindBuiltinType :: String -> A.Expr -> TCM ()
 bindBuiltinType b e = do
-    t <- checkExpr e (Sort $ Type 0)
+    t <- checkExpr e (sort $ Type 0)
     bindBuiltinName b t
 
 bindBuiltinBool :: String -> A.Expr -> TCM ()
 bindBuiltinBool b e = do
     bool <- primBool
-    t	 <- checkExpr e $ El bool (Type 0)
+    t	 <- checkExpr e $ El (Type 0) bool
     bindBuiltinName b t
 
 -- | Bind something of type @Set -> Set@.
 bindBuiltinType1 :: String -> A.Expr -> TCM ()
 bindBuiltinType1 thing e = do
-    let set	 = Sort (Type 0)
-	setToSet = Fun (Arg NotHidden set) set
+    let set	 = sort (Type 0)
+	setToSet = El (Type 1) $ Fun (Arg NotHidden set) set
     f <- checkExpr e setToSet
     bindBuiltinName thing f
 
@@ -823,9 +795,9 @@ bindBuiltinType1 thing e = do
 bindBuiltinNil :: A.Expr -> TCM ()
 bindBuiltinNil e = do
     list' <- primList
-    let set	= Sort (Type 0)
-	list a	= El (list' `apply` [Arg NotHidden a]) (Type 0)
-	nilType = Pi (Arg Hidden set) $ Abs "A" $ list (Var 0 [])
+    let set	= sort (Type 0)
+	list a	= El (Type 0) (list' `apply` [Arg NotHidden a])
+	nilType = telePi [Arg Hidden ("A",set)] $ list (Var 0 [])
     nil <- checkExpr e nilType
     bindBuiltinName builtinNil nil
 
@@ -833,12 +805,12 @@ bindBuiltinNil e = do
 bindBuiltinCons :: A.Expr -> TCM ()
 bindBuiltinCons e = do
     list' <- primList
-    let set	  = Sort (Type 0)
-	el t	  = El t (Type 0)
+    let set	  = sort (Type 0)
+	el	  = El (Type 0)
 	a	  = Var 0 []
 	list x	  = el $ list' `apply` [Arg NotHidden x]
-	hPi x a b = Pi (Arg Hidden a) $ Abs x b
-	fun a b	  = Fun (Arg NotHidden a) b
+	hPi x a b = telePi [Arg Hidden (x,a)] b
+	fun a b	  = el $ Fun (Arg NotHidden a) b
 	consType  = hPi "A" set $ el a `fun` (list a `fun` list a)
     cons <- checkExpr e consType
     bindBuiltinName builtinCons cons
@@ -861,9 +833,6 @@ bindBuiltin b e = do
 ---------------------------------------------------------------------------
 -- * To be moved somewhere else
 ---------------------------------------------------------------------------
-
-buildPi :: [Arg (String,Type)] -> Type -> Type
-buildPi tel t = foldr (\ (Arg h (x,a)) b -> Pi (Arg h a) (Abs x b) ) t tel
 
 buildLam :: [Arg String] -> Term -> Term
 buildLam xs t = foldr (\ (Arg h x) t -> Lam h (Abs x t)) t xs

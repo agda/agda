@@ -139,28 +139,10 @@ instance Serialisable Hiding where
 	    des NotHidden = False
 
 instance Serialisable Type where
-    serialiser = bindS code serialiser $ \c -> case c of
-	    'E' -> mapS (uncurry El `IFun` unEl) serialiser
-	    'P' -> mapS (uncurry Pi `IFun` unPi) serialiser
-	    'F' -> mapS (uncurry Fun `IFun` unFun) serialiser
-	    'S' -> mapS (Sort `IFun` unSort) serialiser
-	    'M' -> mapS (uncurry MetaT `IFun` unMetaT) serialiser
-	    'L' -> mapS (LamT `IFun` unLamT) serialiser
-	    _	-> error $ "deserialise Type: no parse"
+    serialiser = mapS (IFun con des) serialiser
 	where
-	    code t = case t of
-		El _ _	  -> 'E'
-		Pi _ _	  -> 'P'
-		Fun _ _   -> 'F'
-		Sort _	  -> 'S'
-		MetaT _ _ -> 'M'
-		LamT _	  -> 'L'
-	    unEl    x = let El	  a b = x in (a,b)
-	    unPi    x = let Pi	  a b = x in (a,b)
-	    unFun   x = let Fun   a b = x in (a,b)
-	    unSort  x = let Sort  a   = x in a
-	    unMetaT x = let MetaT a b = x in (a,b)
-	    unLamT  x = let LamT  a   = x in a
+	    con (s,t) = El s t
+	    des (El s t) = (s,t)
 
 instance Serialisable MetaId where
     serialiser = mapS (IFun con des) serialiser
@@ -187,6 +169,9 @@ instance Serialisable Term where
 	    'I' -> mapS (Lit `IFun` unLit) serialiser
 	    'D' -> mapS (uncurry Def `IFun` unDef) serialiser
 	    'C' -> mapS (uncurry Con `IFun` unCon) serialiser
+	    'P' -> mapS (uncurry Pi `IFun` unPi) serialiser
+	    'F' -> mapS (uncurry Fun `IFun` unFun) serialiser
+	    'S' -> mapS (Sort `IFun` unSort) serialiser
 	    'B' -> mapS (BlockedV `IFun` unBlockedV) serialiser
 	    'M' -> mapS (uncurry MetaV `IFun` unMetaV) serialiser
 	    _	-> error $ "deserialise Term: no parse"
@@ -197,6 +182,9 @@ instance Serialisable Term where
 		Lit _	   -> 'I'
 		Def _ _    -> 'D'
 		Con _ _    -> 'C'
+		Pi _ _	   -> 'P'
+		Fun _ _    -> 'F'
+		Sort _	   -> 'S'
 		MetaV _ _  -> 'M'
 		BlockedV _ -> 'B'
 
@@ -205,6 +193,9 @@ instance Serialisable Term where
 	    unDef      x = let Def	a b = x in (a,b)
 	    unCon      x = let Con	a b = x in (a,b)
 	    unLit      x = let Lit	a   = x in a
+	    unPi       x = let Pi	a b = x in (a,b)
+	    unFun      x = let Fun	a b = x in (a,b)
+	    unSort     x = let Sort	a   = x in a
 	    unMetaV    x = let MetaV	a b = x in (a,b)
 	    unBlockedV x = let BlockedV a   = x in a
 

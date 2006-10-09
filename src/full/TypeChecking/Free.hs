@@ -22,17 +22,14 @@ instance Free Term where
 	Lit _	   -> Set.empty
 	Def _ ts   -> freeVars ts
 	Con _ ts   -> freeVars ts
+	Pi a b	   -> freeVars (a,b)
+	Fun a b    -> freeVars (a,b)
+	Sort _	   -> Set.empty
 	MetaV _ ts -> freeVars ts
 	BlockedV b -> __IMPOSSIBLE__
 
 instance Free Type where
-    freeVars a = case a of
-	Pi a b	   -> freeVars (a,b)
-	Fun a b    -> freeVars (a,b)
-	El t _	   -> freeVars t
-	Sort _	   -> Set.empty
-	LamT _	   -> __IMPOSSIBLE__
-	MetaT _ as -> freeVars as
+    freeVars (El _ t) = freeVars t
 
 instance Free a => Free [a] where
     freeVars xs = Set.unions $ map freeVars xs

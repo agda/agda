@@ -10,9 +10,9 @@ import Data.Map as Map
 import Data.Generics
 import Data.FunctorM
 
+import Syntax.Position
 import Syntax.Common
 import Syntax.Internal
-import Syntax.Internal.Walk
 import Syntax.Scope (ModuleScope)
 
 import TypeChecking.Monad
@@ -55,22 +55,20 @@ instance Instantiate Term where
     instantiate t = return t
 
 instance Instantiate Type where
-    instantiate t@(MetaT x args) =
-	do  mi <- mvInstantiation <$> lookupMeta x
-	    case mi of
-		InstT t' -> instantiate $ t' `apply` args
-		Open	 -> return t
-		_	 -> __IMPOSSIBLE__
-    instantiate t = return t
+    instantiate (El s t) = El s <$> instantiate t
 
 instance Instantiate Sort where
-    instantiate s@(MetaS x) =
-	do  mi <- mvInstantiation <$> lookupMeta x
+    instantiate s = case s of
+	MetaS x -> do
+	    mi <- mvInstantiation <$> lookupMeta x
 	    case mi of
 		InstS s' -> instantiate s'
 		Open	 -> return s
 		_	 -> __IMPOSSIBLE__
-    instantiate s = return s
+	Type _	  -> return s
+	Prop	  -> return s
+	Suc s	  -> sSuc <$> instantiate s
+	Lub s1 s2 -> sLub <$> instantiate s1 <*> instantiate s2
 
 instance Instantiate t => Instantiate (Arg t) where
     instantiate = fmapM instantiate
@@ -117,16 +115,7 @@ class Reduce t where
     reduce :: t -> TCM t
 
 instance Reduce Type where
-    reduce a =
-	{-# SCC "reduce<Type>" #-}
-	do  b <- instantiate a
-	    case b of
-		El t s	  -> El <$> reduce t <*> reduce s
-		Sort s	  -> Sort <$> reduce s
-		Pi _ _	  -> return b
-		Fun _ _   -> return b
-		MetaT _ _ -> return b
-		LamT _	  -> __IMPOSSIBLE__
+    reduce (El s t) = El <$> reduce s <*> reduce t
 
 instance Reduce Sort where
     reduce s =
@@ -162,10 +151,13 @@ instance Reduce Term where
 						-- constructors can have definitions
 						-- when they come from an instantiated module
 						-- (change this)
+		Sort s	   -> Sort <$> reduce s
+		Pi _ _	   -> return v
+		Fun _ _    -> return v
 		BlockedV _ -> return v
 		Lit _	   -> return v
-		Var _ _	   -> return v
-		Lam _ _	   -> return v
+		Var _ _    -> return v
+		Lam _ _    -> return v
 	where
 
 	    reduceDef v0 f args =
@@ -208,7 +200,7 @@ instance Reduce Term where
 	    appDef :: Term -> [Clause] -> Args -> TCM (Reduced Term Term)
 	    appDef v cls args = goCls cls args where
 
-		goCls [] _ = fail $ "incomplete patterns for " ++ show v
+		goCls [] args = typeError $ IncompletePatternMatching v args
 		goCls (cl@(Clause pats body) : cls) args =
 		    do	(m, args) <- matchPatterns pats args
 			case m of
@@ -258,15 +250,7 @@ instance Normalise Sort where
     normalise = reduce
 
 instance Normalise Type where
-    normalise t =
-	do  t <- reduce t
-	    case t of
-		El v s	   -> El <$> normalise v <*> normalise s
-		Sort s	   -> Sort <$> normalise s
-		Pi a b	   -> uncurry Pi <$> normalise (a,b)
-		Fun a b    -> uncurry Fun <$> normalise (a,b)
-		MetaT x vs -> MetaT x <$> normalise vs
-		LamT _	   -> __IMPOSSIBLE__
+    normalise (El s t) = El <$> normalise s <*> normalise t
 
 instance Normalise Term where
     normalise v =
@@ -278,6 +262,9 @@ instance Normalise Term where
 		MetaV x vs  -> MetaV x <$> normalise vs
 		Lit _	    -> return v
 		Lam h b	    -> Lam h <$> normalise b
+		Sort s	    -> Sort <$> normalise s
+		Pi a b	    -> uncurry Pi <$> normalise (a,b)
+		Fun a b     -> uncurry Fun <$> normalise (a,b)
 		BlockedV _  -> __IMPOSSIBLE__
 
 instance Normalise ClauseBody where
@@ -334,18 +321,19 @@ class InstantiateFull t where
     instantiateFull :: t -> TCM t
 
 instance InstantiateFull Sort where
-    instantiateFull = instantiate
+    instantiateFull s = do
+	s <- instantiate s
+	case s of
+	    MetaS x -> do
+		r <- getRange . getMetaInfo <$> lookupMeta x
+		typeError $ UnsolvedMetasInImport [r]
+	    Type _	  -> return s
+	    Prop	  -> return s
+	    Suc s	  -> sSuc <$> instantiateFull s
+	    Lub s1 s2 -> sLub <$> instantiateFull s1 <*> instantiateFull s2
 
 instance InstantiateFull Type where
-    instantiateFull t =
-	do  t <- instantiate t
-	    case t of
-		El v s	   -> El <$> instantiateFull v <*> instantiateFull s
-		Sort s	   -> Sort <$> instantiateFull s
-		Pi a b	   -> uncurry Pi <$> instantiateFull (a,b)
-		Fun a b    -> uncurry Fun <$> instantiateFull (a,b)
-		MetaT x vs -> MetaT x <$> instantiateFull vs
-		LamT _	   -> __IMPOSSIBLE__
+    instantiateFull (El s t) = El <$> instantiateFull s <*> instantiateFull t
 
 instance InstantiateFull Term where
     instantiateFull v =
@@ -354,9 +342,14 @@ instance InstantiateFull Term where
 		Var n vs    -> Var n <$> instantiateFull vs
 		Con c vs    -> Con c <$> instantiateFull vs
 		Def f vs    -> Def f <$> instantiateFull vs
-		MetaV x vs  -> MetaV x <$> instantiateFull vs
+		MetaV x vs  -> do
+		    r <- getRange . getMetaInfo <$> lookupMeta x
+		    typeError $ UnsolvedMetasInImport [r]
 		Lit _	    -> return v
 		Lam h b	    -> Lam h <$> instantiateFull b
+		Sort s	    -> Sort <$> instantiateFull s
+		Pi a b	    -> uncurry Pi <$> instantiateFull (a,b)
+		Fun a b     -> uncurry Fun <$> instantiateFull (a,b)
 		BlockedV _  -> __IMPOSSIBLE__
 
 instance InstantiateFull ClauseBody where
