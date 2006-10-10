@@ -368,7 +368,9 @@ isInfixOp :: Id -> Bool
 isInfixOp = all (not . isAlphaNum) . getIdString
 
 id2name :: Id -> Name
-id2name i = Name noRange [Id (getIdString i)]
+id2name i
+    | isSym (head (getIdString i)) = mkInfixName i
+    | otherwise			   = Name noRange [Id (getIdString i)]
 
 bool2hiding :: Bool -> Hiding
 bool2hiding True = Hidden
