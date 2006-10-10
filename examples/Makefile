@@ -3,7 +3,7 @@ TOP = ..
 
 include $(TOP)/mk/paths.mk
 
-default : test polydep
+default : test polydep aim4-bag
 
 agda = $(FULL_OUT_DIR)/agda
 
@@ -15,6 +15,11 @@ tests	   = $(patsubst %,%.test,$(test_files))
 polydep : AIM5/PolyDep/Main.agda
 	@echo "Testing $<... "
 	@echo :q | $(agda) -iAIM5/PolyDep $<
+	@echo "ok"
+
+aim4-bag : AIM4/bag/Bag.agda
+	@echo "Testing $<... "
+	@echo :q | $(agda) -iAIM4/bag $<
 	@echo "ok"
 
 test : $(agda) $(tests)
