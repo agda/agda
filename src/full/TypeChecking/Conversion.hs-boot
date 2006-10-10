@@ -5,8 +5,8 @@ import Data.Generics
 import Syntax.Internal
 import TypeChecking.Monad
 
-equalVal  :: Data a => a -> Type -> Term -> Term -> TCM ()
-equalTyp  :: Data a => a -> Type -> Type -> TCM ()
+equalVal  :: Type -> Term -> Term -> TCM ()
+equalTyp  :: Type -> Type -> TCM ()
 equalSort :: Sort -> Sort -> TCM ()
 leqSort   :: Sort -> Sort -> TCM ()
 

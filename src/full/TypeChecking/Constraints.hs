@@ -44,8 +44,8 @@ wakeupConstraints =
     do	cs <- takeConstraints
 	mapM_ (withConstraint retry) $ Map.elems cs
   where
-    retry (ValueEq a u v) = equalVal Why a u v
-    retry (TypeEq a b)	  = equalTyp Why a b
+    retry (ValueEq a u v) = equalVal a u v
+    retry (TypeEq a b)	  = equalTyp a b
     retry (SortLeq s1 s2) = leqSort s1 s2
     retry (SortEq s1 s2)  = equalSort s1 s2
 

@@ -208,11 +208,11 @@ handleAbort h m =
 --
 assignV :: Type -> MetaId -> Args -> Term -> TCM ()
 assignV t x args v =
-    handleAbort (equalVal () t (MetaV x args) v) $ assign x args v
+    handleAbort (equalVal t (MetaV x args) v) $ assign x args v
 
 assignT :: MetaId -> Args -> Type -> TCM ()
 assignT x args ty@(El s v) =
-    handleAbort (equalTyp () (El s $ MetaV x args) ty) $ assign x args v
+    handleAbort (equalTyp (El s $ MetaV x args) ty) $ assign x args v
 
 assignS :: MetaId -> Sort -> TCM ()
 assignS x s =

@@ -64,14 +64,14 @@ giveExpr mi e =
 		 HasType _ t  ->
 		    do	v <- checkExpr e t
 			case mvInstantiation mv of
-			    InstV v' -> equalVal () t v (v' `apply` vs)
+			    InstV v' -> equalVal t v (v' `apply` vs)
 			    _	     -> return ()
 			updateMeta mi v
                         reify v
 		 IsType _ s ->
 		    do	t <- isType e s
 			case mvInstantiation mv of
-			    InstV t' -> equalTyp () t (El s $ t' `apply` vs)
+			    InstV t' -> equalTyp t (El s $ t' `apply` vs)
 			    _	     -> return ()
 			updateMeta mi t
                         reify t 

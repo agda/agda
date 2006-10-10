@@ -45,8 +45,8 @@ equalSameVar meta inst x args1 args2 =
 
 -- | Type directed equality on values.
 --
-equalVal :: Data a => a -> Type -> Term -> Term -> TCM ()
-equalVal _ a m n =
+equalVal :: Type -> Term -> Term -> TCM ()
+equalVal a m n =
     catchConstraint (ValueEq a m n) $
     do	a' <- instantiate a
 --     debug $ "equalVal " ++ show m ++ " == " ++ show n ++ " : " ++ show a'
@@ -60,11 +60,11 @@ equalVal _ a m n =
 		    Fun a _   -> equalFun (a,a') m n
 		    MetaV x _ -> addConstraint (ValueEq a m n)
 		    Lam _ _   -> __IMPOSSIBLE__
-		    _	      -> equalAtm Why a' m n
+		    _	      -> equalAtm a' m n
     where
 	equalFun (a,t) m n =
 	    do	name <- freshName_ (suggest $ unEl t)
-		addCtx name (unArg a) $ equalVal Why t' m' n'
+		addCtx name (unArg a) $ equalVal t' m' n'
 	    where
 		p	= fmap (const $ Var 0 []) a
 		(m',n') = raise 1 (m,n) `apply` [p]
@@ -75,22 +75,27 @@ equalVal _ a m n =
 
 -- | Syntax directed equality on atomic values
 --
-equalAtm :: Data a => a -> Type -> Term -> Term -> TCM ()
-equalAtm _ t m n =
+equalAtm :: Type -> Term -> Term -> TCM ()
+equalAtm t m n =
     catchConstraint (ValueEq t m n) $
     do	(m, n) <- {-# SCC "equalAtm.reduce" #-} reduce (m, n)
 	case (m, n) of
+	    _ | f1@(FunV _ _) <- funView m
+	      , f2@(FunV _ _) <- funView n -> equalFun f1 f2
+
+	    (Sort s1, Sort s2) -> equalSort s1 s2
+
 	    (Lit l1, Lit l2) | l1 == l2 -> return ()
 	    (Var i iArgs, Var j jArgs) | i == j -> do
 		a <- typeOfBV i
-		equalArg Why a iArgs jArgs
+		equalArg a iArgs jArgs
 	    (Def x xArgs, Def y yArgs) | x == y -> do
 		a <- defType <$> getConstInfo x
-		equalArg Why a xArgs yArgs
+		equalArg a xArgs yArgs
 	    (Con x xArgs, Con y yArgs)
 		| x == y -> do
 		    a <- defType <$> getConstInfo x
-		    equalArg Why a xArgs yArgs
+		    equalArg a xArgs yArgs
 	    (MetaV x xArgs, MetaV y yArgs) | x == y ->
 		equalSameVar (\x -> MetaV x []) InstV x xArgs yArgs
 	    (MetaV x xArgs, _) -> assignV t x xArgs n
@@ -98,53 +103,18 @@ equalAtm _ t m n =
 	    (BlockedV b, _)    -> addConstraint (ValueEq t m n)
 	    (_,BlockedV b)     -> addConstraint (ValueEq t m n)
 	    _		       -> typeError $ UnequalTerms m n t
-
-
--- | Type-directed equality on argument lists
---
-equalArg :: Data a => a -> Type -> Args -> Args -> TCM ()
-equalArg _ a args1 args2 = do
-    a' <- reduce a
-    case (unEl a', args1, args2) of 
-        (_, [], []) -> return ()
-        (Pi (Arg _ b) (Abs _ c), (Arg _ arg1 : args1), (Arg _ arg2 : args2)) -> do
-            equalVal Why b arg1 arg2
-            equalArg Why (subst arg1 c) args1 args2
-        (Fun (Arg _ b) c, (Arg _ arg1 : args1), (Arg _ arg2 : args2)) -> do
-            equalVal Why b arg1 arg2
-            equalArg Why c args1 args2
-        _ -> __IMPOSSIBLE__
-
-
--- | Equality on Types
-equalTyp :: Data a => a -> Type -> Type -> TCM ()
-equalTyp _ ty1@(El s1 a1) ty2@(El s2 a2) =
-    catchConstraint (TypeEq ty1 ty2) $ do
-	equalSort s1 s2
-	a1' <- reduce a1
-	a2' <- reduce a2
-	ctx <- map fst <$> getContext
-	case (a1', a2') of
-	    _ | f1@(FunV _ _) <- funView a1'
-	      , f2@(FunV _ _) <- funView a2' -> equalFun f1 f2
-
-	    (Sort s1, Sort s2) -> equalSort s1 s2
-
-	    (m1, m2) ->
-		equalVal Why (sort s1) m1 m2
-
     where
 	equalFun (FunV (Arg h1 a1) t1) (FunV (Arg h2 a2) t2)
 	    | h1 /= h2	= typeError $ UnequalHiding ty1 ty2
 	    | otherwise =
-		do  equalTyp Why a1 a2
+		do  equalTyp a1 a2
 		    let (ty1',ty2') = raise 1 (ty1,ty2)
 			arg	  = Arg h1 (Var 0 [])
 		    name <- freshName_ (suggest t1 t2)
-		    addCtx name a1 $ equalTyp Why (piApply' ty1' [arg]) (piApply' ty2' [arg])
+		    addCtx name a1 $ equalTyp (piApply' ty1' [arg]) (piApply' ty2' [arg])
 	    where
-		ty1 = El s1 t1
-		ty2 = El s2 t2
+		ty1 = El (getSort a1) t1    -- TODO: wrong (but it doesn't matter)
+		ty2 = El (getSort a2) t2
 		suggest t1 t2 = case concatMap name [t1,t2] of
 				    []	-> "_"
 				    x:_	-> x
@@ -154,6 +124,30 @@ equalTyp _ ty1@(El s1 a1) ty2@(El s2 a2) =
 			name _		      = __IMPOSSIBLE__
 	equalFun _ _ = __IMPOSSIBLE__
 
+
+
+-- | Type-directed equality on argument lists
+--
+equalArg :: Type -> Args -> Args -> TCM ()
+equalArg a args1 args2 = do
+    a' <- reduce a
+    case (unEl a', args1, args2) of 
+        (_, [], []) -> return ()
+        (Pi (Arg _ b) (Abs _ c), (Arg _ arg1 : args1), (Arg _ arg2 : args2)) -> do
+            equalVal b arg1 arg2
+            equalArg (subst arg1 c) args1 args2
+        (Fun (Arg _ b) c, (Arg _ arg1 : args1), (Arg _ arg2 : args2)) -> do
+            equalVal b arg1 arg2
+            equalArg c args1 args2
+        _ -> __IMPOSSIBLE__
+
+
+-- | Equality on Types
+equalTyp :: Type -> Type -> TCM ()
+equalTyp ty1@(El s1 a1) ty2@(El s2 a2) =
+    catchConstraint (TypeEq ty1 ty2) $ do
+	equalSort s1 s2
+	equalVal (sort s1) a1 a2
 
 ---------------------------------------------------------------------------
 -- * Sorts
