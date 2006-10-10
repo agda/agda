@@ -1,9 +1,8 @@
-{-# OPTIONS -fglasgow-exts #-}
+{-# OPTIONS -fglasgow-exts -fallow-overlapping-instances #-}
 
 module Utils.Serialise where
 
 import Control.Monad
-import Control.Monad.State
 import Data.Generics
 import qualified Data.Map as Map
 import Data.Map (Map)
@@ -12,67 +11,60 @@ import Data.Either
 
 import Utils.Tuple
 
-data Serialiser a = Ser (a -> ShowS) (State String a)
+newtype Printer a = Printer { runPrinter :: a -> ShowS }
+newtype Parser  a = Parser  { runParser :: String -> (a, String) }
 
 data IFun a b = IFun (a -> b) (b -> a)
 
-consI :: IFun (a,[a]) [a]
-consI = uncurry (:) `IFun` \ (x:xs) -> (x,xs)
+class BiMonad m where
+    charS   :: m Char
+    stringS :: Int -> m String
+    returnS :: a -> m a
+    bindS   :: (b -> a) -> m a -> (a -> m b) -> m b
 
-fstI :: b -> IFun (a,b) a
-fstI x = fst `IFun` flip (,) x
+instance BiMonad Printer where
+    charS = Printer (:)
+    stringS _ = Printer (++)
+    returnS _ = Printer $ const id
+    bindS mkA (Printer prA) k =
+	Printer $ \b -> let a = mkA b in prA a . runPrinter (k a) b
 
-sndI :: a -> IFun (a,b) b
-sndI x = snd `IFun` (,) x
+instance BiMonad Parser where
+    charS		 = Parser $ \(c:s) -> (c,s)
+    stringS n		 = Parser $ splitAt n
+    returnS x		 = Parser $ \s -> (x,s)
+    bindS _ (Parser m) k = Parser $ \s -> let (x,s') = m s in runParser (k x) s'
 
-pairL = invI . sndI
-pairR = invI . fstI
-
-invI :: IFun a b -> IFun b a
-invI (IFun f g) = IFun g f
-
-returnS :: a -> Serialiser a
-returnS x = Ser (const id) (return x)
-
-bindS :: (a -> k) -> Serialiser k -> (k -> Serialiser a) -> Serialiser a
-bindS key (Ser sk dk) f = Ser ser des
-    where
-	ser x = sk k . sa x
-	    where
-		k	 = key x
-		Ser sa _ = f k
-	des = do
-	    k <- dk
-	    let Ser _ da = f k
-	    da
-
-mapS :: IFun a b -> Serialiser a -> Serialiser b
+mapS :: BiMonad m => IFun a b -> m a -> m b
 mapS (IFun f g) sa = bindS g sa $ returnS . f
 
-(>->) :: Serialiser a -> Serialiser b -> Serialiser (a,b)
+(>->) :: BiMonad m => m a -> m b -> m (a,b)
 sa >-> sb = bindS fst sa $ \a -> 
 	    bindS snd sb $ \b ->
 	    returnS (a,b)
 
-sequenceS :: [Serialiser a] -> Serialiser [a]
+sequenceS :: BiMonad m => [m a] -> m [a]
 sequenceS []	 = returnS []
-sequenceS (s:ss) = mapS consI (s >-> sequenceS ss)
+sequenceS (s:ss) =
+    bindS head s	      $ \x ->
+    bindS tail (sequenceS ss) $ \xs ->
+    returnS (x : xs)
 
-replicateS :: Int -> Serialiser a -> Serialiser [a]
+replicateS :: BiMonad m => Int -> m a -> m [a]
 replicateS n = sequenceS . replicate n
 
 class Serialisable a where
-    serialiser :: Serialiser a
+    serialiser :: BiMonad m => m a
 
 instance Serialisable () where
     serialiser = returnS ()
 
 instance Serialisable Char where
-    serialiser = Ser (:) (do x:xs <- get; put xs; return x)
+    serialiser = {-# SCC "charS" #-} charS
 
 instance Serialisable Int where
-    serialiser = bindS small serialiser $ \c -> case c of
-	'\255'	-> mapS (fromChars `IFun` toChars) $ sequenceS $ replicate nChars serialiser
+    serialiser = {-# SCC "intS" #-} bindS small serialiser $ \c -> case c of
+	'\255'	-> mapS (fromChars `IFun` toChars) $ replicateS nChars serialiser
 	_	-> returnS $ fromEnum c
 	where
 	    nChars = 4
@@ -141,30 +133,25 @@ instance (Serialisable a, Serialisable b, Serialisable c, Serialisable d, Serial
     serialiser = mapS (IFun (\((x,y,v),(z,w,u)) -> (x,y,v,z,w,u)) (\(x,y,v,z,w,u) -> ((x,y,v),(z,w,u))))
 		 serialiser
 
+instance Serialisable String where
+    serialiser = {-# SCC "stringS" #-} bindS length serialiser stringS
+
 instance Serialisable a => Serialisable [a] where
-    serialiser = bindS length serialiser $ \n -> replicateS n serialiser
+    serialiser = {-# SCC "listS" #-} bindS length serialiser $ \n -> replicateS n serialiser
 
 instance (Ord k, Serialisable k, Serialisable v) => Serialisable (Map k v) where
     serialiser = mapS (Map.fromList `IFun` Map.toList) serialiser
 
 serialise :: Serialisable a => a -> String
-serialise = serialise' serialiser
+serialise x = runPrinter serialiser x ""
 
 deserialise :: Serialisable a => String -> a
-deserialise = deserialise' serialiser
-
-serialise' :: Serialiser a -> a -> String
-serialise' (Ser s _) x = s x ""
-
-deserialise' :: Serialiser a -> String -> a
-deserialise' (Ser _ d) s = case runState d s of
-    (x,"") -> x
-    _	   -> error "deserialise: no parse"
+deserialise s = case deserialiseLazy s of
+    (x,True) -> x
+    _	     -> error "deserialise: no parse"
 
 -- | Force the Bool to force the a. True means ok and false means left-over garbage.
 deserialiseLazy :: Serialisable a => String -> (a, Bool)
-deserialiseLazy s = case runState d s of
+deserialiseLazy s = case runParser serialiser s of
     (x, s)  -> (x, null s)
-    where
-	Ser _ d = serialiser
 

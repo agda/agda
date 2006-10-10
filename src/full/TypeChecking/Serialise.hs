@@ -1,3 +1,4 @@
+{-# OPTIONS -fallow-overlapping-instances #-}
 
 module TypeChecking.Serialise where
 
@@ -36,8 +37,9 @@ instance Serialisable C.NamePart where
 	    des (Id s) = Just s
 
 instance Serialisable Range where
-    serialiser = mapS (IFun con des) serialiser
+    serialiser = returnS $ Range p p -- mapS (IFun con des) serialiser
 	where
+	    p = Pn "<imported>" 0 0
 	    con = uncurry Range
 	    des = rStart /\ rEnd
 

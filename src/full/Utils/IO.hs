@@ -4,8 +4,8 @@ module Utils.IO where
 import qualified Prelude (print, putStr, putStrLn)
 import Prelude hiding (print, putStr, putStrLn)
 import Control.Monad
-import Utils.Unicode
 import System.IO hiding (print, putStr, putStrLn)
+import Utils.Unicode
 
 print :: Show a => a -> IO ()
 print x = putStrLn (show x)
