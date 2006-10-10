@@ -15,20 +15,20 @@ import Syntax.Common
 
 ----------------------------------------------------------------
 
-translateNameAsUntypedTerm :: Show a => a -> String
-translateNameAsUntypedTerm s = 'x':'_':escape (show s)
+translateNameAsUntypedTerm :: String -> String
+translateNameAsUntypedTerm s = 'x':'_':escape s
 
-translateNameAsUntypedConstructor :: Show a => a -> String
-translateNameAsUntypedConstructor s = 'C':'_':escape (show s)
+translateNameAsUntypedConstructor :: String -> String
+translateNameAsUntypedConstructor s = 'C':'_':escape s
 
-translateNameAsOptimizedType :: Show a => a -> String
-translateNameAsOptimizedType s = 'T':'_':escape (show s)
+translateNameAsOptimizedType :: String -> String
+translateNameAsOptimizedType s = 'T':'_':escape s
 
-translateNameAsOptimizedTerm :: Show a => a -> String
-translateNameAsOptimizedTerm s = 'o':'_':escape (show s)
+translateNameAsOptimizedTerm :: String -> String
+translateNameAsOptimizedTerm s = 'o':'_':escape s
 
-translateNameAsOptimizedConstructor :: Show a => a -> String
-translateNameAsOptimizedConstructor s = 'D':'_':escape (show s)
+translateNameAsOptimizedConstructor :: String -> String
+translateNameAsOptimizedConstructor s = 'D':'_':escape s
 
 ----------------------------------------------------------------
 

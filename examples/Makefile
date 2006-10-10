@@ -7,7 +7,7 @@ default : test polydep aim4-bag
 
 agda = $(FULL_OUT_DIR)/agda
 
-test_files = Vec.agda bag.agda Setoid.agda TT.agda \
+test_files = Vec.agda Setoid.agda TT.agda \
 			 AIM5/Hedberg/SET.agda AIM5/yoshiki/SET.agda \
              $(shell find Introduction -name '*.agda')
 tests	   = $(patsubst %,%.test,$(test_files))

@@ -50,6 +50,7 @@ data CommandLineOptions =
 	    , optProofIrrelevance :: Bool
 	    , optShowImplicit	  :: Bool
 	    , optRunTests	  :: Bool
+	    , optCompile	  :: Bool
 	    }
     deriving Show
 
@@ -71,6 +72,7 @@ defaultOptions =
 	    , optProofIrrelevance = False
 	    , optShowImplicit	  = False
 	    , optRunTests	  = False
+	    , optCompile	  = False
 	    }
 
 {- | @f :: Flag opts@  is an action on the option record that results from
@@ -96,6 +98,7 @@ interactiveFlag o
 emacsModeFlag o
     | optInteractive o = fail "cannot have both emacs mode and interactive mode"
     | otherwise	       = return $ o { optEmacsMode = True }
+compileFlag o = return $ o { optCompile = True } -- todo: check exclusion
 
 includeFlag d o	    = return $ o { optIncludeDirs   = d : optIncludeDirs o   }
 verboseFlag s o	    =
@@ -121,6 +124,8 @@ standardOptions =
 		    "start in emacs mode"
     , Option []	    ["show-implicit"] (NoArg showImplicitFlag)
 		    "show implicit arguments when printing"
+    , Option []	    ["compile"] (NoArg compileFlag)
+		    "translate program into GHC (experimental)"
     , Option []	    ["test"] (NoArg runTestsFlag)
 		    "run internal test suite"
     ] ++ pragmaOptions

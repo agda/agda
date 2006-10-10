@@ -26,11 +26,12 @@ import Utils.Pretty
 
 showQNameAsOptimizedConstructor :: QName -> TCM Doc
 showQNameAsOptimizedConstructor s =
-    return $ text $ translateNameAsOptimizedConstructor s
+    return $ text $ translateNameAsOptimizedConstructor $ show s
     
 showNameAsOptimizedConstructor :: Name -> TCM Doc
 showNameAsOptimizedConstructor s =
-    return $ text $ translateNameAsOptimizedConstructor s
+    return $ text $ translateNameAsOptimizedConstructor $ show s
+
 ----------------------------------------------------------------
 
 showOptimizedDefinitions :: Definitions -> TCM ()
@@ -70,6 +71,7 @@ showTypeDeclaration definitions name = do
 	    _:_ -> return $ (text "data") <+> (sep $
 				sep (dtypename : dparams) <+> equals :
 				punctuate (text " |") dargs)
+			    $+$ text "    -- deriving (Show)"
 
 showTypeParameter :: Nat -> TCM Doc
 showTypeParameter n = do
@@ -152,22 +154,25 @@ instance ShowAsOptimizedKind Type where
     showAsOptimizedKind (El s t) = showAsOptimizedKind t
 
 instance ShowAsOptimizedKind Term where
-    showAsOptimizedKind (Pi arg abs) = do
-    	dk1 <- showAsOptimizedKind $ unArg arg
-	dk2 <- showAsOptimizedKind $ absBody abs
-	return $ parens $ sep [dk1, text "->", dk2]
-    showAsOptimizedKind (Fun arg ty) = do
-	dk1 <- showAsOptimizedKind $ unArg arg
-	dk2 <- showAsOptimizedKind $ ty
-	return $ parens $ sep [dk1, text "->", dk2]
-    showAsOptimizedKind (Sort s)     = return $ text "*"
-    showAsOptimizedKind (Var _ _)    = return $ text "*"	-- is this right?
-    showAsOptimizedKind (Def _ _)    = return $ text "*"	-- ?
-    showAsOptimizedKind (Con _ _)    = __IMPOSSIBLE__
-    showAsOptimizedKind (Lit _)	     = __IMPOSSIBLE__
-    showAsOptimizedKind (MetaV _ _)  = __IMPOSSIBLE__
-    showAsOptimizedKind (Lam _ _)    = __IMPOSSIBLE__
-    showAsOptimizedKind (BlockedV _) = __IMPOSSIBLE__
+    showAsOptimizedKind t = do
+	t <- reduce t
+	case ignoreBlocking t of
+	    Pi arg abs -> do
+		dk1 <- showAsOptimizedKind $ unArg arg
+		dk2 <- showAsOptimizedKind $ absBody abs
+		return $ parens $ sep [dk1 <+> text "->", dk2]
+	    Fun arg ty -> do
+		dk1 <- showAsOptimizedKind $ unArg arg
+		dk2 <- showAsOptimizedKind $ ty
+		return $ parens $ sep [dk1 <+> text "->", dk2]
+	    Sort s     -> return $ text "*"
+	    Var _ _    -> return $ text "<var (impossible)>"
+	    Def _ _    -> __IMPOSSIBLE__
+	    Con _ _    -> __IMPOSSIBLE__
+	    Lit _      -> __IMPOSSIBLE__
+	    MetaV _ _  -> __IMPOSSIBLE__
+	    Lam _ _    -> __IMPOSSIBLE__
+	    BlockedV _ -> __IMPOSSIBLE__
 
 ----------------------------------------------------------------
 -- implementation of the "T" function
@@ -176,44 +181,49 @@ class ShowAsOptimizedType a where
     showAsOptimizedType :: a -> TCM Doc 
 
 instance ShowAsOptimizedType Name where
-    showAsOptimizedType s = return $ text $ translateNameAsOptimizedType s
-
-instance ShowAsOptimizedType Term where
-    showAsOptimizedType (Var n args)   = do
-    	varname <- nameOfBV n
-    	dvar <- showAsOptimizedTerm varname
-    	dargs <- mapM (showAsOptimizedType . unArg) args
-    	return $ psep $ dvar : dargs
-    showAsOptimizedType (Lam h t)        = __IMPOSSIBLE__
-    showAsOptimizedType (Lit literal)    = __IMPOSSIBLE__
-    showAsOptimizedType (Def qname args) = do
-	let name = qnameName qname
-	dname <- showAsOptimizedType name
-	dargs <- mapM (showAsOptimizedType . unArg) args
-	return $ psep $ dname : dargs
-    showAsOptimizedType (Con name args) =
-	return $ text "<constructor term (impossible)>"
-    showAsOptimizedType (Pi arg abs) = do
-    	dt1 <- showAsOptimizedType $ unArg arg
-	newname <- freshName_ $ absName abs
-    	addCtx newname (unArg arg) $ do
-    	    dvar <- showAsOptimizedTerm $ Var 0 []
-	    dt2 <- showAsOptimizedType $ absBody abs
-	    case freeIn 0 $ absBody abs of
-		True  -> return $ parens $ sep $
-		    [ sep [ text "forall", dvar <> text ".", dt1, text "->" ],
-		      dt2 ]
-		False -> return $ parens $ sep [ dt1 <+> text "->", dt2 ]
-    showAsOptimizedType (Fun arg ty) = do
-	dt1 <- showAsOptimizedType $ unArg arg
-	dt2 <- showAsOptimizedType $ ty
-	return $ parens $ sep [dt1, text "->", dt2]
-    showAsOptimizedType (Sort s)        = return $ text "()"
-    showAsOptimizedType (MetaV id args) = return $ text "<meta (impossible)>"
-    showAsOptimizedType (BlockedV bt)   = __IMPOSSIBLE__
+    showAsOptimizedType s = return $ text $ translateNameAsOptimizedType $ show s
 
 instance ShowAsOptimizedType Type where
     showAsOptimizedType (El s t) = showAsOptimizedType t
+
+instance ShowAsOptimizedType Term where
+    showAsOptimizedType t = do
+	t <- reduce t
+	case ignoreBlocking t of
+	    Var n args -> do
+		varname <- nameOfBV n
+		dvar <- showAsOptimizedTerm varname
+		dargs <- mapM (showAsOptimizedType . unArg) args
+		return $ psep $ dvar : dargs
+	    Def qname args -> do
+		let name = qnameName qname
+		dname <- showAsOptimizedType name
+		dargs <- mapM (showAsOptimizedType . unArg) args
+		return $ psep $ dname : dargs
+	    Con name args -> do
+		return $ text "<constructor term (impossible)>"
+	    Pi arg abs -> do
+		dt1 <- showAsOptimizedType $ unArg arg
+		newname <- freshName_ $ absName abs
+		addCtx newname (unArg arg) $ do
+		    dvar <- showAsOptimizedTerm $ Var 0 []
+		    dt2 <- showAsOptimizedType $ absBody abs
+		    case freeIn 0 $ absBody abs of
+			True  -> return $ parens $ sep $
+			    [ sep [ text "forall",
+				    dvar <> text ".", dt1, text "->" ],
+			      dt2 ]
+			False -> return $ parens $ sep [dt1 <+> text "->", dt2]
+	    Fun arg ty -> do
+		dt1 <- showAsOptimizedType $ unArg arg
+		dt2 <- showAsOptimizedType $ ty
+		return $ parens $ sep [dt1, text "->", dt2]
+	    Sort s        -> return $ text "()"
+	    MetaV id args -> return $ text "<meta (impossible)>"
+	    Lam h t       -> __IMPOSSIBLE__
+	    Lit lit       -> __IMPOSSIBLE__
+	    BlockedV bt   -> __IMPOSSIBLE__
+
 
 ----------------------------------------------------------------
 -- implementation of the "O" function
@@ -222,7 +232,7 @@ class ShowAsOptimizedTerm a where
     showAsOptimizedTerm :: a -> TCM Doc 
 
 instance ShowAsOptimizedTerm Name where
-    showAsOptimizedTerm s = return $ text $ translateNameAsOptimizedTerm s
+    showAsOptimizedTerm s = return $ text $ translateNameAsOptimizedTerm $ show s
 
 instance ShowAsOptimizedTerm Term where
     showAsOptimizedTerm (Var n args)     = do
@@ -247,9 +257,9 @@ instance ShowAsOptimizedTerm Term where
     	dname <- showAsOptimizedTerm name
     	dargs <- mapM (showAsOptimizedTerm . unArg) args
     	return $ psep $ dname : dargs
-    showAsOptimizedTerm (Pi _ _)	 = __IMPOSSIBLE__   -- TODO: this shouldn't be impossible...
-    showAsOptimizedTerm (Fun _ _)	 = __IMPOSSIBLE__
-    showAsOptimizedTerm (Sort _)	 = __IMPOSSIBLE__
+    showAsOptimizedTerm (Pi _ _)	 = return $ text "()"
+    showAsOptimizedTerm (Fun _ _)	 = return $ text "()"
+    showAsOptimizedTerm (Sort _)	 = return $ text "()"
     showAsOptimizedTerm (MetaV id args)  = __IMPOSSIBLE__
     showAsOptimizedTerm (BlockedV bt)    = __IMPOSSIBLE__
 
@@ -260,7 +270,7 @@ instance ShowAsOptimizedTerm ClauseBody where
 	newname <- freshName_ (absName abs)
 	addCtx newname __IMPOSSIBLE__ $ showAsOptimizedTerm (absBody abs)
     showAsOptimizedTerm (NoBind body) = showAsOptimizedTerm body
-    showAsOptimizedTerm NoBody        = return $ text "(absurd)"
+    showAsOptimizedTerm NoBody        = return $ text "(absurd)" -- IMPOSSIBLE?
 
 ----------------------------------------------------------------
 

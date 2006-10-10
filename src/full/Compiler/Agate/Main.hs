@@ -11,7 +11,6 @@ import Compiler.Agate.TranslateName
 import Compiler.Agate.OptimizedPrinter
 import Compiler.Agate.UntypedPrinter
 
-import Char(isDigit,intToDigit,isAlpha,isLower,isUpper,ord)
 import GHC.Base (map)
 
 import Syntax.Internal
@@ -24,118 +23,24 @@ import Control.Monad.Error
 
 import Data.List as List
 import Data.Map as Map
-import Data.Maybe
+--import Data.Maybe
 
-import System.Environment
-import System.IO
-import System.Exit
-
-import Syntax.Parser
-import Syntax.Concrete.Pretty ()
-import qualified Syntax.Abstract as A
-import Syntax.Translation.ConcreteToAbstract
-import Syntax.Translation.AbstractToConcrete
-import Syntax.Translation.InternalToAbstract
 import Syntax.Abstract.Test
 import Syntax.Abstract.Name
-import Syntax.Strict
 
-import Interaction.Exceptions
-import Interaction.CommandLine.CommandLine
-import Interaction.EmacsInterface.EmacsAgda
 import Interaction.Options
 import Interaction.Monad
-import Interaction.GhciTop ()	-- to make sure it compiles
 
 import TypeChecker
 import TypeChecking.Monad
-import TypeChecking.Reduce
-import TypeChecking.Errors
 
 import Utils.Monad
 
 import Version
 
 -- | The main function
-runAgda :: IM ()
-runAgda =
-    do	progName <- liftIO getProgName
-	argv	 <- liftIO getArgs
-	let opts = parseStandardOptions progName argv
-	case opts of
-	    Left err	-> liftIO $ optionError err
-	    Right opts
-		| optShowHelp opts	-> liftIO printUsage
-		| optShowVersion opts	-> liftIO printVersion
-		| isNothing (optInputFile opts)
-		    && not (optInteractive opts)
-		    && not (optEmacsMode opts)
-					-> liftIO printUsage
-		| otherwise		-> do setCommandLineOptions opts
-					      checkFile
-    where
-	checkFile :: IM ()
-	checkFile =
-	    do	i <- optInteractive <$> liftTCM commandLineOptions
-		emacs <- optEmacsMode <$> liftTCM commandLineOptions
-		when i $ liftIO $ putStr splashScreen
---		let compiler | i	    = interactionLoop
---				| emacs	    = emacsModeLoop
---				| otherwise = id
-		compiler $ liftTCM $
-		    do	hasFile <- hasInputFile
-			resetState
-			when hasFile $
-			    do	file <- getInputFile
-				(m, scope, pragmas) <- liftIO $
-				    do	(pragmas, m) <- parseFile' moduleParser file
-					pragmas	   <- concreteToAbstract_ pragmas -- identity for top-level pragmas
-					(m, scope) <- concreteToAbstract_ m
-					return (m, scope, pragmas)
-				setOptionsFromPragmas pragmas
-				checkDecl m
-				setScope scope
-				-- Print stats
-				stats <- Map.toList <$> getStatistics
-				case stats of
-				    []	-> return ()
-				    _	-> liftIO $ do
-					putStrLn "Statistics"
-					putStrLn "----------"
-					mapM_ (\ (s,n) -> putStrLn $ s ++ " : " ++ show n) $
-					    List.sortBy (\x y -> compare (snd x) (snd y)) stats
-
-
--- | Print usage information.
-printUsage :: IO ()
-printUsage =
-    do	progName <- getProgName
-	putStr $ usage standardOptions_ [] progName
-
--- | Print version information.
-printVersion :: IO ()
-printVersion =
-    putStrLn $ "Agda 2 version " ++ version
-
--- | What to do for bad options.
-optionError :: String -> IO ()
-optionError err =
-    do	putStr $ "Unrecognised argument: " ++ err
-	printUsage
-	exitFailure
-
--- | Main
-agatemain :: IO ()
-agatemain = do
-    runIM $ runAgda `catchError` \err -> do
-	s <- prettyError err
-	liftIO $ putStrLn s
-	liftIO $ exitFailure
-    return ()
-
-
-compiler :: IM () -> IM ()
-compiler typeCheck = do
+compilerMain :: IM () -> IM ()
+compilerMain typeCheck = do
 	typeCheck
 	sig <- gets stSignature
 	let sigs = toList sig
@@ -168,6 +73,7 @@ compiler typeCheck = do
 	    putStrLn "    VCon0    c     -> getConString c"
 	    putStrLn "    VCon1    c a1       -> showCons c [a1]"
 	    putStrLn "    VCon2    c a1 a2    -> showCons c [a1,a2]"
+	    putStrLn "    VCon3    c a1 a2 a3 -> showCons c [a1,a2,a3]"
 	    -- putStrLn "    VStruct binds -> \"struct { \" ++ join \", \" (map showBind binds) ++ \" }\""
 	    putStrLn "    VNonData       -> \"<nondata>\""
 	    putStrLn "    VIO      m     -> \"<IO>\""
@@ -241,7 +147,7 @@ printConsts = go 0 . enumCon
     where go :: Nat -> [Name] -> IO ()
           go _ []     = return ()
           go n (x:xs) = do
-          	let cname = translateNameAsUntypedConstructor x
+          	let cname = translateNameAsUntypedConstructor $ show x
           	putStrLn $ "#define " ++ cname ++ " " ++ show n
                 go (n+1) xs
 

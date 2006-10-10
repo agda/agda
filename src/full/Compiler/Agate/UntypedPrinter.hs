@@ -19,16 +19,26 @@ import TypeChecking.Reduce
 import Utils.Pretty
 
 ----------------------------------------------------------------
+
+showAsUntypedConstructor :: Name -> TCM Doc
+showAsUntypedConstructor name =
+    return $ text $ translateNameAsUntypedConstructor $ show name
+
+showQNameAsUntypedConstructor :: QName -> TCM Doc
+showQNameAsUntypedConstructor qname =
+    return $ text $ translateNameAsUntypedConstructor $ show qname
+
+----------------------------------------------------------------
 -- implementation of the "X" function
 
 class ShowAsUntypedTerm a where
     showAsUntypedTerm :: a -> TCM Doc 
 
 instance ShowAsUntypedTerm Name where
-    showAsUntypedTerm t = return $ text $ translateNameAsUntypedTerm t
+    showAsUntypedTerm t = return $ text $ translateNameAsUntypedTerm $ show t
 
 instance ShowAsUntypedTerm QName where
-    showAsUntypedTerm t = return $ text $ translateNameAsUntypedTerm t
+    showAsUntypedTerm t = return $ text $ translateNameAsUntypedTerm $ show t
 
 instance ShowAsUntypedTerm Term where
     showAsUntypedTerm (Var n args) =
@@ -43,10 +53,10 @@ instance ShowAsUntypedTerm Term where
 	    dbody <- showAsUntypedTerm (absBody abs)
 	    return $ parens $ text "VAbs" <+>
 		     parens (sep [ text "\\" <> dvar, text "->", dbody ])
-    showAsUntypedTerm (Con nm as) =
-     do dnm <- showQNameAsUntypedConstructor nm
-        das <- mapM showAsUntypedTerm (map unArg as)
-        return $ parens $ text "VCon" <> text (show (length as)) <+> dnm <+> hsep das
+    showAsUntypedTerm (Con qname args) =
+     do dname <- showAsUntypedTerm qname
+    	dargs <- mapM showAsUntypedTerm (map unArg args)
+        return $ foldl (\f a -> parens (f <+> text "|$|" <+> a)) dname dargs
     showAsUntypedTerm (Def qname args) =
      do dname <- showAsUntypedTerm qname
     	dargs <- mapM showAsUntypedTerm (map unArg args)
@@ -68,17 +78,6 @@ instance ShowAsUntypedTerm ClauseBody where
 	addCtx newname __IMPOSSIBLE__ $ showAsUntypedTerm (absBody abs)
     showAsUntypedTerm (NoBind body) = showAsUntypedTerm body
     showAsUntypedTerm NoBody        = return $ text "(absurd)"
-
-
-
-showAsUntypedConstructor :: Name -> TCM Doc
-showAsUntypedConstructor name =
-    return $ text $ translateNameAsUntypedConstructor name
-
-showQNameAsUntypedConstructor :: QName -> TCM Doc
-showQNameAsUntypedConstructor qname =
-    return $ text $ translateNameAsUntypedConstructor qname
-
 
 ----------------------------------------------------------------
 
@@ -132,10 +131,11 @@ showNDefinition (name,defn) = do
 	dcname <- showAsUntypedConstructor name
 	ty <- instantiate $ defType defn
 	(args,_) <- splitType ty
-	let argsize = length args - np
+	let argsize = length args
 	let dvars = map (\i -> text ("v" ++ show i)) [1..argsize]
+	let dargvars = drop np dvars
 	let drhs = untypedAbs dvars $ sep $
-		    text "VCon" <> text (show argsize) : dcname : dvars
+		    text "VCon" <> text (show (argsize - np)) : dcname : dargvars
 	return $ sep [ dname, equals ] <+> drhs
       Primitive a pf -> do
 	doname <- showAsOptimizedTerm name

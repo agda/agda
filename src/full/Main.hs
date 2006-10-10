@@ -37,9 +37,7 @@ import TypeChecking.Monad
 import TypeChecking.Reduce
 import TypeChecking.Errors
 
-import Compiler.Agate.TranslateName
-import Compiler.Agate.OptimizedPrinter
-import Compiler.Agate.UntypedPrinter
+import Compiler.Agate.Main
 
 import Utils.Monad
 
@@ -69,9 +67,11 @@ runAgda =
 	checkFile =
 	    do	i <- optInteractive <$> liftTCM commandLineOptions
 		emacs <- optEmacsMode <$> liftTCM commandLineOptions
+		compile <- optCompile <$> liftTCM commandLineOptions
 		when i $ liftIO $ putStr splashScreen
 		let interaction | i	    = interactionLoop
 				| emacs	    = emacsModeLoop
+				| compile   = compilerMain
 				| otherwise = id
 		interaction $ liftTCM $
 		    do	hasFile <- hasInputFile
