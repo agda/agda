@@ -25,7 +25,7 @@ include mk/paths.mk
 ## Default target #########################################################
 
 ifeq ($(is_configured),Yes)
-default : full core
+default : full core transl
 else
 default : make_configure
 endif
@@ -63,6 +63,11 @@ prof :
 
 core :
 	$(MAKE) -C $(CORE_SRC_DIR)
+
+## Making the Agda 1 to Agda 2 translator #################################
+
+transl :
+	$(MAKE) -C $(TRANSL_SRC_DIR)
 
 ## Making the source distribution #########################################
 
