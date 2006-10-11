@@ -99,6 +99,8 @@ Fixes
 * check that the module name matches the file name. Also when importing the
   module name should be the one we're trying to import.
 
+* Allow modules to be called things like Prop and Set (?)
+
 Speculative
 -----------
 

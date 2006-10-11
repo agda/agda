@@ -30,11 +30,11 @@ readBinaryFile' :: FilePath -> IO (String, IO ())
 readBinaryFile' file = do
     h <- openBinaryFile file ReadMode
     s <- hGetContents h
-    return (s, hClose h)
+    return (fromUTF8 s, hClose h)
 
 writeBinaryFile :: FilePath -> String -> IO ()
 writeBinaryFile file s = do
     h <- openBinaryFile file WriteMode
-    hPutStr h s
+    hPutStr h $ toUTF8 s
     hClose h
 
