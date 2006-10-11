@@ -1,6 +1,6 @@
 -- Translator from Agda 1 to Agda 2
 --
--- $Id: Translator.hs,v 1.2 2006/10/10 14:27:17 ulfn Exp $
+-- $Id: Translator.hs,v 1.3 2006/10/11 09:45:46 ulfn Exp $
 --
 
 module Translator where
