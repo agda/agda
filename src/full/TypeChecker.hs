@@ -595,6 +595,12 @@ checkExpr e t =
     t <- instantiate t
     case e of
 
+	-- Variable or constant application
+	_   | Application hd args <- appView e -> do
+		(v,t0) <- inferHead hd
+		vs     <- checkArguments (getRange hd) args t0 t
+		return $ v `apply` vs
+
 	-- Insert hidden lambda if appropriate
 	_   | not (hiddenLambda e)
 	    , FunV (Arg Hidden _) _ <- funView (unEl t) -> do
@@ -608,12 +614,6 @@ checkExpr e t =
 		hiddenLambda (A.Lam _ (A.DomainFree Hidden _) _)		     = True
 		hiddenLambda (A.Lam _ (A.DomainFull (A.TypedBindings _ Hidden _)) _) = True
 		hiddenLambda _							     = False
-
-	-- Variable or constant application
-	_   | Application hd args <- appView e -> do
-		(v,t0) <- inferHead hd
-		vs     <- checkArguments (getRange hd) args t0 t
-		return $ v `apply` vs
 
 	A.App i e arg -> do
 	    (v0,t0) <- inferExpr e
