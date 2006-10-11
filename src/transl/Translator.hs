@@ -313,8 +313,10 @@ copenargs2importdirective coargs
 transCExpr :: CExpr -> Expr
 transCExpr (CVar i)
  = Ident (QName (id2name i))
-transCExpr (CStar _ _ _)
+transCExpr (CStar _ 0 _)
  = Set noRange
+transCExpr (CStar _ n _)
+ = SetN noRange n
 transCExpr (Clam (flg,CBind [x] Nothing) e)
  = Lam noRange [DomainFree (bool2hiding flg) (id2name x)] (transCExpr e)
 transCExpr (Clam (flg,CBind xs (Just t)) e)
