@@ -12,12 +12,13 @@ import System.IO
 import Translator
 import System.Console.GetOpt
 
-data Flag = Help | Debug 
+data Flag = Help | Debug | OldSyntax
           deriving (Eq, Show)
 
 options :: [OptDescr Flag]
 options = [ Option ['?'] ["help"]   (NoArg Help)         "show this help"
           , Option ['D'] ["debug"]  (NoArg Debug)        "print debug messages to stderr"
+	  , Option [] ["old"] (NoArg OldSyntax)		 "use old syntax"
           ]
 
 compilerOpts :: [String] -> IO ([Flag], [String])
@@ -36,12 +37,13 @@ main = do { argv <- getArgs
               [file]
                 -> do { cs     <- readFile file
                       ; toks   <- return $ agda1Lexer True file cs
-                      ; ctree  <- return $ agda1Parser toks
+                      ; ctree  <- return $ agda1Parser (newSyntax fs) toks
                       ; agda1to2 (trans fs) ctree
                       }
               _ -> hPutStrLn stderr usage
 	  }
   where
+    newSyntax fs = OldSyntax `notElem` fs
     trans fs cldfs tab = do { return ()                       -- dummy
                          ; let whenDebug = when (Debug `elem` fs) . hPutStrLn stderr
                          ; whenDebug $ show 

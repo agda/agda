@@ -1,7 +1,4 @@
-{-# OPTIONS -cpp #-}
-#include "config.h"
 -- | Parsers for CSyntax
-module CParser where
 import List(nub)
 import Parse
 import BinParse

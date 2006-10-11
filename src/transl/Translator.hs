@@ -19,7 +19,8 @@ import Id
 import Monads
 import Error
 import Parse
-import CParser
+import qualified NewCParser as New
+import qualified OldCParser as Old
 import Lex
 import CSyntax
 import FString
@@ -39,8 +40,9 @@ import Syntax.Position
 agda1Lexer :: Bool -> FilePath -> String -> [Token]
 agda1Lexer alfa file = lexStart alfa file preStrTable 
 
-agda1Parser :: [Token] -> Error ([CLetDef],StrTable)
-agda1Parser = finalP pLetDefs
+agda1Parser :: Bool -> [Token] -> Error ([CLetDef],StrTable)
+agda1Parser True  = New.finalP New.pLetDefs
+agda1Parser False = Old.finalP Old.pLetDefs
 
 agda1to2 :: ([CLetDef] -> StrTable -> IO ())
          -> Error ([CLetDef],StrTable) -> IO ()
@@ -253,7 +255,8 @@ transCDefn (Cdata i args mctype csums)
 transCDefn (Cidata i args ctype csum)
  = error "transCDefn: cannot translate: (Cidata i args ctype csum)"
 transCDefn (CValue i cexpr)
- = error "transCDefn: cannot translate: (CValue i cexpr)"
+ = cclause2funclauses i (isInfixOp i) (CClause [] cexpr)
+--  = error "transCDefn: cannot translate: (CValue i cexpr)"
 transCDefn (CAxiom i args ctype)
  = error "transCDefn: cannot translate: (CAxiom i args ctype)"
 transCDefn (CNative i ctype)
@@ -343,6 +346,7 @@ transCExpr (CMeta _ _ _ _)
  = QuestionMark noRange Nothing
 transCExpr (Cif ec et ee)
  = RawApp noRange (Ident ifQName : map (parenExpr . transCExpr) [ec,et,ee])
+transCExpr (CCConS i) = transCExpr (CVar i)
 transCExpr ce
  = notyet $ "transCExpr ("++show ce++")"
 
