@@ -7,6 +7,7 @@ import List
 import Fin
 import Logic
 import Vec
+import EqProof
 
 open Nat, hiding (_<_), renaming (_==_ to _=Nat=_)
 open Bool
@@ -79,7 +80,7 @@ module Provable where
   substNF : {n : Nat}{xs, ys : NF n}(P : NF n -> Set) -> IsTrue (xs =NF= ys) -> P xs -> P ys
   substNF = ListSubst.subst
     where
-      module ListSubst = List.Subst _=Fin=_ subst
+      module ListSubst = List.Subst _=Fin=_ (subst {_})
 
   _=Expr=_ : {n : Nat} -> Expr n -> Expr n -> Bool
   a =Expr= b = normalise a =NF= normalise b
@@ -104,6 +105,9 @@ module Semantics
   where
 
   open Provable
+
+  module EqP = EqProof _==_ refl trans
+  open EqP
 
   expr[_] : {n:Nat} -> Expr n -> Vec n A -> A
   expr[ zro   ] ρ = one
@@ -133,23 +137,27 @@ module Semantics
       lbranch = x :: (xs ⊕ y :: ys)
       rbranch = y :: (x :: xs ⊕ ys)
 
+      P = \z -> eq[ lhs ≡ (if z then lbranch else rbranch) ↓ ] ρ
+
       less : IsTrue (x < y) -> _
       less x<y = BoolEq.subst {true}{x < y}
-		 (\z -> eq[ lhs ≡ (if z then lbranch else rbranch) ↓ ] ρ )
-		 x<y (trans (sym assoc)
-			    (congL (lem0 xs (y :: ys) ρ))
-		     )
+		 P x<y (spine (lem0 xs (y :: ys) ρ))
+	where
+	  spine = \{x}{xs}{y}{ys}{zs} h ->
+	    eqProof> (x * xs) * (y * ys)
+		 === x * (xs * (y * ys))  by  sym assoc
+		 === x * zs		  by  congL h
 
       more : IsFalse (x < y) -> _
       more x>=y = BoolEq.subst {false}{x < y}
-		 (\z -> eq[ lhs ≡ (if z then lbranch else rbranch) ↓ ] ρ )
-		 x>=y ( comm ==> sym assoc
-		    ==> congL ( comm ==> lem0 (x :: xs) ys ρ )
-		      )
+		 P x>=y (spine (lem0 (x :: xs) ys ρ))
 	where
-	  infixr 5 _==>_
-	  _==>_ : {x,y,z:A} -> x == y -> y == z -> x == z
-	  p ==> q = trans p q
+	  spine = \{x}{xs}{y}{ys}{zs} h ->
+	    eqProof> (x * xs) * (y * ys)
+		 === (y * ys) * (x * xs)  by  comm
+		 === y * (ys * (x * xs))  by  sym assoc
+		 === y * ((x * xs) * ys)  by  congL comm
+		 === y * zs		  by  congL h
 
   lem1 : {n : Nat} -> (e : Expr n) -> (ρ : Vec n A) -> eq[ e ≡ normalise e ↓ ] ρ
   lem1  zro    ρ = refl
@@ -220,16 +228,7 @@ postulate
   congL : {x, y, z : Nat} -> y === z -> x + y === x + z
   congR : {x, y, z : Nat} -> x === y -> x + z === y + z
 
-module NatPlus = Semantics _===_ _+_ zero
-			    (\{x} -> refl {x})	-- weird
-			    (\{x}{y} -> sym {x}{y})
-			    (\{x}{y}{z} -> trans {x}{y}{z})
-			    (\{x} -> idL {x})
-			    (\{x} -> idR {x})
-			    (\{x}{y} -> comm {x}{y})
-			    (\{x}{y}{z} -> assoc {x}{y}{z})
-			    (\{x}{y}{z} -> congL {x}{y}{z})
-			    (\{x}{y}{z} -> congR {x}{y}{z})
+module NatPlus = Semantics _===_ _+_ zero refl sym trans idL idR comm assoc congL congR
 open NatPlus
 
 test : (x, y, z : Nat) -> x + (y + z) === (z + x) + y
