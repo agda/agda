@@ -29,8 +29,8 @@ x ∷ xs = vec (vcons x xs)
 
 _!_ : {n : Nat}{A : Set} -> Vec n A -> Fin n -> A
 _!_ {zero}   _		       (fin ())
-_!_ {suc n} (vec (vcons x xs)) (fin fz) = x
-_!_ {suc n} (vec (vcons x xs)) (fin (fs i)) = x
+_!_ {suc n} (vec (vcons x xs)) (fin fz)	    = x
+_!_ {suc n} (vec (vcons x xs)) (fin (fs i)) = xs ! i
 
 map : {n : Nat}{A, B : Set} -> (A -> B) -> Vec n A -> Vec n B
 map {zero}  f (vec vnil)	 = ε

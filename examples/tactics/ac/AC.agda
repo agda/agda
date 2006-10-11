@@ -206,6 +206,7 @@ thm2 = theorem n3 \x y z -> x ○ (y ○ z) ≡ (z ○ x) ○ x
 
 thm3 = theorem n5 \a b c d e -> (a ○ (a ○ b)) ○ ((c ○ d) ○ (e ○ e)) ≡ b ○ ((e ○ (c ○ a)) ○ (d ○ (e ○ a)))
 
+infix 10 _===_
 _===_ = \n m -> IsTrue (n =Nat= m)
 
 postulate
@@ -230,4 +231,7 @@ module NatPlus = Semantics _===_ _+_ zero
 			    (\{x}{y}{z} -> congL {x}{y}{z})
 			    (\{x}{y}{z} -> congR {x}{y}{z})
 open NatPlus
+
+test : (x, y, z : Nat) -> x + (y + z) === (z + x) + y
+test = prove (theorem n3 \x y z -> x ○ (y ○ z) ≡ (z ○ x) ○ y)
 

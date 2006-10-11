@@ -22,6 +22,11 @@ aim4-bag : AIM4/bag/Bag.agda
 	@echo :q | $(agda) -iAIM4/bag $<
 	@echo "ok"
 
+ac : tactics/ac/AC.agda
+	@echo "Testing $<... "
+	@echo :q | $(agda) -itactics/ac $<
+	@echo "ok"
+
 test : $(agda) $(tests)
 
 $(tests) : %.test : %
