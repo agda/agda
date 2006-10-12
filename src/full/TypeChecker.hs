@@ -709,7 +709,7 @@ checkArguments r [] t0 t1 =
 		vs <- checkArguments r [] (piApply' t0' [arg]) t1'
 		return $ arg : vs
 	    _ -> do
-		equalTyp t0' t1'
+		leqType t0' t1'
 		return []
     where
 	notHPi (Pi  (Arg Hidden _) _) = False

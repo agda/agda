@@ -149,6 +149,15 @@ equalTyp ty1@(El s1 a1) ty2@(El s2 a2) =
 	equalSort s1 s2
 	equalVal (sort s1) a1 a2
 
+leqType :: Type -> Type -> TCM ()
+leqType ty1@(El s1 a1) ty2@(El s2 a2) = do
+     -- TODO: catchConstraint (?)
+    (a1, a2) <- reduce (a1,a2)
+    case (a1, a2) of
+	(Sort s1, Sort s2) -> leqSort s1 s2
+	_		   -> equalTyp (El s1 a1) (El s2 a2)
+	    -- TODO: subtyping for function types
+
 ---------------------------------------------------------------------------
 -- * Sorts
 ---------------------------------------------------------------------------
