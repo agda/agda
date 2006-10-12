@@ -40,10 +40,7 @@ data Theorem (n : Nat) : Set where
   _≡_ : Expr n -> Expr n -> Theorem n
 
 theorem : (n : Nat) -> ({m : Nat} -> ForAll {Expr m} n \_ -> Theorem m) -> Theorem n
-theorem n thm = apply _ thm vars
-  where
-    vars : Vec n (Expr n)
-    vars = map var (fzeroToN-1 n)
+theorem n thm = apply _ thm (map var (fzeroToN-1 n))
 
 module Provable where
 
@@ -55,16 +52,16 @@ module Provable where
   _⊕_ : {n : Nat} -> NF n -> NF n -> NF n
   []	  ⊕ ys	      = ys
   x :: xs ⊕ []	      = x :: xs
-  x :: xs ⊕ (y :: ys) = if x < y
-			then x :: (xs ⊕ y :: ys)
-			else y :: (x :: xs ⊕ ys)
+  x :: xs ⊕ y :: ys = if   x < y
+		      then x :: (xs ⊕ y :: ys)
+		      else y :: (x :: xs ⊕ ys)
 
   normalise : {n : Nat} -> Expr n -> NF n
   normalise  zro    = []
   normalise (var n) = n :: []
   normalise (a ○ b) = normalise a ⊕ normalise b
 
-  infix 30 ↓
+  infix 30 _↓
 
   _↓ : {n : Nat} -> NF n -> Expr n
   (i :: is) ↓ = var i ○ is ↓

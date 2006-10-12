@@ -1,10 +1,11 @@
+{-# OPTIONS --proof-irrelevance #-}
 
 module examples.Setoid where
 
 module Logic where
 
   infix 4 _/\_
-  infix 2 _\/_
+  -- infix 2 _\/_
   infixr 1 _-->_
 
   data True : Prop where
@@ -19,18 +20,6 @@ module Logic where
 --   data _\/_ (P,Q : Prop) : Prop where
 --     orIL : P -> P \/ Q
 --     orIR : Q -> P \/ Q
-
-  data _-->_ (P,Q : Prop) : Prop where
-    impI : (P -> Q) -> P --> Q
-
-  impE : {P,Q : Prop} -> (P --> Q) -> P -> Q
-  impE (impI h) = h
-
-  data ForAll {A : Set}(P : A -> Prop) : Prop where
-    forallI : ((x : A) -> P x) -> ForAll P
-
-  forallE : {A : Set} -> {P : A -> Prop} -> ForAll P -> (x : A) -> P x
-  forallE (forallI h) = h
 
 module Setoid where
 
@@ -77,18 +66,18 @@ module Setoid where
 
 module EqChain (A : Setoid.Setoid) where
 
-  infixl 5 _===_ _-==_
+  infixl 5 _===_ _=-=_
   infix  8 _since_
 
   open Setoid
   private module EqA = Equality A
   open EqA
 
-  eqProof : (x : El A) -> x == x
-  eqProof x = refl
+  eqProof>_ : (x : El A) -> x == x
+  eqProof> x = refl
 
-  _-==_ : (x : El A) -> {y : El A} -> x == y -> x == y
-  x -== eq = eq
+  _=-=_ : (x : El A) -> {y : El A} -> x == y -> x == y
+  x =-= eq = eq
 
   _===_ : {x,y,z : El A} -> x == y -> y == z -> x == z
   _===_ = trans
@@ -143,8 +132,8 @@ module Fun where
 
 	s : (f, g : A => B) -> EqFun f g -> EqFun g f
 	s f g fg =
-	  eqFunI (\{x} {y} xy ->
-	    app g x -== app g y  since  cong g xy
+	  eqFunI (\{x}{y} xy ->
+	    app g x =-= app g y  since  cong g xy
 		    === app f x  since  sym (eqFunE fg xy)
 		    === app f y  since  cong f xy
 	  )
@@ -152,7 +141,7 @@ module Fun where
 	t : (f, g, h : A => B) -> EqFun f g -> EqFun g h -> EqFun f h
 	t f g h fg gh =
 	  eqFunI (\{x}{y} xy ->
-	    app f x -== app g y  since  eqFunE fg xy
+	    app f x =-= app g y  since  eqFunE fg xy
 		    === app g x  since  cong g (EqA.sym xy)
 		    === app h y  since  eqFunE gh xy
 	  )
@@ -205,11 +194,6 @@ module Fun where
     lam3 (\f g x -> f $ (g $ x))
 	 (\f g x -> eqFunE f (eqFunE g x))
 
---     lam (\f -> lam (\g -> lam (\x -> app f (app g x))
--- 			      (\x -> cong f (cong g x)))
--- 		   (\g -> eqFunI (\x -> cong f (eqFunE g x))))
--- 	(\f -> eqFunI (\g -> eqFunI (\x -> eqFunE f (eqFunE g x))))
-
   _∘_ : {A,B,C : Setoid} -> El (B ==> C) -> El (A ==> B) -> El (A ==> C)
   f ∘ g = compose $ f $ g
 
@@ -228,41 +212,58 @@ module Nat where
     zero : Nat
     suc  : Nat -> Nat
 
+  module NatSetoid where
+
+    eqNat : Nat -> Nat -> Prop
+    eqNat zero     zero   = True
+    eqNat zero    (suc _) = False
+    eqNat (suc _)  zero   = False
+    eqNat (suc n) (suc m) = eqNat n m
+
+    data EqNat (n, m : Nat) : Prop where
+      eqnat : eqNat n m -> EqNat n m
+
+    uneqnat : {n, m : Nat} -> EqNat n m -> eqNat n m
+    uneqnat (eqnat x) = x
+
+    r : (x : Nat) -> eqNat x x
+    r zero    = tt
+    r (suc n) = r n
+
+    rf = \x -> eqnat (r x)
+
+    s : (x,y : Nat) -> eqNat x y -> eqNat y x
+    s  zero    zero   _ = tt
+    s (suc n) (suc m) h = s n m h
+
+    sy = \x y h -> eqnat (s x y (uneqnat h))
+
+    t : (x,y,z : Nat) -> eqNat x y -> eqNat y z -> eqNat x z
+    t  zero    zero    z      xy yz = yz
+    t (suc x) (suc y) (suc z) xy yz = t x y z xy yz
+
+    tr = \x y z xy yz -> eqnat (t x y z (uneqnat xy) (uneqnat yz))
+
   NAT : Setoid
-  NAT = setoid Nat eqNat r s t
-    where
-      eqNat : Nat -> Nat -> Prop
-      eqNat zero     zero   = True
-      eqNat zero    (suc _) = False
-      eqNat (suc _)  zero   = False
-      eqNat (suc n) (suc m) = eqNat n m
-
-      r : (x : Nat) -> eqNat x x
-      r zero	= tt
-      r (suc n) = r n
-
-      s : (x,y : Nat) -> eqNat x y -> eqNat y x
-      s  zero    zero   _ = tt
-      s (suc n) (suc m) h = s n m h
-
-      t : (x,y,z : Nat) -> eqNat x y -> eqNat y z -> eqNat x z
-      t  zero    zero    z      xy yz = yz
-      t (suc x) (suc y) (suc z) xy yz = t x y z xy yz
+  NAT = setoid Nat NatSetoid.EqNat NatSetoid.rf NatSetoid.sy NatSetoid.tr
 
   _+_ : Nat -> Nat -> Nat
   zero  + m = m
   suc n + m = suc (n + m)
 
   plus : El (NAT ==> NAT ==> NAT)
-  plus = lam2 (\n m -> n + m)
-	      (\{n}{n'} nn {m}{m'} mm -> eqPlus n n' nn m m' mm)
+  plus = lam2 (\n m -> n + m) eqPlus
     where
       module EqNat = Equality NAT
       open EqNat
+      open NatSetoid
 
-      eqPlus : (n, n' : Nat) -> n == n' -> (m, m' : Nat) -> m == m' -> n + m == n' + m'
-      eqPlus  zero    zero    tt m m' mm = mm
-      eqPlus (suc n) (suc n') nn m m' mm = eqPlus n n' nn m m' mm
+      eqPlus : {n, n' : Nat} -> n == n' -> {m, m' : Nat} -> m == m' -> n + m == n' + m'
+      eqPlus {zero}  {zero}    _  mm = mm
+      eqPlus {suc n} {suc n'}  (eqnat nn) {m}{m'} (eqnat mm) =
+	eqnat (uneqnat (eqPlus{n}{n'} (eqnat nn)
+			      {m}{m'} (eqnat mm)
+	      )	       )
 
 module List where
 
