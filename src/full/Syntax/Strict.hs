@@ -7,6 +7,7 @@ import Data.Generics
 import Syntax.Common
 import Syntax.Internal
 import qualified Syntax.Concrete as C
+import qualified Syntax.Concrete.Definitions as C
 
 #include "../undefined.h"
 
@@ -51,6 +52,9 @@ instance Strict C.Declaration where
 
 instance Strict C.Pragma where
     force e = everything (+) (const 1) e
+
+instance Strict C.NiceDeclaration where
+    force d = everything (+) (const 1) d
 
 instance (Strict a, Strict b) => Strict (a,b) where
     force (x,y) = force x + force y

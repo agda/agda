@@ -276,9 +276,8 @@ metaParseExpr ii s =
         m <- lookupInteractionId ii
         scope <- getMetaScope <$> lookupMeta m
         r <- getRange <$> lookupMeta m
-	concreteToAbstract scope (c r s')
-    where
-	c r s = parsePosString exprParser (rStart r) s
+	e <- liftIO $ parsePosString exprParser (rStart r) s'
+	concreteToAbstract scope e
 
 actOnMeta :: (InteractionId -> A.Expr -> IM a) -> [String] -> IM a
 actOnMeta f (is:es) = 
@@ -331,11 +330,9 @@ showContext [f,l,c,m] =
 showContext _ = liftIO $ putStrLn ":printmc metaid"
 
 parseExpr :: String -> TCM A.Expr
-parseExpr s = concreteToAbstract_ c
-    where
-	c = parse exprParser s
+parseExpr s = concreteToAbstract_ =<< liftIO (parse exprParser s)
 
--- evalTerm :: String -> TCM ()
+evalTerm :: String -> TCM (ExitCode a)
 evalTerm s =
     do	e <- parseExpr s
         v <- evalInCurrent e

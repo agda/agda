@@ -171,8 +171,8 @@ parseExprIn ii rng s = do
     mId <- lookupInteractionId ii
     updateMetaRange mId rng       
     mi  <- getMetaInfo <$> lookupMeta mId
-    concreteToAbstract (clScope mi)
-             (parsePosString exprParser (rStart (getRange mi)) s)
+    e <- liftIO $ parsePosString exprParser (rStart (getRange mi)) s
+    concreteToAbstract (clScope mi) e
 
 cmd_context :: GoalCommand
 cmd_context ii _ _ = infoOnException $ do

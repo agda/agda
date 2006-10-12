@@ -41,20 +41,20 @@ wrapM m =
 
 -- Parse functions --------------------------------------------------------
 
-parse :: Strict a => Parser a -> String -> a
-parse p = wrap . M.parse defaultParseFlags normal p
+parse :: Strict a => Parser a -> String -> IO a
+parse p = wrapM . return . M.parse defaultParseFlags normal p
 
 parseFile :: Strict a => Parser a -> FilePath -> IO a
 parseFile p = wrapM . M.parseFile defaultParseFlags normal p
 
-parseLiterate :: Strict a => Parser a -> String -> a
-parseLiterate p = wrap . M.parse defaultParseFlags literate p
+parseLiterate :: Strict a => Parser a -> String -> IO a
+parseLiterate p = wrapM . return . M.parse defaultParseFlags literate p
 
 parseLiterateFile :: Strict a => Parser a -> FilePath -> IO a
 parseLiterateFile p = wrapM . M.parseFile defaultParseFlags literate p
 
-parsePosString :: Strict a => Parser a -> Position -> String -> a
-parsePosString p pos = wrap . M.parsePosString pos defaultParseFlags normal p
+parsePosString :: Strict a => Parser a -> Position -> String -> IO a
+parsePosString p pos = wrapM . return . M.parsePosString pos defaultParseFlags normal p
 
 parseFile' :: Strict a => Parser a -> FilePath -> IO a
 parseFile' p file

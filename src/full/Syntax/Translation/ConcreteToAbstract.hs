@@ -23,6 +23,7 @@ import Syntax.Concrete.Definitions as CD
 import Syntax.Concrete.Operators
 import Syntax.Fixity
 import Syntax.Scope
+import Syntax.Strict
 
 import TypeChecking.Monad.Base (TypeError(..), Call(..), typeError)
 import TypeChecking.Monad.Trace (traceCall, traceCallCPS)
@@ -313,8 +314,9 @@ instance ToAbstract C.Declaration (A.Declaration, ScopeInfo) where
     toAbstract d = __IMPOSSIBLE__
 
 instance BindToAbstract [C.Declaration] [A.Declaration] where
-    bindToAbstract ds =
-	bindToAbstract (niceDeclarations ds)
+    bindToAbstract ds ret = do
+	ds <- liftIO $ return $!! niceDeclarations ds
+	bindToAbstract ds ret
 
 instance BindToAbstract [NiceDeclaration] [A.Declaration] where
     bindToAbstract [] ret = ret []
@@ -325,7 +327,9 @@ newtype LetDefs = LetDefs [C.Declaration]
 newtype LetDef = LetDef NiceDeclaration
 
 instance BindToAbstract LetDefs [A.LetBinding] where
-    bindToAbstract (LetDefs ds) = bindToAbstract (map LetDef $ niceDeclarations ds)
+    bindToAbstract (LetDefs ds) ret = do
+	ds <- liftIO $ return $!! niceDeclarations ds
+	bindToAbstract (map LetDef ds) ret
 
 instance ToAbstract C.RHS A.RHS where
     toAbstract C.AbsurdRHS = return $ A.AbsurdRHS

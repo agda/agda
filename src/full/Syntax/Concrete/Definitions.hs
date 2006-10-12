@@ -66,7 +66,7 @@ module Syntax.Concrete.Definitions
 
 import Control.Exception
 
-import Data.Typeable
+import Data.Generics (Data, Typeable)
 import qualified Data.Map as Map
 
 import Syntax.Concrete
@@ -98,13 +98,13 @@ data NiceDeclaration
 	| NiceOpen Range QName ImportDirective
 	| NiceImport Range QName (Maybe Name) ImportDirective
 	| NicePragma Range Pragma
-    deriving (Show)
+    deriving (Show, Typeable, Data)
 
 -- | A definition without its type signature.
 data NiceDefinition
 	= FunDef  Range [Declaration] Fixity Access IsAbstract Name [Clause]
 	| DataDef Range Fixity Access IsAbstract Name [LamBinding] [NiceConstructor]
-    deriving (Show)
+    deriving (Show, Typeable, Data)
 
 -- | Only 'Axiom's.
 type NiceConstructor = NiceDeclaration
@@ -115,7 +115,7 @@ type NiceTypeSignature	= NiceDeclaration
 -- | One clause in a function definition. There is no guarantee that the 'LHS'
 --   actually declares the 'Name'. We will have to check that later.
 data Clause = Clause Name LHS RHS WhereClause
-    deriving (Show)
+    deriving (Show, Typeable, Data)
 
 -- | The exception type.
 data DeclarationException
