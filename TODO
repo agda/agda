@@ -18,8 +18,6 @@ Features
 
 * unify primitive and {-# BUILTIN #-}
 
-* syntax highlighting
-
 Fixes
 -----
 
@@ -124,6 +122,8 @@ Performance
 
 Done
 ----
+
+* syntax highlighting
 
 * proper make test (agda now exits with failure on error)
 
