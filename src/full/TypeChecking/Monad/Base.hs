@@ -5,9 +5,11 @@ import Control.Monad.Error
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Exception
+import Control.Applicative
 import Data.Map as Map
 import Data.Generics
-import Data.FunctorM
+import Data.Foldable
+import Data.Traversable
 
 import Syntax.Common
 import qualified Syntax.Concrete as C
@@ -159,10 +161,15 @@ instance Functor (Judgement t s) where
     fmap f (IsType  x s) = IsType (f x) s
     fmap f (IsSort  x)	 = IsSort (f x)
 
-instance FunctorM (Judgement t s) where
-    fmapM f (HasType x t) = flip HasType t <$> f x
-    fmapM f (IsType  x s) = flip IsType s <$> f x
-    fmapM f (IsSort  x)   = IsSort <$> f x
+instance Foldable (Judgement t s) where
+    foldr f z (HasType x _) = f x z
+    foldr f z (IsType  x _) = f x z
+    foldr f z (IsSort  x)   = f x z
+
+instance Traversable (Judgement t s) where
+    traverse f (HasType x t) = flip HasType t <$> f x
+    traverse f (IsType  x s) = flip IsType s <$> f x
+    traverse f (IsSort  x)   = IsSort <$> f x
 
 ---------------------------------------------------------------------------
 -- ** Meta variables
@@ -335,9 +342,13 @@ instance Functor Builtin where
     fmap f (Builtin t) = Builtin t
     fmap f (Prim x)    = Prim $ f x
 
-instance FunctorM Builtin where
-    fmapM f (Builtin t) = return $ Builtin t
-    fmapM f (Prim x)    = Prim <$> f x
+instance Foldable Builtin where
+    foldr f z (Builtin t) = z
+    foldr f z (Prim x)    = f x z
+
+instance Traversable Builtin where
+    traverse f (Builtin t) = pure $ Builtin t
+    traverse f (Prim x)    = Prim <$> f x
 
 ---------------------------------------------------------------------------
 -- * Type checking environment
@@ -516,6 +527,13 @@ instance Monad TCM where
     return  = TCM . return
     m >>= k = TCM $ unTCM m >>= unTCM . k
     fail    = internalError
+
+instance Functor TCM where
+    fmap = liftM
+
+instance Applicative TCM where
+    pure = return
+    (<*>) = ap
 
 instance MonadIO TCM where
   liftIO m = TCM $ do tr <- gets stTrace

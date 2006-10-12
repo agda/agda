@@ -307,7 +307,8 @@ isSym '.' = True; isSym '/'  = True; isSym '<' = True; isSym '=' = True
 isSym '>' = True; isSym '\\' = True; isSym '^' = True
 isSym '|' = True; isSym ':'  = True; isSym '-' = True; isSym '~' = True
 isSym ',' = True
-isSym c | c >= '\x80' = c `elem` "¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿×÷"
+isSym c | c >= '\x80' = c `elem` (['\xa1'..'\xb1'] ++ "\xd7\xf7")
+				-- "¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿×÷"
 --isSym c | c >= '\x80' = isSymbol c
 isSym _   = False
 

@@ -8,7 +8,7 @@ import Control.Monad.Reader
 import Data.List as List
 import Data.Map as Map
 import Data.Generics
-import Data.FunctorM
+import Data.Traversable
 
 import Syntax.Position
 import Syntax.Common
@@ -71,10 +71,10 @@ instance Instantiate Sort where
 	Lub s1 s2 -> sLub <$> instantiate s1 <*> instantiate s2
 
 instance Instantiate t => Instantiate (Arg t) where
-    instantiate = fmapM instantiate
+    instantiate = traverse instantiate
 
 instance Instantiate t => Instantiate [t] where
-    instantiate = mapM instantiate
+    instantiate = traverse instantiate
 
 instance (Instantiate a, Instantiate b) => Instantiate (a,b) where
     instantiate (x,y) = (,) <$> instantiate x <*> instantiate y
@@ -129,10 +129,10 @@ instance Reduce Sort where
 		MetaS _   -> return s
 
 instance Reduce t => Reduce [t] where
-    reduce = mapM reduce
+    reduce = traverse reduce
 
 instance Reduce t => Reduce (Arg t) where
-    reduce = fmapM reduce
+    reduce = traverse reduce
 
 instance (Reduce a, Reduce b) => Reduce (a,b) where
     reduce (x,y) = (,) <$> reduce x <*> reduce y
@@ -274,13 +274,13 @@ instance Normalise ClauseBody where
     normalise  NoBody	 = return NoBody
 
 instance Normalise t => Normalise (Abs t) where
-    normalise = fmapM normalise
+    normalise = traverse normalise
 
 instance Normalise t => Normalise (Arg t) where
-    normalise = fmapM normalise
+    normalise = traverse normalise
 
 instance Normalise t => Normalise [t] where
-    normalise = fmapM normalise
+    normalise = traverse normalise
 
 instance (Normalise a, Normalise b) => Normalise (a,b) where
     normalise (x,y) = (,) <$> normalise x <*> normalise y
@@ -359,13 +359,13 @@ instance InstantiateFull ClauseBody where
     instantiateFull  NoBody    = return NoBody
 
 instance InstantiateFull t => InstantiateFull (Abs t) where
-    instantiateFull = fmapM instantiateFull
+    instantiateFull = traverse instantiateFull
 
 instance InstantiateFull t => InstantiateFull (Arg t) where
-    instantiateFull = fmapM instantiateFull
+    instantiateFull = traverse instantiateFull
 
 instance InstantiateFull t => InstantiateFull [t] where
-    instantiateFull = fmapM instantiateFull
+    instantiateFull = traverse instantiateFull
 
 instance (InstantiateFull a, InstantiateFull b) => InstantiateFull (a,b) where
     instantiateFull (x,y) = (,) <$> instantiateFull x <*> instantiateFull y

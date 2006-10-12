@@ -5,13 +5,13 @@ import Syntax.Parser.Alex
 import Syntax.Parser.Monad
 import Syntax.Parser.Tokens
 
-alexScan :: AlexInput -> LexState -> AlexReturn (LexAction Token)
+alexScan :: AlexInput -> Int -> AlexReturn (LexAction Token)
 
 data AlexReturn	r
 	= AlexEOF
 	| AlexError !AlexInput
-	| AlexSkip !AlexInput !TokenLength
-	| AlexToken !AlexInput !TokenLength r
+	| AlexSkip !AlexInput !Int
+	| AlexToken !AlexInput !Int r
 
 bol, layout, empty_layout :: LexState
 

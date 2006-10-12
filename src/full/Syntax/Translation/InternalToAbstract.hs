@@ -1,4 +1,4 @@
-{-# OPTIONS -cpp -fglasgow-exts #-}
+{-# OPTIONS -cpp -fglasgow-exts -fallow-undecidable-instances #-}
 
 {-|
     Translating from internal syntax to abstract syntax. Enables nice
@@ -15,9 +15,9 @@ module Syntax.Translation.InternalToAbstract where
 
 import Control.Monad.State
 
-import Data.FunctorM
 import Data.Map as Map
 import Data.List as List
+import Data.Traversable
 
 import Syntax.Position
 import Syntax.Common
@@ -143,10 +143,10 @@ instance Reify i a => Reify (Abs i) (Name, a) where
 	    return (x,e)
 
 instance Reify i a => Reify (Arg i) (Arg a) where
-    reify = fmapM reify
+    reify = traverse reify
 
 instance Reify i a => Reify [i] [a] where
-    reify = fmapM reify
+    reify = traverse reify
 
 instance (Reify i1 a1, Reify i2 a2) => Reify (i1,i2) (a1,a2) where
     reify (x,y) = (,) <$> reify x <*> reify y

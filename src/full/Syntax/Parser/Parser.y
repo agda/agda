@@ -10,7 +10,7 @@ module Syntax.Parser.Parser (
 
 import Control.Monad
 import Data.List
-import Data.FunctorM
+import qualified Data.Traversable as T
 
 import Syntax.Position
 import Syntax.Parser.Monad
@@ -759,7 +759,7 @@ exprToLHS e = exprToPattern e
 	    case e of
 		Ident x			-> return $ IdentP x
 		App _ e1 e2		-> AppP <$> exprToPattern e1
-						<*> fmapM exprToPattern e2
+						<*> T.mapM exprToPattern e2
 		Paren r e		-> ParenP r
 						<$> exprToPattern e
 		Underscore r _		-> return $ WildP r

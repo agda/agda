@@ -34,6 +34,7 @@ import Data.Typeable
 
 import Control.Monad.State
 import Control.Monad.Error
+import Control.Applicative
 
 import Syntax.Position
 
@@ -109,6 +110,13 @@ instance Monad Parser where
 					    , errPrevToken  = parsePrevToken s
 					    , errMsg	    = msg
 					    }
+
+instance Functor Parser where
+    fmap = liftM
+
+instance Applicative Parser where
+    pure = return
+    (<*>) = ap
 
 instance MonadError ParseError Parser where
     throwError e	= P $ \_ -> ParseFailed e

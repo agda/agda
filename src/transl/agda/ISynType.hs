@@ -19,7 +19,7 @@ import Position(Position,noPosition)
 import MetaVars(MetaVar,Visibility)
 import CITrans(CITrans)
 import Util(apSnd)
-import Data.FiniteMap
+import Data.Map ( Map )
 import PluginType
 --import ClassEnv
 

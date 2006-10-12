@@ -5,8 +5,10 @@ module Syntax.Internal
     , module Syntax.Abstract.Name
     ) where
 
+import Control.Applicative
 import Data.Generics
-import Data.FunctorM
+import Data.Foldable
+import Data.Traversable
 
 import Syntax.Common
 import Syntax.Literal
@@ -52,8 +54,11 @@ data Blocked t = Blocked { blockingMeta :: MetaId
 instance Functor Blocked where
     fmap f (Blocked m t) = Blocked m $ f t
 
-instance FunctorM Blocked where
-    fmapM f (Blocked m t) = Blocked m <$> f t
+instance Foldable Blocked where
+    foldr f z (Blocked _ x) = f x z
+
+instance Traversable Blocked where
+    traverse f (Blocked m t) = Blocked m <$> f t
 
 -- | Type of argument lists.
 --                          
@@ -72,8 +77,11 @@ data Abs a = Abs { absName :: String
 instance Functor Abs where
     fmap f (Abs x t) = Abs x $ f t
 
-instance FunctorM Abs where 
-    fmapM f (Abs x t) = Abs x <$> f t
+instance Foldable Abs where
+    foldr f z (Abs _ t) = f t z
+
+instance Traversable Abs where 
+    traverse f (Abs x t) = Abs x <$> f t
 
 data Why   = Why	  deriving (Typeable, Data)
 

@@ -1,4 +1,4 @@
-{-# OPTIONS -cpp -fglasgow-exts -fallow-overlapping-instances #-}
+{-# OPTIONS -cpp -fglasgow-exts -fallow-overlapping-instances -fallow-undecidable-instances #-}
 
 {-| Translation from "Syntax.Concrete" to "Syntax.Abstract". Involves scope analysis,
     figuring out infix operator precedences and tidying up definitions.

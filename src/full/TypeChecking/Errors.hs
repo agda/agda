@@ -1,4 +1,4 @@
-{-# OPTIONS -cpp -fglasgow-exts #-}
+{-# OPTIONS -cpp -fglasgow-exts -fallow-undecidable-instances #-}
 module TypeChecking.Errors
     ( prettyError
     , PrettyTCM(..)

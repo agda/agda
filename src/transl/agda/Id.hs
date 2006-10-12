@@ -19,8 +19,8 @@ import Maybe(catMaybes)
 import Util(remDup)
 import List(sort)
 import Char(isAlpha)
-import Data.FiniteMap
---import AgdaIntMap (lookup,add)
+import Data.Map ( Map )
+import qualified Data.Map as Map
 
 data Id = Id Position FString
 
@@ -147,7 +147,7 @@ getFixity i =
     "$"   -> FInfixr 0
     ">>"  -> FInfixl 1
     ">>=" -> FInfixl 1
-    "×"   -> FInfixr 1
+    "\xd7"-> FInfixr 1	-- ×
     "||"  -> FInfixr 2
     "&&"  -> FInfixr 3
     "=="  -> FInfix  4
@@ -162,8 +162,8 @@ getFixity i =
     "-"   -> FInfixl 6
     "*"   -> FInfixl 7
     "/"   -> FInfixl 7
-    "·"   -> FInfixr 8
-    "°"   -> FInfixr 8
+    "\xb7"   -> FInfixr 8   -- ·
+    "\xb0"   -> FInfixr 8   -- °
     _     -> FInfixl 9
 
 
@@ -199,37 +199,37 @@ freshId' t xs s = let (t',fs) = hmkFString t s
                   in freshId t' xs (mkId noPosition fs)
 
 
-type SymTab = FiniteMap Id UId
+type SymTab = Map Id UId
 
-instance (PPrint a, PPrint b) => PPrint (FiniteMap a b) where
-  pPrint d p ls = pPrint d p (fmToList ls)
+instance (PPrint a, PPrint b) => PPrint (Map a b) where
+  pPrint d p ls = pPrint d p (Map.toList ls)
 
 -- instance PPrint SymTab where
 --     pPrint d p (SymTab ls) = pPrint d p ls
 
 addId :: Id -> UId -> SymTab -> SymTab
-addId x x' st = addToFM st x x'
+addId x x' st = Map.insert x x' st
 
 remId :: Id -> SymTab -> SymTab
-remId x st = delFromFM st x
+remId x st = Map.delete x st
 
 
 lookupST:: SymTab -> Id -> Maybe UId
-lookupST st n = lookupFM st n
+lookupST st n = Map.lookup n st
 
 initST :: SymTab
-initST =  emptyFM
+initST =  Map.empty
 
 
 domST :: SymTab -> [Id]
-domST = keysFM
+domST = Map.keys
 
 rangeST :: SymTab -> [UId]
-rangeST = eltsFM
+rangeST = Map.elems
 
 
 symTabToList :: SymTab -> [(Id,UId)]
-symTabToList = fmToList
+symTabToList = Map.toList
 
    
 

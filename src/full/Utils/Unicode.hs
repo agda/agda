@@ -9,11 +9,11 @@ module Utils.Unicode
     ) where
 
 import Data.Bits
-import Data.List as List
+import qualified Data.List as List
 import Data.IntSet as Set
 import Data.Char
 
-import Utils.Monad
+import Utils.Monad ( (<$>) )
 
 -- Unicode ----------------------------------------------------------------
 
@@ -80,7 +80,7 @@ fromUTF8 = List.map decode . chop
 	    where
 		(w,s') = splitAt len s
 		n = fromEnum c
-		len = case findIndex (not . testBit n) [7,6..0] of
+		len = case List.findIndex (not . testBit n) [7,6..0] of
 			Just 0	-> 1
 			Just 2	-> 2
 			Just 3	-> 3

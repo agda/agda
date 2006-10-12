@@ -1,4 +1,4 @@
-{-# OPTIONS -cpp -fglasgow-exts #-}
+{-# OPTIONS -cpp -fglasgow-exts -fallow-undecidable-instances #-}
 
 module Interaction.BasicOps where
 {- TODO: The operations in this module should return Expr and not String, 
@@ -6,19 +6,12 @@ module Interaction.BasicOps where
 -}
 
 
---import Prelude hiding (print, putStr, putStrLn)
---import Utils.IO
-
 import Control.Monad.Error
 import Control.Monad.Reader
---import Data.Char
---import Data.Set as Set
 import Data.Map as Map
 import Data.List as List
---import Data.Maybe
 
 import Interaction.Monad 
---import Text.PrettyPrint
 
 import qualified Syntax.Concrete as C -- ToDo: Remove with instance of ToConcrete
 import Syntax.Position
@@ -28,7 +21,6 @@ import Syntax.Info(ExprInfo(..),MetaInfo(..))
 import Syntax.Internal (MetaId(..),Type(..),Sort)
 import Syntax.Translation.InternalToAbstract
 import Syntax.Translation.AbstractToConcrete
---import Syntax.Parser
 import Syntax.Scope
 import Syntax.Fixity(Precedence(..))
 
@@ -39,11 +31,8 @@ import TypeChecking.MetaVars
 import TypeChecking.Reduce
 import TypeChecking.Substitute
 
---import Utils.ReadLine
 import Utils.Monad
 import Utils.Monad.Undo
-
---import Utils.Fresh
 
 #include "../undefined.h"
 

@@ -10,7 +10,7 @@ import Control.Monad.Error
 import Utils.Monad
 
 -- | An undo monad is a state monad with backtracking.
-class MonadState s m => MonadUndo s m | m -> s where
+class (Functor m, MonadState s m) => MonadUndo s m | m -> s where
     undo    :: m ()
     setUndo :: m ()
     getUndoStack :: m [s]
@@ -18,7 +18,7 @@ class MonadState s m => MonadUndo s m | m -> s where
 
 -- | The undo monad transformer turns any state monad into an undo monad.
 newtype UndoT s m a = UndoT { unUndoT :: StateT [s] m a }
-    deriving (Monad, MonadTrans, MonadIO)
+    deriving (Functor, Monad, MonadTrans, MonadIO)
 
 instance (MonadState s m, Monad m) => MonadUndo s (UndoT s m) where
     undo =

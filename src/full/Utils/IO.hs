@@ -1,10 +1,10 @@
 
 module Utils.IO where
 
-import qualified Prelude (print, putStr, putStrLn)
-import Prelude hiding (print, putStr, putStrLn)
+import qualified Prelude (print, putStr, putStrLn, writeFile, readFile)
+import Prelude hiding (print, putStr, putStrLn, writeFile, readFile)
 import Control.Monad
-import System.IO hiding (print, putStr, putStrLn)
+import System.IO hiding (print, putStr, putStrLn, writeFile, readFile)
 import Utils.Unicode
 
 print :: Show a => a -> IO ()
@@ -21,6 +21,12 @@ putErrLn = hPutStrLn stderr . toUTF8
 
 putErr :: String -> IO ()
 putErr = hPutStr stderr . toUTF8
+
+writeFile :: FilePath -> String -> IO ()
+writeFile file = Prelude.writeFile file . toUTF8
+
+readFile :: FilePath -> IO String
+readFile file = fmap fromUTF8 $ Prelude.readFile file
 
 readBinaryFile :: FilePath -> IO String
 readBinaryFile file = liftM fst $ readBinaryFile' file

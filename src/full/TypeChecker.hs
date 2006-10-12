@@ -10,7 +10,6 @@ import Control.Monad.Reader
 import Control.Monad.Error
 import qualified Data.Map as Map
 import qualified Data.List as List
-import Data.FunctorM
 import System.Directory
 import System.Time
 

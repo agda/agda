@@ -2,8 +2,10 @@
 
 module Utils.Map where
 
-import Prelude hiding (map, lookup)
+import Prelude hiding (map, lookup, mapM)
+import Control.Applicative
 import Data.Map
+import Data.Traversable
 import Utils.Monad
 
 #include "../undefined.h"
@@ -11,7 +13,7 @@ import Utils.Monad
 data EitherOrBoth a b = L a | B a b | R b
 
 -- | Not very efficient (goes via a list), but it'll do.
-unionWithM :: (Ord k, Monad m) => (a -> a -> m a) -> Map k a -> Map k a -> m (Map k a)
+unionWithM :: (Ord k, Functor m, Monad m) => (a -> a -> m a) -> Map k a -> Map k a -> m (Map k a)
 unionWithM f m1 m2 = fromList <$> mapM combine (toList m)
     where
 	m = unionWith both (map L m1) (map R m2)

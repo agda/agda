@@ -5,6 +5,10 @@
 module Syntax.Common where
 
 import Data.Generics (Typeable, Data)
+import Control.Applicative
+import Data.Foldable
+import Data.Traversable
+
 import Syntax.Position
 import Utils.Monad
 
@@ -18,8 +22,11 @@ data Arg e  = Arg { argHiding :: Hiding, unArg :: e }
 instance Functor Arg where
     fmap f (Arg h x) = Arg h $ f x
 
-instance FunctorM Arg where
-    fmapM f (Arg h x) = Arg h <$> f x
+instance Foldable Arg where
+    foldr f z (Arg _ x) = f x z
+
+instance Traversable Arg where
+    traverse f (Arg h x) = Arg h <$> f x
 
 instance HasRange a => HasRange (Arg a) where
     getRange = getRange . unArg
