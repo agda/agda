@@ -3,7 +3,7 @@ TOP = ..
 
 include $(TOP)/mk/paths.mk
 
-default : test polydep aim4-bag
+default : test polydep aim4-bag ac
 
 agda = $(FULL_OUT_DIR)/agda
 
