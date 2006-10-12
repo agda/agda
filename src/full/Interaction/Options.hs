@@ -51,6 +51,7 @@ data CommandLineOptions =
 	    , optShowImplicit	  :: Bool
 	    , optRunTests	  :: Bool
 	    , optCompile	  :: Bool
+	    , optGenerateVimFile  :: Bool
 	    }
     deriving Show
 
@@ -73,6 +74,7 @@ defaultOptions =
 	    , optShowImplicit	  = False
 	    , optRunTests	  = False
 	    , optCompile	  = False
+	    , optGenerateVimFile  = False
 	    }
 
 {- | @f :: Flag opts@  is an action on the option record that results from
@@ -91,6 +93,7 @@ helpFlag	     o = return $ o { optShowHelp	  = True }
 proofIrrelevanceFlag o = return $ o { optProofIrrelevance = True }
 showImplicitFlag     o = return $ o { optShowImplicit	  = True }
 runTestsFlag	     o = return $ o { optRunTests	  = True }
+vimFlag		     o = return $ o { optGenerateVimFile  = True }
 
 interactiveFlag o
     | optEmacsMode o = fail "cannot have both emacs mode and interactive mode"
@@ -128,6 +131,8 @@ standardOptions =
 		    "translate program into GHC (experimental)"
     , Option []	    ["test"] (NoArg runTestsFlag)
 		    "run internal test suite"
+    , Option []	    ["vim"] (NoArg vimFlag)
+		    "generate Vim highlighting files"
     ] ++ pragmaOptions
 
 pragmaOptions :: [OptDescr (Flag CommandLineOptions)]

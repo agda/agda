@@ -27,6 +27,7 @@ import TypeChecking.Primitive
 import TypeChecker
 
 import Interaction.Options
+import Interaction.Vim.Highlight
 
 import Utils.FileName
 import Utils.Monad
@@ -166,6 +167,10 @@ createInterface opts trace path visited file = runTCM $ withImportPath path $ do
 
     checkDecl m
     setScope scope
+
+    -- Generate Vim file
+    whenM (optGenerateVimFile <$> commandLineOptions) $
+	generateVimFile file
 
     -- check that metas have been solved
     ms <- getOpenMetas

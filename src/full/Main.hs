@@ -31,6 +31,7 @@ import Interaction.EmacsInterface.EmacsAgda
 import Interaction.Options
 import Interaction.Monad
 import Interaction.GhciTop ()	-- to make sure it compiles
+import Interaction.Vim.Highlight (generateVimFile)
 
 import TypeChecker
 import TypeChecking.Monad
@@ -78,12 +79,24 @@ runAgda =
 			resetState
 			when hasFile $
 			    do	file <- getInputFile
+
+				-- Parse
 				(pragmas, m) <- liftIO $ parseFile' moduleParser file
+
+				-- Scope check
 				pragmas	     <- concreteToAbstract_ pragmas -- identity for top-level pragmas
 				(m, scope)   <- concreteToAbstract_ m
 				setOptionsFromPragmas pragmas
+
+				-- Type check
 				checkDecl m
+
 				setScope scope
+
+				-- Generate Vim file
+				whenM (optGenerateVimFile <$> commandLineOptions) $
+				    generateVimFile file
+
 				-- Print stats
 				stats <- Map.toList <$> getStatistics
 				case stats of
