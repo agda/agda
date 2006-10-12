@@ -99,13 +99,7 @@ instance Instantiate Constraint where
     instantiate (SortLeq a b) = uncurry SortLeq <$> instantiate (a,b)
 
 instance (Ord k, Instantiate e) => Instantiate (Map k e) where
-    instantiate m =
-	do  let (ks,es) = unzip $ Map.toList m
-	    es <- instantiate es
-	    return $ Map.fromList $ zip ks es
-	-- Argh! No instance FunctorM (Map k).
-
-
+    instantiate = traverse instantiate
 
 
 --
@@ -232,11 +226,7 @@ instance Reduce Constraint where
     reduce (SortLeq a b) = uncurry SortLeq <$> reduce (a,b)
 
 instance (Ord k, Reduce e) => Reduce (Map k e) where
-    reduce m =
-	do  let (ks,es) = unzip $ Map.toList m
-	    es <- reduce es
-	    return $ Map.fromList $ zip ks es
-	-- Argh! No instance FunctorM (Map k).
+    reduce = traverse reduce
 
 
 ---------------------------------------------------------------------------
@@ -304,11 +294,8 @@ instance Normalise Constraint where
     normalise (SortLeq a b) = uncurry SortLeq <$> normalise (a,b)
 
 instance (Ord k, Normalise e) => Normalise (Map k e) where
-    normalise m =
-	do  let (ks,es) = unzip $ Map.toList m
-	    es <- normalise es
-	    return $ Map.fromList $ zip ks es
-	-- Argh! No instance FunctorM (Map k).
+    normalise = traverse normalise
+
 
 ---------------------------------------------------------------------------
 -- * Full instantiation
@@ -389,11 +376,7 @@ instance InstantiateFull Constraint where
     instantiateFull (SortLeq a b) = uncurry SortLeq <$> instantiateFull (a,b)
 
 instance (Ord k, InstantiateFull e) => InstantiateFull (Map k e) where
-    instantiateFull m =
-	do  let (ks,es) = unzip $ Map.toList m
-	    es <- instantiateFull es
-	    return $ Map.fromList $ zip ks es
-	-- Argh! No instance FunctorM (Map k).
+    instantiateFull = traverse instantiateFull
 
 instance InstantiateFull ModuleName where
     instantiateFull = return
