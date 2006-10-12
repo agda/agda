@@ -179,14 +179,14 @@ leqSort s1 s2 =
 				 | otherwise -> notLeq s1 s2
 	    (Suc s   , Type n  ) | 1 <= n    -> leqSort s (Type $ n - 1)
 				 | otherwise -> notLeq s1 s2
-	    (_	     , Suc _   )	     -> addConstraint (SortLeq s1 s2)
+	    (_	     , Suc _   )	     -> equalSort s1 s2 -- addConstraint (SortLeq s1 s2)
 
 	    (Lub a b , _       )	     -> leqSort a s2 >> leqSort b s2
-	    (_	     , Lub _ _ )	     -> addConstraint (SortLeq s1 s2)
+	    (_	     , Lub _ _ )	     -> equalSort s1 s2 -- addConstraint (SortLeq s1 s2)
 
 	    (MetaS x , MetaS y ) | x == y    -> return ()
-	    (MetaS x , _       )	     -> addConstraint (SortLeq s1 s2)
-	    (_	     , MetaS x )	     -> addConstraint (SortLeq s1 s2)
+	    (MetaS x , _       )	     -> equalSort s1 s2 -- addConstraint (SortLeq s1 s2)
+	    (_	     , MetaS x )	     -> equalSort s1 s2 -- addConstraint (SortLeq s1 s2)
     where
 	notLeq s1 s2 = typeError $ NotLeqSort s1 s2
 
