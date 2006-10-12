@@ -18,6 +18,19 @@ Features
 
 * unify primitive and {-# BUILTIN #-}
 
+* with-clauses
+
+* named implicit arguments: if
+    f : {...}{A:Set} -> ...
+  you can say
+    f {A = Nat}
+  instead of
+    f {_}...{Nat}
+
+  Should also work in patterns:
+
+    f {A = A} = .. A ..
+
 Fixes
 -----
 
