@@ -54,8 +54,8 @@ allCtxVars = do
 
 -- | The instantiation should not be 'Open' and the 'MetaId' should point to
 --   something 'Open'.
-setRef :: Data a => a -> MetaId -> MetaInstantiation -> TCM ()
-setRef _ x i =
+setRef :: MetaId -> MetaInstantiation -> TCM ()
+setRef x i =
     do	store <- getMetaStore
 	modify $ \st -> st { stMetaStore = ins x i store }
 	wakeupConstraints
@@ -165,7 +165,7 @@ occMeta meta inst red m ok m' vs
 		do  v1 <-  newMetaSame m' (\mi -> meta mi [])
 		    let tel = List.map (fmap $ const $ ("_", sort Prop)) vs
 				-- only hiding matters
-		    setRef Why m' $ inst $ abstract tel (v1 `apply` vs')
+		    setRef m' $ inst $ abstract tel (v1 `apply` vs')
 		    abortAssign -- setRef wakes up the constraints and solving them
 				-- might invalidate the current assignment, so we
 				-- abort.
@@ -227,7 +227,7 @@ assign x args = fail "assign" `mkQ` ass InstV `extQ` ass InstS where
 	    v'  <- occ x ids v
 	    let tel = List.map (fmap $ const ("_", sort Prop)) args
 		-- only hiding matters
-	    setRef Why x $ inst $ abstract tel v'
+	    setRef x $ inst $ abstract tel v'
 
 -- | Check that arguments to a metavar are in pattern fragment.
 --   Assumes all arguments already in whnf.

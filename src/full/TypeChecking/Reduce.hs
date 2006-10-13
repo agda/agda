@@ -94,9 +94,10 @@ instance Instantiate Constraint where
     instantiate (ValueEq t u v) =
 	do  (t,u,v) <- instantiate (t,u,v)
 	    return $ ValueEq t u v
-    instantiate (TypeEq a b)  = uncurry TypeEq <$> instantiate (a,b)
-    instantiate (SortEq a b)  = uncurry SortEq <$> instantiate (a,b)
-    instantiate (SortLeq a b) = uncurry SortLeq <$> instantiate (a,b)
+    instantiate (TypeEq a b)   = uncurry TypeEq <$> instantiate (a,b)
+    instantiate (SortEq a b)   = uncurry SortEq <$> instantiate (a,b)
+    instantiate (Guarded c cs) = uncurry Guarded <$> instantiate (c,cs)
+    instantiate (UnBlock m)    = return $ UnBlock m
 
 instance (Ord k, Instantiate e) => Instantiate (Map k e) where
     instantiate = traverse instantiate
@@ -221,9 +222,10 @@ instance Reduce Constraint where
     reduce (ValueEq t u v) =
 	do  (t,u,v) <- reduce (t,u,v)
 	    return $ ValueEq t u v
-    reduce (TypeEq a b)  = uncurry TypeEq <$> reduce (a,b)
-    reduce (SortEq a b)  = uncurry SortEq <$> reduce (a,b)
-    reduce (SortLeq a b) = uncurry SortLeq <$> reduce (a,b)
+    reduce (TypeEq a b)   = uncurry TypeEq <$> reduce (a,b)
+    reduce (SortEq a b)   = uncurry SortEq <$> reduce (a,b)
+    reduce (Guarded c cs) = uncurry Guarded <$> reduce (c,cs)
+    reduce (UnBlock m)	  = return $ UnBlock m
 
 instance (Ord k, Reduce e) => Reduce (Map k e) where
     reduce = traverse reduce
@@ -289,9 +291,10 @@ instance Normalise Constraint where
     normalise (ValueEq t u v) =
 	do  (t,u,v) <- normalise (t,u,v)
 	    return $ ValueEq t u v
-    normalise (TypeEq a b)  = uncurry TypeEq <$> normalise (a,b)
-    normalise (SortEq a b)  = uncurry SortEq <$> normalise (a,b)
-    normalise (SortLeq a b) = uncurry SortLeq <$> normalise (a,b)
+    normalise (TypeEq a b)   = uncurry TypeEq <$> normalise (a,b)
+    normalise (SortEq a b)   = uncurry SortEq <$> normalise (a,b)
+    normalise (Guarded c cs) = uncurry Guarded <$> normalise (c,cs)
+    normalise (UnBlock m)    = return $ UnBlock m
 
 instance (Ord k, Normalise e) => Normalise (Map k e) where
     normalise = traverse normalise
@@ -371,9 +374,10 @@ instance InstantiateFull Constraint where
     instantiateFull (ValueEq t u v) =
 	do  (t,u,v) <- instantiateFull (t,u,v)
 	    return $ ValueEq t u v
-    instantiateFull (TypeEq a b)  = uncurry TypeEq <$> instantiateFull (a,b)
-    instantiateFull (SortEq a b)  = uncurry SortEq <$> instantiateFull (a,b)
-    instantiateFull (SortLeq a b) = uncurry SortLeq <$> instantiateFull (a,b)
+    instantiateFull (TypeEq a b)   = uncurry TypeEq <$> instantiateFull (a,b)
+    instantiateFull (SortEq a b)   = uncurry SortEq <$> instantiateFull (a,b)
+    instantiateFull (Guarded c cs) = uncurry Guarded <$> instantiateFull (c,cs)
+    instantiateFull (UnBlock m)    = return $ UnBlock m
 
 instance (Ord k, InstantiateFull e) => InstantiateFull (Map k e) where
     instantiateFull = traverse instantiateFull

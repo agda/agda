@@ -46,21 +46,24 @@ prettyError err = liftM show $
 -- * Wrappers for pretty printing combinators
 ---------------------------------------------------------------------------
 
-pretty x       = return $ P.pretty x
-prettyA x      = return $ P.prettyA x
-text s	       = return $ P.text s
-empty	       = return P.empty :: TCM Doc
-pwords s       = map return $ P.pwords s
-fwords s       = return $ P.fwords s
-comma	       = return P.comma
-sep ds	       = P.sep <$> sequence ds
-fsep ds	       = P.fsep <$> sequence ds
-hsep ds	       = P.hsep <$> sequence ds
-vcat ds	       = P.vcat <$> sequence ds
-d1 $$ d2       = (P.$$) <$> d1 <*> d2
-d1 <> d2       = (P.<>) <$> d1 <*> d2
-d1 <+> d2      = (P.<+>) <$> d1 <*> d2
-nest n d       = P.nest n <$> d
+pretty x   = return $ P.pretty x
+prettyA x  = return $ P.prettyA x
+text s	   = return $ P.text s
+empty	   = return P.empty :: TCM Doc
+pwords s   = map return $ P.pwords s
+fwords s   = return $ P.fwords s
+comma	   = return P.comma
+sep ds	   = P.sep <$> sequence ds
+fsep ds    = P.fsep <$> sequence ds
+hsep ds    = P.hsep <$> sequence ds
+vcat ds    = P.vcat <$> sequence ds
+d1 $$ d2   = (P.$$) <$> d1 <*> d2
+d1 <> d2   = (P.<>) <$> d1 <*> d2
+d1 <+> d2  = (P.<+>) <$> d1 <*> d2
+nest n d   = P.nest n <$> d
+braces d   = P.braces <$> d
+brackets d = P.brackets <$> d
+parens d   = P.parens <$> d
 
 punctuate _ [] = []
 punctuate d ds = zipWith (<>) ds (replicate n d ++ [empty])
@@ -171,13 +174,18 @@ instance PrettyTCM Constraint where
 	    sep [ prettyTCM a
 		, text "==" <+> prettyTCM b
 		]
-	SortLeq s1 s2 ->
-	    sep [ prettyTCM s1
-		, text "<=" <+> prettyTCM s2
-		]
 	SortEq s1 s2 ->
 	    sep [ prettyTCM s1
 		, text "==" <+> prettyTCM s2
+		]
+	Guarded c cs ->
+	    sep [ prettyTCM c
+		, nest 2 $ brackets $ sep $ punctuate comma $ map prettyTCM cs
+		]
+	UnBlock m   -> do
+	    BlockedConst t <- mvInstantiation <$> lookupMeta m
+	    sep [ text (show m) <+> text ":="
+		, nest 2 $ prettyTCM t
 		]
 
 

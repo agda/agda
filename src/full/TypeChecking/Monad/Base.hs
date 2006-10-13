@@ -135,8 +135,9 @@ type ConstraintClosure = Closure Constraint
 
 data Constraint = ValueEq Type Term Term
 		| TypeEq Type Type
-		| SortLeq Sort Sort
 		| SortEq Sort Sort
+		| UnBlock MetaId
+		| Guarded Constraint [Constraint]
   deriving (Typeable, Data)
 
 type Constraints = Map ConstraintId ConstraintClosure
@@ -186,6 +187,7 @@ data MetaInstantiation
 	= InstV Term
 	| InstS Sort
 	| Open
+	| BlockedConst Term
     deriving (Typeable, Data)
 
 -- | TODO: Not so nice.

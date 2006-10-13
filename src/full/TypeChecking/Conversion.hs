@@ -36,7 +36,7 @@ equalSameVar meta inst x args1 args2 =
         v <- newMetaSame x meta
 	let tel = map (fmap $ const ("_", sort Prop)) args1
 		-- only hiding matters
-        setRef Why x $ inst $ abstract tel (v `apply` newArgs)
+        setRef x $ inst $ abstract tel (v `apply` newArgs)
     else fail $ "equalSameVar"
     where
 	Arg _ (Var i []) === Arg _ (Var j []) = i == j
@@ -165,7 +165,7 @@ leqType ty1@(El s1 a1) ty2@(El s2 a2) = do
 -- | Check that the first sort is less or equal to the second.
 leqSort :: Sort -> Sort -> TCM ()
 leqSort s1 s2 =
-    catchConstraint (SortLeq s1 s2) $
+    catchConstraint (SortEq s1 s2) $
     do	(s1,s2) <- reduce (s1,s2)
 -- 	debug $ "leqSort " ++ show s1 ++ " <= " ++ show s2
 	case (s1,s2) of
@@ -179,14 +179,14 @@ leqSort s1 s2 =
 				 | otherwise -> notLeq s1 s2
 	    (Suc s   , Type n  ) | 1 <= n    -> leqSort s (Type $ n - 1)
 				 | otherwise -> notLeq s1 s2
-	    (_	     , Suc _   )	     -> equalSort s1 s2 -- addConstraint (SortLeq s1 s2)
+	    (_	     , Suc _   )	     -> equalSort s1 s2
 
 	    (Lub a b , _       )	     -> leqSort a s2 >> leqSort b s2
-	    (_	     , Lub _ _ )	     -> equalSort s1 s2 -- addConstraint (SortLeq s1 s2)
+	    (_	     , Lub _ _ )	     -> equalSort s1 s2
 
 	    (MetaS x , MetaS y ) | x == y    -> return ()
-	    (MetaS x , _       )	     -> equalSort s1 s2 -- addConstraint (SortLeq s1 s2)
-	    (_	     , MetaS x )	     -> equalSort s1 s2 -- addConstraint (SortLeq s1 s2)
+	    (MetaS x , _       )	     -> equalSort s1 s2
+	    (_	     , MetaS x )	     -> equalSort s1 s2
     where
 	notLeq s1 s2 = typeError $ NotLeqSort s1 s2
 
