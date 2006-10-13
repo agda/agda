@@ -35,16 +35,15 @@ catchConstraint c v =
 addConstraint :: Constraint -> TCM ()
 addConstraint c =
     do	cl <- buildClosure c
-	cId <- fresh
 	modify $ \st ->
-	    st { stConstraints = Map.insert cId cl $ stConstraints st }
+	    st { stConstraints = cl : stConstraints st }
 
 -- | We ignore the constraint ids and (as in Agda) retry all constraints every time.
 --   We probably generate very few constraints.
 wakeupConstraints :: TCM ()
 wakeupConstraints =
     do	cs <- takeConstraints
-	mapM_ (withConstraint retry) $ Map.elems cs
+	mapM_ (withConstraint retry) cs
   where
     retry (ValueEq a u v)  = equalVal a u v
     retry (TypeEq a b)	   = equalTyp a b

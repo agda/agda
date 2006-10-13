@@ -244,7 +244,7 @@ loadFile _ _ = liftIO $ putStrLn ":load file"
 showConstraints :: [String] -> IM ()
 showConstraints [c] =
     do	i  <- readM c
-	cc <- abstractToConcrete_ <$>  BasicOps.getConstraint (CId i)
+	cc <- abstractToConcrete_ <$>  BasicOps.getConstraint i
 	liftIO $ putStrLn $ infoCommand constraintBuffer $ show cc
 showConstraints [] =
     do	cs <- BasicOps.getConstraints

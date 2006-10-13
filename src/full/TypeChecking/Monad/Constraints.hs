@@ -14,18 +14,17 @@ import TypeChecking.Monad.Closure
 getConstraints :: TCM Constraints
 getConstraints = gets stConstraints
 
-lookupConstraint :: ConstraintId -> TCM ConstraintClosure
+lookupConstraint :: Int -> TCM ConstraintClosure
 lookupConstraint i =
     do	cs <- getConstraints
-	case Map.lookup i cs of
-	    Just c  -> return c
-	    _	    -> fail $ "no such constraint: " ++ show i
+	unless (i < length cs) $ fail $ "no such constraint: " ++ show i
+	return $ cs !! i
 
 -- | Take constraints (clear all constraints).
 takeConstraints :: TCM Constraints
 takeConstraints =
     do	cs <- getConstraints
-	modify $ \s -> s { stConstraints = Map.empty }
+	modify $ \s -> s { stConstraints = [] }
 	return cs
 
 withConstraint :: (Constraint -> TCM a) -> ConstraintClosure -> TCM a

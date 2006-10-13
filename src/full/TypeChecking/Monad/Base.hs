@@ -52,16 +52,15 @@ data FreshThings =
 	Fresh { fMeta	     :: MetaId
 	      , fInteraction :: InteractionId
 	      , fName	     :: NameId
-	      , fConstraint  :: ConstraintId
 	      }
     deriving (Show)
 
 initState :: TCState
 initState =
-    TCSt { stFreshThings       = Fresh 0 0 0 0
+    TCSt { stFreshThings       = Fresh 0 0 0
 	 , stMetaStore	       = Map.empty
 	 , stInteractionPoints = Map.empty
-	 , stConstraints       = Map.empty
+	 , stConstraints       = []
 	 , stSignature	       = Map.empty
 	 , stImports	       = Map.empty
 	 , stImportedModules   = []
@@ -87,11 +86,6 @@ instance HasFresh NameId FreshThings where
     nextFresh s = (i, s { fName = i + 1 })
 	where
 	    i = fName s
-
-instance HasFresh ConstraintId FreshThings where
-    nextFresh s = (i, s { fConstraint = i + 1 })
-	where
-	    i = fConstraint s
 
 instance HasFresh i FreshThings => HasFresh i TCState where
     nextFresh s = (i, s { stFreshThings = f })
@@ -125,12 +119,6 @@ buildClosure x = do
 -- ** Constraints
 ---------------------------------------------------------------------------
 
-newtype ConstraintId = CId Nat
-    deriving (Eq, Ord, Num, Typeable, Data)
-
-instance Show ConstraintId where
-    show (CId x) = show x
-
 type ConstraintClosure = Closure Constraint
 
 data Constraint = ValueEq Type Term Term
@@ -140,7 +128,7 @@ data Constraint = ValueEq Type Term Term
 		| Guarded Constraint [Constraint]
   deriving (Typeable, Data)
 
-type Constraints = Map ConstraintId ConstraintClosure
+type Constraints = [ConstraintClosure]
 
 ---------------------------------------------------------------------------
 -- * Judgements

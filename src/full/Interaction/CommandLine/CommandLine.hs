@@ -127,7 +127,7 @@ loadFile _ _ = liftIO $ putStrLn ":load file"
 showConstraints :: [String] -> IM ()
 showConstraints [c] =
     do	i  <- readM c
-	cc <- normalise =<< lookupConstraint (CId i)
+	cc <- normalise =<< lookupConstraint i
 	d  <- prettyTCM $ clValue cc
 	liftIO $ print d
 showConstraints [] =

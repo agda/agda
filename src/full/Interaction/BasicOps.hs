@@ -227,7 +227,7 @@ mkUndo :: IM ()
 mkUndo = undo
 
 --- Printing Operations
-getConstraint :: ConstraintId -> IM (OutputForm Expr Expr)
+getConstraint :: Int -> IM (OutputForm Expr Expr)
 getConstraint ci = 
     do  cc <- lookupConstraint ci 
         cc <- reduce cc
@@ -236,9 +236,9 @@ getConstraint ci =
 
 getConstraints :: IM [OutputForm Expr Expr] 
 getConstraints = liftTCM $
-    do	cis <- Map.keys <$> M.getConstraints
-        mapM getConstraint cis
-
+    do	cs <- M.getConstraints
+	cs <- reduce cs
+	mapM (withConstraint reify) cs
 
 typeOfMetaMI :: Rewrite -> MetaId -> IM (OutputForm Expr MetaId)
 typeOfMetaMI norm mi = 
