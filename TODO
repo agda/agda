@@ -31,6 +31,8 @@ Features
 
     f {A = A} = .. A ..
 
+* allow import and open (and module instantiation?) before the top level module.
+
 Fixes
 -----
 
