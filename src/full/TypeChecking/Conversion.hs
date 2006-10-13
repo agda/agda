@@ -146,8 +146,7 @@ equalArg a args1 args2 = do
 equalTyp :: Type -> Type -> TCM ()
 equalTyp ty1@(El s1 a1) ty2@(El s2 a2) =
     catchConstraint (TypeEq ty1 ty2) $ do
-	leqSort s1 s2	-- TODO: hmm?
-	-- equalSort s1 s2
+	equalSort s1 s2
 	equalVal (sort s1) a1 a2
 
 leqType :: Type -> Type -> TCM ()
