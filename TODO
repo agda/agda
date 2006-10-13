@@ -114,6 +114,8 @@ Fixes
 
 * Allow modules to be called things like Prop and Set (?)
 
+* Move large parts of the Makefiles to mk/rules.mk (or something)
+
 Speculative
 -----------
 

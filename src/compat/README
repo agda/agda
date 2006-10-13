@@ -1,0 +1,11 @@
+
+src/compat
+
+This is where library modules needed to maintain compatibility with older
+versions of ghc live. When compiling with an older version this directory is
+added to the include path.
+
+At the moment the implementation thinks that it has access to the ghc-6.6
+libraries so parts of these are copied here to make compiling with version 6.4
+possible.
+
