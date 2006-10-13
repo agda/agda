@@ -206,28 +206,29 @@ handleAbort h m =
 --   First check that metavar args are in pattern fragment.
 --     Then do extended occurs check on given thing.
 --
-assignV :: Type -> MetaId -> Args -> Term -> TCM ()
+assignV :: Type -> MetaId -> Args -> Term -> TCM Constraints
 assignV t x args v =
     handleAbort (equalVal t (MetaV x args) v) $ assign x args v
 
-assignT :: MetaId -> Args -> Type -> TCM ()
+assignT :: MetaId -> Args -> Type -> TCM Constraints
 assignT x args ty@(El s v) =
     handleAbort (equalTyp (El s $ MetaV x args) ty) $ assign x args v
 
-assignS :: MetaId -> Sort -> TCM ()
+assignS :: MetaId -> Sort -> TCM Constraints
 assignS x s =
     handleAbort (equalSort (MetaS x) s) $ assign x [] s
 
 -- | TODO: don't export
-assign :: (Data a, Occurs a, Abstract a) => MetaId -> Args -> a -> TCM ()
+assign :: (Data a, Occurs a, Abstract a) => MetaId -> Args -> a -> TCM Constraints
 assign x args = fail "assign" `mkQ` ass InstV `extQ` ass InstS where
-    ass :: (Data a, Occurs a, Abstract a) => (a -> MetaInstantiation) -> a -> TCM ()
+    ass :: (Data a, Occurs a, Abstract a) => (a -> MetaInstantiation) -> a -> TCM Constraints
     ass inst v =
 	do  ids <- checkArgs x args
 	    v'  <- occ x ids v
 	    let tel = List.map (fmap $ const ("_", sort Prop)) args
 		-- only hiding matters
 	    setRef x $ inst $ abstract tel v'
+	    return []
 
 -- | Check that arguments to a metavar are in pattern fragment.
 --   Assumes all arguments already in whnf.
@@ -262,7 +263,8 @@ updateMeta mI t =
     do	mv <- lookupMeta mI
 	withMetaInfo (getMetaInfo mv) $
 	    do	args <- allCtxVars
-		upd mI args (mvJudgement mv) t
+		cs <- upd mI args (mvJudgement mv) t
+		unless (List.null cs) $ fail $ "failed to update meta " ++ show mI
     where
 	upd mI args j t = (__IMPOSSIBLE__ `mkQ` updV j `extQ` updT `extQ` updS) t
 	    where

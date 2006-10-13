@@ -2,6 +2,7 @@
 
 module TypeChecking.Conversion where
 
+import Control.Monad
 import Data.Generics
 
 import Syntax.Common
@@ -18,6 +19,7 @@ import TypeChecking.Monad.Debug
 
 #include "../undefined.h"
 
+{-
 -- | Equality of two instances of the same metavar
 --
 equalSameVar :: (Data a, Abstract a, Apply a) => 
@@ -41,11 +43,11 @@ equalSameVar meta inst x args1 args2 =
     where
 	Arg _ (Var i []) === Arg _ (Var j []) = i == j
 	_		 === _		      = False
-
+-}
 
 -- | Type directed equality on values.
 --
-equalVal :: Type -> Term -> Term -> TCM ()
+equalVal :: Type -> Term -> Term -> TCM Constraints
 equalVal a m n =
     catchConstraint (ValueEq a m n) $
     do	a' <- instantiate a
@@ -53,12 +55,12 @@ equalVal a m n =
 	proofIrr <- proofIrrelevance
 	s <- reduce $ getSort a'
 	case (proofIrr, s) of
-	    (True, Prop)    -> return ()
+	    (True, Prop)    -> return []
 	    _		    ->
 		case unEl a' of
 		    Pi a _    -> equalFun (a,a') m n
 		    Fun a _   -> equalFun (a,a') m n
-		    MetaV x _ -> addConstraint (ValueEq a m n)
+		    MetaV x _ -> buildConstraint (ValueEq a m n)
 		    Lam _ _   -> __IMPOSSIBLE__
 		    _	      -> equalAtm a' m n
     where
@@ -75,7 +77,7 @@ equalVal a m n =
 
 -- | Syntax directed equality on atomic values
 --
-equalAtm :: Type -> Term -> Term -> TCM ()
+equalAtm :: Type -> Term -> Term -> TCM Constraints
 equalAtm t m n =
     catchConstraint (ValueEq t m n) $
     do	(m, n) <- {-# SCC "equalAtm.reduce" #-} reduce (m, n)
@@ -85,7 +87,7 @@ equalAtm t m n =
 
 	    (Sort s1, Sort s2) -> equalSort s1 s2
 
-	    (Lit l1, Lit l2) | l1 == l2 -> return ()
+	    (Lit l1, Lit l2) | l1 == l2 -> return []
 	    (Var i iArgs, Var j jArgs) | i == j -> do
 		a <- typeOfBV i
 		equalArg a iArgs jArgs
@@ -97,21 +99,23 @@ equalAtm t m n =
 		    a <- defType <$> getConstInfo x
 		    equalArg a xArgs yArgs
 	    (MetaV x xArgs, MetaV y yArgs) | x == y ->
-		equalSameVar (\x -> MetaV x []) InstV x xArgs yArgs
+		buildConstraint (ValueEq t m n)
+		-- equalSameVar (\x -> MetaV x []) InstV x xArgs yArgs
 	    (MetaV x xArgs, _) -> assignV t x xArgs n
 	    (_, MetaV x xArgs) -> assignV t x xArgs m
-	    (BlockedV b, _)    -> addConstraint (ValueEq t m n)
-	    (_,BlockedV b)     -> addConstraint (ValueEq t m n)
+	    (BlockedV b, _)    -> buildConstraint (ValueEq t m n)
+	    (_,BlockedV b)     -> buildConstraint (ValueEq t m n)
 	    _		       -> typeError $ UnequalTerms m n t
     where
 	equalFun (FunV (Arg h1 a1) t1) (FunV (Arg h2 a2) t2)
 	    | h1 /= h2	= typeError $ UnequalHiding ty1 ty2
 	    | otherwise =
-		do  equalTyp a1 a2
+		do  cs  <- equalTyp a1 a2
 		    let (ty1',ty2') = raise 1 (ty1,ty2)
 			arg	  = Arg h1 (Var 0 [])
 		    name <- freshName_ (suggest t1 t2)
-		    addCtx name a1 $ equalTyp (piApply' ty1' [arg]) (piApply' ty2' [arg])
+		    cs' <- addCtx name a1 $ equalTyp (piApply' ty1' [arg]) (piApply' ty2' [arg])
+		    return $ cs ++ cs'
 	    where
 		ty1 = El (getSort a1) t1    -- TODO: wrong (but it doesn't matter)
 		ty2 = El (getSort a2) t2
@@ -128,28 +132,31 @@ equalAtm t m n =
 
 -- | Type-directed equality on argument lists
 --
-equalArg :: Type -> Args -> Args -> TCM ()
+equalArg :: Type -> Args -> Args -> TCM Constraints
 equalArg a args1 args2 = do
     a' <- reduce a
     case (unEl a', args1, args2) of 
-        (_, [], []) -> return ()
+        (_, [], []) -> return []
         (Pi (Arg _ b) (Abs _ c), (Arg _ arg1 : args1), (Arg _ arg2 : args2)) -> do
-            equalVal b arg1 arg2
-            equalArg (subst arg1 c) args1 args2
+            cs  <- equalVal b arg1 arg2
+            cs' <- equalArg (subst arg1 c) args1 args2
+	    return $ cs ++ cs'
         (Fun (Arg _ b) c, (Arg _ arg1 : args1), (Arg _ arg2 : args2)) -> do
-            equalVal b arg1 arg2
-            equalArg c args1 args2
+            cs  <- equalVal b arg1 arg2
+            cs' <- equalArg c args1 args2
+	    return $ cs ++ cs'
         _ -> __IMPOSSIBLE__
 
 
 -- | Equality on Types
-equalTyp :: Type -> Type -> TCM ()
+equalTyp :: Type -> Type -> TCM Constraints
 equalTyp ty1@(El s1 a1) ty2@(El s2 a2) =
     catchConstraint (TypeEq ty1 ty2) $ do
-	equalSort s1 s2
-	equalVal (sort s1) a1 a2
+	cs1 <- equalSort s1 s2
+	cs2 <- equalVal (sort s1) a1 a2
+	return $ cs1 ++ cs2
 
-leqType :: Type -> Type -> TCM ()
+leqType :: Type -> Type -> TCM Constraints
 leqType ty1@(El s1 a1) ty2@(El s2 a2) = do
      -- TODO: catchConstraint (?)
     (a1, a2) <- reduce (a1,a2)
@@ -163,62 +170,62 @@ leqType ty1@(El s1 a1) ty2@(El s2 a2) = do
 ---------------------------------------------------------------------------
 
 -- | Check that the first sort is less or equal to the second.
-leqSort :: Sort -> Sort -> TCM ()
+leqSort :: Sort -> Sort -> TCM Constraints
 leqSort s1 s2 =
     catchConstraint (SortEq s1 s2) $
     do	(s1,s2) <- reduce (s1,s2)
 -- 	debug $ "leqSort " ++ show s1 ++ " <= " ++ show s2
 	case (s1,s2) of
 
-	    (Prop    , Prop    )	     -> return ()
+	    (Prop    , Prop    )	     -> return []
 	    (Type _  , Prop    )	     -> notLeq s1 s2
 	    (Suc _   , Prop    )	     -> notLeq s1 s2
 
-	    (Prop    , Type _  )	     -> return ()
-	    (Type n  , Type m  ) | n <= m    -> return ()
+	    (Prop    , Type _  )	     -> return []
+	    (Type n  , Type m  ) | n <= m    -> return []
 				 | otherwise -> notLeq s1 s2
 	    (Suc s   , Type n  ) | 1 <= n    -> leqSort s (Type $ n - 1)
 				 | otherwise -> notLeq s1 s2
 	    (_	     , Suc _   )	     -> equalSort s1 s2
 
-	    (Lub a b , _       )	     -> leqSort a s2 >> leqSort b s2
+	    (Lub a b , _       )	     -> liftM2 (++) (leqSort a s2) (leqSort b s2)
 	    (_	     , Lub _ _ )	     -> equalSort s1 s2
 
-	    (MetaS x , MetaS y ) | x == y    -> return ()
+	    (MetaS x , MetaS y ) | x == y    -> return []
 	    (MetaS x , _       )	     -> equalSort s1 s2
 	    (_	     , MetaS x )	     -> equalSort s1 s2
     where
 	notLeq s1 s2 = typeError $ NotLeqSort s1 s2
 
 -- | Check that the first sort equal to the second.
-equalSort :: Sort -> Sort -> TCM ()
+equalSort :: Sort -> Sort -> TCM Constraints
 equalSort s1 s2 =
     catchConstraint (SortEq s1 s2) $
     do	(s1,s2) <- reduce (s1,s2)
 -- 	debug $ "equalSort " ++ show s1 ++ " == " ++ show s2
 	case (s1,s2) of
 
-	    (Prop    , Prop    )	     -> return ()
+	    (Prop    , Prop    )	     -> return []
 	    (Type _  , Prop    )	     -> notEq s1 s2
 	    (Prop    , Type _  )	     -> notEq s1 s2
 
-	    (Type n  , Type m  ) | n == m    -> return ()
+	    (Type n  , Type m  ) | n == m    -> return []
 				 | otherwise -> notEq s1 s2
 	    (Suc s   , Prop    )	     -> notEq s1 s2
 	    (Suc s   , Type 0  )	     -> notEq s1 s2
-	    (Suc s   , Type 1  )	     -> addConstraint (SortEq s1 s2)
+	    (Suc s   , Type 1  )	     -> buildConstraint (SortEq s1 s2)
 	    (Suc s   , Type n  )	     -> equalSort s (Type $ n - 1)
 	    (Prop    , Suc s   )	     -> notEq s1 s2
 	    (Type 0  , Suc s   )	     -> notEq s1 s2
-	    (Type 1  , Suc s   )	     -> addConstraint (SortEq s1 s2)
+	    (Type 1  , Suc s   )	     -> buildConstraint (SortEq s1 s2)
 	    (Type n  , Suc s   )	     -> equalSort (Type $ n - 1) s
-	    (_	     , Suc _   )	     -> addConstraint (SortEq s1 s2)
-	    (Suc _   , _       )	     -> addConstraint (SortEq s1 s2)
+	    (_	     , Suc _   )	     -> buildConstraint (SortEq s1 s2)
+	    (Suc _   , _       )	     -> buildConstraint (SortEq s1 s2)
 
-	    (Lub _ _ , _       )	     -> addConstraint (SortEq s1 s2)
-	    (_	     , Lub _ _ )	     -> addConstraint (SortEq s1 s2)
+	    (Lub _ _ , _       )	     -> buildConstraint (SortEq s1 s2)
+	    (_	     , Lub _ _ )	     -> buildConstraint (SortEq s1 s2)
 
-	    (MetaS x , MetaS y ) | x == y    -> return ()
+	    (MetaS x , MetaS y ) | x == y    -> return []
 				 | otherwise -> assignS x s2
 	    (MetaS x , Type _  )	     -> assignS x s2
 	    (MetaS x , Prop    )	     -> assignS x s2

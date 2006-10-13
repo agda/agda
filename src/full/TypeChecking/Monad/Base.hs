@@ -125,8 +125,8 @@ data Constraint = ValueEq Type Term Term
 		| TypeEq Type Type
 		| SortEq Sort Sort
 		| UnBlock MetaId
-		| Guarded Constraint [Constraint]
-  deriving (Typeable, Data)
+		| Guarded Constraint Constraints
+  deriving (Typeable)
 
 type Constraints = [ConstraintClosure]
 

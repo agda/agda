@@ -30,3 +30,13 @@ takeConstraints =
 withConstraint :: (Constraint -> TCM a) -> ConstraintClosure -> TCM a
 withConstraint = flip enterClosure
 
+-- | Add new constraints
+addConstraints :: Constraints -> TCM ()
+addConstraints cs = modify $ \st -> st { stConstraints = cs ++ stConstraints st }
+
+-- | Create a new constraint.
+buildConstraint :: Constraint -> TCM Constraints
+buildConstraint c = do
+    cl <- buildClosure c
+    return [cl]
+
