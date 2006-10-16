@@ -282,7 +282,7 @@ data Call = CheckClause Type A.Clause (Maybe Clause)
 	  | IsType_ A.Expr (Maybe Type)
 	  | InferVar Name (Maybe (Term, Type))
 	  | InferDef Range QName (Maybe (Term, Type))
-	  | CheckArguments Range [Arg A.Expr] Type Type (Maybe Args)
+	  | CheckArguments Range [Arg A.Expr] Type Type (Maybe (Args, Type))
 	  | CheckDataDef Range Name [A.LamBinding] [A.Constructor] (Maybe ())
 	  | CheckConstructor QName Telescope Sort A.Constructor (Maybe ())
 	  | CheckFunDef Range Name [A.Clause] (Maybe ())
@@ -431,6 +431,7 @@ data TypeError
 	| LocalVsImportedModuleClash ModuleName
 	| UnsolvedMetasInImport [Range]
 	| UnsolvedMetas [Range]
+	| UnsolvedConstraints Constraints
 	| CyclicModuleDependency [ModuleName]
 	| FileNotFound ModuleName [FilePath]
 	| ClashingFileNamesFor ModuleName [FilePath]

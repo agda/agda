@@ -127,6 +127,11 @@ instance Abstract ClauseBody where
 instance Abstract t => Abstract [t] where
     abstract tel = map (abstract tel)
 
+abstractArgs :: Abstract a => Args -> a -> a
+abstractArgs args x = abstract tel x
+    where
+	tel = map (fmap $ const $ ("_", sort Prop)) args
+
 -- | Substitute a term for the nth free variable.
 --
 class Subst t where

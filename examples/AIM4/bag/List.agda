@@ -33,8 +33,8 @@ module List where
   memberPreservesEq     xy nil       abs         = abs
   memberPreservesEq {a} xy (z :: zs) (left xz)   =
     left  (dTrans a (dSym a xy) xz)
-  memberPreservesEq     xy (z :: zs) (right xzs) =
-    right (memberPreservesEq xy zs xzs)
+  memberPreservesEq {a} xy (z :: zs) (right xzs) =
+    right (memberPreservesEq {a} xy zs xzs)
 
   private
     noCopies' : (a : Datoid) -> (x, y : El a) -> Either (datoidRel a x y) _

@@ -125,6 +125,7 @@ errorString err = case err of
     LocalVsImportedModuleClash _	       -> "LocalVsImportedModuleClash"
     UnsolvedMetasInImport _		       -> "UnsolvedMetasInImport"
     UnsolvedMetas _			       -> "UnsolvedMetas"
+    UnsolvedConstraints _		       -> "UnsolvedConstraints"
     CyclicModuleDependency _		       -> "CyclicModuleDependency"
     FileNotFound _ _			       -> "FileNotFound"
     ClashingFileNamesFor _ _		       -> "ClashingFileNamesFor"
@@ -294,6 +295,9 @@ instance PrettyTCM TypeError where
 	    UnsolvedMetasInImport rs ->
 		fsep ( pwords "There were unsolved metas in an imported module at the following locations:" )
 		$$ nest 2 (vcat $ map (text . show) rs)
+	    UnsolvedConstraints cs ->
+		fsep ( pwords "Failed to solve the following constraints:" )
+		$$ nest 2 (vcat $ map prettyTCM cs)
 	    CyclicModuleDependency ms ->
 		fsep (pwords "cyclic module dependency:")
 		$$ nest 2 (vcat $ map (text . show) ms)

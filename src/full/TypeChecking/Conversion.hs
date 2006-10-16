@@ -146,7 +146,8 @@ equalArg a args1 args2 = do
             cs  <- equalVal b arg1 arg2
             cs' <- equalArg c args1 args2
 	    return $ cs ++ cs'
-        _ -> __IMPOSSIBLE__
+        _ -> patternViolation	-- TODO: not the best idea?
+	-- __IMPOSSIBLE__
 
 
 -- | Equality on Types

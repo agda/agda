@@ -118,6 +118,9 @@ Cleaning
 
 * Syntax.Scope
 
+* Split vim highlighting into a general highlighting module and the vim
+  specific parts.
+
 Performance
 -----------
 

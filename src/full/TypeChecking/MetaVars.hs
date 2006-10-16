@@ -52,6 +52,16 @@ allCtxVars = do
     ctx <- asks envContext
     return $ reverse $ List.map (\i -> Arg NotHidden $ Var i []) $ [0 .. length ctx - 1]
 
+-- | Check whether a meta variable is a place holder for a blocked term.
+isBlockedTerm :: MetaId -> TCM Bool
+isBlockedTerm x = do
+    i <- mvInstantiation <$> lookupMeta x
+    return $ case i of
+	BlockedConst _	-> True
+	InstV _		-> False
+	InstS _		-> False
+	Open		-> False
+
 -- | The instantiation should not be 'Open' and the 'MetaId' should point to
 --   something 'Open'.
 setRef :: MetaId -> MetaInstantiation -> TCM ()
@@ -97,6 +107,26 @@ newQuestionMark t =
 	ii	      <- fresh
 	addInteractionPoint ii x
 	return m
+
+-- | Construct a blocked constant if there are constraints.
+blockTerm :: Type -> Term -> TCM Constraints -> TCM Term
+blockTerm t v m = do
+    cs <- solveConstraints =<< m
+    if List.null cs
+	then return v
+	else do
+	    i  <- createMetaInfo
+	    vs <- allCtxVars
+	    x  <- newMeta i (HasType () t)
+	    store <- getMetaStore
+	    modify $ \st -> st { stMetaStore = ins x (BlockedConst $ abstractArgs vs v) store }
+	    c <- buildConstraint (Guarded (UnBlock x) cs)
+	    addConstraints c
+	    return $ MetaV x vs
+  where
+    ins x i store = Map.adjust (inst i) x store
+    inst i mv = mv { mvInstantiation = i }
+
 
 -- | Generate new metavar of same kind ('Open'X) as that
 --     pointed to by @MetaId@ arg.
@@ -163,12 +193,11 @@ occMeta meta inst red m ok m' vs
 		     Just vs' -> return vs'
 	    when (length vs' /= length vs) $
 		do  v1 <-  newMetaSame m' (\mi -> meta mi [])
-		    let tel = List.map (fmap $ const $ ("_", sort Prop)) vs
-				-- only hiding matters
-		    setRef m' $ inst $ abstract tel (v1 `apply` vs')
-		    abortAssign -- setRef wakes up the constraints and solving them
-				-- might invalidate the current assignment, so we
-				-- abort.
+		    unlessM (isBlockedTerm m') $ do
+			setRef m' $ inst $ abstractArgs vs (v1 `apply` vs')
+			abortAssign -- setRef wakes up the constraints and solving them
+				    -- might invalidate the current assignment, so we
+				    -- abort.
 	    let vs0 = List.map rename vs
 	    return $ meta m' vs0
     where
@@ -225,9 +254,8 @@ assign x args = fail "assign" `mkQ` ass InstV `extQ` ass InstS where
     ass inst v =
 	do  ids <- checkArgs x args
 	    v'  <- occ x ids v
-	    let tel = List.map (fmap $ const ("_", sort Prop)) args
-		-- only hiding matters
-	    setRef x $ inst $ abstract tel v'
+	    unlessM (isBlockedTerm x) $
+		setRef x $ inst $ abstractArgs args v'
 	    return []
 
 -- | Check that arguments to a metavar are in pattern fragment.

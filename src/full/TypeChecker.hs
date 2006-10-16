@@ -85,7 +85,7 @@ checkPrimitive i x e =
     traceCall (CheckPrimitive (getRange i) x e) $ do
     PrimImpl t' pf <- lookupPrimitiveFunction (nameString x)
     t <- isType_ e
-    addNewConstraints =<< equalTyp t t'
+    noConstraints $ equalTyp t t'
     m <- currentModule
     let s = show x
     bindPrimitive s pf
@@ -327,7 +327,7 @@ forceData d (El s0 t) = do
 	MetaV m vs	    -> do
 	    Defn t _ (Datatype n _ s _) <- getConstInfo d
 	    ps <- newArgsMeta t
-	    addNewConstraints =<< equalTyp (El s0 t') (El s (Def d ps))
+	    noConstraints $ equalTyp (El s0 t') (El s (Def d ps)) -- TODO: too strict?
 	    reduce $ El s0 t'
 	_ -> typeError $ ShouldBeApplicationOf (El s0 t) d
 
@@ -434,9 +434,10 @@ checkPattern name p t ret =
 	    El _ (Def _ vs)		  <- forceData d t  -- because this guy won't be
 	    Con c' us			  <- reduce $ Con c $ map hide vs
 	    checkPatterns ps (piApply' t' vs) $ \ (xs, ps', ts', rest) -> do
-		let n = length xs
-		addNewConstraints =<< equalTyp rest (raise n t)
-		ret (xs, ConP c' ps', Con c' $ raise n us ++ ts')
+		let n  = length xs
+		    tn = raise n t
+		v  <- blockTerm tn (Con c' $ raise n us ++ ts') $ equalTyp rest tn
+		ret (xs, ConP c' ps', v)
 	    where
 		hide (Arg _ x) = Arg Hidden x
 	A.AbsurdP i -> do
@@ -451,33 +452,6 @@ checkPattern name p t ret =
 	    ret ([], LitP l, v)
 	A.DefP i f ps ->
 	    typeError $ NotImplemented "defined patterns"
-{-
-    t		    <- reduce t
-    Defn t' _ _	    <- getConstInfo f
-    (vs, dt)	    <- case t of
-	El (Def d vs) _	-> do
-	    Defn dt _ defn <- getConstInfo d
-	    case defn of
-		Datatype _ _ _ _ -> return ()
-		_		 -> fail $ "defined patterns must be of datatype, not " ++ show t
-	    return (vs,dt)
-	_ -> fail $ "defined patterns must be of datatype, not " ++ show t
-    t'' <- matchTel vs dt t'
-    checkPatterns ps t'' $ \xs vs rest -> do
-	let n = length xs
-	addNewConstraints =<< equalTyp rest (raise n t)
-	ret xs (Def f vs)
-    where
-	matchTel []	t0 t1 = return t1
-	matchTel (v:vs) t0 t1 = do
-	    (t0,t1) <- reduce (t0,t1)
-	    case (t0,t1) of
-		(Pi (Arg _ a0) b0, Pi (Arg Hidden a1) b1) -> do
-		    addNewConstraints =<< equalTyp a0 a1
-		    matchTel vs (piApply' t0 [v]) (piApply' t1 [v])
-		_   -> fail $ "a defined pattern must take the datatype parameters as hidden arguments " ++
-				show t1 ++ " should match the parameters in " ++ show t0
--}
 
 
 -- | Make sure that a type is empty. TODO: Move.
@@ -547,7 +521,7 @@ forcePi h (El s t) =
 		b <- addCtx x a $ newTypeMeta sb
 
 		let ty = El s' $ Pi (Arg h a) (Abs (show x) b)
-		addNewConstraints =<< equalTyp (El s t') ty
+		addNewConstraints =<< equalTyp (El s t') ty	-- TODO: what to do here?
 		reduce ty
 	    _ -> typeError $ ShouldBePi (El s t')
 
@@ -597,9 +571,9 @@ checkExpr e t =
 
 	-- Variable or constant application
 	_   | Application hd args <- appView e -> do
-		(v,t0) <- inferHead hd
-		vs     <- checkArguments (getRange hd) args t0 t
-		return $ v `apply` vs
+		(v,  t0) <- inferHead hd
+		(vs, t1) <- checkArguments (getRange hd) args t0 t
+		blockTerm t (apply v vs) $ equalTyp t1 t
 
 	-- Insert hidden lambda if appropriate
 	_   | not (hiddenLambda e)
@@ -616,14 +590,14 @@ checkExpr e t =
 		hiddenLambda _							     = False
 
 	A.App i e arg -> do
-	    (v0,t0) <- inferExpr e
-	    [v1]    <- checkArguments (getRange e) [arg] t0 t
-	    return $ v0 `apply` [v1]
+	    (v0, t0) <- inferExpr e
+	    (vs, t1) <- checkArguments (getRange e) [arg] t0 t
+	    blockTerm t (apply v0 vs) $ equalTyp t1 t
 
 	A.Lam i (A.DomainFull b) e ->
 	    checkTypedBindings b $ \tel -> do
 	    t1 <- newTypeMeta_
-	    escapeContext (length tel) $ addNewConstraints =<< equalTyp t (telePi tel t1)
+	    escapeContext (length tel) $ addNewConstraints =<< equalTyp t (telePi tel t1)   -- TODO: what to do here?
 	    v <- checkExpr e t1
 	    return $ buildLam (map name tel) v
 	    where
@@ -696,9 +670,9 @@ inferDef mkTerm i x =
 
 
 -- | Check a list of arguments: @checkArgs args t0 t1@ checks that
---   @t0 = Delta -> t1@ and @args : Delta@. Inserts hidden arguments to
---   make this happen.
-checkArguments :: Range -> [Arg A.Expr] -> Type -> Type -> TCM Args
+--   @t0 = Delta -> t0'@ and @args : Delta@. Inserts hidden arguments to
+--   make this happen. Returns @t0'@.
+checkArguments :: Range -> [Arg A.Expr] -> Type -> Type -> TCM (Args, Type)
 checkArguments r [] t0 t1 =
     traceCall (CheckArguments r [] t0 t1) $ do
 	t0' <- reduce t0
@@ -707,11 +681,9 @@ checkArguments r [] t0 t1 =
 	    FunV (Arg Hidden a) _ | notHPi $ unEl t1'  -> do
 		v  <- newValueMeta a
 		let arg = Arg Hidden v
-		vs <- checkArguments r [] (piApply' t0' [arg]) t1'
-		return $ arg : vs
-	    _ -> do
-		addNewConstraints =<< leqType t0' t1'
-		return []
+		(vs, t0'') <- checkArguments r [] (piApply' t0' [arg]) t1'
+		return (arg : vs, t0'')
+	    _ -> return ([], t0')
     where
 	notHPi (Pi  (Arg Hidden _) _) = False
 	notHPi (Fun (Arg Hidden _) _) = False
@@ -724,14 +696,14 @@ checkArguments r args0@(Arg h e : args) t0 t1 =
 	    (NotHidden, FunV (Arg Hidden a) _) -> do
 		u  <- newValueMeta a
 		let arg = Arg Hidden u
-		us <- checkArguments r (Arg h e : args)
+		(us, t0'') <- checkArguments r (Arg h e : args)
 				       (piApply' t0' [arg]) t1
-		return $ arg : us
+		return (arg : us, t0'')
 	    (_, FunV (Arg h' a) _) | h == h' -> do
 		u  <- checkExpr e a
 		let arg = Arg h u
-		us <- checkArguments (fuseRange r e) args (piApply' t0' [arg]) t1
-		return $ arg : us
+		(us, t0'') <- checkArguments (fuseRange r e) args (piApply' t0' [arg]) t1
+		return (arg : us, t0'')
 	    (Hidden, FunV (Arg NotHidden _) _) ->
 		typeError $ WrongHidingInApplication t0'
 	    _ -> __IMPOSSIBLE__
@@ -740,7 +712,7 @@ checkArguments r args0@(Arg h e : args) t0 t1 =
 -- | Check that a list of arguments fits a telescope.
 checkArguments_ :: Range -> [Arg A.Expr] -> Telescope -> TCM Args
 checkArguments_ r args tel =
-    checkArguments r args (telePi tel $ sort Prop) (sort Prop)
+    fst <$> checkArguments r args (telePi tel $ sort Prop) (sort Prop)
 
 
 -- | Infer the type of an expression. Implemented by checking agains a meta
@@ -758,8 +730,8 @@ inferExpr e = do
 checkLiteral :: Literal -> Type -> TCM Term
 checkLiteral lit t = do
     t' <- litType lit
-    addNewConstraints =<< equalTyp t t'
-    return $ Lit lit
+    v  <- blockTerm t (Lit lit) $ equalTyp t t'
+    return v
     where
 	el t = El (Type 0) t
 	litType l = case l of

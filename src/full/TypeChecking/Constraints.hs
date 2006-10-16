@@ -33,31 +33,41 @@ catchConstraint c v =
 addNewConstraints :: Constraints -> TCM ()
 addNewConstraints cs = do addConstraints cs; wakeupConstraints
 
+-- | Don't allow the argument to produce any constraints.
+noConstraints :: TCM Constraints -> TCM ()
+noConstraints m = do
+    cs <- solveConstraints =<< m
+    unless (List.null cs) $ typeError $ UnsolvedConstraints cs
+    return ()
+
 -- | We ignore the constraint ids and (as in Agda) retry all constraints every time.
 --   We probably generate very few constraints.
 wakeupConstraints :: TCM ()
 wakeupConstraints = do
-    n  <- length <$> getInstantiatedMetas
     cs <- takeConstraints
-    cs <- retryCs cs
+    cs <- solveConstraints cs
     addConstraints cs
-    n' <- length <$> getInstantiatedMetas
-    when (n' > n) wakeupConstraints	-- Go again if we made progress
-  where
-    retryCs :: Constraints -> TCM Constraints
-    retryCs cs = concat <$> mapM (withConstraint retry) cs
 
-    retry :: Constraint -> TCM Constraints
-    retry (ValueEq a u v)  = equalVal a u v
-    retry (TypeEq a b)	   = equalTyp a b
-    retry (SortEq s1 s2)   = equalSort s1 s2
-    retry (Guarded c cs)   = do
-	cs <- retryCs cs
-	case cs of
-	    []	-> retry c
-	    _	-> buildConstraint $ Guarded c cs
-    retry (UnBlock m)	   = do
-	BlockedConst t <- mvInstantiation <$> lookupMeta m
-	setRef m $ InstV t
-	return []
+solveConstraints :: Constraints -> TCM Constraints
+solveConstraints cs = do
+    n  <- length <$> getInstantiatedMetas
+    cs <- concat <$> mapM (withConstraint solveConstraint) cs
+    n' <- length <$> getInstantiatedMetas
+    if (n' > n)
+	then solveConstraints cs -- Go again if we made progress
+	else return cs
+
+solveConstraint :: Constraint -> TCM Constraints
+solveConstraint (ValueEq a u v) = equalVal a u v
+solveConstraint (TypeEq a b)	= equalTyp a b
+solveConstraint (SortEq s1 s2)	= equalSort s1 s2
+solveConstraint (Guarded c cs)	= do
+    cs <- solveConstraints cs
+    case cs of
+	[] -> solveConstraint c
+	_  -> buildConstraint $ Guarded c cs
+solveConstraint (UnBlock m)	   = do
+    BlockedConst t <- mvInstantiation <$> lookupMeta m
+    setRef m $ InstV t
+    return []
 
