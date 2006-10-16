@@ -19,6 +19,7 @@ import TypeChecking.Monad.Context
 import TypeChecking.Reduce
 import TypeChecking.Substitute
 import TypeChecking.Constraints
+import TypeChecking.Errors
 
 #ifndef __HADDOCK__
 import {-# SOURCE #-} TypeChecking.Conversion
@@ -55,12 +56,15 @@ allCtxVars = do
 -- | Check whether a meta variable is a place holder for a blocked term.
 isBlockedTerm :: MetaId -> TCM Bool
 isBlockedTerm x = do
+    report 12 $ "is " ++ show x ++ " a blocked term? "
     i <- mvInstantiation <$> lookupMeta x
-    return $ case i of
-	BlockedConst _	-> True
-	InstV _		-> False
-	InstS _		-> False
-	Open		-> False
+    let r = case i of
+	    BlockedConst _	-> True
+	    InstV _		-> False
+	    InstS _		-> False
+	    Open		-> False
+    reportLn 12 $ if r then "yes" else "no"
+    return r
 
 -- | The instantiation should not be 'Open' and the 'MetaId' should point to
 --   something 'Open'.
@@ -237,7 +241,16 @@ handleAbort h m =
 --
 assignV :: Type -> MetaId -> Args -> Term -> TCM Constraints
 assignV t x args v =
-    handleAbort (equalVal t (MetaV x args) v) $ assign x args v
+    handleAbort handler $ do
+	verbose 10 $ do
+	    d1 <- prettyTCM (MetaV x args)
+	    d2 <- prettyTCM v
+	    debug $ show d1 ++ " := " ++ show d2
+	assign x args v
+    where
+	handler = do
+	    reportLn 10 $ "Oops. Undo " ++ show x ++ " := ..."
+	    equalVal t (MetaV x args) v
 
 assignT :: MetaId -> Args -> Type -> TCM Constraints
 assignT x args ty@(El s v) =
@@ -254,8 +267,8 @@ assign x args = fail "assign" `mkQ` ass InstV `extQ` ass InstS where
     ass inst v =
 	do  ids <- checkArgs x args
 	    v'  <- occ x ids v
-	    unlessM (isBlockedTerm x) $
-		setRef x $ inst $ abstractArgs args v'
+	    whenM (isBlockedTerm x) patternViolation	-- not so nice
+	    setRef x $ inst $ abstractArgs args v'
 	    return []
 
 -- | Check that arguments to a metavar are in pattern fragment.

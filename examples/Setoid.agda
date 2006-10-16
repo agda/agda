@@ -157,7 +157,7 @@ module Fun where
 	  {y,y' : El B} -> eq B y y' -> eq C (f x y) (f x' y')
 	 ) -> El (A ==> B ==> C)
   lam2 {A} f h = lam (\x -> lam (\y -> f x y)
-				(\y -> h{_}{x} EqA.refl y)) -- TODO: bug when inferring x
+				(\y -> h EqA.refl y))
 		     (\x -> eqFunI (\y -> h x y))
     where
       module EqA = Equality A
@@ -170,7 +170,7 @@ module Fun where
 	 ) -> El (A ==> B ==> C ==> D)
   lam3 {A} f h =
     lam (\x -> lam2 (\y z -> f x y z)
-		    (\y z -> h {_}{x} EqA.refl y z))  -- TODO: bug when inferring x
+		    (\y z -> h EqA.refl y z))
 	(\x -> eqFunI (\y -> eqFunI (\z -> h x y z)))
     where
       module EqA = Equality A

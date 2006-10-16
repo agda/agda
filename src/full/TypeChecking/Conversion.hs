@@ -82,6 +82,11 @@ equalAtm :: Type -> Term -> Term -> TCM Constraints
 equalAtm t m n =
     catchConstraint (ValueEq t m n) $
     do	(m, n) <- {-# SCC "equalAtm.reduce" #-} reduce (m, n)
+	verbose 10 $ do
+	    dm <- prettyTCM m
+	    dn <- prettyTCM n
+	    dt <- prettyTCM t
+	    debug $ show dm ++ " == " ++ show dn ++ " : " ++ show dt
 	case (m, n) of
 	    _ | f1@(FunV _ _) <- funView m
 	      , f2@(FunV _ _) <- funView n -> equalFun f1 f2
@@ -154,8 +159,15 @@ equalArg a args1 args2 = do
 equalTyp :: Type -> Type -> TCM Constraints
 equalTyp ty1@(El s1 a1) ty2@(El s2 a2) =
     catchConstraint (TypeEq ty1 ty2) $ do
+	verbose 5 $ do
+	    d1 <- prettyTCM ty1
+	    d2 <- prettyTCM ty2
+	    debug $ show d1 ++ " == " ++ show d2
 	cs1 <- equalSort s1 s2
 	cs2 <- equalVal (sort s1) a1 a2
+	verbose 5 $ do
+	    dcs <- mapM prettyTCM $ cs1 ++ cs2
+	    debug $ "   --> " ++ show dcs
 	return $ cs1 ++ cs2
 
 leqType :: Type -> Type -> TCM Constraints

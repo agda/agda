@@ -157,6 +157,7 @@ showMetas [] =
 	metaId (OfType i _) = i
 	metaId (JustType i) = i
 	metaId (JustSort i) = i
+	metaId (Assign i e) = i
 	metaId _ = __IMPOSSIBLE__
 	print' x = do
 	    r <- getMetaRange (metaId x)

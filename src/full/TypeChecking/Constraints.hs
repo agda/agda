@@ -10,6 +10,7 @@ import Data.List as List
 
 import Syntax.Internal
 import TypeChecking.Monad
+import TypeChecking.Errors
 
 #ifndef __HADDOCK__
 import {-# SOURCE #-} TypeChecking.Conversion
@@ -62,12 +63,18 @@ solveConstraint (ValueEq a u v) = equalVal a u v
 solveConstraint (TypeEq a b)	= equalTyp a b
 solveConstraint (SortEq s1 s2)	= equalSort s1 s2
 solveConstraint (Guarded c cs)	= do
+    verbose 5 $ do
+	d <- prettyTCM (Guarded c cs)
+	debug $ "Solving: " ++ show d
     cs <- solveConstraints cs
     case cs of
 	[] -> solveConstraint c
 	_  -> buildConstraint $ Guarded c cs
-solveConstraint (UnBlock m)	   = do
+solveConstraint (UnBlock m) = do
     BlockedConst t <- mvInstantiation <$> lookupMeta m
+    verbose 5 $ do
+	d <- prettyTCM t
+	debug $ show m ++ " := " ++ show d
     setRef m $ InstV t
     return []
 

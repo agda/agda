@@ -24,6 +24,8 @@ Features
 
 * allow import and open (and module instantiation?) before the top level module.
 
+* build agda as a package to speed up loading into ghci
+
 Fixes
 -----
 

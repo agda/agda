@@ -178,7 +178,7 @@ data OutputForm a b
       | JustType b | EqTypes b b
       | JustSort b | EqSorts b b
       | Guard (OutputForm a b) [OutputForm a b]
-      | Assign b b
+      | Assign b a
 
 instance Functor (OutputForm a) where
     fmap f (OfType e t) = OfType (f e) t
@@ -188,7 +188,7 @@ instance Functor (OutputForm a) where
     fmap f (EqTypes e e') = EqTypes (f e) (f e')
     fmap f (EqSorts e e') = EqSorts (f e) (f e')
     fmap f (Guard o os)	= Guard (fmap f o) (fmap (fmap f) os)
-    fmap f (Assign m e) = Assign (f m) (f e)
+    fmap f (Assign m e) = Assign (f m) e
 
 instance Reify Constraint (OutputForm Expr Expr) where
     reify (ValueEq t u v) = EqInType <$> reify t <*> reify u <*> reify v 
@@ -260,12 +260,13 @@ typeOfMetaMI norm mi =
      do mv <- lookupMeta mi
         let j = mvJudgement mv
         rewriteJudg mv j
-   where rewriteJudg mv (HasType i t) = 
-             withMetaInfo (getMetaInfo mv) $
-                 do  t <- rewrite norm t 
-                     OfType i <$> reify t
-         rewriteJudg mv (IsType i s)  = return $ JustType i 
-         rewriteJudg mv (IsSort i)    = return $ JustSort i
+   where
+    rewriteJudg mv (HasType i t) = 
+	withMetaInfo (getMetaInfo mv) $ do
+	    t <- rewrite norm t 
+	    OfType i <$> reify t
+    rewriteJudg mv (IsType i s)  = return $ JustType i 
+    rewriteJudg mv (IsSort i)    = return $ JustSort i
 
 
 typeOfMeta :: Rewrite -> InteractionId -> IM (OutputForm Expr InteractionId)
