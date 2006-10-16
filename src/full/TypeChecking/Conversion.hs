@@ -12,6 +12,7 @@ import TypeChecking.MetaVars
 import TypeChecking.Substitute
 import TypeChecking.Reduce
 import TypeChecking.Constraints
+import TypeChecking.Errors
 
 import Utils.Monad
 
@@ -174,7 +175,9 @@ leqSort :: Sort -> Sort -> TCM Constraints
 leqSort s1 s2 =
     catchConstraint (SortEq s1 s2) $
     do	(s1,s2) <- reduce (s1,s2)
--- 	debug $ "leqSort " ++ show s1 ++ " <= " ++ show s2
+-- 	do  d1 <- prettyTCM s1
+-- 	    d2 <- prettyTCM s2
+-- 	    debug $ "leqSort   " ++ show d1 ++ " <= " ++ show d2
 	case (s1,s2) of
 
 	    (Prop    , Prop    )	     -> return []
@@ -202,7 +205,9 @@ equalSort :: Sort -> Sort -> TCM Constraints
 equalSort s1 s2 =
     catchConstraint (SortEq s1 s2) $
     do	(s1,s2) <- reduce (s1,s2)
--- 	debug $ "equalSort " ++ show s1 ++ " == " ++ show s2
+-- 	do  d1 <- prettyTCM s1
+-- 	    d2 <- prettyTCM s2
+-- 	    debug $ "equalSort " ++ show d1 ++ " == " ++ show d2
 	case (s1,s2) of
 
 	    (Prop    , Prop    )	     -> return []
@@ -232,4 +237,10 @@ equalSort s1 s2 =
 	    (_	     , MetaS x )	     -> equalSort s2 s1
     where
 	notEq s1 s2 = typeError $ UnequalSorts s1 s2
+-- 	buildConstraint c@(SortEq s1 s2) = do
+-- 	    d1 <- prettyTCM s1
+-- 	    d2 <- prettyTCM s2
+-- 	    debug $ "Can't solve " ++ show d1 ++ " == " ++ show d2
+-- 	    TypeChecking.Monad.buildConstraint c
+-- 	buildConstraint _ = __IMPOSSIBLE__
 

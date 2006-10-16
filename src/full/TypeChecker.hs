@@ -38,6 +38,7 @@ import TypeChecking.Primitive
 import TypeChecking.Rebind
 import TypeChecking.Serialise
 import TypeChecking.Interface
+import TypeChecking.Constraints
 
 import Utils.Monad
 import Utils.List
@@ -84,7 +85,7 @@ checkPrimitive i x e =
     traceCall (CheckPrimitive (getRange i) x e) $ do
     PrimImpl t' pf <- lookupPrimitiveFunction (nameString x)
     t <- isType_ e
-    addConstraints =<< equalTyp t t'
+    addNewConstraints =<< equalTyp t t'
     m <- currentModule
     let s = show x
     bindPrimitive s pf
@@ -326,7 +327,7 @@ forceData d (El s0 t) = do
 	MetaV m vs	    -> do
 	    Defn t _ (Datatype n _ s _) <- getConstInfo d
 	    ps <- newArgsMeta t
-	    addConstraints =<< equalTyp (El s0 t') (El s (Def d ps))
+	    addNewConstraints =<< equalTyp (El s0 t') (El s (Def d ps))
 	    reduce $ El s0 t'
 	_ -> typeError $ ShouldBeApplicationOf (El s0 t) d
 
@@ -434,7 +435,7 @@ checkPattern name p t ret =
 	    Con c' us			  <- reduce $ Con c $ map hide vs
 	    checkPatterns ps (piApply' t' vs) $ \ (xs, ps', ts', rest) -> do
 		let n = length xs
-		addConstraints =<< equalTyp rest (raise n t)
+		addNewConstraints =<< equalTyp rest (raise n t)
 		ret (xs, ConP c' ps', Con c' $ raise n us ++ ts')
 	    where
 		hide (Arg _ x) = Arg Hidden x
@@ -464,7 +465,7 @@ checkPattern name p t ret =
     t'' <- matchTel vs dt t'
     checkPatterns ps t'' $ \xs vs rest -> do
 	let n = length xs
-	addConstraints =<< equalTyp rest (raise n t)
+	addNewConstraints =<< equalTyp rest (raise n t)
 	ret xs (Def f vs)
     where
 	matchTel []	t0 t1 = return t1
@@ -472,7 +473,7 @@ checkPattern name p t ret =
 	    (t0,t1) <- reduce (t0,t1)
 	    case (t0,t1) of
 		(Pi (Arg _ a0) b0, Pi (Arg Hidden a1) b1) -> do
-		    addConstraints =<< equalTyp a0 a1
+		    addNewConstraints =<< equalTyp a0 a1
 		    matchTel vs (piApply' t0 [v]) (piApply' t1 [v])
 		_   -> fail $ "a defined pattern must take the datatype parameters as hidden arguments " ++
 				show t1 ++ " should match the parameters in " ++ show t0
@@ -546,7 +547,7 @@ forcePi h (El s t) =
 		b <- addCtx x a $ newTypeMeta sb
 
 		let ty = El s' $ Pi (Arg h a) (Abs (show x) b)
-		addConstraints =<< equalTyp (El s t') ty
+		addNewConstraints =<< equalTyp (El s t') ty
 		reduce ty
 	    _ -> typeError $ ShouldBePi (El s t')
 
@@ -622,7 +623,7 @@ checkExpr e t =
 	A.Lam i (A.DomainFull b) e ->
 	    checkTypedBindings b $ \tel -> do
 	    t1 <- newTypeMeta_
-	    escapeContext (length tel) $ addConstraints =<< equalTyp t (telePi tel t1)
+	    escapeContext (length tel) $ addNewConstraints =<< equalTyp t (telePi tel t1)
 	    v <- checkExpr e t1
 	    return $ buildLam (map name tel) v
 	    where
@@ -654,19 +655,19 @@ checkExpr e t =
 	A.Pi _ tel e ->
 	    checkTelescope tel $ \tel -> do
 	    t' <- telePi tel <$> isType_ e
-	    addConstraints =<< equalTyp (sort $ getSort t') t
+	    addNewConstraints =<< equalTyp (sort $ getSort t') t
 	    return $ unEl t'
 	A.Fun _ (Arg h a) b -> do
 	    a' <- isType_ a
 	    b' <- isType_ b
 	    let s = getSort a' `sLub` getSort b'
-	    addConstraints =<< equalTyp (sort s) t
+	    addNewConstraints =<< equalTyp (sort s) t
 	    return $ Fun (Arg h a') b'
 	A.Set _ n    -> do
-	    addConstraints =<< equalTyp (sort $ Type $ n + 1) t
+	    addNewConstraints =<< equalTyp (sort $ Type $ n + 1) t
 	    return $ Sort (Type n)
 	A.Prop _     -> do
-	    addConstraints =<< equalTyp (sort $ Type 1) t
+	    addNewConstraints =<< equalTyp (sort $ Type 1) t
 	    return $ Sort Prop
 	A.Var _ _    -> __IMPOSSIBLE__
 	A.Def _ _    -> __IMPOSSIBLE__
@@ -709,7 +710,7 @@ checkArguments r [] t0 t1 =
 		vs <- checkArguments r [] (piApply' t0' [arg]) t1'
 		return $ arg : vs
 	    _ -> do
-		addConstraints =<< leqType t0' t1'
+		addNewConstraints =<< leqType t0' t1'
 		return []
     where
 	notHPi (Pi  (Arg Hidden _) _) = False
@@ -757,7 +758,7 @@ inferExpr e = do
 checkLiteral :: Literal -> Type -> TCM Term
 checkLiteral lit t = do
     t' <- litType lit
-    addConstraints =<< equalTyp t t'
+    addNewConstraints =<< equalTyp t t'
     return $ Lit lit
     where
 	el t = El (Type 0) t

@@ -1,0 +1,20 @@
+
+By making dictionaries explicit we might be able to unify instantiate,
+instantiateFull, reduce and normalise.
+
+class HasKit a where
+  applyKit :: Kit m -> a -> m a
+
+data Kit m = Kit { termKit :: TermKit m
+		 , typeKit :: TypeKit m
+		 , listKit :: ListKit m
+		 ...
+		 }
+
+type ListKit m = forall a. HasKit a => Kit -> [a] -> m [a]
+data TermKit m = TermKit
+  { varKit :: Nat -> Args -> m Term
+  , lamKit :: Hiding -> Abs Term -> m Term
+  ...
+  }
+

@@ -29,13 +29,20 @@ catchConstraint c v =
        PatternErr s -> put s >> buildConstraint c
        _	    -> throwError err
 
+-- | Try to solve the constraints to be added.
+addNewConstraints :: Constraints -> TCM ()
+addNewConstraints cs = do addConstraints cs; wakeupConstraints
+
 -- | We ignore the constraint ids and (as in Agda) retry all constraints every time.
 --   We probably generate very few constraints.
 wakeupConstraints :: TCM ()
 wakeupConstraints = do
+    n  <- length <$> getInstantiatedMetas
     cs <- takeConstraints
     cs <- retryCs cs
-    addConstraints cs	-- TODO: there might be a problem of detecting progress
+    addConstraints cs
+    n' <- length <$> getInstantiatedMetas
+    when (n' > n) wakeupConstraints	-- Go again if we made progress
   where
     retryCs :: Constraints -> TCM Constraints
     retryCs cs = concat <$> mapM (withConstraint retry) cs

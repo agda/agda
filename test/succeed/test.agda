@@ -1,4 +1,4 @@
-
+{-# OPTIONS --allow-unsolved-metas #-}
 module test where
 
 id : {A:Set} -> A -> A

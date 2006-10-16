@@ -106,8 +106,21 @@ getInteractionScope ii =
 withMetaInfo :: MetaInfo -> TCM a -> TCM a
 withMetaInfo mI m = enterClosure mI $ \_ -> m
 
+getInstantiatedMetas :: TCM [MetaId]
+getInstantiatedMetas = do
+    store <- getMetaStore
+    return [ i | (i, MetaVar _ _ mi) <- Map.assocs store, isInst mi ]
+    where
+	isInst Open		= False
+	isInst (BlockedConst _) = False
+	isInst _		= True
+
 getOpenMetas :: TCM [MetaId]
 getOpenMetas = do
     store <- getMetaStore
-    return [ i | (i, MetaVar _ _ Open) <- Map.assocs store ]
+    return [ i | (i, MetaVar _ _ mi) <- Map.assocs store, isOpen mi ]
+    where
+	isOpen Open		= True
+	isOpen (BlockedConst _) = True
+	isOpen _		= False
 

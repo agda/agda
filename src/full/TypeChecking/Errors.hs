@@ -124,6 +124,7 @@ errorString err = case err of
     NoRHSRequiresAbsurdPattern _	       -> "NoRHSRequiresAbsurdPattern"
     LocalVsImportedModuleClash _	       -> "LocalVsImportedModuleClash"
     UnsolvedMetasInImport _		       -> "UnsolvedMetasInImport"
+    UnsolvedMetas _			       -> "UnsolvedMetas"
     CyclicModuleDependency _		       -> "CyclicModuleDependency"
     FileNotFound _ _			       -> "FileNotFound"
     ClashingFileNamesFor _ _		       -> "ClashingFileNamesFor"
@@ -287,6 +288,9 @@ instance PrettyTCM TypeError where
 	    LocalVsImportedModuleClash m -> fsep $
 		pwords "The module" ++ [text $ show m] ++
 		pwords "can refer to either a local module or an imported module"
+	    UnsolvedMetas rs ->
+		fsep ( pwords "Unsolved metas at the following locations:" )
+		$$ nest 2 (vcat $ map (text . show) rs)
 	    UnsolvedMetasInImport rs ->
 		fsep ( pwords "There were unsolved metas in an imported module at the following locations:" )
 		$$ nest 2 (vcat $ map (text . show) rs)

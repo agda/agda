@@ -49,8 +49,9 @@ module SET where
   I a = a
   -- of course, I = S K K
 
-  id = I
-  const = K
+  id = \{A} -> I {A}
+
+  const = \{A}{B} -> K {A}{B}
 
   -- Prop version
   pS: {P,Q,R: Prop} -> (R -> Q -> P) -> (R -> Q) -> R -> P
@@ -187,8 +188,8 @@ module SET where
   data Succ (A: Set): Set where
     zerS: Succ A
     sucS: A -> Succ A
-  zerSucc = zerS
-  sucSucc = sucS
+  zerSucc = \{A} -> zerS {A}
+  sucSucc = \{A} -> sucS {A}
   elimSucc: {X: Set} -> (C: Succ X -> Set)
             -> C zerS -> ((x: X) -> C (sucS x)) -> (xx: Succ X) -> (C xx)
   elimSucc C c_z c_s zerS = c_z
@@ -232,46 +233,46 @@ module SET where
 
   data Sum (A: Set) (B: A -> Set): Set where
     sumI: (fst: A) -> B fst -> Sum A B
-  dep_pair: {A: Set} -> {B: A -> Set} -> (a: A) -> B a -> Sum A B
-  dep_pair a b = sumI a b
-  dep_fst: {A: Set} -> {B: A -> Set} -> (c: Sum A B) -> A
-  dep_fst (sumI fst snd) = fst
-  dep_snd: {A: Set} -> {B: A -> Set} -> (c: Sum A B) -> B (dep_fst c)
-  dep_snd (sumI fst snd) = snd
-  dep_cur: {A: Set} -> {B: A -> Set} -> {C: Set} -> (f: Sum A B -> C)
+  depPair: {A: Set} -> {B: A -> Set} -> (a: A) -> B a -> Sum A B
+  depPair a b = sumI a b
+  depFst: {A: Set} -> {B: A -> Set} -> (c: Sum A B) -> A
+  depFst (sumI fst snd) = fst
+  depSnd: {A: Set} -> {B: A -> Set} -> (c: Sum A B) -> B (depFst c)
+  depSnd (sumI fst snd) = snd
+  depCur: {A: Set} -> {B: A -> Set} -> {C: Set} -> (f: Sum A B -> C)
            -> (a: A) -> B a -> C
-  dep_cur f = \a -> \b -> f (dep_pair a b)
+  depCur f = \a -> \b -> f (depPair a b)
   -- the above works, but the below does not---why?
-  -- dep_cur: {X: Set} -> {Y: X -> Set} -> {Z: Set} -> (f: Sum X Y -> Z)
+  -- depCur: {X: Set} -> {Y: X -> Set} -> {Z: Set} -> (f: Sum X Y -> Z)
   --         -> {x: X} -> Y x -> Z
-  -- dep_cur {X} {Y} {Z} f = \{x} -> \y ->  f (dep_pair  x  y)
+  -- depCur {X} {Y} {Z} f = \{x} -> \y ->  f (depPair  x  y)
   -- Error message:
-  -- When checking that the expression \{x} -> \y -> f (dep_pair x y)
+  -- When checking that the expression \{x} -> \y -> f (depPair x y)
   -- has type Y _x -> Z
   -- found an implicit lambda where an explicit lambda was expected
-  dep_uncur: {A: Set} -> {B: A -> Set} -> {C: Set}
+  depUncur: {A: Set} -> {B: A -> Set} -> {C: Set}
     -> ((a: A) -> B a -> C) -> Sum A B -> C
-  dep_uncur f ab = f (dep_fst ab) (dep_snd ab)
-  dep_curry: {A: Set} ->
+  depUncur f ab = f (depFst ab) (depSnd ab)
+  depCurry: {A: Set} ->
              {B: A -> Set} ->
              {C: Sum A B -> Set} ->
              (f: (ab: Sum A B) -> C ab) ->
              (a: A) ->
              (b: B a) ->
-             C (dep_pair a b)
-  dep_curry f a b = f (dep_pair a b)
-  dep_uncurry: {A: Set} ->
+             C (depPair a b)
+  depCurry f a b = f (depPair a b)
+  depUncurry: {A: Set} ->
                {B: A -> Set} ->
                {C: Sum A B -> Set} ->
-               (f: (a: A) -> (b: B a) -> C (dep_pair a b)) ->
+               (f: (a: A) -> (b: B a) -> C (depPair a b)) ->
                (ab: Sum A B) ->
                C ab
-  dep_uncurry f (sumI fst snd) = f fst snd
+  depUncurry f (sumI fst snd) = f fst snd
   mapSum: {A: Set} -> {B1 : A -> Set} -> {B2 : A -> Set}
           -> (f: (a: A) -> B1 a -> B2 a)
           -> Sum A B1 -> Sum A B2
-  mapSum f (sumI fst snd) = dep_pair fst (f fst snd)
-  elimSum = dep_uncurry
+  mapSum f (sumI fst snd) = depPair fst (f fst snd)
+  elimSum = \{A}{B}{C} -> depUncurry{A}{B}{C}
 ---------------------------------------------------------------------------
 -- Nondependent pairs, (binary) cartesian product.
 ---------------------------------------------------------------------------
@@ -301,7 +302,7 @@ module SET where
   uncurry: {A: Set} -> {B: Set} -> {C: Times A B -> Set}
            -> ((a: A) -> (b: B) -> C (pair a b)) -> (p: Times A B) -> C p
   uncurry f (sumI a b) = f a b
-  elimTimes = uncurry
+  elimTimes = \{A}{B}{C} -> uncurry{A}{B}{C}
   ---------------------------------------------------------------------------
   -- Natural numbers.
   ---------------------------------------------------------------------------

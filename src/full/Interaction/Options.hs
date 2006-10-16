@@ -48,6 +48,7 @@ data CommandLineOptions =
 	    , optEmacsMode	  :: Bool
 	    , optVerbose	  :: Int
 	    , optProofIrrelevance :: Bool
+	    , optAllowUnsolved	  :: Bool
 	    , optShowImplicit	  :: Bool
 	    , optRunTests	  :: Bool
 	    , optCompile	  :: Bool
@@ -71,6 +72,7 @@ defaultOptions =
 	    , optEmacsMode	  = False
 	    , optVerbose	  = 1
 	    , optProofIrrelevance = False
+	    , optAllowUnsolved	  = False
 	    , optShowImplicit	  = False
 	    , optRunTests	  = False
 	    , optCompile	  = False
@@ -91,16 +93,21 @@ inputFlag f o	    =
 versionFlag	     o = return $ o { optShowVersion	  = True }
 helpFlag	     o = return $ o { optShowHelp	  = True }
 proofIrrelevanceFlag o = return $ o { optProofIrrelevance = True }
+allowUnsolvedFlag    o = return $ o { optAllowUnsolved	  = True }
 showImplicitFlag     o = return $ o { optShowImplicit	  = True }
 runTestsFlag	     o = return $ o { optRunTests	  = True }
 vimFlag		     o = return $ o { optGenerateVimFile  = True }
 
 interactiveFlag o
     | optEmacsMode o = fail "cannot have both emacs mode and interactive mode"
-    | otherwise	     = return $ o { optInteractive   = True }
+    | otherwise	     = return $ o { optInteractive   = True
+				  , optAllowUnsolved = True
+				  }
 emacsModeFlag o
     | optInteractive o = fail "cannot have both emacs mode and interactive mode"
-    | otherwise	       = return $ o { optEmacsMode = True }
+    | otherwise	       = return $ o { optEmacsMode     = True
+				    , optAllowUnsolved = True
+				    }
 compileFlag o = return $ o { optCompile = True } -- todo: check exclusion
 
 includeFlag d o	    = return $ o { optIncludeDirs   = d : optIncludeDirs o   }
@@ -139,6 +146,8 @@ pragmaOptions :: [OptDescr (Flag CommandLineOptions)]
 pragmaOptions =
     [ Option []	    ["proof-irrelevance"] (NoArg proofIrrelevanceFlag)
 		    "enable proof irrelevance (experimental feature)"
+    , Option []	    ["allow-unsolved-metas"] (NoArg allowUnsolvedFlag)
+		    "allow unsolved meta variables (only needed in batch mode)"
     ]
 
 -- | Used for printing usage info.

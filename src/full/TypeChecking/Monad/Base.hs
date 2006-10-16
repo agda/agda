@@ -430,6 +430,7 @@ data TypeError
     -- Import errors
 	| LocalVsImportedModuleClash ModuleName
 	| UnsolvedMetasInImport [Range]
+	| UnsolvedMetas [Range]
 	| CyclicModuleDependency [ModuleName]
 	| FileNotFound ModuleName [FilePath]
 	| ClashingFileNamesFor ModuleName [FilePath]

@@ -6,6 +6,7 @@ module Main where
 
 import Control.Monad.State
 import Control.Monad.Error
+import Control.Applicative
 
 import Data.List as List
 import Data.Map as Map
@@ -15,6 +16,7 @@ import System.Environment
 import System.IO
 import System.Exit
 
+import Syntax.Position
 import Syntax.Parser
 import Syntax.Concrete.Pretty ()
 import qualified Syntax.Abstract as A
@@ -96,6 +98,12 @@ runAgda =
 				-- Generate Vim file
 				whenM (optGenerateVimFile <$> commandLineOptions) $
 				    generateVimFile file
+
+				-- Give error for unsolved metas
+				unlessM (optAllowUnsolved <$> commandLineOptions) $ do
+				    ms <- getOpenMetas
+				    unless (List.null ms) $
+					typeError . UnsolvedMetas =<< mapM getMetaRange ms
 
 				-- Print stats
 				stats <- Map.toList <$> getStatistics

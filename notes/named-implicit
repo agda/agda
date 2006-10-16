@@ -1,0 +1,16 @@
+
+It should be possible to refer to implicit arguments by name, to avoid having
+long sequences of {_}.
+
+Given
+
+  f : {...}{A:Set} -> ...
+
+you should be able to say
+
+    f {A = Nat}
+
+to give A explicitly. This should also work in patterns:
+
+    f {A = A} = .. A ..
+
