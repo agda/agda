@@ -114,6 +114,8 @@ Speculative
 Cleaning
 --------
 
+* Split TypeChecking.Errors into TypeChecking.Pretty and TypeChecking.Errors
+
 * TypeChecking.Reduce
 
   - Explicit dictionaries (Kit)? see notes/kit

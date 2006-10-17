@@ -41,6 +41,14 @@ noConstraints m = do
     unless (List.null cs) $ typeError $ UnsolvedConstraints cs
     return ()
 
+-- | Guard constraint
+guardConstraint :: TCM Constraints -> Constraint -> TCM Constraints
+guardConstraint m c = do
+    cs <- solveConstraints =<< m
+    case cs of
+	[]  -> solveConstraint c
+	_   -> buildConstraint $ Guarded c cs
+
 -- | We ignore the constraint ids and (as in Agda) retry all constraints every time.
 --   We probably generate very few constraints.
 wakeupConstraints :: TCM ()

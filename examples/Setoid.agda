@@ -6,7 +6,6 @@ module Logic where
 
   infix 4 _/\_
   -- infix 2 _\/_
-  infixr 1 _-->_
 
   data True : Prop where
     tt : True
@@ -42,7 +41,7 @@ module Setoid where
     refl : (A : Setoid) -> {x : El A} -> eq A x x
     refl (setoid _ _ r _ _) = r _
 
-    sym : (A : Setoid) -> {x,y : El A} -> eq A x y -> eq A y x
+    sym : (A : Setoid) -> {x,y : El A} -> (h : eq A x y) -> eq A y x
     sym (setoid _ _ _ s _) = s _ _
 
     trans : (A : Setoid) -> {x,y,z : El A} -> eq A x y -> eq A y z -> eq A x z

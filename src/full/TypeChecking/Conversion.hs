@@ -59,7 +59,7 @@ equalAtom t m n =
 	    dm <- prettyTCM m
 	    dn <- prettyTCM n
 	    dt <- prettyTCM t
-	    debug $ show dm ++ " == " ++ show dn ++ " : " ++ show dt
+	    debug $ "equalAtom " ++ show dm ++ " == " ++ show dn ++ " : " ++ show dt
 	case (m, n) of
 	    _ | f1@(FunV _ _) <- funView m
 	      , f2@(FunV _ _) <- funView n -> equalFun f1 f2
@@ -88,13 +88,14 @@ equalAtom t m n =
     where
 	equalFun (FunV (Arg h1 a1) t1) (FunV (Arg h2 a2) t2)
 	    | h1 /= h2	= typeError $ UnequalHiding ty1 ty2
-	    | otherwise =
-		do  cs  <- equalType a1 a2
+	    | otherwise = do
 		    let (ty1',ty2') = raise 1 (ty1,ty2)
 			arg	  = Arg h1 (Var 0 [])
 		    name <- freshName_ (suggest t1 t2)
-		    addCtx name a1 $ buildConstraint $
-			Guarded (TypeEq (piApply' ty1' [arg]) (piApply' ty2' [arg])) cs
+		    cs   <- equalType a1 a2
+		    addCtx name a1
+			$ guardConstraint (return cs)
+			$ TypeEq (piApply' ty1' [arg]) (piApply' ty2' [arg])
 	    where
 		ty1 = El (getSort a1) t1    -- TODO: wrong (but it doesn't matter)
 		ty2 = El (getSort a2) t2
@@ -120,8 +121,13 @@ equalArg a1 (arg1 : args1) a2 (arg2 : args2) = do
     a2 <- reduce a2
     case (funView (unEl a1), funView (unEl a2)) of 
 	( FunV (Arg _ b1) _, FunV (Arg _ b2) _ ) -> do
-	    cs  <- equalType b1 b2
-            cs1 <- buildConstraint $ Guarded (ValueEq b1 (unArg arg1) (unArg arg2)) cs
+	    verbose 10 $ do
+		db1 <- prettyTCM b1
+		db2 <- prettyTCM b2
+		darg1 <- prettyTCM arg1
+		darg2 <- prettyTCM arg2
+		debug $ "equalArg " ++ show darg1 ++ " : " ++ show db1 ++ "  ==  " ++ show darg2 ++ " : " ++ show db2
+            cs1 <- guardConstraint (equalType b1 b2) $ ValueEq b1 (unArg arg1) (unArg arg2)
 	    cs2 <- equalArg (piApply' a1 [arg1]) args1 (piApply' a2 [arg2]) args2
 	    return $ cs1 ++ cs2
         _   -> patternViolation
@@ -134,7 +140,7 @@ equalType ty1@(El s1 a1) ty2@(El s2 a2) =
 	verbose 5 $ do
 	    d1 <- prettyTCM ty1
 	    d2 <- prettyTCM ty2
-	    debug $ show d1 ++ " == " ++ show d2
+	    debug $ "equalType " ++ show d1 ++ " == " ++ show d2
 	cs1 <- equalSort s1 s2
 	cs2 <- equalTerm (sort s1) a1 a2
 	verbose 5 $ do

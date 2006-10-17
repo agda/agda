@@ -38,9 +38,13 @@ getContext = asks envContext
 
 -- | Get the current context as a 'Telescope' (everything 'Hidden').
 getContextTelescope :: TCM Telescope
-getContextTelescope = List.map arg . reverse <$> getContext
+getContextTelescope = getContextTelescope' Hidden
+
+-- | Get the current context as a 'Telescope' with the specified 'Hiding'.
+getContextTelescope' :: Hiding -> TCM Telescope
+getContextTelescope' h = List.map arg . reverse <$> getContext
     where
-	arg (x,t) = Arg Hidden (show x, t)
+	arg (x,t) = Arg h (show x, t)
 
 -- | add a bunch of variables with the same type to the context
 addCtxs :: [Name] -> Type -> TCM a -> TCM a

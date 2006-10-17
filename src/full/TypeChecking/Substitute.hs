@@ -92,7 +92,7 @@ class Abstract t where
     abstract :: Telescope -> t -> t
 
 instance Abstract Term where
-    abstract tel v = foldl (\v (Arg h _) -> Lam h (Abs "x" v)) v $ reverse tel
+    abstract tel v = foldl (\v (Arg h (s,_)) -> Lam h (Abs s v)) v $ reverse tel
 
 instance Abstract Type where
     abstract tel (El s t) = El s $ abstract tel t
@@ -118,11 +118,11 @@ instance Abstract PrimFun where
 instance Abstract Clause where
     abstract tel (Clause ps b) = Clause (ps0 ++ ps) $ abstract tel b
 	where
-	    ps0 = map (fmap $ const $ VarP "_") tel
+	    ps0 = map (fmap $ \(s,_) -> VarP s) tel
 
 instance Abstract ClauseBody where
-    abstract []	     b = b
-    abstract (_:tel) b = Bind $ Abs "x" $ abstract tel b
+    abstract []			 b = b
+    abstract (Arg _ (s,_) : tel) b = Bind $ Abs s $ abstract tel b
 
 instance Abstract t => Abstract [t] where
     abstract tel = map (abstract tel)
@@ -130,7 +130,8 @@ instance Abstract t => Abstract [t] where
 abstractArgs :: Abstract a => Args -> a -> a
 abstractArgs args x = abstract tel x
     where
-	tel = map (fmap $ const $ ("_", sort Prop)) args
+	tel   = zipWith (\arg x -> fmap (const (x, sort Prop)) arg) args names
+	names = cycle $ map (:[]) ['a'..'z']
 
 -- | Substitute a term for the nth free variable.
 --

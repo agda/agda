@@ -141,7 +141,7 @@ module examples.Vec where
   {- identity; composition must wait; why -}
 
   idS : (n : Nat) -> n `Sub` n
-  idS n = vTab n evar
+  idS n = vTab n (evar {n})
 
   {- functor from renamings to substitutions -}
 

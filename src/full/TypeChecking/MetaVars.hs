@@ -135,12 +135,13 @@ blockTerm t v m = do
     if List.null cs
 	then return v
 	else do
-	    i  <- createMetaInfo
-	    vs <- allCtxVars
-	    x  <- newMeta i (HasType () t)
+	    i	  <- createMetaInfo
+	    vs	  <- allCtxVars
+	    tel   <- getContextTelescope' NotHidden
+	    x	  <- newMeta i (HasType () t)
 	    store <- getMetaStore
-	    modify $ \st -> st { stMetaStore = ins x (BlockedConst $ abstractArgs vs v) store }
-	    c <- buildConstraint (Guarded (UnBlock x) cs)
+	    modify $ \st -> st { stMetaStore = ins x (BlockedConst $ abstract tel v) store }
+	    c <- escapeContext (length tel) $ buildConstraint (Guarded (UnBlock x) cs)
 	    addConstraints c
 	    return $ MetaV x vs
   where
@@ -274,16 +275,19 @@ assignV t x args v =
 	--   ids = d b e
 	-- then
 	--   v' = (λ a b c d e. v) _ 1 _ 2 0
-	tel <- getContextTelescope
+	tel <- getContextTelescope' NotHidden
 	let iargs = reverse $ zipWith (rename $ reverse ids) [0..] $ reverse tel
 	    v'	  = raise (length ids) (abstract tel v) `apply` iargs
 
+	let mkTel i = Arg NotHidden <$> ((,) <$> (show <$> nameOfBV i) <*> typeOfBV i)
+	tel' <- mapM mkTel ids
+
 	verbose 15 $ do
-	    d <- prettyTCM (abstractArgs args v')
+	    d <- prettyTCM (abstract tel' v')
 	    debug $ "final instantiation: " ++ show d
 
 	-- Perform the assignment (and wake constraints)
-	x =: abstractArgs args v'
+	x =: abstract tel' v'
 	return []
     where
 	rename ids i arg = case findIndex (==i) ids of
