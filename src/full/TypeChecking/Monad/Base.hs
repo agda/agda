@@ -134,30 +134,25 @@ type Constraints = [ConstraintClosure]
 -- * Judgements
 ---------------------------------------------------------------------------
 
-data Judgement t s a
+data Judgement t a
 	= HasType a t
-	| IsType  a s
 	| IsSort  a
     deriving (Typeable, Data)
 
-instance (Show t, Show s, Show a) => Show (Judgement t s a) where
+instance (Show t, Show a) => Show (Judgement t a) where
     show (HasType a t) = show a ++ " : " ++ show t
-    show (IsType  a s) = show a ++ " type " ++ show s
     show (IsSort  a)   = show a ++ " sort"
 
-instance Functor (Judgement t s) where
+instance Functor (Judgement t) where
     fmap f (HasType x t) = HasType (f x) t
-    fmap f (IsType  x s) = IsType (f x) s
     fmap f (IsSort  x)	 = IsSort (f x)
 
-instance Foldable (Judgement t s) where
+instance Foldable (Judgement t) where
     foldr f z (HasType x _) = f x z
-    foldr f z (IsType  x _) = f x z
     foldr f z (IsSort  x)   = f x z
 
-instance Traversable (Judgement t s) where
+instance Traversable (Judgement t) where
     traverse f (HasType x t) = flip HasType t <$> f x
-    traverse f (IsType  x s) = flip IsType s <$> f x
     traverse f (IsSort  x)   = IsSort <$> f x
 
 ---------------------------------------------------------------------------
@@ -166,7 +161,7 @@ instance Traversable (Judgement t s) where
 
 data MetaVariable = 
 	MetaVar	{ getMetaInfo	  :: MetaInfo
-		, mvJudgement	  :: Judgement Type Sort MetaId
+		, mvJudgement	  :: Judgement Type MetaId
 		, mvInstantiation :: MetaInstantiation
 		}
     deriving (Typeable)

@@ -6,8 +6,11 @@ import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Error
 import Data.Generics
-import Data.Map as Map
+import Data.Map (Map)
+import Data.Set (Set)
 import Data.List as List hiding (sort)
+import qualified Data.Map as Map
+import qualified Data.Set as Set
 
 import Syntax.Common
 import qualified Syntax.Info as Info
@@ -20,6 +23,7 @@ import TypeChecking.Reduce
 import TypeChecking.Substitute
 import TypeChecking.Constraints
 import TypeChecking.Errors
+import TypeChecking.Free
 
 #ifndef __HADDOCK__
 import {-# SOURCE #-} TypeChecking.Conversion
@@ -38,12 +42,8 @@ import TypeChecking.Monad.Debug
 --
 --   @reverse@ is necessary because we are directly abstracting over the list.
 --
-findIdx :: (Eq a, Monad m) => [a] -> a -> m Int
-findIdx vs v = go 0 $ reverse vs where
-    go i (v' : vs) | v' == v = return i
-    go i (_  : vs)           = go (i + 1) vs
-    go _ []                  = fail "findIdx"
-
+findIdx :: Eq a => [a] -> a -> Maybe Int
+findIdx vs v = findIndex (==v) (reverse vs)
 
 -- | Generate [Var n - 1, .., Var 0] for all declarations in the context.
 --   Used to make arguments for newly generated metavars.
@@ -66,13 +66,26 @@ isBlockedTerm x = do
     reportLn 12 $ if r then "yes" else "no"
     return r
 
--- | The instantiation should not be 'Open' and the 'MetaId' should point to
---   something 'Open'.
-setRef :: MetaId -> MetaInstantiation -> TCM ()
-setRef x i =
-    do	store <- getMetaStore
-	modify $ \st -> st { stMetaStore = ins x i store }
-	wakeupConstraints
+class HasMeta t where
+    metaInstance :: t -> MetaInstantiation
+    metaVariable :: MetaId -> Args -> t
+
+instance HasMeta Term where
+    metaInstance = InstV
+    metaVariable = MetaV
+
+instance HasMeta Sort where
+    metaInstance = InstS
+    metaVariable x _ = MetaS x
+
+-- | The instantiation should not be an 'InstV' or 'InstS' and the 'MetaId'
+--   should point to something 'Open' or a 'BlockedConst'.
+(=:) :: HasMeta t => MetaId -> t -> TCM ()
+x =: t = do
+    let i = metaInstance t
+    store <- getMetaStore
+    modify $ \st -> st { stMetaStore = ins x i store }
+    wakeupConstraints
   where
     ins x i store = Map.adjust (inst i) x store
     inst i mv = mv { mvInstantiation = i }
@@ -140,88 +153,62 @@ newMetaSame x meta =
     do	mv <- lookupMeta x
 	meta <$> newMeta (getMetaInfo mv) (mvJudgement mv)
 
--- | If @restrictParameters ok ps = qs@ then @(\xs -> c qs) ps@ will
---   reduce to @c rs@ where @rs@ is the intersection of @ok@ and @ps@.
-restrictParameters :: [Nat] -> [Arg Term] -> Maybe [Arg Term]
-restrictParameters ok ps
-    | all isVar ps = Just $
-	do  (n,p@(Arg _ (Var i []))) <- reverse $ zip [0..] $ reverse ps
-	    unless (elem i ok) []
-	    return $ Arg NotHidden $ Var n []
-    | otherwise	     = Nothing
-
-
 -- | Extended occurs check.
-class Occurs a where
-    occ :: MetaId -> [Nat] -> a -> TCM a
+class Occurs t where
+    occurs :: TCM () -> MetaId -> t -> TCM ()
+
+occursCheck :: Occurs a => MetaId -> a -> TCM ()
+occursCheck m = occurs (typeError $ MetaOccursInItself m) m
 
 instance Occurs Term where
-    occ m ok v =
-	do  v <- reduce v
-	    case ignoreBlocking v of
-		Var n vs    ->
-		    case findIdx ok n of
-			Just n'	-> Var n' <$> occ m ok vs
-			Nothing	-> typeError $ MetaCannotDependOn m ok n
-		Lam h f	    -> Lam h <$> occ m ok f
-		Lit l	    -> return $ Lit l
-		Def c vs    -> Def c <$> occ m ok vs
-		Con c vs    -> Con c <$> occ m ok vs
-		Pi a b	    -> uncurry Pi <$> occ m ok (a,b)
-		Fun a b	    -> uncurry Fun <$> occ m ok (a,b)
-		Sort s	    -> Sort <$> occ m ok s
-		MetaV m' vs -> occMeta MetaV InstV instantiate m ok m' vs
-		BlockedV b  -> __IMPOSSIBLE__
+    occurs abort m v = do
+	v <- reduce v
+	case v of
+	    -- Don't fail on blocked terms
+	    BlockedV b	-> occurs' patternViolation v
+	    _		-> occurs' abort v
+	where
+	    occurs' abort v = case ignoreBlocking v of
+		Var _ vs    -> occ vs
+		Lam _ f	    -> occ f
+		Lit l	    -> return ()
+		Def c vs    -> occ vs
+		Con c vs    -> occ vs
+		Pi a b	    -> occ (a,b)
+		Fun a b	    -> occ (a,b)
+		Sort s	    -> occ s
+		MetaV m' vs -> do
+		    when (m == m') abort
+		    -- Don't fail on flexible occurrence
+		    occurs patternViolation m vs
+		BlockedV _  -> __IMPOSSIBLE__
+		where
+		    occ x = occurs abort m x
 
 instance Occurs Type where
-    occ m ok (El s v) = uncurry El <$> occ m ok (s,v)
+    occurs abort m (El s v) = occurs abort m (s,v)
 
 instance Occurs Sort where
-    occ m ok s =
+    occurs abort m s =
 	do  s' <- reduce s
 	    case s' of
-		MetaS m' | m == m' -> typeError $ MetaOccursInItself m
-		MetaS _		   -> return s'
-		Lub s1 s2	   -> uncurry Lub <$> occ m ok (s1,s2)
-		Suc s		   -> Suc <$> occ m ok s
-		Type _		   -> return s'
-		Prop		   -> return s'
-
-occMeta :: (Data a, Abstract a, Apply a) =>
-	   (MetaId -> Args -> a) -> (a -> MetaInstantiation) -> (a -> TCM a) -> MetaId -> [Nat] -> MetaId -> Args -> TCM a
-occMeta meta inst red m ok m' vs
-    | m == m'	= typeError $ MetaOccursInItself m
-    | otherwise	=
-	do  vs' <- case restrictParameters ok vs of
-		     Nothing  -> patternViolation
-		     Just vs' -> return vs'
-	    when (length vs' /= length vs) $
-		do  v1 <-  newMetaSame m' (\mi -> meta mi [])
-		    unlessM (isBlockedTerm m') $ do
-			setRef m' $ inst $ abstractArgs vs (v1 `apply` vs')
-			abortAssign -- setRef wakes up the constraints and solving them
-				    -- might invalidate the current assignment, so we
-				    -- abort.
-	    let vs0 = List.map rename vs
-	    return $ meta m' vs0
-    where
-	rename (Arg h (Var i [])) =
-	    case findIdx ok i of
-		Just i'	-> Arg h $ Var i' []
-		Nothing	-> Arg h $ Var i []
-	rename v = v
+		MetaS m'  -> when (m == m') abort
+		Lub s1 s2 -> occurs abort m (s1,s2)
+		Suc s	  -> occurs abort m s
+		Type _	  -> return ()
+		Prop	  -> return ()
 
 instance Occurs a => Occurs (Abs a) where
-    occ m ok (Abs s x) = Abs s <$> occ m (List.map (+1) ok ++ [0]) x
+    occurs abort m (Abs _ x) = occurs abort m x
 
 instance Occurs a => Occurs (Arg a) where
-    occ m ok (Arg h x) = Arg h <$> occ m ok x
+    occurs abort m (Arg _ x) = occurs abort m x
 
 instance (Occurs a, Occurs b) => Occurs (a,b) where
-    occ m ok (x,y) = (,) <$> occ m ok x <*> occ m ok y
+    occurs abort m (x,y) = occurs abort m x >> occurs abort m y
 
 instance Occurs a => Occurs [a] where
-    occ m ok xs = mapM (occ m ok) xs
+    occurs abort m xs = mapM_ (occurs abort m) xs
 
 abortAssign :: TCM a
 abortAssign =
@@ -246,30 +233,70 @@ assignV t x args v =
 	    d1 <- prettyTCM (MetaV x args)
 	    d2 <- prettyTCM v
 	    debug $ show d1 ++ " := " ++ show d2
-	assign x args v
+
+	-- We don't instantiate blocked terms
+	whenM (isBlockedTerm x) patternViolation	-- TODO: not so nice
+
+	-- Check that the arguments are distinct variables
+	ids <- checkArgs x args
+
+	-- When checking flexible variables v must be fully instantiated to not
+	-- get false positives.
+	v <- instantiateFull v
+
+	verbose 15 $ do
+	    d <- prettyTCM v
+	    debug $ "fully instantiated: " ++ show d
+
+	-- Check that the x doesn't occur in the right hand side
+	occursCheck x v
+
+	reportLn 15 "passed occursCheck"
+
+	-- Check that all free variables of v are arguments to x
+	let fv	  = freeVars v
+	    idset = Set.fromList ids
+	    badrv = Set.toList $ Set.difference (rigidVars fv) idset
+	    badfv = Set.toList $ Set.difference (flexibleVars fv) idset
+	    -- If a rigid variable is not in ids there is no hope
+	unless (null badrv) $ typeError $ MetaCannotDependOn x ids (head badrv)
+	    -- If a flexible variable is not in ids we can wait and hope that it goes away
+	unless (null badfv) $ patternViolation
+
+	reportLn 15 "passed free variable check"
+
+	-- Rename the variables in v to make it suitable for abstraction over ids.
+	-- Basically, if
+	--   Γ	 = a b c d e
+	--   ids = d b e
+	-- then
+	--   v' = (λ a b c d e. v) _ 1 _ 2 0
+	tel <- getContextTelescope
+	let iargs = reverse $ zipWith (rename $ reverse ids) [0..] $ reverse tel
+	    v'	  = raise (length ids) (abstract tel v) `apply` iargs
+
+	verbose 15 $ do
+	    d <- prettyTCM (abstractArgs args v')
+	    debug $ "final instantiation: " ++ show d
+
+	-- Perform the assignment (and wake constraints)
+	x =: abstractArgs args v'
+	return []
     where
+	rename ids i arg = case findIndex (==i) ids of
+	    Just j  -> fmap (const $ Var j []) arg
+	    Nothing -> fmap (const __IMPOSSIBLE__) arg	-- we will end up here, but never look at the result
+
 	handler = do
 	    reportLn 10 $ "Oops. Undo " ++ show x ++ " := ..."
-	    equalVal t (MetaV x args) v
-
-assignT :: MetaId -> Args -> Type -> TCM Constraints
-assignT x args ty@(El s v) =
-    handleAbort (equalTyp (El s $ MetaV x args) ty) $ assign x args v
+	    equalTerm t (MetaV x args) v
 
 assignS :: MetaId -> Sort -> TCM Constraints
 assignS x s =
-    handleAbort (equalSort (MetaS x) s) $ assign x [] s
-
--- | TODO: don't export
-assign :: (Data a, Occurs a, Abstract a) => MetaId -> Args -> a -> TCM Constraints
-assign x args = fail "assign" `mkQ` ass InstV `extQ` ass InstS where
-    ass :: (Data a, Occurs a, Abstract a) => (a -> MetaInstantiation) -> a -> TCM Constraints
-    ass inst v =
-	do  ids <- checkArgs x args
-	    v'  <- occ x ids v
-	    whenM (isBlockedTerm x) patternViolation	-- not so nice
-	    setRef x $ inst $ abstractArgs args v'
-	    return []
+    handleAbort (equalSort (MetaS x) s) $ do
+	occursCheck x s
+	x =: s
+	return []
 
 -- | Check that arguments to a metavar are in pattern fragment.
 --   Assumes all arguments already in whnf.
@@ -307,11 +334,10 @@ updateMeta mI t =
 		cs <- upd mI args (mvJudgement mv) t
 		unless (List.null cs) $ fail $ "failed to update meta " ++ show mI
     where
-	upd mI args j t = (__IMPOSSIBLE__ `mkQ` updV j `extQ` updT `extQ` updS) t
+	upd mI args j t = (__IMPOSSIBLE__ `mkQ` updV j `extQ` updS) t
 	    where
 		updV (HasType _ t) v = assignV t mI args v
 		updV _ _	     = __IMPOSSIBLE__
 
-		updT t = assignT mI args t
 		updS s = assignS mI s
 

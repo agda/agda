@@ -317,12 +317,10 @@ instance InstantiateFull Sort where
     instantiateFull s = do
 	s <- instantiate s
 	case s of
-	    MetaS x -> do
-		r <- getRange . getMetaInfo <$> lookupMeta x
-		typeError $ UnsolvedMetasInImport [r]
-	    Type _	  -> return s
-	    Prop	  -> return s
-	    Suc s	  -> sSuc <$> instantiateFull s
+	    MetaS x   -> return $ MetaS x
+	    Type _    -> return s
+	    Prop      -> return s
+	    Suc s     -> sSuc <$> instantiateFull s
 	    Lub s1 s2 -> sLub <$> instantiateFull s1 <*> instantiateFull s2
 
 instance InstantiateFull Type where
@@ -332,18 +330,16 @@ instance InstantiateFull Term where
     instantiateFull v =
 	do  v <- instantiate v
 	    case ignoreBlocking v of
-		Var n vs    -> Var n <$> instantiateFull vs
-		Con c vs    -> Con c <$> instantiateFull vs
-		Def f vs    -> Def f <$> instantiateFull vs
-		MetaV x vs  -> do
-		    r <- getRange . getMetaInfo <$> lookupMeta x
-		    typeError $ UnsolvedMetasInImport [r]
-		Lit _	    -> return v
-		Lam h b	    -> Lam h <$> instantiateFull b
-		Sort s	    -> Sort <$> instantiateFull s
-		Pi a b	    -> uncurry Pi <$> instantiateFull (a,b)
-		Fun a b     -> uncurry Fun <$> instantiateFull (a,b)
-		BlockedV _  -> __IMPOSSIBLE__
+		Var n vs   -> Var n <$> instantiateFull vs
+		Con c vs   -> Con c <$> instantiateFull vs
+		Def f vs   -> Def f <$> instantiateFull vs
+		MetaV x vs -> MetaV x <$> instantiateFull vs
+		Lit _	   -> return v
+		Lam h b    -> Lam h <$> instantiateFull b
+		Sort s	   -> Sort <$> instantiateFull s
+		Pi a b	   -> uncurry Pi <$> instantiateFull (a,b)
+		Fun a b    -> uncurry Fun <$> instantiateFull (a,b)
+		BlockedV _ -> __IMPOSSIBLE__
 
 instance InstantiateFull ClauseBody where
     instantiateFull (Body   t) = Body   <$> instantiateFull t

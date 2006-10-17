@@ -73,7 +73,7 @@ lookupInteractionId ii =
 	    Just mi -> return mi
 	    _	    -> fail $ "no such interaction point: " ++ show ii
 
-judgementInteractionId :: InteractionId -> TCM (Judgement Type Sort MetaId)
+judgementInteractionId :: InteractionId -> TCM (Judgement Type MetaId)
 judgementInteractionId ii = 
     do  mi <- lookupInteractionId ii
         mvJudgement  <$> lookupMeta mi
@@ -81,7 +81,7 @@ judgementInteractionId ii =
 
 
 -- | Generate new meta variable.
-newMeta :: MetaInfo -> Judgement Type Sort a -> TCM MetaId
+newMeta :: MetaInfo -> Judgement Type a -> TCM MetaId
 newMeta mi j =
     do	x <- fresh
 	let mv = MetaVar mi (fmap (const x) j) Open

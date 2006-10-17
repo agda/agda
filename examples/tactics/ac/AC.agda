@@ -140,21 +140,21 @@ module Semantics
       less x<y = BoolEq.subst {true}{x < y} P x<y
 		  (spine (lem0 xs (y :: ys) ρ))
 	where
-	  spine = \{x}{xs}{y}{ys}{zs} h ->
-	    eqProof> (x * xs) * (y * ys)
-		 === x * (xs * (y * ys))  by  sym assoc
-		 === x * zs		  by  congL h
+	  spine = \{x'}{xs'}{y'}{ys'}{zs} h ->
+	    eqProof> (x' * xs') * (y' * ys')
+		 === x' * (xs' * (y' * ys'))  by  sym assoc
+		 === x' * zs		  by  congL h
 
       more : IsFalse (x < y) -> _
       more x>=y = BoolEq.subst {false}{x < y} P x>=y
 		    (spine (lem0 (x :: xs) ys ρ))
 	where
-	  spine = \{x}{xs}{y}{ys}{zs} h ->
-	    eqProof> (x * xs) * (y * ys)
-		 === (y * ys) * (x * xs)  by  comm
-		 === y * (ys * (x * xs))  by  sym assoc
-		 === y * ((x * xs) * ys)  by  congL comm
-		 === y * zs		  by  congL h
+	  spine = \{x'}{xs'}{y'}{ys'}{zs} h ->
+	    eqProof> (x' * xs') * (y' * ys')
+		 === (y' * ys') * (x' * xs')  by  comm
+		 === y' * (ys' * (x' * xs'))  by  sym assoc
+		 === y' * ((x' * xs') * ys')  by  congL comm
+		 === y' * zs		  by  congL h
 
   lem1 : {n : Nat} -> (e : Expr n) -> (ρ : Vec n A) -> eq[ e ≡ normalise e ↓ ] ρ
   lem1  zro    ρ = refl
@@ -230,4 +230,27 @@ open NatPlus
 
 test : (x, y, z : Nat) -> x + (y + z) === (z + x) + y
 test = prove (theorem n3 \x y z -> x ○ (y ○ z) ≡ (z ○ x) ○ y)
+
+{-
+_437 := \x' x'' x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 x13 x14 x15 x16 x17 x18 x19 x20 -> lem0 (x15 :: x16) x18 x19
+     |  [ (expr[ ((x :: xs) ↓ ○ ys ↓) ]) ρ == (expr[ ((x :: xs ⊕ ys) ↓) ]) ρ
+        = _395 A _==_ _*_ one refl sym trans idL idR comm assoc congL congR _n x xs y ys ρ x>=y
+	       (ρ ! x) ((expr[ (xs ↓) ]) ρ) (ρ ! y) ((expr[ (ys ↓) ]) ρ) ((expr[ ((x :: xs ⊕ ys) ↓) ]) ρ)
+	: Set
+	]
+_428 := \x' x'' x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 x13 x14 x15 x16 x17 x18 x19 x20 x21 x22 x23 x24 x25 x26 -> x26
+     |  [ _395 A _==_ _*_ one refl sym trans idL idR comm assoc congL congR _n x xs y ys ρ x>=y x xs y ys zs
+	= x * xs * ys == zs : Set
+	]
+_364 := \x' x'' x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 x13 x14 x15 x16 x17 x18
+ x19 x20 ->
+  lem0 x16 (x17 :: x18) x19  |  [(expr[ (xs ↓ ○ (y :: ys) ↓) ]) ρ == (expr[ ((xs ⊕ y :: ys) ↓) ]) ρ = _337 A _==_ _*_ one refl sym trans idL idR comm assoc congL congR
+_n x xs y ys ρ x<y (ρ ! x) ((expr[ (xs ↓) ]) ρ) (ρ ! y)
+((expr[ (ys ↓) ]) ρ) ((expr[ ((xs ⊕ y :: ys) ↓) ]) ρ) : Set]
+_355 := \x' x'' x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 x13 x14 x15 x16 x17 x18
+ x19 x20 x21 x22 x23 x24 x25 x26 ->
+  x26  |  [_337 A _==_ _*_ one refl sym trans idL idR comm assoc congL congR
+_n x xs y ys ρ x<y x xs y ys zs = xs * (y * ys) == zs : Set]
+
+-}
 

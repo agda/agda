@@ -85,7 +85,7 @@ checkPrimitive i x e =
     traceCall (CheckPrimitive (getRange i) x e) $ do
     PrimImpl t' pf <- lookupPrimitiveFunction (nameString x)
     t <- isType_ e
-    noConstraints $ equalTyp t t'
+    noConstraints $ equalType t t'
     m <- currentModule
     let s = show x
     bindPrimitive s pf
@@ -327,7 +327,7 @@ forceData d (El s0 t) = do
 	MetaV m vs	    -> do
 	    Defn t _ (Datatype n _ s _) <- getConstInfo d
 	    ps <- newArgsMeta t
-	    noConstraints $ equalTyp (El s0 t') (El s (Def d ps)) -- TODO: too strict?
+	    noConstraints $ equalType (El s0 t') (El s (Def d ps)) -- TODO: too strict?
 	    reduce $ El s0 t'
 	_ -> typeError $ ShouldBeApplicationOf (El s0 t) d
 
@@ -436,7 +436,7 @@ checkPattern name p t ret =
 	    checkPatterns ps (piApply' t' vs) $ \ (xs, ps', ts', rest) -> do
 		let n  = length xs
 		    tn = raise n t
-		v  <- blockTerm tn (Con c' $ raise n us ++ ts') $ equalTyp rest tn
+		v  <- blockTerm tn (Con c' $ raise n us ++ ts') $ equalType rest tn
 		ret (xs, ConP c' ps', v)
 	    where
 		hide (Arg _ x) = Arg Hidden x
@@ -521,7 +521,7 @@ forcePi h (El s t) =
 		b <- addCtx x a $ newTypeMeta sb
 
 		let ty = El s' $ Pi (Arg h a) (Abs (show x) b)
-		addNewConstraints =<< equalTyp (El s t') ty	-- TODO: what to do here?
+		addNewConstraints =<< equalType (El s t') ty	-- TODO: what to do here?
 		reduce ty
 	    _ -> typeError $ ShouldBePi (El s t')
 
@@ -573,7 +573,7 @@ checkExpr e t =
 	_   | Application hd args <- appView e -> do
 		(v,  t0) <- inferHead hd
 		(vs, t1) <- checkArguments (getRange hd) args t0 t
-		blockTerm t (apply v vs) $ equalTyp t1 t
+		blockTerm t (apply v vs) $ equalType t1 t
 
 	-- Insert hidden lambda if appropriate
 	_   | not (hiddenLambda e)
@@ -592,12 +592,12 @@ checkExpr e t =
 	A.App i e arg -> do
 	    (v0, t0) <- inferExpr e
 	    (vs, t1) <- checkArguments (getRange e) [arg] t0 t
-	    blockTerm t (apply v0 vs) $ equalTyp t1 t
+	    blockTerm t (apply v0 vs) $ equalType t1 t
 
 	A.Lam i (A.DomainFull b) e ->
 	    checkTypedBindings b $ \tel -> do
 	    t1 <- newTypeMeta_
-	    escapeContext (length tel) $ addNewConstraints =<< equalTyp t (telePi tel t1)   -- TODO: what to do here?
+	    escapeContext (length tel) $ addNewConstraints =<< equalType t (telePi tel t1)   -- TODO: what to do here?
 	    v <- checkExpr e t1
 	    return $ buildLam (map name tel) v
 	    where
@@ -629,19 +629,19 @@ checkExpr e t =
 	A.Pi _ tel e ->
 	    checkTelescope tel $ \tel -> do
 	    t' <- telePi tel <$> isType_ e
-	    addNewConstraints =<< equalTyp (sort $ getSort t') t
+	    addNewConstraints =<< equalType (sort $ getSort t') t
 	    return $ unEl t'
 	A.Fun _ (Arg h a) b -> do
 	    a' <- isType_ a
 	    b' <- isType_ b
 	    let s = getSort a' `sLub` getSort b'
-	    addNewConstraints =<< equalTyp (sort s) t
+	    addNewConstraints =<< equalType (sort s) t
 	    return $ Fun (Arg h a') b'
 	A.Set _ n    -> do
-	    addNewConstraints =<< equalTyp (sort $ Type $ n + 1) t
+	    addNewConstraints =<< equalType (sort $ Type $ n + 1) t
 	    return $ Sort (Type n)
 	A.Prop _     -> do
-	    addNewConstraints =<< equalTyp (sort $ Type 1) t
+	    addNewConstraints =<< equalType (sort $ Type 1) t
 	    return $ Sort Prop
 	A.Var _ _    -> __IMPOSSIBLE__
 	A.Def _ _    -> __IMPOSSIBLE__
@@ -730,7 +730,7 @@ inferExpr e = do
 checkLiteral :: Literal -> Type -> TCM Term
 checkLiteral lit t = do
     t' <- litType lit
-    v  <- blockTerm t (Lit lit) $ equalTyp t t'
+    v  <- blockTerm t (Lit lit) $ equalType t t'
     return v
     where
 	el t = El (Type 0) t

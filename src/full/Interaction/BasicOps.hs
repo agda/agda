@@ -53,17 +53,10 @@ giveExpr mi e =
 		 HasType _ t  ->
 		    do	v <- checkExpr e t
 			case mvInstantiation mv of
-			    InstV v' -> addConstraints =<< equalVal t v (v' `apply` vs)
+			    InstV v' -> addConstraints =<< equalTerm t v (v' `apply` vs)
 			    _	     -> return ()
 			updateMeta mi v
                         reify v
-		 IsType _ s ->
-		    do	t <- isType e s
-			case mvInstantiation mv of
-			    InstV t' -> addConstraints =<< equalTyp t (El s $ t' `apply` vs)
-			    _	     -> return ()
-			updateMeta mi t
-                        reify t 
 		 IsSort _ -> __IMPOSSIBLE__
 
 give :: InteractionId -> Maybe Range -> Expr -> IM (Expr,[InteractionId])
@@ -232,10 +225,9 @@ instance ToConcrete InteractionId C.Expr where
 instance ToConcrete MetaId C.Expr where
     toConcrete (MetaId i) = return $ C.Underscore noRange (Just i)
 
-judgToOutputForm :: Judgement a b c -> OutputForm a c
+judgToOutputForm :: Judgement a c -> OutputForm a c
 judgToOutputForm (HasType e t) = OfType e t
-judgToOutputForm (IsType t s) = JustType t
-judgToOutputForm (IsSort s) = JustSort s
+judgToOutputForm (IsSort s)    = JustSort s
 
 
 mkUndo :: IM ()
@@ -265,7 +257,6 @@ typeOfMetaMI norm mi =
 	withMetaInfo (getMetaInfo mv) $ do
 	    t <- rewrite norm t 
 	    OfType i <$> reify t
-    rewriteJudg mv (IsType i s)  = return $ JustType i 
     rewriteJudg mv (IsSort i)    = return $ JustSort i
 
 

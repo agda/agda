@@ -59,8 +59,8 @@ solveConstraints cs = do
 	else return cs
 
 solveConstraint :: Constraint -> TCM Constraints
-solveConstraint (ValueEq a u v) = equalVal a u v
-solveConstraint (TypeEq a b)	= equalTyp a b
+solveConstraint (ValueEq a u v) = equalTerm a u v
+solveConstraint (TypeEq a b)	= equalType a b
 solveConstraint (SortEq s1 s2)	= equalSort s1 s2
 solveConstraint (Guarded c cs)	= do
     verbose 5 $ do
@@ -75,6 +75,6 @@ solveConstraint (UnBlock m) = do
     verbose 5 $ do
 	d <- prettyTCM t
 	debug $ show m ++ " := " ++ show d
-    setRef m $ InstV t
+    m =: t
     return []
 

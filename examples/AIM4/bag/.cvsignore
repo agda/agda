@@ -1,3 +1,4 @@
 .*.swp
 *~
+.*.agda.vim
 *.agdai

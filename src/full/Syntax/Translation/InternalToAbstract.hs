@@ -151,10 +151,9 @@ instance Reify i a => Reify [i] [a] where
 instance (Reify i1 a1, Reify i2 a2) => Reify (i1,i2) (a1,a2) where
     reify (x,y) = (,) <$> reify x <*> reify y
 
-instance (Reify t t', Reify s s', Reify a a') 
-         => Reify (Judgement t s a) (Judgement t' s' a') where
+instance (Reify t t', Reify a a') 
+         => Reify (Judgement t a) (Judgement t' a') where
     reify (HasType i t) = HasType <$> reify i <*> reify t
-    reify (IsType i t)  = IsType <$> reify i <*> reify t
     reify (IsSort i) = IsSort <$> reify i
 
 

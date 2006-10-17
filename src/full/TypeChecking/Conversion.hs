@@ -20,39 +20,12 @@ import TypeChecking.Monad.Debug
 
 #include "../undefined.h"
 
-{-
--- | Equality of two instances of the same metavar
---
-equalSameVar :: (Data a, Abstract a, Apply a) => 
-                (MetaId -> a) -> (a -> MetaInstantiation) -> MetaId -> Args -> Args -> TCM ()
-equalSameVar meta inst x args1 args2 =
-    if length args1 == length args2 then do
-        -- next 2 checks could probably be nicely merged into construction 
-        --   of newArgs using ListT, but then can't use list comprehension.
-        checkArgs x args1 
-        checkArgs x args2 
-        let idx = [0 .. length args1 - 1]
-        let newArgs = [ Arg NotHidden $ Var n []
-		      | (n, (a,b)) <- zip idx $ reverse $ zip args1 args2
-		      , a === b
-		      ]
-        v <- newMetaSame x meta
-	let tel = map (fmap $ const ("_", sort Prop)) args1
-		-- only hiding matters
-        setRef x $ inst $ abstract tel (v `apply` newArgs)
-    else fail $ "equalSameVar"
-    where
-	Arg _ (Var i []) === Arg _ (Var j []) = i == j
-	_		 === _		      = False
--}
-
 -- | Type directed equality on values.
 --
-equalVal :: Type -> Term -> Term -> TCM Constraints
-equalVal a m n =
+equalTerm :: Type -> Term -> Term -> TCM Constraints
+equalTerm a m n =
     catchConstraint (ValueEq a m n) $
     do	a' <- instantiate a
---     debug $ "equalVal " ++ show m ++ " == " ++ show n ++ " : " ++ show a'
 	proofIrr <- proofIrrelevance
 	s <- reduce $ getSort a'
 	case (proofIrr, s) of
@@ -63,11 +36,11 @@ equalVal a m n =
 		    Fun a _   -> equalFun (a,a') m n
 		    MetaV x _ -> buildConstraint (ValueEq a m n)
 		    Lam _ _   -> __IMPOSSIBLE__
-		    _	      -> equalAtm a' m n
+		    _	      -> equalAtom a' m n
     where
 	equalFun (a,t) m n =
 	    do	name <- freshName_ (suggest $ unEl t)
-		addCtx name (unArg a) $ equalVal t' m' n'
+		addCtx name (unArg a) $ equalTerm t' m' n'
 	    where
 		p	= fmap (const $ Var 0 []) a
 		(m',n') = raise 1 (m,n) `apply` [p]
@@ -78,10 +51,10 @@ equalVal a m n =
 
 -- | Syntax directed equality on atomic values
 --
-equalAtm :: Type -> Term -> Term -> TCM Constraints
-equalAtm t m n =
+equalAtom :: Type -> Term -> Term -> TCM Constraints
+equalAtom t m n =
     catchConstraint (ValueEq t m n) $
-    do	(m, n) <- {-# SCC "equalAtm.reduce" #-} reduce (m, n)
+    do	(m, n) <- {-# SCC "equalAtom.reduce" #-} reduce (m, n)
 	verbose 10 $ do
 	    dm <- prettyTCM m
 	    dn <- prettyTCM n
@@ -116,11 +89,11 @@ equalAtm t m n =
 	equalFun (FunV (Arg h1 a1) t1) (FunV (Arg h2 a2) t2)
 	    | h1 /= h2	= typeError $ UnequalHiding ty1 ty2
 	    | otherwise =
-		do  cs  <- equalTyp a1 a2
+		do  cs  <- equalType a1 a2
 		    let (ty1',ty2') = raise 1 (ty1,ty2)
 			arg	  = Arg h1 (Var 0 [])
 		    name <- freshName_ (suggest t1 t2)
-		    cs' <- addCtx name a1 $ equalTyp (piApply' ty1' [arg]) (piApply' ty2' [arg])
+		    cs' <- addCtx name a1 $ equalType (piApply' ty1' [arg]) (piApply' ty2' [arg])
 		    return $ cs ++ cs'
 	    where
 		ty1 = El (getSort a1) t1    -- TODO: wrong (but it doesn't matter)
@@ -144,11 +117,11 @@ equalArg a args1 args2 = do
     case (unEl a', args1, args2) of 
         (_, [], []) -> return []
         (Pi (Arg _ b) (Abs _ c), (Arg _ arg1 : args1), (Arg _ arg2 : args2)) -> do
-            cs  <- equalVal b arg1 arg2
+            cs  <- equalTerm b arg1 arg2
             cs' <- equalArg (subst arg1 c) args1 args2
 	    return $ cs ++ cs'
         (Fun (Arg _ b) c, (Arg _ arg1 : args1), (Arg _ arg2 : args2)) -> do
-            cs  <- equalVal b arg1 arg2
+            cs  <- equalTerm b arg1 arg2
             cs' <- equalArg c args1 args2
 	    return $ cs ++ cs'
         _ -> patternViolation	-- TODO: not the best idea?
@@ -156,15 +129,15 @@ equalArg a args1 args2 = do
 
 
 -- | Equality on Types
-equalTyp :: Type -> Type -> TCM Constraints
-equalTyp ty1@(El s1 a1) ty2@(El s2 a2) =
+equalType :: Type -> Type -> TCM Constraints
+equalType ty1@(El s1 a1) ty2@(El s2 a2) =
     catchConstraint (TypeEq ty1 ty2) $ do
 	verbose 5 $ do
 	    d1 <- prettyTCM ty1
 	    d2 <- prettyTCM ty2
 	    debug $ show d1 ++ " == " ++ show d2
 	cs1 <- equalSort s1 s2
-	cs2 <- equalVal (sort s1) a1 a2
+	cs2 <- equalTerm (sort s1) a1 a2
 	verbose 5 $ do
 	    dcs <- mapM prettyTCM $ cs1 ++ cs2
 	    debug $ "   --> " ++ show dcs
@@ -176,7 +149,7 @@ leqType ty1@(El s1 a1) ty2@(El s2 a2) = do
     (a1, a2) <- reduce (a1,a2)
     case (a1, a2) of
 	(Sort s1, Sort s2) -> leqSort s1 s2
-	_		   -> equalTyp (El s1 a1) (El s2 a2)
+	_		   -> equalType (El s1 a1) (El s2 a2)
 	    -- TODO: subtyping for function types
 
 ---------------------------------------------------------------------------
