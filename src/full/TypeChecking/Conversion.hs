@@ -90,12 +90,22 @@ equalAtom t m n =
 	    | h1 /= h2	= typeError $ UnequalHiding ty1 ty2
 	    | otherwise = do
 		    let (ty1',ty2') = raise 1 (ty1,ty2)
-			arg	  = Arg h1 (Var 0 [])
+			arg	    = Arg h1 (Var 0 [])
 		    name <- freshName_ (suggest t1 t2)
 		    cs   <- equalType a1 a2
-		    addCtx name a1
-			$ guardConstraint (return cs)
-			$ TypeEq (piApply' ty1' [arg]) (piApply' ty2' [arg])
+		    let c = TypeEq (piApply' ty1' [arg]) (piApply' ty2' [arg])
+
+		    -- We only need to require a1 == a2 if t2 is a dependent function type.
+		    -- If it's non-dependent it doesn't matter what we add to the context.
+		    let dependent = case t2 of
+					Pi _ _	-> True
+					Fun _ _	-> False
+					_	-> __IMPOSSIBLE__
+		    if dependent
+			then addCtx name a1 $ guardConstraint (return cs) c
+			else do
+			    cs' <- addCtx name a1 $ solveConstraint c
+			    return $ cs ++ cs'
 	    where
 		ty1 = El (getSort a1) t1    -- TODO: wrong (but it doesn't matter)
 		ty2 = El (getSort a2) t2
