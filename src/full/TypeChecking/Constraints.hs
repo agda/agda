@@ -75,6 +75,6 @@ solveConstraint (UnBlock m) = do
     verbose 5 $ do
 	d <- prettyTCM t
 	debug $ show m ++ " := " ++ show d
-    m =: t
+    assignTerm m t
     return []
 

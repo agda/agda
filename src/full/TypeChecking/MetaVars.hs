@@ -90,6 +90,9 @@ x =: t = do
     ins x i store = Map.adjust (inst i) x store
     inst i mv = mv { mvInstantiation = i }
 
+assignTerm :: MetaId -> Term -> TCM ()
+assignTerm = (=:)
+
 newSortMeta ::  TCM Sort
 newSortMeta = 
     do  i <- createMetaInfo

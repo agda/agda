@@ -69,14 +69,14 @@ equalAtom t m n =
 	    (Lit l1, Lit l2) | l1 == l2 -> return []
 	    (Var i iArgs, Var j jArgs) | i == j -> do
 		a <- typeOfBV i
-		equalArg a iArgs jArgs
+		equalArg a iArgs a jArgs
 	    (Def x xArgs, Def y yArgs) | x == y -> do
 		a <- defType <$> getConstInfo x
-		equalArg a xArgs yArgs
+		equalArg a xArgs a yArgs
 	    (Con x xArgs, Con y yArgs)
 		| x == y -> do
 		    a <- defType <$> getConstInfo x
-		    equalArg a xArgs yArgs
+		    equalArg a xArgs a yArgs
 	    (MetaV x xArgs, MetaV y yArgs) | x == y ->
 		buildConstraint (ValueEq t m n)
 		-- equalSameVar (\x -> MetaV x []) InstV x xArgs yArgs
@@ -93,8 +93,8 @@ equalAtom t m n =
 		    let (ty1',ty2') = raise 1 (ty1,ty2)
 			arg	  = Arg h1 (Var 0 [])
 		    name <- freshName_ (suggest t1 t2)
-		    cs' <- addCtx name a1 $ equalType (piApply' ty1' [arg]) (piApply' ty2' [arg])
-		    return $ cs ++ cs'
+		    addCtx name a1 $ buildConstraint $
+			Guarded (TypeEq (piApply' ty1' [arg]) (piApply' ty2' [arg])) cs
 	    where
 		ty1 = El (getSort a1) t1    -- TODO: wrong (but it doesn't matter)
 		ty2 = El (getSort a2) t2
@@ -111,21 +111,20 @@ equalAtom t m n =
 
 -- | Type-directed equality on argument lists
 --
-equalArg :: Type -> Args -> Args -> TCM Constraints
-equalArg a args1 args2 = do
-    a' <- reduce a
-    case (unEl a', args1, args2) of 
-        (_, [], []) -> return []
-        (Pi (Arg _ b) (Abs _ c), (Arg _ arg1 : args1), (Arg _ arg2 : args2)) -> do
-            cs  <- equalTerm b arg1 arg2
-            cs' <- equalArg (subst arg1 c) args1 args2
-	    return $ cs ++ cs'
-        (Fun (Arg _ b) c, (Arg _ arg1 : args1), (Arg _ arg2 : args2)) -> do
-            cs  <- equalTerm b arg1 arg2
-            cs' <- equalArg c args1 args2
-	    return $ cs ++ cs'
-        _ -> patternViolation	-- TODO: not the best idea?
-	-- __IMPOSSIBLE__
+equalArg :: Type -> Args -> Type -> Args -> TCM Constraints
+equalArg _ [] _ [] = return []
+equalArg _ [] _ (_:_) = __IMPOSSIBLE__
+equalArg _ (_:_) _ [] = __IMPOSSIBLE__
+equalArg a1 (arg1 : args1) a2 (arg2 : args2) = do
+    a1 <- reduce a1
+    a2 <- reduce a2
+    case (funView (unEl a1), funView (unEl a2)) of 
+	( FunV (Arg _ b1) _, FunV (Arg _ b2) _ ) -> do
+	    cs  <- equalType b1 b2
+            cs1 <- buildConstraint $ Guarded (ValueEq b1 (unArg arg1) (unArg arg2)) cs
+	    cs2 <- equalArg (piApply' a1 [arg1]) args1 (piApply' a2 [arg2]) args2
+	    return $ cs1 ++ cs2
+        _   -> patternViolation
 
 
 -- | Equality on Types
