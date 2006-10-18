@@ -115,11 +115,11 @@ cmd_load file = infoOnException $ do
     (pragmas, m) <- parseFile moduleParser file
     is <- ioTCM $ do
 	    pragmas	 <- concreteToAbstract_ pragmas	-- identity for top-level pragmas at the moment
-	    (m',scope)	 <- concreteToAbstract_ m
+	    (m',scope)	 <- concreteToAbstract_ (TopLevel m)
 	    setUndo
 	    resetState
 	    setOptionsFromPragmas pragmas
-	    checkDecl m'
+	    checkDecls m'
 	    setScope scope
 	    lispIP
     putStrLn $ response $ L[A"agda2-load-action", is]

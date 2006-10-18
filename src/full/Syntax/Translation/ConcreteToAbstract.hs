@@ -8,6 +8,7 @@ module Syntax.Translation.ConcreteToAbstract
     , concreteToAbstract_
     , concreteToAbstract
     , OldName(..)
+    , TopLevel(..)
     ) where
 
 import Control.Monad.Reader
@@ -299,19 +300,21 @@ instance BindToAbstract C.TypedBinding A.TypedBinding where
 	do  e <- toAbstractCtx TopCtx e
 	    ret (A.TNoBind e)
 
--- Note: only for top level modules!
-instance ToAbstract C.Declaration (A.Declaration, ScopeInfo) where
-    toAbstract (C.Module r x tel ds) =
-	insideTopLevelModule x $
-	bindToAbstract (tel,ds) $ \(tel',ds') ->    -- order matter!
-	    do	scope <- getScopeInfo
+newtype TopLevel a = TopLevel a
+
+-- Top-level declarations are always (import|open)* module
+instance ToAbstract (TopLevel [C.Declaration]) ([A.Declaration], ScopeInfo) where
+    toAbstract (TopLevel ds) = case splitAt (length ds - 1) ds of
+	(ds', [C.Module r x tel ds]) ->
+	    bindToAbstract ds'	    $ \ds' ->
+	    insideModule x	    $
+	    bindToAbstract (tel,ds) $ \(tel,ds) -> do    -- order matter!
+		scope <- getScopeInfo
 		x' <- toAbstract $ CModuleName x
-		return (A.Module info x' tel' ds', scope)
-	where
-	    info = mkRangedModuleInfo PublicAccess r
-			-- We could save the concrete module here but
-			-- seems a bit over-kill.
-    toAbstract d = __IMPOSSIBLE__
+		return (ds' ++ [A.Module info x' tel ds], scope)
+	    where
+		info = mkRangedModuleInfo PublicAccess r
+	_ -> __IMPOSSIBLE__
 
 instance BindToAbstract [C.Declaration] [A.Declaration] where
     bindToAbstract ds ret = do
@@ -419,7 +422,7 @@ instance BindToAbstract NiceDeclaration [A.Declaration] where
     -- TODO: what does an abstract module mean? The syntax doesn't allow it.
 	NiceModule r p _ name@(C.QName x) tel ds -> do
 	    (tel',ds',ns) <-
-		insideModule x $
+		insideModule name $
 		bindToAbstract (tel,ds) $ \ (tel',ds') ->
 		    do	ns <- currentNameSpace
 			return (tel',ds',ns)

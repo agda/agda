@@ -135,6 +135,7 @@ checkModule i x tel ds =
     do	tel0 <- getContextTelescope
 	checkTelescope tel $ \tel' ->
 	    do	m'   <- flip qualifyModule x <$> currentModule
+		reportLn 5 $ "adding module " ++ show (mnameId m')
 		addModule m' $ ModuleDef
 				{ mdefName	= m'
 				, mdefTelescope = tel0 ++ tel'
@@ -399,7 +400,7 @@ checkPatterns [] t ret =
 	_ -> ret ([], [], [], t)
 checkPatterns ps0@(Arg h p:ps) t ret =
     traceCallCPS (CheckPatterns ps0 t) ret $ \ret -> do
-    t' <- forcePi h t
+    t' <- forcePi h (name p) t
     case (h,funView $ unEl t') of
 	(NotHidden, FunV (Arg Hidden _) _) ->
 	    checkPatterns (Arg Hidden (A.WildP $ PatRange $ getRange p) : Arg h p : ps) t' ret
@@ -410,6 +411,9 @@ checkPatterns ps0@(Arg h p:ps) t ret =
 		let v' = raise (length ys) v
 		ret (xs ++ ys, Arg h p : ps, Arg h v':vs, t'')
 	_ -> typeError $ WrongHidingInLHS t'
+    where
+	name (A.VarP x) = show x
+	name _	        = "x"
 
 -- | TODO: move
 argName = argN . unEl
@@ -503,8 +507,8 @@ isType_ e =
 
 -- | Force a type to be a Pi. Instantiates if necessary. The 'Hiding' is only
 --   used when instantiating a meta variable.
-forcePi :: Hiding -> Type -> TCM Type
-forcePi h (El s t) =
+forcePi :: Hiding -> String -> Type -> TCM Type
+forcePi h name (El s t) =
     do	t' <- reduce t
 	case t' of
 	    Pi _ _	-> return $ El s t'
@@ -517,7 +521,7 @@ forcePi h (El s t) =
 		let s' = sLub sa sb
 
 		a <- newTypeMeta sa
-		x <- refreshName (getRange i) "x"
+		x <- refreshName (getRange i) name
 		b <- addCtx x a $ newTypeMeta sb
 
 		let ty = El s' $ Pi (Arg h a) (Abs (show x) b)
@@ -604,7 +608,7 @@ checkExpr e t =
 		name (Arg h (x,_)) = Arg h x
 
 	A.Lam i (A.DomainFree h x) e0 -> do
-	    t' <- forcePi h t
+	    t' <- forcePi h (show x) t
 	    case funView $ unEl t' of
 		FunV (Arg h' a) _
 		    | h == h' ->
@@ -691,7 +695,7 @@ checkArguments r [] t0 t1 =
 
 checkArguments r args0@(Arg h e : args) t0 t1 =
     traceCall (CheckArguments r args0 t0 t1) $ do
-	t0' <- forcePi h t0
+	t0' <- forcePi h (name e) t0
 	case (h, funView $ unEl t0') of
 	    (NotHidden, FunV (Arg Hidden a) _) -> do
 		u  <- newValueMeta a
@@ -707,6 +711,9 @@ checkArguments r args0@(Arg h e : args) t0 t1 =
 	    (Hidden, FunV (Arg NotHidden _) _) ->
 		typeError $ WrongHidingInApplication t0'
 	    _ -> __IMPOSSIBLE__
+    where
+	name (A.Var _ x) = show x
+	name _	         = "x"
 
 
 -- | Check that a list of arguments fits a telescope.

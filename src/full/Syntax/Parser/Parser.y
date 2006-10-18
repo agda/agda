@@ -176,8 +176,8 @@ Token
     Top level
  --------------------------------------------------------------------------}
 
-File :: { ([Pragma], Declaration) }
-File : TopModule	   { ([], $1) }
+File :: { ([Pragma], [Declaration]) }
+File : TopLevel		   { ([], $1) }
      | TopLevelPragma File { let (ps,m) = $2 in ($1 : ps, m) }
      | tex File		   { $2 }
 
@@ -591,6 +591,12 @@ Module :: { Declaration }
 Module : 'module' Id TypedBindingss0 'where' Declarations0
 		    { Module (getRange ($1,$4,$5)) (QName $2) $3 $5 }
 
+-- The top-level consist of a bunch of import and open followed by a top-level module.
+TopLevel :: { [Declaration] }
+TopLevel : TopModule	   { [$1] }
+	 | Import TopLevel { $1 : $2 }
+	 | Open   TopLevel { $1 : $2 }
+
 -- The top-level module can have a qualified name.
 TopModule :: { Declaration }
 TopModule : 'module' ModuleName TypedBindingss0 'where' Declarations0
@@ -663,7 +669,7 @@ tokensParser :: Parser [Token]
 exprParser :: Parser Expr
 
 -- | Parse a module.
-moduleParser :: Parser ([Pragma], Declaration)
+moduleParser :: Parser ([Pragma], [Declaration])
 
 
 {--------------------------------------------------------------------------

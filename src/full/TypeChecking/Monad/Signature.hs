@@ -66,7 +66,7 @@ lookupModule m =
     do	sig  <- getSignature
 	isig <- getImportedSignature
 	case (Map.lookup m sig, Map.lookup m isig) of
-	    (Nothing, Nothing) -> fail $ show (getRange m) ++ ": no such module " ++ show m
+	    (Nothing, Nothing) -> fail $ show (getRange m) ++ ": no such module " ++ concat (intersperse "." $ List.map show $ mnameId m)
 	    (Just md, Nothing) -> return md
 	    (Nothing, Just md) -> return md
 	    (Just _, Just _)   -> typeError $ LocalVsImportedModuleClash m

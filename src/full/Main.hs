@@ -87,11 +87,11 @@ runAgda =
 
 				-- Scope check
 				pragmas	     <- concreteToAbstract_ pragmas -- identity for top-level pragmas
-				(m, scope)   <- concreteToAbstract_ m
+				(m, scope)   <- concreteToAbstract_ (TopLevel m)
 				setOptionsFromPragmas pragmas
 
 				-- Type check
-				checkDecl m
+				checkDecls m
 
 				setScope scope
 

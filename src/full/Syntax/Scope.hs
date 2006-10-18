@@ -17,7 +17,6 @@ module Syntax.Scope
     , ScopeM
       -- Functions
     , emptyScopeInfo
-    , emptyScopeInfo_
     , getScopeInfo
     , setScopeInfo
     , modScopeInfo
@@ -31,7 +30,6 @@ module Syntax.Scope
     , notInScope
     , currentModuleScope
     , currentNameSpace
-    , insideTopLevelModule
     , insideModule
     , defName
     , defineName
@@ -62,6 +60,7 @@ import Syntax.Fixity
 import Syntax.ScopeInfo
 
 import TypeChecking.Monad.Base
+import TypeChecking.Monad.Options
 
 import Utils.Monad
 import Utils.Maybe
@@ -248,7 +247,9 @@ updateImports f si = si { importedModules = f $ importedModules si }
 
 defName :: Access -> KindOfName -> Fixity -> AName.Name ->
 	   ScopeInfo -> ScopeM ScopeInfo
-defName a k fx x si = updateNameSpaceM a (addName (nameConcrete x) qx) si
+defName a k fx x si = do
+    reportLn 7 $ "defined name " ++ concat (intersperse "." $ List.map show $ mnameId m) ++ "." ++ show x
+    updateNameSpaceM a (addName (nameConcrete x) qx) si
     where
 	m   = moduleName $ publicNameSpace si
 	qx  = DefinedName a k fx (AName.qualify m x)
@@ -491,23 +492,21 @@ setContext :: Precedence -> ScopeM a -> ScopeM a
 setContext p =
     modScopeInfo $ \s -> s { contextPrecedence = p }
 
--- | Work inside the top-level module.
-insideTopLevelModule :: CName.QName -> ScopeM a -> ScopeM a
-insideTopLevelModule qx = modScopeInfo $ const $ emptyScopeInfo $ mkModuleName qx
-
 -- | Work inside a module. This means moving everything in the
 --   'publicNameSpace' to the 'privateNameSpace' and updating the names of
 --   the both name spaces.
-insideModule :: CName.Name -> ScopeM a -> ScopeM a
-insideModule x = modScopeInfo upd
+insideModule :: CName.QName -> ScopeM a -> ScopeM a
+insideModule qx = modScopeInfoM upd
     where
-	upd si = si { publicNameSpace = emptyNameSpace qx
-		    , privateNameSpace = plusNameSpace pri pub
-		    }
+	upd si = do
+	    reportLn 5 $ "entering module " ++ show (mnameId m)
+	    return $ si { publicNameSpace  = emptyNameSpace m
+			, privateNameSpace = plusNameSpace pri pub
+			}
 	    where
 		pub = publicNameSpace si
-		pri = (privateNameSpace si) { moduleName = qx }
-		qx  = qualifyModule' (moduleName pub) x
+		pri = (privateNameSpace si) { moduleName = m }
+		m   = qualifyModule (moduleName pub) (mkModuleName qx)
 
 -- | Add a defined name to the current scope.
 defineName :: Access -> KindOfName -> Fixity -> CName.Name -> (AName.Name -> ScopeM a) -> ScopeM a
@@ -573,16 +572,6 @@ implicitModule x ac ar x' i cont =
 			     , moduleContents = ns
 			     }
 	modScopeInfoM (updateNameSpaceM ac (addModule x m')) cont
-
--- | Running the scope monad.
--- runScopeM :: ScopeState -> ScopeInfo -> ScopeM a -> IO a
--- runScopeM s i m =
--- 	    flip runReaderT i
--- 	    $ flip evalStateT s
--- 	    $ m
--- 
--- runScopeM_ :: ScopeM a -> IO a
--- runScopeM_ = runScopeM initScopeState emptyScopeInfo_
 
 ---------------------------------------------------------------------------
 -- * Debugging

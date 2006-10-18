@@ -159,13 +159,13 @@ createInterface opts trace path visited file = runTCM $ withImportPath path $ do
     setCommandLineOptions opts
     setVisitedModules visited
 
-    (pragmas, m) <- liftIO $ parseFile' moduleParser file
-    pragmas	 <- concreteToAbstract_ pragmas -- identity for top-level pragmas
-    (m, scope)	 <- concreteToAbstract_ m
+    (pragmas, top) <- liftIO $ parseFile' moduleParser file
+    pragmas	   <- concreteToAbstract_ pragmas -- identity for top-level pragmas
+    (m, scope)	   <- concreteToAbstract_ (TopLevel top)
 
     setOptionsFromPragmas pragmas
 
-    checkDecl m
+    checkDecls m
     setScope scope
 
     -- Generate Vim file

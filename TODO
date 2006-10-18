@@ -22,9 +22,9 @@ Features
 
 * named implicit arguments, see notes/named-implicit
 
-* allow import and open (and module instantiation?) before the top level module.
-
 * build agda as a package to speed up loading into ghci
+
+* allow module instantiation before top-level module(?)
 
 Fixes
 -----
@@ -134,6 +134,8 @@ Performance
 
 Done
 ----
+
+* allow import and open before the top level module.
 
 * checking that underscores have been solved (only in batch mode)
 

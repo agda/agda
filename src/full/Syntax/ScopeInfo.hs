@@ -104,20 +104,20 @@ data ScopeInfo = ScopeInfo
    deriving (Data,Typeable)
 
 emptyNameSpace :: AName.ModuleName -> NameSpace
-emptyNameSpace x = NSpace { moduleName	 = x
-			  , definedNames = Map.empty
-			  , modules	 = Map.empty
-			  }
-
-
-emptyScopeInfo :: AName.ModuleName -> ScopeInfo
-emptyScopeInfo x = ScopeInfo { publicNameSpace	    = emptyNameSpace x
-			     , privateNameSpace	    = emptyNameSpace x
-			     , importedModules	    = Map.empty
-			     , localVariables	    = Map.empty
-			     , contextPrecedence    = TopCtx
+emptyNameSpace name = NSpace { moduleName   = name
+			     , definedNames = Map.empty
+			     , modules      = Map.empty
 			     }
 
-emptyScopeInfo_ :: ScopeInfo
-emptyScopeInfo_ = emptyScopeInfo $ mkModuleName $ CName.QName noName_
+emptyNameSpace_ :: NameSpace
+emptyNameSpace_ = emptyNameSpace noModuleName
+
+
+emptyScopeInfo :: ScopeInfo
+emptyScopeInfo = ScopeInfo { publicNameSpace   = emptyNameSpace_
+			   , privateNameSpace  = emptyNameSpace_
+			   , importedModules   = Map.empty
+			   , localVariables    = Map.empty
+			   , contextPrecedence = TopCtx
+			   }
 
