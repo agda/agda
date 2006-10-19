@@ -53,6 +53,13 @@ module Order {A : Set}(Ord : DecidableOrder A) where
   total   = total' Ord
   decide  = decide' Ord
 
+-- We don't have η-equality on decidable orders so we define η-expansion:
+η : {A : Set} -> DecidableOrder A -> DecidableOrder A
+η Ord = decOrder _≤_ refl antisym trans total decide
+  where
+    module Ops = Order Ord
+    open Ops
+
 module Min {A : Set}(Ord : DecidableOrder A) where
 
   private
@@ -168,12 +175,8 @@ module DistributivityA {A : Set}(Ord : DecidableOrder A) where
 module DistributivityB {A : Set}(Ord : DecidableOrder A) where
 
   private
-    -- We need to η-expand manually to get Dual (Dual Ord') = Ord'
-    Ord' = decOrder _≤_ refl antisym trans total decide
-      where
-        module Ops = Order Ord
-        open Ops
-
+    -- We need to η-expand to get Dual (Dual Ord') = Ord'
+    Ord' = η Ord
     module DistrOrd  = DistributivityA (Dual Ord')
     module MinMaxOrd = MinMax Ord'
 

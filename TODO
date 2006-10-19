@@ -128,12 +128,18 @@ Cleaning
 Performance
 -----------
 
+* Use Data.ByteString for interface parsing (should be much faster)
+
+* Check what's taking time with new meta var/constraint handling
+
 * a lot of memory created by subst is never used
 
 * space leak in lexer (positions too lazy?)
 
 Done
 ----
+
+* allow reexporting of things using 'open Foo, public'
 
 * allow import and open before the top level module.
 
