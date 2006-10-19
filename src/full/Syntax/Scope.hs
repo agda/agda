@@ -207,20 +207,34 @@ addNameSpace ns0 ns =
     =<< addModules (Map.assocs $ modules ns0) ns
 
 
--- | Recompute canonical names. All mappings will be @x -> M.x@ where
---   @M@ is the name of the name space. Recursively renames sub-modules.
-makeFreshCanonicalNames :: NameSpace -> NameSpace
-makeFreshCanonicalNames ns =
-    ns { definedNames = Map.mapWithKey newName	 $ definedNames ns
-       , modules      = Map.mapWithKey newModule $ modules ns
+-- | Recompute canonical names. All mappings @x -> M1.M'.x@ will be replaced by @x -> M2.M'.x@
+--   after @makeFreshCanonicalNames M1 M2@.  Recursively renames sub-modules.
+makeFreshCanonicalNames :: ModuleName -> ModuleName -> NameSpace -> NameSpace
+makeFreshCanonicalNames m1 m2 ns =
+    ns { definedNames = Map.map newName	 $ definedNames ns
+       , modules      = Map.map newModule $ modules ns
+       , moduleName   = newModuleName $ moduleName ns
        }
     where
-	m = moduleName ns
-	newName x d = d { theName = (theName d) { qnameModule = m } }
-	newModule x mi =
-	    mi { moduleContents = makeFreshCanonicalNames
+	-- TODO: not quite right?
+	newModuleName m = fromId $ subst (mnameId m1) (mnameId m2) (mnameId m)
+	    where
+		subst [] m2 m' = m2 ++ m'
+		subst (x:m1) m2 (y:m)
+		    | x == y	= subst m1 m2 m
+		subst _ _ _ = mnameId m
+
+	fromId mid = MName mid $ mkQName mid
+	    where
+		mkQName []     = __IMPOSSIBLE__
+		mkQName [x]    = CName.QName x
+		mkQName (x:xs) = CName.Qual x $ mkQName xs
+
+	newName d = d { theName = (theName d) { qnameModule = newModuleName $ qnameModule $ theName d } }
+	newModule mi =
+	    mi { moduleContents = makeFreshCanonicalNames m1 m2
 				  $ (moduleContents mi)
-				    { moduleName = qualifyModule' m x }
+				    { moduleName = newModuleName $ moduleName $ moduleContents mi }
 	       }
 
 ---------------------------------------------------------------------------
@@ -545,9 +559,8 @@ openModule :: CName.QName -> ImportDirective -> ScopeM a -> ScopeM a
 openModule x i cont =
     do	m <- getModule x
 	ns <- importedNames m i
-	modScopeInfoM (updateNameSpaceM PrivateAccess
-			       (addNameSpace ns)
-		      ) cont
+	let access = if publicOpen i then PublicAccess else PrivateAccess
+	modScopeInfoM (updateNameSpaceM access (addNameSpace ns)) cont
 
 -- | Importing a module. The first argument is the name the module is imported
 --   /as/. If there is no /as/ clause it should be the name of the module.
@@ -565,8 +578,8 @@ implicitModule x ac ar x' i cont =
 	m    <- getModule x'
 	this <- getCurrentModule
 	ns'  <- importedNames m i
-	let ns = makeFreshCanonicalNames
-		    ns' { moduleName = AName.qualifyModule' this x }
+	let newname = AName.qualifyModule' this x
+	    ns	    = makeFreshCanonicalNames (moduleName ns') newname ns'
 	    m' = ModuleScope { moduleAccess   = ac
 			     , moduleArity    = ar
 			     , moduleContents = ns

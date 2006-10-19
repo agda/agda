@@ -55,6 +55,7 @@ import Utils.Monad
     'hiding'	{ TokKeyword KwHiding $$ }
     'renaming'	{ TokKeyword KwRenaming $$ }
     'to'	{ TokKeyword KwTo $$ }
+    'public'	{ TokKeyword KwPublic $$ }
     'module'	{ TokKeyword KwModule $$ }
     'data'	{ TokKeyword KwData $$ }
     'infix'	{ TokKeyword KwInfix $$ }
@@ -129,6 +130,7 @@ Token
     | 'hiding'	    { TokKeyword KwHiding $1 }
     | 'renaming'    { TokKeyword KwRenaming $1 }
     | 'to'	    { TokKeyword KwTo $1 }
+    | 'public'	    { TokKeyword KwPublic $1 }
     | 'module'	    { TokKeyword KwModule $1 }
     | 'data'	    { TokKeyword KwData $1 }
     | 'infix'	    { TokKeyword KwInfix $1 }
@@ -427,12 +429,18 @@ RenamedImport : {- empty -} { Nothing }
 ImportDirective :: { ImportDirective }
 ImportDirective : ImportDirective_ {% verifyImportDirective $1 }
 
+-- Can contain public
+OpenImportDirective :: { ImportDirective }
+OpenImportDirective
+    : beginImpDir ',' 'public' ImportDirective { $4 { publicOpen = True } }
+    | ImportDirective			       { $1 }
+
 ImportDirective_ :: { ImportDirective }
 ImportDirective_
-    : UsingOrHiding RenamingDir	{ ImportDirective (fuseRange $1 $2) $1 $2 }
-    | RenamingDir		{ ImportDirective (getRange $1) (Hiding []) $1 }
-    | UsingOrHiding		{ ImportDirective (getRange $1) $1 [] }
-    | {- empty -}		{ ImportDirective noRange (Hiding []) [] }
+    : UsingOrHiding RenamingDir	{ ImportDirective (fuseRange $1 $2) $1 $2 False }
+    | RenamingDir		{ ImportDirective (getRange $1) (Hiding []) $1 False }
+    | UsingOrHiding		{ ImportDirective (getRange $1) $1 [] False }
+    | {- empty -}		{ ImportDirective noRange (Hiding []) [] False }
 
 UsingOrHiding :: { UsingOrHiding }
 UsingOrHiding
@@ -572,7 +580,7 @@ Primitive : 'primitive' TypeSignatures	{ Primitive (fuseRange $1 $2) $2 }
 
 -- Open
 Open :: { Declaration }
-Open : 'open' ModuleName ImportDirective   { Open (getRange ($1,$2,$3)) $2 $3 }
+Open : 'open' ModuleName OpenImportDirective   { Open (getRange ($1,$2,$3)) $2 $3 }
 
 
 -- ModuleMacro

@@ -135,6 +135,7 @@ tokens :-
 <imp_dir_> hiding	{ endWith $ keyword KwHiding }
 <imp_dir_> renaming	{ endWith $ keyword KwRenaming }
 <imp_dir_> to		{ endWith $ keyword KwTo }
+<imp_dir_> public	{ endWith $ keyword KwPublic }
 
 -- Holes
 <0,code> "{!"		{ hole }

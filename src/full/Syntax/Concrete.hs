@@ -129,6 +129,7 @@ data ImportDirective
 	    { importDirRange	:: !Range
 	    , usingOrHiding	:: UsingOrHiding
 	    , renaming		:: [(ImportedName, Name)]
+	    , publicOpen	:: Bool	-- ^ Only for @open@. Exports the opened names from the current module.
 	    }
     deriving (Typeable, Data, Eq)
 

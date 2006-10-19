@@ -16,7 +16,7 @@ data Keyword
 	| KwOpen | KwImport | KwModule | KwPrimitive
 	| KwInfix | KwInfixL | KwInfixR
 	| KwSet | KwProp | KwForall
-	| KwHiding | KwUsing | KwRenaming | KwTo
+	| KwHiding | KwUsing | KwRenaming | KwTo | KwPublic
 	| KwOPTIONS | KwBUILTIN
     deriving (Eq, Show)
 

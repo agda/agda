@@ -25,9 +25,9 @@ import TypeChecking.Monad.Debug
 equalTerm :: Type -> Term -> Term -> TCM Constraints
 equalTerm a m n =
     catchConstraint (ValueEq a m n) $
-    do	a' <- instantiate a
+    do	a'	 <- reduce a
 	proofIrr <- proofIrrelevance
-	s <- reduce $ getSort a'
+	s	 <- reduce $ getSort a'
 	case (proofIrr, s) of
 	    (True, Prop)    -> return []
 	    _		    ->
