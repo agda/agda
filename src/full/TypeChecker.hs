@@ -175,7 +175,8 @@ checkModuleDef i x tel m' args =
 	    (gamma,omega) = splitAt (length gammaOmega - mdefNofParams md') gammaOmega
 	    delta	  = drop (length gamma) gammaDelta
 	checkTelescope tel $ \theta ->
-	    do	vs <- checkArguments_ (getRange m') args omega
+	    do	(vs, cs) <- checkArguments_ (getRange m') args omega
+		noConstraints (return cs)   -- we don't allow left-over constraints in module instantiations
 		let vs0 = reverse [ Arg Hidden
 				  $ Var (i + length delta + length theta) []
 				  | i <- [0..length gamma - 1]
@@ -400,7 +401,8 @@ checkPatterns [] t ret =
 	_ -> ret ([], [], [], t)
 checkPatterns ps0@(Arg h p:ps) t ret =
     traceCallCPS (CheckPatterns ps0 t) ret $ \ret -> do
-    t' <- forcePi h (name p) t
+    (t', cs) <- forcePi h (name p) t
+    addNewConstraints cs
     case (h,funView $ unEl t') of
 	(NotHidden, FunV (Arg Hidden _) _) ->
 	    checkPatterns (Arg Hidden (A.WildP $ PatRange $ getRange p) : Arg h p : ps) t' ret
@@ -507,12 +509,12 @@ isType_ e =
 
 -- | Force a type to be a Pi. Instantiates if necessary. The 'Hiding' is only
 --   used when instantiating a meta variable.
-forcePi :: Hiding -> String -> Type -> TCM Type
+forcePi :: Hiding -> String -> Type -> TCM (Type, Constraints)
 forcePi h name (El s t) =
     do	t' <- reduce t
 	case t' of
-	    Pi _ _	-> return $ El s t'
-	    Fun _ _	-> return $ El s t'
+	    Pi _ _	-> return (El s t', [])
+	    Fun _ _	-> return (El s t', [])
 	    MetaV m vs	-> do
 		i <- getMetaInfo <$> lookupMeta m
 
@@ -525,8 +527,9 @@ forcePi h name (El s t) =
 		b <- addCtx x a $ newTypeMeta sb
 
 		let ty = El s' $ Pi (Arg h a) (Abs (show x) b)
-		addNewConstraints =<< equalType (El s t') ty	-- TODO: what to do here?
-		reduce ty
+		cs <- equalType (El s t') ty
+		ty' <- reduce ty
+		return (ty', cs)
 	    _ -> typeError $ ShouldBePi (El s t')
 
 
@@ -575,9 +578,9 @@ checkExpr e t =
 
 	-- Variable or constant application
 	_   | Application hd args <- appView e -> do
-		(v,  t0) <- inferHead hd
-		(vs, t1) <- checkArguments (getRange hd) args t0 t
-		blockTerm t (apply v vs) $ equalType t1 t
+		(v,  t0)     <- inferHead hd
+		(vs, t1, cs) <- checkArguments (getRange hd) args t0 t
+		blockTerm t (apply v vs) $ (cs ++) <$> equalType t1 t
 
 	-- Insert hidden lambda if appropriate
 	_   | not (hiddenLambda e)
@@ -594,21 +597,21 @@ checkExpr e t =
 		hiddenLambda _							     = False
 
 	A.App i e arg -> do
-	    (v0, t0) <- inferExpr e
-	    (vs, t1) <- checkArguments (getRange e) [arg] t0 t
-	    blockTerm t (apply v0 vs) $ equalType t1 t
+	    (v0, t0)	 <- inferExpr e
+	    (vs, t1, cs) <- checkArguments (getRange e) [arg] t0 t
+	    blockTerm t (apply v0 vs) $ (cs ++) <$> equalType t1 t
 
 	A.Lam i (A.DomainFull b) e ->
 	    checkTypedBindings b $ \tel -> do
 	    t1 <- newTypeMeta_
-	    escapeContext (length tel) $ addNewConstraints =<< equalType t (telePi tel t1)   -- TODO: what to do here?
+	    cs <- escapeContext (length tel) $ equalType t (telePi tel t1)
 	    v <- checkExpr e t1
-	    return $ buildLam (map name tel) v
+	    blockTerm t (buildLam (map name tel) v) (return cs)
 	    where
 		name (Arg h (x,_)) = Arg h x
 
 	A.Lam i (A.DomainFree h x) e0 -> do
-	    t' <- forcePi h (show x) t
+	    (t',cs) <- forcePi h (show x) t
 	    case funView $ unEl t' of
 		FunV (Arg h' a) _
 		    | h == h' ->
@@ -616,7 +619,7 @@ checkExpr e t =
 			let arg = Arg h (Var 0 [])
 			    tb  = raise 1 t' `piApply'` [arg]
 			v <- checkExpr e0 tb
-			return $ Lam h (Abs (show x) v)
+			blockTerm t (Lam h (Abs (show x) v)) (return cs)
 		    | otherwise ->
 			typeError $ WrongHidingInLambda t'
 		_   -> __IMPOSSIBLE__
@@ -633,20 +636,16 @@ checkExpr e t =
 	A.Pi _ tel e ->
 	    checkTelescope tel $ \tel -> do
 	    t' <- telePi tel <$> isType_ e
-	    addNewConstraints =<< equalType (sort $ getSort t') t
-	    return $ unEl t'
+	    blockTerm t (unEl t') $ equalType (sort $ getSort t') t
 	A.Fun _ (Arg h a) b -> do
 	    a' <- isType_ a
 	    b' <- isType_ b
 	    let s = getSort a' `sLub` getSort b'
-	    addNewConstraints =<< equalType (sort s) t
-	    return $ Fun (Arg h a') b'
-	A.Set _ n    -> do
-	    addNewConstraints =<< equalType (sort $ Type $ n + 1) t
-	    return $ Sort (Type n)
-	A.Prop _     -> do
-	    addNewConstraints =<< equalType (sort $ Type 1) t
-	    return $ Sort Prop
+	    blockTerm t (Fun (Arg h a') b') $ equalType (sort s) t
+	A.Set _ n    ->
+	    blockTerm t (Sort (Type n)) $ equalType (sort $ Type $ n + 1) t
+	A.Prop _     ->
+	    blockTerm t (Sort Prop) $ equalType (sort $ Type 1) t
 	A.Var _ _    -> __IMPOSSIBLE__
 	A.Def _ _    -> __IMPOSSIBLE__
 	A.Con _ _    -> __IMPOSSIBLE__
@@ -675,8 +674,9 @@ inferDef mkTerm i x =
 
 -- | Check a list of arguments: @checkArgs args t0 t1@ checks that
 --   @t0 = Delta -> t0'@ and @args : Delta@. Inserts hidden arguments to
---   make this happen. Returns @t0'@.
-checkArguments :: Range -> [Arg A.Expr] -> Type -> Type -> TCM (Args, Type)
+--   make this happen. Returns @t0'@ and any constraints that have to be
+--   solve for everything to be well-formed.
+checkArguments :: Range -> [Arg A.Expr] -> Type -> Type -> TCM (Args, Type, Constraints)
 checkArguments r [] t0 t1 =
     traceCall (CheckArguments r [] t0 t1) $ do
 	t0' <- reduce t0
@@ -685,9 +685,9 @@ checkArguments r [] t0 t1 =
 	    FunV (Arg Hidden a) _ | notHPi $ unEl t1'  -> do
 		v  <- newValueMeta a
 		let arg = Arg Hidden v
-		(vs, t0'') <- checkArguments r [] (piApply' t0' [arg]) t1'
-		return (arg : vs, t0'')
-	    _ -> return ([], t0')
+		(vs, t0'',cs) <- checkArguments r [] (piApply' t0' [arg]) t1'
+		return (arg : vs, t0'',cs)
+	    _ -> return ([], t0', [])
     where
 	notHPi (Pi  (Arg Hidden _) _) = False
 	notHPi (Fun (Arg Hidden _) _) = False
@@ -695,19 +695,19 @@ checkArguments r [] t0 t1 =
 
 checkArguments r args0@(Arg h e : args) t0 t1 =
     traceCall (CheckArguments r args0 t0 t1) $ do
-	t0' <- forcePi h (name e) t0
+	(t0', cs) <- forcePi h (name e) t0
 	case (h, funView $ unEl t0') of
 	    (NotHidden, FunV (Arg Hidden a) _) -> do
 		u  <- newValueMeta a
 		let arg = Arg Hidden u
-		(us, t0'') <- checkArguments r (Arg h e : args)
+		(us, t0'',cs') <- checkArguments r (Arg h e : args)
 				       (piApply' t0' [arg]) t1
-		return (arg : us, t0'')
+		return (arg : us, t0'', cs ++ cs')
 	    (_, FunV (Arg h' a) _) | h == h' -> do
 		u  <- checkExpr e a
 		let arg = Arg h u
-		(us, t0'') <- checkArguments (fuseRange r e) args (piApply' t0' [arg]) t1
-		return (arg : us, t0'')
+		(us, t0'', cs') <- checkArguments (fuseRange r e) args (piApply' t0' [arg]) t1
+		return (arg : us, t0'', cs ++ cs')
 	    (Hidden, FunV (Arg NotHidden _) _) ->
 		typeError $ WrongHidingInApplication t0'
 	    _ -> __IMPOSSIBLE__
@@ -717,9 +717,10 @@ checkArguments r args0@(Arg h e : args) t0 t1 =
 
 
 -- | Check that a list of arguments fits a telescope.
-checkArguments_ :: Range -> [Arg A.Expr] -> Telescope -> TCM Args
-checkArguments_ r args tel =
-    fst <$> checkArguments r args (telePi tel $ sort Prop) (sort Prop)
+checkArguments_ :: Range -> [Arg A.Expr] -> Telescope -> TCM (Args, Constraints)
+checkArguments_ r args tel = do
+    (args, _, cs) <- checkArguments r args (telePi tel $ sort Prop) (sort Prop)
+    return (args, cs)
 
 
 -- | Infer the type of an expression. Implemented by checking agains a meta

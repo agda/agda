@@ -141,7 +141,7 @@ blockTerm t v m = do
 	    x	  <- newMeta i (HasType () t)
 	    store <- getMetaStore
 	    modify $ \st -> st { stMetaStore = ins x (BlockedConst $ abstract tel v) store }
-	    c <- escapeContext (length tel) $ buildConstraint (Guarded (UnBlock x) cs)
+	    c <- escapeContext (length tel) $ guardConstraint (return cs) (UnBlock x)
 	    addConstraints c
 	    return $ MetaV x vs
   where

@@ -20,6 +20,14 @@ import TypeChecking.Monad.Debug
 
 #include "../undefined.h"
 
+-- | Check if to lists of arguments are the same (and all variables).
+--   Precondition: the lists have the same length.
+sameVars :: Args -> Args -> Bool
+sameVars xs ys = and $ zipWith same xs ys
+    where
+	same (Arg _ (Var n [])) (Arg _ (Var m [])) = n == m
+	same _ _				   = False
+
 -- | Type directed equality on values.
 --
 equalTerm :: Type -> Term -> Term -> TCM Constraints
@@ -78,8 +86,9 @@ equalAtom t m n =
 		    a <- defType <$> getConstInfo x
 		    equalArg a xArgs a yArgs
 	    (MetaV x xArgs, MetaV y yArgs) | x == y ->
-		buildConstraint (ValueEq t m n)
-		-- equalSameVar (\x -> MetaV x []) InstV x xArgs yArgs
+		if   sameVars xArgs yArgs
+		then return []
+		else buildConstraint (ValueEq t m n)
 	    (MetaV x xArgs, _) -> assignV t x xArgs n
 	    (_, MetaV x xArgs) -> assignV t x xArgs m
 	    (BlockedV b, _)    -> buildConstraint (ValueEq t m n)
@@ -211,6 +220,11 @@ equalSort s1 s2 =
 -- 	    debug $ "equalSort " ++ show d1 ++ " == " ++ show d2
 	case (s1,s2) of
 
+	    (MetaS x , MetaS y ) | x == y    -> return []
+				 | otherwise -> assignS x s2
+	    (MetaS x , _       )	     -> assignS x s2
+	    (_	     , MetaS x )	     -> equalSort s2 s1
+
 	    (Prop    , Prop    )	     -> return []
 	    (Type _  , Prop    )	     -> notEq s1 s2
 	    (Prop    , Type _  )	     -> notEq s1 s2
@@ -231,17 +245,6 @@ equalSort s1 s2 =
 	    (Lub _ _ , _       )	     -> buildConstraint (SortEq s1 s2)
 	    (_	     , Lub _ _ )	     -> buildConstraint (SortEq s1 s2)
 
-	    (MetaS x , MetaS y ) | x == y    -> return []
-				 | otherwise -> assignS x s2
-	    (MetaS x , Type _  )	     -> assignS x s2
-	    (MetaS x , Prop    )	     -> assignS x s2
-	    (_	     , MetaS x )	     -> equalSort s2 s1
     where
 	notEq s1 s2 = typeError $ UnequalSorts s1 s2
--- 	buildConstraint c@(SortEq s1 s2) = do
--- 	    d1 <- prettyTCM s1
--- 	    d2 <- prettyTCM s2
--- 	    debug $ "Can't solve " ++ show d1 ++ " == " ++ show d2
--- 	    TypeChecking.Monad.buildConstraint c
--- 	buildConstraint _ = __IMPOSSIBLE__
 

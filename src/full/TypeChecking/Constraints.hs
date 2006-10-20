@@ -45,9 +45,16 @@ noConstraints m = do
 guardConstraint :: TCM Constraints -> Constraint -> TCM Constraints
 guardConstraint m c = do
     cs <- solveConstraints =<< m
-    case cs of
-	[]  -> solveConstraint c
-	_   -> buildConstraint $ Guarded c cs
+    case List.partition isSortConstraint cs of   -- sort constraints doesn't block anything
+	(scs, []) -> (scs ++) <$> solveConstraint c
+	(scs, cs) -> (scs ++) <$> buildConstraint (Guarded c cs)
+    where
+	isSortConstraint = isSC . clValue
+	isSC (SortEq _ _)    = True
+	isSC (ValueEq _ _ _) = False
+	isSC (TypeEq _ _)    = False
+	isSC (Guarded c _)   = isSC c
+	isSC (UnBlock _)     = False
 
 -- | We ignore the constraint ids and (as in Agda) retry all constraints every time.
 --   We probably generate very few constraints.
@@ -70,14 +77,7 @@ solveConstraint :: Constraint -> TCM Constraints
 solveConstraint (ValueEq a u v) = equalTerm a u v
 solveConstraint (TypeEq a b)	= equalType a b
 solveConstraint (SortEq s1 s2)	= equalSort s1 s2
-solveConstraint (Guarded c cs)	= do
-    verbose 5 $ do
-	d <- prettyTCM (Guarded c cs)
-	debug $ "Solving: " ++ show d
-    cs <- solveConstraints cs
-    case cs of
-	[] -> solveConstraint c
-	_  -> buildConstraint $ Guarded c cs
+solveConstraint (Guarded c cs)	= guardConstraint (return cs) c
 solveConstraint (UnBlock m) = do
     BlockedConst t <- mvInstantiation <$> lookupMeta m
     verbose 5 $ do
