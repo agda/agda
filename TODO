@@ -128,8 +128,6 @@ Cleaning
 Performance
 -----------
 
-* Use Data.ByteString for interface parsing (should be much faster)
-
 * Check what's taking time with new meta var/constraint handling
 
 * a lot of memory created by subst is never used
@@ -138,6 +136,10 @@ Performance
 
 Done
 ----
+
+* Use Data.ByteString (if ghc-6.6) for interface parsing (faster, but still quite slow)
+
+* optimized natural numbers, user view is still zero/suc.
 
 * allow reexporting of things using 'open Foo, public'
 
