@@ -833,8 +833,6 @@ builtinPrimitives =
     [ "NATPLUS"   |-> ("primNatPlus", verifyPlus)
     , "NATMINUS"  |-> ("primNatMinus", verifyMinus)
     , "NATTIMES"  |-> ("primNatTimes", verifyTimes)
-    , "NATDIV2"   |-> ("primNatDiv2", verifyDiv2)
-    , "NATMOD2"   |-> ("primNatMod2", verifyMod2)
     , "NATDIVSUC" |-> ("primNatDivSuc", verifyDivSuc)
     , "NATMODSUC" |-> ("primNatModSuc", verifyModSuc)
     , "NATEQUALS" |-> ("primNatEquals", verifyEquals)
@@ -887,29 +885,26 @@ builtinPrimitives =
 				]
 		    ]
 
-	verifyDiv2 d2 =
-	    verify ["n"] $ \(@@) zero suc (==) choice -> do
-		let n = Var 0 []
-		    div2 n = d2 @@ n
-		div2  zero	   == zero
-		div2 (suc  zero)   == zero
-		div2 (suc (suc n)) == suc (div2 n)
-
-	verifyMod2 d2 =
-	    verify ["n"] $ \(@@) zero suc (==) choice -> do
-		let n = Var 0 []
-		    mod2 n = d2 @@ n
-		mod2  zero	   == zero
-		mod2 (suc  zero)   == suc zero
-		mod2 (suc (suc n)) == mod2 n
-
 	verifyDivSuc ds =
 	    verify ["n","m"] $ \(@@) zero suc (==) choice -> do
-		return ()
+		minus <- primNatMinus
+		let x - y      = minus @@ x @@ y
+		    divSuc x y = ds @@ x @@ y
+		    m	       = Var 0 []
+		    n	       = Var 1 []
+
+		divSuc  zero   m == zero
+		divSuc (suc n) m == suc (divSuc (n - m) m)
 
 	verifyModSuc ms =
 	    verify ["n","m"] $ \(@@) zero suc (==) choice -> do
-		return ()
+		minus <- primNatMinus
+		let x - y      = minus @@ x @@ y
+		    modSuc x y = ms @@ x @@ y
+		    m	       = Var 0 []
+		    n	       = Var 1 []
+		modSuc  zero   m == zero
+		modSuc (suc n) m == modSuc (n - m) m
 
 	verifyEquals eq =
 	    verify ["n","m"] $ \(@@) zero suc (===) choice -> do

@@ -34,16 +34,6 @@ _*_ : Nat -> Nat -> Nat
 zero  * m = zero
 suc n * m = m + n * m
 
-div2 : Nat -> Nat
-div2  zero         = 0
-div2 (suc  zero)   = 0
-div2 (suc (suc n)) = suc (div2 n)
-
-mod2 : Nat -> Nat
-mod2  zero         = 0
-mod2 (suc zero)    = 1
-mod2 (suc (suc n)) = mod2 n
-
 _^_ : Nat -> Nat -> Nat
 n ^ zero  = 1
 n ^ suc m = n * n ^ m
@@ -55,21 +45,25 @@ suc n ! = suc n * n !
 {-# BUILTIN NATPLUS _+_ #-}
 {-# BUILTIN NATMINUS _-_ #-}
 {-# BUILTIN NATTIMES _*_ #-}
-{-# BUILTIN NATDIV2 div2 #-}
-{-# BUILTIN NATMOD2 mod2 #-}
 
-private
-  primitive
-    primNatDivSuc : Nat -> Nat -> Nat
-    primNatModSuc : Nat -> Nat -> Nat
+divSuc : Nat -> Nat -> Nat
+divSuc  zero   _ = zero
+divSuc (suc n) m = 1 + divSuc (n - m) m
+
+modSuc : Nat -> Nat -> Nat
+modSuc  zero   _ = zero
+modSuc (suc n) m = modSuc (n - m) m
+
+{-# BUILTIN NATDIVSUC divSuc #-}
+{-# BUILTIN NATMODSUC modSuc #-}
 
 div : Nat -> Nat -> Nat
 div n  zero   = zero
-div n (suc m) = primNatDivSuc n m
+div n (suc m) = divSuc n m
 
 mod : Nat -> Nat -> Nat
 mod n  zero   = zero
-mod n (suc m) = primNatModSuc n m
+mod n (suc m) = modSuc n m
 
 gcd : Nat -> Nat -> Nat
 gcd a 0 = a
@@ -79,8 +73,8 @@ lcm : Nat -> Nat -> Nat
 lcm a b = div (a * b) (gcd a b)
 
 _==_ : Nat -> Nat -> Bool
-zero	== zero  = true
-zero	== suc _ = false
+zero  == zero  = true
+zero  == suc _ = false
 suc _ == zero  = false
 suc n == suc m = n == m
 
@@ -96,10 +90,10 @@ _>_ = flip _<_
 _≥_ = flip _≤_
 
 even : Nat -> Bool
-even n = mod2 n == 0
+even n = mod n 2 == 0
 
 odd : Nat -> Bool
-odd n = mod2 n == 1
+odd n = mod n 2 == 1
 
 _≡_ : Nat -> Nat -> Set
 n ≡ m = IsTrue (n == m)

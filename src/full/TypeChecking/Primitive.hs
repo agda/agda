@@ -317,8 +317,6 @@ primitiveFunctions = Map.fromList
     , "primNatPlus"	    |-> mkPrimFun2 ((+)			    :: Op Nat)
     , "primNatMinus"	    |-> mkPrimFun2 ((\x y -> max 0 (x - y)) :: Op Nat)
     , "primNatTimes"	    |-> mkPrimFun2 ((*)			    :: Op Nat)
-    , "primNatDiv2"	    |-> mkPrimFun1 ((`div` 2)		    :: Nat -> Nat)
-    , "primNatMod2"	    |-> mkPrimFun1 ((`mod` 2)		    :: Nat -> Nat)
     , "primNatDivSuc"	    |-> mkPrimFun2 ((\x y -> div x (y + 1)) :: Op Nat)
     , "primNatModSuc"	    |-> mkPrimFun2 ((\x y -> mod x (y + 1)) :: Op Nat)
     , "primNatEquals"	    |-> mkPrimFun2 ((==)		    :: Rel Nat)
