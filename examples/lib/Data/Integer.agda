@@ -39,6 +39,7 @@ neg n + neg m = neg (n +' m +' 1)
 pos n + neg m =
   | m <' n => pos (n -' m -' 1)
   | otherwise neg (m -' n)
+neg n + pos m = pos m + neg n
 
 _-_ : Int -> Int -> Int
 x - y = x + - y

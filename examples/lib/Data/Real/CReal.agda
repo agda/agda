@@ -3,21 +3,27 @@ module Data.Real.CReal where
 
 import Prelude
 import Data.Bool
+import Data.String
 import Data.Real.Complete
 import Data.Real.Base
+import Data.Nat
 import Data.Integer
 import Data.Rational as Rational
 import Data.Interval
 import Data.Real.Gauge
+import Data.Show
+import Data.List
 
 open Prelude
 open Data.Real.Base
 open Data.Real.Complete
-open Data.Integer, using (Int, pos)
+open Data.Integer, using (Int, pos), renaming (_-_ to _-i_, _<_ to _<i_)
 open Rational, hiding (fromInt)
 open Data.Bool
+open Data.String
 open Data.Interval
 open Data.Real.Gauge
+open Data.Nat, using (Nat)
 
 data CReal : Set where
   cReal : Complete Base -> CReal
@@ -124,10 +130,13 @@ multCts maxy = uniformCts μ multBaseCts
 realScale : Base -> CReal -> CReal
 realScale a = mapCR (multBaseCts a)
 
+bound : Interval Base -> Base
+bound [ lb ▻ ub ] = max ub (- lb)
+
 realMultBound : BoundedCReal -> CReal -> CReal
-realMultBound bx @ (x ∈ [ lb ▻ ub ]) y = mapCR2 (multCts b) y (choke bx)
+realMultBound bx @ (x ∈ i) y = mapCR2 (multCts b) y (choke bx)
   where
-    b = max ub (- lb)
+    b = bound i
 
 realMult : CReal -> CReal -> CReal
 realMult x y = realMultBound (compact x) y
@@ -159,8 +168,8 @@ recipCts nz = uniformCts μ f
 realRecipWitness : Base -> CReal -> CReal
 realRecipWitness nz = mapCR (recipCts nz)
 
-recipReal : CReal -> CReal
-recipReal x = realRecipWitness (proveNonZero x) x
+realRecip : CReal -> CReal
+realRecip x = realRecipWitness (proveNonZero x) x
 
 -- Exponentiation
 
@@ -168,5 +177,41 @@ intPowerCts : Gauge -> Int -> Base ==> Base
 intPowerCts _ (pos 0) = constCts (fromNat 1)
 intPowerCts maxx n = uniformCts μ (flip _^_ n)
   where
-    μ = \ε -> ε / (Rational.fromInt n * maxx ^ (n - pos 1))
+    μ = \ε -> ε / (Rational.fromInt n * maxx ^ (n -i pos 1))
+
+realPowerIntBound : BoundedCReal -> Int -> CReal
+realPowerIntBound bx @ (x ∈ i) n = mapCR (intPowerCts b n) (choke bx)
+  where
+    b = bound i
+
+realPowerInt : CReal -> Int -> CReal
+realPowerInt = realPowerIntBound ∘ compact
+
+showReal : Nat -> CReal -> String
+showReal n x =
+  | len ≤' n => sign ++ "0." ++ fromList (replicate (n -' len) '0') ++ s
+  | otherwise   sign ++ i ++ "." ++ f
+  where
+    open Data.Nat, using (), renaming
+              ( _^_ to _^'_
+              , div to div', mod to mod'
+              , _==_ to _=='_, _≤_ to _≤'_
+              , _-_ to _-'_
+              )
+    open Data.Show
+    open Data.List
+    open Data.Integer, using (), renaming (-_ to -i_)
+
+    k = 10 ^' n
+    m = around $ realScale (fromNat k) x
+    m' = if m <i pos 0 then -i m else m
+    s = showInt m'
+
+    sign = if m <i pos 0 then "-" else ""
+
+    len = length (toList s)
+
+    p = splitAt (len -' n) $ toList s
+    i = fromList $ fst p
+    f = fromList $ snd p
 
