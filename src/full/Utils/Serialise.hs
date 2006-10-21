@@ -10,6 +10,7 @@ import Data.Maybe
 import Data.Either
 
 import Utils.Tuple
+import Utils.Unicode
 
 newtype Printer a = Printer { runPrinter :: a -> ShowS }
 newtype Parser  a = Parser  { runParser :: String -> (a, String) }
@@ -24,14 +25,14 @@ class BiMonad m where
 
 instance BiMonad Printer where
     charS = Printer (:)
-    stringS _ = Printer (++)
+    stringS _ = Printer $ \s rest -> toUTF8 s ++ rest
     returnS _ = Printer $ const id
     bindS mkA (Printer prA) k =
 	Printer $ \b -> let a = mkA b in prA a . runPrinter (k a) b
 
 instance BiMonad Parser where
     charS		 = Parser $ \(c:s) -> (c,s)
-    stringS n		 = Parser $ splitAt n
+    stringS n		 = Parser $ \s -> let (s0,rest) = splitAt n s in (fromUTF8 s0, rest)
     returnS x		 = Parser $ \s -> (x,s)
     bindS _ (Parser m) k = Parser $ \s -> let (x,s') = m s in runParser (k x) s'
 
@@ -134,7 +135,7 @@ instance (Serialisable a, Serialisable b, Serialisable c, Serialisable d, Serial
 		 serialiser
 
 instance Serialisable String where
-    serialiser = {-# SCC "stringS" #-} bindS length serialiser stringS
+    serialiser = {-# SCC "stringS" #-} bindS (length . toUTF8) serialiser stringS
 
 instance Serialisable a => Serialisable [a] where
     serialiser = {-# SCC "listS" #-} bindS length serialiser $ \n -> replicateS n serialiser
