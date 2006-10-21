@@ -3,7 +3,7 @@ TOP = ..
 
 include $(TOP)/mk/paths.mk
 
-default : test polydep aim4-bag ac minmax
+default : test polydep aim4-bag ac minmax real
 
 agda = $(FULL_OUT_DIR)/agda
 
@@ -30,6 +30,11 @@ ac : tactics/ac/AC.agda
 minmax : order/MinMax.agda
 	@echo "Testing $<... "
 	@echo :q | $(agda) -ilib -iorder $<
+	@echo "ok"
+
+real : lib/Data/Real/CReal.agda
+	@echo "Testing $<... "
+	@echo :q | $(agda) -ilib $<
 	@echo "ok"
 
 test : $(agda) $(tests)
