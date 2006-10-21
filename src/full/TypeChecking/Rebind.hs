@@ -14,7 +14,7 @@ import TypeChecking.Substitute
 --   Also normalises the body in the process.
 rebindClause :: Clause -> TCM Clause
 rebindClause (Clause ps b) = do
-    b <- normalise b
+    b <- instantiateFull b
     return $ Clause ps $ rebind b
     where
 	rebind (Body t) = Body t

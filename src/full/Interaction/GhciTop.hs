@@ -280,11 +280,11 @@ cmd_make_case ii rng s = infoOnException $ ioTCM $ do
   passAVar x   = fail("passAVar: got "++show x)
   passElDef t@(El _ (SI.Def _ _)) = return t
   passElDef t  = fail . ("passElDef: got "++) . show =<< reify t
-  passData  d@(Defn _ _ (Datatype _ _ _ _))  = return d
-  passData  d@(Defn _ _ (Function _ _))	     = fail $ "passData: got function"
-  passData  d@(Defn _ _ TM.Axiom)	     = fail $ "passData: got axiom"
-  passData  d@(Defn _ _ (Constructor _ _ _)) = fail $ "passData: got constructor"
-  passData  d@(Defn _ _ (TM.Primitive _ _))  = fail $ "passData: got primitive"
+  passData  d@(Defn _ _ (Datatype _ _ _ _))   = return d
+  passData  d@(Defn _ _ (Function _ _))	      = fail $ "passData: got function"
+  passData  d@(Defn _ _ TM.Axiom)	      = fail $ "passData: got axiom"
+  passData  d@(Defn _ _ (Constructor _ _ _))  = fail $ "passData: got constructor"
+  passData  d@(Defn _ _ (TM.Primitive _ _ _)) = fail $ "passData: got primitive"
 
   dropUscore (SI.VarP ('_':s)) = dropUscore (SI.VarP s)
   dropUscore p@(SI.VarP s) = p

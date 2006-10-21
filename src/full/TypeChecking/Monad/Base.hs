@@ -235,22 +235,31 @@ data Defn = Axiom
 	  | Constructor Nat	-- nof parameters
 			QName	-- name of datatype
 			IsAbstract
-	  | Primitive IsAbstract String -- PrimFun
+	  | Primitive IsAbstract String [Clause] -- PrimFun
     deriving (Typeable, Data)
 
 data Reduced no yes = NoReduction no | YesReduction yes
     deriving (Typeable)
 
 data PrimFun = PrimFun
-	{ primFunArity		:: Arity
+	{ primFunName		:: QName
+	, primFunArity		:: Arity
 	, primFunImplementation :: [Arg Term] -> TCM (Reduced [Arg Term] Term)
 	}
     deriving (Typeable)
 
 defClauses :: Definition -> [Clause]
-defClauses (Defn _ _ (Function cs _)) = cs
-defClauses _			      = []
+defClauses (Defn _ _ (Function cs _))	 = cs
+defClauses (Defn _ _ (Primitive _ _ cs)) = cs
+defClauses _				 = []
 
+defAbstract :: Definition -> IsAbstract
+defAbstract (Defn _ _ d) = case d of
+    Axiom	      -> AbstractDef
+    Function _ a      -> a
+    Datatype _ _ _ a  -> a
+    Constructor _ _ a -> a
+    Primitive a _ _   -> a
 
 ---------------------------------------------------------------------------
 -- ** Statistics

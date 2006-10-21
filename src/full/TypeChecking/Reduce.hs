@@ -5,6 +5,7 @@ module TypeChecking.Reduce where
 
 import Control.Monad.State
 import Control.Monad.Reader
+import Control.Applicative
 import Data.List as List
 import Data.Map as Map
 import Data.Generics
@@ -14,6 +15,7 @@ import Syntax.Position
 import Syntax.Common
 import Syntax.Internal
 import Syntax.Scope (ModuleScope)
+import Syntax.Literal
 
 import TypeChecking.Monad
 import TypeChecking.Monad.Context
@@ -145,10 +147,10 @@ instance Reduce Term where
 	    case v of
 		MetaV x args -> MetaV x <$> reduce args
 		Def f args   -> reduceDef (Def f []) f args
-		Con c args   -> reduceDef (Con c []) c args
-						-- constructors can have definitions
-						-- when they come from an instantiated module
-						-- (change this)
+		Con c args   -> do
+		    v <- reduceDef (Con c []) c args -- constructors can have definitions
+		    reduceNat v			     -- when they come from an instantiated module
+						     -- (change this?)
 		Sort s	   -> Sort <$> reduce s
 		Pi _ _	   -> return v
 		Fun _ _    -> return v
@@ -157,41 +159,55 @@ instance Reduce Term where
 		Var _ _    -> return v
 		Lam _ _    -> return v
 	where
+	    reduceNat v@(Con c []) = do
+		mz <- getBuiltin' builtinZero
+		case mz of
+		    Just (Con z []) | c == z -> return $ Lit $ LitInt noRange 0
+		    _			     -> return v
+	    reduceNat v@(Con c [Arg NotHidden w]) = do
+		ms <- getBuiltin' builtinSuc
+		case ms of
+		    Just (Con s []) | c == s -> do
+			w <- reduce w
+			case w of
+			    Lit (LitInt r n) -> return $ Lit $ LitInt r $ n + 1
+			    _		     -> return $ Con c [Arg NotHidden w]
+		    _	-> return v
+	    reduceNat v = return v
 
 	    reduceDef v0 f args =
 		{-# SCC "reduceDef" #-}
 		do  info <- getConstInfo f
 		    case info of
-			Defn _ _ (Primitive ConcreteDef x) -> do
+			Defn _ _ (Primitive ConcreteDef x cls) -> do
 			    pf <- getPrimitive x
-			    reducePrimitive v0 f args pf
-			_				   -> reduceNormal v0 f args $ defClauses info
+			    reducePrimitive x v0 f args pf cls
+			_ -> reduceNormal v0 f args $ defClauses info
 
-	    reducePrimitive v0 f args pf
+	    reducePrimitive x v0 f args pf cls
 		| n < ar    = return $ v0 `apply` args	-- not fully applied
 		| otherwise = do
 		    let (args1,args2) = splitAt n args
 		    r <- def args1
 		    case r of
-			NoReduction args1'  -> return $ v0 `apply` (args1' ++ args2)
-			YesReduction v	    -> reduce $ v  `apply` args2
+			NoReduction args1' -> reduceNormal v0 f (args1' ++ args2) cls
+			YesReduction v	   -> reduce $ v  `apply` args2
 		where
 		    n	= length args
 		    ar  = primFunArity pf
 		    def = primFunImplementation pf
 
 	    reduceNormal v0 f args def = do
-		    def <- defClauses <$> getConstInfo f
-		    case def of
-			[] -> return $ v0 `apply` args -- no definition for head
-			cls@(Clause ps _ : _)
-			    | length ps <= length args ->
-				do  let (args1,args2) = splitAt (length ps) args 
-				    ev <- appDef v0 cls args1
-				    case ev of
-					NoReduction v  -> return $ v `apply` args2
-					YesReduction v -> reduce $ v `apply` args2
-			    | otherwise	-> return $ v0 `apply` args -- partial application
+		case def of
+		    [] -> return $ v0 `apply` args -- no definition for head
+		    cls@(Clause ps _ : _)
+			| length ps <= length args ->
+			    do  let (args1,args2) = splitAt (length ps) args 
+				ev <- appDef v0 cls args1
+				case ev of
+				    NoReduction v  -> return $ v `apply` args2
+				    YesReduction v -> reduce $ v `apply` args2
+			| otherwise	-> return $ v0 `apply` args -- partial application
 
 	    -- Apply a defined function to it's arguments.
 	    --   The original term is the first argument applied to the third.
@@ -199,21 +215,21 @@ instance Reduce Term where
 	    appDef v cls args = goCls cls args where
 
 		goCls [] args = typeError $ IncompletePatternMatching v args
-		goCls (cl@(Clause pats body) : cls) args =
-		    do	(m, args) <- matchPatterns pats args
-			case m of
-			    Yes args'	      -> return $ YesReduction $ app args' body
-			    No		      -> goCls cls args
-			    DontKnow Nothing  -> return $ NoReduction $ v `apply` args
-			    DontKnow (Just m) -> return $ NoReduction $ blocked m $ v `apply` args
+		goCls (cl@(Clause pats body) : cls) args = do
+		    (m, args) <- matchPatterns pats args
+		    case m of
+			Yes args'	      -> return $ YesReduction $ app args' body
+			No		      -> goCls cls args
+			DontKnow Nothing  -> return $ NoReduction $ v `apply` args
+			DontKnow (Just m) -> return $ NoReduction $ blocked m $ v `apply` args
 
-		app []		 (Body v')	     = v'
+		app []	     (Body v')		 = v'
 		app (arg : args) (Bind (Abs _ body)) = app args $ subst arg body -- CBN
-		app (_   : args) (NoBind body)	     = app args body
-		app  _		  NoBody	     = __IMPOSSIBLE__
-		app (_ : _)	 (Body _)	     = __IMPOSSIBLE__
-		app []		 (Bind _)	     = __IMPOSSIBLE__
-		app []		 (NoBind _)	     = __IMPOSSIBLE__
+		app (_   : args) (NoBind body)	 = app args body
+		app  _	      NoBody		 = __IMPOSSIBLE__
+		app (_ : _)	     (Body _)		 = __IMPOSSIBLE__
+		app []	     (Bind _)		 = __IMPOSSIBLE__
+		app []	     (NoBind _)		 = __IMPOSSIBLE__
 
 
 instance Reduce a => Reduce (Closure a) where
@@ -410,7 +426,7 @@ instance InstantiateFull Defn where
 	    s <- instantiateFull s
 	    return $ Datatype n cs s a
 	Constructor n q a -> return $ Constructor n q a
-	Primitive a s	  -> return $ Primitive a s
+	Primitive a s cs  -> Primitive a s <$> instantiateFull cs
 
 instance InstantiateFull Clause where
     instantiateFull (Clause ps b) = Clause ps <$> instantiateFull b

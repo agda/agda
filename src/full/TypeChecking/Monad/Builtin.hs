@@ -30,10 +30,17 @@ bindPrimitive b pf = do
 
 getBuiltin :: String -> TCM Term
 getBuiltin x = do
+    mt <- getBuiltin' x
+    case mt of
+        Nothing -> typeError $ NoBindingForBuiltin x
+        Just t  -> return t
+
+getBuiltin' :: String -> TCM (Maybe Term)
+getBuiltin' x = do
     builtin <- getBuiltinThings
     case Map.lookup x builtin of
-	Just (Builtin t) -> return t
-	_		 -> typeError $ NoBindingForBuiltin x
+	Just (Builtin t) -> return $ Just t
+	_		 -> return Nothing
 
 getPrimitive :: String -> TCM PrimFun
 getPrimitive x = do
@@ -41,4 +48,69 @@ getPrimitive x = do
     case Map.lookup x builtin of
 	Just (Prim pf) -> return pf
 	_	       -> typeError $ NoSuchPrimitiveFunction x
+
+---------------------------------------------------------------------------
+-- * The names of built-in things
+---------------------------------------------------------------------------
+
+primInteger   = getBuiltin builtinInteger
+primFloat     = getBuiltin builtinFloat
+primChar      = getBuiltin builtinChar
+primString    = getBuiltin builtinString
+primBool      = getBuiltin builtinBool
+primTrue      = getBuiltin builtinTrue
+primFalse     = getBuiltin builtinFalse
+primList      = getBuiltin builtinList
+primNil       = getBuiltin builtinNil
+primCons      = getBuiltin builtinCons
+primIO        = getBuiltin builtinIO
+primUnit      = getBuiltin builtinUnit
+primNat       = getBuiltin builtinNat
+primSuc       = getBuiltin builtinSuc
+primZero      = getBuiltin builtinZero
+primNatPlus   = getBuiltin builtinNatPlus
+primNatMinus  = getBuiltin builtinNatMinus
+primNatTimes  = getBuiltin builtinNatTimes
+primNatDiv2   = getBuiltin builtinNatDiv2
+primNatMod2   = getBuiltin builtinNatMod2
+primNatDivSuc = getBuiltin builtinNatDivSuc
+primNatModSuc = getBuiltin builtinNatModSuc
+primNatEquals = getBuiltin builtinNatEquals
+primNatLess   = getBuiltin builtinNatLess
+
+builtinNat       = "NATURAL"
+builtinSuc       = "SUC"
+builtinZero      = "ZERO"
+builtinNatPlus   = "NATPLUS"
+builtinNatMinus  = "NATMINUS"
+builtinNatTimes  = "NATTIMES"
+builtinNatDiv2   = "NATDIV2"
+builtinNatMod2   = "NATMOD2"
+builtinNatDivSuc = "NATDIVSUC"
+builtinNatModSuc = "NATMODSUC"
+builtinNatEquals = "NATEQUALS"
+builtinNatLess   = "NATLESS"
+builtinInteger   = "INTEGER"
+builtinFloat     = "FLOAT"
+builtinChar      = "CHAR"
+builtinString    = "STRING"
+builtinBool      = "BOOL"
+builtinTrue      = "TRUE"
+builtinFalse     = "FALSE"
+builtinList      = "LIST"
+builtinNil       = "NIL"
+builtinCons      = "CONS"
+builtinIO        = "IO"
+builtinUnit      = "UNIT"
+
+builtinTypes :: [String]
+builtinTypes =
+    [ builtinInteger
+    , builtinFloat
+    , builtinChar
+    , builtinString
+    , builtinBool
+    , builtinUnit
+    , builtinNat
+    ]
 

@@ -126,7 +126,7 @@ showValueDefinition definitions compilableDatatypes (name,defn) = do
 	dcname <- showNameAsOptimizedConstructor name
 	let dparams = map (const $ text "_") [0..(np - 1)]
 	return $ sep [ sep (dname : dparams), equals ] <+> dcname
-      Primitive a pf -> do
+      Primitive a pf _ -> do
 	doptname <- showAsOptimizedTerm name
 	return $ sep [ dname, equals ] <+>
 		 sep [ text (show name), text "{- primitive -}" ]

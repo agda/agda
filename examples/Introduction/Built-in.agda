@@ -3,7 +3,7 @@
 
 module Introduction.Built-in where
 
-{- Agda supports four built-in types:
+{- Agda supports three built-in types:
 
     - integers,
     - floating point numbers,
@@ -20,21 +20,17 @@ module Introduction.Built-in where
 -- To be able to use the built-in types we first introduce a new set for each
 -- built-in type.
 postulate
-  Int	 : Set
+  Int    : Set
   Float  : Set
   Char	 : Set
   String : Set
 
 -- We can then bind the built-in types to these new sets using the BUILTIN
 -- pragma.
-{-# BUILTIN INTEGER Int	   #-}
+{-# BUILTIN INTEGER Int    #-}
 {-# BUILTIN FLOAT   Float  #-}
 {-# BUILTIN CHAR    Char   #-}
 {-# BUILTIN STRING  String #-}
-
--- Once we've done this we can use literals of these types.
-fortyTwo : Int
-fortyTwo = 42
 
 pi : Float
 pi = 3.141593
@@ -45,21 +41,37 @@ forAll = '∀'
 hello : String
 hello = "Hello World!"
 
+-- There are no integer literals. Instead there are natural number literals. To
+-- use these you have to tell the type checker which type to use for natural
+-- numbers.
+
+data Nat : Set where
+  zero : Nat
+  suc  : Nat -> Nat
+
+{-# BUILTIN NATURAL Nat  #-}
+{-# BUILTIN SUC     suc  #-}
+{-# BUILTIN ZERO    zero #-}
+
+-- Now we can define
+fortyTwo : Nat
+fortyTwo = 42
+
 -- To anything interesting with values of the built-in types we need functions
 -- to manipulate them. To this end Agda provides a set of primitive functions.
 -- To gain access to a primitive function one simply declares it. For instance,
--- the function for integer addition is called primIntegerPlus. See below for a
--- complete list of primitive functions. At the moment the name that you bring
--- into scope is always the name of the primitive function. In the future we
--- might allow a primitive function to be introduced with any name.
+-- the function for floating point addition is called primFloatPlus. See below
+-- for a complete list of primitive functions. At the moment the name that you
+-- bring into scope is always the name of the primitive function. In the future
+-- we might allow a primitive function to be introduced with any name.
 
-module IntPlus where  -- We put it in a module to prevent it from clashing with
+module FloatPlus where  -- We put it in a module to prevent it from clashing with
 		      -- the plus function in the complete list of primitive
 		      -- functions below.
   primitive
-    primIntegerPlus : Int -> Int -> Int
+    primFloatPlus : Float -> Float -> Float
 
-  fortySix = primIntegerPlus fortyTwo 4
+  twoPi = primFloatPlus pi pi
 
 -- Some primitive functions returns elements of non-primitive types. For
 -- instance, the integer comparison functions return booleans. To be able to
@@ -73,10 +85,10 @@ data Bool : Set where
 {-# BUILTIN TRUE  true  #-}
 {-# BUILTIN FALSE false #-}
 
-module IntEq where
+module FloatLess where
 
   primitive
-    primIntegerEquals : Int -> Int -> Bool
+    primFloatLess : Float -> Float -> Bool
 
 -- There are functions to convert a string to a list of characters, so we need
 -- to say which list type to use.

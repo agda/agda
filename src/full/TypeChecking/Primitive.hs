@@ -1,4 +1,4 @@
-{-# OPTIONS -fglasgow-exts -fallow-overlapping-instances -fallow-undecidable-instances #-}
+{-# OPTIONS -fglasgow-exts -fallow-overlapping-instances -fallow-undecidable-instances -cpp #-}
 
 {-| Primitive functions, such as addition on builtin integers.
 -}
@@ -9,7 +9,7 @@ import qualified Data.Map as Map
 import Data.Char
 
 import Syntax.Position
-import Syntax.Common
+import Syntax.Common hiding (Nat)
 import Syntax.Internal
 import Syntax.Literal
 import Syntax.Concrete.Pretty ()
@@ -25,45 +25,17 @@ import TypeChecking.Errors
 import Utils.Monad
 import Utils.Pretty (pretty)
 
----------------------------------------------------------------------------
--- * The names of built-in things
----------------------------------------------------------------------------
+#include "../undefined.h"
 
-primInteger = getBuiltin builtinInteger
-primFloat   = getBuiltin builtinFloat
-primChar    = getBuiltin builtinChar
-primString  = getBuiltin builtinString
-primBool    = getBuiltin builtinBool
-primTrue    = getBuiltin builtinTrue
-primFalse   = getBuiltin builtinFalse
-primList    = getBuiltin builtinList
-primNil	    = getBuiltin builtinNil
-primCons    = getBuiltin builtinCons
-primIO	    = getBuiltin builtinIO
-primUnit    = getBuiltin builtinUnit
-
-builtinInteger = "INTEGER"
-builtinFloat   = "FLOAT"
-builtinChar    = "CHAR"
-builtinString  = "STRING"
-builtinBool    = "BOOL"
-builtinTrue    = "TRUE"
-builtinFalse   = "FALSE"
-builtinList    = "LIST"
-builtinNil     = "NIL"
-builtinCons    = "CONS"
-builtinIO      = "IO"
-builtinUnit    = "UNIT"
-
-builtinTypes :: [String]
-builtinTypes =
-    [ builtinInteger
-    , builtinFloat
-    , builtinChar
-    , builtinString
-    , builtinBool
-    , builtinUnit
-    ]
+-- | Rewrite a literal to constructor form if possible.
+constructorForm :: Term -> TCM Term
+constructorForm v@(Lit (LitInt _ n))
+    | n == 0	= primZero
+    | n > 0	= do
+	s <- primSuc
+	return $ s `apply` [Arg NotHidden $ Lit $ LitInt noRange $ n - 1]
+    | otherwise	= return v
+constructorForm v = return v
 
 ---------------------------------------------------------------------------
 -- * Primitive functions
@@ -75,6 +47,12 @@ data PrimitiveImpl = PrimImpl Type PrimFun
 
 newtype Str = Str { unStr :: String }
     deriving (Eq, Ord)
+
+newtype Nat = Nat { unNat :: Integer }
+    deriving (Eq, Ord, Num, Integral, Enum, Real)
+
+instance Show Nat where
+    show = show . unNat
 
 class PrimType a where
     primType :: a -> TCM Type
@@ -91,6 +69,7 @@ instance PrimTerm Bool	  where primTerm _ = primBool
 instance PrimTerm Char	  where primTerm _ = primChar
 instance PrimTerm Double  where primTerm _ = primFloat
 instance PrimTerm Str	  where primTerm _ = primString
+instance PrimTerm Nat	  where primTerm _ = primNat
 instance PrimTerm ()	  where primTerm _ = primUnit
 
 instance PrimTerm a => PrimTerm [a] where
@@ -105,6 +84,7 @@ class ToTerm a where
     toTerm :: TCM (a -> Term)
 
 instance ToTerm Integer where toTerm = return $ Lit . LitInt noRange
+instance ToTerm Nat	where toTerm = return $ Lit . LitInt noRange . unNat
 instance ToTerm Double  where toTerm = return $ Lit . LitFloat noRange
 instance ToTerm Char	where toTerm = return $ Lit . LitChar noRange
 instance ToTerm Str	where toTerm = return $ Lit . LitString noRange . unStr
@@ -142,6 +122,11 @@ class FromTerm a where
 instance FromTerm Integer where
     fromTerm = fromLiteral $ \l -> case l of
 	LitInt _ n -> Just n
+	_	   -> Nothing
+
+instance FromTerm Nat where
+    fromTerm = fromLiteral $ \l -> case l of
+	LitInt _ n -> Just $ Nat n
 	_	   -> Nothing
 
 instance FromTerm Double where
@@ -237,7 +222,7 @@ mkPrimFun1 f = do
     toA   <- fromTerm
     fromB <- toTerm
     t	  <- primType f
-    return $ PrimImpl t $ PrimFun 1 $ \[v] ->
+    return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 1 $ \[v] ->
 	redBind (toA v)
 	    (\v' -> [v']) $ \x ->
 	redReturn $ fromB $ f x
@@ -250,7 +235,7 @@ mkPrimFun2 f = do
     toB	  <- fromTerm
     fromC <- toTerm
     t	  <- primType f
-    return $ PrimImpl t $ PrimFun 1 $ \[v,w] ->
+    return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 2 $ \[v,w] ->
 	redBind (toA v)
 	    (\v' -> [v',w]) $ \x ->
 	redBind (toB w)
@@ -264,7 +249,7 @@ abstractPrim x = abstractFromType (primType x)
 abstractFromType :: TCM Type -> TCM PrimitiveImpl
 abstractFromType mt = do
     t <- mt
-    return $ PrimImpl t $ PrimFun (arity t) $ \args -> NoReduction <$> normalise args
+    return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ (arity t) $ \args -> NoReduction <$> normalise args
 
 -- Type combinators
 infixr 4 -->
@@ -327,6 +312,17 @@ primitiveFunctions = Map.fromList
     , "primIntegerEquals"   |-> mkPrimFun2 ((==)       :: Rel Integer)
     , "primIntegerLess"	    |-> mkPrimFun2 ((<)	       :: Rel Integer)
     , "primShowInteger"	    |-> mkPrimFun1 (Str . show :: Integer -> Str)
+
+    -- Natural number functions
+    , "primNatPlus"	    |-> mkPrimFun2 ((+)			    :: Op Nat)
+    , "primNatMinus"	    |-> mkPrimFun2 ((\x y -> max 0 (x - y)) :: Op Nat)
+    , "primNatTimes"	    |-> mkPrimFun2 ((*)			    :: Op Nat)
+    , "primNatDiv2"	    |-> mkPrimFun1 ((`div` 2)		    :: Nat -> Nat)
+    , "primNatMod2"	    |-> mkPrimFun1 ((`mod` 2)		    :: Nat -> Nat)
+    , "primNatDivSuc"	    |-> mkPrimFun2 ((\x y -> div x (y + 1)) :: Op Nat)
+    , "primNatModSuc"	    |-> mkPrimFun2 ((\x y -> mod x (y + 1)) :: Op Nat)
+    , "primNatEquals"	    |-> mkPrimFun2 ((==)		    :: Rel Nat)
+    , "primNatLess"	    |-> mkPrimFun2 ((<)			    :: Rel Nat)
 
     -- Floating point functions
     , "primIntegerToFloat"  |-> mkPrimFun1 (fromIntegral :: Integer -> Double)

@@ -7,9 +7,12 @@ import Data.Monoid
 
 import Syntax.Common
 import Syntax.Internal
+import Syntax.Literal
 
 import TypeChecking.Reduce
 import TypeChecking.Monad
+import TypeChecking.Monad.Builtin
+import TypeChecking.Primitive
 
 import Utils.Monad
 
@@ -48,7 +51,7 @@ matchPattern (Arg h' (LitP l))	  arg@(Arg h v) = do
 	BlockedV b	-> return (DontKnow $ Just $ blockingMeta b, Arg h v)
 	_		-> return (DontKnow Nothing, Arg h v)
 matchPattern (Arg h' (ConP c ps))     (Arg h v) =
-    do	v <- reduce v
+    do	v <- constructorForm =<< reduce v
 	case v of
 	    Con c' vs
 		| c == c'   ->

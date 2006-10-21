@@ -259,7 +259,7 @@ instance Serialisable Defn where
 	    'F' -> mapS (uncurry Function `IFun` unFunction) serialiser
 	    'D' -> mapS (datatype `IFun` unData) serialiser
 	    'C' -> mapS (cons `IFun` unCons) serialiser
-	    'P' -> mapS (uncurry Primitive `IFun` unPrim) serialiser
+	    'P' -> mapS (prim `IFun` unPrim) serialiser
 	    _	-> error $ "deserialise Defn: no parse"
 	where
 	    code s = case s of
@@ -267,15 +267,16 @@ instance Serialisable Defn where
 		Function _ _	  -> 'F'
 		Datatype _ _ _ _  -> 'D'
 		Constructor _ _ _ -> 'C'
-		Primitive _ _	  -> 'P'
+		Primitive _ _ _	  -> 'P'
 
 	    datatype ((a,b),(c,d)) = Datatype a b c d
-	    cons (a,b,c)	     = Constructor a b c
+	    cons (a,b,c)	   = Constructor a b c
+	    prim (a,b,c)	   = Primitive a b c
 
 	    unFunction x = let Function    a b	   = x in (a,b)
 	    unData     x = let Datatype    a b c d = x in ((a,b),(c,d))
 	    unCons     x = let Constructor a b c   = x in (a,b,c)
-	    unPrim     x = let Primitive   a b	   = x in (a,b)
+	    unPrim     x = let Primitive   a b c   = x in (a,b,c)
 
 instance Serialisable IsAbstract where
     serialiser = mapS (IFun con des) serialiser

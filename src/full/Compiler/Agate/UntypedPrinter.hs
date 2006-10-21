@@ -137,7 +137,7 @@ showNDefinition (name,defn) = do
 	let drhs = untypedAbs dvars $ sep $
 		    text "VCon" <> text (show (argsize - np)) : dcname : dargvars
 	return $ sep [ dname, equals ] <+> drhs
-      Primitive a pf -> do
+      Primitive a pf _ -> do
 	doname <- showAsOptimizedTerm name
 	return $ sep [ dname, equals ] <+>
 		 sep [ text "box", doname, text "{- primitive -}" ]

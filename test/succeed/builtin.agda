@@ -20,6 +20,14 @@ false && _ = false
 {-# BUILTIN TRUE  true  #-}
 {-# BUILTIN FALSE false #-}
 
+data Nat : Set where
+  zero : Nat
+  suc  : Nat -> Nat
+
+{-# BUILTIN NATURAL Nat  #-}
+{-# BUILTIN SUC     suc  #-}
+{-# BUILTIN ZERO    zero #-}
+
 postulate
   Int	 : Set
   String : Set
@@ -103,10 +111,12 @@ infix  12 -_
 infixl 12 _+_ _-_
 infixl 8  _==_
 
+int0 = primCharToInteger '\0'
+
 _+_  = primIntegerPlus
 _*_  = primIntegerTimes
 _-_  = primIntegerMinus
--_   = \x -> 0 - x
+-_   = \x -> int0 - x
 _==_ = primIntegerEquals
 _/_  = primFloatDiv
 

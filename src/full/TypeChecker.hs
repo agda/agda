@@ -27,7 +27,8 @@ import Syntax.Strict
 import Syntax.Literal
 import Syntax.Scope
 
-import TypeChecking.Monad
+import TypeChecking.Monad hiding (defAbstract)
+import qualified TypeChecking.Monad as TCM
 import TypeChecking.Monad.Name
 import TypeChecking.Monad.Builtin
 import TypeChecking.Conversion
@@ -87,9 +88,10 @@ checkPrimitive i x e =
     t <- isType_ e
     noConstraints $ equalType t t'
     m <- currentModule
-    let s = show x
-    bindPrimitive s pf
-    addConstant (qualify m x) (Defn t 0 $ Primitive (defAbstract i) s)
+    let s  = show x
+	qx = qualify m x
+    bindPrimitive s $ pf { primFunName = qx }
+    addConstant qx (Defn t 0 $ Primitive (defAbstract i) s [])
     where
 	nameString (Name _ x) = show x
 
@@ -438,7 +440,7 @@ checkPattern name p t ret =
 	A.ConP i c ps -> do
 	    Defn t' _ (Constructor n d _) <- getConstInfo c -- don't instantiate this
 	    El _ (Def _ vs)		  <- forceData d t  -- because this guy won't be
-	    Con c' us			  <- reduce $ Con c $ map hide vs
+	    Con c' us			  <- constructorForm =<< reduce (Con c $ map hide vs)
 	    checkPatterns ps (piApply' t' vs) $ \ (xs, ps', ts', rest) -> do
 		let n  = length xs
 		    tn = raise n t
@@ -743,7 +745,7 @@ checkLiteral lit t = do
     where
 	el t = El (Type 0) t
 	litType l = case l of
-	    LitInt _ _	  -> el <$> primInteger
+	    LitInt _ _	  -> el <$> primNat
 	    LitFloat _ _  -> el <$> primFloat
 	    LitChar _ _   -> el <$> primChar
 	    LitString _ _ -> el <$> primString
@@ -771,6 +773,20 @@ bindBuiltinType1 thing e = do
     f <- checkExpr e setToSet
     bindBuiltinName thing f
 
+bindBuiltinZero :: A.Expr -> TCM ()
+bindBuiltinZero e = do
+    nat  <- primNat
+    zero <- checkExpr e (El (Type 0) nat)
+    bindBuiltinName builtinZero zero
+
+bindBuiltinSuc :: A.Expr -> TCM ()
+bindBuiltinSuc e = do
+    nat  <- primNat
+    let	nat' = El (Type 0) nat
+	natToNat = El (Type 0) $ Fun (Arg NotHidden nat') nat'
+    suc <- checkExpr e natToNat
+    bindBuiltinName builtinSuc suc
+
 -- | Built-in nil should have type @{A:Set} -> List A@
 bindBuiltinNil :: A.Expr -> TCM ()
 bindBuiltinNil e = do
@@ -795,6 +811,143 @@ bindBuiltinCons e = do
     cons <- checkExpr e consType
     bindBuiltinName builtinCons cons
 
+bindBuiltinPrimitive :: String -> String -> A.Expr -> (Term -> TCM ()) -> TCM ()
+bindBuiltinPrimitive name builtin e@(A.Def _ qx) verify = do
+    PrimImpl t pf <- lookupPrimitiveFunction name
+    v <- checkExpr e t
+
+    verify v
+
+    info <- getConstInfo qx
+    let cls = defClauses info
+	a   = TCM.defAbstract info
+    bindPrimitive name $ pf { primFunName = qx }
+    addConstant qx $ info { theDef = Primitive a name cls }
+
+    -- needed? yes, for checking equations for mul
+    bindBuiltinName builtin v
+bindBuiltinPrimitive _ b _ _ = typeError $ GenericError $ "Builtin " ++ b ++ " must be bound to a function"
+
+builtinPrimitives :: [ (String, (String, Term -> TCM ())) ]
+builtinPrimitives =
+    [ "NATPLUS"   |-> ("primNatPlus", verifyPlus)
+    , "NATMINUS"  |-> ("primNatMinus", verifyMinus)
+    , "NATTIMES"  |-> ("primNatTimes", verifyTimes)
+    , "NATDIV2"   |-> ("primNatDiv2", verifyDiv2)
+    , "NATMOD2"   |-> ("primNatMod2", verifyMod2)
+    , "NATDIVSUC" |-> ("primNatDivSuc", verifyDivSuc)
+    , "NATMODSUC" |-> ("primNatModSuc", verifyModSuc)
+    , "NATEQUALS" |-> ("primNatEquals", verifyEquals)
+    , "NATLESS"	  |-> ("primNatLess", verifyLess)
+    ]
+    where
+	(|->) = (,)
+
+	verifyPlus plus =
+	    verify ["n","m"] $ \(@@) zero suc (==) choice -> do
+		let m = Var 0 []
+		    n = Var 1 []
+		    x + y = plus @@ x @@ y
+
+		-- We allow recursion on any argument
+		choice
+		    [ do n + zero  == n
+			 n + suc m == suc (n + m)
+		    , do suc n + m == suc (n + m)
+			 zero  + m == m
+		    ]
+
+	verifyMinus minus =
+	    verify ["n","m"] $ \(@@) zero suc (==) choice -> do
+		let m = Var 0 []
+		    n = Var 1 []
+		    x - y = minus @@ x @@ y
+
+		-- We allow recursion on any argument
+		zero  - m     == zero
+		suc n - zero  == suc n
+		suc n - suc m == (n - m)
+
+	verifyTimes times = do
+	    plus <- primNatPlus
+	    verify ["n","m"] $ \(@@) zero suc (==) choice -> do
+		let m = Var 0 []
+		    n = Var 1 []
+		    x + y = plus  @@ x @@ y
+		    x * y = times @@ x @@ y
+
+		choice
+		    [ do n * zero == zero
+			 choice [ (n * suc m) == (n + (n * m))
+				, (n * suc m) == ((n * m) + n)
+				]
+		    , do zero * n == zero
+			 choice [ (suc n * m) == (m + (n * m))
+				, (suc n * m) == ((n * m) + m)
+				]
+		    ]
+
+	verifyDiv2 d2 =
+	    verify ["n"] $ \(@@) zero suc (==) choice -> do
+		let n = Var 0 []
+		    div2 n = d2 @@ n
+		div2  zero	   == zero
+		div2 (suc  zero)   == zero
+		div2 (suc (suc n)) == suc (div2 n)
+
+	verifyMod2 d2 =
+	    verify ["n"] $ \(@@) zero suc (==) choice -> do
+		let n = Var 0 []
+		    mod2 n = d2 @@ n
+		mod2  zero	   == zero
+		mod2 (suc  zero)   == suc zero
+		mod2 (suc (suc n)) == mod2 n
+
+	verifyDivSuc ds =
+	    verify ["n","m"] $ \(@@) zero suc (==) choice -> do
+		return ()
+
+	verifyModSuc ms =
+	    verify ["n","m"] $ \(@@) zero suc (==) choice -> do
+		return ()
+
+	verifyEquals eq =
+	    verify ["n","m"] $ \(@@) zero suc (===) choice -> do
+	    true  <- primTrue
+	    false <- primFalse
+	    let x == y = eq @@ x @@ y
+		m      = Var 0 []
+		n      = Var 1 []
+	    (zero  == zero ) === true
+	    (suc n == suc m) === (n == m)
+	    (suc n == zero ) === false
+	    (zero  == suc n) === false
+
+	verifyLess leq =
+	    verify ["n","m"] $ \(@@) zero suc (===) choice -> do
+	    true  <- primTrue
+	    false <- primFalse
+	    let x < y = leq @@ x @@ y
+		m     = Var 0 []
+		n     = Var 1 []
+	    (n     < zero)  === false
+	    (suc n < suc m) === (n < m)
+	    (zero  < suc m) === true
+
+	verify :: [String] -> ( (Term -> Term -> Term) -> Term -> (Term -> Term) ->
+				(Term -> Term -> TCM ()) ->
+				([TCM ()] -> TCM ()) -> TCM a) -> TCM a
+	verify xs f = do
+	    nat	 <- El (Type 0) <$> primNat
+	    zero <- primZero
+	    s    <- primSuc
+	    let x @@ y = x `apply` [Arg NotHidden y]
+		x == y = noConstraints $ equalTerm nat x y
+		suc n  = s @@ n
+		choice = foldr1 (\x y -> x `catchError` \_ -> y)
+	    xs <- mapM freshName_ xs
+	    addCtxs xs nat $ f (@@) zero suc (==) choice
+
 -- | Bind a builtin thing to an expression.
 bindBuiltin :: String -> A.Expr -> TCM ()
 bindBuiltin b e = do
@@ -808,6 +961,10 @@ bindBuiltin b e = do
 	    | elem b [builtinList, builtinIO]	 = bindBuiltinType1 b e
 	    | b == builtinNil			 = bindBuiltinNil e
 	    | b == builtinCons			 = bindBuiltinCons e
+	    | b == builtinZero			 = bindBuiltinZero e
+	    | b == builtinSuc			 = bindBuiltinSuc e
+	    | Just (s,v) <- lookup b builtinPrimitives =
+		bindBuiltinPrimitive s b e v
 	    | otherwise				 = typeError $ NoSuchBuiltinName b
 
 ---------------------------------------------------------------------------
