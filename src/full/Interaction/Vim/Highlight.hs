@@ -59,7 +59,7 @@ matches cons icons defs idefs =
 		     . List.sortBy (compare `on` f)
 
 	foo :: String -> [[String]] -> [(Int, String)]
-	foo cat = map (length . show . head /\ match cat)
+	foo cat = map (length . head /\ match cat)
 
 toVim :: Names -> String
 toVim ns = unlines $
