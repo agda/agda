@@ -8,7 +8,7 @@ import TypeChecking.Monad
 type InterfaceVersion = (Char, Char, Char, Char, Char, Char)
 
 currentInterfaceVersion :: (Char, Char, Char, Char, Char, Char)
-currentInterfaceVersion = ('A','I','1','.','0','5')
+currentInterfaceVersion = ('A','I','1','.','0','6')
 
 data Interface = Interface
 	{ iVersion	   :: InterfaceVersion

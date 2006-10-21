@@ -8,12 +8,14 @@ import qualified Data.Map as Map
 import Data.Map (Map)
 import Data.Maybe
 import Data.Either
+import qualified Data.ByteString.Lazy as BS
+import Data.ByteString.Lazy (ByteString)
 
 import Utils.Tuple
 import Utils.Unicode
 
 newtype Printer a = Printer { runPrinter :: a -> ShowS }
-newtype Parser  a = Parser  { runParser :: String -> (a, String) }
+newtype Parser  a = Parser  { runParser :: ByteString -> (a, ByteString) }
 
 data IFun a b = IFun (a -> b) (b -> a)
 
@@ -30,9 +32,13 @@ instance BiMonad Printer where
     bindS mkA (Printer prA) k =
 	Printer $ \b -> let a = mkA b in prA a . runPrinter (k a) b
 
+bsToString :: ByteString -> String
+bsToString = fromUTF8 . map (toEnum . fromIntegral) . BS.unpack
+
 instance BiMonad Parser where
-    charS		 = Parser $ \(c:s) -> (c,s)
-    stringS n		 = Parser $ \s -> let (s0,rest) = splitAt n s in (fromUTF8 s0, rest)
+    charS		 = Parser $ \s -> (toEnum . fromIntegral $ BS.head s, BS.tail s)
+    stringS n		 = Parser $ \s -> let (s0,rest) = BS.splitAt (fromIntegral n) s
+					  in (bsToString s0, rest)
     returnS x		 = Parser $ \s -> (x,s)
     bindS _ (Parser m) k = Parser $ \s -> let (x,s') = m s in runParser (k x) s'
 
@@ -146,13 +152,13 @@ instance (Ord k, Serialisable k, Serialisable v) => Serialisable (Map k v) where
 serialise :: Serialisable a => a -> String
 serialise x = runPrinter serialiser x ""
 
-deserialise :: Serialisable a => String -> a
+deserialise :: Serialisable a => ByteString -> a
 deserialise s = case deserialiseLazy s of
     (x,True) -> x
     _	     -> error "deserialise: no parse"
 
 -- | Force the Bool to force the a. True means ok and false means left-over garbage.
-deserialiseLazy :: Serialisable a => String -> (a, Bool)
+deserialiseLazy :: Serialisable a => ByteString -> (a, Bool)
 deserialiseLazy s = case runParser serialiser s of
-    (x, s)  -> (x, null s)
+    (x, s)  -> (x, BS.null s)
 
