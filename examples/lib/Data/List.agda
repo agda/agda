@@ -7,7 +7,7 @@ import Data.Nat
 open Prelude
 open Data.Nat
 
-infixr 50 _::_
+infixr 50 _::_ _++_
 
 data List (A : Set) : Set where
   []   : List A
@@ -24,6 +24,10 @@ length (_ :: xs) = 1 + length xs
 map : {A, B : Set} -> (A -> B) -> List A -> List B
 map f []        = []
 map f (x :: xs) = f x :: map f xs
+
+_++_ : {A : Set} -> List A -> List A -> List A
+[]        ++ ys = ys
+(x :: xs) ++ ys = x :: (xs ++ ys)
 
 zipWith : {A, B, C : Set} -> (A -> B -> C) -> List A -> List B -> List C
 zipWith f []        []        = []

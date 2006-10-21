@@ -2,7 +2,6 @@
 module Logic.Relations where
 
 import Logic.Base
-import Logic.Leibniz
 import Data.Bool
 
 Rel : Set -> Set1
@@ -17,10 +16,15 @@ Symmetric {A} _R_  = (x, y : A) -> x R y -> y R x
 Transitive : {A : Set} -> Rel A -> Set
 Transitive {A} _R_ = (x, y, z : A) -> x R y -> y R z -> x R z
 
-open Logic.Leibniz
+module PolyEq (_≡_ : {A : Set} -> A -> A -> Set1) where
 
-Antisymmetric : {A : Set} -> Rel A -> Set1
-Antisymmetric {A} _R_ = (x, y : A) -> x R y -> y R x -> x ≡ y
+  Antisymmetric : {A : Set} -> Rel A -> Set1
+  Antisymmetric {A} _R_ = (x, y : A) -> x R y -> y R x -> x ≡ y
+
+module MonoEq {A : Set}(_≡_ : Rel A) where
+
+  Antisymmetric : Rel A -> Set
+  Antisymmetric _R_ = (x, y : A) -> x R y -> y R x -> x ≡ y
 
 open Logic.Base
 
