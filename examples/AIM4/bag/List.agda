@@ -91,5 +91,5 @@ module List where
              -> Either (Perm a xs ys) (Not (Perm a xs ys))
 
   Permutation : (a : Datoid) -> DecidableEquiv (List (El a))
-  Permutation a = decEquiv (equiv (Perm a) refl' sym' trans') (dec dec')
+  Permutation a = decEquiv (equiv (Perm a) (refl' {a}) (sym' {a}) (trans' {a})) (dec (dec' {a}))
 
