@@ -109,7 +109,7 @@ instance Abstract Defn where
     abstract tel (Function cs a)       = Function (abstract tel cs) a
     abstract tel (Datatype np cs s a)  = Datatype (length tel + np) cs s a
     abstract tel (Constructor np cs a) = Constructor (length tel + np) cs a
-    abstract tel (Primitive a x cs)    = Primitive a x cs
+    abstract tel (Primitive a x cs)    = Primitive a x (abstract tel cs)
 
 instance Abstract PrimFun where
     abstract tel (PrimFun x ar def) = PrimFun x (ar + n) $ \ts -> def $ drop n ts

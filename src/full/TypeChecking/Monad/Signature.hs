@@ -74,17 +74,16 @@ lookupModule m =
 implicitModuleDefs :: Telescope -> ModuleName -> Args -> Definitions -> Definitions
 implicitModuleDefs tel m args defs = Map.mapWithKey redirect defs
     where
-	redirect x d = abstract (List.map hide tel)
-			$ setDef
-			$ d `apply` args'
+	redirect x d = setDef $ abstract tel' (d `apply` args')
 	    where
+		tel' = List.map hide tel
 		hide (Arg _ x) = Arg Hidden x
 		args' = List.map hide args
 		old = theDef d
 		mkRHS = case old of
 			    Constructor _ _ _ -> Con
 			    _		      -> Def
-		clause = Clause [] $ Body $ mkRHS (qualify m x) args'
+		clause = Clause [] $ Body $ abstract (List.map hide tel) $ mkRHS (qualify m x) args'
 		setDef d = d { theDef = Function [clause] ConcreteDef }
 
 -- | Lookup the definition of a name. The result is a closed thing, all free

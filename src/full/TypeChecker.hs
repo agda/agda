@@ -428,6 +428,20 @@ argName = argN . unEl
 	argN _	  = __IMPOSSIBLE__
 
 
+actualConstructor :: QName -> TCM QName
+actualConstructor c = do
+    v <- constructorForm =<< reduce (Con c [])
+    case ignoreBlocking v of
+	Con c _	-> return c
+	_	-> actualConstructor =<< stripLambdas v
+    where
+	stripLambdas v = case ignoreBlocking v of
+	    Con c _ -> return c
+	    Lam _ b -> do
+		x <- freshName_ $ absName b
+		addCtx x (sort Prop) $ stripLambdas (absBody b)
+	    _	    -> typeError $ GenericError $ "Not a constructor: " ++ show c
+
 -- | Type check a pattern and bind the variables. First argument is a name
 --   suggestion for wildcard patterns.
 checkPattern :: String -> A.Pattern -> Type -> (([String], Pattern, Term) -> TCM a) -> TCM a
@@ -439,7 +453,8 @@ checkPattern name p t ret =
 	    x <- freshName (getRange i) name
 	    addCtx x t $ ret ([name], VarP name, Var 0 [])
 	A.ConP i c ps -> do
-	    Defn t' _ (Constructor n d _) <- getConstInfo c -- don't instantiate this
+	    c <- actualConstructor c
+	    Defn t' _ (Constructor _ d _) <- getConstInfo c -- don't instantiate this
 	    El _ (Def _ vs)		  <- forceData d t  -- because this guy won't be
 	    Con c' us			  <- constructorForm =<< reduce (Con c $ map hide vs)
 	    checkPatterns ps (piApply' t' vs) $ \ (xs, ps', ts', rest) -> do

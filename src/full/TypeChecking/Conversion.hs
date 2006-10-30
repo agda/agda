@@ -13,6 +13,7 @@ import TypeChecking.Substitute
 import TypeChecking.Reduce
 import TypeChecking.Constraints
 import TypeChecking.Errors
+import TypeChecking.Primitive (constructorForm)
 
 import Utils.Monad
 
@@ -62,7 +63,8 @@ equalTerm a m n =
 equalAtom :: Type -> Term -> Term -> TCM Constraints
 equalAtom t m n =
     catchConstraint (ValueEq t m n) $
-    do	(m, n) <- {-# SCC "equalAtom.reduce" #-} reduce (m, n)
+    do	m <- constructorForm =<< reduce m
+	n <- constructorForm =<< reduce n
 	verbose 10 $ do
 	    dm <- prettyTCM m
 	    dn <- prettyTCM n
