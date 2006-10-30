@@ -16,7 +16,7 @@ OUT_P	= $(TRANSL_OUT_DIR)/prof
 ## Source files ###########################################################
 
 src_files		= $(shell $(FIND) . -name '*.hs' -o -name '*.lhs')
-all_hs_files	= $(src_files)
+all_hs_files	= $(src_files) $(shell $(FIND) $(FULL_SRC_DIR) -name '*.hs')
 
 ## Phony targets ##########################################################
 

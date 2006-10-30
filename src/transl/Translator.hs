@@ -1,6 +1,6 @@
 -- Translator from Agda 1 to Agda 2
 --
--- $Id: Translator.hs,v 1.4 2006/10/11 19:56:15 ulfn Exp $
+-- $Id: Translator.hs,v 1.5 2006/10/23 15:36:58 ulfn Exp $
 --
 
 module Translator where
@@ -217,7 +217,7 @@ transCLetDef (CLetDefComment cs)
                      (\ md -> [Import noRange
  				    (QName (Name noRange [Id md]))
  				    Nothing
- 				    (ImportDirective noRange (Hiding []) []) ])
+ 				    (ImportDirective noRange (Hiding []) [] False) ])
                      mdlname
    where 
      trim str = case break ('\"'==) str of 
@@ -302,7 +302,7 @@ copenargs2importdirective :: [COArg] -> ImportDirective
 copenargs2importdirective coargs 
  = case unzip $ map coarg2urm coargs of
      (ns, rns) -> ImportDirective noRange (Using (map ImportedName (catMaybes ns)))
-                                             (catMaybes rns)
+                                             (catMaybes rns) False
   where coarg2urm (COArgT _ i t)     = (Just $ id2name i,Nothing)
         coarg2urm (COArg _ i)        = (Just $ id2name i,Nothing)
         coarg2urm (COArgAs _ i j)    = (Nothing,Just (ImportedName $ id2name i,id2name j))
