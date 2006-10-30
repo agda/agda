@@ -81,6 +81,7 @@ effect only after doing 'erase-customization' for `agda2-ghci-options' below"
     (append
      (list
       (concat "-i" agda2-root-dir "/src/full")
+      (concat "-i" agda2-root-dir "/src/compat")    ; we should only do this for ghc < 6.6. how?
       (concat "-i" outdir)
       (concat "-hidir " outdir)
       (concat "-odir  " outdir))

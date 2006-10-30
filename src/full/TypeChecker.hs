@@ -40,6 +40,7 @@ import TypeChecking.Rebind
 import TypeChecking.Serialise
 import TypeChecking.Interface
 import TypeChecking.Constraints
+import TypeChecking.Errors
 
 import Utils.Monad
 import Utils.List

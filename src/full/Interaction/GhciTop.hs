@@ -75,6 +75,7 @@ import Syntax.Abstract.Name
 import Interaction.Exceptions
 import qualified Interaction.BasicOps as B
 import qualified Interaction.CommandLine.CommandLine as CL
+import Interaction.Vim.Highlight ()
 
 #include "../undefined.h"
 
@@ -114,10 +115,10 @@ cmd_load :: String -> IO ()
 cmd_load file = infoOnException $ do
     (pragmas, m) <- parseFile moduleParser file
     is <- ioTCM $ do
+	    resetState
 	    pragmas	 <- concreteToAbstract_ pragmas	-- identity for top-level pragmas at the moment
 	    (m',scope)	 <- concreteToAbstract_ (TopLevel m)
 	    setUndo
-	    resetState
 	    setOptionsFromPragmas pragmas
 	    checkDecls m'
 	    setScope scope
