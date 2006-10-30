@@ -8,7 +8,7 @@ infixr 90 _∘_
 _∘_ : {A, B, C : Set} -> (B -> C) -> (A -> B) -> A -> C
 (f ∘ g) x = f (g x)
 
-infixr 10 _$_
+infixr 0 _$_
 _$_ : {A, B : Set} -> (A -> B) -> A -> B
 f $ x = f x
 

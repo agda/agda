@@ -84,7 +84,7 @@ zero  < suc m = true
 suc n < suc m = n < m
 
 _≤_ : Nat -> Nat -> Bool
-n ≤ m = n < m || n == m
+n ≤ m = n < suc m
 
 _>_ = flip _<_
 _≥_ = flip _≤_

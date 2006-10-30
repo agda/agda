@@ -16,6 +16,12 @@ Symmetric {A} _R_  = (x, y : A) -> x R y -> y R x
 Transitive : {A : Set} -> Rel A -> Set
 Transitive {A} _R_ = (x, y, z : A) -> x R y -> y R z -> x R z
 
+Congruent : {A : Set} -> Rel A -> Set
+Congruent {A} _R_ = (f : A -> A)(x, y : A) -> x R y -> f x R f y
+
+Substitutive : {A : Set} -> Rel A -> Set1
+Substitutive {A} _R_ = (P : A -> Set)(x, y : A) -> x R y -> P x -> P y
+
 module PolyEq (_≡_ : {A : Set} -> A -> A -> Set1) where
 
   Antisymmetric : {A : Set} -> Rel A -> Set1
