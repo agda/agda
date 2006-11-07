@@ -2,10 +2,6 @@
 Features
 --------
 
-* good error messages
-
-  - wrong "When..." reported for f (g x) if g x is well-typed but of wrong type.
-
 * structured verbosity
 
 * debug information
@@ -71,6 +67,10 @@ Fixes
 [Errors]
 
 * Remember/figure out range of previous binding in DuplicateBuiltinBinding.
+
+* wrong "When..." reported for f (g x) if g x is well-typed but of wrong type.
+
+* weird meta cannot depend on errors
 
 [Type checking]
 
