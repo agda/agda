@@ -1,0 +1,76 @@
+\documentclass{beamer}
+
+\usetheme{JuanLesPins}
+%\usetheme{Darmstadt}
+
+\usepackage{beamerthemesplit}
+\usepackage{pxfonts}
+\usepackage{proof}
+%\usepackage{fleqn}
+
+\title{A type-safe treatment of meta variables}
+\author{Ulf Norell}
+\date{\today}
+
+\newcommand\PI[2]{(#1:#2)\to{}}
+\newcommand\hPI[2]{\{#1:#2\}\to{}}
+\newcommand\Fun[2]{#1\to#2}
+\newcommand\lam[1]{\lambda #1\to{}}
+\newcommand\Cons{\mathrel{::}}
+
+\newcommand\To{\Rightarrow}
+\newcommand\GoFig{\_}
+
+\newcommand\Data[3]{\ensuremath{
+    \mathbf{data}~#1 : #2~\mathbf{where} \\
+    \quad\begin{array}{lcl}
+	#3
+    \end{array}
+}}
+\newcommand\Module[2]{\ensuremath{
+    \mathbf{module}~#1~\mathbf{where} \\
+    \quad\begin{array}{l}
+	#2
+    \end{array}
+}}
+
+\newenvironment{code}{
+\begin{block}{}\(\begin{array}{l}
+}{
+\end{array}\)\end{block}
+}
+
+\renewcommand\Bar{~~|~~}
+
+\begin{document}
+
+\frame{\titlepage}
+
+\section{Introduction}
+\frame{\tableofcontents}
+
+\subsection{The Basics}
+\frame{
+    \frametitle{Some typing rules for Type Theory}
+}
+
+\section{The Problem}
+
+\frame{
+    \frametitle{Example}
+}
+
+\section{The Solution}
+
+\subsection{Guarded Constants}
+
+\frame{
+    \frametitle{Some new typing rules}
+}
+
+\frame{
+    \frametitle{Examples}
+}
+
+\end{document}
+
