@@ -43,6 +43,7 @@ import TypeChecking.Errors
 import Compiler.Agate.Main
 
 import Utils.Monad
+import Utils.Wise
 
 import Tests
 import Version
