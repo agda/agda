@@ -410,6 +410,9 @@ checkPatterns ps0@(Arg h p:ps) t ret =
     case (h,funView $ unEl t') of
 	(NotHidden, FunV (Arg Hidden _) _) ->
 	    checkPatterns (Arg Hidden (unnamed $ A.WildP $ PatRange $ getRange p) : Arg h p : ps) t' ret
+	(Hidden, FunV (Arg Hidden a) _)
+	    | not $ sameName (nameOf p) (nameInPi $ unEl t') ->
+	    checkPatterns (Arg Hidden (unnamed $ A.WildP $ PatRange $ getRange p) : Arg h p : ps) t' ret
 	(_, FunV (Arg h' a) _) | h == h' ->
 	    checkPattern (argName t') p' a $ \ (xs, p, v) -> do
 	    let t0 = raise (length xs) t'
@@ -421,6 +424,13 @@ checkPatterns ps0@(Arg h p:ps) t ret =
 	name (Named _ (A.VarP x)) = show x
 	name (Named (Just x) _)   = x
 	name _			  = "x"
+
+	sameName Nothing _  = True
+	sameName n1	 n2 = n1 == n2
+
+	nameInPi (Pi _ b)  = Just $ absName b
+	nameInPi (Fun _ _) = Nothing
+	nameInPi _	   = __IMPOSSIBLE__
 
 -- | TODO: move
 argName = argN . unEl
@@ -724,6 +734,13 @@ checkArguments r args0@(Arg h e : args) t0 t1 =
 		(us, t0'',cs') <- checkArguments r (Arg h e : args)
 				       (piApply' t0' [arg]) t1
 		return (arg : us, t0'', cs ++ cs')
+	    (Hidden, FunV (Arg Hidden a) _)
+		| not $ sameName (nameOf e) (nameInPi $ unEl t0') -> do
+		    u  <- newValueMeta a
+		    let arg = Arg Hidden u
+		    (us, t0'',cs') <- checkArguments r (Arg h e : args)
+					   (piApply' t0' [arg]) t1
+		    return (arg : us, t0'', cs ++ cs')
 	    (_, FunV (Arg h' a) _) | h == h' -> do
 		u  <- checkExpr e' a
 		let arg = Arg h u
@@ -736,6 +753,13 @@ checkArguments r args0@(Arg h e : args) t0 t1 =
 	name (Named _ (A.Var _ x)) = show x
 	name (Named (Just x) _)    = x
 	name _			   = "x"
+
+	sameName Nothing _  = True
+	sameName n1	 n2 = n1 == n2
+
+	nameInPi (Pi _ b)  = Just $ absName b
+	nameInPi (Fun _ _) = Nothing
+	nameInPi _	   = __IMPOSSIBLE__
 
 
 -- | Check that a list of arguments fits a telescope.

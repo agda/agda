@@ -45,7 +45,7 @@ To this we add the rules
          Γ ⊢ {x=e}es fits {x:A}B
 
      Γ ⊢ {x=e}es fits B[α/y] ─→ vs
-    -------------------------------	(x ≠ y, similar to the 'e es fits (x:A)B' rule)
+    -------------------------------	(x ≠ y, similar to the 'e es fits {x:A}B' rule)
     Γ ⊢ {x=e}es fits {y:A}B ─→ α vs
 
 What about patterns? It would work exactly the same. I.e two new rules very
