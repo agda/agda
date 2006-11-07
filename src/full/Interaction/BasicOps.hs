@@ -100,7 +100,7 @@ refine ii mr e =
                                                  Syntax.Info.metaScope = scope{contextPrecedence = ArgumentCtx}
 						 , metaNumber = Nothing
 						 }
-                      in App (ExprRange $ r) e (Arg NotHidden metaVar)
+                      in App (ExprRange $ r) e (Arg NotHidden $ unnamed metaVar)
                  --ToDo: The position of metaVar is not correct
                  --ToDo: The fixity of metavars is not correct -- fixed? MT
 

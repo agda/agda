@@ -271,8 +271,14 @@ instance ToConcrete a c => ToConcrete (Arg a) (Arg c) where
     toConcrete (Arg h@Hidden    x) = Arg h <$> toConcreteCtx TopCtx x
     toConcrete (Arg h@NotHidden x) = Arg h <$> toConcrete x
 
+instance ToConcrete a c => ToConcrete (Named name a) (Named name c) where
+    toConcrete (Named n x) = Named n <$> toConcrete x
+
 instance BindToConcrete a c => BindToConcrete (Arg a) (Arg c) where
     bindToConcrete (Arg h x) ret = bindToConcreteCtx (hiddenArgumentCtx h) x $ ret . Arg h
+
+instance BindToConcrete a c => BindToConcrete (Named name a) (Named name c) where
+    bindToConcrete (Named n x) ret = bindToConcrete x $ ret . Named n
 
 newtype DontTouchMe a = DontTouchMe a
 
@@ -366,7 +372,7 @@ instance ToConcrete A.Expr C.Expr where
 	     b' <- toConcreteCtx TopCtx b
 	     return $ C.Fun (getRange i) (mkArg a') b'
 	where
-	    mkArg (Arg Hidden	 e) = HiddenArg (getRange e) e
+	    mkArg (Arg Hidden	 e) = HiddenArg (getRange e) (unnamed e)
 	    mkArg (Arg NotHidden e) = e
 
     toConcrete (A.Set i 0)  = withStored i $ return $ C.Set (getRange i)
@@ -555,22 +561,13 @@ instance BindToConcrete A.Pattern C.Pattern where
     bindToConcrete (A.AbsurdP i)   ret = ret $ C.AbsurdP (getRange i)
     bindToConcrete (A.LitP l)	   ret = ret $ C.LitP l
 
---  We can't figure out the original name without looking at the stored
---  pattern. Why not?
--- 	withStored i $
--- 	do  args' <- toConcrete args
--- 	    return $ foldl appP (IdentP x) args'
--- 	where
--- 	    appP p (Arg h q) = AppP h p q
-	
-
 -- Helpers for recovering C.OpApp ------------------------------------------
 
 tryToRecoverOpApp :: A.Expr -> AbsToCon C.Expr -> AbsToCon C.Expr
 tryToRecoverOpApp e mdefault = case AV.appView e of
   NonApplication _ -> mdefault
   Application head args -> do
-    let  args' = [e | Arg NotHidden e <- args]
+    let  args' = [namedThing e | Arg NotHidden e <- args]
     case head of
       HeadVar i n  -> doCName i (nameConcrete n) args'
       HeadDef i qn -> doQName i qn args'

@@ -397,6 +397,9 @@ instance LowerMeta a => LowerMeta [a] where
 instance LowerMeta a => LowerMeta (Arg a) where
   lowerMeta aa = fmap lowerMeta aa
 
+instance LowerMeta a => LowerMeta (Named name a) where
+  lowerMeta aa = fmap lowerMeta aa
+
 
 preMeta   = SC.QuestionMark noRange Nothing
 preUscore = SC.Underscore   noRange Nothing

@@ -324,18 +324,19 @@ Expr2
 
 -- Level 3: Atoms
 Expr3
-    : QId		{ Ident $1 }
-    | literal		{ Lit $1 }
-    | '?'		{ QuestionMark $1 Nothing }
-    | '_'		{ Underscore $1 Nothing }
-    | 'Prop'		{ Prop $1 }
-    | 'Set'		{ Set $1 }
-    | setN		{ uncurry SetN $1 }
-    | '{' Expr '}'	{ HiddenArg (fuseRange $1 $3) $2 }
-    | '(' Expr ')'	{ Paren (fuseRange $1 $3) $2 }
-    | '{' '}'		{ let r = fuseRange $1 $2 in HiddenArg r $ Absurd r }
-    | '(' ')'		{ Absurd (fuseRange $1 $2) }
-    | Id '@' Expr3	{ As (fuseRange $1 $3) $1 $3 }
+    : QId		  { Ident $1 }
+    | literal		  { Lit $1 }
+    | '?'		  { QuestionMark $1 Nothing }
+    | '_'		  { Underscore $1 Nothing }
+    | 'Prop'		  { Prop $1 }
+    | 'Set'		  { Set $1 }
+    | setN		  { uncurry SetN $1 }
+    | '{' Expr '}'	  { HiddenArg (fuseRange $1 $3) (unnamed $2) }
+    | '{' Id '=' Expr '}' { HiddenArg (fuseRange $1 $5) (named (show $2) $4) }
+    | '(' Expr ')'	  { Paren (fuseRange $1 $3) $2 }
+    | '{' '}'		  { let r = fuseRange $1 $2 in HiddenArg r $ unnamed $ Absurd r }
+    | '(' ')'		  { Absurd (fuseRange $1 $2) }
+    | Id '@' Expr3	  { As (fuseRange $1 $3) $1 $3 }
 
 -- Sorts
 Sort :: { Expr }
@@ -773,14 +774,14 @@ exprToLHS e = exprToPattern e
 	    case e of
 		Ident x			-> return $ IdentP x
 		App _ e1 e2		-> AppP <$> exprToPattern e1
-						<*> T.mapM exprToPattern e2
+						<*> T.mapM (T.mapM exprToPattern) e2
 		Paren r e		-> ParenP r
 						<$> exprToPattern e
 		Underscore r _		-> return $ WildP r
 		Absurd r		-> return $ AbsurdP r
 		As r x e		-> AsP r x <$> exprToPattern e
 		Lit l			-> return $ LitP l
-		HiddenArg r e		-> HiddenP r <$> exprToPattern e
+		HiddenArg r e		-> HiddenP r <$> T.mapM exprToPattern e
 		RawApp r es		-> RawAppP r <$> mapM exprToPattern es
 		OpApp r x es		-> OpAppP r x <$> mapM exprToPattern es
 		_			-> parseErrorAt (rStart $ getRange e) "Parse error in pattern"

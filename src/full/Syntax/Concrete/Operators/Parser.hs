@@ -14,9 +14,9 @@ import Utils.Monad
 data ExprView e
     = LocalV Name
     | OtherV e
-    | AppV e (Arg e)
+    | AppV e (NamedArg e)
     | OpAppV Range Name [e]
-    | HiddenArgV e
+    | HiddenArgV (Named String e)
     | ParenV e
     deriving (Show)
 
@@ -113,11 +113,11 @@ appP top p = do
 	isHidden (HiddenArgV _) = True
 	isHidden _	       = False
 
-	nothidden = Arg NotHidden <$> do
+	nothidden = Arg NotHidden . unnamed <$> do
 	    e <- p
 	    case exprView e of
 		HiddenArgV _ -> pfail
-		_	    -> return e
+		_	     -> return e
 
 	hidden = do
 	    HiddenArgV e <- exprView <$> satisfy (isHidden . exprView)

@@ -6,7 +6,7 @@ import Syntax.Common
 import Syntax.Abstract
 import Syntax.Info
 
-data AppView = Application Head [Arg Expr]
+data AppView = Application Head [NamedArg Expr]
 	     | NonApplication Expr
 		-- ^ TODO: if we allow beta-redexes (which we currently do) there could be one here.
 

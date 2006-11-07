@@ -24,6 +24,7 @@ module Syntax.Scope
     , getModule
     , getFixity
     , setContext
+    , getContextPrecedence
     , resolvePatternNameM
     , resolveName
     , abstractName
@@ -505,6 +506,9 @@ currentModuleScope scope = ModuleScope
 setContext :: Precedence -> ScopeM a -> ScopeM a
 setContext p =
     modScopeInfo $ \s -> s { contextPrecedence = p }
+
+getContextPrecedence :: ScopeM Precedence
+getContextPrecedence = contextPrecedence <$> getScopeInfo
 
 -- | Work inside a module. This means moving everything in the
 --   'publicNameSpace' to the 'privateNameSpace' and updating the names of

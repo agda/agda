@@ -21,7 +21,7 @@ data Expr
 	| Lit Literal			    -- ^ Literals
 	| QuestionMark MetaInfo		    -- ^ meta variable for interaction
         | Underscore   MetaInfo		    -- ^ meta variable for hidden argument (must be inferred locally)
-        | App  ExprInfo Expr (Arg Expr)	    -- ^
+        | App  ExprInfo Expr (NamedArg Expr)
         | Lam  ExprInfo LamBinding Expr	    -- ^
         | Pi   ExprInfo Telescope Expr	    -- ^
 	| Fun  ExprInfo (Arg Expr) Expr	    -- ^ independent function space
@@ -34,7 +34,7 @@ data Declaration
 	| Primitive  DefInfo Name Expr				-- ^ primitive function
 	| Definition DeclInfo [TypeSignature] [Definition]	-- ^ a bunch of mutually recursive definitions
 	| Module     ModuleInfo ModuleName [TypedBindings] [Declaration]
-	| ModuleDef  ModuleInfo ModuleName [TypedBindings] ModuleName [Arg Expr]
+	| ModuleDef  ModuleInfo ModuleName [TypedBindings] ModuleName [NamedArg Expr]
 	| Import     ModuleInfo ModuleName
 	| Open	     DeclSource	    -- ^ this one is here only to enable translation
 				    --   back to concrete syntax
@@ -82,13 +82,13 @@ data Clause	= Clause LHS RHS [Declaration]
 data RHS	= RHS Expr
 		| AbsurdRHS
 
-data LHS	= LHS LHSInfo Name [Arg Pattern]
+data LHS	= LHS LHSInfo Name [NamedArg Pattern]
 data Pattern	= VarP Name	-- ^ the only thing we need to know about a
 				-- pattern variable is its 'Range'. This is
 				-- stored in the 'Name', so we don't need a
 				-- 'NameInfo' here.
-		| ConP PatInfo QName [Arg Pattern]
-		| DefP PatInfo QName [Arg Pattern]  -- ^ defined pattern
+		| ConP PatInfo QName [NamedArg Pattern]
+		| DefP PatInfo QName [NamedArg Pattern]  -- ^ defined pattern
 		| WildP PatInfo
 		| AsP PatInfo Name Pattern
 		| AbsurdP PatInfo

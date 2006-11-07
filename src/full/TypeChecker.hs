@@ -169,7 +169,7 @@ checkModule i x tel ds =
 
 	addModule M.A ΓΔΘΦΨ = M'.A Γ us ΦΨ
 -}
-checkModuleDef :: ModuleInfo -> ModuleName -> A.Telescope -> ModuleName -> [Arg A.Expr] -> TCM ()
+checkModuleDef :: ModuleInfo -> ModuleName -> A.Telescope -> ModuleName -> [NamedArg A.Expr] -> TCM ()
 checkModuleDef i x tel m' args =
     do	m <- flip qualifyModule x <$> currentModule
 	gammaDelta <- getContextTelescope
@@ -375,7 +375,7 @@ checkClause t c@(A.Clause (A.LHS i x aps) rhs ds) =
 		v <- checkExpr e t'
 		return $ foldr (\x t -> Bind $ Abs x t) (Body v) xs
 	    A.AbsurdRHS
-		| any (containsAbsurdPattern . unArg) aps
+		| any (containsAbsurdPattern . namedThing . unArg) aps
 			    -> return NoBody
 		| otherwise -> typeError $ NoRHSRequiresAbsurdPattern aps
 	return $ Clause ps body
@@ -384,7 +384,7 @@ checkClause t c@(A.Clause (A.LHS i x aps) rhs ds) =
 containsAbsurdPattern :: A.Pattern -> Bool
 containsAbsurdPattern p = case p of
     A.VarP _	  -> False
-    A.ConP _ _ ps -> any (containsAbsurdPattern . unArg) ps
+    A.ConP _ _ ps -> any (containsAbsurdPattern . namedThing . unArg) ps
     A.WildP _	  -> False
     A.AsP _ _ p   -> containsAbsurdPattern p
     A.AbsurdP _   -> True
@@ -393,32 +393,34 @@ containsAbsurdPattern p = case p of
 
 
 -- | Check the patterns of a left-hand-side. Binds the variables of the pattern.
-checkPatterns :: [Arg A.Pattern] -> Type -> (([String], [Arg Pattern], [Arg Term], Type) -> TCM a) -> TCM a
+checkPatterns :: [NamedArg A.Pattern] -> Type -> (([String], [Arg Pattern], [Arg Term], Type) -> TCM a) -> TCM a
 checkPatterns [] t ret =
     traceCallCPS (CheckPatterns [] t) ret $ \ret -> do
     t' <- instantiate t
     case funView $ unEl t' of
 	FunV (Arg Hidden _) _   -> do
 	    r <- getCurrentRange
-	    checkPatterns [Arg Hidden $ A.WildP $ PatRange r] t' ret
+	    checkPatterns [Arg Hidden $ unnamed $ A.WildP $ PatRange r] t' ret
 	_ -> ret ([], [], [], t)
 checkPatterns ps0@(Arg h p:ps) t ret =
     traceCallCPS (CheckPatterns ps0 t) ret $ \ret -> do
     (t', cs) <- forcePi h (name p) t
     addNewConstraints cs
+    p' <- return $ namedThing p
     case (h,funView $ unEl t') of
 	(NotHidden, FunV (Arg Hidden _) _) ->
-	    checkPatterns (Arg Hidden (A.WildP $ PatRange $ getRange p) : Arg h p : ps) t' ret
+	    checkPatterns (Arg Hidden (unnamed $ A.WildP $ PatRange $ getRange p) : Arg h p : ps) t' ret
 	(_, FunV (Arg h' a) _) | h == h' ->
-	    checkPattern (argName t') p a $ \ (xs, p, v) -> do
+	    checkPattern (argName t') p' a $ \ (xs, p, v) -> do
 	    let t0 = raise (length xs) t'
 	    checkPatterns ps (piApply' t0 [Arg h' v]) $ \ (ys, ps, vs, t'') -> do
 		let v' = raise (length ys) v
 		ret (xs ++ ys, Arg h p : ps, Arg h v':vs, t'')
 	_ -> typeError $ WrongHidingInLHS t'
     where
-	name (A.VarP x) = show x
-	name _	        = "x"
+	name (Named _ (A.VarP x)) = show x
+	name (Named (Just x) _)   = x
+	name _			  = "x"
 
 -- | TODO: move
 argName = argN . unEl
@@ -694,7 +696,7 @@ inferDef mkTerm i x =
 --   @t0 = Delta -> t0'@ and @args : Delta@. Inserts hidden arguments to
 --   make this happen. Returns @t0'@ and any constraints that have to be
 --   solve for everything to be well-formed.
-checkArguments :: Range -> [Arg A.Expr] -> Type -> Type -> TCM (Args, Type, Constraints)
+checkArguments :: Range -> [NamedArg A.Expr] -> Type -> Type -> TCM (Args, Type, Constraints)
 checkArguments r [] t0 t1 =
     traceCall (CheckArguments r [] t0 t1) $ do
 	t0' <- reduce t0
@@ -714,6 +716,7 @@ checkArguments r [] t0 t1 =
 checkArguments r args0@(Arg h e : args) t0 t1 =
     traceCall (CheckArguments r args0 t0 t1) $ do
 	(t0', cs) <- forcePi h (name e) t0
+	e' <- return $ namedThing e
 	case (h, funView $ unEl t0') of
 	    (NotHidden, FunV (Arg Hidden a) _) -> do
 		u  <- newValueMeta a
@@ -722,7 +725,7 @@ checkArguments r args0@(Arg h e : args) t0 t1 =
 				       (piApply' t0' [arg]) t1
 		return (arg : us, t0'', cs ++ cs')
 	    (_, FunV (Arg h' a) _) | h == h' -> do
-		u  <- checkExpr e a
+		u  <- checkExpr e' a
 		let arg = Arg h u
 		(us, t0'', cs') <- checkArguments (fuseRange r e) args (piApply' t0' [arg]) t1
 		return (arg : us, t0'', cs ++ cs')
@@ -730,12 +733,13 @@ checkArguments r args0@(Arg h e : args) t0 t1 =
 		typeError $ WrongHidingInApplication t0'
 	    _ -> __IMPOSSIBLE__
     where
-	name (A.Var _ x) = show x
-	name _	         = "x"
+	name (Named _ (A.Var _ x)) = show x
+	name (Named (Just x) _)    = x
+	name _			   = "x"
 
 
 -- | Check that a list of arguments fits a telescope.
-checkArguments_ :: Range -> [Arg A.Expr] -> Telescope -> TCM (Args, Constraints)
+checkArguments_ :: Range -> [NamedArg A.Expr] -> Telescope -> TCM (Args, Constraints)
 checkArguments_ r args tel = do
     (args, _, cs) <- checkArguments r args (telePi tel $ sort Prop) (sort Prop)
     return (args, cs)

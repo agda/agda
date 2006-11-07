@@ -277,7 +277,7 @@ noTrace :: CallTrace
 noTrace = TopLevel []
 
 data Call = CheckClause Type A.Clause (Maybe Clause)
-	  | CheckPatterns [Arg A.Pattern] Type (Maybe ([String], [Arg Pattern], [Arg Term], Type))
+	  | CheckPatterns [NamedArg A.Pattern] Type (Maybe ([String], [Arg Pattern], [Arg Term], Type))
 	  | CheckPattern String A.Pattern Type (Maybe ([String], Pattern, Term))
 	  | CheckLetBinding A.LetBinding (Maybe ())
 	  | InferExpr A.Expr (Maybe (Term, Type))
@@ -286,7 +286,7 @@ data Call = CheckClause Type A.Clause (Maybe Clause)
 	  | IsType_ A.Expr (Maybe Type)
 	  | InferVar Name (Maybe (Term, Type))
 	  | InferDef Range QName (Maybe (Term, Type))
-	  | CheckArguments Range [Arg A.Expr] Type Type (Maybe (Args, Type, Constraints))
+	  | CheckArguments Range [NamedArg A.Expr] Type Type (Maybe (Args, Type, Constraints))
 	  | CheckDataDef Range Name [A.LamBinding] [A.Constructor] (Maybe ())
 	  | CheckConstructor QName Telescope Sort A.Constructor (Maybe ())
 	  | CheckFunDef Range Name [A.Clause] (Maybe ())
@@ -429,7 +429,7 @@ data TypeError
 	| NoBindingForBuiltin String
 	| NoSuchPrimitiveFunction String
 	| BuiltinInParameterisedModule String
-	| NoRHSRequiresAbsurdPattern [Arg A.Pattern]
+	| NoRHSRequiresAbsurdPattern [NamedArg A.Pattern]
 	| IncompletePatternMatching Term Args
     -- Import errors
 	| LocalVsImportedModuleClash ModuleName

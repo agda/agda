@@ -20,6 +20,7 @@ import Utils.IO
 
 import Control.Monad.Trans
 import Data.Typeable
+import Data.Traversable (traverse)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Set (Set)
@@ -210,7 +211,7 @@ instance IsExpr Pattern where
 -- | Returns the list of possible parses.
 parsePattern :: ReadP Pattern Pattern -> Pattern -> [Pattern]
 parsePattern prs p = case p of
-    AppP p (Arg h q) -> fullParen' <$> (AppP <$> parsePattern prs p <*> (Arg h <$> parsePattern prs q))
+    AppP p (Arg h q) -> fullParen' <$> (AppP <$> parsePattern prs p <*> (Arg h <$> traverse (parsePattern prs) q))
     RawAppP _ ps     -> fullParen' <$> (parsePattern prs =<< parse prs ps)
     OpAppP r d ps    -> fullParen' . OpAppP r d <$> mapM (parsePattern prs) ps
     HiddenP _ _	     -> fail "bad hidden argument"
@@ -252,7 +253,7 @@ parseLHS top p = do
 
 	appView :: Pattern -> [Pattern]
 	appView p = case p of
-	    AppP p (Arg _ q) -> appView p ++ [q]
+	    AppP p (Arg _ q) -> appView p ++ [namedThing q]
 	    OpAppP _ op ps   -> IdentP (QName op) : ps
 	    ParenP _ p	     -> appView p
 	    RawAppP _ _	     -> __IMPOSSIBLE__
@@ -296,7 +297,7 @@ fullParen' e = case exprView e of
 	where
 	    e2' = case h of
 		Hidden	  -> e2
-		NotHidden -> fullParen' e2
+		NotHidden -> fullParen' <$> e2
     OpAppV r x es -> par $ unExprView $ OpAppV r x $ map fullParen' es
     where
 	par = unExprView . ParenV

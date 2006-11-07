@@ -41,34 +41,34 @@ type Constructor = TypeSignature
 
 -- | Concrete expressions. Should represent exactly what the user wrote.
 data Expr
-	= Ident QName			    -- ^ ex: @x@
-	| Lit Literal			    -- ^ ex: @1@ or @\"foo\"@
-	| QuestionMark !Range (Maybe Nat)    -- ^ ex: @?@ or @{! ... !}@
-	| Underscore !Range (Maybe Nat)	    -- ^ ex: @_@
-	| RawApp !Range [Expr]		    -- ^ before parsing operators
-	| App !Range Expr (Arg Expr)	    -- ^ ex: @e e@ or @e {e}@
-	| OpApp !Range Name [Expr]	    -- ^ ex: @e + e@
-	| HiddenArg !Range Expr		    -- ^ ex: @{e}@
-	| Lam !Range [LamBinding] Expr	    -- ^ ex: @\\x {y} -> e@ or @\\(x:A){y:B} -> e@
-	| Fun !Range Expr Expr		    -- ^ ex: @e -> e@ or @{e} -> e@
-	| Pi Telescope Expr		    -- ^ ex: @(xs:e) -> e@ or @{xs:e} -> e@
-	| Set !Range			    -- ^ ex: @Set@
-	| Prop !Range			    -- ^ ex: @Prop@
-	| SetN !Range Nat		    -- ^ ex: @Set0, Set1, ..@
-	| Let !Range [Declaration] Expr	    -- ^ ex: @let Ds in e@
-	| Paren !Range Expr		    -- ^ ex: @(e)@
-	| Absurd !Range			    -- ^ ex: @()@ or @{}@, only in patterns
-	| As !Range Name Expr		    -- ^ ex: @x\@p@, only in patterns
+	= Ident QName			       -- ^ ex: @x@
+	| Lit Literal			       -- ^ ex: @1@ or @\"foo\"@
+	| QuestionMark !Range (Maybe Nat)      -- ^ ex: @?@ or @{! ... !}@
+	| Underscore !Range (Maybe Nat)	       -- ^ ex: @_@
+	| RawApp !Range [Expr]		       -- ^ before parsing operators
+	| App !Range Expr (NamedArg Expr)      -- ^ ex: @e e@, @e {e}@, or @e {x = e}@
+	| OpApp !Range Name [Expr]	       -- ^ ex: @e + e@
+	| HiddenArg !Range (Named String Expr) -- ^ ex: @{e}@ or @{x=e}@
+	| Lam !Range [LamBinding] Expr	       -- ^ ex: @\\x {y} -> e@ or @\\(x:A){y:B} -> e@
+	| Fun !Range Expr Expr		       -- ^ ex: @e -> e@ or @{e} -> e@
+	| Pi Telescope Expr		       -- ^ ex: @(xs:e) -> e@ or @{xs:e} -> e@
+	| Set !Range			       -- ^ ex: @Set@
+	| Prop !Range			       -- ^ ex: @Prop@
+	| SetN !Range Nat		       -- ^ ex: @Set0, Set1, ..@
+	| Let !Range [Declaration] Expr	       -- ^ ex: @let Ds in e@
+	| Paren !Range Expr		       -- ^ ex: @(e)@
+	| Absurd !Range			       -- ^ ex: @()@ or @{}@, only in patterns
+	| As !Range Name Expr		       -- ^ ex: @x\@p@, only in patterns
     deriving (Typeable, Data, Eq)
 
 
 -- | Concrete patterns. No literals in patterns at the moment.
 data Pattern
 	= IdentP QName
-	| AppP Pattern (Arg Pattern)
+	| AppP Pattern (NamedArg Pattern)
 	| RawAppP !Range [Pattern]
 	| OpAppP !Range Name [Pattern]
-	| HiddenP !Range Pattern
+	| HiddenP !Range (Named String Pattern)
 	| ParenP !Range Pattern
 	| WildP !Range
 	| AbsurdP !Range
@@ -185,18 +185,18 @@ data Pragma = OptionsPragma !Range [String]
  --------------------------------------------------------------------------}
 
 -- | The 'Expr' is not an application.
-data AppView = AppView Expr [Arg Expr]
+data AppView = AppView Expr [NamedArg Expr]
 
 appView :: Expr -> AppView
 appView (App r e1 e2) = vApp (appView e1) e2
     where
 	vApp (AppView e es) arg = AppView e (es ++ [arg])
 appView (OpApp _ op es)   = AppView (Ident $ QName op)
-			  $ map (Arg NotHidden) es
+			  $ map (Arg NotHidden . unnamed) es
 appView (RawApp _ (e:es)) = AppView e $ map arg es
     where
 	arg (HiddenArg _ e) = Arg Hidden e
-	arg e		    = Arg NotHidden e
+	arg e		    = Arg NotHidden (unnamed e)
 appView e = AppView e []
 
 {--------------------------------------------------------------------------

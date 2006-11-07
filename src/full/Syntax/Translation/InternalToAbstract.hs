@@ -41,10 +41,10 @@ apps :: (Expr, [Arg Expr]) -> TCM Expr
 apps (e, [])		    = return e
 apps (e, arg@(Arg Hidden _) : args) =
     do	showImp <- showImplicitArguments
-	if showImp then apps (App exprInfo e arg, args)
+	if showImp then apps (App exprInfo e (unnamed <$> arg), args)
 		   else apps (e, args)
 apps (e, arg:args)	    =
-    apps (App exprInfo e arg, args)
+    apps (App exprInfo e (unnamed <$> arg), args)
 
 nameInfo :: Name -> NameInfo
 nameInfo x = NameInfo { bindingSite  = getRange x
@@ -128,11 +128,11 @@ instance Reify Sort Expr where
 		I.Suc s	  ->
 		    do	suc <- freshName_ "suc"	-- TODO: hack
 			e   <- reify s
-			return $ A.App exprInfo (A.Var (nameInfo suc) suc) (Arg NotHidden e)
+			return $ A.App exprInfo (A.Var (nameInfo suc) suc) (Arg NotHidden $ unnamed e)
 		I.Lub s1 s2 ->
 		    do	lub <- freshName_ "\\/"	-- TODO: hack
 			(e1,e2) <- reify (s1,s2)
-			let app x y = A.App exprInfo x (Arg NotHidden y)
+			let app x y = A.App exprInfo x (Arg NotHidden $ unnamed y)
 			return $ A.Var (nameInfo lub) lub `app` e1 `app` e2
 
 instance Reify i a => Reify (Abs i) (Name, a) where

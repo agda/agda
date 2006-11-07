@@ -287,7 +287,8 @@ ctype2typesig flg i args ctype
   | flg = TypeSig (mkInfixName i) ys   
   | otherwise = TypeSig (id2name i) ys
   where xs = concatMap (\ (CArg bns ct) -> bns) args
-        ys = foldr (\ (b,i) e -> Fun noRange ((if b then HiddenArg noRange else id) (Ident $ QName $ id2name i)) e) (transCExpr ctype) xs
+        ys = foldr (\ (b,i) e -> Fun noRange ((if b then HiddenArg noRange . unnamed else id) (Ident $ QName $ id2name i)) e)
+		   (transCExpr ctype) xs
 
 carg2telescope :: CArg -> Telescope
 carg2telescope (CArg bis ctype)
@@ -337,7 +338,7 @@ transCExpr (CApply f args)
                 CApply (CBinOp (snd $ head args) i (snd $ head $ tail  args))
                        [(flg,t2sCExpr e) | (flg,e) <- tail (tail args)]
     _        -> foldl (\ e (flg,cexpr) -> App noRange e
-                       (Arg { argHiding =(bool2hiding flg), unArg = (parenExpr (transCExpr cexpr)) }))
+                       (Arg { argHiding =(bool2hiding flg), unArg = unnamed (parenExpr (transCExpr cexpr)) }))
                 (parenExpr (transCExpr f))
 	        args
 transCExpr (CBinOp o1 b o2)
@@ -407,7 +408,7 @@ cclause2funclauses i flg (CClause cpats expr)
         op  = IdentP $ str2qname $ getIdString i
         pats = map (parenPattern . 
                     (\(b, p) -> if b == Hidden
-                                  then HiddenP noRange p
+                                  then HiddenP noRange $ unnamed p
                                   else p)) (map cpat2pat cpats)
 
 cclause2funclause _ _ = error "Never apply cclause2funclause any but CClause"
@@ -458,7 +459,7 @@ cpat2cexpr (CPVar (CPatId i )) = CVar i
 cpat2pattern :: CPat -> Int -> [(Bool,CPat)] -> [Pattern]
 cpat2pattern pat i cpats
  = map (\(b, p) -> if b == Hidden 
-                      then HiddenP noRange p
+                      then HiddenP noRange $ unnamed p
                       else p) $ map cpat2pat $ exchcpat pat i cpats
 
 cpat2arg :: (Bool,CPat) -> Arg Pattern
@@ -479,8 +480,8 @@ cpat2pat (flg,CPCon i pats)
    where h = bool2hiding flg
 
 parenPattern :: Pattern -> Pattern
-parenPattern (AppP p1 p2) = ParenP noRange (AppP p1' (Arg {argHiding = argHiding p2, unArg = p2'}))
-  where [p1',p2'] = map parenPattern [p1,unArg p2]
+parenPattern (AppP p1 p2) = ParenP noRange (AppP p1' (Arg {argHiding = argHiding p2, unArg = unnamed p2'}))
+  where [p1',p2'] = map parenPattern [p1,namedThing $ unArg p2]
 parenPattern (OpAppP r n ps) = ParenP r (OpAppP r n ps')
   where ps' = map parenPattern ps
 parenPattern (RawAppP r ps) = ParenP r (RawAppP r ps')

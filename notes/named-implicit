@@ -14,3 +14,39 @@ to give A explicitly. This should also work in patterns:
 
     f {A = A} = .. A ..
 
+How will this work exactly?
+
+At the moment we have the judgement form (checkArgs)
+
+    Γ ⊢ es fits A ↓ vs
+
+with rules
+
+    Γ ⊢ e ↑ A ─→ v  Γ ⊢ es fits B[v/x]
+    ----------------------------------
+       Γ ⊢ e es fits (x:A)B ─→ v vs
+
+        Γ ⊢ e es fits B[α/x]
+    ----------------------------
+    Γ ⊢ e es fits {x:A}B ─→ α vs
+
+    Γ ⊢ e ↑ A ─→ v  Γ ⊢ es fits B[v/x]
+    ----------------------------------
+      Γ ⊢ {e}es fits {x:A}B ─→ α vs
+
+        Γ ⊢ ∙ fits B[α/x] ─→ vs
+     -----------------------------
+     Γ ⊢ ∙ fits {x:A} -> B ─→ α vs
+
+To this we add the rules
+
+    Γ ⊢ e ↑ A ─→ v  Γ ⊢ es fits B[v/x]
+    ----------------------------------	(same as the {e}es rule)
+         Γ ⊢ {x=e}es fits {x:A}B
+
+     Γ ⊢ {x=e}es fits B[α/y] ─→ vs
+    -------------------------------	(x ≠ y, similar to the 'e es fits (x:A)B' rule)
+    Γ ⊢ {x=e}es fits {y:A}B ─→ α vs
+
+What about patterns? It would work exactly the same. I.e two new rules very
+similar to the '{p}ps' and 'p ps : {x:A}B' rules.

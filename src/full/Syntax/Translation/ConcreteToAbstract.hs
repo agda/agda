@@ -57,13 +57,13 @@ exprSource e = do
     par <- paren (getFixity . C.QName) e    -- TODO
     return $ ExprSource (getRange e) par
 
-lhsArgs :: C.Pattern -> [Arg C.Pattern]
+lhsArgs :: C.Pattern -> [NamedArg C.Pattern]
 lhsArgs p = case appView p of
-    Arg _ (IdentP _) : ps   -> ps
-    _			    -> __IMPOSSIBLE__
+    Arg _ (Named _ (IdentP _)) : ps -> ps
+    _				    -> __IMPOSSIBLE__
     where
-	mkHead	  = Arg NotHidden
-	notHidden = Arg NotHidden
+	mkHead	  = Arg NotHidden . unnamed
+	notHidden = Arg NotHidden . unnamed
 	appView p = case p of
 	    AppP p arg	  -> appView p ++ [arg]
 	    OpAppP _ x ps -> mkHead (IdentP $ C.QName x) : map notHidden ps
@@ -92,6 +92,12 @@ class ToAbstract concrete abstract | concrete -> abstract where
 toAbstractCtx :: ToAbstract concrete abstract =>
 		 Precedence -> concrete -> ScopeM abstract
 toAbstractCtx ctx c = setContext ctx $ toAbstract c
+
+bindToAbstractCtx :: BindToAbstract concrete abstract =>
+		     Precedence -> concrete -> (abstract -> ScopeM a) -> ScopeM a
+bindToAbstractCtx ctx c ret = do
+    ctx' <- getContextPrecedence
+    setContext ctx $ bindToAbstract c $ setContext ctx' . ret
 
 -- | Things that can be translated to abstract syntax and in the process
 --   update the scope are instances of this class.
@@ -245,7 +251,7 @@ instance ToAbstract C.Expr A.Expr where
     -- Function types
 	C.Fun r e1 e2 -> do
 	    let arg = case e1 of
-			C.HiddenArg _ e1 -> Arg Hidden e1
+			C.HiddenArg _ e1 -> Arg Hidden $ namedThing e1
 			_		 -> Arg NotHidden e1
 	    e1'  <- toAbstractCtx FunctionSpaceDomainCtx arg
 	    e2'  <- toAbstractCtx TopCtx e2
@@ -355,10 +361,11 @@ instance BindToAbstract LetDef A.LetBinding where
 			foldM lambda rhs args
 	    letToAbstract _ = notAValidLetBinding d
 
-	    lambda e (Arg h (A.VarP x)) = return $ A.Lam i (A.DomainFree h x) e
+	    -- Named patterns not allowed in let definitions
+	    lambda e (Arg h (Named Nothing (A.VarP x))) = return $ A.Lam i (A.DomainFree h x) e
 		where
 		    i = ExprRange (fuseRange x e)
-	    lambda e (Arg h (A.WildP i)) =
+	    lambda e (Arg h (Named Nothing (A.WildP i))) =
 		do  x <- freshNoName (getRange i)
 		    return $ A.Lam i' (A.DomainFree h x) e
 		where
@@ -514,10 +521,16 @@ instance BindToAbstract LeftHandSide A.LHS where
 	    ret (A.LHS (LHSSource lhs) x args)
 
 instance BindToAbstract c a => BindToAbstract (Arg c) (Arg a) where
-    bindToAbstract (Arg h e) ret = bindToAbstract e $ ret . Arg h
+    bindToAbstract (Arg h e) ret = bindToAbstractCtx (hiddenArgumentCtx h) e $ ret . Arg h
+
+instance BindToAbstract c a => BindToAbstract (Named name c) (Named name a) where
+    bindToAbstract (Named n e) ret = bindToAbstract e $ ret . Named n
 
 instance ToAbstract c a => ToAbstract (Arg c) (Arg a) where
     toAbstract (Arg h e) = Arg h <$> toAbstractCtx (hiddenArgumentCtx h) e
+
+instance ToAbstract c a => ToAbstract (Named name c) (Named name a) where
+    toAbstract (Named n e) = Named n <$> toAbstract e
 
 instance BindToAbstract C.Pattern A.Pattern where
     bindToAbstract p@(C.IdentP x) ret =
@@ -548,8 +561,8 @@ instance BindToAbstract C.Pattern A.Pattern where
 			  $ \p ->
 	bindToAbstract ps $ \ps ->
 	    case p of
-		ConP _ x as -> ret $ ConP info x (as ++ map (Arg NotHidden) ps)
-		DefP _ x as -> ret $ DefP info x (as ++ map (Arg NotHidden) ps)
+		ConP _ x as -> ret $ ConP info x (as ++ map (Arg NotHidden . unnamed) ps)
+		DefP _ x as -> ret $ DefP info x (as ++ map (Arg NotHidden . unnamed) ps)
 		_	    -> __IMPOSSIBLE__
 	where
 	    r = getRange p0
@@ -586,7 +599,7 @@ toAbstractOpApp r op@(C.Name _ [Hole, Id _, Hole]) es@[e1, e2] = do
 	return $ foldl app x [e1', e2']
 	where
 	    app e arg = A.App (ExprRange (fuseRange e arg)) e
-		      $ Arg NotHidden arg
+		      $ Arg NotHidden $ unnamed arg
 
   -- other cases are not seriously considered, but should be safe.
 toAbstractOpApp r op es = do
@@ -597,4 +610,4 @@ toAbstractOpApp r op es = do
 	return $ foldl app x es'
 	where
 	    app e arg = A.App (ExprRange (fuseRange e arg)) e
-		      $ Arg NotHidden arg
+		      $ Arg NotHidden $ unnamed arg

@@ -146,6 +146,9 @@ instance Equal RHS where
 instance (HasRange a, Equal a) => Equal (Arg a) where
     Arg h x === Arg h' y    = fromBool x y (h == h') &&& x === y
 
+instance (Eq name, HasRange a, Equal a) => Equal (Named name a) where
+    Named n x === Named n' y = fromBool x y (n == n') &&& x === y
+
 instance Equal LHS where
     LHS _ x args === LHS _ y args'   = (x,args) === (y,args')
 

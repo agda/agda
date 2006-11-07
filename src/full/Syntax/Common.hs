@@ -32,8 +32,39 @@ instance HasRange a => HasRange (Arg a) where
     getRange = getRange . unArg
 
 instance Show a => Show (Arg a) where
-    show (Arg Hidden x) = "{" ++ show x ++ "}"
+    show (Arg Hidden x)    = "{" ++ show x ++ "}"
     show (Arg NotHidden x) = "(" ++ show x ++ ")"
+
+data Named name a =
+    Named { nameOf     :: Maybe name
+	  , namedThing :: a
+	  }
+    deriving (Eq, Typeable, Data)
+
+unnamed :: a -> Named name a
+unnamed = Named Nothing
+
+named :: name -> a -> Named name a
+named = Named . Just
+
+instance Functor (Named name) where
+    fmap f (Named n x) = Named n $ f x
+
+instance Foldable (Named name) where
+    foldr f z (Named _ x) = f x z
+
+instance Traversable (Named name) where
+    traverse f (Named n x) = Named n <$> f x
+
+instance HasRange a => HasRange (Named name a) where
+    getRange = getRange . namedThing
+
+instance Show a => Show (Named String a) where
+    show (Named Nothing x)  = show x
+    show (Named (Just n) x) = n ++ " = " ++ show x
+
+-- | Only 'Hidden' arguments can have names.
+type NamedArg a = Arg (Named String a)
 
 -- | Functions can be defined in both infix and prefix style. See
 --   'Syntax.Concrete.LHS'.

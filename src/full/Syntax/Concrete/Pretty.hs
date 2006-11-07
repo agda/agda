@@ -1,4 +1,4 @@
-{-# OPTIONS -cpp -fno-warn-orphans #-}
+{-# OPTIONS -cpp -fno-warn-orphans -fglasgow-exts #-}
 
 {-| Pretty printer for the concrete syntax.
 -}
@@ -190,6 +190,10 @@ instance Pretty Fixity where
 
 instance Pretty e => Pretty (Arg e) where
     pretty (Arg h e) = pHidden h e
+
+instance Pretty e => Pretty (Named String e) where
+    pretty (Named Nothing e) = pretty e
+    pretty (Named (Just s) e) = sep [ text s <+> text "=", pretty e ]
 
 instance Pretty Pattern where
     pretty p =
