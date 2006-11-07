@@ -199,7 +199,7 @@ showReal n x =
               , _-_ to _-'_
               )
     open Data.Show
-    open Data.List
+    open Data.List, hiding (_++_)
     open Data.Integer, using (), renaming (-_ to -i_)
 
     k = 10 ^' n

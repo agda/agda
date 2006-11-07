@@ -25,7 +25,7 @@ sucBits (true  :: xs) = false :: sucBits xs
 -- Least significant bit first. Last bit (when present) is always one.
 toBits : Nat -> List Bit
 toBits zero    = []
-toBits (suc n) = sucBits (odd n :: toBits (div2 n))
+toBits (suc n) = sucBits (odd n :: toBits (div n 2))
 
 fromBits : List Bit -> Nat
 fromBits xs = foldr (\b n -> bitValue b + 2 * n) 0 xs
