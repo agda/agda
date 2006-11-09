@@ -507,11 +507,11 @@ instance ToConcrete A.Declaration [C.Declaration] where
 
     -- There is no way we could restore module defs, imports and opens
     -- without having the concrete version stored away.
-    toConcrete (A.ModuleDef (ModuleInfo _ (DeclSource ds)) _ _ _ _)
+    toConcrete (A.ModuleDef (ModuleInfo _ _ (DeclSource ds)) _ _ _ _)
 					= return ds
     toConcrete (A.ModuleDef _ _ _ _ _)	= __IMPOSSIBLE__
 
-    toConcrete (A.Import (ModuleInfo _ (DeclSource ds)) _) = return ds
+    toConcrete (A.Import (ModuleInfo _ _ (DeclSource ds)) _) = return ds
     toConcrete (A.Import _ _) = __IMPOSSIBLE__
 
     toConcrete (A.Open (DeclSource ds))	= return ds

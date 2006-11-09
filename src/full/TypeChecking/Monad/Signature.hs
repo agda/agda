@@ -71,8 +71,8 @@ lookupModule m =
 	    (Nothing, Just md) -> return md
 	    (Just _, Just _)   -> typeError $ LocalVsImportedModuleClash m
 
-implicitModuleDefs :: Telescope -> ModuleName -> Args -> Definitions -> Definitions
-implicitModuleDefs tel m args defs = Map.mapWithKey redirect defs
+implicitModuleDefs :: IsAbstract -> Telescope -> ModuleName -> Args -> Definitions -> Definitions
+implicitModuleDefs abstr tel m args defs = Map.mapWithKey redirect defs
     where
 	redirect x d = setDef $ abstract tel' (d `apply` args')
 	    where
@@ -84,7 +84,7 @@ implicitModuleDefs tel m args defs = Map.mapWithKey redirect defs
 			    Constructor _ _ _ -> Con
 			    _		      -> Def
 		clause = Clause [] $ Body $ abstract (List.map hide tel) $ mkRHS (qualify m x) args'
-		setDef d = d { theDef = Function [clause] ConcreteDef }
+		setDef d = d { theDef = Function [clause] abstr}
 
 -- | Lookup the definition of a name. The result is a closed thing, all free
 --   variables have been abstracted over.

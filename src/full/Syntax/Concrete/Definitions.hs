@@ -314,7 +314,7 @@ niceDeclarations ds = nice (fixities ds) ds
 		PrimitiveFunction r f a _ x e	 -> PrimitiveFunction r f a AbstractDef x e
 		NiceDef r cs ts ds		 -> NiceDef r cs (map mkAbstract ts)
 								 (map mkAbstractDef ds)
-		NiceModule r a _ x tel ds	 -> NiceModule r a AbstractDef x tel ds
+		NiceModule r a _ x tel ds	 -> NiceModule r a AbstractDef x tel [ Abstract (getRange ds) ds ]
 		NiceModuleMacro r a _ x tel e is -> NiceModuleMacro r a AbstractDef x tel e is
 		NicePragma _ _			 -> d
 		NiceOpen _ _ _			 -> d

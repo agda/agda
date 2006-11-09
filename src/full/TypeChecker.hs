@@ -189,6 +189,7 @@ checkModuleDef i x tel m' args =
 				    , mdefTelescope  = gammaDelta ++ theta
 				    , mdefNofParams  = length theta
 				    , mdefDefs	     = implicitModuleDefs
+							(minfoAbstract i)
 							(gammaDelta ++ theta)
 							m' (vs0 ++ vs)
 							(mdefDefs md')
@@ -207,6 +208,7 @@ checkModuleDef i x tel m' args =
 					    , mdefTelescope  = tel
 					    , mdefNofParams  = mdefNofParams md
 					    , mdefDefs	     = implicitModuleDefs
+								(minfoAbstract i)
 								tel m'a (vs0 ++ vs ++ vs1)
 								(mdefDefs md)
 					    }

@@ -319,7 +319,7 @@ instance ToAbstract (TopLevel [C.Declaration]) ([A.Declaration], ScopeInfo) wher
 		x' <- toAbstract $ CModuleName x
 		return (ds' ++ [A.Module info x' tel ds], scope)
 	    where
-		info = mkRangedModuleInfo PublicAccess r
+		info = mkRangedModuleInfo PublicAccess ConcreteDef r
 	_ -> __IMPOSSIBLE__
 
 instance BindToAbstract [C.Declaration] [A.Declaration] where
@@ -427,7 +427,7 @@ instance BindToAbstract NiceDeclaration [A.Declaration] where
 
 
     -- TODO: what does an abstract module mean? The syntax doesn't allow it.
-	NiceModule r p _ name@(C.QName x) tel ds -> do
+	NiceModule r p a name@(C.QName x) tel ds -> do
 	    (tel',ds',ns) <-
 		insideModule name $
 		bindToAbstract (tel,ds) $ \ (tel',ds') ->
@@ -439,13 +439,13 @@ instance BindToAbstract NiceDeclaration [A.Declaration] where
 			        }
 	    name' <- toAbstract $ CModuleName name
 	    defineModule x m $
-		ret [A.Module (mkRangedModuleInfo p r)
+		ret [A.Module (mkRangedModuleInfo p a r)
 			      name' tel' ds']
 
     -- Top-level modules are translated with toAbstract.
 	NiceModule _ _ _ _ _ _ -> __IMPOSSIBLE__
 
-	NiceModuleMacro r p _ x tel e is -> case appView e of
+	NiceModuleMacro r p a x tel e is -> case appView e of
 	    AppView (Ident m) args  ->
 		bindToAbstract tel $ \tel' ->
 		    do	(x',m',args') <- toAbstract ( CModuleName $ C.QName x
@@ -453,7 +453,7 @@ instance BindToAbstract NiceDeclaration [A.Declaration] where
 						    , args
 						    )
 			implicitModule x p (length tel) m is $
-			    ret [ ModuleDef (mkSourcedModuleInfo p
+			    ret [ ModuleDef (mkSourcedModuleInfo p a
 						[C.ModuleMacro r x tel e is]
 					    )
 					    x' tel' m' args'
@@ -472,7 +472,7 @@ instance BindToAbstract NiceDeclaration [A.Declaration] where
 	    x' <- toAbstract $ CModuleName x
 	    i  <- scopeCheckImport x'
 	    importModule name i is $
-		ret [A.Import (mkSourcedModuleInfo PublicAccess [C.Import r x as is]) x']
+		ret [A.Import (mkSourcedModuleInfo PublicAccess ConcreteDef [C.Import r x as is]) x']
 	    where
 		name = maybe x C.QName as
 

@@ -70,15 +70,16 @@ instance HasRange ExprInfo where
  --------------------------------------------------------------------------}
 
 data ModuleInfo =
-	ModuleInfo { minfoAccess :: Access
-		   , minfoSource :: DeclSource
+	ModuleInfo { minfoAccess   :: Access
+		   , minfoAbstract :: IsAbstract
+		   , minfoSource   :: DeclSource
 		   }
 
-mkRangedModuleInfo :: Access -> Range -> ModuleInfo
-mkRangedModuleInfo a r = ModuleInfo a (DeclRange r)
+mkRangedModuleInfo :: Access -> IsAbstract -> Range -> ModuleInfo
+mkRangedModuleInfo p a r = ModuleInfo p a (DeclRange r)
 
-mkSourcedModuleInfo :: Access -> [Declaration] -> ModuleInfo
-mkSourcedModuleInfo a ds = ModuleInfo a (DeclSource ds)
+mkSourcedModuleInfo :: Access -> IsAbstract -> [Declaration] -> ModuleInfo
+mkSourcedModuleInfo p a ds = ModuleInfo p a (DeclSource ds)
 
 instance HasRange ModuleInfo where
     getRange = getRange . minfoSource
