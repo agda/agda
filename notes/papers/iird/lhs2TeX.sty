@@ -1,0 +1,120 @@
+\makeatletter
+
+%if latex209
+\input{amstext.sty}
+\input{amssymb.sty}
+\input{stmaryrd.sty}
+\newcommand\ensuremath[1]{\ifmmode#1\else\mbox{$#1$}\fi}
+%if euler
+\input{euler.sty}
+%endif
+%else
+\usepackage{amstext}
+\usepackage{amssymb}
+\usepackage{stmaryrd}
+%if euler
+\usepackage{euler}
+%endif
+%endif
+%if not latex209
+\DeclareFontFamily{OT1}{cmtex}{}
+\DeclareFontShape{OT1}{cmtex}{m}{n}
+  {<5><6><7><8>cmtex8
+   <9>cmtex9
+   <10><10.95><12><14.4><17.28><20.74><24.88>cmtex10}{}
+\DeclareFontShape{OT1}{cmtex}{m}{it}
+  {<-> ssub * cmtt/m/it}{}
+\newcommand{\texfamily}{\fontfamily{cmtex}\selectfont}
+%if underlineKeywords
+\usepackage{ulem}\normalem
+%else
+\DeclareFontShape{OT1}{cmtt}{bx}{n}
+  {<5><6><7><8>cmtt8
+   <9>cmbtt9
+   <10><10.95><12><14.4><17.28><20.74><24.88>cmbtt10}{}
+\DeclareFontShape{OT1}{cmtex}{bx}{n}
+  {<-> ssub * cmtt/bx/n}{}
+\newcommand{\tex}[1]{\text{\texfamily#1}}	% NEU
+%endif
+%endif
+
+\newcommand{\Sp}{\hskip.33334em\relax}
+%if (style == math) || (style == poly)
+%if times
+\usepackage{times}\renewcommand{\ttdefault}{cmtt}
+\SetMathAlphabet{\mathrm}{normal}{OT1}{ptm}{m}{n}
+\SetMathAlphabet{\mathbf}{normal}{OT1}{ptm}{bx}{n}
+\SetMathAlphabet{\mathit}{normal}{OT1}{ptm}{m}{it}
+%endif
+
+%if style == math
+\newlength{\lwidth}\setlength{\lwidth}{4.5cm}
+\newlength{\cwidth}\setlength{\cwidth}{8mm} % 3mm
+%endif
+
+%if latex209
+\newcommand{\Conid}[1]{{\mathit #1}}
+\newcommand{\Varid}[1]{{\mathit #1}}
+\newcommand{\anonymous}{\_}
+%else
+\newcommand{\Conid}[1]{\mathit{#1}}
+\newcommand{\Varid}[1]{\mathit{#1}}
+\newcommand{\anonymous}{\kern0.06em \vbox{\hrule\@@width.5em}}
+%endif
+\newcommand{\plus}{\mathbin{+\!\!\!+}}
+\newcommand{\bind}{\mathbin{>\!\!\!>\mkern-6.7mu=}}
+\newcommand{\sequ}{\mathbin{>\!\!\!>}}
+%if not standardsymbols
+\renewcommand{\leq}{\leqslant}
+\renewcommand{\geq}{\geqslant}
+%endif
+%endif
+%if style == poly
+\usepackage{polytable}
+
+%mathindent has to be defined
+\@@ifundefined{mathindent}%
+  {\newdimen\mathindent\mathindent\leftmargini}%
+  {}%
+
+\def\resethooks{%
+  \global\let\SaveRestoreHook\empty
+  \global\let\ColumnHook\empty}
+\newcommand*{\savecolumns}[1][default]%
+  {\g@@addto@@macro\SaveRestoreHook{\savecolumns[#1]}}
+\newcommand*{\restorecolumns}[1][default]%
+  {\g@@addto@@macro\SaveRestoreHook{\restorecolumns[#1]}}
+\newcommand*{\aligncolumn}[2]%
+  {\g@@addto@@macro\ColumnHook{\column{#1}{#2}}}
+
+\resethooks
+
+%if standardsymbols
+\newcommand{\onelinecommentchars}{\quad--- }
+%else
+\newcommand{\onelinecommentchars}{\quad-{}- }
+%endif
+\newcommand{\commentbeginchars}{\enskip\{-}
+\newcommand{\commentendchars}{-\}\enskip}
+
+\newcommand{\visiblecomments}{%
+  \let\onelinecomment=\onelinecommentchars
+  \let\commentbegin=\commentbeginchars
+  \let\commentend=\commentendchars}
+
+\newcommand{\invisiblecomments}{%
+  \let\onelinecomment=\empty
+  \let\commentbegin=\empty
+  \let\commentend=\empty}
+
+\visiblecomments
+
+\newlength{\blanklineskip}
+\setlength{\blanklineskip}{1mm}
+
+\newcommand{\hsindent}[1]{\quad}% default is fixed indentation
+%endif
+\newcommand{\NB}{\textbf{NB}}
+\newcommand{\Todo}[1]{$\langle$\textbf{To do:}~#1$\rangle$}
+
+\makeatother

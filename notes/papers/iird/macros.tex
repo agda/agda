@@ -1,0 +1,31 @@
+
+\newcommand\Con[1]{\mathsf{{#1}}}
+\newcommand\Def[1]{\mathit{{#1}}}
+\newcommand\Typ[1]{\mathbf{{#1}}}
+
+\newcommand\PI[2]{({#1} : {#2}) → {}}
+\newcommand\hPI[2]{\{{#1} : {#2}\} → {}}
+\newcommand\SIGMA[2]{({#1} : {#2}) × {}}
+\newcommand\Zero{\Typ{0}}
+\newcommand\One{\Typ{1}}
+\newcommand\Two{\Typ{2}}
+\newcommand\lam[1]{λ {#1} \mathrel{.} {}}
+
+\newcommand\Set{\Def{set}}
+\newcommand\Type{\Def{type}}
+
+\newcommand\Refl{\Con{refl}}
+
+\newcommand\HasType[3]{{#1} ⊢ {#2} : {#3}}
+\newcommand\IsType[2]{\HasType{#1}{#2}{\Type}}
+
+\newcommand\TODO[1]{
+{\setlength \parindent {0mm}
+ \addtolength \textwidth {-1cm}
+    {~}
+    \par
+    \fbox{\begin{tabular}{p{\textwidth}}TODO: #1\end{tabular}}
+    \par
+    {~}
+}}
+

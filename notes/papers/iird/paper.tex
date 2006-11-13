@@ -1,0 +1,260 @@
+\documentclass[11pt]{article}
+
+%% ODER: format ==         = "\mathrel{==}"
+%% ODER: format /=         = "\neq "
+\makeatletter
+
+\usepackage{amstext}
+\usepackage{amssymb}
+\usepackage{stmaryrd}
+\DeclareFontFamily{OT1}{cmtex}{}
+\DeclareFontShape{OT1}{cmtex}{m}{n}
+  {<5><6><7><8>cmtex8
+   <9>cmtex9
+   <10><10.95><12><14.4><17.28><20.74><24.88>cmtex10}{}
+\DeclareFontShape{OT1}{cmtex}{m}{it}
+  {<-> ssub * cmtt/m/it}{}
+\newcommand{\texfamily}{\fontfamily{cmtex}\selectfont}
+\DeclareFontShape{OT1}{cmtt}{bx}{n}
+  {<5><6><7><8>cmtt8
+   <9>cmbtt9
+   <10><10.95><12><14.4><17.28><20.74><24.88>cmbtt10}{}
+\DeclareFontShape{OT1}{cmtex}{bx}{n}
+  {<-> ssub * cmtt/bx/n}{}
+\newcommand{\tex}[1]{\text{\texfamily#1}}	% NEU
+
+\newcommand{\Sp}{\hskip.33334em\relax}
+
+\newlength{\lwidth}\setlength{\lwidth}{4.5cm}
+\newlength{\cwidth}\setlength{\cwidth}{8mm} % 3mm
+
+\newcommand{\Conid}[1]{\mathit{#1}}
+\newcommand{\Varid}[1]{\mathit{#1}}
+\newcommand{\anonymous}{\kern0.06em \vbox{\hrule\@width.5em}}
+\newcommand{\plus}{\mathbin{+\!\!\!+}}
+\newcommand{\bind}{\mathbin{>\!\!\!>\mkern-6.7mu=}}
+\newcommand{\sequ}{\mathbin{>\!\!\!>}}
+\renewcommand{\leq}{\leqslant}
+\renewcommand{\geq}{\geqslant}
+\newcommand{\NB}{\textbf{NB}}
+\newcommand{\Todo}[1]{$\langle$\textbf{To do:}~#1$\rangle$}
+
+\makeatother
+
+
+
+
+\usepackage{ucs}
+\usepackage[utf8x]{inputenc}
+\usepackage{autofe}
+\usepackage{color}
+
+\usepackage{amsthm}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{definition}[theorem]{Definition}
+
+% Enables greek letters in math environment
+\everymath{\SetUnicodeOption{mathletters}}
+\everydisplay{\SetUnicodeOption{mathletters}}
+
+% This makes sure that local glyph overrides below are
+% chosen.
+\DeclareUnicodeOption{localDefs}
+\SetUnicodeOption{localDefs}
+
+% For some reason these macros need to be defined.
+\newcommand{\textmu}{$\mu$}
+\newcommand{\textnu}{$\nu$}
+
+% This character doesn't seem to be defined by ucs.sty.
+\DeclareUnicodeCharacter{"21A6}{\ensuremath{\mapsto}}
+
+\input{macros}
+
+\title{Encoding indexed inductive types using the identity type}
+\author{Ulf Norell}
+
+\begin{document}
+\maketitle
+\begin{abstract}
+    An indexed inductive-recursive definition (IIRD) simultaneously defines an
+    indexed family of sets and a recursive function over this family.  This
+    notion is sufficiently powerful to capture essentially all definitions of
+    sets in Martin-Löf type theory.
+
+    I show that it is enough to have one particular indexed inductive type,
+    namely the intensional identity relation, to be able to interpret all IIRD
+    as non-indexed definitions.
+    
+    The proof is formally verified in Agda.
+\end{abstract}
+
+\section{Introduction}
+
+% Describe the current state of affairs
+
+Indexed induction recursion is the thing.
+
+% Indentify gap
+
+Dybjer and Setzer~\cite{dybjer:indexed-ir} show that in an extensional theory
+generalised IIRD can be interpreted by restricted IIRD~\cite{dybjer:jsl}. We're
+not using an extensional theory though.
+
+\TODO{What's the relation between restricted IIRD and IRD?}
+
+% Fill gap
+
+I improve on this result showing that it is enough to add intensional equality.
+The proof is formalised in Agda.
+
+Non-indexed definitions are simpler(?), so if can get away with just adding the
+identity type we get simpler meta theory that if we would add indexed
+definitions directly.
+
+\section{The Logical Framework}
+
+    Martin-Löf's logical framework~\cite{nordstrom:book} extended with sigma
+    types ($\SIGMA x A B$), $\Zero$, $\One$, and $\Two$.
+
+    \TODO{what about $Π$ in Set? Used on the meta level but probably not on the object level.}
+
+    $\HasType {Γ} x A$
+
+    $\IsType {Γ} A$
+
+    $\PI x A B$
+
+    $\SIGMA x A B$
+
+\section{The Identity Type}
+
+There are many versions.
+
+\begin{tabbing}
+\qquad\=\hspace{\lwidth}\=\hspace{\cwidth}\=\+\kill
+${(==)\mathbin{:}\{\mskip1.5mu \Conid{A}\mathbin{:}\Set\mskip1.5mu\}\to \Conid{A}\to \Conid{A}\to \Set}$\\
+${\Varid{refl}\mathbin{:}\{\mskip1.5mu \Conid{A}\mathbin{:}\Set\mskip1.5mu\}(\Varid{x}\mathbin{:}\Conid{A})\to \Varid{x}==\Varid{x}}$
+\end{tabbing}
+Martin-Löf identity relation, introduced in 1973~\cite{martin-lof:predicative}.
+The elimination rule (sometimes called $J$) has the type
+
+\begin{tabbing}
+\qquad\=\hspace{\lwidth}\=\hspace{\cwidth}\=\+\kill
+${\Varid{elim\char95 ML}\mathbin{:}\{\mskip1.5mu \Conid{A}\mathbin{:}\Set\mskip1.5mu\}(\Conid{C}\mathbin{:}(\Varid{x},\Varid{y}\mathbin{:}\Conid{A})\to \Varid{x}==\Varid{y}\to \Set)\to }$\\
+${\phantom{\Varid{elim\char95 ML}\mathbin{:}\mbox{}}((\Varid{x}\mathbin{:}\Conid{A})\to \Conid{C}\;\Varid{x}\;\Varid{x}\;(\Varid{refl}\;\Varid{x}))\to }$\\
+${\phantom{\Varid{elim\char95 ML}\mathbin{:}\mbox{}}(\Varid{x},\Varid{y}\mathbin{:}\Conid{A})\;(\Varid{p}\mathbin{:}\Varid{x}==\Varid{y})\to \Conid{C}\;\Varid{x}\;\Varid{y}\;\Varid{p}}$
+\end{tabbing}
+and the corresponding computation rule is
+\begin{tabbing}
+\qquad\=\hspace{\lwidth}\=\hspace{\cwidth}\=\+\kill
+${\hskip1.00em\relax\Varid{elim\char95 ML}\;\Conid{C}\;\Varid{h}\;\Varid{x}\;\Varid{x}\;(\Varid{refl}\;\Varid{x})\mathrel{=}\Varid{h}\;\Varid{x}}$
+\end{tabbing}Paulin identity relation~\cite{pfenning-paulin:inductive-coc}.
+
+\begin{tabbing}
+\qquad\=\hspace{\lwidth}\=\hspace{\cwidth}\=\+\kill
+${\Varid{elim\char95 P}\mathbin{:}\{\mskip1.5mu \Conid{A}\mathbin{:}\Set\mskip1.5mu\}(\Varid{x}\mathbin{:}\Conid{A})\;(\Conid{C}\mathbin{:}(\Varid{y}\mathbin{:}\Conid{A})\to \Varid{x}==\Varid{y}\to \Set)\to }$\\
+${\phantom{\Varid{elim\char95 P}\mathbin{:}\mbox{}}\Conid{C}\;\Varid{x}\;(\Varid{refl}\;\Varid{x})\to (\Varid{y}\mathbin{:}\Conid{A})\;(\Varid{p}\mathbin{:}\Varid{x}==\Varid{y})\to \Conid{C}\;\Varid{y}\;\Varid{p}}$
+\end{tabbing}
+The corresponding computation rule is
+\begin{tabbing}
+\qquad\=\hspace{\lwidth}\=\hspace{\cwidth}\=\+\kill
+${\hskip1.00em\relax\Varid{elim\char95 P}\;\Varid{x}\;\Conid{C}\;\Varid{h}\;\Varid{x}\;(\Varid{refl}\;\Varid{x})\mathrel{=}\Varid{h}}$
+\end{tabbing}\begin{theorem}
+    Martin-Löf elimination can be defined in terms of Paulin elimination.
+\end{theorem}
+
+\begin{proof}
+
+Trivial.
+\begin{tabbing}
+\qquad\=\hspace{\lwidth}\=\hspace{\cwidth}\=\+\kill
+${\hskip1.00em\relax\Varid{elim\char95 ML}\;\Conid{C}\;\Varid{h}\;\Varid{x}\;\Varid{y}\;\Varid{p}\mathrel{=}\Varid{elim\char95 P}\;\Varid{x}\;(\lambda \Varid{z}\;\Varid{q}.~\Conid{C}\;\Varid{x}\;\Varid{z}\;\Varid{q})\;(\Varid{h}\;\Varid{x})\;\Varid{y}\;\Varid{p}}$
+\end{tabbing}\end{proof}
+
+\begin{theorem}
+    Paulin elimination can be defined in terms of Martin-Löf elimination.
+\end{theorem}
+
+\begin{proof}
+    This proof is slightly more involved.
+
+    We first define the substitution rule
+\begin{tabbing}
+\qquad\=\hspace{\lwidth}\=\hspace{\cwidth}\=\+\kill
+${\hskip1.00em\relax\hskip1.00em\relax\Varid{subst}\mathbin{:}\{\mskip1.5mu \Conid{A}\mathbin{:}\Set\mskip1.5mu\}(\Conid{C}\mathbin{:}\Conid{A}\to \Set)\;(\Varid{x},\Varid{y}\mathbin{:}\Conid{A})}$\\
+${\hskip1.00em\relax\hskip1.00em\relax\phantom{\Varid{subst}\mathbin{:}\mbox{}}\Varid{x}==\Varid{y}\to \Conid{C}\;\Varid{x}\to \Conid{C}\;\Varid{y}}$\\
+${\hskip1.00em\relax\hskip1.00em\relax\Varid{subst}\;\Conid{C}\;\Varid{x}\;\Varid{y}\;\Varid{p}\;\Conid{Cx}\mathrel{=}\Varid{elim\char95 ML}\;(\lambda \Varid{a}\;\Varid{b}\;\Varid{q}.~\Conid{C}\;\Varid{a}\to \Conid{C}\;\Varid{b})\;}$\\
+${\hskip1.00em\relax\hskip1.00em\relax\phantom{\Varid{subst}\;\Conid{C}\;\Varid{x}\;\Varid{y}\;\Varid{p}\;\Conid{Cx}\mathrel{=}\Varid{elim\char95 ML}\;\mbox{}}(\lambda \Varid{a}\;\Conid{Ca}.~\Conid{Ca})\;\Varid{x}\;\Varid{y}\;\Varid{p}\;\Conid{Cx}}$
+\end{tabbing}
+    Now define
+
+\begin{tabbing}
+\qquad\=\hspace{\lwidth}\=\hspace{\cwidth}\=\+\kill
+${\hskip1.00em\relax\hskip1.00em\relax\Conid{E}\mathbin{:}\{\mskip1.5mu \Conid{A}\mathbin{:}\Set\mskip1.5mu\}(\Varid{x}\mathbin{:}\Conid{A})\to \Set}$\\
+${\hskip1.00em\relax\hskip1.00em\relax\Conid{E}\;\Varid{x}\mathrel{=}(\Varid{y}\mathbin{:}\Conid{A})×(\Varid{x}==\Varid{y})}$
+\end{tabbing}
+    We can prove that any element of \ensuremath{\Conid{E}\;\Varid{x}} is in fact equal to \ensuremath{(\Varid{x},\Varid{refl}\;\Varid{x})}.
+
+\begin{tabbing}
+\qquad\=\hspace{\lwidth}\=\hspace{\cwidth}\=\+\kill
+${\hskip1.00em\relax\hskip1.00em\relax\Varid{uniqE}\mathbin{:}\{\mskip1.5mu \Conid{A}\mathbin{:}\Set\mskip1.5mu\}(\Varid{x},\Varid{y}\mathbin{:}\Conid{A})\;(\Varid{p}\mathbin{:}\Varid{x}==\Varid{y})\to (\Varid{x},\Varid{refl}\;\Varid{x})==(\Varid{y},\Varid{p})}$\\
+${\hskip1.00em\relax\hskip1.00em\relax\Varid{uniqE}\mathrel{=}\Varid{elim}\;(\lambda \Varid{x}\;\Varid{y}\;\Varid{p}.~(\Varid{x},\Varid{refl}\;\Varid{x})==(\Varid{y},\Varid{p}))\;\Varid{refl}}$
+\end{tabbing}
+\begin{tabbing}
+\qquad\=\hspace{\lwidth}\=\hspace{\cwidth}\=\+\kill
+${\hskip1.00em\relax\hskip1.00em\relax\Varid{elim\char95 P}\;\Varid{x}\;\Conid{C}\;\Varid{h}\;\Varid{y}\;\Varid{p}\mathrel{=}\Varid{subst}\;(\lambda \Varid{z}.~\Conid{C}\;(π_0\;\Varid{z})\;(π_1\;\Varid{z}))\;}$\\
+${\hskip1.00em\relax\hskip1.00em\relax\phantom{\Varid{elim\char95 P}\;\Varid{x}\;\Conid{C}\;\Varid{h}\;\Varid{y}\;\Varid{p}\mathrel{=}\Varid{subst}\;\mbox{}}(\Varid{x},\Varid{refl}\;\Varid{x})\;(\Varid{y},\Varid{p})\;(\Varid{uniqE}\;\Varid{x}\;\Varid{y}\;\Varid{p})\;\Varid{h}}$
+\end{tabbing}
+    Note that in an impredicative setting there is a simpler proof due to
+    Streicher~\cite{streicher:habilitation}.
+
+\end{proof}
+
+\begin{corollary}
+    Martin-Löf elimination and Paulin elimination are equivalent.
+\end{corollary}
+
+Streicher axiom K. Not valid~\cite{HofmannM:gromru}. Fortunately we don't need it.
+
+In the following we will use Paulin elimination.
+
+\section{Indexed Induction Recursion}
+
+Very fancy and general types~\cite{dybjer:indexed-ir}.
+
+\TODO{How much details from \cite{dybjer:indexed-ir}?}
+
+\subsection{Examples}
+
+Intensional identity relation (Paulin version).
+
+\begin{tabbing}
+\qquad\=\hspace{\lwidth}\=\hspace{\cwidth}\=\+\kill
+${\mathbf{data}\;(==)\{\mskip1.5mu \Conid{A}\mathbin{:}\Set\mskip1.5mu\}(\Varid{x}\mathbin{:}\Conid{A})\mathbin{:}\Conid{A}\to \Set\;\mathbf{where}}$\\
+${\hskip2.00em\relax\Varid{refl}\mathbin{:}\Varid{x}==\Varid{x}}$
+\end{tabbing}
+The elimination rule for this type is Paulin elimination.
+
+\section{Encoding}
+
+Just add a proof that the index is the right one.
+
+\subsection{Proof}
+
+Simple induction over the code for the indexed type.
+
+\section{Related Work}
+
+Peter and Anton obviously~\cite{dybjer:indexed-ir}.
+
+\section{Conclusions}
+
+This is good stuff.
+
+\bibliographystyle{abbrv}
+\bibliography{../../../../bib/pmgrefs}
+
+\end{document}
