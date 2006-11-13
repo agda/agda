@@ -6,33 +6,9 @@
 \usepackage{beamerthemesplit}
 \usepackage{pxfonts}
 \usepackage{proof}
-%\usepackage{fleqn}
+\usepackage{graphicx}
 
-\title{A type-safe treatment of meta variables}
-\author{Ulf Norell}
-\date{\today}
-
-\newcommand\PI[2]{(#1:#2)\to{}}
-\newcommand\hPI[2]{\{#1:#2\}\to{}}
-\newcommand\Fun[2]{#1\to#2}
-\newcommand\lam[1]{\lambda #1\to{}}
-\newcommand\Cons{\mathrel{::}}
-
-\newcommand\To{\Rightarrow}
-\newcommand\GoFig{\_}
-
-\newcommand\Data[3]{\ensuremath{
-    \mathbf{data}~#1 : #2~\mathbf{where} \\
-    \quad\begin{array}{lcl}
-	#3
-    \end{array}
-}}
-\newcommand\Module[2]{\ensuremath{
-    \mathbf{module}~#1~\mathbf{where} \\
-    \quad\begin{array}{l}
-	#2
-    \end{array}
-}}
+\input{../../papers/implicit/macros}
 
 \newenvironment{code}{
 \begin{block}{}\(\begin{array}{l}
@@ -40,36 +16,259 @@
 \end{array}\)\end{block}
 }
 
+\setlength\parskip{2mm}
+
 \renewcommand\Bar{~~|~~}
 
+\newcommand\CheckType[4]{{#1} \vdash {#2} \uparrow {#3} \leadsto {#4}}
+\newcommand\InferType[4]{{#1} \vdash {#2} \downarrow {#3} \leadsto {#4}}
+\newcommand\FreshMeta[3]{\mathsf{FreshMeta({#2} \vdash {#1} : {#3})}}
+\newcommand\Instantiate[2]{\mathsf{Instantiate}({#1} := {#2})}
+\newcommand\Encapsulate[2]{\mathsf{Box}({#1} \Bar {#2})}
+\newcommand\MV[1]{\mathsf{MV}({#1})}
+
+\newcommand\False{\mathit{false}}
+\newcommand\True{\mathit{true}}
+\newcommand\Zero{\mathit{zero}}
+\newcommand\Suc{\mathit{suc}}
+\newcommand\Set{\mathit{Set}}
+\newcommand\Nat{\mathit{Nat}}
+\newcommand\Bool{\mathit{Bool}}
+\newcommand\Not{\mathit{not}}
+
 \begin{document}
+
+\title{A type-safe treatment of meta variables}
+\author{Ulf Norell}
+\institute{(joint work with Catarina Coquand)}
+\date{\today}
 
 \frame{\titlepage}
 
 \section{Introduction}
-\frame{\tableofcontents}
 
-\subsection{The Basics}
 \frame{
-    \frametitle{Some typing rules for Type Theory}
+    \frametitle{Abstract}
+
+    Type checking with meta variables is trickier than we have previously
+    believed.
+    
+    In particular it is easy to violate the invariant that we only compute with
+    well-typed terms, thus losing normalisation.
+
+    We show how to maintain well-typedness by encapsulating possibly ill-typed
+    terms in boxes that can only be opened if the contents is known to be well-typed.
+
+    \vspace*{-8mm}
+    \begin{flushright}
+    \includegraphics[width=35mm]{danger_do_not_open_until.pdf}
+    \end{flushright}
+}
+
+\frame{
+    \frametitle{The Logical Framework}
+
+\[\begin{array}{lclr}
+    A	   & ::= & \SET \Or \EL M \Or \PI xAA		& \mathit{types} \\
+    M	   & ::= & x \Or c \Or f \Or M\,M \Or \LAM xM	& \mathit{terms} \\
+    \Gamma & ::= & () \Or \Gamma,x:A			& \mathit{contexts} \\
+\end{array}\]
+
+\[\begin{array}{ll}
+    \IsTypeC\Gamma A & \mbox{$A$ is a valid type in $\Gamma$} \\
+    \HasTypeC\Gamma MA & \mbox{$M$ has type $A$ in $\Gamma$} \\
+    \EqualTypeC\Gamma AB & \mbox{$A$ and $B$ are convertible types in $\Gamma$}\\
+    \EqualC\Gamma MNA & \mbox{$M$ and $N$ are convertible terms of type $A$ in $\Gamma$} \\
+\end{array}\]
+
+\[
+    \infer[\mbox{the conversion rule}]{\HasTypeC\Gamma MB}{
+      \HasTypeC\Gamma MA
+    & \EqualTypeC\Gamma AB
+    }
+\]
+
+}
+
+\frame{
+    \frametitle{Checking conversion}
+
+    One option (which scales to meta variables) is to interleave weak-head
+    normalisation and comparison of heads.
+
+\[\begin{array}{c}
+    \infer{\EqualC \Gamma {x~\vec M} {x~\vec N} A}{
+	x : \Delta \to B \in \Gamma
+    &	\EqualC \Gamma {\vec M} {\vec N} \Delta
+    }
+    \\{}\\
+    \infer{\EqualC \Gamma {M,\vec M} {N,\vec N} {(x : A)\Delta}}{
+	\EqualC \Gamma M N A
+    &	\EqualC \Gamma {\vec M} {\vec N} {\Subst \Delta x M}
+    }
+\end{array}\]
+    {\small (Weak-head normalisation is left implicit.)}
+}
+
+\frame{
+    \frametitle{Meta variables}
+
+    Meta variables can be used for several things. For instance, to represent
+    \begin{itemize}
+	\item incomplete parts of a program (instantiated by the user)
+	\item implicit parts of a program (instantiated by the type checker)
+    \end{itemize}
+
+    In this work we are mostly concerned with the latter use.
+}
+
+\frame{
+    \frametitle{Typing rules for meta variables}
+We change the type checker to produce new terms:
+\[\begin{array}{lcl}
+    \CheckType \Gamma e A M && \mbox{type checking} \\
+    \InferType \Gamma e A M && \mbox{type inference}
+\end{array}\]
+
+and add a rule for meta variables (written $?$ in the input language)
+\[\infer{\CheckType \Gamma ? A \alpha}{
+    \FreshMeta \alpha \Gamma A
+}\]
 }
 
 \section{The Problem}
 
 \frame{
-    \frametitle{Example}
+    \frametitle{Convertibility with meta variables}
+    In the presence of meta variables, checking convertibility becomes unification:
+\[
+    \infer{\EqualC \Gamma \alpha M A}{
+	\alpha \notin \MV M
+    &	\Instantiate \alpha M
+    }
+\]
+    Functions defined by pattern matching are troublesome.
+\[
+    \EqualC \Gamma {\mathit{isZero}~\alpha} {\mathit{false}} {\mathit{Bool}}
+\]
+    In this case unification gives up, and the constraint is postponed until
+    more information is available about $\alpha$.
+}
+
+\frame{
+    \frametitle{The conversion rule}
+A possible conversion rule (used by previous implementations of Agda):
+\[
+    \infer{\CheckType \Gamma e A M}{
+	\InferType \Gamma e B M
+    &	\EqualTypeC \Gamma A B
+    }
+\]
+This rule makes no distinction between successful unification and postponed constraints.
+}
+
+\frame{
+    \frametitle{What could possibly go wrong?}
+    Consider the example
+\[
+    \infer{\CheckType \Gamma \Zero {F~\alpha} \Zero}{
+	\InferType \Gamma \Zero \Nat \Zero
+    &	\EqualTypeC \Gamma {F~\alpha} \Nat
+    }
+\]
+    where
+\[\begin{array}{lcl}
+    \multicolumn3l{F : \Bool \to \Set} \\
+    F~\False & = & \Nat \\
+    F~\True  & = & \Bool \\
+\end{array}\]
+    The type checker will accept $\Zero : F~\alpha$ which doesn't seem that
+    harmful. The problem is that the same rule will accept something of type
+    $F~\alpha$ whenever a $\Bool$ is required and we can end up with $\Zero :
+    \Bool$.
+}
+
+\frame{
+    \frametitle{A concrete example}
+
+\[\begin{array}{l}
+F : \Bool \to \Set \\
+F~\False = \Nat \\
+F~\True  = \Bool \\
+{}\\
+h : ((x : F~\alpha) \to F~(\Not~x)) \to \Nat \\
+h~g = g~\Zero
+\end{array}\]
+
+We get the constraints
+\[\begin{array}{lclcl}
+    \Bool & = & F~\alpha && \mbox{from $x \uparrow \Bool$} \\
+    F~\alpha & = & \Nat && \mbox{from $\Zero \uparrow {F~\alpha}$} \\
+    F~(\Not~\Zero) & = & \Nat && \mbox{from ${g~\Zero} \uparrow \Nat$} \\
+\end{array}\]
+
+When checking the last constraint the type checker fails with an ``incomplete
+pattern matching'' error.
+
 }
 
 \section{The Solution}
 
-\subsection{Guarded Constants}
-
 \frame{
-    \frametitle{Some new typing rules}
+    \frametitle{The Solution}
+
+    Our solution is to encapsulate potentially ill-typed terms inside boxes
+    which can only be opened if the corresponding constraint has been solved.
+\[
+    \infer{\CheckType \Gamma e A c}{
+	\InferType \Gamma e B M
+    &	\Encapsulate {c : A = M} {\EqualTypeC \Gamma A B}
+    }
+\]
+    As long as $A = B$ remains unsolved $c$ will not reduce, but as soon as we
+    solve the constraint it reduces to $M$.
 }
 
 \frame{
-    \frametitle{Examples}
+    \frametitle{Type safety}
+
+    With this approach we can guarantee type-safety.
+    \[\CheckType \Gamma e A M \Longrightarrow \HasTypeC \Gamma M A
+    \]
+    This holds independent of any postponed constraints.
+}
+
+\frame{
+    \frametitle{Live Demo}
+    \begin{center}{\Huge Live Demo}
+    \end{center}
+}
+
+\frame{
+    \frametitle{Bonus Slide}
+
+    Remember this rule?
+\[
+    \infer{\EqualC \Gamma {M,\vec M} {N,\vec N} {(x : A)\Delta}}{
+	\EqualC \Gamma M N A
+    &	\EqualC \Gamma {\vec M} {\vec N} {\Subst \Delta x M}
+    }
+\]
+    If $M = N$ is postponed we can't guarantee $\vec N : \Subst \Delta x M$.
+
+    Options
+    \begin{itemize}
+	\item postpone the whole constraint if $M = N$ is postponed
+	\item allow boxing of constraints
+    \end{itemize}
+\[
+    \infer{\EqualTypeC \Gamma {M,\vec M : (x : A_1)\Delta_1} {N,\vec N : (x : A_2)\Delta_2}}{
+    \begin{array}{l}
+	\Encapsulate {\EqualC \Gamma M N A_1} {\EqualTypeC \Gamma {A_1} {A_2}} \\
+	\EqualTypeC \Gamma {\vec M : \Subst {\Delta_1} x M} {\vec N : \Subst {\Delta_2} x N}
+    \end{array}
+    }
+\]
 }
 
 \end{document}
