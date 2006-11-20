@@ -26,5 +26,5 @@ else
 endif
 
 %.tex : %.lhs
-	lhs2TeX --math $< > $@
+	lhs2TeX --poly $< > $@
 

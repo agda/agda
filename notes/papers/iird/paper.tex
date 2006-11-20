@@ -25,8 +25,6 @@
 
 \newcommand{\Sp}{\hskip.33334em\relax}
 
-\newlength{\lwidth}\setlength{\lwidth}{4.5cm}
-\newlength{\cwidth}\setlength{\cwidth}{8mm} % 3mm
 
 \newcommand{\Conid}[1]{\mathit{#1}}
 \newcommand{\Varid}[1]{\mathit{#1}}
@@ -36,10 +34,53 @@
 \newcommand{\sequ}{\mathbin{>\!\!\!>}}
 \renewcommand{\leq}{\leqslant}
 \renewcommand{\geq}{\geqslant}
+\usepackage{polytable}
+
+%mathindent has to be defined
+\@ifundefined{mathindent}%
+  {\newdimen\mathindent\mathindent\leftmargini}%
+  {}%
+
+\def\resethooks{%
+  \global\let\SaveRestoreHook\empty
+  \global\let\ColumnHook\empty}
+\newcommand*{\savecolumns}[1][default]%
+  {\g@addto@macro\SaveRestoreHook{\savecolumns[#1]}}
+\newcommand*{\restorecolumns}[1][default]%
+  {\g@addto@macro\SaveRestoreHook{\restorecolumns[#1]}}
+\newcommand*{\aligncolumn}[2]%
+  {\g@addto@macro\ColumnHook{\column{#1}{#2}}}
+
+\resethooks
+
+\newcommand{\onelinecommentchars}{\quad-{}- }
+\newcommand{\commentbeginchars}{\enskip\{-}
+\newcommand{\commentendchars}{-\}\enskip}
+
+\newcommand{\visiblecomments}{%
+  \let\onelinecomment=\onelinecommentchars
+  \let\commentbegin=\commentbeginchars
+  \let\commentend=\commentendchars}
+
+\newcommand{\invisiblecomments}{%
+  \let\onelinecomment=\empty
+  \let\commentbegin=\empty
+  \let\commentend=\empty}
+
+\visiblecomments
+
+\newlength{\blanklineskip}
+\setlength{\blanklineskip}{1mm}
+
+\newcommand{\hsindent}[1]{\quad}% default is fixed indentation
 \newcommand{\NB}{\textbf{NB}}
 \newcommand{\Todo}[1]{$\langle$\textbf{To do:}~#1$\rangle$}
 
 \makeatother
+
+
+
+
 
 
 
@@ -133,89 +174,178 @@ definitions directly.
 
 There are many versions.
 
-\begin{tabbing}
-\qquad\=\hspace{\lwidth}\=\hspace{\cwidth}\=\+\kill
-${(==)\mathbin{:}\{\mskip1.5mu \Conid{A}\mathbin{:}\Set\mskip1.5mu\}\to \Conid{A}\to \Conid{A}\to \Set}$\\
-${\Varid{refl}\mathbin{:}\{\mskip1.5mu \Conid{A}\mathbin{:}\Set\mskip1.5mu\}(\Varid{x}\mathbin{:}\Conid{A})\to \Varid{x}==\Varid{x}}$
-\end{tabbing}
+\begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}l@{}}
+\column{5}{@{}l@{}}
+\column{11}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{5}{11}{{}(==){}}
+\fromto{11}{E}{{}\mathrel{:}\{\mskip1.5mu \Conid{A}\mathrel{:}\Set\mskip1.5mu\}\to \Conid{A}\to \Conid{A}\to \Set{}}
+\nextline
+\fromto{5}{11}{{}\mathsf{refl}{}}
+\fromto{11}{E}{{}\mathrel{:}\{\mskip1.5mu \Conid{A}\mathrel{:}\Set\mskip1.5mu\}(\Varid{x}\mathrel{:}\Conid{A})\to \Varid{x}==\Varid{x}{}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
+
 Martin-Löf identity relation, introduced in 1973~\cite{martin-lof:predicative}.
-The elimination rule (sometimes called $J$) has the type
 
-\begin{tabbing}
-\qquad\=\hspace{\lwidth}\=\hspace{\cwidth}\=\+\kill
-${\Varid{elim\char95 ML}\mathbin{:}\{\mskip1.5mu \Conid{A}\mathbin{:}\Set\mskip1.5mu\}(\Conid{C}\mathbin{:}(\Varid{x},\Varid{y}\mathbin{:}\Conid{A})\to \Varid{x}==\Varid{y}\to \Set)\to }$\\
-${\phantom{\Varid{elim\char95 ML}\mathbin{:}\mbox{}}((\Varid{x}\mathbin{:}\Conid{A})\to \Conid{C}\;\Varid{x}\;\Varid{x}\;(\Varid{refl}\;\Varid{x}))\to }$\\
-${\phantom{\Varid{elim\char95 ML}\mathbin{:}\mbox{}}(\Varid{x},\Varid{y}\mathbin{:}\Conid{A})\;(\Varid{p}\mathbin{:}\Varid{x}==\Varid{y})\to \Conid{C}\;\Varid{x}\;\Varid{y}\;\Varid{p}}$
-\end{tabbing}
+\begin{definition}[Martin-Löf elimination]
+
+The Martin-Löf elimination rule (sometimes called $J$) has the type
+
+\begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}l@{}}
+\column{12}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{B}{12}{{}\Varid{elim\char95 ML}\mathrel{:}{}}
+\fromto{12}{E}{{}\{\mskip1.5mu \Conid{A}\mathrel{:}\Set\mskip1.5mu\}(\Conid{C}\mathrel{:}(\Varid{x},\Varid{y}\mathrel{:}\Conid{A})\to \Varid{x}==\Varid{y}\to \Set)\to {}}
+\nextline
+\fromto{12}{E}{{}((\Varid{x}\mathrel{:}\Conid{A})\to \Conid{C}\;\Varid{x}\;\Varid{x}\;(\mathsf{refl}\;\Varid{x}))\to {}}
+\nextline
+\fromto{12}{E}{{}(\Varid{x},\Varid{y}\mathrel{:}\Conid{A})\;(\Varid{p}\mathrel{:}\Varid{x}==\Varid{y})\to \Conid{C}\;\Varid{x}\;\Varid{y}\;\Varid{p}{}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
+
 and the corresponding computation rule is
-\begin{tabbing}
-\qquad\=\hspace{\lwidth}\=\hspace{\cwidth}\=\+\kill
-${\hskip1.00em\relax\Varid{elim\char95 ML}\;\Conid{C}\;\Varid{h}\;\Varid{x}\;\Varid{x}\;(\Varid{refl}\;\Varid{x})\mathrel{=}\Varid{h}\;\Varid{x}}$
-\end{tabbing}Paulin identity relation~\cite{pfenning-paulin:inductive-coc}.
+\begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}l@{}}
+\column{3}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{3}{E}{{}\Varid{elim\char95 ML}\;\Conid{C}\;\Varid{h}\;\Varid{x}\;\Varid{x}\;(\mathsf{refl}\;\Varid{x})\mathrel{=}\Varid{h}\;\Varid{x}{}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
+\end{definition}
 
-\begin{tabbing}
-\qquad\=\hspace{\lwidth}\=\hspace{\cwidth}\=\+\kill
-${\Varid{elim\char95 P}\mathbin{:}\{\mskip1.5mu \Conid{A}\mathbin{:}\Set\mskip1.5mu\}(\Varid{x}\mathbin{:}\Conid{A})\;(\Conid{C}\mathbin{:}(\Varid{y}\mathbin{:}\Conid{A})\to \Varid{x}==\Varid{y}\to \Set)\to }$\\
-${\phantom{\Varid{elim\char95 P}\mathbin{:}\mbox{}}\Conid{C}\;\Varid{x}\;(\Varid{refl}\;\Varid{x})\to (\Varid{y}\mathbin{:}\Conid{A})\;(\Varid{p}\mathbin{:}\Varid{x}==\Varid{y})\to \Conid{C}\;\Varid{y}\;\Varid{p}}$
-\end{tabbing}
+\begin{definition}[Paulin elimination]
+Paulin identity relation~\cite{pfenning-paulin:inductive-coc}.
+
+\begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}l@{}}
+\column{11}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{B}{11}{{}\Varid{elim\char95 P}\mathrel{:}{}}
+\fromto{11}{E}{{}\{\mskip1.5mu \Conid{A}\mathrel{:}\Set\mskip1.5mu\}(\Varid{x}\mathrel{:}\Conid{A})\;(\Conid{C}\mathrel{:}(\Varid{y}\mathrel{:}\Conid{A})\to \Varid{x}==\Varid{y}\to \Set)\to {}}
+\nextline
+\fromto{11}{E}{{}\Conid{C}\;\Varid{x}\;(\mathsf{refl}\;\Varid{x})\to (\Varid{y}\mathrel{:}\Conid{A})\;(\Varid{p}\mathrel{:}\Varid{x}==\Varid{y})\to \Conid{C}\;\Varid{y}\;\Varid{p}{}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
+
 The corresponding computation rule is
-\begin{tabbing}
-\qquad\=\hspace{\lwidth}\=\hspace{\cwidth}\=\+\kill
-${\hskip1.00em\relax\Varid{elim\char95 P}\;\Varid{x}\;\Conid{C}\;\Varid{h}\;\Varid{x}\;(\Varid{refl}\;\Varid{x})\mathrel{=}\Varid{h}}$
-\end{tabbing}\begin{theorem}
+\begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}l@{}}
+\column{3}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{3}{E}{{}\Varid{elim\char95 P}\;\Varid{x}\;\Conid{C}\;\Varid{h}\;\Varid{x}\;(\mathsf{refl}\;\Varid{x})\mathrel{=}\Varid{h}{}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
+\end{definition}
+
+\begin{lemma}
     Martin-Löf elimination can be defined in terms of Paulin elimination.
-\end{theorem}
+\end{lemma}
 
 \begin{proof}
 
 Trivial.
-\begin{tabbing}
-\qquad\=\hspace{\lwidth}\=\hspace{\cwidth}\=\+\kill
-${\hskip1.00em\relax\Varid{elim\char95 ML}\;\Conid{C}\;\Varid{h}\;\Varid{x}\;\Varid{y}\;\Varid{p}\mathrel{=}\Varid{elim\char95 P}\;\Varid{x}\;(\lambda \Varid{z}\;\Varid{q}.~\Conid{C}\;\Varid{x}\;\Varid{z}\;\Varid{q})\;(\Varid{h}\;\Varid{x})\;\Varid{y}\;\Varid{p}}$
-\end{tabbing}\end{proof}
+\begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}l@{}}
+\column{3}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{3}{E}{{}\Varid{elim\char95 ML}\;\Conid{C}\;\Varid{h}\;\Varid{x}\;\Varid{y}\;\Varid{p}\mathrel{=}\Varid{elim\char95 P}\;\Varid{x}\;(\lambda \Varid{z}\;\Varid{q}.~\Conid{C}\;\Varid{x}\;\Varid{z}\;\Varid{q})\;(\Varid{h}\;\Varid{x})\;\Varid{y}\;\Varid{p}{}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
+\end{proof}
 
-\begin{theorem}
+\begin{lemma}
     Paulin elimination can be defined in terms of Martin-Löf elimination.
-\end{theorem}
+\end{lemma}
 
 \begin{proof}
     This proof is slightly more involved.
 
     We first define the substitution rule
-\begin{tabbing}
-\qquad\=\hspace{\lwidth}\=\hspace{\cwidth}\=\+\kill
-${\hskip1.00em\relax\hskip1.00em\relax\Varid{subst}\mathbin{:}\{\mskip1.5mu \Conid{A}\mathbin{:}\Set\mskip1.5mu\}(\Conid{C}\mathbin{:}\Conid{A}\to \Set)\;(\Varid{x},\Varid{y}\mathbin{:}\Conid{A})}$\\
-${\hskip1.00em\relax\hskip1.00em\relax\phantom{\Varid{subst}\mathbin{:}\mbox{}}\Varid{x}==\Varid{y}\to \Conid{C}\;\Varid{x}\to \Conid{C}\;\Varid{y}}$\\
-${\hskip1.00em\relax\hskip1.00em\relax\Varid{subst}\;\Conid{C}\;\Varid{x}\;\Varid{y}\;\Varid{p}\;\Conid{Cx}\mathrel{=}\Varid{elim\char95 ML}\;(\lambda \Varid{a}\;\Varid{b}\;\Varid{q}.~\Conid{C}\;\Varid{a}\to \Conid{C}\;\Varid{b})\;}$\\
-${\hskip1.00em\relax\hskip1.00em\relax\phantom{\Varid{subst}\;\Conid{C}\;\Varid{x}\;\Varid{y}\;\Varid{p}\;\Conid{Cx}\mathrel{=}\Varid{elim\char95 ML}\;\mbox{}}(\lambda \Varid{a}\;\Conid{Ca}.~\Conid{Ca})\;\Varid{x}\;\Varid{y}\;\Varid{p}\;\Conid{Cx}}$
-\end{tabbing}
+\begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}l@{}}
+\column{5}{@{}l@{}}
+\column{14}{@{}l@{}}
+\column{33}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{5}{14}{{}\Varid{subst}\mathrel{:}{}}
+\fromto{14}{E}{{}\{\mskip1.5mu \Conid{A}\mathrel{:}\Set\mskip1.5mu\}(\Conid{C}\mathrel{:}\Conid{A}\to \Set)\;(\Varid{x},\Varid{y}\mathrel{:}\Conid{A}){}}
+\nextline
+\fromto{14}{E}{{}\Varid{x}==\Varid{y}\to \Conid{C}\;\Varid{x}\to \Conid{C}\;\Varid{y}{}}
+\nextline
+\fromto{5}{33}{{}\Varid{subst}\;\Conid{C}\;\Varid{x}\;\Varid{y}\;\Varid{p}\;\Conid{Cx}\mathrel{=}\Varid{elim\char95 ML}\;{}}
+\fromto{33}{E}{{}(\lambda \Varid{a}\;\Varid{b}\;\Varid{q}.~\Conid{C}\;\Varid{a}\to \Conid{C}\;\Varid{b})\;{}}
+\nextline
+\fromto{33}{E}{{}(\lambda \Varid{a}\;\Conid{Ca}.~\Conid{Ca})\;\Varid{x}\;\Varid{y}\;\Varid{p}\;\Conid{Cx}{}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
+
     Now define
 
-\begin{tabbing}
-\qquad\=\hspace{\lwidth}\=\hspace{\cwidth}\=\+\kill
-${\hskip1.00em\relax\hskip1.00em\relax\Conid{E}\mathbin{:}\{\mskip1.5mu \Conid{A}\mathbin{:}\Set\mskip1.5mu\}(\Varid{x}\mathbin{:}\Conid{A})\to \Set}$\\
-${\hskip1.00em\relax\hskip1.00em\relax\Conid{E}\;\Varid{x}\mathrel{=}(\Varid{y}\mathbin{:}\Conid{A})×(\Varid{x}==\Varid{y})}$
-\end{tabbing}
-    We can prove that any element of \ensuremath{\Conid{E}\;\Varid{x}} is in fact equal to \ensuremath{(\Varid{x},\Varid{refl}\;\Varid{x})}.
+\begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}l@{}}
+\column{5}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{5}{E}{{}\Conid{E}\mathrel{:}\{\mskip1.5mu \Conid{A}\mathrel{:}\Set\mskip1.5mu\}(\Varid{x}\mathrel{:}\Conid{A})\to \Set{}}
+\nextline
+\fromto{5}{E}{{}\Conid{E}\;\Varid{x}\mathrel{=}(\Varid{y}\mathrel{:}\Conid{A})×(\Varid{x}==\Varid{y}){}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
 
-\begin{tabbing}
-\qquad\=\hspace{\lwidth}\=\hspace{\cwidth}\=\+\kill
-${\hskip1.00em\relax\hskip1.00em\relax\Varid{uniqE}\mathbin{:}\{\mskip1.5mu \Conid{A}\mathbin{:}\Set\mskip1.5mu\}(\Varid{x},\Varid{y}\mathbin{:}\Conid{A})\;(\Varid{p}\mathbin{:}\Varid{x}==\Varid{y})\to (\Varid{x},\Varid{refl}\;\Varid{x})==(\Varid{y},\Varid{p})}$\\
-${\hskip1.00em\relax\hskip1.00em\relax\Varid{uniqE}\mathrel{=}\Varid{elim}\;(\lambda \Varid{x}\;\Varid{y}\;\Varid{p}.~(\Varid{x},\Varid{refl}\;\Varid{x})==(\Varid{y},\Varid{p}))\;\Varid{refl}}$
-\end{tabbing}
-\begin{tabbing}
-\qquad\=\hspace{\lwidth}\=\hspace{\cwidth}\=\+\kill
-${\hskip1.00em\relax\hskip1.00em\relax\Varid{elim\char95 P}\;\Varid{x}\;\Conid{C}\;\Varid{h}\;\Varid{y}\;\Varid{p}\mathrel{=}\Varid{subst}\;(\lambda \Varid{z}.~\Conid{C}\;(π_0\;\Varid{z})\;(π_1\;\Varid{z}))\;}$\\
-${\hskip1.00em\relax\hskip1.00em\relax\phantom{\Varid{elim\char95 P}\;\Varid{x}\;\Conid{C}\;\Varid{h}\;\Varid{y}\;\Varid{p}\mathrel{=}\Varid{subst}\;\mbox{}}(\Varid{x},\Varid{refl}\;\Varid{x})\;(\Varid{y},\Varid{p})\;(\Varid{uniqE}\;\Varid{x}\;\Varid{y}\;\Varid{p})\;\Varid{h}}$
-\end{tabbing}
+    We can prove that any element of \ensuremath{\Conid{E}\;\Varid{x}} is in fact equal to \ensuremath{(\Varid{x},\mathsf{refl}\;\Varid{x})}.
+
+\begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}l@{}}
+\column{5}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{5}{E}{{}\Varid{uniqE}\mathrel{:}\{\mskip1.5mu \Conid{A}\mathrel{:}\Set\mskip1.5mu\}(\Varid{x},\Varid{y}\mathrel{:}\Conid{A})\;(\Varid{p}\mathrel{:}\Varid{x}==\Varid{y})\to (\Varid{x},\mathsf{refl}\;\Varid{x})==(\Varid{y},\Varid{p}){}}
+\nextline
+\fromto{5}{E}{{}\Varid{uniqE}\mathrel{=}\Varid{elim}\;(\lambda \Varid{x}\;\Varid{y}\;\Varid{p}.~(\Varid{x},\mathsf{refl}\;\Varid{x})==(\Varid{y},\Varid{p}))\;\mathsf{refl}{}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
+
+\begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}l@{}}
+\column{5}{@{}l@{}}
+\column{31}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{5}{31}{{}\Varid{elim\char95 P}\;\Varid{x}\;\Conid{C}\;\Varid{h}\;\Varid{y}\;\Varid{p}\mathrel{=}\Varid{subst}\;{}}
+\fromto{31}{E}{{}(\lambda \Varid{z}.~\Conid{C}\;(π_0\;\Varid{z})\;(π_1\;\Varid{z}))\;{}}
+\nextline
+\fromto{31}{E}{{}(\Varid{x},\mathsf{refl}\;\Varid{x})\;(\Varid{y},\Varid{p})\;(\Varid{uniqE}\;\Varid{x}\;\Varid{y}\;\Varid{p})\;\Varid{h}{}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
+
     Note that in an impredicative setting there is a simpler proof due to
     Streicher~\cite{streicher:habilitation}.
 
 \end{proof}
 
-\begin{corollary}
+\begin{theorem}
     Martin-Löf elimination and Paulin elimination are equivalent.
-\end{corollary}
+\end{theorem}
 
 Streicher axiom K. Not valid~\cite{HofmannM:gromru}. Fortunately we don't need it.
 
@@ -227,20 +357,296 @@ Very fancy and general types~\cite{dybjer:indexed-ir}.
 
 \TODO{How much details from \cite{dybjer:indexed-ir}?}
 
+Codes for IIRD.
+
+\begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}l@{}}
+\column{5}{@{}l@{}}
+\column{9}{@{}l@{}}
+\column{16}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{5}{E}{{}\mathbf{data}\;\Conid{OP}\;(\Conid{I}\mathrel{:}\Set)\;(\Conid{D}\mathrel{:}\Conid{I}\to \Type)\;(\Conid{E}\mathrel{:}\Type)\;\mathbf{where}{}}
+\nextline
+\fromto{5}{9}{{}\hsindent{4}{}}
+\fromto{9}{16}{{}ι{}}
+\fromto{16}{E}{{}\mathrel{:}\Conid{E}\to \Conid{OP}\;\Conid{I}\;\Conid{D}\;\Conid{E}{}}
+\nextline
+\fromto{5}{9}{{}\hsindent{4}{}}
+\fromto{9}{16}{{}σ{}}
+\fromto{16}{E}{{}\mathrel{:}(\Conid{A}\mathrel{:}\Set)\;(γ\mathrel{:}\Conid{A}\to \Conid{OP}\;\Conid{I}\;\Conid{D}\;\Conid{E})\to \Conid{OP}\;\Conid{I}\;\Conid{D}\;\Conid{E}{}}
+\nextline
+\fromto{5}{9}{{}\hsindent{4}{}}
+\fromto{9}{16}{{}δ{}}
+\fromto{16}{E}{{}\mathrel{:}(\Conid{A}\mathrel{:}\Set)\;(\Varid{i}\mathrel{:}\Conid{A}\to \Conid{I})\;(γ\mathrel{:}((\Varid{a}\mathrel{:}\Conid{A})\to \Conid{D}\;(\Varid{i}\;\Varid{a})))\to \Conid{OP}\;\Conid{I}\;\Conid{D}\;\Conid{E}{}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
+
 \subsection{Examples}
 
 Intensional identity relation (Paulin version).
 
-\begin{tabbing}
-\qquad\=\hspace{\lwidth}\=\hspace{\cwidth}\=\+\kill
-${\mathbf{data}\;(==)\{\mskip1.5mu \Conid{A}\mathbin{:}\Set\mskip1.5mu\}(\Varid{x}\mathbin{:}\Conid{A})\mathbin{:}\Conid{A}\to \Set\;\mathbf{where}}$\\
-${\hskip2.00em\relax\Varid{refl}\mathbin{:}\Varid{x}==\Varid{x}}$
-\end{tabbing}
+\begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}l@{}}
+\column{5}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{B}{E}{{}\mathbf{data}\;(==)\{\mskip1.5mu \Conid{A}\mathrel{:}\Set\mskip1.5mu\}(\Varid{x}\mathrel{:}\Conid{A})\mathrel{:}\Conid{A}\to \Set\;\mathbf{where}{}}
+\nextline
+\fromto{B}{5}{{}\hsindent{5}{}}
+\fromto{5}{E}{{}\mathsf{refl}\mathrel{:}\Varid{x}==\Varid{x}{}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
+
 The elimination rule for this type is Paulin elimination.
 
 \section{Encoding}
 
 Just add a proof that the index is the right one.
+
+Example:
+
+\begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}l@{}}
+\column{5}{@{}l@{}}
+\column{9}{@{}l@{}}
+\column{17}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{5}{E}{{}\mathbf{data}\;\Conid{Even}\mathrel{:}\Conid{Nat}\to \Set\;\mathbf{where}{}}
+\nextline
+\fromto{5}{9}{{}\hsindent{4}{}}
+\fromto{9}{17}{{}\mathsf{evenZ}{}}
+\fromto{17}{E}{{}\mathrel{:}\Conid{Even}\;\mathsf{z}{}}
+\nextline
+\fromto{5}{9}{{}\hsindent{4}{}}
+\fromto{9}{17}{{}\mathsf{evenSS}{}}
+\fromto{17}{E}{{}\mathrel{:}\{\mskip1.5mu \Varid{n}\mathrel{:}\Conid{Nat}\mskip1.5mu\}\to \Conid{Even}\;\Varid{n}\to \Conid{Even}\;(\mathsf{s}\;(\mathsf{s}\;\Varid{n})){}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
+
+    The corresponding elimination rule is:
+
+\begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}l@{}}
+\column{5}{@{}l@{}}
+\column{9}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{5}{E}{{}elim_{Even}\mathrel{:}{}}
+\nextline
+\fromto{5}{9}{{}\hsindent{4}{}}
+\fromto{9}{E}{{}(\Conid{C}\mathrel{:}(\Varid{n}\mathrel{:}\Conid{Nat})\to \Conid{Even}\;\Varid{n}\to \Set)\to {}}
+\nextline
+\fromto{5}{9}{{}\hsindent{4}{}}
+\fromto{9}{E}{{}\Conid{C}\;\mathsf{z}\;\mathsf{evenZ}\to {}}
+\nextline
+\fromto{5}{9}{{}\hsindent{4}{}}
+\fromto{9}{E}{{}((\Varid{n}\mathrel{:}\Conid{Nat})\;(\Varid{e}\mathrel{:}\Conid{Even}\;\Varid{n})\to \Conid{C}\;\Varid{n}\;\Varid{e}\to \Conid{C}\;(\mathsf{s}\;(\mathsf{s}\;\Varid{n}))\;(\mathsf{evenSS}\;\Varid{e}))\to {}}
+\nextline
+\fromto{5}{9}{{}\hsindent{4}{}}
+\fromto{9}{E}{{}(\Varid{n}\mathrel{:}\Conid{Nat})\;(\Varid{e}\mathrel{:}\Conid{Even}\;\Varid{n})\to \Conid{C}\;\Varid{n}\;\Varid{e}{}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
+
+As a non-indexed type
+
+\begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}l@{}}
+\column{5}{@{}l@{}}
+\column{9}{@{}l@{}}
+\column{18}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{5}{E}{{}\mathbf{data}\;\mathit{Even}^{*}\;(\Varid{n}\mathrel{:}\Conid{Nat})\mathrel{:}\Set\;\mathbf{where}{}}
+\nextline
+\fromto{5}{9}{{}\hsindent{4}{}}
+\fromto{9}{18}{{}\mathsf{evenZ}^{*}{}}
+\fromto{18}{E}{{}\mathrel{:}\mathsf{z}==\Varid{n}\to \mathit{Even}^{*}\;\Varid{n}{}}
+\nextline
+\fromto{5}{9}{{}\hsindent{4}{}}
+\fromto{9}{18}{{}\mathsf{evenSS}^{*}{}}
+\fromto{18}{E}{{}\mathrel{:}(\Varid{m}\mathrel{:}\Conid{Nat})\to \Conid{Even}\;\Varid{m}\to \mathsf{s}\;(\mathsf{s}\;\Varid{m})==\Varid{n}\to \mathit{Even}^{*}\;\Varid{n}{}}
+\nextline[\blanklineskip]
+\fromto{5}{E}{{}\mathsf{evenZ}\mathrel{:}\mathit{Even}^{*}\;\mathsf{z}{}}
+\nextline
+\fromto{5}{E}{{}\mathsf{evenZ}\mathrel{=}\mathsf{evenZ}^{*}\;\mathsf{refl}{}}
+\nextline[\blanklineskip]
+\fromto{5}{E}{{}\mathsf{evenSS}\mathrel{:}(\Varid{n}\mathrel{:}\Conid{Nat})\to \Conid{Even}\;\Varid{n}\to \Conid{Even}\;(\mathsf{s}\;(\mathsf{s}\;\Varid{n})){}}
+\nextline
+\fromto{5}{E}{{}\mathsf{evenSS}\;\Varid{n}\;\Varid{e}\mathrel{=}\mathsf{evenSS}^{*}\;\Varid{n}\;\Varid{e}\;\mathsf{refl}{}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
+
+    To define the elimination rule we eliminate the proof that the index is the
+    expected one. 
+
+    The elimination rule in deduction style: We have
+\begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}l@{}}
+\column{3}{@{}l@{}}
+\column{8}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{3}{8}{{}\Varid{hz}{}}
+\fromto{8}{E}{{}\mathrel{:}\Conid{C}\;\Varid{z}\;\mathsf{evenZ}{}}
+\nextline
+\fromto{3}{8}{{}\Varid{hss}{}}
+\fromto{8}{E}{{}\mathrel{:}(\Varid{n}\mathrel{:}\Conid{Nat})\;(\Varid{e}\mathrel{:}\Conid{Even}\;\Varid{n})\to \Conid{C}\;\Varid{n}\;\Varid{e}\to \Conid{C}\;(\Varid{s}\;(\Varid{s}\;\Varid{n}))\;(\mathsf{evenSS}\;\Varid{n}\;\Varid{e}){}}
+\nextline
+\fromto{3}{8}{{}\Varid{n}{}}
+\fromto{8}{E}{{}\mathrel{:}\Conid{Nat}{}}
+\nextline
+\fromto{3}{8}{{}\Varid{e}{}}
+\fromto{8}{E}{{}\mathrel{:}\Conid{Even}\;\Varid{n}{}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
+    and the goal is
+\begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}l@{}}
+\column{3}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{3}{E}{{}\mathbin{?}\mathrel{:}\Conid{C}\;\Varid{n}\;\Varid{e}{}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
+    By eliminating \ensuremath{\Varid{e}} (using the non-indexed elimination) we get two cases
+
+\begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}l@{}}
+\column{3}{@{}l@{}}
+\column{7}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{3}{7}{{}\Varid{p}_{1}{}}
+\fromto{7}{E}{{}\mathrel{:}\mathsf{z}==\Varid{n}{}}
+\nextline
+\fromto{3}{7}{{}\mathbin{?}{}}
+\fromto{7}{E}{{}\mathrel{:}\Conid{C}\;\Varid{n}\;(\mathsf{evenZ}^{*}\;\Varid{p}_{1}){}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
+    Now we can eliminate \ensuremath{\Varid{p}_{1}}, effectively substituting \ensuremath{\Varid{z}} for \ensuremath{\Varid{n}} and \ensuremath{\mathsf{refl}}
+    for \ensuremath{\Varid{p}_{1}} in the goal to obtain the new goal
+\begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}l@{}}
+\column{3}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{3}{E}{{}\mathbin{?}\mathrel{:}\Conid{C}\;\mathsf{z}\;(\mathsf{evenZ}^{*}\;\mathsf{refl}){}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
+    This is exactly the type of \ensuremath{\Varid{hz}}.
+
+    In the second case we get
+\begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}l@{}}
+\column{3}{@{}l@{}}
+\column{7}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{3}{7}{{}\Varid{ih}{}}
+\fromto{7}{E}{{}\mathrel{:}\Conid{C}\;\Varid{m}\;\Varid{e'}{}}
+\nextline
+\fromto{3}{7}{{}\Varid{p}_{2}{}}
+\fromto{7}{E}{{}\mathrel{:}\mathsf{s}\;(\mathsf{s}\;\Varid{m})==\Varid{n}{}}
+\nextline
+\fromto{3}{7}{{}\mathbin{?}{}}
+\fromto{7}{E}{{}\mathrel{:}\Conid{C}\;\Varid{n}\;(\mathsf{evenSS}^{*}\;\Varid{m}\;\Varid{e'}\;\Varid{p}_{2}){}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
+    Eliminating \ensuremath{\Varid{p}_{2}} yields
+\begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}l@{}}
+\column{3}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{3}{E}{{}\mathbin{?}\mathrel{:}\Conid{C}\;(\mathsf{s}\;(\mathsf{s}\;\Varid{m}))\;(\mathsf{evenSS}^{*}\;\Varid{m}\;\Varid{e'}\;\mathsf{refl}){}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
+    which is the type of
+\begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}l@{}}
+\column{3}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{3}{E}{{}\Varid{hss}\;\Varid{m}\;\Varid{e'}\;\Varid{ih}{}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
+Here is the elimination spelled out. To improve readability I present the
+elimination of the interpretation using pattern matching notation and explicit
+recursion.
+
+\begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}l@{}}
+\column{5}{@{}l@{}}
+\column{9}{@{}l@{}}
+\column{17}{@{}l@{}}
+\column{38}{@{}c@{}}
+\column{38E}{@{}l@{}}
+\column{43}{@{}c@{}}
+\column{43E}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{5}{38}{{}elim_{Even}\;\Conid{C}\;\Varid{hz}\;\Varid{hss}\;\Varid{n}\;(\mathsf{evenZ}^{*}\;\Varid{p}){}}
+\fromto{38}{38E}{{}\mathrel{=}{}}
+\nextline
+\fromto{5}{9}{{}\hsindent{4}{}}
+\fromto{9}{E}{{}\Varid{elim\char95 P}\;\mathsf{z}\;(\lambda \Varid{z}\;\Varid{q}.~\Conid{C}\;\mathsf{z}\;\mathsf{evenZ}^{*})\;\Varid{hz}\;\Varid{n}\;\Varid{p}{}}
+\nextline
+\fromto{5}{43}{{}elim_{Even}\;\Conid{C}\;\Varid{hz}\;\Varid{hss}\;\Varid{n}\;(\mathsf{evenSS}^{*}\;\Varid{m}\;\Varid{e}\;\Varid{p}){}}
+\fromto{43}{43E}{{}\mathrel{=}{}}
+\nextline
+\fromto{5}{9}{{}\hsindent{4}{}}
+\fromto{9}{17}{{}\Varid{elim\char95 P}\;{}}
+\fromto{17}{E}{{}(\mathsf{s}\;(\mathsf{s}\;\Varid{m}))\;{}}
+\nextline
+\fromto{17}{E}{{}(\lambda \Varid{z}\;\Varid{q}.~\Conid{C}\;(\mathsf{s}\;(\mathsf{s}\;\Varid{m}))\;(\mathsf{evenSS}^{*}\;\Varid{e}))\;{}}
+\nextline
+\fromto{17}{E}{{}(\Varid{hss}\;\Varid{m}\;\Varid{e}\;(elim_{Even}\;\Conid{C}\;\Varid{hz}\;\Varid{hss}\;\Varid{m}\;\Varid{e}))\;{}}
+\nextline
+\fromto{17}{E}{{}\Varid{n}\;\Varid{p}{}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
+
+This gives us the correct type for the elimination rule, but we also need the
+correct computation rules. Namely
+\begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}l@{}}
+\column{3}{@{}l@{}}
+\column{5}{@{}l@{}}
+\column{37}{@{}l@{}}
+\column{51}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{3}{37}{{}elim_{Even}\;\Conid{C}\;\Varid{hz}\;\Varid{hss}\;\mathsf{z}\;{}}
+\fromto{37}{51}{{}\mathsf{evenZ}{}}
+\fromto{51}{E}{{}\mathrel{=}\Varid{hz}{}}
+\nextline
+\fromto{3}{37}{{}elim_{Even}\;\Conid{C}\;\Varid{hz}\;\Varid{hss}\;(\mathsf{s}\;(\mathsf{s}\;\Varid{n}))\;{}}
+\fromto{37}{51}{{}(\mathsf{evenSS}\;\Varid{n}\;\Varid{e}){}}
+\fromto{51}{E}{{}\mathrel{=}{}}
+\nextline
+\fromto{3}{5}{{}\hsindent{2}{}}
+\fromto{5}{E}{{}\Varid{hss}\;\Varid{n}\;\Varid{e}\;(elim_{Even}\;\Conid{C}\;\Varid{hz}\;\Varid{hss}\;\Varid{n}\;\Varid{e}){}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
+The crucial point here is that the equations talk about \ensuremath{\mathsf{evenZ}} and \ensuremath{\mathsf{evenSS}\;\Varid{n}\;\Varid{e}} and not arbitrary elements of \ensuremath{\mathit{Even}^{*}\;\Varid{n}}. In these particular cases the proof
+object is \ensuremath{\mathsf{refl}} so we can use the computation rule of equality elimination to
+show the desired computation rules.
 
 \subsection{Proof}
 
