@@ -90,7 +90,9 @@ getInterface x = addImportCycleCheck x $ do
 
     checkForImportCycle
 
-    uptodate <- liftIO $ ifile `isNewerThan` file
+    uptodate <- ifM ignoreInterfaces
+		    (return False)
+		    (liftIO $ ifile `isNewerThan` file)
 
     if uptodate
 	then skip      ifile file

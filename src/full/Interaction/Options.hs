@@ -53,6 +53,7 @@ data CommandLineOptions =
 	    , optRunTests	  :: Bool
 	    , optCompile	  :: Bool
 	    , optGenerateVimFile  :: Bool
+	    , optIgnoreInterfaces :: Bool
 	    }
     deriving Show
 
@@ -77,6 +78,7 @@ defaultOptions =
 	    , optRunTests	  = False
 	    , optCompile	  = False
 	    , optGenerateVimFile  = False
+	    , optIgnoreInterfaces = False
 	    }
 
 {- | @f :: Flag opts@  is an action on the option record that results from
@@ -93,6 +95,7 @@ inputFlag f o	    =
 versionFlag	     o = return $ o { optShowVersion	  = True }
 helpFlag	     o = return $ o { optShowHelp	  = True }
 proofIrrelevanceFlag o = return $ o { optProofIrrelevance = True }
+ignoreInterfacesFlag o = return $ o { optIgnoreInterfaces = True }
 allowUnsolvedFlag    o = return $ o { optAllowUnsolved	  = True }
 showImplicitFlag     o = return $ o { optShowImplicit	  = True }
 runTestsFlag	     o = return $ o { optRunTests	  = True }
@@ -140,6 +143,8 @@ standardOptions =
 		    "run internal test suite"
     , Option []	    ["vim"] (NoArg vimFlag)
 		    "generate Vim highlighting files"
+    , Option []	    ["ignore-interfaces"] (NoArg ignoreInterfacesFlag)
+		    "ignore interface files (re-type check everything)"
     ] ++ pragmaOptions
 
 pragmaOptions :: [OptDescr (Flag CommandLineOptions)]

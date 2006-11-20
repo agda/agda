@@ -68,6 +68,9 @@ proofIrrelevance = optProofIrrelevance <$> commandLineOptions
 showImplicitArguments :: TCM Bool
 showImplicitArguments = optShowImplicit <$> commandLineOptions
 
+ignoreInterfaces :: TCM Bool
+ignoreInterfaces = optIgnoreInterfaces <$> commandLineOptions
+
 getVerbosity :: TCM Int
 getVerbosity = optVerbose <$> commandLineOptions
 
