@@ -23,6 +23,7 @@ import qualified DeBruijnLazy3
 import qualified DeBruijnLazy4
 import qualified DeBruijnLazy5
 import qualified DeBruijnLazy6
+import qualified DeBruijnLazy7
 
 eval "dbCBN"   = DeBruijnCBN.eval
 eval "dbCBN2"  = DeBruijnCBN2.eval
@@ -37,9 +38,10 @@ eval "dbLazy3" = DeBruijnLazy3.eval
 eval "dbLazy4" = DeBruijnLazy4.eval
 eval "dbLazy5" = DeBruijnLazy5.eval
 eval "dbLazy6" = DeBruijnLazy6.eval
+eval "dbLazy7" = DeBruijnLazy7.eval
 eval s	       = error $ "no such implementation: " ++ s
 
-evalD = DeBruijnLazy6.eval
+evalD = DeBruijnLazy7.eval
 
 main = do
     args <- getArgs

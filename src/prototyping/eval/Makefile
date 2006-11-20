@@ -24,3 +24,16 @@ prof :
 %.hs : %.x
 	alex $<
 
+%.ps : %.hp
+	hp2ps -c $<
+
+n = dbLazy7
+p = -Pa
+
+%.hp %.prof : % .dummy
+	./$< nat.lam -n $n +RTS $p
+	@rm .dummy
+
+.dummy :
+	@touch .dummy
+

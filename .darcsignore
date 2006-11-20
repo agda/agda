@@ -20,3 +20,9 @@ Agda2\.tar\.gz
 (^|/)\..*\.agda\.vim$
 \.blg$
 \.DS_Store$
+\.(o|hi)$
+src/prototyping/eval/Lam$
+src/prototyping/eval/prof$
+src/prototyping/eval/(eval|eval_p)$
+src/prototyping/eval/.*\.prof$
+\.hp$
