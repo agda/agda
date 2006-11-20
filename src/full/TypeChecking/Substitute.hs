@@ -136,56 +136,50 @@ abstractArgs args x = abstract tel x
 -- | Substitute a term for the nth free variable.
 --
 class Subst t where
-    substAt :: Int -> Term -> t -> t
+    substs :: [Term] -> t -> t
 
 subst :: Subst t => Term -> t -> t
-subst u t = substAt 0 u t
+subst u t = substs (u : map var [0..]) t
+    where
+	var n = Var n []
 
 instance Subst Term where
-    substAt n u t =
+    substs us t =
 	case t of
-	    Var i vs
-		| i < n	    -> Var i $ substAt n u vs
-		| i == n    -> u `apply` substAt n u vs
-		| otherwise -> Var (i - 1) $ substAt n u vs
-	    Lam h m	    -> Lam h $ substAt n u m
-	    Def c vs	    -> Def c $ substAt n u vs
-	    Con c vs	    -> Con c $ substAt n u vs
-	    MetaV x vs	    -> MetaV x $ substAt n u vs
-	    Lit l	    -> Lit l
-	    Pi a b	    -> uncurry Pi $ substAt n u (a,b)
-	    Fun a b	    -> uncurry Fun $ substAt n u (a,b)
-	    Sort s	    -> Sort s
-	    BlockedV b	    -> BlockedV $ substAt n u b
+	    Var i vs   -> (us !! i) `apply` substs us vs
+	    Lam h m    -> Lam h $ substs us m
+	    Def c vs   -> Def c $ substs us vs
+	    Con c vs   -> Con c $ substs us vs
+	    MetaV x vs -> MetaV x $ substs us vs
+	    Lit l      -> Lit l
+	    Pi a b     -> uncurry Pi $ substs us (a,b)
+	    Fun a b    -> uncurry Fun $ substs us (a,b)
+	    Sort s     -> Sort s
+	    BlockedV b -> BlockedV $ substs us b
 
 instance Subst Type where
-    substAt n u (El s t) = El s $ substAt n u t
+    substs us (El s t) = El s $ substs us t
 
 instance Subst t => Subst (Blocked t) where
-    substAt n u b = fmap (substAt n u) b
+    substs us b = fmap (substs us) b
 
 instance (Data a, Subst a) => Subst (Abs a) where
-    substAt n u (Abs x t) = Abs x $ substAt (n + 1) (raise 1 u) t
+    substs us (Abs x t) = Abs x $ substs (Var 0 [] : raise 1 us) t
 
 instance Subst a => Subst (Arg a) where
-    substAt n u = fmap (substAt n u)
+    substs us = fmap (substs us)
 
 instance Subst a => Subst [a] where
-    substAt n u = map (substAt n u)
+    substs us = map (substs us)
 
 instance (Subst a, Subst b) => Subst (a,b) where
-    substAt n u (x,y) = (substAt n u x, substAt n u y)
+    substs us (x,y) = (substs us x, substs us y)
 
 instance Subst ClauseBody where
-    substAt n u (Body t)   = Body $ substAt n u t
-    substAt n u (Bind b)   = Bind $ substAt n u b
-    substAt n u (NoBind b) = NoBind $ substAt n u b
-    substAt _ _  NoBody	   = NoBody
-
--- | Substitute a lot of terms.
--- substs :: Subst t => [Term] -> t -> t
--- substs []     x = x
--- substs (t:ts) x = subst t (substs (raise 1 ts) x)
+    substs us (Body t)   = Body $ substs us t
+    substs us (Bind b)   = Bind $ substs us b
+    substs us (NoBind b) = NoBind $ substs us b
+    substs _   NoBody	 = NoBody
 
 -- | Instantiate an abstraction
 absApp :: Subst t => Abs t -> Term -> t
