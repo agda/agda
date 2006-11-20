@@ -13,6 +13,6 @@ Benchmark: computing 6! + 3^7 = 2907
     lazy-2   3.0     10	    lazy evaluation (STRefs)
     lazy-3   0.27   108	    apps e [] = return e
     lazy-4		    -- bad
-    lazy-5   0.08   350	    add closedness annotation
+    lazy-5   0.08   inf	    add closedness annotation
     lazy-6		    -- no improvement
 

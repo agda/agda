@@ -67,7 +67,7 @@ inc D8 = D9
 digit  Zero   = D0
 digit (Suc n) = inc (digit n)
 
--- main = decimal (add (fac n8) (pow n5 n6))
-main = decimal (add (fac n6) (pow n3 n7))
+main = decimal (add (fac n8) (pow n5 n6))
+-- main = decimal (add (fac n6) (pow n3 n7))
 -- main = decimal (fac n5)
 

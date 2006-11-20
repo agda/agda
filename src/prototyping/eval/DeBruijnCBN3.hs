@@ -33,7 +33,6 @@ subst us v = case v of
     Def c   -> Def c
     App s t -> App (subst us s) (subst us t)
     Lam t   -> Lam $ subst (Var 0 : map (raise 1) us) t
-					-- not so fast
 
 data Match a = No | DontKnow | Yes a
 
