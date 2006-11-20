@@ -1,0 +1,74 @@
+
+zero = \s z -> z
+suc  = \n s z -> s (n s z)
+
+n0 = zero
+n1 = suc n0
+n2 = suc n1
+n3 = suc n2
+n4 = suc n3
+n5 = suc n4
+n6 = suc n5
+
+n10 = mul n2 n5
+n20 = mul n10 n2
+
+fix = \f -> (\x -> f (x x)) (\x -> f (x x))
+
+fst (P x y) = x
+snd (P x y) = y
+
+pred n = snd (natrec (P n0 n0) (\p -> P (suc (fst p)) (fst p)) n)
+
+natrec = \z s n -> n s z
+
+add n m = natrec m suc n
+mul n m = natrec zero (add m) n
+sub n m = natrec n pred m
+
+div = fix (\d n m ->
+    if (less n m)
+       zero
+       (suc (d (sub n m) m))
+    )
+
+mod = fix (\d n m ->
+    if (less n m)
+       n
+       (d (sub n m) m)
+    )
+
+fac = fix (\f n ->
+    if (nonZero n)
+       (mul n (fac (pred n)))
+       n1
+    )
+
+if True  = \x y -> x
+if False = \x y -> y
+
+nonZero = \n -> n (\x -> True) False
+isZero = \n -> n (\x -> False) True
+
+less = \n m -> nonZero (sub m n)
+
+decimal = fix (\dec n ->
+    if (isZero n)
+       (\x -> x)
+       (dec (div n n10) (digit (mod n n10)))
+    )
+
+inc D0 = D1
+inc D1 = D2
+inc D2 = D3
+inc D3 = D4
+inc D4 = D5
+inc D5 = D6
+inc D6 = D7
+inc D7 = D8
+inc D8 = D9
+
+digit = natrec D0 inc
+
+main = decimal (fac n4)
+

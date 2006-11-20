@@ -1,0 +1,34 @@
+
+entrypoints Prog, Exp;
+
+layout toplevel ;
+
+token VarName lower (lower | upper | digit)* ;
+token ConName upper (lower | upper | digit)* ;
+
+Prog. Prog ::= [Decl] ;
+
+separator Decl ";" ;
+
+Def. Decl ::= VarName [Pat2] "=" Exp ;
+
+Lam.  Exp  ::= "\\" [VarName] "->" Exp ;
+App.  Exp1 ::= Exp1 Exp2 ;
+Var. Exp2  ::= VarName ;
+Con. Exp2  ::= ConName ;
+
+separator nonempty VarName "" ;
+coercions Exp 2;
+
+ConP. Pat   ::= ConName [Pat1] ;
+VarP. Pat2  ::= VarName ;
+conP. Pat2  ::= ConName ;
+WildP. Pat2 ::= "_" ;
+
+define conP c = ConP c [] ;
+separator nonempty Pat1 "";
+separator Pat2 "";
+coercions Pat 2;
+
+comment "--" ;
+
