@@ -1,0 +1,151 @@
+
+\[\begin{array}{lclr}
+    A	   & ::= & \SET \Or \EL M \Or \PI xAA		& \mathit{types} \\
+    M	   & ::= & x \Or c \Or f \Or M\,M \Or \LAM xM	& \mathit{terms} \\
+    \Gamma & ::= & () \Or \Gamma,x:A			& \mathit{contexts} \\
+    \Sigma & ::= & () \Or \Sigma,c:A \Or \Sigma,f:A=M	& \mathit{signatures} \\
+\end{array}\]
+
+ There are six kinds of judgement
+\[\begin{array}{ll}
+    \IsSigCS\Sigma & \mbox{$\Sigma$ is a valid signature} \\
+    \IsCtxCS\Sigma\Gamma & \mbox{$\Gamma$ is a valid context} \\
+    \IsTypeCS\Sigma\Gamma A & \mbox{$A$ is a valid type in $\Gamma$} \\
+    \HasTypeCS\Sigma\Gamma MA & \mbox{$M$ has type $A$ in $\Gamma$} \\
+    \EqualTypeCS\Sigma\Gamma AB & \mbox{$A$ and $B$ are convertible types in $\Gamma$}\\
+    \EqualCS\Sigma\Gamma MNA & \mbox{$M$ and $N$ are convertible terms of type $A$ in $\Gamma$} \\
+\end{array}\]
+
+ We will leave $\Sigma$ implicit whenever possible.
+% **PJ060630: an early example of what is \Sigma is inteded for and
+% how expressive/restricted it is would be very clarifying.
+% (Recursion? incosistent axioms? etc.)
+
+ The typing rules are as follows:
+
+\medskip
+
+ {\em rules for signatures}
+
+\[\begin{array}{ccccc}
+    \infer{\IsSigCS{()}}{}
+&&  \infer{\IsSigCS{\Sigma,c:A}}{
+      \IsSigCS\Sigma
+    & \IsTypeCS\Sigma{()}A
+    }
+&&  \infer{\IsSigCS{\Sigma,f:A=M}}{
+      \IsSigCS\Sigma
+    & \IsTypeCS\Sigma{()}A
+    & \HasTypeCS\Sigma{()}MA
+    }
+\end{array}\]
+
+ {\em rules for contexts}
+
+\[\begin{array}{ccc}
+    \infer{\IsCtxCS\Sigma{()}}{\IsSigCS\Sigma}
+&&  \infer{\IsCtxC{\Gamma,x:A}}{
+      \IsCtxC\Gamma
+    & \IsTypeC\Gamma A
+    }
+\end{array}\]
+
+ {\em rules for types}
+
+\[\begin{array}{ccccc}
+    \infer{\IsTypeC\Gamma\SET}{\IsCtxC\Gamma}
+&&  \infer{\IsTypeC\Gamma{\EL M}}{\HasTypeC\Gamma M\SET}
+&&  \infer{\IsTypeC\Gamma{\PI xAB}}{\IsTypeC{\Gamma,x:A}B}
+\end{array}\]
+
+ {\em rules for terms}
+
+\[\begin{array}{ccccc}
+    \infer{\HasTypeC\Gamma xA}{
+      \IsCtxC\Gamma
+    & x:A\in\Gamma
+    }
+&&  \infer{\HasTypeCS\Sigma\Gamma cA}{
+    & \IsCtxC\Gamma
+    & c:A\in\Sigma
+    }
+&&  \infer{\HasTypeCS\Sigma\Gamma fA}{
+      \IsCtxC\Gamma
+    & f:A=M\in\Sigma
+    }
+\\{}\\
+\multicolumn5c{\begin{array}{ccc}
+    \infer{\HasTypeC\Gamma{\LAM xM}{\PI xAB}}{
+      \HasTypeC{\Gamma,x:A}MB
+    }
+&&  \infer{\HasTypeC\Gamma{M\,N}{\Subst BxN}}{
+      \HasTypeC\Gamma M{\PI xAB}
+    & \HasTypeC\Gamma NA
+    }
+\end{array}}
+\\{}\\
+&&
+    \infer{\HasTypeC\Gamma MB}{
+      \HasTypeC\Gamma MA
+    & \EqualTypeC\Gamma AB
+    }
+\end{array}\]
+
+  {\em general converion rules}
+
+\[\begin{array}{c}
+\begin{array}{ccccc}
+    \infer{\EqualTypeC\Gamma AA}{\IsTypeC\Gamma A}
+&&  \infer{\EqualTypeC\Gamma BA}{\EqualTypeC\Gamma AB}
+&&  \infer{\EqualTypeC\Gamma AC}{\EqualTypeC\Gamma AB & \EqualTypeC\Gamma BC}
+\end{array} \\{}\\
+\begin{array}{ccccc}
+    \infer{\EqualC\Gamma MMA}{\HasTypeC\Gamma MA}
+&&  \infer{\EqualC\Gamma NMA}{\EqualC\Gamma MNA}
+&&  \infer{\EqualC\Gamma MPA}{\EqualC\Gamma MNA & \EqualC\Gamma NPA}
+\end{array} \\{}\\
+\begin{array}{ccc}
+    \infer{\EqualC\Gamma MNB}{\EqualC\Gamma MNA & \EqualTypeC\Gamma AB}
+&&  \infer{\EqualTypeC\Gamma{\Subst BxM}{\Subst BxN}}{
+      \IsTypeC{\Gamma,x:A}B
+    & \EqualC\Gamma MNA
+    }
+\end{array}
+\end{array}\]
+
+  {\em conversion rules for type theory}
+
+\[\begin{array}{c}
+\begin{array}{ccccc}
+    \infer{\EqualTypeC\Gamma\SET\SET}{}
+&&  \infer{\EqualTypeC\Gamma{\EL M}{\EL N}}{\EqualC\Gamma MN\SET}
+&&  \infer{\EqualTypeC\Gamma{\PI x{A_1}{B_1}}{\PI x{A_2}{B_2}}}{
+      \EqualTypeC\Gamma{A_1}{A_2}
+    & \EqualTypeC{\Gamma,x:A_2}{B_1}{B_2}
+    }
+\end{array}
+\\{}\\
+    \infer{\EqualC\Gamma{\LAM xM}{\LAM xN}{\PI xAB}}{\EqualC{\Gamma,x:A}MNB}
+\\{}\\
+    \infer{\EqualC\Gamma{M_1\,N_1}{M_2\,N_2}{\Subst Bx{N_1}}}{
+      \IsTypeC{\Gamma,x:A}B
+    & \EqualC\Gamma{M_1}{M_2}{\PI xAB}
+    & \EqualC\Gamma{N_1}{N_2}A
+    }
+\\{}\\
+\begin{array}{ccc}
+    \infer{\EqualC\Gamma{(\LAM xM)\,N}{\Subst MxN}{\Subst BxN}}{
+      \HasTypeC{\Gamma,x:A}MB
+    & \HasTypeC\Gamma MA
+    }
+&&  \infer{\EqualC\Gamma M{\LAM xM\,x}{\PI xAB}}{
+      \IsTypeC\Gamma A
+    & \HasTypeC\Gamma M{\PI xAB}
+    }
+\end{array}
+\\{}\\
+    \infer{\EqualCS\Sigma\Gamma fMA}{f:A=M \in \Sigma}
+\end{array}\]
+
+ In this presentation of rules, we consider $\lambda$ terms up to  $\alpha$-conversion.
+

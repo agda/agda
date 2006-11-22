@@ -1,0 +1,322 @@
+
+The basic idea is to introduce new constants for potentially ill-typed terms.  
+The values of these constants will be guarded by a set of constraints and can
+only be inspected if the set is empty.
+
+Now we present the rules for type checking with meta variables. First we extend
+the syntax:
+
+\[\begin{array}{lcll}
+    M & ::= & \ldots \Or \alpha \Or p \\
+    C & ::= & \EqualTypeCS \Sigma \Gamma A B \Or
+	      \EqualCS \Sigma \Gamma M N A \\
+    \Phi & ::= & \bullet \Or
+		 \Ext \Phi \MetaDecl \alpha A \Or
+		 \Ext \Phi \IMetaDecl \alpha A M \\
+    \Xi  & ::= & \bullet \Or \Ext \Xi \ConstDecl p A M \Cs \\
+\end{array}\]
+
+We will use lowercase greek letters $\alpha, \beta, \ldots$ for meta variables
+and $p, q, \ldots$ for guarded constants.
+
+\subsection{Monadic Rules}
+
+All rules work on a set of meta variables $\Phi$ and a set of guarded constants
+$\Xi$ and have access to a signature of previously defined constants $\Sigma$.
+%
+In other words we can write all judgements on the form
+\[\ExplicitJudgement \Sigma \Phi \Xi J {\Phi'} {\Xi'}\]
+%
+To make the rules easier to read we use a monadic
+presentation~\cite{monadicRules} and simply write $J$ for the judgement above.
+%
+To manipulate the meta variables and guarded
+constants we introduce some extra judgements with the following rules:
+
+% Adding metas
+\Rules{Add meta variable}{
+
+\infer{
+    \ExplicitJudgement
+	\Sigma \Phi \Xi
+	{\AddMeta \alpha A}
+	{\Ext \Phi \MetaDecl \alpha A}
+	\Xi
+}{ \alpha \notin \Phi }
+}
+
+% Instantiating metas
+\Rules{Instantiate meta variable}{
+
+\infer{
+    \ExplicitJudgement
+	\Sigma \Phi \Xi
+	{\InstMeta \alpha M}
+	{\Ext {\Phi_1} \Ext {\IMetaDecl \alpha A M} \Phi_2}
+	\Xi
+}{ \Phi = \Ext {\Phi_1} \Ext {\MetaDecl \alpha A} \Phi_2
+}
+}
+
+% Add constant
+\Rules{Add guarded constant}{
+
+    \infer{
+	\ExplicitJudgement
+	    \Sigma \Phi \Xi
+	    {\AddConst p A M \Cs}
+	    \Phi
+	    {\Ext \Xi \ConstDecl p A M \Cs}
+    }{ p \notin \Xi }
+}
+
+% Update guard
+\Rules{Update the guard of a constant}{
+
+    \infer{
+	\ExplicitJudgement
+	    \Sigma \Phi \Xi
+	    {\UpdateGuard p \Cs}
+	    \Phi {\Ext {\Xi_1} \Ext {\ConstDecl p A M \Cs} \Xi_2}
+    }{
+	\Xi = \Ext {\Xi_1} \Ext {\ConstDecl p A M \Cs^\prime} \Xi_2
+    }
+
+}
+
+% Lookup the type of a normal constant
+\Rules{Lookup the type of a normal constant}{
+
+    \infer{
+	\ExplicitJudgement
+	    \Sigma \Phi \Xi
+	    {\LookupType c A}
+	    \Phi \Xi
+    }{
+	c : A \in \Sigma
+    }
+
+}
+
+% Check that a term is well-scoped
+\TODO{sloppy?}
+\Rules{Check that a term is well-scoped relative to a meta variable}{
+    \infer{
+	\ExplicitJudgement
+	    \Sigma \Phi \Xi
+	    {\InScope \alpha M}
+	    \Phi \Xi
+    }{\begin{array}{ll}
+	\MetaDeclS {\Sigma'} \alpha A \in \Phi
+    &	\forall c \in M.~c \in \Sigma'
+    \end{array}
+    }
+}
+
+% Change the signature
+\Rules{Check a judgement in a different signature}{
+
+    \infer{
+	\ExplicitJudgement
+	    \Sigma \Phi \Xi
+	    {\WithSig {\Sigma'} J}
+	    {\Phi'} {\Xi'}
+    }{
+	\ExplicitJudgement
+	    {\Sigma'} \Phi \Xi
+	    J
+	    {\Phi'} {\Xi'}
+    }
+
+}
+
+% Constraint solving
+\Rules{Simplify guards}{
+
+    \infer{
+	\ExplicitJudgement
+	    \Sigma \Phi \bullet
+	    \SolveConstraints
+	    \Phi \bullet
+    }{
+    }
+
+\\{}\\
+
+    \infer{
+	\ExplicitJudgement
+	    \Sigma \Phi \Xi
+	    \SolveConstraints
+	    {\Phi'} {\Xi'}
+    }{\begin{array}{l}
+	\mathit{for~each}~\ConstDeclS {\Sigma_i} {p_i} {A_i} {M_i} {\Cs_i} \in \Xi \\
+	\quad\WithSig {\Sigma_i} \Cs_i \leadsto {\Cs^\prime_i} \\
+	\quad\UpdateGuard {p_i} {\Cs^\prime_i}
+    \end{array}
+    }
+
+}
+
+\subsection{The actual rules}
+
+We have the following main judgement forms.
+
+\[\begin{array}{ll}
+    \CheckType e A M & \mbox{type checking} \\
+    \InferType e A M & \mbox{type inference} \\
+    \EqualType A B \Cs & \mbox{type convertibility} \\
+    \Equal M N A \Cs & \mbox{term convertibility} \\
+\end{array}\]
+
+We also need some helper judgement forms.
+
+\[\begin{array}{ll}
+    \EqualWhnf M N A \Cs & \mbox{convertibility of weak head normal forms} \\
+    \Equal {\bar M} {\bar N} \Delta \Cs & \mbox{convertibility of sequences of terms} \\
+\end{array}\]
+
+Now the rules are
+
+\TODO{explain notation $p\,\Gamma$ and $\LAM \Gamma M$ (not here)}
+
+\Rules{Conversion rule}{
+
+% Conversion rule
+
+\infer{
+    \CheckType e A {p\,\Gamma}
+}{\begin{array}{l}
+    \InferType e B M
+\\  \EqualType A B \Cs
+\\  \AddConst p {\Gamma \to A} {\LAM \Gamma M} \Cs
+\end{array}}
+
+}
+
+\Rules{Type conversion}{
+
+% (x : A) -> B = (x : A') -> B'
+
+\infer{
+    \EqualType {\PI x {A_1} {B_1}} {\PI x {A_2} {B_2}} \Cs
+}{\begin{array}{l}
+    \EqualType {A_1} {A_2} \Cs
+\\  \AddConst p {\Gamma \to A_1 \to A_2} {\LAM {\Gamma\,x} x} \Cs
+\\  \EqualTypeCtx {\Ext \Gamma x : A_1} {B_1} {\SubstD {B_2} {p ~ \Gamma \, x}} \Cs
+\end{array}}
+
+\qquad
+
+% El M = El N
+
+\infer{
+    \EqualType {\EL M} {\EL N} \Cs
+}{\begin{array}{l}
+    \Equal M N \SET \Cs
+\end{array}}
+
+}
+
+\Rules{Term conversion}{
+
+% Eta
+
+\infer{
+    \Equal M N {\PI x A B} \Cs
+}{
+    \EqualCtx {\Ext \Gamma x : A} {M~x} {N~x} B \Cs
+}
+
+\qquad
+
+% Weak head normalisation
+
+\infer{
+    \Equal M N A \Cs
+}{\begin{array}[b]{l}
+    \whnf M {M'}
+\\  \whnf N {N'}
+\\  \EqualWhnf {M'} {N'} A \Cs
+\end{array}
+}
+
+}
+
+\TODO{reflexivity for metas and guarded constants?}
+\Rules{Weak head conversion}{
+
+% Variable head
+
+\infer{
+    \EqualWhnf {x ~ \bar M} {x ~ \bar N} A \Cs
+}{\begin{array}{l}
+    x : \Delta \to B \in \Gamma
+\\  \Equal {\bar M} {\bar N} \Delta \Cs
+\end{array}
+}
+
+\qquad
+
+% Constant head
+
+\infer{
+    \EqualWhnf {h ~ \bar M} {h ~ \bar N} A \Cs
+}{\begin{array}{l}
+    \LookupType h {\Delta \to B}
+\\  \Equal {\bar M} {\bar N} \Delta \Cs
+\end{array}
+}
+
+\\{}\\
+
+% Instantiation
+
+\infer{
+    \EqualWhnf {\alpha ~ \bar x} M A \emptyset
+}{
+\begin{array}[b]{l}
+    \bar x~\mathit{distinct}
+\\  \FV M \subseteq \bar x
+\\  \alpha \notin M
+\\  \InScope \alpha M
+\end{array}
+& \InstMeta \alpha {\LAM {\bar x} M}
+}
+
+\qquad
+
+\begin{array}{l}
+\mathit{[symmetric~rule]}\\
+{}\\
+\end{array}
+
+}
+
+\Rules{Term sequence conversion}{
+
+% No constraints
+
+\infer{
+    \Equal {M, \, \bar M} {N, \, \bar N} {(x : A) \Delta} \Cs
+}{\begin{array}{l}
+    \Equal M N A \emptyset
+\\  \Equal {\bar M} {\bar N} {\SubstD \Delta M} \Cs
+\end{array}}
+
+\qquad
+
+% Some constraints
+
+\infer{
+    \begin{array}{l}
+        \Equal {M, \, \bar M} {N, \, \bar N} {(x : A) \Delta} {~~} \\
+	\hfill \left\{ \EqualC \Gamma {M, \, \bar M} {N, \, \bar N} {(x : A) \Delta} \right\}
+    \end{array}
+}{\begin{array}{l}
+    \Equal M N A \Cs \neq \emptyset
+\end{array}}
+
+}
+
+\TODO{When do we solve constraints?}
+
