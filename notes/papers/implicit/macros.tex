@@ -1,12 +1,24 @@
 
+\newlength\TODOWidth
+
 % Administrative
-\newcommand\TODO[1]{\par{
-    \setbox0=\vbox{{\small \parbox{35mm}{#1}}} %{\parbox{3.5cm}{{\small #1}}}
-    \hskip-45mm\copy0
-    \vskip-\ht0
-    \vskip-2mm
-}\par
+\newcommand\TODO[1]{
+\par
+\vspace{1mm}
+\fbox{
+\setlength\TODOWidth{\textwidth}
+\addtolength\TODOWidth{-50pt}
+\begin{tabular}{p{\TODOWidth}}
+    TODO: #1
+\end{tabular}}
 }
+% \newcommand\TODO[1]{\par{
+%     \setbox0=\vbox{{\small \parbox{35mm}{#1}}} %{\parbox{3.5cm}{{\small #1}}}
+%     \hskip-50mm\copy0
+%     \vskip-\ht0
+%     \vskip-2mm
+% }\par
+% }
 
 % Misc
 \newcommand\Or{~~|~~}
@@ -20,7 +32,6 @@
 \newcommand\inscope{\mathsf{InScope}}
 \newcommand\PI[2]{(#1:#2)\to{}}
 \newcommand\LAM[1]{\lambda #1.{}}
-\newcommand\Meta[1]{{?_{#1}}}
 
 \newcommand\Subst[3]{ {#1} [ {#3} / {#2} ] }
 \newcommand\SubstD[2]{{#1} [ {#2} ] }
@@ -50,28 +61,32 @@
 
 \newcommand\Ext[1]{{#1},\,{}}
 
-\newcommand\ExplicitJudgement[6]{
-    \langle {#1} \mathrel ; {#2} \mathrel ; {#3} \rangle
-    ~{#4} \longrightarrow \langle {#5} \mathrel ; {#6} \rangle
+\newcommand\ExplicitJudgement[3]{
+    \langle {#1} \rangle
+    ~{#2} \longrightarrow \langle {#3} \rangle
 }
 
-\newcommand\MetaDeclS[3]{{#1} \vdash {#2} : {#3}}
-\newcommand\MetaDecl[2]{\MetaDeclS \Sigma {#1} {#2}}
+\newcommand\MetaDecl[2]{{#1} : {#2}}
 
-\newcommand\IMetaDeclS[4]{{#1} \vdash {#2} : {#3} = {#4}}
-\newcommand\IMetaDecl[3]{\IMetaDeclS \Sigma {#1} {#2} {#3}}
+\newcommand\IMetaDecl[3]{{#1} : {#2} = {#3}}
 
-\newcommand\ConstDeclS[5]{{#1} \vdash {#2} : {#3} = {#4} ~\mathbf{when}~ {#5}}
-\newcommand\ConstDecl[4]{\ConstDeclS \Sigma {#1} {#2} {#3} {#4}}
+\newcommand\ConstDecl[4]{{#1} : {#2} = {#3} ~\mathbf{when}~ {#4}}
 
 \newcommand\AddMeta[2]{\mathsf{AddMeta}({#1} : {#2})}
-\newcommand\AddConst[4]{\mathsf{AddConst}({#1} : {#2} = {#3},\,{#4})}
+\newcommand\AddConst[4]{\mathsf{AddConst}({#1} : {#2} = {#3}~\mathbf{when}~{#4})}
 \newcommand\InstMeta[2]{{#1} := {#2}}
+\newcommand\LookupMeta[2]{\mathsf{LookupMeta}({#1} = {#2})}
+\newcommand\LookupConst[2]{\mathsf{LookupConst}({#1} = {#2})}
 \newcommand\LookupType[2]{\mathsf{Lookup}({#1} : {#2})}
 \newcommand\InScope[2]{\mathsf{InScope}_{#1}({#2})}
 \newcommand\SolveConstraints{\mathsf{SolveConstraints}}
 \newcommand\WithSig[1]{\langle {#1} \rangle \,}
 \newcommand\UpdateGuard[2]{\mathsf{UpdateGuard}( {#1},\, {#2} )}
+\newcommand\LookupClause[3]{\mathsf{Lookup}({#1}~{#2} = {#3})}
+\newcommand\Match[3]{\mathsf{Match}({#1}\,{#2} = {#3})}
+\newcommand\Guarded[1]{\mathsf{Guarded}({#1})}
+\newcommand\Uninstantiated[1]{\mathsf{Uninstantiated}({#1})}
+\newcommand\Blocked[1]{\mathsf{Blocked}({#1})}
 
 \newcommand\CheckTypeCtx[4]{{#1} \vdash {#2} \uparrow {#3} \leadsto {#4}}
 \newcommand\InferTypeCtx[4]{{#1} \vdash {#2} \downarrow {#3} \leadsto {#4}}
@@ -88,6 +103,10 @@
 \newcommand\whnf[2]{{#1} \to_{\mathit{whnf}} {#2}}
 
 \newcommand\FV[1]{\mathsf{FV}({#1})}
+\newcommand\AppSub[2]{{#2}{#1}}
+
+\newcommand\CombinedSig[3]{\mathsf{Combine}({#1},{#2},{#3})}
+\newcommand\CoreSig[1]{\left|{#1}\right|}
 
 \newcommand\Rules[2]{
 \par~\par

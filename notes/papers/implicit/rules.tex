@@ -21,41 +21,63 @@ and $p, q, \ldots$ for guarded constants.
 
 \subsection{Monadic Rules}
 
-All rules work on a set of meta variables $\Phi$ and a set of guarded constants
-$\Xi$ and have access to a signature of previously defined constants $\Sigma$.
+All rules work on a signature $\Sigma$, containing previously defined
+constants, meta variables, and guarded constants.
 %
 In other words we can write all judgements on the form
-\[\ExplicitJudgement \Sigma \Phi \Xi J {\Phi'} {\Xi'}\]
+\[\ExplicitJudgement \Sigma J {\Sigma'}\]
 %
 To make the rules easier to read we use a monadic
 presentation~\cite{monadicRules} and simply write $J$ for the judgement above.
 %
-To manipulate the meta variables and guarded
-constants we introduce some extra judgements with the following rules:
+To manipulate the meta variables and guarded constants we introduce some extra
+judgements with the following rules:
 
 % Adding metas
 \Rules{Add meta variable}{
 
 \infer{
     \ExplicitJudgement
-	\Sigma \Phi \Xi
+	\Sigma
 	{\AddMeta \alpha A}
-	{\Ext \Phi \MetaDecl \alpha A}
-	\Xi
-}{ \alpha \notin \Phi }
+	{\Ext \Sigma \MetaDecl \alpha A}
+}{ \alpha \notin \Sigma }
 }
 
 % Instantiating metas
 \Rules{Instantiate meta variable}{
 
-\infer{
-    \ExplicitJudgement
-	\Sigma \Phi \Xi
-	{\InstMeta \alpha M}
-	{\Ext {\Phi_1} \Ext {\IMetaDecl \alpha A M} \Phi_2}
-	\Xi
-}{ \Phi = \Ext {\Phi_1} \Ext {\MetaDecl \alpha A} \Phi_2
+    \infer{
+	\ExplicitJudgement
+	    \Sigma
+	    {\InstMeta \alpha M}
+	    {\Ext {\Sigma_1} \Ext {\IMetaDecl \alpha A M} \Sigma_2}
+    }{ \Sigma ~=~ \Ext {\Sigma_1} \Ext {\MetaDecl \alpha A} \Sigma_2
+    }
 }
+
+% Lookup metas
+\Rules{Lookup meta variable}{
+    \infer{
+	\ExplicitJudgement
+	    \Sigma
+	    {\LookupMeta \alpha M}
+	    \Sigma
+    }{
+	\IMetaDecl \alpha A M ~\in~ \Sigma
+    }
+
+\\{}\\
+
+    \infer{
+	\ExplicitJudgement
+	    \Sigma
+	    {\Uninstantiated \alpha}
+	    \Sigma
+    }{
+	\MetaDecl \alpha A ~\in~ \Sigma
+    }
+
 }
 
 % Add constant
@@ -63,11 +85,10 @@ constants we introduce some extra judgements with the following rules:
 
     \infer{
 	\ExplicitJudgement
-	    \Sigma \Phi \Xi
+	    \Sigma
 	    {\AddConst p A M \Cs}
-	    \Phi
-	    {\Ext \Xi \ConstDecl p A M \Cs}
-    }{ p \notin \Xi }
+	    {\Ext \Sigma \ConstDecl p A M \Cs}
+    }{ p \notin \Sigma }
 }
 
 % Update guard
@@ -75,87 +96,125 @@ constants we introduce some extra judgements with the following rules:
 
     \infer{
 	\ExplicitJudgement
-	    \Sigma \Phi \Xi
+	    \Sigma
 	    {\UpdateGuard p \Cs}
-	    \Phi {\Ext {\Xi_1} \Ext {\ConstDecl p A M \Cs} \Xi_2}
+	    {\Ext {\Sigma_1} \Ext {\ConstDecl p A M \Cs} \Sigma_2}
     }{
-	\Xi = \Ext {\Xi_1} \Ext {\ConstDecl p A M \Cs^\prime} \Xi_2
+	\Sigma ~=~ \Ext {\Sigma_1} \Ext {\ConstDecl p A M \Cs^\prime} \Sigma_2
     }
 
 }
 
-% Lookup the type of a normal constant
-\Rules{Lookup the type of a normal constant}{
-
+% Lookup guarded constant
+\Rules{Lookup the definition of a guarded constant}{
     \infer{
 	\ExplicitJudgement
-	    \Sigma \Phi \Xi
-	    {\LookupType c A}
-	    \Phi \Xi
+	    \Sigma
+	    {\LookupConst p M}
+	    \Sigma
     }{
-	c : A \in \Sigma
-    }
-
-}
-
-% Check that a term is well-scoped
-\TODO{sloppy?}
-\Rules{Check that a term is well-scoped relative to a meta variable}{
-    \infer{
-	\ExplicitJudgement
-	    \Sigma \Phi \Xi
-	    {\InScope \alpha M}
-	    \Phi \Xi
-    }{\begin{array}{ll}
-	\MetaDeclS {\Sigma'} \alpha A \in \Phi
-    &	\forall c \in M.~c \in \Sigma'
-    \end{array}
-    }
-}
-
-% Change the signature
-\Rules{Check a judgement in a different signature}{
-
-    \infer{
-	\ExplicitJudgement
-	    \Sigma \Phi \Xi
-	    {\WithSig {\Sigma'} J}
-	    {\Phi'} {\Xi'}
-    }{
-	\ExplicitJudgement
-	    {\Sigma'} \Phi \Xi
-	    J
-	    {\Phi'} {\Xi'}
-    }
-
-}
-
-% Constraint solving
-\Rules{Simplify guards}{
-
-    \infer{
-	\ExplicitJudgement
-	    \Sigma \Phi \bullet
-	    \SolveConstraints
-	    \Phi \bullet
-    }{
+	\ConstDecl p A M \emptyset ~\in~ \Sigma
     }
 
 \\{}\\
 
     \infer{
 	\ExplicitJudgement
-	    \Sigma \Phi \Xi
+	    \Sigma
+	    {\Guarded p}
+	    \Sigma
+    }{
+	\ConstDecl p A M \Cs ~\in~ \Sigma
+    &	\Cs \neq \emptyset
+    }
+}
+
+% Lookup the type of a normal constant
+\Rules{Lookup the type of a constant}{
+
+    \infer{
+	\ExplicitJudgement
+	    \Sigma
+	    {\LookupType c A}
+	    \Sigma
+    }{
+	c : A \in \Sigma
+    }
+
+}
+
+% % Definition of normal constant
+% \Rules{Lookup the definition of a normal constant}{
+% 
+%     \infer{
+% 	\ExplicitJudgement
+% 	    \Sigma \Phi \Xi
+% 	    {\LookupClause f {\vec p} M}
+% 	    \Phi \Xi
+%     }{
+% 	f~\vec p = M ~\in~ \Sigma
+%     }
+% }
+
+% Check that a term is well-scoped
+\Rules{Check that a term is well-scoped relative to a meta variable}{
+    \infer{
+	\ExplicitJudgement
+	    \Sigma
+	    {\InScope \alpha M}
+	    \Phi \Xi
+    }{\begin{array}{ll}
+	\Sigma ~=~ \Ext {\Sigma_1} \Ext {\MetaDecl \alpha A} \Sigma_2
+    &	\forall c \in M.~c \in \Sigma_1
+    \end{array}
+    }
+}
+\TODO{sloppy}
+
+% Change the signature
+\Rules{Check a judgement in a different signature}{
+
+    \infer{
+	\ExplicitJudgement
+	    \Sigma
+	    {\WithSig {\Sigma'} J}
+	    {\Sigma''}
+    }{
+	\ExplicitJudgement
+	    {\Sigma'}
+	    J
+	    {\Sigma''}
+    }
+
+}
+
+% Constraint solving
+\Rules{Simplify guards}{
+    \infer{
+	\ExplicitJudgement
+	    \Sigma
 	    \SolveConstraints
-	    {\Phi'} {\Xi'}
+	    {\Sigma'}
     }{\begin{array}{l}
-	\mathit{for~each}~\ConstDeclS {\Sigma_i} {p_i} {A_i} {M_i} {\Cs_i} \in \Xi \\
+	\mathit{for~each} ~ p_i ~ \mathit{such~that}~
+	    \Sigma ~ = ~ \Ext {\Sigma_i} \Ext {\ConstDecl {p_i} {A_i} {M_i} {\Cs_i}} {\Sigma^\prime_i} \\
 	\quad\WithSig {\Sigma_i} \Cs_i \leadsto {\Cs^\prime_i} \\
 	\quad\UpdateGuard {p_i} {\Cs^\prime_i}
     \end{array}
     }
-
 }
+
+% Blocked terms
+\Rules{Check if evaluation of a term is blocked by a meta variable}{
+    \infer{
+	\Blocked {f \, \bar M}
+    }{\begin{array}{l}
+	f ~ \mathit{pattern ~ matches ~ on ~ its ~ ith ~ argument}
+    \\	M_i = \alpha \, \bar N ~~ or ~~ \Blocked {M_i}
+    \end{array}}
+}
+
+\TODO{Where does $\Sigma'$ come from? How do we know when to stop?}
 
 \subsection{The actual rules}
 
@@ -184,16 +243,25 @@ Now the rules are
 % Conversion rule
 
 \infer{
+    \CheckType a A M
+}{\begin{array}{l}
+    \InferType e B M
+\\  \EqualType A B \emptyset
+\end{array}}
+
+\qquad
+
+\infer{
     \CheckType e A {p\,\Gamma}
 }{\begin{array}{l}
     \InferType e B M
-\\  \EqualType A B \Cs
+\\  \EqualType A B \Cs \neq \emptyset
 \\  \AddConst p {\Gamma \to A} {\LAM \Gamma M} \Cs
 \end{array}}
 
 }
 
-\Rules{Type conversion}{
+\Rules{Type convertibility}{
 
 % (x : A) -> B = (x : A') -> B'
 
@@ -205,7 +273,7 @@ Now the rules are
 \\  \EqualTypeCtx {\Ext \Gamma x : A_1} {B_1} {\SubstD {B_2} {p ~ \Gamma \, x}} \Cs
 \end{array}}
 
-\qquad
+\\{}\\
 
 % El M = El N
 
@@ -217,7 +285,7 @@ Now the rules are
 
 }
 
-\Rules{Term conversion}{
+\Rules{Term convertibility}{
 
 % Eta
 
@@ -227,7 +295,7 @@ Now the rules are
     \EqualCtx {\Ext \Gamma x : A} {M~x} {N~x} B \Cs
 }
 
-\qquad
+\\{}\\
 
 % Weak head normalisation
 
@@ -236,14 +304,26 @@ Now the rules are
 }{\begin{array}[b]{l}
     \whnf M {M'}
 \\  \whnf N {N'}
+\\  \mathit{not} ~ \Blocked {M'}
+\\  \mathit{not} ~ \Blocked {N'}
 \\  \EqualWhnf {M'} {N'} A \Cs
+\end{array}
+}
+
+\qquad
+
+\infer{
+    \Equal M N A {\left\{ \EqualC \Gamma M N A \right\}}
+}{\begin{array}[b]{l}
+    \whnf M {M'}
+\\  \whnf N {N'}
+\\  \Blocked {M'} ~ \mathit{or} ~ \Blocked {N'}
 \end{array}
 }
 
 }
 
-\TODO{reflexivity for metas and guarded constants?}
-\Rules{Weak head conversion}{
+\Rules{Weak head convertibility}{
 
 % Variable head
 
@@ -260,7 +340,7 @@ Now the rules are
 % Constant head
 
 \infer{
-    \EqualWhnf {h ~ \bar M} {h ~ \bar N} A \Cs
+    \EqualWhnf {c ~ \bar M} {c ~ \bar N} A \Cs
 }{\begin{array}{l}
     \LookupType h {\Delta \to B}
 \\  \Equal {\bar M} {\bar N} \Delta \Cs
@@ -290,9 +370,15 @@ Now the rules are
 {}\\
 \end{array}
 
+\\{}\\
+
+\infer{
+    \EqualWhnf {p ~ \bar M} N A {\left\{\EqualC \Gamma {p ~ \bar M} N A\right\}}
+}{}
+
 }
 
-\Rules{Term sequence conversion}{
+\Rules{Term sequence convertibility}{
 
 % No constraints
 
@@ -303,7 +389,7 @@ Now the rules are
 \\  \Equal {\bar M} {\bar N} {\SubstD \Delta M} \Cs
 \end{array}}
 
-\qquad
+\\{}\\
 
 % Some constraints
 
@@ -318,5 +404,96 @@ Now the rules are
 
 }
 
-\TODO{When do we solve constraints?}
+\TODO{When do we solve constraints: at the end.}
+
+% \Rules{Weak head normalisatiton}{
+% 
+% \infer{
+%     \whnf {f \, \vec N} {M'}
+% }{\begin{array}{l}
+%     \whnf {\vec N} {\AppSub \gamma {\vec p}}
+% \\  \LookupClause f {\vec p} M
+% \\  \whnf {\AppSub \gamma M} {M'}
+% \end{array}}
+% 
+% \qquad
+% 
+% \infer{
+%     \whnf {\alpha} {M'}
+% }{\begin{array}{l}
+%     \LookupMeta \alpha M
+% \\  \whnf M {M'}
+% \end{array}}
+% 
+% \qquad
+% 
+% \infer{
+%     \whnf {p} {M'}
+% }{\begin{array}{l}
+%     \LookupConst p M
+% \\  \whnf M {M'}
+% \end{array}}
+% 
+% \\{}\\
+% 
+% \infer{
+%     \whnf {(\LAM x M)\,N} {M'}
+% }{
+%     \whnf {\Subst M x N} {M'}
+% }
+% 
+% \qquad
+% 
+% \infer{
+%     \whnf {M\,N} {M'\,N}
+% }{
+%     \whnf M {M'}
+% }
+% 
+% \\{}\\
+% 
+% \infer{ \whnf x x }{}
+% 
+% \qquad
+% 
+% \infer{ \whnf c c }{}
+% 
+% \qquad
+% 
+% \infer{ \whnf \alpha \alpha }{
+%     \Uninstantiated \alpha
+% }
+% 
+% \qquad
+% 
+% \infer{ \whnf p p }{
+%     \Guarded p
+% }
+% 
+% }
+
+\begin{definition}
+    Given a signature $\Sigma$ containing meta variables and guarded constants
+    we can recover a signature in the underlying logic $\CoreSig \Sigma$ by
+    replacing guarded constants with normal constants, retaining the definition
+    if the guard is empty and removing it otherwise.
+\end{definition}
+
+\subsubsection{Weak head normalisation}
+
+We use the weak head normalisation from the underlying logic:
+\[
+    \infer{
+	\ExplicitJudgement \Sigma {\whnf M N} \Sigma
+    }{
+	\CoreSig \Sigma \vdash \whnf M N
+    }
+\]
+
+\TODO{
+How to distinguish blocked terms from other terms ($f\,\alpha$ vs $f\,x$)?
+
+Needs to be done separately from normalisation. Everything should weak head
+normalise.
+}
 
