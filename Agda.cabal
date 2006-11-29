@@ -1,16 +1,14 @@
+name:		Agda
+version:	2.0.0
+license:	BSD3
+author:		Ulf Norell, Catarina Coquand, Makoto Takeyama, ...
+homepage:
+category:	    Theorem Proving
+build-depends:	    base, mtl, QuickCheck, readline
+synopsis:	    An dependently typed proof checker / programming language.
+extensions:	    CPP, OverlappingInstances
+exposed-modules:    Main, GhciTop
 
-Name:		Agda
-Version:	2.0.0
-License:	BSD3
-Author:		Ulf Norell, Catarina Coquand, Makoto Takeyama, ...
-Homepage:
-Category:	Theorem Proving
-Build-Depends:	base, mtl, QuickCheck, readline
-Synopsis:	An dependently typed proof checker / programming language.
-Extensions:	CPP, OverlappingInstances
-ExposedModules:	Main, GhciTop
-
-Executable:	out/full/agda
-Main-Is:	Main.hs
-Hs_source-Dirs: src/full
-
+executable:	agda
+main-is:	Main.hs
+hs-source-dirs: src/full
