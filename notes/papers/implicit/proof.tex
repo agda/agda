@@ -3,6 +3,69 @@ Our goal is to prove that we only compute with well-typed terms, in the sense
 of the underlying logic. This would guarantees the existence of normal forms,
 and hence, ensure decidability of type checking.
 
-\begin{theorem}[Foo]
-    Bar
+\begin{lemma}[Well-formed signatures]
+    All the rules preserve well-formed signatures. More precisely, for $J$
+    ranging over the type checking and convertibility checking judgements we
+    have
+    \[{\ExplicitJudgement \Sigma J {\Sigma'}} \, \mathrel{\wedge} \,
+	{\IsSigCS \Sigma}  ~ \implies ~ \IsSigCS {\Sigma'}
+    \]
+\end{lemma}
+\begin{proof}
+    By induction on the derivation of $\ExplicitJudgement \Sigma J {\Sigma'}$.
+\end{proof}
+
+\begin{lemma}[Signature extension] \label{lemExtendSig}
+    If $\ExplicitJudgement \Sigma J {\Sigma'}$ then $\Sigma'$ is an {\em
+    extension} of $\Sigma$, in the sense that
+    \[\begin{array}{lcl}
+	\IsTypeCS \Sigma \Gamma A & \implies & \IsTypeCS {\Sigma'} \Gamma A \\
+	\HasTypeCS \Sigma \Gamma M A & \implies & \HasTypeCS {\Sigma'} \Gamma M A
+    \end{array}\]
+\end{lemma}
+
+\begin{theorem}[Soundness of convertibility checking]
+    \[\begin{array}{l}
+	{\ExplicitJudgement \Sigma {\Equal M N A \Cs} {\Sigma'}} \\
+	\begin{array}{cl}
+	\wedge & \HasTypeCS \Sigma \Gamma M A \\
+	\wedge & \HasTypeCS \Sigma \Gamma N A \\
+	\implies & (\Cs = \emptyset \wedge \EqualCS {\Sigma'} \Gamma M N A) \vee ?
+	\end{array}
+    \end{array}\]
 \end{theorem}
+
+\begin{theorem}[Type-safety] \label{thmTypeSafety}
+    \[\begin{array}{lcl}
+	{\ExplicitJudgement \Sigma {\CheckType e A M} {\Sigma'}}
+	\, \wedge \, {\IsTypeCS \Sigma \Gamma A}
+	& \implies & \HasTypeCS {\Sigma'} \Gamma M A \\
+	{\ExplicitJudgement \Sigma {\InferType e A M} {\Sigma'}}
+	& \implies & \HasTypeCS {\Sigma'} \Gamma M A
+    \end{array}\]
+\end{theorem}
+
+\begin{theorem}[Soundness]
+    If all meta variables are solved and all guards are empty, then we are fine. More precisely, if
+    \begin{itemize}
+	\item $\ExplicitJudgement \Sigma {\CheckType e A M} {\Sigma'}$
+	\item ${\ExplicitJudgement {\Sigma'} \SolveConstraints {\Sigma''}}$
+	\item ${\Implements {\Sigma''} {\Sigma}}$ (everything new in $\Sigma''$ has been {\em solved})
+	\item ${\ExplicitJudgement {\Sigma''} {\Inline M {\hat M}} {\Sigma''}}$
+    \end{itemize}
+    then $\HasTypeCS \Sigma \Gamma {\hat M} A$.
+\end{theorem}
+\begin{proof}
+    Follows from Theorem \ref{thmTypeSafety} and Lemma \ref{lemExtendSig} and
+    some property of inlining.
+\end{proof}
+
+\begin{theorem}[Completeness]
+    We are only complete in the sense that if there exists a solution, we find
+    an approximation of it.
+\end{theorem}
+\begin{proof}
+    To give the proof we would have to spell out when type checking fails in
+    more detail.
+\end{proof}
+

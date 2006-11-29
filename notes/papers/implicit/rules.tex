@@ -202,17 +202,21 @@ judgements with the following rules:
 	\ExplicitJudgement
 	    \Sigma
 	    \SolveConstraints
-	    {\Sigma'}
+	    {\Ext {\Sigma^\prime_1} \Ext {\ConstDecl p A M {\Cs^\prime}} \Sigma_2}
     }{\begin{array}{l}
-	\mathit{for~each} ~ p_i ~ \mathit{such~that}~
-	    \Sigma ~ = ~ \Ext {\Sigma_i} \Ext {\ConstDecl {p_i} {A_i} {M_i} {\Cs_i}} {\Sigma^\prime_i} \\
-	\quad\WithSig {\Sigma_i} \Cs_i \leadsto {\Cs^\prime_i} \\
-	\quad\UpdateGuard {p_i} {\Cs^\prime_i}
+	\Sigma ~ = ~ \Ext {\Sigma_1} \Ext {\ConstDecl p A M \Cs} {\Sigma_2} \\
+	\ExplicitJudgement {\Sigma_1} {\Cs \leadsto {\Cs^\prime}} {\Sigma^\prime_1} \\
     \end{array}
     }
+\\{}\\
+    \infer{
+	\ExplicitJudgement \Sigma \SolveConstraints {\Sigma''}
+    }{\begin{array}{lll}
+	\ExplicitJudgement \Sigma \SolveConstraints {\Sigma'}
+    &	\Sigma \neq \Sigma'
+    &	\ExplicitJudgement {\Sigma'} \SolveConstraints {\Sigma''}
+    \end{array}}
 }
-
-\TODO{Where does $\Sigma'$ come from? How do we know when to stop?}
 
 % Blocked terms
 \Rules{Check if evaluation of a term is blocked by a meta variable}{
@@ -444,6 +448,10 @@ Now the rules are
 	    & = & \Ext {\CoreSig \Sigma} {\MetaDecl c A} \\
     \end{array}\]
 \end{definition}
+
+We will simply write $\Sigma$ for $\CoreSig \Sigma$ when it is clear from
+the context that the latter is intended. For instance, we write $\HasTypeCS
+\Sigma \Gamma M A$ rather than $\HasTypeCS {\CoreSig \Sigma} \Gamma M A$.
 
 \subsubsection{Weak head normalisation}
 
