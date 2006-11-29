@@ -4,20 +4,17 @@ The values of these constants will be guarded by a set of constraints and can
 only be inspected if the set is empty.
 
 Now we present the rules for type checking with meta variables. First we extend
-the syntax:
+the syntax of signatures to include guarded constants:
 
 \[\begin{array}{lcll}
-    M & ::= & \ldots \Or \alpha \Or p \\
     C & ::= & \EqualTypeCS \Sigma \Gamma A B \Or
 	      \EqualCS \Sigma \Gamma M N A \\
-    \Phi & ::= & \bullet \Or
-		 \Ext \Phi \MetaDecl \alpha A \Or
-		 \Ext \Phi \IMetaDecl \alpha A M \\
-    \Xi  & ::= & \bullet \Or \Ext \Xi \ConstDecl p A M \Cs \\
+    \Sigma & ::= & \ldots \Or
+		\Ext \Sigma \ConstDecl p A M \Cs \\
 \end{array}\]
 
-We will use lowercase greek letters $\alpha, \beta, \ldots$ for meta variables
-and $p, q, \ldots$ for guarded constants.
+We will use lowercase greek letters $\alpha, \beta, \ldots$ for constants
+representing meta variables and $p$ and $q$ for guarded constants.
 
 \subsection{Monadic Rules}
 
@@ -27,8 +24,8 @@ constants, meta variables, and guarded constants.
 In other words we can write all judgements on the form
 \[\ExplicitJudgement \Sigma J {\Sigma'}\]
 %
-To make the rules easier to read we use a monadic
-presentation~\cite{monadicRules} and simply write $J$ for the judgement above.
+To make the rules easier to read we use a monadic presentation and simply write
+$J$ for the judgement above.
 %
 To manipulate the meta variables and guarded constants we introduce some extra
 judgements with the following rules:
@@ -67,7 +64,7 @@ judgements with the following rules:
 	\IMetaDecl \alpha A M ~\in~ \Sigma
     }
 
-\\{}\\
+\qquad
 
     \infer{
 	\ExplicitJudgement
@@ -116,7 +113,7 @@ judgements with the following rules:
 	\ConstDecl p A M \emptyset ~\in~ \Sigma
     }
 
-\\{}\\
+\qquad
 
     \infer{
 	\ExplicitJudgement
@@ -162,14 +159,25 @@ judgements with the following rules:
 	\ExplicitJudgement
 	    \Sigma
 	    {\InScope \alpha M}
-	    \Phi \Xi
+	    \Sigma
     }{\begin{array}{ll}
 	\Sigma ~=~ \Ext {\Sigma_1} \Ext {\MetaDecl \alpha A} \Sigma_2
-    &	\forall c \in M.~c \in \Sigma_1
+    \\	\forall h \in M. ~ h \in \Sigma_1
+    \\	\forall \beta \in M.~
+	    \Sigma ~=~ \Ext {\Sigma^\prime_1} \Ext {\MetaDecl \beta A} {\Sigma^\prime_2}
+		& \implies
+	    \Sigma^\prime_1 \leq \Sigma_1
+    \\	\forall \beta \in M.~
+	    \Sigma ~=~ \Ext {\Sigma^\prime_1} \Ext {\IMetaDecl \beta A M} {\Sigma^\prime_2}
+		& \implies
+	    \InScope \alpha M
+    \\	\forall p \in M.~
+	    \Sigma ~=~ \Ext {\Sigma^\prime_1} \Ext {\ConstDecl p A M \Cs} {\Sigma^\prime_2}
+		& \implies
+	    \InScope \alpha M
     \end{array}
     }
 }
-\TODO{sloppy}
 
 % Change the signature
 \Rules{Check a judgement in a different signature}{
@@ -204,6 +212,8 @@ judgements with the following rules:
     }
 }
 
+\TODO{Where does $\Sigma'$ come from? How do we know when to stop?}
+
 % Blocked terms
 \Rules{Check if evaluation of a term is blocked by a meta variable}{
     \infer{
@@ -214,13 +224,12 @@ judgements with the following rules:
     \end{array}}
 }
 
-\TODO{Where does $\Sigma'$ come from? How do we know when to stop?}
-
 \subsection{The actual rules}
 
 We have the following main judgement forms.
 
 \[\begin{array}{ll}
+    \IsType e A & \mbox{well-formed types} \\
     \CheckType e A M & \mbox{type checking} \\
     \InferType e A M & \mbox{type inference} \\
     \EqualType A B \Cs & \mbox{type convertibility} \\
@@ -292,7 +301,7 @@ Now the rules are
 \infer{
     \Equal M N {\PI x A B} \Cs
 }{
-    \EqualCtx {\Ext \Gamma x : A} {M~x} {N~x} B \Cs
+    \EqualCtx {\Ext \Gamma x : A} {M \, x} {N \, x} B \Cs
 }
 
 \\{}\\
@@ -340,7 +349,7 @@ Now the rules are
 % Constant head
 
 \infer{
-    \EqualWhnf {c ~ \bar M} {c ~ \bar N} A \Cs
+    \EqualWhnf {h ~ \bar M} {h ~ \bar N} A \Cs
 }{\begin{array}{l}
     \LookupType h {\Delta \to B}
 \\  \Equal {\bar M} {\bar N} \Delta \Cs
@@ -398,8 +407,19 @@ Now the rules are
         \Equal {M, \, \bar M} {N, \, \bar N} {(x : A) \Delta} {~~} \\
 	\hfill \left\{ \EqualC \Gamma {M, \, \bar M} {N, \, \bar N} {(x : A) \Delta} \right\}
     \end{array}
-}{\begin{array}{l}
+}{\begin{array}{ll}
     \Equal M N A \Cs \neq \emptyset
+&   x \in \FV \Delta
+\end{array}}
+
+\\{}\\
+
+\infer{
+    \Equal {M, \, \bar M} {N, \, \bar N} {(x : A) \Delta} {\Cs_1 \cup \Cs_2}
+}{\begin{array}{ll}
+    x \notin \FV \Delta
+\\  \Equal M N A {\Cs_1} \neq \emptyset
+\\  \Equal {\bar M} {\bar N} \Delta {\Cs_2}
 \end{array}}
 
 }
@@ -477,6 +497,18 @@ Now the rules are
     we can recover a signature in the underlying logic $\CoreSig \Sigma$ by
     replacing guarded constants with normal constants, retaining the definition
     if the guard is empty and removing it otherwise.
+
+    Formally:
+    \[\begin{array}{lclcl}
+	\CoreSig{\Ext \Sigma \ConstDecl p A M \emptyset}
+	    & = & \Ext {\CoreSig \Sigma} {\IMetaDecl p A M} \\
+	\CoreSig{\Ext \Sigma \ConstDecl p A M \Cs}
+	    & = & \Ext {\CoreSig \Sigma} {\MetaDecl p A} && \mathrm{if} ~ \Cs \neq \emptyset \\
+	\CoreSig{\Ext \Sigma \IMetaDecl f A M}
+	    & = & \Ext {\CoreSig \Sigma} {\IMetaDecl f A M} \\
+	\CoreSig{\Ext \Sigma \MetaDecl c A}
+	    & = & \Ext {\CoreSig \Sigma} {\MetaDecl c A} \\
+    \end{array}\]
 \end{definition}
 
 \subsubsection{Weak head normalisation}

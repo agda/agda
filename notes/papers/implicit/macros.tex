@@ -88,12 +88,14 @@
 \newcommand\Uninstantiated[1]{\mathsf{Uninstantiated}({#1})}
 \newcommand\Blocked[1]{\mathsf{Blocked}({#1})}
 
+\newcommand\IsTypeCtx[3]{{#1} \vdash {#2} ~ \mathbf{type} ~ \leadsto {#3}}
 \newcommand\CheckTypeCtx[4]{{#1} \vdash {#2} \uparrow {#3} \leadsto {#4}}
 \newcommand\InferTypeCtx[4]{{#1} \vdash {#2} \downarrow {#3} \leadsto {#4}}
 \newcommand\EqualTypeCtx[4]{{#1} \vdash {#2} = {#3} \leadsto {#4}}
 \newcommand\EqualCtx[5]{{#1} \vdash {#2} = {#3} : {#4} \leadsto {#5}}
 \newcommand\EqualWhnfCtx[5]{{#1} \vdash {#2} \doteq {#3} : {#4} \leadsto {#5}}
 
+\newcommand\IsType[2]{\IsTypeCtx \Gamma {#1} {#2}}
 \newcommand\CheckType[3]{\CheckTypeCtx \Gamma {#1} {#2} {#3}}
 \newcommand\InferType[3]{\InferTypeCtx \Gamma {#1} {#2} {#3}}
 \newcommand\EqualType[3]{\EqualTypeCtx \Gamma {#1} {#2} {#3}}
