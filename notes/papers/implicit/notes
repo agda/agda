@@ -1,0 +1,75 @@
+
+Outline:
+
+Introduction
+
+  bla bla type theory
+  what's the problem (reduction with ill-typed terms)
+  solution
+
+  our contributions:
+  - practical type checking algorithm
+  - definitions by pattern matching (new kinds of neutral terms)
+
+  what are meta variables used for?
+  - user interaction
+  - proof search
+  - implicit arguments	<-- our focus
+
+The Core theory
+
+  what should the core system contain?
+  - definitions by pattern matching, kept very abstract
+
+  (mutual) recursion?
+  - no mutual recursion
+
+  no type checking, just typing rules
+  no proofs
+  (what properties can we assume?)
+
+Type checking with meta variables
+
+  Introducing meta variables
+
+    top-level things (necessary since we don't have explicit substitutions)
+
+    what do we want them for: implicit arguments
+
+  Examples
+
+    what happens to the conversion rule?
+
+  Rules
+
+    revisit examples
+
+  Proofs
+
+    soundness of convertibility checking
+
+    safety (simple proof)
+
+    soundness (follows from safety)
+
+      if we solve all constraints we get something well-typed in Core
+
+    completeness (ignore, or mention briefly)
+
+    how much detail? only the interesting cases.
+    at least we have to do the proofs ourselves!
+
+Related work
+
+Conclusions
+
+Notes
+-----
+
+structure of properties:
+
+  - safety: we only compute with well-typed terms
+  - soundness: solving constraints gives a well-typed result
+
+
+ vim: sts=2 sw=2 tw=80

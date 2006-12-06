@@ -196,28 +196,6 @@ judgements with the following rules:
 
 }
 
-% Constraint solving
-\Rules{Simplify guards}{
-    \infer{
-	\ExplicitJudgement
-	    \Sigma
-	    \SolveConstraints
-	    {\Ext {\Sigma^\prime_1} \Ext {\ConstDecl p A M {\Cs^\prime}} \Sigma_2}
-    }{\begin{array}{l}
-	\Sigma ~ = ~ \Ext {\Sigma_1} \Ext {\ConstDecl p A M \Cs} {\Sigma_2} \\
-	\ExplicitJudgement {\Sigma_1} {\Cs \leadsto {\Cs^\prime}} {\Sigma^\prime_1} \\
-    \end{array}
-    }
-\\{}\\
-    \infer{
-	\ExplicitJudgement \Sigma \SolveConstraints {\Sigma''}
-    }{\begin{array}{lll}
-	\ExplicitJudgement \Sigma \SolveConstraints {\Sigma'}
-    &	\Sigma \neq \Sigma'
-    &	\ExplicitJudgement {\Sigma'} \SolveConstraints {\Sigma''}
-    \end{array}}
-}
-
 % Blocked terms
 \Rules{Check if evaluation of a term is blocked by a meta variable}{
     \infer{
@@ -279,11 +257,11 @@ Now the rules are
 % (x : A) -> B = (x : A') -> B'
 
 \infer{
-    \EqualType {\PI x {A_1} {B_1}} {\PI x {A_2} {B_2}} \Cs
+    \EqualType {\PI x {A_1} {B_1}} {\PI x {A_2} {B_2}} {\Cs \cup \Cs^\prime}
 }{\begin{array}{l}
     \EqualType {A_1} {A_2} \Cs
 \\  \AddConst p {\Gamma \to A_1 \to A_2} {\LAM {\Gamma\,x} x} \Cs
-\\  \EqualTypeCtx {\Ext \Gamma x : A_1} {B_1} {\SubstD {B_2} {p ~ \Gamma \, x}} \Cs
+\\  \EqualTypeCtx {\Ext \Gamma x : A_1} {B_1} {\SubstD {B_2} {p ~ \Gamma \, x}} \Cs^\prime
 \end{array}}
 
 \\{}\\
@@ -428,8 +406,6 @@ Now the rules are
 
 }
 
-\TODO{When do we solve constraints: at the end.}
-
 \begin{definition}
     Given a signature $\Sigma$ containing meta variables and guarded constants
     we can recover a signature in the underlying logic $\CoreSig \Sigma$ by
@@ -464,10 +440,34 @@ We use the weak head normalisation from the underlying logic:
     }
 \]
 
-\TODO{
-How to distinguish blocked terms from other terms ($f\,\alpha$ vs $f\,x$)?
+\subsubsection{Constraint Solving}
 
-Needs to be done separately from normalisation. Everything should weak head
-normalise.
+So far, we have not looked at when or how the guards of a constant are
+simplified or solved. In principle this can be done at any time, for instance
+as a separate phase after type checking, but in practise it might be a better idea
+to interleave constraint solving and type checking.
+
+Constraint simplification amounts to retrying the guards of a constant. The
+notation $\CheckConstr \Cs {\Cs^\prime}$ means checking each of the constraints in
+$\Cs$ and taking $\Cs^\prime$ to be the union of the results.
+
+% Constraint solving
+\Rules{Constraint solving}{
+    \infer{
+	\ExplicitJudgement
+	    \Sigma
+	    \Simplify
+	    {\Ext {\Sigma^\prime_1} \Ext {\ConstDecl p A M {\Cs^\prime}} \Sigma_2}
+    }{\begin{array}{ll}
+	\multicolumn2l{\Sigma ~ = ~ \Ext {\Sigma_1} \Ext {\ConstDecl p A M \Cs} {\Sigma_2}} \\
+	\ExplicitJudgement {\Sigma_1} {\CheckConstr \Cs {\Cs^\prime}} {\Sigma^\prime_1} 
+	& \Cs \neq {\Cs^\prime} \\
+    \end{array}
+    }
 }
+
+\begin{definition}[Normal signature]
+    A signature $\Sigma$ is in {\em normal form} if it is not the case that
+    $\ExplicitJudgement \Sigma \Simplify {\Sigma^\prime}$ for some $\Sigma^\prime$.
+\end{definition}
 
