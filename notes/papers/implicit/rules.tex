@@ -252,6 +252,15 @@ Now the rules are
 
 }
 
+\Rules{Type checking meta variables}{
+
+\infer{ \CheckType {?} A {\alpha \, \Gamma }}
+{\begin{array}{l}
+    \AddMeta \alpha {\Gamma \to A}
+\end{array}}
+
+}
+
 \Rules{Type convertibility}{
 
 % (x : A) -> B = (x : A') -> B'
@@ -259,12 +268,21 @@ Now the rules are
 \infer{
     \EqualType {\PI x {A_1} {B_1}} {\PI x {A_2} {B_2}} {\Cs \cup \Cs^\prime}
 }{\begin{array}{l}
-    \EqualType {A_1} {A_2} \Cs
+    \EqualType {A_1} {A_2} \Cs, ~~ \Cs \neq \emptyset
 \\  \AddConst p {\Gamma \to A_1 \to A_2} {\LAM {\Gamma\,x} x} \Cs
-\\  \EqualTypeCtx {\Ext \Gamma x : A_1} {B_1} {\SubstD {B_2} {p ~ \Gamma \, x}} \Cs^\prime
+\\  \EqualTypeCtx {\Ext \Gamma x : A_1} {B_1} {\SubstD {B_2} {p ~ \Gamma \, x}} {\Cs^\prime}
 \end{array}}
 
 \\{}\\
+
+\infer{
+    \EqualType {\PI x {A_1} {B_1}} {\PI x {A_2} {B_2}} \Cs
+}{\begin{array}{l}
+    \EqualType {A_1} {A_2} \emptyset
+\\  \EqualTypeCtx {\Ext \Gamma x : A_1} {B_1} {B_2} \Cs
+\end{array}}
+
+\qquad
 
 % El M = El N
 

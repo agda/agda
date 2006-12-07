@@ -71,5 +71,16 @@ structure of properties:
   - safety: we only compute with well-typed terms
   - soundness: solving constraints gives a well-typed result
 
+first prove everything without constraint simplification
+then prove soundness of simplification
+then we should have a general soundness result
+
+How to deal with the invariants?
+- Can we prove them once and for all?
+- Make them implicit?
+- Write them out everywhere?
+Wait... we need the type safety theorem to ensure the invariants!
+
+Hmm.. so I guess we need to prove everything at once. Painful!
 
  vim: sts=2 sw=2 tw=80

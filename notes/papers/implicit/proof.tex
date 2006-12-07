@@ -3,8 +3,14 @@ Our goal is to prove that we only compute with well-typed terms, in the sense
 of {\Core}. This guarantees the existence of normal forms, and hence, ensure
 decidability of type checking.
 
-\begin{lemma}[Well-formed signatures]
-    All the rules preserve well-formed signatures. More precisely, for $J$
+The proof will be done in two stages: first we prove soundness in the absence
+of constraint simplification, and then we prove that constraint simplification
+is sound.
+
+\subsection{Without constraint solving}
+
+\begin{lemma}[Well-formed signatures] \label{lemValidSig}
+    Type checking preserves well-formed signatures. More precisely, for $J$
     ranging over the type checking and convertibility checking judgements we
     have
     \[{\ExplicitJudgement \Sigma J {\Sigma'}} \, \mathrel{\wedge} \,
@@ -13,6 +19,11 @@ decidability of type checking.
 \end{lemma}
 \begin{proof}
     By induction on the derivation of $\ExplicitJudgement \Sigma J {\Sigma'}$.
+    We only have to check the cases where we change the signature, i.e. when we
+    add a meta variable or guarded constant or when we instantiate a meta
+    variable. In the case where we add a constant with a non-empty guard we can
+    ignore the body, since it is not visible in {\Core}. The only interesting
+    case is the meta variable instantiation case.
 \end{proof}
 
 \begin{definition}[Signature extension]
@@ -27,52 +38,30 @@ decidability of type checking.
     If $\ExplicitJudgement \Sigma J {\Sigma'}$ then $\Sigma'$ extends $\Sigma$.
 \end{lemma}
 
-\begin{lemma}[Soundness of term convertibility checking] \label{thmConvSound}
-    If two terms are checked convertible relative to a set of constraints, then
-    any solution to these constraints makes the terms convertible in {\Core}.
-    More precisely, if
-    \begin{itemize}
-	\item \( \HasTypeCS \Sigma \Gamma M A ~ \wedge ~
-		 \HasTypeCS \Sigma \Gamma N A
-	      \)
-	\item $\ExplicitJudgement \Sigma {\Equal M N A \Cs} {\Sigma'}$
-	\item $ \Extends {\Sigma_1} {\Sigma'}$
-	\item $\ExplicitJudgement
-		{\Sigma_1}
-		{\CheckConstr \Cs \emptyset}
-		{\Sigma_2}
-	      $
-    \end{itemize}
-    then \( \EqualCS {\Sigma_2} \Gamma M N A \)
+In order to guarantee type safety we need soundness of convertibility checking.
+
+\begin{lemma}[Soundness of term convertibility checking, no constraints] \label{lemConvSound}
+    If convertibility checking of two terms does not produce any constraints, then
+    they are convertible in {\Core}. More precisely if $\IsTypeCS \Sigma \Gamma A$,
+    $\IsTypeCS \Sigma \Gamma B$, $\HasTypeCS \Sigma \Gamma M A$, and
+    $\HasTypeCS \Sigma \Gamma N A$, then
+    \[\begin{array}{lcl}
+	\ExplicitJudgement \Sigma {\EqualType A B \emptyset} {\Sigma'}
+	    & \implies & \EqualTypeCS {\Sigma'} \Gamma A B \\
+	\ExplicitJudgement \Sigma {\Equal M N A \emptyset} {\Sigma'}
+	    & \implies & \EqualCS {\Sigma'} \Gamma M N A \\
+    \end{array}\]
 \end{lemma}
 
 \begin{proof}
-    The interesting case is meta variable instantiation.
+    By induction on the derivation using the fact that weak head normalisation
+    preserves convertibility in {\Core}. The only case where something
+    interesting happens is the meta variable instantiation case where we have
+    to prove $\EqualCS {\Sigma'} \Gamma {\alpha\,\bar x} M A$, where $\Sigma'$
+    defines $\alpha = \LAM {\bar x} M$. By Lemma ~ \ref{lemValidSig} we know
+    that $\Sigma'$ is well-formed, and so the proof is by unfolding $\alpha$
+    and performing $\beta$-reducing the result.
 \end{proof}
-
-The soundness of type convertibility checking is expressed in the same way.
-
-\begin{lemma}[Soundness of type convertibility checking]
-    If
-    \begin{itemize}
-	\item \( \IsTypeCS \Sigma \Gamma A ~ \wedge ~
-		 \IsTypeCS \Sigma \Gamma B
-	      \)
-	\item $\ExplicitJudgement \Sigma {\EqualType A B \Cs} {\Sigma'}$
-	\item $ \Extends {\Sigma_1} {\Sigma'}$
-	\item $\ExplicitJudgement
-		{\Sigma_1}
-		{\CheckConstr \Cs \emptyset}
-		{\Sigma_2}
-	      $
-    \end{itemize}
-    then \( \EqualTypeCS {\Sigma_2} \Gamma A B \)
-\end{lemma}
-
-\begin{corollary} \label{corConvSound}
-    If $\ExplicitJudgement \Sigma {\EqualType A B \emptyset} {\Sigma'}$ then
-    $\EqualTypeCS {\Sigma'} \Gamma A B$.
-\end{corollary}
 
 \begin{theorem}[Type-safety] \label{thmTypeSafety}
     Terms produced by type checking are type correct in {\Core} regardless of any
@@ -93,7 +82,7 @@ The soundness of type convertibility checking is expressed in the same way.
     The proof is straighforward by induction on the typing derivation. In the
     case of the conversion rule, if the types are convertible without producing
     any constraints we rely on the soundness of the convertibility checker
-    (Corollary~\ref{corConvSound}). If there are constraints the resulting term
+    (Lemma ~ \ref{lemConvSound}). If there are constraints the resulting term
     is a fresh constant that is well-typed by definition.
 \end{proof}
 
@@ -111,6 +100,54 @@ describe a decidable type checking algorithm.
     Type checking is decidable.
 \end{corollary}
 
+\subsection{Constraint solving}
+
+% \begin{lemma}[Soundness of term convertibility checking] \label{thmConvSound}
+%     If two terms are checked convertible relative to a set of constraints, then
+%     any solution to these constraints makes the terms convertible in {\Core}.
+%     More precisely, if
+%     \begin{itemize}
+% 	\item \( \HasTypeCS \Sigma \Gamma M A ~ \wedge ~
+% 		 \HasTypeCS \Sigma \Gamma N A
+% 	      \)
+% 	\item $\ExplicitJudgement \Sigma {\Equal M N A \Cs} {\Sigma'}$
+% 	\item $ \Extends {\Sigma_1} {\Sigma'}$
+% 	\item $\ExplicitJudgement
+% 		{\Sigma_1}
+% 		{\CheckConstr \Cs \emptyset}
+% 		{\Sigma_2}
+% 	      $
+%     \end{itemize}
+%     then \( \EqualCS {\Sigma_2} \Gamma M N A \)
+% \end{lemma}
+% 
+% \begin{proof}
+%     The interesting case is meta variable instantiation.
+% \end{proof}
+% 
+% The soundness of type convertibility checking is expressed in the same way.
+% 
+% \begin{lemma}[Soundness of type convertibility checking]
+%     If
+%     \begin{itemize}
+% 	\item \( \IsTypeCS \Sigma \Gamma A ~ \wedge ~
+% 		 \IsTypeCS \Sigma \Gamma B
+% 	      \)
+% 	\item $\ExplicitJudgement \Sigma {\EqualType A B \Cs} {\Sigma'}$
+% 	\item $ \Extends {\Sigma_1} {\Sigma'}$
+% 	\item $\ExplicitJudgement
+% 		{\Sigma_1}
+% 		{\CheckConstr \Cs \emptyset}
+% 		{\Sigma_2}
+% 	      $
+%     \end{itemize}
+%     then \( \EqualTypeCS {\Sigma_2} \Gamma A B \)
+% \end{lemma}
+% 
+% \begin{corollary} \label{corConvSound}
+%     If $\ExplicitJudgement \Sigma {\EqualType A B \emptyset} {\Sigma'}$ then
+%     $\EqualTypeCS {\Sigma'} \Gamma A B$.
+% \end{corollary}
 \begin{theorem}[Soundness]
     If all meta variables are solved and all guards are empty, then we are fine. More precisely, if
     \begin{itemize}

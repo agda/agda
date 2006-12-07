@@ -1,7 +1,7 @@
 
-default : implicit.ps
+default : implicit.pdf
 
-implicit.ps implicit.dvi implicit.pdf : macros.tex
+implicit.ps implicit.dvi implicit.pdf : $(wildcard *.tex)
 
 ifeq ($(shell which latexmk),)
 
