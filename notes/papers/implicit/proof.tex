@@ -9,82 +9,226 @@ is sound.
 
 \subsection{Without constraint solving}
 
-\begin{lemma}[Well-formed signatures] \label{lemValidSig}
-    Type checking preserves well-formed signatures. More precisely, for $J$
-    ranging over the type checking and convertibility checking judgements we
-    have
-    \[{\ExplicitJudgement \Sigma J {\Sigma'}} \, \mathrel{\wedge} \,
-	{\IsSigCS \Sigma}  ~ \implies ~ \IsSigCS {\Sigma'}
-    \]
-\end{lemma}
-\begin{proof}
-    By induction on the derivation of $\ExplicitJudgement \Sigma J {\Sigma'}$.
-    We only have to check the cases where we change the signature, i.e. when we
-    add a meta variable or guarded constant or when we instantiate a meta
-    variable. In the case where we add a constant with a non-empty guard we can
-    ignore the body, since it is not visible in {\Core}. The only interesting
-    case is the meta variable instantiation case.
-\end{proof}
+There are a number of things we need to prove: that type checking preserves
+well-formed signatures, that it produces well-typed terms, that conversion
+checking is sound, and that new signatures respect the old signatures.
+Unfortunately these properties are all interdependent, so we cannot prove them
+separately. Instead we prove them all in one fell swoop. First we define what
+we mean by a signature extension.
 
 \begin{definition}[Signature extension]
     We say that $\Sigma'$ {\em extends} $\Sigma$ if and only if
     \[\begin{array}{lcl}
 	\IsTypeCS \Sigma \Gamma A & \implies & \IsTypeCS {\Sigma'} \Gamma A \\
-	\HasTypeCS \Sigma \Gamma M A & \implies & \HasTypeCS {\Sigma'} \Gamma M A
+	\HasTypeCS \Sigma \Gamma M A & \implies & \HasTypeCS {\Sigma'} \Gamma M A \\
+	\EqualTypeCS \Sigma \Gamma A B & \implies & \EqualTypeCS {\Sigma'} \Gamma A B \\
+	\EqualCS \Sigma \Gamma M N A & \implies & \EqualCS {\Sigma'} \Gamma M N A \\
     \end{array}\]
 \end{definition}
 
-\begin{lemma} \label{lemExtendSig}
-    If $\ExplicitJudgement \Sigma J {\Sigma'}$ then $\Sigma'$ extends $\Sigma$.
+Note that this definition admits both simple extensions--adding a new
+constant--and refinement, where we give a definition to a constant. This is
+expressed by the following two lemmas.
+
+\begin{lemma}[Signature weakening] \label{lemWeakenSig}
+    If $\Sigma' = \Ext \Sigma {c:A}$ and $\IsSigCS {\Sigma'}$ then $\Extends
+    {\Sigma'} \Sigma$.
 \end{lemma}
 
-In order to guarantee type safety we need soundness of convertibility checking.
-
-\begin{lemma}[Soundness of term convertibility checking, no constraints] \label{lemConvSound}
-    If convertibility checking of two terms does not produce any constraints, then
-    they are convertible in {\Core}. More precisely if $\IsTypeCS \Sigma \Gamma A$,
-    $\IsTypeCS \Sigma \Gamma B$, $\HasTypeCS \Sigma \Gamma M A$, and
-    $\HasTypeCS \Sigma \Gamma N A$, then
-    \[\begin{array}{lcl}
-	\ExplicitJudgement \Sigma {\EqualType A B \emptyset} {\Sigma'}
-	    & \implies & \EqualTypeCS {\Sigma'} \Gamma A B \\
-	\ExplicitJudgement \Sigma {\Equal M N A \emptyset} {\Sigma'}
-	    & \implies & \EqualCS {\Sigma'} \Gamma M N A \\
-    \end{array}\]
+\begin{lemma}[Signature refinement] \label{lemRefineSig}
+    Giving a definition to a constant in a signature is an extension of the
+    signature. More precisely, if
+    \begin{itemize}
+	\item $\HasTypeCS {\Sigma_1} {} M A$
+	\item $\Sigma ~ = ~ \Ext {\Sigma_1} \Ext {\MetaDecl c A} \Sigma_2$
+	\item $\Sigma' ~ = ~ \Ext {\Sigma_1} \Ext {\IMetaDecl c A M} \Sigma_2$
+    \end{itemize}
+    then $\Extends {\Sigma'} \Sigma$.
 \end{lemma}
 
-\begin{proof}
-    By induction on the derivation using the fact that weak head normalisation
-    preserves convertibility in {\Core}. The only case where something
-    interesting happens is the meta variable instantiation case where we have
-    to prove $\EqualCS {\Sigma'} \Gamma {\alpha\,\bar x} M A$, where $\Sigma'$
-    defines $\alpha = \LAM {\bar x} M$. By Lemma ~ \ref{lemValidSig} we know
-    that $\Sigma'$ is well-formed, and so the proof is by unfolding $\alpha$
-    and performing $\beta$-reducing the result.
+\begin{proof}[Proofs]
+    In both lemmas any derivation using $\Sigma$ is immediately valid also with $\Sigma'$.
 \end{proof}
 
-\begin{theorem}[Type-safety] \label{thmTypeSafety}
-    Terms produced by type checking are type correct in {\Core} regardless of any
-    constraints.
+To express the soundness of conversion checking we need to define when a
+constraint is well-formed.
 
-    \[\begin{array}{lcl}
-	{\ExplicitJudgement \Sigma {\IsType e A} {\Sigma'}}
-	& \implies & {\IsTypeCS {\CoreSig{\Sigma'}} \Gamma A} \\
-	{\ExplicitJudgement \Sigma {\CheckType e A M} {\Sigma'}}
-	\, \wedge \, {\IsTypeCS {\CoreSig \Sigma} \Gamma A}
-	& \implies & \HasTypeCS {\CoreSig{\Sigma'}} \Gamma M A \\
-	{\ExplicitJudgement \Sigma {\InferType e A M} {\Sigma'}}
-	& \implies & \HasTypeCS {\CoreSig{\Sigma'}} \Gamma M A
-    \end{array}\]
+\begin{definition}[Well-formed constraint]
+    The rules for well-formed constraints are
+    \[
+	\infer{ \ValidConstr \Sigma {\TypeConstr A B}}
+	{\begin{array}{l}
+	    \IsTypeCS \Sigma \Gamma A \\
+	    \IsTypeCS \Sigma \Gamma B 
+	\end{array}}
+    \qquad
+	\infer{ \ValidConstr \Sigma {\TermConstr M N A}}
+	{\begin{array}{l}
+	    \HasTypeCS \Sigma \Gamma M A \\
+	    \HasTypeCS \Sigma \Gamma N A \\
+	\end{array}}
+    \]
+\end{definition}
+
+Well-formedness extends in the obvious way to sets of constraints.
+
+\begin{theorem}[Soundness of type checking] \label{thmSoundNoCs}
+    Type checking produces well-typed terms, conversion checking produces
+    well-formed constraints and if no constraints are produced, the conversion
+    is valid in {\Core}. Also, all rules produce well-formed extensions of the
+    signature.
+    \begin{itemize}
+
+	% is type
+	\item
+	    $\begin{array}[t]{l}
+		\ExplicitJudgement \Sigma {\IsType e A} {\Sigma'}
+		~ \wedge ~ \IsCtxCS \Sigma \Gamma \\
+		{} \implies \Extends {\Sigma'} {\Sigma}
+		~ \wedge ~ \IsTypeCS {\Sigma'} \Gamma A
+	    \end{array}$
+
+	% check type
+	\item
+	    $\begin{array}[t]{l}
+		\ExplicitJudgement \Sigma {\CheckType e A M} {\Sigma'}
+		~ \wedge ~ \IsTypeCS \Sigma \Gamma A \\
+		{} \implies \Extends {\Sigma'} {\Sigma}
+		~ \wedge ~ \HasTypeCS {\Sigma'} \Gamma M A
+	    \end{array}$
+
+	% infer type
+	\item
+	    $\begin{array}[t]{l}
+		\ExplicitJudgement \Sigma {\InferType e A M} {\Sigma'}
+		~ \wedge ~ \IsCtxCS \Sigma \Gamma \\
+		{} \implies \Extends {\Sigma'} {\Sigma}
+		~ \wedge ~ \HasTypeCS {\Sigma'} \Gamma M A
+	    \end{array}$
+
+	% equal types
+	\item
+	    $\begin{array}[t]{l}
+		\ExplicitJudgement \Sigma {\EqualType A B \Cs} {\Sigma'}
+		~ \wedge ~ \IsTypeCS \Sigma \Gamma A
+		~ \wedge ~ \IsTypeCS \Sigma \Gamma B
+		\\
+		{} \implies \Extends {\Sigma'} {\Sigma}
+		~ \wedge ~ \ValidConstr {\Sigma'} \Cs
+		~ \wedge ~ (\Cs = \emptyset \implies \EqualTypeCS {\Sigma'} \Gamma A B)
+	    \end{array}$
+
+	% equal terms
+	\item
+	    $\begin{array}[t]{l}
+		\ExplicitJudgement \Sigma {\Equal M N A \Cs} {\Sigma'}
+		~ \wedge ~ \HasTypeCS \Sigma \Gamma M A
+		~ \wedge ~ \HasTypeCS \Sigma \Gamma N A
+		\\
+		{} \implies \Extends {\Sigma'} {\Sigma}
+		~ \wedge ~ \ValidConstr {\Sigma'} \Cs
+		~ \wedge ~ (\Cs = \emptyset \implies \EqualCS {\Sigma'} \Gamma M N A)
+	    \end{array}$
+
+    \end{itemize}
+
+    The statements for weak head normal form conversion ($\EqualWhnf M N A
+    \Cs$) and term sequence conversion ($\Equal {\bar M} {\bar N} \Delta \Cs$)
+    are equivalent to that of term conversion.
 \end{theorem}
 
 \begin{proof}
-    The proof is straighforward by induction on the typing derivation. In the
-    case of the conversion rule, if the types are convertible without producing
-    any constraints we rely on the soundness of the convertibility checker
-    (Lemma ~ \ref{lemConvSound}). If there are constraints the resulting term
-    is a fresh constant that is well-typed by definition.
+    By induction on the derivation. Some interesting cases:
+    \begin{itemize}
+
+	\item {\em (TODO: Not so interesting)} In the type conversion case for
+	function spaces where the domains produce constraints, we have to use a
+	substitution lemma from {\Core}, stating that if $\IsTypeC {\Ext \Gamma
+	x:A} B$ and $\HasTypeC \Gamma M A$, then $\IsTypeC \Gamma {\Subst B x
+	M}$.
+
+	\item In the term conversion case where the terms are weak head
+	normalised we need subject reduction for weak head normalisation.
+
+	\item When checking conversion of terms with the same head we need an
+	inversion principle for application. If $\HasTypeC \Gamma M {\PI x A
+	B}$ and $\HasTypeC \Gamma {M \, N} {B_1}$ then $\HasTypeC \Gamma N A$.
+
+	\TODO{this will change if we move to Conor zipping}
+
+	\item The most interesting case is the meta variable instantiation case.
+
+    \end{itemize}
 \end{proof}
+
+% \begin{lemma}[Well-formed signatures] \label{lemValidSig}
+%     Type checking preserves well-formed signatures. More precisely, for $J$
+%     ranging over the type checking and conversion checking judgements we
+%     have
+%     \[{\ExplicitJudgement \Sigma J {\Sigma'}} \, \mathrel{\wedge} \,
+% 	{\IsSigCS \Sigma}  ~ \implies ~ \IsSigCS {\Sigma'}
+%     \]
+% \end{lemma}
+% \begin{proof}
+%     By induction on the derivation of $\ExplicitJudgement \Sigma J {\Sigma'}$.
+%     We only have to check the cases where we change the signature, i.e. when we
+%     add a meta variable or guarded constant or when we instantiate a meta
+%     variable. In the case where we add a constant with a non-empty guard we can
+%     ignore the body, since it is not visible in {\Core}. The only interesting
+%     case is the meta variable instantiation case.
+% \end{proof}
+
+% \begin{lemma} \label{lemExtendSig}
+%     If $\ExplicitJudgement \Sigma J {\Sigma'}$ then $\Sigma'$ extends $\Sigma$.
+% \end{lemma}
+
+% In order to guarantee type safety we need soundness of conversion checking.
+
+% \begin{lemma}[Soundness of term conversion checking, no constraints] \label{lemConvSound}
+%     If conversion checking of two terms does not produce any constraints, then
+%     they are convertible in {\Core}. More precisely if $\IsTypeCS \Sigma \Gamma A$,
+%     $\IsTypeCS \Sigma \Gamma B$, $\HasTypeCS \Sigma \Gamma M A$, and
+%     $\HasTypeCS \Sigma \Gamma N A$, then
+%     \[\begin{array}{lcl}
+% 	\ExplicitJudgement \Sigma {\EqualType A B \emptyset} {\Sigma'}
+% 	    & \implies & \EqualTypeCS {\Sigma'} \Gamma A B \\
+% 	\ExplicitJudgement \Sigma {\Equal M N A \emptyset} {\Sigma'}
+% 	    & \implies & \EqualCS {\Sigma'} \Gamma M N A \\
+%     \end{array}\]
+% \end{lemma}
+
+% \begin{proof}
+%     By induction on the derivation using the fact that weak head normalisation
+%     preserves conversion in {\Core}. The only case where something
+%     interesting happens is the meta variable instantiation case where we have
+%     to prove $\EqualCS {\Sigma'} \Gamma {\alpha\,\bar x} M A$, where $\Sigma'$
+%     defines $\alpha = \LAM {\bar x} M$. By Lemma ~ \ref{lemValidSig} we know
+%     that $\Sigma'$ is well-formed, and so the proof is by unfolding $\alpha$
+%     and performing $\beta$-reducing the result.
+% \end{proof}
+
+% \begin{theorem}[Type-safety] \label{thmTypeSafety}
+%     Terms produced by type checking are type correct in {\Core} regardless of any
+%     constraints.
+
+%     \[\begin{array}{lcl}
+% 	{\ExplicitJudgement \Sigma {\IsType e A} {\Sigma'}}
+% 	& \implies & {\IsTypeCS {\CoreSig{\Sigma'}} \Gamma A} \\
+% 	{\ExplicitJudgement \Sigma {\CheckType e A M} {\Sigma'}}
+% 	\, \wedge \, {\IsTypeCS {\CoreSig \Sigma} \Gamma A}
+% 	& \implies & \HasTypeCS {\CoreSig{\Sigma'}} \Gamma M A \\
+% 	{\ExplicitJudgement \Sigma {\InferType e A M} {\Sigma'}}
+% 	& \implies & \HasTypeCS {\CoreSig{\Sigma'}} \Gamma M A
+%     \end{array}\]
+% \end{theorem}
+
+% \begin{proof}
+%     The proof is straighforward by induction on the typing derivation. In the
+%     case of the conversion rule, if the types are convertible without producing
+%     any constraints we rely on the soundness of the conversion checker
+%     (Lemma ~ \ref{lemConvSound}). If there are constraints the resulting term
+%     is a fresh constant that is well-typed by definition.
+% \end{proof}
 
 Since well-typed terms in {\Core} have weak head normal forms we get the
 existence of weak head normal forms for type checked terms.
@@ -102,7 +246,7 @@ describe a decidable type checking algorithm.
 
 \subsection{Constraint solving}
 
-% \begin{lemma}[Soundness of term convertibility checking] \label{thmConvSound}
+% \begin{lemma}[Soundness of term conversion checking] \label{thmConvSound}
 %     If two terms are checked convertible relative to a set of constraints, then
 %     any solution to these constraints makes the terms convertible in {\Core}.
 %     More precisely, if
@@ -120,14 +264,14 @@ describe a decidable type checking algorithm.
 %     \end{itemize}
 %     then \( \EqualCS {\Sigma_2} \Gamma M N A \)
 % \end{lemma}
-% 
+
 % \begin{proof}
 %     The interesting case is meta variable instantiation.
 % \end{proof}
-% 
-% The soundness of type convertibility checking is expressed in the same way.
-% 
-% \begin{lemma}[Soundness of type convertibility checking]
+
+% The soundness of type conversion checking is expressed in the same way.
+
+% \begin{lemma}[Soundness of type conversion checking]
 %     If
 %     \begin{itemize}
 % 	\item \( \IsTypeCS \Sigma \Gamma A ~ \wedge ~
@@ -143,25 +287,26 @@ describe a decidable type checking algorithm.
 %     \end{itemize}
 %     then \( \EqualTypeCS {\Sigma_2} \Gamma A B \)
 % \end{lemma}
-% 
+
 % \begin{corollary} \label{corConvSound}
 %     If $\ExplicitJudgement \Sigma {\EqualType A B \emptyset} {\Sigma'}$ then
 %     $\EqualTypeCS {\Sigma'} \Gamma A B$.
 % \end{corollary}
-\begin{theorem}[Soundness]
-    If all meta variables are solved and all guards are empty, then we are fine. More precisely, if
-    \begin{itemize}
-	\item $\ExplicitJudgement \Sigma {\CheckType e A M} {\Sigma'}$
-	\item ${\ExplicitJudgement {\Sigma'} \Simplify {\Sigma''}}$
-	\item ${\Implements {\Sigma''} {\Sigma}}$ (everything new in $\Sigma''$ has been {\em solved})
-	\item ${\ExplicitJudgement {\Sigma''} {\Inline M {\hat M}} {\Sigma''}}$
-    \end{itemize}
-    then $\HasTypeCS \Sigma \Gamma {\hat M} A$.
-\end{theorem}
-\begin{proof}
-    Follows from Theorem \ref{thmTypeSafety} and Lemma \ref{lemExtendSig} and
-    some property of inlining.
-\end{proof}
+
+% \begin{theorem}[Soundness]
+%     If all meta variables are solved and all guards are empty, then we are fine. More precisely, if
+%     \begin{itemize}
+% 	\item $\ExplicitJudgement \Sigma {\CheckType e A M} {\Sigma'}$
+% 	\item ${\ExplicitJudgement {\Sigma'} \Simplify {\Sigma''}}$
+% 	\item ${\Implements {\Sigma''} {\Sigma}}$ (everything new in $\Sigma''$ has been {\em solved})
+% 	\item ${\ExplicitJudgement {\Sigma''} {\Inline M {\hat M}} {\Sigma''}}$
+%     \end{itemize}
+%     then $\HasTypeCS \Sigma \Gamma {\hat M} A$.
+% \end{theorem}
+% \begin{proof}
+%     Follows from Theorem \ref{thmTypeSafety} and Lemma \ref{lemExtendSig} and
+%     some property of inlining.
+% \end{proof}
 
 \begin{theorem}[Completeness]
     We are only complete in the sense that if there exists a solution, we find

@@ -7,8 +7,7 @@ Now we present the rules for type checking with meta variables. First we extend
 the syntax of signatures to include guarded constants:
 
 \[\begin{array}{lcll}
-    C & ::= & \EqualTypeCS \Sigma \Gamma A B \Or
-	      \EqualCS \Sigma \Gamma M N A \\
+    C & ::= & \TypeConstr A B \Or \TermConstr M N A \\
     \Sigma & ::= & \ldots \Or
 		\Ext \Sigma \ConstDecl p A M \Cs \\
 \end{array}\]
@@ -162,19 +161,7 @@ judgements with the following rules:
 	    \Sigma
     }{\begin{array}{ll}
 	\Sigma ~=~ \Ext {\Sigma_1} \Ext {\MetaDecl \alpha A} \Sigma_2
-    \\	\forall h \in M. ~ h \in \Sigma_1
-    \\	\forall \beta \in M.~
-	    \Sigma ~=~ \Ext {\Sigma^\prime_1} \Ext {\MetaDecl \beta A} {\Sigma^\prime_2}
-		& \implies
-	    \Sigma^\prime_1 \leq \Sigma_1
-    \\	\forall \beta \in M.~
-	    \Sigma ~=~ \Ext {\Sigma^\prime_1} \Ext {\IMetaDecl \beta A M} {\Sigma^\prime_2}
-		& \implies
-	    \InScope \alpha M
-    \\	\forall p \in M.~
-	    \Sigma ~=~ \Ext {\Sigma^\prime_1} \Ext {\ConstDecl p A M \Cs} {\Sigma^\prime_2}
-		& \implies
-	    \InScope \alpha M
+    \\	\exists \, \Gamma, B. ~ \HasTypeCS {\Sigma_1} \Gamma M B
     \end{array}
     }
 }
@@ -214,15 +201,15 @@ We have the following main judgement forms.
     \IsType e A & \mbox{well-formed types} \\
     \CheckType e A M & \mbox{type checking} \\
     \InferType e A M & \mbox{type inference} \\
-    \EqualType A B \Cs & \mbox{type convertibility} \\
-    \Equal M N A \Cs & \mbox{term convertibility} \\
+    \EqualType A B \Cs & \mbox{type conversion} \\
+    \Equal M N A \Cs & \mbox{term conversion} \\
 \end{array}\]
 
 We also need some helper judgement forms.
 
 \[\begin{array}{ll}
-    \EqualWhnf M N A \Cs & \mbox{convertibility of weak head normal forms} \\
-    \Equal {\bar M} {\bar N} \Delta \Cs & \mbox{convertibility of sequences of terms} \\
+    \EqualWhnf M N A \Cs & \mbox{conversion of weak head normal forms} \\
+    \Equal {\bar M} {\bar N} \Delta \Cs & \mbox{conversion of sequences of terms} \\
 \end{array}\]
 
 Now the rules are
@@ -261,7 +248,7 @@ Now the rules are
 
 }
 
-\Rules{Type convertibility}{
+\Rules{Type conversion}{
 
 % (x : A) -> B = (x : A') -> B'
 
@@ -294,7 +281,7 @@ Now the rules are
 
 }
 
-\Rules{Term convertibility}{
+\Rules{Term conversion}{
 
 % Eta
 
@@ -322,7 +309,7 @@ Now the rules are
 \qquad
 
 \infer{
-    \Equal M N A {\left\{ \EqualC \Gamma M N A \right\}}
+    \Equal M N A {\left\{ \TermConstr M N A \right\}}
 }{\begin{array}[b]{l}
     \whnf M {M'}
 \\  \whnf N {N'}
@@ -332,7 +319,7 @@ Now the rules are
 
 }
 
-\Rules{Weak head convertibility}{
+\Rules{Weak head conversion}{
 
 % Variable head
 
@@ -382,12 +369,14 @@ Now the rules are
 \\{}\\
 
 \infer{
-    \EqualWhnf {p ~ \bar M} N A {\left\{\EqualC \Gamma {p ~ \bar M} N A\right\}}
+    \EqualWhnf {p ~ \bar M} N A {\left\{\TermConstr {p ~ \bar M} N A\right\}}
 }{}
 
 }
 
-\Rules{Term sequence convertibility}{
+\TODO{change to Conor style zipping}
+
+\Rules{Term sequence conversion}{
 
 % No constraints
 
@@ -405,7 +394,7 @@ Now the rules are
 \infer{
     \begin{array}{l}
         \Equal {M, \, \bar M} {N, \, \bar N} {(x : A) \Delta} {~~} \\
-	\hfill \left\{ \EqualC \Gamma {M, \, \bar M} {N, \, \bar N} {(x : A) \Delta} \right\}
+	\hfill \left\{ \TermConstr {M, \, \bar M} {N, \, \bar N} {(x : A) \Delta} \right\}
     \end{array}
 }{\begin{array}{ll}
     \Equal M N A \Cs \neq \emptyset
