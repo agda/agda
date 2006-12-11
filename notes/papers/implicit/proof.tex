@@ -16,14 +16,9 @@ Unfortunately these properties are all interdependent, so we cannot prove them
 separately. Instead we prove them all in one fell swoop. First we define what
 we mean by a signature extension.
 
-\begin{definition}[Signature extension]
-    We say that $\Sigma'$ {\em extends} $\Sigma$ if and only if
-    \[\begin{array}{lcl}
-	\IsTypeCS \Sigma \Gamma A & \implies & \IsTypeCS {\Sigma'} \Gamma A \\
-	\HasTypeCS \Sigma \Gamma M A & \implies & \HasTypeCS {\Sigma'} \Gamma M A \\
-	\EqualTypeCS \Sigma \Gamma A B & \implies & \EqualTypeCS {\Sigma'} \Gamma A B \\
-	\EqualCS \Sigma \Gamma M N A & \implies & \EqualCS {\Sigma'} \Gamma M N A \\
-    \end{array}\]
+\begin{definition}[Signature extension] \label{defSigExt}
+    We say that $\Sigma'$ {\em extends} $\Sigma$ if and only if for any {\Core}
+    derivation in $\Sigma$ there is an equivalent derivation in $\Sigma'$.
 \end{definition}
 
 Note that this definition admits both simple extensions--adding a new
@@ -76,16 +71,16 @@ Lemmas about {\Core} ({\em TODO: move to core section?}):
 
 \begin{lemma} \label{lemCoreEqType}
     \[	\infer{ \EqualTypeC \Gamma A B }
-	{ \HasTypeC \Gamma M A
-	& \HasTypeC \Gamma M B 
+	{ \HasTypeC \Gamma {h \, \bar M} A
+	& \HasTypeC \Gamma {h \, \bar M} B 
 	}
     \]
 \end{lemma}
 
 \begin{lemma} \label{lemCoreAppInv}
-    \[	\infer{ \HasTypeC \Gamma N A }
-	{ \HasTypeC \Gamma M {\PI x A B}
-	& \HasTypeC \Gamma {M\,N} {B'}
+    \[	\infer{ \HasTypeC \Gamma {\bar M} \Delta }
+	{ \HasTypeC \Gamma h {\Delta \to B}
+	& \HasTypeC \Gamma {h \, \bar M} {B'}
 	}
     \]
 \end{lemma}
@@ -207,8 +202,6 @@ Lemmas about {\Core} ({\em TODO: move to core section?}):
 	\item When checking conversion of terms with the same head we need an
 	inversion principle for application (Lemma~\ref{lemCoreAppInv}).
 
-	\TODO{this will change if we move to Conor zipping}
-
 	\item The most interesting case is the meta variable instantiation
 	case, so let us spell that out in more detail.
 
@@ -258,90 +251,177 @@ describe a decidable type checking algorithm.
 
 \subsection{Constraint solving}
 
-This far we have completely ignored the generated constraints--if conversion
-checking produced constraints we only required them to well-formed. In order to
-prove that constraint solving is sound, we first need to know that the
-constraints we produce are sound.
+This far we have completely ignored the generated constraints--when conversion
+checking produced constraints we only required them to be well-formed. In this
+section we tackle the problem of ensuring that solving the constraints produce
+well-typed terms. The idea is to prove that constraint simplification is a
+signature extension operation in the sense of Definition~\ref{defSigExt}. To
+prove this we need to know that type checking preserves {\em consistent}
+signatures.
 
-\begin{lemma}[Soundness of term conversion checking] \label{thmConvSound}
-    A conversion checking problem solved if the constraints generated from it
-    are solved. More precisely, if
+\begin{definition}[Ensures] \label{defEnsures}
+    A set of constraints $\Cs$ {\em ensures} a judgement $J$ in a signature
+    $\Sigma$ if, for any $\Sigma_1$ such that
     \begin{itemize}
-	\item \( \HasTypeCS \Sigma \Gamma M A ~ \wedge ~
-		 \HasTypeCS \Sigma \Gamma N A
-	      \)
-	\item $\ExplicitJudgement \Sigma {\Equal M N A \Cs} {\Sigma'}$
-	\item $ \Extends {\Sigma_1} {\Sigma'}$
-	\item $\ExplicitJudgement
-		{\Sigma_1}
-		{\CheckConstr \Cs \emptyset}
-		{\Sigma_2}
-	      $
+	\item $\Extends {\Sigma_1} \Sigma$
+	\item $\ExplicitJudgement {\Sigma_1} {\CheckConstr \Cs \emptyset} {\Sigma_2}$
     \end{itemize}
-    then \( \EqualCS {\Sigma_2} \Gamma M N A \)
+    it is the case that $\vdash_{\Sigma_2} J$.
+\end{definition}
+
+\begin{lemma} \label{lemExtendEnsures}
+    If $\Cs$ ensures $J$ in $\Sigma$ and $\Extends {\Sigma'} \Sigma$ then $\Cs$
+    ensures $J$ in $\Sigma'$.
+\end{lemma}
+
+\begin{definition}[Consistent signature] \label{defConsistentSig}
+    A signature $\Sigma$ is said to be {\em consistent} if $\Sigma = \Ext
+    {\Sigma_1} \Ext {\ConstDecl p A M \Cs} \Sigma_2$ implies that $\Cs$ ensures
+    $\HasTypeC {} M A$ in $\Sigma_1$.
+\end{definition}
+
+In order to prove that type checking preserves consistency, we first need to
+know that the constraints we produce are sound.
+
+\begin{lemma}[Soundness of generated constraints] \label{lemSoundConstraints}
+    The constraints generated during conversion checking ensures that the
+    checked terms are convertible.
+    More precisely,
+    \begin{itemize}
+	\item \( \begin{array}[t]{l}
+		    \IsTypeCS \Sigma \Gamma A
+		    ~ \wedge ~ \IsTypeCS \Sigma \Gamma B
+		    ~ \wedge ~ \ExplicitJudgement \Sigma {\EqualType A B \Cs} {\Sigma'}
+		    \\ {} \implies \mbox{$\Cs$ ensures $\EqualTypeC \Gamma A B$ in $\Sigma'$}
+	      \end{array} \)
+	\item \( \begin{array}[t]{l}
+		    \HasTypeCS \Sigma \Gamma M A
+		    ~ \wedge ~ \HasTypeCS \Sigma \Gamma N A
+		    ~ \wedge ~ \ExplicitJudgement \Sigma {\Equal M N A \Cs} {\Sigma'}
+		    \\ {} \implies \mbox{$\Cs$ ensures $\EqualC \Gamma M N A$ in $\Sigma'$}
+	      \end{array} \)
+    \end{itemize}
 \end{lemma}
 
 \begin{proof}
     Again we highlight some interesting cases.
     \begin{itemize}
-	\item In the case of conversion for function types where a new constant $p$
-	is introduced, we need to prove  $\EqualTypeCS {\Sigma_2} {\Ext
-	\Gamma x : A_1} {B_1} {B_2}$ from $\EqualTypeCS {\Sigma_2} {\Ext \Gamma
-	x : A_1} {B_1} {\SubstD {B_2} {p \, \Gamma \, x}}$
+	\item 
+	
+	The only difficult case is the case of conversion for function types
+	where a new constant $p$ is introduced. There we need to prove
+	$\EqualTypeCS {\Sigma_2} {\Ext \Gamma x : A_1} {B_1} {B_2}$ from
+	$\EqualTypeCS {\Sigma_2} {\Ext \Gamma x : A_1} {B_1} {\SubstD {B_2} {p
+	\, \Gamma \, x}}$
 
-	If $\Sigma_2$ has an empty guard for $p$ then $p \,
-	\Gamma \, x$ reduces to $x$ and we are done. If the guard is non-empty
-	we can apply Lemma~\ref{lemCoreEqualDummySubst}, since $p \, \Gamma \,
-	x$ is on weak head normal form, and $p$ is a fresh constant which does
-	not appear in $B_1$.
+	If $\Sigma_2$ has an empty guard for $p$ then $p \, \Gamma \, x$
+	reduces to $x$ and we are done. If the guard is non-empty we can apply
+	Lemma~\ref{lemCoreEqualDummySubst}, since $p \, \Gamma \, x$ is on weak
+	head normal form, and $p$ is a fresh constant which does not appear in
+	$B_1$.
+
+	\item In the case where $\Cs$ is known (for instance, in the rule for
+	blocked terms), we can apply soundness of conversion checking
+	(Theorem~\ref{thmSoundNoCs}) to get $\TrueConstr {\Sigma_2} \Cs$.
+
     \end{itemize}
 \end{proof}
 
-% The soundness of type conversion checking is expressed in the same way.
+\begin{lemma}[Refinement preserves consistency] \label{lemRefineConsistent}
+    If
+    \begin{itemize}
+	\item $\HasTypeCS {\Sigma_1} {} M A$
+	\item $\Sigma ~ = ~ \Ext {\Sigma_1} \Ext {\MetaDecl c A} \Sigma_2$
+	\item $\Sigma' ~ = ~ \Ext {\Sigma_1} \Ext {\IMetaDecl c A M} \Sigma_2$
+	\item $\Sigma$ is consistent
+    \end{itemize}
+    then $\Sigma'$ is consistent.
+\end{lemma}
 
-% \begin{lemma}[Soundness of type conversion checking]
-%     If
-%     \begin{itemize}
-% 	\item \( \IsTypeCS \Sigma \Gamma A ~ \wedge ~
-% 		 \IsTypeCS \Sigma \Gamma B
-% 	      \)
-% 	\item $\ExplicitJudgement \Sigma {\EqualType A B \Cs} {\Sigma'}$
-% 	\item $ \Extends {\Sigma_1} {\Sigma'}$
-% 	\item $\ExplicitJudgement
-% 		{\Sigma_1}
-% 		{\CheckConstr \Cs \emptyset}
-% 		{\Sigma_2}
-% 	      $
-%     \end{itemize}
-%     then \( \EqualTypeCS {\Sigma_2} \Gamma A B \)
-% \end{lemma}
-
-% \begin{corollary} \label{corConvSound}
-%     If $\ExplicitJudgement \Sigma {\EqualType A B \emptyset} {\Sigma'}$ then
-%     $\EqualTypeCS {\Sigma'} \Gamma A B$.
-% \end{corollary}
-
-% \begin{theorem}[Soundness]
-%     If all meta variables are solved and all guards are empty, then we are fine. More precisely, if
-%     \begin{itemize}
-% 	\item $\ExplicitJudgement \Sigma {\CheckType e A M} {\Sigma'}$
-% 	\item ${\ExplicitJudgement {\Sigma'} \Simplify {\Sigma''}}$
-% 	\item ${\Implements {\Sigma''} {\Sigma}}$ (everything new in $\Sigma''$ has been {\em solved})
-% 	\item ${\ExplicitJudgement {\Sigma''} {\Inline M {\hat M}} {\Sigma''}}$
-%     \end{itemize}
-%     then $\HasTypeCS \Sigma \Gamma {\hat M} A$.
-% \end{theorem}
-% \begin{proof}
-%     Follows from Theorem \ref{thmTypeSafety} and Lemma \ref{lemExtendSig} and
-%     some property of inlining.
-% \end{proof}
-
-\begin{theorem}[Completeness]
-    We are only complete in the sense that if there exists a solution, we find
-    an approximation of it.
-\end{theorem}
 \begin{proof}
-    To give the proof we would have to spell out when type checking fails in
-    more detail.
+    There are two cases to consider: refinement to the left and to the right of
+    a guard. In the latter case the proof is trivial, and in the former case
+    consistency follows from the fact that refinement extends a signature
+    (Lemma~\ref{lemRefineSig}).
 \end{proof}
+
+\begin{lemma}[Type checking preserves consistency] \label{lemTypeCheckConsistent}
+Type checking and conversion checking preserves consistent signatures. More precisely,
+    \begin{itemize}
+
+	% is type
+	\item
+	    $\begin{array}[t]{l}
+		\ExplicitJudgement \Sigma {\IsType e A} {\Sigma'}
+		~ \wedge ~ \IsCtxCS \Sigma \Gamma
+		~ \wedge ~ \mbox{$\Sigma$ is consistent}
+		\\ {} \implies \mbox{$\Sigma'$ is consistent}
+	    \end{array}$
+
+	% check type
+	\item
+	    $\begin{array}[t]{l}
+		\ExplicitJudgement \Sigma {\CheckType e A M} {\Sigma'}
+		~ \wedge ~ \IsTypeCS \Sigma \Gamma A
+		~ \wedge ~ \mbox{$\Sigma$ is consistent}
+		\\ {} \implies \mbox{$\Sigma'$ is consistent}
+	    \end{array}$
+
+	% infer type
+	\item
+	    $\begin{array}[t]{l}
+		\ExplicitJudgement \Sigma {\InferType e A M} {\Sigma'}
+		~ \wedge ~ \IsCtxCS \Sigma \Gamma
+		~ \wedge ~ \mbox{$\Sigma$ is consistent}
+		\\ {} \implies \mbox{$\Sigma'$ is consistent}
+	    \end{array}$
+
+	% equal types
+	\item
+	    $\begin{array}[t]{l}
+		\ExplicitJudgement \Sigma {\EqualType A B \Cs} {\Sigma'}
+		~ \wedge ~ \IsTypeCS \Sigma \Gamma A
+		~ \wedge ~ \IsTypeCS \Sigma \Gamma B \\
+		~ \wedge ~ \mbox{$\Sigma$ is consistent}
+		\\ {} \implies \mbox{$\Sigma'$ is consistent}
+	    \end{array}$
+
+	% equal terms
+	\item
+	    $\begin{array}[t]{l}
+		\ExplicitJudgement \Sigma {\Equal M N A \Cs} {\Sigma'}
+		~ \wedge ~ \HasTypeCS \Sigma \Gamma M A
+		~ \wedge ~ \HasTypeCS \Sigma \Gamma N A \\
+		~ \wedge ~ \mbox{$\Sigma$ is consistent}
+		\\ {} \implies \mbox{$\Sigma'$ is consistent}
+	    \end{array}$
+
+    \end{itemize}
+
+    The statements for weak head normal form conversion ($\EqualWhnf M N A
+    \Cs$) and term sequence conversion ($\Equal {\bar M} {\bar N} \Delta \Cs$)
+    are equivalent to that of term conversion.
+\end{lemma}
+
+\begin{proof}
+    By induction on the derivation. We only need to consider the cases where
+    the signature changes. Adding a (non-guarded) constant trivially preserves
+    consistency, instantiating a meta variable preserves consistency by
+    Lemma~\ref{lemRefineConsistent}. What remains is to check that new guarded
+    constants are consistent. There are two cases: the conversion rule and
+    conversion checking of function types. In both cases consistency follows
+    from soundness of conversion checking (Lemma~\ref{lemSoundConstraints}).
+\end{proof}
+
+\begin{lemma}[Constraint solving is sound]
+    If $\Sigma$ is consistent and $\ExplicitJudgement \Sigma \Simplify
+    {\Sigma'}$ then $\Sigma'$ is consistent and $\Extends {\Sigma'} \Sigma$.
+\end{lemma}
+
+\begin{proof}
+    Follows from Theorem~\ref{thmSoundNoCs}, Lemma~\ref{lemSoundConstraints},
+    and Lemma~\ref{lemTypeCheckConsistent}.
+\end{proof}
+
+From this follows that we can mix type checking and constraint solving freely.
 

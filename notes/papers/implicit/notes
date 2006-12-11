@@ -90,4 +90,8 @@ Soundness of Constraints
 
   constraint simplification is a signature extension operator
 
+Think about why exactly we don't prove consistency at the same time as soundness
+(we need soundness in the consistency proof). It's stated explicitly so forget
+this.
+
  vim: sts=2 sw=2 tw=80

@@ -7,7 +7,7 @@
 \vspace{1mm}
 \fbox{
 \setlength\TODOWidth{\textwidth}
-\addtolength\TODOWidth{-50pt}
+\addtolength\TODOWidth{-60pt}
 \begin{tabular}{p{\TODOWidth}}
     TODO: #1
 \end{tabular}}
@@ -102,7 +102,8 @@
 \newcommand\TermConstrCtx[4]{\EqualC {#1} {#2} {#3} {#4}}
 \newcommand\TypeConstr[2]{\TypeConstrCtx \Gamma {#1} {#2}}
 \newcommand\TermConstr[3]{\TermConstrCtx \Gamma {#1} {#2} {#3}}
-\newcommand\ValidConstr[2]{\vdash_{#1} {#2}}
+\newcommand\ValidConstr[2]{\vdash_{#1} {#2} ~ \mathbf{ok}}
+\newcommand\TrueConstr[2]{\vdash_{#1} {#2} ~ \mathbf{true}}
 
 \newcommand\IsType[2]{\IsTypeCtx \Gamma {#1} {#2}}
 \newcommand\CheckType[3]{\CheckTypeCtx \Gamma {#1} {#2} {#3}}
