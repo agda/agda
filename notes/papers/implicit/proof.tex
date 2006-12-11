@@ -413,7 +413,7 @@ Type checking and conversion checking preserves consistent signatures. More prec
     from soundness of conversion checking (Lemma~\ref{lemSoundConstraints}).
 \end{proof}
 
-\begin{lemma}[Constraint solving is sound]
+\begin{lemma}[Constraint solving is sound] \label{lemSolveConsistent}
     If $\Sigma$ is consistent and $\ExplicitJudgement \Sigma \Simplify
     {\Sigma'}$ then $\Sigma'$ is consistent and $\Extends {\Sigma'} \Sigma$.
 \end{lemma}
@@ -423,5 +423,39 @@ Type checking and conversion checking preserves consistent signatures. More prec
     and Lemma~\ref{lemTypeCheckConsistent}.
 \end{proof}
 
-From this follows that we can mix type checking and constraint solving freely.
+From this follows that we can mix type checking and constraint solving freely,
+so we add the rules
+
+\[  \infer{ J }
+    { \Simplify
+    & J
+    }
+    \qquad
+    \infer{ J }
+    { J
+    & \Simplify
+    }
+\]
+to the type checking algorithm.
+
+\begin{theorem}[Soundness of type checking] \label{thmMain}
+    If $\Sigma$ is a well-formed signature not containg any meta variables or
+    guarded constants and $\ExplicitJudgement \Sigma {\CheckType e A M}
+    {\Sigma'}$, then $\Sigma' = \Ext \Sigma {\Sigma''}$. Furthermore, if all
+    meta variables have been instantiated and all guards are empty in
+    $\Sigma''$, then $\HasTypeCS \Sigma \Gamma {M\sigma} A$ where $\sigma$ is
+    the substitution inlining the meta variables and constants in $\Sigma''$.
+\end{theorem}
+
+\TODO{A bit clunky. How to express this more elegantly?}
+
+\begin{proof}
+    From Lemma~\ref{lemTypeCheckConsistent} and Lemma~\ref{lemSolveConsistent}
+    follows that $\HasTypeCS {\Sigma'} \Gamma M A$ and $\Sigma'$ is a
+    consistent extension of $\Sigma$.  Thus all definitions in $\Sigma''$ are
+    type correct, and consequently so is $\sigma$.  This gives $\HasTypeCS
+    {\Sigma'} \Gamma {M\sigma} A$.  Since all constants in $\Sigma''$ have
+    a definition $M\sigma$ does not use anything from $\Sigma''$ and we can
+    strengthen the signature to obtain $\HasTypeCS \Sigma \Gamma {M\sigma} A$.
+\end{proof}
 
