@@ -82,5 +82,12 @@ How to deal with the invariants?
 Wait... we need the type safety theorem to ensure the invariants!
 
 Hmm.. so I guess we need to prove everything at once. Painful!
+Ok, not that bad.
+
+Soundness of Constraints
+
+  what do we want to say?
+
+  constraint simplification is a signature extension operator
 
  vim: sts=2 sw=2 tw=80

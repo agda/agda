@@ -72,6 +72,61 @@ constraint is well-formed.
 
 Well-formedness extends in the obvious way to sets of constraints.
 
+Lemmas about {\Core} ({\em TODO: move to core section?}):
+
+\begin{lemma} \label{lemCoreEqType}
+    \[	\infer{ \EqualTypeC \Gamma A B }
+	{ \HasTypeC \Gamma M A
+	& \HasTypeC \Gamma M B 
+	}
+    \]
+\end{lemma}
+
+\begin{lemma} \label{lemCoreAppInv}
+    \[	\infer{ \HasTypeC \Gamma N A }
+	{ \HasTypeC \Gamma M {\PI x A B}
+	& \HasTypeC \Gamma {M\,N} {B'}
+	}
+    \]
+\end{lemma}
+
+\begin{lemma} \label{lemCoreShadow}
+    \[	\infer{ \HasTypeC {\Ext \Gamma x : A} M B }
+	{ \HasTypeC \Gamma M B 
+	& \HasTypeC \Gamma x A
+	}
+    \]
+\end{lemma}
+
+\begin{lemma} \label{lemCoreSubstType}
+    \[	\infer{ \IsTypeC \Gamma {\Subst B x M} }
+	{ \IsTypeC {\Ext \Gamma x:A} B 
+	& \HasTypeC \Gamma M A
+	}
+    \]
+\end{lemma}
+
+\begin{lemma}[Subject reduction] \label{lemCoreSubjectReduction}
+    \[	\infer{ \HasTypeC \Gamma {M'} A }
+	{ \HasTypeC \Gamma M A & \whnf M {M'} 	}
+    \]
+\end{lemma}
+
+\begin{lemma}[Strengthening] \label{lemCoreStrengthen}
+    \[	\infer{ \HasTypeC \Gamma M B }
+	{ \HasTypeC {\Ext \Gamma {x : A}} M B
+	& x \notin \FV{M} \cup \FV{B}
+	}
+    \]
+\end{lemma}
+
+\begin{lemma} \label{lemCoreEqualDummySubst}
+    If $\EqualTypeCS \Sigma \Gamma {B_1} {\SubstD {B_2} {h \, \bar M}}$ where $h
+    \, \bar M$ is on weak head normal form and the head $h$ does not occur in
+    $B_1$, then for any term $M$ of the right type we have $\EqualTypeCS \Sigma
+    \Gamma {B_1} {\SubstD {B_2} M}$.
+\end{lemma}
+
 \begin{theorem}[Soundness of type checking] \label{thmSoundNoCs}
     Type checking produces well-typed terms, conversion checking produces
     well-formed constraints and if no constraints are produced, the conversion
@@ -142,21 +197,47 @@ Well-formedness extends in the obvious way to sets of constraints.
     \begin{itemize}
 
 	\item {\em (TODO: Not so interesting)} In the type conversion case for
-	function spaces where the domains produce constraints, we have to use a
-	substitution lemma from {\Core}, stating that if $\IsTypeC {\Ext \Gamma
-	x:A} B$ and $\HasTypeC \Gamma M A$, then $\IsTypeC \Gamma {\Subst B x
-	M}$.
+	function spaces where the domains produce constraints, we have to use
+	Lemma~\ref{lemCoreSubstType}.
 
 	\item In the term conversion case where the terms are weak head
-	normalised we need subject reduction for weak head normalisation.
+	normalised we need subject reduction for weak head normalisation
+	(Lemma~\ref{lemCoreSubjectReduction}).
 
 	\item When checking conversion of terms with the same head we need an
-	inversion principle for application. If $\HasTypeC \Gamma M {\PI x A
-	B}$ and $\HasTypeC \Gamma {M \, N} {B_1}$ then $\HasTypeC \Gamma N A$.
+	inversion principle for application (Lemma~\ref{lemCoreAppInv}).
 
 	\TODO{this will change if we move to Conor zipping}
 
-	\item The most interesting case is the meta variable instantiation case.
+	\item The most interesting case is the meta variable instantiation
+	case, so let us spell that out in more detail.
+
+	The instantiation rule does not produce any constraints, so the only
+	thing we have to prove is that it constructs a valid extension of the
+	signature. This follows from the signature refinement lemma
+	(Lemma~\ref{lemRefineSig}) which can be applied if we prove that if
+	$\Sigma = \Ext {\Sigma_1} \Ext {\MetaDecl \alpha {B'}} \Sigma_2$ then
+	$\LAM {\bar x} M : {B'}$.
+
+	We have $\HasTypeCS \Sigma \Gamma {\alpha \, \bar x} A$ so $B'$ must
+	have the form $\PI {\bar x} \Delta B$. By Lemma~\ref{lemCoreAppInv} we
+	conclude that $\HasTypeCS \Sigma \Gamma {\bar x} \Delta$ and thus
+	$\HasTypeCS \Sigma \Gamma {\alpha \, \bar x} B$. Then by
+	Lemma~\ref{lemCoreEqType} $\EqualTypeCS \Sigma \Gamma A B$.
+
+	From $\HasTypeCS \Sigma \Gamma M A$ we get $\HasTypeCS \Sigma \Gamma M
+	B$ and using Lemma~\ref{lemCoreShadow} $\HasTypeCS \Sigma {\Ext \Gamma
+	\Delta} M B$. Abstracting over $\Delta$ we get $\HasTypeCS \Sigma
+	\Gamma {\LAM {\bar x} M} {\Delta \to B}$. We know that $\Delta \to B$
+	is a closed type, and since $\FV{M} \subseteq \bar x$, $\LAM {\bar x}
+	M$ is also closed. Thus by strenghtening
+	(Lemma~\ref{lemCoreStrengthen}) $\HasTypeCS \Sigma {} {\LAM {\bar x} M}
+	{\Delta \to B}$. We have $\IsTypeCS {\Sigma_1} {} {\Delta \to B}$ and
+	$\InScope \alpha M$ so $\HasTypeCS {\Sigma_1} {} {\LAM {\bar x} M}
+	{\Delta \to B}$ which is what we set out to prove.
+
+	\TODO{The $\InScope \alpha M$ reasoning is a bit shaky. What exactly
+	does it mean that $M$ is in scope?}
 
     \end{itemize}
 \end{proof}
@@ -202,7 +283,7 @@ Well-formedness extends in the obvious way to sets of constraints.
 %     preserves conversion in {\Core}. The only case where something
 %     interesting happens is the meta variable instantiation case where we have
 %     to prove $\EqualCS {\Sigma'} \Gamma {\alpha\,\bar x} M A$, where $\Sigma'$
-%     defines $\alpha = \LAM {\bar x} M$. By Lemma ~ \ref{lemValidSig} we know
+%     defines $\alpha = \LAM {\bar x} M$. By Lemma~\ref{lemValidSig} we know
 %     that $\Sigma'$ is well-formed, and so the proof is by unfolding $\alpha$
 %     and performing $\beta$-reducing the result.
 % \end{proof}
@@ -226,7 +307,7 @@ Well-formedness extends in the obvious way to sets of constraints.
 %     The proof is straighforward by induction on the typing derivation. In the
 %     case of the conversion rule, if the types are convertible without producing
 %     any constraints we rely on the soundness of the conversion checker
-%     (Lemma ~ \ref{lemConvSound}). If there are constraints the resulting term
+%     (Lemma~\ref{lemConvSound}). If there are constraints the resulting term
 %     is a fresh constant that is well-typed by definition.
 % \end{proof}
 
@@ -246,28 +327,44 @@ describe a decidable type checking algorithm.
 
 \subsection{Constraint solving}
 
-% \begin{lemma}[Soundness of term conversion checking] \label{thmConvSound}
-%     If two terms are checked convertible relative to a set of constraints, then
-%     any solution to these constraints makes the terms convertible in {\Core}.
-%     More precisely, if
-%     \begin{itemize}
-% 	\item \( \HasTypeCS \Sigma \Gamma M A ~ \wedge ~
-% 		 \HasTypeCS \Sigma \Gamma N A
-% 	      \)
-% 	\item $\ExplicitJudgement \Sigma {\Equal M N A \Cs} {\Sigma'}$
-% 	\item $ \Extends {\Sigma_1} {\Sigma'}$
-% 	\item $\ExplicitJudgement
-% 		{\Sigma_1}
-% 		{\CheckConstr \Cs \emptyset}
-% 		{\Sigma_2}
-% 	      $
-%     \end{itemize}
-%     then \( \EqualCS {\Sigma_2} \Gamma M N A \)
-% \end{lemma}
+This far we have completely ignored the generated constraints--if conversion
+checking produced constraints we only required them to well-formed. In order to
+prove that constraint solving is sound, we first need to know that the
+constraints we produce are sound.
 
-% \begin{proof}
-%     The interesting case is meta variable instantiation.
-% \end{proof}
+\begin{lemma}[Soundness of term conversion checking] \label{thmConvSound}
+    A conversion checking problem solved if the constraints generated from it
+    are solved. More precisely, if
+    \begin{itemize}
+	\item \( \HasTypeCS \Sigma \Gamma M A ~ \wedge ~
+		 \HasTypeCS \Sigma \Gamma N A
+	      \)
+	\item $\ExplicitJudgement \Sigma {\Equal M N A \Cs} {\Sigma'}$
+	\item $ \Extends {\Sigma_1} {\Sigma'}$
+	\item $\ExplicitJudgement
+		{\Sigma_1}
+		{\CheckConstr \Cs \emptyset}
+		{\Sigma_2}
+	      $
+    \end{itemize}
+    then \( \EqualCS {\Sigma_2} \Gamma M N A \)
+\end{lemma}
+
+\begin{proof}
+    Again we highlight some interesting cases.
+    \begin{itemize}
+	\item In the case of conversion for function types where a new constant $p$
+	is introduced, we need to prove  $\EqualTypeCS {\Sigma_2} {\Ext
+	\Gamma x : A_1} {B_1} {B_2}$ from $\EqualTypeCS {\Sigma_2} {\Ext \Gamma
+	x : A_1} {B_1} {\SubstD {B_2} {p \, \Gamma \, x}}$
+
+	If $\Sigma_2$ has an empty guard for $p$ then $p \,
+	\Gamma \, x$ reduces to $x$ and we are done. If the guard is non-empty
+	we can apply Lemma~\ref{lemCoreEqualDummySubst}, since $p \, \Gamma \,
+	x$ is on weak head normal form, and $p$ is a fresh constant which does
+	not appear in $B_1$.
+    \end{itemize}
+\end{proof}
 
 % The soundness of type conversion checking is expressed in the same way.
 
