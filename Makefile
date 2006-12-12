@@ -92,6 +92,11 @@ dist :
 
 endif
 
+ifeq ($(HAVE_HASKTAGS),Yes)
+tags :
+	$(MAKE) -C $(FULL_SRC_DIR) tags
+endif
+
 ## Testing ###########################################################
 
 test : succeed examples fail

@@ -15,7 +15,7 @@ OUT_P	= $(FULL_OUT_DIR)/prof
 
 ## Source files ###########################################################
 
-src_files		= $(shell $(FIND) . -name '*.hs' -o -name '*.lhs')
+src_files		= $(patsubst ./%,%,$(shell $(FIND) . -name '*.hs' -o -name '*.lhs'))
 all_hs_files	= $(src_files) $(OUT)/Syntax/Parser/Parser.hs \
 							   $(OUT)/Syntax/Parser/Lexer.hs
 all_hs_files_p	= $(src_files) $(OUT_P)/Syntax/Parser/Parser.hs \
@@ -99,3 +99,12 @@ $(OUT_P)/%.hs : %.x
 $(OUT_P)/%.hs : %.y
 	$(HAPPY) $(HAPPY_FLAGS) -o $@ --info=$(OUT_P)/$*.happy.out $<
 
+## Tags ###################################################################
+
+ifeq ($(HAVE_HASKTAGS),Yes)
+tags : $(all_hs_files)
+	$(HASKTAGS) -c $(all_hs_files)
+	@mv tags tags.tmp
+	@sort tags.tmp > tags
+	@rm tags.tmp
+endif

@@ -26,3 +26,4 @@ src/prototyping/eval/prof$
 src/prototyping/eval/(eval|eval_p)$
 src/prototyping/eval/.*\.prof$
 \.hp$
+(^|/)tags$
