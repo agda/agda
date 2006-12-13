@@ -79,14 +79,14 @@ equalAtom t m n =
 	    (Lit l1, Lit l2) | l1 == l2 -> return []
 	    (Var i iArgs, Var j jArgs) | i == j -> do
 		a <- typeOfBV i
-		equalArg a iArgs a jArgs
+		equalArg a iArgs jArgs
 	    (Def x xArgs, Def y yArgs) | x == y -> do
 		a <- defType <$> getConstInfo x
-		equalArg a xArgs a yArgs
+		equalArg a xArgs yArgs
 	    (Con x xArgs, Con y yArgs)
 		| x == y -> do
 		    a <- defType <$> getConstInfo x
-		    equalArg a xArgs a yArgs
+		    equalArg a xArgs yArgs
 	    (MetaV x xArgs, MetaV y yArgs) | x == y ->
 		if   sameVars xArgs yArgs
 		then return []
@@ -133,24 +133,26 @@ equalAtom t m n =
 
 -- | Type-directed equality on argument lists
 --
-equalArg :: Type -> Args -> Type -> Args -> TCM Constraints
-equalArg _ [] _ [] = return []
-equalArg _ [] _ (_:_) = __IMPOSSIBLE__
-equalArg _ (_:_) _ [] = __IMPOSSIBLE__
-equalArg a1 (arg1 : args1) a2 (arg2 : args2) = do
-    a1 <- reduce a1
-    a2 <- reduce a2
-    case (funView (unEl a1), funView (unEl a2)) of 
-	( FunV (Arg _ b1) _, FunV (Arg _ b2) _ ) -> do
+equalArg :: Type -> Args -> Args -> TCM Constraints
+equalArg _ [] [] = return []
+equalArg _ [] (_:_) = __IMPOSSIBLE__
+equalArg _ (_:_) [] = __IMPOSSIBLE__
+equalArg a (arg1 : args1) (arg2 : args2) = do
+    a <- reduce a
+    case funView (unEl a) of
+	FunV (Arg _ b) _ -> do
 	    verbose 10 $ do
-		db1 <- prettyTCM b1
-		db2 <- prettyTCM b2
+		db <- prettyTCM b
 		darg1 <- prettyTCM arg1
 		darg2 <- prettyTCM arg2
-		debug $ "equalArg " ++ show darg1 ++ " : " ++ show db1 ++ "  ==  " ++ show darg2 ++ " : " ++ show db2
-            cs1 <- guardConstraint (equalType b1 b2) $ ValueEq b1 (unArg arg1) (unArg arg2)
-	    cs2 <- equalArg (piApply' a1 [arg1]) args1 (piApply' a2 [arg2]) args2
-	    return $ cs1 ++ cs2
+		debug $ "equalArg " ++ show darg1 ++ "  ==  " ++ show darg2 ++ " : " ++ show db
+            cs1 <- equalTerm b (unArg arg1) (unArg arg2)
+	    case (cs1, unEl a) of
+		(_:_, Pi _ _) -> patternViolation   -- TODO: will duplicate work (arg1 == arg2, for instance)
+						    -- TODO: check free variables
+		_	      -> do
+		    cs2 <- equalArg (piApply' a [arg1]) args1 args2
+		    return $ cs1 ++ cs2
         _   -> patternViolation
 
 
