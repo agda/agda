@@ -1,7 +1,7 @@
 
 default : implicit.pdf
 
-implicit.ps implicit.dvi implicit.pdf : $(wildcard *.tex)
+implicit.ps implicit.dvi implicit.pdf : $(wildcard *.tex) examples.tex lhs2TeXpreamble.tex
 
 ifeq ($(shell which latexmk),)
 
@@ -24,4 +24,10 @@ else
 	latexmk -ps $<
 
 endif
+
+%.tex : %.lhs
+	lhs2TeX --poly $< > $@
+
+always :
+	while true; do $(MAKE) implicit.ps; sleep 1; done | grep -v "^make"
 

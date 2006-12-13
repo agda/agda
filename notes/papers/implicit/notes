@@ -97,6 +97,43 @@ this.
 Now what?
 ---------
 
-Examples - where?
+Examples
+  - where?
+  - which?
+
+F ? example:
+  
+  F : B -> Set
+  F true  = N
+  F false = B
+
+  not : B -> B
+  not true  = false
+  not false = true
+
+  h : ((x : F _) -> F (not x)) -> N
+  h g = g zero
+
+delta-delta example:
+
+  lam : (X,Y:Set) -> (X -> Y) -> (X => Y)
+  app : (X,Y:Set) -> (X => Y) -> (X -> Y)
+  app X Y (lam f) = f
+
+  delta : ?A
+  delta = lam ?X ?Y (\x -> app ?Z ?W x x)
+
+  loop = app ?B ?C delta delta
+
+
+more examples? what would they illustrate?
+
+some non-problematic cases (simple examples)
+  id : (A:Set) -> A -> A
+  id ? zero
+
+scope example!
+
+both examples above need pattern matching
 
  vim: sts=2 sw=2 tw=80
