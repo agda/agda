@@ -14,6 +14,7 @@ import TypeChecking.Reduce
 import TypeChecking.Constraints
 import TypeChecking.Errors
 import TypeChecking.Primitive (constructorForm)
+import TypeChecking.Free
 
 import Utils.Monad
 
@@ -148,9 +149,9 @@ equalArg a (arg1 : args1) (arg2 : args2) = do
 		debug $ "equalArg " ++ show darg1 ++ "  ==  " ++ show darg2 ++ " : " ++ show db
             cs1 <- equalTerm b (unArg arg1) (unArg arg2)
 	    case (cs1, unEl a) of
-		(_:_, Pi _ _) -> patternViolation   -- TODO: will duplicate work (arg1 == arg2, for instance)
-						    -- TODO: check free variables
-		_	      -> do
+		(_:_, Pi _ c) | 0 `freeIn` absBody c
+		    -> patternViolation   -- TODO: will duplicate work (all arguments checked so far)
+		_   -> do
 		    cs2 <- equalArg (piApply' a [arg1]) args1 args2
 		    return $ cs1 ++ cs2
         _   -> patternViolation
