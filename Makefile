@@ -25,7 +25,7 @@ include mk/paths.mk
 ## Default target #########################################################
 
 ifeq ($(is_configured),Yes)
-default : full core transl
+default : full core transl tags
 else
 default : make_configure
 endif
@@ -95,6 +95,9 @@ endif
 ifeq ($(HAVE_HASKTAGS),Yes)
 tags :
 	$(MAKE) -C $(FULL_SRC_DIR) tags
+else
+tags :
+	@true
 endif
 
 ## Testing ###########################################################

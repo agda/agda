@@ -27,3 +27,4 @@ src/prototyping/eval/(eval|eval_p)$
 src/prototyping/eval/.*\.prof$
 \.hp$
 (^|/)tags$
+notes/papers/implicit/(examples|lhs2TeXpreamble).tex
