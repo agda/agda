@@ -1,0 +1,55 @@
+
+Module system talk
+------------------
+
+Purpose of the talk:
+
+  - explain our module system
+  - why we think it's good
+  - get feedback
+
+Important points:
+
+  - talk about implementation
+
+Outline
+
+  - explain the idea
+    + simple
+    + separate scope checking and type checking
+
+  - describe the module system (simplified?)
+    + use examples
+
+  - describe the implementation
+    + scope checking
+    + the view of the type checker
+
+Before scope checking:
+
+  Unmodified source program (local names, hierarchical modules)
+
+After scope checking:
+
+  Fully qualified names
+    - A.B.C.f
+    - A.B.x
+
+  Still hierarchical module structure
+
+  How does it work?
+    - keeps track of renamings
+    - basically keeps a map from local name to fully qualified name
+
+  Maybe scope checking should flatten the module space? No, instantiating a
+  module would be a problem then. Or would it?
+
+After type checking
+
+  Flat module structure
+    - A.B.C -> { f, g, h }
+    - A.B   -> { x, y }
+
+
+
+ vim: sts=2 sw=2 tw=80
