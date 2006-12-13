@@ -15,7 +15,7 @@ data Nat : Set where
 {-# BUILTIN SUC suc #-}
 {-# BUILTIN ZERO zero #-}
 
-infix 40 _==_ _<_
+infix 40 _==_ _<_ _≤_ _>_ _≥_
 infixl 60 _+_ _-_
 infixl 70 _*_
 infixr 80 _^_
