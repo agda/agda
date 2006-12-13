@@ -27,6 +27,7 @@ import Syntax.Literal
 }
 
 $digit	     = 0-9
+$hexdigit    = [ $digit a-f A-F ]
 $alpha	     = [ A-Z a-z _ ]
 $op	     = [ \- \! \# \$ \% \& \* \+ \/ \< \= \> \@ \^ \| \~ \? \` \[ \] ]
 $idstart     = [ $alpha $op ]
@@ -37,7 +38,7 @@ $nonalphanum = $nonalpha # $digit
 
 $white_nonl  = $white # \n
 
-@number	     = $digit+
+@number	     = $digit+ | "0x" $hexdigit+
 @exponent    = [eE] [\-\+]? @number
 @float	     = @number \. @number @exponent? | @number @exponent
 
