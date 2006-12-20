@@ -63,6 +63,7 @@ effect only after doing 'erase-customization' for `agda2-ghci-options' below"
 
 (defcustom agda2-ghci-options2
   (list
+   "-package Agda"
    "-I."
    "-Wall"
    "-Werror"
@@ -231,7 +232,7 @@ consumed at `agda2-undo'.  It is a list of list
                             mode-name "Agda2 GHCi")
                       (rename-buffer agda2-bufname))))
   (apply 'agda2-go ":set" agda2-ghci-options)
-  (agda2-go ":l" agda2-toplevel-module)
+  (agda2-go ":mod +" agda2-toplevel-module)
   (agda2-text-state))
 
 ;;;; Communicating with Agda2

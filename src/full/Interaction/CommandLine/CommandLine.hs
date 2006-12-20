@@ -235,7 +235,7 @@ typeOf s =
     do  e  <- parseExpr (unwords s)
         e0 <- typeInCurrent Normalised e
         e1 <- typeInCurrent AsIs e
-	liftIO $ putStrLn $ showA e0
+	liftIO $ putStrLn $ showA e1
 
 typeIn :: [String] -> TCM ()
 typeIn s@(_:_:_) = 

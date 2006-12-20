@@ -41,6 +41,7 @@ import TypeChecking.Serialise
 import TypeChecking.Interface
 import TypeChecking.Constraints
 import TypeChecking.Errors
+import TypeChecking.Positivity
 
 import Utils.Monad
 import Utils.List
@@ -109,6 +110,9 @@ checkMutual :: DeclInfo -> [A.TypeSignature] -> [A.Definition] -> TCM ()
 checkMutual i ts ds =
     do	mapM_ checkTypeSignature ts
 	mapM_ checkDefinition ds
+	m <- currentModule
+	whenM positivityCheckEnabled $
+	    checkStrictlyPositive [ qualify m name | A.DataDef _ name _ _ <- ds ]
 
 
 -- | Type check the type signature of an inductive or recursive definition.

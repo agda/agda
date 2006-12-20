@@ -71,6 +71,9 @@ showImplicitArguments = optShowImplicit <$> commandLineOptions
 ignoreInterfaces :: TCM Bool
 ignoreInterfaces = optIgnoreInterfaces <$> commandLineOptions
 
+positivityCheckEnabled :: TCM Bool
+positivityCheckEnabled = not . optDisablePositivity <$> commandLineOptions
+
 getVerbosity :: TCM Int
 getVerbosity = optVerbose <$> commandLineOptions
 

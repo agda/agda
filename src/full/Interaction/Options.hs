@@ -39,21 +39,22 @@ instance Functor ArgDescr where
     fmap f (OptArg p s) = OptArg (f . p) s
 
 data CommandLineOptions =
-    Options { optProgramName	  :: String
-	    , optInputFile	  :: Maybe FilePath
-	    , optIncludeDirs	  :: [FilePath]
-	    , optShowVersion	  :: Bool
-	    , optShowHelp	  :: Bool
-	    , optInteractive	  :: Bool
-	    , optEmacsMode	  :: Bool
-	    , optVerbose	  :: Int
-	    , optProofIrrelevance :: Bool
-	    , optAllowUnsolved	  :: Bool
-	    , optShowImplicit	  :: Bool
-	    , optRunTests	  :: Bool
-	    , optCompile	  :: Bool
-	    , optGenerateVimFile  :: Bool
-	    , optIgnoreInterfaces :: Bool
+    Options { optProgramName	   :: String
+	    , optInputFile	   :: Maybe FilePath
+	    , optIncludeDirs	   :: [FilePath]
+	    , optShowVersion	   :: Bool
+	    , optShowHelp	   :: Bool
+	    , optInteractive	   :: Bool
+	    , optEmacsMode	   :: Bool
+	    , optVerbose	   :: Int
+	    , optProofIrrelevance  :: Bool
+	    , optAllowUnsolved	   :: Bool
+	    , optShowImplicit	   :: Bool
+	    , optRunTests	   :: Bool
+	    , optCompile	   :: Bool
+	    , optGenerateVimFile   :: Bool
+	    , optIgnoreInterfaces  :: Bool
+	    , optDisablePositivity :: Bool
 	    }
     deriving Show
 
@@ -64,21 +65,22 @@ mapFlag f (Option _ long arg descr) = Option [] (map f long) arg descr
 
 defaultOptions :: CommandLineOptions
 defaultOptions =
-    Options { optProgramName	  = "agda"
-	    , optInputFile	  = Nothing
-	    , optIncludeDirs	  = []
-	    , optShowVersion	  = False
-	    , optShowHelp	  = False
-	    , optInteractive	  = False
-	    , optEmacsMode	  = False
-	    , optVerbose	  = 1
-	    , optProofIrrelevance = False
-	    , optAllowUnsolved	  = False
-	    , optShowImplicit	  = False
-	    , optRunTests	  = False
-	    , optCompile	  = False
-	    , optGenerateVimFile  = False
-	    , optIgnoreInterfaces = False
+    Options { optProgramName	   = "agda"
+	    , optInputFile	   = Nothing
+	    , optIncludeDirs	   = []
+	    , optShowVersion	   = False
+	    , optShowHelp	   = False
+	    , optInteractive	   = False
+	    , optEmacsMode	   = False
+	    , optVerbose	   = 1
+	    , optProofIrrelevance  = False
+	    , optAllowUnsolved	   = False
+	    , optShowImplicit	   = False
+	    , optRunTests	   = False
+	    , optCompile	   = False
+	    , optGenerateVimFile   = False
+	    , optIgnoreInterfaces  = False
+	    , optDisablePositivity = False
 	    }
 
 {- | @f :: Flag opts@  is an action on the option record that results from
@@ -92,14 +94,15 @@ inputFlag f o	    =
 	Nothing  -> return $ o { optInputFile = Just f }
 	Just _	 -> fail "only one input file allowed"
 
-versionFlag	     o = return $ o { optShowVersion	  = True }
-helpFlag	     o = return $ o { optShowHelp	  = True }
-proofIrrelevanceFlag o = return $ o { optProofIrrelevance = True }
-ignoreInterfacesFlag o = return $ o { optIgnoreInterfaces = True }
-allowUnsolvedFlag    o = return $ o { optAllowUnsolved	  = True }
-showImplicitFlag     o = return $ o { optShowImplicit	  = True }
-runTestsFlag	     o = return $ o { optRunTests	  = True }
-vimFlag		     o = return $ o { optGenerateVimFile  = True }
+versionFlag	     o = return $ o { optShowVersion	   = True }
+helpFlag	     o = return $ o { optShowHelp	   = True }
+proofIrrelevanceFlag o = return $ o { optProofIrrelevance  = True }
+ignoreInterfacesFlag o = return $ o { optIgnoreInterfaces  = True }
+allowUnsolvedFlag    o = return $ o { optAllowUnsolved	   = True }
+showImplicitFlag     o = return $ o { optShowImplicit	   = True }
+runTestsFlag	     o = return $ o { optRunTests	   = True }
+vimFlag		     o = return $ o { optGenerateVimFile   = True }
+noPositivityFlag     o = return $ o { optDisablePositivity = True }
 
 interactiveFlag o
     | optEmacsMode o = fail "cannot have both emacs mode and interactive mode"
@@ -153,6 +156,8 @@ pragmaOptions =
 		    "enable proof irrelevance (experimental feature)"
     , Option []	    ["allow-unsolved-metas"] (NoArg allowUnsolvedFlag)
 		    "allow unsolved meta variables (only needed in batch mode)"
+    , Option []	    ["disable-positivity-check"] (NoArg noPositivityFlag)
+		    "disable strict positivity check for datatypes"
     ]
 
 -- | Used for printing usage info.
