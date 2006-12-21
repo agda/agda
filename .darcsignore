@@ -28,3 +28,6 @@ src/prototyping/eval/.*\.prof$
 \.hp$
 (^|/)tags$
 notes/papers/implicit/(examples|lhs2TeXpreamble).tex
+src/prototyping/modules/flat/Syntax$
+src/prototyping/modules/flat/module$
+\.vrb$

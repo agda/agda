@@ -1,0 +1,2 @@
+Datatype D is not strictly positive, because it occurs negatively
+in constructor lam of datatype D
