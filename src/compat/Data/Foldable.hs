@@ -67,6 +67,8 @@ import Data.Monoid.New
 import Data.Array
 import Data.Map (Map)
 import qualified Data.Map as Map
+import Data.Set (Set)
+import qualified Data.Set as Set
 
 #ifdef __NHC__
 import Control.Arrow (ArrowZero(..)) -- work around nhc98 typechecker problem
@@ -156,6 +158,9 @@ instance Ix i => Foldable (Array i) where
 
 instance Ord k => Foldable (Map k) where
     foldr f z = foldr f z . Map.elems
+
+instance Foldable Set where
+    foldr f z = foldr f z . Set.toList
 
 -- | Fold over the elements of a structure,
 -- associating to the right, but strictly.
