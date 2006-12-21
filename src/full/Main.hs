@@ -43,7 +43,7 @@ import TypeChecking.Errors
 import Compiler.Agate.Main
 
 import Utils.Monad
-import Utils.Wise
+-- import Utils.Wise -- not 6.4 compatible at the moment
 
 import Tests
 import Version

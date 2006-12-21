@@ -1,4 +1,4 @@
-> {-# OPTIONS -fglasgow-exts -fallow-undecidable-instances #-}
+> {-# OPTIONS -fglasgow-exts -fallow-undecidable-instances -cpp #-}
 
 Posted by Conor McBride on libraries@haskell.org Oct 23 2006.
 (http://www.haskell.org/pipermail/libraries/2006-October/005950.html)
