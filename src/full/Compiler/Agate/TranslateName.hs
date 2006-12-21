@@ -7,7 +7,7 @@
 
 module Compiler.Agate.TranslateName where
 
-import Char
+import Data.Char
 
 import Syntax.Internal
 import Syntax.Scope
