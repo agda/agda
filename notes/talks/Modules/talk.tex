@@ -1,0 +1,553 @@
+\documentclass{beamer}
+
+\usetheme{JuanLesPins}
+
+\usepackage{beamerthemesplit}
+\usepackage{pxfonts}
+\usepackage{proof}
+\usepackage{graphicx}
+
+\newenvironment{agda}{
+\begin{block}{}\small
+}{
+\end{block}
+}
+
+\setlength\parskip{2mm}
+
+\begin{document}
+
+\title{A Module System for Agda}
+\author{Ulf Norell}
+\institute{Chalmers University of Technology}
+\date{\today}
+
+\frame{\titlepage}
+
+\section{Introduction}
+
+
+%- Purpose ----------------------------------------------------------------
+
+\frame{
+\frametitle{Purpose of this talk}
+
+\begin{itemize}
+    \item I (boldly) claim: ``You don't need a fancy module system''
+    \item<2> ..and you tell me why I'm wrong.
+\end{itemize}
+}
+
+%- Design -----------------------------------------------------------------
+
+\frame{
+\frametitle{Design of the module system}
+
+\begin{itemize}
+    \item Purpose
+    \begin{itemize}
+        \item handle the scope of names
+    \end{itemize}
+    \item Goals
+    \begin{itemize}
+        \item (reasonably) simple
+        \item clear separation between scope checking and type checking
+    \end{itemize}
+    \item Consequences
+    \begin{itemize}
+        \item Modules don't have types,
+        \item they're not higher order
+        \item<2> and they don't have a categorical semantics.
+    \end{itemize}
+\end{itemize}
+}
+
+\begin{frame}
+  \frametitle{Justification}
+
+  Distinguish between modules and records.
+  \begin{itemize}
+    \item Modules structure names
+    \item Records structure data
+    \item Records are first class
+    \item and should be used for things that the module system can't do.
+    \item<2> ..unfortunately we don't have records yet.
+  \end{itemize}
+\end{frame}
+
+\section{The Module System}
+
+%- Simple example ---------------------------------------------------------
+
+\begin{frame}[fragile]
+\frametitle{A simple example}
+
+A module contains a bunch of declarations
+
+\begin{agda}
+\begin{verbatim}
+module A where
+  id : (A : Set) -> A -> A
+  id A x = x
+\end{verbatim}
+\end{agda}
+
+Outside the module the contents can be accessed using qualified names
+
+\begin{agda}
+\begin{verbatim}
+zero' = A.id Nat zero
+\end{verbatim}
+\end{agda}
+
+Or we can {\em open} the module to bring the contents into scope
+
+\begin{agda}
+\begin{verbatim}
+open A
+zero' = id Nat zero
+\end{verbatim}
+\end{agda}
+
+\end{frame}
+
+%- Controlling imported names ---------------------------------------------
+
+\begin{frame}[fragile]
+\frametitle{Controlling what is imported}
+
+When opening a module we can choose to only bring certain names into scope.
+
+\begin{agda}
+\begin{verbatim}
+open Nat, using (Nat) -- only Nat
+plus : Nat -> Nat -> Nat
+plus = Nat.plus
+\end{verbatim}
+\end{agda}
+\begin{agda}
+\begin{verbatim}
+open Nat, hiding (plus) -- everything but plus
+\end{verbatim}
+\end{agda}
+\begin{agda}
+\begin{verbatim}
+-- everything, but rename zero and suc
+open Nat, renaming (zero to z, suc to s)
+_+_ : Nat -> Nat -> Nat
+z   + m = m
+s n + m = s (n + m)
+\end{verbatim}
+\end{agda}
+
+\end{frame}
+
+%- Controlling exports ----------------------------------------------------
+
+\begin{frame}[fragile]
+\frametitle{Controlling what is exported}
+You can declare things {\em private}, meaning that they will not be
+accessible outside the module (but they can still be computed with).
+
+\begin{agda}
+\begin{verbatim}
+module Proof where
+  private boringLemma : (A : Set) -> A
+          boringLemma = ..
+  mainTheorem : P == NP
+  mainTheorem = boringLemma (P == NP)
+\end{verbatim}
+\end{agda}
+
+\end{frame}
+
+%- Abstract definitions ---------------------------------------------------
+
+\begin{frame}[fragile]
+  \frametitle{Abstract definitions}
+
+  An {\em abstract} definition does not reduce outside the module.
+\begin{agda}
+\begin{verbatim}
+module A where
+  abstract z : Nat
+           z = zero
+  -- here z reduces to zero
+  zIsZero : z == zero
+  zIsZero = refl
+
+-- but not here
+zIsZero : A.z == zero
+zIsZero = A.zIsZero {- we can't use refl -}
+\end{verbatim}
+\end{agda}
+
+  Care has to be taken so that the definition of \verb!z! doesn't escape.
+
+\end{frame}
+
+%- Parameterised modules --------------------------------------------------
+
+\begin{frame}[fragile]
+  \frametitle{Parameterised modules}
+
+  Modules can be parameterised (similar to sections in Coq)
+
+\begin{agda}
+\begin{verbatim}
+module Sort (A : Set)(_<_ : A -> A -> Bool) where
+  sort : List A -> List A
+  sort xs = ..
+\end{verbatim}
+\end{agda}
+
+  A parameterised module can be applied to create a new module
+
+\begin{agda}
+\begin{verbatim}
+module SortNat = Sort Nat natLess
+\end{verbatim}
+\end{agda}
+
+  Design decision: Is the following valid?
+
+\begin{agda}
+\begin{verbatim}
+Sort.sort : (A : Set) -> (A -> A -> Bool) ->
+            List A -> List A
+\end{verbatim}
+\end{agda}
+
+\end{frame}
+
+%- Separate compilation ---------------------------------------------------
+
+\begin{frame}[fragile]
+  \frametitle{Separate type checking}
+
+  A program can be split over multiple files.
+  \begin{itemize}
+    \item Principle: keep the file system out of the source code
+    \item Each file contains a single top level module whose name corresponds to
+    the file name.
+    \item Type checking a file produces an interface file, containing
+    essentially a dump of the proof state.
+    \item Saves a lot of re-type checking.
+  \end{itemize}
+\end{frame}
+
+%- Overview ---------------------------------------------------------------
+
+\begin{frame}[fragile]
+  \frametitle{Overview of the syntax}
+
+\begin{agda}
+\begin{verbatim}
+Decl ::= module M Tel where Decls
+      |  module M Tel = M' Exprs [Modifiers]
+      |  import M [ as M' ]      [Modifiers]
+      |  open   M [, public ]    [Modifiers]
+      |  private Decls
+      |  abstract Decls
+      |  ...
+Modifier ::= , using    (x, ..)
+          |  , hiding   (x, ..)
+          |  , renaming (x to y, ..)
+\end{verbatim}
+\end{agda}
+\end{frame}
+
+\section{Implementation}
+
+%- The goals --------------------------------------------------------------
+
+\frame{
+\frametitle{Revisiting the goals}
+
+Our goals:
+
+\begin{itemize}
+  \item Simple
+  \begin{itemize}
+    \item We like to think it is.
+  \end{itemize}
+  \item<2> Clear separation between scope checking and type checking.
+  \begin{itemize}
+    \item No type checking during scope checking
+    \item No scope checking during type checking
+  \end{itemize}
+\end{itemize}
+}
+
+%- No type checking during scope checking ---------------------------------
+
+\begin{frame}[fragile]
+  \frametitle{No type checking during scope checking}
+
+  \begin{itemize}
+    \item Modules cannot be passed around..
+    \item ..and they don't have types..
+    \item ..so we don't need type checking to figure out what names a particular
+    module contains.
+  \end{itemize}
+\end{frame}
+
+%- No scope checking during type checking ---------------------------------
+
+\begin{frame}[fragile]
+  \frametitle{No scope checking during type checking}
+
+\begin{itemize}
+  \item Remove the module system during scope checking.
+  \begin{itemize}
+    \item Modules are about managing names, so this should be possible.
+    \item Except.. performing module instantiations at scope checking might
+          generate a lot of extra work for the type checker.
+  \end{itemize}
+\end{itemize}
+\end{frame}
+
+%- Result of scope checking -----------------------------------------------
+
+\begin{frame}[fragile]
+  \frametitle{Result of scope checking}
+
+The type checking will see:
+
+\begin{agda}
+\begin{verbatim}
+Decl ::= section M Tel Decls
+      |  apply M = M Exprs
+      |  import M
+      |  ..
+\end{verbatim}
+\end{agda}
+
+\begin{itemize}
+  \item Names are fully qualified
+  \item Scope control has disappeared
+\end{itemize}
+
+\end{frame}
+
+%- Scope checking ---------------------------------------------------------
+
+\begin{frame}[fragile]
+  \frametitle{Implementing the scope checker}
+\begin{agda}
+\begin{verbatim}
+data Scope = Scope { name         :: Name
+                   , publicNames  :: Names
+                   , privateNames :: Names
+                   }
+type Names = Map ConcreteName QualifiedName
+type State = Stack Scope
+\end{verbatim}
+\end{agda}
+\begin{itemize}
+  \item Entering a module:
+  \begin{itemize}
+    \item push an empty scope on the stack
+    \item if parameterised, output a section
+  \end{itemize}
+  \item Exiting a module: pop a scope from the stack
+  \begin{itemize}
+    \item discard private names
+    \item put public names in the current scope (but qualified)
+  \end{itemize}
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Example}
+\begin{agda}
+\begin{verbatim}
+module A where          Current stack
+  f : T  <-- 
+  module B0 where
+    g : T
+  module B where     
+    private g : T       A - public : f -> A.f
+    module C where                   
+      h : T
+
+\end{verbatim}
+\end{agda}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Example}
+\begin{agda}
+\begin{verbatim}
+module A where          Current stack
+  f : T
+  module B0 where
+    g : T  <--
+  module B where        B0 - public: g  -> A.B0.g
+    private g : T       A  - public: f  -> A.f
+    module C where                   
+      h : T
+
+\end{verbatim}
+\end{agda}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Example}
+\begin{agda}
+\begin{verbatim}
+module A where          Current stack
+  f : T
+  module B0 where
+    g : T
+  module B where        B - private: g    -> A.B.g
+    private g : T <--   A - public : f    -> A.f
+    module C where                   B0   -> A.B0
+      h : T                          B0.g -> A.B0.g
+
+\end{verbatim}
+\end{agda}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Example}
+\begin{agda}
+\begin{verbatim}
+module A where          Current stack
+  f : T
+  module B0 where
+    g : T               C - public : h    -> A.B.C.h
+  module B where        B - private: g    -> A.B.g
+    private g : T       A - public : f    -> A.f
+    module C where                   B0   -> A.B0
+      h : T <--                      B0.g -> A.B0.g
+
+\end{verbatim}
+\end{agda}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Example}
+\begin{agda}
+\begin{verbatim}
+module A where          Current stack
+  f : T
+  module B0 where
+    g : T               B - public : C.h  -> A.B.C.h
+  module B where            private: g    -> A.B.g
+    private g : T       A - public : f    -> A.f
+    module C where                   B0   -> A.B0
+      h : T                          B0.g -> A.B0.g
+    <--
+\end{verbatim}
+\end{agda}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Example}
+\begin{agda}
+\begin{verbatim}
+module A where          Current stack
+  f : T
+  module B0 where
+    g : T
+  module B where        A - public : f     -> A.f  
+    private g : T                    B0    -> A.B0
+    module C where                   B0.g  -> A.B0.g
+      h : T                          B.C.h -> A.B.C.h
+  <--
+\end{verbatim}
+\end{agda}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Example}
+Output from scope checking
+\begin{agda}
+\begin{verbatim}
+A.f     : T
+A.B0.g  : T
+A.B.g   : T
+A.B.C.h : T
+\end{verbatim}
+\end{agda}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Other operations}
+
+  \begin{itemize}
+    \item {\tt open A}
+    \begin{itemize}
+      \item for each A.B.x $\to$ y add B.x $\to$ y to the top scope
+      \item no output
+    \end{itemize}
+    \item {\tt module A $\Delta$ = B es}
+    \begin{itemize}
+      \item push a module A
+      \item {\tt open B, public}
+      \item pop A
+      \item if $\Delta$ is non-empty, output \\
+            {\tt section \_ $\Delta$ where apply A = B es}
+    \end{itemize}
+    \item {\tt using, hiding, renaming} just affects what is added to the scope
+    \item name resolution - look up the concrete name (in any part of the stack)
+  \end{itemize}
+\end{frame}
+
+%- Type checking ----------------------------------------------------------
+
+\begin{frame}[fragile]
+  \frametitle{Implementing the type checker}
+
+  After type checking:
+  \begin{itemize}
+    \item All definitions are lambda lifted.
+  \end{itemize}
+
+  What does the type checker have to do?
+  \begin{itemize}
+    \item Collect paramers
+    \item Lambda lift definitions (after type checking)
+    \item Apply sections ({\tt apply A = B es})
+    \begin{itemize}
+      \item check that the arguments es match the parameters of B
+      \item for each definition {\tt B.C.f} create a new definition \\
+            {\tt A.C.f = B.C.f es}
+    \end{itemize}
+  \end{itemize}
+
+\end{frame}
+
+%- Design choices ---------------------------------------------------------
+
+\section{Conclusions}
+
+\begin{frame}[fragile]
+  \frametitle{Conclusions and Future work}
+
+  Future work
+  \begin{itemize}
+    \item Mutual recursion between modules
+    \begin{itemize}
+      \item same file: easy
+      \item different files: requires more machinery (including syntax!)
+    \end{itemize}
+    \item Unifiying modules and local definitions
+    \item Add records and {\bf try some real examples}
+  \end{itemize}
+
+  Conclusions
+  \begin{itemize}
+    \item Simple - yes!
+    \item Sufficiently powerful
+    \begin{itemize}
+      \item<2> exercise for the audience
+    \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\end{document}
+
+% vim: et tw=80 sts=2 sw=2

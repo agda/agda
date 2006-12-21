@@ -19,11 +19,24 @@ Outline
     + separate scope checking and type checking
 
   - describe the module system (simplified?)
+    + features
+      - open
+      - using/hiding/renaming
+      - abstract/private
+      - parameterised modules
+      - separate typechecking
     + use examples
 
   - describe the implementation
     + scope checking
     + the view of the type checker
+
+  - demo (the prototype)
+    + look at the result of scope checking
+    + look at the result of type checking
+
+  - Agda 2 demo
+    + look at a real example
 
 Before scope checking:
 
@@ -42,7 +55,8 @@ After scope checking:
     - basically keeps a map from local name to fully qualified name
 
   Maybe scope checking should flatten the module space? No, instantiating a
-  module would be a problem then. Or would it?
+  module would be a problem then. Or would it? We already perform all kinds of
+  tricks when instantiating modules. Let's try.
 
 After type checking
 
@@ -50,6 +64,43 @@ After type checking
     - A.B.C -> { f, g, h }
     - A.B   -> { x, y }
 
+Flatten modules at scope checking
+---------------------------------
 
+  What do we need to keep?
+  - parameterised modules (to avoid re-type checking parameters)
+  - module instantiations
+
+  So something like:
+
+  Given
+
+    module A Δ where
+      f : A
+      g : B
+
+    module B Γ = A t
+
+  scope checking yields
+
+    section Δ
+      A.f : A
+
+    module B Γ = A t
+
+  and type checking then produces
+
+    A { f : Δ -> A }
+    B { f : Γ -> A[t/Δ] }
+
+  type checking a section is very simple (just abstract the telescope)
+
+  type checking a module instantiation of A will instantiate all modules with
+  prefix A (A, A.M.P, ..)
+
+How does renaming work at the moment?
+-------------------------------------
+
+  - it's completely ignore at type checking
 
  vim: sts=2 sw=2 tw=80
