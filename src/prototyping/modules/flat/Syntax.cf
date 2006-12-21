@@ -1,0 +1,36 @@
+
+entrypoints Decl1;
+
+layout "where";
+
+comment "--" ;
+comment "{-" "-}" ;
+
+token Var letter (letter | digit | '_' | '\'')* ;
+
+Type.	Decl  ::= Var ":" Expr ;
+Def.	Decl  ::= Var ":" Expr "=" Expr ;
+Inst.	Decl  ::= "module" Var [Bind] "=" Id [Expr2] ;
+_.	Decl  ::= Decl1 ;
+Module. Decl1 ::= "module" Var [Bind] "where" "{" [Decl] "}" ;
+
+Pi.	Expr  ::= "(" Var ":" Expr ")" "->" Expr ;
+fun.	Expr  ::= Expr1 "->" Expr ;
+Lam.	Expr  ::= "\\" Var "->" Expr ;
+App.	Expr1 ::= Expr1 Expr2 ;
+Name.	Expr2 ::= Id ;
+Set.	Expr2 ::= "Set" ;
+
+Id.	Id    ::= [Var];
+
+Bind.	Bind  ::= "(" Var ":" Expr ")" ;
+
+define fun a b = Pi (Var "_") a b ;
+
+coercions Expr 2;
+
+separator Decl ";";
+separator nonempty Var ".";
+separator Expr2 "";
+separator Bind "";
+
