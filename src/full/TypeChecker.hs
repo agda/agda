@@ -823,6 +823,26 @@ bindBuiltinType1 thing e = do
     f <- checkExpr e setToSet
     bindBuiltinName thing f
 
+bindBuiltinEqual :: A.Expr -> TCM ()
+bindBuiltinEqual e = do
+    let set = sort (Type 0)
+	el  = El (Type 0)
+	t   = El (Type 1) $ Pi (Arg Hidden set) $ Abs "A"
+	    $ el $ Fun (Arg NotHidden $ el (Var 0)) (el $ Var 0)
+    eq <- checkExpr e t
+    bindBuiltinName builtinEquality eq
+
+bindBuiltinRefl :: A.Expr -> TCM ()
+bindBuiltinRefl e = do
+    eq <- primEqual
+    let set = sort (Type 0)
+	el  = El (Type 0)
+	hpi x a t = Pi (Arg Hidden a) $ Abs x $ el t
+	t   = El (Type 1) $ hpi "A" set $ hpi "x" (Var 0)
+			  $ eq `apply` [Var 0, Var 0]
+    refl <- checkExpr e t
+    bindBuiltinName builtinRefl refl
+
 bindBuiltinZero :: A.Expr -> TCM ()
 bindBuiltinZero e = do
     nat  <- primNat
@@ -1010,6 +1030,8 @@ bindBuiltin b e = do
 	    | b == builtinSuc			 = bindBuiltinSuc e
 	    | Just (s,v) <- lookup b builtinPrimitives =
 		bindBuiltinPrimitive s b e v
+	    | b == builtinEquality		 = bindBuiltinEqual e
+	    | b == builtinRefl			 = bindBuiltinRefl e
 	    | otherwise				 = typeError $ NoSuchBuiltinName b
 
 ---------------------------------------------------------------------------

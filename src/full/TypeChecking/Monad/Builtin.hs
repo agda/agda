@@ -75,6 +75,8 @@ primNatDivSuc = getBuiltin builtinNatDivSuc
 primNatModSuc = getBuiltin builtinNatModSuc
 primNatEquals = getBuiltin builtinNatEquals
 primNatLess   = getBuiltin builtinNatLess
+primEqual     = getBuiltin builtinEquality
+primRefl      = getBuiltin builtinRefl
 
 builtinNat       = "NATURAL"
 builtinSuc       = "SUC"
@@ -98,6 +100,8 @@ builtinNil       = "NIL"
 builtinCons      = "CONS"
 builtinIO        = "IO"
 builtinUnit      = "UNIT"
+builtinEquality	 = "EQUAL"
+builtinRefl	 = "REFL"
 
 builtinTypes :: [String]
 builtinTypes =
