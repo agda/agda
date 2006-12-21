@@ -385,6 +385,14 @@ type LetBindings = Map Name (Term, Type)
 -- * Type checking errors
 ---------------------------------------------------------------------------
 
+-- Occurence of a name in a datatype definition
+data Occ = Occ { occDatatype	:: QName
+	       , occConstructor :: QName
+	       , occPosition	:: OccPos
+	       }
+
+data OccPos = NonPositively | ArgumentTo Nat QName
+
 data TypeError
 	= InternalError String
 	| NotImplemented String
@@ -431,6 +439,8 @@ data TypeError
 	| BuiltinInParameterisedModule String
 	| NoRHSRequiresAbsurdPattern [NamedArg A.Pattern]
 	| IncompletePatternMatching Term Args
+    -- Positivity errors
+	| NotStrictlyPositive QName [Occ]
     -- Import errors
 	| LocalVsImportedModuleClash ModuleName
 	| UnsolvedMetasInImport [Range]

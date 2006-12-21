@@ -146,6 +146,7 @@ errorString err = case err of
     NoParseForLHS _			       -> "NoParseForLHS"
     AmbiguousParseForLHS _ _		       -> "AmbiguousParseForLHS"
     IncompletePatternMatching _ _	       -> "IncompletePatternMatching"
+    NotStrictlyPositive _ _		       -> "NotStrictlyPositive"
 
 ---------------------------------------------------------------------------
 -- * The PrettyTCM class
@@ -355,6 +356,28 @@ instance PrettyTCM TypeError where
 	    IncompletePatternMatching v args -> fsep $
 		pwords "Incomplete pattern matching for" ++ [prettyTCM v <> text"."] ++
 		pwords "No match for" ++ map prettyTCM args
+	    NotStrictlyPositive d ocs -> fsep $
+		pwords "Datatype" ++ [pretty d] ++ pwords "is not strictly positive, because"
+		++ prettyOcc "it" ocs
+		where
+		    prettyOcc _ [] = []
+		    prettyOcc it (Occ d c r : ocs) = concat
+			[ pwords it, pwords "occurs", prettyR r
+			, pwords "in constructor", [pretty c], pwords "of datatype"
+			, [pretty d <> com ocs], prettyOcc "which" ocs
+			]
+		    prettyR NonPositively = pwords "negatively"
+		    prettyR (ArgumentTo i q) =
+			pwords "as the" ++ [th i] ++
+			pwords "argument to" ++ [pretty q]
+		    th 0 = text "first"
+		    th 1 = text "second"
+		    th 2 = text "third"
+		    th n = text (show $ n - 1) <> text "th"
+
+		    com []    = empty
+		    com (_:_) = comma
+
 
 instance PrettyTCM Call where
     prettyTCM c = case c of

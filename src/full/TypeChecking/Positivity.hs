@@ -9,6 +9,7 @@ import Control.Applicative
 import Control.Monad hiding (mapM_)
 import Control.Monad.Trans (liftIO)
 import Control.Monad.State hiding (mapM_)
+import Control.Monad.Error hiding (mapM_)
 import Data.Foldable
 import Data.Set (Set)
 import Data.Monoid
@@ -20,6 +21,7 @@ import Syntax.Internal
 import TypeChecking.Monad
 import TypeChecking.Substitute
 import TypeChecking.Errors
+import TypeChecking.Reduce
 
 import Utils.Monad
 
@@ -29,12 +31,12 @@ import Utils.Monad
 checkStrictlyPositive :: [QName] -> TCM ()
 checkStrictlyPositive ds = flip evalStateT noAssumptions $ do
     cs <- concat <$> mapM constructors ds
-    mapM_ (\c -> checkPos ds c =<< lift (typeOfConst c)) cs
+    mapM_ (\(d,c) -> checkPos ds d c =<< lift (normalise =<< typeOfConst c)) cs
     where
 	constructors d = do
 	    def <- lift $ theDef <$> getConstInfo d
 	    case def of
-		Datatype _ cs _ _ -> return cs
+		Datatype _ cs _ _ -> return $ zip (repeat d) cs
 		_		  -> __IMPOSSIBLE__
 
 -- | Assumptions about arguments to datatypes
@@ -53,21 +55,29 @@ isAssumption q i = do
 assume :: QName -> Int -> PosM ()
 assume q i = modify $ Set.insert (q,i)
 
--- | @checkPos ds c t@: Check that @ds@ only occurs stricly positively in the
---   type @t@ of the constructor @c@.
-checkPos :: [QName] -> QName -> Type -> PosM ()
-checkPos ds c t = mapM_ check ds
+-- | @checkPos ds d c t@: Check that @ds@ only occurs stricly positively in the
+--   type @t@ of the constructor @c@ of datatype @d@.
+checkPos :: [QName] -> QName -> QName -> Type -> PosM ()
+checkPos ds d0 c t = mapM_ check ds
     where
 	check d = case Map.lookup d defs of
 	    Nothing  -> return ()    -- non-recursive
 	    Just ocs
-		| NonPositive `elem` ocs -> fail $ show d ++ " occurs not strictly positively in the type of the constructor " ++ show c
-		| otherwise		 -> mapM_ (uncurry checkPosArg) args
+		| NonPositive `elem` ocs -> lift $ typeError $
+		    NotStrictlyPositive d [Occ d0 c NonPositively]
+		| otherwise		 -> mapM_ (uncurry checkPosArg') args
 		where
 		    args = [ (q, i) | Argument q i <- Set.toList ocs ]
+	    where
+		checkPosArg' q i = checkPosArg q i
+		    `catchError` \e -> case e of
+			TypeError _ Closure{clValue = NotStrictlyPositive _ reason} ->
+			    lift $ typeError
+				 $ NotStrictlyPositive d
+				 $ Occ d0 c (ArgumentTo i q) : reason
+			_   -> throwError e
 
 	defs = unMap $ getDefs $ arguments t
-
 	arguments t = case unEl t of
 	    Pi a b  -> a : arguments (absBody b)
 	    Fun a b -> a : arguments b
@@ -86,10 +96,10 @@ checkPosArg d i = unlessM (isAssumption d i) $ do
 	    let x = xs !! i
 		args = map (Arg NotHidden . flip Def []) xs
 	    let check c = do
-		    t <- lift $ typeOfConst c
-		    checkPos [x] c (t `piApply'` args)
+		    t <- lift $ normalise =<< typeOfConst c
+		    checkPos [x] d c (t `piApply'` args)
 	    mapM_ check cs
-	_		  -> fail $ "cannot guarantee positivity of argument " ++ show i ++ " to non-datatype " ++ show d
+	_   -> lift $ typeError $ NotStrictlyPositive d []
 
 data Occurence = Positive | NonPositive | Argument QName Nat
     deriving (Show, Eq, Ord)
@@ -118,7 +128,7 @@ class HasDefinitions a where
 
 instance HasDefinitions Term where
     getDefs t = case ignoreBlocking t of
-	Var _ args   -> getDefs args
+	Var _ args   -> makeNegative $ getDefs args
 	Lam _ t	     -> getDefs t
 	Lit _	     -> mempty
 	Def q args   -> mappend (getDefs q)
