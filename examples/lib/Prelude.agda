@@ -21,6 +21,9 @@ const x _ = x
 typeOf : {A : Set} -> A -> Set
 typeOf {A} _ = A
 
+typeOf1 : {A : Set1} -> A -> Set1
+typeOf1 {A} _ = A
+
 data _×_ (A, B : Set) : Set where
   <_|_> : A -> B -> A × B
 

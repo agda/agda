@@ -19,7 +19,7 @@ infixr 15 _::_	  -- see 'Introduction.Operators' for information on infix
 -- Agda supports parameterised modules. A parameterised module is declared by
 -- giving the parameters after the module name.
 
-module Sorting (A:Set)(_<_ : A -> A -> Bool) where
+module Sorting {A:Set}(_<_ : A -> A -> Bool) where
 
   insert : A -> List A -> List A
   insert x  nil	     = x :: nil
@@ -49,7 +49,12 @@ suc n < suc m = n < m
 -- To instantiate a module you define a new module in terms of the
 -- parameterised module. Module instantiation also supports the using, hiding
 -- and renaming modifiers.
-module SortNat = Sorting Nat _<_
+module SortNat = Sorting _<_
+
+sort' : {A : Set}(_<_ : A -> A -> Bool) -> List A -> List A
+sort' less = Sort'.sort
+  where
+    module Sort' = Sorting less
 
 -- Now the instantiated module can be opened and we can use the sorting
 -- function.
