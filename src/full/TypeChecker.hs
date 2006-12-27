@@ -42,6 +42,7 @@ import TypeChecking.Interface
 import TypeChecking.Constraints
 import TypeChecking.Errors
 import TypeChecking.Positivity
+import TypeChecking.Empty
 
 import Utils.Monad
 import Utils.List
@@ -484,7 +485,7 @@ checkPattern name p t ret =
 		hide (Arg _ x) = Arg Hidden x
 	A.AbsurdP i -> do
 	    isEmptyType t
-	    x <- freshName (getRange i) name    -- TODO: actually do something about absurd patterns
+	    x <- freshName (getRange i) name
 	    addCtx x t $ ret ([show x], AbsurdP, Var 0 [])
 	A.AsP i x p ->
 	    checkPattern name p t $ \ (xs, p, v) ->
@@ -495,20 +496,6 @@ checkPattern name p t ret =
 	A.DefP i f ps ->
 	    typeError $ NotImplemented "defined patterns"
 
-
--- | Make sure that a type is empty. TODO: Move.
-isEmptyType :: Type -> TCM ()
-isEmptyType t = do
-    t <- reduce t
-    case t of
-	El _ (Def d _) -> do
-	    Defn _ _ di <- getConstInfo d
-	    case di of
-		Datatype _ [] _ _ -> return ()
-		_		  -> notEmpty t
-	_ -> notEmpty t
-    where
-	notEmpty t = typeError $ ShouldBeEmpty t
 
 ---------------------------------------------------------------------------
 -- * Let bindings
