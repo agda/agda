@@ -109,12 +109,12 @@ The resulting type correct approximation is |caseNat alpha p (\n. q n)| of type
 constants, so we can reduce |caseNat alpha p (\n. q n)| to |caseNat (\n. Nat)
 zero (\n. n) : Nat -> Nat|.
 
-\subsection{What could go wrong?}
+\subsection{What could go wrong?} \label{secCoerce}
 
 So far we have only looked at type correct examples, where nothing bad would
-have happened if we would not have introduced guarded constants when we did.
-The following example shows how things can go wrong. Take the signature |Nat :
-Set, zero : Nat|. Now add the perfectly well-typed identity function |coerce|:
+have happened if we had not introduced guarded constants when we did.  The
+following example shows how things can go wrong. Take the signature |Nat : Set,
+zero : Nat|. Now add the perfectly well-typed identity function |coerce|:
 %
 \begin{code}
 coerce : (F : Nat -> Set) -> F zero -> F zero = \F x. x
@@ -123,6 +123,6 @@ coerce : (F : Nat -> Set) -> F zero -> F zero = \F x. x
 For any well-typed term |t : B| and type |A|, |coerce ? t| will successfully
 check against |A|, resulting in the constraints |alpha zero = B| and |A = alpha
 zero|, none of which can be solved. If we didn't introduce guarded constants
-|coerce ? t| would reduce to |t| and hence we could use |coerce| to give terms
-arbitrary types.
+|coerce ? t| would reduce to |t| and hence we could use |coerce| to give an
+arbitrary type to a term.
 

@@ -2,13 +2,52 @@
 In this section we present the type checking algorithm for {\Core} with meta
 variables.
 
-The basic idea is to work with well-typed approximations of terms. An
-approximation of a term is obtained by replacing a subterm by a fresh constant
-of the appropriate type.
+% Describe the problem with meta variables
+\subsection{Meta variables in type checking}
 
-% introduce new constants for potentially ill-typed terms.  
-% The values of these constants will be guarded by a set of constraints and can
-% only be inspected if the set is empty.
+A central typing rule in {\Core}, or any dependent type theory, is the
+conversion rule, which states that if a term $M$ has type $B$, then $M$ has any
+type $A$ convertible to $B$.
+
+\[  \infer{\HasTypeC \Gamma M A}
+    { \HasTypeC \Gamma M B
+    & \EqualTypeC \Gamma A B
+    }
+\]
+
+In the absence of meta variables, checking the convertibility of $A$ and $B$ is
+straightforward and simply amounts to checking $\beta\eta$-equality. However,
+when adding meta variables things get more complicated. Depending of what the
+meta variables are used for the conversion checking algorithm is extended in
+various ways. If the meta variables are use for interaction, it makes sense to
+treat them as black boxes and thus the conversion checker gives up when
+encountering a meta variable. If meta variables are used for implicit
+syntax--which is what we focus on in this paper--the conversion checker tries
+to find instantiations for the meta variables using some form of unification.
+In general the unification problems are higher order and hence
+undecidable~\cite{huet:unification}\footnote{TODO: correct citation?}.
+Consequently the conversion checker will have to give up on some unification
+problems. The same is true if meta variables are used for proof search, if a
+proof (instantiation of a meta variable) cannot be found the problem might have
+to be postponed until more infomation is available. The bottom line is that
+the convertibility of $A$ and $B$ might be unknown until some of the meta
+variables have been instantiated. If this is the case, the question is what to
+do with the conversion rule. Accepting $M : A$ is clearly not correct (see
+Section~\ref{secCoerce} for how to break things), but failing is also not the
+right thing to do, since later meta variable instantiations might make $A$ and
+$B$ convertible.
+
+The solution we present here is to accept the conversion rule, but rather than
+concluding that $M : A$ we introduce a fresh constant of type $A$ which
+evaluates to $M$ if and only if $A$ and $B$ are convertible. This means, in
+effect, that the type checker works with well-typed approximations of terms,
+where potentially ill-typed subterms have been replaced by fresh constants.
+The subterm corresponding to each constant is recorded, but guarded by the
+constraint which would make it well-typed. As soon as the constraint is solved
+the constant can freely be replaced by its corresponding subterm. We will refer
+to these constants as {\em guarded constants}.
+
+\subsection{Constraints and guarded constants}
 
 Now we present the rules for type checking with meta variables. First we extend
 the syntax of signatures to include guarded constants:
@@ -22,7 +61,9 @@ the syntax of signatures to include guarded constants:
 We will use lowercase greek letters $\alpha, \beta, \ldots$ for constants
 representing meta variables and $p$ and $q$ for guarded constants.
 
-\subsection{Monadic Rules}
+\TODO{..}
+
+\subsection{Operations on the signature}
 
 All rules work on a signature $\Sigma$, containing previously defined
 constants, meta variables, and guarded constants.
@@ -30,11 +71,29 @@ constants, meta variables, and guarded constants.
 In other words we can write all judgements on the form
 \[\ExplicitJudgement \Sigma J {\Sigma'}\]
 %
-To make the rules easier to read we use a monadic presentation and simply write
-$J$ for the judgement above.
-%
-To manipulate the meta variables and guarded constants we introduce some extra
-judgements with the following rules:
+To make the rules easier to read we first define a set of operations reading
+and modifying the signature and when presenting the algorithm simply write $J$
+for the judgement above. In rules with multiple premisses the signature is
+threaded top-down, left-to-right. For instance,
+\[\infer{J}
+  {\begin{array}[b]{l}
+     P_1
+  \\ P_2
+  \end{array}
+  & P_3
+  }
+\]
+is short-hand for
+\[\infer{\ExplicitJudgement {\Sigma_1} J {\Sigma_4}}
+  {\begin{array}[b]{l}
+     \ExplicitJudgement {\Sigma_1} {P_1} {\Sigma_2}
+  \\ \ExplicitJudgement {\Sigma_2} {P_2} {\Sigma_3}
+  \end{array}
+  & \ExplicitJudgement {\Sigma_3} {P_3} {\Sigma_4}
+  }
+\]
+
+We introduce the following rules operating directly on the signature.
 
 % Adding metas
 \Rules{Add meta variable}{
@@ -146,19 +205,6 @@ judgements with the following rules:
 
 }
 
-% % Definition of normal constant
-% \Rules{Lookup the definition of a normal constant}{
-% 
-%     \infer{
-% 	\ExplicitJudgement
-% 	    \Sigma \Phi \Xi
-% 	    {\LookupClause f {\vec p} M}
-% 	    \Phi \Xi
-%     }{
-% 	f~\vec p = M ~\in~ \Sigma
-%     }
-% }
-
 % Check that a term is well-scoped
 \Rules{Check that a term is well-scoped relative to a meta variable}{
     \infer{
@@ -190,17 +236,7 @@ judgements with the following rules:
 
 }
 
-% Blocked terms
-\Rules{Check if evaluation of a term is blocked by a meta variable}{
-    \infer{
-	\Blocked {f \, \bar M}
-    }{\begin{array}{l}
-	f ~ \mathit{pattern ~ matches ~ on ~ its ~ ith ~ argument}
-    \\	M_i = \alpha \, \bar N ~~ or ~~ \Blocked {M_i}
-    \end{array}}
-}
-
-\subsection{The actual rules}
+\subsection{The algorithm}
 
 We have the following main judgement forms.
 
@@ -307,22 +343,11 @@ Now the rules are
 }{\begin{array}[b]{l}
     \whnf M {M'}
 \\  \whnf N {N'}
-\\  \mathit{not} ~ \Blocked {M'}
-\\  \mathit{not} ~ \Blocked {N'}
 \\  \EqualWhnf {M'} {N'} A \Cs
 \end{array}
 }
 
 \qquad
-
-\infer{
-    \Equal M N A {\left\{ \TermConstr {M'} {N'} A \right\}}
-}{\begin{array}[b]{l}
-    \whnf M {M'}
-\\  \whnf N {N'}
-\\  \Blocked {M'} ~ \mathit{or} ~ \Blocked {N'}
-\end{array}
-}
 
 }
 
@@ -380,8 +405,6 @@ Now the rules are
 }{}
 
 }
-
-\TODO{change to Conor style zipping?}
 
 \Rules{Term sequence conversion}{
 
@@ -488,6 +511,28 @@ $\Cs$ and taking $\Cs^\prime$ to be the union of the results.
 \subsection{Adding pattern matching} \label{secAddPatternMatching}
 
 Some notes on how to add pattern matching.
+
+% Blocked terms
+\Rules{Check if evaluation of a term is blocked by a meta variable}{
+    \infer{
+	\Blocked {f \, \bar M}
+    }{\begin{array}{l}
+	f ~ \mathit{pattern ~ matches ~ on ~ its ~ ith ~ argument}
+    \\	M_i = \alpha \, \bar N ~~ or ~~ \Blocked {M_i}
+    \end{array}}
+
+\qquad
+
+\infer{
+    \Equal M N A {\left\{ \TermConstr {M'} {N'} A \right\}}
+}{\begin{array}[b]{l}
+    \whnf M {M'}
+\\  \whnf N {N'}
+\\  \Blocked {M'} ~ \mathit{or} ~ \Blocked {N'}
+\end{array}
+}
+
+}
 
 \TODO{move rules talking about pattern matching here.}
 
