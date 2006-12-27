@@ -814,8 +814,11 @@ bindBuiltinEqual :: A.Expr -> TCM ()
 bindBuiltinEqual e = do
     let set = sort (Type 0)
 	el  = El (Type 0)
-	t   = El (Type 1) $ Pi (Arg Hidden set) $ Abs "A"
-	    $ el $ Fun (Arg NotHidden $ el (Var 0)) (el $ Var 0)
+	el1 = El (Type 1)
+	vz  = Var 0 []
+	nhid = Arg NotHidden
+	t   = el1 $ Pi (Arg Hidden set) $ Abs "A"
+	    $ el1 $ Fun (nhid $ el vz) $ el1 $ Fun (nhid $ el vz) set
     eq <- checkExpr e t
     bindBuiltinName builtinEquality eq
 
@@ -824,9 +827,12 @@ bindBuiltinRefl e = do
     eq <- primEqual
     let set = sort (Type 0)
 	el  = El (Type 0)
+	el1 = El (Type 1)
+	vz  = Var 0 []
 	hpi x a t = Pi (Arg Hidden a) $ Abs x $ el t
-	t   = El (Type 1) $ hpi "A" set $ hpi "x" (Var 0)
-			  $ eq `apply` [Var 0, Var 0]
+	t   = el1 $ hpi "A" set $ hpi "x" (el vz)
+		  $ eq `apply` 
+		    (Arg Hidden (Var 1 []) : map (Arg NotHidden) [vz,vz])
     refl <- checkExpr e t
     bindBuiltinName builtinRefl refl
 
