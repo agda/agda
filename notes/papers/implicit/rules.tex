@@ -1,7 +1,14 @@
 
-The basic idea is to introduce new constants for potentially ill-typed terms.  
-The values of these constants will be guarded by a set of constraints and can
-only be inspected if the set is empty.
+In this section we present the type checking algorithm for {\Core} with meta
+variables.
+
+The basic idea is to work with well-typed approximations of terms. An
+approximation of a term is obtained by replacing a subterm by a fresh constant
+of the appropriate type.
+
+% introduce new constants for potentially ill-typed terms.  
+% The values of these constants will be guarded by a set of constraints and can
+% only be inspected if the set is empty.
 
 Now we present the rules for type checking with meta variables. First we extend
 the syntax of signatures to include guarded constants:
@@ -215,8 +222,6 @@ We also need some helper judgement forms.
 We will let $J$ range over these judgements.
 
 Now the rules are
-
-\TODO{explain notation $p\,\Gamma$ and $\LAM \Gamma M$ (not here)}
 
 \Rules{Conversion rule}{
 
@@ -479,4 +484,10 @@ $\Cs$ and taking $\Cs^\prime$ to be the union of the results.
     A signature $\Sigma$ is in {\em normal form} if it is not the case that
     $\ExplicitJudgement \Sigma \Simplify {\Sigma^\prime}$ for some $\Sigma^\prime$.
 \end{definition}
+
+\subsection{Adding pattern matching} \label{secAddPatternMatching}
+
+Some notes on how to add pattern matching.
+
+\TODO{move rules talking about pattern matching here.}
 

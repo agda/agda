@@ -2,14 +2,13 @@
 % Authors: Catarina Coquand and Ulf Norell
 
 %\documentclass[12pt,a4paper]{amsart}
-\documentclass[11pt]{article}
+\documentclass[11pt]{llncs}
 
-\usepackage{amsthm}
-\newtheorem{theorem}{Theorem}[section]
-\newtheorem{lemma}[theorem]{Lemma}
-\newtheorem{corollary}[theorem]{Corollary}
-\newtheorem{definition}[theorem]{Definition}
-
+% \usepackage{amsthm}
+% \newtheorem{theorem}{Theorem}[section]
+% \newtheorem{lemma}[theorem]{Lemma}
+% \newtheorem{corollary}[theorem]{Corollary}
+% \newtheorem{definition}[theorem]{Definition}
 
 \usepackage{epsf}
 \usepackage{epsfig}
@@ -24,21 +23,33 @@
 \input{lhs2TeXpreamble}
 \input{macros}
 
-\title{Type Checking with Meta Variables}
-\author{Catarina Coquand and Ulf Norell}
+\title{Type Checking in the presence of Meta Variables}
+\author{Ulf Norell and Catarina Coquand}
+\institute{Chalmers University of Technology}
 \date{\today}
 
 \begin{document}
 
 \maketitle
 
-\section{Core} \input{core}
+\input{abstract}
 
-\section{Rules} \input{rules}
+\section{Introduction} \input{introduction}
+
+\section{The underlying logic \Core} \input{core}
+
+\section{The type checking algorithm} \label{secRules} \input{rules}
 
 \section{Examples} \input{examples}
 
 \section{Proof} \input{proof}
+
+\section{Related Work} \input{relatedwork}
+
+\section{Conclusions} \input{conclusions}
+
+\bibliography{../../../../bib/pmgrefs}
+\bibliographystyle{abbrv}
 
 \end{document}
 

@@ -19,5 +19,18 @@ lam A B f = f
 app : (A, B : Set) -> (A -> B) -> A -> B
 app A B f = f
 
-delta = lam _ _ (\x -> app _ _ x x)
+postulate Nat : Set
+	  zero : Nat
 
+wrap : (F : Nat -> Set) -> F zero -> F zero
+wrap F x = x
+
+delta : _ -> _
+delta = \x -> x (wrap _ x)
+
+loop = delta (wrap _ delta)
+
+-- delta : _ -> _
+-- delta = \x -> app _ _ x x -- lam _ _ (\x -> app _ _ x x)
+-- 
+-- loop = app _ _ delta (wrap _ delta)

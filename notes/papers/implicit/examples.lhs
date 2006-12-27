@@ -11,6 +11,9 @@
 %format phi   = "\phi"
 %format psi   = "\psi"
 %format Set   = "\SET"
+%format |-    = "\vdash"
+
+%format when  = "\mathbf{when}"
 
 %endif
 
@@ -29,19 +32,19 @@ First let us look at a very simple example.
     z : alpha = id beta zero
 \end{code}
 
-In this example we want to compute $M$ such that $\CheckTypeCtx {} {|id beta
-zero|} {|alpha|} M$ in the signature $\Sigma = |id : (A : Set) -> A -> A = \A x. x, Nat :
-Set, zero : Nat, alpha : Set|$. We assume that we have already checked that
-$\IsTypeCtx {} {|alpha|} {|alpha|}$ and hence added |alpha : Set| to the
-signature. The type checker will use the conversion rule and so infers the type
-of |id beta zero|:
+In this example we want to compute $M$ such that $\CheckTypeCtx {} {|id ?
+zero|} {|alpha|} M$ in the signature $\Sigma = |id : (A : Set) -> A -> A = \A
+x. x, Nat : Set, zero : Nat, alpha : Set|$. We assume that we have already
+checked that $\IsTypeCtx {} {|alpha|} {|alpha|}$ and hence added |alpha : Set|
+to the signature. The type checker will use the conversion rule and so infers
+the type of |id ? zero|:
 
 \[
-    \infer{ \InferTypeCtx {} {|id beta zero|} {|beta|} {|id beta zero|}}
+    \infer{ \InferTypeCtx {} {|id ? zero|} {|beta|} {|id beta zero|}}
     {\begin{array}{cc}
 	\begin{array}[b]{l}
 	    \InferTypeCtx {} {|id|} {|(A : Set) -> A -> A|} {|id|}
-	\\  \CheckTypeCtx {} {|beta|} {|Set|} {|beta|}
+	\\  \CheckTypeCtx {} {|?|} {|Set|} {|beta|}
 	\end{array}
     &	\infer{ \CheckTypeCtx {} {|zero|} {|beta|} {|zero|} }
 	{\begin{array}{l}
@@ -51,7 +54,7 @@ of |id beta zero|:
     \end{array}}
 \]
 
-So the type of |id beta zero| is |beta| and we check
+So the type of |id ? zero| is |beta| and we check
 \[
     \infer{ \EqualTypeCtx {} {|alpha|} {|beta|} \emptyset }
     { \InstMeta {|alpha|} {|Nat|} }
@@ -65,47 +68,61 @@ at the declaration of |alpha|.
 \subsection{An example with guarded constants}
 
 In the previous example all constraints could be solved immediately so no
-guarded constants had to be introduced.
-
-\subsection{A dangerous example}
-
-\begin{code}
-
-data N : Set where
-  zero : N
-  suc  : N -> N
-
-data B : Set where
-  true : B
-  false : B
-
-F : B -> Set
-F true  = N
-F false = B
-
-not : B -> B
-not true  = false
-not false = true
-
-h : ((x : F alpha) -> F (not x)) -> N
-h g = g zero
-
-\end{code}
-
-\subsection{A looping example}
+guarded constants had to be introduced. Now let us look at an example with
+guarded constants. Consider the signature of natural numbers with a case
+principle:
 
 \begin{code}
-data Fun (A, B : Set) : Set where
-  lam : (A -> B) -> Fun A B
-
-app : (A, B : Set) -> Fun A B -> A -> B
-app A B (lam f) = f
-
-xx : alpha
-xx = lam (\x -> app beta gamma x x)
-
-loop : delta
-loop = app phi psi xx xx
-
+    Nat : Set, zero : Nat, suc : Nat -> Nat,
+    caseNat :  (P : Nat -> Set) -> P zero ->
+	       ((n : Nat) -> P (suc n)) ->
+	       (n : Nat) -> P n
 \end{code}
+
+In this signature we want to check that |caseNat ? zero (\n. n)| has type |Nat
+-> Nat|. The first thing that happens is that the arguments to |caseNat| are checked
+against their expected types. Checking |?| against |Nat -> Set| introduces a
+fresh meta variable
+%
+\begin{code}
+alpha : Nat -> Set
+\end{code}
+%
+Next the inferred type of |zero| is checked against the expected type |alpha
+zero|. This produces an unsolved constraint |alpha zero = Nat|, so a guarded
+constant is introduced:
+%
+\begin{code}
+p : alpha zero = zero when alpha zero = Nat
+\end{code}
+%
+Similarly, the third argument introduces a guarded constant.
+%
+\begin{code}
+q : (n : Nat) -> alpha (suc n) = \n. n when (n : Nat) |- alpha (suc n) = Nat
+\end{code}
+%
+The resulting type correct approximation is |caseNat alpha p (\n. q n)| of type
+|(n : Nat) -> alpha n|.  This type is compared against the expected type |Nat
+-> Nat| giving rise to the constraint |alpha n = Nat| which is solvable with
+|alpha = \n. Nat|. This solution also solves the guards of the guarded
+constants, so we can reduce |caseNat alpha p (\n. q n)| to |caseNat (\n. Nat)
+zero (\n. n) : Nat -> Nat|.
+
+\subsection{What could go wrong?}
+
+So far we have only looked at type correct examples, where nothing bad would
+have happened if we would not have introduced guarded constants when we did.
+The following example shows how things can go wrong. Take the signature |Nat :
+Set, zero : Nat|. Now add the perfectly well-typed identity function |coerce|:
+%
+\begin{code}
+coerce : (F : Nat -> Set) -> F zero -> F zero = \F x. x
+\end{code}
+%
+For any well-typed term |t : B| and type |A|, |coerce ? t| will successfully
+check against |A|, resulting in the constraints |alpha zero = B| and |A = alpha
+zero|, none of which can be solved. If we didn't introduce guarded constants
+|coerce ? t| would reduce to |t| and hence we could use |coerce| to give terms
+arbitrary types.
 

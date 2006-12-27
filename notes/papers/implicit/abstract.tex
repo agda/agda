@@ -1,0 +1,18 @@
+
+\begin{abstract}
+In a type theory based proof checker, meta variables have a number of important
+applications, such as implicit syntax, interaction, and proof search.
+Unfortunately type checking in the presence of meta variables is not without
+complications.  In a dependently typed setting, type checking needs to evaluate
+arbitrary terms and so to ensure normalisation an important invariant is that
+the terms that are evaluated are type correct. Meta variables risk breaking this
+invariant, since the type correctness of a term might depend on the
+instantiation of a particular meta variable.
+
+We present a type checking algorithm for a dependently typed logical framework
+with meta variables and prove that it is sound and decidable. To ensure type
+correctness of evaluated terms the type checker works with well-typed
+approximations of terms and only refine an approximated term when this is known
+to be type correct.
+\end{abstract}
+

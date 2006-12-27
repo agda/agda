@@ -67,61 +67,6 @@ constraint is well-formed.
 
 Well-formedness extends in the obvious way to sets of constraints.
 
-Lemmas about {\Core} ({\em TODO: move to core section?}):
-
-\begin{lemma} \label{lemCoreEqType}
-    \[	\infer{ \EqualTypeC \Gamma A B }
-	{ \HasTypeC \Gamma {h \, \bar M} A
-	& \HasTypeC \Gamma {h \, \bar M} B 
-	}
-    \]
-\end{lemma}
-
-\begin{lemma} \label{lemCoreAppInv}
-    \[	\infer{ \HasTypeC \Gamma {\bar M} \Delta }
-	{ \HasTypeC \Gamma h {\Delta \to B}
-	& \HasTypeC \Gamma {h \, \bar M} {B'}
-	}
-    \]
-\end{lemma}
-
-\begin{lemma} \label{lemCoreShadow}
-    \[	\infer{ \HasTypeC {\Ext \Gamma x : A} M B }
-	{ \HasTypeC \Gamma M B 
-	& \HasTypeC \Gamma x A
-	}
-    \]
-\end{lemma}
-
-\begin{lemma} \label{lemCoreSubstType}
-    \[	\infer{ \IsTypeC \Gamma {\Subst B x M} }
-	{ \IsTypeC {\Ext \Gamma x:A} B 
-	& \HasTypeC \Gamma M A
-	}
-    \]
-\end{lemma}
-
-\begin{lemma}[Subject reduction] \label{lemCoreSubjectReduction}
-    \[	\infer{ \HasTypeC \Gamma {M'} A }
-	{ \HasTypeC \Gamma M A & \whnf M {M'} 	}
-    \]
-\end{lemma}
-
-\begin{lemma}[Strengthening] \label{lemCoreStrengthen}
-    \[	\infer{ \HasTypeC \Gamma M B }
-	{ \HasTypeC {\Ext \Gamma {x : A}} M B
-	& x \notin \FV{M} \cup \FV{B}
-	}
-    \]
-\end{lemma}
-
-\begin{lemma} \label{lemCoreEqualDummySubst}
-    If $\EqualTypeCS \Sigma \Gamma {B_1} {\SubstD {B_2} {h \, \bar M}}$ where $h
-    \, \bar M$ is on weak head normal form and the head $h$ does not occur in
-    $B_1$, then for any term $M$ of the right type we have $\EqualTypeCS \Sigma
-    \Gamma {B_1} {\SubstD {B_2} M}$.
-\end{lemma}
-
 \begin{theorem}[Soundness of type checking] \label{thmSoundNoCs}
     Type checking produces well-typed terms, conversion checking produces
     well-formed constraints and if no constraints are produced, the conversion
@@ -219,15 +164,14 @@ Lemmas about {\Core} ({\em TODO: move to core section?}):
 	Lemma~\ref{lemCoreEqType} $\EqualTypeCS \Sigma \Gamma A B$.
 
 	From $\HasTypeCS \Sigma \Gamma M A$ we get $\HasTypeCS \Sigma \Gamma M
-	B$ and using Lemma~\ref{lemCoreShadow} $\HasTypeCS \Sigma {\Ext \Gamma
-	\Delta} M B$. Abstracting over $\Delta$ we get $\HasTypeCS \Sigma
-	\Gamma {\LAM {\bar x} M} {\Delta \to B}$. We know that $\Delta \to B$
-	is a closed type, and since $\FV{M} \subseteq \bar x$, $\LAM {\bar x}
-	M$ is also closed. Thus by strenghtening
-	(Lemma~\ref{lemCoreStrengthen}) $\HasTypeCS \Sigma {} {\LAM {\bar x} M}
-	{\Delta \to B}$. We have $\IsTypeCS {\Sigma_1} {} {\Delta \to B}$ and
-	$\InScope \alpha M$ so $\HasTypeCS {\Sigma_1} {} {\LAM {\bar x} M}
-	{\Delta \to B}$ which is what we set out to prove.
+	B$ and using Lemma~\ref{lemCoreShadow}  $\HasTypeCS \Sigma \Gamma {\LAM
+	{\bar x} M} {\Delta \to B}$. We know that $\Delta \to B$ is a closed
+	type, and since $\FV{M} \subseteq \bar x$, $\LAM {\bar x} M$ is also
+	closed. Thus by strenghtening (Lemma~\ref{lemCoreStrengthen})
+	$\HasTypeCS \Sigma {} {\LAM {\bar x} M} {\Delta \to B}$. We have
+	$\IsTypeCS {\Sigma_1} {} {\Delta \to B}$ and $\InScope \alpha M$ so
+	$\HasTypeCS {\Sigma_1} {} {\LAM {\bar x} M} {\Delta \to B}$ which is
+	what we set out to prove.
 
 	\TODO{The $\InScope \alpha M$ reasoning is a bit shaky. What exactly
 	does it mean that $M$ is in scope?}

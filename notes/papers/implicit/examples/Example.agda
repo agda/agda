@@ -1,6 +1,19 @@
 
 module Example where
 
+data Nat : Set where
+  zero : Nat
+  suc  : Nat -> Nat
+
+postulate
+  case-Nat : (P : Nat -> Set) -> P zero ->
+	     ((n:Nat) -> P (suc n)) ->
+	     (n : Nat) -> P n
+
+-- test : Nat -> Nat
+test = case-Nat _ zero (\n -> n)
+
+{-
 data Size : Set where
   empty	   : Size
   nonempty : Size
@@ -25,4 +38,4 @@ postulate
 
 test : (A:Set) -> Nat
 test A = build monad A (\x -> x) (\n xs -> xs) nil
-
+-}
