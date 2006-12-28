@@ -75,166 +75,120 @@ To make the rules easier to read we first define a set of operations reading
 and modifying the signature and when presenting the algorithm simply write $J$
 for the judgement above. In rules with multiple premisses the signature is
 threaded top-down, left-to-right. For instance,
-\[\infer{J}
+\[\begin{array}{ccc}
+{\small\begin{array}[c]{l}
+\infer{J}
   {\begin{array}[b]{l}
      P_1
   \\ P_2
   \end{array}
   & P_3
   }
-\]
-is short-hand for
-\[\infer{\ExplicitJudgement {\Sigma_1} J {\Sigma_4}}
+\end{array}}
+& ~\mbox{is short-hand for}~
+&
+{\small\begin{array}[c]{l}
+\infer{\ExplicitJudgement {\Sigma_1} J {\Sigma_4}}
   {\begin{array}[b]{l}
      \ExplicitJudgement {\Sigma_1} {P_1} {\Sigma_2}
   \\ \ExplicitJudgement {\Sigma_2} {P_2} {\Sigma_3}
   \end{array}
   & \ExplicitJudgement {\Sigma_3} {P_3} {\Sigma_4}
   }
-\]
+\end{array}}
+\end{array}\]
 
-We introduce the following rules operating directly on the signature.
+We introduce four operations to manipulate meta variables: $\AddMeta \alpha A$
+adds a new meta variable $\alpha$ of type $A$ to the signature, $\InstMeta
+\alpha M$ instantiates $\alpha$ to $M$, $\LookupMeta \alpha M$ looks up the
+value of an instantiated meta variable, and $\Uninstantiated \alpha$ verifies
+that $\alpha$ is uninstantiated.
 
-% Adding metas
-\Rules{Add meta variable}{
+Detailed definitions of the operations can be found in
+Figure~\ref{figOperations}.
 
-\infer{
-    \ExplicitJudgement
-	\Sigma
+\begin{figure}
+\begin{tabular}{llll}
+    \multicolumn2l{Operations on meta variables} \\
+    & $\ExplicitJudgement \Sigma
 	{\AddMeta \alpha A}
 	{\Ext \Sigma \MetaDecl \alpha A}
-}{ \alpha \notin \Sigma }
-}
-
-% Instantiating metas
-\Rules{Instantiate meta variable}{
-
-    \infer{
-	\ExplicitJudgement
+    $ & if & $\alpha \notin \Sigma$
+    \\
+    & $\ExplicitJudgement
 	    \Sigma
 	    {\InstMeta \alpha M}
 	    {\Ext {\Sigma_1} \Ext {\IMetaDecl \alpha A M} \Sigma_2}
-    }{ \Sigma ~=~ \Ext {\Sigma_1} \Ext {\MetaDecl \alpha A} \Sigma_2
-    }
-}
-
-% Lookup metas
-\Rules{Lookup meta variable}{
-    \infer{
-	\ExplicitJudgement
+    $ & if & $\Sigma ~=~ \Ext {\Sigma_1} \Ext {\MetaDecl \alpha A} \Sigma_2$
+    \\
+    & $\ExplicitJudgement
 	    \Sigma
 	    {\LookupMeta \alpha M}
 	    \Sigma
-    }{
-	\IMetaDecl \alpha A M ~\in~ \Sigma
-    }
-
-\qquad
-
-    \infer{
-	\ExplicitJudgement
+    $ & if & $\IMetaDecl \alpha A M ~\in~ \Sigma$
+    \\
+    & $\ExplicitJudgement
 	    \Sigma
 	    {\Uninstantiated \alpha}
 	    \Sigma
-    }{
-	\MetaDecl \alpha A ~\in~ \Sigma
-    }
-
-}
-
-% Add constant
-\Rules{Add guarded constant}{
-
-    \infer{
-	\ExplicitJudgement
+    $ & if & $\MetaDecl \alpha A ~\in~ \Sigma$
+    \\ {} \\
+    \multicolumn2l{Operations on guarded constants} \\
+    & \multicolumn3l{$\ExplicitJudgement
 	    \Sigma
 	    {\AddConst p A M \Cs}
 	    {\Ext \Sigma \ConstDecl p A M \Cs}
-    }{ p \notin \Sigma }
-}
-
-% Update guard
-\Rules{Update the guard of a constant}{
-
-    \infer{
-	\ExplicitJudgement
+    $} \\
+    & & if & $p \notin \Sigma$
+    \\
+    & \multicolumn3l{$\ExplicitJudgement
 	    \Sigma
 	    {\UpdateGuard p \Cs}
 	    {\Ext {\Sigma_1} \Ext {\ConstDecl p A M \Cs} \Sigma_2}
-    }{
-	\Sigma ~=~ \Ext {\Sigma_1} \Ext {\ConstDecl p A M \Cs^\prime} \Sigma_2
-    }
-
-}
-
-% Lookup guarded constant
-\Rules{Lookup the definition of a guarded constant}{
-    \infer{
-	\ExplicitJudgement
+    $} \\
+    & & if & $\Sigma ~=~ \Ext {\Sigma_1} \Ext {\ConstDecl p A M \Cs^\prime} \Sigma_2$
+    \\
+    & $\ExplicitJudgement
 	    \Sigma
 	    {\LookupConst p M}
 	    \Sigma
-    }{
-	\ConstDecl p A M \emptyset ~\in~ \Sigma
-    }
-
-\qquad
-
-    \infer{
-	\ExplicitJudgement
+    $ & if & $\ConstDecl p A M \emptyset ~\in~ \Sigma$
+    \\
+    & $\ExplicitJudgement
 	    \Sigma
 	    {\Guarded p}
 	    \Sigma
-    }{
-	\ConstDecl p A M \Cs ~\in~ \Sigma
-    &	\Cs \neq \emptyset
-    }
-}
-
-% Lookup the type of a normal constant
-\Rules{Lookup the type of a constant}{
-
-    \infer{
-	\ExplicitJudgement
+    $ & if & $\ConstDecl p A M \Cs ~\in~ \Sigma$ and $\Cs \neq \emptyset$
+    \\ {} \\
+    \multicolumn2l{General operations} \\
+    & $\ExplicitJudgement
 	    \Sigma
 	    {\LookupType c A}
 	    \Sigma
-    }{
-	c : A \in \Sigma
-    }
-
-}
-
-% Check that a term is well-scoped
-\Rules{Check that a term is well-scoped relative to a meta variable}{
-    \infer{
-	\ExplicitJudgement
+    $ & if & $c : A \in \Sigma$
+    \\
+    & $\ExplicitJudgement
 	    \Sigma
 	    {\InScope \alpha M}
 	    \Sigma
-    }{\begin{array}{ll}
-	\Sigma ~=~ \Ext {\Sigma_1} \Ext {\MetaDecl \alpha A} \Sigma_2
+    $ & if & $\begin{array}[t]{ll}
+	\Sigma ~=~ \Ext {\Sigma_1} \Ext {\MetaDecl \alpha A} \Sigma_2 ~~ \mbox{and}
     \\	\exists \, \Gamma, B. ~ \HasTypeCS {\Sigma_1} \Gamma M B
-    \end{array}
-    }
-}
-
-% Change the signature
-\Rules{Check a judgement in a different signature}{
-
-    \infer{
-	\ExplicitJudgement
+    \end{array}$
+    \\
+    & $\ExplicitJudgement
 	    \Sigma
 	    {\WithSig {\Sigma'} J}
 	    {\Sigma''}
-    }{
-	\ExplicitJudgement
+    $ & if & $\ExplicitJudgement
 	    {\Sigma'}
 	    J
 	    {\Sigma''}
-    }
-
-}
+    $ \\
+\end{tabular}
+\caption{Operations on the signature}
+\label{figOperations}
+\end{figure}
 
 \subsection{The algorithm}
 
