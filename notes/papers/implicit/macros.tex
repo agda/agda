@@ -2,16 +2,17 @@
 \newlength\TODOWidth
 
 % Administrative
-\newcommand\TODO[1]{
-\par
-\vspace{1mm}
-\fbox{
-\setlength\TODOWidth{\textwidth}
-\addtolength\TODOWidth{-60pt}
-\begin{tabular}{p{\TODOWidth}}
-    TODO: #1
-\end{tabular}}
-}
+\newcommand\TODO[1]{\footnote{TODO: {#1}}}
+% \newcommand\TODO[1]{
+% \par
+% \vspace{1mm}
+% \fbox{
+% \setlength\TODOWidth{\textwidth}
+% \addtolength\TODOWidth{-60pt}
+% \begin{tabular}{p{\TODOWidth}}
+%     TODO: #1
+% \end{tabular}}
+% }
 % \newcommand\TODO[1]{\par{
 %     \setbox0=\vbox{{\small \parbox{35mm}{#1}}} %{\parbox{3.5cm}{{\small #1}}}
 %     \hskip-50mm\copy0
@@ -80,7 +81,7 @@
 \newcommand\LookupConst[2]{\mathsf{LookupConst}({#1} = {#2})}
 \newcommand\LookupType[2]{\mathsf{Lookup}({#1} : {#2})}
 \newcommand\InScope[2]{\mathsf{InScope}_{#1}({#2})}
-\newcommand\Simplify{\mathsf{Simplify}}
+\newcommand\Simplify{\mathsf{SolveConstraints}}
 \newcommand\WithSig[1]{\langle {#1} \rangle \,}
 \newcommand\UpdateGuard[2]{\mathsf{UpdateGuard}( {#1},\, {#2} )}
 \newcommand\LookupClause[3]{\mathsf{Lookup}({#1}~{#2} = {#3})}
@@ -140,4 +141,6 @@
     #1
 \end{array}\]
 }}
+
+\newcommand\Rule[2]{\frac{\displaystyle{#2}}{\displaystyle\begin{array}{l}#1\end{array}}}
 
