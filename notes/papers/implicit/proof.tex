@@ -4,7 +4,7 @@ of {\Core}. This guarantees the existence of normal forms, and hence, ensure
 decidability of type checking.
 
 The proof will be done in two stages: first we prove soundness in the absence
-of constraint simplification, and then we prove that constraint simplification
+of constraint solving, and then we prove that constraint solving
 is sound.
 
 \subsection{Without constraint solving}
@@ -32,24 +32,32 @@ expressed by the following two lemmas.
 
 \begin{lemma}[Signature refinement] \label{lemRefineSig}
     Giving a definition to a constant in a signature is an extension of the
-    signature. More precisely, if
+    signature.
+\if \DetailedProofs 1
+    More precisely, if
     \begin{itemize}
 	\item $\HasTypeCS {\Sigma_1} {} M A$
 	\item $\Sigma ~ = ~ \Ext {\Sigma_1} \Ext {\MetaDecl c A} \Sigma_2$
 	\item $\Sigma' ~ = ~ \Ext {\Sigma_1} \Ext {\IMetaDecl c A M} \Sigma_2$
     \end{itemize}
     then $\Extends {\Sigma'} \Sigma$.
+\fi
 \end{lemma}
 
+\if \DetailedProofs 1
 \begin{proof}[Proofs]
     In both lemmas any derivation using $\Sigma$ is immediately valid also with $\Sigma'$.
 \end{proof}
+\fi
 
 To express the soundness of conversion checking we need to define when a
-constraint is well-formed.
+constraint is well-formed. Note that this is not the same as true. For
+instance, $\TypeConstr Nat Bool$ is a well-formed constraint.
 
 \begin{definition}[Well-formed constraint]
-    The rules for well-formed constraints are
+    A constraint if well-formed if the terms (or types) under consideration are
+    well-typed. 
+    \if \DetailedProofs 1
     \[
 	\infer{ \ValidConstr \Sigma {\TypeConstr A B}}
 	{\begin{array}{l}
@@ -63,15 +71,18 @@ constraint is well-formed.
 	    \HasTypeCS \Sigma \Gamma N A \\
 	\end{array}}
     \]
+    \else
+    For instace, $\TermConstr M N A$ is well-formed if $\HasTypeC
+    \Gamma M A$ and $\HasTypeC \Gamma N A$.
+    \fi
 \end{definition}
-
-Well-formedness extends in the obvious way to sets of constraints.
 
 \begin{theorem}[Soundness of type checking] \label{thmSoundNoCs}
     Type checking produces well-typed terms, conversion checking produces
     well-formed constraints and if no constraints are produced, the conversion
     is valid in {\Core}. Also, all rules produce well-formed extensions of the
     signature.
+\if \DetailedProofs 1
     \begin{itemize}
 
 	% is type
@@ -130,10 +141,13 @@ Well-formedness extends in the obvious way to sets of constraints.
     The statements for weak head normal form conversion ($\EqualWhnf M N A
     \Cs$) and term sequence conversion ($\Equal {\bar M} {\bar N} \Delta \Cs$)
     are equivalent to that of term conversion.
+\fi
 \end{theorem}
 
 \begin{proof}
-    By induction on the derivation. Some interesting cases:
+    By induction on the derivation.
+\if \DetailedProofs 1
+    Some interesting cases:
     \begin{itemize}
 
 	\item {\em (TODO: Not so interesting)} In the type conversion case for
@@ -173,20 +187,23 @@ Well-formedness extends in the obvious way to sets of constraints.
 	$\HasTypeCS {\Sigma_1} {} {\LAM {\bar x} M} {\Delta \to B}$ which is
 	what we set out to prove.
 
-	\TODO{The $\InScope \alpha M$ reasoning is a bit shaky. What exactly
-	does it mean that $M$ is in scope?}
-
     \end{itemize}
+\else
+    The most interesting case is the meta variable instantiation case where we
+    have to prove that the instantiation constructs a valid extension of the
+    signature. This follows from Lemma~\ref{lemRefineSig} once we show that
+    the instantiation is well-typed.
+\fi
 \end{proof}
 
-Since well-typed terms in {\Core} have weak head normal forms we get the
-existence of weak head normal forms for type checked terms.
+Since well-typed terms in {\Core} have normal forms we get the existence of
+normal forms for type checked terms.
 
 \begin{corollary}
-    Type checked terms have weak head normal forms.
+    Type checked terms have (weak head) normal forms.
 \end{corollary}
 
-Once we have weak head normal forms it is easy to verify that the rules
+Once we have (weak head) normal forms it is easy to verify that the rules
 describe a decidable type checking algorithm.
 
 \begin{corollary}
@@ -198,19 +215,17 @@ describe a decidable type checking algorithm.
 This far we have completely ignored the generated constraints--when conversion
 checking produced constraints we only required them to be well-formed. In this
 section we tackle the problem of ensuring that solving the constraints produce
-well-typed terms. The idea is to prove that constraint simplification is a
+well-typed terms. The idea is to prove that constraint solving is a
 signature extension operation in the sense of Definition~\ref{defSigExt}. To
 prove this we need to know that type checking preserves {\em consistent}
 signatures.
 
 \begin{definition}[Ensures] \label{defEnsures}
-    A set of constraints $\Cs$ {\em ensures} a judgement $J$ in a signature
+    A set of constraints $\Cs$ {\em ensures} a {\Core} judgement $J$ in a signature
     $\Sigma$ if, for any $\Sigma_1$ such that
-    \begin{itemize}
-	\item $\Extends {\Sigma_1} \Sigma$
-	\item $\ExplicitJudgement {\Sigma_1} {\CheckConstr \Cs \emptyset} {\Sigma_2}$
-    \end{itemize}
-    it is the case that $\vdash_{\Sigma_2} J$.
+    $\Extends {\Sigma_1} \Sigma$ and
+    $\ExplicitJudgement {\Sigma_1} {\CheckConstr \Cs \emptyset} {\Sigma_2}$
+    it is the case that $\vdash_{\CoreSig{\Sigma_2}} J$.
 \end{definition}
 
 \begin{lemma} \label{lemExtendEnsures}
@@ -230,6 +245,7 @@ know that the constraints we produce are sound.
 \begin{lemma}[Soundness of generated constraints] \label{lemSoundConstraints}
     The constraints generated during conversion checking ensures that the
     checked terms are convertible.
+\if \DetailedProofs 1
     More precisely,
     \begin{itemize}
 	\item \( \begin{array}[t]{l}
@@ -245,8 +261,10 @@ know that the constraints we produce are sound.
 		    \\ {} \implies \mbox{$\Cs$ ensures $\EqualC \Gamma M N A$ in $\Sigma'$}
 	      \end{array} \)
     \end{itemize}
+\fi
 \end{lemma}
 
+\if \DetailedProofs 1
 \begin{proof}
     Again we highlight some interesting cases.
     \begin{itemize}
@@ -270,9 +288,12 @@ know that the constraints we produce are sound.
 
     \end{itemize}
 \end{proof}
+\fi
 
-\begin{lemma}[Refinement preserves consistency] \label{lemRefineConsistent}
-    If
+\begin{lemma} \label{lemRefineConsistent}
+    Refinement preserves consistent signatures.
+\if \DetailedProofs 1
+    More precisely, if
     \begin{itemize}
 	\item $\HasTypeCS {\Sigma_1} {} M A$
 	\item $\Sigma ~ = ~ \Ext {\Sigma_1} \Ext {\MetaDecl c A} \Sigma_2$
@@ -280,17 +301,22 @@ know that the constraints we produce are sound.
 	\item $\Sigma$ is consistent
     \end{itemize}
     then $\Sigma'$ is consistent.
+\fi
 \end{lemma}
 
+\if \DetailedProofs 1
 \begin{proof}
     There are two cases to consider: refinement to the left and to the right of
     a guard. In the latter case the proof is trivial, and in the former case
     consistency follows from the fact that refinement extends a signature
     (Lemma~\ref{lemRefineSig}).
 \end{proof}
+\fi
 
 \begin{lemma}[Type checking preserves consistency] \label{lemTypeCheckConsistent}
-Type checking and conversion checking preserves consistent signatures. More precisely,
+Type checking and conversion checking preserves consistent signatures.
+\if \DetailedProofs 1
+More precisely,
     \begin{itemize}
 
 	% is type
@@ -345,9 +371,11 @@ Type checking and conversion checking preserves consistent signatures. More prec
     The statements for weak head normal form conversion ($\EqualWhnf M N A
     \Cs$) and term sequence conversion ($\Equal {\bar M} {\bar N} \Delta \Cs$)
     are equivalent to that of term conversion.
+\fi
 \end{lemma}
 
 \begin{proof}
+\if \DetailedProofs 1
     By induction on the derivation. We only need to consider the cases where
     the signature changes. Adding a (non-guarded) constant trivially preserves
     consistency, instantiating a meta variable preserves consistency by
@@ -355,6 +383,11 @@ Type checking and conversion checking preserves consistent signatures. More prec
     constants are consistent. There are two cases: the conversion rule and
     conversion checking of function types. In both cases consistency follows
     from soundness of conversion checking (Lemma~\ref{lemSoundConstraints}).
+\else
+    We have to prove that when we introduce a guarded constant the guard
+    ensures the well-typedness of the value. This follows from
+    Lemma~\ref{lemSoundConstraints}.
+\fi
 \end{proof}
 
 \begin{lemma}[Constraint solving is sound] \label{lemSolveConsistent}
