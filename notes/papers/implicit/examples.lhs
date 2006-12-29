@@ -11,7 +11,10 @@
 %format phi   = "\phi"
 %format psi   = "\psi"
 %format Set   = "\SET"
+%format Sigma = "\Sigma"
 %format |-    = "\vdash"
+%format omega = "\omega"
+%format Omega = "\Omega"
 
 %format when  = "\mathbf{when}"
 
@@ -22,22 +25,12 @@ type checker.
 
 \subsection{Simple example}
 
-First let us look at a very simple example.
-
-\begin{code}
-    id	  : (A : Set) -> A -> A = \A x. x
-    Nat   : Set
-    zero  : Nat
-
-    z : alpha = id beta zero
-\end{code}
-
-In this example we want to compute $M$ such that $\CheckTypeCtx {} {|id ?
-zero|} {|alpha|} M$ in the signature $\Sigma = |id : (A : Set) -> A -> A = \A
-x. x, Nat : Set, zero : Nat, alpha : Set|$. We assume that we have already
-checked that $\IsTypeCtx {} {|alpha|} {|alpha|}$ and hence added |alpha : Set|
-to the signature. The type checker will use the conversion rule and so infers
-the type of |id ? zero|:
+First let us look at a very simple example. Consider the signature |Sigma = Nat : Set,
+zero : Nat, id : (A : Set) -> A -> A = \A x. x, alpha : Set| containing a set |Nat| with an
+element |zero|, a polymorphic identity function |id|, and a meta variable
+|alpha| of type |Set|. Now we want to compute |M| such that $\CheckTypeCtx {} {|id ?
+zero|} {|alpha|} M$. To do this one of the conversion rules have to be applied,
+so the type checker first infers the type of |id ? zero|.
 
 \[
     \infer{ \InferTypeCtx {} {|id ? zero|} {|beta|} {|id beta zero|}}
@@ -54,16 +47,16 @@ the type of |id ? zero|:
     \end{array}}
 \]
 
-So the type of |id ? zero| is |beta| and we check
+The inferred type |beta| is then compared against the expected type |alpha|.
 \[
     \infer{ \EqualTypeCtx {} {|alpha|} {|beta|} \emptyset }
     { \InstMeta {|alpha|} {|Nat|} }
 \]
-The final signature is $|id : (A : Set) -> A -> A = \A x. x, Nat : Set, zero :
-Nat, alpha : Set = Nat, beta : Set = Nat|$ and $M = |id beta zero|$. Note that
+The final signature is $|Nat : Set, zero : Nat, id : (A : Set) -> A -> A = \A
+x. x, alpha : Set = Nat, beta : Set = Nat|$ and $M = |id beta zero|$. Note that
 it is important to look up the values of instantiated meta variables--it would
 not be correct to instantiate |alpha| to |beta|, since |beta| is not in scope
-at the declaration of |alpha|.
+at the point where |alpha| is declared.
 
 \subsection{An example with guarded constants}
 
@@ -105,9 +98,9 @@ q : (n : Nat) -> alpha (suc n) = \n. n when (n : Nat) |- alpha (suc n) = Nat
 The resulting type correct approximation is |caseNat alpha p (\n. q n)| of type
 |(n : Nat) -> alpha n|.  This type is compared against the expected type |Nat
 -> Nat| giving rise to the constraint |alpha n = Nat| which is solvable with
-|alpha = \n. Nat|. This solution also solves the guards of the guarded
-constants, so we can reduce |caseNat alpha p (\n. q n)| to |caseNat (\n. Nat)
-zero (\n. n) : Nat -> Nat|.
+|alpha = \n. Nat|. Once |alpha| is instantiated we can perform a $\Simplify$
+step to solve the guards on |p| and |q| and subsequently reduce |caseNat alpha
+p (\n. q n)| to |caseNat (\n. Nat) zero (\n. n) : Nat -> Nat|.
 
 \subsection{What could go wrong?} \label{secCoerce}
 
@@ -122,9 +115,13 @@ coerce : (F : Nat -> Set) -> F zero -> F zero = \F x. x
 %
 For any well-typed term |t : B| and type |A|, |coerce ? t| will successfully
 check against |A|, resulting in the constraints |alpha zero = B| and |A = alpha
-zero|, none of which can be solved. If we didn't introduce guarded constants
+zero|, none of which can be solved. If we did not introduce guarded constants
 |coerce ? t| would reduce to |t| and hence we could use |coerce| to give an
-arbitrary type to a term.
-
-\TODO{type $(\LAM xx\,x)\,(\LAM xx\,x)$}
+arbitrary type to a term. For instance we can type
+\begin{code}
+omega  : ? -> ?  = \x. x (coerce ? x)
+Omega  : ?	 = omega (coerce ? omega)
+\end{code}
+where without guarded constants |Omega| would reduce to the non-normalising
+$\lambda$-term |(\x. x x) (\x. x x)|.
 

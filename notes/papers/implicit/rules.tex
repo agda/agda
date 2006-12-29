@@ -50,18 +50,32 @@ to these constants as {\em guarded constants}.
 \subsection{Constraints and guarded constants}
 
 Now we present the rules for type checking with meta variables. First we extend
-the syntax of signatures to include guarded constants:
+the syntax of signatures to include guarded constants and add a new syntactic
+category for user expressions:
 
 \[\begin{array}{lcll}
-    C & ::= & \TypeConstr A B \Or \TermConstr M N A \\
+    e & ::= & \LAM xe \Or e\,e \Or \SET \Or \PI xee \Or c \Or ? \\
+    C & ::= & \TypeConstr A B \Or \TermConstr M N A \Or
+	      \TermConstr {\bar M} {\bar N} \Delta \\
     \Sigma & ::= & \ldots \Or
 		\Ext \Sigma \ConstDecl p A M \Cs \\
 \end{array}\]
 
+The input to the type checking algorithm is a user expression which could
+represent either a type or a term. Apart from the usual constructions user
+expressions can also contain $?$ representing a meta variable. During type
+checking user expressions are translated into {\Core} terms where meta
+variables are replaced by fresh constants.
+
+A constraint $C$ is a conversion checking problem that has been postponed
+because not enough information was available on the meta variables. Since our
+conversion checking algorithm is typed the constraints are also typed. The
+constraints show up in the signature as guards to guarded constants. We write
+$\ConstDecl p A M \Cs$ for a guarded constant $p$ of type $A$ and value $M$
+guarded by the set of constraints $\Cs$.
+
 We will use lowercase greek letters $\alpha, \beta, \ldots$ for constants
 representing meta variables and $p$ and $q$ for guarded constants.
-
-\TODO{..}
 
 \subsection{Operations on the signature}
 
@@ -193,9 +207,8 @@ adds a new meta variable $\alpha$ of type $A$ to the signature, and $\InstMeta
 % that $\alpha$ is uninstantiated.
 
 For guarded constants we just add the operation $\AddConst p A M \Cs$ to add a
-new guarded constant $p$ of type $A$ and value $M$ guarded by the constraints
-$\Cs$. In Section~\ref{secAlgorithm} we explain the rules for solving the
-constraints of a guarded constant.
+new guarded constant to the signature.  In Section~\ref{secAlgorithm} we
+explain the rules for solving the constraints of a guarded constant.
 
 % , $\UpdateGuard p \Cs$ to update the guard of $p$,
 % $\LookupConst p M$ to get the value of a guarded constant whose guard has been
@@ -512,7 +525,7 @@ So far, we have not looked at when or how the guards of a constant are
 simplified or solved. In principle this can be done at any time, for instance
 as a separate phase after type checking. In practise, however, it might be a
 better idea to interleave constraint solving and type checking. In
-Section~\ref{secProof} we show that this can be done safely.
+Section~\ref{secProof} we prove that this can be done safely.
 
 Constraint solving amounts to rechecking the guard of a constant. The notation
 $\CheckConstr \Cs {\Cs^\prime}$ means checking each of the constraints in $\Cs$
@@ -528,7 +541,7 @@ and taking $\Cs^\prime$ to be the union of the results.
     }{\begin{array}{ll}
 	\multicolumn2l{\Sigma ~ = ~ \Ext {\Sigma_1} \Ext {\ConstDecl p A M \Cs} {\Sigma_2}} \\
 	\ExplicitJudgement {\Sigma_1} {\CheckConstr \Cs {\Cs^\prime}} {\Sigma^\prime_1} 
-	& \Cs \neq {\Cs^\prime} \\
+	% & \Cs \neq {\Cs^\prime} \\
     \end{array}
     }
 }
@@ -539,9 +552,11 @@ and taking $\Cs^\prime$ to be the union of the results.
 %     $\ExplicitJudgement \Sigma \Simplify {\Sigma^\prime}$ for some $\Sigma^\prime$.
 % \end{definition}
 
+\if \NoteOnPatternMatching 1
 \subsection{Adding pattern matching} \label{secAddPatternMatching}
 
 Some notes on how to add pattern matching.
+\fi
 
 % Blocked terms
 % \URules{

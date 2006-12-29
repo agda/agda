@@ -19,9 +19,12 @@
 \usepackage{latexsym}
 \usepackage{amssymb,amsmath}
 \usepackage{stmaryrd}
+\usepackage{ifthen}
 
 \input{lhs2TeXpreamble}
 \input{macros}
+
+\newcommand\NoteOnPatternMatching{0}
 
 \title{Type Checking in the presence of Meta Variables}
 \author{Ulf Norell and Catarina Coquand}
@@ -42,7 +45,7 @@
 
 \section{Examples} \input{examples}
 
-\section{Proof} \label{secProof} \input{proof}
+\section{Proof of correctness} \label{secProof} \input{proof}
 
 \section{Related Work} \input{relatedwork}
 
