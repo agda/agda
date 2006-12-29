@@ -126,3 +126,5 @@ zero|, none of which can be solved. If we didn't introduce guarded constants
 |coerce ? t| would reduce to |t| and hence we could use |coerce| to give an
 arbitrary type to a term.
 
+\TODO{type $(\LAM xx\,x)\,(\LAM xx\,x)$}
+

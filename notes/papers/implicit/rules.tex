@@ -98,18 +98,9 @@ threaded top-down, left-to-right. For instance,
 \end{array}}
 \end{array}\]
 
-We introduce four operations to manipulate meta variables: $\AddMeta \alpha A$
-adds a new meta variable $\alpha$ of type $A$ to the signature, $\InstMeta
-\alpha M$ instantiates $\alpha$ to $M$, $\LookupMeta \alpha M$ looks up the
-value of an instantiated meta variable, and $\Uninstantiated \alpha$ verifies
-that $\alpha$ is uninstantiated.
-
-Detailed definitions of the operations can be found in
-Figure~\ref{figOperations}.
-
 \begin{figure}
 \begin{tabular}{llll}
-    \multicolumn2l{Operations on meta variables} \\
+%    \multicolumn2l{Operations on meta variables} \\
     & $\ExplicitJudgement \Sigma
 	{\AddMeta \alpha A}
 	{\Ext \Sigma \MetaDecl \alpha A}
@@ -120,47 +111,47 @@ Figure~\ref{figOperations}.
 	    {\InstMeta \alpha M}
 	    {\Ext {\Sigma_1} \Ext {\IMetaDecl \alpha A M} \Sigma_2}
     $ & if & $\Sigma ~=~ \Ext {\Sigma_1} \Ext {\MetaDecl \alpha A} \Sigma_2$
-    \\
-    & $\ExplicitJudgement
-	    \Sigma
-	    {\LookupMeta \alpha M}
-	    \Sigma
-    $ & if & $\IMetaDecl \alpha A M ~\in~ \Sigma$
-    \\
-    & $\ExplicitJudgement
-	    \Sigma
-	    {\Uninstantiated \alpha}
-	    \Sigma
-    $ & if & $\MetaDecl \alpha A ~\in~ \Sigma$
+%     \\
+%     & $\ExplicitJudgement
+% 	    \Sigma
+% 	    {\LookupMeta \alpha M}
+% 	    \Sigma
+%     $ & if & $\IMetaDecl \alpha A M ~\in~ \Sigma$
+%     \\
+%     & $\ExplicitJudgement
+% 	    \Sigma
+% 	    {\Uninstantiated \alpha}
+% 	    \Sigma
+%     $ & if & $\MetaDecl \alpha A ~\in~ \Sigma$
     \\ {} \\
-    \multicolumn2l{Operations on guarded constants} \\
+%    \multicolumn2l{Operations on guarded constants} \\
     & \multicolumn3l{$\ExplicitJudgement
 	    \Sigma
 	    {\AddConst p A M \Cs}
 	    {\Ext \Sigma \ConstDecl p A M \Cs}
     $} \\
     & & if & $p \notin \Sigma$
-    \\
-    & \multicolumn3l{$\ExplicitJudgement
-	    \Sigma
-	    {\UpdateGuard p \Cs}
-	    {\Ext {\Sigma_1} \Ext {\ConstDecl p A M \Cs} \Sigma_2}
-    $} \\
-    & & if & $\Sigma ~=~ \Ext {\Sigma_1} \Ext {\ConstDecl p A M \Cs^\prime} \Sigma_2$
-    \\
-    & $\ExplicitJudgement
-	    \Sigma
-	    {\LookupConst p M}
-	    \Sigma
-    $ & if & $\ConstDecl p A M \emptyset ~\in~ \Sigma$
-    \\
-    & $\ExplicitJudgement
-	    \Sigma
-	    {\Guarded p}
-	    \Sigma
-    $ & if & $\ConstDecl p A M \Cs ~\in~ \Sigma$ and $\Cs \neq \emptyset$
+%     \\
+%     & \multicolumn3l{$\ExplicitJudgement
+% 	    \Sigma
+% 	    {\UpdateGuard p \Cs}
+% 	    {\Ext {\Sigma_1} \Ext {\ConstDecl p A M \Cs} \Sigma_2}
+%     $} \\
+%     & & if & $\Sigma ~=~ \Ext {\Sigma_1} \Ext {\ConstDecl p A M \Cs^\prime} \Sigma_2$
+%     \\
+%     & $\ExplicitJudgement
+% 	    \Sigma
+% 	    {\LookupConst p M}
+% 	    \Sigma
+%     $ & if & $\ConstDecl p A M \emptyset ~\in~ \Sigma$
+%     \\
+%     & $\ExplicitJudgement
+% 	    \Sigma
+% 	    {\Guarded p}
+% 	    \Sigma
+%     $ & if & $\ConstDecl p A M \Cs ~\in~ \Sigma$ and $\Cs \neq \emptyset$
     \\ {} \\
-    \multicolumn2l{General operations} \\
+%    \multicolumn2l{General operations} \\
     & $\ExplicitJudgement
 	    \Sigma
 	    {\LookupType c A}
@@ -173,26 +164,57 @@ Figure~\ref{figOperations}.
 	    \Sigma
     $ & if & $\begin{array}[t]{ll}
 	\Sigma ~=~ \Ext {\Sigma_1} \Ext {\MetaDecl \alpha A} \Sigma_2 ~~ \mbox{and}
-    \\	\exists \, \Gamma, B. ~ \HasTypeCS {\Sigma_1} \Gamma M B
+	\\ c \in M ~~ \mbox{implies} ~~ c \in \Sigma_1
+%     \\	\IsTypeCS {\Sigma_1} {} A ~~ \mbox{and} ~~ \HasTypeCS \Sigma {} M A ~~ \mbox{implies}
+%     \\	\HasTypeCS {\Sigma_1} {} M A
     \end{array}$
     \\
-    & $\ExplicitJudgement
-	    \Sigma
-	    {\WithSig {\Sigma'} J}
-	    {\Sigma''}
-    $ & if & $\ExplicitJudgement
-	    {\Sigma'}
-	    J
-	    {\Sigma''}
-    $ \\
+%     & $\ExplicitJudgement
+% 	    \Sigma
+% 	    {\WithSig {\Sigma'} J}
+% 	    {\Sigma''}
+%     $ & if & $\ExplicitJudgement
+% 	    {\Sigma'}
+% 	    J
+% 	    {\Sigma''}
+%     $ \\
 \end{tabular}
 \caption{Operations on the signature}
 \label{figOperations}
 \end{figure}
 
-\subsection{The algorithm}
+We introduce two operations to manipulate meta variables: $\AddMeta \alpha A$
+adds a new meta variable $\alpha$ of type $A$ to the signature, and $\InstMeta
+\alpha M$ instantiates $\alpha$ to $M$.
 
-We have the following main judgement forms.
+%% Never used
+% $\LookupMeta \alpha M$ looks up the
+% value of an instantiated meta variable, and $\Uninstantiated \alpha$ verifies
+% that $\alpha$ is uninstantiated.
+
+For guarded constants we just add the operation $\AddConst p A M \Cs$ to add a
+new guarded constant $p$ of type $A$ and value $M$ guarded by the constraints
+$\Cs$. In Section~\ref{secAlgorithm} we explain the rules for solving the
+constraints of a guarded constant.
+
+% , $\UpdateGuard p \Cs$ to update the guard of $p$,
+% $\LookupConst p M$ to get the value of a guarded constant whose guard has been
+% solved, and $\Guarded p$ to verify that the guard of $p$ has not been solved.
+
+We also introduce the following general operations: $\LookupType c A$ looks up
+the type $A$ of a constant $c$, and $\InScope \alpha M$ checks that $M$ is in
+scope at the definition site of $\alpha$ (to ensure that $\alpha$ can be
+instantiated to $M$).
+
+%, and $\WithSig \Sigma J$ which checks $J$ in the signature $\Sigma$.
+
+Detailed definitions of the operations can be found in
+Figure~\ref{figOperations}.
+
+\subsection{The algorithm} \label{secAlgorithm}
+
+Next we present the type checking algorithm.  We use a bidirectional algorithm,
+consisting of the following main judgement forms.
 
 \[\begin{array}{ll}
     \IsType e A & \mbox{well-formed types} \\
@@ -202,20 +224,43 @@ We have the following main judgement forms.
     \Equal M N A \Cs & \mbox{term conversion} \\
 \end{array}\]
 
-We also need some helper judgement forms.
+The rules for well-formed types and type checking and inference takes an
+expression in the user syntax produces a type or term in {\Core} which is a
+well-formed approximation of the user expression. Conversion checking produces
+a set of unsolved constraints which needs to be solved for the judgement to be
+true in {\Core}. The exact form of type checking algorithm used is not very
+important--a unidirectional algorithm would also work. What is important is
+that computation is performed on the well-typed approximations rather than the
+user expressions.
+
+We use typed conversion for two reasons: it is a nice way to implement
+$\eta$-equality, and perhaps more importantly to prove the correctness of the
+algorithm we need the invariant that when checking $\Equal M N A \Cs$ we have
+$\HasTypeC \Gamma M A$ and $\HasTypeC \Gamma N A$. The type is only
+computationally relevant for checking $\eta$-equality.
+
+When checking conversion we also need the following judgement forms.
 
 \[\begin{array}{ll}
     \EqualWhnf M N A \Cs & \mbox{conversion of weak head normal forms} \\
     \Equal {\bar M} {\bar N} \Delta \Cs & \mbox{conversion of sequences of terms} \\
 \end{array}\]
 
-We will let $J$ range over these judgements.
+In the following we let $J$ range over judgements of these seven forms. To save
+some space we omit the rules for checking well-formed types and most of the
+rules for type checking and inference. The rules are simple extensions of the
+standard type checking algorithm\footnote{\TODO{cite core paper}} to produce
+well-typed terms. The interesting type checking rules are those for type
+checking meta variables and the conversion rules.
 
-Now the rules are
+\URules{
 
-\Rules{Conversion rule}{
+\infer{ \CheckType {?} A {\alpha \, \Gamma }}
+{\begin{array}{l}
+    \AddMeta \alpha {\Gamma \to A}
+\end{array}}
 
-% Conversion rule
+\quad
 
 \infer{
     \CheckType e A M
@@ -224,7 +269,7 @@ Now the rules are
 \\  \EqualType A B \emptyset
 \end{array}}
 
-\qquad
+\quad
 
 \infer{
     \CheckType e A {p\,\Gamma}
@@ -236,19 +281,21 @@ Now the rules are
 
 }
 
-\Rules{Type checking meta variables}{
+When type checking a user meta variable we add a fresh meta variable to the
+signature and return this. Since meta variables are part of the signature they
+have to be lifted to the top-level\footnote{\TODO{cite something here?}}.
 
-\infer{ \CheckType {?} A {\alpha \, \Gamma }}
-{\begin{array}{l}
-    \AddMeta \alpha {\Gamma \to A}
-\end{array}}
+We have two versions of the conversion rule. The first corresponds to the
+normal conversion rule and applies when no constraints are left over. The
+interesting case is when we cannot safely conclude that $A = B$, in which case
+we introduce a fresh guarded constant. As for meta variables, guarded constants
+are lifted to the top-level.
 
-}
+When checking conversion of two function types, an interesting question is what
+to do when comparing the domains gives rise to constraints. The rule in question is
 
-\Rules{Type conversion}{
-
+\URules{
 % (x : A) -> B = (x : A') -> B'
-
 \infer{
     \EqualType {\PI x {A_1} {B_1}} {\PI x {A_2} {B_2}} {\Cs \cup \Cs^\prime}
 }{\begin{array}{l}
@@ -256,29 +303,40 @@ Now the rules are
 \\  \AddConst p {\Gamma \to A_1 \to A_2} {\LAM {\Gamma\,x} x} \Cs
 \\  \EqualTypeCtx {\Ext \Gamma x : A_1} {B_1} {\SubstD {B_2} {p ~ \Gamma \, x}} {\Cs^\prime}
 \end{array}}
-
-\\{}\\
-
-\infer{
-    \EqualType {\PI x {A_1} {B_1}} {\PI x {A_2} {B_2}} \Cs
-}{\begin{array}{l}
-    \EqualType {A_1} {A_2} \emptyset
-\\  \EqualTypeCtx {\Ext \Gamma x : A_1} {B_1} {B_2} \Cs
-\end{array}}
-
-\qquad
-
-% El M = El N
-
-\infer{
-    \EqualType {\EL M} {\EL N} \Cs
-}{\begin{array}{l}
-    \Equal M N \SET \Cs
-\end{array}}
-
 }
 
-\Rules{Term conversion}{
+To ensure the correctness of the algorithm we need to maintain the invariant
+that when we check $\EqualType A B \Cs$ we have $\IsTypeC \Gamma A$ and
+$\IsTypeC \Gamma B$. Thus if we do not know whether $A_1 = A_2$ it is not
+correct to check $\EqualTypeCtx {\Ext \Gamma x : A_1} {B_1} {B_2} {\Cs^\prime}$
+since $B_2$ is not well-formed in $\Ext \Gamma x : A_1$. To solve the problem
+we substitute a guarded constant for $x$ in $B_2$.
+
+% \quad
+% 
+% \infer{
+%     \EqualType {\PI x {A_1} {B_1}} {\PI x {A_2} {B_2}} \Cs
+% }{\begin{array}{l}
+%     \EqualType {A_1} {A_2} \emptyset
+% \\  \EqualTypeCtx {\Ext \Gamma x : A_1} {B_1} {B_2} \Cs
+% \end{array}}
+% 
+%  \\{}\\
+% 
+% % El M = El N
+% 
+% \infer{
+%     \EqualType {\EL M} {\EL N} \Cs
+% }{\begin{array}{l}
+%     \Equal M N \SET \Cs
+% \end{array}}
+% 
+% \end{array}\]}
+
+Checking conversion of terms is done on weak head normal forms. The only rule
+that is applied before weak head normalisation is the $\eta$-rule.
+
+\URules{
 
 % Eta
 
@@ -288,7 +346,7 @@ Now the rules are
     \EqualCtx {\Ext \Gamma x : A} {M \, x} {N \, x} B \Cs
 }
 
-\\{}\\
+\qquad
 
 % Weak head normalisation
 
@@ -301,9 +359,11 @@ Now the rules are
 \end{array}
 }
 
-\qquad
-
 }
+
+We use the reduction of {\Core} when reducing to weak head normal forms. This
+is made precise later in this section, but essentially instantiated meta are
+unfolded and guarded constants are unfolded if the guard is empty.
 
 \Rules{Weak head conversion}{
 
@@ -338,11 +398,14 @@ Now the rules are
 }{
 \begin{array}[b]{l}
     \bar x~\mathit{distinct}
-\\  \FV M \subseteq \bar x
-\\  \alpha \notin M
-\\  \InScope \alpha M
+\\  \Normalise M {M'}
+\\  \FV {M'} \subseteq \bar x
+\\  \alpha \notin M'
 \end{array}
-& \InstMeta \alpha {\LAM {\bar x} M}
+& \begin{array}[b]{l}
+    \InScope \alpha {\LAM {\bar x} M'}
+\\  \InstMeta \alpha {\LAM {\bar x} M'}
+\end{array}
 }
 
 \qquad
@@ -427,7 +490,7 @@ We use the weak head normalisation from the underlying logic:
     \infer{
 	\ExplicitJudgement \Sigma {\whnf M N} \Sigma
     }{
-	\CoreSig \Sigma \vdash \whnf M N
+	\vdash_{\CoreSig \Sigma} \whnf M N
     }
 \]
 
@@ -435,8 +498,8 @@ We use the weak head normalisation from the underlying logic:
 
 So far, we have not looked at when or how the guards of a constant are
 simplified or solved. In principle this can be done at any time, for instance
-as a separate phase after type checking, but in practise it might be a better idea
-to interleave constraint solving and type checking.
+as a separate phase after type checking. In practise, however, it might be a
+better idea to interleave constraint solving and type checking.
 
 Constraint simplification amounts to retrying the guards of a constant. The
 notation $\CheckConstr \Cs {\Cs^\prime}$ means checking each of the constraints in
@@ -457,10 +520,11 @@ $\Cs$ and taking $\Cs^\prime$ to be the union of the results.
     }
 }
 
-\begin{definition}[Normal signature]
-    A signature $\Sigma$ is in {\em normal form} if it is not the case that
-    $\ExplicitJudgement \Sigma \Simplify {\Sigma^\prime}$ for some $\Sigma^\prime$.
-\end{definition}
+% Not used
+% \begin{definition}[Normal signature]
+%     A signature $\Sigma$ is in {\em normal form} if it is not the case that
+%     $\ExplicitJudgement \Sigma \Simplify {\Sigma^\prime}$ for some $\Sigma^\prime$.
+% \end{definition}
 
 \subsection{Adding pattern matching} \label{secAddPatternMatching}
 
@@ -487,6 +551,4 @@ Some notes on how to add pattern matching.
 }
 
 }
-
-\TODO{move rules talking about pattern matching here.}
 

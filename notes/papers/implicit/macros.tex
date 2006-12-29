@@ -96,6 +96,7 @@
 \newcommand\EqualTypeCtx[4]{{#1} \vdash {#2} = {#3} \leadsto {#4}}
 \newcommand\EqualCtx[5]{{#1} \vdash {#2} = {#3} : {#4} \leadsto {#5}}
 \newcommand\EqualWhnfCtx[5]{{#1} \vdash {#2} \doteq {#3} : {#4} \leadsto {#5}}
+% \newcommand\EqualWhnfCtx[5]{{#1} \vdash {#2} \mathrel{\stackrel{\mathit{whnf}}=} {#3} : {#4} \leadsto {#5}}
 
 \newcommand\TypeConstrCtx[3]{\EqualTypeC {#1} {#2} {#3}}
 \newcommand\TermConstrCtx[4]{\EqualC {#1} {#2} {#3} {#4}}
@@ -113,6 +114,7 @@
 \newcommand\CheckConstr[2]{{#1} \leadsto {#2}}
 
 \newcommand\whnf[2]{{#1} \to_{\mathit{whnf}} {#2}}
+\newcommand\Normalise[2]{{#1} \to_{\mathit{nf}} {#2}}
 
 \newcommand\FV[1]{\mathsf{FV}({#1})}
 \newcommand\AppSub[2]{{#2}{#1}}
@@ -131,5 +133,11 @@
 	#2
     \end{array}\]
     }
+}}
+
+\newcommand\URules[1]{
+{\small\[\begin{array}{c}
+    #1
+\end{array}\]
 }}
 
