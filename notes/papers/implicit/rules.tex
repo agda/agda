@@ -251,8 +251,8 @@ user expressions.
 We use typed conversion for two reasons: it is a nice way to implement
 $\eta$-equality, and perhaps more importantly to prove the correctness of the
 algorithm we need the invariant that when checking $\Equal M N A \Cs$ we have
-$\HasTypeC \Gamma M A$ and $\HasTypeC \Gamma N A$, so the type is needed to
-make sure the invariant is preserved.
+$\HasTypeC \Gamma M A$ and $\HasTypeC \Gamma N A$, so we need to record the
+type to make sure the invariant is preserved.
 
 When checking conversion we also need the following judgement forms.
 
@@ -328,13 +328,13 @@ When type checking a user meta variable we add a fresh meta variable to the
 signature and return this. Since meta variables are part of the signature they
 have to be lifted to the top-level\TODO{cite something here?}.
 
-\subsubsection{Type conversion rules}
-
 We have two versions of the conversion rule. The first corresponds to the
 normal conversion rule and applies when no constraints are left over. The
 interesting case is when we cannot safely conclude that $A = B$, in which case
 we introduce a fresh guarded constant. As for meta variables, guarded constants
 are lifted to the top-level.
+
+\subsubsection{Type conversion rules}
 
 When checking conversion of two function types, an interesting question is what
 to do when comparing the domains gives rise to constraints. The rule in question is
@@ -408,6 +408,11 @@ that is applied before weak head normalisation is the $\eta$-rule.
 
 }
 
+In {\Core} function types are not terms so a meta variable can never be
+instantiated to a function type. If this was the case we would have to check if
+the type was a meta variable, and if so postpone the constraint, since we would
+not know whether or not the $\eta$-rule should be applied.
+
 The weak head normal forms we compare will be of atomic type and so they are of
 the form $h\,\bar M$ where the head $h$ is a variable, constant, meta variable,
 or guarded constant. If both terms have the same variable or constant head $h :
@@ -439,7 +444,8 @@ implicit arguments, so we try to find unique instantiations to the meta
 variables. For simplicity, we use a restricted form of pattern
 unification\TODO{Cite pattern unification paper}, but there is no
 reason to believe that our correctness proof would not extend to full pattern
-unification.
+unification. In the examples we have studied, using meta variables for implicit
+arguments, this simpler form of unification seems to be sufficient.
 
 \URules{
 
