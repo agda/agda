@@ -65,18 +65,18 @@ The input to the type checking algorithm is a user expression which could
 represent either a type or a term. Apart from the usual constructions user
 expressions can also contain $?$ representing a meta variable. During type
 checking user expressions are translated into {\Core} terms where meta
-variables are replaced by fresh constants. Note that since we have domain free
-lambda abstractions we cannot type check $\beta$-redexes. Hence the syntax of
-user expressions disallows them.
+variables are represented as fresh constants. Note that since we have domain
+free lambda abstractions we cannot type check $\beta$-redexes. Hence the syntax
+of user expressions disallows them.
 
 A constraint $C$ is a conversion checking problem that has been postponed
-because not enough information was available on the meta variables. Since our
-conversion checking algorithm is typed the constraints are also typed. The
+because not enough information was available about the meta variables. Since
+our conversion checking algorithm is typed the constraints are also typed. The
 constraints show up in the signature as guards to guarded constants. We write
 $\ConstDecl p A M \Cs$ for a guarded constant $p$ of type $A$ and value $M$
 guarded by the set of constraints $\Cs$.
 
-We will use lowercase greek letters $\alpha, \beta, \ldots$ for constants
+We use lowercase greek letters $\alpha, \beta, \ldots$ for constants
 representing meta variables and $p$ and $q$ for guarded constants.
 
 \subsection{Operations on the signature}
