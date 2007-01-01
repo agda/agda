@@ -54,7 +54,7 @@ the syntax of signatures to include guarded constants and add a new syntactic
 category for user expressions:
 
 \[\begin{array}{lcll}
-    e & ::= & \LAM xe \Or e\,e \Or \SET \Or \PI xee \Or c \Or ? \\
+    e & ::= & \LAM xe \Or x\,\bar e \Or c\,\bar e \Or \SET \Or \PI xee \Or ? \\
     C & ::= & \TypeConstr A B \Or \TermConstr M N A \Or
 	      \TermConstr {\bar M} {\bar N} \Delta \\
     \Sigma & ::= & \ldots \Or
@@ -65,7 +65,9 @@ The input to the type checking algorithm is a user expression which could
 represent either a type or a term. Apart from the usual constructions user
 expressions can also contain $?$ representing a meta variable. During type
 checking user expressions are translated into {\Core} terms where meta
-variables are replaced by fresh constants.
+variables are replaced by fresh constants. Note that since we have domain free
+lambda abstractions we cannot type check $\beta$-redexes. Hence the syntax of
+user expressions disallows them.
 
 A constraint $C$ is a conversion checking problem that has been postponed
 because not enough information was available on the meta variables. Since our
@@ -271,14 +273,16 @@ translating the signature to {\Core} and performing the normalisation in
 
 \begin{definition}
     Given a signature $\Sigma$ containing meta variables and guarded constants
-    we can recover a {\Core} signature $\CoreSig \Sigma$ by replacing guarded
-    constants with normal constants, retaining the definition if the guard is
-    empty and removing it otherwise.
+    we can recover its {\Core} restriction $\CoreSig \Sigma$ by replacing
+    guarded constants with normal constants, retaining the definition if the
+    guard is empty and removing it otherwise.
 \end{definition}
 
 We write $\Sigma$ for $\CoreSig \Sigma$ when it is clear from the context that
 the latter is intended. For instance, we write $\HasTypeCS \Sigma \Gamma M A$
-rather than $\HasTypeCS {\CoreSig \Sigma} \Gamma M A$.
+rather than $\HasTypeCS {\CoreSig \Sigma} \Gamma M A$. The type checking rules
+maintain the invariant that the {\Core} restriction of the current signature is
+well-formed.
 
 We write $\ExplicitJudgement \Sigma {\whnf M {M'}} \Sigma$ if $M'$ is the weak
 head normal form of $M$ in $\CoreSig \Sigma$. Similarly $\Normalise M {M'}$
@@ -403,10 +407,6 @@ that is applied before weak head normalisation is the $\eta$-rule.
 }
 
 }
-
-We use the reduction of {\Core} when reducing to weak head normal forms. This
-is made precise later in this section, but essentially instantiated meta are
-unfolded and guarded constants are unfolded if the guard is empty.
 
 The weak head normal forms we compare will be of atomic type and so they are of
 the form $h\,\bar M$ where the head $h$ is a variable, constant, meta variable,

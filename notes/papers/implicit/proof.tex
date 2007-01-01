@@ -1,20 +1,19 @@
 
-Our goal is to prove that we only compute with well-typed terms, in the sense
-of {\Core}. This guarantees the existence of normal forms, and hence, ensure
-decidability of type checking.
+The correctness of the algorithm relies on the fact that we only compute with
+well-typed terms.  This guarantees the existence of normal forms, and hence,
+ensures decidability of type checking.
 
 The proof will be done in two stages: first we prove soundness in the absence
 of constraint solving, and then we prove that constraint solving
 is sound.
 
-\subsection{Without constraint solving}
+\subsection{Soundness without constraint solving}
 
 There are a number of things we need to prove: that type checking preserves
 well-formed signatures, that it produces well-typed terms, that conversion
 checking is sound, and that new signatures respect the old signatures.
 Unfortunately these properties are all interdependent, so we cannot prove them
-separately. Instead we prove them all in one fell swoop. First we define what
-we mean by a signature extension.
+separately. First we introduce some useful concepts.
 
 \begin{definition}[Signature extension] \label{defSigExt}
     We say that $\Sigma'$ {\em extends} $\Sigma$ if and only if for any {\Core}
@@ -51,8 +50,10 @@ expressed by the following two lemmas.
 \fi
 
 To express the soundness of conversion checking we need to define when a
-constraint is well-formed. Note that this is not the same as true. For
-instance, $\TypeConstr Nat Bool$ is a well-formed constraint.
+constraint is well-formed. Note that this is not the same as being true. For
+instance, $\TypeConstr {\mathit{Nat}} {\mathit{Bool}}$ is a well-formed
+constraint given $\mathit{Nat} : \SET$ and $\mathit{Bool} : \SET$ in the
+signature.
 
 \begin{definition}[Well-formed constraint]
     A constraint if well-formed if the terms (or types) under consideration are
@@ -76,6 +77,9 @@ instance, $\TypeConstr Nat Bool$ is a well-formed constraint.
     \Gamma M A$ and $\HasTypeC \Gamma N A$.
     \fi
 \end{definition}
+
+Now we are ready to state the soundness of the type checking algorithm in the
+absence of constraint solving.
 
 \begin{theorem}[Soundness of type checking] \label{thmSoundNoCs}
     Type checking produces well-typed terms, conversion checking produces
@@ -203,22 +207,27 @@ normal forms for type checked terms.
     Type checked terms have (weak head) normal forms.
 \end{corollary}
 
-Once we have (weak head) normal forms it is easy to verify that the rules
-describe a decidable type checking algorithm.
+Once we have normal forms it is easy to verify that the rules describe a
+decidable type checking algorithm.
 
 \begin{corollary}
     Type checking is decidable.
 \end{corollary}
 
-\subsection{Constraint solving}
+\subsection{Soundness of constraint solving}
 
-This far we have completely ignored the generated constraints--when conversion
-checking produced constraints we only required them to be well-formed. In this
-section we tackle the problem of ensuring that solving the constraints produce
-well-typed terms. The idea is to prove that constraint solving is a
-signature extension operation in the sense of Definition~\ref{defSigExt}. To
-prove this we need to know that type checking preserves {\em consistent}
-signatures.
+In the previous section we proved type checking sound and decidable in the
+absence of constraint solving. We also mostly ignored the constraints, only
+requiring them to be well-formed. In this section we prove that the terms
+produced by the type checker stay well-typed under constraint solving. This is
+done by showing that constraint solving is a signature extension operator in
+the sense of Definition~\ref{defSigExt}.
+
+Previously we only ensured that the {\Core} restriction of the signature was
+well-formed. Now, since we are going to update and remove the constraints of
+guarded constants we have to strengthen the requirements and demand {\em
+consistent} signatures. A signature is consistent if the solution of a guard is
+a sufficient condition for the well-typedness of the definition it is guarding.
 
 \begin{definition}[Ensures] \label{defEnsures}
     A set of constraints $\Cs$ {\em ensures} a {\Core} judgement $J$ in a signature
@@ -228,10 +237,10 @@ signatures.
     it is the case that $\vdash_{\CoreSig{\Sigma_2}} J$.
 \end{definition}
 
-\begin{lemma} \label{lemExtendEnsures}
+\begin{remark} \label{lemExtendEnsures}
     If $\Cs$ ensures $J$ in $\Sigma$ and $\Extends {\Sigma'} \Sigma$ then $\Cs$
     ensures $J$ in $\Sigma'$.
-\end{lemma}
+\end{remark}
 
 \begin{definition}[Consistent signature] \label{defConsistentSig}
     A signature $\Sigma$ is said to be {\em consistent} if $\Sigma = \Ext
@@ -401,38 +410,73 @@ More precisely,
 \end{proof}
 
 From this follows that we can mix type checking and constraint solving freely,
-so we add the rules
+so we add a constraint solving rule to the type checking algorithm. It only
+makes sense to try to solve the constraints if there is new information
+available on the meta variables, so a reasonable place to trigger the
+constraint solving rule is after instantiating a meta variable.
 
-\[  \infer{ J }
-    { \Simplify
-    & J
-    }
-    \qquad
-    \infer{ J }
-    { J
-    & \Simplify
-    }
-\]
-to the type checking algorithm.
+\subsection{Relating user expressions and checked terms}
 
-\begin{theorem}[Soundness of type checking] \label{thmMain}
-    If $\Sigma$ is a well-formed signature not containg any meta variables or
-    guarded constants and $\ExplicitJudgement \Sigma {\CheckType e A M}
-    {\Sigma'}$, then $\Sigma' = \Ext \Sigma {\Sigma''}$. Furthermore, if all
-    meta variables have been instantiated and all guards are empty in
-    $\Sigma''$, then $\HasTypeCS \Sigma \Gamma {M\sigma} A$ where $\sigma$ is
-    the substitution inlining the meta variables and constants in $\Sigma''$.
-\end{theorem}
+Finally we relate the terms produced by type checking to the user expressions
+being type checked. 
 
-\TODO{A bit clunky. How to express this more elegantly?}
+\begin{definition}[Approximation]
+    A term $M$ {\em approximates} $M'$ if $M$ can be obtained by replacing
+    subterms of $M'$ by guarded constants $p \, \bar x$.
+\end{definition}
+
+\begin{definition}[Refinement]
+    A term $M$ is a {\em refinment} of a user expression $e$ if $M$ can be
+    obtained by replacing the $?$ in $e$ by concrete terms.
+\end{definition}
+
+\begin{lemma} \label{lemApproxRefine}
+    If $\CheckType e A M$ then $M$ approximates a refinement of $e$. This
+    property is preserved when unfolding instantiated meta variables and
+    guarded constants in $M$.
+\end{lemma}
+
+\begin{lemma}
+    If $\CheckType e A M$ then $M$ is a {\em best approximation} of a
+    refinement $M'$ of $e$ in the sense that there is no finer well-typed
+    approximation of $M'$.
+\end{lemma}
 
 \begin{proof}
-    From Lemma~\ref{lemTypeCheckConsistent} and Lemma~\ref{lemSolveConsistent}
-    follows that $\HasTypeCS {\Sigma'} \Gamma M A$ and $\Sigma'$ is a
-    consistent extension of $\Sigma$.  Thus all definitions in $\Sigma''$ are
-    type correct, and consequently so is $\sigma$.  This gives $\HasTypeCS
-    {\Sigma'} \Gamma {M\sigma} A$.  Since all constants in $\Sigma''$ have
-    a definition $M\sigma$ does not use anything from $\Sigma''$ and we can
-    strengthen the signature to obtain $\HasTypeCS \Sigma \Gamma {M\sigma} A$.
+The proof relies on the fact that we only introduce guarded constants when
+absolutely necessary. This is proven by showing that the constraints produced
+by conversion checking are not only sufficient but also necessary for the
+validity of the judgement.
+\end{proof}
+
+\subsection{Main result}
+
+We now prove the main soundness theorem stating that if all meta variables are
+instantiated and all guards solved, then the term produced by the type checker
+(extended with constraint solving) is valid in the original signature after
+unfolding the definitions of the meta variables and guarded constants
+introduced during type checking.
+
+\begin{theorem}[Soundness of type checking] \label{thmMain}
+    If $\Sigma$ is a well-formed {\Core} signature and $\ExplicitJudgement
+    \Sigma {\CheckType e A M} {\Sigma'}$, then if all meta variables have been
+    instantiated and all guards are empty in $\Sigma'$, then $\HasTypeCS \Sigma
+    \Gamma {M\sigma} A$ where $\sigma$ is the substitution inlining the meta
+    variables and constants in $\Sigma'$. Moreover, $M\sigma$ is a refinement
+    of $e$.
+\end{theorem}
+
+\begin{proof}
+    From Theorem~\ref{thmSoundNoCs} follows that $\HasTypeCS {\Sigma'} \Gamma M
+    A$ and Lemma~\ref{lemTypeCheckConsistent} and
+    Lemma~\ref{lemSolveConsistent} give that $\Sigma'$ is a consistent
+    extension of $\Sigma$.  Thus $\sigma$ is well-typed and we have $\HasTypeCS
+    {\Sigma'} \Gamma {M\sigma} A$.
+    Since $M\sigma$ only uses constants from $\Sigma$ we can strengthen the
+    signature to obtain $\HasTypeCS \Sigma \Gamma {M\sigma} A$.
+
+    By Lemma~\ref{lemApproxRefine} we have that $M\sigma$ approximates a
+    refinement of $e$. Since $M\sigma$ does not contain any guarded constants
+    it is a refinement of $e$.
 \end{proof}
 
