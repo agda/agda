@@ -15,6 +15,8 @@
 %format |-    = "\vdash"
 %format omega = "\omega"
 %format Omega = "\Omega"
+%format C1    = "C_1"
+%format C2    = "C_2"
 
 %format when  = "\mathbf{when}"
 
@@ -117,11 +119,18 @@ For any well-typed term |t : B| and type |A|, |coerce ? t| will successfully
 check against |A|, resulting in the constraints |alpha zero = B| and |A = alpha
 zero|, none of which can be solved. If we did not introduce guarded constants
 |coerce ? t| would reduce to |t| and hence we could use |coerce| to give an
-arbitrary type to a term. For instance we can type
+arbitrary type to a term. For instance we can type\footnote{This only type
+checks if we allow meta variables to be instantiated to function types, which
+is not the case in {\Core}. However, the type checking algorithm can be
+extended to handle this, something we have done in the implementation.}
 \begin{code}
-omega  : ? -> ?  = \x. x (coerce ? x)
-Omega  : ?	 = omega (coerce ? omega)
+omega  : (N -> N) -> N  = \x. x (coerce ? x)
+Omega  : N	        = omega (coerce ? omega)
 \end{code}
 where without guarded constants |Omega| would reduce to the non-normalising
-$\lambda$-term |(\x. x x) (\x. x x)|.
+$\lambda$-term |(\x. x x) (\x. x x)|. With our algorithm new guarded
+constants are introduced for for the argument to |coerce| and for the
+application of coerce. So the type correct appoximation of |Omega| would be
+|omega p| where |p = coerce alpha q when alpha zero = N -> N| and |q = omega
+when (N -> N) -> N = alpha zero|.
 

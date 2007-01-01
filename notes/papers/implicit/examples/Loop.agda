@@ -25,9 +25,10 @@ postulate Nat : Set
 wrap : (F : Nat -> Set) -> F zero -> F zero
 wrap F x = x
 
-delta : _ -> _
+delta : (Nat -> Nat) -> Nat
 delta = \x -> x (wrap _ x)
 
+loop : Nat
 loop = delta (wrap _ delta)
 
 -- delta : _ -> _

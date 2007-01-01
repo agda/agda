@@ -417,8 +417,11 @@ constraint solving rule is after instantiating a meta variable.
 
 \subsection{Relating user expressions and checked terms}
 
-Finally we relate the terms produced by type checking to the user expressions
-being type checked. 
+An important property of the type checking algorithm is that type correct terms
+it produces correspond to the expressions given by the user. The correspondance
+is expressed by stating that the only operations the type checker is allowed
+when constructing a term is replacing a $?$ by a term and replacing a term by a
+guarded constant.
 
 \begin{definition}[Approximation]
     A term $M$ {\em approximates} $M'$ if $M$ can be obtained by replacing
