@@ -1,0 +1,103 @@
+
+A class system
+--------------
+
+what can be a class?
+
+- any datatype/record
+
+what is an instance?
+
+- an element of a class (possibly parameterised)
+- parameterised by what?
+  + other instances clearly
+  + non-instances? yes, arguments to the classes
+
+some examples:
+
+class Eq (A : Set) : Set where
+  eq : (_==_ : A -> A -> Bool) -> Eq A
+
+instance
+  eqList : {A : Set} -> Eq A -> Eq (List A)
+  eqList eqA = ..
+
+what are the restrictions on an instance declaration?
+- should probably be
+    instance i : Δ -> Cs -> C ts
+  where
+    Cs are classes
+    Δ can be inferred from C ts
+- instance search will proceed as follows:
+  + given a goal C ss, unify with C ts to get ρ (deciding all of Δ)
+  + the new goals are Cs ρ
+
+multiparameter type classes?
+- how difficult?
+- necessary? clearly useful (at least with inductive families)
+
+functional dependecies
+- probably not needed (we have associated types for free)
+
+zero parameter type classes are useful:
+
+  class True : Set where
+    instance tt : True
+
+  A constructor can be declared an instance by writing instance before the
+  name. The normal checks are applied to the type.
+
+  _/_ : (n, m : Nat) -> {m ≠ 0} -> Nat
+  m / n = ..
+
+  now x / 3 requires a proof of 3 ≠ 0 = True for which there is an instance
+  (tt). This would work with an inductive definition of ≠ as well (but requires
+  multiparameter classes):
+
+  class _≠_ : Nat -> Nat -> Set where
+    instance neqZS : {m : Nat} -> 0 ≠ suc m
+    instance neqSZ : {n : Nat} -> suc n ≠ 0
+    instance neqSS : {n, m : Nat} -> n ≠ m -> suc n ≠ suc m
+
+How to do super classes?
+
+    class Ord (A : Set){eqA : Eq A} : Set where
+      ord : (compare : A -> A -> Ordering) -> Ord A {eqA}
+
+    instance ordNat : Ord Nat
+	     ordNat = ord compareNat
+
+  this doesn't really work...
+
+    sort : {A : Set} -> {Ord A} -> List A -> List A
+
+  there is no instance Eq A here. Ord A must contain Eq A
+
+    class Ord (A : Set) : Set where
+      ord : {Eq A} -> (compare : A -> A -> Ordering) -> Ord A
+
+  how to get the Eq dictionary from the Ord dictionary (nothing recording the
+  relationship here). One attempt:
+
+    instance ordToEq : {A : Set} -> Ord A -> Eq A
+	     ordToEq (ord eq _) = eq
+
+  How does this work with other instances (clearly overlapping)? Maybe there is
+  a good reason it's treated specially in Haskell... It would be nice not to
+  have to introduce more syntax.
+
+Finding instances
+-----------------
+
+Instances form a rewriting system (there is a paper about this stuff...)
+
+  instance i : Δ -> Cs -> C ts
+
+corresponds to a rule
+
+  ∀ Δ. C ts --> Cs
+
+
+
+ vim: sts=2 sw=2 tw=80
+
