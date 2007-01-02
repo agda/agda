@@ -1,7 +1,7 @@
 
 default : implicit.pdf
 
-implicit.ps implicit.dvi implicit.pdf : $(wildcard *.tex) examples.tex lhs2TeXpreamble.tex
+implicit.ps implicit.dvi implicit.pdf : $(wildcard *.tex) examples.tex exintro.tex lhs2TeXpreamble.tex
 
 ifeq ($(shell which latexmk),)
 
