@@ -1,8 +1,7 @@
 
-In this section we present the type checking algorithm for {\Core} with meta
-variables.
+In this section we present the type checking algorithm for {\Core} with meta-variables.
 
-% Describe the problem with meta variables
+% Describe the problem with meta-variables
 \subsection{Meta variables in type checking}
 
 A central typing rule in {\Core}, or any dependent type theory, is the
@@ -15,26 +14,25 @@ type $A$ convertible to $B$.
     }
 \]
 
-In the absence of meta variables, checking the convertibility of $A$ and $B$ is
+In the absence of meta-variables, checking the convertibility of $A$ and $B$ is
 straightforward and simply amounts to checking $\beta\eta$-equality. However,
-when adding meta variables things get more complicated. Depending of what the
-meta variables are used for the conversion checking algorithm is extended in
-various ways. If the meta variables are use for interaction, it makes sense to
+when adding meta-variables things get more complicated. Depending of what the
+meta-variables are used for the conversion checking algorithm is extended in
+various ways. If the meta-variables are use for interaction, it makes sense to
 treat them as black boxes and thus the conversion checker gives up when
-encountering a meta variable. If meta variables are used for implicit
+encountering a meta-variable. If meta-variables are used for implicit
 syntax--which is what we focus on in this paper--the conversion checker tries
-to find instantiations for the meta variables using some form of unification.
+to find instantiations for the meta-variables using some form of unification.
 In general the unification problems are higher order and hence
 undecidable~\cite{huet:unification}\TODO{correct citation?}.
 Consequently the conversion checker will have to give up on some unification
-problems. The same is true if meta variables are used for proof search, if a
-proof (instantiation of a meta variable) cannot be found the problem might have
+problems. The same is true if meta-variables are used for proof search, if a
+proof (instantiation of a meta-variable) cannot be found the problem might have
 to be postponed until more infomation is available. The bottom line is that
-the convertibility of $A$ and $B$ might be unknown until some of the meta
-variables have been instantiated. If this is the case, the question is what to
+the convertibility of $A$ and $B$ might be unknown until some of the meta-variables have been instantiated. If this is the case, the question is what to
 do with the conversion rule. Accepting $M : A$ is clearly not correct (see
 Section~\ref{secCoerce} for how to break things), but failing is also not the
-right thing to do, since later meta variable instantiations might make $A$ and
+right thing to do, since later meta-variable instantiations might make $A$ and
 $B$ convertible.
 
 The solution we present here is to accept the conversion rule, but rather than
@@ -49,7 +47,7 @@ to these constants as {\em guarded constants}.
 
 \subsection{Constraints and guarded constants}
 
-Now we present the rules for type checking with meta variables. First we extend
+Now we present the rules for type checking with meta-variables. First we extend
 the syntax of signatures to include guarded constants and add a new syntactic
 category for user expressions:
 
@@ -63,26 +61,25 @@ category for user expressions:
 
 The input to the type checking algorithm is a user expression which could
 represent either a type or a term. Apart from the usual constructions user
-expressions can also contain $?$ representing a meta variable. During type
-checking user expressions are translated into {\Core} terms where meta
-variables are represented as fresh constants. Note that since we have domain
+expressions can also contain $?$ representing a meta-variable. During type
+checking user expressions are translated into {\Core} terms where meta-variables are represented as fresh constants. Note that since we have domain
 free lambda abstractions we cannot type check $\beta$-redexes. Hence the syntax
 of user expressions disallows them.
 
 A constraint $C$ is a conversion checking problem that has been postponed
-because not enough information was available about the meta variables. Since
+because not enough information was available about the meta-variables. Since
 our conversion checking algorithm is typed the constraints are also typed. The
 constraints show up in the signature as guards to guarded constants. We write
 $\ConstDecl p A M \Cs$ for a guarded constant $p$ of type $A$ and value $M$
 guarded by the set of constraints $\Cs$.
 
 We use lowercase greek letters $\alpha, \beta, \ldots$ for constants
-representing meta variables and $p$ and $q$ for guarded constants.
+representing meta-variables and $p$ and $q$ for guarded constants.
 
 \subsection{Operations on the signature}
 
 All rules work on a signature $\Sigma$, containing previously defined
-constants, meta variables, and guarded constants.
+constants, meta-variables, and guarded constants.
 %
 In other words we can write all judgements on the form
 \[\ExplicitJudgement \Sigma J {\Sigma'}\]
@@ -116,7 +113,7 @@ threaded top-down, left-to-right. For instance,
 
 \begin{figure}
 \begin{tabular}{llll}
-%    \multicolumn2l{Operations on meta variables} \\
+%    \multicolumn2l{Operations on meta-variables} \\
     & $\ExplicitJudgement \Sigma
 	{\AddMeta \alpha A}
 	{\Ext \Sigma \MetaDecl \alpha A}
@@ -199,13 +196,13 @@ threaded top-down, left-to-right. For instance,
 \label{figOperations}
 \end{figure}
 
-We introduce two operations to manipulate meta variables: $\AddMeta \alpha A$
-adds a new meta variable $\alpha$ of type $A$ to the signature, and $\InstMeta
+We introduce two operations to manipulate meta-variables: $\AddMeta \alpha A$
+adds a new meta-variable $\alpha$ of type $A$ to the signature, and $\InstMeta
 \alpha M$ instantiates $\alpha$ to $M$.
 
 %% Never used
 % $\LookupMeta \alpha M$ looks up the
-% value of an instantiated meta variable, and $\Uninstantiated \alpha$ verifies
+% value of an instantiated meta-variable, and $\Uninstantiated \alpha$ verifies
 % that $\alpha$ is uninstantiated.
 
 For guarded constants we just add the operation $\AddConst p A M \Cs$ to add a
@@ -267,12 +264,12 @@ In the following we let $J$ range over judgements of these seven forms.
 
 Type checking with dependent types involves normalising arbitrary (type
 correct) terms, so we need to know how to normalise terms in signature
-containing meta variables and guarded constants. We do this simply by
+containing meta-variables and guarded constants. We do this simply by
 translating the signature to {\Core} and performing the normalisation in
 {\Core}.
 
 \begin{definition}
-    Given a signature $\Sigma$ containing meta variables and guarded constants
+    Given a signature $\Sigma$ containing meta-variables and guarded constants
     we can recover its {\Core} restriction $\CoreSig \Sigma$ by replacing
     guarded constants with normal constants, retaining the definition if the
     guard is empty and removing it otherwise.
@@ -294,7 +291,7 @@ To save some space we omit the rules for checking well-formed types and most of
 the rules for type checking and inference. The rules are simple extensions of
 the standard type checking algorithm\TODO{cite core paper} to produce
 well-typed terms. The interesting type checking rules are those for type
-checking meta variables and the conversion rules.
+checking meta-variables and the conversion rules.
 
 \URules{
 
@@ -324,14 +321,14 @@ checking meta variables and the conversion rules.
 
 }
 
-When type checking a user meta variable we add a fresh meta variable to the
-signature and return this. Since meta variables are part of the signature they
+When type checking a user meta-variable we add a fresh meta-variable to the
+signature and return this. Since meta-variables are part of the signature they
 have to be lifted to the top-level\TODO{cite something here?}.
 
 We have two versions of the conversion rule. The first corresponds to the
 normal conversion rule and applies when no constraints are left over. The
 interesting case is when we cannot safely conclude that $A = B$, in which case
-we introduce a fresh guarded constant. As for meta variables, guarded constants
+we introduce a fresh guarded constant. As for meta-variables, guarded constants
 are lifted to the top-level.
 
 \subsubsection{Type conversion rules}
@@ -408,13 +405,13 @@ that is applied before weak head normalisation is the $\eta$-rule.
 
 }
 
-In {\Core} function types are not terms so a meta variable can never be
+In {\Core} function types are not terms so a meta-variable can never be
 instantiated to a function type. If this was the case we would have to check if
-the type was a meta variable, and if so postpone the constraint, since we would
+the type was a meta-variable, and if so postpone the constraint, since we would
 not know whether or not the $\eta$-rule should be applied.
 
 The weak head normal forms we compare will be of atomic type and so they are of
-the form $h\,\bar M$ where the head $h$ is a variable, constant, meta variable,
+the form $h\,\bar M$ where the head $h$ is a variable, constant, meta-variable,
 or guarded constant. If both terms have the same variable or constant head $h :
 \Delta \to A$ we compare the arguments in $\Delta$.
 
@@ -437,14 +434,13 @@ a constraint.
 }{}
 }
 
-What to do when we encounter a meta variable depends on what we are using the
-meta variables for. If they are used purely for interaction we would treat them
+What to do when we encounter a meta-variable depends on what we are using the
+meta-variables for. If they are used purely for interaction we would treat them
 in the same way as the guarded constants. In our case we are interested in
-implicit arguments, so we try to find unique instantiations to the meta
-variables. For simplicity, we use a restricted form of pattern
+implicit arguments, so we try to find unique instantiations to the meta-variables. For simplicity, we use a restricted form of pattern
 unification\TODO{Cite pattern unification paper}, but there is no
 reason to believe that our correctness proof would not extend to full pattern
-unification. In the examples we have studied, using meta variables for implicit
+unification. In the examples we have studied, using meta-variables for implicit
 arguments, this simpler form of unification seems to be sufficient.
 
 \URules{
@@ -470,7 +466,7 @@ Given the problem $\alpha \, \bar x = M$ we would like to instantiate $\alpha$ t
 $\LAM {\bar x} M$. This is only correct if $\bar x$ are distinct variables, $M$
 does not contain any variables other than $\bar x$, and any constants refered
 to by $M$ are in scope at the declaration site of $\alpha$. Now $M$ might refer
-to meta variables introduced after $\alpha$ but which have been instantiated.
+to meta-variables introduced after $\alpha$ but which have been instantiated.
 For this reason we normalise $M$ to $M'$ and try to instantiate $\alpha$ to
 $\LAM {\bar x} M'$. A possible optimisation might be to only normalise if $M$
 contains out-of-scope constants or variables.

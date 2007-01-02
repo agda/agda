@@ -165,7 +165,7 @@ absence of constraint solving.
 	\item When checking conversion of terms with the same head we need an
 	inversion principle for application (Lemma~\ref{lemCoreAppInv}).
 
-	\item The most interesting case is the meta variable instantiation
+	\item The most interesting case is the meta-variable instantiation
 	case, so let us spell that out in more detail.
 
 	The instantiation rule does not produce any constraints, so the only
@@ -193,7 +193,7 @@ absence of constraint solving.
 
     \end{itemize}
 \else
-    The most interesting case is the meta variable instantiation case where we
+    The most interesting case is the meta-variable instantiation case where we
     have to prove that the instantiation constructs a valid extension of the
     signature. This follows from Lemma~\ref{lemRefineSig} once we show that
     the instantiation is well-typed.
@@ -216,8 +216,8 @@ decidable type checking algorithm.
 
 Note that decidable here means that type checking will terminate with one of
 three answers: yes it is type correct, no it is not correct, or it might be
-correct if the meta variables are instantiated properly. The algorithm is not
-complete, since finding correct instantiations to the meta variables is
+correct if the meta-variables are instantiated properly. The algorithm is not
+complete, since finding correct instantiations to the meta-variables is
 undecidable in the general case.
 
 \subsection{Soundness of constraint solving}
@@ -393,7 +393,7 @@ More precisely,
 \if \DetailedProofs 1
     By induction on the derivation. We only need to consider the cases where
     the signature changes. Adding a (non-guarded) constant trivially preserves
-    consistency, instantiating a meta variable preserves consistency by
+    consistency, instantiating a meta-variable preserves consistency by
     Lemma~\ref{lemRefineConsistent}. What remains is to check that new guarded
     constants are consistent. There are two cases: the conversion rule and
     conversion checking of function types. In both cases consistency follows
@@ -418,8 +418,8 @@ More precisely,
 From this follows that we can mix type checking and constraint solving freely,
 so we add a constraint solving rule to the type checking algorithm. It only
 makes sense to try to solve the constraints if there is new information
-available on the meta variables, so a reasonable place to trigger the
-constraint solving rule is after instantiating a meta variable.
+available on the meta-variables, so a reasonable place to trigger the
+constraint solving rule is after instantiating a meta-variable.
 
 \subsection{Relating user expressions and checked terms}
 
@@ -441,7 +441,7 @@ guarded constant.
 
 \begin{lemma} \label{lemApproxRefine}
     If $\CheckType e A M$ then $M$ approximates a refinement of $e$. This
-    property is preserved when unfolding instantiated meta variables and
+    property is preserved when unfolding instantiated meta-variables and
     guarded constants in $M$.
 \end{lemma}
 
@@ -460,15 +460,15 @@ validity of the judgement.
 
 \subsection{Main result}
 
-We now prove the main soundness theorem stating that if all meta variables are
+We now prove the main soundness theorem stating that if all meta-variables are
 instantiated and all guards solved, then the term produced by the type checker
 (extended with constraint solving) is valid in the original signature after
-unfolding the definitions of the meta variables and guarded constants
+unfolding the definitions of the meta-variables and guarded constants
 introduced during type checking.
 
 \begin{theorem}[Soundness of type checking] \label{thmMain}
     If $\Sigma$ is a well-formed {\Core} signature and $\ExplicitJudgement
-    \Sigma {\CheckType e A M} {\Sigma'}$, then if all meta variables have been
+    \Sigma {\CheckType e A M} {\Sigma'}$, then if all meta-variables have been
     instantiated and all guards are empty in $\Sigma'$, then $\HasTypeCS \Sigma
     \Gamma {M\sigma} A$ where $\sigma$ is the substitution inlining the meta
     variables and constants in $\Sigma'$. Moreover, $M\sigma$ is a refinement

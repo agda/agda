@@ -7,7 +7,7 @@ For representing proof search in these frameworks it is convenient to extend the
 of terms with {\it meta-variables} that stands for yet undetermined terms (proofs). Meta variables
 are also useful for structure editing, as placeholders for information to be filled in by
 the user. In this paper we will however focus on type reconstruction where
-meta variables are used for representing omitted 
+meta-variables are used for representing omitted 
 information that can be recovered from typing constraints through unification. 
 
 
@@ -41,7 +41,7 @@ constraint may be dependent on previous constraints being satisfied.
 This problem has some negative consequence for the typechecking algorithm. With dependent types,
 verifying convertibility between two 
 terms relies on normalising these terms, which is only safe if these terms are well typed. But, as we
-have seen, in presence of meta variables, we may not be sure that these terms are well typed, and the
+have seen, in presence of meta-variables, we may not be sure that these terms are well typed, and the
 typechecker may loop. It is furthermore not elegant to produce ill typed terms.
 It is still the case however that if all constraints can be solved, then we have a correct solution; so we
 have some form of ``partial correctness'' and this is indeed the approach taken in 
@@ -60,7 +60,7 @@ Whenever we need to use the equality rule above, for a subterm $M:A$ of $N$, and
 equality rule generate a constraint $A=B$ that we cannot yet solve, we replace the subterm $M$
 by a constant $p$ of type $B$. This constant $p$ will compute to $M$ only when the
 constraint $A=B$ has been solved. The approximated term $N'$ is in a trivial way well-typed
-also in the logical framework without meta variables. In the example above the type $\PI x {F ~?} {F~ (not~x)}$ will be replaced by $\PI x {F ~?} {F~ (p ~ x)}$ where $p~x : Bool$ will compute to $not ~ x$ when the meta variable is
+also in the logical framework without meta-variables. In the example above the type $\PI x {F ~?} {F~ (not~x)}$ will be replaced by $\PI x {F ~?} {F~ (p ~ x)}$ where $p~x : Bool$ will compute to $not ~ x$ when the meta-variable is
 replaced with the term $true$.
 
 
@@ -69,7 +69,7 @@ and readable representation of terms. In \cite{necula:representation} they show 
 terms where type information is omitted is  more efficient to validate, then type checking the complete
 proof term. This is only possible if constraints are known to be well typed. Their work differs from ours in 
 that they consider a weaker frame work where the constraint solving is guaranteed to succeed.
-The algorithm that we present has been implemented and we have made experiments with examples with several hundreds of meta variables, which shows that our algorithm scales up to at least medium sized problems.
+The algorithm that we present has been implemented and we have made experiments with examples with several hundreds of meta-variables, which shows that our algorithm scales up to at least medium sized problems.
 
 
 \TODO{Munoz and Modal Pfenning \cite{munoz:synthesis,Nipkow-LICS-93,pfenning:modal,pfenning:unification,luther:implicit,dowek:unification,miller:pattern,huet:unification}}

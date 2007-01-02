@@ -1,22 +1,22 @@
 
 In this paper we have shown how to do type checking for a dependently typed
-logic extended with meta variables. To maintain the important invariant that
+logic extended with meta-variables. To maintain the important invariant that
 terms being evaluated are type correct we work with well-typed approximations
 of terms, where potentially ill-typed subterms have been replaced by constants.
-We showed the algorithm is sound and decidable, and that the approximated terms
-are optimal.
+We showed that type checking is decidable, that the algorithm is sound and that
+the approximated terms are optimal.
 
 We present the type checking algorithm for a simple dependently typed logical
 framework {\Core}, but it can be extended to more advanced logics.  This is
 evidenced by the fact that we have implemented the algorithm for the
-Agda\TODO{reference} supporting for instance, definitions by pattern matching,
-a hierarchy of universes and constants with variable arity. The algorithm has
-proven to work well with examples of several hundred meta variables.
+Agda\TODO{reference} language, supporting for instance, definitions by pattern
+matching, a hierarchy of universes and constants with variable arity. The
+algorithm has proven to work well with examples of several hundred meta-variables.
 
 There are two main directions of future work. First extending the correctness
 proof to a more feature-rich logic. Much of this work has already been done
 in the implementation but some work remains in working out the details of the
 proofs. The other direction of future work is to build on top of this
 algorithm. For instance, a system for implicit arguments or Alf-style
-interaction\TODO{reference}.
+interaction\cite{magnussonnordstrom:alf}.
 

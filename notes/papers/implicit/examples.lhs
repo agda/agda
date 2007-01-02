@@ -29,7 +29,7 @@ type checker.
 
 First let us look at a very simple example. Consider the signature |Sigma = Nat : Set,
 zero : Nat, id : (A : Set) -> A -> A = \A x. x, alpha : Set| containing a set |Nat| with an
-element |zero|, a polymorphic identity function |id|, and a meta variable
+element |zero|, a polymorphic identity function |id|, and a meta-variable
 |alpha| of type |Set|. Now we want to compute |M| such that $\CheckTypeCtx {} {|id ?
 zero|} {|alpha|} M$. To do this one of the conversion rules have to be applied,
 so the type checker first infers the type of |id ? zero|.
@@ -56,7 +56,7 @@ The inferred type |beta| is then compared against the expected type |alpha|.
 \]
 The final signature is $|Nat : Set, zero : Nat, id : (A : Set) -> A -> A = \A
 x. x, alpha : Set = Nat, beta : Set = Nat|$ and $M = |id beta zero|$. Note that
-it is important to look up the values of instantiated meta variables--it would
+it is important to look up the values of instantiated meta-variables--it would
 not be correct to instantiate |alpha| to |beta|, since |beta| is not in scope
 at the point where |alpha| is declared.
 
@@ -77,7 +77,7 @@ principle:
 In this signature we want to check that |caseNat ? zero (\n. n)| has type |Nat
 -> Nat|. The first thing that happens is that the arguments to |caseNat| are checked
 against their expected types. Checking |?| against |Nat -> Set| introduces a
-fresh meta variable
+fresh meta-variable
 %
 \begin{code}
 alpha : Nat -> Set
@@ -120,7 +120,7 @@ check against |A|, resulting in the constraints |alpha zero = B| and |A = alpha
 zero|, none of which can be solved. If we did not introduce guarded constants
 |coerce ? t| would reduce to |t| and hence we could use |coerce| to give an
 arbitrary type to a term. For instance we can type\footnote{This only type
-checks if we allow meta variables to be instantiated to function types, which
+checks if we allow meta-variables to be instantiated to function types, which
 is not the case in {\Core}. However, the type checking algorithm can be
 extended to handle this, something we have done in the implementation.}
 \begin{code}
