@@ -26,9 +26,8 @@ src/prototyping/eval/prof$
 src/prototyping/eval/(eval|eval_p)$
 src/prototyping/eval/.*\.prof$
 \.hp$
-v v v v v v v
 (^|/)tags$
-notes/papers/implicit/(examples|lhs2TeXpreamble).tex
+notes/papers/implicit/(examples|lhs2TeXpreamble|exintro).tex
 src/prototyping/modules/flat/Syntax$
 src/prototyping/modules/flat/module$
 \.vrb$
