@@ -163,10 +163,11 @@ sort s = El (sSuc s) $ Sort s
 
 telePi :: Telescope -> Type -> Type
 telePi [] t = t
-telePi (Arg h (x,u) : tel) t = El (sLub s1 s2) $ Pi (Arg h u) $ Abs x $ telePi tel t
+telePi (Arg h (x,u) : tel) t = El (sLub s1 s2) $ Pi (Arg h u) $ Abs x t'
     where
+	t' = telePi tel t
 	s1 = getSort u
-	s2 = getSort t
+	s2 = getSort t'
 
 getSort :: Type -> Sort
 getSort (El s _) = s
