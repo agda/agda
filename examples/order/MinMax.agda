@@ -21,14 +21,14 @@ module Min {A : Set}(Ord : DecidableOrder A) where
     open Ops
 
   private
-    minAux : (x, y : A) -> x ≤ y \/ ¬ x ≤ y -> A
+    minAux : (x y : A) -> x ≤ y \/ ¬ x ≤ y -> A
     minAux x y (\/-IL _) = x
     minAux x y (\/-IR _) = y
 
   min : A -> A -> A
   min a b = minAux a b (decide a b)
 
-  case-min : (P : A -> Set)(x, y : A) ->
+  case-min : (P : A -> Set)(x y : A) ->
             (x ≤ y -> P x) ->
             (y ≤ x -> P y) -> P (min x y)
   case-min P x y ifx ify =
@@ -67,13 +67,13 @@ Dual Ord = decOrder _≥_ refl' antisym' trans' total' dec'
     dec'     = \x y         -> decide _ _
 
 module Max {A : Set}(Ord : DecidableOrder A)
-      = Min (Dual Ord), renaming
-              ( min       to max
-              , case-min  to case-max
-              , min-glb   to max-lub
-              , min-sym   to max-sym
-              , min-right to max-right
-              , min-left  to max-left
+      = Min (Dual Ord) renaming
+              ( min      to max
+              ; case-min  to case-max
+              ; min-glb   to max-lub
+              ; min-sym   to max-sym
+              ; min-right to max-right
+              ; min-left  to max-left
               )
 
 module MinMax {A : Set}(Ord : DecidableOrder A) where
@@ -82,8 +82,8 @@ module MinMax {A : Set}(Ord : DecidableOrder A) where
     module MinOrd = Min Ord
     module MaxOrd = Max Ord
 
-  open MinOrd, public
-  open MaxOrd, public
+  open MinOrd public
+  open MaxOrd public
 
 module DistributivityA {A : Set}(Ord : DecidableOrder A) where
 
@@ -136,7 +136,7 @@ module DistributivityB {A : Set}(Ord : DecidableOrder A) where
 
   open MinMaxOrd
 
-  open DistrOrd, public, renaming (min-max-distr to max-min-distr)
+  open DistrOrd public renaming (min-max-distr to max-min-distr)
 
 --   max-min-distr : forall x y z -> max x (min y z) ≡ min (max x y) (max x z)
 --   max-min-distr = DistrOrd.min-max-distr
@@ -147,8 +147,8 @@ module Distributivity {A : Set}(Ord : DecidableOrder A) where
     module DistrA = DistributivityA Ord
     module DistrB = DistributivityB Ord
 
-  open DistrA, public
-  open DistrB, public
+  open DistrA public
+  open DistrB public
 
 -- Testing
 postulate

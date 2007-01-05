@@ -10,6 +10,7 @@ module Syntax.Parser.Parser (
 
 import Control.Monad
 import Data.List
+import Data.Maybe
 import qualified Data.Traversable as T
 
 import Syntax.Position
@@ -41,7 +42,7 @@ import Utils.Monad
 -- to parse things like "m >>= \x -> k x". See the Expr rule for more
 -- information.
 %nonassoc LOWEST
-%nonassoc '`' '->'
+%nonassoc '->'
 
 %token
     'let'	{ TokKeyword KwLet $$ }
@@ -74,9 +75,7 @@ import Utils.Monad
     tex		{ TokTeX $$ }
 
     '.'		{ TokSymbol SymDot $$ }
-    ','		{ TokSymbol SymComma $$ }
     ';'		{ TokSymbol SymSemi $$ }
-    '`'		{ TokSymbol SymBackQuote $$ }
     ':'		{ TokSymbol SymColon $$ }
     '='		{ TokSymbol SymEqual $$ }
     '_'		{ TokSymbol SymUnderscore $$ }
@@ -148,9 +147,7 @@ Token
     | tex	    { TokTeX $1 }
 
     | '.'	    { TokSymbol SymDot $1 }
-    | ','	    { TokSymbol SymComma $1 }
     | ';'	    { TokSymbol SymSemi $1 }
-    | '`'	    { TokSymbol SymBackQuote $1 }
     | ':'	    { TokSymbol SymColon $1 }
     | '='	    { TokSymbol SymEqual $1 }
     | '_'	    { TokSymbol SymUnderscore $1 }
@@ -267,9 +264,15 @@ SpaceBIds
 -- Comma separated list of binding identifiers. Used in dependent
 -- function spaces: (x,y,z : Nat) -> ...
 CommaBIds :: { [Name] }
-CommaBIds
-    : BId ',' CommaBIds	{ $1 : $3 }
-    | BId		{ [$1] }
+CommaBIds : Application {%
+    let getName (Ident (QName x)) = Just x
+	getName (Underscore r _)  = Just (Name r [Hole])
+	getName _		  = Nothing
+    in
+    case partition isJust $ map getName $1 of
+	(good, []) -> return $ map fromJust good
+	_	   -> fail $ "expected sequence of bound identifiers"
+    }
 
 
 -- Space separated list of strings in a pragma.
@@ -295,7 +298,7 @@ PragmaStrings
     At the second '>>=' we can either shift or reduce. We solve this problem
     using Happy's precedence directives. The rule 'Expr -> Expr1' (which is the
     rule you shouldn't use to reduce when seeing '>>=') is given LOWEST
-    precedence.  The terminals '`' '->' and op (which is what you should shift)
+    precedence.  The terminals '->' and op (which is what you should shift)
     is given higher precedence.
 -}
 
@@ -422,9 +425,10 @@ DomainFreeBinding
  --------------------------------------------------------------------------}
 
 -- You can rename imports
-RenamedImport :: { Maybe Name }
-RenamedImport : {- empty -} { Nothing }
-	      | id Id	    {% isName "as" $1 >> return (Just $2) }
+ImportImportDirective :: { (Maybe Name, ImportDirective) }
+ImportImportDirective
+    : ImportDirective	    { (Nothing, $1) }
+    | id Id ImportDirective {% isName "as" $1 >> return (Just $2, $3) }
 
 -- Import directives
 ImportDirective :: { ImportDirective }
@@ -433,8 +437,8 @@ ImportDirective : ImportDirective_ {% verifyImportDirective $1 }
 -- Can contain public
 OpenImportDirective :: { ImportDirective }
 OpenImportDirective
-    : beginImpDir ',' 'public' ImportDirective { $4 { publicOpen = True } }
-    | ImportDirective			       { $1 }
+    : 'public' ImportDirective { $2 { publicOpen = True } }
+    | ImportDirective	       { $1 }
 
 ImportDirective_ :: { ImportDirective }
 ImportDirective_
@@ -445,18 +449,18 @@ ImportDirective_
 
 UsingOrHiding :: { UsingOrHiding }
 UsingOrHiding
-    : beginImpDir ',' 'using' '(' CommaImportNames ')'   { Using $5 }
+    : 'using' '(' CommaImportNames ')'   { Using $3 }
 	-- only using can have an empty list
-    | beginImpDir ',' 'hiding' '(' CommaImportNames1 ')' { Hiding $5 }
+    | 'hiding' '(' CommaImportNames1 ')' { Hiding $3 }
 
 RenamingDir :: { [(ImportedName, Name)] }
 RenamingDir
-    : beginImpDir ',' 'renaming' '(' Renamings ')'	{ $5 }
+    : 'renaming' '(' Renamings ')'	{ $3 }
 
 -- Renamings of the form 'x to y'
 Renamings :: { [(ImportedName, Name)] }
 Renamings
-    : Renaming ',' Renamings	{ $1 : $3 }
+    : Renaming ';' Renamings	{ $1 : $3 }
     | Renaming			{ [$1] }
 
 Renaming :: { (ImportedName, Name) }
@@ -481,7 +485,7 @@ CommaImportNames
 
 CommaImportNames1
     : ImportName			{ [$1] }
-    | ImportName ',' CommaImportNames1	{ $1 : $3 }
+    | ImportName CommaImportNames1	{ $1 : $2 }
 
 {--------------------------------------------------------------------------
     Function clauses
@@ -592,8 +596,8 @@ ModuleMacro : 'module' Id TypedBindingss0 '=' Expr ImportDirective
 
 -- Import
 Import :: { Declaration }
-Import : 'import' ModuleName RenamedImport ImportDirective
-	    { Import (getRange ($1,$2,$4)) $2 $3 $4 }
+Import : 'import' ModuleName ImportImportDirective
+	    { Import (getRange ($1,$2,snd $3)) $2 (fst $3) (snd $3) }
 
 -- Module
 Module :: { Declaration }

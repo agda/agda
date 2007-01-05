@@ -62,7 +62,7 @@ module Chain-≡ = Chain _≡₁_ (\x -> refl-≡₁ {_}{x}) trans-≡₁
 open Chain-≡
 
 module Chain-≡₀ = Chain₀ _≡_ (\x -> refl-≡ {_}{x}) trans-≡
-open Chain-≡₀, renaming (chain>_ to chain>₀_, _===_ to _===₀_, _by_ to _by₀_)
+open Chain-≡₀ renaming (chain>_ to chain>₀_ _===_ to _===₀_ _by_ to _by₀_)
 
 Rg-eq : {I : Set}{D : I -> Set1}(γ : OPg I D)(U : I -> Set)(T : (i : I) -> U i -> D i)
         (F : (i : I) -> U i -> Set1)(intro : (a : Gu γ U T) -> U (Gi γ U T a))

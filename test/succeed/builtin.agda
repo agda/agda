@@ -137,10 +137,10 @@ reverse xs = rev xs nil
     rev nil	  ys = ys
     rev (x :: xs) ys = rev xs (x :: ys)
 
-_∘_ : {A,B,C:Set} -> (B -> C) -> (A -> B) -> A -> C
+_∘_ : {A B C:Set} -> (B -> C) -> (A -> B) -> A -> C
 f ∘ g = \x -> f (g x)
 
-map : {A,B:Set} -> (A -> B) -> List A -> List B
+map : {A B:Set} -> (A -> B) -> List A -> List B
 map f  nil	= nil
 map f (x :: xs) = f x :: map f xs
 

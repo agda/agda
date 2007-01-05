@@ -29,7 +29,7 @@ import Syntax.Literal
 $digit	     = 0-9
 $hexdigit    = [ $digit a-f A-F ]
 $alpha	     = [ A-Z a-z _ ]
-$op	     = [ \- \! \# \$ \% \& \* \+ \/ \< \= \> \@ \^ \| \~ \? \` \[ \] ]
+$op	     = [ \- \! \# \$ \% \& \* \+ \/ \< \= \> \@ \^ \| \~ \? \` \[ \] \, ]
 $idstart     = [ $alpha $op ]
 $idchar	     = [ $idstart $digit ' \\ ]
 $endcomment  = ~ [ $idchar \: \\ ]
@@ -72,7 +72,6 @@ tokens :-
 <pragma_>   "#-}"		{ endWith $ symbol SymClosePragma }
 <pragma_>   "OPTIONS"		{ keyword KwOPTIONS }
 <pragma_>   "BUILTIN"		{ keyword KwBUILTIN }
-<pragma_>   ","			{ symbol SymComma }
 <pragma_>   . # [ \, $white ] + { withRange $ TokString . snd }
 
 -- Comments
@@ -132,20 +131,18 @@ tokens :-
 -- The parser is responsible to put the lexer in the imp_dir_ state when it
 -- expects an import directive keyword. This means that if you run the
 -- tokensParser you will never see these keywords.
-<imp_dir_> using	{ endWith $ keyword KwUsing }
-<imp_dir_> hiding	{ endWith $ keyword KwHiding }
-<imp_dir_> renaming	{ endWith $ keyword KwRenaming }
-<imp_dir_> to		{ endWith $ keyword KwTo }
-<imp_dir_> public	{ endWith $ keyword KwPublic }
+<0,code> using	    { keyword KwUsing }
+<0,code> hiding	    { keyword KwHiding }
+<0,code> renaming   { keyword KwRenaming }
+<imp_dir_> to	    { endWith $ keyword KwTo }
+<0,code> public	    { keyword KwPublic }
 
 -- Holes
 <0,code> "{!"		{ hole }
 
 -- Special symbols
 <0,code> "."		{ symbol SymDot }
-<0,code> ","		{ symbol SymComma }
 <0,code> ";"		{ symbol SymSemi }
-<0,code> "`"		{ symbol SymBackQuote }
 <0,code> ":"		{ symbol SymColon }
 <0,code> "="		{ symbol SymEqual }
 <0,code> "_"		{ symbol SymUnderscore }

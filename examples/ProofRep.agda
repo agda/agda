@@ -8,7 +8,7 @@ import Data.Nat
 import Data.Nat.Properties
 
 open Prelude
-open Data.Nat, hiding (_==_, _≡_)
+open Data.Nat hiding (_==_ _≡_)
 open Data.Nat.Properties
 open Logic.Identity
 open Logic.Relations
@@ -16,9 +16,9 @@ open Logic.Relations
 module Foo {Var : Set}(IdVar : Identity Var) where
 
   module Var = Identity IdVar
-  open Var, using (), renaming (_==_ to _≡_)
+  open Var using () renaming (_==_ to _≡_)
 
-  data _==_ (x, y : Var) : Set where
+  data _==_ (x y : Var) : Set where
     cRefl  : x ≡ y -> x == y
     cSym   : y == x -> x == y
     cTrans : (z : Var) -> x == z -> z == y -> x == y
@@ -26,19 +26,19 @@ module Foo {Var : Set}(IdVar : Identity Var) where
 
   data Axioms {A : Set}(_≈_ : Rel A)([_] : Var -> A) : Set where
     noAxioms   : Axioms _≈_ [_]
-    anAxiom    : (x, y : Var) -> [ x ] ≈ [ y ] -> Axioms _≈_ [_]
+    anAxiom    : (x y : Var) -> [ x ] ≈ [ y ] -> Axioms _≈_ [_]
     manyAxioms : Axioms _≈_ [_] -> Axioms _≈_ [_] -> Axioms _≈_ [_]
 
   refl : {x : Var} -> x == x
   refl = cRefl Var.refl
 
-  sym : {x, y : Var} -> x == y -> y == x
+  sym : {x y : Var} -> x == y -> y == x
   sym (cRefl xy)     = cRefl (Var.sym xy)
   sym  cAxiom        = cSym cAxiom
   sym (cSym p)       = p
   sym (cTrans z p q) = cTrans z (sym q) (sym p)
 
-  trans : {x, y, z : Var} -> x == y -> y == z -> x == z
+  trans : {x y z : Var} -> x == y -> y == z -> x == z
   trans {x}{y}{z} (cRefl xy) q     = Var.subst (\w -> w == z) (Var.sym xy) q
   trans {x}{y}{z} p (cRefl yz)     = Var.subst (\w -> x == w) yz p
   trans {x}{y}{z} (cTrans w p q) r = cTrans w p (trans q r)

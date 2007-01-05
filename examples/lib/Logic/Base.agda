@@ -13,21 +13,21 @@ data False : Set where
 elim-False : {A : Set} -> False -> A
 elim-False ()
 
-data _/\_ (P, Q : Set) : Set where
+data _/\_ (P Q : Set) : Set where
   /\-I : P -> Q -> P /\ Q
 
-data _\/_ (P, Q : Set) : Set where
+data _\/_ (P Q : Set) : Set where
   \/-IL : P -> P \/ Q
   \/-IR : Q -> P \/ Q
 
-elimD-\/ : {P, Q : Set}(C : P \/ Q -> Set) ->
+elimD-\/ : {P Q : Set}(C : P \/ Q -> Set) ->
 	   ((p : P) -> C (\/-IL p)) ->
 	   ((q : Q) -> C (\/-IR q)) ->
 	   (pq : P \/ Q) -> C pq
 elimD-\/ C left right (\/-IL p) = left p
 elimD-\/ C left right (\/-IR q) = right q
 
-elim-\/ : {P, Q, R : Set} -> (P -> R) -> (Q -> R) -> P \/ Q -> R
+elim-\/ : {P Q R : Set} -> (P -> R) -> (Q -> R) -> P \/ Q -> R
 elim-\/ = elimD-\/ (\_ -> _)
 
 ¬_ : Set -> Set

@@ -33,7 +33,7 @@ module Prelude where
 
   infix 3 /\
 
-  data (/\)(P,Q:Prop) : Prop where
+  data (/\)(P Q:Prop) : Prop where
     andI : P -> Q -> P /\ Q
 
 module Fin where
@@ -76,7 +76,7 @@ module Vec where
   data Nil : Set where
     nil_ : Nil
 
-  data Cons (A,As:Set) : Set where
+  data Cons (A As:Set) : Set where
     cons_ : A -> As -> Cons A As
 
   mutual
@@ -101,7 +101,7 @@ module Vec where
   vec  zero   _ = nil
   vec (suc n) x = x :: vec n x
 
-  map : {n:Nat} -> {A,B:Set} -> (A -> B) -> Vec A n -> Vec B n
+  map : {n:Nat} -> {A B:Set} -> (A -> B) -> Vec A n -> Vec B n
   map {zero}  f (vecI nil_)	    = nil
   map {suc n} f (vecI (cons_ x xs)) = f x :: map f xs
 
@@ -179,22 +179,22 @@ module Rename where
   id : {n:Nat} -> Ren n n
   id = tabulate (\i -> i)
 
-  compose : {l,m,n:Nat} -> Ren m n -> Ren l m -> Ren l n
+  compose : {l m n:Nat} -> Ren m n -> Ren l m -> Ren l n
   compose {l}{m}{n} ρ γ = map (\i -> ρ ! i) γ
 
-  lift : {m,n:Nat} -> Ren m n -> Ren (suc m) (suc n)
+  lift : {m n:Nat} -> Ren m n -> Ren (suc m) (suc n)
   lift ρ = fzero :: map fsuc ρ
 
   mutual
 
-    rename : {m,n:Nat} -> Ren m n -> Normal m -> Normal n
+    rename : {m n:Nat} -> Ren m n -> Normal m -> Normal n
     rename ρ nZero	  = nZero
     rename ρ (nSuc n)	  = nSuc (rename ρ n)
     rename ρ (nLam n)	  = nLam (rename (lift ρ) n)
     rename ρ (nNeutral u) = nNeutral (renameNe ρ u)
     rename ρ  nStuck	  = nStuck
 
-    renameNe : {m,n:Nat} -> Ren m n -> Neutral m -> Neutral n
+    renameNe : {m n:Nat} -> Ren m n -> Neutral m -> Neutral n
     renameNe ρ (uVar i)	  = uVar (ρ ! i)
     renameNe ρ (uApp u n) = uApp (renameNe ρ u) (rename ρ n)
 
@@ -207,7 +207,7 @@ module Subst where
   open Fin
   open Vec
   open NormalForms
-  open Rename, using (Ren, rename, up)
+  open Rename using (Ren rename up)
 
   -- Substitutions ----------------------------------------------------------
 
@@ -217,10 +217,10 @@ module Subst where
   id : {n:Nat} -> Sub n n
   id = tabulate nVar
 
-  ren2sub : {m,n:Nat} -> Ren m n -> Sub m n
+  ren2sub : {m n:Nat} -> Ren m n -> Sub m n
   ren2sub ρ = map nVar ρ
 
-  lift : {m,n:Nat} -> Sub m n -> Sub (suc m) (suc n)
+  lift : {m n:Nat} -> Sub m n -> Sub (suc m) (suc n)
   lift σ = nVar fzero :: map (rename up) σ
 
   mutual
@@ -232,18 +232,18 @@ module Subst where
     app (nLam u)     v = subst (v :: id) u
     app (nNeutral n) v = nApp n v
 
-    subst : {m,n:Nat} -> Sub m n -> Normal m -> Normal n
+    subst : {m n:Nat} -> Sub m n -> Normal m -> Normal n
     subst σ  nZero	 = nZero
     subst σ (nSuc v)	 = nSuc (subst σ v)
     subst σ (nLam v)	 = nLam (subst (lift σ) v)
     subst σ (nNeutral n) = substNe σ n
     subst σ  nStuck	 = nStuck
 
-    substNe : {m,n:Nat} -> Sub m n -> Neutral m -> Normal n
+    substNe : {m n:Nat} -> Sub m n -> Neutral m -> Normal n
     substNe σ (uVar i)	 = σ ! i
     substNe σ (uApp n v) = substNe σ n `app` subst σ v
 
-  compose : {l,m,n:Nat} -> Sub m n -> Sub l m -> Sub l n
+  compose : {l m n:Nat} -> Sub m n -> Sub l m -> Sub l n
   compose σ δ = map (subst σ) δ
 
 module TypeSystem where
@@ -260,10 +260,10 @@ module TypeSystem where
     EqType  _	    _	       = False
 
     infix 5 ==
-    data (==) (τ0,τ1:Type) : Prop where
+    data (==) (τ0 τ1:Type) : Prop where
       eqTypeI : EqType τ0 τ1 -> τ0 == τ1
 
-  eqSubst : {σ,τ:Type} -> (C:Type -> Set) -> σ == τ -> C τ -> C σ
+  eqSubst : {σ τ:Type} -> (C:Type -> Set) -> σ == τ -> C τ -> C σ
   eqSubst {nat}{nat} C _ x = x
   eqSubst {σ => τ}{σ' => τ'} C (eqTypeI (andI eqσ eqτ)) x =
     eqSubst (\μ -> C (μ => τ)) eqσ (
@@ -291,11 +291,11 @@ module TypeSystem where
     data VarType {n:Nat}(Γ:Context n)(i:Fin n)(τ:Type) : Set where
       varType : τ == (Γ ! i) -> HasType Γ (eVar i) τ
 
-    data AppType {n:Nat}(Γ:Context n)(e1,e2:Term n)(τ:Type) : Set where
+    data AppType {n:Nat}(Γ:Context n)(e1 e2:Term n)(τ:Type) : Set where
       appType : (σ:Type) -> HasType Γ e1 (σ => τ) -> HasType Γ e2 σ -> HasType Γ (eApp e1 e2) τ
 
     data LamType {n:Nat}(Γ:Context n)(e:Term (suc n))(τ:Type) : Set where
-      lamType : (τ0,τ1:Type) -> τ == (τ0 => τ1) -> HasType (τ0 :: Γ) e τ1 -> HasType Γ (eLam e) τ
+      lamType : (τ0 τ1:Type) -> τ == (τ0 => τ1) -> HasType (τ0 :: Γ) e τ1 -> HasType Γ (eLam e) τ
 
 module NBE where
 
@@ -320,7 +320,7 @@ module NBE where
       neD_   : Term n  -> D_ n nat
 
     -- Will this pass the positivity check?
-    data FunD (n:Nat)(σ,τ:Type) : Set where
+    data FunD (n:Nat)(σ τ:Type) : Set where
       lamD_  : (D n σ -> D n τ) -> D_ n (σ => τ)
 
   zeroD : {n:Nat} -> D n nat
@@ -332,10 +332,10 @@ module NBE where
   neD : {n:Nat} -> Term n -> D n nat
   neD t = dI (neD_ t)
 
-  lamD : {n:Nat} -> {σ,τ:Type} -> (D n σ -> D n τ) -> D n (σ => τ)
+  lamD : {n:Nat} -> {σ τ:Type} -> (D n σ -> D n τ) -> D n (σ => τ)
   lamD f = dI (lamD_ f)
 
-  coerce : {n:Nat} -> {τ0,τ1:Type} -> τ0 == τ1 -> D n τ1 -> D n τ0
+  coerce : {n:Nat} -> {τ0 τ1:Type} -> τ0 == τ1 -> D n τ1 -> D n τ0
   coerce {n} = eqSubst (D n)
 
   mutual
@@ -354,14 +354,14 @@ module NBE where
   Valuation {zero}  n  _		 = Nil
   Valuation {suc m} n (vecI (cons_ τ Γ)) = Cons (D n τ) (Valuation n Γ)
 
-  (!!) : {m,n:Nat} -> {Γ:Context m} -> Valuation n Γ -> (i:Fin m) -> D n (Γ ! i)
+  (!!) : {m n:Nat} -> {Γ:Context m} -> Valuation n Γ -> (i:Fin m) -> D n (Γ ! i)
   (!!) {suc _} {_} {vecI (cons_ _ _)} (cons_ v ξ) (finI fzero_) = v
   (!!) {suc _} {_} {vecI (cons_ _ _)} (cons_ v ξ) (finI (fsuc_ i)) = ξ !! i
 
-  ext : {m,n:Nat} -> {τ:Type} -> {Γ:Context m} -> Valuation n Γ -> D n τ -> Valuation n (τ :: Γ)
+  ext : {m n:Nat} -> {τ:Type} -> {Γ:Context m} -> Valuation n Γ -> D n τ -> Valuation n (τ :: Γ)
   ext ξ v = cons_ v ξ
 
-  app : {σ,τ:Type} -> {n:Nat} -> D n (σ => τ) -> D n σ -> D n τ
+  app : {σ τ:Type} -> {n:Nat} -> D n (σ => τ) -> D n σ -> D n τ
   --app (dI (lamD_ f)) d = f d
   app (lamD f) d = f d
 
@@ -379,7 +379,7 @@ module Eval where
   open Vec
   open Syntax
   open NormalForms
-  open Rename, using (up, rename)
+  open Rename using (up rename)
   open Subst
   open TypeSystem
 

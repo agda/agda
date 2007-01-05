@@ -12,11 +12,11 @@ module Logic where
 
   data False : Prop where
 
-  data _/\_ (P,Q : Prop) : Prop where
+  data _/\_ (P Q : Prop) : Prop where
     andI : P -> Q -> P /\ Q
 
 --   Not allowed if we have proof irrelevance
---   data _\/_ (P,Q : Prop) : Prop where
+--   data _\/_ (P Q : Prop) : Prop where
 --     orIL : P -> P \/ Q
 --     orIR : Q -> P \/ Q
 
@@ -26,8 +26,8 @@ module Setoid where
     setoid : (A     : Set)
 	  -> (_==_  : A -> A -> Prop)
 	  -> (refl  : (x : A) -> x == x)
-	  -> (sym   : (x,y : A) -> x == y -> y == x)
-	  -> (trans : (x,y,z : A) -> x == y -> y == z -> x == z)
+	  -> (sym   : (x y : A) -> x == y -> y == x)
+	  -> (trans : (x y z : A) -> x == y -> y == z -> x == z)
 	  -> Setoid
 
   El : Setoid -> Set
@@ -41,10 +41,10 @@ module Setoid where
     refl : (A : Setoid) -> {x : El A} -> eq A x x
     refl (setoid _ _ r _ _) = r _
 
-    sym : (A : Setoid) -> {x,y : El A} -> (h : eq A x y) -> eq A y x
+    sym : (A : Setoid) -> {x y : El A} -> (h : eq A x y) -> eq A y x
     sym (setoid _ _ _ s _) = s _ _
 
-    trans : (A : Setoid) -> {x,y,z : El A} -> eq A x y -> eq A y z -> eq A x z
+    trans : (A : Setoid) -> {x y z : El A} -> eq A x y -> eq A y z -> eq A x z
     trans (setoid _ _ _ _ t) = t _ _ _
 
   module Equality (A : Setoid) where
@@ -57,10 +57,10 @@ module Setoid where
     refl : {x : El A} -> x == x
     refl = Projections.refl A
 
-    sym : {x,y : El A} -> x == y -> y == x
+    sym : {x y : El A} -> x == y -> y == x
     sym = Projections.sym A
 
-    trans : {x,y,z : El A} -> x == y -> y == z -> x == z
+    trans : {x y z : El A} -> x == y -> y == z -> x == z
     trans = Projections.trans A
 
 module EqChain (A : Setoid.Setoid) where
@@ -78,7 +78,7 @@ module EqChain (A : Setoid.Setoid) where
   _=-=_ : (x : El A) -> {y : El A} -> x == y -> x == y
   x =-= eq = eq
 
-  _===_ : {x,y,z : El A} -> x == y -> y == z -> x == z
+  _===_ : {x y z : El A} -> x == y -> y == z -> x == z
   _===_ = trans
 
   _since_ : {x : El A} -> (y : El A) -> x == y -> x == y
@@ -91,27 +91,27 @@ module Fun where
 
   infixr 10 _=>_ _==>_
 
-  open Setoid.Projections, using (eq)
+  open Setoid.Projections using (eq)
 
-  data _=>_ (A,B : Setoid) : Set where
+  data _=>_ (A B : Setoid) : Set where
     lam : (f : El A -> El B)
-       -> ({x, y : El A} -> eq A x y
+       -> ({x y : El A} -> eq A x y
 			 -> eq B (f x) (f y)
 	  )
        -> A => B
 
-  app : {A,B : Setoid} -> (A => B) -> El A -> El B
+  app : {A B : Setoid} -> (A => B) -> El A -> El B
   app (lam f _) = f
 
-  cong : {A,B : Setoid} -> (f : A => B) -> {x,y : El A} ->
+  cong : {A B : Setoid} -> (f : A => B) -> {x y : El A} ->
 	 eq A x y -> eq B (app f x) (app f y)
   cong (lam _ resp) = resp
 
-  data EqFun {A,B : Setoid}(f, g : A => B) : Prop where
-    eqFunI : ({x,y : El A} -> eq A x y -> eq B (app f x) (app g y)) ->
+  data EqFun {A B : Setoid}(f g : A => B) : Prop where
+    eqFunI : ({x y : El A} -> eq A x y -> eq B (app f x) (app g y)) ->
 	     EqFun f g
 
-  eqFunE : {A,B : Setoid} -> {f,g : A => B} -> {x,y : El A} ->
+  eqFunE : {A B : Setoid} -> {f g : A => B} -> {x y : El A} ->
 	   EqFun f g -> eq A x y -> eq B (app f x) (app g y)
   eqFunE (eqFunI h) = h
 
@@ -129,7 +129,7 @@ module Fun where
 	r : (f : A => B) -> EqFun f f
 	r f = eqFunI (\xy -> cong f xy)
 
-	s : (f, g : A => B) -> EqFun f g -> EqFun g f
+	s : (f g : A => B) -> EqFun f g -> EqFun g f
 	s f g fg =
 	  eqFunI (\{x}{y} xy ->
 	    app g x =-= app g y  since  cong g xy
@@ -137,7 +137,7 @@ module Fun where
 		    === app f y  since  cong f xy
 	  )
 
-	t : (f, g, h : A => B) -> EqFun f g -> EqFun g h -> EqFun f h
+	t : (f g h : A => B) -> EqFun f g -> EqFun g h -> EqFun f h
 	t f g h fg gh =
 	  eqFunI (\{x}{y} xy ->
 	    app f x =-= app g y  since  eqFunE fg xy
@@ -147,13 +147,13 @@ module Fun where
       open Proof
 
   infixl 100 _$_
-  _$_ : {A,B : Setoid} -> El (A ==> B) -> El A -> El B
+  _$_ : {A B : Setoid} -> El (A ==> B) -> El A -> El B
   _$_ = app
 
-  lam2 : {A,B,C : Setoid} ->
+  lam2 : {A B C : Setoid} ->
 	 (f : El A -> El B -> El C) ->
-	 ({x,x' : El A} -> eq A x x' ->
-	  {y,y' : El B} -> eq B y y' -> eq C (f x y) (f x' y')
+	 ({x x' : El A} -> eq A x x' ->
+	  {y y' : El B} -> eq B y y' -> eq C (f x y) (f x' y')
 	 ) -> El (A ==> B ==> C)
   lam2 {A} f h = lam (\x -> lam (\y -> f x y)
 				(\y -> h EqA.refl y))
@@ -161,11 +161,11 @@ module Fun where
     where
       module EqA = Equality A
 
-  lam3 : {A,B,C,D : Setoid} ->
+  lam3 : {A B C D : Setoid} ->
 	 (f : El A -> El B -> El C -> El D) ->
-	 ({x,x' : El A} -> eq A x x' ->
-	  {y,y' : El B} -> eq B y y' ->
-	  {z,z' : El C} -> eq C z z' -> eq D (f x y z) (f x' y' z')
+	 ({x x' : El A} -> eq A x x' ->
+	  {y y' : El B} -> eq B y y' ->
+	  {z z' : El C} -> eq C z z' -> eq D (f x y z) (f x' y' z')
 	 ) -> El (A ==> B ==> C ==> D)
   lam3 {A} f h =
     lam (\x -> lam2 (\y z -> f x y z)
@@ -174,7 +174,7 @@ module Fun where
     where
       module EqA = Equality A
 
-  eta : {A,B : Setoid} -> (f : El (A ==> B)) ->
+  eta : {A B : Setoid} -> (f : El (A ==> B)) ->
 	eq (A ==> B) f (lam (\x -> f $ x) (\xy -> cong f xy))
   eta f = eqFunI (\xy -> cong f xy)
 
@@ -183,20 +183,20 @@ module Fun where
 
   {- Now it looks okay. But it's incredibly slow!  Proof irrelevance makes it
      go fast again...  The problem is equality checking of (function type)
-     setoids, which without proof irrelevance checks equality of the proof that
+     setoids which without proof irrelevance checks equality of the proof that
      EqFun is an equivalence relation.  It's not clear why using lam3 involves
      so many more equality checks than using lam. Making the proofs abstract
      makes the problem go away.
   -}
-  compose : {A,B,C : Setoid} -> El ((B ==> C) ==> (A ==> B) ==> (A ==> C))
+  compose : {A B C : Setoid} -> El ((B ==> C) ==> (A ==> B) ==> (A ==> C))
   compose =
     lam3 (\f g x -> f $ (g $ x))
 	 (\f g x -> eqFunE f (eqFunE g x))
 
-  _∘_ : {A,B,C : Setoid} -> El (B ==> C) -> El (A ==> B) -> El (A ==> C)
+  _∘_ : {A B C : Setoid} -> El (B ==> C) -> El (A ==> B) -> El (A ==> C)
   f ∘ g = compose $ f $ g
 
-  const : {A,B : Setoid} -> El (A ==> B ==> A)
+  const : {A B : Setoid} -> El (A ==> B ==> A)
   const = lam2 (\x y -> x) (\x y -> x)
 
 module Nat where
@@ -219,10 +219,10 @@ module Nat where
     eqNat (suc _)  zero   = False
     eqNat (suc n) (suc m) = eqNat n m
 
-    data EqNat (n, m : Nat) : Prop where
+    data EqNat (n m : Nat) : Prop where
       eqnat : eqNat n m -> EqNat n m
 
-    uneqnat : {n, m : Nat} -> EqNat n m -> eqNat n m
+    uneqnat : {n m : Nat} -> EqNat n m -> eqNat n m
     uneqnat (eqnat x) = x
 
     r : (x : Nat) -> eqNat x x
@@ -231,13 +231,13 @@ module Nat where
 
     rf = \x -> eqnat (r x)
 
-    s : (x,y : Nat) -> eqNat x y -> eqNat y x
+    s : (x y : Nat) -> eqNat x y -> eqNat y x
     s  zero    zero   _ = tt
     s (suc n) (suc m) h = s n m h
 
     sy = \x y h -> eqnat (s x y (uneqnat h))
 
-    t : (x,y,z : Nat) -> eqNat x y -> eqNat y z -> eqNat x z
+    t : (x y z : Nat) -> eqNat x y -> eqNat y z -> eqNat x z
     t  zero    zero    z      xy yz = yz
     t (suc x) (suc y) (suc z) xy yz = t x y z xy yz
 
@@ -257,7 +257,7 @@ module Nat where
       open EqNat
       open NatSetoid
 
-      eqPlus : {n, n' : Nat} -> n == n' -> {m, m' : Nat} -> m == m' -> n + m == n' + m'
+      eqPlus : {n n' : Nat} -> n == n' -> {m m' : Nat} -> m == m' -> n + m == n' + m'
       eqPlus {zero}  {zero}    _  mm = mm
       eqPlus {suc n} {suc n'}  (eqnat nn) {m}{m'} (eqnat mm) =
 	eqnat (uneqnat (eqPlus{n}{n'} (eqnat nn)
@@ -289,11 +289,11 @@ module List where
       r  nil	  = tt
       r (x :: xs) = andI refl (r xs)
 
-      s : (x,y : List (El A)) -> eqList x y -> eqList y x
+      s : (x y : List (El A)) -> eqList x y -> eqList y x
       s  nil       nil       h		  = h
       s (x :: xs) (y :: ys) (andI xy xys) = andI (sym xy) (s xs ys xys)
 
-      t : (x,y,z : List (El A)) -> eqList x y -> eqList y z -> eqList x z
+      t : (x y z : List (El A)) -> eqList x y -> eqList y z -> eqList x z
       t  nil       nil       zs        _             h            = h
       t (x :: xs) (y :: ys) (z :: zs) (andI xy xys) (andI yz yzs) =
         andI (trans xy yz) (t xs ys zs xys yzs)

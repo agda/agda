@@ -3,7 +3,7 @@ module Data.String where
 
 import Data.List
 import Data.Char
-open   Data.List, using (List)
+open   Data.List using (List)
 open   Data.Char
 
 postulate String : Set

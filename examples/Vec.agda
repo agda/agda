@@ -7,17 +7,17 @@ module examples.Vec where
     zero : Nat 
     suc  : Nat -> Nat
 
-  data _*_ (A,B : Set) : Set where
+  data _*_ (A B : Set) : Set where
     pair : A -> B -> A * B
 
   infixr 20 _=>_
-  data _=>_ (A,B : Set) : Set where
+  data _=>_ (A B : Set) : Set where
     lam : (A -> B) -> A => B
 
-  lam2 : {A, B, C : Set} -> (A -> B -> C) -> (A => B => C)
+  lam2 : {A B C : Set} -> (A -> B -> C) -> (A => B => C)
   lam2 f = lam (\x -> lam (f x))
 
-  app : {A, B : Set} -> (A => B) -> A -> B
+  app : {A B : Set} -> (A => B) -> A -> B
   app (lam f) x =  f x
 
   Vec : Nat -> Set -> Set
@@ -40,18 +40,18 @@ module examples.Vec where
   vec zero    x = unit
   vec (suc n) x = pair x (vec n x)
 
-  vapp : {S, T : Set} -> (n : Nat) -> Vec n (S => T) -> Vec n S -> Vec n T
+  vapp : {S T : Set} -> (n : Nat) -> Vec n (S => T) -> Vec n S -> Vec n T
   vapp zero unit unit = unit
   vapp (suc n) (pair f fs) (pair s ss) = pair (app f s) (vapp n fs ss)
 
   {- mapping and zipping come from these -}
 
-  vMap : {S, T : Set} -> (n : Nat) -> (S -> T) -> Vec n S -> Vec n T
+  vMap : {S T : Set} -> (n : Nat) -> (S -> T) -> Vec n S -> Vec n T
   vMap n f ss = vapp n (vec n (lam f)) ss
 
   {- transposition gets the type it deserves -}
 
-  transpose : {X : Set} -> (m,n : Nat)-> Vec m (Vec n X) -> Vec n (Vec m X)
+  transpose : {X : Set} -> (m n : Nat)-> Vec m (Vec n X) -> Vec n (Vec m X)
   transpose zero n xss = vec n unit
   transpose (suc m) n (pair xs xss) =
     vapp n (vapp n (vec n (lam2 pair)) xs)
@@ -63,7 +63,7 @@ module examples.Vec where
 
   data Zero : Set where
 
-  data _+_ (A,B : Set) : Set where
+  data _+_ (A B : Set) : Set where
     inl : A -> A + B
     inr : B -> A + B
 
@@ -86,13 +86,13 @@ module examples.Vec where
   vTab (suc n) f = pair (f (inl unit)) (vTab n (\x -> f (inr x)))
 
   {- Question to ponder in your own time:
-     if we use functional vectors, what are vec and vapp -}
+     if we use functional vectors what are vec and vapp -}
 
   {- Answer: K and S -}
 
   {- Inductive datatypes of the unfocused variety -}
 
-  {- Every constructor must target the whole family, rather
+  {- Every constructor must target the whole family rather
      than focusing on specific indices. -}
 
   data Tm (n : Nat) : Set where
@@ -112,21 +112,21 @@ module examples.Vec where
   idR : (n : Nat) -> n `Ren` n
   idR n = vTab n (\i -> i) 
   
-  coR : (l,m,n : Nat) -> m `Ren` n -> l `Ren` m -> l `Ren` n
+  coR : (l m n : Nat) -> m `Ren` n -> l `Ren` m -> l `Ren` n
   coR l m n m2n l2m = vMap l (vProj m m2n) l2m
 
   {- what theorems should we prove -}
 
   {- the lifting functor for Ren -}
 
-  liftR : (m,n : Nat) -> m `Ren` n -> suc m `Ren` suc n
+  liftR : (m n : Nat) -> m `Ren` n -> suc m `Ren` suc n
   liftR m n m2n = pair (inl unit) (vMap m inr m2n)
 
   {- what theorems should we prove -}
 
   {- the functor from Ren to Tm-arrows -}
 
-  rename : {m,n : Nat} -> (m `Ren` n) -> Tm m -> Tm n
+  rename : {m n : Nat} -> (m `Ren` n) -> Tm m -> Tm n
   rename {m}{n} m2n (evar i)   = evar (vProj m m2n i)
   rename {m}{n} m2n (eapp f s) = eapp (rename m2n f) (rename m2n s)
   rename {m}{n} m2n (elam t)   = elam (rename (liftR m n m2n) t)
@@ -145,24 +145,24 @@ module examples.Vec where
 
   {- functor from renamings to substitutions -}
 
-  Ren2Sub : (m,n : Nat) -> m `Ren` n -> m `Sub` n
+  Ren2Sub : (m n : Nat) -> m `Ren` n -> m `Sub` n
   Ren2Sub m n m2n = vMap m evar m2n
 
   {- lifting functor for substitution -}
 
-  liftS : (m,n : Nat) -> m `Sub` n -> suc m `Sub` suc n
+  liftS : (m n : Nat) -> m `Sub` n -> suc m `Sub` suc n
   liftS m n m2n = pair (evar (inl unit))
 		       (vMap m (rename (vMap n inr (idR n))) m2n)
 
   {- functor from Sub to Tm-arrows -}
 
-  subst : {m,n : Nat} -> m `Sub` n -> Tm m -> Tm n
+  subst : {m n : Nat} -> m `Sub` n -> Tm m -> Tm n
   subst {m}{n} m2n (evar i)   = vProj m m2n i
   subst {m}{n} m2n (eapp f s) = eapp (subst m2n f) (subst m2n s)
   subst {m}{n} m2n (elam t)   = elam (subst (liftS m n m2n) t)
 
   {- and now we can define composition -}
 
-  coS : (l,m,n : Nat) -> m `Sub` n -> l `Sub` m -> l `Sub` n
+  coS : (l m n : Nat) -> m `Sub` n -> l `Sub` m -> l `Sub` n
   coS l m n m2n l2m = vMap l (subst m2n) l2m
 

@@ -33,7 +33,7 @@ module TestList where
 
   open Nat
   module ListNat = List Nat
-  open ListNat, using (_++_, _::_, nil)
+  open ListNat using (_++_ _::_ nil)
 
   zzz = (zero :: nil) ++ (suc zero :: nil)
 
@@ -51,7 +51,7 @@ module Monad where
 
   data Monad (m : Set -> Set) : Set1 where
     monad : ({a : Set} -> a -> m a) ->
-	    ({a,b : Set} -> m a -> (a -> m b) -> m b) ->
+	    ({a b : Set} -> m a -> (a -> m b) -> m b) ->
 	    Monad m
 
   return : {m : Set -> Set} -> {a : Set} -> Monad m -> a -> m a
@@ -78,7 +78,7 @@ module Stack where
 
 module TestStack where
 
-  open Stack, using (Stack)
+  open Stack using (Stack)
   open Stack.Ops
   open Nat
 
@@ -91,7 +91,7 @@ module TestIdentity where
     A   : Set
     idA : A -> A
     F   : Set -> Set
-    H   : (A,B : Set) -> Prop
+    H   : (A B : Set) -> Prop
     id0 : (A : Set) -> A -> A
     idH : {A : Set} -> A -> A
     fa  : F A
@@ -110,13 +110,13 @@ module prop where
 
   postulate
     _\/_  : Prop -> Prop -> Prop
-    inl	  : {P,Q : Prop} -> P -> P \/ Q
-    inr	  : {P,Q : Prop} -> Q -> P \/ Q
-    orE	  : {P,Q,R : Prop} -> P \/ Q -> (P -> R) -> (Q -> R) -> R
+    inl	  : {P Q : Prop} -> P -> P \/ Q
+    inr	  : {P Q : Prop} -> Q -> P \/ Q
+    orE	  : {P Q R : Prop} -> P \/ Q -> (P -> R) -> (Q -> R) -> R
     False : Prop
     _==>_ : Prop -> Prop -> Prop
-    impI  : {P,Q : Prop} -> (P -> Q) -> P ==> Q
-    impE  : {P,Q : Prop} -> P ==> Q -> P -> Q
+    impI  : {P Q : Prop} -> (P -> Q) -> P ==> Q
+    impE  : {P Q : Prop} -> P ==> Q -> P -> Q
 
   Not = \(P : Prop) -> P ==> False
 

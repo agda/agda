@@ -3,7 +3,7 @@ module Logic.ChainReasoning
   { A : Set }
   ( _==_ : A -> A -> Set )
   (refl  : (x : A) -> x == x)
-  (trans : (x, y, z : A) -> x == y -> y == z -> x == z)
+  (trans : (x y z : A) -> x == y -> y == z -> x == z)
   where
 
   infix 2 chain>_
@@ -13,7 +13,7 @@ module Logic.ChainReasoning
   chain>_ : (x : A) -> x == x
   chain> x = refl _
 
-  _===_ : {x, y, z : A} -> x == y -> y == z -> x == z
+  _===_ : {x y z : A} -> x == y -> y == z -> x == z
   xy === yz = trans _ _ _ xy yz
 
   _by_ : {x : A}(y : A) -> x == y -> x == y

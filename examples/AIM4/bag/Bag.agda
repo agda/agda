@@ -22,10 +22,10 @@ module Bag where
   -- Bag type
 
     private
-      -- If this were Coq, then the invariant should be a Prop. Similar
+      -- If this were Coq then the invariant should be a Prop. Similar
       -- remarks apply to some definitions below. Since I have to write
       -- the supporting library myself I can't be bothered to
-      -- distinguish Set and Prop right now, though.
+      -- distinguish Set and Prop right now though.
 
       data BagType (a : Datoid) : Set where
         bt :  (pairs : List (Pair Pos.Pos (El a)))
@@ -52,16 +52,16 @@ module Bag where
       eqRefl : {a : Datoid} -> (x : BagType a) -> BagEq a x x
       eqRefl {a} x = refl (Permutation (elemDatoid a)) {list x}
 
-      eqSym :  {a : Datoid} -> (x, y : BagType a)
+      eqSym :  {a : Datoid} -> (x y : BagType a)
             -> BagEq a x y -> BagEq a y x
       eqSym {a} x y = sym (Permutation (elemDatoid a)) {list x} {list y}
 
-      eqTrans :  {a : Datoid} -> (x, y, z : BagType a)
+      eqTrans :  {a : Datoid} -> (x y z : BagType a)
             -> BagEq a x y -> BagEq a y z -> BagEq a x z
       eqTrans {a} x y z = trans (Permutation (elemDatoid a))
                                 {list x} {list y} {list z}
 
-      eqDec : {a : Datoid} -> (x, y : BagType a)
+      eqDec : {a : Datoid} -> (x y : BagType a)
             -> Either (BagEq a x y) _
       eqDec {a} x y = decRel (Permutation (elemDatoid a)) (list x) (list y)
 
@@ -189,7 +189,7 @@ module Bag where
       where
       private
         postulate
-          subst' :  {a : Datoid} -> (P : El a -> Set) -> (x, y : El a)
+          subst' :  {a : Datoid} -> (P : El a -> Set) -> (x y : El a)
                  -> datoidRel a x y -> P x -> P y
 
         tT :  (predN : Maybe Pos.Pos)
@@ -259,11 +259,11 @@ module Bag where
       --   -> (r : Respects (Bag a) P)
       --   -> (e : P empty)
       --   -> (i : (x : El a) -> (b : El (Bag a)) -> P b -> P (insert x b))
-      --   -> (   (x1, x2 : El a) -> (b1, b2 : El (Bag a))
+      --   -> (   (x1 x2 : El a) -> (b1 b2 : El (Bag a))
       --       -> (p1 : P b1) -> (p2 : P b2)
       --       -> (eqX : datoidRel a x1 x2) -> (eqB : datoidRel (Bag a) b1 b2)
       --       -> i x1 b1 p1 =^= i x2 b2 p2
       --      )
-      --   -> (b1, b2 : El (Bag a))
+      --   -> (b1 b2 : El (Bag a))
       --   -> datoidRel (Bag a) b1 b2
       --   -> bagElim P r e i b1 =^= bagElim P r e i b2

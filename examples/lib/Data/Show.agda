@@ -9,9 +9,9 @@ import Data.List
 
 open Prelude
 open Data.Nat
-open Data.Integer, using (Int, pos, neg)
+open Data.Integer using (Int pos neg)
 open Data.String
-open Data.List, hiding (_++_)
+open Data.List hiding (_++_)
 
 showNat : Nat -> String
 showNat zero = "0"

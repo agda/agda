@@ -5,17 +5,17 @@ import Prelude
 import Data.Nat as Nat
 import Data.Bool
 
-open Nat, using (Nat, suc, zero)
-        , renaming ( _+_  to _+'_
-                   , _*_  to _*'_
-                   , _<_  to _<'_
-                   , _-_  to _-'_
-                   , _==_ to _=='_
-                   , div  to div'
-                   , mod  to mod'
-                   , gcd  to gcd'
-                   , lcm  to lcm'
-                   )
+open Nat using (Nat suc zero)
+         renaming ( _+_  to _+'_
+                  ; _*_  to _*'_
+                  ; _<_  to _<'_
+                  ; _-_  to _-'_
+                  ; _==_ to _=='_
+                  ; div  to div'
+                  ; mod  to mod'
+                  ; gcd  to gcd'
+                  ; lcm  to lcm'
+                  )
 open Data.Bool
 open Prelude
 

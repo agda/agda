@@ -12,15 +12,15 @@ import Data.List
 import Data.Real.Gauge
 
 open Prelude
-open Data.Rational, hiding (_-_, |_|)
+open Data.Rational hiding (_-_ |_|)
 open Data.Bits
 open Data.Bool
 open Data.List
 open Data.Integer
-      , hiding   (-_, _+_, _≥_, _≤_, _>_, _<_, _==_)
-      , renaming ( _*_ to _*'_ )
-open Nat, using (Nat, zero, suc)
-open Data.Real.Gauge, using (Gauge)
+       hiding   (-_ _+_ _≥_ _≤_ _>_ _<_ _==_)
+       renaming ( _*_ to _*'_ )
+open Nat using (Nat zero suc)
+open Data.Real.Gauge using (Gauge)
 
 Base  = Rational
 

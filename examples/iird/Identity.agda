@@ -26,20 +26,20 @@ postulate
   reduction==₁ : {A : Set}{x : A}(C : (y : A) -> x == y -> Set1)(r : C x refl) ->
           elim==₁ x C r x refl ≡₁ r
 
-sym : {A : Set}{x, y : A} -> x == y -> y == x
+sym : {A : Set}{x y : A} -> x == y -> y == x
 sym {A}{x}{y} eq = elim== x (\z _ -> z == x) refl y eq
 
-subst : {A : Set}{x, y : A}(P : A -> Set) -> x == y -> P x -> P y
+subst : {A : Set}{x y : A}(P : A -> Set) -> x == y -> P x -> P y
 subst P xy px = elim== _ (\z _ -> P z) px _ xy
 
-subst₁ : {A : Set}{x, y : A}(P : A -> Set1) -> x == y -> P x -> P y
+subst₁ : {A : Set}{x y : A}(P : A -> Set1) -> x == y -> P x -> P y
 subst₁ P xy px = elim==₁ _ (\z _ -> P z) px _ xy
 
 symRef : (A : Set)(x : A) -> sym (refl{A}{x}) == refl
 symRef A x = subst-≡ (\z -> z == refl) (reduction== (\y _ -> y == x) refl) refl
 -- symRef A x = reduction== (\y _ -> y == _) refl   -- can't solve x
 
-symSym : {A : Set}{x, y : A}(p : x == y) -> sym (sym p) == p
+symSym : {A : Set}{x y : A}(p : x == y) -> sym (sym p) == p
 symSym {A}{x}{y} p = elim== x (\y q -> sym (sym q) == q) h y p
   where
     h : sym (sym (refl{A}{x})) == refl

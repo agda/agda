@@ -3,7 +3,7 @@ module EqProof
   { A : Set }
   ( _==_ : A -> A -> Set )
   (refl  : {x : A} -> x == x)
-  (trans : {x, y, z : A} -> x == y -> y == z -> x == z)
+  (trans : {x y z : A} -> x == y -> y == z -> x == z)
   where
 
   infix 2 eqProof>_
@@ -13,7 +13,7 @@ module EqProof
   eqProof>_ : (x : A) -> x == x
   eqProof> x = refl
 
-  _===_ : {x, y, z : A} -> x == y -> y == z -> x == z
+  _===_ : {x y z : A} -> x == y -> y == z -> x == z
   xy === yz = trans xy yz
 
   _by_ : {x : A}(y : A) -> x == y -> x == y

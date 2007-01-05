@@ -8,7 +8,7 @@ open Logic.Relations
 open Logic.Leibniz
 
 module Antisym = PolyEq _≡_
-open Antisym, using (Antisymmetric)
+open Antisym using (Antisymmetric)
 
 data DecidableOrder (A : Set) : Set1 where
   decOrder :

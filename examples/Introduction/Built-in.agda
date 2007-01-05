@@ -178,5 +178,5 @@ primitive
     -- IO functions (more to come)
   primPutStr	     : String -> IO Unit
   primIOReturn	     : {a:Set} -> a -> IO a
-  primIOBind	     : {a,b:Set} -> IO a -> (a -> IO b) -> IO b
+  primIOBind	     : {a b:Set} -> IO a -> (a -> IO b) -> IO b
 

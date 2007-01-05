@@ -4,7 +4,7 @@ module Fin where
 import Nat
 import Bool
 
-open Nat, hiding (_==_, _<_)
+open Nat hiding (_==_ _<_)
 open Bool
 
 data FZero : Set where
@@ -35,7 +35,7 @@ _==_ {suc n} (fin (fs i)) (fin (fs j)) = i == j
 _==_ {suc n} (fin fz)	  (fin (fs j)) = false
 _==_ {suc n} (fin (fs i)) (fin fz)     = false
 
-subst : {n : Nat}{i, j : Fin n} -> (P : Fin n -> Set) -> IsTrue (i == j) -> P i -> P j
+subst : {n : Nat}{i j : Fin n} -> (P : Fin n -> Set) -> IsTrue (i == j) -> P i -> P j
 subst {zero}  {fin ()}	   {fin ()}	P _  _
 subst {suc n} {fin fz}	   {fin fz}	P eq pi = pi
 subst {suc n} {fin (fs i)} {fin (fs j)} P eq pi = subst (\z -> P (fsuc z)) eq pi

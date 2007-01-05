@@ -2,7 +2,7 @@ module SET where
   ----------------------------------------------------------------------------
   -- Auxiliary.
   ----------------------------------------------------------------------------
-  data Fun (X,Y:Set) : Set where
+  data Fun (X Y:Set) : Set where
     fun : (X -> Y) -> Fun X Y
 
   {-
@@ -24,27 +24,27 @@ module SET where
     reflexive : ((x : X) -> R x x) -> Reflexive R
 
   data Symmetrical {X:Set} (R:X -> X -> Set) : Set where
-    symmetrical : ( {x1, x2 : X} -> R x1 x2 -> R x2 x1) -> Symmetrical R
+    symmetrical : ( {x1 x2 : X} -> R x1 x2 -> R x2 x1) -> Symmetrical R
 {-
   Transitive {X:Set}(R:X -> X -> Set) : Set
-    = (x1,x2,x3:X) |->  R x1 x2 -> R x2 x3 -> R x1 x3
+    = (x1 x2 x3:X) |->  R x1 x2 -> R x2 x3 -> R x1 x3
   Compositional {X:Set}(R:X -> X -> Set) : Set
     = (x1:X) |-> (x2:X) |-> (x3:X) |-> R x2 x3 -> R x1 x2 -> R x1 x3
 -}
   data Substitutive {X:Set} (R:X -> X -> Set) : Set1 where
-    substitutive : ( (P:X -> Set) -> {x1, x2 : X} -> R x1 x2 -> P x1 -> P x2)
+    substitutive : ( (P:X -> Set) -> {x1 x2 : X} -> R x1 x2 -> P x1 -> P x2)
                    -> Substitutive R
 {-
   Collapsed (X:Set) : Set1
-    = (P:X -> Set) -> (x1,x2:X) |-> P x1 -> P x2
+    = (P:X -> Set) -> (x1 x2:X) |-> P x1 -> P x2
   id {X:Set} : X -> X
     = \x -> x
-  cmp (|X,|Y,|Z:Set) : (Y -> Z) -> (X -> Y) -> X -> Z
+  cmp (|X |Y |Z:Set) : (Y -> Z) -> (X -> Y) -> X -> Z
     = \f -> \g -> \x -> f (g x)
-  seq (|X,|Y,|Z:Set)(f:X -> Y)(g:Y -> Z) : X -> Z
+  seq (|X |Y |Z:Set)(f:X -> Y)(g:Y -> Z) : X -> Z
     = cmp g f
 
-  const (|X,|Y:Set)(x:X)(y:Y) : X
+  const (|X |Y:Set)(x:X)(y:Y) : X
     = x
   proj {X:Set}(Y:X -> Set)(x:X)(f:(x:X) -> Y x) : Y x
     = f x
@@ -65,7 +65,7 @@ module SET where
     : Prod X Y1  -> Prod X Y2
     = \g -> \x -> f x (g x)
   -- Fun(X:Set)(Y:Set) = X -> Y
-  mapFun (|X1,|X2,|Y1,|Y2:Set)
+  mapFun (|X1 |X2 |Y1 |Y2:Set)
     : (X2 -> X1) -> (Y1 -> Y2) -> (X1 -> Y1) -> X2 -> Y2
     = \f -> \g -> \h -> \x ->
       g (h (f x))
@@ -79,15 +79,15 @@ module SET where
     = \(x:X) -> ref@_  x
 
   elimId (|X:Set)
-         (C:(x1,x2:X)  |-> Id x1 x2 -> Set)
+         (C:(x1 x2:X)  |-> Id x1 x2 -> Set)
          (refC: (x:X) -> C (refId x))
-         (|x1,|x2:X)
+         (|x1 |x2:X)
          (u:Id x1 x2) :
          C u
     = case u of { (ref x) -> refC x;}
 
   abstract whenId {X:Set}(C:X -> X -> Set)(c:(x:X) -> C x x)
-    : (x1,x2:X)  |-> Id x1 x2 -> C x1 x2
+    : (x1 x2:X)  |-> Id x1 x2 -> C x1 x2
     = elimId (\x1 x2 |-> \(u:Id x1 x2) -> C x1 x2) c
 
   abstract substId {X:Set} : Substitutive Id
@@ -95,23 +95,23 @@ module SET where
       whenId (\x1 x2 -> C x1 -> C x2) (\x -> id)
 
   abstract mapId {X:Set}{Y:Set}(f:X -> Y)
-    : (x1,x2:X) |-> Id x1 x2 -> Id (f x1) (f x2)
+    : (x1 x2:X) |-> Id x1 x2 -> Id (f x1) (f x2)
     = whenId (\x1 x2 -> Id (f x1) (f x2)) (\(x:X) -> refId (f x))
 
   abstract symId {X:Set} : Symmetrical Id
-    =  whenId (\(x1,x2:X) ->  Id x2 x1) refId
+    =  whenId (\(x1 x2:X) ->  Id x2 x1) refId
 
   abstract cmpId {X:Set} : Compositional Id
-    = let lem : (x,y:X) |-> Id x y -> (z:X) |-> Id z x -> Id z y
-            = whenId ( \(x,y:_) -> (z:X) |-> Id z x -> Id z y)
+    = let lem : (x y:X) |-> Id x y -> (z:X) |-> Id z x -> Id z y
+            = whenId ( \(x y:_) -> (z:X) |-> Id z x -> Id z y)
                      ( \x -> \z |-> id)
-      in  \(x1,x2,x3:_) |->
+      in  \(x1 x2 x3:_) |->
           \(u:Id x2 x3) ->
           \(v:Id x1 x2) ->
           lem  u v
 
   abstract tranId {X:Set} : Transitive  Id
-    = \(x1,x2,x3:X) |->
+    = \(x1 x2 x3:X) |->
       \(u:Id x1 x2) ->
       \(v:Id x2 x3) ->
       cmpId v u
@@ -129,7 +129,7 @@ module SET where
     = case z of { }
   abstract collZero : Collapsed Zero
     = \(C:Zero -> Set) ->
-      \(z1,z2:Zero) |->
+      \(z1 z2:Zero) |->
       \(c:C z1) ->
       case z1 of { }
   ----------------------------------------------------------------------------
@@ -144,7 +144,7 @@ module SET where
     = case u of { (tt) -> c_tt;}
   abstract collUnit : Collapsed Unit
     = \(C:Unit -> Set) ->
-      \(u1,u2:Unit) |->
+      \(u1 u2:Unit) |->
       \(c:C u1) ->
       case u1 of { (tt) -> case u2 of { (tt) -> c;};}
   ----------------------------------------------------------------------------
@@ -166,20 +166,20 @@ module SET where
     = case x' of {
         (zer) -> c_z;
         (suc x) -> c_s x;}
-  whenSucc (|X,|Y:Set)(y_z:Y)(y_s:X -> Y)(x':Succ X) : Y
+  whenSucc (|X |Y:Set)(y_z:Y)(y_s:X -> Y)(x':Succ X) : Y
     = case x' of {
         (zer) -> y_z;
         (suc x) -> y_s x;}
-  mapSucc (|X,|Y:Set)(f:X -> Y) : Succ X -> Succ Y
+  mapSucc (|X |Y:Set)(f:X -> Y) : Succ X -> Succ Y
     = whenSucc zer@(Succ Y) (\(x:X) -> suc@_ (f x)) -- (Succ Y)
 
 
   ----------------------------------------------------------------------------
   -- The (binary) disjoint union.
   ----------------------------------------------------------------------------
-  data Plus (X,Y:Set) = inl (x:X) | inr (y:Y)
+  data Plus (X Y:Set) = inl (x:X) | inr (y:Y)
 
-  elimPlus (|X,|Y:Set)
+  elimPlus (|X |Y:Set)
            (C:Plus X Y -> Set)
            (c_lft:(x:X) -> C (inl@_ x))
            (c_rgt:(y:Y) -> C (inr@_ y))
@@ -188,15 +188,15 @@ module SET where
     = case xy of {
         (inl x) -> c_lft x;
         (inr y) -> c_rgt y;}
-  when (|X,|Y,|Z:Set)(f:X -> Z)(g:Y -> Z) : Plus X Y -> Z
+  when (|X |Y |Z:Set)(f:X -> Z)(g:Y -> Z) : Plus X Y -> Z
     = \xy -> case xy of {
         (inl x) -> f x;
         (inr y) -> g y;}
   whenPlus = when
-  mapPlus (|X1,|X2,|Y1,|Y2:Set)(f:X1 -> X2)(g:Y1 -> Y2)
+  mapPlus (|X1 |X2 |Y1 |Y2:Set)(f:X1 -> X2)(g:Y1 -> Y2)
     : Plus X1 Y1 -> Plus X2 Y2
     = when (\x1 -> inl (f x1)) (\y1 -> inr (g y1))
-  swapPlus (|X,|Y:Set): Plus X Y -> Plus Y X
+  swapPlus (|X |Y:Set): Plus X Y -> Plus Y X
     = when inr inl
 
   ----------------------------------------------------------------------------
@@ -240,7 +240,7 @@ module SET where
 
   elimSum = dep_uncurry
   ----------------------------------------------------------------------------
-  -- Nondependent pairs, (binary) cartesian product.
+  -- Nondependent pairs (binary) cartesian product.
   ----------------------------------------------------------------------------
   Times (X:Set)(Y:Set) : Set
     = Sum X (\(x:X) -> Y)
@@ -475,12 +475,12 @@ module SET where
               case b of {
                 (true) ->
                   \(f:(x:True true@_) -> X) ->
-                  \(t1,t2:True true@_) |->
+                  \(t1 t2:True true@_) |->
                   \(c:C (f t1)) ->
                   case t1 of { (tt) -> case t2 of { (tt) -> c;};};
                 (false) ->
                   \(f:(x:True false@_) -> X) ->
-                  \(t1,t2:True false@_) |->
+                  \(t1 t2:True false@_) |->
                   \(c:C (f t1)) ->
                   case t1 of { };}
       in   \(b:Bool) ->  \(P:True b -> Set) -> aux (True b) P b id
@@ -503,7 +503,7 @@ module SET where
     = sig{eq : X -> X -> Bool;
           ref : (x:X) -> True (eq x x);
           subst :
-            (C:X -> Set) -> (x1,x2:X)|-> True (eq x1 x2) -> C x1 -> C x2;}
+            (C:X -> Set) -> (x1 x2:X)|-> True (eq x1 x2) -> C x1 -> C x2;}
   -- The "Equality" type represents the data that has to be added to turna
   -- set into a setoid.
   Equality (X:Set) : Set1
@@ -528,7 +528,7 @@ module SET where
     = X.Elem
   eqD {X:Datoid} : ElD X -> ElD X -> Bool
     = X.eq
-  EqD {X:Datoid}(x1,x2:ElD X) : Set
+  EqD {X:Datoid}(x1 x2:ElD X) : Set
     = True (X.eq x1 x2)
 
   Setoid : Set1
@@ -549,26 +549,26 @@ module SET where
   NotEq {X:Setoid} : Rel (El X)
     = \x1-> \x2-> Not (Eq |X x1 x2)
   Respectable {X:Setoid}(P:El X -> Set) : Set
-    = (x1,x2:El X) |-> Eq |X x1 x2 -> P x1 -> P x2
-  RspEq {X,Y:Setoid}(f:El X -> El Y) : Set
-    = (x1,x2:El X)  |-> Eq |X x1 x2 -> Eq |Y (f x1) (f x2)
-  RspEq2 (|X,|Y,|Z:Setoid)(f:El X -> El Y -> El Z)
+    = (x1 x2:El X) |-> Eq |X x1 x2 -> P x1 -> P x2
+  RspEq {X Y:Setoid}(f:El X -> El Y) : Set
+    = (x1 x2:El X)  |-> Eq |X x1 x2 -> Eq |Y (f x1) (f x2)
+  RspEq2 (|X |Y |Z:Setoid)(f:El X -> El Y -> El Z)
     : Set
-    = (x1,x2: X.Elem) |-> (y1,y2: Y.Elem) ->
+    = (x1 x2: X.Elem) |-> (y1 y2: Y.Elem) ->
       Eq |X x1 x2 ->
       Eq |Y y1 y2  ->
       Eq |Z (f x1 y1) (f x2 y2)
   D2S (Y:Datoid) : Setoid
     = struct {
         Elem = Y.Elem;
-        Equal = \(x1,x2:Elem) -> True (Y.eq x1 x2);
+        Equal = \(x1 x2:Elem) -> True (Y.eq x1 x2);
         ref = Y.ref;
         sym =
-          \(x1,x2:Elem) |->
+          \(x1 x2:Elem) |->
           \(u:Equal x1 x2) ->
           Y.subst (\(x:Y.Elem) -> Equal x x1) |_ |_ u (ref x1);
         tran =
-          \(x1,x2,x3:Elem) |->
+          \(x1 x2 x3:Elem) |->
           \(u:Equal x1 x2) ->
           \(v:Equal x2 x3) ->
           Y.subst (Equal x1) |_ |_  v u;}

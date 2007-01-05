@@ -20,7 +20,7 @@ divHelp  zero	(suc y)	c = zero
 divHelp (suc x)  zero	c = suc (divHelp x c c)
 divHelp (suc x) (suc y) c = divHelp x y c
 
-div : (x, y : Nat) -> NonZero y -> Nat
+div : (x y : Nat) -> NonZero y -> Nat
 div  x	     zero  ()
 div  zero   (suc y) _ = zero
 div (suc x) (suc y) _ = divHelp (suc x) (suc y) y

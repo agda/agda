@@ -10,7 +10,7 @@ data OP (I : Set)(D : I -> Set1)(E : Set1) : Set1 where
   σ : (A : Set)(γ : A -> OP I D E) -> OP I D E
   δ : (A : Set)(i : A -> I)(γ : ((a : A) -> D (i a)) -> OP I D E) -> OP I D E
 
-_«_×_» : {A, B : Set}{C : B -> Set}{D : B -> Set1}
+_«_×_» : {A B : Set}{C : B -> Set}{D : B -> Set1}
          (f : (b : B) -> C b -> D b)
          (g : A -> B)(h : (a : A) -> C (g a)) ->
          (a : A) -> D (g a)

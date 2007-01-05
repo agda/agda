@@ -221,8 +221,8 @@ instance Pretty ImportDirective where
 	    ]
 	where
 	    rename [] = empty
-	    rename xs =	hsep [ comma, text "renaming"
-			     , parens $ fsep $ punctuate comma $ map pr xs
+	    rename xs =	hsep [ text "renaming"
+			     , parens $ fsep $ punctuate (text ";") $ map pr xs
 			     ]
 
 	    pr (x,y) = hsep [ pretty x, text "to", pretty y ]
@@ -230,9 +230,9 @@ instance Pretty ImportDirective where
 instance Pretty UsingOrHiding where
     pretty (Hiding [])	= empty
     pretty (Hiding xs)	=
-	comma <+> text "hiding" <+> parens (fsep $ punctuate comma $ map pretty xs)
+	text "hiding" <+> parens (fsep $ map pretty xs)
     pretty (Using xs)	 =
-	comma <+> text "using" <+> parens (fsep $ punctuate comma $ map pretty xs)
+	text "using" <+> parens (fsep $ map pretty xs)
 
 instance Pretty ImportedName where
     pretty (ImportedName x)	= pretty x

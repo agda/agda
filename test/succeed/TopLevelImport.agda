@@ -1,6 +1,6 @@
 
 import Nat
-open   Nat, using (Nat)
+open   Nat using (Nat)
 
 module TopLevelImport (n : Nat) where
 

@@ -31,7 +31,7 @@ module BoolEq where
   true  == x = x
   false == x = not x
 
-  subst : {x, y : Bool}(P : Bool -> Set) -> IsTrue (x == y) -> P x -> P y
+  subst : {x y : Bool}(P : Bool -> Set) -> IsTrue (x == y) -> P x -> P y
   subst {true}{true}   _ _ px = px
   subst {false}{false} _ _ px = px
   subst {true}{false}  _ () _
@@ -53,11 +53,11 @@ if'_then_else_ : {A : Set} -> (x : Bool) -> (IsTrue x -> A) -> (IsFalse x -> A) 
 if' true  then f else g = f tt
 if' false then f else  g = g tt
 
-isTrue&&₁ : {x, y : Bool} -> IsTrue (x && y) -> IsTrue x
+isTrue&&₁ : {x y : Bool} -> IsTrue (x && y) -> IsTrue x
 isTrue&&₁ {true} _ = tt
 isTrue&&₁ {false} ()
 
-isTrue&&₂ : {x, y : Bool} -> IsTrue (x && y) -> IsTrue y
+isTrue&&₂ : {x y : Bool} -> IsTrue (x && y) -> IsTrue y
 isTrue&&₂ {true} p = p
 isTrue&&₂ {false} ()
 

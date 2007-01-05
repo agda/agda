@@ -21,7 +21,7 @@ length : {A : Set} -> List A -> Nat
 length []        = 0
 length (_ :: xs) = 1 + length xs
 
-map : {A, B : Set} -> (A -> B) -> List A -> List B
+map : {A B : Set} -> (A -> B) -> List A -> List B
 map f []        = []
 map f (x :: xs) = f x :: map f xs
 
@@ -29,17 +29,17 @@ _++_ : {A : Set} -> List A -> List A -> List A
 []        ++ ys = ys
 (x :: xs) ++ ys = x :: (xs ++ ys)
 
-zipWith : {A, B, C : Set} -> (A -> B -> C) -> List A -> List B -> List C
+zipWith : {A B C : Set} -> (A -> B -> C) -> List A -> List B -> List C
 zipWith f []        []        = []
 zipWith f (x :: xs) (y :: ys) = f x y :: zipWith f xs ys
 zipWith f []        (_ :: _)  = []
 zipWith f (_ :: _)  []        = []
 
-foldr : {A, B : Set} -> (A -> B -> B) -> B -> List A -> B
+foldr : {A B : Set} -> (A -> B -> B) -> B -> List A -> B
 foldr f z []        = z
 foldr f z (x :: xs) = f x (foldr f z xs)
 
-foldl : {A, B : Set} -> (B -> A -> B) -> B -> List A -> B
+foldl : {A B : Set} -> (B -> A -> B) -> B -> List A -> B
 foldl f z []        = z
 foldl f z (x :: xs) = foldl f (f z x) xs
 

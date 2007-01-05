@@ -17,13 +17,13 @@ import Data.List
 open Prelude
 open Data.Real.Base
 open Data.Real.Complete
-open Data.Integer, using (Int, pos), renaming (_-_ to _-i_, _<_ to _<i_)
-open Rational, hiding (fromInt)
+open Data.Integer using (Int pos) renaming (_-_ to _-i_; _<_ to _<i_)
+open Rational hiding (fromInt)
 open Data.Bool
 open Data.String
 open Data.Interval
 open Data.Real.Gauge
-open Data.Nat, using (Nat)
+open Data.Nat using (Nat)
 
 data CReal : Set where
   cReal : Complete Base -> CReal
@@ -192,15 +192,15 @@ showReal n x =
   | len ≤' n => sign ++ "0." ++ fromList (replicate (n -' len) '0') ++ s
   | otherwise   sign ++ i ++ "." ++ f
   where
-    open Data.Nat, using (), renaming
+    open Data.Nat using () renaming
               ( _^_ to _^'_
-              , div to div', mod to mod'
-              , _==_ to _=='_, _≤_ to _≤'_
-              , _-_ to _-'_
+              ; div to div'; mod to mod'
+              ; _==_ to _=='_; _≤_ to _≤'_
+              ; _-_ to _-'_
               )
     open Data.Show
-    open Data.List, hiding (_++_)
-    open Data.Integer, using (), renaming (-_ to -i_)
+    open Data.List hiding (_++_)
+    open Data.Integer using () renaming (-_ to -i_)
 
     k = 10 ^' n
     m = around $ realScale (fromNat k) x

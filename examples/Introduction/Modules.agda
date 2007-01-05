@@ -37,17 +37,17 @@ two = suc one
 -- When opening a module it is possible to control what names are brought into
 -- scope. The open declaration supports three modifiers:
 
---  using (x1,..,xn)	  only bring x1 .. xn into scope
---  renaming (x to y,..)  bring y into scope and make it refer to the name x
+--  using (x1 .. xn)	  only bring x1 .. xn into scope
+--  renaming (x to y;..)  bring y into scope and make it refer to the name x
 --			  from the opened module.
---  hiding (x1,..,xn)	  bring everything except x1 .. xn into scope
+--  hiding (x1 .. xn)	  bring everything except x1 .. xn into scope
 
 -- The using and hiding modifiers can be combined with renaming but not with
 -- each other.
 
 -- For example, this will bring the names z and s (and nothing else) into
 -- scope as new names for zero and suc.
-open Numbers, using (), renaming (zero to z, suc to s)
+open Numbers using () renaming (zero to z; suc to s)
 
 -- We can now pattern match on the renamed constructors.
 plus : Nat -> Nat -> Nat
@@ -97,7 +97,7 @@ module Datastructures where
 
     -- An abstract datatype doesn't reveal its constructors
     data Queue (A:Set) : Set where
-      queue : (front, back : List A) -> Queue A	-- invariant: if the front is
+      queue : (front back : List A) -> Queue A	-- invariant: if the front is
 						-- empty, so is the back
 
     -- Abstraction is contagious, anything that pattern matches on a queue must

@@ -22,41 +22,41 @@ module SET where
   data Reflexive {A: Set} (R: A -> A -> Prop): Prop where
     reflexiveI: ((a: A) -> R a a) -> Reflexive R
   data Symmetrical {A: Set} (R: A -> A -> Prop): Prop where
-    symmetricalI: ({a,b: A} -> R a b -> R a b) -> Symmetrical R
+    symmetricalI: ({a b: A} -> R a b -> R a b) -> Symmetrical R
   data Transitive {A: Set} (R: A -> A -> Prop): Prop where
-    transitiveI: ({a,b,c: A} -> R a b -> R b c -> R a c) -> Transitive R
+    transitiveI: ({a b c: A} -> R a b -> R b c -> R a c) -> Transitive R
   compositionalI:
     {A: Set} -> (R: A -> A -> Prop)
-    -> ({a,b,c: A} -> R b c -> R a b -> R a c) -> Transitive R
+    -> ({a b c: A} -> R b c -> R a b -> R a c) -> Transitive R
   compositionalI {A} R f =
-    transitiveI (\{a,b,c: A} -> \(x: R a b) -> \(y: R b c) -> f y x)
+    transitiveI (\{a b c: A} -> \(x: R a b) -> \(y: R b c) -> f y x)
   data Substitutive {A: Set} (R: A -> A -> Prop): Set1 where
-    substitutiveI: ((P: A -> Prop) -> {a,b: A} -> R a b -> P a -> P b)
+    substitutiveI: ((P: A -> Prop) -> {a b: A} -> R a b -> P a -> P b)
                    -> Substitutive R
   data Collapsed (A: Set): Set1 where
-    collapsedI: ((P: A -> Set) -> {a,b: A} -> P a -> P b) -> Collapsed A
+    collapsedI: ((P: A -> Set) -> {a b: A} -> P a -> P b) -> Collapsed A
 
-  cmp: {A,B,C: Set} -> (B -> C) -> (A -> B) -> A -> C
+  cmp: {A B C: Set} -> (B -> C) -> (A -> B) -> A -> C
   cmp f g a = f (g a)
-  seq: {A,B,C: Set} -> (A -> B) -> (B -> C) -> A -> C
+  seq: {A B C: Set} -> (A -> B) -> (B -> C) -> A -> C
   seq f g = cmp g f
 
-  S: {A,B,C: Set} -> (C -> B -> A) -> (C -> B) -> C -> A
+  S: {A B C: Set} -> (C -> B -> A) -> (C -> B) -> C -> A
   S x y z = x z (y z)
-  K: {A,B: Set} -> A -> B -> A
+  K: {A B: Set} -> A -> B -> A
   K x y = x
   I: {A: Set} -> A -> A
   I a = a
-  -- of course, I = S K K
+  -- of course I = S K K
 
   id = \{A} -> I {A}
 
   const = \{A}{B} -> K {A}{B}
 
   -- Prop version
-  pS: {P,Q,R: Prop} -> (R -> Q -> P) -> (R -> Q) -> R -> P
+  pS: {P Q R: Prop} -> (R -> Q -> P) -> (R -> Q) -> R -> P
   pS x y z = x z (y z)
-  pK: {P,Q: Prop} -> P -> Q -> P
+  pK: {P Q: Prop} -> P -> Q -> P
   pK x y = x
   pI: {P: Prop} -> P -> P
   pI a = a
@@ -64,12 +64,12 @@ module SET where
   proj: {A: Set} -> (B: A -> Set) -> (a: A) -> (f: (aa: A) -> B aa) -> B a
   proj B a f = f a
 
-  flip: {A,B,C: Set} (f: A -> B -> C) (b: B) (a: A) -> C
+  flip: {A B C: Set} (f: A -> B -> C) (b: B) (a: A) -> C
   flip f b a = f a b
 
   -- separate definition of FlipRel is necessary because it is not the case
   -- that Prop: Set.
-  FlipRel: {A: Set} -> (R: A -> A -> Prop) -> (a,b: A) -> Prop
+  FlipRel: {A: Set} -> (R: A -> A -> Prop) -> (a b: A) -> Prop
   FlipRel R a b = R b a
 
   ----------------------------------------------------------------------------
@@ -77,22 +77,22 @@ module SET where
   ----------------------------------------------------------------------------
 --  Prod: (A: Set) -> (A -> Set) -> Set
 --  Prod A B = (a: A) -> B a
---  The above is not type-correct, since (a: A) -> B a is not well-formed,
+--  The above is not type-correct since (a: A) -> B a is not well-formed 
 --  but the following works.
   data Prod (A: Set) (B: A -> Set): Set where
     prodI: ((a: A) -> B a) -> Prod A B
-  mapProd: {A: Set} -> {B,C: A -> Set} -> ((a: A) -> B a -> C a)
+  mapProd: {A: Set} -> {B C: A -> Set} -> ((a: A) -> B a -> C a)
            -> Prod A B -> Prod A C
   mapProd {A} f (prodI g) = prodI (\(a: A) -> f a (g a))
 
---  data Fun (A,B: Set): Set1 where
+--  data Fun (A B: Set): Set1 where
 --    funI: (A -> B) -> Fun A B
   Fun: Set -> Set -> Set
   Fun A B = Prod A (\(_ : A) -> B)
 
-  mapFun: {A,B,C,D: Set} -> (B -> A) -> (C -> D) -> (A -> C) -> B -> D
+  mapFun: {A B C D: Set} -> (B -> A) -> (C -> D) -> (A -> C) -> B -> D
   mapFun {A} {B} {C} {D} f g h x = g (h (f x))
---  mapFun (|X1,|X2,|Y1,|Y2::Set)
+--  mapFun (|X1 |X2 |Y1 |Y2::Set)
 --    :: (X2 -> X1) -> (Y1 -> Y2) -> (X1 -> Y1) -> X2 -> Y2
 --    = \f -> \g -> \h -> \x ->
 --      g (h (f x))
@@ -101,21 +101,21 @@ module SET where
 ---------------------------------------------------------------------------
 -- Identity proof sets.
 ---------------------------------------------------------------------------
--- to accept the following definition, more general scheme of
+-- to accept the following definition more general scheme of
 -- inductive definition is required
---  data Id (A: Set) (a,b: A): Set1 where
+--  data Id (A: Set) (a b: A): Set1 where
 --    ref: (a: A) -> Id A a a
 --
 --  elimId (|X::Set)
---         (C::(x1,x2::X)  |-> Id x1 x2 -> Set)
+--         (C::(x1 x2::X)  |-> Id x1 x2 -> Set)
 --         (refC:: (x::X) -> C (refId x))
---         (|x1,|x2::X)
+--         (|x1 |x2::X)
 --         (u::Id x1 x2) ::
 --         C u
 --    = case u of { (ref x) -> refC x;}
 --
 --  abstract whenId (|X::Set)(C::Rel X)(c::(x::X) -> C x x)
---    :: (x1,x2::X)  |-> Id x1 x2 -> C x1 x2
+--    :: (x1 x2::X)  |-> Id x1 x2 -> C x1 x2
 --    = elimId (\x1 x2 |-> \(u::Id x1 x2) -> C x1 x2) c
 --
 --  abstract substId (|X::Set) :: Substitutive Id
@@ -123,23 +123,23 @@ module SET where
 --      whenId (\x1 x2 -> C x1 -> C x2) (\x -> id)
 --
 --  abstract mapId (|X::Set)(|Y::Set)(f::X -> Y)
---    :: (x1,x2::X) |-> Id x1 x2 -> Id (f x1) (f x2)
+--    :: (x1 x2::X) |-> Id x1 x2 -> Id (f x1) (f x2)
 --    = whenId (\x1 x2 -> Id (f x1) (f x2)) (\(x::X) -> refId (f x))
 --
 --  abstract symId (|X::Set) :: Symmetrical Id
---    =  whenId (\(x1,x2::X) ->  Id x2 x1) refId
+--    =  whenId (\(x1 x2::X) ->  Id x2 x1) refId
 --
 --  abstract cmpId (|X::Set) :: Compositional Id
---    = let lem :: (x,y::X) |-> Id x y -> (z::X) |-> Id z x -> Id z y
---            = whenId ( \(x,y::_) -> (z::X) |-> Id z x -> Id z y)
+--    = let lem :: (x y::X) |-> Id x y -> (z::X) |-> Id z x -> Id z y
+--            = whenId ( \(x y::_) -> (z::X) |-> Id z x -> Id z y)
 --                     ( \x -> \z |-> id)
---      in  \(x1,x2,x3::_) |->
+--      in  \(x1 x2 x3::_) |->
 --          \(u::Id x2 x3) ->
 --          \(v::Id x1 x2) ->
 --          lem  u v
 --
 --  abstract tranId (|X::Set) :: Transitive  Id
---    = \(x1,x2,x3::X) |->
+--    = \(x1 x2 x3::X) |->
 --      \(u::Id x1 x2) ->
 --      \(v::Id x2 x3) ->
 --      cmpId v u
@@ -155,13 +155,13 @@ module SET where
 --  whenZero X z =
 --  --elimZero (C::Zero -> Set)(z::Zero) :: C z
 --  --  = case z of { }
---  elimZero, either!
+--  elimZero either!
 --  elimZero: (C: Zero -> Set) -> (z: Zero) -> C z
 --  elimZero C z =
 --
 --  abstract collZero :: Collapsed Zero
 --    = \(C::Zero -> Set) ->
---      \(z1,z2::Zero) |->
+--      \(z1 z2::Zero) |->
 --      \(c::C z1) ->
 --      case z1 of { }
 --
@@ -174,11 +174,11 @@ module SET where
   elimUnit: (C: Unit -> Set) -> C uu -> (u: Unit) -> C u
   elimUnit C c uu = c
 --  Do not know of the exact use of Collapse!
---  collUnit: (C: Unit -> Set) -> {u1 , u2 : Unit} -> C u1 -> Collapsed Unit
---  collUnit C {uu} {uu} A = collapsedI (\(P: Unit -> Set) -> \{a,b: Unit} -> \(y: P a) -> A)
+--  collUnit: (C: Unit -> Set) -> {u1  u2 : Unit} -> C u1 -> Collapsed Unit
+--  collUnit C {uu} {uu} A = collapsedI (\(P: Unit -> Set) -> \{a b: Unit} -> \(y: P a) -> A)
 --  abstract collUnit :: Collapsed Unit
 --    = \(C::Unit -> Set) ->
---      \(u1,u2::Unit) |->
+--      \(u1 u2::Unit) |->
 --      \(c::C u1) ->
 --      case u1 of { (tt) -> case u2 of { (tt) -> c;};}
 ---------------------------------------------------------------------------
@@ -194,10 +194,10 @@ module SET where
             -> C zerS -> ((x: X) -> C (sucS x)) -> (xx: Succ X) -> (C xx)
   elimSucc C c_z c_s zerS = c_z
   elimSucc C c_z c_s (sucS x) = c_s x
-  whenSucc: {X,Y: Set} -> Y -> (X -> Y) -> (Succ X) -> Y
+  whenSucc: {X Y: Set} -> Y -> (X -> Y) -> (Succ X) -> Y
   whenSucc y_z y_s zerS = y_z
   whenSucc y_z y_s (sucS x) = y_s x
-  mapSucc: {X,Y: Set} -> (X -> Y) -> Succ X -> Succ Y
+  mapSucc: {X Y: Set} -> (X -> Y) -> Succ X -> Succ Y
   mapSucc {X} {_} f
     = whenSucc zerS (\(x: X) -> sucS (f x))
 
@@ -205,10 +205,10 @@ module SET where
 -- The (binary) disjoint union.
 ---------------------------------------------------------------------------
 
-  data Plus (A,B: Set): Set where
+  data Plus (A B: Set): Set where
     inl: A -> Plus A B
     inr: B -> Plus A B
-  elimPlus: {X,Y: Set} ->
+  elimPlus: {X Y: Set} ->
             (C: Plus X Y -> Set) ->
             ((x: X) -> C (inl x)) ->
             ((y: Y) -> C (inr y)) ->
@@ -216,15 +216,15 @@ module SET where
             C z
   elimPlus {X} {Y} C c_lft c_rgt (inl x) = c_lft x
   elimPlus {X} {Y} C c_lft c_rgt (inr x) = c_rgt x
-  when: {X,Y,Z: Set} -> (X -> Z) -> (Y -> Z) -> Plus X Y -> Z
+  when: {X Y Z: Set} -> (X -> Z) -> (Y -> Z) -> Plus X Y -> Z
   when {X} {Y} {Z} f g (inl x) = f x
   when {X} {Y} {Z} f g (inr y) = g y
-  whenplus: {X,Y,Z: Set} -> (X -> Z) -> (Y -> Z) -> Plus X Y -> Z
+  whenplus: {X Y Z: Set} -> (X -> Z) -> (Y -> Z) -> Plus X Y -> Z
   whenplus = when
-  mapPlus: {X1,X2,Y1,Y2 : Set} -> (X1 -> X2) -> (Y1 -> Y2)
+  mapPlus: {X1 X2 Y1 Y2 : Set} -> (X1 -> X2) -> (Y1 -> Y2)
            -> Plus X1 Y1 -> Plus X2 Y2
   mapPlus f g = when (\x1 -> inl (f x1)) (\y1 -> inr (g y1))
-  swapPlus: {X,Y: Set} -> Plus X Y -> Plus Y X
+  swapPlus: {X Y: Set} -> Plus X Y -> Plus Y X
   swapPlus = when inr inl
 
 ----------------------------------------------------------------------------
@@ -242,7 +242,7 @@ module SET where
   depCur: {A: Set} -> {B: A -> Set} -> {C: Set} -> (f: Sum A B -> C)
            -> (a: A) -> B a -> C
   depCur f = \a -> \b -> f (depPair a b)
-  -- the above works, but the below does not---why?
+  -- the above works but the below does not---why?
   -- depCur: {X: Set} -> {Y: X -> Set} -> {Z: Set} -> (f: Sum X Y -> Z)
   --         -> {x: X} -> Y x -> Z
   -- depCur {X} {Y} {Z} f = \{x} -> \y ->  f (depPair  x  y)
@@ -274,7 +274,7 @@ module SET where
   mapSum f (sumI fst snd) = depPair fst (f fst snd)
   elimSum = \{A}{B}{C} -> depUncurry{A}{B}{C}
 ---------------------------------------------------------------------------
--- Nondependent pairs, (binary) cartesian product.
+-- Nondependent pairs (binary) cartesian product.
 ---------------------------------------------------------------------------
   Times: Set -> Set -> Set
   Times A B = Sum A (\(_ : A) -> B)
@@ -323,8 +323,8 @@ module SET where
 {-
   Fin 0 = {}
   Fin 1 = { zerS }
-  Fin 2 = { zerS, (sucS zerS) }
-  Fin 3 = { zerS, (sucS zerS), (sucS (sucS zerS)) }
+  Fin 2 = { zerS (sucS zerS) }
+  Fin 3 = { zerS (sucS zerS) (sucS (sucS zerS)) }
 -}
   valFin: (n' : Nat) -> Fin n' -> Nat
   valFin (succ n) zerS = zero
@@ -359,7 +359,7 @@ module SET where
   ----------------------------------------------------------------------------
   data Nill: Set where
     nill: Nill
-  data Cons (A,B: Set): Set where
+  data Cons (A B: Set): Set where
     cons: A -> B -> Cons A B
   Tuple: (n: Nat) -> (C: Fin n -> Set) -> Set
   Tuple zero = \ C -> Nill
@@ -382,7 +382,7 @@ module SET where
 ----------------------------------------------------------------------------
 -- Propositions.
 ----------------------------------------------------------------------------
-  data Implies (A, B: Prop): Prop where
+  data Implies (A B: Prop): Prop where
     impliesI: (A -> B) -> Implies A B
   data Absurd: Prop where
   data Taut: Prop where
@@ -394,11 +394,11 @@ module SET where
     existsI: (evidence: A) -> P evidence -> Exists A P
   data Forall (A: Set) (P: A -> Prop): Prop where
     forallI: ((a: A) -> P a) -> Forall A P
-  data And (A, B: Prop): Prop where
+  data And (A B: Prop): Prop where
     andI: A -> B -> And A B
   Iff: Prop -> Prop -> Prop
   Iff A B = And (Implies A B) (Implies B A)
-  data Or (A, B: Prop): Prop where
+  data Or (A B: Prop): Prop where
     orIl: (a: A) -> Or A B
     orIr: (b: B) -> Or A B
   Decidable: Prop -> Prop
@@ -407,8 +407,8 @@ module SET where
    decidablepredIl: (a: A) -> (P a) -> DecidablePred P
    decidablepredIr: (a: A) -> (Implies (P a) Absurd) -> DecidablePred P
   data DecidableRel {A: Set} (R: A -> A -> Prop): Set where
-   decidablerelIl: (a,b: A) -> (R a b) -> DecidableRel R
-   decidablerelIr: (a,b: A) -> (Implies (R a b) Absurd) -> DecidableRel R
+   decidablerelIl: (a b: A) -> (R a b) -> DecidableRel R
+   decidablerelIr: (a b: A) -> (Implies (R a b) Absurd) -> DecidableRel R
   data Least {A: Set} (_<=_ : A -> A -> Prop) (P: A -> Prop) (a: A): Set where
     leastI: (P a) -> ((aa: A) -> P aa -> (a <= aa)) -> Least _<=_ P a
   data Greatest {A: Set} (_<=_ : A -> A -> Prop) (P: A -> Prop) (a: A): Set where
@@ -478,12 +478,12 @@ module SET where
               case b of {
                 (true) ->
                   \(f::(x::True true@_) -> X) ->
-                  \(t1,t2::True true@_) |->
+                  \(t1 t2::True true@_) |->
                   \(c::C (f t1)) ->
                   case t1 of { (tt) -> case t2 of { (tt) -> c;};};
                 (false) ->
                   \(f::(x::True false@_) -> X) ->
-                  \(t1,t2::True false@_) |->
+                  \(t1 t2::True false@_) |->
                   \(c::C (f t1)) ->
                   case t1 of { };}
       in   \(b::Bool) ->  \(P::True b -> Set) -> aux (True b) P b id

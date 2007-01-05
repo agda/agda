@@ -5,19 +5,19 @@ import Data.Bool as Bool
 import Data.Nat as Nat
 import Data.Integer as Int
 
-open Int, renaming
+open Int renaming
             ( _*_  to _*'_
-            , _+_  to _+'_
-            , -_   to -'_
-            , _-_  to _-'_
-            , |_|  to |_|'
-            , _==_ to _=='_
-            , _≤_  to _≤'_
-            , _≥_  to _≥'_
-            , _>_  to _>'_
-            , _<_  to _<'_
+            ; _+_  to _+'_
+            ; -_   to -'_
+            ; _-_  to _-'_
+            ; |_|  to |_|'
+            ; _==_ to _=='_
+            ; _≤_  to _≤'_
+            ; _≥_  to _≥'_
+            ; _>_  to _>'_
+            ; _<_  to _<'_
             )
-open Nat, using (Nat, zero, suc)
+open Nat using (Nat zero suc)
 open Bool
 
 infix  40 _==_ _<_ _>_ _≤_ _≥_

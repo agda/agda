@@ -8,7 +8,7 @@ module Warshall
 id : {A:Set} -> A -> A
 id x = x
 
-(∘) : {A,B,C:Set} -> (B -> C) -> (A -> B) -> A -> C
+(∘) : {A B C:Set} -> (B -> C) -> (A -> B) -> A -> C
 f ∘ g = \x -> f (g x)
 
 -- Natural numbers --------------------------------------------------------

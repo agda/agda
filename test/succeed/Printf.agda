@@ -1,7 +1,7 @@
 
 module Printf where
 
-_∘_ : {A,B,C:Set} -> (B -> C) -> (A -> B) -> A -> C
+_∘_ : {A B C:Set} -> (B -> C) -> (A -> B) -> A -> C
 f ∘ g = \x -> f (g x)
 
 infixr 10 _::_
@@ -53,7 +53,7 @@ data Unit : Set where
 infixr 8 _×_
 infixr 8 _◅_
 
-data _×_ (A,B:Set) : Set where
+data _×_ (A B:Set) : Set where
   _◅_ : A -> B -> A × B
 
 data Format : Set where

@@ -1,6 +1,6 @@
 
 -- This module explains how to combine elimination of empty types with pattern
--- match style definitions, without running into problems with decidability.
+-- match style definitions without running into problems with decidability.
 
 module Introduction.Data.Empty where
 
@@ -15,13 +15,13 @@ data One  : Set where
 elim-Zero : {A:Set} -> Zero -> A
 elim-Zero ()
 
-data _×_ (A,B:Set) : Set where
+data _×_ (A B:Set) : Set where
   pair : A -> B -> A × B
 
 -- The algorithm for checking if a type is empty is very naive. In this example
--- you cannot replace pair () _ with (), because the type checker cannot see
+-- you cannot replace pair () _ with () because the type checker cannot see
 -- that Zero × B is empty.
-elim-EmptyPair : {A,B:Set} -> Zero × B -> A
+elim-EmptyPair : {A B:Set} -> Zero × B -> A
 elim-EmptyPair (pair () _)
 
 data Nat : Set where
@@ -33,7 +33,7 @@ ConstZero : Nat -> Set
 ConstZero  zero	  = Zero
 ConstZero (suc n) = ConstZero n
 
--- We can still define the elimination function, but we have to do it
+-- We can still define the elimination function but we have to do it
 -- recursively over the n.
 elim-ConstZero : (n:Nat) -> ConstZero n -> {A:Set} -> A
 elim-ConstZero  zero   ()

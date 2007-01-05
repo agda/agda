@@ -30,7 +30,7 @@ data _×_ (A : Set)(B : A -> Set) : Set where
 π₁ : {A : Set}{B : A -> Set}(p : A × B) -> B (π₀ p)
 π₁ < a | b > = b
 
-_*_ : (A, B : Set) -> Set
+_*_ : (A B : Set) -> Set
 A * B = A × \_ -> B
 
 data _×'_ (A : Set)(B : A -> Set1) : Set1 where

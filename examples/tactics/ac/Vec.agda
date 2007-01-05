@@ -4,13 +4,13 @@ module Vec where
 import Nat
 import Fin
 
-open Nat, hiding (_==_, _<_)
+open Nat hiding (_==_ _<_)
 open Fin
 
 data Nil : Set where
   vnil : Nil
 
-data Cons (A, As : Set) : Set where
+data Cons (A As : Set) : Set where
   vcons : A -> As -> Cons A As
 
 mutual
@@ -32,7 +32,7 @@ _!_ {zero}   _		       (fin ())
 _!_ {suc n} (vec (vcons x xs)) (fin fz)	    = x
 _!_ {suc n} (vec (vcons x xs)) (fin (fs i)) = xs ! i
 
-map : {n : Nat}{A, B : Set} -> (A -> B) -> Vec n A -> Vec n B
+map : {n : Nat}{A B : Set} -> (A -> B) -> Vec n A -> Vec n B
 map {zero}  f (vec vnil)	 = ε
 map {suc n} f (vec (vcons x xs)) = f x ∷ map f xs
 

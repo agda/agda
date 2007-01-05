@@ -9,10 +9,10 @@ import Logic
 import Vec
 import EqProof
 
-open Nat, hiding (_<_), renaming (_==_ to _=Nat=_)
+open Nat hiding (_<_) renaming (_==_ to _=Nat=_)
 open Bool
-open List, hiding (module Eq) -- (
-open Fin, renaming (_==_ to _=Fin=_)
+open List hiding (module Eq) -- (
+open Fin renaming (_==_ to _=Fin=_)
 open Logic
 open Vec
 
@@ -74,7 +74,7 @@ module Provable where
     where
       module ListEq = List.Eq _=Fin=_
 
-  substNF : {n : Nat}{xs, ys : NF n}(P : NF n -> Set) -> IsTrue (xs =NF= ys) -> P xs -> P ys
+  substNF : {n : Nat}{xs ys : NF n}(P : NF n -> Set) -> IsTrue (xs =NF= ys) -> P xs -> P ys
   substNF = ListSubst.subst
     where
       module ListSubst = List.Subst _=Fin=_ (subst {_})
@@ -91,14 +91,14 @@ module Semantics
   (_*_	 : A -> A -> A)
   (one	 : A)
   (refl  : {x : A} -> x == x)
-  (sym   : {x, y : A} -> x == y -> y == x)
-  (trans : {x, y, z : A} -> x == y -> y == z -> x == z)
+  (sym   : {x y : A} -> x == y -> y == x)
+  (trans : {x y z : A} -> x == y -> y == z -> x == z)
   (idL	 : {x : A} -> (one * x) == x)
   (idR	 : {x : A} -> (x * one) == x)
-  (comm  : {x, y : A} -> (x * y) == (y * x))
-  (assoc : {x, y, z : A} -> (x * (y * z)) == ((x * y) * z))
-  (congL : {x, y, z : A} -> y == z -> (x * y) == (x * z))
-  (congR : {x, y, z : A} -> x == y -> (x * z) == (y * z))
+  (comm  : {x y : A} -> (x * y) == (y * x))
+  (assoc : {x y z : A} -> (x * (y * z)) == ((x * y) * z))
+  (congL : {x y z : A} -> y == z -> (x * y) == (x * z))
+  (congR : {x y z : A} -> x == y -> (x * z) == (y * z))
   where
 
   open Provable
@@ -124,7 +124,7 @@ module Semantics
   Proof : {n : Nat} -> Theorem n -> Set
   Proof thm = Prf thm (provable thm)
 
-  lem0 : {n : Nat} -> (xs, ys : NF n) -> (ρ : Vec n A) ->
+  lem0 : {n : Nat} -> (xs ys : NF n) -> (ρ : Vec n A) ->
 	 eq[ xs ↓ ○ ys ↓ ≡ (xs ⊕ ys) ↓ ] ρ
   lem0 []	 ys	   ρ = idL
   lem0 (x :: xs) []	   ρ = idR
@@ -170,7 +170,7 @@ module Semantics
       step3 : eq[ normalise a ↓ ○ normalise b ↓ ≡ (normalise a ⊕ normalise b) ↓ ] ρ
       step3 = lem0 (normalise a) (normalise b) ρ
 
-  lem2 : {n : Nat} -> (xs, ys : NF n) -> (ρ : Vec n A) -> IsTrue (xs =NF= ys) -> eq[ xs ↓ ≡ ys ↓ ] ρ
+  lem2 : {n : Nat} -> (xs ys : NF n) -> (ρ : Vec n A) -> IsTrue (xs =NF= ys) -> eq[ xs ↓ ≡ ys ↓ ] ρ
   lem2 xs ys ρ eq = substNF {_}{xs}{ys} (\z -> eq[ xs ↓ ≡ z ↓ ] ρ) eq refl
 
   prove : {n : Nat} -> (thm : Theorem n) -> Proof thm
@@ -216,19 +216,19 @@ _===_ = \n m -> IsTrue (n =Nat= m)
 
 postulate
   refl  : {x : Nat}	  -> x === x
-  sym   : {x, y : Nat}	  -> x === y -> y === x
-  trans : {x, y, z : Nat} -> x === y -> y === z -> x === z
+  sym   : {x y : Nat}	  -> x === y -> y === x
+  trans : {x y z : Nat} -> x === y -> y === z -> x === z
   idL	: {x : Nat}	  -> (zero + x) === x
   idR	: {x : Nat}	  -> (x + zero) === x
-  comm  : {x, y : Nat}	  -> (x + y) === (y + x)
-  assoc : {x, y, z : Nat} -> (x + (y + z)) === ((x + y) + z)
-  congL : {x, y, z : Nat} -> y === z -> x + y === x + z
-  congR : {x, y, z : Nat} -> x === y -> x + z === y + z
+  comm  : {x y : Nat}	  -> (x + y) === (y + x)
+  assoc : {x y z : Nat} -> (x + (y + z)) === ((x + y) + z)
+  congL : {x y z : Nat} -> y === z -> x + y === x + z
+  congR : {x y z : Nat} -> x === y -> x + z === y + z
 
 module NatPlus = Semantics _===_ _+_ zero refl sym trans idL idR comm assoc congL congR
 open NatPlus
 
-test : (x, y, z : Nat) -> x + (y + z) === (z + x) + y
+test : (x y z : Nat) -> x + (y + z) === (z + x) + y
 test = prove (theorem n3 \x y z -> x ○ (y ○ z) ≡ (z ○ x) ○ y)
 
 {-

@@ -6,11 +6,11 @@ data True : Prop where
   tt : True
 
 -- not allowed with proof irrelevance
-data _\/_ (P,Q:Prop) : Prop where
+data _\/_ (P Q:Prop) : Prop where
   inl : P -> P \/ Q
   inr : Q -> P \/ Q
 
-foo : {P:Prop} -> (F : P -> Set) -> (p,q:P) -> F p -> F q
+foo : {P:Prop} -> (F : P -> Set) -> (p q:P) -> F p -> F q
 foo F p q fp = fp
 
 data Nat : Set where
