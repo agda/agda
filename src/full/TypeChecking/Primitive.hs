@@ -251,6 +251,36 @@ abstractFromType mt = do
     t <- mt
     return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ (arity t) $ \args -> NoReduction <$> normalise args
 
+-- Primitive equality elimination
+primEqElim :: TCM PrimitiveImpl
+primEqElim = do
+    let eq a x y = el $ primEqual <#> a <@> x <@> y
+    t <- hPi "A" tset $
+	 nPi "x" (el $ var 0) $
+	 nPi "C" (nPi "y" (el $ var 1) $ eq (var 2) (var 1) (var 0) --> tset) $
+	 el (var 0 <@> var 1 <@> (primRefl <#> var 2 <#> var 1)) -->
+	 nPi "y" (el $ var 2) (
+	     nPi "p" (eq (var 3) (var 2) (var 0)) $
+	     el (var 2 <@> var 1 <@> var 0)
+	)
+    return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ (arity t) $ \args -> do
+	let h = unArg $ args !! 3
+	    p = args !! 5
+	p' <- reduce p
+	refl <- primRefl
+	let reflName = case refl of
+		Def c _	-> c
+		Con c _ -> c
+		_	-> __IMPOSSIBLE__
+	case unArg p' of
+	    Def c _ | c == reflName -> return $ YesReduction h
+	    Con c _ | c == reflName -> return $ YesReduction h
+	    _			    -> return $ NoReduction $ upd args 5 p'
+		where
+		    upd [] _ _ = __IMPOSSIBLE__
+		    upd (_ : xs) 0 x = x : xs
+		    upd (x : xs) n y = x : upd xs (n - 1) y
+
 -- Type combinators
 infixr 4 -->
 
@@ -260,12 +290,12 @@ a --> b = do
     b' <- b
     return $ El (getSort a' `sLub` getSort b') $ Fun (Arg NotHidden a') b'
 
-gpi :: Hiding -> TCM Type -> TCM Type -> TCM Type
-gpi h a b = do
+gpi :: Hiding -> String -> TCM Type -> TCM Type -> TCM Type
+gpi h name a b = do
     a' <- a
-    x  <- freshName_ "x"
+    x  <- freshName_ name
     b' <- addCtx x a' b
-    return $ El (getSort a' `sLub` getSort b') $ Pi (Arg h a') (Abs "x" b')
+    return $ El (getSort a' `sLub` getSort b') $ Pi (Arg h a') (Abs name b')
 
 hPi = gpi Hidden
 nPi = gpi NotHidden
@@ -273,17 +303,22 @@ nPi = gpi NotHidden
 var :: Int -> TCM Term
 var n = return $ Var n []
 
+infixl 9 <@>, <#>
+
+gApply :: Hiding -> TCM Term -> TCM Term -> TCM Term
+gApply h a b = do
+    x <- a
+    y <- b
+    return $ x `apply` [Arg h y]
+
+(<@>) = gApply NotHidden
+(<#>) = gApply Hidden
+
 list :: TCM Term -> TCM Term
-list t = do
-    t'	 <- t
-    list <- primList
-    return $ list `apply` [Arg NotHidden t']
+list t = primList <@> t
 
 io :: TCM Term -> TCM Term
-io t = do
-    t' <- t
-    io <- primIO
-    return $ io `apply` [Arg NotHidden t']
+io t = primIO <@> t
 
 el :: TCM Term -> TCM Type
 el t = El (Type 0) <$> t
@@ -364,14 +399,16 @@ primitiveFunctions = Map.fromList
 
 				-- we can't build polymorphic types automatically
     , "primIOReturn"	    |-> abstractFromType (
-				    hPi tset $ el (var 0) --> el (io $ var 0)
+				    hPi "A" tset $ el (var 0) --> el (io $ var 0)
 				)
     , "primIOBind"	    |-> abstractFromType (
-				    hPi tset $ hPi tset $
+				    hPi "A" tset $ hPi "B" tset $
 				    el (io (var 1))
 				    --> (el (var 1) --> el (io (var 0)))
 				    --> el (io (var 0))
 				)
+    -- Equality elimination
+    , "primEqElim"	    |-> primEqElim
     ]
     where
 	(|->) = (,)

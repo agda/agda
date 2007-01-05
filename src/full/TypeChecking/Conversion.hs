@@ -164,7 +164,10 @@ equalType ty1@(El s1 a1) ty2@(El s2 a2) =
 	verbose 5 $ do
 	    d1 <- prettyTCM ty1
 	    d2 <- prettyTCM ty2
-	    debug $ "equalType " ++ show d1 ++ " == " ++ show d2
+	    s1 <- prettyTCM s1
+	    s2 <- prettyTCM s2
+	    debug $ "equalType " ++ show d1 ++ "  ==  " ++ show d2
+	    debug $ "   sorts: " ++ show s1 ++ "  and  " ++ show s2
 	cs1 <- equalSort s1 s2
 	cs2 <- equalTerm (sort s1) a1 a2
 	verbose 5 $ do
