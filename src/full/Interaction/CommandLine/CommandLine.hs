@@ -102,7 +102,7 @@ interactionLoop typeCheck =
 					 ContinueIn <$> ask
 	    , "constraints" |> \args -> continueAfter $ showConstraints args
             , "give"	    |> \args -> continueAfter $ giveMeta args
-            , "refine"	    |> \args -> continueAfter $ refineMeta args
+            , "Refine"	    |> \args -> continueAfter $ refineMeta args
 	    , "metas"	    |> \args -> continueAfter $ showMetas args
             , "undo"	    |> \_ -> continueAfter $ mkUndo
             , "load"	    |> \args -> continueAfter $ loadFile reload args
