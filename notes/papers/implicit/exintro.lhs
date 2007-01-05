@@ -12,6 +12,7 @@
 %format psi   = "\psi"
 %format Set   = "\SET"
 %format |-    = "\vdash"
+%format ?     = "~{?}"
 
 %format when  = "\mathbf{when}"
 
@@ -28,12 +29,18 @@
 % is ill-typed. 
 
 
-When adding meta-variables things get more complicated, since we cannot
-always decide the validity of an equality, and we may be forced to keep it as a constraint. This is well-known in higher order unification\cite{huet:unification}: the constraint $?~0 = 0$ has two solutions $? = \lambda x.x$ and $? = \lambda x.0$. This appears also in type theory with constraints of the form $F ? = Bool$ where $F$ is defined by computation rules. The fact that we type check modulo yet unsolved constraints can lead to ill-typed terms.
+When adding meta-variables equality checking gets more complicated, since we cannot
+always decide the validity of an equality, and we may be forced to keep it as a
+constraint. This is well-known in higher order
+unification\cite{huet:unification}: the constraint $?~0 = 0$ has two solutions
+$? = \lambda x.x$ and $? = \lambda x.0$. This appears also in type theory with
+constraints of the form |F ? = Bool| where $F$ is defined by computation rules.
+The fact that we type check modulo yet unsolved constraints can lead to
+ill-typed terms.
 For instance, 
 consider the type-checking problem
 |\g. g 0:((x : F ?) -> F (not x)) -> Nat|\footnote{The notation |(x:A) -> B x| should be read as $\forall x:A. B ~x$.}
-where the term |?| is a meta-variable of type |Bool|, |0:Nat|, and |F:Bool->Set| where |F false = Nat| and |F true = Bool|.
+where the term ? is a meta-variable of type |Bool|, |0:Nat|, and |F:Bool->Set| where |F false = Nat| and |F true = Bool|.
 First we check that |((x : F ?) -> F (not x)) -> Nat| is a well-formed type, which
 generates the constraint |F ? = Bool|, since the term |not x| forces |x| to be
 of type |Bool|. Checking |\g.g 0| against the type |((x : F ?) -> F (not x)) -> Nat|

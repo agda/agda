@@ -3,7 +3,7 @@ We use Martin-L\"of's logical
 framework~\cite{nordstroemPeterssonSmith:handbookLICS} as the underlying logic.
 %
 The choice of underlying logic is not crucial--the type checking algorithm
-presented in this paper extends nicely to more feature-rich logics with, for
+presented in this paper can be extended to more feature-rich logics with, for
 instance, recursive definitions, pattern matching, and universe hierachies.
 \if \NoteOnPatternMatching 1
 See Section~\ref{secAddPatternMatching} for a note on how to extend it to
@@ -12,12 +12,14 @@ pattern matching.
 
 \paragraph*{Syntax} The syntax of {\Core} is given by the following grammar.
 
+{\small
 \[\begin{array}{lclr}
-    A	   & ::= & \SET \Or \EL M \Or \PI xAA	      & \mathit{types} \\
-    M	   & ::= & x \Or c \Or M\,M \Or \LAM xM	      & \mathit{terms} \\
-    \Gamma & ::= & () \Or \Gamma,x:A		      & \mathit{contexts} \\
+    A, B   & ::= & \SET \Or M \Or \PI xAA	      & \mathit{types} \\
+    M, N   & ::= & x \Or c \Or M\,M \Or \LAM xM	      & \mathit{terms} \\
+    \Gamma, \Delta & ::= & () \Or \Gamma,x:A	      & \mathit{contexts} \\
     \Sigma & ::= & () \Or \Sigma,c:A \Or \Sigma,c:A=M & \mathit{signatures} \\
 \end{array}\]
+}
 
 We assume countable sets of variables and constants and we identify terms up to
 $\alpha$-conversion. We adopt the convention that variables in contexts are
@@ -31,32 +33,29 @@ $\LAM \Gamma M$ for $\LAM {x_1} \ldots \LAM {x_n} M$ and $M \, \Gamma$ for $M
 \, \bar x$.
 %
 Capture avoiding substitution of $N$ for $x$ in $M$ is written $\Subst M x N$,
-or $\SubstD M N$ when $x$ is clear from the context of discourse.
+or $\SubstD M N$ when $x$ is clear from the context.
 %
 For dependent function types $\PI xAB$, we write $A \to B$ when $x$ is not free
 in $B$.
-%
-The inhabitants of $\SET$ are codes for types; given a code $M : \SET$, $\EL M$
-is the corresponding type. With the exception of the typing rules, we will
-leave $\EL{}$ implicit.
 %
 The signature contains axioms and non-recursive definitions.
 
 \paragraph*{Judgements} The type system of {\Core} is presented in six mutually
 dependent judgement forms.
 
-\[\begin{array}{ll}
-    \IsSigCS\Sigma & \mbox{$\Sigma$ is a valid signature} \\
-    \IsCtxCS\Sigma\Gamma & \mbox{$\Gamma$ is a valid context} \\
-    \IsTypeCS\Sigma\Gamma A & \mbox{$A$ is a valid type in $\Gamma$} \\
-    \HasTypeCS\Sigma\Gamma MA & \mbox{$M$ has type $A$ in $\Gamma$} \\
-    \EqualTypeCS\Sigma\Gamma AB & \mbox{$A$ and $B$ are convertible types in $\Gamma$}\\
-    \EqualCS\Sigma\Gamma MNA & \mbox{$M$ and $N$ are convertible terms of type $A$ in $\Gamma$} \\
+{\small
+\[\begin{array}{lcl}
+    \IsSigCS\Sigma && \mbox{$\Sigma$ is a valid signature} \\
+    \IsCtxCS\Sigma\Gamma && \mbox{$\Gamma$ is a valid context} \\
+    \IsTypeCS\Sigma\Gamma A && \mbox{$A$ is a valid type in $\Gamma$} \\
+    \HasTypeCS\Sigma\Gamma MA && \mbox{$M$ has type $A$ in $\Gamma$} \\
+    \EqualTypeCS\Sigma\Gamma AB && \mbox{$A$ and $B$ are convertible types in $\Gamma$}\\
+    \EqualCS\Sigma\Gamma MNA &~& \mbox{$M$ and $N$ are convertible terms of type $A$ in $\Gamma$} \\
 \end{array}\]
+}
 
-The typing rules are standard and can be found, for instance, in ?.
-
-\TODO{find a core logic with a nice reference to it}
+The typing rules follows standard presentations of type
+theory~\cite{nordstroemPeterssonSmith:handbookLICS}.
 
 \if \DetailedProofs 1
 

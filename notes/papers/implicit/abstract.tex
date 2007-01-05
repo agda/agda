@@ -4,15 +4,16 @@
 In this paper we present a type checking algorithm for a dependently typed logical framework extended
 with meta-variables. It is common for such frameworks to accept that unification creates 
 substitutions that are not well typed 
-\cite{dowek:matching,elliot:unification,pym:thesis}, but we will give a novel
+\cite{dowek:matching,elliot:unification,pym:thesis}, but we give a novel
 approach to the treatment of meta-variables where well-typedness of
 substitutions is guaranteed. To ensure type correctness the type checker 
-creates an optimal well-typed approximation of the term being type checked. The main point of this paper is
- not the 
-actual unification algorithm, the result probably carries over also to other algorithms than the 
-restricted from of higher order pattern unification we use.
-We prove that the algorithm is sound and decidable\TODO{En algoritm kan inte vara decidable}. 
-The proposed algorithm has been implemented with promising results.
+creates an optimal well-typed approximation of the term being type checked.
+%
+We use a restricted form of pattern unification, but we believe that the results
+carry over to other unification algorithms.
+%
+We prove that the algorithm is sound and terminating.  The proposed algorithm
+has been implemented with promising results.
 
 
 \end{abstract}

@@ -1,80 +1,39 @@
 
 In this section we present the type checking algorithm for {\Core} with meta-variables.
 
-% Describe the problem with meta-variables
-\subsection{Meta variables in type checking}
-
-A central typing rule in {\Core}, or any dependent type theory, is the
-conversion rule, which states that if a term $M$ has type $B$, then $M$ has any
-type $A$ convertible to $B$.
-
-\[  \infer{\HasTypeC \Gamma M A}
-    { \HasTypeC \Gamma M B
-    & \EqualTypeC \Gamma A B
-    }
-\]
-
-In the absence of meta-variables, checking the convertibility of $A$ and $B$ is
-straightforward and simply amounts to checking $\beta\eta$-equality. However,
-when adding meta-variables things get more complicated. Depending of what the
-meta-variables are used for the conversion checking algorithm is extended in
-various ways. If the meta-variables are use for interaction, it makes sense to
-treat them as black boxes and thus the conversion checker gives up when
-encountering a meta-variable. If meta-variables are used for implicit
-syntax--which is what we focus on in this paper--the conversion checker tries
-to find instantiations for the meta-variables using some form of unification.
-In general the unification problems are higher order and hence
-undecidable~\cite{huet:unification}\TODO{correct citation?}.
-Consequently the conversion checker will have to give up on some unification
-problems. The same is true if meta-variables are used for proof search, if a
-proof (instantiation of a meta-variable) cannot be found the problem might have
-to be postponed until more infomation is available. The bottom line is that
-the convertibility of $A$ and $B$ might be unknown until some of the meta-variables have been instantiated. If this is the case, the question is what to
-do with the conversion rule. Accepting $M : A$ is clearly not correct (see
-Section~\ref{secCoerce} for how to break things), but failing is also not the
-right thing to do, since later meta-variable instantiations might make $A$ and
-$B$ convertible.
-
-The solution we present here is to accept the conversion rule, but rather than
-concluding that $M : A$ we introduce a fresh constant of type $A$ which
-evaluates to $M$ if and only if $A$ and $B$ are convertible. This means, in
-effect, that the type checker works with well-typed approximations of terms,
-where potentially ill-typed subterms have been replaced by fresh constants.
-The subterm corresponding to each constant is recorded, but guarded by the
-constraint which would make it well-typed. As soon as the constraint is solved
-the constant can freely be replaced by its corresponding subterm. We will refer
-to these constants as {\em guarded constants}.
-
-\subsection{Constraints and guarded constants}
-
-Now we present the rules for type checking with meta-variables. First we extend
+First we extend
 the syntax of signatures to include guarded constants and add a new syntactic
 category for user expressions:
 
+{\small
 \[\begin{array}{lcll}
-    e & ::= & \LAM xe \Or x\,\bar e \Or c\,\bar e \Or \SET \Or \PI xee \Or ? \\
     C & ::= & \TypeConstr A B \Or \TermConstr M N A \Or
 	      \TermConstr {\bar M} {\bar N} \Delta \\
     \Sigma & ::= & \ldots \Or
 		\Ext \Sigma \ConstDecl p A M \Cs \\
+    e & ::= & \LAM xe \Or x\,\bar e \Or c\,\bar e \Or \SET \Or \PI xee \Or ? \\
 \end{array}\]
+}
 
 The input to the type checking algorithm is a user expression which could
 represent either a type or a term. Apart from the usual constructions user
 expressions can also contain $?$ representing a meta-variable. During type
-checking user expressions are translated into {\Core} terms where meta-variables are represented as fresh constants. Note that since we have domain
-free lambda abstractions we cannot type check $\beta$-redexes. Hence the syntax
-of user expressions disallows them.
+checking user expressions are translated into {\Core} terms where
+meta-variables are represented as fresh constants. Note that since we have
+domain free lambda abstractions we cannot type check $\beta$-redexes. Hence the
+syntax of user expressions disallows them.
 
-A constraint $C$ is a conversion checking problem that has been postponed
+A constraint $C$ is an equality constraint that has been postponed
 because not enough information was available about the meta-variables. Since
-our conversion checking algorithm is typed the constraints are also typed. The
+our conversion checking algorithm is typed the constraints must also be typed. The
 constraints show up in the signature as guards to guarded constants. We write
 $\ConstDecl p A M \Cs$ for a guarded constant $p$ of type $A$ and value $M$
-guarded by the set of constraints $\Cs$.
+guarded by the set of constraints $\Cs$. We have the computation rule that $p$
+computes to $M$ when $\Cs$ is the empty set.
 
-We use lowercase greek letters $\alpha, \beta, \ldots$ for constants
-representing meta-variables and $p$ and $q$ for guarded constants.
+We use the naming convention that lowercase greek letters $\alpha, \beta,
+\ldots$ stand for constants representing meta-variables and $p$ and $q$ for
+guarded constants.
 
 \subsection{Operations on the signature}
 
@@ -82,34 +41,34 @@ All rules work on a signature $\Sigma$, containing previously defined
 constants, meta-variables, and guarded constants.
 %
 In other words we can write all judgements on the form
-\[\ExplicitJudgement \Sigma J {\Sigma'}\]
+\(\ExplicitJudgement \Sigma J {\Sigma'}\).
 %
 To make the rules easier to read we first define a set of operations reading
 and modifying the signature and when presenting the algorithm simply write $J$
 for the judgement above. In rules with multiple premisses the signature is
-threaded top-down, left-to-right. For instance,
-\[\begin{array}{ccc}
-{\small\begin{array}[c]{l}
-\infer{J}
-  {\begin{array}[b]{l}
-     P_1
-  \\ P_2
-  \end{array}
-  & P_3
-  }
-\end{array}}
-& ~\mbox{is short-hand for}~
-&
-{\small\begin{array}[c]{l}
-\infer{\ExplicitJudgement {\Sigma_1} J {\Sigma_4}}
-  {\begin{array}[b]{l}
-     \ExplicitJudgement {\Sigma_1} {P_1} {\Sigma_2}
-  \\ \ExplicitJudgement {\Sigma_2} {P_2} {\Sigma_3}
-  \end{array}
-  & \ExplicitJudgement {\Sigma_3} {P_3} {\Sigma_4}
-  }
-\end{array}}
-\end{array}\]
+threaded top-down, left-to-right. % For instance,
+% \[\begin{array}{ccc}
+% {\small\begin{array}[c]{l}
+% \infer{J}
+%   {\begin{array}[b]{l}
+%      P_1
+%   \\ P_2
+%   \end{array}
+%   & P_3
+%   }
+% \end{array}}
+% & ~\mbox{is short-hand for}~
+% &
+% {\small\begin{array}[c]{l}
+% \infer{\ExplicitJudgement {\Sigma_1} J {\Sigma_4}}
+%   {\begin{array}[b]{l}
+%      \ExplicitJudgement {\Sigma_1} {P_1} {\Sigma_2}
+%   \\ \ExplicitJudgement {\Sigma_2} {P_2} {\Sigma_3}
+%   \end{array}
+%   & \ExplicitJudgement {\Sigma_3} {P_3} {\Sigma_4}
+%   }
+% \end{array}}
+% \end{array}\]
 
 \begin{figure}
 \begin{tabular}{llll}
@@ -165,12 +124,12 @@ threaded top-down, left-to-right. For instance,
 %     $ & if & $\ConstDecl p A M \Cs ~\in~ \Sigma$ and $\Cs \neq \emptyset$
     \\ {} \\
 %    \multicolumn2l{General operations} \\
-    & $\ExplicitJudgement
-	    \Sigma
-	    {\LookupType c A}
-	    \Sigma
-    $ & if & $c : A \in \Sigma$
-    \\
+%     & $\ExplicitJudgement
+% 	    \Sigma
+% 	    {\LookupType c A}
+% 	    \Sigma
+%     $ & if & $c : A \in \Sigma$
+%     \\
     & $\ExplicitJudgement
 	    \Sigma
 	    {\InScope \alpha M}
@@ -196,30 +155,29 @@ threaded top-down, left-to-right. For instance,
 \label{figOperations}
 \end{figure}
 
-We introduce two operations to manipulate meta-variables: $\AddMeta \alpha A$
+We introduce two operations to manipulate meta-variables: \\ $\AddMeta \alpha A$
 adds a new meta-variable $\alpha$ of type $A$ to the signature, and $\InstMeta
 \alpha M$ instantiates $\alpha$ to $M$.
-
+%
 %% Never used
 % $\LookupMeta \alpha M$ looks up the
 % value of an instantiated meta-variable, and $\Uninstantiated \alpha$ verifies
 % that $\alpha$ is uninstantiated.
-
+%
 For guarded constants we just add the operation $\AddConst p A M \Cs$ to add a
 new guarded constant to the signature.  In Section~\ref{secAlgorithm} we
 explain the rules for solving the constraints of a guarded constant.
-
+%
 % , $\UpdateGuard p \Cs$ to update the guard of $p$,
 % $\LookupConst p M$ to get the value of a guarded constant whose guard has been
 % solved, and $\Guarded p$ to verify that the guard of $p$ has not been solved.
-
-We also introduce the following general operations: $\LookupType c A$ looks up
-the type $A$ of a constant $c$, and $\InScope \alpha M$ checks that $M$ is in
+%
+We also introduce an operation $\InScope \alpha M$ to check that $M$ is in
 scope at the definition site of $\alpha$ (to ensure that $\alpha$ can be
 instantiated to $M$).
-
+%
 %, and $\WithSig \Sigma J$ which checks $J$ in the signature $\Sigma$.
-
+%
 Detailed definitions of the operations can be found in
 Figure~\ref{figOperations}.
 
@@ -228,22 +186,21 @@ Figure~\ref{figOperations}.
 Next we present the type checking algorithm.  We use a bidirectional algorithm,
 consisting of the following main judgement forms.
 
-\[\begin{array}{ll}
-    \IsType e A & \mbox{well-formed types} \\
-    \CheckType e A M & \mbox{type checking} \\
-    \InferType e A M & \mbox{type inference} \\
-    \EqualType A B \Cs & \mbox{type conversion} \\
-    \Equal M N A \Cs & \mbox{term conversion} \\
+{\small
+\[\begin{array}{lcl}
+    \IsType e A && \mbox{well-formed types} \\
+    \CheckType e A M && \mbox{type checking} \\
+    \InferType e A M && \mbox{type inference} \\
+    \EqualType A B \Cs && \mbox{type conversion} \\
+    \Equal M N A \Cs &~& \mbox{term conversion} \\
 \end{array}\]
+}
 
-The rules for well-formed types and type checking and inference takes an
-expression in the user syntax produces a type or term in {\Core} which is a
-well-formed approximation of the user expression. Conversion checking produces
+The rules for well-formed types and type checking and inference take a user
+expression and produce a type or term in {\Core} which is a
+well-typed approximation of the user expression. Conversion checking produces
 a set of unsolved constraints which needs to be solved for the judgement to be
-true in {\Core}. The exact form of type checking algorithm used is not very
-important--a unidirectional algorithm would also work. What is important is
-that computation is performed on the well-typed approximations rather than the
-user expressions.
+true in {\Core}.
 
 We use typed conversion for two reasons: it is a nice way to implement
 $\eta$-equality, and perhaps more importantly to prove the correctness of the
@@ -253,33 +210,28 @@ type to make sure the invariant is preserved.
 
 When checking conversion we also need the following judgement forms.
 
-\[\begin{array}{ll}
-    \EqualWhnf M N A \Cs & \mbox{conversion of weak head normal forms} \\
-    \Equal {\bar M} {\bar N} \Delta \Cs & \mbox{conversion of sequences of terms} \\
+{\small
+\[\begin{array}{lcl}
+    \EqualWhnf M N A \Cs &~& \mbox{conversion of weak head normal forms} \\
+    \Equal {\bar M} {\bar N} \Delta \Cs &~& \mbox{conversion of sequences of terms} \\
 \end{array}\]
-
-In the following we let $J$ range over judgements of these seven forms.
-
-\subsubsection{Normalisation}
+}
 
 Type checking with dependent types involves normalising arbitrary (type
-correct) terms, so we need to know how to normalise terms in signature
-containing meta-variables and guarded constants. We do this simply by
-translating the signature to {\Core} and performing the normalisation in
-{\Core}.
+correct) terms, so we need to know how to normalise terms in a signature
+containing meta-variables and guarded constants. We do this by translating the
+signature to {\Core} and performing the normalisation in {\Core}.
 
 \begin{definition}
     Given a signature $\Sigma$ containing meta-variables and guarded constants
-    we can recover its {\Core} restriction $\CoreSig \Sigma$ by replacing
-    guarded constants with normal constants, retaining the definition if the
-    guard is empty and removing it otherwise.
+    we define its {\Core} restriction $\CoreSig \Sigma$ by replacing
+    guarded constants with normal constants, replacing $\ConstDecl p A M \Cs$
+    by $p : A = M$ if $\Cs$ is empty, and $p : A$ otherwise.
 \end{definition}
 
-We write $\Sigma$ for $\CoreSig \Sigma$ when it is clear from the context that
-the latter is intended. For instance, we write $\HasTypeCS \Sigma \Gamma M A$
-rather than $\HasTypeCS {\CoreSig \Sigma} \Gamma M A$. The type checking rules
-maintain the invariant that the {\Core} restriction of the current signature is
-well-formed.
+The correctness of the type checking algorithm relies on the invariant that
+when $\ExplicitJudgement \Sigma {\CheckType e A M} {\Sigma'}$, we have
+$\HasTypeCS {\CoreSig {\Sigma'}} \Gamma M A$ (see Theorem~\ref{thmSoundNoCs}).
 
 We write $\ExplicitJudgement \Sigma {\whnf M {M'}} \Sigma$ if $M'$ is the weak
 head normal form of $M$ in $\CoreSig \Sigma$. Similarly $\Normalise M {M'}$
@@ -289,9 +241,9 @@ means that $M'$ is the normal form of $M$.
 
 To save some space we omit the rules for checking well-formed types and most of
 the rules for type checking and inference. The rules are simple extensions of
-the standard type checking algorithm\TODO{cite core paper} to produce
-well-typed terms. The interesting type checking rules are those for type
-checking meta-variables and the conversion rules.
+standard type checking algorithms to produce well-typed terms. The interesting
+type checking rules are the rule for type checking meta-variables and the
+conversion rules.
 
 \URules{
 
@@ -321,17 +273,17 @@ checking meta-variables and the conversion rules.
 
 }
 
-When type checking a user meta-variable we add a fresh meta-variable to the
-signature and return this. Since meta-variables are part of the signature they
-have to be lifted to the top-level\TODO{cite something here?}.
+When type checking a user meta-variable we create a fresh meta-variable, add it
+to the signature and return it. Since meta-variables are part of the signature
+they have to be lifted to the top-level.
 
 We have two versions of the conversion rule. The first corresponds to the
-normal conversion rule and applies when no constraints are left over. The
+normal conversion rule and applies when no constraints are generated. The
 interesting case is when we cannot safely conclude that $A = B$, in which case
-we introduce a fresh guarded constant. As for meta-variables, guarded constants
+we introduce a fresh guarded constant. As meta-variables, guarded constants
 are lifted to the top-level.
 
-\subsubsection{Type conversion rules}
+\subsubsection{Conversion rules}
 
 When checking conversion of two function types, an interesting question is what
 to do when comparing the domains gives rise to constraints. The rule in question is
@@ -348,11 +300,12 @@ to do when comparing the domains gives rise to constraints. The rule in question
 }
 
 To ensure the correctness of the algorithm we need to maintain the invariant
-that when we check $\EqualType A B \Cs$ we have $\IsTypeC \Gamma A$ and
-$\IsTypeC \Gamma B$. Thus if we do not know whether $A_1 = A_2$ it is not
-correct to check $\EqualTypeCtx {\Ext \Gamma x : A_1} {B_1} {B_2} {\Cs^\prime}$
-since $B_2$ is not well-formed in $\Ext \Gamma x : A_1$. To solve the problem
-we substitute a guarded constant for $x$ in $B_2$.
+that when we check $\EqualTypeCtx {} A B \Cs$ we have $\IsTypeC {} A$ and
+$\IsTypeC {} B$. Thus if we do not know whether $A_1 = A_2$ it is not
+correct to check $\EqualTypeCtx {x : A_1} {B_1} {B_2} {\Cs^\prime}$
+since $B_2$ is not well-formed in the context $x : A_1$. To solve the problem
+we substitute a guarded constant $p \, x$ for $x$ in $B_2$, where $p \, x$
+reduces to $x$ when $A_1$ and $A_2$ are convertible.
 
 % \quad
 % 
@@ -425,6 +378,7 @@ or guarded constant. If both terms have the same variable or constant head $h :
 \end{array}}
 }
 
+If the heads are different constants or variables conversion checking fails.
 If one of the heads is a guarded constant we give up and return the problem as
 a constraint.
 
@@ -434,14 +388,14 @@ a constraint.
 }{}
 }
 
-What to do when we encounter a meta-variable depends on what we are using the
-meta-variables for. If they are used purely for interaction we would treat them
-in the same way as the guarded constants. In our case we are interested in
-implicit arguments, so we try to find unique instantiations to the meta-variables. For simplicity, we use a restricted form of pattern
-unification\TODO{Cite pattern unification paper}, but there is no
-reason to believe that our correctness proof would not extend to full pattern
-unification. In the examples we have studied, using meta-variables for implicit
-arguments, this simpler form of unification seems to be sufficient.
+If one of the heads is a meta variable we use a restricted form of pattern
+unification, but we believe that our correctness proof can be extended to more
+powerful unification algorithms, for example
+\cite{dowek:matching,dowek:unification,miller:pattern,Nipkow-LICS-93,pfenning:unification}. The crucial step is
+to prove that meta-variable instantiations are well-typed.
+In the examples we have studied, using meta-variables for
+implicit arguments, this simpler form of unification seems to be sufficient.
+The rule for meta-variable instantiation is
 
 \URules{
 
@@ -465,15 +419,17 @@ arguments, this simpler form of unification seems to be sufficient.
 Given the problem $\alpha \, \bar x = M$ we would like to instantiate $\alpha$ to
 $\LAM {\bar x} M$. This is only correct if $\bar x$ are distinct variables, $M$
 does not contain any variables other than $\bar x$, and any constants refered
-to by $M$ are in scope at the declaration site of $\alpha$. Now $M$ might refer
-to meta-variables introduced after $\alpha$ but which have been instantiated.
-For this reason we normalise $M$ to $M'$ and try to instantiate $\alpha$ to
-$\LAM {\bar x} M'$. A possible optimisation might be to only normalise if $M$
-contains out-of-scope constants or variables.
+to by $M$ are in scope at the declaration site of $\alpha$\footnote{Note that
+scope checking subsumes the usual occurs check, since constants are non-recursive.}.
+Now $M$ might refer to meta-variables introduced after $\alpha$ but which have
+been instantiated.  For this reason we normalise $M$ to $M'$ and try to
+instantiate $\alpha$ to $\LAM {\bar x} M'$. A possible optimisation might be to
+only normalise if $M$ contains out-of-scope constants or variables.
+If any of the premisses in this rule fail or $\alpha$ is not applied only to
+variables, we return the constraint as it is.
 
-Finally we present the rules to check conversion of argument lists. The
-interesting case is when comparing the first arguments results in some unsolved
-constraints.
+When checking conversion of argument lists, the interesting case is when
+comparing the first arguments results in some unsolved constraints.
 
 \URules{
 
@@ -516,10 +472,10 @@ $\bar M$ and $\bar N$ differ. If on the other hand the types of later arguments
 are independent of the value of the first argument, we can proceed and compare
 them without knowing whether the first arguments are convertible.
 
-There is a possible inefficiency in that the constraint produced in the first
-case does not remember the result of comparing $M$ and $N$. This could be
-remedied by giving more structure to the constraint sets, requiring that the
-constraints in $\Cs$ are solved before comparing $\bar M$ and $\bar N$.
+% There is a possible inefficiency in that the constraint produced in the first
+% case does not remember the result of comparing $M$ and $N$. This could be
+% remedied by giving more structure to the constraint sets, requiring that the
+% constraints in $\Cs$ are solved before comparing $\bar M$ and $\bar N$.
 
 \subsubsection{Constraint Solving}
 
@@ -528,25 +484,27 @@ simplified or solved. In principle this can be done at any time, for instance
 as a separate phase after type checking. In practise, however, it might be a
 better idea to interleave constraint solving and type checking. In
 Section~\ref{secProof} we prove that this can be done safely.
+Constraint solving amounts to rechecking the guard of a constant and replacing
+it by the resulting constraints.
 
-Constraint solving amounts to rechecking the guard of a constant. The notation
-$\CheckConstr \Cs {\Cs^\prime}$ means checking each of the constraints in $\Cs$
-and taking $\Cs^\prime$ to be the union of the results.
-
-% Constraint solving
-\URules{
-    \infer{
-	\ExplicitJudgement
-	    \Sigma
-	    \Simplify
-	    {\Ext {\Sigma^\prime_1} \Ext {\ConstDecl p A M {\Cs^\prime}} \Sigma_2}
-    }{\begin{array}{ll}
-	\multicolumn2l{\Sigma ~ = ~ \Ext {\Sigma_1} \Ext {\ConstDecl p A M \Cs} {\Sigma_2}} \\
-	\ExplicitJudgement {\Sigma_1} {\CheckConstr \Cs {\Cs^\prime}} {\Sigma^\prime_1} 
-	% & \Cs \neq {\Cs^\prime} \\
-    \end{array}
-    }
-}
+% The notation
+% $\CheckConstr \Cs {\Cs^\prime}$ means checking each of the constraints in $\Cs$
+% and taking $\Cs^\prime$ to be the union of the results.
+% 
+% % Constraint solving
+% \URules{
+%     \infer{
+% 	\ExplicitJudgement
+% 	    \Sigma
+% 	    \Simplify
+% 	    {\Ext {\Sigma^\prime_1} \Ext {\ConstDecl p A M {\Cs^\prime}} \Sigma_2}
+%     }{\begin{array}{ll}
+% 	\multicolumn2l{\Sigma ~ = ~ \Ext {\Sigma_1} \Ext {\ConstDecl p A M \Cs} {\Sigma_2}} \\
+% 	\ExplicitJudgement {\Sigma_1} {\CheckConstr \Cs {\Cs^\prime}} {\Sigma^\prime_1} 
+% 	% & \Cs \neq {\Cs^\prime} \\
+%     \end{array}
+%     }
+% }
 
 % Not used
 % \begin{definition}[Normal signature]
@@ -557,8 +515,12 @@ and taking $\Cs^\prime$ to be the union of the results.
 \if \NoteOnPatternMatching 1
 \subsection{Adding pattern matching} \label{secAddPatternMatching}
 
-Some notes on how to add pattern matching.
-\fi
+If we have definitions by pattern matching reduction to weak head normal form
+might be blocked by an uninstantiated meta variable. For instance $\neg ~
+\alpha$ cannot be reduced to weak head normal form if $\neg$ is defined by
+$\neg ~\mathit{true} = \mathit{false}$ and $\neg ~\mathit{false} =
+\mathit{true}$. Since conversion checking is done on weak head normal forms we
+generate a constraint when encountering a blocked term.
 
 % Blocked terms
 % \URules{
@@ -581,3 +543,4 @@ Some notes on how to add pattern matching.
 % }
 % }
 
+\fi
