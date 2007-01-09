@@ -81,7 +81,7 @@ toVim ns = unlines $
 	parts (Name _ [_]) = []
 	parts (Name _ ps)  = [ x | Id x <- ps ]
 
-	isKeyword = all isKeywordChar
+	isKeyword = const False -- all isKeywordChar
 
 	isKeywordChar c = isAlphaNum c || elem c "_'"
 
