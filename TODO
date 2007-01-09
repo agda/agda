@@ -72,6 +72,8 @@ Fixes
 
 * weird meta cannot depend on errors
 
+* ranges of constructors in patterns are wrong. (also in right-hand sides?)
+
 [Type checking]
 
 * When do we have to turn on abstractMode. When checking anything public? Not
