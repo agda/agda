@@ -206,7 +206,8 @@ instance Pretty Pattern where
 		    prOp (Hole : xs) (e : es) = pretty e : prOp xs es
 		    prOp (Hole : _)  []	      = __IMPOSSIBLE__
 		    prOp (Id x : xs)  es      = text x : prOp xs es
-		    prOp []	      es      = map pretty es
+		    prOp []	      []      = []
+		    prOp []	     (_ : _)  = __IMPOSSIBLE__
 	    HiddenP _ p	       -> braces $ pretty p
 	    ParenP _ p	       -> parens $ pretty p
 	    WildP _	       -> text "_"

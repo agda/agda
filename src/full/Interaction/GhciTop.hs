@@ -61,6 +61,7 @@ import Syntax.Position
 import Syntax.Parser
 import Syntax.Concrete as SC
 import Syntax.Common as SCo
+import Syntax.Concrete.Name as CN
 import Syntax.Concrete.Pretty ()
 import Syntax.Abstract as SA
 import Syntax.Internal as SI
@@ -210,6 +211,23 @@ instance Pretty String where pretty = text
 instance Pretty a => Show (Lisp a) where show = show . pretty
 
 showNumIId = A . tail . show
+
+takenNameStr :: TCM [String]
+takenNameStr = do
+  xss <- sequence [ List.map fst <$> getContext
+                  , keys <$> asks envLetBindings
+                  , Map.fold ((++) . keys . mdefDefs) [] <$> getSignature]
+  return $ concat [ parts x | SA.Name _ x <- concat xss]
+  where
+    parts (CN.Name _ ps) = [ s | Id s <- ps ]
+
+refreshStr :: [String] -> String -> ([String], String)
+refreshStr taken s = go nameModifiers where
+  go (m:mods) = let s' = s ++ m in
+                if s' `elem` taken then go mods else (s':taken, s')
+  go _        = __IMPOSSIBLE__
+
+nameModifiers = "" : "'" : "''" : [show i | i <-[3..]]
 
 cmd_make_case :: GoalCommand
 cmd_make_case ii rng s = infoOnException $ ioTCM $ do

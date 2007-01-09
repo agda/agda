@@ -4,8 +4,6 @@ module TypeChecking.Monad.Name where
 
 import Control.Monad.Reader
 import Control.Monad.State
-import Data.List as L
-import Data.Map as M
 
 import Utils.Monad
 import Utils.Fresh
@@ -20,30 +18,19 @@ import TypeChecking.Monad
 #include "../../undefined.h"
 
 
--- | TODO: how does this relate to what's in "Syntax.Translation.AbstractToConcrete"?
+-- | Generate a fresh unique identifier for a name
 refreshName :: Range -> String -> TCM AN.Name
 refreshName r s = do
-   s' <- snd . (`refreshStr` s) <$> takenNameStr
-   i <- fresh
-   return $ AN.Name i (CN.Name r [Id s'])
+    i <- fresh
+    let x = parseName s
+    return $ AN.Name i (CN.Name r x)
+    where
+	parseName :: String -> [NamePart]
+	parseName []	  = []
+	parseName ('_':s) = Hole : parseName s
+	parseName s	  = case break (== '_') s of
+	    (s0, s1) -> Id s0 : parseName s1
 
+refreshName_ :: String -> TCM AN.Name
 refreshName_ = refreshName noRange
 
-takenNameStr :: TCM [String]
-takenNameStr = do
-  xss <- sequence [ L.map fst <$> getContext
-                  , keys <$> asks envLetBindings
-                  , M.fold ((++) . keys . mdefDefs) [] <$> getSignature]
-  return $ concat [ parts x | AN.Name _ x <- concat xss]
-  where
-    parts (CN.Name _ ps) = [ s | Id s <- ps ]
-
-refreshStr :: [String] -> String -> ([String], String)
-refreshStr taken s = go nameModifiers where
-  go (m:mods) = let s' = s ++ m in
-                if s' `elem` taken then go mods else (s':taken, s')
-  go _        = __IMPOSSIBLE__
-
-nameModifiers = "" : "'" : "''" : [show i | i <-[3..]]
-
-refreshStrs = mapAccumL refreshStr

@@ -34,7 +34,7 @@ defaultFixity = LeftAssoc noRange 20
 -- | Precedence is associated with a context.
 data Precedence = TopCtx | FunctionSpaceDomainCtx
 		| LeftOperandCtx Fixity | RightOperandCtx Fixity
-		| FunctionCtx | ArgumentCtx
+		| FunctionCtx | ArgumentCtx | InsideOperandCtx
     deriving (Show,Typeable,Data)
 
 
@@ -56,16 +56,17 @@ opBrackets f1
            (RightOperandCtx f2) | fixityLevel f1 > fixityLevel f2 = False
 opBrackets _ TopCtx = False
 opBrackets _ FunctionSpaceDomainCtx = False
-opBrackets _ _ = True
+opBrackets _ InsideOperandCtx	    = False
+opBrackets _ _			    = True
 
 -- | Does a lambda-like thing (lambda, let or pi) need brackets in the given
 --   context. A peculiar thing with lambdas is that they don't need brackets
 --   in a right operand context. For instance: @m >>= \x -> m'@ is a valid
 --   infix application.
 lamBrackets :: Precedence -> Bool
-lamBrackets TopCtx		    = False
-lamBrackets (RightOperandCtx _)  = False
-lamBrackets _		    = True
+lamBrackets TopCtx		= False
+lamBrackets (RightOperandCtx _) = False
+lamBrackets _			= True
 
 -- | Does a function application need brackets?
 appBrackets :: Precedence -> Bool

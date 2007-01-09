@@ -18,6 +18,7 @@ import Syntax.Position
 import Syntax.Info
 import Syntax.Fixity
 import Syntax.Concrete as C
+import Syntax.Concrete.Pretty
 import Syntax.Abstract as A
 import Syntax.Abstract.Views as AV
 
@@ -566,32 +567,64 @@ instance BindToConcrete A.Pattern C.Pattern where
 tryToRecoverOpApp :: A.Expr -> AbsToCon C.Expr -> AbsToCon C.Expr
 tryToRecoverOpApp e mdefault = case AV.appView e of
   NonApplication _ -> mdefault
-  Application head args -> do
+  Application hd args -> do
     let  args' = [namedThing e | Arg NotHidden e <- args]
-    case head of
+    case hd of
       HeadVar i n  -> doCName i (nameConcrete n) args'
       HeadDef i qn -> doQName i qn args'
       HeadCon i qn -> doQName i qn args'
   where
-  -- let's try the binary case first.
-  doCName i cn@(C.Name _ [Hole, Id _, Hole]) [a1, a2] = do
-        let fixity = nameFixity i
-        e1 <- toConcreteCtx (LeftOperandCtx  fixity) a1
-        e2 <- toConcreteCtx (RightOperandCtx fixity) a2
-        bracket (opBrackets fixity)
-          $ return $ OpApp (getRange [e1,e2]) cn [e1,e2]
 
-  -- other cases are not seriously considered yet.
-  doCName i cn@(C.Name _ parts) args'
-    | simple_case = do
-        es <- toConcreteCtx ArgumentCtx args'
-        bracket (opBrackets (nameFixity i))
-          $ return $ OpApp (getRange es) cn es
-    | otherwise   = mdefault
-    where simple_case = numHoles > 0 && numHoles == length args'
-          numHoles = length [()| Hole <- parts]
-    
-  doQName i qn args = case qnameConcrete qn of
-    C.QName n -> doCName i n args
-    _         -> mdefault
+  -- qualified names can't use mixfix syntax
+  doQName i qn as = case qnameConcrete qn of
+    C.QName cn	-> doCName i cn as
+    _		-> mdefault
+
+  -- fall-back (wrong number of arguments or no holes)
+  doCName i cn@(C.Name _ xs) es
+    | length es /= numHoles = mdefault
+    | List.null es	    = mdefault
+    where numHoles = length [ () | Hole <- xs ]
+	  msg = "doCName " ++ showList xs "" ++ " on " ++ show (length es) ++ " args"
+
+  -- binary case
+  doCName i cn@(C.Name _ xs) as
+    | Hole <- head xs
+    , Hole <- last xs = do
+	let fixity = nameFixity i
+	    a1	   = head as
+	    an	   = last as
+	    as'	   = init $ tail as
+	e1 <- toConcreteCtx (LeftOperandCtx fixity) a1
+	es <- mapM (toConcreteCtx InsideOperandCtx) as'
+	en <- toConcreteCtx (RightOperandCtx fixity) an
+	bracket (opBrackets fixity)
+	    $ return $ OpApp (getRange (e1,en)) cn ([e1] ++ es ++ [en])
+
+  -- prefix
+  doCName i cn@(C.Name _ xs) as
+    | Hole <- last xs = do
+	let fixity = nameFixity i
+	    an	   = last as
+	    as'	   = init as
+	es <- mapM (toConcreteCtx InsideOperandCtx) as'
+	en <- toConcreteCtx (RightOperandCtx fixity) an
+	bracket (opBrackets fixity)
+	    $ return $ OpApp (getRange (cn,en)) cn (es ++ [en])
+
+  -- postfix
+  doCName i cn@(C.Name _ xs) as
+    | Hole <- head xs = do
+	let fixity = nameFixity i
+	    a1	   = head as
+	    as'	   = tail as
+	e1 <- toConcreteCtx (LeftOperandCtx fixity) a1
+	es <- mapM (toConcreteCtx InsideOperandCtx) as'
+	bracket (opBrackets fixity)
+	    $ return $ OpApp (getRange (e1,cn)) cn ([e1] ++ es)
+
+  -- roundfix
+  doCName i cn as = do
+    es <- mapM (toConcreteCtx InsideOperandCtx) as
+    return $ OpApp (getRange cn) cn es
 
