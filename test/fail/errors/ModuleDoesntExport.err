@@ -1,4 +1,4 @@
 errors/ModuleDoesntExport.agda:5,1-16
 The module A doesn't export the following: B
 when scope checking the declaration
-  open A, using (B)
+  open A using (B)

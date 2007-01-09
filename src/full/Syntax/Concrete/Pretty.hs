@@ -165,10 +165,10 @@ instance Pretty Declaration where
 		     ] $$ nest 2 (vcat $ map pretty ds)
 	    ModuleMacro _ x tel e i ->
 		sep [ text "module" <+> pretty x <+> fcat (map pretty tel)
-		    , nest 2 $ text "=" <+> pretty e <> pretty i
+		    , nest 2 $ text "=" <+> pretty e <+> pretty i
 		    ]
-	    Open _ x i	-> text "open" <+> pretty x <> pretty i
-	    Import _ x rn i   -> text "import" <+> pretty x <+> as rn <> pretty i
+	    Open _ x i	-> text "open" <+> pretty x <+> pretty i
+	    Import _ x rn i   -> text "import" <+> pretty x <+> as rn <+> pretty i
 		where
 		    as Nothing	= empty
 		    as (Just x) = text "as" <+> pretty x
