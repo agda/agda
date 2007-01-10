@@ -29,7 +29,7 @@ import Syntax.Literal
 $digit	     = 0-9
 $hexdigit    = [ $digit a-f A-F ]
 $alpha	     = [ A-Z a-z _ ]
-$op	     = [ \- \! \# \$ \% \& \* \+ \/ \< \= \> \@ \^ \| \~ \? \` \[ \] \, ]
+$op	     = [ \- \! \# \$ \% \& \* \+ \/ \< \= \> \^ \| \~ \? \` \[ \] \, ]
 $idstart     = [ $alpha $op ]
 $idchar	     = [ $idstart $digit ' \\ ]
 $endcomment  = ~ [ $idchar \: \\ ]

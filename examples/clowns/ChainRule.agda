@@ -37,16 +37,16 @@ module ChainRule where
       ij : (F : U)(x : _) -> i F (j F x) == x
       ij (K A)	   < () , _ >
       ij Id	   < <> , x > = refl
-      ij (F₁ + F₂) < lx @ (inl x) , y > =
+      ij (F₁ + F₂) < lx@(inl x) , y > =
 	subst (\ ∙ -> (inl <×> id) ∙ == < lx , y >)
 	      (ij F₁ < x , y >) refl
-      ij (F₁ + F₂) < rx @ (inr x) , y > =
+      ij (F₁ + F₂) < rx@(inr x) , y > =
 	subst (\ ∙ -> (inr <×> id) ∙ == < rx , y >)
 	      (ij F₂ < x , y >) refl
-      ij (F₁ × F₂) < xy @ (inl < x , y >) , z > =
+      ij (F₁ × F₂) < xy@(inl < x , y >) , z > =
 	subst (\ ∙ -> (inl ∘ <∙, y > <×> id) ∙ == < xy , z >)
 	      (ij F₁ < x , z >) refl
-      ij (F₁ × F₂) < xy @ (inr < x , y >) , z > =
+      ij (F₁ × F₂) < xy@(inr < x , y >) , z > =
 	subst (\ ∙ -> (inr ∘ < x ,∙> <×> id) ∙ == < xy , z >)
 	      (ij F₂ < y , z >) refl
 
