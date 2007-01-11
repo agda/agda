@@ -91,7 +91,7 @@ data Pattern	= VarP Name	-- ^ the only thing we need to know about a
 		| DefP PatInfo QName [NamedArg Pattern]  -- ^ defined pattern
 		| WildP PatInfo
 		| AsP PatInfo Name Pattern
-		| DotP PatInfo Pattern
+		| DotP PatInfo Expr
 		| AbsurdP PatInfo
 		| LitP Literal
 

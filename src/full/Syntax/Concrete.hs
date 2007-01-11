@@ -74,7 +74,7 @@ data Pattern
 	| WildP !Range
 	| AbsurdP !Range
 	| AsP !Range Name Pattern
-	| DotP !Range Pattern
+	| DotP !Range Expr
 	| LitP Literal
     deriving (Typeable, Data, Eq)
 

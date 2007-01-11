@@ -785,11 +785,11 @@ exprToLHS e = exprToPattern e
 		Underscore r _		-> return $ WildP r
 		Absurd r		-> return $ AbsurdP r
 		As r x e		-> AsP r x <$> exprToPattern e
-		Dot r e			-> DotP r <$> exprToPattern e
+		Dot r e			-> return $ DotP r e
 		Lit l			-> return $ LitP l
 		HiddenArg r e		-> HiddenP r <$> T.mapM exprToPattern e
 		RawApp r es		-> RawAppP r <$> mapM exprToPattern es
 		OpApp r x es		-> OpAppP r x <$> mapM exprToPattern es
-		_			-> parseErrorAt (rStart $ getRange e) "Parse error in pattern"
+		_			-> parseErrorAt (rStart $ getRange e) $ "Not a valid pattern: " ++ show e
 
 }
