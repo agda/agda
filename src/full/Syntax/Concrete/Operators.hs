@@ -216,6 +216,7 @@ parsePattern prs p = case p of
     OpAppP r d ps    -> fullParen' . OpAppP r d <$> mapM (parsePattern prs) ps
     HiddenP _ _	     -> fail "bad hidden argument"
     AsP r x p	     -> AsP r x <$> parsePattern prs p
+    DotP r p	     -> DotP r <$> parsePattern prs p
     ParenP r p	     -> fullParen' <$> parsePattern prs p
     WildP _	     -> return p
     AbsurdP _	     -> return p
@@ -318,6 +319,7 @@ paren _	  e@(SetN _ _)	       = return $ \p -> e
 paren _	  e@(Prop _)	       = return $ \p -> e
 paren _	  e@(Paren _ _)	       = return $ \p -> e
 paren _	  e@(As _ _ _)	       = return $ \p -> e
+paren _	  e@(Dot _ _)	       = return $ \p -> e
 paren _	  e@(Absurd _)	       = return $ \p -> e
 paren _	  e@(RawApp _ _)       = __IMPOSSIBLE__
 paren _	  e@(HiddenArg _ _)    = __IMPOSSIBLE__

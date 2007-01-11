@@ -273,7 +273,7 @@ checkConstructor _ _ _ _ = __IMPOSSIBLE__ -- constructors are axioms
 -- | Bind the parameters of a datatype. The bindings should be domain free.
 bindParameters :: [A.LamBinding] -> Type -> (Telescope -> Sort -> TCM a) -> TCM a
 bindParameters [] (El _ (Sort s)) ret = ret [] s
-bindParameters [] _ _ = __IMPOSSIBLE__ -- the syntax prohibits anything but a sort here
+bindParameters [] _ _ = typeError $ NotImplemented "inductive families"
 bindParameters (A.DomainFree h x : ps) (El _ (Pi (Arg h' a) b)) ret	-- always dependent function
     | h /= h'	=
 	__IMPOSSIBLE__
@@ -394,6 +394,7 @@ containsAbsurdPattern p = case p of
     A.ConP _ _ ps -> any (containsAbsurdPattern . namedThing . unArg) ps
     A.WildP _	  -> False
     A.AsP _ _ p   -> containsAbsurdPattern p
+    A.DotP _ _	  -> False
     A.AbsurdP _   -> True
     A.LitP _	  -> False
     A.DefP _ _ _  -> __IMPOSSIBLE__
@@ -493,6 +494,8 @@ checkPattern name p t ret =
 	A.LitP l    -> do
 	    v <- checkLiteral l t
 	    ret ([], LitP l, v)
+	A.DotP i p ->
+	    typeError $ NotImplemented "inductive families"
 	A.DefP i f ps ->
 	    typeError $ NotImplemented "defined patterns"
 

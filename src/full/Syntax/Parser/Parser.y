@@ -340,6 +340,7 @@ Expr3
     | '{' '}'		  { let r = fuseRange $1 $2 in HiddenArg r $ unnamed $ Absurd r }
     | '(' ')'		  { Absurd (fuseRange $1 $2) }
     | Id '@' Expr3	  { As (fuseRange $1 $3) $1 $3 }
+    | '.' Expr3		  { Dot (fuseRange $1 $2) $2 }
 
 -- Sorts
 Sort :: { Expr }
@@ -547,7 +548,7 @@ RHS : '=' Expr	    { RHS $2 }
 
 -- Data declaration. Can be local.
 Data :: { Declaration }
-Data : 'data' Id TypedBindingss0 ':' Sort 'where'
+Data : 'data' Id TypedBindingss0 ':' Expr 'where'
 	    Constructors	{ Data (getRange ($1, $6, $7)) $2 $3 $5 $7 }
 
 
@@ -784,6 +785,7 @@ exprToLHS e = exprToPattern e
 		Underscore r _		-> return $ WildP r
 		Absurd r		-> return $ AbsurdP r
 		As r x e		-> AsP r x <$> exprToPattern e
+		Dot r e			-> DotP r <$> exprToPattern e
 		Lit l			-> return $ LitP l
 		HiddenArg r e		-> HiddenP r <$> T.mapM exprToPattern e
 		RawApp r es		-> RawAppP r <$> mapM exprToPattern es

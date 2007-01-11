@@ -91,6 +91,7 @@ data Pattern	= VarP Name	-- ^ the only thing we need to know about a
 		| DefP PatInfo QName [NamedArg Pattern]  -- ^ defined pattern
 		| WildP PatInfo
 		| AsP PatInfo Name Pattern
+		| DotP PatInfo Pattern
 		| AbsurdP PatInfo
 		| LitP Literal
 
@@ -144,13 +145,14 @@ instance HasRange Definition where
     getRange (DataDef i _ _ _ ) = getRange i
 
 instance HasRange Pattern where
-    getRange (VarP x)	    = getRange x
-    getRange (ConP i _ _)   = getRange i
-    getRange (DefP i _ _)   = getRange i
-    getRange (WildP i)	    = getRange i
-    getRange (AsP i _ _)    = getRange i
-    getRange (AbsurdP i)    = getRange i
-    getRange (LitP l)	    = getRange l
+    getRange (VarP x)	  = getRange x
+    getRange (ConP i _ _) = getRange i
+    getRange (DefP i _ _) = getRange i
+    getRange (WildP i)	  = getRange i
+    getRange (AsP i _ _)  = getRange i
+    getRange (DotP i _)   = getRange i
+    getRange (AbsurdP i)  = getRange i
+    getRange (LitP l)	  = getRange l
 
 instance HasRange LHS where
     getRange (LHS i _ _)    = getRange i

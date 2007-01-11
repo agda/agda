@@ -59,6 +59,7 @@ data Expr
 	| Paren !Range Expr		       -- ^ ex: @(e)@
 	| Absurd !Range			       -- ^ ex: @()@ or @{}@, only in patterns
 	| As !Range Name Expr		       -- ^ ex: @x\@p@, only in patterns
+	| Dot !Range Expr		       -- ^ ex: @.p@, only in patterns
     deriving (Typeable, Data, Eq)
 
 
@@ -73,6 +74,7 @@ data Pattern
 	| WildP !Range
 	| AbsurdP !Range
 	| AsP !Range Name Pattern
+	| DotP !Range Pattern
 	| LitP Literal
     deriving (Typeable, Data, Eq)
 
@@ -220,6 +222,7 @@ instance HasRange Expr where
 	    Let r _ _		-> r
 	    Paren r _		-> r
 	    As r _ _		-> r
+	    Dot r _		-> r
 	    Absurd r		-> r
 	    HiddenArg r _	-> r
 
@@ -285,4 +288,5 @@ instance HasRange Pattern where
     getRange (AbsurdP r)	= r
     getRange (LitP l)		= getRange l
     getRange (HiddenP r _)	= r
+    getRange (DotP r _)		= r
 

@@ -543,6 +543,7 @@ instance BindToConcrete A.LHS C.Pattern where
 instance ToConcrete A.Pattern C.Pattern where
     toConcrete p = bindToConcrete p return
 
+-- TODO: bracket patterns
 instance BindToConcrete A.Pattern C.Pattern where
     bindToConcrete (VarP x)	   ret = bindToConcrete x $ ret . IdentP . C.QName
     bindToConcrete (A.WildP i)	   ret =
@@ -561,6 +562,10 @@ instance BindToConcrete A.Pattern C.Pattern where
 					    ret $ C.AsP (getRange i) x p
     bindToConcrete (A.AbsurdP i)   ret = ret $ C.AbsurdP (getRange i)
     bindToConcrete (A.LitP l)	   ret = ret $ C.LitP l
+    bindToConcrete (A.DotP i p)	   ret =
+	bindWithStored i ret $
+	bindToConcrete p $ \p ->
+	ret $ C.DotP (getRange i) p
 
 -- Helpers for recovering C.OpApp ------------------------------------------
 

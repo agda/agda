@@ -283,6 +283,7 @@ instance ToAbstract C.Expr A.Expr where
 
     -- Pattern things
 	C.As _ _ _ -> notAnExpression e
+	C.Dot _ _  -> notAnExpression e
 	C.Absurd _ -> notAnExpression e
 
 instance BindToAbstract C.LamBinding A.LamBinding where
@@ -581,6 +582,8 @@ instance BindToAbstract C.Pattern A.Pattern where
 	    ret (A.AsP info x p)
 	where
 	    info = PatSource r $ \_ -> p0
+    bindToAbstract p0@(C.DotP r p) ret = bindToAbstract p $ ret . A.DotP info
+	where info = PatSource r $ \_ -> p0
     bindToAbstract p0@(C.AbsurdP r) ret = ret (A.AbsurdP info)
 	where
 	    info = PatSource r $ \_ -> p0

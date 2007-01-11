@@ -97,6 +97,7 @@ instance Pretty Expr where
 		    ]
 	    Paren _ e -> parens $ pretty e
 	    As _ x e  -> pretty x <> text "@" <> pretty e
+	    Dot _ e   -> text "." <> pretty e
 	    Absurd _  -> text "()"
 
 instance Pretty LamBinding where
@@ -212,6 +213,7 @@ instance Pretty Pattern where
 	    ParenP _ p	       -> parens $ pretty p
 	    WildP _	       -> text "_"
 	    AsP _ x p	       -> pretty x <> text "@" <> pretty p
+	    DotP _ p	       -> text "." <> pretty p
 	    AbsurdP _	       -> text "()"
 	    LitP l	       -> pretty l
 
