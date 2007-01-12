@@ -126,10 +126,10 @@ makeAbstract :: Definition -> Maybe Definition
 makeAbstract d = do def <- makeAbs $ theDef d
 		    return d { theDef = def }
     where
-	makeAbs (Datatype _ _ _ AbstractDef)  = Just Axiom
-	makeAbs (Function _ AbstractDef)      = Just Axiom
-	makeAbs (Constructor _ _ AbstractDef) = Nothing
-	makeAbs d			      = Just d
+	makeAbs (Datatype _ _ _ _ AbstractDef) = Just Axiom
+	makeAbs (Function _ AbstractDef)       = Just Axiom
+	makeAbs (Constructor _ _ AbstractDef)  = Nothing
+	makeAbs d			       = Just d
 
 -- | Enter abstract mode
 inAbstractMode :: TCM a -> TCM a
@@ -157,7 +157,7 @@ sortOfConst :: QName -> TCM Sort
 sortOfConst q =
     do	d <- theDef <$> getConstInfo q
 	case d of
-	    Datatype _ _ s _	-> return s
+	    Datatype _ _ _ s _	-> return s
 	    _			-> fail $ "Expected " ++ show q ++ " to be a datatype."
 
 -- | Do something for each module with a certain kind of name.

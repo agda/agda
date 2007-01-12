@@ -420,11 +420,11 @@ instance InstantiateFull Definition where
 
 instance InstantiateFull Defn where
     instantiateFull d = case d of
-	Axiom		  -> return Axiom
-	Function cs a	  -> flip Function a <$> instantiateFull cs
-	Datatype n cs s a -> do
+	Axiom		      -> return Axiom
+	Function cs a	      -> flip Function a <$> instantiateFull cs
+	Datatype np ni cs s a -> do
 	    s <- instantiateFull s
-	    return $ Datatype n cs s a
+	    return $ Datatype np ni cs s a
 	Constructor n q a -> return $ Constructor n q a
 	Primitive a s cs  -> Primitive a s <$> instantiateFull cs
 

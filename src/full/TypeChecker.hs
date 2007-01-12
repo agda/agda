@@ -246,7 +246,7 @@ checkDataDef i x ps cs =
 	    case (proofIrr, s, cs) of
 		(True, Prop, _:_:_) -> typeError PropMustBeSingleton
 		_		    -> return ()
-	addConstant name (Defn t 0 $ Datatype npars (map (cname m) cs)
+	addConstant name (Defn t 0 $ Datatype npars 0 (map (cname m) cs)
 					      s (defAbstract i)
 			 )
     where
@@ -337,7 +337,7 @@ forceData d (El s0 t) = do
 	Def d' _
 	    | d == d'   -> return $ El s0 t'
 	MetaV m vs	    -> do
-	    Defn t _ (Datatype n _ s _) <- getConstInfo d
+	    Defn t _ (Datatype _ _ _ s _) <- getConstInfo d
 	    ps <- newArgsMeta t
 	    noConstraints $ equalType (El s0 t') (El s (Def d ps)) -- TODO: too strict?
 	    reduce $ El s0 t'

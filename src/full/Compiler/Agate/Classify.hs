@@ -25,7 +25,7 @@ enumDatatypes definitions = do
 	f (name,d) = 
 		let def = theDef d in
 		case def of
-			(Datatype np cs s a) -> [name]
+			Datatype np ni cs s a -> [name]
 			_ -> []
 
 enumCompilableDatatypes :: Definitions -> [Name] -> TCM [Name]

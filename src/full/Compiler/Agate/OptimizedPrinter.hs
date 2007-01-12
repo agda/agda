@@ -58,11 +58,11 @@ showTypeDeclarations definitions compilableDatatypes = do
 showTypeDeclaration :: Definitions -> Name -> TCM Doc
 showTypeDeclaration definitions name = do
     let defn = definitions ! name
-    let (Datatype np qcnames s a) = theDef defn
+    let (Datatype np ni qcnames s a) = theDef defn
     ty <- instantiate $ defType defn
     underContext ty $ do
     	dtypename <- showAsOptimizedType name
-    	dparams <- mapM showTypeParameter $ reverse [0..(np - 1)]
+    	dparams <- mapM showTypeParameter $ reverse [0 .. np + ni - 1]
     	dargs <- mapM (showConstructorDeclaration definitions np) qcnames
     	case dargs of
 	    []  -> return $ (text "type") <+> (
@@ -115,7 +115,7 @@ showValueDefinition definitions compilableDatatypes (name,defn) = do
       Function clauses a -> do
 	dclauses <- mapM (showClauseAsOptimized name) clauses
 	return $ vcat dclauses
-      Datatype np qcnames s a -> do
+      Datatype np ni qcnames s a -> do
 	ty <- instantiate $ defType defn
 	underContext ty $ do
     		dparams <- mapM (showAsOptimizedTerm. flip Var [])
@@ -270,7 +270,7 @@ instance ShowAsOptimizedTerm ClauseBody where
 	newname <- freshName_ (absName abs)
 	addCtx newname __IMPOSSIBLE__ $ showAsOptimizedTerm (absBody abs)
     showAsOptimizedTerm (NoBind body) = showAsOptimizedTerm body
-    showAsOptimizedTerm NoBody        = return $ text "(absurd)" -- IMPOSSIBLE?
+    showAsOptimizedTerm NoBody        = return $ text "error \"impossible\""
 
 ----------------------------------------------------------------
 
@@ -285,7 +285,8 @@ instance ShowAsOptimized Pattern where
 	dargs <- mapM (showAsOptimized . unArg) args
 	return $ parens $ sep $ dname : dargs
     showAsOptimized (LitP lit) = return $ text $ show lit
-    showAsOptimized AbsurdP    = return $ text "()" -- __IMPOSSIBLE__
+    showAsOptimized AbsurdP = return $ text "_"
+    showAsOptimized WildP   = return $ text "_"
 
 ----------------------------------------------------------------
 

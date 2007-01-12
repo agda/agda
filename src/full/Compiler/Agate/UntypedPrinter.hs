@@ -77,7 +77,7 @@ instance ShowAsUntypedTerm ClauseBody where
 	newname <- freshName_ (absName abs)
 	addCtx newname __IMPOSSIBLE__ $ showAsUntypedTerm (absBody abs)
     showAsUntypedTerm (NoBind body) = showAsUntypedTerm body
-    showAsUntypedTerm NoBody        = return $ text "(absurd)"
+    showAsUntypedTerm NoBody        = return $ text "error \"impossible\""
 
 ----------------------------------------------------------------
 
@@ -92,8 +92,9 @@ instance ShowAsUntyped Pattern where
 	dargs <- mapM (showAsUntyped . unArg) args
 	return $ parens $ (text "VCon" <> text (show (length dargs))) <+>
 			  sep (dname : dargs)
-    showAsUntyped (LitP lit) = return $ text "Literal" -- TODO: not allowed?
-    showAsUntyped AbsurdP    = return $ text "()"      -- __IMPOSSIBLE__
+    showAsUntyped (LitP lit) = return $ text (show lit)
+    showAsUntyped AbsurdP    = return $ text "_"
+    showAsUntyped WildP	     = return $ text "_"
 
 showClause :: Clause -> TCM Doc
 showClause (Clause pats NoBody) = return empty
@@ -121,10 +122,10 @@ showNDefinition (name,defn) = do
 	dclauses <- mapM showClause clauses
 	return $ (dname <+> equals) <+> drhs <+> text "where" $+$
 		 nest 2 (vcat dclauses)
-      Datatype np qcnames s a -> do
+      Datatype np ni qcnames s a -> do
 	ty <- instantiate $ defType defn
 	(args,_) <- splitType ty
-	let dvars = map (\i -> text ("v" ++ show i)) [1..np]
+	let dvars = map (\i -> text ("v" ++ show i)) [1 .. np + ni]
 	let drhs = untypedAbs dvars $ text "VNonData"
 	return $ sep [ dname, equals ] <+> drhs <+> text "{- datatype -}"
       Constructor np qtname a -> do

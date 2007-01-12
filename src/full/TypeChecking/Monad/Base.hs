@@ -229,6 +229,7 @@ data Definition = Defn { defType     :: Type	-- type of the lifted definition
 data Defn = Axiom
 	  | Function [Clause] IsAbstract
 	  | Datatype Nat	-- nof parameters
+		     Nat	-- nof indices
 		     [QName]	-- constructor names
 		     Sort
 		     IsAbstract
@@ -255,11 +256,11 @@ defClauses _				 = []
 
 defAbstract :: Definition -> IsAbstract
 defAbstract (Defn _ _ d) = case d of
-    Axiom	      -> AbstractDef
-    Function _ a      -> a
-    Datatype _ _ _ a  -> a
-    Constructor _ _ a -> a
-    Primitive a _ _   -> a
+    Axiom	       -> AbstractDef
+    Function _ a       -> a
+    Datatype _ _ _ _ a -> a
+    Constructor _ _ a  -> a
+    Primitive a _ _    -> a
 
 ---------------------------------------------------------------------------
 -- ** Statistics

@@ -263,20 +263,20 @@ instance Serialisable Defn where
 	    _	-> error $ "deserialise Defn: no parse"
 	where
 	    code s = case s of
-		Axiom		  -> 'A'
-		Function _ _	  -> 'F'
-		Datatype _ _ _ _  -> 'D'
-		Constructor _ _ _ -> 'C'
-		Primitive _ _ _	  -> 'P'
+		Axiom		   -> 'A'
+		Function _ _	   -> 'F'
+		Datatype _ _ _ _ _ -> 'D'
+		Constructor _ _ _  -> 'C'
+		Primitive _ _ _    -> 'P'
 
-	    datatype ((a,b),(c,d)) = Datatype a b c d
-	    cons (a,b,c)	   = Constructor a b c
-	    prim (a,b,c)	   = Primitive a b c
+	    datatype ((a,b),(c,(d,e))) = Datatype a b c d e
+	    cons (a,b,c)	       = Constructor a b c
+	    prim (a,b,c)	       = Primitive a b c
 
-	    unFunction x = let Function    a b	   = x in (a,b)
-	    unData     x = let Datatype    a b c d = x in ((a,b),(c,d))
-	    unCons     x = let Constructor a b c   = x in (a,b,c)
-	    unPrim     x = let Primitive   a b c   = x in (a,b,c)
+	    unFunction x = let Function    a b	     = x in (a,b)
+	    unData     x = let Datatype    a b c d e = x in ((a,b),(c,(d,e)))
+	    unCons     x = let Constructor a b c     = x in (a,b,c)
+	    unPrim     x = let Primitive   a b c     = x in (a,b,c)
 
 instance Serialisable IsAbstract where
     serialiser = mapS (IFun con des) serialiser

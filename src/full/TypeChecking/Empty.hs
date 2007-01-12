@@ -13,8 +13,8 @@ isEmptyType t = do
 	El _ (Def d _) -> do
 	    Defn _ _ di <- getConstInfo d
 	    case di of
-		Datatype _ [] _ _ -> return ()
-		_		  -> notEmpty t
+		Datatype _ _ [] _ _ -> return ()
+		_		    -> notEmpty t
 	_ -> notEmpty t
     where
 	notEmpty t = typeError $ ShouldBeEmpty t

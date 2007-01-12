@@ -47,11 +47,11 @@ instance Apply Definition where
     apply (Defn t n d) args = Defn (piApply' t args) (n - length args) (apply d args)
 
 instance Apply Defn where
-    apply Axiom _		     = Axiom
-    apply (Function cs a) args	     = Function (apply cs args) a
-    apply (Datatype np cs s a) args  = Datatype (np - length args) cs s a
-    apply (Constructor np cs a) args = Constructor (np - length args) cs a
-    apply (Primitive a x cs) args    = Primitive a x cs
+    apply Axiom _		       = Axiom
+    apply (Function cs a) args	       = Function (apply cs args) a
+    apply (Datatype np ni cs s a) args = Datatype (np - length args) ni cs s a
+    apply (Constructor np cs a) args   = Constructor (np - length args) cs a
+    apply (Primitive a x cs) args      = Primitive a x cs
 
 instance Apply PrimFun where
     apply (PrimFun x ar def) args   = PrimFun x (ar - length args) $ \vs -> def (args ++ vs)
@@ -105,11 +105,11 @@ instance Abstract Definition where
     abstract tel (Defn t n d) = Defn (telePi tel t) (length tel + n) (abstract tel d)
 
 instance Abstract Defn where
-    abstract tel Axiom		       = Axiom
-    abstract tel (Function cs a)       = Function (abstract tel cs) a
-    abstract tel (Datatype np cs s a)  = Datatype (length tel + np) cs s a
-    abstract tel (Constructor np cs a) = Constructor (length tel + np) cs a
-    abstract tel (Primitive a x cs)    = Primitive a x (abstract tel cs)
+    abstract tel Axiom			 = Axiom
+    abstract tel (Function cs a)	 = Function (abstract tel cs) a
+    abstract tel (Datatype np ni cs s a) = Datatype (length tel + np) ni cs s a
+    abstract tel (Constructor np cs a)	 = Constructor (length tel + np) cs a
+    abstract tel (Primitive a x cs)	 = Primitive a x (abstract tel cs)
 
 instance Abstract PrimFun where
     abstract tel (PrimFun x ar def) = PrimFun x (ar + n) $ \ts -> def $ drop n ts

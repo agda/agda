@@ -241,7 +241,7 @@ cmd_make_case ii rng s = infoOnException $ ioTCM $ do
     -- gather constructors for ex
     (vx,tx) <- inferExpr ex
     El _ (SI.Def d _) <- passElDef =<< reduce tx
-    Defn _ _ (Datatype _ ctors _ _) <- passData =<< getConstInfo d
+    Defn _ _ (Datatype _ _ ctors _ _) <- passData =<< getConstInfo d
     replpas <- (`mkPats` ctors) =<< List.delete sx <$> takenNameStr
     -- make new clauses
     let newpas = [repl sx pa targetPat | pa <- replpas]
@@ -299,7 +299,7 @@ cmd_make_case ii rng s = infoOnException $ ioTCM $ do
   passAVar x   = fail("passAVar: got "++show x)
   passElDef t@(El _ (SI.Def _ _)) = return t
   passElDef t  = fail . ("passElDef: got "++) . show =<< reify t
-  passData  d@(Defn _ _ (Datatype _ _ _ _))   = return d
+  passData  d@(Defn _ _ (Datatype _ _ _ _ _)) = return d
   passData  d@(Defn _ _ (Function _ _))	      = fail $ "passData: got function"
   passData  d@(Defn _ _ TM.Axiom)	      = fail $ "passData: got axiom"
   passData  d@(Defn _ _ (Constructor _ _ _))  = fail $ "passData: got constructor"
