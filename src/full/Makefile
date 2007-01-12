@@ -79,6 +79,8 @@ endif
 
 prof : $(OUT_P)/agda
 
+GHC_FLAGS += -package QuickCheck-1.0
+
 $(OUT)/agda : $(out_dirs) $(out_h_files) $(all_hs_files) $(boot_files)
 	$(GHC) --make -o $@ -i$(OUT) -I. -odir $(OUT) -hidir $(OUT) $(GHC_FLAGS) Main.hs
 
