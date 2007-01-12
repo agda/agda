@@ -388,8 +388,11 @@ instance ToConcrete A.Expr C.Expr where
 	     return $ C.Let (getRange i) (concat ds') e'
 
 -- Dot patterns can bind variables. This is how.
+-- They can't anymore. Good, then we don't have to implement the instance.
+{-
 instance BindToConcrete A.Expr C.Expr where
     bindToConcrete e ret = __IMPOSSIBLE__ -- TODO: not really
+-}
 
 -- Binder instances -------------------------------------------------------
 
@@ -567,8 +570,8 @@ instance BindToConcrete A.Pattern C.Pattern where
     bindToConcrete (A.AbsurdP i)   ret = ret $ C.AbsurdP (getRange i)
     bindToConcrete (A.LitP l)	   ret = ret $ C.LitP l
     bindToConcrete (A.DotP i e)	   ret =
-	bindWithStored i ret $
-	bindToConcrete e $ \e ->
+	bindWithStored i ret $ do
+	e <- toConcrete e
 	ret $ C.DotP (getRange i) e
 
 -- Helpers for recovering C.OpApp ------------------------------------------

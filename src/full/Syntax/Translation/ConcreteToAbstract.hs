@@ -11,8 +11,10 @@ module Syntax.Translation.ConcreteToAbstract
     , TopLevel(..)
     ) where
 
-import Control.Monad.Reader
+import Prelude hiding (mapM)
+import Control.Monad.Reader hiding (mapM)
 import Data.Typeable
+import Data.Traversable (mapM)
 
 import Syntax.Concrete.Pretty ()    -- TODO: only needed for Show for the exceptions
 import Syntax.Concrete as C
@@ -230,6 +232,8 @@ type ScopeMCPS a = forall r. (a -> ScopeM r) -> ScopeM r
 -- 'BindToAbstract' instances for expressions, we implement a general
 -- (continuation passing) translation function parameterised over what to do
 -- for names.
+-- Except the BindToAbstract instance was removed. Doesn't hurt to keep the
+-- more general version though.
 exprToAbstract :: (C.QName -> ScopeMCPS A.Expr) -> C.Expr -> ScopeMCPS A.Expr
 exprToAbstract ident e ret =
     traceCallCPS (ScopeCheckExpr e) ret $ \ret -> case e of
@@ -334,6 +338,8 @@ instance ToAbstract C.Expr A.Expr where
     
 -- Expressions in dot patterns might bind variables, so we need an instance for
 -- this.
+-- They can't anymore. So we remove this instance.
+{-
 instance BindToAbstract C.Expr A.Expr where
     bindToAbstract = exprToAbstract (\x ret -> ident x ret)
 	where
@@ -343,6 +349,7 @@ instance BindToAbstract C.Expr A.Expr where
 		    VarPatName y -> ret $ varExpr x y
 		    ConPatName d -> ret $ nameExpr x d
 		    DefPatName d -> ret $ nameExpr x d
+-}
 
 instance BindToAbstract C.LamBinding A.LamBinding where
     bindToAbstract (C.DomainFree h x) ret =
@@ -576,7 +583,8 @@ instance BindToAbstract LeftHandSide A.LHS where
 	traceCallCPS (ScopeCheckLHS top lhs) ret $ \ret -> do
 	p <- parseLHS top lhs
 	bindToAbstract (lhsArgs p) $ \args -> do
-	    x <- toAbstract (OldName top)
+	    args <- toAbstract args -- take care of dot patterns
+	    x	 <- toAbstract (OldName top)
 	    ret (A.LHS (LHSSource lhs) x args)
 
 instance BindToAbstract c a => BindToAbstract (Arg c) (Arg a) where
@@ -591,7 +599,14 @@ instance ToAbstract c a => ToAbstract (Arg c) (Arg a) where
 instance ToAbstract c a => ToAbstract (Named name c) (Named name a) where
     toAbstract (Named n e) = Named n <$> toAbstract e
 
-instance BindToAbstract C.Pattern A.Pattern where
+-- Patterns are done in two phases. First everything but the dot patterns, and
+-- then the dot patterns. This is because dot patterns can refer to variables
+-- bound anywhere in the pattern.
+
+instance ToAbstract c a => ToAbstract (A.Pattern' c) (A.Pattern' a) where
+    toAbstract = mapM toAbstract
+
+instance BindToAbstract C.Pattern (A.Pattern' C.Expr) where
 
     bindToAbstract p@(C.IdentP x) ret =
 	bindToAbstract (PatName x) $ \px ->
@@ -635,7 +650,7 @@ instance BindToAbstract C.Pattern A.Pattern where
 	    ret (A.AsP info x p)
 	where
 	    info = PatSource r $ \_ -> p0
-    bindToAbstract p0@(C.DotP r e) ret = bindToAbstract e $ ret . A.DotP info
+    bindToAbstract p0@(C.DotP r e) ret = ret $ A.DotP info e	-- we have to do dot patterns at the end
 	where info = PatSource r $ \_ -> p0
     bindToAbstract p0@(C.AbsurdP r) ret = ret (A.AbsurdP info)
 	where

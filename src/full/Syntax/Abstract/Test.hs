@@ -2,6 +2,9 @@
 {-| This module contains functions to test the correctness of functions
     operating on abstract syntax. At the moment it contains function to
     check if two pieces of abstract syntax are equal.
+
+    It's also not maintained, so things that are equal will not be considered
+    as such.
 -}
 module Syntax.Abstract.Test where
 
@@ -152,7 +155,7 @@ instance (Eq name, HasRange a, Equal a) => Equal (Named name a) where
 instance Equal LHS where
     LHS _ x args === LHS _ y args'   = (x,args) === (y,args')
 
-instance Equal Pattern where
+instance Equal e => Equal (Pattern' e) where
     VarP x	    === VarP y		= x === y
     ConP _ x args   === ConP _ y args'	= (x,args) === (y,args')
     WildP _	    === WildP _		= Equal

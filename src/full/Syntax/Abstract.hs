@@ -8,6 +8,11 @@ module Syntax.Abstract
     , module Syntax.Abstract.Name
     ) where
 
+import Prelude hiding (foldr)
+import Control.Applicative
+import Data.Foldable
+import Data.Traversable
+
 import Syntax.Info
 import Syntax.Common
 import Syntax.Position
@@ -83,17 +88,21 @@ data RHS	= RHS Expr
 		| AbsurdRHS
 
 data LHS	= LHS LHSInfo Name [NamedArg Pattern]
-data Pattern	= VarP Name	-- ^ the only thing we need to know about a
+
+-- | Parameterised over the type of dot patterns.
+data Pattern' e	= VarP Name	-- ^ the only thing we need to know about a
 				-- pattern variable is its 'Range'. This is
 				-- stored in the 'Name', so we don't need a
 				-- 'NameInfo' here.
-		| ConP PatInfo QName [NamedArg Pattern]
-		| DefP PatInfo QName [NamedArg Pattern]  -- ^ defined pattern
+		| ConP PatInfo QName [NamedArg (Pattern' e)]
+		| DefP PatInfo QName [NamedArg (Pattern' e)]  -- ^ defined pattern
 		| WildP PatInfo
-		| AsP PatInfo Name Pattern
-		| DotP PatInfo Expr
+		| AsP PatInfo Name (Pattern' e)
+		| DotP PatInfo e
 		| AbsurdP PatInfo
 		| LitP Literal
+
+type Pattern = Pattern' Expr
 
 -- | why has Var in Expr above a NameInfo but VarP no Info?
 -- | why has Con in Expr above a NameInfo but ConP an Info?
@@ -103,6 +112,42 @@ data Pattern	= VarP Name	-- ^ the only thing we need to know about a
 {--------------------------------------------------------------------------
     Instances
  --------------------------------------------------------------------------}
+
+instance Functor Pattern' where
+    fmap f p = case p of
+	VarP x	    -> VarP x
+	ConP i c ps -> ConP i c $ (fmap . fmap . fmap . fmap) f ps
+	DefP i c ps -> DefP i c $ (fmap . fmap . fmap . fmap) f ps
+	LitP l	    -> LitP l
+	AsP i x p   -> AsP i x $ fmap f p
+	DotP i e    -> DotP i (f e)
+	AbsurdP i   -> AbsurdP i
+	WildP i	    -> WildP i
+
+-- foldr should really take its arguments in a different order!
+instance Foldable Pattern' where
+    foldr f z p = case p of
+	VarP _	    -> z
+	ConP _ _ ps -> (foldrF . foldrF . foldrF . foldrF) f ps z
+	DefP _ _ ps -> (foldrF . foldrF . foldrF . foldrF) f ps z
+	LitP _	    -> z
+	AsP _ _ p   -> foldr f z p
+	DotP _ e    -> f e z
+	AbsurdP _   -> z
+	WildP _	    -> z
+	where
+	    foldrF f = flip (foldr f)
+
+instance Traversable Pattern' where
+    traverse f p = case p of
+	VarP x	    -> pure $ VarP x
+	ConP i c ps -> ConP i c <$> (traverse . traverse . traverse . traverse) f ps
+	DefP i c ps -> DefP i c <$> (traverse . traverse . traverse . traverse) f ps
+	LitP l	    -> pure $ LitP l
+	AsP i x p   -> AsP i x <$> traverse f p
+	DotP i e    -> DotP i <$> f e
+	AbsurdP i   -> pure $ AbsurdP i
+	WildP i	    -> pure $ WildP i
 
 instance HasRange LamBinding where
     getRange (DomainFree _ x) = getRange x
@@ -144,7 +189,7 @@ instance HasRange Definition where
     getRange (FunDef  i _ _   ) = getRange i
     getRange (DataDef i _ _ _ ) = getRange i
 
-instance HasRange Pattern where
+instance HasRange (Pattern' e) where
     getRange (VarP x)	  = getRange x
     getRange (ConP i _ _) = getRange i
     getRange (DefP i _ _) = getRange i
