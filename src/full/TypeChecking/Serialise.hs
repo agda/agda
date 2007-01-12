@@ -316,12 +316,14 @@ instance Serialisable Pattern where
 	    'c' -> mapS (uncurry ConP `IFun` unConP) serialiser
 	    'l' -> mapS (LitP `IFun` unLitP) serialiser
 	    '-' -> returnS AbsurdP
+	    '_' -> returnS WildP
 	    _	-> error $ "deserialise Pattern: no parse"
 	where
 	    code s = case s of
 		VarP _	 -> 'v'
 		ConP _ _ -> 'c'
 		LitP _	 -> 'l'
+		WildP	 -> '_'
 		AbsurdP  -> '-'
 
 	    unVarP x = let VarP a   = x in a
