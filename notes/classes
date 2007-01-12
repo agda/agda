@@ -47,7 +47,7 @@ zero parameter type classes are useful:
   A constructor can be declared an instance by writing instance before the
   name. The normal checks are applied to the type.
 
-  _/_ : (n, m : Nat) -> {m ≠ 0} -> Nat
+  _/_ : (n m : Nat) -> {m ≠ 0} -> Nat
   m / n = ..
 
   now x / 3 requires a proof of 3 ≠ 0 = True for which there is an instance
@@ -57,7 +57,7 @@ zero parameter type classes are useful:
   class _≠_ : Nat -> Nat -> Set where
     instance neqZS : {m : Nat} -> 0 ≠ suc m
     instance neqSZ : {n : Nat} -> suc n ≠ 0
-    instance neqSS : {n, m : Nat} -> n ≠ m -> suc n ≠ suc m
+    instance neqSS : {n m : Nat} -> n ≠ m -> suc n ≠ suc m
 
 How to do super classes?
 

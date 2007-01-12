@@ -1,0 +1,31 @@
+
+Some notes on inductive families
+--------------------------------
+
+The syntax for patterns which are instantiated by type checking (instantiated
+or dot patterns) is ".p". For instance,
+
+    subst .x x refl px = px
+
+or
+
+    map .zero	 f []	     = []
+    map .(suc n) f (x :: xs) = f x :: map n f xs
+
+In the second example there's some subtle things. The n looks as though it's
+bound in the dot pattern. This is impossible since the dot patterns will be
+thrown away after type checking. What should happen is that the hidden argument
+to _::_ gets the name n and that's where the binding happens.
+
+This poses a problem for scope checking. The dot pattern can be an arbitrary
+term, but it might contain unbound variables. The scope checker will have to
+bind unbound variables. Maybe that's not a problem?
+
+The problem is: how to implement scope checking without copy-pasting between the
+ToAbstract instance and the BindToAbstract instance for expressions?
+Generalising a bit does the trick.
+
+
+
+ vim: tw=80 sts=2 sw=2 fo=tcq
+
