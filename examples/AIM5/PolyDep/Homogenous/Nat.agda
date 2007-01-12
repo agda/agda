@@ -1,13 +1,13 @@
 module Homogenous.Nat where
 
 import Prelude
-open Prelude, using (zero, one, _::_, nil, right, left, pair, unit)
+open Prelude using (zero one _::_ nil right left pair unit)
 
 import Homogenous.Base
 
-open Homogenous.Base, using(Sig, T, Intro)
+open Homogenous.Base using (Sig T Intro)
 
--- The code for natural numbers is [0,1]
+-- The code for natural numbers is [0 1]
 
 codeNat : Sig
 codeNat = zero :: (one :: nil)

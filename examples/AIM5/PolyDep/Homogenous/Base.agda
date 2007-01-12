@@ -1,16 +1,17 @@
+{-# OPTIONS --disable-positivity-check #-}
 module Homogenous.Base where
 -- module Homogenous.Base(Arity, Sig, T, Intro) where
 
 import TYPE
 import Prelude
 
-open Prelude, using
-  (Absurd,
-   Unit, unit,
-   Nat,  zero, suc,
-   List, nil, _::_,
-   Either,  left , right,
-   Pair, pair)
+open Prelude using
+  (Absurd
+   Unit unit
+   Nat  zero suc
+   List nil _::_
+   Either  left right
+   Pair pair)
 
 -- A homogenous algebra can be represented by a list of arities
 --   (natural numbers)
@@ -34,7 +35,7 @@ Fa (zero)  X = Unit
 Fa (suc m) X = Pair X (Fa m X)
 
  ----------------------------------------------------------------
-Fa1 : (n:Arity) -> {a,b:Set} -> (a -> b) -> Fa n a -> Fa n b
+Fa1 : (n:Arity) -> {a b:Set} -> (a -> b) -> Fa n a -> Fa n b
 Fa1 (zero)  f (unit)         = unit
 Fa1 (suc m) f (pair fst snd) = pair (f fst) (Fa1 m f snd)
 
@@ -44,7 +45,7 @@ F : (fi:Sig)(X:Set) -> Set
 F (nil)      X = Absurd
 F (n :: fi') X = Either (Fa n X) (F fi' X)
 
-F1 : (fi:Sig){a,b:Set}(f:a -> b)(x:F fi a) -> F fi b
+F1 : (fi:Sig){a b:Set}(f:a -> b)(x:F fi a) -> F fi b
 F1 (nil)      f ()        -- empty
 F1 (n :: ns)  f (left  t) = left  (Fa1 n f t)
 F1 (n :: ns)  f (right y) = right (F1 ns f y)
