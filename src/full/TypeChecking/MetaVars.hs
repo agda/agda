@@ -59,12 +59,29 @@ isBlockedTerm x = do
     report 12 $ "is " ++ show x ++ " a blocked term? "
     i <- mvInstantiation <$> lookupMeta x
     let r = case i of
-	    BlockedConst _	-> True
-	    InstV _		-> False
-	    InstS _		-> False
-	    Open		-> False
+	    BlockedConst _ -> True
+	    FirstOrder	   -> False
+	    InstV _	   -> False
+	    InstS _	   -> False
+	    Open	   -> False
     reportLn 12 $ if r then "yes" else "no"
     return r
+
+-- | Check if a meta variable is first order.
+isFirstOrder :: MetaId -> TCM Bool
+isFirstOrder x = do
+    report 12 $ "is " ++ show x ++ " first order? "
+    i <- mvInstantiation <$> lookupMeta x
+    let r = case i of
+	    FirstOrder	   -> True
+	    BlockedConst _ -> False
+	    InstV _	   -> False
+	    InstS _	   -> False
+	    Open	   -> False
+    reportLn 12 $ if r then "yes" else "no"
+    return r
+
+
 
 class HasMeta t where
     metaInstance :: t -> MetaInstantiation
@@ -238,6 +255,11 @@ assignV t x args v =
 	    d2 <- prettyTCM v
 	    debug $ show d1 ++ " := " ++ show d2
 
+	-- First order meta variables can't be applied
+	-- TODO: this might interact badly with η-expansion
+	firstOrder <- isFirstOrder x
+	when (not (null args) && firstOrder) patternViolation
+
 	-- We don't instantiate blocked terms
 	whenM (isBlockedTerm x) patternViolation	-- TODO: not so nice
 
@@ -258,26 +280,31 @@ assignV t x args v =
 	reportLn 15 "passed occursCheck"
 
 	-- Check that all free variables of v are arguments to x
-	let fv	  = freeVars v
-	    idset = Set.fromList ids
-	    badrv = Set.toList $ Set.difference (rigidVars fv) idset
-	    badfv = Set.toList $ Set.difference (flexibleVars fv) idset
-	    -- If a rigid variable is not in ids there is no hope
-	unless (null badrv) $ typeError $ MetaCannotDependOn x ids (head badrv)
-	    -- If a flexible variable is not in ids we can wait and hope that it goes away
-	unless (null badfv) $ patternViolation
+	-- Not done for first order metas
+	unless firstOrder $ do
+	    let fv	  = freeVars v
+		idset = Set.fromList ids
+		badrv = Set.toList $ Set.difference (rigidVars fv) idset
+		badfv = Set.toList $ Set.difference (flexibleVars fv) idset
+		-- If a rigid variable is not in ids there is no hope
+	    unless (null badrv) $ typeError $ MetaCannotDependOn x ids (head badrv)
+		-- If a flexible variable is not in ids we can wait and hope that it goes away
+	    unless (null badfv) $ patternViolation
 
-	reportLn 15 "passed free variable check"
+	    reportLn 15 "passed free variable check"
 
 	-- Rename the variables in v to make it suitable for abstraction over ids.
-	-- Basically, if
-	--   Γ	 = a b c d e
-	--   ids = d b e
-	-- then
-	--   v' = (λ a b c d e. v) _ 1 _ 2 0
-	tel <- getContextTelescope' NotHidden
-	let iargs = reverse $ zipWith (rename $ reverse ids) [0..] $ reverse tel
-	    v'	  = raise (length ids) (abstract tel v) `apply` iargs
+	-- Also not done for first order metas (is this correct?)
+	v' <- if firstOrder then return v else do
+	    -- Basically, if
+	    --   Γ	 = a b c d e
+	    --   ids = d b e
+	    -- then
+	    --   v' = (λ a b c d e. v) _ 1 _ 2 0
+	    tel <- getContextTelescope' NotHidden
+	    let iargs = reverse $ zipWith (rename $ reverse ids) [0..] $ reverse tel
+		v'	  = raise (length ids) (abstract tel v) `apply` iargs
+	    return v'
 
 	let mkTel i = Arg NotHidden <$> ((,) <$> (show <$> nameOfBV i) <*> typeOfBV i)
 	tel' <- mapM mkTel ids

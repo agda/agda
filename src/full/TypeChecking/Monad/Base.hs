@@ -170,6 +170,7 @@ data MetaInstantiation
 	= InstV Term
 	| InstS Sort
 	| Open
+	| FirstOrder
 	| BlockedConst Term
     deriving (Typeable, Data)
 
