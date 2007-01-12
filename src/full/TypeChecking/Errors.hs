@@ -97,6 +97,7 @@ errorString err = case err of
     InternalError _			       -> "InternalError"
     NotImplemented _			       -> "NotImplemented"
     PropMustBeSingleton			       -> "PropMustBeSingleton"
+    DataMustEndInSort _			       -> "DataMustEndInSort"
     ShouldEndInApplicationOfTheDatatype _      -> "ShouldEndInApplicationOfTheDatatype"
     ShouldBeAppliedToTheDatatypeParameters _ _ -> "ShouldBeAppliedToTheDatatypeParameters"
     ShouldBeApplicationOf _ _		       -> "ShouldBeApplicationOf"
@@ -222,6 +223,9 @@ instance PrettyTCM TypeError where
 	    GenericError s   -> fwords s
 	    PropMustBeSingleton -> fwords
 		"Datatypes in Prop must have at most one constructor when proof irrelevance is enabled"
+	    DataMustEndInSort t -> fsep $
+		pwords "The type of a datatype must end in a sort."
+		++ [prettyTCM t] ++ pwords "isn't a sort."
 	    ShouldEndInApplicationOfTheDatatype t -> fsep $
 		pwords "The target of a constructor must be the datatype applied to its parameters,"
 		++ [prettyTCM t] ++ pwords "isn't"

@@ -399,6 +399,7 @@ data TypeError
 	= InternalError String
 	| NotImplemented String
 	| PropMustBeSingleton
+	| DataMustEndInSort Term
 	| ShouldEndInApplicationOfTheDatatype Type
 	    -- ^ The target of a constructor isn't an application of its
 	    -- datatype. The 'Type' records what it does target.

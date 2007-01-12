@@ -5,6 +5,7 @@ module TypeChecker where
 import Prelude hiding (putStrLn, putStr, print)
 
 --import Control.Monad
+import Control.Applicative
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Error
@@ -48,6 +49,7 @@ import Utils.Monad
 import Utils.List
 import Utils.Serialise
 import Utils.IO
+import Utils.Tuple
 
 #include "undefined.h"
 
@@ -236,17 +238,36 @@ checkDataDef i x ps cs =
 	m <- currentModule
 	let name  = qualify m x
 	    npars = length ps
+
+	-- Look up the type of the datatype.
 	t <- typeOfConst name
-	s <- bindParameters ps t $ \tel s ->
-	    do	let tel' = map hide tel
-		mapM_ (checkConstructor name tel' s) cs
-		return s
+
+	-- The parameters are in scope when checking the constructors. 
+	(nofIxs, s) <- bindParameters ps t $ \tel t -> do
+
+	    -- Parameters are always hidden in constructors
+	    let tel' = map hide tel
+
+	    -- The type we get from bindParameters is Θ -> s where Θ is the type of
+	    -- the indices. We count the number of indices and return s.
+	    (nofIxs, s) <- splitType =<< normalise t
+
+	    -- Check the types of the constructors
+	    mapM_ (checkConstructor name tel' nofIxs s) cs
+
+	    -- Return the target sort and the number of indices
+	    return (nofIxs, s)
+
+	-- If proof irrelevance is enabled we have to check that datatypes in
+	-- Prop contain at most one element.
 	do  proofIrr <- proofIrrelevance
-	    s	     <- reduce s
 	    case (proofIrr, s, cs) of
 		(True, Prop, _:_:_) -> typeError PropMustBeSingleton
 		_		    -> return ()
-	addConstant name (Defn t 0 $ Datatype npars 0 (map (cname m) cs)
+
+	-- Add the datatype to the signature as a datatype. It was previously
+	-- added as an axiom.
+	addConstant name (Defn t 0 $ Datatype npars nofIxs (map (cname m) cs)
 					      s (defAbstract i)
 			 )
     where
@@ -255,25 +276,37 @@ checkDataDef i x ps cs =
 
 	hide (Arg _ x) = Arg Hidden x
 
+	splitType (El _ (Pi _ b))  = ((+ 1) -*- id) <$> splitType (absBody b)
+	splitType (El _ (Fun _ b)) = ((+ 1) -*- id) <$> splitType b
+	splitType (El _ (Sort s))  = return (0, s)
+	splitType (El _ t)	   = typeError $ DataMustEndInSort t
+
 -- | Type check a constructor declaration. Checks that the constructor targets
 --   the datatype and that it fits inside the declared sort.
-checkConstructor :: QName -> Telescope -> Sort -> A.Constructor -> TCM ()
-checkConstructor d tel s con@(A.Axiom i c e) =
+checkConstructor :: QName -> Telescope -> Int -> Sort -> A.Constructor -> TCM ()
+checkConstructor d tel nofIxs s con@(A.Axiom i c e) =
     traceCall (CheckConstructor d tel s con) $ do
 	t <- isType_ e
-	t `constructs` d
+	n <- length <$> getContextTelescope
+	verbose 5 $ do
+	    td <- prettyTCM t
+	    liftIO $ putStrLn $ "checking that " ++ show td ++ " ends in " ++ show d
+	    liftIO $ putStrLn $ "  nofPars = " ++ show n
+	constructs n t d
+	verbose 5 $ do
+	    d <- prettyTCM s
+	    liftIO $ putStrLn $ "checking that the type fits in " ++ show d
 	t `fitsIn` s
 	m <- currentModule
 	escapeContext (length tel)
 	    $ addConstant (qualify m c)
 	    $ Defn (telePi tel t) 0 $ Constructor (length tel) d $ defAbstract i
-checkConstructor _ _ _ _ = __IMPOSSIBLE__ -- constructors are axioms
+checkConstructor _ _ _ _ _ = __IMPOSSIBLE__ -- constructors are axioms
 
 
 -- | Bind the parameters of a datatype. The bindings should be domain free.
-bindParameters :: [A.LamBinding] -> Type -> (Telescope -> Sort -> TCM a) -> TCM a
-bindParameters [] (El _ (Sort s)) ret = ret [] s
-bindParameters [] _ _ = typeError $ NotImplemented "inductive families"
+bindParameters :: [A.LamBinding] -> Type -> (Telescope -> Type -> TCM a) -> TCM a
+bindParameters [] a ret = ret [] a
 bindParameters (A.DomainFree h x : ps) (El _ (Pi (Arg h' a) b)) ret	-- always dependent function
     | h /= h'	=
 	__IMPOSSIBLE__
@@ -297,10 +330,11 @@ fitsIn t s =
 		addCtx x a $ fitsIn t' s
 	    _		     -> return ()
 
--- | Check that a type constructs something of the given datatype.
+-- | Check that a type constructs something of the given datatype. The first
+--   argument is the number of parameters to the datatype.
 --   TODO: what if there's a meta here?
-constructs :: Type -> QName -> TCM ()
-constructs t q = constrT 0 t
+constructs :: Int -> Type -> QName -> TCM ()
+constructs nofPars t q = constrT 0 t
     where
 	constrT n (El s v) = constr n s v
 
@@ -311,7 +345,8 @@ constructs t q = constrT 0 t
 			   constrT (n + 1) t
 		Fun _ b -> constrT n b
 		Def d vs
-		    | d == q -> checkParams n =<< reduce vs
+		    | d == q -> checkParams n =<< reduce (take nofPars vs)
+						    -- we only check the parameters
 		_ -> bad $ El s v
 
 	bad t = typeError $ ShouldEndInApplicationOfTheDatatype t
@@ -326,6 +361,7 @@ constructs t q = constrT 0 t
 		ps = reverse [ Arg h $ Var i [] | (i,Arg h _) <- zip [n..] vs ]
 		sameVar (Var i []) (Var j []) = i == j
 		sameVar _ _		      = False
+
 		sameVars xs ys = and $ zipWith sameVar (map unArg xs) (map unArg ys)
 
 
@@ -474,10 +510,12 @@ checkPattern name p t ret =
 	    addCtx x t $ ret ([name], VarP name, Var 0 [])
 	A.ConP i c ps -> do
 	    c <- actualConstructor c
-	    Defn t' _ (Constructor _ d _) <- getConstInfo c -- don't instantiate this
+	    Defn t' _ (Constructor _ d _)	     <- getConstInfo c -- don't instantiate this
+	    Defn _ _ (Datatype nofPars nofIxs _ _ _) <- getConstInfo d
 	    El _ (Def _ vs)		  <- forceData d t  -- because this guy won't be
-	    Con c' us			  <- constructorForm =<< reduce (Con c $ map hide vs)
-	    checkPatterns ps (piApply' t' vs) $ \ (xs, ps', ts', rest) -> do
+	    let vs' = take nofPars vs
+	    Con c' us			  <- constructorForm =<< reduce (Con c $ map hide vs')
+	    checkPatterns ps (piApply' t' vs') $ \ (xs, ps', ts', rest) -> do
 		let n  = length xs
 		    tn = raise n t
 		v  <- blockTerm tn (Con c' $ raise n us ++ ts') $ equalType rest tn
@@ -495,7 +533,7 @@ checkPattern name p t ret =
 	    v <- checkLiteral l t
 	    ret ([], LitP l, v)
 	A.DotP i p ->
-	    typeError $ NotImplemented "inductive families"
+	    typeError $ NotImplemented "dot patterns"
 	A.DefP i f ps ->
 	    typeError $ NotImplemented "defined patterns"
 

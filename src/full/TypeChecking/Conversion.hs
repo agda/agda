@@ -161,7 +161,7 @@ equalArg a (arg1 : args1) (arg2 : args2) = do
 equalType :: Type -> Type -> TCM Constraints
 equalType ty1@(El s1 a1) ty2@(El s2 a2) =
     catchConstraint (TypeEq ty1 ty2) $ do
-	verbose 5 $ do
+	verbose 9 $ do
 	    d1 <- prettyTCM ty1
 	    d2 <- prettyTCM ty2
 	    s1 <- prettyTCM s1
@@ -170,7 +170,7 @@ equalType ty1@(El s1 a1) ty2@(El s2 a2) =
 	    debug $ "   sorts: " ++ show s1 ++ "  and  " ++ show s2
 	cs1 <- equalSort s1 s2
 	cs2 <- equalTerm (sort s1) a1 a2
-	verbose 5 $ do
+	verbose 9 $ do
 	    dcs <- mapM prettyTCM $ cs1 ++ cs2
 	    debug $ "   --> " ++ show dcs
 	return $ cs1 ++ cs2

@@ -2,6 +2,8 @@
 Some notes on inductive families
 --------------------------------
 
+** Syntax
+
 The syntax for patterns which are instantiated by type checking (instantiated
 or dot patterns) is ".p". For instance,
 
@@ -25,6 +27,92 @@ The problem is: how to implement scope checking without copy-pasting between the
 ToAbstract instance and the BindToAbstract instance for expressions?
 Generalising a bit does the trick.
 
+Come to think of it, binding variables in dot patterns is a bad idea. It makes
+the type checking much harder: how to type check a dot pattern (in which
+context). So the cons case above will have to be one of these two:
+
+  map .(suc _) f (x :: xs)	 = f x :: map _ f xs
+  map .(suc n) f (_::_ {n} x xs) = f x :: map n f xs
+
+** Type checking
+
+Step 0: Type checking the datatype
+
+  Nothing strange. We just lift some of the previous restrictions on datatypes.
+
+Step 1: Type checking the pattern
+
+  Two interesting differences from the ordinary type checking:
+
+    addFirstOrderMeta (α : A)
+    ─────────────────────────	same for dot patterns
+     Γ ⊢ _ : A --> Γ ⊢ α, α
+
+
+    c : Δ -> Θ -> D xs ss'   Γ ⊢ ps : Θ[ts] --> Γ' ⊢ us, αs   Γ' ⊢ ss = us : Θ[ts]
+    ──────────────────────────────────────────────────────────────────────────────
+		      Γ ⊢ c ps : D ts ss --> Γ' ⊢ c ts us, αs
+
+  Interaction between first order metas and η-expansion?
+  Suppose
+
+    data D : (N -> N) -> Set where
+      id : D (\x -> x)
+
+    h : (f : N -> N) -> D f -> ..
+    h _ id
+
+  Now we have to check α = \x -> x : N -> N which will trigger η-expansion and
+  we'll end up with α x = x : N which we can't solve.
+
+  We'll ignore this for now. Possible solution could be to distinguish between
+  variables introduced by η-expansion and variables bound in the pattern.
+
+Step 2: Turn unsolved metas bound variables
+
+  - make sure that there are no unsolved constraints from type checking the
+    patterns (if so, fail)
+
+  - we need to remember where the first order metas come from, or at least the
+    order in which they are generated, so type checking should produce a list of
+    first order metas
+
+  - how to get the context in the right order? explicit variables have been
+    added to the context but not implicit ones. we should probably make sure
+    that the final context is the right one (otherwise reduction will not work
+    properly).
+
+  - example:
+
+      f y _ (cons _ x xs)
+
+    the context after type checking is (y x : A)(xs : List A) with meta
+    variables (α β : N), where α := suc β. We'd want the final pattern to be
+
+      f y .(suc n) (cons n x xs)
+
+    and the context in the right hand side (y : A)(n : N)(x : A)(xs : List A).
+
+    Solution:
+
+    - pull out the context (y x : A)(xs : List A) and the meta context
+      (α := suc β : N)(β : N) and traverse the pattern again, building the right
+      context, instantiating uninstantiated metas to fresh variables.
+
+Step 3: Type check dot patterns and compare to the inferred values
+
+  * after step 2 the context will be the correct one.
+
+  * where do we find the type to check against? look at the meta variables
+    generated during type checking
+
+  So,
+
+  - traverse the pattern with the list of meta-variables
+
+  - for each dot pattern,
+    + look up the type of the corresponding meta
+    + and check that it's equal to the meta-variable
 
 
  vim: tw=80 sts=2 sw=2 fo=tcq
