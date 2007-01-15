@@ -7,6 +7,7 @@ import Utils.IO
 
 import Control.Monad.Error
 import Control.Monad.Reader
+import Control.Applicative
 import Data.Char
 import Data.Set as Set
 import Data.Map as Map
@@ -17,6 +18,7 @@ import Interaction.BasicOps as BasicOps
 import Interaction.Monad
 
 import qualified Syntax.Abstract as A
+import Syntax.Common
 import Syntax.Internal
 import Syntax.Parser
 import Syntax.Position
@@ -34,6 +36,7 @@ import TypeChecking.Monad
 import TypeChecking.MetaVars
 import TypeChecking.Reduce
 import TypeChecking.Errors
+import TypeChecking.Substitute
 
 import Termination.Dumb(checkTermination)
 
@@ -101,6 +104,7 @@ interactionLoop typeCheck =
 	    , "reload"	    |>  \_ -> do reload
 					 ContinueIn <$> ask
 	    , "constraints" |> \args -> continueAfter $ showConstraints args
+	    , "Context"	    |> \args -> continueAfter $ showContext args
             , "give"	    |> \args -> continueAfter $ giveMeta args
             , "Refine"	    |> \args -> continueAfter $ refineMeta args
 	    , "metas"	    |> \args -> continueAfter $ showMetas args
@@ -245,7 +249,21 @@ typeIn s@(_:_:_) =
 	liftIO $ putStrLn $ showA e1
 typeIn _ = liftIO $ putStrLn ":typeIn meta expr"
 
-
+showContext :: [String] -> TCM ()
+showContext (meta:args) = do
+    i <- InteractionId <$> readM meta
+    mi <- lookupMeta =<< lookupInteractionId i
+    withMetaInfo (getMetaInfo mi) $ do
+    ctx <- List.map unArg <$> getContextTelescope
+    zipWithM_ display ctx $ reverse $ zipWith const [1..] ctx
+    where
+	display (x, t) n = do
+	    t <- case args of
+		    ["normal"] -> normalise $ raise n t
+		    _	       -> return $ raise n t
+	    d <- prettyTCM t
+	    liftIO $ print $ text x <+> text ":" <+> d
+showContext _ = liftIO $ putStrLn ":Context meta"
 
 -- | The logo that prints when agdaLight is started in interactive mode.
 splashScreen :: String
