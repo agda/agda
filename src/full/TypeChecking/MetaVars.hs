@@ -165,6 +165,14 @@ blockTerm t v m = do
     ins x i store = Map.adjust (inst i) x store
     inst i mv = mv { mvInstantiation = i }
 
+-- | Create a fresh first-order meta-variable.
+newFirstOrderMeta :: Type -> TCM MetaId
+newFirstOrderMeta a = do
+    i <- createMetaInfo
+    x <- fresh
+    let mv = MetaVar i (HasType x a) FirstOrder
+    modify $ \st -> st { stMetaStore = Map.insert x mv $ stMetaStore st }
+    return x
 
 -- | Generate new metavar of same kind ('Open'X) as that
 --     pointed to by @MetaId@ arg.

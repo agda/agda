@@ -122,7 +122,7 @@ Cleaning
 
   - Explicit dictionaries (Kit)? see notes/kit
 
-* Syntax.Scope
+* Syntax.Scope (implement the CHIT-CHAT module system)
 
 * Split vim highlighting into a general highlighting module and the vim
   specific parts.
@@ -138,6 +138,10 @@ Performance
 
 Done
 ----
+
+* OpenTerm type to simplify deBruijn variable handling
+
+* Monad transformer for checking patterns.
 
 * Use Data.ByteString (if ghc-6.6) for interface parsing (faster, but still quite slow)
 

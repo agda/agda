@@ -113,7 +113,9 @@ getInstantiatedMetas = do
     where
 	isInst Open		= False
 	isInst (BlockedConst _) = False
-	isInst _		= True
+	isInst FirstOrder	= False
+	isInst (InstV _)	= True
+	isInst (InstS _)	= True
 
 getOpenMetas :: TCM [MetaId]
 getOpenMetas = do
@@ -122,5 +124,7 @@ getOpenMetas = do
     where
 	isOpen Open		= True
 	isOpen (BlockedConst _) = True
-	isOpen _		= False
+	isOpen FirstOrder	= True
+	isOpen (InstV _)	= False
+	isOpen (InstS _)	= False
 

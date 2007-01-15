@@ -1,4 +1,4 @@
-errors/ShouldBeApplicationOf.agda:8,3-6
+errors/ShouldBeApplicationOf.agda:8,1-12
 The pattern constructs an element of Two which is not the right
 datatype
-when checking that the pattern two has type One
+when checking that the clause f two = two has type One -> Two

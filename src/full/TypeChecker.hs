@@ -44,6 +44,8 @@ import TypeChecking.Constraints
 import TypeChecking.Errors
 import TypeChecking.Positivity
 import TypeChecking.Empty
+import TypeChecking.Patterns.Monad
+import TypeChecking.OpenTerm
 
 import Utils.Monad
 import Utils.List
@@ -411,7 +413,7 @@ checkFunDef i x cs =
 checkClause :: Type -> A.Clause -> TCM Clause
 checkClause t c@(A.Clause (A.LHS i x aps) rhs ds) =
     traceCall (CheckClause t c) $
-    checkPatterns aps t $ \ (xs, ps, ts, t') -> do
+    checkLHS aps t $ \xs ps t' -> do
 	checkDecls ds
 	body <- case rhs of
 	    A.RHS e -> do
@@ -426,44 +428,82 @@ checkClause t c@(A.Clause (A.LHS i x aps) rhs ds) =
 -- | Check if a pattern contains an absurd pattern. For instance, @suc ()@
 containsAbsurdPattern :: A.Pattern -> Bool
 containsAbsurdPattern p = case p of
-    A.VarP _	  -> False
-    A.ConP _ _ ps -> any (containsAbsurdPattern . namedThing . unArg) ps
-    A.WildP _	  -> False
-    A.AsP _ _ p   -> containsAbsurdPattern p
-    A.DotP _ _	  -> False
     A.AbsurdP _   -> True
+    A.VarP _	  -> False
+    A.WildP _	  -> False
+    A.DotP _ _	  -> False
     A.LitP _	  -> False
+    A.AsP _ _ p   -> containsAbsurdPattern p
+    A.ConP _ _ ps -> any (containsAbsurdPattern . namedThing . unArg) ps
     A.DefP _ _ _  -> __IMPOSSIBLE__
 
+-- | Type check a left-hand side.
+checkLHS :: [NamedArg A.Pattern] -> Type -> ([String] -> [Arg Pattern] -> Type -> TCM a) -> TCM a
+checkLHS ps t ret =
+    runCheckPatM (checkPatterns ps t) $ \xs metas (ps, ts, a) ->
+
+    -- < Insert magic code for inductive families here. >
+
+    ret xs ps a
 
 -- | Check the patterns of a left-hand-side. Binds the variables of the pattern.
-checkPatterns :: [NamedArg A.Pattern] -> Type -> (([String], [Arg Pattern], [Arg Term], Type) -> TCM a) -> TCM a
-checkPatterns [] t ret =
-    traceCallCPS (CheckPatterns [] t) ret $ \ret -> do
-    t' <- instantiate t
+    -- (([String], [Arg Pattern], [Arg Term], [MetaId], Type) -> TCM a) -> TCM a
+checkPatterns :: [NamedArg A.Pattern] -> Type -> CheckPatM r ([Arg Pattern], [Arg Term], Type)
+checkPatterns [] t = do
+    -- traceCallCPS (CheckPatterns [] t) ret $ \ret -> do
+    t' <- liftPat $ instantiate t
     case funView $ unEl t' of
 	FunV (Arg Hidden _) _   -> do
-	    r <- getCurrentRange
-	    checkPatterns [Arg Hidden $ unnamed $ A.WildP $ PatRange r] t' ret
-	_ -> ret ([], [], [], t)
-checkPatterns ps0@(Arg h p:ps) t ret =
-    traceCallCPS (CheckPatterns ps0 t) ret $ \ret -> do
-    (t', cs) <- forcePi h (name p) t
-    addNewConstraints cs
-    p' <- return $ namedThing p
-    case (h,funView $ unEl t') of
-	(NotHidden, FunV (Arg Hidden _) _) ->
-	    checkPatterns (Arg Hidden (unnamed $ A.WildP $ PatRange $ getRange p) : Arg h p : ps) t' ret
-	(Hidden, FunV (Arg Hidden a) _)
-	    | not $ sameName (nameOf p) (nameInPi $ unEl t') ->
-	    checkPatterns (Arg Hidden (unnamed $ A.WildP $ PatRange $ getRange p) : Arg h p : ps) t' ret
-	(_, FunV (Arg h' a) _) | h == h' ->
-	    checkPattern (argName t') p' a $ \ (xs, p, v) -> do
-	    let t0 = raise (length xs) t'
-	    checkPatterns ps (piApply' t0 [Arg h' v]) $ \ (ys, ps, vs, t'') -> do
-		let v' = raise (length ys) v
-		ret (xs ++ ys, Arg h p : ps, Arg h v':vs, t'')
-	_ -> typeError $ WrongHidingInLHS t'
+	    r <- liftPat $ getCurrentRange
+	    checkPatterns [Arg Hidden $ unnamed $ A.WildP $ PatRange r] t'
+	_ -> return ([], [], t)
+
+checkPatterns ps0@(Arg h p:ps) t = do
+    -- traceCallCPS (CheckPatterns ps0 t) ret $ \ret -> do
+
+    -- Make sure the type is a function type
+    (t', cs) <- liftPat $ forcePi h (name p) t
+    opent'   <- liftPat $ makeOpenTerm t'
+
+    -- Add any resulting constraints to the global constraint set
+    liftPat $ addNewConstraints cs
+
+    -- If p is named then p = {x = p'}
+    let p' = namedThing p
+
+    -- We might have to insert wildcards for implicit arguments
+    case funView $ unEl t' of
+
+	-- There is a hidden argument missing here (either because the next
+	-- pattern is non-hidden, or it's a named hidden pattern with the wrong name).
+	-- Insert a {_} and re-type check.
+	FunV (Arg Hidden _) _
+	    | h == NotHidden ||
+	      not (sameName (nameOf p) (nameInPi $ unEl t')) ->
+	    checkPatterns (Arg Hidden (unnamed $ A.WildP $ PatRange $ getRange p) : Arg h p : ps) t'
+
+	-- No missing arguments.
+	FunV (Arg h' a) _ | h == h' -> do
+
+	    -- Check the first pattern
+	    (p, v) <- checkPattern (argName t') p' a
+	    openv  <- liftPat $ makeOpenTerm v
+
+	    -- We're now in an extended context so we have lift t' accordingly.
+	    t0 <- liftPat $ getOpenTerm opent'
+
+	    -- Check the rest of the patterns. If the type of all the patterns were
+	    -- (x : A)Δ, then we check the rest against Δ[v] where v is the
+	    -- value of the first pattern (piApply' (Γ -> B) vs == B[vs/Γ]).
+	    (ps, vs, t'') <- checkPatterns ps (piApply' t0 [Arg h' v])
+
+	    -- Additional variables have been added to the context.
+	    v' <- liftPat $ getOpenTerm openv
+
+	    -- Combine the results
+	    return (Arg h p : ps, Arg h v':vs, t'')
+
+	_ -> liftPat $ typeError $ WrongHidingInLHS t'
     where
 	name (Named _ (A.VarP x)) = show x
 	name (Named (Just x) _)   = x
@@ -500,42 +540,71 @@ actualConstructor c = do
 
 -- | Type check a pattern and bind the variables. First argument is a name
 --   suggestion for wildcard patterns.
-checkPattern :: String -> A.Pattern -> Type -> (([String], Pattern, Term) -> TCM a) -> TCM a
-checkPattern name p t ret =
-    traceCallCPS (CheckPattern name p t) ret $ \ret -> case p of
-	A.VarP x    ->
-	    addCtx x t $ ret ([show x], VarP (show x), Var 0 [])
+checkPattern :: String -> A.Pattern -> Type -> CheckPatM r (Pattern, Term)
+-- (([String], Pattern, Term, [MetaId]) -> TCM a) -> TCM a
+checkPattern name p t =
+--    traceCallCPS (CheckPattern name p t) ret $ \ret -> case p of
+    case p of
+
+	-- Variable. Simply bind the variable.
+	A.VarP x    -> do
+	    bindPatternVar x t
+	    return (VarP (show x), Var 0 [])
+
+	-- Wild card. Create and bind a fresh name.
 	A.WildP i   -> do
-	    x <- freshName (getRange i) name
-	    addCtx x t $ ret ([name], VarP name, Var 0 [])
+	    x <- liftPat $ freshName (getRange i) name
+	    bindPatternVar x t
+	    return (VarP name, Var 0 [])
+
+	-- Constructor. This is where the action is.
 	A.ConP i c ps -> do
-	    c <- actualConstructor c
-	    Defn t' _ (Constructor _ d _)	     <- getConstInfo c -- don't instantiate this
-	    Defn _ _ (Datatype nofPars nofIxs _ _ _) <- getConstInfo d
-	    El _ (Def _ vs)		  <- forceData d t  -- because this guy won't be
+	    ot <- liftPat $ makeOpenTerm t
+	    c <- liftPat $ actualConstructor c
+	    Defn t' _ (Constructor _ d _)	     <- liftPat $ getConstInfo c -- don't instantiate this
+	    Defn _ _ (Datatype nofPars nofIxs _ _ _) <- liftPat $ getConstInfo d
+	    El _ (Def _ vs)		  <- liftPat $ forceData d t  -- because this guy won't be
 	    let vs' = take nofPars vs
-	    Con c' us			  <- constructorForm =<< reduce (Con c $ map hide vs')
-	    checkPatterns ps (piApply' t' vs') $ \ (xs, ps', ts', rest) -> do
-		let n  = length xs
-		    tn = raise n t
-		v  <- blockTerm tn (Con c' $ raise n us ++ ts') $ equalType rest tn
-		ret (xs, ConP c' ps', v)
+	    Con c' us <- liftPat $ constructorForm =<< reduce (Con c $ map hide vs')
+	    ous	      <- liftPat $ makeOpenTerm us
+	    (ps', ts', rest) <- checkPatterns ps (piApply' t' vs')
+	    v <- liftPat $ do
+		tn  <- getOpenTerm ot
+		us' <- getOpenTerm ous
+		blockTerm tn (Con c' $ us' ++ ts') $ equalType rest tn
+	    return (ConP c' ps', v)
 	    where
 		hide (Arg _ x) = Arg Hidden x
+
+	-- Absurd pattern. Make sure that the type is empty. Otherwise treat as
+	-- an anonymous variable.
 	A.AbsurdP i -> do
-	    isEmptyType t
-	    x <- freshName (getRange i) name
-	    addCtx x t $ ret ([show x], AbsurdP, Var 0 [])
-	A.AsP i x p ->
-	    checkPattern name p t $ \ (xs, p, v) ->
-	    addLetBinding x v (raise (length xs) t) $ ret (xs, p, v)
+	    liftPat $ isEmptyType t
+	    x <- liftPat $ freshName (getRange i) name
+	    bindPatternVar x t
+	    return (AbsurdP, Var 0 [])
+
+	-- As pattern. Create a let binding for the term corresponding to the
+	-- pattern.
+	A.AsP i x p -> do
+	    ot	   <- liftPat $ makeOpenTerm t
+	    (p, v) <- checkPattern name p t
+	    t	   <- liftPat $ getOpenTerm ot
+	    liftPatCPS_ (addLetBinding x v t)
+	    return (p, v)
+
+	-- Literal.
 	A.LitP l    -> do
-	    v <- checkLiteral l t
-	    ret ([], LitP l, v)
+	    v <- liftPat $ checkLiteral l t
+	    return (LitP l, v)
+
+	-- Dot pattern. Create a meta variable. (Not implemented)
 	A.DotP i p ->
-	    typeError $ NotImplemented "dot patterns"
+	    liftPat $ typeError $ NotImplemented "dot patterns"
+
+	-- Defined patterns are not implemented.
 	A.DefP i f ps ->
-	    typeError $ NotImplemented "defined patterns"
+	    liftPat $ typeError $ NotImplemented "defined patterns"
 
 
 ---------------------------------------------------------------------------
