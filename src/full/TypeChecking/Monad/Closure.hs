@@ -7,7 +7,7 @@ import TypeChecking.Monad.State
 import TypeChecking.Monad.Signature
 import TypeChecking.Monad.Trace
 
-enterClosure :: Closure a -> (a -> TCM b) -> TCM b
+enterClosure :: MonadTCM tcm => Closure a -> (a -> tcm b) -> tcm b
 enterClosure (Closure sig env scope trace x) k =
     withScope scope
     $ withSignature sig

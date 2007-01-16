@@ -368,8 +368,8 @@ constructs nofPars t q = constrT 0 t
 
 
 -- | Force a type to be a specific datatype.
-forceData :: QName -> Type -> TCM Type
-forceData d (El s0 t) = do
+forceData :: MonadTCM tcm => QName -> Type -> tcm Type
+forceData d (El s0 t) = liftTCM $ do
     t' <- reduce t
     case t' of
 	Def d' _
@@ -440,9 +440,20 @@ containsAbsurdPattern p = case p of
 -- | Type check a left-hand side.
 checkLHS :: [NamedArg A.Pattern] -> Type -> ([String] -> [Arg Pattern] -> Type -> TCM a) -> TCM a
 checkLHS ps t ret =
-    runCheckPatM (checkPatterns ps t) $ \xs metas (ps, ts, a) ->
+    runCheckPatM (checkPatterns ps t) $ \xs metas (ps, ts, a) -> do
 
     -- < Insert magic code for inductive families here. >
+
+    -- How to do this?
+
+    -- Turn all uninstantiated pattern metas into variables
+    -- Re-type the check pattern
+    -- Type check dot patterns in the new context
+
+    is <- mapM lookupMeta metas
+    case [ getRange i | i <- is, FirstOrder <- [mvInstantiation i] ] of
+	[] -> return ()
+	rs -> fail $ "unsolved pattern metas at\n" ++ unlines (map show rs)
 
     ret xs ps a
 
@@ -451,10 +462,10 @@ checkLHS ps t ret =
 checkPatterns :: [NamedArg A.Pattern] -> Type -> CheckPatM r ([Arg Pattern], [Arg Term], Type)
 checkPatterns [] t = do
     -- traceCallCPS (CheckPatterns [] t) ret $ \ret -> do
-    t' <- liftPat $ instantiate t
+    t' <- instantiate t
     case funView $ unEl t' of
 	FunV (Arg Hidden _) _   -> do
-	    r <- liftPat $ getCurrentRange
+	    r <- getCurrentRange
 	    checkPatterns [Arg Hidden $ unnamed $ A.WildP $ PatRange r] t'
 	_ -> return ([], [], t)
 
@@ -462,11 +473,11 @@ checkPatterns ps0@(Arg h p:ps) t = do
     -- traceCallCPS (CheckPatterns ps0 t) ret $ \ret -> do
 
     -- Make sure the type is a function type
-    (t', cs) <- liftPat $ forcePi h (name p) t
-    opent'   <- liftPat $ makeOpenTerm t'
+    (t', cs) <- forcePi h (name p) t
+    opent'   <- makeOpenTerm t'
 
     -- Add any resulting constraints to the global constraint set
-    liftPat $ addNewConstraints cs
+    addNewConstraints cs
 
     -- If p is named then p = {x = p'}
     let p' = namedThing p
@@ -487,10 +498,10 @@ checkPatterns ps0@(Arg h p:ps) t = do
 
 	    -- Check the first pattern
 	    (p, v) <- checkPattern (argName t') p' a
-	    openv  <- liftPat $ makeOpenTerm v
+	    openv  <- makeOpenTerm v
 
 	    -- We're now in an extended context so we have lift t' accordingly.
-	    t0 <- liftPat $ getOpenTerm opent'
+	    t0 <- getOpenTerm opent'
 
 	    -- Check the rest of the patterns. If the type of all the patterns were
 	    -- (x : A)Δ, then we check the rest against Δ[v] where v is the
@@ -498,12 +509,12 @@ checkPatterns ps0@(Arg h p:ps) t = do
 	    (ps, vs, t'') <- checkPatterns ps (piApply' t0 [Arg h' v])
 
 	    -- Additional variables have been added to the context.
-	    v' <- liftPat $ getOpenTerm openv
+	    v' <- getOpenTerm openv
 
 	    -- Combine the results
 	    return (Arg h p : ps, Arg h v':vs, t'')
 
-	_ -> liftPat $ typeError $ WrongHidingInLHS t'
+	_ -> typeError $ WrongHidingInLHS t'
     where
 	name (Named _ (A.VarP x)) = show x
 	name (Named (Just x) _)   = x
@@ -524,7 +535,7 @@ argName = argN . unEl
 	argN _	  = __IMPOSSIBLE__
 
 
-actualConstructor :: QName -> TCM QName
+actualConstructor :: MonadTCM tcm => QName -> tcm QName
 actualConstructor c = do
     v <- constructorForm =<< reduce (Con c [])
     case ignoreBlocking v of
@@ -553,25 +564,30 @@ checkPattern name p t =
 
 	-- Wild card. Create and bind a fresh name.
 	A.WildP i   -> do
-	    x <- liftPat $ freshName (getRange i) name
+	    x <- freshName (getRange i) name
 	    bindPatternVar x t
 	    return (VarP name, Var 0 [])
 
 	-- Constructor. This is where the action is.
 	A.ConP i c ps -> do
-	    ot <- liftPat $ makeOpenTerm t
-	    c <- liftPat $ actualConstructor c
-	    Defn t' _ (Constructor _ d _)	     <- liftPat $ getConstInfo c -- don't instantiate this
-	    Defn _ _ (Datatype nofPars nofIxs _ _ _) <- liftPat $ getConstInfo d
-	    El _ (Def _ vs)		  <- liftPat $ forceData d t  -- because this guy won't be
+	    ot <- makeOpenTerm t
+	    c  <- actualConstructor c
+	    Defn t' _ (Constructor _ d _)	     <- getConstInfo c -- don't instantiate this
+	    Defn _ _ (Datatype nofPars nofIxs _ _ _) <- getConstInfo d
+	    El _ (Def _ vs) <- forceData d t  -- because this guy won't be
 	    let vs' = take nofPars vs
-	    Con c' us <- liftPat $ constructorForm =<< reduce (Con c $ map hide vs')
-	    ous	      <- liftPat $ makeOpenTerm us
+	    Con c' us <- constructorForm =<< reduce (Con c $ map hide vs')
+	    ous	      <- makeOpenTerm us
+
+	    -- Check the arguments
 	    (ps', ts', rest) <- checkPatterns ps (piApply' t' vs')
-	    v <- liftPat $ do
+
+	    -- Compute the corresponding value (possibly blocked by constraints)
+	    v <- do
 		tn  <- getOpenTerm ot
 		us' <- getOpenTerm ous
 		blockTerm tn (Con c' $ us' ++ ts') $ equalType rest tn
+
 	    return (ConP c' ps', v)
 	    where
 		hide (Arg _ x) = Arg Hidden x
@@ -579,32 +595,33 @@ checkPattern name p t =
 	-- Absurd pattern. Make sure that the type is empty. Otherwise treat as
 	-- an anonymous variable.
 	A.AbsurdP i -> do
-	    liftPat $ isEmptyType t
-	    x <- liftPat $ freshName (getRange i) name
+	    isEmptyType t
+	    x <- freshName (getRange i) name
 	    bindPatternVar x t
 	    return (AbsurdP, Var 0 [])
 
 	-- As pattern. Create a let binding for the term corresponding to the
 	-- pattern.
 	A.AsP i x p -> do
-	    ot	   <- liftPat $ makeOpenTerm t
+	    ot	   <- makeOpenTerm t
 	    (p, v) <- checkPattern name p t
-	    t	   <- liftPat $ getOpenTerm ot
+	    t	   <- getOpenTerm ot
 	    liftPatCPS_ (addLetBinding x v t)
 	    return (p, v)
 
 	-- Literal.
 	A.LitP l    -> do
-	    v <- liftPat $ checkLiteral l t
+	    v <- liftTCM $ checkLiteral l t
 	    return (LitP l, v)
 
 	-- Dot pattern. Create a meta variable. (Not implemented)
-	A.DotP i p ->
-	    liftPat $ typeError $ NotImplemented "dot patterns"
+	A.DotP i p -> do
+	    x <- addPatternMeta t
+	    return (WildP, MetaV x [])
 
 	-- Defined patterns are not implemented.
 	A.DefP i f ps ->
-	    liftPat $ typeError $ NotImplemented "defined patterns"
+	    typeError $ NotImplemented "defined patterns"
 
 
 ---------------------------------------------------------------------------
@@ -642,7 +659,7 @@ isType_ e =
 
 -- | Force a type to be a Pi. Instantiates if necessary. The 'Hiding' is only
 --   used when instantiating a meta variable.
-forcePi :: Hiding -> String -> Type -> TCM (Type, Constraints)
+forcePi :: MonadTCM tcm => Hiding -> String -> Type -> tcm (Type, Constraints)
 forcePi h name (El s t) =
     do	t' <- reduce t
 	case t' of

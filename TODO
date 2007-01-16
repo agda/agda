@@ -22,6 +22,8 @@ Features
 
 * allow module instantiation before top-level module(?)
 
+* abstract open (need to re-type check to make sure the abstraction is solid)
+
 Fixes
 -----
 

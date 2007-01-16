@@ -7,13 +7,13 @@ import qualified Data.Map as Map
 import Syntax.Internal
 import TypeChecking.Monad.Base
 
-getBuiltinThings :: TCM (BuiltinThings PrimFun)
+getBuiltinThings :: MonadTCM tcm => tcm (BuiltinThings PrimFun)
 getBuiltinThings = gets stBuiltinThings
 
-setBuiltinThings :: BuiltinThings PrimFun -> TCM ()
+setBuiltinThings :: MonadTCM tcm => BuiltinThings PrimFun -> tcm ()
 setBuiltinThings b = modify $ \s -> s { stBuiltinThings = b }
 
-bindBuiltinName :: String -> Term -> TCM ()
+bindBuiltinName :: MonadTCM tcm => String -> Term -> tcm ()
 bindBuiltinName b x = do
 	builtin <- getBuiltinThings
 	case Map.lookup b builtin of
@@ -21,28 +21,28 @@ bindBuiltinName b x = do
 	    Just (Prim _)    -> typeError $ NoSuchBuiltinName b
 	    Nothing	     -> setBuiltinThings $ Map.insert b (Builtin x) builtin
 
-bindPrimitive :: String -> PrimFun -> TCM ()
+bindPrimitive :: MonadTCM tcm => String -> PrimFun -> tcm ()
 bindPrimitive b pf = do
 	builtin <- getBuiltinThings
 	case Map.lookup b builtin :: Maybe (Builtin PrimFun) of
 	    _ -> setBuiltinThings $ Map.insert b (Prim pf) builtin
 
 
-getBuiltin :: String -> TCM Term
+getBuiltin :: MonadTCM tcm => String -> tcm Term
 getBuiltin x = do
     mt <- getBuiltin' x
     case mt of
         Nothing -> typeError $ NoBindingForBuiltin x
         Just t  -> return t
 
-getBuiltin' :: String -> TCM (Maybe Term)
+getBuiltin' :: MonadTCM tcm => String -> tcm (Maybe Term)
 getBuiltin' x = do
     builtin <- getBuiltinThings
     case Map.lookup x builtin of
 	Just (Builtin t) -> return $ Just t
 	_		 -> return Nothing
 
-getPrimitive :: String -> TCM PrimFun
+getPrimitive :: MonadTCM tcm => String -> tcm PrimFun
 getPrimitive x = do
     builtin <- getBuiltinThings
     case Map.lookup x builtin of
@@ -53,6 +53,11 @@ getPrimitive x = do
 -- * The names of built-in things
 ---------------------------------------------------------------------------
 
+primInteger, primFloat, primChar, primString, primBool, primTrue, primFalse,
+    primList, primNil, primCons, primIO, primUnit, primNat, primSuc, primZero,
+    primNatPlus, primNatMinus, primNatTimes, primNatDivSuc, primNatModSuc,
+    primNatEquals, primNatLess, primEqual, primRefl
+    :: MonadTCM tcm => tcm Term
 primInteger   = getBuiltin builtinInteger
 primFloat     = getBuiltin builtinFloat
 primChar      = getBuiltin builtinChar

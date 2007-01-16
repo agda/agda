@@ -2,8 +2,11 @@
 
 module TypeChecking.Patterns.Monad where
 
+import Control.Applicative
 import Control.Monad.Cont
 import Control.Monad.State
+import Control.Monad.Reader
+import Control.Monad.Error
 import Data.Monoid
 
 import Syntax.Common
@@ -22,22 +25,31 @@ instance Monoid PatBindings where
     mempty = PatBinds [] []
     mappend (PatBinds a b) (PatBinds c d) = PatBinds (mappend a c) (mappend b d)
 
-type CheckPatM r = ContT r (StateT PatBindings TCM)
+newtype CheckPatM r a = CheckPatM { unCheckPatM :: ContT r (StateT PatBindings TCM) a }
+    deriving (Functor, Monad, MonadReader TCEnv, MonadIO)
+
+instance Applicative (CheckPatM r) where
+    pure  = return
+    (<*>) = ap
+
+instance MonadState TCState (CheckPatM r) where
+    get = liftTCM get
+    put = liftTCM . put
+
+instance MonadTCM (CheckPatM r) where
+    liftTCM = CheckPatM . lift . lift
 
 tell :: PatBindings -> CheckPatM r ()
-tell p = modify (`mappend` p)
+tell p = CheckPatM $ modify (`mappend` p)
 
 runCheckPatM :: CheckPatM r a -> ([String] -> [MetaId] -> a -> TCM r) -> TCM r
-runCheckPatM m ret = do
+runCheckPatM (CheckPatM m) ret = do
     flip evalStateT mempty $ runContT m $ \r -> do
 	PatBinds xs metas <- get
 	lift $ ret xs metas r
 
-liftPat :: TCM a -> CheckPatM r a
-liftPat = lift . lift
-
 liftPatCPS :: (forall b. (a -> TCM b) -> TCM b) -> CheckPatM r a
-liftPatCPS f = ContT $ \k -> StateT $ \s -> f (\x -> runStateT (k x) s)
+liftPatCPS f = CheckPatM $ ContT $ \k -> StateT $ \s -> f (\x -> runStateT (k x) s)
 
 liftPatCPS_ :: (forall b. TCM b -> TCM b) -> CheckPatM r ()
 liftPatCPS_ f = liftPatCPS (\k -> f $ k ())
@@ -49,7 +61,7 @@ bindPatternVar x a = do
 
 addPatternMeta :: Type -> CheckPatM r MetaId
 addPatternMeta a = do
-    x <- liftPat $ newFirstOrderMeta a
+    x <- newFirstOrderMeta a
     tell (PatBinds [] [x])
     return x
 

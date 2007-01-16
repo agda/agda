@@ -19,7 +19,7 @@ import TypeChecking.Monad
 
 
 -- | Generate a fresh unique identifier for a name
-refreshName :: Range -> String -> TCM AN.Name
+refreshName :: MonadTCM tcm => Range -> String -> tcm AN.Name
 refreshName r s = do
     i <- fresh
     let x = parseName s
@@ -31,6 +31,6 @@ refreshName r s = do
 	parseName s	  = case break (== '_') s of
 	    (s0, s1) -> Id s0 : parseName s1
 
-refreshName_ :: String -> TCM AN.Name
+refreshName_ :: MonadTCM tcm => String -> tcm AN.Name
 refreshName_ = refreshName noRange
 

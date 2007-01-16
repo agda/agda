@@ -5,9 +5,9 @@ import Data.Generics
 import Syntax.Internal
 import TypeChecking.Monad
 
-equalTerm :: Type -> Term -> Term -> TCM Constraints
-equalType :: Type -> Type -> TCM Constraints
-equalSort :: Sort -> Sort -> TCM Constraints
-leqSort   :: Sort -> Sort -> TCM Constraints
+equalTerm :: MonadTCM tcm => Type -> Term -> Term -> tcm Constraints
+equalType :: MonadTCM tcm => Type -> Type -> tcm Constraints
+equalSort :: MonadTCM tcm => Sort -> Sort -> tcm Constraints
+leqSort   :: MonadTCM tcm => Sort -> Sort -> tcm Constraints
 
 

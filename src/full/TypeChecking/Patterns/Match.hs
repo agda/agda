@@ -31,14 +31,14 @@ instance Monoid Match where
     No	       `mappend` _	    = No
     DontKnow m `mappend` _	    = DontKnow m	-- sequential
 
-matchPatterns :: [Arg Pattern] -> [Arg Term] -> TCM (Match, [Arg Term])
+matchPatterns :: MonadTCM tcm => [Arg Pattern] -> [Arg Term] -> tcm (Match, [Arg Term])
 matchPatterns ps vs =
     do	(ms,vs) <- unzip <$> zipWithM matchPattern
 				(ps ++ repeat __IMPOSSIBLE__) -- ps and vs should
 				vs			      -- have the same length
 	return (mconcat ms, vs)
 
-matchPattern :: Arg Pattern -> Arg Term -> TCM (Match, Arg Term)
+matchPattern :: MonadTCM tcm => Arg Pattern -> Arg Term -> tcm (Match, Arg Term)
 matchPattern (Arg _   AbsurdP)	  arg		= return (DontKnow Nothing, arg)
 matchPattern (Arg h' (VarP _))	  arg@(Arg _ v) = return (Yes [v], arg)
 matchPattern (Arg _   WildP)	  arg		= return (Yes [], arg)

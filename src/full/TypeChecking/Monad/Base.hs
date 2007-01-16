@@ -107,8 +107,8 @@ data Closure a = Closure { clSignature  :: Signature
 instance HasRange a => HasRange (Closure a) where
     getRange = getRange . clValue
 
-buildClosure :: a -> TCM (Closure a)
-buildClosure x = do
+buildClosure :: MonadTCM tcm => a -> tcm (Closure a)
+buildClosure x = liftTCM $ do
     env   <- ask
     sig   <- gets stSignature
     scope <- gets stScopeInfo
@@ -246,7 +246,7 @@ data Reduced no yes = NoReduction no | YesReduction yes
 data PrimFun = PrimFun
 	{ primFunName		:: QName
 	, primFunArity		:: Arity
-	, primFunImplementation :: [Arg Term] -> TCM (Reduced [Arg Term] Term)
+	, primFunImplementation :: MonadTCM tcm => [Arg Term] -> tcm (Reduced [Arg Term] Term)
 	}
     deriving (Typeable)
 
@@ -512,24 +512,14 @@ newtype TCM a = TCM { unTCM :: UndoT TCState
     deriving (MonadState TCState, MonadReader TCEnv, MonadError TCErr, MonadUndo TCState)
 #endif
 
-patternViolation :: TCM a
-patternViolation = do
-    s <- get
-    throwError $ PatternErr s
+class ( Applicative tcm, MonadIO tcm
+      , MonadReader TCEnv tcm
+      , MonadState TCState tcm
+      ) => MonadTCM tcm where
+    liftTCM :: TCM a -> tcm a
 
-internalError :: String -> TCM a
-internalError s = typeError $ InternalError s
-
-typeError :: TypeError -> TCM a
-typeError err = do
-    cl <- buildClosure err
-    s  <- get
-    throwError $ TypeError s cl
-
-handleTypeErrorException :: IO a -> TCM a
-handleTypeErrorException m = do
-    r <- liftIO $ liftM Right m `catchDyn` (return . Left)
-    either typeError return r
+instance MonadTCM TCM where
+    liftTCM = id
 
 -- We want a special monad implementation of fail.
 instance Monad TCM where
@@ -551,6 +541,25 @@ instance MonadIO TCM where
                         (failOnException
                          (\r -> return . throwError . Exception r)
                          (return <$> m) )
+
+patternViolation :: MonadTCM tcm => tcm a
+patternViolation = liftTCM $ do
+    s <- get
+    throwError $ PatternErr s
+
+internalError :: MonadTCM tcm => String -> tcm a
+internalError s = typeError $ InternalError s
+
+typeError :: MonadTCM tcm => TypeError -> tcm a
+typeError err = liftTCM $ do
+    cl <- buildClosure err
+    s  <- get
+    throwError $ TypeError s cl
+
+handleTypeErrorException :: MonadTCM tcm => IO a -> tcm a
+handleTypeErrorException m = do
+    r <- liftIO $ liftM Right m `catchDyn` (return . Left)
+    either typeError return r
 
 -- | Running the type checking monad
 runTCM :: TCM a -> IO (Either TCErr a)

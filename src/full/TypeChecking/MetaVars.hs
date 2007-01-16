@@ -48,13 +48,13 @@ findIdx vs v = findIndex (==v) (reverse vs)
 -- | Generate [Var n - 1, .., Var 0] for all declarations in the context.
 --   Used to make arguments for newly generated metavars.
 --
-allCtxVars :: TCM Args
+allCtxVars :: MonadTCM tcm => tcm Args
 allCtxVars = do
     ctx <- asks envContext
     return $ reverse $ List.map (\i -> Arg NotHidden $ Var i []) $ [0 .. length ctx - 1]
 
 -- | Check whether a meta variable is a place holder for a blocked term.
-isBlockedTerm :: MetaId -> TCM Bool
+isBlockedTerm :: MonadTCM tcm => MetaId -> tcm Bool
 isBlockedTerm x = do
     report 12 $ "is " ++ show x ++ " a blocked term? "
     i <- mvInstantiation <$> lookupMeta x
@@ -68,7 +68,7 @@ isBlockedTerm x = do
     return r
 
 -- | Check if a meta variable is first order.
-isFirstOrder :: MetaId -> TCM Bool
+isFirstOrder :: MonadTCM tcm => MetaId -> tcm Bool
 isFirstOrder x = do
     report 12 $ "is " ++ show x ++ " first order? "
     i <- mvInstantiation <$> lookupMeta x
@@ -97,7 +97,7 @@ instance HasMeta Sort where
 
 -- | The instantiation should not be an 'InstV' or 'InstS' and the 'MetaId'
 --   should point to something 'Open' or a 'BlockedConst'.
-(=:) :: HasMeta t => MetaId -> t -> TCM ()
+(=:) :: (MonadTCM tcm, HasMeta t) => MetaId -> t -> tcm ()
 x =: t = do
     let i = metaInstance t
     store <- getMetaStore
@@ -107,28 +107,28 @@ x =: t = do
     ins x i store = Map.adjust (inst i) x store
     inst i mv = mv { mvInstantiation = i }
 
-assignTerm :: MetaId -> Term -> TCM ()
+assignTerm :: MonadTCM tcm => MetaId -> Term -> tcm ()
 assignTerm = (=:)
 
-newSortMeta ::  TCM Sort
+newSortMeta :: MonadTCM tcm => tcm Sort
 newSortMeta = 
     do  i <- createMetaInfo
 	MetaS <$> newMeta i (IsSort ())
 
-newTypeMeta :: Sort -> TCM Type
+newTypeMeta :: MonadTCM tcm => Sort -> tcm Type
 newTypeMeta s = El s <$> newValueMeta (sort s)
 
-newTypeMeta_ ::  TCM Type
+newTypeMeta_ ::  MonadTCM tcm => tcm Type
 newTypeMeta_  = newTypeMeta =<< newSortMeta
 
-newValueMeta ::  Type -> TCM Term
+newValueMeta ::  MonadTCM tcm => Type -> tcm Term
 newValueMeta t =
     do	i  <- createMetaInfo
         vs <- allCtxVars
 	x  <- newMeta i (HasType () t)
 	return $ MetaV x vs
 
-newArgsMeta :: Type -> TCM Args
+newArgsMeta :: MonadTCM tcm => Type -> tcm Args
 newArgsMeta (El s tm) = do
     tm <- reduce tm
     case funView tm of
@@ -138,7 +138,7 @@ newArgsMeta (El s tm) = do
 	    return $ Arg h v : args
 	NoFunV _    -> return []
 
-newQuestionMark ::  Type -> TCM Term
+newQuestionMark :: MonadTCM tcm => Type -> tcm Term
 newQuestionMark t =
     do	m@(MetaV x _) <- newValueMeta t
 	ii	      <- fresh
@@ -146,7 +146,7 @@ newQuestionMark t =
 	return m
 
 -- | Construct a blocked constant if there are constraints.
-blockTerm :: Type -> Term -> TCM Constraints -> TCM Term
+blockTerm :: MonadTCM tcm => Type -> Term -> tcm Constraints -> tcm Term
 blockTerm t v m = do
     cs <- solveConstraints =<< m
     if List.null cs
@@ -166,7 +166,7 @@ blockTerm t v m = do
     inst i mv = mv { mvInstantiation = i }
 
 -- | Create a fresh first-order meta-variable.
-newFirstOrderMeta :: Type -> TCM MetaId
+newFirstOrderMeta :: MonadTCM tcm => Type -> tcm MetaId
 newFirstOrderMeta a = do
     i <- createMetaInfo
     x <- fresh
@@ -177,16 +177,16 @@ newFirstOrderMeta a = do
 -- | Generate new metavar of same kind ('Open'X) as that
 --     pointed to by @MetaId@ arg.
 --
-newMetaSame :: MetaId -> (MetaId -> a) -> TCM a
+newMetaSame :: MonadTCM tcm => MetaId -> (MetaId -> a) -> tcm a
 newMetaSame x meta =
     do	mv <- lookupMeta x
 	meta <$> newMeta (getMetaInfo mv) (mvJudgement mv)
 
 -- | Extended occurs check.
 class Occurs t where
-    occurs :: TCM () -> MetaId -> t -> TCM ()
+    occurs :: MonadTCM tcm => tcm () -> MetaId -> t -> tcm ()
 
-occursCheck :: Occurs a => MetaId -> a -> TCM ()
+occursCheck :: (MonadTCM tcm, Occurs a) => MetaId -> a -> tcm ()
 occursCheck m = occurs (typeError $ MetaOccursInItself m) m
 
 instance Occurs Term where
@@ -239,13 +239,13 @@ instance (Occurs a, Occurs b) => Occurs (a,b) where
 instance Occurs a => Occurs [a] where
     occurs abort m xs = mapM_ (occurs abort m) xs
 
-abortAssign :: TCM a
+abortAssign :: MonadTCM tcm => tcm a
 abortAssign =
     do	s <- get
-	throwError $ AbortAssign s
+	liftTCM $ throwError $ AbortAssign s
 
-handleAbort :: TCM a -> TCM a -> TCM a
-handleAbort h m =
+handleAbort :: MonadTCM tcm => TCM a -> TCM a -> tcm a
+handleAbort h m = liftTCM $
     m `catchError` \e ->
 	case e of
 	    AbortAssign s -> do put s; h
@@ -255,7 +255,7 @@ handleAbort h m =
 --   First check that metavar args are in pattern fragment.
 --     Then do extended occurs check on given thing.
 --
-assignV :: Type -> MetaId -> Args -> Term -> TCM Constraints
+assignV :: MonadTCM tcm => Type -> MetaId -> Args -> Term -> tcm Constraints
 assignV t x args v =
     handleAbort handler $ do
 	verbose 10 $ do
@@ -311,7 +311,7 @@ assignV t x args v =
 	    --   v' = (λ a b c d e. v) _ 1 _ 2 0
 	    tel <- getContextTelescope' NotHidden
 	    let iargs = reverse $ zipWith (rename $ reverse ids) [0..] $ reverse tel
-		v'	  = raise (length ids) (abstract tel v) `apply` iargs
+		v'    = raise (length ids) (abstract tel v) `apply` iargs
 	    return v'
 
 	let mkTel i = Arg NotHidden <$> ((,) <$> (show <$> nameOfBV i) <*> typeOfBV i)
@@ -329,11 +329,12 @@ assignV t x args v =
 	    Just j  -> fmap (const $ Var j []) arg
 	    Nothing -> fmap (const __IMPOSSIBLE__) arg	-- we will end up here, but never look at the result
 
+	handler :: MonadTCM tcm => tcm Constraints
 	handler = do
 	    reportLn 10 $ "Oops. Undo " ++ show x ++ " := ..."
 	    equalTerm t (MetaV x args) v
 
-assignS :: MetaId -> Sort -> TCM Constraints
+assignS :: MonadTCM tcm => MetaId -> Sort -> tcm Constraints
 assignS x s =
     handleAbort (equalSort (MetaS x) s) $ do
 	occursCheck x s
@@ -349,7 +350,7 @@ assignS x s =
 --
 --   @reverse@ is necessary because we are directly abstracting over this list @ids@.
 --
-checkArgs :: MetaId -> Args -> TCM [Nat]
+checkArgs :: MonadTCM tcm => MetaId -> Args -> tcm [Nat]
 checkArgs x args =
     case validParameters args of
 	Just ids    -> return $ reverse ids
@@ -368,7 +369,7 @@ isVar (Arg _ (Var _ [])) = True
 isVar _			 = False
 
 
-updateMeta :: (Data a, Occurs a, Abstract a) => MetaId -> a -> TCM ()
+updateMeta :: (MonadTCM tcm, Data a, Occurs a, Abstract a) => MetaId -> a -> tcm ()
 updateMeta mI t = 
     do	mv <- lookupMeta mI
 	withMetaInfo (getMetaInfo mv) $

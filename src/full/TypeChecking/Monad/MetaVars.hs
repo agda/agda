@@ -22,11 +22,11 @@ import Utils.Fresh
 #include "../../undefined.h"
 
 -- | Get the meta store.
-getMetaStore :: TCM MetaStore
+getMetaStore :: MonadTCM tcm => tcm MetaStore
 getMetaStore = gets stMetaStore
 
 -- | Lookup a meta variable
-lookupMeta :: MetaId -> TCM MetaVariable
+lookupMeta :: MonadTCM tcm => MetaId -> tcm MetaVariable
 lookupMeta m =
     do	mmv <- Map.lookup m <$> getMetaStore
 	case mmv of
@@ -34,46 +34,46 @@ lookupMeta m =
 	    _	    -> fail $ "no such meta variable " ++ show m
 
 
-createMetaInfo :: TCM MetaInfo
+createMetaInfo :: MonadTCM tcm => tcm MetaInfo
 createMetaInfo = 
     do  r <- getCurrentRange
 	buildClosure r
 
-updateMetaRange :: MetaId -> Range -> TCM ()
+updateMetaRange :: MonadTCM tcm => MetaId -> Range -> tcm ()
 updateMetaRange mi r =
     modify $ \st -> st { stMetaStore = Map.adjust (\mv -> setRange mv r) mi
 				     $ stMetaStore st
 		       }
 
 
-addInteractionPoint :: InteractionId -> MetaId -> TCM ()
+addInteractionPoint :: MonadTCM tcm => InteractionId -> MetaId -> tcm ()
 addInteractionPoint ii mi =
     modify $ \s -> s { stInteractionPoints =
 			Map.insert ii mi $ stInteractionPoints s
 		     }
 
 
-removeInteractionPoint :: InteractionId -> TCM ()
+removeInteractionPoint :: MonadTCM tcm => InteractionId -> tcm ()
 removeInteractionPoint ii =
     modify $ \s -> s { stInteractionPoints =
 			Map.delete ii $ stInteractionPoints s
 		     }
 
 
-getInteractionPoints :: TCM [InteractionId]
+getInteractionPoints :: MonadTCM tcm => tcm [InteractionId]
 getInteractionPoints = keys <$> gets stInteractionPoints
 
-getInteractionMetas :: TCM [MetaId]
+getInteractionMetas :: MonadTCM tcm => tcm [MetaId]
 getInteractionMetas = elems <$> gets stInteractionPoints
 
-lookupInteractionId :: InteractionId -> TCM MetaId
+lookupInteractionId :: MonadTCM tcm => InteractionId -> tcm MetaId
 lookupInteractionId ii = 
     do  mmi <- Map.lookup ii <$> gets stInteractionPoints
 	case mmi of
 	    Just mi -> return mi
 	    _	    -> fail $ "no such interaction point: " ++ show ii
 
-judgementInteractionId :: InteractionId -> TCM (Judgement Type MetaId)
+judgementInteractionId :: MonadTCM tcm => InteractionId -> tcm (Judgement Type MetaId)
 judgementInteractionId ii = 
     do  mi <- lookupInteractionId ii
         mvJudgement  <$> lookupMeta mi
@@ -81,32 +81,32 @@ judgementInteractionId ii =
 
 
 -- | Generate new meta variable.
-newMeta :: MetaInfo -> Judgement Type a -> TCM MetaId
+newMeta :: MonadTCM tcm => MetaInfo -> Judgement Type a -> tcm MetaId
 newMeta mi j =
     do	x <- fresh
 	let mv = MetaVar mi (fmap (const x) j) Open
 	modify (\st -> st{stMetaStore = Map.insert x mv $ stMetaStore st})
 	return x
 
-getInteractionRange :: InteractionId -> TCM Range
+getInteractionRange :: MonadTCM tcm => InteractionId -> tcm Range
 getInteractionRange ii = do
     mi <- lookupInteractionId ii
     getMetaRange mi
 
-getMetaRange :: MetaId -> TCM Range
+getMetaRange :: MonadTCM tcm => MetaId -> tcm Range
 getMetaRange mi = getRange <$> lookupMeta mi
 
 
-getInteractionScope :: InteractionId -> TCM ScopeInfo
+getInteractionScope :: MonadTCM tcm => InteractionId -> tcm ScopeInfo
 getInteractionScope ii = 
     do mi <- lookupInteractionId ii
        mv <- lookupMeta mi
        return $ getMetaScope mv
 
-withMetaInfo :: MetaInfo -> TCM a -> TCM a
+withMetaInfo :: MonadTCM tcm => MetaInfo -> tcm a -> tcm a
 withMetaInfo mI m = enterClosure mI $ \_ -> m
 
-getInstantiatedMetas :: TCM [MetaId]
+getInstantiatedMetas :: MonadTCM tcm => tcm [MetaId]
 getInstantiatedMetas = do
     store <- getMetaStore
     return [ i | (i, MetaVar _ _ mi) <- Map.assocs store, isInst mi ]
@@ -117,7 +117,7 @@ getInstantiatedMetas = do
 	isInst (InstV _)	= True
 	isInst (InstS _)	= True
 
-getOpenMetas :: TCM [MetaId]
+getOpenMetas :: MonadTCM tcm => tcm [MetaId]
 getOpenMetas = do
     store <- getMetaStore
     return [ i | (i, MetaVar _ _ mi) <- Map.assocs store, isOpen mi ]

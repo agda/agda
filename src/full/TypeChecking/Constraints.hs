@@ -23,26 +23,26 @@ import Utils.Fresh
 
 -- | Catch pattern violation errors and adds a constraint.
 --
-catchConstraint :: Constraint -> TCM Constraints -> TCM Constraints
-catchConstraint c v =
+catchConstraint :: MonadTCM tcm => Constraint -> TCM Constraints -> tcm Constraints
+catchConstraint c v = liftTCM $
    catchError v $ \err ->
    case err of
        PatternErr s -> put s >> buildConstraint c
        _	    -> throwError err
 
 -- | Try to solve the constraints to be added.
-addNewConstraints :: Constraints -> TCM ()
+addNewConstraints :: MonadTCM tcm => Constraints -> tcm ()
 addNewConstraints cs = do addConstraints cs; wakeupConstraints
 
 -- | Don't allow the argument to produce any constraints.
-noConstraints :: TCM Constraints -> TCM ()
+noConstraints :: MonadTCM tcm => tcm Constraints -> tcm ()
 noConstraints m = do
     cs <- solveConstraints =<< m
     unless (List.null cs) $ typeError $ UnsolvedConstraints cs
     return ()
 
 -- | Guard constraint
-guardConstraint :: TCM Constraints -> Constraint -> TCM Constraints
+guardConstraint :: MonadTCM tcm => tcm Constraints -> Constraint -> tcm Constraints
 guardConstraint m c = do
     cs <- solveConstraints =<< m
     case List.partition isSortConstraint cs of   -- sort constraints doesn't block anything
@@ -58,13 +58,13 @@ guardConstraint m c = do
 
 -- | We ignore the constraint ids and (as in Agda) retry all constraints every time.
 --   We probably generate very few constraints.
-wakeupConstraints :: TCM ()
+wakeupConstraints :: MonadTCM tcm => tcm ()
 wakeupConstraints = do
     cs <- takeConstraints
     cs <- solveConstraints cs
     addConstraints cs
 
-solveConstraints :: Constraints -> TCM Constraints
+solveConstraints :: MonadTCM tcm => Constraints -> tcm Constraints
 solveConstraints cs = do
     n  <- length <$> getInstantiatedMetas
     cs <- concat <$> mapM (withConstraint solveConstraint) cs
@@ -73,7 +73,7 @@ solveConstraints cs = do
 	then solveConstraints cs -- Go again if we made progress
 	else return cs
 
-solveConstraint :: Constraint -> TCM Constraints
+solveConstraint :: MonadTCM tcm => Constraint -> tcm Constraints
 solveConstraint (ValueEq a u v) = equalTerm a u v
 solveConstraint (TypeEq a b)	= equalType a b
 solveConstraint (SortEq s1 s2)	= equalSort s1 s2

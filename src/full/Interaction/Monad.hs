@@ -29,8 +29,8 @@ run
 
 -}
 
-liftTCM :: TCM a -> IM a 
-liftTCM s = s
+-- instance MonadTCM IM where
+--     liftTCM = id
 
 runIM :: IM a -> IO (Either TCErr a)
 runIM = runTCM

@@ -2,7 +2,7 @@
 module TypeChecking.MetaVars where
 
 import Syntax.Internal	       ( MetaId, Term )
-import TypeChecking.Monad.Base ( TCM )
+import TypeChecking.Monad.Base ( MonadTCM )
 
-assignTerm :: MetaId -> Term -> TCM ()
+assignTerm :: MonadTCM tcm => MetaId -> Term -> tcm ()
 

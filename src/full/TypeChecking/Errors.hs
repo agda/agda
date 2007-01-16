@@ -32,8 +32,8 @@ import Utils.Trace
 -- * Top level function
 ---------------------------------------------------------------------------
 
-prettyError :: TCErr -> TCM String
-prettyError err = liftM show $
+prettyError :: MonadTCM tcm => TCErr -> tcm String
+prettyError err = liftTCM $ liftM show $
     prettyTCM err
     `catchError` \err' -> text "panic: error when printing error!" $$ prettyTCM err'
     `catchError` \err'' -> text "much panic: error when printing error from printing error!" $$ prettyTCM err''
@@ -46,13 +46,15 @@ prettyError err = liftM show $
 -- * Wrappers for pretty printing combinators
 ---------------------------------------------------------------------------
 
+empty, comma :: MonadTCM tcm => tcm Doc
+
+empty	   = return P.empty
+comma	   = return P.comma
 pretty x   = return $ P.pretty x
 prettyA x  = return $ P.prettyA x
 text s	   = return $ P.text s
-empty	   = return P.empty :: TCM Doc
 pwords s   = map return $ P.pwords s
 fwords s   = return $ P.fwords s
-comma	   = return P.comma
 sep ds	   = P.sep <$> sequence ds
 fsep ds    = P.fsep <$> sequence ds
 hsep ds    = P.hsep <$> sequence ds
@@ -74,15 +76,15 @@ punctuate d ds = zipWith (<>) ds (replicate n d ++ [empty])
 -- * Helpers
 ---------------------------------------------------------------------------
 
-sayWhere :: HasRange a => a -> TCM Doc -> TCM Doc
+sayWhere :: (MonadTCM tcm, HasRange a) => a -> tcm Doc -> tcm Doc
 sayWhere x d = text (show $ getRange x) $$ d
 
-sayWhen :: CallTrace -> TCM Doc -> TCM Doc
+sayWhen :: MonadTCM tcm => CallTrace -> tcm Doc -> tcm Doc
 sayWhen tr m = case matchCall interestingCall tr of
     Nothing -> m
     Just c  -> sayWhere c (m $$ prettyTCM c)
 
-panic :: String -> TCM Doc
+panic :: MonadTCM tcm => String -> tcm Doc
 panic s = fwords $ "Panic: " ++ s
 
 tcErrString :: TCErr -> String
@@ -154,7 +156,7 @@ errorString err = case err of
 ---------------------------------------------------------------------------
 
 class PrettyTCM a where
-    prettyTCM :: a -> TCM Doc
+    prettyTCM :: MonadTCM tcm => a -> tcm Doc
 
 instance PrettyTCM a => PrettyTCM (Closure a) where
     prettyTCM cl = enterClosure cl prettyTCM

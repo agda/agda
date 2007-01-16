@@ -20,58 +20,58 @@ import Utils.Monad
 
 -- | add a variable to the context
 --
-addCtx :: Name -> Type -> TCM a -> TCM a
+addCtx :: MonadTCM tcm => Name -> Type -> tcm a -> tcm a
 addCtx x a = local $ \e ->
 		e { envContext	   = (x,a) : envContext e
 		  , envLetBindings = raise 1 $ envLetBindings e
 		  }
 
 -- | Go under an abstraction.
-underAbstraction :: Type -> Abs a -> (a -> TCM b) -> TCM b
+underAbstraction :: MonadTCM tcm => Type -> Abs a -> (a -> tcm b) -> tcm b
 underAbstraction t a k = do
     x <- freshName_ $ absName a
     addCtx x t $ k $ absBody a
 
 -- | Get the current context.
-getContext :: TCM Context
+getContext :: MonadTCM tcm => tcm Context
 getContext = asks envContext
 
 -- | Get the current context as a 'Telescope' (everything 'Hidden').
-getContextTelescope :: TCM Telescope
+getContextTelescope :: MonadTCM tcm => tcm Telescope
 getContextTelescope = getContextTelescope' Hidden
 
 -- | Get the current context as a 'Telescope' with the specified 'Hiding'.
-getContextTelescope' :: Hiding -> TCM Telescope
+getContextTelescope' :: MonadTCM tcm => Hiding -> tcm Telescope
 getContextTelescope' h = List.map arg . reverse <$> getContext
     where
 	arg (x,t) = Arg h (show x, t)
 
 -- | add a bunch of variables with the same type to the context
-addCtxs :: [Name] -> Type -> TCM a -> TCM a
+addCtxs :: MonadTCM tcm => [Name] -> Type -> tcm a -> tcm a
 addCtxs []     _ k = k
 addCtxs (x:xs) t k = addCtx x t $ addCtxs xs (raise 1 t) k
 
 -- | Add a telescope to the context.
-addCtxTel :: Telescope -> TCM a -> TCM a
+addCtxTel :: MonadTCM tcm => Telescope -> tcm a -> tcm a
 addCtxTel [] ret = ret
 addCtxTel (Arg _ (x,t) : tel) ret =
     do	x <- freshName_ x
 	addCtx x t $ addCtxTel tel ret
 
 -- | Add a let bound variable
-addLetBinding :: Name -> Term -> Type -> TCM a -> TCM a
+addLetBinding :: MonadTCM tcm => Name -> Term -> Type -> tcm a -> tcm a
 addLetBinding x v t =
     local $ \e -> e { envLetBindings = Map.insert x (v,t) $ envLetBindings e }
 
 -- | get type of bound variable (i.e. deBruijn index)
 --
-typeOfBV :: Nat -> TCM Type
+typeOfBV :: MonadTCM tcm => Nat -> tcm Type
 typeOfBV n =
     do	ctx <- getContext
 	(_,t) <- ctx !!! n
 	return $ raise (n + 1) t
 
-nameOfBV :: Nat -> TCM Name
+nameOfBV :: MonadTCM tcm => Nat -> tcm Name
 nameOfBV n =
     do	ctx <- getContext
 	(x,_) <- ctx !!! n
@@ -87,7 +87,7 @@ xs !!! n = xs !!!! n
 -- | Get the term corresponding to a named variable. If it is a lambda bound
 --   variable the deBruijn index is returned and if it is a let bound variable
 --   its definition is returned.
-getVarInfo :: Name -> TCM (Term, Type)
+getVarInfo :: MonadTCM tcm => Name -> tcm (Term, Type)
 getVarInfo x =
     do	ctx <- asks envContext
 	def <- asks envLetBindings
@@ -100,6 +100,6 @@ getVarInfo x =
 		    Just vt -> return vt
 		    _	    -> fail $ "unbound variable " ++ show x
 
-escapeContext :: Int -> TCM a -> TCM a
+escapeContext :: MonadTCM tcm => Int -> tcm a -> tcm a
 escapeContext n = local $ \e -> e { envContext = drop n $ envContext e }
 

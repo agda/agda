@@ -785,6 +785,7 @@ exprToLHS e = exprToPattern e
 		Underscore r _		-> return $ WildP r
 		Absurd r		-> return $ AbsurdP r
 		As r x e		-> AsP r x <$> exprToPattern e
+		Dot r (HiddenArg _ e)	-> return $ HiddenP r $ fmap (DotP r) e
 		Dot r e			-> return $ DotP r e
 		Lit l			-> return $ LitP l
 		HiddenArg r e		-> HiddenP r <$> T.mapM exprToPattern e

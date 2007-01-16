@@ -68,7 +68,7 @@ Step 1: Type checking the pattern
   We'll ignore this for now. Possible solution could be to distinguish between
   variables introduced by η-expansion and variables bound in the pattern.
 
-Step 2: Turn unsolved metas bound variables
+Step 2: Turn unsolved metas into bound variables
 
   - make sure that there are no unsolved constraints from type checking the
     patterns (if so, fail)
@@ -98,6 +98,43 @@ Step 2: Turn unsolved metas bound variables
     - pull out the context (y x : A)(xs : List A) and the meta context
       (α := suc β : N)(β : N) and traverse the pattern again, building the right
       context, instantiating uninstantiated metas to fresh variables.
+
+    Quick solution:
+
+    - re-type check the pattern when we know which patterns are dotted and which
+      are variables. This also gets rid of (some of) the tricky deBruijn
+      juggling that comes with the first-order metas.
+
+    - Problem: when we say
+
+	subst ._ _ refl
+
+      could this mean
+
+	subst x .x refl ?
+
+      Answer: no, an explicit underscore can never become dotted. But there is a
+      similar problem in
+
+	tail ._ (x :: xs)
+
+      Here we might instantiate the hidden length in the _::_ rather than the
+      dotted first argument. So we need to keep track of first-order metas that
+      'wants' to be instantiated, and instantiate those at higher priority than
+      others.
+
+      Why is this a problem? The user won't be able to tell (at least not easily)
+      that she got
+
+	tail n (_::_ .{n} x xs)
+
+      rather than
+
+	tail .n (_::_ {n} x xs)
+
+      The problem is rather an implementation problem. We want to check that
+      dotted patterns actually get instantiated, and give an error otherwise.
+      How would we distinguish this case from the bad cases?
 
 Step 3: Type check dot patterns and compare to the inferred values
 

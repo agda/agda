@@ -11,31 +11,31 @@ import TypeChecking.Monad.State
 import TypeChecking.Monad.Closure
 
 -- | Get the constraints
-getConstraints :: TCM Constraints
+getConstraints :: MonadTCM tcm => tcm Constraints
 getConstraints = gets stConstraints
 
-lookupConstraint :: Int -> TCM ConstraintClosure
+lookupConstraint :: MonadTCM tcm => Int -> tcm ConstraintClosure
 lookupConstraint i =
     do	cs <- getConstraints
 	unless (i < length cs) $ fail $ "no such constraint: " ++ show i
 	return $ cs !! i
 
 -- | Take constraints (clear all constraints).
-takeConstraints :: TCM Constraints
+takeConstraints :: MonadTCM tcm => tcm Constraints
 takeConstraints =
     do	cs <- getConstraints
 	modify $ \s -> s { stConstraints = [] }
 	return cs
 
-withConstraint :: (Constraint -> TCM a) -> ConstraintClosure -> TCM a
+withConstraint :: MonadTCM tcm => (Constraint -> tcm a) -> ConstraintClosure -> tcm a
 withConstraint = flip enterClosure
 
 -- | Add new constraints
-addConstraints :: Constraints -> TCM ()
+addConstraints :: MonadTCM tcm => Constraints -> tcm ()
 addConstraints cs = modify $ \st -> st { stConstraints = cs ++ stConstraints st }
 
 -- | Create a new constraint.
-buildConstraint :: Constraint -> TCM Constraints
+buildConstraint :: MonadTCM tcm => Constraint -> tcm Constraints
 buildConstraint c = do
     cl <- buildClosure c
     return [cl]

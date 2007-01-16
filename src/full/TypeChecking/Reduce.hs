@@ -29,9 +29,6 @@ import {-# SOURCE #-} TypeChecking.Patterns.Match
 
 import Utils.Monad
 
-import TypeChecking.Monad.Debug
-__debug = debug
-
 #include "../undefined.h"
 
 -- | Instantiate something.
@@ -39,7 +36,7 @@ __debug = debug
 --   Doesn't do any reduction, and preserves blocking tags (when blocking meta
 --   is uninstantiated).
 class Instantiate t where
-    instantiate :: t -> TCM t
+    instantiate :: MonadTCM tcm => t -> tcm t
 
 instance Instantiate Term where
     instantiate t@(MetaV x args) =
@@ -115,7 +112,7 @@ instance (Ord k, Instantiate e) => Instantiate (Map k e) where
 -- Reduction to weak head normal form.
 --
 class Reduce t where
-    reduce :: t -> TCM t
+    reduce :: MonadTCM tcm => t -> tcm t
 
 instance Reduce Type where
     reduce (El s t) = El <$> reduce s <*> reduce t
@@ -214,9 +211,10 @@ instance Reduce Term where
 
 	    -- Apply a defined function to it's arguments.
 	    --   The original term is the first argument applied to the third.
-	    appDef :: Term -> [Clause] -> Args -> TCM (Reduced Term Term)
+	    appDef :: MonadTCM tcm => Term -> [Clause] -> Args -> tcm (Reduced Term Term)
 	    appDef v cls args = goCls cls args where
 
+		goCls :: MonadTCM tcm => [Clause] -> Args -> tcm (Reduced Term Term)
 		goCls [] args = typeError $ IncompletePatternMatching v args
 		goCls (cl@(Clause pats body) : cls) args = do
 		    (m, args) <- matchPatterns pats args
@@ -226,13 +224,13 @@ instance Reduce Term where
 			DontKnow Nothing  -> return $ NoReduction $ v `apply` args
 			DontKnow (Just m) -> return $ NoReduction $ blocked m $ v `apply` args
 
-		app []	     (Body v')		 = v'
+		app []		 (Body v')	     = v'
 		app (arg : args) (Bind (Abs _ body)) = app args $ subst arg body -- CBN
-		app (_   : args) (NoBind body)	 = app args body
-		app  _	      NoBody		 = __IMPOSSIBLE__
-		app (_ : _)	     (Body _)		 = __IMPOSSIBLE__
-		app []	     (Bind _)		 = __IMPOSSIBLE__
-		app []	     (NoBind _)		 = __IMPOSSIBLE__
+		app (_   : args) (NoBind body)	     = app args body
+		app  _		  NoBody	     = __IMPOSSIBLE__
+		app (_ : _)	 (Body _)	     = __IMPOSSIBLE__
+		app []		 (Bind _)	     = __IMPOSSIBLE__
+		app []		 (NoBind _)	     = __IMPOSSIBLE__
 
 
 instance Reduce a => Reduce (Closure a) where
@@ -258,7 +256,7 @@ instance (Ord k, Reduce e) => Reduce (Map k e) where
 ---------------------------------------------------------------------------
 
 class Normalise t where
-    normalise :: t -> TCM t
+    normalise :: MonadTCM tcm => t -> tcm t
 
 instance Normalise Sort where
     normalise = reduce
@@ -330,7 +328,7 @@ instance (Ord k, Normalise e) => Normalise (Map k e) where
 -- How can we express this? We need higher order classes!
 
 class InstantiateFull t where
-    instantiateFull :: t -> TCM t
+    instantiateFull :: MonadTCM tcm => t -> tcm t
 
 instance InstantiateFull Sort where
     instantiateFull s = do

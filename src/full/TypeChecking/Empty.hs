@@ -6,7 +6,7 @@ import TypeChecking.Monad
 import TypeChecking.Reduce
 
 -- | Make sure that a type is empty.
-isEmptyType :: Type -> TCM ()
+isEmptyType :: MonadTCM tcm => Type -> tcm ()
 isEmptyType t = do
     t <- reduce t
     case t of

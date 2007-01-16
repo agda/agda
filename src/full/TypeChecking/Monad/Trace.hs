@@ -13,7 +13,7 @@ import Utils.Trace
 ---------------------------------------------------------------------------
 
 -- | Record a function call in the trace.
-traceCall :: (Maybe r -> Call) -> TCM r -> TCM r
+traceCall :: MonadTCM tcm => (Maybe r -> Call) -> tcm r -> tcm r
 traceCall mkCall m = do
     cl <- buildClosure $ mkCall Nothing
     onTrace $ newCall cl
@@ -21,10 +21,10 @@ traceCall mkCall m = do
     onTrace $ updateCall $ cl { clValue = mkCall (Just r) }
     return r
 
-traceCall_ :: (Maybe () -> Call) -> TCM r -> TCM r
+traceCall_ :: MonadTCM tcm => (Maybe () -> Call) -> tcm r -> tcm r
 traceCall_ mkCall = traceCall (mkCall . fmap (const ()))
 
-traceCallCPS :: (Maybe r -> Call) -> (r -> TCM a) -> ((r -> TCM a) -> TCM b) -> TCM b
+traceCallCPS :: MonadTCM tcm => (Maybe r -> Call) -> (r -> tcm a) -> ((r -> tcm a) -> tcm b) -> tcm b
 traceCallCPS mkCall ret cc = do
     cl <- buildClosure $ mkCall Nothing
     onTrace $ newCall cl
@@ -32,25 +32,25 @@ traceCallCPS mkCall ret cc = do
 	onTrace $ updateCall $ cl { clValue = mkCall (Just r) }
 	ret r
 
-traceCallCPS_ :: (Maybe () -> Call) -> TCM a -> (TCM a -> TCM b) -> TCM b
+traceCallCPS_ :: MonadTCM tcm => (Maybe () -> Call) -> tcm a -> (tcm a -> tcm b) -> tcm b
 traceCallCPS_ mkCall ret cc =
     traceCallCPS mkCall (const ret) (\k -> cc $ k ())
 
-getTrace :: TCM CallTrace
-getTrace = gets stTrace
+getTrace :: MonadTCM tcm => tcm CallTrace
+getTrace = liftTCM $ gets stTrace
 
-setTrace :: CallTrace -> TCM ()
-setTrace tr = modify $ \s -> s { stTrace = tr }
+setTrace :: MonadTCM tcm => CallTrace -> tcm ()
+setTrace tr = liftTCM $ modify $ \s -> s { stTrace = tr }
 
-getCurrentRange :: TCM Range
+getCurrentRange :: MonadTCM tcm => tcm Range
 getCurrentRange = getRange <$> getTrace
 
-onTrace :: (CallTrace -> CallTrace) -> TCM ()
+onTrace :: MonadTCM tcm => (CallTrace -> CallTrace) -> tcm ()
 onTrace f = do
     tr <- getTrace
     setTrace (f tr)
 
-withTrace :: CallTrace -> TCM a -> TCM a
+withTrace :: MonadTCM tcm => CallTrace -> tcm a -> tcm a
 withTrace tr m = do
     tr0 <- getTrace
     setTrace tr

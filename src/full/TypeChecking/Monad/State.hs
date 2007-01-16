@@ -9,22 +9,22 @@ import TypeChecking.Monad.Base
 import TypeChecking.Monad.Options
 
 -- | Reset the type checking state.
-resetState :: TCM ()
-resetState =
-    do	opts <- commandLineOptions
-	put initState
-	setCommandLineOptions opts
+resetState :: MonadTCM tcm => tcm ()
+resetState = liftTCM $ do
+    opts <- commandLineOptions
+    put initState
+    setCommandLineOptions opts
 
 -- | Set the current scope.
-setScope :: ScopeInfo -> TCM ()
-setScope scope = modify $ \s -> s { stScopeInfo = scope }
+setScope :: MonadTCM tcm => ScopeInfo -> tcm ()
+setScope scope = liftTCM $ modify $ \s -> s { stScopeInfo = scope }
 
 -- | Get the current scope.
-getScope :: TCM ScopeInfo
-getScope = gets stScopeInfo
+getScope :: MonadTCM tcm => tcm ScopeInfo
+getScope = liftTCM $ gets stScopeInfo
 
 
-withScope :: ScopeInfo -> TCM a -> TCM a
+withScope :: MonadTCM tcm => ScopeInfo -> tcm a -> tcm a
 withScope scope m =
     do	scope0 <- getScope
 	setScope scope

@@ -19,19 +19,19 @@ import Utils.Monad
 
 #include "../../undefined.h"
 
-getSignature :: TCM Signature
-getSignature = gets stSignature
+getSignature :: MonadTCM tcm => tcm Signature
+getSignature = liftTCM $ gets stSignature
 
-getImportedSignature :: TCM Signature
-getImportedSignature = gets stImports
+getImportedSignature :: MonadTCM tcm => tcm Signature
+getImportedSignature = liftTCM $ gets stImports
 
-setSignature :: Signature -> TCM ()
-setSignature sig = modify $ \s -> s { stSignature = sig }
+setSignature :: MonadTCM tcm => Signature -> tcm ()
+setSignature sig = liftTCM $ modify $ \s -> s { stSignature = sig }
 
-setImportedSignature :: Signature -> TCM ()
-setImportedSignature sig = modify $ \s -> s { stImports = sig }
+setImportedSignature :: MonadTCM tcm => Signature -> tcm ()
+setImportedSignature sig = liftTCM $ modify $ \s -> s { stImports = sig }
 
-withSignature :: Signature -> TCM a -> TCM a
+withSignature :: MonadTCM tcm => Signature -> tcm a -> tcm a
 withSignature sig m =
     do	sig0 <- getSignature
 	setSignature sig
@@ -40,11 +40,11 @@ withSignature sig m =
         return r
 
 -- | Add a constant to the signature. Lifts the definition to top level.
-addConstant :: QName -> Definition -> TCM ()
+addConstant :: MonadTCM tcm => QName -> Definition -> tcm ()
 addConstant q d =
     do	tel <- getContextTelescope
 	let d' = abstract tel d
-	modify $ \s ->
+	liftTCM $ modify $ \s ->
 	    s { stSignature = 
 		    Map.adjust (\md -> md { mdefDefs = Map.insert x d'
 						     $ mdefDefs md
@@ -57,11 +57,11 @@ addConstant q d =
     -- modify $ \s -> s { stSignature = Map.insert q d $ stSignature s }
 
 -- | Add a defined module.
-addModule :: ModuleName -> ModuleDef -> TCM ()
-addModule m d = modify $ \s -> s { stSignature = Map.insert m d $ stSignature s }
+addModule :: MonadTCM tcm => ModuleName -> ModuleDef -> tcm ()
+addModule m d = liftTCM $ modify $ \s -> s { stSignature = Map.insert m d $ stSignature s }
 
 -- | Lookup a module.
-lookupModule :: ModuleName -> TCM ModuleDef
+lookupModule :: MonadTCM tcm => ModuleName -> tcm ModuleDef
 lookupModule m =
     do	sig  <- getSignature
 	isig <- getImportedSignature
@@ -88,15 +88,15 @@ implicitModuleDefs abstr tel m args defs = Map.mapWithKey redirect defs
 
 -- | Lookup the definition of a name. The result is a closed thing, all free
 --   variables have been abstracted over.
-getConstInfo :: QName -> TCM Definition
-getConstInfo q =
-    do	ab <- treatAbstractly q
-	md <- lookupModule m
-	let tel  = mdefTelescope md
-	    defs = mdefDefs md
-	case Map.lookup x defs of
-	    Nothing -> fail $ show (getRange q) ++ ": no such name " ++ show x ++ " in module " ++ show m
-	    Just d  -> mkAbs ab d
+getConstInfo :: MonadTCM tcm => QName -> tcm Definition
+getConstInfo q = liftTCM $ do
+    ab <- treatAbstractly q
+    md <- lookupModule m
+    let tel  = mdefTelescope md
+	defs = mdefDefs md
+    case Map.lookup x defs of
+	Nothing -> fail $ show (getRange q) ++ ": no such name " ++ show x ++ " in module " ++ show m
+	Just d  -> mkAbs ab d
     where
 	m = qnameModule q
 	x = qnameName q
@@ -110,9 +110,9 @@ getConstInfo q =
 --   context. Precondition: the variables abstracted over should be a prefix of
 --   the current context. This will be satisfied for a name looked up during
 --   type checking.
-instantiateDef :: Definition -> TCM Definition
+instantiateDef :: MonadTCM tcm => Definition -> tcm Definition
 instantiateDef d =
-    do	ctx <- asks envContext
+    do	ctx <- liftTCM $ asks envContext
 	let n  = defFreeVars d
 	    k  = length ctx - n
 	    vs = reverse [ Arg Hidden $ Var (i + k) [] | i <- [0..n - 1] ]
@@ -132,13 +132,13 @@ makeAbstract d = do def <- makeAbs $ theDef d
 	makeAbs d			       = Just d
 
 -- | Enter abstract mode
-inAbstractMode :: TCM a -> TCM a
+inAbstractMode :: MonadTCM tcm => tcm a -> tcm a
 inAbstractMode = local $ \e -> e { envAbstractMode = True }
 
 -- | Check whether a name might have to be treated abstractly (either if we're
 --   'inAbstractMode' or it's not a local name). Returns true for things not
 --   declared abstract as well, but for those 'makeAbstract' will have no effect.
-treatAbstractly :: QName -> TCM Bool
+treatAbstractly :: MonadTCM tcm => QName -> tcm Bool
 treatAbstractly q = treatAbstractly' q <$> ask
 
 treatAbstractly' :: QName -> TCEnv -> Bool
@@ -149,11 +149,11 @@ treatAbstractly' q env
 	m = envCurrentModule env
 
 -- | get type of a constant 
-typeOfConst :: QName -> TCM Type
+typeOfConst :: MonadTCM tcm => QName -> tcm Type
 typeOfConst q = defType <$> (instantiateDef =<< getConstInfo q)
 
 -- | The name must be a datatype.
-sortOfConst :: QName -> TCM Sort
+sortOfConst :: MonadTCM tcm => QName -> tcm Sort
 sortOfConst q =
     do	d <- theDef <$> getConstInfo q
 	case d of
@@ -161,7 +161,7 @@ sortOfConst q =
 	    _			-> fail $ "Expected " ++ show q ++ " to be a datatype."
 
 -- | Do something for each module with a certain kind of name.
-forEachModule :: (ModuleName -> Bool) -> (ModuleName -> TCM a) -> TCM [a]
+forEachModule :: MonadTCM tcm => (ModuleName -> Bool) -> (ModuleName -> tcm a) -> tcm [a]
 forEachModule p go =
     do	sig <- getSignature
 	concat <$> mapM action (Map.keys sig)
@@ -170,6 +170,6 @@ forEachModule p go =
 	    | p m	= (:[]) <$> go m
 	    | otherwise = return []
 
-forEachModule_ :: (ModuleName -> Bool) -> (ModuleName -> TCM a) -> TCM ()
+forEachModule_ :: MonadTCM tcm => (ModuleName -> Bool) -> (ModuleName -> tcm a) -> tcm ()
 forEachModule_ p go = forEachModule p go >> return ()
 

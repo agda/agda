@@ -28,7 +28,7 @@ import Utils.Pretty (pretty)
 #include "../undefined.h"
 
 -- | Rewrite a literal to constructor form if possible.
-constructorForm :: Term -> TCM Term
+constructorForm :: MonadTCM tcm => Term -> tcm Term
 constructorForm v@(Lit (LitInt _ n))
     | n == 0	= primZero
     | n > 0	= do
@@ -55,7 +55,7 @@ instance Show Nat where
     show = show . unNat
 
 class PrimType a where
-    primType :: a -> TCM Type
+    primType :: MonadTCM tcm => a -> tcm Type
 
 instance (PrimType a, PrimType b) => PrimTerm (a -> b) where
     primTerm _ = unEl <$> (primType (undefined :: a) --> primType (undefined :: b))
@@ -63,7 +63,7 @@ instance (PrimType a, PrimType b) => PrimTerm (a -> b) where
 instance PrimTerm a => PrimType a where
     primType _ = el $ primTerm (undefined :: a)
 
-class	 PrimTerm a	  where primTerm :: a -> TCM Term
+class	 PrimTerm a	  where primTerm :: MonadTCM tcm => a -> tcm Term
 instance PrimTerm Integer where primTerm _ = primInteger
 instance PrimTerm Bool	  where primTerm _ = primBool
 instance PrimTerm Char	  where primTerm _ = primChar
@@ -81,7 +81,7 @@ instance PrimTerm a => PrimTerm (IO a) where
 -- From Agda term to Haskell value
 
 class ToTerm a where
-    toTerm :: TCM (a -> Term)
+    toTerm :: MonadTCM tcm => tcm (a -> Term)
 
 instance ToTerm Integer where toTerm = return $ Lit . LitInt noRange
 instance ToTerm Nat	where toTerm = return $ Lit . LitInt noRange . unNat
@@ -97,7 +97,7 @@ instance ToTerm Bool where
 
 -- | @buildList A ts@ builds a list of type @List A@. Assumes that the terms
 --   @ts@ all have type @A@.
-buildList :: Term -> TCM ([Term] -> Term)
+buildList :: MonadTCM tcm => Term -> tcm ([Term] -> Term)
 buildList a = do
     nil'  <- primNil
     cons' <- primCons
@@ -117,7 +117,7 @@ instance (PrimTerm a, ToTerm a) => ToTerm [a] where
 type FromTermFunction a = Arg Term -> TCM (Reduced (Arg Term) a)
 
 class FromTerm a where
-    fromTerm :: TCM (FromTermFunction a)
+    fromTerm :: MonadTCM tcm => tcm (FromTermFunction a)
 
 instance FromTerm Integer where
     fromTerm = fromLiteral $ \l -> case l of
@@ -192,50 +192,50 @@ instance (ToTerm a, FromTerm a) => FromTerm [a] where
 		    _ -> return $ NoReduction t
 
 -- | Conceptually: @redBind m f k = either (return . Left . f) k =<< m@
-redBind :: TCM (Reduced a a') -> (a -> b) -> 
-	     (a' -> TCM (Reduced b b')) -> TCM (Reduced b b')
+redBind :: MonadTCM tcm => tcm (Reduced a a') -> (a -> b) -> 
+	     (a' -> tcm (Reduced b b')) -> tcm (Reduced b b')
 redBind ma f k = do
     r <- ma
     case r of
 	NoReduction x	-> return $ NoReduction $ f x
 	YesReduction y	-> k y
 
-redReturn :: a -> TCM (Reduced a' a)
+redReturn :: MonadTCM tcm => a -> tcm (Reduced a' a)
 redReturn = return . YesReduction
 
-fromReducedTerm :: (Term -> Maybe a) -> TCM (FromTermFunction a)
+fromReducedTerm :: MonadTCM tcm => (Term -> Maybe a) -> tcm (FromTermFunction a)
 fromReducedTerm f = return $ \t -> do
     t <- reduce t
     case f $ unArg t of
 	Just x	-> return $ YesReduction x
 	Nothing	-> return $ NoReduction t
 
-fromLiteral :: (Literal -> Maybe a) -> TCM (FromTermFunction a)
+fromLiteral :: MonadTCM tcm => (Literal -> Maybe a) -> tcm (FromTermFunction a)
 fromLiteral f = fromReducedTerm $ \t -> case t of
     Lit lit -> f lit
     _	    -> Nothing
 
 -- Tying the knot
-mkPrimFun1 :: (PrimType a, PrimType b, FromTerm a, ToTerm b) =>
-	      (a -> b) -> TCM PrimitiveImpl
+mkPrimFun1 :: (MonadTCM tcm, PrimType a, PrimType b, FromTerm a, ToTerm b) =>
+	      (a -> b) -> tcm PrimitiveImpl
 mkPrimFun1 f = do
     toA   <- fromTerm
     fromB <- toTerm
     t	  <- primType f
-    return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 1 $ \[v] ->
+    return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 1 $ \[v] -> liftTCM $
 	redBind (toA v)
 	    (\v' -> [v']) $ \x ->
 	redReturn $ fromB $ f x
 
-mkPrimFun2 :: (PrimType a, PrimType b, PrimType c, FromTerm a, ToTerm a, FromTerm b, ToTerm c) =>
-	      (a -> b -> c) -> TCM PrimitiveImpl
+mkPrimFun2 :: (MonadTCM tcm, PrimType a, PrimType b, PrimType c, FromTerm a, ToTerm a, FromTerm b, ToTerm c) =>
+	      (a -> b -> c) -> tcm PrimitiveImpl
 mkPrimFun2 f = do
     toA   <- fromTerm
     fromA <- toTerm
     toB	  <- fromTerm
     fromC <- toTerm
     t	  <- primType f
-    return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 2 $ \[v,w] ->
+    return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 2 $ \[v,w] -> liftTCM $
 	redBind (toA v)
 	    (\v' -> [v',w]) $ \x ->
 	redBind (toB w)
@@ -243,16 +243,16 @@ mkPrimFun2 f = do
 	redReturn $ fromC $ f x y
 
 -- Abstract primitive functions
-abstractPrim :: PrimType a => a -> TCM PrimitiveImpl
+abstractPrim :: (MonadTCM tcm, PrimType a) => a -> tcm PrimitiveImpl
 abstractPrim x = abstractFromType (primType x)
 
-abstractFromType :: TCM Type -> TCM PrimitiveImpl
+abstractFromType :: MonadTCM tcm => tcm Type -> tcm PrimitiveImpl
 abstractFromType mt = do
     t <- mt
     return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ (arity t) $ \args -> NoReduction <$> normalise args
 
 -- Primitive equality elimination
-primEqElim :: TCM PrimitiveImpl
+primEqElim :: MonadTCM tcm => tcm PrimitiveImpl
 primEqElim = do
     let eq a x y = el $ primEqual <#> a <@> x <@> y
     t <- hPi "A" tset $
@@ -284,46 +284,48 @@ primEqElim = do
 -- Type combinators
 infixr 4 -->
 
-(-->) :: TCM Type -> TCM Type -> TCM Type
+(-->) :: MonadTCM tcm => tcm Type -> tcm Type -> tcm Type
 a --> b = do
     a' <- a
     b' <- b
     return $ El (getSort a' `sLub` getSort b') $ Fun (Arg NotHidden a') b'
 
-gpi :: Hiding -> String -> TCM Type -> TCM Type -> TCM Type
+gpi :: MonadTCM tcm => Hiding -> String -> tcm Type -> tcm Type -> tcm Type
 gpi h name a b = do
     a' <- a
     x  <- freshName_ name
     b' <- addCtx x a' b
     return $ El (getSort a' `sLub` getSort b') $ Pi (Arg h a') (Abs name b')
 
+hPi, nPi :: MonadTCM tcm => String -> tcm Type -> tcm Type -> tcm Type
 hPi = gpi Hidden
 nPi = gpi NotHidden
 
-var :: Int -> TCM Term
+var :: MonadTCM tcm => Int -> tcm Term
 var n = return $ Var n []
 
 infixl 9 <@>, <#>
 
-gApply :: Hiding -> TCM Term -> TCM Term -> TCM Term
+gApply :: MonadTCM tcm => Hiding -> tcm Term -> tcm Term -> tcm Term
 gApply h a b = do
     x <- a
     y <- b
     return $ x `apply` [Arg h y]
 
+(<@>),(<#>) :: MonadTCM tcm => tcm Term -> tcm Term -> tcm Term
 (<@>) = gApply NotHidden
 (<#>) = gApply Hidden
 
-list :: TCM Term -> TCM Term
+list :: MonadTCM tcm => tcm Term -> tcm Term
 list t = primList <@> t
 
-io :: TCM Term -> TCM Term
+io :: MonadTCM tcm => tcm Term -> tcm Term
 io t = primIO <@> t
 
-el :: TCM Term -> TCM Type
+el :: MonadTCM tcm => tcm Term -> tcm Type
 el t = El (Type 0) <$> t
 
-tset :: TCM Type
+tset :: MonadTCM tcm => tcm Type
 tset = return $ sort (Type 0)
 
 ---------------------------------------------------------------------------
@@ -413,15 +415,15 @@ primitiveFunctions = Map.fromList
     where
 	(|->) = (,)
 
-lookupPrimitiveFunction :: String -> TCM PrimitiveImpl
+lookupPrimitiveFunction :: MonadTCM tcm => String -> tcm PrimitiveImpl
 lookupPrimitiveFunction x =
     case Map.lookup x primitiveFunctions of
-	Just p	-> p
+	Just p	-> liftTCM p
 	Nothing	-> typeError $ NoSuchPrimitiveFunction x
 
 -- | Rebind a primitive. Assumes everything is type correct. Used when
 --   importing a module with primitives.
-rebindPrimitive :: String -> TCM PrimFun
+rebindPrimitive :: MonadTCM tcm => String -> tcm PrimFun
 rebindPrimitive x = do
     PrimImpl _ pf <- lookupPrimitiveFunction x
     bindPrimitive x pf

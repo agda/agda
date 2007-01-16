@@ -15,14 +15,14 @@ import Utils.IO
 
 #include "../../undefined.h"
 
-setCommandLineOptions :: CommandLineOptions -> TCM ()
+setCommandLineOptions :: MonadTCM tcm => CommandLineOptions -> tcm ()
 setCommandLineOptions opts =
-    modify $ \s -> s { stOptions = opts }
+    liftTCM $ modify $ \s -> s { stOptions = opts }
 
-commandLineOptions :: TCM CommandLineOptions
-commandLineOptions = gets stOptions
+commandLineOptions :: MonadTCM tcm => tcm CommandLineOptions
+commandLineOptions = liftTCM $ gets stOptions
 
-setOptionsFromPragma :: Pragma -> TCM ()
+setOptionsFromPragma :: MonadTCM tcm => Pragma -> tcm ()
 setOptionsFromPragma (OptionsPragma xs) = do
     opts <- commandLineOptions
     case parsePragmaOptions xs opts of
@@ -30,61 +30,61 @@ setOptionsFromPragma (OptionsPragma xs) = do
 	Right opts' -> setCommandLineOptions opts'
 setOptionsFromPragma _ = return ()
 
-setOptionsFromPragmas :: [Pragma] -> TCM ()
+setOptionsFromPragmas :: MonadTCM tcm => [Pragma] -> tcm ()
 setOptionsFromPragmas = foldr (>>) (return ()) . map setOptionsFromPragma
 
-bracketOptions :: TCM a -> TCM a
+bracketOptions :: MonadTCM tcm => tcm a -> tcm a
 bracketOptions m = do
     opts <- commandLineOptions
     x    <- m
     setCommandLineOptions opts
     return x
 
-getIncludeDirs :: TCM [FilePath]
+getIncludeDirs :: MonadTCM tcm => tcm [FilePath]
 getIncludeDirs = addDot . optIncludeDirs <$> commandLineOptions
     where
 	addDot [] = ["."]   -- if there are no include dirs we use .
 	addDot is = is
 
-setInputFile :: FilePath -> TCM ()
+setInputFile :: MonadTCM tcm => FilePath -> tcm ()
 setInputFile file =
     do	opts <- commandLineOptions
 	setCommandLineOptions $ opts { optInputFile = Just file }
 
 -- | Should only be run if 'hasInputFile'.
-getInputFile :: TCM FilePath
+getInputFile :: MonadTCM tcm => tcm FilePath
 getInputFile =
     do	mf <- optInputFile <$> commandLineOptions
 	case mf of
 	    Just file	-> return file
 	    Nothing	-> __IMPOSSIBLE__
 
-hasInputFile :: TCM Bool
+hasInputFile :: MonadTCM tcm => tcm Bool
 hasInputFile = isJust <$> optInputFile <$> commandLineOptions
 
-proofIrrelevance :: TCM Bool
+proofIrrelevance :: MonadTCM tcm => tcm Bool
 proofIrrelevance = optProofIrrelevance <$> commandLineOptions
 
-showImplicitArguments :: TCM Bool
+showImplicitArguments :: MonadTCM tcm => tcm Bool
 showImplicitArguments = optShowImplicit <$> commandLineOptions
 
-ignoreInterfaces :: TCM Bool
+ignoreInterfaces :: MonadTCM tcm => tcm Bool
 ignoreInterfaces = optIgnoreInterfaces <$> commandLineOptions
 
-positivityCheckEnabled :: TCM Bool
+positivityCheckEnabled :: MonadTCM tcm => tcm Bool
 positivityCheckEnabled = not . optDisablePositivity <$> commandLineOptions
 
-getVerbosity :: TCM Int
+getVerbosity :: MonadTCM tcm => tcm Int
 getVerbosity = optVerbose <$> commandLineOptions
 
-verbose :: Int -> TCM () -> TCM ()
+verbose :: MonadTCM tcm => Int -> tcm () -> tcm ()
 verbose n action = do
     m <- getVerbosity
     when (n <= m) action
 
-report :: Int -> String -> TCM ()
+report :: MonadTCM tcm => Int -> String -> tcm ()
 report n s = verbose n $ liftIO $ putStr s
 
-reportLn :: Int -> String -> TCM ()
+reportLn :: MonadTCM tcm => Int -> String -> tcm ()
 reportLn n s = verbose n $ liftIO $ putStrLn s
 

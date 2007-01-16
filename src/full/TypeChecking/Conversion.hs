@@ -32,7 +32,7 @@ sameVars xs ys = and $ zipWith same xs ys
 
 -- | Type directed equality on values.
 --
-equalTerm :: Type -> Term -> Term -> TCM Constraints
+equalTerm :: MonadTCM tcm => Type -> Term -> Term -> tcm Constraints
 equalTerm a m n =
     catchConstraint (ValueEq a m n) $
     do	a'	 <- reduce a
@@ -61,7 +61,7 @@ equalTerm a m n =
 
 -- | Syntax directed equality on atomic values
 --
-equalAtom :: Type -> Term -> Term -> TCM Constraints
+equalAtom :: MonadTCM tcm => Type -> Term -> Term -> tcm Constraints
 equalAtom t m n =
     catchConstraint (ValueEq t m n) $
     do	m <- constructorForm =<< reduce m
@@ -134,7 +134,7 @@ equalAtom t m n =
 
 -- | Type-directed equality on argument lists
 --
-equalArg :: Type -> Args -> Args -> TCM Constraints
+equalArg :: MonadTCM tcm => Type -> Args -> Args -> tcm Constraints
 equalArg _ [] [] = return []
 equalArg _ [] (_:_) = __IMPOSSIBLE__
 equalArg _ (_:_) [] = __IMPOSSIBLE__
@@ -158,7 +158,7 @@ equalArg a (arg1 : args1) (arg2 : args2) = do
 
 
 -- | Equality on Types
-equalType :: Type -> Type -> TCM Constraints
+equalType :: MonadTCM tcm => Type -> Type -> tcm Constraints
 equalType ty1@(El s1 a1) ty2@(El s2 a2) =
     catchConstraint (TypeEq ty1 ty2) $ do
 	verbose 9 $ do
@@ -175,7 +175,7 @@ equalType ty1@(El s1 a1) ty2@(El s2 a2) =
 	    debug $ "   --> " ++ show dcs
 	return $ cs1 ++ cs2
 
-leqType :: Type -> Type -> TCM Constraints
+leqType :: MonadTCM tcm => Type -> Type -> tcm Constraints
 leqType ty1@(El s1 a1) ty2@(El s2 a2) = do
      -- TODO: catchConstraint (?)
     (a1, a2) <- reduce (a1,a2)
@@ -189,7 +189,7 @@ leqType ty1@(El s1 a1) ty2@(El s2 a2) = do
 ---------------------------------------------------------------------------
 
 -- | Check that the first sort is less or equal to the second.
-leqSort :: Sort -> Sort -> TCM Constraints
+leqSort :: MonadTCM tcm => Sort -> Sort -> tcm Constraints
 leqSort s1 s2 =
     catchConstraint (SortEq s1 s2) $
     do	(s1,s2) <- reduce (s1,s2)
@@ -219,7 +219,7 @@ leqSort s1 s2 =
 	notLeq s1 s2 = typeError $ NotLeqSort s1 s2
 
 -- | Check that the first sort equal to the second.
-equalSort :: Sort -> Sort -> TCM Constraints
+equalSort :: MonadTCM tcm => Sort -> Sort -> tcm Constraints
 equalSort s1 s2 =
     catchConstraint (SortEq s1 s2) $
     do	(s1,s2) <- reduce (s1,s2)

@@ -37,7 +37,7 @@ import Utils.Tuple
 
 #include "../../undefined.h"
 
-apps :: (Expr, [Arg Expr]) -> TCM Expr
+apps :: MonadTCM tcm => (Expr, [Arg Expr]) -> tcm Expr
 apps (e, [])		    = return e
 apps (e, arg@(Arg Hidden _) : args) =
     do	showImp <- showImplicitArguments
@@ -53,9 +53,9 @@ nameInfo x = NameInfo { bindingSite  = getRange x
 		      , nameAccess   = PublicAccess
 		      }
 
-qnameInfo :: QName -> TCM NameInfo
+qnameInfo :: MonadTCM tcm => QName -> tcm NameInfo
 qnameInfo x = do
-    d <- resolveName (qnameConcrete x)
+    d <- liftTCM $ resolveName (qnameConcrete x)
     let fx = case d of
 		DefName x   -> fixity x
 		_	    -> defaultFixity
@@ -69,11 +69,11 @@ qnameInfo x = do
 exprInfo :: ExprInfo
 exprInfo = ExprRange noRange
 
-reifyApp :: Expr -> [Arg Term] -> TCM Expr
+reifyApp :: MonadTCM tcm => Expr -> [Arg Term] -> tcm Expr
 reifyApp e vs = curry apps e =<< reify vs
 
 class Reify i a | i -> a where
-    reify :: i -> TCM a
+    reify :: MonadTCM tcm => i -> tcm a
 
 instance Reify MetaId Expr where
     reify x@(MetaId n) =
