@@ -131,6 +131,15 @@ data Constraint = ValueEq Type Term Term
 type Constraints = [ConstraintClosure]
 
 ---------------------------------------------------------------------------
+-- * Open things
+---------------------------------------------------------------------------
+
+-- | A thing tagged with the number of free variables. Could be tagged with the
+--   exact context.
+data Open a = OpenThing Nat a
+    deriving (Typeable, Data)
+
+---------------------------------------------------------------------------
 -- * Judgements
 ---------------------------------------------------------------------------
 
@@ -160,19 +169,23 @@ instance Traversable (Judgement t) where
 ---------------------------------------------------------------------------
 
 data MetaVariable = 
-	MetaVar	{ getMetaInfo	  :: MetaInfo
-		, mvJudgement	  :: Judgement Type MetaId
+	MetaVar	{ mvInfo	  :: MetaInfo
+		, mvPriority	  :: MetaPriority -- ^ some meta-variables are more eager to be instantiated
+		, mvJudgement	  :: Judgement (Open Type) MetaId
 		, mvInstantiation :: MetaInstantiation
 		}
     deriving (Typeable)
 
 data MetaInstantiation
-	= InstV Term
+	= InstV (Open Term)
 	| InstS Sort
 	| Open
 	| FirstOrder
 	| BlockedConst Term
     deriving (Typeable, Data)
+
+newtype MetaPriority = MetaPriority Int
+    deriving (Eq, Ord, Show)
 
 -- | TODO: Not so nice.
 type MetaInfo = Closure Range
@@ -181,6 +194,18 @@ type MetaStore = Map MetaId MetaVariable
 
 instance HasRange MetaVariable where
     getRange m = getRange $ getMetaInfo m
+
+normalMetaPriority :: MetaPriority
+normalMetaPriority = MetaPriority 0
+
+lowMetaPriority :: MetaPriority
+lowMetaPriority = MetaPriority (-10)
+
+highMetaPriority :: MetaPriority
+highMetaPriority = MetaPriority 10
+
+getMetaInfo :: MetaVariable -> MetaInfo
+getMetaInfo = mvInfo
 
 getMetaScope :: MetaVariable -> ScopeInfo
 getMetaScope m = clScope $ getMetaInfo m
@@ -192,7 +217,7 @@ getMetaSig :: MetaVariable -> Signature
 getMetaSig m = clSignature $ getMetaInfo m 
 
 setRange :: MetaVariable -> Range -> MetaVariable
-setRange (MetaVar mi j inst) r = MetaVar (mi {clValue = r}) j inst
+setRange (MetaVar mi p j inst) r = MetaVar (mi {clValue = r}) p j inst
 
 ---------------------------------------------------------------------------
 -- ** Interaction meta variables

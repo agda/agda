@@ -101,6 +101,7 @@ data Pattern' e	= VarP Name	-- ^ the only thing we need to know about a
 		| DotP PatInfo e
 		| AbsurdP PatInfo
 		| LitP Literal
+		| ImplicitP PatInfo	-- ^ generated at type checking for implicit arguments
 
 type Pattern = Pattern' Expr
 
@@ -123,6 +124,7 @@ instance Functor Pattern' where
 	DotP i e    -> DotP i (f e)
 	AbsurdP i   -> AbsurdP i
 	WildP i	    -> WildP i
+	ImplicitP i -> ImplicitP i
 
 -- foldr should really take its arguments in a different order!
 instance Foldable Pattern' where
@@ -135,6 +137,7 @@ instance Foldable Pattern' where
 	DotP _ e    -> f e z
 	AbsurdP _   -> z
 	WildP _	    -> z
+	ImplicitP _ -> z
 	where
 	    foldrF f = flip (foldr f)
 
@@ -148,6 +151,7 @@ instance Traversable Pattern' where
 	DotP i e    -> DotP i <$> f e
 	AbsurdP i   -> pure $ AbsurdP i
 	WildP i	    -> pure $ WildP i
+	ImplicitP i -> pure $ ImplicitP i
 
 instance HasRange LamBinding where
     getRange (DomainFree _ x) = getRange x
@@ -190,14 +194,15 @@ instance HasRange Definition where
     getRange (DataDef i _ _ _ ) = getRange i
 
 instance HasRange (Pattern' e) where
-    getRange (VarP x)	  = getRange x
-    getRange (ConP i _ _) = getRange i
-    getRange (DefP i _ _) = getRange i
-    getRange (WildP i)	  = getRange i
-    getRange (AsP i _ _)  = getRange i
-    getRange (DotP i _)   = getRange i
-    getRange (AbsurdP i)  = getRange i
-    getRange (LitP l)	  = getRange l
+    getRange (VarP x)	   = getRange x
+    getRange (ConP i _ _)  = getRange i
+    getRange (DefP i _ _)  = getRange i
+    getRange (WildP i)	   = getRange i
+    getRange (ImplicitP i) = getRange i
+    getRange (AsP i _ _)   = getRange i
+    getRange (DotP i _)    = getRange i
+    getRange (AbsurdP i)   = getRange i
+    getRange (LitP l)	   = getRange l
 
 instance HasRange LHS where
     getRange (LHS i _ _)    = getRange i

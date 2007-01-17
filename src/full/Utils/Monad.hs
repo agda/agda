@@ -9,6 +9,7 @@ import Prelude		   hiding (concat)
 import Control.Monad
 import Control.Monad.Error
 import Control.Monad.Reader
+import Control.Monad.State
 import Control.Applicative
 import Data.Traversable
 import Data.Foldable
@@ -16,11 +17,15 @@ import Data.Foldable
 -- Instances --------------------------------------------------------------
 
 instance Applicative (Reader env) where
-    pure = return
+    pure  = return
     (<*>) = ap
 
 instance Monad m => Applicative (ReaderT env m) where
-    pure = return
+    pure  = return
+    (<*>) = ap
+
+instance Monad m => Applicative (StateT s m) where
+    pure  = return
     (<*>) = ap
 
 -- Monads -----------------------------------------------------------------

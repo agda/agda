@@ -55,9 +55,9 @@ equalTerm a m n =
 		p	= fmap (const $ Var 0 []) a
 		(m',n') = raise 1 (m,n) `apply` [p]
 		t'	= raise 1 t `piApply'` [p]
-		suggest (Fun _ _) = "_"
+		suggest (Fun _ _)	 = "x"
 		suggest (Pi _ (Abs x _)) = x
-		suggest _ = __IMPOSSIBLE__
+		suggest _		 = __IMPOSSIBLE__
 
 -- | Syntax directed equality on atomic values
 --
@@ -88,10 +88,14 @@ equalAtom t m n =
 		| x == y -> do
 		    a <- defType <$> getConstInfo x
 		    equalArg a xArgs yArgs
-	    (MetaV x xArgs, MetaV y yArgs) | x == y ->
-		if   sameVars xArgs yArgs
-		then return []
-		else buildConstraint (ValueEq t m n)
+	    (MetaV x xArgs, MetaV y yArgs)
+		| x == y -> if   sameVars xArgs yArgs
+			    then return []
+			    else buildConstraint (ValueEq t m n)
+		| otherwise -> do
+		    [p1, p2] <- mapM getMetaPriority [x,y]
+		    if p1 > p2 then assignV t x xArgs n	-- TODO: what if one works but not the other?
+			       else assignV t y yArgs m
 	    (MetaV x xArgs, _) -> assignV t x xArgs n
 	    (_, MetaV x xArgs) -> assignV t x xArgs m
 	    (BlockedV b, _)    -> buildConstraint (ValueEq t m n)
@@ -229,7 +233,10 @@ equalSort s1 s2 =
 	case (s1,s2) of
 
 	    (MetaS x , MetaS y ) | x == y    -> return []
-				 | otherwise -> assignS x s2
+				 | otherwise -> do
+		[p1, p2] <- mapM getMetaPriority [x, y]
+		if p1 >= p2 then assignS x s2
+			    else assignS y s1
 	    (MetaS x , _       )	     -> assignS x s2
 	    (_	     , MetaS x )	     -> equalSort s2 s1
 

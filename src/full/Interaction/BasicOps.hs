@@ -51,9 +51,12 @@ giveExpr mi e =
   where  metaTypeCheck' mi e mv vs = 
             case mvJudgement mv of 
 		 HasType _ t  ->
-		    do	v <- checkExpr e t
+		    do	t <- getOpen t
+			v <- checkExpr e t
 			case mvInstantiation mv of
-			    InstV v' -> addConstraints =<< equalTerm t v (v' `apply` vs)
+			    InstV v' -> do
+				v' <- getOpen v'
+				addConstraints =<< equalTerm t v (v' `apply` vs)
 			    _	     -> return ()
 			updateMeta mi v
                         reify v
@@ -250,7 +253,7 @@ getConstraints = liftTCM $
 typeOfMetaMI :: Rewrite -> MetaId -> IM (OutputForm Expr MetaId)
 typeOfMetaMI norm mi = 
      do mv <- lookupMeta mi
-        let j = mvJudgement mv
+        j <- getOpenJudgement $ mvJudgement mv
         rewriteJudg mv j
    where
     rewriteJudg mv (HasType i t) = 
@@ -280,9 +283,9 @@ typeOfMetas norm = liftTCM $
                let mvs = Map.keys store
                mapM (typeOfMetaMI norm) mvs
           where
-               openAndImplicit is x (MetaVar _ _ M.Open)	     = x `notElem` is
-	       openAndImplicit is x (MetaVar _ _ (M.BlockedConst _)) = True
-	       openAndImplicit _ _ _				     = False
+               openAndImplicit is x (MetaVar _ _ _ M.Open)	       = x `notElem` is
+	       openAndImplicit is x (MetaVar _ _ _ (M.BlockedConst _)) = True
+	       openAndImplicit _ _ _				       = False
 
 contextOfMeta :: InteractionId -> IM [OutputForm Expr Name]
 contextOfMeta ii = do

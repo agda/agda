@@ -59,9 +59,9 @@ bindPatternVar x a = do
     liftPatCPS_ (addCtx x a)
     tell (PatBinds [show x] [])
 
-addPatternMeta :: Type -> CheckPatM r MetaId
-addPatternMeta a = do
-    x <- newFirstOrderMeta a
+addPatternMeta :: MetaPriority -> Type -> CheckPatM r MetaId
+addPatternMeta p a = do
+    x <- newFirstOrderMeta p a
     tell (PatBinds [] [x])
     return x
 

@@ -7,6 +7,7 @@ module TypeChecking.Monad
     , module TypeChecking.Monad.Env
     , module TypeChecking.Monad.Imports
     , module TypeChecking.Monad.MetaVars
+    , module TypeChecking.Monad.Open
     , module TypeChecking.Monad.Options
     , module TypeChecking.Monad.Signature
     , module TypeChecking.Monad.State
@@ -23,6 +24,7 @@ import TypeChecking.Monad.Env
 import TypeChecking.Monad.Imports
 import TypeChecking.Monad.MetaVars
 import TypeChecking.Monad.Options
+import TypeChecking.Monad.Open
 import TypeChecking.Monad.Signature
 import TypeChecking.Monad.State
 import TypeChecking.Monad.Statistics

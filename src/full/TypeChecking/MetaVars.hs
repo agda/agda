@@ -84,22 +84,22 @@ isFirstOrder x = do
 
 
 class HasMeta t where
-    metaInstance :: t -> MetaInstantiation
+    metaInstance :: MonadTCM tcm => t -> tcm MetaInstantiation
     metaVariable :: MetaId -> Args -> t
 
 instance HasMeta Term where
-    metaInstance = InstV
-    metaVariable = MetaV
+    metaInstance t = InstV <$> makeOpen t
+    metaVariable   = MetaV
 
 instance HasMeta Sort where
-    metaInstance = InstS
+    metaInstance     = return . InstS
     metaVariable x _ = MetaS x
 
 -- | The instantiation should not be an 'InstV' or 'InstS' and the 'MetaId'
 --   should point to something 'Open' or a 'BlockedConst'.
 (=:) :: (MonadTCM tcm, HasMeta t) => MetaId -> t -> tcm ()
 x =: t = do
-    let i = metaInstance t
+    i <- metaInstance t
     store <- getMetaStore
     modify $ \st -> st { stMetaStore = ins x i store }
     wakeupConstraints
@@ -113,7 +113,7 @@ assignTerm = (=:)
 newSortMeta :: MonadTCM tcm => tcm Sort
 newSortMeta = 
     do  i <- createMetaInfo
-	MetaS <$> newMeta i (IsSort ())
+	MetaS <$> newMeta i normalMetaPriority (IsSort ())
 
 newTypeMeta :: MonadTCM tcm => Sort -> tcm Type
 newTypeMeta s = El s <$> newValueMeta (sort s)
@@ -125,7 +125,7 @@ newValueMeta ::  MonadTCM tcm => Type -> tcm Term
 newValueMeta t =
     do	i  <- createMetaInfo
         vs <- allCtxVars
-	x  <- newMeta i (HasType () t)
+	x  <- newMeta i normalMetaPriority (HasType () t)
 	return $ MetaV x vs
 
 newArgsMeta :: MonadTCM tcm => Type -> tcm Args
@@ -155,7 +155,7 @@ blockTerm t v m = do
 	    i	  <- createMetaInfo
 	    vs	  <- allCtxVars
 	    tel   <- getContextTelescope' NotHidden
-	    x	  <- newMeta i (HasType () t)
+	    x	  <- newMeta i lowMetaPriority (HasType () t)	-- we don't instantiate blocked terms
 	    store <- getMetaStore
 	    modify $ \st -> st { stMetaStore = ins x (BlockedConst $ abstract tel v) store }
 	    c <- escapeContext (length tel) $ guardConstraint (return cs) (UnBlock x)
@@ -166,11 +166,12 @@ blockTerm t v m = do
     inst i mv = mv { mvInstantiation = i }
 
 -- | Create a fresh first-order meta-variable.
-newFirstOrderMeta :: MonadTCM tcm => Type -> tcm MetaId
-newFirstOrderMeta a = do
+newFirstOrderMeta :: MonadTCM tcm => MetaPriority -> Type -> tcm MetaId
+newFirstOrderMeta p a = do
     i <- createMetaInfo
     x <- fresh
-    let mv = MetaVar i (HasType x a) FirstOrder
+    o <- makeOpen a
+    let mv = MetaVar i p (HasType x o) FirstOrder
     modify $ \st -> st { stMetaStore = Map.insert x mv $ stMetaStore st }
     return x
 
@@ -180,7 +181,8 @@ newFirstOrderMeta a = do
 newMetaSame :: MonadTCM tcm => MetaId -> (MetaId -> a) -> tcm a
 newMetaSame x meta =
     do	mv <- lookupMeta x
-	meta <$> newMeta (getMetaInfo mv) (mvJudgement mv)
+	j  <- getOpenJudgement (mvJudgement mv)
+	meta <$> newMeta (getMetaInfo mv) (mvPriority mv) j
 
 -- | Extended occurs check.
 class Occurs t where
@@ -321,8 +323,11 @@ assignV t x args v =
 	    d <- prettyTCM (abstract tel' v')
 	    debug $ "final instantiation: " ++ show d
 
-	-- Perform the assignment (and wake constraints)
-	x =: abstract tel' v'
+	-- Perform the assignment (and wake constraints). Non first-order metas
+	-- are top-level so we do the assignment at top-level.
+	n <- length <$> getContextTelescope
+	(if firstOrder then id else escapeContext n)
+	    $ x =: abstract tel' v'
 	return []
     where
 	rename ids i arg = case findIndex (==i) ids of
@@ -379,7 +384,9 @@ updateMeta mI t =
     where
 	upd mI args j t = (__IMPOSSIBLE__ `mkQ` updV j `extQ` updS) t
 	    where
-		updV (HasType _ t) v = assignV t mI args v
+		updV (HasType _ t) v = do
+		    t <- getOpen t
+		    assignV t mI args v
 		updV _ _	     = __IMPOSSIBLE__
 
 		updS s = assignS mI s

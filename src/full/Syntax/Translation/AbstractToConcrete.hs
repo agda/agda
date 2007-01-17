@@ -225,10 +225,10 @@ instance ToConcrete DefInfo (Maybe [C.Declaration]) where
 instance BindToConcrete LHSInfo (Maybe C.LHS) where
     bindToConcrete (LHSSource lhs) ret = ret =<< stored lhs
 
-instance BindToConcrete PatInfo (Maybe C.Pattern) where
+instance BindToConcrete PatInfo (Maybe [C.Pattern]) where
     bindToConcrete (PatSource _ f) ret =
 	do  p <- precedenceLevel <$> ask
-	    ret =<< stored (f p)
+	    ret . fmap (:[]) =<< stored (f p)
     bindToConcrete (PatRange _) ret = ret Nothing
 
 instance ToConcrete ModuleInfo (Maybe [C.Declaration]) where
@@ -540,39 +540,43 @@ instance ToConcrete RangeAndPragma C.Pragma where
 
 -- Left hand sides --------------------------------------------------------
 
+concatArgs :: [NamedArg [C.Pattern]] -> [NamedArg C.Pattern]
+concatArgs args = [ Arg h (Named name p) | Arg h (Named name [p]) <- args ]
+
 instance BindToConcrete A.LHS C.Pattern where
     bindToConcrete (A.LHS i x args) ret =
-	bindWithStored i ret $
+	-- bindWithStored i ret $
 	do  x <- toConcrete x
 	    bindToConcrete args $ \args ->
-		ret $ foldl C.AppP (IdentP $ C.QName x) args
+		ret $ foldl C.AppP (IdentP $ C.QName x) $ concatArgs args
 
-instance ToConcrete A.Pattern C.Pattern where
+instance ToConcrete A.Pattern [C.Pattern] where
     toConcrete p = bindToConcrete p return
 
 -- TODO: bracket patterns
-instance BindToConcrete A.Pattern C.Pattern where
-    bindToConcrete (VarP x)	   ret = bindToConcrete x $ ret . IdentP . C.QName
+instance BindToConcrete A.Pattern [C.Pattern] where
+    bindToConcrete (VarP x)	   ret = bindToConcrete x $ ret . (:[]) . IdentP . C.QName
     bindToConcrete (A.WildP i)	   ret =
-	bindWithStored i ret $ ret $ C.WildP (getRange i)
+	{- bindWithStored i ret $ -} ret [ C.WildP (getRange i) ]
     bindToConcrete (ConP i x args) ret =
-	bindWithStored i ret $
+	-- bindWithStored i ret $
 	do  x <- toConcrete x
 	    bindToConcrete args $ \args ->
-		ret $ foldl AppP (C.IdentP x) args
+		ret [ foldl AppP (C.IdentP x) $ concatArgs args ]
     bindToConcrete (DefP i x args) ret =
-	bindWithStored i ret $
+	-- bindWithStored i ret $
 	do  x <- toConcrete x
 	    bindToConcrete args $ \args ->
-		ret $ foldl AppP (C.IdentP x) args
+		ret [ foldl AppP (C.IdentP x) $ concatArgs args ]
     bindToConcrete (A.AsP i x p)   ret = bindToConcrete (x,p) $ \ (x,p) ->
-					    ret $ C.AsP (getRange i) x p
-    bindToConcrete (A.AbsurdP i)   ret = ret $ C.AbsurdP (getRange i)
-    bindToConcrete (A.LitP l)	   ret = ret $ C.LitP l
-    bindToConcrete (A.DotP i e)	   ret =
-	bindWithStored i ret $ do
+					    ret $ map (C.AsP (getRange i) x) p
+    bindToConcrete (A.AbsurdP i)   ret = ret [ C.AbsurdP (getRange i) ]
+    bindToConcrete (A.LitP l)	   ret = ret [ C.LitP l ]
+    bindToConcrete (A.DotP i e)	   ret = do
+	-- bindWithStored i ret $ do
 	e <- toConcrete e
-	ret $ C.DotP (getRange i) e
+	ret [ C.DotP (getRange i) e ]
+    bindToConcrete (A.ImplicitP i) ret = ret []
 
 -- Helpers for recovering C.OpApp ------------------------------------------
 

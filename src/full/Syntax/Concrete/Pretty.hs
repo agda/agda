@@ -196,6 +196,9 @@ instance Pretty e => Pretty (Named String e) where
     pretty (Named Nothing e) = pretty e
     pretty (Named (Just s) e) = sep [ text s <+> text "=", pretty e ]
 
+instance Pretty [Pattern] where
+    pretty = fsep . map pretty
+
 instance Pretty Pattern where
     pretty p =
 	case p of
