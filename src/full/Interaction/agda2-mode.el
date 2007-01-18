@@ -518,9 +518,20 @@ NEW-TXT is a string to replace OLD-G, or `'paren', or `'no-paren'"
     (format "(Pn \"%s\" %d %d)" (buffer-file-name)
             (count-lines (point-min) (point)) (1+ (current-column)))))
 
+(defun agda2-char-quote (c)
+  "Converts non-ASCII characters to the \xNNNN notation used in
+Haskell strings. ASCII characters (code points < 128) are converted to
+singleton strings."
+  (if (< c 128)
+      (list c)
+    (append (format "\\x%x" (encode-char c 'ucs)) nil)))
+
 (defun agda2-string-quote (s)
-  "add escape to newlines, doublequote, etc. in string S"
-  (let ((pp-escape-newlines t)) (pp-to-string s)))
+  "Escape newlines, double quotes, etc. in the string S, add
+surrounding double quotes, and convert non-ASCII characters to the \xNNNN
+notation used in Haskell strings."
+  (let ((pp-escape-newlines t))
+    (mapconcat 'agda2-char-quote (pp-to-string s) "")))
 
 (defun agda2-goal-at(pos)
   "Return (goal overlay, goal number) at POS, or nil"

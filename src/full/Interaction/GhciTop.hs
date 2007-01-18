@@ -195,7 +195,7 @@ cmd_goal_type norm ii _ _ = infoOnException $ do
 display_info :: String -> String -> IO()
 display_info bufname content =
   putStrLn . response
-    $ L[A"agda2-info-action", A(show bufname),  A(show content)]
+    $ L[A"agda2-info-action", A(quote bufname),  A(quote content)]
 
 response :: Lisp String -> String
 response l = show (text "agda2_mode_code" <+> pretty l)
@@ -249,7 +249,7 @@ cmd_make_case ii rng s = infoOnException $ ioTCM $ do
     --
     liftIO $ putStrLn $ response $
       L[A"agda2-make-case-action",
-        Q $ L $ List.map (A . emacsStr . (++ " = ?") . show . ppPa 0) newpas]
+        Q $ L $ List.map (A . quote . (++ " = ?") . show . ppPa 0) newpas]
 
   where
   findClause wanted sig = case
@@ -433,14 +433,15 @@ cmd_compute _ ii rng s = infoOnException $ do
   v <- ioTCM (B.evalInMeta ii =<< parseExprIn ii rng s)
   display_info "*Normal Form*" (show v)
 
--- change "\<decimal>" to "\x<hex>"
+-- change "\<decimal>" to a single character
+-- TODO: This seems to be the wrong solution to the problem. Attack
+-- the source instead.
 emacsStr s = go (show s) where
-  go ('\\':(a:b:c:t))
-     | all isDigit [a,b,c] = "\\x" ++ hex8(read [a,b,c]::Int) ++ go t
+  go ('\\':ns@(n:_))
+     | isDigit n = toEnum (read digits :: Int) : go rest
+     where (digits, rest) = span isDigit ns
   go (c:s) = c : go s
   go []    = []
-  hex8 n = let (h,l) = quotRem n 16 in [d h, d l]
-  d i = (['0'..'9'] ++ ['a'..'f'])!! i
 
 
 infoOnException m = failOnException inform m where
