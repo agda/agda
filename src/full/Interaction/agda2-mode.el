@@ -10,6 +10,7 @@
 (require 'pp)
 (require 'haskell-mode)
 (require 'haskell-indent)
+(require 'haskell-ghci)
 ;; due to a bug in haskell-mode-2.1
 (setq haskell-ghci-mode-map (copy-keymap comint-mode-map))
 (require 'font-lock)
@@ -92,8 +93,9 @@ Remove `turn-on-agda2-indent', `turn-on-agda2-font-lock' from here to disable
 those features." :type 'hook :group 'agda2)
 
 (defun agda2-fix-ghci-for-windows ()
-     (setq haskell-ghci-program-name "ghc"
-           haskell-ghci-program-args '("--interactive" "-package lang")))
+  (if (string-match "windows" system-configuration)
+      (setq haskell-ghci-program-name "ghc"
+            haskell-ghci-program-args '("--interactive" "-package lang"))))
 
 ;;;; Global and buffer-local vars, initialization
 
@@ -192,7 +194,11 @@ consumed at `agda2-undo'.  It is a list of list
  ;;(make-local-hook 'haskell-mode-hook)
  ;;(remove-hook 'haskell-mode-hook 'turn-on-haskell-font-lock 'local)
  ;;(remove-hook 'haskell-mode-hook 'turn-on-haskell-doc-mode 'local)
- (haskell-mode) (turn-off-haskell-font-lock) (turn-off-haskell-doc-mode)
+ (haskell-mode)
+ (if (featurep 'haskell-font-lock)
+     (turn-off-haskell-font-lock))
+ (if (featurep 'haskell-doc)
+     (turn-off-haskell-doc-mode))
  (use-local-map    agda2-mode-map)
  (set-syntax-table agda2-mode-syntax-table)
  (setq mode-name          "Agda2"
