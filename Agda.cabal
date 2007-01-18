@@ -2,6 +2,7 @@ name:		Agda
 version:	2.0.0
 license:	BSD3
 author:		Ulf Norell, Catarina Coquand, Makoto Takeyama, ...
+maintainer:     Ulf Norell <ulfn@cs.chalmers.se>
 homepage:
 category:	    Theorem Proving
 build-depends:	    base, mtl, QuickCheck >= 1.0 && < 2.0, readline, haskell98
