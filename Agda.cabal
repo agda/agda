@@ -116,7 +116,9 @@ exposed-modules:    Compiler.Agate.Classify,
 		    Utils.Tuple,
 		    Utils.Unicode,
 		    Version
+ghc-options:        -O
 
 executable:	agda
 main-is:	Main.hs
 hs-source-dirs: src/full
+ghc-options:    -O
