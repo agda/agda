@@ -9,6 +9,7 @@ build-depends:   base, mtl, QuickCheck >= 1.0 && < 2.0, readline, haskell98
 synopsis:        A dependently typed proof checker / programming language.
 hs-source-dirs:  src/full
 exposed-modules: AgdaMain
+                 Interaction.BasicOps
                  Interaction.GhciTop
 other-modules:   Compiler.Agate.Classify
                  Compiler.Agate.Common
@@ -16,7 +17,6 @@ other-modules:   Compiler.Agate.Classify
                  Compiler.Agate.OptimizedPrinter
                  Compiler.Agate.TranslateName
                  Compiler.Agate.UntypedPrinter
-                 Interaction.BasicOps
                  Interaction.CommandLine.CommandLine
                  Interaction.EmacsInterface.EmacsAgda
                  Interaction.Exceptions
