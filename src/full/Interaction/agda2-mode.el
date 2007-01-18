@@ -1,13 +1,5 @@
 ;; agda2-mode.el --- Major mode for Agda2
 
-;;;; cleaning up, just in case.
-(when (fboundp 'dolist)
-  (dolist (b (buffer-list))
-    (with-current-buffer b
-      (if (or (equal (buffer-name) "*ghci*") (eq major-mode 'agda2-mode))
-          (kill-buffer b)))))
-(if (featurep 'agda2) (unload-feature 'agda2))
-
 ;;;; Dependency
 
 (require 'cl) ;  haskell-indent requires it anyway.
