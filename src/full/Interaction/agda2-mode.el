@@ -49,38 +49,11 @@ properties to add to the result."
 ;;;; User options
 
 (defgroup agda2 nil "User options for agda2-mode")
-(defcustom agda2-root-dir "m:/Agda2"
-  "The root of cvs Agda2 module working directory.  Customizing this takes
-effect only after doing 'erase-customization' for `agda2-ghci-options' below"
-  :type 'string :group 'agda2)
 
-(defcustom agda2-ghci-options2
-  (list
-   "-package Agda"
-   "-I."
-   "-Wall"
-   "-Werror"
-   "-fno-warn-missing-signatures"
-   "-fno-warn-name-shadowing"
-   "-fno-warn-simple-patterns"
-   "-fno-warn-unused-matches"
-   "-fno-warn-unused-binds"
-   "-fno-warn-unused-imports"
-   "-fno-warn-type-defaults")
-"*The options for ghci to load `agda2-toplevel-module'."
-:type '(repeat string) :group 'agda2)
-
-(defconst agda2-ghci-options
-  (let ((outdir (concat agda2-root-dir "/out/full")))
-    (append
-     (list
-      (concat "-i" agda2-root-dir "/src/full")
-      (concat "-i" agda2-root-dir "/src/compat")    ; we should only do this for ghc < 6.6. how?
-      (concat "-i" outdir)
-      (concat "-hidir " outdir)
-      (concat "-odir  " outdir))
-     agda2-ghci-options2))
-  "*The options for ghci to load `agda2-toplevel-module'.")
+(defcustom agda2-ghci-options
+  (list "-package Agda")
+  "*The options for ghci to load `agda2-toplevel-module'."
+  :type '(repeat string) :group 'agda2)
 
 (defcustom agda2-toplevel-module "Interaction.GhciTop"
   "*The name of the Agda2 toplevel module (this must be INTERPRETED, for now)"
