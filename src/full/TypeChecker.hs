@@ -445,8 +445,9 @@ checkLHS ps t ret = do
     -- Save the state for later. (should this be done with the undo monad, or
     -- would that interfere with normal undo?)
     rollback <- do
-	checkPoint <- get
-	return $ put checkPoint
+	st  <- get
+	env <- ask
+	return $ \k -> do put st; local (const env) k
 
     runCheckPatM (checkPatterns ps t) $ \xs metas (ps0, ps, ts, a) -> do
 
@@ -472,9 +473,8 @@ checkLHS ps t ret = do
 
     -- Now we forget that we ever type checked anything and type check the new
     -- pattern.
-    rollback
-    escapeContext (length xs) $ runCheckPatM (checkPatterns ps1 t)
-			      $ \xs metas (_, ps, ts, a) -> do
+    rollback $ runCheckPatM (checkPatterns ps1 t)
+	     $ \xs metas (_, ps, ts, a) -> do
 
     verbose 5 $ liftIO $ do
 	putStrLn $ "second check"
@@ -747,8 +747,15 @@ checkPattern name p t =
 	    ot	       <- makeOpen t
 	    (p0, p, v) <- checkPattern name p t
 	    t	       <- getOpen ot
+	    verbose 5 $ do
+		dt <- prettyTCM t
+		dv <- prettyTCM v
+		dctx <- prettyTCM =<< getContext
+		liftIO $ putStrLn $ show dctx ++ " |-"
+		liftIO $ putStrLn $ "  " ++ show x ++ " : " ++ show dt
+		liftIO $ putStrLn $ "  " ++ show x ++ " = " ++ show dv
 	    liftPatCPS_ (addLetBinding x v t)
-	    return (p0, p, v)
+	    return (A.AsP i x p0, p, v)
 
 	-- Literal.
 	A.LitP l    -> do

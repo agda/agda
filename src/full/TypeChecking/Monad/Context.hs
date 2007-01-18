@@ -13,6 +13,7 @@ import Syntax.Scope
 
 import TypeChecking.Monad.Base
 import TypeChecking.Substitute
+import TypeChecking.Monad.Open
 
 import Utils.Monad
 
@@ -23,8 +24,7 @@ import Utils.Monad
 addCtx :: MonadTCM tcm => Name -> Type -> tcm a -> tcm a
 addCtx x a = local $ \e ->
 		e { envContext	   = (x,a) : envContext e
-		  , envLetBindings = raise 1 $ envLetBindings e
-		  }
+		  } -- let-bindings keep track of their context
 
 -- | Go under an abstraction.
 underAbstraction :: MonadTCM tcm => Type -> Abs a -> (a -> tcm b) -> tcm b
@@ -60,8 +60,9 @@ addCtxTel (Arg _ (x,t) : tel) ret =
 
 -- | Add a let bound variable
 addLetBinding :: MonadTCM tcm => Name -> Term -> Type -> tcm a -> tcm a
-addLetBinding x v t =
-    local $ \e -> e { envLetBindings = Map.insert x (v,t) $ envLetBindings e }
+addLetBinding x v t ret = do
+    vt <- makeOpen (v, t)
+    flip local ret $ \e -> e { envLetBindings = Map.insert x vt $ envLetBindings e }
 
 -- | get type of bound variable (i.e. deBruijn index)
 --
@@ -97,7 +98,7 @@ getVarInfo x =
 		    return (Var n [], t)
 	    _	    ->
 		case Map.lookup x def of
-		    Just vt -> return vt
+		    Just vt -> getOpen vt
 		    _	    -> fail $ "unbound variable " ++ show x
 
 escapeContext :: MonadTCM tcm => Int -> tcm a -> tcm a

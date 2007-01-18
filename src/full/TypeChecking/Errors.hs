@@ -4,6 +4,7 @@ module TypeChecking.Errors
     , PrettyTCM(..)
     ) where
 
+import Control.Applicative ( (<$>) )
 import Control.Monad.State
 import Control.Monad.Error
 
@@ -203,6 +204,15 @@ instance P.Pretty QName where
 
 instance P.Pretty ModuleName where
     pretty = P.text . show
+
+instance PrettyTCM Context where
+    prettyTCM ctx = P.fsep . reverse <$> pr ctx
+	where
+	    pr []	     = return []
+	    pr ((x,t) : ctx) = escapeContext 1 $ do
+		d    <- prettyTCM t
+		dctx <- pr ctx
+		return $ P.hsep [ P.pretty x, P.text ":", d] : dctx
 
 instance PrettyTCM TCErr where
     prettyTCM err = case err of

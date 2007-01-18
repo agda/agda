@@ -12,14 +12,17 @@ import Syntax.Common
 
 import TypeChecking.Substitute
 import TypeChecking.Monad.Base
-import TypeChecking.Monad.Context
+
+#ifndef __HADDOCK__
+import {-# SOURCE #-} TypeChecking.Monad.Context
+#endif
 
 #include "../../undefined.h"
 
 -- | Create an open term in the current context.
 makeOpen :: MonadTCM tcm => a -> tcm (Open a)
 makeOpen x = do
-    n <- length <$> getContextTelescope
+    n <- length <$> getContext
     return $ OpenThing n x
 
 -- | Create an open term which is closed.
@@ -31,7 +34,7 @@ makeClosed = OpenThing 0
 getOpen :: (MonadTCM tcm, Raise a) => Open a -> tcm a
 getOpen (OpenThing 0 x) = return x
 getOpen (OpenThing n x) = do
-    m <- length <$> getContextTelescope
+    m <- length <$> getContext
     unless (m >= n) $ __IMPOSSIBLE__
     return $ raise (m - n) x
 

@@ -30,8 +30,8 @@ nil ++ ys = ys
 (x::xs) ++ ys = x :: (xs ++ ys)
 
 baz : {A:Set} -> List A -> List A
-baz xs @ (_ :: ys @ (_ :: zs)) = xs ++ ys ++ zs
-baz xs @ (x :: nil)	   = x :: xs
+baz xs@(_ :: ys@(_ :: zs)) = xs ++ ys ++ zs
+baz xs@(x :: nil)	   = x :: xs
 baz nil			   = nil
 
 postulate
@@ -39,8 +39,8 @@ postulate
   mkT : (n:Nat) -> T n
 
 f : (n:Nat) -> T n -> T n
-f n @ (suc _) t = mkT n
-f zero	      t = t
+f n@(suc _) t = mkT n
+f zero	    t = t
 
 foo_ : Nat -> Nat
 foo_ n = n

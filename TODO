@@ -81,6 +81,9 @@ Fixes
 * When do we have to turn on abstractMode. When checking anything public? Not
   done at the moment.
 
+* change to named free variables and deBruijn bound variables (I'm not a number
+  paper).
+
 [Imports]
 
 * handle clashing builtin things

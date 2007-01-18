@@ -406,7 +406,7 @@ type Context = [(Name, Type)]
 -- ** Let bindings
 ---------------------------------------------------------------------------
 
-type LetBindings = Map Name (Term, Type)
+type LetBindings = Map Name (Open (Term, Type))
 
 ---------------------------------------------------------------------------
 -- * Type checking errors

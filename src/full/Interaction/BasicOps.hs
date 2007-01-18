@@ -253,8 +253,9 @@ getConstraints = liftTCM $
 typeOfMetaMI :: Rewrite -> MetaId -> IM (OutputForm Expr MetaId)
 typeOfMetaMI norm mi = 
      do mv <- lookupMeta mi
-        j <- getOpenJudgement $ mvJudgement mv
-        rewriteJudg mv j
+	withMetaInfo (getMetaInfo mv) $ do
+	    j <- getOpenJudgement $ mvJudgement mv
+	    rewriteJudg mv j
    where
     rewriteJudg mv (HasType i t) = 
 	withMetaInfo (getMetaInfo mv) $ do
