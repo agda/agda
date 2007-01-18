@@ -2,7 +2,7 @@
 
 {-| Agda 2 main module.
 -}
-module Main where
+module AgdaMain where
 
 import Control.Monad.State
 import Control.Monad.Error

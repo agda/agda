@@ -8,7 +8,7 @@ category:        Theorem Proving
 build-depends:   base, mtl, QuickCheck >= 1.0 && < 2.0, readline, haskell98
 synopsis:        A dependently typed proof checker / programming language.
 hs-source-dirs:  src/full
-exposed-modules: Main
+exposed-modules: AgdaMain
                  Interaction.GhciTop
 other-modules:   Compiler.Agate.Classify
                  Compiler.Agate.Common
@@ -121,9 +121,4 @@ other-modules:   Compiler.Agate.Classify
                  Utils.Tuple
                  Utils.Unicode
                  Version
-ghc-options:     -O
-
-executable:      agda
-main-is:         Main.hs
-hs-source-dirs:  src/full
 ghc-options:     -O
