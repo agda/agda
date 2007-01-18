@@ -101,7 +101,7 @@ those features." :type 'hook :group 'agda2)
 
 (defvar agda2-mode-syntax-table
   (let ((tbl (make-syntax-table))
-        (l  '(?{ "(}1" ?} "){4" ?-  ". 23"
+        (l  '(?{ "(}1n" ?} "){4n" ?-  "_ 123b" ?\n "> b"
               ?\\ "." ?_  "w"  ?\' "w" ?. "."  ?=  "."  ?: "." ?, "." )))
     (while l (modify-syntax-entry (pop l) (pop l) tbl)) tbl)
   "Syntax table used while in agda2 mode")
