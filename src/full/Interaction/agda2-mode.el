@@ -206,12 +206,7 @@ consumed at `agda2-undo'.  It is a list of list
        local-abbrev-table agda2-mode-abbrev-table
        indent-tabs-mode   nil
        mode-line-buffer-identification agda2-buffer-identification)
- (let ((l '(comment-start      "{- "
-            comment-end         " -}"
-            comment-start-skip  "{-+ *"
-            comment-column      32
-            comment-multi-line  t
-            max-specpdl-size    2600
+ (let ((l '(max-specpdl-size    2600
             max-lisp-eval-depth 2800)))
    (while l (set (make-local-variable (pop l)) (pop l))))
  (agda2-restart)
