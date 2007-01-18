@@ -117,6 +117,7 @@ other-modules:   Compiler.Agate.Classify
                  Utils.ReadLine
                  Utils.ReadP
                  Utils.Serialise
+                 Utils.String
                  Utils.Trace
                  Utils.Tuple
                  Utils.Unicode

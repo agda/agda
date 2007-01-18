@@ -41,6 +41,7 @@ import Utils.Monad
 import Utils.Monad.Undo
 import Utils.IO
 import Utils.Pretty
+import Utils.String
 
 import Control.Monad.Error
 import Control.Monad.Reader
