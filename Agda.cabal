@@ -8,7 +8,9 @@ category:	    Theorem Proving
 build-depends:	    base, mtl, QuickCheck >= 1.0 && < 2.0, readline, haskell98
 synopsis:	    A dependently typed proof checker / programming language.
 hs-source-dirs:	    src/full
-exposed-modules:    Compiler.Agate.Classify,
+exposed-modules:    Main,
+		    Interaction.GhciTop
+other-modules:      Compiler.Agate.Classify,
 		    Compiler.Agate.Common,
 		    Compiler.Agate.Main,
 		    Compiler.Agate.OptimizedPrinter,
@@ -18,12 +20,10 @@ exposed-modules:    Compiler.Agate.Classify,
 		    Interaction.CommandLine.CommandLine,
 		    Interaction.EmacsInterface.EmacsAgda,
 		    Interaction.Exceptions,
-		    Interaction.GhciTop,
 		    Interaction.Imports,
 		    Interaction.Monad,
 		    Interaction.Options,
 		    Interaction.Vim.Highlight,
-		    Main,
 		    Syntax.Abstract.Name,
 		    Syntax.Abstract.Pretty,
 		    Syntax.Abstract.Test,
