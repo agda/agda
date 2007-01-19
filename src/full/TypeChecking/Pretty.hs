@@ -106,5 +106,5 @@ instance PrettyTCM Context where
 	    pr ((x,t) : ctx) = escapeContext 1 $ do
 		d    <- prettyTCM t
 		dctx <- pr ctx
-		return $ P.hsep [ P.pretty x, P.text ":", d] : dctx
+		return $ P.parens (P.hsep [ P.pretty x, P.text ":", d]) : dctx
 
