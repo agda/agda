@@ -6,7 +6,7 @@ module TypeChecking.Reduce where
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Applicative
-import Data.List as List
+import Data.List as List hiding (sort)
 import Data.Map as Map
 import Data.Generics
 import Data.Traversable
@@ -288,7 +288,7 @@ instance Normalise ClauseBody where
     normalise  NoBody	 = return NoBody
 
 instance Normalise t => Normalise (Abs t) where
-    normalise = traverse normalise
+    normalise a = Abs (absName a) <$> underAbstraction (sort Prop) a normalise
 
 instance Normalise t => Normalise (Arg t) where
     normalise = traverse normalise
@@ -332,6 +332,9 @@ instance (Ord k, Normalise e) => Normalise (Map k e) where
 class InstantiateFull t where
     instantiateFull :: MonadTCM tcm => t -> tcm t
 
+instance InstantiateFull Name where
+    instantiateFull = return
+
 instance InstantiateFull Sort where
     instantiateFull s = do
 	s <- instantiate s
@@ -367,7 +370,7 @@ instance InstantiateFull ClauseBody where
     instantiateFull  NoBody    = return NoBody
 
 instance InstantiateFull t => InstantiateFull (Abs t) where
-    instantiateFull = traverse instantiateFull
+    instantiateFull a = Abs (absName a) <$> underAbstraction (sort Prop) a instantiateFull
 
 instance InstantiateFull t => InstantiateFull (Arg t) where
     instantiateFull = traverse instantiateFull
