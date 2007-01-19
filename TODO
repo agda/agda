@@ -16,13 +16,11 @@ Features
 
 * with-clauses
 
-* named implicit arguments, see notes/named-implicit
-
-* build agda as a package to speed up loading into ghci
-
 * allow module instantiation before top-level module(?)
 
 * abstract open (need to re-type check to make sure the abstraction is solid)
+
+* implement the CHIT-CHAT module system
 
 Fixes
 -----
@@ -34,8 +32,6 @@ Fixes
 * Check out lex/parse errors (what position and what input is reported).
 
 [Printing]
-
-* pretty printing of operator applications
 
 * print names properly qualified (we want to be able to parse it back)
 
@@ -93,8 +89,7 @@ Fixes
 * allow the source to not exist if there is an interface file
   (what if it needs rebuilding? throw error)
 
-* use Data.ByteString for interfaces?. Do some profiling to see what's taking
-  time when importing.
+* insert pragmas to specialise interface parsers (if this is the problem)
 
 [Builtin]
 
@@ -121,13 +116,9 @@ Speculative
 Cleaning
 --------
 
-* Split TypeChecking.Errors into TypeChecking.Pretty and TypeChecking.Errors
-
 * TypeChecking.Reduce
 
   - Explicit dictionaries (Kit)? see notes/kit
-
-* Syntax.Scope (implement the CHIT-CHAT module system)
 
 * Split vim highlighting into a general highlighting module and the vim
   specific parts.
@@ -144,9 +135,19 @@ Performance
 Done
 ----
 
+* Split TypeChecking.Errors into TypeChecking.Pretty and TypeChecking.Errors
+
+* inductive families with pattern matching
+
+* build agda as a package to speed up loading into ghci
+
 * OpenTerm type to simplify deBruijn variable handling
 
 * Monad transformer for checking patterns.
+
+* pretty printing of operator applications
+
+* named implicit arguments, see notes/named-implicit
 
 * Use Data.ByteString (if ghc-6.6) for interface parsing (faster, but still quite slow)
 
