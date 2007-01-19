@@ -94,8 +94,9 @@ equalAtom t m n =
 			    else buildConstraint (ValueEq t m n)
 		| otherwise -> do
 		    [p1, p2] <- mapM getMetaPriority [x,y]
-		    if p1 > p2 then assignV t x xArgs n	-- TODO: what if one works but not the other?
-			       else assignV t y yArgs m
+		    -- instantiate later meta variables first
+		    if (p1,x) > (p2,y) then assignV t x xArgs n	-- TODO: what if one works but not the other?
+				       else assignV t y yArgs m
 	    (MetaV x xArgs, _) -> assignV t x xArgs n
 	    (_, MetaV x xArgs) -> assignV t x xArgs m
 	    (BlockedV b, _)    -> buildConstraint (ValueEq t m n)
