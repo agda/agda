@@ -31,6 +31,7 @@ module Interaction.GhciTop
 
 import Prelude hiding (print, putStr, putStrLn)
 import System.IO hiding (print, putStr, putStrLn)
+import System.Directory
 import System.IO.Unsafe
 import Data.Char
 import Data.IORef
@@ -42,6 +43,7 @@ import Utils.Monad.Undo
 import Utils.IO
 import Utils.Pretty
 import Utils.String
+import Utils.FileName
 
 import Control.Monad.Error
 import Control.Monad.Reader
@@ -113,9 +115,32 @@ ioTCM cmd = do
       return a
     Left _ -> exitWith $ ExitFailure 1
 
+-- | Set the current working directory based on the file name of the
+-- current module and its module name, so that when the module is
+-- imported qualified it will be found.
+--
+-- The path is assumed to be absolute.
+--
+-- The given list of declarations should correspond to a module, i.e.
+-- it should be non-empty and the last declaration should be
+-- 'SC.Module' something.
+
+setWorkingDirectory :: FilePath -> [SC.Declaration] -> IO ()
+setWorkingDirectory _    [] = __IMPOSSIBLE__
+setWorkingDirectory file xs = case last xs of
+  SC.Module _ n _ _ -> setCurrentDirectory (newDir $ countDots n)
+  _                 -> __IMPOSSIBLE__
+  where
+  countDots (SC.QName _)  = 0
+  countDots (SC.Qual _ n) = 1 + countDots n
+
+  (path, _, _) = splitFilePath file
+  newDir n     = iterate dropDirectory path !! n
+
 cmd_load :: String -> IO ()
 cmd_load file = infoOnException $ do
     (pragmas, m) <- parseFile moduleParser file
+    setWorkingDirectory file m
     is <- ioTCM $ do
 	    resetState
 	    pragmas	 <- concreteToAbstract_ pragmas	-- identity for top-level pragmas at the moment
