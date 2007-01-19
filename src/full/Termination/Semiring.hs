@@ -9,7 +9,7 @@ module Termination.Semiring
   ) where
 
 import Test.QuickCheck
-import Termination.TestHelpers
+import Utils.TestHelpers
 
 -- | Semirings.
 

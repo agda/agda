@@ -1,7 +1,7 @@
 -- | Some functions and generators suitable for writing QuickCheck
 -- properties.
 
-module Termination.TestHelpers
+module Utils.TestHelpers
   ( -- * Algebraic properties
     associative
   , commutative

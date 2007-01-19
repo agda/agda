@@ -18,7 +18,7 @@ module Termination.CallGraph
   ) where
 
 import Test.QuickCheck
-import Termination.TestHelpers
+import Utils.TestHelpers
 import Termination.Utilities
 import Termination.Matrix
 import Termination.Semiring (Semiring)

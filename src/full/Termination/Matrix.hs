@@ -30,7 +30,7 @@ module Termination.Matrix
 import Data.Array
 import Data.List
 import Test.QuickCheck
-import Termination.TestHelpers
+import Utils.TestHelpers
 import Termination.Semiring (Semiring)
 import qualified Termination.Semiring as Semiring
 

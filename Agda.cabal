@@ -65,7 +65,6 @@ other-modules:   Compiler.Agate.Classify
                  Termination.RCall
                  Termination.Semiring
                  Termination.Termination
-                 Termination.TestHelpers
                  Termination.Utilities
                  Termination.Utils
                  Tests
@@ -118,6 +117,7 @@ other-modules:   Compiler.Agate.Classify
                  Utils.ReadP
                  Utils.Serialise
                  Utils.String
+                 Utils.TestHelpers
                  Utils.Trace
                  Utils.Tuple
                  Utils.Unicode
