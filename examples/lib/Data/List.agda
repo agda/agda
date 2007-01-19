@@ -3,9 +3,11 @@ module Data.List where
 
 import Prelude
 import Data.Nat
+import Data.Tuple
 
 open Prelude
 open Data.Nat
+open Data.Tuple
 
 infixr 50 _::_ _++_
 
@@ -52,12 +54,12 @@ iterate  zero   f x = []
 iterate (suc n) f x = x :: iterate n f (f x)
 
 splitAt : {A : Set} -> Nat -> List A -> List A × List A
-splitAt  zero   xs        = < [] | xs >
-splitAt (suc n) []        = < [] | [] >
+splitAt  zero   xs        = < [] , xs >
+splitAt (suc n) []        = < [] , [] >
 splitAt (suc n) (x :: xs) = add x $ splitAt n xs
   where
     add : _ -> List _ × List _ -> List _ × List _
-    add x < ys | zs > = < x :: ys | zs >
+    add x < ys , zs > = < x :: ys , zs >
 
 reverse : {A : Set} -> List A -> List A
 reverse xs = foldl (flip _::_) [] xs

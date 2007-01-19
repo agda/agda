@@ -6,7 +6,7 @@ import Data.Bool
 import Logic.Base
 import Logic.Identity
 
-open Data.Nat hiding (_==_ _<_)
+open Data.Nat hiding (_==_ _<_ _≡_)
 open Data.Bool
 open Logic.Base
 
@@ -14,6 +14,7 @@ data Fin : Nat -> Set where
   fzero : {n : Nat} -> Fin (suc n)
   fsuc  : {n : Nat} -> Fin n -> Fin (suc n)
 
+{-
 module Id where
 
   _==_ : {n : Nat} -> Fin n -> Fin n -> Bool
@@ -38,7 +39,9 @@ module Id where
   FinId = identity (\x y -> IsTrue (x == y))
 		   refl
 		   (\P i j eq px -> subst P eq px)
+-}
 
+{-
 _<_ : {n : Nat} -> Fin n -> Fin n -> Bool
 _      < fzero  = false
 fzero  < fsuc j = true
@@ -55,6 +58,7 @@ liftSuc (fsuc i) = fsuc (liftSuc i)
 lift+ : {n : Nat}(m : Nat) -> Fin n -> Fin (m + n)
 lift+  zero   i = i
 lift+ (suc m) i = liftSuc (lift+ m i)
+-}
 
 thin : {n : Nat} -> Fin (suc n) -> Fin n -> Fin (suc n)
 thin  fzero i	       = fsuc i
