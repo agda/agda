@@ -29,12 +29,13 @@ makeOpen x = do
 makeClosed :: a -> Open a
 makeClosed = OpenThing 0
 
+
 -- | Extract the value from an open term. Must be done in an extension of the
 --   context in which the term was created.
 getOpen :: (MonadTCM tcm, Raise a) => Open a -> tcm a
 getOpen (OpenThing 0 x) = return x
 getOpen (OpenThing n x) = do
     m <- length <$> getContext
-    unless (m >= n) $ __IMPOSSIBLE__
+    unless (m >= n) $ fail $ "thing out of context (" ++ show m ++ " < " ++ show n ++ ")"
     return $ raise (m - n) x
 

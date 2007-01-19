@@ -453,14 +453,14 @@ checkLHS ps t ret = do
     -- they couldn't be solved.
     ps1 <- evalStateT (buildNewPatterns ps0) metas
 
-    verbose 5 $ liftIO $ do
+    verbose 10 $ liftIO $ do
 	putStrLn $ "first check"
 	putStrLn $ "  xs    = " ++ show xs
 	putStrLn $ "  metas = " ++ show metas
 	putStrLn $ "  ps0   = " ++ showA ps0
 	putStrLn $ "  ps1   = " ++ showA ps1
 
-    verbose 5 $ do
+    verbose 10 $ do
 	is <- mapM (instantiateFull . flip MetaV []) metas
 	ds <- mapM prettyTCM is
 	dts <- mapM prettyTCM =<< mapM instantiateFull ts
@@ -472,12 +472,12 @@ checkLHS ps t ret = do
     rollback $ runCheckPatM (checkPatterns ps1 t)
 	     $ \xs metas (_, ps, ts, a) -> do
 
-    verbose 5 $ liftIO $ do
+    verbose 10 $ liftIO $ do
 	putStrLn $ "second check"
 	putStrLn $ "  xs    = " ++ show xs
 	putStrLn $ "  metas = " ++ show metas
 
-    verbose 5 $ do
+    verbose 10 $ do
 	is <- mapM (instantiateFull . flip MetaV []) metas
 	ds <- mapM prettyTCM is
 	liftIO $ putStrLn $ "  is    = " ++ concat (List.intersperse ", " $ map show ds)
@@ -743,7 +743,7 @@ checkPattern name p t =
 	    ot	       <- makeOpen t
 	    (p0, p, v) <- checkPattern name p t
 	    t	       <- getOpen ot
-	    verbose 5 $ do
+	    verbose 15 $ do
 		dt <- prettyTCM t
 		dv <- prettyTCM v
 		dctx <- prettyTCM =<< getContext

@@ -5,6 +5,8 @@
 -}
 module Interaction.Imports where
 
+import Prelude hiding (putStrLn, putStr, print)
+
 import Control.Monad.Error
 import Control.Monad.State
 import qualified Data.Map as Map
@@ -188,13 +190,15 @@ createInterface opts trace path visited file = runTCM $ withImportPath path $ do
 
 buildInterface :: TCM Interface
 buildInterface = do
+    reportLn 5 "Building interface..."
     scope   <- currentModuleScope <$> getScope
     sig	    <- getSignature
     isig    <- getImportedSignature
     builtin <- getBuiltinThings
     ms	    <- getImports
     let	builtin' = Map.mapWithKey (\x b -> fmap (const x) b) builtin
-    instantiateFull $ Interface
+    reportLn 7 "  instantiating all meta variables"
+    i <- instantiateFull $ Interface
 			{ iVersion	   = currentInterfaceVersion
 			, iImportedModules = ms
 			, iScope	   = scope
@@ -202,6 +206,8 @@ buildInterface = do
 			, iImports	   = isig
 			, iBuiltin	   = builtin'
 			}
+    reportLn 7 "  interface complete"
+    return i
 
 
 -- | Put some of this stuff in a Utils.File
