@@ -1,9 +1,8 @@
 
 To build Agda II run
 
-  > make
-  > ./configure
+  > runhaskell Setup.hs configure
   > make
 
-The binary ends up in 'out/full/agda'.
+The binary ends up in 'src/main/dist/build/agda/agda'.
 

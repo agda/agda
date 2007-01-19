@@ -5,8 +5,7 @@
 
 TOP=../..
 
-# Pathes to agdaLight and Property.agda
-agda=$(TOP)/out/full/agda
+include $(TOP)/mk/paths.mk
 
 # Verbosity
 V = 0
@@ -20,11 +19,11 @@ all : $(allagda) $(alllagda)
 
 $(allagda) : % : %.agda
 	@echo $<
-	@$(agda) -v$(V) $<
+	@$(AGDA_BIN) -v$(V) $<
 
 $(alllagda) : % : %.lagda
 	@echo $<
-	@$(agda) -v$(V) $<
+	@$(AGDA_BIN) -v$(V) $<
 
 clean :
 	-rm *~

@@ -16,3 +16,5 @@ TRANSL_OUT_DIR	= $(OUT_DIR)/transl
 DOC_DIR			= $(TOP)/doc
 HADDOCK_DIR		= $(DOC_DIR)/haddock
 
+AGDA_BIN		= $(MAIN_SRC_DIR)/dist/build/agda/agda
+

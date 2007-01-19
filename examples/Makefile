@@ -5,7 +5,7 @@ include $(TOP)/mk/paths.mk
 
 default : test polydep aim4-bag ac minmax clowns real
 
-agda = $(FULL_OUT_DIR)/agda
+agda = $(AGDA_BIN)
 
 test_files = Vec.agda Setoid.agda TT.agda \
 			 AIM5/Hedberg/SET.agda AIM5/yoshiki/SET.agda \

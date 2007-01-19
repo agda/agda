@@ -19,7 +19,7 @@ TOP = ../..
 include $(TOP)/mk/paths.mk
 
 # Path to Agda
-agda=$(FULL_OUT_DIR)/agda
+agda=$(AGDA_BIN)
 
 # Verbosity default = 0, can be overridden
 V = 0
