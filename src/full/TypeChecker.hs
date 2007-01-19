@@ -353,18 +353,14 @@ constructs nofPars t q = constrT 0 t
 
 	bad t = typeError $ ShouldEndInApplicationOfTheDatatype t
 
-	checkParams n vs
-	    | vs `sameVars` ps = return ()
-	    | otherwise	       =
-		typeError $ ShouldBeAppliedToTheDatatypeParameters
-			    (apply def ps) (apply def vs)
+	checkParams n vs = zipWithM_ sameVar (map unArg vs) ps
 	    where
 		def = Def q []
-		ps = reverse [ Arg h $ Var i [] | (i,Arg h _) <- zip [n..] vs ]
-		sameVar (Var i []) (Var j []) = i == j
-		sameVar _ _		      = False
+		ps = reverse [ i | (i,Arg h _) <- zip [n..] vs ]
 
-		sameVars xs ys = and $ zipWith sameVar (map unArg xs) (map unArg ys)
+		sameVar v i = do
+		    t <- typeOfBV i
+		    noConstraints $ equalTerm t v (Var i [])
 
 
 -- | Force a type to be a specific datatype.
