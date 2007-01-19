@@ -33,3 +33,8 @@ src/prototyping/modules/flat/module$
 \.vrb$
 ^dist$
 ^\.(inplace-pkg|installed-pkg|setup)-config$
+^src/main/setup$
+^setup$
+^src/main/dist$
+^src/full/Syntax/Parser/(Parser|Lexer).hs$
+^src/main/\.setup-config$
