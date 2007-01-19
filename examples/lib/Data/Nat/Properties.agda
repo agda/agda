@@ -12,45 +12,25 @@ import Data.Nat
 import Data.Bool
 
 open Prelude
-open Data.Nat hiding (_==_)
+open Data.Nat
 open Logic.Base
 open Logic.Relations
 open Logic.Identity
 open Data.Bool
 
-module Id where
-
-  refl : Reflexive _≡_
-  refl  zero   = tt
-  refl (suc n) = refl n
-
-  subst : Substitutive _≡_
-  subst P  zero    zero   tt px = px
-  subst P (suc _)  zero   () _
-  subst P  zero   (suc _) () _
-  subst P (suc x) (suc y) xy px = subst (\x -> P (suc x)) x y xy px
-
-NatId : Identity Nat
-NatId = identity _≡_ refl subst
-  where
-    open Id
-
-module Proofs (Id : Identity Nat) where
-
-  module IdN = Identity Id
-  open IdN
+module Proofs where
 
   module Ops = Operations.MonoEq Equiv
   open Ops
 
-  module Chain = Logic.ChainReasoning _==_ (\x -> refl{x}) (\x y z -> trans{x}{y}{z})
+  module Chain = Logic.ChainReasoning.Poly.Homogenous _≡_ (\x -> refl) (\x y z -> trans)
   open Chain
 
-  +zero : (n : Nat) -> n + zero == n
+  +zero : (n : Nat) -> n + zero ≡ n
   +zero  zero   = refl
   +zero (suc n) = cong suc (+zero n)
 
-  +suc : (n m : Nat) -> n + suc m == suc (n + m)
+  +suc : (n m : Nat) -> n + suc m ≡ suc (n + m)
   +suc  zero   m = refl
   +suc (suc n) m = cong suc (+suc n m)
 
@@ -62,11 +42,11 @@ module Proofs (Id : Identity Nat) where
   +assoc  zero   y z = refl
   +assoc (suc x) y z = cong suc (+assoc x y z)
 
-  *zero : (n : Nat) -> n * zero == zero
+  *zero : (n : Nat) -> n * zero ≡ zero
   *zero  zero   = refl
   *zero (suc n) = *zero n
 
-  *suc : (x y : Nat) -> x * suc y == x + x * y
+  *suc : (x y : Nat) -> x * suc y ≡ x + x * y
   *suc  zero   y = refl
   *suc (suc x) y =
     chain> suc x * suc y
@@ -80,17 +60,17 @@ module Proofs (Id : Identity Nat) where
         )
        === suc x + suc x * y     by refl
 
-  *commute : (x y : Nat) -> x * y == y * x
+  *commute : (x y : Nat) -> x * y ≡ y * x
   *commute x  zero   = *zero x
   *commute x (suc y) = trans (*suc x y) (cong (_+_ x) (*commute x y))
 
-  one* : (x : Nat) -> 1 * x == x
+  one* : (x : Nat) -> 1 * x ≡ x
   one* x = +zero x
 
-  *one : (x : Nat) -> x * 1 == x
+  *one : (x : Nat) -> x * 1 ≡ x
   *one x = trans (*commute x 1) (one* x)
 
-  *distrOver+L : (x y z : Nat) -> x * (y + z) == x * y + x * z
+  *distrOver+L : (x y z : Nat) -> x * (y + z) ≡ x * y + x * z
   *distrOver+L  zero   y z = refl
   *distrOver+L (suc x) y z =
     chain> suc x * (y + z)
@@ -105,7 +85,7 @@ module Proofs (Id : Identity Nat) where
     where
       ih = *distrOver+L x y z
 
-  *distrOver+R : (x y z : Nat) -> (x + y) * z == x * z + y * z
+  *distrOver+R : (x y z : Nat) -> (x + y) * z ≡ x * z + y * z
   *distrOver+R  zero   y z = refl
   *distrOver+R (suc x) y z =
     chain> (suc x + y) * z
@@ -143,6 +123,5 @@ module Proofs (Id : Identity Nat) where
   mod≤  zero   m = tt
   mod≤ (suc n) m = mod≤ (n - m) m
 
-private module Pr = Proofs NatId
-open Pr public
+open Proofs public
 

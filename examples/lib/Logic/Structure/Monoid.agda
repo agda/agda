@@ -4,7 +4,7 @@ module Logic.Structure.Monoid where
 import Logic.Equivalence
 import Logic.Operations as Operations
 
-open Logic.Equivalence, using (Equivalence, module Equivalence)
+open Logic.Equivalence using (Equivalence module Equivalence)
 open Operations.Param
 
 data Monoid (A : Set)(Eq : Equivalence A) : Set where

@@ -95,9 +95,6 @@ even n = mod n 2 == 0
 odd : Nat -> Bool
 odd n = mod n 2 == 1
 
-_≡_ : Nat -> Nat -> Set
-n ≡ m = IsTrue (n == m)
-
 {-# BUILTIN NATEQUALS _==_ #-}
 {-# BUILTIN NATLESS   _<_  #-}
 

@@ -10,8 +10,8 @@ import Data.Interval
 import Data.List
 import Data.Map
 import Data.Maybe
-import Data.Nat.Properties
 import Data.Nat
+import Data.Nat.Properties
 import Data.Rational
 import Data.Real.Base
 import Data.Real.Complete
@@ -21,10 +21,7 @@ import Data.Show
 import Data.String
 import Data.Tuple
 import Logic.Base
-import Logic.ChainReasoning.Poly
 import Logic.ChainReasoning
-import Logic.ChainReasoning0
-import Logic.ChainReasoning1
 import Logic.Congruence
 import Logic.Equivalence
 import Logic.Identity

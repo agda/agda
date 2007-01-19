@@ -1,6 +1,9 @@
 
 module Logic.Identity where
 
+import Logic.Equivalence
+open Logic.Equivalence
+
 infix 40 _≡_
 
 data _≡_ {A : Set}(x : A) : A -> Set where
@@ -20,4 +23,7 @@ cong {A} f refl = refl
 
 cong2 : {A : Set}(f : A -> A -> A){x y z w : A} -> x ≡ z -> y ≡ w -> f x y ≡ f z w
 cong2 {A} f refl refl = refl
+
+Equiv : {A : Set} -> Equivalence A
+Equiv = equiv _≡_ (\x -> refl) (\x y -> sym) (\x y z -> trans)
 

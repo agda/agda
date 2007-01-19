@@ -13,6 +13,7 @@ import Data.Interval
 import Data.Real.Gauge
 import Data.Show
 import Data.List
+import Data.Tuple
 
 open Prelude
 open Data.Real.Base
@@ -24,6 +25,7 @@ open Data.String
 open Data.Interval
 open Data.Real.Gauge
 open Data.Nat using (Nat)
+open Data.Tuple
 
 data CReal : Set where
   cReal : Complete Base -> CReal

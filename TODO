@@ -62,6 +62,8 @@ Fixes
 
 * emacs interface gets the metas in the wrong order for local definitions (?)
 
+* importing A after importing A.B causes a clash
+
 [Interaction]
 
 [Errors]

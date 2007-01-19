@@ -7,8 +7,8 @@ import Logic.Equivalence
 
 open Prelude
 open Logic.Relations
-open Logic.Equivalence, using    (Equivalence)
-                      , renaming (module Projections to Proj)
+open Logic.Equivalence using    (Equivalence)
+                       renaming (module Projections to Proj)
 
 data Congruence (A : Set) : Set1 where
   congruence :
@@ -41,7 +41,7 @@ module Congruence {A : Set}(Cong : Congruence A) where
   trans = Projections.trans Cong
   cong  = Projections.cong  Cong
 
-  cong2 : (f : A -> A -> A)(a, b, c, d : A) -> a == c -> b == d -> f a b == f c d
+  cong2 : (f : A -> A -> A)(a b c d : A) -> a == c -> b == d -> f a b == f c d
   cong2 f a b c d ac bd = trans _ _ _ rem1 rem2
     where
       rem1 : f a b == f a d
