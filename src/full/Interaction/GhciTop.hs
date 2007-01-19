@@ -135,7 +135,7 @@ setWorkingDirectory file xs = case last xs of
   countDots (SC.Qual _ n) = 1 + countDots n
 
   (path, _, _) = splitFilePath file
-  newDir n     = iterate dropDirectory path !! n
+  newDir n     = dropDirectory n path
 
 cmd_load :: String -> IO ()
 cmd_load file = infoOnException $ do

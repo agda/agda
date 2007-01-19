@@ -6,6 +6,7 @@ module Utils.FileName where
 import Utils.TestHelpers
 import Test.QuickCheck
 import Data.List
+import Control.Monad
 
 splitFilePath :: FilePath -> (FilePath, String, String)
 splitFilePath s =
@@ -66,24 +67,39 @@ prop_splitPath =
     &&
     genericLength (splitPath $ slash : path ++ [slash]) == n
 
--- | Given a path (not including a file) 'dropDirectory' removes
--- the last directory in the path (if any).
+-- | Given a path (not including a file) @'dropDirectory' n@ removes
+-- the last @n@ directories in the path (if any).
+--
+-- Precondition: @n '>=' 0@.
 
-dropDirectory :: FilePath -> FilePath
-dropDirectory = unsplitPath . reverse . drop 1 . reverse . splitPath
+dropDirectory :: Integral i => i -> FilePath -> FilePath
+dropDirectory n =
+  unsplitPath . reverse . genericDrop n . reverse . splitPath
+
+-- The complexity of the following property, coupled with the
+-- simplicity of dropDirectory, indicates that another representation
+-- of paths should be used.
 
 prop_dropDirectory =
-  forAll nonEmptyName $ \dir ->
+  forAll (natural :: Gen Integer) $ \n ->
   forAll path $ \p ->
-    not (null p) ==>
-      dropDirectory "" == "/"
-      &&
-      dropDirectory [slash] == "/"
-      &&
-      dropDirectory (addSlash p) == dropDirectory p
-      &&
-      let p' = slash : p ++ [slash] in
-      dropDirectory (p' ++ dir) == p'
+  forAll (pathOfLength n) $ \dirs ->
+  forAll nonEmptyName $ \name ->
+    dropDirectory n "" == "/"
+    &&
+    dropDirectory n [slash] == "/"
+    &&
+    dropDirectory n (addSlash p) == dropDirectory n p
+    &&
+    let p' = p ++ name in
+    dropDirectory n (p' ++ dirs) =^= p'
+  where
+  infix 4 =^=
+  p1 =^= p2 = surround p1 == surround p2
+
+  surround = addSlash . addInitSlash
+  addInitSlash cs@(c : _) | c == slash = cs
+  addInitSlash cs                      = slash : cs
 
 #ifdef mingw32_HOST_OS
 canonify (drive:':':xs) ys =
@@ -142,12 +158,26 @@ name = list nameChar
 nonEmptyName :: Gen FilePath
 nonEmptyName = nonEmptyList nameChar
 
--- Generates a possibly empty path (without any drive).
+-- | Generates a possibly empty path (without any drive).
 
 path :: Gen FilePath
 path = list $ elements chars
   where
   chars = "/." ++ ['a' .. 'g']
+
+-- | @'pathOfLength' n@ generates a path which contains @n '+' 1@
+-- 'slash'es and starts and ends with a 'slash'.
+
+pathOfLength :: Integral i => i -> Gen FilePath
+pathOfLength n = fmap ((++ [slash]) . concat) $
+  listOfLength n (fmap (slash :) name)
+
+prop_pathOfLength =
+  forAll (natural :: Gen Integer) $ \n ->
+  forAll (pathOfLength n) $ \path ->
+    dropDirectory n path == [slash]
+    &&
+    genericLength (filter (== slash) path) == n + 1
 
 ------------------------------------------------------------------------
 -- All tests
@@ -156,3 +186,4 @@ tests = do
   quickCheck prop_splitPath_unsplitPath
   quickCheck prop_splitPath
   quickCheck prop_dropDirectory
+  quickCheck prop_pathOfLength
