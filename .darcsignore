@@ -38,3 +38,4 @@ src/prototyping/modules/flat/module$
 ^src/main/dist$
 ^src/full/Syntax/Parser/(Parser|Lexer).hs$
 ^src/main/\.setup-config$
+^src/main/.uptodate$

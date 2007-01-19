@@ -11,10 +11,12 @@ is_configured = $(shell if test -f mk/config.mk; \
 						fi \
 				 )
 
+include mk/paths.mk
+
 ifeq ($(is_configured),Yes)
 include mk/config.mk
+include mk/rules.mk
 endif
-include mk/paths.mk
 
 
 ## Phony targets ##########################################################
@@ -56,19 +58,14 @@ doc :
 ifeq ($(HAVE_RUNHASKELL),Yes)
 
 SETUP	   = Setup.hs
-MAIN_SETUP = $(MAIN_SRC_DIR)/Setup.hs
 RUNSETUP   = $(RUNHASKELL) $(SETUP)
 
 else
 
 SETUP	   = setup
-MAIN_SETUP = $(MAIN_SRC_DIR)/setup
 RUNSETUP   = ./setup
 
 $(SETUP) : Setup.hs
-	ghc --make -o $@ $<
-
-$(MAIN_SETUP) : $(MAIN_SRC_DIR)/Setup.hs
 	ghc --make -o $@ $<
 
 endif
@@ -76,9 +73,7 @@ endif
 full : $(SETUP) $(MAIN_SETUP)
 	$(RUNSETUP) build
 	$(RUNSETUP) register --user --inplace
-	(cd $(MAIN_SRC_DIR); \
-	 $(RUNSETUP) configure; \
-	 $(RUNSETUP) build)
+	$(MAKE) -C $(MAIN_SRC_DIR)
 
 # $(MAKE) -C $(FULL_SRC_DIR)
 
