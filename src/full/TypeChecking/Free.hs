@@ -4,6 +4,7 @@
 module TypeChecking.Free 
     ( FreeVars(..)
     , freeVars
+    , allVars
     , freeIn
     ) where
 

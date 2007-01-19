@@ -26,6 +26,10 @@ addCtx x a = local $ \e ->
 		e { envContext	   = (x,a) : envContext e
 		  } -- let-bindings keep track of their context
 
+-- | Change the context
+inContext :: MonadTCM tcm => Context -> tcm a -> tcm a
+inContext ctx = local $ \e -> e { envContext = ctx }
+
 -- | Go under an abstraction.
 underAbstraction :: MonadTCM tcm => Type -> Abs a -> (a -> tcm b) -> tcm b
 underAbstraction t a k = do

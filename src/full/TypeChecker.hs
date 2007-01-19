@@ -10,6 +10,7 @@ import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Error
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import qualified Data.List as List
 import Data.Traversable (traverse)
 import System.Directory
@@ -46,12 +47,14 @@ import TypeChecking.Errors
 import TypeChecking.Positivity
 import TypeChecking.Empty
 import TypeChecking.Patterns.Monad
+import TypeChecking.Free
 
 import Utils.Monad
 import Utils.List
 import Utils.Serialise
 import Utils.IO
 import Utils.Tuple
+import Utils.Function
 
 #include "undefined.h"
 
@@ -409,12 +412,12 @@ checkFunDef i x cs =
 checkClause :: Type -> A.Clause -> TCM Clause
 checkClause t c@(A.Clause (A.LHS i x aps) rhs ds) =
     traceCall (CheckClause t c) $
-    checkLHS aps t $ \xs ps t' -> do
+    checkLHS aps t $ \sub xs ps t' -> do
 	checkDecls ds
 	body <- case rhs of
 	    A.RHS e -> do
 		v <- checkExpr e t'
-		return $ foldr (\x t -> Bind $ Abs x t) (Body v) xs
+		return $ foldr (\x t -> Bind $ Abs x t) (Body $ substs sub v) xs
 	    A.AbsurdRHS
 		| any (containsAbsurdPattern . namedThing . unArg) aps
 			    -> return NoBody
@@ -435,7 +438,7 @@ containsAbsurdPattern p = case p of
     A.DefP _ _ _  -> __IMPOSSIBLE__
 
 -- | Type check a left-hand side.
-checkLHS :: [NamedArg A.Pattern] -> Type -> ([String] -> [Arg Pattern] -> Type -> TCM a) -> TCM a
+checkLHS :: [NamedArg A.Pattern] -> Type -> ([Term] -> [String] -> [Arg Pattern] -> Type -> TCM a) -> TCM a
 checkLHS ps t ret = do
 
     -- Save the state for later. (should this be done with the undo monad, or
@@ -492,7 +495,39 @@ checkLHS ps t ret = do
 	[] -> return ()
 	rs -> fail $ "unsolved pattern metas at\n" ++ unlines (map show rs)
 
-    ret xs ps a
+    -- Make sure to purge the type and the context from any first-order metas.
+    a	 <- instantiateFull a
+    flat <- instantiateFull =<< flatContext
+
+    -- The context might not be well-formed. We may have to do some reordering.
+    reportLn 20 $ "Before reordering:"
+    verbose 20 $ dumpContext flat
+
+    flat' <- reorderCtx flat
+
+    -- Compute renamings to and from the new context
+    let sub  = (computeSubst `on` map fst) flat flat'
+	rsub = (computeSubst `on` map fst) flat' flat
+
+    -- Apply the reordering to the types in the new context
+    let flat'' = map (id -*- substs sub) flat'
+
+    reportLn 20 $ "After reordering:"
+    verbose 20 $ dumpContext flat'
+
+    -- Deflatten the context
+    let ctx = mkContext flat''
+
+    inContext ctx $ do
+
+	verbose 20 $ do
+	    d <- prettyTCM ctx
+	    dt <- prettyTCM (substs sub a)
+	    liftIO $ putStrLn $ "context = " ++ show d
+	    liftIO $ putStrLn $ "type    = " ++ show dt
+
+	reportLn 20 $ "finished type checking left hand side"
+	ret rsub xs ps (substs sub a)
     where
 	popMeta = do
 	    x : xs <- get
@@ -559,6 +594,65 @@ checkLHS ps t ret = do
 	checkDotPattern p@(A.AbsurdP _)	= return ()
 	checkDotPattern p@(A.LitP _)	= return ()
 
+	-- Get the flattened context
+	flatContext :: TCM Context
+	flatContext = do
+	    n <- length <$> getContext
+	    mapM f [0..n - 1]
+	    where
+		f i = do
+		    t <- instantiateFull =<< typeOfBV i
+		    x <- nameOfBV i
+		    return (x, t)
+
+	-- Reorder a flat context to make sure it's valid.
+	reorderCtx :: Context -> TCM Context
+	reorderCtx ctx = reverse <$> reorder (reverse ctx)
+	    where
+		free t = mapM nameOfBV (Set.toList $ allVars $ freeVars t)
+
+		reorder []	      = return []
+		reorder ((x,t) : tel) = do
+		    tel' <- reorder tel
+		    xs   <- free t
+		    verbose 20 $ do
+			d <- prettyTCM t
+			liftIO $ putStrLn $ "freeIn " ++ show x ++ " : " ++ show d ++ " are " ++ show xs
+		    case List.intersect (map fst tel') xs of
+			[] -> return $ (x,t) : tel'
+			zs -> return $ ins zs (x,t) tel'
+
+		ins [] p tel	     = p : tel
+		ins xs p ((x,t):tel) = (x,t) : ins (List.delete x xs) p tel
+		ins (_:_) _ []	     = __IMPOSSIBLE__
+
+	-- Compute a renaming from the first names to the second.
+	computeSubst :: [Name] -> [Name] -> [Term]
+	computeSubst old new = map ix old
+	    where
+		ix x = case List.findIndex (==x) new of
+			Just i	-> Var i []
+			Nothing	-> __IMPOSSIBLE__
+
+	-- Take a flat (but valid) context and turn it into a proper context.
+	mkContext :: [(Name, Type)] -> Context
+	mkContext = reverse . mkCtx . reverse
+	    where
+		mkCtx []	  = []
+		mkCtx ((x,t):ctx) = (x, substs sub t) : mkCtx ctx
+		    where
+			sub = map err ((x,t):ctx) ++ [ Var i [] | i <- [0..] ]
+
+			err (y,_) = error $ show y ++ " occurs in the type of " ++ show x
+
+	-- Print a flat context
+	dumpContext :: Context -> TCM ()
+	dumpContext ctx = do
+	    let pr (x,t) = do
+		d <- prettyTCM t
+		return $ "  " ++ show x ++ " : " ++ show d
+	    ds <- mapM pr ctx
+	    liftIO $ putStr $ unlines $ reverse ds
 
 -- | Check the patterns of a left-hand-side. Binds the variables of the pattern.
 checkPatterns :: [NamedArg A.Pattern] -> Type -> CheckPatM r ([NamedArg A.Pattern], [Arg Pattern], [Arg Term], Type)
