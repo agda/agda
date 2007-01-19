@@ -3,7 +3,7 @@ module Logic.Operations where
 
 import Logic.Relations as Rel
 import Logic.Equivalence as Eq
-open Eq, using (Equivalence, module Equivalence)
+open Eq using (Equivalence module Equivalence)
 
 BinOp : Set -> Set
 BinOp A = A -> A -> A
@@ -14,10 +14,10 @@ module MonoEq {A : Set}(Eq : Equivalence A) where
   open EqEq
 
   Commutative : BinOp A -> Set
-  Commutative _+_ = (x, y : A) -> (x + y) == (y + x)
+  Commutative _+_ = (x y : A) -> (x + y) == (y + x)
 
   Associative : BinOp A -> Set
-  Associative _+_ = (x, y, z : A) -> (x + (y + z)) == ((x + y) + z)
+  Associative _+_ = (x y z : A) -> (x + (y + z)) == ((x + y) + z)
 
   LeftIdentity : A -> BinOp A -> Set
   LeftIdentity z _+_ = (x : A) -> (z + x) == x

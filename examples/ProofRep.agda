@@ -10,19 +10,15 @@ import Data.Nat.Properties
 open Prelude
 open Data.Nat hiding (_==_ _≡_)
 open Data.Nat.Properties
-open Logic.Identity
 open Logic.Relations
 
-module Foo {Var : Set}(IdVar : Identity Var) where
+module Foo (Var : Set) where
 
-  module Var = Identity IdVar
-  open Var using () renaming (_==_ to _≡_)
-
-  data _==_ (x y : Var) : Set where
-    cRefl  : x ≡ y -> x == y
-    cSym   : y == x -> x == y
-    cTrans : (z : Var) -> x == z -> z == y -> x == y
-    cAxiom : x == y
+  data _==_ : (x y : Var) -> Set where
+    cRefl  : {x : Var} -> x == x
+    cSym   : {x y : Var} -> y == x -> x == y
+    cTrans : {x y z : Var} -> x == z -> z == y -> x == y
+    cAxiom : {x y : Var} -> x == y
 
   data Axioms {A : Set}(_≈_ : Rel A)([_] : Var -> A) : Set where
     noAxioms   : Axioms _≈_ [_]
@@ -30,7 +26,7 @@ module Foo {Var : Set}(IdVar : Identity Var) where
     manyAxioms : Axioms _≈_ [_] -> Axioms _≈_ [_] -> Axioms _≈_ [_]
 
   refl : {x : Var} -> x == x
-  refl = cRefl Var.refl
+  refl = cRefl
 
   sym : {x y : Var} -> x == y -> y == x
   sym (cRefl xy)     = cRefl (Var.sym xy)
