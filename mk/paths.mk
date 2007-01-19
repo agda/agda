@@ -2,6 +2,7 @@
 MACRO_DIR		= $(TOP)/macros
 
 SRC_DIR			= $(TOP)/src
+MAIN_SRC_DIR	= $(SRC_DIR)/main
 FULL_SRC_DIR	= $(SRC_DIR)/full
 CORE_SRC_DIR	= $(SRC_DIR)/core
 TRANSL_SRC_DIR	= $(SRC_DIR)/transl
