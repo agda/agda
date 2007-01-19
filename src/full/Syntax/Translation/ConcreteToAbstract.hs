@@ -226,130 +226,100 @@ instance ToAbstract CModuleNameRef A.ModuleName where
 
 -- Expressions ------------------------------------------------------------
 
-type ScopeMCPS a = forall r. (a -> ScopeM r) -> ScopeM r
+-- | Peel off 'C.HiddenArg' and represent it as an 'NamedArg'.
+mkNamedArg :: C.Expr -> NamedArg C.Expr
+mkNamedArg (C.HiddenArg _ e) = Arg Hidden e
+mkNamedArg e		     = Arg NotHidden $ unnamed e
 
--- | To avoid duplicating a lot of code between the 'ToAbstract' and
--- 'BindToAbstract' instances for expressions, we implement a general
--- (continuation passing) translation function parameterised over what to do
--- for names.
--- Except the BindToAbstract instance was removed. Doesn't hurt to keep the
--- more general version though.
-exprToAbstract :: (C.QName -> ScopeMCPS A.Expr) -> C.Expr -> ScopeMCPS A.Expr
-exprToAbstract ident e ret =
-    traceCallCPS (ScopeCheckExpr e) ret $ \ret -> case e of
+-- | Peel off 'C.HiddenArg' and represent it as an 'Arg', throwing away any name.
+mkArg :: C.Expr -> Arg C.Expr
+mkArg (C.HiddenArg _ e) = Arg Hidden $ namedThing e
+mkArg e			= Arg NotHidden e
+
+instance ToAbstract C.Expr A.Expr where
+    toAbstract e =
+	traceCall (ScopeCheckExpr e) $ case e of
     -- Names
-	Ident x	-> ident x ret
+	Ident x	-> toAbstract (OldQName x)
 
     -- Literals
-	C.Lit l	-> ret $ A.Lit l
+	C.Lit l	-> return $ A.Lit l
 
     -- Meta variables
 	C.QuestionMark r n -> do
 	    scope <- getScopeInfo
-	    ret $ A.QuestionMark $ MetaInfo { metaRange  = r
-					    , metaScope  = scope
-					    , metaNumber = n
-					    }
+	    return $ A.QuestionMark $ MetaInfo
+			{ metaRange  = r
+			, metaScope  = scope
+			, metaNumber = n
+			}
 	C.Underscore r n -> do
 	    scope <- getScopeInfo
-	    ret $ A.Underscore $ MetaInfo { metaRange  = r
-					  , metaScope  = scope
-					  , metaNumber = n
-					  }
+	    return $ A.Underscore $ MetaInfo
+			{ metaRange  = r
+			, metaScope  = scope
+			, metaNumber = n
+			}
 
     -- Raw application
 	C.RawApp r es -> do
 	    e <- parseApplication es
-	    exprToAbstract ident e ret
+	    toAbstract e
 
     -- Application
-	C.App r e1 e2 ->
-	    let (arg, e2') = case e2 of
-		    Arg h (Named Nothing  x) -> (Arg h . unnamed, x)
-		    Arg h (Named (Just s) x) -> (Arg h . named s, x)
-	    in
-	    exprToAbstractCtx FunctionCtx ident e1  $ \e1 ->
-	    exprToAbstractCtx ArgumentCtx ident e2' $ \e2 -> do
+	C.App r e1 e2 -> do
+	    e1 <- toAbstractCtx FunctionCtx e1
+	    e2 <- toAbstractCtx ArgumentCtx e2
 	    info <- exprSource e
-	    ret $ A.App info e1 (arg e2)
+	    return $ A.App info e1 e2
 
     -- Operator application
-
-	C.OpApp r op es -> toAbstractOpApp r ident op es ret
+	C.OpApp r op es -> toAbstractOpApp r op es
 
     -- Malplaced hidden argument
 	C.HiddenArg _ _ -> nothingAppliedToHiddenArg e
 
     -- Lambda
-	e0@(C.Lam r bs e) ->
-	    bindToAbstract bs $ \(b:bs') ->
-	    exprToAbstractCtx TopCtx ident e $ \e' -> do
+	e0@(C.Lam r bs e) -> do
+	    bindToAbstract bs $ \(b:bs') -> do
+	    e	 <- toAbstractCtx TopCtx e
 	    info <- exprSource e0
-	    ret $ A.Lam info b $ foldr mkLam e' bs'
+	    return $ A.Lam info b $ foldr mkLam e bs'
 	    where
 		mkLam b e = A.Lam (ExprRange $ fuseRange b e) b e
 
     -- Function types
-	C.Fun r e1 e2 ->
-	    let (h, ctx, e1') = case e1 of
-		    C.HiddenArg _ e1 -> (Arg Hidden, TopCtx, namedThing e1)
-		    _		     -> (Arg NotHidden, FunctionSpaceDomainCtx, e1)
-	    in
-	    exprToAbstractCtx ctx ident e1'   $ \e1 ->
-	    exprToAbstractCtx TopCtx ident e2 $ \e2 -> do
+	C.Fun r e1 e2 -> do
+	    e1 <- toAbstractCtx FunctionSpaceDomainCtx $ mkArg e1
+	    e2 <- toAbstractCtx TopCtx e2
 	    info <- exprSource e
-	    ret $ A.Fun info (h e1) e2
+	    return $ A.Fun info e1 e2
 
 	e0@(C.Pi tel e) ->
-	    bindToAbstract tel $ \tel ->
-	    exprToAbstractCtx TopCtx ident e $ \e -> do
+	    bindToAbstract tel $ \tel -> do
+	    e    <- toAbstractCtx TopCtx e
 	    info <- exprSource e0
-	    ret $ A.Pi info tel e
+	    return $ A.Pi info tel e
 
     -- Sorts
-	C.Set _    -> ret =<< flip A.Set 0 <$> exprSource e
-	C.SetN _ n -> ret =<< flip A.Set n <$> exprSource e
-	C.Prop _   -> ret =<< A.Prop <$> exprSource e
+	C.Set _    -> flip A.Set 0 <$> exprSource e
+	C.SetN _ n -> flip A.Set n <$> exprSource e
+	C.Prop _   -> A.Prop <$> exprSource e
 
     -- Let
 	e0@(C.Let _ ds e) ->
-	    bindToAbstract (LetDefs ds) $ \ds' ->
-	    exprToAbstractCtx TopCtx ident e $ \e -> do
+	    bindToAbstract (LetDefs ds) $ \ds' -> do
+	    e	 <- toAbstractCtx TopCtx e
 	    info <- exprSource e0
-	    ret $ A.Let info ds' e
+	    return $ A.Let info ds' e
 
     -- Parenthesis
-	C.Paren _ e -> exprToAbstractCtx TopCtx ident e ret
+	C.Paren _ e -> toAbstractCtx TopCtx e
 
     -- Pattern things
 	C.As _ _ _ -> notAnExpression e
 	C.Dot _ _  -> notAnExpression e
 	C.Absurd _ -> notAnExpression e
-
--- | Same as 'exprToAbstract' but setting the context precedence.
-exprToAbstractCtx :: Precedence -> (C.QName -> ScopeMCPS A.Expr) -> C.Expr -> ScopeMCPS A.Expr
-exprToAbstractCtx ctx ident e ret = setContextCPS ctx ret $ exprToAbstract ident e
-
-
-instance ToAbstract C.Expr A.Expr where
-    toAbstract e = exprToAbstract (\x ret -> ident x ret) e return
-	where
-	    ident x ret = ret =<< toAbstract (OldQName x)
-    
--- Expressions in dot patterns might bind variables, so we need an instance for
--- this.
--- They can't anymore. So we remove this instance.
-{-
-instance BindToAbstract C.Expr A.Expr where
-    bindToAbstract = exprToAbstract (\x ret -> ident x ret)
-	where
-	    ident x ret =
-		bindToAbstract (PatName x) $ \px ->
-		case px of
-		    VarPatName y -> ret $ varExpr x y
-		    ConPatName d -> ret $ nameExpr x d
-		    DefPatName d -> ret $ nameExpr x d
--}
 
 instance BindToAbstract C.LamBinding A.LamBinding where
     bindToAbstract (C.DomainFree h x) ret =
@@ -656,40 +626,38 @@ instance BindToAbstract C.Pattern (A.Pattern' C.Expr) where
 	where
 	    info = PatSource r $ \_ -> p0
 
--- Helpers for OpApp case
-
-  -- let's deal with the binary case (there should be no special casing
-  -- in future.)
-toAbstractOpApp :: Range -> (C.QName -> ScopeMCPS A.Expr) -> C.Name -> [C.Expr] -> ScopeMCPS A.Expr
-toAbstractOpApp r ident op@(C.Name _ xs) es ret = do
+-- | Turn an operator application into abstract syntax. Make sure to record the
+-- right precedences for the various arguments.
+toAbstractOpApp :: Range -> C.Name -> [C.Expr] -> ScopeM A.Expr
+toAbstractOpApp r op@(C.Name _ xs) es = do
     f  <- getFixity (C.QName op)
     op <- toAbstract (OldQName $ C.QName op) -- op-apps cannot bind the op
-    left f xs es $ \es -> ret $ foldl app op es
+    foldl app op <$> left f xs es
     where
 	app e arg = A.App (ExprRange (fuseRange e arg)) e
 		  $ Arg NotHidden $ unnamed arg
 
-	left f (Hole : xs) (e : es) ret =
-	    exprToAbstractCtx (LeftOperandCtx f) ident e $ \e ->
-	    inside f xs es $ \es ->
-	    ret (e : es)
-	left f (Id _ : xs) es ret = inside f xs es ret
-	left f (Hole : _) [] _	  = __IMPOSSIBLE__
-	left f [] _ _		  = __IMPOSSIBLE__
+	left f (Hole : xs) (e : es) = do
+	    e  <- toAbstractCtx (LeftOperandCtx f) e
+	    es <- inside f xs es
+	    return (e : es)
+	left f (Id _ : xs) es = inside f xs es
+	left f (Hole : _) []  = __IMPOSSIBLE__
+	left f [] _	      = __IMPOSSIBLE__
 
-	inside f [x]	      es      ret = right f x es ret
-	inside f (Id _ : xs)  es      ret = inside f xs es ret
-	inside f (Hole : xs) (e : es) ret =
-	    exprToAbstractCtx InsideOperandCtx ident e $ \e ->
-	    inside f xs es $ \es ->
-	    ret (e : es)
-	inside _ (Hole : _) [] _ = __IMPOSSIBLE__
-	inside _ [] _ _		 = __IMPOSSIBLE__
+	inside f [x]	      es      = right f x es
+	inside f (Id _ : xs)  es      = inside f xs es
+	inside f (Hole : xs) (e : es) = do
+	    e  <- toAbstractCtx InsideOperandCtx e
+	    es <- inside f xs es
+	    return (e : es)
+	inside _ (Hole : _) [] = __IMPOSSIBLE__
+	inside _ [] _	       = __IMPOSSIBLE__
 
-	right f Hole [e] ret =
-	    exprToAbstractCtx (RightOperandCtx f) ident e $ \e ->
-	    ret [e]
-	right _ (Id _) [] ret = ret []
-	right _ Hole _ _      = __IMPOSSIBLE__
-	right _ (Id _) _ _    = __IMPOSSIBLE__
+	right f Hole [e] = do
+	    e <- toAbstractCtx (RightOperandCtx f) e
+	    return [e]
+	right _ (Id _) [] = return []
+	right _ Hole _	  = __IMPOSSIBLE__
+	right _ (Id _) _  = __IMPOSSIBLE__
 
