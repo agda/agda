@@ -29,6 +29,8 @@ Fixes
 
 * allow more things in postulates (infix, private, ..)
 
+* allow postulates in mutual
+
 * Check out lex/parse errors (what position and what input is reported).
 
 [Printing]
