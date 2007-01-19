@@ -1,5 +1,5 @@
 (^|/)CVS$
-(^|/)\..*\.swp$
+\.(swp|swo)$
 ^autom4te.cache$
 ^config.log$
 ^configure$
