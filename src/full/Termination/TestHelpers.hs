@@ -15,6 +15,7 @@ module Termination.TestHelpers
   , natural
   , positive
   , list
+  , nonEmptyList
   , listOfLength
     -- * Tests
   , tests
@@ -117,6 +118,18 @@ prop_listOfLength =
     forAll (listOfLength n arbitrary :: Gen [Integer]) $ \xs ->
       genericLength xs == n
 
+-- | Generates a non-empty list, using the given generator to generate
+-- the elements.
+
+nonEmptyList :: Gen a -> Gen [a]
+nonEmptyList gen = do
+  n <- positive :: Gen Integer
+  listOfLength n gen
+
+prop_nonEmptyList =
+  forAll (nonEmptyList arbitrary :: Gen [Integer]) $ \xs ->
+    not (null xs)
+
 -- | Generates a list, using the given generator to generate the
 -- elements.
 
@@ -130,3 +143,4 @@ list gen = do
 
 tests = do
   quickCheck prop_listOfLength
+  quickCheck prop_nonEmptyList
