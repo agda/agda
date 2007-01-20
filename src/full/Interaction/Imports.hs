@@ -11,6 +11,7 @@ import Control.Monad.Error
 import Control.Monad.State
 import qualified Data.Map as Map
 import qualified Data.List as List
+import qualified Data.Set as Set
 import System.Directory
 import System.Time
 
@@ -44,7 +45,9 @@ mergeInterface i = do
 	builtin = Map.toList $ iBuiltin i
 	prim	= [ x | (_,Prim x) <- builtin ]
 	bi	= Map.fromList [ (x,Builtin t) | (x,Builtin t) <- builtin ]
-    modify $ \st -> st { stImportedModules = stImportedModules st ++ iImportedModules i
+    modify $ \st -> st { stImportedModules = Set.union
+						(stImportedModules st)
+						(Set.fromList $ iImportedModules i)
 		       , stImports	   = Map.unions [stImports st, sig, isig]
 		       , stBuiltinThings   = stBuiltinThings st `Map.union` bi
 			    -- TODO: not safe (?) ^
@@ -80,21 +83,40 @@ findFile ft m = do
 
 scopeCheckImport :: ModuleName -> TCM ModuleScope
 scopeCheckImport x = do
-    i <- fst <$> getInterface x
-    mergeInterface i
+    reportLn 5 $ "Scope checking " ++ show x
+    visited <- isVisited x
+    reportLn 5 $ if visited then "  We've been here. Don't merge."
+			    else "  New module. Let's check it out."
+    (i,t)   <- getInterface x
+    unless visited $ mergeInterface i
     addImport x
     return $ iScope i
 
+alreadyVisited :: ModuleName -> TCM (Interface, ClockTime) -> TCM (Interface, ClockTime)
+alreadyVisited x getIface = do
+    mm <- getVisitedModule x
+    case mm of
+	Just it	-> return it
+	Nothing	-> do
+	    reportLn 5 $ "  Getting interface for " ++ show x
+	    (i, t) <- getIface
+	    reportLn 5 $ "  Now we've looked at " ++ show x
+	    visitModule x i t
+	    return (i, t)
+
 getInterface :: ModuleName -> TCM (Interface, ClockTime)
-getInterface x = addImportCycleCheck x $ do
+getInterface x = alreadyVisited x $ addImportCycleCheck x $ do
     file   <- findFile SourceFile x	-- requires source to exist
     let ifile = setExtension ".agdai" file
 
+    reportLn 5 $ "  Check for cycle"
     checkForImportCycle
 
     uptodate <- ifM ignoreInterfaces
 		    (return False)
 		    (liftIO $ ifile `isNewerThan` file)
+
+    reportLn 5 $ "  " ++ show x ++ " is " ++ (if uptodate then "" else "not ") ++ "up-to-date."
 
     if uptodate
 	then skip      ifile file
@@ -102,6 +124,8 @@ getInterface x = addImportCycleCheck x $ do
 
     where
 	skip ifile file = do
+
+	    reportLn 5 $ "  reading interface file " ++ ifile
 
 	    -- Read interface file
 	    (s, close)  <- liftIO $ readBinaryFile' ifile
@@ -119,6 +143,9 @@ getInterface x = addImportCycleCheck x $ do
 
 		-- Check time stamp of imported modules
 		t  <- liftIO $ getModificationTime ifile
+
+		reportLn 5 $ "  imports: " ++ show (iImportedModules i)
+
 		ts <- map snd <$> mapM getInterface (iImportedModules i)
 
 		-- If any of the imports are newer we need to retype check
@@ -127,17 +154,13 @@ getInterface x = addImportCycleCheck x $ do
 			liftIO close	-- Close the interface file. See above.
 			typeCheck ifile file
 		    else do
-			unlessM (isVisited x) $
-			    reportLn 1 $ "Skipping " ++ show x ++ " ( " ++ ifile ++ " )"
-			visitModule x
+			reportLn 1 $ "Skipping " ++ show x ++ " ( " ++ ifile ++ " )"
 			return (i, t)
 
 	typeCheck ifile file = do
 
 	    -- Do the type checking
-	    unlessM (isVisited x) $
-		reportLn 1 $ "Checking " ++ show x ++ " ( " ++ file ++ " )"
-	    visitModule x
+	    reportLn 1 $ "Checking " ++ show x ++ " ( " ++ file ++ " )"
 	    ms	  <- getImportPath
 	    vs	  <- getVisitedModules
 	    opts  <- commandLineOptions
@@ -153,15 +176,14 @@ getInterface x = addImportCycleCheck x $ do
 		    setVisitedModules vs
 		    return (i, t)
 
-type Visited = [ModuleName]
-
-createInterface :: CommandLineOptions -> CallTrace -> [ModuleName] -> Visited -> FilePath ->
-		   IO (Either TCErr (Visited, Interface))
+createInterface :: CommandLineOptions -> CallTrace -> [ModuleName] -> VisitedModules -> FilePath ->
+		   IO (Either TCErr (VisitedModules, Interface))
 createInterface opts trace path visited file = runTCM $ withImportPath path $ do
 
     setTrace trace
     setCommandLineOptions opts
     setVisitedModules visited
+    mapM_ (mergeInterface . fst) $ Map.elems visited
 
     (pragmas, top) <- liftIO $ parseFile' moduleParser file
     pragmas	   <- concreteToAbstract_ pragmas -- identity for top-level pragmas
@@ -200,7 +222,7 @@ buildInterface = do
     reportLn 7 "  instantiating all meta variables"
     i <- instantiateFull $ Interface
 			{ iVersion	   = currentInterfaceVersion
-			, iImportedModules = ms
+			, iImportedModules = Set.toList ms
 			, iScope	   = scope
 			, iSignature	   = sig
 			, iImports	   = isig

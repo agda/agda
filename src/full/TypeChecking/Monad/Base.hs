@@ -7,9 +7,11 @@ import Control.Monad.Reader
 import Control.Exception
 import Control.Applicative
 import Data.Map as Map
+import Data.Set as Set
 import Data.Generics
 import Data.Foldable
 import Data.Traversable
+import System.Time
 
 import Syntax.Common
 import qualified Syntax.Concrete as C
@@ -18,6 +20,8 @@ import qualified Syntax.Abstract as A
 import Syntax.Internal
 import Syntax.Position
 import Syntax.ScopeInfo
+
+import TypeChecking.Interface
 
 import Interaction.Exceptions
 import Interaction.Options
@@ -38,8 +42,8 @@ data TCState =
 	 , stConstraints       :: Constraints
 	 , stSignature	       :: Signature
 	 , stImports	       :: Signature
-	 , stImportedModules   :: [ModuleName]
-	 , stVisitedModules    :: [ModuleName]
+	 , stImportedModules   :: Set ModuleName
+	 , stVisitedModules    :: VisitedModules
 	 , stScopeInfo	       :: ScopeInfo
 	 , stOptions	       :: CommandLineOptions
 	 , stStatistics	       :: Statistics
@@ -63,8 +67,8 @@ initState =
 	 , stConstraints       = []
 	 , stSignature	       = Map.empty
 	 , stImports	       = Map.empty
-	 , stImportedModules   = []
-	 , stVisitedModules    = []
+	 , stImportedModules   = Set.empty
+	 , stVisitedModules    = Map.empty
 	 , stScopeInfo	       = emptyScopeInfo
 	 , stOptions	       = defaultOptions
 	 , stStatistics	       = Map.empty
@@ -91,6 +95,21 @@ instance HasFresh i FreshThings => HasFresh i TCState where
     nextFresh s = (i, s { stFreshThings = f })
 	where
 	    (i,f) = nextFresh $ stFreshThings s
+
+---------------------------------------------------------------------------
+-- ** Interface
+---------------------------------------------------------------------------
+
+type VisitedModules = Map ModuleName (Interface, ClockTime)
+
+data Interface = Interface
+	{ iVersion	   :: InterfaceVersion
+	, iImportedModules :: [ModuleName]
+	, iScope	   :: ModuleScope
+	, iSignature	   :: Signature
+	, iImports	   :: Signature
+	, iBuiltin	   :: BuiltinThings String
+	}
 
 ---------------------------------------------------------------------------
 -- ** Closure
