@@ -9,7 +9,6 @@
 (set (make-local-variable 'lisp-indent-function) 'common-lisp-indent-function)
 (require 'comint)
 (require 'pp)
-(require 'haskell-mode)
 (require 'haskell-indent)
 (require 'haskell-ghci)
 ;; due to a bug in haskell-mode-2.1
@@ -81,7 +80,7 @@ that feature." :type 'hook :group 'agda2)
               ?\\ "." ?_  "w"  ?\' "w" ?. "."  ?=  "."  ?: "." ?, "." )))
     (while l (modify-syntax-entry (pop l) (pop l) tbl)) tbl)
   "Syntax table used while in agda2 mode")
-(defvar agda2-mode-map (copy-keymap haskell-mode-map) "Keymap for agda2-mode")
+(defvar agda2-mode-map (make-sparse-keymap "Agda mode") "Keymap for agda2-mode")
 (defvar agda2-goal-map (make-sparse-keymap "Agda goal")
   "Keymap for agda2 goal menu")
 (let ((l 
@@ -167,13 +166,6 @@ consumed at `agda2-undo'.  It is a list of list
  \\{agda2-mode-map}"
  (interactive)
  (kill-all-local-variables)
- ;;(make-local-hook 'haskell-mode-hook)
- ;;(remove-hook 'haskell-mode-hook 'turn-on-haskell-doc-mode 'local)
- (haskell-mode)
- (if (featurep 'haskell-font-lock)
-     (turn-off-haskell-font-lock))
- (if (featurep 'haskell-doc)
-     (turn-off-haskell-doc-mode))
  (use-local-map    agda2-mode-map)
  (set-syntax-table agda2-mode-syntax-table)
  (setq mode-name          "Agda2"
@@ -609,6 +601,9 @@ ignoring text-property undos."
           "\\<\\(do\\|let\\|of\\|where\\|sig\\|struct\\)\\>[ \t]*"))
   (local-set-key "\177"  'backward-delete-char-untabify)
   (local-set-key "\t"    'haskell-indent-cycle)
+  (set (make-local-variable 'haskell-literate)
+       (if (string-match "\\.lagda$" (buffer-file-name))
+           'latex))
   (setq haskell-indent-mode t)
   (run-hooks 'haskell-indent-hook))
 
