@@ -1,5 +1,5 @@
 
-module Interaction.Vim.Highlight where
+module Interaction.Highlighting.Vim where
 
 import Prelude hiding (writeFile)
 import Utils.IO (writeFile)

@@ -33,7 +33,7 @@ import Interaction.EmacsInterface.EmacsAgda
 import Interaction.Options
 import Interaction.Monad
 import Interaction.GhciTop ()	-- to make sure it compiles
-import Interaction.Vim.Highlight (generateVimFile)
+import Interaction.Highlighting.Vim (generateVimFile)
 
 import TypeChecker
 import TypeChecking.Monad

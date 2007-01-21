@@ -30,7 +30,7 @@ import TypeChecking.Primitive
 import TypeChecker
 
 import Interaction.Options
-import Interaction.Vim.Highlight
+import Interaction.Highlighting.Vim
 
 import Utils.FileName
 import Utils.Monad

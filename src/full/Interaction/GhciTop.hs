@@ -79,7 +79,6 @@ import Syntax.Abstract.Name
 import Interaction.Exceptions
 import qualified Interaction.BasicOps as B
 import qualified Interaction.CommandLine.CommandLine as CL
-import Interaction.Vim.Highlight ()
 
 #include "../undefined.h"
 

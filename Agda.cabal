@@ -20,10 +20,10 @@ other-modules:   Compiler.Agate.Classify
                  Interaction.CommandLine.CommandLine
                  Interaction.EmacsInterface.EmacsAgda
                  Interaction.Exceptions
+                 Interaction.Highlighting.Vim
                  Interaction.Imports
                  Interaction.Monad
                  Interaction.Options
-                 Interaction.Vim.Highlight
                  Syntax.Abstract.Name
                  Syntax.Abstract.Pretty
                  Syntax.Abstract.Test
