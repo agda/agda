@@ -1,5 +1,6 @@
 ;; agda2-mode.el --- Major mode for Agda2
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Dependency
 
 (require 'cl) ;  haskell-indent requires it anyway.
@@ -25,6 +26,7 @@ properties to add to the result."
     (add-text-properties 0 (length str) properties str)
     str)))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Programming utilities
 
 (defmacro agda2-protect (form &optional default)
@@ -46,6 +48,7 @@ properties to add to the result."
          (push (list buffer-undo-list old-undo old-state) agda2-undo-list)
          (setq buffer-undo-list nil))))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; User options
 
 (defgroup agda2 nil "User options for agda2-mode")
@@ -70,6 +73,7 @@ those features." :type 'hook :group 'agda2)
       (setq haskell-ghci-program-name "ghc"
             haskell-ghci-program-args '("--interactive" "-package lang"))))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Global and buffer-local vars, initialization
 
 (defvar agda2-mode-syntax-table
@@ -155,7 +159,7 @@ consumed at `agda2-undo'.  It is a list of list
   (stpl 'agda2-delim3 '(right invisible t))
   (stpl 'agda2-delim4 '(right)))
 
-
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; agda2-mode
 
 (defun agda2-mode ()
@@ -201,6 +205,7 @@ consumed at `agda2-undo'.  It is a list of list
   (agda2-go ":mod +" agda2-toplevel-module)
   (agda2-text-state))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Communicating with Agda2
 
 (defun agda2-go (&rest args)
@@ -243,6 +248,7 @@ WANT is an optional prompt.  When ASK is non-nil, use minibuffer."
             (inhibit-point-motion-hooks t))
         (eval (read response)))))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; User commands and response processing
 
 (defun agda2-load ()
@@ -405,6 +411,7 @@ annotate new goals NEW-GS"
   "Compute the normal form of exp in the goal at point" (interactive)
   (agda2-goal-cmd "cmd_compute Interaction.BasicOps.Normalised" "expression to normalise"))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;
 
 (defun agda2-annotate (goals pos)
@@ -463,7 +470,7 @@ NEW-TXT is a string to replace OLD-G, or `'paren', or `'no-paren'"
           (agda2-forget-goal old-g 'remove-braces)
           (agda2-annotate new-gs p)))))
 
-
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Misc
 
 (defun agda2-process-status ()
@@ -616,6 +623,7 @@ ignoring text-property undos."
     (apply func args)
     (set-buffer-modified-p old-buffer-modified)))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Font-lock support
 
 (defvar agda2-re-font-lock nil)
@@ -690,6 +698,7 @@ See also `agda2-fontify-included-files'"
        '(agda2-font-lock-keywords nil nil nil))
   (turn-on-font-lock))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;
 
 (defun agda2-popup-menu-3 (ev)
