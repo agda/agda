@@ -2,16 +2,22 @@
 -- | Responsible for running all internal tests.
 module Tests where
 
-import Termination.CallGraph	 as TermCall   (tests)
-import Termination.Lexicographic as TermLex    (tests)
-import Termination.Matrix	 as TermMatrix (tests)
-import Termination.Semiring	 as TermRing   (tests)
-import Termination.Utilities	 as TermUtil   (tests)
-import Utils.FileName   	 as UtilFile   (tests)
-import Utils.TestHelpers	 as UtilTest   (tests)
+import Interaction.Highlighting.Emacs	 as InteEmac   (tests)
+import Interaction.Highlighting.Precise	 as IntePrec   (tests)
+import Termination.CallGraph	         as TermCall   (tests)
+import Termination.Lexicographic         as TermLex    (tests)
+import Termination.Matrix	         as TermMatrix (tests)
+import Termination.Semiring	         as TermRing   (tests)
+import Termination.Utilities	         as TermUtil   (tests)
+import Utils.FileName   	         as UtilFile   (tests)
+import Utils.TestHelpers	         as UtilTest   (tests)
 
 runTests :: IO ()
 runTests = do
+    putStrLn "Tests in Interaction.Highlighting.Emacs"
+    InteEmac.tests
+    putStrLn "Tests in Interaction.Highlighting.Precise"
+    IntePrec.tests
     putStrLn "Tests in Termination.Utilities"
     TermUtil.tests
     putStrLn "Tests in Termination.Semiring"
