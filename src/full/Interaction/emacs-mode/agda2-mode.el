@@ -9,8 +9,9 @@
 (set (make-local-variable 'lisp-indent-function) 'common-lisp-indent-function)
 (require 'comint)
 (require 'pp)
-(require 'haskell-indent)
 (require 'eri)
+(require 'agda2-highlight)
+(require 'haskell-indent)
 (require 'haskell-ghci)
 ;; due to a bug in haskell-mode-2.1
 (setq haskell-ghci-mode-map (copy-keymap comint-mode-map))
@@ -188,6 +189,7 @@ consumed at `agda2-undo'.  It is a list of list
             max-lisp-eval-depth 2800)))
    (while l (set (make-local-variable (pop l)) (pop l))))
  (agda2-indent-setup)
+ (agda2-highlight-setup)
  (agda2-restart)
  (force-mode-line-update)
  (run-hooks 'agda2-mode-hook))
@@ -205,7 +207,8 @@ consumed at `agda2-undo'.  It is a list of list
                       (rename-buffer agda2-bufname))))
   (apply 'agda2-go ":set" agda2-ghci-options)
   (agda2-go ":mod +" agda2-toplevel-module)
-  (agda2-text-state))
+  (agda2-text-state)
+  (agda2-highlight-reload))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Communicating with Agda2
