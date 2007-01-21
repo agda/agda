@@ -4,6 +4,7 @@ module Interaction.Highlighting.Emacs (writeSyntaxInfo) where
 
 import Interaction.Highlighting.Precise
 import Utils.FileName
+import Utils.String
 import Data.List
 import Data.Char
 
@@ -22,7 +23,9 @@ showRange r =
   ++ show (to r)
   ++ " '("
   ++ concat (intersperse " " (map showAspect (aspects r)))
-  ++ "))"
+  ++ ")"
+  ++ (maybe "" ((" " ++) . quote) $ note r)
+  ++ ")"
 
 -- | Shows a file in an Emacsy fashion.
 

@@ -29,7 +29,13 @@ data Aspect
 -- UI designer can take them into account.
 
 data Range = Range { from, to :: Integer
-                   , aspects :: [Aspect]
+                   , aspects  :: [Aspect]
+                   , note     :: Maybe String
+                     -- ^ This note, if present, can be displayed as a
+                     -- tool-tip or something like that. It should
+                     -- contain useful information about the range
+                     -- (like the module containing a certain
+                     -- identifier, or the fixity of an operator).
                    }
 
 -- | A 'File' is a collection of 'Range's.
