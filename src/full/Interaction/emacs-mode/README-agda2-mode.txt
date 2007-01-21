@@ -1,64 +1,49 @@
-To use emacs mode for Agda2
+To use the Agda2 Emacs mode:
 
-0. Install haskell-mode. ( http://haskell.org/haskell-mode/ )
-0.1 Download Version 2.1 (or later?)
-0.2 Add to your .emacs
+0. Install haskell-mode, version 2.1 or later (see
+   http://haskell.org/haskell-mode/).
 
-(add-to-list 'load-path "<The Directory Where You Downloaded haskell-mode>")
-(autoload 'haskell-mode "haskell-mode"
-  "Major mode for editing Haskell scripts." t)
-(add-to-list 'auto-mode-alist '("\\.hs" . haskell-mode))
-(add-hook 'haskell-mode-hook 'turn-on-haskell-font-lock)
-(add-hook 'haskell-mode-hook 'turn-on-haskell-decl-scan)
-(add-hook 'haskell-mode-hook 'turn-on-haskell-doc-mode)
-(add-hook 'haskell-mode-hook 'turn-on-haskell-indent)
-(add-hook 'haskell-mode-hook 'turn-on-haskell-ghci)
+0.1 Add
+
+    (add-to-list 'load-path "<The Directory Where You Downloaded haskell-mode>")
+
+    to your .emacs file.
 
 1. Check out and compile Agda2.
-   For the detail, see XXX.
 
-   Let us write <AGDA2-TOP> for the cvs working directory for your
-   copy of Agda2.
+   Make sure that you install the GHC package; the binary is not used
+   by the Emacs mode.
 
-2. Add the following to your .emacs
+   For details, see somewhere else.
 
-(add-to-list 'load-path "<AGDA2-TOP>/src/full/Interaction")
-(autoload 'agda2-mode "agda2-mode" "Agda2 mode." t)
-(add-to-list 'auto-mode-alist '("\\.ag2" . agda2-mode))
-   ;; you may change the suffix "\\.ag2" to whatever you like.
+2. Copy the .el files in src/full/Interaction/emacs-mode to some directory
+   which is listed in your Emacs load-path. You may want to
+   byte-compile the files.
 
-3. Customize.
-3.1. Restart emacs
-3.2. Do
-     M-x load-library<RETURN>agda2-mode<RETURN>
-3.3. Do
-     M-x customize-group<RETURN>agda2<RETURN>
-3.4. In the customization buffer,
-     set agda2-root-dir to <AGDA2-TOP>
-3.5. click "save for future sessions"
+   Untested example installation (creates a new directory and adds it
+   to your load-path, does not byte-compile the files):
 
-;;;; This step is no longer needed for normal use.
-;;
-;; 4. Give a new modification time to the file
-;; 
-;;    <AGDA2-TOP>/src/full/Interaction/GhciTop.hs
-;; 
-;;    (by opening and re-saving it, or by doing "touch", for example)
-;;
+   mkdir <...>/agda2-mode
+   cp src/full/Interaction/emacs-mode/*.el <...>/agda2-mode
+   echo "(add-to-list 'load-path \"<...>/agda2-mode/\")" >> ~/.emacs
 
-5. Restart emacs again.
-   Now opening a file XXX.ag2 (or whatever suffix you chose at Step 2)
-   will start in agda2-mode.  It may take 5 or 10 seconds but it is normal.
+3. Add the following to your .emacs
 
+   (autoload 'agda2-mode "agda2-mode" "Agda2 mode." t)
+   (add-to-list 'auto-mode-alist '("\\.l?agda$" . agda2-mode))
 
-Notes:
+   If you have already set up the suffix .agda for use with some other
+   mode you may need to remove or alter that setting. You are
+   encouraged to use the suffix .alfa for Agda 1 files.
 
-* If you have installed agda-mode for Agda1 before, ".agda" file
-  may or may not start up in agda2-mode due to a mysterious bug around
-  auto-mode.  If this happens, try exchanging the order in which agda-mode
-  and agda2-mode are setup in your .emacs .
+4. If you want to you can customise some settings. Just start Emacs
+   and type the following:
 
-* If just opening an agda2 file freezes up your emacs, you might need to
-  give up syntax highlighting.  Do
-  M-x customize-group<RETURN>agda2<RETURN>
-  and DELete `turn-on-agda2-font-lock' from `agda2-mode-hook'
+   M-x load-library RET agda2-mode RET
+   M-x customize-group RET agda2 RET
+
+   This should not be necessary, though.
+
+Now, if you open a file named XXX.agda the buffer will use agda2-mode.
+It may take 5 or 10 seconds before you see anything in the buffer, but
+that is normal.
