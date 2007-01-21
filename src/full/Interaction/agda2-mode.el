@@ -10,6 +10,7 @@
 (require 'comint)
 (require 'pp)
 (require 'haskell-indent)
+(require 'eri)
 (require 'haskell-ghci)
 ;; due to a bug in haskell-mode-2.1
 (setq haskell-ghci-mode-map (copy-keymap comint-mode-map))
@@ -61,10 +62,17 @@ properties to add to the result."
   :type 'string :group 'agda2)
   
 (defcustom agda2-mode-hook
-  '(agda2-fix-ghci-for-windows turn-on-agda2-indent)
-  "*Hooks for agda2-mode.
-Remove `turn-on-agda2-indent' from here to disable
-that feature." :type 'hook :group 'agda2)
+  '(agda2-fix-ghci-for-windows)
+  "*Hooks for agda2-mode."
+  :type 'hook :group 'agda2)
+
+(defcustom agda2-indentation
+  'eri
+  "*The kind of indentation used in `agda2-mode'."
+  :type '(choice (const :tag "Haskell" haskell)
+                 (const :tag "Extended relative" eri)
+                 (const :tag "None" nil))
+  :group 'agda2)
 
 (defun agda2-fix-ghci-for-windows ()
   (if (string-match "windows" system-configuration)
@@ -105,6 +113,9 @@ that feature." :type 'hook :group 'agda2)
          (agda2-infer-type-normalised "\C-c\C-x:" nil "Infer type (normalised)" )
          (agda2-compute-normalised  "\C-c\C-xn" nil "Compute normal form")
          (agda2-submit-bug-report   nil             "Submit bug report"     )
+         (agda2-indent              [tab])
+         (agda2-indent-reverse      [S-iso-lefttab])
+         (agda2-indent-reverse      [S-lefttab])
          )))
   (define-key agda2-mode-map [menu-bar Agda2]
     (cons "Agda2" (make-sparse-keymap "Agda2")))
@@ -176,6 +187,7 @@ consumed at `agda2-undo'.  It is a list of list
  (let ((l '(max-specpdl-size    2600
             max-lisp-eval-depth 2800)))
    (while l (set (make-local-variable (pop l)) (pop l))))
+ (agda2-indent-setup)
  (agda2-restart)
  (force-mode-line-update)
  (run-hooks 'agda2-mode-hook))
@@ -592,29 +604,44 @@ ignoring text-property undos."
     (setq buffer-undo-list (append buffer-undo-list (reverse flat-undo))
           agda2-undo-list nil)))
 
-(defun turn-on-agda2-indent ()
-  "A copy of `turn-on-haskell-indent' with additional off-side words"
-  (interactive)
-  (labels ((setl (var val) (set (make-local-variable var) val)))
-    (setl 'indent-line-function 'haskell-indent-cycle)
-    (setl 'haskell-indent-off-side-keywords-re
-          "\\<\\(do\\|let\\|of\\|where\\|sig\\|struct\\)\\>[ \t]*"))
-  (local-set-key "\177"  'backward-delete-char-untabify)
-  (local-set-key "\t"    'haskell-indent-cycle)
-  (set (make-local-variable 'haskell-literate)
-       (if (string-match "\\.lagda$" (buffer-file-name))
-           'latex))
-  (setq haskell-indent-mode t)
-  (run-hooks 'haskell-indent-hook))
-
-(defalias 'turn-off-agda2-indent 'turn-off-haskell-indent)
-
 (defun agda2-no-modified-p (func &rest args)
   "call FUNC without affecting the buffer-modified flag."
   (interactive)
   (let ((old-buffer-modified (buffer-modified-p)))
     (apply func args)
     (set-buffer-modified-p old-buffer-modified)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; Indentation
+
+(defun agda2-indent ()
+  "This is what happens when TAB is pressed. Depends on the setting of
+`agda2-indentation'."
+  (interactive)
+  (cond ((eq agda2-indentation 'haskell) (haskell-indent-cycle))
+        ((eq agda2-indentation 'eri) (eri-indent))))
+
+(defun agda2-indent-reverse ()
+  "This is what happens when S-TAB is pressed. Depends on the setting
+of `agda2-indentation'."
+  (interactive)
+  (cond ((eq agda2-indentation 'eri) (eri-indent-reverse))))
+
+(defun agda2-indent-setup ()
+  "Sets up and starts the indentation subsystem. Depends on the
+setting of `agda2-indentation'."
+  (interactive)
+  (cond ((eq agda2-indentation 'haskell)
+         (labels ((setl (var val) (set (make-local-variable var) val)))
+           (setl 'indent-line-function 'haskell-indent-cycle)
+           (setl 'haskell-indent-off-side-keywords-re
+                 "\\<\\(do\\|let\\|of\\|where\\|sig\\|struct\\)\\>[ \t]*"))
+         (local-set-key "\177"  'backward-delete-char-untabify)
+         (set (make-local-variable 'haskell-literate)
+              (if (string-match "\\.lagda$" (buffer-file-name))
+                  'latex))
+         (setq haskell-indent-mode t)
+         (run-hooks 'haskell-indent-hook))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;
