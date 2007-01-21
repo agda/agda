@@ -27,6 +27,8 @@ data Aspect
 -- how the various aspects are represented. It is probably a good idea
 -- to document here which the possible combinations are, so that the
 -- UI designer can take them into account.
+--
+-- Invariant: @'from' '<=' 'to'@.
 
 data Range = Range { from, to :: Integer
                    , aspects  :: [Aspect]
