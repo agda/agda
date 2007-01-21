@@ -14,7 +14,6 @@
 (require 'haskell-ghci)
 ;; due to a bug in haskell-mode-2.1
 (setq haskell-ghci-mode-map (copy-keymap comint-mode-map))
-(require 'font-lock)
 (unless (fboundp 'overlays-in) (load "overlay")) ; for Xemacs
 (unless (fboundp 'propertize)                    ; for Xemacs 21.4
  (defun propertize (string &rest properties)
@@ -63,10 +62,10 @@ properties to add to the result."
   :type 'string :group 'agda2)
   
 (defcustom agda2-mode-hook
-  '(agda2-fix-ghci-for-windows turn-on-agda2-indent turn-on-agda2-font-lock)
+  '(agda2-fix-ghci-for-windows turn-on-agda2-indent)
   "*Hooks for agda2-mode.
-Remove `turn-on-agda2-indent', `turn-on-agda2-font-lock' from here to disable
-those features." :type 'hook :group 'agda2)
+Remove `turn-on-agda2-indent' from here to disable
+that feature." :type 'hook :group 'agda2)
 
 (defun agda2-fix-ghci-for-windows ()
   (if (string-match "windows" system-configuration)
@@ -169,7 +168,6 @@ consumed at `agda2-undo'.  It is a list of list
  (interactive)
  (kill-all-local-variables)
  ;;(make-local-hook 'haskell-mode-hook)
- ;;(remove-hook 'haskell-mode-hook 'turn-on-haskell-font-lock 'local)
  ;;(remove-hook 'haskell-mode-hook 'turn-on-haskell-doc-mode 'local)
  (haskell-mode)
  (if (featurep 'haskell-font-lock)
@@ -622,81 +620,6 @@ ignoring text-property undos."
   (let ((old-buffer-modified (buffer-modified-p)))
     (apply func args)
     (set-buffer-modified-p old-buffer-modified)))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;; Font-lock support
-
-(defvar agda2-re-font-lock nil)
-(defvar agda2-re-vars nil)
-(defvar agda2-re-param nil)
-(defvar agda2-re-in-param nil)
-(defvar agda2-re-dc nil)
-(labels
-    ((c  (&rest rs)   (apply 'concat rs))
-     (g  (r)          (c "\\(" r "\\)"))
-     (w  (r)          (c "\\<" r "\\>"))
-     (p  (r)          (c r "+"))
-     (t  (r)          (c r "*"))
-     (o  (r &rest rs) (apply 'c r (mapcar #'(lambda(x) (c "\\|" x)) rs))))
-  (let* ((spc    (t "\\s "))
-         (keywd (g (regexp-opt '("let" "in" "where" "postulate"
-                                 "primitive" "open" "import" "module"
-                                 "data" "infix" "infixl" "infixr"
-                                 "mutual" "abstract" "private"
-                                 "Prop" "forall" "using" "hiding"
-                                 "renaming" "to" ))))
-         (op     (c "("(p(g(o "\\s_" "\\s.")))")"))
-         (ide    (g (o "\\sw+" op)))
-         (ides   (t(g(c spc "," spc ide))))
-         (sor    (g (o "Set\\b" "Type\\b"))))
-    (setq agda2-re-font-lock (o (g "--.*$") (w (o sor keywd)) ide)
-          agda2-re-vars      (c "\\=" ides)
-          agda2-re-param     (c spc "[({]" ide ides spc ":")
-          agda2-re-in-param  (c "[({]" ide ides spc "\\=")
-          agda2-re-dc        (c spc (g (o ":" "where"))))))
-(defvar agda2-nil6 (make-list 6 nil))
-(defvar agda2-nil8 (make-list 8 nil))
-;; `agda2-matcher' returns one-liner comment as 1st subexpression match
-;;                        "Set\\|Type"         2nd
-;;                        other keywords       3rd
-;;                        bound ide(approx)    4th
-;;                        defined ide(approx)  5th
-;; Approx bound   ide is recognised by "(...,ide,...:"
-;; Approx defined ide is recognised by "ide(...)...(...):"
-;; This is way too slow.  Full blown parsing may actually be faster..
-(defun agda2-matcher (&optional end)
-  (unless end (setq end (point-max)))
-  (let (md ok)
-    (while (and (not ok) (re-search-forward agda2-re-font-lock end t))
-      (setq md (match-data)
-            ok (or (elt md 2) (elt md 4) (elt md 6)
-                   (progn (re-search-forward agda2-re-vars end t)
-                          (agda2-protect (while (looking-at agda2-re-param)
-                                           (forward-sexp)))
-                          (when  (looking-at agda2-re-dc)
-                            (setcdr (cdr md) nil)
-                            (set-match-data
-                             (append md (if (re-search-backward
-                                             agda2-re-in-param nil t)
-                                            agda2-nil6 agda2-nil8) md))
-                            t))))
-      (goto-char (cadr md)))
-    ok))
-(defconst agda2-font-lock-keywords
-   '((agda2-matcher
-      (0 (cond ((match-beginning 1) font-lock-comment-face)
-               ((match-beginning 2) font-lock-type-face)
-               ((match-beginning 3) font-lock-keyword-face)
-               ((match-beginning 4) font-lock-variable-name-face)
-               ((match-beginning 5) font-lock-function-name-face)) nil t))))
-
-(defun turn-on-agda2-font-lock ()
-  "Set `font-lock-defaults' for agda2 code and turn on font lock.
-See also `agda2-fontify-included-files'"
-  (interactive)
-  (set (make-local-variable 'font-lock-defaults)
-       '(agda2-font-lock-keywords nil nil nil))
-  (turn-on-font-lock))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;
