@@ -634,4 +634,4 @@ ignoring text-property undos."
            (call-interactively
             (lookup-key agda2-goal-map (apply 'vector choice)))))))
 
-(provide 'agda2)
+(provide 'agda2-mode)
