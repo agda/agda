@@ -4,6 +4,8 @@
 -}
 module AgdaMain where
 
+import Prelude hiding (putStrLn, putStr, print)
+
 import Control.Monad.State
 import Control.Monad.Error
 import Control.Applicative
@@ -13,7 +15,7 @@ import Data.Map as Map
 import Data.Maybe
 
 import System.Environment
-import System.IO
+import System.IO hiding (putStrLn, putStr, print)
 import System.Exit
 
 import Syntax.Position
@@ -43,6 +45,7 @@ import TypeChecking.Errors
 import Compiler.Agate.Main
 
 import Utils.Monad
+import Utils.IO
 -- import Utils.Wise -- not 6.4 compatible at the moment
 
 import Tests
