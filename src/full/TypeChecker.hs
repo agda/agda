@@ -448,7 +448,9 @@ checkLHS ps t ret = do
 	env <- ask
 	return $ \k -> do put st; local (const env) k
 
-    runCheckPatM (checkPatterns ps t) $ \xs metas (ps0, ps, ts, a) -> do
+    -- Preliminary type checking to decide what should be variables and what
+    -- should be dotted. Ignore empty types.
+    runCheckPatM (checkPatterns ps t) $ \xs metas _ (ps0, ps, ts, a) -> do
 
     -- Build the new pattern, turning implicit patterns into variables when
     -- they couldn't be solved.
@@ -471,7 +473,10 @@ checkLHS ps t ret = do
     -- Now we forget that we ever type checked anything and type check the new
     -- pattern.
     rollback $ runCheckPatM (checkPatterns ps1 t)
-	     $ \xs metas (_, ps, ts, a) -> do
+	     $ \xs metas emptyTypes (_, ps, ts, a) -> do
+
+    -- Check that the empty types are indeed empty
+    mapM_ isEmptyType emptyTypes
 
     verbose 10 $ liftIO $ do
 	putStrLn $ "second check"
@@ -824,7 +829,7 @@ checkPattern name p t =
 	-- Absurd pattern. Make sure that the type is empty. Otherwise treat as
 	-- an anonymous variable.
 	A.AbsurdP i -> do
-	    isEmptyType t
+	    thisTypeShouldBeEmpty t
 	    x <- freshName (getRange i) name
 	    bindPatternVar x t
 	    return (p, AbsurdP, Var 0 [])
