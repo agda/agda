@@ -450,8 +450,6 @@ checkLHS ps t ret = do
 
     runCheckPatM (checkPatterns ps t) $ \xs metas (ps0, ps, ts, a) -> do
 
-    -- < Insert magic code for inductive families here. >
-
     -- Build the new pattern, turning implicit patterns into variables when
     -- they couldn't be solved.
     ps1 <- evalStateT (buildNewPatterns ps0) metas

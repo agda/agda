@@ -224,18 +224,19 @@ exPat _ = error "exPat error"
 ------------------------------------------------------------
 -- Subterm checking
 ------------------------------------------------------------
-instance Eq Term where
-  (Var n1 as1) == (Var n2 as2) = n1 == n2 && allArgsEqual as1 as2
-  _ == _ = False
+
+(===) :: Term -> Term -> Bool
+Var n1 as1 === Var n2 as2 = n1 == n2 && allArgsEqual as1 as2
+_	   === _	  = False
 
 allArgsEqual :: Args -> Args -> Bool
 allArgsEqual [] [] = True
-allArgsEqual (a:as) (b:bs) = unArg a == unArg b && allArgsEqual as bs
+allArgsEqual (a:as) (b:bs) = unArg a === unArg b && allArgsEqual as bs
 allArgsEqual _ _ = False
 
 subterm, strictSubterm :: Term -> Term -> Bool
 
-subterm t1 t2 = (t1 == t2) || strictSubterm t1 t2
+subterm t1 t2 = (t1 === t2) || strictSubterm t1 t2
 
 strictSubterm t (Con _ as) = subtermOfAnyArg t as
   -- any $ map ((subterm t) . unArg) as

@@ -33,10 +33,10 @@ data Term = Var Nat Args
 	  | Sort Sort
 	  | MetaV MetaId Args
 	  | BlockedV (Blocked Term) -- ^ returned by 'TypeChecking.Reduce.reduce'
-  deriving (Typeable, Data)
+  deriving (Typeable, Data, Eq)
 
 data Type = El Sort Term
-  deriving (Typeable, Data) 
+  deriving (Typeable, Data, Eq)
 
 data Sort = Type Nat
 	  | Prop 
@@ -72,7 +72,7 @@ type Telescope = [Arg (String,Type)]
 data Abs a = Abs { absName :: String
 		 , absBody :: a
 		 }
-    deriving (Typeable, Data)
+    deriving (Typeable, Data, Eq)
 
 instance Functor Abs where
     fmap f (Abs x t) = Abs x $ f t

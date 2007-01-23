@@ -99,6 +99,12 @@ equalAtom t m n =
 				       else assignV t y yArgs m
 	    (MetaV x xArgs, _) -> assignV t x xArgs n
 	    (_, MetaV x xArgs) -> assignV t x xArgs m
+	    (BlockedV _, BlockedV _)	-> do
+		n <- normalise n    -- is this what we want?
+		m <- normalise m
+		if m == n
+		    then return []	-- Check syntactic equality for blocked terms
+		    else buildConstraint (ValueEq t m n)
 	    (BlockedV b, _)    -> buildConstraint (ValueEq t m n)
 	    (_,BlockedV b)     -> buildConstraint (ValueEq t m n)
 	    _		       -> typeError $ UnequalTerms m n t
