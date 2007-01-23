@@ -154,10 +154,12 @@ bracket par m =
 	bracket' (Paren (getRange e)) par e
 
 -- | Pattern bracketing
-bracketP :: (Precedence -> Bool) -> AbsToCon C.Pattern -> AbsToCon C.Pattern
-bracketP par m =
-    do	e <- m
-	bracket' (ParenP (getRange e)) par e
+bracketP :: (Precedence -> Bool) -> ([C.Pattern] -> AbsToCon a)
+				 -> (([C.Pattern] -> AbsToCon a) -> AbsToCon a)
+				 -> AbsToCon a
+bracketP par ret m = m $ \ps -> do
+    ps' <- mapM (bracket' (ParenP (getRange ps)) par) ps
+    ret ps'
 
 -- Dealing with infix declarations ----------------------------------------
 
@@ -547,34 +549,38 @@ instance BindToConcrete A.LHS C.Pattern where
     bindToConcrete (A.LHS i x args) ret =
 	-- bindWithStored i ret $
 	do  x <- toConcrete x
-	    bindToConcrete args $ \args ->
+	    -- TODO: mixfix applications
+	    bindToConcreteCtx ArgumentCtx args $ \args ->
 		ret $ foldl C.AppP (IdentP $ C.QName x) $ concatArgs args
 
 instance ToConcrete A.Pattern [C.Pattern] where
     toConcrete p = bindToConcrete p return
 
+appBrackets' :: [arg] -> Precedence -> Bool
+appBrackets' []	   _   = False
+appBrackets' (_:_) ctx = appBrackets ctx
+
 -- TODO: bracket patterns
 instance BindToConcrete A.Pattern [C.Pattern] where
     bindToConcrete (VarP x)	   ret = bindToConcrete x $ ret . (:[]) . IdentP . C.QName
     bindToConcrete (A.WildP i)	   ret =
-	{- bindWithStored i ret $ -} ret [ C.WildP (getRange i) ]
+	ret [ C.WildP (getRange i) ]
     bindToConcrete (ConP i x args) ret =
-	-- bindWithStored i ret $
-	do  x <- toConcrete x
+	bracketP (appBrackets' args) ret $ \ret -> do
+	    x <- toConcrete x
 	    bindToConcrete args $ \args ->
 		ret [ foldl AppP (C.IdentP x) $ concatArgs args ]
     bindToConcrete (DefP i x args) ret =
-	-- bindWithStored i ret $
-	do  x <- toConcrete x
+	bracketP (appBrackets' args) ret $ \ret -> do
+	    x <- toConcrete x
 	    bindToConcrete args $ \args ->
 		ret [ foldl AppP (C.IdentP x) $ concatArgs args ]
-    bindToConcrete (A.AsP i x p)   ret = bindToConcrete (x,p) $ \ (x,p) ->
+    bindToConcrete (A.AsP i x p)   ret = bindToConcreteCtx ArgumentCtx (x,p) $ \ (x,p) ->
 					    ret $ map (C.AsP (getRange i) x) p
     bindToConcrete (A.AbsurdP i)   ret = ret [ C.AbsurdP (getRange i) ]
     bindToConcrete (A.LitP l)	   ret = ret [ C.LitP l ]
     bindToConcrete (A.DotP i e)	   ret = do
-	-- bindWithStored i ret $ do
-	e <- toConcrete e
+	e <- toConcreteCtx ArgumentCtx e
 	ret [ C.DotP (getRange i) e ]
     bindToConcrete (A.ImplicitP i) ret = ret []
 

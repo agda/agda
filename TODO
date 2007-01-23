@@ -40,6 +40,8 @@ Fixes
 * get precedences right for things that aren't visible at the top level
   (requires having the right scope during type checking)
 
+* print patterns in mixfix notation (AbstractToConcrete)
+
 [Scope]
 
 * scope checking yields impossible when things clash
