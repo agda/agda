@@ -5,7 +5,7 @@ import Prelude
 import Data.Nat as Nat
 import Data.Bool
 
-open Nat using (Nat suc zero)
+open Nat using (Nat; suc; zero)
          renaming ( _+_  to _+'_
                   ; _*_  to _*'_
                   ; _<_  to _<'_

@@ -1,14 +1,10 @@
 
 module Data.Fin where
 
-import Data.Nat
-import Data.Bool
-import Logic.Base
-import Logic.Identity
-
-open Data.Nat hiding (_==_ _<_)
-open Data.Bool
-open Logic.Base
+open import Data.Nat hiding (_==_; _<_)
+open import Data.Bool
+open import Logic.Identity
+open import Logic.Base
 
 data Fin : Nat -> Set where
   fzero : {n : Nat} -> Fin (suc n)

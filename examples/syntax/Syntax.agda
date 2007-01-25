@@ -276,7 +276,7 @@ module examples.syntax.Syntax where
     -- If the name of an imported module clashes with a local module we might
     -- have to rename the module we are importing
     import examples.syntax.ModuleA as A
-    import examples.syntax.ModuleA as A', using (Nat)
+    import examples.syntax.ModuleA as A' using (Nat)
 
     Nat1 = A.Nat
     Nat2 = A'.Nat
@@ -320,9 +320,9 @@ module examples.syntax.Syntax where
        can give modifiers that affect the names which are imported. There are
        three modifiers:
 
-	using (x1,..,xn)		only import x1,..,xn
-	hiding (x1,..,xn)		import everything but x1,..,xn
-	renaming (x1 to y1,..,xn to yn)	import x1,..,xn but call them y1,..,yn
+	using (x1;..;xn)		only import x1,..,xn
+	hiding (x1;..;xn)		import everything but x1,..,xn
+	renaming (x1 to y1;..;xn to yn)	import x1,..,xn but call them y1,..,yn
 
       Restrictions:
 	- a modifier can appear only once
@@ -332,18 +332,18 @@ module examples.syntax.Syntax where
     -}
 
     -- B1 only contains True and False
-    module B1 = B, using (True, False)
+    module B1 = B using (True; False)
 
     -- B2 contains True, False and And where And = B./\
-    module B2 = B, using (True, False), renaming (/\ to And)
+    module B2 = B using (True; False) renaming (/\ to And)
 
     -- B3 contains everything from B except reflEqList and eqList, plus ===
     -- where (===) = B.eqList.
-    module B3 = B, hiding (reflEqList), renaming (eqList to ===)
+    module B3 = B hiding (reflEqList) renaming (eqList to ===)
 
     -- When referring to sub modules you have to be explicitly about it being
     -- a module
-    module B4 = B, renaming (module SubModule to Sub)
+    module B4 = B renaming (module SubModule to Sub)
 
     dummy : X
     dummy = B4.Sub.dummy

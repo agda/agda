@@ -18,7 +18,7 @@ import Data.Tuple
 open Prelude
 open Data.Real.Base
 open Data.Real.Complete
-open Data.Integer using (Int pos) renaming (_-_ to _-i_; _<_ to _<i_)
+open Data.Integer using (Int; pos) renaming (_-_ to _-i_; _<_ to _<i_)
 open Rational hiding (fromInt)
 open Data.Bool
 open Data.String

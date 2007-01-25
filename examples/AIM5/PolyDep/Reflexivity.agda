@@ -1,6 +1,6 @@
 module Reflexivity where
 import Prelude
-open Prelude, using(Bool, True)
+open Prelude using(Bool; True)
 
 -- Local reflexivity
 

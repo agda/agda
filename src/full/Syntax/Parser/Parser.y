@@ -473,7 +473,7 @@ CommaImportNames
 
 CommaImportNames1
     : ImportName			{ [$1] }
-    | ImportName CommaImportNames1	{ $1 : $2 }
+    | ImportName ';' CommaImportNames1	{ $1 : $3 }
 
 {--------------------------------------------------------------------------
     Function clauses

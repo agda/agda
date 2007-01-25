@@ -3,7 +3,7 @@ module Logic.Operations where
 
 import Logic.Relations as Rel
 import Logic.Equivalence as Eq
-open Eq using (Equivalence module Equivalence)
+open Eq using (Equivalence; module Equivalence)
 
 BinOp : Set -> Set
 BinOp A = A -> A -> A

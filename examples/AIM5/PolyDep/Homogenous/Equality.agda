@@ -6,15 +6,15 @@ import Homogenous.Base
 import EqBase
 import Prelude
 
-open Prelude using (Datoid
-                     Bool true false _&&_
-                     Pair pair
-                     Either left right
-                     suc
-                     _::_ nil
-                     cmp
-                     _=>_ lam _$$_)
-open Homogenous.Base using (Arity Sig Fa F T It out)
+open Prelude using ( Datoid
+                   ; Bool; true; false; _&&_
+                   ; Pair; pair
+                   ; Either; left; right
+                   ; suc
+                   ; _::_; nil
+                   ; cmp
+                   ; _=>_; lam; _$$_)
+open Homogenous.Base using (Arity; Sig; Fa; F; T; It; out)
 
 eq_step_ar : (n:Arity){X:Set}(fs:Fa n (X => Bool))(xs:Fa n X) -> Bool
 eq_step_ar (zer)   unit         unit         = true

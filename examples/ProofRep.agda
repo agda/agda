@@ -8,7 +8,7 @@ import Data.Nat
 import Data.Nat.Properties
 
 open Prelude
-open Data.Nat hiding (_==_ _≡_)
+open Data.Nat hiding (_==_; _≡_)
 open Data.Nat.Properties
 open Logic.Relations
 

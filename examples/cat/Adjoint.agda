@@ -9,7 +9,7 @@ open Functor using (Functor)
 
 module Adj where
 
-  open Functor.Projections using (Map map)
+  open Functor.Projections using (Map; map)
 
   data _⊢_ {ℂ ⅅ : Cat}(F : Functor ℂ ⅅ)(G : Functor ⅅ ℂ) : Set1 where
     adjunction :

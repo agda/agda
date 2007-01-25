@@ -6,12 +6,12 @@ import TYPE
 import Prelude
 
 open Prelude using
-  (Absurd
-   Unit unit
-   Nat  zero suc
-   List nil _::_
-   Either  left right
-   Pair pair)
+  ( Absurd
+  ; Unit; unit
+  ; Nat; zero; suc
+  ; List; nil; _::_
+  ; Either; left; right
+  ; Pair; pair)
 
 -- A homogenous algebra can be represented by a list of arities
 --   (natural numbers)

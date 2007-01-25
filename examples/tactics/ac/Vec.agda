@@ -4,7 +4,7 @@ module Vec where
 import Nat
 import Fin
 
-open Nat hiding (_==_ _<_)
+open Nat hiding (_==_; _<_)
 open Fin
 
 data Nil : Set where

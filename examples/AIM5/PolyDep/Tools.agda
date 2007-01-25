@@ -3,7 +3,7 @@ import Prelude
 -- import Sigma
 -- import And
 
-open Prelude,  using(Datoid,  Bool, true, false, _&&_, Nat,  True,  Taut, unit)
+open Prelude  using(Datoid;  Bool; true; false; _&&_; Nat;  True;  Taut; unit)
 
 liftAnd : (a:Bool)(b:Bool)(ta:True a)(tb:True b) -> True (_&&_ a b)
 liftAnd (true)  (true)  ta tb = unit

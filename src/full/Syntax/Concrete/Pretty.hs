@@ -245,9 +245,9 @@ instance Pretty ImportDirective where
 instance Pretty UsingOrHiding where
     pretty (Hiding [])	= empty
     pretty (Hiding xs)	=
-	text "hiding" <+> parens (fsep $ map pretty xs)
+	text "hiding" <+> parens (fsep $ punctuate (text ";") $ map pretty xs)
     pretty (Using xs)	 =
-	text "using" <+> parens (fsep $ map pretty xs)
+	text "using" <+> parens (fsep $ punctuate (text ";") $ map pretty xs)
 
 instance Pretty ImportedName where
     pretty (ImportedName x)	= pretty x

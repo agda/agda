@@ -9,7 +9,7 @@ import Data.List
 
 open Prelude
 open Data.Nat
-open Data.Integer using (Int pos neg)
+open Data.Integer using (Int; pos; neg)
 open Data.String
 open Data.List hiding (_++_)
 

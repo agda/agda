@@ -1,11 +1,11 @@
 module EqBase where
 import Prelude
-open Prelude using ( Bool true false _&&_
-                     Unit unit
-                     Pair pair
-                     Absurd
-                     Datoid datoid pElem
-                     True )
+open Prelude using ( Bool; true; false; _&&_
+                   ; Unit; unit
+                   ; Pair; pair
+                   ; Absurd
+                   ; Datoid; datoid; pElem
+                   ; True )
 
 -- import And
 And = Pair

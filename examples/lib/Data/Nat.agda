@@ -46,32 +46,6 @@ suc n ! = suc n * n !
 {-# BUILTIN NATMINUS _-_ #-}
 {-# BUILTIN NATTIMES _*_ #-}
 
-divSuc : Nat -> Nat -> Nat
-divSuc  zero   _ = zero
-divSuc (suc n) m = 1 + divSuc (n - m) m
-
-modSuc : Nat -> Nat -> Nat
-modSuc  zero   _ = zero
-modSuc (suc n) m = modSuc (n - m) m
-
-{-# BUILTIN NATDIVSUC divSuc #-}
-{-# BUILTIN NATMODSUC modSuc #-}
-
-div : Nat -> Nat -> Nat
-div n  zero   = zero
-div n (suc m) = divSuc n m
-
-mod : Nat -> Nat -> Nat
-mod n  zero   = zero
-mod n (suc m) = modSuc n m
-
-gcd : Nat -> Nat -> Nat
-gcd a 0 = a
-gcd a b = gcd b (mod a b)
-
-lcm : Nat -> Nat -> Nat
-lcm a b = div (a * b) (gcd a b)
-
 _==_ : Nat -> Nat -> Bool
 zero  == zero  = true
 zero  == suc _ = false
@@ -89,12 +63,40 @@ n ≤ m = n < suc m
 _>_ = flip _<_
 _≥_ = flip _≤_
 
+{-# BUILTIN NATEQUALS _==_ #-}
+{-# BUILTIN NATLESS   _<_  #-}
+
+divSuc : Nat -> Nat -> Nat
+divSuc  zero   _ = zero
+divSuc (suc n) m = 1 + divSuc (n - m) m
+
+modSuc : Nat -> Nat -> Nat
+modSuc  zero   _ = zero
+modSuc (suc n) m =
+  | n ≤ m  => suc n
+  | otherwise modSuc (n - m) m
+
+{-# BUILTIN NATDIVSUC divSuc #-}
+-- {-# BUILTIN NATMODSUC modSuc #-}
+
+div : Nat -> Nat -> Nat
+div n  zero   = zero
+div n (suc m) = divSuc n m
+
+mod : Nat -> Nat -> Nat
+mod n  zero   = zero
+mod n (suc m) = modSuc n m
+
+gcd : Nat -> Nat -> Nat
+gcd a 0 = a
+gcd a b = gcd b (mod a b)
+
+lcm : Nat -> Nat -> Nat
+lcm a b = div (a * b) (gcd a b)
+
 even : Nat -> Bool
 even n = mod n 2 == 0
 
 odd : Nat -> Bool
 odd n = mod n 2 == 1
-
-{-# BUILTIN NATEQUALS _==_ #-}
-{-# BUILTIN NATLESS   _<_  #-}
 

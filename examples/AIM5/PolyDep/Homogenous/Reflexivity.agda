@@ -1,21 +1,21 @@
 module Homogenous.Reflexivity where
 import Homogenous.Base
 import Homogenous.Equality
-open Homogenous.Base,    using(Arity, Sig, Fa, Fa1, F, F1, T, It, FIHa, FIH, R)
-open Homogenous.Equality,using(equal, eq_step, eq_step', eq_step_ar)
+open Homogenous.Base	 using(Arity; Sig; Fa; Fa1; F; F1; T; It; FIHa; FIH; R)
+open Homogenous.Equality using(equal; eq_step; eq_step'; eq_step_ar)
 
 import Prelude
-open Prelude, using(Bool, True,
-                    pair, fst, snd,
-                    zero, suc,
-                    left, right,
-                    _::_, nil,
-                    _=>_, lam, _$$_,
+open Prelude using(Bool; True;
+                    pair; fst; snd;
+                    zero; suc;
+                    left; right;
+                    _::_; nil;
+                    _=>_; lam; _$$_;
                     unit)
 import Tools
-open Tools,       using(liftAnd)
+open Tools       using(liftAnd)
 import Reflexivity
-open Reflexivity, using(lref, Refl, refl)
+open Reflexivity using(lref; Refl; refl)
 
 -- -----------------------------
 -- Reflexivity

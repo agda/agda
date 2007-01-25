@@ -17,7 +17,7 @@ open Int renaming
             ; _>_  to _>'_
             ; _<_  to _<'_
             )
-open Nat using (Nat zero suc)
+open Nat using (Nat; zero; suc)
 open Bool
 
 infix  40 _==_ _<_ _>_ _≤_ _≥_

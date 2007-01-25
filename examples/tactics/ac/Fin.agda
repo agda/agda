@@ -4,7 +4,7 @@ module Fin where
 import Nat
 import Bool
 
-open Nat hiding (_==_ _<_)
+open Nat hiding (_==_; _<_)
 open Bool
 
 data FZero : Set where

@@ -207,7 +207,7 @@ module Subst where
   open Fin
   open Vec
   open NormalForms
-  open Rename using (Ren rename up)
+  open Rename using (Ren; rename; up)
 
   -- Substitutions ----------------------------------------------------------
 
@@ -379,7 +379,7 @@ module Eval where
   open Vec
   open Syntax
   open NormalForms
-  open Rename using (up rename)
+  open Rename using (up; rename)
   open Subst
   open TypeSystem
 
