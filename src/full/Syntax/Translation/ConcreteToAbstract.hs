@@ -521,7 +521,7 @@ instance BindToAbstract NiceDeclaration [A.Declaration] where
 		    is' = is { renaming = [], usingOrHiding = Hiding [] }
 		in case op of
 		    DontOpen -> ret ds
-		    DoOpen   -> openModule x is' $ ret ds
+		    DoOpen   -> openModule name is $ ret ds -- TODO: import directives doesn't work on import
 	    where
 		name = maybe x C.QName as
 

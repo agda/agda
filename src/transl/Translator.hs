@@ -217,6 +217,7 @@ transCLetDef (CLetDefComment cs)
                      (\ md -> [Import noRange
  				    (QName (Name noRange [Id md]))
  				    Nothing
+				    DontOpen
  				    (ImportDirective noRange (Hiding []) [] False) ])
                      mdlname
    where 
