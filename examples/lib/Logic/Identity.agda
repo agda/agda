@@ -1,10 +1,10 @@
 
 module Logic.Identity where
 
-import Logic.Equivalence
-open Logic.Equivalence
+open import Logic.Equivalence
+open import Logic.Base
 
-infix 40 _≡_
+infix 40 _≡_ _≢_
 
 data _≡_ {A : Set}(x : A) : A -> Set where
   refl : x ≡ x
@@ -26,4 +26,10 @@ cong2 {A} f refl refl = refl
 
 Equiv : {A : Set} -> Equivalence A
 Equiv = equiv _≡_ (\x -> refl) (\x y -> sym) (\x y z -> trans)
+
+_≢_ : {A : Set} -> A -> A -> Set
+x ≢ y = ¬ (x ≡ y)
+
+sym≢ : {A : Set}{x y : A} -> x ≢ y -> y ≢ x
+sym≢ np p = np (sym p)
 

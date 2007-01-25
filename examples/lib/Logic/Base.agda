@@ -33,9 +33,9 @@ elim-\/ = elimD-\/ (\_ -> _)
 ¬_ : Set -> Set
 ¬ P = P -> False
 
-data Exist {A : Set}(P : A -> Set) : Set where
-  exist-I : (w : A) -> P w -> Exist P
+data ∃ {A : Set}(P : A -> Set) : Set where
+  ∃-I : (w : A) -> P w -> ∃ P
 
-Forall : {A : Set}(P : A -> Set) -> Set
-Forall {A} P = (x : A) -> P x
+∀ : {A : Set}(P : A -> Set) -> Set
+∀ {A} P = (x : A) -> P x
 
