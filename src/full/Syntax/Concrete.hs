@@ -20,6 +20,7 @@ module Syntax.Concrete
     , TypeSignature
     , Constructor
     , ImportDirective(..), UsingOrHiding(..), ImportedName(..)
+    , OpenShortHand(..)
     , LHS, Pattern(..)
     , RHS(..), WhereClause
     , Pragma(..)
@@ -170,11 +171,14 @@ data Declaration
 	| Postulate   !Range [TypeSignature]
 	| Primitive   !Range [TypeSignature]
 	| Open        !Range QName ImportDirective
-	| Import      !Range QName (Maybe Name) ImportDirective
-	| ModuleMacro !Range  Name [TypedBindings] Expr ImportDirective
+	| Import      !Range QName (Maybe Name) OpenShortHand ImportDirective
+	| ModuleMacro !Range  Name [TypedBindings] Expr OpenShortHand ImportDirective
 	| Module      !Range QName [TypedBindings] [Declaration]
 	| Pragma      Pragma
     deriving (Eq, Typeable, Data)
+
+data OpenShortHand = DoOpen | DontOpen
+    deriving (Eq, Typeable, Data, Show)
 
 -- Pragmas ----------------------------------------------------------------
 
@@ -249,8 +253,8 @@ instance HasRange Declaration where
     getRange (Mutual r _)		= r
     getRange (Abstract r _)		= r
     getRange (Open r _ _)		= r
-    getRange (ModuleMacro r _ _ _ _)	= r
-    getRange (Import r _ _ _)		= r
+    getRange (ModuleMacro r _ _ _ _ _)	= r
+    getRange (Import r _ _ _ _)		= r
     getRange (Private r _)		= r
     getRange (Postulate r _)		= r
     getRange (Primitive r _)		= r

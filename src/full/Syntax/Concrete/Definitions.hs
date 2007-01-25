@@ -94,9 +94,9 @@ data NiceDeclaration
 	    --   The last two lists have the same length. The first list is the
 	    --   concrete declarations these definitions came from.
 	| NiceModule Range Access IsAbstract QName Telescope [Declaration]
-	| NiceModuleMacro Range Access IsAbstract Name Telescope Expr ImportDirective
+	| NiceModuleMacro Range Access IsAbstract Name Telescope Expr OpenShortHand ImportDirective
 	| NiceOpen Range QName ImportDirective
-	| NiceImport Range QName (Maybe Name) ImportDirective
+	| NiceImport Range QName (Maybe Name) OpenShortHand ImportDirective
 	| NicePragma Range Pragma
     deriving (Show, Typeable, Data)
 
@@ -132,14 +132,14 @@ instance HasRange DeclarationException where
     getRange (NotAllowedInMutual x)   = getRange x
 
 instance HasRange NiceDeclaration where
-    getRange (Axiom r _ _ _ _ _)	     = r
-    getRange (NiceDef r _ _ _)		     = r
-    getRange (NiceModule r _ _ _ _ _)	     = r
-    getRange (NiceModuleMacro r _ _ _ _ _ _) = r
-    getRange (NiceOpen r _ _)		     = r
-    getRange (NiceImport r _ _ _)	     = r
-    getRange (NicePragma r _)		     = r
-    getRange (PrimitiveFunction r _ _ _ _ _) = r
+    getRange (Axiom r _ _ _ _ _)	       = r
+    getRange (NiceDef r _ _ _)		       = r
+    getRange (NiceModule r _ _ _ _ _)	       = r
+    getRange (NiceModuleMacro r _ _ _ _ _ _ _) = r
+    getRange (NiceOpen r _ _)		       = r
+    getRange (NiceImport r _ _ _ _)	       = r
+    getRange (NicePragma r _)		       = r
+    getRange (PrimitiveFunction r _ _ _ _ _)   = r
 
 {--------------------------------------------------------------------------
     The niceifier
@@ -239,12 +239,12 @@ niceDeclarations ds = nice (fixities ds) ds
 			    Module r x tel ds	->
 				[ NiceModule r PublicAccess ConcreteDef x tel ds ]
 
-			    ModuleMacro r x tel e is ->
-				[ NiceModuleMacro r PublicAccess ConcreteDef x tel e is ]
+			    ModuleMacro r x tel e op is ->
+				[ NiceModuleMacro r PublicAccess ConcreteDef x tel e op is ]
 
 			    Infix _ _		-> []
 			    Open r x is		-> [NiceOpen r x is]
-			    Import r x as is	-> [NiceImport r x as is]
+			    Import r x as op is	-> [NiceImport r x as op is]
 
 			    Pragma p		-> [NicePragma (getRange p) p]
 
@@ -310,15 +310,15 @@ niceDeclarations ds = nice (fixities ds) ds
 	-- Make a declaration abstract
 	mkAbstract d =
 	    case d of
-		Axiom r f a _ x e		 -> Axiom r f a AbstractDef x e
-		PrimitiveFunction r f a _ x e	 -> PrimitiveFunction r f a AbstractDef x e
-		NiceDef r cs ts ds		 -> NiceDef r cs (map mkAbstract ts)
+		Axiom r f a _ x e		    -> Axiom r f a AbstractDef x e
+		PrimitiveFunction r f a _ x e	    -> PrimitiveFunction r f a AbstractDef x e
+		NiceDef r cs ts ds		    -> NiceDef r cs (map mkAbstract ts)
 								 (map mkAbstractDef ds)
-		NiceModule r a _ x tel ds	 -> NiceModule r a AbstractDef x tel [ Abstract (getRange ds) ds ]
-		NiceModuleMacro r a _ x tel e is -> NiceModuleMacro r a AbstractDef x tel e is
-		NicePragma _ _			 -> d
-		NiceOpen _ _ _			 -> d
-		NiceImport _ _ _ _		 -> d
+		NiceModule r a _ x tel ds	    -> NiceModule r a AbstractDef x tel [ Abstract (getRange ds) ds ]
+		NiceModuleMacro r a _ x tel e op is -> NiceModuleMacro r a AbstractDef x tel e op is
+		NicePragma _ _			    -> d
+		NiceOpen _ _ _			    -> d
+		NiceImport _ _ _ _ _		    -> d
 
 	mkAbstractDef d =
 	    case d of
@@ -333,15 +333,15 @@ niceDeclarations ds = nice (fixities ds) ds
 	-- Make a declaration private
 	mkPrivate d =
 	    case d of
-		Axiom r f _ a x e		 -> Axiom r f PrivateAccess a x e
-		PrimitiveFunction r f _ a x e	 -> PrimitiveFunction r f PrivateAccess a x e
-		NiceDef r cs ts ds		 -> NiceDef r cs (map mkPrivate ts)
-								 (map mkPrivateDef ds)
-		NiceModule r _ a x tel ds	 -> NiceModule r PrivateAccess a x tel ds
-		NiceModuleMacro r _ a x tel e is -> NiceModuleMacro r PrivateAccess a x tel e is
-		NicePragma _ _			 -> d
-		NiceOpen _ _ _			 -> d
-		NiceImport _ _ _ _		 -> d
+		Axiom r f _ a x e		    -> Axiom r f PrivateAccess a x e
+		PrimitiveFunction r f _ a x e	    -> PrimitiveFunction r f PrivateAccess a x e
+		NiceDef r cs ts ds		    -> NiceDef r cs (map mkPrivate ts)
+								    (map mkPrivateDef ds)
+		NiceModule r _ a x tel ds	    -> NiceModule r PrivateAccess a x tel ds
+		NiceModuleMacro r _ a x tel e op is -> NiceModuleMacro r PrivateAccess a x tel e op is
+		NicePragma _ _			    -> d
+		NiceOpen _ _ _			    -> d
+		NiceImport _ _ _ _ _		    -> d
 
 	mkPrivateDef d =
 	    case d of

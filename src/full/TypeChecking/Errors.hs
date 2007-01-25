@@ -359,14 +359,14 @@ instance PrettyTCM Call where
 	    hPretty a@(Arg h _) = pretty $ abstractToConcreteCtx (hiddenArgumentCtx h) a
 
 	    simpleDecl d = case d of
-		D.Axiom _ _ _ _ x e		    -> C.TypeSig x e
-		D.PrimitiveFunction r _ _ _ x e	    -> C.Primitive r [C.TypeSig x e]
-		D.NiceDef r ds _ _		    -> C.Mutual r ds
-		D.NiceModule r _ _ x tel _	    -> C.Module r x tel []
-		D.NiceModuleMacro r _ _ x tel e dir -> C.ModuleMacro r x tel e dir
-		D.NiceOpen r x dir		    -> C.Open r x dir
-		D.NiceImport r x as dir		    -> C.Import r x as dir
-		D.NicePragma _ p		    -> C.Pragma p
+		D.Axiom _ _ _ _ x e		       -> C.TypeSig x e
+		D.PrimitiveFunction r _ _ _ x e	       -> C.Primitive r [C.TypeSig x e]
+		D.NiceDef r ds _ _		       -> C.Mutual r ds
+		D.NiceModule r _ _ x tel _	       -> C.Module r x tel []
+		D.NiceModuleMacro r _ _ x tel e op dir -> C.ModuleMacro r x tel e op dir
+		D.NiceOpen r x dir		       -> C.Open r x dir
+		D.NiceImport r x as op dir	       -> C.Import r x as op dir
+		D.NicePragma _ p		       -> C.Pragma p
 
 interestingCall :: Closure Call -> Maybe (Closure Call)
 interestingCall cl = case clValue cl of

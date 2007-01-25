@@ -342,12 +342,6 @@ Expr3
     | Id '@' Expr3	  { As (fuseRange $1 $3) $1 $3 }
     | '.' Expr3		  { Dot (fuseRange $1 $2) $2 }
 
--- Sorts
-Sort :: { Expr }
-Sort : 'Prop'		{ Prop $1 }
-     | 'Set'		{ Set $1 }
-     | setN		{ uncurry SetN $1 }
-
 
 {--------------------------------------------------------------------------
     Bindings
@@ -356,15 +350,8 @@ Sort : 'Prop'		{ Prop $1 }
 -- "Delta ->" to avoid conflict between Delta -> Gamma and Delta -> A.
 TeleArrow : Telescope1 '->' { $1 }
 
--- A telescope is a non-empty sequence of typed bindingss.
--- Telescope :: { Telescope }
--- Telescope
---     : Telescope1	    { $1 }
---    | TeleArrow Telescope   { TeleFun $1 $2 }
-
 Telescope1
     : TypedBindingss	{ {-TeleBind-} $1 }
---    | '(' Telescope ')'	{ $2 }
 
 TypedBindingss0
     : {- empty -}    { [] }
@@ -433,16 +420,16 @@ ImportImportDirective
 
 -- Import directives
 ImportDirective :: { ImportDirective }
-ImportDirective : ImportDirective_ {% verifyImportDirective $1 }
+ImportDirective : ImportDirective1 {% verifyImportDirective $1 }
 
 -- Can contain public
-OpenImportDirective :: { ImportDirective }
-OpenImportDirective
-    : 'public' ImportDirective { $2 { publicOpen = True } }
-    | ImportDirective	       { $1 }
+ImportDirective1 :: { ImportDirective }
+ImportDirective1
+    : 'public' ImportDirective2 { $2 { publicOpen = True } }
+    | ImportDirective2	        { $1 }
 
-ImportDirective_ :: { ImportDirective }
-ImportDirective_
+ImportDirective2 :: { ImportDirective }
+ImportDirective2
     : UsingOrHiding RenamingDir	{ ImportDirective (fuseRange $1 $2) $1 $2 False }
     | RenamingDir		{ ImportDirective (getRange $1) (Hiding []) $1 False }
     | UsingOrHiding		{ ImportDirective (getRange $1) $1 [] False }
@@ -586,19 +573,22 @@ Primitive : 'primitive' TypeSignatures	{ Primitive (fuseRange $1 $2) $2 }
 
 -- Open
 Open :: { Declaration }
-Open : 'open' ModuleName OpenImportDirective   { Open (getRange ($1,$2,$3)) $2 $3 }
+Open : 'open' ModuleName ImportDirective   { Open (getRange ($1,$2,$3)) $2 $3 }
 
 
--- ModuleMacro
+-- Module instantiation
 ModuleMacro :: { Declaration }
 ModuleMacro : 'module' Id TypedBindingss0 '=' Expr ImportDirective
-		    { ModuleMacro (getRange ($1, $5, $6)) $2 $3 $5 $6 }
-
+		    { ModuleMacro (getRange ($1, $5, $6)) $2 $3 $5 DontOpen $6 }
+	    | 'open' 'module' Id TypedBindingss0 '=' Expr ImportDirective
+		    { ModuleMacro (getRange ($1, $6, $7)) $3 $4 $6 DoOpen $7 }
 
 -- Import
 Import :: { Declaration }
 Import : 'import' ModuleName ImportImportDirective
-	    { Import (getRange ($1,$2,snd $3)) $2 (fst $3) (snd $3) }
+	    { Import (getRange ($1,$2,snd $3)) $2 (fst $3) DontOpen (snd $3) }
+       | 'open' 'import' ModuleName ImportImportDirective
+	    { Import (getRange ($1,$3,snd $4)) $3 (fst $4) DoOpen (snd $4) }
 
 -- Module
 Module :: { Declaration }

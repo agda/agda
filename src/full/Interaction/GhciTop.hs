@@ -433,10 +433,10 @@ instance LowerMeta SC.Declaration where
       Postulate r sigs        -> Postulate r (lowerMeta sigs)
       SC.Primitive r sigs     -> SC.Primitive r (lowerMeta sigs)
       SC.Open _ _ _           -> d
-      SC.Import _ _ _ _       -> d
+      SC.Import _ _ _ _ _     -> d
       SC.Pragma _	      -> d
-      ModuleMacro r n tel e1 dir -> ModuleMacro r n
-                                    (lowerMeta tel) (lowerMeta e1) dir
+      ModuleMacro r n tel e1 op dir -> ModuleMacro r n
+                                    (lowerMeta tel) (lowerMeta e1) op dir
       SC.Module r qn tel ds   -> SC.Module r qn (lowerMeta tel) (lowerMeta ds)
       
 instance LowerMeta a => LowerMeta [a] where

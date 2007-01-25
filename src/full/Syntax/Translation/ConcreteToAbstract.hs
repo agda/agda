@@ -481,7 +481,7 @@ instance BindToAbstract NiceDeclaration [A.Declaration] where
     -- Top-level modules are translated with toAbstract.
 	NiceModule _ _ _ _ _ _ -> __IMPOSSIBLE__
 
-	NiceModuleMacro r p a x tel e is -> case appView e of
+	NiceModuleMacro r p a x tel e op is -> case appView e of
 	    AppView (Ident m) args  ->
 		bindToAbstract tel $ \tel' ->
 		    do	(x',m',args') <- toAbstract ( CModuleName $ C.QName x
@@ -489,12 +489,16 @@ instance BindToAbstract NiceDeclaration [A.Declaration] where
 						    , args
 						    )
 			implicitModule x p (length tel) m is $
-			    ret [ ModuleDef (mkSourcedModuleInfo p a
-						[C.ModuleMacro r x tel e is]
-					    )
-					    x' tel' m' args'
-				]
-		    
+			    let ds = [ ModuleDef
+					(mkSourcedModuleInfo p a
+					    [C.ModuleMacro r x tel e op is]
+					) x' tel' m' args'
+				     ]
+				is' = is { renaming = [], usingOrHiding = Hiding [] }
+			    in case op of
+				DontOpen -> ret ds
+				DoOpen	 -> openModule (C.QName x) is' $ ret ds
+
 	    _	-> notAModuleExpr e
 
 	NiceOpen r x is ->
@@ -504,11 +508,20 @@ instance BindToAbstract NiceDeclaration [A.Declaration] where
 	    p <- toAbstract p
 	    ret [A.Pragma r p]
 
-	NiceImport r x as is -> do
+	NiceImport r x as op is -> do
 	    x' <- toAbstract $ CModuleName x
 	    i  <- scopeCheckImport x'
 	    importModule name i is $
-		ret [A.Import (mkSourcedModuleInfo PublicAccess ConcreteDef [C.Import r x as is]) x']
+		let ds = [A.Import ( mkSourcedModuleInfo
+					PublicAccess
+					ConcreteDef
+					[C.Import r x as op is]
+				   ) x'
+			 ]
+		    is' = is { renaming = [], usingOrHiding = Hiding [] }
+		in case op of
+		    DontOpen -> ret ds
+		    DoOpen   -> openModule x is' $ ret ds
 	    where
 		name = maybe x C.QName as
 

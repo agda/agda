@@ -164,12 +164,13 @@ instance Pretty Declaration where
 		     , fcat (map pretty tel)
 		     , text "where"
 		     ] $$ nest 2 (vcat $ map pretty ds)
-	    ModuleMacro _ x tel e i ->
-		sep [ text "module" <+> pretty x <+> fcat (map pretty tel)
+	    ModuleMacro _ x tel e open i ->
+		sep [ pretty open <+> text "module" <+> pretty x <+> fcat (map pretty tel)
 		    , nest 2 $ text "=" <+> pretty e <+> pretty i
 		    ]
-	    Open _ x i	-> text "open" <+> pretty x <+> pretty i
-	    Import _ x rn i   -> text "import" <+> pretty x <+> as rn <+> pretty i
+	    Open _ x i	-> hsep [ text "open", pretty x, pretty i ]
+	    Import _ x rn open i   -> 
+		hsep [ pretty open, text "import", pretty x, as rn, pretty i ]
 		where
 		    as Nothing	= empty
 		    as (Just x) = text "as" <+> pretty x
@@ -179,6 +180,10 @@ instance Pretty Declaration where
 		sep [ text s
 		    , nest 2 $ vcat $ map pretty ds
 		    ]
+
+instance Pretty OpenShortHand where
+    pretty DoOpen = text "open"
+    pretty DontOpen = empty
 
 instance Pretty Pragma where
     pretty (OptionsPragma _ opts) = fsep $ map text $ "OPTIONS" : opts
@@ -222,10 +227,14 @@ instance Pretty Pattern where
 
 instance Pretty ImportDirective where
     pretty i =
-	cat [ pretty $ usingOrHiding i
+	cat [ public (publicOpen i)
+	    , pretty $ usingOrHiding i
 	    , rename $ renaming i
 	    ]
 	where
+	    public True  = text "public"
+	    public False = empty
+
 	    rename [] = empty
 	    rename xs =	hsep [ text "renaming"
 			     , parens $ fsep $ punctuate (text ";") $ map pr xs

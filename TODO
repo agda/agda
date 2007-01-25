@@ -36,6 +36,9 @@ Fixes
 [Printing]
 
 * print names properly qualified (we want to be able to parse it back)
+  - make sure to always have the correct scope available
+  - implement inverse look up in the scope: what is the simplest way of
+    referring to this internal name
 
 * get precedences right for things that aren't visible at the top level
   (requires having the right scope during type checking)

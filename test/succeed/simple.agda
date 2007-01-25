@@ -33,7 +33,7 @@ module TestList where
 
   open Nat
   module ListNat = List Nat
-  open ListNat using (_++_ _::_ nil)
+  open ListNat using (_++_; _::_; nil)
 
   zzz = (zero :: nil) ++ (suc zero :: nil)
 
