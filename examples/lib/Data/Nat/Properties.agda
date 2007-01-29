@@ -119,9 +119,9 @@ module Proofs where
   n-m≤n (suc n)  zero   = ≤refl n
   n-m≤n (suc n) (suc m) = <implies≤ (n - m) (suc n) (n-m≤n n m)
 
-  mod≤ : (n m : Nat) -> IsTrue (mod n (suc m) ≤ m)
-  mod≤  zero   m = tt
-  mod≤ (suc n) m = mod≤ (n - m) m
+--   mod≤ : (n m : Nat) -> IsTrue (mod n (suc m) ≤ m)
+--   mod≤  zero   m = tt
+--   mod≤ (suc n) m = mod≤ (n - m) m
 
 open Proofs public
 
