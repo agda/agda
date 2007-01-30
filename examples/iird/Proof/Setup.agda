@@ -92,7 +92,7 @@ G→H∘H→G-identity : {I : Set}{D : I -> Set1}
                           (G→H γ U T (H→G γ U T (Gi γ U T a) (G→H γ U T a)))
                    ) ->
                    G→H∘H→G-subst γ U T F (Gi γ U T a) (G→H γ U T a) h ≡₁ h
-G→H∘H→G-identity (ι < i | e >') U T F ★ h = reduction==₁ (\z q -> F z < q | ★ >) h
+G→H∘H→G-identity (ι < i | e >') U T F ★ h = refl-≡₁
 G→H∘H→G-identity (σ A γ) U T F < a | b > h =
   G→H∘H→G-identity (γ a) U T (\j  c -> F j < a | c >) b h
 G→H∘H→G-identity (δ A i γ) U T F < g | b > h =

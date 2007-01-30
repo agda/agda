@@ -1,4 +1,4 @@
-
+{-# OPTIONS --disable-positivity-check #-}
 module IIRDr where
 
 import LF
