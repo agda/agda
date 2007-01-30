@@ -13,6 +13,7 @@ import Control.Applicative
 import Data.List as List
 import Data.Map as Map
 import Data.Maybe
+import Data.Binary
 
 import System.Environment
 import System.IO hiding (putStrLn, putStr, print)
@@ -36,16 +37,19 @@ import Interaction.Options
 import Interaction.Monad
 import Interaction.GhciTop ()	-- to make sure it compiles
 import Interaction.Highlighting.Vim (generateVimFile)
+import Interaction.Imports
 
 import TypeChecker
 import TypeChecking.Monad
 import TypeChecking.Reduce
 import TypeChecking.Errors
+import TypeChecking.Serialise
 
 import Compiler.Agate.Main
 
 import Utils.Monad
 import Utils.IO
+import Utils.FileName
 -- import Utils.Wise -- not 6.4 compatible at the moment
 
 import Tests
@@ -104,10 +108,16 @@ runAgda =
 				    generateVimFile file
 
 				-- Give error for unsolved metas
-				unlessM (optAllowUnsolved <$> commandLineOptions) $ do
-				    ms <- getOpenMetas
-				    unless (List.null ms) $
-					typeError . UnsolvedMetas =<< mapM getMetaRange ms
+				unsolved <- getOpenMetas
+				unlessM (optAllowUnsolved <$> commandLineOptions) $
+				    unless (List.null unsolved) $
+					typeError . UnsolvedMetas =<< mapM getMetaRange unsolved
+
+				-- Generate interface file (only if no metas)
+				when (List.null unsolved) $ do
+				    i <- buildInterface
+				    let ifile = setExtension ".agdai" file
+				    liftIO $ encodeFile ifile i
 
 				-- Print stats
 				stats <- Map.toList <$> getStatistics
