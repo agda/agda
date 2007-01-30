@@ -44,7 +44,11 @@ equalTerm a m n =
 		case unEl a' of
 		    Pi a _    -> equalFun (a,a') m n
 		    Fun a _   -> equalFun (a,a') m n
-		    MetaV x _ -> buildConstraint (ValueEq a m n)
+		    MetaV x _ -> do
+			(m,n) <- normalise (m,n)
+			if m == n
+			    then return []
+			    else buildConstraint (ValueEq a m n)
 		    Lam _ _   -> __IMPOSSIBLE__
 		    _	      -> equalAtom a' m n
     where
