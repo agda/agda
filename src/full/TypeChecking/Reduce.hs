@@ -21,7 +21,6 @@ import TypeChecking.Monad
 import TypeChecking.Monad.Context
 import TypeChecking.Monad.Builtin
 import TypeChecking.Substitute
-import TypeChecking.Interface
 
 #ifndef __HADDOCK__
 import {-# SOURCE #-} TypeChecking.Patterns.Match

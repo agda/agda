@@ -21,8 +21,6 @@ import Syntax.Internal
 import Syntax.Position
 import Syntax.ScopeInfo
 
-import TypeChecking.Interface
-
 import Interaction.Exceptions
 import Interaction.Options
 
@@ -101,6 +99,9 @@ instance HasFresh i FreshThings => HasFresh i TCState where
 ---------------------------------------------------------------------------
 
 type VisitedModules = Map ModuleName (Interface, ClockTime)
+
+newtype InterfaceVersion = InterfaceVersion Int
+    deriving (Eq)
 
 data Interface = Interface
 	{ iVersion	   :: InterfaceVersion

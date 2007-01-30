@@ -41,7 +41,6 @@ import TypeChecking.Substitute
 import TypeChecking.Primitive
 import TypeChecking.Rebind
 import TypeChecking.Serialise
-import TypeChecking.Interface
 import TypeChecking.Constraints
 import TypeChecking.Errors
 import TypeChecking.Positivity

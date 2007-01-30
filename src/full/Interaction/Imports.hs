@@ -5,15 +5,17 @@
 -}
 module Interaction.Imports where
 
-import Prelude hiding (putStrLn, putStr, print)
+import Prelude hiding (putStrLn, putStr, print, catch)
 
 import Control.Monad.Error
 import Control.Monad.State
 import qualified Data.Map as Map
 import qualified Data.List as List
 import qualified Data.Set as Set
+import Data.Binary
 import System.Directory
 import System.Time
+import Control.Exception
 
 import qualified Syntax.Concrete.Name as C
 import Syntax.Abstract.Name
@@ -21,7 +23,6 @@ import Syntax.Parser
 import Syntax.Scope
 import Syntax.Translation.ConcreteToAbstract
 
-import TypeChecking.Interface
 import TypeChecking.Reduce
 import TypeChecking.Monad
 import TypeChecking.Monad.Builtin
@@ -35,7 +36,7 @@ import Interaction.Highlighting.Vim
 import Utils.FileName
 import Utils.Monad
 import Utils.IO
-import Utils.Serialise
+-- import Utils.Serialise
 
 -- | Merge an interface into the current proof state.
 mergeInterface :: Interface -> TCM ()
@@ -128,34 +129,30 @@ getInterface x = alreadyVisited x $ addImportCycleCheck x $ do
 	    reportLn 5 $ "  reading interface file " ++ ifile
 
 	    -- Read interface file
-	    (s, close)  <- liftIO $ readBinaryFile' ifile
-	    let (i, ok) = deserialiseLazy s
+	    mi <- liftIO $ readInterface ifile
 
 	    -- Check that it's the right version
-	    if iVersion i /= currentInterfaceVersion || not ok
-		then do
-		    -- We need to explicitly close the handle to make sure we
-		    -- can write the new interface. We can't trust that the
-		    -- garbage collect will close it for us in time.
-		    liftIO close
+	    case mi of
+		Nothing	-> do
+		    reportLn 5 $ "  bad interface, re-type checking"
 		    typeCheck ifile file
-		else do
+		Just i	-> do
 
-		-- Check time stamp of imported modules
-		t  <- liftIO $ getModificationTime ifile
+		    -- Check time stamp of imported modules
+		    t  <- liftIO $ getModificationTime ifile
 
-		reportLn 5 $ "  imports: " ++ show (iImportedModules i)
+		    reportLn 5 $ "  imports: " ++ show (iImportedModules i)
 
-		ts <- map snd <$> mapM getInterface (iImportedModules i)
+		    ts <- map snd <$> mapM getInterface (iImportedModules i)
 
-		-- If any of the imports are newer we need to retype check
-		if any (> t) ts
-		    then do
-			liftIO close	-- Close the interface file. See above.
-			typeCheck ifile file
-		    else do
-			reportLn 1 $ "Skipping " ++ show x ++ " ( " ++ ifile ++ " )"
-			return (i, t)
+		    -- If any of the imports are newer we need to retype check
+		    if any (> t) ts
+			then do
+			    -- liftIO close	-- Close the interface file. See above.
+			    typeCheck ifile file
+			else do
+			    reportLn 1 $ "Skipping " ++ show x ++ " ( " ++ ifile ++ " )"
+			    return (i, t)
 
 	typeCheck ifile file = do
 
@@ -171,10 +168,21 @@ getInterface x = alreadyVisited x $ addImportCycleCheck x $ do
 	    case r of
 		Left err -> throwError err
 		Right (vs,i)  -> do
-		    liftIO $ writeBinaryFile ifile (serialise i)
+		    -- liftIO $ writeBinaryFile ifile (serialise i)
+		    liftIO $ encodeFile ifile i
 		    t <- liftIO $ getModificationTime ifile
 		    setVisitedModules vs
 		    return (i, t)
+
+readInterface :: FilePath -> IO (Maybe Interface)
+readInterface file = do
+    i <- decodeFile file
+    evaluate (currentInterfaceVersion == iVersion i)
+    return $ Just i
+  `catch` \e -> do
+	case e of
+	    ErrorCall _	-> return Nothing
+	    _		-> throwIO e
 
 createInterface :: CommandLineOptions -> CallTrace -> [ModuleName] -> VisitedModules -> FilePath ->
 		   IO (Either TCErr (VisitedModules, Interface))
