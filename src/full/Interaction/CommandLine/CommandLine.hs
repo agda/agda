@@ -115,6 +115,7 @@ interactionLoop typeCheck =
             , "typeIn"      |> \args -> continueAfter $ typeIn args
 	    , "wakeup"	    |> \_ -> continueAfter $ retryConstraints
 	    , "termination" |> \_ -> continueAfter $ checkTermination 
+	    , "noundo"	    |> \_ -> continueAfter $ clearUndoHistory
 	    ]
 	    where
 		(|>) = (,)

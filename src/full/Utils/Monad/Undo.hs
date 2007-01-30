@@ -53,3 +53,6 @@ runUndoT (UndoT sm) = evalStateT sm []
 getUndoStateNumber :: MonadUndo s m => m Int
 getUndoStateNumber = length <$> getUndoStack
 
+clearUndoHistory :: MonadUndo s m => m ()
+clearUndoHistory = putUndoStack []
+
