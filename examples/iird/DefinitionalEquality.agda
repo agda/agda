@@ -13,6 +13,10 @@ postulate
            {f : (x : A₁) -> B₁ x}{g : (x : A₂) -> B₂ x}{a₁ : A₁}{a₂ : A₂} ->
             f ≡ g -> a₁ ≡ a₂ -> f a₁ ≡ g a₂
 
+  η-≡ : {A₁ A₂ : Set}{B₁ : A₁ -> Set}{B₂ : A₂ -> Set}
+        {f₁ : (x : A₁) -> B₁ x}{f₂ : (x : A₂) -> B₂ x} ->
+        ((x : A₁)(y : A₂) -> x ≡ y -> f₁ x ≡ f₂ y) -> f₁ ≡ f₂
+
   -- Substitution is a no-op
   subst-≡-identity : {A : Set}{x y : A}(C : A -> Set)(p : x ≡ y)(cy : C y) ->
                      subst-≡ C p cy ≡ cy
@@ -22,6 +26,11 @@ cong-≡ {_}{_}{_}{y} f p = subst-≡ (\z -> f z ≡ f y) p refl-≡
 
 cong-≡' : {A : Set}{B : A -> Set}{x y : A}(f : (z : A) -> B z)(p : x ≡ y) -> f x ≡ f y
 cong-≡' {_}{_}{_}{y} f p = subst-≡ (\z -> f z ≡ f y) p refl-≡
+
+cong₂-≡' : {A : Set}{B : A -> Set}{C : (x : A) -> B x -> Set}
+	   {x y : A}{z : B x}{w : B y}(f : (x : A)(z : B x) -> C x z) ->
+	   x ≡ y -> z ≡ w -> f x z ≡ f y w
+cong₂-≡' f xy zw = app-≡₀ (cong-≡' f xy) zw
 
 trans-≡ : {A B C : Set}(x : A)(y : B)(z : C) -> x ≡ y -> y ≡ z -> x ≡ z
 trans-≡ x y z xy yz = subst-≡' (\w -> w ≡ z) xy yz

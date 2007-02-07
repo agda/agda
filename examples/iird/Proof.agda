@@ -68,7 +68,9 @@ Rg-eq : {I : Set}{D : I -> Set1}(γ : OPg I D)(U : I -> Set)(T : (i : I) -> U i 
         (a : Gu γ U T) ->
         let i  = Gi γ U T a
             a' = G→H γ U T a
-        in h (H→G γ U T i a') (\v -> εIArg-subst γ U T F i a' v (Kmap (ε γ i) U T F g a' (εIArg γ U T i a' v)))
+        in h (H→G γ U T i a')
+	     (\v -> εIArg-subst γ U T F i a' v
+		      (Kmap (ε γ i) U T F g a' (εIArg γ U T i a' v)))
            ≡₁ h a (Kmap γ U T F g a)
 Rg-eq {I}{D} γ U T F intro g h a = app-≡₁
   (cong-≡₁⁰ h (H→G∘G→H-identity γ U T a))

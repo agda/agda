@@ -23,10 +23,10 @@ Args (σ A γ)   U = A × \a -> Args (γ a) U
 Args (δ A i γ) U = ((a : A) -> U (i a)) × \_ -> Args γ U
 
 -- Computing the index
-Index : {I : Set}{E : Set}(γ : OP I E)(U : I -> Set) -> Args γ U -> E
-Index (ι e)     U _	 = e
-Index (σ A γ)   U < a | b > = Index (γ a) U b
-Index (δ A i γ) U < _ | b > = Index γ U b
+index : {I : Set}{E : Set}(γ : OP I E)(U : I -> Set) -> Args γ U -> E
+index (ι e)     U _	 = e
+index (σ A γ)   U < a | b > = index (γ a) U b
+index (δ A i γ) U < _ | b > = index γ U b
 
 -- The assumptions of a particular inductive occurrence in a value.
 IndArg : {I : Set}{E : Set}
@@ -49,8 +49,8 @@ IndIndex (δ A i γ) U < g | b > (inr a) = IndIndex γ U b a
 -- Given the assumptions of an inductive occurrence in a value we can compute
 -- its value.
 Ind : {I : Set}{E : Set}
-          (γ : OP I E)(U : I -> Set) ->
-          (a : Args γ U)(v : IndArg γ U a) -> U (IndIndex γ U a v)
+      (γ : OP I E)(U : I -> Set) ->
+      (a : Args γ U)(v : IndArg γ U a) -> U (IndIndex γ U a v)
 Ind (ι e)     U _	      ()
 Ind (σ A γ)   U < a | b > c       = Ind (γ a) U b c
 Ind (δ A i γ) U < g | b > (inl a) = g a
@@ -72,17 +72,19 @@ IndHyp₁ γ U F a = (v : IndArg γ U a) -> F (IndIndex γ U a v) (Ind γ U a v)
 -- If we can prove a predicate F for any values, we can construct the inductive
 -- hypotheses for a given value.
 -- Termination note: g will only be applied to values smaller than a
-Induction : {I : Set}{E : Set}
-       (γ : OP I E)(U : I -> Set)
-       (F : (i : I) -> U i -> Set)
-       (g : (i : I)(u : U i) -> F i u)
-       (a : Args γ U) -> IndHyp γ U F a
-Induction γ U F g a = \hyp -> g (IndIndex γ U a hyp) (Ind γ U a hyp)
+induction :
+  {I : Set}{E : Set}
+  (γ : OP I E)(U : I -> Set)
+  (F : (i : I) -> U i -> Set)
+  (g : (i : I)(u : U i) -> F i u)
+  (a : Args γ U) -> IndHyp γ U F a
+induction γ U F g a = \hyp -> g (IndIndex γ U a hyp) (Ind γ U a hyp)
 
-Induction₁ : {I : Set}{E : Set}
-       (γ : OP I E)(U : I -> Set)
-       (F : (i : I) -> U i -> Set1)
-       (g : (i : I)(u : U i) -> F i u)
-       (a : Args γ U) -> IndHyp₁ γ U F a
-Induction₁ γ U F g a = \hyp -> g (IndIndex γ U a hyp) (Ind γ U a hyp)
+induction₁ :
+  {I : Set}{E : Set}
+  (γ : OP I E)(U : I -> Set)
+  (F : (i : I) -> U i -> Set1)
+  (g : (i : I)(u : U i) -> F i u)
+  (a : Args γ U) -> IndHyp₁ γ U F a
+induction₁ γ U F g a = \hyp -> g (IndIndex γ U a hyp) (Ind γ U a hyp)
 
