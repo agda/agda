@@ -101,7 +101,7 @@ instance HasFresh i FreshThings => HasFresh i TCState where
 type VisitedModules = Map ModuleName (Interface, ClockTime)
 
 newtype InterfaceVersion = InterfaceVersion Int
-    deriving (Eq)
+    deriving (Typeable, Data, Eq)
 
 data Interface = Interface
 	{ iVersion	   :: InterfaceVersion
@@ -111,6 +111,7 @@ data Interface = Interface
 	, iImports	   :: Signature
 	, iBuiltin	   :: BuiltinThings String
 	}
+    deriving (Typeable, Data)
 
 ---------------------------------------------------------------------------
 -- ** Closure
@@ -378,6 +379,7 @@ type BuiltinThings pf = Map String (Builtin pf)
 data Builtin pf
 	= Builtin Term
 	| Prim pf
+    deriving (Typeable, Data)
 
 instance Functor Builtin where
     fmap f (Builtin t) = Builtin t

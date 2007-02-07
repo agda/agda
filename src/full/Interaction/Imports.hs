@@ -13,6 +13,7 @@ import qualified Data.Map as Map
 import qualified Data.List as List
 import qualified Data.Set as Set
 import Data.Binary
+import Data.Generics
 import System.Directory
 import System.Time
 import Control.Exception
@@ -169,20 +170,38 @@ getInterface x = alreadyVisited x $ addImportCycleCheck x $ do
 		Left err -> throwError err
 		Right (vs,i)  -> do
 		    -- liftIO $ writeBinaryFile ifile (serialise i)
-		    liftIO $ encodeFile ifile i
+		    liftIO $ writeInterface ifile i
 		    t <- liftIO $ getModificationTime ifile
 		    setVisitedModules vs
 		    return (i, t)
 
 readInterface :: FilePath -> IO (Maybe Interface)
 readInterface file = do
+
+    -- Decode the interface file
     i <- decodeFile file
-    evaluate (currentInterfaceVersion == iVersion i)
+
+    -- Force the entire interface, to allow the file to be closed.
+    let add x y = ((+) $! x) $! y
+    () <- when (0 == everything add (const 1) i) $ return ()
+
     return $ Just i
+
+  -- Catch exceptions
   `catch` \e -> do
 	case e of
-	    ErrorCall _	-> return Nothing
-	    _		-> throwIO e
+	    ErrorCall _   -> return Nothing
+	    IOException e -> do
+		putStrLn $ "IO exception: " ++ show e
+		return Nothing   -- work-around for file locking bug
+	    _		  -> throwIO e
+
+writeInterface :: FilePath -> Interface -> IO ()
+writeInterface file i = do
+    encodeFile file i
+  `catch` \e -> do
+    putStrLn $ "failed to write interface: " ++ show e
+    return ()
 
 createInterface :: CommandLineOptions -> CallTrace -> [ModuleName] -> VisitedModules -> FilePath ->
 		   IO (Either TCErr (VisitedModules, Interface))
