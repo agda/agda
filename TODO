@@ -78,6 +78,11 @@ Fixes
     open module Eq = Equivalence (Eq'{ℂ}{A}{B}) renaming (_==_ to _=='_)
     f == g = .. ==' ..
 
+* There's a bug in the import chasing where a module can be imported before
+  it's type checked. I.e. an old version of the module is stored in an
+  interface file of a different module and we can't see that it's not
+  up-do-date.
+
 [Interaction]
 
 [Errors]

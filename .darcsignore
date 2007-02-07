@@ -40,3 +40,4 @@ src/prototyping/modules/flat/module$
 ^src/main/\.setup-config$
 ^src/main/.uptodate$
 \#.*\#$
+\.agda\.html$
