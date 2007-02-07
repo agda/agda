@@ -12,7 +12,7 @@ data Equivalence (A : Set) : Set1 where
     -> Transitive _==_
     -> Equivalence A
 
-module Projections where
+module Project-Equivalence where
 
   eq : {A : Set} -> Equivalence A -> Rel A
   eq (equiv _==_ _ _ _) = _==_
@@ -28,8 +28,8 @@ module Projections where
 
 module Equivalence {A : Set}(Eq : Equivalence A) where
 
-  _==_  = Projections.eq Eq
-  refl  = Projections.refl Eq
-  sym   = Projections.sym Eq
-  trans = Projections.trans Eq
+  _==_  = Project-Equivalence.eq Eq
+  refl  = Project-Equivalence.refl Eq
+  sym   = Project-Equivalence.sym Eq
+  trans = Project-Equivalence.trans Eq
 
