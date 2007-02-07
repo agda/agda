@@ -25,11 +25,18 @@ data Match = Yes [Term] | No | DontKnow (Maybe MetaId)
 instance Monoid Match where
     mempty = Yes []
 
-    Yes us     `mappend` Yes vs	    = Yes (us ++ vs)
-    Yes _      `mappend` No	    = No
-    Yes _      `mappend` DontKnow m = DontKnow m
-    No	       `mappend` _	    = No
-    DontKnow m `mappend` _	    = DontKnow m	-- sequential
+    Yes us     `mappend` Yes vs		  = Yes (us ++ vs)
+    Yes _      `mappend` No		  = No
+    Yes _      `mappend` DontKnow m	  = DontKnow m
+    No	       `mappend` _		  = No
+
+    -- Nothing means blocked by a variable.  In this case no instantiation of
+    -- meta-variables will make progress.
+    DontKnow _ `mappend` DontKnow Nothing = DontKnow Nothing
+
+    -- One could imagine DontKnow _ `mappend` No = No, but would break the
+    -- equivalence to case-trees.
+    DontKnow m `mappend` _		  = DontKnow m
 
 matchPatterns :: MonadTCM tcm => [Arg Pattern] -> [Arg Term] -> tcm (Match, [Arg Term])
 matchPatterns ps vs =
