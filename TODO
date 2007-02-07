@@ -10,7 +10,7 @@ Features
   to remember the number (or names?) of dependency args. How to show that a
   meta variable cannot depend on a particular variable?
 
-* lazy evaluation
+* lazy evaluation (or call by value?)
 
 * unify primitive and {-# BUILTIN #-}
 
@@ -21,6 +21,8 @@ Features
 * abstract open (need to re-type check to make sure the abstraction is solid)
 
 * implement the CHIT-CHAT module system
+
+* extend positivity check to handle function calls
 
 Fixes
 -----
@@ -69,6 +71,13 @@ Fixes
 
 * importing A after importing A.B causes a clash
 
+* Too many open files
+
+* Evaluation of _==_ loops on something like this:
+
+    open module Eq = Equivalence (Eq'{ℂ}{A}{B}) renaming (_==_ to _=='_)
+    f == g = .. ==' ..
+
 [Interaction]
 
 [Errors]
@@ -80,6 +89,8 @@ Fixes
 * weird meta cannot depend on errors
 
 * ranges of constructors in patterns are wrong. (also in right-hand sides?)
+
+* give sensible message for too few arguments to constructor in pattern
 
 [Type checking]
 
