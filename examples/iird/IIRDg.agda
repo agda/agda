@@ -1,4 +1,4 @@
-
+{-# OPTIONS --disable-positivity-check #-}
 module IIRDg where
 
 import LF
@@ -9,6 +9,30 @@ open LF
 open DefinitionalEquality
 open IIRD
 
+mutual
+
+  data Ug {I : Set}{D : I -> Set1}(γ : OPg I D) : I -> Set where
+    introg : (a : Gu γ (Ug γ) (Tg γ)) -> Ug γ (Gi γ (Ug γ) (Tg γ) a)
+
+  Tg : {I : Set}{D : I -> Set1}(γ : OPg I D)(i : I) -> Ug γ i -> D i
+  Tg γ .(Gi γ (Ug γ) (Tg γ) a) (introg a) = Gt γ (Ug γ) (Tg γ) a
+
+Arg : {I : Set}{D : I -> Set1}(γ : OPg I D) -> Set
+Arg γ = Gu γ (Ug γ) (Tg γ)
+
+index : {I : Set}{D : I -> Set1}(γ : OPg I D) -> Arg γ -> I
+index γ a = Gi γ (Ug γ) (Tg γ) a
+
+IH : {I : Set}{D : I -> Set1}(γ : OPg I D)(F : (i : I) -> Ug γ i -> Set1) -> Arg γ -> Set1
+IH γ = KIH γ (Ug γ) (Tg γ)
+
+-- Elimination rule
+Rg : {I : Set}{D : I -> Set1}(γ : OPg I D)(F : (i : I) -> Ug γ i -> Set1) ->
+     (h : (a : Arg γ) -> IH γ F a -> F (index γ a) (introg a)) ->
+     (i : I)(u : Ug γ i) -> F i u
+Rg γ F h .(index γ a) (introg a) = h a (Kmap γ (Ug γ) (Tg γ) F (Rg γ F h) a)
+
+{-
 -- We don't have general IIRDs so we have to postulate Ug/Tg
 
 postulate
@@ -100,4 +124,4 @@ module Christine-Identity where
   H-equality x C h = Rg-equality (IdOP x) C (h' x C h) ★
 
 open Christine-Identity
-
+-}

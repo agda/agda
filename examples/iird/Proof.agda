@@ -21,20 +21,25 @@ introg : {I : Set}{D : I -> Set1}(γ : OPg I D)(a : Gu γ (Ug γ) (Tg γ)) ->
          Ug γ (Gi γ (Ug γ) (Tg γ) a)
 introg γ a = intror (G→H γ (Ug γ) (Tg γ) a)
 
--- TODO: is this the best way of writing the type (just copied and pasted from
--- normalised goal type in Tg-equality)
+-- To prove the reduction behviour of Tg we first have to prove that the
+-- top-level reduction of the encoding behaves as it should. At bit simplified
+-- that  Ht (ε γ) (Gi a) ≡ Gt γ a
 Tg-eq : {I : Set}{D : I -> Set1}(γ : OPg I D)(U : I -> Set)(T : (i : I) -> U i -> D i)
         (a : Gu γ U T) ->
-        Kt (ε γ (π₀' (Kt γ U T a))) U T (G→H γ U T a) ≡₁ π₁' (Kt γ U T a)
+        Ht (ε γ) U T (Gi γ U T a) (G→H γ U T a) ≡₁ Gt γ U T a
 Tg-eq {I}{D} (ι < i | e >') U T ★         = refl-≡₁
 Tg-eq        (σ A γ)        U T < a | b > = Tg-eq (γ a) U T b
 Tg-eq        (δ A i γ)      U T < g | b > = Tg-eq (γ (T « i × g »)) U T b
 
+-- The statement we're interested in is a special case of the more general
+-- lemma above.
 Tg-equality : {I : Set}{D : I -> Set1}(γ : OPg I D)(a : Gu γ (Ug γ) (Tg γ)) ->
               Tg γ (Gi γ (Ug γ) (Tg γ) a) (introg γ a) ≡₁ Gt γ (Ug γ) (Tg γ) a
 Tg-equality γ a = Tg-eq γ (Ug γ) (Tg γ) a
 
--- The elimination rule for generalised IIRDs
+-- The elimination rule for generalised IIRDs.
+-- It's basically the elimination of the encoding followed by the elimination
+-- of the proof the the index is the right one.
 Rg : {I : Set}{D : I -> Set1}(γ : OPg I D)(F : (i : I) -> Ug γ i -> Set1)
      (h : (a : Gu γ (Ug γ) (Tg γ)) -> KIH γ (Ug γ) (Tg γ) F a -> F (Gi γ (Ug γ) (Tg γ) a) (introg γ a))
      (i : I)(u : Ug γ i) -> F i u
@@ -55,6 +60,7 @@ open module Chain-≡  = Chain.Poly.Heterogenous1 _≡₁_ (\x -> refl-≡₁) t
 open module Chain-≡₀ = Chain.Poly.Heterogenous  _≡_  (\x -> refl-≡)  trans-≡
 	      renaming (chain>_ to chain>₀_; _===_ to _===₀_; _by_ to _by₀_)
 
+-- Again we have to generalise
 Rg-eq : {I : Set}{D : I -> Set1}(γ : OPg I D)(U : I -> Set)(T : (i : I) -> U i -> D i)
         (F : (i : I) -> U i -> Set1)(intro : (a : Gu γ U T) -> U (Gi γ U T a))
         (g : (i : I)(u : U i) -> F i u)

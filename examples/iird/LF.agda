@@ -6,6 +6,12 @@ data Zero : Set where
 data One : Set where
   ★ : One
 
+One-elim : (C : One -> Set) -> C ★ -> (a : One) -> C a
+One-elim C h ★ = h
+
+One-elim₁ : (C : One -> Set1) -> C ★ -> (a : One) -> C a
+One-elim₁ C h ★ = h
+
 data One' : Set1 where
   ★' : One'
 
