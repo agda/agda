@@ -900,22 +900,18 @@ forcePi h name (El s t) =
 	case t' of
 	    Pi _ _	-> return (El s t', [])
 	    Fun _ _	-> return (El s t', [])
-	    MetaV m vs	-> do
-		i <- getMetaInfo <$> lookupMeta m
+            _           -> do
+                sa <- newSortMeta
+                sb <- newSortMeta
+                let s' = sLub sa sb
 
-		sa <- newSortMeta
-		sb <- newSortMeta
-		let s' = sLub sa sb
-
-		a <- newTypeMeta sa
-		x <- refreshName (getRange i) name
-		b <- addCtx x a $ newTypeMeta sb
-
-		let ty = El s' $ Pi (Arg h a) (Abs (show x) b)
-		cs <- equalType (El s t') ty
-		ty' <- reduce ty
-		return (ty', cs)
-	    _ -> typeError $ ShouldBePi (El s t')
+                a <- newTypeMeta sa
+                x <- refreshName noRange name
+                b <- addCtx x a $ newTypeMeta sb
+                let ty = El s' $ Pi (Arg h a) (Abs (show x) b)
+                cs <- equalType (El s t') ty
+                ty' <- reduce ty
+                return (ty', cs)
 
 
 ---------------------------------------------------------------------------

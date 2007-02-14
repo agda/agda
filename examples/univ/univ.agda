@@ -205,25 +205,16 @@ mutual
           open module C = Chain _==_ (ref {F x}) (trans {F x})
 
   ref : {A:S} -> Refl {El A} _==_
-  ref {nat}      {el n}           = eq refN
-  ref {pi A F pF}{el < f , pf >} = eq f=f
-    where
-      f=f : (x : El A) -> f x == f x
-      f=f x = ref
+  ref {nat}      {el n}          = eq refN
+  ref {pi A F pF}{el < f , pf >} = eq \x -> ref
 
   trans : {A:S} -> Trans {El A} _==_
   trans {nat}{el x}{el y}{el z} (eq p) (eq q) = eq (transN p q)
   trans {pi A F pF}{el < f , pf >}{el < g , pg >}{el < h , ph >}
-        (eq f=g)(eq g=h) = eq f=h
-    where
-      f=h : (x : El A) -> f x == h x
-      f=h x = trans (f=g x) (g=h x)
+        (eq f=g)(eq g=h) = eq \x -> trans (f=g x) (g=h x)
 
   sym : {A:S} -> Sym {El A} _==_
   sym {nat}{el x}{el y} (eq p)  = eq (symN p)
   sym {pi A F pF}{el < f , pf >}{el < g , pg >}
-        (eq f=g) = eq g=f
-    where
-      g=f : (x : El A) -> g x == f x
-      g=f x = sym (f=g x)
+      (eq f=g) = eq \x -> sym (f=g x)
 
