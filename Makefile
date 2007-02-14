@@ -148,6 +148,7 @@ fail :
 clean :
 	$(MAKE) -C $(HADDOCK_DIR) clean
 	rm -rf $(OUT_DIR)
+	rm -rf dist
 
 veryclean :
 	$(MAKE) -C $(HADDOCK_DIR) veryclean
