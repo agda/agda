@@ -24,6 +24,8 @@ Features
 
 * extend positivity check to handle function calls
 
+* allow forcePi to generate constraints (and do the appropriate blocking)
+
 Fixes
 -----
 
