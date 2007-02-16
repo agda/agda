@@ -2,50 +2,15 @@
 
 module univ where
 
+open import Base
+open import Nat
+
 import Logic.ChainReasoning
 module Chain
   {A : Set}( _==_ : A -> A -> Set)
   (refl : {x : A} -> x == x)
   (trans : {x y z : A} -> x == y -> y == z -> x == z) =
   Logic.ChainReasoning.Mono.Homogenous _==_ (\x -> refl) (\x y z -> trans)
-
-data N1 : Set where
-  T : N1
-
-data N0 : Set where
-
-infix 20 _*_
-
-data _*_ (A:Set)(B : A -> Set) : Set where
- <_,_> : (x:A) -> B x -> A * B
-
-rel : Set -> Set1 
-
-rel A = A -> A -> Set
-
-pred : Set -> Set1 
-
-pred A = A -> Set
-
-Refl : {A:Set} -> rel A -> Set
-Refl {A} R = {x : A} -> R x x 
-
-Sym : {A:Set} -> rel A -> Set
-Sym {A} R = {x y : A} -> R x y -> R y x
-
-Trans : {A:Set} -> rel A -> Set
-Trans {A} R = {x y z : A} -> R x y -> R y z -> R x z
-
-Map : (A:Set) -> rel A -> (B:Set) -> rel B -> pred (A -> B)
-Map A _R_ B _S_ f = {x y : A} -> x R y -> f x S f y
-
-postulate
-  N : Set
-  _=N_ : rel N
-  refN : Refl _=N_
-  symN : Sym _=N_
-  transN : Trans _=N_
-
 
 -- mutual inductive recursive definition of S and the functions _=S_, El, eq,
 -- and all the proofs on these functions
@@ -61,13 +26,13 @@ mutual
     sigma : (A : S)(F : El A -> S) -> Map (El A) _==_ S _=S_ F -> S
 
   _=S'_ : rel S
-  nat          =S' nat          = N1
-  nat          =S' pi _ _ _     = N0
-  pi _ _ _     =S' nat          = N0
-  nat          =S' sigma _ _ _  = N0
-  sigma _ _ _  =S' nat          = N0
-  sigma _ _ _  =S' pi _ _ _     = N0
-  pi _ _ _     =S' sigma _ _ _  = N0
+  nat          =S' nat          = True
+  nat          =S' pi _ _ _     = False
+  pi _ _ _     =S' nat          = False
+  nat          =S' sigma _ _ _  = False
+  sigma _ _ _  =S' nat          = False
+  sigma _ _ _  =S' pi _ _ _     = False
+  pi _ _ _     =S' sigma _ _ _  = False
   pi A F pF    =S' pi B G pG    =
       (B =S A) * \ B=A -> (x : El A) -> F x =S G (B=A << x)
   sigma A F pF =S' sigma B G pG =
@@ -77,7 +42,7 @@ mutual
     eqS : A =S' B -> A =S B
 
   El' : S -> Set
-  El' nat = N
+  El' nat = Nat
   El' (pi A F pF) = 
     ((x : El A) -> El (F x)) * \f ->
     {x y : El A}(x=y : x == y) -> f x == pF x=y << f y
@@ -153,8 +118,8 @@ mutual
 
   refS : Refl _=S_
   refS {nat}          = eqS T
-  refS {pi A F pF}    = eqS < refS , (\x -> symS (pF (castref refS x))) >
-  refS {sigma A F pF} = eqS < refS , (\x -> pF (castref refS x)) >
+  refS {pi A F pF}    = eqS < refS , (\x -> symS (pF (ref<< x))) >
+  refS {sigma A F pF} = eqS < refS , (\x -> pF (ref<< x)) >
 
   transS : Trans _=S_
   transS {nat         }{nat         }{pi _ _ _    } _ (eqS ())
@@ -180,7 +145,7 @@ mutual
         chain> F x
            === G (B=A << x)           by F=G x
            === H (C=B << B=A << x)    by G=H (B=A << x)
-           === H (C=A << x)           by pH (casttrans C=B B=A C=A x)
+           === H (C=A << x)           by pH (sym (trans<< C=B B=A x))
   transS {sigma A F pF}{sigma B G pG}{sigma C H pH}
          (eqS < A=B , F=G >)(eqS < B=C , G=H >) = eqS < A=C , F=H >
     where
@@ -189,7 +154,7 @@ mutual
       F=H : (x : El C) -> F (A=C << x) =S H x
       F=H x =
         chain> F (A=C << x)
-           === F (A=B << B=C << x) by pF (sym (casttrans A=B B=C A=C x))
+           === F (A=B << B=C << x) by pF (trans<< A=B B=C x)
            === G (B=C << x)        by F=G (B=C << x)
            === H x                 by G=H x
 
@@ -206,11 +171,12 @@ mutual
       open module C = Chain _=S_ refS transS
       A=B = symS B=A
       G=F : (x : El B) -> G x =S F (A=B << x)
-      G=F x =
-        chain> G x
-           === G (refS << x)        by symS (pG (castref refS x))
-           === G (B=A << A=B << x)  by symS (pG (casttrans B=A A=B refS x))
-           === F (A=B << x)         by symS (F=G (A=B << x))
+      G=F x = symS (
+        chain> F (A=B << x)
+           === G (B=A << A=B << x) by F=G (A=B << x)
+           === G (refS << x)       by pG (casttrans B=A A=B refS x)
+           === G x                 by pG (ref<< x)
+        )
   symS {sigma A F pF}{sigma B G pG}(eqS < A=B , F=G >) = eqS < B=A , G=F >
     where
       open module C = Chain _=S_ refS transS
@@ -250,73 +216,88 @@ mutual
       Fx1=Fx2 : F=G1 y << Gy == pF x1=x2 << F=G2 y << Gy
       Fx1=Fx2 = sym (casttrans _ _ _ _)
 
-  castref : {A : S}(p : A =S A)(x : El A) -> p << x == x
-  castref {nat} p x = ref
-  castref {pi A F pF} (eqS < A=A , F=F >) (el < f , pf >) = eq cf=f
+  ref<< : {A : S}(x : El A) -> refS << x == x
+  ref<< {nat}       x = ref
+  ref<< {sigma A F pF} (el < x , Fx >) = eq < ref<< x , pfi _ _ Fx >
+  ref<< {pi A F pF} (el < f , pf >) = eq rf=f
     where
-      cf=f : (x : El A) -> F=F x << f (A=A << x) == f x
-      cf=f x =
-        chain> F=F x << f (A=A << x)
-           === F=F x << Fcx=Fx << f x by p<< (F=F x) (pf (castref A=A x))
-           === refS << f x            by casttrans _ _ _ (f x)
-           === f x                    by castref _ (f x)
-        where
-          open module C = Chain _==_ (ref {F x}) (trans {F x})
-          Fcx=Fx = _
-  castref {sigma A F pF} (eqS < A=A , F=F >) (el < x , Fx >) =
-    eq < castref A=A x , pfi _ _ Fx >
+      rf=f : (x : El A) -> _ << f (refS << x) == f x
+      rf=f x =
+        chain> _ << f (refS << x)
+           === _ << pF (ref<< x) << f x by p<< _ (pf (ref<< x))
+           === _ << f x                 by sym (trans<< _ _ (f x))
+           === f x                      by castref _ _
+        where open module C = Chain _==_ (ref {_}) (trans {_})
+
+  trans<< : {A B C : S}(A=B : A =S B)(B=C : B =S C)(x : El C) ->
+            transS A=B B=C << x == A=B << B=C << x
+  trans<< {nat         }{nat         }{pi _ _ _    } _ (eqS ()) _
+  trans<< {nat         }{nat         }{sigma _ _ _ } _ (eqS ()) _
+  trans<< {nat         }{pi _ _ _    }               (eqS ()) _ _
+  trans<< {nat         }{sigma _ _ _ }               (eqS ()) _ _
+  trans<< {pi _ _ _    }{nat         }               (eqS ()) _ _
+  trans<< {pi _ _ _    }{pi _ _ _    }{nat         } _ (eqS ()) _
+  trans<< {pi _ _ _    }{pi _ _ _    }{sigma _ _ _ } _ (eqS ()) _
+  trans<< {pi _ _ _    }{sigma _ _ _ }               (eqS ()) _ _
+  trans<< {sigma _ _ _ }{nat         }               (eqS ()) _ _
+  trans<< {sigma _ _ _ }{pi _ _ _    }               (eqS ()) _ _
+  trans<< {sigma _ _ _ }{sigma _ _ _ }{nat         } _ (eqS ()) _
+  trans<< {sigma _ _ _ }{sigma _ _ _ }{pi _ _ _    } _ (eqS ()) _
+  trans<< {nat}{nat}{nat} _ _ _ = ref
+  trans<< {pi A F pF}{pi B G pG}{pi C H pH}
+          (eqS < B=A , F=G >)(eqS < C=B , G=H >)
+          (el < h , ph >) = eq prf
+    where
+      C=A = transS C=B B=A
+      prf : (x : El A) -> _
+      prf x =
+        chain> _ << h (C=A << x)
+           === _ << _ << h (C=B << B=A << x)         by p<< _ (ph (trans<< _ _ x))
+           === F=G x << G=H _ << h (C=B << B=A << x) by pfi2 _ _ _ _ _
+        where open module C' = Chain _==_ (ref {F x}) (trans {F x})
+  trans<< {sigma A F pF}{sigma B G pG}{sigma C H pH}
+          (eqS < A=B , F=G >)(eqS < B=C , G=H >)
+          (el < z , Hz >) = eq < trans<< A=B B=C z , prf >
+    where
+      prf =
+        chain> _ << Hz
+           === _ << Hz                   by pfi _ _ _
+           === _ << _ << Hz              by trans<< _ _ _
+           === _ << F=G _ << G=H z << Hz by trans<< _ _ _
+        where open module C' = Chain _==_ (ref {_}) (trans {_})
+
+  castref : {A : S}(p : A =S A)(x : El A) -> p << x == x
+  castref A=A x =
+    chain> A=A << x
+       === refS << x  by pfi A=A refS x
+       === x          by ref<< x
+    where open module C = Chain _==_ (ref {_}) (trans {_})
 
   casttrans : {A B C : S}(A=B : A =S B)(B=C : B =S C)(A=C : A =S C)(x : El C) ->
                A=B << B=C << x == A=C << x
-  casttrans {nat         }{nat         }{pi _ _ _    } _ (eqS ()) _ _
-  casttrans {nat         }{nat         }{sigma _ _ _ } _ (eqS ()) _ _
-  casttrans {nat         }{pi _ _ _    }               (eqS ()) _ _ _
-  casttrans {nat         }{sigma _ _ _ }               (eqS ()) _ _ _
-  casttrans {pi _ _ _    }{nat         }               (eqS ()) _ _ _
-  casttrans {pi _ _ _    }{pi _ _ _    }{nat         } _ (eqS ()) _ _
-  casttrans {pi _ _ _    }{pi _ _ _    }{sigma _ _ _ } _ (eqS ()) _ _
-  casttrans {pi _ _ _    }{sigma _ _ _ }               (eqS ()) _ _ _
-  casttrans {sigma _ _ _ }{nat         }               (eqS ()) _ _ _
-  casttrans {sigma _ _ _ }{pi _ _ _    }               (eqS ()) _ _ _
-  casttrans {sigma _ _ _ }{sigma _ _ _ }{nat         } _ (eqS ()) _ _
-  casttrans {sigma _ _ _ }{sigma _ _ _ }{pi _ _ _    } _ (eqS ()) _ _
-  casttrans {nat}{nat}{nat} _ _ _ x = ref
-  casttrans {pi A F pF}{pi B G pG}{pi C H pH}
-            (eqS < B=A , F=G >)(eqS < C=B , G=H >)(eqS < C=A , F=H >)
-            (el < h , ph >) = eq prf
-    where
-      prf : (x : El A) -> _ << _ << h (C=B << B=A << x) == _ << h (C=A << x)
-      prf x =
-        chain> F=G x << G=H _ << h (C=B << B=A << x)
-           === Fx=Hccx << h (C=B << B=A << x) by casttrans _ _ _ _
-           === Fx=Hccx << _ << h (C=A << x)   by p<< _ (ph (casttrans _ _ _ x))
-           === F=H x << h (C=A << x)          by casttrans _ _ _ _
-        where
-          Fx=Hccx  = transS (F=G x) (G=H _)
-          open module C = Chain _==_ (ref {F x}) (trans {F x})
-  casttrans {sigma A F pF}{sigma B G pG}{sigma C H pH}
-            (eqS < A=B , F=G >)(eqS < B=C , G=H >)(eqS < A=C , F=H >)
-            (el < z , Hz >) = eq < casttrans A=B B=C A=C z
-                                 , pfi2 _ _ _ _ Hz
-                                 >
+  casttrans A=B B=C A=C x =
+    chain> A=B << B=C << x
+       === _ << x     by sym (trans<< _ _ _)
+       === A=C << x   by pfi _ _ _
+    where open module C' = Chain _==_ (ref {_}) (trans {_})
 
   pfi2 : {A B1 B2 C : S}
          (A=B1 : A =S B1)(A=B2 : A =S B2)(B1=C : B1 =S C)(B2=C : B2 =S C)
          (x : El C) -> A=B1 << B1=C << x == A=B2 << B2=C << x
   pfi2 A=B1 A=B2 B1=C B2=C x =
     chain> A=B1 << B1=C << x
-       === _ << x             by casttrans _ _ (transS A=B1 B1=C) x
-       === A=B2 << B2=C << x  by sym (casttrans _ _ _ x)
+       === _ << x             by casttrans _ _ _ x
+       === A=B2 << B2=C << x  by trans<< _ _ x
     where
       open module C = Chain _==_ (ref {_}) (trans {_})
 
   ref : {A:S} -> Refl {El A} _==_
-  ref {nat}      {el n}             = eq refN
+  ref {nat}      {el n}             = eq (refN {n})
   ref {pi A F pF}{el < f , pf >}    = eq \x -> ref
   ref {sigma A F pF}{el < x , Fx >} = eq < ref , sym (castref _ _) >
 
   trans : {A:S} -> Trans {El A} _==_
-  trans {nat}{el x}{el y}{el z} (eq p) (eq q) = eq (transN p q)
+  trans {nat}{el x}{el y}{el z} (eq p) (eq q) = eq (transN {x}{y}{z} p q)
   trans {pi A F pF}{el < f , pf >}{el < g , pg >}{el < h , ph >}
         (eq f=g)(eq g=h) = eq \x -> trans (f=g x) (g=h x)
   trans {sigma A F pF}{el < x , Fx >}{el < y , Fy >}{el < z , Fz >}
@@ -332,7 +313,7 @@ mutual
         where open module C = Chain _==_ (ref {_}) (trans {_})
 
   sym : {A:S} -> Sym {El A} _==_
-  sym {nat}{el x}{el y} (eq p)  = eq (symN p)
+  sym {nat}{el x}{el y} (eq p)  = eq (symN {x}{y} p)
   sym {pi A F pF}{el < f , pf >}{el < g , pg >}
       (eq f=g) = eq \x -> sym (f=g x)
   sym {sigma A F pF}{el < x , Fx >}{el < y , Fy >}
