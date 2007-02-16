@@ -22,8 +22,8 @@ mutual
 
   data S : Set where
     nat   : S
-    pi    : (A : S)(F : El A -> S) -> Map (El A) _==_ S _=S_ F -> S
-    sigma : (A : S)(F : El A -> S) -> Map (El A) _==_ S _=S_ F -> S
+    pi    : (A : S)(F : El A -> S) -> Map _==_ _=S_ F -> S
+    sigma : (A : S)(F : El A -> S) -> Map _==_ _=S_ F -> S
 
   _=S'_ : rel S
   nat          =S' nat          = True
@@ -86,7 +86,7 @@ mutual
   _<<_ {sigma A F pF}{sigma B G pG} (eqS < A=B , F=G >) (el < y , Gy >) =
     el < A=B << y , F=G y << Gy >
 
-  p<< : {A B : S}(A=B : A =S B) -> Map (El B) _==_ (El A) _==_ (_<<_ A=B)
+  p<< : {A B : S}(A=B : A =S B) -> Map _==_ _==_ (_<<_ A=B)
   p<< {nat}{nat} _ x=y = x=y
   p<< {pi A F pF} {pi B G pG} (eqS < B=A , F=G >)
         {el < f , pf >} {el < g , pg >} (eq f=g) = eq cf=cg

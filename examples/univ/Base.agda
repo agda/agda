@@ -26,6 +26,6 @@ Sym {A} R = {x y : A} -> R x y -> R y x
 Trans : {A:Set} -> rel A -> Set
 Trans {A} R = {x y z : A} -> R x y -> R y z -> R x z
 
-Map : (A:Set) -> rel A -> (B:Set) -> rel B -> pred (A -> B)
-Map A _R_ B _S_ f = {x y : A} -> x R y -> f x S f y
+Map : {A : Set} -> rel A -> {B : Set} -> rel B -> pred (A -> B)
+Map {A} _R_ _S_ f = {x y : A} -> x R y -> f x S f y
 
