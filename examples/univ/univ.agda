@@ -266,6 +266,16 @@ mutual
            === _ << F=G _ << G=H z << Hz by trans<< _ _ _
         where open module C' = Chain _==_ (ref {_}) (trans {_})
 
+  -- we never need this one, but it feels like it should be here...
+  sym<< : {A B : S}(A=B : A =S B)(x : El A)(y : El B) ->
+          symS A=B << x == y -> x == A=B << y
+  sym<< A=B x y cx=y =
+    chain> x
+       === _ << x               by sym (castref _ x)
+       === A=B << symS A=B << x by trans<< A=B (symS A=B) x
+       === A=B << y             by p<< A=B cx=y
+    where open module C' = Chain _==_ (ref {_}) (trans {_})
+
   castref : {A : S}(p : A =S A)(x : El A) -> p << x == x
   castref A=A x =
     chain> A=A << x
