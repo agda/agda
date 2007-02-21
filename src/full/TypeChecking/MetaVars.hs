@@ -1,4 +1,4 @@
-{-# OPTIONS -cpp -fglasgow-exts #-}
+{-# OPTIONS -cpp #-}
 
 module TypeChecking.MetaVars where
 
@@ -97,7 +97,7 @@ instance HasMeta Sort where
 
 -- | The instantiation should not be an 'InstV' or 'InstS' and the 'MetaId'
 --   should point to something 'Open' or a 'BlockedConst'.
-(=:) :: (MonadError TCErr tcm, MonadTCM tcm, HasMeta t) => MetaId -> t -> tcm ()
+(=:) :: (MonadTCM tcm, HasMeta t) => MetaId -> t -> tcm ()
 x =: t = do
     i <- metaInstance t
     store <- getMetaStore
@@ -107,7 +107,7 @@ x =: t = do
     ins x i store = Map.adjust (inst i) x store
     inst i mv = mv { mvInstantiation = i }
 
-assignTerm :: (MonadError TCErr tcm, MonadTCM tcm) => MetaId -> Term -> tcm ()
+assignTerm :: MonadTCM tcm => MetaId -> Term -> tcm ()
 assignTerm = (=:)
 
 newSortMeta :: MonadTCM tcm => tcm Sort
@@ -146,7 +146,7 @@ newQuestionMark t =
 	return m
 
 -- | Construct a blocked constant if there are constraints.
-blockTerm :: (MonadError TCErr tcm, MonadTCM tcm) => Type -> Term -> tcm Constraints -> tcm Term
+blockTerm :: MonadTCM tcm => Type -> Term -> tcm Constraints -> tcm Term
 blockTerm t v m = do
     cs <- solveConstraints =<< m
     if List.null cs
@@ -350,7 +350,7 @@ assignV t x args v =
 	handler :: MonadTCM tcm => tcm Constraints
 	handler = do
 	    reportLn 10 $ "Oops. Undo " ++ show x ++ " := ..."
-	    liftTCM $ equalTerm t (MetaV x args) v
+	    equalTerm t (MetaV x args) v
 
 assignS :: MonadTCM tcm => MetaId -> Sort -> tcm Constraints
 assignS x s =

@@ -1,10 +1,8 @@
-{-# OPTIONS -fglasgow-exts #-}
 
 module TypeChecking.MetaVars where
 
-import Control.Monad.Error     ( MonadError )
 import Syntax.Internal	       ( MetaId, Term )
-import TypeChecking.Monad.Base ( TCErr, MonadTCM )
+import TypeChecking.Monad.Base ( MonadTCM )
 
-assignTerm :: (MonadError TCErr tcm, MonadTCM tcm) => MetaId -> Term -> tcm ()
+assignTerm :: MonadTCM tcm => MetaId -> Term -> tcm ()
 

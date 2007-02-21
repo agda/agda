@@ -3,7 +3,6 @@
 module TypeChecking.Pretty where
 
 import Control.Applicative hiding (empty)
-import Control.Monad.Error
 
 import Syntax.Common
 import Syntax.Internal
@@ -52,7 +51,7 @@ punctuate d ds = zipWith (<>) ds (replicate n d ++ [empty])
 ---------------------------------------------------------------------------
 
 class PrettyTCM a where
-    prettyTCM :: (MonadError TCErr tcm, MonadTCM tcm) => a -> tcm Doc
+    prettyTCM :: MonadTCM tcm => a -> tcm Doc
 
 instance PrettyTCM a => PrettyTCM (Closure a) where
     prettyTCM cl = enterClosure cl prettyTCM

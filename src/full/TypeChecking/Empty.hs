@@ -1,4 +1,3 @@
-{-# OPTIONS -fglasgow-exts #-}
 
 module TypeChecking.Empty where
 
@@ -19,7 +18,7 @@ import TypeChecking.Primitive
 import Utils.Function
 
 -- | Make sure that a type is empty.
-isEmptyType :: (MonadError TCErr tcm, MonadTCM tcm) => Type -> tcm ()
+isEmptyType :: MonadTCM tcm => Type -> tcm ()
 isEmptyType t = do
     t <- reduce t
     case t of

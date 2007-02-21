@@ -671,11 +671,11 @@ checkPatterns ps0@(Arg h np:ps) t = do
     -- traceCallCPS (CheckPatterns ps0 t) ret $ \ret -> do
 
     -- Make sure the type is a function type
-    (t', cs) <- liftTCM $ forcePi h (name np) t
+    (t', cs) <- forcePi h (name np) t
     opent'   <- makeOpen t'
 
     -- Add any resulting constraints to the global constraint set
-    liftTCM $ addNewConstraints cs
+    addNewConstraints cs
 
     -- If np is named then np = {x = p'}
     let p' = namedThing np
@@ -819,7 +819,7 @@ checkPattern name p t =
 	    v <- do
 		tn  <- getOpen ot
 		us' <- getOpen ous
-		liftTCM $ blockTerm tn (Con c' $ us' ++ ts') $ equalType rest tn
+		blockTerm tn (Con c' $ us' ++ ts') $ equalType rest tn
 
 	    return (A.ConP i c' aps, ConP c' ps', v)
 	    where
@@ -839,7 +839,7 @@ checkPattern name p t =
 	    ot	       <- makeOpen t
 	    (p0, p, v) <- checkPattern name p t
 	    t	       <- getOpen ot
-	    verbose 15 $ liftTCM $ do
+	    verbose 15 $ do
 		dt <- prettyTCM t
 		dv <- prettyTCM v
 		dctx <- prettyTCM =<< getContext
@@ -894,7 +894,7 @@ isType_ e =
 
 -- | Force a type to be a Pi. Instantiates if necessary. The 'Hiding' is only
 --   used when instantiating a meta variable.
-forcePi :: (MonadError TCErr tcm, MonadTCM tcm) => Hiding -> String -> Type -> tcm (Type, Constraints)
+forcePi :: MonadTCM tcm => Hiding -> String -> Type -> tcm (Type, Constraints)
 forcePi h name (El s t) =
     do	t' <- reduce t
 	case t' of
