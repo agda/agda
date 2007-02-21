@@ -85,6 +85,13 @@
 
 
 
+
+
+
+
+
+
+
 \usepackage{ucs}
 \usepackage[utf8x]{inputenc}
 \usepackage{autofe}
@@ -351,39 +358,217 @@ Streicher axiom K. Not valid~\cite{HofmannM:gromru}. Fortunately we don't need i
 
 In the following we will use Paulin elimination.
 
-\section{Indexed Induction Recursion}
+\section{Indexed Inductive Datatypes} \label{sec-IID}
 
-Very fancy and general types~\cite{dybjer:indexed-ir}.
+In this section we present the formalisation of indexed inductive types. We
+follow the formalisation of indexed induction recursion of Dybjer and
+Setzer~\cite{dybjer:indexed-ir} but leave out the recursion to simplify the
+presentation.
 
-\TODO{How much details from \cite{dybjer:indexed-ir}?}
+\subsection{Codes for IID} \label{sec-IID-Codes}
 
-Codes for IIRD.
+In accordance with Dybjer and Setzer we introduce a common type of codes which
+will serve both as codes for general IID and restricted IID.
+
+\begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}l@{}}
+\column{3}{@{}l@{}}
+\column{10}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{B}{E}{{}\mathbf{data}\;\mathit{OP}\;(\Conid{I}\mathrel{:}\Set)\;(\Conid{E}\mathrel{:}\Set)\;\mathbf{where}{}}
+\nextline
+\fromto{B}{3}{{}\hsindent{3}{}}
+\fromto{3}{10}{{}ι{}}
+\fromto{10}{E}{{}\mathrel{:}\Conid{E}\to \mathit{OP}\;\Conid{I}\;\Conid{E}{}}
+\nextline
+\fromto{B}{3}{{}\hsindent{3}{}}
+\fromto{3}{10}{{}σ{}}
+\fromto{10}{E}{{}\mathrel{:}(\Conid{A}\mathrel{:}\Set)\;(γ\mathrel{:}\Conid{A}\to \mathit{OP}\;\Conid{I}\;\Conid{E})\to \mathit{OP}\;\Conid{I}\;\Conid{E}{}}
+\nextline
+\fromto{B}{3}{{}\hsindent{3}{}}
+\fromto{3}{10}{{}δ{}}
+\fromto{10}{E}{{}\mathrel{:}(\Conid{A}\mathrel{:}\Set)\;(\Varid{i}\mathrel{:}\Conid{A}\to \Conid{I})\;(γ\mathrel{:}\mathit{OP}\;\Conid{I}\;\Conid{E})\to \mathit{OP}\;\Conid{I}\;\Conid{E}{}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
+
+Now the codes for general indexed inductive types are defined by \ensuremath{\mathit{OP}^g\;\Conid{I}\mathrel{=}\mathit{OP}\;\Conid{I}\;\Conid{I}}, and the codes for restricted types are \ensuremath{\mathit{OP}^r\;\Conid{I}\mathrel{=}\Conid{I}\to \mathit{OP}\;\Conid{I}\;\mathbf{1}}. The intuition
+is that for general IID the index is computed from the shape of the value,
+whereas the index of a restricted IID is given beforehand. With these
+definitions in mind, let us study the type of codes in more detail. We have
+three constructors:
+\begin{itemize}
+    \item
+        Base case: \ensuremath{ι\;\Varid{e}}. This corresponds to an IID with no arguments to the
+        constructor. In the case of a general IID we have to give the index for
+        the constructor. For instance the code for the singleton type of true
+        booleans given by \ensuremath{\Conid{IsTrue}\mathrel{:}\Conid{Bool}\to \Set} and introduction rule \ensuremath{\Conid{IsTrue}\;\Varid{true}} is
+        \begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}l@{}}
+\column{13}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{13}{E}{{}ι\;\Varid{true}\mathrel{:}\mathit{OP}^g\;\Conid{Bool}{}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
+    \item
+        Non-inductive argument: \ensuremath{σ\;\Conid{A}\;γ}. In this case the constructor
+        has a non-inductive argument \ensuremath{\Varid{a}\mathrel{:}\Conid{A}}. The remaining arguments may depend
+        on \ensuremath{\Varid{a}} and are coded by \ensuremath{γ\;\Varid{a}}. For instance, a datatype with
+        \ensuremath{\Varid{n}} constructors can be coded by \ensuremath{σ\;\mathit{Fin}_n\;γ}, where \ensuremath{\mathit{Fin}_n} is
+        an \ensuremath{\Varid{n}} element type and \ensuremath{γ\;\Varid{i}} is the code for the \ensuremath{\Varid{i}}th constructor.
+
+        Another example is the type of pairs over \ensuremath{\Conid{A}} and \ensuremath{\Conid{B}}
+        \begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}l@{}}
+\column{13}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{13}{E}{{}\lambda \Varid{i}.~σ\;\Conid{A}\;(\lambda \Varid{a}.~σ\;\Conid{B}\;(\lambda \Varid{b}.~ι\;\star))\mathrel{:}\mathit{OP}^r\;\mathbf{1}{}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
+        In this case the following arguments do not depend on the value of the
+        non-inductive arguments.
+    \item
+        Inductive argument: \ensuremath{δ\;\Conid{A}\;\Varid{i}\;γ}. For an inductive argument we
+        need to know the index of the argument. Note that the following
+        arguments cannot depend on the value of the inductive argument. The
+        inductive argument may occur under some assumptions \ensuremath{\Conid{A}}. For example
+        consider the accessible part of a relation \ensuremath{<} over \ensuremath{\Conid{A}}, \ensuremath{\Conid{Acc}\mathrel{:}\Conid{A}\to \Set} with introduction rule that for any \ensuremath{\Varid{x}}, if \ensuremath{((\Varid{y}\mathrel{:}\Conid{A})\to \Varid{y}<\Varid{x}\to \Conid{Acc}\;\Varid{y})} then \ensuremath{\Conid{Acc}\;\Varid{x}}. Here the inductive argument \ensuremath{\Conid{Acc}\;\Varid{y}} occurs
+        under the assumptions \ensuremath{(\Varid{y}\mathrel{:}\Conid{A})} and \ensuremath{\Varid{y}<\Varid{x}}. The code for this type is
+        \begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}l@{}}
+\column{13}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{13}{E}{{}\lambda \Varid{x}.~δ\;((\Varid{y}\mathrel{:}\Conid{A})×(\Varid{y}<\Varid{x}))\;π_0\;(ι\;\star)\mathrel{:}\mathit{OP}^r\;\Conid{A}{}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
+        The index of the inductive argument is \ensuremath{\Varid{y}} which is the first projection
+        of the assumptions.
+\end{itemize}
+See Section~\ref{sec-IID-Examples} for more examples.
+
+\subsection{From codes to types} \label{sec-IID-Types}
+
+Now that we have defined the codes for IID the next step is to describe their
+semantics, i.e. what the elements of an IID with a given code are. First we
+define the type of arguments to the constructor parameterised by the type of
+inductive arguments\footnote{Analogous to when you for simple inductive types
+define an inductive type as the fixed point of some functor.}.
+\begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}l@{}}
+\column{25}{@{}l@{}}
+\column{28}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{B}{E}{{}\mathit{Args}_{I,E}\mathrel{:}(γ\mathrel{:}\mathit{OP}\;\Conid{I}\;\Conid{E})\;(\Conid{U}\mathrel{:}\Conid{I}\to \Set)\to \Set{}}
+\nextline
+\fromto{B}{25}{{}\Conid{Args}\;(ι\;\Varid{e})\;{}}
+\fromto{25}{28}{{}\Conid{U}{}}
+\fromto{28}{E}{{}\mathrel{=}\mathbf{1}{}}
+\nextline
+\fromto{B}{25}{{}\Conid{Args}\;(σ\;\Conid{A}\;γ)\;{}}
+\fromto{25}{28}{{}\Conid{U}{}}
+\fromto{28}{E}{{}\mathrel{=}\Conid{A}×\lambda \Varid{a}.~\Conid{Args}\;(γ\;\Varid{a})\;\Conid{U}{}}
+\nextline
+\fromto{B}{25}{{}\Conid{Args}\;(δ\;\Conid{A}\;\Varid{i}\;γ)\;{}}
+\fromto{25}{28}{{}\Conid{U}{}}
+\fromto{28}{E}{{}\mathrel{=}((\Varid{a}\mathrel{:}\Conid{A})\to \Conid{U}\;(\Varid{i}\;\Varid{a}))×\lambda \Varid{d}.~\Conid{Args}\;γ\;\Conid{U}{}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
+There are no surprises here, in the base case there are no arguments, in the
+non-inductive case there is one argument \ensuremath{\Varid{a}\mathrel{:}\Conid{A}} followed by the rest of the
+arguments (which may depend on \ensuremath{\Varid{a}}). In the inductive case we have a function
+from the assumptions \ensuremath{\Conid{A}} to a value of the inductive type at the specified
+index.
+
+For general IID we also need to be able to compute the index of a given
+constructor argument.
+\begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}l@{}}
+\column{26}{@{}l@{}}
+\column{29}{@{}l@{}}
+\column{37}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{B}{E}{{}\mathit{index}_{I,E}\mathrel{:}(γ\mathrel{:}\mathit{OP}\;\Conid{I}\;\Conid{E})\;(\Conid{U}\mathrel{:}\Conid{I}\to \Set)\;(\Varid{a}\mathrel{:}\Conid{Args}\;γ\;\Conid{U})\to \Conid{E}{}}
+\nextline
+\fromto{B}{26}{{}\Varid{index}\;(ι\;\Varid{e})\;{}}
+\fromto{26}{29}{{}\Conid{U}\;{}}
+\fromto{29}{37}{{}\anonymous {}}
+\fromto{37}{E}{{}\mathrel{=}\Varid{e}{}}
+\nextline
+\fromto{B}{26}{{}\Varid{index}\;(σ\;\Conid{A}\;γ)\;{}}
+\fromto{26}{29}{{}\Conid{U}{}}
+\fromto{29}{37}{{}\left\langle\Varid{x},\Varid{a}\right\rangle{}}
+\fromto{37}{E}{{}\mathrel{=}\Varid{index}\;(γ\;\Varid{x})\;\Conid{U}\;\Varid{a}{}}
+\nextline
+\fromto{B}{26}{{}\Varid{index}\;(δ\;\Conid{A}\;\Varid{i}\;γ)\;{}}
+\fromto{26}{29}{{}\Conid{U}{}}
+\fromto{29}{37}{{}\left\langle\anonymous ,\Varid{a}\right\rangle{}}
+\fromto{37}{E}{{}\mathrel{=}\Varid{index}\;γ\;\Conid{U}\;\Varid{a}{}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
+Note that only the non-inductive arguments are used when computing the index.
+
+This is all the machinery needed to define the types of general and restricted
+IID. For restricted IID we have, given \ensuremath{γ\mathrel{:}\mathit{OP}^r\;\Conid{I}} and \ensuremath{\Varid{i}\mathrel{:}\Conid{I}}
+\begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}l@{}}
+\column{5}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{5}{E}{{}U^r_γ\mathrel{:}\Conid{I}\to \Set{}}
+\nextline
+\fromto{5}{E}{{}\mathrm{intro}^r_γ\;\Varid{i}\mathrel{:}\Conid{Args}\;(γ\;\Varid{i})\;U^r_γ\to U^r_γ\;\Varid{i}{}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
+For general IID, given \ensuremath{γ\mathrel{:}\mathit{OP}^g\;\Conid{I}} we have
+\begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}l@{}}
+\column{5}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{5}{E}{{}U^g_γ\mathrel{:}\Conid{I}\to \Set{}}
+\nextline
+\fromto{5}{E}{{}\mathrm{intro}^g_γ\mathrel{:}(\Varid{a}\mathrel{:}\Conid{Args}\;γ\;U^g_γ)\to U^g_γ\;(\Varid{index}\;γ\;U^g_γ\;\Varid{a}){}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
+
+As an example take the type of pairs over \ensuremath{\Conid{A}} and \ensuremath{\Conid{B}}:
 
 \begingroup\par\noindent\advance\leftskip\mathindent\(
 \begin{pboxed}\SaveRestoreHook
 \column{B}{@{}l@{}}
 \column{5}{@{}l@{}}
-\column{9}{@{}l@{}}
-\column{16}{@{}l@{}}
 \column{E}{@{}l@{}}
-\fromto{5}{E}{{}\mathbf{data}\;\Conid{OP}\;(\Conid{I}\mathrel{:}\Set)\;(\Conid{D}\mathrel{:}\Conid{I}\to \Type)\;(\Conid{E}\mathrel{:}\Type)\;\mathbf{where}{}}
+\fromto{5}{E}{{}γ\mathrel{=}\lambda \Varid{i}.~σ\;\Conid{A}\;(\lambda \Varid{a}.~σ\;\Conid{B}\;(\lambda \Varid{b}.~ι\;\star))\mathrel{:}\mathit{OP}^r\;\mathbf{1}{}}
 \nextline
-\fromto{5}{9}{{}\hsindent{4}{}}
-\fromto{9}{16}{{}ι{}}
-\fromto{16}{E}{{}\mathrel{:}\Conid{E}\to \Conid{OP}\;\Conid{I}\;\Conid{D}\;\Conid{E}{}}
+\fromto{5}{E}{{}\Conid{Pair}\;\Conid{A}\;\Conid{B}\mathrel{=}U^r_γ\mathrel{:}\mathbf{1}\to \Set{}}
 \nextline
-\fromto{5}{9}{{}\hsindent{4}{}}
-\fromto{9}{16}{{}σ{}}
-\fromto{16}{E}{{}\mathrel{:}(\Conid{A}\mathrel{:}\Set)\;(γ\mathrel{:}\Conid{A}\to \Conid{OP}\;\Conid{I}\;\Conid{D}\;\Conid{E})\to \Conid{OP}\;\Conid{I}\;\Conid{D}\;\Conid{E}{}}
-\nextline
-\fromto{5}{9}{{}\hsindent{4}{}}
-\fromto{9}{16}{{}δ{}}
-\fromto{16}{E}{{}\mathrel{:}(\Conid{A}\mathrel{:}\Set)\;(\Varid{i}\mathrel{:}\Conid{A}\to \Conid{I})\;(γ\mathrel{:}((\Varid{a}\mathrel{:}\Conid{A})\to \Conid{D}\;(\Varid{i}\;\Varid{a})))\to \Conid{OP}\;\Conid{I}\;\Conid{D}\;\Conid{E}{}}
+\fromto{5}{E}{{}\mathrm{intro}^r_γ\;\star\mathrel{:}\Conid{A}×(\lambda \Varid{a}.~\Conid{B}×(\lambda \Varid{b}.~\mathbf{1}))\to \Conid{Pair}\;\Conid{A}\;\Conid{B}\;\star{}}
 \ColumnHook
 \end{pboxed}
 \)\par\noindent\endgroup\resethooks
 
-\subsection{Examples}
+Note that while the index of a restricted IID is determined from the outside we
+still allow so called nested types~\cite{bird98nested}. An example of this is
+the accessibility predicate given in Section~\ref{sec-IID-Codes}. This is
+crucial when interpreting general IID by restricted IID (see
+Section~\ref{sec-Encoding}).
+
+\subsection{Elimination rules} \label{sec-IID-Elimination}
+
+\subsection{Examples} \label{sec-IID-Examples}
 
 Intensional identity relation (Paulin version).
 
@@ -402,7 +587,7 @@ Intensional identity relation (Paulin version).
 
 The elimination rule for this type is Paulin elimination.
 
-\section{Encoding}
+\section{Encoding} \label{sec-Encoding}
 
 Just add a proof that the index is the right one.
 
@@ -623,34 +808,41 @@ recursion.
 
 This gives us the correct type for the elimination rule, but we also need the
 correct computation rules. Namely
+
 \begingroup\par\noindent\advance\leftskip\mathindent\(
 \begin{pboxed}\SaveRestoreHook
 \column{B}{@{}l@{}}
-\column{3}{@{}l@{}}
-\column{5}{@{}l@{}}
-\column{37}{@{}l@{}}
-\column{51}{@{}l@{}}
+\column{4}{@{}l@{}}
+\column{29}{@{}l@{}}
+\column{35}{@{}l@{}}
+\column{49}{@{}l@{}}
 \column{E}{@{}l@{}}
-\fromto{3}{37}{{}elim_{Even}\;\Conid{C}\;\Varid{hz}\;\Varid{hss}\;\mathsf{z}\;{}}
-\fromto{37}{51}{{}\mathsf{evenZ}{}}
-\fromto{51}{E}{{}\mathrel{=}\Varid{hz}{}}
+\fromto{B}{29}{{}elim_{Even}\;\Conid{C}\;\Varid{hz}\;\Varid{hss}\;\mathsf{z}\;{}}
+\fromto{29}{49}{{}\mathsf{evenZ}{}}
+\fromto{49}{E}{{}\mathrel{=}\Varid{hz}{}}
 \nextline
-\fromto{3}{37}{{}elim_{Even}\;\Conid{C}\;\Varid{hz}\;\Varid{hss}\;(\mathsf{s}\;(\mathsf{s}\;\Varid{n}))\;{}}
-\fromto{37}{51}{{}(\mathsf{evenSS}\;\Varid{n}\;\Varid{e}){}}
-\fromto{51}{E}{{}\mathrel{=}{}}
+\fromto{B}{35}{{}elim_{Even}\;\Conid{C}\;\Varid{hz}\;\Varid{hss}\;(\mathsf{s}\;(\mathsf{s}\;\Varid{n}))\;{}}
+\fromto{35}{49}{{}(\mathsf{evenSS}\;\Varid{n}\;\Varid{e}){}}
+\fromto{49}{E}{{}\mathrel{=}{}}
 \nextline
-\fromto{3}{5}{{}\hsindent{2}{}}
-\fromto{5}{E}{{}\Varid{hss}\;\Varid{n}\;\Varid{e}\;(elim_{Even}\;\Conid{C}\;\Varid{hz}\;\Varid{hss}\;\Varid{n}\;\Varid{e}){}}
+\fromto{B}{4}{{}\hsindent{4}{}}
+\fromto{4}{E}{{}\Varid{hss}\;\Varid{n}\;\Varid{e}\;(elim_{Even}\;\Conid{C}\;\Varid{hz}\;\Varid{hss}\;\Varid{n}\;\Varid{e}){}}
 \ColumnHook
 \end{pboxed}
 \)\par\noindent\endgroup\resethooks
+
 The crucial point here is that the equations talk about \ensuremath{\mathsf{evenZ}} and \ensuremath{\mathsf{evenSS}\;\Varid{n}\;\Varid{e}} and not arbitrary elements of \ensuremath{\mathit{Even}^{*}\;\Varid{n}}. In these particular cases the proof
 object is \ensuremath{\mathsf{refl}} so we can use the computation rule of equality elimination to
 show the desired computation rules.
 
-\subsection{Proof}
+\subsection{Formal proof}
 
-Simple induction over the code for the indexed type.
+The proof is not fully formal. The main issue is that Agda is used both for the
+meta level and the object level. This means that it is possible to mix up
+object level reasoning and meta level reasoning in an unsound way. I take care
+not to do this.
+
+The proof is by (simple) induction over the code for the indexed type.
 
 \section{Related Work}
 

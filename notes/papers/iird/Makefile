@@ -28,3 +28,6 @@ endif
 %.tex : %.lhs
 	lhs2TeX --poly $< > $@
 
+always :
+	@while true; do $(MAKE) | grep -v "Nothing to be done" | grep -v "\(Leaving\|Entering\) directory"; sleep 1; done
+

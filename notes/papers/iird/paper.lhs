@@ -33,6 +33,28 @@
 %format pi0 = "π_0"
 %format pi1 = "π_1"
 
+%format OP  = "\mathit{OP}"
+%format OPg = "\mathit{OP}^g"
+%format OPr = "\mathit{OP}^r"
+
+%format Fin_n    = "\mathit{Fin}_n"
+%format Args_IE  = "\mathit{Args}_{I,E}"
+%format index_IE = "\mathit{index}_{I,E}"
+
+%format 1 = "\mathbf{1}"
+%format star = "\star"
+
+%format < = "\left\langle"
+%format > = "\right\rangle"
+
+%format << = "<"
+
+%format Urg     = "U^r_γ"
+%format introrg = "\mathrm{intro}^r_γ"
+
+%format Ugg     = "U^g_γ"
+%format introgg = "\mathrm{intro}^g_γ"
+
 %endif
 
 \usepackage{ucs}
@@ -220,22 +242,129 @@ Streicher axiom K. Not valid~\cite{HofmannM:gromru}. Fortunately we don't need i
 
 In the following we will use Paulin elimination.
 
-\section{Indexed Induction Recursion}
+\section{Indexed Inductive Datatypes} \label{sec-IID}
 
-Very fancy and general types~\cite{dybjer:indexed-ir}.
+In this section we present the formalisation of indexed inductive types. We
+follow the formalisation of indexed induction recursion of Dybjer and
+Setzer~\cite{dybjer:indexed-ir} but leave out the recursion to simplify the
+presentation.
 
-\TODO{How much details from \cite{dybjer:indexed-ir}?}
+\subsection{Codes for IID} \label{sec-IID-Codes}
 
-Codes for IIRD.
+In accordance with Dybjer and Setzer we introduce a common type of codes which
+will serve both as codes for general IID and restricted IID.
 
 \begin{code}
-    data OP (I : Set)(D : I -> Type)(E : Type) where
-	iota   : E -> OP I D E
-	sigma  : (A : Set)(gamma : A -> OP I D E) -> OP I D E
-	delta  : (A : Set)(i : A -> I)(gamma : ((a : A) -> D (i a))) -> OP I D E
+data OP (I : Set)(E : Set) where
+  iota   : E -> OP I E
+  sigma  : (A : Set)(gamma : A -> OP I E) -> OP I E
+  delta  : (A : Set)(i : A -> I)(gamma : OP I E) -> OP I E
 \end{code}
 
-\subsection{Examples}
+Now the codes for general indexed inductive types are defined by |OPg I = OP I
+I|, and the codes for restricted types are |OPr I = I -> OP I 1|. The intuition
+is that for general IID the index is computed from the shape of the value,
+whereas the index of a restricted IID is given beforehand. With these
+definitions in mind, let us study the type of codes in more detail. We have
+three constructors:
+\begin{itemize}
+    \item
+        Base case: |iota e|. This corresponds to an IID with no arguments to the
+        constructor. In the case of a general IID we have to give the index for
+        the constructor. For instance the code for the singleton type of true
+        booleans given by |IsTrue : Bool -> Set| and introduction rule |IsTrue
+        true| is
+        \begin{code}
+            iota true : OPg Bool
+        \end{code}
+    \item
+        Non-inductive argument: |sigma A gamma|. In this case the constructor
+        has a non-inductive argument |a : A|. The remaining arguments may depend
+        on |a| and are coded by |gamma a|. For instance, a datatype with
+        |n| constructors can be coded by |sigma Fin_n gamma|, where |Fin_n| is
+        an |n| element type and |gamma i| is the code for the |i|th constructor.
+
+        Another example is the type of pairs over |A| and |B|
+        \begin{code}
+            \ i. sigma A (\ a. sigma B (\ b. iota star)) : OPr 1
+        \end{code}
+        In this case the following arguments do not depend on the value of the
+        non-inductive arguments.
+    \item
+        Inductive argument: |delta A i gamma|. For an inductive argument we
+        need to know the index of the argument. Note that the following
+        arguments cannot depend on the value of the inductive argument. The
+        inductive argument may occur under some assumptions |A|. For example
+        consider the accessible part of a relation |<<| over |A|, |Acc : A ->
+        Set| with introduction rule that for any |x|, if |((y : A) -> y << x
+        -> Acc y)| then |Acc x|. Here the inductive argument |Acc y| occurs
+        under the assumptions |(y : A)| and |y << x|. The code for this type is
+        \begin{code}
+            \ x. delta ((y : A) ** (y << x)) pi0 (iota star) : OPr A
+        \end{code}
+        The index of the inductive argument is |y| which is the first projection
+        of the assumptions.
+\end{itemize}
+See Section~\ref{sec-IID-Examples} for more examples.
+
+\subsection{From codes to types} \label{sec-IID-Types}
+
+Now that we have defined the codes for IID the next step is to describe their
+semantics, i.e. what the elements of an IID with a given code are. First we
+define the type of arguments to the constructor parameterised by the type of
+inductive arguments\footnote{Analogous to when you for simple inductive types
+define an inductive type as the fixed point of some functor.}.
+\begin{code}
+Args_IE : (gamma : OP I E)(U : I -> Set) -> Set
+Args (iota e)           U  = 1
+Args (sigma A gamma)    U  = A ** \ a. Args (gamma a) U
+Args (delta A i gamma)  U  = ((a : A) -> U (i a)) ** \ d. Args gamma U
+\end{code}
+There are no surprises here, in the base case there are no arguments, in the
+non-inductive case there is one argument |a : A| followed by the rest of the
+arguments (which may depend on |a|). In the inductive case we have a function
+from the assumptions |A| to a value of the inductive type at the specified
+index.
+
+For general IID we also need to be able to compute the index of a given
+constructor argument.
+\begin{code}
+index_IE : (gamma : OP I E)(U : I -> Set)(a : Args gamma U) -> E
+index (iota e)           U  _	    = e
+index (sigma A gamma)    U  <x, a>  = index (gamma x) U a
+index (delta A i gamma)  U  <_, a>  = index gamma U a
+\end{code}
+Note that only the non-inductive arguments are used when computing the index.
+
+This is all the machinery needed to define the types of general and restricted
+IID. For restricted IID we have, given |gamma : OPr I| and |i : I|
+\begin{code}
+    Urg : I -> Set
+    introrg i : Args (gamma i) Urg -> Urg i
+\end{code}
+For general IID, given |gamma : OPg I| we have
+\begin{code}
+    Ugg : I -> Set
+    introgg : (a : Args gamma Ugg) -> Ugg (index gamma Ugg a)
+\end{code}
+
+As an example take the type of pairs over |A| and |B|:
+
+\begin{code}
+    gamma = \ i. sigma A (\ a. sigma B (\ b. iota star)) : OPr 1
+    Pair A B = Urg : 1 -> Set
+    introrg star : A ** (\ a. B ** (\ b. 1)) -> Pair A B star
+\end{code}
+
+Note that while the index of a restricted IID is determined from the outside we
+still allow so called nested types~\cite{bird98nested}. An example of this is
+the accessibility predicate given in Section~\ref{sec-IID-Codes}. This is
+crucial when interpreting general IID by restricted IID (see
+Section~\ref{sec-Encoding}).
+
+\subsection{Elimination rules} \label{sec-IID-Elimination}
+
+\subsection{Examples} \label{sec-IID-Examples}
 
 Intensional identity relation (Paulin version).
 
@@ -246,7 +375,7 @@ data (==) {A : Set}(x : A) : A -> Set where
 
 The elimination rule for this type is Paulin elimination.
 
-\section{Encoding}
+\section{Encoding} \label{sec-Encoding}
 
 Just add a proof that the index is the right one.
 
@@ -342,9 +471,11 @@ recursion.
 This gives us the correct type for the elimination rule, but we also need the
 correct computation rules. Namely
 
-> elim_Even C hz hss zero	    evenZ	  = hz
-> elim_Even C hz hss (suc (suc n))  (evenSS n e)  =
->   hss n e (elim_Even C hz hss n e)
+\begin{code}
+elim_Even C hz hss zero	    evenZ	        = hz
+elim_Even C hz hss (suc (suc n))  (evenSS n e)  =
+   hss n e (elim_Even C hz hss n e)
+\end{code}
 
 The crucial point here is that the equations talk about |evenZ| and |evenSS n
 e| and not arbitrary elements of |Even' n|. In these particular cases the proof
