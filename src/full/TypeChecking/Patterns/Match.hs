@@ -62,9 +62,10 @@ matchPattern (Arg h' (ConP c ps))     (Arg h v) =
     do	v <- constructorForm =<< reduce v
 	case v of
 	    Con c' vs
-		| c == c'   ->
-		    do	(m, vs) <- matchPatterns ps (drop npars vs)
-			return (m, Arg h $ Con c' vs)
+		| c == c'   -> do
+		    let (pars, args) = splitAt npars vs
+		    (m, vs) <- matchPatterns ps args
+		    return (m, Arg h $ Con c' (pars ++ vs))
 		| otherwise -> return (No, Arg h v)
 		where
 		    npars = length vs - length ps
