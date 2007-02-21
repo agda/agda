@@ -1057,6 +1057,7 @@ inferDef mkTerm i x =
 --   @t0 = Delta -> t0'@ and @args : Delta@. Inserts hidden arguments to
 --   make this happen. Returns @t0'@ and any constraints that have to be
 --   solve for everything to be well-formed.
+--   TODO: doesn't do proper blocking of terms
 checkArguments :: Range -> [NamedArg A.Expr] -> Type -> Type -> TCM (Args, Type, Constraints)
 checkArguments r [] t0 t1 =
     traceCall (CheckArguments r [] t0 t1) $ do

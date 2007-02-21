@@ -159,6 +159,12 @@ blockTerm t v m = do
 	    store <- getMetaStore
 	    modify $ \st -> st { stMetaStore = ins x (BlockedConst $ abstract tel v) store }
 	    c <- escapeContext (length tel) $ guardConstraint (return cs) (UnBlock x)
+            verbose 20 $ do
+                dx  <- prettyTCM (MetaV x [])
+                dv  <- escapeContext (length tel) $ prettyTCM $ abstract tel v
+                dcs <- mapM prettyTCM cs
+                liftIO $ putStrLn $ "blocked " ++ show dx ++ " := " ++ show dv
+                liftIO $ putStrLn $ "     by " ++ show dcs
 	    addConstraints c
 	    return $ MetaV x vs
   where
@@ -274,10 +280,17 @@ assignV t x args v =
 	whenM (isBlockedTerm x) patternViolation	-- TODO: not so nice
 
 	-- Check that the arguments are distinct variables
+        verbose 20 $ do
+            let pr (Var n []) = show n
+                pr (Def c []) = show c
+                pr _          = ".."
+            liftIO $ putStrLn $ "args: " ++ unwords (map (pr . unArg) args)
+            
 	ids <- checkArgs x args
 
 	-- When checking flexible variables v must be fully instantiated to not
 	-- get false positives.
+        reportLn 20 $ "preparing to instantiate"
 	v <- instantiateFull v
 
 	verbose 15 $ do

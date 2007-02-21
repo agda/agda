@@ -85,7 +85,9 @@ nameOfBV n =
 -- | TODO: move(?)
 xs !!! n = xs !!!! n
     where
-	[]     !!!! _ = fail $ "deBruijn index out of scope: " ++ show n
+	[]     !!!! _ = do
+            ctx <- getContext
+            fail $ "deBruijn index out of scope: " ++ show n ++ " in context " ++ show (List.map fst ctx)
 	(x:_)  !!!! 0 = return x
 	(_:xs) !!!! n = xs !!!! (n - 1)
 
@@ -94,7 +96,7 @@ xs !!! n = xs !!!! n
 --   its definition is returned.
 getVarInfo :: MonadTCM tcm => Name -> tcm (Term, Type)
 getVarInfo x =
-    do	ctx <- asks envContext
+    do	ctx <- getContext
 	def <- asks envLetBindings
 	case List.findIndex ((==x) . fst) ctx of
 	    Just n  ->

@@ -146,7 +146,7 @@ subst u t = substs (u : map var [0..]) t
 instance Subst Term where
     substs us t =
 	case t of
-	    Var i vs   -> (us !! i) `apply` substs us vs
+	    Var i vs   -> (us !!! i) `apply` substs us vs
 	    Lam h m    -> Lam h $ substs us m
 	    Def c vs   -> Def c $ substs us vs
 	    Con c vs   -> Con c $ substs us vs
@@ -156,6 +156,10 @@ instance Subst Term where
 	    Fun a b    -> uncurry Fun $ substs us (a,b)
 	    Sort s     -> Sort s
 	    BlockedV b -> BlockedV $ substs us b
+        where
+            []     !!! n = error "unbound variable"
+            (x:xs) !!! 0 = x
+            (_:xs) !!! n = xs !!! (n - 1)
 
 instance Subst Type where
     substs us (El s t) = El s $ substs us t
