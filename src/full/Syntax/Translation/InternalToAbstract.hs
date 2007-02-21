@@ -14,6 +14,7 @@
 module Syntax.Translation.InternalToAbstract where
 
 import Control.Monad.State
+import Control.Monad.Error
 
 import Data.Map as Map
 import Data.List as List
@@ -69,11 +70,11 @@ qnameInfo x = do
 exprInfo :: ExprInfo
 exprInfo = ExprRange noRange
 
-reifyApp :: MonadTCM tcm => Expr -> [Arg Term] -> tcm Expr
+reifyApp :: (MonadError TCErr tcm, MonadTCM tcm) => Expr -> [Arg Term] -> tcm Expr
 reifyApp e vs = curry apps e =<< reify vs
 
 class Reify i a | i -> a where
-    reify :: MonadTCM tcm => i -> tcm a
+    reify :: (MonadError TCErr tcm, MonadTCM tcm) => i -> tcm a
 
 instance Reify MetaId Expr where
     reify x@(MetaId n) =
@@ -93,7 +94,7 @@ instance Reify Term Expr where
 	do  v <- instantiate v
 	    case ignoreBlocking v of
 		I.Var n vs   ->
-		    do  x  <- nameOfBV n
+		    do  x  <- nameOfBV n `catchError` \_ -> freshName_ ("@" ++ show n)
 			reifyApp (A.Var (nameInfo x) x) vs
 		I.Def x vs   ->
 		    do	i <- qnameInfo x

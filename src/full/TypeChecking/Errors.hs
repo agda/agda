@@ -50,7 +50,7 @@ prettyError err = liftTCM $ liftM show $
 sayWhere :: (MonadTCM tcm, HasRange a) => a -> tcm Doc -> tcm Doc
 sayWhere x d = text (show $ getRange x) $$ d
 
-sayWhen :: MonadTCM tcm => CallTrace -> tcm Doc -> tcm Doc
+sayWhen :: (MonadError TCErr tcm, MonadTCM tcm) => CallTrace -> tcm Doc -> tcm Doc
 sayWhen tr m = case matchCall interestingCall tr of
     Nothing -> m
     Just c  -> sayWhere c (m $$ prettyTCM c)

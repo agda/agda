@@ -1,4 +1,4 @@
-{-# OPTIONS -cpp #-}
+{-# OPTIONS -cpp -fglasgow-exts #-}
 module TypeChecking.Constraints where
 
 import Control.Monad.State
@@ -23,7 +23,8 @@ import Utils.Fresh
 
 -- | Catch pattern violation errors and adds a constraint.
 --
-catchConstraint :: MonadTCM tcm => Constraint -> TCM Constraints -> tcm Constraints
+catchConstraint :: (MonadError TCErr tcm, MonadTCM tcm) =>
+                   Constraint -> TCM Constraints -> tcm Constraints
 catchConstraint c v = liftTCM $
    catchError v $ \err ->
    case err of
@@ -31,18 +32,19 @@ catchConstraint c v = liftTCM $
        _	    -> throwError err
 
 -- | Try to solve the constraints to be added.
-addNewConstraints :: MonadTCM tcm => Constraints -> tcm ()
+addNewConstraints :: (MonadError TCErr tcm, MonadTCM tcm) => Constraints -> tcm ()
 addNewConstraints cs = do addConstraints cs; wakeupConstraints
 
 -- | Don't allow the argument to produce any constraints.
-noConstraints :: MonadTCM tcm => tcm Constraints -> tcm ()
+noConstraints :: (MonadError TCErr tcm, MonadTCM tcm) => tcm Constraints -> tcm ()
 noConstraints m = do
     cs <- solveConstraints =<< m
     unless (List.null cs) $ typeError $ UnsolvedConstraints cs
     return ()
 
 -- | Guard constraint
-guardConstraint :: MonadTCM tcm => tcm Constraints -> Constraint -> tcm Constraints
+guardConstraint :: (MonadError TCErr tcm, MonadTCM tcm) =>
+                   tcm Constraints -> Constraint -> tcm Constraints
 guardConstraint m c = do
     cs <- solveConstraints =<< m
     case List.partition isSortConstraint cs of   -- sort constraints doesn't block anything
@@ -58,13 +60,13 @@ guardConstraint m c = do
 
 -- | We ignore the constraint ids and (as in Agda) retry all constraints every time.
 --   We probably generate very few constraints.
-wakeupConstraints :: MonadTCM tcm => tcm ()
+wakeupConstraints :: (MonadError TCErr tcm, MonadTCM tcm) => tcm ()
 wakeupConstraints = do
     cs <- takeConstraints
     cs <- solveConstraints cs
     addConstraints cs
 
-solveConstraints :: MonadTCM tcm => Constraints -> tcm Constraints
+solveConstraints :: (MonadError TCErr tcm, MonadTCM tcm) => Constraints -> tcm Constraints
 solveConstraints cs = do
     n  <- length <$> getInstantiatedMetas
     cs <- concat <$> mapM (withConstraint solveConstraint) cs
@@ -73,7 +75,7 @@ solveConstraints cs = do
 	then solveConstraints cs -- Go again if we made progress
 	else return cs
 
-solveConstraint :: MonadTCM tcm => Constraint -> tcm Constraints
+solveConstraint :: (MonadError TCErr tcm, MonadTCM tcm) => Constraint -> tcm Constraints
 solveConstraint (ValueEq a u v) = equalTerm a u v
 solveConstraint (TypeEq a b)	= equalType a b
 solveConstraint (SortEq s1 s2)	= equalSort s1 s2

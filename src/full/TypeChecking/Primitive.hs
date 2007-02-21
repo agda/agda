@@ -4,6 +4,7 @@
 -}
 module TypeChecking.Primitive where
 
+import Control.Monad.Error
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Char
@@ -81,7 +82,7 @@ instance PrimTerm a => PrimTerm (IO a) where
 -- From Agda term to Haskell value
 
 class ToTerm a where
-    toTerm :: MonadTCM tcm => tcm (a -> Term)
+    toTerm :: (MonadError TCErr tcm, MonadTCM tcm) => tcm (a -> Term)
 
 instance ToTerm Integer where toTerm = return $ Lit . LitInt noRange
 instance ToTerm Nat	where toTerm = return $ Lit . LitInt noRange . unNat
@@ -117,7 +118,7 @@ instance (PrimTerm a, ToTerm a) => ToTerm [a] where
 type FromTermFunction a = Arg Term -> TCM (Reduced (Arg Term) a)
 
 class FromTerm a where
-    fromTerm :: MonadTCM tcm => tcm (FromTermFunction a)
+    fromTerm :: (MonadError TCErr tcm, MonadTCM tcm) => tcm (FromTermFunction a)
 
 instance FromTerm Integer where
     fromTerm = fromLiteral $ \l -> case l of
@@ -216,7 +217,7 @@ fromLiteral f = fromReducedTerm $ \t -> case t of
     _	    -> Nothing
 
 -- Tying the knot
-mkPrimFun1 :: (MonadTCM tcm, PrimType a, PrimType b, FromTerm a, ToTerm b) =>
+mkPrimFun1 :: (MonadError TCErr tcm, MonadTCM tcm, PrimType a, PrimType b, FromTerm a, ToTerm b) =>
 	      (a -> b) -> tcm PrimitiveImpl
 mkPrimFun1 f = do
     toA   <- fromTerm
@@ -227,7 +228,7 @@ mkPrimFun1 f = do
 	    (\v' -> [v']) $ \x ->
 	redReturn $ fromB $ f x
 
-mkPrimFun2 :: (MonadTCM tcm, PrimType a, PrimType b, PrimType c, FromTerm a, ToTerm a, FromTerm b, ToTerm c) =>
+mkPrimFun2 :: (MonadError TCErr tcm, MonadTCM tcm, PrimType a, PrimType b, PrimType c, FromTerm a, ToTerm a, FromTerm b, ToTerm c) =>
 	      (a -> b -> c) -> tcm PrimitiveImpl
 mkPrimFun2 f = do
     toA   <- fromTerm
