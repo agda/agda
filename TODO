@@ -24,8 +24,6 @@ Features
 
 * extend positivity check to handle function calls
 
-* allow forcePi to generate constraints (and do the appropriate blocking)
-
 Fixes
 -----
 
@@ -84,6 +82,9 @@ Fixes
   it's type checked. I.e. an old version of the module is stored in an
   interface file of a different module and we can't see that it's not
   up-do-date.
+
+* Spurious implicit lambda found where explicit was expected for implicit
+  lambdas inserted by the type checker.
 
 [Interaction]
 
