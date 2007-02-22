@@ -8,6 +8,7 @@ import Syntax.Common
 import Syntax.Internal
 import Syntax.Translation.InternalToAbstract
 import Syntax.Translation.AbstractToConcrete
+import qualified Syntax.Abstract as A
 import qualified Syntax.Abstract.Pretty as P
 import qualified Syntax.Concrete.Pretty as P
 
@@ -62,6 +63,9 @@ instance PrettyTCM Sort where prettyTCM x = prettyA =<< reify x
 
 instance (Reify a e, ToConcrete e c, P.Pretty c) => PrettyTCM (Arg a) where
     prettyTCM x = prettyA =<< reify x
+
+instance PrettyTCM A.Expr where
+    prettyTCM = prettyA
 
 instance PrettyTCM Constraint where
     prettyTCM c = case c of

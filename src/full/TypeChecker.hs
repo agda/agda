@@ -47,6 +47,7 @@ import TypeChecking.Positivity
 import TypeChecking.Empty
 import TypeChecking.Patterns.Monad
 import TypeChecking.Free
+import TypeChecking.Pretty
 
 import Utils.Monad
 import Utils.List
@@ -954,19 +955,20 @@ checkTypedBinding (A.TNoBind e) ret = do
 checkExpr :: A.Expr -> Type -> TCM Term
 checkExpr e t =
     traceCall (CheckExpr e t) $ do
-    t <- instantiate t
+    verbose 15 $ do
+        d <- text "Checking" <+> fsep [ prettyTCM e, text ":", prettyTCM t ]
+        liftIO $ print d
+    t <- reduce t
+    verbose 15 $ do
+        d <- text "    --> " <+> prettyTCM t
+        liftIO $ print d
     case e of
-
-	-- Variable or constant application
-	_   | Application hd args <- appView e -> do
-		(v,  t0)     <- inferHead hd
-		(vs, t1, cs) <- checkArguments (getRange hd) args t0 t
-		blockTerm t (apply v vs) $ (cs ++) <$> equalType t1 t
 
 	-- Insert hidden lambda if appropriate
 	_   | not (hiddenLambda e)
 	    , FunV (Arg Hidden _) _ <- funView (unEl t) -> do
 		x <- freshName r (argName t)
+                reportLn 15 $ "Inserting implicit lambda"
 		checkExpr (A.Lam (ExprRange $ getRange e) (A.DomainFree Hidden x) e) t
 	    where
 		r = emptyR (rStart $ getRange e)
@@ -976,6 +978,12 @@ checkExpr e t =
 		hiddenLambda (A.Lam _ (A.DomainFree Hidden _) _)		     = True
 		hiddenLambda (A.Lam _ (A.DomainFull (A.TypedBindings _ Hidden _)) _) = True
 		hiddenLambda _							     = False
+
+	-- Variable or constant application
+	_   | Application hd args <- appView e -> do
+		(v,  t0)     <- inferHead hd
+		(vs, t1, cs) <- checkArguments (getRange hd) args t0 t
+		blockTerm t (apply v vs) $ (cs ++) <$> equalType t1 t
 
 	A.App i e arg -> do
 	    (v0, t0)	 <- inferExpr e
