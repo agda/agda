@@ -14,6 +14,7 @@
 module Syntax.Translation.InternalToAbstract where
 
 import Control.Monad.State
+import Control.Monad.Error
 
 import Data.Map as Map
 import Data.List as List
@@ -93,7 +94,7 @@ instance Reify Term Expr where
 	do  v <- instantiate v
 	    case ignoreBlocking v of
 		I.Var n vs   ->
-		    do  x  <- nameOfBV n
+		    do  x  <- liftTCM $ nameOfBV n `catchError` \_ -> freshName_ ("@" ++ show n)
 			reifyApp (A.Var (nameInfo x) x) vs
 		I.Def x vs   ->
 		    do	i <- qnameInfo x
