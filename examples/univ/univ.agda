@@ -134,7 +134,7 @@ mutual
            === F=G x        << pFam G x=y << Gy  by p<< (F=G x) Gx=Gy
            === pFam F cx=cy << F=G y      << Gy  by pfi2 _ _ _ _ Gy
         where
-          open module C = Chain _==_ (ref {F ! (A=B << x)}) (trans {F ! (A=B << x)})
+          open module C = Chain _==_ (ref {_}) (trans {_})
 
   p<< {nat        }{pi _ _   } (eqS ()) _
   p<< {nat        }{sigma _ _} (eqS ()) _
@@ -279,8 +279,8 @@ mutual
       prf : (x : El A) -> _
       prf x =
         chain> _ << h (C=A << x)
-           === _ << _ << h (C=B << B=A << x)         by p<< _ (ph (trans<< _ _ x))
-           === F=G x << G=H _ << h (C=B << B=A << x) by pfi2 _ _ _ _ _
+           === _ << _ << h (C=B << B=A << x)     by p<< _ (ph (trans<< _ _ x))
+           === F=G x << G=H _ << h (_ << _ << x) by pfi2 _ _ _ _ _
         where open module C' = Chain _==_ (ref {_}) (trans {_})
   trans<< {sigma A F}{sigma B G}{sigma C H}
           (eqS < A=B , F=G >)(eqS < B=C , G=H >)
@@ -372,4 +372,8 @@ transFam F=G G=H x = transS (F=G x) (G=H x)
 
 symFam : {A : S} -> Sym (_=Fam_ {A})
 symFam F=G x = symS (F=G x)
+
+castref2 : {A B : S}(A=B : A =S B)(B=A : B =S A)(x : El A) ->
+           A=B << B=A << x == x
+castref2 A=B B=A x = trans (casttrans A=B B=A refS x) (ref<< x)
 
