@@ -364,3 +364,12 @@ mutual
         )
         where open module C = Chain _==_ (ref {_}) (trans {_})
 
+refFam : {A : S} -> Refl (_=Fam_ {A})
+refFam x = refS
+
+transFam : {A : S} -> Trans (_=Fam_ {A})
+transFam F=G G=H x = transS (F=G x) (G=H x)
+
+symFam : {A : S} -> Sym (_=Fam_ {A})
+symFam F=G x = symS (F=G x)
+
