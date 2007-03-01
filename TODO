@@ -2,6 +2,10 @@
 Features
 --------
 
+* remembering the last thing in scope when computation gets stuck
+
+* polymorphic constructors at run-time (at least at conversion checking)
+
 * structured verbosity
 
 * debug information
@@ -82,6 +86,9 @@ Fixes
   it's type checked. I.e. an old version of the module is stored in an
   interface file of a different module and we can't see that it's not
   up-do-date.
+
+  I think this is what happens in the polydep example if everything is
+  up-to-date except TYPE.agda.
 
 * Spurious implicit lambda found where explicit was expected for implicit
   lambdas inserted by the type checker.
