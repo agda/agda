@@ -196,15 +196,14 @@ checkModuleDef i x tel m' args =
 				  $ Var (i + length delta + length theta) []
 				  | i <- [0..length gamma - 1]
 				  ]
+		impDefs <- implicitModuleDefs
+			    (minfoAbstract i) (gammaDelta ++ theta)
+			    m' (vs0 ++ vs) (mdefDefs md')
 		addModule m $ ModuleDef
 				    { mdefName	     = m
 				    , mdefTelescope  = gammaDelta ++ theta
 				    , mdefNofParams  = length theta
-				    , mdefDefs	     = implicitModuleDefs
-							(minfoAbstract i)
-							(gammaDelta ++ theta)
-							m' (vs0 ++ vs)
-							(mdefDefs md')
+				    , mdefDefs	     = impDefs
 				    }
 		forEachModule_ (`isSubModuleOf` m') $ \m'a ->
 		    do	md <- lookupModule m'a	-- lookup twice (could be optimised)
@@ -215,14 +214,15 @@ checkModuleDef i x tel m' args =
 					      | i <- [0..length phiPsi - 1]
 					      ]
 			    tel	    = gammaDelta ++ theta ++ phiPsi
+			impDefs <- implicitModuleDefs
+				    (minfoAbstract i)
+				    tel m'a (vs0 ++ vs ++ vs1)
+				    (mdefDefs md)
 			addModule ma $ ModuleDef
 					    { mdefName	     = ma
 					    , mdefTelescope  = tel
 					    , mdefNofParams  = mdefNofParams md
-					    , mdefDefs	     = implicitModuleDefs
-								(minfoAbstract i)
-								tel m'a (vs0 ++ vs ++ vs1)
-								(mdefDefs md)
+					    , mdefDefs	     = impDefs
 					    }
 
 
@@ -403,7 +403,7 @@ checkFunDef i x cs =
 	cs <- mapM rebindClause cs
 
 	-- Add the definition
-	addConstant name $ Defn t 0 $ Function cs $ defAbstract i
+	addConstant name $ Defn t 0 $ Function cs [] $ defAbstract i
     where
 	npats (Clause ps _) = length ps
 

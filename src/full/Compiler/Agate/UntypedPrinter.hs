@@ -113,8 +113,8 @@ showNDefinition (name,defn) = do
       Axiom -> do
 	return $ sep [ dname, equals ] <+>
 		 sep [ text "undefined {- postulate -}" ]
-      Function [] a -> return $ text "return __IMPOSSIBLE__"
-      Function clauses a -> do
+      Function [] _ a -> return $ text "return __IMPOSSIBLE__"
+      Function clauses _ a -> do
         let (Clause pats body) = head clauses
 	let patsize = length pats
 	let dvars = map (\i -> text ("v" ++ show i)) [1..patsize]

@@ -112,7 +112,7 @@ showValueDefinition definitions compilableDatatypes (name,defn) = do
       Axiom -> do
 	return $ sep [ dname, equals ] <+>
 		 sep [ text "undefined {- postulate -}" ]
-      Function clauses a -> do
+      Function clauses _ a -> do
 	dclauses <- mapM (showClauseAsOptimized name) clauses
 	return $ vcat dclauses
       Datatype np ni qcnames s a -> do

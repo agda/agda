@@ -1,10 +1,12 @@
 {-# OPTIONS -cpp #-}
 module TypeChecking.Monad.Signature where
 
-import Control.Monad.State
-import Control.Monad.Reader
+import Prelude hiding (mapM)
+import Control.Monad.State hiding (mapM)
+import Control.Monad.Reader hiding (mapM)
 import Data.Map as Map
 import Data.List as List
+import Data.Traversable
 
 import Syntax.Abstract.Name
 import Syntax.Common
@@ -14,6 +16,7 @@ import Syntax.Position
 import TypeChecking.Monad.Base
 import TypeChecking.Monad.Context
 import TypeChecking.Substitute
+import TypeChecking.Injective
 
 import Utils.Monad
 
@@ -43,7 +46,7 @@ withSignature sig m =
 addConstant :: MonadTCM tcm => QName -> Definition -> tcm ()
 addConstant q d =
     do	tel <- getContextTelescope
-	let d' = abstract tel d
+	d' <- computeInjectivity $ abstract tel d
 	liftTCM $ modify $ \s ->
 	    s { stSignature = 
 		    Map.adjust (\md -> md { mdefDefs = Map.insert x d'
@@ -54,7 +57,6 @@ addConstant q d =
     where
 	m = qnameModule q
 	x = qnameName q
-    -- modify $ \s -> s { stSignature = Map.insert q d $ stSignature s }
 
 -- | Add a defined module.
 addModule :: MonadTCM tcm => ModuleName -> ModuleDef -> tcm ()
@@ -71,8 +73,11 @@ lookupModule m =
 	    (Nothing, Just md) -> return md
 	    (Just _, Just _)   -> typeError $ LocalVsImportedModuleClash m
 
-implicitModuleDefs :: IsAbstract -> Telescope -> ModuleName -> Args -> Definitions -> Definitions
-implicitModuleDefs abstr tel m args defs = Map.mapWithKey redirect defs
+implicitModuleDefs ::
+    MonadTCM tcm =>
+    IsAbstract -> Telescope -> ModuleName -> Args -> Definitions ->
+    tcm Definitions
+implicitModuleDefs abstr tel m args defs = mapM computeInjectivity $ Map.mapWithKey redirect defs
     where
 	redirect x d = setDef $ abstract tel' (d `apply` args')
 	    where
@@ -84,7 +89,7 @@ implicitModuleDefs abstr tel m args defs = Map.mapWithKey redirect defs
 			    Constructor _ _ _ -> Con
 			    _		      -> Def
 		clause = Clause [] $ Body $ abstract (List.map hide tel) $ mkRHS (qualify m x) args'
-		setDef d = d { theDef = Function [clause] abstr}
+		setDef d = d { theDef = Function [clause] [] abstr}
 
 -- | Lookup the definition of a name. The result is a closed thing, all free
 --   variables have been abstracted over.
@@ -127,7 +132,7 @@ makeAbstract d = do def <- makeAbs $ theDef d
 		    return d { theDef = def }
     where
 	makeAbs (Datatype _ _ _ _ AbstractDef) = Just Axiom
-	makeAbs (Function _ AbstractDef)       = Just Axiom
+	makeAbs (Function _ _ AbstractDef)     = Just Axiom
 	makeAbs (Constructor _ _ AbstractDef)  = Nothing
 	makeAbs d			       = Just d
 
