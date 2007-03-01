@@ -263,19 +263,21 @@ primEqElim = do
 	     nPi "p" (eq (var 3) (var 2) (var 0)) $
 	     el (var 2 <@> var 1 <@> var 0)
 	)
+    refl <- primRefl >>= \r -> 
+	      let name r = case r of
+		    Lam _ b -> name $ absBody b
+		    Def c _ -> c
+		    Con c _ -> c
+		    _	    -> __IMPOSSIBLE__
+	      in return $ name r
     return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ (arity t) $ \args -> do
 	let h = unArg $ args !! 3
 	    p = args !! 5
 	p' <- reduce p
-	refl <- primRefl
-	let reflName = case refl of
-		Def c _	-> c
-		Con c _ -> c
-		_	-> __IMPOSSIBLE__
 	case unArg p' of
-	    Def c _ | c == reflName -> return $ YesReduction h
-	    Con c _ | c == reflName -> return $ YesReduction h
-	    _			    -> return $ NoReduction $ upd args 5 p'
+	    Def c _ | c == refl -> return $ YesReduction h
+	    Con c _ | c == refl -> return $ YesReduction h
+	    _			-> return $ NoReduction $ upd args 5 p'
 		where
 		    upd [] _ _ = __IMPOSSIBLE__
 		    upd (_ : xs) 0 x = x : xs
