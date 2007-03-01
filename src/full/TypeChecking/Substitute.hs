@@ -48,7 +48,7 @@ instance Apply Definition where
 
 instance Apply Defn where
     apply Axiom _		       = Axiom
-    apply (Function cs is a) args      = Function (apply cs args) (drop (length args) is) a
+    apply (Function cs a) args	       = Function (apply cs args) a
     apply (Datatype np ni cs s a) args = Datatype (np - length args) ni cs s a
     apply (Constructor np cs a) args   = Constructor (np - length args) cs a
     apply (Primitive a x cs) args      = Primitive a x cs
@@ -106,10 +106,7 @@ instance Abstract Definition where
 
 instance Abstract Defn where
     abstract tel Axiom			 = Axiom
-    abstract tel (Function cs is a)	 = Function (abstract tel cs) is' a
-      where
-	is' = replicate (length tel) NotInjective ++ is
-	  -- conservative, should be recomputed after abstraction
+    abstract tel (Function cs a)	 = Function (abstract tel cs) a
     abstract tel (Datatype np ni cs s a) = Datatype (length tel + np) ni cs s a
     abstract tel (Constructor np cs a)	 = Constructor (length tel + np) cs a
     abstract tel (Primitive a x cs)	 = Primitive a x (abstract tel cs)

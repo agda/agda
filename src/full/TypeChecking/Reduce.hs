@@ -179,33 +179,32 @@ instance Reduce Term where
 	    reduceDef v0 f args =
 		{-# SCC "reduceDef" #-}
 		do  info <- getConstInfo f
-		    let injs = defInjectivity info
 		    case info of
 			Defn _ _ (Primitive ConcreteDef x cls) -> do
 			    pf <- getPrimitive x
-			    reducePrimitive x v0 f args pf injs cls
-			_ -> reduceNormal v0 f args injs $ defClauses info
+			    reducePrimitive x v0 f args pf cls
+			_ -> reduceNormal v0 f args $ defClauses info
 
-	    reducePrimitive x v0 f args pf injs cls
+	    reducePrimitive x v0 f args pf cls
 		| n < ar    = return $ v0 `apply` args	-- not fully applied
 		| otherwise = do
 		    let (args1,args2) = splitAt n args
 		    r <- def args1
 		    case r of
-			NoReduction args1' -> reduceNormal v0 f (args1' ++ args2) injs cls
+			NoReduction args1' -> reduceNormal v0 f (args1' ++ args2) cls
 			YesReduction v	   -> reduce $ v  `apply` args2
 		where
 		    n	= length args
 		    ar  = primFunArity pf
 		    def = primFunImplementation pf
 
-	    reduceNormal v0 f args injs def = do
+	    reduceNormal v0 f args def = do
 		case def of
 		    [] -> return $ v0 `apply` args -- no definition for head
 		    cls@(Clause ps _ : _)
 			| length ps <= length args ->
 			    do  let (args1,args2) = splitAt (length ps) args 
-				ev <- appDef v0 cls args1 injs
+				ev <- appDef v0 cls args1
 				case ev of
 				    NoReduction v  -> return $ v `apply` args2
 				    YesReduction v -> reduce $ v `apply` args2
@@ -213,13 +212,13 @@ instance Reduce Term where
 
 	    -- Apply a defined function to it's arguments.
 	    --   The original term is the first argument applied to the third.
-	    appDef :: MonadTCM tcm => Term -> [Clause] -> Args -> [Injective] -> tcm (Reduced Term Term)
-	    appDef v cls args injs = goCls cls args where
+	    appDef :: MonadTCM tcm => Term -> [Clause] -> Args -> tcm (Reduced Term Term)
+	    appDef v cls args = goCls cls args where
 
 		goCls :: MonadTCM tcm => [Clause] -> Args -> tcm (Reduced Term Term)
 		goCls [] args = typeError $ IncompletePatternMatching v args
 		goCls (cl@(Clause pats body) : cls) args = do
-		    (m, args) <- matchPatterns pats args injs
+		    (m, args) <- matchPatterns pats args
 		    case m of
 			Yes args'	      -> return $ YesReduction $ app args' body
 			No		      -> goCls cls args
@@ -427,7 +426,7 @@ instance InstantiateFull Definition where
 instance InstantiateFull Defn where
     instantiateFull d = case d of
 	Axiom		      -> return Axiom
-	Function cs is a      -> (\cs -> Function cs is a) <$> instantiateFull cs
+	Function cs a	      -> flip Function a <$> instantiateFull cs
 	Datatype np ni cs s a -> do
 	    s <- instantiateFull s
 	    return $ Datatype np ni cs s a

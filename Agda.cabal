@@ -76,7 +76,6 @@ other-modules:   Compiler.Agate.Classify
                  TypeChecking.Empty
                  TypeChecking.Errors
                  TypeChecking.Free
-		 TypeChecking.Injective
                  TypeChecking.MetaVars
                  TypeChecking.Monad.Base
                  TypeChecking.Monad.Builtin

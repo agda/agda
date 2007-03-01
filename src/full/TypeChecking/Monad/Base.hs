@@ -273,11 +273,8 @@ data Definition = Defn { defType     :: Type	-- type of the lifted definition
 		       }
     deriving (Typeable, Data)
 
-data Injective = Injective | NotInjective
-  deriving (Typeable, Data, Eq)
-
 data Defn = Axiom
-	  | Function [Clause] [Injective] IsAbstract
+	  | Function [Clause] IsAbstract
 	  | Datatype Nat	-- nof parameters
 		     Nat	-- nof indices
 		     [QName]	-- constructor names
@@ -300,20 +297,14 @@ data PrimFun = PrimFun
     deriving (Typeable)
 
 defClauses :: Definition -> [Clause]
-defClauses (Defn _ _ (Function cs _ _))	 = cs
+defClauses (Defn _ _ (Function cs _))	 = cs
 defClauses (Defn _ _ (Primitive _ _ cs)) = cs
 defClauses _				 = []
-
--- | Here we identify @[]@ and @repeat Injective@.
-defInjectivity :: Definition -> [Injective]
-defInjectivity (Defn _ _ (Function _ is _)) = is
-defInjectivity (Defn _ _ (Primitive _ _ _)) = repeat NotInjective
-defInjectivity _			    = []
 
 defAbstract :: Definition -> IsAbstract
 defAbstract (Defn _ _ d) = case d of
     Axiom	       -> AbstractDef
-    Function _ _ a     -> a
+    Function _ a       -> a
     Datatype _ _ _ _ a -> a
     Constructor _ _ a  -> a
     Primitive a _ _    -> a
