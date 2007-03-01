@@ -49,3 +49,12 @@ mkFun : {A : S}{F : Fam A}(f : (x : El A) -> El (F ! x)) ->
         IsFun {A}{F} f -> El (pi A F)
 mkFun {A}{F} f pf = el < f , (\{x}{y} x=y -> pf (pFam F x=y) x=y) >
 
+curryFam : {A : S}{F : Fam A} -> Fam (sigma A F) -> (x : El A) -> Fam (F ! x)
+curryFam {A}{F} G x = fam H pH
+  where
+    H : El (F ! x) -> S
+    H y = G ! el < x , y >
+
+    pH : Map _==_ _=S_ H
+    pH y=z = pFam G (eq < ref , trans y=z (sym (castref _ _)) >)
+
