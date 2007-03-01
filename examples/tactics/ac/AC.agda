@@ -212,7 +212,8 @@ thm2 = theorem n3 \x y z -> x ○ (y ○ z) ≡ (z ○ x) ○ x
 thm3 = theorem n5 \a b c d e -> (a ○ (a ○ b)) ○ ((c ○ d) ○ (e ○ e)) ≡ b ○ ((e ○ (c ○ a)) ○ (d ○ (e ○ a)))
 
 infix 10 _===_
-_===_ = \n m -> IsTrue (n =Nat= m)
+data _===_ (n m : Nat) : Set where
+  eqn : IsTrue (n =Nat= m) -> n === m
 
 postulate
   refl  : {x : Nat}	  -> x === x
@@ -225,7 +226,11 @@ postulate
   congL : {x y z : Nat} -> y === z -> x + y === x + z
   congR : {x y z : Nat} -> x === y -> x + z === y + z
 
-module NatPlus = Semantics _===_ _+_ zero refl sym trans idL idR comm assoc congL congR
+module NatPlus = Semantics _===_ _+_ zero refl sym trans idL idR
+			    (\{x}{y} -> comm {x}{y})
+			    (\{x}{y}{z} -> assoc {x}{y}{z})
+			    (\{x} -> congL {x})
+			    (\{_}{_}{z} -> congR {z = z})
 open NatPlus
 
 test : (x y z : Nat) -> x + (y + z) === (z + x) + y
