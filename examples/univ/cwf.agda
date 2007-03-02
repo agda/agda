@@ -171,15 +171,6 @@ _,,_ {Γ}{Δ}{A} (el < σ , pσ >) (elem (el < u , pu >)) = build δ pδ
 [_] : {Γ : Con}{A : Type Γ} -> Elem Γ A -> Γ ─→ Γ , A
 [_] {Γ}{A} u = id ,, castElem lem-/id u
 
-curryFam : {A : S}{F : Fam A} -> Fam (sigma A F) -> (x : El A) -> Fam (F ! x)
-curryFam {A}{F} G x = fam H pH
-  where
-    H : El (F ! x) -> S
-    H y = G ! el < x , y >
-
-    pH : Map _==_ _=S_ H
-    pH y=z = pFam G (eq < ref , trans y=z (sym (castref _ _)) >)
-
 Π : {Γ : Con}(A : Type Γ)(B : Type (Γ , A)) -> Type Γ
 Π {Γ} A B = fam F pF
   where
