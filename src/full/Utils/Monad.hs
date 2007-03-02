@@ -71,6 +71,13 @@ thread f [] ret = ret []
 thread f (x:xs) ret =
     f x $ \y -> thread f xs $ \ys -> ret (y:ys)
 
+-- | Requires both lists to have the same lengths.
+zipWithM' :: Monad m => (a -> b -> m c) -> [a] -> [b] -> m [c]
+zipWithM' f []	     []	      = return []
+zipWithM' f (x : xs) (y : ys) = liftM2 (:) (f x y) (zipWithM' f xs ys)
+zipWithM' f []	     (_ : _)  = fail "zipWithM' _ [] (_:_)"
+zipWithM' f (_ : _)  []	      = fail "zipWithM' _ (_:_) []"
+
 -- Maybe ------------------------------------------------------------------
 
 mapMaybeM :: Applicative m => (a -> m b) -> Maybe a -> m (Maybe b)

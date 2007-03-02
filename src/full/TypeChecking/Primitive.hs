@@ -179,15 +179,15 @@ instance (ToTerm a, FromTerm a) => FromTerm [a] where
 		t <- reduce t
 		let arg = Arg (argHiding t)
 		case unArg t of
-		    Con c [_]
+		    Con c []
 			| c == nil  -> return $ YesReduction []
-		    Con c [a,x,xs]
+		    Con c [x,xs]
 			| c == cons ->
 			    redBind (toA x)
-				(\x' -> arg $ Con c [a,x',xs]) $ \y ->
+				(\x' -> arg $ Con c [x',xs]) $ \y ->
 			    redBind
 				(mkList nil cons toA fromA xs)
-				(\xs' -> arg $ Con c [a, Arg NotHidden $ fromA y, xs']) $ \ys ->
+				(\xs' -> arg $ Con c [Arg NotHidden $ fromA y, xs']) $ \ys ->
 			    redReturn (y : ys)
 		    _ -> return $ NoReduction t
 

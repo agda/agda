@@ -805,13 +805,9 @@ checkPattern name p t =
 		let vs' = take nofPars vs
 		return (t', vs')
 
-	    -- Apply the constructor to the datatype parameters and compute the
-	    -- canonical form (it might go through a lot of module
-	    -- instantiations).
-	    Con c' us <- constructorForm =<< reduce (Con c $ map hide vs)
-
-	    -- We're gonna need the parameters in a different context.
-	    ous	<- makeOpen us
+	    -- Compute the canonical form of the constructor (it might go
+	    -- through a lot of module instantiations).
+	    Con c' [] <- constructorForm =<< reduce (Con c [])
 
 	    -- Check the arguments
 	    (aps, ps', ts', rest) <- checkPatterns ps (piApply' t' vs)
@@ -819,8 +815,7 @@ checkPattern name p t =
 	    -- Compute the corresponding value (possibly blocked by constraints)
 	    v <- do
 		tn  <- getOpen ot
-		us' <- getOpen ous
-		blockTerm tn (Con c' $ us' ++ ts') $ equalType rest tn
+		blockTerm tn (Con c' ts') $ equalType rest tn
 
 	    return (A.ConP i c' aps, ConP c' ps', v)
 	    where
@@ -981,9 +976,9 @@ checkExpr e t =
 
 	-- Variable or constant application
 	_   | Application hd args <- appView e -> do
-		(v,  t0)     <- inferHead hd
+		(f,  t0)     <- inferHead hd
 		(vs, t1, cs) <- checkArguments (getRange hd) args t0 t
-		blockTerm t (apply v vs) $ (cs ++) <$> equalType t1 t
+		blockTerm t (f vs) $ (cs ++) <$> equalType t1 t
 
 	A.App i e arg -> do
 	    (v0, t0)	 <- inferExpr e
@@ -1039,12 +1034,61 @@ checkExpr e t =
 	A.Def _ _    -> __IMPOSSIBLE__
 	A.Con _ _    -> __IMPOSSIBLE__
 
+nofConstructorPars :: QName -> TCM Int
+nofConstructorPars c = do
+    Con c' [] <- reduce $ Con c []
+    nargs     <- constructorArgs c
+    nargs'    <- constructorArgs c'
+    npars'    <- constructorPars c'
+    return $ nargs - (nargs' - npars')
+  where
+    constructorPars :: QName -> TCM Int
+    constructorPars c = do
+      Constructor _ d _	  <- theDef <$> getConstInfo c
+      Datatype np _ _ _ _ <- theDef <$> getConstInfo d
+      return np
+
+    constructorArgs :: QName -> TCM Int
+    constructorArgs c = do
+      t <- defType <$> getConstInfo c
+      arity <$> normalise t
+
+    arity :: Type -> Int
+    arity t = 
+      case unEl t of
+	Pi _ (Abs _ b)	-> 1 + arity b
+	Fun _ b		-> 1 + arity b
+	_		-> 0
+
 
 -- | Infer the type of a head thing (variable, function symbol, or constructor)
-inferHead :: Head -> TCM (Term, Type)
-inferHead (HeadVar _ x) = traceCall (InferVar x) $ getVarInfo x
-inferHead (HeadCon i x) = inferDef Con i x
-inferHead (HeadDef i x) = inferDef Def i x
+inferHead :: Head -> TCM (Args -> Term, Type)
+inferHead (HeadVar _ x) = do -- traceCall (InferVar x) $ do
+  (u, a) <- getVarInfo x
+  return (apply u, a)
+inferHead (HeadDef i x) = do
+  (u, a) <- inferDef Def i x
+  return (apply u, a)
+inferHead (HeadCon i c) = do
+  -- Constructors are polymorphic internally so when building the constructor
+  -- term we should throw away arguments corresponding to parameters.
+
+  -- First, inferDef will try to apply the constructor to the free parameters
+  -- of the current context. We ignore that.
+  (u, a) <- inferDef (\c _ -> Con c []) i c
+
+  -- Next get the total number of parameters after lambda lifting.
+  n <- nofConstructorPars c
+
+  -- and number of free parameters in the current context. The number of
+  -- parameters remaining is the difference between these two.
+  m <- defFreeVars <$> getConstInfo c
+
+  verbose 7 $ do
+    liftIO $ putStrLn $ unwords [show c, "has", show n, "parameters. Dropped", show m, "so far."]
+
+  -- So when applying the constructor throw away that many arguments.
+  return (apply u . drop (n - m), a)
 
 inferDef :: (QName -> Args -> Term) -> NameInfo -> QName -> TCM (Term, Type)
 inferDef mkTerm i x =

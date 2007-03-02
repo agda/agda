@@ -81,7 +81,7 @@ implicitModuleDefs abstr tel m args defs = Map.mapWithKey redirect defs
 		args' = List.map hide args
 		old = theDef d
 		mkRHS = case old of
-			    Constructor _ _ _ -> Con
+			    Constructor _ _ _ -> \c _ -> Con c [] -- constructors are polymorphic
 			    _		      -> Def
 		clause = Clause [] $ Body $ abstract (List.map hide tel) $ mkRHS (qualify m x) args'
 		setDef d = d { theDef = Function [clause] abstr}

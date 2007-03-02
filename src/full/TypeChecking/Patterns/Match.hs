@@ -40,9 +40,7 @@ instance Monoid Match where
 
 matchPatterns :: MonadTCM tcm => [Arg Pattern] -> [Arg Term] -> tcm (Match, [Arg Term])
 matchPatterns ps vs =
-    do	(ms,vs) <- unzip <$> zipWithM matchPattern
-				(ps ++ repeat __IMPOSSIBLE__) -- ps and vs should
-				vs			      -- have the same length
+    do	(ms,vs) <- unzip <$> zipWithM' matchPattern ps vs
 	return (mconcat ms, vs)
 
 matchPattern :: MonadTCM tcm => Arg Pattern -> Arg Term -> tcm (Match, Arg Term)
@@ -63,12 +61,9 @@ matchPattern (Arg h' (ConP c ps))     (Arg h v) =
 	case v of
 	    Con c' vs
 		| c == c'   -> do
-		    let (pars, args) = splitAt npars vs
-		    (m, vs) <- matchPatterns ps args
-		    return (m, Arg h $ Con c' (pars ++ vs))
+		    (m, vs) <- matchPatterns ps vs
+		    return (m, Arg h $ Con c' vs)
 		| otherwise -> return (No, Arg h v)
-		where
-		    npars = length vs - length ps
 	    MetaV x vs -> return (DontKnow $ Just x, Arg h v)
 	    BlockedV b -> return (DontKnow $ Just $ blockingMeta b, Arg h v)
 	    _	       -> return (DontKnow Nothing, Arg h v)
