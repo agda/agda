@@ -22,7 +22,7 @@ import Utils.Tuple
 -- | Current version of the interface. Only interface files of this version
 --   will be parsed.
 currentInterfaceVersion :: InterfaceVersion
-currentInterfaceVersion = InterfaceVersion 110
+currentInterfaceVersion = InterfaceVersion 111
 
 instance Binary InterfaceVersion where
     put (InterfaceVersion v) = put v
@@ -449,10 +449,6 @@ instance Binary Syntax.Literal.Literal where
 
 -- instance Serialisable Integer where
 --     serialiser = mapS (IFun read show) serialiser
-
-instance Binary Double where
-    put _ = return ()
-    get = return pi -- TODO: this can't be right
 
 -- instance Serialisable Double where
 --     serialiser = mapS (IFun read show) serialiser
