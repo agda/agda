@@ -78,7 +78,7 @@ full : $(SETUP) $(MAIN_SETUP)
 # $(MAKE) -C $(FULL_SRC_DIR)
 
 prof :
-	$(MAKE) -C $(FULL_SRC_DIR) prof
+	$(MAKE) -C $(MAIN_SRC_DIR) prof
 
 ## Making the core language ###############################################
 
