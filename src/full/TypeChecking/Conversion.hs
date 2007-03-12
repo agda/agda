@@ -2,6 +2,7 @@
 
 module TypeChecking.Conversion where
 
+import Control.Applicative
 import Control.Monad
 import Data.Generics
 
@@ -90,8 +91,15 @@ equalAtom t m n =
 		equalArg a xArgs yArgs
 	    (Con x xArgs, Con y yArgs)
 		| x == y -> do
+		    -- The type is a datatype.
+		    Def d args <- reduce $ unEl t
+		    -- Get the number of parameters to the datatype
+		    Datatype npars _ _ _ _ <- theDef <$> getConstInfo d
+		    -- The type to compare the arguments at is obtained by
+		    -- instantiating the parameters.
 		    a <- defType <$> getConstInfo x
-		    equalArg a xArgs yArgs
+		    let a' = piApply' a (take npars args)
+		    equalArg a' xArgs yArgs
 	    (MetaV x xArgs, MetaV y yArgs)
 		| x == y -> if   sameVars xArgs yArgs
 			    then return []

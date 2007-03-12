@@ -248,14 +248,20 @@ checkDataDef i x ps cs =
 	t <- typeOfConst name
 
 	-- The parameters are in scope when checking the constructors. 
-	(nofIxs, s) <- bindParameters ps t $ \tel t -> do
+	(nofIxs, s) <- bindParameters ps t $ \tel t0 -> do
 
 	    -- Parameters are always hidden in constructors
 	    let tel' = map hide tel
 
 	    -- The type we get from bindParameters is Θ -> s where Θ is the type of
 	    -- the indices. We count the number of indices and return s.
-	    (nofIxs, s) <- splitType =<< normalise t
+	    (nofIxs, s) <- splitType =<< normalise t0
+
+	    -- Change the datatype from an axiom to a datatype with no constructors.
+	    escapeContext (length tel) $
+	      addConstant name (Defn t 0 $ Datatype npars nofIxs []
+						    s (defAbstract i)
+			       )
 
 	    -- Check the types of the constructors
 	    mapM_ (checkConstructor name tel' nofIxs s) cs
@@ -1036,7 +1042,7 @@ checkExpr e t =
 
 nofConstructorPars :: QName -> TCM Int
 nofConstructorPars c = do
-    Con c' [] <- reduce $ Con c []
+    Con c' [] <- constructorForm =<< reduce (Con c [])
     nargs     <- constructorArgs c
     nargs'    <- constructorArgs c'
     npars'    <- constructorPars c'
