@@ -15,6 +15,7 @@
 (require 'haskell-ghci)
 ;; due to a bug in haskell-mode-2.1
 (setq haskell-ghci-mode-map (copy-keymap comint-mode-map))
+(require 'filladapt)
 (unless (fboundp 'overlays-in) (load "overlay")) ; for Xemacs
 (unless (fboundp 'propertize)                    ; for Xemacs 21.4
  (defun propertize (string &rest properties)
@@ -190,6 +191,7 @@ consumed at `agda2-undo'.  It is a list of list
    (while l (set (make-local-variable (pop l)) (pop l))))
  (agda2-indent-setup)
  (agda2-highlight-setup)
+ (agda2-comments-and-paragraphs-setup)
  (agda2-restart)
  (force-mode-line-update)
  (run-hooks 'agda2-mode-hook))
@@ -645,6 +647,33 @@ setting of `agda2-indentation'."
                   'latex))
          (setq haskell-indent-mode t)
          (run-hooks 'haskell-indent-hook))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Comments and paragraphs
+
+(defun agda2-comments-and-paragraphs-setup nil
+  "Sets up comment and paragraph handling for Agda mode."
+
+  ;; Syntax table setup for comments is done elsewhere.
+
+  ;; Empty lines (all white space according to Emacs) delimit
+  ;; paragraphs.
+  (set (make-local-variable 'paragraph-start) "\\s-*$")
+  (set (make-local-variable 'paragraph-separate) paragraph-start)
+
+  ;; Support for adding/removing comments.
+  (set (make-local-variable 'comment-padding) " ")
+  (set (make-local-variable 'comment-start) "--")
+
+  ;; Support for proper filling of text in comments (requires that
+  ;; Filladapt is activated).
+  (add-to-list (make-local-variable
+                'filladapt-token-table)
+               '("--" agda2-comment))
+  (add-to-list (make-local-variable 'filladapt-token-match-table)
+               '(agda2-comment agda2-comment) t)
+  (add-to-list (make-local-variable 'filladapt-token-conversion-table)
+               '(agda2-comment . exact)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;
