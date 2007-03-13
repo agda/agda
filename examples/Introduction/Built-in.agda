@@ -3,7 +3,7 @@
 
 module Introduction.Built-in where
 
-{- Agda supports three built-in types:
+{- Agda supports four built-in types:
 
     - integers,
     - floating point numbers,
