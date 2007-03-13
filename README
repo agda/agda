@@ -1,9 +1,32 @@
+To install Agda 2, proceed as follows:
 
-To build Agda II run
+0) Install prerequisites (recent versions of GHC, Alex and Happy).
 
-  > runhaskell Setup.hs configure
-  > (cd src/main; runhaskell Setup.hs configure)
-  > make
+1) Download Agda 2, perhaps as follows:
 
-The binary ends up in 'src/main/dist/build/agda/agda'.
+     darcs get http://www.cs.chalmers.se/~ulfn/darcs/Agda2
+     cd Agda2
 
+2) Build and install the Agda 2 library:
+
+     runhaskell Setup.hs configure
+     runhaskell Setup.hs build
+     runhaskell Setup.hs install
+
+   You may want to set some flags above, for instance as follows:
+
+     runhaskell Setup.hs configure --prefix=~/<some path>
+     runhaskell Setup.hs build
+     runhaskell Setup.hs install --user
+
+3) If you want to use the Emacs mode, build and install it (see
+   src/full/Interaction/emacs-mode/README-agda2-mode.txt).
+
+4) If you want to use the stand-alone "interpreter", build and install
+   it:
+
+     cd src/main
+     runhaskell Setup.hs configure
+     runhaskell Setup.hs build
+     runhaskell Setup.hs install
+     cd -
