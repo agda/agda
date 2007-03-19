@@ -92,6 +92,15 @@
 
 
 
+
+
+
+
+
+
+
+
+
 \usepackage{ucs}
 \usepackage[utf8x]{inputenc}
 \usepackage{autofe}
@@ -151,6 +160,11 @@ Dybjer and Setzer~\cite{dybjer:indexed-ir} show that in an extensional theory
 generalised IIRD can be interpreted by restricted IIRD~\cite{dybjer:jsl}. We're
 not using an extensional theory though.
 
+The main contribution of this paper is to show that generalised IID can be
+interpreted using restricted IID and an intensional identity type. This
+strengthens the results of Dybjer and Setzer~\cite{dybjer:indexed-ir} who show
+that the interpretation is possible in extensional type theory.
+
 \TODO{What's the relation between restricted IIRD and IRD?}
 
 % Fill gap
@@ -184,14 +198,18 @@ There are many versions.
 \begingroup\par\noindent\advance\leftskip\mathindent\(
 \begin{pboxed}\SaveRestoreHook
 \column{B}{@{}l@{}}
-\column{5}{@{}l@{}}
-\column{11}{@{}l@{}}
+\column{3}{@{}l@{}}
+\column{9}{@{}l@{}}
 \column{E}{@{}l@{}}
-\fromto{5}{11}{{}(==){}}
-\fromto{11}{E}{{}\mathrel{:}\{\mskip1.5mu \Conid{A}\mathrel{:}\Set\mskip1.5mu\}\to \Conid{A}\to \Conid{A}\to \Set{}}
+\fromto{3}{E}{{}~{}}
 \nextline
-\fromto{5}{11}{{}\mathsf{refl}{}}
-\fromto{11}{E}{{}\mathrel{:}\{\mskip1.5mu \Conid{A}\mathrel{:}\Set\mskip1.5mu\}(\Varid{x}\mathrel{:}\Conid{A})\to \Varid{x}==\Varid{x}{}}
+\fromto{3}{9}{{}(==){}}
+\fromto{9}{E}{{}\mathrel{:}\{\mskip1.5mu \Conid{A}\mathrel{:}\Set\mskip1.5mu\}\to \Conid{A}\to \Conid{A}\to \Set{}}
+\nextline
+\fromto{3}{9}{{}\mathsf{refl}{}}
+\fromto{9}{E}{{}\mathrel{:}\{\mskip1.5mu \Conid{A}\mathrel{:}\Set\mskip1.5mu\}(\Varid{x}\mathrel{:}\Conid{A})\to \Varid{x}==\Varid{x}{}}
+\nextline
+\fromto{3}{E}{{}~{}}
 \ColumnHook
 \end{pboxed}
 \)\par\noindent\endgroup\resethooks
@@ -207,12 +225,16 @@ The Martin-Löf elimination rule (sometimes called $J$) has the type
 \column{B}{@{}l@{}}
 \column{12}{@{}l@{}}
 \column{E}{@{}l@{}}
+\fromto{B}{E}{{}~{}}
+\nextline
 \fromto{B}{12}{{}\Varid{elim\char95 ML}\mathrel{:}{}}
 \fromto{12}{E}{{}\{\mskip1.5mu \Conid{A}\mathrel{:}\Set\mskip1.5mu\}(\Conid{C}\mathrel{:}(\Varid{x},\Varid{y}\mathrel{:}\Conid{A})\to \Varid{x}==\Varid{y}\to \Set)\to {}}
 \nextline
 \fromto{12}{E}{{}((\Varid{x}\mathrel{:}\Conid{A})\to \Conid{C}\;\Varid{x}\;\Varid{x}\;(\mathsf{refl}\;\Varid{x}))\to {}}
 \nextline
 \fromto{12}{E}{{}(\Varid{x},\Varid{y}\mathrel{:}\Conid{A})\;(\Varid{p}\mathrel{:}\Varid{x}==\Varid{y})\to \Conid{C}\;\Varid{x}\;\Varid{y}\;\Varid{p}{}}
+\nextline
+\fromto{B}{E}{{}~{}}
 \ColumnHook
 \end{pboxed}
 \)\par\noindent\endgroup\resethooks
@@ -237,10 +259,14 @@ Paulin identity relation~\cite{pfenning-paulin:inductive-coc}.
 \column{B}{@{}l@{}}
 \column{11}{@{}l@{}}
 \column{E}{@{}l@{}}
+\fromto{B}{E}{{}~{}}
+\nextline
 \fromto{B}{11}{{}\Varid{elim\char95 P}\mathrel{:}{}}
 \fromto{11}{E}{{}\{\mskip1.5mu \Conid{A}\mathrel{:}\Set\mskip1.5mu\}(\Varid{x}\mathrel{:}\Conid{A})\;(\Conid{C}\mathrel{:}(\Varid{y}\mathrel{:}\Conid{A})\to \Varid{x}==\Varid{y}\to \Set)\to {}}
 \nextline
 \fromto{11}{E}{{}\Conid{C}\;\Varid{x}\;(\mathsf{refl}\;\Varid{x})\to (\Varid{y}\mathrel{:}\Conid{A})\;(\Varid{p}\mathrel{:}\Varid{x}==\Varid{y})\to \Conid{C}\;\Varid{y}\;\Varid{p}{}}
+\nextline
+\fromto{B}{E}{{}~{}}
 \ColumnHook
 \end{pboxed}
 \)\par\noindent\endgroup\resethooks
@@ -285,20 +311,27 @@ Trivial.
     We first define the substitution rule
 \begingroup\par\noindent\advance\leftskip\mathindent\(
 \begin{pboxed}\SaveRestoreHook
-\column{B}{@{}l@{}}
+\column{B}{@{}c@{}}
+\column{BE}{@{}l@{}}
 \column{5}{@{}l@{}}
 \column{14}{@{}l@{}}
 \column{33}{@{}l@{}}
 \column{E}{@{}l@{}}
+\fromto{B}{BE}{{}~{}}
+\nextline
+\fromto{B}{5}{{}\hsindent{5}{}}
 \fromto{5}{14}{{}\Varid{subst}\mathrel{:}{}}
 \fromto{14}{E}{{}\{\mskip1.5mu \Conid{A}\mathrel{:}\Set\mskip1.5mu\}(\Conid{C}\mathrel{:}\Conid{A}\to \Set)\;(\Varid{x},\Varid{y}\mathrel{:}\Conid{A}){}}
 \nextline
 \fromto{14}{E}{{}\Varid{x}==\Varid{y}\to \Conid{C}\;\Varid{x}\to \Conid{C}\;\Varid{y}{}}
 \nextline
+\fromto{B}{5}{{}\hsindent{5}{}}
 \fromto{5}{33}{{}\Varid{subst}\;\Conid{C}\;\Varid{x}\;\Varid{y}\;\Varid{p}\;\Conid{Cx}\mathrel{=}\Varid{elim\char95 ML}\;{}}
 \fromto{33}{E}{{}(\lambda \Varid{a}\;\Varid{b}\;\Varid{q}.~\Conid{C}\;\Varid{a}\to \Conid{C}\;\Varid{b})\;{}}
 \nextline
 \fromto{33}{E}{{}(\lambda \Varid{a}\;\Conid{Ca}.~\Conid{Ca})\;\Varid{x}\;\Varid{y}\;\Varid{p}\;\Conid{Cx}{}}
+\nextline
+\fromto{B}{BE}{{}~{}}
 \ColumnHook
 \end{pboxed}
 \)\par\noindent\endgroup\resethooks
@@ -307,12 +340,19 @@ Trivial.
 
 \begingroup\par\noindent\advance\leftskip\mathindent\(
 \begin{pboxed}\SaveRestoreHook
-\column{B}{@{}l@{}}
+\column{B}{@{}c@{}}
+\column{BE}{@{}l@{}}
 \column{5}{@{}l@{}}
 \column{E}{@{}l@{}}
+\fromto{B}{BE}{{}~{}}
+\nextline
+\fromto{B}{5}{{}\hsindent{5}{}}
 \fromto{5}{E}{{}\Conid{E}\mathrel{:}\{\mskip1.5mu \Conid{A}\mathrel{:}\Set\mskip1.5mu\}(\Varid{x}\mathrel{:}\Conid{A})\to \Set{}}
 \nextline
+\fromto{B}{5}{{}\hsindent{5}{}}
 \fromto{5}{E}{{}\Conid{E}\;\Varid{x}\mathrel{=}(\Varid{y}\mathrel{:}\Conid{A})×(\Varid{x}==\Varid{y}){}}
+\nextline
+\fromto{B}{BE}{{}~{}}
 \ColumnHook
 \end{pboxed}
 \)\par\noindent\endgroup\resethooks
@@ -321,26 +361,39 @@ Trivial.
 
 \begingroup\par\noindent\advance\leftskip\mathindent\(
 \begin{pboxed}\SaveRestoreHook
-\column{B}{@{}l@{}}
+\column{B}{@{}c@{}}
+\column{BE}{@{}l@{}}
 \column{5}{@{}l@{}}
 \column{E}{@{}l@{}}
+\fromto{B}{BE}{{}~{}}
+\nextline
+\fromto{B}{5}{{}\hsindent{5}{}}
 \fromto{5}{E}{{}\Varid{uniqE}\mathrel{:}\{\mskip1.5mu \Conid{A}\mathrel{:}\Set\mskip1.5mu\}(\Varid{x},\Varid{y}\mathrel{:}\Conid{A})\;(\Varid{p}\mathrel{:}\Varid{x}==\Varid{y})\to (\Varid{x},\mathsf{refl}\;\Varid{x})==(\Varid{y},\Varid{p}){}}
 \nextline
+\fromto{B}{5}{{}\hsindent{5}{}}
 \fromto{5}{E}{{}\Varid{uniqE}\mathrel{=}\Varid{elim}\;(\lambda \Varid{x}\;\Varid{y}\;\Varid{p}.~(\Varid{x},\mathsf{refl}\;\Varid{x})==(\Varid{y},\Varid{p}))\;\mathsf{refl}{}}
+\nextline
+\fromto{B}{BE}{{}~{}}
 \ColumnHook
 \end{pboxed}
 \)\par\noindent\endgroup\resethooks
 
 \begingroup\par\noindent\advance\leftskip\mathindent\(
 \begin{pboxed}\SaveRestoreHook
-\column{B}{@{}l@{}}
+\column{B}{@{}c@{}}
+\column{BE}{@{}l@{}}
 \column{5}{@{}l@{}}
 \column{31}{@{}l@{}}
 \column{E}{@{}l@{}}
+\fromto{B}{BE}{{}~{}}
+\nextline
+\fromto{B}{5}{{}\hsindent{5}{}}
 \fromto{5}{31}{{}\Varid{elim\char95 P}\;\Varid{x}\;\Conid{C}\;\Varid{h}\;\Varid{y}\;\Varid{p}\mathrel{=}\Varid{subst}\;{}}
 \fromto{31}{E}{{}(\lambda \Varid{z}.~\Conid{C}\;(π_0\;\Varid{z})\;(π_1\;\Varid{z}))\;{}}
 \nextline
 \fromto{31}{E}{{}(\Varid{x},\mathsf{refl}\;\Varid{x})\;(\Varid{y},\Varid{p})\;(\Varid{uniqE}\;\Varid{x}\;\Varid{y}\;\Varid{p})\;\Varid{h}{}}
+\nextline
+\fromto{B}{BE}{{}~{}}
 \ColumnHook
 \end{pboxed}
 \)\par\noindent\endgroup\resethooks
@@ -376,6 +429,8 @@ will serve both as codes for general IID and restricted IID.
 \column{3}{@{}l@{}}
 \column{10}{@{}l@{}}
 \column{E}{@{}l@{}}
+\fromto{B}{E}{{}~{}}
+\nextline
 \fromto{B}{E}{{}\mathbf{data}\;\mathit{OP}\;(\Conid{I}\mathrel{:}\Set)\;(\Conid{E}\mathrel{:}\Set)\;\mathbf{where}{}}
 \nextline
 \fromto{B}{3}{{}\hsindent{3}{}}
@@ -389,6 +444,8 @@ will serve both as codes for general IID and restricted IID.
 \fromto{B}{3}{{}\hsindent{3}{}}
 \fromto{3}{10}{{}δ{}}
 \fromto{10}{E}{{}\mathrel{:}(\Conid{A}\mathrel{:}\Set)\;(\Varid{i}\mathrel{:}\Conid{A}\to \Conid{I})\;(γ\mathrel{:}\mathit{OP}\;\Conid{I}\;\Conid{E})\to \mathit{OP}\;\Conid{I}\;\Conid{E}{}}
+\nextline
+\fromto{B}{E}{{}~{}}
 \ColumnHook
 \end{pboxed}
 \)\par\noindent\endgroup\resethooks
@@ -407,9 +464,16 @@ three constructors:
         \begingroup\par\noindent\advance\leftskip\mathindent\(
 \begin{pboxed}\SaveRestoreHook
 \column{B}{@{}l@{}}
+\column{9}{@{}c@{}}
+\column{9E}{@{}l@{}}
 \column{13}{@{}l@{}}
 \column{E}{@{}l@{}}
+\fromto{9}{9E}{{}~{}}
+\nextline
+\fromto{9}{13}{{}\hsindent{4}{}}
 \fromto{13}{E}{{}ι\;\Varid{true}\mathrel{:}\mathit{OP}^g\;\Conid{Bool}{}}
+\nextline
+\fromto{9}{9E}{{}~{}}
 \ColumnHook
 \end{pboxed}
 \)\par\noindent\endgroup\resethooks
@@ -424,9 +488,16 @@ three constructors:
         \begingroup\par\noindent\advance\leftskip\mathindent\(
 \begin{pboxed}\SaveRestoreHook
 \column{B}{@{}l@{}}
+\column{9}{@{}c@{}}
+\column{9E}{@{}l@{}}
 \column{13}{@{}l@{}}
 \column{E}{@{}l@{}}
+\fromto{9}{9E}{{}~{}}
+\nextline
+\fromto{9}{13}{{}\hsindent{4}{}}
 \fromto{13}{E}{{}\lambda \Varid{i}.~σ\;\Conid{A}\;(\lambda \Varid{a}.~σ\;\Conid{B}\;(\lambda \Varid{b}.~ι\;\star))\mathrel{:}\mathit{OP}^r\;\mathbf{1}{}}
+\nextline
+\fromto{9}{9E}{{}~{}}
 \ColumnHook
 \end{pboxed}
 \)\par\noindent\endgroup\resethooks
@@ -442,9 +513,16 @@ three constructors:
         \begingroup\par\noindent\advance\leftskip\mathindent\(
 \begin{pboxed}\SaveRestoreHook
 \column{B}{@{}l@{}}
+\column{9}{@{}c@{}}
+\column{9E}{@{}l@{}}
 \column{13}{@{}l@{}}
 \column{E}{@{}l@{}}
+\fromto{9}{9E}{{}~{}}
+\nextline
+\fromto{9}{13}{{}\hsindent{4}{}}
 \fromto{13}{E}{{}\lambda \Varid{x}.~δ\;((\Varid{y}\mathrel{:}\Conid{A})×(\Varid{y}<\Varid{x}))\;π_0\;(ι\;\star)\mathrel{:}\mathit{OP}^r\;\Conid{A}{}}
+\nextline
+\fromto{9}{9E}{{}~{}}
 \ColumnHook
 \end{pboxed}
 \)\par\noindent\endgroup\resethooks
@@ -466,6 +544,8 @@ define an inductive type as the fixed point of some functor.}.
 \column{25}{@{}l@{}}
 \column{28}{@{}l@{}}
 \column{E}{@{}l@{}}
+\fromto{B}{E}{{}~{}}
+\nextline
 \fromto{B}{E}{{}\mathit{Args}_{I,E}\mathrel{:}(γ\mathrel{:}\mathit{OP}\;\Conid{I}\;\Conid{E})\;(\Conid{U}\mathrel{:}\Conid{I}\to \Set)\to \Set{}}
 \nextline
 \fromto{B}{25}{{}\Conid{Args}\;(ι\;\Varid{e})\;{}}
@@ -479,6 +559,8 @@ define an inductive type as the fixed point of some functor.}.
 \fromto{B}{25}{{}\Conid{Args}\;(δ\;\Conid{A}\;\Varid{i}\;γ)\;{}}
 \fromto{25}{28}{{}\Conid{U}{}}
 \fromto{28}{E}{{}\mathrel{=}((\Varid{a}\mathrel{:}\Conid{A})\to \Conid{U}\;(\Varid{i}\;\Varid{a}))×\lambda \Varid{d}.~\Conid{Args}\;γ\;\Conid{U}{}}
+\nextline
+\fromto{B}{E}{{}~{}}
 \ColumnHook
 \end{pboxed}
 \)\par\noindent\endgroup\resethooks
@@ -497,6 +579,8 @@ constructor argument.
 \column{29}{@{}l@{}}
 \column{37}{@{}l@{}}
 \column{E}{@{}l@{}}
+\fromto{B}{E}{{}~{}}
+\nextline
 \fromto{B}{E}{{}\mathit{index}_{I,E}\mathrel{:}(γ\mathrel{:}\mathit{OP}\;\Conid{I}\;\Conid{E})\;(\Conid{U}\mathrel{:}\Conid{I}\to \Set)\;(\Varid{a}\mathrel{:}\Conid{Args}\;γ\;\Conid{U})\to \Conid{E}{}}
 \nextline
 \fromto{B}{26}{{}\Varid{index}\;(ι\;\Varid{e})\;{}}
@@ -513,49 +597,75 @@ constructor argument.
 \fromto{26}{29}{{}\Conid{U}{}}
 \fromto{29}{37}{{}\left\langle\anonymous ,\Varid{a}\right\rangle{}}
 \fromto{37}{E}{{}\mathrel{=}\Varid{index}\;γ\;\Conid{U}\;\Varid{a}{}}
+\nextline
+\fromto{B}{E}{{}~{}}
 \ColumnHook
 \end{pboxed}
 \)\par\noindent\endgroup\resethooks
 Note that only the non-inductive arguments are used when computing the index.
 
-This is all the machinery needed to define the types of general and restricted
-IID. For restricted IID we have, given \ensuremath{γ\mathrel{:}\mathit{OP}^r\;\Conid{I}} and \ensuremath{\Varid{i}\mathrel{:}\Conid{I}}
+This is all the machinery needed to introduce the types of general and restricted
+IID. For restricted IID we introduce, given \ensuremath{γ\mathrel{:}\mathit{OP}^r\;\Conid{I}} and \ensuremath{\Varid{i}\mathrel{:}\Conid{I}}
 \begingroup\par\noindent\advance\leftskip\mathindent\(
 \begin{pboxed}\SaveRestoreHook
-\column{B}{@{}l@{}}
+\column{B}{@{}c@{}}
+\column{BE}{@{}l@{}}
 \column{5}{@{}l@{}}
 \column{E}{@{}l@{}}
+\fromto{B}{BE}{{}~{}}
+\nextline
+\fromto{B}{5}{{}\hsindent{5}{}}
 \fromto{5}{E}{{}U^r_γ\mathrel{:}\Conid{I}\to \Set{}}
 \nextline
+\fromto{B}{5}{{}\hsindent{5}{}}
 \fromto{5}{E}{{}\mathrm{intro}^r_γ\;\Varid{i}\mathrel{:}\Conid{Args}\;(γ\;\Varid{i})\;U^r_γ\to U^r_γ\;\Varid{i}{}}
+\nextline
+\fromto{B}{BE}{{}~{}}
 \ColumnHook
 \end{pboxed}
 \)\par\noindent\endgroup\resethooks
-For general IID, given \ensuremath{γ\mathrel{:}\mathit{OP}^g\;\Conid{I}} we have
+For general IID, given \ensuremath{γ\mathrel{:}\mathit{OP}^g\;\Conid{I}} we want
 \begingroup\par\noindent\advance\leftskip\mathindent\(
 \begin{pboxed}\SaveRestoreHook
-\column{B}{@{}l@{}}
+\column{B}{@{}c@{}}
+\column{BE}{@{}l@{}}
 \column{5}{@{}l@{}}
 \column{E}{@{}l@{}}
+\fromto{B}{BE}{{}~{}}
+\nextline
+\fromto{B}{5}{{}\hsindent{5}{}}
 \fromto{5}{E}{{}U^g_γ\mathrel{:}\Conid{I}\to \Set{}}
 \nextline
+\fromto{B}{5}{{}\hsindent{5}{}}
 \fromto{5}{E}{{}\mathrm{intro}^g_γ\mathrel{:}(\Varid{a}\mathrel{:}\Conid{Args}\;γ\;U^g_γ)\to U^g_γ\;(\Varid{index}\;γ\;U^g_γ\;\Varid{a}){}}
+\nextline
+\fromto{B}{BE}{{}~{}}
 \ColumnHook
 \end{pboxed}
 \)\par\noindent\endgroup\resethooks
+In Section~\ref{sec-Encoding} we show that it is sufficient to introduce
+restricted IID together with an intensional identity type, to be able to define
+\ensuremath{U^g_γ}.
 
 As an example take the type of pairs over \ensuremath{\Conid{A}} and \ensuremath{\Conid{B}}:
-
 \begingroup\par\noindent\advance\leftskip\mathindent\(
 \begin{pboxed}\SaveRestoreHook
-\column{B}{@{}l@{}}
+\column{B}{@{}c@{}}
+\column{BE}{@{}l@{}}
 \column{5}{@{}l@{}}
 \column{E}{@{}l@{}}
+\fromto{B}{BE}{{}~{}}
+\nextline
+\fromto{B}{5}{{}\hsindent{5}{}}
 \fromto{5}{E}{{}γ\mathrel{=}\lambda \Varid{i}.~σ\;\Conid{A}\;(\lambda \Varid{a}.~σ\;\Conid{B}\;(\lambda \Varid{b}.~ι\;\star))\mathrel{:}\mathit{OP}^r\;\mathbf{1}{}}
 \nextline
+\fromto{B}{5}{{}\hsindent{5}{}}
 \fromto{5}{E}{{}\Conid{Pair}\;\Conid{A}\;\Conid{B}\mathrel{=}U^r_γ\mathrel{:}\mathbf{1}\to \Set{}}
 \nextline
+\fromto{B}{5}{{}\hsindent{5}{}}
 \fromto{5}{E}{{}\mathrm{intro}^r_γ\;\star\mathrel{:}\Conid{A}×(\lambda \Varid{a}.~\Conid{B}×(\lambda \Varid{b}.~\mathbf{1}))\to \Conid{Pair}\;\Conid{A}\;\Conid{B}\;\star{}}
+\nextline
+\fromto{B}{BE}{{}~{}}
 \ColumnHook
 \end{pboxed}
 \)\par\noindent\endgroup\resethooks
@@ -568,19 +678,286 @@ Section~\ref{sec-Encoding}).
 
 \subsection{Elimination rules} \label{sec-IID-Elimination}
 
+To complete the formalisation of IID we have to give the elimination rules.  We
+start by defining the set of assumptions of the inductive occurrences in a
+given constructor argument.
+\begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}l@{}}
+\column{27}{@{}l@{}}
+\column{39}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{B}{E}{{}~{}}
+\nextline
+\fromto{B}{E}{{}\mathit{IndArg}_{I,E}\mathrel{:}(γ\mathrel{:}\mathit{OP}\;\Conid{I}\;\Conid{E})\;(\Conid{U}\mathrel{:}\Conid{I}\to \Set)\to \Conid{Args}\;γ\;\Conid{U}\to \Set{}}
+\nextline
+\fromto{B}{27}{{}\Conid{IndArg}\;(ι\;\Varid{e})\;{}}
+\fromto{27}{39}{{}\Conid{U}\;\anonymous {}}
+\fromto{39}{E}{{}\mathrel{=}\mathbf{0}{}}
+\nextline
+\fromto{B}{27}{{}\Conid{IndArg}\;(σ\;\Conid{A}\;γ)\;{}}
+\fromto{27}{39}{{}\Conid{U}\left\langle\Varid{a},\Varid{b}\right\rangle{}}
+\fromto{39}{E}{{}\mathrel{=}\Conid{IndArg}\;(γ\;\Varid{a})\;\Conid{U}\;\Varid{b}{}}
+\nextline
+\fromto{B}{27}{{}\Conid{IndArg}\;(δ\;\Conid{A}\;\Varid{i}\;γ)\;{}}
+\fromto{27}{39}{{}\Conid{U}\left\langle\Varid{g},\Varid{b}\right\rangle{}}
+\fromto{39}{E}{{}\mathrel{=}\Conid{A}\mathbin{+}\Conid{IndArg}\;γ\;\Conid{U}\;\Varid{b}{}}
+\nextline
+\fromto{B}{E}{{}~{}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
+Simply put \ensuremath{\Conid{IndArg}\;γ\;\Varid{a}} is the disjoint union of the assumptions of the
+inductive occurrences in \ensuremath{\Varid{a}}.
+
+Now, given the assumptions of one inductive occurrence we can compute the index
+of that occurrence.
+\begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}l@{}}
+\column{16}{@{}l@{}}
+\column{29}{@{}l@{}}
+\column{32}{@{}l@{}}
+\column{42}{@{}l@{}}
+\column{51}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{B}{E}{{}~{}}
+\nextline
+\fromto{B}{16}{{}\mathit{IndIndex}_{I,E}\mathrel{:}{}}
+\fromto{16}{E}{{}(γ\mathrel{:}\mathit{OP}\;\Conid{I}\;\Conid{E})\;(\Conid{U}\mathrel{:}\Conid{I}\to \Set){}}
+\nextline
+\fromto{16}{E}{{}(\Varid{a}\mathrel{:}\Conid{Args}\;γ\;\Conid{U})\to \Conid{IndArg}\;γ\;\Conid{U}\;\Varid{a}\to \Conid{I}{}}
+\nextline
+\fromto{B}{29}{{}\Conid{IndIndex}\;(ι\;\Varid{e})\;{}}
+\fromto{29}{32}{{}\Conid{U}\;{}}
+\fromto{32}{42}{{}\anonymous \;{}}
+\fromto{42}{E}{{}\bot{}}
+\nextline
+\fromto{B}{29}{{}\Conid{IndIndex}\;(σ\;\Conid{A}\;γ)\;{}}
+\fromto{29}{32}{{}\Conid{U}{}}
+\fromto{32}{42}{{}\left\langle\Varid{a},\Varid{b}\right\rangle{}}
+\fromto{42}{51}{{}\Varid{c}{}}
+\fromto{51}{E}{{}\mathrel{=}\Conid{IndIndex}\;(γ\;\Varid{a})\;\Conid{U}\;\Varid{b}\;\Varid{c}{}}
+\nextline
+\fromto{B}{29}{{}\Conid{IndIndex}\;(δ\;\Conid{A}\;\Varid{i}\;γ)\;{}}
+\fromto{29}{32}{{}\Conid{U}{}}
+\fromto{32}{42}{{}\left\langle\Varid{g},\Varid{b}\right\rangle{}}
+\fromto{42}{51}{{}(\mathsf{inl}\;\Varid{a}){}}
+\fromto{51}{E}{{}\mathrel{=}\Varid{i}\;\Varid{a}{}}
+\nextline
+\fromto{B}{29}{{}\Conid{IndIndex}\;(δ\;\Conid{A}\;\Varid{i}\;γ)\;{}}
+\fromto{29}{32}{{}\Conid{U}{}}
+\fromto{32}{42}{{}\left\langle\Varid{g},\Varid{b}\right\rangle{}}
+\fromto{42}{51}{{}(\mathsf{inr}\;\Varid{a}){}}
+\fromto{51}{E}{{}\mathrel{=}\Conid{IndIndex}\;γ\;\Conid{U}\;\Varid{b}\;\Varid{a}{}}
+\nextline
+\fromto{B}{E}{{}~{}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
+The code \ensuremath{γ} contains the values of the indices for the inductive
+occurrences so we just have to find the right inductive occurrence.
+
+We can now define a function to extract a particular inductive occurrence from
+a constructor argument.
+\begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}l@{}}
+\column{11}{@{}l@{}}
+\column{24}{@{}l@{}}
+\column{27}{@{}l@{}}
+\column{37}{@{}l@{}}
+\column{46}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{B}{E}{{}~{}}
+\nextline
+\fromto{B}{11}{{}\mathit{Ind}_{I,E}\mathrel{:}{}}
+\fromto{11}{E}{{}(γ\mathrel{:}\mathit{OP}\;\Conid{I}\;\Conid{E})\;(\Conid{U}\mathrel{:}\Conid{I}\to \Set){}}
+\nextline
+\fromto{11}{E}{{}(\Varid{a}\mathrel{:}\Conid{Args}\;γ\;\Conid{U})\;(\Varid{v}\mathrel{:}\Conid{IndArg}\;γ\;\Conid{U}\;\Varid{a})\to \Conid{U}\;(\Conid{IndIndex}\;γ\;\Conid{U}\;\Varid{a}\;\Varid{v}){}}
+\nextline
+\fromto{B}{24}{{}\Conid{Ind}\;(ι\;\Varid{e})\;{}}
+\fromto{24}{27}{{}\Conid{U}\;{}}
+\fromto{27}{37}{{}\anonymous \;{}}
+\fromto{37}{E}{{}\bot{}}
+\nextline
+\fromto{B}{24}{{}\Conid{Ind}\;(σ\;\Conid{A}\;γ)\;{}}
+\fromto{24}{27}{{}\Conid{U}{}}
+\fromto{27}{37}{{}\left\langle\Varid{a},\Varid{b}\right\rangle{}}
+\fromto{37}{46}{{}\Varid{c}{}}
+\fromto{46}{E}{{}\mathrel{=}\Conid{Ind}\;(γ\;\Varid{a})\;\Conid{U}\;\Varid{b}\;\Varid{c}{}}
+\nextline
+\fromto{B}{24}{{}\Conid{Ind}\;(δ\;\Conid{A}\;\Varid{i}\;γ)\;{}}
+\fromto{24}{27}{{}\Conid{U}{}}
+\fromto{27}{37}{{}\left\langle\Varid{g},\Varid{b}\right\rangle{}}
+\fromto{37}{46}{{}(\mathsf{inl}\;\Varid{a}){}}
+\fromto{46}{E}{{}\mathrel{=}\Varid{g}\;\Varid{a}{}}
+\nextline
+\fromto{B}{24}{{}\Conid{Ind}\;(δ\;\Conid{A}\;\Varid{i}\;γ)\;{}}
+\fromto{24}{27}{{}\Conid{U}{}}
+\fromto{27}{37}{{}\left\langle\Varid{g},\Varid{b}\right\rangle{}}
+\fromto{37}{46}{{}(\mathsf{inr}\;\Varid{a}){}}
+\fromto{46}{E}{{}\mathrel{=}\Conid{Ind}\;γ\;\Conid{U}\;\Varid{b}\;\Varid{a}{}}
+\nextline
+\fromto{B}{E}{{}~{}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
+Again the definition is very simple.
+
+Next we define the notion of an induction hypothesis. Given a predicate \ensuremath{\Conid{C}}
+over elements in a datatype, an induction hypothesis for a constructor argument
+\ensuremath{\Varid{a}} is a function that proves the predicate for all inductive occurrences in
+\ensuremath{\Varid{a}}.
+\begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}l@{}}
+\column{14}{@{}l@{}}
+\column{23}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{B}{E}{{}~{}}
+\nextline
+\fromto{B}{14}{{}\mathit{IndHyp}_{I,E}\mathrel{:}{}}
+\fromto{14}{E}{{}(γ\mathrel{:}\mathit{OP}\;\Conid{I}\;\Conid{E})\;(\Conid{U}\mathrel{:}\Conid{I}\to \Set)\to {}}
+\nextline
+\fromto{14}{E}{{}(\Conid{C}\mathrel{:}(\Varid{i}\mathrel{:}\Conid{I})\to \Conid{U}\;\Varid{i}\to \Set)\;(\Varid{a}\mathrel{:}\Conid{Args}\;γ\;\Conid{U})\to \Set{}}
+\nextline
+\fromto{B}{23}{{}\Conid{IndHyp}\;γ\;\Conid{U}\;\Conid{C}\;\Varid{a}\mathrel{=}{}}
+\fromto{23}{E}{{}(\Varid{v}\mathrel{:}\Conid{IndArg}\;γ\;\Conid{U}\;\Varid{a})\to {}}
+\nextline
+\fromto{23}{E}{{}\Conid{C}\;(\Conid{IndIndex}\;γ\;\Conid{U}\;\Varid{a}\;\Varid{v})\;(\Conid{Ind}\;γ\;\Conid{U}\;\Varid{a}\;\Varid{v}){}}
+\nextline
+\fromto{B}{E}{{}~{}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
+
+Given a function \ensuremath{\Varid{g}} that proves \ensuremath{\Conid{C}\;\Varid{i}\;\Varid{u}} for all \ensuremath{\Varid{i}} and \ensuremath{\Varid{u}} we can construct an
+induction hypothesis for \ensuremath{\Varid{a}} by applying \ensuremath{\Varid{g}} to all inductive occurrences in
+\ensuremath{\Varid{a}}.
+\begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}l@{}}
+\column{3}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{B}{E}{{}~{}}
+\nextline
+\fromto{B}{E}{{}\mathit{indHyp}_{I,E}\mathrel{:}{}}
+\nextline
+\fromto{B}{3}{{}\hsindent{3}{}}
+\fromto{3}{E}{{}(γ\mathrel{:}\mathit{OP}\;\Conid{I}\;\Conid{E})\;(\Conid{U}\mathrel{:}\Conid{I}\to \Set){}}
+\nextline
+\fromto{B}{3}{{}\hsindent{3}{}}
+\fromto{3}{E}{{}(\Conid{C}\mathrel{:}(\Varid{i}\mathrel{:}\Conid{I})\to \Conid{U}\;\Varid{i}\to \Set){}}
+\nextline
+\fromto{B}{3}{{}\hsindent{3}{}}
+\fromto{3}{E}{{}(\Varid{g}\mathrel{:}(\Varid{i}\mathrel{:}\Conid{I})\;(\Varid{u}\mathrel{:}\Conid{U}\;\Varid{i})\to \Conid{C}\;\Varid{i}\;\Varid{u}){}}
+\nextline
+\fromto{B}{3}{{}\hsindent{3}{}}
+\fromto{3}{E}{{}(\Varid{a}\mathrel{:}\Conid{Args}\;γ\;\Conid{U})\to \Conid{IndHyp}\;γ\;\Conid{U}\;\Conid{C}\;\Varid{a}{}}
+\nextline
+\fromto{B}{E}{{}\Varid{indHyp}\;γ\;\Conid{U}\;\Conid{C}\;\Varid{g}\;\Varid{a}\mathrel{=}\lambda \Varid{v}\to \Varid{g}\;(\Conid{IndIndex}\;γ\;\Conid{U}\;\Varid{a}\;\Varid{v})\;(\Conid{Ind}\;γ\;\Conid{U}\;\Varid{a}\;\Varid{v}){}}
+\nextline
+\fromto{B}{E}{{}~{}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
+
+We are now ready to introduce the elimination rules. Given \ensuremath{\Conid{I}\mathrel{:}\Set} and \ensuremath{γ\mathrel{:}\mathit{OP}^r\;\Conid{I}} the elimination rule for the restricted IID \ensuremath{U^r_γ} is given by the
+following type and computation rule:
+\begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}l@{}}
+\column{3}{@{}l@{}}
+\column{6}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{B}{E}{{}~{}}
+\nextline
+\fromto{B}{E}{{}\mathit{elim}{-}U^r_γ\mathrel{:}{}}
+\nextline
+\fromto{B}{3}{{}\hsindent{3}{}}
+\fromto{3}{E}{{}(\Conid{C}\mathrel{:}(\Varid{i}\mathrel{:}\Conid{I})\to U^r_γ\;\Varid{i}\to \Set)\to {}}
+\nextline
+\fromto{B}{3}{{}\hsindent{3}{}}
+\fromto{3}{6}{{}({}}
+\fromto{6}{E}{{}(\Varid{i}\mathrel{:}\Conid{I})\;(\Varid{a}\mathrel{:}\Conid{Args}\;(\Conid{γ}\;\Varid{i})\;U^r_γ)\to {}}
+\nextline
+\fromto{6}{E}{{}\Conid{IndHyp}\;(\Conid{γ}\;\Varid{i})\;U^r_γ\;\Conid{C}\;\Varid{a}\to \Conid{C}\;\Varid{i}\;(\mathrm{intro}^r_γ\;\Varid{i}\;\Varid{a}))\to {}}
+\nextline
+\fromto{B}{3}{{}\hsindent{3}{}}
+\fromto{3}{E}{{}(\Varid{i}\mathrel{:}\Conid{I})\;(\Varid{u}\mathrel{:}U^r_γ\;\Varid{i})\to \Conid{C}\;\Varid{i}\;\Varid{u}{}}
+\nextline
+\fromto{B}{E}{{}\mathit{elim}{-}U^r_γ\;\Conid{C}\;\Varid{step}\;\Varid{i}\;(\mathrm{intro}^r_γ\;\Varid{a})\mathrel{=}{}}
+\nextline
+\fromto{B}{3}{{}\hsindent{3}{}}
+\fromto{3}{E}{{}\Varid{step}\;\Varid{i}\;\Varid{a}\;(\Varid{indHyp}\;(\Conid{γ}\;\Varid{i})\;U^r_γ\;\Conid{C}\;(\mathit{elim}{-}U^r_γ\;\Conid{C}\;\Varid{m})\;\Varid{a}){}}
+\nextline
+\fromto{B}{E}{{}~{}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
+That is, for any predicate \ensuremath{\Conid{C}} over \ensuremath{U^r_γ}, if given that \ensuremath{\Conid{C}} holds for all
+inductive occurrences in some arbitrary constructor argument \ensuremath{\Varid{a}} then \ensuremath{\Conid{C}} holds
+for \ensuremath{\mathrm{intro}^r_γ\;\Varid{a}}, then \ensuremath{\Conid{C}} holds for all elements of \ensuremath{U^r_γ}. The computation rule
+states that eliminating an element built by the introduction rule is the same
+as first eliminating all inductive occurrences and then applying the induction
+step.
+
+The elimination rule for a general IID is similar. The difference is that the
+index of a constructor argument is computed from the value of the argument.
+\begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}l@{}}
+\column{3}{@{}l@{}}
+\column{6}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{B}{E}{{}~{}}
+\nextline
+\fromto{B}{E}{{}\mathit{elim}{-}U^g_γ\mathrel{:}{}}
+\nextline
+\fromto{B}{3}{{}\hsindent{3}{}}
+\fromto{3}{E}{{}(\Conid{C}\mathrel{:}(\Varid{i}\mathrel{:}\Conid{I})\to U^g_γ\;\Varid{i}\to \Set)\to {}}
+\nextline
+\fromto{B}{3}{{}\hsindent{3}{}}
+\fromto{3}{6}{{}({}}
+\fromto{6}{E}{{}(\Varid{a}\mathrel{:}\Conid{Args}\;\Conid{γ}\;U^g_γ)\to \Conid{IndHyp}\;\Conid{γ}\;U^g_γ\;\Conid{C}\;\Varid{a}\to {}}
+\nextline
+\fromto{6}{E}{{}\Conid{C}\;(\Varid{index}\;\Conid{γ}\;U^g_γ\;\Varid{a})\;(\mathrm{intro}^g_γ\;\Varid{a}))\to {}}
+\nextline
+\fromto{B}{3}{{}\hsindent{3}{}}
+\fromto{3}{E}{{}(\Varid{i}\mathrel{:}\Conid{I})\;(\Varid{u}\mathrel{:}U^g_γ\;\Varid{i})\to \Conid{C}\;\Varid{i}\;\Varid{u}{}}
+\nextline
+\fromto{B}{E}{{}\mathit{elim}{-}U^g_γ\;\Conid{C}\;\Varid{step}\;(\Varid{index}\;\Conid{γ}\;U^g_γ\;\Varid{a})\;(\mathrm{intro}^g_γ\;\Varid{a})\mathrel{=}{}}
+\nextline
+\fromto{B}{3}{{}\hsindent{3}{}}
+\fromto{3}{E}{{}\Varid{step}\;\Varid{a}\;(\Varid{indHyp}\;\Conid{γ}\;U^g_γ\;\Conid{C}\;(\mathit{elim}{-}U^g_γ\;\Conid{C}\;\Varid{m})\;\Varid{a}){}}
+\nextline
+\fromto{B}{E}{{}~{}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
+
+\TODO{examples}
+
 \subsection{Examples} \label{sec-IID-Examples}
+
+Datatypes with multiple constructors.
 
 Intensional identity relation (Paulin version).
 
 \begingroup\par\noindent\advance\leftskip\mathindent\(
 \begin{pboxed}\SaveRestoreHook
 \column{B}{@{}l@{}}
-\column{5}{@{}l@{}}
+\column{3}{@{}l@{}}
 \column{E}{@{}l@{}}
+\fromto{B}{E}{{}~{}}
+\nextline
 \fromto{B}{E}{{}\mathbf{data}\;(==)\{\mskip1.5mu \Conid{A}\mathrel{:}\Set\mskip1.5mu\}(\Varid{x}\mathrel{:}\Conid{A})\mathrel{:}\Conid{A}\to \Set\;\mathbf{where}{}}
 \nextline
-\fromto{B}{5}{{}\hsindent{5}{}}
-\fromto{5}{E}{{}\mathsf{refl}\mathrel{:}\Varid{x}==\Varid{x}{}}
+\fromto{B}{3}{{}\hsindent{3}{}}
+\fromto{3}{E}{{}\mathsf{refl}\mathrel{:}\Varid{x}==\Varid{x}{}}
+\nextline
+\fromto{B}{E}{{}~{}}
 \ColumnHook
 \end{pboxed}
 \)\par\noindent\endgroup\resethooks
@@ -589,26 +966,492 @@ The elimination rule for this type is Paulin elimination.
 
 \section{Encoding} \label{sec-Encoding}
 
-Just add a proof that the index is the right one.
-
-Example:
+To show that generalised IID are expressible in the system of restricted IID
+extended with the intensional identity type, we first show how to transform the
+code for a generalised IID into the code for its encoding as a restricted IID.
+The basic idea is to add a proof that the index of the restricted IID is equal
+to index computed for the generalised IID. Concretely:
 
 \begingroup\par\noindent\advance\leftskip\mathindent\(
 \begin{pboxed}\SaveRestoreHook
 \column{B}{@{}l@{}}
-\column{5}{@{}l@{}}
-\column{9}{@{}l@{}}
-\column{17}{@{}l@{}}
+\column{24}{@{}l@{}}
 \column{E}{@{}l@{}}
-\fromto{5}{E}{{}\mathbf{data}\;\Conid{Even}\mathrel{:}\Conid{Nat}\to \Set\;\mathbf{where}{}}
+\fromto{B}{E}{{}~{}}
 \nextline
-\fromto{5}{9}{{}\hsindent{4}{}}
-\fromto{9}{17}{{}\mathsf{evenZ}{}}
-\fromto{17}{E}{{}\mathrel{:}\Conid{Even}\;\mathsf{z}{}}
+\fromto{B}{E}{{}ε_I\mathrel{:}\mathit{OP}^g\;\Conid{I}\to \mathit{OP}^r\;\Conid{I}{}}
 \nextline
-\fromto{5}{9}{{}\hsindent{4}{}}
-\fromto{9}{17}{{}\mathsf{evenSS}{}}
-\fromto{17}{E}{{}\mathrel{:}\{\mskip1.5mu \Varid{n}\mathrel{:}\Conid{Nat}\mskip1.5mu\}\to \Conid{Even}\;\Varid{n}\to \Conid{Even}\;(\mathsf{s}\;(\mathsf{s}\;\Varid{n})){}}
+\fromto{B}{24}{{}ε\;(ι\;\Varid{i})\;{}}
+\fromto{24}{E}{{}\Varid{j}\mathrel{=}σ\;(\Varid{i}==\Varid{j})\;(\lambda \anonymous \to ι\;\star){}}
+\nextline
+\fromto{B}{24}{{}ε\;(σ\;\Conid{A}\;γ)\;{}}
+\fromto{24}{E}{{}\Varid{j}\mathrel{=}σ\;\Conid{A}\;(\lambda \Varid{a}\to ε\;(γ\;\Varid{a})\;\Varid{j}){}}
+\nextline
+\fromto{B}{24}{{}ε\;(δ\;\Conid{H}\;\Varid{i}\;γ)\;{}}
+\fromto{24}{E}{{}\Varid{j}\mathrel{=}δ\;\Conid{H}\;\Varid{i}\;(ε\;γ\;\Varid{j}){}}
+\nextline
+\fromto{B}{E}{{}~{}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
+
+For example, the generalised IID of proof that a number is even, given by
+\begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}l@{}}
+\column{3}{@{}l@{}}
+\column{11}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{B}{E}{{}~{}}
+\nextline
+\fromto{B}{E}{{}\mathbf{data}\;\Conid{Even}\mathrel{:}\Conid{Nat}\to \Set\;\mathbf{where}{}}
+\nextline
+\fromto{B}{3}{{}\hsindent{3}{}}
+\fromto{3}{11}{{}\mathsf{evenZ}{}}
+\fromto{11}{E}{{}\mathrel{:}\Conid{Even}\;\mathsf{z}{}}
+\nextline
+\fromto{B}{3}{{}\hsindent{3}{}}
+\fromto{3}{11}{{}\mathsf{evenSS}{}}
+\fromto{11}{E}{{}\mathrel{:}(\Varid{n}\mathrel{:}\Conid{Nat})\to \Conid{Even}\;\Varid{n}\to \Conid{Even}\;(\mathsf{s}\;(\mathsf{s}\;\Varid{n})){}}
+\nextline
+\fromto{B}{E}{{}~{}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
+is encoded by the following restricted IID:
+\begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}l@{}}
+\column{3}{@{}l@{}}
+\column{12}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{B}{E}{{}~{}}
+\nextline
+\fromto{B}{E}{{}\mathbf{data}\;\mathit{Even}^{*}\;(\Varid{n}\mathrel{:}\Conid{Nat})\mathrel{:}\Set\;\mathbf{where}{}}
+\nextline
+\fromto{B}{3}{{}\hsindent{3}{}}
+\fromto{3}{12}{{}\mathsf{evenZ}^{*}{}}
+\fromto{12}{E}{{}\mathrel{:}\mathsf{z}==\Varid{n}\to \mathit{Even}^{*}\;\Varid{n}{}}
+\nextline
+\fromto{B}{3}{{}\hsindent{3}{}}
+\fromto{3}{12}{{}\mathsf{evenSS}^{*}{}}
+\fromto{12}{E}{{}\mathrel{:}(\Varid{m}\mathrel{:}\Conid{Nat})\to \Conid{Even}\;\Varid{m}\to \mathsf{s}\;(\mathsf{s}\;\Varid{m})==\Varid{n}\to \mathit{Even}^{*}\;\Varid{n}{}}
+\nextline
+\fromto{B}{E}{{}~{}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
+
+Using the coding function \ensuremath{ε} we represent the general IID for a code \ensuremath{γ\mathrel{:}\mathit{OP}^g\;\Conid{I}} as
+\begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{B}{E}{{}~{}}
+\nextline
+\fromto{B}{E}{{}U^g_γ\mathrel{:}\Conid{I}\to \Set{}}
+\nextline
+\fromto{B}{E}{{}U^g_γ\;\Varid{i}\mathrel{=}U^r_{εγ}\;\Varid{i}{}}
+\nextline
+\fromto{B}{E}{{}~{}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
+In the case that the equality proofs added by \ensuremath{ε} are extensional there is an
+equivalence between the generalised IID and its representation as a restricted
+IID as shown by Dybjer and Setzer~\cite{dybjer:indexed-ir}. With an intensional
+equality proof, however, this is not the case. For instance, for \ensuremath{\Varid{p},\Varid{q}\mathrel{:}\mathsf{z}==\Varid{n}} it is not necessarily the case that \ensuremath{\mathsf{evenZ}^{*}\;\Varid{p}\mathrel{=}\mathsf{evenZ}^{*}\;\Varid{q}}. This means
+that our representation of generalised IID contains more elements than the ones
+corresponding to elements in the generalised IID. The crucial insight of this
+paper is that this does not matter. As long as the extra elements are
+well-behaved, i.e. as long as the elimination rule is valid there is no
+problem. Before tackling the elimination rule, however, we look at the
+introduction rule. We need an introduction rule
+\begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{B}{E}{{}\mathrm{intro}^g_γ\mathrel{:}(\Varid{a}\mathrel{:}\Conid{Args}\;γ\;U^g_γ)\to U^g_γ\;(\Varid{index}\;γ\;U^g_γ\;\Varid{a}){}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
+and we have the introduction rule for the restricted IID:
+\begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}l@{}}
+\column{13}{@{}c@{}}
+\column{13E}{@{}l@{}}
+\column{16}{@{}l@{}}
+\column{41}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{B}{13}{{}\mathrm{intro}^r_{εγ}\;\Varid{i}{}}
+\fromto{13}{13E}{{}\mathrel{:}{}}
+\fromto{16}{41}{{}\Conid{Args}\;(ε\;γ\;\Varid{i})\;U^r_{εγ}{}}
+\fromto{41}{E}{{}\to U^r_{εγ}\;\Varid{i}{}}
+\nextline
+\fromto{13}{13E}{{}\mathrel{=}{}}
+\fromto{16}{41}{{}\Conid{Args}\;(ε\;γ\;\Varid{i})\;U^g_γ{}}
+\fromto{41}{E}{{}\to U^g_γ\;\Varid{i}{}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
+So, what we need is a function \ensuremath{g{\to}rArgs} to convert a constructor argument for a
+generalised IID, \ensuremath{\Varid{a}\mathrel{:}\Conid{Args}\;γ\;U^g_γ}, to a constructor argument for its
+representation, \ensuremath{\Conid{Args}\;(ε\;γ\;(\Varid{index}\;γ\;U^g_γ\;\Varid{a}))\;U^g_γ}. This function
+simply adds a reflexivity proof to \ensuremath{\Varid{a}}:
+\begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}l@{}}
+\column{13}{@{}l@{}}
+\column{27}{@{}l@{}}
+\column{39}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{B}{E}{{}~{}}
+\nextline
+\fromto{B}{13}{{}g{\to}rArgs_I\mathrel{:}{}}
+\fromto{13}{E}{{}(γ\mathrel{:}\mathit{OP}^g\;\Conid{I})\;(\Conid{U}\mathrel{:}\Conid{I}\to \Set){}}
+\nextline
+\fromto{13}{E}{{}(\Varid{a}\mathrel{:}\Conid{Args}\;γ\;\Conid{U})\to \Conid{Args}\;(ε\;γ\;(\Varid{index}\;γ\;\Conid{U}\;\Varid{a}))\;\Conid{U}{}}
+\nextline
+\fromto{B}{27}{{}g{\to}rArgs\;(ι\;\Varid{e})\;{}}
+\fromto{27}{39}{{}\Conid{U}\;\Varid{a}{}}
+\fromto{39}{E}{{}\mathrel{=}\left\langle\mathsf{refl},\star\right\rangle{}}
+\nextline
+\fromto{B}{27}{{}g{\to}rArgs\;(σ\;\Conid{A}\;γ)\;{}}
+\fromto{27}{39}{{}\Conid{U}\left\langle\Varid{a},\Varid{b}\right\rangle{}}
+\fromto{39}{E}{{}\mathrel{=}\left\langle\Varid{a},g{\to}rArgs\;(γ\;\Varid{a})\;\Conid{U}\;\Varid{b}\right\rangle{}}
+\nextline
+\fromto{B}{27}{{}g{\to}rArgs\;(δ\;\Conid{H}\;\Varid{i}\;γ)\;{}}
+\fromto{27}{39}{{}\Conid{U}\left\langle\Varid{g},\Varid{b}\right\rangle{}}
+\fromto{39}{E}{{}\mathrel{=}\left\langle\Varid{g},g{\to}rArgs\;γ\;\Conid{U}\;\Varid{b}\right\rangle{}}
+\nextline
+\fromto{B}{E}{{}~{}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
+As usual we abstract over the type of inductive occurrences. Now the
+introduction rule is simply defined by
+\begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{B}{E}{{}~{}}
+\nextline
+\fromto{B}{E}{{}\mathrm{intro}^g_γ\;\Varid{a}\mathrel{=}\mathrm{intro}^r_{εγ}\;(\Varid{index}\;γ\;U^g_γ\;\Varid{a})\;(g{\to}rArgs\;γ\;U^g_γ\;\Varid{a}){}}
+\nextline
+\fromto{B}{E}{{}~{}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
+In our example:
+\begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{B}{E}{{}~{}}
+\nextline
+\fromto{B}{E}{{}\mathsf{evenZ}\mathrel{:}\mathit{Even}^{*}\;\mathsf{z}{}}
+\nextline
+\fromto{B}{E}{{}\mathsf{evenZ}\mathrel{=}\mathsf{evenZ}^{*}\;\mathsf{refl}{}}
+\nextline[\blanklineskip]
+\fromto{B}{E}{{}\mathsf{evenSS}\mathrel{:}(\Varid{n}\mathrel{:}\Conid{Nat})\to \mathit{Even}^{*}\;\Varid{n}\to \mathit{Even}^{*}\;(\mathsf{s}\;(\mathsf{s}\;\Varid{n})){}}
+\nextline
+\fromto{B}{E}{{}\mathsf{evenSS}\;\Varid{n}\;\Varid{e}\mathrel{=}\mathsf{evenSS}^{*}\;\Varid{n}\;\Varid{e}\;\mathsf{refl}{}}
+\nextline
+\fromto{B}{E}{{}~{}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
+
+As we have already observed, the representation of a generalised IID contains
+more elements than necessary, so it not obvious that we will be able to define
+the elimination rule we want. Fortunately it turns out that we can. First,
+recall the elimination rule that we want to define:
+\begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}l@{}}
+\column{12}{@{}l@{}}
+\column{15}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{B}{E}{{}~{}}
+\nextline
+\fromto{B}{12}{{}\mathit{elim}{-}U^g_γ\mathrel{:}{}}
+\fromto{12}{E}{{}(\Conid{C}\mathrel{:}(\Varid{i}\mathrel{:}\Conid{I})\to U^g_γ\;\Varid{i}\to \Set)\to {}}
+\nextline
+\fromto{12}{15}{{}({}}
+\fromto{15}{E}{{}(\Varid{a}\mathrel{:}\Conid{Args}\;\Conid{γ}\;U^g_γ)\to \Conid{IndHyp}\;\Conid{γ}\;U^g_γ\;\Conid{C}\;\Varid{a}\to {}}
+\nextline
+\fromto{15}{E}{{}\Conid{C}\;(\Varid{index}\;\Conid{γ}\;U^g_γ\;\Varid{a})\;(\mathrm{intro}^g_γ\;\Varid{a}))\to {}}
+\nextline
+\fromto{12}{E}{{}(\Varid{i}\mathrel{:}\Conid{I})\;(\Varid{u}\mathrel{:}U^g_γ\;\Varid{i})\to \Conid{C}\;\Varid{i}\;\Varid{u}{}}
+\nextline
+\fromto{B}{E}{{}~{}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
+The elimination for the restricted IID is
+\begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}l@{}}
+\column{13}{@{}l@{}}
+\column{16}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{B}{E}{{}~{}}
+\nextline
+\fromto{B}{13}{{}\mathit{elim}{-}U^r_{εγ}\mathrel{:}{}}
+\fromto{13}{E}{{}(\Conid{C}\mathrel{:}(\Varid{i}\mathrel{:}\Conid{I})\to U^g_γ\;\Varid{i}\to \Set)\to {}}
+\nextline
+\fromto{13}{16}{{}({}}
+\fromto{16}{E}{{}(\Varid{i}\mathrel{:}\Conid{I})\;(\Varid{a}\mathrel{:}\Conid{Args}\;(ε\;γ\;\Varid{i})\;U^g_γ)\to {}}
+\nextline
+\fromto{16}{E}{{}\Conid{IndHyp}\;(ε\;γ\;\Varid{i})\;U^g_γ\;\Conid{C}\;\Varid{a}\to \Conid{C}\;\Varid{i}\;(\mathrm{intro}^r_{εγ}\;\Varid{i}\;\Varid{a}))\to {}}
+\nextline
+\fromto{13}{E}{{}(\Varid{i}\mathrel{:}\Conid{I})\;(\Varid{u}\mathrel{:}U^g_γ\;\Varid{i})\to \Conid{C}\;\Varid{i}\;\Varid{u}{}}
+\nextline
+\fromto{B}{E}{{}~{}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
+Now we face the opposite problem from what we encountered when defining the
+introduction rule. In order to apply the induction step we have to convert a
+constructor argument to the restricted IID to a generalised argument, and
+likewise for the induction hypothesis. To convert a restricted constructor
+argument we simply remove the equality proof.
+
+\begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}l@{}}
+\column{12}{@{}l@{}}
+\column{27}{@{}l@{}}
+\column{41}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{B}{E}{{}~{}}
+\nextline
+\fromto{B}{E}{{}r{\to}gArgs_I\mathrel{:}(γ\mathrel{:}\mathit{OP}^g\;\Conid{I})\;(\Conid{U}\mathrel{:}\Conid{I}\to \Set){}}
+\nextline
+\fromto{B}{12}{{}\hsindent{12}{}}
+\fromto{12}{E}{{}(\Varid{i}\mathrel{:}\Conid{I})\;(\Varid{a}\mathrel{:}\Conid{Args}\;(ε\;γ\;\Varid{i})\;\Conid{U})\to \Conid{Args}\;γ\;\Conid{U}{}}
+\nextline
+\fromto{B}{27}{{}r{\to}gArgs\;(ι\;\Varid{i})\;{}}
+\fromto{27}{41}{{}\Conid{U}\;\Varid{j}\;\anonymous {}}
+\fromto{41}{E}{{}\mathrel{=}\star{}}
+\nextline
+\fromto{B}{27}{{}r{\to}gArgs\;(σ\;\Conid{A}\;γ)\;{}}
+\fromto{27}{41}{{}\Conid{U}\;\Varid{j}\left\langle\Varid{a},\Varid{b}\right\rangle{}}
+\fromto{41}{E}{{}\mathrel{=}\left\langle\Varid{a},r{\to}gArgs\;(γ\;\Varid{a})\;\Conid{U}\;\Varid{j}\;\Varid{b}\right\rangle{}}
+\nextline
+\fromto{B}{27}{{}r{\to}gArgs\;(δ\;\Conid{H}\;\Varid{i}\;γ)\;{}}
+\fromto{27}{41}{{}\Conid{U}\;\Varid{j}\left\langle\Varid{g},\Varid{b}\right\rangle{}}
+\fromto{41}{E}{{}\mathrel{=}\left\langle\Varid{g},r{\to}gArgs\;γ\;\Conid{U}\;\Varid{j}\;\Varid{b}\right\rangle{}}
+\nextline
+\fromto{B}{E}{{}~{}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
+
+Converting induction hypotheses requires a little more work. This work,
+however, is pure book-keeping, as we will see.  We have an induction hypothesis
+for the restricted IID. Namely, for \ensuremath{\Varid{a}\mathrel{:}\Conid{Args}\;(ε\;γ\;\Varid{i})\;U^g_γ} we have
+\begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}l@{}}
+\column{5}{@{}c@{}}
+\column{5E}{@{}l@{}}
+\column{8}{@{}l@{}}
+\column{44}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{B}{5}{{}\Varid{ih}{}}
+\fromto{5}{5E}{{}\mathrel{:}{}}
+\fromto{8}{E}{{}\Conid{IndHyp}\;(ε\;γ\;\Varid{i})\;U^g_γ\;\Conid{C}\;\Varid{a}{}}
+\nextline
+\fromto{5}{5E}{{}\mathrel{=}{}}
+\fromto{8}{44}{{}(\Varid{v}\mathrel{:}\Conid{IndArg}\;(ε\;γ\;\Varid{i})\;\Conid{U}\;\Varid{a}\to \Conid{C}\;{}}
+\fromto{44}{E}{{}(\Conid{IndIndex}\;(ε\;γ\;\Varid{i})\;\Conid{U}\;\Varid{a}\;\Varid{v})\;{}}
+\nextline
+\fromto{44}{E}{{}(\Conid{Ind}\;(ε\;γ\;\Varid{i})\;\Conid{U}\;\Varid{a}\;\Varid{v}){}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
+We need, for \ensuremath{\Varid{a'}\mathrel{=}r{\to}gArgs\;γ\;U^g_γ\;\Varid{i}\;\Varid{a}}
+\begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}l@{}}
+\column{5}{@{}c@{}}
+\column{5E}{@{}l@{}}
+\column{8}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{B}{5}{{}\Varid{ih}{}}
+\fromto{5}{5E}{{}\mathrel{:}{}}
+\fromto{8}{E}{{}\Conid{IndHyp}\;γ\;U^g_γ\;\Conid{C}\;\Varid{a'}{}}
+\nextline
+\fromto{5}{5E}{{}\mathrel{=}{}}
+\fromto{8}{E}{{}(\Varid{v}\mathrel{:}\Conid{IndArg}\;γ\;\Conid{U}\;\Varid{a'})\to \Conid{C}\;(\Conid{IndIndex}\;γ\;\Conid{U}\;\Varid{a'}\;\Varid{v})\;(\Conid{Ind}\;γ\;\Conid{U}\;\Varid{a'}\;\Varid{v}){}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
+By induction on \ensuremath{γ} we can prove that the following equalities holds
+definitionally for any \ensuremath{\Varid{a}\mathrel{:}\Conid{Args}\;(ε\;γ\;\Varid{i})\;\Conid{U}} and \ensuremath{\Varid{v}\mathrel{:}\Conid{IndArg}\;(ε\;γ\;\Varid{i})\;\Conid{U}\;\Varid{a}}:
+\begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}l@{}}
+\column{11}{@{}l@{}}
+\column{43}{@{}l@{}}
+\column{55}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{B}{E}{{}~{}}
+\nextline
+\fromto{B}{11}{{}\Conid{IndArg}\;{}}
+\fromto{11}{43}{{}γ\;\Conid{U}\;(r{\to}gArgs\;γ\;\Conid{U}\;\Varid{i}\;\Varid{a}){}}
+\fromto{43}{55}{{}\mathrel{=}\Conid{IndArg}\;{}}
+\fromto{55}{E}{{}(ε\;γ\;\Varid{i})\;\Conid{U}\;\Varid{a}{}}
+\nextline
+\fromto{B}{11}{{}\Conid{IndIndex}\;{}}
+\fromto{11}{43}{{}γ\;\Conid{U}\;(r{\to}gArgs\;γ\;\Conid{U}\;\Varid{i}\;\Varid{a})\;\Varid{v}{}}
+\fromto{43}{55}{{}\mathrel{=}\Conid{IndIndex}\;{}}
+\fromto{55}{E}{{}(ε\;γ\;\Varid{i})\;\Conid{U}\;\Varid{a}\;\Varid{v}{}}
+\nextline
+\fromto{B}{11}{{}\Conid{Ind}\;{}}
+\fromto{11}{43}{{}γ\;\Conid{U}\;(r{\to}gArgs\;γ\;\Conid{U}\;\Varid{i}\;\Varid{a})\;\Varid{v}{}}
+\fromto{43}{55}{{}\mathrel{=}\Conid{Ind}\;{}}
+\fromto{55}{E}{{}(ε\;γ\;\Varid{i})\;\Conid{U}\;\Varid{a}\;\Varid{v}{}}
+\nextline
+\fromto{B}{E}{{}~{}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
+That is, we can use the induction hypothesis we have as it is. Let us now try
+to define the elimination rule. We are given
+\begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}c@{}}
+\column{BE}{@{}l@{}}
+\column{7}{@{}c@{}}
+\column{7E}{@{}l@{}}
+\column{10}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{B}{BE}{{}~{}}
+\nextline
+\fromto{B}{BE}{{}\Conid{C}{}}
+\fromto{7}{7E}{{}\mathrel{:}{}}
+\fromto{10}{E}{{}(\Varid{i}\mathrel{:}\Conid{I})\to U^g_γ\;\Varid{i}\to \Set{}}
+\nextline
+\fromto{B}{BE}{{}\Varid{step}{}}
+\fromto{7}{7E}{{}\mathrel{:}{}}
+\fromto{10}{E}{{}(\Varid{a}\mathrel{:}\Conid{Args}\;γ\;U^g_γ)\to \Conid{IndHyp}\;γ\;U^g_γ\;\Conid{C}\;\Varid{a}\to {}}
+\nextline
+\fromto{10}{E}{{}\Conid{C}\;(\Varid{index}\;γ\;U^g_γ\;\Varid{a})\;(\mathrm{intro}^g_γ\;\Varid{a}){}}
+\nextline
+\fromto{B}{BE}{{}\Varid{i}{}}
+\fromto{7}{7E}{{}\mathrel{:}{}}
+\fromto{10}{E}{{}\Conid{I}{}}
+\nextline
+\fromto{B}{BE}{{}\Varid{u}{}}
+\fromto{7}{7E}{{}\mathrel{:}{}}
+\fromto{10}{E}{{}U^g_γ\;\Varid{i}{}}
+\nextline
+\fromto{B}{BE}{{}~{}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
+and we have to prove \ensuremath{\Conid{C}\;\Varid{i}\;\Varid{u}}. To apply the restricted elimination rule
+(\ensuremath{\mathit{elim}{-}U^r_{εγ}}) we need an induction step \ensuremath{\Varid{step'}} of type
+\begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{B}{E}{{}(\Varid{i}\mathrel{:}\Conid{I})\;(\Varid{a}\mathrel{:}\Conid{Args}\;(ε\;γ\;\Varid{i})\;U^g_γ)\to \Conid{IndHyp}\;(ε\;γ\;\Varid{i})\;U^g_γ\;\Conid{C}\;\Varid{a}\to \Conid{C}\;\Varid{i}\;(\Varid{intror}\;\Varid{i}\;\Varid{a}){}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
+As we have observed the induction hypothesis already has the right type, so we attempt to
+define
+\begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{B}{E}{{}\Varid{step'}\;\Varid{i}\;\Varid{a}\;\Varid{ih}\mathrel{=}\Varid{step}\;\Varid{i}\;(r{\to}gArgs\;γ\;U^g_γ\;\Varid{i}\;\Varid{a})\;\Varid{ih}{}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
+The type of \ensuremath{\Varid{step'}\;\Varid{i}\;\Varid{a}\;\Varid{ih}} is \ensuremath{\Conid{C}\;(\Varid{index}\;γ\;\Conid{U}\;\Varid{a'})\;(\Varid{intror}\;(g{\to}rArgs\;γ\;\Conid{U}\;\Varid{a'}))}, where \ensuremath{\Varid{a'}\mathrel{=}r{\to}gArgs\;γ\;U^g_γ\;\Varid{i}\;\Varid{a}}. Here, the extra elements in \ensuremath{U^g_γ}
+get in the way. Basically we would like the conversion of a constructor
+argument from the restricted representation to a generalised argument and back
+to be the (definitional) identity. It is easy to see that this is not the case.
+For instance, in our \ensuremath{\Conid{Even}} example the argument to the \ensuremath{\mathsf{evenZ}^{*}} constructor
+is proof \ensuremath{\Varid{p}\mathrel{:}\mathsf{z}==\mathsf{z}}. Converting to a generalised argument we
+throw away the proof, and converting back we add a proof by reflexivity. But
+\ensuremath{\Varid{p}} and \ensuremath{\mathsf{refl}} are not definitionally equal. Fortunately they are
+propositionally equal, so we can prove the following substitution rule:
+
+\begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}l@{}}
+\column{3}{@{}l@{}}
+\column{16}{@{}l@{}}
+\column{20}{@{}l@{}}
+\column{31}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{B}{E}{{}~{}}
+\nextline
+\fromto{B}{16}{{}rgArgs{-}subst\mathrel{:}{}}
+\fromto{16}{E}{{}(γ\mathrel{:}\mathit{OP}^g\;\Conid{I})\;(\Conid{U}\mathrel{:}\Conid{I}\to \Set){}}
+\nextline
+\fromto{16}{E}{{}(\Conid{C}\mathrel{:}(\Varid{i}\mathrel{:}\Conid{I})\to \Varid{rArgs}\;(ε\;γ)\;\Conid{U}\;\Varid{i}\to \Set){}}
+\nextline
+\fromto{16}{E}{{}(\Varid{i}\mathrel{:}\Conid{I})\;(\Varid{a}\mathrel{:}\Varid{rArgs}\;(ε\;γ)\;\Conid{U}\;\Varid{i})\to {}}
+\nextline
+\fromto{16}{20}{{}(\Conid{C}\;{}}
+\fromto{20}{E}{{}(\Varid{index}\;γ\;\Conid{U}\;(r{\to}gArgs\;γ\;\Conid{U}\;\Varid{i}\;\Varid{a}))\;{}}
+\nextline
+\fromto{20}{E}{{}(g{\to}rArgs\;γ\;\Conid{U}\;(r{\to}gArgs\;γ\;\Conid{U}\;\Varid{i}\;\Varid{a})){}}
+\nextline
+\fromto{16}{E}{{})\to \Conid{C}\;\Varid{i}\;\Varid{a}{}}
+\nextline[\blanklineskip]
+\fromto{B}{E}{{}rgArgs{-}subst\;(ι\;\Varid{i})\;\Conid{U}\;\Conid{C}\;\Varid{j}\left\langle\Varid{p},\star\right\rangle\Varid{m}\mathrel{=}{}}
+\nextline
+\fromto{B}{3}{{}\hsindent{3}{}}
+\fromto{3}{E}{{}\mathit{elim}_{==}\;\Varid{i}\;(\lambda \Varid{k}\;\Varid{q}\to \Conid{C}\;\Varid{k}\left\langle\Varid{q},\star\right\rangle)\;\Varid{m}\;\Varid{j}\;\Varid{p}{}}
+\nextline[\blanklineskip]
+\fromto{B}{31}{{}rgArgs{-}subst\;(δ\;\Conid{A}\;γ)\;{}}
+\fromto{31}{E}{{}\Conid{U}\;\Conid{C}\;\Varid{j}\left\langle\Varid{a},\Varid{b}\right\rangle\Varid{m}\mathrel{=}{}}
+\nextline
+\fromto{B}{3}{{}\hsindent{3}{}}
+\fromto{3}{E}{{}rgArgs{-}subst\;(γ\;\Varid{a})\;\Conid{U}\;(\lambda \Varid{i}\;\Varid{c}\to \Conid{C}\;\Varid{i}\left\langle\Varid{a},\Varid{c}\right\rangle)\;\Varid{j}\;\Varid{b}\;\Varid{m}{}}
+\nextline[\blanklineskip]
+\fromto{B}{E}{{}rgArgs{-}subst\;(δ\;\Conid{H}\;\Varid{i}\;γ)\;\Conid{U}\;\Conid{C}\;\Varid{j}\left\langle\Varid{g},\Varid{b}\right\rangle\Varid{m}\mathrel{=}{}}
+\nextline
+\fromto{B}{3}{{}\hsindent{3}{}}
+\fromto{3}{E}{{}rgArgs{-}subst\;γ\;\Conid{U}\;(\lambda \Varid{i}\;\Varid{c}\to \Conid{C}\;\Varid{i}\left\langle\Varid{g},\Varid{c}\right\rangle)\;\Varid{j}\;\Varid{b}\;\Varid{m}{}}
+\nextline
+\fromto{B}{E}{{}~{}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
+The interesting case is the \ensuremath{ι}-case where we have to prove \ensuremath{\Conid{C}\;\Varid{j}\left\langle\Varid{p},\star\right\rangle}
+from \ensuremath{\Conid{C}\;\Varid{i}\left\langle\mathsf{refl},\star\right\rangle} and \ensuremath{\Varid{p}\mathrel{:}\Varid{i}==\Varid{j}}. This is proven using the elimination
+rule, \ensuremath{\mathit{elim}_{==}}, for the identity type. Armed with this substitution rule we can
+define the elimination rule for a generalised IID:
+\begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}l@{}}
+\column{3}{@{}l@{}}
+\column{5}{@{}l@{}}
+\column{33}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{B}{E}{{}~{}}
+\nextline
+\fromto{B}{E}{{}\mathit{elim}{-}U^g_γ\;\Conid{C}\;\Varid{step}\;\Varid{i}\;\Varid{u}\mathrel{=}\mathit{elim}{-}U^r_{εγ}\;\Conid{C}\;\Varid{step'}\;\Varid{i}\;\Varid{u}{}}
+\nextline
+\fromto{B}{3}{{}\hsindent{3}{}}
+\fromto{3}{E}{{}\mathbf{where}{}}
+\nextline
+\fromto{3}{5}{{}\hsindent{2}{}}
+\fromto{5}{33}{{}\Varid{step'}\;\Varid{i}\;\Varid{a}\;\Varid{ih}\mathrel{=}rgArgs{-}subst\;{}}
+\fromto{33}{E}{{}γ\;U^g_γ\;(\lambda \Varid{i}\;\Varid{a}\to \Conid{C}\;\Varid{i}\;(\Varid{intror}\;\Varid{i}\;\Varid{a}))\;{}}
+\nextline
+\fromto{33}{E}{{}\Varid{i}\;\Varid{a}\;(\Varid{step}\;\Varid{i}\;(r{\to}gArgs\;γ\;U^g_γ\;\Varid{i})\;\Varid{ih}){}}
+\nextline
+\fromto{B}{E}{{}~{}}
 \ColumnHook
 \end{pboxed}
 \)\par\noindent\endgroup\resethooks
@@ -634,36 +1477,6 @@ Example:
 \nextline
 \fromto{5}{9}{{}\hsindent{4}{}}
 \fromto{9}{E}{{}(\Varid{n}\mathrel{:}\Conid{Nat})\;(\Varid{e}\mathrel{:}\Conid{Even}\;\Varid{n})\to \Conid{C}\;\Varid{n}\;\Varid{e}{}}
-\ColumnHook
-\end{pboxed}
-\)\par\noindent\endgroup\resethooks
-
-As a non-indexed type
-
-\begingroup\par\noindent\advance\leftskip\mathindent\(
-\begin{pboxed}\SaveRestoreHook
-\column{B}{@{}l@{}}
-\column{5}{@{}l@{}}
-\column{9}{@{}l@{}}
-\column{18}{@{}l@{}}
-\column{E}{@{}l@{}}
-\fromto{5}{E}{{}\mathbf{data}\;\mathit{Even}^{*}\;(\Varid{n}\mathrel{:}\Conid{Nat})\mathrel{:}\Set\;\mathbf{where}{}}
-\nextline
-\fromto{5}{9}{{}\hsindent{4}{}}
-\fromto{9}{18}{{}\mathsf{evenZ}^{*}{}}
-\fromto{18}{E}{{}\mathrel{:}\mathsf{z}==\Varid{n}\to \mathit{Even}^{*}\;\Varid{n}{}}
-\nextline
-\fromto{5}{9}{{}\hsindent{4}{}}
-\fromto{9}{18}{{}\mathsf{evenSS}^{*}{}}
-\fromto{18}{E}{{}\mathrel{:}(\Varid{m}\mathrel{:}\Conid{Nat})\to \Conid{Even}\;\Varid{m}\to \mathsf{s}\;(\mathsf{s}\;\Varid{m})==\Varid{n}\to \mathit{Even}^{*}\;\Varid{n}{}}
-\nextline[\blanklineskip]
-\fromto{5}{E}{{}\mathsf{evenZ}\mathrel{:}\mathit{Even}^{*}\;\mathsf{z}{}}
-\nextline
-\fromto{5}{E}{{}\mathsf{evenZ}\mathrel{=}\mathsf{evenZ}^{*}\;\mathsf{refl}{}}
-\nextline[\blanklineskip]
-\fromto{5}{E}{{}\mathsf{evenSS}\mathrel{:}(\Varid{n}\mathrel{:}\Conid{Nat})\to \Conid{Even}\;\Varid{n}\to \Conid{Even}\;(\mathsf{s}\;(\mathsf{s}\;\Varid{n})){}}
-\nextline
-\fromto{5}{E}{{}\mathsf{evenSS}\;\Varid{n}\;\Varid{e}\mathrel{=}\mathsf{evenSS}^{*}\;\Varid{n}\;\Varid{e}\;\mathsf{refl}{}}
 \ColumnHook
 \end{pboxed}
 \)\par\noindent\endgroup\resethooks
@@ -856,3 +1669,5 @@ This is good stuff.
 \bibliography{../../../../bib/pmgrefs}
 
 \end{document}
+
+% vim: et
