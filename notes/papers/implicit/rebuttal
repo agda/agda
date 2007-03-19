@@ -1,0 +1,61 @@
+
+Review 2
+
+> Cite a standard type checking algorithm.
+
+For instance,
+A. Abel, T. Coquand, "Untyped Algorithmic Equality for Martin-Löf’s Logical
+Framework (extended version)".
+
+> Theorem 1
+
+Indeed \Gamma and \Sigma are assumed to be correct as a premise to the
+statement. The precise formulation (for type checking) is:
+
+  <\Sigma> \Gamma |- e ^ A ~> M ==> <\Sigma'> /\ \Gamma |-_\Sigma A type
+  \implies \Sigma' extends \Sigma /\ \Gamma |-_{\Sigma'} M : A
+
+Here \Gamma |- \Sigma A type implies that \Gamma and \Sigma are well-formed.
+The statements for the other judgement forms are similar. To save space we cut
+all of the precise formulations, which made the statement unneccesarily
+unclear.
+
+> Theorem 2
+
+The premise \Gamma |-_\Sigma A type is missing. This is a typo.
+
+> On p.7 the rule in paragraph "Conversion rules"...
+
+The rule is correct. p takes arguments of types \Gamma and A_1 and returns a
+term of type A_2.
+
+> On p.8, the first rule has several typos...
+
+The rule is correct. The relationship between A and B is
+
+  B[\bar M/\Delta] = A = B[\bar N/\Delta]
+
+which is guaranteed by the fact that h \bar{M} and h \bar{N} have type A (this
+invariant is stated on p.6 in the second paragraph).  Consequently we don't need
+to check it. The choice of names for the type of h in the text is unfortunate
+and should match the type in the rule to avoid confusion.
+
+> Where do you use pattern unification?
+
+We only instantiate meta-variables if they are applied to distinct variables
+(last rule on p.8). This is the same restriction as in pattern unification.
+
+> Are you implying that a correct unification algorithm (returning a
+> substitution that does unify) could be too strong?
+
+We are not sure what you mean here. The main point of our algorithm is that
+substitutions are well-typed. Not all unification algorithms produce well-typed
+substitutions.
+
+> How are the types of terms unified before the terms are unified?
+
+This is ensured by the invariant (second paragraph on p.6) that all constraints
+are well-typed, i.e when we try to solve a constraint \Gamma |- M = N : A we
+know that \Gamma |- M : A and \Gamma |- N : A, and so the types unify
+trivially. The invariant is maintained by introducing guarded constants.
+
