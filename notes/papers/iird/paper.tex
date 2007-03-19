@@ -101,6 +101,7 @@
 
 
 
+
 \usepackage{ucs}
 \usepackage[utf8x]{inputenc}
 \usepackage{autofe}
@@ -890,7 +891,7 @@ following type and computation rule:
 \fromto{B}{E}{{}\mathit{elim}{-}U^r_γ\;\Conid{C}\;\Varid{step}\;\Varid{i}\;(\mathrm{intro}^r_γ\;\Varid{a})\mathrel{=}{}}
 \nextline
 \fromto{B}{3}{{}\hsindent{3}{}}
-\fromto{3}{E}{{}\Varid{step}\;\Varid{i}\;\Varid{a}\;(\Varid{indHyp}\;(\Conid{γ}\;\Varid{i})\;U^r_γ\;\Conid{C}\;(\mathit{elim}{-}U^r_γ\;\Conid{C}\;\Varid{m})\;\Varid{a}){}}
+\fromto{3}{E}{{}\Varid{step}\;\Varid{i}\;\Varid{a}\;(\Varid{indHyp}\;(\Conid{γ}\;\Varid{i})\;U^r_γ\;\Conid{C}\;(\mathit{elim}{-}U^r_γ\;\Conid{C}\;\Varid{step})\;\Varid{a}){}}
 \nextline
 \fromto{B}{E}{{}~{}}
 \ColumnHook
@@ -964,7 +965,9 @@ Intensional identity relation (Paulin version).
 
 The elimination rule for this type is Paulin elimination.
 
-\section{Encoding} \label{sec-Encoding}
+\section{Encoding generalised IID as restricted IID} \label{sec-Encoding}
+
+\subsection{Formation rule}
 
 To show that generalised IID are expressible in the system of restricted IID
 extended with the intensional identity type, we first show how to transform the
@@ -1066,7 +1069,11 @@ corresponding to elements in the generalised IID. The crucial insight of this
 paper is that this does not matter. As long as the extra elements are
 well-behaved, i.e. as long as the elimination rule is valid there is no
 problem. Before tackling the elimination rule, however, we look at the
-introduction rule. We need an introduction rule
+introduction rule.
+
+\subsection{Introduction rule}
+
+We need an introduction rule
 \begingroup\par\noindent\advance\leftskip\mathindent\(
 \begin{pboxed}\SaveRestoreHook
 \column{B}{@{}l@{}}
@@ -1162,6 +1169,8 @@ In our example:
 \ColumnHook
 \end{pboxed}
 \)\par\noindent\endgroup\resethooks
+
+\subsection{Elimination rule}
 
 As we have already observed, the representation of a generalised IID contains
 more elements than necessary, so it not obvious that we will be able to define
@@ -1319,6 +1328,7 @@ definitionally for any \ensuremath{\Varid{a}\mathrel{:}\Conid{Args}\;(ε\;γ\;\V
 \ColumnHook
 \end{pboxed}
 \)\par\noindent\endgroup\resethooks
+\TODO{make into a lemma}
 That is, we can use the induction hypothesis we have as it is. Let us now try
 to define the elimination rule. We are given
 \begingroup\par\noindent\advance\leftskip\mathindent\(
@@ -1369,7 +1379,7 @@ define
 \begin{pboxed}\SaveRestoreHook
 \column{B}{@{}l@{}}
 \column{E}{@{}l@{}}
-\fromto{B}{E}{{}\Varid{step'}\;\Varid{i}\;\Varid{a}\;\Varid{ih}\mathrel{=}\Varid{step}\;\Varid{i}\;(r{\to}gArgs\;γ\;U^g_γ\;\Varid{i}\;\Varid{a})\;\Varid{ih}{}}
+\fromto{B}{E}{{}\Varid{step'}\;\Varid{i}\;\Varid{a}\;\Varid{ih}\mathrel{=}\Varid{step}\;(r{\to}gArgs\;γ\;U^g_γ\;\Varid{i}\;\Varid{a})\;\Varid{ih}{}}
 \ColumnHook
 \end{pboxed}
 \)\par\noindent\endgroup\resethooks
@@ -1449,217 +1459,173 @@ define the elimination rule for a generalised IID:
 \fromto{5}{33}{{}\Varid{step'}\;\Varid{i}\;\Varid{a}\;\Varid{ih}\mathrel{=}rgArgs{-}subst\;{}}
 \fromto{33}{E}{{}γ\;U^g_γ\;(\lambda \Varid{i}\;\Varid{a}\to \Conid{C}\;\Varid{i}\;(\Varid{intror}\;\Varid{i}\;\Varid{a}))\;{}}
 \nextline
-\fromto{33}{E}{{}\Varid{i}\;\Varid{a}\;(\Varid{step}\;\Varid{i}\;(r{\to}gArgs\;γ\;U^g_γ\;\Varid{i})\;\Varid{ih}){}}
+\fromto{33}{E}{{}\Varid{i}\;\Varid{a}\;(\Varid{step}\;(r{\to}gArgs\;γ\;U^g_γ\;\Varid{i}\;\Varid{a})\;\Varid{ih}){}}
 \nextline
 \fromto{B}{E}{{}~{}}
 \ColumnHook
 \end{pboxed}
 \)\par\noindent\endgroup\resethooks
 
-    The corresponding elimination rule is:
+\subsection{Equality rule}
 
+So far we have shown that we can represent generalised IID as a restricted IID
+and that the elimination rule is still valid. The only thing remaining is to
+show that the equality rule is also valid. That is, that we get the same reduction
+behaviour for our representation as we would if we extended our system with
+generalised IID.
+
+Let us recall the equality rule we have to prove:
 \begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}l@{}}
+\column{3}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{B}{E}{{}~{}}
+\nextline
+\fromto{B}{E}{{}\mathit{elim}{-}U^g_γ\;\Conid{C}\;\Varid{step}\;(\Varid{index}\;\Conid{γ}\;U^g_γ\;\Varid{a})\;(\mathrm{intro}^g_γ\;\Varid{a})\mathrel{=}{}}
+\nextline
+\fromto{B}{3}{{}\hsindent{3}{}}
+\fromto{3}{E}{{}\Varid{step}\;\Varid{a}\;(\Varid{indHyp}\;\Conid{γ}\;U^g_γ\;\Conid{C}\;(\mathit{elim}{-}U^g_γ\;\Conid{C}\;\Varid{step})\;\Varid{a}){}}
+\nextline
+\fromto{B}{E}{{}~{}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
+The key insight here is that the equality rule does not talk about arbitrary
+elements of \ensuremath{U^g_γ}, but only those that have been constructed using the
+introduction rule. This means that we do not have to satisfy any definitional
+equalities for elements where the equality proof is not \ensuremath{\mathsf{refl}}. So, the main
+step in the proof is to prove that \ensuremath{rgArgs{-}subst} is the definitional identity
+when the equality proof is \ensuremath{\mathsf{refl}}, i.e. when the argument is build using the
+\ensuremath{g{\to}rArgs} function.
+
+
+\begin{lemma} \label{lem-rgArgsubst}
+  For all \ensuremath{γ}, \ensuremath{\Conid{U}}, \ensuremath{\Conid{C}}, \ensuremath{\Varid{a}\mathrel{:}\Conid{Args}\;γ\;\Conid{U}}, and
+  \begingroup\par\noindent\advance\leftskip\mathindent\(
 \begin{pboxed}\SaveRestoreHook
 \column{B}{@{}l@{}}
 \column{5}{@{}l@{}}
-\column{9}{@{}l@{}}
 \column{E}{@{}l@{}}
-\fromto{5}{E}{{}elim_{Even}\mathrel{:}{}}
-\nextline
-\fromto{5}{9}{{}\hsindent{4}{}}
-\fromto{9}{E}{{}(\Conid{C}\mathrel{:}(\Varid{n}\mathrel{:}\Conid{Nat})\to \Conid{Even}\;\Varid{n}\to \Set)\to {}}
-\nextline
-\fromto{5}{9}{{}\hsindent{4}{}}
-\fromto{9}{E}{{}\Conid{C}\;\mathsf{z}\;\mathsf{evenZ}\to {}}
-\nextline
-\fromto{5}{9}{{}\hsindent{4}{}}
-\fromto{9}{E}{{}((\Varid{n}\mathrel{:}\Conid{Nat})\;(\Varid{e}\mathrel{:}\Conid{Even}\;\Varid{n})\to \Conid{C}\;\Varid{n}\;\Varid{e}\to \Conid{C}\;(\mathsf{s}\;(\mathsf{s}\;\Varid{n}))\;(\mathsf{evenSS}\;\Varid{e}))\to {}}
-\nextline
-\fromto{5}{9}{{}\hsindent{4}{}}
-\fromto{9}{E}{{}(\Varid{n}\mathrel{:}\Conid{Nat})\;(\Varid{e}\mathrel{:}\Conid{Even}\;\Varid{n})\to \Conid{C}\;\Varid{n}\;\Varid{e}{}}
+\fromto{5}{E}{{}\Varid{h}\mathrel{:}\Conid{C}\;(\Varid{index}\;γ\;\Conid{U}\;a_{rg})\;(g{\to}rArgs\;γ\;\Conid{U}\;a_{rg}){}}
 \ColumnHook
 \end{pboxed}
 \)\par\noindent\endgroup\resethooks
-
-    To define the elimination rule we eliminate the proof that the index is the
-    expected one. 
-
-    The elimination rule in deduction style: We have
-\begingroup\par\noindent\advance\leftskip\mathindent\(
+  where
+  \begingroup\par\noindent\advance\leftskip\mathindent\(
 \begin{pboxed}\SaveRestoreHook
 \column{B}{@{}l@{}}
-\column{3}{@{}l@{}}
-\column{8}{@{}l@{}}
+\column{5}{@{}l@{}}
+\column{11}{@{}l@{}}
 \column{E}{@{}l@{}}
-\fromto{3}{8}{{}\Varid{hz}{}}
-\fromto{8}{E}{{}\mathrel{:}\Conid{C}\;\Varid{z}\;\mathsf{evenZ}{}}
+\fromto{5}{11}{{}a_r{}}
+\fromto{11}{E}{{}\mathrel{=}g{\to}rArgs\;γ\;\Conid{U}\;\Varid{a}{}}
 \nextline
-\fromto{3}{8}{{}\Varid{hss}{}}
-\fromto{8}{E}{{}\mathrel{:}(\Varid{n}\mathrel{:}\Conid{Nat})\;(\Varid{e}\mathrel{:}\Conid{Even}\;\Varid{n})\to \Conid{C}\;\Varid{n}\;\Varid{e}\to \Conid{C}\;(\Varid{s}\;(\Varid{s}\;\Varid{n}))\;(\mathsf{evenSS}\;\Varid{n}\;\Varid{e}){}}
+\fromto{5}{11}{{}\Varid{i}{}}
+\fromto{11}{E}{{}\mathrel{=}\Varid{index}\;γ\;\Conid{U}\;\Varid{a}{}}
 \nextline
-\fromto{3}{8}{{}\Varid{n}{}}
-\fromto{8}{E}{{}\mathrel{:}\Conid{Nat}{}}
-\nextline
-\fromto{3}{8}{{}\Varid{e}{}}
-\fromto{8}{E}{{}\mathrel{:}\Conid{Even}\;\Varid{n}{}}
+\fromto{5}{11}{{}a_{rg}{}}
+\fromto{11}{E}{{}\mathrel{=}r{\to}gArgs\;γ\;\Conid{U}\;\Varid{i}\;a_r{}}
 \ColumnHook
 \end{pboxed}
 \)\par\noindent\endgroup\resethooks
-    and the goal is
-\begingroup\par\noindent\advance\leftskip\mathindent\(
+  it holds definitionally that
+  \begingroup\par\noindent\advance\leftskip\mathindent\(
 \begin{pboxed}\SaveRestoreHook
 \column{B}{@{}l@{}}
-\column{3}{@{}l@{}}
+\column{5}{@{}l@{}}
 \column{E}{@{}l@{}}
-\fromto{3}{E}{{}\mathbin{?}\mathrel{:}\Conid{C}\;\Varid{n}\;\Varid{e}{}}
+\fromto{5}{E}{{}rgArgs{-}subst\;γ\;\Conid{U}\;\Conid{C}\;\Varid{i}\;a_r\;\Varid{h}\mathrel{=}\Varid{h}{}}
 \ColumnHook
 \end{pboxed}
 \)\par\noindent\endgroup\resethooks
-    By eliminating \ensuremath{\Varid{e}} (using the non-indexed elimination) we get two cases
+\end{lemma}
 
+
+\begin{proof}
+  By induction on \ensuremath{γ}. In the \ensuremath{ι}-case we have to prove that
+  \begingroup\par\noindent\advance\leftskip\mathindent\(
+\begin{pboxed}\SaveRestoreHook
+\column{B}{@{}l@{}}
+\column{5}{@{}l@{}}
+\column{E}{@{}l@{}}
+\fromto{5}{E}{{}\mathit{elim}_{==}\;\Varid{i}\;\Conid{C'}\;\Varid{h}\;\Varid{i}\;\mathsf{refl}\mathrel{=}\Varid{h}{}}
+\ColumnHook
+\end{pboxed}
+\)\par\noindent\endgroup\resethooks
+  which is exactly the equality rule for the identity type.
+\end{proof}
+
+\begin{lemma} \label{lem-arg-is-a}
+  \ensuremath{a_{rg}\mathrel{=}\Varid{a}}
+\end{lemma}
+
+
+Now take
 \begingroup\par\noindent\advance\leftskip\mathindent\(
 \begin{pboxed}\SaveRestoreHook
 \column{B}{@{}l@{}}
 \column{3}{@{}l@{}}
 \column{7}{@{}l@{}}
 \column{E}{@{}l@{}}
-\fromto{3}{7}{{}\Varid{p}_{1}{}}
-\fromto{7}{E}{{}\mathrel{:}\mathsf{z}==\Varid{n}{}}
+\fromto{3}{7}{{}\Varid{a}{}}
+\fromto{7}{E}{{}\mathrel{:}\Conid{Args}\;γ\;U^g_γ{}}
 \nextline
-\fromto{3}{7}{{}\mathbin{?}{}}
-\fromto{7}{E}{{}\mathrel{:}\Conid{C}\;\Varid{n}\;(\mathsf{evenZ}^{*}\;\Varid{p}_{1}){}}
+\fromto{3}{7}{{}\Varid{i}{}}
+\fromto{7}{E}{{}\mathrel{=}\Varid{index}\;γ\;U^g_γ\;\Varid{a}{}}
+\nextline
+\fromto{3}{7}{{}a_r{}}
+\fromto{7}{E}{{}\mathrel{=}g{\to}rArgs\;γ\;U^g_γ\;\Varid{a}{}}
+\nextline
+\fromto{3}{E}{{}a_{rg}\mathrel{=}r{\to}gArgs\;γ\;U^g_γ\;\Varid{i}\;a_r{}}
 \ColumnHook
 \end{pboxed}
 \)\par\noindent\endgroup\resethooks
-    Now we can eliminate \ensuremath{\Varid{p}_{1}}, effectively substituting \ensuremath{\Varid{z}} for \ensuremath{\Varid{n}} and \ensuremath{\mathsf{refl}}
-    for \ensuremath{\Varid{p}_{1}} in the goal to obtain the new goal
-\begingroup\par\noindent\advance\leftskip\mathindent\(
-\begin{pboxed}\SaveRestoreHook
-\column{B}{@{}l@{}}
-\column{3}{@{}l@{}}
-\column{E}{@{}l@{}}
-\fromto{3}{E}{{}\mathbin{?}\mathrel{:}\Conid{C}\;\mathsf{z}\;(\mathsf{evenZ}^{*}\;\mathsf{refl}){}}
-\ColumnHook
-\end{pboxed}
-\)\par\noindent\endgroup\resethooks
-    This is exactly the type of \ensuremath{\Varid{hz}}.
-
-    In the second case we get
-\begingroup\par\noindent\advance\leftskip\mathindent\(
-\begin{pboxed}\SaveRestoreHook
-\column{B}{@{}l@{}}
-\column{3}{@{}l@{}}
-\column{7}{@{}l@{}}
-\column{E}{@{}l@{}}
-\fromto{3}{7}{{}\Varid{ih}{}}
-\fromto{7}{E}{{}\mathrel{:}\Conid{C}\;\Varid{m}\;\Varid{e'}{}}
-\nextline
-\fromto{3}{7}{{}\Varid{p}_{2}{}}
-\fromto{7}{E}{{}\mathrel{:}\mathsf{s}\;(\mathsf{s}\;\Varid{m})==\Varid{n}{}}
-\nextline
-\fromto{3}{7}{{}\mathbin{?}{}}
-\fromto{7}{E}{{}\mathrel{:}\Conid{C}\;\Varid{n}\;(\mathsf{evenSS}^{*}\;\Varid{m}\;\Varid{e'}\;\Varid{p}_{2}){}}
-\ColumnHook
-\end{pboxed}
-\)\par\noindent\endgroup\resethooks
-    Eliminating \ensuremath{\Varid{p}_{2}} yields
-\begingroup\par\noindent\advance\leftskip\mathindent\(
-\begin{pboxed}\SaveRestoreHook
-\column{B}{@{}l@{}}
-\column{3}{@{}l@{}}
-\column{E}{@{}l@{}}
-\fromto{3}{E}{{}\mathbin{?}\mathrel{:}\Conid{C}\;(\mathsf{s}\;(\mathsf{s}\;\Varid{m}))\;(\mathsf{evenSS}^{*}\;\Varid{m}\;\Varid{e'}\;\mathsf{refl}){}}
-\ColumnHook
-\end{pboxed}
-\)\par\noindent\endgroup\resethooks
-    which is the type of
-\begingroup\par\noindent\advance\leftskip\mathindent\(
-\begin{pboxed}\SaveRestoreHook
-\column{B}{@{}l@{}}
-\column{3}{@{}l@{}}
-\column{E}{@{}l@{}}
-\fromto{3}{E}{{}\Varid{hss}\;\Varid{m}\;\Varid{e'}\;\Varid{ih}{}}
-\ColumnHook
-\end{pboxed}
-\)\par\noindent\endgroup\resethooks
-Here is the elimination spelled out. To improve readability I present the
-elimination of the interpretation using pattern matching notation and explicit
-recursion.
-
-\begingroup\par\noindent\advance\leftskip\mathindent\(
-\begin{pboxed}\SaveRestoreHook
-\column{B}{@{}l@{}}
-\column{5}{@{}l@{}}
-\column{9}{@{}l@{}}
-\column{17}{@{}l@{}}
-\column{38}{@{}c@{}}
-\column{38E}{@{}l@{}}
-\column{43}{@{}c@{}}
-\column{43E}{@{}l@{}}
-\column{E}{@{}l@{}}
-\fromto{5}{38}{{}elim_{Even}\;\Conid{C}\;\Varid{hz}\;\Varid{hss}\;\Varid{n}\;(\mathsf{evenZ}^{*}\;\Varid{p}){}}
-\fromto{38}{38E}{{}\mathrel{=}{}}
-\nextline
-\fromto{5}{9}{{}\hsindent{4}{}}
-\fromto{9}{E}{{}\Varid{elim\char95 P}\;\mathsf{z}\;(\lambda \Varid{z}\;\Varid{q}.~\Conid{C}\;\mathsf{z}\;\mathsf{evenZ}^{*})\;\Varid{hz}\;\Varid{n}\;\Varid{p}{}}
-\nextline
-\fromto{5}{43}{{}elim_{Even}\;\Conid{C}\;\Varid{hz}\;\Varid{hss}\;\Varid{n}\;(\mathsf{evenSS}^{*}\;\Varid{m}\;\Varid{e}\;\Varid{p}){}}
-\fromto{43}{43E}{{}\mathrel{=}{}}
-\nextline
-\fromto{5}{9}{{}\hsindent{4}{}}
-\fromto{9}{17}{{}\Varid{elim\char95 P}\;{}}
-\fromto{17}{E}{{}(\mathsf{s}\;(\mathsf{s}\;\Varid{m}))\;{}}
-\nextline
-\fromto{17}{E}{{}(\lambda \Varid{z}\;\Varid{q}.~\Conid{C}\;(\mathsf{s}\;(\mathsf{s}\;\Varid{m}))\;(\mathsf{evenSS}^{*}\;\Varid{e}))\;{}}
-\nextline
-\fromto{17}{E}{{}(\Varid{hss}\;\Varid{m}\;\Varid{e}\;(elim_{Even}\;\Conid{C}\;\Varid{hz}\;\Varid{hss}\;\Varid{m}\;\Varid{e}))\;{}}
-\nextline
-\fromto{17}{E}{{}\Varid{n}\;\Varid{p}{}}
-\ColumnHook
-\end{pboxed}
-\)\par\noindent\endgroup\resethooks
-
-This gives us the correct type for the elimination rule, but we also need the
-correct computation rules. Namely
-
+we have
 \begingroup\par\noindent\advance\leftskip\mathindent\(
 \begin{pboxed}\SaveRestoreHook
 \column{B}{@{}l@{}}
 \column{4}{@{}l@{}}
-\column{29}{@{}l@{}}
-\column{35}{@{}l@{}}
-\column{49}{@{}l@{}}
+\column{7}{@{}l@{}}
 \column{E}{@{}l@{}}
-\fromto{B}{29}{{}elim_{Even}\;\Conid{C}\;\Varid{hz}\;\Varid{hss}\;\mathsf{z}\;{}}
-\fromto{29}{49}{{}\mathsf{evenZ}{}}
-\fromto{49}{E}{{}\mathrel{=}\Varid{hz}{}}
+\fromto{B}{E}{{}~{}}
 \nextline
-\fromto{B}{35}{{}elim_{Even}\;\Conid{C}\;\Varid{hz}\;\Varid{hss}\;(\mathsf{s}\;(\mathsf{s}\;\Varid{n}))\;{}}
-\fromto{35}{49}{{}(\mathsf{evenSS}\;\Varid{n}\;\Varid{e}){}}
-\fromto{49}{E}{{}\mathrel{=}{}}
+\fromto{B}{E}{{}\mathit{elim}{-}U^g_γ\;\Conid{C}\;\Varid{step}\;\Varid{i}\;(\mathrm{intro}^g_γ\;\Varid{a}){}}
 \nextline
-\fromto{B}{4}{{}\hsindent{4}{}}
-\fromto{4}{E}{{}\Varid{hss}\;\Varid{n}\;\Varid{e}\;(elim_{Even}\;\Conid{C}\;\Varid{hz}\;\Varid{hss}\;\Varid{n}\;\Varid{e}){}}
+\fromto{B}{4}{{}\mathrel{=}{}}
+\fromto{4}{E}{{}\{\mskip1.5mu \Varid{definition}\;\mathit{of}\;\mathit{elim}{-}U^g_γ\;\Varid{and}\;\mathrm{intro}^r_γ\mskip1.5mu\}{}}
+\nextline
+\fromto{4}{E}{{}\mathit{elim}{-}U^r_{εγ}\;\Conid{C}\;\Varid{step'}\;\Varid{i}\;(\mathrm{intro}^r_{εγ}\;\Varid{i}\;a_r){}}
+\nextline
+\fromto{B}{4}{{}\mathrel{=}{}}
+\fromto{4}{E}{{}\{\mskip1.5mu \Varid{equality}\;\Varid{rule}\;\Varid{for}\;U^r_{εγ}\mskip1.5mu\}{}}
+\nextline
+\fromto{4}{E}{{}\Varid{step'}\;\Varid{i}\;a_r\;(\Varid{indHyp}\;(ε\;γ\;\Varid{i})\;U^g_γ\;\Conid{C}\;(\mathit{elim}{-}U^g_γ\;\Conid{C}\;\Varid{step})\;a_r){}}
+\nextline
+\fromto{B}{4}{{}\mathrel{=}{}}
+\fromto{4}{E}{{}\{\mskip1.5mu \Varid{definition}\;\mathit{of}\;\Varid{step'}\mskip1.5mu\}{}}
+\nextline
+\fromto{4}{E}{{}rgArgs{-}subst\;γ\;U^g_γ\;(\lambda \Varid{i}\;\Varid{a}.~\Conid{C}\;\Varid{i}\;(\Varid{intror}\;\Varid{i}\;a_r))\;\Varid{i}\;a_r\;{}}
+\nextline
+\fromto{4}{7}{{}\hsindent{3}{}}
+\fromto{7}{E}{{}(\Varid{step}\;a_{rg}\;(\Varid{indHyp}\;(ε\;γ\;\Varid{i})\;U^g_γ\;\Conid{C}\;(\mathit{elim}{-}U^g_γ\;\Conid{C}\;\Varid{step})\;a_r)){}}
+\nextline
+\fromto{B}{4}{{}\mathrel{=}{}}
+\fromto{4}{E}{{}\{\mskip1.5mu \Conid{Lemma}\;\ref{lem-rgArgsubst}\mskip1.5mu\}{}}
+\nextline
+\fromto{4}{E}{{}\Varid{step}\;a_{rg}\;(\Varid{indHyp}\;(ε\;γ\;\Varid{i})\;U^g_γ\;\Conid{C}\;(\mathit{elim}{-}U^g_γ\;\Conid{C}\;\Varid{step})\;a_r){}}
+\nextline
+\fromto{B}{4}{{}\mathrel{=}{}}
+\fromto{4}{E}{{}\{\mskip1.5mu \Conid{Lemma}\;\ref{lem-arg-is-a}\mskip1.5mu\}{}}
+\nextline
+\fromto{4}{E}{{}\Varid{step}\;\Varid{a}\;(\Varid{indHyp}\;γ\;U^g_γ\;\Conid{C}\;(\mathit{elim}{-}U^g_γ\;\Conid{C}\;\Varid{step})\;\Varid{a}){}}
+\nextline
+\fromto{B}{E}{{}~{}}
 \ColumnHook
 \end{pboxed}
 \)\par\noindent\endgroup\resethooks
 
-The crucial point here is that the equations talk about \ensuremath{\mathsf{evenZ}} and \ensuremath{\mathsf{evenSS}\;\Varid{n}\;\Varid{e}} and not arbitrary elements of \ensuremath{\mathit{Even}^{*}\;\Varid{n}}. In these particular cases the proof
-object is \ensuremath{\mathsf{refl}} so we can use the computation rule of equality elimination to
-show the desired computation rules.
-
-\subsection{Formal proof}
-
-The proof is not fully formal. The main issue is that Agda is used both for the
-meta level and the object level. This means that it is possible to mix up
-object level reasoning and meta level reasoning in an unsound way. I take care
-not to do this.
-
-The proof is by (simple) induction over the code for the indexed type.
-
-\section{Related Work}
-
-Peter and Anton obviously~\cite{dybjer:indexed-ir}.
+\TODO{indHyp equality}
 
 \section{Conclusions}
 

@@ -20,6 +20,8 @@
 
 %format === = "\equiv"
 
+%format of_  = "\mathit{of}"
+
 %format iota    = "ι"
 %format sigma   = "σ"
 %format delta   = "δ"
@@ -517,7 +519,7 @@ elimUrg :
      IndHyp (γ i) Urg C a -> C i (introrg i a)) ->
   (i : I)(u : Urg i) -> C i u
 elimUrg C step i (introrg a) =
-  step i a (indHyp (γ i) Urg C (elimUrg C m) a)
+  step i a (indHyp (γ i) Urg C (elimUrg C step) a)
 ~
 \end{code}
 That is, for any predicate |C| over |Urg|, if given that |C| holds for all
@@ -558,7 +560,9 @@ data (==) {A : Set}(x : A) : A -> Set where
 
 The elimination rule for this type is Paulin elimination.
 
-\section{Encoding} \label{sec-Encoding}
+\section{Encoding generalised IID as restricted IID} \label{sec-Encoding}
+
+\subsection{Formation rule}
 
 To show that generalised IID are expressible in the system of restricted IID
 extended with the intensional identity type, we first show how to transform the
@@ -610,7 +614,11 @@ corresponding to elements in the generalised IID. The crucial insight of this
 paper is that this does not matter. As long as the extra elements are
 well-behaved, i.e. as long as the elimination rule is valid there is no
 problem. Before tackling the elimination rule, however, we look at the
-introduction rule. We need an introduction rule
+introduction rule.
+
+\subsection{Introduction rule}
+
+We need an introduction rule
 \begin{code}
 introgg : (a : Args gamma Ugg) -> Ugg (index gamma Ugg a)
 \end{code}
@@ -649,6 +657,8 @@ evenSS : (n : Nat) -> Even' n -> Even' (suc (suc n))
 evenSS n e = evenSS' n e refl
 ~
 \end{code}
+
+\subsection{Elimination rule}
 
 As we have already observed, the representation of a generalised IID contains
 more elements than necessary, so it not obvious that we will be able to define
@@ -710,6 +720,7 @@ IndIndex  gamma U (rgArgs gamma U i a) v  = IndIndex  (eps gamma i) U a v
 Ind       gamma U (rgArgs gamma U i a) v  = Ind       (eps gamma i) U a v
 ~
 \end{code}
+\TODO{make into a lemma}
 That is, we can use the induction hypothesis we have as it is. Let us now try
 to define the elimination rule. We are given
 \begin{code}
@@ -729,7 +740,7 @@ and we have to prove |C i u|. To apply the restricted elimination rule
 As we have observed the induction hypothesis already has the right type, so we attempt to
 define
 \begin{code}
-step' i a ih = step i (rgArgs gamma Ugg i a) ih
+step' i a ih = step (rgArgs gamma Ugg i a) ih
 \end{code}
 The type of |step' i a ih| is |C (index gamma U a') (intror (grArgs gamma U
 a'))|, where |a' = rgArgs gamma Ugg i a|. Here, the extra elements in |Ugg|
@@ -770,103 +781,95 @@ define the elimination rule for a generalised IID:
 elimUgg C step i u = elimUreg C step' i u
   where
     step' i a ih = rgArgssubst  gamma Ugg (\ i a -> C i (intror i a))
-                                i a (step i (rgArgs gamma Ugg i) ih)
+                                i a (step (rgArgs gamma Ugg i a) ih)
 ~
 \end{code}
 
-    The corresponding elimination rule is:
+\subsection{Equality rule}
 
+So far we have shown that we can represent generalised IID as a restricted IID
+and that the elimination rule is still valid. The only thing remaining is to
+show that the equality rule is also valid. That is, that we get the same reduction
+behaviour for our representation as we would if we extended our system with
+generalised IID.
+
+Let us recall the equality rule we have to prove:
 \begin{code}
-    elim_Even :
-        (C : (n : Nat) -> Even n -> Set) ->
-        C zero evenZ ->
-        ((n : Nat)(e : Even n) -> C n e -> C (suc (suc n)) (evenSS e)) ->
-        (n : Nat)(e : Even n) -> C n e
+~
+elimUgg C step (index γ Ugg a) (introgg a) =
+  step a (indHyp γ Ugg C (elimUgg C step) a)
+~
+\end{code}
+The key insight here is that the equality rule does not talk about arbitrary
+elements of |Ugg|, but only those that have been constructed using the
+introduction rule. This means that we do not have to satisfy any definitional
+equalities for elements where the equality proof is not |refl|. So, the main
+step in the proof is to prove that |rgArgssubst| is the definitional identity
+when the equality proof is |refl|, i.e. when the argument is build using the
+|grArgs| function.
+
+%format ar   = "a_r"
+%format arg  = "a_{rg}"
+
+\begin{lemma} \label{lem-rgArgsubst}
+  For all |gamma|, |U|, |C|, |a : Args gamma U|, and
+  \begin{code}
+    h : C (index gamma U arg) (grArgs gamma U arg)
+  \end{code}
+  where
+  \begin{code}
+    ar    = grArgs gamma U a
+    i     = index gamma U a
+    arg   = rgArgs gamma U i ar
+  \end{code}
+  it holds definitionally that
+  \begin{code}
+    rgArgssubst gamma U C i ar h = h
+  \end{code}
+\end{lemma}
+
+%format lem_rgArgsubst = "\ref{lem-rgArgsubst}"
+
+\begin{proof}
+  By induction on |gamma|. In the |iota|-case we have to prove that
+  \begin{code}
+    elimId i C' h i refl = h
+  \end{code}
+  which is exactly the equality rule for the identity type.
+\end{proof}
+
+\begin{lemma} \label{lem-arg-is-a}
+  |arg = a|
+\end{lemma}
+
+%format lem_argIsa = "\ref{lem-arg-is-a}"
+
+Now take
+\begin{code}
+  a   : Args gamma Ugg
+  i   = index gamma Ugg a
+  ar  = grArgs gamma Ugg a
+  arg = rgArgs gamma Ugg i ar
+\end{code}
+we have
+\begin{code}
+~
+elimUgg C step i (introgg a)
+=  {definition of_ elimUgg and introrg}
+   elimUreg C step' i (introreg i ar)
+=  {equality rule for Ureg}
+   step' i ar (indHyp (eps gamma i) Ugg C (elimUgg C step) ar)
+=  {definition of_ step'}
+   rgArgssubst gamma Ugg (\ i a. C i (intror i ar)) i ar
+      (step arg (indHyp (eps gamma i) Ugg C (elimUgg C step) ar))
+=  {Lemma lem_rgArgsubst}
+   step arg (indHyp (eps gamma i) Ugg C (elimUgg C step) ar)
+=  {Lemma lem_argIsa}
+   step a (indHyp gamma Ugg C (elimUgg C step) a)
+~
 \end{code}
 
-    To define the elimination rule we eliminate the proof that the index is the
-    expected one. 
-
-    The elimination rule in deduction style: We have
-
-> hz   : C z evenZ
-> hss  : (n : Nat)(e : Even n) -> C n e -> C (s (s n)) (evenSS n e)
-> n    : Nat
-> e    : Even n
-
-    and the goal is
-
-> ? : C n e
-
-    By eliminating |e| (using the non-indexed elimination) we get two cases
-
-%format p1 "\mathit{p}_1"
-%format p2 "\mathit{p}_2"
-
-> p1  : zero == n
-> ?   : C n (evenZ' p1)
-
-    Now we can eliminate |p1|, effectively substituting |z| for |n| and |refl|
-    for |p1| in the goal to obtain the new goal
-
-> ? : C zero (evenZ' refl)
-
-    This is exactly the type of |hz|.
-
-    In the second case we get
-
-> ih  : C m e'
-> p2  : suc (suc m) == n
-> ?   : C n (evenSS' m e' p2)
-
-    Eliminating |p2| yields
-
-> ? : C (suc (suc m)) (evenSS' m e' refl)
-
-    which is the type of
-
-> hss m e' ih
-
-Here is the elimination spelled out. To improve readability I present the
-elimination of the interpretation using pattern matching notation and explicit
-recursion.
-
-\begin{code}
-    elim_Even C hz hss n (evenZ' p)  =
-        elim_P zero (\ z q. C zero evenZ') hz n p
-    elim_Even C hz hss n (evenSS' m e p)  =
-        elim_P  (suc (suc m))
-                (\ z q. C (suc (suc m)) (evenSS' e))
-                (hss m e (elim_Even C hz hss m e))
-                n p
-\end{code}
-
-This gives us the correct type for the elimination rule, but we also need the
-correct computation rules. Namely
-
-\begin{code}
-elim_Even C hz hss zero     evenZ               = hz
-elim_Even C hz hss (suc (suc n))  (evenSS n e)  =
-   hss n e (elim_Even C hz hss n e)
-\end{code}
-
-The crucial point here is that the equations talk about |evenZ| and |evenSS n
-e| and not arbitrary elements of |Even' n|. In these particular cases the proof
-object is |refl| so we can use the computation rule of equality elimination to
-show the desired computation rules.
-
-\subsection{Formal proof}
-
-The proof is not fully formal. The main issue is that Agda is used both for the
-meta level and the object level. This means that it is possible to mix up
-object level reasoning and meta level reasoning in an unsound way. I take care
-not to do this.
-
-The proof is by (simple) induction over the code for the indexed type.
-
-\section{Related Work}
-
-Peter and Anton obviously~\cite{dybjer:indexed-ir}.
+\TODO{indHyp equality}
 
 \section{Conclusions}
 
