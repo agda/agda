@@ -103,7 +103,13 @@ equalAtom t m n =
 	    (MetaV x xArgs, MetaV y yArgs)
 		| x == y -> if   sameVars xArgs yArgs
 			    then return []
-			    else buildConstraint (ValueEq t m n)
+			    else do -- Check syntactic equality on meta-variables
+				    -- (same as for blocked terms)
+			      m <- normalise m
+			      n <- normalise n
+			      if m == n
+				then return []
+				else buildConstraint (ValueEq t m n)
 		| otherwise -> do
 		    [p1, p2] <- mapM getMetaPriority [x,y]
 		    -- instantiate later meta variables first
