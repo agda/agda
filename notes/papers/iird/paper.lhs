@@ -27,6 +27,8 @@
 %format delta   = "δ"
 %format gamma   = "γ"
 %format eps     = "ε"
+%format beta    = "β"
+%format eta     = "η"
 
 %format eps_I   = "ε_I"
 
@@ -44,6 +46,10 @@
 
 %format pi0 = "π_0"
 %format pi1 = "π_1"
+
+%format elim0 = "\mathit{case}_0"
+%format elim2 = "\mathit{case}_2"
+%format Elim2 = "\mathit{case}^{\mathit{type}}_2"
 
 %format OP  = "\mathit{OP}"
 %format OPg = "\mathit{OP}^g"
@@ -64,9 +70,12 @@
 
 %format elimId  = "\mathit{elim}_{==}"
 
-%format 1 = "\mathbf{1}"
 %format 0 = "\mathbf{0}"
+%format 1 = "\mathbf{1}"
+%format 2 = "\mathbf{2}"
 %format star = "\star"
+%format star0 = "\star_0"
+%format star1 = "\star_1"
 
 %format < = "\left\langle"
 %format > = "\right\rangle"
@@ -174,18 +183,33 @@ definitions directly.
 
 \section{The Logical Framework}
 
-    Martin-Löf's logical framework~\cite{nordstrom:book} extended with sigma
-    types ($\SIGMA x A B$), $\Zero$, $\One$, and $\Two$.
+We use  Martin-Löf's logical framework~\cite{nordstrom:book} extended with
+sigma types |(x : A) ** B|, |0|, |1|, and |2|. This is the same framework as is
+used by Dybjer and Setzer and the complete rules can be found
+in~\cite{dybjer:indexed-ir}. In contrast to Dybjer and Setzer we work entirely
+in intensional type theory.
 
-    \TODO{what about $Π$ in Set? Used on the meta level but probably not on the object level.}
+The type of sets |Set| is a type, and if |A : Set| then |A| is a type.
 
-    $\HasType {Γ} x A$
+Dependent function types are written |(x : A) -> B| and have elements |\ x. a|,
+where |a : B| provided |x : A|.  Application of |f| to |a| is written |f a|. If
+|x| does not occur free in |B| we write |A -> B| for |(x : A) -> B| and when
+the result type is itself a function type we write |(x : A)(y : B) -> C| for
+|(x : A) -> (y : B) -> C|.
 
-    $\IsType {Γ} A$
+The elements of a sigma type |(x : A) ** B| are pairs |<a, b>| where |a : A|
+and $b : B[a/x]$ (|B| with |a| substituted for |x|). We have projections |pi0|
+and |pi1| with the |beta|-rules |pi0 <a, b> = a| and |pi1 <a, b> = b| and the
+|eta|-rule |<pi0 p, pi1 p> = p|.
 
-    $\PI x A B$
-
-    $\SIGMA x A B$
+The empty type |0| has no elements and elimination rule |elim0 : 0 -> A|, for
+any |A : Set|. The element of the singleton type is |star : 1| and if |a : 1|
+then |a = star| (|eta|-rule). The two element type |2| has elements |star0| and
+|star1|, and elimination rule |elim2| ${} : (i : \mathbf{2}) \to A[\star_0] \to
+A[\star_1] \to A[i]$, where $A[i]$ is a type when |i : 2|. We also have large
+elimination for |2|: |Elim2 : 2 -> Set -> Set -> Set|. Using the large
+elimination we can define the disjoint union of two types |A + B = (i : 2) **
+Elim2 i A B|.
 
 \section{The Identity Type}
 
