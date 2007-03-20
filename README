@@ -2,6 +2,11 @@ To install Agda 2, proceed as follows:
 
 0) Install prerequisites (recent versions of GHC, Alex and Happy).
 
+   In addition to the libraries distributed with GHC you will need the binary
+   package which can be downloaded from
+
+   http://hackage.haskell.org/cgi-bin/hackage-scripts/package/binary-0.2
+
 1) Download Agda 2, perhaps as follows:
 
      darcs get http://www.cs.chalmers.se/~ulfn/darcs/Agda2
