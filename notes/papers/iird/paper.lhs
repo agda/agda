@@ -7,6 +7,8 @@
 
 %format ~ = "~"
 
+%format ! = "{}"
+
 %format .   = ".~"
 %format Set = "\Set"
 %format Type = "\Type"
@@ -48,8 +50,10 @@
 %format pi1 = "π_1"
 
 %format elim0 = "\mathit{case}_0"
-%format elim2 = "\mathit{case}_2"
-%format Elim2 = "\mathit{case}^{\mathit{type}}_2"
+%format elim2 = "\elimBool"
+%format Elim2 = "\ElimBool"
+\newcommand \elimBool {\mathit{case}_2}
+\newcommand \ElimBool {\mathit{case}^{\mathit{type}}_2}
 
 %format OP  = "\mathit{OP}"
 %format OPg = "\mathit{OP}^g"
@@ -69,6 +73,9 @@
 %format elimUgg     = "\mathit{elim}{-}U^g_γ"
 
 %format elimId  = "\mathit{elim}_{==}"
+%format elim_P  = "\mathit{elim}_{==,PM}"
+%format elim_ML = "\mathit{elim}_{==,ML}"
+%format elim_K  = "\mathit{elim}_{==,K}"
 
 %format 0 = "\mathbf{0}"
 %format 1 = "\mathbf{1}"
@@ -103,6 +110,8 @@
 %format ar   = "a_r"
 %format arg  = "a_{rg}"
 %format stepr = "\mathit{step}_r"
+
+%format IdA   = "\mathrel{{==}_A}"
 
 %endif
 
@@ -181,7 +190,7 @@ Non-indexed definitions are simpler(?), so if can get away with just adding the
 identity type we get simpler meta theory that if we would add indexed
 definitions directly.
 
-\section{The Logical Framework}
+\section{The logical framework}
 
 We use  Martin-Löf's logical framework~\cite{nordstrom:book} extended with
 sigma types |(x : A) ** B|, |0|, |1|, and |2|. This is the same framework as is
@@ -205,125 +214,126 @@ and |pi1| with the |beta|-rules |pi0 <a, b> = a| and |pi1 <a, b> = b| and the
 The empty type |0| has no elements and elimination rule |elim0 : 0 -> A|, for
 any |A : Set|. The element of the singleton type is |star : 1| and if |a : 1|
 then |a = star| (|eta|-rule). The two element type |2| has elements |star0| and
-|star1|, and elimination rule |elim2| ${} : (i : \mathbf{2}) \to A[\star_0] \to
+|star1|, and elimination rule $\elimBool : (i : \mathbf{2}) \to A[\star_0] \to
 A[\star_1] \to A[i]$, where $A[i]$ is a type when |i : 2|. We also have large
 elimination for |2|: |Elim2 : 2 -> Set -> Set -> Set|. Using the large
 elimination we can define the disjoint union of two types |A + B = (i : 2) **
 Elim2 i A B|.
 
-\section{The Identity Type}
+\section{The identity type}
 
-There are many versions.
-
+In this paper we show that the logical framework extended with restricted IID
+and an intensional identity type can express generalised IID. In order to do
+this we first have to chose the identity type to use. Let us review our
+choices. We want a type
 \begin{code}
-  ~
-  (==)  : {A : Set} -> A -> A -> Set
-  refl  : {A : Set}(x : A) -> x == x
-  ~
+  ! IdA ! : A -> A -> Set
+\end{code}
+with introduction rule
+\begin{code}
+  refl : (x : A) -> x == x
 \end{code}
 
-Martin-Löf identity relation, introduced in 1973~\cite{martin-lof:predicative}.
+The choice lies in the elimination rule. The Martin-Löf elimination rule,
+introduced in 1973~\cite{martin-lof:predicative} is defined as follows.
 
 \begin{definition}[Martin-Löf elimination]
 
 The Martin-Löf elimination rule (sometimes called $J$) has the type
-
 \begin{code}
-~
-elim_ML :  {A : Set}(C : (x, y : A) -> x == y -> Set) ->
+elim_ML :  (C : (x, y : A) -> x == y -> Set) ->
            ((x : A) -> C x x (refl x)) ->
            (x, y : A)(p : x == y) -> C x y p
-~
 \end{code}
-
-and the corresponding computation rule is
-
+and computation rule
 > elim_ML C h x x (refl x) = h x
-
 \end{definition}
 
-\begin{definition}[Paulin elimination]
-Paulin identity relation~\cite{pfenning-paulin:inductive-coc}.
+A different elimination rule was introduced by
+Paulin-Mohring~\cite{pfenning-paulin:inductive-coc}.
 
+\begin{definition}[Paulin-Mohring elimination]
+The Paulin-Mohring elimination rule has type
 \begin{code}
-~
-elim_P :  {A : Set}(x : A)(C : (y : A) -> x == y -> Set) ->
+elim_P :  (x : A)(C : (y : A) -> x == y -> Set) ->
           C x (refl x) -> (y : A)(p : x == y) -> C y p
-~
 \end{code}
 
-The corresponding computation rule is
+and computation rule
 
 > elim_P x C h x (refl x) = h
 
 \end{definition}
 
+The difference between Martin-Löf elimination and Paulin-Mohring elimination is
+that in Martin-Löf elimination the predicate |C| abstracts over both |x| and
+|y|, whereas in Paulin-Mohring elimination the predicate need only abstract
+over |y|.
+
+At first glance, Paulin-Mohring elimination looks stronger than Martin-Löf
+elimination, and indeed it is easy to define |elim_ML| in terms of |elim_P|.
+
 \begin{lemma}
-    Martin-Löf elimination can be defined in terms of Paulin elimination.
+    Martin-Löf elimination can be defined in terms of Paulin-Mohring
+    elimination.
 \end{lemma}
 
 \begin{proof}
-
-Trivial.
-
-> elim_ML C h x y p = elim_P x (\z q. C x z q) (h x) y p
-
+> elim_ML C h x y p = elim_P x (\ z q. C x z q) (h x) y p
 \end{proof}
-
+%
+However, it turns out that Paulin-Mohring elimination is definable in terms of
+Martin-Löf elimination. The proof of this is slightly more involved.
+%
 \begin{lemma}
-    Paulin elimination can be defined in terms of Martin-Löf elimination.
+    Paulin-Mohring elimination can be defined in terms of Martin-Löf
+    elimination.
 \end{lemma}
 
 \begin{proof}
-    This proof is slightly more involved.
-
     We first define the substitution rule
 \begin{code}
 ~
-    subst :  {A : Set}(C : A -> Set)(x, y : A)
+    subst :  (C : A -> Set)(x, y : A)
              x == y -> C x -> C y
     subst C x y p Cx = elim_ML  (\ a b q. C a -> C b)
                                 (\ a Ca. Ca) x y p Cx
 ~
 \end{code}
-
-    Now define
-
+    Now define |E x = (y : A) ** (x == y)|.  We can prove that any element of
+    |E x| is equal to |<x, refl x>|.
 \begin{code}
 ~
-    E : {A : Set}(x : A) -> Set
-    E x = (y : A) ** (x == y)
+    uniqE : (x, y : A)(p : x == y) -> <x, refl x> == <y, p>
+    uniqE = elim_ML (\ x y p. (x, refl x) == (y, p)) refl
 ~
 \end{code}
-
-    We can prove that any element of |E x| is in fact equal to |(x, refl x)|.
-
-\begin{code}
-~
-    uniqE : {A : Set}(x, y : A)(p : x == y) -> (x, refl x) == (y, p)
-    uniqE = elim (\ x y p. (x, refl x) == (y, p)) refl
-~
-\end{code}
-
+Finally
 \begin{code}
 ~
     elim_P x C h y p = subst  (\ z. C (pi0 z) (pi1 z))
-                              (x, refl x) (y, p) (uniqE x y p) h
+                              <x, refl x> <y, p> (uniqE x y p) h
 ~
 \end{code}
-
-    Note that in an impredicative setting there is a simpler proof due to
-    Streicher~\cite{streicher:habilitation}.
-
 \end{proof}
 
-\begin{theorem}
-    Martin-Löf elimination and Paulin elimination are equivalent.
-\end{theorem}
+In an impredicative setting there is a simpler proof due to
+Streicher~\cite{streicher:habilitation}. Yet another elimination rule is
+Streicher's axiom K~\cite{HofmannM:gromru}, given by
+> elim_K :  (x : A)(C : x == x -> Set) ->
+>           C refl -> (p : x == x) -> C p
+which he shows cannot be defined in terms of the previous elimination rules.
 
-Streicher axiom K. Not valid~\cite{HofmannM:gromru}. Fortunately we don't need it.
-
-In the following we will use Paulin elimination.
+Seeing as Martin-Löf elimination and Paulin-Mohring elimination are equivalent
+we choose Paulin-Mohring elimination which is easier to work with. So we extend
+our logical framework with
+\begin{code}
+! IdA !  :  A -> A -> Set
+refl     :  (x : A) -> x == x
+elimId   :  (x : A)(C : (y : A) -> x == y -> Set) ->
+            C x (refl x) -> (y : A)(p : x == y) -> C y p
+elimId x C h x (refl x) = h
+\end{code}
 
 \section{Indexed Inductive Datatypes} \label{sec-IID}
 
