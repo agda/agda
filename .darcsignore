@@ -41,3 +41,4 @@ src/prototyping/modules/flat/module$
 ^src/main/.uptodate$
 \#.*\#$
 \.agda\.html$
+notes/papers/iird/paper.tex

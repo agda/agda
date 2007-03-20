@@ -90,6 +90,11 @@
 %format rgArgs_I = "r{\to}gArgs_I"
 
 %format rgArgssubst = "rgArgs{-}subst"
+
+%format ar   = "a_r"
+%format arg  = "a_{rg}"
+%format stepr = "\mathit{step}_r"
+
 %endif
 
 \usepackage{ucs}
@@ -710,17 +715,27 @@ We need, for |a' = rgArgs gamma Ugg i a|
 ih  :  IndHyp gamma Ugg C a'
     =  (v : IndArg gamma U a') -> C (IndIndex gamma U a' v) (Ind gamma U a' v)
 \end{code}
-By induction on |gamma| we can prove that the following equalities holds
-definitionally for any |a : Args (eps gamma i) U| and |v : IndArg (eps gamma i)
-U a|:
+Our intuition is that |eps| does not change the inductive occurrences in any
+way, and indeed we can prove the following lemma:
+
+\begin{lemma} \label{lem-eps-Ind}
+For any |a : Args (eps gamma i) U| and |v : IndArg (eps gamma i) U a| the
+following equalities hold definitionally.
 \begin{code}
 ~
-IndArg    gamma U (rgArgs gamma U i a)    = IndArg    (eps gamma i) U a
-IndIndex  gamma U (rgArgs gamma U i a) v  = IndIndex  (eps gamma i) U a v
-Ind       gamma U (rgArgs gamma U i a) v  = Ind       (eps gamma i) U a v
+IndArg    gamma U      (rgArgs gamma U i a)    = IndArg    (eps gamma i) U a
+IndIndex  gamma U      (rgArgs gamma U i a) v  = IndIndex  (eps gamma i) U a v
+Ind       gamma U      (rgArgs gamma U i a) v  = Ind       (eps gamma i) U a v
+IndHyp    gamma U C    (rgArgs gamma U i a)    = IndHyp    (eps gamma i) U C a
+indHyp    gamma U C g  (rgArgs gamma U i a)    = indHyp    (eps gamma i) U C g a
 ~
 \end{code}
-\TODO{make into a lemma}
+\end{lemma}
+%format lem_epsInd = "\ref{lem-eps-Ind}"
+\begin{proof}
+  The first three are proven by induction on |gamma|. The last two follows from the first three.
+\end{proof}
+
 That is, we can use the induction hypothesis we have as it is. Let us now try
 to define the elimination rule. We are given
 \begin{code}
@@ -733,17 +748,18 @@ u     :  Ugg i
 ~
 \end{code}
 and we have to prove |C i u|. To apply the restricted elimination rule
-(|elimUreg|) we need an induction step |step'| of type
+(|elimUreg|) we need an induction step |stepr| of type
 \begin{code}
-(i : I)(a : Args (eps gamma i) Ugg) -> IndHyp (eps gamma i) Ugg C a -> C i (intror i a)
+(i : I)(a : Args (eps gamma i) Ugg) ->
+IndHyp (eps gamma i) Ugg C a -> C i (intror i a)
 \end{code}
 As we have observed the induction hypothesis already has the right type, so we attempt to
 define
 \begin{code}
-step' i a ih = step (rgArgs gamma Ugg i a) ih
+stepr i a ih = step (rgArgs gamma Ugg i a) ih
 \end{code}
-The type of |step' i a ih| is |C (index gamma U a') (intror (grArgs gamma U
-a'))|, where |a' = rgArgs gamma Ugg i a|. Here, the extra elements in |Ugg|
+The type of |stepr i a ih| is |C (index gamma U ar) (intror (grArgs gamma U
+ar))|, where |ar = rgArgs gamma Ugg i a|. Here, the extra elements in |Ugg|
 get in the way. Basically we would like the conversion of a constructor
 argument from the restricted representation to a generalised argument and back
 to be the (definitional) identity. It is easy to see that this is not the case.
@@ -751,7 +767,7 @@ For instance, in our |Even| example the argument to the |evenZ'| constructor
 is proof |p : zero == zero|. Converting to a generalised argument we
 throw away the proof, and converting back we add a proof by reflexivity. But
 |p| and |refl| are not definitionally equal. Fortunately they are
-propositionally equal, so we can prove the following substitution rule:
+propositionally equal, so we can define the following substitution function:
 
 \begin{code}
 ~
@@ -778,12 +794,30 @@ rule, |elimId|, for the identity type. Armed with this substitution rule we can
 define the elimination rule for a generalised IID:
 \begin{code}
 ~
-elimUgg C step i u = elimUreg C step' i u
+elimUgg C step i u = elimUreg C stepr i u
   where
-    step' i a ih = rgArgssubst  gamma Ugg (\ i a -> C i (intror i a))
+    stepr i a ih = rgArgssubst  gamma Ugg (\ i a -> C i (intror i a))
                                 i a (step (rgArgs gamma Ugg i a) ih)
 ~
 \end{code}
+In our example the elimination rule becomes
+\begin{code}
+~
+elim_Even :  (C : (n : Nat) -> Even n -> Set) ->
+             C zero evenZ ->
+             (  (n : Nat)(e : Even n) -> C n e ->
+                C (suc (suc n)) (evenSS n e)) ->
+             (n : Nat)(e : Even n) -> C n e
+elim_Even C cz css n (evenZ' p)       =
+  elimId zero (\ m q. C m (evenZ' q)) cz n p
+elim_Even C cz css n (evenSS' m e p)  =
+  elimId  (suc (suc m)) (\ z q. C z (evenSS' m e q))
+	  (css m e (elim_Even C cz css m e)) n p
+~
+\end{code}
+To improve readability we present the application of the elimination rule for
+|Even'| using pattern matching and explicit recursion. The call to
+|rgArgssubst| is visible in the equality proof eliminations.
 
 \subsection{Equality rule}
 
@@ -807,9 +841,6 @@ equalities for elements where the equality proof is not |refl|. So, the main
 step in the proof is to prove that |rgArgssubst| is the definitional identity
 when the equality proof is |refl|, i.e. when the argument is build using the
 |grArgs| function.
-
-%format ar   = "a_r"
-%format arg  = "a_{rg}"
 
 \begin{lemma} \label{lem-rgArgsubst}
   For all |gamma|, |U|, |C|, |a : Args gamma U|, and
@@ -838,11 +869,19 @@ when the equality proof is |refl|, i.e. when the argument is build using the
   which is exactly the equality rule for the identity type.
 \end{proof}
 
-\begin{lemma} \label{lem-arg-is-a}
-  |arg = a|
-\end{lemma}
+The final lemma we need before proving the equality rule is that starting with
+a generalised constructor argument, converting it to a restricted one, and then
+back is the definitional identity. This amounts to adding a reflexivity proof
+and then removing it, so it is easy to see that this should be true.
 
+\begin{lemma} \label{lem-arg-is-a}
+  For all |gamma|, |U|, and |a : Args gamma U| it holds definitionally that
+  |rgArgs gamma U (index gamma U a) (grArgs gamma U a) = a|
+\end{lemma}
 %format lem_argIsa = "\ref{lem-arg-is-a}"
+\begin{proof}
+  By induction on |gamma|.
+\end{proof}
 
 Now take
 \begin{code}
@@ -853,23 +892,26 @@ Now take
 \end{code}
 we have
 \begin{code}
-~
-elimUgg C step i (introgg a)
+elimUgg C step (index gamma Ugg a) (introgg a)
+=  elimUgg C step i (introgg a)
 =  {definition of_ elimUgg and introrg}
-   elimUreg C step' i (introreg i ar)
+   elimUreg C stepr i (introreg i ar)
 =  {equality rule for Ureg}
-   step' i ar (indHyp (eps gamma i) Ugg C (elimUgg C step) ar)
-=  {definition of_ step'}
+   stepr i ar (indHyp (eps gamma i) Ugg C (elimUgg C step) ar)
+=  {definition of_ stepr}
    rgArgssubst gamma Ugg (\ i a. C i (intror i ar)) i ar
       (step arg (indHyp (eps gamma i) Ugg C (elimUgg C step) ar))
 =  {Lemma lem_rgArgsubst}
    step arg (indHyp (eps gamma i) Ugg C (elimUgg C step) ar)
+=  {Lemma lem_epsInd}
+   step arg (indHyp gamma Ugg C (elimUgg C step) arg)
 =  {Lemma lem_argIsa}
    step a (indHyp gamma Ugg C (elimUgg C step) a)
 ~
 \end{code}
 
-\TODO{indHyp equality}
+This concludes the proof that we can faithfully represent generalised IID in
+the theory of restricted IID and the intensional identity type.
 
 \section{Conclusions}
 
