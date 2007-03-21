@@ -16,8 +16,11 @@
 %format **  = "×"
 %format :   = "\mathrel{:}"
 
-%format zero = "\mathsf{z}"
-%format suc  = "\mathsf{s}"
+\newcommand \zero {\mathsf{z}}
+\newcommand \suc  {\mathsf{s}}
+%format zero = "\zero"
+%format suc  = "\suc"
+
 %format refl = "\mathsf{refl}"
 
 %format === = "\equiv"
@@ -44,7 +47,8 @@
 %format evenSS  = "\mathsf{evenSS}"
 %format evenZ'  = "\mathsf{evenZ}^{*}"
 %format evenSS' = "\mathsf{evenSS}^{*}"
-%format elim_Even = "elim_{Even}"
+%format elim_Even = "elim_{\Even}"
+\newcommand \Even {\mathit{Even}}
 
 %format pi0 = "π_0"
 %format pi1 = "π_1"
@@ -126,6 +130,12 @@
 \newtheorem{corollary}[theorem]{Corollary}
 \newtheorem{definition}[theorem]{Definition}
 
+\newcommand \infer[2] {
+  \frac
+    {\begin{array}{c}\displaystyle #1\end{array}}
+    {\begin{array}{c}\displaystyle #2\end{array}}
+}
+
 % Enables greek letters in math environment
 \everymath{\SetUnicodeOption{mathletters}}
 \everydisplay{\SetUnicodeOption{mathletters}}
@@ -136,8 +146,11 @@
 \SetUnicodeOption{localDefs}
 
 % For some reason these macros need to be defined.
-\newcommand{\textmu}{$\mu$}
-\newcommand{\textnu}{$\nu$}
+\newcommand \textmu     {$μ$}
+\newcommand \textnu     {$ν$}
+\newcommand \texteta    {$η$}
+\newcommand \textbeta   {$β$}
+\newcommand \textlambda {$λ$}
 
 % This character doesn't seem to be defined by ucs.sty.
 \DeclareUnicodeCharacter{"21A6}{\ensuremath{\mapsto}}
@@ -150,47 +163,107 @@
 \begin{document}
 \maketitle
 \begin{abstract}
-    An indexed inductive-recursive definition (IIRD) simultaneously defines an
-    indexed family of sets and a recursive function over this family.  This
-    notion is sufficiently powerful to capture essentially all definitions of
-    sets in Martin-Löf type theory.
+  Indexed inductive definitions.
 
-    I show that it is enough to have one particular indexed inductive type,
-    namely the intensional identity relation, to be able to interpret all IIRD
-    as non-indexed definitions.
-    
-    The proof is formally verified in Agda.
+  It is well-known how to represent inductive families using equality. This is
+  usually done in an extensional setting. We show that this encoding also works
+  in intensional type theory and that the definitional equalities are preserved.
+
+  The proof is formally verified in Agda.
 \end{abstract}
 
 \section{Introduction}
 
-% Describe the current state of affairs
+% Describe the current state of affairs (and sell inductive families)
 
-Indexed induction recursion is the thing.
+Indexed inductive definitions, or inductive families, are inductively defined
+families of sets. As such they have a wide range of applications in both
+mathemathics and programming. Examples include the transitive closure of a
+relation, the typing relation of simply typed λ-calculus, and vectors of a
+fixed length.
 
-% Indentify gap
+Indexed inductive definitions have been studied extensively in various
+theories, such as Martin-Löf type
+theory~\cite{dybjer:sophia,dybjer:bastadfacs}, Calculus of Inductive
+Constructions~\cite{paulin:thesis,coquand:bastad}, and Luo's
+UTT~\cite{luo:typetheory}, and they are supported by tools building on these
+theories. For instance, ALF~\cite{magnussonnordstrom:alf},
+Coq~\cite{mohring:inductivedefsincoq}, and Epigram~\cite{mcbride:left}. They
+have even made it into more mainstream languages such as Haskell~\cite{pj:gadt}.
 
-Dybjer and Setzer~\cite{dybjer:indexed-ir} show that in an extensional theory
-generalised IIRD can be interpreted by restricted IIRD~\cite{dybjer:jsl}. We're
-not using an extensional theory though.
+\TODO{ Lawvere $[?]$, LEGO $[?]$ }
 
-The main contribution of this paper is to show that generalised IID can be
-interpreted using restricted IID and an intensional identity type. This
-strengthens the results of Dybjer and Setzer~\cite{dybjer:indexed-ir} who show
-that the interpretation is possible in extensional type theory.
+% Representing inductive families using equality is well-known
 
-\TODO{What's the relation between restricted IIRD and IRD?}
+It is well-known~\cite{feferman94finitary} how to represent inductively defined
+relations using equality. For instance, the predicate |Even| over natural
+numbers, inductively defined by
+\[\begin{array}{ccc}
+    \infer{}{\Even \, \zero}
+&&  \infer{\Even \, n}{\Even \, (\suc \, (\suc \, n))}
+\end{array}\]
+can be characterised by the following formula:
+\[
+    \Even \, n \Leftrightarrow
+      n = \zero \vee
+      \exists m. \, \Even \, m \wedge n = \suc \, (\suc \, m)
+\]
+From a set theoretic point of view it is clear that the two formulations are
+equivalent, but in a type theoretic setting it is not so obvious. The reason
+for this is that in type theory we are not only interested in provability but
+also in the proof terms. In the first formulation of the |Even| predicate we
+have proof terms |evenZ| and |evenSS m p|, for a number |m| and a proof |p|
+that |m| is even, corresponding to the two rules. We also have a dependent
+elimination rule |elim_Even| for proofs of |Even n| which states that for any
+predicate |C| over a natural number {\it and a proof that it is even}, if |hz|
+is a proof of |C zero evenZ| and |hss| is a function that given |m : Nat|, |q :
+Even n| and a proof of |C m q| returns a proof of |C (suc (suc m)) (evenSS m
+q)|, then |elim_Even C hz hss n p| proves |C n p| for any natural number |n|
+and proof |p| of |Even n|.  This elimination rule is equipped with two
+computation rules stating that
+> elim_Even C hz hss zero           evenZ         = hz
+> elim_Even C hz hss (suc (suc m))  (evenSS m p)  =
+>   hss m p (elim_Even C hz hss m p)
+Now it is not at all clear that the second formulation of |Even| enjoys the
+same elimination and computation rules, since the proof terms are quite
+different. 
+
+Dybjer and Setzer~\cite{dybjer:indexed-ir} show that in extensional type theory
+the two formulations are equivalent, but to the author's knowledge it has not
+been made explicit what the relationship is in intensional type theory. The
+difference between extensional and intensional type theory is that in
+intensional type theory one distinguishes between provable equality and
+definitional equality.  The advantage of this is that proof checking becomes
+decidable, but a disadvantage is that the proof checker can only decide
+definitional equality, so substituting equals for equals for provable equality
+is more cumbersome. The main challenge in relating the two formulations of
+indexed inductive definitions in intensional type theory is proving that the
+computation rules hold definitionally.
 
 % Fill gap
 
-I improve on this result showing that it is enough to add intensional equality.
-The proof is formalised in Agda.
+The main contribution of this paper is a proof that, in intensional type
+theory, we can faithfully represent general indexed inductive definitions in
+terms of {\em restricted} indexed inductive definitions (families of inductive
+definitions rather than inductive families) and an intensional equality type.
+The proof has been formally verified by the Agda proof
+checker~\cite{coquand:stt-lfm99}, using the intensional type theory of Agda for
+the meta reasoning as well as for the object language. The formal proof has
+been carried out for the fully general case of indexed inductive-recursive
+definitions~\cite{dybjer:indexed-ir}, but for presentation reasons we restrict
+ourselves to indexed inductive definitions. Adding a recursive component adds
+nothing interesting to the proof.
 
-Non-indexed definitions are simpler(?), so if can get away with just adding the
-identity type we get simpler meta theory that if we would add indexed
-definitions directly.
+% Say something about why this is useful.
 
-\section{The logical framework}
+The rest of this paper is organised as follows. Section~\ref{sec-lf} introduces
+the logical framework, Section~\ref{sec-id} gives a brief introduction to the
+intensional equality type, Section~\ref{sec-IID} gives a formalisation of
+indexed inductive definitions, Section~\ref{sec-Encoding} contains the proof
+that a generalised IID can be expressed using a restricted IID, and
+Section~\ref{sec-concl} concludes.
+
+\section{The logical framework} \label{sec-lf}
 
 We use  Martin-Löf's logical framework~\cite{nordstrom:book} extended with
 sigma types |(x : A) ** B|, |0|, |1|, and |2|. This is the same framework as is
@@ -198,7 +271,8 @@ used by Dybjer and Setzer and the complete rules can be found
 in~\cite{dybjer:indexed-ir}. In contrast to Dybjer and Setzer we work entirely
 in intensional type theory.
 
-The type of sets |Set| is a type, and if |A : Set| then |A| is a type.
+The type of sets |Set| is closed under pi and sigma, and if |A : Set| then |A|
+is a type.
 
 Dependent function types are written |(x : A) -> B| and have elements |\ x. a|,
 where |a : B| provided |x : A|.  Application of |f| to |a| is written |f a|. If
@@ -220,7 +294,7 @@ elimination for |2|: |Elim2 : 2 -> Set -> Set -> Set|. Using the large
 elimination we can define the disjoint union of two types |A + B = (i : 2) **
 Elim2 i A B|.
 
-\section{The identity type}
+\section{The identity type} \label{sec-id}
 
 In this paper we show that the logical framework extended with restricted IID
 and an intensional identity type can express generalised IID. In order to do
@@ -408,6 +482,9 @@ three constructors:
 \end{itemize}
 See Section~\ref{sec-IID-Examples} for more examples.
 
+\TODO{Explain what we are allowed to do with codes (on the meta level). Take
+care to distinguish meta level and object level.}
+
 \subsection{From codes to types} \label{sec-IID-Types}
 
 Now that we have defined the codes for IID the next step is to describe their
@@ -469,11 +546,11 @@ As an example take the type of pairs over |A| and |B|:
 ~
 \end{code}
 
-Note that while the index of a restricted IID is determined from the outside we
-still allow so called nested types~\cite{bird98nested}. An example of this is
-the accessibility predicate given in Section~\ref{sec-IID-Codes}. This is
-crucial when interpreting general IID by restricted IID (see
-Section~\ref{sec-Encoding}).
+Note that while the index of a restricted IID is determined from the outside,
+it is still possible to have a different index on the inductive occurrences.
+An example of this is the accessibility predicate given in
+Section~\ref{sec-IID-Codes}. This is crucial when interpreting general IID by
+restricted IID (see Section~\ref{sec-Encoding}).
 
 \subsection{Elimination rules} \label{sec-IID-Elimination}
 
@@ -947,7 +1024,7 @@ elimUgg C step (index gamma Ugg a) (introgg a)
 This concludes the proof that we can faithfully represent generalised IID in
 the theory of restricted IID and the intensional identity type.
 
-\section{Conclusions}
+\section{Conclusions} \label{sec-concl}
 
 This is good stuff.
 
