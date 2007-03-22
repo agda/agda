@@ -1,4 +1,4 @@
-\documentclass[11pt]{article}
+\documentclass{llncs}
 
 %include lhs2TeX.fmt
 %include lhs2TeX.sty
@@ -124,12 +124,6 @@
 \usepackage{autofe}
 \usepackage{color}
 
-\usepackage{amsthm}
-\newtheorem{theorem}{Theorem}[section]
-\newtheorem{lemma}[theorem]{Lemma}
-\newtheorem{corollary}[theorem]{Corollary}
-\newtheorem{definition}[theorem]{Definition}
-
 \newcommand \infer[2] {
   \frac
     {\begin{array}{c}\displaystyle #1\end{array}}
@@ -159,6 +153,9 @@
 
 \title{Encoding indexed inductive types using the identity type}
 \author{Ulf Norell}
+\institute{Chalmers University of Technology \\
+  \email{ulfn@@cs.chalmers.se}
+}
 
 \begin{document}
 \maketitle
