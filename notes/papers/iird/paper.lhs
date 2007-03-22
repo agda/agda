@@ -40,8 +40,6 @@
 %format inl     = "\mathsf{inl}"
 %format inr     = "\mathsf{inr}"
 
-%format bot     = "\bot"
-
 %format Even'   = "\mathit{Even}^{*}"
 %format evenZ   = "\mathsf{evenZ}"
 %format evenSS  = "\mathsf{evenSS}"
@@ -407,21 +405,57 @@ elimId   :  (x : A)(C : (y : A) -> x == y -> Set) ->
 elimId x C h x (refl x) = h
 \end{code}
 
-\section{Indexed Inductive Datatypes} \label{sec-IID}
+\section{Indexed Inductive Definitions} \label{sec-IID}
 
-In this section we present the formalisation of indexed inductive types. We
-follow the formalisation of indexed induction recursion of Dybjer and
+An indexed inductive definition (IID) defines a family of types. We distinguish
+between generalised IID, which can be seen as an inductively defined family of
+types, and restricted IID, which can be seen as a family of inductive types.
+Non-indexed types are a special case of restricted IID, indexed over |1|. For
+instance, the type of natural numbers can be seen as the restricted IID
+\begin{code}
+  Nat   : 1 -> Set
+  zero  : (x : 1) -> Nat x
+  suc   : (x : 1) -> Nat x -> Nat x
+\end{code}
+In these cases we omit the index and simply write
+\begin{code}
+  Nat   : Set
+  zero  : Nat
+  suc   : Nat -> Nat
+\end{code}
+An example of a restricted IID indexed by a natural number |n| is the type of
+ordered lists of natural numbers greater than or equal to |n|:
+\begin{code}
+  OrdList  : Nat -> Set
+  nil      : (n : Nat) -> OrdList n
+  cons     : (n : Nat) -> (m : Nat) -> (m >= n) -> OrdList m -> OrdList n
+\end{code}
+Note that the introduction rules (constructors) |nil| and |cons|, constructs
+elements in |OrdList n| for an arbitrary |n|. Note also that the types at
+different indices can depend on each other. In this case the inductive argument
+of the |cons| constructor is |OrdList m| for an arbitrary |m >= n|.
+
+In a generalised IID, however, the constructors can target different parts of
+the inductive family. In the case of lists of a certain length we have
+\begin{code}
+  Vec   : Nat -> Set
+  nil   : Vec zero
+  cons  : (n : Nat) -> Nat -> Vec n -> Vec (suc n)
+\end{code}
+
+In the rest of this section we present the formalisation of indexed inductive
+types. We follow the formalisation of indexed induction-recursion of Dybjer and
 Setzer~\cite{dybjer:indexed-ir} but leave out the recursion to simplify the
 presentation.
 
 \subsection{Codes for IID} \label{sec-IID-Codes}
 
-In accordance with Dybjer and Setzer we introduce a common type of codes which
-will serve both as codes for general IID and restricted IID.
+Like Dybjer and Setzer we introduce a common type of codes which will serve
+both as codes for general IID and restricted IID.
 
 \begin{code}
 ~
-data OP (I : Set)(E : Set) where
+data OP (I, E : Set) where
   iota   : E -> OP I E
   sigma  : (A : Set)(gamma : A -> OP I E) -> OP I E
   delta  : (A : Set)(i : A -> I)(gamma : OP I E) -> OP I E
@@ -439,8 +473,8 @@ three constructors:
         Base case: |iota e|. This corresponds to an IID with no arguments to the
         constructor. In the case of a general IID we have to give the index for
         the constructor. For instance the code for the singleton type of true
-        booleans given by |IsTrue : Bool -> Set| and introduction rule |IsTrue
-        true| is
+        booleans given by the formation rule |IsTrue : Bool -> Set| and
+        introduction rule |IsTrue true| is
         \begin{code}
         ~
             iota true : OPg Bool
@@ -563,7 +597,7 @@ IndArg (sigma A gamma)    U < a, b >  = IndArg (gamma a) U b
 IndArg (delta A i gamma)  U < g, b >  = A + IndArg gamma U b
 ~
 \end{code}
-Simply put |IndArg gamma a| is the disjoint union of the assumptions of the
+Simply put |IndArg gamma U a| is the disjoint union of the assumptions of the
 inductive occurrences in |a|.
 
 Now, given the assumptions of one inductive occurrence we can compute the index
@@ -572,7 +606,7 @@ of that occurrence.
 ~
 IndIndex_IE :  (gamma : OP I E)(U : I -> Set)
                (a : Args gamma U) -> IndArg gamma U a -> I
-IndIndex (iota e)           U  _         bot
+IndIndex (iota e)           U  _         z        = elim0 z
 IndIndex (sigma A gamma)    U  < a, b >  c        = IndIndex (gamma a) U b c
 IndIndex (delta A i gamma)  U  < g, b >  (inl a)  = i a
 IndIndex (delta A i gamma)  U  < g, b >  (inr a)  = IndIndex gamma U b a
@@ -587,7 +621,7 @@ a constructor argument.
 ~
 Ind_IE :  (gamma : OP I E)(U : I -> Set)
           (a : Args gamma U)(v : IndArg gamma U a) -> U (IndIndex gamma U a v)
-Ind (iota e)           U  _         bot
+Ind (iota e)           U  _         z        = elim0 z
 Ind (sigma A gamma)    U  < a, b >  c        = Ind (gamma a) U b c
 Ind (delta A i gamma)  U  < g, b >  (inl a)  = g a
 Ind (delta A i gamma)  U  < g, b >  (inr a)  = Ind gamma U b a
@@ -657,33 +691,65 @@ elimUgg C step (index γ Ugg a) (introgg a) =
 ~
 \end{code}
 
-\TODO{examples}
-
 \subsection{Examples} \label{sec-IID-Examples}
 
-Datatypes with multiple constructors.
+%format gammaNat = "γ_{\mathit{Nat}}"
+%format introrgn = "\mathit{intro}^r_{γ_{\mathit{Nat}}}"
 
-Intensional identity relation (Paulin version).
+%format gammaEven = "γ_{\mathit{Even}}"
+%format gammaId   = "γ_{{==}}"
 
+Datatypes with more than one constructor can be encoded by representing the
+constructors as the first argument. For instance, the code for natural numbers
+is
+> gammaNat : OPr 1 = \i. sigma 2 (\ c. elim2 c (iota star) (delta 1 (\ x. star) (iota star)))
+Here, the first argument is an element of |2| encoding whether the number is
+built by |zero| or |suc|. We can recover the familiar introduction rules |zero|
+and |suc| by
 \begin{code}
-~
-data (==) {A : Set}(x : A) : A -> Set where
-  refl : x == x
-~
+zero   = introrgn star ! <star0, star>
+suc n  = introrgn star ! <star1, < \ x. n, star> >
 \end{code}
+Another example is the generalised IID of proofs that a natural numbers are
+even given introduction rules
+\begin{code}
+evenZ  : Even zero
+evenSS : (n : Nat) -> Even n -> Even (suc (suc n))
+\end{code}
+The code for |Even| is
+\begin{code}
+gammaEven  :  OPg Nat
+           =  sigma 2 (\ c. elim2 c (iota zero) (sigma Nat (\ n. delta 1 (\ x. n) (iota (suc (suc n))))))
+\end{code}
+Again an argument of type |2| is used to distinuish the two constructors. In
+the |evenZ| case there are no arguments and the index is |zero|. In the
+|evenSS| case there is one non-inductive argument |n| of type |Nat| and one
+inductive argument with index |n|. The index of the result is |suc (suc n)|.
 
-The elimination rule for this type is Paulin elimination.
+The Paulin-Mohring intensional identity type also has a code. Given a set |A|
+and an |x : A| code for the family |x == y| indexed by |y : A| is
+\begin{code}
+  gammaId : OPg A = iota x
+\end{code}
+That is, there is a single constructor with no arguments, whose index is |x|.
+This corresponds to the introduction rule
+> refl : x == x
+The elimination rule for this type is exactly the Paulin-Mohring elimination rule.
 
 \section{Encoding generalised IID as restricted IID} \label{sec-Encoding}
 
+In this section we that generalised IID are expressible in the logical
+framework extended with restricted IID and the intensional identity type. We do
+this by defining the formation, introduction, and elimination rules of a
+generalised IID and subsequently proving that the computation rules hold
+intensionally.
+
 \subsection{Formation rule}
 
-To show that generalised IID are expressible in the system of restricted IID
-extended with the intensional identity type, we first show how to transform the
-code for a generalised IID into the code for its encoding as a restricted IID.
-The basic idea is to add a proof that the index of the restricted IID is equal
-to index computed for the generalised IID. Concretely:
-
+We first show how to transform the code for a generalised IID into the code for
+its encoding as a restricted IID.  The basic idea, as we have seen, is to add a
+proof that the index of the restricted IID is equal to the index computed for
+the generalised IID. Concretely:
 \begin{code}
 ~
 eps_I : OPg I -> OPr I
@@ -692,43 +758,26 @@ eps (sigma A gamma)    j = sigma A (\ a. eps (gamma a) j)
 eps (delta H i gamma)  j = delta H i (eps gamma j)
 ~
 \end{code}
-
-For example, the generalised IID of proof that a number is even, given by
-\begin{code}
-~
-data Even : Nat -> Set where
-  evenZ   : Even zero
-  evenSS  : (n : Nat) -> Even n -> Even (suc (suc n))
-~
-\end{code}
-is encoded by the following restricted IID:
-\begin{code}
-~
-data Even' (n : Nat) : Set where
-  evenZ'   : zero == n -> Even' n
-  evenSS'  : (m : Nat) -> Even m -> suc (suc m) == n -> Even' n
-~
-\end{code}
-
-Using the coding function |eps| we represent the general IID for a code |gamma
-: OPg I| as
+Now a general IID for a code |gamma| can be defined as the restricted IID of
+|eps gamma|.
 \begin{code}
 ~
 Ugg : I -> Set
 Ugg i = Ureg i
 ~
 \end{code}
-In the case that the equality proofs added by |eps| are extensional there is an
-equivalence between the generalised IID and its representation as a restricted
-IID as shown by Dybjer and Setzer~\cite{dybjer:indexed-ir}. With an intensional
-equality proof, however, this is not the case. For instance, for |p, q : zero
-== n| it is not necessarily the case that |evenZ' p = evenZ' q|. This means
-that our representation of generalised IID contains more elements than the ones
-corresponding to elements in the generalised IID. The crucial insight of this
-paper is that this does not matter. As long as the extra elements are
-well-behaved, i.e. as long as the elimination rule is valid there is no
-problem. Before tackling the elimination rule, however, we look at the
-introduction rule.
+For example, the generalised IID of the proofs that a number is even, given by
+\begin{code}
+Even    : Nat -> Set
+evenZ   : Even zero
+evenSS  : (n : Nat) -> Even n -> Even (suc (suc n))
+\end{code}
+is encoded by the following restricted IID:
+\begin{code}
+Even'    : Nat -> Set
+evenZ'   : (n : Nat) -> zero == n -> Even' n
+evenSS'  : (n : Nat)(m : Nat) -> Even m -> suc (suc m) == n -> Even' n
+\end{code}
 
 \subsection{Introduction rule}
 
