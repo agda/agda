@@ -47,7 +47,8 @@
 %format evenSS  = "\mathsf{evenSS}"
 %format evenZ'  = "\mathsf{evenZ}^{*}"
 %format evenSS' = "\mathsf{evenSS}^{*}"
-%format elim_Even = "elim_{\Even}"
+%format elim_Even = "\mathit{elim}_{\Even}"
+%format elim_Even' = "\mathit{elim}_{\Even^{*}}"
 \newcommand \Even {\mathit{Even}}
 
 %format pi0 = "π_0"
@@ -151,7 +152,7 @@
 
 \input{macros}
 
-\title{Encoding indexed inductive types using the identity type}
+\title{Encoding indexed inductive types using the intensional identity type}
 \author{Ulf Norell}
 \institute{Chalmers University of Technology \\
   \email{ulfn@@cs.chalmers.se}
@@ -176,7 +177,7 @@
 Indexed inductive definitions, or inductive families, are inductively defined
 families of sets. As such they have a wide range of applications in both
 mathemathics and programming. Examples include the transitive closure of a
-relation, the typing relation of simply typed λ-calculus, and vectors of a
+relation, the typing relation of simply typed $λ$-calculus, and vectors of a
 fixed length.
 
 Indexed inductive definitions have been studied extensively in various
@@ -185,10 +186,9 @@ theory~\cite{dybjer:sophia,dybjer:bastadfacs}, Calculus of Inductive
 Constructions~\cite{paulin:thesis,coquand:bastad}, and Luo's
 UTT~\cite{luo:typetheory}, and they are supported by tools building on these
 theories. For instance, ALF~\cite{magnussonnordstrom:alf},
-Coq~\cite{mohring:inductivedefsincoq}, and Epigram~\cite{mcbride:left}. They
-have even made it into more mainstream languages such as Haskell~\cite{pj:gadt}.
-
-\TODO{ Lawvere $[?]$, LEGO $[?]$ }
+Coq~\cite{mohring:inductivedefsincoq}, LEGO~\cite{luo:lego}, and
+Epigram~\cite{mcbride:left}. They have even made it into more mainstream
+languages such as Haskell~\cite{pj:gadt}.
 
 % Representing inductive families using equality is well-known
 
@@ -212,7 +212,7 @@ also in the proof terms. In the first formulation of the |Even| predicate we
 have proof terms |evenZ| and |evenSS m p|, for a number |m| and a proof |p|
 that |m| is even, corresponding to the two rules. We also have a dependent
 elimination rule |elim_Even| for proofs of |Even n| which states that for any
-predicate |C| over a natural number {\it and a proof that it is even}, if |hz|
+predicate |C| over a natural number and a proof that it is even, if |hz|
 is a proof of |C zero evenZ| and |hss| is a function that given |m : Nat|, |q :
 Even n| and a proof of |C m q| returns a proof of |C (suc (suc m)) (evenSS m
 q)|, then |elim_Even C hz hss n p| proves |C n p| for any natural number |n|
@@ -251,14 +251,15 @@ definitions~\cite{dybjer:indexed-ir}, but for presentation reasons we restrict
 ourselves to indexed inductive definitions. Adding a recursive component adds
 nothing interesting to the proof.
 
-% Say something about why this is useful.
+% TODO: Say something about why this is useful.
 
 The rest of this paper is organised as follows. Section~\ref{sec-lf} introduces
 the logical framework, Section~\ref{sec-id} gives a brief introduction to the
 intensional equality type, Section~\ref{sec-IID} gives a formalisation of
 indexed inductive definitions, Section~\ref{sec-Encoding} contains the proof
-that a generalised IID can be expressed using a restricted IID, and
-Section~\ref{sec-concl} concludes.
+that a generalised IID can be expressed using a restricted IID,
+Section~\ref{sec-formal} outlines the formal proof, and Section~\ref{sec-concl}
+concludes.
 
 \section{The logical framework} \label{sec-lf}
 
@@ -617,7 +618,7 @@ indHyp_IE :
   (C : (i : I) -> U i -> Set)
   (g : (i : I)(u : U i) -> C i u)
   (a : Args gamma U) -> IndHyp gamma U C a
-indHyp gamma U C g a = \ v -> g (IndIndex gamma U a v) (Ind gamma U a v)
+indHyp gamma U C g a = \ v. g (IndIndex gamma U a v) (Ind gamma U a v)
 ~
 \end{code}
 
@@ -686,8 +687,8 @@ to index computed for the generalised IID. Concretely:
 \begin{code}
 ~
 eps_I : OPg I -> OPr I
-eps (iota i)           j = sigma (i == j) (\ _ -> iota star)
-eps (sigma A gamma)    j = sigma A (\ a -> eps (gamma a) j)
+eps (iota i)           j = sigma (i == j) (\ p. iota star)
+eps (sigma A gamma)    j = sigma A (\ a. eps (gamma a) j)
 eps (delta H i gamma)  j = delta H i (eps gamma j)
 ~
 \end{code}
@@ -775,17 +776,24 @@ evenSS n e = evenSS' n e refl
 
 As we have already observed, the representation of a generalised IID contains
 more elements than necessary, so it not obvious that we will be able to define
-the elimination rule we want. Fortunately it turns out that we can. First,
-recall the elimination rule that we want to define:
+the elimination rule we want. Fortunately it turns out that we can.
+
+\begin{theorem}
+The elimination rule for a generalised IID is provable for the representation
+of generalised IID given above. More precisely, for closed |gamma| we can prove
+the following rule in the logical framework with restricted IID and the
+identity type.
 \begin{code}
 ~
 elimUgg :  (C : (i : I) -> Ugg i -> Set) ->
            (  (a : Args γ Ugg) -> IndHyp γ Ugg C a ->
               C (index γ Ugg a) (introgg a)) ->
            (i : I)(u : Ugg i) -> C i u
-~
 \end{code}
-The elimination for the restricted IID is
+\end{theorem}
+
+\begin{proof}
+We can use the elimination for the restricted IID
 \begin{code}
 ~
 elimUreg :  (C : (i : I) -> Ugg i -> Set) ->
@@ -887,28 +895,30 @@ rgArgssubst :  (gamma : OPg I)(U : I -> Set)
                ) -> C i a
 
 rgArgssubst (iota i) U C j < p, star > m =
-  elimId i (\ k q -> C k < q, star >) m j p
+  elimId i (\ k q. C k < q, star >) m j p
 
 rgArgssubst (delta A gamma)   U C j < a, b > m = 
-  rgArgssubst (gamma a) U (\ i c -> C i < a, c >) j b m
+  rgArgssubst (gamma a) U (\ i c. C i < a, c >) j b m
 
 rgArgssubst (delta H i gamma) U C j < g, b > m =
-  rgArgssubst gamma U (\ i c -> C i < g, c >) j b m
+  rgArgssubst gamma U (\ i c. C i < g, c >) j b m
 ~
 \end{code}
 The interesting case is the |iota|-case where we have to prove |C j <p, star>|
-from |C i <refl, star>| and |p : i == j|. This is proven using the elimination
+given |C i <refl, star>| and |p : i == j|. This is proven using the elimination
 rule, |elimId|, for the identity type. Armed with this substitution rule we can
 define the elimination rule for a generalised IID:
 \begin{code}
 ~
 elimUgg C step i u = elimUreg C stepr i u
   where
-    stepr i a ih = rgArgssubst  gamma Ugg (\ i a -> C i (intror i a))
+    stepr i a ih = rgArgssubst  gamma Ugg (\ i a. C i (intror i a))
                                 i a (step (rgArgs gamma Ugg i a) ih)
 ~
 \end{code}
-In our example the elimination rule becomes
+\end{proof}
+
+In our example the definition of the elimination rule is
 \begin{code}
 ~
 elim_Even :  (C : (n : Nat) -> Even n -> Set) ->
@@ -923,25 +933,31 @@ elim_Even C cz css n (evenSS' m e p)  =
 	  (css m e (elim_Even C cz css m e)) n p
 ~
 \end{code}
-To improve readability we present the application of the elimination rule for
-|Even'| using pattern matching and explicit recursion. The call to
-|rgArgssubst| is visible in the equality proof eliminations.
+To improve readability we present the rule using pattern matching and explicit
+recursion rather than calling |elim_Even'|.  The call to |rgArgssubst| is has
+been reduced to equality proof eliminations.
 
-\subsection{Equality rule}
+\subsection{Computation rule}
 
 So far we have shown that we can represent generalised IID as a restricted IID
 and that the elimination rule is still valid. The only thing remaining is to
-show that the equality rule is also valid. That is, that we get the same reduction
-behaviour for our representation as we would if we extended our system with
-generalised IID.
+show that the computation rule is also valid. That is, that we get the same
+definitional equalities for our representation as we would if we extended our
+system with generalised IID.
 
-Let us recall the equality rule we have to prove:
+\begin{theorem}
+  For the representation of generalised IID given above, and the encoding of
+  the elimination rule |elimUgg| the following computation rule holds
+  definitionally for closed |gamma|:
 \begin{code}
 ~
 elimUgg C step (index γ Ugg a) (introgg a) =
   step a (indHyp γ Ugg C (elimUgg C step) a)
 ~
 \end{code}
+\end{theorem}
+
+\begin{proof}
 The key insight here is that the equality rule does not talk about arbitrary
 elements of |Ugg|, but only those that have been constructed using the
 introduction rule. This means that we do not have to satisfy any definitional
@@ -984,7 +1000,7 @@ and then removing it, so it is easy to see that this should be true.
 
 \begin{lemma} \label{lem-arg-is-a}
   For all |gamma|, |U|, and |a : Args gamma U| it holds definitionally that
-  |rgArgs gamma U (index gamma U a) (grArgs gamma U a) = a|
+> rgArgs gamma U (index gamma U a) (grArgs gamma U a) = a
 \end{lemma}
 %format lem_argIsa = "\ref{lem-arg-is-a}"
 \begin{proof}
@@ -1017,9 +1033,42 @@ elimUgg C step (index gamma Ugg a) (introgg a)
    step a (indHyp gamma Ugg C (elimUgg C step) a)
 ~
 \end{code}
+\end{proof}
+
+In the example of |Even| the proofs of the computation rules are
+\begin{code}
+elim_Even C cz css zero evenZ
+= elim_Even C cz css zero (evenZ' refl)
+= elimId zero (\ m q. C m (evenZ' q)) cz zero refl
+= cz
+
+elim_Even C cz css (suc (suc m)) (evenSS m p)
+= elim_Even C cz css (suc (suc m)) (evenSS' m p refl)
+= elimId  (suc (suc m)) (\ z q. C z (evenSS' m e q))
+          (css m e (elim_Even C cz css m e)) (suc (suc m)) refl
+= css m e (elim_Even C cz css m e)
+\end{code}
+The important step is the appeal to the computation rule for the equality type.
 
 This concludes the proof that we can faithfully represent generalised IID in
 the theory of restricted IID and the intensional identity type.
+
+\section{Notes on the formal proof} \label{sec-formal}
+
+One approach to formalise our result would be to formalise the logical
+framework and the theory of restricted IID and proving our theorems for this
+formalisation. This would be a big undertaking, however, so we chose a more
+light-weight approach. Since Agda contains the logical framework with
+restricted IID a natural approach is to use Agda as the object language as well
+as the meta language. The only problem with this approach is that we want to
+reason about object level definitional equalities which are not definitional on
+the meta level. For instance, we show that for all closed codes |gamma| the
+computation rules hold definitionally on the object level. On the meta level we
+are reasoning about arbitrary codes and so the computation rules do not hold
+definitionally. To solve this problem we axiomatised the object level
+definitional equality at the meta level. With this approach care has to be
+taken to not use any object level reasoning when proving object level
+definitional equalities.
 
 \section{Conclusions} \label{sec-concl}
 
