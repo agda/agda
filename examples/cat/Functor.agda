@@ -6,11 +6,10 @@ import Category
 import Logic.ChainReasoning
 
 open Category
+open Poly-Cat
 
 private
  module Fun where
-
-  open Id.Projections using (eq)
 
   data Functor (ℂ ⅅ : Cat) : Set1 where
     functor : (F     : Obj ℂ -> Obj ⅅ)
@@ -23,8 +22,6 @@ private
 open Fun public
 
 module Projections where
-
-  open Id.Projections using (eq)
 
   Map : {ℂ ⅅ : Cat} -> Functor ℂ ⅅ -> Obj ℂ -> Obj ⅅ
   Map (functor F _ _ _) = F
@@ -62,7 +59,7 @@ module Functor {ℂ ⅅ : Cat}(F : Functor ℂ ⅅ) where
 module Functors where
 
   Id : {ℂ : Cat} -> Functor ℂ ℂ
-  Id = functor (\A -> A) (\f -> f) (\{A} -> PolyEq.refl) (\{A}{B}{C}{f}{g} -> PolyEq.refl)
+  Id = functor (\A -> A) (\f -> f) (\{A} -> refl) (\{A}{B}{C}{f}{g} -> refl)
 
   _○_ : {ℂ ℚ ℝ : Cat} -> Functor ℚ ℝ -> Functor ℂ ℚ -> Functor ℂ ℝ
   _○_ {ℂ}{ℚ}{ℝ} F G = functor FG m mid mcomp
@@ -79,30 +76,24 @@ module Functors where
 
       mid : {A : Obj ℂ} -> m (id {A = A}) == id
       mid = chain> F.map (G.map id)
-	       === F.map id   by PolyEq.cong F.map G.mapId
+	       === F.map id   by ? -- cong F.map G.mapId
 	       === id	      by F.mapId
 	where
-	  module IdArr = Id.Identity EqArr
-	  open IdArr hiding (_==_)
-	  module Chain = Logic.ChainReasoning _==_
+	  open module Chain = Logic.ChainReasoning.Mono.Homogenous _==_
 			      (\f -> refl)
 			      (\f g h -> trans)
-	  open Chain
 
       mcomp : {A B C : Obj ℂ}{f : B ─→ C}{g : A ─→ B} ->
 	      m (f ∘ g) == m f ∘ m g
       mcomp {f = f}{g = g} =
 	chain> F.map (G.map (f ∘ g))
 	   === F.map (G.map f ∘ G.map g)
-	       by PolyEq.cong F.map G.mapCompose
+	       by ? -- cong F.map G.mapCompose
 	   === F.map (G.map f) ∘ F.map (G.map g)
 	       by F.mapCompose
 	where
-	  module IdArr = Id.Identity EqArr
-	  open IdArr hiding (_==_)
-	  module Chain = Logic.ChainReasoning _==_
+	  open module Chain = Logic.ChainReasoning.Mono.Homogenous _==_
 			      (\f -> refl)
 			      (\f g h -> trans)
-	  open Chain
 
 
