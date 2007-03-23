@@ -171,7 +171,7 @@
 
 Indexed inductive definitions (IID), or inductive families, are inductively
 defined families of sets. As such they have a wide range of applications in
-both mathemathics and programming. Examples include the transitive closure of a
+both mathematics and programming. Examples include the transitive closure of a
 relation, the typing relation of simply typed $λ$-calculus, and vectors of a
 fixed length.
 
@@ -335,9 +335,7 @@ The Paulin-Mohring elimination rule has type
 elim_P :  (x : A)(C : (y : A) -> x == y -> Set) ->
           C x (refl x) -> (y : A)(p : x == y) -> C y p
 \end{code}
-
 and computation rule
-
 > elim_P x C h x (refl x) = h
 
 \end{definition}
@@ -686,7 +684,7 @@ The code for |Even| is
 gammaEven  :  OPg Nat
            =  sigma 2 (\ c. elim2 c (iota zero) (sigma Nat (\ n. delta 1 (\ x. n) (iota (suc (suc n))))))
 \end{code}
-Again an argument of type |2| is used to distinuish the two constructors. In
+Again an argument of type |2| is used to distinguish the two constructors. In
 the |evenZ| case there are no arguments and the index is |zero|. In the
 |evenSS| case there is one non-inductive argument |n| of type |Nat| and one
 inductive argument with index |n|. The index of the result is |suc (suc n)|.
@@ -1030,7 +1028,7 @@ elim_Even C cz css (suc (suc m)) (evenSS m p)
           (css m e (elim_Even C cz css m e)) (suc (suc m)) refl
 = css m e (elim_Even C cz css m e)
 \end{code}
-The important step is the appeal to the computation rule for the indentity type.
+The important step is the appeal to the computation rule for the identity type.
 
 This concludes the proof that we can faithfully represent generalised IID in
 the theory of restricted IID and the intensional identity type.
