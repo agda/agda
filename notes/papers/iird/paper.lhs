@@ -159,22 +159,19 @@
 \begin{document}
 \maketitle
 \begin{abstract}
-  Indexed inductive definitions.
-
-  It is well-known how to represent inductive families using equality. This is
-  usually done in an extensional setting. We show that this encoding also works
-  in intensional type theory and that the definitional equalities are preserved.
-
-  The proof is formally verified in Agda.
+  It is well-known how to represent indexed inductive definitions, or inductive
+  families, using extensional equality. We show that this encoding also works
+  in intensional type theory and that the computation rules associated with an
+  inductive family are preserved. The proof has been formalised in Agda.
 \end{abstract}
 
 \section{Introduction}
 
 % Describe the current state of affairs (and sell inductive families)
 
-Indexed inductive definitions, or inductive families, are inductively defined
-families of sets. As such they have a wide range of applications in both
-mathemathics and programming. Examples include the transitive closure of a
+Indexed inductive definitions (IID), or inductive families, are inductively
+defined families of sets. As such they have a wide range of applications in
+both mathemathics and programming. Examples include the transitive closure of a
 relation, the typing relation of simply typed $λ$-calculus, and vectors of a
 fixed length.
 
@@ -185,48 +182,55 @@ Constructions~\cite{paulin:thesis,coquand:bastad}, and Luo's
 UTT~\cite{luo:typetheory}, and they are supported by tools building on these
 theories. For instance, ALF~\cite{magnussonnordstrom:alf},
 Coq~\cite{mohring:inductivedefsincoq}, LEGO~\cite{luo:lego}, and
-Epigram~\cite{mcbride:left}. They have even made it into more mainstream
-languages such as Haskell~\cite{pj:gadt}.
+Epigram~\cite{mcbride:left}. They have even made it into languages such as
+Haskell~\cite{pj:gadt}.
 
 % Representing inductive families using equality is well-known
 
-It is well-known~\cite{feferman94finitary} how to represent inductively defined
-relations using equality. For instance, the predicate |Even| over natural
-numbers, inductively defined by
+An example of an IID is the predicate |Even| over natural numbers defined by
 \[\begin{array}{ccc}
     \infer{}{\Even \, \zero}
 &&  \infer{\Even \, n}{\Even \, (\suc \, (\suc \, n))}
 \end{array}\]
-can be characterised by the following formula:
-\[
-    \Even \, n \Leftrightarrow
-      n = \zero \vee
-      \exists m. \, \Even \, m \wedge n = \suc \, (\suc \, m)
-\]
+We distinguish between generalised IID, such as |Even| above, and restricted
+IID where the conclusions must all be of the form $P\,\bar
+x$~\cite{dybjer:indexed-ir}.
+
+It is well-known~\cite{feferman94finitary} how to reduce general IID to
+restricted IID using equality. For instance, the |Even| predicate can be
+represented by the restricted IID
+\[\begin{array}{ccc}
+    \infer{n = \zero}{\Even \, n}
+&&  \infer{\Even \, m \quad n = \suc \, (\suc \, m)}{\Even \, n}
+\end{array}\]
 From a set theoretic point of view it is clear that the two formulations are
 equivalent, but in a type theoretic setting it is not so obvious. The reason
 for this is that in type theory we are not only interested in provability but
 also in the proof terms. In the first formulation of the |Even| predicate we
 have proof terms |evenZ| and |evenSS m p|, for a number |m| and a proof |p|
 that |m| is even, corresponding to the two rules. We also have a dependent
-elimination rule |elim_Even| for proofs of |Even n| which states that for any
-predicate |C| over a natural number and a proof that it is even, if |hz|
-is a proof of |C zero evenZ| and |hss| is a function that given |m : Nat|, |q :
-Even n| and a proof of |C m q| returns a proof of |C (suc (suc m)) (evenSS m
-q)|, then |elim_Even C hz hss n p| proves |C n p| for any natural number |n|
-and proof |p| of |Even n|.  This elimination rule is equipped with two
-computation rules stating that
-> elim_Even C hz hss zero           evenZ         = hz
-> elim_Even C hz hss (suc (suc m))  (evenSS m p)  =
->   hss m p (elim_Even C hz hss m p)
+elimination rule |elim_Even|:
+\begin{code}
+elim_Even :  (C : (n : Nat) -> Even n -> Set) ->
+             C zero evenZ ->
+             (  (n : Nat)(e : Even n) -> C n e ->
+                C (suc (suc n)) (evenSS n e)) ->
+             (n : Nat)(e : Even n) -> C n e
+\end{code}
+Note that the predicate |C| that we are eliminating over, depends not only on a
+natural number, but also on the actual proof term that proves it is even.  The
+elimination rule is equipped with two computation rules stating that
+> elim_Even C cz css zero           evenZ         = cz
+> elim_Even C cz css (suc (suc m))  (evenSS m p)  =
+>   css m p (elim_Even C cz css m p)
 Now it is not at all clear that the second formulation of |Even| enjoys the
 same elimination and computation rules, since the proof terms are quite
 different. 
 
 Dybjer and Setzer~\cite{dybjer:indexed-ir} show that in extensional type theory
-the two formulations are equivalent, but to the author's knowledge it has not
-been made explicit what the relationship is in intensional type theory. The
-difference between extensional and intensional type theory is that in
+generalised IID can be reduced to restricted IID, and the main result of this
+paper is to show that this can be done also in intensional type theory.
+The difference between extensional and intensional type theory is that in
 intensional type theory one distinguishes between provable equality and
 definitional equality.  The advantage of this is that proof checking becomes
 decidable, but a disadvantage is that the proof checker can only decide
@@ -249,7 +253,9 @@ definitions~\cite{dybjer:indexed-ir}, but for presentation reasons we restrict
 ourselves to indexed inductive definitions. Adding a recursive component adds
 nothing interesting to the proof.
 
-% TODO: Say something about why this is useful.
+For systems such as Agda, which only supports restricted indexed inductive
+definitions, our result provides a way to get the power of generalised
+inductive families without having to extend the meta-theory.
 
 The rest of this paper is organised as follows. Section~\ref{sec-lf} introduces
 the logical framework, Section~\ref{sec-id} gives a brief introduction to the
@@ -267,8 +273,8 @@ used by Dybjer and Setzer and the complete rules can be found
 in~\cite{dybjer:indexed-ir}. In contrast to Dybjer and Setzer we work entirely
 in intensional type theory.
 
-The type of sets |Set| is closed under pi and sigma, and if |A : Set| then |A|
-is a type.
+The type of sets |Set| is closed under dependent sums and products, and if |A :
+Set| then |A| is a type.
 
 Dependent function types are written |(x : A) -> B| and have elements |\ x. a|,
 where |a : B| provided |x : A|.  Application of |f| to |a| is written |f a|. If
@@ -304,8 +310,9 @@ with introduction rule
   refl : (x : A) -> x == x
 \end{code}
 
-The choice lies in the elimination rule. The Martin-Löf elimination rule,
-introduced in 1973~\cite{martin-lof:predicative} is defined as follows.
+The choice lies in the elimination rule, where we have two principal
+candidates. The Martin-Löf elimination rule, introduced in
+1973~\cite{martin-lof:predicative} is defined as follows.
 
 \begin{definition}[Martin-Löf elimination]
 
@@ -320,7 +327,7 @@ and computation rule
 \end{definition}
 
 A different elimination rule was introduced by
-Paulin-Mohring~\cite{pfenning-paulin:inductive-coc}.
+Paulin-Mohring~\cite{pfenning-paulin:inductive-coc}:
 
 \begin{definition}[Paulin-Mohring elimination]
 The Paulin-Mohring elimination rule has type
@@ -353,7 +360,8 @@ elimination, and indeed it is easy to define |elim_ML| in terms of |elim_P|.
 \end{proof}
 %
 However, it turns out that Paulin-Mohring elimination is definable in terms of
-Martin-Löf elimination. The proof of this is slightly more involved.
+Martin-Löf elimination~\cite{paulin:mail}. The proof of this is slightly more
+involved.
 %
 \begin{lemma}
     Paulin-Mohring elimination can be defined in terms of Martin-Löf
@@ -455,10 +463,10 @@ both as codes for general IID and restricted IID.
 
 \begin{code}
 ~
-data OP (I, E : Set) where
-  iota   : E -> OP I E
-  sigma  : (A : Set)(gamma : A -> OP I E) -> OP I E
-  delta  : (A : Set)(i : A -> I)(gamma : OP I E) -> OP I E
+OP I E  : Set
+iota    : E -> OP I E
+sigma   : (A : Set) -> (A -> OP I E) -> OP I E
+delta   : (A : Set) -> (A -> I) -> (gamma : OP I E) -> OP I E
 ~
 \end{code}
 
@@ -483,9 +491,12 @@ three constructors:
     \item
         Non-inductive argument: |sigma A gamma|. In this case the constructor
         has a non-inductive argument |a : A|. The remaining arguments may depend
-        on |a| and are coded by |gamma a|. For instance, a datatype with
-        |n| constructors can be coded by |sigma Fin_n gamma|, where |Fin_n| is
-        an |n| element type and |gamma i| is the code for the |i|th constructor.
+        on |a| and are coded by |gamma a|. A datatype with
+        multiple constructors can be coded by |sigma C gamma| where |C| is a
+        type representing the constructors and |gamma c| is the code for the
+        constructor corresponding to |c|. For instance, the code for the
+        datatype |Bool| with two nullary constructors is
+        > \i . sigma 2 (\c -> elim2 c (iota star) (iota star))
 
         Another example is the type of pairs over |A| and |B|
         \begin{code}
@@ -513,9 +524,6 @@ three constructors:
         of the assumptions.
 \end{itemize}
 See Section~\ref{sec-IID-Examples} for more examples.
-
-\TODO{Explain what we are allowed to do with codes (on the meta level). Take
-care to distinguish meta level and object level.}
 
 \subsection{From codes to types} \label{sec-IID-Types}
 
@@ -565,9 +573,7 @@ For general IID, given |gamma : OPg I| we want
     introgg : (a : Args gamma Ugg) -> Ugg (index gamma Ugg a)
 ~
 \end{code}
-In Section~\ref{sec-Encoding} we show that it is sufficient to introduce
-restricted IID together with an intensional identity type, to be able to define
-|Ugg|.
+In Section~\ref{sec-Encoding} we show how to define |Ugg| in terms of |Urg|.
 
 As an example take the type of pairs over |A| and |B|:
 \begin{code}
@@ -699,9 +705,9 @@ elimUgg C step (index γ Ugg a) (introgg a) =
 %format gammaEven = "γ_{\mathit{Even}}"
 %format gammaId   = "γ_{{==}}"
 
-Datatypes with more than one constructor can be encoded by representing the
-constructors as the first argument. For instance, the code for natural numbers
-is
+As we have seen, datatypes with more than one constructor can be encoded by
+having the first argument be a representation of the constructor.  For
+instance, the code for natural numbers is
 > gammaNat : OPr 1 = \i. sigma 2 (\ c. elim2 c (iota star) (delta 1 (\ x. star) (iota star)))
 Here, the first argument is an element of |2| encoding whether the number is
 built by |zero| or |suc|. We can recover the familiar introduction rules |zero|
@@ -823,15 +829,12 @@ evenSS n e = evenSS' n e refl
 
 \subsection{Elimination rule}
 
-As we have already observed, the representation of a generalised IID contains
-more elements than necessary, so it not obvious that we will be able to define
-the elimination rule we want. Fortunately it turns out that we can.
+Now we turn our attention towards the elimination rule.
 
 \begin{theorem}
 The elimination rule for a generalised IID is provable for the representation
-of generalised IID given above. More precisely, for closed |gamma| we can prove
-the following rule in the logical framework with restricted IID and the
-identity type.
+of generalised IID given above. More precisely, we can prove the following rule
+in the logical framework with restricted IID and the identity type.
 \begin{code}
 ~
 elimUgg :  (C : (i : I) -> Ugg i -> Set) ->
@@ -884,8 +887,8 @@ Our intuition is that |eps| does not change the inductive occurrences in any
 way, and indeed we can prove the following lemma:
 
 \begin{lemma} \label{lem-eps-Ind}
-For any |a : Args (eps gamma i) U| and |v : IndArg (eps gamma i) U a| the
-following equalities hold definitionally.
+For any closed |gamma|, |a : Args (eps gamma i) U| and |v : IndArg (eps gamma
+i) U a| the following equalities hold definitionally.
 \begin{code}
 ~
 IndArg    gamma U      (rgArgs gamma U i a)    = IndArg    (eps gamma i) U a
@@ -1016,7 +1019,7 @@ when the equality proof is |refl|, i.e. when the argument is build using the
 |grArgs| function.
 
 \begin{lemma} \label{lem-rgArgsubst}
-  For all |gamma|, |U|, |C|, |a : Args gamma U|, and
+  For all closed |gamma|, and all |U|, |C|, |a : Args gamma U|, and
   \begin{code}
     h : C (index gamma U arg) (grArgs gamma U arg)
   \end{code}
@@ -1048,7 +1051,7 @@ back is the definitional identity. This amounts to adding a reflexivity proof
 and then removing it, so it is easy to see that this should be true.
 
 \begin{lemma} \label{lem-arg-is-a}
-  For all |gamma|, |U|, and |a : Args gamma U| it holds definitionally that
+  For all closed |gamma|, and all |a : Args gamma U| it holds definitionally that
 > rgArgs gamma U (index gamma U a) (grArgs gamma U a) = a
 \end{lemma}
 %format lem_argIsa = "\ref{lem-arg-is-a}"
@@ -1056,9 +1059,8 @@ and then removing it, so it is easy to see that this should be true.
   By induction on |gamma|.
 \end{proof}
 
-Now take
+Now we are ready to prove the computation rule. Take |a : Args gamma Ugg| and let
 \begin{code}
-  a   : Args gamma Ugg
   i   = index gamma Ugg a
   ar  = grArgs gamma Ugg a
   arg = rgArgs gamma Ugg i ar
@@ -1097,7 +1099,7 @@ elim_Even C cz css (suc (suc m)) (evenSS m p)
           (css m e (elim_Even C cz css m e)) (suc (suc m)) refl
 = css m e (elim_Even C cz css m e)
 \end{code}
-The important step is the appeal to the computation rule for the equality type.
+The important step is the appeal to the computation rule for the indentity type.
 
 This concludes the proof that we can faithfully represent generalised IID in
 the theory of restricted IID and the intensional identity type.
@@ -1109,22 +1111,33 @@ framework and the theory of restricted IID and proving our theorems for this
 formalisation. This would be a big undertaking, however, so we chose a more
 light-weight approach. Since Agda contains the logical framework with
 restricted IID a natural approach is to use Agda as the object language as well
-as the meta language. The only problem with this approach is that we want to
+as the meta language. One problem with this approach is that we want to
 reason about object level definitional equalities which are not definitional on
 the meta level. For instance, we show that for all closed codes |gamma| the
 computation rules hold definitionally on the object level. On the meta level we
 are reasoning about arbitrary codes and so the computation rules do not hold
 definitionally. To solve this problem we axiomatised the object level
-definitional equality at the meta level. With this approach care has to be
-taken to not use any object level reasoning when proving object level
-definitional equalities.
+definitional equality at the meta level. With this approach one has to be
+careful with induction. For instance, if one proves by induction on |n| that |n
++ zero = n|, this only holds definitionally for closed |n|. 
+In our case the only induction is over codes |gamma| and we always assume gamma
+to be closed. This slight informality in the proof is only an issue when
+proving the computation rule. The definition of the elimination rule is fully
+formal.
 
 \section{Conclusions} \label{sec-concl}
 
-This is good stuff.
+We have shown that the theory of generalised indexed inductive definitions can
+be interpreted in the theory of restricted indexed inductive definitions
+extended with an intensional identity type. The informal proof presented here
+has been formalised in Agda using a light-weight approach where Agda is used
+both for the object language and the meta language.
+
+This result gives way of adding generalised IID to theories with only
+restricted IID, such as Agda, without having to extend the meta-theory.
 
 \bibliographystyle{abbrv}
-\bibliography{../../../../bib/pmgrefs}
+\bibliography{../../../../bib/pmgrefs,iird}
 
 \end{document}
 
