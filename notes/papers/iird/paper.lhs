@@ -150,7 +150,7 @@
 
 \input{macros}
 
-\title{Encoding indexed inductive types using the intensional identity type}
+\title{Encoding indexed inductive definitions using the intensional identity type}
 \author{Ulf Norell}
 \institute{Chalmers University of Technology \\
   \email{ulfn@@cs.chalmers.se}
@@ -371,27 +371,21 @@ involved.
 \begin{proof}
     We first define the substitution rule
 \begin{code}
-~
     subst :  (C : A -> Set)(x, y : A)
              x == y -> C x -> C y
     subst C x y p Cx = elim_ML  (\ a b q. C a -> C b)
                                 (\ a Ca. Ca) x y p Cx
-~
 \end{code}
     Now define |E x = (y : A) ** (x == y)|.  We can prove that any element of
     |E x| is equal to |<x, refl x>|.
 \begin{code}
-~
     uniqE : (x, y : A)(p : x == y) -> <x, refl x> == <y, p>
     uniqE = elim_ML (\ x y p. (x, refl x) == (y, p)) refl
-~
 \end{code}
 Finally
 \begin{code}
-~
     elim_P x C h y p = subst  (\ z. C (pi0 z) (pi1 z))
                               <x, refl x> <y, p> (uniqE x y p) h
-~
 \end{code}
 \end{proof}
 
@@ -462,12 +456,10 @@ Like Dybjer and Setzer we introduce a common type of codes which will serve
 both as codes for general IID and restricted IID.
 
 \begin{code}
-~
 OP I E  : Set
 iota    : E -> OP I E
 sigma   : (A : Set) -> (A -> OP I E) -> OP I E
 delta   : (A : Set) -> (A -> I) -> (gamma : OP I E) -> OP I E
-~
 \end{code}
 
 Now the codes for general indexed inductive types are defined by |OPg I = OP I
@@ -482,12 +474,7 @@ three constructors:
         constructor. In the case of a general IID we have to give the index for
         the constructor. For instance the code for the singleton type of true
         booleans given by the formation rule |IsTrue : Bool -> Set| and
-        introduction rule |IsTrue true| is
-        \begin{code}
-        ~
-            iota true : OPg Bool
-        ~
-        \end{code}
+        introduction rule |IsTrue true| is |iota true : OPg Bool|
     \item
         Non-inductive argument: |sigma A gamma|. In this case the constructor
         has a non-inductive argument |a : A|. The remaining arguments may depend
@@ -496,13 +483,13 @@ three constructors:
         type representing the constructors and |gamma c| is the code for the
         constructor corresponding to |c|. For instance, the code for the
         datatype |Bool| with two nullary constructors is
-        > \i . sigma 2 (\c -> elim2 c (iota star) (iota star))
+        \begin{code}
+        \i . sigma 2 (\c -> elim2 c (iota star) (iota star))
+        \end{code}
 
         Another example is the type of pairs over |A| and |B|
         \begin{code}
-        ~
-            \ i. sigma A (\ a. sigma B (\ b. iota star)) : OPr 1
-        ~
+        \ i. sigma A (\ a. sigma B (\ b. iota star)) : OPr 1
         \end{code}
         In this case the following arguments do not depend on the value of the
         non-inductive arguments.
@@ -516,9 +503,7 @@ three constructors:
         -> Acc y)| then |Acc x|. Here the inductive argument |Acc y| occurs
         under the assumptions |(y : A)| and |y << x|. The code for this type is
         \begin{code}
-        ~
             \ x. delta ((y : A) ** (y << x)) pi0 (iota star) : OPr A
-        ~
         \end{code}
         The index of the inductive argument is |y| which is the first projection
         of the assumptions.
@@ -533,12 +518,10 @@ define the type of arguments to the constructor parameterised by the type of
 inductive arguments\footnote{Analogous to when you for simple inductive types
 define an inductive type as the fixed point of some functor.}.
 \begin{code}
-~
 Args_IE : (gamma : OP I E)(U : I -> Set) -> Set
 Args (iota e)           U  = 1
 Args (sigma A gamma)    U  = A ** \ a. Args (gamma a) U
 Args (delta A i gamma)  U  = ((a : A) -> U (i a)) ** \ d. Args gamma U
-~
 \end{code}
 There are no surprises here, in the base case there are no arguments, in the
 non-inductive case there is one argument |a : A| followed by the rest of the
@@ -549,39 +532,31 @@ index.
 For general IID we also need to be able to compute the index of a given
 constructor argument.
 \begin{code}
-~
 index_IE : (gamma : OP I E)(U : I -> Set)(a : Args gamma U) -> E
 index (iota e)           U  _       = e
 index (sigma A gamma)    U  <x, a>  = index (gamma x) U a
 index (delta A i gamma)  U  <_, a>  = index gamma U a
-~
 \end{code}
 Note that only the non-inductive arguments are used when computing the index.
 
 This is all the machinery needed to introduce the types of general and restricted
 IID. For restricted IID we introduce, given |gamma : OPr I| and |i : I|
 \begin{code}
-~
     Urg : I -> Set
     introrg i : Args (gamma i) Urg -> Urg i
-~
 \end{code}
 For general IID, given |gamma : OPg I| we want
 \begin{code}
-~
     Ugg : I -> Set
     introgg : (a : Args gamma Ugg) -> Ugg (index gamma Ugg a)
-~
 \end{code}
 In Section~\ref{sec-Encoding} we show how to define |Ugg| in terms of |Urg|.
 
 As an example take the type of pairs over |A| and |B|:
 \begin{code}
-~
     gamma = \ i. sigma A (\ a. sigma B (\ b. iota star)) : OPr 1
     Pair A B = Urg : 1 -> Set
     introrg star : A ** (\ a. B ** (\ b. 1)) -> Pair A B star
-~
 \end{code}
 
 Note that while the index of a restricted IID is determined from the outside,
@@ -596,12 +571,10 @@ To complete the formalisation of IID we have to give the elimination rules.  We
 start by defining the set of assumptions of the inductive occurrences in a
 given constructor argument.
 \begin{code}
-~
 IndArg_IE : (gamma : OP I E)(U : I -> Set) -> Args gamma U -> Set
 IndArg (iota e)           U _         = 0
 IndArg (sigma A gamma)    U < a, b >  = IndArg (gamma a) U b
 IndArg (delta A i gamma)  U < g, b >  = A + IndArg gamma U b
-~
 \end{code}
 Simply put |IndArg gamma U a| is the disjoint union of the assumptions of the
 inductive occurrences in |a|.
@@ -609,14 +582,12 @@ inductive occurrences in |a|.
 Now, given the assumptions of one inductive occurrence we can compute the index
 of that occurrence.
 \begin{code}
-~
 IndIndex_IE :  (gamma : OP I E)(U : I -> Set)
                (a : Args gamma U) -> IndArg gamma U a -> I
 IndIndex (iota e)           U  _         z        = elim0 z
 IndIndex (sigma A gamma)    U  < a, b >  c        = IndIndex (gamma a) U b c
 IndIndex (delta A i gamma)  U  < g, b >  (inl a)  = i a
 IndIndex (delta A i gamma)  U  < g, b >  (inr a)  = IndIndex gamma U b a
-~
 \end{code}
 The code |gamma| contains the values of the indices for the inductive
 occurrences so we just have to find the right inductive occurrence.
@@ -624,14 +595,12 @@ occurrences so we just have to find the right inductive occurrence.
 We can now define a function to extract a particular inductive occurrence from
 a constructor argument.
 \begin{code}
-~
 Ind_IE :  (gamma : OP I E)(U : I -> Set)
           (a : Args gamma U)(v : IndArg gamma U a) -> U (IndIndex gamma U a v)
 Ind (iota e)           U  _         z        = elim0 z
 Ind (sigma A gamma)    U  < a, b >  c        = Ind (gamma a) U b c
 Ind (delta A i gamma)  U  < g, b >  (inl a)  = g a
 Ind (delta A i gamma)  U  < g, b >  (inr a)  = Ind gamma U b a
-~
 \end{code}
 Again the definition is very simple.
 
@@ -640,41 +609,34 @@ over elements in a datatype, an induction hypothesis for a constructor argument
 |a| is a function that proves the predicate for all inductive occurrences in
 |a|.
 \begin{code}
-~
 IndHyp_IE :  (gamma : OP I E)(U : I -> Set) ->
              (C : (i : I) -> U i -> Set)(a : Args gamma U) -> Set
 IndHyp gamma U C a =  (v : IndArg gamma U a) ->
                       C (IndIndex gamma U a v) (Ind gamma U a v)
-~
 \end{code}
 
 Given a function |g| that proves |C i u| for all |i| and |u| we can construct an
 induction hypothesis for |a| by applying |g| to all inductive occurrences in
 |a|.
 \begin{code}
-~
 indHyp_IE :
   (gamma : OP I E)(U : I -> Set)
   (C : (i : I) -> U i -> Set)
   (g : (i : I)(u : U i) -> C i u)
   (a : Args gamma U) -> IndHyp gamma U C a
 indHyp gamma U C g a = \ v. g (IndIndex gamma U a v) (Ind gamma U a v)
-~
 \end{code}
 
 We are now ready to introduce the elimination rules. Given |I : Set| and |gamma
 : OPr I| the elimination rule for the restricted IID |Urg| is given by the
 following type and computation rule:
 \begin{code}
-~
 elimUrg :
   (C : (i : I) -> Urg i -> Set) ->
-  (  (i : I)(a : Args (γ i) Urg) ->
-     IndHyp (γ i) Urg C a -> C i (introrg i a)) ->
-  (i : I)(u : Urg i) -> C i u
+  ((i : I)(a : Args (γ i) Urg) -> IndHyp (γ i) Urg C a -> C i (introrg i a))
+  -> (i : I)(u : Urg i) -> C i u
 elimUrg C step i (introrg a) =
   step i a (indHyp (γ i) Urg C (elimUrg C step) a)
-~
 \end{code}
 That is, for any predicate |C| over |Urg|, if given that |C| holds for all
 inductive occurrences in some arbitrary constructor argument |a| then |C| holds
@@ -686,15 +648,12 @@ step.
 The elimination rule for a general IID is similar. The difference is that the
 index of a constructor argument is computed from the value of the argument.
 \begin{code}
-~
 elimUgg :
   (C : (i : I) -> Ugg i -> Set) ->
-  (  (a : Args γ Ugg) -> IndHyp γ Ugg C a ->
-     C (index γ Ugg a) (introgg a)) ->
+  (  (a : Args γ Ugg) -> IndHyp γ Ugg C a -> C (index γ Ugg a) (introgg a)) ->
   (i : I)(u : Ugg i) -> C i u
 elimUgg C step (index γ Ugg a) (introgg a) =
   step a (indHyp γ Ugg C (elimUgg C m) a)
-~
 \end{code}
 
 \subsection{Examples} \label{sec-IID-Examples}
@@ -757,20 +716,16 @@ its encoding as a restricted IID.  The basic idea, as we have seen, is to add a
 proof that the index of the restricted IID is equal to the index computed for
 the generalised IID. Concretely:
 \begin{code}
-~
 eps_I : OPg I -> OPr I
 eps (iota i)           j = sigma (i == j) (\ p. iota star)
 eps (sigma A gamma)    j = sigma A (\ a. eps (gamma a) j)
 eps (delta H i gamma)  j = delta H i (eps gamma j)
-~
 \end{code}
 Now a general IID for a code |gamma| can be defined as the restricted IID of
 |eps gamma|.
 \begin{code}
-~
 Ugg : I -> Set
 Ugg i = Ureg i
-~
 \end{code}
 For example, the generalised IID of the proofs that a number is even, given by
 \begin{code}
@@ -801,30 +756,24 @@ generalised IID, |a : Args gamma Ugg|, to a constructor argument for its
 representation, |Args (eps gamma (index gamma Ugg a)) Ugg|. This function
 simply adds a reflexivity proof to |a|:
 \begin{code}
-~
 grArgs_I :  (gamma : OPg I)(U : I -> Set)
 	    (a : Args gamma U) -> Args (eps gamma (index gamma U a)) U
 grArgs (iota e)           U a         = < refl, star >
 grArgs (sigma A gamma)    U < a, b >  = < a, grArgs (gamma a) U b >
 grArgs (delta H i gamma)  U < g, b >  = < g, grArgs gamma U b >
-~
 \end{code}
 As usual we abstract over the type of inductive occurrences. Now the
 introduction rule is simply defined by
 \begin{code}
-~
 introgg a = introreg (index gamma Ugg a) (grArgs gamma Ugg a)
-~
 \end{code}
 In our example:
 \begin{code}
-~
 evenZ : Even' zero
 evenZ = evenZ' refl
 
 evenSS : (n : Nat) -> Even' n -> Even' (suc (suc n))
 evenSS n e = evenSS' n e refl
-~
 \end{code}
 
 \subsection{Elimination rule}
@@ -836,7 +785,6 @@ The elimination rule for a generalised IID is provable for the representation
 of generalised IID given above. More precisely, we can prove the following rule
 in the logical framework with restricted IID and the identity type.
 \begin{code}
-~
 elimUgg :  (C : (i : I) -> Ugg i -> Set) ->
            (  (a : Args γ Ugg) -> IndHyp γ Ugg C a ->
               C (index γ Ugg a) (introgg a)) ->
@@ -847,12 +795,10 @@ elimUgg :  (C : (i : I) -> Ugg i -> Set) ->
 \begin{proof}
 We can use the elimination for the restricted IID
 \begin{code}
-~
 elimUreg :  (C : (i : I) -> Ugg i -> Set) ->
             (  (i : I)(a : Args (eps gamma i) Ugg) ->
                IndHyp (eps gamma i) Ugg C a -> C i (introreg i a)) ->
             (i : I)(u : Ugg i) -> C i u
-~
 \end{code}
 Now we face the opposite problem from what we encountered when defining the
 introduction rule. In order to apply the induction step we have to convert a
@@ -861,13 +807,11 @@ likewise for the induction hypothesis. To convert a restricted constructor
 argument we simply remove the equality proof.
 
 \begin{code}
-~
-rgArgs_I : (gamma : OPg I)(U : I -> Set)
-	   (i : I)(a : Args (eps gamma i) U) -> Args gamma U
+rgArgs_I :  (gamma : OPg I)(U : I -> Set)
+	    (i : I)(a : Args (eps gamma i) U) -> Args gamma U
 rgArgs (iota i)           U j _         = star
 rgArgs (sigma A gamma)    U j < a, b >  = < a, rgArgs (gamma a) U j b >
 rgArgs (delta H i gamma)  U j < g, b >  = < g, rgArgs gamma U j b >
-~
 \end{code}
 
 Converting induction hypotheses requires a little more work. This work,
@@ -890,13 +834,11 @@ way, and indeed we can prove the following lemma:
 For any closed |gamma|, |a : Args (eps gamma i) U| and |v : IndArg (eps gamma
 i) U a| the following equalities hold definitionally.
 \begin{code}
-~
 IndArg    gamma U      (rgArgs gamma U i a)    = IndArg    (eps gamma i) U a
 IndIndex  gamma U      (rgArgs gamma U i a) v  = IndIndex  (eps gamma i) U a v
 Ind       gamma U      (rgArgs gamma U i a) v  = Ind       (eps gamma i) U a v
 IndHyp    gamma U C    (rgArgs gamma U i a)    = IndHyp    (eps gamma i) U C a
 indHyp    gamma U C g  (rgArgs gamma U i a)    = indHyp    (eps gamma i) U C g a
-~
 \end{code}
 \end{lemma}
 %format lem_epsInd = "\ref{lem-eps-Ind}"
@@ -907,13 +849,11 @@ indHyp    gamma U C g  (rgArgs gamma U i a)    = indHyp    (eps gamma i) U C g a
 That is, we can use the induction hypothesis we have as it is. Let us now try
 to define the elimination rule. We are given
 \begin{code}
-~
 C     :  (i : I) -> Ugg i -> Set
 step  :  (a : Args gamma Ugg) -> IndHyp gamma Ugg C a ->
          C (index gamma Ugg a) (introgg a)
 i     :  I
 u     :  Ugg i
-~
 \end{code}
 and we have to prove |C i u|. To apply the restricted elimination rule
 (|elimUreg|) we need an induction step |stepr| of type
@@ -938,7 +878,6 @@ throw away the proof, and converting back we add a proof by reflexivity. But
 propositionally equal, so we can define the following substitution function:
 
 \begin{code}
-~
 rgArgssubst :  (gamma : OPg I)(U : I -> Set)
                (C : (i : I) -> rArgs (eps gamma) U i -> Set)
                (i : I)(a : rArgs (eps gamma) U i) ->
@@ -954,25 +893,21 @@ rgArgssubst (delta A gamma)   U C j < a, b > m =
 
 rgArgssubst (delta H i gamma) U C j < g, b > m =
   rgArgssubst gamma U (\ i c. C i < g, c >) j b m
-~
 \end{code}
 The interesting case is the |iota|-case where we have to prove |C j <p, star>|
 given |C i <refl, star>| and |p : i == j|. This is proven using the elimination
 rule, |elimId|, for the identity type. Armed with this substitution rule we can
 define the elimination rule for a generalised IID:
 \begin{code}
-~
 elimUgg C step i u = elimUreg C stepr i u
   where
     stepr i a ih = rgArgssubst  gamma Ugg (\ i a. C i (intror i a))
                                 i a (step (rgArgs gamma Ugg i a) ih)
-~
 \end{code}
 \end{proof}
 
 In our example the definition of the elimination rule is
 \begin{code}
-~
 elim_Even :  (C : (n : Nat) -> Even n -> Set) ->
              C zero evenZ ->
              (  (n : Nat)(e : Even n) -> C n e ->
@@ -983,7 +918,6 @@ elim_Even C cz css n (evenZ' p)       =
 elim_Even C cz css n (evenSS' m e p)  =
   elimId  (suc (suc m)) (\ z q. C z (evenSS' m e q))
 	  (css m e (elim_Even C cz css m e)) n p
-~
 \end{code}
 To improve readability we present the rule using pattern matching and explicit
 recursion rather than calling |elim_Even'|.  The call to |rgArgssubst| is has
@@ -1002,10 +936,8 @@ system with generalised IID.
   the elimination rule |elimUgg| the following computation rule holds
   definitionally for closed |gamma|:
 \begin{code}
-~
 elimUgg C step (index γ Ugg a) (introgg a) =
   step a (indHyp γ Ugg C (elimUgg C step) a)
-~
 \end{code}
 \end{theorem}
 
@@ -1082,7 +1014,6 @@ elimUgg C step (index gamma Ugg a) (introgg a)
    step arg (indHyp gamma Ugg C (elimUgg C step) arg)
 =  {Lemma lem_argIsa}
    step a (indHyp gamma Ugg C (elimUgg C step) a)
-~
 \end{code}
 \end{proof}
 
