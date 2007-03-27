@@ -1,4 +1,4 @@
-% LLNCS DOCUMENT CLASS -- version 2.13 (28-Jan-2002)
+% LLNCS DOCUMENT CLASS -- version 2.14 (17-Aug-2004)
 % Springer Verlag LaTeX2e support for Lecture Notes in Computer Science
 %
 %%
@@ -19,7 +19,7 @@
 %%   Right brace   \}     Tilde         \~}
 %%
 \NeedsTeXFormat{LaTeX2e}[1995/12/01]
-\ProvidesClass{llncs}[2002/01/28 v2.13
+\ProvidesClass{llncs}[2004/08/17 v2.14
 ^^J LaTeX document class for Lecture Notes in Computer Science]
 % Options
 \let\if@envcntreset\iffalse
@@ -587,7 +587,7 @@ to0pt{\kern0.55\wd0\vrule height0.45\ht0\hss}\box0}}}}
  \penalty\@highpenalty \endgroup}
 
 \def\l@author#1#2{\addpenalty{\@highpenalty}
- \@tempdima=\z@ %15\p@
+ \@tempdima=15\p@ %\z@
  \begingroup
  \parindent \z@ \rightskip \@tocrmarg
  \advance\rightskip by 0pt plus 2cm
@@ -879,7 +879,7 @@ to0pt{\kern0.55\wd0\vrule height0.45\ht0\hss}\box0}}}}
 
 \def\subtitle#1{\gdef\@subtitle{#1}}
 \clearheadinfo
-
+%
 \renewcommand\maketitle{\newpage
   \refstepcounter{chapter}%
   \stepcounter{section}%
@@ -934,6 +934,7 @@ to0pt{\kern0.55\wd0\vrule height0.45\ht0\hss}\box0}}}}
       \protected@xdef\scratch{\the\tocauthor}%
       \protected@xdef\toc@uthor{\scratch}%
     \fi
+    \addtocontents{toc}{\noexpand\protect\noexpand\authcount{\the\c@auco}}%
     \addcontentsline{toc}{author}{\toc@uthor}%
     \if@runhead
        \if!\the\authorrunning!
