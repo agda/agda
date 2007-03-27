@@ -17,7 +17,7 @@ module Introduction.Basics where
 -}
 
 -- Agda can be used as a pure logical framework. The 'postulate' declaration
--- introduces new constants:
+-- introduces new constants : 
 postulate
   N : Set     -- Set is the first universe
   z : N
@@ -62,9 +62,9 @@ mutual
 
 -- Agda is a monomorphic, but dependently typed, language. This means that
 -- polymorphism is simulated by having functions take type arguments. For
--- instance, the polymorphic identity function can be represented as follows:
+-- instance, the polymorphic identity function can be represented as follows : 
 
-id : (A:Set) -> A -> A	-- the dependent function space is written (x:A) -> B
+id : (A : Set) -> A -> A	-- the dependent function space is written (x : A) -> B
 id A x = x
 
 one : Nat
@@ -102,7 +102,7 @@ suc n == suc m = n == m
 -- Now we are ready to state and prove our theorem. The proof is by induction
 -- (i.e. recursion) on 'n'.
 
-thmPlusZero : (n:Nat) -> plus n zero == n   -- A function from a number n to
+thmPlusZero : (n : Nat) -> plus n zero == n   -- A function from a number n to
 					    -- P n can be seen as the
 					    -- proposition ∀ n. P n.
 thmPlusZero  zero   = tt

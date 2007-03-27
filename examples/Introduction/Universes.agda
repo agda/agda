@@ -8,5 +8,5 @@ data Nat : Set where
 postulate IsEven : Nat -> Prop
 
 data Even : Set where
-  even : (n:Nat) -> IsEven n -> Even
+  even : (n : Nat) -> IsEven n -> Even
 

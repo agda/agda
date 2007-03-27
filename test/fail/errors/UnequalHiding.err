@@ -1,4 +1,4 @@
-errors/UnequalHiding.agda:7,5-44
+errors/UnequalHiding.agda:7,5-46
 {A : Set} -> A -> A != (A : Set) -> A -> A because one is an
 implicit function type and the other is an explicit function type
 when checking that the expression

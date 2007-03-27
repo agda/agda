@@ -5,6 +5,6 @@ module AbsurdPattern where
 
 data Empty : Set where
 
-elim-Empty : {A:Set} -> Empty -> A
+elim-Empty : {A : Set} -> Empty -> A
 elim-Empty ()
 

@@ -1,6 +1,6 @@
 module Qsort where
 
-  _o_ : {a:Set} -> {b:Set} -> {c:Set} -> (b -> c) -> (a -> b) -> a -> c
+  _o_ : {a : Set} -> {b : Set} -> {c : Set} -> (b -> c) -> (a -> b) -> a -> c
   f o g = \x -> f (g x)
 
   data Bool : Set where
@@ -11,24 +11,24 @@ module Qsort where
   not true  = false
   not false = true
 
-  if_then_else_ : {a:Set} -> Bool -> a -> a -> a
+  if_then_else_ : {a : Set} -> Bool -> a -> a -> a
   if true  then x else _ = x
   if false then _ else y = y
 
-  data List (a:Set) : Set where
+  data List (a : Set) : Set where
     nil  : List a
     _::_ : a -> List a -> List a
 
-  listrec : {a:Set} -> List a -> (a -> List a -> List a) -> List a -> List a
+  listrec : {a : Set} -> List a -> (a -> List a -> List a) -> List a -> List a
   listrec e _  nil    = e
-  listrec e b (x::xs) = b x (listrec e b xs)
+  listrec e b (x :: xs) = b x (listrec e b xs)
 
-  filter : {a:Set} -> (a -> Bool) -> List a -> List a
-  filter f = listrec nil (\x ih -> if (f x) then (x::ih) else ih)
+  filter : {a : Set} -> (a -> Bool) -> List a -> List a
+  filter f = listrec nil (\x ih -> if (f x) then (x :: ih) else ih)
 
-  _++_ : {a:Set} -> List a -> List a -> List a
+  _++_ : {a : Set} -> List a -> List a -> List a
   nil ++ ys = ys
-  (x::xs) ++ ys = x :: (xs ++ ys)
+  (x :: xs) ++ ys = x :: (xs ++ ys)
 
   data Nat : Set where
     zero : Nat
@@ -57,7 +57,7 @@ module Qsort where
 
   --
 
-  qsort : {a:Set} -> (a -> a -> Bool) -> List a -> List a
+  qsort : {a : Set} -> (a -> a -> Bool) -> List a -> List a
   qsort f nil     = nil
-  qsort f (x::xs) = (qsort f (filter (not o (f x)) xs)) ++
+  qsort f (x :: xs) = (qsort f (filter (not o (f x)) xs)) ++
                     (x :: (qsort f (filter (f x) xs)))

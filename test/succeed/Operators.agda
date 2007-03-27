@@ -13,7 +13,7 @@ data Bool : Set where
   true  : Bool
 
 -- An operator is declared with '_' where the arguments go
-if_then_else_ : Bool -> {A:Set} -> A -> A -> A
+if_then_else_ : Bool -> {A : Set} -> A -> A -> A
 if true  then x else y = x
 if false then x else y = y
 

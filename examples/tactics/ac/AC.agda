@@ -106,15 +106,15 @@ module Semantics
   module EqP = EqProof _==_ refl trans
   open EqP
 
-  expr[_] : {n:Nat} -> Expr n -> Vec n A -> A
+  expr[_] : {n : Nat} -> Expr n -> Vec n A -> A
   expr[ zro   ] ρ = one
   expr[ var i ] ρ = ρ ! i
   expr[ a ○ b ] ρ = expr[ a ] ρ * expr[ b ] ρ
 
-  eq[_] : {n:Nat} -> Theorem n -> Vec n A -> Set
+  eq[_] : {n : Nat} -> Theorem n -> Vec n A -> Set
   eq[ a ≡ b ] ρ = expr[ a ] ρ == expr[ b ] ρ
 
-  data CantProve (A:Set) : Set where
+  data CantProve (A : Set) : Set where
     no-proof : CantProve A
 
   Prf : {n : Nat} -> Theorem n -> Bool -> Set

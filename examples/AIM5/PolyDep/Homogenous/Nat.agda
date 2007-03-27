@@ -21,7 +21,7 @@ izero : iNat
 izero = Intro (left unit)
 
 isucc : iNat -> iNat
-isucc = \(h:iNat) -> Intro (right (left (pair h unit)))
+isucc = \(h : iNat) -> Intro (right (left (pair h unit)))
 -- the pair with the dummy unit component comes from the 1-tuple
 --   representation as A*()
 

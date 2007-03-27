@@ -1,7 +1,7 @@
 
 module T where
 
-module List (A:Set) where
+module List (A : Set) where
 
   data List : Set where
     nil  : List

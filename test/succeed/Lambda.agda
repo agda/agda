@@ -7,7 +7,7 @@ module Prelude where
     true  : Bool
     false : Bool
 
-  if_then_else_ : {A:Set} -> Bool -> A -> A -> A
+  if_then_else_ : {A : Set} -> Bool -> A -> A -> A
   if true  then x else y = x
   if false then x else y = y
 
@@ -23,15 +23,15 @@ module Prelude where
   ¬ true  = false
   ¬ false = true
 
-  data List (A:Set) : Set where
+  data List (A : Set) : Set where
     nil	   : List A
     _::_ : A -> List A -> List A
 
-  _++_ : {A:Set} -> List A -> List A -> List A
+  _++_ : {A : Set} -> List A -> List A -> List A
   nil	   ++ ys = ys
   (x :: xs) ++ ys = x :: xs ++ ys
 
-  filter : {A:Set} -> (A -> Bool) -> List A -> List A
+  filter : {A : Set} -> (A -> Bool) -> List A -> List A
   filter p  nil	     = nil
   filter p (x :: xs) = if p x then x :: filter p xs else filter p xs
 

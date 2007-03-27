@@ -19,11 +19,11 @@ all : $(allagda) $(alllagda)
 
 $(allagda) : % : %.agda
 	@echo $<
-	@$(AGDA_BIN) -v$(V) $<
+	@$(AGDA_BIN) $(EXTRA_AGDA_FLAGS) -v$(V) $<
 
 $(alllagda) : % : %.lagda
 	@echo $<
-	@$(AGDA_BIN) -v$(V) $<
+	@$(AGDA_BIN) $(EXTRA_AGDA_FLAGS) -v$(V) $<
 
 clean :
 	-rm *~

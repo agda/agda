@@ -9,7 +9,7 @@ module Introduction.Implicit where
 
 -- Let's revisit the identity function from 'Introduction.Basics'.
 
-id' : (A:Set) -> A -> A
+id' : (A : Set) -> A -> A
 id' A x = x
 
 -- Since Agda is monomorphic we have to take the type A as an argument. So when
@@ -43,14 +43,14 @@ two = id' _ (suc one)
 -- This can be achieved by declaring the first argument as an implicit
 -- argument.
 
-id : {A:Set} -> A -> A	-- implicit arguments are enclosed in curly braces
+id : {A : Set} -> A -> A	-- implicit arguments are enclosed in curly braces
 id x = x  -- now we don't have to mention A in the left-hand side
 
 three : Nat
 three = id (suc two)
 
 -- If, for some reason, an implicit argument cannot be inferred it can be given
--- explicitly by enclosing it in curly braces:
+-- explicitly by enclosing it in curly braces : 
 
 four : Nat
 four = id {Nat} (suc three)
@@ -61,31 +61,31 @@ four = id {Nat} (suc three)
 -- Various definitions of the identity function. Definitions 0 through 3 are
 -- all equivalent, as are definitions 4 through 6.
 
-id0 : (A:Set) -> A -> A
+id0 : (A : Set) -> A -> A
 id0 A x = x
 
-id1 : (A:Set) -> A -> A
+id1 : (A : Set) -> A -> A
 id1 _ x = x	-- in left-hand sides _ means "don't care"
 
-id2 : (A:Set) -> A -> A
+id2 : (A : Set) -> A -> A
 id2 = \A x -> x
 
-id3 = \(A:Set)(x:A) -> x  -- the type signature can be omitted for definitions
+id3 = \(A : Set)(x : A) -> x  -- the type signature can be omitted for definitions
 			  -- of the form x = e if the type of e can be
 			  -- inferred.
 
-id4 : {A:Set} -> A -> A
+id4 : {A : Set} -> A -> A
 id4 x = x
 
-id5 : {A:Set} -> A -> A
+id5 : {A : Set} -> A -> A
 id5 {A} x = x
 
-id6 : {A:Set} -> A -> A
+id6 : {A : Set} -> A -> A
 id6 = \x -> x
 
-id7 = \{A:Set}(x:A) -> x
+id7 = \{A : Set}(x : A) -> x
 
--- id8 : {A:Set} -> A -> A
+-- id8 : {A : Set} -> A -> A
 -- id8 = \{A} x -> x	    -- this doesn't work since the type checker assumes
 			    -- that the implicit A has been has been omitted in
 			    -- the left-hand side (as in id6).

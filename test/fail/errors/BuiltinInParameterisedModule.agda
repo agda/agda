@@ -2,6 +2,6 @@
 -- what that would mean.
 module BuiltinInParameterisedModule where
 
-module A (X:Set) where
+module A (X : Set) where
   {-# BUILTIN INTEGER X #-}
 

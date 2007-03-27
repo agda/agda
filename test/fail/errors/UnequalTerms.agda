@@ -8,5 +8,5 @@ err1 : Zero
 err1 = one
 
 err2 : One -> One
-err2 = \(x:Zero) -> one
+err2 = \(x : Zero) -> one
 

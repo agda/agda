@@ -7,11 +7,11 @@ data Nat : Set where
 
 infixr 15 ::
 
-data List (A:Set) : Set where
+data List (A : Set) : Set where
   nil  : List A
   _::_ : A -> List A -> List A
 
-reverse : {A:Set} -> List A -> List A
+reverse : {A : Set} -> List A -> List A
 reverse xs = rev xs nil
   where
     rev : _ -> _ -> _

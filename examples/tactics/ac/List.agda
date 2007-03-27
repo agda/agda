@@ -10,7 +10,7 @@ data List (A : Set) : Set where
   []   : List A
   _::_ : A -> List A -> List A
 
-module Eq {A:Set}(_=A=_ : A -> A -> Bool) where
+module Eq {A : Set}(_=A=_ : A -> A -> Bool) where
 
   infix 10 _==_
 
@@ -20,7 +20,7 @@ module Eq {A:Set}(_=A=_ : A -> A -> Bool) where
   []	  == _ :: _  = false
   _ :: _  == []	     = false
 
-module Subst {A:Set}(_=A=_ : A -> A -> Bool)
+module Subst {A : Set}(_=A=_ : A -> A -> Bool)
 	     (substA : {x y : A} -> (P : A -> Set) -> IsTrue (x =A= y) -> P x -> P y)
     where
 

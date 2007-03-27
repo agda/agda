@@ -9,7 +9,7 @@ data Bool : Set where
   false : Bool
   true	: Bool
 
-data List (A:Set) : Set where
+data List (A : Set) : Set where
   nil  : List A
   _::_ : A -> List A -> List A
 
@@ -19,7 +19,7 @@ infixr 15 _::_	  -- see 'Introduction.Operators' for information on infix
 -- Agda supports parameterised modules. A parameterised module is declared by
 -- giving the parameters after the module name.
 
-module Sorting {A:Set}(_<_ : A -> A -> Bool) where
+module Sorting {A : Set}(_<_ : A -> A -> Bool) where
 
   insert : A -> List A -> List A
   insert x  nil	     = x :: nil

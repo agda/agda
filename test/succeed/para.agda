@@ -1,16 +1,16 @@
 
 module para where
 
-module Top (A B:Set) where
+module Top (A B : Set) where
 
-  module A (C D:Set) where
+  module A (C D : Set) where
     postulate f : A -> B -> C -> D
 
-  module B (E F:Set) = A F E renaming (f to j)
+  module B (E F : Set) = A F E renaming (f to j)
 
   postulate h : A -> B
 
-  module C (G H:Set) where
+  module C (G H : Set) where
 
     module D = B G H
 

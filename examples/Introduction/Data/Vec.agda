@@ -12,7 +12,7 @@ data Nat : Set where
 data Nil : Set where
   nil' : Nil
 
-data Cons (A As:Set) : Set where
+data Cons (A As : Set) : Set where
   _::'_ : A -> As -> Cons A As
 
 mutual
@@ -20,16 +20,16 @@ mutual
   Vec' A  zero   = Nil
   Vec' A (suc n) = Cons A (Vec A n)
 
-  data Vec (A:Set)(n:Nat) : Set where
+  data Vec (A : Set)(n : Nat) : Set where
     vec : Vec' A n -> Vec A n
 
-nil : {A:Set} -> Vec A zero
+nil : {A : Set} -> Vec A zero
 nil = vec nil'
 
-_::_ : {A:Set}{n:Nat} -> A -> Vec A n -> Vec A (suc n)
+_::_ : {A : Set}{n : Nat} -> A -> Vec A n -> Vec A (suc n)
 x :: xs = vec (x ::' xs)
 
-map : {n:Nat}{A B:Set} -> (A -> B) -> Vec A n -> Vec B n
+map : {n : Nat}{A B : Set} -> (A -> B) -> Vec A n -> Vec B n
 map {zero}  f (vec nil')       = nil
 map {suc n} f (vec (x ::' xs)) = f x :: map f xs
 

@@ -29,10 +29,10 @@ import Syntax.Literal
 $digit	     = 0-9
 $hexdigit    = [ $digit a-f A-F ]
 $alpha	     = [ A-Z a-z _ ]
-$op	     = [ \- \! \# \$ \% \& \* \+ \/ \< \= \> \^ \| \~ \? \` \[ \] \, ]
+$op	     = [ \- \! \# \$ \% \& \* \+ \/ \< \= \> \^ \| \~ \? \` \[ \] \, \: ]
 $idstart     = [ $alpha $op ]
 $idchar	     = [ $idstart $digit ' \\ ]
-$endcomment  = ~ [ $idchar \: \\ ]
+$endcomment  = ~ [ $idchar \\ ]
 $nonalpha    = $idchar # $alpha
 $nonalphanum = $nonalpha # $digit
 
@@ -42,14 +42,10 @@ $white_nonl  = $white # \n
 @exponent    = [eE] [\-\+]? @number
 @float	     = @number \. @number @exponent? | @number @exponent
 
--- A name can't start with \x (to allow \x -> x). Nor can it
--- contain x: or :x.
--- Bug in alex: [ \: op ]+ doesn't seem to work!
-@ops   = [ : _ $op ] [ : _ $op ]*
-@start = $idstart | \\ [ $nonalpha : ] | @ops $nonalpha
-@mid   = $idchar | $nonalphanum @ops $nonalpha
-@end   = $idchar | $nonalphanum @ops
-@ident = @start @mid* @end? | @ops @ops
+-- A name can't start with \x (to allow \x -> x).
+-- Bug in alex: [ _ op ]+ doesn't seem to work!
+@start = $idstart | \\ [ $nonalpha ]
+@ident = @start $idchar*
 
 @namespace  = (@ident \.)*
 @q_ident    = @namespace @ident

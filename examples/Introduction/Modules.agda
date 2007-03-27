@@ -35,7 +35,7 @@ two : Nat
 two = suc one
 
 -- When opening a module it is possible to control what names are brought into
--- scope. The open declaration supports three modifiers:
+-- scope. The open declaration supports three modifiers : 
 
 --  using (x1; ..; xn)	  only bring x1 .. xn into scope
 --  renaming (x to y;..)  bring y into scope and make it refer to the name x
@@ -70,15 +70,15 @@ module Datastructures where
 
   private
 
-    data List (A:Set) : Set where
+    data List (A : Set) : Set where
       nil  : List A
       _::_ : A -> List A -> List A
 
-    _++_ : {A:Set} -> List A -> List A -> List A
+    _++_ : {A : Set} -> List A -> List A -> List A
     nil	      ++ ys = ys
     (x :: xs) ++ ys = x :: (xs ++ ys)
 
-    reverse : {A:Set} -> List A -> List A
+    reverse : {A : Set} -> List A -> List A
     reverse  nil      = nil
     reverse (x :: xs) = reverse xs ++ (x :: nil)
 
@@ -87,17 +87,17 @@ module Datastructures where
   Stack : Set -> Set
   Stack A = List A
 
-  emptyS : {A:Set} -> Stack A
+  emptyS : {A : Set} -> Stack A
   emptyS = nil
 
-  push : {A:Set} -> A -> Stack A -> Stack A
+  push : {A : Set} -> A -> Stack A -> Stack A
   push x xs = x :: xs
 
   abstract
 
     -- An abstract datatype doesn't reveal its constructors
-    data Queue (A:Set) : Set where
-      queue : (front back : List A) -> Queue A	-- invariant: if the front is
+    data Queue (A : Set) : Set where
+      queue : (front back : List A) -> Queue A	-- invariant : if the front is
 						-- empty, so is the back
 
     -- Abstraction is contagious, anything that pattern matches on a queue must
@@ -105,14 +105,14 @@ module Datastructures where
     private
 
       -- make sure the invariant is preserved
-      flip : {A:Set} -> Queue A -> Queue A
+      flip : {A : Set} -> Queue A -> Queue A
       flip (queue nil back) = queue (reverse back) nil
 
     -- these functions will not reduce outside the module
-    emptyQ : {A:Set} -> Queue A
+    emptyQ : {A : Set} -> Queue A
     emptyQ = queue nil nil
 
-    enqueue : {A:Set} -> A -> Queue A -> Queue A
+    enqueue : {A : Set} -> A -> Queue A -> Queue A
     enqueue x (queue front back) = flip (queue front (x :: back))
 
 open Datastructures

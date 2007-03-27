@@ -11,6 +11,6 @@ mutual
   F zero    = Nat
   F (suc n) = Foo (F n)
 
-  data Foo (A:Set) : Set where
+  data Foo (A : Set) : Set where
     fooI1 : F (suc zero)
 

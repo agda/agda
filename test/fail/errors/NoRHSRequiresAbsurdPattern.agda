@@ -4,9 +4,9 @@ module NoRHSRequiresAbsurdPattern where
 
 data Zero : Set where
 
-good : {A:Set} -> Zero -> A
+good : {A : Set} -> Zero -> A
 good ()
 
-bad : {A:Set} -> Zero -> A
+bad : {A : Set} -> Zero -> A
 bad h
 

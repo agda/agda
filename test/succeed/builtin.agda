@@ -40,7 +40,7 @@ postulate
 {-# BUILTIN CHAR    Char   #-}
 
 infixr 10 ::
-data List (A:Set) : Set where
+data List (A : Set) : Set where
   nil  : List A
   _::_ : A -> List A -> List A
 
@@ -130,17 +130,17 @@ cos x = sin (primFloatMinus (pi / 2.0) x)
 tan : Float -> Float
 tan x = sin x / cos x
 
-reverse : {A:Set} -> List A -> List A
+reverse : {A : Set} -> List A -> List A
 reverse xs = rev xs nil
   where
-    rev : {A:Set} -> List A -> List A -> List A
+    rev : {A : Set} -> List A -> List A -> List A
     rev nil	  ys = ys
     rev (x :: xs) ys = rev xs (x :: ys)
 
-_∘_ : {A B C:Set} -> (B -> C) -> (A -> B) -> A -> C
+_∘_ : {A B C : Set} -> (B -> C) -> (A -> B) -> A -> C
 f ∘ g = \x -> f (g x)
 
-map : {A B:Set} -> (A -> B) -> List A -> List B
+map : {A B : Set} -> (A -> B) -> List A -> List B
 map f  nil	= nil
 map f (x :: xs) = f x :: map f xs
 

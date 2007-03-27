@@ -3,7 +3,7 @@
 
 module Introduction.Built-in where
 
-{- Agda supports four built-in types:
+{- Agda supports four built-in types : 
 
     - integers,
     - floating point numbers,
@@ -93,7 +93,7 @@ module FloatLess where
 -- There are functions to convert a string to a list of characters, so we need
 -- to say which list type to use.
 
-data List (A:Set) : Set where
+data List (A : Set) : Set where
   nil  : List A
   _::_ : A -> List A -> List A
 
@@ -177,6 +177,6 @@ primitive
 
     -- IO functions (more to come)
   primPutStr	     : String -> IO Unit
-  primIOReturn	     : {a:Set} -> a -> IO a
-  primIOBind	     : {a b:Set} -> IO a -> (a -> IO b) -> IO b
+  primIOReturn	     : {a : Set} -> a -> IO a
+  primIOBind	     : {a b : Set} -> IO a -> (a -> IO b) -> IO b
 

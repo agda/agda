@@ -1,18 +1,18 @@
 module Prelude where
 
-data Pi {X:Set} (Y:X -> Set) : Set where
-  pi : ((x:X) -> Y x) -> Pi Y
+data Pi {X : Set} (Y : X -> Set) : Set where
+  pi : ((x : X) -> Y x) -> Pi Y
 
 apply : {a : Set} -> {f : a -> Set} -> Pi f -> (x : a) -> f x
 apply (pi f) x = f x
 
-data Forall {X:Set} (Y:X -> Prop) : Prop where
-  forAll : ((x:X) -> Y x) -> Forall Y
+data Forall {X : Set} (Y : X -> Prop) : Prop where
+  forAll : ((x : X) -> Y x) -> Forall Y
 
-data _=>_ (X Y:Set) : Set where
+data _=>_ (X Y : Set) : Set where
   lam : (X -> Y) -> X => Y
 
-_$$_ : {X Y:Set} -> (X => Y) -> X -> Y
+_$$_ : {X Y : Set} -> (X => Y) -> X -> Y
 lam f $$ x = f x
 
 
@@ -43,7 +43,7 @@ fst (pair x y) = x
 snd : {a b : Set} -> Pair a b -> b
 snd (pair x y) = y
 
-cmp : {X Y Z:Set} -> (Y -> Z) -> (X -> Y) -> X -> Z
+cmp : {X Y Z : Set} -> (Y -> Z) -> (X -> Y) -> X -> Z
 cmp f g = \x -> f (g x)
 
 data Either (a b : Set) : Set where
@@ -112,7 +112,7 @@ data Nat : Set where
 one : Nat
 one = suc zero
 
-data List (A:Set) : Set where
+data List (A : Set) : Set where
   nil  : List A
   _::_ : A -> List A -> List A
 
@@ -121,12 +121,12 @@ data List (A:Set) : Set where
 {-# BUILTIN CONS _::_ #-}
 
 
-data Reflexive {X:Set} (_R_:X -> X -> Set) : Set where
+data Reflexive {X : Set} (_R_ : X -> X -> Set) : Set where
   reflexive : ((x : X) -> x R x) -> Reflexive _R_
-data Symmetrical {X:Set} (_R_:X -> X -> Set) : Set where
+data Symmetrical {X : Set} (_R_ : X -> X -> Set) : Set where
   symmetrical : ( {x1 x2 : X} -> x1 R x2 -> x2 R x1) -> Symmetrical _R_
-data Substitutive {X:Set} (_R_:X -> X -> Set) : Set1 where
-  substitutive : ( (P:X -> Set) -> {x1 x2 : X} -> x1 R x2 -> P x1 -> P x2)
+data Substitutive {X : Set} (_R_ : X -> X -> Set) : Set1 where
+  substitutive : ( (P : X -> Set) -> {x1 x2 : X} -> x1 R x2 -> P x1 -> P x2)
                  -> Substitutive _R_
 
 True : Bool -> Set
@@ -136,7 +136,7 @@ True (false) = Absurd
 data Datoid  : Set1 where
   datoid : (Elem : Set) ->
            (eq : Elem -> Elem -> Bool) ->
-           (ref: (x:Elem) -> True (eq x x)) ->
+           (ref : (x : Elem) -> True (eq x x)) ->
            (subst : Substitutive  (\x1 -> \x2 -> True (eq x1 x2))) ->
            Datoid
 

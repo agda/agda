@@ -9,7 +9,7 @@ open Bool
 
 data FZero : Set where
 
-data FSuc (A:Set) : Set where
+data FSuc (A : Set) : Set where
   fz : FSuc A
   fs : A -> FSuc A
 
@@ -19,7 +19,7 @@ mutual
   Fin' zero    = FZero
   Fin' (suc n) = FSuc (Fin n)
 
-  data Fin (n:Nat) : Set where
+  data Fin (n : Nat) : Set where
     fin : Fin' n -> Fin n
 
 fzero : {n : Nat} -> Fin (suc n)
