@@ -5,7 +5,7 @@ To install Agda 2, proceed as follows:
    In addition to the libraries distributed with GHC you will need the binary
    package which can be downloaded from
 
-   http://hackage.haskell.org/cgi-bin/hackage-scripts/package/binary-0.2
+   http://hackage.haskell.org/cgi-bin/hackage-scripts/package/binary-0.3
 
 1) Download Agda 2, perhaps as follows:
 
