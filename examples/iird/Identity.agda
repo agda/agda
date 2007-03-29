@@ -15,6 +15,9 @@ elim==₁ x C Cx .x refl = Cx
 sym : {A : Set}{x y : A} -> x == y -> y == x
 sym {A}{x}{y} eq = elim== x (\z _ -> z == x) refl y eq
 
+cong : {A B : Set}(f : A -> B){x y : A} -> x == y -> f x == f y
+cong {A} f {x}{y} eq = elim== x (\z _ -> f x == f z) refl y eq
+
 subst : {A : Set}{x y : A}(P : A -> Set) -> x == y -> P x -> P y
 subst P xy px = elim== _ (\z _ -> P z) px _ xy
 
@@ -35,4 +38,9 @@ elimS x C r y p = subst (C y) (symSym p) h
     h : C y (sym (sym p))
     h = elim== x (\y p -> C y (sym p)) r y (sym p)
 
+data _==¹_ {A : Set1}(x : A) : {B : Set1} -> B -> Set where
+  refl¹ : x ==¹ x
+
+subst¹ : {A : Set1}{x y : A}(P : A -> Set) -> x ==¹ y -> P x -> P y
+subst¹ {A} P refl¹ px = px
 
