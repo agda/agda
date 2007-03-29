@@ -327,12 +327,12 @@ mutual
     where
       open module C = Chain _==_ (ref {_}) (trans {_})
 
-  ref : {A:S} -> Refl {El A} _==_
+  ref : {A : S} -> Refl {El A} _==_
   ref {nat}       {el n}          = eq (refN {n})
   ref {pi A F}    {el < f , pf >} = eq \x -> ref
   ref {sigma A F} {el < x , Fx >} = eq < ref , sym (castref _ _) >
 
-  trans : {A:S} -> Trans {El A} _==_
+  trans : {A : S} -> Trans {El A} _==_
   trans {nat}{el x}{el y}{el z} (eq p) (eq q) = eq (transN {x}{y}{z} p q)
   trans {pi A F}{el < f , pf >}{el < g , pg >}{el < h , ph >}
         (eq f=g)(eq g=h) = eq \x -> trans (f=g x) (g=h x)
@@ -348,7 +348,7 @@ mutual
            === pFam F x=z << Fz               by casttrans _ _ _ _
         where open module C = Chain _==_ (ref {_}) (trans {_})
 
-  sym : {A:S} -> Sym {El A} _==_
+  sym : {A : S} -> Sym {El A} _==_
   sym {nat}{el x}{el y} (eq p)  = eq (symN {x}{y} p)
   sym {pi A F}{el < f , pf >}{el < g , pg >}
       (eq f=g) = eq \x -> sym (f=g x)
