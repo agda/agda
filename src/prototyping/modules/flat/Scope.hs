@@ -244,8 +244,8 @@ addScope :: Scope -> ScopeM ()
 addScope s' = modifyStack $ \(s:ss) -> unionScope s s' : ss
 
 -- | In the top scope, make all canonical refer to that scope.
-freshCanonicalNames :: ModuleName -> ScopeM ()
-freshCanonicalNames m =
+freshCanonicalNames :: ModuleName -> ModuleName -> ScopeM ()
+freshCanonicalNames old new =
   modifyStack $ \(s : ss) -> mapScope (rename id) (rename onName) s : ss
   where
     onName f m = m { moduleName = f $ moduleName m }
@@ -253,9 +253,13 @@ freshCanonicalNames m =
     rename f = Map.mapWithKey (ren f)
     -- Change a binding M.x -> N.M'.y to M.x -> m.M'.y
     -- where M and M' have the same length.
-    ren f (C.Id xs) ys = map (f $ qualify m . dequalify) ys
+    ren f (C.Id xs) ys = map (f qdq) ys
       where
-	dequalify = reverse . take (length xs) . reverse
+	qdq y
+	  | old `isPrefixOf` y = qualify new . dequalify $ y
+	  | otherwise	       = y
+
+	dequalify = drop (length old)
 
 pushScope :: Var -> ScopeM ()
 pushScope m = modifyStack $ (:) (Scope m Map.empty Map.empty)
@@ -321,7 +325,7 @@ instance ScopeCheck C.Decl [Decl] where
 		showState "pushed and opened"
 		debug $ "m1' = " ++ show m1'
 		debug $ "m2' = " ++ show (moduleName m2')
-		freshCanonicalNames m1'
+		freshCanonicalNames (moduleName m2') m1'
 		popScope
 		bindModule m1
 		showState "finished"

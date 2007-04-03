@@ -5,8 +5,19 @@ module A where
 
   Nat  : Set
   zero : Nat
-  -- suc  : Nat -> Nat
+  suc  : Nat -> Nat
 
+  module A where
+    z : Nat = suc (suc zero)
+  module B where
+    module C where
+      x : Nat = suc zero
+    open C
+    open A
+    y : Nat = zero
+  module D = B
+
+{-
   module Q where
     module R where
       f : Nat -> Nat = \x -> zero
@@ -17,9 +28,10 @@ module A where
 
   n : Nat = B.f zero zero
 
---  module Bz = B zero renaming (q to r)
+  module Bz = B zero renaming (q to r)
 
---  m : Nat = B.q zero
+  m : Nat = Bz.f zero
+-}
 
 {-
   module B (n : Nat) where
