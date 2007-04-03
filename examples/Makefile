@@ -9,7 +9,7 @@ agda = $(AGDA_BIN)
 
 run_agda = $(agda) $(EXTRA_AGDA_FLAGS)
 
-test_files = Vec.agda Setoid.agda TT.agda \
+test_files = Vec.agda Setoid.agda TT.agda ISWIM.agda \
 			 AIM5/Hedberg/SET.agda AIM5/yoshiki/SET.agda \
              $(shell find Introduction -name '*.agda')
 tests	   = $(patsubst %,%.test,$(test_files))
