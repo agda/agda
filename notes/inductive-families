@@ -152,5 +152,29 @@ Step 3: Type check dot patterns and compare to the inferred values
     + and check that it's equal to the meta-variable
 
 
+A BETTER SOLUTION
+─────────────────
+
+Context splitting a la Thierry.
+
+For each clause, generate a case tree. Each case is an operation on the context:
+
+(case x of C ys : D ss -> t) corresponds to
+
+(Δ₁, x : D ts, Δ₂) ─→ (Δ₁, ys : Γ, Δ₂[C ys/x])σ
+  where σ = unify(ss, ts)
+
+So to type check a clause:
+
+  ∙ generate case tree
+
+  ∙ perform the context splitting (remembering the substitutions σ)
+
+  ∙ verify that σ corresponds exactly to the dotted patterns
+
+Questions:
+
+  ∙ what is the unification algorithm?
+
  vim: tw=80 sts=2 sw=2 fo=tcq
 
