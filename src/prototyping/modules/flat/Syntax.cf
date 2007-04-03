@@ -10,9 +10,18 @@ token Var letter (letter | digit | '_' | '\'')* ;
 
 Type.	Decl  ::= Var ":" Expr ;
 Def.	Decl  ::= Var ":" Expr "=" Expr ;
-Inst.	Decl  ::= "module" Var [Bind] "=" Id [Expr2] ;
+Inst.	Decl  ::= "module" Var [Bind] "=" Id [Expr2] [Modifier] ;
+Open.   Decl  ::= "open" Id [ Modifier ] ;
 _.	Decl  ::= Decl1 ;
 Module. Decl1 ::= "module" Var [Bind] "where" "{" [Decl] "}" ;
+
+Renaming. Modifier ::= "renaming" "(" [Renaming] ")" ;
+Using.	  Modifier ::= "using" "(" [ImportName] ")" ;
+Hiding.	  Modifier ::= "hiding" "(" [ImportName] ")" ;
+
+To.	   Renaming   ::= ImportName "to" Var;
+ImportDef. ImportName ::= Var ;
+ImportMod. ImportName ::= "module" Var ;
 
 Pi.	Expr  ::= "(" Var ":" Expr ")" "->" Expr ;
 fun.	Expr  ::= Expr1 "->" Expr ;
@@ -33,4 +42,7 @@ separator Decl ";";
 separator nonempty Var ".";
 separator Expr2 "";
 separator Bind "";
+separator Modifier "";
+separator Renaming ";";
+separator ImportName ";";
 

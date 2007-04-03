@@ -13,47 +13,18 @@ import Data.Traversable
 import qualified Data.Map as Map
 import Text.PrettyPrint
 
-import Scope (Var, Name)
+import Abstract (Var, Name)
+import qualified Abstract as A
 import qualified Scope as A
+import Internal
 import Pretty
 import Debug
-
-on f g x y = f (g x) (g y)
-
-data Type = Pi Type (Abs Type)
-	  | Set
-	  | El Term
-
-data Term = Lam (Abs Term)
-	  | App Term Term
-	  | Def Name
-	  | Var Int
-
-data Abs a = Abs { absName :: Var, unAbs :: a }
-
-data Defn = Type  { defName :: Name, defType :: Type }
-	  | Value { defName :: Name, defType :: Type, _defValue :: Term }
+import Utils
 
 data TCState = TCState
 	{ sections  :: Map A.ModuleName Tel 
 	, functions :: Map Name Defn
 	}
-
--- Telescopes are reversed contexts
-type Tel = [(Var, Type)]
-type Context = [(Var, Type)]
-
-type TCM = ReaderT Context (StateT TCState (Either String))
-
-runTCM :: TCM a -> Either String TCState
-runTCM m = flip execStateT (TCState Map.empty Map.empty)
-	 $ flip runReaderT []
-	 $ m
-
--- To abstract ------------------------------------------------------------
-
-instance Pretty Term where prettyPrec n = prettyPrec n . toExpr []
-instance Pretty Type where prettyPrec n = prettyPrec n . toExpr []
 
 instance Show TCState where show = show . pretty
 
@@ -76,36 +47,17 @@ instance Pretty TCState where
 	    showFun (x, Type _ a) = pretty $ A.Type x (toExpr [] a)
 	    showFun (x, Value _ a t) = pretty $ A.Defn x (toExpr [] a) (toExpr [] t)
 
-class ToExpr a where
-    toExpr :: [Var] -> a -> A.Expr
 
-instance ToExpr Type where
-    toExpr ctx a = case a of
-	Set    -> A.Set
-	Pi a b -> A.Pi (fresh ctx $ absName b) (toExpr ctx a) (toExpr ctx b)
-	El t   -> toExpr ctx t
+-- Telescopes are reversed contexts
+type Tel = [(Var, Type)]
+type Context = [(Var, Type)]
 
-instance ToExpr Term where
-    toExpr ctx t = case t of
-	Lam t	-> A.Lam (fresh ctx $ absName t) $ toExpr ctx t
-	App s t -> (A.App `on` toExpr ctx) s t
-	Var n	-> A.Var $ ctx !!! n
-	Def c	-> A.Def c
+type TCM = ReaderT Context (StateT TCState (Either String))
 
-instance ToExpr a => ToExpr (Abs a) where
-    toExpr ctx (Abs x b) = toExpr (fresh ctx x : ctx) b
-
-xs !!! n
-    | length xs <= n = "BAD" ++ show (n - length xs)
-    | otherwise	     = xs !! n
-
-fresh :: [Var] -> Var -> Var
-fresh ctx x
-    | elem x ctx = head [ x' | x' <- variants x, notElem x' ctx ]
-    | otherwise   = x
-
-variants :: Var -> [Var]
-variants x = map (x ++) $ "'" : [ show n | n <- [0..] ]
+runTCM :: TCM a -> Either String TCState
+runTCM m = flip execStateT (TCState Map.empty Map.empty)
+	 $ flip runReaderT []
+	 $ m
 
 class Abstract a where
     abstract :: Tel -> a -> a
