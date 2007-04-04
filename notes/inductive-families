@@ -176,5 +176,22 @@ Questions:
 
   ∙ what is the unification algorithm?
 
+  ∙ what argument to split on?
+
+    ∙ first constructor pattern? Consider:
+
+      data D : Set -> Set where
+	nat  : D Nat
+	bool : D Bool
+
+      f : (A : Set) -> A -> D A -> X
+      f .Nat zero nat = x
+
+      Here we can't split on zero first, since the type is A.
+
+    ∙ first constructor pattern whose type is a datatype
+
+      error if there are constructor patterns left but no argument can be split
+
  vim: tw=80 sts=2 sw=2 fo=tcq
 
