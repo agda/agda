@@ -5,6 +5,7 @@ module Top where
   zero : Nat
   suc  : Nat -> Nat
 
+{-
   module Test1 where
 
     module A where
@@ -81,4 +82,11 @@ module Top where
     open NatId
 
     z : Nat = id zero
+  -}
+
+  module Test5 where
+
+    f (n : Nat) : Nat = n
+      where
+	x : Nat = zero
 

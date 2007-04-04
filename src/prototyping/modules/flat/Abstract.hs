@@ -17,7 +17,7 @@ type ModuleName = Name
 
 data Decl = Section ModuleName Tel [Decl]
 	  | Inst ModuleName ModuleName [Expr]
-	  | Defn Name Expr Expr
+	  | Defn Name Tel Expr Expr [Decl]
 	  | Type Name Expr
 
 type Tel = [(Var, Expr)]
@@ -49,11 +49,15 @@ instance Pretty Decl where
 	sep [ text "apply" <+> prettyName m1 <+> text "="
 	    , nest 2 $ fsep $ prettyName m2 : map (prettyPrec 10) es
 	    ]
-    pretty (Defn x t e) =
-	sep [ prettyName x
+    pretty (Defn x tel t e wh) =
+	sep [ prettyName x <+> fsep (map pretty tel)
 	    , nest 2 $ text ":" <+> pretty t
 	    , nest 2 $ text "=" <+> pretty e
+	    , nest 2 $ prettyWhere wh
 	    ]
+      where
+	prettyWhere [] = empty
+	prettyWhere ds = sep [ text "where", nest 2 $ vcat $ map pretty ds ]
     pretty (Type x e) =
 	sep [ prettyName x <+> text ":"
 	    , nest 2 $ pretty e

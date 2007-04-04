@@ -45,7 +45,7 @@ instance Pretty TCState where
 		where
 		    x' = fresh ctx x
 	    showFun (x, Type _ a) = pretty $ A.Type x (toExpr [] a)
-	    showFun (x, Value _ a t) = pretty $ A.Defn x (toExpr [] a) (toExpr [] t)
+	    showFun (x, Value _ a t) = pretty $ A.Defn x [] (toExpr [] a) (toExpr [] t) []
 
 
 -- Telescopes are reversed contexts
@@ -210,12 +210,13 @@ checkDecl d = case d of
     A.Type x e -> do
 	t <- isType e
 	addDef x (Type x t)
-    A.Defn x t e -> do
+    A.Defn x tel t e whr ->
+      checkTel tel $ \_ -> do
 	a <- isType t
 	t <- checkType e
 	addDef x (Value x a t)
     A.Section x tel ds ->
-	checkTel tel $ \tel -> do
+	checkTel tel $ \_ -> do
 	    addSection x [] -- tel is already in the context
 	    mapM_ checkDecl ds
     A.Inst m1 m2 es -> do
@@ -223,11 +224,11 @@ checkDecl d = case d of
 	ts <- mapM checkType es
 	instantiate m1 m2 tel ts
 
-checkTel :: A.Tel -> ([Type] -> TCM a) -> TCM a
+checkTel :: A.Tel -> (Tel -> TCM a) -> TCM a
 checkTel [] ret = ret []
 checkTel ((x,e):tel) ret = do
     a <- isType e
-    extendContext x a $ checkTel tel $ \as -> ret (a : as)
+    extendContext x a $ checkTel tel $ \tel -> ret ((x,a) : tel)
 
 isType :: A.Expr -> TCM Type
 isType e = case e of

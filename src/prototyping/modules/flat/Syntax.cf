@@ -8,12 +8,17 @@ comment "{-" "-}" ;
 
 token Var letter (letter | digit | '_' | '\'')* ;
 
-Type.	Decl  ::= Var ":" Expr ;
-Def.	Decl  ::= Var ":" Expr "=" Expr ;
+Def.	Decl  ::= Var [Bind] ":" Expr RHS ;
 Inst.	Decl  ::= "module" Var [Bind] "=" Id [Expr2] [Modifier] ;
 Open.   Decl  ::= "open" Id [ Modifier ] ;
 _.	Decl  ::= Decl1 ;
 Module. Decl1 ::= "module" Var [Bind] "where" "{" [Decl] "}" ;
+
+NoRHS.	RHS   ::= ;
+RHS.	RHS   ::= "=" Expr Where ;
+
+NoWhere.   Where ::= ;
+SomeWhere. Where ::= "where" "{" [Decl] "}" ;
 
 Renaming. Modifier ::= "renaming" "(" [Renaming] ")" ;
 Using.	  Modifier ::= "using" "(" [ImportName] ")" ;

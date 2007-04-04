@@ -121,6 +121,49 @@ unionScope s1 s2 = mapScope (+++ scopeContents s2) (+++ scopeModules s2) s1
 unionsScope :: [Scope] -> Scope
 unionsScope = foldr1 unionScope
 
+-- All concrete names are assumed to have the same prefix (specified by the
+-- first argument)
+dropPrefix :: C.Id -> Scope -> Scope
+dropPrefix (C.Id xs) = mapScope dropPrefix dropPrefix
+  where
+    dropPrefix = Map.mapKeys (\(C.Id ys) -> C.Id (drop (length xs) ys))
+
+-- Apply scope modifiers to a scope
+applyModifiers :: [C.Modifier] -> Scope -> Scope
+applyModifiers xs s = foldr apply s xs
+  where
+    apply :: C.Modifier -> Scope -> Scope
+    apply (C.Using xs)	  = filterNames elem	elem	xs
+    apply (C.Hiding xs)	  = filterNames notElem notElem xs
+    apply (C.Renaming rs) = mapScope (rename ds ms) (rename ms ms)
+      where
+	ms = [ (C.Id [x], C.Id [y]) | C.To (C.ImportMod x) y <- rs ]
+	ds = [ (C.Id [x], C.Id [y]) | C.To (C.ImportDef x) y <- rs ]
+
+	rename ds ms = Map.mapKeys ren
+	  where
+	    ren (C.Id [])	= error $ "panic: empty name"
+	    ren k@(C.Id [_])    = maybe k id $ lookup k ds
+	    ren k@(C.Id (m:xs)) = C.Id (m'' ++ xs)
+	      where
+		m'	 = C.Id [m]
+		C.Id m'' = maybe m' id $ lookup m' ms
+
+    filterNames pd pm xs = filterScope' (flip pd ds) (flip pm ms)
+      where
+	ms = [ C.Id [x] | C.ImportMod x <- xs ]
+	ds = [ C.Id [x] | C.ImportDef x <- xs ]
+
+    filterDef pd pm x
+      | len == 1  = pd x
+      | len > 1	  = filterMod pm x
+      | otherwise = error "panic: empty name"
+      where
+	len = length (mkName x)
+    filterMod pm      = pm . onCId (take 1)
+
+    filterScope' pd pm = filterScope (filterDef pd pm) (filterMod pm)
+
 data ResolvedName = VarName Var
 		  | DefName Name
 
@@ -195,50 +238,6 @@ matchPrefix m = do
   return $ filterScope (isPrefix m) (isPrefix m) s
   where isPrefix (C.Id xs) (C.Id ys) = isPrefixOf xs ys && xs /= ys
 
--- All concrete names are assumed to have the same prefix (specified by the
--- first argument)
-dropPrefix :: C.Id -> Scope -> Scope
-dropPrefix (C.Id xs) = mapScope dropPrefix dropPrefix
-  where
-    dropPrefix = Map.mapKeys (\(C.Id ys) -> C.Id (drop (length xs) ys))
-
--- Apply scope modifiers to a scope
-applyModifiers :: [C.Modifier] -> Scope -> Scope
-applyModifiers xs s = foldr apply s xs
-  where
-    apply :: C.Modifier -> Scope -> Scope
-    apply (C.Using xs) s = filterScope' (`elem` ds) (`elem` ms) s
-      where
-	ms = [ C.Id [x] | C.ImportMod x <- xs ]
-	ds = [ C.Id [x] | C.ImportDef x <- xs ]
-    apply (C.Hiding xs) s = filterScope' (`notElem` ds) (`notElem` ms) s
-      where
-	ms = [ C.Id [x] | C.ImportMod x <- xs ]
-	ds = [ C.Id [x] | C.ImportDef x <- xs ]
-    apply (C.Renaming rs) s = mapScope (rename ds ms) (rename ms ms) s
-      where
-	ms = [ (C.Id [x], C.Id [y]) | C.To (C.ImportMod x) y <- rs ]
-	ds = [ (C.Id [x], C.Id [y]) | C.To (C.ImportDef x) y <- rs ]
-
-	rename ds ms = Map.mapKeys ren
-	  where
-	    ren (C.Id [])	= error $ "panic: empty name"
-	    ren k@(C.Id [_])    = maybe k id $ lookup k ds
-	    ren k@(C.Id (m:xs)) = C.Id (m'' ++ xs)
-	      where
-		m'	 = C.Id [m]
-		C.Id m'' = maybe m' id $ lookup m' ms
-
-    filterDef pd pm x
-      | len == 1  = pd x
-      | len > 1	  = filterMod pm x
-      | otherwise = error "panic: empty name"
-      where
-	len = length (mkName x)
-    filterMod pm      = pm . onCId (take 1)
-
-    filterScope' pd pm = filterScope (filterDef pd pm) (filterMod pm)
-
 -- Merge the given scope with the current scope
 addScope :: Scope -> ScopeM ()
 addScope s' = modifyStack $ \(s:ss) -> unionScope s s' : ss
@@ -296,15 +295,17 @@ class ScopeCheck c a | c -> a where
 
 instance ScopeCheck C.Decl [Decl] where
     scopeCheck d = case d of
-	C.Type v e -> do
-	    e <- scopeCheck e
+	C.Def v tel t C.NoRHS ->
+	  scopeCheckCPS tel $ \tel -> do
+	    t <- scopeCheck t
 	    x <- bindDef v
-	    return [ Type x e ]
-	C.Def v t e -> do
+	    return [ Type x $ foldr (uncurry Pi) t tel ]
+	C.Def v tel t (C.RHS e whr) ->
+	  scopeCheckCPS tel $ \tel -> do
 	    t <- scopeCheck t
 	    e <- scopeCheck e
 	    x <- bindDef v
-	    return [ Defn x t e ] -- non-recursive
+	    return [ Defn x tel t e [] ] -- non-recursive
 	C.Module m tel ds -> do
 	    pushScope (mkVar m)
 	    top <- moduleName <$> currentModule
