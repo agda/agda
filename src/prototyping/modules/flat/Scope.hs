@@ -32,8 +32,13 @@ data Module = Module { moduleName   :: ModuleName
 
 data Scope = Scope
 	{ scopeName	:: Var
-	, scopeContents :: Map C.Id [Name]
-	, scopeModules	:: Map C.Id [Module]
+	, scopePublic	:: NameSpace
+	, scopePrivate	:: NameSpace
+	}
+
+data NameSpace = NameSpace
+	{ nsContents :: Map C.Id [Name]
+	, nsModules  :: Map C.Id [Module]
 	}
 
 instance Show Scope where show = show . pretty
@@ -42,10 +47,18 @@ instance Show ScopeState where
   show = unlines . map show . scopeStack
 
 instance Pretty Scope where
-  pretty (Scope m ds ms) =
+  pretty (Scope m pub pri) =
     vcat [ text "scope" <+> text m
-	 , nest 2 $ pr ds
-	 , nest 2 $ pr $ Map.map (map moduleName) ms
+	 , nest 2 $ text "public:"
+	 , nest 4 $ pretty pub
+	 , nest 2 $ text "private:"
+	 , nest 4 $ pretty pri
+	 ]
+
+instance Pretty NameSpace where
+  pretty (NameSpace ds ms) =
+    vcat [ pr ds
+	 , pr $ Map.map (map moduleName) ms
 	 ]
     where
       pr m = vcat $ map pr' (Map.toList m)
@@ -106,16 +119,41 @@ filterKeys p = Map.filterWithKey (const . p)
 mapScope :: (Map C.Id [Name] -> Map C.Id [Name]) ->
 	    (Map C.Id [Module] -> Map C.Id [Module]) ->
 	    Scope -> Scope
-mapScope md mm s =
-  s { scopeContents = md $ scopeContents s
-    , scopeModules  = mm $ scopeModules  s
-    }
+mapScope md mm s = s { scopePublic  = mapNS $ scopePublic s
+		     , scopePrivate = mapNS $ scopePrivate s
+		     }
+  where
+    mapNS ns = 
+      ns { nsContents = md $ nsContents ns
+	 , nsModules  = mm $ nsModules  ns
+	 }
+
+zipScope :: (Map C.Id [Name] -> Map C.Id [Name] -> Map C.Id [Name]) ->
+	    (Map C.Id [Module] -> Map C.Id [Module] -> Map C.Id [Module]) ->
+	    Scope -> Scope -> Scope
+zipScope fd fm s1 s2 =
+  s1 { scopePublic  = (zipNS `on` scopePublic ) s1 s2
+     , scopePrivate = (zipNS `on` scopePrivate) s1 s2
+     }
+  where
+    zipNS = zipNameSpace fd fm
+
+zipNameSpace fd fm ns1 ns2 =
+    ns1 { nsContents = (fd `on` nsContents) ns1 ns2
+	, nsModules  = (fm `on` nsModules ) ns1 ns2
+	}
 
 filterScope :: (C.Id -> Bool) -> (C.Id -> Bool) -> Scope -> Scope
 filterScope pd pm = mapScope (filterKeys pd) (filterKeys pm)
 
+scopeContents :: Scope -> Map C.Id [Name]
+scopeContents s = (Map.unionWith (++) `on` nsContents) (scopePublic s) (scopePrivate s)
+
+scopeModules :: Scope -> Map C.Id [Module]
+scopeModules s = (Map.unionWith (++) `on` nsModules) (scopePublic s) (scopePrivate s)
+
 unionScope :: Scope -> Scope -> Scope
-unionScope s1 s2 = mapScope (+++ scopeContents s2) (+++ scopeModules s2) s1
+unionScope = zipScope (+++) (+++)
   where (+++) = Map.unionWith (++)
 
 unionsScope :: [Scope] -> Scope
@@ -163,6 +201,20 @@ applyModifiers xs s = foldr apply s xs
     filterMod pm      = pm . onCId (take 1)
 
     filterScope' pd pm = filterScope (filterDef pd pm) (filterMod pm)
+
+changeAccess :: C.Access -> Scope -> Scope
+changeAccess acc s =
+    s { scopePrivate = pr
+      , scopePublic  = pu
+      }
+  where
+    unionNS = zipNameSpace (+++) (+++)
+    (+++)   = Map.unionWith (++)
+    emp	    = emptyNameSpace
+    full    = unionNS (scopePublic s) (scopePrivate s)
+    (pu, pr) = case acc of
+      C.Public	-> (full, emp)
+      C.Private -> (emp, full)
 
 data ResolvedName = VarName Var
 		  | DefName Name
@@ -218,7 +270,10 @@ bindDef x' = do
 	y = qualify m $ mkName x
     debug $ "in module " ++ showName m ++ " binding " ++ show x' ++ " --> " ++ showName y
     modifyStack $ \(scope:s) ->
-	scope { scopeContents = Map.insertWith (++) x [y] $ scopeContents scope } : s
+	scope { scopePublic = (scopePublic scope)
+		  { nsContents = Map.insertWith (++) x [y] $ nsContents $ scopePublic scope
+		  }
+	      } : s
     return y
 
 bindModule :: C.Var -> ScopeM ()
@@ -230,7 +285,11 @@ bindModule m = do
     debug $ "in module " ++ showName top ++ " binding module " ++ show m ++ " --> " ++ showName am
     modifyStack $ \ss -> case ss of
 	[]	 -> []
-	scope:ss -> mapScope id (Map.insertWith (++) m' [Module am fv]) scope : ss
+	scope:ss -> 
+	  scope { scopePublic = (scopePublic scope)
+		  { nsModules = Map.insertWith (++) m' [Module am fv] $ nsModules $ scopePublic scope
+		  }
+		} : ss
 
 matchPrefix :: C.Id -> ScopeM Scope
 matchPrefix m = do
@@ -261,14 +320,19 @@ freshCanonicalNames old new =
 	dequalify = drop (length old)
 
 pushScope :: Var -> ScopeM ()
-pushScope m = modifyStack $ (:) (Scope m Map.empty Map.empty)
+pushScope m = modifyStack $ (:) (Scope m emptyNameSpace emptyNameSpace)
+
+emptyNameSpace :: NameSpace
+emptyNameSpace = NameSpace Map.empty Map.empty
 
 popScope :: ScopeM ()
 popScope = do
     top <- currentModule
-    modifyStack $ \(s0:s1:ss) -> unionScope s1 (mapScope (qual s0) (qual s0) s0) : ss
+    modifyStack $ \(s0:s1:ss) ->
+      unionScope s1 (mapScope (qual s0) (qual s0) $ noPrivate s0) : ss
     where
 	qual s m = Map.mapKeys (qualifyCId (scopeName s)) m
+	noPrivate s = s { scopePrivate = emptyNameSpace }
 
 runScope :: ScopeM a -> Either String a
 runScope m = flip evalStateT (ScopeState [] 0)
@@ -303,9 +367,21 @@ instance ScopeCheck C.Decl [Decl] where
 	C.Def v tel t (C.RHS e whr) ->
 	  scopeCheckCPS tel $ \tel -> do
 	    t <- scopeCheck t
+	    ds <- case whr of
+	      C.NoWhere -> return []
+	      _		-> do
+		(m, tel, ds) <- case whr of
+		  C.AnyWhere ds -> do
+		    m <- C.Var <$> freshName
+		    return (m, [], ds)
+		  C.SomeWhere m tel ds -> return (m, tel, ds)
+		  C.NoWhere	       -> error "impossible"
+		concat <$> scopeCheck [ C.Module m tel ds
+				      , C.Open (C.Id [m]) C.Private []
+				      ]
 	    e <- scopeCheck e
-	    x <- bindDef v
-	    return [ Defn x tel t e [] ] -- non-recursive
+	    x <- bindDef v  -- non-recursive
+	    return [ Defn x tel t e ds ]
 	C.Module m tel ds -> do
 	    pushScope (mkVar m)
 	    top <- moduleName <$> currentModule
@@ -331,7 +407,7 @@ instance ScopeCheck C.Decl [Decl] where
 		bindModule m1
 		showState "finished"
 		return $ section ["_"] tel [ Inst m1' (moduleName m2') es ]
-	C.Open m mods -> do
+	C.Open m access mods -> do
 	  current <- currentModule
 	  m'	  <- resolveModule m
 	  debug $ "opening module " ++ show (moduleName m')
@@ -341,13 +417,13 @@ instance ScopeCheck C.Decl [Decl] where
 	  -- is fine. Otherwise we have to create a temporary module.
 	  if m' `isSubModuleOf` current || moduleParams current == 0
 	    then do 
-	      addScope . applyModifiers mods . dropPrefix m =<< matchPrefix m
+	      addScope . changeAccess access . applyModifiers mods . dropPrefix m =<< matchPrefix m
 	      return []
 	    else do
 	      tmp <- C.Var <$> freshName
 	      concat <$> scopeCheck
 		[ C.Inst tmp [] m [] mods
-		, C.Open (C.Id [tmp]) []
+		, C.Open (C.Id [tmp]) access []
 		]
 
 instance ScopeCheck C.Expr Expr where

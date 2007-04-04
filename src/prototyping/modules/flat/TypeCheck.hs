@@ -44,8 +44,8 @@ instance Pretty TCState where
 		) : showTel (x' : ctx) tel
 		where
 		    x' = fresh ctx x
-	    showFun (x, Type _ a) = pretty $ A.Type x (toExpr [] a)
-	    showFun (x, Value _ a t) = pretty $ A.Defn x [] (toExpr [] a) (toExpr [] t) []
+	    showFun (x, Type _ _ a)    = pretty $ A.Type x (toExpr [] a)
+	    showFun (x, Value _ _ a t) = pretty $ A.Defn x [] (toExpr [] a) (toExpr [] t) []
 
 
 -- Telescopes are reversed contexts
@@ -63,8 +63,8 @@ class Abstract a where
     abstract :: Tel -> a -> a
 
 instance Abstract Defn where
-    abstract tel (Type x a)  = Type x $ abstract tel a
-    abstract tel (Value x a t) = Value x (abstract tel a) (abstract tel t)
+    abstract tel (Type x fv a)	  = Type  x (fv + length tel) $ abstract tel a
+    abstract tel (Value x fv a t) = Value x (fv + length tel) (abstract tel a) (abstract tel t)
 
 instance Abstract Type where
     abstract tel a = foldr (\(x,a) b -> Pi a (Abs x b)) a tel
@@ -126,8 +126,8 @@ class Apply a where
     apply :: [Term] -> a -> a
 
 instance Apply Defn where
-    apply ts (Type x a)  = Type x  $ apply ts a
-    apply ts (Value x a t) = Value x (apply ts a) (apply ts t)
+    apply ts (Type x fv a)    = Type  x (fv - length ts) $ apply ts a
+    apply ts (Value x fv a t) = Value x (fv - length ts) (apply ts a) (apply ts t)
 
 instance Apply Tel where
     apply []	 tel	= tel
@@ -162,7 +162,7 @@ instantiate new old tel ts = do
 	copyDef :: [Term] -> (Name, Defn) -> TCM ()
 	copyDef ts (x, d) = addDef (copyName x) d'
 	    where
-		d' = Value (copyName x)
+		d' = Value (copyName x) 0
 			   (apply ts $ defType d)
 			   (apply ts (Def x))
 
@@ -205,16 +205,24 @@ lookupSection s = do
 	Just tel -> return tel
 	Nothing	 -> return []
 
+lookupDef :: Name -> TCM Defn
+lookupDef c = do
+  ds <- gets functions
+  case Map.lookup c ds of
+    Just d  -> return d
+    Nothing -> fail $ "panic: no such name " ++ A.showName c
+
 checkDecl :: A.Decl -> TCM ()
 checkDecl d = case d of
     A.Type x e -> do
 	t <- isType e
-	addDef x (Type x t)
+	addDef x (Type x 0 t)
     A.Defn x tel t e whr ->
       checkTel tel $ \_ -> do
 	a <- isType t
+	mapM_ checkDecl whr
 	t <- checkType e
-	addDef x (Value x a t)
+	addDef x (Value x 0 a t)
     A.Section x tel ds ->
 	checkTel tel $ \_ -> do
 	    addSection x [] -- tel is already in the context
@@ -242,7 +250,10 @@ isType e = case e of
 checkType :: A.Expr -> TCM Term
 checkType e = case e of
     A.Var x	-> Var <$> lookupVar x
-    A.Def c	-> return $ Def c
+    A.Def c	-> do
+      def <- lookupDef c
+      ts  <- getContextTerms
+      return $ apply (take (defFreeVars def) ts) (Def c)
     A.App e1 e2 -> App <$> checkType e1 <*> checkType e2
     A.Lam x e	-> Lam . Abs x <$> extendContext x Set (checkType e)
     _		-> fail $ "not a term: " ++ show e

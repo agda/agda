@@ -10,15 +10,19 @@ token Var letter (letter | digit | '_' | '\'')* ;
 
 Def.	Decl  ::= Var [Bind] ":" Expr RHS ;
 Inst.	Decl  ::= "module" Var [Bind] "=" Id [Expr2] [Modifier] ;
-Open.   Decl  ::= "open" Id [ Modifier ] ;
+open.   Decl  ::= "open" Id [ Modifier ] ;
+Open.	Decl  ::= "open" Id Access [ Modifier ] ;
 _.	Decl  ::= Decl1 ;
 Module. Decl1 ::= "module" Var [Bind] "where" "{" [Decl] "}" ;
+
+define open x mods = Open x Private mods ;
 
 NoRHS.	RHS   ::= ;
 RHS.	RHS   ::= "=" Expr Where ;
 
 NoWhere.   Where ::= ;
-SomeWhere. Where ::= "where" "{" [Decl] "}" ;
+AnyWhere.  Where ::= "where" "{" [Decl] "}" ;
+SomeWhere. Where ::= "module" Var [Bind] "where" "{" [Decl] "}" ;
 
 Renaming. Modifier ::= "renaming" "(" [Renaming] ")" ;
 Using.	  Modifier ::= "using" "(" [ImportName] ")" ;
@@ -27,6 +31,9 @@ Hiding.	  Modifier ::= "hiding" "(" [ImportName] ")" ;
 To.	   Renaming   ::= ImportName "to" Var;
 ImportDef. ImportName ::= Var ;
 ImportMod. ImportName ::= "module" Var ;
+
+Public.	 Access ::= "public" ;
+Private. Access ::= "private" ;
 
 Pi.	Expr  ::= "(" Var ":" Expr ")" "->" Expr ;
 fun.	Expr  ::= Expr1 "->" Expr ;

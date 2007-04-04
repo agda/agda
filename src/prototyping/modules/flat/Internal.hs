@@ -22,8 +22,8 @@ data Term = Lam (Abs Term)
 
 data Abs a = Abs { absName :: Var, unAbs :: a }
 
-data Defn = Type  { defName :: Name, defType :: Type }
-	  | Value { defName :: Name, defType :: Type, _defValue :: Term }
+data Defn = Type  { defName :: Name, defFreeVars :: Int, defType :: Type }
+	  | Value { defName :: Name, defFreeVars :: Int, defType :: Type, _defValue :: Term }
 
 -- To abstract ------------------------------------------------------------
 
@@ -54,6 +54,7 @@ xs !!! n
     | otherwise	     = xs !! n
 
 fresh :: [Var] -> Var -> Var
+fresh _ "_" = "_"
 fresh ctx x
     | elem x ctx = head [ x' | x' <- variants x, notElem x' ctx ]
     | otherwise   = x

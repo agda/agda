@@ -50,9 +50,10 @@ instance Pretty Decl where
 	    , nest 2 $ fsep $ prettyName m2 : map (prettyPrec 10) es
 	    ]
     pretty (Defn x tel t e wh) =
-	sep [ prettyName x <+> fsep (map pretty tel)
-	    , nest 2 $ text ":" <+> pretty t
-	    , nest 2 $ text "=" <+> pretty e
+	sep [ sep [ prettyName x <+> fsep (map pretty tel)
+		  , nest 2 $ text ":" <+> pretty t
+		  , nest 2 $ text "=" <+> pretty e
+		  ]
 	    , nest 2 $ prettyWhere wh
 	    ]
       where
