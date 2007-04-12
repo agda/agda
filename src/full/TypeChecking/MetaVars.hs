@@ -32,6 +32,7 @@ import {-# SOURCE #-} TypeChecking.Conversion
 import Utils.Fresh
 import Utils.List
 import Utils.Monad
+import Utils.Size
 
 import TypeChecking.Monad.Debug
 
@@ -44,14 +45,6 @@ import TypeChecking.Monad.Debug
 --
 findIdx :: Eq a => [a] -> a -> Maybe Int
 findIdx vs v = findIndex (==v) (reverse vs)
-
--- | Generate [Var n - 1, .., Var 0] for all declarations in the context.
---   Used to make arguments for newly generated metavars.
---
-allCtxVars :: MonadTCM tcm => tcm Args
-allCtxVars = do
-    ctx <- asks envContext
-    return $ reverse $ List.map (\i -> Arg NotHidden $ Var i []) $ [0 .. length ctx - 1]
 
 -- | Check whether a meta variable is a place holder for a blocked term.
 isBlockedTerm :: MonadTCM tcm => MetaId -> tcm Bool
@@ -124,7 +117,7 @@ newTypeMeta_  = newTypeMeta =<< newSortMeta
 newValueMeta ::  MonadTCM tcm => Type -> tcm Term
 newValueMeta t =
     do	i  <- createMetaInfo
-        vs <- allCtxVars
+        vs <- getContextArgs
 	x  <- newMeta i normalMetaPriority (HasType () t)
 	return $ MetaV x vs
 
@@ -153,15 +146,15 @@ blockTerm t v m = do
 	then return v
 	else do
 	    i	  <- createMetaInfo
-	    vs	  <- allCtxVars
+	    vs	  <- getContextArgs
 	    tel   <- getContextTelescope' NotHidden
 	    x	  <- newMeta i lowMetaPriority (HasType () t)	-- we don't instantiate blocked terms
 	    store <- getMetaStore
 	    modify $ \st -> st { stMetaStore = ins x (BlockedConst $ abstract tel v) store }
-	    c <- escapeContext (length tel) $ guardConstraint (return cs) (UnBlock x)
+	    c <- escapeContext (size tel) $ guardConstraint (return cs) (UnBlock x)
             verbose 20 $ do
                 dx  <- prettyTCM (MetaV x [])
-                dv  <- escapeContext (length tel) $ prettyTCM $ abstract tel v
+                dv  <- escapeContext (size tel) $ prettyTCM $ abstract tel v
                 dcs <- mapM prettyTCM cs
                 liftIO $ putStrLn $ "blocked " ++ show dx ++ " := " ++ show dv
                 liftIO $ putStrLn $ "     by " ++ show dcs
@@ -324,13 +317,18 @@ assignV t x args v =
 	    --   ids = d b e
 	    -- then
 	    --   v' = (λ a b c d e. v) _ 1 _ 2 0
-	    tel <- getContextTelescope' NotHidden
-	    let iargs = reverse $ zipWith (rename $ reverse ids) [0..] $ reverse tel
-		v'    = raise (length ids) (abstract tel v) `apply` iargs
+	    tel  <- getContextTelescope' NotHidden
+	    args <- map (Arg NotHidden) <$> getContextTerms
+	    let iargs = reverse $ zipWith (rename $ reverse ids) [0..] $ reverse args
+		v'    = raise (size ids) (abstract tel v) `apply` iargs
 	    return v'
 
-	let mkTel i = Arg NotHidden <$> ((,) <$> (show <$> nameOfBV i) <*> typeOfBV i)
-	tel' <- mapM mkTel ids
+	let extTel i m = do
+	      tel <- m
+	      t	  <- typeOfBV i
+	      x	  <- nameOfBV i
+	      return $ ExtendTel (Arg NotHidden t) (Abs (show x) tel)
+	tel' <- foldr extTel (return EmptyTel) ids
 
 	verbose 15 $ do
 	    d <- prettyTCM (abstract tel' v')
@@ -338,7 +336,7 @@ assignV t x args v =
 
 	-- Perform the assignment (and wake constraints). Non first-order metas
 	-- are top-level so we do the assignment at top-level.
-	n <- length <$> getContextTelescope
+	n <- size <$> getContextTelescope
 	(if firstOrder then id else escapeContext n)
 	    $ x =: abstract tel' v'
 	return []
@@ -391,7 +389,7 @@ updateMeta :: (MonadTCM tcm, Data a, Occurs a, Abstract a) => MetaId -> a -> tcm
 updateMeta mI t = 
     do	mv <- lookupMeta mI
 	withMetaInfo (getMetaInfo mv) $
-	    do	args <- allCtxVars
+	    do	args <- getContextArgs
 		cs <- upd mI args (mvJudgement mv) t
 		unless (List.null cs) $ fail $ "failed to update meta " ++ show mI
     where

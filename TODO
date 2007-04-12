@@ -126,6 +126,8 @@ Fixes
 
 * insert pragmas to specialise interface parsers (if this is the problem)
 
+* close file handles properly
+
 [Builtin]
 
 * check that bindings to list and bool binds to datatypes of the right shape

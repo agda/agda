@@ -2,8 +2,8 @@
 module Interaction.Imports where
 
 import Syntax.Abstract.Name    ( ModuleName )
-import Syntax.ScopeInfo	       ( ModuleScope )
+import Syntax.Scope.Base       ( Scope )
 import TypeChecking.Monad.Base ( TCM )
 
-scopeCheckImport :: ModuleName -> TCM ModuleScope
+scopeCheckImport :: ModuleName -> TCM Scope
 

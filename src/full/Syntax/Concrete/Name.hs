@@ -87,3 +87,6 @@ instance HasRange QName where
     getRange (QName  x) = getRange x
     getRange (Qual n x)	= fuseRange n x
 
+instance SetRange Name where
+  setRange r (Name _ x) = Name r x
+

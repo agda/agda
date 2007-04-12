@@ -25,7 +25,7 @@ import Data.List as List
 import Text.PrettyPrint
 
 data  RCall = RCall {
-   callFun :: Name,
+   callFun :: QName,
    callClause :: Int,
    callNumber :: Int,
    callArgs :: Args

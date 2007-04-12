@@ -9,7 +9,7 @@ module Compiler.Agate.OptimizedPrinter where
 
 import Control.Monad.Trans
 import qualified Data.Map as Map
-import Data.Map ((!))
+import Data.Map ((!), Map)
 
 import Compiler.Agate.Classify
 import Compiler.Agate.TranslateName
@@ -28,7 +28,7 @@ showQNameAsOptimizedConstructor :: QName -> TCM Doc
 showQNameAsOptimizedConstructor s =
     return $ text $ translateNameAsOptimizedConstructor $ show s
     
-showNameAsOptimizedConstructor :: Name -> TCM Doc
+showNameAsOptimizedConstructor :: QName -> TCM Doc
 showNameAsOptimizedConstructor s =
     return $ text $ translateNameAsOptimizedConstructor $ show s
 
@@ -50,12 +50,12 @@ showOptimizedDefinitions definitions = do
 ----------------------------------------------------------------
 -- Generating GHC Type Declarations
 
-showTypeDeclarations :: Definitions -> [Name] -> TCM Doc
+showTypeDeclarations :: Definitions -> [QName] -> TCM Doc
 showTypeDeclarations definitions compilableDatatypes = do
     dtypedecls <- mapM (showTypeDeclaration definitions) compilableDatatypes
     return $ vcat dtypedecls
 
-showTypeDeclaration :: Definitions -> Name -> TCM Doc
+showTypeDeclaration :: Definitions -> QName -> TCM Doc
 showTypeDeclaration definitions name = do
     let defn = definitions ! name
     let (Datatype np ni qcnames s a) = theDef defn
@@ -87,9 +87,8 @@ showTypeParameter n = do
 
 showConstructorDeclaration :: Definitions -> Int -> QName -> TCM Doc
 showConstructorDeclaration definitions np qcname = do
-    let con = qnameName qcname
-    dcon <- showNameAsOptimizedConstructor con -- qcname
-    let defn = definitions ! con
+    dcon <- showNameAsOptimizedConstructor qcname
+    let defn = definitions ! qcname
     ty <- instantiate $ defType defn
     ty <- dropArgs np ty
     dargs <- forEachArgM showAsOptimizedType ty
@@ -99,13 +98,13 @@ showConstructorDeclaration definitions np qcname = do
 ----------------------------------------------------------------
 -- Generating GHC Value Definitions
 
-showValueDefinitions :: Definitions -> [Name] -> TCM Doc
+showValueDefinitions :: Definitions -> [QName] -> TCM Doc
 showValueDefinitions definitions compilableDatatypes = do
     let defs = Map.toList definitions
     dvaluedefs <- mapM (showValueDefinition definitions compilableDatatypes) defs
     return $ vcat dvaluedefs
 
-showValueDefinition :: Definitions -> [Name] -> (Name,Definition) -> TCM Doc
+showValueDefinition :: Definitions -> [QName] -> (QName,Definition) -> TCM Doc
 showValueDefinition definitions compilableDatatypes (name,defn) = do
     dname <- showAsOptimizedTerm name
     ddef  <- case theDef defn of
@@ -136,7 +135,7 @@ showValueDefinition definitions compilableDatatypes (name,defn) = do
     return $ dtype $+$ ddef		
 
 
-showClauseAsOptimized :: Name -> Clause -> TCM Doc
+showClauseAsOptimized :: QName -> Clause -> TCM Doc
 showClauseAsOptimized name (Clause pats NoBody) = return empty
 showClauseAsOptimized name (Clause pats body)   = do
     dname <- showAsOptimizedTerm name
@@ -180,7 +179,7 @@ instance ShowAsOptimizedKind Term where
 class ShowAsOptimizedType a where
     showAsOptimizedType :: a -> TCM Doc 
 
-instance ShowAsOptimizedType Name where
+instance ShowAsOptimizedType QName where
     showAsOptimizedType s = return $ text $ translateNameAsOptimizedType $ show s
 
 instance ShowAsOptimizedType Type where
@@ -196,8 +195,7 @@ instance ShowAsOptimizedType Term where
 		dargs <- mapM (showAsOptimizedType . unArg) args
 		return $ psep $ dvar : dargs
 	    Def qname args -> do
-		let name = qnameName qname
-		dname <- showAsOptimizedType name
+		dname <- showAsOptimizedType qname
 		dargs <- mapM (showAsOptimizedType . unArg) args
 		return $ psep $ dname : dargs
 	    Con name args -> do
@@ -232,6 +230,9 @@ class ShowAsOptimizedTerm a where
     showAsOptimizedTerm :: a -> TCM Doc 
 
 instance ShowAsOptimizedTerm Name where
+    showAsOptimizedTerm s = return $ text $ translateNameAsOptimizedTerm $ show s
+
+instance ShowAsOptimizedTerm QName where
     showAsOptimizedTerm s = return $ text $ translateNameAsOptimizedTerm $ show s
 
 instance ShowAsOptimizedTerm Term where

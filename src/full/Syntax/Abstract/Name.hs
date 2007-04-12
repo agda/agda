@@ -13,6 +13,8 @@ import Syntax.Common
 import qualified Syntax.Concrete.Name as C
 
 import Utils.Fresh
+import Utils.Function
+import Utils.Size
 
 #include "../../undefined.h"
 
@@ -20,66 +22,55 @@ import Utils.Fresh
 newtype NameId = NameId Nat
     deriving (Eq, Ord, Num, Typeable, Data)
 
--- | Modules are (temporarily) identified by a list of concrete names.
-type ModuleId = [C.Name]
-
-data Name = Name { nameId       :: NameId
-		 , nameConcrete :: C.Name
+-- | A name is a unique identifier and a suggestion for a concrete name. The
+--   concrete name contains the source location (if any) of the name. The
+--   source location of the binding site is also recorded.
+data Name = Name { nameId	   :: NameId
+		 , nameConcrete	   :: C.Name
+		 , nameBindingSite :: Range
 		 }
     deriving (Typeable, Data)
 
-data QName = QName { qnameName	   :: Name
-		   , qnameModule   :: ModuleName
-		   , qnameConcrete :: C.QName
+-- | Qualified names are non-empty lists of names. Equality on qualified names
+--   are just equality on the last name, i.e. the module part is just for show.
+data QName = QName { qnameModule :: [Name]
+		   , qnameName	 :: Name
 		   }
     deriving (Typeable, Data)
 
-data ModuleName =
-    MName { mnameId	  :: ModuleId
-	  , mnameConcrete :: C.QName
-	  }
-    deriving (Typeable, Data)
+-- | A module name is just a qualified name.
+type ModuleName = QName
+
+invisibleTopModuleName :: Name
+invisibleTopModuleName = Name (-1) (C.noName noRange) noRange
 
 mkName_ :: NameId -> String -> Name
 mkName_ = mkName noRange
 
 mkName :: Range -> NameId -> String -> Name
-mkName r i s = Name i (C.Name r [C.Id s])
+mkName r i s = Name i (C.Name r [C.Id s]) r
 
-mkModuleId :: C.QName -> ModuleId
-mkModuleId (C.QName x)	= [x]
-mkModuleId (C.Qual m x) = m : mkModuleId x
+qnameToList :: QName -> [Name]
+qnameToList (QName xs x) = xs ++ [x]
 
-mkModuleName :: C.QName -> ModuleName
-mkModuleName x = MName (mkModuleId x) x
+qnameFromList :: [Name] -> QName
+qnameFromList [] = __IMPOSSIBLE__
+qnameFromList xs = QName (init xs) (last xs)
 
-noModuleName :: ModuleName
-noModuleName = MName [] $ C.QName $ C.noName_
+-- | Turn a qualified name into a concrete name. This should only be used as a
+--   fallback when looking up the right concrete name in the scope fails.
+qnameToConcrete :: QName -> C.QName
+qnameToConcrete (QName m x) =
+  foldr C.Qual (C.QName $ nameConcrete x) $ map nameConcrete m
+
+qualifyQ :: ModuleName -> QName -> QName
+qualifyQ m x = qnameFromList $ qnameToList m ++ qnameToList x
 
 qualify :: ModuleName -> Name -> QName
-qualify m x = QName { qnameName	    = x
-		    , qnameModule   = m
-		    , qnameConcrete = C.QName (nameConcrete x)
-		    }
-
-qualifyModule' :: ModuleName -> C.Name -> ModuleName
-qualifyModule' (MName i c) x = MName (i ++ [x]) (C.QName x)
-
-qualifyModule :: ModuleName -> ModuleName -> ModuleName
-qualifyModule (MName i _) (MName i' c) = MName (i ++ i') c
-
--- | @requalifyModule A B.C A.D.E = B.C.D.E@. The third argument should be a
---   submodule of the first argument. Doesn't change the concrete representation.
-requalifyModule :: ModuleName -> ModuleName -> ModuleName -> ModuleName
-requalifyModule (MName old _) (MName new _) (MName i c) = MName i' c
-    where
-	i' = new ++ drop (length old) i
-
-requalify :: ModuleName -> ModuleName -> QName -> QName
-requalify old new (QName x m c) = QName x (requalifyModule old new m) c
+qualify m x = qualifyQ m (qnameFromList [x])
 
 isSubModuleOf :: ModuleName -> ModuleName -> Bool
-isSubModuleOf x y = mnameId y `isPrefixOf` mnameId x
+isSubModuleOf x y = qnameToList y `isPrefixOf` qnameToList x
 
 freshName :: (MonadState s m, HasFresh NameId s) => Range -> String -> m Name
 freshName r s =
@@ -92,7 +83,7 @@ freshName_ = freshName noRange
 freshNoName :: (MonadState s m, HasFresh NameId s) => Range -> m Name
 freshNoName r =
     do	i <- fresh
-	return $ Name i (C.noName r)
+	return $ Name i (C.noName r) r
 
 freshNoName_ :: (MonadState s m, HasFresh NameId s) => m Name
 freshNoName_ = freshNoName noRange
@@ -110,30 +101,26 @@ instance Show Name where
     show x = show (nameConcrete x)
 
 instance Show QName where
-    show q = show (qnameConcrete q)
+    show q = concat $ intersperse "." $ map show $ qnameToList q
 
 instance Eq QName where
-    x == y = (qnameModule x, qnameName x) == (qnameModule y, qnameName y)
+    (==) = (==) `on` qnameName
 
 instance Ord QName where
-    compare x y = compare (qnameModule x, qnameName x) (qnameModule y, qnameName y)
-
-instance Show ModuleName where
-    show m = show (mnameConcrete m)
-
-instance Eq ModuleName where
-    m1 == m2 = mnameId m1 == mnameId m2
-
-instance Ord ModuleName where
-    compare m1 m2 = compare (mnameId m1) (mnameId m2)
+    compare = compare `on` qnameName
 
 instance HasRange Name where
     getRange = getRange . nameConcrete
 
 instance HasRange QName where
-    getRange = getRange . qnameConcrete
+    getRange = getRange . qnameName
 
-instance HasRange ModuleName where
-    getRange = getRange . mnameConcrete
+instance SetRange Name where
+  setRange r x = x { nameConcrete = setRange r $ nameConcrete x }
 
+instance SetRange QName where
+  setRange r q = q { qnameName = setRange r $ qnameName q }
+
+instance Sized QName where
+  size = size . qnameToList
 

@@ -11,8 +11,6 @@ import Compiler.Agate.TranslateName
 import Compiler.Agate.OptimizedPrinter
 import Compiler.Agate.UntypedPrinter
 
-import GHC.Base (map)
-
 import Syntax.Internal
 import Syntax.Scope
 import Text.PrettyPrint
@@ -22,10 +20,9 @@ import Control.Monad.State
 import Control.Monad.Error
 
 import Data.List as List
-import Data.Map as Map
---import Data.Maybe
+import qualified Data.Map as Map
+import Data.Map (Map)
 
-import Syntax.Abstract.Test
 import Syntax.Abstract.Name
 
 import Interaction.Options
@@ -43,10 +40,9 @@ compilerMain :: IM () -> IM ()
 compilerMain typeCheck = do
 	typeCheck
 	sig <- gets stSignature
-	let sigs = toList sig
-	let definitions = mdefDefs (snd (head sigs)) -- :: Map Name Definition
-	let defs = toList definitions
-	maxconargs <- maxConArgs (GHC.Base.map snd defs)
+	let definitions = sigDefinitions sig
+	let defs = Map.toList definitions
+	maxconargs <- maxConArgs (map snd defs)
 	liftIO $ do
 	    putStrLn "{-# OPTIONS -fglasgow-exts -cpp #-}"
 	    putStrLn ""
@@ -136,15 +132,15 @@ maxConArgs :: [Definition] -> IM Int
 maxConArgs dfs = return 3
 
 
-enumCon :: Definitions -> [Name]
-enumCon = concatMap f . toList
+enumCon :: Definitions -> [QName]
+enumCon = concatMap f . Map.toList
     where f (name, d) = case theDef d of
                           (Constructor _ _ _) -> [name]
                           _                   -> []
 
 printConsts :: Definitions -> IO ()
 printConsts = go 0 . enumCon
-    where go :: Nat -> [Name] -> IO ()
+    where go :: Nat -> [QName] -> IO ()
           go _ []     = return ()
           go n (x:xs) = do
           	let cname = translateNameAsUntypedConstructor $ show x

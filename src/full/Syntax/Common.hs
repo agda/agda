@@ -11,6 +11,7 @@ import Data.Traversable
 
 import Syntax.Position
 import Utils.Monad
+import Utils.Size
 
 data Hiding  = Hidden | NotHidden
     deriving (Typeable, Data, Show, Eq)
@@ -30,6 +31,9 @@ instance Traversable Arg where
 
 instance HasRange a => HasRange (Arg a) where
     getRange = getRange . unArg
+
+instance Sized a => Sized (Arg a) where
+  size = size . unArg
 
 instance Show a => Show (Arg a) where
     show (Arg Hidden x)    = "{" ++ show x ++ "}"
@@ -58,6 +62,9 @@ instance Traversable (Named name) where
 
 instance HasRange a => HasRange (Named name a) where
     getRange = getRange . namedThing
+
+instance Sized a => Sized (Named name a) where
+  size = size . namedThing
 
 instance Show a => Show (Named String a) where
     show (Named Nothing x)  = show x

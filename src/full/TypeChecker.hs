@@ -55,6 +55,7 @@ import Utils.Serialise
 import Utils.IO
 import Utils.Tuple
 import Utils.Function
+import Utils.Size
 
 #include "undefined.h"
 
@@ -74,36 +75,33 @@ checkDecl d =
 	A.Axiom i x e		   -> checkAxiom i x e
 	A.Primitive i x e	   -> checkPrimitive i x e
 	A.Definition i ts ds	   -> checkMutual i ts ds
-	A.Module i x tel ds	   -> checkModule i x tel ds
-	A.ModuleDef i x tel m args -> checkModuleDef i x tel m args
+	A.Section i x tel ds	   -> checkModule i x tel ds  -- TODO!!
+	A.Apply i x m args	   -> checkModuleDef i x [] m args -- TODO!!
 	A.Import i x		   -> checkImport i x
 	A.Pragma i p		   -> checkPragma i p
-	A.Open _		   -> return ()
+	A.ScopedDecl scope ds	   -> setScope scope >> checkDecls ds
 	    -- open is just an artifact from the concrete syntax
 
 
 -- | Type check an axiom.
-checkAxiom :: DefInfo -> Name -> A.Expr -> TCM ()
+checkAxiom :: DefInfo -> QName -> A.Expr -> TCM ()
 checkAxiom _ x e =
     do	t <- isType_ e
-	m <- currentModule
-	addConstant (qualify m x) (Defn t 0 Axiom)
+	addConstant x (Defn t 0 Axiom)
 
 
 -- | Type check a primitive function declaration.
-checkPrimitive :: DefInfo -> Name -> A.Expr -> TCM ()
+checkPrimitive :: DefInfo -> QName -> A.Expr -> TCM ()
 checkPrimitive i x e =
-    traceCall (CheckPrimitive (getRange i) x e) $ do
-    PrimImpl t' pf <- lookupPrimitiveFunction (nameString x)
+    traceCall (CheckPrimitive (getRange i) (qnameName x) e) $ do  -- TODO!! (qnameName)
+    PrimImpl t' pf <- lookupPrimitiveFunction (nameString $ qnameName x)
     t <- isType_ e
     noConstraints $ equalType t t'
-    m <- currentModule
     let s  = show x
-	qx = qualify m x
-    bindPrimitive s $ pf { primFunName = qx }
-    addConstant qx (Defn t 0 $ Primitive (defAbstract i) s [])
+    bindPrimitive s $ pf { primFunName = x }
+    addConstant x (Defn t 0 $ Primitive (defAbstract i) s [])
     where
-	nameString (Name _ x) = show x
+	nameString (Name _ x _) = show x
 
 
 -- | Check a pragma.
@@ -118,9 +116,8 @@ checkMutual :: DeclInfo -> [A.TypeSignature] -> [A.Definition] -> TCM ()
 checkMutual i ts ds =
     do	mapM_ checkTypeSignature ts
 	mapM_ checkDefinition ds
-	m <- currentModule
 	whenM positivityCheckEnabled $
-	    checkStrictlyPositive [ qualify m name | A.DataDef _ name _ _ <- ds ]
+	    checkStrictlyPositive [ name | A.DataDef _ name _ _ <- ds ]
 
 
 -- | Type check the type signature of an inductive or recursive definition.
@@ -146,18 +143,18 @@ checkDefinition d =
 
 -- | Type check a module.
 checkModule :: ModuleInfo -> ModuleName -> A.Telescope -> [A.Declaration] -> TCM ()
-checkModule i x tel ds =
-    do	tel0 <- getContextTelescope
-	checkTelescope tel $ \tel' ->
-	    do	m'   <- flip qualifyModule x <$> currentModule
-		reportLn 5 $ "adding module " ++ show (mnameId m')
-		addModule m' $ ModuleDef
-				{ mdefName	= m'
-				, mdefTelescope = tel0 ++ tel'
-				, mdefNofParams = length tel'
-				, mdefDefs	= Map.empty
-				}
-		withCurrentModule m' $ checkDecls ds
+checkModule i x tel ds = undefined -- TODO!!
+--     do	tel0 <- getContextTelescope
+-- 	checkTelescope tel $ \tel' ->
+-- 	    do	m'   <- flip qualifyModule x <$> currentModule
+-- 		reportLn 5 $ "adding module " ++ show (mnameId m')
+-- 		addModule m' $ ModuleDef
+-- 				{ mdefName	= m'
+-- 				, mdefTelescope = tel0 ++ tel'
+-- 				, mdefNofParams = size tel'
+-- 				, mdefDefs	= Map.empty
+-- 				}
+-- 		withCurrentModule m' $ checkDecls ds
 
 
 {-| Type check a module definition.
@@ -182,48 +179,48 @@ checkModule i x tel ds =
 	addModule M.A ΓΔΘΦΨ = M'.A Γ us ΦΨ
 -}
 checkModuleDef :: ModuleInfo -> ModuleName -> A.Telescope -> ModuleName -> [NamedArg A.Expr] -> TCM ()
-checkModuleDef i x tel m' args =
-    do	m <- flip qualifyModule x <$> currentModule
-	gammaDelta <- getContextTelescope
-	md' <- lookupModule m'
-	let gammaOmega	  = mdefTelescope md'
-	    (gamma,omega) = splitAt (length gammaOmega - mdefNofParams md') gammaOmega
-	    delta	  = drop (length gamma) gammaDelta
-	checkTelescope tel $ \theta ->
-	    do	(vs, cs) <- checkArguments_ (getRange m') args omega
-		noConstraints (return cs)   -- we don't allow left-over constraints in module instantiations
-		let vs0 = reverse [ Arg Hidden
-				  $ Var (i + length delta + length theta) []
-				  | i <- [0..length gamma - 1]
-				  ]
-		addModule m $ ModuleDef
-				    { mdefName	     = m
-				    , mdefTelescope  = gammaDelta ++ theta
-				    , mdefNofParams  = length theta
-				    , mdefDefs	     = implicitModuleDefs
-							(minfoAbstract i)
-							(gammaDelta ++ theta)
-							m' (vs0 ++ vs)
-							(mdefDefs md')
-				    }
-		forEachModule_ (`isSubModuleOf` m') $ \m'a ->
-		    do	md <- lookupModule m'a	-- lookup twice (could be optimised)
-			let gammaOmegaPhiPsi = mdefTelescope md
-			    ma = requalifyModule m' m m'a
-			    phiPsi  = drop (length gammaOmega) gammaOmegaPhiPsi
-			    vs1	    = reverse [ Arg Hidden $ Var i []
-					      | i <- [0..length phiPsi - 1]
-					      ]
-			    tel	    = gammaDelta ++ theta ++ phiPsi
-			addModule ma $ ModuleDef
-					    { mdefName	     = ma
-					    , mdefTelescope  = tel
-					    , mdefNofParams  = mdefNofParams md
-					    , mdefDefs	     = implicitModuleDefs
-								(minfoAbstract i)
-								tel m'a (vs0 ++ vs ++ vs1)
-								(mdefDefs md)
-					    }
+checkModuleDef i x tel m' args = undefined -- TODO!!
+--     do	m <- flip qualifyModule x <$> currentModule
+-- 	gammaDelta <- getContextTelescope
+-- 	md' <- lookupModule m'
+-- 	let gammaOmega	  = mdefTelescope md'
+-- 	    (gamma,omega) = splitAt (size gammaOmega - mdefNofParams md') gammaOmega
+-- 	    delta	  = drop (size gamma) gammaDelta
+-- 	checkTelescope tel $ \theta ->
+-- 	    do	(vs, cs) <- checkArguments_ (getRange m') args omega
+-- 		noConstraints (return cs)   -- we don't allow left-over constraints in module instantiations
+-- 		let vs0 = reverse [ Arg Hidden
+-- 				  $ Var (i + size delta + size theta) []
+-- 				  | i <- [0..size gamma - 1]
+-- 				  ]
+-- 		addModule m $ ModuleDef
+-- 				    { mdefName	     = m
+-- 				    , mdefTelescope  = gammaDelta ++ theta
+-- 				    , mdefNofParams  = size theta
+-- 				    , mdefDefs	     = implicitModuleDefs
+-- 							(minfoAbstract i)
+-- 							(gammaDelta ++ theta)
+-- 							m' (vs0 ++ vs)
+-- 							(mdefDefs md')
+-- 				    }
+-- 		forEachModule_ (`isSubModuleOf` m') $ \m'a ->
+-- 		    do	md <- lookupModule m'a	-- lookup twice (could be optimised)
+-- 			let gammaOmegaPhiPsi = mdefTelescope md
+-- 			    ma = requalifyModule m' m m'a
+-- 			    phiPsi  = drop (size gammaOmega) gammaOmegaPhiPsi
+-- 			    vs1	    = reverse [ Arg Hidden $ Var i []
+-- 					      | i <- [0..size phiPsi - 1]
+-- 					      ]
+-- 			    tel	    = gammaDelta ++ theta ++ phiPsi
+-- 			addModule ma $ ModuleDef
+-- 					    { mdefName	     = ma
+-- 					    , mdefTelescope  = tel
+-- 					    , mdefNofParams  = mdefNofParams md
+-- 					    , mdefDefs	     = implicitModuleDefs
+-- 								(minfoAbstract i)
+-- 								tel m'a (vs0 ++ vs ++ vs1)
+-- 								(mdefDefs md)
+-- 					    }
 
 
 -- | Type check an import declaration. Actually doesn't do anything, since all
@@ -237,12 +234,10 @@ checkImport i x = return ()
 
 -- | Type check a datatype definition. Assumes that the type has already been
 --   checked.
-checkDataDef :: DefInfo -> Name -> [A.LamBinding] -> [A.Constructor] -> TCM ()
-checkDataDef i x ps cs =
-    traceCall (CheckDataDef (getRange i) x ps cs) $ do
-	m <- currentModule
-	let name  = qualify m x
-	    npars = length ps
+checkDataDef :: DefInfo -> QName -> [A.LamBinding] -> [A.Constructor] -> TCM ()
+checkDataDef i name ps cs =
+    traceCall (CheckDataDef (getRange i) (qnameName name) ps cs) $ do -- TODO!! (qnameName)
+	let npars = size ps
 
 	-- Look up the type of the datatype.
 	t <- typeOfConst name
@@ -251,14 +246,14 @@ checkDataDef i x ps cs =
 	(nofIxs, s) <- bindParameters ps t $ \tel t0 -> do
 
 	    -- Parameters are always hidden in constructors
-	    let tel' = map hide tel
+	    let tel' = hideTel tel
 
 	    -- The type we get from bindParameters is Θ -> s where Θ is the type of
 	    -- the indices. We count the number of indices and return s.
 	    (nofIxs, s) <- splitType =<< normalise t0
 
 	    -- Change the datatype from an axiom to a datatype with no constructors.
-	    escapeContext (length tel) $
+	    escapeContext (size tel) $
 	      addConstant name (Defn t 0 $ Datatype npars nofIxs []
 						    s (defAbstract i)
 			       )
@@ -278,14 +273,15 @@ checkDataDef i x ps cs =
 
 	-- Add the datatype to the signature as a datatype. It was previously
 	-- added as an axiom.
-	addConstant name (Defn t 0 $ Datatype npars nofIxs (map (cname m) cs)
+	addConstant name (Defn t 0 $ Datatype npars nofIxs (map cname cs)
 					      s (defAbstract i)
 			 )
     where
-	cname m (A.Axiom _ x _) = qualify m x
-	cname _ _		= __IMPOSSIBLE__ -- constructors are axioms
+	cname (A.Axiom _ x _) = x
+	cname _		      = __IMPOSSIBLE__ -- constructors are axioms
 
-	hide (Arg _ x) = Arg Hidden x
+	hideTel  EmptyTel		  = EmptyTel
+	hideTel (ExtendTel (Arg _ t) tel) = ExtendTel (Arg Hidden t) $ hideTel <$> tel
 
 	splitType (El _ (Pi _ b))  = ((+ 1) -*- id) <$> splitType (absBody b)
 	splitType (El _ (Fun _ b)) = ((+ 1) -*- id) <$> splitType b
@@ -298,7 +294,7 @@ checkConstructor :: QName -> Telescope -> Int -> Sort -> A.Constructor -> TCM ()
 checkConstructor d tel nofIxs s con@(A.Axiom i c e) =
     traceCall (CheckConstructor d tel s con) $ do
 	t <- isType_ e
-	n <- length <$> getContextTelescope
+	n <- size <$> getContextTelescope
 	verbose 5 $ do
 	    td <- prettyTCM t
 	    liftIO $ putStrLn $ "checking that " ++ show td ++ " ends in " ++ show d
@@ -308,21 +304,20 @@ checkConstructor d tel nofIxs s con@(A.Axiom i c e) =
 	    d <- prettyTCM s
 	    liftIO $ putStrLn $ "checking that the type fits in " ++ show d
 	t `fitsIn` s
-	m <- currentModule
-	escapeContext (length tel)
-	    $ addConstant (qualify m c)
-	    $ Defn (telePi tel t) 0 $ Constructor (length tel) d $ defAbstract i
+	escapeContext (size tel)
+	    $ addConstant c
+	    $ Defn (telePi tel t) 0 $ Constructor (size tel) d $ defAbstract i
 checkConstructor _ _ _ _ _ = __IMPOSSIBLE__ -- constructors are axioms
 
 
 -- | Bind the parameters of a datatype. The bindings should be domain free.
 bindParameters :: [A.LamBinding] -> Type -> (Telescope -> Type -> TCM a) -> TCM a
-bindParameters [] a ret = ret [] a
+bindParameters [] a ret = ret EmptyTel a
 bindParameters (A.DomainFree h x : ps) (El _ (Pi (Arg h' a) b)) ret	-- always dependent function
     | h /= h'	=
 	__IMPOSSIBLE__
     | otherwise = addCtx x a $ bindParameters ps (absBody b) $ \tel s ->
-		    ret (Arg h (show x,a) : tel) s
+		    ret (ExtendTel (Arg h a) $ Abs (show x) tel) s
 bindParameters _ _ _ = __IMPOSSIBLE__
 
 
@@ -391,12 +386,11 @@ forceData d (El s0 t) = liftTCM $ do
 ---------------------------------------------------------------------------
 
 -- | Type check a definition by pattern matching.
-checkFunDef :: DefInfo -> Name -> [A.Clause] -> TCM ()
-checkFunDef i x cs =
+checkFunDef :: DefInfo -> QName -> [A.Clause] -> TCM ()
+checkFunDef i name cs =
 
-    traceCall (CheckFunDef (getRange i) x cs) $ do
+    traceCall (CheckFunDef (getRange i) (qnameName name) cs) $ do   -- TODO!! (qnameName)
 	-- Get the type of the function
-	name <- flip qualify x <$> currentModule
 	t    <- typeOfConst name
 
 	-- Check the clauses
@@ -411,7 +405,7 @@ checkFunDef i x cs =
 	-- Add the definition
 	addConstant name $ Defn t 0 $ Function cs $ defAbstract i
     where
-	npats (Clause ps _) = length ps
+	npats (Clause ps _) = size ps
 
 
 -- | Type check a function clause.
@@ -566,7 +560,7 @@ checkLHS ps t ret = do
 		    return $ A.DotP i (A.Underscore info)
 		    where info = MetaInfo
 				    (getRange i)
-				    emptyScopeInfo  -- TODO: fill in the right thing here
+				    undefined -- TODO!!
 				    Nothing
 	buildNewPattern p@(A.VarP _)	= return p
 	buildNewPattern p@(A.WildP _)	= return p
@@ -606,7 +600,7 @@ checkLHS ps t ret = do
 	-- Get the flattened context
 	flatContext :: TCM Context
 	flatContext = do
-	    n <- length <$> getContext
+	    n <- size <$> getContext
 	    mapM f [0..n - 1]
 	    where
 		f i = do
@@ -922,11 +916,11 @@ forcePi h name (El s t) =
 
 -- | Type check a telescope. Binds the variables defined by the telescope.
 checkTelescope :: A.Telescope -> (Telescope -> TCM a) -> TCM a
-checkTelescope [] ret = ret []
+checkTelescope [] ret = ret EmptyTel
 checkTelescope (b : tel) ret =
     checkTypedBindings b $ \tel1 ->
     checkTelescope tel   $ \tel2 ->
-	ret $ tel1 ++ tel2
+	ret $ abstract tel1 tel2
 
 
 -- | Check a typed binding and extends the context with the bound variables.
@@ -934,7 +928,7 @@ checkTelescope (b : tel) ret =
 checkTypedBindings :: A.TypedBindings -> (Telescope -> TCM a) -> TCM a
 checkTypedBindings (A.TypedBindings i h bs) ret =
     thread checkTypedBinding bs $ \bss ->
-    ret $ map (Arg h) (concat bss)
+    ret $ foldr (\(x,t) -> ExtendTel (Arg h t) . Abs x) EmptyTel (concat bss)
 
 checkTypedBinding :: A.TypedBinding -> ([(String,Type)] -> TCM a) -> TCM a
 checkTypedBinding (A.TBind i xs e) ret = do
@@ -994,9 +988,9 @@ checkExpr e t =
 	A.Lam i (A.DomainFull b) e ->
 	    checkTypedBindings b $ \tel -> do
 	    t1 <- newTypeMeta_
-	    cs <- escapeContext (length tel) $ equalType t (telePi tel t1)
+	    cs <- escapeContext (size tel) $ equalType t (telePi tel t1)
 	    v <- checkExpr e t1
-	    blockTerm t (buildLam (map name tel) v) (return cs)
+	    blockTerm t (teleLam tel v) (return cs)
 	    where
 		name (Arg h (x,_)) = Arg h x
 
@@ -1039,6 +1033,8 @@ checkExpr e t =
 	A.Var _ _    -> __IMPOSSIBLE__
 	A.Def _ _    -> __IMPOSSIBLE__
 	A.Con _ _    -> __IMPOSSIBLE__
+
+	A.ScopedExpr scope e -> setScope scope >> checkExpr e t
 
 nofConstructorPars :: QName -> TCM Int
 nofConstructorPars c = do
@@ -1098,13 +1094,13 @@ inferHead (HeadCon i c) = do
 
 inferDef :: (QName -> Args -> Term) -> NameInfo -> QName -> TCM (Term, Type)
 inferDef mkTerm i x =
-    traceCall (InferDef (getRange i) x) $ do
+    traceCall (InferDef (getRange x) x) $ do
     d  <- getConstInfo x
     d' <- instantiateDef d
     gammaDelta <- getContextTelescope
     let t     = defType d'
-	gamma = take (defFreeVars d) gammaDelta
-	k     = length gammaDelta - defFreeVars d
+	gamma = take (defFreeVars d) $ telToList gammaDelta
+	k     = size gammaDelta - defFreeVars d
 	vs    = reverse [ Arg h $ Var (i + k) []
 			| (Arg h _,i) <- zip gamma [0..]
 			]
@@ -1273,7 +1269,7 @@ bindBuiltinNil e = do
     list' <- primList
     let set	= sort (Type 0)
 	list a	= El (Type 0) (list' `apply` [Arg NotHidden a])
-	nilType = telePi [Arg Hidden ("A",set)] $ list (Var 0 [])
+	nilType = telePi (telFromList [Arg Hidden ("A",set)]) $ list (Var 0 [])
     nil <- checkExpr e nilType
     bindBuiltinName builtinNil nil
 
@@ -1285,7 +1281,7 @@ bindBuiltinCons e = do
 	el	  = El (Type 0)
 	a	  = Var 0 []
 	list x	  = el $ list' `apply` [Arg NotHidden x]
-	hPi x a b = telePi [Arg Hidden (x,a)] b
+	hPi x a b = telePi (telFromList [Arg Hidden (x,a)]) b
 	fun a b	  = el $ Fun (Arg NotHidden a) b
 	consType  = hPi "A" set $ el a `fun` (list a `fun` list a)
     cons <- checkExpr e consType
@@ -1426,7 +1422,7 @@ builtinPrimitives =
 -- | Bind a builtin thing to an expression.
 bindBuiltin :: String -> A.Expr -> TCM ()
 bindBuiltin b e = do
-    top <- null <$> getContextTelescope
+    top <- (== 0) . size <$> getContextTelescope
     unless top $ typeError $ BuiltinInParameterisedModule b
     bind b e
     where

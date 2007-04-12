@@ -20,7 +20,7 @@ import Utils.Pretty
 
 ----------------------------------------------------------------
 
-showAsUntypedConstructor :: Name -> TCM Doc
+showAsUntypedConstructor :: QName -> TCM Doc
 showAsUntypedConstructor name =
     return $ text $ translateNameAsUntypedConstructor $ show name
 
@@ -106,8 +106,8 @@ showClause (Clause pats body)   = do
 
 ----------------------------------------------------------------
 
-showNDefinition :: (Name,Definition) -> TCM Doc
-showNDefinition (name,defn) = do
+showNDefinition :: (QName, Definition) -> TCM Doc
+showNDefinition (name, defn) = do
     dname <- showAsUntypedTerm name
     case theDef defn of
       Axiom -> do

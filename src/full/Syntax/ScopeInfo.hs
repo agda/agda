@@ -10,6 +10,7 @@ import Syntax.Abstract.Name as AName
 import Syntax.Concrete.Name as CName
 import Syntax.Fixity
 
+{-
 ---------------------------------------------------------------------------
 -- * Scope
 ---------------------------------------------------------------------------
@@ -120,4 +121,4 @@ emptyScopeInfo = ScopeInfo { publicNameSpace   = emptyNameSpace_
 			   , localVariables    = Map.empty
 			   , contextPrecedence = TopCtx
 			   }
-
+-}

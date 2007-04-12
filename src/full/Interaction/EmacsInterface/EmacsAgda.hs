@@ -303,8 +303,8 @@ refineMeta s | length s >= 5 =
     flip actOnMeta (drop 3 s) $ \ii e -> do
           scope <- getInteractionScope ii
           (e,iis) <- refine ii Nothing e 
-          debug (show e)
-          let concrete = abstractToConcreteCtx (contextPrecedence scope) e
+          debug (show e)  -- TODO!!
+          let concrete = abstractToConcreteCtx undefined {-(contextPrecedence scope)-} e
           outputMetaReplace ii (show concrete) iis
 refineMeta _ = liftIO $ putStrLn $ ": refine" ++ " metaid expr"
 

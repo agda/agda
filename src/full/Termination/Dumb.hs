@@ -21,6 +21,7 @@ import Control.Monad.Error
 import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Trans
+import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.List as List
 import Text.PrettyPrint
@@ -34,8 +35,7 @@ checkTermination = do
 			processSig sig
 
 processSig :: Signature -> TCM()
-processSig sig = mapMM processModule mdefs where
-      mdefs {- :: [ModuleDef] -} = List.map snd $ Map.assocs sig
+processSig sig = processDefinitions $ sigDefinitions sig
 
 {-
 processSig sig = mapMM processDefinitions defss where
@@ -44,31 +44,31 @@ processSig sig = mapMM processDefinitions defss where
 	-- names ds = Map.keys ds
 -}
 
-processModule :: ModuleDef -> TCM ()
-processModule m = withCurrentModule mname $ processDefinitions defss where
-    mname = mdefName m
-    defss = mdefDefs m
+-- processModule :: ModuleDef -> TCM ()
+-- processModule m = withCurrentModule mname $ processDefinitions defss where
+--     mname = mdefName m
+--     defss = mdefDefs m
 
-processDefinitions :: Definitions -> TCM()
+processDefinitions :: Map QName Definition -> TCM()
 processDefinitions defs = mapMM processDef $ List.map simpleDef $ Map.assocs defs
 
-simpleDef :: (Name, Definition) -> (Name, Defn)
-simpleDef (n, d) = (n,theDef d)
+simpleDef :: (QName, Definition) -> (QName, Defn)
+simpleDef (n, d) = (n, theDef d)
  
-processDef :: (Name, Defn) -> TCM()
+processDef :: (QName, Defn) -> TCM()
 processDef (name, (Function cs isa)) =  processFun name cs
 processDef _ = return ()
 
 
-processFun :: Name -> [Clause] -> TCM()
+processFun :: QName -> [Clause] -> TCM()
 processFun name cs = processFun' name 1 cs
 
-processFun' :: Name -> Nat ->[Clause] -> TCM()
+processFun' :: QName -> Nat ->[Clause] -> TCM()
 processFun' name num [] = return ()
 processFun' name num (c:cs) = processClause name num c 
                               >> processFun' name (num+1) cs
 
-processClause :: Name -> Nat -> Clause -> TCM()
+processClause :: QName -> Nat -> Clause -> TCM()
 processClause name num c@(Clause args body) = 
      do
         let targs = exPatTop args
@@ -79,11 +79,11 @@ processClause name num c@(Clause args body) =
 		  tcmsg $ show name ++ " " ++ show d
 		  checkCalls targs cs
 
-findDef :: String -> TCM(Maybe Name)
+findDef :: String -> TCM (Maybe QName)
 findDef s =  (findDef' $ C.Name noRange [C.Id s]) 
              `catchError` (\e-> return Nothing)
 
-findDef' :: C.Name -> TCM(Maybe Name)
+findDef' :: C.Name -> TCM (Maybe QName)
 findDef' s = do
   name <- concreteToAbstract_ (OldName s) 
   return $ Just name 
@@ -109,13 +109,12 @@ checkCalls targs cs = mapMM (checkCall targs) cs
 checkCall :: Args -> RCall -> TCM()
 checkCall [targ] (RCall fun i j [arg]) = do
   -- tcmsg $ "Looking for " ++ hintName
-  modName <- currentModule
   mhint <- findDef hintName
   pArg <- prettyTCM arg
   pTArg <- prettyTCM targ
   let strLess = show pArg ++ " < " ++ show pTArg
   case mhint of
-    Just name -> foundHint modName name
+    Just name -> foundHint name
     Nothing ->       
      tcmsg $ if strictSubterm (unArg arg) (unArg targ) 
           then msgGood strLess
@@ -125,8 +124,7 @@ checkCall [targ] (RCall fun i j [arg]) = do
     msgBad  strLess =  callid ++ " You need to prove " ++ strLess 
     callid = show fun ++ "-" ++ show i ++ "-" ++ show j
     hintName = callid++"-hint"
-    foundHint modName name = do
-       let qname = qualify modName name
+    foundHint qname = do
        hintType <- typeOfConst qname
        hintTypeDoc <- prettyTCM hintType
        tcmsg $ "Found hint for " ++ callid 
@@ -155,7 +153,7 @@ tcmsg = liftIO . putStrLn
 -- Gathering recursive calls
 ------------------------------------------------------------		  
 
-callsClause, callsClause' :: Name -> Nat -> Clause -> [RCall]
+callsClause, callsClause' :: QName -> Nat -> Clause -> [RCall]
 callsClause name num c = fixCallNums $ callsClause' name num c
 callsClause' name num c@(Clause args body) = callsBody name num body
 
@@ -165,13 +163,13 @@ fixCallNums cs = zipWith fixCallNum cs [1..]
 fixCallNum :: RCall -> Int -> RCall
 fixCallNum (RCall fun i _ args) j = RCall fun i j args
 
-callsBody :: Name -> Nat -> ClauseBody -> [RCall]
+callsBody :: QName -> Nat -> ClauseBody -> [RCall]
 callsBody name num (Body t) = callsTerm name num t
 callsBody name num (Bind abs) = callsBody name num (absBody abs)
 callsBody name num (NoBind  cb) = callsBody name num cb
 callsBody name num (NoBody) = []
 
-callsTerm :: Name -> Nat -> Term -> [RCall]
+callsTerm :: QName -> Nat -> Term -> [RCall]
 callsTerm name num (Var n []) = []
 callsTerm name num (Var n args) = callsArgs name num args
 callsTerm name num (Lam _ abs) = callsTerm name num (absBody abs)
@@ -180,14 +178,14 @@ callsTerm name num def@(Def qn args) = callsDef name num def
 callsTerm name num (Con _ args) = callsArgs name num args
 callsTerm name num  _ = []
 
-callsArgs :: Name -> Nat -> Args -> [RCall]
+callsArgs :: QName -> Nat -> Args -> [RCall]
 callsArgs name num as = concat  $ List.map ((callsTerm name num).unArg) as
 
 --cmpQn (QName (Name id _) _ _) (Name id' _) = id == id'
-callsDef :: Name -> Nat -> Term -> [RCall]
-callsDef name@(Name nid _) num (Def (QName (Name id' _) _ _)  args)
-  | nid == id' = [RCall name num 0 args]
-  | otherwise = []
+callsDef :: QName -> Nat -> Term -> [RCall]
+callsDef name num (Def name'  args)
+  | name == name' = [RCall name num 0 args]
+  | otherwise	  = []
 callsDef name num _ = []
 
 

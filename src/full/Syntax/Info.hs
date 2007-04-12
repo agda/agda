@@ -12,7 +12,7 @@ import Syntax.Common
 import Syntax.Position
 import Syntax.Concrete
 import Syntax.Fixity
-import Syntax.ScopeInfo (ScopeInfo)
+import Syntax.Scope.Base (ScopeInfo)
 
 {--------------------------------------------------------------------------
     No information
@@ -24,15 +24,11 @@ data Info = Nope
     Name information
  --------------------------------------------------------------------------}
 
+-- | TODO: do we really need this?
 data NameInfo =
-	NameInfo { bindingSite	:: Range
-		 , concreteName :: QName
-		 , nameFixity	:: Fixity
-		 , nameAccess	:: Access
+	NameInfo { nameFixity :: Fixity
+		 , nameAccess :: Access
 		 }
-
-instance HasRange NameInfo where
-    getRange = getRange . concreteName
 
 {--------------------------------------------------------------------------
     Meta information

@@ -91,7 +91,7 @@ checkPosArg d i = unlessM (isAssumption d i) $ do
     def <- lift $ theDef <$> getConstInfo d
     case def of
 	Datatype _ _ cs _ _ -> do
-	    xs <- lift $ map (qualify noModuleName) <$>
+	    xs <- lift $ map (qnameFromList . (:[])) <$>
 		  replicateM (i + 1) (freshName_ "dummy")
 	    let x = xs !! i
 		args = map (Arg NotHidden . flip Def []) xs

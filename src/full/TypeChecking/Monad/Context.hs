@@ -3,8 +3,8 @@
 module TypeChecking.Monad.Context where
 
 import Control.Monad.Reader
-import Data.List as List
-import Data.Map as Map
+import Data.List
+import qualified Data.Map as Map
 
 import Syntax.Abstract.Name
 import Syntax.Common
@@ -40,15 +40,24 @@ underAbstraction t a k = do
 getContext :: MonadTCM tcm => tcm Context
 getContext = asks envContext
 
+-- | Generate [Var n - 1, .., Var 0] for all declarations in the context.
+getContextArgs :: MonadTCM tcm => tcm Args
+getContextArgs = map (Arg NotHidden) <$> getContextTerms
+
+getContextTerms :: MonadTCM tcm => tcm [Term]
+getContextTerms = do
+  ctx <- getContext
+  return $ reverse $ map (\i -> Var i []) $ [0 .. length ctx - 1]
+
 -- | Get the current context as a 'Telescope' (everything 'Hidden').
 getContextTelescope :: MonadTCM tcm => tcm Telescope
 getContextTelescope = getContextTelescope' Hidden
 
 -- | Get the current context as a 'Telescope' with the specified 'Hiding'.
 getContextTelescope' :: MonadTCM tcm => Hiding -> tcm Telescope
-getContextTelescope' h = List.map arg . reverse <$> getContext
-    where
-	arg (x,t) = Arg h (show x, t)
+getContextTelescope' h = foldr extTel EmptyTel . reverse <$> getContext
+  where
+    extTel (x, t) = ExtendTel (Arg h t) . Abs (show x)
 
 -- | add a bunch of variables with the same type to the context
 addCtxs :: MonadTCM tcm => [Name] -> Type -> tcm a -> tcm a
@@ -57,10 +66,10 @@ addCtxs (x:xs) t k = addCtx x t $ addCtxs xs (raise 1 t) k
 
 -- | Add a telescope to the context.
 addCtxTel :: MonadTCM tcm => Telescope -> tcm a -> tcm a
-addCtxTel [] ret = ret
-addCtxTel (Arg _ (x,t) : tel) ret =
-    do	x <- freshName_ x
-	addCtx x t $ addCtxTel tel ret
+addCtxTel EmptyTel	    ret = ret
+addCtxTel (ExtendTel t tel) ret = do
+  x <- freshName_ $ absName tel
+  addCtx x (unArg t) $ addCtxTel (absBody tel) ret
 
 -- | Add a let bound variable
 addLetBinding :: MonadTCM tcm => Name -> Term -> Type -> tcm a -> tcm a
@@ -87,7 +96,7 @@ xs !!! n = xs !!!! n
     where
 	[]     !!!! _ = do
             ctx <- getContext
-            fail $ "deBruijn index out of scope: " ++ show n ++ " in context " ++ show (List.map fst ctx)
+            fail $ "deBruijn index out of scope: " ++ show n ++ " in context " ++ show (map fst ctx)
 	(x:_)  !!!! 0 = return x
 	(_:xs) !!!! n = xs !!!! (n - 1)
 
@@ -98,7 +107,7 @@ getVarInfo :: MonadTCM tcm => Name -> tcm (Term, Type)
 getVarInfo x =
     do	ctx <- getContext
 	def <- asks envLetBindings
-	case List.findIndex ((==x) . fst) ctx of
+	case findIndex ((==x) . fst) ctx of
 	    Just n  ->
 		do  t <- typeOfBV n
 		    return (Var n [], t)

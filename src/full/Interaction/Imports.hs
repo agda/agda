@@ -22,6 +22,7 @@ import qualified Syntax.Concrete.Name as C
 import Syntax.Abstract.Name
 import Syntax.Parser 
 import Syntax.Scope
+import Syntax.Scope.Base
 import Syntax.Translation.ConcreteToAbstract
 
 import TypeChecking.Reduce
@@ -50,7 +51,7 @@ mergeInterface i = do
     modify $ \st -> st { stImportedModules = Set.union
 						(stImportedModules st)
 						(Set.fromList $ iImportedModules i)
-		       , stImports	   = Map.unions [stImports st, sig, isig]
+		       , stImports	   = unionSignatures [stImports st, sig, isig]
 		       , stBuiltinThings   = stBuiltinThings st `Map.union` bi
 			    -- TODO: not safe (?) ^
 		       }
@@ -67,7 +68,7 @@ data FileType = SourceFile | InterfaceFile
 
 findFile :: FileType -> ModuleName -> TCM FilePath
 findFile ft m = do
-    let x = mnameConcrete m
+    let x = qnameToConcrete m -- TODO!!
     dirs <- getIncludeDirs
     let files = [ dir ++ [slash] ++ file
 		| dir  <- dirs
@@ -83,7 +84,7 @@ findFile ft m = do
 		SourceFile    -> [".agda", ".lagda", ".agda2", ".lagda2", ".ag2"]
 		InterfaceFile -> [".agdai", ".ai"]
 
-scopeCheckImport :: ModuleName -> TCM ModuleScope
+scopeCheckImport :: ModuleName -> TCM Scope
 scopeCheckImport x = do
     reportLn 5 $ "Scope checking " ++ show x
     visited <- isVisited x
@@ -219,7 +220,7 @@ createInterface opts trace path visited file = runTCM $ withImportPath path $ do
     setOptionsFromPragmas pragmas
 
     checkDecls m
-    setScope scope
+    setScope scope  -- TODO!!
 
     -- Generate Vim file
     whenM (optGenerateVimFile <$> commandLineOptions) $
@@ -240,7 +241,7 @@ createInterface opts trace path visited file = runTCM $ withImportPath path $ do
 buildInterface :: TCM Interface
 buildInterface = do
     reportLn 5 "Building interface..."
-    scope   <- currentModuleScope <$> getScope
+    scope   <- undefined -- TODO!! currentModuleScope <$> getScope
     sig	    <- getSignature
     isig    <- getImportedSignature
     builtin <- getBuiltinThings

@@ -18,12 +18,13 @@ import TypeChecking.Monad
 #include "../../undefined.h"
 
 
--- | Generate a fresh unique identifier for a name
+-- | Generate a fresh unique identifier for a name.
+--   TODO: who is using this?
 refreshName :: MonadTCM tcm => Range -> String -> tcm AN.Name
 refreshName r s = do
     i <- fresh
     let x = parseName s
-    return $ AN.Name i (CN.Name r x)
+    return $ AN.Name i (CN.Name r x) r
     where
 	parseName :: String -> [NamePart]
 	parseName []	  = []

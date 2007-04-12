@@ -29,7 +29,7 @@ appView e =
 		NonApplication e  -> NonApplication (App i e arg)
 
 instance HasRange Head where
-    getRange (HeadVar i _) = getRange i
-    getRange (HeadDef i _) = getRange i
-    getRange (HeadCon i _) = getRange i
+    getRange (HeadVar _ x) = getRange x
+    getRange (HeadDef _ x) = getRange x
+    getRange (HeadCon _ x) = getRange x
 

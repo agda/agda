@@ -28,7 +28,6 @@ other-modules:   Compiler.Agate.Classify
                  Interaction.Options
                  Syntax.Abstract.Name
                  Syntax.Abstract.Pretty
-                 Syntax.Abstract.Test
                  Syntax.Abstract.Views
                  Syntax.Abstract
                  Syntax.Common
@@ -55,6 +54,8 @@ other-modules:   Compiler.Agate.Classify
                  Syntax.Parser
                  Syntax.Position
                  Syntax.Scope
+		 Syntax.Scope.Base
+		 Syntax.Scope.Monad
                  Syntax.ScopeInfo
                  Syntax.Strict
                  Syntax.Translation.AbstractToConcrete
@@ -118,6 +119,7 @@ other-modules:   Compiler.Agate.Classify
                  Utils.ReadLine
                  Utils.ReadP
                  Utils.Serialise
+		 Utils.Size
                  Utils.String
                  Utils.TestHelpers
                  Utils.Trace

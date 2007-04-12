@@ -12,6 +12,7 @@ import Syntax.Internal
 import TypeChecking.Monad.Base
 
 import Utils.Monad
+import Utils.Size
 
 #include "../undefined.h"
 
@@ -40,24 +41,29 @@ instance Apply Type where
     apply (El s t) args	= El s $ t `apply` args
 
 instance Apply Sort where
-    apply s [] = s
-    apply s _  = __IMPOSSIBLE__
+  apply s [] = s
+  apply s _  = __IMPOSSIBLE__
+
+instance Apply Telescope where
+  apply tel		  []	   = tel
+  apply EmptyTel	  _	   = __IMPOSSIBLE__
+  apply (ExtendTel _ tel) (t : ts) = absApp tel (unArg t) `apply` ts
 
 instance Apply Definition where
-    apply (Defn t n d) args = Defn (piApply' t args) (n - length args) (apply d args)
+    apply (Defn t n d) args = Defn (piApply' t args) (n - size args) (apply d args)
 
 instance Apply Defn where
     apply Axiom _		       = Axiom
     apply (Function cs a) args	       = Function (apply cs args) a
-    apply (Datatype np ni cs s a) args = Datatype (np - length args) ni cs s a
-    apply (Constructor np cs a) args   = Constructor (np - length args) cs a
+    apply (Datatype np ni cs s a) args = Datatype (np - size args) ni cs s a
+    apply (Constructor np cs a) args   = Constructor (np - size args) cs a
     apply (Primitive a x cs) args      = Primitive a x cs
 
 instance Apply PrimFun where
-    apply (PrimFun x ar def) args   = PrimFun x (ar - length args) $ \vs -> def (args ++ vs)
+    apply (PrimFun x ar def) args   = PrimFun x (ar - size args) $ \vs -> def (args ++ vs)
 
 instance Apply Clause where
-    apply (Clause ps b) args = Clause (drop (length args) ps) $ apply b args
+    apply (Clause ps b) args = Clause (drop (size args) ps) $ apply b args
 
 instance Apply ClauseBody where
     apply  b		   []		  = b
@@ -92,37 +98,42 @@ class Abstract t where
     abstract :: Telescope -> t -> t
 
 instance Abstract Term where
-    abstract tel v = foldl (\v (Arg h (s,_)) -> Lam h (Abs s v)) v $ reverse tel
+    abstract tel v = teleLam tel v
 
 instance Abstract Type where
     abstract tel (El s t) = El s $ abstract tel t
 
 instance Abstract Sort where
-    abstract [] s = s
-    abstract _ s = __IMPOSSIBLE__
+    abstract EmptyTel s = s
+    abstract _	      s = __IMPOSSIBLE__
+
+instance Abstract Telescope where
+  abstract  EmptyTel	        tel = tel
+  abstract (ExtendTel arg tel') tel = ExtendTel arg $ fmap (`abstract` tel) tel'
 
 instance Abstract Definition where
-    abstract tel (Defn t n d) = Defn (telePi tel t) (length tel + n) (abstract tel d)
+    abstract tel (Defn t n d) = Defn (telePi tel t) (size tel + n) (abstract tel d)
 
 instance Abstract Defn where
     abstract tel Axiom			 = Axiom
     abstract tel (Function cs a)	 = Function (abstract tel cs) a
-    abstract tel (Datatype np ni cs s a) = Datatype (length tel + np) ni cs s a
-    abstract tel (Constructor np cs a)	 = Constructor (length tel + np) cs a
+    abstract tel (Datatype np ni cs s a) = Datatype (size tel + np) ni cs s a
+    abstract tel (Constructor np cs a)	 = Constructor (size tel + np) cs a
     abstract tel (Primitive a x cs)	 = Primitive a x (abstract tel cs)
 
 instance Abstract PrimFun where
     abstract tel (PrimFun x ar def) = PrimFun x (ar + n) $ \ts -> def $ drop n ts
-	where n = length tel
+	where n = size tel
 
 instance Abstract Clause where
-    abstract tel (Clause ps b) = Clause (ps0 ++ ps) $ abstract tel b
-	where
-	    ps0 = map (fmap $ \(s,_) -> VarP s) tel
+  abstract tel (Clause ps b) = Clause (telVars tel ++ ps) $ abstract tel b
+    where
+      telVars EmptyTel			  = []
+      telVars (ExtendTel arg (Abs x tel)) = fmap (const $ VarP x) arg : telVars tel
 
 instance Abstract ClauseBody where
-    abstract []			 b = b
-    abstract (Arg _ (s,_) : tel) b = Bind $ Abs s $ abstract tel b
+    abstract EmptyTel		 b = b
+    abstract (ExtendTel _ tel)	 b = Bind $ fmap (`abstract` b) tel
 
 instance Abstract t => Abstract [t] where
     abstract tel = map (abstract tel)
@@ -130,7 +141,8 @@ instance Abstract t => Abstract [t] where
 abstractArgs :: Abstract a => Args -> a -> a
 abstractArgs args x = abstract tel x
     where
-	tel   = zipWith (\arg x -> fmap (const (x, sort Prop)) arg) args names
+	tel   = foldr (\x -> ExtendTel (Arg NotHidden $ sort Prop) . Abs x) EmptyTel
+	      $ zipWith const names args
 	names = cycle $ map (:[]) ['a'..'z']
 
 -- | Substitute a term for the nth free variable.
@@ -166,6 +178,10 @@ instance Subst Type where
 
 instance Subst t => Subst (Blocked t) where
     substs us b = fmap (substs us) b
+
+instance Subst Telescope where
+  substs us  EmptyTel	      = EmptyTel
+  substs us (ExtendTel t tel) = uncurry ExtendTel $ substs us (t, tel)
 
 instance (Data a, Subst a) => Subst (Abs a) where
     substs us (Abs x t) = Abs x $ substs (Var 0 [] : raise 1 us) t

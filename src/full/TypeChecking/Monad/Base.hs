@@ -19,7 +19,7 @@ import qualified Syntax.Concrete.Definitions as D
 import qualified Syntax.Abstract as A
 import Syntax.Internal
 import Syntax.Position
-import Syntax.ScopeInfo
+import Syntax.Scope.Base
 
 import Interaction.Exceptions
 import Interaction.Options
@@ -42,7 +42,7 @@ data TCState =
 	 , stImports	       :: Signature
 	 , stImportedModules   :: Set ModuleName
 	 , stVisitedModules    :: VisitedModules
-	 , stScopeInfo	       :: ScopeInfo
+	 , stScope	       :: ScopeInfo
 	 , stOptions	       :: CommandLineOptions
 	 , stStatistics	       :: Statistics
 	 , stTrace	       :: CallTrace
@@ -63,11 +63,11 @@ initState =
 	 , stMetaStore	       = Map.empty
 	 , stInteractionPoints = Map.empty
 	 , stConstraints       = []
-	 , stSignature	       = Map.empty
-	 , stImports	       = Map.empty
+	 , stSignature	       = emptySignature
+	 , stImports	       = emptySignature
 	 , stImportedModules   = Set.empty
 	 , stVisitedModules    = Map.empty
-	 , stScopeInfo	       = emptyScopeInfo
+	 , stScope	       = emptyScopeInfo
 	 , stOptions	       = defaultOptions
 	 , stStatistics	       = Map.empty
 	 , stTrace	       = noTrace
@@ -106,7 +106,7 @@ newtype InterfaceVersion = InterfaceVersion Int
 data Interface = Interface
 	{ iVersion	   :: InterfaceVersion
 	, iImportedModules :: [ModuleName]
-	, iScope	   :: ModuleScope
+	, iScope	   :: Scope
 	, iSignature	   :: Signature
 	, iImports	   :: Signature
 	, iBuiltin	   :: BuiltinThings String
@@ -132,7 +132,7 @@ buildClosure :: MonadTCM tcm => a -> tcm (Closure a)
 buildClosure x = liftTCM $ do
     env   <- ask
     sig   <- gets stSignature
-    scope <- gets stScopeInfo
+    scope <- gets stScope
     trace <- gets stTrace
     return $ Closure sig env scope trace x
 
@@ -216,6 +216,9 @@ type MetaStore = Map MetaId MetaVariable
 instance HasRange MetaVariable where
     getRange m = getRange $ getMetaInfo m
 
+instance SetRange MetaVariable where
+  setRange r (MetaVar mi p j inst) = MetaVar (mi {clValue = r}) p j inst
+
 normalMetaPriority :: MetaPriority
 normalMetaPriority = MetaPriority 0
 
@@ -237,9 +240,6 @@ getMetaEnv m = clEnv $ getMetaInfo m
 getMetaSig :: MetaVariable -> Signature
 getMetaSig m = clSignature $ getMetaInfo m 
 
-setRange :: MetaVariable -> Range -> MetaVariable
-setRange (MetaVar mi p j inst) r = MetaVar (mi {clValue = r}) p j inst
-
 ---------------------------------------------------------------------------
 -- ** Interaction meta variables
 ---------------------------------------------------------------------------
@@ -256,16 +256,17 @@ instance Show InteractionId where
 -- ** Signature
 ---------------------------------------------------------------------------
 
-type Signature	 = Map ModuleName ModuleDef
-type Definitions = Map Name Definition
+data Signature = Sig
+      { sigSections    :: Sections
+      , sigDefinitions :: Definitions
+      }
+  deriving (Typeable, Data)
 
-data ModuleDef = ModuleDef
-		      { mdefName       :: ModuleName
-		      , mdefTelescope  :: Telescope
-		      , mdefNofParams  :: Nat
-		      , mdefDefs       :: Definitions
-		      }
-    deriving (Typeable, Data)
+type Sections = Map QName Telescope
+type Definitions = Map QName Definition
+
+emptySignature :: Signature
+emptySignature = Sig Map.empty Map.empty
 
 data Definition = Defn { defType     :: Type	-- type of the lifted definition
 		       , defFreeVars :: Nat
@@ -413,7 +414,7 @@ data TCEnv =
 initEnv :: TCEnv
 initEnv = TCEnv { envContext	   = []
 		, envLetBindings   = Map.empty
-		, envCurrentModule = noModuleName
+		, envCurrentModule = qnameFromList [invisibleTopModuleName]
 		, envImportPath	   = []
 		, envAbstractMode  = False
 		}

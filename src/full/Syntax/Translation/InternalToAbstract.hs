@@ -27,7 +27,8 @@ import Syntax.Fixity
 import Syntax.Abstract as A
 import qualified Syntax.Concrete as C
 import Syntax.Internal as I
-import Syntax.Scope
+import Syntax.Scope.Base
+import Syntax.Scope.Monad
 
 import TypeChecking.Monad as M
 import TypeChecking.Monad.Name
@@ -48,24 +49,23 @@ apps (e, arg:args)	    =
     apps (App exprInfo e (unnamed <$> arg), args)
 
 nameInfo :: Name -> NameInfo
-nameInfo x = NameInfo { bindingSite  = getRange x
-		      , concreteName = C.QName $ nameConcrete x
-		      , nameFixity   = defaultFixity
+nameInfo x = NameInfo { nameFixity   = defaultFixity
 		      , nameAccess   = PublicAccess
 		      }
 
+-- TODO!!
 qnameInfo :: MonadTCM tcm => QName -> tcm NameInfo
-qnameInfo x = do
-    d <- liftTCM $ resolveName (qnameConcrete x)
-    let fx = case d of
-		DefName x   -> fixity x
-		_	    -> defaultFixity
-    return $ NameInfo
-	     { bindingSite  = noRange
-	     , concreteName = qnameConcrete x
-	     , nameFixity   = fx
-	     , nameAccess   = PublicAccess
-	     }
+qnameInfo x = do undefined
+--     d <- liftTCM $ resolveName (qnameConcrete x)
+--     let fx = case d of
+-- 		DefName x   -> fixity x
+-- 		_	    -> defaultFixity
+--     return $ NameInfo
+-- 	     { bindingSite  = noRange
+-- 	     , concreteName = qnameConcrete x
+-- 	     , nameFixity   = fx
+-- 	     , nameAccess   = PublicAccess
+-- 	     }
 
 exprInfo :: ExprInfo
 exprInfo = ExprRange noRange

@@ -308,16 +308,24 @@ freshCanonicalNames old new =
   where
     onName f m = m { moduleName = f $ moduleName m }
 
-    rename f = Map.mapWithKey (ren f)
+    rename f = Map.map (ren f)
     -- Change a binding M.x -> N.M'.y to M.x -> m.M'.y
     -- where M and M' have the same length.
-    ren f (C.Id xs) ys = map (f qdq) ys
+    ren f ys = map (f qdq) ys
       where
 	qdq y
 	  | old `isPrefixOf` y = qualify new . dequalify $ y
 	  | otherwise	       = y
 
 	dequalify = drop (length old)
+
+-- | Open a module. Assumes that all checks have been made to see that it's ok to
+--   open it.
+openModule_ :: C.Id -> C.Access -> [C.Modifier] -> ScopeM ()
+openModule_ m access mods =
+  addScope . changeAccess access
+           . applyModifiers mods
+           . dropPrefix m =<< matchPrefix m
 
 pushScope :: Var -> ScopeM ()
 pushScope m = modifyStack $ (:) (Scope m emptyNameSpace emptyNameSpace)
@@ -398,7 +406,7 @@ instance ScopeCheck C.Decl [Decl] where
 		m2' <- resolveModule m2
 		es  <- scopeCheck es
 		pushScope (mkVar m1)
-		addScope . applyModifiers mods . dropPrefix m2 =<< matchPrefix m2
+		openModule_ m2 C.Public mods
 		showState "pushed and opened"
 		debug $ "m1' = " ++ show m1'
 		debug $ "m2' = " ++ show (moduleName m2')
@@ -417,7 +425,7 @@ instance ScopeCheck C.Decl [Decl] where
 	  -- is fine. Otherwise we have to create a temporary module.
 	  if m' `isSubModuleOf` current || moduleParams current == 0
 	    then do 
-	      addScope . changeAccess access . applyModifiers mods . dropPrefix m =<< matchPrefix m
+	      openModule_ m access mods
 	      return []
 	    else do
 	      tmp <- C.Var <$> freshName

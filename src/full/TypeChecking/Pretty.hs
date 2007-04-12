@@ -98,10 +98,7 @@ instance P.Pretty Name where
     pretty = P.pretty . nameConcrete
 
 instance P.Pretty QName where
-    pretty = P.pretty . qnameConcrete
-
-instance P.Pretty ModuleName where
-    pretty = P.text . show
+    pretty = P.pretty . qnameToConcrete	-- TODO!!
 
 instance PrettyTCM Context where
     prettyTCM ctx = P.fsep . reverse <$> pr ctx

@@ -18,6 +18,7 @@ module Syntax.Concrete.Operators
 import Prelude hiding (putStrLn, print, putStr)
 import Utils.IO
 
+import Control.Applicative
 import Control.Monad.Trans
 import Data.Typeable
 import Data.Traversable (traverse)
@@ -32,9 +33,11 @@ import Syntax.Concrete
 import Syntax.Concrete.Operators.Parser
 import Syntax.Position
 import Syntax.Fixity
-import Syntax.Scope
+import Syntax.Scope.Base
+import Syntax.Scope.Monad
 
 import TypeChecking.Monad.Base (typeError, TypeError(..))
+import TypeChecking.Monad.State (getScope)
 
 import Utils.ReadP
 import Utils.Monad
@@ -54,34 +57,31 @@ partsInScope = do
 	parts x@(Name _ [_]) = [x]
 	parts x@(Name _ xs ) = x : [ Name noRange [Id s] | Id s <- xs ]
 
+-- | Compute all unqualified defined names in scope and their fixities.
 getDefinedNames :: [KindOfName] -> ScopeM [(Name, Fixity)]
 getDefinedNames kinds = do
-    scope <- getScopeInfo
-    let public  = publicNameSpace scope
-	private = privateNameSpace scope
-	defs	= concatMap (Map.assocs . definedNames) [public, private]
-    return [ (x, fixity def) | (x, def) <- defs, kindOfName def `elem` kinds ]
+  names <- allNamesInScope . mergeScopes . scopeStack <$> getScope
+  return [ (x, anameFixity d)
+	 | (QName x, ds) <- Map.assocs names
+	 , d		 <- ds
+	 , anameKind d `elem` kinds
+	 ]
 
+-- | Compute all names (first component) and operators (second component) in
+--   scope.
 localNames :: ScopeM ([Name], [(Name, Fixity)])
 localNames = do
-    scope <- getScopeInfo
-    let public  = publicNameSpace scope
-	private = privateNameSpace scope
-	local	= localVariables scope
-	(names, ops) = split $ localOps local ++ concatMap namespaceOps [public, private]
-    return (names, ops)
-    where
-	namespaceOps = map operator . Map.assocs . definedNames
-	localOps     = map localOp . Map.keys
-	localOp x    = (x, defaultFixity)
-	operator (x,def) = (x, fixity def)
+  defs   <- getDefinedNames [DefName, ConName]
+  locals <- scopeLocals <$> getScope
+  return $ split $ map localOp locals ++ defs
+  where
+    localOp (x, _) = (x, defaultFixity)
+    split ops = ([ x | Left x <- zs], [ y | Right y <- zs ])
+	where
+	    zs = concatMap opOrNot ops
 
-	split ops = ([ x | Left x <- zs], [ y | Right y <- zs ])
-	    where
-		zs = concatMap opOrNot ops
-
-	opOrNot (x@(Name _ [_]), fx) = [Left x]
-	opOrNot (x, fx)		     = [Left x, Right (x, fx)]
+    opOrNot (x@(Name _ [_]), fx) = [Left x]
+    opOrNot (x, fx)		 = [Left x, Right (x, fx)]
 
 data UseBoundNames = UseBoundNames | DontUseBoundNames
 

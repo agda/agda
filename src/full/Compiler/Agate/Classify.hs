@@ -10,6 +10,7 @@ module Compiler.Agate.Classify where
 import Compiler.Agate.TranslateName
 import TypeChecking.MetaVars
 
+import Data.Map (Map)
 import qualified Data.Map as Map
 
 import TypeChecking.Monad
@@ -17,7 +18,7 @@ import Syntax.Abstract.Name
 
 ----------------------------------------------------------------
 
-enumDatatypes :: Definitions -> [Name]
+enumDatatypes :: Map QName Definition -> [QName]
 enumDatatypes definitions = do
 	let ndefs = Map.toList definitions
 	concatMap f ndefs
@@ -28,29 +29,29 @@ enumDatatypes definitions = do
 			Datatype np ni cs s a -> [name]
 			_ -> []
 
-enumCompilableDatatypes :: Definitions -> [Name] -> TCM [Name]
+enumCompilableDatatypes :: Map QName Definition -> [QName] -> TCM [QName]
 enumCompilableDatatypes definitions names = do
 	computeGreatestFixedPoint f names
 	where
-	f :: [Name] -> Name -> TCM Bool
+	f :: [QName] -> QName -> TCM Bool
 	f names name = return True -- All datatypes are compilable at the moment
 	-- TODO: implement correctly
 
 ----------------------------------------------------------------
 
 
-enumOptimizableConstants :: Definitions -> [Name] -> TCM [Name]
+enumOptimizableConstants :: Map QName Definition -> [QName] -> TCM [QName]
 enumOptimizableConstants definitions names = do
 	computeGreatestFixedPoint f names
 	where
-	f :: [Name] -> Name -> TCM Bool
+	f :: [QName] -> QName -> TCM Bool
 	f names name = return True -- All constants are optimized at the moment
 	-- TODO: implement correctly
 
 
 --
 
-computeGreatestFixedPoint :: ([Name] -> Name -> TCM Bool)-> [Name] -> TCM [Name]
+computeGreatestFixedPoint :: ([QName] -> QName -> TCM Bool)-> [QName] -> TCM [QName]
 computeGreatestFixedPoint f names = go names True where
     go names False = return names
     go names True  = go2 names names [] False
@@ -63,7 +64,7 @@ computeGreatestFixedPoint f names = go names True where
 	    False -> go2 keptNames names namesNext True
 	    -- name is removed
 
-computeLeastFixedPoint :: ([Name] -> Name -> TCM Bool) -> [Name] -> TCM [Name]
+computeLeastFixedPoint :: ([QName] -> QName -> TCM Bool) -> [QName] -> TCM [QName]
 computeLeastFixedPoint f names = go names [] True where
     go names grantedNames False = return grantedNames
     go names grantedNames True  = go2 names [] grantedNames False

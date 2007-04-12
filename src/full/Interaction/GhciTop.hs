@@ -20,7 +20,6 @@ module Interaction.GhciTop
   , module Syntax.Translation.ConcreteToAbstract
   , module Syntax.Translation.AbstractToConcrete
   , module Syntax.Translation.InternalToAbstract
-  , module Syntax.Abstract.Test
   , module Syntax.Abstract.Name
 
   , module Interaction.Exceptions
@@ -73,7 +72,6 @@ import qualified Syntax.Info as Info
 import Syntax.Translation.ConcreteToAbstract
 import Syntax.Translation.AbstractToConcrete
 import Syntax.Translation.InternalToAbstract
-import Syntax.Abstract.Test
 import Syntax.Abstract.Name
 
 import Interaction.Exceptions
@@ -185,7 +183,7 @@ cmd_refine = give_gen B.refine $ \s -> emacsStr . show
 
 give_gen give_ref mk_newtxt ii rng s = infoOnException $ do
     ioTCM $ do
-      prec      <- contextPrecedence <$> getInteractionScope ii
+      prec      <- undefined -- TODO!! contextPrecedence <$> getInteractionScope ii
       (ae, iis) <- give_ref ii Nothing =<< parseExprIn ii rng s
       let newtxt = A . mk_newtxt s $ abstractToConcreteCtx prec ae
           newgs  = Q . L $ List.map showNumIId iis
@@ -241,8 +239,9 @@ takenNameStr :: TCM [String]
 takenNameStr = do
   xss <- sequence [ List.map fst <$> getContext
                   , keys <$> asks envLetBindings
-                  , Map.fold ((++) . keys . mdefDefs) [] <$> getSignature]
-  return $ concat [ parts x | SA.Name _ x <- concat xss]
+                  , List.map qnameName . keys . sigDefinitions <$> getSignature
+		  ]
+  return $ concat [ parts $ nameConcrete x | x <- concat xss]
   where
     parts (CN.Name _ ps) = [ s | Id s <- ps ]
 
@@ -277,10 +276,9 @@ cmd_make_case ii rng s = infoOnException $ ioTCM $ do
 
   where
   findClause wanted sig = case
-       [dropUscore(SI.ConP (SI.qualify mnam dnam)
+       [dropUscore(SI.ConP dnam
                    (drop (defFreeVars dbdy) pats))
-        |(mnam, md) <- assocs sig
-       , (dnam, dbdy) <- assocs $ mdefDefs md
+       | (dnam, dbdy) <- assocs $ sigDefinitions sig
        , Function cls _ <- [theDef dbdy]
        , SI.Clause pats cbdy <- cls
        , Just (MetaV x _) <- [deAbs cbdy]
@@ -365,7 +363,7 @@ cmd_solveAll = infoOnException $ ioTCM $ do
     go ii mi rest = do
       mv <- lookupMeta mi
       withMetaInfo (getMetaInfo mv) $ do    
-        args <- allCtxVars
+        args <- getContextArgs
         let out m = do e <- lowerMeta . abstractToConcrete_ <$> reify m;
                        ((ii, e):) <$> rest
         case mvInstantiation mv of InstV _	  -> out (MetaV mi args)

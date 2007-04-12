@@ -1,9 +1,10 @@
 
 module TypeChecking.Monad.State where
 
+import Control.Applicative
 import Control.Monad.State
 
-import Syntax.Scope
+import Syntax.Scope.Base
 
 import TypeChecking.Monad.Base
 import TypeChecking.Monad.Options
@@ -17,18 +18,23 @@ resetState = liftTCM $ do
 
 -- | Set the current scope.
 setScope :: MonadTCM tcm => ScopeInfo -> tcm ()
-setScope scope = liftTCM $ modify $ \s -> s { stScopeInfo = scope }
+setScope scope = liftTCM $ modify $ \s -> s { stScope = scope }
 
 -- | Get the current scope.
 getScope :: MonadTCM tcm => tcm ScopeInfo
-getScope = liftTCM $ gets stScopeInfo
+getScope = liftTCM $ gets stScope
 
+-- | Run a computation in a local scope.
+withScope :: MonadTCM tcm => ScopeInfo -> tcm a -> tcm (a, ScopeInfo)
+withScope s m = do
+  s' <- getScope
+  setScope s
+  x   <- m
+  s'' <- getScope
+  setScope s'
+  return (x, s'')
 
-withScope :: MonadTCM tcm => ScopeInfo -> tcm a -> tcm a
-withScope scope m =
-    do	scope0 <- getScope
-	setScope scope
-	r <- m
-	setScope scope0
-        return r
+-- | Same as 'withScope', but discard the scope from the computation.
+withScope_ :: MonadTCM tcm => ScopeInfo -> tcm a -> tcm a
+withScope_ s m = fst <$> withScope s m
 

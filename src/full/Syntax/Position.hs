@@ -14,6 +14,7 @@ module Syntax.Position
     -- * Ranges
   , Range(..)
   , HasRange(..)
+  , SetRange(..)
   , noRange
   , fuseRange
   ) where
@@ -56,6 +57,14 @@ instance (HasRange a, HasRange b) => HasRange (a,b) where
 
 instance (HasRange a, HasRange b, HasRange c) => HasRange (a,b,c) where
     getRange (x,y,z) = getRange (x,(y,z))
+
+-- | If it's also possible to set the range, this is the class.
+--   It should hold that getRange (setRange r x) == r
+class HasRange t => SetRange t where
+  setRange :: Range -> t -> t
+
+instance SetRange Range where
+  setRange = const
 
 {--------------------------------------------------------------------------
     Pretty printing

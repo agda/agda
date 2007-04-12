@@ -5,6 +5,7 @@ module Syntax.Internal
     , module Syntax.Abstract.Name
     ) where
 
+import Prelude hiding (foldr)
 import Control.Applicative
 import Data.Generics
 import Data.Foldable
@@ -15,6 +16,7 @@ import Syntax.Literal
 import Syntax.Abstract.Name
 
 import Utils.Monad
+import Utils.Size
 
 -- | Raw values.
 --
@@ -66,24 +68,38 @@ type Args = [Arg Term]
                             
 -- | Sequence of types. An argument of the first type is bound in later types
 --   and so on.
-type Telescope = [Arg (String,Type)]
+data Telescope = EmptyTel
+	       | ExtendTel (Arg Type) (Abs Telescope)
+  deriving (Typeable, Data)
+
+instance Sized Telescope where
+  size  EmptyTel	 = 0
+  size (ExtendTel _ tel) = 1 + size tel
 
 -- | The body has (at least) one free variable.
 data Abs a = Abs { absName :: String
 		 , absBody :: a
 		 }
-    deriving (Typeable, Data, Eq)
+  deriving (Typeable, Data, Eq)
 
 instance Functor Abs where
-    fmap f (Abs x t) = Abs x $ f t
+  fmap f (Abs x t) = Abs x $ f t
 
 instance Foldable Abs where
-    foldr f z (Abs _ t) = f t z
+  foldr f z (Abs _ t) = f t z
 
 instance Traversable Abs where 
-    traverse f (Abs x t) = Abs x <$> f t
+  traverse f (Abs x t) = Abs x <$> f t
 
-data Why   = Why	  deriving (Typeable, Data)
+instance Sized a => Sized (Abs a) where
+  size = size . absBody
+
+telFromList :: [Arg (String, Type)] -> Telescope
+telFromList = foldr (\(Arg h (x, a)) -> ExtendTel (Arg h a) . Abs x) EmptyTel
+
+telToList :: Telescope -> [Arg (String, Type)]
+telToList EmptyTel = []
+telToList (ExtendTel arg (Abs x tel)) = fmap ((,) x) arg : telToList tel
 
 --
 -- Definitions
@@ -163,12 +179,16 @@ prop   = sort Prop
 sort s = El (sSuc s) $ Sort s
 
 telePi :: Telescope -> Type -> Type
-telePi [] t = t
-telePi (Arg h (x,u) : tel) t = El (sLub s1 s2) $ Pi (Arg h u) $ Abs x t'
+telePi  EmptyTel	 t = t
+telePi (ExtendTel u tel) t = El (sLub s1 s2) $ Pi u t'
     where
-	t' = telePi tel t
-	s1 = getSort u
-	s2 = getSort t'
+	t' = fmap (flip telePi t) tel
+	s1 = getSort $ unArg u
+	s2 = getSort $ absBody t'
+
+teleLam :: Telescope -> Term -> Term
+teleLam  EmptyTel	  t = t
+teleLam (ExtendTel u tel) t = Lam (argHiding u) $ flip teleLam t <$> tel
 
 getSort :: Type -> Sort
 getSort (El s _) = s

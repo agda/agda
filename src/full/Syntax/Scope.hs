@@ -5,42 +5,7 @@
 The scope analysis. Translates from concrete to abstract syntax.
 
 -}
-module Syntax.Scope
-    ( -- Types
-      ScopeInfo(..)
-    , Modules
-    , KindOfName(..)
-    , ModuleScope(..)
-    , DefinedName(..)
-    , NameSpace(..)
-    , ResolvedName(..)
-    , ScopeM
-      -- Functions
-    , emptyScopeInfo
-    , getScopeInfo
-    , setScopeInfo
-    , modScopeInfo
-    , modScopeInfoM
-    , getModule
-    , getFixity
-    , setContext
-    , getContextPrecedence
-    , resolvePatternNameM
-    , resolveName
-    , abstractName
-    , notInScope
-    , currentModuleScope
-    , currentNameSpace
-    , insideModule
-    , defName
-    , defineName
-    , bindVariable
-    , bindVariables
-    , defineModule
-    , openModule
-    , importModule
-    , implicitModule
-    ) where
+module Syntax.Scope where
 
 import Control.Exception
 import Control.Monad.Reader
@@ -58,7 +23,6 @@ import Syntax.Concrete
 import Syntax.Concrete.Name as CName
 import Syntax.Abstract.Name as AName
 import Syntax.Fixity
-import Syntax.ScopeInfo
 
 import TypeChecking.Monad.Base
 import TypeChecking.Monad.Options
@@ -83,6 +47,7 @@ type ScopeM = TCM
 -- * Instances
 ---------------------------------------------------------------------------
 
+{-
 instance HasRange DefinedName where
     getRange = getRange . theName
 
@@ -611,3 +576,5 @@ instance Show ScopeInfo where
 		, "Local variables: " ++ show (localVariables si)
 		, "Precedence: " ++ show (contextPrecedence si)
 		]
+-}
+

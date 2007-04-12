@@ -14,7 +14,7 @@ import Data.Traversable
 import Syntax.Position
 import Syntax.Common
 import Syntax.Internal
-import Syntax.Scope (ModuleScope)
+import Syntax.Scope.Base (Scope)
 import Syntax.Literal
 
 import TypeChecking.Monad
@@ -405,14 +405,15 @@ instance (Ord k, InstantiateFull e) => InstantiateFull (Map k e) where
 instance InstantiateFull ModuleName where
     instantiateFull = return
 
-instance InstantiateFull ModuleScope where
+instance InstantiateFull Scope where
     instantiateFull = return
 
-instance InstantiateFull ModuleDef where
-    instantiateFull (ModuleDef n tel p d) =
-	ModuleDef n <$> instantiateFull tel
-		    <*> return p
-		    <*> instantiateFull d
+instance InstantiateFull Signature where
+  instantiateFull (Sig a b) = uncurry Sig <$> instantiateFull (a, b)
+
+instance InstantiateFull Telescope where
+  instantiateFull EmptyTel = return EmptyTel
+  instantiateFull (ExtendTel a b) = uncurry ExtendTel <$> instantiateFull (a, b)
 
 instance InstantiateFull Char where
     instantiateFull = return

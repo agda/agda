@@ -7,7 +7,7 @@ import Data.Map as Map
 
 import Syntax.Internal
 import Syntax.Position
-import Syntax.Scope
+import Syntax.Scope.Base
 
 import TypeChecking.Monad.Base
 import TypeChecking.Monad.Env
@@ -45,7 +45,7 @@ createMetaInfo =
 
 updateMetaRange :: MonadTCM tcm => MetaId -> Range -> tcm ()
 updateMetaRange mi r =
-    modify $ \st -> st { stMetaStore = Map.adjust (\mv -> setRange mv r) mi
+    modify $ \st -> st { stMetaStore = Map.adjust (setRange r) mi
 				     $ stMetaStore st
 		       }
 

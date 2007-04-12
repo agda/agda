@@ -13,7 +13,7 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
-import Syntax.ScopeInfo
+import Syntax.Scope.Base
 import Syntax.Concrete.Name as CName
 
 import TypeChecking.Monad
@@ -62,49 +62,52 @@ matches cons icons defs idefs =
 	foo cat = map (length . head /\ match cat)
 
 toVim :: Names -> String
-toVim ns = unlines $
-    [ keyword "agdaFunction" kwdefs
-    , keyword "agdaInfixFunction" kwidefs
-    , keyword "agdaConstructor" kwcons
-    , keyword "agdaInfixConstructor" kwicons
-    ] ++ matches mcons micons mdefs midefs
-    where
-	cons = [ x | (x, def) <- Map.toList ns, kindOfName def == ConName ]
-	defs = [ x | (x, def) <- Map.toList ns, kindOfName def == FunName ]
+toVim ns = unlines $ undefined -- TODO!!
+--     [ keyword "agdaFunction" kwdefs
+--     , keyword "agdaInfixFunction" kwidefs
+--     , keyword "agdaConstructor" kwcons
+--     , keyword "agdaInfixConstructor" kwicons
+--     ] ++ matches mcons micons mdefs midefs
+--     where
+-- 	cons = [ x | (x, def) <- Map.toList ns, kindOfName def == ConName ]
+-- 	defs = [ x | (x, def) <- Map.toList ns, kindOfName def == FunName ]
+-- 
+-- 	(kwcons, mcons) = List.partition isKeyword $ map show cons
+-- 	(kwdefs, mdefs) = List.partition isKeyword $ map show defs
+-- 
+-- 	(kwicons, micons) = List.partition isKeyword $ concatMap parts cons
+-- 	(kwidefs, midefs) = List.partition isKeyword $ concatMap parts defs
+-- 
+-- 	parts (Name _ [_]) = []
+-- 	parts (Name _ ps)  = [ x | Id x <- ps ]
+-- 
+-- 	isKeyword = const False -- all isKeywordChar
+-- 
+-- 	isKeywordChar c = isAlphaNum c || elem c "_'"
 
-	(kwcons, mcons) = List.partition isKeyword $ map show cons
-	(kwdefs, mdefs) = List.partition isKeyword $ map show defs
+type Names = Map () () -- Map CName.Name DefinedName
 
-	(kwicons, micons) = List.partition isKeyword $ concatMap parts cons
-	(kwidefs, midefs) = List.partition isKeyword $ concatMap parts defs
+-- TODO!!
+-- msNames :: Modules -> Names
+msNames ms = undefined -- Map.unions $ map mNames $ Map.toList ms
+--     where
+-- 	mNames :: (CName.Name, ModuleScope) -> Names
+-- 	mNames (_, ms) = nsNames $ moduleContents ms
 
-	parts (Name _ [_]) = []
-	parts (Name _ ps)  = [ x | Id x <- ps ]
-
-	isKeyword = const False -- all isKeywordChar
-
-	isKeywordChar c = isAlphaNum c || elem c "_'"
-
-type Names = Map CName.Name DefinedName
-
-msNames :: Modules -> Names
-msNames ms = Map.unions $ map mNames $ Map.toList ms
-    where
-	mNames :: (CName.Name, ModuleScope) -> Names
-	mNames (_, ms) = nsNames $ moduleContents ms
-
+-- TODO!!
 nsNames :: NameSpace -> Names
-nsNames ns = Map.union (definedNames ns)
-		       (msNames $ modules ns)
+nsNames ns = undefined -- Map.union (definedNames ns)
+-- 		       (msNames $ modules ns)
 
 generateVimFile :: FilePath -> TCM ()
 generateVimFile file = do
     scope <- getScope
     liftIO $ writeFile (vimFile file) $ toVim $ names scope
     where
-	names scope = Map.unions $
-		    [ nsNames $ publicNameSpace scope
-		    , nsNames $ privateNameSpace scope
-		    , msNames $ importedModules scope
-		    ]
+	-- TODO!!
+	names scope = Map.unions $ undefined
+-- 		    [ nsNames $ publicNameSpace scope
+-- 		    , nsNames $ privateNameSpace scope
+-- 		    , msNames $ importedModules scope
+-- 		    ]
 

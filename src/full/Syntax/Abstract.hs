@@ -18,6 +18,7 @@ import Syntax.Common
 import Syntax.Position
 import Syntax.Abstract.Name
 import Syntax.Literal
+import Syntax.Scope.Base
 
 data Expr
         = Var  NameInfo  Name		    -- ^ Bound variables
@@ -33,17 +34,17 @@ data Expr
         | Set  ExprInfo Nat		    -- ^
         | Prop ExprInfo			    -- ^
         | Let  ExprInfo [LetBinding] Expr   -- ^
+	| ScopedExpr ScopeInfo Expr	    -- ^ scope annotation
 
 data Declaration
-	= Axiom      DefInfo Name Expr				-- ^ postulate
-	| Primitive  DefInfo Name Expr				-- ^ primitive function
+	= Axiom      DefInfo QName Expr				-- ^ postulate
+	| Primitive  DefInfo QName Expr				-- ^ primitive function
 	| Definition DeclInfo [TypeSignature] [Definition]	-- ^ a bunch of mutually recursive definitions
-	| Module     ModuleInfo ModuleName [TypedBindings] [Declaration]
-	| ModuleDef  ModuleInfo ModuleName [TypedBindings] ModuleName [NamedArg Expr]
+	| Section    ModuleInfo ModuleName [TypedBindings] [Declaration]
+	| Apply	     ModuleInfo ModuleName ModuleName [NamedArg Expr]
 	| Import     ModuleInfo ModuleName
-	| Open	     DeclSource	    -- ^ this one is here only to enable translation
-				    --   back to concrete syntax
 	| Pragma     Range	Pragma
+	| ScopedDecl ScopeInfo [Declaration]  -- ^ scope annotation
 
 data Pragma = OptionsPragma [String]
 	    | BuiltinPragma String Expr
@@ -52,8 +53,8 @@ data LetBinding = LetBind LetInfo Name Expr Expr    -- ^ LetBind info name type 
 
 -- | A definition without its type signature.
 data Definition
-	= FunDef     DefInfo Name [Clause]
-	| DataDef    DefInfo Name [LamBinding] [Constructor]
+	= FunDef     DefInfo QName [Clause]
+	| DataDef    DefInfo QName [LamBinding] [Constructor]
 	    -- ^ the 'LamBinding's are 'DomainFree' and binds the parameters of the datatype.
 
 -- | Only 'Axiom's.
@@ -87,7 +88,7 @@ data Clause	= Clause LHS RHS [Declaration]
 data RHS	= RHS Expr
 		| AbsurdRHS
 
-data LHS	= LHS LHSInfo Name [NamedArg Pattern]
+data LHS	= LHS LHSInfo QName [NamedArg Pattern]
 
 -- | Parameterised over the type of dot patterns.
 data Pattern' e	= VarP Name	-- ^ the only thing we need to know about a
@@ -165,9 +166,9 @@ instance HasRange TypedBinding where
     getRange (TNoBind e)   = getRange e
 
 instance HasRange Expr where
-    getRange (Var i _)		= getRange i
-    getRange (Def i _)		= getRange i
-    getRange (Con i _)		= getRange i
+    getRange (Var _ x)		= getRange x
+    getRange (Def _ x)		= getRange x
+    getRange (Con _ x)		= getRange x
     getRange (Lit l)		= getRange l
     getRange (QuestionMark i)	= getRange i
     getRange (Underscore  i)	= getRange i
@@ -178,16 +179,17 @@ instance HasRange Expr where
     getRange (Set i _)		= getRange i
     getRange (Prop i)		= getRange i
     getRange (Let i _ _)	= getRange i
+    getRange (ScopedExpr _ e)	= getRange e
 
 instance HasRange Declaration where
     getRange (Axiom      i _ _	  ) = getRange i
     getRange (Definition i _ _	  ) = getRange i
-    getRange (Module     i _ _ _  ) = getRange i
-    getRange (ModuleDef  i _ _ _ _) = getRange i
+    getRange (Section    i _ _ _  ) = getRange i
+    getRange (Apply	 i _ _ _  ) = getRange i
     getRange (Import     i _	  ) = getRange i
-    getRange (Open	 i	  ) = getRange i
     getRange (Primitive  i _ _	  ) = getRange i
     getRange (Pragma	 i _	  ) = getRange i
+    getRange (ScopedDecl _ d	  ) = getRange d
 
 instance HasRange Definition where
     getRange (FunDef  i _ _   ) = getRange i

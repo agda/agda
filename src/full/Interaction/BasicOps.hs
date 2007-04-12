@@ -21,7 +21,7 @@ import Syntax.Info(ExprInfo(..),MetaInfo(..))
 import Syntax.Internal (MetaId(..),Type(..),Term(..),Sort)
 import Syntax.Translation.InternalToAbstract
 import Syntax.Translation.AbstractToConcrete
-import Syntax.Scope
+import Syntax.Scope.Base
 import Syntax.Fixity(Precedence(..))
 
 import TypeChecker
@@ -45,7 +45,7 @@ giveExpr :: MetaId -> Expr -> IM Expr
 giveExpr mi e = 
     do  mv <- lookupMeta mi 
         withMetaInfo (getMetaInfo mv) $
-	  	do vs <- allCtxVars
+	  	do vs <- getContextArgs
 		   metaTypeCheck' mi e mv vs
         
   where  metaTypeCheck' mi e mv vs = 
@@ -99,10 +99,12 @@ refine ii mr e =
                  try n e = give ii (Just r) e `catchError` (\_ -> try (n-1) (appMeta e))
                  appMeta :: Expr -> Expr
                  appMeta e = 
-                      let metaVar = QuestionMark $ Syntax.Info.MetaInfo {Syntax.Info.metaRange = r,
-                                                 Syntax.Info.metaScope = scope{contextPrecedence = ArgumentCtx}
-						 , metaNumber = Nothing
-						 }
+                      let metaVar = QuestionMark
+				  $ Syntax.Info.MetaInfo
+				    { Syntax.Info.metaRange = r
+                                    , Syntax.Info.metaScope = undefined -- TODO!! scope {contextPrecedence = ArgumentCtx}
+				    , metaNumber = Nothing
+				    }
                       in App (ExprRange $ r) e (Arg NotHidden $ unnamed metaVar)
                  --ToDo: The position of metaVar is not correct
                  --ToDo: The fixity of metavars is not correct -- fixed? MT
