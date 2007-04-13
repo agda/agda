@@ -1,0 +1,25 @@
+
+Outline
+───────
+
+ignore abstract?
+
+∙ introduction
+  
+  - module systems are important for larger developments
+
+  - our idea: simple module system (name juggling)
+
+∙ describing the system
+
+  ∙ features
+    - controlling names
+    - parameterised modules
+    - separate scope/type checking
+
+∙ case study
+
+  ∙ lattice example?
+
+∙ implementation
+
