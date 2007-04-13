@@ -73,8 +73,11 @@ getContextPrecedence = scopePrecedence <$> getScope
 
 withContextPrecedence :: Precedence -> ScopeM a -> ScopeM a
 withContextPrecedence p m = do
-  scope <- getScope
-  withScope_ (scope { scopePrecedence = p }) m
+  p' <- getContextPrecedence
+  setContextPrecedence p
+  x <- m
+  setContextPrecedence p'
+  return x
 
 -- * Names
 
@@ -83,6 +86,12 @@ freshAbstractName :: C.Name -> ScopeM A.Name
 freshAbstractName x = do
   i <- fresh
   return $ A.Name i x (getRange x)
+
+freshAbstractQName :: C.Name -> ScopeM A.QName
+freshAbstractQName x = do
+  y <- freshAbstractName x
+  m <- getCurrentModule
+  return $ A.qualify m y
 
 -- * Simple queries
 
@@ -132,20 +141,16 @@ getFixity x = do
 -- * Binding names
 
 -- | Bind a variable. The abstract name is supplied as the second argument.
-bindVariable :: C.Name -> A.Name -> ScopeM a -> ScopeM a
-bindVariable x y ret = do
+bindVariable :: C.Name -> A.Name -> ScopeM ()
+bindVariable x y = do
   scope <- getScope
   let scope' = scope { scopeLocals = (x, y) : scopeLocals scope }
-  withScope_ scope' ret
+  setScope scope'
 
 -- | Bind a defined name.
-bindName :: Access -> KindOfName -> Fixity -> C.Name -> ScopeM A.QName
-bindName acc kind fx x = do
-  m <- getCurrentModule
-  y <- freshAbstractName x
-  let d = A.qualify m y
-  modifyTopScope $ addNameToScope acc (C.QName x) $ AbsName d kind fx
-  return d
+bindName :: Access -> KindOfName -> Fixity -> C.Name -> A.QName -> ScopeM ()
+bindName acc kind fx x y =
+  modifyTopScope $ addNameToScope acc (C.QName x) $ AbsName y kind fx
 
 -- | Bind a module name.
 bindModule :: Access -> Arity -> C.Name -> A.QName -> ScopeM ()

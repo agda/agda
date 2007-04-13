@@ -24,6 +24,12 @@ setScope scope = liftTCM $ modify $ \s -> s { stScope = scope }
 getScope :: MonadTCM tcm => tcm ScopeInfo
 getScope = liftTCM $ gets stScope
 
+-- | Modify the current scope.
+modifyScope :: MonadTCM tcm => (ScopeInfo -> ScopeInfo) -> tcm ()
+modifyScope f = do
+  s <- getScope
+  setScope $ f s
+
 -- | Run a computation in a local scope.
 withScope :: MonadTCM tcm => ScopeInfo -> tcm a -> tcm (a, ScopeInfo)
 withScope s m = do

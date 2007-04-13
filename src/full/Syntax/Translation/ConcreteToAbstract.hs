@@ -4,7 +4,7 @@
     figuring out infix operator precedences and tidying up definitions.
 -}
 module Syntax.Translation.ConcreteToAbstract
-    ( ToAbstract(..), BindToAbstract(..)
+    ( ToAbstract(..), localToAbstract
     , concreteToAbstract_
     , concreteToAbstract
     , OldName(..)
@@ -31,7 +31,8 @@ import Syntax.Strict
 
 import TypeChecking.Monad.Base (TypeError(..), Call(..), typeError)
 import TypeChecking.Monad.Trace (traceCall, traceCallCPS)
-import TypeChecking.Monad.State (withScope_, getScope)
+import TypeChecking.Monad.State
+import TypeChecking.Monad.Options
 
 #ifndef __HADDOCK__
 import {-# SOURCE #-} Interaction.Imports (scopeCheckImport)
@@ -51,6 +52,13 @@ notAModuleExpr e	    = typeError $ NotAModuleExpr e
 notAnExpression e	    = typeError $ NotAnExpression e
 notAValidLetBinding d	    = typeError $ NotAValidLetBinding d
 nothingAppliedToHiddenArg e = typeError $ NothingAppliedToHiddenArg e
+
+-- Debugging
+
+printLocals :: Int -> String -> ScopeM ()
+printLocals v s = verbose v $ do
+  locals <- scopeLocals <$> getScope
+  liftIO $ putStrLn $ s ++ " " ++ show locals
 
 {--------------------------------------------------------------------------
     Helpers
@@ -114,18 +122,32 @@ setContextCPS p ret f = do
   p' <- getContextPrecedence
   withContextPrecedence p $ f $ withContextPrecedence p' . ret
 
-bindToAbstractCtx :: BindToAbstract concrete abstract =>
+localToAbstractCtx :: ToAbstract concrete abstract =>
 		     Precedence -> concrete -> (abstract -> ScopeM a) -> ScopeM a
-bindToAbstractCtx ctx c ret = setContextCPS ctx ret (bindToAbstract c)
+localToAbstractCtx ctx c ret = setContextCPS ctx ret (localToAbstract c)
 
--- | Things that can be translated to abstract syntax and in the process
---   update the scope are instances of this class.
-class BindToAbstract concrete abstract | concrete -> abstract where
-    bindToAbstract :: concrete -> (abstract -> ScopeM a) -> ScopeM a
+-- | This operation does not affect the scope, i.e. the original scope
+--   is restored upon completion.
+localToAbstract :: ToAbstract c a => c -> (a -> ScopeM b) -> ScopeM b
+localToAbstract x ret = fst <$> localToAbstract' x ret
+
+-- | Like 'localToAbstract' but returns the scope after the completion of the
+--   second argument.
+localToAbstract' :: ToAbstract c a => c -> (a -> ScopeM b) -> ScopeM (b, ScopeInfo)
+localToAbstract' x ret = do
+  scope <- getScope
+  withScope scope $ ret =<< toAbstract x
+
+withLocalVars :: ScopeM a -> ScopeM a
+withLocalVars m = do
+  vars <- scopeLocals <$> getScope
+  x    <- m
+  modifyScope $ \s -> s { scopeLocals = vars }
+  return x
 
 instance (ToAbstract c1 a1, ToAbstract c2 a2) => ToAbstract (c1,c2) (a1,a2) where
-    toAbstract (x,y) =
-	(,) <$> toAbstract x <*> toAbstract y
+  toAbstract (x,y) =
+    (,) <$> toAbstract x <*> toAbstract y
 
 instance (ToAbstract c1 a1, ToAbstract c2 a2, ToAbstract c3 a3) =>
 	 ToAbstract (c1,c2,c3) (a1,a2,a3) where
@@ -140,17 +162,6 @@ instance ToAbstract c a => ToAbstract (Maybe c) (Maybe a) where
     toAbstract Nothing  = return Nothing
     toAbstract (Just x) = Just <$> toAbstract x
 
-instance (BindToAbstract c1 a1, BindToAbstract c2 a2) => BindToAbstract (c1,c2) (a1,a2) where
-    bindToAbstract (x,y) ret =
-	bindToAbstract x $ \x' ->
-	bindToAbstract y $ \y' ->
-	ret (x',y')
-
-instance BindToAbstract c a => BindToAbstract [c] [a] where
-    bindToAbstract [] ret = ret []
-    bindToAbstract (x:xs) ret =
-	bindToAbstract (x,xs) $ \ (y,ys) -> ret (y:ys)
-
 -- Names ------------------------------------------------------------------
 
 newtype NewName = NewName C.Name
@@ -159,12 +170,10 @@ newtype OldName = OldName C.Name
 newtype PatName = PatName C.QName
 
 instance ToAbstract NewName A.Name where
-  toAbstract (NewName x) = freshAbstractName x
-
-instance BindToAbstract NewName A.Name where
-  bindToAbstract x@(NewName x') ret = do
-    y <- toAbstract x
-    bindVariable x' y $ ret y
+  toAbstract (NewName x) = do
+    y <- freshAbstractName x
+    bindVariable x y
+    return y
 
 varInfo :: NameInfo
 varInfo = NameInfo { nameFixity = defaultFixity
@@ -192,19 +201,26 @@ instance ToAbstract OldQName A.Expr where
 data APatName = VarPatName A.Name
 	      | ConPatName AbstractName
 
-instance BindToAbstract PatName APatName where
-  bindToAbstract (PatName x) ret = do
+instance ToAbstract PatName APatName where
+  toAbstract (PatName x) = do
+    reportLn 10 $ "checking pattern name: " ++ show x
     rx <- resolveName x
     z  <- case (rx, x) of
       -- TODO: warn about shadowing
-      (VarName y,	C.QName x)			  -> return $ Left x
+      (VarName y,     C.QName x)			  -> return $ Left x
       (DefinedName d, C.QName x) | DefName == anameKind d -> return $ Left x
-      (UnknownName,	C.QName x)			  -> return $ Left x
+      (UnknownName,   C.QName x)			  -> return $ Left x
       (DefinedName d, _	 )	 | ConName == anameKind d -> return $ Right d
       _							  -> fail $ "not a constructor: " ++ show x -- TODO
     case z of
-      Left x  -> bindToAbstract (NewName x) $ ret . VarPatName
-      Right c -> ret (ConPatName c)
+      Left x  -> do
+	reportLn 10 $ "it was a var: " ++ show x
+	p <- VarPatName <$> toAbstract (NewName x)
+	printLocals 10 "bound it:"
+	return p
+      Right c -> do
+	reportLn 10 $ "it was a con: " ++ show (anameName c)
+	return $ ConPatName c
 
 -- Should be a defined name.
 instance ToAbstract OldName A.QName where
@@ -288,7 +304,7 @@ instance ToAbstract C.Expr A.Expr where
 
   -- Lambda
       e0@(C.Lam r bs e) -> do
-	bindToAbstract bs $ \(b:bs') -> do
+	localToAbstract bs $ \(b:bs') -> do
 	e	 <- toAbstractCtx TopCtx e
 	let info = ExprRange r
 	return $ A.Lam info b $ foldr mkLam e bs'
@@ -303,7 +319,7 @@ instance ToAbstract C.Expr A.Expr where
 	return $ A.Fun info e1 e2
 
       e0@(C.Pi tel e) ->
-	bindToAbstract tel $ \tel -> do
+	localToAbstract tel $ \tel -> do
 	e    <- toAbstractCtx TopCtx e
 	let info = ExprRange (getRange e0)
 	return $ A.Pi info tel e
@@ -315,7 +331,7 @@ instance ToAbstract C.Expr A.Expr where
 
   -- Let
       e0@(C.Let _ ds e) ->
-	bindToAbstract (LetDefs ds) $ \ds' -> do
+	localToAbstract (LetDefs ds) $ \ds' -> do
 	e	 <- toAbstractCtx TopCtx e
 	let info = ExprRange (getRange e0)
 	return $ A.Let info ds' e
@@ -328,26 +344,21 @@ instance ToAbstract C.Expr A.Expr where
       C.Dot _ _  -> notAnExpression e
       C.Absurd _ -> notAnExpression e
 
-instance BindToAbstract C.LamBinding A.LamBinding where
-  bindToAbstract (C.DomainFree h x) ret =
-    bindToAbstract (NewName x) $ \x' ->
-      ret (A.DomainFree h x')
-  bindToAbstract (C.DomainFull tb) ret =
-    bindToAbstract tb $ \tb' -> ret (A.DomainFull tb')
+instance ToAbstract C.LamBinding A.LamBinding where
+  toAbstract (C.DomainFree h x) = A.DomainFree h <$> toAbstract (NewName x)
+  toAbstract (C.DomainFull tb)	= A.DomainFull <$> toAbstract tb
 
-instance BindToAbstract C.TypedBindings A.TypedBindings where
-  bindToAbstract (C.TypedBindings r h bs) ret =
-    bindToAbstract bs $ \bs ->
-    ret (A.TypedBindings r h bs)
+instance ToAbstract C.TypedBindings A.TypedBindings where
+  toAbstract (C.TypedBindings r h bs) = A.TypedBindings r h <$> toAbstract bs
 
-instance BindToAbstract C.TypedBinding A.TypedBinding where
-  bindToAbstract (C.TBind r xs t) ret = do
+instance ToAbstract C.TypedBinding A.TypedBinding where
+  toAbstract (C.TBind r xs t) = do
     t' <- toAbstractCtx TopCtx t
-    bindToAbstract (map NewName xs) $ \xs' ->
-      ret (A.TBind r xs' t')
-  bindToAbstract (C.TNoBind e) ret = do
+    xs' <- toAbstract (map NewName xs)
+    return $ A.TBind r xs' t'
+  toAbstract (C.TNoBind e) = do
     e <- toAbstractCtx TopCtx e
-    ret (A.TNoBind e)
+    return (A.TNoBind e)
 
 newtype TopLevel a = TopLevel a
 
@@ -357,7 +368,8 @@ scopeCheckModule r a c x tel ds = do
   m <- toAbstract (NewModuleName x)
   pushScope m
   qm <- getCurrentModule
-  ds <- bindToAbstract tel $ \tel ->
+  ds <- withLocalVars $ do
+	  tel <- toAbstract tel
 	  makeSection info qm tel <$> toAbstract ds
   popScope
   bindModule a (length tel) x qm
@@ -387,27 +399,27 @@ instance ToAbstract [C.Declaration] [A.Declaration] where
 newtype LetDefs = LetDefs [C.Declaration]
 newtype LetDef = LetDef NiceDeclaration
 
-instance BindToAbstract LetDefs [A.LetBinding] where
-    bindToAbstract (LetDefs ds) ret =
-	bindToAbstract (map LetDef $ niceDeclarations ds) ret
+instance ToAbstract LetDefs [A.LetBinding] where
+    toAbstract (LetDefs ds) =
+	toAbstract (map LetDef $ niceDeclarations ds)
 
 instance ToAbstract C.RHS A.RHS where
     toAbstract C.AbsurdRHS = return $ A.AbsurdRHS
     toAbstract (C.RHS e)   = A.RHS <$> toAbstract e
 
-instance BindToAbstract LetDef A.LetBinding where
-    bindToAbstract (LetDef d) ret =
+instance ToAbstract LetDef A.LetBinding where
+    toAbstract (LetDef d) =
 	case d of
 	    NiceDef _ c [CD.Axiom _ _ _ _ x t] [CD.FunDef _ _ _ _ _ _ [cl]] ->
 		do  e <- letToAbstract cl
 		    t <- toAbstract t
-		    bindToAbstract (NewName x) $ \x ->
-			ret (A.LetBind (LetSource c) x t e)
+		    x <- toAbstract (NewName x)
+		    return $ A.LetBind (LetSource c) x t e
 	    _	-> notAValidLetBinding d
 	where
 	    letToAbstract (CD.Clause top clhs (C.RHS rhs) []) = do
 		p    <- parseLHS top clhs
-		bindToAbstract (lhsArgs p) $ \args ->
+		localToAbstract (lhsArgs p) $ \args ->
 		    do	rhs <- toAbstract rhs
 			foldM lambda rhs args
 	    letToAbstract _ = notAValidLetBinding d
@@ -439,11 +451,13 @@ instance ToAbstract NiceDefinition Definition where
 
     -- Data definitions
     toAbstract (CD.DataDef r f p a x pars cons) = do
-	(pars,cons) <- bindToAbstract pars $ \pars -> do
+	(pars,cons) <- localToAbstract pars $ \pars -> do
 			cons <- toAbstract (map Constr cons)
 			return (pars, cons)
 	x' <- toAbstract (OldName x)
-	-- toAbstract (map Constr cons) TODO!!
+	-- The constructors disappeared from scope when we exited the
+	-- localToAbstract, so we have to reintroduce them.
+	toAbstract (map Constr cons)
 	return $ A.DataDef (mkRangedDefInfo x f p a r) x' pars cons
 
 -- The only reason why we return a list is that open declarations disappears.
@@ -455,14 +469,16 @@ instance ToAbstract NiceDeclaration A.Declaration where
   -- Axiom
     CD.Axiom r f p a x t -> do
       t' <- toAbstractCtx TopCtx t
-      x' <- bindName p DefName f x
-      return [ A.Axiom (mkRangedDefInfo x f p a r) x' t' ]
+      y  <- freshAbstractQName x
+      bindName p DefName f x y
+      return [ A.Axiom (mkRangedDefInfo x f p a r) y t' ]
 
   -- Primitive function
     PrimitiveFunction r f p a x t -> do
       t' <- toAbstractCtx TopCtx t
-      x' <- bindName p DefName f x
-      return [ A.Primitive (mkRangedDefInfo x f p a r) x' t' ]
+      y  <- freshAbstractQName x
+      bindName p DefName f x y
+      return [ A.Primitive (mkRangedDefInfo x f p a r) y t' ]
 
   -- Definitions (possibly mutual)
     NiceDef r cs ts ds -> do
@@ -478,29 +494,30 @@ instance ToAbstract NiceDeclaration A.Declaration where
 
     NiceModuleMacro r p a x tel e open dir -> case appView e of
       AppView (Ident m) args  ->
-	bindToAbstract tel $ \tel' -> do
-	  (x',m1,args') <- toAbstract ( NewModuleName x
-				      , OldModuleName m
-				      , args
-				      )
-	  pushScope x'
-	  m0 <- getCurrentModule
-	  openModule_ m $ dir { C.publicOpen = True }
-	  modifyTopScope $ freshCanonicalNames m1 m0
-	  popScope
-	  bindModule p (length tel) x m0
-	  case open of
-	    DontOpen -> return ()
-	    DoOpen   -> openModule_ (C.QName x) dir
-	  let decl = Apply info m0 m1 args'
-	  case tel' of
-	    []  -> return [ decl ]
-	    _	  -> do
-	      -- If the module is reabstracted we create an anonymous
-	      -- section around it.
-	      noName <- freshAbstractName $ C.noName $ getRange x
-	      top    <- getCurrentModule
-	      return $ makeSection info (A.qualify top noName) tel' [ decl ]
+	withLocalVars $ do
+	tel' <- toAbstract tel
+	(x',m1,args') <- toAbstract ( NewModuleName x
+				    , OldModuleName m
+				    , args
+				    )
+	pushScope x'
+	m0 <- getCurrentModule
+	openModule_ m $ dir { C.publicOpen = True }
+	modifyTopScope $ freshCanonicalNames m1 m0
+	popScope
+	bindModule p (length tel) x m0
+	case open of
+	  DontOpen -> return ()
+	  DoOpen   -> openModule_ (C.QName x) dir
+	let decl = Apply info m0 m1 args'
+	case tel' of
+	  []  -> return [ decl ]
+	  _	  -> do
+	    -- If the module is reabstracted we create an anonymous
+	    -- section around it.
+	    noName <- freshAbstractName $ C.noName $ getRange x
+	    top    <- getCurrentModule
+	    return $ makeSection info (A.qualify top noName) tel' [ decl ]
       _	-> notAModuleExpr e
       where
 	info = mkRangedModuleInfo p a r
@@ -548,8 +565,9 @@ newtype Constr a = Constr a
 instance ToAbstract (Constr CD.NiceDeclaration) A.Declaration where
     toAbstract (Constr (CD.Axiom r f p a x t)) = do
 	t' <- toAbstractCtx TopCtx t
-	x' <- bindName p' ConName f x
-	return $ A.Axiom (mkRangedDefInfo x f p a r) x' t'
+	y  <- freshAbstractQName x
+	bindName p' ConName f x y
+	return $ A.Axiom (mkRangedDefInfo x f p a r) y t'
 	where
 	    -- An abstract constructor is private (abstract constructor means
 	    -- abstract datatype, so the constructor should not be exported).
@@ -559,29 +577,35 @@ instance ToAbstract (Constr CD.NiceDeclaration) A.Declaration where
 
     toAbstract _ = __IMPOSSIBLE__    -- a constructor is always an axiom
 
+-- TODO: do this in a nicer way?
+instance ToAbstract (Constr A.Constructor) () where
+  toAbstract (Constr (A.ScopedDecl _ [d])) = toAbstract $ Constr d
+  toAbstract (Constr (A.Axiom i y _)) = do
+    let x = nameConcrete $ qnameName y	-- TODO: right name?
+    bindName (defAccess i) ConName (defFixity i) x y
+  toAbstract _ = __IMPOSSIBLE__	-- constructors are axioms
+
 instance ToAbstract CD.Clause A.Clause where
     toAbstract (CD.Clause top lhs rhs wh) =
-	bindToAbstract (LeftHandSide top lhs) $ \lhs' -> do	-- the order matters here!
-	  wh'  <- toAbstract wh	-- TODO!! ?
+	localToAbstract (LeftHandSide top lhs) $ \lhs' -> do	-- the order matters here!
+	  printLocals 10 "after lhs:"
+	  wh'  <- toAbstract wh	-- TODO: this will have to change when adding modules for local defs
 	  rhs' <- toAbstractCtx TopCtx rhs
 	  return $ A.Clause lhs' rhs' wh'
 
 data LeftHandSide = LeftHandSide C.Name C.LHS
 
-instance BindToAbstract LeftHandSide A.LHS where
-    bindToAbstract (LeftHandSide top lhs) ret =
-	traceCallCPS (ScopeCheckLHS top lhs) ret $ \ret -> do
-	p <- parseLHS top lhs
-	bindToAbstract (lhsArgs p) $ \args -> do
-	    args <- toAbstract args -- take care of dot patterns
-	    x	 <- toAbstract (OldName top)
-	    ret (A.LHS (LHSSource lhs) x args)
-
-instance BindToAbstract c a => BindToAbstract (Arg c) (Arg a) where
-    bindToAbstract (Arg h e) ret = bindToAbstractCtx (hiddenArgumentCtx h) e $ ret . Arg h
-
-instance BindToAbstract c a => BindToAbstract (Named name c) (Named name a) where
-    bindToAbstract (Named n e) ret = bindToAbstract e $ ret . Named n
+instance ToAbstract LeftHandSide A.LHS where
+    toAbstract (LeftHandSide top lhs) = do
+	-- traceCall (ScopeCheckLHS top lhs) ret $ \ret -> do -- TODO
+	p    <- parseLHS top lhs
+	printLocals 10 "before lhs:"
+	args <- toAbstract (lhsArgs p)
+	printLocals 10 "checked pattern:"
+	args <- toAbstract args -- take care of dot patterns
+	printLocals 10 "checked dots:"
+	x    <- toAbstract (OldName top)
+	return $ A.LHS (LHSSource lhs) x args
 
 instance ToAbstract c a => ToAbstract (Arg c) (Arg a) where
     toAbstract (Arg h e) = Arg h <$> toAbstractCtx (hiddenArgumentCtx h) e
@@ -596,53 +620,52 @@ instance ToAbstract c a => ToAbstract (Named name c) (Named name a) where
 instance ToAbstract c a => ToAbstract (A.Pattern' c) (A.Pattern' a) where
     toAbstract = mapM toAbstract
 
-instance BindToAbstract C.Pattern (A.Pattern' C.Expr) where
+instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
 
-    bindToAbstract p@(C.IdentP x) ret =
-	bindToAbstract (PatName x) $ \px ->
+    toAbstract p@(C.IdentP x) = do
+	px <- toAbstract (PatName x)
 	case px of
-	    VarPatName y -> ret $ VarP y
-	    ConPatName d -> ret $ ConP (PatRange (getRange p)) (anameName d) []
+	    VarPatName y -> return $ VarP y
+	    ConPatName d -> return $ ConP (PatRange (getRange p)) (anameName d) []
 
-    bindToAbstract p0@(AppP p q) ret =
-	bindToAbstract (p,q) $ \(p',q') ->
+    toAbstract p0@(AppP p q) = do
+	(p', q') <- toAbstract (p,q)
 	case p' of
-	    ConP _ x as -> ret $ ConP info x (as ++ [q'])
-	    DefP _ x as -> ret $ DefP info x (as ++ [q'])
+	    ConP _ x as -> return $ ConP info x (as ++ [q'])
+	    DefP _ x as -> return $ DefP info x (as ++ [q'])
 	    _		-> __IMPOSSIBLE__
 	where
 	    r = getRange p0
 	    info = PatSource r $ \pr -> if appBrackets pr then ParenP r p0 else p0
 
-    bindToAbstract p0@(OpAppP r op ps) ret =
-	bindToAbstract (IdentP $ C.QName op)
-			  $ \p ->
-	bindToAbstract ps $ \ps ->
-	    case p of
-		ConP _ x as -> ret $ ConP info x (as ++ map (Arg NotHidden . unnamed) ps)
-		DefP _ x as -> ret $ DefP info x (as ++ map (Arg NotHidden . unnamed) ps)
-		_	    -> __IMPOSSIBLE__
+    toAbstract p0@(OpAppP r op ps) = do
+	p <- toAbstract (IdentP $ C.QName op)
+	ps <- toAbstract ps
+	case p of
+	  ConP _ x as -> return $ ConP info x (as ++ map (Arg NotHidden . unnamed) ps)
+	  DefP _ x as -> return $ DefP info x (as ++ map (Arg NotHidden . unnamed) ps)
+	  _	      -> __IMPOSSIBLE__
 	where
 	    r = getRange p0
 	    info = PatSource r $ \pr -> if appBrackets pr then ParenP r p0 else p0
 
     -- Removed when parsing
-    bindToAbstract (HiddenP _ _) _ = __IMPOSSIBLE__
-    bindToAbstract (RawAppP _ _) _ = __IMPOSSIBLE__
+    toAbstract (HiddenP _ _) = __IMPOSSIBLE__
+    toAbstract (RawAppP _ _) = __IMPOSSIBLE__
 
-    bindToAbstract p@(C.WildP r)    ret = ret $ A.WildP (PatSource r $ const p)
-    bindToAbstract (C.ParenP _ p)   ret = bindToAbstract p ret
-    bindToAbstract (C.LitP l)	    ret = ret $ A.LitP l
-    bindToAbstract p0@(C.AsP r x p) ret =
-	bindToAbstract (NewName x) $ \x ->
-	bindToAbstract p $ \p ->
-	    ret (A.AsP info x p)
+    toAbstract p@(C.WildP r)    = return $ A.WildP (PatSource r $ const p)
+    toAbstract (C.ParenP _ p)   = toAbstract p
+    toAbstract (C.LitP l)	= return $ A.LitP l
+    toAbstract p0@(C.AsP r x p) = do
+	x <- toAbstract (NewName x)
+	p <- toAbstract p
+	return $ A.AsP info x p
 	where
 	    info = PatSource r $ \_ -> p0
     -- we have to do dot patterns at the end
-    bindToAbstract p0@(C.DotP r e) ret = ret $ A.DotP info e
+    toAbstract p0@(C.DotP r e) = return $ A.DotP info e
 	where info = PatSource r $ \_ -> p0
-    bindToAbstract p0@(C.AbsurdP r) ret = ret (A.AbsurdP info)
+    toAbstract p0@(C.AbsurdP r) = return $ A.AbsurdP info
 	where
 	    info = PatSource r $ \_ -> p0
 

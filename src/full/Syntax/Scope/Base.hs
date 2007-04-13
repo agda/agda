@@ -252,7 +252,9 @@ applyImportDirective :: ImportDirective -> Scope -> Scope
 applyImportDirective dir s = mergeScope usedOrHidden renamed
   where
     usedOrHidden = useOrHide (usingOrHiding dir) s
-    renamed	 = rename (renaming dir) s
+    renamed	 = rename (renaming dir) $ useOrHide useRenamedThings s
+
+    useRenamedThings = Using $ map fst $ renaming dir
 
     useOrHide :: UsingOrHiding -> Scope -> Scope
     useOrHide (Hiding xs) s = filterNames notElem notElem xs s

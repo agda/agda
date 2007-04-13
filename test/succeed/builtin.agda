@@ -39,7 +39,7 @@ postulate
 {-# BUILTIN FLOAT   Float  #-}
 {-# BUILTIN CHAR    Char   #-}
 
-infixr 10 ::
+infixr 10 _::_
 data List (A : Set) : Set where
   nil  : List A
   _::_ : A -> List A -> List A

@@ -8,7 +8,7 @@ import Syntax.Common
 import qualified Syntax.Concrete as C
 import Syntax.Position(noRange)
 import Syntax.Scope.Base
-import Syntax.Translation.ConcreteToAbstract
+import Syntax.Translation.ConcreteToAbstract (concreteToAbstract_, OldName(..))
 import TypeChecking.Monad
 import TypeChecking.Errors
 
