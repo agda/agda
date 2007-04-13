@@ -53,10 +53,8 @@ other-modules:   Compiler.Agate.Classify
                  Syntax.Parser.Tokens
                  Syntax.Parser
                  Syntax.Position
-                 Syntax.Scope
 		 Syntax.Scope.Base
 		 Syntax.Scope.Monad
-                 Syntax.ScopeInfo
                  Syntax.Strict
                  Syntax.Translation.AbstractToConcrete
                  Syntax.Translation.ConcreteToAbstract

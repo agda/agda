@@ -28,7 +28,7 @@ import Syntax.Translation.ConcreteToAbstract
 import Syntax.Concrete.Pretty ()
 import Syntax.Strict
 import Syntax.Literal
-import Syntax.Scope
+import Syntax.Scope.Base
 
 import TypeChecking.Monad hiding (defAbstract)
 import qualified TypeChecking.Monad as TCM
@@ -75,8 +75,8 @@ checkDecl d =
 	A.Axiom i x e		   -> checkAxiom i x e
 	A.Primitive i x e	   -> checkPrimitive i x e
 	A.Definition i ts ds	   -> checkMutual i ts ds
-	A.Section i x tel ds	   -> checkModule i x tel ds  -- TODO!!
-	A.Apply i x m args	   -> checkModuleDef i x [] m args -- TODO!!
+	A.Section i x tel ds	   -> checkSection i x tel ds
+	A.Apply i x m args	   -> checkSectionApplication i x m args
 	A.Import i x		   -> checkImport i x
 	A.Pragma i p		   -> checkPragma i p
 	A.ScopedDecl scope ds	   -> setScope scope >> checkDecls ds
@@ -113,15 +113,18 @@ checkPragma r p =
 
 -- | Type check a bunch of mutual inductive recursive definitions.
 checkMutual :: DeclInfo -> [A.TypeSignature] -> [A.Definition] -> TCM ()
-checkMutual i ts ds =
-    do	mapM_ checkTypeSignature ts
-	mapM_ checkDefinition ds
-	whenM positivityCheckEnabled $
-	    checkStrictlyPositive [ name | A.DataDef _ name _ _ <- ds ]
+checkMutual i ts ds = do
+  mapM_ checkTypeSignature ts
+  mapM_ checkDefinition ds
+  whenM positivityCheckEnabled $
+      checkStrictlyPositive [ name | A.DataDef _ name _ _ <- ds ]
 
 
 -- | Type check the type signature of an inductive or recursive definition.
 checkTypeSignature :: A.TypeSignature -> TCM ()
+checkTypeSignature (A.ScopedDecl scope ds) = do
+  setScope scope
+  mapM_ checkTypeSignature ds
 checkTypeSignature (A.Axiom i x e) =
     case defAccess i of
 	PublicAccess	-> inAbstractMode $ checkAxiom i x e
@@ -142,86 +145,20 @@ checkDefinition d =
 
 
 -- | Type check a module.
-checkModule :: ModuleInfo -> ModuleName -> A.Telescope -> [A.Declaration] -> TCM ()
-checkModule i x tel ds = undefined -- TODO!!
---     do	tel0 <- getContextTelescope
--- 	checkTelescope tel $ \tel' ->
--- 	    do	m'   <- flip qualifyModule x <$> currentModule
--- 		reportLn 5 $ "adding module " ++ show (mnameId m')
--- 		addModule m' $ ModuleDef
--- 				{ mdefName	= m'
--- 				, mdefTelescope = tel0 ++ tel'
--- 				, mdefNofParams = size tel'
--- 				, mdefDefs	= Map.empty
--- 				}
--- 		withCurrentModule m' $ checkDecls ds
+checkSection :: ModuleInfo -> ModuleName -> A.Telescope -> [A.Declaration] -> TCM ()
+checkSection i x tel ds =
+  checkTelescope tel $ \tel' -> do
+    addSection x EmptyTel -- addSection computes the telescope from the context and
+			  -- tel' is already in the context
+    checkDecls ds
 
-
-{-| Type check a module definition.
-    If M' is qualified we know that its parent is fully instantiated. In other
-    words M' is a valid module in a prefix of the current context.
-
-    Current context: ΓΔ
-
-    Without bothering about submodules of M':
-	Γ   ⊢ module M' Ω
-	ΓΔ  ⊢ module M Θ = M' us
-	ΓΔΘ ⊢ us : Ω
-
-	Expl ΓΩ _ = lookupModule M'
-	addModule M ΓΔΘ = M' Γ us
-
-    Submodules of M':
-
-	Forall submodules A
-	    ΓΩΦ ⊢ module M'.A Ψ ...
-
-	addModule M.A ΓΔΘΦΨ = M'.A Γ us ΦΨ
--}
-checkModuleDef :: ModuleInfo -> ModuleName -> A.Telescope -> ModuleName -> [NamedArg A.Expr] -> TCM ()
-checkModuleDef i x tel m' args = undefined -- TODO!!
---     do	m <- flip qualifyModule x <$> currentModule
--- 	gammaDelta <- getContextTelescope
--- 	md' <- lookupModule m'
--- 	let gammaOmega	  = mdefTelescope md'
--- 	    (gamma,omega) = splitAt (size gammaOmega - mdefNofParams md') gammaOmega
--- 	    delta	  = drop (size gamma) gammaDelta
--- 	checkTelescope tel $ \theta ->
--- 	    do	(vs, cs) <- checkArguments_ (getRange m') args omega
--- 		noConstraints (return cs)   -- we don't allow left-over constraints in module instantiations
--- 		let vs0 = reverse [ Arg Hidden
--- 				  $ Var (i + size delta + size theta) []
--- 				  | i <- [0..size gamma - 1]
--- 				  ]
--- 		addModule m $ ModuleDef
--- 				    { mdefName	     = m
--- 				    , mdefTelescope  = gammaDelta ++ theta
--- 				    , mdefNofParams  = size theta
--- 				    , mdefDefs	     = implicitModuleDefs
--- 							(minfoAbstract i)
--- 							(gammaDelta ++ theta)
--- 							m' (vs0 ++ vs)
--- 							(mdefDefs md')
--- 				    }
--- 		forEachModule_ (`isSubModuleOf` m') $ \m'a ->
--- 		    do	md <- lookupModule m'a	-- lookup twice (could be optimised)
--- 			let gammaOmegaPhiPsi = mdefTelescope md
--- 			    ma = requalifyModule m' m m'a
--- 			    phiPsi  = drop (size gammaOmega) gammaOmegaPhiPsi
--- 			    vs1	    = reverse [ Arg Hidden $ Var i []
--- 					      | i <- [0..size phiPsi - 1]
--- 					      ]
--- 			    tel	    = gammaDelta ++ theta ++ phiPsi
--- 			addModule ma $ ModuleDef
--- 					    { mdefName	     = ma
--- 					    , mdefTelescope  = tel
--- 					    , mdefNofParams  = mdefNofParams md
--- 					    , mdefDefs	     = implicitModuleDefs
--- 								(minfoAbstract i)
--- 								tel m'a (vs0 ++ vs ++ vs1)
--- 								(mdefDefs md)
--- 					    }
-
+-- | Check an application of a section.
+checkSectionApplication :: ModuleInfo -> ModuleName -> ModuleName -> [NamedArg A.Expr] -> TCM ()
+checkSectionApplication i m1 m2 args = do
+  tel <- lookupSection m2
+  (ts, cs)  <- checkArguments_ (getRange i) args tel
+  noConstraints $ return cs
+  applySection m1 m2 tel ts
 
 -- | Type check an import declaration. Actually doesn't do anything, since all
 --   the work is done when scope checking.
@@ -277,8 +214,9 @@ checkDataDef i name ps cs =
 					      s (defAbstract i)
 			 )
     where
-	cname (A.Axiom _ x _) = x
-	cname _		      = __IMPOSSIBLE__ -- constructors are axioms
+	cname (A.ScopedDecl _ [d]) = cname d
+	cname (A.Axiom _ x _)	   = x
+	cname _			   = __IMPOSSIBLE__ -- constructors are axioms
 
 	hideTel  EmptyTel		  = EmptyTel
 	hideTel (ExtendTel (Arg _ t) tel) = ExtendTel (Arg Hidden t) $ hideTel <$> tel
@@ -291,6 +229,9 @@ checkDataDef i name ps cs =
 -- | Type check a constructor declaration. Checks that the constructor targets
 --   the datatype and that it fits inside the declared sort.
 checkConstructor :: QName -> Telescope -> Int -> Sort -> A.Constructor -> TCM ()
+checkConstructor d tel nofIxs s (A.ScopedDecl scope [con]) = do
+  setScope scope
+  checkConstructor d tel nofIxs s con
 checkConstructor d tel nofIxs s con@(A.Axiom i c e) =
     traceCall (CheckConstructor d tel s con) $ do
 	t <- isType_ e
@@ -560,7 +501,7 @@ checkLHS ps t ret = do
 		    return $ A.DotP i (A.Underscore info)
 		    where info = MetaInfo
 				    (getRange i)
-				    undefined -- TODO!!
+				    (error "scope needed!") -- TODO!!
 				    Nothing
 	buildNewPattern p@(A.VarP _)	= return p
 	buildNewPattern p@(A.WildP _)	= return p

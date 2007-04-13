@@ -9,7 +9,7 @@ import qualified Data.Map as Map
 import Syntax.Abstract.Name
 import Syntax.Common
 import Syntax.Internal
-import Syntax.Scope
+import Syntax.Scope.Base
 
 import TypeChecking.Monad.Base
 import TypeChecking.Substitute

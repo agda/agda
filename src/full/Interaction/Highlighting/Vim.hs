@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -cpp #-}
 
 module Interaction.Highlighting.Vim where
 
@@ -20,6 +21,8 @@ import TypeChecking.Monad
 
 import Utils.FileName
 import Utils.Tuple
+
+#include "../../undefined.h"
 
 on f g x y = f (g x) (g y)
 
@@ -62,7 +65,7 @@ matches cons icons defs idefs =
 	foo cat = map (length . head /\ match cat)
 
 toVim :: Names -> String
-toVim ns = unlines $ undefined -- TODO!!
+toVim ns = unlines $ __IMPOSSIBLE__ -- TODO!!
 --     [ keyword "agdaFunction" kwdefs
 --     , keyword "agdaInfixFunction" kwidefs
 --     , keyword "agdaConstructor" kwcons
@@ -89,14 +92,14 @@ type Names = Map () () -- Map CName.Name DefinedName
 
 -- TODO!!
 -- msNames :: Modules -> Names
-msNames ms = undefined -- Map.unions $ map mNames $ Map.toList ms
+msNames ms = __IMPOSSIBLE__ -- Map.unions $ map mNames $ Map.toList ms
 --     where
 -- 	mNames :: (CName.Name, ModuleScope) -> Names
 -- 	mNames (_, ms) = nsNames $ moduleContents ms
 
 -- TODO!!
 nsNames :: NameSpace -> Names
-nsNames ns = undefined -- Map.union (definedNames ns)
+nsNames ns = __IMPOSSIBLE__ -- Map.union (definedNames ns)
 -- 		       (msNames $ modules ns)
 
 generateVimFile :: FilePath -> TCM ()
@@ -105,7 +108,7 @@ generateVimFile file = do
     liftIO $ writeFile (vimFile file) $ toVim $ names scope
     where
 	-- TODO!!
-	names scope = Map.unions $ undefined
+	names scope = Map.unions $ __IMPOSSIBLE__
 -- 		    [ nsNames $ publicNameSpace scope
 -- 		    , nsNames $ privateNameSpace scope
 -- 		    , msNames $ importedModules scope

@@ -20,7 +20,7 @@ import qualified Syntax.Abstract as A
 import Syntax.Internal
 import Syntax.Parser
 import Syntax.Position
-import Syntax.Scope
+import Syntax.Scope.Base
 import Syntax.Translation.ConcreteToAbstract
 import Syntax.Translation.AbstractToConcrete
 
@@ -304,7 +304,7 @@ refineMeta s | length s >= 5 =
           scope <- getInteractionScope ii
           (e,iis) <- refine ii Nothing e 
           debug (show e)  -- TODO!!
-          let concrete = abstractToConcreteCtx undefined {-(contextPrecedence scope)-} e
+          let concrete = abstractToConcreteCtx (scopePrecedence scope) e
           outputMetaReplace ii (show concrete) iis
 refineMeta _ = liftIO $ putStrLn $ ": refine" ++ " metaid expr"
 

@@ -102,7 +102,7 @@ refine ii mr e =
                       let metaVar = QuestionMark
 				  $ Syntax.Info.MetaInfo
 				    { Syntax.Info.metaRange = r
-                                    , Syntax.Info.metaScope = undefined -- TODO!! scope {contextPrecedence = ArgumentCtx}
+                                    , Syntax.Info.metaScope = scope { scopePrecedence = ArgumentCtx }
 				    , metaNumber = Nothing
 				    }
                       in App (ExprRange $ r) e (Arg NotHidden $ unnamed metaVar)

@@ -15,7 +15,8 @@ module Interaction.GhciTop
 --  , module SC  -- trivial clash removal: remove all!
 --  , module SA
 --  , module SI
-  , module Syntax.Scope
+  , module Syntax.Scope.Base
+  , module Syntax.Scope.Monad
   , module Info
   , module Syntax.Translation.ConcreteToAbstract
   , module Syntax.Translation.AbstractToConcrete
@@ -67,7 +68,8 @@ import Syntax.Concrete.Name as CN
 import Syntax.Concrete.Pretty ()
 import Syntax.Abstract as SA
 import Syntax.Internal as SI
-import Syntax.Scope
+import Syntax.Scope.Base
+import Syntax.Scope.Monad hiding (bindName)
 import qualified Syntax.Info as Info
 import Syntax.Translation.ConcreteToAbstract
 import Syntax.Translation.AbstractToConcrete
@@ -183,7 +185,7 @@ cmd_refine = give_gen B.refine $ \s -> emacsStr . show
 
 give_gen give_ref mk_newtxt ii rng s = infoOnException $ do
     ioTCM $ do
-      prec      <- undefined -- TODO!! contextPrecedence <$> getInteractionScope ii
+      prec      <- scopePrecedence <$> getInteractionScope ii
       (ae, iis) <- give_ref ii Nothing =<< parseExprIn ii rng s
       let newtxt = A . mk_newtxt s $ abstractToConcreteCtx prec ae
           newgs  = Q . L $ List.map showNumIId iis

@@ -66,7 +66,7 @@ abstractToConcrete_ = abstractToConcrete defaultEnv
 
 lookupName :: A.Name -> AbsToCon C.Name
 lookupName x =
-    do	scope <- undefined  -- TODO!!
+    do	scope <- __IMPOSSIBLE__  -- TODO!!
 	case Map.lookup x scope of
 	    Just y  -> return y
 	    Nothing -> return $ nameConcrete x -- TODO: should be __IMPOSSIBLE__
@@ -75,11 +75,11 @@ lookupName x =
 
 bindName :: A.Name -> (C.Name -> AbsToCon a) -> AbsToCon a
 bindName x ret = do
-    names <- asks undefined -- TODO!!
+    names <- asks __IMPOSSIBLE__ -- TODO!!
     let y = nameConcrete x
     case Map.lookup y names of
 	Just _	-> bindName (nextName x) ret
-	Nothing	-> undefined -- TODO!!
+	Nothing	-> __IMPOSSIBLE__ -- TODO!!
 -- 	    local (\e -> e { concreteNames = Map.insert x y $ concreteNames e
 -- 			   , abstractNames = dontInsertNoName y x $ abstractNames e
 -- 			   }
@@ -385,7 +385,7 @@ instance ToConcrete A.Expr C.Expr where
 	     e'  <- toConcreteCtx TopCtx e
 	     return $ C.Let (getRange i) (concat ds') e'
 
-    toConcrete (A.ScopedExpr scope e) = undefined -- TODO!!
+    toConcrete (A.ScopedExpr scope e) = __IMPOSSIBLE__ -- TODO!!
 
 -- Dot patterns can bind variables. This is how.
 -- They can't anymore. Good, then we don't have to implement the instance.
@@ -436,7 +436,7 @@ instance ToConcrete A.RHS C.RHS where
 data TypeAndDef = TypeAndDef A.TypeSignature A.Definition
 
 instance ToConcrete TypeAndDef [C.Declaration] where
-  toConcrete _ = undefined
+  toConcrete _ = __IMPOSSIBLE__
 {-
     -- We don't do withInfixDecl here. It's done at the declaration level.
 
@@ -466,7 +466,7 @@ instance ToConcrete TypeAndDef [C.Declaration] where
 newtype Constr a = Constr a
 
 instance ToConcrete (Constr A.Constructor) C.Declaration where
-  toConcrete _ = undefined -- TODO!!
+  toConcrete _ = __IMPOSSIBLE__ -- TODO!!
 {-
     toConcrete (Constr (A.Axiom i x t)) = do
 	x' <- toConcrete x
@@ -476,7 +476,7 @@ instance ToConcrete (Constr A.Constructor) C.Declaration where
 -}
 
 instance ToConcrete A.Clause C.Declaration where
-  toConcrete _ = undefined
+  toConcrete _ = __IMPOSSIBLE__
 {-
     toConcrete (A.Clause lhs rhs wh) =
 	bindToConcrete lhs $ \lhs' -> do
@@ -487,10 +487,10 @@ instance ToConcrete A.Clause C.Declaration where
 
 instance ToConcrete A.Declaration [C.Declaration] where
 
-  toConcrete _ = undefined -- TODO!!
+  toConcrete _ = __IMPOSSIBLE__ -- TODO!!
 
 {-
-    toConcrete (ScopedDecl _ _) = undefined -- TODO!!
+    toConcrete (ScopedDecl _ _) = __IMPOSSIBLE__ -- TODO!!
 
     toConcrete (Axiom i x t) =
 	do  x' <- toConcrete x
@@ -519,8 +519,8 @@ instance ToConcrete A.Declaration [C.Declaration] where
 	    getInfoAndName (A.Axiom i x _)  = (i,x)
 	    getInfoAndName _		    = __IMPOSSIBLE__
 
-    toConcrete (A.Section i x tel ds) = undefined -- TODO!!
-    toConcrete (A.Apply i x y es) = undefined -- TODO!!
+    toConcrete (A.Section i x tel ds) = __IMPOSSIBLE__ -- TODO!!
+    toConcrete (A.Apply i x y es) = __IMPOSSIBLE__ -- TODO!!
 
 --     toConcrete (A.Module i x tel ds) =
 -- 	withStored i $

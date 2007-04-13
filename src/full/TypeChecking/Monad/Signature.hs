@@ -57,14 +57,12 @@ unionSignatures ss = foldr unionSignature emptySignature ss
   where
     unionSignature (Sig a b) (Sig c d) = Sig (Map.union a c) (Map.union b d)
 
--- | Add a defined module.
--- addModule :: MonadTCM tcm => ModuleName -> ModuleDef -> tcm ()
--- addModule m d = liftTCM $ modify $ \s -> s { stSignature = Map.insert m d $ stSignature s }
-
 -- | Add a section to the signature.
 addSection :: MonadTCM tcm => ModuleName -> Telescope -> tcm ()
-addSection m tel =
-  modifySignature $ \sig -> sig { sigSections = Map.insert m tel $ sigSections sig }
+addSection m tel = do
+  top <- getContextTelescope
+  let tel' = abstract top tel
+  modifySignature $ \sig -> sig { sigSections = Map.insert m tel' $ sigSections sig }
 
 -- | Lookup a section. If it doesn't exist that just means that the module
 --   wasn't parameterised.
@@ -94,40 +92,21 @@ applySection new old tel ts = liftTCM $ do
     copySec :: Args -> (QName, Telescope) -> TCM ()
     copySec ts (x, tel) = addSection (copyName x) (apply tel ts)
 
--- implicitModuleDefs :: IsAbstract -> Telescope -> ModuleName -> Args -> Definitions -> Definitions
--- implicitModuleDefs abstr tel m args defs = Map.mapWithKey redirect defs
---     where
--- 	redirect x d = setDef $ abstract tel' (d `apply` args')
--- 	    where
--- 		tel' = map hide tel
--- 		hide (Arg _ x) = Arg Hidden x
--- 		args' = map hide args
--- 		old = theDef d
--- 		mkRHS = case old of
--- 			    Constructor _ _ _ -> \c _ -> Con c [] -- constructors are polymorphic
--- 			    _		      -> Def
--- 		clause = Clause [] $ Body $ abstract (map hide tel) $ mkRHS (qualify m x) args'
--- 		setDef d = d { theDef = Function [clause] abstr}
-
 -- | Lookup the definition of a name. The result is a closed thing, all free
 --   variables have been abstracted over.
 getConstInfo :: MonadTCM tcm => QName -> tcm Definition
-getConstInfo q = liftTCM $ do undefined -- TODO!!
---     ab <- treatAbstractly q
---     md <- lookupModule m
---     let tel  = mdefTelescope md
--- 	defs = mdefDefs md
---     case Map.lookup x defs of
--- 	Nothing -> fail $ show (getRange q) ++ ": no such name " ++ show x ++ " in module " ++ show m
--- 	Just d  -> mkAbs ab d
---     where
--- 	m = qnameModule q
--- 	x = qnameName q
--- 	mkAbs True d =
--- 	    case makeAbstract d of
--- 		Just d	-> return d
--- 		Nothing	-> fail $ "Not in scope " ++ show q -- __IMPOSSIBLE__
--- 	mkAbs False d = return d
+getConstInfo q = liftTCM $ do
+  ab   <- treatAbstractly q
+  defs <- sigDefinitions <$> getSignature
+  case Map.lookup q defs of
+      Nothing -> fail $ show (getRange q) ++ ": no such name " ++ show q
+      Just d  -> mkAbs ab d
+  where
+    mkAbs True d =
+      case makeAbstract d of
+	Just d	-> return d
+	Nothing	-> fail $ "panic: Not in scope " ++ show q -- __IMPOSSIBLE__
+    mkAbs False d = return d
 
 -- | Instantiate a closed definition with the correct part of the current
 --   context. Precondition: the variables abstracted over should be a prefix of
@@ -165,11 +144,12 @@ treatAbstractly :: MonadTCM tcm => QName -> tcm Bool
 treatAbstractly q = treatAbstractly' q <$> ask
 
 treatAbstractly' :: QName -> TCEnv -> Bool
-treatAbstractly' q env = undefined -- TODO!!
---     | envAbstractMode env = True
---     | otherwise		  = not $ m `isSubModuleOf` qnameModule q
---     where
--- 	m = envCurrentModule env
+treatAbstractly' q env
+  | envAbstractMode env = True
+  | otherwise		= not $ current `isSubModuleOf` m
+  where
+    current = envCurrentModule env
+    m	    = qnameFromList $ qnameModule q
 
 -- | get type of a constant 
 typeOfConst :: MonadTCM tcm => QName -> tcm Type
@@ -182,17 +162,4 @@ sortOfConst q =
 	case d of
 	    Datatype _ _ _ s _	-> return s
 	    _			-> fail $ "Expected " ++ show q ++ " to be a datatype."
-
--- | Do something for each module with a certain kind of name.
--- forEachModule :: MonadTCM tcm => (ModuleName -> Bool) -> (ModuleName -> tcm a) -> tcm [a]
--- forEachModule p go =
---     do	sig <- getSignature
--- 	concat <$> mapM action (Map.keys sig)
---     where
--- 	action m
--- 	    | p m	= (:[]) <$> go m
--- 	    | otherwise = return []
--- 
--- forEachModule_ :: MonadTCM tcm => (ModuleName -> Bool) -> (ModuleName -> tcm a) -> tcm ()
--- forEachModule_ p go = forEachModule p go >> return ()
 

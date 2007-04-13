@@ -559,18 +559,6 @@ instance ToAbstract (Constr CD.NiceDeclaration) A.Declaration where
 
     toAbstract _ = __IMPOSSIBLE__    -- a constructor is always an axiom
 
--- TODO!!
--- instance ToAbstract (Constr A.Declaration) () where
---   toAbstract (Constr (A.Axiom info x _)) = undefined -- TODO!!
--- -- 	    modScopeInfoM (defName p ConName fx x) $ ret ()
--- -- 	where
--- -- 	    a  = defAccess info
--- -- 	    fx = defFixity info
--- -- 	    p  = case (defAbstract info, defAccess info) of
--- -- 		    (AbstractDef, _) -> PrivateAccess
--- -- 		    (_, p)	     -> p
---   toAbstract _ = __IMPOSSIBLE__ -- a constructor is always an axiom
-
 instance ToAbstract CD.Clause A.Clause where
     toAbstract (CD.Clause top lhs rhs wh) =
 	bindToAbstract (LeftHandSide top lhs) $ \lhs' -> do	-- the order matters here!

@@ -21,7 +21,6 @@ import Control.Exception
 import qualified Syntax.Concrete.Name as C
 import Syntax.Abstract.Name
 import Syntax.Parser 
-import Syntax.Scope
 import Syntax.Scope.Base
 import Syntax.Translation.ConcreteToAbstract
 
@@ -241,7 +240,7 @@ createInterface opts trace path visited file = runTCM $ withImportPath path $ do
 buildInterface :: TCM Interface
 buildInterface = do
     reportLn 5 "Building interface..."
-    scope   <- undefined -- TODO!! currentModuleScope <$> getScope
+    scope   <- getScope
     sig	    <- getSignature
     isig    <- getImportedSignature
     builtin <- getBuiltinThings
@@ -251,7 +250,7 @@ buildInterface = do
     i <- instantiateFull $ Interface
 			{ iVersion	   = currentInterfaceVersion
 			, iImportedModules = Set.toList ms
-			, iScope	   = scope
+			, iScope	   = head $ scopeStack scope -- TODO!!
 			, iSignature	   = sig
 			, iImports	   = isig
 			, iBuiltin	   = builtin'

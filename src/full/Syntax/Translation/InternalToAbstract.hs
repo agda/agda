@@ -53,19 +53,11 @@ nameInfo x = NameInfo { nameFixity   = defaultFixity
 		      , nameAccess   = PublicAccess
 		      }
 
--- TODO!!
+-- TODO: we shouldn't need this here (i.e. scrap name info)
 qnameInfo :: MonadTCM tcm => QName -> tcm NameInfo
-qnameInfo x = do undefined
---     d <- liftTCM $ resolveName (qnameConcrete x)
---     let fx = case d of
--- 		DefName x   -> fixity x
--- 		_	    -> defaultFixity
---     return $ NameInfo
--- 	     { bindingSite  = noRange
--- 	     , concreteName = qnameConcrete x
--- 	     , nameFixity   = fx
--- 	     , nameAccess   = PublicAccess
--- 	     }
+qnameInfo x = return $ NameInfo { nameFixity = defaultFixity
+				, nameAccess = PublicAccess
+				}
 
 exprInfo :: ExprInfo
 exprInfo = ExprRange noRange

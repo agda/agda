@@ -6,7 +6,7 @@ import Syntax.Abstract.Pretty
 import Syntax.Common
 import qualified Syntax.Concrete as C
 import Syntax.Position(noRange)
-import Syntax.Scope
+import Syntax.Scope.Base
 import Syntax.Translation.ConcreteToAbstract
 import TypeChecking.Monad
 import TypeChecking.Errors

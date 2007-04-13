@@ -22,7 +22,7 @@ import Syntax.Common
 import Syntax.Internal
 import Syntax.Parser
 import Syntax.Position
-import Syntax.Scope
+import Syntax.Scope.Base
 import Syntax.Translation.ConcreteToAbstract
 import Syntax.Translation.InternalToAbstract
 import Syntax.Abstract.Pretty

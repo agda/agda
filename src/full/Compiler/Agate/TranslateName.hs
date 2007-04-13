@@ -9,10 +9,6 @@ module Compiler.Agate.TranslateName where
 
 import Data.Char
 
-import Syntax.Internal
-import Syntax.Scope
-import Syntax.Common
-
 ----------------------------------------------------------------
 
 translateNameAsUntypedTerm :: String -> String

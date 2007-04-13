@@ -12,7 +12,6 @@ import Compiler.Agate.OptimizedPrinter
 import Compiler.Agate.UntypedPrinter
 
 import Syntax.Internal
-import Syntax.Scope
 import Text.PrettyPrint
 import Syntax.Common
 
