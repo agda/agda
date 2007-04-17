@@ -31,7 +31,6 @@ import Syntax.Strict
 
 import Interaction.Exceptions
 import Interaction.CommandLine.CommandLine
-import Interaction.EmacsInterface.EmacsAgda
 import Interaction.Options
 import Interaction.Monad
 import Interaction.GhciTop ()	-- to make sure it compiles
@@ -75,12 +74,10 @@ runAgda =
     where
 	checkFile :: IM ()
 	checkFile =
-	    do	i <- optInteractive <$> liftTCM commandLineOptions
-		emacs <- optEmacsMode <$> liftTCM commandLineOptions
+	    do	i	<- optInteractive <$> liftTCM commandLineOptions
 		compile <- optCompile <$> liftTCM commandLineOptions
 		when i $ liftIO $ putStr splashScreen
 		let interaction | i	    = interactionLoop
-				| emacs	    = emacsModeLoop
 				| compile   = compilerMain
 				| otherwise = id
 		interaction $ liftTCM $

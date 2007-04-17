@@ -79,7 +79,6 @@ lhsArgs p = case appView p of
 	    _		  -> [ mkHead p ]
 
 makeSection :: ModuleInfo -> A.ModuleName -> A.Telescope -> [A.Declaration] -> [A.Declaration]
-makeSection _    _ []  ds = ds
 makeSection info m tel ds = [A.Section info m tel ds]
 
 annotateDecl :: A.Declaration -> ScopeM A.Declaration
@@ -171,30 +170,21 @@ newtype PatName = PatName C.QName
 
 instance ToAbstract NewName A.Name where
   toAbstract (NewName x) = do
-    y <- freshAbstractName x
+    y <- freshAbstractName_ x
     bindVariable x y
     return y
 
-varInfo :: NameInfo
-varInfo = NameInfo { nameFixity = defaultFixity
-		   , nameAccess = PrivateAccess
-		   }
-
 nameExpr :: AbstractName -> A.Expr
-nameExpr d = mk (anameKind d) info $ anameName d
+nameExpr d = mk (anameKind d) $ anameName d
   where
     mk DefName = Def
     mk ConName = Con
-
-    info = NameInfo { nameFixity = anameFixity d
-		    , nameAccess = __IMPOSSIBLE__ -- TODO
-		    }
 
 instance ToAbstract OldQName A.Expr where
   toAbstract (OldQName x) = do
     qx <- resolveName x
     case qx of
-      VarName x'    -> return $ A.Var varInfo x'
+      VarName x'    -> return $ A.Var x'
       DefinedName d -> return $ nameExpr d
       UnknownName   -> notInScope x
 
@@ -236,7 +226,7 @@ newtype NewModuleQName = NewModuleQName C.QName
 newtype OldModuleName  = OldModuleName  C.QName
 
 instance ToAbstract NewModuleName A.Name where
-  toAbstract (NewModuleName x) = freshAbstractName x
+  toAbstract (NewModuleName x) = freshAbstractName_ x
 
 instance ToAbstract NewModuleQName A.ModuleName where
   toAbstract (NewModuleQName q) =
@@ -372,7 +362,7 @@ scopeCheckModule r a c x tel ds = do
 	  tel <- toAbstract tel
 	  makeSection info qm tel <$> toAbstract ds
   popScope
-  bindModule a (length tel) x qm
+  bindModule a x qm
   return ds
   where
     info = mkRangedModuleInfo a c r
@@ -469,15 +459,15 @@ instance ToAbstract NiceDeclaration A.Declaration where
   -- Axiom
     CD.Axiom r f p a x t -> do
       t' <- toAbstractCtx TopCtx t
-      y  <- freshAbstractQName x
-      bindName p DefName f x y
+      y  <- freshAbstractQName f x
+      bindName p DefName x y
       return [ A.Axiom (mkRangedDefInfo x f p a r) y t' ]
 
   -- Primitive function
     PrimitiveFunction r f p a x t -> do
       t' <- toAbstractCtx TopCtx t
-      y  <- freshAbstractQName x
-      bindName p DefName f x y
+      y  <- freshAbstractQName f x
+      bindName p DefName x y
       return [ A.Primitive (mkRangedDefInfo x f p a r) y t' ]
 
   -- Definitions (possibly mutual)
@@ -505,7 +495,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
 	openModule_ m $ dir { C.publicOpen = True }
 	modifyTopScope $ freshCanonicalNames m1 m0
 	popScope
-	bindModule p (length tel) x m0
+	bindModule p x m0
 	case open of
 	  DontOpen -> return ()
 	  DoOpen   -> openModule_ (C.QName x) dir
@@ -515,9 +505,9 @@ instance ToAbstract NiceDeclaration A.Declaration where
 	  _	  -> do
 	    -- If the module is reabstracted we create an anonymous
 	    -- section around it.
-	    noName <- freshAbstractName $ C.noName $ getRange x
+	    noName <- freshAbstractName_ $ C.noName $ getRange x
 	    top    <- getCurrentModule
-	    return $ makeSection info (A.qualify top noName) tel' [ decl ]
+	    return $ makeSection info m0 tel' [ decl ]
       _	-> notAModuleExpr e
       where
 	info = mkRangedModuleInfo p a r
@@ -547,8 +537,6 @@ instance ToAbstract NiceDeclaration A.Declaration where
       m	  <- toAbstract $ NewModuleQName x
       i	  <- applyImportDirective dir <$> scopeCheckImport m
       modifyTopScope (`mergeScope` i)
-      bindQModule PrivateAccess (error "TODO __FILE__:__LINE__: unknown arity") -- TODO!!
-		  name m
       ds <- case open of
 	DontOpen -> return []
 	DoOpen   -> do
@@ -565,8 +553,8 @@ newtype Constr a = Constr a
 instance ToAbstract (Constr CD.NiceDeclaration) A.Declaration where
     toAbstract (Constr (CD.Axiom r f p a x t)) = do
 	t' <- toAbstractCtx TopCtx t
-	y  <- freshAbstractQName x
-	bindName p' ConName f x y
+	y  <- freshAbstractQName f x
+	bindName p' ConName x y
 	return $ A.Axiom (mkRangedDefInfo x f p a r) y t'
 	where
 	    -- An abstract constructor is private (abstract constructor means
@@ -582,7 +570,7 @@ instance ToAbstract (Constr A.Constructor) () where
   toAbstract (Constr (A.ScopedDecl _ [d])) = toAbstract $ Constr d
   toAbstract (Constr (A.Axiom i y _)) = do
     let x = nameConcrete $ qnameName y	-- TODO: right name?
-    bindName (defAccess i) ConName (defFixity i) x y
+    bindName (defAccess i) ConName x y
   toAbstract _ = __IMPOSSIBLE__	-- constructors are axioms
 
 instance ToAbstract CD.Clause A.Clause where

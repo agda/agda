@@ -203,7 +203,7 @@ instance ShowAsOptimizedType Term where
 	    Pi arg abs -> do
 		dt1 <- showAsOptimizedType $ unArg arg
 		newname <- freshName_ $ absName abs
-		addCtx newname (unArg arg) $ do
+		addCtx newname arg $ do
 		    dvar <- showAsOptimizedTerm $ Var 0 []
 		    dt2 <- showAsOptimizedType $ absBody abs
 		    case freeIn 0 $ absBody abs of

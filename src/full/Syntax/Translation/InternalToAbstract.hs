@@ -16,8 +16,9 @@ module Syntax.Translation.InternalToAbstract where
 import Control.Monad.State
 import Control.Monad.Error
 
-import Data.Map as Map
-import Data.List as List
+import qualified Data.Map as Map
+import Data.Map (Map)
+import Data.List hiding (sort)
 import Data.Traversable
 
 import Syntax.Position
@@ -31,7 +32,6 @@ import Syntax.Scope.Base
 import Syntax.Scope.Monad
 
 import TypeChecking.Monad as M
-import TypeChecking.Monad.Name
 import TypeChecking.Reduce
 
 import Utils.Monad
@@ -48,17 +48,6 @@ apps (e, arg@(Arg Hidden _) : args) =
 apps (e, arg:args)	    =
     apps (App exprInfo e (unnamed <$> arg), args)
 
-nameInfo :: Name -> NameInfo
-nameInfo x = NameInfo { nameFixity   = defaultFixity
-		      , nameAccess   = PublicAccess
-		      }
-
--- TODO: we shouldn't need this here (i.e. scrap name info)
-qnameInfo :: MonadTCM tcm => QName -> tcm NameInfo
-qnameInfo x = return $ NameInfo { nameFixity = defaultFixity
-				, nameAccess = PublicAccess
-				}
-
 exprInfo :: ExprInfo
 exprInfo = ExprRange noRange
 
@@ -74,9 +63,9 @@ instance Reify MetaId Expr where
 	    let mi' = Info.MetaInfo (getRange mi)
 				    (M.clScope mi)
 				    (Just n)
-	    iis <- List.map (snd /\ fst) . Map.assocs
+	    iis <- map (snd /\ fst) . Map.assocs
 		    <$> gets stInteractionPoints
-	    case List.lookup x iis of
+	    case lookup x iis of
 		Just ii@(InteractionId n)
 			-> return $ A.QuestionMark $ mi' {metaNumber = Just n}
 		Nothing	-> return $ A.Underscore mi'
@@ -87,13 +76,9 @@ instance Reify Term Expr where
 	    case ignoreBlocking v of
 		I.Var n vs   ->
 		    do  x  <- liftTCM $ nameOfBV n `catchError` \_ -> freshName_ ("@" ++ show n)
-			reifyApp (A.Var (nameInfo x) x) vs
-		I.Def x vs   ->
-		    do	i <- qnameInfo x
-			reifyApp (A.Def i x) vs
-		I.Con x vs   ->
-		    do	i <- qnameInfo x
-			reifyApp (A.Con i x) vs
+			reifyApp (A.Var x) vs
+		I.Def x vs   -> reifyApp (A.Def x) vs
+		I.Con x vs   -> reifyApp (A.Con x) vs
 		I.Lam h b    ->
 		    do	(x,e) <- reify b
 			return $ A.Lam exprInfo (DomainFree h x) e
@@ -121,19 +106,27 @@ instance Reify Sort Expr where
 		I.Suc s	  ->
 		    do	suc <- freshName_ "suc"	-- TODO: hack
 			e   <- reify s
-			return $ A.App exprInfo (A.Var (nameInfo suc) suc) (Arg NotHidden $ unnamed e)
+			return $ A.App exprInfo (A.Var suc) (Arg NotHidden $ unnamed e)
 		I.Lub s1 s2 ->
 		    do	lub <- freshName_ "\\/"	-- TODO: hack
 			(e1,e2) <- reify (s1,s2)
 			let app x y = A.App exprInfo x (Arg NotHidden $ unnamed y)
-			return $ A.Var (nameInfo lub) lub `app` e1 `app` e2
+			return $ A.Var lub `app` e1 `app` e2
 
 instance Reify i a => Reify (Abs i) (Name, a) where
     reify (Abs s v) =
-	do  x <- refreshName_ s
-	    e <- addCtx x __IMPOSSIBLE__ -- type doesn't matter
+	do  x <- freshName_ s
+	    e <- addCtx x (Arg NotHidden $ sort I.Prop) -- type doesn't matter
 		 $ reify v
 	    return (x,e)
+
+instance Reify I.Telescope A.Telescope where
+  reify EmptyTel = return []
+  reify (ExtendTel arg tel) = do
+    Arg h e <- reify arg
+    (x,bs)  <- reify tel
+    let r = getRange e
+    return $ TypedBindings r h [TBind r [x] e] : bs
 
 instance Reify i a => Reify (Arg i) (Arg a) where
     reify = traverse reify

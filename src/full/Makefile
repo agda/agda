@@ -104,8 +104,8 @@ $(OUT_P)/%.hs : %.y
 ## Tags ###################################################################
 
 ifeq ($(HAVE_HASKTAGS),Yes)
-tags : $(src_hs_files)
-	$(HASKTAGS) -c $(all_hs_files)
+tags : $(src_files)
+	$(HASKTAGS) -c $(src_files)
 	@mv tags tags.tmp
 	@sort tags.tmp > tags
 	@rm tags.tmp

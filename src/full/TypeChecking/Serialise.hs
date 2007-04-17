@@ -92,12 +92,12 @@ instance Binary NameSpace where
   get = get >>= \a -> get >>= \b -> return (NameSpace a b)
 
 instance Binary AbstractName where
-  put (AbsName a b c) = put a >> put b >> put c
-  get = get >>= \a -> get >>= \b -> get >>= \c -> return (AbsName a b c)
+  put (AbsName a b) = put a >> put b
+  get = get >>= \a -> get >>= \b -> return (AbsName a b)
 
 instance Binary AbstractModule where
-  put (AbsModule a b) = put a >> put b
-  get = get >>= \a -> get >>= \b -> return (AbsModule a b)
+  put (AbsModule a) = put a
+  get = get >>= \a -> return (AbsModule a)
 
 instance Binary KindOfName where
   put DefName = putWord8 0
@@ -126,8 +126,8 @@ instance Binary A.QName where
   get = get >>= \a -> get >>= \b -> return (A.QName a b)
 
 instance Binary A.Name where
-  put (A.Name a b c) = put a >> put b >> put c
-  get = get >>= \a -> get >>= \b -> get >>= \c -> return (A.Name a b c)
+  put (A.Name a b c d) = put a >> put b >> put c >> put d
+  get = get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d -> return (A.Name a b c d)
 
 instance Binary A.NameId where
   put (NameId a) = put a

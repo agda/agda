@@ -34,11 +34,9 @@ data  RCall = RCall {
 
 instance PrettyTCM RCall where
   prettyTCM r = do
+		  dr <- prettyTCM $ callFun r
 		  dargs <- prettyTCM  (callArgs r)
-		  return $ dr <> dargs 
-                where
-	dr = pretty $ callFun r
-        dargs = text ""
+		  return $ dr
 
 instance PrettyTCM  a => PrettyTCM [a] where
   prettyTCM [] = return $ text ""

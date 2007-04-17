@@ -82,14 +82,19 @@ withContextPrecedence p m = do
 -- * Names
 
 -- | Create a fresh abstract name from a concrete name.
-freshAbstractName :: C.Name -> ScopeM A.Name
-freshAbstractName x = do
+freshAbstractName :: Fixity -> C.Name -> ScopeM A.Name
+freshAbstractName fx x = do
   i <- fresh
-  return $ A.Name i x (getRange x)
+  return $ A.Name i x (getRange x) fx
 
-freshAbstractQName :: C.Name -> ScopeM A.QName
-freshAbstractQName x = do
-  y <- freshAbstractName x
+-- | @freshAbstractName_ = freshAbstractName defaultFixity@
+freshAbstractName_ :: C.Name -> ScopeM A.Name
+freshAbstractName_ = freshAbstractName defaultFixity
+
+-- | Create a fresh abstract qualified name.
+freshAbstractQName :: Fixity -> C.Name -> ScopeM A.QName
+freshAbstractQName fx x = do
+  y <- freshAbstractName fx x
   m <- getCurrentModule
   return $ A.qualify m y
 
@@ -135,7 +140,7 @@ getFixity x = do
   r <- resolveName x
   case r of
     VarName _	  -> return defaultFixity
-    DefinedName d -> return $ anameFixity d
+    DefinedName d -> return $ nameFixity $ qnameName $ anameName d
     UnknownName	  -> __IMPOSSIBLE__
 
 -- * Binding names
@@ -148,19 +153,17 @@ bindVariable x y = do
   setScope scope'
 
 -- | Bind a defined name.
-bindName :: Access -> KindOfName -> Fixity -> C.Name -> A.QName -> ScopeM ()
-bindName acc kind fx x y =
-  modifyTopScope $ addNameToScope acc (C.QName x) $ AbsName y kind fx
+bindName :: Access -> KindOfName -> C.Name -> A.QName -> ScopeM ()
+bindName acc kind x y =
+  modifyTopScope $ addNameToScope acc (C.QName x) $ AbsName y kind
 
 -- | Bind a module name.
-bindModule :: Access -> Arity -> C.Name -> A.QName -> ScopeM ()
-bindModule acc ar x m = bindQModule acc ar (C.QName x) m
+bindModule :: Access -> C.Name -> A.QName -> ScopeM ()
+bindModule acc x m = bindQModule acc (C.QName x) m
 
 -- | Bind a qualified module name.
-bindQModule :: Access -> Arity -> C.QName -> A.QName -> ScopeM ()
-bindQModule acc ar x m = do
-  n <- length . scopeLocals <$> getScope
-  modifyTopScope $ addModuleToScope acc x $ AbsModule m (ar + n)
+bindQModule :: Access -> C.QName -> A.QName -> ScopeM ()
+bindQModule acc x m = modifyTopScope $ addModuleToScope acc x $ AbsModule m
 
 -- * Module manipulation operations
 

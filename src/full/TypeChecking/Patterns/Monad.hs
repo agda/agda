@@ -57,7 +57,7 @@ liftPatCPS f = CheckPatM $ ContT $ \k -> StateT $ \s -> f (\x -> runStateT (k x)
 liftPatCPS_ :: (forall b. TCM b -> TCM b) -> CheckPatM r ()
 liftPatCPS_ f = liftPatCPS (\k -> f $ k ())
 
-bindPatternVar :: Name -> Type -> CheckPatM r ()
+bindPatternVar :: Name -> Arg Type -> CheckPatM r ()
 bindPatternVar x a = do
     liftPatCPS_ (addCtx x a)
     tell (PatBinds [show x] [] [])

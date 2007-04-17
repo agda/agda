@@ -32,7 +32,6 @@ import Syntax.Scope.Base
 
 import TypeChecking.Monad hiding (defAbstract)
 import qualified TypeChecking.Monad as TCM
-import TypeChecking.Monad.Name
 import TypeChecking.Monad.Builtin
 import TypeChecking.Conversion
 import TypeChecking.MetaVars
@@ -101,7 +100,7 @@ checkPrimitive i x e =
     bindPrimitive s $ pf { primFunName = x }
     addConstant x (Defn t 0 $ Primitive (defAbstract i) s [])
     where
-	nameString (Name _ x _) = show x
+	nameString (Name _ x _ _) = show x
 
 
 -- | Check a pragma.
@@ -150,7 +149,13 @@ checkSection i x tel ds =
   checkTelescope tel $ \tel' -> do
     addSection x EmptyTel -- addSection computes the telescope from the context and
 			  -- tel' is already in the context
-    checkDecls ds
+    verbose 10 $ do
+      dx   <- prettyTCM x
+      dtel <- mapM Syntax.Abstract.Pretty.prettyA tel
+      dtel' <- prettyTCM =<< lookupSection x
+      liftIO $ putStrLn $ "checking section " ++ show dx ++ " " ++ show dtel
+      liftIO $ putStrLn $ "    actual tele: " ++ show dtel'
+    withCurrentModule x $ checkDecls ds
 
 -- | Check an application of a section.
 checkSectionApplication :: ModuleInfo -> ModuleName -> ModuleName -> [NamedArg A.Expr] -> TCM ()
@@ -257,8 +262,10 @@ bindParameters [] a ret = ret EmptyTel a
 bindParameters (A.DomainFree h x : ps) (El _ (Pi (Arg h' a) b)) ret	-- always dependent function
     | h /= h'	=
 	__IMPOSSIBLE__
-    | otherwise = addCtx x a $ bindParameters ps (absBody b) $ \tel s ->
-		    ret (ExtendTel (Arg h a) $ Abs (show x) tel) s
+    | otherwise = addCtx x arg $ bindParameters ps (absBody b) $ \tel s ->
+		    ret (ExtendTel arg $ Abs (show x) tel) s
+  where
+    arg = Arg h a
 bindParameters _ _ _ = __IMPOSSIBLE__
 
 
@@ -268,13 +275,13 @@ fitsIn :: Type -> Sort -> TCM ()
 fitsIn t s =
     do	t <- instantiate t
 	case funView $ unEl t of
-	    FunV (Arg h a) _ -> do
+	    FunV arg@(Arg h a) _ -> do
 		let s' = getSort a
 		s' `leqSort` s
 		x <- freshName_ (argName t)
 		let v  = Arg h $ Var 0 []
 		    t' = piApply' (raise 1 t) [v]
-		addCtx x a $ fitsIn t' s
+		addCtx x arg $ fitsIn t' s
 	    _		     -> return ()
 
 -- | Check that a type constructs something of the given datatype. The first
@@ -288,7 +295,7 @@ constructs nofPars t q = constrT 0 t
 	constr n s v = do
 	    v <- reduce v
 	    case v of
-		Pi a b	-> underAbstraction (unArg a) b $ \t ->
+		Pi a b	-> underAbstraction a b $ \t ->
 			   constrT (n + 1) t
 		Fun _ b -> constrT n b
 		Def d vs
@@ -345,6 +352,10 @@ checkFunDef i name cs =
 
 	-- Add the definition
 	addConstant name $ Defn t 0 $ Function cs $ defAbstract i
+	verbose 10 $ do
+	  dx <- prettyTCM name
+	  t' <- prettyTCM . defType =<< getConstInfo name
+	  liftIO $ putStrLn $ "added " ++ show dx ++ " : " ++ show t'
     where
 	npats (Clause ps _) = size ps
 
@@ -397,12 +408,15 @@ checkLHS ps t ret = do
     -- they couldn't be solved.
     ps1 <- evalStateT (buildNewPatterns ps0) metas
 
-    verbose 10 $ liftIO $ do
+    verbose 10 $ do
+	d0 <- showA ps0
+	d1 <- showA ps1
+	liftIO $ do
 	putStrLn $ "first check"
 	putStrLn $ "  xs    = " ++ show xs
 	putStrLn $ "  metas = " ++ show metas
-	putStrLn $ "  ps0   = " ++ showA ps0
-	putStrLn $ "  ps1   = " ++ showA ps1
+	putStrLn $ "  ps0   = " ++ d0
+	putStrLn $ "  ps1   = " ++ d1
 
     verbose 10 $ do
 	is <- mapM (instantiateFull . flip MetaV []) metas
@@ -450,11 +464,11 @@ checkLHS ps t ret = do
     flat' <- reorderCtx flat
 
     -- Compute renamings to and from the new context
-    let sub  = (computeSubst `on` map fst) flat flat'
-	rsub = (computeSubst `on` map fst) flat' flat
+    let sub  = (computeSubst `on` map (fst . unArg)) flat flat'
+	rsub = (computeSubst `on` map (fst . unArg)) flat' flat
 
     -- Apply the reordering to the types in the new context
-    let flat'' = map (id -*- substs sub) flat'
+    let flat'' = map (fmap $ id -*- substs sub) flat'
 
     reportLn 20 $ "After reordering:"
     verbose 20 $ dumpContext flat'
@@ -545,9 +559,9 @@ checkLHS ps t ret = do
 	    mapM f [0..n - 1]
 	    where
 		f i = do
-		    t <- instantiateFull =<< typeOfBV i
+		    Arg h t <- instantiateFull =<< typeOfBV' i
 		    x <- nameOfBV i
-		    return (x, t)
+		    return $ Arg h (x, t)
 
 	-- Reorder a flat context to make sure it's valid.
 	reorderCtx :: Context -> TCM Context
@@ -555,20 +569,21 @@ checkLHS ps t ret = do
 	    where
 		free t = mapM nameOfBV (Set.toList $ allVars $ freeVars t)
 
+		reorder :: [Arg (Name, Type)] -> TCM [Arg (Name, Type)]
 		reorder []	      = return []
-		reorder ((x,t) : tel) = do
+		reorder (Arg h (x,t) : tel) = do
 		    tel' <- reorder tel
 		    xs   <- free t
 		    verbose 20 $ do
 			d <- prettyTCM t
 			liftIO $ putStrLn $ "freeIn " ++ show x ++ " : " ++ show d ++ " are " ++ show xs
-		    case List.intersect (map fst tel') xs of
-			[] -> return $ (x,t) : tel'
-			zs -> return $ ins zs (x,t) tel'
+		    case List.intersect (map (fst . unArg) tel') xs of
+			[] -> return $ Arg h (x,t) : tel'
+			zs -> return $ ins zs (Arg h (x,t)) tel'
 
-		ins [] p tel	     = p : tel
-		ins xs p ((x,t):tel) = (x,t) : ins (List.delete x xs) p tel
-		ins (_:_) _ []	     = __IMPOSSIBLE__
+		ins [] p tel		   = p : tel
+		ins xs p (Arg h (x,t):tel) = Arg h (x,t) : ins (List.delete x xs) p tel
+		ins (_:_) _ []		   = __IMPOSSIBLE__
 
 	-- Compute a renaming from the first names to the second.
 	computeSubst :: [Name] -> [Name] -> [Term]
@@ -579,22 +594,24 @@ checkLHS ps t ret = do
 			Nothing	-> __IMPOSSIBLE__
 
 	-- Take a flat (but valid) context and turn it into a proper context.
-	mkContext :: [(Name, Type)] -> Context
+	mkContext :: [Arg (Name, Type)] -> Context
 	mkContext = reverse . mkCtx . reverse
 	    where
 		mkCtx []	  = []
-		mkCtx ((x,t):ctx) = (x, substs sub t) : mkCtx ctx
+		mkCtx ctx0@(Arg h (x,t) : ctx) = Arg h (x, substs sub t) : mkCtx ctx
 		    where
-			sub = map err ((x,t):ctx) ++ [ Var i [] | i <- [0..] ]
+			sub = map err ctx0 ++ [ Var i [] | i <- [0..] ]
 
-			err (y,_) = error $ show y ++ " occurs in the type of " ++ show x
+			err (Arg _ (y,_)) = error $ show y ++ " occurs in the type of " ++ show x
 
 	-- Print a flat context
 	dumpContext :: Context -> TCM ()
 	dumpContext ctx = do
-	    let pr (x,t) = do
-		d <- prettyTCM t
-		return $ "  " ++ show x ++ " : " ++ show d
+	    let pr (Arg h (x,t)) = do
+		  d <- prettyTCM t
+		  return $ "  " ++ par h (show x ++ " : " ++ show d)
+		par Hidden    s = "{" ++ s ++ "}"
+		par NotHidden s = "(" ++ s ++ ")"
 	    ds <- mapM pr ctx
 	    liftIO $ putStr $ unlines $ reverse ds
 
@@ -637,7 +654,7 @@ checkPatterns ps0@(Arg h np:ps) t = do
 	FunV (Arg h' a) _ | h == h' -> do
 
 	    -- Check the first pattern
-	    (p0, p, v) <- checkPattern (argName t') p' a
+	    (p0, p, v) <- checkPattern h (argName t') p' a
 	    openv      <- makeOpen v
 
 	    -- We're now in an extended context so we have lift t' accordingly.
@@ -684,27 +701,27 @@ actualConstructor c = do
     where
 	stripLambdas v = case ignoreBlocking v of
 	    Con c _ -> return c
-	    Lam _ b -> do
+	    Lam h b -> do
 		x <- freshName_ $ absName b
-		addCtx x (sort Prop) $ stripLambdas (absBody b)
+		addCtx x (Arg h $ sort Prop) $ stripLambdas (absBody b)
 	    _	    -> typeError $ GenericError $ "Not a constructor: " ++ show c
 
 -- | Type check a pattern and bind the variables. First argument is a name
 --   suggestion for wildcard patterns.
-checkPattern :: String -> A.Pattern -> Type -> CheckPatM r (A.Pattern, Pattern, Term)
-checkPattern name p t =
+checkPattern :: Hiding -> String -> A.Pattern -> Type -> CheckPatM r (A.Pattern, Pattern, Term)
+checkPattern h name p t =
 --    traceCallCPS (CheckPattern name p t) ret $ \ret -> case p of
     case p of
 
 	-- Variable. Simply bind the variable.
 	A.VarP x    -> do
-	    bindPatternVar x t
+	    bindPatternVar x (Arg h t)
 	    return (p, VarP (show x), Var 0 [])
 
 	-- Wild card. Create and bind a fresh name.
 	A.WildP i   -> do
 	    x <- freshName (getRange i) name
-	    bindPatternVar x t
+	    bindPatternVar x (Arg h t)
 	    return (p, VarP name, Var 0 [])
 
 	-- Implicit pattern. Create a new meta variable.
@@ -767,14 +784,14 @@ checkPattern name p t =
 	A.AbsurdP i -> do
 	    thisTypeShouldBeEmpty t
 	    x <- freshName (getRange i) name
-	    bindPatternVar x t
+	    bindPatternVar x (Arg h t)
 	    return (p, AbsurdP, Var 0 [])
 
 	-- As pattern. Create a let binding for the term corresponding to the
 	-- pattern.
 	A.AsP i x p -> do
 	    ot	       <- makeOpen t
-	    (p0, p, v) <- checkPattern name p t
+	    (p0, p, v) <- checkPattern h name p t
 	    t	       <- getOpen ot
 	    verbose 15 $ do
 		dt <- prettyTCM t
@@ -843,9 +860,10 @@ forcePi h name (El s t) =
                 let s' = sLub sa sb
 
                 a <- newTypeMeta sa
-                x <- refreshName noRange name
-                b <- addCtx x a $ newTypeMeta sb
-                let ty = El s' $ Pi (Arg h a) (Abs (show x) b)
+                x <- freshName_ name
+		let arg = Arg h a
+                b <- addCtx x arg $ newTypeMeta sb
+                let ty = El s' $ Pi arg (Abs (show x) b)
                 cs <- equalType (El s t') ty
                 ty' <- reduce ty
                 return (ty', cs)
@@ -868,17 +886,17 @@ checkTelescope (b : tel) ret =
 --   The telescope passed to the continuation is valid in the original context.
 checkTypedBindings :: A.TypedBindings -> (Telescope -> TCM a) -> TCM a
 checkTypedBindings (A.TypedBindings i h bs) ret =
-    thread checkTypedBinding bs $ \bss ->
+    thread (checkTypedBinding h) bs $ \bss ->
     ret $ foldr (\(x,t) -> ExtendTel (Arg h t) . Abs x) EmptyTel (concat bss)
 
-checkTypedBinding :: A.TypedBinding -> ([(String,Type)] -> TCM a) -> TCM a
-checkTypedBinding (A.TBind i xs e) ret = do
+checkTypedBinding :: Hiding -> A.TypedBinding -> ([(String,Type)] -> TCM a) -> TCM a
+checkTypedBinding h (A.TBind i xs e) ret = do
     t <- isType_ e
-    addCtxs xs t $ ret $ mkTel xs t
+    addCtxs xs (Arg h t) $ ret $ mkTel xs t
     where
 	mkTel [] t     = []
 	mkTel (x:xs) t = (show x,t) : mkTel xs (raise 1 t)
-checkTypedBinding (A.TNoBind e) ret = do
+checkTypedBinding h (A.TNoBind e) ret = do
     t <- isType_ e
     ret [("_",t)]
 
@@ -938,9 +956,9 @@ checkExpr e t =
 	A.Lam i (A.DomainFree h x) e0 -> do
 	    (t',cs) <- forcePi h (show x) t
 	    case funView $ unEl t' of
-		FunV (Arg h' a) _
+		FunV arg0@(Arg h' a) _
 		    | h == h' ->
-			addCtx x a $ do
+			addCtx x arg0 $ do
 			let arg = Arg h (Var 0 [])
 			    tb  = raise 1 t' `piApply'` [arg]
 			v <- checkExpr e0 tb
@@ -971,9 +989,9 @@ checkExpr e t =
 	    blockTerm t (Sort (Type n)) $ equalType (sort $ Type $ n + 1) t
 	A.Prop _     ->
 	    blockTerm t (Sort Prop) $ equalType (sort $ Type 1) t
-	A.Var _ _    -> __IMPOSSIBLE__
-	A.Def _ _    -> __IMPOSSIBLE__
-	A.Con _ _    -> __IMPOSSIBLE__
+	A.Var _    -> __IMPOSSIBLE__
+	A.Def _    -> __IMPOSSIBLE__
+	A.Con _    -> __IMPOSSIBLE__
 
 	A.ScopedExpr scope e -> setScope scope >> checkExpr e t
 
@@ -1006,19 +1024,19 @@ nofConstructorPars c = do
 
 -- | Infer the type of a head thing (variable, function symbol, or constructor)
 inferHead :: Head -> TCM (Args -> Term, Type)
-inferHead (HeadVar _ x) = do -- traceCall (InferVar x) $ do
+inferHead (HeadVar x) = do -- traceCall (InferVar x) $ do
   (u, a) <- getVarInfo x
   return (apply u, a)
-inferHead (HeadDef i x) = do
-  (u, a) <- inferDef Def i x
+inferHead (HeadDef x) = do
+  (u, a) <- inferDef Def x
   return (apply u, a)
-inferHead (HeadCon i c) = do
+inferHead (HeadCon c) = do
   -- Constructors are polymorphic internally so when building the constructor
   -- term we should throw away arguments corresponding to parameters.
 
   -- First, inferDef will try to apply the constructor to the free parameters
   -- of the current context. We ignore that.
-  (u, a) <- inferDef (\c _ -> Con c []) i c
+  (u, a) <- inferDef (\c _ -> Con c []) c
 
   -- Next get the total number of parameters after lambda lifting.
   n <- nofConstructorPars c
@@ -1033,8 +1051,8 @@ inferHead (HeadCon i c) = do
   -- So when applying the constructor throw away that many arguments.
   return (apply u . drop (n - m), a)
 
-inferDef :: (QName -> Args -> Term) -> NameInfo -> QName -> TCM (Term, Type)
-inferDef mkTerm i x =
+inferDef :: (QName -> Args -> Term) -> QName -> TCM (Term, Type)
+inferDef mkTerm x =
     traceCall (InferDef (getRange x) x) $ do
     d  <- getConstInfo x
     d' <- instantiateDef d
@@ -1097,7 +1115,7 @@ checkArguments r args0@(Arg h e : args) t0 t1 =
 		typeError $ WrongHidingInApplication t0'
 	    _ -> __IMPOSSIBLE__
     where
-	name (Named _ (A.Var _ x)) = show x
+	name (Named _ (A.Var x)) = show x
 	name (Named (Just x) _)    = x
 	name _			   = "x"
 
@@ -1229,7 +1247,7 @@ bindBuiltinCons e = do
     bindBuiltinName builtinCons cons
 
 bindBuiltinPrimitive :: String -> String -> A.Expr -> (Term -> TCM ()) -> TCM ()
-bindBuiltinPrimitive name builtin e@(A.Def _ qx) verify = do
+bindBuiltinPrimitive name builtin e@(A.Def qx) verify = do
     PrimImpl t pf <- lookupPrimitiveFunction name
     v <- checkExpr e t
 
@@ -1358,7 +1376,7 @@ builtinPrimitives =
 		suc n  = s @@ n
 		choice = foldr1 (\x y -> x `catchError` \_ -> y)
 	    xs <- mapM freshName_ xs
-	    addCtxs xs nat $ f (@@) zero suc (==) choice
+	    addCtxs xs (Arg NotHidden nat) $ f (@@) zero suc (==) choice
 
 -- | Bind a builtin thing to an expression.
 bindBuiltin :: String -> A.Expr -> TCM ()

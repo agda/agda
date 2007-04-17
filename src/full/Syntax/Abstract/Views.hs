@@ -10,18 +10,19 @@ data AppView = Application Head [NamedArg Expr]
 	     | NonApplication Expr
 		-- ^ TODO: if we allow beta-redexes (which we currently do) there could be one here.
 
-data Head = HeadVar NameInfo Name
-	  | HeadDef NameInfo QName
-	  | HeadCon NameInfo QName
+data Head = HeadVar Name
+	  | HeadDef QName
+	  | HeadCon QName
 
 appView :: Expr -> AppView
 appView e =
     case e of
-	Var i x	     -> Application (HeadVar i x) []
-	Def i x	     -> Application (HeadDef i x) []
-	Con i x	     -> Application (HeadCon i x) []
-	App i e1 arg -> apply i (appView e1) arg
-	_	     -> NonApplication e
+	Var x	       -> Application (HeadVar x) []
+	Def x	       -> Application (HeadDef x) []
+	Con x	       -> Application (HeadCon x) []
+	App i e1 arg   -> apply i (appView e1) arg
+	ScopedExpr _ e -> appView e
+	_	       -> NonApplication e
     where
 	apply i v arg =
 	    case v of
@@ -29,7 +30,7 @@ appView e =
 		NonApplication e  -> NonApplication (App i e arg)
 
 instance HasRange Head where
-    getRange (HeadVar _ x) = getRange x
-    getRange (HeadDef _ x) = getRange x
-    getRange (HeadCon _ x) = getRange x
+    getRange (HeadVar x) = getRange x
+    getRange (HeadDef x) = getRange x
+    getRange (HeadCon x) = getRange x
 

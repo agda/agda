@@ -14,11 +14,13 @@ import Syntax.Position
 
 import TypeChecking.Monad.Base
 import TypeChecking.Monad.Context
+import TypeChecking.Monad.Options
 import TypeChecking.Substitute
 
 import Utils.Monad
 import Utils.Map as Map
 import Utils.Size
+import Utils.Function
 
 #include "../../undefined.h"
 
@@ -96,11 +98,18 @@ applySection new old tel ts = liftTCM $ do
 --   variables have been abstracted over.
 getConstInfo :: MonadTCM tcm => QName -> tcm Definition
 getConstInfo q = liftTCM $ do
-  ab   <- treatAbstractly q
-  defs <- sigDefinitions <$> getSignature
-  case Map.lookup q defs of
-      Nothing -> fail $ show (getRange q) ++ ": no such name " ++ show q
-      Just d  -> mkAbs ab d
+  ab    <- treatAbstractly q
+  defs  <- sigDefinitions <$> getSignature
+  idefs <- sigDefinitions <$> getImportedSignature
+  verbose 15 $ liftIO $ do
+    let getId = nameId . qnameName
+    putStrLn $ "signature   : " ++ show (Map.keys defs) ++ " " ++ show (map getId $ Map.keys defs)
+    putStrLn $ "imported sig: " ++ show (Map.keys idefs) ++ " " ++ show (map getId $ Map.keys idefs)
+  let allDefs = (Map.unionWith (++) `on` Map.map (:[])) defs idefs
+  case Map.lookup q allDefs of
+      Nothing	-> fail $ show (getRange q) ++ ": no such name " ++ show q
+      Just [d]	-> mkAbs ab d
+      Just ds	-> fail $ show (getRange q) ++ ": ambiguous name " ++ show q
   where
     mkAbs True d =
       case makeAbstract d of
@@ -137,6 +146,10 @@ makeAbstract d = do def <- makeAbs $ theDef d
 inAbstractMode :: MonadTCM tcm => tcm a -> tcm a
 inAbstractMode = local $ \e -> e { envAbstractMode = True }
 
+-- | Not in abstract mode.
+notInAbstractMode :: MonadTCM tcm => tcm a -> tcm a
+notInAbstractMode = local $ \e -> e { envAbstractMode = False }
+
 -- | Check whether a name might have to be treated abstractly (either if we're
 --   'inAbstractMode' or it's not a local name). Returns true for things not
 --   declared abstract as well, but for those 'makeAbstract' will have no effect.
@@ -146,7 +159,7 @@ treatAbstractly q = treatAbstractly' q <$> ask
 treatAbstractly' :: QName -> TCEnv -> Bool
 treatAbstractly' q env
   | envAbstractMode env = True
-  | otherwise		= not $ current `isSubModuleOf` m
+  | otherwise		= not $ current == m || current `isSubModuleOf` m
   where
     current = envCurrentModule env
     m	    = qnameFromList $ qnameModule q

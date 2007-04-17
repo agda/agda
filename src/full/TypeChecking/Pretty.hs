@@ -26,7 +26,7 @@ empty, comma :: MonadTCM tcm => tcm Doc
 empty	   = return P.empty
 comma	   = return P.comma
 pretty x   = return $ P.pretty x
-prettyA x  = return $ P.prettyA x
+prettyA x  = P.prettyA x
 text s	   = return $ P.text s
 pwords s   = map return $ P.pwords s
 fwords s   = return $ P.fwords s
@@ -94,18 +94,25 @@ instance PrettyTCM Constraint where
 		]
 
 
-instance P.Pretty Name where
-    pretty = P.pretty . nameConcrete
+instance PrettyTCM Name where
+    prettyTCM x = P.pretty <$> abstractToConcrete_ x
 
-instance P.Pretty QName where
-    pretty = P.pretty . qnameToConcrete	-- TODO!!
+instance PrettyTCM QName where
+    prettyTCM x = P.pretty <$> abstractToConcrete_ x
+
+instance PrettyTCM Telescope where
+  prettyTCM tel = P.fsep . map P.pretty <$> (abstractToConcrete_ =<< reify tel)
 
 instance PrettyTCM Context where
     prettyTCM ctx = P.fsep . reverse <$> pr ctx
 	where
-	    pr []	     = return []
-	    pr ((x,t) : ctx) = escapeContext 1 $ do
+	    pr []		   = return []
+	    pr (Arg h (x,t) : ctx) = escapeContext 1 $ do
 		d    <- prettyTCM t
+		x    <- prettyTCM x
 		dctx <- pr ctx
-		return $ P.parens (P.hsep [ P.pretty x, P.text ":", d]) : dctx
+		return $ par h (P.hsep [ x, P.text ":", d]) : dctx
+	      where
+		par NotHidden = P.parens
+		par Hidden    = P.braces
 

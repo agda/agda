@@ -287,7 +287,7 @@ instance Normalise ClauseBody where
     normalise  NoBody	 = return NoBody
 
 instance Normalise t => Normalise (Abs t) where
-    normalise a = Abs (absName a) <$> underAbstraction (sort Prop) a normalise
+    normalise a = Abs (absName a) <$> underAbstraction_ a normalise
 
 instance Normalise t => Normalise (Arg t) where
     normalise = traverse normalise
@@ -369,7 +369,7 @@ instance InstantiateFull ClauseBody where
     instantiateFull  NoBody    = return NoBody
 
 instance InstantiateFull t => InstantiateFull (Abs t) where
-    instantiateFull a = Abs (absName a) <$> underAbstraction (sort Prop) a instantiateFull
+    instantiateFull a = Abs (absName a) <$> underAbstraction_ a instantiateFull
 
 instance InstantiateFull t => InstantiateFull (Arg t) where
     instantiateFull = traverse instantiateFull

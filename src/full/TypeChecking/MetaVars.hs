@@ -147,7 +147,7 @@ blockTerm t v m = do
 	else do
 	    i	  <- createMetaInfo
 	    vs	  <- getContextArgs
-	    tel   <- getContextTelescope' NotHidden
+	    tel   <- getContextTelescope
 	    x	  <- newMeta i lowMetaPriority (HasType () t)	-- we don't instantiate blocked terms
 	    store <- getMetaStore
 	    modify $ \st -> st { stMetaStore = ins x (BlockedConst $ abstract tel v) store }
@@ -317,7 +317,7 @@ assignV t x args v =
 	    --   ids = d b e
 	    -- then
 	    --   v' = (λ a b c d e. v) _ 1 _ 2 0
-	    tel  <- getContextTelescope' NotHidden
+	    tel  <- getContextTelescope
 	    args <- map (Arg NotHidden) <$> getContextTerms
 	    let iargs = reverse $ zipWith (rename $ reverse ids) [0..] $ reverse args
 		v'    = raise (size ids) (abstract tel v) `apply` iargs

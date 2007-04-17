@@ -18,7 +18,6 @@ other-modules:   Compiler.Agate.Classify
                  Compiler.Agate.TranslateName
                  Compiler.Agate.UntypedPrinter
                  Interaction.CommandLine.CommandLine
-                 Interaction.EmacsInterface.EmacsAgda
                  Interaction.Exceptions
                  Interaction.Highlighting.Emacs
                  Interaction.Highlighting.Precise
@@ -85,7 +84,6 @@ other-modules:   Compiler.Agate.Classify
                  TypeChecking.Monad.Env
                  TypeChecking.Monad.Imports
                  TypeChecking.Monad.MetaVars
-                 TypeChecking.Monad.Name
                  TypeChecking.Monad.Open
                  TypeChecking.Monad.Options
                  TypeChecking.Monad.Signature

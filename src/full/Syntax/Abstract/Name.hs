@@ -10,6 +10,7 @@ import Data.List
 
 import Syntax.Position
 import Syntax.Common
+import Syntax.Fixity
 import qualified Syntax.Concrete.Name as C
 
 import Utils.Fresh
@@ -28,6 +29,7 @@ newtype NameId = NameId Nat
 data Name = Name { nameId	   :: NameId
 		 , nameConcrete	   :: C.Name
 		 , nameBindingSite :: Range
+		 , nameFixity	   :: Fixity
 		 }
     deriving (Typeable, Data)
 
@@ -42,13 +44,18 @@ data QName = QName { qnameModule :: [Name]
 type ModuleName = QName
 
 invisibleTopModuleName :: Name
-invisibleTopModuleName = Name (-1) (C.noName noRange) noRange
+invisibleTopModuleName = Name (-1) (C.noName noRange) noRange defaultFixity
 
 mkName_ :: NameId -> String -> Name
 mkName_ = mkName noRange
 
 mkName :: Range -> NameId -> String -> Name
-mkName r i s = Name i (C.Name r [C.Id s]) r
+mkName r i s = Name i (C.Name r (parseName s)) r defaultFixity
+  where
+    parseName ""      = []
+    parseName ('_':s) = C.Hole : parseName s
+    parseName s = case break (== '_') s of
+      (s0, s1)	-> C.Id s0 : parseName s1
 
 qnameToList :: QName -> [Name]
 qnameToList (QName xs x) = xs ++ [x]
@@ -70,12 +77,15 @@ qualify :: ModuleName -> Name -> QName
 qualify m x = qualifyQ m (qnameFromList [x])
 
 isSubModuleOf :: ModuleName -> ModuleName -> Bool
-isSubModuleOf x y = qnameToList y `isPrefixOf` qnameToList x
+isSubModuleOf x y = xs /= ys && isPrefixOf ys xs
+  where
+    xs = qnameToList x
+    ys = qnameToList y
 
 freshName :: (MonadState s m, HasFresh NameId s) => Range -> String -> m Name
-freshName r s =
-    do	i <- fresh
-	return $ mkName r i s
+freshName r s = do
+  i <- fresh
+  return $ mkName r i s
 
 freshName_ :: (MonadState s m, HasFresh NameId s) => String -> m Name
 freshName_ = freshName noRange
@@ -83,7 +93,7 @@ freshName_ = freshName noRange
 freshNoName :: (MonadState s m, HasFresh NameId s) => Range -> m Name
 freshNoName r =
     do	i <- fresh
-	return $ Name i (C.noName r) r
+	return $ Name i (C.noName r) r defaultFixity
 
 freshNoName_ :: (MonadState s m, HasFresh NameId s) => m Name
 freshNoName_ = freshNoName noRange

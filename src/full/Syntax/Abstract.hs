@@ -21,20 +21,20 @@ import Syntax.Literal
 import Syntax.Scope.Base
 
 data Expr
-        = Var  NameInfo  Name		    -- ^ Bound variables
-        | Def  NameInfo QName		    -- ^ Constants (i.e. axioms, functions, and datatypes)
-        | Con  NameInfo QName		    -- ^ Constructors
-	| Lit Literal			    -- ^ Literals
-	| QuestionMark MetaInfo		    -- ^ meta variable for interaction
-        | Underscore   MetaInfo		    -- ^ meta variable for hidden argument (must be inferred locally)
-        | App  ExprInfo Expr (NamedArg Expr)
-        | Lam  ExprInfo LamBinding Expr	    -- ^
-        | Pi   ExprInfo Telescope Expr	    -- ^
-	| Fun  ExprInfo (Arg Expr) Expr	    -- ^ independent function space
-        | Set  ExprInfo Nat		    -- ^
-        | Prop ExprInfo			    -- ^
-        | Let  ExprInfo [LetBinding] Expr   -- ^
-	| ScopedExpr ScopeInfo Expr	    -- ^ scope annotation
+        = Var  Name			     -- ^ Bound variables
+        | Def  QName			     -- ^ Constants (i.e. axioms, functions, and datatypes)
+        | Con  QName			     -- ^ Constructors
+	| Lit Literal			     -- ^ Literals
+	| QuestionMark MetaInfo		     -- ^ meta variable for interaction
+        | Underscore   MetaInfo		     -- ^ meta variable for hidden argument (must be inferred locally)
+        | App  ExprInfo Expr (NamedArg Expr) -- ^
+        | Lam  ExprInfo LamBinding Expr	     -- ^
+        | Pi   ExprInfo Telescope Expr	     -- ^
+	| Fun  ExprInfo (Arg Expr) Expr	     -- ^ independent function space
+        | Set  ExprInfo Nat		     -- ^
+        | Prop ExprInfo			     -- ^
+        | Let  ExprInfo [LetBinding] Expr    -- ^
+	| ScopedExpr ScopeInfo Expr	     -- ^ scope annotation
 
 data Declaration
 	= Axiom      DefInfo QName Expr				-- ^ postulate
@@ -91,10 +91,7 @@ data RHS	= RHS Expr
 data LHS	= LHS LHSInfo QName [NamedArg Pattern]
 
 -- | Parameterised over the type of dot patterns.
-data Pattern' e	= VarP Name	-- ^ the only thing we need to know about a
-				-- pattern variable is its 'Range'. This is
-				-- stored in the 'Name', so we don't need a
-				-- 'NameInfo' here.
+data Pattern' e	= VarP Name
 		| ConP PatInfo QName [NamedArg (Pattern' e)]
 		| DefP PatInfo QName [NamedArg (Pattern' e)]  -- ^ defined pattern
 		| WildP PatInfo
@@ -105,11 +102,6 @@ data Pattern' e	= VarP Name	-- ^ the only thing we need to know about a
 		| ImplicitP PatInfo	-- ^ generated at type checking for implicit arguments
 
 type Pattern = Pattern' Expr
-
--- | why has Var in Expr above a NameInfo but VarP no Info?
--- | why has Con in Expr above a NameInfo but ConP an Info?
--- | why Underscore above and WildP here? (UnderscoreP better?)
-
 
 {--------------------------------------------------------------------------
     Instances
@@ -166,9 +158,9 @@ instance HasRange TypedBinding where
     getRange (TNoBind e)   = getRange e
 
 instance HasRange Expr where
-    getRange (Var _ x)		= getRange x
-    getRange (Def _ x)		= getRange x
-    getRange (Con _ x)		= getRange x
+    getRange (Var x)		= getRange x
+    getRange (Def x)		= getRange x
+    getRange (Con x)		= getRange x
     getRange (Lit l)		= getRange l
     getRange (QuestionMark i)	= getRange i
     getRange (Underscore  i)	= getRange i

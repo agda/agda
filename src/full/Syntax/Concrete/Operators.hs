@@ -31,6 +31,7 @@ import Syntax.Concrete.Pretty ()
 import Syntax.Common
 import Syntax.Concrete
 import Syntax.Concrete.Operators.Parser
+import qualified Syntax.Abstract.Name as A
 import Syntax.Position
 import Syntax.Fixity
 import Syntax.Scope.Base
@@ -61,7 +62,7 @@ partsInScope = do
 getDefinedNames :: [KindOfName] -> ScopeM [(Name, Fixity)]
 getDefinedNames kinds = do
   names <- allNamesInScope . mergeScopes . scopeStack <$> getScope
-  return [ (x, anameFixity d)
+  return [ (x, A.nameFixity $ A.qnameName $ anameName d)
 	 | (QName x, ds) <- Map.assocs names
 	 , d		 <- ds
 	 , anameKind d `elem` kinds

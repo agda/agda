@@ -137,7 +137,8 @@ showConstraints [c] =
 	liftIO $ print d
 showConstraints [] =
     do	cs <- BasicOps.getConstraints
-	liftIO $ putStrLn $ unlines $ List.map show cs
+	ds <- mapM showA cs
+	liftIO $ putStrLn $ unlines ds
 showConstraints _ = liftIO $ putStrLn ":constraints [cid]"
 
 	
@@ -146,17 +147,18 @@ showMetas [m] =
     do	i <- readM m
 	s <- typeOfMeta AsIs (InteractionId i)
 	r <- getInteractionRange (InteractionId i)
-	liftIO $ putStrLn $ show s ++ " " ++ show r
+	d <- showA s
+	liftIO $ putStrLn $ d ++ " " ++ show r
 showMetas [m,"normal"] =
     do	i <- readM m
-	s <- typeOfMeta Normalised (InteractionId i)
+	s <- showA =<< typeOfMeta Normalised (InteractionId i)
 	r <- getInteractionRange (InteractionId i)
-	liftIO $ putStrLn $ show s ++ " " ++ show r
+	liftIO $ putStrLn $ s ++ " " ++ show r
 showMetas [] = 
     do  (interactionMetas,hiddenMetas) <- typeOfMetas AsIs 
-        let ims =  List.map show interactionMetas 
-            hms =  List.map show hiddenMetas
-        mapM_ (liftIO . print) interactionMetas
+        ims <- mapM showA interactionMetas 
+        hms <- mapM showA hiddenMetas
+        mapM_ (liftIO . putStrLn) =<< mapM showA interactionMetas
 	mapM_ print' hiddenMetas
     where
 	metaId (OfType i _) = i
@@ -166,7 +168,8 @@ showMetas [] =
 	metaId _ = __IMPOSSIBLE__
 	print' x = do
 	    r <- getMetaRange (metaId x)
-	    liftIO $ putStrLn $ show x ++ "  [ at " ++ show r ++ " ]"
+	    d <- showA x
+	    liftIO $ putStrLn $ show d ++ "  [ at " ++ show r ++ " ]"
 showMetas _ = liftIO $ putStrLn $ ":meta [metaid]"
 
 
@@ -212,7 +215,7 @@ retryConstraints = liftTCM wakeupConstraints
 evalIn :: [String] -> TCM ()
 evalIn s | length s >= 2 =
     do	v <- actOnMeta s evalInMeta
-        liftIO $ putStrLn $ show v
+        liftIO . putStrLn =<< showA v
 evalIn _ = liftIO $ putStrLn ":eval metaid expr"
 
 parseExpr :: String -> TCM A.Expr
@@ -224,8 +227,8 @@ evalTerm :: String -> TCM (ExitCode a)
 evalTerm s =
     do	e <- parseExpr s
         v <- evalInCurrent e
-	e <- reify v
-	liftIO $ putStrLn $ showA e
+	e <- prettyTCM v
+	liftIO $ putStrLn $ show e
 	return Continue
     where
 	evalInCurrent e = 
@@ -240,14 +243,14 @@ typeOf s =
     do  e  <- parseExpr (unwords s)
         e0 <- typeInCurrent Normalised e
         e1 <- typeInCurrent AsIs e
-	liftIO $ putStrLn $ showA e1
+	liftIO . putStrLn =<< showA e1
 
 typeIn :: [String] -> TCM ()
 typeIn s@(_:_:_) = 
     actOnMeta s $ \i e ->
     do	e1  <- typeInMeta i Normalised e
         e2 <- typeInMeta i AsIs e
-	liftIO $ putStrLn $ showA e1
+	liftIO . putStrLn =<< showA e1
 typeIn _ = liftIO $ putStrLn ":typeIn meta expr"
 
 showContext :: [String] -> TCM ()

@@ -4,7 +4,6 @@ module Interaction.GhciTop
   ( module Interaction.GhciTop
   , module TypeChecker
   , module TM
-  , module TMN
   , module TypeChecking.MetaVars
   , module TypeChecking.Reduce
   , module TypeChecking.Errors
@@ -55,7 +54,6 @@ import System.Exit
 
 import TypeChecker
 import TypeChecking.Monad as TM
-import TypeChecking.Monad.Name as TMN
 import TypeChecking.MetaVars
 import TypeChecking.Reduce
 import TypeChecking.Errors
@@ -67,12 +65,13 @@ import Syntax.Common as SCo
 import Syntax.Concrete.Name as CN
 import Syntax.Concrete.Pretty ()
 import Syntax.Abstract as SA
+import Syntax.Abstract.Pretty
 import Syntax.Internal as SI
 import Syntax.Scope.Base
 import Syntax.Scope.Monad hiding (bindName)
 import qualified Syntax.Info as Info
 import Syntax.Translation.ConcreteToAbstract
-import Syntax.Translation.AbstractToConcrete
+import Syntax.Translation.AbstractToConcrete hiding (withScope)
 import Syntax.Translation.InternalToAbstract
 import Syntax.Abstract.Name
 
@@ -158,15 +157,17 @@ cmd_load file = infoOnException $ do
 
 cmd_constraints :: IO ()
 cmd_constraints = infoOnException $ ioTCM $ do
-    cs <- List.map (show . abstractToConcrete_) <$> B.getConstraints
+    cs <- mapM showA =<< B.getConstraints
     liftIO $ display_info "*Constraints*" (unlines cs)
 
 
 cmd_metas :: IO ()
 cmd_metas = infoOnException $ ioTCM $ do -- CL.showMetas []
   (ims, hms) <- B.typeOfMetas B.AsIs
+  di <- mapM showA ims
+  dh <- mapM showA hms
   liftIO $ display_info "*All Goals*" $ unlines $
-    List.map show ims ++ List.map show hms
+    di ++ dh
 
 cmd_undo :: IO ()
 cmd_undo = ioTCM undo
@@ -187,8 +188,8 @@ give_gen give_ref mk_newtxt ii rng s = infoOnException $ do
     ioTCM $ do
       prec      <- scopePrecedence <$> getInteractionScope ii
       (ae, iis) <- give_ref ii Nothing =<< parseExprIn ii rng s
-      let newtxt = A . mk_newtxt s $ abstractToConcreteCtx prec ae
-          newgs  = Q . L $ List.map showNumIId iis
+      newtxt <- A . mk_newtxt s <$> abstractToConcreteCtx prec ae
+      let newgs  = Q . L $ List.map showNumIId iis
       liftIO $ putStrLn $ response $
                  L[A"agda2-give-action", showNumIId ii, newtxt, newgs]
     cmd_metas
@@ -203,18 +204,18 @@ parseExprIn ii rng s = do
 
 cmd_context :: GoalCommand
 cmd_context ii _ _ = infoOnException $ do
-  display_info "*Context*" . unlines . List.map show
-      =<< ioTCM (B.contextOfMeta ii)
+  display_info "*Context*" . unlines
+      =<< ioTCM (mapM showA =<< B.contextOfMeta ii)
 
 cmd_infer :: B.Rewrite -> GoalCommand
 cmd_infer norm ii rng s = infoOnException $ do
-  display_info "*Inferred Type*" . show
-      =<< ioTCM (B.typeInMeta ii norm =<< parseExprIn ii rng s)
+  display_info "*Inferred Type*"
+      =<< ioTCM (showA =<< B.typeInMeta ii norm =<< parseExprIn ii rng s)
 
 
 cmd_goal_type :: B.Rewrite -> GoalCommand
 cmd_goal_type norm ii _ _ = infoOnException $ do 
-    display_info "*Current Goal*" . show =<< ioTCM (B.typeOfMeta norm ii)
+    display_info "*Current Goal*" =<< ioTCM (showA =<< B.typeOfMeta norm ii)
 
 display_info :: String -> String -> IO()
 display_info bufname content =
@@ -239,7 +240,7 @@ showNumIId = A . tail . show
 
 takenNameStr :: TCM [String]
 takenNameStr = do
-  xss <- sequence [ List.map fst <$> getContext
+  xss <- sequence [ List.map (fst . unArg) <$> getContext
                   , keys <$> asks envLetBindings
                   , List.map qnameName . keys . sigDefinitions <$> getSignature
 		  ]
@@ -260,7 +261,7 @@ cmd_make_case ii rng s = infoOnException $ ioTCM $ do
   mId <- lookupInteractionId ii
   mfo <- getMetaInfo <$> lookupMeta mId
   ex  <- passAVar =<< parseExprIn ii rng s -- the pattern variable to case on
-  let sx = show ex
+  sx  <- showA ex
   -- find the clause to refine
   targetPat <- findClause mId =<< getSignature -- not the metaSig.
   withMetaInfo mfo $ do
@@ -321,10 +322,10 @@ cmd_make_case ii rng s = infoOnException $ ioTCM $ do
   deAbs (Body t        ) = Just t
   deAbs  NoBody		 = Nothing
 
-  passAVar e@(SA.Var _ _) = return e
-  passAVar x   = fail("passAVar: got "++show x)
+  passAVar e@(SA.Var _) = return e
+  passAVar x   = fail . ("passAVar: got "++) =<< showA x
   passElDef t@(El _ (SI.Def _ _)) = return t
-  passElDef t  = fail . ("passElDef: got "++) . show =<< reify t
+  passElDef t  = fail . ("passElDef: got "++) =<< showA =<< reify t
   passData  d@(Defn _ _ (Datatype _ _ _ _ _)) = return d
   passData  d@(Defn _ _ (Function _ _))	      = fail $ "passData: got function"
   passData  d@(Defn _ _ TM.Axiom)	      = fail $ "passData: got axiom"
@@ -362,11 +363,12 @@ cmd_solveAll = infoOnException $ ioTCM $ do
       L[ A"agda2-solveAll-action" , Q . L $ concatMap prn out]
   where
   getInsts = Map.foldWithKey go (return []) where
+    go :: InteractionId -> MetaId -> TCM [(InteractionId, SC.Expr)] -> TCM [(InteractionId, SC.Expr)]
     go ii mi rest = do
       mv <- lookupMeta mi
       withMetaInfo (getMetaInfo mv) $ do    
         args <- getContextArgs
-        let out m = do e <- lowerMeta . abstractToConcrete_ <$> reify m;
+        let out m = do e <- lowerMeta <$> (abstractToConcrete_ =<< reify m)
                        ((ii, e):) <$> rest
         case mvInstantiation mv of InstV _	  -> out (MetaV mi args)
                                    InstS _	  -> out (MetaS mi)
@@ -454,7 +456,7 @@ preUscore = SC.Underscore   noRange Nothing
 
 cmd_compute :: B.Rewrite -> GoalCommand
 cmd_compute _ ii rng s = infoOnException $ do
-  v <- ioTCM (B.evalInMeta ii =<< parseExprIn ii rng s)
+  v <- ioTCM (prettyA =<< B.evalInMeta ii =<< parseExprIn ii rng s)
   display_info "*Normal Form*" (show v)
 
 -- change "\<decimal>" to a single character

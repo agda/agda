@@ -98,10 +98,10 @@ class Abstract t where
     abstract :: Telescope -> t -> t
 
 instance Abstract Term where
-    abstract tel v = teleLam tel v
+    abstract = teleLam
 
 instance Abstract Type where
-    abstract tel (El s t) = El s $ abstract tel t
+    abstract = telePi
 
 instance Abstract Sort where
     abstract EmptyTel s = s
@@ -141,8 +141,8 @@ instance Abstract t => Abstract [t] where
 abstractArgs :: Abstract a => Args -> a -> a
 abstractArgs args x = abstract tel x
     where
-	tel   = foldr (\x -> ExtendTel (Arg NotHidden $ sort Prop) . Abs x) EmptyTel
-	      $ zipWith const names args
+	tel   = foldr (\(Arg h x) -> ExtendTel (Arg h $ sort Prop) . Abs x) EmptyTel
+	      $ zipWith (fmap . const) names args
 	names = cycle $ map (:[]) ['a'..'z']
 
 -- | Substitute a term for the nth free variable.

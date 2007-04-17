@@ -54,7 +54,7 @@ withFunctionDomain (El s tm) f ret = withDomain s tm
 	    case tm of
 		Pi arg abs -> do
 		    res	    <- f $ unArg arg
-		    underAbstraction (unArg arg) abs $ \ty ->
+		    underAbstraction arg abs $ \ty ->
 			withFunctionDomain ty f $ \ress ty ->
 			ret (res : ress) ty
 		Fun arg ty -> do

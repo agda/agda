@@ -153,7 +153,7 @@ instance PrettyTCM TypeError where
 		pwords "The target of the constructor should be" ++ [prettyTCM s] ++
 		pwords "instead of" ++ [prettyTCM t]
 	    ShouldBeApplicationOf t q -> fsep $
-		pwords "The pattern constructs an element of" ++ [pretty q] ++
+		pwords "The pattern constructs an element of" ++ [prettyTCM q] ++
 		pwords "which is not the right datatype"
 	    DifferentArities ->
 		fwords "The number of arguments in the defining equations differ"
@@ -247,13 +247,13 @@ instance PrettyTCM TypeError where
 	    ClashingDefinition x y -> fsep $
 		pwords "Multiple definitions of" ++ [pretty x]
 	    ClashingModule m1 m2 -> fsep $
-		pwords "The modules" ++ [pretty m1, text "and", pretty m2] ++ pwords "clash."
+		pwords "The modules" ++ [prettyTCM m1, text "and", prettyTCM m2] ++ pwords "clash."
 	    ClashingImport x y -> fsep $
-		pwords "Import clash between" ++ [pretty x, text "and", pretty y]
+		pwords "Import clash between" ++ [pretty x, text "and", prettyTCM y]
 	    ClashingModuleImport x y -> fsep $
-		pwords "Module import clash between" ++ [pretty x, text "and", pretty y]
+		pwords "Module import clash between" ++ [pretty x, text "and", prettyTCM y]
 	    ModuleDoesntExport m xs -> fsep $
-		pwords "The module" ++ [pretty m] ++ pwords "doesn't export the following:" ++
+		pwords "The module" ++ [prettyTCM m] ++ pwords "doesn't export the following:" ++
 		punctuate comma (map pretty xs)
 	    NotAModuleExpr e -> fsep $
 		pwords "The right-hand side of a module definition must have the form 'M e1 .. en'" ++
@@ -281,19 +281,19 @@ instance PrettyTCM TypeError where
 		pwords "Incomplete pattern matching for" ++ [prettyTCM v <> text"."] ++
 		pwords "No match for" ++ map prettyTCM args
 	    NotStrictlyPositive d ocs -> fsep $
-		pwords "Datatype" ++ [pretty d] ++ pwords "is not strictly positive, because"
+		pwords "Datatype" ++ [prettyTCM d] ++ pwords "is not strictly positive, because"
 		++ prettyOcc "it" ocs
 		where
 		    prettyOcc _ [] = []
 		    prettyOcc it (Occ d c r : ocs) = concat
 			[ pwords it, pwords "occurs", prettyR r
-			, pwords "in constructor", [pretty c], pwords "of datatype"
-			, [pretty d <> com ocs], prettyOcc "which" ocs
+			, pwords "in constructor", [prettyTCM c], pwords "of datatype"
+			, [prettyTCM d <> com ocs], prettyOcc "which" ocs
 			]
 		    prettyR NonPositively = pwords "negatively"
 		    prettyR (ArgumentTo i q) =
 			pwords "as the" ++ [th i] ++
-			pwords "argument to" ++ [pretty q]
+			pwords "argument to" ++ [prettyTCM q]
 		    th 0 = text "first"
 		    th 1 = text "second"
 		    th 2 = text "third"
@@ -315,7 +315,7 @@ instance PrettyTCM Call where
 	    pwords "when checking that the pattern"
 	    ++ [prettyA p] ++ pwords "has type" ++ [prettyTCM t]
 	CheckLetBinding b _ -> fsep $
-	    pwords "when checking the let binding" ++ [vcat $ map pretty $ abstractToConcrete_ b]
+	    pwords "when checking the let binding" ++ [vcat . map pretty =<< abstractToConcrete_ b]
 	InferExpr e _ -> fsep $
 	    pwords "when inferring the type of" ++ [prettyA e]
 	CheckExpr e t _ -> fsep $
@@ -331,22 +331,22 @@ instance PrettyTCM Call where
 	    pwords "when checking that" ++
 	    map hPretty es ++ pwords "are valid arguments to a function of type" ++ [prettyTCM t0]
 	CheckDataDef _ x ps cs _ ->
-	    fsep $ pwords "when checking the definition of" ++ [pretty x]
+	    fsep $ pwords "when checking the definition of" ++ [prettyTCM x]
 	CheckConstructor d _ _ (A.Axiom _ c _) _ -> fsep $
-	    pwords "when checking the constructor" ++ [pretty c] ++
-	    pwords "in the declaration of" ++ [pretty d]
+	    pwords "when checking the constructor" ++ [prettyTCM c] ++
+	    pwords "in the declaration of" ++ [prettyTCM d]
 	CheckConstructor _ _ _ _ _ -> __IMPOSSIBLE__
 	CheckFunDef _ f _ _ ->
-	    fsep $ pwords "when checking the definition of" ++ [pretty f]
+	    fsep $ pwords "when checking the definition of" ++ [prettyTCM f]
 	CheckPragma _ p _ ->
 	    fsep $ pwords "when checking the pragma" ++ [prettyA $ RangeAndPragma noRange p]
 	CheckPrimitive _ x e _ -> fsep $
 	    pwords "when checking that the type of the primitive function" ++
-	    [pretty x] ++ pwords "is" ++ [prettyA e]
+	    [prettyTCM x] ++ pwords "is" ++ [prettyA e]
 	InferVar x _ ->
-	    fsep $ pwords "when inferring the type of" ++ [pretty x]
+	    fsep $ pwords "when inferring the type of" ++ [prettyTCM x]
 	InferDef _ x _ ->
-	    fsep $ pwords "when inferring the type of" ++ [pretty x]
+	    fsep $ pwords "when inferring the type of" ++ [prettyTCM x]
 	ScopeCheckExpr e _ ->
 	    fsep $ pwords "when scope checking" ++ [pretty e]
 	ScopeCheckDeclaration d _ ->
@@ -356,7 +356,7 @@ instance PrettyTCM Call where
 	    fsep $ pwords "when scope checking the left-hand side" ++ [pretty p] ++
 		   pwords "in the definition of" ++ [pretty x]
 	where
-	    hPretty a@(Arg h _) = pretty $ abstractToConcreteCtx (hiddenArgumentCtx h) a
+	    hPretty a@(Arg h _) = pretty =<< abstractToConcreteCtx (hiddenArgumentCtx h) a
 
 	    simpleDecl d = case d of
 		D.Axiom _ _ _ _ x e		       -> C.TypeSig x e

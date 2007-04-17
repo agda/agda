@@ -66,14 +66,12 @@ data KindOfName = ConName | DefName
 data AbstractName = AbsName
       { anameName   :: A.QName
       , anameKind   :: KindOfName
-      , anameFixity :: Fixity
       }
   deriving (Typeable, Data)
 
 -- | For modules we record the arity. I'm not sure that it's every used anywhere.
 data AbstractModule = AbsModule
       { amodName    :: A.ModuleName
-      , amodArity   :: Arity
       }
   deriving (Typeable, Data)
 
@@ -319,8 +317,8 @@ freshCanonicalNames old new s = mapScope_ (rename onName) (rename onModule) s
 -- | Find the shortest concrete name that maps (uniquely) to a given abstract
 --   name. Find defined names (first component of result) and module names
 --   (second component) simultaneously.
-inverseScopeLookup :: A.QName -> ScopeStack -> (Maybe C.QName, Maybe C.QName)
-inverseScopeLookup x ss = best -*- best $ invert x $ mergeScopes ss
+inverseScopeLookup :: A.QName -> ScopeInfo -> (Maybe C.QName, Maybe C.QName)
+inverseScopeLookup x s = best -*- best $ invert x $ mergeScopes $ scopeStack s
   where
     len :: C.QName -> Int
     len (C.QName _)  = 1
@@ -336,10 +334,10 @@ inverseScopeLookup x ss = best -*- best $ invert x $ mergeScopes ss
 	ms = [ y | (y, [m]) <- Map.toList $ allModulesInScope s, x == amodName m  ]
 
 -- | Takes the first component of 'inverseScopeLookup'.
-inverseScopeLookupName :: A.QName -> ScopeStack -> Maybe C.QName
+inverseScopeLookupName :: A.QName -> ScopeInfo -> Maybe C.QName
 inverseScopeLookupName x ss = fst $ inverseScopeLookup x ss
 
 -- | Takes the second component of 'inverseScopeLookup'.
-inverseScopeLookupModule :: A.QName -> ScopeStack -> Maybe C.QName
+inverseScopeLookupModule :: A.QName -> ScopeInfo -> Maybe C.QName
 inverseScopeLookupModule x ss = snd $ inverseScopeLookup x ss
 

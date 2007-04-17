@@ -55,7 +55,7 @@ equalTerm a m n =
     where
 	equalFun (a,t) m n =
 	    do	name <- freshName_ (suggest $ unEl t)
-		addCtx name (unArg a) $ equalTerm t' m' n'
+		addCtx name a $ equalTerm t' m' n'
 	    where
 		p	= fmap (const $ Var 0 []) a
 		(m',n') = raise 1 (m,n) `apply` [p]
@@ -127,7 +127,7 @@ equalAtom t m n =
 	    (_,BlockedV b)     -> buildConstraint (ValueEq t m n)
 	    _		       -> typeError $ UnequalTerms m n t
     where
-	equalFun (FunV (Arg h1 a1) t1) (FunV (Arg h2 a2) t2)
+	equalFun (FunV arg1@(Arg h1 a1) t1) (FunV (Arg h2 a2) t2)
 	    | h1 /= h2	= typeError $ UnequalHiding ty1 ty2
 	    | otherwise = do
 		    let (ty1',ty2') = raise 1 (ty1,ty2)
@@ -143,9 +143,9 @@ equalAtom t m n =
 					Fun _ _	-> False
 					_	-> __IMPOSSIBLE__
 		    if dependent
-			then addCtx name a1 $ guardConstraint (return cs) c
+			then addCtx name arg1 $ guardConstraint (return cs) c
 			else do
-			    cs' <- addCtx name a1 $ solveConstraint c
+			    cs' <- addCtx name arg1 $ solveConstraint c
 			    return $ cs ++ cs'
 	    where
 		ty1 = El (getSort a1) t1    -- TODO: wrong (but it doesn't matter)

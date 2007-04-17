@@ -8,9 +8,13 @@
 -}
 module Syntax.Translation.AbstractToConcrete where
 
+import Control.Applicative
 import Control.Monad.Reader
 import Data.Char
-import Data.Map as Map hiding (map)
+import qualified Data.Map as Map
+import Data.Map (Map)
+import qualified Data.Set as Set
+import Data.Set (Set)
 import Data.List as List
 
 import Syntax.Common
@@ -23,6 +27,8 @@ import Syntax.Abstract as A
 import Syntax.Abstract.Views as AV
 import Syntax.Scope.Base
 
+import TypeChecking.Monad (getScope, MonadTCM)
+
 import Utils.Maybe
 import Utils.Monad
 import Utils.Tuple
@@ -31,21 +37,34 @@ import Utils.Tuple
 
 -- Environment ------------------------------------------------------------
 
--- | The translation is configurable. Currently you can choose whether to
---   make use of the pieces of concrete syntax stored in the info parts of
---   the abstract syntax. When pretty printing, this is what you want, but
---   if the purpose is to verify the correctness of the translation from
---   concrete to abstract we want to look at all of the abstract syntax.
-data Env = Env { useStoredConcreteSyntax :: Bool
-	       , precedenceLevel	 :: Precedence
-	       , currentScope		 :: ScopeStack
+data Env = Env { takenNames   :: Set C.Name
+	       , currentScope :: ScopeInfo
 	       }
 
 defaultEnv :: Env
-defaultEnv = Env { useStoredConcreteSyntax = True
-		 , precedenceLevel	   = TopCtx
-		 , currentScope		   = []
+defaultEnv = Env { takenNames	= Set.empty
+		 , currentScope	= emptyScopeInfo
 		 }
+
+makeEnv :: ScopeInfo -> Env
+makeEnv scope = Env { takenNames   = taken
+		    , currentScope = scope
+		    }
+  where
+    s	  = mergeScopes $ scopeStack scope
+    taken = Set.union vars defs
+    vars  = Set.fromList $ map fst $ scopeLocals scope
+    defs  = Set.fromList [ x | (C.QName x, _) <- Map.toList $ allNamesInScope s ]
+
+currentPrecedence :: AbsToCon Precedence
+currentPrecedence = asks $ scopePrecedence . currentScope
+
+withPrecedence :: Precedence -> AbsToCon a -> AbsToCon a
+withPrecedence p = local $ \e ->
+  e { currentScope = (currentScope e) { scopePrecedence = p } }
+
+withScope :: ScopeInfo -> AbsToCon a -> AbsToCon a
+withScope scope = local $ \e -> e { currentScope = scope }
 
 -- The Monad --------------------------------------------------------------
 
@@ -55,39 +74,65 @@ type AbsToCon = Reader Env
 abstractToConcrete :: ToConcrete a c => Env -> a -> c
 abstractToConcrete flags a = runReader (toConcrete a) flags
 
-abstractToConcreteCtx :: ToConcrete a c => Precedence -> a -> c
-abstractToConcreteCtx ctx x =
-    abstractToConcrete (defaultEnv { precedenceLevel = ctx }) x
+abstractToConcreteCtx :: (MonadTCM tcm, ToConcrete a c) => Precedence -> a -> tcm c
+abstractToConcreteCtx ctx x = do
+  scope <- getScope
+  let scope' = scope { scopePrecedence = ctx }
+  return $ abstractToConcrete (makeEnv scope') x
+  where
+    scope = (currentScope defaultEnv) { scopePrecedence = ctx }
 
-abstractToConcrete_ :: ToConcrete a c => a -> c
-abstractToConcrete_ = abstractToConcrete defaultEnv
+abstractToConcrete_ :: (MonadTCM tcm, ToConcrete a c) => a -> tcm c
+abstractToConcrete_ x = do
+  scope <- getScope
+  return $ abstractToConcrete (makeEnv scope) x
 
 -- Dealing with names -----------------------------------------------------
 
+-- | Names in abstract syntax are fully qualified, but the concrete syntax
+--   requires non-qualified names in places. In theory (if all scopes are
+--   correct), we should get a non-qualified name when translating back to a
+--   concrete name, but I suspect the scope isn't always perfect. In these
+--   cases we just throw away the qualified part. It's just for pretty printing
+--   anyway...
+unsafeQNameToName :: C.QName -> C.Name
+unsafeQNameToName (C.QName x) = x
+unsafeQNameToName (C.Qual _ x) = unsafeQNameToName x
+
 lookupName :: A.Name -> AbsToCon C.Name
-lookupName x =
-    do	scope <- __IMPOSSIBLE__  -- TODO!!
-	case Map.lookup x scope of
+lookupName x = do
+  names <- asks $ scopeLocals . currentScope
+  case lookup x $ map swap names of
+      Just y  -> return y
+      Nothing -> return $ nameConcrete x
+  where
+    swap (x, y) = (y, x)
+
+lookupQName :: A.QName -> AbsToCon C.QName
+lookupQName x =
+    do	scope <- asks currentScope
+	case inverseScopeLookupName x scope of
 	    Just y  -> return y
-	    Nothing -> return $ nameConcrete x -- TODO: should be __IMPOSSIBLE__
-					       -- (once we take the context
-					       -- into account when translating)
+	    Nothing -> return $ qnameToConcrete x
+		-- this is what happens for names that are not in scope (private names)
 
 bindName :: A.Name -> (C.Name -> AbsToCon a) -> AbsToCon a
 bindName x ret = do
-    names <- asks __IMPOSSIBLE__ -- TODO!!
-    let y = nameConcrete x
-    case Map.lookup y names of
-	Just _	-> bindName (nextName x) ret
-	Nothing	-> __IMPOSSIBLE__ -- TODO!!
--- 	    local (\e -> e { concreteNames = Map.insert x y $ concreteNames e
--- 			   , abstractNames = dontInsertNoName y x $ abstractNames e
--- 			   }
--- 		  ) $ ret y
-    where
-	dontInsertNoName y x m
-	    | y == C.noName_ = m
-	    | otherwise	     = Map.insert y x m
+  names <- asks takenNames
+  let y = nameConcrete x
+  case Set.member y names of
+    True  -> bindName (nextName x) ret
+    False ->
+	local (\e -> e { takenNames   = Set.insert y $ takenNames e
+		       , currentScope = (currentScope e)
+			  { scopeLocals = dontInsertNoName y x $ scopeLocals $ currentScope e
+			  }
+		       }
+	      ) $ ret y
+  where
+    dontInsertNoName y x m
+	| y == C.noName_ = m
+	| otherwise	 = (y, x) : m
 
 -- | TODO: Move
 data Suffix = NoSuffix | Prime Int | Index Int
@@ -123,19 +168,6 @@ nextName x = x { nameConcrete = C.Name r $ nextSuf ps }
 
 -- Dealing with stored syntax ---------------------------------------------
 
--- | Indicates that the argument is a stored piece of syntax.
-stored :: a -> AbsToCon (Maybe a)
-stored x =
-    do	b <- useStoredConcreteSyntax <$> ask
-	return $ if b then Just x else Nothing
-
-withStored :: ToConcrete i (Maybe c) => i -> AbsToCon c -> AbsToCon c
-withStored i m = fromMaybeM m (toConcrete i)
-
-bindWithStored :: BindToConcrete i (Maybe c) => i -> (c -> AbsToCon b) -> AbsToCon b -> AbsToCon b
-bindWithStored i ret m = bindToConcrete i $ maybe m ret
-
-
 -- Dealing with precedences -----------------------------------------------
 
 -- | General bracketing function.
@@ -143,7 +175,7 @@ bracket' ::    (e -> e)		    -- ^ the bracketing function
 	    -> (Precedence -> Bool) -- ^ do we need brackets
 	    -> e -> AbsToCon e
 bracket' paren needParen e =
-    do	p <- precedenceLevel <$> ask
+    do	p <- currentPrecedence
 	return $ if needParen p then paren e else e
 
 -- | Expression bracketing
@@ -193,65 +225,27 @@ withAbstractPrivate i m =
 
 class ToConcrete a c | a -> c where
     toConcrete :: a -> AbsToCon c
-
-class BindToConcrete a c | a -> c where
     bindToConcrete :: a -> (c -> AbsToCon b) -> AbsToCon b
+
+    toConcrete	   x	 = bindToConcrete x return
+    bindToConcrete x ret = ret =<< toConcrete x
 
 -- | Translate something in a context of the given precedence.
 toConcreteCtx :: ToConcrete a c => Precedence -> a -> AbsToCon c
-toConcreteCtx p x = local (\f -> f { precedenceLevel = p }) $ toConcrete x
+toConcreteCtx p x = withPrecedence p $ toConcrete x
 
 -- | Translate something in a context of the given precedence.
-bindToConcreteCtx :: BindToConcrete a c => Precedence -> a -> (c -> AbsToCon b) -> AbsToCon b
-bindToConcreteCtx p x ret = local (\f -> f { precedenceLevel = p }) $ bindToConcrete x ret
-
--- Info instances ---------------------------------------------------------
-
-instance ToConcrete ExprInfo (Maybe C.Expr) where
-    toConcrete (ExprSource _ f)	=
-	do  p <- precedenceLevel <$> ask
-	    stored (f p)
-    toConcrete _		= return Nothing
-
-instance ToConcrete DeclInfo (Maybe [C.Declaration]) where
-    toConcrete = toConcrete . declSource
-
-instance ToConcrete DeclSource (Maybe [C.Declaration]) where
-    toConcrete (DeclSource ds)	= stored ds
-    toConcrete _		= return Nothing
-
-instance ToConcrete DefInfo (Maybe [C.Declaration]) where
-    toConcrete info = toConcrete $ defInfo info
-
-instance BindToConcrete LHSInfo (Maybe C.LHS) where
-    bindToConcrete (LHSSource lhs) ret = ret =<< stored lhs
-
-instance BindToConcrete PatInfo (Maybe [C.Pattern]) where
-    bindToConcrete (PatSource _ f) ret =
-	do  p <- precedenceLevel <$> ask
-	    ret . fmap (:[]) =<< stored (f p)
-    bindToConcrete (PatRange _) ret = ret Nothing
-
-instance ToConcrete ModuleInfo (Maybe [C.Declaration]) where
-    toConcrete = toConcrete . minfoSource
-
-instance BindToConcrete LetInfo (Maybe [C.Declaration]) where
-    bindToConcrete (LetSource ds) ret = ret =<< stored ds
-    bindToConcrete _		  ret = ret Nothing
-
+bindToConcreteCtx :: ToConcrete a c => Precedence -> a -> (c -> AbsToCon b) -> AbsToCon b
+bindToConcreteCtx p x ret = withPrecedence p $ bindToConcrete x ret
 
 -- General instances ------------------------------------------------------
 
 instance ToConcrete a c => ToConcrete [a] [c] where
-    toConcrete = mapM toConcrete
-
-instance BindToConcrete a c => BindToConcrete [a] [c] where
+    toConcrete	   = mapM toConcrete
     bindToConcrete = thread bindToConcrete
 
 instance (ToConcrete a1 c1, ToConcrete a2 c2) => ToConcrete (a1,a2) (c1,c2) where
     toConcrete (x,y) = liftM2 (,) (toConcrete x) (toConcrete y)
-
-instance (BindToConcrete a1 c1, BindToConcrete a2 c2) => BindToConcrete (a1,a2) (c1,c2) where
     bindToConcrete (x,y) ret =
 	bindToConcrete x $ \x ->
 	bindToConcrete y $ \y ->
@@ -263,8 +257,6 @@ instance (ToConcrete a1 c1, ToConcrete a2 c2, ToConcrete a3 c3) =>
 	where
 	    reorder (x,(y,z)) = (x,y,z)
 
-instance (BindToConcrete a1 c1, BindToConcrete a2 c2, BindToConcrete a3 c3) =>
-	 BindToConcrete (a1,a2,a3) (c1,c2,c3) where
     bindToConcrete (x,y,z) ret = bindToConcrete (x,(y,z)) $ ret . reorder
 	where
 	    reorder (x,(y,z)) = (x,y,z)
@@ -273,13 +265,10 @@ instance ToConcrete a c => ToConcrete (Arg a) (Arg c) where
     toConcrete (Arg h@Hidden    x) = Arg h <$> toConcreteCtx TopCtx x
     toConcrete (Arg h@NotHidden x) = Arg h <$> toConcrete x
 
-instance ToConcrete a c => ToConcrete (Named name a) (Named name c) where
-    toConcrete (Named n x) = Named n <$> toConcrete x
-
-instance BindToConcrete a c => BindToConcrete (Arg a) (Arg c) where
     bindToConcrete (Arg h x) ret = bindToConcreteCtx (hiddenArgumentCtx h) x $ ret . Arg h
 
-instance BindToConcrete a c => BindToConcrete (Named name a) (Named name c) where
+instance ToConcrete a c => ToConcrete (Named name a) (Named name c) where
+    toConcrete (Named n x) = Named n <$> toConcrete x
     bindToConcrete (Named n x) ret = bindToConcrete x $ ret . Named n
 
 newtype DontTouchMe a = DontTouchMe a
@@ -287,33 +276,21 @@ newtype DontTouchMe a = DontTouchMe a
 instance ToConcrete (DontTouchMe a) a where
     toConcrete (DontTouchMe x) = return x
 
--- | @Force@ is the type level equivalent of @fromJust@.
---   If @toConcrete a :: Maybe c@, then @toConcrete (Force a) :: c@
-newtype Force a = Force a
-
-instance ToConcrete a (Maybe c) => ToConcrete (Force a) c where
-    toConcrete (Force a) =
-	do  Just c <- local (\s -> s { useStoredConcreteSyntax = True })
-			$ toConcrete a
-	    return c
-
 -- Names ------------------------------------------------------------------
 
 instance ToConcrete A.Name C.Name where
-    toConcrete = lookupName
+    toConcrete	     = lookupName
+    bindToConcrete x = bindName x
 
 instance ToConcrete A.QName C.QName where
-    toConcrete = return . qnameToConcrete   -- TODO!!
-
-instance BindToConcrete A.Name C.Name where
-    bindToConcrete x = bindName x
+    toConcrete = lookupQName
 
 -- Expression instance ----------------------------------------------------
 
 instance ToConcrete A.Expr C.Expr where
-    toConcrete (Var _ x) = Ident . C.QName <$> toConcrete x
-    toConcrete (Def _ x) = return $ Ident (qnameToConcrete x) -- TODO!!
-    toConcrete (Con _ x) = return $ Ident (qnameToConcrete x) -- TODO!!
+    toConcrete (Var x) = Ident . C.QName <$> toConcrete x
+    toConcrete (Def x) = Ident <$> toConcrete x
+    toConcrete (Con x) = Ident <$> toConcrete x
 	-- for names we have to use the name from the info, since the abstract
 	-- name has been resolved to a fully qualified name (except for
 	-- variables)
@@ -327,8 +304,7 @@ instance ToConcrete A.Expr C.Expr where
 						(metaNumber i)
 
     toConcrete e@(A.App i e1 e2)    =
-	withStored i
-        $ tryToRecoverOpApp e
+        tryToRecoverOpApp e
         -- or fallback to App
 	$ bracket appBrackets
         $ do e1' <- toConcreteCtx FunctionCtx e1
@@ -336,8 +312,7 @@ instance ToConcrete A.Expr C.Expr where
 	     return $ C.App (getRange i) e1' e2'
 
     toConcrete e@(A.Lam i _ _)	    =
-	withStored i
-	$ bracket lamBrackets
+	bracket lamBrackets
 	$ case lamView e of
 	    (bs, e) ->
 		bindToConcrete bs $ \bs -> do
@@ -358,15 +333,13 @@ instance ToConcrete A.Expr C.Expr where
 
     toConcrete (A.Pi _ [] e) = toConcrete e
     toConcrete (A.Pi i b e)  =
-	withStored i
-	$ bracket piBrackets
+	bracket piBrackets
 	$ bindToConcrete b $ \b' -> do
 	     e' <- toConcreteCtx TopCtx e
 	     return $ C.Pi b' e'
 
     toConcrete (A.Fun i a b) =
-	withStored i
-	$ bracket piBrackets
+	bracket piBrackets
 	$ do a' <- toConcreteCtx FunctionSpaceDomainCtx a 
 	     b' <- toConcreteCtx TopCtx b
 	     return $ C.Fun (getRange i) (mkArg a') b'
@@ -374,38 +347,30 @@ instance ToConcrete A.Expr C.Expr where
 	    mkArg (Arg Hidden	 e) = HiddenArg (getRange e) (unnamed e)
 	    mkArg (Arg NotHidden e) = e
 
-    toConcrete (A.Set i 0)  = withStored i $ return $ C.Set (getRange i)
-    toConcrete (A.Set i n)  = withStored i $ return $ C.SetN (getRange i) n
-    toConcrete (A.Prop i)   = withStored i $ return $ C.Prop (getRange i)
+    toConcrete (A.Set i 0)  = return $ C.Set (getRange i)
+    toConcrete (A.Set i n)  = return $ C.SetN (getRange i) n
+    toConcrete (A.Prop i)   = return $ C.Prop (getRange i)
 
     toConcrete (A.Let i ds e) =
-	withStored i
-	$ bracket lamBrackets
+	bracket lamBrackets
 	$ bindToConcrete ds $ \ds' -> do
 	     e'  <- toConcreteCtx TopCtx e
 	     return $ C.Let (getRange i) (concat ds') e'
 
-    toConcrete (A.ScopedExpr scope e) = __IMPOSSIBLE__ -- TODO!!
-
--- Dot patterns can bind variables. This is how.
--- They can't anymore. Good, then we don't have to implement the instance.
-{-
-instance BindToConcrete A.Expr C.Expr where
-    bindToConcrete e ret = __IMPOSSIBLE__ -- TODO: not really
--}
+    toConcrete (A.ScopedExpr scope e) = withScope scope $ toConcrete e
 
 -- Binder instances -------------------------------------------------------
 
-instance BindToConcrete A.LamBinding C.LamBinding where
+instance ToConcrete A.LamBinding C.LamBinding where
     bindToConcrete (A.DomainFree h x) ret = bindToConcrete x $ ret . C.DomainFree h
     bindToConcrete (A.DomainFull b)   ret = bindToConcrete b $ ret . C.DomainFull
 
-instance BindToConcrete A.TypedBindings C.TypedBindings where
+instance ToConcrete A.TypedBindings C.TypedBindings where
     bindToConcrete (A.TypedBindings r h bs) ret =
 	bindToConcrete bs $ \bs ->
 	ret (C.TypedBindings r h bs)
 
-instance BindToConcrete A.TypedBinding C.TypedBinding where
+instance ToConcrete A.TypedBinding C.TypedBinding where
     bindToConcrete (A.TBind r xs e) ret =
 	bindToConcrete xs $ \xs -> do
 	e <- toConcreteCtx TopCtx e
@@ -414,15 +379,11 @@ instance BindToConcrete A.TypedBinding C.TypedBinding where
 	e <- toConcreteCtx TopCtx e
 	ret (C.TNoBind e)
 
-instance BindToConcrete LetBinding [C.Declaration] where
+instance ToConcrete LetBinding [C.Declaration] where
     bindToConcrete (LetBind i x t e) ret =
-	bindWithStored i ret $
 	bindToConcrete x $ \x ->
 	do  (t,e) <- toConcrete (t,A.RHS e)
 	    ret [C.TypeSig x t, C.FunClause (C.IdentP $ C.QName x) e []]
-
-instance ToConcrete LetBinding [C.Declaration] where
-    toConcrete b = bindToConcrete b return
 
 -- Declaration instances --------------------------------------------------
 
@@ -436,112 +397,102 @@ instance ToConcrete A.RHS C.RHS where
 data TypeAndDef = TypeAndDef A.TypeSignature A.Definition
 
 instance ToConcrete TypeAndDef [C.Declaration] where
+  -- We don't do withInfixDecl here. It's done at the declaration level.
+
+  toConcrete (TypeAndDef (ScopedDecl scope [d]) def) =
+    withScope scope $ toConcrete (TypeAndDef d def)
+
+  toConcrete (TypeAndDef (Axiom _ x t) (FunDef i _ cs)) =
+    withAbstractPrivate i $ do
+    t'  <- toConcreteCtx TopCtx t
+    cs' <- toConcrete cs
+    x'  <- unsafeQNameToName <$> toConcrete x
+    return $ TypeSig x' t' : cs'
+
+  toConcrete (TypeAndDef (Axiom _ x t) (DataDef i _ bs cs)) =
+    withAbstractPrivate i $
+    bindToConcrete tel $ \tel' -> do
+      t'       <- toConcreteCtx TopCtx t0
+      (x',cs') <- (unsafeQNameToName -*- id) <$> toConcrete (x, map Constr cs)
+      return [ C.Data (getRange i) x' tel' t' cs' ]
+    where
+      (tel, t0) = mkTel (length bs) t
+      mkTel 0 t		   = ([], t)
+      mkTel n (A.Pi _ b t) = (b++) -*- id $ mkTel (n - 1) t
+      mkTel _ _		   = __IMPOSSIBLE__
+
   toConcrete _ = __IMPOSSIBLE__
-{-
-    -- We don't do withInfixDecl here. It's done at the declaration level.
-
-    toConcrete (TypeAndDef (Axiom _ x t) (FunDef i _ cs)) =
-	withAbstractPrivate i $
-	do  t'  <- toConcreteCtx TopCtx t
-	    cs' <- withStored i $ toConcrete cs
-	    x'  <- toConcrete x
-	    return $ TypeSig x' t' : cs'
-
-    toConcrete (TypeAndDef (Axiom _ x t) (DataDef i _ bs cs)) =
-	withAbstractPrivate i $
-	withStored  i $
-	bindToConcrete tel $ \tel' -> do
-	    t'	     <- toConcreteCtx TopCtx t0
-	    (x',cs') <- toConcrete (x, map Constr cs)
-	    return [ C.Data (getRange i) x' tel' t' cs' ]
-	where
-	    (tel, t0) = mkTel (length bs) t
-	    mkTel 0 t		    = ([], t)
-	    mkTel n (A.Pi _ b t)    = (b++) -*- id $ mkTel (n - 1) t
-	    mkTel _ _		    = __IMPOSSIBLE__
-
-    toConcrete _ = __IMPOSSIBLE__
--}
 
 newtype Constr a = Constr a
 
 instance ToConcrete (Constr A.Constructor) C.Declaration where
-  toConcrete _ = __IMPOSSIBLE__ -- TODO!!
-{-
-    toConcrete (Constr (A.Axiom i x t)) = do
-	x' <- toConcrete x
-	t' <- toConcreteCtx TopCtx t
-	return $ C.TypeSig x' t'
-    toConcrete _ = __IMPOSSIBLE__
--}
+  toConcrete (Constr (A.ScopedDecl scope [d])) =
+    withScope scope $ toConcrete (Constr d)
+  toConcrete (Constr (A.Axiom i x t)) = do
+    x' <- unsafeQNameToName <$> toConcrete x
+    t' <- toConcreteCtx TopCtx t
+    return $ C.TypeSig x' t'
+  toConcrete _ = __IMPOSSIBLE__
 
 instance ToConcrete A.Clause C.Declaration where
-  toConcrete _ = __IMPOSSIBLE__
-{-
-    toConcrete (A.Clause lhs rhs wh) =
-	bindToConcrete lhs $ \lhs' -> do
-	    rhs' <- toConcreteCtx TopCtx rhs
-	    wh'  <- toConcrete wh
-	    return $ FunClause lhs' rhs' wh'
--}
+  toConcrete (A.Clause lhs rhs wh) =
+      bindToConcrete lhs $ \lhs' -> do
+	  rhs' <- toConcreteCtx TopCtx rhs
+	  wh'  <- toConcrete wh
+	  return $ FunClause lhs' rhs' wh'
 
 instance ToConcrete A.Declaration [C.Declaration] where
+  toConcrete (ScopedDecl scope ds) =
+    withScope scope $ toConcrete ds
 
-  toConcrete _ = __IMPOSSIBLE__ -- TODO!!
+  toConcrete (Axiom i x t) = do
+    x' <- unsafeQNameToName <$> toConcrete x
+    withAbstractPrivate	i $
+      withInfixDecl i x'  $ do
+      t' <- toConcreteCtx TopCtx t
+      return [C.Postulate (getRange i) [C.TypeSig x' t']]
 
-{-
-    toConcrete (ScopedDecl _ _) = __IMPOSSIBLE__ -- TODO!!
+  toConcrete (A.Primitive i x t) = do
+    x' <- unsafeQNameToName <$> toConcrete x
+    withAbstractPrivate	i $
+      withInfixDecl i x'  $ do
+      t' <- toConcreteCtx TopCtx t
+      return [C.Primitive (getRange i) [C.TypeSig x' t']]
 
-    toConcrete (Axiom i x t) =
-	do  x' <- toConcrete x
-	    withAbstractPrivate	i  $
-		withInfixDecl i x' $
-		withStored    i    $
-		do  t' <- toConcreteCtx TopCtx t
-		    return [C.Postulate (getRange i) [C.TypeSig x' t']]
+  toConcrete (Definition i ts ds) = do
+      ixs' <- map (id -*- unsafeQNameToName) <$> toConcrete (map (DontTouchMe -*- id) ixs)
+      withInfixDecls ixs' $ do
+	ds' <- concat <$> toConcrete (zipWith TypeAndDef ts ds)
+	return [C.Mutual (getRange i) ds']
+      where
+	  ixs = map getInfoAndName ts
+	  is  = map fst ixs
+	  getInfoAndName (A.Axiom i x _)	  = (i,x)
+	  getInfoAndName (A.ScopedDecl scope [d]) = getInfoAndName d
+	  getInfoAndName _			  = __IMPOSSIBLE__
 
-    toConcrete (A.Primitive i x t) =
-	do  x' <- toConcrete x
-	    withAbstractPrivate	i  $
-		withInfixDecl i x' $
-		withStored    i    $
-		do  t' <- toConcreteCtx TopCtx t
-		    return [C.Primitive (getRange i) [C.TypeSig x' t']]
+  toConcrete (A.Section i x tel ds) = do
+    x <- toConcrete x
+    bindToConcrete tel $ \tel -> do
+    ds <- toConcrete ds
+    return [ C.Module (getRange i) x tel ds ]
 
-    toConcrete (Definition i ts ds) =
-	do  ixs' <- toConcrete $ map (DontTouchMe -*- id) ixs
-	    withInfixDecls ixs' $
-		do  ds' <- concat <$> toConcrete (zipWith TypeAndDef ts ds)
-		    return [C.Mutual (getRange i) ds']
-	where
-	    ixs = map getInfoAndName ts
-	    is  = map fst ixs
-	    getInfoAndName (A.Axiom i x _)  = (i,x)
-	    getInfoAndName _		    = __IMPOSSIBLE__
+  toConcrete (A.Apply i x y es)	= do
+    x  <- unsafeQNameToName <$> toConcrete x
+    y  <- toConcrete y
+    es <- toConcrete es
+    let r = fuseRange y es
+    return [ C.ModuleMacro (getRange i) x []
+		(foldl (C.App r) (C.Ident y) es) DontOpen
+		(ImportDirective r (Hiding []) [] False)
+	   ]
 
-    toConcrete (A.Section i x tel ds) = __IMPOSSIBLE__ -- TODO!!
-    toConcrete (A.Apply i x y es) = __IMPOSSIBLE__ -- TODO!!
+  toConcrete (A.Import (ModuleInfo _ _ (DeclSource ds)) _) = return ds
+  toConcrete (A.Import _ _) = __IMPOSSIBLE__
 
---     toConcrete (A.Module i x tel ds) =
--- 	withStored i $
--- 	do  x <- toConcrete x
--- 	    bindToConcrete tel $ \tel -> do
--- 		ds <- toConcrete ds
--- 		return [C.Module (getRange i) x tel ds]
--- 
---     -- There is no way we could restore module defs, imports and opens
---     -- without having the concrete version stored away.
---     toConcrete (A.ModuleDef (ModuleInfo _ _ (DeclSource ds)) _ _ _ _)
--- 					= return ds
---     toConcrete (A.ModuleDef _ _ _ _ _)	= __IMPOSSIBLE__
-
-    toConcrete (A.Import (ModuleInfo _ _ (DeclSource ds)) _) = return ds
-    toConcrete (A.Import _ _) = __IMPOSSIBLE__
-
-    toConcrete (A.Pragma i p)	= do
-	p <- toConcrete $ RangeAndPragma (getRange i) p
-	return [C.Pragma p]
--}
+  toConcrete (A.Pragma i p)	= do
+    p <- toConcrete $ RangeAndPragma (getRange i) p
+    return [C.Pragma p]
 
 data RangeAndPragma = RangeAndPragma Range A.Pragma
 
@@ -557,23 +508,19 @@ instance ToConcrete RangeAndPragma C.Pragma where
 concatArgs :: [NamedArg [C.Pattern]] -> [NamedArg C.Pattern]
 concatArgs args = [ Arg h (Named name p) | Arg h (Named name [p]) <- args ]
 
-instance BindToConcrete A.LHS C.Pattern where
+instance ToConcrete A.LHS C.Pattern where
     bindToConcrete (A.LHS i x args) ret =
-	-- bindWithStored i ret $
 	do  x <- toConcrete x
 	    -- TODO: mixfix applications
 	    bindToConcreteCtx ArgumentCtx args $ \args ->
 		ret $ foldl C.AppP (IdentP x) $ concatArgs args
-
-instance ToConcrete A.Pattern [C.Pattern] where
-    toConcrete p = bindToConcrete p return
 
 appBrackets' :: [arg] -> Precedence -> Bool
 appBrackets' []	   _   = False
 appBrackets' (_:_) ctx = appBrackets ctx
 
 -- TODO: bracket patterns
-instance BindToConcrete A.Pattern [C.Pattern] where
+instance ToConcrete A.Pattern [C.Pattern] where
     bindToConcrete (VarP x)	   ret = bindToConcrete x $ ret . (:[]) . IdentP . C.QName
     bindToConcrete (A.WildP i)	   ret =
 	ret [ C.WildP (getRange i) ]
@@ -604,29 +551,32 @@ tryToRecoverOpApp e mdefault = case AV.appView e of
   Application hd args -> do
     let  args' = [namedThing e | Arg NotHidden e <- args]
     case hd of
-      HeadVar i n  -> doCName i (nameConcrete n) args'
-      HeadDef i qn -> doQName i qn args'
-      HeadCon i qn -> doQName i qn args'
+      HeadVar n  -> do
+	x <- toConcrete n
+	doCName (nameFixity n) x args'
+      HeadDef qn -> doQName qn args'
+      HeadCon qn -> doQName qn args'
   where
 
   -- qualified names can't use mixfix syntax
-  doQName i qn as = case qnameToConcrete qn of	  -- TODO!!
-    C.QName cn	-> doCName i cn as
-    _		-> mdefault
+  doQName qn as = do
+    x <- toConcrete qn
+    case x of
+      C.QName x -> doCName (nameFixity $ qnameName qn) x as
+      _		-> mdefault
 
   -- fall-back (wrong number of arguments or no holes)
-  doCName i cn@(C.Name _ xs) es
+  doCName _ cn@(C.Name _ xs) es
     | length es /= numHoles = mdefault
     | List.null es	    = mdefault
     where numHoles = length [ () | Hole <- xs ]
 	  msg = "doCName " ++ showList xs "" ++ " on " ++ show (length es) ++ " args"
 
   -- binary case
-  doCName i cn@(C.Name _ xs) as
+  doCName fixity cn@(C.Name _ xs) as
     | Hole <- head xs
     , Hole <- last xs = do
-	let fixity = nameFixity i
-	    a1	   = head as
+	let a1	   = head as
 	    an	   = last as
 	    as'	   = init $ tail as
 	e1 <- toConcreteCtx (LeftOperandCtx fixity) a1
@@ -636,21 +586,19 @@ tryToRecoverOpApp e mdefault = case AV.appView e of
 	    $ return $ OpApp (getRange (e1,en)) cn ([e1] ++ es ++ [en])
 
   -- prefix
-  doCName i cn@(C.Name _ xs) as
+  doCName fixity cn@(C.Name _ xs) as
     | Hole <- last xs = do
-	let fixity = nameFixity i
-	    an	   = last as
-	    as'	   = init as
+	let an	= last as
+	    as' = init as
 	es <- mapM (toConcreteCtx InsideOperandCtx) as'
 	en <- toConcreteCtx (RightOperandCtx fixity) an
 	bracket (opBrackets fixity)
 	    $ return $ OpApp (getRange (cn,en)) cn (es ++ [en])
 
   -- postfix
-  doCName i cn@(C.Name _ xs) as
+  doCName fixity cn@(C.Name _ xs) as
     | Hole <- head xs = do
-	let fixity = nameFixity i
-	    a1	   = head as
+	let a1	   = head as
 	    as'	   = tail as
 	e1 <- toConcreteCtx (LeftOperandCtx fixity) a1
 	es <- mapM (toConcreteCtx InsideOperandCtx) as'
@@ -658,7 +606,7 @@ tryToRecoverOpApp e mdefault = case AV.appView e of
 	    $ return $ OpApp (getRange (e1,cn)) cn ([e1] ++ es)
 
   -- roundfix
-  doCName i cn as = do
+  doCName _ cn as = do
     es <- mapM (toConcreteCtx InsideOperandCtx) as
     return $ OpApp (getRange cn) cn es
 

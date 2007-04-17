@@ -296,7 +296,7 @@ gpi :: MonadTCM tcm => Hiding -> String -> tcm Type -> tcm Type -> tcm Type
 gpi h name a b = do
     a' <- a
     x  <- freshName_ name
-    b' <- addCtx x a' b
+    b' <- addCtx x (Arg h a') b
     return $ El (getSort a' `sLub` getSort b') $ Pi (Arg h a') (Abs name b')
 
 hPi, nPi :: MonadTCM tcm => String -> tcm Type -> tcm Type -> tcm Type

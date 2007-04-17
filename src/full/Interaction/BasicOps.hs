@@ -8,8 +8,9 @@ module Interaction.BasicOps where
 
 import Control.Monad.Error
 import Control.Monad.Reader
-import Data.Map as Map
-import Data.List as List
+import qualified Data.Map as Map
+import Data.Map (Map)
+import Data.List
 
 import Interaction.Monad 
 
@@ -72,7 +73,7 @@ give ii mr e = liftTCM $
          giveExpr mi e
          removeInteractionPoint ii 
          mis' <- getInteractionPoints
-         return (e,(List.\\) mis' mis) 
+         return (e, mis' \\ mis) 
 
 
 addDecl :: Declaration -> TCM ([InteractionId])
@@ -81,7 +82,7 @@ addDecl d =
          mis <- getInteractionPoints
          checkDecl d
          mis' <- getInteractionPoints
-         return ((List.\\) mis' mis) 
+         return (mis' \\ mis) 
 
 
 refine :: InteractionId -> Maybe Range -> Expr -> TCM (Expr,[InteractionId])
@@ -293,11 +294,11 @@ typeOfMetas norm = liftTCM $
 contextOfMeta :: InteractionId -> IM [OutputForm Expr Name]
 contextOfMeta ii = do
   info <- getMetaInfo <$> (lookupMeta =<< lookupInteractionId ii)
-  let localVars = List.filter visible . envContext . clEnv $ info
+  let localVars = filter visible . envContext . clEnv $ info
   withMetaInfo info $ reifyContext localVars
-  where visible (x,_)  = show x /= "_"
+  where visible (Arg _ (x,_))  = show x /= "_"
         reifyContext   = foldr out (return []) . reverse
-        out (x,t) rest = liftM2 (:) (OfType x <$> reify t) (addCtx x t rest)
+	out (Arg h (x,t)) rest = liftM2 (:) (OfType x <$> reify t) (addCtx x (Arg h t) rest)
 
 
 {-| Returns the type of the expression in the current environment -}
