@@ -125,13 +125,17 @@ instance Binary A.QName where
   put (A.QName a b) = put a >> put b
   get = get >>= \a -> get >>= \b -> return (A.QName a b)
 
+instance Binary A.ModuleName where
+  put (A.MName a) = put a
+  get = get >>= \a -> return (A.MName a)
+
 instance Binary A.Name where
   put (A.Name a b c d) = put a >> put b >> put c >> put d
   get = get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d -> return (A.Name a b c d)
 
 instance Binary A.NameId where
-  put (NameId a) = put a
-  get = get >>= \a -> return (NameId a)
+  put (NameId a b) = put a >> put b
+  get = get >>= \a -> get >>= \b -> return (NameId a b)
 
 instance Binary Signature where
   put (Sig a b) = put a >> put b

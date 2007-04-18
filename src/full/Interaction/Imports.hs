@@ -67,7 +67,7 @@ data FileType = SourceFile | InterfaceFile
 
 findFile :: FileType -> ModuleName -> TCM FilePath
 findFile ft m = do
-    let x = qnameToConcrete m -- TODO!!
+    let x = mnameToConcrete m
     dirs <- getIncludeDirs
     let files = [ dir ++ [slash] ++ file
 		| dir  <- dirs
@@ -214,12 +214,11 @@ createInterface opts trace path visited file = runTCM $ withImportPath path $ do
 
     (pragmas, top) <- liftIO $ parseFile' moduleParser file
     pragmas	   <- concreteToAbstract_ pragmas -- identity for top-level pragmas
-    (m, scope)	   <- concreteToAbstract_ (TopLevel top)
+    topLevel	   <- concreteToAbstract_ (TopLevel top)
 
     setOptionsFromPragmas pragmas
 
-    checkDecls m
-    setScope scope  -- TODO!!
+    checkDecls $ topLevelDecls topLevel
 
     -- Generate Vim file
     whenM (optGenerateVimFile <$> commandLineOptions) $
@@ -232,6 +231,8 @@ createInterface opts trace path visited file = runTCM $ withImportPath path $ do
 	_   -> do
 	    rs <- mapM getMetaRange ms
 	    typeError $ UnsolvedMetasInImport $ List.nub rs
+
+    setScope $ outsideScope topLevel
 
     i  <- buildInterface
     vs <- getVisitedModules

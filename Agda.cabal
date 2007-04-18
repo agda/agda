@@ -104,6 +104,7 @@ other-modules:   Compiler.Agate.Classify
                  Utils.FileName
                  Utils.Fresh
                  Utils.Function
+		 Utils.Hash
                  Utils.IO
                  Utils.List
                  Utils.Map

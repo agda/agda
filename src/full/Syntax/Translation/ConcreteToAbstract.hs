@@ -9,6 +9,7 @@ module Syntax.Translation.ConcreteToAbstract
     , concreteToAbstract
     , OldName(..)
     , TopLevel(..)
+    , TopLevelInfo(..)
     ) where
 
 import Prelude hiding (mapM)
@@ -59,6 +60,11 @@ printLocals :: Int -> String -> ScopeM ()
 printLocals v s = verbose v $ do
   locals <- scopeLocals <$> getScope
   liftIO $ putStrLn $ s ++ " " ++ show locals
+
+printScope :: Int -> String -> ScopeM ()
+printScope v s = verbose v $ do
+  scope <- getScope
+  liftIO $ putStrLn $ s ++ " " ++ show scope
 
 {--------------------------------------------------------------------------
     Helpers
@@ -225,12 +231,12 @@ newtype NewModuleName  = NewModuleName  C.Name
 newtype NewModuleQName = NewModuleQName C.QName
 newtype OldModuleName  = OldModuleName  C.QName
 
-instance ToAbstract NewModuleName A.Name where
-  toAbstract (NewModuleName x) = freshAbstractName_ x
+instance ToAbstract NewModuleName A.ModuleName where
+  toAbstract (NewModuleName x) = mnameFromList . (:[]) <$> freshAbstractName_ x
 
 instance ToAbstract NewModuleQName A.ModuleName where
   toAbstract (NewModuleQName q) =
-    qnameFromList <$> mapM (toAbstract . NewModuleName) (toList q)
+    foldr1 A.qualifyM <$> mapM (toAbstract . NewModuleName) (toList q)
     where
       toList (C.QName  x) = [x]
       toList (C.Qual m x) = m : toList x
@@ -352,35 +358,38 @@ instance ToAbstract C.TypedBinding A.TypedBinding where
 
 newtype TopLevel a = TopLevel a
 
-scopeCheckModule :: Range -> Access -> IsAbstract -> C.Name -> C.Telescope -> [C.Declaration] ->
-		    ScopeM [A.Declaration]
+-- | Returns the scope inside the checked module.
+scopeCheckModule :: Range -> Access -> IsAbstract -> C.QName -> C.Telescope -> [C.Declaration] ->
+		    ScopeM (ScopeInfo, [A.Declaration])
 scopeCheckModule r a c x tel ds = do
-  m <- toAbstract (NewModuleName x)
+  m <- toAbstract (NewModuleQName x)
   pushScope m
   qm <- getCurrentModule
   ds <- withLocalVars $ do
 	  tel <- toAbstract tel
 	  makeSection info qm tel <$> toAbstract ds
-  popScope
-  bindModule a x qm
-  return ds
+  scope <- getScope
+  popScope a
+  bindQModule a x qm
+  return (scope, ds)
   where
     info = mkRangedModuleInfo a c r
 
+data TopLevelInfo = TopLevelInfo
+	{ topLevelDecls :: [A.Declaration]
+	, outsideScope  :: ScopeInfo
+	, insideScope	:: ScopeInfo
+	}
+
 -- Top-level declarations are always (import|open)* module
-instance ToAbstract (TopLevel [C.Declaration]) ([A.Declaration], ScopeInfo) where
+instance ToAbstract (TopLevel [C.Declaration]) TopLevelInfo where
     toAbstract (TopLevel ds) = case splitAt (length ds - 1) ds of
-	(ds', [C.Module r (C.Qual m x) tel ds]) ->
-	  toAbstract $ TopLevel $ ds' ++
-	    [ C.Module r (C.QName m) [] 
-	      [ C.Module r x tel ds ]
-	    ]
-	(ds', [C.Module r (C.QName x) tel ds]) -> do
-	    ds' <- toAbstract ds'
-	    ds  <- scopeCheckModule r PublicAccess ConcreteDef x tel ds
-	    scope <- getScope
-	    return (ds' ++ ds, scope)
-	    where
+	(ds', [C.Module r m tel ds]) -> do
+	  setTopLevelModule m
+	  ds'	       <- toAbstract ds'
+	  (scope0, ds) <- scopeCheckModule r PublicAccess ConcreteDef m tel ds
+	  scope	       <- getScope
+	  return $ TopLevelInfo (ds' ++ ds) scope scope0
 	_ -> __IMPOSSIBLE__
 
 instance ToAbstract [C.Declaration] [A.Declaration] where
@@ -477,10 +486,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
 			  -- TODO: what does the info mean here?
 
   -- TODO: what does an abstract module mean? The syntax doesn't allow it.
-    NiceModule r p a name@(C.QName x) tel ds -> scopeCheckModule r p a x tel ds
-
-  -- Top-level modules are translated with toAbstract.
-    NiceModule _ _ _ _ _ _ -> __IMPOSSIBLE__
+    NiceModule r p a name tel ds -> snd <$> scopeCheckModule r p a name tel ds
 
     NiceModuleMacro r p a x tel e open dir -> case appView e of
       AppView (Ident m) args  ->
@@ -494,7 +500,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
 	m0 <- getCurrentModule
 	openModule_ m $ dir { C.publicOpen = True }
 	modifyTopScope $ freshCanonicalNames m1 m0
-	popScope
+	popScope p
 	bindModule p x m0
 	case open of
 	  DontOpen -> return ()
@@ -535,8 +541,11 @@ instance ToAbstract NiceDeclaration A.Declaration where
 
     NiceImport r x as open dir -> do
       m	  <- toAbstract $ NewModuleQName x
+      printScope 10 "before import:"
       i	  <- applyImportDirective dir <$> scopeCheckImport m
+      printScope 10 $ "scope checked import: " ++ show i
       modifyTopScope (`mergeScope` i)
+      printScope 10 "merged imported sig:"
       ds <- case open of
 	DontOpen -> return []
 	DoOpen   -> do

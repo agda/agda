@@ -88,15 +88,19 @@ interaction prompt cmds eval = loop
 		    loop
 
 -- | The interaction loop.
-interactionLoop :: IM () -> IM ()
+interactionLoop :: IM ScopeInfo -> IM ()
 interactionLoop typeCheck =
     do  reload
 	interaction "Main> " commands evalTerm
     where
-	reload = (setUndo >> typeCheck) `catchError` \e -> do
-		    s <- prettyError e
-		    liftIO $ putStrLn s
-		    liftIO $ putStrLn "Failed."
+	reload = do
+	    setUndo
+	    scope <- typeCheck
+	    setScope scope
+	  `catchError` \e -> do
+	    s <- prettyError e
+	    liftIO $ putStrLn s
+	    liftIO $ putStrLn "Failed."
 
 	commands =
 	    [ "quit"	    |>  \_ -> return $ Return ()

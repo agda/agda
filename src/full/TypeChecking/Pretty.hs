@@ -100,6 +100,9 @@ instance PrettyTCM Name where
 instance PrettyTCM QName where
     prettyTCM x = P.pretty <$> abstractToConcrete_ x
 
+instance PrettyTCM ModuleName where
+  prettyTCM x = P.pretty <$> abstractToConcrete_ x
+
 instance PrettyTCM Telescope where
   prettyTCM tel = P.fsep . map P.pretty <$> (abstractToConcrete_ =<< reify tel)
 

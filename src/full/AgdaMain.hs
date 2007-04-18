@@ -28,6 +28,7 @@ import Syntax.Translation.AbstractToConcrete
 import Syntax.Translation.InternalToAbstract
 import Syntax.Abstract.Name
 import Syntax.Strict
+import Syntax.Scope.Base
 
 import Interaction.Exceptions
 import Interaction.CommandLine.CommandLine
@@ -78,26 +79,27 @@ runAgda =
 		compile <- optCompile <$> liftTCM commandLineOptions
 		when i $ liftIO $ putStr splashScreen
 		let interaction | i	    = interactionLoop
-				| compile   = compilerMain
-				| otherwise = id
+				| compile   = compilerMain . (>> return ())
+				| otherwise = (>> return ())
 		interaction $ liftTCM $
 		    do	hasFile <- hasInputFile
 			resetState
-			when hasFile $
+			if hasFile then
 			    do	file <- getInputFile
 
 				-- Parse
 				(pragmas, m) <- liftIO $ parseFile' moduleParser file
 
 				-- Scope check
-				pragmas	     <- concreteToAbstract_ pragmas -- identity for top-level pragmas
-				(m, scope)   <- concreteToAbstract_ (TopLevel m)
+				pragmas  <- concreteToAbstract_ pragmas -- identity for top-level pragmas
+				topLevel <- concreteToAbstract_ (TopLevel m)
 				setOptionsFromPragmas pragmas
 
 				-- Type check
-				checkDecls m
+				checkDecls $ topLevelDecls topLevel
 
-				setScope scope
+				-- Set the scope
+				setScope $ outsideScope topLevel
 
 				-- Generate Vim file
 				whenM (optGenerateVimFile <$> commandLineOptions) $
@@ -125,6 +127,10 @@ runAgda =
 					mapM_ (\ (s,n) -> putStrLn $ s ++ " : " ++ show n) $
 					    List.sortBy (\x y -> compare (snd x) (snd y)) stats
 
+				return $ insideScope topLevel
+			  else return emptyScopeInfo
+
+		return ()
 
 -- | Print usage information.
 printUsage :: IO ()

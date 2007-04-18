@@ -69,8 +69,7 @@ module EqChain (A : Setoid.Setoid) where
   infix  8 _since_
 
   open Setoid
-  private module EqA = Equality A
-  open EqA
+  private open module EqA = Equality A
 
   eqProof>_ : (x : El A) -> x == x
   eqProof> x = refl
@@ -119,9 +118,9 @@ module Fun where
   A ==> B = setoid (A => B) EqFun r s t
     where
       module Proof where
-	module EqChainB = EqChain B; open EqChainB
+	open module EqChainB = EqChain B
 	module EqA = Equality A
-	module EqB = Equality B; open EqB
+	open module EqB = Equality B
 
 	-- either abstract or --proof-irrelevance needed
 	-- (we don't want to compare the proofs for equality)

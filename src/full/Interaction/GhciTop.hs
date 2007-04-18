@@ -141,12 +141,12 @@ cmd_load file = infoOnException $ do
     setWorkingDirectory file m
     is <- ioTCM $ do
 	    resetState
-	    pragmas	 <- concreteToAbstract_ pragmas	-- identity for top-level pragmas at the moment
-	    (m',scope)	 <- concreteToAbstract_ (TopLevel m)
+	    pragmas  <- concreteToAbstract_ pragmas	-- identity for top-level pragmas at the moment
+	    topLevel <- concreteToAbstract_ (TopLevel m)
 	    setUndo
 	    setOptionsFromPragmas pragmas
-	    checkDecls m'
-	    setScope scope
+	    checkDecls $ topLevelDecls topLevel
+	    setScope $ outsideScope topLevel
 	    lispIP
     putStrLn $ response $ L[A"agda2-load-action", is]
     cmd_metas

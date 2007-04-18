@@ -59,7 +59,7 @@ data FreshThings =
 
 initState :: TCState
 initState =
-    TCSt { stFreshThings       = Fresh 0 0 0
+    TCSt { stFreshThings       = Fresh 0 0 (NameId 0 0)
 	 , stMetaStore	       = Map.empty
 	 , stInteractionPoints = Map.empty
 	 , stConstraints       = []
@@ -85,7 +85,7 @@ instance HasFresh InteractionId FreshThings where
 	    i = fInteraction s
 
 instance HasFresh NameId FreshThings where
-    nextFresh s = (i, s { fName = i + 1 })
+    nextFresh s = (i, s { fName = succ i })
 	where
 	    i = fName s
 
@@ -262,7 +262,7 @@ data Signature = Sig
       }
   deriving (Typeable, Data)
 
-type Sections = Map QName Telescope
+type Sections	 = Map ModuleName Telescope
 type Definitions = Map QName Definition
 
 emptySignature :: Signature
@@ -414,7 +414,7 @@ data TCEnv =
 initEnv :: TCEnv
 initEnv = TCEnv { envContext	   = []
 		, envLetBindings   = Map.empty
-		, envCurrentModule = qnameFromList [invisibleTopModuleName]
+		, envCurrentModule = noModuleName
 		, envImportPath	   = []
 		, envAbstractMode  = False
 		}

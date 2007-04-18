@@ -23,7 +23,6 @@ import Syntax.Concrete.Pretty
 import Syntax.Common
 import Syntax.Fixity
 import Syntax.Literal
-import qualified Syntax.Abstract.Name as A
 
 import Utils.Monad
 

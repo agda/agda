@@ -116,6 +116,14 @@ lookupQName x =
 	    Nothing -> return $ qnameToConcrete x
 		-- this is what happens for names that are not in scope (private names)
 
+lookupModule :: A.ModuleName -> AbsToCon C.QName
+lookupModule x =
+    do	scope <- asks currentScope
+	case inverseScopeLookupModule x scope of
+	    Just y  -> return y
+	    Nothing -> return $ mnameToConcrete x
+		-- this is what happens for names that are not in scope (private names)
+
 bindName :: A.Name -> (C.Name -> AbsToCon a) -> AbsToCon a
 bindName x ret = do
   names <- asks takenNames
@@ -279,11 +287,14 @@ instance ToConcrete (DontTouchMe a) a where
 -- Names ------------------------------------------------------------------
 
 instance ToConcrete A.Name C.Name where
-    toConcrete	     = lookupName
-    bindToConcrete x = bindName x
+  toConcrete	   = lookupName
+  bindToConcrete x = bindName x
 
 instance ToConcrete A.QName C.QName where
-    toConcrete = lookupQName
+  toConcrete = lookupQName
+
+instance ToConcrete A.ModuleName C.QName where
+  toConcrete = lookupModule
 
 -- Expression instance ----------------------------------------------------
 

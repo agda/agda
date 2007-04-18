@@ -103,7 +103,7 @@ freshAbstractQName fx x = do
 -- | Return the name of the current module.
 getCurrentModule :: ScopeM ModuleName
 getCurrentModule =
-  A.qnameFromList . reverse . map scopeName . scopeStack <$> getScope
+  A.mnameFromList . concatMap A.mnameToList . reverse . map scopeName . scopeStack <$> getScope
 
 -- * Resolving names
 
@@ -158,23 +158,25 @@ bindName acc kind x y =
   modifyTopScope $ addNameToScope acc (C.QName x) $ AbsName y kind
 
 -- | Bind a module name.
-bindModule :: Access -> C.Name -> A.QName -> ScopeM ()
+bindModule :: Access -> C.Name -> A.ModuleName -> ScopeM ()
 bindModule acc x m = bindQModule acc (C.QName x) m
 
 -- | Bind a qualified module name.
-bindQModule :: Access -> C.QName -> A.QName -> ScopeM ()
+bindQModule :: Access -> C.QName -> A.ModuleName -> ScopeM ()
 bindQModule acc x m = modifyTopScope $ addModuleToScope acc x $ AbsModule m
 
 -- * Module manipulation operations
 
 -- | Push a new scope onto the scope stack
-pushScope :: A.Name -> ScopeM ()
+pushScope :: A.ModuleName -> ScopeM ()
 pushScope name = modifyScopeStack (s:)
   where
     s = emptyScope { scopeName = name }
 
 {-| Pop the top scope from the scope stack and incorporate its (public)
-    contents in the new top scope. Basically if the stack looks like this:
+    contents in the new top scope. Depending on the first argument the contents
+    is added to the public or private part of the top scope. Basically if the
+    stack looks like this:
 
     @
     scope A: x -> Q.B.A.x
@@ -189,13 +191,15 @@ pushScope name = modifyScopeStack (s:)
 	     y   -> Q.B.y
     scope Q: ..
 -}
-popScope :: ScopeM ()
-popScope = do
+popScope :: Access -> ScopeM ()
+popScope acc = do
   top <- getCurrentModule
   modifyScopeStack $ \(s0:s1:ss) ->
-    mergeScope s1 (mapScope_ (qual s0) (qual s0) $ noPrivate s0) : ss
+    mergeScope s1 (setScopeAccess acc $ mapScope_ (qual s0) (qual s0) $ noPrivate s0) : ss
   where
-    qual s m	= Map.mapKeys (C.Qual (nameConcrete $ scopeName s)) m
+    qual s m	= Map.mapKeys (qual' (mnameToList $ scopeName s)) m
+      where
+	qual' xs x = foldr C.Qual x $ map nameConcrete xs
     noPrivate s = s { scopePrivate = emptyNameSpace }
 
 -- | Returns a scope containing everything starting with a particular module

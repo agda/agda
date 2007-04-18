@@ -77,22 +77,24 @@ lookupSection m = do
 applySection :: MonadTCM tcm => ModuleName -> ModuleName -> Telescope -> Args -> tcm ()
 applySection new old tel ts = liftTCM $ do
   sig <- getSignature
-  let ss = Map.toList $ Map.filterKeys partOfOld $ sigSections sig
-      ds = Map.toList $ Map.filterKeys partOfOld $ sigDefinitions sig
+  let ss = Map.toList $ Map.filterKeys partOfOldM $ sigSections sig
+      ds = Map.toList $ Map.filterKeys partOfOldD $ sigDefinitions sig
   ts0 <- take (size tel - size ts) <$> getContextArgs
   mapM_ (copyDef $ ts0 ++ ts) ds
   mapM_ (copySec $ ts0 ++ ts) ss
   where
-    partOfOld x = x `isSubModuleOf` old
+    partOfOldM x = x `isSubModuleOf` old
+    partOfOldD x = x `isInModule`    old
 
     copyName x = qualifyQ new . qnameFromList . drop (size old) . qnameToList $ x
+    copyMod  x = qualifyM new . mnameFromList . drop (size old) . mnameToList $ x
 
     -- TODO!!: constructors
     copyDef :: Args -> (QName, Definition) -> TCM ()
     copyDef ts (x, d) = addConstant (copyName x) (apply d ts)
 
-    copySec :: Args -> (QName, Telescope) -> TCM ()
-    copySec ts (x, tel) = addSection (copyName x) (apply tel ts)
+    copySec :: Args -> (ModuleName, Telescope) -> TCM ()
+    copySec ts (x, tel) = addSection (copyMod x) (apply tel ts)
 
 -- | Lookup the definition of a name. The result is a closed thing, all free
 --   variables have been abstracted over.
@@ -101,10 +103,6 @@ getConstInfo q = liftTCM $ do
   ab    <- treatAbstractly q
   defs  <- sigDefinitions <$> getSignature
   idefs <- sigDefinitions <$> getImportedSignature
-  verbose 15 $ liftIO $ do
-    let getId = nameId . qnameName
-    putStrLn $ "signature   : " ++ show (Map.keys defs) ++ " " ++ show (map getId $ Map.keys defs)
-    putStrLn $ "imported sig: " ++ show (Map.keys idefs) ++ " " ++ show (map getId $ Map.keys idefs)
   let allDefs = (Map.unionWith (++) `on` Map.map (:[])) defs idefs
   case Map.lookup q allDefs of
       Nothing	-> fail $ show (getRange q) ++ ": no such name " ++ show q
@@ -162,7 +160,7 @@ treatAbstractly' q env
   | otherwise		= not $ current == m || current `isSubModuleOf` m
   where
     current = envCurrentModule env
-    m	    = qnameFromList $ qnameModule q
+    m	    = qnameModule q
 
 -- | get type of a constant 
 typeOfConst :: MonadTCM tcm => QName -> tcm Type

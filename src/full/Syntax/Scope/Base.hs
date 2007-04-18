@@ -26,7 +26,7 @@ import Utils.Tuple
 -- | A scope is a named collection of names partitioned into public and private
 --   names.
 data Scope = Scope
-      { scopeName    :: A.Name
+      { scopeName    :: A.ModuleName
       , scopePrivate :: NameSpace
       , scopePublic  :: NameSpace
       }
@@ -75,6 +75,42 @@ data AbstractModule = AbsModule
       }
   deriving (Typeable, Data)
 
+instance Show ScopeInfo where
+  show (ScopeInfo stack locals ctx) =
+    unlines $
+      [ "ScopeInfo"
+      , "  locals  = " ++ show locals
+      , "  context = " ++ show ctx
+      , "  stack"
+      ] ++ map ("    "++) (relines . map show $ stack)
+    where
+      relines = filter (not . null) . lines . unlines
+
+instance Show Scope where
+  show (Scope name pub pri) =
+    unlines $
+      [ "scope " ++ show name
+      , "public"
+      ] ++ map ("  "++) (lines . show $ pub) ++
+      [ "private"
+      ] ++ map ("  "++) (lines . show $ pri)
+
+instance Show NameSpace where
+  show (NameSpace names mods) =
+    unlines $
+      [ "names" ]
+      ++ map pr (Map.toList names) ++
+      [ "modules" ]
+      ++ map pr (Map.toList mods)
+    where
+      pr (x, y) = show x ++ " --> " ++ show y
+
+instance Show AbstractName where
+  show = show . anameName
+
+instance Show AbstractModule where
+  show = show . amodName
+
 -- * Operations on names
 
 instance HasRange AbstractName where
@@ -84,10 +120,10 @@ instance SetRange AbstractName where
   setRange r x = x { anameName = setRange r $ anameName x }
 
 instance HasRange AbstractModule where
-  getRange = getRange . amodName
+  getRange _ = noRange -- TODO: getRange . amodName
 
 instance SetRange AbstractModule where
-  setRange r m = m { amodName = setRange r $ amodName m }
+  setRange r m = m -- TODO: m { amodName = setRange r $ amodName m }
 
 -- * Operations on name and module maps.
 
@@ -126,7 +162,7 @@ zipNameSpace fd fm ns1 ns2 =
 
 -- | The empty scope.
 emptyScope :: Scope
-emptyScope = Scope { scopeName	  = A.invisibleTopModuleName
+emptyScope = Scope { scopeName	  = noModuleName
 		   , scopePublic  = emptyNameSpace
 		   , scopePrivate = emptyNameSpace
 		   }
@@ -249,10 +285,14 @@ addModuleToScope acc x m s = mergeScope s s1
 applyImportDirective :: ImportDirective -> Scope -> Scope
 applyImportDirective dir s = mergeScope usedOrHidden renamed
   where
-    usedOrHidden = useOrHide (usingOrHiding dir) s
+    usedOrHidden = useOrHide (hideLHS (renaming dir) $ usingOrHiding dir) s
     renamed	 = rename (renaming dir) $ useOrHide useRenamedThings s
 
     useRenamedThings = Using $ map fst $ renaming dir
+
+    hideLHS :: [(ImportedName, C.Name)] -> UsingOrHiding -> UsingOrHiding
+    hideLHS _	i@(Using _) = i
+    hideLHS ren (Hiding xs) = Hiding $ xs ++ map fst ren
 
     useOrHide :: UsingOrHiding -> Scope -> Scope
     useOrHide (Hiding xs) s = filterNames notElem notElem xs s
@@ -293,23 +333,35 @@ applyImportDirective dir s = mergeScope usedOrHidden renamed
 -- | @freshCanonicalNames old new s@ replaces all (abstract) names @old.m.x@
 --   with @new.m.x@. Any other names are left untouched.
 freshCanonicalNames :: ModuleName -> ModuleName -> Scope -> Scope
-freshCanonicalNames old new s = mapScope_ (rename onName) (rename onModule) s
+freshCanonicalNames old new s = mapScope_ renameName renameMod s
   where
     onName   f x = x { anameName = f $ anameName x }
     onModule f m = m { amodName  = f $ amodName  m }
 
-    rename f = Map.map (ren f)
+    renameName = Map.map renName
+    renameMod  = Map.map renMod
 
     -- Change a binding M.x -> old.M'.y to M.x -> new.M'.y
-    ren f ys = map (f qdq) ys
+    renName ys = map (onName qdq) ys
       where
 	qdq y
-	  | y `isSubModuleOf` old = qualifyQ new . dequalify $ y
-	  | otherwise		  = y
+	  | y `isInModule` old = qualifyQ new . dequalify $ y
+	  | otherwise	       = y
 
 	dequalify = A.qnameFromList . drop n . A.qnameToList
 	  where
-	    n = length $ qnameToList old
+	    n = length $ mnameToList old
+
+    -- Change a binding M.x -> old.M'.y to M.x -> new.M'.y
+    renMod ys = map (onModule qdq) ys
+      where
+	qdq y
+	  | y `isSubModuleOf` old = qualifyM new . dequalify $ y
+	  | otherwise		  = y
+
+	dequalify = A.mnameFromList . drop n . A.mnameToList
+	  where
+	    n = length $ mnameToList old
 
 
 -- * Inverse look-up
@@ -317,8 +369,10 @@ freshCanonicalNames old new s = mapScope_ (rename onName) (rename onModule) s
 -- | Find the shortest concrete name that maps (uniquely) to a given abstract
 --   name. Find defined names (first component of result) and module names
 --   (second component) simultaneously.
-inverseScopeLookup :: A.QName -> ScopeInfo -> (Maybe C.QName, Maybe C.QName)
-inverseScopeLookup x s = best -*- best $ invert x $ mergeScopes $ scopeStack s
+
+-- | Takes the first component of 'inverseScopeLookup'.
+inverseScopeLookupName :: A.QName -> ScopeInfo -> Maybe C.QName
+inverseScopeLookupName x s = best $ invert x $ mergeScopes $ scopeStack s
   where
     len :: C.QName -> Int
     len (C.QName _)  = 1
@@ -328,16 +382,24 @@ inverseScopeLookup x s = best -*- best $ invert x $ mergeScopes $ scopeStack s
       []    -> Nothing
       x : _ -> Just x
 
-    invert x s = (ds, ms)
+    invert x s = ds
       where
 	ds = [ y | (y, [z]) <- Map.toList $ allNamesInScope s,   x == anameName z ]
-	ms = [ y | (y, [m]) <- Map.toList $ allModulesInScope s, x == amodName m  ]
-
--- | Takes the first component of 'inverseScopeLookup'.
-inverseScopeLookupName :: A.QName -> ScopeInfo -> Maybe C.QName
-inverseScopeLookupName x ss = fst $ inverseScopeLookup x ss
 
 -- | Takes the second component of 'inverseScopeLookup'.
-inverseScopeLookupModule :: A.QName -> ScopeInfo -> Maybe C.QName
-inverseScopeLookupModule x ss = snd $ inverseScopeLookup x ss
+inverseScopeLookupModule :: A.ModuleName -> ScopeInfo -> Maybe C.QName
+inverseScopeLookupModule x s = best $ invert x $ mergeScopes $ scopeStack s
+  where
+    len :: C.QName -> Int
+    len (C.QName _)  = 1
+    len (C.Qual _ x) = 1 + len x
+
+    best xs = case sortBy (compare `on` len) xs of
+      []    -> Nothing
+      x : _ -> Just x
+
+    invert x s = ms
+      where
+	ms = [ y | (y, [m]) <- Map.toList $ allModulesInScope s, x == amodName m  ]
+
 
