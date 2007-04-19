@@ -278,21 +278,26 @@ cmd_make_case ii rng s = infoOnException $ ioTCM $ do
         Q $ L $ List.map (A . quote . (++ " = ?") . show . ppPa 0) newpas]
 
   where
-  findClause wanted sig = case
+  findClause wanted sig = do
+    let defFree (x, d) = do
+	  n <- getDefFreeVars x
+	  return (x, n, d)
+    xs <- mapM defFree $ assocs $ sigDefinitions sig
+    case
        [dropUscore(SI.ConP dnam
-                   (drop (defFreeVars dbdy) pats))
-       | (dnam, dbdy) <- assocs $ sigDefinitions sig
+                   (drop n pats))
+       | (dnam, n, dbdy) <- xs
        , Function cls _ <- [theDef dbdy]
        , SI.Clause pats cbdy <- cls
        , Just (MetaV x _) <- [deAbs cbdy]
        , x == wanted ] of
-    (h : _ ) -> return h
-    _ -> fail $ "findClause: can't find <clause = " ++ show ii ++ ">"
+      (h : _ ) -> return h
+      _ -> fail $ "findClause: can't find <clause = " ++ show ii ++ ">"
 
   mkPats tkn (c:cs) = do (tkn1, pa)<- mkPat tkn c; (pa:)<$> mkPats tkn1 cs
 
   mkPats tkn []     = return []
-  mkPat tkn c = do Defn tc _ (Constructor n _ _) <- getConstInfo c
+  mkPat tkn c = do Defn _ tc (Constructor n _ _) <- getConstInfo c
                    (tkn', pas) <- piToArgPats tkn <$> dePi n tc
                    return (tkn', SI.ConP c pas)
   repl sx replpa = go where

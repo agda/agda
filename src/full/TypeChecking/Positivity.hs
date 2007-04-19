@@ -1,7 +1,7 @@
 {-# OPTIONS_GHC -cpp -fglasgow-exts -fallow-undecidable-instances -fallow-overlapping-instances #-}
 
 -- | Check that a datatype is strictly positive.
-module TypeChecking.Positivity where
+module TypeChecking.Positivity (checkStrictlyPositive) where
 
 import Prelude hiding (foldr, mapM_, elem, concat)
 
@@ -98,7 +98,7 @@ checkPosArg d i = unlessM (isAssumption d i) $ do
 		args = map (Arg NotHidden . flip Def []) xs
 	    let check c = do
 		    t <- lift $ normalise =<< typeOfConst c
-		    checkPos [x] d c (t `piApply'` args)
+		    checkPos [x] d c (t `piApply` args)
 	    mapM_ check cs
 	_   -> lift $ typeError $ NotStrictlyPositive d []
 

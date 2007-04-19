@@ -499,13 +499,15 @@ instance ToAbstract NiceDeclaration A.Declaration where
 	pushScope x'
 	m0 <- getCurrentModule
 	openModule_ m $ dir { C.publicOpen = True }
-	modifyTopScope $ freshCanonicalNames m1 m0
+	s : _ <- scopeStack <$> getScope
+	(renD, renM) <- renamedCanonicalNames m1 m0 s
+	modifyTopScope $ renameCanonicalNames renD renM
 	popScope p
 	bindModule p x m0
 	case open of
 	  DontOpen -> return ()
 	  DoOpen   -> openModule_ (C.QName x) dir
-	let decl = Apply info m0 m1 args'
+	let decl = Apply info m0 m1 args' renD renM
 	case tel' of
 	  []  -> return [ decl ]
 	  _	  -> do
@@ -523,16 +525,21 @@ instance ToAbstract NiceDeclaration A.Declaration where
       m	      <- toAbstract (OldModuleName x)
       n	      <- length . scopeLocals <$> getScope
 
+      printScope 20 $ "opening " ++ show x
       -- Opening a submodule or opening into a non-parameterised module
       -- is fine. Otherwise we have to create a temporary module.
       if m `isSubModuleOf` current || n == 0
 	then do
+	  reportLn 20 "normal open"
 	  openModule_ x dir
+	  printScope 20 $ "result:"
 	  return []
 	else do
+	  reportLn 20 "fancy open"
 	  let tmp = C.noName (getRange x) -- TODO: better name?
 	  d <- toAbstract $ NiceModuleMacro r PrivateAccess ConcreteDef
 					    tmp [] (C.Ident x) DoOpen dir
+	  printScope 20 "result:"
 	  return [d]
 
     NicePragma r p -> do

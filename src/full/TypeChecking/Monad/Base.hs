@@ -262,14 +262,25 @@ data Signature = Sig
       }
   deriving (Typeable, Data)
 
-type Sections	 = Map ModuleName Telescope
+type Sections	 = Map ModuleName Section
 type Definitions = Map QName Definition
+
+data Section = Section
+      { secTelescope :: Telescope
+      , secFreeVars  :: Nat	    -- ^ This is the number of parameters when
+				    --	 we're inside the section and 0
+				    --	 outside. It's used to know how much of
+				    --	 the context to apply function from the
+				    --	 section to when translating from
+				    --	 abstract to internal syntax.
+      }
+  deriving (Typeable, Data)
 
 emptySignature :: Signature
 emptySignature = Sig Map.empty Map.empty
 
-data Definition = Defn { defType     :: Type	-- type of the lifted definition
-		       , defFreeVars :: Nat
+data Definition = Defn { defName     :: QName
+		       , defType     :: Type	-- type of the lifted definition
 		       , theDef	     :: Defn
 		       }
     deriving (Typeable, Data)
@@ -298,12 +309,12 @@ data PrimFun = PrimFun
     deriving (Typeable)
 
 defClauses :: Definition -> [Clause]
-defClauses (Defn _ _ (Function cs _))	 = cs
+defClauses (Defn _ _ (Function cs _))	   = cs
 defClauses (Defn _ _ (Primitive _ _ cs)) = cs
-defClauses _				 = []
+defClauses _				   = []
 
 defAbstract :: Definition -> IsAbstract
-defAbstract (Defn _ _ d) = case d of
+defAbstract d = case theDef d of
     Axiom	       -> AbstractDef
     Function _ a       -> a
     Datatype _ _ _ _ a -> a

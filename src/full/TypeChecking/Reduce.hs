@@ -411,6 +411,9 @@ instance InstantiateFull Scope where
 instance InstantiateFull Signature where
   instantiateFull (Sig a b) = uncurry Sig <$> instantiateFull (a, b)
 
+instance InstantiateFull Section where
+  instantiateFull (Section tel n) = flip Section n <$> instantiateFull tel
+
 instance InstantiateFull Telescope where
   instantiateFull EmptyTel = return EmptyTel
   instantiateFull (ExtendTel a b) = uncurry ExtendTel <$> instantiateFull (a, b)
@@ -419,10 +422,7 @@ instance InstantiateFull Char where
     instantiateFull = return
 
 instance InstantiateFull Definition where
-    instantiateFull (Defn t n d) =
-	Defn <$> instantiateFull t
-	     <*> return n
-	     <*> instantiateFull d
+    instantiateFull (Defn x t d) = uncurry (Defn x) <$> instantiateFull (t, d)
 
 instance InstantiateFull Defn where
     instantiateFull d = case d of

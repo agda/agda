@@ -141,6 +141,10 @@ instance Binary Signature where
   put (Sig a b) = put a >> put b
   get = get >>= \a -> get >>= \b -> return (Sig a b)
 
+instance Binary Section where
+  put (Section a b) = put a >> put b
+  get = get >>= \a -> get >>= \b -> return (Section a b)
+
 instance Binary Telescope where
   put EmptyTel = putWord8 0
   put (ExtendTel a b) = putWord8 1 >> put a >> put b

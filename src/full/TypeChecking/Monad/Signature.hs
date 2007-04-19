@@ -52,7 +52,9 @@ addConstant :: MonadTCM tcm => QName -> Definition -> tcm ()
 addConstant q d = liftTCM $ do
   tel <- getContextTelescope
   modifySignature $ \sig -> sig
-    { sigDefinitions = Map.insert q (abstract tel d) $ sigDefinitions sig }
+    { sigDefinitions = Map.insert q (abstract tel d') $ sigDefinitions sig }
+  where
+    d' = d { defName = q }
 
 unionSignatures :: [Signature] -> Signature
 unionSignatures ss = foldr unionSignature emptySignature ss
@@ -60,11 +62,20 @@ unionSignatures ss = foldr unionSignature emptySignature ss
     unionSignature (Sig a b) (Sig c d) = Sig (Map.union a c) (Map.union b d)
 
 -- | Add a section to the signature.
-addSection :: MonadTCM tcm => ModuleName -> Telescope -> tcm ()
-addSection m tel = do
-  top <- getContextTelescope
-  let tel' = abstract top tel
-  modifySignature $ \sig -> sig { sigSections = Map.insert m tel' $ sigSections sig }
+addSection :: MonadTCM tcm => ModuleName -> Nat -> tcm ()
+addSection m fv = do
+  tel <- getContextTelescope
+  let sec = Section tel fv
+  modifySignature $ \sig -> sig { sigSections = Map.insert m sec $ sigSections sig }
+
+-- | Exit a section. Sets the free variables of the section to 0.
+exitSection :: MonadTCM tcm => ModuleName -> tcm ()
+exitSection m = do
+  sig <- sigSections <$> getSignature
+  case Map.lookup m sig of
+    Nothing  -> __IMPOSSIBLE__
+    Just sec -> modifySignature $ \s ->
+      s { sigSections = Map.insert m (sec { secFreeVars = 0 }) sig }
 
 -- | Lookup a section. If it doesn't exist that just means that the module
 --   wasn't parameterised.
@@ -72,29 +83,41 @@ lookupSection :: MonadTCM tcm => ModuleName -> tcm Telescope
 lookupSection m = do
   sig  <- sigSections <$> getSignature
   isig <- sigSections <$> getImportedSignature
-  return $ maybe EmptyTel id $ Map.lookup m sig `mplus` Map.lookup m isig
+  return $ maybe EmptyTel secTelescope $ Map.lookup m sig `mplus` Map.lookup m isig
 
-applySection :: MonadTCM tcm => ModuleName -> ModuleName -> Telescope -> Args -> tcm ()
-applySection new old tel ts = liftTCM $ do
+applySection ::
+  MonadTCM tcm => ModuleName -> ModuleName -> Args ->
+  Map QName QName -> Map ModuleName ModuleName -> tcm ()
+applySection new old ts rd rm = liftTCM $ do
   sig <- getSignature
   let ss = Map.toList $ Map.filterKeys partOfOldM $ sigSections sig
       ds = Map.toList $ Map.filterKeys partOfOldD $ sigDefinitions sig
-  ts0 <- take (size tel - size ts) <$> getContextArgs
-  mapM_ (copyDef $ ts0 ++ ts) ds
-  mapM_ (copySec $ ts0 ++ ts) ss
+  mapM_ (copyDef ts) ds
+  mapM_ (copySec ts) ss
   where
     partOfOldM x = x `isSubModuleOf` old
     partOfOldD x = x `isInModule`    old
 
-    copyName x = qualifyQ new . qnameFromList . drop (size old) . qnameToList $ x
-    copyMod  x = qualifyM new . mnameFromList . drop (size old) . mnameToList $ x
-
-    -- TODO!!: constructors
     copyDef :: Args -> (QName, Definition) -> TCM ()
-    copyDef ts (x, d) = addConstant (copyName x) (apply d ts)
+    copyDef ts (x, d) = case Map.lookup x rd of
+	Nothing -> return ()  -- if it's not in the renaming it was private and
+			      -- we won't need it
+	Just y	-> addConstant y nd
+      where
+	t  = defType d `apply` ts
+	-- the name is set by the addConstant function
+	nd = Defn __IMPOSSIBLE__ t $ Function [Clause [] $ Body v] ConcreteDef
+	v  = case theDef d of
+		Constructor _ _ _ -> Con x [] -- constructors are polymorphic
+		_		  -> Def x ts
 
-    copySec :: Args -> (ModuleName, Telescope) -> TCM ()
-    copySec ts (x, tel) = addSection (copyMod x) (apply tel ts)
+    copySec :: Args -> (ModuleName, Section) -> TCM ()
+    copySec ts (x, sec) = case Map.lookup x rm of
+	Nothing -> return ()  -- if it's not in the renaming it was private and
+			      -- we won't need it
+	Just y  -> addCtxTel (apply tel ts) $ addSection y 0
+      where
+	tel = secTelescope sec
 
 -- | Lookup the definition of a name. The result is a closed thing, all free
 --   variables have been abstracted over.
@@ -115,20 +138,34 @@ getConstInfo q = liftTCM $ do
 	Nothing	-> fail $ "panic: Not in scope " ++ show q -- __IMPOSSIBLE__
     mkAbs False d = return d
 
+-- | Look up the number of free variables of a section. This is equal to the
+--   number of parameters if we're currently inside the section and 0 otherwise.
+getSecFreeVars :: MonadTCM tcm => ModuleName -> tcm Nat
+getSecFreeVars m = do
+  sig <- sigSections <$> getSignature
+  return $ maybe 0 secFreeVars $ Map.lookup m sig
+
+-- | Compute the number of free variables of a defined name. This is the sum of
+--   the free variables of the sections it's contained in.
+getDefFreeVars :: MonadTCM tcm => QName -> tcm Nat
+getDefFreeVars q = sum <$> mapM getSecFreeVars ms
+  where
+    ms = map mnameFromList . inits . mnameToList . qnameModule $ q
+
+-- | Compute the context variables to apply a definition to.
+freeVarsToApply :: MonadTCM tcm => QName -> tcm Args
+freeVarsToApply x = take <$> getDefFreeVars x <*> getContextArgs
+
 -- | Instantiate a closed definition with the correct part of the current
---   context. Precondition: the variables abstracted over should be a prefix of
---   the current context. This will be satisfied for a name looked up during
---   type checking.
+--   context.
 instantiateDef :: MonadTCM tcm => Definition -> tcm Definition
-instantiateDef d =
-    do	ctx <- liftTCM $ asks envContext
-	let n  = defFreeVars d
-	    k  = size ctx - n
-	    vs = reverse [ Arg Hidden $ Var (i + k) [] | i <- [0..n - 1] ]
--- 	debug $ "instDef " ++ show d
--- 	debug $ "        " ++ show vs
--- 	debug $ "   ---> " ++ show (apply d vs)
-	return $ d `apply` vs
+instantiateDef d = do
+  vs  <- freeVarsToApply $ defName d
+  verbose 30 $ do
+    ctx <- getContext
+    liftIO $ putStrLn $ "instDef " ++ show (defName d) ++ " " ++
+			unwords (map show . take (size vs) . reverse . map (fst . unArg) $ ctx)
+  return $ d `apply` vs
 
 -- | Give the abstract view of a definition.
 makeAbstract :: Definition -> Maybe Definition

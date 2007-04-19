@@ -59,7 +59,7 @@ equalTerm a m n =
 	    where
 		p	= fmap (const $ Var 0 []) a
 		(m',n') = raise 1 (m,n) `apply` [p]
-		t'	= raise 1 t `piApply'` [p]
+		t'	= raise 1 t `piApply` [p]
 		suggest (Fun _ _)	 = "x"
 		suggest (Pi _ (Abs x _)) = x
 		suggest _		 = __IMPOSSIBLE__
@@ -98,7 +98,7 @@ equalAtom t m n =
 		    -- The type to compare the arguments at is obtained by
 		    -- instantiating the parameters.
 		    a <- defType <$> getConstInfo x
-		    let a' = piApply' a (take npars args)
+		    let a' = piApply a (take npars args)
 		    equalArg a' xArgs yArgs
 	    (MetaV x xArgs, MetaV y yArgs)
 		| x == y -> if   sameVars xArgs yArgs
@@ -134,7 +134,7 @@ equalAtom t m n =
 			arg	    = Arg h1 (Var 0 [])
 		    name <- freshName_ (suggest t1 t2)
 		    cs   <- equalType a1 a2
-		    let c = TypeEq (piApply' ty1' [arg]) (piApply' ty2' [arg])
+		    let c = TypeEq (piApply ty1' [arg]) (piApply ty2' [arg])
 
 		    -- We only need to require a1 == a2 if t2 is a dependent function type.
 		    -- If it's non-dependent it doesn't matter what we add to the context.
@@ -190,11 +190,11 @@ equalArg a (arg1 : args1) (arg2 : args2) = do
                         patternViolation   -- TODO: will duplicate work (all arguments checked so far)
 		_   -> do
                     verbose 15 $ do
-                        db <- prettyTCM (piApply' a [arg1])
+                        db <- prettyTCM (piApply a [arg1])
                         darg1 <- mapM prettyTCM args1
                         darg2 <- mapM prettyTCM args2
                         debug $ "equalArgs " ++ show darg1 ++ "  ==  " ++ show darg2 ++ " : " ++ show db
-		    cs2 <- equalArg (piApply' a [arg1]) args1 args2
+		    cs2 <- equalArg (piApply a [arg1]) args1 args2
 		    return $ cs1 ++ cs2
         _   -> patternViolation
 

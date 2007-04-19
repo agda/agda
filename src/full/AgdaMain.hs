@@ -10,8 +10,9 @@ import Control.Monad.State
 import Control.Monad.Error
 import Control.Applicative
 
-import Data.List as List
-import Data.Map as Map
+import Data.List
+import Data.Map (Map)
+import qualified Data.Map as Map
 import Data.Maybe
 import Data.Binary
 
@@ -23,6 +24,7 @@ import Syntax.Position
 import Syntax.Parser
 import Syntax.Concrete.Pretty ()
 import qualified Syntax.Abstract as A
+import Syntax.Abstract.Pretty
 import Syntax.Translation.ConcreteToAbstract
 import Syntax.Translation.AbstractToConcrete
 import Syntax.Translation.InternalToAbstract
@@ -49,7 +51,7 @@ import Compiler.Agate.Main
 import Utils.Monad
 import Utils.IO
 import Utils.FileName
--- import Utils.Wise -- not 6.4 compatible at the moment
+import Utils.Pretty
 
 import Tests
 import Version
@@ -101,6 +103,8 @@ runAgda =
 				-- Set the scope
 				setScope $ outsideScope topLevel
 
+				reportLn 50 $ "SCOPE " ++ show (insideScope topLevel)
+
 				-- Generate Vim file
 				whenM (optGenerateVimFile <$> commandLineOptions) $
 				    generateVimFile file
@@ -108,11 +112,11 @@ runAgda =
 				-- Give error for unsolved metas
 				unsolved <- getOpenMetas
 				unlessM (optAllowUnsolved <$> commandLineOptions) $
-				    unless (List.null unsolved) $
+				    unless (null unsolved) $
 					typeError . UnsolvedMetas =<< mapM getMetaRange unsolved
 
 				-- Generate interface file (only if no metas)
-				when (List.null unsolved) $ do
+				when (null unsolved) $ do
 				    i <- buildInterface
 				    let ifile = setExtension ".agdai" file
 				    liftIO $ encodeFile ifile i
@@ -125,7 +129,7 @@ runAgda =
 					putStrLn "Statistics"
 					putStrLn "----------"
 					mapM_ (\ (s,n) -> putStrLn $ s ++ " : " ++ show n) $
-					    List.sortBy (\x y -> compare (snd x) (snd y)) stats
+					    sortBy (\x y -> compare (snd x) (snd y)) stats
 
 				return $ insideScope topLevel
 			  else return emptyScopeInfo

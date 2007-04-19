@@ -5,8 +5,10 @@
 
 module Syntax.Scope.Monad where
 
+import Prelude hiding (mapM)
 import Control.Applicative
 import Data.Map (Map)
+import Data.Traversable
 import qualified Data.Map as Map
 
 import Syntax.Common
@@ -23,6 +25,7 @@ import TypeChecking.Monad.Options
 
 import Utils.Tuple
 import Utils.Fresh
+import Utils.Size
 
 #include "../../undefined.h"
 
@@ -52,6 +55,13 @@ modifyScopeStack f = modifyScopeInfo $ \s -> s { scopeStack = f $ scopeStack s }
 -- | Apply a function to the top scope.
 modifyTopScope :: (Scope -> Scope) -> ScopeM ()
 modifyTopScope f = modifyScopeStack $ \(s:ss) -> f s : ss
+
+-- | Apply a monadic function to the top scope.
+modifyTopScopeM :: (Scope -> ScopeM Scope) -> ScopeM ()
+modifyTopScopeM f = do
+  s : _ <- scopeStack <$> getScope
+  s'	<- f s
+  modifyTopScope (const s')
 
 -- | Apply a function to the public or private name space.
 modifyTopNameSpace :: Access -> (NameSpace -> NameSpace) -> ScopeM ()
@@ -211,6 +221,41 @@ matchPrefix m = filterScope (isPrefix m) (isPrefix m)
     isPrefix _		   (C.QName _  ) = False
     isPrefix (C.QName m)   (C.Qual m' x) = m == m'
     isPrefix (C.Qual m m2) (C.Qual m' x) = m == m' && isPrefix m2 x
+
+-- | @renamedCanonicalNames old new s@ returns a renaming replacing all
+--   (abstract) names @old.m.x@ with @new.m.x@. Any other names are left
+--   untouched.
+renamedCanonicalNames :: ModuleName -> ModuleName -> Scope ->
+		       ScopeM (Map A.QName A.QName, Map A.ModuleName A.ModuleName)
+renamedCanonicalNames old new s = (,) <$> renamedNames names <*> renamedMods mods
+  where
+    ns	  = scopePublic $ setScopeAccess PublicAccess s
+    names = nsNames ns
+    mods  = nsModules ns
+
+    renamedNames ds = Map.fromList <$> zip xs <$> mapM renName xs
+      where
+	xs = filter (`isInModule` old) $ map anameName $ concat $ Map.elems ds
+
+    renamedMods ms = Map.fromList <$> zip xs <$> mapM renMod xs
+      where
+	xs = filter (`isSubModuleOf` old) $ map amodName $ concat $ Map.elems ms
+
+    -- Change a binding M.x -> old.M'.y to M.x -> new.M'.y
+    renName :: A.QName -> ScopeM A.QName
+    renName y = do
+      i <- fresh
+      return . qualifyQ new . dequalify
+	     $ y { qnameName = (qnameName y) { nameId = i } }
+      where
+	dequalify = A.qnameFromList . drop (size old) . A.qnameToList
+
+    -- Change a binding M.x -> old.M'.y to M.x -> new.M'.y
+    renMod :: A.ModuleName -> ScopeM A.ModuleName
+    renMod = return . qualifyM new . dequalify
+      where
+	dequalify = A.mnameFromList . drop (size old) . A.mnameToList
+
 
 -- | Open a module. Assumes that all preconditions have been checked, i.e. that
 --   the module is not opened into a different context than it was defined.

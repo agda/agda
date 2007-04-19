@@ -474,7 +474,7 @@ instance ToConcrete A.Declaration [C.Declaration] where
       ixs' <- map (id -*- unsafeQNameToName) <$> toConcrete (map (DontTouchMe -*- id) ixs)
       withInfixDecls ixs' $ do
 	ds' <- concat <$> toConcrete (zipWith TypeAndDef ts ds)
-	return [C.Mutual (getRange i) ds']
+	return [mutual (getRange i) ds']
       where
 	  ixs = map getInfoAndName ts
 	  is  = map fst ixs
@@ -482,13 +482,16 @@ instance ToConcrete A.Declaration [C.Declaration] where
 	  getInfoAndName (A.ScopedDecl scope [d]) = getInfoAndName d
 	  getInfoAndName _			  = __IMPOSSIBLE__
 
+	  mutual r [d] = d
+	  mutual r ds  = C.Mutual r ds
+
   toConcrete (A.Section i x tel ds) = do
     x <- toConcrete x
     bindToConcrete tel $ \tel -> do
     ds <- toConcrete ds
     return [ C.Module (getRange i) x tel ds ]
 
-  toConcrete (A.Apply i x y es)	= do
+  toConcrete (A.Apply i x y es _ _) = do
     x  <- unsafeQNameToName <$> toConcrete x
     y  <- toConcrete y
     es <- toConcrete es

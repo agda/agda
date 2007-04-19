@@ -9,6 +9,7 @@ import Control.Applicative
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Error
+import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.List as List
@@ -71,14 +72,14 @@ checkDecls ds = mapM_ checkDecl ds
 checkDecl :: A.Declaration -> TCM ()
 checkDecl d =
     case d of
-	A.Axiom i x e		   -> checkAxiom i x e
-	A.Primitive i x e	   -> checkPrimitive i x e
-	A.Definition i ts ds	   -> checkMutual i ts ds
-	A.Section i x tel ds	   -> checkSection i x tel ds
-	A.Apply i x m args	   -> checkSectionApplication i x m args
-	A.Import i x		   -> checkImport i x
-	A.Pragma i p		   -> checkPragma i p
-	A.ScopedDecl scope ds	   -> setScope scope >> checkDecls ds
+	A.Axiom i x e		 -> checkAxiom i x e
+	A.Primitive i x e	 -> checkPrimitive i x e
+	A.Definition i ts ds	 -> checkMutual i ts ds
+	A.Section i x tel ds	 -> checkSection i x tel ds
+	A.Apply i x m args rd rm -> checkSectionApplication i x m args rd rm
+	A.Import i x		 -> checkImport i x
+	A.Pragma i p		 -> checkPragma i p
+	A.ScopedDecl scope ds	 -> setScope scope >> checkDecls ds
 	    -- open is just an artifact from the concrete syntax
 
 
@@ -86,7 +87,7 @@ checkDecl d =
 checkAxiom :: DefInfo -> QName -> A.Expr -> TCM ()
 checkAxiom _ x e =
     do	t <- isType_ e
-	addConstant x (Defn t 0 Axiom)
+	addConstant x (Defn x t Axiom)
 
 
 -- | Type check a primitive function declaration.
@@ -98,7 +99,7 @@ checkPrimitive i x e =
     noConstraints $ equalType t t'
     let s  = show x
     bindPrimitive s $ pf { primFunName = x }
-    addConstant x (Defn t 0 $ Primitive (defAbstract i) s [])
+    addConstant x (Defn x t $ Primitive (defAbstract i) s [])
     where
 	nameString (Name _ x _ _) = show x
 
@@ -147,8 +148,7 @@ checkDefinition d =
 checkSection :: ModuleInfo -> ModuleName -> A.Telescope -> [A.Declaration] -> TCM ()
 checkSection i x tel ds =
   checkTelescope tel $ \tel' -> do
-    addSection x EmptyTel -- addSection computes the telescope from the context and
-			  -- tel' is already in the context
+    addSection x (size tel')
     verbose 10 $ do
       dx   <- prettyTCM x
       dtel <- mapM Syntax.Abstract.Pretty.prettyA tel
@@ -156,14 +156,22 @@ checkSection i x tel ds =
       liftIO $ putStrLn $ "checking section " ++ show dx ++ " " ++ show dtel
       liftIO $ putStrLn $ "    actual tele: " ++ show dtel'
     withCurrentModule x $ checkDecls ds
+    exitSection x
 
 -- | Check an application of a section.
-checkSectionApplication :: ModuleInfo -> ModuleName -> ModuleName -> [NamedArg A.Expr] -> TCM ()
-checkSectionApplication i m1 m2 args = do
+checkSectionApplication ::
+  ModuleInfo -> ModuleName -> ModuleName -> [NamedArg A.Expr] ->
+  Map QName QName -> Map ModuleName ModuleName -> TCM ()
+checkSectionApplication i m1 m2 args rd rm = do
   tel <- lookupSection m2
-  (ts, cs)  <- checkArguments_ (getRange i) args tel
+  vs  <- freeVarsToApply $ qnameFromList $ mnameToList m2
+  (ts, cs)  <- checkArguments_ (getRange i) args (apply tel vs)
   noConstraints $ return cs
-  applySection m1 m2 tel ts
+  verbose 15 $ do
+    [d1,d2] <- mapM prettyTCM [m1,m2]
+    dts	    <- mapM prettyTCM (vs ++ ts)
+    liftIO $ putStrLn $ unwords [ "applySection", show d1, "=", show d2, show dts ]
+  applySection m1 m2 (vs ++ ts) rd rm
 
 -- | Type check an import declaration. Actually doesn't do anything, since all
 --   the work is done when scope checking.
@@ -196,8 +204,8 @@ checkDataDef i name ps cs =
 
 	    -- Change the datatype from an axiom to a datatype with no constructors.
 	    escapeContext (size tel) $
-	      addConstant name (Defn t 0 $ Datatype npars nofIxs []
-						    s (defAbstract i)
+	      addConstant name (Defn name t $ Datatype npars nofIxs []
+						       s (defAbstract i)
 			       )
 
 	    -- Check the types of the constructors
@@ -215,8 +223,8 @@ checkDataDef i name ps cs =
 
 	-- Add the datatype to the signature as a datatype. It was previously
 	-- added as an axiom.
-	addConstant name (Defn t 0 $ Datatype npars nofIxs (map cname cs)
-					      s (defAbstract i)
+	addConstant name (Defn name t $ Datatype npars nofIxs (map cname cs)
+						 s (defAbstract i)
 			 )
     where
 	cname (A.ScopedDecl _ [d]) = cname d
@@ -252,7 +260,7 @@ checkConstructor d tel nofIxs s con@(A.Axiom i c e) =
 	t `fitsIn` s
 	escapeContext (size tel)
 	    $ addConstant c
-	    $ Defn (telePi tel t) 0 $ Constructor (size tel) d $ defAbstract i
+	    $ Defn c (telePi tel t) $ Constructor (size tel) d $ defAbstract i
 checkConstructor _ _ _ _ _ = __IMPOSSIBLE__ -- constructors are axioms
 
 
@@ -280,7 +288,7 @@ fitsIn t s =
 		s' `leqSort` s
 		x <- freshName_ (argName t)
 		let v  = Arg h $ Var 0 []
-		    t' = piApply' (raise 1 t) [v]
+		    t' = piApply (raise 1 t) [v]
 		addCtx x arg $ fitsIn t' s
 	    _		     -> return ()
 
@@ -323,7 +331,7 @@ forceData d (El s0 t) = liftTCM $ do
 	Def d' _
 	    | d == d'   -> return $ El s0 t'
 	MetaV m vs	    -> do
-	    Defn t _ (Datatype _ _ _ s _) <- getConstInfo d
+	    Defn _ t (Datatype _ _ _ s _) <- getConstInfo d
 	    ps <- newArgsMeta t
 	    noConstraints $ equalType (El s0 t') (El s (Def d ps)) -- TODO: too strict?
 	    reduce $ El s0 t'
@@ -351,7 +359,7 @@ checkFunDef i name cs =
 	cs <- mapM rebindClause cs
 
 	-- Add the definition
-	addConstant name $ Defn t 0 $ Function cs $ defAbstract i
+	addConstant name $ Defn name t $ Function cs $ defAbstract i
 	verbose 10 $ do
 	  dx <- prettyTCM name
 	  t' <- prettyTCM . defType =<< getConstInfo name
@@ -392,6 +400,11 @@ containsAbsurdPattern p = case p of
 -- | Type check a left-hand side.
 checkLHS :: [NamedArg A.Pattern] -> Type -> ([Term] -> [String] -> [Arg Pattern] -> Type -> TCM a) -> TCM a
 checkLHS ps t ret = do
+
+    verbose 15 $ do
+      dt  <- prettyTCM t
+      dps <- mapM Syntax.Abstract.Pretty.prettyA ps
+      liftIO $ putStrLn $ "checking clause " ++ show dps ++ " : " ++ show dt
 
     -- Save the state for later. (should this be done with the undo monad, or
     -- would that interfere with normal undo?)
@@ -662,8 +675,8 @@ checkPatterns ps0@(Arg h np:ps) t = do
 
 	    -- Check the rest of the patterns. If the type of all the patterns were
 	    -- (x : A)Δ, then we check the rest against Δ[v] where v is the
-	    -- value of the first pattern (piApply' (Γ -> B) vs == B[vs/Γ]).
-	    (ps0, ps, vs, t'') <- checkPatterns ps (piApply' t0 [Arg h' v])
+	    -- value of the first pattern (piApply (Γ -> B) vs == B[vs/Γ]).
+	    (ps0, ps, vs, t'') <- checkPatterns ps (piApply t0 [Arg h' v])
 
 	    -- Additional variables have been added to the context.
 	    v' <- getOpen openv
@@ -748,7 +761,7 @@ checkPattern h name p t =
 	    (t', vs) <- do
 		-- Get the type of the constructor and the target datatype. The
 		-- type is the full lambda lifted type.
-		Defn t' _ (Constructor _ d _) <- getConstInfo c
+		Defn _ t' (Constructor _ d _) <- getConstInfo c
 
 		-- Make sure that t is an application of the datatype to its
 		-- parameters (and some indices). This will include module
@@ -768,7 +781,7 @@ checkPattern h name p t =
 	    Con c' [] <- constructorForm =<< reduce (Con c [])
 
 	    -- Check the arguments
-	    (aps, ps', ts', rest) <- checkPatterns ps (piApply' t' vs)
+	    (aps, ps', ts', rest) <- checkPatterns ps (piApply t' vs)
 
 	    -- Compute the corresponding value (possibly blocked by constraints)
 	    v <- do
@@ -960,7 +973,7 @@ checkExpr e t =
 		    | h == h' ->
 			addCtx x arg0 $ do
 			let arg = Arg h (Var 0 [])
-			    tb  = raise 1 t' `piApply'` [arg]
+			    tb  = raise 1 t' `piApply` [arg]
 			v <- checkExpr e0 tb
 			blockTerm t (Lam h (Abs (show x) v)) (return cs)
 		    | otherwise ->
@@ -1043,7 +1056,7 @@ inferHead (HeadCon c) = do
 
   -- and number of free parameters in the current context. The number of
   -- parameters remaining is the difference between these two.
-  m <- defFreeVars <$> getConstInfo c
+  m <- getDefFreeVars c
 
   verbose 7 $ do
     liftIO $ putStrLn $ unwords [show c, "has", show n, "parameters. Dropped", show m, "so far."]
@@ -1054,16 +1067,14 @@ inferHead (HeadCon c) = do
 inferDef :: (QName -> Args -> Term) -> QName -> TCM (Term, Type)
 inferDef mkTerm x =
     traceCall (InferDef (getRange x) x) $ do
-    d  <- getConstInfo x
-    d' <- instantiateDef d
-    gammaDelta <- getContextTelescope
-    let t     = defType d'
-	gamma = take (defFreeVars d) $ telToList gammaDelta
-	k     = size gammaDelta - defFreeVars d
-	vs    = reverse [ Arg h $ Var (i + k) []
-			| (Arg h _,i) <- zip gamma [0..]
-			]
-    return (mkTerm x vs, t)
+    d  <- instantiateDef =<< getConstInfo x
+    vs <- freeVarsToApply x
+    verbose 10 $ do
+      ds <- mapM prettyTCM vs
+      dx <- prettyTCM x
+      dt <- prettyTCM $ defType d
+      liftIO $ putStrLn $ "inferred def " ++ unwords (show dx : map show ds) ++ " : " ++ show dt
+    return (mkTerm x vs, defType d)
 
 
 -- | Check a list of arguments: @checkArgs args t0 t1@ checks that
@@ -1080,7 +1091,7 @@ checkArguments r [] t0 t1 =
 	    FunV (Arg Hidden a) _ | notHPi $ unEl t1'  -> do
 		v  <- newValueMeta a
 		let arg = Arg Hidden v
-		(vs, t0'',cs) <- checkArguments r [] (piApply' t0' [arg]) t1'
+		(vs, t0'',cs) <- checkArguments r [] (piApply t0' [arg]) t1'
 		return (arg : vs, t0'',cs)
 	    _ -> return ([], t0', [])
     where
@@ -1097,19 +1108,19 @@ checkArguments r args0@(Arg h e : args) t0 t1 =
 		u  <- newValueMeta a
 		let arg = Arg Hidden u
 		(us, t0'',cs') <- checkArguments r (Arg h e : args)
-				       (piApply' t0' [arg]) t1
+				       (piApply t0' [arg]) t1
 		return (arg : us, t0'', cs ++ cs')
 	    (Hidden, FunV (Arg Hidden a) _)
 		| not $ sameName (nameOf e) (nameInPi $ unEl t0') -> do
 		    u  <- newValueMeta a
 		    let arg = Arg Hidden u
 		    (us, t0'',cs') <- checkArguments r (Arg h e : args)
-					   (piApply' t0' [arg]) t1
+					   (piApply t0' [arg]) t1
 		    return (arg : us, t0'', cs ++ cs')
 	    (_, FunV (Arg h' a) _) | h == h' -> do
 		u  <- checkExpr e' a
 		let arg = Arg h u
-		(us, t0'', cs') <- checkArguments (fuseRange r e) args (piApply' t0' [arg]) t1
+		(us, t0'', cs') <- checkArguments (fuseRange r e) args (piApply t0' [arg]) t1
 		return (arg : us, t0'', cs ++ cs')
 	    (Hidden, FunV (Arg NotHidden _) _) ->
 		typeError $ WrongHidingInApplication t0'

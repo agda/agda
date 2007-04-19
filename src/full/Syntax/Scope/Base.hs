@@ -158,6 +158,16 @@ zipNameSpace fd fm ns1 ns2 =
       , nsModules = nsModules ns1 `fm` nsModules ns2
       }
 
+-- | Map monadic function over a namespace.
+mapNameSpaceM :: Monad m => 
+  (NamesInScope   -> m NamesInScope  ) ->
+  (ModulesInScope -> m ModulesInScope) ->
+  NameSpace -> m NameSpace
+mapNameSpaceM fd fm ns = do
+  ds <- fd $ nsNames ns
+  ms <- fm $ nsModules ns
+  return $ ns { nsNames = ds, nsModules = ms }
+
 -- * General operations on scopes
 
 -- | The empty scope.
@@ -192,6 +202,26 @@ mapScope_ :: (NamesInScope   -> NamesInScope  ) ->
 	     (ModulesInScope -> ModulesInScope) ->
 	     Scope -> Scope
 mapScope_ fd fm = mapScope (const fd) (const fm)
+
+-- | Map monadic functions over the names and modules in a scope.
+mapScopeM :: Monad m =>
+  (Access -> NamesInScope   -> m NamesInScope  ) ->
+  (Access -> ModulesInScope -> m ModulesInScope) ->
+  Scope -> m Scope
+mapScopeM fd fm s = do
+  pri <- mapNS PrivateAccess $ scopePrivate s
+  pub <- mapNS PublicAccess  $ scopePublic  s
+  return $ s { scopePrivate = pri, scopePublic = pub }
+  where
+    mapNS acc = mapNameSpaceM (fd acc) (fm acc)
+
+-- | Same as 'mapScopeM' but applies the same function to both the public and
+--   private name spaces.
+mapScopeM_ :: Monad m =>
+  (NamesInScope   -> m NamesInScope  ) ->
+  (ModulesInScope -> m ModulesInScope) ->
+  Scope -> m Scope
+mapScopeM_ fd fm = mapScopeM (const fd) (const fm)
 
 -- | Zip together two scopes. The resulting scope has the same name as the
 --   first scope.
@@ -330,39 +360,19 @@ applyImportDirective dir s = mergeScope usedOrHidden renamed
 	renMod mr (C.QName  x) = C.QName $ ren mr x
 	renMod mr (C.Qual m x) = flip C.Qual x $ ren mr m
 
--- | @freshCanonicalNames old new s@ replaces all (abstract) names @old.m.x@
---   with @new.m.x@. Any other names are left untouched.
-freshCanonicalNames :: ModuleName -> ModuleName -> Scope -> Scope
-freshCanonicalNames old new s = mapScope_ renameName renameMod s
+-- | Rename the canical names in a scope.
+renameCanonicalNames :: Map A.QName A.QName -> Map A.ModuleName A.ModuleName ->
+			Scope -> Scope
+renameCanonicalNames renD renM = mapScope_ renameD renameM
   where
-    onName   f x = x { anameName = f $ anameName x }
-    onModule f m = m { amodName  = f $ amodName  m }
+    renameD = Map.map (map $ onName  rD)
+    renameM = Map.map (map $ onMName rM)
 
-    renameName = Map.map renName
-    renameMod  = Map.map renMod
+    onName  f x = x { anameName = f $ anameName x }
+    onMName f x = x { amodName  = f $ amodName  x }
 
-    -- Change a binding M.x -> old.M'.y to M.x -> new.M'.y
-    renName ys = map (onName qdq) ys
-      where
-	qdq y
-	  | y `isInModule` old = qualifyQ new . dequalify $ y
-	  | otherwise	       = y
-
-	dequalify = A.qnameFromList . drop n . A.qnameToList
-	  where
-	    n = length $ mnameToList old
-
-    -- Change a binding M.x -> old.M'.y to M.x -> new.M'.y
-    renMod ys = map (onModule qdq) ys
-      where
-	qdq y
-	  | y `isSubModuleOf` old = qualifyM new . dequalify $ y
-	  | otherwise		  = y
-
-	dequalify = A.mnameFromList . drop n . A.mnameToList
-	  where
-	    n = length $ mnameToList old
-
+    rD x = maybe x id $ Map.lookup x renD
+    rM x = maybe x id $ Map.lookup x renM
 
 -- * Inverse look-up
 

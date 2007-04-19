@@ -127,7 +127,7 @@ newArgsMeta (El s tm) = do
     case funView tm of
 	FunV (Arg h a) _  -> do
 	    v	 <- newValueMeta a
-	    args <- newArgsMeta $ piApply' (El s tm) [Arg h v]
+	    args <- newArgsMeta $ piApply (El s tm) [Arg h v]
 	    return $ Arg h v : args
 	NoFunV _    -> return []
 

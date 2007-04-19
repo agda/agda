@@ -37,8 +37,7 @@ instance Apply Term where
 	    Sort _	  -> __IMPOSSIBLE__
 
 instance Apply Type where
-    apply a []		= a
-    apply (El s t) args	= El s $ t `apply` args
+  apply = piApply
 
 instance Apply Sort where
   apply s [] = s
@@ -50,7 +49,7 @@ instance Apply Telescope where
   apply (ExtendTel _ tel) (t : ts) = absApp tel (unArg t) `apply` ts
 
 instance Apply Definition where
-    apply (Defn t n d) args = Defn (piApply' t args) (n - size args) (apply d args)
+    apply (Defn x t d) args = Defn x (piApply t args) (apply d args)
 
 instance Apply Defn where
     apply Axiom _		       = Axiom
@@ -86,11 +85,11 @@ instance (Apply a, Apply b, Apply c) => Apply (a,b,c) where
 
 -- | The type must contain the right number of pis without have to perform any
 -- reduction.
-piApply' :: Type -> Args -> Type
-piApply' t []				 = t
-piApply' (El _ (Pi  _ b)) (Arg _ v:args) = absApp b v `piApply'` args
-piApply' (El _ (Fun _ b)) (_:args)	 = b
-piApply' _ _				 =
+piApply :: Type -> Args -> Type
+piApply t []				 = t
+piApply (El _ (Pi  _ b)) (Arg _ v:args) = absApp b v `piApply` args
+piApply (El _ (Fun _ b)) (_:args)	 = b
+piApply _ _				 =
     __IMPOSSIBLE__
 
 -- | @(abstract args v) args --> v[args]@.
@@ -112,7 +111,7 @@ instance Abstract Telescope where
   abstract (ExtendTel arg tel') tel = ExtendTel arg $ fmap (`abstract` tel) tel'
 
 instance Abstract Definition where
-    abstract tel (Defn t n d) = Defn (telePi tel t) (size tel + n) (abstract tel d)
+    abstract tel (Defn x t d) = Defn x (telePi tel t) (abstract tel d)
 
 instance Abstract Defn where
     abstract tel Axiom			 = Axiom
