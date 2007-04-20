@@ -593,9 +593,21 @@ instance ToAbstract CD.Clause A.Clause where
     toAbstract (CD.Clause top lhs rhs wh) =
 	localToAbstract (LeftHandSide top lhs) $ \lhs' -> do	-- the order matters here!
 	  printLocals 10 "after lhs:"
-	  wh'  <- toAbstract wh	-- TODO: this will have to change when adding modules for local defs
-	  rhs' <- toAbstractCtx TopCtx rhs
-	  return $ A.Clause lhs' rhs' wh'
+	  case wh of
+	    []	-> do
+	      rhs <- toAbstractCtx TopCtx rhs
+	      return $ A.Clause lhs' rhs []
+	    wh	-> do
+	      let m   = C.QName C.noName_
+		  tel = []
+	      (scope, ds) <- scopeCheckModule (getRange wh) PublicAccess ConcreteDef m tel wh
+	      setScope scope
+	      -- the right hand side is checked inside the module of the local definitions
+	      rhs <- toAbstractCtx TopCtx rhs
+	      qm <- getCurrentModule
+	      popScope PublicAccess
+	      bindQModule PublicAccess m qm
+	      return $ A.Clause lhs' rhs ds
 
 data LeftHandSide = LeftHandSide C.Name C.LHS
 

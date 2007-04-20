@@ -370,19 +370,39 @@ checkFunDef i name cs =
 
 -- | Type check a function clause.
 checkClause :: Type -> A.Clause -> TCM Clause
-checkClause t c@(A.Clause (A.LHS i x aps) rhs ds) =
+checkClause t c@(A.Clause (A.LHS i x aps) rhs wh) =
     traceCall (CheckClause t c) $
     checkLHS aps t $ \sub xs ps t' -> do
-	checkDecls ds
-	body <- case rhs of
-	    A.RHS e -> do
-		v <- checkExpr e t'
-		return $ foldr (\x t -> Bind $ Abs x t) (Body $ substs sub v) xs
-	    A.AbsurdRHS
-		| any (containsAbsurdPattern . namedThing . unArg) aps
-			    -> return NoBody
-		| otherwise -> typeError $ NoRHSRequiresAbsurdPattern aps
-	return $ Clause ps body
+      body <- checkWhere (size xs) wh $ 
+	      case rhs of
+		A.RHS e -> do
+		  v <- checkExpr e t'
+		  return $ foldr (\x t -> Bind $ Abs x t) (Body $ substs sub v) xs
+		A.AbsurdRHS
+		  | any (containsAbsurdPattern . namedThing . unArg) aps
+			      -> return NoBody
+		  | otherwise -> typeError $ NoRHSRequiresAbsurdPattern aps
+      return $ Clause ps body
+
+-- | Type check a where clause. The first argument is the number of variables
+--   bound in the left hand side.
+checkWhere :: Int -> [A.Declaration] -> TCM a -> TCM a
+checkWhere _ []			     ret = ret
+checkWhere n [A.ScopedDecl scope ds] ret = setScope scope >> checkWhere n ds ret
+checkWhere n [A.Section _ m tel ds]  ret = do
+  checkTelescope tel $ \tel' -> do
+    addSection m (size tel' + n)  -- the variables bound in the lhs
+				  -- are also parameters
+    verbose 10 $ do
+      dx   <- prettyTCM m
+      dtel <- mapM Syntax.Abstract.Pretty.prettyA tel
+      dtel' <- prettyTCM =<< lookupSection m
+      liftIO $ putStrLn $ "checking where section " ++ show dx ++ " " ++ show dtel
+      liftIO $ putStrLn $ "	   actual tele: " ++ show dtel'
+    x <- withCurrentModule m $ checkDecls ds >> ret
+    exitSection m
+    return x
+checkWhere _ _ _ = __IMPOSSIBLE__
 
 -- | Check if a pattern contains an absurd pattern. For instance, @suc ()@
 containsAbsurdPattern :: A.Pattern -> Bool
@@ -707,7 +727,7 @@ argName = argN . unEl
 
 actualConstructor :: MonadTCM tcm => QName -> tcm QName
 actualConstructor c = do
-    v <- constructorForm =<< reduce (Con c [])
+    v <- constructorForm =<< normalise (Con c [])
     case ignoreBlocking v of
 	Con c _	-> return c
 	_	-> actualConstructor =<< stripLambdas v
