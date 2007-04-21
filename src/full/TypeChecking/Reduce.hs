@@ -149,9 +149,8 @@ instance Reduce Term where
 		MetaV x args -> MetaV x <$> reduce args
 		Def f args   -> reduceDef (Def f []) f args
 		Con c args   -> do
-		    v <- reduceDef (Con c []) c args -- constructors can have definitions
+		    v <- reduceDef (Con c []) c args -- constructors can reduce
 		    reduceNat v			     -- when they come from an instantiated module
-						     -- (change this?)
 		Sort s	   -> Sort <$> reduce s
 		Pi _ _	   -> return v
 		Fun _ _    -> return v
@@ -179,11 +178,12 @@ instance Reduce Term where
 	    reduceDef v0 f args =
 		{-# SCC "reduceDef" #-}
 		do  info <- getConstInfo f
-		    case info of
-			Defn _ _ (Primitive ConcreteDef x cls) -> do
+		    case theDef info of
+			Primitive ConcreteDef x cls -> do
 			    pf <- getPrimitive x
 			    reducePrimitive x v0 f args pf cls
-			_ -> reduceNormal v0 f args $ defClauses info
+			Constructor _ c _ _ -> return $ Con c args
+			_		    -> reduceNormal v0 f args $ defClauses info
 
 	    reducePrimitive x v0 f args pf cls
 		| n < ar    = return $ v0 `apply` args	-- not fully applied
@@ -426,13 +426,13 @@ instance InstantiateFull Definition where
 
 instance InstantiateFull Defn where
     instantiateFull d = case d of
-	Axiom		      -> return Axiom
-	Function cs a	      -> flip Function a <$> instantiateFull cs
-	Datatype np ni cs s a -> do
+	Axiom			-> return Axiom
+	Function cs a		-> flip Function a <$> instantiateFull cs
+	Datatype np ni d cs s a -> do
 	    s <- instantiateFull s
-	    return $ Datatype np ni cs s a
-	Constructor n q a -> return $ Constructor n q a
-	Primitive a s cs  -> Primitive a s <$> instantiateFull cs
+	    return $ Datatype np ni d cs s a
+	Constructor n c d a	-> return $ Constructor n c d a
+	Primitive a s cs	-> Primitive a s <$> instantiateFull cs
 
 instance InstantiateFull Clause where
     instantiateFull (Clause ps b) = Clause ps <$> instantiateFull b

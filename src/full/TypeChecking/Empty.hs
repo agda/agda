@@ -26,11 +26,11 @@ isEmptyType t = do
 	    Defn _ _ di <- getConstInfo d
 	    case di of
 		-- No constructors
-		Datatype _ _ [] _ _		    -> return ()
+		Datatype _ _ _ [] _ _ -> return ()
 
 		-- Inductive family. Check that the type at the given index is
 		-- uninhabited.
-		Datatype nPs nIxs cs _ _ | nIxs > 0 -> do
+		Datatype nPs nIxs _ cs _ _ | nIxs > 0 -> do
 		    ixs <- normalise $ map unArg vs
 		    verbose 10 $ do
 			ds <- mapM prettyTCM ixs

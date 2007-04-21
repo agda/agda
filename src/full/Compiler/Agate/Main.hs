@@ -134,7 +134,7 @@ maxConArgs dfs = return 3
 enumCon :: Definitions -> [QName]
 enumCon = concatMap f . Map.toList
     where f (name, d) = case theDef d of
-                          (Constructor _ _ _) -> [name]
+                          Constructor _ _ _ _ -> [name]
                           _                   -> []
 
 printConsts :: Definitions -> IO ()

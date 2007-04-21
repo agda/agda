@@ -287,12 +287,14 @@ data Definition = Defn { defName     :: QName
 
 data Defn = Axiom
 	  | Function [Clause] IsAbstract
-	  | Datatype Nat	-- nof parameters
-		     Nat	-- nof indices
-		     [QName]	-- constructor names
+	  | Datatype Nat	    -- nof parameters
+		     Nat	    -- nof indices
+		     (Maybe Clause) -- this might be in an instantiated module
+		     [QName]	    -- constructor names
 		     Sort
 		     IsAbstract
 	  | Constructor Nat	-- nof parameters
+			QName	-- original constructor (this might be in a module instance)
 			QName	-- name of datatype
 			IsAbstract
 	  | Primitive IsAbstract String [Clause] -- PrimFun
@@ -309,17 +311,18 @@ data PrimFun = PrimFun
     deriving (Typeable)
 
 defClauses :: Definition -> [Clause]
-defClauses (Defn _ _ (Function cs _))	   = cs
-defClauses (Defn _ _ (Primitive _ _ cs)) = cs
-defClauses _				   = []
+defClauses (Defn _ _ (Function cs _))		    = cs
+defClauses (Defn _ _ (Primitive _ _ cs))	    = cs
+defClauses (Defn _ _ (Datatype _ _ (Just c) _ _ _)) = [c]
+defClauses _					    = []
 
 defAbstract :: Definition -> IsAbstract
 defAbstract d = case theDef d of
-    Axiom	       -> AbstractDef
-    Function _ a       -> a
-    Datatype _ _ _ _ a -> a
-    Constructor _ _ a  -> a
-    Primitive a _ _    -> a
+    Axiom		 -> AbstractDef
+    Function _ a	 -> a
+    Datatype _ _ _ _ _ a -> a
+    Constructor _ _ _ a  -> a
+    Primitive a _ _	 -> a
 
 ---------------------------------------------------------------------------
 -- ** Statistics

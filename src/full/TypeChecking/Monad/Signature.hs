@@ -98,6 +98,8 @@ applySection new old ts rd rm = liftTCM $ do
     partOfOldM x = x `isSubModuleOf` old
     partOfOldD x = x `isInModule`    old
 
+    copyName x = maybe x id $ Map.lookup x rd
+
     copyDef :: Args -> (QName, Definition) -> TCM ()
     copyDef ts (x, d) = case Map.lookup x rd of
 	Nothing -> return ()  -- if it's not in the renaming it was private and
@@ -106,10 +108,12 @@ applySection new old ts rd rm = liftTCM $ do
       where
 	t  = defType d `apply` ts
 	-- the name is set by the addConstant function
-	nd = Defn __IMPOSSIBLE__ t $ Function [Clause [] $ Body v] ConcreteDef
-	v  = case theDef d of
-		Constructor _ _ _ -> Con x [] -- constructors are polymorphic
-		_		  -> Def x ts
+	nd = Defn __IMPOSSIBLE__ t def
+	def  = case theDef d of
+		Constructor n c d a	-> Constructor (n - size ts) c (copyName d) a
+		Datatype np ni _ cs s a -> Datatype (np - size ts) ni (Just cl) (map copyName cs) s a
+		_			-> Function [cl] ConcreteDef
+	cl = Clause [] $ Body $ Def x ts
 
     copySec :: Args -> (ModuleName, Section) -> TCM ()
     copySec ts (x, sec) = case Map.lookup x rm of
@@ -172,10 +176,10 @@ makeAbstract :: Definition -> Maybe Definition
 makeAbstract d = do def <- makeAbs $ theDef d
 		    return d { theDef = def }
     where
-	makeAbs (Datatype _ _ _ _ AbstractDef) = Just Axiom
-	makeAbs (Function _ AbstractDef)       = Just Axiom
-	makeAbs (Constructor _ _ AbstractDef)  = Nothing
-	makeAbs d			       = Just d
+	makeAbs (Datatype _ _ _ _ _ AbstractDef) = Just Axiom
+	makeAbs (Function _ AbstractDef)	 = Just Axiom
+	makeAbs (Constructor _ _ _ AbstractDef)	 = Nothing
+	makeAbs d				 = Just d
 
 -- | Enter abstract mode
 inAbstractMode :: MonadTCM tcm => tcm a -> tcm a
@@ -208,6 +212,6 @@ sortOfConst :: MonadTCM tcm => QName -> tcm Sort
 sortOfConst q =
     do	d <- theDef <$> getConstInfo q
 	case d of
-	    Datatype _ _ _ s _	-> return s
-	    _			-> fail $ "Expected " ++ show q ++ " to be a datatype."
+	    Datatype _ _ _ _ s _ -> return s
+	    _			 -> fail $ "Expected " ++ show q ++ " to be a datatype."
 

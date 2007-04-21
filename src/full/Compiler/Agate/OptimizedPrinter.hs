@@ -58,7 +58,7 @@ showTypeDeclarations definitions compilableDatatypes = do
 showTypeDeclaration :: Definitions -> QName -> TCM Doc
 showTypeDeclaration definitions name = do
     let defn = definitions ! name
-    let (Datatype np ni qcnames s a) = theDef defn
+    let (Datatype np ni _ qcnames s a) = theDef defn
     ty <- instantiate $ defType defn
     underContext ty $ do
     	dtypename <- showAsOptimizedType name
@@ -114,14 +114,14 @@ showValueDefinition definitions compilableDatatypes (name,defn) = do
       Function clauses a -> do
 	dclauses <- mapM (showClauseAsOptimized name) clauses
 	return $ vcat dclauses
-      Datatype np ni qcnames s a -> do
+      Datatype np ni _ qcnames s a -> do
 	ty <- instantiate $ defType defn
 	underContext ty $ do
     		dparams <- mapM (showAsOptimizedTerm. flip Var [])
     			$ reverse [0..(np - 1)]
 		return $ sep [ sep (dname : dparams), equals ] <+>
 			 text "()"
-      Constructor np qtname a -> do
+      Constructor np _ qtname a -> do
 	dcname <- showNameAsOptimizedConstructor name
 	let dparams = map (const $ text "_") [0..(np - 1)]
 	return $ sep [ sep (dname : dparams), equals ] <+> dcname

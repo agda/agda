@@ -52,11 +52,11 @@ instance Apply Definition where
     apply (Defn x t d) args = Defn x (piApply t args) (apply d args)
 
 instance Apply Defn where
-    apply Axiom _		       = Axiom
-    apply (Function cs a) args	       = Function (apply cs args) a
-    apply (Datatype np ni cs s a) args = Datatype (np - size args) ni cs s a
-    apply (Constructor np cs a) args   = Constructor (np - size args) cs a
-    apply (Primitive a x cs) args      = Primitive a x cs
+    apply Axiom _			  = Axiom
+    apply (Function cs a) args		  = Function (apply cs args) a
+    apply (Datatype np ni cl cs s a) args = Datatype (np - size args) ni (apply cl args) cs s a
+    apply (Constructor np c d a) args	  = Constructor (np - size args) c d a
+    apply (Primitive a x cs) args	  = Primitive a x cs
 
 instance Apply PrimFun where
     apply (PrimFun x ar def) args   = PrimFun x (ar - size args) $ \vs -> def (args ++ vs)
@@ -76,6 +76,9 @@ instance Apply t => Apply [t] where
 
 instance Apply t => Apply (Blocked t) where
     apply b args = fmap (`apply` args) b
+
+instance Apply t => Apply (Maybe t) where
+  apply x args = fmap (`apply` args) x
 
 instance (Apply a, Apply b) => Apply (a,b) where
     apply (x,y) args = (apply x args, apply y args)
@@ -114,11 +117,11 @@ instance Abstract Definition where
     abstract tel (Defn x t d) = Defn x (telePi tel t) (abstract tel d)
 
 instance Abstract Defn where
-    abstract tel Axiom			 = Axiom
-    abstract tel (Function cs a)	 = Function (abstract tel cs) a
-    abstract tel (Datatype np ni cs s a) = Datatype (size tel + np) ni cs s a
-    abstract tel (Constructor np cs a)	 = Constructor (size tel + np) cs a
-    abstract tel (Primitive a x cs)	 = Primitive a x (abstract tel cs)
+    abstract tel Axiom			    = Axiom
+    abstract tel (Function cs a)	    = Function (abstract tel cs) a
+    abstract tel (Datatype np ni cl cs s a) = Datatype (size tel + np) ni (abstract tel cl) cs s a
+    abstract tel (Constructor np c d a)	    = Constructor (size tel + np) c d a
+    abstract tel (Primitive a x cs)	    = Primitive a x (abstract tel cs)
 
 instance Abstract PrimFun where
     abstract tel (PrimFun x ar def) = PrimFun x (ar + n) $ \ts -> def $ drop n ts
@@ -136,6 +139,9 @@ instance Abstract ClauseBody where
 
 instance Abstract t => Abstract [t] where
     abstract tel = map (abstract tel)
+
+instance Abstract t => Abstract (Maybe t) where
+  abstract tel x = fmap (abstract tel) x
 
 abstractArgs :: Abstract a => Args -> a -> a
 abstractArgs args x = abstract tel x

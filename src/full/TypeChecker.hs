@@ -204,7 +204,7 @@ checkDataDef i name ps cs =
 
 	    -- Change the datatype from an axiom to a datatype with no constructors.
 	    escapeContext (size tel) $
-	      addConstant name (Defn name t $ Datatype npars nofIxs []
+	      addConstant name (Defn name t $ Datatype npars nofIxs Nothing []
 						       s (defAbstract i)
 			       )
 
@@ -223,7 +223,7 @@ checkDataDef i name ps cs =
 
 	-- Add the datatype to the signature as a datatype. It was previously
 	-- added as an axiom.
-	addConstant name (Defn name t $ Datatype npars nofIxs (map cname cs)
+	addConstant name (Defn name t $ Datatype npars nofIxs Nothing (map cname cs)
 						 s (defAbstract i)
 			 )
     where
@@ -260,7 +260,7 @@ checkConstructor d tel nofIxs s con@(A.Axiom i c e) =
 	t `fitsIn` s
 	escapeContext (size tel)
 	    $ addConstant c
-	    $ Defn c (telePi tel t) $ Constructor (size tel) d $ defAbstract i
+	    $ Defn c (telePi tel t) $ Constructor (size tel) c d $ defAbstract i
 checkConstructor _ _ _ _ _ = __IMPOSSIBLE__ -- constructors are axioms
 
 
@@ -323,15 +323,34 @@ constructs nofPars t q = constrT 0 t
 		    noConstraints $ equalTerm t v (Var i [])
 
 
+-- | Get the canonical datatype (i.e. the defining datatype) for a given name.
+--   The name should be a datatype, but it can be a redefined datatype.
+canonicalDatatype :: MonadTCM tcm => QName -> tcm QName
+canonicalDatatype d = do
+  Datatype _ _ cl _ _ _ <- theDef <$> getConstInfo d
+  case cl of
+    Nothing	      -> return d
+    Just (Clause _ v) -> canonicalDatatype $ bodyName v
+  where
+    bodyName (Bind b)	= bodyName $ absBody b
+    bodyName (NoBind b) = bodyName b
+    bodyName (Body v)	= name v
+    bodyName  NoBody	= __IMPOSSIBLE__
+    name (Lam _ b) = name $ absBody b
+    name (Def d _) = d
+    name _	   = __IMPOSSIBLE__
+
 -- | Force a type to be a specific datatype.
 forceData :: MonadTCM tcm => QName -> Type -> tcm Type
 forceData d (El s0 t) = liftTCM $ do
     t' <- reduce t
+    d <- canonicalDatatype d
     case t' of
 	Def d' _
 	    | d == d'   -> return $ El s0 t'
+	    | otherwise	-> fail $ "wrong datatype " ++ show d ++ " != " ++ show d'
 	MetaV m vs	    -> do
-	    Defn _ t (Datatype _ _ _ s _) <- getConstInfo d
+	    Defn _ t (Datatype _ _ _ _ s _) <- getConstInfo d
 	    ps <- newArgsMeta t
 	    noConstraints $ equalType (El s0 t') (El s (Def d ps)) -- TODO: too strict?
 	    reduce $ El s0 t'
@@ -775,38 +794,50 @@ checkPattern h name p t =
 	    -- one.
 	    ot <- makeOpen t
 
-	    -- The constructor might have been renamed
-	    c  <- actualConstructor c
+-- 	    (t', vs) <- do
+-- 		-- Get the type of the constructor and the target datatype. The
+-- 		-- type is the full lambda lifted type.
+-- 		Defn _ t' (Constructor _ _ d _) <- getConstInfo c
+-- 
+-- 		-- Make sure that t is an application of the datatype to its
+-- 		-- parameters (and some indices). This will include module
+-- 		-- parameters.
+-- 		Def d' _ <- reduce (Def d [])
+-- 
+-- 		verbose 10 $ do
+-- 		  t <- prettyTCM t
+-- 		  liftIO $ putStrLn $ "checking constructor " ++ show c ++
+-- 				" of type " ++ show d ++ " (" ++ show d' ++ ")"
+-- 		  liftIO $ putStrLn $ "  against type " ++ show t
+-- 		  
+-- 
+-- 		El _ (Def _ vs)	<- forceData d' t
+-- 
+-- 		-- Get the number of parameters of the datatype, including
+-- 		-- parameters to enclosing modules.
+-- 		Datatype nofPars _ _ _ _ _ <- theDef <$> getConstInfo d
+-- 
+-- 		-- Throw away the indices
+-- 		let vs' = take nofPars vs
+-- 		return (t', vs')
+-- 
+-- 	    -- Compute the canonical form of the constructor (it might go
+-- 	    -- through a lot of module instantiations).
+-- 	    Con c' [] <- constructorForm =<< reduce (Con c [])
 
-	    (t', vs) <- do
-		-- Get the type of the constructor and the target datatype. The
-		-- type is the full lambda lifted type.
-		Defn _ t' (Constructor _ d _) <- getConstInfo c
+	    -- Infer the type of the constructor
+	    (_, a) <- liftTCM $ inferDef Con c
 
-		-- Make sure that t is an application of the datatype to its
-		-- parameters (and some indices). This will include module
-		-- parameters.
-		El _ (Def _ vs)	<- forceData d t
-
-		-- Get the number of parameters of the datatype, including
-		-- parameters to enclosing modules.
-		Datatype nofPars _ _ _ _ <- theDef <$> getConstInfo d
-
-		-- Throw away the indices
-		let vs' = take nofPars vs
-		return (t', vs')
-
-	    -- Compute the canonical form of the constructor (it might go
-	    -- through a lot of module instantiations).
-	    Con c' [] <- constructorForm =<< reduce (Con c [])
-
-	    -- Check the arguments
-	    (aps, ps', ts', rest) <- checkPatterns ps (piApply t' vs)
+	    -- Check the arguments against that type
+	    (aps, ps', ts', rest) <- checkPatterns ps a -- (piApply t' vs)
 
 	    -- Compute the corresponding value (possibly blocked by constraints)
 	    v <- do
 		tn  <- getOpen ot
-		blockTerm tn (Con c' ts') $ equalType rest tn
+		blockTerm tn (Con c ts') $ equalType rest tn
+
+	    -- Get the canonical name for the constructor
+	    Constructor _ c' _ _ <- theDef <$> getConstInfo c
 
 	    return (A.ConP i c' aps, ConP c' ps', v)
 	    where
@@ -1028,6 +1059,8 @@ checkExpr e t =
 
 	A.ScopedExpr scope e -> setScope scope >> checkExpr e t
 
+-- | TODO: think this through
+{-
 nofConstructorPars :: QName -> TCM Int
 nofConstructorPars c = do
     Con c' [] <- constructorForm =<< reduce (Con c [])
@@ -1038,7 +1071,8 @@ nofConstructorPars c = do
   where
     constructorPars :: QName -> TCM Int
     constructorPars c = do
-      Constructor _ d _	  <- theDef <$> getConstInfo c
+      c' <- actualConstructor c
+      Constructor _ d _	  <- theDef <$> getConstInfo c'
       Datatype np _ _ _ _ <- theDef <$> getConstInfo d
       return np
 
@@ -1053,7 +1087,7 @@ nofConstructorPars c = do
 	Pi _ (Abs _ b)	-> 1 + arity b
 	Fun _ b		-> 1 + arity b
 	_		-> 0
-
+-}
 
 -- | Infer the type of a head thing (variable, function symbol, or constructor)
 inferHead :: Head -> TCM (Args -> Term, Type)
@@ -1064,6 +1098,7 @@ inferHead (HeadDef x) = do
   (u, a) <- inferDef Def x
   return (apply u, a)
 inferHead (HeadCon c) = do
+
   -- Constructors are polymorphic internally so when building the constructor
   -- term we should throw away arguments corresponding to parameters.
 
@@ -1071,18 +1106,14 @@ inferHead (HeadCon c) = do
   -- of the current context. We ignore that.
   (u, a) <- inferDef (\c _ -> Con c []) c
 
-  -- Next get the total number of parameters after lambda lifting.
-  n <- nofConstructorPars c
-
-  -- and number of free parameters in the current context. The number of
-  -- parameters remaining is the difference between these two.
-  m <- getDefFreeVars c
+  -- Next get the number of parameters in the current context.
+  Constructor n _ _ _ <- theDef <$> (instantiateDef =<< getConstInfo c)
 
   verbose 7 $ do
-    liftIO $ putStrLn $ unwords [show c, "has", show n, "parameters. Dropped", show m, "so far."]
+    liftIO $ putStrLn $ unwords [show c, "has", show n, "parameters."]
 
-  -- So when applying the constructor throw away that many arguments.
-  return (apply u . drop (n - m), a)
+  -- So when applying the constructor throw away the parameters.
+  return (apply u . drop n, a)
 
 inferDef :: (QName -> Args -> Term) -> QName -> TCM (Term, Type)
 inferDef mkTerm x =

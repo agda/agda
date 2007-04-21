@@ -122,13 +122,13 @@ showNDefinition (name, defn) = do
 	dclauses <- mapM showClause clauses
 	return $ (dname <+> equals) <+> drhs <+> text "where" $+$
 		 nest 2 (vcat dclauses)
-      Datatype np ni qcnames s a -> do
+      Datatype np ni _ qcnames s a -> do
 	ty <- instantiate $ defType defn
 	(args,_) <- splitType ty
 	let dvars = map (\i -> text ("v" ++ show i)) [1 .. np + ni]
 	let drhs = untypedAbs dvars $ text "VNonData"
 	return $ sep [ dname, equals ] <+> drhs <+> text "{- datatype -}"
-      Constructor np qtname a -> do
+      Constructor np _ qtname a -> do
 	dcname <- showAsUntypedConstructor name
 	ty <- instantiate $ defType defn
 	(args,_) <- splitType ty

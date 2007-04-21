@@ -37,8 +37,8 @@ checkStrictlyPositive ds = notInAbstractMode $ flip evalStateT noAssumptions $ d
 	constructors d = do
 	    def <- lift $ theDef <$> getConstInfo d
 	    case def of
-		Datatype _ _ cs _ _ -> return $ zip (repeat d) cs
-		_		    -> __IMPOSSIBLE__
+		Datatype _ _ _ cs _ _ -> return $ zip (repeat d) cs
+		_		      -> __IMPOSSIBLE__
 
 -- | Assumptions about arguments to datatypes
 type Assumptions = Set (QName, Int)
@@ -91,7 +91,7 @@ checkPosArg d i = unlessM (isAssumption d i) $ do
     assume d i
     def <- lift $ theDef <$> getConstInfo d
     case def of
-	Datatype _ _ cs _ _ -> do
+	Datatype _ _ _ cs _ _ -> do
 	    xs <- lift $ map (qnameFromList . (:[])) <$>
 		  replicateM (i + 1) (freshName_ "dummy")
 	    let x = xs !! i
