@@ -75,6 +75,18 @@ data AbstractModule = AbsModule
       }
   deriving (Typeable, Data)
 
+instance Eq AbstractName where
+  (==) = (==) `on` anameName
+
+instance Ord AbstractName where
+  compare = compare `on` anameName
+
+instance Eq AbstractModule where
+  (==) = (==) `on` amodName
+
+instance Ord AbstractModule where
+  compare = compare `on` amodName
+
 instance Show ScopeInfo where
   show (ScopeInfo stack locals ctx) =
     unlines $
@@ -128,10 +140,10 @@ instance SetRange AbstractModule where
 -- * Operations on name and module maps.
 
 mergeNames :: NamesInScope -> NamesInScope -> NamesInScope
-mergeNames = Map.unionWith (++)
+mergeNames = Map.unionWith union
 
 mergeModules :: ModulesInScope -> ModulesInScope -> ModulesInScope
-mergeModules = Map.unionWith (++)
+mergeModules = Map.unionWith union
 
 -- * Operations on name spaces
 
