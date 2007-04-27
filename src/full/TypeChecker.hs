@@ -1009,6 +1009,9 @@ checkExpr e t =
     verbose 15 $ do
         d <- text "    --> " <+> prettyTCM t
         liftIO $ print d
+    let scopedExpr (A.ScopedExpr scope e) = setScope scope >> scopedExpr e
+	scopedExpr e			  = return e
+    e <- scopedExpr e
     case e of
 
 	-- Insert hidden lambda if appropriate
@@ -1338,6 +1341,9 @@ bindBuiltinCons e = do
     bindBuiltinName builtinCons cons
 
 bindBuiltinPrimitive :: String -> String -> A.Expr -> (Term -> TCM ()) -> TCM ()
+bindBuiltinPrimitive name builtin (A.ScopedExpr scope e) verify = do
+  setScope scope
+  bindBuiltinPrimitive name builtin e verify
 bindBuiltinPrimitive name builtin e@(A.Def qx) verify = do
     PrimImpl t pf <- lookupPrimitiveFunction name
     v <- checkExpr e t
