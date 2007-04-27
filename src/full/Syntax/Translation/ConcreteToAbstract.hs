@@ -496,17 +496,24 @@ instance ToAbstract NiceDeclaration A.Declaration where
 				    , OldModuleName m
 				    , args
 				    )
+	printScope 20 "module macro"
 	pushScope x'
 	m0 <- getCurrentModule
 	openModule_ m $ dir { C.publicOpen = True }
+	printScope 20 "opened source module"
 	s : _ <- scopeStack <$> getScope
 	(renD, renM) <- renamedCanonicalNames m1 m0 s
 	modifyTopScope $ renameCanonicalNames renD renM
+	printScope 20 "renamed stuff"
 	popScope p
+	printScope 20 "popped"
 	bindModule p x m0
 	case open of
 	  DontOpen -> return ()
-	  DoOpen   -> openModule_ (C.QName x) dir
+	  DoOpen   -> openModule_ (C.QName x) defaultImportDir
+	printScope 20 $ case open of
+	  DontOpen  -> "didn't open"
+	  DoOpen    -> "opened"
 	let decl = Apply info m0 m1 args' renD renM
 	case tel' of
 	  []  -> return [ decl ]

@@ -20,6 +20,7 @@ module Syntax.Concrete
     , TypeSignature
     , Constructor
     , ImportDirective(..), UsingOrHiding(..), ImportedName(..)
+    , defaultImportDir
     , OpenShortHand(..)
     , LHS, Pattern(..)
     , RHS(..), WhereClause
@@ -135,6 +136,9 @@ data ImportDirective
 	    , publicOpen	:: Bool	-- ^ Only for @open@. Exports the opened names from the current module.
 	    }
     deriving (Typeable, Data, Eq)
+
+defaultImportDir :: ImportDirective
+defaultImportDir = ImportDirective noRange (Hiding []) [] False
 
 data UsingOrHiding
 	= Hiding [ImportedName]

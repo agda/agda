@@ -99,7 +99,7 @@ instance Show ScopeInfo where
       relines = filter (not . null) . lines . unlines
 
 instance Show Scope where
-  show (Scope name pub pri) =
+  show (Scope { scopeName = name, scopePublic = pub, scopePrivate = pri }) =
     unlines $
       [ "scope " ++ show name
       , "public"
