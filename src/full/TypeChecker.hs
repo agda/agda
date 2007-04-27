@@ -988,7 +988,7 @@ checkTypedBinding h (A.TBind i xs e) ret = do
     addCtxs xs (Arg h t) $ ret $ mkTel xs t
     where
 	mkTel [] t     = []
-	mkTel (x:xs) t = (show x,t) : mkTel xs (raise 1 t)
+	mkTel (x:xs) t = (show $ nameConcrete x,t) : mkTel xs (raise 1 t)
 checkTypedBinding h (A.TNoBind e) ret = do
     t <- isType_ e
     ret [("_",t)]

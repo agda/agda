@@ -131,7 +131,7 @@ instance Ord Name where
   compare x y = compare (nameId x) (nameId y)
 
 instance Show Name where
-  show x = show (nameConcrete x)
+  show x = show (nameConcrete x) -- ++ "|" ++ show (nameId x)
 
 instance Show QName where
   show q = concat $ intersperse "." $ map show $ qnameToList q
