@@ -97,7 +97,7 @@ checkPrimitive i x e =
     PrimImpl t' pf <- lookupPrimitiveFunction (nameString $ qnameName x)
     t <- isType_ e
     noConstraints $ equalType t t'
-    let s  = show x
+    let s  = show $ nameConcrete $ qnameName x
     bindPrimitive s $ pf { primFunName = x }
     addConstant x (Defn x t $ Primitive (defAbstract i) s [])
     where
