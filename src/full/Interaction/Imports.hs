@@ -86,6 +86,8 @@ findFile ft m = do
 scopeCheckImport :: ModuleName -> TCM Scope
 scopeCheckImport x = do
     reportLn 5 $ "Scope checking " ++ show x
+    visited <- Map.keys <$> getVisitedModules
+    reportLn 10 $ "  visited: " ++ show visited
     visited <- isVisited x
     reportLn 5 $ if visited then "  We've been here. Don't merge."
 			    else "  New module. Let's check it out."
@@ -179,11 +181,15 @@ readInterface :: FilePath -> IO (Maybe Interface)
 readInterface file = do
 
     -- Decode the interface file
-    i <- decodeFile file
+    (s, close) <- readBinaryFile' file
+    let i = decode s
 
     -- Force the entire interface, to allow the file to be closed.
     let add x y = ((+) $! x) $! y
     () <- when (0 == everything add (const 1) i) $ return ()
+
+    -- Close the file
+    close
 
     return $ Just i
 
