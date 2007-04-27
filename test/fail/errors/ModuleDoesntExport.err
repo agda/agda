@@ -1,4 +1,5 @@
-errors/ModuleDoesntExport.agda:5,1-16
-The module A doesn't export the following: B
-when scope checking the declaration
-  open A using (B)
+errors/ModuleDoesntExport.agda:7,8-19
+Not in scope:
+  Check at errors/ModuleDoesntExport.agda:7,8-13
+  This! at errors/ModuleDoesntExport.agda:7,14-19
+when scope checking Check This!

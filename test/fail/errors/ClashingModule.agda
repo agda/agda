@@ -4,3 +4,5 @@ module ClashingModule where
 module A where
 module A where
 
+open A
+

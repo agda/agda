@@ -1,3 +1,3 @@
 errors/IncompletePatternMatching.agda:18,7-9
-Incomplete pattern matching for _==_. No match for zero suc zero
-when checking that the expression tt has type zero == suc zero
+Incomplete pattern matching for _==_. No match for zero (suc zero)
+when checking that the expression tt has type (zero == suc zero)

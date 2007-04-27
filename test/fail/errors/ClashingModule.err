@@ -1,4 +1,1 @@
-errors/ClashingModule.agda:5,1-15
-The modules A and A clash.
-when scope checking the declaration
-  module A where
+Panic: ambiguous module: A, [ClashingModule.A,ClashingModule.A]

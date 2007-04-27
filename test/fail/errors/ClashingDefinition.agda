@@ -5,3 +5,5 @@ postulate
   X : Set
   X : Set
 
+Y = X
+

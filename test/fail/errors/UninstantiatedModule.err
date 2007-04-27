@@ -1,5 +1,0 @@
-errors/UninstantiatedModule.agda:9,5-8
-Cannot access the contents of the parameterised module A. To do
-this the module first has to be instantiated. For instance:
-  module A' = A e1 .. en
-when scope checking A.f

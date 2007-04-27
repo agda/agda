@@ -1,4 +1,3 @@
 errors/ShouldBeApplicationOf.agda:8,1-12
-The pattern constructs an element of Two which is not the right
-datatype
-when checking that the clause f two = two has type One -> Two
+Two != One of type Set
+when checking that the clause Foo.f two = two has type One -> Two

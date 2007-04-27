@@ -22,7 +22,7 @@ import Utils.Tuple
 -- | Current version of the interface. Only interface files of this version
 --   will be parsed.
 currentInterfaceVersion :: InterfaceVersion
-currentInterfaceVersion = InterfaceVersion 112
+currentInterfaceVersion = InterfaceVersion 114
 
 instance Binary InterfaceVersion where
     put (InterfaceVersion v) = put v
