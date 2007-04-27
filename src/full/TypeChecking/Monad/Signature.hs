@@ -89,9 +89,10 @@ applySection ::
   MonadTCM tcm => ModuleName -> ModuleName -> Args ->
   Map QName QName -> Map ModuleName ModuleName -> tcm ()
 applySection new old ts rd rm = liftTCM $ do
-  sig <- getSignature
-  let ss = Map.toList $ Map.filterKeys partOfOldM $ sigSections sig
-      ds = Map.toList $ Map.filterKeys partOfOldD $ sigDefinitions sig
+  sig  <- getSignature
+  isig <- getImportedSignature
+  let ss = Map.toList $ Map.filterKeys partOfOldM $ sigSections sig `Map.union` sigSections isig
+      ds = Map.toList $ Map.filterKeys partOfOldD $ sigDefinitions sig `Map.union` sigDefinitions isig
   mapM_ (copyDef ts) ds
   mapM_ (copySec ts) ss
   where
