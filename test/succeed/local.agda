@@ -12,9 +12,9 @@ data List (A : Set) : Set where
   _::_ : A -> List A -> List A
 
 reverse : {A : Set} -> List A -> List A
-reverse xs = rev xs nil
+reverse {A} xs = rev xs nil
   where
-    rev : _ -> _ -> _
+    rev : List A -> List A -> List A
     rev  nil	  ys = ys
     rev (x :: xs) ys = rev xs (x :: ys)
 
