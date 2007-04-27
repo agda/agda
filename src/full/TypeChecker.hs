@@ -171,6 +171,8 @@ checkSectionApplication i m1 m2 args rd rm = do
     [d1,d2] <- mapM prettyTCM [m1,m2]
     dts	    <- mapM prettyTCM (vs ++ ts)
     liftIO $ putStrLn $ unwords [ "applySection", show d1, "=", show d2, show dts ]
+    liftIO $ putStrLn $ "  defs: " ++ show rd
+    liftIO $ putStrLn $ "  mods: " ++ show rm
   applySection m1 m2 (vs ++ ts) rd rm
 
 -- | Type check an import declaration. Actually doesn't do anything, since all
@@ -564,11 +566,10 @@ checkLHS ps t ret = do
 		    lift $ verbose 6 $ do
 			d <- prettyTCM =<< instantiateFull v
 			liftIO $ putStrLn $ show x ++ " := " ++ show d
-		    return $ A.DotP i (A.Underscore info)
-		    where info = MetaInfo
-				    (getRange i)
-				    (error "scope needed!") -- TODO!!
-				    Nothing
+		    scope <- lift getScope
+		    return $ A.DotP i (A.Underscore $ info scope)
+		    where info s = MetaInfo (getRange i) s Nothing
+
 	buildNewPattern p@(A.VarP _)	= return p
 	buildNewPattern p@(A.WildP _)	= return p
 	buildNewPattern p@(A.DotP _ _)	= popMeta >> return p
@@ -828,8 +829,36 @@ checkPattern h name p t =
 	    -- Infer the type of the constructor
 	    (_, a) <- liftTCM $ inferDef Con c
 
+	    Constructor n _ _ _ <- theDef <$> (instantiateDef =<< getConstInfo c)
+
+	    liftTCM $ verbose 20 $ do
+	      da  <- prettyTCM a
+	      pds <- mapM pretty =<< mapM abstractToConcrete_ ps
+	      liftIO $ putStrLn $ "checking pattern " ++ show c ++ " " ++ show pds
+		      ++ "\n  type         " ++ show da
+		      ++ "\n  nof pars     " ++ show n
+
+	    -- Create meta variables for the parameters
+	    a' <- let createMetas 0 a = return a
+		      createMetas n a = do
+			a <- reduce a
+			case funView $ unEl a of
+			  FunV (Arg h b) _ -> do
+			    m <- newValueMeta b
+			    createMetas (n - 1) (a `piApply` [Arg h m])
+			  _   -> do
+			    d <- prettyTCM a
+			    fail $ show d ++ " should have had " ++ show n ++ " more arguments"
+			    __IMPOSSIBLE__
+		  in  createMetas n a
+
+	    liftTCM $ verbose 20 $ do
+	      da' <- prettyTCM a'
+	      liftIO $ putStrLn $ "  instantiated " ++ show da'
+
+
 	    -- Check the arguments against that type
-	    (aps, ps', ts', rest) <- checkPatterns ps a -- (piApply t' vs)
+	    (aps, ps', ts', rest) <- checkPatterns ps a' -- (piApply t' vs)
 
 	    -- Compute the corresponding value (possibly blocked by constraints)
 	    v <- do
