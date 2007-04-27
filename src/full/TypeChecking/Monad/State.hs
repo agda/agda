@@ -54,9 +54,17 @@ setTopLevelModule :: MonadTCM tcm => C.QName -> tcm ()
 setTopLevelModule x =
   modify $ \s -> s
     { stFreshThings = (stFreshThings s)
-      { fName = setModule (hash (show x)) $ fName $ stFreshThings s
+      { fName = NameId 0 $ hash (show x)
       }
     }
-  where
-    setModule m (NameId n _) = NameId n m
+
+-- | Use a different top-level module for a computation. Used when generating
+--   names for imported modules.
+withTopLevelModule :: MonadTCM tcm => C.QName -> tcm a -> tcm a
+withTopLevelModule x m = do
+  next <- gets $ fName . stFreshThings
+  setTopLevelModule x
+  y <- m
+  modify $ \s -> s { stFreshThings = (stFreshThings s) { fName = next } }
+  return y
 
