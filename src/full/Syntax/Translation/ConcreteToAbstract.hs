@@ -547,11 +547,33 @@ instance ToAbstract NiceDeclaration A.Declaration where
       return [ A.Pragma r p ]
 
     NiceImport r x as open dir -> do
-      m	  <- toAbstract $ NewModuleQName x
-      printScope 10 "before import:"
-      i	  <- applyImportDirective dir <$> scopeCheckImport m
-      printScope 10 $ "scope checked import: " ++ show i
-      modifyTopScope (`mergeScope` i)
+
+      -- First scope check the imported module and return its name and
+      -- interface. This is done with that module as the top-level module.
+      (m, i) <- withTopLevelModule x $ do
+	m <- toAbstract $ NewModuleQName x
+	printScope 10 "before import:"
+	i <- scopeCheckImport m
+	printScope 10 $ "scope checked import: " ++ show i
+	return (m, i)
+
+      -- Abstract name for the imported module.
+      m' <- case as of
+	      Nothing -> return m
+	      Just y  -> toAbstract $ NewModuleName y
+
+      -- Now, we push a new scope with the name we want for the imported
+      -- module containing its interface. We then do a public open on the
+      -- imported module and pop the scope. This results in the concrete names
+      -- getting renamed to use the "as" name (if any).
+      pushScope m'
+      modifyTopScope (`mergeScope` setScopeAccess PrivateAccess i)
+      openModule_ x $ dir { publicOpen = True }
+      popScope PrivateAccess
+
+      -- Finally we bind the desired module name to the right abstract name.
+      bindQModule PrivateAccess name m
+
       printScope 10 "merged imported sig:"
       ds <- case open of
 	DontOpen -> return []
