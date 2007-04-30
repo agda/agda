@@ -1,24 +1,17 @@
 
 module MinMax where
 
-import Prelude
-import Logic.Base
-import Logic.Relations
-import Logic.Leibniz
+open import Prelude
+open import Logic.Base
+open import Logic.Relations
+open import Logic.Identity using (_≡_)
 import Logic.ChainReasoning
-import DecidableOrder
-
-open Prelude
-open Logic.Base
-open Logic.Relations
-open Logic.Leibniz
-open DecidableOrder
+open import DecidableOrder
 
 module Min {A : Set}(Ord : DecidableOrder A) where
 
   private
-    module Ops = Order Ord
-    open Ops
+    open module Ops = Order Ord
 
   private
     minAux : (x y : A) -> x ≤ y \/ ¬ x ≤ y -> A
@@ -68,7 +61,7 @@ Dual Ord = decOrder _≥_ refl' antisym' trans' total' dec'
 
 module Max {A : Set}(Ord : DecidableOrder A)
       = Min (Dual Ord) renaming
-              ( min      to max
+              ( min       to max
               ; case-min  to case-max
               ; min-glb   to max-lub
               ; min-sym   to max-sym
@@ -88,17 +81,13 @@ module MinMax {A : Set}(Ord : DecidableOrder A) where
 module DistributivityA {A : Set}(Ord : DecidableOrder A) where
 
   private
-    module MinMaxOrd = MinMax Ord
-    module Ops       = Order Ord
-
-    open MinMaxOrd
-    open Ops
+    open module MinMaxOrd = MinMax Ord
+    open module Ops       = Order Ord
 
   min-max-distr : forall x y z -> min x (max y z) ≡ max (min x y) (min x z)
   min-max-distr x y z = antisym _ _ left right
     where
-      module Chain = Logic.ChainReasoning.Mono.Homogenous _≤_ refl trans
-      open Chain
+      open module Chain = Logic.ChainReasoning.Mono.Homogenous _≤_ refl trans
 
       left : min x (max y z) ≤ max (min x y) (min x z)
       left = case-max (\w -> min x w ≤ max (min x y) (min x z)) y z
@@ -135,11 +124,7 @@ module DistributivityB {A : Set}(Ord : DecidableOrder A) where
     module MinMaxOrd = MinMax Ord'
 
   open MinMaxOrd
-
   open DistrOrd public renaming (min-max-distr to max-min-distr)
-
---   max-min-distr : forall x y z -> max x (min y z) ≡ min (max x y) (max x z)
---   max-min-distr = DistrOrd.min-max-distr
 
 module Distributivity {A : Set}(Ord : DecidableOrder A) where
 
@@ -155,9 +140,8 @@ postulate
   X    : Set
   OrdX : DecidableOrder X
 
-module MinMaxX = MinMax OrdX
-module DistrX = Distributivity OrdX
+open module MinMaxX = MinMax OrdX
+open module DistrX = Distributivity OrdX
 
-open MinMaxX
-open DistrX
+open Logic.ChainReasoning.Mono.Homogenous
 

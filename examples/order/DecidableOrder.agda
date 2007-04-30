@@ -1,14 +1,10 @@
 
 module DecidableOrder where
 
-import Logic.Relations
-import Logic.Leibniz
+open import Logic.Relations
+open import Logic.Identity using (_≡_)
 
-open Logic.Relations
-open Logic.Leibniz
-
-module Antisym = PolyEq _≡_
-open Antisym using (Antisymmetric)
+open module Antisym = PolyEq _≡_ using (Antisymmetric)
 
 data DecidableOrder (A : Set) : Set1 where
   decOrder :

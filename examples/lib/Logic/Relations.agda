@@ -22,9 +22,9 @@ Congruent {A} _R_ = (f : A -> A)(x y : A) -> x R y -> f x R f y
 Substitutive : {A : Set} -> Rel A -> Set1
 Substitutive {A} _R_ = (P : A -> Set)(x y : A) -> x R y -> P x -> P y
 
-module PolyEq (_≡_ : {A : Set} -> A -> A -> Set1) where
+module PolyEq (_≡_ : {A : Set} -> Rel A) where
 
-  Antisymmetric : {A : Set} -> Rel A -> Set1
+  Antisymmetric : {A : Set} -> Rel A -> Set
   Antisymmetric {A} _R_ = (x y : A) -> x R y -> y R x -> x ≡ y
 
 module MonoEq {A : Set}(_≡_ : Rel A) where
