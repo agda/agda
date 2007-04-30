@@ -394,7 +394,7 @@ instance ToConcrete LetBinding [C.Declaration] where
     bindToConcrete (LetBind i x t e) ret =
 	bindToConcrete x $ \x ->
 	do  (t,e) <- toConcrete (t,A.RHS e)
-	    ret [C.TypeSig x t, C.FunClause (C.IdentP $ C.QName x) e []]
+	    ret [C.TypeSig x t, C.FunClause (C.IdentP $ C.QName x) e C.NoWhere]
 
 -- Declaration instances --------------------------------------------------
 
@@ -449,7 +449,10 @@ instance ToConcrete A.Clause C.Declaration where
   toConcrete (A.Clause lhs rhs wh) =
       bindToConcrete lhs $ \lhs' -> do
 	  rhs' <- toConcreteCtx TopCtx rhs
-	  wh'  <- toConcrete wh
+	  ds   <- toConcrete wh
+	  let wh' = case ds of
+		[]  -> C.NoWhere
+		_   -> C.AnyWhere ds
 	  return $ FunClause lhs' rhs' wh'
 
 instance ToConcrete A.Declaration [C.Declaration] where

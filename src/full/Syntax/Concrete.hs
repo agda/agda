@@ -23,7 +23,7 @@ module Syntax.Concrete
     , defaultImportDir
     , OpenShortHand(..)
     , LHS, Pattern(..)
-    , RHS(..), WhereClause
+    , RHS(..), WhereClause(..)
     , Pragma(..)
     )
     where
@@ -123,7 +123,8 @@ data RHS = AbsurdRHS
 	 | RHS Expr
     deriving (Typeable, Data, Eq)
 
-type WhereClause    = [Declaration]
+data WhereClause = NoWhere | AnyWhere [Declaration] | SomeWhere Name [Declaration]
+  deriving (Typeable, Data, Eq)
 
 
 -- | The things you are allowed to say when you shuffle names between name
@@ -249,10 +250,14 @@ instance HasRange LamBinding where
     getRange (DomainFree _ x)	= getRange x
     getRange (DomainFull b)	= getRange b
 
+instance HasRange WhereClause where
+  getRange  NoWhere	    = noRange
+  getRange (AnyWhere ds)    = getRange ds
+  getRange (SomeWhere _ ds) = getRange ds
+
 instance HasRange Declaration where
     getRange (TypeSig x t)		= fuseRange x t
-    getRange (FunClause lhs rhs [])	= fuseRange lhs rhs
-    getRange (FunClause lhs rhs wh)	= fuseRange lhs (last wh)
+    getRange (FunClause lhs rhs wh)	= fuseRange lhs rhs `fuseRange` wh
     getRange (Data r _ _ _ _)		= r
     getRange (Mutual r _)		= r
     getRange (Abstract r _)		= r

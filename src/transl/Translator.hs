@@ -414,8 +414,8 @@ cclause2funclauses i flg (CClause cpats expr)
 
 cclause2funclause _ _ = error "Never apply cclause2funclause any but CClause"
 
-localdefs :: CExpr -> [Declaration]
-localdefs cexpr = []
+localdefs :: CExpr -> WhereClause
+localdefs cexpr = NoWhere
 
 isCcase :: CExpr -> Bool
 isCcase (Ccase _ _) = True

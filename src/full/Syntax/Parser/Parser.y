@@ -486,8 +486,9 @@ LHS : Expr1  {% exprToLHS $1 }
 -- Where clauses are optional.
 WhereClause :: { WhereClause }
 WhereClause
-    : {- empty -}	   { [] }
-    | 'where' Declarations { $2 }
+    : {- empty -}		       { NoWhere	 }
+    | 'where' Declarations	       { AnyWhere $2	 }
+    | 'module' Id 'where' Declarations { SomeWhere $2 $4 }
 
 
 {--------------------------------------------------------------------------

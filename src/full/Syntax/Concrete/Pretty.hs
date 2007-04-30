@@ -123,6 +123,14 @@ instance Pretty RHS where
     pretty (RHS e)   = text "=" <+> pretty e
     pretty AbsurdRHS = empty
 
+instance Pretty WhereClause where
+  pretty  NoWhere = empty
+  pretty (AnyWhere ds) = vcat [ text "where", nest 2 (vcat $ map pretty ds) ]
+  pretty (SomeWhere m ds) =
+    vcat [ hsep [ text "module", pretty m, text "where" ]
+	 , nest 2 (vcat $ map pretty ds)
+	 ]
+
 instance Pretty Declaration where
     pretty d =
 	case d of
@@ -132,13 +140,7 @@ instance Pretty Declaration where
 	    FunClause lhs rhs wh ->
 		sep [ pretty lhs
 		    , nest 2 $ pretty rhs
-		    ] $$ nest 2 pwh
-		where
-		    pwh | null wh   = empty
-			| otherwise =
-			    vcat [ text "where"
-				 , nest 2 $ vcat $ map pretty wh
-				 ]
+		    ] $$ nest 2 (pretty wh)
 	    Data _ x tel e cs ->
 		sep [ hsep  [ text "data"
 			    , pretty x

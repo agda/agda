@@ -416,7 +416,7 @@ instance ToAbstract LetDef A.LetBinding where
 		    return $ A.LetBind (LetSource c) x t e
 	    _	-> notAValidLetBinding d
 	where
-	    letToAbstract (CD.Clause top clhs (C.RHS rhs) []) = do
+	    letToAbstract (CD.Clause top clhs (C.RHS rhs) NoWhere) = do
 		p    <- parseLHS top clhs
 		localToAbstract (lhsArgs p) $ \args ->
 		    do	rhs <- toAbstract rhs
@@ -619,24 +619,28 @@ instance ToAbstract (Constr A.Constructor) () where
   toAbstract _ = __IMPOSSIBLE__	-- constructors are axioms
 
 instance ToAbstract CD.Clause A.Clause where
-    toAbstract (CD.Clause top lhs rhs wh) =
-	localToAbstract (LeftHandSide top lhs) $ \lhs' -> do	-- the order matters here!
-	  printLocals 10 "after lhs:"
-	  case wh of
-	    []	-> do
-	      rhs <- toAbstractCtx TopCtx rhs
-	      return $ A.Clause lhs' rhs []
-	    wh	-> do
-	      let m   = C.QName C.noName_
-		  tel = []
-	      (scope, ds) <- scopeCheckModule (getRange wh) PublicAccess ConcreteDef m tel wh
-	      setScope scope
-	      -- the right hand side is checked inside the module of the local definitions
-	      rhs <- toAbstractCtx TopCtx rhs
-	      qm <- getCurrentModule
-	      popScope PublicAccess
-	      bindQModule PublicAccess m qm
-	      return $ A.Clause lhs' rhs ds
+    toAbstract (CD.Clause top lhs rhs wh) = withLocalVars $ do
+      lhs' <- toAbstract (LeftHandSide top lhs)
+      printLocals 10 "after lhs:"
+      let (whname, whds) = case wh of
+	    NoWhere	       -> (Nothing, [])
+	    AnyWhere ds    -> (Nothing, ds)
+	    SomeWhere m ds -> (Just m, ds)
+      case whds of
+	[] -> do
+	  rhs <- toAbstractCtx TopCtx rhs
+	  return $ A.Clause lhs' rhs []
+	_	-> do
+	  let m   = C.QName $ maybe C.noName_ id whname
+	      tel = []
+	  (scope, ds) <- scopeCheckModule (getRange wh) PublicAccess ConcreteDef m tel whds
+	  setScope scope
+	  -- the right hand side is checked inside the module of the local definitions
+	  rhs <- toAbstractCtx TopCtx rhs
+	  qm <- getCurrentModule
+	  popScope PublicAccess
+	  bindQModule PublicAccess m qm
+	  return $ A.Clause lhs' rhs ds
 
 data LeftHandSide = LeftHandSide C.Name C.LHS
 

@@ -8,8 +8,11 @@ import Control.Monad.Trans
 import System.Exit
 
 import Syntax.Position
-import Syntax.Parser			     ( ParseError(..)		)
-import Syntax.Concrete.Definitions	     ( DeclarationException(..) )
+import Syntax.Parser		    ( ParseError(..)	       )
+import Syntax.Concrete.Definitions  ( DeclarationException(..) )
+
+instance Show DeclarationException where
+  show _ = "TODO: we shouldn't 'show' DeclarationExceptions"
 
 crash :: Range -> String -> IO b
 crash r x =

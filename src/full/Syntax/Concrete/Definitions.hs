@@ -73,7 +73,6 @@ import Syntax.Concrete
 import Syntax.Common
 import Syntax.Position
 import Syntax.Fixity
-import Syntax.Concrete.Pretty ()    -- need Show instance for Declaration
 
 #include "../../undefined.h"
 
@@ -98,13 +97,13 @@ data NiceDeclaration
 	| NiceOpen Range QName ImportDirective
 	| NiceImport Range QName (Maybe Name) OpenShortHand ImportDirective
 	| NicePragma Range Pragma
-    deriving (Show, Typeable, Data)
+    deriving (Typeable, Data)
 
 -- | A definition without its type signature.
 data NiceDefinition
 	= FunDef  Range [Declaration] Fixity Access IsAbstract Name [Clause]
 	| DataDef Range Fixity Access IsAbstract Name [LamBinding] [NiceConstructor]
-    deriving (Show, Typeable, Data)
+    deriving (Typeable, Data)
 
 -- | Only 'Axiom's.
 type NiceConstructor = NiceDeclaration
@@ -115,7 +114,7 @@ type NiceTypeSignature	= NiceDeclaration
 -- | One clause in a function definition. There is no guarantee that the 'LHS'
 --   actually declares the 'Name'. We will have to check that later.
 data Clause = Clause Name LHS RHS WhereClause
-    deriving (Show, Typeable, Data)
+    deriving (Typeable, Data)
 
 -- | The exception type.
 data DeclarationException
@@ -123,7 +122,7 @@ data DeclarationException
 	| MissingDefinition Name
 	| MissingTypeSignature LHS
 	| NotAllowedInMutual NiceDeclaration
-    deriving (Typeable, Show)
+    deriving (Typeable)
 
 instance HasRange DeclarationException where
     getRange (MultipleFixityDecls xs) = getRange (fst $ head xs)
@@ -326,9 +325,12 @@ niceDeclarations ds = nice (fixities ds) ds
 						  (map mkAbstractClause cs)
 		DataDef r f a _ x ps cs	-> DataDef r f a AbstractDef x ps $ map mkAbstract cs
 
-	mkAbstractClause c@(Clause _ _ _ []) = c
-	mkAbstractClause (Clause x lhs rhs ds) =
-	    Clause x lhs rhs [Abstract (getRange ds) ds]
+	mkAbstractClause (Clause x lhs rhs wh) =
+	    Clause x lhs rhs $ mkAbstractWhere wh
+
+	mkAbstractWhere  NoWhere	 = NoWhere
+	mkAbstractWhere (AnyWhere ds)	 = AnyWhere [Abstract (getRange ds) ds]
+	mkAbstractWhere (SomeWhere m ds) = SomeWhere m [Abstract (getRange ds) ds]
 
 	-- Make a declaration private
 	mkPrivate d =
@@ -349,9 +351,12 @@ niceDeclarations ds = nice (fixities ds) ds
 						  (map mkPrivateClause cs)
 		DataDef r f _ a x ps cs	-> DataDef r f PrivateAccess a x ps cs
 
-	mkPrivateClause c@(Clause _ _ _ []) = c
-	mkPrivateClause (Clause x lhs rhs ds) =
-	    Clause x lhs rhs [Private (getRange ds) ds]
+	mkPrivateClause (Clause x lhs rhs wh) =
+	    Clause x lhs rhs $ mkPrivateWhere wh
+	
+	mkPrivateWhere  NoWhere		= NoWhere
+	mkPrivateWhere (AnyWhere ds)	= AnyWhere [Private (getRange ds) ds]
+	mkPrivateWhere (SomeWhere m ds) = SomeWhere m [Private (getRange ds) ds]
 
 -- | Add more fixities. Throw an exception for multiple fixity declarations.
 plusFixities :: Map.Map Name Fixity -> Map.Map Name Fixity -> Map.Map Name Fixity

@@ -445,7 +445,12 @@ instance LowerMeta SC.Declaration where
       ModuleMacro r n tel e1 op dir -> ModuleMacro r n
                                     (lowerMeta tel) (lowerMeta e1) op dir
       SC.Module r qn tel ds   -> SC.Module r qn (lowerMeta tel) (lowerMeta ds)
-      
+
+instance LowerMeta SC.WhereClause where
+  lowerMeta SC.NoWhere		= SC.NoWhere
+  lowerMeta (SC.AnyWhere ds)	= SC.AnyWhere $ lowerMeta ds
+  lowerMeta (SC.SomeWhere m ds) = SC.SomeWhere m $ lowerMeta ds
+
 instance LowerMeta a => LowerMeta [a] where
   lowerMeta as = List.map lowerMeta as
 
