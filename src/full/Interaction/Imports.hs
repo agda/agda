@@ -228,7 +228,7 @@ createInterface opts trace path visited file = runTCM $ withImportPath path $ do
 
     -- Generate Vim file
     whenM (optGenerateVimFile <$> commandLineOptions) $
-	generateVimFile file
+	withScope_ (insideScope topLevel) $ generateVimFile file
 
     -- check that metas have been solved
     ms <- getOpenMetas

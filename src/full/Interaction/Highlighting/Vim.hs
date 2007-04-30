@@ -64,53 +64,26 @@ matches cons icons defs idefs =
 	foo :: String -> [[String]] -> [(Int, String)]
 	foo cat = map (length . head /\ match cat)
 
-toVim :: Names -> String
-toVim ns = unlines $ __IMPOSSIBLE__ -- TODO!!
---     [ keyword "agdaFunction" kwdefs
---     , keyword "agdaInfixFunction" kwidefs
---     , keyword "agdaConstructor" kwcons
---     , keyword "agdaInfixConstructor" kwicons
---     ] ++ matches mcons micons mdefs midefs
---     where
--- 	cons = [ x | (x, def) <- Map.toList ns, kindOfName def == ConName ]
--- 	defs = [ x | (x, def) <- Map.toList ns, kindOfName def == FunName ]
--- 
--- 	(kwcons, mcons) = List.partition isKeyword $ map show cons
--- 	(kwdefs, mdefs) = List.partition isKeyword $ map show defs
--- 
--- 	(kwicons, micons) = List.partition isKeyword $ concatMap parts cons
--- 	(kwidefs, midefs) = List.partition isKeyword $ concatMap parts defs
--- 
--- 	parts (Name _ [_]) = []
--- 	parts (Name _ ps)  = [ x | Id x <- ps ]
--- 
--- 	isKeyword = const False -- all isKeywordChar
--- 
--- 	isKeywordChar c = isAlphaNum c || elem c "_'"
+toVim :: NamesInScope -> String
+toVim ns = unlines $ matches mcons micons mdefs midefs
+    where
+	cons = [ x | (x, [def]) <- Map.toList ns, anameKind def == ConName ]
+	defs = [ x | (x, [def]) <- Map.toList ns, anameKind def == DefName ]
 
-type Names = Map () () -- Map CName.Name DefinedName
+	mcons = map show cons
+	mdefs = map show defs
 
--- TODO!!
--- msNames :: Modules -> Names
-msNames ms = __IMPOSSIBLE__ -- Map.unions $ map mNames $ Map.toList ms
---     where
--- 	mNames :: (CName.Name, ModuleScope) -> Names
--- 	mNames (_, ms) = nsNames $ moduleContents ms
+	micons = concatMap parts cons
+	midefs = concatMap parts defs
 
--- TODO!!
-nsNames :: NameSpace -> Names
-nsNames ns = __IMPOSSIBLE__ -- Map.union (definedNames ns)
--- 		       (msNames $ modules ns)
+	parts (Qual _ _)	   = []
+	parts (QName (Name _ [_])) = []
+	parts (QName (Name _ ps))  = [ x | Id x <- ps ]
 
 generateVimFile :: FilePath -> TCM ()
 generateVimFile file = do
     scope <- getScope
     liftIO $ writeFile (vimFile file) $ toVim $ names scope
     where
-	-- TODO!!
-	names scope = Map.unions $ __IMPOSSIBLE__
--- 		    [ nsNames $ publicNameSpace scope
--- 		    , nsNames $ privateNameSpace scope
--- 		    , msNames $ importedModules scope
--- 		    ]
+	names = allNamesInScope . mergeScopes . scopeStack
 

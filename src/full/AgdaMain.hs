@@ -107,7 +107,7 @@ runAgda =
 
 				-- Generate Vim file
 				whenM (optGenerateVimFile <$> commandLineOptions) $
-				    generateVimFile file
+				    withScope_ (insideScope topLevel) $ generateVimFile file
 
 				-- Give error for unsolved metas
 				unsolved <- getOpenMetas
