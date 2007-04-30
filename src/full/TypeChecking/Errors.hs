@@ -253,7 +253,7 @@ instance PrettyTCM TypeError where
 	    ClashingModuleImport x y -> fsep $
 		pwords "Module import clash between" ++ [pretty x, text "and", prettyTCM y]
 	    ModuleDoesntExport m xs -> fsep $
-		pwords "The module" ++ [prettyTCM m] ++ pwords "doesn't export the following:" ++
+		pwords "The module" ++ [pretty m] ++ pwords "doesn't export the following:" ++
 		punctuate comma (map pretty xs)
 	    NotAModuleExpr e -> fsep $
 		pwords "The right-hand side of a module definition must have the form 'M e1 .. en'" ++

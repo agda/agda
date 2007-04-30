@@ -7,6 +7,7 @@ module Syntax.Scope.Monad where
 
 import Prelude hiding (mapM)
 import Control.Applicative
+import Control.Monad hiding (mapM)
 import Data.Map (Map)
 import Data.Traversable
 import qualified Data.Map as Map
@@ -15,8 +16,7 @@ import Syntax.Common
 import Syntax.Position
 import Syntax.Fixity
 import Syntax.Abstract.Name as A
-import Syntax.Concrete.Name as C
-import Syntax.Concrete ( ImportDirective(publicOpen) )
+import Syntax.Concrete as C
 import Syntax.Scope.Base
 
 import TypeChecking.Monad.Base
@@ -256,14 +256,37 @@ renamedCanonicalNames old new s = (,) <$> renamedNames names <*> renamedMods mod
       where
 	dequalify = A.mnameFromList . drop (size old) . A.mnameToList
 
+-- | Apply an importdirective and check that all the names mentioned actually
+--   exist.
+applyImportDirectiveM :: C.QName -> ImportDirective -> Scope -> ScopeM Scope
+applyImportDirectiveM m dir scope = do
+  xs <- filterM doesn'tExist names
+  reportLn 20 $ "non existing names: " ++ show xs
+  case xs of
+    []	-> return $ applyImportDirective dir scope
+    _	-> typeError $ ModuleDoesntExport m xs
+  where
+    names :: [ImportedName]
+    names = map fst (renaming dir) ++ case usingOrHiding dir of
+      Using  xs -> xs
+      Hiding xs -> xs
+
+    doesn'tExist (ImportedName x) =
+      case Map.lookup (C.QName x) $ allNamesInScope scope of
+	Just _	-> return False
+	Nothing	-> return True
+    doesn'tExist (ImportedModule x) =
+      case Map.lookup (C.QName x) $ allModulesInScope scope of
+	Just _	-> return False
+	Nothing	-> return True
 
 -- | Open a module. Assumes that all preconditions have been checked, i.e. that
 --   the module is not opened into a different context than it was defined.
 openModule_ :: C.QName -> ImportDirective -> ScopeM ()
 openModule_ m dir =
-  addScope . setScopeAccess acc
-           . applyImportDirective dir
-           . unqualifyScope m =<< matchPrefix m
+  addScope  .  setScopeAccess acc
+           =<< applyImportDirectiveM m dir
+            .  unqualifyScope m =<< matchPrefix m
   where
     addScope s = modifyTopScope (`mergeScope` s)
     acc | publicOpen dir  = PublicAccess

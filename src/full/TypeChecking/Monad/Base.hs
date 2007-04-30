@@ -522,7 +522,7 @@ data TypeError
 	| ClashingModule A.ModuleName A.ModuleName
 	| ClashingImport C.Name A.QName
 	| ClashingModuleImport C.Name A.ModuleName
-	| ModuleDoesntExport A.ModuleName [C.ImportedName]
+	| ModuleDoesntExport C.QName [C.ImportedName]
     -- Concrete to Abstract errors
 	| NotAModuleExpr C.Expr
 	    -- ^ The expr was used in the right hand side of an implicit module

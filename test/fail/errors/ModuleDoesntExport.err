@@ -1,5 +1,1 @@
-errors/ModuleDoesntExport.agda:7,8-19
-Not in scope:
-  Check at errors/ModuleDoesntExport.agda:7,8-13
-  This! at errors/ModuleDoesntExport.agda:7,14-19
-when scope checking Check This!
+The module A doesn't export the following: D, B, module P
