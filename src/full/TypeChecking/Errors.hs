@@ -58,6 +58,12 @@ sayWhen tr m = case matchCall interestingCall tr of
 panic :: MonadTCM tcm => String -> tcm Doc
 panic s = fwords $ "Panic: " ++ s
 
+nameWithBinding :: MonadTCM tcm => QName -> tcm Doc
+nameWithBinding q =
+  sep [ prettyTCM q, text "bound at", text (show r) ]
+  where
+    r = nameBindingSite $ qnameName q
+
 tcErrString :: TCErr -> String
 tcErrString err = show (getRange err) ++ " " ++ case err of
     TypeError _ cl -> errorString $ clValue cl
@@ -67,60 +73,62 @@ tcErrString err = show (getRange err) ++ " " ++ case err of
 
 errorString :: TypeError -> String
 errorString err = case err of
-    InternalError _			       -> "InternalError"
-    NotImplemented _			       -> "NotImplemented"
-    PropMustBeSingleton			       -> "PropMustBeSingleton"
+    AmbiguousModule _ _			       -> "AmbiguousModule"
+    AmbiguousName _ _			       -> "AmbiguousName"
+    AmbiguousParseForApplication _ _	       -> "AmbiguousParseForApplication"
+    AmbiguousParseForLHS _ _		       -> "AmbiguousParseForLHS"
+    BuiltinInParameterisedModule _	       -> "BuiltinInParameterisedModule"
+    ClashingDefinition _ _		       -> "ClashingDefinition"
+    ClashingFileNamesFor _ _		       -> "ClashingFileNamesFor"
+    ClashingImport _ _			       -> "ClashingImport"
+    ClashingModule _ _			       -> "ClashingModule"
+    ClashingModuleImport _ _		       -> "ClashingModuleImport"
+    CyclicModuleDependency _		       -> "CyclicModuleDependency"
     DataMustEndInSort _			       -> "DataMustEndInSort"
-    ShouldEndInApplicationOfTheDatatype _      -> "ShouldEndInApplicationOfTheDatatype"
-    ShouldBeAppliedToTheDatatypeParameters _ _ -> "ShouldBeAppliedToTheDatatypeParameters"
-    ShouldBeApplicationOf _ _		       -> "ShouldBeApplicationOf"
     DifferentArities			       -> "DifferentArities"
-    WrongHidingInLHS _			       -> "WrongHidingInLHS"
-    WrongHidingInLambda _		       -> "WrongHidingInLambda"
-    WrongHidingInApplication _		       -> "WrongHidingInApplication"
-    ShouldBeEmpty _			       -> "ShouldBeEmpty"
-    ShouldBeASort _			       -> "ShouldBeASort"
-    ShouldBePi _			       -> "ShouldBePi"
-    NotAProperTerm			       -> "NotAProperTerm"
-    UnequalTerms _ _ _			       -> "UnequalTerms"
-    UnequalTypes _ _			       -> "UnequalTypes"
-    UnequalHiding _ _			       -> "UnequalHiding"
-    UnequalSorts _ _			       -> "UnequalSorts"
-    NotLeqSort _ _			       -> "NotLeqSort"
+    DuplicateBuiltinBinding _ _ _	       -> "DuplicateBuiltinBinding"
+    FileNotFound _ _			       -> "FileNotFound"
+    GenericError _			       -> "GenericError"
+    IncompletePatternMatching _ _	       -> "IncompletePatternMatching"
+    InternalError _			       -> "InternalError"
+    LocalVsImportedModuleClash _	       -> "LocalVsImportedModuleClash"
     MetaCannotDependOn _ _ _		       -> "MetaCannotDependOn"
     MetaOccursInItself _		       -> "MetaOccursInItself"
-    GenericError _			       -> "GenericError"
-    NoSuchBuiltinName _			       -> "NoSuchBuiltinName"
-    DuplicateBuiltinBinding _ _ _	       -> "DuplicateBuiltinBinding"
-    NoBindingForBuiltin _		       -> "NoBindingForBuiltin"
-    NoSuchPrimitiveFunction _		       -> "NoSuchPrimitiveFunction"
-    BuiltinInParameterisedModule _	       -> "BuiltinInParameterisedModule"
-    NoRHSRequiresAbsurdPattern _	       -> "NoRHSRequiresAbsurdPattern"
-    LocalVsImportedModuleClash _	       -> "LocalVsImportedModuleClash"
-    UnsolvedMetasInImport _		       -> "UnsolvedMetasInImport"
-    UnsolvedMetas _			       -> "UnsolvedMetas"
-    UnsolvedConstraints _		       -> "UnsolvedConstraints"
-    CyclicModuleDependency _		       -> "CyclicModuleDependency"
-    FileNotFound _ _			       -> "FileNotFound"
-    ClashingFileNamesFor _ _		       -> "ClashingFileNamesFor"
-    NotInScope _			       -> "NotInScope"
-    NoSuchModule _			       -> "NoSuchModule"
-    UninstantiatedModule _		       -> "UninstantiatedModule"
-    ClashingDefinition _ _		       -> "ClashingDefinition"
-    ClashingModule _ _			       -> "ClashingModule"
-    ClashingImport _ _			       -> "ClashingImport"
-    ClashingModuleImport _ _		       -> "ClashingModuleImport"
     ModuleDoesntExport _ _		       -> "ModuleDoesntExport"
-    NotAModuleExpr _			       -> "NotAModuleExpr"
-    NotAnExpression _			       -> "NotAnExpression"
-    NotAValidLetBinding _		       -> "NotAValidLetBinding"
-    NothingAppliedToHiddenArg _		       -> "NothingAppliedToHiddenArg"
+    NoBindingForBuiltin _		       -> "NoBindingForBuiltin"
     NoParseForApplication _		       -> "NoParseForApplication"
-    AmbiguousParseForApplication _ _	       -> "AmbiguousParseForApplication"
     NoParseForLHS _			       -> "NoParseForLHS"
-    AmbiguousParseForLHS _ _		       -> "AmbiguousParseForLHS"
-    IncompletePatternMatching _ _	       -> "IncompletePatternMatching"
+    NoRHSRequiresAbsurdPattern _	       -> "NoRHSRequiresAbsurdPattern"
+    NoSuchBuiltinName _			       -> "NoSuchBuiltinName"
+    NoSuchModule _			       -> "NoSuchModule"
+    NoSuchPrimitiveFunction _		       -> "NoSuchPrimitiveFunction"
+    NotAModuleExpr _			       -> "NotAModuleExpr"
+    NotAProperTerm			       -> "NotAProperTerm"
+    NotAValidLetBinding _		       -> "NotAValidLetBinding"
+    NotAnExpression _			       -> "NotAnExpression"
+    NotImplemented _			       -> "NotImplemented"
+    NotInScope _			       -> "NotInScope"
+    NotLeqSort _ _			       -> "NotLeqSort"
     NotStrictlyPositive _ _		       -> "NotStrictlyPositive"
+    NothingAppliedToHiddenArg _		       -> "NothingAppliedToHiddenArg"
+    PropMustBeSingleton			       -> "PropMustBeSingleton"
+    ShouldBeASort _			       -> "ShouldBeASort"
+    ShouldBeApplicationOf _ _		       -> "ShouldBeApplicationOf"
+    ShouldBeAppliedToTheDatatypeParameters _ _ -> "ShouldBeAppliedToTheDatatypeParameters"
+    ShouldBeEmpty _			       -> "ShouldBeEmpty"
+    ShouldBePi _			       -> "ShouldBePi"
+    ShouldEndInApplicationOfTheDatatype _      -> "ShouldEndInApplicationOfTheDatatype"
+    UnequalHiding _ _			       -> "UnequalHiding"
+    UnequalSorts _ _			       -> "UnequalSorts"
+    UnequalTerms _ _ _			       -> "UnequalTerms"
+    UnequalTypes _ _			       -> "UnequalTypes"
+    UninstantiatedModule _		       -> "UninstantiatedModule"
+    UnsolvedConstraints _		       -> "UnsolvedConstraints"
+    UnsolvedMetas _			       -> "UnsolvedMetas"
+    UnsolvedMetasInImport _		       -> "UnsolvedMetasInImport"
+    WrongHidingInApplication _		       -> "WrongHidingInApplication"
+    WrongHidingInLHS _			       -> "WrongHidingInLHS"
+    WrongHidingInLambda _		       -> "WrongHidingInLambda"
 
 instance PrettyTCM TCErr where
     prettyTCM err = case err of
@@ -237,9 +245,18 @@ instance PrettyTCM TypeError where
 	    NotInScope xs ->
 		fsep (pwords "Not in scope:") $$ nest 2 (vcat $ map name xs)
 		where name x = hsep [ pretty x, text "at", text $ show $ getRange x ]
-
 	    NoSuchModule x -> fsep $
 		pwords "No such module" ++ [pretty x]
+	    AmbiguousName x ys -> vcat 
+	      [ fsep $ pwords "Ambiguous name" ++ [pretty x <> text "."] ++
+		       pwords "It could refer to any one of"
+	      , nest 2 $ vcat $ map nameWithBinding ys
+	      ]
+	    AmbiguousModule x ys -> vcat 
+	      [ fsep $ pwords "Ambiguous module name" ++ [pretty x <> text "."] ++
+		       pwords "It could refer to any one of"
+	      , nest 2 $ vcat $ map prettyTCM ys
+	      ]
 	    UninstantiatedModule x -> fsep (
 		    pwords "Cannot access the contents of the parameterised module" ++ [pretty x <> text "."] ++
 		    pwords "To do this the module first has to be instantiated. For instance:"

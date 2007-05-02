@@ -1,6 +1,6 @@
-errors/ClashingModule.agda:7,1-7
+errors/AmbiguousModule.agda:8,1-7
 Ambiguous module name A. It could refer to any one of
-  ClashingModule.A
-  ClashingModule.A
+  AmbiguousModule.A
+  B.A
 when scope checking the declaration
   open A
