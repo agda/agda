@@ -1,0 +1,348 @@
+\documentclass{beamer}
+
+\usetheme{JuanLesPins}
+%\usetheme{Darmstadt}
+
+\usepackage{beamerthemesplit}
+\usepackage{pxfonts}
+\usepackage{proof}
+\usepackage{graphicx}
+
+\newenvironment{code}{
+\begin{block}{}\(\begin{array}{l}
+}{
+\end{array}\)\end{block}
+}
+
+\setlength\parskip{2mm}
+
+\newcommand\Or{~~|~~}
+\renewcommand\Bar{~~|~~}
+
+\newcommand\SET{\mathsf{Set}}
+\newcommand\EL{\mathsf{El}\,}
+\newcommand\PI[2]{(#1:#2)\to{}}
+\newcommand\LAM[1]{\lambda #1.{}}
+
+\newcommand\CheckType[4]{{#1} \vdash {#2} \uparrow {#3} \leadsto {#4}}
+\newcommand\InferType[4]{{#1} \vdash {#2} \downarrow {#3} \leadsto {#4}}
+\newcommand\FreshMeta[3]{{#1}\ \mathit{fresh\ metavariable}} % \mathsf{FreshMeta({#2} \vdash {#1} : {#3})}}
+\newcommand\Instantiate[2]{\mathsf{Instantiate}({#1} := {#2})}
+\newcommand\Encapsulate[2]{\mathsf{Box}({#1} \Bar {#2})}
+\newcommand\MV[1]{\mathsf{MV}({#1})}
+
+\newcommand\IsSigCS[1]{{} \vdash_{#1}}
+\newcommand\IsCtxCS[2]{{#2} \vdash_{#1}}
+\newcommand\IsTypeCS[3]{{#2} \vdash_{#1}#3 ~ \mathbf{type}}
+\newcommand\HasTypeCS[4]{{#2} \vdash_{#1} {#3} : {#4}}
+\newcommand\CheckTypeCS[4]{{#2} \vdash_{#1}#3\uparrow#4}
+\newcommand\InferTypeCS[4]{{#2} \vdash_{#1}#3\downarrow#4}
+\newcommand\EqualTypeCS[4]{{#2} \vdash_{#1}#3=#4}
+\newcommand\EqualCS[5]{{#2} \vdash_{#1}#3=#4:#5}
+
+\newcommand\IsCtxC[1]{\IsCtxCS{}{#1}}
+\newcommand\IsTypeC[2]{\IsTypeCS{}{#1}{#2}}
+\newcommand\HasTypeC[3]{\HasTypeCS{}{#1}{#2}{#3}}
+\newcommand\CheckTypeC[3]{\CheckTypeCS{}{#1}{#2}{#3}}
+\newcommand\InferTypeC[3]{\InferTypeCS{}{#1}{#2}{#3}}
+\newcommand\EqualTypeC[3]{\EqualTypeCS{}{#1}{#2}{#3}}
+\newcommand\EqualC[4]{\EqualCS{}{#1}{#2}{#3}{#4}}
+
+\newcommand\Subst[3]{ {#1} [ {#3} / {#2} ] }
+\newcommand\SubstD[2]{{#1} [ {#2} ] }
+
+\newcommand\False{\mathit{false}}
+\newcommand\True{\mathit{true}}
+\newcommand\Zero{\mathit{zero}}
+\newcommand\Suc{\mathit{suc}}
+\newcommand\Set{\mathit{Set}}
+\newcommand\Nat{\mathit{Nat}}
+\newcommand\Bool{\mathit{Bool}}
+\newcommand\Not{\mathit{not}}
+
+\begin{document}
+
+\title{Type checking in the presence of metavariables}
+\author{Ulf Norell \\ Chalmers University of Technology}
+\institute{(joint work with Catarina Coquand)}
+\date{\today}
+
+\frame{\titlepage}
+
+\section{Introduction}
+
+\frame{
+    \frametitle{Abstract}
+
+    Type checking with metavariables is tricky.
+    
+    In particular it is easy to violate the invariant that we only compute with
+    well-typed terms. % , thus losing normalisation.
+
+    We show how to maintain well-typedness by encapsulating possibly ill-typed
+    terms in boxes. % that can only be opened if the contents is known to be well-typed.
+
+%     \vspace*{-8mm}
+%     \begin{flushright}
+%     \includegraphics[width=35mm]{danger_do_not_open_until.pdf}
+%     \end{flushright}
+}
+
+\frame{
+    \frametitle{The Language}
+
+\[\begin{array}{lclr}
+    A, B, M, N	& ::= & \SET \Or \PI xAB	      & \mathit{types} \\
+		& \Or & x \Or f \Or M\,N \Or \LAM xM  & \mathit{terms} \\
+\end{array}\]
+
+\[\begin{array}{ll}
+    \IsTypeC\Gamma A & \mbox{$A$ is a valid type in $\Gamma$} \\
+    \HasTypeC\Gamma MA & \mbox{$M$ has type $A$ in $\Gamma$} \\
+    \EqualTypeC\Gamma AB & \mbox{$A$ and $B$ are convertible types in $\Gamma$}\\
+    \EqualC\Gamma MNA & \mbox{$M$ and $N$ are convertible terms of type $A$ in $\Gamma$} \\
+\end{array}\]
+
+\[
+    \infer[\mbox{the conversion rule}]{\HasTypeC\Gamma MB}{
+      \HasTypeC\Gamma MA
+    & \EqualTypeC\Gamma AB
+    }
+\]
+
+}
+
+% \frame{
+%     \frametitle{Checking conversion}
+% 
+%     One option (which scales to metavariables) is to interleave weak-head
+%     normalisation and comparison of heads.
+% 
+% \[\begin{array}{c}
+%     \infer{\EqualC \Gamma {x~\vec M} {x~\vec N} A}{
+% 	x : \Delta \to B \in \Gamma
+%     &	\EqualC \Gamma {\vec M} {\vec N} \Delta
+%     }
+%     \\{}\\
+%     \infer{\EqualC \Gamma {M,\vec M} {N,\vec N} {(x : A)\Delta}}{
+% 	\EqualC \Gamma M N A
+%     &	\EqualC \Gamma {\vec M} {\vec N} {\Subst \Delta x M}
+%     }
+% \end{array}\]
+%     {\small (Weak-head normalisation is left implicit.)}
+% }
+
+% \frame{
+%     \frametitle{Meta variables}
+% 
+%     Meta variables can be used for several things. For instance, to represent
+%     \begin{itemize}
+% 	\item incomplete parts of a program (instantiated by the user)
+% 	\item implicit parts of a program (instantiated by the type checker)
+%     \end{itemize}
+% 
+%     In this work we are mostly concerned with the latter use.
+% }
+
+\frame{
+    \frametitle{Type checking with metavariables}
+The type checker will produce new terms:
+\[\begin{array}{lcl}
+    \CheckType \Gamma e A M && \mbox{type checking} \\
+    \InferType \Gamma e A M && \mbox{type inference}
+\end{array}\]
+
+and add a rule for metavariables (written $?$ in the input language)
+\[\infer[\FreshMeta \alpha \Gamma A]{\CheckType \Gamma ? A \alpha}{}\]
+}
+
+\section{The Problem}
+
+\frame{
+    \frametitle{Convertibility with metavariables}
+    In the presence of metavariables, checking convertibility becomes
+    unification. For instance,
+\[
+    \infer[\alpha := \mathit{Nat}]{
+      \EqualC \Gamma {\mathit{List}~\alpha} {\mathit{List~Nat}} \SET
+    }{}
+\]
+    Functions defined by pattern matching are troublesome:
+\[
+    \EqualC \Gamma {\mathit{isZero}~\alpha} {\mathit{false}} {\mathit{Bool}}
+\]
+    In this case unification gives up, and the constraint is postponed until
+    we know more about $\alpha$.
+}
+
+\frame{
+    \frametitle{The conversion rule}
+A possible conversion rule:
+\[
+    \infer{\CheckType \Gamma e A M}{
+	\InferType \Gamma e B M
+    &	\EqualTypeC \Gamma A B
+    }
+\]
+This rule makes no distinction between successful unification and postponed constraints.
+}
+
+\frame{
+    \frametitle{What could possibly go wrong?}
+    Consider the derivation
+{\small\[\begin{array}{ccc}
+    \infer{\CheckType \Gamma \Zero {F~\alpha} \Zero}{
+	\InferType \Gamma \Zero \Nat \Zero
+    &	\EqualTypeC \Gamma {F~\alpha} \Nat
+    } & \mbox{where} &
+\begin{array}{lcl}
+    \multicolumn3l{F : \Bool \to \Set} \\
+    F~\False & = & \Nat \\
+    F~\True  & = & \Bool \\
+\end{array}
+\end{array}\]}
+    The type checker will accept $\Zero : F~\alpha$ which doesn't seem that
+    harmful. Now consider:
+{\small\[\begin{array}{l}
+  id : (x : \Bool) \to F~x \to F~x \\
+  id~x~z = z \\
+  bad : \mathit{Bool} \\
+  bad = id~\alpha~\Zero \\
+\end{array}\]}
+  We end up with $bad = \Zero : \Bool$.
+
+%     The problem is that the same rule will accept something of type
+%     $F~\alpha$ whenever a $\Bool$ is required and we can end up with $\Zero :
+%     \Bool$.
+}
+
+% \frame{
+%     \frametitle{A concrete example}
+% 
+% \[\begin{array}{l}
+% F : \Bool \to \Set \\
+% F~\False = \Nat \\
+% F~\True  = \Bool \\
+% {}\\
+% h : ((x : F~\alpha) \to F~(\Not~x)) \to \Nat \\
+% h~g = g~\Zero
+% \end{array}\]
+% 
+% We get the constraints
+% \[\begin{array}{lclcl}
+%     \Bool & = & F~\alpha && \mbox{from $x \uparrow \Bool$} \\
+%     F~\alpha & = & \Nat && \mbox{from $\Zero \uparrow {F~\alpha}$} \\
+%     F~(\Not~\Zero) & = & \Nat && \mbox{from ${g~\Zero} \uparrow \Nat$} \\
+% \end{array}\]
+% 
+% When checking the last constraint the type checker fails with an ``incomplete
+% pattern matching'' error.
+% 
+% }
+
+\section{The Solution}
+
+\frame{
+    \frametitle{The Solution}
+
+    Our solution is to encapsulate potentially ill-typed terms inside boxes
+    which can only be opened if the corresponding constraint has been solved.
+\[
+    \infer{\CheckType \Gamma e A c}{
+	\InferType \Gamma e B M
+    &	\Encapsulate {c : A = M} {\EqualTypeC \Gamma A B}
+    }
+\]
+    As long as $A = B$ remains unsolved $c$ will not reduce, but as soon as we
+    solve the constraint it reduces to $M$.
+}
+
+\frame{
+    \frametitle{Type safety}
+
+    With this approach we can guarantee type-safety.
+    \[\CheckType \Gamma e A M \Longrightarrow \HasTypeC \Gamma M A
+    \]
+    This holds independently of any postponed constraints.
+}
+
+\frame{
+  \frametitle{Example}
+
+  What happens with our example?
+
+  {\small\[\begin{array}{ccc}
+    \begin{array}[t]{l}
+    F : \Bool \to \Set \\
+    F~\False = \Nat \\
+    F~\True  = \Bool \\
+    \end{array} & \begin{array}[t]{l}
+    id : (x : \Bool) \to F~x \to F~x \\
+    id~x~z = z \\
+    \end{array} & \begin{array}[t]{l}
+    bad : \mathit{Bool} \\
+    bad = id~\alpha~\Zero \\
+    \end{array}
+  \end{array}\]}
+
+  We will generate two boxes $c_1$ and $c_2$ guarded by the (inconsistent)
+  constraints $F~\alpha = \Nat$ and $\Bool = F~\alpha$.
+
+  {\small\[\begin{array}{l}
+    \Encapsulate {c_1 : F~\alpha = \Zero} {F~\alpha = \Nat} \\
+    \Encapsulate {c_2 : \Bool = id~\alpha~c_1} {\Bool = F~\alpha} \\
+    bad = c_2
+  \end{array}\]}
+
+}
+
+\frame{
+  \frametitle{Conclusions}
+  \begin{itemize}
+    \item All terms are well-typed at all times.
+    \begin{itemize}
+      \item Simplifies reasoning.
+    \end{itemize}
+    \item No retype checking.
+    \begin{itemize}
+      \item Improves efficiency.
+    \end{itemize}
+    \item Implemented in Agda.
+  \end{itemize}
+}
+
+% \frame{
+%     \frametitle{Live Demo}
+%     \begin{center}{\Huge Live Demo}
+%     \end{center}
+% }
+
+% \frame{
+%     \frametitle{Bonus Slide}
+% 
+%     Remember this rule?
+% \[
+%     \infer{\EqualC \Gamma {M,\vec M} {N,\vec N} {(x : A)\Delta}}{
+% 	\EqualC \Gamma M N A
+%     &	\EqualC \Gamma {\vec M} {\vec N} {\Subst \Delta x M}
+%     }
+% \]
+%     If $M = N$ is postponed we can't guarantee $\vec N : \Subst \Delta x M$.
+% 
+%     Options
+%     \begin{itemize}
+% 	\item postpone the whole constraint if $M = N$ is postponed
+% 	\item allow boxing of constraints
+%     \end{itemize}
+% \[
+%     \infer{\EqualTypeC \Gamma {M,\vec M : (x : A_1)\Delta_1} {N,\vec N : (x : A_2)\Delta_2}}{
+%     \begin{array}{l}
+% 	\Encapsulate {\EqualC \Gamma M N A_1} {\EqualTypeC \Gamma {A_1} {A_2}} \\
+% 	\EqualTypeC \Gamma {\vec M : \Subst {\Delta_1} x M} {\vec N : \Subst {\Delta_2} x N}
+%     \end{array}
+%     }
+% \]
+% }
+
+\end{document}
+
