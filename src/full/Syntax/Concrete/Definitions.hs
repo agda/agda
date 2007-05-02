@@ -140,6 +140,10 @@ instance HasRange NiceDeclaration where
     getRange (NicePragma r _)		       = r
     getRange (PrimitiveFunction r _ _ _ _ _)   = r
 
+instance HasRange NiceDefinition where
+  getRange (FunDef r _ _ _ _ _ _)  = r
+  getRange (DataDef r _ _ _ _ _ _) = r
+
 {--------------------------------------------------------------------------
     The niceifier
  --------------------------------------------------------------------------}

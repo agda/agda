@@ -352,11 +352,25 @@ instance PrettyTCM Call where
 	ScopeCheckDeclaration d _ ->
 	    fwords "when scope checking the declaration" $$
 	    nest 2 (pretty $ simpleDecl d)
+	ScopeCheckDefinition d _ ->
+	    fwords "when scope checking the definition" $$
+	    nest 2 (vcat $ map pretty $ simpleDef d)
 	ScopeCheckLHS x p _ ->
 	    fsep $ pwords "when scope checking the left-hand side" ++ [pretty p] ++
 		   pwords "in the definition of" ++ [pretty x]
 	where
 	    hPretty a@(Arg h _) = pretty =<< abstractToConcreteCtx (hiddenArgumentCtx h) a
+
+	    simpleDef d = case d of
+	      D.FunDef _ ds _ _ _ _ _	 -> ds
+	      D.DataDef r fx p a d bs cs ->
+		[ C.Data r d (map bind bs) (C.Underscore noRange Nothing)
+		    $ map simpleDecl cs
+		]
+	      where
+		bind :: C.LamBinding -> C.TypedBindings
+		bind (C.DomainFull b) = b
+		bind _		      = __IMPOSSIBLE__
 
 	    simpleDecl d = case d of
 		D.Axiom _ _ _ _ x e		       -> C.TypeSig x e

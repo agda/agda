@@ -444,12 +444,14 @@ instance ToAbstract C.Pragma A.Pragma where
 instance ToAbstract NiceDefinition Definition where
 
     -- Function definitions
-    toAbstract (CD.FunDef r ds f p a x cs) =
+    toAbstract d@(CD.FunDef r ds f p a x cs) =
+      traceCall (ScopeCheckDefinition d) $
 	do  (x',cs') <- toAbstract (OldName x,cs)
 	    return $ A.FunDef (mkSourcedDefInfo x f p a ds) x' cs'
 
     -- Data definitions
-    toAbstract (CD.DataDef r f p a x pars cons) = do
+    toAbstract d@(CD.DataDef r f p a x pars cons) =
+      traceCall (ScopeCheckDefinition d) $ do
 	(pars,cons) <- localToAbstract pars $ \pars -> do
 			cons <- toAbstract (map Constr cons)
 			return (pars, cons)
@@ -463,7 +465,9 @@ instance ToAbstract NiceDefinition Definition where
 -- For every other declaration we get a singleton list.
 instance ToAbstract NiceDeclaration A.Declaration where
 
-  toAbstract d = annotateDecls =<< case d of  -- TODO: trace call
+  toAbstract d = (=<<) annotateDecls $
+    traceCall (ScopeCheckDeclaration d) $
+    case d of
 
   -- Axiom
     CD.Axiom r f p a x t -> do
@@ -645,8 +649,8 @@ instance ToAbstract CD.Clause A.Clause where
 data LeftHandSide = LeftHandSide C.Name C.LHS
 
 instance ToAbstract LeftHandSide A.LHS where
-    toAbstract (LeftHandSide top lhs) = do
-	-- traceCall (ScopeCheckLHS top lhs) ret $ \ret -> do -- TODO
+    toAbstract (LeftHandSide top lhs) =
+      traceCall (ScopeCheckLHS top lhs) $ do
 	p    <- parseLHS top lhs
 	printLocals 10 "before lhs:"
 	args <- toAbstract (lhsArgs p)

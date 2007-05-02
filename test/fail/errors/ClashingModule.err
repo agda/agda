@@ -1,1 +1,4 @@
+errors/ClashingModule.agda:7,1-7
 Panic: ambiguous module: A, [ClashingModule.A,ClashingModule.A]
+when scope checking the declaration
+  open A

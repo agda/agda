@@ -358,6 +358,7 @@ data Call = CheckClause Type A.Clause (Maybe Clause)
 	  | ScopeCheckExpr C.Expr (Maybe A.Expr)
 	  | ScopeCheckDeclaration D.NiceDeclaration (Maybe [A.Declaration])
 	  | ScopeCheckLHS C.Name C.Pattern (Maybe A.LHS)
+	  | ScopeCheckDefinition D.NiceDefinition (Maybe A.Definition)
     deriving (Typeable)
 
 instance HasRange a => HasRange (Trace a) where
@@ -384,6 +385,7 @@ instance HasRange Call where
     getRange (ScopeCheckExpr e _)	  = getRange e
     getRange (ScopeCheckDeclaration d _)  = getRange d
     getRange (ScopeCheckLHS _ p _)	  = getRange p
+    getRange (ScopeCheckDefinition d _)	  = getRange d
 
 ---------------------------------------------------------------------------
 -- ** Builtin things
@@ -517,6 +519,8 @@ data TypeError
     -- Scope errors
 	| NotInScope [C.QName]
 	| NoSuchModule C.QName
+	| AmbiguousName C.QName [A.QName]
+	| AmbiguousModule C.QName [A.ModuleName]
 	| UninstantiatedModule C.QName
 	| ClashingDefinition C.Name A.QName
 	| ClashingModule A.ModuleName A.ModuleName

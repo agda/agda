@@ -131,7 +131,7 @@ resolveName x = do
     Just y  -> return $ VarName $ setRange (getRange x) y
     Nothing -> case Map.lookup x defs of
       Just [d] -> return $ DefinedName $ setRange (getRange x) d
-      Just ds  -> fail $ "ambiguous name: " ++ show (map anameName ds)	-- TODO!!
+      Just ds  -> typeError $ AmbiguousName x (map anameName ds)
       Nothing  -> return UnknownName
 
 -- | Look up a module in the scope.
@@ -141,8 +141,8 @@ resolveModule x = do
   case Map.lookup x ms of
     Just [m] -> return $ setRange (getRange x) m
     Just []  -> __IMPOSSIBLE__
-    Just ms  -> fail $ "ambiguous module: " ++ show x ++ ", " ++ show (map amodName ms)
-    Nothing  -> fail $ "no such module: " ++ show x -- TODO!!
+    Just ms  -> typeError $ AmbiguousModule x (map amodName ms)
+    Nothing  -> typeError $ NoSuchModule x
 
 -- | Get the fixity of a name. The name is assumed to be in scope.
 getFixity :: C.QName -> ScopeM Fixity
