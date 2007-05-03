@@ -3,8 +3,9 @@
 {-| TODO: take care of hidden arguments -}
 module TypeChecking.Reduce where
 
-import Control.Monad.State
-import Control.Monad.Reader
+import Prelude hiding (mapM)
+import Control.Monad.State hiding (mapM)
+import Control.Monad.Reader hiding (mapM)
 import Control.Applicative
 import Data.List as List hiding (sort)
 import Data.Map as Map
@@ -428,9 +429,14 @@ instance InstantiateFull Defn where
     instantiateFull d = case d of
 	Axiom			-> return Axiom
 	Function cs a		-> flip Function a <$> instantiateFull cs
-	Datatype np ni d cs s a -> do
-	    s <- instantiateFull s
-	    return $ Datatype np ni d cs s a
+	Datatype np ni cl cs s a -> do
+	    s  <- instantiateFull s
+	    cl <- instantiateFull cl
+	    return $ Datatype np ni cl cs s a
+	Record np cl cs s a -> do
+	    s  <- instantiateFull s
+	    cl <- instantiateFull cl
+	    return $ Record np cl cs s a
 	Constructor n c d a	-> return $ Constructor n c d a
 	Primitive a s cs	-> Primitive a s <$> instantiateFull cs
 
@@ -448,4 +454,6 @@ instance InstantiateFull a => InstantiateFull (Builtin a) where
     instantiateFull (Builtin t) = Builtin <$> instantiateFull t
     instantiateFull (Prim x)	= Prim <$> instantiateFull x
 
+instance InstantiateFull a => InstantiateFull (Maybe a) where
+  instantiateFull = mapM instantiateFull
 

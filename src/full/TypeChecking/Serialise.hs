@@ -22,7 +22,7 @@ import Utils.Tuple
 -- | Current version of the interface. Only interface files of this version
 --   will be parsed.
 currentInterfaceVersion :: InterfaceVersion
-currentInterfaceVersion = InterfaceVersion 114
+currentInterfaceVersion = InterfaceVersion 115
 
 instance Binary InterfaceVersion where
     put (InterfaceVersion v) = put v
@@ -246,19 +246,21 @@ instance Binary Definition where
   get = get >>= \a -> get >>= \b -> get >>= \c -> return (Defn a b c)
 
 instance Binary Defn where
-  put Axiom = putWord8 0
-  put (Function a b) = putWord8 1 >> put a >> put b
+  put Axiom		     = putWord8 0
+  put (Function a b)	     = putWord8 1 >> put a >> put b
   put (Datatype a b c d e f) = putWord8 2 >> put a >> put b >> put c >> put d >> put e >> put f
-  put (Constructor a b c d) = putWord8 3 >> put a >> put b >> put c >> put d
-  put (Primitive a b c) = putWord8 4 >> put a >> put b >> put c
+  put (Record a b c d e)     = putWord8 3 >> put a >> put b >> put c >> put d >> put e
+  put (Constructor a b c d)  = putWord8 4 >> put a >> put b >> put c >> put d
+  put (Primitive a b c)	     = putWord8 5 >> put a >> put b >> put c
   get = do
     tag_ <- getWord8
     case tag_ of
       0 -> return Axiom
       1 -> get >>= \a -> get >>= \b -> return (Function a b)
       2 -> get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d -> get >>= \e -> get >>= \f -> return (Datatype a b c d e f)
-      3 -> get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d -> return (Constructor a b c d)
-      4 -> get >>= \a -> get >>= \b -> get >>= \c -> return (Primitive a b c)
+      3 -> get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d -> get >>= \e -> return (Record a b c d e)
+      4 -> get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d -> return (Constructor a b c d)
+      5 -> get >>= \a -> get >>= \b -> get >>= \c -> return (Primitive a b c)
       _ -> fail "no parse"
 
 instance Binary Syntax.Common.IsAbstract where

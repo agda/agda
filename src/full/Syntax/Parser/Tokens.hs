@@ -15,7 +15,7 @@ data Keyword
 	| KwPostulate | KwMutual | KwAbstract | KwPrivate
 	| KwOpen | KwImport | KwModule | KwPrimitive
 	| KwInfix | KwInfixL | KwInfixR
-	| KwSet | KwProp | KwForall
+	| KwSet | KwProp | KwForall | KwRecord
 	| KwHiding | KwUsing | KwRenaming | KwTo | KwPublic
 	| KwOPTIONS | KwBUILTIN
     deriving (Eq, Show)

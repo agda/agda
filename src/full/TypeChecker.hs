@@ -18,8 +18,8 @@ import System.Directory
 import System.Time
 
 import qualified Syntax.Abstract as A
-import Syntax.Abstract.Pretty
 import Syntax.Abstract.Views
+import qualified Syntax.Abstract.Pretty as A
 import Syntax.Common
 import Syntax.Info as Info
 import Syntax.Position
@@ -138,6 +138,7 @@ checkDefinition d =
     case d of
 	A.FunDef i x cs	    -> abstract (defAbstract i) $ checkFunDef i x cs
 	A.DataDef i x ps cs -> abstract (defAbstract i) $ checkDataDef i x ps cs
+	A.RecDef i x ps cs  -> abstract (defAbstract i) $ checkRecDef i x ps cs
     where
 	-- Concrete definitions cannot use information about abstract things.
 	abstract ConcreteDef = inAbstractMode
@@ -151,7 +152,7 @@ checkSection i x tel ds =
     addSection x (size tel')
     verbose 10 $ do
       dx   <- prettyTCM x
-      dtel <- mapM Syntax.Abstract.Pretty.prettyA tel
+      dtel <- mapM prettyA tel
       dtel' <- prettyTCM =<< lookupSection x
       liftIO $ putStrLn $ "checking section " ++ show dx ++ " " ++ show dtel
       liftIO $ putStrLn $ "    actual tele: " ++ show dtel'
@@ -165,6 +166,11 @@ checkSectionApplication ::
 checkSectionApplication i m1 m2 args rd rm = do
   tel <- lookupSection m2
   vs  <- freeVarsToApply $ qnameFromList $ mnameToList m2
+  verbose 15 $ do
+    dm2	 <- prettyTCM m2
+    dtel <- prettyTCM tel
+    liftIO $ putStrLn $ "applying section " ++ show dm2
+    liftIO $ putStrLn $ "  tel = " ++ show dtel
   (ts, cs)  <- checkArguments_ (getRange i) args (apply tel vs)
   noConstraints $ return cs
   verbose 15 $ do
@@ -359,6 +365,140 @@ forceData d (El s0 t) = liftTCM $ do
 	_ -> typeError $ ShouldBeApplicationOf (El s0 t) d
 
 ---------------------------------------------------------------------------
+-- * Records
+---------------------------------------------------------------------------
+
+checkRecDef :: DefInfo -> QName -> [A.LamBinding] -> [A.Constructor] -> TCM ()
+checkRecDef i name ps fields =
+  traceCall (CheckRecDef (getRange i) (qnameName name) ps fields) $ do
+    t <- instantiateFull =<< typeOfConst name
+    bindParameters ps t $ \tel t0 -> do
+      s <- case unEl t0 of
+	Sort s	-> return s
+	_	-> typeError $ ShouldBeASort t0
+      let m = mnameFromList $ qnameToList name
+      -- TODO: check that the fields fit inside the sort
+      --       will be easier when checkRecordFields returns
+      --       a telescope
+      ftype <- checkRecordFields m name tel s [] [] (size fields) fields
+      let hide (Arg _ x) = Arg Hidden x
+	  htel		 = map hide $ telToList tel
+	  rect		 = El s $ Def name $ reverse 
+			   [ Arg h (Var i [])
+			   | (i, Arg h _) <- zip [0..] $ telToList tel
+			   ]
+	  tel'		 = telFromList $ htel ++ [Arg NotHidden ("r", rect)]
+      -- We have to rebind the parameters to make them hidden
+      escapeContext (size tel) $ addCtxTel tel' $ addSection m (size tel')
+      let getName (A.Axiom _ x _)      = nameConcrete $ qnameName x
+	  getName (A.ScopedDecl _ [f]) = getName f
+	  getName _		       = __IMPOSSIBLE__
+      addConstant name $ Defn name t0
+		       $ Record (size tel) Nothing
+				(map getName fields) ftype
+				(defAbstract i)
+      return ()
+
+{-| @checkRecordFields m q tel s ftel vs n fs@:
+    @m@: name of the generated module
+    @q@: name of the record
+    @tel@: parameters
+    @s@: sort of the record
+    @ftel@: telescope of previous fields
+    @vs@: values of previous fields (should have one free variable, which is
+	  the record)
+    @n@: total number of fields
+    @fs@: the fields to be checked
+-}
+checkRecordFields :: ModuleName -> QName -> Telescope -> Sort ->
+		     [(Name, Type)] -> [Term] -> Arity -> [A.Field] ->
+		     TCM Type
+checkRecordFields m q tel s ftel vs n [] = return $ sort s
+checkRecordFields m q tel s ftel vs n (f : fs) = do
+  (x, a, v) <- checkField f
+  let ftel' = ftel ++ [(x, a)]
+  t <- checkRecordFields m q tel s ftel' (v : vs) n fs
+  return $ telePi (Arg NotHidden a `ExtendTel` Abs (show x) EmptyTel) t
+  where
+    checkField :: A.Field -> TCM (Name, Type, Term)
+    checkField (A.ScopedDecl scope [f]) =
+      setScope scope >> checkField f
+    checkField (A.Axiom i x t) = do
+      -- check the type (in the context of the telescope)
+      -- the previous fields will be free in 
+      verbose 5 $ do
+	top <- prettyTCM =<< getContextTelescope
+	dtel <- prettyTCM tel
+	dftel1 <- mapM (prettyTCM . fst) ftel
+	dftel2 <- mapM (prettyTCM . snd) ftel
+	dvs    <- mapM prettyTCM vs
+	let dftel = zip dftel1 dftel2
+	dt    <- prettyA t
+	liftIO $ putStrLn $ unlines
+	  [ "top  = " ++ show top
+	  , "tel  = " ++ show dtel
+	  , "ftel = " ++ show dftel
+	  , "t    = " ++ show dt
+	  , "vs   = " ++ show dvs
+	  ]
+      let add (x, t) = addCtx x (Arg NotHidden t)
+      t <- flip (foldr add) ftel $ isType_ t
+      -- create the projection functions (instantiate the type with the values
+      -- of the previous fields)
+
+      {- what are the contexts?
+
+	  tel, ftel    ⊢ t
+	  tel, r       ⊢ vs
+	  tel, r, ftel ⊢ raiseFrom (size ftel) 1 t
+	  tel, r       ⊢ substs vs (raiseFrom (size ftel) 1 t)
+      -}
+
+      -- The type of the projection function should be
+      -- {tel} -> (r : R tel) -> t[vs/ftel]
+      let hide (Arg _ x) = Arg Hidden x
+	  htel	   = telFromList $ map hide $ telToList tel
+	  rect	   = El s $ Def q $ reverse 
+		      [ Arg h (Var i [])
+		      | (i, Arg h _) <- zip [0..] $ telToList tel
+		      ]
+	  projt	   = substs (vs ++ map (flip Var []) [0..]) $ raiseFrom (size ftel) 1 t
+	  finalt   = telePi htel
+		   $ telePi (ExtendTel (Arg NotHidden rect) (Abs "r" EmptyTel))
+		   $ projt
+	  projname = qualify m $ qnameName x
+      
+      -- The body should be
+      --  P.xi {tel} (r _ .. x .. _) = x
+      let hps	 = map (fmap $ VarP . fst) $ telToList htel
+	  conp	 = Arg NotHidden
+		 $ ConP q $ map (Arg NotHidden)
+			    [ VarP "x" | _ <- [1..n] ]
+	  nobind 0 = id
+	  nobind n = NoBind . nobind (n - 1)
+	  body	 = nobind (size htel)
+		 $ nobind (size ftel)
+		 $ Bind . Abs "x"
+		 $ nobind (n - size ftel - 1)
+		 $ Body $ Var 0 []
+	  clause = Clause (hps ++ [conp]) body
+      escapeContext (size tel) $
+	addConstant projname (Defn projname finalt $ Function [clause] ConcreteDef)
+
+      -- The value of the projection is the projection function applied
+      -- to the parameters and the record (these are free in the value)
+      let projval = Def projname $
+		    reverse [ let h = if i == 0
+				      then NotHidden
+				      else Hidden
+			      in Arg h (Var i [])
+			    | i <- [0 .. size tel]
+			    ]
+
+      return (qnameName projname, t, projval)
+    checkField _ = __IMPOSSIBLE__ -- record fields are always axioms
+
+---------------------------------------------------------------------------
 -- * Definitions by pattern matching
 ---------------------------------------------------------------------------
 
@@ -416,7 +556,7 @@ checkWhere n [A.Section _ m tel ds]  ret = do
 				  -- are also parameters
     verbose 10 $ do
       dx   <- prettyTCM m
-      dtel <- mapM Syntax.Abstract.Pretty.prettyA tel
+      dtel <- mapM prettyA tel
       dtel' <- prettyTCM =<< lookupSection m
       liftIO $ putStrLn $ "checking where section " ++ show dx ++ " " ++ show dtel
       liftIO $ putStrLn $ "	   actual tele: " ++ show dtel'
@@ -444,7 +584,7 @@ checkLHS ps t ret = do
 
     verbose 15 $ do
       dt  <- prettyTCM t
-      dps <- mapM Syntax.Abstract.Pretty.prettyA ps
+      dps <- mapM prettyA ps
       liftIO $ putStrLn $ "checking clause " ++ show dps ++ " : " ++ show dt
 
     -- Save the state for later. (should this be done with the undo monad, or
@@ -463,8 +603,8 @@ checkLHS ps t ret = do
     ps1 <- evalStateT (buildNewPatterns ps0) metas
 
     verbose 10 $ do
-	d0 <- showA ps0
-	d1 <- showA ps1
+	d0 <- A.showA ps0
+	d1 <- A.showA ps1
 	liftIO $ do
 	putStrLn $ "first check"
 	putStrLn $ "  xs    = " ++ show xs
@@ -1085,6 +1225,43 @@ checkExpr e t =
 	    blockTerm t (Sort (Type n)) $ equalType (sort $ Type $ n + 1) t
 	A.Prop _     ->
 	    blockTerm t (Sort Prop) $ equalType (sort $ Type 1) t
+
+	A.Rec _ fs  -> do
+	  t <- normalise t
+	  case unEl t of
+	    Def r vs  -> do
+	      defn <- theDef <$> getConstInfo r
+	      case defn of
+		Record _ _ xs ft _ -> do
+		  es <- orderFields xs fs
+		  -- The type stored is the pi of the types of the fields.
+		  -- TODO: store a tele and a sort
+		  let getTel (Pi a b) = ExtendTel a $ fmap (getTel . unEl) b
+		      getTel _	      = EmptyTel
+		      tel	      = getTel $ unEl $ piApply ft vs
+		  (args, cs) <- checkArguments_ (getRange e)
+				    (map (Arg NotHidden . unnamed) es) tel
+		  blockTerm t (Con r args) $ return cs
+		  where
+		    ys = map fst fs
+		    orderFields xs fs = case ys List.\\ List.nub ys of
+		      dups @ (_:_)  -> typeError $ DuplicateFields $ List.nub dups
+		      []	    -> case ys List.\\ xs of
+			extra @ (_:_) -> typeError $ TooManyFields r extra
+			[]	      -> case xs List.\\ ys of
+			  missing @ (_:_) -> typeError $ TooFewFields r missing
+			  []		  -> return $ order xs fs
+
+		    -- invariant: both arguments contain the same fields
+		    -- TODO: a little inefficient
+		    order [] []	= []
+		    order (x : xs) ((y, e) : fs)
+		      | x == y	  = e : order xs fs
+		      | otherwise = order (x : xs) (fs ++ [(y, e)])
+		    order _ _ = __IMPOSSIBLE__
+		_  -> typeError $ ShouldBeRecordType t
+	    _	      -> typeError $ ShouldBeRecordType t
+
 	A.Var _    -> __IMPOSSIBLE__
 	A.Def _    -> __IMPOSSIBLE__
 	A.Con _    -> __IMPOSSIBLE__

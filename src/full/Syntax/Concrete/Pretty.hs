@@ -99,6 +99,14 @@ instance Pretty Expr where
 	    As _ x e  -> pretty x <> text "@" <> pretty e
 	    Dot _ e   -> text "." <> pretty e
 	    Absurd _  -> text "()"
+	    Rec _ xs  -> sep
+	      [ text "record"
+	      , nest 2 $ braces $ fsep $ punctuate (text ";") $ map pr xs
+	      ]
+	      where
+		pr (x, e) = sep [ pretty x <+> text "="
+				, nest 2 $ pretty e
+				]
 
 instance Pretty LamBinding where
     pretty (DomainFree h x) = pHidden h (pretty x)
@@ -143,6 +151,17 @@ instance Pretty Declaration where
 		    ] $$ nest 2 (pretty wh)
 	    Data _ x tel e cs ->
 		sep [ hsep  [ text "data"
+			    , pretty x
+			    , fcat (map pretty tel)
+			    ]
+		    , nest 2 $ hsep
+			    [ text ":"
+			    , pretty e
+			    , text "where"
+			    ]
+		    ] $$ nest 2 (vcat $ map pretty cs)
+	    Record _ x tel e cs ->
+		sep [ hsep  [ text "record"
 			    , pretty x
 			    , fcat (map pretty tel)
 			    ]

@@ -37,10 +37,6 @@ import Syntax.Literal
 
 import Syntax.Concrete.Name
 
--- | A constructor declaration is just a type signature.
-type Constructor = TypeSignature
-
-
 -- | Concrete expressions. Should represent exactly what the user wrote.
 data Expr
 	= Ident QName			       -- ^ ex: @x@
@@ -57,6 +53,7 @@ data Expr
 	| Set !Range			       -- ^ ex: @Set@
 	| Prop !Range			       -- ^ ex: @Prop@
 	| SetN !Range Nat		       -- ^ ex: @Set0, Set1, ..@
+	| Rec !Range [(Name, Expr)]	       -- ^ ex: @record {x = a; y = b}@
 	| Let !Range [Declaration] Expr	       -- ^ ex: @let Ds in e@
 	| Paren !Range Expr		       -- ^ ex: @(e)@
 	| Absurd !Range			       -- ^ ex: @()@ or @{}@, only in patterns
@@ -162,6 +159,11 @@ instance Show ImportedName where
 -- | Just type signatures.
 type TypeSignature   = Declaration
 
+-- | A constructor or field declaration is just a type signature.
+type Constructor = TypeSignature
+type Field	 = TypeSignature
+
+
 {-| The representation type of a declaration. The comments indicate
     which type in the intended family the constructor targets.
 -}
@@ -169,6 +171,7 @@ data Declaration
 	= TypeSig Name Expr
 	| FunClause LHS RHS WhereClause
 	| Data        !Range Name [TypedBindings] Expr [Constructor]
+	| Record      !Range Name [TypedBindings] Expr [Field]
 	| Infix Fixity [Name]
 	| Mutual      !Range [Declaration]
 	| Abstract    !Range [Declaration]
@@ -234,6 +237,7 @@ instance HasRange Expr where
 	    Dot r _		-> r
 	    Absurd r		-> r
 	    HiddenArg r _	-> r
+	    Rec r _		-> r
 
 -- instance HasRange Telescope where
 --     getRange (TeleBind bs) = getRange bs
@@ -259,6 +263,7 @@ instance HasRange Declaration where
     getRange (TypeSig x t)		= fuseRange x t
     getRange (FunClause lhs rhs wh)	= fuseRange lhs rhs `fuseRange` wh
     getRange (Data r _ _ _ _)		= r
+    getRange (Record r _ _ _ _)		= r
     getRange (Mutual r _)		= r
     getRange (Abstract r _)		= r
     getRange (Open r _ _)		= r

@@ -43,6 +43,7 @@ import Utils.IO
 import Utils.Pretty
 import Utils.String
 import Utils.FileName
+import Utils.Tuple
 
 import Control.Monad.Error
 import Control.Monad.Reader
@@ -332,6 +333,7 @@ cmd_make_case ii rng s = infoOnException $ ioTCM $ do
   passElDef t@(El _ (SI.Def _ _)) = return t
   passElDef t  = fail . ("passElDef: got "++) =<< showA =<< reify t
   passData  d@(Defn _ _ (Datatype _ _ _ _ _ _)) = return d
+  passData  d@(Defn _ _ (TM.Record _ _ _ _ _))	= fail $ "passData: got record"
   passData  d@(Defn _ _ (Function _ _))		= fail $ "passData: got function"
   passData  d@(Defn _ _ TM.Axiom)		= fail $ "passData: got axiom"
   passData  d@(Defn _ _ (Constructor _ _ _ _))	= fail $ "passData: got constructor"
@@ -409,6 +411,7 @@ instance LowerMeta SC.Expr where
       SC.Dot r e	-> SC.Dot r (go e)
       SC.RawApp r es	-> SC.RawApp r (lowerMeta es)
       SC.OpApp r x es	-> SC.OpApp r x (lowerMeta es)
+      SC.Rec r fs	-> SC.Rec r (List.map (id -*- lowerMeta) fs)
       SC.HiddenArg r e	-> SC.HiddenArg r (lowerMeta e)
 
 instance LowerMeta SC.LamBinding where
@@ -432,6 +435,8 @@ instance LowerMeta SC.Declaration where
       TypeSig n e1            -> TypeSig n (lowerMeta e1)
       FunClause lhs rhs whcl  -> FunClause lhs (lowerMeta rhs) (lowerMeta whcl)
       Data r n tel e1 cs      -> Data r n
+                                 (lowerMeta tel) (lowerMeta e1) (lowerMeta cs)
+      SC.Record r n tel e1 cs -> SC.Record r n
                                  (lowerMeta tel) (lowerMeta e1) (lowerMeta cs)
       Infix _ _               -> d
       Mutual r ds             -> Mutual r (lowerMeta ds)

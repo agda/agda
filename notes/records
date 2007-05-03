@@ -1,0 +1,64 @@
+
+What do we want?
+────────────────
+
+∙ declaration syntax
+    record Point : Set where
+      x : Nat
+      y : Nat
+
+∙ constructor
+    record { x = 4; y = 2 }
+
+∙ projection functions
+    dist = x p ^ 2 + y p ^ 2
+
+∙ open
+    open module P = Point p
+    dist = sqrt (x ^ 2 + y ^ 2)
+
+∙ η
+  p ≡ record { x = x p; y = y p }
+
+∙ pattern matching
+    f (record { x = suc n }) = n
+
+∙ record update syntax
+    how?
+    record p { x = zero } ?
+
+Schedule
+────────
+
+First
+  ∙ declaration systax
+  ∙ constructor
+  ∙ projection functions
+  ∙ open
+
+Next
+  ∙ η
+
+Later
+  ∙ pattern matching
+  ∙ update syntax
+
+What does it mean?
+──────────────────
+
+data Point : Set where
+  <Point> : (x : Nat)(y : Nat) -> Point
+
+module Point (p : Point) where
+  x : Nat
+  x = <magic>
+
+  y : Nat
+  y = <magic>
+
+Issues
+──────
+
+∙ mutual records? yes
+  will it be a problem? probably not
+

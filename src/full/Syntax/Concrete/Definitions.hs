@@ -103,10 +103,12 @@ data NiceDeclaration
 data NiceDefinition
 	= FunDef  Range [Declaration] Fixity Access IsAbstract Name [Clause]
 	| DataDef Range Fixity Access IsAbstract Name [LamBinding] [NiceConstructor]
+	| RecDef Range Fixity Access IsAbstract Name [LamBinding] [NiceField]
     deriving (Typeable, Data)
 
 -- | Only 'Axiom's.
-type NiceConstructor = NiceDeclaration
+type NiceConstructor = NiceTypeSignature
+type NiceField = NiceTypeSignature
 
 -- | Only 'Axiom's.
 type NiceTypeSignature	= NiceDeclaration
@@ -143,6 +145,7 @@ instance HasRange NiceDeclaration where
 instance HasRange NiceDefinition where
   getRange (FunDef r _ _ _ _ _ _)  = r
   getRange (DataDef r _ _ _ _ _ _) = r
+  getRange (RecDef r _ _ _ _ _ _)  = r
 
 {--------------------------------------------------------------------------
     The niceifier
@@ -203,25 +206,8 @@ niceDeclarations ds = nice (fixities ds) ds
 		_   -> nds ++ nice fixs ds
 		    where
 			nds = case d of
-			    Data r x tel t cs   ->
-				[ NiceDef r [d]
-					    [ Axiom (fuseRange x t) f PublicAccess ConcreteDef
-						    x (Pi tel t)
-					    ]
-					    [ DataDef (getRange cs) f PublicAccess ConcreteDef x
-						      (concatMap binding tel)
-						      (niceAxioms fixs cs)
-					    ]
-				]
-				where
-				    f = fixity x fixs
-				    binding (TypedBindings _ h bs) =
-					concatMap (bind h) bs
-				    bind h (TBind _ xs _) =
-					map (DomainFree h) xs
-				    bind h (TNoBind e) =
-					[ DomainFree h $ noName (getRange e) ]
-
+			    Data   r x tel t cs -> dataOrRec DataDef r x tel t cs
+			    Record r x tel t cs -> dataOrRec RecDef  r x tel t cs
 			    Mutual r ds ->
 				[ mkMutual r [d] $
 				    nice (fixities ds `plusFixities` fixs) ds
@@ -253,6 +239,26 @@ niceDeclarations ds = nice (fixities ds) ds
 
 			    FunClause _ _ _	-> __IMPOSSIBLE__
 			    TypeSig _ _		-> __IMPOSSIBLE__
+			  where
+			    dataOrRec mkDef r x tel t cs =
+			      [ NiceDef r [d]
+				[ Axiom (fuseRange x t) f PublicAccess ConcreteDef
+					x (Pi tel t)
+				]
+				[ mkDef (getRange cs) f PublicAccess ConcreteDef x
+					(concatMap binding tel)
+					(niceAxioms fixs cs)
+				]
+			      ]
+				where
+				  f = fixity x fixs
+				  binding (TypedBindings _ h bs) =
+				      concatMap (bind h) bs
+				  bind h (TBind _ xs _) =
+				      map (DomainFree h) xs
+				  bind h (TNoBind e) =
+				      [ DomainFree h $ noName (getRange e) ]
+
 
 
 	-- Translate axioms
@@ -328,6 +334,7 @@ niceDeclarations ds = nice (fixities ds) ds
 		FunDef r ds f a _ x cs	-> FunDef r ds f a AbstractDef x
 						  (map mkAbstractClause cs)
 		DataDef r f a _ x ps cs	-> DataDef r f a AbstractDef x ps $ map mkAbstract cs
+		RecDef r f a _ x ps cs	-> RecDef r f a AbstractDef x ps $ map mkAbstract cs
 
 	mkAbstractClause (Clause x lhs rhs wh) =
 	    Clause x lhs rhs $ mkAbstractWhere wh
@@ -354,6 +361,7 @@ niceDeclarations ds = nice (fixities ds) ds
 		FunDef r ds f _ a x cs	-> FunDef r ds f PrivateAccess a x
 						  (map mkPrivateClause cs)
 		DataDef r f _ a x ps cs	-> DataDef r f PrivateAccess a x ps cs
+		RecDef r f _ a x ps cs	-> RecDef r f PrivateAccess a x ps cs
 
 	mkPrivateClause (Clause x lhs rhs wh) =
 	    Clause x lhs rhs $ mkPrivateWhere wh

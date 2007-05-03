@@ -14,6 +14,7 @@ import Data.Foldable
 import Data.Traversable
 import Data.Map (Map)
 
+import qualified Syntax.Concrete as C
 import Syntax.Info
 import Syntax.Common
 import Syntax.Position
@@ -35,6 +36,7 @@ data Expr
         | Set  ExprInfo Nat		     -- ^
         | Prop ExprInfo			     -- ^
         | Let  ExprInfo [LetBinding] Expr    -- ^
+	| Rec  ExprInfo [(C.Name, Expr)]     -- ^ record construction
 	| ScopedExpr ScopeInfo Expr	     -- ^ scope annotation
 
 data Declaration
@@ -57,10 +59,12 @@ data Definition
 	= FunDef     DefInfo QName [Clause]
 	| DataDef    DefInfo QName [LamBinding] [Constructor]
 	    -- ^ the 'LamBinding's are 'DomainFree' and binds the parameters of the datatype.
+	| RecDef     DefInfo QName [LamBinding] [Field]
 
 -- | Only 'Axiom's.
 type TypeSignature  = Declaration
 type Constructor    = TypeSignature
+type Field	    = TypeSignature
 
 -- | A lambda binding is either domain free or typed.
 data LamBinding
@@ -172,6 +176,7 @@ instance HasRange Expr where
     getRange (Set i _)		= getRange i
     getRange (Prop i)		= getRange i
     getRange (Let i _ _)	= getRange i
+    getRange (Rec i _)		= getRange i
     getRange (ScopedExpr _ e)	= getRange e
 
 instance HasRange Declaration where
@@ -187,6 +192,7 @@ instance HasRange Declaration where
 instance HasRange Definition where
     getRange (FunDef  i _ _   ) = getRange i
     getRange (DataDef i _ _ _ ) = getRange i
+    getRange (RecDef  i _ _ _ ) = getRange i
 
 instance HasRange (Pattern' e) where
     getRange (VarP x)	   = getRange x

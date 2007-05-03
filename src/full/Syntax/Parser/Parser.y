@@ -58,6 +58,7 @@ import Utils.Monad
     'public'	{ TokKeyword KwPublic $$ }
     'module'	{ TokKeyword KwModule $$ }
     'data'	{ TokKeyword KwData $$ }
+    'record'	{ TokKeyword KwRecord $$ }
     'infix'	{ TokKeyword KwInfix $$ }
     'infixl'	{ TokKeyword KwInfixL $$ }
     'infixr'	{ TokKeyword KwInfixR $$ }
@@ -131,6 +132,7 @@ Token
     | 'public'	    { TokKeyword KwPublic $1 }
     | 'module'	    { TokKeyword KwModule $1 }
     | 'data'	    { TokKeyword KwData $1 }
+    | 'record'	    { TokKeyword KwRecord $1 }
     | 'infix'	    { TokKeyword KwInfix $1 }
     | 'infixl'	    { TokKeyword KwInfixL $1 }
     | 'infixr'	    { TokKeyword KwInfixR $1 }
@@ -326,21 +328,36 @@ Expr2
 
 -- Level 3: Atoms
 Expr3
-    : QId		  { Ident $1 }
-    | literal		  { Lit $1 }
-    | '?'		  { QuestionMark $1 Nothing }
-    | '_'		  { Underscore $1 Nothing }
-    | 'Prop'		  { Prop $1 }
-    | 'Set'		  { Set $1 }
-    | setN		  { uncurry SetN $1 }
-    | '{' Expr '}'	  { HiddenArg (fuseRange $1 $3) (unnamed $2) }
-    | '{' Id '=' Expr '}' { HiddenArg (fuseRange $1 $5) (named (show $2) $4) }
-    | '(' Expr ')'	  { Paren (fuseRange $1 $3) $2 }
-    | '{' '}'		  { let r = fuseRange $1 $2 in HiddenArg r $ unnamed $ Absurd r }
-    | '(' ')'		  { Absurd (fuseRange $1 $2) }
-    | Id '@' Expr3	  { As (fuseRange $1 $3) $1 $3 }
-    | '.' Expr3		  { Dot (fuseRange $1 $2) $2 }
+    : QId				{ Ident $1 }
+    | literal				{ Lit $1 }
+    | '?'				{ QuestionMark $1 Nothing }
+    | '_'				{ Underscore $1 Nothing }
+    | 'Prop'				{ Prop $1 }
+    | 'Set'				{ Set $1 }
+    | setN				{ uncurry SetN $1 }
+    | '{' Expr '}'			{ HiddenArg (fuseRange $1 $3) (unnamed $2) }
+    | '{' Id '=' Expr '}'		{ HiddenArg (fuseRange $1 $5) (named (show $2) $4) }
+    | '(' Expr ')'			{ Paren (fuseRange $1 $3) $2 }
+    | '{' '}'				{ let r = fuseRange $1 $2 in HiddenArg r $ unnamed $ Absurd r }
+    | '(' ')'				{ Absurd (fuseRange $1 $2) }
+    | Id '@' Expr3			{ As (fuseRange $1 $3) $1 $3 }
+    | '.' Expr3				{ Dot (fuseRange $1 $2) $2 }
+    | 'record' '{' FieldAssignments '}' { Rec (getRange ($1,$4)) $3 }
 
+
+FieldAssignments :: { [(Name, Expr)] }
+FieldAssignments
+  : {- empty -}	      { [] }
+  | FieldAssignments1 { $1 }
+
+FieldAssignments1 :: { [(Name, Expr)] }
+FieldAssignments1
+  : FieldAssignment			  { [$1] }
+  | FieldAssignment ';' FieldAssignments1 { $1 : $3 }
+
+FieldAssignment :: { (Name, Expr) }
+FieldAssignment
+  : Id '=' Expr	  { ($1, $3) }
 
 {--------------------------------------------------------------------------
     Bindings
@@ -501,6 +518,7 @@ Declaration
     : TypeSig	    { $1 }
     | FunClause	    { $1 }
     | Data	    { $1 }
+    | Record	    { $1 }
     | Infix	    { $1 }
     | Mutual	    { $1 }
     | Abstract	    { $1 }
@@ -537,6 +555,12 @@ RHS : '=' Expr	    { RHS $2 }
 Data :: { Declaration }
 Data : 'data' Id TypedBindingss0 ':' Expr 'where'
 	    Constructors	{ Data (getRange ($1, $6, $7)) $2 $3 $5 $7 }
+
+
+-- Record declarations.
+Record :: { Declaration }
+Record : 'record' Id TypedBindingss0 ':' Expr 'where'
+	    Constructors  { Record (getRange ($1, $6, $7)) $2 $3 $5 $7 }
 
 
 -- Fixity declarations.

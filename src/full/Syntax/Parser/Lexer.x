@@ -113,6 +113,7 @@ tokens :-
 <0,code> import		{ keyword KwImport }
 <0,code> module		{ keyword KwModule }
 <0,code> data		{ keyword KwData }
+<0,code> record		{ keyword KwRecord }
 <0,code> infix		{ keyword KwInfix }
 <0,code> infixl		{ keyword KwInfixL }
 <0,code> infixr		{ keyword KwInfixR }

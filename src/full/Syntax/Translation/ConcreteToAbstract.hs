@@ -332,6 +332,12 @@ instance ToAbstract C.Expr A.Expr where
 	let info = ExprRange (getRange e0)
 	return $ A.Let info ds' e
 
+  -- Record construction
+      C.Rec r fs  -> do
+	let (xs, es) = unzip fs
+	es <- toAbstractCtx TopCtx es
+	return $ A.Rec (ExprRange r) $ zip xs es
+
   -- Parenthesis
       C.Paren _ e -> toAbstractCtx TopCtx e
 
@@ -451,15 +457,45 @@ instance ToAbstract NiceDefinition Definition where
 
     -- Data definitions
     toAbstract d@(CD.DataDef r f p a x pars cons) =
-      traceCall (ScopeCheckDefinition d) $ do
-	(pars,cons) <- localToAbstract pars $ \pars -> do
-			cons <- toAbstract (map Constr cons)
-			return (pars, cons)
-	x' <- toAbstract (OldName x)
-	-- The constructors disappeared from scope when we exited the
-	-- localToAbstract, so we have to reintroduce them.
-	toAbstract (map Constr cons)
+      traceCall (ScopeCheckDefinition d) $
+      withLocalVars $ do
+	pars <- toAbstract pars
+	cons <- toAbstract (map Constr cons)
+	x'   <- toAbstract (OldName x)
 	return $ A.DataDef (mkRangedDefInfo x f p a r) x' pars cons
+
+    -- Record definitions (mucho interesting)
+    toAbstract d@(CD.RecDef r f p a x pars fields) =
+      traceCall (ScopeCheckDefinition d) $
+      withLocalVars $ do
+	pars <- toAbstract pars
+	x'   <- toAbstract (OldName x)
+	let m = mnameFromList $ (:[]) $ last $ qnameToList x'
+	printScope 15 "before record"
+	pushScope m
+	afields <- toAbstract $ map FieldDecl fields
+	let bindField (A.ScopedDecl _ [f]) = bindField f
+	    bindField (A.Axiom i y _) =
+	      bindName (defAccess i) DefName (declName $ defInfo i) y
+	    bindField _ = __IMPOSSIBLE__
+	printScope 15 "binding fields"
+	mapM_ bindField afields
+	printScope 15 "bound fields"
+	qm <- getCurrentModule
+	popScope p
+	bindModule p x qm
+	printScope 15 "record complete"
+	return $ A.RecDef (mkRangedDefInfo x f p a r) x' pars afields
+
+newtype FieldDecl a = FieldDecl a
+
+instance ToAbstract (FieldDecl NiceDeclaration) A.Field where
+  toAbstract (FieldDecl (CD.Axiom r f p a x t)) = annotateDecls =<< do
+    t'	<- toAbstractCtx TopCtx t
+    y	<- toAbstract (NewName x)
+    top <- getCurrentModule
+    return [ A.Axiom (mkRangedDefInfo x f p a r) (A.qualify top y) t' ]
+  toAbstract _ = __IMPOSSIBLE__
 
 -- The only reason why we return a list is that open declarations disappears.
 -- For every other declaration we get a singleton list.
@@ -614,13 +650,13 @@ instance ToAbstract (Constr CD.NiceDeclaration) A.Declaration where
 
     toAbstract _ = __IMPOSSIBLE__    -- a constructor is always an axiom
 
--- TODO: do this in a nicer way?
-instance ToAbstract (Constr A.Constructor) () where
-  toAbstract (Constr (A.ScopedDecl _ [d])) = toAbstract $ Constr d
-  toAbstract (Constr (A.Axiom i y _)) = do
-    let x = nameConcrete $ qnameName y	-- TODO: right name?
-    bindName (defAccess i) ConName x y
-  toAbstract _ = __IMPOSSIBLE__	-- constructors are axioms
+-- -- TODO: do this in a nicer way?
+-- instance ToAbstract (Constr A.Constructor) () where
+--   toAbstract (Constr (A.ScopedDecl _ [d])) = toAbstract $ Constr d
+--   toAbstract (Constr (A.Axiom i y _)) = do
+--     let x = nameConcrete $ qnameName y	-- TODO: right name?
+--     bindName (defAccess i) ConName x y
+--   toAbstract _ = __IMPOSSIBLE__	-- constructors are axioms
 
 instance ToAbstract CD.Clause A.Clause where
     toAbstract (CD.Clause top lhs rhs wh) = withLocalVars $ do

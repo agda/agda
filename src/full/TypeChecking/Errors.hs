@@ -87,6 +87,7 @@ errorString err = case err of
     DataMustEndInSort _			       -> "DataMustEndInSort"
     DifferentArities			       -> "DifferentArities"
     DuplicateBuiltinBinding _ _ _	       -> "DuplicateBuiltinBinding"
+    DuplicateFields _			       -> "DuplicateFields"
     FileNotFound _ _			       -> "FileNotFound"
     GenericError _			       -> "GenericError"
     IncompletePatternMatching _ _	       -> "IncompletePatternMatching"
@@ -117,7 +118,10 @@ errorString err = case err of
     ShouldBeAppliedToTheDatatypeParameters _ _ -> "ShouldBeAppliedToTheDatatypeParameters"
     ShouldBeEmpty _			       -> "ShouldBeEmpty"
     ShouldBePi _			       -> "ShouldBePi"
+    ShouldBeRecordType _		       -> "ShouldBeRecordType"
     ShouldEndInApplicationOfTheDatatype _      -> "ShouldEndInApplicationOfTheDatatype"
+    TooFewFields _ _			       -> "TooFewFields"
+    TooManyFields _ _			       -> "TooManyFields"
     UnequalHiding _ _			       -> "UnequalHiding"
     UnequalSorts _ _			       -> "UnequalSorts"
     UnequalTerms _ _ _			       -> "UnequalTerms"
@@ -163,6 +167,8 @@ instance PrettyTCM TypeError where
 	    ShouldBeApplicationOf t q -> fsep $
 		pwords "The pattern constructs an element of" ++ [prettyTCM q] ++
 		pwords "which is not the right datatype"
+	    ShouldBeRecordType t -> fsep $
+		pwords "Expected record type, found " ++ [prettyTCM t]
 	    DifferentArities ->
 		fwords "The number of arguments in the defining equations differ"
 	    WrongHidingInLHS t -> do
@@ -191,6 +197,15 @@ instance PrettyTCM TypeError where
 	    NotLeqSort s1 s2 -> fsep $
 		pwords "The type of the constructor does not fit in the sort of the datatype, since"
 		++ [prettyTCM s1] ++ pwords "is not less or equal than" ++ [prettyTCM s2]
+	    TooFewFields r xs -> fsep $
+		pwords "Missing fields" ++ punctuate comma (map pretty xs) ++
+		pwords "in an element of the record" ++ [prettyTCM r]
+	    TooManyFields r xs -> fsep $
+		pwords "The record type" ++ [prettyTCM r] ++
+		pwords "does not have the fields" ++ punctuate comma (map pretty xs)
+	    DuplicateFields xs -> fsep $
+		pwords "Duplicate fields" ++ punctuate comma (map pretty xs) ++
+		pwords "in record"
 	    MetaCannotDependOn m ps i -> fsep $
 		    pwords "The metavariable" ++ [prettyTCM $ MetaV m []] ++ pwords "cannot depend on" ++ [pvar i] ++
 		    pwords "because it" ++ deps
@@ -347,6 +362,8 @@ instance PrettyTCM Call where
 	CheckArguments r es t0 t1 _ -> fsep $
 	    pwords "when checking that" ++
 	    map hPretty es ++ pwords "are valid arguments to a function of type" ++ [prettyTCM t0]
+	CheckRecDef _ x ps cs _ ->
+	    fsep $ pwords "when checking the definition of" ++ [prettyTCM x]
 	CheckDataDef _ x ps cs _ ->
 	    fsep $ pwords "when checking the definition of" ++ [prettyTCM x]
 	CheckConstructor d _ _ (A.Axiom _ c _) _ -> fsep $
@@ -382,6 +399,10 @@ instance PrettyTCM Call where
 	      D.FunDef _ ds _ _ _ _ _	 -> ds
 	      D.DataDef r fx p a d bs cs ->
 		[ C.Data r d (map bind bs) (C.Underscore noRange Nothing)
+		    $ map simpleDecl cs
+		]
+	      D.RecDef r fx p a d bs cs ->
+		[ C.Record r d (map bind bs) (C.Underscore noRange Nothing)
 		    $ map simpleDecl cs
 		]
 	      where

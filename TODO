@@ -2,9 +2,13 @@
 Features
 --------
 
-* remembering the last thing in scope when computation gets stuck
+* better algorithm for pattern matching on inductive families
 
-* polymorphic constructors at run-time (at least at conversion checking)
+* with-clauses
+
+* records
+
+* remembering the last thing in scope when computation gets stuck
 
 * structured verbosity
 
@@ -18,15 +22,13 @@ Features
 
 * unify primitive and {-# BUILTIN #-}
 
-* with-clauses
-
 * allow module instantiation before top-level module(?)
 
 * abstract open (need to re-type check to make sure the abstraction is solid)
 
-* implement the CHIT-CHAT module system
-
 * extend positivity check to handle function calls
+
+* mutual modules
 
 Fixes
 -----
@@ -171,6 +173,10 @@ Performance
 
 Done
 ----
+
+* implemented the CHIT-CHAT module system
+
+* polymorphic constructors at run-time (at least at conversion checking)
 
 * Split TypeChecking.Errors into TypeChecking.Pretty and TypeChecking.Errors
 

@@ -368,6 +368,12 @@ instance ToConcrete A.Expr C.Expr where
 	     e'  <- toConcreteCtx TopCtx e
 	     return $ C.Let (getRange i) (concat ds') e'
 
+    toConcrete (A.Rec i fs) =
+      bracket appBrackets $ do
+	let (xs, es) = unzip fs
+	es <- toConcreteCtx TopCtx es
+	return $ C.Rec (getRange i) $ zip xs es
+
     toConcrete (A.ScopedExpr scope e) = withScope scope $ toConcrete e
 
 -- Binder instances -------------------------------------------------------
@@ -421,6 +427,18 @@ instance ToConcrete TypeAndDef [C.Declaration] where
     return $ TypeSig x' t' : cs'
 
   toConcrete (TypeAndDef (Axiom _ x t) (DataDef i _ bs cs)) =
+    withAbstractPrivate i $
+    bindToConcrete tel $ \tel' -> do
+      t'       <- toConcreteCtx TopCtx t0
+      (x',cs') <- (unsafeQNameToName -*- id) <$> toConcrete (x, map Constr cs)
+      return [ C.Record (getRange i) x' tel' t' cs' ]
+    where
+      (tel, t0) = mkTel (length bs) t
+      mkTel 0 t		   = ([], t)
+      mkTel n (A.Pi _ b t) = (b++) -*- id $ mkTel (n - 1) t
+      mkTel _ _		   = __IMPOSSIBLE__
+
+  toConcrete (TypeAndDef (Axiom _ x t) (RecDef  i _ bs cs)) =
     withAbstractPrivate i $
     bindToConcrete tel $ \tel' -> do
       t'       <- toConcreteCtx TopCtx t0

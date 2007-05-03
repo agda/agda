@@ -293,12 +293,16 @@ data Defn = Axiom
 		     [QName]	    -- constructor names
 		     Sort
 		     IsAbstract
+	  | Record Nat (Maybe Clause) [C.Name] Type IsAbstract
 	  | Constructor Nat	-- nof parameters
 			QName	-- original constructor (this might be in a module instance)
 			QName	-- name of datatype
 			IsAbstract
 	  | Primitive IsAbstract String [Clause] -- PrimFun
     deriving (Typeable, Data)
+
+newtype Fields = Fields [(C.Name, Type)]
+  deriving (Typeable, Data)
 
 data Reduced no yes = NoReduction no | YesReduction yes
     deriving (Typeable)
@@ -314,6 +318,7 @@ defClauses :: Definition -> [Clause]
 defClauses (Defn _ _ (Function cs _))		    = cs
 defClauses (Defn _ _ (Primitive _ _ cs))	    = cs
 defClauses (Defn _ _ (Datatype _ _ (Just c) _ _ _)) = [c]
+defClauses (Defn _ _ (Record _ (Just c) _ _ _))	    = [c]
 defClauses _					    = []
 
 defAbstract :: Definition -> IsAbstract
@@ -321,6 +326,7 @@ defAbstract d = case theDef d of
     Axiom		 -> AbstractDef
     Function _ a	 -> a
     Datatype _ _ _ _ _ a -> a
+    Record _ _ _ _ a	 -> a
     Constructor _ _ _ a  -> a
     Primitive a _ _	 -> a
 
@@ -351,6 +357,7 @@ data Call = CheckClause Type A.Clause (Maybe Clause)
 	  | InferDef Range QName (Maybe (Term, Type))
 	  | CheckArguments Range [NamedArg A.Expr] Type Type (Maybe (Args, Type, Constraints))
 	  | CheckDataDef Range Name [A.LamBinding] [A.Constructor] (Maybe ())
+	  | CheckRecDef Range Name [A.LamBinding] [A.Constructor] (Maybe ())
 	  | CheckConstructor QName Telescope Sort A.Constructor (Maybe ())
 	  | CheckFunDef Range Name [A.Clause] (Maybe ())
 	  | CheckPragma Range A.Pragma (Maybe ())
@@ -378,6 +385,7 @@ instance HasRange Call where
     getRange (InferDef _ f _)		  = getRange f
     getRange (CheckArguments r _ _ _ _)   = r
     getRange (CheckDataDef i _ _ _ _)	  = getRange i
+    getRange (CheckRecDef i _ _ _ _)	  = getRange i
     getRange (CheckConstructor _ _ _ c _) = getRange c
     getRange (CheckFunDef i _ _ _)	  = getRange i
     getRange (CheckPragma r _ _)	  = r
@@ -487,6 +495,7 @@ data TypeError
 	    -- ^ The given type should have been a sort.
 	| ShouldBePi Type
 	    -- ^ The given type should have been a pi.
+	| ShouldBeRecordType Type
 	| NotAProperTerm
 	| UnequalTerms Term Term Type
 	| UnequalTypes Type Type
@@ -506,6 +515,9 @@ data TypeError
 	| BuiltinInParameterisedModule String
 	| NoRHSRequiresAbsurdPattern [NamedArg A.Pattern]
 	| IncompletePatternMatching Term Args
+	| TooFewFields QName [C.Name]
+	| TooManyFields QName [C.Name]
+	| DuplicateFields [C.Name]
     -- Positivity errors
 	| NotStrictlyPositive QName [Occ]
     -- Import errors
