@@ -17,12 +17,12 @@ open Point renaming (x to getX; y to getY)
 <_,_> : Nat -> Nat -> Point
 < x , y > = record { x = x; y = y }
 
+η : (p : Point) -> p == record { x = getX p; y = getY p }
+η p = refl
+
 swap : Point -> Point
 swap p = < getY p , getX p >
 
-η : (p : Point) -> p == record { x = getX p; y = getY p }
-η p = refl {x = p}
-
 swap-idem : (p : Point) -> swap (swap p) == p
-swap-idem p = refl {x = p}
+swap-idem p = refl
 

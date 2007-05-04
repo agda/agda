@@ -24,6 +24,7 @@ import TypeChecking.Substitute
 import TypeChecking.Constraints
 import TypeChecking.Errors
 import TypeChecking.Free
+import TypeChecking.Records
 
 #ifndef __HADDOCK__
 import {-# SOURCE #-} TypeChecking.Conversion
@@ -114,12 +115,25 @@ newTypeMeta s = El s <$> newValueMeta (sort s)
 newTypeMeta_ ::  MonadTCM tcm => tcm Type
 newTypeMeta_  = newTypeMeta =<< newSortMeta
 
+-- | Create a new metavariable, possibly η-expanding in the process.
 newValueMeta ::  MonadTCM tcm => Type -> tcm Term
-newValueMeta t =
-    do	i  <- createMetaInfo
-        vs <- getContextArgs
-	x  <- newMeta i normalMetaPriority (HasType () t)
-	return $ MetaV x vs
+newValueMeta t = do
+  t' <- reduce t
+  case unEl t' of
+    Def r pars -> do
+      isrec <- isRecord r
+      case isrec of
+	True  -> newRecordMeta r pars
+	False -> newValueMeta' t
+    _ -> newValueMeta' t
+
+-- | Create a new value meta without η-expanding.
+newValueMeta' :: MonadTCM tcm => Type -> tcm Term
+newValueMeta' t = do
+  i  <- createMetaInfo
+  vs <- getContextArgs
+  x  <- newMeta i normalMetaPriority (HasType () t)
+  return $ MetaV x vs
 
 newArgsMeta :: MonadTCM tcm => Type -> tcm Args
 newArgsMeta (El s tm) = do
@@ -131,12 +145,20 @@ newArgsMeta (El s tm) = do
 	    return $ Arg h v : args
 	NoFunV _    -> return []
 
+-- | Create a metavariable of record type. This is actually one metavariable
+--   for each field.
+newRecordMeta :: MonadTCM tcm => QName -> Args -> tcm Term
+newRecordMeta r pars = do
+  tel	 <- flip apply pars <$> getRecordFieldTypes r
+  fields <- newArgsMeta (telePi tel $ sort Prop)
+  return $ Con r fields
+
 newQuestionMark :: MonadTCM tcm => Type -> tcm Term
-newQuestionMark t =
-    do	m@(MetaV x _) <- newValueMeta t
-	ii	      <- fresh
-	addInteractionPoint ii x
-	return m
+newQuestionMark t = do
+  m@(MetaV x _) <- newValueMeta' t
+  ii		<- fresh
+  addInteractionPoint ii x
+  return m
 
 -- | Construct a blocked constant if there are constraints.
 blockTerm :: MonadTCM tcm => Type -> Term -> tcm Constraints -> tcm Term

@@ -4,6 +4,7 @@ module TypeChecking.Conversion where
 
 import Control.Applicative
 import Control.Monad
+import Control.Monad.State
 import Data.Generics
 
 import Syntax.Common
@@ -32,6 +33,19 @@ sameVars xs ys = and $ zipWith same xs ys
 	same (Arg _ (Var n [])) (Arg _ (Var m [])) = n == m
 	same _ _				   = False
 
+-- | Move?
+etaRecordMeta :: MonadTCM tcm => Type -> QName -> Args -> Term -> tcm Term
+etaRecordMeta a r pars v@(MetaV m vs) = do
+  undo <- get
+  u <- newRecordMeta r pars
+  cs <- assignV a m vs u
+  case cs of
+    []	-> return u
+    _	-> do
+      put undo
+      return v
+etaRecordMeta _ _ _ t = return t
+
 -- | Type directed equality on values.
 --
 equalTerm :: MonadTCM tcm => Type -> Term -> Term -> tcm Constraints
@@ -57,6 +71,8 @@ equalTerm a m n =
 		      if isrec
 			then do
 			  (m, n) <- reduce (m, n)
+			  m <- etaRecordMeta a' r ps m
+			  n <- etaRecordMeta a' r ps n
 			  case (m, n) of
 			    _ | isNeutral m && isNeutral n ->
 				equalAtom a' m n
