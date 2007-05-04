@@ -78,7 +78,13 @@ instance Reify Term Expr where
 		    do  x  <- liftTCM $ nameOfBV n `catchError` \_ -> freshName_ ("@" ++ show n)
 			reifyApp (A.Var x) vs
 		I.Def x vs   -> reifyApp (A.Def x) vs
-		I.Con x vs   -> reifyApp (A.Con x) vs
+		I.Con x vs   -> do
+		  def <- theDef <$> getConstInfo x
+		  case def of
+		    Record _ _ xs _ _ _ -> do
+		      vs <- reify $ map unArg vs
+		      return $ A.Rec exprInfo $ zip xs vs
+		    _	    -> reifyApp (A.Con x) vs
 		I.Lam h b    ->
 		    do	(x,e) <- reify b
 			return $ A.Lam exprInfo (DomainFree h x) e

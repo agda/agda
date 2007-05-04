@@ -433,10 +433,11 @@ instance InstantiateFull Defn where
 	    s  <- instantiateFull s
 	    cl <- instantiateFull cl
 	    return $ Datatype np ni cl cs s a
-	Record np cl cs s a -> do
-	    s  <- instantiateFull s
-	    cl <- instantiateFull cl
-	    return $ Record np cl cs s a
+	Record np cl cs tel s a -> do
+	    s	<- instantiateFull s
+	    cl	<- instantiateFull cl
+	    tel <- instantiateFull tel
+	    return $ Record np cl cs tel s a
 	Constructor n c d a	-> return $ Constructor n c d a
 	Primitive a s cs	-> Primitive a s <$> instantiateFull cs
 

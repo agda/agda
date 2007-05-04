@@ -121,7 +121,7 @@ showValueDefinition definitions compilableDatatypes (name,defn) = do
     			$ reverse [0..(np - 1)]
 		return $ sep [ sep (dname : dparams), equals ] <+>
 			 text "()"
-      Record _ _ _ _ _ -> return $ text "(error \"records\")"
+      Record _ _ _ _ _ _ -> return $ text "(error \"records\")"
       Constructor np _ qtname a -> do
 	dcname <- showNameAsOptimizedConstructor name
 	let dparams = map (const $ text "_") [0..(np - 1)]

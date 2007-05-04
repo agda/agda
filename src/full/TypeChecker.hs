@@ -380,7 +380,7 @@ checkRecDef i name ps fields =
       -- TODO: check that the fields fit inside the sort
       --       will be easier when checkRecordFields returns
       --       a telescope
-      ftype <- checkRecordFields m name tel s [] [] (size fields) fields
+      ftel <- checkRecordFields m name tel s [] [] (size fields) fields
       let hide (Arg _ x) = Arg Hidden x
 	  htel		 = map hide $ telToList tel
 	  rect		 = El s $ Def name $ reverse 
@@ -395,7 +395,7 @@ checkRecDef i name ps fields =
 	  getName _		       = __IMPOSSIBLE__
       addConstant name $ Defn name t0
 		       $ Record (size tel) Nothing
-				(map getName fields) ftype
+				(map getName fields) ftel s
 				(defAbstract i)
       return ()
 
@@ -412,13 +412,13 @@ checkRecDef i name ps fields =
 -}
 checkRecordFields :: ModuleName -> QName -> Telescope -> Sort ->
 		     [(Name, Type)] -> [Term] -> Arity -> [A.Field] ->
-		     TCM Type
-checkRecordFields m q tel s ftel vs n [] = return $ sort s
+		     TCM Telescope
+checkRecordFields m q tel s ftel vs n [] = return EmptyTel
 checkRecordFields m q tel s ftel vs n (f : fs) = do
   (x, a, v) <- checkField f
   let ftel' = ftel ++ [(x, a)]
-  t <- checkRecordFields m q tel s ftel' (v : vs) n fs
-  return $ telePi (Arg NotHidden a `ExtendTel` Abs (show x) EmptyTel) t
+  tel <- checkRecordFields m q tel s ftel' (v : vs) n fs
+  return $ Arg NotHidden a `ExtendTel` Abs (show x) tel
   where
     checkField :: A.Field -> TCM (Name, Type, Term)
     checkField (A.ScopedDecl scope [f]) =
@@ -1232,13 +1232,9 @@ checkExpr e t =
 	    Def r vs  -> do
 	      defn <- theDef <$> getConstInfo r
 	      case defn of
-		Record _ _ xs ft _ -> do
+		Record _ _ xs ftel _ _ -> do
 		  es <- orderFields xs fs
-		  -- The type stored is the pi of the types of the fields.
-		  -- TODO: store a tele and a sort
-		  let getTel (Pi a b) = ExtendTel a $ fmap (getTel . unEl) b
-		      getTel _	      = EmptyTel
-		      tel	      = getTel $ unEl $ piApply ft vs
+		  let tel = ftel `apply` vs
 		  (args, cs) <- checkArguments_ (getRange e)
 				    (map (Arg NotHidden . unnamed) es) tel
 		  blockTerm t (Con r args) $ return cs

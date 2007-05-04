@@ -128,7 +128,7 @@ showNDefinition (name, defn) = do
 	let dvars = map (\i -> text ("v" ++ show i)) [1 .. np + ni]
 	let drhs = untypedAbs dvars $ text "VNonData"
 	return $ sep [ dname, equals ] <+> drhs <+> text "{- datatype -}"
-      Record _ _ _ _ _ -> return $ text "(error \"records\")"
+      Record _ _ _ _ _ _ -> return $ text "(error \"records\")"
       Constructor np _ qtname a -> do
 	dcname <- showAsUntypedConstructor name
 	ty <- instantiate $ defType defn

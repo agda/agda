@@ -293,7 +293,7 @@ data Defn = Axiom
 		     [QName]	    -- constructor names
 		     Sort
 		     IsAbstract
-	  | Record Nat (Maybe Clause) [C.Name] Type IsAbstract
+	  | Record Nat (Maybe Clause) [C.Name] Telescope Sort IsAbstract
 	  | Constructor Nat	-- nof parameters
 			QName	-- original constructor (this might be in a module instance)
 			QName	-- name of datatype
@@ -318,7 +318,7 @@ defClauses :: Definition -> [Clause]
 defClauses (Defn _ _ (Function cs _))		    = cs
 defClauses (Defn _ _ (Primitive _ _ cs))	    = cs
 defClauses (Defn _ _ (Datatype _ _ (Just c) _ _ _)) = [c]
-defClauses (Defn _ _ (Record _ (Just c) _ _ _))	    = [c]
+defClauses (Defn _ _ (Record _ (Just c) _ _ _ _))   = [c]
 defClauses _					    = []
 
 defAbstract :: Definition -> IsAbstract
@@ -326,7 +326,7 @@ defAbstract d = case theDef d of
     Axiom		 -> AbstractDef
     Function _ a	 -> a
     Datatype _ _ _ _ _ a -> a
-    Record _ _ _ _ a	 -> a
+    Record _ _ _ _ _ a	 -> a
     Constructor _ _ _ a  -> a
     Primitive a _ _	 -> a
 

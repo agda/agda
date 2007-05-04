@@ -55,7 +55,7 @@ instance Apply Defn where
     apply Axiom _			  = Axiom
     apply (Function cs a) args		  = Function (apply cs args) a
     apply (Datatype np ni cl cs s a) args = Datatype (np - size args) ni (apply cl args) cs s a
-    apply (Record np cl fs t a) args	  = Record (np - size args) (apply cl args) fs (apply t args) a
+    apply (Record np cl fs tel s a) args  = Record (np - size args) (apply cl args) fs (apply tel args) s a
     apply (Constructor np c d a) args	  = Constructor (np - size args) c d a
     apply (Primitive a x cs) args	  = Primitive a x cs
 
@@ -120,7 +120,7 @@ instance Abstract Defn where
     abstract tel Axiom			    = Axiom
     abstract tel (Function cs a)	    = Function (abstract tel cs) a
     abstract tel (Datatype np ni cl cs s a) = Datatype (size tel + np) ni (abstract tel cl) cs s a
-    abstract tel (Record np cl fs t a)	    = Record (size tel + np) (abstract tel cl) fs (abstract tel t) a
+    abstract tel (Record np cl fs ftel s a) = Record (size tel + np) (abstract tel cl) fs (abstract tel ftel) s a
     abstract tel (Constructor np c d a)	    = Constructor (size tel + np) c d a
     abstract tel (Primitive a x cs)	    = Primitive a x (abstract tel cs)
 
