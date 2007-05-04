@@ -16,6 +16,7 @@ import TypeChecking.Constraints
 import TypeChecking.Errors
 import TypeChecking.Primitive (constructorForm)
 import TypeChecking.Free
+import TypeChecking.Records
 
 import Utils.Monad
 
@@ -51,8 +52,26 @@ equalTerm a m n =
 			    then return []
 			    else buildConstraint (ValueEq a m n)
 		    Lam _ _   -> __IMPOSSIBLE__
+		    Def r ps  -> do
+		      isrec <- isRecord r
+		      if isrec
+			then do
+			  (m, n) <- reduce (m, n)
+			  case (m, n) of
+			    _ | isNeutral m && isNeutral n ->
+				equalAtom a' m n
+			    _ -> do
+			      (tel, m') <- etaExpandRecord r ps m
+			      (_  , n') <- etaExpandRecord r ps n
+			      equalArg (telePi tel $ sort Prop) m' n'
+			else equalAtom a' m n
 		    _	      -> equalAtom a' m n
     where
+	isNeutral (MetaV _ _)  = False
+	isNeutral (Con _ _)    = False
+	isNeutral (BlockedV _) = False
+	isNeutral _	       = True
+
 	equalFun (a,t) m n =
 	    do	name <- freshName_ (suggest $ unEl t)
 		addCtx name a $ equalTerm t' m' n'

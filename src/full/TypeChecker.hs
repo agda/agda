@@ -48,6 +48,7 @@ import TypeChecking.Empty
 import TypeChecking.Patterns.Monad
 import TypeChecking.Free
 import TypeChecking.Pretty
+import TypeChecking.Records
 
 import Utils.Monad
 import Utils.List
@@ -377,20 +378,27 @@ checkRecDef i name ps fields =
 	Sort s	-> return s
 	_	-> typeError $ ShouldBeASort t0
       let m = mnameFromList $ qnameToList name
-      -- TODO: check that the fields fit inside the sort
-      --       will be easier when checkRecordFields returns
-      --       a telescope
-      ftel <- checkRecordFields m name tel s [] [] (size fields) fields
-      let hide (Arg _ x) = Arg Hidden x
+	  hide (Arg _ x) = Arg Hidden x
 	  htel		 = map hide $ telToList tel
 	  rect		 = El s $ Def name $ reverse 
 			   [ Arg h (Var i [])
 			   | (i, Arg h _) <- zip [0..] $ telToList tel
 			   ]
 	  tel'		 = telFromList $ htel ++ [Arg NotHidden ("r", rect)]
+
       -- We have to rebind the parameters to make them hidden
       escapeContext (size tel) $ addCtxTel tel' $ addSection m (size tel')
-      let getName (A.Axiom _ x _)      = nameConcrete $ qnameName x
+
+      -- Check the types of the fields
+      ftel <- withCurrentModule m $ checkRecordFields m name tel s [] [] (size fields) fields
+
+      -- Exit the section (set the number of free vars to 0)
+      exitSection m
+
+      -- Check that the fields fit inside the sort
+      telePi ftel t0 `fitsIn` s
+
+      let getName (A.Axiom _ x _)      = x
 	  getName (A.ScopedDecl _ [f]) = getName f
 	  getName _		       = __IMPOSSIBLE__
       addConstant name $ Defn name t0
@@ -1230,33 +1238,14 @@ checkExpr e t =
 	  t <- normalise t
 	  case unEl t of
 	    Def r vs  -> do
-	      defn <- theDef <$> getConstInfo r
-	      case defn of
-		Record _ _ xs ftel _ _ -> do
-		  es <- orderFields xs fs
-		  let tel = ftel `apply` vs
-		  (args, cs) <- checkArguments_ (getRange e)
-				    (map (Arg NotHidden . unnamed) es) tel
-		  blockTerm t (Con r args) $ return cs
-		  where
-		    ys = map fst fs
-		    orderFields xs fs = case ys List.\\ List.nub ys of
-		      dups @ (_:_)  -> typeError $ DuplicateFields $ List.nub dups
-		      []	    -> case ys List.\\ xs of
-			extra @ (_:_) -> typeError $ TooManyFields r extra
-			[]	      -> case xs List.\\ ys of
-			  missing @ (_:_) -> typeError $ TooFewFields r missing
-			  []		  -> return $ order xs fs
-
-		    -- invariant: both arguments contain the same fields
-		    -- TODO: a little inefficient
-		    order [] []	= []
-		    order (x : xs) ((y, e) : fs)
-		      | x == y	  = e : order xs fs
-		      | otherwise = order (x : xs) (fs ++ [(y, e)])
-		    order _ _ = __IMPOSSIBLE__
-		_  -> typeError $ ShouldBeRecordType t
-	    _	      -> typeError $ ShouldBeRecordType t
+	      xs   <- getRecordFieldNames r
+	      ftel <- getRecordFieldTypes r
+	      es <- orderFields r xs fs
+	      let tel = ftel `apply` vs
+	      (args, cs) <- checkArguments_ (getRange e)
+			      (map (Arg NotHidden . unnamed) es) tel
+	      blockTerm t (Con r args) $ return cs
+	    _  -> typeError $ ShouldBeRecordType t
 
 	A.Var _    -> __IMPOSSIBLE__
 	A.Def _    -> __IMPOSSIBLE__

@@ -97,6 +97,7 @@ other-modules:   Compiler.Agate.Classify
 		 TypeChecking.Pretty
                  TypeChecking.Primitive
                  TypeChecking.Rebind
+		 TypeChecking.Records
                  TypeChecking.Reduce
                  TypeChecking.Serialise
                  TypeChecking.Substitute

@@ -113,6 +113,7 @@ applySection new old ts rd rm = liftTCM $ do
 	def  = case theDef d of
 		Constructor n c d a	-> Constructor (n - size ts) c (copyName d) a
 		Datatype np ni _ cs s a -> Datatype (np - size ts) ni (Just cl) (map copyName cs) s a
+		Record np _ fs tel s a	-> Record (np - size ts) (Just cl) fs (apply tel ts) s a
 		_			-> Function [cl] ConcreteDef
 	cl = Clause [] $ Body $ Def x ts
 

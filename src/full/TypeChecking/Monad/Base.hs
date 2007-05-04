@@ -293,7 +293,7 @@ data Defn = Axiom
 		     [QName]	    -- constructor names
 		     Sort
 		     IsAbstract
-	  | Record Nat (Maybe Clause) [C.Name] Telescope Sort IsAbstract
+	  | Record Nat (Maybe Clause) [A.QName] Telescope Sort IsAbstract
 	  | Constructor Nat	-- nof parameters
 			QName	-- original constructor (this might be in a module instance)
 			QName	-- name of datatype
