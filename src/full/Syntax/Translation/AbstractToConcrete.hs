@@ -32,6 +32,7 @@ import TypeChecking.Monad (getScope, MonadTCM)
 import Utils.Maybe
 import Utils.Monad
 import Utils.Tuple
+import Utils.Suffix
 
 #include "../../undefined.h"
 
@@ -134,34 +135,10 @@ bindName x ret = do
     False	       ->
 	local (\e -> e { takenNames   = Set.insert y $ takenNames e
 		       , currentScope = (currentScope e)
-			  { scopeLocals = dontInsertNoName y x $ scopeLocals $ currentScope e
+			  { scopeLocals = (y, x) : scopeLocals (currentScope e)
 			  }
 		       }
 	      ) $ ret y
-  where
-    dontInsertNoName y x m
-	| y == C.noName_ = m
-	| otherwise	 = (y, x) : m
-
--- | TODO: Move
-data Suffix = NoSuffix | Prime Int | Index Int
-
-nextSuffix NoSuffix  = Prime 1
-nextSuffix (Prime _) = Index 0	-- we only use single primes in generated names
-nextSuffix (Index i) = Index $ i + 1
-
-suffixView :: String -> (String, Suffix)
-suffixView s
-    | (ps@(_:_), s') <- span (=='\'') rs = (reverse s', Prime $ length ps)
-    | (ns@(_:_), s') <- span isDigit rs	 = (reverse s', Index $ read $ reverse ns)
-    | otherwise				 = (s, NoSuffix)
-    where
-	rs = reverse s
-
-addSuffix :: String -> Suffix -> String
-addSuffix s NoSuffix = s
-addSuffix s (Prime n) = s ++ replicate n '\''
-addSuffix s (Index i) = s ++ show i
 
 nextName :: A.Name -> A.Name
 nextName x = x { nameConcrete = C.Name r $ nextSuf ps }

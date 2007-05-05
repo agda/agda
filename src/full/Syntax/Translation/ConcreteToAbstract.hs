@@ -143,13 +143,6 @@ localToAbstract' x ret = do
   scope <- getScope
   withScope scope $ ret =<< toAbstract x
 
-withLocalVars :: ScopeM a -> ScopeM a
-withLocalVars m = do
-  vars <- scopeLocals <$> getScope
-  x    <- m
-  modifyScope $ \s -> s { scopeLocals = vars }
-  return x
-
 instance (ToAbstract c1 a1, ToAbstract c2 a2) => ToAbstract (c1,c2) (a1,a2) where
   toAbstract (x,y) =
     (,) <$> toAbstract x <*> toAbstract y

@@ -553,7 +553,7 @@ checkClause t c@(A.Clause (A.LHS i x aps) rhs wh) =
 --   bound in the left hand side.
 checkWhere :: Int -> [A.Declaration] -> TCM a -> TCM a
 checkWhere _ []			     ret = ret
-checkWhere n [A.ScopedDecl scope ds] ret = setScope scope >> checkWhere n ds ret
+checkWhere n [A.ScopedDecl scope ds] ret = withScope_ scope $ checkWhere n ds ret
 checkWhere n [A.Section _ m tel ds]  ret = do
   checkTelescope tel $ \tel' -> do
     addSection m (size tel' + n)  -- the variables bound in the lhs
@@ -1144,7 +1144,7 @@ checkTypedBinding h (A.TNoBind e) ret = do
 -- | Type check an expression.
 checkExpr :: A.Expr -> Type -> TCM Term
 checkExpr e t =
-    traceCall (CheckExpr e t) $ do
+    traceCall (CheckExpr e t) $ localScope $ do
     verbose 15 $ do
         d <- text "Checking" <+> fsep [ prettyTCM e, text ":", prettyTCM t ]
         liftIO $ print d

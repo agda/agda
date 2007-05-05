@@ -89,6 +89,14 @@ withContextPrecedence p m = do
   setContextPrecedence p'
   return x
 
+-- | Run a computation without changing the local variables.
+withLocalVars :: ScopeM a -> ScopeM a
+withLocalVars m = do
+  vars <- scopeLocals <$> getScope
+  x    <- m
+  modifyScope $ \s -> s { scopeLocals = vars }
+  return x
+
 -- * Names
 
 -- | Create a fresh abstract name from a concrete name.

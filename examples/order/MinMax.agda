@@ -94,7 +94,7 @@ module DistributivityA {A : Set}(Ord : DecidableOrder A) where
     open module Ops       = Order Ord
 
   min-max-distr : forall x y z -> min x (max y z) ≡ max (min x y) (min x z)
-  min-max-distr x y z = ? -- antisym _ _ left right
+  min-max-distr x y z = antisym _ _ left right
     where
       open module Chain = Logic.ChainReasoning.Mono.Homogenous _≤_ refl trans
 

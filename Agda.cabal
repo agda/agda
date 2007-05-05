@@ -11,7 +11,7 @@ hs-source-dirs:  src/full
 exposed-modules: AgdaMain
                  Interaction.BasicOps
                  Interaction.GhciTop
-other-modules:   Compiler.Agate.Classify
+		 Compiler.Agate.Classify
                  Compiler.Agate.Common
                  Compiler.Agate.Main
                  Compiler.Agate.OptimizedPrinter
@@ -119,6 +119,7 @@ other-modules:   Compiler.Agate.Classify
                  Utils.Serialise
 		 Utils.Size
                  Utils.String
+		 Utils.Suffix
                  Utils.TestHelpers
                  Utils.Trace
                  Utils.Tuple

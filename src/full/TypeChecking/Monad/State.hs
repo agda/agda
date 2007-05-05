@@ -48,6 +48,14 @@ withScope s m = do
 withScope_ :: MonadTCM tcm => ScopeInfo -> tcm a -> tcm a
 withScope_ s m = fst <$> withScope s m
 
+-- | Discard any changes to the scope by a computation.
+localScope :: MonadTCM tcm => tcm a -> tcm a
+localScope m = do
+  scope <- getScope
+  x <- m
+  setScope scope
+  return x
+
 -- | Set the top-level module. This affects the global module id of freshly
 --   generated names.
 setTopLevelModule :: MonadTCM tcm => C.QName -> tcm ()

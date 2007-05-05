@@ -23,6 +23,7 @@ import Syntax.Internal
 import Syntax.Parser
 import Syntax.Position
 import Syntax.Scope.Base
+import Syntax.Scope.Monad
 import Syntax.Translation.ConcreteToAbstract
 import Syntax.Translation.InternalToAbstract
 import Syntax.Abstract.Pretty
@@ -120,6 +121,7 @@ interactionLoop typeCheck =
 	    , "wakeup"	    |> \_ -> continueAfter $ retryConstraints
 	    , "termination" |> \_ -> continueAfter $ checkTermination 
 	    , "noundo"	    |> \_ -> continueAfter $ clearUndoHistory
+	    , "scope"	    |> \_ -> continueAfter $ showScope
 	    ]
 	    where
 		(|>) = (,)
@@ -180,6 +182,10 @@ showMetas [] =
 showMetas _ = liftIO $ putStrLn $ ":meta [metaid]"
 
 
+showScope :: IM ()
+showScope = do
+  scope <- getScope
+  liftIO $ print scope
 
 metaParseExpr ::  InteractionId -> String -> IM A.Expr
 metaParseExpr ii s = 
@@ -228,7 +234,7 @@ evalIn _ = liftIO $ putStrLn ":eval metaid expr"
 parseExpr :: String -> TCM A.Expr
 parseExpr s = do
     e <- liftIO $ parse exprParser s
-    concreteToAbstract_ e
+    localToAbstract e return
 
 evalTerm :: String -> TCM (ExitCode a)
 evalTerm s =
@@ -238,11 +244,11 @@ evalTerm s =
 	liftIO $ putStrLn $ show e
 	return Continue
     where
-	evalInCurrent e = 
-	    do  t <- newTypeMeta_ 
-		v <- checkExpr e t
-		v' <- normalise v
-		return v'
+	evalInCurrent e = do
+	  t <- newTypeMeta_ 
+	  v <- checkExpr e t
+	  v' <- normalise v
+	  return v'
 
 
 typeOf :: [String] -> TCM ()
