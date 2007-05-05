@@ -15,6 +15,7 @@ import Syntax.Position
 import TypeChecking.Monad.Base
 import TypeChecking.Monad.Context
 import TypeChecking.Monad.Options
+import TypeChecking.Monad.Env
 import TypeChecking.Substitute
 
 import Utils.Monad
@@ -67,15 +68,6 @@ addSection m fv = do
   tel <- getContextTelescope
   let sec = Section tel fv
   modifySignature $ \sig -> sig { sigSections = Map.insert m sec $ sigSections sig }
-
--- | Exit a section. Sets the free variables of the section to 0.
-exitSection :: MonadTCM tcm => ModuleName -> tcm ()
-exitSection m = do
-  sig <- sigSections <$> getSignature
-  case Map.lookup m sig of
-    Nothing  -> __IMPOSSIBLE__
-    Just sec -> modifySignature $ \s ->
-      s { sigSections = Map.insert m (sec { secFreeVars = 0 }) sig }
 
 -- | Lookup a section. If it doesn't exist that just means that the module
 --   wasn't parameterised.
@@ -149,7 +141,10 @@ getConstInfo q = liftTCM $ do
 getSecFreeVars :: MonadTCM tcm => ModuleName -> tcm Nat
 getSecFreeVars m = do
   sig <- sigSections <$> getSignature
-  return $ maybe 0 secFreeVars $ Map.lookup m sig
+  top <- currentModule
+  case top `isSubModuleOf` m || top == m of
+    True  -> return $ maybe 0 secFreeVars $ Map.lookup m sig
+    False -> return 0
 
 -- | Compute the number of free variables of a defined name. This is the sum of
 --   the free variables of the sections it's contained in.

@@ -129,8 +129,9 @@ bindName x ret = do
   names <- asks takenNames
   let y = nameConcrete x
   case Set.member y names of
-    True  -> bindName (nextName x) ret
-    False ->
+    _ | y == C.noName_ -> ret y
+    True	       -> bindName (nextName x) ret
+    False	       ->
 	local (\e -> e { takenNames   = Set.insert y $ takenNames e
 		       , currentScope = (currentScope e)
 			  { scopeLocals = dontInsertNoName y x $ scopeLocals $ currentScope e
@@ -170,11 +171,9 @@ nextName x = x { nameConcrete = C.Name r $ nextSuf ps }
 	nextSuf [Id s]	     = [ Id $ nextStr s ]
 	nextSuf [Id s, Hole] = [ Id $ nextStr s, Hole ]
 	nextSuf (p : ps)     = p : nextSuf ps
-	nextSuf []	     = __IMPOSSIBLE__	-- noName cannot appear here
+	nextSuf []	     = __IMPOSSIBLE__
 	nextStr s = case suffixView s of
 	    (s0, suf) -> addSuffix s0 (nextSuffix suf)
-
--- Dealing with stored syntax ---------------------------------------------
 
 -- Dealing with precedences -----------------------------------------------
 

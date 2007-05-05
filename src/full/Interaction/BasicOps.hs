@@ -179,6 +179,17 @@ data OutputForm a b
       | Guard (OutputForm a b) [OutputForm a b]
       | Assign b a
 
+outputFormId :: OutputForm a b -> b
+outputFormId o = case o of
+  OfType i _	 -> i
+  EqInType _ i _ -> i
+  JustType i	 -> i
+  EqTypes i _	 -> i
+  JustSort i	 -> i
+  EqSorts i _	 -> i
+  Guard o _	 -> outputFormId o
+  Assign i _	 -> i
+
 instance Functor (OutputForm a) where
     fmap f (OfType e t) = OfType (f e) t
     fmap f (JustType e) = JustType (f e)
@@ -317,6 +328,15 @@ typeInMeta ii norm e =
 	withMetaInfo mi $
 	    typeInCurrent norm e
 
+withInteractionId :: InteractionId -> TCM a -> TCM a
+withInteractionId i ret = do
+  m <- lookupInteractionId i
+  withMetaId m ret
+
+withMetaId :: MetaId -> TCM a -> TCM a
+withMetaId m ret = do
+  info <- lookupMeta m
+  withMetaInfo (mvInfo info) ret
 
 -------------------------------
 ----- Help Functions ----------

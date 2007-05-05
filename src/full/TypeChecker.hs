@@ -158,7 +158,6 @@ checkSection i x tel ds =
       liftIO $ putStrLn $ "checking section " ++ show dx ++ " " ++ show dtel
       liftIO $ putStrLn $ "    actual tele: " ++ show dtel'
     withCurrentModule x $ checkDecls ds
-    exitSection x
 
 -- | Check an application of a section.
 checkSectionApplication ::
@@ -392,9 +391,6 @@ checkRecDef i name ps fields =
       -- Check the types of the fields
       ftel <- withCurrentModule m $ checkRecordFields m name tel s [] [] (size fields) fields
 
-      -- Exit the section (set the number of free vars to 0)
-      exitSection m
-
       -- Check that the fields fit inside the sort
       telePi ftel t0 `fitsIn` s
 
@@ -569,7 +565,6 @@ checkWhere n [A.Section _ m tel ds]  ret = do
       liftIO $ putStrLn $ "checking where section " ++ show dx ++ " " ++ show dtel
       liftIO $ putStrLn $ "	   actual tele: " ++ show dtel'
     x <- withCurrentModule m $ checkDecls ds >> ret
-    exitSection m
     return x
 checkWhere _ _ _ = __IMPOSSIBLE__
 

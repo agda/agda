@@ -148,23 +148,26 @@ showConstraints _ = liftIO $ putStrLn ":constraints [cid]"
 	
 showMetas :: [String] -> IM ()
 showMetas [m] =
-    do	i <- readM m
-	s <- typeOfMeta AsIs (InteractionId i)
-	r <- getInteractionRange (InteractionId i)
-	d <- showA s
-	liftIO $ putStrLn $ d ++ " " ++ show r
+    do	i <- InteractionId <$> readM m
+	withInteractionId i $ do
+	  s <- typeOfMeta AsIs i
+	  r <- getInteractionRange i
+	  d <- showA s
+	  liftIO $ putStrLn $ d ++ " " ++ show r
 showMetas [m,"normal"] =
-    do	i <- readM m
-	s <- showA =<< typeOfMeta Normalised (InteractionId i)
-	r <- getInteractionRange (InteractionId i)
-	liftIO $ putStrLn $ s ++ " " ++ show r
+    do	i <- InteractionId <$> readM m
+	withInteractionId i $ do
+	  s <- showA =<< typeOfMeta Normalised i
+	  r <- getInteractionRange i
+	  liftIO $ putStrLn $ s ++ " " ++ show r
 showMetas [] = 
     do  (interactionMetas,hiddenMetas) <- typeOfMetas AsIs 
-        ims <- mapM showA interactionMetas 
-        hms <- mapM showA hiddenMetas
-        mapM_ (liftIO . putStrLn) =<< mapM showA interactionMetas
+        mapM_ (liftIO . putStrLn) =<< mapM showII interactionMetas
 	mapM_ print' hiddenMetas
     where
+	showII o = withInteractionId (outputFormId o) $ showA o
+	showM  o = withMetaId (outputFormId o) $ showA o
+
 	metaId (OfType i _) = i
 	metaId (JustType i) = i
 	metaId (JustSort i) = i
@@ -172,7 +175,7 @@ showMetas [] =
 	metaId _ = __IMPOSSIBLE__
 	print' x = do
 	    r <- getMetaRange (metaId x)
-	    d <- showA x
+	    d <- showM x
 	    liftIO $ putStrLn $ show d ++ "  [ at " ++ show r ++ " ]"
 showMetas _ = liftIO $ putStrLn $ ":meta [metaid]"
 

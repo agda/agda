@@ -78,7 +78,9 @@ instance Reify Term Expr where
 		I.Var n vs   ->
 		    do  x  <- liftTCM $ nameOfBV n `catchError` \_ -> freshName_ ("@" ++ show n)
 			reifyApp (A.Var x) vs
-		I.Def x vs   -> reifyApp (A.Def x) vs
+		I.Def x vs   -> do
+		  n <- getDefFreeVars x
+		  reifyApp (A.Def x) $ drop n vs
 		I.Con x vs   -> do
 		  isR <- isRecord x
 		  case isR of
