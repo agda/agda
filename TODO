@@ -37,30 +37,17 @@ Fixes
 
 * allow more things in postulates (infix, private, ..)
 
+* allow fixity declarations for record fields (where?)
+
 * allow postulates in mutual
 
 * Check out lex/parse errors (what position and what input is reported).
 
 [Printing]
 
-* print names properly qualified (we want to be able to parse it back)
-  - make sure to always have the correct scope available
-  - implement inverse look up in the scope: what is the simplest way of
-    referring to this internal name
-
-* get precedences right for things that aren't visible at the top level
-  (requires having the right scope during type checking)
-
 * print patterns in mixfix notation (AbstractToConcrete)
 
 [Scope]
-
-* scope checking yields impossible when things clash
-  (doesn't scope checking check for name clashes when opening? it should.)
-
-* local modules can clash
-
-* handle clashing of concrete names (in abstractToConcrete)
 
 * check that fixity declarations correspond to actual definitions
 

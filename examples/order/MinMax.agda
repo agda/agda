@@ -8,10 +8,18 @@ open import Logic.Identity using (_≡_)
 import Logic.ChainReasoning
 open import DecidableOrder
 
+module Order {A : Set}(Ord : DecidableOrder A) where
+  private module Ord = DecidableOrder.DecidableOrder Ord
+  open Ord public hiding (_≤_)
+
+  infix 80 _≤_ _≥_
+
+  _≤_ = Ord._≤_
+  _≥_ = \x y -> y ≤ x
+
 module Min {A : Set}(Ord : DecidableOrder A) where
 
-  private
-    open module Ops = Order Ord
+  private open module Ops = Order Ord
 
   private
     minAux : (x y : A) -> x ≤ y \/ ¬ x ≤ y -> A
@@ -49,15 +57,16 @@ module Min {A : Set}(Ord : DecidableOrder A) where
                          (\_ -> min-left _ _)
 
 Dual : {A : Set} -> DecidableOrder A -> DecidableOrder A
-Dual Ord = decOrder _≥_ refl' antisym' trans' total' dec'
+Dual Ord = record
+    { _≤_     = _≥_
+    ; refl    = refl
+    ; antisym = \_ _ xy yx   -> antisym _ _ yx xy
+    ; trans   = \_ _ _ xy yz -> trans _ _ _ yz xy
+    ; total   = \_ _	     -> total _ _
+    ; decide  = \_ _	     -> decide _ _
+    }
   where
-    module Ops = Order Ord
-    open Ops
-    refl'    = refl
-    antisym' = \x y xy yx   -> antisym _ _ yx xy
-    trans'   = \x y z xy yz -> trans _ _ _ yz xy
-    total'   = \x y         -> total _ _
-    dec'     = \x y         -> decide _ _
+    open module Ops = Order Ord
 
 module Max {A : Set}(Ord : DecidableOrder A)
       = Min (Dual Ord) renaming
@@ -85,7 +94,7 @@ module DistributivityA {A : Set}(Ord : DecidableOrder A) where
     open module Ops       = Order Ord
 
   min-max-distr : forall x y z -> min x (max y z) ≡ max (min x y) (min x z)
-  min-max-distr x y z = antisym _ _ left right
+  min-max-distr x y z = ? -- antisym _ _ left right
     where
       open module Chain = Logic.ChainReasoning.Mono.Homogenous _≤_ refl trans
 
@@ -118,10 +127,8 @@ module DistributivityA {A : Set}(Ord : DecidableOrder A) where
 module DistributivityB {A : Set}(Ord : DecidableOrder A) where
 
   private
-    -- We need to η-expand to get Dual (Dual Ord') = Ord'
-    Ord' = η Ord
-    module DistrOrd  = DistributivityA (Dual Ord')
-    module MinMaxOrd = MinMax Ord'
+    module DistrOrd  = DistributivityA (Dual Ord)
+    module MinMaxOrd = MinMax Ord
 
   open MinMaxOrd
   open DistrOrd public renaming (min-max-distr to max-min-distr)
