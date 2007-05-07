@@ -346,8 +346,8 @@ noTrace :: CallTrace
 noTrace = TopLevel []
 
 data Call = CheckClause Type A.Clause (Maybe Clause)
-	  | CheckPatterns [NamedArg A.Pattern] Type (Maybe ([String], [Arg Pattern], [Arg Term], [MetaId], Type))
-	  | CheckPattern String A.Pattern Type (Maybe ([String], Pattern, Term, [MetaId]))
+	  | CheckPatterns [NamedArg A.Pattern] Type (Maybe ([NamedArg A.Pattern], [Arg Pattern], [Arg Term], Type))
+	  | CheckPattern String A.Pattern Type (Maybe (A.Pattern, Pattern, Term))
 	  | CheckLetBinding A.LetBinding (Maybe ())
 	  | InferExpr A.Expr (Maybe (Term, Type))
 	  | CheckExpr A.Expr Type (Maybe Term)

@@ -1,3 +1,3 @@
-errors/ShouldBeApplicationOf.agda:8,1-12
+errors/ShouldBeApplicationOf.agda:8,3-6
 Two != One of type Set
-when checking that the clause Foo.f two = two has type One -> Two
+when checking that the pattern two has type One

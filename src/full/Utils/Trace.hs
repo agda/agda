@@ -2,6 +2,7 @@
 module Utils.Trace where
 
 import Control.Monad
+import Data.Monoid
 
 type Trace = CurrentCall
 type SiblingCall = ChildCall
@@ -25,12 +26,19 @@ updateCall c (Current _ p ss cs) = case p of
     Parent c' p' ss' -> Current c' p' ss' $ Child c cs : ss
 
 matchCall :: (call -> Maybe a) -> Trace call -> Maybe a
-matchCall f = matchTrace f'
+matchCall f tr = case matchTrace f' tr of
+    []	  -> Nothing
+    x : _ -> Just x
     where
-	f' (Child c _) = f c
+	f' (Child c _) = maybe [] (:[]) $ f c
 
-matchTrace :: (ChildCall call -> Maybe a) -> Trace call -> Maybe a
-matchTrace f (TopLevel _) = Nothing
+matchCalls :: (call -> Maybe a) -> Trace call -> [a]
+matchCalls f = matchTrace f'
+  where
+    f' (Child c _) = maybe [] (:[]) $ f c
+
+matchTrace :: Monoid m => (ChildCall call -> m) -> Trace call -> m
+matchTrace f (TopLevel _) = mempty
 matchTrace f t@(Current c _ _ cs) =
-    f (Child c cs) `mplus` matchTrace f (updateCall c t)
+    f (Child c cs) `mappend` matchTrace f (updateCall c t)
 

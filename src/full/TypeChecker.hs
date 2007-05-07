@@ -813,8 +813,8 @@ checkLHS ps t ret = do
 
 -- | Check the patterns of a left-hand-side. Binds the variables of the pattern.
 checkPatterns :: [NamedArg A.Pattern] -> Type -> CheckPatM r ([NamedArg A.Pattern], [Arg Pattern], [Arg Term], Type)
-checkPatterns [] t = do
-    -- traceCallCPS (CheckPatterns [] t) ret $ \ret -> do
+checkPatterns [] t =
+    traceCall (CheckPatterns [] t) $ do
     t' <- instantiate t
     case funView $ unEl t' of
 	FunV (Arg Hidden _) _   -> do
@@ -822,8 +822,8 @@ checkPatterns [] t = do
 	    checkPatterns [Arg Hidden $ unnamed $ A.ImplicitP $ PatRange r] t'
 	_ -> return ([], [], [], t)
 
-checkPatterns ps0@(Arg h np:ps) t = do
-    -- traceCallCPS (CheckPatterns ps0 t) ret $ \ret -> do
+checkPatterns ps0@(Arg h np:ps) t =
+    traceCall (CheckPatterns ps0 t) $ do
 
     -- Make sure the type is a function type
     (t', cs) <- forcePi h (name np) t
@@ -906,7 +906,7 @@ actualConstructor c = do
 --   suggestion for wildcard patterns.
 checkPattern :: Hiding -> String -> A.Pattern -> Type -> CheckPatM r (A.Pattern, Pattern, Term)
 checkPattern h name p t =
---    traceCallCPS (CheckPattern name p t) ret $ \ret -> case p of
+    traceCall (CheckPattern name p t) $
     case p of
 
 	-- Variable. Simply bind the variable.
