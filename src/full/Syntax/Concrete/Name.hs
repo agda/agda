@@ -7,6 +7,7 @@ module Syntax.Concrete.Name where
 
 import Data.Generics (Typeable, Data)
 
+import Syntax.Common
 import Syntax.Position
 
 {-| A name is a non-empty list of alternating 'Id's and 'Hole's. A normal name
@@ -18,6 +19,7 @@ import Syntax.Position
     in different locations are equal.
 -}
 data Name = Name !Range [NamePart]
+	  | NoName !Range NameId
     deriving (Typeable, Data)
 
 data NamePart = Hole | Id String
@@ -29,7 +31,15 @@ noName_ = noName noRange
 
 -- | @noName r = 'Name' r ['Hole']@
 noName :: Range -> Name
-noName r = Name r [Hole]
+noName r = NoName r (NameId 0 0)
+
+isNoName :: Name -> Bool
+isNoName (NoName _ _) = True
+isNoName _	      = False
+
+nameParts :: Name -> [NamePart]
+nameParts (Name _ ps)  = ps
+nameParts (NoName _ _) = [Hole]
 
 -- | @qualify A.B x == A.B.x@
 qualify :: QName -> Name -> QName
@@ -46,10 +56,15 @@ qualify (Qual m m') x	= Qual m $ qualify m' x
 --   right to be able to do a lookup. -Ulf
 
 instance Eq Name where
-    Name _ xs == Name _ ys  = xs == ys
+    Name _ xs  == Name _ ys  = xs == ys
+    NoName _ i == NoName _ j = i == j
+    _	       == _	     = False
 
 instance Ord Name where
     compare (Name _ xs) (Name _ ys) = compare xs ys
+    compare (NoName _ i) (NoName _ j) = compare i j
+    compare (NoName _ _) (Name _ _)   = LT
+    compare (Name _ _) (NoName _ _)   = GT
 
 
 -- | @QName@ is a list of namespaces and the name of the constant.
@@ -64,13 +79,14 @@ data QName = Qual  Name QName
   deriving (Typeable, Data, Eq, Ord)
 
 isPrefix, isPostfix, isInfix, isNonfix :: Name -> Bool
-isPrefix  (Name _ xs) = head xs /= Hole && last xs == Hole
-isPostfix (Name _ xs) = head xs == Hole && last xs /= Hole
-isInfix   (Name _ xs) = head xs == Hole && last xs == Hole
-isNonfix  (Name _ xs) = head xs /= Hole && last xs /= Hole
+isPrefix  x = head xs /= Hole && last xs == Hole where xs = nameParts x
+isPostfix x = head xs == Hole && last xs /= Hole where xs = nameParts x
+isInfix   x = head xs == Hole && last xs == Hole where xs = nameParts x
+isNonfix  x = head xs /= Hole && last xs /= Hole where xs = nameParts x
 
 instance Show Name where
     show (Name _ xs) = concatMap show xs
+    show (NoName _ _) = "_"
 
 instance Show NamePart where
     show Hole	= "_"
@@ -82,6 +98,7 @@ instance Show QName where
 
 instance HasRange Name where
     getRange (Name r _)	= r
+    getRange (NoName r _) = r
 
 instance HasRange QName where
     getRange (QName  x) = getRange x
@@ -89,4 +106,5 @@ instance HasRange QName where
 
 instance SetRange Name where
   setRange r (Name _ x) = Name r x
+  setRange r (NoName _ i) = NoName r i
 

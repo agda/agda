@@ -77,6 +77,7 @@ toVim ns = unlines $ matches mcons micons mdefs midefs
 	midefs = concatMap parts defs
 
 	parts (Qual _ _)	   = []
+	parts (QName (NoName _ _)) = []
 	parts (QName (Name _ [_])) = []
 	parts (QName (Name _ ps))  = [ x | Id x <- ps ]
 

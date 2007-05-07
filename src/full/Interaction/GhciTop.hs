@@ -247,7 +247,7 @@ takenNameStr = do
 		  ]
   return $ concat [ parts $ nameConcrete x | x <- concat xss]
   where
-    parts (CN.Name _ ps) = [ s | Id s <- ps ]
+    parts x = [ s | Id s <- nameParts x ]
 
 refreshStr :: [String] -> String -> ([String], String)
 refreshStr taken s = go nameModifiers where

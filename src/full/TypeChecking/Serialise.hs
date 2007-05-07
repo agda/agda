@@ -5,6 +5,7 @@ module TypeChecking.Serialise where
 import Control.Monad
 import Data.Binary
 
+import Syntax.Common
 import Syntax.Concrete.Name as C
 import Syntax.Abstract.Name as A
 import Syntax.Internal
@@ -22,7 +23,7 @@ import Utils.Tuple
 -- | Current version of the interface. Only interface files of this version
 --   will be parsed.
 currentInterfaceVersion :: InterfaceVersion
-currentInterfaceVersion = InterfaceVersion 116
+currentInterfaceVersion = InterfaceVersion 117
 
 instance Binary InterfaceVersion where
     put (InterfaceVersion v) = put v
@@ -33,8 +34,14 @@ instance Binary InterfaceVersion where
 	    else fail "Wrong interface version"
 
 instance Binary C.Name where
-    put (C.Name r xs) = put r >> put xs
-    get = liftM2 C.Name get get
+    put (C.NoName a b) = putWord8 0 >> put a >> put b
+    put (C.Name r xs) = putWord8 1 >> put r >> put xs
+    get = do
+      tag_ <- getWord8
+      case tag_ of
+	0 -> liftM2 C.NoName get get
+	1 -> liftM2 C.Name get get
+	_ -> fail "no parse"
 
 instance Binary NamePart where
   put Hole = putWord8 0
@@ -133,7 +140,7 @@ instance Binary A.Name where
   put (A.Name a b c d) = put a >> put b >> put c >> put d
   get = get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d -> return (A.Name a b c d)
 
-instance Binary A.NameId where
+instance Binary NameId where
   put (NameId a b) = put a >> put b
   get = get >>= \a -> get >>= \b -> return (NameId a b)
 

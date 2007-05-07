@@ -44,8 +44,8 @@ $white_nonl  = $white # \n
 
 -- A name can't start with \x (to allow \x -> x).
 -- Bug in alex: [ _ op ]+ doesn't seem to work!
-@start = $idstart | \\ [ $nonalpha ]
-@ident = @start $idchar*
+@start = ($idstart # [_]) | \\ [ $nonalpha ]
+@ident = @start $idchar* | [_] $idchar+
 
 @namespace  = (@ident \.)*
 @q_ident    = @namespace @ident

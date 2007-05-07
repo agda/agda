@@ -1,4 +1,4 @@
-{-# OPTIONS -fglasgow-exts #-}
+{-# OPTIONS -fglasgow-exts -cpp #-}
 
 {-| Some common syntactic entities are defined in this module.
 -}
@@ -12,6 +12,8 @@ import Data.Traversable
 import Syntax.Position
 import Utils.Monad
 import Utils.Size
+
+#include "../undefined.h"
 
 data Hiding  = Hidden | NotHidden
     deriving (Typeable, Data, Show, Eq)
@@ -88,4 +90,15 @@ data IsAbstract = AbstractDef | ConcreteDef
 
 type Nat    = Int
 type Arity  = Nat
+
+-- | The unique identifier of a name. Second argument is the top-level module
+--   identifier.
+data NameId = NameId Nat Integer
+    deriving (Eq, Ord, Typeable, Data)
+
+instance Enum NameId where
+  succ (NameId n m)	= NameId (n + 1) m
+  pred (NameId n m)	= NameId (n - 1) m
+  toEnum n		= __IMPOSSIBLE__  -- should not be used
+  fromEnum (NameId n _) = n
 

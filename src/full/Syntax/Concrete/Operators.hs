@@ -55,6 +55,7 @@ partsInScope = do
     xs <- uncurry (++) . (id -*- map fst) <$> localNames
     return $ Set.fromList $ concatMap parts xs
     where
+	parts (NoName _ _)   = []
 	parts x@(Name _ [_]) = [x]
 	parts x@(Name _ xs ) = x : [ Name noRange [Id s] | Id s <- xs ]
 
@@ -133,6 +134,7 @@ buildParser r use = do
 	++ map (nonfixP . opP p . fst) non
 	++ [ const $ atomP isLocal ]
     where
+	parts (NoName _ _) = []
 	parts (Name _ [_]) = []
 	parts (Name _ xs ) = [ Name noRange [Id s] | Id s <- xs ]
 

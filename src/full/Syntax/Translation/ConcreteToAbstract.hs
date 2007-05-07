@@ -553,7 +553,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
 	  _	  -> do
 	    -- If the module is reabstracted we create an anonymous
 	    -- section around it.
-	    noName <- freshAbstractName_ $ C.noName $ getRange x
+	    noName <- freshNoName (getRange x)
 	    top    <- getCurrentModule
 	    return $ makeSection info m0 tel' [ decl ]
       _	-> notAModuleExpr e
@@ -576,8 +576,8 @@ instance ToAbstract NiceDeclaration A.Declaration where
 	  return []
 	else do
 	  reportLn 20 "fancy open"
-	  let tmp = C.noName (getRange x) -- TODO: better name?
-	  d <- toAbstract $ NiceModuleMacro r PrivateAccess ConcreteDef
+	  tmp <- nameConcrete <$> freshNoName (getRange x)
+	  d   <- toAbstract $ NiceModuleMacro r PrivateAccess ConcreteDef
 					    tmp [] (C.Ident x) DoOpen dir
 	  printScope 20 "result:"
 	  return [d]
@@ -664,8 +664,8 @@ instance ToAbstract CD.Clause A.Clause where
 	  rhs <- toAbstractCtx TopCtx rhs
 	  return $ A.Clause lhs' rhs []
 	_	-> do
-	  let m   = C.QName $ maybe C.noName_ id whname
-	      tel = []
+	  m <- C.QName <$> maybe (nameConcrete <$> freshNoName noRange) return whname
+	  let tel = []
 	  (scope, ds) <- scopeCheckModule (getRange wh) PublicAccess ConcreteDef m tel whds
 	  setScope scope
 	  -- the right hand side is checked inside the module of the local definitions
@@ -754,9 +754,10 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
 -- | Turn an operator application into abstract syntax. Make sure to record the
 -- right precedences for the various arguments.
 toAbstractOpApp :: Range -> C.Name -> [C.Expr] -> ScopeM A.Expr
+toAbstractOpApp r op@(C.NoName _ _) es = __IMPOSSIBLE__
 toAbstractOpApp r op@(C.Name _ xs) es = do
     f  <- getFixity (C.QName op)
-    op <- toAbstract (OldQName $ C.QName op) -- op-apps cannot bind the op
+    op <- toAbstract (OldQName $ C.QName op)
     foldl app op <$> left f xs es
     where
 	app e arg = A.App (ExprRange (fuseRange e arg)) e

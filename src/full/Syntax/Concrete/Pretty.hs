@@ -74,6 +74,7 @@ instance Pretty Expr where
 		    prOp (Hole : _)  []	      = __IMPOSSIBLE__
 		    prOp (Id x : xs)  es      = text x : prOp xs es
 		    prOp []	      es      = map pretty es
+	    OpApp _ (NoName _ _) _ -> __IMPOSSIBLE__
 
 	    HiddenArg _ e -> braces $ pretty e
 	    Lam _ bs e ->
@@ -238,6 +239,7 @@ instance Pretty Pattern where
 		    prOp (Id x : xs)  es      = text x : prOp xs es
 		    prOp []	      []      = []
 		    prOp []	     (_ : _)  = __IMPOSSIBLE__
+	    OpAppP _ (NoName _ _) _ -> __IMPOSSIBLE__
 	    HiddenP _ p	       -> braces $ pretty p
 	    ParenP _ p	       -> parens $ pretty p
 	    WildP _	       -> text "_"

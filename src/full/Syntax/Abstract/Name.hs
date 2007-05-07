@@ -19,17 +19,6 @@ import Utils.Size
 
 #include "../../undefined.h"
 
--- | The unique identifier of a name. Second argument is the top-level module
---   identifier.
-data NameId = NameId Nat Integer
-    deriving (Eq, Ord, Typeable, Data)
-
-instance Enum NameId where
-  succ (NameId n m)	= NameId (n + 1) m
-  pred (NameId n m)	= NameId (n - 1) m
-  toEnum n		= __IMPOSSIBLE__  -- should not be used
-  fromEnum (NameId n _) = n
-
 -- | A name is a unique identifier and a suggestion for a concrete name. The
 --   concrete name contains the source location (if any) of the name. The
 --   source location of the binding site is also recorded.
@@ -116,7 +105,7 @@ freshName_ = freshName noRange
 freshNoName :: (MonadState s m, HasFresh NameId s) => Range -> m Name
 freshNoName r =
     do	i <- fresh
-	return $ Name i (C.noName r) r defaultFixity
+	return $ Name i (C.NoName r i) r defaultFixity
 
 freshNoName_ :: (MonadState s m, HasFresh NameId s) => m Name
 freshNoName_ = freshNoName noRange

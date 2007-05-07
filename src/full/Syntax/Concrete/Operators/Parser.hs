@@ -61,6 +61,7 @@ postop opP = do
     return $ \x -> unExprView $ OpAppV r op ([x] ++ es)
 
 opP :: IsExpr e => ReadP e e -> Name -> ReadP e e
+opP p (NoName _ _)  = pfail
 opP p x@(Name r xs) = do
     es <- mix [ x | Id x <- xs ]
     return $ unExprView $ OpAppV r x es

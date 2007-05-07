@@ -4,6 +4,7 @@ module TypeChecking.Monad.State where
 import Control.Applicative
 import Control.Monad.State
 
+import Syntax.Common
 import Syntax.Scope.Base
 import qualified Syntax.Concrete.Name as C
 import Syntax.Abstract.Name

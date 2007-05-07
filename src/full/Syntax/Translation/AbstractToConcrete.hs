@@ -130,8 +130,8 @@ bindName x ret = do
   names <- asks takenNames
   let y = nameConcrete x
   case Set.member y names of
-    _ | y == C.noName_ -> ret y
-    True	       -> bindName (nextName x) ret
+    _ | C.isNoName y -> ret y
+    True	     -> bindName (nextName x) ret
     False	       ->
 	local (\e -> e { takenNames   = Set.insert y $ takenNames e
 		       , currentScope = (currentScope e)
