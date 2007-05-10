@@ -42,9 +42,7 @@ instance Instantiate Term where
     instantiate t@(MetaV x args) =
 	do  mi <- mvInstantiation <$> lookupMeta x
 	    case mi of
-		InstV a	       -> do
-		    a <- getOpen a
-		    instantiate $ a `apply` args
+		InstV a	       -> instantiate $ a `apply` args
 		Open	       -> return t
 		BlockedConst _ -> return t
 		FirstOrder     -> return t

@@ -178,7 +178,7 @@ showMetas [] =
 	print' x = do
 	    r <- getMetaRange (metaId x)
 	    d <- showM x
-	    liftIO $ putStrLn $ show d ++ "  [ at " ++ show r ++ " ]"
+	    liftIO $ putStrLn $ d ++ "  [ at " ++ show r ++ " ]"
 showMetas _ = liftIO $ putStrLn $ ":meta [metaid]"
 
 

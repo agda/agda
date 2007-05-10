@@ -1,4 +1,4 @@
-{-# OPTIONS -cpp #-}
+{-# OPTIONS -fglasgow-exts -cpp #-}
 
 module TypeChecking.MetaVars where
 
@@ -18,7 +18,6 @@ import Syntax.Internal
 import Syntax.Position
 
 import TypeChecking.Monad
-import TypeChecking.Monad.Context
 import TypeChecking.Reduce
 import TypeChecking.Substitute
 import TypeChecking.Constraints
@@ -82,8 +81,8 @@ class HasMeta t where
     metaVariable :: MetaId -> Args -> t
 
 instance HasMeta Term where
-    metaInstance t = InstV <$> makeOpen t
-    metaVariable   = MetaV
+    metaInstance = return . InstV
+    metaVariable = MetaV
 
 instance HasMeta Sort where
     metaInstance     = return . InstS
@@ -96,6 +95,7 @@ x =: t = do
     i <- metaInstance t
     store <- getMetaStore
     modify $ \st -> st { stMetaStore = ins x i store }
+    etaExpandListeners x
     wakeupConstraints
   where
     ins x i store = Map.adjust (inst i) x store
@@ -118,39 +118,64 @@ newTypeMeta_  = newTypeMeta =<< newSortMeta
 -- | Create a new metavariable, possibly η-expanding in the process.
 newValueMeta ::  MonadTCM tcm => Type -> tcm Term
 newValueMeta t = do
-  t' <- reduce t
-  case unEl t' of
-    Def r pars -> do
-      isrec <- isRecord r
-      case isrec of
-	True  -> newRecordMeta r pars
-	False -> newValueMeta' t
-    _ -> newValueMeta' t
+  vs  <- getContextArgs
+  tel <- getContextTelescope
+  newValueMetaCtx (abstract tel t) vs
+
+newValueMetaCtx :: MonadTCM tcm => Type -> Args -> tcm Term
+newValueMetaCtx t ctx = do
+  t' <- normalise t
+  let TelV tel a = telView t'
+  a  <- reduce $ unEl a
+  m@(MetaV i _) <- newValueMetaCtx' t ctx
+  etaExpandMeta i
+  instantiateFull m
 
 -- | Create a new value meta without η-expanding.
 newValueMeta' :: MonadTCM tcm => Type -> tcm Term
 newValueMeta' t = do
-  i  <- createMetaInfo
-  vs <- getContextArgs
-  x  <- newMeta i normalMetaPriority (HasType () t)
+  vs  <- getContextArgs
+  tel <- getContextTelescope
+  newValueMetaCtx' (abstract tel t) vs
+
+-- | Create a new value meta with specific dependencies.
+newValueMetaCtx' :: MonadTCM tcm => Type -> Args -> tcm Term
+newValueMetaCtx' t vs = do
+  i <- createMetaInfo
+  x <- newMeta i normalMetaPriority (HasType () $ makeClosed t)
+  verbose 50 $ do
+    dt <- prettyTCM t
+    liftIO $ putStrLn $ "new meta: " ++ show x ++ " : " ++ show dt
   return $ MetaV x vs
 
 newArgsMeta :: MonadTCM tcm => Type -> tcm Args
-newArgsMeta (El s tm) = do
-    tm <- reduce tm
-    case funView tm of
-	FunV (Arg h a) _  -> do
-	    v	 <- newValueMeta a
-	    args <- newArgsMeta $ piApply (El s tm) [Arg h v]
-	    return $ Arg h v : args
-	NoFunV _    -> return []
+newArgsMeta t = do
+  args <- getContextArgs
+  tel  <- getContextTelescope
+  newArgsMetaCtx t tel args
+
+newArgsMetaCtx :: MonadTCM tcm => Type -> Telescope -> Args -> tcm Args
+newArgsMetaCtx (El s tm) tel ctx = do
+  tm <- reduce tm
+  case funView tm of
+      FunV (Arg h a) _  -> do
+	  v    <- newValueMetaCtx (abstract tel a) ctx
+	  args <- newArgsMetaCtx (El s tm `piApply` [Arg h v]) tel ctx
+	  return $ Arg h v : args
+      NoFunV _    -> return []
 
 -- | Create a metavariable of record type. This is actually one metavariable
 --   for each field.
 newRecordMeta :: MonadTCM tcm => QName -> Args -> tcm Term
 newRecordMeta r pars = do
-  tel	 <- flip apply pars <$> getRecordFieldTypes r
-  fields <- newArgsMeta (telePi tel $ sort Prop)
+  args <- getContextArgs
+  tel  <- getContextTelescope
+  newRecordMetaCtx r pars tel args
+
+newRecordMetaCtx :: MonadTCM tcm => QName -> Args -> Telescope -> Args -> tcm Term
+newRecordMetaCtx r pars tel ctx = do
+  ftel	 <- flip apply pars <$> getRecordFieldTypes r
+  fields <- newArgsMetaCtx (telePi ftel $ sort Prop) tel ctx
   return $ Con r fields
 
 newQuestionMark :: MonadTCM tcm => Type -> tcm Term
@@ -170,7 +195,8 @@ blockTerm t v m = do
 	    i	  <- createMetaInfo
 	    vs	  <- getContextArgs
 	    tel   <- getContextTelescope
-	    x	  <- newMeta i lowMetaPriority (HasType () t)	-- we don't instantiate blocked terms
+	    x	  <- newMeta i lowMetaPriority (HasType () $ makeClosed $ abstract tel t)
+			    -- ^^ we don't instantiate blocked terms
 	    store <- getMetaStore
 	    modify $ \st -> st { stMetaStore = ins x (BlockedConst $ abstract tel v) store }
 	    c <- escapeContext (size tel) $ guardConstraint (return cs) (UnBlock x)
@@ -192,9 +218,42 @@ newFirstOrderMeta p a = do
     i <- createMetaInfo
     x <- fresh
     o <- makeOpen a
-    let mv = MetaVar i p (HasType x o) FirstOrder
+    let mv = MetaVar i p (HasType x o) FirstOrder Set.empty
     modify $ \st -> st { stMetaStore = Map.insert x mv $ stMetaStore st }
     return x
+
+-- | Eta expand metavariables listening on the current meta.
+etaExpandListeners :: MonadTCM tcm => MetaId -> tcm ()
+etaExpandListeners m = do
+  ms <- getMetaListeners m
+  clearMetaListeners m	-- we don't really have to do this
+  mapM_ etaExpandMeta ms
+
+-- | Eta expand a metavariable.
+etaExpandMeta :: MonadTCM tcm => MetaId -> tcm ()
+etaExpandMeta m = do
+  HasType _ o <- mvJudgement <$> lookupMeta m
+  a <- normalise =<< getOpen o
+  let TelV tel b = telView a
+      args	 = [ Arg h $ Var i []
+		   | (i, Arg h _) <- reverse $ zip [0..] $ reverse $ telToList tel
+		   ]
+  b <- reduce b
+  case unEl b of
+    BlockedV b	-> listenToMeta m (blockingMeta b)
+    MetaV i _	-> listenToMeta m i
+    Def r ps	->
+      ifM (isRecord r) (do
+	u <- newRecordMetaCtx r ps tel args
+	inContext [] $ addCtxTel tel $ do
+	  verbose 20 $ do
+	    du <- prettyTCM u
+	    liftIO $ putStrLn $ "eta expanding: " ++ show m ++ " --> " ++ show du
+	  noConstraints $ assignV b m args u  -- should never produce any constraints
+      ) $ return ()
+    _		-> return ()
+
+  return ()
 
 -- | Generate new metavar of same kind ('Open'X) as that
 --     pointed to by @MetaId@ arg.
@@ -202,8 +261,7 @@ newFirstOrderMeta p a = do
 newMetaSame :: MonadTCM tcm => MetaId -> (MetaId -> a) -> tcm a
 newMetaSame x meta =
     do	mv <- lookupMeta x
-	j  <- getOpenJudgement (mvJudgement mv)
-	meta <$> newMeta (getMetaInfo mv) (mvPriority mv) j
+	meta <$> newMeta (getMetaInfo mv) (mvPriority mv) (mvJudgement mv)
 
 -- | Extended occurs check.
 class Occurs t where
@@ -303,10 +361,10 @@ assignV t x args v =
             
 	ids <- checkArgs x args
 
-	-- When checking flexible variables v must be fully instantiated to not
+	-- When checking occurrence v must be normalised to not
 	-- get false positives.
         reportLn 20 $ "preparing to instantiate"
-	v <- instantiateFull v
+	v <- normalise v
 
 	verbose 15 $ do
 	    d <- prettyTCM v
@@ -324,10 +382,14 @@ assignV t x args v =
 		idset = Set.fromList ids
 		badrv = Set.toList $ Set.difference (rigidVars fv) idset
 		badfv = Set.toList $ Set.difference (flexibleVars fv) idset
-		-- If a rigid variable is not in ids there is no hope
+	    -- If a rigid variable is not in ids there is no hope
 	    unless (null badrv) $ typeError $ MetaCannotDependOn x ids (head badrv)
-		-- If a flexible variable is not in ids we can wait and hope that it goes away
-	    unless (null badfv) $ patternViolation
+	    -- If a flexible variable is not in ids we can wait and hope that it goes away
+	    unless (null badfv) $ do
+	      verbose 15 $ do
+		bad <- mapM (prettyTCM . flip Var []) badfv
+		liftIO $ putStrLn $ "bad flexible variables: " ++ show bad
+	      patternViolation
 
 	    reportLn 15 "passed free variable check"
 
@@ -417,9 +479,9 @@ updateMeta mI t =
     where
 	upd mI args j t = (__IMPOSSIBLE__ `mkQ` updV j `extQ` updS) t
 	    where
-		updV (HasType _ t) v = do
-		    t <- getOpen t
-		    assignV t mI args v
+		updV (HasType _ o) v = do
+		  t <- getOpen o
+		  assignV (t `piApply` args) mI args v
 		updV _ _	     = __IMPOSSIBLE__
 
 		updS s = assignS mI s

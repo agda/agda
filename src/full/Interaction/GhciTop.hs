@@ -198,7 +198,7 @@ give_gen give_ref mk_newtxt ii rng s = infoOnException $ do
 parseExprIn :: InteractionId -> Range -> String -> TCM SA.Expr
 parseExprIn ii rng s = do
     mId <- lookupInteractionId ii
-    updateMetaRange mId rng       
+    updateMetaVarRange mId rng       
     mi  <- getMetaInfo <$> lookupMeta mId
     e <- liftIO $ parsePosString exprParser (rStart (getRange mi)) s
     concreteToAbstract (clScope mi) e

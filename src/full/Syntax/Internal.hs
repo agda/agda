@@ -162,6 +162,16 @@ funView t@(Pi  arg _) = FunV arg t
 funView t@(Fun arg _) = FunV arg t
 funView t	      = NoFunV t
 
+data TelView = TelV Telescope Type
+
+telView :: Type -> TelView
+telView t = case unEl t of
+  Pi a (Abs x b)  -> absV a x $ telView b
+  Fun a b	  -> absV a "_" $ telView b
+  _		  -> TelV EmptyTel t
+  where
+    absV a x (TelV tel t) = TelV (ExtendTel a (Abs x tel)) t
+
 ---------------------------------------------------------------------------
 -- * Smart constructors
 ---------------------------------------------------------------------------

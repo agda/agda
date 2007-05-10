@@ -33,19 +33,6 @@ sameVars xs ys = and $ zipWith same xs ys
 	same (Arg _ (Var n [])) (Arg _ (Var m [])) = n == m
 	same _ _				   = False
 
--- | Move?
-etaRecordMeta :: MonadTCM tcm => Type -> QName -> Args -> Term -> tcm Term
-etaRecordMeta a r pars v@(MetaV m vs) = do
-  undo <- get
-  u <- newRecordMeta r pars
-  cs <- assignV a m vs u
-  case cs of
-    []	-> return u
-    _	-> do
-      put undo
-      return v
-etaRecordMeta _ _ _ t = return t
-
 -- | Type directed equality on values.
 --
 equalTerm :: MonadTCM tcm => Type -> Term -> Term -> tcm Constraints
@@ -71,8 +58,6 @@ equalTerm a m n =
 		      if isrec
 			then do
 			  (m, n) <- reduce (m, n)
-			  m <- etaRecordMeta a' r ps m
-			  n <- etaRecordMeta a' r ps n
 			  case (m, n) of
 			    _ | isNeutral m && isNeutral n ->
 				equalAtom a' m n
@@ -148,8 +133,28 @@ equalAtom t m n =
 		| otherwise -> do
 		    [p1, p2] <- mapM getMetaPriority [x,y]
 		    -- instantiate later meta variables first
-		    if (p1,x) > (p2,y) then assignV t x xArgs n	-- TODO: what if one works but not the other?
-				       else assignV t y yArgs m
+		    let (solve1, solve2)
+			  | (p1,x) > (p2,y) = (l,r)
+			  | otherwise	    = (r,l)
+			  where l = assignV t x xArgs n
+				r = assignV t y yArgs m
+			try m fallback = do
+			  cs <- m
+			  case cs of
+			    []	-> return []
+			    _	-> fallback cs
+
+		    -- First try the one with the highest priority. If that doesn't
+		    -- work, try the low priority one. If that doesn't work either,
+		    -- go with the first version.
+		    rollback <- return . put =<< get
+		    try solve1 $ \cs -> do
+		      undoRollback <- return . put =<< get
+		      rollback
+		      try solve2 $ \_ -> do
+			undoRollback
+			return cs
+
 	    (MetaV x xArgs, _) -> assignV t x xArgs n
 	    (_, MetaV x xArgs) -> assignV t x xArgs m
 	    (BlockedV _, BlockedV _)	-> do

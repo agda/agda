@@ -1,9 +1,11 @@
 {-# OPTIONS -cpp #-}
 module TypeChecking.Monad.MetaVars where
 
+import Control.Applicative
 import Control.Monad.State
 import Control.Monad.Reader
-import Data.Map as Map
+import qualified Data.Map as Map
+import qualified Data.Set as Set
 
 import Syntax.Internal
 import Syntax.Position
@@ -35,6 +37,10 @@ lookupMeta m =
 	    Just mv -> return mv
 	    _	    -> fail $ "no such meta variable " ++ show m
 
+updateMetaVar :: MonadTCM tcm => MetaId -> (MetaVariable -> MetaVariable) -> tcm ()
+updateMetaVar m f =
+  modify $ \st -> st { stMetaStore = Map.adjust f m $ stMetaStore st }
+
 getMetaPriority :: MonadTCM tcm => MetaId -> tcm MetaPriority
 getMetaPriority i = mvPriority <$> lookupMeta i
 
@@ -43,12 +49,8 @@ createMetaInfo =
     do  r <- getCurrentRange
 	buildClosure r
 
-updateMetaRange :: MonadTCM tcm => MetaId -> Range -> tcm ()
-updateMetaRange mi r =
-    modify $ \st -> st { stMetaStore = Map.adjust (setRange r) mi
-				     $ stMetaStore st
-		       }
-
+updateMetaVarRange :: MonadTCM tcm => MetaId -> Range -> tcm ()
+updateMetaVarRange mi r = updateMetaVar mi (setRange r)
 
 addInteractionPoint :: MonadTCM tcm => InteractionId -> MetaId -> tcm ()
 addInteractionPoint ii mi =
@@ -65,10 +67,10 @@ removeInteractionPoint ii =
 
 
 getInteractionPoints :: MonadTCM tcm => tcm [InteractionId]
-getInteractionPoints = keys <$> gets stInteractionPoints
+getInteractionPoints = Map.keys <$> gets stInteractionPoints
 
 getInteractionMetas :: MonadTCM tcm => tcm [MetaId]
-getInteractionMetas = elems <$> gets stInteractionPoints
+getInteractionMetas = Map.elems <$> gets stInteractionPoints
 
 lookupInteractionId :: MonadTCM tcm => InteractionId -> tcm MetaId
 lookupInteractionId ii = 
@@ -91,13 +93,12 @@ getOpenJudgement (HasType a t) = HasType a <$> getOpen t
 getOpenJudgement (IsSort a)    = return $ IsSort a
 
 -- | Generate new meta variable.
-newMeta :: MonadTCM tcm => MetaInfo -> MetaPriority -> Judgement Type a -> tcm MetaId
-newMeta mi p j =
-    do	x <- fresh
-	j <- makeOpenJudgement j
-	let mv = MetaVar mi p (fmap (const x) j) Open
-	modify (\st -> st{stMetaStore = Map.insert x mv $ stMetaStore st})
-	return x
+newMeta :: MonadTCM tcm => MetaInfo -> MetaPriority -> Judgement (Open Type) a -> tcm MetaId
+newMeta mi p j = do
+  x <- fresh
+  let mv = MetaVar mi p (fmap (const x) j) Open Set.empty
+  modify $ \st -> st { stMetaStore = Map.insert x mv $ stMetaStore st }
+  return x
 
 getInteractionRange :: MonadTCM tcm => InteractionId -> tcm Range
 getInteractionRange ii = do
@@ -120,7 +121,7 @@ withMetaInfo mI m = enterClosure mI $ \_ -> m
 getInstantiatedMetas :: MonadTCM tcm => tcm [MetaId]
 getInstantiatedMetas = do
     store <- getMetaStore
-    return [ i | (i, MetaVar _ _ _ mi) <- Map.assocs store, isInst mi ]
+    return [ i | (i, MetaVar _ _ _ mi _) <- Map.assocs store, isInst mi ]
     where
 	isInst Open		= False
 	isInst (BlockedConst _) = False
@@ -131,11 +132,30 @@ getInstantiatedMetas = do
 getOpenMetas :: MonadTCM tcm => tcm [MetaId]
 getOpenMetas = do
     store <- getMetaStore
-    return [ i | (i, MetaVar _ _ _ mi) <- Map.assocs store, isOpen mi ]
+    return [ i | (i, MetaVar _ _ _ mi _) <- Map.assocs store, isOpen mi ]
     where
 	isOpen Open		= True
 	isOpen (BlockedConst _) = True
 	isOpen FirstOrder	= True
 	isOpen (InstV _)	= False
 	isOpen (InstS _)	= False
+
+-- | @listenToMeta l m@: register @l@ as a listener to @m@. This is done
+--   when the type of l is blocked by @m@.
+listenToMeta :: MonadTCM tcm => MetaId -> MetaId -> tcm ()
+listenToMeta l m =
+  updateMetaVar m $ \mv -> mv { mvListeners = Set.insert l $ mvListeners mv }
+
+-- | Unregister a listener.
+unlistenToMeta :: MonadTCM tcm => MetaId -> MetaId -> tcm ()
+unlistenToMeta l m =
+  updateMetaVar m $ \mv -> mv { mvListeners = Set.delete l $ mvListeners mv }
+
+-- | Get the listeners to a meta.
+getMetaListeners :: MonadTCM tcm => MetaId -> tcm [MetaId]
+getMetaListeners m = Set.toList . mvListeners <$> lookupMeta m
+
+clearMetaListeners :: MonadTCM tcm => MetaId -> tcm ()
+clearMetaListeners m =
+  updateMetaVar m $ \mv -> mv { mvListeners = Set.empty }
 

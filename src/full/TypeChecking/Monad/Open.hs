@@ -2,6 +2,7 @@
 
 module TypeChecking.Monad.Open
 	( makeOpen
+	, makeClosed
 	, getOpen
 	) where
 

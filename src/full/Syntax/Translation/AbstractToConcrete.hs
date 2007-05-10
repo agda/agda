@@ -131,6 +131,7 @@ bindName x ret = do
   let y = nameConcrete x
   case Set.member y names of
     _ | C.isNoName y -> ret y
+      | y == C.Name noRange [Hole]  -> ret y  -- TODO: shouldn't happen (but it does)
     True	     -> bindName (nextName x) ret
     False	       ->
 	local (\e -> e { takenNames   = Set.insert y $ takenNames e
@@ -319,11 +320,15 @@ instance ToConcrete A.Expr C.Expr where
 	    lamView e = ([], e)
 
     toConcrete (A.Pi _ [] e) = toConcrete e
-    toConcrete (A.Pi i b e)  =
+    toConcrete t@(A.Pi i _ _)  = case piTel t of
+      (tel, e) ->
 	bracket piBrackets
-	$ bindToConcrete b $ \b' -> do
+	$ bindToConcrete tel $ \b' -> do
 	     e' <- toConcreteCtx TopCtx e
 	     return $ C.Pi b' e'
+      where
+	piTel (A.Pi _ tel e) = (tel ++) -*- id $ piTel e
+	piTel e		     = ([], e)
 
     toConcrete (A.Fun i a b) =
 	bracket piBrackets

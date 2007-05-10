@@ -37,9 +37,6 @@ import Utils.Monad.Undo
 
 #include "../undefined.h"
 
--- TODO: Modify all operations so that they return abstract syntax and not 
--- stringd
-
 giveExpr :: MetaId -> Expr -> IM Expr
 -- When translater from internal to abstract is given, this function might return
 -- the expression returned by the type checker.
@@ -51,16 +48,16 @@ giveExpr mi e =
         
   where  metaTypeCheck' mi e mv vs = 
             case mvJudgement mv of 
-		 HasType _ t  ->
-		    do	t <- getOpen t
-			v <- checkExpr e t
-			case mvInstantiation mv of
-			    InstV v' -> do
-				v' <- getOpen v'
-				addConstraints =<< equalTerm t v (v' `apply` vs)
-			    _	     -> return ()
-			updateMeta mi v
-                        reify v
+		 HasType _ o  -> do
+		    t	<- getOpen o
+		    ctx <- getContextArgs
+		    v	<- checkExpr e (t `piApply` ctx)
+		    case mvInstantiation mv of
+			InstV v' ->
+			    addConstraints =<< equalTerm t v (v' `apply` vs)
+			_	     -> return ()
+		    updateMeta mi v
+		    reify v
 		 IsSort _ -> __IMPOSSIBLE__
 
 give :: InteractionId -> Maybe Range -> Expr -> IM (Expr,[InteractionId])
@@ -69,7 +66,7 @@ give ii mr e = liftTCM $
          mi <- lookupInteractionId ii 
          mis <- getInteractionPoints
          r <- getInteractionRange ii
-         updateMetaRange mi $ maybe r id mr
+         updateMetaVarRange mi $ maybe r id mr
          giveExpr mi e
          removeInteractionPoint ii 
          mis' <- getInteractionPoints
@@ -267,9 +264,8 @@ getConstraints = liftTCM $
 typeOfMetaMI :: Rewrite -> MetaId -> IM (OutputForm Expr MetaId)
 typeOfMetaMI norm mi = 
      do mv <- lookupMeta mi
-	withMetaInfo (getMetaInfo mv) $ do
-	    j <- getOpenJudgement $ mvJudgement mv
-	    rewriteJudg mv j
+	withMetaInfo (getMetaInfo mv) $
+	  rewriteJudg mv =<< getOpenJudgement (mvJudgement mv)
    where
     rewriteJudg mv (HasType i t) = 
 	withMetaInfo (getMetaInfo mv) $ do
@@ -298,9 +294,9 @@ typeOfMetas norm = liftTCM $
                let mvs = Map.keys store
                mapM (typeOfMetaMI norm) mvs
           where
-               openAndImplicit is x (MetaVar _ _ _ M.Open)	       = x `notElem` is
-	       openAndImplicit is x (MetaVar _ _ _ (M.BlockedConst _)) = True
-	       openAndImplicit _ _ _				       = False
+               openAndImplicit is x (MetaVar _ _ _ M.Open _)		 = x `notElem` is
+	       openAndImplicit is x (MetaVar _ _ _ (M.BlockedConst _) _) = True
+	       openAndImplicit _ _ _					 = False
 
 contextOfMeta :: InteractionId -> IM [OutputForm Expr Name]
 contextOfMeta ii = do

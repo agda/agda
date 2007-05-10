@@ -191,14 +191,15 @@ instance Traversable (Judgement t) where
 
 data MetaVariable = 
 	MetaVar	{ mvInfo	  :: MetaInfo
-		, mvPriority	  :: MetaPriority -- ^ some meta-variables are more eager to be instantiated
-		, mvJudgement	  :: Judgement (Open Type) MetaId
+		, mvPriority	  :: MetaPriority -- ^ some metavariables are more eager to be instantiated
+		, mvJudgement	  :: Judgement (Open Type) MetaId -- ^ only first order metas have open types
 		, mvInstantiation :: MetaInstantiation
+		, mvListeners	  :: Set MetaId	  -- ^ metavariables interested in what happens to this guy
 		}
     deriving (Typeable)
 
 data MetaInstantiation
-	= InstV (Open Term)
+	= InstV Term
 	| InstS Sort
 	| Open
 	| FirstOrder
@@ -217,7 +218,7 @@ instance HasRange MetaVariable where
     getRange m = getRange $ getMetaInfo m
 
 instance SetRange MetaVariable where
-  setRange r (MetaVar mi p j inst) = MetaVar (mi {clValue = r}) p j inst
+  setRange r (MetaVar mi p j inst ls) = MetaVar (mi {clValue = r}) p j inst ls
 
 normalMetaPriority :: MetaPriority
 normalMetaPriority = MetaPriority 0
