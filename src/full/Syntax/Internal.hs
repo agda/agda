@@ -1,4 +1,4 @@
-{-# OPTIONS -fglasgow-exts #-}
+{-# OPTIONS -fglasgow-exts -cpp #-}
 
 module Syntax.Internal
     ( module Syntax.Internal
@@ -17,6 +17,8 @@ import Syntax.Abstract.Name
 
 import Utils.Monad
 import Utils.Size
+
+#include "../undefined.h"
 
 -- | Raw values.
 --
@@ -148,6 +150,14 @@ arity t =
 	count Hidden	= 0
 	count NotHidden = 1
    
+-- | Suggest a name for the first argument of a function of the given type.
+argName :: Type -> String
+argName = argN . unEl
+    where
+	argN (Pi _ b)  = "_" ++ absName b
+	argN (Fun _ _) = "_"
+	argN _	  = __IMPOSSIBLE__
+
 
 ---------------------------------------------------------------------------
 -- * Views
