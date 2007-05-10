@@ -15,7 +15,10 @@
 (require 'haskell-ghci)
 ;; due to a bug in haskell-mode-2.1
 (setq haskell-ghci-mode-map (copy-keymap comint-mode-map))
-(require 'filladapt)
+; Load filladapt, if it is installed.
+(condition-case nil
+    (require 'filladapt)
+  (error nil))
 (unless (fboundp 'overlays-in) (load "overlay")) ; for Xemacs
 (unless (fboundp 'propertize)                    ; for Xemacs 21.4
  (defun propertize (string &rest properties)
@@ -667,13 +670,14 @@ setting of `agda2-indentation'."
 
   ;; Support for proper filling of text in comments (requires that
   ;; Filladapt is activated).
-  (add-to-list (make-local-variable
-                'filladapt-token-table)
-               '("--" agda2-comment))
-  (add-to-list (make-local-variable 'filladapt-token-match-table)
-               '(agda2-comment agda2-comment) t)
-  (add-to-list (make-local-variable 'filladapt-token-conversion-table)
-               '(agda2-comment . exact)))
+  (when (featurep 'filladapt)
+    (add-to-list (make-local-variable
+                  'filladapt-token-table)
+                 '("--" agda2-comment))
+    (add-to-list (make-local-variable 'filladapt-token-match-table)
+                 '(agda2-comment agda2-comment) t)
+    (add-to-list (make-local-variable 'filladapt-token-conversion-table)
+                 '(agda2-comment . exact))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;
