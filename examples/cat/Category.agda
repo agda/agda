@@ -4,138 +4,48 @@ module Category where
 open import Logic.Equivalence
 open import Logic.Relations
 
-data Cat : Set2 where
-  cat : (Obj  : Set1)
-	(_─→_ : Obj -> Obj -> Set)
-	(id   : {A : Obj} -> A ─→ A)
-	(_∘_	: {A B C : Obj} -> B ─→ C -> A ─→ B -> A ─→ C)
-	(e    : {A B : Obj} -> Equivalence (A ─→ B)) ->
-	let _==_ = \{A B : Obj} -> Project-Equivalence.eq (e {A}{B}) in
-	(cong : {A B C : Obj}{f₁ f₂ : B ─→ C}{g₁ g₂ : A ─→ B} ->
-		f₁ == f₂ -> g₁ == g₂ -> (f₁ ∘ g₁) == (f₂ ∘ g₂)
-	)
-	(idLeft : {A B : Obj}{f : A ─→ B} -> (id ∘ f) == f)
-	(idRight : {A B : Obj}{f : A ─→ B} -> (f ∘ id) == f)
-	(assoc   : {A B C D : Obj}{f : C ─→ D}{g : B ─→ C}{h : A ─→ B} ->
-		   ((f ∘ g) ∘ h) == (f ∘ (g ∘ h))
-	) -> Cat
+open Equivalence using () renaming (_==_ to eq)
 
-module Project-Cat where
+record Cat : Set2 where
+  Obj	  : Set1
+  _─→_	  : Obj -> Obj -> Set
+  id	  : {A : Obj} -> A ─→ A
+  _∘_	  : {A B C : Obj} -> B ─→ C -> A ─→ B -> A ─→ C
+  Eq	  : {A B : Obj} -> Equivalence (A ─→ B)
+  cong	  : {A B C : Obj}{f₁ f₂ : B ─→ C}{g₁ g₂ : A ─→ B} ->
+	    eq Eq f₁ f₂ -> eq Eq g₁ g₂ -> eq Eq (f₁ ∘ g₁) (f₂ ∘ g₂)
+  idLeft  : {A B : Obj}{f : A ─→ B} -> eq Eq (id ∘ f) f
+  idRight : {A B : Obj}{f : A ─→ B} -> eq Eq (f ∘ id) f
+  assoc	  : {A B C D : Obj}{f : C ─→ D}{g : B ─→ C}{h : A ─→ B} ->
+	    eq Eq ((f ∘ g) ∘ h) (f ∘ (g ∘ h))
 
-  Obj : Cat -> Set1
-  Obj (cat o _ _ _ _ _ _ _ _) = o
+module Category (ℂ : Cat) where
 
-  Arr : (ℂ : Cat) -> Obj ℂ -> Obj ℂ -> Set
-  Arr (cat _ a _ _ _ _ _ _ _) = a
+  private module CC = Cat ℂ
+  open CC public hiding (_─→_; _∘_)
 
-  id : (ℂ : Cat){A : Obj ℂ} -> Arr ℂ A A
-  id (cat _ _ i _ _ _ _ _ _) = i
-
-  compose : (ℂ : Cat){A B C : Obj ℂ} ->  Arr ℂ B C -> Arr ℂ A B -> Arr ℂ A C
-  compose (cat _ _ _ c _ _ _ _ _) = c
-
-  Eq : (ℂ : Cat){A B : Obj ℂ} -> Equivalence (Arr ℂ A B)
-  Eq (cat _ _ _ _ e _ _ _ _) = e
-
-  equal : (ℂ : Cat){A B : Obj ℂ} -> Rel (Arr ℂ A B)
-  equal ℂ = Project-Equivalence.eq (Eq ℂ)
-
-  refl : (ℂ : Cat){A B : Obj ℂ}{f : Arr ℂ A B} -> equal ℂ f f
-  refl ℂ = Project-Equivalence.refl (Eq ℂ) _
-
-  sym : (ℂ : Cat){A B : Obj ℂ}{f g : Arr ℂ A B} -> equal ℂ f g -> equal ℂ g f
-  sym ℂ = Project-Equivalence.sym (Eq ℂ) _ _
-
-  trans : (ℂ : Cat){A B : Obj ℂ}{f g h : Arr ℂ A B} ->
-	  equal ℂ f g -> equal ℂ g h -> equal ℂ f h
-  trans ℂ = Project-Equivalence.trans (Eq ℂ) _ _ _
-
-  cong : (ℂ : Cat){A B C : Obj ℂ}{f₁ f₂ : Arr ℂ B C}{g₁ g₂ : Arr ℂ A B} ->
-	 equal ℂ f₁ f₂ -> equal ℂ g₁ g₂ -> equal ℂ (compose ℂ f₁ g₁) (compose ℂ f₂ g₂)
-  cong (cat _ _ _ _ _ c _ _ _) = c
-
-  congL : (ℂ : Cat){A B C : Obj ℂ}{f₁ f₂ : Arr ℂ B C}{g : Arr ℂ A B} ->
-	  equal ℂ f₁ f₂ -> equal ℂ (compose ℂ f₁ g) (compose ℂ f₂ g)
-  congL ℂ p = cong ℂ p (refl ℂ)
-
-  congR : (ℂ : Cat){A B C : Obj ℂ}{f : Arr ℂ B C}{g₁ g₂ : Arr ℂ A B} ->
-	  equal ℂ g₁ g₂ -> equal ℂ (compose ℂ f g₁) (compose ℂ f g₂)
-  congR ℂ p = cong ℂ (refl ℂ) p
-
-  idL : (ℂ : Cat){A B : Obj ℂ}{f : Arr ℂ A B} -> equal ℂ (compose ℂ (id ℂ) f) f
-  idL (cat _ _ _ _ _ _ l _ _) = l
-
-  idR : (ℂ : Cat){A B : Obj ℂ}{f : Arr ℂ A B} -> equal ℂ (compose ℂ f (id ℂ)) f
-  idR (cat _ _ _ _ _ _ _ r _) = r
-
-  assoc : (ℂ : Cat){A B C D : Obj ℂ}
-	  {f : Arr ℂ C D}{g : Arr ℂ B C}{h : Arr ℂ A B} ->
-	  equal ℂ (compose ℂ (compose ℂ f g) h)
-		  (compose ℂ f (compose ℂ g h))
-  assoc (cat _ _ _ _ _ _ _ _ a) = a
-
-module Cat (ℂ : Cat) where
+  private module Eq {A B : Obj} = Equivalence (Eq {A}{B})
+  open Eq public hiding (_==_)
 
   infix	 20 _==_
   infixr 30 _─→_
   infixr 90 _∘_
 
-  private module Pr = Project-Cat
-
-  Obj : Set1
-  Obj = Pr.Obj ℂ
-
-  _─→_ : Obj -> Obj -> Set
-  A ─→ B = Pr.Arr ℂ A B
-
-  id : {A : Obj} -> A ─→ A
-  id = Pr.id ℂ
-
-  _∘_ : {A B C : Obj} -> B ─→ C -> A ─→ B -> A ─→ C
-  f ∘ g = Pr.compose ℂ f g
-
-  Eq : {A B : Obj} -> Equivalence (A ─→ B)
-  Eq = Pr.Eq ℂ
+  _─→_ = CC._─→_
 
   _==_ : {A B : Obj} -> Rel (A ─→ B)
-  f == g = Pr.equal ℂ f g
+  _==_ = Eq._==_
 
-  refl : {A B : Obj}{f : A ─→ B} -> f == f
-  refl = Pr.refl ℂ
-
-  sym : {A B : Obj}{f g : A ─→ B} -> f == g -> g == f
-  sym = Pr.sym ℂ
-
-  trans : {A B : Obj}{f g h : A ─→ B} ->
-	  f == g -> g == h -> f == h
-  trans = Pr.trans ℂ
-
-  cong : {A B C : Obj}{f₁ f₂ : B ─→ C}{g₁ g₂ : A ─→ B} ->
-	 f₁ == f₂ -> g₁ == g₂ -> f₁ ∘ g₁ == f₂ ∘ g₂
-  cong = Pr.cong ℂ
+  _∘_ : {A B C : Obj} -> B ─→ C -> A ─→ B -> A ─→ C
+  _∘_ = CC._∘_
 
   congL : {A B C : Obj}{f₁ f₂ : B ─→ C}{g : A ─→ B} ->
 	  f₁ == f₂ -> f₁ ∘ g == f₂ ∘ g
-  congL = Pr.congL ℂ
+  congL p = cong p (refl _)
 
   congR : {A B C : Obj}{f : B ─→ C}{g₁ g₂ : A ─→ B} ->
 	  g₁ == g₂ -> f ∘ g₁ == f ∘ g₂
-  congR = Pr.congR ℂ
-
-  idL : {A B : Obj}{f : A ─→ B} -> id ∘ f == f
-  idL = Pr.idL ℂ
-
-  idR : {A B : Obj}{f : A ─→ B} -> f ∘ id == f
-  idR = Pr.idR ℂ
-
-  assoc : {A B C D : Obj}{f : C ─→ D}{g : B ─→ C}{h : A ─→ B} ->
-	  (f ∘ g) ∘ h == f ∘ (g ∘ h)
-  assoc = Pr.assoc ℂ
-
--- Manual η-expansion of a category.
-η-Cat : Cat -> Cat
-η-Cat ℂ = cat Obj _─→_ id _∘_ Eq cong idL idR assoc
-  where open module C = Cat ℂ
+  congR p = cong (refl _) p
 
 module Poly-Cat where
 
@@ -143,22 +53,37 @@ module Poly-Cat where
   infixr 30 _─→_ _─→'_
   infixr 90 _∘_
 
-  private module Pr = Project-Cat
+  private module C = Category
 
   -- Objects
   data Obj (ℂ : Cat) : Set1 where
-    obj : Pr.Obj ℂ -> Obj ℂ
+--     obj : C.Obj ℂ -> Obj ℂ
 
-  obj⁻¹ : {ℂ : Cat} -> Obj ℂ -> Pr.Obj ℂ
-  obj⁻¹ (obj A) = A
+--   obj⁻¹ : {ℂ : Cat} -> Obj ℂ -> C.Obj ℂ
+--   obj⁻¹ {ℂ} (obj A) = A
+
+  postulate X : Set
 
   -- Arrows
   data _─→_ {ℂ : Cat}(A B : Obj ℂ) : Set where
-    arr : Pr.Arr ℂ (obj⁻¹ A) (obj⁻¹ B) -> A ─→ B
+    arr : X -> A ─→ B -- C._─→_ ℂ (obj⁻¹ A) (obj⁻¹ B) -> A ─→ B
 
-  arr⁻¹ : {ℂ : Cat}{A B : Obj ℂ} -> A ─→ B -> Pr.Arr ℂ (obj⁻¹ A) (obj⁻¹ B)
-  arr⁻¹ (arr f) = f
 
+  postulate
+    ℂ : Cat
+    A : Obj ℂ
+    B : Obj ℂ
+
+  foo : A ─→ B -> X
+  foo (arr f) = ?
+
+--   arr⁻¹ : {ℂ : Cat}{A B : Obj ℂ} -> A ─→ B -> C._─→_ ℂ (obj⁻¹ A) (obj⁻¹ B)
+--   arr⁻¹ {ℂ}{A}{B} (arr f) = f
+
+open Poly-Cat
+open Category hiding (Obj; _─→_)
+
+{-
   id : {ℂ : Cat}{A : Obj ℂ} -> A ─→ A
   id {ℂ} = arr (Pr.id ℂ)
 
@@ -202,4 +127,5 @@ module Poly-Cat where
   assoc : {ℂ : Cat}{A B C D : Obj ℂ}{f : C ─→ D}{g : B ─→ C}{h : A ─→ B} ->
 	  (f ∘ g) ∘ h == f ∘ (g ∘ h)
   assoc {ℂ}{f = arr _}{g = arr _}{h = arr _} = eqArr (Pr.assoc ℂ)
+-}
 

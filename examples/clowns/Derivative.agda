@@ -1,12 +1,9 @@
 
 module Derivative where
 
-  import Sets
-  import Functor
+  open import Sets
+  open import Functor
   import Isomorphism
-
-  open Sets
-  open Functor
 
   ∂ : U -> U
   ∂ (K A)   = K [0]

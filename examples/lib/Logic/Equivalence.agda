@@ -4,32 +4,9 @@ module Logic.Equivalence where
 import Logic.Relations
 open   Logic.Relations
 
-data Equivalence (A : Set) : Set1 where
-  equiv :
-    (_==_ : Rel A)
-    -> Reflexive _==_
-    -> Symmetric _==_
-    -> Transitive _==_
-    -> Equivalence A
-
-module Project-Equivalence where
-
-  eq : {A : Set} -> Equivalence A -> Rel A
-  eq (equiv _==_ _ _ _) = _==_
-
-  refl : {A : Set}(Eq : Equivalence A) -> Reflexive (eq Eq)
-  refl (equiv _ r _ _) = r
-
-  sym : {A : Set}(Eq : Equivalence A) -> Symmetric (eq Eq)
-  sym (equiv _ _ s _) = s
-
-  trans : {A : Set}(Eq : Equivalence A) -> Transitive (eq Eq)
-  trans (equiv _ _ _ t) = t
-
-module Equivalence {A : Set}(Eq : Equivalence A) where
-
-  _==_  = Project-Equivalence.eq Eq
-  refl  = Project-Equivalence.refl Eq
-  sym   = Project-Equivalence.sym Eq
-  trans = Project-Equivalence.trans Eq
+record Equivalence (A : Set) : Set1 where
+  _==_	: Rel A
+  refl	: Reflexive _==_
+  sym	: Symmetric _==_
+  trans : Transitive _==_
 

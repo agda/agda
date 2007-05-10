@@ -3,18 +3,14 @@
 module Clowns where
 
 import Equality
-import Sets
 import Isomorphism
-import Functor
 import Derivative
-import Zipper
-import Dissect
 import ChainRule
+open import Sets
+open import Functor
+open import Zipper
+open import Dissect
 
-open Sets
-open Functor
-open Zipper
-open Dissect
 open Functor.Recursive
 open Functor.Semantics
 

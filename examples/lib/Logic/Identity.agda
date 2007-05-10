@@ -25,7 +25,12 @@ cong2 : {A B C : Set}(f : A -> B -> C){x z : A}{y w : B} -> x ≡ z -> y ≡ w -
 cong2 {A}{B} f refl refl = refl
 
 Equiv : {A : Set} -> Equivalence A
-Equiv = equiv _≡_ (\x -> refl) (\x y -> sym) (\x y z -> trans)
+Equiv = record
+	{ _==_  = _≡_
+	; refl  = \x -> refl
+	; sym   = \x y -> sym
+	; trans = \x y z -> trans
+	}
 
 _≢_ : {A : Set} -> A -> A -> Set
 x ≢ y = ¬ (x ≡ y)
