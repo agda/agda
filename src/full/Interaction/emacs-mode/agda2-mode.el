@@ -121,6 +121,7 @@ properties to add to the result."
          (agda2-indent              [tab])
          (agda2-indent-reverse      [S-iso-lefttab])
          (agda2-indent-reverse      [S-lefttab])
+         (agda2-indent-reverse      [S-tab])
          )))
   (define-key agda2-mode-map [menu-bar Agda2]
     (cons "Agda2" (make-sparse-keymap "Agda2")))
