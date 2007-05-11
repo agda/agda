@@ -80,7 +80,7 @@ processClause name num c@(Clause args body) =
 		  checkCalls targs cs
 
 findDef :: String -> TCM (Maybe QName)
-findDef s =  (findDef' $ C.Name noRange [C.Id s]) 
+findDef s =  (findDef' $ C.Name noRange [C.Id noRange s]) 
              `catchError` (\e-> return Nothing)
 
 findDef' :: C.Name -> TCM (Maybe QName)

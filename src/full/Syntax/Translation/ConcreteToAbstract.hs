@@ -767,12 +767,12 @@ toAbstractOpApp r op@(C.Name _ xs) es = do
 	    e  <- toAbstractCtx (LeftOperandCtx f) e
 	    es <- inside f xs es
 	    return (e : es)
-	left f (Id _ : xs) es = inside f xs es
-	left f (Hole : _) []  = __IMPOSSIBLE__
-	left f [] _	      = __IMPOSSIBLE__
+	left f (Id {} : xs) es = inside f xs es
+	left f (Hole : _) []   = __IMPOSSIBLE__
+	left f [] _	       = __IMPOSSIBLE__
 
 	inside f [x]	      es      = right f x es
-	inside f (Id _ : xs)  es      = inside f xs es
+	inside f (Id {} : xs) es      = inside f xs es
 	inside f (Hole : xs) (e : es) = do
 	    e  <- toAbstractCtx InsideOperandCtx e
 	    es <- inside f xs es
@@ -783,7 +783,7 @@ toAbstractOpApp r op@(C.Name _ xs) es = do
 	right f Hole [e] = do
 	    e <- toAbstractCtx (RightOperandCtx f) e
 	    return [e]
-	right _ (Id _) [] = return []
-	right _ Hole _	  = __IMPOSSIBLE__
-	right _ (Id _) _  = __IMPOSSIBLE__
+	right _ (Id {}) [] = return []
+	right _ Hole    _  = __IMPOSSIBLE__
+	right _ (Id {}) _  = __IMPOSSIBLE__
 

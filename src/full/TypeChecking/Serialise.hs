@@ -44,13 +44,13 @@ instance Binary C.Name where
 	_ -> fail "no parse"
 
 instance Binary NamePart where
-  put Hole = putWord8 0
-  put (Id a) = putWord8 1 >> put a
+  put Hole     = putWord8 0
+  put (Id r a) = putWord8 1 >> put r >> put a
   get = do
     tag_ <- getWord8
     case tag_ of
       0 -> return Hole
-      1 -> get >>= \a -> return (Id a)
+      1 -> liftM2 Id get get
       _ -> fail "no parse"
 
 instance Binary Range where

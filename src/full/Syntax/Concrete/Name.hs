@@ -22,8 +22,8 @@ data Name = Name !Range [NamePart]
 	  | NoName !Range NameId
     deriving (Typeable, Data)
 
-data NamePart = Hole | Id String
-    deriving (Typeable, Data, Eq, Ord)
+data NamePart = Hole | Id !Range String
+    deriving (Typeable, Data)
 
 -- | @noName_ = 'noName' 'noRange'@
 noName_ :: Name
@@ -66,6 +66,16 @@ instance Ord Name where
     compare (NoName _ _) (Name _ _)   = LT
     compare (Name _ _) (NoName _ _)   = GT
 
+instance Eq NamePart where
+  Hole    == Hole    = True
+  Id _ s1 == Id _ s2 = s1 == s2
+  _       == _       = False
+
+instance Ord NamePart where
+  compare Hole      Hole      = EQ
+  compare Hole      (Id _ _)  = LT
+  compare (Id _ _)  Hole      = GT
+  compare (Id _ s1) (Id _ s2) = compare s1 s2
 
 -- | @QName@ is a list of namespaces and the name of the constant.
 --   For the moment assumes namespaces are just @Name@s and not
@@ -89,8 +99,8 @@ instance Show Name where
     show (NoName _ _) = "_"
 
 instance Show NamePart where
-    show Hole	= "_"
-    show (Id s) = s
+    show Hole	  = "_"
+    show (Id _ s) = s
 
 instance Show QName where
     show (Qual m x) = show m ++ "." ++ show x

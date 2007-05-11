@@ -49,13 +49,17 @@ noModuleName = mnameFromList []
 mkName_ :: NameId -> String -> Name
 mkName_ = mkName noRange
 
+-- TODO: This function is parameterised on a range, but noRange is
+-- used for the NameParts created. Either calculate proper ranges for
+-- the NameParts, or stop parameterising this function on a range.
+
 mkName :: Range -> NameId -> String -> Name
 mkName r i s = Name i (C.Name r (parseName s)) r defaultFixity
   where
     parseName ""      = []
     parseName ('_':s) = C.Hole : parseName s
     parseName s = case break (== '_') s of
-      (s0, s1)	-> C.Id s0 : parseName s1
+      (s0, s1)	-> C.Id noRange s0 : parseName s1
 
 qnameToList :: QName -> [Name]
 qnameToList (QName m x) = mnameToList m ++ [x]

@@ -70,10 +70,10 @@ instance Pretty Expr where
 	    RawApp _ es   -> fsep $ map pretty es
 	    OpApp _ (Name _ xs) es -> fsep $ prOp xs es
 		where
-		    prOp (Hole : xs) (e : es) = pretty e : prOp xs es
-		    prOp (Hole : _)  []	      = __IMPOSSIBLE__
-		    prOp (Id x : xs)  es      = text x : prOp xs es
-		    prOp []	      es      = map pretty es
+		    prOp (Hole : xs)   (e : es) = pretty e : prOp xs es
+		    prOp (Hole : _)    []       = __IMPOSSIBLE__
+		    prOp (Id _ x : xs) es       = text x : prOp xs es
+		    prOp []	       es       = map pretty es
 	    OpApp _ (NoName _ _) _ -> __IMPOSSIBLE__
 
 	    HiddenArg _ e -> braces $ pretty e
@@ -234,11 +234,11 @@ instance Pretty Pattern where
 	    RawAppP _ ps       -> fsep $ map pretty ps
 	    OpAppP _ (Name _ xs) ps -> fsep $ prOp xs ps
 		where
-		    prOp (Hole : xs) (e : es) = pretty e : prOp xs es
-		    prOp (Hole : _)  []	      = __IMPOSSIBLE__
-		    prOp (Id x : xs)  es      = text x : prOp xs es
-		    prOp []	      []      = []
-		    prOp []	     (_ : _)  = __IMPOSSIBLE__
+		    prOp (Hole : xs)   (e : es) = pretty e : prOp xs es
+		    prOp (Hole : _)    []	= __IMPOSSIBLE__
+		    prOp (Id _ x : xs) es       = text x : prOp xs es
+		    prOp []	       []       = []
+		    prOp []	       (_ : _)  = __IMPOSSIBLE__
 	    OpAppP _ (NoName _ _) _ -> __IMPOSSIBLE__
 	    HiddenP _ p	       -> braces $ pretty p
 	    ParenP _ p	       -> parens $ pretty p

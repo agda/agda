@@ -42,8 +42,8 @@ partP s = do
     return ()
     where
 	isLocal x e = case exprView e of
-	    LocalV (Name _ [Id y]) -> x == y
-	    _			   -> False
+	    LocalV (Name _ [Id _ y]) -> x == y
+	    _			     -> False
 
 binop :: IsExpr e => ReadP e e -> ReadP e (e -> e -> e)
 binop opP = do
@@ -63,7 +63,7 @@ postop opP = do
 opP :: IsExpr e => ReadP e e -> Name -> ReadP e e
 opP p (NoName _ _)  = pfail
 opP p x@(Name r xs) = do
-    es <- mix [ x | Id x <- xs ]
+    es <- mix [ x | Id _ x <- xs ]
     return $ unExprView $ OpAppV r x es
     where
 	mix []	   = __IMPOSSIBLE__
