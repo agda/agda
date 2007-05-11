@@ -56,18 +56,18 @@ instance Binary NamePart where
 instance Binary Range where
     put _ = return ()
     get	  = return $ Range p p
-	where p = Pn "[imported]" 0 0
+	where p = Pn "[imported]" 0 0 0
 --     put (Range a b) = put a >> put b
 --     get = liftM2 Range get get
 
 instance Binary Position where
-    put NoPos	   = putWord8 0
-    put (Pn f l c) = putWord8 1 >> put f >> put l >> put c
+    put NoPos	     = putWord8 0
+    put (Pn f p l c) = putWord8 1 >> put f >> put p >> put l >> put c
     get = do
 	tag_ <- getWord8
 	case tag_ of
 	    0	-> return NoPos
-	    1	-> liftM3 Pn get get get
+	    1	-> liftM4 Pn get get get get
 	    _ -> fail "no parse"
 
 instance Binary C.QName where

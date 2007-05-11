@@ -26,9 +26,10 @@ import Data.List
     Types and classes
  --------------------------------------------------------------------------}
 
--- | Represents a point in the input (file, line, col) or
+-- | Represents a point in the input (file, position, line, col) or
 --   an unknown position
 data Position = Pn { srcFile :: FilePath
+                   , posPos  :: !Int
 		   , posLine :: !Int
 		   , posCol  :: !Int
 		   }
@@ -71,8 +72,8 @@ instance SetRange Range where
  --------------------------------------------------------------------------}
 
 instance Show Position where
-    show (Pn "" l c)	= show l ++ "," ++ show c
-    show (Pn f l c)	= f ++ ":" ++ show l ++ "," ++ show c
+    show (Pn "" _ l c)	= show l ++ "," ++ show c
+    show (Pn f  _ l c)	= f ++ ":" ++ show l ++ "," ++ show c
     show NoPos		= "<No position>"
 
 
@@ -97,9 +98,9 @@ instance Show Range where
     Functions on postitions and ranges
  --------------------------------------------------------------------------}
 
--- | The first position in a file: line 1, column 1.
+-- | The first position in a file: position 1, line 1, column 1.
 startPos :: FilePath -> Position
-startPos f = Pn { srcFile = f, posLine = 1, posCol = 1 }
+startPos f = Pn { srcFile = f, posPos = 1, posLine = 1, posCol = 1 }
 
 
 -- | The unknown position.
@@ -118,10 +119,10 @@ noRange = Range NoPos NoPos
 --   the position to the first character in the next line. Any
 --   other character moves the position to the next column.
 movePos :: Position -> Char -> Position
-movePos (Pn f l c) '\t'	= Pn f l (div (c + 7) 8 * 8 + 1)
-movePos (Pn f l c) '\n'	= Pn f (l + 1) 1
-movePos (Pn f l c) _	= Pn f l (c + 1)
-movePos NoPos _		= NoPos
+movePos (Pn f p l c) '\t' = Pn f (p + 1) l (div (c + 7) 8 * 8 + 1)
+movePos (Pn f p l c) '\n' = Pn f (p + 1) (l + 1) 1
+movePos (Pn f p l c) _	  = Pn f (p + 1) l (c + 1)
+movePos NoPos _		  = NoPos
 
 
 -- | Advance the position by a string.
