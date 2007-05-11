@@ -413,15 +413,15 @@ LamBindings
 -- A non-empty sequence of domain-free bindings
 DomainFreeBindings :: { [LamBinding] }
 DomainFreeBindings
-    : DomainFreeBinding DomainFreeBindings  { $1 : $2 }
-    | DomainFreeBinding			    { [$1] }
+    : DomainFreeBinding DomainFreeBindings  { $1 ++ $2 }
+    | DomainFreeBinding			    { $1 }
 
 
--- A domain free binding is either x or {x}
-DomainFreeBinding :: { LamBinding }
+-- A domain free binding is either x or {x1 .. xn}
+DomainFreeBinding :: { [LamBinding] }
 DomainFreeBinding
-    : BId	    { DomainFree NotHidden $1 }
-    | '{' BId '}'   { DomainFree Hidden $2 }
+    : BId		{ [DomainFree NotHidden $1]  }
+    | '{' CommaBIds '}' { map (DomainFree Hidden) $2 }
 
 
 {--------------------------------------------------------------------------
