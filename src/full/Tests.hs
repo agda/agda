@@ -3,6 +3,7 @@
 module Tests where
 
 import Interaction.Highlighting.Emacs	 as InteEmac   (tests)
+import Interaction.Highlighting.Generate as InteGene   (tests)
 import Interaction.Highlighting.Precise	 as IntePrec   (tests)
 import Termination.CallGraph	         as TermCall   (tests)
 import Termination.Lexicographic         as TermLex    (tests)
@@ -16,6 +17,8 @@ runTests :: IO ()
 runTests = do
     putStrLn "Tests in Interaction.Highlighting.Emacs"
     InteEmac.tests
+    putStrLn "Tests in Interaction.Highlighting.Generate"
+    InteGene.tests
     putStrLn "Tests in Interaction.Highlighting.Precise"
     IntePrec.tests
     putStrLn "Tests in Termination.Utilities"

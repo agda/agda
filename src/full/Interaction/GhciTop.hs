@@ -79,6 +79,8 @@ import Syntax.Abstract.Name
 import Interaction.Exceptions
 import qualified Interaction.BasicOps as B
 import qualified Interaction.CommandLine.CommandLine as CL
+import Interaction.Highlighting.Generate
+import Interaction.Highlighting.Emacs
 
 #include "../undefined.h"
 
@@ -140,7 +142,7 @@ cmd_load :: String -> IO ()
 cmd_load file = infoOnException $ do
     (pragmas, m) <- parseFile moduleParser file
     setWorkingDirectory file m
-    is <- ioTCM $ do
+    (is, topLevel) <- ioTCM $ do
 	    resetState
 	    pragmas  <- concreteToAbstract_ pragmas	-- identity for top-level pragmas at the moment
 	    topLevel <- concreteToAbstract_ (TopLevel m)
@@ -148,8 +150,15 @@ cmd_load file = infoOnException $ do
 	    setOptionsFromPragmas pragmas
 	    checkDecls $ topLevelDecls topLevel
 	    setScope $ outsideScope topLevel
-	    lispIP
-    putStrLn $ response $ L[A"agda2-load-action", is]
+	    is <- lispIP
+            return (is, topLevel)
+    putStrLn $ response $ L [A "agda2-load-action", is]
+
+    -- Currently highlighting information is only generated when a
+    -- file is loaded.
+    writeSyntaxInfo file (generateSyntaxInfo topLevel)
+    putStrLn $ response $ L [A "agda2-highlight-reload"]
+
     cmd_metas
   where lispIP  = format . sortRng <$> (tagRng =<< getInteractionPoints)
         tagRng  = mapM (\i -> (,)i <$> getInteractionRange i)

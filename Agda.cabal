@@ -20,6 +20,7 @@ exposed-modules: AgdaMain
                  Interaction.CommandLine.CommandLine
                  Interaction.Exceptions
                  Interaction.Highlighting.Emacs
+                 Interaction.Highlighting.Generate
                  Interaction.Highlighting.Precise
                  Interaction.Highlighting.Vim
                  Interaction.Imports
