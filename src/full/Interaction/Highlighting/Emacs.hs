@@ -29,24 +29,25 @@ readAspect cs = do
 
 propAspect a = readAspect (showAspect a) == [(a, "")]
 
--- | Shows a range in such a way that it can easily be read by Emacs.
+-- | Shows meta information in such a way that it can easily be read
+-- by Emacs.
 
-showRange :: Range -> String
-showRange r =
+showMetaInfo :: (Range, MetaInfo) -> String
+showMetaInfo (r, m) =
      "(annotation-annotate "
   ++ show (from r)
   ++ " "
   ++ show (to r)
   ++ " '("
-  ++ concat (intersperse " " (map showAspect (aspects r)))
+  ++ concat (intersperse " " (map showAspect (aspects m)))
   ++ ")"
-  ++ (maybe "" ((" " ++) . quote) $ note r)
+  ++ (maybe "" ((" " ++) . quote) $ note m)
   ++ ")"
 
 -- | Shows a file in an Emacsy fashion.
 
 showFile :: File -> String
-showFile = unlines . map showRange . ranges
+showFile = unlines . map showMetaInfo . compress
 
 ------------------------------------------------------------------------
 -- IO

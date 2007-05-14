@@ -8,13 +8,14 @@ module Interaction.Highlighting.Generate
 import Interaction.Highlighting.Precise hiding (tests)
 import Syntax.Abstract
 import Syntax.Translation.ConcreteToAbstract
+import Data.Monoid
 
 -- | Generates syntax highlighting information from a 'TopLevelInfo'.
 --
 -- Currently this is just a stub.
 
 generateSyntaxInfo :: TopLevelInfo -> File
-generateSyntaxInfo _ = File []
+generateSyntaxInfo _ = return mempty
 
 ------------------------------------------------------------------------
 -- All tests
