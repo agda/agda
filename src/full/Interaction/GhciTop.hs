@@ -142,7 +142,7 @@ cmd_load :: String -> IO ()
 cmd_load file = infoOnException $ do
     (pragmas, m) <- parseFile moduleParser file
     setWorkingDirectory file m
-    (is, topLevel) <- ioTCM $ do
+    (is, syntaxInfo) <- ioTCM $ do
 	    resetState
 	    pragmas  <- concreteToAbstract_ pragmas	-- identity for top-level pragmas at the moment
 	    topLevel <- concreteToAbstract_ (TopLevel m)
@@ -151,12 +151,13 @@ cmd_load file = infoOnException $ do
 	    checkDecls $ topLevelDecls topLevel
 	    setScope $ outsideScope topLevel
 	    is <- lispIP
-            return (is, topLevel)
+            syntaxInfo <- generateSyntaxInfo topLevel
+            return (is, syntaxInfo)
     putStrLn $ response $ L [A "agda2-load-action", is]
 
     -- Currently highlighting information is only generated when a
     -- file is loaded.
-    writeSyntaxInfo file (generateSyntaxInfo topLevel)
+    writeSyntaxInfo file syntaxInfo
     putStrLn $ response $ L [A "agda2-highlight-reload"]
 
     cmd_metas
