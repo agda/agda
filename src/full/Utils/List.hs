@@ -3,6 +3,9 @@
 -}
 module Utils.List where
 
+import Test.QuickCheck
+import Text.Show.Functions
+
 type Prefix a = [a]
 type Suffix a = [a] 
 
@@ -45,3 +48,32 @@ allEqual :: Eq a => [a] -> Bool
 allEqual []	= True
 allEqual (x:xs) = all (x==) xs
 
+-- | A variant of 'groupBy' which applies the predicate to consecutive
+-- pairs.
+
+groupBy' :: (a -> a -> Bool) -> [a] -> [[a]]
+groupBy' _ []           = []
+groupBy' p xxs@(x : xs) = grp x $ zipWith (\x y -> (p x y, y)) xxs xs
+  where
+  grp x ys = (x : map snd xs) : tail
+    where (xs, rest) = span fst ys
+          tail = case rest of
+                   []            -> []
+                   ((_, z) : zs) -> grp z zs
+
+prop_groupBy' :: (Bool -> Bool -> Bool) -> [Bool] -> Property
+prop_groupBy' p xs =
+  classify (length xs - length gs >= 3) "interesting" $
+    concat gs == xs
+    &&
+    and [not (null zs) | zs <- gs]
+    &&
+    and [and (pairInitTail zs zs) | zs <- gs]
+    &&
+    (null gs || not (or (pairInitTail (map last gs) (map head gs))))
+  where gs = groupBy' p xs
+        pairInitTail xs ys = zipWith p (init xs) (tail ys)
+
+tests :: IO ()
+tests = do
+  quickCheck prop_groupBy'
