@@ -1,4 +1,7 @@
-module Utils.String (quote) where
+module Utils.String
+  ( quote
+  , addFinalNewLine
+  ) where
 
 -- | 'quote' adds double quotes around the string, and escapes double
 -- quotes and backslashes within the string. This is different from
@@ -18,3 +21,10 @@ quote s = "\"" ++ concatMap escape s ++ "\""
            | otherwise            = [c]
 
   escapeChars = "\"\\"
+
+-- | Adds a final newline if there is not already one.
+
+addFinalNewLine :: String -> String
+addFinalNewLine "" = "\n"
+addFinalNewLine s | last s == '\n' = s
+                  | otherwise      = s ++ "\n"
