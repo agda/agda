@@ -167,8 +167,9 @@ instance Arbitrary MetaInfo where
                               elements "abcdefABCDEF\"'@()åäö\n")
                       ]
     return (MetaInfo { aspects = aspects, note = note })
-  coarbitrary (MetaInfo asps note) =
-    coarbitrary asps . coarbitrary (fmap (map fromEnum) note)
+  coarbitrary (MetaInfo asps Nothing)  = variant 0 . coarbitrary asps
+  coarbitrary (MetaInfo asps (Just n)) =
+    variant 1 . coarbitrary asps . coarbitrary (map fromEnum n)
 
 instance Arbitrary File where
   arbitrary = fmap (File . Map.fromList) $ list arbitrary
