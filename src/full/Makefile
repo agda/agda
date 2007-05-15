@@ -109,4 +109,7 @@ tags : $(src_files)
 	@mv tags tags.tmp
 	@sort tags.tmp > tags
 	@rm tags.tmp
+
+TAGS : $(src_files)
+	$(HASKTAGS) -e $(src_files)
 endif
