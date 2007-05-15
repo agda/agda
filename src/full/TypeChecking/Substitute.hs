@@ -195,6 +195,9 @@ instance (Data a, Subst a) => Subst (Abs a) where
 instance Subst a => Subst (Arg a) where
     substs us = fmap (substs us)
 
+instance Subst a => Subst (Maybe a) where
+  substs us = fmap (substs us)
+
 instance Subst a => Subst [a] where
     substs us = map (substs us)
 

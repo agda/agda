@@ -39,6 +39,7 @@ exposed-modules: AgdaMain
                  Syntax.Fixity
                  Syntax.Info
                  Syntax.Internal
+		 Syntax.Internal.Pattern
                  Syntax.Literal
                  Syntax.Parser.Alex
                  Syntax.Parser.Comments
@@ -74,6 +75,7 @@ exposed-modules: AgdaMain
                  TypeChecking.Empty
                  TypeChecking.Errors
                  TypeChecking.Free
+		 TypeChecking.Implicit
                  TypeChecking.MetaVars
                  TypeChecking.Monad.Base
                  TypeChecking.Monad.Builtin
@@ -103,6 +105,7 @@ exposed-modules: AgdaMain
 		 TypeChecking.Rules.Data
 		 TypeChecking.Rules.Decl
 		 TypeChecking.Rules.Def
+		 TypeChecking.Rules.LHS
 		 TypeChecking.Rules.Pattern
 		 TypeChecking.Rules.Record
 		 TypeChecking.Rules.Term
@@ -119,6 +122,7 @@ exposed-modules: AgdaMain
                  Utils.Maybe
                  Utils.Monad.Undo
                  Utils.Monad
+		 Utils.Permutation
                  Utils.Pointer
                  Utils.Pretty
                  Utils.ReadLine
