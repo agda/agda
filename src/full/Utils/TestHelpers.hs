@@ -14,6 +14,7 @@ module Utils.TestHelpers
     -- * Generators
   , natural
   , positive
+  , maybeGen
   , list
   , nonEmptyList
   , listOfLength
@@ -137,6 +138,14 @@ list :: Gen a -> Gen [a]
 list gen = do
   n <- natural :: Gen Integer
   listOfLength n gen
+
+-- | Generates values of 'Maybe' type, using the given generator to
+-- generate the contents of the 'Just' constructor.
+
+maybeGen :: Gen a -> Gen (Maybe a)
+maybeGen gen = frequency [ (1, return Nothing)
+                         , (9, fmap Just gen)
+                         ]
 
 ------------------------------------------------------------------------
 -- All tests
