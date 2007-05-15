@@ -115,6 +115,7 @@ exposed-modules: AgdaMain
                  Utils.FileName
                  Utils.Fresh
                  Utils.Function
+		 Utils.Generics
 		 Utils.Hash
                  Utils.IO
                  Utils.List
