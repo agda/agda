@@ -17,6 +17,9 @@ import Syntax.Position
 
     Equality and ordering on @Name@s are defined to ignore range so same names
     in different locations are equal.
+
+    Invariant: Either the Name has a proper range, or all the
+    NameParts do; never both.
 -}
 data Name = Name !Range [NamePart]
 	  | NoName !Range NameId
@@ -109,6 +112,10 @@ instance Show QName where
 instance HasRange Name where
     getRange (Name r _)	= r
     getRange (NoName r _) = r
+
+instance HasRange NamePart where
+  getRange Hole     = noRange
+  getRange (Id r _) = r
 
 instance HasRange QName where
     getRange (QName  x) = getRange x

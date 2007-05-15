@@ -713,22 +713,24 @@ happyError = parseError "Parse error"
     Utility functions
  --------------------------------------------------------------------------}
 
--- | Create a name from a string
+-- | Create a name from a string.
+--
+-- Note that the generated NameParts do not get ranges assigned; the
+-- full Name has a proper range.
+
 mkName :: (Range, String) -> Parser Name
 mkName (r,s) = do
-    let xs = parts (rStart r) s
+    let xs = parts s
     mapM_ isValidId xs
     unless (alternating xs) $ fail $ "a name cannot contain two consecutive underscores"
     return $ Name r xs
     where
-        parts :: Position -> String -> [NamePart]
-        parts _ ""        = []
-        parts p ('_' : s) = Hole   : parts (movePos p '_') s
-        parts p s         = Id r x : parts p' s'
+        parts :: String -> [NamePart]
+        parts ""        = []
+        parts ('_' : s) = Hole         : parts s
+        parts s         = Id noRange x : parts s'
           where
             (x, s') = break (== '_') s
-            p' = movePosByString p x
-            r = Range { rStart = p, rEnd = p' }
 
 	isValidId Hole     = return ()
 	isValidId (Id _ x) = case parse defaultParseFlags 0 (lexer return) x of
