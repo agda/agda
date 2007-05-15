@@ -146,9 +146,6 @@ bindName x ret = do
 		       }
 	      ) $ ret y
 
--- TODO: Is it OK to use noRange in nextName? Or should the range be
--- preserved (or updated, depending on the result of nextStr)?
-
 nextName :: A.Name -> A.Name
 nextName x = x { nameConcrete = C.Name r $ nextSuf ps }
     where
