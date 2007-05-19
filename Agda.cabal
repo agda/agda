@@ -134,6 +134,7 @@ exposed-modules: AgdaMain
 		 Utils.Suffix
                  Utils.TestHelpers
                  Utils.Trace
+		 Utils.Trie
                  Utils.Tuple
                  Utils.Unicode
                  Version

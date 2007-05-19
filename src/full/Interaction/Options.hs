@@ -23,6 +23,9 @@ import System.Console.GetOpt	(getOpt, usageInfo, ArgOrder(ReturnInOrder)
 				)
 import Utils.Monad		( readM )
 import Utils.FileName		( slash )
+import Utils.List               ( wordsBy )
+import Utils.Trie               ( Trie )
+import qualified Utils.Trie as Trie
 
 -- | This should probably go somewhere else.
 isLiterate :: FilePath -> Bool
@@ -46,7 +49,7 @@ data CommandLineOptions =
 	    , optShowHelp	   :: Bool
 	    , optInteractive	   :: Bool
 	    , optEmacsMode	   :: Bool
-	    , optVerbose	   :: Int
+	    , optVerbose	   :: Trie String Int
 	    , optProofIrrelevance  :: Bool
 	    , optAllowUnsolved	   :: Bool
 	    , optShowImplicit	   :: Bool
@@ -72,7 +75,7 @@ defaultOptions =
 	    , optShowHelp	   = False
 	    , optInteractive	   = False
 	    , optEmacsMode	   = False
-	    , optVerbose	   = 1
+	    , optVerbose	   = Trie.singleton [] 1
 	    , optProofIrrelevance  = False
 	    , optAllowUnsolved	   = False
 	    , optShowImplicit	   = False
@@ -118,8 +121,15 @@ compileFlag o = return $ o { optCompile = True } -- todo: check exclusion
 
 includeFlag d o	    = return $ o { optIncludeDirs   = d : optIncludeDirs o   }
 verboseFlag s o	    =
-    do	n <- integerArgument "--verbose" s
-	return $ o { optVerbose = n }
+    do	(k,n) <- parseVerbose s
+	return $ o { optVerbose = Trie.insert k n $ optVerbose o }
+  where
+    parseVerbose s = case wordsBy (`elem` ":.") s of
+      []  -> usage
+      ss  -> do
+        n <- readM (last ss) `catchError` \_ -> usage
+        return (init ss, n)
+    usage = fail "argument to verbose should be on the form x.y.z:N or N"
 
 integerArgument :: String -> String -> Either String Int
 integerArgument flag s =

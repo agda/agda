@@ -2,16 +2,20 @@
 
 module TypeChecking.Monad.Options where
 
-import Prelude hiding (putStr, putStrLn)
+import Prelude hiding (putStr, putStrLn, print)
 
 import Control.Monad.State
 import Data.Maybe
+import Text.PrettyPrint
 
 import TypeChecking.Monad.Base
 import Interaction.Options
 import Syntax.Abstract
 import Utils.Monad
 import Utils.IO
+import Utils.List
+import Utils.Trie (Trie)
+import qualified Utils.Trie as Trie
 
 #include "../../undefined.h"
 
@@ -74,17 +78,36 @@ ignoreInterfaces = optIgnoreInterfaces <$> commandLineOptions
 positivityCheckEnabled :: MonadTCM tcm => tcm Bool
 positivityCheckEnabled = not . optDisablePositivity <$> commandLineOptions
 
-getVerbosity :: MonadTCM tcm => tcm Int
+getVerbosity :: MonadTCM tcm => tcm (Trie String Int)
 getVerbosity = optVerbose <$> commandLineOptions
 
-verbose :: MonadTCM tcm => Int -> tcm () -> tcm ()
-verbose n action = do
-    m <- getVerbosity
+type VerboseKey = String
+
+verboseS :: MonadTCM tcm => VerboseKey -> Int -> tcm () -> tcm ()
+verboseS k n action = do
+    t <- getVerbosity
+    let ks = wordsBy (`elem` ".:") k
+	m  = maximum $ 0 : Trie.lookupPath ks t
     when (n <= m) action
 
+reportS :: MonadTCM tcm => VerboseKey -> Int -> String -> tcm ()
+reportS k n s = verboseS k n $ liftIO $ putStr s
+
+reportSLn :: MonadTCM tcm => VerboseKey -> Int -> String -> tcm ()
+reportSLn k n s = verboseS k n $ liftIO $ putStrLn s
+
+reportSDoc :: MonadTCM tcm => VerboseKey -> Int -> tcm Doc -> tcm ()
+reportSDoc k n d = verboseS k n $ liftIO . print =<< d
+
+verbose :: MonadTCM tcm => Int -> tcm () -> tcm ()
+verbose = verboseS ""
+
 report :: MonadTCM tcm => Int -> String -> tcm ()
-report n s = verbose n $ liftIO $ putStr s
+report = reportS ""
 
 reportLn :: MonadTCM tcm => Int -> String -> tcm ()
-reportLn n s = verbose n $ liftIO $ putStrLn s
+reportLn = reportSLn ""
+
+reportDoc :: MonadTCM tcm => Int -> tcm Doc -> tcm ()
+reportDoc = reportSDoc ""
 
