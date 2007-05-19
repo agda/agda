@@ -55,6 +55,9 @@ Fixes
 
 * Check out lex/parse errors (what position and what input is reported).
 
+* Enable parsing of non-trivial literate files (see
+  examples/syntax/highlighting/Test.lagda).
+
 [Printing]
 
 * print patterns in mixfix notation (AbstractToConcrete)

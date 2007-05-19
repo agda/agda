@@ -55,10 +55,12 @@ Equiv-≡ {a} =
 \begin{code}
 postulate
   String : Set
+  Char   : Set
   Int    : Set
   Float  : Set
 
 {-# BUILTIN STRING  String #-}
+{-# BUILTIN CHAR    Char   #-}
 {-# BUILTIN INTEGER Int    #-}
 {-# BUILTIN FLOAT   Float  #-}
 
@@ -66,8 +68,26 @@ postulate
 {-# BUILTIN SUC     suc    #-}
 {-# BUILTIN ZERO    zero   #-}
 
-string : String
-string = "apa"
+data [_] (a : Set) : Set where
+  []  : [ a ]
+  _∷_ : a -> [ a ] -> [ a ]
+
+{-# BUILTIN LIST [_] #-}
+{-# BUILTIN NIL  []  #-}
+{-# BUILTIN CONS _∷_ #-}
+
+primitive
+  primStringToList : String -> [ Char ]
+
+string : [ Char ]
+string = primStringToList "∃ apa"
+
+char : Char
+char = '∀'
+
+anotherString : String
+anotherString = "¬ be\
+    \pa"
 
 nat : ℕ
 nat = 45
