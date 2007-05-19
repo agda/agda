@@ -1,7 +1,7 @@
 name:            Agda
 version:         2.0.0
 license:         BSD3
-author:          Ulf Norell, Catarina Coquand, Makoto Takeyama, ...
+author:          Ulf Norell, Catarina Coquand, Makoto Takeyama, Nils Anders Danielsson, ...
 maintainer:      Ulf Norell <ulfn@cs.chalmers.se>
 homepage:
 category:        Theorem Proving
