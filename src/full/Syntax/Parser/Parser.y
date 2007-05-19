@@ -143,6 +143,7 @@ Token
     | 'Set'	    { TokKeyword KwSet $1 }
     | 'forall'	    { TokKeyword KwForall $1 }
     | 'OPTIONS'	    { TokKeyword KwOPTIONS $1 }
+    | 'BUILTIN'     { TokKeyword KwBUILTIN $1 }
 
     | setN	    { TokSetN $1 }
     | tex	    { TokTeX $1 }
