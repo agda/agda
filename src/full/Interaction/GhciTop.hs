@@ -140,7 +140,7 @@ setWorkingDirectory file xs = case last xs of
 
 cmd_load :: String -> IO ()
 cmd_load file = infoOnException $ do
-    (pragmas, m) <- parseFile moduleParser file
+    (pragmas, m) <- parseFile' moduleParser file
     setWorkingDirectory file m
     (is, syntaxInfo) <- ioTCM $ do
 	    resetState
