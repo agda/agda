@@ -34,14 +34,23 @@ composeP p1 (Perm n xs) = Perm n $ permute p1 xs
   -}
 
 invertP :: Permutation -> Permutation
-invertP (Perm n xs) = Perm (size xs) $ map inv [0..n - 1]
+invertP p@(Perm n xs) = Perm (size xs) $ map inv [0..n - 1]
   where
     inv x = case findIndex (x ==) xs of
 	      Just y  -> y
-	      Nothing -> error $ "invertP: non-surjective permutation " ++ show xs
+	      Nothing -> error $ "invertP: non-surjective permutation " ++ show p
 
 reverseP :: Permutation -> Permutation
 reverseP (Perm n xs) = Perm n $ map ((n - 1) -) $ reverse xs
+
+-- | @expandP i n π@ in the domain of @π@ replace the /i/th element by /n/ elements.
+expandP :: Int -> Int -> Permutation -> Permutation
+expandP i n (Perm m xs) = Perm (m + n - 1) $ concatMap expand xs
+  where
+    expand j
+      | j == i	  = [i..i + n - 1]
+      | j < i	  = [j]
+      | otherwise = [j + n - 1]
 
 -- | Stable topologic sort. The first argument decides whether its first
 --   argument is an immediate parent to its second argument.
