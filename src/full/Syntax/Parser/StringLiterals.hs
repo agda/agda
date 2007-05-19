@@ -63,7 +63,10 @@ litError msg =
 --   characters).
 stringToken :: Char -> (Range -> String -> Parser tok) -> LexAction tok
 stringToken del mkTok inp inp' n =
-    do	setLexInput inp'
+    do	setLastPos (backupPos $ lexPos inp')
+        setLexInput inp'
+        -- TODO: Should setPrevToken be run here? Compare with
+        -- Syntax.Parser.LexActions.token.
 	tok <- runLookAhead litError $ lexString del ""
 	r   <- getParseRange
 	mkTok r tok

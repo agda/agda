@@ -10,6 +10,7 @@ module Syntax.Position
   , noPos
   , movePos
   , movePosByString
+  , backupPos
 
     -- * Ranges
   , Range(..)
@@ -130,6 +131,14 @@ movePos NoPos _		  = NoPos
 --   > movePosByString = foldl' movePos
 movePosByString :: Position -> String -> Position
 movePosByString = foldl' movePos
+
+
+-- | Backup the position by one character.
+--
+-- Precondition: The character must not be @'\t'@ or @'\n'@.
+backupPos :: Position -> Position
+backupPos (Pn f p l c) = Pn f (p - 1) l (c - 1)
+backupPos NoPos        = NoPos
 
 
 -- | Finds the least interval that covers its arguments.
