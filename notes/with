@@ -1,0 +1,24 @@
+
+data Compare : Nat -> Nat -> Set where
+  same : {x : Nat}	    -> Compare x x
+  less : {x : Nat}(y : Nat) -> Compare x (x + suc y)
+  more : {x : Nat}(y : Nat) -> Compare (x + suc y) x
+
+_-_ : Nat -> Nat -> Nat
+x	     - y	    | compare x y
+x	     - .x	    | same    = zero
+x	     - .(x + suc y) | less y  = zero
+.(x + suc y) - x	    | more y  = suc y
+
+-- What does it mean?
+
+_-_ : Nat -> Nat -> Nat
+x - y = aux x y (compare x y)
+  where
+    aux : (n m : Nat) -> Compare n m -> Nat
+    aux x .x same		= zero
+    aux x .(x + suc y) (less y) = zero
+    aux .(x + suc y) x (more y) = suc y
+
+-- Combining pattern matching and with:
+
