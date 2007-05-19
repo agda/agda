@@ -11,6 +11,8 @@ import Interaction.Highlighting.Precise hiding (tests)
 import qualified TypeChecking.Monad as M
 import qualified Syntax.Abstract as A
 import qualified Syntax.Concrete as C
+import qualified Syntax.Literal as L
+import qualified Syntax.Parser.Tokens as T
 import qualified Syntax.Position as P
 import qualified Syntax.Scope.Base as S
 import qualified Syntax.Translation.ConcreteToAbstract as CA
@@ -34,13 +36,28 @@ import qualified Data.Foldable as Seq (toList, foldMap)
 --
 -- * It would be nice if module names were highlighted.
 
-generateSyntaxInfo :: CA.TopLevelInfo -> M.TCM File
-generateSyntaxInfo top = do
+generateSyntaxInfo :: [T.Token] -> CA.TopLevelInfo -> M.TCM File
+generateSyntaxInfo toks top = do
   nameInfo <- fmap mconcat $ mapM generate (Seq.toList names)
   -- fields need to be placed before nameInfo here since record field
   -- declarations contain QNames.
-  return (fields `mappend` nameInfo `mappend` dotted `mappend` bound)
+  return (tokInfo `mappend`
+          fields `mappend` nameInfo `mappend`
+          dotted `mappend` bound)
   where
+    tokInfo = Seq.foldMap tokenToFile toks
+
+    aToF a r = several (rToR r) (empty { aspect = Just a })
+
+    tokenToFile :: T.Token -> File
+    tokenToFile (T.TokKeyword _ r)               = aToF Keyword r
+    tokenToFile (T.TokSetN (r, _))               = aToF Keyword r
+    tokenToFile (T.TokLiteral (L.LitInt    r _)) = aToF Number r
+    tokenToFile (T.TokLiteral (L.LitFloat  r _)) = aToF Number r
+    tokenToFile (T.TokLiteral (L.LitString r _)) = aToF String r
+    tokenToFile (T.TokLiteral (L.LitChar   r _)) = aToF String r
+    tokenToFile _                                = mempty
+
     decls = CA.topLevelDecls top
 
     everything' (+) = everythingBut (+)

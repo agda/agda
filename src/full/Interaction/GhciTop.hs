@@ -151,7 +151,8 @@ cmd_load file = infoOnException $ do
 	    checkDecls $ topLevelDecls topLevel
 	    setScope $ outsideScope topLevel
 	    is <- lispIP
-            syntaxInfo <- generateSyntaxInfo topLevel
+            tokens <- liftIO $ parseFile' tokensParser file
+            syntaxInfo <- generateSyntaxInfo tokens topLevel
             return (is, syntaxInfo)
     putStrLn $ response $ L [A "agda2-load-action", is]
 

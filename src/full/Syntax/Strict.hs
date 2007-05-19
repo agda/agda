@@ -6,6 +6,7 @@ import Data.Generics
 
 import Syntax.Common
 import Syntax.Internal
+import Syntax.Parser.Tokens
 import qualified Syntax.Concrete as C
 import qualified Syntax.Concrete.Definitions as C
 
@@ -67,6 +68,11 @@ instance Strict a => Strict [a] where
 
 instance Strict a => Strict (Abs a) where
     force = force . absBody
+
+instance Strict Token where
+  -- TODO: This is just a dummy instance. Why can't we just use the
+  -- NFData derivation provided by Drift?
+  force = (`seq` 0)
 
 infixr 0 $!!
 
