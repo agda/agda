@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, Rank2Types #-}
 
 -- | Generates data used for precise syntax highlighting.
 
@@ -37,92 +37,98 @@ import qualified Data.Foldable as Seq (toList, foldMap)
 generateSyntaxInfo :: [T.Token] -> CA.TopLevelInfo -> M.TCM File
 generateSyntaxInfo toks top = do
   nameInfo <- fmap mconcat $ mapM generate (Seq.toList names)
-  -- fields need to be placed before nameInfo here since record field
+  -- theRest need to be placed before nameInfo here since record field
   -- declarations contain QNames.
-  return (tokInfo `mappend`
-          fields `mappend` nameInfo `mappend`
-          dotted `mappend` bound)
+  return (tokInfo `mappend` theRest `mappend` nameInfo)
   where
     tokInfo = Seq.foldMap tokenToFile toks
-
-    aToF a r = several (rToR r) (empty { aspect = Just a })
-
-    tokenToFile :: T.Token -> File
-    tokenToFile (T.TokKeyword _ r)               = aToF Keyword r
-    tokenToFile (T.TokSetN (r, _))               = aToF Keyword r
-    tokenToFile (T.TokLiteral (L.LitInt    r _)) = aToF Number r
-    tokenToFile (T.TokLiteral (L.LitFloat  r _)) = aToF Number r
-    tokenToFile (T.TokLiteral (L.LitString r _)) = aToF String r
-    tokenToFile (T.TokLiteral (L.LitChar   r _)) = aToF String r
-    tokenToFile _                                = mempty
-
-    decls = CA.topLevelDecls top
-
-    everything' (+) = everythingBut (+)
-                        (False `mkQ` isScope `extQ` isMap1 `extQ` isMap2)
       where
-      isScope :: S.ScopeInfo                   -> Bool
-      isMap1  :: Map A.QName A.QName           -> Bool
-      isMap2  :: Map A.ModuleName A.ModuleName -> Bool
+      aToF a r = several (rToR r) (empty { aspect = Just a })
 
-      isScope = const True
-      isMap1  = const True
-      isMap2  = const True
+      tokenToFile :: T.Token -> File
+      tokenToFile (T.TokKeyword _ r)               = aToF Keyword r
+      tokenToFile (T.TokSetN (r, _))               = aToF Keyword r
+      tokenToFile (T.TokLiteral (L.LitInt    r _)) = aToF Number r
+      tokenToFile (T.TokLiteral (L.LitFloat  r _)) = aToF Number r
+      tokenToFile (T.TokLiteral (L.LitString r _)) = aToF String r
+      tokenToFile (T.TokLiteral (L.LitChar   r _)) = aToF String r
+      tokenToFile _                                = mempty
+
+    everything' :: (r -> r -> r) -> GenericQ r -> r
+    everything' (+) q = everythingBut
+                          (+)
+                          (False `mkQ` isString
+                                 `extQ` isAQName `extQ` isAName `extQ` isCName
+                                 `extQ` isScope `extQ` isMap1 `extQ` isMap2)
+                          q
+                          (CA.topLevelDecls top)
+      where
+      isString :: String                        -> Bool
+      isAQName :: A.QName                       -> Bool
+      isAName  :: A.Name                        -> Bool
+      isCName  :: C.Name                        -> Bool
+      isScope  :: S.ScopeInfo                   -> Bool
+      isMap1   :: Map A.QName A.QName           -> Bool
+      isMap2   :: Map A.ModuleName A.ModuleName -> Bool
+
+      isString = const True
+      isAQName = const True
+      isAName  = const True
+      isCName  = const True
+      isScope  = const True
+      isMap1   = const True
+      isMap2   = const True
 
     -- All names mentioned in the syntax tree (not bound variables).
-    names = everything' (><) (Seq.empty `mkQ` getName) decls
+    names = everything' (><) (Seq.empty `mkQ` getName)
       where
       getName :: A.QName -> Seq A.QName
       getName n = Seq.singleton n
 
-    -- Bound variables.
-    bound = everything' mappend query decls
+    -- Bound variables, dotted patterns and record fields.
+    theRest = everything' mappend query
       where
       query :: GenericQ File
-      query = mempty `mkQ`
-              getVar `extQ` getLet `extQ` getLam
-                     `extQ` getTyped `extQ` getPattern
+      query = mempty         `mkQ`
+              getFieldDecl   `extQ`
+              getVarAndField `extQ`
+              getLet         `extQ`
+              getLam         `extQ`
+              getTyped       `extQ`
+              getPattern
 
-      toF = nameToFile (\isOp -> empty { aspect = Just $ Name Bound isOp })
+      bound = nameToFile (\isOp -> empty { aspect = Just $ Name Bound isOp })
             . A.nameConcrete
+      field = nameToFile (\isOp -> empty { aspect = Just $ Name Field isOp })
 
-      getVar (A.Var x) = toF x
-      getVar _         = mempty
+      getVarAndField :: A.Expr -> File
+      getVarAndField (A.Var x)    = bound x
+      getVarAndField (A.Rec _ fs) = mconcat $ map (field . fst) fs
+      getVarAndField _            = mempty
 
-      getLet (A.LetBind _ x _ _) = toF x
+      getLet :: A.LetBinding -> File
+      getLet (A.LetBind _ x _ _) = bound x
 
-      getLam (A.DomainFree _ x) = toF x
+      getLam :: A.LamBinding -> File
+      getLam (A.DomainFree _ x) = bound x
       getLam (A.DomainFull {})  = mempty
 
-      getTyped (A.TBind _ xs _) = mconcat $ map toF xs
+      getTyped :: A.TypedBinding -> File
+      getTyped (A.TBind _ xs _) = mconcat $ map bound xs
       getTyped (A.TNoBind {})   = mempty
+
       getPattern :: A.Pattern -> File
-      getPattern (A.VarP x)    = toF x
-      getPattern (A.AsP _ x _) = toF x
+      getPattern (A.VarP x)    = bound x
+      getPattern (A.AsP _ x _) = bound x
+      getPattern (A.DotP pi _) = several (rToR $ P.getRange pi)
+                                         (empty { dotted = True })
       getPattern _             = mempty
-
-    -- Every dotted pattern.
-    dotted = everything' mappend (mempty `mkQ` getDotted) decls
-      where
-      getDotted :: A.Pattern -> File
-      getDotted (A.DotP pi _) = several (rToR $ P.getRange pi)
-                                        (empty { dotted = True })
-      getDotted _             = mempty
-
-    -- Record fields.
-    fields = everything' mappend (mempty `mkQ` getField `extQ` getFieldDecl) decls
-      where
-      toF = nameToFile (\isOp -> empty { aspect = Just $ Name Field isOp })
-
-      getField :: A.Expr -> File
-      getField (A.Rec _ fs) = mconcat $ map (toF . fst) fs
-      getField _            = mempty
 
       getFieldDecl :: A.Definition -> File
       getFieldDecl (A.RecDef _ _ _ fs) = Seq.foldMap extractAxiom fs
         where
         extractAxiom (A.ScopedDecl _ ds) = Seq.foldMap extractAxiom ds
-        extractAxiom (A.Axiom _ x _)     = toF $ A.nameConcrete $ A.qnameName x
+        extractAxiom (A.Axiom _ x _)     = field $ A.nameConcrete $ A.qnameName x
         extractAxiom _                   = __IMPOSSIBLE__
       getFieldDecl _                   = mempty
 
