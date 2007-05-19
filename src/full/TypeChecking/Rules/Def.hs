@@ -34,6 +34,7 @@ import TypeChecking.Primitive
 
 import TypeChecking.Rules.Term		      ( checkExpr, checkTelescope )
 import TypeChecking.Rules.Pattern	      ( checkPatterns )
+import TypeChecking.Rules.LHS		      ( checkLeftHandSide )
 import {-# SOURCE #-} TypeChecking.Rules.Decl ( checkDecls )
 
 import Utils.Tuple
@@ -78,7 +79,7 @@ checkFunDef i name cs =
 checkClause :: Type -> A.Clause -> TCM Clause
 checkClause t c@(A.Clause (A.LHS i x aps) rhs wh) =
     traceCall (CheckClause t c) $
-    checkLHS aps t $ \sub xs ps t' -> do
+    checkLeftHandSide aps t $ \sub xs ps t' -> do
       body <- checkWhere (size xs) wh $ 
 	      case rhs of
 		A.RHS e -> do
@@ -122,6 +123,7 @@ containsAbsurdPattern p = case p of
     A.ConP _ _ ps -> any (containsAbsurdPattern . namedThing . unArg) ps
     A.DefP _ _ _  -> __IMPOSSIBLE__
 
+{-
 -- | Type check a left-hand side.
 checkLHS :: [NamedArg A.Pattern] -> Type -> ([Term] -> [String] -> [Arg Pattern] -> Type -> TCM a) -> TCM a
 checkLHS ps t ret = do
@@ -353,6 +355,7 @@ checkLHS ps t ret = do
 		par NotHidden s = "(" ++ s ++ ")"
 	    ds <- mapM pr ctx
 	    liftIO $ putStr $ unlines $ reverse ds
+-}
 
 actualConstructor :: MonadTCM tcm => QName -> tcm QName
 actualConstructor c = do
@@ -367,5 +370,4 @@ actualConstructor c = do
 		x <- freshName_ $ absName b
 		addCtx x (Arg h $ sort Prop) $ stripLambdas (absBody b)
 	    _	    -> typeError $ GenericError $ "Not a constructor: " ++ show c
-
 

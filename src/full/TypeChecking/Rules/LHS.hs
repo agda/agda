@@ -25,6 +25,10 @@ import TypeChecking.Implicit
 import TypeChecking.Free
 import TypeChecking.Conversion
 import TypeChecking.Constraints
+import TypeChecking.Pretty
+import TypeChecking.Empty (isEmptyType)
+
+import TypeChecking.Rules.Term (checkExpr)
 
 import Utils.Permutation
 import Utils.Size
@@ -35,19 +39,44 @@ data DotPatternInst = DPI A.Expr Term Type
 type Substitution   = [Maybe Term]
 type FlexibleVars   = [Nat]
 
-data Problem p	    = Problem [NamedArg A.Pattern] p Telescope
-data Focus	    = Focus QName [NamedArg A.Pattern] OneHolePatterns QName [Arg Term] [Arg Term]
-data SplitProblem   = Split (Problem ()) (Arg Focus) (Abs (Problem ()))
+data Problem' p	    = Problem { problemInPat  :: [NamedArg A.Pattern]
+			      , problemOutPat :: p
+			      , problemTel    :: Telescope
+			      }
+data Focus	    = Focus   { focusCon      :: QName
+			      , focusConArgs  :: [NamedArg A.Pattern]
+			      , focusOutPat   :: OneHolePatterns
+			      , focusHoleIx   :: Int  -- ^ index of focused variable in the out patterns
+			      , focusDatatype :: QName
+			      , focusParams   :: [Arg Term]
+			      , focusIndices  :: [Arg Term]
+			      }
+data SplitProblem   = Split ProblemPart (Arg Focus) (Abs ProblemPart)
 
 data SplitError	    = TooManyArguments [NamedArg A.Pattern]
 		    | NothingToSplit
 		    | SplitPanic String
 
+type ProblemPart = Problem' ()
+
+-- | The permutation should permute @allHoles@ of the patterns to correspond to
+--   the abstract patterns in the problem.
+type Problem	 = Problem' (Permutation, [Arg Pattern])
+
+instance Subst DotPatternInst where
+  substs us (DPI e v a) = uncurry (DPI e) $ substs us (v,a)
+
+instance PrettyTCM DotPatternInst where
+  prettyTCM (DPI e v a) = sep [ prettyA e <+> text "="
+			      , nest 2 $ prettyTCM v <+> text ":"
+			      , nest 2 $ prettyTCM a
+			      ]
+
 instance Error SplitError where
   noMsg  = NothingToSplit
   strMsg = SplitPanic
 
-instance Monoid p => Monoid (Problem p) where
+instance Monoid p => Monoid (Problem' p) where
   mempty = Problem [] mempty EmptyTel
   Problem ps1 qs1 tel1 `mappend` Problem ps2 qs2 tel2 =
     Problem (ps1 ++ ps2) (mappend qs1 qs2) (abstract tel1 tel2)
@@ -59,45 +88,84 @@ instance (Monad m, Error err) => Applicative (ErrorT err m) where
 instance (Error err, MonadTCM tcm) => MonadTCM (ErrorT err tcm) where
   liftTCM = lift . liftTCM
 
--- | Split a problem at the first constructor of datatype type. Also inserts
---   implicit patterns in the patterns before the split.
-splitProblem :: Problem [Arg Pattern] -> TCM (Either SplitError SplitProblem)
-splitProblem (Problem ps qs tel) = runErrorT (splitP ps (allHoles qs) tel)
+-- | Insert implicit patterns.
+insertImplicitProblem :: Problem -> TCM Problem
+insertImplicitProblem (Problem ps qs tel) = do
+  reportSDoc "tc.lhs.imp" 15 $
+    sep [ text "insertImplicits"
+	, nest 2 $ brackets $ fsep $ punctuate comma $ map prettyA ps
+	, nest 2 $ prettyTCM tel
+	]
+  ps' <- insertImplicitPatterns ps tel
+  return $ Problem ps' qs tel
+
+insertImplicitPatterns :: [NamedArg A.Pattern] -> Telescope -> TCM [NamedArg A.Pattern]
+insertImplicitPatterns ps EmptyTel = return ps
+insertImplicitPatterns ps tel@(ExtendTel _ tel') = case ps of
+  [] -> do
+    i <- insImp dummy tel
+    case i of
+      Just n	-> return $ replicate n implicitP
+      Nothing	-> return []
+  p : ps -> do
+    i <- insImp p tel
+    case i of
+      Just 0	-> __IMPOSSIBLE__
+      Just n	-> insertImplicitPatterns (replicate n implicitP ++ p : ps) tel
+      Nothing	-> (p :) <$> insertImplicitPatterns ps (absBody tel')
   where
-    splitP :: [NamedArg A.Pattern] -> [OneHolePatterns] -> Telescope -> ErrorT SplitError TCM SplitProblem
-    splitP _	    []	     (ExtendTel _ _)	    = __IMPOSSIBLE__
-    splitP _	    (_:_)     EmptyTel		    = __IMPOSSIBLE__
-    splitP []	     _	      _			    = throwError $ NothingToSplit
-    splitP ps	    []	      EmptyTel		    = throwError $ TooManyArguments ps
-    splitP (p : ps) (q : qs) tel0@(ExtendTel a tel) =
-      case insertImplicit p $ map (fmap fst) $ telToList tel0 of
-	BadImplicits   -> typeError $ WrongHidingInLHS (unArg a) -- TODO: this is not the type the error expects
-	NoSuchName x   -> typeError $ WrongHidingInLHS (unArg a)
-	ImpInsert n    -> splitP (replicate n (implicitP (getRange p)) ++ ps) (q : qs) tel0
-	NoInsertNeeded -> case namedThing $ unArg p of
-	  -- TODO: split on literals
-	  A.ConP _ c args -> do
-	    a' <- reduce $ unArg a
-	    case unEl a' of
-	      Def d vs	-> do
-		def <- theDef <$> getConstInfo d
-		case def of
-		  Datatype np _ _ _ _ _ -> do
-		    let (pars, ixs) = splitAt np vs
-		    return $ Split mempty
-				   (fmap (const $ Focus c args q d pars ixs) a)
-				   (fmap (Problem ps ()) tel)
-		  -- TODO: record patterns
-		  _ -> keepGoing
-	      _	-> keepGoing
-	  _ -> keepGoing
+    dummy = Arg NotHidden $ unnamed ()
+
+    insImp x tel = case insertImplicit x $ map (fmap fst) $ telToList tel of
+      BadImplicits   -> typeError $ WrongHidingInLHS (telePi tel $ sort Prop)
+      NoSuchName x   -> typeError $ WrongHidingInLHS (telePi tel $ sort Prop)
+      ImpInsert n    -> return $ Just n
+      NoInsertNeeded -> return Nothing
+
+    implicitP = Arg Hidden . unnamed . A.ImplicitP . PatRange $ noRange
+
+-- | Split a problem at the first constructor of datatype type. Implicit
+--   patterns should have been inserted.
+splitProblem :: Problem -> TCM (Either SplitError SplitProblem)
+splitProblem (Problem ps (perm, qs) tel) = runErrorT $
+    splitP ps (permute perm $ zip [0..] $ allHoles qs) tel
+  where
+    splitP :: [NamedArg A.Pattern] -> [(Int, OneHolePatterns)] -> Telescope -> ErrorT SplitError TCM SplitProblem
+    splitP _	    []		 (ExtendTel _ _)	 = __IMPOSSIBLE__
+    splitP _	    (_:_)	  EmptyTel		 = __IMPOSSIBLE__
+    splitP []	     _		  _			 = throwError $ NothingToSplit
+    splitP ps	    []		  EmptyTel		 = throwError $ TooManyArguments ps
+    splitP (p : ps) ((i, q) : qs) tel0@(ExtendTel a tel) =
+      case namedThing $ unArg p of
+	-- TODO: split on literals
+	A.ConP _ c args -> do
+	  a' <- reduce $ unArg a
+	  case unEl a' of
+	    Def d vs	-> do
+	      def <- theDef <$> getConstInfo d
+	      case def of
+		Datatype np _ _ _ _ _ -> do
+		  let (pars, ixs) = splitAt np vs
+		  reportSDoc "tc.lhs.split" 10 $
+		    vcat [ sep [ text "splitting on"
+			       , nest 2 $ fsep [ prettyA p, text ":", prettyTCM a ]
+			       ]
+			 , nest 2 $ text "pars =" <+> fsep (punctuate comma $ map prettyTCM pars)
+			 , nest 2 $ text "ixs  =" <+> fsep (punctuate comma $ map prettyTCM ixs)
+			 ]
+		  return $ Split mempty
+				 (fmap (const $ Focus c args q i d pars ixs) a)
+				 (fmap (Problem ps ()) tel)
+		-- TODO: record patterns
+		_ -> keepGoing
+	    _	-> keepGoing
+	p -> keepGoing
       where
 	keepGoing = do
 	  let p0 = Problem [p] () (ExtendTel a $ fmap (const EmptyTel) tel)
 	  Split p1 foc p2 <- underAbstraction a tel $ \tel -> splitP ps qs tel
 	  return $ Split (mappend p0 p1) foc p2
 
-    implicitP = Arg Hidden . unnamed . A.ImplicitP . PatRange
 
 -- | Compute the set of flexible patterns in a list of patterns. The result is
 --   the deBruijn indices of the flexible patterns. A pattern is flexible if it
@@ -133,6 +201,7 @@ occursCheck i u
 (|->) :: Nat -> Term -> Unify ()
 i |-> u = do
   occursCheck i u
+  reportSDoc "tc.lhs.unify" 15 $ prettyTCM (Var i []) <+> text ":=" <+> prettyTCM u
   U . modify $ Map.insert i u
 
 -- | Compute the unification weak head normal form of a term, i.e. if it's a
@@ -169,6 +238,13 @@ flattenSubstitution s = foldr instantiate s is
 -- | Unify indices.
 unifyIndices :: FlexibleVars -> Type -> [Arg Term] -> [Arg Term] -> TCM Substitution
 unifyIndices flex a us vs = do
+  reportSDoc "tc.lhs.uni" 10 $
+    sep [ text "unifyIndices"
+	, nest 2 $ text (show flex)
+	, nest 2 $ parens (prettyTCM a)
+	, nest 2 $ brackets $ fsep $ punctuate comma $ map prettyTCM us
+	, nest 2 $ brackets $ fsep $ punctuate comma $ map prettyTCM vs
+	]
   s <- flip execStateT Map.empty . unUnify $ unifyArgs a us vs
   let n = maximum $ (-1) : flex
   return $ flattenSubstitution [ Map.lookup i s | i <- [0..n] ]
@@ -193,6 +269,12 @@ unifyIndices flex a us vs = do
     unify a u v = do
       u <- ureduce u
       v <- ureduce v
+      reportSDoc "tc.lhs.uni" 15 $
+	sep [ text "unify"
+	    , nest 2 $ parens $ prettyTCM u
+	    , nest 2 $ parens $ prettyTCM v
+	    , nest 2 $ text ":" <+> prettyTCM a
+	    ]
       case (u, v) of
 	(Var i [], v) | flexible i -> i |-> v
 	(u, Var j []) | flexible j -> j |-> u
@@ -219,6 +301,7 @@ unifyIndices flex a us vs = do
 rename :: Subst t => Permutation -> t -> t
 rename p = substs (renaming p)
 
+-- | If @permute π : [a]Γ -> [a]Δ@, then @substs (renaming π) : Term Γ -> Term Δ@
 renaming :: Permutation -> [Term]
 renaming p = gamma'
   where
@@ -227,56 +310,100 @@ renaming p = gamma'
     gamma' = gamma ++ map var [n..]
     var i  = Var i []
 
+-- | If @permute π : [a]Γ -> [a]Δ@, then @substs (renamingR π) : Term Δ -> Term Γ@
+renamingR :: Permutation -> [Term]
+renamingR p@(Perm n _) = permute (reverseP p) (map var [0..]) ++ map var [n..]
+  where
+    var i  = Var i []
+
 -- | Instantiate a telescope with a substitution. Might reorder the telescope.
 --   @instantiateTel (Γ : Tel)(σ : Γ --> Γ) = Γσ~@
-instantiateTel :: Substitution -> Telescope -> (Telescope, Permutation, [Term], [Type])
-instantiateTel s tel = (tel5, composeP p ps, substs rho' rho, itypes)
+--   Monadic only for debugging purposes.
+instantiateTel :: Substitution -> Telescope -> TCM (Telescope, Permutation, [Term], [Type])
+instantiateTel s tel = do
+
+  reportSDoc "tc.lhs.inst" 10 $ sep
+    [ text "instantiateTel "
+    , nest 2 $ fsep $ punctuate comma $ map (maybe (text "_") prettyTCM) s
+    , nest 2 $ prettyTCM tel
+    ]
+
+  -- Shrinking permutation (removing Justs) (and its complement, and reverse)
+  let ps  = Perm (size s) [ i | (i, Nothing) <- zip [0..] $ reverse s ]
+      psR = reverseP ps
+      psC = Perm (size s) [ i | (i, Just _)  <- zip [0..] $ reverse s ]
+
+  reportS "tc.lhs.inst" 10 $ unlines
+    [ "ps  = " ++ show ps
+    , "psR = " ++ show psR
+    , "psC = " ++ show psC
+    ]
+
+  -- s' : Substitution Γσ
+  let s' = rename psR s
+
+  reportSDoc "tc.lhs.inst" 15 $ nest 2 $ 
+    text "s'   =" <+> fsep (punctuate comma $ map (maybe (text "_") prettyTCM) s')
+
+  -- rho : [Tm Γσ]Γ
+  let rho = mkSubst s'
+
+  -- tel1 : [Type Γ]Γ
+  let tel1   = flattenTel tel
+      names1 = map (fst . unArg) $ telToList tel
+
+  reportSDoc "tc.lhs.inst" 15 $ nest 2 $ 
+    text "tel1 =" <+> brackets (fsep $ punctuate comma $ map prettyTCM tel1)
+
+  -- tel2 : [Type Γσ]Γ
+  let tel2 = substs rho tel1
+
+  reportSDoc "tc.lhs.inst" 15 $ nest 2 $ 
+    text "tel2 =" <+> brackets (fsep $ punctuate comma $ map prettyTCM tel2)
+
+  -- tel3 : [Type Γσ]Γσ
+  let tel3   = permute ps tel2
+      names3 = permute ps names1
+
+  reportSDoc "tc.lhs.inst" 15 $ nest 2 $ 
+    text "tel3 =" <+> brackets (fsep $ punctuate comma $ map prettyTCM tel3)
+
+  -- p : Permutation (Γσ -> Γσ~)
+  let p = reorderTel tel3
+
+  reportSLn "tc.lhs.inst" 10 $ "p   = " ++ show p
+
+  -- rho' : [Term Γσ~]Γσ
+  let rho' = renaming (reverseP p)
+
+  -- tel4 : [Type Γσ~]Γσ~
+  let tel4   = substs rho' (permute p tel3)
+      names4 = permute p names3
+
+  reportSDoc "tc.lhs.inst" 15 $ nest 2 $ 
+    text "tel4 =" <+> brackets (fsep $ punctuate comma $ map prettyTCM tel4)
+
+  -- tel5 = Γσ~
+  let tel5 = unflattenTel names4 tel4
+
+  reportSDoc "tc.lhs.inst" 15 $ nest 2 $ 
+    text "tel5 =" <+> prettyTCM tel5
+
+  -- remember the types of the instantiations
+  -- itypes : [Type Γσ~]Γ*
+  let itypes = substs rho' $ permute psC $ map unArg tel2
+
+  return (tel5, composeP p ps, substs rho' rho, itypes)
   where
-
-    -- Shrinking permutation (removing Justs) (and its complement, and reverse)
-    ps  = Perm (size s) [ i | (i, Nothing) <- zip [0..] $ reverse s ]
-    psR = reverseP ps
-    psC = Perm (size s) [ i | (i, Just _)  <- zip [0..] $ reverse s ]
-
-    -- s' : Substitution Γσ
-    s' = rename psR s
-
-    -- rho : [Tm Γσ]Γ
-    rho = mkSubst s'
-
-    -- tel1 : [Type Γ]Γ
-    tel1 = flattenTel tel
-
-    -- tel2 : [Type Γσ]Γ
-    tel2 = substs rho tel1
-
-    -- tel3 : [Type Γσ]Γσ
-    tel3 = permute ps tel2
-
-    -- p : Permutation (Γσ -> Γσ~)
-    p = reorderTel tel3
-
-    -- rho' : [Term Γσ~]Γσ
-    rho' = renaming p
-
-    -- tel4 : [Type Γσ~]Γσ~
-    tel4 = substs rho' (permute p tel3)
-
-    -- tel5 = Γσ~
-    tel5 = unflattenTel tel4
-
-    -- remember the types of the instantiations
-    -- itypes : [Type Γσ~]Γ*
-    itypes = substs rho' $ permute psC $ map unArg tel2
 
     -- Turn a Substitution ([Maybe Term]) into a substitution ([Term])
     -- (The result is an infinite list)
     mkSubst :: [Maybe Term] -> [Term]
-    mkSubst s = rho
+    mkSubst s = rho 0 s'
       where s'  = s ++ repeat Nothing
-	    rho = zipWith var [0..] s'
-	    var i Nothing  = Var i []
-	    var i (Just u) = u
+	    rho i (Nothing : s) = Var i [] : rho (i + 1) s
+	    rho i (Just u  : s) = u : rho i s
+	    rho _ []		= __IMPOSSIBLE__
 
     -- Flatten telescope: (Γ : Tel) -> [Type Γ]
     flattenTel :: Telescope -> [Arg Type]
@@ -293,18 +420,20 @@ instantiateTel s tel = (tel5, composeP p ps, substs rho' rho, itypes)
 	(i, _) `comesBefore` (_, a) = i `freeIn` a
 
     -- Unflatten: turns a flattened telescope into a proper telescope.
-    unflattenTel :: [Arg Type] -> Telescope
-    unflattenTel []	   = EmptyTel
-    unflattenTel (a : tel) = ExtendTel a' (Abs "x" tel')
+    unflattenTel :: [String] -> [Arg Type] -> Telescope
+    unflattenTel []	  []	    = EmptyTel
+    unflattenTel (x : xs) (a : tel) = ExtendTel a' (Abs x tel')
       where
-	tel' = unflattenTel tel
+	tel' = unflattenTel xs tel
 	a'   = substs rho a
 	rho  = replicate (size tel + 1) __IMPOSSIBLE__ ++ map var [0..]
 	  where var i = Var i []
+    unflattenTel [] (_ : _) = __IMPOSSIBLE__
+    unflattenTel (_ : _) [] = __IMPOSSIBLE__
 
 -- | Compute the dot pattern instantiations.
-dotPatternInsts :: [Arg A.Pattern] -> Substitution -> [Type] -> [DotPatternInst]
-dotPatternInsts ps s as = dpi (map unArg ps) s as
+dotPatternInsts :: [NamedArg A.Pattern] -> Substitution -> [Type] -> [DotPatternInst]
+dotPatternInsts ps s as = dpi (map (namedThing . unArg) ps) (reverse s) as
   where
     dpi []	 (_ : _)       _       = __IMPOSSIBLE__
     dpi (_ : _)	 []	       _       = __IMPOSSIBLE__
@@ -316,4 +445,267 @@ dotPatternInsts ps s as = dpi (map unArg ps) s as
 	A.DotP _ e    -> DPI e u a : dpi ps s as
 	A.ImplicitP _ -> dpi ps s as
 	_	    -> __IMPOSSIBLE__
+
+-- | Check if a problem is solved. That is, if the patterns are all variables.
+isSolvedProblem :: Problem -> Bool
+isSolvedProblem = all (isVar . namedThing . unArg) . problemInPat
+  where
+    isVar (A.VarP _)	  = True
+    isVar (A.WildP _)	  = True
+    isVar (A.ImplicitP _) = True
+    isVar (A.AbsurdP _)	  = True
+    isVar _		  = False
+
+-- | Check that a dot pattern matches it's instantiation.
+checkDotPattern :: DotPatternInst -> TCM ()
+checkDotPattern (DPI e v a) = do
+  reportSDoc "tc.lhs.dot" 15 $
+    sep [ text "checking dot pattern"
+	, nest 2 $ prettyA e
+	, nest 2 $ text "=" <+> prettyTCM v
+	, nest 2 $ text ":" <+> prettyTCM a
+	]
+  u <- checkExpr e a
+  noConstraints $ equalTerm a u v
+
+-- | Bind the variables in a left hand side. Precondition: the patterns should
+--   all be 'A.VarP', 'A.WildP', or 'A.ImplicitP' and the telescope should have
+--   the same size as the pattern list.
+bindLHSVars :: [NamedArg A.Pattern] -> Telescope -> TCM a -> TCM a
+bindLHSVars []	     (ExtendTel _ _)   _   = __IMPOSSIBLE__
+bindLHSVars (_ : _)   EmptyTel	       _   = __IMPOSSIBLE__
+bindLHSVars []	      EmptyTel	       ret = ret
+bindLHSVars (p : ps) (ExtendTel a tel) ret =
+  case namedThing $ unArg p of
+    A.VarP x	  -> addCtx x a $ bindLHSVars ps (absBody tel) ret
+    A.WildP _	  -> bindDummy (absName tel)
+    A.ImplicitP _ -> bindDummy (absName tel)
+    A.AbsurdP _	  -> do
+      isEmptyType $ unArg a
+      bindDummy (absName tel)
+    _		  -> __IMPOSSIBLE__
+    where
+      name "_" = freshNoName_
+      name s   = freshName_ ("_" ++ s)
+      bindDummy s = do
+	x <- name s
+	addCtx x a $ bindLHSVars ps (absBody tel) ret
+	
+
+-- | Check a LHS. Main function.
+checkLeftHandSide :: [NamedArg A.Pattern] -> Type ->
+		     ([Term] -> [String] -> [Arg Pattern] -> Type -> TCM a) -> TCM a
+checkLeftHandSide ps a ret = do
+  a <- normalise a
+  let TelV tel0 b0 = telView a
+  ps <- insertImplicitPatterns ps tel0
+  unless (size tel0 >= size ps) $ fail "too many arguments in lhs" -- TODO
+  let (as, bs) = splitAt (size ps) $ telToList tel0
+      tel      = telFromList as
+      b	       = telePi (telFromList bs) b0
+
+      -- internal patterns start as all variables
+      ips      = map (fmap (VarP . fst)) as
+
+      problem  = Problem ps (idP $ size ps, ips) tel
+
+  reportSDoc "tc.lhs.top" 10 $
+    vcat [ text "checking lhs:"
+	 , nest 2 $ vcat
+	   [ text "ps    =" <+> fsep (map prettyA ps)
+	   , text "a     =" <+> prettyTCM a
+	   , text "a'    =" <+> prettyTCM (telePi tel0 b0)
+	   , text "tel0  =" <+> prettyTCM tel0
+	   , text "b0    =" <+> prettyTCM b0
+	   , text "tel   =" <+> prettyTCM tel
+	   , text "b	 =" <+> addCtxTel tel (prettyTCM b)
+	   ]
+	 ]
+
+  (Problem ps (perm, qs) tel, b, dpi) <- checkLHS problem b []
+  reportSDoc "tc.lhs.top" 10 $
+    vcat [ text "checked lhs:"
+	 , nest 2 $ vcat
+	   [ text "ps    = " <+> fsep (map prettyA ps)
+	   , text "perm  = " <+> text (show perm)
+	   , text "tel   = " <+> prettyTCM tel
+	   , text "dpi	 = " <+> brackets (fsep $ punctuate comma $ map prettyTCM dpi)
+	   ]
+         ]
+  bindLHSVars ps tel $ do
+    reportSDoc "tc.lhs.top" 10 $ nest 2 $ text "type  = " <+> prettyTCM b
+    mapM_ checkDotPattern dpi
+    let rho = renamingR perm -- I'm not certain about this...
+	Perm n _ = perm
+	xs  = replicate n "z" -- map (fst . unArg) $ telToList tel
+    ret rho xs qs b
+  where
+    checkLHS :: Problem -> Type -> [DotPatternInst] -> TCM (Problem, Type, [DotPatternInst])
+    checkLHS problem b dpi
+      | isSolvedProblem problem	= do
+	problem <- insertImplicitProblem problem -- inserting implicit patterns preserve solvedness
+	return (problem, b, dpi)
+      | otherwise		= do
+	sp <- splitProblem =<< insertImplicitProblem problem
+	case sp of
+	  Left NothingToSplit -> fail "failed to split problem" -- TODO: error msg
+	  Left (SplitPanic err) -> fail $ "split panic: " ++ err
+	  Left (TooManyArguments ps) -> fail $ "too many arguments: " ++ show (length ps)
+	  Right (Split p0 (Arg h
+		  ( Focus { focusCon	  = c
+			  , focusConArgs  = qs
+			  , focusOutPat	  = iph
+			  , focusHoleIx	  = hix
+			  , focusDatatype = d
+			  , focusParams	  = vs
+			  , focusIndices  = ws
+			  }
+		  )) p1
+		) -> do
+
+	    let delta1 = problemTel p0
+
+	    reportSDoc "tc.lhs.top" 10 $ sep
+	      [ text "checking lhs"
+	      , nest 2 $ text "tel =" <+> prettyTCM (problemTel problem)
+	      , nest 2 $ text "b   =" <+> addCtxTel (problemTel problem) (prettyTCM b)
+	      ]
+
+	    reportSDoc "tc.lhs.split" 15 $ sep
+	      [ text "split problem"
+	      , nest 2 $ vcat
+		[ text "delta1 = " <+> prettyTCM delta1
+		, text "delta2 = " <+> prettyTCM (problemTel $ absBody p1)
+		]
+	      ]
+
+	    -- Lookup the type of the constructor at the given parameters
+	    a <- normalise =<< (`piApply` vs) . defType <$> getConstInfo c
+
+	    -- It will end in an application of the datatype
+	    let TelV gamma (El _ (Def d us)) = telView a
+
+	    -- Insert implicit patterns
+	    qs' <- insertImplicitPatterns qs gamma
+
+	    -- Get the type of the datatype.
+	    da <- normalise =<< (`piApply` vs) . defType <$> getConstInfo d
+
+	    -- Compute the flexible variables
+	    let flex = flexiblePatterns (problemInPat p0 ++ qs')
+
+	    reportSDoc "tc.lhs.top" 15 $ addCtxTel delta1 $
+	      sep [ text "preparing to unify"
+		  , nest 2 $ vcat
+		    [ text "c	  =" <+> prettyTCM c <+> text ":" <+> prettyTCM a
+		    , text "d	  =" <+> prettyTCM d <+> text ":" <+> prettyTCM da
+		    , text "gamma =" <+> prettyTCM gamma
+		    , text "vs	  =" <+> brackets (fsep $ punctuate comma $ map prettyTCM vs)
+		    , text "ws	  =" <+> brackets (fsep $ punctuate comma $ map prettyTCM ws)
+		    ]
+		  ]
+
+	    -- Unify constructor target and given type (in Δ₁Γ)
+	    sub0 <- addCtxTel (delta1 `abstract` gamma) $
+		    unifyIndices flex da (drop (size vs) us) (raise (size gamma) ws)
+
+	    -- We should subsitute c ys for x in Δ₂ and b
+	    let ys     = reverse [ Arg h (Var i []) | (i, Arg h _) <- zip [0..] $ reverse (telToList gamma) ]
+		delta2 = absApp (raise (size gamma) $ fmap problemTel p1) (Con c ys)
+		rho0 = [ var i | i <- [0..size delta2 - 1] ]
+		    ++ [ raise (size delta2) $ Con c ys ]
+		    ++ [ var i | i <- [size delta2 + size gamma ..] ]
+		  where
+		    var i = Var i []
+		b0     = substs rho0 b
+		dpi0   = substs rho0 dpi
+
+	    reportSDoc "tc.lhs.top" 15 $ addCtxTel (delta1 `abstract` gamma) $ nest 2 $ vcat
+	      [ text "delta2 =" <+> prettyTCM delta2
+	      , text "sub0   =" <+> brackets (fsep $ punctuate comma $ map (maybe (text "_") prettyTCM) sub0)
+	      ]
+	    reportSDoc "tc.lhs.top" 15 $ addCtxTel (delta1 `abstract` gamma `abstract` delta2) $
+	      nest 2 $ vcat
+		[ text "b0 =" <+> prettyTCM b0
+		, text "dpi0 = " <+> brackets (fsep $ punctuate comma $ map prettyTCM dpi0)
+		]
+
+	    -- Plug the hole in the out pattern with c ys
+	    let ysp = map (fmap (VarP . fst)) $ telToList gamma
+		ip  = plugHole (ConP c ysp) iph
+
+	    -- Δ₁Γ ⊢ sub0, we need something in Δ₁ΓΔ₂
+	    -- Also needs to be padded with Nothing's to have the right length.
+	    let pad n xs x = xs ++ replicate (max 0 $ n - size xs) x
+		newTel = problemTel p0 `abstract` (gamma `abstract` delta2)
+		sub    = replicate (size delta2) Nothing ++
+			 pad (size delta1 + size gamma) (raise (size delta2) sub0) Nothing
+
+	    reportSDoc "tc.lhs.top" 15 $ nest 2 $ vcat
+	      [ text "newTel =" <+> prettyTCM newTel
+	      , addCtxTel newTel $ text "sub =" <+> brackets (fsep $ punctuate comma $ map (maybe (text "_") prettyTCM) sub)
+	      ]
+
+	    -- Instantiate the new telescope with the given substitution
+	    (delta', perm, rho, instTypes) <- instantiateTel sub newTel
+
+	    reportSDoc "tc.lhs.inst" 12 $
+	      vcat [ sep [ text "instantiateTel"
+			 , nest 4 $ brackets $ fsep $ punctuate comma $ map (maybe (text "_") prettyTCM) sub
+			 , nest 4 $ prettyTCM newTel
+			 ]
+		   , nest 2 $ text "delta' =" <+> prettyTCM delta'
+		   , nest 2 $ text "perm   =" <+> text (show perm)
+		   , nest 2 $ text "itypes =" <+> fsep (punctuate comma $ map prettyTCM instTypes)
+		   ]
+
+	    -- Compute the new dot pattern instantiations
+	    let ps0'   = problemInPat p0 ++ qs' ++ problemInPat (absBody p1)
+		newDpi = dotPatternInsts ps0' (substs rho sub) instTypes
+
+	    reportSDoc "tc.lhs.top" 15 $ nest 2 $ vcat
+	      [ text "subst rho sub =" <+> brackets (fsep $ punctuate comma $ map (maybe (text "_") prettyTCM) (substs rho sub))
+	      , text "ps0' =" <+> brackets (fsep $ punctuate comma $ map prettyA ps0')
+	      ]
+
+	    -- The final dpis are the new ones plus the old ones substituted by ρ
+	    let dpi' = substs rho dpi0 ++ newDpi
+
+	    reportSDoc "tc.lhs.top" 15 $ nest 2 $
+	      text "dpi' = " <+> brackets (fsep $ punctuate comma $ map prettyTCM dpi')
+
+	    -- Apply the substitution to the type
+	    let b'   = substs rho b0
+
+	    reportSDoc "tc.lhs.inst" 15 $
+	      nest 2 $ text "ps0 = " <+> brackets (fsep $ punctuate comma $ map prettyA ps0')
+
+	    -- Permute the in patterns
+	    let ps'  = permute perm ps0'
+
+	    -- Compute the new permutation of the out patterns. This is the composition of
+	    -- the new permutation with the expansion of the old permutation to
+	    -- reflect the split.
+	    let perm'  = expandP hix (size gamma) $ fst (problemOutPat problem)
+		iperm' = perm `composeP` perm'
+
+	    -- Construct the new problem
+	    let problem' = Problem ps' (iperm', ip) delta'
+
+	    reportSDoc "tc.lhs.top" 12 $ sep
+	      [ text "new problem"
+	      , nest 2 $ vcat
+		[ text "ps'    = " <+> fsep (map prettyA ps')
+		, text "delta' = " <+> prettyTCM delta'
+		, text "b'     = " <+> prettyTCM b'
+		]
+	      ]
+
+	    reportSDoc "tc.lhs.top" 14 $ nest 2 $ vcat
+	      [ text "perm'  =" <+> text (show perm')
+	      , text "iperm' =" <+> text (show iperm')
+	      ]
+
+	    -- Continue splitting
+	    checkLHS problem' b' dpi'
 
