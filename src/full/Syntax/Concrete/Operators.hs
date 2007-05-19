@@ -57,7 +57,7 @@ partsInScope = do
     where
 	parts (NoName _ _)   = []
 	parts x@(Name _ [_]) = [x]
-	parts x@(Name _ xs ) = x : [ Name noRange [i] | i@Id{} <- xs ]
+	parts x@(Name _ xs ) = x : [ Name r [i] | i@(Id r _) <- xs ]
 
 -- | Compute all unqualified defined names in scope and their fixities.
 getDefinedNames :: [KindOfName] -> ScopeM [(Name, Fixity)]
@@ -136,7 +136,7 @@ buildParser r use = do
     where
 	parts (NoName _ _) = []
 	parts (Name _ [_]) = []
-	parts (Name _ xs ) = [ Name noRange [i] | i@Id{} <- xs ]
+	parts (Name _ xs ) = [ Name r [i] | i@(Id r _) <- xs ]
 
 	level = fixityLevel . snd
 

@@ -49,6 +49,11 @@ qualify :: QName -> Name -> QName
 qualify (QName m) x	= Qual m (QName x)
 qualify (Qual m m') x	= Qual m $ qualify m' x
 
+-- | @unqualify A.B.x == x@
+unqualify :: QName -> Name
+unqualify (QName x)  = x
+unqualify (Qual _ x) = unqualify x
+
 -- Define equality on @Name@ to ignore range so same names in different
 --     locations are equal.
 --

@@ -136,11 +136,15 @@ resolveName x = do
   let vars = map (C.QName -*- id) $ scopeLocals scope
       defs = allNamesInScope . mergeScopes . scopeStack $ scope
   case lookup x vars of
-    Just y  -> return $ VarName $ setRange (getRange x) y
+    Just y  -> return $ VarName $ y { nameConcrete = unqualify x }
     Nothing -> case Map.lookup x defs of
-      Just [d] -> return $ DefinedName $ setRange (getRange x) d
+      Just [d] -> return $ DefinedName $ updateConcreteName d (unqualify x)
       Just ds  -> typeError $ AmbiguousName x (map anameName ds)
       Nothing  -> return UnknownName
+  where
+  updateConcreteName :: AbstractName -> C.Name -> AbstractName
+  updateConcreteName d@(AbsName { anameName = an@(A.QName { qnameName = qn }) }) x =
+    d { anameName = an { qnameName = qn { nameConcrete = x } } }
 
 -- | Look up a module in the scope.
 resolveModule :: C.QName -> ScopeM AbstractModule
