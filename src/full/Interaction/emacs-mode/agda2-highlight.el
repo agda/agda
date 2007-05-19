@@ -19,13 +19,6 @@
   :require 'font-lock
   :group 'agda2-highlight)
 
-(defcustom agda2-highlight-string-face
-  font-lock-string-face
-  "*The face used for strings."
-  :type 'face
-  :require 'font-lock
-  :group 'agda2-highlight)
-
 (defcustom agda2-highlight-keyword-face
   font-lock-keyword-face
   "*The face used for keywords."
@@ -33,23 +26,9 @@
   :require 'font-lock
   :group 'agda2-highlight)
 
-(defcustom agda2-highlight-function-face
-  font-lock-function-name-face
-  "*The face used for functions."
-  :type 'face
-  :require 'font-lock
-  :group 'agda2-highlight)
-
-(defcustom agda2-highlight-bound-variable-face
-  font-lock-variable-name-face
-  "*The face used for bound variables."
-  :type 'face
-  :require 'font-lock
-  :group 'agda2-highlight)
-
-(defcustom agda2-highlight-type-face
-  font-lock-type-face
-  "*The face used for types."
+(defcustom agda2-highlight-string-face
+  font-lock-string-face
+  "*The face used for strings."
   :type 'face
   :require 'font-lock
   :group 'agda2-highlight)
@@ -61,14 +40,54 @@
   :require 'font-lock
   :group 'agda2-highlight)
 
+(defcustom agda2-highlight-bound-variable-face
+  font-lock-variable-name-face
+  "*The face used for bound variables."
+  :type 'face
+  :require 'font-lock
+  :group 'agda2-highlight)
+
 (defface agda2-highlight-constructor-face
   '((t (:foreground "green4")))
   "The face used for constructors."
   :group 'agda2-highlight)
 
+(defcustom agda2-highlight-datatype-face
+  font-lock-type-face
+  "*The face used for datatypes."
+  :type 'face
+  :require 'font-lock
+  :group 'agda2-highlight)
+
+(defface agda2-highlight-field-face
+  '((t (:foreground "HotPink2")))
+  "The face used for record fields."
+  :group 'agda2-highlight)
+
+(defcustom agda2-highlight-function-face
+  font-lock-function-name-face
+  "*The face used for functions."
+  :type 'face
+  :require 'font-lock
+  :group 'agda2-highlight)
+
 (defface agda2-highlight-postulate-face
   '((t (:foreground "dark magenta")))
   "The face used for postulates."
+  :group 'agda2-highlight)
+
+(defcustom agda2-highlight-primitive-face
+  font-lock-function-name-face
+  "The face used for primitive functions."
+  :type 'face
+  :require 'font-lock
+  :group 'agda2-highlight)
+
+(defcustom agda2-highlight-record-face
+  font-lock-type-face
+  "*The face used for record types."
+  :type 'face
+  :require 'font-lock
   :group 'agda2-highlight)
 
 (defface agda2-highlight-dotted-face
@@ -85,14 +104,17 @@
   ; The faces that are pointers to other faces need to be evaluated,
   ; hence the splices.
   `((comment     . ,agda2-highlight-comment-face)
-    (string      . ,agda2-highlight-string-face)
     (keyword     . ,agda2-highlight-keyword-face)
-    (function    . ,agda2-highlight-function-face)
-    (bound       . ,agda2-highlight-bound-variable-face)
-    (type        . ,agda2-highlight-type-face)
+    (string      . ,agda2-highlight-string-face)
     (number      . ,agda2-highlight-number-face)
+    (bound       . ,agda2-highlight-bound-variable-face)
     (constructor . agda2-highlight-constructor-face)
+    (datatype    . ,agda2-highlight-datatype-face)
+    (field       . agda2-highlight-field-face)
+    (function    . ,agda2-highlight-function-face)
     (postulate   . agda2-highlight-postulate-face)
+    (primitive   . ,agda2-highlight-primitive-face)
+    (record      . ,agda2-highlight-record-face)
     (dotted      . agda2-highlight-dotted-face)
     (operator    . agda2-highlight-operator-face))
   "An association list mapping from a code aspect to the face used when
@@ -103,14 +125,17 @@ The aspects currently recognised are the following:
 `bound'       Bound variables.
 `comment'     Comments.
 `constructor' Constructors.
+`datatype'    Data types.
 `dotted'      Dotted patterns.
+`field'       Record fields.
 `function'    Functions.
 `keyword'     Keywords.
 `number'      Numbers.
 `operator'    Operators.
 `postulate'   Postulates.
+`primitive'   Primitive functions.
+`record'      Record types.
 `string'      Strings.
-`type'        Types.
 ")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

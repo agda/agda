@@ -15,19 +15,22 @@ import Test.QuickCheck
 ------------------------------------------------------------------------
 -- Read/show functions
 
--- | Shows an aspect in an Emacsy way.
+-- | Converts the 'aspect' and 'dotted' fields to atoms readable by
+-- the Emacs interface.
 
-showAspect :: Aspect -> String
-showAspect = map toLower . show
+toAtoms :: MetaInfo -> [String]
+toAtoms m = dottedAtom ++ toAtoms' (aspect m)
+  where
+  toAtom x = map toLower (show x)
 
--- Left inverse of 'showAspect'.
+  dottedAtom | dotted m  = ["dotted"]
+             | otherwise = []
 
-readAspect :: ReadS Aspect
-readAspect cs = do
-  (c : cs', rest) <- lex cs
-  reads (toUpper c : cs' ++ rest)
-
-propAspect a = readAspect (showAspect a) == [(a, "")]
+  toAtoms' Nothing               = []
+  toAtoms' (Just (Name kind op)) = [toAtom kind] ++ opAtom
+    where opAtom | op        = ["operator"]
+                 | otherwise = []
+  toAtoms' (Just a) = [toAtom a]
 
 -- | Shows meta information in such a way that it can easily be read
 -- by Emacs.
@@ -39,7 +42,7 @@ showMetaInfo (r, m) =
   ++ " "
   ++ show (to r)
   ++ " '("
-  ++ concat (intersperse " " (map showAspect (aspects m)))
+  ++ concat (intersperse " " (toAtoms m))
   ++ ")"
   ++ (maybe "" ((" " ++) . quote) $ note m)
   ++ ")"
@@ -69,10 +72,10 @@ writeSyntaxInfo path file = writeFile infoFile $ showFile file
 ------------------------------------------------------------------------
 -- All tests
 
--- TODO: One could check that the other show functions are invertible.
+-- TODO: One could check that the show functions are invertible.
 
 -- | All the properties.
 
 tests :: IO ()
 tests = do
-  quickCheck propAspect
+  return ()

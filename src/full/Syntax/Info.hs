@@ -45,6 +45,7 @@ data ExprInfo
 	| ExprSource Range (Precedence -> Expr)
 	    -- ^ Even if we store the original expression we have to know
 	    --	 whether to put parenthesis around it.
+  deriving (Typeable, Data)
 
 instance HasRange ExprInfo where
     getRange (ExprRange  r  ) = r
@@ -60,6 +61,7 @@ data ModuleInfo =
 		   , minfoAbstract :: IsAbstract
 		   , minfoSource   :: DeclSource
 		   }
+  deriving (Typeable, Data)
 
 mkRangedModuleInfo :: Access -> IsAbstract -> Range -> ModuleInfo
 mkRangedModuleInfo p a r = ModuleInfo p a (DeclRange r)
@@ -76,6 +78,7 @@ instance HasRange ModuleInfo where
 
 data LetInfo = LetRange Range
 	     | LetSource [Declaration]
+  deriving (Typeable, Data)
 
 instance HasRange LetInfo where
     getRange (LetRange r)   = r
@@ -91,6 +94,7 @@ data DefInfo =
 		, defAbstract :: IsAbstract
 		, defInfo     :: DeclInfo
 		}
+  deriving (Typeable, Data)
 
 mkRangedDefInfo :: Name -> Fixity -> Access -> IsAbstract -> Range -> DefInfo
 mkRangedDefInfo x f a ab r = DefInfo f a ab (DeclInfo x $ DeclRange r)
@@ -109,12 +113,12 @@ data DeclInfo =
 	DeclInfo { declName   :: Name
 		 , declSource :: DeclSource
 		 }
-	deriving (Eq)
+  deriving (Eq, Typeable, Data)
 
 data DeclSource
 	= DeclRange  Range
 	| DeclSource [Declaration]
-	deriving (Eq)
+  deriving (Eq, Typeable, Data)
 
 instance HasRange DeclInfo where
     getRange = getRange . declSource
@@ -129,6 +133,7 @@ instance HasRange DeclSource where
  --------------------------------------------------------------------------}
 
 data LHSInfo = LHSSource LHS
+  deriving (Typeable, Data)
 
 instance HasRange LHSInfo where
     getRange (LHSSource lhs) = getRange lhs
@@ -138,8 +143,12 @@ instance HasRange LHSInfo where
     Pattern information
  --------------------------------------------------------------------------}
 
+-- TODO: Is it safe to add Typeable/Data here? PatInfo contains a
+-- function space.
+
 data PatInfo = PatRange Range
 	     | PatSource Range (Precedence -> Pattern)
+  deriving (Typeable, Data)
 
 instance HasRange PatInfo where
     getRange (PatRange r)  = r

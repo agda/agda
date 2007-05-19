@@ -2,11 +2,15 @@
 
 module Interaction.Highlighting.Precise
   ( Aspect(..)
+  , NameKind(..)
   , MetaInfo(..)
   , File(..)
   , Range(..)
   , rangeInvariant
   , overlapping
+  , empty
+  , singleton
+  , several
   , compress
   , tests
   ) where
@@ -17,50 +21,57 @@ import Utils.String
 import Utils.List hiding (tests)
 import Data.List
 import Data.Monoid
+import Control.Monad
 import Test.QuickCheck
 import Data.Map (Map)
 import qualified Data.Map as Map
 
 ------------------------------------------------------------------------
--- Types
+-- Files
 
 -- | Various syntactic aspects of the code.
 
 data Aspect
-  = Bound        -- ^ Bound variable.
-  | Comment
-  | Constructor
-  | Dotted       -- ^ Dotted pattern.
-  | Function
+  = Comment
   | Keyword
-  | Number
-  | Operator
-  | Postulate
   | String
-  | Type
-    deriving (Eq, Ord, Read, Show, Enum, Bounded)
+  | Number
+  | Name NameKind Bool -- ^ Is the name an operator part?
+    deriving (Eq, Show)
+
+data NameKind
+  = Bound        -- ^ Bound variable.
+  | Constructor
+  | Datatype
+  | Field        -- ^ Record field.
+  | Function
+  | Postulate
+  | Primitive    -- ^ Primitive.
+  | Record       -- ^ Record type.
+    deriving (Eq, Show, Enum, Bounded)
 
 -- | Meta information which can be associated with a
 -- character/character range.
 
 data MetaInfo = MetaInfo
-  { aspects  :: [Aspect]
-    -- ^ Note that some aspects may not combine well in the user
-    -- interface, depending on how the various aspects are
-    -- represented. It is probably a good idea to document here which
-    -- the possible combinations are, so that the UI designer can take
-    -- them into account.
-  , note     :: Maybe String
+  { aspect :: Maybe Aspect
+  , dotted :: Bool
+    -- ^ Is the range part of a dotted pattern?
+  , note   :: Maybe String
     -- ^ This note, if present, can be displayed as a tool-tip or
     -- something like that. It should contain useful information about
     -- the range (like the module containing a certain identifier, or
     -- the fixity of an operator).
   }
-  deriving Show
+  deriving (Eq, Show)
 
-instance Eq MetaInfo where
-  (==) = ((==) `on` note) .&&. ((==) `on` (sort . aspects))
-    where f1 .&&. f2 = \x y -> f1 x y && f2 x y
+-- | 'MetaInfo' template.
+
+empty :: MetaInfo
+empty = MetaInfo { aspect = Nothing
+                 , dotted = False
+                 , note   = Nothing
+                 }
 
 -- | A 'File' is a mapping from file positions to meta information.
 --
@@ -70,38 +81,7 @@ newtype File = File { mapping :: Map Integer MetaInfo }
   deriving (Eq, Show)
 
 ------------------------------------------------------------------------
--- Merging
-
--- | Merges meta information.
-
-mergeMetaInfo :: MetaInfo -> MetaInfo -> MetaInfo
-mergeMetaInfo m1 m2 = MetaInfo
-  { aspects = nub $ ((++) `on` aspects) m1 m2
-  , note = case (note m1, note m2) of
-      (Just n1, Just n2) -> Just $
-         if n1 == n2 then n1
-                     else addFinalNewLine n1 ++ "----\n" ++ n2
-      (Just n1, Nothing) -> Just n1
-      (Nothing, Just n2) -> Just n2
-      (Nothing, Nothing) -> Nothing
-  }
-
-instance Monoid MetaInfo where
-  mempty  = MetaInfo { aspects = [], note = Nothing }
-  mappend = mergeMetaInfo
-
--- | Merges files.
-
-merge :: File -> File -> File
-merge f1 f2 =
-  File { mapping = (Map.unionWith mappend `on` mapping) f1 f2 }
-
-instance Monoid File where
-  mempty  = File { mapping = Map.empty }
-  mappend = merge
-
-------------------------------------------------------------------------
--- Compression
+-- Ranges
 
 -- | Character ranges. The first character in the file has position 1.
 -- Note that the 'to' position is considered to be outside of the
@@ -125,6 +105,61 @@ overlapping :: Range -> Range -> Bool
 overlapping r1 r2 = not $
   to r1 <= from r2 || to r2 <= from r1
 
+-- | Converts a range to a list of positions.
+
+toList :: Range -> [Integer]
+toList r = [from r .. to r - 1]
+
+------------------------------------------------------------------------
+-- Creation
+
+-- | @'singleton' r m@ is a file whose positions are those in @r@, and
+-- in which every position is associated with @m@.
+
+singleton :: Range -> MetaInfo -> File
+singleton r m = File {
+ mapping = Map.fromAscList [ (p, m) | p <- [from r .. to r - 1] ] }
+
+prop_singleton r m =
+  compress (singleton r m) ==
+    if null (toList r) then [] else [(r, m)]
+
+-- | Like 'singleton', but with several ranges instead of only one.
+
+several :: [Range] -> MetaInfo -> File
+several rs m = mconcat $ map (\r -> singleton r m) rs
+
+------------------------------------------------------------------------
+-- Merging
+
+-- | Merges meta information.
+
+mergeMetaInfo :: MetaInfo -> MetaInfo -> MetaInfo
+mergeMetaInfo m1 m2 = MetaInfo
+  { aspect = (mplus `on` aspect) m1 m2
+  , dotted = ((||)  `on` dotted) m1 m2
+  , note = case (note m1, note m2) of
+      (Just n1, Just n2) -> Just $
+         if n1 == n2 then n1
+                     else addFinalNewLine n1 ++ "----\n" ++ n2
+      (Just n1, Nothing) -> Just n1
+      (Nothing, Just n2) -> Just n2
+      (Nothing, Nothing) -> Nothing
+  }
+
+-- | Merges files.
+
+merge :: File -> File -> File
+merge f1 f2 =
+  File { mapping = (Map.unionWith mergeMetaInfo `on` mapping) f1 f2 }
+
+instance Monoid File where
+  mempty  = File { mapping = Map.empty }
+  mappend = merge
+
+------------------------------------------------------------------------
+-- Compression
+
 -- | Compresses a file by merging consecutive positions with equal
 -- meta information into longer ranges.
 
@@ -146,8 +181,7 @@ prop_compress f =
   where
     c = compress f
 
-    toFile = File . Map.fromAscList . concatMap split
-    split (r, m) = [ (p, m) | p <- [from r .. to r - 1] ]
+    toFile = mconcat . map (uncurry singleton)
 
     allPairs []       = []
     allPairs (x : xs) = map ((,) x) xs ++ allPairs xs
@@ -156,20 +190,34 @@ prop_compress f =
 -- Generators
 
 instance Arbitrary Aspect where
+  arbitrary =
+    frequency [ (2, elements [Comment, Keyword, String, Number])
+              , (1, liftM2 Name arbitrary arbitrary)
+              ]
+
+  coarbitrary Comment     = variant 0
+  coarbitrary Keyword     = variant 1
+  coarbitrary String      = variant 2
+  coarbitrary Number      = variant 3
+  coarbitrary (Name nk b) = variant 4 . coarbitrary nk . coarbitrary b
+
+instance Arbitrary NameKind where
   arbitrary   = elements [minBound .. maxBound]
   coarbitrary = coarbitrary . fromEnum
 
 instance Arbitrary MetaInfo where
   arbitrary = do
-    aspects <- list arbitrary
-    note <- frequency [ (1, return Nothing)
-                      , (9, fmap Just $ list $
-                              elements "abcdefABCDEF\"'@()åäö\n")
-                      ]
-    return (MetaInfo { aspects = aspects, note = note })
-  coarbitrary (MetaInfo asps Nothing)  = variant 0 . coarbitrary asps
-  coarbitrary (MetaInfo asps (Just n)) =
-    variant 1 . coarbitrary asps . coarbitrary (map fromEnum n)
+    aspect <- maybeGen arbitrary
+    dotted <- arbitrary
+    note   <- maybeGen (list $ elements "abcdefABCDEF\"'@()åäö\n")
+    return (MetaInfo { aspect = aspect, dotted = dotted, note = note })
+  coarbitrary (MetaInfo aspect dotted note) =
+    maybe' coarbitrary aspect .
+    coarbitrary dotted .
+    maybe' (coarbitrary . map fromEnum) note
+    where
+    maybe' f Nothing  = variant 0
+    maybe' f (Just x) = variant 1 . f x
 
 instance Arbitrary File where
   arbitrary = fmap (File . Map.fromList) $ list arbitrary
@@ -189,4 +237,5 @@ instance Arbitrary Range where
 tests :: IO ()
 tests = do
   quickCheck rangeInvariant
+  quickCheck prop_singleton
   quickCheck prop_compress

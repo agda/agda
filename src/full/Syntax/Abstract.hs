@@ -1,3 +1,4 @@
+{-# OPTIONS -fglasgow-exts #-}
 
 {-| The abstract syntax. This is what you get after desugaring and scope
     analysis of the concrete syntax. The type checker works on abstract syntax,
@@ -13,6 +14,7 @@ import Control.Applicative
 import Data.Foldable
 import Data.Traversable
 import Data.Map (Map)
+import Data.Generics (Typeable, Data)
 
 import qualified Syntax.Concrete as C
 import Syntax.Info
@@ -38,6 +40,7 @@ data Expr
         | Let  ExprInfo [LetBinding] Expr    -- ^
 	| Rec  ExprInfo [(C.Name, Expr)]     -- ^ record construction
 	| ScopedExpr ScopeInfo Expr	     -- ^ scope annotation
+  deriving (Typeable, Data)
 
 data Declaration
 	= Axiom      DefInfo QName Expr				-- ^ postulate
@@ -48,11 +51,14 @@ data Declaration
 	| Import     ModuleInfo ModuleName
 	| Pragma     Range	Pragma
 	| ScopedDecl ScopeInfo [Declaration]  -- ^ scope annotation
+  deriving (Typeable, Data)
 
 data Pragma = OptionsPragma [String]
 	    | BuiltinPragma String Expr
+  deriving (Typeable, Data)
 
 data LetBinding = LetBind LetInfo Name Expr Expr    -- ^ LetBind info name type defn
+  deriving (Typeable, Data)
 
 -- | A definition without its type signature.
 data Definition
@@ -60,6 +66,7 @@ data Definition
 	| DataDef    DefInfo QName [LamBinding] [Constructor]
 	    -- ^ the 'LamBinding's are 'DomainFree' and binds the parameters of the datatype.
 	| RecDef     DefInfo QName [LamBinding] [Field]
+  deriving (Typeable, Data)
 
 -- | Only 'Axiom's.
 type TypeSignature  = Declaration
@@ -70,10 +77,12 @@ type Field	    = TypeSignature
 data LamBinding
 	= DomainFree Hiding Name    -- ^ . @x@ or @{x}@
 	| DomainFull TypedBindings  -- ^ . @(xs:e)@ or @{xs:e}@
+  deriving (Typeable, Data)
 
 -- | Typed bindings with hiding information.
 data TypedBindings = TypedBindings Range Hiding [TypedBinding]
 	    -- ^ . @(xs:e;..;ys:e')@ or @{xs:e;..;ys:e'}@
+  deriving (Typeable, Data)
 
 -- | A typed binding. Appears in dependent function spaces, typed lambdas, and
 --   telescopes. I might be tempting to simplify this to only bind a single
@@ -83,6 +92,7 @@ data TypedBindings = TypedBindings Range Hiding [TypedBinding]
 --   you have to.
 data TypedBinding = TBind Range [Name] Expr
 		  | TNoBind Expr
+  deriving (Typeable, Data)
 
 type Telescope	= [TypedBindings]
 
@@ -90,10 +100,13 @@ type Telescope	= [TypedBindings]
 --   @let@. It's not obvious how to remember that the @let@ was really a
 --   @where@ clause though, so for the time being we keep it here.
 data Clause	= Clause LHS RHS [Declaration]
+  deriving (Typeable, Data)
 data RHS	= RHS Expr
 		| AbsurdRHS
+  deriving (Typeable, Data)
 
 data LHS	= LHS LHSInfo QName [NamedArg Pattern]
+  deriving (Typeable, Data)
 
 -- | Parameterised over the type of dot patterns.
 data Pattern' e	= VarP Name
@@ -105,6 +118,7 @@ data Pattern' e	= VarP Name
 		| AbsurdP PatInfo
 		| LitP Literal
 		| ImplicitP PatInfo	-- ^ generated at type checking for implicit arguments
+  deriving (Typeable, Data)
 
 type Pattern = Pattern' Expr
 
