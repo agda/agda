@@ -215,7 +215,7 @@ transCLetDef (CLetDefComment cs)
  | not ("--#include" `isPrefixOf` cs) = []
  | otherwise = maybe []
                      (\ md -> [Import noRange
- 				    (QName (Name noRange [Id md]))
+ 				    (QName (Name noRange [Id noRange md]))
  				    Nothing
 				    DontOpen
  				    (ImportDirective noRange (Hiding []) [] False) ])
@@ -281,7 +281,7 @@ transCDefn dn = notyet ("transCDefn (" ++ show dn ++")")
 -- Utilities
 
 mkInfixName :: Id -> Name
-mkInfixName i = Name noRange [Hole,Id (getIdString i),Hole]
+mkInfixName i = Name noRange [Hole,Id noRange (getIdString i),Hole]
 
 ctype2typesig :: InfixP -> Id -> CArgs -> CType -> Declaration
 ctype2typesig flg i args ctype
@@ -378,7 +378,7 @@ isInfixOp = all (not . isAlphaNum) . getIdString
 id2name :: Id -> Name
 id2name i
     | isSym (head (getIdString i)) = mkInfixName i
-    | otherwise			   = Name noRange [Id (getIdString i)]
+    | otherwise			   = Name noRange [Id noRange (getIdString i)]
 
 bool2hiding :: Bool -> Hiding
 bool2hiding True = Hidden
@@ -495,4 +495,4 @@ notyet :: String -> a
 notyet = error . (++ ": not yet implemented")
 
 str2qname :: String -> QName
-str2qname s = QName (Name noRange [Id s])
+str2qname s = QName (Name noRange [Id noRange s])
