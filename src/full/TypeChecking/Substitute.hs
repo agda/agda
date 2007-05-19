@@ -239,6 +239,10 @@ instance Raise Term where
 instance Raise Type where
     raiseFrom m k (El s t) = El s $ raiseFrom m k t
 
+instance Raise Telescope where
+    raiseFrom m k EmptyTel	    = EmptyTel
+    raiseFrom m k (ExtendTel a tel) = uncurry ExtendTel $ raiseFrom m k (a, tel)
+
 instance Raise t => Raise (Abs t) where
     raiseFrom m k = fmap (raiseFrom (m + 1) k)
 
@@ -249,6 +253,9 @@ instance Raise t => Raise (Blocked t) where
     raiseFrom m k = fmap (raiseFrom m k)
 
 instance Raise t => Raise [t] where
+    raiseFrom m k = fmap (raiseFrom m k)
+
+instance Raise t => Raise (Maybe t) where
     raiseFrom m k = fmap (raiseFrom m k)
 
 instance Raise v => Raise (Map k v) where

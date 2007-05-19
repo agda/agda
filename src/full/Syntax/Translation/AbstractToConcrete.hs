@@ -72,6 +72,11 @@ withScope scope = local $ \e -> e { currentScope = scope }
 -- | We make the translation monadic for modularity purposes.
 type AbsToCon = Reader Env
 
+runAbsToCon :: MonadTCM tcm => AbsToCon a -> tcm a
+runAbsToCon m = do
+  scope <- getScope
+  return $ runReader m (makeEnv scope)
+
 abstractToConcrete :: ToConcrete a c => Env -> a -> c
 abstractToConcrete flags a = runReader (toConcrete a) flags
 
