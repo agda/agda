@@ -70,10 +70,10 @@ printScope v s = verbose v $ do
     Helpers
  --------------------------------------------------------------------------}
 
-lhsArgs :: C.Pattern -> [NamedArg C.Pattern]
+lhsArgs :: C.Pattern -> (C.Name, [NamedArg C.Pattern])
 lhsArgs p = case appView p of
-    Arg _ (Named _ (IdentP _)) : ps -> ps
-    _				    -> __IMPOSSIBLE__
+    Arg _ (Named _ (IdentP (C.QName x))) : ps -> (x, ps)
+    _				              -> __IMPOSSIBLE__
     where
 	mkHead	  = Arg NotHidden . unnamed
 	notHidden = Arg NotHidden . unnamed
@@ -417,7 +417,7 @@ instance ToAbstract LetDef A.LetBinding where
 	where
 	    letToAbstract (CD.Clause top clhs (C.RHS rhs) NoWhere) = do
 		p    <- parseLHS top clhs
-		localToAbstract (lhsArgs p) $ \args ->
+		localToAbstract (snd $ lhsArgs p) $ \args ->
 		    do	rhs <- toAbstract rhs
 			foldM lambda rhs args
 	    letToAbstract _ = notAValidLetBinding d
@@ -680,13 +680,14 @@ data LeftHandSide = LeftHandSide C.Name C.LHS
 instance ToAbstract LeftHandSide A.LHS where
     toAbstract (LeftHandSide top lhs) =
       traceCall (ScopeCheckLHS top lhs) $ do
-	p    <- parseLHS top lhs
+	p <- parseLHS top lhs
 	printLocals 10 "before lhs:"
-	args <- toAbstract (lhsArgs p)
+        let (x, ps) = lhsArgs p
+	args <- toAbstract ps
 	printLocals 10 "checked pattern:"
 	args <- toAbstract args -- take care of dot patterns
 	printLocals 10 "checked dots:"
-	x    <- toAbstract (OldName top)
+	x    <- toAbstract (OldName x)
 	return $ A.LHS (LHSSource lhs) x args
 
 instance ToAbstract c a => ToAbstract (Arg c) (Arg a) where
