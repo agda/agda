@@ -30,9 +30,7 @@ import qualified Data.Foldable as Seq (toList, foldMap)
 --
 -- TODO:
 --
--- * Generate highlighting info for comments, keywords, strings and
---   numbers. This should be done by examining the token stream from
---   the lexer.
+-- * Generate highlighting info for comments.
 --
 -- * It would be nice if module names were highlighted.
 
