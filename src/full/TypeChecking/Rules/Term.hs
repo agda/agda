@@ -110,13 +110,15 @@ checkLiteral lit t = do
     t' <- litType lit
     v  <- blockTerm t (Lit lit) $ equalType t t'
     return v
-    where
-	el t = El (Type 0) t
-	litType l = case l of
-	    LitInt _ _	  -> el <$> primNat
-	    LitFloat _ _  -> el <$> primFloat
-	    LitChar _ _   -> el <$> primChar
-	    LitString _ _ -> el <$> primString
+
+litType :: Literal -> TCM Type
+litType l = case l of
+    LitInt _ _	  -> el <$> primNat
+    LitFloat _ _  -> el <$> primFloat
+    LitChar _ _   -> el <$> primChar
+    LitString _ _ -> el <$> primString
+  where
+    el t = El (Type 0) t
 
 ---------------------------------------------------------------------------
 -- * Terms

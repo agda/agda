@@ -17,6 +17,7 @@ import Syntax.Internal.Pattern
 import Syntax.Common
 import Syntax.Position
 import Syntax.Info
+import Syntax.Literal
 
 import TypeChecking.Monad
 import TypeChecking.Reduce
@@ -27,15 +28,18 @@ import TypeChecking.Conversion
 import TypeChecking.Constraints
 import TypeChecking.Pretty
 import TypeChecking.Empty (isEmptyType)
+import TypeChecking.Primitive (constructorForm)
 
-import TypeChecking.Rules.Term (checkExpr)
+import TypeChecking.Rules.Term (checkExpr, litType)
 
 import Utils.Permutation
 import Utils.Size
+import Utils.Tuple
 
 #include "../../undefined.h"
 
 data DotPatternInst = DPI A.Expr Term Type
+data AsBinding	    = AsB Name Term Type
 type Substitution   = [Maybe Term]
 type FlexibleVars   = [Nat]
 
@@ -51,7 +55,9 @@ data Focus	    = Focus   { focusCon      :: QName
 			      , focusParams   :: [Arg Term]
 			      , focusIndices  :: [Arg Term]
 			      }
-data SplitProblem   = Split ProblemPart (Arg Focus) (Abs ProblemPart)
+		    | LitFocus Literal OneHolePatterns Int Type
+data SplitProblem   = Split ProblemPart [Name]	-- ^ as-bindings for the focus
+			    (Arg Focus) (Abs ProblemPart)
 
 data SplitError	    = TooManyArguments [NamedArg A.Pattern]
 		    | NothingToSplit
@@ -72,6 +78,18 @@ instance PrettyTCM DotPatternInst where
 			      , nest 2 $ prettyTCM a
 			      ]
 
+instance Subst AsBinding where
+  substs us (AsB x v a) = uncurry (AsB x) $ substs us (v, a)
+
+instance Raise AsBinding where
+  raiseFrom m k (AsB x v a) = uncurry (AsB x) $ raiseFrom m k (v, a)
+
+instance PrettyTCM AsBinding where
+  prettyTCM (AsB x v a) =
+    sep [ prettyTCM x <> text "@" <> parens (prettyTCM v)
+	, nest 2 $ text ":" <+> prettyTCM a
+	]
+
 instance Error SplitError where
   noMsg  = NothingToSplit
   strMsg = SplitPanic
@@ -88,7 +106,7 @@ instance (Monad m, Error err) => Applicative (ErrorT err m) where
 instance (Error err, MonadTCM tcm) => MonadTCM (ErrorT err tcm) where
   liftTCM = lift . liftTCM
 
--- | Insert implicit patterns.
+-- | Insert implicit patterns in a problem.
 insertImplicitProblem :: Problem -> TCM Problem
 insertImplicitProblem (Problem ps qs tel) = do
   reportSDoc "tc.lhs.imp" 15 $
@@ -99,6 +117,7 @@ insertImplicitProblem (Problem ps qs tel) = do
   ps' <- insertImplicitPatterns ps tel
   return $ Problem ps' qs tel
 
+-- | Insert implicit patterns in a list of patterns.
 insertImplicitPatterns :: [NamedArg A.Pattern] -> Telescope -> TCM [NamedArg A.Pattern]
 insertImplicitPatterns ps EmptyTel = return ps
 insertImplicitPatterns ps tel@(ExtendTel _ tel') = case ps of
@@ -124,6 +143,11 @@ insertImplicitPatterns ps tel@(ExtendTel _ tel') = case ps of
 
     implicitP = Arg Hidden . unnamed . A.ImplicitP . PatRange $ noRange
 
+-- | TODO: move to Syntax.Abstract.View
+asView :: A.Pattern -> ([Name], A.Pattern)
+asView (A.AsP _ x p) = (x :) -*- id $ asView p
+asView p	     = ([], p)
+
 -- | Split a problem at the first constructor of datatype type. Implicit
 --   patterns should have been inserted.
 splitProblem :: Problem -> TCM (Either SplitError SplitProblem)
@@ -136,9 +160,21 @@ splitProblem (Problem ps (perm, qs) tel) = runErrorT $
     splitP []	     _		  _			 = throwError $ NothingToSplit
     splitP ps	    []		  EmptyTel		 = throwError $ TooManyArguments ps
     splitP (p : ps) ((i, q) : qs) tel0@(ExtendTel a tel) =
-      case namedThing $ unArg p of
-	-- TODO: split on literals
-	A.ConP _ c args -> do
+      case asView $ namedThing $ unArg p of
+	(xs, A.LitP lit)  -> do
+	  b <- lift $ litType lit
+	  ok <- lift $ do
+	      noConstraints (equalType (unArg a) b)
+	      return True
+	    `catchError` \_ -> return False
+	  if ok
+	    then return $
+	      Split mempty
+		    xs
+		    (fmap (LitFocus lit q i) a)
+		    (fmap (Problem ps ()) tel)
+	    else keepGoing
+	(xs, A.ConP _ c args) -> do
 	  a' <- reduce $ unArg a
 	  case unEl a' of
 	    Def d vs	-> do
@@ -154,6 +190,7 @@ splitProblem (Problem ps (perm, qs) tel) = runErrorT $
 			 , nest 2 $ text "ixs  =" <+> fsep (punctuate comma $ map prettyTCM ixs)
 			 ]
 		  return $ Split mempty
+				 xs
 				 (fmap (const $ Focus c args q i d pars ixs) a)
 				 (fmap (Problem ps ()) tel)
 		-- TODO: record patterns
@@ -163,8 +200,8 @@ splitProblem (Problem ps (perm, qs) tel) = runErrorT $
       where
 	keepGoing = do
 	  let p0 = Problem [p] () (ExtendTel a $ fmap (const EmptyTel) tel)
-	  Split p1 foc p2 <- underAbstraction a tel $ \tel -> splitP ps qs tel
-	  return $ Split (mappend p0 p1) foc p2
+	  Split p1 xs foc p2 <- underAbstraction a tel $ \tel -> splitP ps qs tel
+	  return $ Split (mappend p0 p1) xs foc p2
 
 
 -- | Compute the set of flexible patterns in a list of patterns. The result is
@@ -435,10 +472,11 @@ instantiateTel s tel = do
 dotPatternInsts :: [NamedArg A.Pattern] -> Substitution -> [Type] -> [DotPatternInst]
 dotPatternInsts ps s as = dpi (map (namedThing . unArg) ps) (reverse s) as
   where
-    dpi []	 (_ : _)       _       = __IMPOSSIBLE__
     dpi (_ : _)	 []	       _       = __IMPOSSIBLE__
     dpi (_ : _)  (Just _ : _)  []      = __IMPOSSIBLE__
-    dpi []	 []	       _       = []
+    -- the substitution also contains entries for module parameters, so it can
+    -- be longer than the pattern
+    dpi []	 _	       _       = []
     dpi (_ : ps) (Nothing : s) as      = dpi ps s as
     dpi (p : ps) (Just u : s) (a : as) = 
       case p of
@@ -490,7 +528,12 @@ bindLHSVars (p : ps) (ExtendTel a tel) ret =
       bindDummy s = do
 	x <- name s
 	addCtx x a $ bindLHSVars ps (absBody tel) ret
-	
+
+-- | Bind as patterns
+bindAsPatterns :: [AsBinding] -> TCM a -> TCM a
+bindAsPatterns []		 ret = ret
+bindAsPatterns (AsB x v a : asb) ret =
+  addLetBinding x v a $ bindAsPatterns asb ret
 
 -- | Check a LHS. Main function.
 checkLeftHandSide :: [NamedArg A.Pattern] -> Type ->
@@ -522,7 +565,7 @@ checkLeftHandSide ps a ret = do
 	   ]
 	 ]
 
-  (Problem ps (perm, qs) tel, b, dpi) <- checkLHS problem b []
+  (Problem ps (perm, qs) tel, b, dpi, asb) <- checkLHS problem b [] []
   reportSDoc "tc.lhs.top" 10 $
     vcat [ text "checked lhs:"
 	 , nest 2 $ vcat
@@ -530,9 +573,10 @@ checkLeftHandSide ps a ret = do
 	   , text "perm  = " <+> text (show perm)
 	   , text "tel   = " <+> prettyTCM tel
 	   , text "dpi	 = " <+> brackets (fsep $ punctuate comma $ map prettyTCM dpi)
+	   , text "asb	 = " <+> brackets (fsep $ punctuate comma $ map prettyTCM asb)
 	   ]
          ]
-  bindLHSVars ps tel $ do
+  bindLHSVars ps tel $ bindAsPatterns asb $ do
     reportSDoc "tc.lhs.top" 10 $ nest 2 $ text "type  = " <+> prettyTCM b
     mapM_ checkDotPattern dpi
     let rho = renamingR perm -- I'm not certain about this...
@@ -540,18 +584,47 @@ checkLeftHandSide ps a ret = do
 	xs  = replicate n "z" -- map (fst . unArg) $ telToList tel
     ret rho xs qs b
   where
-    checkLHS :: Problem -> Type -> [DotPatternInst] -> TCM (Problem, Type, [DotPatternInst])
-    checkLHS problem b dpi
+    checkLHS :: Problem -> Type -> [DotPatternInst] -> [AsBinding] ->
+		TCM (Problem, Type, [DotPatternInst], [AsBinding])
+    checkLHS problem b dpi asb
       | isSolvedProblem problem	= do
 	problem <- insertImplicitProblem problem -- inserting implicit patterns preserve solvedness
-	return (problem, b, dpi)
+	return (problem, b, dpi, asb)
       | otherwise		= do
 	sp <- splitProblem =<< insertImplicitProblem problem
 	case sp of
 	  Left NothingToSplit -> fail "failed to split problem" -- TODO: error msg
 	  Left (SplitPanic err) -> fail $ "split panic: " ++ err
 	  Left (TooManyArguments ps) -> fail $ "too many arguments: " ++ show (length ps)
-	  Right (Split p0 (Arg h
+
+	  -- Split on literal pattern
+	  Right (Split p0 xs (Arg h (LitFocus lit iph hix a)) p1) -> do
+
+	    -- plug the hole with a lit pattern
+	    let ip    = plugHole (LitP lit) iph
+		iperm = expandP hix 0 $ fst (problemOutPat problem)
+
+	    -- substitute the literal in p1 and b and dpi and asb
+	    let delta1 = problemTel p0
+		delta2 = absApp (fmap problemTel p1) (Lit lit)
+		rho    = [ var i | i <- [0..size delta2 - 1] ]
+		      ++ [ raise (size delta2) $ Lit lit ]
+		      ++ [ var i | i <- [size delta2 ..] ]
+		  where
+		    var i = Var i []
+		b'	 = substs rho b
+		dpi'	 = substs rho dpi
+		asb0	 = substs rho asb
+
+	    -- Compute the new problem
+	    let ps'	 = problemInPat p0 ++ problemInPat (absBody p1)
+		delta'	 = abstract delta1 delta2
+		problem' = Problem ps' (iperm, ip) delta'
+		asb'	 = raise (size delta2) (map (\x -> AsB x (Lit lit) a) xs) ++ asb0
+	    checkLHS problem' b' dpi' asb'
+
+	  -- Split on constructor pattern
+	  Right (Split p0 xs (Arg h
 		  ( Focus { focusCon	  = c
 			  , focusConArgs  = qs
 			  , focusOutPat	  = iph
@@ -579,11 +652,16 @@ checkLeftHandSide ps a ret = do
 		]
 	      ]
 
+	    Con c [] <- constructorForm =<< normalise (Con c [])
+
 	    -- Lookup the type of the constructor at the given parameters
 	    a <- normalise =<< (`piApply` vs) . defType <$> getConstInfo c
 
 	    -- It will end in an application of the datatype
-	    let TelV gamma (El _ (Def d us)) = telView a
+	    let TelV gamma ca@(El _ (Def d' us)) = telView a
+
+	    -- This should be the same datatype as we split on
+	    unless (d == d') $ typeError $ ShouldBeApplicationOf ca d
 
 	    -- Insert implicit patterns
 	    qs' <- insertImplicitPatterns qs gamma
@@ -619,6 +697,7 @@ checkLeftHandSide ps a ret = do
 		    var i = Var i []
 		b0     = substs rho0 b
 		dpi0   = substs rho0 dpi
+		asb0   = substs rho0 asb
 
 	    reportSDoc "tc.lhs.top" 15 $ addCtxTel (delta1 `abstract` gamma) $ nest 2 $ vcat
 	      [ text "delta2 =" <+> prettyTCM delta2
@@ -671,6 +750,9 @@ checkLeftHandSide ps a ret = do
 	    -- The final dpis are the new ones plus the old ones substituted by ρ
 	    let dpi' = substs rho dpi0 ++ newDpi
 
+	    -- Add the new as-bindings
+	    let asb' = raise (size delta2) (map (\x -> AsB x (Con c ys) ca) xs) ++ asb0
+
 	    reportSDoc "tc.lhs.top" 15 $ nest 2 $
 	      text "dpi' = " <+> brackets (fsep $ punctuate comma $ map prettyTCM dpi')
 
@@ -683,7 +765,7 @@ checkLeftHandSide ps a ret = do
 	    -- Permute the in patterns
 	    let ps'  = permute perm ps0'
 
-	    -- Compute the new permutation of the out patterns. This is the composition of
+	   -- Compute the new permutation of the out patterns. This is the composition of
 	    -- the new permutation with the expansion of the old permutation to
 	    -- reflect the split.
 	    let perm'  = expandP hix (size gamma) $ fst (problemOutPat problem)
@@ -707,5 +789,5 @@ checkLeftHandSide ps a ret = do
 	      ]
 
 	    -- Continue splitting
-	    checkLHS problem' b' dpi'
+	    checkLHS problem' b' dpi' asb'
 
