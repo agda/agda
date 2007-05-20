@@ -75,9 +75,7 @@ module Provable where
       module ListEq = List.Eq _=Fin=_
 
   substNF : {n : Nat}{xs ys : NF n}(P : NF n -> Set) -> IsTrue (xs =NF= ys) -> P xs -> P ys
-  substNF = ListSubst.subst
-    where
-      module ListSubst = List.Subst _=Fin=_ (subst {_})
+  substNF = List.Subst.subst _=Fin=_ (subst {_})
 
   _=Expr=_ : {n : Nat} -> Expr n -> Expr n -> Bool
   a =Expr= b = normalise a =NF= normalise b

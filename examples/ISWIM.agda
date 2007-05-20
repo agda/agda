@@ -145,3 +145,7 @@ threeOK = refl
 oneOK : run one == 1
 oneOK = refl
 
+open Cont
+open Syntax
+open Semantics
+
