@@ -79,6 +79,7 @@ import Syntax.Abstract.Name
 import Interaction.Exceptions
 import qualified Interaction.BasicOps as B
 import qualified Interaction.CommandLine.CommandLine as CL
+import Interaction.Highlighting.Precise (File)
 import Interaction.Highlighting.Generate
 import Interaction.Highlighting.Emacs
 
@@ -107,6 +108,7 @@ ioTCM cmd = do
       return (x,st,us)
     `catchError` \err -> do
 	s <- prettyError err
+        liftIO $ outputErrorInfo (getRange err) s
 	liftIO $ display_info "*Error*" s
 	fail "exit"
   case r of
@@ -157,9 +159,8 @@ cmd_load file = infoOnException $ do
     putStrLn $ response $ L [A "agda2-load-action", is]
 
     -- Currently highlighting information is only generated when a
-    -- file is loaded.
-    writeSyntaxInfo file syntaxInfo
-    putStrLn $ response $ L [A "agda2-highlight-reload"]
+    -- file is loaded, or an error is encountered.
+    outputSyntaxInfo file syntaxInfo
 
     cmd_metas
   where lispIP  = format . sortRng <$> (tagRng =<< getInteractionPoints)
@@ -498,5 +499,37 @@ emacsStr s = go (show s) where
 
 infoOnException m = failOnException inform m where
   inform rng msg = do
+    outputErrorInfo rng msg
     display_info "*Error*" $ unlines [show rng ++ " : ", msg]
     exitWith (ExitFailure 1)
+
+------------------------------------------------------------------------
+-- Syntax highlighting
+
+-- | Output syntax highlighting information for the given file, and
+-- tell the Emacs mode to reload the highlighting information.
+
+outputSyntaxInfo :: FilePath -> File -> IO ()
+outputSyntaxInfo file syntaxInfo = do
+    writeSyntaxInfo file syntaxInfo
+    putStrLn $ response $ L [A "agda2-highlight-reload"]
+
+-- | Output syntax highlighting information for the given error
+-- (represented as a range and a string), and tell the Emacs mode to
+-- reload the highlighting information and go to the first error
+-- position.
+
+outputErrorInfo :: Range -> String -> IO ()
+outputErrorInfo r s = do
+  case mFile of
+    Nothing   -> return ()
+    Just file -> outputSyntaxInfo file info
+  case mInitialPos of
+    Nothing -> return ()
+    Just p  -> putStrLn $ response $ L [A "goto-char", A (show p)]
+  where
+  (mFile, info) = generateErrorInfo r s
+
+  mInitialPos = case rStart r of
+    NoPos             -> Nothing
+    Pn { posPos = p } -> Just p

@@ -4,13 +4,14 @@ module Interaction.Highlighting.Precise
   ( Aspect(..)
   , NameKind(..)
   , MetaInfo(..)
-  , File(..)
+  , File
   , Range(..)
   , rangeInvariant
   , overlapping
   , empty
   , singleton
   , several
+  , smallestPos
   , compress
   , tests
   ) where
@@ -29,10 +30,11 @@ import qualified Data.Map as Map
 ------------------------------------------------------------------------
 -- Files
 
--- | Various syntactic aspects of the code.
+-- | Various more or less syntactic aspects of the code.
 
 data Aspect
-  = Comment
+  = Error
+  | Comment
   | Keyword
   | String
   | Number
@@ -109,6 +111,11 @@ overlapping r1 r2 = not $
 
 toList :: Range -> [Integer]
 toList r = [from r .. to r - 1]
+
+-- | Returns the smallest position, if any, in the 'File'.
+
+smallestPos :: File -> Maybe Integer
+smallestPos = fmap (fst . snd) . Map.minView . mapping
 
 ------------------------------------------------------------------------
 -- Creation
@@ -195,11 +202,12 @@ instance Arbitrary Aspect where
               , (1, liftM2 Name arbitrary arbitrary)
               ]
 
-  coarbitrary Comment     = variant 0
-  coarbitrary Keyword     = variant 1
-  coarbitrary String      = variant 2
-  coarbitrary Number      = variant 3
-  coarbitrary (Name nk b) = variant 4 . coarbitrary nk . coarbitrary b
+  coarbitrary Error       = variant 0
+  coarbitrary Comment     = variant 1
+  coarbitrary Keyword     = variant 2
+  coarbitrary String      = variant 3
+  coarbitrary Number      = variant 4
+  coarbitrary (Name nk b) = variant 5 . coarbitrary nk . coarbitrary b
 
 instance Arbitrary NameKind where
   arbitrary   = elements [minBound .. maxBound]

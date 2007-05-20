@@ -100,6 +100,13 @@
   "The face used for operators."
   :group 'agda2-highlight)
 
+(defcustom agda2-highlight-error-face
+  font-lock-warning-face
+  "The face used for errors."
+  :type 'face
+  :require 'font-lock
+  :group 'agda2-highlight)
+
 (defvar agda2-highlight-faces
   ; The faces that are pointers to other faces need to be evaluated,
   ; hence the splices.
@@ -116,7 +123,8 @@
     (primitive   . ,agda2-highlight-primitive-face)
     (record      . ,agda2-highlight-record-face)
     (dotted      . agda2-highlight-dotted-face)
-    (operator    . agda2-highlight-operator-face))
+    (operator    . agda2-highlight-operator-face)
+    (error       . ,agda2-highlight-error-face))
   "An association list mapping from a code aspect to the face used when
 displaying the aspect.
 
@@ -127,6 +135,7 @@ The aspects currently recognised are the following:
 `constructor' Constructors.
 `datatype'    Data types.
 `dotted'      Dotted patterns.
+`error'       Errors.
 `field'       Record fields.
 `function'    Functions.
 `keyword'     Keywords.

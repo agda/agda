@@ -30,8 +30,6 @@ User interface
 * Go to declaration site when user clicks on name (or something like
   that).
 
-* Highlighting error positions.
-
 * Highlighting comments, module names, fixity declarations.
 
 * locally nameless representation

@@ -4,6 +4,7 @@
 
 module Interaction.Highlighting.Generate
   ( generateSyntaxInfo
+  , generateErrorInfo
   , tests
   ) where
 
@@ -25,6 +26,18 @@ import qualified Data.Sequence as Seq
 import qualified Data.Foldable as Seq (toList, foldMap)
 
 #include "../../undefined.h"
+
+-- | Generates syntax highlighting information for an error,
+-- represented as a range and a string. Also returns the file
+-- containing the error, if any.
+
+generateErrorInfo :: P.Range -> String -> (Maybe FilePath, File)
+generateErrorInfo r s = (mFile, m)
+  where
+  mFile = case P.rStart r of
+            P.Pn { P.srcFile = file } -> Just file
+            P.NoPos                   -> Nothing
+  m = several (rToR r) (empty { aspect = Just Error, note = Just s })
 
 -- | Generates syntax highlighting information from a 'TopLevelInfo'.
 --
