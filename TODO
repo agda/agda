@@ -2,15 +2,9 @@
 Features
 --------
 
-* better algorithm for pattern matching on inductive families
-
 * with-clauses
 
-* records
-
 * remembering the last thing in scope when computation gets stuck
-
-* structured verbosity
 
 * debug information
 
@@ -30,8 +24,16 @@ Features
 
 * mutual modules
 
+* locally nameless representation
+
+* pattern completeness
+
 Fixes
 -----
+
+[Errors]
+
+* DeclarationException when missing a type signature
 
 [Parsing]
 
@@ -47,12 +49,27 @@ Fixes
 
 * print patterns in mixfix notation (AbstractToConcrete)
 
+* meta variables are printed with their lambda lifted types
+
 [Scope]
 
 * check that fixity declarations correspond to actual definitions
 
 * change syntax for fixity declarations (infix is a bit strange for prefix and
   postfix operators)
+
+[Evaluation]
+
+* literal patterns are considered neutral when deciding if a match is No or DontKnow
+  example
+  
+    funny : (A : Set) -> A -> D A -> ..
+    funny .Nat zero nat
+    funny .String "foo" string
+
+    Here
+      funny String "foo" string
+    doesn't reduce because we DontKnow that "foo" doesn't match zero.
 
 [Testing]
 
@@ -160,6 +177,12 @@ Performance
 
 Done
 ----
+
+* better algorithm for pattern matching on inductive families
+
+* structured verbosity
+
+* records
 
 * implemented the CHIT-CHAT module system
 
