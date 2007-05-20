@@ -188,14 +188,6 @@ set n  = sort (Type n)
 prop   = sort Prop
 sort s = El (sSuc s) $ Sort s
 
-telePi :: Telescope -> Type -> Type
-telePi  EmptyTel	 t = t
-telePi (ExtendTel u tel) t = El (sLub s1 s2) $ Pi u t'
-    where
-	t' = fmap (flip telePi t) tel
-	s1 = getSort $ unArg u
-	s2 = getSort $ absBody t'
-
 teleLam :: Telescope -> Term -> Term
 teleLam  EmptyTel	  t = t
 teleLam (ExtendTel u tel) t = Lam (argHiding u) $ flip teleLam t <$> tel

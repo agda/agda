@@ -10,6 +10,7 @@ import Syntax.Common
 import Syntax.Internal
 
 import TypeChecking.Monad.Base
+import TypeChecking.Free
 
 import Utils.Monad
 import Utils.Size
@@ -92,7 +93,7 @@ instance (Apply a, Apply b, Apply c) => Apply (a,b,c) where
 piApply :: Type -> Args -> Type
 piApply t []				= t
 piApply (El _ (Pi  _ b)) (Arg _ v:args) = absApp b v `piApply` args
-piApply (El _ (Fun _ b)) (_:args)	= b
+piApply (El _ (Fun _ b)) (_:args)	= b `piApply` args
 piApply _ _				= __IMPOSSIBLE__
 
 -- | @(abstract args v) args --> v[args]@.
@@ -276,4 +277,17 @@ telView t = case unEl t of
   _		  -> TelV EmptyTel t
   where
     absV a x (TelV tel t) = TelV (ExtendTel a (Abs x tel)) t
+
+telePi :: Telescope -> Type -> Type
+telePi  EmptyTel	 t = t
+telePi (ExtendTel u tel) t = el $ fn u b
+  where
+    el = El (sLub s1 s2)  
+    b = fmap (flip telePi t) tel
+    s1 = getSort $ unArg u
+    s2 = getSort $ absBody b
+
+    fn a b
+      | 0 `freeIn` absBody b = Pi a b
+      | otherwise	     = Fun a $ absApp b __IMPOSSIBLE__
 
