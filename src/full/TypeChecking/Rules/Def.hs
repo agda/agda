@@ -56,6 +56,12 @@ checkFunDef i name cs =
 	-- Get the type of the function
 	t    <- typeOfConst name
 
+	reportSDoc "tc.def.fun" 10 $
+	  sep [ text "checking body of" <+> prettyTCM name
+	      , nest 2 $ text ":" <+> prettyTCM t
+	      , nest 2 $ text "full type:" <+> (prettyTCM . defType =<< getConstInfo name)
+	      ]
+
 	-- Check the clauses
 	cs <- mapM (checkClause t) cs
 

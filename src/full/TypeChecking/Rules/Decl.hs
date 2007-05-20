@@ -54,9 +54,13 @@ checkDecl d =
 
 -- | Type check an axiom.
 checkAxiom :: Info.DefInfo -> QName -> A.Expr -> TCM ()
-checkAxiom _ x e =
-    do	t <- isType_ e
-	addConstant x (Defn x t Axiom)
+checkAxiom _ x e = do
+  t <- isType_ e
+  reportSDoc "tc.decl.ax" 10 $ sep
+    [ text "checked axiom"
+    , nest 2 $ prettyTCM x <+> text ":" <+> prettyTCM t
+    ]
+  addConstant x (Defn x t Axiom)
 
 
 -- | Type check a primitive function declaration.
@@ -103,6 +107,7 @@ checkTypeSignature _ = __IMPOSSIBLE__	-- type signatures are always axioms
 
 -- | Check an inductive or recursive definition. Assumes the type has has been
 --   checked and added to the signature.
+checkDefinition :: A.Definition -> TCM ()
 checkDefinition d =
     case d of
 	A.FunDef i x cs	    -> abstract (Info.defAbstract i) $ checkFunDef i x cs
