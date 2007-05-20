@@ -3,7 +3,7 @@ This test file currently lacks module-related stuff.
 And interesting uses of shadowing.
 
 \begin{code}
-module Test where
+module Test3 where
 
 infix  12 _!
 infixl  7 _+_ _-_

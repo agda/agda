@@ -7,13 +7,29 @@
 when set.")
 (make-variable-buffer-local 'annotation-bindings)
 
-(defun annotation-annotate (start end anns &optional info)
+(defvar annotation-goto-map nil
+  "A hash table mapping positions to filename/position pairs.
+Becomes buffer-local when set.")
+(make-variable-buffer-local 'annotation-goto-map)
+
+(defun annotation-goto (pos)
+  "Go to the file/position specified by `annotation-goto-map' for the
+buffer position POS, if any."
+  (let ((result (gethash pos annotation-goto-map)))
+    (when (consp result)
+      (find-file (car result))
+      (goto-char (cdr result)))))
+
+(defun annotation-annotate (start end anns &optional info goto)
   "Annotate text between START and END in the current buffer with the
 annotations ANNS. All the symbols in ANNS are looked up in
 `annotation-bindings', and the face text property for the given
 character range is set to the resulting list of faces. If the string
 INFO is non-nil, the mouse-face property is set to highlight, and INFO
-is used as the help-echo string.
+is used as the help-echo string. If GOTO has the form (filename .
+position), then the mouse-face property is set to highlight and, when
+the user clicks on the annotated text, then point is warped to the
+given position in the given file.
 
 Note that if two faces have the same attribute set, then the first one
 takes precedence.
@@ -32,7 +48,13 @@ rear-nonsticky and annotation-annotated properties set to t."
     (when info
       (add-text-properties start end
                            `(mouse-face highlight help-echo ,info)))
-    (when (or faces info)
+    (when (consp goto)
+      (let ((pos start))
+        (while (< pos end)
+          (puthash pos goto annotation-goto-map)
+          (setq pos (1+ pos))))
+      (add-text-properties start end '(mouse-face highlight keymap map)))
+    (when (or faces info (consp goto))
       (add-text-properties start end
                            '(annotation-annotated t rear-nonsticky t)))))
 
@@ -45,8 +67,9 @@ the current buffer."
 
 (defun annotation-remove-annotations ()
   "Removes all text properties set by `annotation-annotate' in the
-current buffer. This function preserves the file modification stamp of
-the current buffer."
+current buffer, and clear `annotation-goto-map'. This function
+preserves the file modification stamp of the current buffer."
+  (clrhash annotation-goto-map)
   (annotation-preserve-modified-p
    (let ((pos (point-min))
          pos2
@@ -69,6 +92,10 @@ the current buffer."
 `annotation-annotate' in the current buffer are removed. This function
 preserves the file modification stamp of the current buffer."
   (annotation-preserve-modified-p
+   ; (make-hash-table) cannot simply be the default value of this
+   ; variable, since then the hash table would be shared between
+   ; buffers, and this is not a good idea.
+   (setq annotation-goto-map (make-hash-table))
    (annotation-remove-annotations)
    (when (file-readable-p file)
      (load-file file))))

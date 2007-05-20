@@ -64,15 +64,18 @@ data MetaInfo = MetaInfo
     -- something like that. It should contain useful information about
     -- the range (like the module containing a certain identifier, or
     -- the fixity of an operator).
+  , definitionSite :: Maybe (FilePath, Integer)
+    -- ^ This can be the definition site of the given name.
   }
   deriving (Eq, Show)
 
 -- | 'MetaInfo' template.
 
 empty :: MetaInfo
-empty = MetaInfo { aspect = Nothing
-                 , dotted = False
-                 , note   = Nothing
+empty = MetaInfo { aspect         = Nothing
+                 , dotted         = False
+                 , note           = Nothing
+                 , definitionSite = Nothing
                  }
 
 -- | A 'File' is a mapping from file positions to meta information.
@@ -152,6 +155,7 @@ mergeMetaInfo m1 m2 = MetaInfo
       (Just n1, Nothing) -> Just n1
       (Nothing, Just n2) -> Just n2
       (Nothing, Nothing) -> Nothing
+  , definitionSite = (mplus `on` definitionSite) m1 m2
   }
 
 -- | Merges files.
@@ -215,14 +219,20 @@ instance Arbitrary NameKind where
 
 instance Arbitrary MetaInfo where
   arbitrary = do
-    aspect <- maybeGen arbitrary
-    dotted <- arbitrary
-    note   <- maybeGen (list $ elements "abcdefABCDEF\"'@()åäö\n")
-    return (MetaInfo { aspect = aspect, dotted = dotted, note = note })
-  coarbitrary (MetaInfo aspect dotted note) =
+    aspect  <- maybeGen arbitrary
+    dotted  <- arbitrary
+    note    <- maybeGen (list $ elements "abcdefABCDEF/\\.\"'@()åäö\n")
+    defSite <- maybeGen (liftM2 (,)
+                                (list $ elements "abcdefABCDEF/\\.\"'@()åäö\n")
+                                arbitrary)
+    return (MetaInfo { aspect = aspect, dotted = dotted, note = note
+                     , definitionSite = defSite })
+  coarbitrary (MetaInfo aspect dotted note defSite) =
     maybe' coarbitrary aspect .
     coarbitrary dotted .
-    maybe' (coarbitrary . map fromEnum) note
+    maybe' (coarbitrary . map fromEnum) note .
+    maybe' (\(f, p) -> coarbitrary p . coarbitrary (map fromEnum f))
+           defSite
     where
     maybe' f Nothing  = variant 0
     maybe' f (Just x) = variant 1 . f x

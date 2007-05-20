@@ -122,6 +122,8 @@ properties to add to the result."
          (agda2-indent-reverse      [S-iso-lefttab])
          (agda2-indent-reverse      [S-lefttab])
          (agda2-indent-reverse      [S-tab])
+         (agda2-goto-definition-mouse    [mouse-2])
+         (agda2-goto-definition-keyboard "\C-c\C-xg")
          )))
   (define-key agda2-mode-map [menu-bar Agda2]
     (cons "Agda2" (make-sparse-keymap "Agda2")))
@@ -679,6 +681,21 @@ setting of `agda2-indentation'."
                  '(agda2-comment agda2-comment) t)
     (add-to-list (make-local-variable 'filladapt-token-conversion-table)
                  '(agda2-comment . exact))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Go to definition site
+
+(defun agda2-goto-definition-keyboard ()
+  "Go to the definition site of the identifier (free variable) under
+point (if any)."
+  (interactive)
+  (annotation-goto (point)))
+
+(defun agda2-goto-definition-mouse (ev)
+  "Go to the definition site of the identifier (free variable) clicked
+on (if any)."
+  (interactive "e")
+  (annotation-goto (posn-point (event-end ev))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;

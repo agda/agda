@@ -150,11 +150,16 @@ generateSyntaxInfo toks top = do
 generate :: A.QName -> M.TCM File
 generate n = do
   info <- M.getConstInfo n
-  let m isOp = empty { aspect = Just $ Name (toAspect (M.theDef info)) isOp }
+  let mFilePos = case P.rStart $ P.getRange $ M.defName info of
+        P.Pn { P.srcFile = f, P.posPos = p } -> Just (f, toInteger p)
+        P.NoPos {}                           -> Nothing
+      m isOp = empty { aspect = Just $ Name (toAspect (M.theDef info)) isOp
+                     , definitionSite = mFilePos
+                     }
   return (nameToFile m (A.nameConcrete $ A.qnameName n))
   where
   toAspect :: M.Defn -> NameKind
-  toAspect M.Axiom            = Postulate
+  toAspect (M.Axiom {})       = Postulate
   toAspect (M.Function {})    = Function
   toAspect (M.Datatype {})    = Datatype
   toAspect (M.Record {})      = Record

@@ -27,14 +27,7 @@ Features
 User interface
 --------------
 
-* Go to declaration site when user clicks on name (or something like
-  that).
-
 * Highlighting comments, module names, fixity declarations.
-
-* locally nameless representation
-
-* pattern completeness
 
 Fixes
 -----
@@ -87,6 +80,10 @@ Fixes
 * write better tests
 
 [Bugs]
+
+* Ranges are not preserved in .agdai files. It would be beneficial for
+  the user interface if they were (at least the source file should not
+  be set to "[imported]").
 
 * emacs interface gets the metas in the wrong order for local definitions (?)
 

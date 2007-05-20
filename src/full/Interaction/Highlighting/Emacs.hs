@@ -44,7 +44,9 @@ showMetaInfo (r, m) =
   ++ " '("
   ++ concat (intersperse " " (toAtoms m))
   ++ ")"
-  ++ (maybe "" ((" " ++) . quote) $ note m)
+  ++ (maybe " nil" ((" " ++) . quote) $ note m)
+  ++ (maybe "" (\(f, p) -> " '(" ++ quote f ++ " . " ++ show p ++ ")")
+        $ definitionSite m)
   ++ ")"
 
 -- | Shows a file in an Emacsy fashion.
