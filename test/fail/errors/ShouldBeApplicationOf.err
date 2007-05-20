@@ -1,3 +1,4 @@
-errors/ShouldBeApplicationOf.agda:8,3-6
-Two != One of type Set
-when checking that the pattern two has type One
+errors/ShouldBeApplicationOf.agda:8,1-12
+The pattern constructs an element of One which is not the right
+datatype
+when checking that the clause f two = two has type One -> Two
