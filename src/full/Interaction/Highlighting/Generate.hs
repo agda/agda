@@ -59,8 +59,11 @@ generateSyntaxInfo toks top = do
       aToF a r = several (rToR r) (empty { aspect = Just a })
 
       tokenToFile :: T.Token -> File
+      tokenToFile (T.TokSetN (r, _))               = aToF PrimitiveTypePart r
+      tokenToFile (T.TokKeyword T.KwSet  r)        = aToF PrimitiveTypePart r
+      tokenToFile (T.TokKeyword T.KwProp r)        = aToF PrimitiveTypePart r
+      tokenToFile (T.TokKeyword T.KwForall r)      = aToF PrimitiveTypePart r
       tokenToFile (T.TokKeyword _ r)               = aToF Keyword r
-      tokenToFile (T.TokSetN (r, _))               = aToF Keyword r
       tokenToFile (T.TokLiteral (L.LitInt    r _)) = aToF Number r
       tokenToFile (T.TokLiteral (L.LitFloat  r _)) = aToF Number r
       tokenToFile (T.TokLiteral (L.LitString r _)) = aToF String r

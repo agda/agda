@@ -38,6 +38,7 @@ data Aspect
   | Keyword
   | String
   | Number
+  | PrimitiveTypePart  -- ^ Things like Set and forall.
   | Name NameKind Bool -- ^ Is the name an operator part?
     deriving (Eq, Show)
 
@@ -202,16 +203,18 @@ prop_compress f =
 
 instance Arbitrary Aspect where
   arbitrary =
-    frequency [ (2, elements [Comment, Keyword, String, Number])
+    frequency [ (2, elements [ Error, Comment, Keyword, String, Number
+                             , PrimitiveTypePart ])
               , (1, liftM2 Name arbitrary arbitrary)
               ]
 
-  coarbitrary Error       = variant 0
-  coarbitrary Comment     = variant 1
-  coarbitrary Keyword     = variant 2
-  coarbitrary String      = variant 3
-  coarbitrary Number      = variant 4
-  coarbitrary (Name nk b) = variant 5 . coarbitrary nk . coarbitrary b
+  coarbitrary Error             = variant 0
+  coarbitrary Comment           = variant 1
+  coarbitrary Keyword           = variant 2
+  coarbitrary String            = variant 3
+  coarbitrary Number            = variant 4
+  coarbitrary PrimitiveTypePart = variant 5
+  coarbitrary (Name nk b)       = variant 6 . coarbitrary nk . coarbitrary b
 
 instance Arbitrary NameKind where
   arbitrary   = elements [minBound .. maxBound]

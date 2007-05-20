@@ -12,39 +12,34 @@
   "Syntax highlighting for Agda."
   :group 'agda2)
 
-(defcustom agda2-highlight-comment-face
-  font-lock-comment-face
+(defface agda2-highlight-comment-face
+  '((t (:foreground "firebrick")))
   "*The face used for comments."
-  :type 'face
-  :require 'font-lock
   :group 'agda2-highlight)
 
-(defcustom agda2-highlight-keyword-face
-  font-lock-keyword-face
+(defface agda2-highlight-keyword-face
+  '((t (:foreground "DarkOrange3")))
   "*The face used for keywords."
-  :type 'face
-  :require 'font-lock
   :group 'agda2-highlight)
 
-(defcustom agda2-highlight-string-face
-  font-lock-string-face
+(defface agda2-highlight-string-face
+  '((t (:foreground "firebrick")))
   "*The face used for strings."
-  :type 'face
-  :require 'font-lock
   :group 'agda2-highlight)
 
-(defcustom agda2-highlight-number-face
-  font-lock-constant-face
+(defface agda2-highlight-number-face
+  '((t (:foreground "purple")))
   "*The face used for numbers."
-  :type 'face
-  :require 'font-lock
   :group 'agda2-highlight)
 
-(defcustom agda2-highlight-bound-variable-face
-  font-lock-variable-name-face
+(defface agda2-highlight-primitive-type-part-face
+  '((t (:foreground "medium blue")))
+  "*The face used for primitive type parts (like Set and forall)."
+  :group 'agda2-highlight)
+
+(defface agda2-highlight-bound-variable-face
+  '((t nil))
   "*The face used for bound variables."
-  :type 'face
-  :require 'font-lock
   :group 'agda2-highlight)
 
 (defface agda2-highlight-constructor-face
@@ -52,99 +47,91 @@
   "The face used for constructors."
   :group 'agda2-highlight)
 
-(defcustom agda2-highlight-datatype-face
-  font-lock-type-face
+(defface agda2-highlight-datatype-face
+  '((t (:foreground "dark green")))
   "*The face used for datatypes."
-  :type 'face
-  :require 'font-lock
   :group 'agda2-highlight)
 
 (defface agda2-highlight-field-face
-  '((t (:foreground "HotPink2")))
+  '((t (:foreground "DeepPink2")))
   "The face used for record fields."
   :group 'agda2-highlight)
 
-(defcustom agda2-highlight-function-face
-  font-lock-function-name-face
+(defface agda2-highlight-function-face
+  '((t (:foreground "blue2")))
   "*The face used for functions."
-  :type 'face
-  :require 'font-lock
   :group 'agda2-highlight)
 
 (defface agda2-highlight-postulate-face
-  '((t (:foreground "dark magenta")))
+  '((t (:foreground "blue4")))
   "The face used for postulates."
   :group 'agda2-highlight)
 
-(defcustom agda2-highlight-primitive-face
-  font-lock-function-name-face
+(defface agda2-highlight-primitive-face
+  '((t (:foreground "DodgerBlue1")))
   "The face used for primitive functions."
-  :type 'face
-  :require 'font-lock
   :group 'agda2-highlight)
 
-(defcustom agda2-highlight-record-face
-  font-lock-type-face
+(defface agda2-highlight-record-face
+  '((t (:foreground "DeepPink4")))
   "*The face used for record types."
-  :type 'face
-  :require 'font-lock
   :group 'agda2-highlight)
 
 (defface agda2-highlight-dotted-face
-  '((t (:box (:line-width 2 :color "grey75"))))
+  '((t nil))
   "The face used for dotted patterns."
   :group 'agda2-highlight)
 
 (defface agda2-highlight-operator-face
-  '((t (:underline t)))
+  '((t nil))
   "The face used for operators."
   :group 'agda2-highlight)
 
-(defcustom agda2-highlight-error-face
-  font-lock-warning-face
+(defface agda2-highlight-error-face
+  '((t (:foreground "red" :weight bold)))
   "The face used for errors."
-  :type 'face
-  :require 'font-lock
   :group 'agda2-highlight)
 
 (defvar agda2-highlight-faces
   ; The faces that are pointers to other faces need to be evaluated,
   ; hence the splices.
-  `((comment     . ,agda2-highlight-comment-face)
-    (keyword     . ,agda2-highlight-keyword-face)
-    (string      . ,agda2-highlight-string-face)
-    (number      . ,agda2-highlight-number-face)
-    (bound       . ,agda2-highlight-bound-variable-face)
-    (constructor . agda2-highlight-constructor-face)
-    (datatype    . ,agda2-highlight-datatype-face)
-    (field       . agda2-highlight-field-face)
-    (function    . ,agda2-highlight-function-face)
-    (postulate   . agda2-highlight-postulate-face)
-    (primitive   . ,agda2-highlight-primitive-face)
-    (record      . ,agda2-highlight-record-face)
-    (dotted      . agda2-highlight-dotted-face)
-    (operator    . agda2-highlight-operator-face)
-    (error       . ,agda2-highlight-error-face))
+  `((comment           . agda2-highlight-comment-face)
+    (keyword           . agda2-highlight-keyword-face)
+    (string            . agda2-highlight-string-face)
+    (number            . agda2-highlight-number-face)
+    (primitivetypepart . agda2-highlight-primitive-type-part-face)
+    (bound             . agda2-highlight-bound-variable-face)
+    (constructor       . agda2-highlight-constructor-face)
+    (datatype          . agda2-highlight-datatype-face)
+    (field             . agda2-highlight-field-face)
+    (function          . agda2-highlight-function-face)
+    (postulate         . agda2-highlight-postulate-face)
+    (primitive         . agda2-highlight-primitive-face)
+    (record            . agda2-highlight-record-face)
+    (dotted            . agda2-highlight-dotted-face)
+    (operator          . agda2-highlight-operator-face)
+    (error             . agda2-highlight-error-face))
   "An association list mapping from a code aspect to the face used when
 displaying the aspect.
 
 The aspects currently recognised are the following:
 
-`bound'       Bound variables.
-`comment'     Comments.
-`constructor' Constructors.
-`datatype'    Data types.
-`dotted'      Dotted patterns.
-`error'       Errors.
-`field'       Record fields.
-`function'    Functions.
-`keyword'     Keywords.
-`number'      Numbers.
-`operator'    Operators.
-`postulate'   Postulates.
-`primitive'   Primitive functions.
-`record'      Record types.
-`string'      Strings.
+`bound'             Bound variables.
+`comment'           Comments.
+`constructor'       Constructors.
+`datatype'          Data types.
+`dotted'            Dotted patterns.
+`error'             Errors.
+`field'             Record fields.
+`function'          Functions.
+`keyword'           Keywords.
+`number'            Numbers.
+`operator'          Operators.
+`postulate'         Postulates.
+`primitive'         Primitive functions.
+`primitivetypepart' Primitive type parts (like Set and forall).
+`record'            Record types.
+`string'            Strings.
 ")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
