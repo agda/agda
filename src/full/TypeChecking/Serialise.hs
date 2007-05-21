@@ -64,7 +64,7 @@ currentInterfaceVersion = InterfaceVersion 118
 -- | Things hashed by the map.
 
 data Thing = String String
-           | Range  Range
+           | Pos    Int Int Int
   deriving (Show, Eq, Ord)
 
 -- | Unique identifiers.
@@ -202,15 +202,28 @@ instance Binary String where
       String s -> return s
       _        -> corruptError
 
--- | Range instance (replaces ranges with unique identifiers).
+-- | Position instance (replaces positions with unique identifiers).
 
-instance Binary Range where
-  put r = put =<< lookupId (Range r)
-  get   = do
-    x <- lookupThing =<< get
-    case x of
-      Range r -> return r
-      _       -> corruptError
+instance Binary Position where
+  put (Pn s a b c) = do
+    putWord8 0
+    put =<< lookupId (String s)
+    put =<< lookupId (Pos a b c)
+  put NoPos = putWord8 1
+  get = do
+    tok <- getWord8
+    case tok of
+      0 -> do
+        x <- lookupThing =<< get
+        case x of
+          String s -> do
+            x <- lookupThing =<< get
+            case x of
+              Pos a b c -> return $ Pn s a b c
+              _         -> corruptError
+          _        -> corruptError
+      1 -> return NoPos
+      _ -> corruptError
 
 -- | Encodes the input, ensuring that strings are stored as unique
 -- identifiers.
@@ -242,29 +255,14 @@ decodeFile f = liftM decode $ L.readFile f
 ------------------------------------------------------------------------
 
 instance B.Binary Thing where
-  put (String s) = B.putWord8 0 >> B.put s
-  put (Range r)  = B.putWord8 1 >> B.put r
+  put (String s)  = B.putWord8 0 >> B.put s
+  put (Pos a b c) = B.putWord8 1 >> B.put a >> B.put b >> B.put c
   get = do
     tag <- B.getWord8
     case tag of
       0 -> liftM String B.get
-      1 -> liftM Range B.get
+      1 -> liftM3 Pos B.get B.get B.get
       _ -> corruptError
-
-instance B.Binary Range where
-  put (P.Range a b) = B.put a >> B.put b
-  get = liftM2 P.Range B.get B.get
-
-instance B.Binary Position where
-    put NoPos	     = B.putWord8 0
-    put (Pn f p l c) = B.putWord8 1
-                       >> B.put f >> B.put p >> B.put l >> B.put c
-    get = do
-	tag_ <- B.getWord8
-	case tag_ of
-	    0	-> return NoPos
-	    1	-> liftM4 Pn B.get B.get B.get B.get
-	    _ -> fail "no parse"
 
 instance Binary Double where
   put = liftedPut
@@ -337,6 +335,10 @@ instance Binary NamePart where
       0 -> return Hole
       1 -> liftM2 Id get get
       _ -> fail "no parse"
+
+instance Binary Range where
+  put (P.Range a b) = put a >> put b
+  get = liftM2 P.Range get get
 
 instance Binary C.QName where
   put (Qual a b) = putWord8 0 >> put a >> put b
