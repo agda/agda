@@ -6,8 +6,10 @@ module Interaction.Highlighting.Emacs
   ) where
 
 import Interaction.Highlighting.Precise
+import Prelude hiding (writeFile)
 import Utils.FileName
 import Utils.String
+import Utils.IO (writeFile)
 import Data.List
 import Data.Char
 import Test.QuickCheck
