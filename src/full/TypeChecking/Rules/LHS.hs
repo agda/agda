@@ -476,7 +476,7 @@ nothingToSplitError (Problem ps _ tel) = splitError ps tel
     splitError (_:_)	EmptyTel    = __IMPOSSIBLE__
     splitError []	ExtendTel{} = __IMPOSSIBLE__
     splitError (p : ps) (ExtendTel a tel)
-      | isBad p   = traceCall (CheckPattern (strip p) (unArg a)) $ case strip p of
+      | isBad p   = traceCall (CheckPattern (strip p) EmptyTel (unArg a)) $ case strip p of
 	  A.DotP _ e -> typeError $ UninstantiatedDotPattern e
 	  p	     -> typeError $ IlltypedPattern p (unArg a)
       | otherwise = underAbstraction a tel $ \tel -> splitError ps tel
@@ -656,7 +656,7 @@ checkLeftHandSide ps a ret = do
 			  , focusIndices  = ws
 			  }
 		  )) p1
-		) -> traceCall (CheckPattern (A.ConP (PatRange r) c qs)
+		) -> traceCall (CheckPattern (A.ConP (PatRange r) c qs) (problemTel p0)
 			       (El Prop $ Def d $ vs ++ ws)) $ do
 
 	    let delta1 = problemTel p0

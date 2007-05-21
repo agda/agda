@@ -347,7 +347,7 @@ noTrace :: CallTrace
 noTrace = TopLevel []
 
 data Call = CheckClause Type A.Clause (Maybe Clause)
-	  | forall a. CheckPattern A.Pattern Type (Maybe a)
+	  | forall a. CheckPattern A.Pattern Telescope Type (Maybe a)
 	  | CheckLetBinding A.LetBinding (Maybe ())
 	  | InferExpr A.Expr (Maybe (Term, Type))
 	  | CheckExpr A.Expr Type (Maybe Term)
@@ -375,7 +375,7 @@ instance HasRange a => HasRange (Trace a) where
 
 instance HasRange Call where
     getRange (CheckClause _ c _)	  = getRange c
-    getRange (CheckPattern p _ _)	  = getRange p
+    getRange (CheckPattern p _ _ _)	  = getRange p
     getRange (InferExpr e _)		  = getRange e
     getRange (CheckExpr e _ _)		  = getRange e
     getRange (CheckLetBinding b _)	  = getRange b

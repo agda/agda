@@ -353,7 +353,7 @@ instance PrettyTCM Call where
 	CheckClause t cl _  -> fsep $
 	    pwords "when checking that the clause"
 	    ++ [prettyA cl] ++ pwords "has type" ++ [prettyTCM t]
-	CheckPattern p t _ -> fsep $
+	CheckPattern p tel t _ -> addCtxTel tel $ fsep $
 	    pwords "when checking that the pattern"
 	    ++ [prettyA p] ++ pwords "has type" ++ [prettyTCM t]
 	CheckLetBinding b _ -> fsep $
