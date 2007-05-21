@@ -56,7 +56,7 @@ instance Binary NamePart where
 instance Binary Range where
     put _ = return ()
     get	  = return $ Range p p
-	where p = Pn "[imported]" 0 0 0
+	where p = NoPos
 --     put (Range a b) = put a >> put b
 --     get = liftM2 Range get get
 

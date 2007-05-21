@@ -17,8 +17,12 @@ Becomes buffer-local when set.")
 buffer position POS, if any."
   (let ((result (gethash pos annotation-goto-map)))
     (when (consp result)
-      (find-file (car result))
-      (goto-char (cdr result)))))
+      (let ((file (car result)))
+      (if (file-readable-p file)
+          (progn
+            (find-file file)
+            (goto-char (cdr result)))
+        (error "File does not exist or is unreadable: %s." file))))))
 
 (defun annotation-annotate (start end anns &optional info goto)
   "Annotate text between START and END in the current buffer with the
