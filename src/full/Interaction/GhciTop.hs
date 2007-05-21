@@ -156,12 +156,15 @@ cmd_load file = infoOnException $ do
             tokens <- liftIO $ parseFile' tokensParser file
             syntaxInfo <- generateSyntaxInfo tokens topLevel
             return (is, syntaxInfo)
-    putStrLn $ response $ L [A "agda2-load-action", is]
-
     -- Currently highlighting information is only generated when a
     -- file is loaded, or an error is encountered.
     outputSyntaxInfo file syntaxInfo
 
+    -- The Emacs mode uses two different annotation mechanisms, and
+    -- they cannot be invoked in any order. The one triggered by the
+    -- following line has to be run after the one triggered by
+    -- outputSyntaxInfo.
+    putStrLn $ response $ L [A "agda2-load-action", is]
     cmd_metas
   where lispIP  = format . sortRng <$> (tagRng =<< getInteractionPoints)
         tagRng  = mapM (\i -> (,)i <$> getInteractionRange i)
