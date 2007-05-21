@@ -16,7 +16,7 @@ module Syntax.Parser.LexActions
       -- ** Specialized actions
     , keyword, symbol, identifier, literal
       -- * Lex predicates
-    , notFollowedBy, notEOF
+    , notFollowedBy, followedBy, notEOF
     ) where
 
 import Data.Char
@@ -54,15 +54,16 @@ skipTo :: AlexInput -> Parser Token
 skipTo inp = setLexInput inp >> lexToken
 
 {-| Scan the input to find the next token. Calls
-    'Syntax.Parser.Lexer.alexScan'.  This is the main lexing function where all
-    the work happens.  The function 'Syntax.Parser.Lexer.lexer', used by the
-    parser is the continuation version of this function.
+'Syntax.Parser.Lexer.alexScanUser'. This is the main lexing function
+where all the work happens. The function 'Syntax.Parser.Lexer.lexer',
+used by the parser is the continuation version of this function.
 -}
 lexToken :: Parser Token
 lexToken =
     do	inp <- getLexInput
 	ls:_ <- getLexState
-	case alexScan (foolAlex inp) ls of
+        flags <- getParseFlags
+	case alexScanUser flags (foolAlex inp) ls of
 	    AlexEOF			-> returnEOF inp
 	    AlexError _			-> parseError "Lexical error"
 	    AlexSkip inp' len		-> skipTo (newInput inp inp' len)
@@ -216,6 +217,10 @@ notFollowedBy c' _ _ _ inp =
     case lexInput inp of
 	[]  -> True
 	c:_ -> c /= c'
+
+-- | True when the given character is the next character of the input string.
+followedBy :: Char -> LexPredicate
+followedBy c' x y z inp = not $ notFollowedBy c' x y z inp
 
 -- | True if we are not at the end of the file.
 notEOF :: LexPredicate

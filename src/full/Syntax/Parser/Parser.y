@@ -74,6 +74,7 @@ import Utils.Monad
 
     setN	{ TokSetN $$ }
     tex		{ TokTeX $$ }
+    comment	{ TokComment $$ }
 
     '.'		{ TokSymbol SymDot $$ }
     ';'		{ TokSymbol SymSemi $$ }
@@ -150,6 +151,7 @@ Token
 
     | setN	    { TokSetN $1 }
     | tex	    { TokTeX $1 }
+    | comment	    { TokComment $1 }
 
     | '.'	    { TokSymbol SymDot $1 }
     | ';'	    { TokSymbol SymSemi $1 }

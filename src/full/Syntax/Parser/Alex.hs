@@ -9,6 +9,7 @@ module Syntax.Parser.Alex
     , alexGetChar
       -- * Lex actions
     , LexAction, LexPredicate
+    , (.&&.)
     , PreviousInput, CurrentInput, TokenLength
       -- * Monad operations
     , getLexInput, setLexInput
@@ -81,5 +82,8 @@ type LexAction r    = PreviousInput -> CurrentInput -> TokenLength -> Parser r
 -- | Sometimes regular expressions aren't enough. Alex provides a way to do
 --   arbitrary computations to see if the input matches. This is done with a
 --   lex predicate.
-type LexPredicate   = () -> PreviousInput -> TokenLength -> CurrentInput -> Bool
+type LexPredicate   = ParseFlags -> PreviousInput -> TokenLength -> CurrentInput -> Bool
 
+-- | Conjunction of 'LexPredicate's.
+(.&&.) :: LexPredicate -> LexPredicate -> LexPredicate
+p1 .&&. p2 = \x y z u -> p1 x y z u && p2 x y z u

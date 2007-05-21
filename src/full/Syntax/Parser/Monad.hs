@@ -8,7 +8,7 @@ module Syntax.Parser.Monad
     , ParseError(..)
     , LexState
     , LayoutContext(..)
-    , ParseFlags
+    , ParseFlags (..)
       -- * Running the parser
     , initState
     , defaultParseFlags
@@ -79,7 +79,11 @@ data LayoutContext  = NoLayout	    -- ^ no layout
     deriving Show
 
 -- | There aren't any parser flags at the moment.
-type ParseFlags	= ()
+data ParseFlags	= ParseFlags
+  { parseKeepComments :: Bool
+    -- ^ Should comment tokens be returned by the lexer?
+  }
+  deriving Show
 
 -- | What you get if parsing fails.
 data ParseError	= ParseError
@@ -174,7 +178,7 @@ initState file = initStatePos (startPos file)
 
 -- | The default flags.
 defaultParseFlags :: ParseFlags
-defaultParseFlags = ()
+defaultParseFlags = ParseFlags { parseKeepComments = False }
 
 -- | The most general way of parsing a string. The "Syntax.Parser" will define
 --   more specialised functions that supply the 'ParseFlags' and the

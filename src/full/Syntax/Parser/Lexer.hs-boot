@@ -5,7 +5,7 @@ import Syntax.Parser.Alex
 import Syntax.Parser.Monad
 import Syntax.Parser.Tokens
 
-alexScan :: AlexInput -> Int -> AlexReturn (LexAction Token)
+alexScanUser :: ParseFlags -> AlexInput -> Int -> AlexReturn (LexAction Token)
 
 data AlexReturn	r
 	= AlexEOF

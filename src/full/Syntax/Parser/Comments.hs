@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 
 {-| This module defines the lex action to lex nested comments. As is well-known
     this cannot be done by regular expressions (which, incidently, is probably
@@ -18,6 +19,18 @@ import Syntax.Position
 
 import Utils.Monad
 
+#include "../../undefined.h"
+
+-- | Should comment tokens be output?
+
+keepComments :: LexPredicate
+keepComments s _ _ _ = parseKeepComments s
+
+-- | Should comment tokens be output?
+
+keepCommentsM :: Parser Bool
+keepCommentsM = fmap parseKeepComments getParseFlags
+
 -- | Manually lexing a block comment. Assumes an /open comment/ has been lexed.
 --   In the end the comment is discarded and 'lexToken' is called to lex a real
 --   token.
@@ -25,7 +38,18 @@ nestedComment :: LexAction Token
 nestedComment inp inp' _ =
     do	setLexInput inp'
 	runLookAhead err $ skipBlock "{-" "-}"
-	lexToken
+        keep <- keepCommentsM
+        if keep then do
+          inp'' <- getLexInput
+          let p1 = lexPos inp; p2 = lexPos inp''
+              r = Range { rStart = p1, rEnd = p2 }
+              s = case (p1, p2) of
+                    (Pn { posPos = p1 }, Pn { posPos = p2 }) ->
+                      take (p2 - p1) $ lexInput inp
+                    _ -> __IMPOSSIBLE__
+          return $ TokComment (r, s)
+         else
+	  lexToken
     where
         err _ = liftP $ parseErrorAt (lexPos inp) "Unterminated '{-'"
 

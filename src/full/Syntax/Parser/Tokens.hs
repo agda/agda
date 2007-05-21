@@ -47,7 +47,8 @@ data Token
 	  -- Other tokens
 	| TokString String  -- arbitrary string, used in pragmas
 	| TokSetN (Range, Int)
-	| TokTeX String
+	| TokTeX (Range, String)
+        | TokComment (Range, String)
 	| TokDummy	-- Dummy token to make Happy not complain
 			-- about overlapping cases.
 	| TokEOF
