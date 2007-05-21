@@ -1,9 +1,36 @@
-{-# OPTIONS -fallow-overlapping-instances #-}
+{-# LANGUAGE OverlappingInstances,
+             GeneralizedNewtypeDeriving #-}
 
-module TypeChecking.Serialise where
+-- | Serialisation of Agda interface files.
+
+-- TODO: It should be easy to produce a decent QuickCheck test suite
+-- for this file.
+
+module TypeChecking.Serialise
+  ( Binary
+  , encode
+  , encodeFile
+  , decode
+  , decodeFile
+  , currentInterfaceVersion
+  ) where
 
 import Control.Monad
-import Data.Binary
+import Control.Monad.State (StateT, MonadState)
+import qualified Control.Monad.State as S
+import Control.Monad.Reader (ReaderT, MonadReader)
+import qualified Control.Monad.Reader as R
+import Control.Monad.Trans (MonadTrans, lift)
+import Data.Map (Map)
+import qualified Data.Map as Map
+import Data.IntMap (IntMap)
+import qualified Data.IntMap as IntMap
+import qualified Data.Binary as B
+import qualified Data.Binary.Put as B
+import qualified Data.Binary.Get as B
+import qualified Data.Binary.Builder as B
+import qualified Data.ByteString.Lazy as L
+import Data.Word
 
 import Syntax.Common
 import Syntax.Concrete.Name as C
@@ -23,7 +50,218 @@ import Utils.Tuple
 -- | Current version of the interface. Only interface files of this version
 --   will be parsed.
 currentInterfaceVersion :: InterfaceVersion
-currentInterfaceVersion = InterfaceVersion 117
+currentInterfaceVersion = InterfaceVersion 118
+
+------------------------------------------------------------------------
+-- A wrapper around Data.Binary
+------------------------------------------------------------------------
+
+-- Used to save space by replacing strings with unique identifiers and
+-- storing the syntax tree together with a map from identifiers to
+-- strings.
+
+-- | Unique identifiers.
+
+type Id = Int
+
+-- | Error message used below.
+
+corruptError :: Monad m => m a
+corruptError = fail "Corrupt interface file."
+
+------------------------------------------------------------------------
+-- Put
+
+-- | State used by the 'put' instance for strings.
+
+data PutState = PutState { stringMap     :: Map String Id
+                           -- ^ TODO: It seems wise to use a trie
+                           -- instead of a map here.
+                         , lowestFreshId :: Id
+                         }
+  deriving Show
+
+-- | Initial 'PutState'.
+
+initialState :: PutState
+initialState = PutState { stringMap     = Map.empty
+                        , lowestFreshId = 0
+                        }
+
+-- | Looks up the string. If it doesn't already have a unique id
+-- associated with it, such an association is created.
+
+lookupId :: (Monad m, MonadState PutState m) => String -> m Id
+lookupId s = do
+  st <- S.get
+  case Map.lookup s (stringMap st) of
+    Nothing -> do
+      let n = lowestFreshId st
+      S.put (st { stringMap     = Map.insert s n (stringMap st)
+                , lowestFreshId = n + 1
+                })
+      return n
+    Just n -> return n
+
+-- | The 'PutT' monad transformer.
+
+newtype PutT m a = PutM { unPutT :: StateT PutState m a }
+  deriving (Monad, MonadState PutState, MonadTrans)
+
+-- | @'Put' = 'PutT' 'B.PutM' ()@.
+
+type Put = PutT B.PutM ()
+
+-- | Runs the put computation, producing a string plus a 'GetState'
+-- mapping unique identifiers to strings.
+
+runPut :: Put -> (L.ByteString, GetState)
+runPut p = (B.toLazyByteString builder, getState)
+  where
+  ((_, st), builder) = B.unPut (S.runStateT (unPutT p) initialState)
+  getState = IntMap.fromList $ map swap $ Map.toList $ stringMap st
+
+  swap (x, y) = (y, x)
+
+-- | A lifted version of 'B.putWord8'.
+
+putWord8 :: Word8 -> Put
+putWord8 w = lift (B.putWord8 w)
+
+------------------------------------------------------------------------
+-- Get
+
+-- | A map from unique identifiers to strings.
+
+type GetState = IntMap String
+
+-- | Looks up the identifier. Uses 'fail' to report missing
+-- identifiers.
+
+lookupString :: (Monad m, MonadReader GetState m) => Id -> m String
+lookupString n = do
+  map <- R.ask
+  case IntMap.lookup n map of
+    Nothing -> corruptError
+    Just s  -> return s
+
+-- | The 'GetT' monad transformer.
+
+newtype GetT m a = Get { unGetT :: ReaderT GetState m a }
+  deriving (Monad, MonadReader GetState, MonadTrans)
+
+-- | @'Get' = 'GetT' 'B.Get'@.
+
+type Get = GetT B.Get
+
+-- | Runs the get computation on the given string, using the given
+-- 'GetState'.
+
+runGet :: GetState -> Get a -> L.ByteString -> a
+runGet st m s = B.runGet (R.runReaderT (unGetT m) st) s
+
+-- | A lifted version of 'B.getWord8'.
+
+getWord8 :: Get Word8
+getWord8 = lift B.getWord8
+
+------------------------------------------------------------------------
+-- Binary wrapper
+
+-- | A wrapper around 'B.Binary'.
+
+class Binary a where
+  put :: a -> Put
+  get :: Get a
+
+-- | Lifting of 'B.put'.
+
+liftedPut :: B.Binary a => a -> Put
+liftedPut = lift . B.put
+
+-- | Lifting of 'B.get'.
+
+liftedGet :: B.Binary a => Get a
+liftedGet = lift B.get
+
+-- | String instance (replaces strings with unique identifiers).
+
+instance Binary String where
+  put w = put =<< lookupId w
+  get   = lookupString =<< get
+
+-- | Encodes the input, ensuring that strings are stored as unique
+-- identifiers.
+
+encode :: Binary a => a -> L.ByteString
+encode x = B.encode getState `L.append` s
+  where
+  (s, getState) = runPut (put x)
+
+-- | Encodes a file, ensuring that strings are stored as unique
+-- identifiers.
+
+encodeFile :: Binary a => FilePath -> a -> IO ()
+encodeFile f x = L.writeFile f (encode x)
+ 
+-- | Decodes something encoded by 'encode'.
+
+decode :: Binary a => L.ByteString -> a
+decode s = runGet getState get s'
+  where (getState, s', _) = B.runGetState B.get s 0
+ 
+-- | Decodes a file written by 'encodeFile'.
+
+decodeFile :: Binary a => FilePath -> IO a
+decodeFile f = liftM decode $ L.readFile f
+
+------------------------------------------------------------------------
+-- Boring instances
+------------------------------------------------------------------------
+
+instance Binary Double where
+  put = liftedPut
+  get = liftedGet
+
+instance Binary Integer where
+  put = liftedPut
+  get = liftedGet
+
+instance Binary Int where
+  put = liftedPut
+  get = liftedGet
+
+instance Binary Char where
+  put = liftedPut
+  get = liftedGet
+
+instance (Binary a, Binary b) => Binary (a, b) where
+  put (x, y) = put x >> put y
+  get = liftM2 (,) get get
+
+instance Binary a => Binary (Maybe a) where
+  put Nothing  = putWord8 0
+  put (Just x) = putWord8 1 >> put x
+  get = do
+    tag <- getWord8
+    case tag of
+      0 -> return Nothing
+      1 -> liftM Just get
+      _ -> corruptError
+
+instance Binary a => Binary [a] where
+  put []       = putWord8 0
+  put (x : xs) = putWord8 1 >> put x >> put xs
+  get = do
+    tag <- getWord8
+    case tag of
+      0 -> return []
+      1 -> liftM2 (:) get get
+      _ -> corruptError
+
+instance (Eq a, Binary a, Binary b) => Binary (Map a b) where
+  put = put . Map.toAscList
+  get = liftM Map.fromAscList get
 
 instance Binary InterfaceVersion where
     put (InterfaceVersion v) = put v
@@ -54,11 +292,8 @@ instance Binary NamePart where
       _ -> fail "no parse"
 
 instance Binary Range where
-    put _ = return ()
-    get	  = return $ Range p p
-	where p = NoPos
---     put (Range a b) = put a >> put b
---     get = liftM2 Range get get
+    put (Range a b) = put a >> put b
+    get = liftM2 Range get get
 
 instance Binary Position where
     put NoPos	     = putWord8 0
@@ -327,4 +562,3 @@ instance Binary a => Binary (Builtin a) where
 instance Binary Interface where
     put (Interface a b c d e f) = put a >> put b >> put c >> put d >> put e >> put f
     get = liftM5 Interface get get get get get `ap` get
-

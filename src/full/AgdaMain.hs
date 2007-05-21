@@ -14,7 +14,6 @@ import Data.List
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe
-import Data.Binary
 
 import System.Environment
 import System.IO hiding (putStrLn, putStr, print)

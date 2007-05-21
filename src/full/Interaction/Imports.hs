@@ -12,7 +12,6 @@ import Control.Monad.State
 import qualified Data.Map as Map
 import qualified Data.List as List
 import qualified Data.Set as Set
-import Data.Binary
 import Data.Generics
 import System.Directory
 import System.Time
