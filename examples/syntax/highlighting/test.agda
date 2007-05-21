@@ -1,13 +1,15 @@
 -- This test file currently lacks module-related stuff.
 
-{- And interesting uses of shadowing.
- -}
-
 module Test where
 
 infix  12 _!
 infixl  7 _+_ _-_
 infixr  2 -_
+
+postulate x : Set
+
+f : (Set -> Set -> Set) -> Set
+f _*_ = x * x
 
 data ℕ : Set where
   zero : ℕ

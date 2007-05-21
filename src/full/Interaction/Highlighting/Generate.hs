@@ -113,9 +113,12 @@ generateSyntaxInfo toks top = do
               getTyped       `extQ`
               getPattern
 
-      bound = nameToFile (\isOp -> empty { aspect = Just $ Name Bound isOp })
-            . A.nameConcrete
-      field = nameToFile (\isOp -> empty { aspect = Just $ Name Field isOp })
+      bound n = nameToFile (A.nameConcrete n)
+                           (\isOp -> empty { aspect = Just $ Name Bound isOp })
+                           (Just $ A.nameBindingSite n)
+      field n = nameToFile n
+                           (\isOp -> empty { aspect = Just $ Name Field isOp })
+                           Nothing
 
       getVarAndField :: A.Expr -> File
       getVarAndField (A.Var x)    = bound x
@@ -153,13 +156,10 @@ generateSyntaxInfo toks top = do
 generate :: A.QName -> M.TCM File
 generate n = do
   info <- M.getConstInfo n
-  let mFilePos = case P.rStart $ P.getRange $ M.defName info of
-        P.Pn { P.srcFile = f, P.posPos = p } -> Just (f, toInteger p)
-        P.NoPos {}                           -> Nothing
-      m isOp = empty { aspect = Just $ Name (toAspect (M.theDef info)) isOp
-                     , definitionSite = mFilePos
-                     }
-  return (nameToFile m (A.nameConcrete $ A.qnameName n))
+  let m isOp = empty { aspect = Just $ Name (toAspect (M.theDef info)) isOp }
+  return (nameToFile (A.nameConcrete $ A.qnameName n)
+                     m
+                     (Just $ P.getRange $ M.defName info))
   where
   toAspect :: M.Defn -> NameKind
   toAspect (M.Axiom {})       = Postulate
@@ -169,16 +169,24 @@ generate n = do
   toAspect (M.Constructor {}) = Constructor
   toAspect (M.Primitive {})   = Primitive
 
--- | @'nameToFile' m x@ constructs a 'File' by associating the
--- 'MetaInfo' calculated by @m@ to the ranges associated with the name
--- @x@ (see 'getRanges').
+-- | Converts names to suitable 'File's.
 
-nameToFile :: (Bool -- ^ 'True' iff the name (next argument) is an operator.
+nameToFile :: C.Name
+              -- ^ The name.
+           -> (Bool -- ^ 'True' iff the name (next argument) is an operator.
                -> MetaInfo)
-           -> C.Name
+              -- ^ Meta information to be associated with the name.
+           -> Maybe P.Range
+              -- ^ The definition site of the name. The calculated
+              -- meta information is extended with this information,
+              -- if possible.
            -> File
-nameToFile m x = several rs (m isOp)
-  where (rs, isOp) = getRanges x
+nameToFile x m mR = several rs ((m isOp) { definitionSite = mFilePos =<< mR })
+  where
+  (rs, isOp) = getRanges x
+  mFilePos r = case P.rStart r of
+    P.Pn { P.srcFile = f, P.posPos = p } -> Just (f, toInteger p)
+    P.NoPos {}                           -> Nothing
 
 -- | Calculates a set of ranges associated with a name.
 --

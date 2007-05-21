@@ -686,14 +686,12 @@ setting of `agda2-indentation'."
 ;; Go to definition site
 
 (defun agda2-goto-definition-keyboard ()
-  "Go to the definition site of the identifier (free variable) under
-point (if any)."
+  "Go to the definition site of the name under point (if any)."
   (interactive)
   (annotation-goto (point)))
 
 (defun agda2-goto-definition-mouse (ev)
-  "Go to the definition site of the identifier (free variable) clicked
-on (if any)."
+  "Go to the definition site of the name clicked on (if any)."
   (interactive "e")
   (annotation-goto (posn-point (event-end ev))))
 
