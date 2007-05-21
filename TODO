@@ -29,6 +29,12 @@ User interface
 
 * Highlighting comments, module names, fixity declarations.
 
+* Add point warping for record fields.
+
+* locally nameless representation
+
+* pattern completeness
+
 Fixes
 -----
 
@@ -66,7 +72,7 @@ Fixes
 
 * literal patterns are considered neutral when deciding if a match is No or DontKnow
   example
-  
+
     funny : (A : Set) -> A -> D A -> ..
     funny .Nat zero nat
     funny .String "foo" string
