@@ -68,6 +68,8 @@ generateSyntaxInfo toks top = do
       tokenToFile (T.TokLiteral (L.LitFloat  r _)) = aToF Number r
       tokenToFile (T.TokLiteral (L.LitString r _)) = aToF String r
       tokenToFile (T.TokLiteral (L.LitChar   r _)) = aToF String r
+      tokenToFile (T.TokComment (r, _))            = aToF Comment r
+      tokenToFile (T.TokTeX (r, _))                = aToF Comment r
       tokenToFile _                                = mempty
 
     everything' :: (r -> r -> r) -> GenericQ r -> r

@@ -1,5 +1,8 @@
 -- This test file currently lacks module-related stuff.
 
+{- Nested
+   {- comment. -} -}
+
 module Test where
 
 infix  12 _!
