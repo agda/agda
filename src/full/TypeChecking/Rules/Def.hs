@@ -33,7 +33,6 @@ import TypeChecking.Rebind
 import TypeChecking.Primitive
 
 import TypeChecking.Rules.Term		      ( checkExpr, checkTelescope )
-import TypeChecking.Rules.Pattern	      ( checkPatterns )
 import TypeChecking.Rules.LHS		      ( checkLeftHandSide )
 import {-# SOURCE #-} TypeChecking.Rules.Decl ( checkDecls )
 

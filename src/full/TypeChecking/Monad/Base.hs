@@ -347,11 +347,11 @@ noTrace :: CallTrace
 noTrace = TopLevel []
 
 data Call = CheckClause Type A.Clause (Maybe Clause)
-	  | CheckPatterns [NamedArg A.Pattern] Type (Maybe ([NamedArg A.Pattern], [Arg Pattern], [Arg Term], Type))
-	  | CheckPattern String A.Pattern Type (Maybe (A.Pattern, Pattern, Term))
+	  | forall a. CheckPattern A.Pattern Type (Maybe a)
 	  | CheckLetBinding A.LetBinding (Maybe ())
 	  | InferExpr A.Expr (Maybe (Term, Type))
 	  | CheckExpr A.Expr Type (Maybe Term)
+	  | CheckDotPattern A.Expr Term (Maybe ())
 	  | IsTypeCall A.Expr Sort (Maybe Type)
 	  | IsType_ A.Expr (Maybe Type)
 	  | InferVar Name (Maybe (Term, Type))
@@ -375,8 +375,7 @@ instance HasRange a => HasRange (Trace a) where
 
 instance HasRange Call where
     getRange (CheckClause _ c _)	  = getRange c
-    getRange (CheckPatterns ps _ _)	  = getRange ps
-    getRange (CheckPattern _ p _ _)	  = getRange p
+    getRange (CheckPattern p _ _)	  = getRange p
     getRange (InferExpr e _)		  = getRange e
     getRange (CheckExpr e _ _)		  = getRange e
     getRange (CheckLetBinding b _)	  = getRange b
@@ -395,6 +394,7 @@ instance HasRange Call where
     getRange (ScopeCheckDeclaration d _)  = getRange d
     getRange (ScopeCheckLHS _ p _)	  = getRange p
     getRange (ScopeCheckDefinition d _)	  = getRange d
+    getRange (CheckDotPattern e _ _)	  = getRange e
 
 ---------------------------------------------------------------------------
 -- ** Builtin things
@@ -491,6 +491,10 @@ data TypeError
 	    -- ^ Expected a non-hidden function and found a hidden lambda.
 	| WrongHidingInApplication Type
 	    -- ^ A function is applied to a hidden argument where a non-hidden was expected.
+	| UninstantiatedDotPattern A.Expr
+	| IlltypedPattern A.Pattern Type
+	| TooManyArgumentsInLHS Nat Type
+	| WrongNumberOfConstructorArguments QName Nat Nat
 	| ShouldBeEmpty Type
 	| ShouldBeASort Type
 	    -- ^ The given type should have been a sort.

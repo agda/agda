@@ -90,6 +90,7 @@ errorString err = case err of
     DuplicateFields _			       -> "DuplicateFields"
     FileNotFound _ _			       -> "FileNotFound"
     GenericError _			       -> "GenericError"
+    IlltypedPattern _ _                        -> "IlltypedPattern"
     IncompletePatternMatching _ _	       -> "IncompletePatternMatching"
     InternalError _			       -> "InternalError"
     LocalVsImportedModuleClash _	       -> "LocalVsImportedModuleClash"
@@ -121,11 +122,13 @@ errorString err = case err of
     ShouldBeRecordType _		       -> "ShouldBeRecordType"
     ShouldEndInApplicationOfTheDatatype _      -> "ShouldEndInApplicationOfTheDatatype"
     TooFewFields _ _			       -> "TooFewFields"
+    TooManyArgumentsInLHS _ _                  -> "TooManyArgumentsInLHS"
     TooManyFields _ _			       -> "TooManyFields"
     UnequalHiding _ _			       -> "UnequalHiding"
     UnequalSorts _ _			       -> "UnequalSorts"
     UnequalTerms _ _ _			       -> "UnequalTerms"
     UnequalTypes _ _			       -> "UnequalTypes"
+    UninstantiatedDotPattern _                 -> "UninstantiatedDotPattern"
     UninstantiatedModule _		       -> "UninstantiatedModule"
     UnsolvedConstraints _		       -> "UnsolvedConstraints"
     UnsolvedMetas _			       -> "UnsolvedMetas"
@@ -133,6 +136,7 @@ errorString err = case err of
     WrongHidingInApplication _		       -> "WrongHidingInApplication"
     WrongHidingInLHS _			       -> "WrongHidingInLHS"
     WrongHidingInLambda _		       -> "WrongHidingInLambda"
+    WrongNumberOfConstructorArguments _ _ _    -> "WrongNumberOfConstructorArguments"
 
 instance PrettyTCM TCErr where
     prettyTCM err = case err of
@@ -177,6 +181,15 @@ instance PrettyTCM TypeError where
 		fwords "Found an implicit lambda where an explicit lambda was expected"
 	    WrongHidingInApplication t -> do
 		fwords "Found an implicit application where an explicit application was expected"
+            UninstantiatedDotPattern e -> fsep $
+              pwords "Failed to infer the value of dotted pattern"
+            IlltypedPattern p a -> fsep $
+              pwords "Type mismatch"
+            TooManyArgumentsInLHS n a -> fsep $
+              pwords "Left hand side gives too many arguments to a function of type" ++ [prettyTCM a]
+            WrongNumberOfConstructorArguments c expect given -> fsep $
+              pwords "The constructor" ++ [prettyTCM c] ++ pwords "expects" ++
+              [text (show expect)] ++ pwords "arguments, but has been given" ++ [text (show given)]
 	    ShouldBeEmpty t -> fsep $
 		[prettyTCM t] ++ pwords "should be empty, but it isn't (as far as I can see)"
 	    ShouldBeASort t -> fsep $
@@ -340,10 +353,7 @@ instance PrettyTCM Call where
 	CheckClause t cl _  -> fsep $
 	    pwords "when checking that the clause"
 	    ++ [prettyA cl] ++ pwords "has type" ++ [prettyTCM t]
-	CheckPatterns ps t _ -> fsep $
-	    pwords "when checking that the patterns" ++
-	    map hPretty ps ++ pwords "fit the type" ++ [prettyTCM t]
-	CheckPattern _ p t _ -> fsep $
+	CheckPattern p t _ -> fsep $
 	    pwords "when checking that the pattern"
 	    ++ [prettyA p] ++ pwords "has type" ++ [prettyTCM t]
 	CheckLetBinding b _ -> fsep $
@@ -377,6 +387,9 @@ instance PrettyTCM Call where
 	CheckPrimitive _ x e _ -> fsep $
 	    pwords "when checking that the type of the primitive function" ++
 	    [prettyTCM x] ++ pwords "is" ++ [prettyA e]
+        CheckDotPattern e v _ -> fsep $
+            pwords "when checking that the given dot pattern" ++ [prettyA e] ++
+            pwords "matches the inferred value" ++ [prettyTCM v]
 	InferVar x _ ->
 	    fsep $ pwords "when inferring the type of" ++ [prettyTCM x]
 	InferDef _ x _ ->

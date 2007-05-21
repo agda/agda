@@ -49,6 +49,7 @@ data Problem' p	    = Problem { problemInPat  :: [NamedArg A.Pattern]
 			      }
 data Focus	    = Focus   { focusCon      :: QName
 			      , focusConArgs  :: [NamedArg A.Pattern]
+			      , focusRange    :: Range
 			      , focusOutPat   :: OneHolePatterns
 			      , focusHoleIx   :: Int  -- ^ index of focused variable in the out patterns
 			      , focusDatatype :: QName
@@ -59,8 +60,7 @@ data Focus	    = Focus   { focusCon      :: QName
 data SplitProblem   = Split ProblemPart [Name]	-- ^ as-bindings for the focus
 			    (Arg Focus) (Abs ProblemPart)
 
-data SplitError	    = TooManyArguments [NamedArg A.Pattern]
-		    | NothingToSplit
+data SplitError	    = NothingToSplit
 		    | SplitPanic String
 
 type ProblemPart = Problem' ()
@@ -158,7 +158,7 @@ splitProblem (Problem ps (perm, qs) tel) = runErrorT $
     splitP _	    []		 (ExtendTel _ _)	 = __IMPOSSIBLE__
     splitP _	    (_:_)	  EmptyTel		 = __IMPOSSIBLE__
     splitP []	     _		  _			 = throwError $ NothingToSplit
-    splitP ps	    []		  EmptyTel		 = throwError $ TooManyArguments ps
+    splitP ps	    []		  EmptyTel		 = __IMPOSSIBLE__
     splitP (p : ps) ((i, q) : qs) tel0@(ExtendTel a tel) =
       case asView $ namedThing $ unArg p of
 	(xs, A.LitP lit)  -> do
@@ -191,7 +191,7 @@ splitProblem (Problem ps (perm, qs) tel) = runErrorT $
 			 ]
 		  return $ Split mempty
 				 xs
-				 (fmap (const $ Focus c args q i d pars ixs) a)
+				 (fmap (const $ Focus c args (getRange p) q i d pars ixs) a)
 				 (fmap (Problem ps ()) tel)
 		-- TODO: record patterns
 		_ -> keepGoing
@@ -230,14 +230,14 @@ instance MonadTCM Unify where
   liftTCM = U . lift
 
 -- | Includes flexible occurrences, metas need to be solved. TODO: relax?
-occursCheck :: Nat -> Term -> Unify ()
-occursCheck i u
-  | i `freeIn` u = fail "occurs check in index unification"  -- TODO
+occursCheck :: Nat -> Term -> Type -> Unify ()
+occursCheck i u a
+  | i `freeIn` u = typeError $ UnequalTerms (Var i []) u a
   | otherwise	 = return ()
 
-(|->) :: Nat -> Term -> Unify ()
-i |-> u = do
-  occursCheck i u
+(|->) :: Nat -> (Term, Type) -> Unify ()
+i |-> (u, a) = do
+  occursCheck i u a
   reportSDoc "tc.lhs.unify" 15 $ prettyTCM (Var i []) <+> text ":=" <+> prettyTCM u
   U . modify $ Map.insert i u
 
@@ -313,8 +313,8 @@ unifyIndices flex a us vs = do
 	    , nest 2 $ text ":" <+> prettyTCM a
 	    ]
       case (u, v) of
-	(Var i [], v) | flexible i -> i |-> v
-	(u, Var j []) | flexible j -> j |-> u
+	(Var i [], v) | flexible i -> i |-> (v, a)
+	(u, Var j []) | flexible j -> j |-> (u, a)
 	(Var i us, Var j vs) | i == j  -> do
 	    a <- typeOfBV i
 	    unifyArgs a us vs
@@ -468,6 +468,27 @@ instantiateTel s tel = do
     unflattenTel [] (_ : _) = __IMPOSSIBLE__
     unflattenTel (_ : _) [] = __IMPOSSIBLE__
 
+-- | Produce a nice error message when splitting failed
+nothingToSplitError :: Problem -> TCM a
+nothingToSplitError (Problem ps _ tel) = splitError ps tel
+  where
+    splitError []	EmptyTel    = __IMPOSSIBLE__
+    splitError (_:_)	EmptyTel    = __IMPOSSIBLE__
+    splitError []	ExtendTel{} = __IMPOSSIBLE__
+    splitError (p : ps) (ExtendTel a tel)
+      | isBad p   = traceCall (CheckPattern (strip p) (unArg a)) $ case strip p of
+	  A.DotP _ e -> typeError $ UninstantiatedDotPattern e
+	  p	     -> typeError $ IlltypedPattern p (unArg a)
+      | otherwise = underAbstraction a tel $ \tel -> splitError ps tel
+      where
+	strip = snd . asView . namedThing . unArg
+	isBad p = case strip p of
+	  A.DotP _ _   -> True
+	  A.ConP _ _ _ -> True
+	  A.LitP _     -> True
+	  _	       -> False
+
+
 -- | Compute the dot pattern instantiations.
 dotPatternInsts :: [NamedArg A.Pattern] -> Substitution -> [Type] -> [DotPatternInst]
 dotPatternInsts ps s as = dpi (map (namedThing . unArg) ps) (reverse s) as
@@ -486,7 +507,7 @@ dotPatternInsts ps s as = dpi (map (namedThing . unArg) ps) (reverse s) as
 
 -- | Check if a problem is solved. That is, if the patterns are all variables.
 isSolvedProblem :: Problem -> Bool
-isSolvedProblem = all (isVar . namedThing . unArg) . problemInPat
+isSolvedProblem = all (isVar . snd . asView . namedThing . unArg) . problemInPat
   where
     isVar (A.VarP _)	  = True
     isVar (A.WildP _)	  = True
@@ -496,7 +517,8 @@ isSolvedProblem = all (isVar . namedThing . unArg) . problemInPat
 
 -- | Check that a dot pattern matches it's instantiation.
 checkDotPattern :: DotPatternInst -> TCM ()
-checkDotPattern (DPI e v a) = do
+checkDotPattern (DPI e v a) =
+  traceCall (CheckDotPattern e v) $ do
   reportSDoc "tc.lhs.dot" 15 $
     sep [ text "checking dot pattern"
 	, nest 2 $ prettyA e
@@ -542,7 +564,7 @@ checkLeftHandSide ps a ret = do
   a <- normalise a
   let TelV tel0 b0 = telView a
   ps <- insertImplicitPatterns ps tel0
-  unless (size tel0 >= size ps) $ fail "too many arguments in lhs" -- TODO
+  unless (size tel0 >= size ps) $ typeError $ TooManyArgumentsInLHS (size ps) a
   let (as, bs) = splitAt (size ps) $ telToList tel0
       tel      = telFromList as
       b	       = telePi (telFromList bs) b0
@@ -593,9 +615,8 @@ checkLeftHandSide ps a ret = do
       | otherwise		= do
 	sp <- splitProblem =<< insertImplicitProblem problem
 	case sp of
-	  Left NothingToSplit -> fail "failed to split problem" -- TODO: error msg
-	  Left (SplitPanic err) -> fail $ "split panic: " ++ err
-	  Left (TooManyArguments ps) -> fail $ "too many arguments: " ++ show (length ps)
+	  Left NothingToSplit	-> nothingToSplitError problem
+	  Left (SplitPanic err) -> __IMPOSSIBLE__
 
 	  -- Split on literal pattern
 	  Right (Split p0 xs (Arg h (LitFocus lit iph hix a)) p1) -> do
@@ -627,6 +648,7 @@ checkLeftHandSide ps a ret = do
 	  Right (Split p0 xs (Arg h
 		  ( Focus { focusCon	  = c
 			  , focusConArgs  = qs
+			  , focusRange	  = r
 			  , focusOutPat	  = iph
 			  , focusHoleIx	  = hix
 			  , focusDatatype = d
@@ -634,7 +656,8 @@ checkLeftHandSide ps a ret = do
 			  , focusIndices  = ws
 			  }
 		  )) p1
-		) -> do
+		) -> traceCall (CheckPattern (A.ConP (PatRange r) c qs)
+			       (El Prop $ Def d $ vs ++ ws)) $ do
 
 	    let delta1 = problemTel p0
 
@@ -661,10 +684,13 @@ checkLeftHandSide ps a ret = do
 	    let TelV gamma ca@(El _ (Def d' us)) = telView a
 
 	    -- This should be the same datatype as we split on
-	    unless (d == d') $ typeError $ ShouldBeApplicationOf ca d
+	    unless (d == d') $ typeError $ ShouldBeApplicationOf ca d'
 
 	    -- Insert implicit patterns
 	    qs' <- insertImplicitPatterns qs gamma
+
+	    unless (size qs' == size gamma) $
+	      typeError $ WrongNumberOfConstructorArguments c (size gamma) (size qs')
 
 	    -- Get the type of the datatype.
 	    da <- normalise =<< (`piApply` vs) . defType <$> getConstInfo d

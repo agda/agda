@@ -107,7 +107,6 @@ exposed-modules: AgdaMain
 		 TypeChecking.Rules.Decl
 		 TypeChecking.Rules.Def
 		 TypeChecking.Rules.LHS
-		 TypeChecking.Rules.Pattern
 		 TypeChecking.Rules.Record
 		 TypeChecking.Rules.Term
                  TypeChecking.Serialise

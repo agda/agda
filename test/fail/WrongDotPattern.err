@@ -1,0 +1,4 @@
+WrongDotPattern.agda:12,4-8
+zero != suc n of type Nat
+when checking that the given dot pattern zero matches the inferred
+value suc n
