@@ -269,8 +269,9 @@ typeOfMetaMI norm mi =
    where
     rewriteJudg mv (HasType i t) = 
 	withMetaInfo (getMetaInfo mv) $ do
-	    t <- rewrite norm t 
-	    OfType i <$> reify t
+	    t <- rewrite norm t
+	    vs <- getContextArgs
+	    OfType i <$> reify (t `piApply` vs)
     rewriteJudg mv (IsSort i)    = return $ JustSort i
 
 
