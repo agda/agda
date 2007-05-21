@@ -37,7 +37,8 @@ import Syntax.Concrete.Name as C
 import Syntax.Abstract.Name as A
 import Syntax.Internal
 import Syntax.Scope.Base
-import Syntax.Position
+import Syntax.Position (Position(..), Range)
+import qualified Syntax.Position as P
 import Syntax.Common
 import Syntax.Fixity
 import Syntax.Literal
@@ -56,9 +57,15 @@ currentInterfaceVersion = InterfaceVersion 118
 -- A wrapper around Data.Binary
 ------------------------------------------------------------------------
 
--- Used to save space by replacing strings with unique identifiers and
--- storing the syntax tree together with a map from identifiers to
--- strings.
+-- Used to save space by replacing strings and other things with
+-- unique identifiers and storing the syntax tree together with a map
+-- from identifiers to such things.
+
+-- | Things hashed by the map.
+
+data Thing = String String
+           | Range  Range
+  deriving (Show, Eq, Ord)
 
 -- | Unique identifiers.
 
@@ -74,9 +81,10 @@ corruptError = fail "Corrupt interface file."
 
 -- | State used by the 'put' instance for strings.
 
-data PutState = PutState { stringMap     :: Map String Id
+data PutState = PutState { thingMap      :: Map Thing Id
                            -- ^ TODO: It seems wise to use a trie
-                           -- instead of a map here.
+                           -- instead of a map here, at least for the
+                           -- strings.
                          , lowestFreshId :: Id
                          }
   deriving Show
@@ -84,20 +92,20 @@ data PutState = PutState { stringMap     :: Map String Id
 -- | Initial 'PutState'.
 
 initialState :: PutState
-initialState = PutState { stringMap     = Map.empty
+initialState = PutState { thingMap      = Map.empty
                         , lowestFreshId = 0
                         }
 
 -- | Looks up the string. If it doesn't already have a unique id
 -- associated with it, such an association is created.
 
-lookupId :: (Monad m, MonadState PutState m) => String -> m Id
-lookupId s = do
+lookupId :: (Monad m, MonadState PutState m) => Thing -> m Id
+lookupId th = do
   st <- S.get
-  case Map.lookup s (stringMap st) of
+  case Map.lookup th (thingMap st) of
     Nothing -> do
       let n = lowestFreshId st
-      S.put (st { stringMap     = Map.insert s n (stringMap st)
+      S.put (st { thingMap      = Map.insert th n (thingMap st)
                 , lowestFreshId = n + 1
                 })
       return n
@@ -119,7 +127,7 @@ runPut :: Put -> (L.ByteString, GetState)
 runPut p = (B.toLazyByteString builder, getState)
   where
   ((_, st), builder) = B.unPut (S.runStateT (unPutT p) initialState)
-  getState = IntMap.fromList $ map swap $ Map.toList $ stringMap st
+  getState = IntMap.fromList $ map swap $ Map.toList $ thingMap st
 
   swap (x, y) = (y, x)
 
@@ -131,19 +139,19 @@ putWord8 w = lift (B.putWord8 w)
 ------------------------------------------------------------------------
 -- Get
 
--- | A map from unique identifiers to strings.
+-- | A map from unique identifiers to things.
 
-type GetState = IntMap String
+type GetState = IntMap Thing
 
 -- | Looks up the identifier. Uses 'fail' to report missing
 -- identifiers.
 
-lookupString :: (Monad m, MonadReader GetState m) => Id -> m String
-lookupString n = do
+lookupThing :: (Monad m, MonadReader GetState m) => Id -> m Thing
+lookupThing n = do
   map <- R.ask
   case IntMap.lookup n map of
     Nothing -> corruptError
-    Just s  -> return s
+    Just th -> return th
 
 -- | The 'GetT' monad transformer.
 
@@ -187,8 +195,22 @@ liftedGet = lift B.get
 -- | String instance (replaces strings with unique identifiers).
 
 instance Binary String where
-  put w = put =<< lookupId w
-  get   = lookupString =<< get
+  put w = put =<< lookupId (String w)
+  get   = do
+    x <- lookupThing =<< get
+    case x of
+      String s -> return s
+      _        -> corruptError
+
+-- | Range instance (replaces ranges with unique identifiers).
+
+instance Binary Range where
+  put r = put =<< lookupId (Range r)
+  get   = do
+    x <- lookupThing =<< get
+    case x of
+      Range r -> return r
+      _       -> corruptError
 
 -- | Encodes the input, ensuring that strings are stored as unique
 -- identifiers.
@@ -218,6 +240,31 @@ decodeFile f = liftM decode $ L.readFile f
 ------------------------------------------------------------------------
 -- Boring instances
 ------------------------------------------------------------------------
+
+instance B.Binary Thing where
+  put (String s) = B.putWord8 0 >> B.put s
+  put (Range r)  = B.putWord8 1 >> B.put r
+  get = do
+    tag <- B.getWord8
+    case tag of
+      0 -> liftM String B.get
+      1 -> liftM Range B.get
+      _ -> corruptError
+
+instance B.Binary Range where
+  put (P.Range a b) = B.put a >> B.put b
+  get = liftM2 P.Range B.get B.get
+
+instance B.Binary Position where
+    put NoPos	     = B.putWord8 0
+    put (Pn f p l c) = B.putWord8 1
+                       >> B.put f >> B.put p >> B.put l >> B.put c
+    get = do
+	tag_ <- B.getWord8
+	case tag_ of
+	    0	-> return NoPos
+	    1	-> liftM4 Pn B.get B.get B.get B.get
+	    _ -> fail "no parse"
 
 instance Binary Double where
   put = liftedPut
@@ -290,20 +337,6 @@ instance Binary NamePart where
       0 -> return Hole
       1 -> liftM2 Id get get
       _ -> fail "no parse"
-
-instance Binary Range where
-    put (Range a b) = put a >> put b
-    get = liftM2 Range get get
-
-instance Binary Position where
-    put NoPos	     = putWord8 0
-    put (Pn f p l c) = putWord8 1 >> put f >> put p >> put l >> put c
-    get = do
-	tag_ <- getWord8
-	case tag_ of
-	    0	-> return NoPos
-	    1	-> liftM4 Pn get get get get
-	    _ -> fail "no parse"
 
 instance Binary C.QName where
   put (Qual a b) = putWord8 0 >> put a >> put b
