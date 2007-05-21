@@ -81,6 +81,14 @@ Fixes
       funny String "foo" string
     doesn't reduce because we DontKnow that "foo" doesn't match zero.
 
+[Type checking]
+
+* implicit function spaces and records interact badly with meta variables
+  solution: postpone type checking problems
+    - postpone checking of lambda against blocked types
+    - postpone checking of applications where the function has a blocked type
+    - postpone checking of records against blocked types
+
 [Testing]
 
 * write better tests
