@@ -6,3 +6,7 @@ open import Test
 
 test : ℕ
 test = 12 + 34 + 56
+
+-- Testing qualified names.
+
+Eq = Test.Equiv
