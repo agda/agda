@@ -64,7 +64,7 @@ currentInterfaceVersion = InterfaceVersion 118
 -- | Things hashed by the map.
 
 data Thing = String String
-           | Range  Range
+           | Pos2   Int Int Int Int Int Int
   deriving (Show, Eq, Ord)
 
 -- | Unique identifiers.
@@ -205,12 +205,31 @@ instance Binary String where
 -- | Range instance (replaces ranges with unique identifiers).
 
 instance Binary Range where
-  put r = put =<< lookupId (Range r)
-  get   = do
-    x <- lookupThing =<< get
-    case x of
-      Range r -> return r
-      _       -> corruptError
+  put (P.Range (Pn s1 a b c) (Pn s2 d e f)) = do
+    putWord8 0
+    put =<< lookupId (String s1)
+    put =<< lookupId (String s2)
+    put =<< lookupId (Pos2 a b c d e f)
+  put (P.Range p1 p2) = putWord8 1 >> put p1 >> put p2
+  get = do
+    tok <- getWord8
+    case tok of
+      0 -> do
+        x <- lookupThing =<< get
+        case x of
+          String s1 -> do
+            x <- lookupThing =<< get
+            case x of
+              String s2 -> do
+                x <- lookupThing =<< get
+                case x of
+                  Pos2 a b c d e f ->
+                    return $ P.Range (Pn s1 a b c) (Pn s2 d e f)
+                  _ -> corruptError
+              _ -> corruptError
+          _ -> corruptError
+      1 -> liftM2 P.Range get get
+      _ -> corruptError
 
 -- | Encodes the input, ensuring that strings are stored as unique
 -- identifiers.
@@ -242,29 +261,15 @@ decodeFile f = liftM decode $ L.readFile f
 ------------------------------------------------------------------------
 
 instance B.Binary Thing where
-  put (String s) = B.putWord8 0 >> B.put s
-  put (Range r)  = B.putWord8 1 >> B.put r
+  put (String s)         = B.putWord8 0 >> B.put s
+  put (Pos2 a b c d e f) = B.putWord8 1 >> B.put a >> B.put b >> B.put c
+                                        >> B.put d >> B.put e >> B.put f
   get = do
     tag <- B.getWord8
     case tag of
       0 -> liftM String B.get
-      1 -> liftM Range B.get
+      1 -> liftM5 Pos2 B.get B.get B.get B.get B.get `ap` B.get
       _ -> corruptError
-
-instance B.Binary Range where
-  put (P.Range a b) = B.put a >> B.put b
-  get = liftM2 P.Range B.get B.get
-
-instance B.Binary Position where
-    put NoPos	     = B.putWord8 0
-    put (Pn f p l c) = B.putWord8 1
-                       >> B.put f >> B.put p >> B.put l >> B.put c
-    get = do
-	tag_ <- B.getWord8
-	case tag_ of
-	    0	-> return NoPos
-	    1	-> liftM4 Pn B.get B.get B.get B.get
-	    _ -> fail "no parse"
 
 instance Binary Double where
   put = liftedPut
@@ -317,6 +322,16 @@ instance Binary InterfaceVersion where
 	if (v == currentInterfaceVersion)
 	    then return v
 	    else fail "Wrong interface version"
+
+instance Binary Position where
+   put (Pn s a b c) = putWord8 0 >> put s >> put a >> put b >> put c
+   put NoPos        = putWord8 1
+   get = do
+     tok <- getWord8
+     case tok of
+       0 -> liftM4 Pn get get get get
+       1 -> return NoPos
+       _ -> corruptError
 
 instance Binary C.Name where
     put (C.NoName a b) = putWord8 0 >> put a >> put b
