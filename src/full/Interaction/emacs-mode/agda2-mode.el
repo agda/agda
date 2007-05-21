@@ -503,8 +503,8 @@ NEW-TXT is a string to replace OLD-G, or `'paren', or `'no-paren'"
   "Position value of P or point" (interactive)
   (save-excursion
     (if p (goto-char p))
-    (format "(Pn \"%s\" %d %d)" (buffer-file-name)
-            (count-lines (point-min) (point)) (1+ (current-column)))))
+    (format "(Pn \"%s\" %d %d %d)" (buffer-file-name)
+            (point) (count-lines (point-min) (point)) (1+ (current-column)))))
 
 (defun agda2-char-quote (c)
   "Converts non-ASCII characters to the \xNNNN notation used in
