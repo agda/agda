@@ -100,12 +100,8 @@ instance HasFresh i FreshThings => HasFresh i TCState where
 
 type VisitedModules = Map ModuleName (Interface, ClockTime)
 
-newtype InterfaceVersion = InterfaceVersion Int
-    deriving (Typeable, Data, Eq)
-
 data Interface = Interface
-	{ iVersion	   :: InterfaceVersion
-	, iImportedModules :: [ModuleName]
+	{ iImportedModules :: [ModuleName]
 	, iScope	   :: Scope
 	, iSignature	   :: Signature
 	, iImports	   :: Signature

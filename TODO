@@ -57,9 +57,6 @@ Fixes
 
 [Serialisation]
 
-* Deserialisation would be more robust if the first thing read was the
-  interface number.
-
 [Printing]
 
 * print patterns in mixfix notation (AbstractToConcrete)

@@ -254,8 +254,7 @@ buildInterface = do
     let	builtin' = Map.mapWithKey (\x b -> fmap (const x) b) builtin
     reportLn 7 "  instantiating all meta variables"
     i <- instantiateFull $ Interface
-			{ iVersion	   = currentInterfaceVersion
-			, iImportedModules = Set.toList ms
+			{ iImportedModules = Set.toList ms
 			, iScope	   = head $ scopeStack scope -- TODO!!
 			, iSignature	   = sig
 			, iImports	   = isig

@@ -12,7 +12,7 @@ module TypeChecking.Serialise
   , encodeFile
   , decode
   , decodeFile
-  , currentInterfaceVersion
+  , tests
   ) where
 
 import Control.Monad
@@ -30,6 +30,7 @@ import qualified Data.Binary.Put as B
 import qualified Data.Binary.Get as B
 import qualified Data.Binary.Builder as B
 import qualified Data.ByteString.Lazy as L
+import qualified Data.ByteString.Base as BB
 import Data.Word
 
 import Syntax.Common
@@ -51,7 +52,7 @@ import Utils.Tuple
 -- | Current version of the interface. Only interface files of this version
 --   will be parsed.
 currentInterfaceVersion :: InterfaceVersion
-currentInterfaceVersion = InterfaceVersion 119
+currentInterfaceVersion = InterfaceVersion 118
 
 ------------------------------------------------------------------------
 -- A wrapper around Data.Binary
@@ -212,33 +213,52 @@ instance Binary Range where
       Range r -> return r
       _       -> corruptError
 
+-- | Current version of the interface. Only interface files of this version
+--   will be parsed.
+
+currentInterfaceVersion :: Int
+currentInterfaceVersion = 119
+
 -- | Encodes the input, ensuring that strings are stored as unique
 -- identifiers.
+--
+-- Note that the interface version is stored as the first thing in the
+-- resulting string, to ensure that we can always check it; 'decode'
+-- takes care of this, and fails if the version does not match.
 
 encode :: Binary a => a -> L.ByteString
-encode x = B.encode getState `L.append` s
+encode x = header `append` s
   where
   (s, getState) = runPut (put x)
+  header        = B.encode (currentInterfaceVersion, getState)
+
+  -- L.append is currently (GHC 6.6.1) strict in its second argument,
+  -- and this somehow changes the semantics of encode when this module
+  -- is compiled with optimisations turned on...
+  append (BB.LPS xs) (BB.LPS ys) = BB.LPS (xs ++ ys)
 
 -- | Encodes a file, ensuring that strings are stored as unique
--- identifiers.
+-- identifiers. See 'encode'.
 
 encodeFile :: Binary a => FilePath -> a -> IO ()
 encodeFile f x = L.writeFile f (encode x)
- 
--- | Decodes something encoded by 'encode'.
+
+-- | Decodes something encoded by 'encode'. Fails with 'error' if the
+-- interface version does not match the current interface version.
 
 decode :: Binary a => L.ByteString -> a
-decode s = runGet getState get s'
-  where (getState, s', _) = B.runGetState B.get s 0
- 
+decode s
+  | v /= currentInterfaceVersion = error "Wrong interface version"
+  | otherwise                    = runGet getState get s'
+  where ((v, getState), s', _) = B.runGetState B.get s 0
+
 -- | Decodes a file written by 'encodeFile'.
 
 decodeFile :: Binary a => FilePath -> IO a
 decodeFile f = liftM decode $ L.readFile f
 
 ------------------------------------------------------------------------
--- Boring instances
+-- More boring instances
 ------------------------------------------------------------------------
 
 instance B.Binary Thing where
@@ -257,8 +277,7 @@ instance B.Binary Range where
 
 instance B.Binary Position where
     put NoPos	     = B.putWord8 0
-    put (Pn f p l c) = B.putWord8 1
-                       >> B.put f >> B.put p >> B.put l >> B.put c
+    put (Pn f p l c) = B.putWord8 1 >> B.put f >> B.put p >> B.put l >> B.put c
     get = do
 	tag_ <- B.getWord8
 	case tag_ of
@@ -309,14 +328,6 @@ instance Binary a => Binary [a] where
 instance (Eq a, Binary a, Binary b) => Binary (Map a b) where
   put = put . Map.toAscList
   get = liftM Map.fromAscList get
-
-instance Binary InterfaceVersion where
-    put (InterfaceVersion v) = put v
-    get = do
-	v <- liftM InterfaceVersion get
-	if (v == currentInterfaceVersion)
-	    then return v
-	    else fail "Wrong interface version"
 
 instance Binary C.Name where
     put (C.NoName a b) = putWord8 0 >> put a >> put b
@@ -589,5 +600,18 @@ instance Binary a => Binary (Builtin a) where
 	    _ -> fail "no parse"
 
 instance Binary Interface where
-    put (Interface a b c d e f) = put a >> put b >> put c >> put d >> put e >> put f
-    get = liftM5 Interface get get get get get `ap` get
+    put (Interface a b c d e) = put a >> put b >> put c >> put d >> put e
+    get = liftM5 Interface get get get get get
+
+------------------------------------------------------------------------
+-- All tests
+------------------------------------------------------------------------
+
+tests = do
+  print (test strings)
+  mapM_ (print . test) strings
+
+  where
+  test x = decode (encode x) == x
+
+  strings = ["apa", "bepa", "∀ ∃"]
