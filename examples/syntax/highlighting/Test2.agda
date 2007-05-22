@@ -9,4 +9,4 @@ test = 12 + 34 + 56
 
 -- Testing qualified names.
 
-Eq = Test.Equiv
+Eq = Test.Equiv {Test.ℕ}

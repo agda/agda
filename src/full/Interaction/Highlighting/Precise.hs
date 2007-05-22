@@ -48,6 +48,7 @@ data NameKind
   | Datatype
   | Field        -- ^ Record field.
   | Function
+  | Module       -- ^ Module name.
   | Postulate
   | Primitive    -- ^ Primitive.
   | Record       -- ^ Record type.

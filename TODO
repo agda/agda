@@ -27,7 +27,7 @@ Features
 User interface
 --------------
 
-* Highlighting module names and fixity declarations.
+* Highlighting fixity declarations and all module names.
 
 * Point warping for record fields.
 

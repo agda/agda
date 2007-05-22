@@ -67,6 +67,11 @@
   "*The face used for functions."
   :group 'agda2-highlight)
 
+(defface agda2-highlight-module-face
+  '((t (:foreground "purple")))
+  "*The face used for module names."
+  :group 'agda2-highlight)
+
 (defface agda2-highlight-postulate-face
   '((t (:foreground "blue4")))
   "The face used for postulates."
@@ -111,6 +116,7 @@
     (datatype          . agda2-highlight-datatype-face)
     (field             . agda2-highlight-field-face)
     (function          . agda2-highlight-function-face)
+    (module            . agda2-highlight-module-face)
     (postulate         . agda2-highlight-postulate-face)
     (primitive         . agda2-highlight-primitive-face)
     (record            . agda2-highlight-record-face)
@@ -131,6 +137,7 @@ The aspects currently recognised are the following:
 `field'             Record fields.
 `function'          Functions.
 `keyword'           Keywords.
+`module'            Module names.
 `number'            Numbers.
 `operator'          Operators.
 `postulate'         Postulates.

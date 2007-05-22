@@ -109,7 +109,8 @@ generateSyntaxInfo toks top = do
       getName :: A.QName -> Seq A.QName
       getName n = Seq.singleton n
 
-    -- Bound variables, dotted patterns and record fields.
+    -- Bound variables, dotted patterns, record fields and module
+    -- names.
     theRest = everything' mappend query
       where
       query :: GenericQ File
@@ -119,18 +120,24 @@ generateSyntaxInfo toks top = do
               getLet         `extQ`
               getLam         `extQ`
               getTyped       `extQ`
-              getPattern
+              getPattern     `extQ`
+              getModuleName
 
-      bound n = nameToFile (A.nameConcrete n)
+      bound n = nameToFile []
+                           (A.nameConcrete n)
                            (\isOp -> mempty { aspect = Just $ Name Bound isOp })
                            (Just $ A.nameBindingSite n)
-      field n = nameToFile n
-                           (\isOp -> mempty { aspect = Just $ Name Field isOp })
-                           Nothing
+      field m n = nameToFile m n
+                             (\isOp -> mempty { aspect = Just $ Name Field isOp })
+                             Nothing
+      mod n = nameToFile []
+                         (A.nameConcrete n)
+                         (\isOp -> mempty { aspect = Just $ Name Module isOp })
+                         (Just $ A.nameBindingSite n)
 
       getVarAndField :: A.Expr -> File
       getVarAndField (A.Var x)    = bound x
-      getVarAndField (A.Rec _ fs) = mconcat $ map (field . fst) fs
+      getVarAndField (A.Rec _ fs) = mconcat $ map (field [] . fst) fs
       getVarAndField _            = mempty
 
       getLet :: A.LetBinding -> File
@@ -155,9 +162,17 @@ generateSyntaxInfo toks top = do
       getFieldDecl (A.RecDef _ _ _ fs) = Seq.foldMap extractAxiom fs
         where
         extractAxiom (A.ScopedDecl _ ds) = Seq.foldMap extractAxiom ds
-        extractAxiom (A.Axiom _ x _)     = field $ A.nameConcrete $ A.qnameName x
+        extractAxiom (A.Axiom _ x _)     = field (concreteQualifier x)
+                                                 (concreteBase x)
         extractAxiom _                   = __IMPOSSIBLE__
       getFieldDecl _                   = mempty
+
+      getModuleName :: A.ModuleName -> File
+      getModuleName (A.MName { A.mnameToList = xs }) =
+        mconcat $ map mod xs
+
+concreteBase      = A.nameConcrete . A.qnameName
+concreteQualifier = map A.nameConcrete . A.mnameToList . A.qnameModule
 
 -- | Generates a suitable file for a name.
 
@@ -165,7 +180,8 @@ generate :: A.QName -> M.TCM File
 generate n = do
   info <- M.getConstInfo n
   let m isOp = mempty { aspect = Just $ Name (toAspect (M.theDef info)) isOp }
-  return (nameToFile (A.nameConcrete $ A.qnameName n)
+  return (nameToFile (concreteQualifier n)
+                     (concreteBase n)
                      m
                      (Just $ P.getRange $ M.defName info))
   where
@@ -179,9 +195,14 @@ generate n = do
 
 -- | Converts names to suitable 'File's.
 
-nameToFile :: C.Name
-              -- ^ The name.
-           -> (Bool -- ^ 'True' iff the name (next argument) is an operator.
+nameToFile :: [C.Name]
+              -- ^ The name qualifier (may be empty).
+              --
+              -- This argument is currently ignored, since the ranges
+              -- associated with these names are not to be trusted.
+           -> C.Name
+              -- ^ The base name.
+           -> (Bool -- ^ 'True' iff the name is an operator.
                -> MetaInfo)
               -- ^ Meta information to be associated with the name.
            -> Maybe P.Range
@@ -189,9 +210,10 @@ nameToFile :: C.Name
               -- meta information is extended with this information,
               -- if possible.
            -> File
-nameToFile x m mR = several rs ((m isOp) { definitionSite = mFilePos =<< mR })
+nameToFile xs x m mR = several rs' ((m isOp) { definitionSite = mFilePos =<< mR })
   where
   (rs, isOp) = getRanges x
+  rs'        = rs -- ++ concatMap (fst . getRanges) xs
   mFilePos r = case P.rStart r of
     P.Pn { P.srcFile = f, P.posPos = p } -> Just (f, toInteger p)
     P.NoPos {}                           -> Nothing
