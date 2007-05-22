@@ -8,7 +8,6 @@ module Interaction.Highlighting.Precise
   , Range(..)
   , rangeInvariant
   , overlapping
-  , empty
   , singleton
   , several
   , smallestPos
@@ -69,15 +68,6 @@ data MetaInfo = MetaInfo
     -- ^ This can be the definition site of the given name.
   }
   deriving (Eq, Show)
-
--- | 'MetaInfo' template.
-
-empty :: MetaInfo
-empty = MetaInfo { aspect         = Nothing
-                 , dotted         = False
-                 , note           = Nothing
-                 , definitionSite = Nothing
-                 }
 
 -- | A 'File' is a mapping from file positions to meta information.
 --
@@ -159,11 +149,19 @@ mergeMetaInfo m1 m2 = MetaInfo
   , definitionSite = (mplus `on` definitionSite) m1 m2
   }
 
+instance Monoid MetaInfo where
+  mempty = MetaInfo { aspect         = Nothing
+                    , dotted         = False
+                    , note           = Nothing
+                    , definitionSite = Nothing
+                    }
+  mappend = mergeMetaInfo
+
 -- | Merges files.
 
 merge :: File -> File -> File
 merge f1 f2 =
-  File { mapping = (Map.unionWith mergeMetaInfo `on` mapping) f1 f2 }
+  File { mapping = (Map.unionWith mappend `on` mapping) f1 f2 }
 
 instance Monoid File where
   mempty  = File { mapping = Map.empty }

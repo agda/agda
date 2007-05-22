@@ -37,7 +37,7 @@ generateErrorInfo r s = (mFile, m)
   mFile = case P.rStart r of
             P.Pn { P.srcFile = file } -> Just file
             P.NoPos                   -> Nothing
-  m = several (rToR r) (empty { aspect = Just Error, note = Just s })
+  m = several (rToR r) (mempty { aspect = Just Error, note = Just s })
 
 -- | Generates syntax highlighting information from a 'TopLevelInfo'.
 --
@@ -56,7 +56,7 @@ generateSyntaxInfo toks top = do
   where
     tokInfo = Seq.foldMap tokenToFile toks
       where
-      aToF a r = several (rToR r) (empty { aspect = Just a })
+      aToF a r = several (rToR r) (mempty { aspect = Just a })
 
       tokenToFile :: T.Token -> File
       tokenToFile (T.TokSetN (r, _))               = aToF PrimitiveTypePart r
@@ -116,10 +116,10 @@ generateSyntaxInfo toks top = do
               getPattern
 
       bound n = nameToFile (A.nameConcrete n)
-                           (\isOp -> empty { aspect = Just $ Name Bound isOp })
+                           (\isOp -> mempty { aspect = Just $ Name Bound isOp })
                            (Just $ A.nameBindingSite n)
       field n = nameToFile n
-                           (\isOp -> empty { aspect = Just $ Name Field isOp })
+                           (\isOp -> mempty { aspect = Just $ Name Field isOp })
                            Nothing
 
       getVarAndField :: A.Expr -> File
@@ -142,7 +142,7 @@ generateSyntaxInfo toks top = do
       getPattern (A.VarP x)    = bound x
       getPattern (A.AsP _ x _) = bound x
       getPattern (A.DotP pi _) = several (rToR $ P.getRange pi)
-                                         (empty { dotted = True })
+                                         (mempty { dotted = True })
       getPattern _             = mempty
 
       getFieldDecl :: A.Definition -> File
@@ -158,7 +158,7 @@ generateSyntaxInfo toks top = do
 generate :: A.QName -> M.TCM File
 generate n = do
   info <- M.getConstInfo n
-  let m isOp = empty { aspect = Just $ Name (toAspect (M.theDef info)) isOp }
+  let m isOp = mempty { aspect = Just $ Name (toAspect (M.theDef info)) isOp }
   return (nameToFile (A.nameConcrete $ A.qnameName n)
                      m
                      (Just $ P.getRange $ M.defName info))
