@@ -51,8 +51,8 @@ import Utils.Tuple
 
 -- | Current version of the interface. Only interface files of this version
 --   will be parsed.
-currentInterfaceVersion :: InterfaceVersion
-currentInterfaceVersion = InterfaceVersion 118
+currentInterfaceVersion :: Int
+currentInterfaceVersion = 120
 
 ------------------------------------------------------------------------
 -- A wrapper around Data.Binary
@@ -212,12 +212,6 @@ instance Binary Range where
     case x of
       Range r -> return r
       _       -> corruptError
-
--- | Current version of the interface. Only interface files of this version
---   will be parsed.
-
-currentInterfaceVersion :: Int
-currentInterfaceVersion = 119
 
 -- | Encodes the input, ensuring that strings are stored as unique
 -- identifiers.
