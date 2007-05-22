@@ -587,7 +587,11 @@ checkLeftHandSide ps a ret = do
 	   ]
 	 ]
 
-  (Problem ps (perm, qs) tel, b, dpi, asb) <- checkLHS problem b [] []
+  let idsub = [ Var i [] | i <- [0..] ]
+
+  (Problem ps (perm, qs) tel, sigma, dpi, asb) <- checkLHS problem idsub [] []
+  let b' = substs sigma b
+
   reportSDoc "tc.lhs.top" 10 $
     vcat [ text "checked lhs:"
 	 , nest 2 $ vcat
@@ -599,19 +603,19 @@ checkLeftHandSide ps a ret = do
 	   ]
          ]
   bindLHSVars ps tel $ bindAsPatterns asb $ do
-    reportSDoc "tc.lhs.top" 10 $ nest 2 $ text "type  = " <+> prettyTCM b
+    reportSDoc "tc.lhs.top" 10 $ nest 2 $ text "type  = " <+> prettyTCM b'
     mapM_ checkDotPattern dpi
     let rho = renamingR perm -- I'm not certain about this...
 	Perm n _ = perm
 	xs  = replicate n "z" -- map (fst . unArg) $ telToList tel
-    ret rho xs qs b
+    ret rho xs qs b'
   where
-    checkLHS :: Problem -> Type -> [DotPatternInst] -> [AsBinding] ->
-		TCM (Problem, Type, [DotPatternInst], [AsBinding])
-    checkLHS problem b dpi asb
+    checkLHS :: Problem -> [Term] -> [DotPatternInst] -> [AsBinding] ->
+		TCM (Problem, [Term], [DotPatternInst], [AsBinding])
+    checkLHS problem sigma dpi asb
       | isSolvedProblem problem	= do
 	problem <- insertImplicitProblem problem -- inserting implicit patterns preserve solvedness
-	return (problem, b, dpi, asb)
+	return (problem, sigma, dpi, asb)
       | otherwise		= do
 	sp <- splitProblem =<< insertImplicitProblem problem
 	case sp of
@@ -625,7 +629,7 @@ checkLeftHandSide ps a ret = do
 	    let ip    = plugHole (LitP lit) iph
 		iperm = expandP hix 0 $ fst (problemOutPat problem)
 
-	    -- substitute the literal in p1 and b and dpi and asb
+	    -- substitute the literal in p1 and sigma and dpi and asb
 	    let delta1 = problemTel p0
 		delta2 = absApp (fmap problemTel p1) (Lit lit)
 		rho    = [ var i | i <- [0..size delta2 - 1] ]
@@ -633,7 +637,7 @@ checkLeftHandSide ps a ret = do
 		      ++ [ var i | i <- [size delta2 ..] ]
 		  where
 		    var i = Var i []
-		b'	 = substs rho b
+		sigma'	 = substs rho sigma
 		dpi'	 = substs rho dpi
 		asb0	 = substs rho asb
 
@@ -642,7 +646,7 @@ checkLeftHandSide ps a ret = do
 		delta'	 = abstract delta1 delta2
 		problem' = Problem ps' (iperm, ip) delta'
 		asb'	 = raise (size delta2) (map (\x -> AsB x (Lit lit) a) xs) ++ asb0
-	    checkLHS problem' b' dpi' asb'
+	    checkLHS problem' sigma' dpi' asb'
 
 	  -- Split on constructor pattern
 	  Right (Split p0 xs (Arg h
@@ -664,7 +668,6 @@ checkLeftHandSide ps a ret = do
 	    reportSDoc "tc.lhs.top" 10 $ sep
 	      [ text "checking lhs"
 	      , nest 2 $ text "tel =" <+> prettyTCM (problemTel problem)
-	      , nest 2 $ text "b   =" <+> addCtxTel (problemTel problem) (prettyTCM b)
 	      ]
 
 	    reportSDoc "tc.lhs.split" 15 $ sep
@@ -713,7 +716,7 @@ checkLeftHandSide ps a ret = do
 	    sub0 <- addCtxTel (delta1 `abstract` gamma) $
 		    unifyIndices flex da (drop (size vs) us) (raise (size gamma) ws)
 
-	    -- We should subsitute c ys for x in Δ₂ and b
+	    -- We should subsitute c ys for x in Δ₂ and sigma
 	    let ys     = reverse [ Arg h (Var i []) | (i, Arg h _) <- zip [0..] $ reverse (telToList gamma) ]
 		delta2 = absApp (raise (size gamma) $ fmap problemTel p1) (Con c ys)
 		rho0 = [ var i | i <- [0..size delta2 - 1] ]
@@ -721,7 +724,7 @@ checkLeftHandSide ps a ret = do
 		    ++ [ var i | i <- [size delta2 + size gamma ..] ]
 		  where
 		    var i = Var i []
-		b0     = substs rho0 b
+		sigma0 = substs rho0 sigma
 		dpi0   = substs rho0 dpi
 		asb0   = substs rho0 asb
 
@@ -731,8 +734,7 @@ checkLeftHandSide ps a ret = do
 	      ]
 	    reportSDoc "tc.lhs.top" 15 $ addCtxTel (delta1 `abstract` gamma `abstract` delta2) $
 	      nest 2 $ vcat
-		[ text "b0 =" <+> prettyTCM b0
-		, text "dpi0 = " <+> brackets (fsep $ punctuate comma $ map prettyTCM dpi0)
+		[ text "dpi0 = " <+> brackets (fsep $ punctuate comma $ map prettyTCM dpi0)
 		]
 
 	    -- Plug the hole in the out pattern with c ys
@@ -783,7 +785,7 @@ checkLeftHandSide ps a ret = do
 	      text "dpi' = " <+> brackets (fsep $ punctuate comma $ map prettyTCM dpi')
 
 	    -- Apply the substitution to the type
-	    let b'   = substs rho b0
+	    let sigma'   = substs rho sigma0
 
 	    reportSDoc "tc.lhs.inst" 15 $
 	      nest 2 $ text "ps0 = " <+> brackets (fsep $ punctuate comma $ map prettyA ps0')
@@ -805,7 +807,6 @@ checkLeftHandSide ps a ret = do
 	      , nest 2 $ vcat
 		[ text "ps'    = " <+> fsep (map prettyA ps')
 		, text "delta' = " <+> prettyTCM delta'
-		, text "b'     = " <+> prettyTCM b'
 		]
 	      ]
 
@@ -815,5 +816,5 @@ checkLeftHandSide ps a ret = do
 	      ]
 
 	    -- Continue splitting
-	    checkLHS problem' b' dpi' asb'
+	    checkLHS problem' sigma' dpi' asb'
 
