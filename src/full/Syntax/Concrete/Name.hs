@@ -54,6 +54,11 @@ unqualify :: QName -> Name
 unqualify (QName x)  = x
 unqualify (Qual _ x) = unqualify x
 
+-- | @qnameParts A.B.x = [A, B, x]@
+qnameParts :: QName -> [Name]
+qnameParts (Qual x q) = x : qnameParts q
+qnameParts (QName x)  = [x]
+
 -- Define equality on @Name@ to ignore range so same names in different
 --     locations are equal.
 --
