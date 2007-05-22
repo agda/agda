@@ -12,17 +12,37 @@ when set.")
 Becomes buffer-local when set.")
 (make-variable-buffer-local 'annotation-goto-map)
 
+(defvar annotation-goto-stack nil
+  "Keeps track of the positions that `annotation-goto' were invoked
+from.")
+
 (defun annotation-goto (pos)
   "Go to the file/position specified by `annotation-goto-map' for the
 buffer position POS, if any."
-  (let ((result (gethash pos annotation-goto-map)))
-    (when (consp result)
-      (let ((file (car result)))
+  (let* ((result (gethash pos annotation-goto-map))
+         (current-file (buffer-file-name)))
+    (if (and (annotation-goto-internal result)
+             (not (eq (point) pos)))
+        (push `(,current-file . ,pos) annotation-goto-stack))))
+
+(defun annotation-go-back nil
+  "Go back to the previous position in which `annotation-goto' was
+successfully invoked."
+  (when annotation-goto-stack
+    (let ((pos (pop annotation-goto-stack)))
+      (annotation-goto-internal pos))))
+
+(defun annotation-goto-internal (filepos)
+  "Go to file FILE, position POS, if FILEPOS = (FILE . POS), and the
+file is readable. Returns t if successful."
+  (when (consp filepos)
+    (let ((file (car filepos)))
       (if (file-readable-p file)
           (progn
             (find-file file)
-            (goto-char (cdr result)))
-        (error "File does not exist or is unreadable: %s." file))))))
+            (goto-char (cdr filepos))
+            t)
+        (error "File does not exist or is unreadable: %s." file)))))
 
 (defun annotation-annotate (start end anns &optional info goto)
   "Annotate text between START and END in the current buffer with the

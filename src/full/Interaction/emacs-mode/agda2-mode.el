@@ -123,7 +123,8 @@ properties to add to the result."
          (agda2-indent-reverse      [S-lefttab])
          (agda2-indent-reverse      [S-tab])
          (agda2-goto-definition-mouse    [mouse-2])
-         (agda2-goto-definition-keyboard "\C-c\C-xg")
+         (agda2-goto-definition-keyboard "\M-.")
+         (agda2-go-back                  "\M-*")
          )))
   (define-key agda2-mode-map [menu-bar Agda2]
     (cons "Agda2" (make-sparse-keymap "Agda2")))
@@ -694,6 +695,13 @@ setting of `agda2-indentation'."
   "Go to the definition site of the name clicked on (if any)."
   (interactive "e")
   (annotation-goto (posn-point (event-end ev))))
+
+(defun agda2-go-back nil
+  "Go back to the previous position in which
+`agda2-goto-definition-keyboard' or `agda2-goto-definition-mouse' was
+invoked."
+  (interactive)
+  (annotation-go-back))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;
