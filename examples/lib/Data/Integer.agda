@@ -37,16 +37,16 @@ _+_ : Int -> Int -> Int
 pos n + pos m = pos (n +' m)
 neg n + neg m = neg (n +' m +' 1)
 pos n + neg m =
-  | m <' n => pos (n -' m -' 1)
-  | otherwise neg (m -' n)
+  ! m <' n => pos (n -' m -' 1)
+  ! otherwise neg (m -' n)
 neg n + pos m = pos m + neg n
 
 _-_ : Int -> Int -> Int
 x - y = x + - y
 
-|_| : Int -> Nat
-| pos n | = n
-| neg n | = suc n
+!_! : Int -> Nat
+! pos n ! = n
+! neg n ! = suc n
 
 _*_ : Int -> Int -> Int
 pos 0 * _     = pos 0
@@ -80,10 +80,10 @@ mod n (neg m)       = adjust (mod n (pos (suc m)))
     adjust x       = x + neg m
 
 gcd : Int -> Int -> Int
-gcd a b = pos (gcd' | a | | b |)
+gcd a b = pos (gcd' ! a ! ! b !)
 
 lcm : Int -> Int -> Int
-lcm a b = pos (lcm' | a | | b |)
+lcm a b = pos (lcm' ! a ! ! b !)
 
 _==_ : Int -> Int -> Bool
 pos n == pos m = n ==' m

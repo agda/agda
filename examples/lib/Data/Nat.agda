@@ -73,8 +73,8 @@ divSuc (suc n) m = 1 + divSuc (n - m) m
 modSuc : Nat -> Nat -> Nat
 modSuc  zero   _ = zero
 modSuc (suc n) m =
-  | n ≤ m  => suc n
-  | otherwise modSuc (n - m) m
+  ! n ≤ m  => suc n
+  ! otherwise modSuc (n - m) m
 
 {-# BUILTIN NATDIVSUC divSuc #-}
 -- {-# BUILTIN NATMODSUC modSuc #-}

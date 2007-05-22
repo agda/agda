@@ -12,7 +12,7 @@ import Data.List
 import Data.Real.Gauge
 
 open Prelude
-open Data.Rational hiding (_-_; |_|)
+open Data.Rational hiding (_-_; !_!)
 open Data.Bits
 open Data.Bool
 open Data.List
@@ -25,7 +25,7 @@ open Data.Real.Gauge using (Gauge)
 Base  = Rational
 
 bitLength : Int -> Int
-bitLength x = pos (nofBits | x |) - pos 1
+bitLength x = pos (nofBits ! x !) - pos 1
 
 approxBase : Base -> Gauge -> Base
 approxBase x e = help err
@@ -42,7 +42,7 @@ approxBase x e = help err
     help (pos 0) = x
     help (neg n) = fromInt $ (round $ x / fromInt k) *' k
       where
-        k = pos (shiftL 1 | neg n |)
+        k = pos (shiftL 1 ! neg n !)
 
 powers : Nat -> Base -> List Base
 powers n x = iterate n (_*_ x) x

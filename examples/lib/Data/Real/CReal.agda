@@ -54,9 +54,9 @@ choke : BoundedCReal -> CReal
 choke (cReal x ∈ [ lb ▻ ub ]) = cReal f
   where
     f : Complete Base
-    f ε = | y < lb => lb
-          | ub < y => ub
-          | otherwise y
+    f ε = ! y < lb => lb
+          ! ub < y => ub
+          ! otherwise y
       where
         y = x ε
 
@@ -82,9 +82,9 @@ approxRange x ε = [ r - ε ▻ r + ε ]
 -- non-terminates for 0
 proveNonZeroFrom : Gauge -> CReal -> Base
 proveNonZeroFrom g r =
-  | high < fromNat 0 => high
-  | fromNat 0 < low  => low
-  | otherwise           proveNonZeroFrom (g / fromNat 2) r
+  ! high < fromNat 0 => high
+  ! fromNat 0 < low  => low
+  ! otherwise           proveNonZeroFrom (g / fromNat 2) r
   where
     i    = approxRange r g
     low  = lowerBound i
@@ -121,7 +121,7 @@ multBaseCts : Base -> Base ==> Base
 multBaseCts (pos 0 %' _) = constCts (fromNat 0)
 multBaseCts a            = uniformCts μ (_*_ a)
   where
-    μ = \ε -> ε / | a |
+    μ = \ε -> ε / ! a !
 
 -- First argument must be ≠ 0
 multCts : Base -> Base ==> Base ==> Base
@@ -145,7 +145,7 @@ realMult x y = realMultBound (compact x) y
 
 -- Absolute value
 absCts : Base ==> Base
-absCts = uniformCts id |_|
+absCts = uniformCts id !_!
 
 realAbs : CReal -> CReal
 realAbs = mapCR absCts
@@ -162,8 +162,8 @@ recipCts : Base -> Base ==> Base
 recipCts nz = uniformCts μ f
   where
     f : Base -> Base
-    f a = | fromNat 0 ≤ nz => recip (max nz a)
-          | otherwise         recip (min a nz)
+    f a = ! fromNat 0 ≤ nz => recip (max nz a)
+          ! otherwise         recip (min a nz)
 
     μ = \ε -> ε * nz ^ pos 2
 
@@ -191,8 +191,8 @@ realPowerInt = realPowerIntBound ∘ compact
 
 showReal : Nat -> CReal -> String
 showReal n x =
-  | len ≤' n => sign ++ "0." ++ fromList (replicate (n -' len) '0') ++ s
-  | otherwise   sign ++ i ++ "." ++ f
+  ! len ≤' n => sign ++ "0." ++ fromList (replicate (n -' len) '0') ++ s
+  ! otherwise   sign ++ i ++ "." ++ f
   where
     open Data.Nat using () renaming
               ( _^_ to _^'_

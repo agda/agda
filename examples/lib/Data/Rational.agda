@@ -10,7 +10,7 @@ open Int renaming
             ; _+_  to _+'_
             ; -_   to -'_
             ; _-_  to _-'_
-            ; |_|  to |_|'
+            ; !_!  to !_!'
             ; _==_ to _=='_
             ; _≤_  to _≤'_
             ; _≥_  to _≥'_
@@ -72,8 +72,8 @@ q ^ neg n       = recip q ^ pos (suc n)
 q ^ pos zero    = fromNat 1
 q ^ pos (suc n) = q * q ^ pos n
 
-|_| : Rational -> Rational
-| a %' b | = pos | a |' %' pos | b |' 
+!_! : Rational -> Rational
+! a %' b ! = pos ! a !' %' pos ! b !' 
 
 round : Rational -> Int
 round (a %' b) = div (a +' div b (pos 2)) b

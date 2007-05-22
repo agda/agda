@@ -3,8 +3,8 @@ module Data.Bool where
 
 import Logic.Base
 
-infixr 10 _=>_|_
-infix  5 |_
+infixr 10 _=>_!_
+infix  5 !_
 infix  12 otherwise_
 
 infixr 20 _||_
