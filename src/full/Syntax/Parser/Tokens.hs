@@ -14,7 +14,7 @@ data Keyword
 	= KwLet | KwIn | KwWhere | KwData
 	| KwPostulate | KwMutual | KwAbstract | KwPrivate
 	| KwOpen | KwImport | KwModule | KwPrimitive
-	| KwInfix | KwInfixL | KwInfixR
+	| KwInfix | KwInfixL | KwInfixR | KwWith
 	| KwSet | KwProp | KwForall | KwRecord
 	| KwHiding | KwUsing | KwRenaming | KwTo | KwPublic
 	| KwOPTIONS | KwBUILTIN
@@ -25,7 +25,7 @@ layoutKeywords =
     [ KwLet, KwWhere, KwPostulate, KwMutual, KwAbstract, KwPrivate, KwPrimitive ]
 
 data Symbol
-	= SymDot | SymSemi | SymVirtualSemi
+	= SymDot | SymSemi | SymVirtualSemi | SymBar
 	| SymColon | SymArrow | SymEqual | SymLambda
 	| SymUnderscore	| SymQuestionMark   | SymAs
 	| SymOpenParen	      | SymCloseParen

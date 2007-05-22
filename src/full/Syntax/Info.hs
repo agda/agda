@@ -132,11 +132,11 @@ instance HasRange DeclSource where
     Left hand side information
  --------------------------------------------------------------------------}
 
-data LHSInfo = LHSSource LHS
+data LHSInfo = LHSRange Range
   deriving (Typeable, Data)
 
 instance HasRange LHSInfo where
-    getRange (LHSSource lhs) = getRange lhs
+    getRange (LHSRange r) = r
 
 
 {--------------------------------------------------------------------------

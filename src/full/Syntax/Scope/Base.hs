@@ -40,10 +40,13 @@ type ScopeStack = [Scope]
 --   includes the scope stack, the local variables, and the context precedence.
 data ScopeInfo = ScopeInfo
       { scopeStack	:: ScopeStack
-      , scopeLocals	:: [(C.Name, A.Name)]
+      , scopeLocals	:: LocalVars
       , scopePrecedence :: Precedence
       }
   deriving (Typeable, Data)
+
+-- | Local variables
+type LocalVars = [(C.Name, A.Name)]
 
 -- | A @NameSpace@ contains the mappings from concrete names that the user can
 --   write to the abstract fully qualified names that the type checker wants to

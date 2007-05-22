@@ -140,6 +140,17 @@ instance Pretty WhereClause where
 	 , nest 2 (vcat $ map pretty ds)
 	 ]
 
+instance Pretty LHS where
+  pretty (LHS p ps es) =
+    sep [ pretty p
+	, nest 2 $ fsep $ map ((text "|" <+>) . pretty) ps
+	, nest 2 $ pWith es
+	]
+    where
+      pWith []	     = empty
+      pWith (e : es) = fsep $ (text "with" <+> pretty e)
+			    : map ((text "|" <+>) . pretty) es
+
 instance Pretty Declaration where
     pretty d =
 	case d of

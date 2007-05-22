@@ -534,6 +534,7 @@ data TypeError
 	| FileNotFound ModuleName [FilePath]
 	| ClashingFileNamesFor ModuleName [FilePath]
     -- Scope errors
+	| BothWithAndRHS
 	| NotInScope [C.QName]
 	| NoSuchModule C.QName
 	| AmbiguousName C.QName [A.QName]

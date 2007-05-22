@@ -77,6 +77,7 @@ errorString err = case err of
     AmbiguousName _ _			       -> "AmbiguousName"
     AmbiguousParseForApplication _ _	       -> "AmbiguousParseForApplication"
     AmbiguousParseForLHS _ _		       -> "AmbiguousParseForLHS"
+    BothWithAndRHS                             -> "BothWithAndRHS"
     BuiltinInParameterisedModule _	       -> "BuiltinInParameterisedModule"
     ClashingDefinition _ _		       -> "ClashingDefinition"
     ClashingFileNamesFor _ _		       -> "ClashingFileNamesFor"
@@ -270,6 +271,8 @@ instance PrettyTCM TypeError where
 		fsep ( pwords "Multiple possible sources for module" ++ [text $ show x] ++
 		       pwords "found:"
 		     ) $$ nest 2 (vcat $ map text files)
+            BothWithAndRHS -> fsep $
+              pwords "Unexpected right hand side"
 	    NotInScope xs ->
 		fsep (pwords "Not in scope:") $$ nest 2 (vcat $ map name xs)
 		where name x = hsep [ pretty x, text "at", text $ show $ getRange x ]
@@ -352,7 +355,7 @@ instance PrettyTCM Call where
     prettyTCM c = case c of
 	CheckClause t cl _  -> fsep $
 	    pwords "when checking that the clause"
-	    ++ [prettyA cl] ++ pwords "has type" ++ [prettyTCM t]
+	    ++ [vcat . map pretty =<< abstractToConcrete_ cl] ++ pwords "has type" ++ [prettyTCM t]
 	CheckPattern p tel t _ -> addCtxTel tel $ fsep $
 	    pwords "when checking that the pattern"
 	    ++ [prettyA p] ++ pwords "has type" ++ [prettyTCM t]

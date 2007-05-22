@@ -103,9 +103,10 @@ data Clause	= Clause LHS RHS [Declaration]
   deriving (Typeable, Data)
 data RHS	= RHS Expr
 		| AbsurdRHS
+		| WithRHS [Expr] [Clause]
   deriving (Typeable, Data)
 
-data LHS	= LHS LHSInfo QName [NamedArg Pattern]
+data LHS	= LHS LHSInfo QName [NamedArg Pattern] [Pattern]
   deriving (Typeable, Data)
 
 -- | Parameterised over the type of dot patterns.
@@ -220,14 +221,15 @@ instance HasRange (Pattern' e) where
     getRange (LitP l)	   = getRange l
 
 instance HasRange LHS where
-    getRange (LHS i _ _)    = getRange i
+    getRange (LHS i _ _ _) = getRange i
 
 instance HasRange Clause where
     getRange (Clause lhs rhs ds) = getRange (lhs,rhs,ds)
 
 instance HasRange RHS where
-    getRange AbsurdRHS = noRange
-    getRange (RHS e)   = getRange e
+    getRange AbsurdRHS	    = noRange
+    getRange (RHS e)	    = getRange e
+    getRange (WithRHS e cs) = fuseRange e cs
 
 instance HasRange LetBinding where
     getRange (LetBind i _ _ _) = getRange i

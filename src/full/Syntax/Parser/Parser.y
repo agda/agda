@@ -47,6 +47,7 @@ import Utils.Monad
     'let'	{ TokKeyword KwLet $$ }
     'in'	{ TokKeyword KwIn $$ }
     'where'	{ TokKeyword KwWhere $$ }
+    'with'	{ TokKeyword KwWith $$ }
     'postulate' { TokKeyword KwPostulate $$ }
     'primitive' { TokKeyword KwPrimitive $$ }
     'open'	{ TokKeyword KwOpen $$ }
@@ -83,6 +84,7 @@ import Utils.Monad
     '->'	{ TokSymbol SymArrow $$ }
     '\\'	{ TokSymbol SymLambda $$ }
     '@'		{ TokSymbol SymAs $$ }
+    '|'		{ TokSymbol SymBar $$ }
     '('		{ TokSymbol SymOpenParen $$ }
     ')'		{ TokSymbol SymCloseParen $$ }
     '{'		{ TokSymbol SymOpenBrace $$ }
@@ -121,6 +123,7 @@ Token
     : 'let'	    { TokKeyword KwLet $1 }
     | 'in'	    { TokKeyword KwIn $1 }
     | 'where'	    { TokKeyword KwWhere $1 }
+    | 'with'	    { TokKeyword KwWith $1 }
     | 'postulate'   { TokKeyword KwPostulate $1 }
     | 'primitive'   { TokKeyword KwPrimitive $1 }
     | 'open'	    { TokKeyword KwOpen $1 }
@@ -157,6 +160,7 @@ Token
     | '->'	    { TokSymbol SymArrow $1 }
     | '\\'	    { TokSymbol SymLambda $1 }
     | '@'	    { TokSymbol SymAs $1 }
+    | '|'	    { TokSymbol SymBar $1 }
     | '('	    { TokSymbol SymOpenParen $1 }
     | ')'	    { TokSymbol SymCloseParen $1 }
     | '{'	    { TokSymbol SymOpenBrace $1 }
@@ -499,7 +503,29 @@ CommaImportNames1
 -- A left hand side of a function clause. We parse it as an expression, and
 -- then check that it is a valid left hand side.
 LHS :: { LHS }
-LHS : Expr1  {% exprToLHS $1 }
+LHS : Expr1 WithPatterns WithExpressions {% do
+	      { p <- exprToPattern $1
+	      ; return (LHS p $2 $3)
+	      } }
+
+WithPatterns :: { [Pattern] }
+WithPatterns
+  : {- empty -}		   { [] }
+  | '|' Expr1 WithPatterns {% do
+	      { p <- exprToPattern $2
+	      ; return (p : $3)
+	      } }
+
+WithExpressions :: { [Expr] }
+WithExpressions
+  : {- empty -}			    { [] }
+  | 'with' Expr MoreWithExpressions { $2 : $3 }
+
+MoreWithExpressions :: { [Expr] }
+MoreWithExpressions
+  : {- empty -}		     { [] }
+  | '|' Expr WithExpressions { $2 : $3 }
+
 
 -- Where clauses are optional.
 WhereClause :: { WhereClause }
@@ -788,28 +814,25 @@ verifyImportDirective i =
     Patterns
  --------------------------------------------------------------------------}
 
--- | Turn an expression into a left hand side. Fails if the expression is not a
---   valid lhs.
-exprToLHS :: Expr -> Parser LHS
-exprToLHS e = exprToPattern e
-    where
-	exprToPattern :: Expr -> Parser Pattern
-	exprToPattern e =
-	    case e of
-		Ident x			-> return $ IdentP x
-		App _ e1 e2		-> AppP <$> exprToPattern e1
-						<*> T.mapM (T.mapM exprToPattern) e2
-		Paren r e		-> ParenP r
-						<$> exprToPattern e
-		Underscore r _		-> return $ WildP r
-		Absurd r		-> return $ AbsurdP r
-		As r x e		-> AsP r x <$> exprToPattern e
-		Dot r (HiddenArg _ e)	-> return $ HiddenP r $ fmap (DotP r) e
-		Dot r e			-> return $ DotP r e
-		Lit l			-> return $ LitP l
-		HiddenArg r e		-> HiddenP r <$> T.mapM exprToPattern e
-		RawApp r es		-> RawAppP r <$> mapM exprToPattern es
-		OpApp r x es		-> OpAppP r x <$> mapM exprToPattern es
-		_			-> parseErrorAt (rStart $ getRange e) $ "Not a valid pattern: " ++ show e
+-- | Turn an expression into a pattern. Fails if the expression is not a
+--   valid pattern.
+exprToPattern :: Expr -> Parser Pattern
+exprToPattern e =
+    case e of
+	Ident x			-> return $ IdentP x
+	App _ e1 e2		-> AppP <$> exprToPattern e1
+					<*> T.mapM (T.mapM exprToPattern) e2
+	Paren r e		-> ParenP r
+					<$> exprToPattern e
+	Underscore r _		-> return $ WildP r
+	Absurd r		-> return $ AbsurdP r
+	As r x e		-> AsP r x <$> exprToPattern e
+	Dot r (HiddenArg _ e)	-> return $ HiddenP r $ fmap (DotP r) e
+	Dot r e			-> return $ DotP r e
+	Lit l			-> return $ LitP l
+	HiddenArg r e		-> HiddenP r <$> T.mapM exprToPattern e
+	RawApp r es		-> RawAppP r <$> mapM exprToPattern es
+	OpApp r x es		-> OpAppP r x <$> mapM exprToPattern es
+	_			-> parseErrorAt (rStart $ getRange e) $ "Not a valid pattern: " ++ show e
 
 }

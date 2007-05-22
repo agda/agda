@@ -89,12 +89,18 @@ withContextPrecedence p m = do
   setContextPrecedence p'
   return x
 
+getLocalVars :: ScopeM LocalVars
+getLocalVars = scopeLocals <$> getScope
+
+setLocalVars :: LocalVars -> ScopeM ()
+setLocalVars vars = modifyScope $ \s -> s { scopeLocals = vars }
+
 -- | Run a computation without changing the local variables.
 withLocalVars :: ScopeM a -> ScopeM a
 withLocalVars m = do
-  vars <- scopeLocals <$> getScope
+  vars <- getLocalVars
   x    <- m
-  modifyScope $ \s -> s { scopeLocals = vars }
+  setLocalVars vars
   return x
 
 -- * Names

@@ -233,7 +233,7 @@ parsePattern prs p = case p of
 --	Assume _ * is a constructor. Then 'true *' can be parsed as either the
 --	intended _* applied to true, or as true applied to a variable *. If we
 --	check arities this problem won't appear.
-parseLHS :: Name -> Pattern -> ScopeM Pattern
+parseLHS :: Maybe Name -> Pattern -> ScopeM Pattern
 parseLHS top p = do
     patP <- buildParser (getRange p) DontUseBoundNames
     cons <- getNames [ConName]
@@ -244,10 +244,11 @@ parseLHS top p = do
     where
 	getNames kinds = map fst <$> getDefinedNames kinds
 
-	validPattern :: Name -> [Name] -> Pattern -> Bool
-	validPattern top cons p = case appView p of
+	validPattern :: Maybe Name -> [Name] -> Pattern -> Bool
+	validPattern (Just top) cons p = case appView p of
 	    IdentP (QName x) : ps -> x == top && all (validPat cons) ps
 	    _			  -> False
+	validPattern Nothing cons p = validPat cons p
 
 	validPat :: [Name] -> Pattern -> Bool
 	validPat cons p = case appView p of

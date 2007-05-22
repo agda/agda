@@ -23,7 +23,7 @@ import Syntax.Abstract as A
 import Syntax.Position
 import Syntax.Common
 import Syntax.Info
-import Syntax.Concrete.Definitions as CD
+import Syntax.Concrete.Definitions as C
 import Syntax.Concrete.Operators
 import Syntax.Fixity
 import Syntax.Scope.Base
@@ -401,22 +401,18 @@ instance ToAbstract LetDefs [A.LetBinding] where
     toAbstract (LetDefs ds) =
 	toAbstract (map LetDef $ niceDeclarations ds)
 
-instance ToAbstract C.RHS A.RHS where
-    toAbstract C.AbsurdRHS = return $ A.AbsurdRHS
-    toAbstract (C.RHS e)   = A.RHS <$> toAbstract e
-
 instance ToAbstract LetDef A.LetBinding where
     toAbstract (LetDef d) =
 	case d of
-	    NiceDef _ c [CD.Axiom _ _ _ _ x t] [CD.FunDef _ _ _ _ _ _ [cl]] ->
+	    NiceDef _ c [C.Axiom _ _ _ _ x t] [C.FunDef _ _ _ _ _ _ [cl]] ->
 		do  e <- letToAbstract cl
 		    t <- toAbstract t
 		    x <- toAbstract (NewName x)
 		    return $ A.LetBind (LetSource c) x t e
 	    _	-> notAValidLetBinding d
 	where
-	    letToAbstract (CD.Clause top clhs (C.RHS rhs) NoWhere) = do
-		p    <- parseLHS top clhs
+	    letToAbstract (C.Clause top clhs@(C.LHS p [] []) (C.RHS rhs) NoWhere []) = do
+		p    <- parseLHS (Just top) p
 		localToAbstract (snd $ lhsArgs p) $ \args ->
 		    do	rhs <- toAbstract rhs
 			foldM lambda rhs args
@@ -443,13 +439,13 @@ instance ToAbstract C.Pragma A.Pragma where
 instance ToAbstract NiceDefinition Definition where
 
     -- Function definitions
-    toAbstract d@(CD.FunDef r ds f p a x cs) =
+    toAbstract d@(C.FunDef r ds f p a x cs) =
       traceCall (ScopeCheckDefinition d) $
 	do  (x',cs') <- toAbstract (OldName x,cs)
 	    return $ A.FunDef (mkSourcedDefInfo x f p a ds) x' cs'
 
     -- Data definitions
-    toAbstract d@(CD.DataDef r f p a x pars cons) =
+    toAbstract d@(C.DataDef r f p a x pars cons) =
       traceCall (ScopeCheckDefinition d) $
       withLocalVars $ do
 	pars <- toAbstract pars
@@ -458,7 +454,7 @@ instance ToAbstract NiceDefinition Definition where
 	return $ A.DataDef (mkRangedDefInfo x f p a r) x' pars cons
 
     -- Record definitions (mucho interesting)
-    toAbstract d@(CD.RecDef r f p a x pars fields) =
+    toAbstract d@(C.RecDef r f p a x pars fields) =
       traceCall (ScopeCheckDefinition d) $
       withLocalVars $ do
 	pars <- toAbstract pars
@@ -483,7 +479,7 @@ instance ToAbstract NiceDefinition Definition where
 newtype FieldDecl a = FieldDecl a
 
 instance ToAbstract (FieldDecl NiceDeclaration) A.Field where
-  toAbstract (FieldDecl (CD.Axiom r f p a x t)) = annotateDecls =<< do
+  toAbstract (FieldDecl (C.Axiom r f p a x t)) = annotateDecls =<< do
     t'	<- toAbstractCtx TopCtx t
     y	<- toAbstract (NewName x)
     top <- getCurrentModule
@@ -499,7 +495,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
     case d of
 
   -- Axiom
-    CD.Axiom r f p a x t -> do
+    C.Axiom r f p a x t -> do
       t' <- toAbstractCtx TopCtx t
       y  <- freshAbstractQName f x
       bindName p DefName x y
@@ -628,8 +624,8 @@ instance ToAbstract NiceDeclaration A.Declaration where
 
 newtype Constr a = Constr a
 
-instance ToAbstract (Constr CD.NiceDeclaration) A.Declaration where
-    toAbstract (Constr (CD.Axiom r f p a x t)) = do
+instance ToAbstract (Constr C.NiceDeclaration) A.Declaration where
+    toAbstract (Constr (C.Axiom r f p a x t)) = do
 	t' <- toAbstractCtx TopCtx t
 	y  <- freshAbstractQName f x
 	bindName p' ConName x y
@@ -651,17 +647,18 @@ instance ToAbstract (Constr CD.NiceDeclaration) A.Declaration where
 --     bindName (defAccess i) ConName x y
 --   toAbstract _ = __IMPOSSIBLE__	-- constructors are axioms
 
-instance ToAbstract CD.Clause A.Clause where
-    toAbstract (CD.Clause top lhs rhs wh) = withLocalVars $ do
-      lhs' <- toAbstract (LeftHandSide top lhs)
+instance ToAbstract C.Clause A.Clause where
+    toAbstract (C.Clause top lhs@(C.LHS p wps with) rhs wh wcs) = withLocalVars $ do
+      vars <- getLocalVars
+      lhs' <- toAbstract (LeftHandSide top p wps)
       printLocals 10 "after lhs:"
       let (whname, whds) = case wh of
-	    NoWhere	       -> (Nothing, [])
-	    AnyWhere ds    -> (Nothing, ds)
+	    NoWhere	   -> (Nothing, [])
+	    AnyWhere ds	   -> (Nothing, ds)
 	    SomeWhere m ds -> (Just m, ds)
       case whds of
 	[] -> do
-	  rhs <- toAbstractCtx TopCtx rhs
+	  rhs <- toAbstractCtx TopCtx (RightHandSide vars with wcs rhs)
 	  return $ A.Clause lhs' rhs []
 	_	-> do
 	  m <- C.QName <$> maybe (nameConcrete <$> freshNoName noRange) return whname
@@ -669,26 +666,46 @@ instance ToAbstract CD.Clause A.Clause where
 	  (scope, ds) <- scopeCheckModule (getRange wh) PublicAccess ConcreteDef m tel whds
 	  setScope scope
 	  -- the right hand side is checked inside the module of the local definitions
-	  rhs <- toAbstractCtx TopCtx rhs
+	  rhs <- toAbstractCtx TopCtx (RightHandSide vars with wcs rhs)
 	  qm <- getCurrentModule
 	  popScope PublicAccess
 	  bindQModule PublicAccess m qm
 	  return $ A.Clause lhs' rhs ds
 
-data LeftHandSide = LeftHandSide C.Name C.LHS
+data RightHandSide = RightHandSide LocalVars [C.Expr] [C.Clause] C.RHS
+
+instance ToAbstract RightHandSide A.RHS where
+  toAbstract (RightHandSide _ [] (_ : _) _)	    = __IMPOSSIBLE__
+  toAbstract (RightHandSide _ (_ : _) _ (C.RHS _))  = typeError $ BothWithAndRHS
+  toAbstract (RightHandSide _ [] [] rhs)	    = toAbstract rhs
+  toAbstract (RightHandSide vars es cs C.AbsurdRHS) = do
+    es <- toAbstractCtx TopCtx es
+    -- The variables bound in the left hand side are not in scope
+    -- in the with-clauses
+    setLocalVars vars
+    cs <- toAbstract cs
+    return $ WithRHS es cs
+
+instance ToAbstract C.RHS A.RHS where
+    toAbstract C.AbsurdRHS = return $ A.AbsurdRHS
+    toAbstract (C.RHS e)   = A.RHS <$> toAbstract e
+
+data LeftHandSide = LeftHandSide C.Name C.Pattern [C.Pattern]
 
 instance ToAbstract LeftHandSide A.LHS where
-    toAbstract (LeftHandSide top lhs) =
+    toAbstract (LeftHandSide top lhs wps) =
       traceCall (ScopeCheckLHS top lhs) $ do
-	p <- parseLHS top lhs
+	p <- parseLHS (Just top) lhs
 	printLocals 10 "before lhs:"
         let (x, ps) = lhsArgs p
 	args <- toAbstract ps
+	wps  <- toAbstract =<< mapM (parseLHS Nothing) wps
 	printLocals 10 "checked pattern:"
 	args <- toAbstract args -- take care of dot patterns
+	wps  <- toAbstract wps
 	printLocals 10 "checked dots:"
 	x    <- toAbstract (OldName x)
-	return $ A.LHS (LHSSource lhs) x args
+	return $ A.LHS (LHSRange $ getRange (lhs, wps)) x args wps
 
 instance ToAbstract c a => ToAbstract (Arg c) (Arg a) where
     toAbstract (Arg h e) = Arg h <$> toAbstractCtx (hiddenArgumentCtx h) e

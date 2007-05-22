@@ -115,7 +115,7 @@ type NiceTypeSignature	= NiceDeclaration
 
 -- | One clause in a function definition. There is no guarantee that the 'LHS'
 --   actually declares the 'Name'. We will have to check that later.
-data Clause = Clause Name LHS RHS WhereClause
+data Clause = Clause Name LHS RHS WhereClause [Clause]
     deriving (Typeable, Data)
 
 -- | The exception type.
@@ -199,9 +199,10 @@ niceDeclarations ds = nice (fixities ds) ds
 			(ds0,ds1)   -> mkFunDef fixs x (Just t) ds0
 					: nice fixs ds1
 
-		cl@(FunClause lhs _ _) -> case noSingletonRawAppP lhs of
-		    IdentP (QName x)	-> mkFunDef fixs x Nothing [cl] : nice fixs ds
-		    _			-> throwDyn $ MissingTypeSignature lhs
+		cl@(FunClause lhs@(LHS p [] _) _ _)
+                  | IdentP (QName x) <- noSingletonRawAppP p
+                                  -> mkFunDef fixs x Nothing [cl] : nice fixs ds
+                FunClause lhs _ _ -> throwDyn $ MissingTypeSignature lhs
 
 		_   -> nds ++ nice fixs ds
 		    where
@@ -281,7 +282,7 @@ niceDeclarations ds = nice (fixities ds) ds
 		    (TypeSig x t : ds0)
 		    [ Axiom (fuseRange x t) f PublicAccess ConcreteDef x t ]
 		    [ FunDef (getRange ds0) ds0 f PublicAccess ConcreteDef x
-			     (map (mkClause x) ds0)
+			     (mkClauses x ds0)
 		    ]
 	    where
 		f  = fixity x fixs
@@ -290,14 +291,27 @@ niceDeclarations ds = nice (fixities ds) ds
 			Nothing	-> Underscore (getRange x) Nothing
 
 
-	-- Turn a function clause into a nice function clause.
-	mkClause x (FunClause lhs rhs wh) = Clause x lhs rhs wh
-	mkClause _ _ = __IMPOSSIBLE__
+        -- Turn function clauses into nice function clauses.
+        mkClauses :: Name -> [Declaration] -> [Clause]
+        mkClauses _ [] = []
+        mkClauses x (FunClause lhs@(LHS _ _ []) rhs wh : cs) =
+          Clause x lhs rhs wh [] : mkClauses x cs
+        mkClauses x (FunClause lhs@(LHS _ ps es) rhs wh : cs) =
+          Clause x lhs rhs wh (mkClauses x with) : mkClauses x cs'
+          where
+            (with, cs') = span subClause cs
+
+            -- A clause is a subclause if the number of with-patterns is
+            -- greater or equal to the current number of with-patterns plus the
+            -- number of with arguments.
+            subClause (FunClause (LHS _ ps' _) _ _) = length ps' >= length ps + length es
+            subClause _                             = __IMPOSSIBLE__
+        mkClauses _ _ = __IMPOSSIBLE__
 
 	noSingletonRawAppP (RawAppP _ [p]) = noSingletonRawAppP p
 	noSingletonRawAppP p		   = p
 
-	isFunClauseOf x (FunClause lhs _ _) = case noSingletonRawAppP lhs of
+	isFunClauseOf x (FunClause (LHS p _ _) _ _) = case noSingletonRawAppP p of
 	    IdentP (QName q)	-> x == q
 	    _			-> True
 		-- more complicated lhss must come with type signatures, so we just assume
@@ -336,8 +350,8 @@ niceDeclarations ds = nice (fixities ds) ds
 		DataDef r f a _ x ps cs	-> DataDef r f a AbstractDef x ps $ map mkAbstract cs
 		RecDef r f a _ x ps cs	-> RecDef r f a AbstractDef x ps $ map mkAbstract cs
 
-	mkAbstractClause (Clause x lhs rhs wh) =
-	    Clause x lhs rhs $ mkAbstractWhere wh
+	mkAbstractClause (Clause x lhs rhs wh with) =
+	    Clause x lhs rhs (mkAbstractWhere wh) (map mkAbstractClause with)
 
 	mkAbstractWhere  NoWhere	 = NoWhere
 	mkAbstractWhere (AnyWhere ds)	 = AnyWhere [Abstract (getRange ds) ds]
@@ -363,8 +377,8 @@ niceDeclarations ds = nice (fixities ds) ds
 		DataDef r f _ a x ps cs	-> DataDef r f PrivateAccess a x ps cs
 		RecDef r f _ a x ps cs	-> RecDef r f PrivateAccess a x ps cs
 
-	mkPrivateClause (Clause x lhs rhs wh) =
-	    Clause x lhs rhs $ mkPrivateWhere wh
+	mkPrivateClause (Clause x lhs rhs wh with) =
+	    Clause x lhs rhs (mkPrivateWhere wh) (map mkPrivateClause with)
 	
 	mkPrivateWhere  NoWhere		= NoWhere
 	mkPrivateWhere (AnyWhere ds)	= AnyWhere [Private (getRange ds) ds]

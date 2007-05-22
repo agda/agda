@@ -22,7 +22,7 @@ module Syntax.Concrete
     , ImportDirective(..), UsingOrHiding(..), ImportedName(..)
     , defaultImportDir
     , OpenShortHand(..)
-    , LHS, Pattern(..)
+    , LHS(..), Pattern(..)
     , RHS(..), WhereClause(..)
     , Pragma(..)
     )
@@ -112,9 +112,12 @@ type Telescope = [TypedBindings]
     > n + suc m = suc (n + m)
     > (f ∘ g) x = f (g x)
 
-    We use fixity information to see which name is actually defined.
+   We use fixity information to see which name is actually defined.
 -}
-type LHS = Pattern
+data LHS = LHS Pattern   -- ^ original pattern
+               [Pattern] -- ^ with-patterns
+               [Expr]    -- ^ with-expressions
+  deriving (Typeable, Data, Eq)
 
 data RHS = AbsurdRHS
 	 | RHS Expr
@@ -275,6 +278,9 @@ instance HasRange Declaration where
     getRange (Module r _ _ _)		= r
     getRange (Infix f _)		= getRange f
     getRange (Pragma p)			= getRange p
+
+instance HasRange LHS where
+  getRange (LHS p ps es) = fuseRange p (fuseRange ps es)
 
 instance HasRange RHS where
     getRange AbsurdRHS = noRange
