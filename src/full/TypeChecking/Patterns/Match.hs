@@ -44,9 +44,7 @@ matchPatterns ps vs =
 	return (mconcat ms, vs)
 
 matchPattern :: MonadTCM tcm => Arg Pattern -> Arg Term -> tcm (Match, Arg Term)
-matchPattern (Arg _   AbsurdP)	  arg		= return (DontKnow Nothing, arg)
 matchPattern (Arg h' (VarP _))	  arg@(Arg _ v) = return (Yes [v], arg)
-matchPattern (Arg _   WildP)	  arg		= return (Yes [], arg)
 matchPattern (Arg h' (LitP l))	  arg@(Arg h v) = do
     v <- reduce v
     case v of

@@ -216,13 +216,20 @@ instance Reduce Term where
 
 		goCls :: MonadTCM tcm => [Clause] -> Args -> tcm (Reduced Term Term)
 		goCls [] args = typeError $ IncompletePatternMatching v args
-		goCls (cl@(Clause pats body) : cls) args = do
+		goCls (cl@(Clause pats body) : cls) args
+		  | hasBody body = do
 		    (m, args) <- matchPatterns pats args
 		    case m of
 			Yes args'	      -> return $ YesReduction $ app args' body
 			No		      -> goCls cls args
 			DontKnow Nothing  -> return $ NoReduction $ v `apply` args
 			DontKnow (Just m) -> return $ NoReduction $ blocked m $ v `apply` args
+		  | otherwise = return $ NoReduction $ v `apply` args
+
+		hasBody (Body _)	 = True
+		hasBody NoBody		 = False
+		hasBody (Bind (Abs _ b)) = hasBody b
+		hasBody (NoBind b)	 = hasBody b
 
 		app []		 (Body v')	     = v'
 		app (arg : args) (Bind (Abs _ body)) = app args $ subst arg body -- CBN

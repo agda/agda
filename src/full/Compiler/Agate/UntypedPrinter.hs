@@ -93,8 +93,6 @@ instance ShowAsUntyped Pattern where
 	return $ parens $ (text "VCon" <> text (show (length dargs))) <+>
 			  sep (dname : dargs)
     showAsUntyped (LitP lit) = return $ text (show lit)
-    showAsUntyped AbsurdP    = return $ text "_"
-    showAsUntyped WildP	     = return $ text "_"
 
 showClause :: Clause -> TCM Doc
 showClause (Clause pats NoBody) = return empty

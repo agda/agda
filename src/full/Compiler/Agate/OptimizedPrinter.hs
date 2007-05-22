@@ -287,8 +287,6 @@ instance ShowAsOptimized Pattern where
 	dargs <- mapM (showAsOptimized . unArg) args
 	return $ parens $ sep $ dname : dargs
     showAsOptimized (LitP lit) = return $ text $ show lit
-    showAsOptimized AbsurdP = return $ text "_"
-    showAsOptimized WildP   = return $ text "_"
 
 ----------------------------------------------------------------
 

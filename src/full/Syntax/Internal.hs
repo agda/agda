@@ -129,8 +129,6 @@ data ClauseBody = Body Term
 data Pattern = VarP String  -- name suggestion
 	     | ConP QName [Arg Pattern]
 	     | LitP Literal
-	     | WildP
-	     | AbsurdP
   deriving (Typeable, Data)
 
 newtype MetaId = MetaId Nat

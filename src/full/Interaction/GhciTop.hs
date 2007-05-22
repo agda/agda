@@ -321,8 +321,6 @@ cmd_make_case ii rng s = infoOnException $ ioTCM $ do
                       | otherwise = pa
     go (SI.ConP c argpas) = SI.ConP c $ List.map (fmap go) argpas
     go (SI.LitP l)	  = SI.LitP l
-    go SI.AbsurdP	  = SI.AbsurdP
-    go SI.WildP		  = SI.WildP
 
   dePi 0 t = return t
   dePi i (El _ (SI.Pi _ (Abs _ t))) = dePi (i-1) t
@@ -358,12 +356,8 @@ cmd_make_case ii rng s = infoOnException $ ioTCM $ do
   dropUscore p@(SI.VarP s) = p
   dropUscore (SI.ConP c apas) = SI.ConP c (List.map (fmap dropUscore) apas)
   dropUscore (SI.LitP l) = SI.LitP l
-  dropUscore SI.AbsurdP  = SI.AbsurdP
-  dropUscore SI.WildP  = SI.WildP
 
   -- | To do : precedence of ops
-  ppPa prec  SI.AbsurdP = P.text "()"
-  ppPa prec  SI.WildP	= P.text "_"
   ppPa prec (SI.VarP n) = P.text n
   ppPa prec (SI.LitP l) = pretty l
   ppPa prec (SI.ConP qn []) = P.text (show qn)
