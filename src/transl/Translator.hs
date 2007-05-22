@@ -399,10 +399,10 @@ cclause2funclauses i flg (CClause cpats expr)
 -- 		              (RHS (transCExpr expr))
 -- 		              (localdefs expr)]
  | flg
-     = [FunClause (RawAppP noRange (intersperse op pats)) 
+     = [FunClause (LHS (RawAppP noRange (intersperse op pats)) [] [])
 		              (RHS (transCExpr expr))
 		              (localdefs expr)]
- | otherwise = [FunClause (RawAppP noRange (op : pats)) 
+ | otherwise = [FunClause (LHS (RawAppP noRange (op : pats)) [] [])
 		              (RHS (transCExpr expr))
 		              (localdefs expr)]
   where twoargs = 2 == length cpats
@@ -443,9 +443,9 @@ liftCcase n flg pats (Ccase cexpr ccasearms)
          where expr' = substcexpr x (cpat2cexpr pat) expr
                x = case cexpr of {CVar v -> v; _ -> error "Never"}
       liftcc n flg pats i (pat,expr)
-             | flg = [FunClause (RawAppP noRange (intersperse (IdentP (QName (id2name n))) (cpat2pattern pat i pats)))
+             | flg = [FunClause (LHS (RawAppP noRange (intersperse (IdentP (QName (id2name n))) (cpat2pattern pat i pats))) [] [])
                                     (RHS (transCExpr expr')) (localdefs expr')]
-             | otherwise = [FunClause (RawAppP noRange (IdentP (QName (id2name n)):cpat2pattern pat i pats))
+             | otherwise = [FunClause (LHS (RawAppP noRange (IdentP (QName (id2name n)):cpat2pattern pat i pats)) [] [])
                                     (RHS (transCExpr expr')) (localdefs expr')]
          where expr' = substcexpr x (cpat2cexpr pat) expr
                x = case cexpr of {CVar v -> v; _ -> error "Never"}

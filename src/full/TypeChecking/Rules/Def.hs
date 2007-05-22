@@ -82,7 +82,7 @@ checkFunDef i name cs =
 
 -- | Type check a function clause.
 checkClause :: Type -> A.Clause -> TCM Clause
-checkClause t c@(A.Clause (A.LHS i x aps) rhs wh) =
+checkClause t c@(A.Clause (A.LHS i x aps []) rhs wh) =
     traceCall (CheckClause t c) $
     checkLeftHandSide aps t $ \sub xs ps t' -> do
       body <- checkWhere (size xs) wh $ 
@@ -94,7 +94,10 @@ checkClause t c@(A.Clause (A.LHS i x aps) rhs wh) =
 		  | any (containsAbsurdPattern . namedThing . unArg) aps
 			      -> return NoBody
 		  | otherwise -> typeError $ NoRHSRequiresAbsurdPattern aps
+		A.WithRHS es cs -> do
+		  typeError $ NotImplemented "with clauses"
       return $ Clause ps body
+checkClause t (A.Clause (A.LHS _ _ _ ps@(_ : _)) _ _) = typeError $ UnexpectedWithPatterns ps
 
 -- | Type check a where clause. The first argument is the number of variables
 --   bound in the left hand side.

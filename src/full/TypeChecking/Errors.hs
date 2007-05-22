@@ -129,6 +129,7 @@ errorString err = case err of
     UnequalSorts _ _			       -> "UnequalSorts"
     UnequalTerms _ _ _			       -> "UnequalTerms"
     UnequalTypes _ _			       -> "UnequalTypes"
+    UnexpectedWithPatterns _                   -> "UnexpectedWithPatterns"
     UninstantiatedDotPattern _                 -> "UninstantiatedDotPattern"
     UninstantiatedModule _		       -> "UninstantiatedModule"
     UnsolvedConstraints _		       -> "UnsolvedConstraints"
@@ -220,6 +221,8 @@ instance PrettyTCM TypeError where
 	    DuplicateFields xs -> fsep $
 		pwords "Duplicate fields" ++ punctuate comma (map pretty xs) ++
 		pwords "in record"
+            UnexpectedWithPatterns ps -> fsep $
+              pwords "Unexpected with patterns" ++ (punctuate (text " |") $ map prettyA ps)
 	    MetaCannotDependOn m ps i -> fsep $
 		    pwords "The metavariable" ++ [prettyTCM $ MetaV m []] ++ pwords "cannot depend on" ++ [pvar i] ++
 		    pwords "because it" ++ deps

@@ -523,6 +523,7 @@ data TypeError
 	| TooFewFields QName [C.Name]
 	| TooManyFields QName [C.Name]
 	| DuplicateFields [C.Name]
+	| UnexpectedWithPatterns [A.Pattern]
     -- Positivity errors
 	| NotStrictlyPositive QName [Occ]
     -- Import errors
