@@ -524,6 +524,7 @@ data TypeError
 	| TooManyFields QName [C.Name]
 	| DuplicateFields [C.Name]
 	| UnexpectedWithPatterns [A.Pattern]
+	| WithClausePatternMismatch A.Pattern Pattern
     -- Positivity errors
 	| NotStrictlyPositive QName [Occ]
     -- Import errors

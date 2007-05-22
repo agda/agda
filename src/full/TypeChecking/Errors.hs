@@ -135,6 +135,7 @@ errorString err = case err of
     UnsolvedConstraints _		       -> "UnsolvedConstraints"
     UnsolvedMetas _			       -> "UnsolvedMetas"
     UnsolvedMetasInImport _		       -> "UnsolvedMetasInImport"
+    WithClausePatternMismatch _ _              -> "WithClausePatternMismatch"
     WrongHidingInApplication _		       -> "WrongHidingInApplication"
     WrongHidingInLHS _			       -> "WrongHidingInLHS"
     WrongHidingInLambda _		       -> "WrongHidingInLambda"
@@ -223,6 +224,9 @@ instance PrettyTCM TypeError where
 		pwords "in record"
             UnexpectedWithPatterns ps -> fsep $
               pwords "Unexpected with patterns" ++ (punctuate (text " |") $ map prettyA ps)
+            WithClausePatternMismatch p q -> fsep $
+              pwords "With clause pattern" ++ [prettyA p] ++
+              pwords "is not an instance of its parent pattern" -- TODO: pretty for internal patterns
 	    MetaCannotDependOn m ps i -> fsep $
 		    pwords "The metavariable" ++ [prettyTCM $ MetaV m []] ++ pwords "cannot depend on" ++ [pvar i] ++
 		    pwords "because it" ++ deps

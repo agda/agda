@@ -18,6 +18,7 @@ import qualified Syntax.Abstract as A
 import Syntax.Internal
 import qualified Syntax.Info as Info
 import qualified Syntax.Abstract.Pretty as A
+import Syntax.Fixity
 
 import TypeChecking.Monad
 import TypeChecking.Reduce
@@ -31,8 +32,9 @@ import TypeChecking.MetaVars
 import TypeChecking.Patterns.Monad
 import TypeChecking.Rebind
 import TypeChecking.Primitive
+import TypeChecking.With
 
-import TypeChecking.Rules.Term		      ( checkExpr, checkTelescope )
+import TypeChecking.Rules.Term		      ( checkExpr, inferExpr, checkTelescope )
 import TypeChecking.Rules.LHS		      ( checkLeftHandSide )
 import {-# SOURCE #-} TypeChecking.Rules.Decl ( checkDecls )
 
@@ -40,6 +42,7 @@ import Utils.Tuple
 import Utils.Size
 import Utils.Function
 import Utils.List
+import Utils.Permutation
 
 #include "../../undefined.h"
 
@@ -79,25 +82,62 @@ checkFunDef i name cs =
     where
 	npats (Clause ps _) = size ps
 
+data WithFunctionProblem
+      = NoWithFunction
+      | WithFunction QName Telescope Telescope [Type] Type [Arg Pattern] Permutation [A.Clause]
 
 -- | Type check a function clause.
 checkClause :: Type -> A.Clause -> TCM Clause
 checkClause t c@(A.Clause (A.LHS i x aps []) rhs wh) =
     traceCall (CheckClause t c) $
-    checkLeftHandSide aps t $ \sub xs ps t' -> do
-      body <- checkWhere (size xs) wh $ 
+    checkLeftHandSide aps t $ \gamma delta sub xs ps t' perm -> do
+      let mkBody v = foldr (\x t -> Bind $ Abs x t) (Body $ substs sub v) xs
+      (body, with) <- checkWhere (size xs) wh $ 
 	      case rhs of
 		A.RHS e -> do
 		  v <- checkExpr e t'
-		  return $ foldr (\x t -> Bind $ Abs x t) (Body $ substs sub v) xs
+		  return (mkBody v, NoWithFunction)
 		A.AbsurdRHS
 		  | any (containsAbsurdPattern . namedThing . unArg) aps
-			      -> return NoBody
+			      -> return (NoBody, NoWithFunction)
 		  | otherwise -> typeError $ NoRHSRequiresAbsurdPattern aps
 		A.WithRHS es cs -> do
-		  typeError $ NotImplemented "with clauses"
+
+		  -- Infer the types of the with expressions
+		  vas <- mapM inferExpr es
+		  let (vs, as) = unzip vas
+
+		  -- Invent a clever name for the with function
+		  aux <- qnameFromList . (:[]) <$> freshName_ "aux"
+
+		  -- Create the body of the original function
+		  let n	   = size delta
+		      us   = [ Arg h (Var i []) | (i, Arg h _) <- zip [n - 1,n - 2..0] $ telToList delta ]
+		      v	   = substs sub $ Def aux $ us ++ (map (Arg NotHidden) vs)
+
+		  return (mkBody v, WithFunction aux gamma delta as t' ps perm cs)
+      escapeContext (size delta) $ checkWithFunction with
       return $ Clause ps body
 checkClause t (A.Clause (A.LHS _ _ _ ps@(_ : _)) _ _) = typeError $ UnexpectedWithPatterns ps
+
+checkWithFunction :: WithFunctionProblem -> TCM ()
+checkWithFunction NoWithFunction = return ()
+checkWithFunction (WithFunction aux gamma delta as b qs perm cs) = do
+
+  -- Add the type of the auxiliary function to the signature
+  let auxType = telePi delta $ foldr fun b as
+  addConstant aux (Defn aux auxType Axiom)
+
+  -- Construct the body for the with function
+  cs <- buildWithFunction aux gamma qs perm (size as) cs
+
+  -- Check the with function
+  checkFunDef info aux cs
+
+  where
+    fun a b = El s $ Fun (Arg NotHidden a) b
+      where s = (sLub `on` getSort) a b
+    info = Info.mkRangedDefInfo (nameConcrete $ qnameName aux) defaultFixity PublicAccess ConcreteDef (getRange cs)
 
 -- | Type check a where clause. The first argument is the number of variables
 --   bound in the left hand side.

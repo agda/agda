@@ -559,20 +559,20 @@ bindAsPatterns (AsB x v a : asb) ret =
 
 -- | Check a LHS. Main function.
 checkLeftHandSide :: [NamedArg A.Pattern] -> Type ->
-		     ([Term] -> [String] -> [Arg Pattern] -> Type -> TCM a) -> TCM a
+		     (Telescope -> Telescope -> [Term] -> [String] -> [Arg Pattern] -> Type -> Permutation -> TCM a) -> TCM a
 checkLeftHandSide ps a ret = do
   a <- normalise a
   let TelV tel0 b0 = telView a
   ps <- insertImplicitPatterns ps tel0
   unless (size tel0 >= size ps) $ typeError $ TooManyArgumentsInLHS (size ps) a
   let (as, bs) = splitAt (size ps) $ telToList tel0
-      tel      = telFromList as
+      gamma    = telFromList as
       b	       = telePi (telFromList bs) b0
 
       -- internal patterns start as all variables
       ips      = map (fmap (VarP . fst)) as
 
-      problem  = Problem ps (idP $ size ps, ips) tel
+      problem  = Problem ps (idP $ size ps, ips) gamma
 
   reportSDoc "tc.lhs.top" 10 $
     vcat [ text "checking lhs:"
@@ -582,14 +582,14 @@ checkLeftHandSide ps a ret = do
 	   , text "a'    =" <+> prettyTCM (telePi tel0 b0)
 	   , text "tel0  =" <+> prettyTCM tel0
 	   , text "b0    =" <+> prettyTCM b0
-	   , text "tel   =" <+> prettyTCM tel
-	   , text "b	 =" <+> addCtxTel tel (prettyTCM b)
+	   , text "gamma =" <+> prettyTCM gamma
+	   , text "b	 =" <+> addCtxTel gamma (prettyTCM b)
 	   ]
 	 ]
 
   let idsub = [ Var i [] | i <- [0..] ]
 
-  (Problem ps (perm, qs) tel, sigma, dpi, asb) <- checkLHS problem idsub [] []
+  (Problem ps (perm, qs) delta, sigma, dpi, asb) <- checkLHS problem idsub [] []
   let b' = substs sigma b
 
   reportSDoc "tc.lhs.top" 10 $
@@ -597,18 +597,18 @@ checkLeftHandSide ps a ret = do
 	 , nest 2 $ vcat
 	   [ text "ps    = " <+> fsep (map prettyA ps)
 	   , text "perm  = " <+> text (show perm)
-	   , text "tel   = " <+> prettyTCM tel
+	   , text "delta = " <+> prettyTCM delta
 	   , text "dpi	 = " <+> brackets (fsep $ punctuate comma $ map prettyTCM dpi)
 	   , text "asb	 = " <+> brackets (fsep $ punctuate comma $ map prettyTCM asb)
 	   ]
          ]
-  bindLHSVars ps tel $ bindAsPatterns asb $ do
+  bindLHSVars ps delta $ bindAsPatterns asb $ do
     reportSDoc "tc.lhs.top" 10 $ nest 2 $ text "type  = " <+> prettyTCM b'
     mapM_ checkDotPattern dpi
     let rho = renamingR perm -- I'm not certain about this...
 	Perm n _ = perm
 	xs  = replicate n "z" -- map (fst . unArg) $ telToList tel
-    ret rho xs qs b'
+    ret gamma delta rho xs qs b' perm
   where
     checkLHS :: Problem -> [Term] -> [DotPatternInst] -> [AsBinding] ->
 		TCM (Problem, [Term], [DotPatternInst], [AsBinding])
