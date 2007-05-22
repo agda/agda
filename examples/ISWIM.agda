@@ -77,7 +77,7 @@ module Semantics (R : Set) where
   open Syntax
 
   infix 60 _!_
-  infixl 40 _|_
+  infixl 40 _||_
 
   mutual
     ⟦_⟧type' : Type -> Set
@@ -89,13 +89,13 @@ module Semantics (R : Set) where
     ⟦ τ ⟧type = C ⟦ τ ⟧type'
 
     data ⟦_⟧ctx : Context -> Set where
-      ★ : ⟦ ε ⟧ctx
-      _|_ : {Γ : Context}{τ : Type} -> ⟦ Γ ⟧ctx -> ⟦ τ ⟧type' -> ⟦ Γ , τ ⟧ctx
+      ★    : ⟦ ε ⟧ctx
+      _||_ : {Γ : Context}{τ : Type} -> ⟦ Γ ⟧ctx -> ⟦ τ ⟧type' -> ⟦ Γ , τ ⟧ctx
 
     _!_ : {Γ : Context}{τ : Type} -> ⟦ Γ ⟧ctx -> Var Γ τ -> ⟦ τ ⟧type'
-    ★	    ! ()
-    (ρ | v) ! vz   = v
-    (ρ | v) ! vs x = ρ ! x
+    ★	     ! ()
+    (ρ || v) ! vz   = v
+    (ρ || v) ! vs x = ρ ! x
 
     ⟦_⟧ : {Γ : Context}{τ : Type} -> Expr Γ τ -> ⟦ Γ ⟧ctx -> ⟦ τ ⟧type
     ⟦ var x	⟧ ρ = return (ρ ! x)
@@ -105,10 +105,10 @@ module Semantics (R : Set) where
     ⟦ f ∙ e	⟧ ρ = ⟦ e ⟧ ρ >>= \v ->
 		      ⟦ f ⟧ ρ >>= \w ->
 		      w v
-    ⟦ e WHERE f ⟧ ρ = ⟦ e ⟧ (ρ | (\x -> ⟦ f ⟧ (ρ | x)))
+    ⟦ e WHERE f ⟧ ρ = ⟦ e ⟧ (ρ || (\x -> ⟦ f ⟧ (ρ || x)))
     ⟦ e PP f	⟧ ρ = callcc \k ->
-		      let throw = \x -> ⟦ f ⟧ (ρ | x) >>= k
-		      in  ⟦ e ⟧ (ρ | throw)
+		      let throw = \x -> ⟦ f ⟧ (ρ || x) >>= k
+		      in  ⟦ e ⟧ (ρ || throw)
 
 module Test where
 

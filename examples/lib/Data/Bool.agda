@@ -47,11 +47,11 @@ if'_then_else_ : {A : Set} -> (x : Bool) -> (IsTrue x -> A) -> (IsFalse x -> A) 
 if' true  then f else g = f tt
 if' false then f else g = g tt
 
-_=>_|_ : {A : Set} -> Bool -> A -> A -> A
-_=>_|_ = if_then_else_
+_=>_!_ : {A : Set} -> Bool -> A -> A -> A
+_=>_!_ = if_then_else_
 
-|_ : {A : Set} -> A -> A
-| x = x
+!_ : {A : Set} -> A -> A
+! x = x
 
 otherwise_ : {A : Set} -> A -> A
 otherwise x = x
