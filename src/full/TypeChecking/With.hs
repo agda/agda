@@ -2,6 +2,7 @@
 module TypeChecking.With where
 
 import Control.Applicative
+import Control.Monad
 
 import Syntax.Common
 import Syntax.Internal
@@ -13,10 +14,15 @@ import TypeChecking.Substitute
 import TypeChecking.Reduce
 import TypeChecking.Primitive hiding (Nat)
 import TypeChecking.Rules.LHS
+import TypeChecking.Pretty
 
 import Utils.Permutation
 
 #include "../undefined.h"
+
+showPat (VarP x)    = text x
+showPat (ConP c ps) = parens $ prettyTCM c <+> fsep (map (showPat . unArg) ps)
+showPat (LitP l)    = text (show l)
 
 -- | Compute the clauses for the with-function given the original patterns.
 buildWithFunction :: QName -> Telescope -> [Arg Pattern] -> Permutation -> Nat -> [A.Clause] -> TCM [A.Clause]
@@ -52,6 +58,15 @@ stripWithClausePatterns gamma qs perm ps = do
   psi <- insertImplicitPatterns ps gamma
   ps' <- strip gamma psi qs
   -- TODO: remember dot patterns
+  reportSDoc "tc.with.strip" 10 $ vcat
+    [ text "stripping patterns"
+    , nest 2 $ text "gamma = " <+> prettyTCM gamma
+    , nest 2 $ text "psi = " <+> fsep (punctuate comma $ map prettyA psi)
+    , nest 2 $ text "ps' = " <+> fsep (punctuate comma $ map prettyA ps')
+    , nest 2 $ text "psp = " <+> fsep (punctuate comma $ map prettyA $ permute perm ps')
+    , nest 2 $ text "qs  = " <+> fsep (punctuate comma $ map (showPat . unArg) qs)
+    ]
+
   return $ permute perm ps'
   where
     -- implicit args inserted at top level
@@ -62,34 +77,46 @@ stripWithClausePatterns gamma qs perm ps = do
     strip EmptyTel    (_ : _) _       = __IMPOSSIBLE__
     strip ExtendTel{} []      _       = __IMPOSSIBLE__
     strip EmptyTel    []      []      = return []
-    strip (ExtendTel a tel) (p : ps) (q : qs) = case unArg q of
-      VarP _  -> do
-        underAbstraction a tel $ \tel -> strip tel ps qs
-        return $ p : ps
+    strip (ExtendTel a tel) (p : ps) (q : qs) = do
+      reportSDoc "tc.with.strip" 15 $ vcat
+        [ text "strip" 
+        , nest 2 $ text "ps =" <+> fsep (punctuate comma $ map prettyA (p : ps))
+        , nest 2 $ text "qs =" <+> fsep (punctuate comma $ map (showPat . unArg) (q : qs))
+        ]
+      case unArg q of
+        VarP _  -> do
+          ps <- underAbstraction a tel $ \tel -> strip tel ps qs
+          return $ p : ps
 
-      ConP c qs' -> case namedThing $ unArg p of
-        A.ConP _ c' ps' | c == c' -> do
-
-          -- The type is a datatype
-          Def d us <- normalise $ unEl (unArg a)
-
-          -- Compute the argument telescope for the constructor
-          Con c []    <- constructorForm =<< normalise (Con c [])
-          TelV tel' _ <- telView . flip apply us . defType <$> getConstInfo c
-
-          -- Compute the new telescope
-          let v     = Con c $ reverse [ Arg h (Var i []) | (i, Arg h _) <- zip [0..] $ reverse qs' ]
-              tel'' = tel' `abstract` absApp tel v
-
-          -- Insert implicit patterns
-          psi' <- insertImplicitPatterns (ps' ++ ps) tel''
-
-          -- Keep going
-          strip tel'' psi' (qs' ++ qs)
-        _ -> typeError $ WithClausePatternMismatch (namedThing $ unArg p) (unArg q)
-
-      LitP lit -> case namedThing $ unArg p of
-        A.LitP lit' | lit == lit' -> strip (tel `absApp` Lit lit) ps qs
-        _ -> typeError $ WithClausePatternMismatch (namedThing $ unArg p) (unArg q)
+        ConP c qs' -> case namedThing $ unArg p of
+          A.ConP _ c' ps' -> do
           
+            Con c  [] <- constructorForm =<< reduce (Con c [])
+            Con c' [] <- constructorForm =<< reduce (Con c' [])
+
+            unless (c == c') mismatch
+
+            -- The type is a datatype
+            Def d us <- normalise $ unEl (unArg a)
+
+            -- Compute the argument telescope for the constructor
+            Con c []    <- constructorForm =<< normalise (Con c [])
+            TelV tel' _ <- telView . flip apply us . defType <$> getConstInfo c
+
+            -- Compute the new telescope
+            let v     = Con c $ reverse [ Arg h (Var i []) | (i, Arg h _) <- zip [0..] $ reverse qs' ]
+                tel'' = tel' `abstract` absApp tel v
+
+            -- Insert implicit patterns
+            psi' <- insertImplicitPatterns (ps' ++ ps) tel''
+
+            -- Keep going
+            strip tel'' psi' (qs' ++ qs)
+          _ -> mismatch
+
+        LitP lit -> case namedThing $ unArg p of
+          A.LitP lit' | lit == lit' -> strip (tel `absApp` Lit lit) ps qs
+          _ -> mismatch
+      where
+        mismatch = typeError $ WithClausePatternMismatch (namedThing $ unArg p) (unArg q)
 

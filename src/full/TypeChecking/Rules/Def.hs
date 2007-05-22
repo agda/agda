@@ -124,8 +124,12 @@ checkWithFunction :: WithFunctionProblem -> TCM ()
 checkWithFunction NoWithFunction = return ()
 checkWithFunction (WithFunction aux gamma delta as b qs perm cs) = do
 
+  n <- size <$> getContext
+  let delta' = telFromList . drop n . telToList $ delta
+      gamma' = telFromList . drop n . telToList $ gamma
+
   -- Add the type of the auxiliary function to the signature
-  let auxType = telePi delta $ foldr fun b as
+  let auxType = telePi delta' $ foldr fun b as
   addConstant aux (Defn aux auxType Axiom)
 
   -- Construct the body for the with function
