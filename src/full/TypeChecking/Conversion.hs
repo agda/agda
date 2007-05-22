@@ -18,6 +18,7 @@ import TypeChecking.Errors
 import TypeChecking.Primitive (constructorForm)
 import TypeChecking.Free
 import TypeChecking.Records
+import TypeChecking.Pretty
 
 import Utils.Monad
 
@@ -91,11 +92,8 @@ equalAtom t m n =
     catchConstraint (ValueEq t m n) $
     do	m <- constructorForm =<< reduce m
 	n <- constructorForm =<< reduce n
-	verbose 10 $ do
-	    dm <- prettyTCM m
-	    dn <- prettyTCM n
-	    dt <- prettyTCM t
-	    debug $ "equalAtom " ++ show dm ++ " == " ++ show dn ++ " : " ++ show dt
+	reportSDoc "tc.conv.atom" 10 $ fsep
+	  [ text "equalAtom", prettyTCM m, text "==", prettyTCM n, text ":", prettyTCM t ]
 	case (m, n) of
 	    _ | f1@(FunV _ _) <- funView m
 	      , f2@(FunV _ _) <- funView n -> equalFun f1 f2
@@ -107,6 +105,10 @@ equalAtom t m n =
 		a <- typeOfBV i
 		equalArg a iArgs jArgs
 	    (Def x xArgs, Def y yArgs) | x == y -> do
+		reportSDoc "tc.conv.atom" 20 $
+		  text "equalArg" <+> sep [ brackets (fsep $ punctuate comma $ map prettyTCM xArgs)
+					  , brackets (fsep $ punctuate comma $ map prettyTCM yArgs)
+					  ]
 		a <- defType <$> getConstInfo x
 		equalArg a xArgs yArgs
 	    (Con x xArgs, Con y yArgs)

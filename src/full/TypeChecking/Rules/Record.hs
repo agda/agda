@@ -117,12 +117,14 @@ checkRecordFields m q tel s ftel vs n (f : fs) = do
       -}
 
       -- The type of the projection function should be
-      -- {tel} -> (r : R tel) -> t[vs/ftel]
+      -- {tel} -> (r : R Γ tel) -> t[vs/ftel]
+      -- where Γ is the current context
+      gamma <- getContextTelescope
       let hide (Arg _ x) = Arg Hidden x
 	  htel	   = telFromList $ map hide $ telToList tel
 	  rect	   = El s $ Def q $ reverse 
 		      [ Arg h (Var i [])
-		      | (i, Arg h _) <- zip [0..] $ telToList tel
+		      | (i, Arg h _) <- zip [0..] $ telToList (gamma `abstract` tel)
 		      ]
 	  projt	   = substs (vs ++ map (flip Var []) [0..]) $ raiseFrom (size ftel) 1 t
 	  finalt   = telePi htel
