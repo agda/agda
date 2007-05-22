@@ -51,26 +51,32 @@ generateSyntaxInfo :: [T.Token] -> CA.TopLevelInfo -> M.TCM File
 generateSyntaxInfo toks top = do
   nameInfo <- fmap mconcat $ mapM generate (Seq.toList names)
   -- theRest need to be placed before nameInfo here since record field
-  -- declarations contain QNames.
-  return (tokInfo `mappend` theRest `mappend` nameInfo)
+  -- declarations contain QNames. tokInfo is placed last since token
+  -- highlighting is more crude than the others.
+  return (theRest `mappend` nameInfo `mappend` tokInfo)
   where
     tokInfo = Seq.foldMap tokenToFile toks
       where
       aToF a r = several (rToR r) (mempty { aspect = Just a })
 
       tokenToFile :: T.Token -> File
-      tokenToFile (T.TokSetN (r, _))               = aToF PrimitiveTypePart r
-      tokenToFile (T.TokKeyword T.KwSet  r)        = aToF PrimitiveTypePart r
-      tokenToFile (T.TokKeyword T.KwProp r)        = aToF PrimitiveTypePart r
-      tokenToFile (T.TokKeyword T.KwForall r)      = aToF PrimitiveTypePart r
+      tokenToFile (T.TokSetN (r, _))               = aToF PrimitiveType r
+      tokenToFile (T.TokKeyword T.KwSet  r)        = aToF PrimitiveType r
+      tokenToFile (T.TokKeyword T.KwProp r)        = aToF PrimitiveType r
+      tokenToFile (T.TokKeyword T.KwForall r)      = aToF Symbol r
       tokenToFile (T.TokKeyword _ r)               = aToF Keyword r
+      tokenToFile (T.TokSymbol  _ r)               = aToF Symbol r
       tokenToFile (T.TokLiteral (L.LitInt    r _)) = aToF Number r
       tokenToFile (T.TokLiteral (L.LitFloat  r _)) = aToF Number r
       tokenToFile (T.TokLiteral (L.LitString r _)) = aToF String r
       tokenToFile (T.TokLiteral (L.LitChar   r _)) = aToF String r
       tokenToFile (T.TokComment (r, _))            = aToF Comment r
       tokenToFile (T.TokTeX (r, _))                = aToF Comment r
-      tokenToFile _                                = mempty
+      tokenToFile (T.TokId {})                     = mempty
+      tokenToFile (T.TokQId {})                    = mempty
+      tokenToFile (T.TokString {})                 = mempty
+      tokenToFile (T.TokDummy {})                  = mempty
+      tokenToFile (T.TokEOF {})                    = mempty
 
     everything' :: (r -> r -> r) -> GenericQ r -> r
     everything' (+) q = everythingBut

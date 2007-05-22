@@ -32,9 +32,14 @@
   "*The face used for numbers."
   :group 'agda2-highlight)
 
-(defface agda2-highlight-primitive-type-part-face
+(defface agda2-highlight-symbol-face
+  '((t (:foreground "gray25")))
+  "*The face used for symbols like forall, =, ->, etc."
+  :group 'agda2-highlight)
+
+(defface agda2-highlight-primitive-type-face
   '((t (:foreground "medium blue")))
-  "*The face used for primitive type parts (like Set and forall)."
+  "*The face used for primitive types (like Set and Prop)."
   :group 'agda2-highlight)
 
 (defface agda2-highlight-bound-variable-face
@@ -99,7 +104,8 @@
     (keyword           . agda2-highlight-keyword-face)
     (string            . agda2-highlight-string-face)
     (number            . agda2-highlight-number-face)
-    (primitivetypepart . agda2-highlight-primitive-type-part-face)
+    (symbol            . agda2-highlight-symbol-face)
+    (primitivetype     . agda2-highlight-primitive-type-face)
     (bound             . agda2-highlight-bound-variable-face)
     (constructor       . agda2-highlight-constructor-face)
     (datatype          . agda2-highlight-datatype-face)
@@ -129,9 +135,10 @@ The aspects currently recognised are the following:
 `operator'          Operators.
 `postulate'         Postulates.
 `primitive'         Primitive functions.
-`primitivetypepart' Primitive type parts (like Set and forall).
+`primitivetype'     Primitive types (like Set and Prop).
 `record'            Record types.
 `string'            Strings.
+`symbol'            Symbols like forall, =, ->, etc.
 ")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
