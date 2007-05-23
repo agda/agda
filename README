@@ -79,6 +79,17 @@ To use the Agda 2 Emacs mode:
 
    This should not be necessary, though.
 
+5. If you want some specific settings for the Emacs mode you can add
+   them to agda2-mode-hook. For instance, if you want to enable the
+   TeX input method (for writing mathematical Unicode characters, like
+   ∀≥ℕ→π⟦⟧) whenever the Emacs mode is enabled you can do the
+   following:
+
+   (add-hook 'agda2-mode-hook
+             '(lambda nil
+                (set-input-method 'TeX)
+                ))
+
 Now, if you open a file named XXX.agda the buffer will use agda2-mode.
 It may take 5 or 10 seconds before you see anything in the buffer, but
 that is normal.
