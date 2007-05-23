@@ -1,4 +1,4 @@
-module WithInParModule where
+module WithInParModule (A : Set) where
 
 data Nat : Set where
   zero : Nat
@@ -12,9 +12,14 @@ isZero : Nat -> Bool
 isZero zero = true
 isZero (suc _) = false
 
-module Foo (A : Set) where
 
-  f : Nat -> Nat
-  f n with isZero n
-  f n | true = zero
-  f n | false = suc zero
+f : Nat -> Nat
+f n with isZero n
+f n | true = zero
+f n | false = suc zero
+
+g : Nat -> Nat
+g zero = zero
+g (suc n) with g n
+g (suc n) | zero = n
+

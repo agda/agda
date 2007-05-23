@@ -108,7 +108,9 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs wh) =
 		  let (vs, as) = unzip vas
 
 		  -- Invent a clever name for the with function
-		  aux <- qnameFromList . (:[]) <$> freshName_ "aux"
+		  m <- currentModule
+		  reportSDoc "tc.with.top" 20 $ text "with function module:" <+> prettyList (map prettyTCM $ mnameToList m)
+		  aux <- qualify m <$> freshName_ "aux"
 
 		  -- Create the body of the original function
 		  let n	   = size delta
@@ -116,7 +118,7 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs wh) =
 		      v	   = substs sub $ Def aux $ us ++ (map (Arg NotHidden) vs)
 
 		  return (mkBody v, WithFunction aux gamma delta as t' ps perm cs)
-      escapeContext (size delta) $ checkWithFunction with
+      escapeContext (size xs) $ checkWithFunction with
       return $ Clause ps body
 checkClause t (A.Clause (A.LHS _ _ _ ps@(_ : _)) _ _) = typeError $ UnexpectedWithPatterns ps
 
@@ -124,13 +126,24 @@ checkWithFunction :: WithFunctionProblem -> TCM ()
 checkWithFunction NoWithFunction = return ()
 checkWithFunction (WithFunction aux gamma delta as b qs perm cs) = do
 
-  n <- size <$> getContext
-  let delta' = telFromList . drop n . telToList $ delta
-      gamma' = telFromList . drop n . telToList $ gamma
+  reportSDoc "tc.with.top" 10 $ vcat
+    [ text "checkWithFunction"
+    , nest 2 $ vcat
+      [ text "delta =" <+> prettyTCM delta
+      , text "gamma =" <+> prettyTCM gamma
+      , text "as    =" <+> prettyList (map prettyTCM as)
+      , text "b     =" <+> prettyTCM b
+      ]
+    ]
 
   -- Add the type of the auxiliary function to the signature
-  let auxType = telePi delta' $ foldr fun b as
+  let auxType = telePi delta $ foldr fun b as
   addConstant aux (Defn aux auxType Axiom)
+  reportSDoc "tc.with.top" 10 $ sep
+    [ text "added with function of type"
+    , nest 2 $ prettyTCM auxType
+    , nest 2 $ text "-|" <+> (prettyTCM =<< getContextTelescope)
+    ]
 
   -- Construct the body for the with function
   cs <- buildWithFunction aux gamma qs perm (size as) cs

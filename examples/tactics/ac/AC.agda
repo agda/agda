@@ -11,7 +11,7 @@ import EqProof
 
 open Nat hiding (_<_) renaming (_==_ to _=Nat=_)
 open Bool
-open List hiding (module Eq) -- (
+open List hiding (module Eq)
 open Fin renaming (_==_ to _=Fin=_)
 open Logic
 open Vec
