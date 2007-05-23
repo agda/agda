@@ -34,17 +34,23 @@ checkRecDef i name ps fields =
       s <- case unEl t0 of
 	Sort s	-> return s
 	_	-> typeError $ ShouldBeASort t0
+      gamma <- getContextTelescope
       let m = mnameFromList $ qnameToList name
 	  hide (Arg _ x) = Arg Hidden x
 	  htel		 = map hide $ telToList tel
 	  rect		 = El s $ Def name $ reverse 
 			   [ Arg h (Var i [])
-			   | (i, Arg h _) <- zip [0..] $ telToList tel
+			   | (i, Arg h _) <- zip [0..] $ reverse $ telToList gamma
 			   ]
 	  tel'		 = telFromList $ htel ++ [Arg NotHidden ("r", rect)]
 
       -- We have to rebind the parameters to make them hidden
-      escapeContext (size tel) $ addCtxTel tel' $ addSection m (size tel')
+      escapeContext (size tel) $ addCtxTel tel' $ do
+	reportSDoc "tc.rec.def" 10 $ sep
+	  [ text "record section:"
+	  , nest 2 $ prettyTCM m <+> (prettyTCM =<< getContextTelescope)
+	  ]
+	addSection m (size tel')
 
       -- Check the types of the fields
       ftel <- withCurrentModule m $ checkRecordFields m name tel s [] [] (size fields) fields
