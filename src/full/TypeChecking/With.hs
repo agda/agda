@@ -17,6 +17,7 @@ import TypeChecking.Rules.LHS
 import TypeChecking.Pretty
 
 import Utils.Permutation
+import Utils.Size
 
 #include "../undefined.h"
 
@@ -82,6 +83,7 @@ stripWithClausePatterns gamma qs perm ps = do
         [ text "strip" 
         , nest 2 $ text "ps =" <+> fsep (punctuate comma $ map prettyA (p : ps))
         , nest 2 $ text "qs =" <+> fsep (punctuate comma $ map (showPat . unArg) (q : qs))
+        , nest 2 $ text "tel=" <+> prettyTCM (ExtendTel a tel)
         ]
       case unArg q of
         VarP _  -> do
@@ -105,7 +107,7 @@ stripWithClausePatterns gamma qs perm ps = do
 
             -- Compute the new telescope
             let v     = Con c $ reverse [ Arg h (Var i []) | (i, Arg h _) <- zip [0..] $ reverse qs' ]
-                tel'' = tel' `abstract` absApp tel v
+                tel'' = tel' `abstract` absApp (raise (size tel') tel) v
 
             -- Insert implicit patterns
             psi' <- insertImplicitPatterns (ps' ++ ps) tel''
