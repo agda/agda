@@ -134,9 +134,12 @@ instance Reify I.Telescope A.Telescope where
   reify EmptyTel = return []
   reify (ExtendTel arg tel) = do
     Arg h e <- reify arg
-    (x,bs)  <- reify tel
+    (x,bs)  <- reify $ betterName tel
     let r = getRange e
     return $ TypedBindings r h [TBind r [x] e] : bs
+    where
+      betterName (Abs "_" x) = Abs "z" x
+      betterName (Abs s   x) = Abs s   x
 
 instance Reify i a => Reify (Arg i) (Arg a) where
     reify = traverse reify
