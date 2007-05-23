@@ -62,25 +62,31 @@ Note also that setting the face text property does not work when
 `font-lock-mode' is activated.
 
 All characters whose text properties get set also have the
-rear-nonsticky and annotation-annotated properties set to t."
-  (let ((faces (delq nil
-                     (mapcar (lambda (ann)
-                               (cdr (assoc ann annotation-bindings)))
-                             anns))))
-    (when faces
+rear-nonsticky and annotation-annotated properties set to t.
+
+Note finally that nothing happens if either START or END are out of
+bounds for the current (possibly narrowed) buffer, or END < START."
+  (when (and (<= (point-min) start)
+             (<= start end)
+             (<= end (point-max)))
+    (let ((faces (delq nil
+                       (mapcar (lambda (ann)
+                                 (cdr (assoc ann annotation-bindings)))
+                               anns))))
+      (when faces
         (add-text-properties start end `(face ,faces)))
-    (when info
-      (add-text-properties start end
-                           `(mouse-face highlight help-echo ,info)))
-    (when (consp goto)
-      (let ((pos start))
-        (while (< pos end)
-          (puthash pos goto annotation-goto-map)
-          (setq pos (1+ pos))))
-      (add-text-properties start end '(mouse-face highlight keymap map)))
-    (when (or faces info (consp goto))
-      (add-text-properties start end
-                           '(annotation-annotated t rear-nonsticky t)))))
+      (when info
+        (add-text-properties start end
+                             `(mouse-face highlight help-echo ,info)))
+      (when (consp goto)
+        (let ((pos start))
+          (while (< pos end)
+            (puthash pos goto annotation-goto-map)
+            (setq pos (1+ pos))))
+        (add-text-properties start end '(mouse-face highlight keymap map)))
+      (when (or faces info (consp goto))
+        (add-text-properties start end
+                             '(annotation-annotated t rear-nonsticky t))))))
 
 (defmacro annotation-preserve-modified-p (&rest code)
   "Runs CODE, making sure to preserve the file modification stamp of
