@@ -17,7 +17,7 @@
 trace/(lam|lambda)$
 Agda2\.tar\.gz
 \.agdai$
-(^|/)\..*\.agda\.vim$
+(^|/)\..*\.agda\.(vim|el)$
 \.blg$
 \.DS_Store$
 \.(o|hi)$
