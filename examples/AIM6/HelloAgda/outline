@@ -1,0 +1,29 @@
+
+- basics
+  - syntax: lambda, pi, Set, Seti
+  - datatypes: Nat
+  - pattern matching: _+_
+
+  - implicit arguments
+  - in lambda, pi and app
+  - go figure
+  - named implicit
+
+- inductive families
+  - Vec
+  - dot-patterns
+
+- with
+  - parity
+
+- module system
+  - open
+  - import
+  - parameterised modules
+  - instantiation
+  - local definitions
+
+- records
+  - projections
+  - eta
+
