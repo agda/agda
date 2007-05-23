@@ -178,28 +178,29 @@ getInterface x = alreadyVisited x $ addImportCycleCheck x $ do
 
 readInterface :: FilePath -> IO (Maybe Interface)
 readInterface file = do
-
     -- Decode the interface file
     (s, close) <- readBinaryFile' file
-    let i = decode s
+    do  let i = decode s
 
-    -- Force the entire interface, to allow the file to be closed.
-    let add x y = ((+) $! x) $! y
-    () <- when (0 == everything add (const 1) i) $ return ()
+        -- Force the entire interface, to allow the file to be closed.
+        let add x y = ((+) $! x) $! y
+        () <- when (0 == everything add (const 1) i) $ return ()
 
-    -- Close the file
-    close
+        -- Close the file
+        close
 
-    return $ Just i
-
+        return $ Just i
+      -- Catch exceptions and close
+      `catch` \e -> close >> handler e
   -- Catch exceptions
-  `catch` \e -> do
-	case e of
-	    ErrorCall _   -> return Nothing
-	    IOException e -> do
-		putStrLn $ "IO exception: " ++ show e
-		return Nothing   -- work-around for file locking bug
-	    _		  -> throwIO e
+  `catch` handler
+  where
+    handler e = case e of
+      ErrorCall _   -> return Nothing
+      IOException e -> do
+          putStrLn $ "IO exception: " ++ show e
+          return Nothing   -- work-around for file locking bug
+      _		    -> throwIO e
 
 writeInterface :: FilePath -> Interface -> IO ()
 writeInterface file i = do
