@@ -1,3 +1,0 @@
-module examples.syntax.ModuleA/0 where
-    functions: eval@0, Nat@1
-    constructors: zero@2, suc@3, plus@4

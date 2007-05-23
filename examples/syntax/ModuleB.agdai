@@ -1,6 +1,0 @@
-module examples.syntax.ModuleB/3 where
-    functions: eqList @ 0, reflEqList @ 1, True @ 2, False @ 3, infix 5 /\ @ 4, List @ 5
-    constructors: tt @ 6, andI @ 7, nil @ 8, cons @ 9
-    module SubModule/0 where
-	functions: dummy @ 0
-	constructors:
