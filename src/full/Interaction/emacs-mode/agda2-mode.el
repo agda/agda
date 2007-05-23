@@ -689,12 +689,12 @@ setting of `agda2-indentation'."
 (defun agda2-goto-definition-keyboard ()
   "Go to the definition site of the name under point (if any)."
   (interactive)
-  (annotation-goto (point)))
+  (annotation-goto-indirect (point)))
 
 (defun agda2-goto-definition-mouse (ev)
   "Go to the definition site of the name clicked on (if any)."
   (interactive "e")
-  (annotation-goto (posn-point (event-end ev))))
+  (annotation-goto-indirect (posn-point (event-end ev))))
 
 (defun agda2-go-back nil
   "Go back to the previous position in which

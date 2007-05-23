@@ -522,11 +522,12 @@ outputErrorInfo r s = do
     Nothing   -> return ()
     Just file -> outputSyntaxInfo file info
   case mInitialPos of
-    Nothing -> return ()
-    Just p  -> putStrLn $ response $ L [A "goto-char", A (show p)]
+    Nothing     -> return ()
+    Just (f, p) -> putStrLn $ response $
+                 L [A "annotation-goto", Q $ L [A (show f), A (show p)]]
   where
   (mFile, info) = generateErrorInfo r s
 
   mInitialPos = case rStart r of
-    NoPos             -> Nothing
-    Pn { posPos = p } -> Just p
+    NoPos                          -> Nothing
+    Pn { srcFile = f, posPos = p } -> Just (f, p)

@@ -16,12 +16,12 @@ Becomes buffer-local when set.")
   "Keeps track of the positions that `annotation-goto' were invoked
 from.")
 
-(defun annotation-goto (pos)
+(defun annotation-goto-indirect (pos)
   "Go to the file/position specified by `annotation-goto-map' for the
 buffer position POS, if any."
   (let* ((result (gethash pos annotation-goto-map))
          (current-file (buffer-file-name)))
-    (if (and (annotation-goto-internal result)
+    (if (and (annotation-goto result)
              (not (eq (point) pos)))
         (push `(,current-file . ,pos) annotation-goto-stack))))
 
@@ -30,9 +30,9 @@ buffer position POS, if any."
 successfully invoked."
   (when annotation-goto-stack
     (let ((pos (pop annotation-goto-stack)))
-      (annotation-goto-internal pos))))
+      (annotation-goto pos))))
 
-(defun annotation-goto-internal (filepos)
+(defun annotation-goto (filepos)
   "Go to file FILE, position POS, if FILEPOS = (FILE . POS), and the
 file is readable. Returns t if successful."
   (when (consp filepos)
