@@ -98,7 +98,7 @@
   :group 'agda2-highlight)
 
 (defface agda2-highlight-error-face
-  '((t (:foreground "red" :weight bold)))
+  '((t (:foreground "red")))
   "The face used for errors."
   :group 'agda2-highlight)
 
