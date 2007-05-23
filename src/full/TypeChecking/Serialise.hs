@@ -224,7 +224,8 @@ encode :: Binary a => a -> L.ByteString
 encode x = header `append` s
   where
   (s, getState) = runPut (put x)
-  header        = B.encode (currentInterfaceVersion, getState)
+  header        = B.encode currentInterfaceVersion `append`
+                  B.encode getState
 
   -- L.append is currently (GHC 6.6.1) strict in its second argument,
   -- and this somehow changes the semantics of encode when this module
@@ -243,8 +244,10 @@ encodeFile f x = L.writeFile f (encode x)
 decode :: Binary a => L.ByteString -> a
 decode s
   | v /= currentInterfaceVersion = error "Wrong interface version"
-  | otherwise                    = runGet getState get s'
-  where ((v, getState), s', _) = B.runGetState B.get s 0
+  | otherwise                    = runGet getState get s''
+  where
+  (v,        s',  _) = B.runGetState B.get s 0
+  (getState, s'', _) = B.runGetState B.get s' 0
 
 -- | Decodes a file written by 'encodeFile'.
 
