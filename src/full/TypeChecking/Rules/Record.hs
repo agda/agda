@@ -88,21 +88,17 @@ checkRecordFields m q tel s ftel vs n (f : fs) = do
     checkField (A.Axiom i x t) = do
       -- check the type (in the context of the telescope)
       -- the previous fields will be free in 
-      verbose 5 $ do
-	top <- prettyTCM =<< getContextTelescope
-	dtel <- prettyTCM tel
-	dftel1 <- mapM (prettyTCM . fst) ftel
-	dftel2 <- mapM (prettyTCM . snd) ftel
-	dvs    <- mapM prettyTCM vs
-	let dftel = zip dftel1 dftel2
-	dt    <- prettyA t
-	liftIO $ putStrLn $ unlines
-	  [ "top  = " ++ show top
-	  , "tel  = " ++ show dtel
-	  , "ftel = " ++ show dftel
-	  , "t    = " ++ show dt
-	  , "vs   = " ++ show dvs
+      reportSDoc "tc.rec.field" 5 $ sep
+	[ text "checking field"
+	, nest 2 $ vcat
+	  [ text "top   =" <+> (prettyTCM =<< getContextTelescope)
+	  , text "tel   =" <+> prettyTCM tel
+	  , text "ftel1 =" <+> prettyList (map (prettyTCM . fst) ftel)
+	  , text "ftel2 =" <+> prettyList (map (prettyTCM . snd) ftel)
+	  , text "t     =" <+> prettyA t
+	  , text "vs    =" <+> prettyList (map prettyTCM vs)
 	  ]
+	]
       let add (x, t) = addCtx x (Arg NotHidden t)
       t <- flip (foldr add) ftel $ isType_ t
       -- create the projection functions (instantiate the type with the values
@@ -117,21 +113,26 @@ checkRecordFields m q tel s ftel vs n (f : fs) = do
       -}
 
       -- The type of the projection function should be
-      -- {tel} -> (r : R Γ tel) -> t[vs/ftel]
+      -- {tel} -> (r : R Γ) -> t[vs/ftel]
       -- where Γ is the current context
       gamma <- getContextTelescope
       let hide (Arg _ x) = Arg Hidden x
 	  htel	   = telFromList $ map hide $ telToList tel
 	  rect	   = El s $ Def q $ reverse 
 		      [ Arg h (Var i [])
-		      | (i, Arg h _) <- zip [0..] $ telToList (gamma `abstract` tel)
+		      | (i, Arg h _) <- zip [0..] $ reverse $ telToList gamma
 		      ]
 	  projt	   = substs (vs ++ map (flip Var []) [0..]) $ raiseFrom (size ftel) 1 t
 	  finalt   = telePi htel
 		   $ telePi (ExtendTel (Arg NotHidden rect) (Abs "r" EmptyTel))
 		   $ projt
 	  projname = qualify m $ qnameName x
-      
+
+      reportSDoc "tc.rec.field" 10 $ sep
+	[ text "adding projection"
+	, nest 2 $ prettyTCM projname <+> text ":" <+> prettyTCM finalt
+	]
+
       -- The body should be
       --  P.xi {tel} (r _ .. x .. _) = x
       let hps	 = map (fmap $ VarP . fst) $ telToList htel
@@ -152,11 +153,8 @@ checkRecordFields m q tel s ftel vs n (f : fs) = do
       -- The value of the projection is the projection function applied
       -- to the parameters and the record (these are free in the value)
       let projval = Def projname $
-		    reverse [ let h = if i == 0
-				      then NotHidden
-				      else Hidden
-			      in Arg h (Var i [])
-			    | i <- [0 .. size tel]
+		    reverse [ Arg h (Var i [])
+			    | (i, h) <- zip [0..size gamma] $ NotHidden : repeat Hidden
 			    ]
 
       return (qnameName projname, t, projval)

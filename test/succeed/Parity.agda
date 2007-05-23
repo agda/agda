@@ -29,7 +29,8 @@ parity (suc n)         with parity n
 parity (suc .(2 * k))     | itsEven k = itsOdd k
 parity (suc .(2 * k + 1)) | itsOdd  k = itsEven (k + 1)
 
-⌊_/2⌋ : ℕ -> ℕ
-⌊ n /2⌋            with parity n
-⌊ .(2 * k)     /2⌋    | itsEven k = k
-⌊ .(2 * k + 1) /2⌋    | itsOdd  k = k
+half : ℕ -> ℕ
+half n         with parity n
+half .(2 * k)     | itsEven k = k
+half .(2 * k + 1) | itsOdd  k = k
+

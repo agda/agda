@@ -42,6 +42,8 @@ braces d   = P.braces <$> d
 brackets d = P.brackets <$> d
 parens d   = P.parens <$> d
 
+prettyList ds = brackets $ fsep $ punctuate comma ds
+
 punctuate _ [] = []
 punctuate d ds = zipWith (<>) ds (replicate n d ++ [empty])
     where
