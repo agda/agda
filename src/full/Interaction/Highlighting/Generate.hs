@@ -28,16 +28,11 @@ import qualified Data.Foldable as Seq (toList, foldMap)
 #include "../../undefined.h"
 
 -- | Generates syntax highlighting information for an error,
--- represented as a range and a string. Also returns the file
--- containing the error, if any.
+-- represented as a range and a string.
 
-generateErrorInfo :: P.Range -> String -> (Maybe FilePath, File)
-generateErrorInfo r s = (mFile, m)
-  where
-  mFile = case P.rStart r of
-            P.Pn { P.srcFile = file } -> Just file
-            P.NoPos                   -> Nothing
-  m = several (rToR r) (mempty { aspect = Just Error, note = Just s })
+generateErrorInfo :: P.Range -> String -> File
+generateErrorInfo r s =
+  several (rToR r) (mempty { aspect = Just Error, note = Just s })
 
 -- | Generates syntax highlighting information from a 'TopLevelInfo'.
 --

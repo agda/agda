@@ -97,6 +97,16 @@ Fixes
 
 [Bugs]
 
+* The Emacs interface meta variable treatment leads to problems with
+  the syntax highlighting/point warping. Fix this by doing most work
+  on the Haskell side, using the syntax tree, instead of mucking
+  around with regular expressions on the Emacs side.
+
+  Currently there are two known bugs:
+  1) _All_ question marks are treated as meta variables.
+  2) After a question mark has been converted into {! !} the point
+     warping does not work (the offsets into the file have changed).
+
 * emacs interface gets the metas in the wrong order for local definitions (?)
 
 * importing A after importing A.B causes a clash

@@ -517,17 +517,10 @@ outputSyntaxInfo file syntaxInfo = do
 -- position.
 
 outputErrorInfo :: Range -> String -> IO ()
-outputErrorInfo r s = do
-  case mFile of
-    Nothing   -> return ()
-    Just file -> outputSyntaxInfo file info
-  case mInitialPos of
-    Nothing     -> return ()
-    Just (f, p) -> putStrLn $ response $
-                 L [A "annotation-goto", Q $ L [A (show f), A (show p)]]
-  where
-  (mFile, info) = generateErrorInfo r s
-
-  mInitialPos = case rStart r of
-    NoPos                          -> Nothing
-    Pn { srcFile = f, posPos = p } -> Just (f, p)
+outputErrorInfo r s =
+  case rStart r of
+    NoPos                          -> return ()
+    Pn { srcFile = f, posPos = p } -> do
+      putStrLn $ response $
+        L [A "annotation-goto", Q $ L [A (show f), A ".", A (show p)]]
+      outputSyntaxInfo f $ generateErrorInfo r s
