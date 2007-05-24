@@ -56,7 +56,10 @@ module DifferentWaysOfOpeningNat where
   open Nat hiding (zero)
 
   -- everything, but zero and suc under different names
-  open Nat renaming (zero to ZZ; suc to SS)
+  open Nat renaming (zero to ZZ; suc to S_S)
+
+  two : Nat
+  two = S S zero S S
 
   -- you can combine using or hiding with renaming, but not using
   -- with hiding (for obvious reasons).
@@ -144,7 +147,7 @@ reverse {A} = \xs -> subst (Vec A) (lem₁ _) (rev xs [])
 -- example above we didn't bother naming the module. We could've
 -- said
 reverse' : {A : Set}{n : Nat} -> Vec A n -> Vec A n
-reverse' {A} = \xs -> subst (Vec A) (lem₁ _) (rev xs [])
+reverse' {A}{n} = \xs -> subst (Vec A) (lem₁ n) (rev xs [])
   module Rev where
     rev : {m p : Nat} -> Vec A m -> Vec A p -> Vec A (m + p)
     rev []              ys = ys
