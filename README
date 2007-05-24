@@ -62,7 +62,7 @@ To use the Agda 2 Emacs mode:
    cp src/full/Interaction/emacs-mode/*.el <...>/agda2-mode
    echo "(add-to-list 'load-path \"<...>/agda2-mode/\")" >> ~/.emacs
 
-3. Add the following to your .emacs
+3. Add the following to your .emacs:
 
    (autoload 'agda2-mode "agda2-mode" "Agda2 mode." t)
    (add-to-list 'auto-mode-alist '("\\.l?agda$" . agda2-mode))
@@ -70,6 +70,10 @@ To use the Agda 2 Emacs mode:
    If you have already set up the suffix .agda for use with some other
    mode you may need to remove or alter that setting. You are
    encouraged to use the suffix .alfa for Agda 1 files.
+
+  Now, if you open a file named XXX.agda the buffer will use
+  agda2-mode. It may take 5 or 10 seconds before you see anything in
+  the buffer, but that is normal.
 
 4. If you want to you can customise some settings. Just start Emacs
    and type the following:
@@ -82,14 +86,25 @@ To use the Agda 2 Emacs mode:
 5. If you want some specific settings for the Emacs mode you can add
    them to agda2-mode-hook. For instance, if you want to enable the
    TeX input method (for writing mathematical Unicode characters, like
-   ∀≥ℕ→π⟦⟧) whenever the Emacs mode is enabled you can do the
-   following:
+   ∀≥ℕ→π⟦⟧) whenever the Emacs mode is enabled you can add the
+   following to your .emacs:
 
    (add-hook 'agda2-mode-hook
              '(lambda nil
                 (set-input-method 'TeX)
                 ))
 
-Now, if you open a file named XXX.agda the buffer will use agda2-mode.
-It may take 5 or 10 seconds before you see anything in the buffer, but
-that is normal.
+   A side note: If you want to add your own keybindings to the TeX
+   input method you can add the following to your .emacs:
+
+   (require 'quail)
+   (mapc (lambda (pair)
+           (quail-defrule (car pair) (cadr pair) "TeX"))
+      '(("\\comp" "∘")
+        ("\\[[" "⟦") ("\\]]" "⟧")
+        ; If you find it awkward to write comments using the TeX input
+        ; method the following bindings may make life more bearable
+        ; for you:
+        ("--" ["--"]) ("---" ["---"])
+        ; Add more keybindings here.
+        ))
