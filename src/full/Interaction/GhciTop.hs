@@ -490,8 +490,12 @@ preUscore = SC.Underscore   noRange Nothing
 
 cmd_compute :: B.Rewrite -> GoalCommand
 cmd_compute _ ii rng s = infoOnException $ do
-  v <- ioTCM (prettyA =<< B.evalInMeta ii =<< parseExprIn ii rng s)
-  display_info "*Normal Form*" (show v)
+  d <- ioTCM $ do
+    e <- parseExprIn ii rng s
+    B.withInteractionId ii $ do
+      v <- B.evalInCurrent e
+      prettyA v
+  display_info "*Normal Form*" (show d)
 
 -- change "\<decimal>" to a single character
 -- TODO: This seems to be the wrong solution to the problem. Attack

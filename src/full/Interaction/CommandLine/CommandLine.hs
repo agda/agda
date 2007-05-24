@@ -201,7 +201,7 @@ actOnMeta (is:es) f =
      do  i <- readM is
          let ii = InteractionId i 
          e <- metaParseExpr ii (unwords es)
-         f ii e
+         withInteractionId ii $ f ii e
 actOnMeta _ _ = __IMPOSSIBLE__
 
 
@@ -227,8 +227,8 @@ retryConstraints = liftTCM wakeupConstraints
 
 evalIn :: [String] -> TCM ()
 evalIn s | length s >= 2 =
-    do	v <- actOnMeta s evalInMeta
-        liftIO . putStrLn =<< showA v
+    do	d <- actOnMeta s $ \_ e -> prettyA =<< evalInCurrent e
+        liftIO $ print d
 evalIn _ = liftIO $ putStrLn ":eval metaid expr"
 
 parseExpr :: String -> TCM A.Expr
