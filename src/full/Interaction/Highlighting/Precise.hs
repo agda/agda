@@ -232,14 +232,11 @@ instance Arbitrary MetaInfo where
     return (MetaInfo { aspect = aspect, dotted = dotted, note = note
                      , definitionSite = defSite })
   coarbitrary (MetaInfo aspect dotted note defSite) =
-    maybe' coarbitrary aspect .
+    maybeCoGen coarbitrary aspect .
     coarbitrary dotted .
-    maybe' (coarbitrary . map fromEnum) note .
-    maybe' (\(f, p) -> coarbitrary p . coarbitrary (map fromEnum f))
-           defSite
-    where
-    maybe' f Nothing  = variant 0
-    maybe' f (Just x) = variant 1 . f x
+    maybeCoGen (coarbitrary . map fromEnum) note .
+    maybeCoGen (\(f, p) -> coarbitrary p . coarbitrary (map fromEnum f))
+               defSite
 
 instance Arbitrary File where
   arbitrary = fmap (File . Map.fromList) $ list arbitrary

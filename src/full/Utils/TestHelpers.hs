@@ -15,6 +15,7 @@ module Utils.TestHelpers
   , natural
   , positive
   , maybeGen
+  , maybeCoGen
   , list
   , nonEmptyList
   , listOfLength
@@ -146,6 +147,12 @@ maybeGen :: Gen a -> Gen (Maybe a)
 maybeGen gen = frequency [ (1, return Nothing)
                          , (9, fmap Just gen)
                          ]
+
+-- | 'Coarbitrary' \"generator\" for 'Maybe'.
+
+maybeCoGen :: (a -> Gen b -> Gen b) -> (Maybe a -> Gen b -> Gen b)
+maybeCoGen f Nothing  = variant 0
+maybeCoGen f (Just x) = variant 1 . f x
 
 ------------------------------------------------------------------------
 -- All tests
