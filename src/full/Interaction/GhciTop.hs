@@ -180,10 +180,20 @@ cmd_constraints = infoOnException $ ioTCM $ do
 cmd_metas :: IO ()
 cmd_metas = infoOnException $ ioTCM $ do -- CL.showMetas []
   (ims, hms) <- B.typeOfMetas B.AsIs
-  di <- mapM showA ims
-  dh <- mapM showA hms
+  di <- mapM (\i -> B.withInteractionId (B.outputFormId i) (showA i)) ims
+  dh <- mapM showA' hms
   liftIO $ display_info "*All Goals*" $ unlines $
     di ++ dh
+  where
+    metaId (B.OfType i _) = i
+    metaId (B.JustType i) = i
+    metaId (B.JustSort i) = i
+    metaId (B.Assign i e) = i
+    metaId _ = __IMPOSSIBLE__
+    showA' m = do
+      r <- getMetaRange (metaId m)
+      d <- B.withMetaId (B.outputFormId m) (showA m)
+      return $ d ++ "  [ at " ++ show r ++ " ]"
 
 cmd_undo :: IO ()
 cmd_undo = ioTCM undo
