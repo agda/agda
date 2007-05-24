@@ -9,12 +9,18 @@ f · g = \ x -> f (g x)
 Rel : Set -> Set1
 Rel X = X -> X -> Set
 
+record True : Set where
+
+! : {A : Set} -> A -> True
+! = _
+
 data Star {X : Set} (R : Rel X) : Rel X where
   ε   : {x : X} -> Star R x x
   _•_ : {x y z : X} -> R x y -> Star R y z -> Star R x z
 
-_++_ : forall {X R x y z} -> Star {X} R x y -> Star R y z -> Star R x z
-ε ++ ys         =  ys
+_++_ : {X : Set}{R : Rel X}{x y z : X} ->
+       Star R x y -> Star R y z -> Star R x z
+ε        ++ ys  =  ys
 (x • xs) ++ ys  =  x • (xs ++ ys)
 
 _=>_ : {X : Set} -> Rel X -> Rel X -> Set
@@ -54,15 +60,13 @@ map' : forall {X Y R S} -> (f : X -> Y) ->
        R =[ f ]=> S  ->  Star R =[ f ]=> Star S
 map' f k = bind' f (return · k)
 
--- Natural number stuff
-
-record True : Set where
-
-tt : True
-tt = _ -- record {}  by the η-law
-
 One : Rel True
 One _ _ = True
+
+length : {X : Set}{R : Rel X} -> Star R =[ ! ]=> Star One
+length = map ! !
+
+-- Natural number stuff
 
 Nat : Set
 Nat = Star One _ _
@@ -79,19 +83,36 @@ _+_ = _++_
 _*_ : Nat -> Nat -> Nat
 x * y = bind id (\ _ -> y) x
 
-{-# BUILTIN NATURAL  Nat  #-}
-{-# BUILTIN ZERO     zero #-}
-{-# BUILTIN SUC      suc  #-}
-{-# BUILTIN NATPLUS  _+_  #-}
-{-# BUILTIN NATTIMES _*_  #-}
+-- {-# BUILTIN NATURAL  Nat  #-}
+-- {-# BUILTIN ZERO     zero #-}
+-- {-# BUILTIN SUC      suc  #-}
+-- {-# BUILTIN NATPLUS  _+_  #-}
+-- {-# BUILTIN NATTIMES _*_  #-}
 
 -- {-# BUILTIN NATPLUS  _++_ #-}  This gave :agda: src/full/TypeChecking/Primitive.hs:(238,135)-(243,25): Non-exhaustive patterns in lambda
 
 
 test : Nat
-test = 2 ++ 2  -- does not evaluate to 4
-test2 : Nat
-test2 = 2 + 2  -- does     evaluate to 4 (because of the BULTIN)
+test = suc (suc zero) ++ suc (suc zero)  -- does not evaluate to 4
 
-{-
--}
+-- Lists
+
+[_] : Set -> Rel True
+[ A ] = \_ _ -> A
+
+List : Set -> Set
+List A = Star [ A ] _ _
+
+-- Vectors
+
+data Step (A : Set) : Nat -> Nat -> Set where
+  step : (x : A){n : Nat} -> Step A (suc n) n
+
+Vec : (A : Set) -> Nat -> Set
+Vec A n = Star (Step A) n zero
+
+[] : {A : Set} -> Vec A zero
+[] = ε
+
+_::_ : {A : Set}{n : Nat} -> A -> Vec A n -> Vec A (suc n)
+x :: xs = step x • xs
