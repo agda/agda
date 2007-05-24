@@ -1,5 +1,11 @@
 module Path where
 
+id : {A : Set} -> A -> A
+id x = x
+
+_·_ : {A B C : Set} -> (B -> C) -> (A -> B) -> (A -> C)
+f · g = \ x -> f (g x)
+
 Rel : Set -> Set1
 Rel X = X -> X -> Set
 
@@ -11,19 +17,44 @@ _++_ : forall {X R x y z} -> Star {X} R x y -> Star R y z -> Star R x z
 ε ++ ys         =  ys
 (x • xs) ++ ys  =  x • (xs ++ ys)
 
-flatten : forall {X R s t} -> Star (Star R) s t -> Star {X} R s t
-flatten ε           =  ε
-flatten (xs • xss)  =  xs ++ flatten xss
+_=>_ : {X : Set} -> Rel X -> Rel X -> Set
+R => S = forall {a b} -> R a b -> S a b
 
-PathMorphism : {X Y : Set} (f : X -> Y) (R : Rel X) (S : Rel Y) -> Set
-PathMorphism f R S = forall {a b} -> R a b -> S (f a) (f b)
+_on_ : {X Y : Set} -> (R : Rel X) -> (f : Y -> X) -> Rel Y
+R on f = \a b -> R (f a) (f b)
 
-Map : forall {X Y R S}
-    -> (f : X -> Y) -> PathMorphism f R S -> PathMorphism f (Star R) (Star S)
-Map f pm ε         =  ε
-Map f pm (x • xs)  =  pm x • Map f pm xs
+_=[_]=>_ : {X Y : Set} (R : Rel X) (f : X -> Y) (S : Rel Y) -> Set
+R =[ f ]=> S = R => (S on f)
 
--- Natural numer stuff
+join : {X : Set}{R : Rel X} -> Star (Star R) => Star R
+join ε           =  ε
+join (xs • xss)  =  xs ++ join xss
+
+return : {X : Set}{R : Rel X} -> R => Star R
+return x = x • ε
+
+map : forall {X Y R S} -> (f : X -> Y) ->
+      R =[ f ]=> S  ->  Star R =[ f ]=> Star S
+map f pm ε         =  ε
+map f pm (x • xs)  =  pm x • map f pm xs
+
+bind : forall {X Y R S} -> (f : X -> Y) ->
+       R =[ f ]=> Star S  ->  Star R =[ f ]=> Star S
+bind f k m = join (map f k m)
+
+bind' : forall {X Y R S} -> (f : X -> Y) ->
+        R =[ f ]=> Star S  ->  Star R =[ f ]=> Star S
+bind' f k ε         =  ε
+bind' f k (x • xs)  =  k x ++ bind' f k xs
+
+join' : {X : Set}{R : Rel X} -> Star (Star R) => Star R
+join' = bind' id id
+
+map' : forall {X Y R S} -> (f : X -> Y) ->
+       R =[ f ]=> S  ->  Star R =[ f ]=> Star S
+map' f k = bind' f (return · k)
+
+-- Natural number stuff
 
 record True : Set where
 
@@ -45,11 +76,8 @@ suc n = _ • n
 _+_ : Nat -> Nat -> Nat
 _+_ = _++_
 
-id : {A : Set} -> A -> A
-id x = x
-
 _*_ : Nat -> Nat -> Nat
-x * y = flatten (Map id (\ _ -> y) x)
+x * y = bind id (\ _ -> y) x
 
 {-# BUILTIN NATURAL  Nat  #-}
 {-# BUILTIN ZERO     zero #-}
