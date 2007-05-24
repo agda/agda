@@ -24,6 +24,8 @@ Features
 
 * mutual modules
 
+* more liberal builtin bindings (Nat as a special case of a general sequence)
+
 User interface
 --------------
 
