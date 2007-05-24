@@ -12,6 +12,16 @@
 
 -}
 
+{-
+
+   Getting your hands on Agda
+
+   http://www.cs.chalmers.se/~ulfn/Agda
+
+   darcs get --partial http://www.cs.chalmers.se/~ulfn/darcs/Agda2
+
+-}
+
 -- Each Agda file contains a top-level module, whose
 -- name corresponds to the file name.
 

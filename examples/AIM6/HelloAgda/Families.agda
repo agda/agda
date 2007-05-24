@@ -60,7 +60,7 @@ module WhatsGoingOnHere? where
   -- Now what's this funny dot thing?
   map : {A B : Set}(n : Nat) -> (A -> B) -> Vec A n -> Vec B n
   map .zero    f []              = []
-  map .(suc n) f (_::_ {n} x xs) = f x :: map n f xs
+  map .(suc _) f (x :: xs) = f x :: map _ f xs
 
   -- Basically the dot means: inside is not a pattern at all but a
   -- term whose value is uniquely determined by type checking
@@ -96,8 +96,11 @@ data False : Set where
 _≠_ : {A : Set} -> A -> A -> Set
 x ≠ y = ¬ x == y
 
-true≠false : true ≠ false
+true≠false : true == false -> False -- true ≠ false
 true≠false ()
+
+lem : (n : Nat) -> n == suc n -> False
+lem n ()
 
 -- Why does this work: true == false is an empty type.
 

@@ -124,4 +124,3 @@ five = 17 / 3
 record ∃ {A : Set}(P : A -> Set) : Set where
   witness : A
   proof   : P witness
-
