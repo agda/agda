@@ -235,7 +235,9 @@ wait for output and execute responses, if any"
     (with-current-buffer haskell-ghci-process-buffer
       (haskell-ghci-wait-for-output)
       (setq response (buffer-substring-no-properties
-                      (overlay-start comint-last-output-overlay)
+                      (if (boundp 'comint-last-output-start)
+                          comint-last-output-start
+                        (overlay-start comint-last-output-overlay))
                       (overlay-start comint-last-prompt-overlay))))
     (agda2-respond response)))
 

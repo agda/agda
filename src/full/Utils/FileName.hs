@@ -9,11 +9,15 @@ import Data.List
 import Control.Monad
 
 splitFilePath :: FilePath -> (FilePath, String, String)
+#ifdef mingw32_HOST_OS
+splitFilePath (drive:':':s) = let (path, file, ext) = splitFilePath s
+                              in (drive:':':path, file, ext)
+#endif
 splitFilePath s =
-    case span (/=slash) $ reverse s of
+    case span (`notElem` slashes) $ reverse s of
 	(elif, sl:htap)
-	    | sl == slash   -> let (n,e) = splitExt $ reverse elif in
-				(reverse (slash:htap), n, e)
+	    | sl `elem` slashes -> let (n,e) = splitExt $ reverse elif in
+                                    (reverse (slash:htap), n, e)
 	(elif, "")	    -> let (n,e) = splitExt $ reverse elif in
 				("", n, e)
 	_		    -> error $ "impossible: splitFilePath " ++ show s
@@ -36,11 +40,16 @@ setExtension ext x = p ++ n ++ ext
 -- drives/directories (with the file at the end).
 
 splitPath :: FilePath -> [FilePath]
+#ifdef mingw32_HOST_OS
+splitPath (drive:':':cs) = case splitPath cs of
+                             (path:paths) -> (drive:':':path):paths
+                             []           -> [[drive,':',slash]]
+#endif
 splitPath "" = []
-splitPath (c : cs) | c == slash = split cs
-                   | otherwise  = split (c : cs)
+splitPath (c : cs) | c `elem` slashes = split cs
+                   | otherwise        = split (c : cs)
   where
-  split path = case span (/= slash) path of
+  split path = case span (`notElem` slashes) path of
     ("", "")        -> []
     (dir, "")       -> [dir]
     (dir, _ : path) -> dir : split path
@@ -48,6 +57,9 @@ splitPath (c : cs) | c == slash = split cs
 -- | The moral inverse of splitPath.
 
 unsplitPath :: [FilePath] -> FilePath
+#ifdef mingw32_HOST_OS
+unsplitPath ((drive:':':path):paths) = drive:':':unsplitPath (path:paths)
+#endif
 unsplitPath dirs = concat $ intersperse [slash] $ "" : dirs ++ [""]
 
 prop_splitPath_unsplitPath =
@@ -101,6 +113,7 @@ prop_dropDirectory =
   addInitSlash cs@(c : _) | c == slash = cs
   addInitSlash cs                      = slash : cs
 
+#if 0
 #ifdef mingw32_HOST_OS
 canonify (drive:':':xs) ys =
     case ys of
@@ -124,17 +137,20 @@ dotdot (s:xs)
 dotdot xs	    =
     case break (== slash) xs of
 	(_, xs)	-> ".." ++ dotdot xs
+#endif
 
 addSlash "" = ""
 addSlash [c]
-    | c == slash    = [slash]
-    | otherwise	    = [c,slash]
+    | c `elem` slashes = [slash]
+    | otherwise	       = [c,slash]
 addSlash (c:s) = c : addSlash s
 
 #ifdef mingw32_HOST_OS
-slash = '\\'
+slash   = '\\'
+slashes = ['\\','/']
 #else
 slash = '/'
+slashes = ['/']
 #endif
 
 ------------------------------------------------------------------------

@@ -4,7 +4,9 @@
 -}
 module Utils.ReadLine where
 
+#ifndef mingw32_HOST_OS
 import qualified System.Console.Readline as RL
+#endif
 import System.IO
 
 import Utils.Unicode
