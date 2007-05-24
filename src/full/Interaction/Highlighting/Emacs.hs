@@ -1,7 +1,8 @@
 -- | Function which gives precise syntax highlighting info to Emacs.
 
 module Interaction.Highlighting.Emacs
-  ( writeSyntaxInfo
+  ( clearSyntaxInfo
+  , appendSyntaxInfo
   , Interaction.Highlighting.Emacs.tests
   ) where
 
@@ -12,6 +13,7 @@ import Utils.String
 import Utils.IO (writeFile)
 import Data.List
 import Data.Char
+import Data.Maybe
 import Test.QuickCheck
 
 ------------------------------------------------------------------------
@@ -29,7 +31,8 @@ toAtoms m = dottedAtom ++ toAtoms' (aspect m)
              | otherwise = []
 
   toAtoms' Nothing               = []
-  toAtoms' (Just (Name kind op)) = [toAtom kind] ++ opAtom
+  toAtoms' (Just (Name mKind op)) =
+    map toAtom (maybeToList mKind) ++ opAtom
     where opAtom | op        = ["operator"]
                  | otherwise = []
   toAtoms' (Just a) = [toAtom a]
@@ -59,19 +62,33 @@ showFile = unlines . map showMetaInfo . compress
 ------------------------------------------------------------------------
 -- IO
 
--- | Outputs a file with syntax highlighting information.
+-- | Gives the syntax highlighting information file name associated
+-- with the given Agda file.
+
+infoFileName :: FilePath -> String
+infoFileName path = dir ++ [slash, '.'] ++ name ++ ext ++ ".el"
+  where (dir, name, ext) = splitFilePath path
+
+-- | Clears a syntax highlighting information file.
 --
 -- The output file name is constructed from the given file name by
 -- prepending \".\" and appending \".el\".
 
-writeSyntaxInfo
-  :: FilePath  -- ^ The path to the file which should be highlighted.
-  -> File      -- ^ The syntax highlighting info for the file.
+clearSyntaxInfo
+  :: FilePath
+     -- ^ The path to the file which should be highlighted
+     -- (not the file which should be cleared).
   -> IO ()
-writeSyntaxInfo path file = writeFile infoFile $ showFile file
-  where
-  (dir, name, ext) = splitFilePath path
-  infoFile = dir ++ [slash, '.'] ++ name ++ ext ++ ".el"
+clearSyntaxInfo path = writeFile (infoFileName path) ""
+
+-- | Appends to a file with syntax highlighting information.
+
+appendSyntaxInfo
+  :: FilePath  -- ^ The path to the file which should be highlighted.
+  -> File      -- ^ The syntax highlighting info which should be added.
+  -> IO ()
+appendSyntaxInfo path file =
+  appendFile (infoFileName path) $ showFile file
 
 ------------------------------------------------------------------------
 -- All tests

@@ -37,9 +37,9 @@ data Aspect
   | Keyword
   | String
   | Number
-  | Symbol             -- ^ Symbols like forall, =, ->, etc.
-  | PrimitiveType      -- ^ Things like Set and Prop.
-  | Name NameKind Bool -- ^ Is the name an operator part?
+  | Symbol                     -- ^ Symbols like forall, =, ->, etc.
+  | PrimitiveType              -- ^ Things like Set and Prop.
+  | Name (Maybe NameKind) Bool -- ^ Is the name an operator part?
     deriving (Eq, Show)
 
 data NameKind
@@ -205,17 +205,18 @@ instance Arbitrary Aspect where
   arbitrary =
     frequency [ (3, elements [ Error, Comment, Keyword, String, Number
                              , Symbol, PrimitiveType ])
-              , (1, liftM2 Name arbitrary arbitrary)
+              , (1, liftM2 Name (maybeGen arbitrary) arbitrary)
               ]
 
-  coarbitrary Error             = variant 0
-  coarbitrary Comment           = variant 1
-  coarbitrary Keyword           = variant 2
-  coarbitrary String            = variant 3
-  coarbitrary Number            = variant 4
-  coarbitrary Symbol            = variant 5
-  coarbitrary PrimitiveType     = variant 6
-  coarbitrary (Name nk b)       = variant 7 . coarbitrary nk . coarbitrary b
+  coarbitrary Error         = variant 0
+  coarbitrary Comment       = variant 1
+  coarbitrary Keyword       = variant 2
+  coarbitrary String        = variant 3
+  coarbitrary Number        = variant 4
+  coarbitrary Symbol        = variant 5
+  coarbitrary PrimitiveType = variant 6
+  coarbitrary (Name nk b)   =
+    variant 7 . maybeCoGen coarbitrary nk . coarbitrary b
 
 instance Arbitrary NameKind where
   arbitrary   = elements [minBound .. maxBound]

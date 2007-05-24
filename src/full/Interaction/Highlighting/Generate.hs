@@ -3,7 +3,8 @@
 -- | Generates data used for precise syntax highlighting.
 
 module Interaction.Highlighting.Generate
-  ( generateSyntaxInfo
+  ( TypeCheckingState(..)
+  , generateSyntaxInfo
   , generateErrorInfo
   , tests
   ) where
@@ -34,6 +35,11 @@ generateErrorInfo :: P.Range -> String -> File
 generateErrorInfo r s =
   several (rToR r) (mempty { aspect = Just Error, note = Just s })
 
+-- | Has typechecking been done yet?
+
+data TypeCheckingState = TypeCheckingDone | TypeCheckingNotDone
+  deriving (Show, Eq)
+
 -- | Generates syntax highlighting information from a 'TopLevelInfo'.
 --
 -- TODO:
@@ -42,9 +48,10 @@ generateErrorInfo r s =
 --
 -- * It would be nice if module names were highlighted.
 
-generateSyntaxInfo :: [T.Token] -> CA.TopLevelInfo -> M.TCM File
-generateSyntaxInfo toks top = do
-  nameInfo <- fmap mconcat $ mapM generate (Seq.toList names)
+generateSyntaxInfo
+  :: TypeCheckingState -> [T.Token] -> CA.TopLevelInfo -> M.TCM File
+generateSyntaxInfo tcs toks top = do
+  nameInfo <- fmap mconcat $ mapM (generate tcs) (Seq.toList names)
   -- theRest need to be placed before nameInfo here since record field
   -- declarations contain QNames. tokInfo is placed last since token
   -- highlighting is more crude than the others.
@@ -120,14 +127,14 @@ generateSyntaxInfo toks top = do
 
       bound n = nameToFile []
                            (A.nameConcrete n)
-                           (\isOp -> mempty { aspect = Just $ Name Bound isOp })
+                           (\isOp -> mempty { aspect = Just $ Name (Just Bound) isOp })
                            (Just $ A.nameBindingSite n)
       field m n = nameToFile m n
-                             (\isOp -> mempty { aspect = Just $ Name Field isOp })
+                             (\isOp -> mempty { aspect = Just $ Name (Just Field) isOp })
                              Nothing
       mod n = nameToFile []
                          (A.nameConcrete n)
-                         (\isOp -> mempty { aspect = Just $ Name Module isOp })
+                         (\isOp -> mempty { aspect = Just $ Name (Just Module) isOp })
                          (Just $ A.nameBindingSite n)
 
       getVarAndField :: A.Expr -> File
@@ -171,14 +178,21 @@ concreteQualifier = map A.nameConcrete . A.mnameToList . A.qnameModule
 
 -- | Generates a suitable file for a name.
 
-generate :: A.QName -> M.TCM File
-generate n = do
-  info <- M.getConstInfo n
-  let m isOp = mempty { aspect = Just $ Name (toAspect (M.theDef info)) isOp }
+generate :: TypeCheckingState
+            -- ^ Some information can only be generated after type
+            -- checking. (This can probably be improved.)
+         -> A.QName
+         -> M.TCM File
+generate tcs n = do
+  mNameKind <- if tcs == TypeCheckingDone then
+                fmap (Just . toAspect . M.theDef) $ M.getConstInfo n
+               else
+                return Nothing
+  let m isOp = mempty { aspect = Just $ Name mNameKind isOp }
   return (nameToFile (concreteQualifier n)
                      (concreteBase n)
                      m
-                     (Just $ P.getRange $ M.defName info))
+                     (Just $ A.nameBindingSite $ A.qnameName n))
   where
   toAspect :: M.Defn -> NameKind
   toAspect (M.Axiom {})       = Postulate

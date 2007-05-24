@@ -61,6 +61,7 @@ import TypeChecking.Errors
 
 import Syntax.Position
 import Syntax.Parser
+import qualified Syntax.Parser.Tokens as T
 import Syntax.Concrete as SC
 import Syntax.Common as SCo
 import Syntax.Concrete.Name as CN
@@ -95,7 +96,12 @@ theUndoStack :: IORef [TCState]
 theUndoStack = unsafePerformIO $ newIORef []
 
 ioTCM :: TCM a -> IO a
-ioTCM cmd = do 
+ioTCM = ioTCM' Nothing
+
+ioTCM' :: Maybe FilePath
+         -- ^ The module being checked (if known).
+      -> TCM a -> IO a
+ioTCM' mFile cmd = do 
   us  <- readIORef theUndoStack
   st  <- readIORef theTCState
   env <- readIORef theTCEnv
@@ -108,7 +114,7 @@ ioTCM cmd = do
       return (x,st,us)
     `catchError` \err -> do
 	s <- prettyError err
-        liftIO $ outputErrorInfo (getRange err) s
+        liftIO $ outputErrorInfo mFile (getRange err) s
 	liftIO $ display_info "*Error*" s
 	fail "exit"
   case r of
@@ -142,23 +148,33 @@ setWorkingDirectory file xs = case last xs of
 
 cmd_load :: String -> IO ()
 cmd_load file = infoOnException $ do
+    clearSyntaxInfo file
     (pragmas, m) <- parseFile' moduleParser file
     setWorkingDirectory file m
-    (is, syntaxInfo) <- ioTCM $ do
+    is <- ioTCM' (Just file) $ do
 	    resetState
 	    pragmas  <- concreteToAbstract_ pragmas	-- identity for top-level pragmas at the moment
 	    topLevel <- concreteToAbstract_ (TopLevel m)
+
+            -- Generate syntax info. Currently highlighting
+            -- information is only generated when a file is loaded, or
+            -- an error is encountered.
+            tokens <- liftIO $ parseFile' tokensParser file
+            generateAndOutputSyntaxInfo file TypeCheckingNotDone tokens topLevel
+
 	    setUndo
 	    setOptionsFromPragmas pragmas
 	    checkDecls $ topLevelDecls topLevel
 	    setScope $ outsideScope topLevel
-	    is <- lispIP
-            tokens <- liftIO $ parseFile' tokensParser file
-            syntaxInfo <- generateSyntaxInfo tokens topLevel
-            return (is, syntaxInfo)
-    -- Currently highlighting information is only generated when a
-    -- file is loaded, or an error is encountered.
-    outputSyntaxInfo file syntaxInfo
+
+            -- Generate syntax info again, after type checking. We do
+            -- this twice to get highlighting (and especially point
+            -- warping) also when there is a type error (i.e. when the
+            -- following code is not executed).
+            liftIO $ clearSyntaxInfo file
+            generateAndOutputSyntaxInfo file TypeCheckingDone tokens topLevel
+
+	    lispIP
 
     -- The Emacs mode uses two different annotation mechanisms, and
     -- they cannot be invoked in any order. The one triggered by the
@@ -510,19 +526,34 @@ emacsStr s = go (show s) where
 
 infoOnException m = failOnException inform m where
   inform rng msg = do
-    outputErrorInfo rng msg
+    outputErrorInfo Nothing rng msg
     display_info "*Error*" $ unlines [show rng ++ " : ", msg]
     exitWith (ExitFailure 1)
 
 ------------------------------------------------------------------------
 -- Syntax highlighting
 
+-- | Generates and outputs syntax highlighting information.
+--
+-- (Does not clear existing highlighting info, use 'clearSyntaxInfo'
+-- for that.)
+
+generateAndOutputSyntaxInfo
+  :: FilePath           -- ^ The module to highlight.
+  -> TypeCheckingState  -- ^ Has it been highlighted?
+  -> [T.Token]          -- ^ The token stream for the module.
+  -> TopLevelInfo       -- ^ The abstract syntax for the module.
+  -> TCM ()
+generateAndOutputSyntaxInfo file tcs tokens topLevel = do
+  syntaxInfo <- generateSyntaxInfo tcs tokens topLevel
+  liftIO $ outputSyntaxInfo file syntaxInfo
+
 -- | Output syntax highlighting information for the given file, and
 -- tell the Emacs mode to reload the highlighting information.
 
 outputSyntaxInfo :: FilePath -> File -> IO ()
 outputSyntaxInfo file syntaxInfo = do
-    writeSyntaxInfo file syntaxInfo
+    appendSyntaxInfo file syntaxInfo
     putStrLn $ response $ L [A "agda2-highlight-reload"]
 
 -- | Output syntax highlighting information for the given error
@@ -530,11 +561,15 @@ outputSyntaxInfo file syntaxInfo = do
 -- reload the highlighting information and go to the first error
 -- position.
 
-outputErrorInfo :: Range -> String -> IO ()
-outputErrorInfo r s =
+outputErrorInfo
+  :: Maybe FilePath
+     -- ^ The file we're working with (if it's known).
+  -> Range -> String -> IO ()
+outputErrorInfo mFile r s =
   case rStart r of
     NoPos                          -> return ()
     Pn { srcFile = f, posPos = p } -> do
       putStrLn $ response $
         L [A "annotation-goto", Q $ L [A (show f), A ".", A (show p)]]
+      when (mFile /= Just f) $ clearSyntaxInfo f
       outputSyntaxInfo f $ generateErrorInfo r s
