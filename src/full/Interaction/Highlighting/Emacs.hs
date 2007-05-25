@@ -7,10 +7,10 @@ module Interaction.Highlighting.Emacs
   ) where
 
 import Interaction.Highlighting.Precise
-import Prelude hiding (writeFile)
+import Prelude hiding (writeFile, appendFile)
 import Utils.FileName
 import Utils.String
-import Utils.IO (writeFile)
+import Utils.IO (writeFile, appendFile)
 import Data.List
 import Data.Char
 import Data.Maybe

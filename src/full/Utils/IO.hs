@@ -1,10 +1,10 @@
 
 module Utils.IO where
 
-import qualified Prelude (print, putStr, putStrLn, writeFile, readFile)
-import Prelude hiding (print, putStr, putStrLn, writeFile, readFile)
+import qualified Prelude (print, putStr, putStrLn, writeFile, readFile, appendFile)
+import Prelude hiding (print, putStr, putStrLn, writeFile, readFile, appendFile)
 import Control.Monad
-import System.IO hiding (print, putStr, putStrLn, writeFile, readFile)
+import System.IO hiding (print, putStr, putStrLn, writeFile, readFile, appendFile)
 import Utils.Unicode
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as BS
@@ -26,6 +26,9 @@ putErr = hPutStr stderr . toUTF8
 
 writeFile :: FilePath -> String -> IO ()
 writeFile file = Prelude.writeFile file . toUTF8
+
+appendFile :: FilePath -> String -> IO ()
+appendFile file = Prelude.appendFile file . toUTF8
 
 readFile :: FilePath -> IO String
 readFile file = fmap fromUTF8 $ Prelude.readFile file
