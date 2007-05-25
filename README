@@ -13,6 +13,10 @@ To install Agda 2, proceed as follows:
      darcs get http://www.cs.chalmers.se/~ulfn/darcs/Agda2
      cd Agda2
 
+1.5) On Windows, overwrite Agda.cabal by Agda.cabal.win
+    
+     cp Agda.cabal.win Agda.cabal
+
 2) Build and install the Agda 2 library:
 
      runhaskell Setup.hs configure

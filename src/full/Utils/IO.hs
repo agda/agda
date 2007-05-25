@@ -1,3 +1,4 @@
+{-# OPTIONS -cpp #-}
 
 module Utils.IO where
 
@@ -8,6 +9,7 @@ import System.IO hiding (print, putStr, putStrLn, writeFile, readFile, appendFil
 import Utils.Unicode
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as BS
+import qualified Data.ByteString.Lazy.Char8 as BS8
 
 print :: Show a => a -> IO ()
 print x = putStrLn (show x)
@@ -39,13 +41,22 @@ readBinaryFile file = liftM fst $ readBinaryFile' file
 -- | Returns a close function for the file together with the contents.
 readBinaryFile' :: FilePath -> IO (ByteString, IO ())
 readBinaryFile' file = do
+#ifdef mingw32_HOST_OS
+    h <- openFile file ReadMode
+    s <- BS8.pack `fmap` hGetContents h
+#else
     h <- openBinaryFile file ReadMode
     s <- BS.hGetContents h
+#endif
     return (s, hClose h)
 
 writeBinaryFile :: FilePath -> String -> IO ()
 writeBinaryFile file s = do
+#ifdef mingw32_HOST_OS
+    Prelude.writeFile file s
+#else
     h <- openBinaryFile file WriteMode
     hPutStr h s
     hClose h
+#endif
 
