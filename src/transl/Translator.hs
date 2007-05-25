@@ -221,6 +221,13 @@ transCLetDef (CLetDefComment cs)
                     (_,_:xs) -> Just xs
      mdlname = trim cs >>= trim . reverse >>= return . takeWhile ('.'/=) . reverse . takeWhile ('/'/=)
 
+
+translatorError :: String -> [Declaration]
+translatorError msg 
+ = [TypeSig (Name noRange [Id noRange "translatorError"])
+    (Ident (str2qname msg))
+   ]
+
 transCDef :: CDef -> [Declaration]
 transCDef (CDef cprops cdefn)
   | elem Cprivate  cprops = [Private  noRange (transCDefn cdefn)]
@@ -238,9 +245,9 @@ transCDefn (CValueS i args ctype cclause)
  = transCDefn (CValueS i [] ctype' cclause)
    where ctype' = foldr (\ carg e -> CUniv carg e) ctype args
 transCDefn (Ctype i args ctype) 
- = error "transCDefn: cannot translate: (Ctype i args ctype)"
+ = translatorError "transCDefn: cannot translate: (Ctype i args ctype)"
 transCDefn (Cnewtype i args ctype csum) 
- = error "transCDefn: cannot translate: (Cnewtype i args ctype csum)"
+ = translatorError "transCDefn: cannot translate: (Cnewtype i args ctype csum)"
 transCDefn (Cdata i args mctype csums)
  = [Data noRange (id2name i) tls t (map (csummand2constructor ot) csums)]
    where
@@ -249,13 +256,16 @@ transCDefn (Cdata i args mctype csums)
     n = id2name i
     ot = foldl (\ f (TypedBindings _ _ [TBind _ [x] _]) -> RawApp noRange [f, Ident (QName x)]) (Ident (QName n)) tls
 transCDefn (Cidata i args ctype csum)
- = error "transCDefn: cannot translate: (Cidata i args ctype csum)"
+ = translatorError "transCDefn: cannot translate: (Cidata i args ctype csum)"
 transCDefn (CValue i cexpr)
  = cclause2funclauses i (isInfixOp i) (CClause [] cexpr)
 transCDefn (CAxiom i args ctype)
- = error "transCDefn: cannot translate: (CAxiom i args ctype)"
+ = [Postulate noRange [ctype2typesig flg i [] ctype']]
+   where ctype' = foldr (\ carg e -> CUniv carg e) ctype args
+         flg = isInfixOp i
+--  = translatorError "transCDefn: cannot translate: (CAxiom i args ctype)"
 transCDefn (CNative i ctype)
- = error "transCDefn: cannot translate: (CNative i ctype)"
+ = translatorError "transCDefn: cannot translate: (CNative i ctype)"
 transCDefn (CPackage i args (CPackageDef [] _ cletdefs))
  = [Module noRange (QName (id2name i)) (concatMap carg2telescope args)
     (concatMap transCLetDef cletdefs)]
@@ -265,12 +275,12 @@ transCDefn (COpen cexpr (COpenArgs coargs))
        -> [Open noRange (QName (id2name i)) (copenargs2importdirective coargs)]
      (CApply (CVar i) bces)
        -> [Open noRange (QName (id2name i)) (copenargs2importdirective coargs)]
-     _ -> error ("cannot translate: COpen ("++show cexpr++") coargs")
+     _ -> translatorError ("cannot translate: COpen ("++show cexpr++") coargs")
 transCDefn (CClass classargs b csigns)
- = error "transCDefn: cannot translate: (CClass classargs b csigns)"
+ = translatorError "transCDefn: cannot translate: (CClass classargs b csigns)"
 transCDefn (CInstance i cargs cinsarg cletdefs)
- = error "transCDefn: cannot translate: (CInstance i cargs cinsarg cletdefs)"
-transCDefn dn = notyet ("transCDefn (" ++ show dn ++")")
+ = translatorError "transCDefn: cannot translate: (CInstance i cargs cinsarg cletdefs)"
+transCDefn dn = translatorError ("not yet implemented: transCDefn (" ++ show dn ++")")
 
 -- Utilities
 
