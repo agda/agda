@@ -247,17 +247,18 @@ parseExprIn ii rng s = do
 cmd_context :: GoalCommand
 cmd_context ii _ _ = infoOnException $ do
   display_info "*Context*" . unlines
-      =<< ioTCM (mapM showA =<< B.contextOfMeta ii)
+      =<< ioTCM (B.withInteractionId ii $ mapM showA =<< B.contextOfMeta ii)
 
 cmd_infer :: B.Rewrite -> GoalCommand
 cmd_infer norm ii rng s = infoOnException $ do
   display_info "*Inferred Type*"
-      =<< ioTCM (showA =<< B.typeInMeta ii norm =<< parseExprIn ii rng s)
+      =<< ioTCM (B.withInteractionId ii $ showA =<< B.typeInMeta ii norm =<< parseExprIn ii rng s)
 
 
 cmd_goal_type :: B.Rewrite -> GoalCommand
 cmd_goal_type norm ii _ _ = infoOnException $ do 
-    display_info "*Current Goal*" =<< ioTCM (showA =<< B.typeOfMeta norm ii)
+    s <- ioTCM $ B.withInteractionId ii $ showA =<< B.typeOfMeta norm ii
+    display_info "*Current Goal*" s
 
 display_info :: String -> String -> IO()
 display_info bufname content =
@@ -303,10 +304,10 @@ cmd_make_case ii rng s = infoOnException $ ioTCM $ do
   mId <- lookupInteractionId ii
   mfo <- getMetaInfo <$> lookupMeta mId
   ex  <- passAVar =<< parseExprIn ii rng s -- the pattern variable to case on
-  sx  <- showA ex
   -- find the clause to refine
   targetPat <- findClause mId =<< getSignature -- not the metaSig.
   withMetaInfo mfo $ do
+    sx  <- showA ex
     -- gather constructors for ex
     (vx,tx) <- inferExpr ex
     El _ (SI.Def d _) <- passElDef =<< reduce tx
