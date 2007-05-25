@@ -397,11 +397,11 @@ cclause2funclauses i flg (CClause cpats expr)
 -- 		              (localdefs expr)]
  | flg
      = [FunClause (LHS (RawAppP noRange (intersperse op pats)) [] [])
-		              (RHS (transCExpr expr))
-		              (localdefs expr)]
+		  (RHS (transCExpr expr))
+                  (localdefs expr)]
  | otherwise = [FunClause (LHS (RawAppP noRange (op : pats)) [] [])
-		              (RHS (transCExpr expr))
-		              (localdefs expr)]
+	                  (RHS (transCExpr expr))
+		          (localdefs expr)]
   where twoargs = 2 == length cpats
         op  = IdentP $ str2qname $ getIdString i
         pats = map (parenPattern . 
@@ -427,7 +427,9 @@ liftCcase n flg pats (Ccase cexpr ccasearms)
   = case cexpr of
       CVar x -> case within x (zip [0..] pats) of
                   Just iv
-                    -> concatMap (liftcc n flg pats iv) ccasearms
+                    -> case ccasearms of
+                         [] -> absurdcc n flg pats iv
+                         _  -> concatMap (liftcc n flg pats iv) ccasearms
                   _ -> error (show cexpr ++ " not in args")
       _      -> error "now liftCcase pats can be applied on simple variable"
     where
@@ -441,12 +443,17 @@ liftCcase n flg pats (Ccase cexpr ccasearms)
                x = case cexpr of {CVar v -> v; _ -> error "Never"}
       liftcc n flg pats i (pat,expr)
              | flg = [FunClause (LHS (RawAppP noRange (intersperse (IdentP (QName (id2name n))) (cpat2pattern pat i pats))) [] [])
-                                    (RHS (transCExpr expr')) (localdefs expr')]
+                                (RHS (transCExpr expr')) (localdefs expr')]
              | otherwise = [FunClause (LHS (RawAppP noRange (IdentP (QName (id2name n)):cpat2pattern pat i pats)) [] [])
-                                    (RHS (transCExpr expr')) (localdefs expr')]
+                                      (RHS (transCExpr expr')) (localdefs expr')]
          where expr' = substcexpr x (cpat2cexpr pat) expr
                x = case cexpr of {CVar v -> v; _ -> error "Never"}
-
+      absurdcc n flg pats i
+             | flg = [FunClause (LHS (RawAppP noRange (intersperse (IdentP (QName (id2name n))) [abpat])) [] [])
+                                AbsurdRHS NoWhere]
+             | otherwise = [FunClause (LHS (RawAppP noRange (IdentP (QName (id2name n)):[abpat])) [] [])
+                                      AbsurdRHS NoWhere]
+         where abpat = AbsurdP noRange
 liftCcase _ _ _ _ = error "Never apply liftCcase to any but Ccase"
 
 cpat2cexpr :: CPat -> CExpr
