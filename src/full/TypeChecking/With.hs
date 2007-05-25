@@ -57,6 +57,7 @@ buildWithFunction aux gamma qs perm n cs = mapM buildWithClause cs
 stripWithClausePatterns :: Telescope -> [Arg Pattern] -> Permutation -> [NamedArg A.Pattern] -> TCM [NamedArg A.Pattern]
 stripWithClausePatterns gamma qs perm ps = do
   psi <- insertImplicitPatterns ps gamma
+  unless (size psi == size gamma) $ fail $ "wrong number of arguments in with clause: given " ++ show (size psi) ++ ", expected " ++ show (size gamma)
   ps' <- strip gamma psi qs
   -- TODO: remember dot patterns
   reportSDoc "tc.with.strip" 10 $ vcat
@@ -73,11 +74,11 @@ stripWithClausePatterns gamma qs perm ps = do
     -- implicit args inserted at top level
     -- all three arguments should have the same size
     strip :: Telescope -> [NamedArg A.Pattern] -> [Arg Pattern] -> TCM [NamedArg A.Pattern]
-    strip _           []      (_ : _) = __IMPOSSIBLE__
+    strip _           []      (_ : _) = __IMPOSSIBLE__    -- This case doesn't trigger!!
     strip _           (_ : _) []      = __IMPOSSIBLE__
     strip EmptyTel    (_ : _) _       = __IMPOSSIBLE__
     strip ExtendTel{} []      _       = __IMPOSSIBLE__
-    strip EmptyTel    []      []      = return []
+    strip EmptyTel    []      []      | 0 == 0 = return []
     strip (ExtendTel a tel) (p : ps) (q : qs) = do
       reportSDoc "tc.with.strip" 15 $ vcat
         [ text "strip" 
@@ -103,13 +104,29 @@ stripWithClausePatterns gamma qs perm ps = do
 
             -- Compute the argument telescope for the constructor
             Con c []    <- constructorForm =<< normalise (Con c [])
-            TelV tel' _ <- telView . flip apply us . defType <$> getConstInfo c
+            Defn _ ct (Constructor np _ _ _)  <- getConstInfo c
+            reportSDoc "tc.with.strip" 20 $ text "ct = " <+> prettyTCM ct
+            let ct' = flip apply (take np us) ct
+            reportSDoc "tc.with.strip" 20 $ text "ct' = " <+> prettyTCM ct
+            reportSDoc "tc.with.strip" 20 $ text "us = " <+> prettyList (map prettyTCM $ take np us)
+
+            TelV tel' _ <- telView . flip apply (take np us) . defType <$> getConstInfo c
 
             -- Compute the new telescope
             let v     = Con c $ reverse [ Arg h (Var i []) | (i, Arg h _) <- zip [0..] $ reverse qs' ]
                 tel'' = tel' `abstract` absApp (raise (size tel') tel) v
 
-            -- Insert implicit patterns
+            reportSDoc "tc.with.strip" 15 $ sep
+              [ text "inserting implicit"
+              , nest 2 $ prettyList $ map prettyA (ps' ++ ps)
+              , nest 2 $ text ":" <+> prettyTCM tel''
+              ]
+
+            -- Insert implicit patterns (just for error message)
+            psi' <- insertImplicitPatterns ps' tel'
+            unless (size psi' == size tel') $ typeError $ WrongNumberOfConstructorArguments c (size tel') (size psi')
+
+            -- Do it again for everything
             psi' <- insertImplicitPatterns (ps' ++ ps) tel''
 
             -- Keep going
@@ -121,4 +138,5 @@ stripWithClausePatterns gamma qs perm ps = do
           _ -> mismatch
       where
         mismatch = typeError $ WithClausePatternMismatch (namedThing $ unArg p) (unArg q)
+    strip tel ps qs = error $ "huh? " ++ show (size tel) ++ " " ++ show (size ps) ++ " " ++ show (size qs)
 
