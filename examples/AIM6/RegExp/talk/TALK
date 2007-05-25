@@ -1,0 +1,68 @@
+⋆
+
+                 A Simple Regular Expression Matcher
+
+                                  or
+
+             An Introduction to Some of the Code Sprints
+
+⋆ Dependently typed programming (DTP)
+
+  • Using dependent types/inductive families
+    to ease "ordinary" programming.
+
+    - Capture more invariants.
+    - Higher assurance.
+    - More elegant.
+    - More fun.
+
+  • Not (necessarily) proving everything correct.
+
+  • What are the trade-offs?
+
+  • What are the "correct" idioms?
+
+⋆ Reasonable assurance at reasonable cost
+
+  • Strong types are nice.
+
+  • But other things are also nice.
+
+  • DTP provides one useful tool, together with
+    other tools like e.g. QuickCheck.
+
+  • These tools can be combined.
+
+⋆ A regular expression matcher
+
+  • Types ensure soundness.
+
+  • Testing can be used to get reasonable assurance of
+    completeness.
+
+  • The two complement each other.
+
+    - How do you test soundness?
+
+    - Completeness easy to test, harder to prove.
+
+⋆ Case studies ─ goals
+
+  • Elegant examples making nice use of DTP.
+
+  • More people using DTP.
+
+  • Feedback on Agda, of course.
+
+⋆ Demonstration
+
+  • A slightly larger case study (compared to Ulf's talk)
+    demonstrating Agda features and the Emacs interface.
+
+  • Live action Agda coming up.
+
+⋆ Setup
+
+Local variables:
+outline-regexp: "⋆+"
+End:
