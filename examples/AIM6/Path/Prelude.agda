@@ -15,4 +15,7 @@ record True : Set where
 ! : {A : Set} -> A -> True
 ! = _
 
+data _×_ (A B : Set) : Set where
+  _,_ : A -> B -> A × B
 
+infixr 10 _,_
