@@ -164,7 +164,7 @@ t2sCDef def                = def
 
 t2sCDefn :: CDefn -> CDefn
 t2sCDefn (CValueT i args ctype cexpr)
- = CValueS i args ctype (CClause [] $ CMeta noPosition True Nothing preMetaVar)
+ = CValueS i args ctype (CClause [] $ t2sCExpr cexpr)
 t2sCDefn cdefn = cdefn
 
 t2sCExpr :: CExpr -> CExpr
