@@ -277,6 +277,9 @@ transCDefn dn = notyet ("transCDefn (" ++ show dn ++")")
 mkInfixName :: Id -> Name
 mkInfixName i = Name noRange [Hole,Id noRange (getIdString i),Hole]
 
+mkInfixName' :: Id -> Name
+mkInfixName' i = Name noRange [Id noRange (getIdString i)]
+
 ctype2typesig :: InfixP -> Id -> CArgs -> CType -> Declaration
 ctype2typesig flg i args ctype
   | flg = TypeSig (mkInfixName i) ys   
@@ -371,7 +374,7 @@ isInfixOp = all (not . isAlphaNum) . getIdString
 
 id2name :: Id -> Name
 id2name i
-    | isSym (head (getIdString i)) = mkInfixName i
+    | isSym (head (getIdString i)) = mkInfixName' i
     | otherwise			   = Name noRange [Id noRange (getIdString i)]
 
 bool2hiding :: Bool -> Hiding
