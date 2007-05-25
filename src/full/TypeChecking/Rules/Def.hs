@@ -92,7 +92,7 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs wh) =
     traceCall (CheckClause t c) $
     checkLeftHandSide aps t $ \gamma delta sub xs ps t' perm -> do
       let mkBody v = foldr (\x t -> Bind $ Abs x t) (Body $ substs sub v) xs
-      (body, with) <- checkWhere (size xs) wh $ 
+      (body, with) <- checkWhere (size delta) wh $ 
 	      case rhs of
 		A.RHS e -> do
 		  v <- checkExpr e t'
@@ -118,7 +118,7 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs wh) =
 		      v	   = substs sub $ Def aux $ us ++ (map (Arg NotHidden) vs)
 
 		  return (mkBody v, WithFunction aux gamma delta as t' ps perm cs)
-      escapeContext (size xs) $ checkWithFunction with
+      escapeContext (size delta) $ checkWithFunction with
       return $ Clause ps body
 checkClause t (A.Clause (A.LHS _ _ _ ps@(_ : _)) _ _) = typeError $ UnexpectedWithPatterns ps
 
@@ -163,9 +163,11 @@ checkWhere _ []			     ret = ret
 checkWhere n [A.ScopedDecl scope ds] ret = withScope_ scope $ checkWhere n ds ret
 checkWhere n [A.Section _ m tel ds]  ret = do
   checkTelescope tel $ \tel' -> do
+    reportSDoc "tc.def.where" 10 $
+      text "adding section:" <+> prettyTCM m <+> text (show (size tel')) <+> text (show n)
     addSection m (size tel' + n)  -- the variables bound in the lhs
 				  -- are also parameters
-    verbose 10 $ do
+    verboseS "tc.def.where" 10 $ do
       dx   <- prettyTCM m
       dtel <- mapM prettyA tel
       dtel' <- prettyTCM =<< lookupSection m
