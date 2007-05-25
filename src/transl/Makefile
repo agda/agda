@@ -97,8 +97,8 @@ realclean :
 
 ## Testing
 
-AGDA2=$(TOP)/out/full/agda
-WORK=./examples
+AGDA2=$(TOP)/src/main/dist/build/agda/agda
+WORK=./test
 
 %.test	: $(OUT)/$(BIN)
 	$(OUT)/$(BIN) -D $(WORK)/$*.agda | $(GHC) -e "getContents>>=putStr.unlines.(\"module $* where\":).map (\"  \"++).lines" > $(WORK)/$*.ag2
