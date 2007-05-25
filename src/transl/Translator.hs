@@ -150,7 +150,7 @@ exchcpat :: CPat -> Int -> [(Bool,CPat)] -> [(Bool,CPat)]
 exchcpat pat i cpats
  = case splitAt i cpats of
      (xs,y:ys) -> xs++(fst y, pat):ys
-     _         -> error "transPad: impossible pattern"
+     _         -> error "exchcpat: impossible pattern"
 
 -- Kludge!
 -- CValueT --> CValueS ; not valid in Agda
@@ -162,11 +162,6 @@ t2sCDef :: CDef -> CDef
 t2sCDef (CDef props cdefn) = CDef props $ t2sCDefn cdefn
 t2sCDef def                = def
 
-{-
- Because the current implementation of Core language does not support
- PI in Set, we decide not to translate the body expression but leave it Meta. 
- This way is too conservative.  2006-09-27
--}
 t2sCDefn :: CDefn -> CDefn
 t2sCDefn (CValueT i args ctype cexpr)
  = CValueS i args ctype (CClause [] $ CMeta noPosition True Nothing preMetaVar)
@@ -257,7 +252,6 @@ transCDefn (Cidata i args ctype csum)
  = error "transCDefn: cannot translate: (Cidata i args ctype csum)"
 transCDefn (CValue i cexpr)
  = cclause2funclauses i (isInfixOp i) (CClause [] cexpr)
---  = error "transCDefn: cannot translate: (CValue i cexpr)"
 transCDefn (CAxiom i args ctype)
  = error "transCDefn: cannot translate: (CAxiom i args ctype)"
 transCDefn (CNative i ctype)
