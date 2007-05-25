@@ -3,19 +3,16 @@ module Fin where
 
 open import Prelude
 open import Star
-open import Position
+open import Elem
 open import Nat
 open import Vec
 
 Fin : Nat -> Set
-Fin n = Pos (Step True) (n , low) (zero , high) 
+Fin n = Elem (Step True) n zero 
 
 fzero : {n : Nat} -> Fin (suc n)
-fzero {n} = edge (step _) • map h next (vec _)
-  where
-    h : Nat -> Nat × Bit
-    h x = (x , high)
+fzero = (up , step _) • map (_,_ true) (_,_ ref) (vec _)
 
 fsuc : {n : Nat} -> Fin n -> Fin (suc n)
-fsuc i = next (step _) • i
+fsuc i = (_ , step _) • i
 

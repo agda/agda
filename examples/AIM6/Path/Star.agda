@@ -57,9 +57,6 @@ map f k = bind f (return · k)
 
 -- Generic length
 
-One : Rel True
-One _ _ = True
-
 length : {X : Set}{R : Rel X} -> Star R =[ ! ]=> Star One
 length = map ! !
 
