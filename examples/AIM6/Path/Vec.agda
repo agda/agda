@@ -16,3 +16,18 @@ Vec A n = Star (Step A) n zero
 _::_ : {A : Set}{n : Nat} -> A -> Vec A n -> Vec A (suc n)
 x :: xs = step x • xs
 
+_+++_ : {A : Set}{n m : Nat} -> Vec A n -> Vec A m -> Vec A (n + m)
+_+++_ {A}{m = m} xs ys = map +m step+m xs ++ ys
+  where
+    +m = \z -> z + m
+    step+m : Step A =[ +m ]=> Step A
+    step+m (step x) = step x
+
+vec : {A : Set}{n : Nat} -> A -> Vec A n
+vec {n = ε}     x = []
+vec {n = _ • n} x = x :: vec x
+
+_⊗_ : {A B : Set}{n : Nat} -> Vec (A -> B) n -> Vec A n -> Vec B n
+ε             ⊗ ε             = []
+(step f • fs) ⊗ (step x • xs) = f x :: (fs ⊗ xs)
+
