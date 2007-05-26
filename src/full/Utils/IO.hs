@@ -5,7 +5,8 @@ module Utils.IO where
 import qualified Prelude (print, putStr, putStrLn, writeFile, readFile, appendFile)
 import Prelude hiding (print, putStr, putStrLn, writeFile, readFile, appendFile)
 import Control.Monad
-import System.IO hiding (print, putStr, putStrLn, writeFile, readFile, appendFile)
+import qualified System.IO as IO (hPutStr)
+import System.IO hiding (print, putStr, putStrLn, writeFile, readFile, appendFile, hPutStr)
 import Utils.Unicode
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as BS
@@ -16,6 +17,9 @@ print x = putStrLn (show x)
 
 putStr :: String -> IO ()
 putStr s = Prelude.putStr (toUTF8 s)
+
+hPutStr :: Handle -> String -> IO ()
+hPutStr h s = IO.hPutStr h (toUTF8 s)
 
 putStrLn :: String -> IO ()
 putStrLn s = Prelude.putStrLn (toUTF8 s)
