@@ -31,3 +31,14 @@ _⊗_ : {A B : Set}{n : Nat} -> Vec (A -> B) n -> Vec A n -> Vec B n
 ε             ⊗ ε             = []
 (step f • fs) ⊗ (step x • xs) = f x :: (fs ⊗ xs)
 
+{- Some proof about _-_ needed...
+
+vreverse : {A : Set}{n : Nat} -> Vec A n -> Vec A n
+vreverse {A}{n} xs = {! !} -- map i f (reverse xs)
+  where
+    i : Nat -> Nat
+    i m = n - m
+
+    f : Step A op =[ i ]=> Step A
+    f (step x) = {! !} -- step x
+-}

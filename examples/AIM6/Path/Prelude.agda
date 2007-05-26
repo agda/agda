@@ -16,8 +16,14 @@ Rel X = X -> X -> Set
 data False : Set where
 record True : Set where
 
+tt : True
+tt = _
+
 ! : {A : Set} -> A -> True
 ! = _
+
+data _==_ {A : Set}(x : A) : A -> Set where
+  refl : x == x
 
 data _×_ (A B : Set) : Set where
   _,_ : A -> B -> A × B

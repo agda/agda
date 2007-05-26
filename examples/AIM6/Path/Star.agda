@@ -60,4 +60,15 @@ map f k = bind f (return · k)
 length : {X : Set}{R : Rel X} -> Star R =[ ! ]=> Star One
 length = map ! !
 
+-- Reverse
 
+_op : {X : Set} -> Rel X -> Rel X
+(R op) a b = R b a
+
+reverse : {X : Set}{R : Rel X}{a b : X} -> Star R a b -> Star (R op) b a
+reverse {X}{R} xs = rev xs ε
+  where
+    rev : forall {a b c} ->
+          Star R a b -> Star (R op) a c -> Star (R op) b c
+    rev ε ys = ys
+    rev (x • xs) ys = rev xs (x • ys)
