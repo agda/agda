@@ -234,11 +234,15 @@ wait for output and execute responses, if any"
   (let (response)
     (with-current-buffer haskell-ghci-process-buffer
       (haskell-ghci-wait-for-output)
-      (setq response (buffer-substring-no-properties
-                      (if (boundp 'comint-last-output-start)
-                          comint-last-output-start
-                        (overlay-start comint-last-output-overlay))
-                      (overlay-start comint-last-prompt-overlay))))
+      (let ((tempfile (make-temp-file "agda2-mode")))
+        (unwind-protect
+            (progn
+              (comint-write-output tempfile)
+              (with-temp-buffer
+                (insert-file-contents tempfile)
+                (setq response (buffer-substring-no-properties
+                                (point-min) (point-max)))))
+          (delete-file tempfile))))
     (agda2-respond response)))
 
 (defun agda2-goal-cmd (cmd &optional want ask &rest args)
