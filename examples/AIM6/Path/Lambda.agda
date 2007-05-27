@@ -41,7 +41,7 @@ _[_] : forall {Γ τ} -> Env Γ -> Var Γ τ -> ty⟦ τ ⟧
 
 ⟦_⟧_ : forall {Γ τ} -> Tm Γ τ -> Env Γ -> ty⟦ τ ⟧
 ⟦ var x ⟧ ρ = ρ [ x ]
-⟦ zz    ⟧ ρ = zero
-⟦ ss    ⟧ ρ = suc
+⟦ z     ⟧ ρ = zero
+⟦ s     ⟧ ρ = suc
 ⟦ λ t   ⟧ ρ = \x -> ⟦ t ⟧ (check x • ρ)
 ⟦ s $ t ⟧ ρ = (⟦ s ⟧ ρ) (⟦ t ⟧ ρ)
