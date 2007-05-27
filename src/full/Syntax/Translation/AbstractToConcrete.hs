@@ -27,7 +27,8 @@ import Syntax.Abstract as A
 import Syntax.Abstract.Views as AV
 import Syntax.Scope.Base
 
-import TypeChecking.Monad (getScope, MonadTCM)
+import TypeChecking.Monad.State (getScope)
+import TypeChecking.Monad.Base  (MonadTCM)
 
 import Utils.Maybe
 import Utils.Monad
@@ -576,15 +577,19 @@ instance ToConcrete A.Pattern [C.Pattern] where
 tryToRecoverOpApp :: A.Expr -> AbsToCon C.Expr -> AbsToCon C.Expr
 tryToRecoverOpApp e mdefault = case AV.appView e of
   NonApplication _ -> mdefault
-  Application hd args -> do
-    let  args' = [namedThing e | Arg NotHidden e <- args]
-    case hd of
-      HeadVar n  -> do
-	x <- toConcrete n
-	doCName (nameFixity n) x args'
-      HeadDef qn -> doQName qn args'
-      HeadCon qn -> doQName qn args'
+  Application hd args
+    | all notHidden args  -> do
+      let  args' = map (namedThing . unArg) args
+      case hd of
+	HeadVar n  -> do
+	  x <- toConcrete n
+	  doCName (nameFixity n) x args'
+	HeadDef qn -> doQName qn args'
+	HeadCon qn -> doQName qn args'
+    | otherwise -> mdefault
   where
+
+  notHidden (Arg h _) = h == NotHidden
 
   -- qualified names can't use mixfix syntax
   doQName qn as = do
