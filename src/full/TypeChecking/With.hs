@@ -13,8 +13,8 @@ import TypeChecking.Monad
 import TypeChecking.Substitute
 import TypeChecking.Reduce
 import TypeChecking.Primitive hiding (Nat)
-import TypeChecking.Rules.LHS
 import TypeChecking.Pretty
+import TypeChecking.Rules.LHS.Implicit
 
 import Utils.Permutation
 import Utils.Size
