@@ -20,8 +20,8 @@ Var Γ τ = Any (\σ -> σ == τ) Γ
 
 data Tm : Ctx -> Ty -> Set where
   var : forall {Γ τ} -> Var Γ τ -> Tm Γ τ
-  z   : forall {Γ} -> Tm Γ nat
-  s   : forall {Γ} -> Tm Γ (nat ⟶ nat)
+  zz  : forall {Γ} -> Tm Γ nat
+  ss  : forall {Γ} -> Tm Γ (nat ⟶ nat)
   λ   : forall {Γ σ τ} -> Tm (σ • Γ) τ -> Tm Γ (σ ⟶ τ)
   _$_ : forall {Γ σ τ} -> Tm Γ (σ ⟶ τ) -> Tm Γ σ -> Tm Γ τ
 
@@ -41,7 +41,7 @@ _[_] : forall {Γ τ} -> Env Γ -> Var Γ τ -> ty⟦ τ ⟧
 
 ⟦_⟧_ : forall {Γ τ} -> Tm Γ τ -> Env Γ -> ty⟦ τ ⟧
 ⟦ var x ⟧ ρ = ρ [ x ]
-⟦ z     ⟧ ρ = zero
-⟦ s     ⟧ ρ = suc
+⟦ zz    ⟧ ρ = zero
+⟦ ss    ⟧ ρ = suc
 ⟦ λ t   ⟧ ρ = \x -> ⟦ t ⟧ (check x • ρ)
 ⟦ s $ t ⟧ ρ = (⟦ s ⟧ ρ) (⟦ t ⟧ ρ)

@@ -29,5 +29,10 @@ data Check {A : Set}{R : Rel A}(P : EdgePred R) :
   check : {a b c : A}{x : R a b}{xs : Star R b c} ->
           P x -> Check P (some (x • xs)) (some xs)
 
+uncheck : {X : Set}{R : Rel X}{P : EdgePred R}{a b c : X}
+          {x : R a b}{xs : Star R b c} ->
+          Check P (some (x • xs)) (some xs) -> P x
+uncheck (check p) = p
+
 All : {A : Set}{R : Rel A}(P : EdgePred R) -> EdgePred (Star R)
 All P {a}{b} xs = Star (Check P) (some xs) (some {a = b} ε)
