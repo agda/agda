@@ -10,6 +10,7 @@ import Syntax.Abstract.Name
 import Syntax.Common
 import Syntax.Internal
 import Syntax.Scope.Base
+import Syntax.Translation.AbstractToConcrete (nextName)
 
 import TypeChecking.Monad.Base
 import TypeChecking.Substitute
@@ -33,12 +34,21 @@ inContext ctx = local $ \e -> e { envContext = ctx }
 -- | Go under an abstraction.
 underAbstraction :: MonadTCM tcm => Arg Type -> Abs a -> (a -> tcm b) -> tcm b
 underAbstraction t a k = do
+    xs <- map (nameConcrete . fst . unArg) <$> getContext
     x <- freshName_ $ absName a
-    addCtx x t $ k $ absBody a
+    let y = head $ filter (notTaken xs) $ iterate nextName x
+    addCtx y t $ k $ absBody a
+  where
+    notTaken xs x = notElem (nameConcrete x) xs
 
 -- | Go under an abstract without worrying about the type to add to the context.
 underAbstraction_ :: MonadTCM tcm => Abs a -> (a -> tcm b) -> tcm b
 underAbstraction_ = underAbstraction (Arg NotHidden $ sort Prop)
+
+-- | Add a telescope to the context.
+addCtxTel :: MonadTCM tcm => Telescope -> tcm a -> tcm a
+addCtxTel EmptyTel	    ret = ret
+addCtxTel (ExtendTel t tel) ret = underAbstraction t tel $ \tel -> addCtxTel tel ret
 
 -- | Get the current context.
 getContext :: MonadTCM tcm => tcm Context
@@ -63,13 +73,6 @@ getContextTelescope = foldr extTel EmptyTel . reverse <$> getContext
 addCtxs :: MonadTCM tcm => [Name] -> Arg Type -> tcm a -> tcm a
 addCtxs []     _ k = k
 addCtxs (x:xs) t k = addCtx x t $ addCtxs xs (raise 1 t) k
-
--- | Add a telescope to the context.
-addCtxTel :: MonadTCM tcm => Telescope -> tcm a -> tcm a
-addCtxTel EmptyTel	    ret = ret
-addCtxTel (ExtendTel t tel) ret = do
-  x <- freshName_ $ absName tel
-  addCtx x t $ addCtxTel (absBody tel) ret
 
 -- | Add a let bound variable
 addLetBinding :: MonadTCM tcm => Name -> Term -> Type -> tcm a -> tcm a
