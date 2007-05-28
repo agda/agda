@@ -147,9 +147,10 @@ processTerm (Def qn ts) = processVap (HsVar $ dfQName qn) ts
 processTerm (Con qn ts) = processVap (HsCon $ conQName qn) ts
 
 processTerm (Lam h (Abs n t)) = do
+  cnt <- getPcnt
   incPcnt
   exp <- processTerm t
-  return $ hsLam n exp
+  return $ hsLam ("v" ++ show cnt)  exp
 processTerm (Lit l) = return $  (processLit l)
 processTerm (Pi arg abs) = return $ HsVar  unit_con_name
 processTerm (Fun arg typ) = return $ HsVar  unit_con_name
