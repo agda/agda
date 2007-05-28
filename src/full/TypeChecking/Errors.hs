@@ -282,7 +282,14 @@ instance PrettyTCM TypeError where
               pwords "Unexpected right hand side"
 	    NotInScope xs ->
 		fsep (pwords "Not in scope:") $$ nest 2 (vcat $ map name xs)
-		where name x = hsep [ pretty x, text "at", text $ show $ getRange x ]
+		where
+                  name x = fsep [ pretty x, text "at" <+> text (show $ getRange x), suggestion (show x) ]
+                  suggestion s
+                    | elem ':' s    = parens $ text "did you forget space around the ':'?"
+                    | elem "->" two = parens $ text "did you forget space around the '->'?"
+                    | otherwise     = empty
+                    where
+                      two = zipWith (\a b -> [a,b]) s (tail s)
 	    NoSuchModule x -> fsep $
 		pwords "No such module" ++ [pretty x]
 	    AmbiguousName x ys -> vcat 
