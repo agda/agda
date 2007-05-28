@@ -1,4 +1,3 @@
-
 module Lambda where
 
 open import Prelude
@@ -18,10 +17,16 @@ Ctx = List Ty
 Var : Ctx -> Ty -> Set
 Var Γ τ = Any (_==_ τ) Γ
 
+vzero : {τ : Ty} {Γ : Ctx} -> Var (τ • Γ) τ
+vzero = done refl • ε
+
+vsuc : {σ τ : Ty} {Γ : Ctx} -> Var Γ τ -> Var (σ • Γ) τ
+vsuc v = step • v
+
 data Tm : Ctx -> Ty -> Set where
-  var : forall {Γ τ} -> Var Γ τ -> Tm Γ τ
-  zz  : forall {Γ} -> Tm Γ nat
-  ss  : forall {Γ} -> Tm Γ (nat ⟶ nat)
+  var : forall {Γ τ}   -> Var Γ τ -> Tm Γ τ
+  zz  : forall {Γ}     -> Tm Γ nat
+  ss  : forall {Γ}     -> Tm Γ (nat ⟶ nat)
   λ   : forall {Γ σ τ} -> Tm (σ • Γ) τ -> Tm Γ (σ ⟶ τ)
   _$_ : forall {Γ σ τ} -> Tm Γ (σ ⟶ τ) -> Tm Γ σ -> Tm Γ τ
 
@@ -43,8 +48,29 @@ _[_] : forall {Γ τ} -> Env Γ -> Var Γ τ -> ty⟦ τ ⟧
 ⟦ λ t   ⟧ ρ = \x -> ⟦ t ⟧ (check x • ρ)
 ⟦ s $ t ⟧ ρ = (⟦ s ⟧ ρ) (⟦ t ⟧ ρ)
 
-tm : Tm ε nat
-tm = (λ (var (done refl • ε))) $ (ss $ zz)
+tm_one : Tm ε nat
+tm_one = ss $ zz
+
+tm_id : Tm ε (nat ⟶ nat)
+tm_id = λ (var (done refl • ε))
+
+tm    : Tm ε nat
+tm    = tm_id $ tm_one
+
+tm_twice : Tm ε ((nat ⟶ nat) ⟶ (nat ⟶ nat))
+tm_twice = λ (λ (f $ (f $ x)))
+  where Γ : Ctx
+        Γ = nat • (nat ⟶ nat) • ε
+        f : Tm Γ (nat ⟶ nat)
+        f = var (vsuc vzero)
+        x : Tm Γ nat
+        x = var vzero
+
+sem : {τ : Ty} -> Tm ε τ -> ty⟦ τ ⟧
+sem e = ⟦ e ⟧ ε
 
 one : Nat
-one = ⟦ tm ⟧ ε
+one = sem tm
+
+twice : (Nat -> Nat) -> (Nat -> Nat)
+twice = sem tm_twice
