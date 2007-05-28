@@ -113,9 +113,14 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs wh) =
 		  aux <- qualify m <$> freshName_ "aux"
 
 		  -- Create the body of the original function
-		  let n	   = size delta
-		      us   = [ Arg h (Var i []) | (i, Arg h _) <- zip [n - 1,n - 2..0] $ telToList delta ]
+		  ctx <- getContextTelescope
+		  let n	   = size ctx
+		      us   = [ Arg h (Var i []) | (i, Arg h _) <- zip [n - 1,n - 2..0] $ telToList ctx ]
 		      v	   = substs sub $ Def aux $ us ++ (map (Arg NotHidden) vs)
+
+		  reportSDoc "tc.with.top" 20 $ text "with arguments" <+> prettyList (map prettyTCM vs)
+		  reportSDoc "tc.with.top" 20 $ text "         types" <+> prettyList (map prettyTCM as)
+		  reportSDoc "tc.with.top" 20 $ text "with function call:" <+> prettyTCM v
 
 		  return (mkBody v, WithFunction aux gamma delta as t' ps perm cs)
       escapeContext (size delta) $ checkWithFunction with
