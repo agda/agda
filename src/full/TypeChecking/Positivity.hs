@@ -97,8 +97,9 @@ checkPosArg d i = unlessM (isAssumption d i) $ do
 	    let x = xs !! i
 		args = map (Arg NotHidden . flip Def []) xs
 	    let check c = do
-		    t <- lift $ normalise =<< typeOfConst c
+		    t <- lift $ normalise =<< (defType <$> getConstInfo c)
 		    checkPos [x] d c (t `piApply` args)
+
 	    mapM_ check cs
 	_   -> lift $ typeError $ NotStrictlyPositive d []
 
