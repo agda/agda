@@ -9,7 +9,7 @@ El : Set -> Rel True
 El A _ _ = A
 
 List : Set -> Set
-List A = Star (El A) tt tt
+List A = Star (El A) _ _
 
 Nat = List True
 
@@ -36,11 +36,7 @@ Fin = Any (\_ -> True)
 -- Turning a vector to a list
 
 vecToList : {A : Set}{n : Nat} -> Vec A n -> List A
-vecToList {A} = map (\_ -> _) uncheck'
-  where
-    uncheck' : {a b : Some (Star (El True))} ->
-               Check (\_ -> A) a b -> A
-    uncheck' (check p) = p
+vecToList {A} = map (\_ -> _) uncheck
 
 listToVec : {A : Set}(xs : List A) -> Vec A (length xs)
 listToVec  ε       = ε

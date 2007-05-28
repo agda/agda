@@ -36,12 +36,13 @@ Env : Ctx -> Set
 Env = All ty⟦_⟧
 
 _[_] : forall {Γ τ} -> Env Γ -> Var Γ τ -> ty⟦ τ ⟧
-(check v • ρ) [ done refl • ε ] = v
-(check _ • ρ) [ step      • x ] = ρ [ x ]
+ρ [ x ] with lookup x ρ
+ρ [ x ] | result _ refl v = v
 
 ⟦_⟧_ : forall {Γ τ} -> Tm Γ τ -> Env Γ -> ty⟦ τ ⟧
 ⟦ var x ⟧ ρ = ρ [ x ]
-⟦ z     ⟧ ρ = zero
-⟦ s     ⟧ ρ = suc
+⟦ zz    ⟧ ρ = zero
+⟦ ss    ⟧ ρ = suc
 ⟦ λ t   ⟧ ρ = \x -> ⟦ t ⟧ (check x • ρ)
 ⟦ s $ t ⟧ ρ = (⟦ s ⟧ ρ) (⟦ t ⟧ ρ)
+

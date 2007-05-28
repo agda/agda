@@ -8,8 +8,13 @@ data Progress (A : Set) : Set where
   cont : A -> Progress A
   stop : Progress A
 
-data Some {A : Set}(R : Rel A) : Set where
-  some : {a b : A} -> R a b -> Some R
+record Some {A : Set}(R : Rel A) : Set where
+  a    : A
+  b    : A
+  edge : R a b
+
+some : {A : Set}{R : Rel A}{a b : A} -> R a b -> Some R
+some x = record {a = _; b = _; edge = x}
 
 EdgePred : {A : Set} -> Rel A -> Set1
 EdgePred R = forall {a b} -> R a b -> Set
@@ -29,10 +34,28 @@ data Check {A : Set}{R : Rel A}(P : EdgePred R) :
   check : {a b c : A}{x : R a b}{xs : Star R b c} ->
           P x -> Check P (some (x • xs)) (some xs)
 
+checkedEdge : {A : Set}{R : Rel A}{P : EdgePred R}{xs ys : Some (Star R)} ->
+              Check P xs ys -> Some R
+checkedEdge (check {x = x} _) = some x
+
+uncheck : {X : Set}{R : Rel X}{P : EdgePred R}{xs ys : Some (Star R)}
+          (chk : Check P xs ys) -> P (Some.edge (checkedEdge chk))
+uncheck (check p) = p
+
+{-
 uncheck : {X : Set}{R : Rel X}{P : EdgePred R}{a b c : X}
           {x : R a b}{xs : Star R b c} ->
           Check P (some (x • xs)) (some xs) -> P x
 uncheck (check p) = p
+-}
 
 All : {A : Set}{R : Rel A}(P : EdgePred R) -> EdgePred (Star R)
 All P {a}{b} xs = Star (Check P) (some xs) (some {a = b} ε)
+
+data Lookup {A : Set}{R : Rel A}(P Q : EdgePred R) : Set where
+  result : {a b : A} -> (x : R a b) -> P x -> Q x -> Lookup P Q
+
+lookup : {A : Set}{R : Rel A}{P Q : EdgePred R}{a b : A}{xs : Star R a b} ->
+         Any P xs -> All Q xs -> Lookup (\{a b} -> P{a}{b}) Q
+lookup (step   • i) (check _ • xs) = lookup i xs
+lookup (done p • ε) (check q • _ ) = result _ p q
