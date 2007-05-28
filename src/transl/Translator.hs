@@ -222,16 +222,6 @@ transCLetDef (CLetDefComment cs)
                     (_,_:xs) -> Just xs
      mdlname = trim cs >>= trim . reverse >>= return . takeWhile ('.'/=) . reverse . takeWhile ('/'/=)
 
-
-errorDecls :: String -> [Declaration]
-errorDecls msg 
- = [TypeSig (Name noRange [Id noRange "<error>"])
-    (Ident (str2qname msg))
-   ]
-
-errorExpr :: String -> Expr
-errorExpr s = Lit (LitString noRange ("<error> : " ++ s))
-
 transCDef :: CDef -> [Declaration]
 transCDef (CDef cprops cdefn)
   | elem Cprivate  cprops = [Private  noRange (transCDefn cdefn)]
@@ -287,7 +277,6 @@ transCDefn (CClass classargs b csigns)
  = errorDecls "transCDefn: cannot translate: (CClass classargs b csigns)"
 transCDefn (CInstance i cargs cinsarg cletdefs)
  = errorDecls "transCDefn: cannot translate: (CInstance i cargs cinsarg cletdefs)"
-
 
 
 -- Utilities
@@ -394,6 +383,22 @@ parenExpr e@(SetN _ _)         = e
 parenExpr e                    = Paren noRange e
 
 -- Utilities
+
+---- for non-supported translation 
+
+errorDecls :: String -> [Declaration]
+errorDecls msg 
+ = [TypeSig (Name noRange [Id noRange "<error>"])
+    (Ident (str2qname msg))
+   ]
+
+errorExpr :: String -> Expr
+errorExpr s = Lit (LitString noRange ("<error> : " ++ s))
+
+str2qname :: String -> QName
+str2qname s = QName (Name noRange [Id noRange s])
+
+----
 
 isInfixOp :: Id -> Bool
 isInfixOp = all (not . isAlphaNum) . getIdString
@@ -521,8 +526,3 @@ parenPattern p = p
 
 -- Dummy
 
-notyet :: String -> a
-notyet = error . (++ ": not yet implemented")
-
-str2qname :: String -> QName
-str2qname s = QName (Name noRange [Id noRange s])
