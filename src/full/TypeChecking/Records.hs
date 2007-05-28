@@ -61,6 +61,12 @@ getRecordFieldTypes r = do
   Record _ _ _ tel _ _ <- getRecordDef r
   return tel
 
+-- | Get the type of the record constructor.
+getRecordConstructorType :: MonadTCM tcm => QName -> [Arg Term] -> tcm Type
+getRecordConstructorType r pars = do
+  Record _ _ _ tel s _ <- getRecordDef r
+  return $ telePi (apply tel pars) $ El s $ Def r pars
+
 -- | Check if a name refers to a record.
 isRecord :: MonadTCM tcm => QName -> tcm Bool
 isRecord r = do

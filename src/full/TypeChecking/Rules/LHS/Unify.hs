@@ -19,6 +19,7 @@ import TypeChecking.Reduce
 import TypeChecking.Pretty
 import TypeChecking.Substitute
 import TypeChecking.Free
+import TypeChecking.Records
 
 import TypeChecking.Rules.LHS.Problem
 
@@ -139,14 +140,12 @@ unifyIndices flex a us vs = do
 	    Def d args <- reduce $ unEl a
 	    -- Get the number of parameters.
 	    def <- theDef <$> getConstInfo d
-	    npars <- case def of
-	      Datatype n _ _ _ _ _ -> return n
-	      Record n _ _ _ _ _   -> return n
+	    a'  <- case def of
+	      Datatype n _ _ _ _ _ -> do
+                a <- defType <$> getConstInfo c
+                return $ piApply a (take n args)
+	      Record n _ _ _ _ _   -> getRecordConstructorType d (take n args)
 	      _			   -> __IMPOSSIBLE__
-	    -- The type to compare the arguments at is obtained by
-	    -- instantiating the parameters.
-	    a <- defType <$> getConstInfo c
-	    let a' = piApply a (take npars args)
 	    unifyArgs a' us vs
 	_  -> noConstraints $ equalTerm a u v
 
