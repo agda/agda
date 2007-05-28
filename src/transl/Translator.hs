@@ -327,6 +327,8 @@ transCExpr (Clam (flg,CBind [x] Nothing) e)
  = Lam noRange [DomainFree (bool2hiding flg) (id2name x)] (transCExpr e)
 transCExpr (Clam (flg,CBind xs (Just t)) e)
  = Lam noRange [DomainFull (TypedBindings noRange (bool2hiding flg) [TBind noRange (map id2name xs) (transCExpr t)])] (transCExpr e)
+transCExpr ce@(Clam _ _)
+ = error $ "transCExpr: Never!! "++show ce
 transCExpr (CUniv a e)
  = case a of
      (CArg bis ctype)
@@ -360,11 +362,19 @@ transCExpr (CMeta _ _ _ _)
 transCExpr (Cif ec et ee)
  = RawApp noRange (Ident ifQName : map (parenExpr . transCExpr) [ec,et,ee])
 transCExpr (CCConS i) = transCExpr (CVar i)
--- transCExpr ce
--- = errorExpr ("Cannot translate ("++ show ce ++")")
--- = notyet $ "transCExpr ("++show ce++")"
-
-
+transCExpr ce@(CSelect _ _) = errorExpr $ show ce
+transCExpr ce@(CSum _)      = errorExpr $ show ce
+transCExpr ce@(CCCon _ _)   = errorExpr $ show ce
+transCExpr ce@(Ccase _ _)   = errorExpr $ show ce
+transCExpr ce@(CClos _ _)   = errorExpr $ show ce
+transCExpr ce@(Ccomment _ _ _)   = errorExpr $ show ce
+transCExpr ce@(CPackageType)   = errorExpr $ show ce
+transCExpr ce@(CIndSum _ _)   = errorExpr $ show ce
+transCExpr ce@(CExternal _)   = errorExpr $ show ce
+transCExpr ce@(CLit _ _)   = errorExpr $ show ce
+transCExpr ce@(CDo _ _)   = errorExpr $ show ce
+transCExpr ce@(CList _ _)   = errorExpr $ show ce
+----
 
 ifQName :: QName
 ifQName = str2qname "iF"
