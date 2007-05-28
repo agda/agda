@@ -16,7 +16,7 @@ Ctx : Set
 Ctx = List Ty
 
 Var : Ctx -> Ty -> Set
-Var Γ τ = Any (\σ -> σ == τ) Γ
+Var Γ τ = Any (_==_ τ) Γ
 
 data Tm : Ctx -> Ty -> Set where
   var : forall {Γ τ} -> Var Γ τ -> Tm Γ τ
@@ -28,9 +28,6 @@ data Tm : Ctx -> Ty -> Set where
 ty⟦_⟧ : Ty -> Set
 ty⟦ nat   ⟧ = Nat
 ty⟦ σ ⟶ τ ⟧ = ty⟦ σ ⟧ -> ty⟦ τ ⟧
-
-data EStep : Rel Ctx where
-  val : forall {Γ τ} -> ty⟦ τ ⟧ -> EStep (τ • Γ) Γ
 
 Env : Ctx -> Set
 Env = All ty⟦_⟧
@@ -46,3 +43,8 @@ _[_] : forall {Γ τ} -> Env Γ -> Var Γ τ -> ty⟦ τ ⟧
 ⟦ λ t   ⟧ ρ = \x -> ⟦ t ⟧ (check x • ρ)
 ⟦ s $ t ⟧ ρ = (⟦ s ⟧ ρ) (⟦ t ⟧ ρ)
 
+tm : Tm ε nat
+tm = (λ (var (done refl • ε))) $ (ss $ zz)
+
+one : Nat
+one = ⟦ tm ⟧ ε
