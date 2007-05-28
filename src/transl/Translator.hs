@@ -31,6 +31,7 @@ import Utils.Pretty
 import Syntax.Common
 import Syntax.Concrete
 import Syntax.Concrete.Pretty
+import Syntax.Literal
 import Syntax.Position
 
 ----------------------------------------------------------------------
@@ -222,11 +223,14 @@ transCLetDef (CLetDefComment cs)
      mdlname = trim cs >>= trim . reverse >>= return . takeWhile ('.'/=) . reverse . takeWhile ('/'/=)
 
 
-translatorError :: String -> [Declaration]
-translatorError msg 
- = [TypeSig (Name noRange [Id noRange "translatorError"])
+errorDecls :: String -> [Declaration]
+errorDecls msg 
+ = [TypeSig (Name noRange [Id noRange "<error>"])
     (Ident (str2qname msg))
    ]
+
+errorExpr :: String -> Expr
+errorExpr s = Lit (LitString noRange ("<error> : " ++ s))
 
 transCDef :: CDef -> [Declaration]
 transCDef (CDef cprops cdefn)
@@ -245,9 +249,9 @@ transCDefn (CValueS i args ctype cclause)
  = transCDefn (CValueS i [] ctype' cclause)
    where ctype' = foldr (\ carg e -> CUniv carg e) ctype args
 transCDefn (Ctype i args ctype) 
- = translatorError "transCDefn: cannot translate: (Ctype i args ctype)"
+ = transCDefn (CValueT i args (CStar undefined 0 undefined) ctype)
 transCDefn (Cnewtype i args ctype csum) 
- = translatorError "transCDefn: cannot translate: (Cnewtype i args ctype csum)"
+ = transCDefn (Cdata i args (Just ctype) [csum])
 transCDefn (Cdata i args mctype csums)
  = [Data noRange (id2name i) tls t (map (csummand2constructor ot) csums)]
    where
@@ -256,31 +260,35 @@ transCDefn (Cdata i args mctype csums)
     n = id2name i
     ot = foldl (\ f (TypedBindings _ _ [TBind _ [x] _]) -> RawApp noRange [f, Ident (QName x)]) (Ident (QName n)) tls
 transCDefn (Cidata i args ctype csum)
- = translatorError "transCDefn: cannot translate: (Cidata i args ctype csum)"
+-- = transCDefn (Cdata i args (Just ctype) (sind2s csum))
+ = errorDecls "transCDefn: cannot translate: (Cidata i args ctype csum)"
 transCDefn (CValue i cexpr)
  = cclause2funclauses i (isInfixOp i) (CClause [] cexpr)
 transCDefn (CAxiom i args ctype)
  = [Postulate noRange [ctype2typesig flg i [] ctype']]
    where ctype' = foldr (\ carg e -> CUniv carg e) ctype args
          flg = isInfixOp i
---  = translatorError "transCDefn: cannot translate: (CAxiom i args ctype)"
 transCDefn (CNative i ctype)
- = translatorError "transCDefn: cannot translate: (CNative i ctype)"
-transCDefn (CPackage i args (CPackageDef [] _ cletdefs))
- = [Module noRange (QName (id2name i)) (concatMap carg2telescope args)
-    (concatMap transCLetDef cletdefs)]
+ = errorDecls "transCDefn: cannot translate: (CNative i ctype)"
+transCDefn (CPackage i args pkgbody)
+ = case pkgbody of
+     CPackageDef [] _ cletdefs 
+       -> [Module noRange (QName (id2name i)) (concatMap carg2telescope args)
+	   (concatMap transCLetDef cletdefs)]
+     _ -> errorDecls "Cannot translate: package definition other than (CPackageDef [] _ cletdefs)"
 transCDefn (COpen cexpr (COpenArgs coargs))
  = case cexpr of
      (CVar i)
        -> [Open noRange (QName (id2name i)) (copenargs2importdirective coargs)]
      (CApply (CVar i) bces)
        -> [Open noRange (QName (id2name i)) (copenargs2importdirective coargs)]
-     _ -> translatorError ("cannot translate: COpen ("++show cexpr++") coargs")
+     _ -> errorDecls ("cannot translate: COpen ("++show cexpr++") coargs")
 transCDefn (CClass classargs b csigns)
- = translatorError "transCDefn: cannot translate: (CClass classargs b csigns)"
+ = errorDecls "transCDefn: cannot translate: (CClass classargs b csigns)"
 transCDefn (CInstance i cargs cinsarg cletdefs)
- = translatorError "transCDefn: cannot translate: (CInstance i cargs cinsarg cletdefs)"
-transCDefn dn = translatorError ("not yet implemented: transCDefn (" ++ show dn ++")")
+ = errorDecls "transCDefn: cannot translate: (CInstance i cargs cinsarg cletdefs)"
+
+
 
 -- Utilities
 
@@ -338,9 +346,14 @@ transCExpr (CArrow flg ce1 ce2)
  = Fun noRange (parenExpr (transCExpr ce1)) (transCExpr ce2)
 transCExpr (Clet defs cexpr) 
  = Let noRange (translate defs) (transCExpr cexpr)
+transCExpr ce@(CProduct pos csigs)
+ = errorExpr $ "Cannot translate (" ++ show ce ++")"
+transCExpr ce@(CRecord cprops pos cletdefs)
+ = errorExpr $ "Cannot translate (" ++ show ce ++")"
+transCExpr ce@(Copen cexpr1 coargs cexpr2)
+ = errorExpr $ "Cannot translate (" ++ show ce ++")"
 transCExpr (CApply f args)
  = case f of
-    {- We regard 'f' is a binary infix operator when the first char is symbol. Maybe true. 2006-09-29 -}
     (CVar i) | isSym (head (getIdString i)) 
              -> transCExpr $
                 CApply (CBinOp (snd $ head args) i (snd $ head $ tail  args))
@@ -358,8 +371,11 @@ transCExpr (CMeta _ _ _ _)
 transCExpr (Cif ec et ee)
  = RawApp noRange (Ident ifQName : map (parenExpr . transCExpr) [ec,et,ee])
 transCExpr (CCConS i) = transCExpr (CVar i)
-transCExpr ce
- = notyet $ "transCExpr ("++show ce++")"
+-- transCExpr ce
+-- = errorExpr ("Cannot translate ("++ show ce ++")")
+-- = notyet $ "transCExpr ("++show ce++")"
+
+
 
 ifQName :: QName
 ifQName = str2qname "iF"
@@ -441,7 +457,7 @@ liftCcase n flg pats (Ccase cexpr ccasearms)
                          [] -> absurdcc n flg pats iv
                          _  -> concatMap (liftcc n flg pats iv) ccasearms
                   _ -> error (show cexpr ++ " not in args")
-      _      -> error "now liftCcase pats can be applied on simple variable"
+      _      -> errorDecls "now liftCcase pats can be applied on simple variable"
     where
       within x ((i,(_,CPVar (CPatId x'))):_)  | x == x' = Just i
       within x ((i,(_,CPVar (CPatT x' _))):_) | x == x' = Just i
