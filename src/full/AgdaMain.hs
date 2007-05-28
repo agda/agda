@@ -45,7 +45,8 @@ import TypeChecking.Reduce
 import TypeChecking.Errors
 import TypeChecking.Serialise
 
-import Compiler.Agate.Main
+import Compiler.Agate.Main as Agate
+import Compiler.Alonzo.Main as Alonzo
 
 import Utils.Monad
 import Utils.IO
@@ -78,9 +79,11 @@ runAgda =
 	checkFile =
 	    do	i	<- optInteractive <$> liftTCM commandLineOptions
 		compile <- optCompile <$> liftTCM commandLineOptions
+		alonzo <- optCompileAlonzo <$> liftTCM commandLineOptions
 		when i $ liftIO $ putStr splashScreen
-		let interaction | i	    = interactionLoop
-				| compile   = compilerMain . (>> return ())
+		let interaction | i	  = interactionLoop
+				| compile = Agate.compilerMain .(>> return ())
+				| alonzo  = Alonzo.compilerMain .(>> return ())
 				| otherwise = (>> return ())
 		interaction $ liftTCM $
 		    do	hasFile <- hasInputFile

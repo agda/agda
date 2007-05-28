@@ -17,6 +17,10 @@ exposed-modules: AgdaMain
                  Compiler.Agate.OptimizedPrinter
                  Compiler.Agate.TranslateName
                  Compiler.Agate.UntypedPrinter
+		 Compiler.Alonzo.Main
+		 Compiler.Alonzo.Names
+		 Compiler.Alonzo.Haskell
+		 Compiler.Alonzo.PatternMonad
                  Interaction.CommandLine.CommandLine
                  Interaction.Exceptions
                  Interaction.Highlighting.Emacs

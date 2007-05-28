@@ -58,6 +58,7 @@ data CommandLineOptions =
 	    , optGenerateVimFile   :: Bool
 	    , optIgnoreInterfaces  :: Bool
 	    , optDisablePositivity :: Bool
+	    , optCompileAlonzo     :: Bool
 	    }
     deriving Show
 
@@ -84,6 +85,7 @@ defaultOptions =
 	    , optGenerateVimFile   = False
 	    , optIgnoreInterfaces  = False
 	    , optDisablePositivity = False
+	    , optCompileAlonzo     = False
 	    }
 
 {- | @f :: Flag opts@  is an action on the option record that results from
@@ -118,6 +120,7 @@ emacsModeFlag o
 				    , optAllowUnsolved = True
 				    }
 compileFlag o = return $ o { optCompile = True } -- todo: check exclusion
+alonzoFlag o = return $ o { optCompileAlonzo = True } 
 
 includeFlag d o	    = return $ o { optIncludeDirs   = d : optIncludeDirs o   }
 verboseFlag s o	    =
@@ -152,6 +155,8 @@ standardOptions =
 		    "show implicit arguments when printing"
     , Option []	    ["compile"] (NoArg compileFlag)
 		    "translate program into GHC (experimental)"
+    , Option ['c']  ["alonzo"] (NoArg alonzoFlag)
+		    "translate program with Alonzo into GHC (experimental)"
     , Option []	    ["test"] (NoArg runTestsFlag)
 		    "run internal test suite"
     , Option []	    ["vim"] (NoArg vimFlag)
