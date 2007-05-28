@@ -1,4 +1,3 @@
-
 module All where
 
 import Prelude
@@ -8,4 +7,6 @@ import List
 import Vec
 import Elem
 import Fin
+import Modal
+import Lambda
 

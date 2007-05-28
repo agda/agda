@@ -29,4 +29,3 @@ n       - ε       = n
 
 test : Nat
 test = suc (suc zero) * suc (suc zero)
-
