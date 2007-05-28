@@ -35,11 +35,13 @@ inContext ctx = local $ \e -> e { envContext = ctx }
 underAbstraction :: MonadTCM tcm => Arg Type -> Abs a -> (a -> tcm b) -> tcm b
 underAbstraction t a k = do
     xs <- map (nameConcrete . fst . unArg) <$> getContext
-    x <- freshName_ $ absName a
+    x <- freshName_ $ realName $ absName a
     let y = head $ filter (notTaken xs) $ iterate nextName x
     addCtx y t $ k $ absBody a
   where
     notTaken xs x = notElem (nameConcrete x) xs
+    realName "_" = "z"
+    realName s   = s
 
 -- | Go under an abstract without worrying about the type to add to the context.
 underAbstraction_ :: MonadTCM tcm => Abs a -> (a -> tcm b) -> tcm b
