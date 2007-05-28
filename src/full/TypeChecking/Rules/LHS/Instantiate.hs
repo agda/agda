@@ -10,6 +10,7 @@ import TypeChecking.Monad
 import TypeChecking.Substitute
 import TypeChecking.Free
 import TypeChecking.Pretty
+import TypeChecking.Reduce
 
 import TypeChecking.Rules.LHS.Problem
 import TypeChecking.Rules.LHS.Split ( asView )
@@ -84,8 +85,8 @@ instantiateTel s tel = do
     text "tel2 =" <+> brackets (fsep $ punctuate comma $ map prettyTCM tel2)
 
   -- tel3 : [Type Γσ]Γσ
-  let tel3   = permute ps tel2
-      names3 = permute ps names1
+  tel3 <- instantiateFull $ permute ps tel2
+  let names3 = permute ps names1
 
   reportSDoc "tc.lhs.inst" 15 $ nest 2 $ 
     text "tel3 =" <+> brackets (fsep $ punctuate comma $ map prettyTCM tel3)
