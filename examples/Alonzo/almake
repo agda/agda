@@ -1,0 +1,4 @@
+#!/bin/sh
+
+agda --alonzo $1.agda
+ghc --make -main-is $1.main $1.hs

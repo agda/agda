@@ -1,0 +1,38 @@
+== Using Alonzo == 
+
+agda --alonzo File.agda
+
+or
+
+agda -c File.agda
+
+produces File.hs
+
+compile it with
+ghc -c File.hs
+
+The main module should contain the function mainS : String, compile it with
+
+ghc --make -main-is File.main File.hs
+
+There is a shell script "almake" that will do both, provided you have
+compiled all dependencies beforehand.
+
+Prerequisites
+
+You need the following runtime files:
+
+RTS.hs RTN.hs RTP.hs
+RTN.agda RTP.agda
+
+NEVER run agda -c on RT* files as it will destroy the corresponding .hs files
+
+There is a "runtime" target in the Makefile, so running 
+
+make runtime
+
+will compile the runtime files for you.
+
+There is a small prelude included, you can compile it with
+
+make prelude

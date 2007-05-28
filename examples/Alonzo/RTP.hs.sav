@@ -1,0 +1,49 @@
+module RTP where
+import qualified Prelude
+-- import qualified RTS
+
+undefined = Prelude.undefined
+data Bool = False | True
+
+type Float = Prelude.Double
+-- newtype Float = FloatT { unboxFloat :: Prelude.Float}
+newtype Char = CharT { unboxChar :: Prelude.Char }
+
+_Int = ()
+_Float = ()
+_String =  ()
+_Char = ()
+
+_primShowBool :: Bool -> Prelude.String
+_primShowBool False = "False"
+_primShowBool True = "True"
+
+_primShowInt :: Prelude.Int -> Prelude.String
+_primShowInt = Prelude.show
+
+_primIntZero :: Prelude.Int 
+_primIntZero = (0::Prelude.Int)
+
+_primIntOne :: Prelude.Int 
+_primIntOne = (1::Prelude.Int)
+
+_primShowFloat :: Float -> Prelude.String
+_primShowFloat f = Prelude.show f
+-- _primShowFloat (FloatT f) = Prelude.show f
+
+_primShowChar c = [ unboxChar c]
+
+_primStringAppend :: Prelude.String -> Prelude.String -> Prelude.String
+_primStringAppend = (Prelude.++)
+
+_primStringReverse = Prelude.reverse
+_primStringToList s = Prelude.map CharT s
+_primStringFromList s = Prelude.map unboxChar s
+
+_primNatPlus = undefined
+_primNatMinus = undefined
+_primNatTimes = undefined
+_primNatDivSuc = undefined
+_primNatModSuc = undefined
+_primNatLess = undefined
+_primNatEquals = undefined
