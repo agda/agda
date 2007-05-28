@@ -23,3 +23,17 @@ g zero = zero
 g (suc n) with g n
 g (suc n) | zero = n
 
+data T : Set where
+  tt : T
+
+module A (x : T) where
+  h : T
+  h with x
+  h | y = y
+
+postulate
+  C : T -> Set
+
+test : C (A.h tt) -> C tt
+test x = x
+
