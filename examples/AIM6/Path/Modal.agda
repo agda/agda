@@ -29,6 +29,14 @@ data PStep {A : Set}{R : Rel A}(P : EdgePred R) :
 Any : {A : Set}{R : Rel A}(P : EdgePred R) -> EdgePred (Star R)
 Any P xs = Star (PStep P) (cont (some xs)) stop
 
+mapAny : {A₁ A₂ : Set}{R₁ : Rel A₁}{R₂ : Rel A₂}
+         {P₁ : EdgePred R₁}{P₂ : EdgePred R₂}{a b : A₁}{xs : Star R₁ a b}
+         {i : A₁ -> A₂}{f : R₁ =[ i ]=> R₂} ->
+         ({a b : A₁}{x : R₁ a b} -> P₁ x -> P₂ (f x)) ->
+         Any P₁ xs -> Any (\{a b} -> P₂{a}{b}) (map i f xs)
+mapAny h (step   • i) = step • mapAny h i
+mapAny h (done p • ε) = done (h p) • ε
+
 data Check {A : Set}{R : Rel A}(P : EdgePred R) :
            Rel (Some (Star R)) where
   check : {a b c : A}{x : R a b}{xs : Star R b c} ->

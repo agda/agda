@@ -7,14 +7,38 @@ open import Modal
 
 -- Environments
 
+record TyAlg (ty : Set) : Set where
+  nat : ty
+  _⟶_ : ty -> ty -> ty
+
 data Ty : Set where
-  nat : Ty
-  _⟶_ : Ty -> Ty -> Ty
+  <nat> : Ty
+  _<⟶>_ : Ty -> Ty -> Ty
+
+freeTyAlg : TyAlg Ty
+freeTyAlg = record { nat = <nat>; _⟶_ = _<⟶>_ }
+
+termTyAlg : TyAlg True
+termTyAlg = record { nat = _; _⟶_ = \_ _ -> _ }
+
+record TyArrow {ty₁ ty₂ : Set}(T₁ : TyAlg ty₁)(T₂ : TyAlg ty₂) : Set where
+  apply   : ty₁ -> ty₂
+  respNat : apply (TyAlg.nat T₁) == TyAlg.nat T₂
+  resp⟶   : forall {τ₁ τ₂} -> apply (TyAlg._⟶_ T₁ τ₁ τ₂) == TyAlg._⟶_ T₂ (apply τ₁) (apply τ₂)
+
+_=Ty=>_ : {ty₁ ty₂ : Set}(T₁ : TyAlg ty₁)(T₂ : TyAlg ty₂) -> Set
+_=Ty=>_ = TyArrow
+
+!Ty : {ty : Set}{T : TyAlg ty} -> T =Ty=> termTyAlg
+!Ty = record { apply   = !
+             ; respNat = refl
+             ; resp⟶   = refl
+             }
 
 Ctx : Set
 Ctx = List Ty
 
-Var : Ctx -> Ty -> Set
+Var : {ty : Set} -> List ty -> ty -> Set
 Var Γ τ = Any (_==_ τ) Γ
 
 vzero : {τ : Ty} {Γ : Ctx} -> Var (τ • Γ) τ
@@ -23,54 +47,68 @@ vzero = done refl • ε
 vsuc : {σ τ : Ty} {Γ : Ctx} -> Var Γ τ -> Var (σ • Γ) τ
 vsuc v = step • v
 
-data Tm : Ctx -> Ty -> Set where
-  var : forall {Γ τ}   -> Var Γ τ -> Tm Γ τ
-  zz  : forall {Γ}     -> Tm Γ nat
-  ss  : forall {Γ}     -> Tm Γ (nat ⟶ nat)
-  λ   : forall {Γ σ τ} -> Tm (σ • Γ) τ -> Tm Γ (σ ⟶ τ)
-  _$_ : forall {Γ σ τ} -> Tm Γ (σ ⟶ τ) -> Tm Γ σ -> Tm Γ τ
+module Term {ty : Set}(T : TyAlg ty) where
 
-ty⟦_⟧ : Ty -> Set
-ty⟦ nat   ⟧ = Nat
-ty⟦ σ ⟶ τ ⟧ = ty⟦ σ ⟧ -> ty⟦ τ ⟧
+  private open module TT = TyAlg T
 
-Env : Ctx -> Set
-Env = All ty⟦_⟧
+  data Tm : List ty -> ty -> Set where
+    var : forall {Γ τ}   -> Var Γ τ -> Tm Γ τ
+    zz  : forall {Γ}     -> Tm Γ nat
+    ss  : forall {Γ}     -> Tm Γ (nat ⟶ nat)
+    λ   : forall {Γ σ τ} -> Tm (σ • Γ) τ -> Tm Γ (σ ⟶ τ)
+    _$_ : forall {Γ σ τ} -> Tm Γ (σ ⟶ τ) -> Tm Γ σ -> Tm Γ τ
 
-_[_] : forall {Γ τ} -> Env Γ -> Var Γ τ -> ty⟦ τ ⟧
-ρ [ x ] with lookup x ρ
-ρ [ x ] | result _ refl v = v
+module Eval where
+  
+ private open module TT = Term freeTyAlg
 
-⟦_⟧_ : forall {Γ τ} -> Tm Γ τ -> Env Γ -> ty⟦ τ ⟧
-⟦ var x ⟧ ρ = ρ [ x ]
-⟦ zz    ⟧ ρ = zero
-⟦ ss    ⟧ ρ = suc
-⟦ λ t   ⟧ ρ = \x -> ⟦ t ⟧ (check x • ρ)
-⟦ s $ t ⟧ ρ = (⟦ s ⟧ ρ) (⟦ t ⟧ ρ)
+ ty⟦_⟧ : Ty -> Set
+ ty⟦ <nat>   ⟧ = Nat
+ ty⟦ σ <⟶> τ ⟧ = ty⟦ σ ⟧ -> ty⟦ τ ⟧
 
-tm_one : Tm ε nat
-tm_one = ss $ zz
+ Env : Ctx -> Set
+ Env = All ty⟦_⟧
 
-tm_id : Tm ε (nat ⟶ nat)
-tm_id = λ (var (done refl • ε))
+ _[_] : forall {Γ τ} -> Env Γ -> Var Γ τ -> ty⟦ τ ⟧
+ ρ [ x ] with lookup x ρ
+ ρ [ x ] | result _ refl v = v
 
-tm    : Tm ε nat
-tm    = tm_id $ tm_one
+ ⟦_⟧_ : forall {Γ τ} -> Tm Γ τ -> Env Γ -> ty⟦ τ ⟧
+ ⟦ var x ⟧ ρ = ρ [ x ]
+ ⟦ zz    ⟧ ρ = zero
+ ⟦ ss    ⟧ ρ = suc
+ ⟦ λ t   ⟧ ρ = \x -> ⟦ t ⟧ (check x • ρ)
+ ⟦ s $ t ⟧ ρ = (⟦ s ⟧ ρ) (⟦ t ⟧ ρ)
 
-tm_twice : Tm ε ((nat ⟶ nat) ⟶ (nat ⟶ nat))
-tm_twice = λ (λ (f $ (f $ x)))
-  where Γ : Ctx
-        Γ = nat • (nat ⟶ nat) • ε
-        f : Tm Γ (nat ⟶ nat)
-        f = var (vsuc vzero)
-        x : Tm Γ nat
-        x = var vzero
+module Examples where
 
-sem : {τ : Ty} -> Tm ε τ -> ty⟦ τ ⟧
-sem e = ⟦ e ⟧ ε
+  private open module TT = TyAlg freeTyAlg
+  private open module Tm = Term freeTyAlg
+  open Eval
 
-one : Nat
-one = sem tm
+  tm_one : Tm ε nat
+  tm_one = ss $ zz
 
-twice : (Nat -> Nat) -> (Nat -> Nat)
-twice = sem tm_twice
+  tm_id : Tm ε (nat ⟶ nat)
+  tm_id = λ (var (done refl • ε))
+
+  tm    : Tm ε nat
+  tm    = tm_id $ tm_one
+
+  tm_twice : Tm ε ((nat ⟶ nat) ⟶ (nat ⟶ nat))
+  tm_twice = λ (λ (f $ (f $ x)))
+    where Γ : Ctx
+          Γ = nat • (nat ⟶ nat) • ε
+          f : Tm Γ (nat ⟶ nat)
+          f = var (vsuc vzero)
+          x : Tm Γ nat
+          x = var vzero
+
+  sem : {τ : Ty} -> Tm ε τ -> ty⟦ τ ⟧
+  sem e = ⟦ e ⟧ ε
+
+  one : Nat
+  one = sem tm
+
+  twice : (Nat -> Nat) -> (Nat -> Nat)
+  twice = sem tm_twice
