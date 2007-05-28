@@ -235,6 +235,7 @@ transCDefn (CValueT i args ctype cexpr)
 transCDefn (CValueS i [] ctype cclause) 
  = ctype2typesig flg i [] ctype : cclause2funclauses i flg cclause
    where flg = isInfixOp i
+         name = if flg then id2infixName i else id2name i
 transCDefn (CValueS i args ctype cclause) 
  = transCDefn (CValueS i [] ctype' cclause)
    where ctype' = foldr (\ carg e -> CUniv carg e) ctype args
@@ -278,18 +279,11 @@ transCDefn (CClass classargs b csigns)
 transCDefn (CInstance i cargs cinsarg cletdefs)
  = errorDecls "transCDefn: cannot translate: (CInstance i cargs cinsarg cletdefs)"
 
-
 -- Utilities
-
-mkInfixName :: Id -> Name
-mkInfixName i = Name noRange [Hole,Id noRange (getIdString i),Hole]
-
-mkInfixName' :: Id -> Name
-mkInfixName' i = Name noRange [Id noRange (getIdString i)]
 
 ctype2typesig :: InfixP -> Id -> CArgs -> CType -> Declaration
 ctype2typesig flg i args ctype
-  | flg = TypeSig (mkInfixName i) ys   
+  | flg = TypeSig (id2infixName i) ys   
   | otherwise = TypeSig (id2name i) ys
   where xs = concatMap (\ (CArg bns ct) -> bns) args
         ys = foldr (\ (b,i) e -> Fun noRange ((if b then HiddenArg noRange . unnamed else id) (Ident $ QName $ id2name i)) e)
@@ -354,7 +348,7 @@ transCExpr (CApply f args)
                 (parenExpr (transCExpr f))
 	        args
 transCExpr (CBinOp o1 b o2)
- | isSym (head (getIdString b)) = OpApp noRange (mkInfixName b) (map (parenExpr . transCExpr) [o1,o2])
+ | isSym (head (getIdString b)) = OpApp noRange (id2infixName b) (map (parenExpr . transCExpr) [o1,o2])
  | otherwise = transCExpr (CApply (CVar b) [(False,o1),(False,o2)])
 
 transCExpr (CMeta _ _ _ _)
@@ -414,9 +408,10 @@ isInfixOp :: Id -> Bool
 isInfixOp = all (not . isAlphaNum) . getIdString
 
 id2name :: Id -> Name
-id2name i
-    | isSym (head (getIdString i)) = mkInfixName' i
-    | otherwise			   = Name noRange [Id noRange (getIdString i)]
+id2name i = Name noRange [Id noRange (getIdString i)]
+
+id2infixName :: Id -> Name
+id2infixName i = Name noRange [Hole,Id noRange (getIdString i),Hole]
 
 bool2hiding :: Bool -> Hiding
 bool2hiding True = Hidden
