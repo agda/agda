@@ -1,8 +1,7 @@
 module PreludeNat where
-import AlonzoPrelude
+open import AlonzoPrelude public
 import PreludeBool as Bool
 
-open AlonzoPrelude
 open Bool
 
 infix 40 _==_ _<_

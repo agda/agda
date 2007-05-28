@@ -1,5 +1,5 @@
 ALONZO=agda -c
-TESTS=Q Printf
+TESTS=Q Printf Proj TestWith
 RTMODS = RTS RTP
 PRELUDEMODS=AlonzoPrelude PreludeBool PreludeNat PreludeList PreludeString \
   PreludeShow PreludeInt PreludeAll

@@ -260,7 +260,7 @@ processDef (name,Defn typ fvs (Datatype n nind Nothing cs sort isa)) = do
   return [ddecl cons arities,vdecl]  where
       ddecl cs arities= HsDataDecl  dummyLoc [] (dataName name) (tvars arities) cs []
       tvars arities = take (List.maximum arities) $ List.map HsIdent letters
-      vdecl = HsFunBind [ HsMatch dummyLoc hsname (nDummyArgs n) rhs []]
+      vdecl = HsFunBind [ HsMatch dummyLoc hsname (nDummyArgs (n+nind)) rhs []]
       rhs = HsUnGuardedRhs $ HsVar $ unit_con_name
       hsname = dfName name
       nDummyArgs 0 = []

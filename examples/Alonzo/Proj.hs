@@ -5,7 +5,7 @@
 module Proj where
 import RTS
 import qualified RTP
-import qualified PreludeNatType
+import qualified RTN
 import qualified AlonzoPrelude
 import qualified RTP
 name1 = "showTrue"
