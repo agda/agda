@@ -20,6 +20,7 @@ import TypeChecking.Pretty
 import TypeChecking.Substitute
 import TypeChecking.Free
 import TypeChecking.Records
+import TypeChecking.Primitive (constructorForm)
 
 import TypeChecking.Rules.LHS.Problem
 
@@ -121,8 +122,8 @@ unifyIndices flex a us vs = do
 
     unify :: Type -> Term -> Term -> Unify ()
     unify a u v = do
-      u <- ureduce u
-      v <- ureduce v
+      u <- constructorForm =<< ureduce u
+      v <- constructorForm =<< ureduce v
       reportSDoc "tc.lhs.unify" 15 $
 	sep [ text "unify"
 	    , nest 2 $ parens $ prettyTCM u
