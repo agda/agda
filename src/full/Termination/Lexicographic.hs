@@ -86,11 +86,17 @@ instance (Arbitrary call, Arbitrary arg, Ord arg, Ord call)
 prop_recBehaviour_Arbitrary :: RecBehaviour Integer Integer -> Bool
 prop_recBehaviour_Arbitrary = recBehaviourInvariant
 
+
+
 -- | Checks whether a recursion behaviour is empty (either no columns
 -- or all columns empty).
 
 isEmpty :: RecBehaviour arg call -> Bool
 isEmpty rb = cols (size rb) == 0 || rows (size rb) == 0
+
+noCallsLeft :: RecBehaviour arg call -> Bool
+noCallsLeft rb = rows (size rb) == 0
+
 
 prop_isEmpty :: RecBehaviour Integer Integer -> Bool
 prop_isEmpty rb =
@@ -166,7 +172,7 @@ prop_newBehaviour rb =
 
 correctLexOrder :: (Ord arg, Ord call)
                 => RecBehaviour arg call -> LexOrder arg -> Bool
-correctLexOrder rb []        = isEmpty rb
+correctLexOrder rb []        = noCallsLeft rb
 correctLexOrder rb (p0 : ps) =
   okColumn (columns rb ! p0) && correctLexOrder (newBehaviour p0 rb) ps
 
@@ -182,8 +188,8 @@ correctLexOrder rb (p0 : ps) =
 
 lexOrder :: (Ord arg, Ord call) =>
   RecBehaviour arg call -> Either (Set arg, Set call) (LexOrder arg)
-lexOrder rb | isEmpty rb  = Right []
-            | otherwise   = case okColumns of
+lexOrder rb | noCallsLeft rb = Right [] 
+            | otherwise   = case okColumns of 
   []      -> Left errMsg
   (n : _) -> case lexOrder (newBehaviour n rb) of
     Left err -> Left err
@@ -206,6 +212,13 @@ prop_lexOrder rb =
     classify (cols (size rb) >= 2) "interesting" $
     correctLexOrder rb perm
 
+prop_lexOrder_noArgs n 
+  = n > 0 ==> isLeft (lexOrder rb)
+    where rb :: RecBehaviour Integer Integer
+          rb = RB { columns = Map.empty 
+                  , size = Size { rows = n, cols = 0 }
+                  }
+
 ------------------------------------------------------------------------
 -- All tests
 
@@ -215,3 +228,5 @@ tests = do
   quickCheck prop_fromDiagonals
   quickCheck prop_newBehaviour
   quickCheck prop_lexOrder
+  quickCheck prop_lexOrder_noArgs
+  

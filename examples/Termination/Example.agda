@@ -1,5 +1,8 @@
 module Example where
 
+loop : Set
+loop = loop
+
 data Nat : Set where
     zero : Nat
     succ : Nat -> Nat
@@ -10,6 +13,10 @@ id (succ n) = succ (id n)
 
 bad : Nat -> Nat
 bad n = bad n
+
+bad2 : Nat -> Nat
+bad2 (succ x) = bad2 x
+bad2 x = bad2 x
 
 _+_ : Nat -> Nat -> Nat
 zero     + n = n

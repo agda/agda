@@ -158,6 +158,39 @@ prop_terminates_example4 =
   terminates example4 ==
   Left (Map.fromList [(1, (Set.fromList [2], Set.fromList [1]))])
 
+-- | This should terminate.  2007-05-29
+--
+--  @f (succ x) (succ y) = (g x (succ y)) + (f  (succ (succ x)) y)@ 
+--
+--  @g (succ x) (succ y) = (f (succ x) (succ y)) + (g x (succ y))@
+--
+
+example5 :: CallGraph Integer
+example5 = Set.fromList [c1, c2, c3, c4]
+  where
+  f = 1
+  g = 2
+  c1 = Call { source = f, target = g, callId = 1
+            , cm = CallMatrix $ fromLists (Size 2 2) [ [Lt, Unknown]
+                                                     , [Unknown, Le] ] }
+  c2 = Call { source = f, target = f, callId = 2
+            , cm = CallMatrix $ fromLists (Size 2 2) [ [Unknown, Unknown]
+                                                     , [Unknown, Lt] ] }
+  c3 = Call { source = g, target = f, callId = 3
+            , cm = CallMatrix $ fromLists (Size 2 2) [ [Le, Unknown]
+                                                     , [Unknown, Le] ] }
+  c4 = Call { source = g, target = g, callId = 4
+            , cm = CallMatrix $ fromLists (Size 2 2) [ [Lt, Unknown]
+                                                     , [Unknown, Le] ] }
+
+prop_terminates_example5 =
+  isRight (terminates example5)
+{-
+  terminates example5 ==
+  Right (Map.fromList [ (1, [2,1])
+                      , (2, [1])
+                      ])
+-}
 ------------------------------------------------------------------------
 -- All tests
 
@@ -166,3 +199,4 @@ tests = do
   quickCheck prop_terminates_example2
   quickCheck prop_terminates_example3
   quickCheck prop_terminates_example4
+  quickCheck prop_terminates_example5
