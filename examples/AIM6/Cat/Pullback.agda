@@ -12,19 +12,15 @@ module Pull (ℂ : Cat) where
   private open module CC = Category.Category ℂ
   private open module U = Uniq ℂ
 
-  record isPull {A B C D : Obj}(f : A ─→ B)(g : A ─→ C)(f' : C ─→ D)(g' : B ─→ D) : Set1 where
-      A'      : Obj
-      h₁      : A' ─→ C
-      h₂      : A' ─→ B
-      commut  : f' ∘ h₁ == g' ∘ h₂
+  record isPull {A B C D A' : Obj}(f : A ─→ B)(g : A ─→ C)(f' : C ─→ D)(g' : B ─→ D)(h₁ : A' ─→ C)(h₂ : A' ─→ B)(commut : f' ∘ h₁ == g' ∘ h₂) : Set1 where
       unique  : ∃! \(h : A' ─→ A) -> (g ∘ h == h₁) /\ (f ∘ h == h₂)
 
   record pullback {B C D : Obj}(g' : B ─→ D)(f' : C ─→ D) : Set1 where
       A    : Obj
       f    : A ─→ B
       g    : A ─→ C
-      pull : isPull f g f' g'
+      comm : g' ∘ f == f' ∘ g
+      pull : (forall {A' : Obj}(h₁ : A' ─→ C)(h₂ : A' ─→ B)(commut : f' ∘ h₁ == g' ∘ h₂) -> isPull f g f' g' h₁ h₂ commut)
 
   record PullCat : Set2 where
-    ℂ' : Cat
     pull : {B C D : Obj}(g' : B ─→ D)(f' : C ─→ D) -> pullback g' f'

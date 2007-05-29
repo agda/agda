@@ -27,7 +27,7 @@ module Uniq (ℂ : Cat) where
 
   witnessEqual : {A B : Obj}{P : A ─→ B -> Set} -> ∃! P ->
 		 {f g : A ─→ B} -> P f -> P g -> f == g
-  witnessEqual u {f} {g} pf pg = trans f h g (sym h f hf) hg
+  witnessEqual u {f} {g} pf pg = trans (sym hf) hg
     where
       h = getWitness u
 

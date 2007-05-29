@@ -41,8 +41,8 @@ module Category (ℂ : Cat) where
 
   congL : {A B C : Obj}{f₁ f₂ : B ─→ C}{g : A ─→ B} ->
 	  f₁ == f₂ -> f₁ ∘ g == f₂ ∘ g
-  congL p = cong p (refl _)
+  congL p = cong p refl
 
   congR : {A B C : Obj}{f : B ─→ C}{g₁ g₂ : A ─→ B} ->
 	  g₁ == g₂ -> f ∘ g₁ == f ∘ g₂
-  congR p = cong (refl _) p
+  congR p = cong refl p

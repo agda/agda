@@ -10,4 +10,3 @@ synopsis:      A dependently typed proof checker / programming language.
 
 executable:    agda
 main-is:       Main.hs
-ghc-options:   -O
