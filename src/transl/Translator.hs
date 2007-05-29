@@ -232,8 +232,23 @@ transCDef _               = []
 transCDefn :: CDefn -> [Declaration]
 transCDefn (CValueT i args ctype cexpr)
  = transCDefn (CValueS i args ctype (CClause [] cexpr))
-transCDefn (CValueS i [] ctype cclause) 
- = ctype2typesig flg i [] ctype : cclause2funclauses i flg cclause
+transCDefn (CValueS i [] ctype cclause@(CClause cpats cexpr))
+ = case cexpr of
+     CProduct pos csigs
+       -> case ctype of
+            CUniv carg e 
+              -> [Record noRange name 
+                         (carg2telescope carg) 
+                         (transCExpr e) 
+                         (concatMap csig2fields csigs)]
+            CStar _ 0 _  
+              -> [Record noRange name [] (Set noRange) (concatMap csig2fields csigs)]
+            CStar _ n _  
+              -> [Record noRange name [] (SetN noRange n) (concatMap csig2fields csigs)]
+            _ -> errorDecls $ "transCDefn: cannot translate " ++ show csigs
+     CRecord cprops pos cletdefs
+       -> errorDecls "transCDefn: cannot translate CRecord"
+     _ -> ctype2typesig flg i [] ctype : cclause2funclauses i flg cclause
    where flg = isInfixOp i
          name = if flg then id2infixName i else id2name i
 transCDefn (CValueS i args ctype cclause) 
@@ -288,6 +303,15 @@ ctype2typesig flg i args ctype
   where xs = concatMap (\ (CArg bns ct) -> bns) args
         ys = foldr (\ (b,i) e -> Fun noRange ((if b then HiddenArg noRange . unnamed else id) (Ident $ QName $ id2name i)) e)
 		   (transCExpr ctype) xs
+
+csig2fields :: CSign -> [TypeSignature]
+csig2fields (CSign is ctype)
+ = map (f ctype) is
+   where f cty i = TypeSig (name i) (transCExpr cty)
+         name i = if isSym $ head $ getIdString i then id2infixName i
+                  else id2name i
+csig2fields csign
+ = errorDecls $ "csig2fields: cannot translate ("++show csign++")"
 
 carg2telescope :: CArg -> Telescope
 carg2telescope (CArg bis ctype)
@@ -528,6 +552,4 @@ parenPattern (OpAppP r n ps) = ParenP r (OpAppP r n ps')
 parenPattern (RawAppP r ps) = ParenP r (RawAppP r ps')
   where ps' = map parenPattern ps
 parenPattern p = p
-
--- Dummy
 
