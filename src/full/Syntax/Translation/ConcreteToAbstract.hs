@@ -733,7 +733,7 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
 	case p' of
 	    ConP _ x as -> return $ ConP info x (as ++ [q'])
 	    DefP _ x as -> return $ DefP info x (as ++ [q'])
-	    _		-> __IMPOSSIBLE__
+	    _		-> typeError $ InvalidPattern p0
 	where
 	    r = getRange p0
 	    info = PatSource r $ \pr -> if appBrackets pr then ParenP r p0 else p0

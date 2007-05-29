@@ -94,6 +94,7 @@ errorString err = case err of
     IlltypedPattern _ _                        -> "IlltypedPattern"
     IncompletePatternMatching _ _	       -> "IncompletePatternMatching"
     InternalError _			       -> "InternalError"
+    InvalidPattern _                           -> "InvalidPattern"
     LocalVsImportedModuleClash _	       -> "LocalVsImportedModuleClash"
     MetaCannotDependOn _ _ _		       -> "MetaCannotDependOn"
     MetaOccursInItself _		       -> "MetaOccursInItself"
@@ -320,6 +321,8 @@ instance PrettyTCM TypeError where
 	    NotAModuleExpr e -> fsep $
 		pwords "The right-hand side of a module definition must have the form 'M e1 .. en'" ++
 		pwords "where M is a module name. The expression" ++ [pretty e, text "doesn't."]
+            InvalidPattern p -> fsep $
+              pretty p : pwords "is not a valid pattern"
 	    NotAnExpression e -> fsep $
 		[pretty e] ++ pwords "is not a valid expression."
 	    NotAValidLetBinding nd -> fwords $

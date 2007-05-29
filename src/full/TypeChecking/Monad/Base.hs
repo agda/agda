@@ -543,6 +543,7 @@ data TypeError
 	| ClashingImport C.Name A.QName
 	| ClashingModuleImport C.Name A.ModuleName
 	| ModuleDoesntExport C.QName [C.ImportedName]
+	| InvalidPattern C.Pattern
     -- Concrete to Abstract errors
 	| NotAModuleExpr C.Expr
 	    -- ^ The expr was used in the right hand side of an implicit module
