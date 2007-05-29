@@ -71,7 +71,7 @@ termMutual i ts ds =
   (do calls <- collectCalls termDefinition ds
       case terminates calls of
         Left  _ -> failed
-        Right _ -> when (names /= []) $ reportSLn "term.warn.yes" 1 (show (names) ++ " does termination check"))
+        Right _ -> when (names /= []) $ reportSLn "term.warn.yes" 2 (show (names) ++ " does termination check"))
   `catchError` \ e -> case e of
                          PatternErr _ -> failed
                          _ -> throwError e
