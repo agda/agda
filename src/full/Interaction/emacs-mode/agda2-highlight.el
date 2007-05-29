@@ -102,6 +102,11 @@
   "The face used for errors."
   :group 'agda2-highlight)
 
+(defface agda2-highlight-warning-face
+  '((t (:background "yellow")))
+  "The face used for warnings."
+  :group 'agda2-highlight)
+
 (defvar agda2-highlight-faces
   ; The faces that are pointers to other faces need to be evaluated,
   ; hence the splices.
@@ -122,7 +127,8 @@
     (record            . agda2-highlight-record-face)
     (dotted            . agda2-highlight-dotted-face)
     (operator          . agda2-highlight-operator-face)
-    (error             . agda2-highlight-error-face))
+    (error             . agda2-highlight-error-face)
+    (warning           . agda2-highlight-warning-face))
   "An association list mapping from a code aspect to the face used when
 displaying the aspect.
 
@@ -146,6 +152,7 @@ The aspects currently recognised are the following:
 `record'            Record types.
 `string'            Strings.
 `symbol'            Symbols like forall, =, ->, etc.
+`warning'           Warnings.
 ")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

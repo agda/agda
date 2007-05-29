@@ -61,6 +61,8 @@ data MetaInfo = MetaInfo
   { aspect :: Maybe Aspect
   , dotted :: Bool
     -- ^ Is the range part of a dotted pattern?
+  , warning :: Bool
+    -- ^ Is the range part of something which requires a warning?
   , note   :: Maybe String
     -- ^ This note, if present, can be displayed as a tool-tip or
     -- something like that. It should contain useful information about
@@ -139,9 +141,10 @@ several rs m = mconcat $ map (\r -> singleton r m) rs
 
 mergeMetaInfo :: MetaInfo -> MetaInfo -> MetaInfo
 mergeMetaInfo m1 m2 = MetaInfo
-  { aspect = (mplus `on` aspect) m1 m2
-  , dotted = ((||)  `on` dotted) m1 m2
-  , note = case (note m1, note m2) of
+  { aspect  = (mplus `on` aspect) m1 m2
+  , dotted  = ((||)  `on` dotted) m1 m2
+  , warning = ((||)  `on` warning) m1 m2
+  , note    = case (note m1, note m2) of
       (Just n1, Just n2) -> Just $
          if n1 == n2 then n1
                      else addFinalNewLine n1 ++ "----\n" ++ n2
@@ -154,6 +157,7 @@ mergeMetaInfo m1 m2 = MetaInfo
 instance Monoid MetaInfo where
   mempty = MetaInfo { aspect         = Nothing
                     , dotted         = False
+		    , warning	     = False
                     , note           = Nothing
                     , definitionSite = Nothing
                     }
@@ -226,15 +230,16 @@ instance Arbitrary MetaInfo where
   arbitrary = do
     aspect  <- maybeGen arbitrary
     dotted  <- arbitrary
+    warning <- arbitrary
     note    <- maybeGen (list $ elements "abcdefABCDEF/\\.\"'@()åäö\n")
     defSite <- maybeGen (liftM2 (,)
                                 (list $ elements "abcdefABCDEF/\\.\"'@()åäö\n")
                                 arbitrary)
-    return (MetaInfo { aspect = aspect, dotted = dotted, note = note
+    return (MetaInfo { aspect = aspect, dotted = dotted, warning = warning, note = note
                      , definitionSite = defSite })
-  coarbitrary (MetaInfo aspect dotted note defSite) =
+  coarbitrary (MetaInfo aspect dotted warning note defSite) =
     maybeCoGen coarbitrary aspect .
-    coarbitrary dotted .
+    coarbitrary dotted . coarbitrary warning .
     maybeCoGen (coarbitrary . map fromEnum) note .
     maybeCoGen (\(f, p) -> coarbitrary p . coarbitrary (map fromEnum f))
                defSite

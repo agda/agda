@@ -10,6 +10,7 @@ module Interaction.Highlighting.Generate
   ) where
 
 import Interaction.Highlighting.Precise hiding (tests)
+import TypeChecking.Monad hiding (MetaInfo, Primitive, Constructor, Record, Function, Datatype)
 import qualified TypeChecking.Monad as M
 import qualified Syntax.Abstract as A
 import qualified Syntax.Concrete as C
@@ -18,11 +19,13 @@ import qualified Syntax.Parser.Tokens as T
 import qualified Syntax.Position as P
 import qualified Syntax.Scope.Base as S
 import qualified Syntax.Translation.ConcreteToAbstract as CA
+import Control.Monad
 import Data.Monoid
 import Data.Generics
 import Utils.Generics
 import Data.Map (Map)
 import Data.Sequence (Seq, (><))
+import Data.List ((\\))
 import qualified Data.Sequence as Seq
 import qualified Data.Foldable as Seq (toList, foldMap)
 
@@ -49,13 +52,16 @@ data TypeCheckingState = TypeCheckingDone | TypeCheckingNotDone
 -- * It would be nice if module names were highlighted.
 
 generateSyntaxInfo
-  :: TypeCheckingState -> [T.Token] -> CA.TopLevelInfo -> M.TCM File
+  :: TypeCheckingState -> [T.Token] -> CA.TopLevelInfo -> TCM File
 generateSyntaxInfo tcs toks top = do
   nameInfo <- fmap mconcat $ mapM (generate tcs) (Seq.toList names)
+  warningInfo <- if tcs == TypeCheckingNotDone
+                 then return mempty
+                 else computeUnsolvedMetaWarnings
   -- theRest need to be placed before nameInfo here since record field
   -- declarations contain QNames. tokInfo is placed last since token
   -- highlighting is more crude than the others.
-  return (theRest `mappend` nameInfo `mappend` tokInfo)
+  return (theRest `mappend` nameInfo `mappend` tokInfo `mappend` warningInfo)
   where
     tokInfo = Seq.foldMap tokenToFile toks
       where
@@ -173,6 +179,13 @@ generateSyntaxInfo tcs toks top = do
       getModuleName (A.MName { A.mnameToList = xs }) =
         mconcat $ map mod xs
 
+computeUnsolvedMetaWarnings :: TCM File
+computeUnsolvedMetaWarnings = do
+  is <- getInteractionMetas
+  ms <- getOpenMetas
+  rs <- mapM getMetaRange (ms \\ is)
+  return $ several (concatMap rToR rs) $ mempty { warning = True }
+
 concreteBase      = A.nameConcrete . A.qnameName
 concreteQualifier = map A.nameConcrete . A.mnameToList . A.qnameModule
 
@@ -182,10 +195,10 @@ generate :: TypeCheckingState
             -- ^ Some information can only be generated after type
             -- checking. (This can probably be improved.)
          -> A.QName
-         -> M.TCM File
+         -> TCM File
 generate tcs n = do
   mNameKind <- if tcs == TypeCheckingDone then
-                fmap (Just . toAspect . M.theDef) $ M.getConstInfo n
+                fmap (Just . toAspect . theDef) $ getConstInfo n
                else
                 return Nothing
   let m isOp = mempty { aspect = Just $ Name mNameKind isOp }
@@ -194,7 +207,7 @@ generate tcs n = do
                      m
                      (Just $ A.nameBindingSite $ A.qnameName n))
   where
-  toAspect :: M.Defn -> NameKind
+  toAspect :: Defn -> NameKind
   toAspect (M.Axiom {})       = Postulate
   toAspect (M.Function {})    = Function
   toAspect (M.Datatype {})    = Datatype
