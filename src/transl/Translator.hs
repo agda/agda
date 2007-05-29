@@ -165,7 +165,12 @@ t2sCDef def                = def
 
 t2sCDefn :: CDefn -> CDefn
 t2sCDefn (CValueT i args ctype cexpr)
- = CValueS i args ctype (CClause [] $ t2sCExpr cexpr)
+--  = CValueS i args ctype (CClause [] $ t2sCExpr cexpr)
+ = CValueS i args ctype (CClause cpats $ t2sCExpr cexpr)
+   where cpats = concatMap carg2bcpat args
+         carg2bcpat (CArg bis _) = map f bis
+         f (b,i) = (b, CPVar (CPatId i))
+
 t2sCDefn cdefn = cdefn
 
 t2sCExpr :: CExpr -> CExpr
@@ -208,7 +213,7 @@ transCLetDef :: CLetDef -> [Declaration]
 transCLetDef (CSimple cdef)  = transCDef cdef
 transCLetDef (CMutual cdefs) = [Mutual noRange (concatMap transCDef cdefs)]
 transCLetDef (CLetDefComment cs)
- | not ("--#include" `isPrefixOf` cs) = []
+ | not ("--#include" `isPrefixOf` cs) = commentDecls cs
  | otherwise = maybe []
                      (\ md -> [Import noRange
  				    (QName (Name noRange [Id noRange md]))
@@ -231,7 +236,10 @@ transCDef _               = []
 
 transCDefn :: CDefn -> [Declaration]
 transCDefn (CValueT i args ctype cexpr)
- = transCDefn (CValueS i args ctype (CClause [] cexpr))
+ = transCDefn (CValueS i args ctype (CClause cpats cexpr))
+   where cpats = concatMap carg2bcpat args
+         carg2bcpat (CArg bis _) = map f bis
+         f (b,i) = (b, CPVar (CPatId i))
 transCDefn (CValueS i [] ctype cclause@(CClause cpats cexpr))
  = case cexpr of
      CProduct pos csigs
@@ -247,7 +255,14 @@ transCDefn (CValueS i [] ctype cclause@(CClause cpats cexpr))
               -> [Record noRange name [] (SetN noRange n) (concatMap csig2fields csigs)]
             _ -> errorDecls $ "transCDefn: cannot translate " ++ show csigs
      CRecord cprops pos cletdefs
-       -> errorDecls "transCDefn: cannot translate CRecord"
+       -> ctype2typesig flg i [] ctype 
+       :  [FunClause (LHS (RawAppP noRange (op : pats)) [] [])
+                     (RHS (Rec noRange $ map decls2namexpr decls))
+                     (localdefs undefined)]
+           where 
+             decls = map transCLetDef cletdefs
+             op  = IdentP $ str2qname $ getIdString i
+	     pats = ctype2pats ctype 
      _ -> ctype2typesig flg i [] ctype : cclause2funclauses i flg cclause
    where flg = isInfixOp i
          name = if flg then id2infixName i else id2name i
@@ -295,6 +310,12 @@ transCDefn (CInstance i cargs cinsarg cletdefs)
  = errorDecls "transCDefn: cannot translate: (CInstance i cargs cinsarg cletdefs)"
 
 -- Utilities
+
+ctype2pats :: CType -> [Pattern]
+ctype2pats (CUniv carg cexpr)
+  = map (IdentP . QName. id2name) (exIds carg) ++ ctype2pats cexpr
+    where exIds (CArg bis _) = map snd $ filter (not . fst) bis
+ctype2pats _ = []
 
 ctype2typesig :: InfixP -> Id -> CArgs -> CType -> Declaration
 ctype2typesig flg i args ctype
@@ -385,7 +406,8 @@ transCExpr ce@(CSum _)      = errorExpr $ show ce
 transCExpr ce@(CCCon _ _)   = errorExpr $ show ce
 transCExpr ce@(Ccase _ _)   = errorExpr $ show ce
 transCExpr ce@(CClos _ _)   = errorExpr $ show ce
-transCExpr ce@(Ccomment _ _ _)   = errorExpr $ show ce
+-- transCExpr ce@(Ccomment _ c e)   = App noRange (commentExpr c) (transCExpr e)
+transCExpr ce@(Ccomment _ c e)   = transCExpr e
 transCExpr ce@(CPackageType)   = errorExpr $ show ce
 transCExpr ce@(CIndSum _ _)   = errorExpr $ show ce
 transCExpr ce@(CExternal _)   = errorExpr $ show ce
@@ -412,19 +434,30 @@ parenExpr e                    = Paren noRange e
 
 -- Utilities
 
----- for non-supported translation 
+---- for non-supported translation and for comment (all of these kluges !)
 
 errorDecls :: String -> [Declaration]
 errorDecls msg 
- = [TypeSig (Name noRange [Id noRange "<error>"])
-    (Ident (str2qname msg))
-   ]
+ = [TypeSig (str2name "") (errorExpr msg)]
 
 errorExpr :: String -> Expr
-errorExpr s = Lit (LitString noRange ("<error> : " ++ s))
+errorExpr s = Ident (str2qname $ "<error> : " ++ s)
+
+commentDecls :: String -> [Declaration]
+commentDecls msg
+ = [TypeSig (str2name "{- ") (commentExpr' msg)]
+
+commentExpr :: String -> Expr
+commentExpr s = Ident (str2qname $ "{- " ++ s ++ " -}")
+
+commentExpr' :: String -> Expr
+commentExpr' s = Ident (str2qname $ s ++ " -}")
 
 str2qname :: String -> QName
-str2qname s = QName (Name noRange [Id noRange s])
+str2qname = QName . str2name
+
+str2name :: String -> Name
+str2name s = Name noRange [Id noRange s]
 
 ----
 
@@ -432,7 +465,7 @@ isInfixOp :: Id -> Bool
 isInfixOp = all (not . isAlphaNum) . getIdString
 
 id2name :: Id -> Name
-id2name i = Name noRange [Id noRange (getIdString i)]
+id2name i = str2name (getIdString i)
 
 id2infixName :: Id -> Name
 id2infixName i = Name noRange [Hole,Id noRange (getIdString i),Hole]
@@ -450,18 +483,17 @@ type InfixP = Bool
 cclause2funclauses
  :: Id -> InfixP -> CClause -> [Declaration]
 cclause2funclauses i flg (CClause cpats expr)
- | isCcase  expr = liftCcase i flg cpats expr
---  | isCBinOp expr
---      = [FunClause (RawAppP noRange (intersperse op pats)) 
--- 		              (RHS (transCExpr expr))
--- 		              (localdefs expr)]
- | flg
-     = [FunClause (LHS (RawAppP noRange (intersperse op pats)) [] [])
-		  (RHS (transCExpr expr))
-                  (localdefs expr)]
- | otherwise = [FunClause (LHS (RawAppP noRange (op : pats)) [] [])
-	                  (RHS (transCExpr expr))
-		          (localdefs expr)]
+ = case expr of
+     Ccase _ _ 
+       -> liftCcase i flg cpats expr
+     _ | flg
+       -> [FunClause (LHS (RawAppP noRange (intersperse op pats)) [] [])
+		     (RHS (transCExpr expr))
+                     (localdefs expr)]
+     _ | otherwise 
+       -> [FunClause (LHS (RawAppP noRange (op : pats)) [] [])
+	             (RHS (transCExpr expr))
+		     (localdefs expr)]
   where twoargs = 2 == length cpats
         op  = IdentP $ str2qname $ getIdString i
         pats = map (parenPattern . 
@@ -490,7 +522,7 @@ liftCcase n flg pats (Ccase cexpr ccasearms)
                     -> case ccasearms of
                          [] -> absurdcc n flg pats iv
                          _  -> concatMap (liftcc n flg pats iv) ccasearms
-                  _ -> error (show cexpr ++ " not in args")
+                  _ -> errorDecls (show cexpr ++ " not in args")
       _      -> errorDecls "now liftCcase pats can be applied on simple variable"
     where
       within x ((i,(_,CPVar (CPatId x'))):_)  | x == x' = Just i
@@ -553,3 +585,13 @@ parenPattern (RawAppP r ps) = ParenP r (RawAppP r ps')
   where ps' = map parenPattern ps
 parenPattern p = p
 
+decls2namexpr :: [Declaration] -> (Name,Expr)
+decls2namexpr ds
+ = case head $ reverse ds of
+     FunClause (LHS (IdentP (QName name)) _ _) (RHS e) w
+       -> (name, e)
+     FunClause (LHS pat _ _) (RHS e) w
+       -> case pat of
+           RawAppP _ [IdentP (QName n)] -> (n,e)
+           _                            -> (str2name "%%var%%", e)
+     _ -> (str2name "", errorExpr "in translating CRecord")
