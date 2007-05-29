@@ -6,12 +6,18 @@
 
 module Termination.CallGraph
   ( Order(..)
+  , (.*.)
+  , infimum
+  , supremum
   , Index
   , CallMatrix(..)
   , callMatrixInvariant
   , Call(..)
   , callInvariant
   , CallGraph
+  , emptyCallGraph   
+  , unionCallGraphs
+  , insertCallGraph
   , complete
   , completePrecondition
   , Termination.CallGraph.tests
@@ -36,7 +42,18 @@ import Data.List
 
 data Order
   = Lt | Le | Unknown
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Show)
+
+{- | Information order.  'Unknown' <= 'Le' <= 'Lt'.
+     The bigger the element of 'Order' the smaller, hence, more informative, 
+     the order between values it represents.
+-}
+
+instance Ord Order where
+  _       <= Lt = True
+  Unknown <= _  = True
+  Le      <= Le = True
+  _       <= _  = False
 
 instance Arbitrary Order where
   arbitrary = elements [Lt, Le, Unknown]
@@ -45,15 +62,22 @@ instance Arbitrary Order where
   coarbitrary Le      = variant 1
   coarbitrary Unknown = variant 2
 
--- | Addition of 'Order's.
+{- | Addition of 'Order's.  This coincides with the supremum.  
+The neutral (and bottom) element is 'Unknown'. -}
 
+(.+.) :: Order -> Order -> Order
+(.+.) = max
+
+{-
 (.+.) :: Order -> Order -> Order
 Lt      .+. _  = Lt
 Le      .+. Lt = Lt
 Le      .+. _  = Le
 Unknown .+. o  = o
+-}
 
--- | Multiplication of 'Order's.
+{- | Multiplication of 'Order's.  Sequential composition.  
+The neutral element is 'Le'. -}
 
 (.*.) :: Order -> Order -> Order
 Lt      .*. Unknown = Unknown
@@ -62,7 +86,15 @@ Le      .*. o       = o
 Unknown .*. _       = Unknown
 
 -- | @('Order', '.+.', '.*.')@ forms a semiring, with 'Unknown' as zero
--- and 'Le' as one.
+-- and 'Le' as one.  
+
+-- | 'supremum' works also for empty lists (unlike 'List.maximum').
+supremum :: [Order] -> Order
+supremum = foldl max Unknown
+
+-- | 'infimum' works also for empty lists (unlike 'List.maximum').
+infimum :: [Order] -> Order
+infimum = foldl min Lt
 
 orderSemiring :: Semiring Order
 orderSemiring =
@@ -70,6 +102,7 @@ orderSemiring =
                     , Semiring.zero = Unknown, Semiring.one = Le}
 
 prop_orderSemiring = Semiring.semiringInvariant orderSemiring
+
 
 ------------------------------------------------------------------------
 -- Call matrices
@@ -215,6 +248,18 @@ c1 >*< c2 =
 -- | A call graph is a set of calls.
 
 type CallGraph call = Set (Call call)
+
+emptyCallGraph :: CallGraph call
+emptyCallGraph = Set.empty
+
+sgCallGraph :: Call call -> CallGraph call
+sgCallGraph = Set.singleton
+
+unionCallGraphs :: CallGraph call -> CallGraph call -> CallGraph call
+unionCallGraphs = Set.union
+
+insertCallGraph :: Call call -> CallGraph call -> CallGraph call
+insertCallGraph = Set.insert
 
 -- | Generates a call set satisfying 'completePrecondition'.
 

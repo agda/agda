@@ -70,6 +70,7 @@ exposed-modules: AgdaMain
                  Termination.Matrix
                  Termination.RCall
                  Termination.Semiring
+                 Termination.TermCheck
                  Termination.Termination
                  Termination.Utilities
                  Termination.Utils

@@ -363,6 +363,10 @@ data Call = CheckClause Type A.Clause (Maybe Clause)
 	  | ScopeCheckDeclaration D.NiceDeclaration (Maybe [A.Declaration])
 	  | ScopeCheckLHS C.Name C.Pattern (Maybe A.LHS)
 	  | ScopeCheckDefinition D.NiceDefinition (Maybe A.Definition)
+	  | forall a. TermFunDef Range Name [A.Clause] (Maybe a)
+            -- actually, 'a' is Termination.TermCheck.CallGraph
+            -- but I was to lazy to import the stuff here --Andreas,2007-5-29
+
     deriving (Typeable)
 
 instance HasRange a => HasRange (Trace a) where
@@ -391,6 +395,7 @@ instance HasRange Call where
     getRange (ScopeCheckLHS _ p _)	  = getRange p
     getRange (ScopeCheckDefinition d _)	  = getRange d
     getRange (CheckDotPattern e _ _)	  = getRange e
+    getRange (TermFunDef i _ _ _)	  = getRange i
 
 ---------------------------------------------------------------------------
 -- ** Builtin things
@@ -481,7 +486,7 @@ data TypeError
 	| DifferentArities
 	    -- ^ Varying number of arguments for a function.
 	| WrongHidingInLHS Type
-	    -- ^ The left hand side of a function defintion has a hidden argument
+	    -- ^ The left hand side of a function definition has a hidden argument
 	    --	 where a non-hidden was expected.
 	| WrongHidingInLambda Type
 	    -- ^ Expected a non-hidden function and found a hidden lambda.

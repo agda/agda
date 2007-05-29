@@ -48,6 +48,8 @@ import TypeChecking.Serialise
 import Compiler.Agate.Main as Agate
 import Compiler.Alonzo.Main as Alonzo
 
+import Termination.TermCheck
+
 import Utils.Monad
 import Utils.IO
 import Utils.FileName
@@ -101,6 +103,9 @@ runAgda =
 
 				-- Type check
 				checkDecls $ topLevelDecls topLevel
+
+                                -- Termination check
+                                termDecls $ topLevelDecls topLevel
 
 				-- Set the scope
 				setScope $ outsideScope topLevel

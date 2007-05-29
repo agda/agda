@@ -425,6 +425,9 @@ instance PrettyTCM Call where
 	ScopeCheckLHS x p _ ->
 	    fsep $ pwords "when scope checking the left-hand side" ++ [pretty p] ++
 		   pwords "in the definition of" ++ [pretty x]
+	TermFunDef _ f _ _ ->
+	    fsep $ pwords "when termination checking the definition of" ++ [prettyTCM f]
+
 	where
 	    hPretty a@(Arg h _) = pretty =<< abstractToConcreteCtx (hiddenArgumentCtx h) a
 
