@@ -78,7 +78,7 @@ isMain n = (show n == "mainS")
 
 getConArity :: QName -> IM Nat
 getConArity qn = do
-        (Defn _ ty (Constructor np origqn _ isa)) <- getConstInfo qn        
+        (Defn _ ty _ (Constructor np origqn _ isa)) <- getConstInfo qn        
 	ty' <- normalise ty
         return $ typeArity ty' - np
         -- return $ arity ty'
@@ -234,7 +234,7 @@ foldClauses name n (c:cs) = do
 	return (head:cont:tail)
 
 processDef :: (Name,Definition) -> IM [HsDecl]
-processDef (name,Defn typ fvs (Function clauses isa)) = 
+processDef (name,Defn typ fvs _ (Function clauses isa)) = 
     -- mapM (processClause name) clauses
     do
         hsDecls <- foldClauses name 1 clauses
@@ -242,7 +242,7 @@ processDef (name,Defn typ fvs (Function clauses isa)) =
                 rhs = HsUnGuardedRhs $ HsVar $ UnQual $ dfNameSub name 1
 
  
-processDef (name,Defn typ fvs (Datatype n nind Nothing [] sort isa)) = do
+processDef (name,Defn typ fvs _ (Datatype n nind Nothing [] sort isa)) = do
   return [ddecl,vdecl]  where
       ddecl = HsDataDecl  dummyLoc [] (dataName name) tvars cons []
       tvars = []
@@ -254,7 +254,7 @@ processDef (name,Defn typ fvs (Datatype n nind Nothing [] sort isa)) = do
       nDummyArgs 0 = []
       nDummyArgs k = (HsPVar $ HsIdent ("v" ++ (show k))) : nDummyArgs (k-1)
 
-processDef (name,Defn typ fvs (Datatype n nind Nothing cs sort isa)) = do
+processDef (name,Defn typ fvs _ (Datatype n nind Nothing cs sort isa)) = do
   cons <- consForName name cs
   arities <- getConArities cs
   return [ddecl cons arities,vdecl]  where
@@ -267,7 +267,7 @@ processDef (name,Defn typ fvs (Datatype n nind Nothing cs sort isa)) = do
       nDummyArgs k = (HsPVar $ HsIdent ("v" ++ (show k))) : nDummyArgs (k-1)
 
 -- Records are translated to a data with one cons
-processDef (name, Defn typ fvs (Record n clauses fields tel sort isa)) =  do
+processDef (name, Defn typ fvs _ (Record n clauses fields tel sort isa)) =  do
    -- liftIO $ print arity
    -- liftIO $ print fields
    return [ddecl arity tel,vdecl tel]  where
@@ -284,12 +284,12 @@ processDef (name, Defn typ fvs (Record n clauses fields tel sort isa)) =  do
       	nDummyArgs 0 = []
       	nDummyArgs k = (HsPVar $ HsIdent ("v" ++ (show k))) : nDummyArgs (k-1)
 	
-processDef def@(name,Defn typ fvs con@(Constructor n origqn qn isa)) = do
+processDef def@(name,Defn typ fvs _ con@(Constructor n origqn qn isa)) = do
     return []
 
-processDef def@(name,Defn typ fvs Axiom) = return []
+processDef def@(name,Defn typ fvs _ Axiom) = return []
 
-processDef (name,Defn typ fvs (Primitive info prim expr)) = return $
+processDef (name,Defn typ fvs _ (Primitive info prim expr)) = return $
   [HsFunBind [HsMatch dummyLoc hsid  [] rhs decls]] where
              -- rhs = HsUnGuardedRhs $ error $ "primitive: " ++ (show prim)
              rhs = HsUnGuardedRhs $ HsVar $ rtpQName prim
@@ -297,7 +297,7 @@ processDef (name,Defn typ fvs (Primitive info prim expr)) = return $
              hsid = dfName name
 
 
-processDef (_, Defn _ _ (Datatype _ _ (Just _) _ _ _)) = error "Unimplemented: Datatype from module"
+processDef (_, Defn _ _ _ (Datatype _ _ (Just _) _ _ _)) = error "Unimplemented: Datatype from module"
 
 {-
 processDef (name,Defn typ fvs _) = return $

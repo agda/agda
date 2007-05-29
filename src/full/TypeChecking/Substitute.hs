@@ -50,7 +50,7 @@ instance Apply Telescope where
   apply (ExtendTel _ tel) (t : ts) = absApp tel (unArg t) `apply` ts
 
 instance Apply Definition where
-    apply (Defn x t d) args = Defn x (piApply t args) (apply d args)
+    apply (Defn x t df d) args = Defn x (piApply t args) df (apply d args)
 
 instance Apply Defn where
     apply Axiom _			  = Axiom
@@ -72,6 +72,10 @@ instance Apply ClauseBody where
     apply (NoBind b)	   (_:args)	  = b `apply` args
     apply (Body _)	   (_:_)	  = __IMPOSSIBLE__
     apply  NoBody	    _		  = NoBody
+
+instance Apply DisplayTerm where
+  apply (DTerm v)	   args = DTerm $ apply v args
+  apply (DWithApp v args') args = DWithApp v $ args' ++ args
 
 instance Apply t => Apply [t] where
     apply ts args = map (`apply` args) ts
@@ -115,7 +119,7 @@ instance Abstract Telescope where
   abstract (ExtendTel arg tel') tel = ExtendTel arg $ fmap (`abstract` tel) tel'
 
 instance Abstract Definition where
-    abstract tel (Defn x t d) = Defn x (telePi tel t) (abstract tel d)
+    abstract tel (Defn x t df d) = Defn x (telePi tel t) df (abstract tel d)
 
 instance Abstract Defn where
     abstract tel Axiom			    = Axiom
@@ -185,6 +189,10 @@ instance Subst Type where
 
 instance Subst t => Subst (Blocked t) where
     substs us b = fmap (substs us) b
+
+instance Subst DisplayTerm where
+  substs us (DTerm v)	     = DTerm $ substs us v
+  substs us (DWithApp vs ws) = uncurry DWithApp $ substs us (vs, ws)
 
 instance Subst Telescope where
   substs us  EmptyTel	      = EmptyTel

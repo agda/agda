@@ -76,6 +76,9 @@ instance Pretty Expr where
 		    prOp []	       es       = map pretty es
 	    OpApp _ (NoName _ _) _ -> __IMPOSSIBLE__
 
+	    WithApp _ e es -> fsep $
+	      pretty e : map ((text "|" <+>) . pretty) es
+
 	    HiddenArg _ e -> braces $ pretty e
 	    Lam _ bs e ->
 		sep [ text "\\" <> fsep (map pretty bs) <+> text "->"

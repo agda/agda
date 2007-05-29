@@ -305,6 +305,11 @@ instance ToConcrete A.Expr C.Expr where
 	     e2' <- toConcreteCtx ArgumentCtx e2
 	     return $ C.App (getRange i) e1' e2'
 
+    toConcrete (A.WithApp i e es) =
+      bracket withAppBrackets $ do
+	e : es <- mapM (toConcreteCtx WithAppCtx) (e : es)
+	return $ C.WithApp (getRange i) e es
+
     toConcrete e@(A.Lam i _ _)	    =
 	bracket lamBrackets
 	$ case lamView e of

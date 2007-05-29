@@ -428,7 +428,16 @@ instance InstantiateFull Char where
     instantiateFull = return
 
 instance InstantiateFull Definition where
-    instantiateFull (Defn x t d) = uncurry (Defn x) <$> instantiateFull (t, d)
+    instantiateFull (Defn x t df d) = do
+      (t, (df, d)) <- instantiateFull (t, (df, d))
+      return $ Defn x t df d
+
+instance InstantiateFull DisplayForm where
+  instantiateFull (Display n ps v) = uncurry (Display n) <$> instantiateFull (ps, v)
+
+instance InstantiateFull DisplayTerm where
+  instantiateFull (DTerm v)	   = DTerm <$> instantiateFull v
+  instantiateFull (DWithApp vs ws) = uncurry DWithApp <$> instantiateFull (vs, ws)
 
 instance InstantiateFull Defn where
     instantiateFull d = case d of

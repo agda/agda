@@ -74,7 +74,7 @@ checkFunDef i name cs =
 	cs <- mapM rebindClause cs
 
 	-- Add the definition
-	addConstant name $ Defn name t $ Function cs $ Info.defAbstract i
+	addConstant name $ Defn name t (defaultDisplayForm name) $ Function cs $ Info.defAbstract i
 	verbose 10 $ do
 	  dx <- prettyTCM name
 	  t' <- prettyTCM . defType =<< getConstInfo name
@@ -143,7 +143,7 @@ checkWithFunction (WithFunction aux gamma delta as b qs perm cs) = do
 
   -- Add the type of the auxiliary function to the signature
   let auxType = telePi delta $ foldr fun b as
-  addConstant aux (Defn aux auxType Axiom)
+  addConstant aux (Defn aux auxType (defaultDisplayForm aux) Axiom) -- TODO: with display forms
   reportSDoc "tc.with.top" 10 $ sep
     [ text "added with function of type"
     , nest 2 $ prettyTCM auxType

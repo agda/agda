@@ -60,7 +60,7 @@ checkAxiom _ x e = do
     [ text "checked axiom"
     , nest 2 $ prettyTCM x <+> text ":" <+> prettyTCM t
     ]
-  addConstant x (Defn x t Axiom)
+  addConstant x (Defn x t (defaultDisplayForm x) Axiom)
 
 
 -- | Type check a primitive function declaration.
@@ -72,7 +72,7 @@ checkPrimitive i x e =
     noConstraints $ equalType t t'
     let s  = show $ nameConcrete $ qnameName x
     bindPrimitive s $ pf { primFunName = x }
-    addConstant x (Defn x t $ Primitive (Info.defAbstract i) s [])
+    addConstant x (Defn x t (defaultDisplayForm x) $ Primitive (Info.defAbstract i) s [])
     where
 	nameString (Name _ x _ _) = show x
 

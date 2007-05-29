@@ -97,11 +97,11 @@ applySection new old ts rd rm = liftTCM $ do
     copyDef ts (x, d) = case Map.lookup x rd of
 	Nothing -> return ()  -- if it's not in the renaming it was private and
 			      -- we won't need it
-	Just y	-> addConstant y nd
+	Just y	-> addConstant y (nd y)
       where
 	t  = defType d `apply` ts
 	-- the name is set by the addConstant function
-	nd = Defn __IMPOSSIBLE__ t def
+	nd y = Defn __IMPOSSIBLE__ t (defaultDisplayForm y) def
 	def  = case theDef d of
 		Constructor n c d a	-> Constructor (n - size ts) c (copyName d) a
 		Datatype np ni _ cs s a -> Datatype (np - size ts) ni (Just cl) (map copyName cs) s a

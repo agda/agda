@@ -288,6 +288,11 @@ instance ToAbstract C.Expr A.Expr where
   -- Operator application
       C.OpApp r op es -> toAbstractOpApp r op es
 
+  -- With application
+      C.WithApp r e es -> do
+	e : es <- mapM (toAbstractCtx WithAppCtx) (e : es)
+	return $ A.WithApp (ExprRange r) e es
+
   -- Malplaced hidden argument
       C.HiddenArg _ _ -> nothingAppliedToHiddenArg e
 

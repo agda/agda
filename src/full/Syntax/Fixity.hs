@@ -35,6 +35,7 @@ defaultFixity = LeftAssoc noRange 20
 data Precedence = TopCtx | FunctionSpaceDomainCtx
 		| LeftOperandCtx Fixity | RightOperandCtx Fixity
 		| FunctionCtx | ArgumentCtx | InsideOperandCtx
+                | WithAppCtx
     deriving (Show,Typeable,Data)
 
 
@@ -57,6 +58,7 @@ opBrackets f1
 opBrackets _ TopCtx = False
 opBrackets _ FunctionSpaceDomainCtx = False
 opBrackets _ InsideOperandCtx	    = False
+opBrackets _ WithAppCtx             = False
 opBrackets _ _			    = True
 
 -- | Does a lambda-like thing (lambda, let or pi) need brackets in the given
@@ -72,6 +74,12 @@ lamBrackets _			= True
 appBrackets :: Precedence -> Bool
 appBrackets ArgumentCtx	= True
 appBrackets _		= False
+
+-- | Does a with application need brackets?
+withAppBrackets :: Precedence -> Bool
+withAppBrackets TopCtx                 = False
+withAppBrackets FunctionSpaceDomainCtx = False
+withAppBrackets _                      = True
 
 -- | Does a function space need brackets?
 piBrackets :: Precedence -> Bool

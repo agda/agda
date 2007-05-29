@@ -32,6 +32,7 @@ data Expr
 	| QuestionMark MetaInfo		     -- ^ meta variable for interaction
         | Underscore   MetaInfo		     -- ^ meta variable for hidden argument (must be inferred locally)
         | App  ExprInfo Expr (NamedArg Expr) -- ^
+	| WithApp ExprInfo Expr [Expr]	     -- ^ with application
         | Lam  ExprInfo LamBinding Expr	     -- ^
         | Pi   ExprInfo Telescope Expr	     -- ^
 	| Fun  ExprInfo (Arg Expr) Expr	     -- ^ independent function space
@@ -185,6 +186,7 @@ instance HasRange Expr where
     getRange (QuestionMark i)	= getRange i
     getRange (Underscore  i)	= getRange i
     getRange (App i _ _)	= getRange i
+    getRange (WithApp i _ _)	= getRange i
     getRange (Lam i _ _)	= getRange i
     getRange (Pi i _ _)		= getRange i
     getRange (Fun i _ _)	= getRange i

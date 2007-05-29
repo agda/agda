@@ -161,6 +161,8 @@ checkExpr e t =
 		(vs, t1, cs) <- checkArguments (getRange hd) args t0 t
 		blockTerm t (f vs) $ (cs ++) <$> equalType t1 t
 
+	A.WithApp _ e es -> typeError $ NotImplemented "type checking of with application"
+
 	A.App i e arg -> do
 	    (v0, t0)	 <- inferExpr e
 	    (vs, t1, cs) <- checkArguments (getRange e) [arg] t0 t

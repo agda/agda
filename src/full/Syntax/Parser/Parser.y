@@ -319,8 +319,17 @@ Expr
     | Expr1 %prec LOWEST	{ $1 }
 
 -- Level 1: Application
-Expr1
-    : Application   { RawApp (getRange $1) $1 }
+Expr1  : WithExprs { case $1 of
+		     { [e]    -> e
+		     ; e : es -> WithApp (fuseRange e es) e es
+		     ; []     -> __IMPOSSIBLE__ 
+		     }
+		   }
+
+WithExprs :: { [Expr] }
+WithExprs
+  : Application3 '|' WithExprs { RawApp (getRange $1) $1 :  $3 }
+  | Application		       { [RawApp (getRange $1) $1] }
 
 Application :: { [Expr] }
 Application
@@ -332,6 +341,11 @@ Expr2
     : '\\' LamBindings Expr	   { Lam (fuseRange $1 $3) $2 $3 }
     | 'let' Declarations 'in' Expr { Let (fuseRange $1 $4) $2 $4 }
     | Expr3			   { $1 }
+
+Application3 :: { [Expr] }
+Application3
+    : Expr3		 { [$1] }
+    | Expr3 Application3 { $1 : $2 }
 
 -- Level 3: Atoms
 Expr3
@@ -505,29 +519,12 @@ CommaImportNames1
 -- A left hand side of a function clause. We parse it as an expression, and
 -- then check that it is a valid left hand side.
 LHS :: { LHS }
-LHS : Expr1 WithPatterns WithExpressions {% do
-	      { p <- exprToPattern $1
-	      ; return (LHS p $2 $3)
-	      } }
-
-WithPatterns :: { [Pattern] }
-WithPatterns
-  : {- empty -}		   { [] }
-  | '|' Expr1 WithPatterns {% do
-	      { p <- exprToPattern $2
-	      ; return (p : $3)
-	      } }
+LHS : Expr1 WithExpressions {% exprToLHS $1 >>= \p -> return (p $2) }
 
 WithExpressions :: { [Expr] }
 WithExpressions
-  : {- empty -}			    { [] }
-  | 'with' Expr MoreWithExpressions { $2 : $3 }
-
-MoreWithExpressions :: { [Expr] }
-MoreWithExpressions
-  : {- empty -}		     { [] }
-  | '|' Expr WithExpressions { $2 : $3 }
-
+  : {- empty -}	{ [] }
+  | 'with' Expr { case $2 of { WithApp _ e es -> e : es; e -> [e] } }
 
 -- Where clauses are optional.
 WhereClause :: { WhereClause }
@@ -815,6 +812,12 @@ verifyImportDirective i =
 {--------------------------------------------------------------------------
     Patterns
  --------------------------------------------------------------------------}
+
+-- | Turn an expression into a left hand side.
+exprToLHS :: Expr -> Parser ([Expr] -> LHS)
+exprToLHS e = case e of
+  WithApp r e es -> LHS <$> exprToPattern e <*> mapM exprToPattern es
+  _		 -> LHS <$> exprToPattern e <*> return []
 
 -- | Turn an expression into a pattern. Fails if the expression is not a
 --   valid pattern.

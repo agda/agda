@@ -276,8 +276,21 @@ data Section = Section
 emptySignature :: Signature
 emptySignature = Sig Map.empty Map.empty
 
+data DisplayForm = Display Nat	  -- ^ free variables
+			   [Term] -- ^ patterns for arguments
+			   DisplayTerm -- ^ display form
+  deriving (Typeable, Data)
+
+data DisplayTerm = DWithApp [DisplayTerm] Args
+		 | DTerm Term
+  deriving (Typeable, Data)
+
+defaultDisplayForm :: QName -> DisplayForm
+defaultDisplayForm c = Display 0 [] (DTerm $ Def c [])
+
 data Definition = Defn { defName     :: QName
 		       , defType     :: Type	-- type of the lifted definition
+		       , defDisplay  :: DisplayForm
 		       , theDef	     :: Defn
 		       }
     deriving (Typeable, Data)
@@ -312,11 +325,11 @@ data PrimFun = PrimFun
     deriving (Typeable)
 
 defClauses :: Definition -> [Clause]
-defClauses (Defn _ _ (Function cs _))		    = cs
-defClauses (Defn _ _ (Primitive _ _ cs))	    = cs
-defClauses (Defn _ _ (Datatype _ _ (Just c) _ _ _)) = [c]
-defClauses (Defn _ _ (Record _ (Just c) _ _ _ _))   = [c]
-defClauses _					    = []
+defClauses (Defn _ _ _ (Function cs _))		      = cs
+defClauses (Defn _ _ _ (Primitive _ _ cs))	      = cs
+defClauses (Defn _ _ _ (Datatype _ _ (Just c) _ _ _)) = [c]
+defClauses (Defn _ _ _ (Record _ (Just c) _ _ _ _))   = [c]
+defClauses _					      = []
 
 defAbstract :: Definition -> IsAbstract
 defAbstract d = case theDef d of

@@ -104,7 +104,7 @@ stripWithClausePatterns gamma qs perm ps = do
 
             -- Compute the argument telescope for the constructor
             Con c []    <- constructorForm =<< normalise (Con c [])
-            Defn _ ct (Constructor np _ _ _)  <- getConstInfo c
+            Defn _ ct _ (Constructor np _ _ _)  <- getConstInfo c
             reportSDoc "tc.with.strip" 20 $ text "ct = " <+> prettyTCM ct
             let ct' = flip apply (take np us) ct
             reportSDoc "tc.with.strip" 20 $ text "ct' = " <+> prettyTCM ct

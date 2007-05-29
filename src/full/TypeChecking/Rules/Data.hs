@@ -53,8 +53,9 @@ checkDataDef i name ps cs =
 
 	    -- Change the datatype from an axiom to a datatype with no constructors.
 	    escapeContext (size tel) $
-	      addConstant name (Defn name t $ Datatype npars nofIxs Nothing []
-						       s (Info.defAbstract i)
+	      addConstant name ( Defn name t (defaultDisplayForm name)
+			       $ Datatype npars nofIxs Nothing []
+					  s (Info.defAbstract i)
 			       )
 
 	    -- Check the types of the constructors
@@ -72,7 +73,7 @@ checkDataDef i name ps cs =
 
 	-- Add the datatype to the signature as a datatype. It was previously
 	-- added as an axiom.
-	addConstant name (Defn name t $ Datatype npars nofIxs Nothing (map cname cs)
+	addConstant name (Defn name t (defaultDisplayForm name) $ Datatype npars nofIxs Nothing (map cname cs)
 						 s (Info.defAbstract i)
 			 )
     where
@@ -109,7 +110,7 @@ checkConstructor d tel nofIxs s con@(A.Axiom i c e) =
 	t `fitsIn` s
 	escapeContext (size tel)
 	    $ addConstant c
-	    $ Defn c (telePi tel t) $ Constructor (size tel) c d $ Info.defAbstract i
+	    $ Defn c (telePi tel t) (defaultDisplayForm c) $ Constructor (size tel) c d $ Info.defAbstract i
 checkConstructor _ _ _ _ _ = __IMPOSSIBLE__ -- constructors are axioms
 
 
@@ -206,7 +207,7 @@ forceData d (El s0 t) = liftTCM $ do
 	    | d == d'   -> return $ El s0 t'
 	    | otherwise	-> fail $ "wrong datatype " ++ show d ++ " != " ++ show d'
 	MetaV m vs	    -> do
-	    Defn _ t (Datatype _ _ _ _ s _) <- getConstInfo d
+	    Defn _ t _ (Datatype _ _ _ _ s _) <- getConstInfo d
 	    ps <- newArgsMeta t
 	    noConstraints $ equalType (El s0 t') (El s (Def d ps)) -- TODO: too strict?
 	    reduce $ El s0 t'

@@ -46,6 +46,7 @@ data Expr
 	| RawApp !Range [Expr]		       -- ^ before parsing operators
 	| App !Range Expr (NamedArg Expr)      -- ^ ex: @e e@, @e {e}@, or @e {x = e}@
 	| OpApp !Range Name [Expr]	       -- ^ ex: @e + e@
+        | WithApp !Range Expr [Expr]           -- ^ ex: @e | e1 | .. | en@
 	| HiddenArg !Range (Named String Expr) -- ^ ex: @{e}@ or @{x=e}@
 	| Lam !Range [LamBinding] Expr	       -- ^ ex: @\\x {y} -> e@ or @\\(x:A){y:B} -> e@
 	| Fun !Range Expr Expr		       -- ^ ex: @e -> e@ or @{e} -> e@
@@ -228,6 +229,7 @@ instance HasRange Expr where
 	    App r _ _		-> r
 	    RawApp r _		-> r
 	    OpApp r _ _		-> r
+            WithApp r _ _       -> r
 	    Lam r _ _		-> r
 	    Fun r _ _		-> r
 	    Pi b e		-> fuseRange b e
