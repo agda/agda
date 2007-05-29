@@ -42,9 +42,39 @@ data _×_ (A B : Set) : Set where
 
 infixr 10 _,_
 
+record Σ (A : Set)(B : A -> Set) : Set where
+  fst : A
+  snd : B fst
+
+_,,_ : {A : Set}{B : A -> Set}(x : A) -> B x -> Σ A B
+x ,, y = record { fst = x; snd = y }
+
+private module Σp {A : Set}{B : A -> Set} = Σ {A}{B}
+open Σp public
+
+data _∨_ (A B : Set) : Set where
+  inl : A -> A ∨ B
+  inr : B -> A ∨ B
+
 data Bool : Set where
   false : Bool
   true  : Bool
+
+IsTrue : Bool -> Set
+IsTrue false = False
+IsTrue true  = True
+
+IsFalse : Bool -> Set
+IsFalse true  = False
+IsFalse false = True
+
+data Inspect (b : Bool) : Set where
+  itsTrue  : IsTrue b -> Inspect b
+  itsFalse : IsFalse b -> Inspect b
+
+inspect : (b : Bool) -> Inspect b 
+inspect true  = itsTrue  _
+inspect false = itsFalse _
 
 data LeqBool : Rel Bool where
   ref : {b : Bool} -> LeqBool b b

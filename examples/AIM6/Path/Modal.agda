@@ -50,13 +50,6 @@ uncheck : {X : Set}{R : Rel X}{P : EdgePred R}{xs ys : Some (Star R)}
           (chk : Check P xs ys) -> P (Some.edge (checkedEdge chk))
 uncheck (check p) = p
 
-{-
-uncheck : {X : Set}{R : Rel X}{P : EdgePred R}{a b c : X}
-          {x : R a b}{xs : Star R b c} ->
-          Check P (some (x • xs)) (some xs) -> P x
-uncheck (check p) = p
--}
-
 All : {A : Set}{R : Rel A}(P : EdgePred R) -> EdgePred (Star R)
 All P {a}{b} xs = Star (Check P) (some xs) (some {a = b} ε)
 
@@ -67,3 +60,4 @@ lookup : {A : Set}{R : Rel A}{P Q : EdgePred R}{a b : A}{xs : Star R a b} ->
          Any P xs -> All Q xs -> Lookup (\{a b} -> P{a}{b}) Q
 lookup (step   • i) (check _ • xs) = lookup i xs
 lookup (done p • ε) (check q • _ ) = result _ p q
+
