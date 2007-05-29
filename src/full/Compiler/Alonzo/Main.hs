@@ -1,3 +1,6 @@
+{-# LANGUAGE CPP #-}
+#include "../../undefined.h"
+
 module Compiler.Alonzo.Main where
 import Debug.Trace(trace)
 import Language.Haskell.Syntax
@@ -7,6 +10,7 @@ import Compiler.Alonzo.Haskell
 -- import Compiler.Alonzo.Debug
 import Compiler.Alonzo.Names
 import Compiler.Alonzo.PatternMonad
+-- import qualified Compiler.Alonzo.PatternMonadLift as PML
 
 import qualified Syntax.Concrete.Name as C
 
@@ -78,22 +82,212 @@ isMain n = (show n == "mainS")
 
 getConArity :: QName -> IM Nat
 getConArity qn = do
-        (Defn _ ty _ (Constructor np origqn _ isa)) <- getConstInfo qn        
+        (Defn _ ty (Constructor np origqn _ isa)) <- getConstInfo qn        
 	ty' <- normalise ty
         return $ typeArity ty' - np
         -- return $ arity ty'
 
-typeArity :: Type -> Nat
-typeArity (El s t) = ar t where
-    ar (Pi _ (Abs _ t2)) = typeArity t2 + 1
-    ar (Fun a t2) = typeArity t2 + 1
-    ar _ = 0
+processDefWithDebug :: (QName,Definition) -> IM [HsDecl]
+processDefWithDebug (qname,def) = do
+     def <- instantiateFull def
+     hsdecls <- processDef (qname,def)
+     return (nameInfo:hsdecls) where
+         nameInfo = infoDecl infoName (show name)
+         infoName = "name" ++ (show $ numOfName name)
+	 name = qnameName qname
+        
+infoDecl :: String -> String -> HsDecl
+infoDecl name val = HsFunBind [ HsMatch dummyLoc hsname [] rhs []] where
+    rhs = HsUnGuardedRhs $ HsLit $ HsString val 
+    hsname = HsIdent name
 
 
--- returnOne :: Monad m => a -> m [a]
--- returnOne  = return . return
+processDef :: (QName,Definition) -> IM [HsDecl]
+processDef (qname,Defn typ fvs (Function clauses isa)) =  do
+      hsDecls <- foldClauses name 1 clauses
+      return [HsFunBind [HsMatch dummyLoc (dfName name) [] rhs hsDecls]] where
+                rhs = HsUnGuardedRhs $ HsVar $ UnQual $ dfNameSub name 1
+                name = qnameName qname
+ 
+processDef (qname,Defn typ fvs (Datatype n nind Nothing [] sort isa)) = do
+  return [ddecl,vdecl]  where
+      name = qnameName qname
+      ddecl = HsDataDecl  dummyLoc [] (dataName name) tvars cons []
+      tvars = []
+      cons = [HsConDecl dummyLoc (conName name) [] ]
+      vdecl = HsFunBind [ HsMatch dummyLoc hsname (nDummyArgs n) rhs []]
+      rhs = HsUnGuardedRhs $ HsVar $ unit_con_name
+      hsname = dfName name
+      nDummyArgs :: Nat -> [HsPat]
+      nDummyArgs 0 = []
+      nDummyArgs k = (HsPVar $ HsIdent ("v" ++ (show k))) : nDummyArgs (k-1)
 
+processDef (qname,Defn typ fvs (Datatype n nind Nothing cs sort isa)) = do
+  cons <- consForName name cs
+  arities <- getConArities cs
+  return [ddecl cons arities,vdecl]  where
+      name = qnameName qname
+      dataname = dataName name
+      ddecl cs arities = HsDataDecl  dummyLoc [] dataname (tvars arities) cs []
+      tvars arities = take (List.maximum arities) $ List.map HsIdent letters
+      vdecl = HsFunBind [ HsMatch dummyLoc hsname (nDummyArgs (n+nind)) rhs []]
+      rhs = HsUnGuardedRhs $ HsVar $ unit_con_name
+      hsname = dfName name
+      nDummyArgs 0 = []
+      nDummyArgs k = (HsPVar $ HsIdent ("v" ++ (show k))) : nDummyArgs (k-1)
+
+-- Records are translated to a data with one cons
+processDef (qname, Defn typ fvs (Record n clauses fields tel sort isa)) =  do
+   return [ddecl arity tel,vdecl tel]  where
+      name = qnameName qname
+      arity = length fields
+      ddecl n tel = HsDataDecl  dummyLoc [] dataname (tvars n) [con n] []
+      dataname = (dataName name)
+      tvars n = take n idents
+      con n = HsConDecl dummyLoc (conName  name) args
+      idents = List.map HsIdent letters
+      args =  List.map (HsUnBangedTy . HsTyVar) $ take arity idents
+      vdecl tel = HsFunBind [ HsMatch dummyLoc hsname (nDummyArgs 0) rhs []]
+      rhs = HsUnGuardedRhs $ HsVar $ unit_con_name
+      hsname = dfName name
+      nDummyArgs 0 = []
+      nDummyArgs k = (HsPVar $ HsIdent ("v" ++ (show k))) : nDummyArgs (k-1)
 	
+processDef def@(qname,Defn typ fvs con@(Constructor n origqn qn isa)) =
+    return []
+
+-- FIXME
+processDef def@(qname,Defn typ fvs Axiom) = return []
+
+processDef (qname,Defn typ fvs (Primitive info prim expr)) = return $
+  [HsFunBind [HsMatch dummyLoc hsid  [] rhs decls]] where
+             -- rhs = HsUnGuardedRhs $ error $ "primitive: " ++ (show prim)
+             rhs = HsUnGuardedRhs $ HsVar $ rtpQName prim
+             decls = []
+             hsid = dfName name
+             name = qnameName qname
+
+processDef (qname, (Defn typ fvs (Datatype _ _ (Just clause) _ _ _))) = do
+           -- liftIO $ putStrLn $ gshow $ clauseBody clause 
+    mkSynonym (clauseBody clause) where
+    name = qnameName qname
+    mkSynonym (Lam _ (Abs _ t)) = mkSynonym t
+    mkSynonym (Def rhsqname args) = return [ddecl, vdecl] where
+      ddecl = HsTypeDecl loc dname [] typ
+      moduleName = qnameModule rhsqname
+      hsModuleName = Module $ moduleStr moduleName
+      vdecl = HsFunBind [ HsMatch dummyLoc hsname (nDummyArgs 0) rhs []]
+      rhs = HsUnGuardedRhs $ HsVar $ unit_con_name
+      hsname = dfName name
+      loc = dummyLoc
+      nDummyArgs 0 = []
+      nDummyArgs k = (HsPVar $ HsIdent ("v" ++ (show k))) : nDummyArgs (k-1)
+      dname = dataName name
+      typ = HsTyCon $ Qual hsModuleName $ dataName $ qnameName rhsqname
+    mkSynonym t = __IMPOSSIBLE__
+{-          do
+              liftIO $ putStrLn $ gshow t 
+              return []
+-}
+
+{-
+  t <- normalise $ Def qname []
+  mkSynonym t where
+    name = qnameName qname
+    mkSynonym (Lam _ (Abs _ t)) = mkSynonym t
+    mkSynonym (Def newqn args) = return [ddecl, vdecl] where
+      ddecl = HsTypeDecl loc dname [] typ
+   
+      loc = dummyLoc
+      dname = dataName name
+      typ = HsTyCon $ UnQual $ dataName $ qnameName newqn
+    mkSynonym t = do
+              liftIO $ putStrLn $ gshow t 
+              return []
+-}
+
+
+-- error "Unimplemented: Datatype from module"
+
+{-
+processDef (name,Defn typ fvs _) = return $
+  [HsFunBind [HsMatch dummyLoc hsid  [] rhs decls]] where
+                    rhs = HsUnGuardedRhs hsUndefined
+                    decls = []
+                    hsid = dfName name
+-}
+
+
+consForName dname qns = mapM (processCon dname)  qns
+
+times :: Nat -> a -> [a]
+times 0 x = []
+times n x = x:(times (n-1) x)
+
+processCon dname qn = do
+  -- let id = nameId $ qnameName qn
+  -- let NameId cn = id
+  arity <- getConArity qn
+  -- let arg = HsUnBangedTy $ HsTyCon unit_tycon_name
+  let arg = HsUnBangedTy $ HsTyVar $ HsIdent "a"
+  let idents =  List.map HsIdent letters
+  let args =  List.map (HsUnBangedTy . HsTyVar) $ take arity idents
+  return $ HsConDecl dummyLoc (conName $ qnameName qn) args
+
+{-
+dummyCon :: Int -> Int -> HsConDecl
+dummyCon i j = HsConDecl dummyLoc (mangleConName i j) []
+
+mangleConName :: Int -> Int -> HsName
+-- mangleConName i j = (HsIdent $ "C"++(show i)++"_"++(show j))
+mangleConName i j = (HsIdent $ "C"++(show j))
+-}
+
+-- consForData :: QName -> IM [Definition]
+-- consForData qn = undefined
+
+consDefs :: [QName] -> IM [Definition]
+consDefs qns = do
+  definitions <- getDefinitions
+  return [definitions ! qn | qn <- qns]
+
+
+processClause :: Name -> Int -> Clause -> IM HsDecl
+processClause name number clause@(Clause args (body)) = do
+  ldefs <- getDefinitions
+  let bodyPM = processBody body
+  let (exp, pst) =  runState bodyPM (initPState clause ldefs)
+  let rhs = HsUnGuardedRhs exp
+  let (pats, pst2) = runState (processArgPats args) pst
+  return $ HsFunBind $ [HsMatch dummyLoc hsid pats rhs decls] 
+    where
+                    decls = []
+                    hsid = dfNameSub name number
+                    -- pats =  processArgPats  args               
+                    
+contClause :: Name -> Int -> Clause -> IM HsDecl
+contClause name number (Clause args (body)) = do
+  return $ HsFunBind $ [HsMatch dummyLoc hsid pats rhs decls] where
+                decls = []
+                hsid = dfNameSub name number
+                rightLetters =  take (length args) letters
+                pats = List.map (HsPVar . HsIdent) rightLetters
+                rhs = HsUnGuardedRhs exp
+		exp = vecApp expfun expargs
+                expfun = hsCast$ HsVar $ UnQual $ dfNameSub name (number+1)
+                expargs = List.map (HsVar . UnQual . HsIdent) rightLetters
+
+foldClauses :: Name -> Nat -> [Clause] -> IM [HsDecl]
+foldClauses name n [] = return []
+foldClauses name n [c] = do
+        decl <- processClause name n c
+        return [decl]
+foldClauses name n (c:cs) = do
+	head <- processClause name n c
+        cont <- contClause name n c
+	tail <- foldClauses name (n+1) cs
+	return (head:cont:tail)
+
 processArgPats :: [Arg Pattern] -> PM [HsPat]
 processArgPats args = mapM processArgPat args
 
@@ -144,7 +338,22 @@ processTerm (Var n ts) = do
   processVap (hsVar $ "v" ++ (show (cnt - n - 1))) ts
 
 processTerm (Def qn ts) = processVap (HsVar $ dfQName qn) ts
-processTerm (Con qn ts) = processVap (HsCon $ conQName qn) ts
+
+-- Check if the con was redefined from other module
+-- if so, use the original name
+-- !!!
+processTerm (Con qn ts) = do
+            ldefs <- getPDefs
+            if (Map.member qn ldefs) 
+              then do 
+                (Defn _ _ definiens) <- Map.lookup qn ldefs
+                case definiens of
+                 (Constructor n origqn qn isa) -> 
+                       --trace ( "Good: " ++ (show qn)  ++ (gshow definiens)) $
+                     processVap (HsCon $ conQName origqn) ts
+                 _ ->       -- trace ( "Careful: " ++ (show qn)  ++ (gshow definiens)) $
+                         processVap (HsCon $ conQName qn) ts
+              else processVap (HsCon $ conQName qn) ts
 
 processTerm (Lam h (Abs n t)) = do
   cnt <- getPcnt
@@ -154,7 +363,7 @@ processTerm (Lam h (Abs n t)) = do
 processTerm (Lit l) = return $  (processLit l)
 processTerm (Pi arg abs) = return $ HsVar  unit_con_name
 processTerm (Fun arg typ) = return $ HsVar  unit_con_name
-processTerm (Sort s) =   error "Unimplemented term: Fun"
+processTerm (Sort s) =  return $ HsVar  unit_con_name
 processTerm (BlockedV b) =  error "Unimplemented term: Blocked"
 processTerm (MetaV _ _) =  error "Can't have metavariables"
 
@@ -234,7 +443,7 @@ foldClauses name n (c:cs) = do
 	return (head:cont:tail)
 
 processDef :: (Name,Definition) -> IM [HsDecl]
-processDef (name,Defn typ fvs _ (Function clauses isa)) = 
+processDef (name,Defn typ fvs (Function clauses isa)) = 
     -- mapM (processClause name) clauses
     do
         hsDecls <- foldClauses name 1 clauses
@@ -242,7 +451,7 @@ processDef (name,Defn typ fvs _ (Function clauses isa)) =
                 rhs = HsUnGuardedRhs $ HsVar $ UnQual $ dfNameSub name 1
 
  
-processDef (name,Defn typ fvs _ (Datatype n nind Nothing [] sort isa)) = do
+processDef (name,Defn typ fvs (Datatype n nind Nothing [] sort isa)) = do
   return [ddecl,vdecl]  where
       ddecl = HsDataDecl  dummyLoc [] (dataName name) tvars cons []
       tvars = []
@@ -254,7 +463,7 @@ processDef (name,Defn typ fvs _ (Datatype n nind Nothing [] sort isa)) = do
       nDummyArgs 0 = []
       nDummyArgs k = (HsPVar $ HsIdent ("v" ++ (show k))) : nDummyArgs (k-1)
 
-processDef (name,Defn typ fvs _ (Datatype n nind Nothing cs sort isa)) = do
+processDef (name,Defn typ fvs (Datatype n nind Nothing cs sort isa)) = do
   cons <- consForName name cs
   arities <- getConArities cs
   return [ddecl cons arities,vdecl]  where
@@ -267,7 +476,7 @@ processDef (name,Defn typ fvs _ (Datatype n nind Nothing cs sort isa)) = do
       nDummyArgs k = (HsPVar $ HsIdent ("v" ++ (show k))) : nDummyArgs (k-1)
 
 -- Records are translated to a data with one cons
-processDef (name, Defn typ fvs _ (Record n clauses fields tel sort isa)) =  do
+processDef (name, Defn typ fvs (Record n clauses fields tel sort isa)) =  do
    -- liftIO $ print arity
    -- liftIO $ print fields
    return [ddecl arity tel,vdecl tel]  where
@@ -284,12 +493,12 @@ processDef (name, Defn typ fvs _ (Record n clauses fields tel sort isa)) =  do
       	nDummyArgs 0 = []
       	nDummyArgs k = (HsPVar $ HsIdent ("v" ++ (show k))) : nDummyArgs (k-1)
 	
-processDef def@(name,Defn typ fvs _ con@(Constructor n origqn qn isa)) = do
+processDef def@(name,Defn typ fvs con@(Constructor n origqn qn isa)) = do
     return []
 
-processDef def@(name,Defn typ fvs _ Axiom) = return []
+processDef def@(name,Defn typ fvs Axiom) = return []
 
-processDef (name,Defn typ fvs _ (Primitive info prim expr)) = return $
+processDef (name,Defn typ fvs (Primitive info prim expr)) = return $
   [HsFunBind [HsMatch dummyLoc hsid  [] rhs decls]] where
              -- rhs = HsUnGuardedRhs $ error $ "primitive: " ++ (show prim)
              rhs = HsUnGuardedRhs $ HsVar $ rtpQName prim
@@ -297,7 +506,7 @@ processDef (name,Defn typ fvs _ (Primitive info prim expr)) = return $
              hsid = dfName name
 
 
-processDef (_, Defn _ _ _ (Datatype _ _ (Just _) _ _ _)) = error "Unimplemented: Datatype from module"
+processDef (_, Defn _ _ (Datatype _ _ (Just _) _ _ _)) = error "Unimplemented: Datatype from module"
 
 {-
 processDef (name,Defn typ fvs _) = return $
@@ -352,6 +561,20 @@ getDefinitions = do
 
 
 getConArities cs = mapM getConArity cs
+
+getConArity :: QName -> IM Nat
+getConArity qn = do
+        (Defn _ ty (Constructor np origqn _ isa)) <- getConstInfo qn        
+	ty' <- normalise ty
+        return $ typeArity ty' - np
+        -- return $ arity ty'
+
+typeArity :: Type -> Nat
+typeArity (El s t) = ar t where
+    ar (Pi _ (Abs _ t2)) = typeArity t2 + 1
+    ar (Fun a t2) = typeArity t2 + 1
+    ar _ = 0
+
 
 letters = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "k", "m", "n", "p","q"]
 

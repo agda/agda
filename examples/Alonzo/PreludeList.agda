@@ -15,8 +15,8 @@ data List (A : Set) : Set where
 {-# BUILTIN NIL  []   #-}
 {-# BUILTIN CONS _::_ #-}
 
--- [_] : {A : Set} -> A -> List A
--- [ x ] = x :: []
+[_] : {A : Set} -> A -> List A
+[ x ] = x :: []
 
 length : {A : Set} -> List A -> Nat
 length []        = 0
@@ -30,7 +30,6 @@ _++_ : {A : Set} -> List A -> List A -> List A
 []        ++ ys = ys
 (x :: xs) ++ ys = x :: (xs ++ ys)
 
-{-
 zipWith : {A B C : Set} -> (A -> B -> C) -> List A -> List B -> List C
 zipWith f []        []        = []
 zipWith f (x :: xs) (y :: ys) = f x y :: zipWith f xs ys
@@ -64,4 +63,3 @@ splitAt (suc n) (x :: xs) = add x $ splitAt n xs
 reverse : {A : Set} -> List A -> List A
 reverse xs = foldl (flip _::_) [] xs
 
--}

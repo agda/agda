@@ -1,25 +1,34 @@
 module Compiler.Alonzo.PatternMonad where
 import Syntax.Internal
+import TypeChecking.Monad.Base
 
 import Control.Monad.State
 import Control.Monad.Error
 
+import Data.Map 
+
 import Language.Haskell.Syntax
 
+type Defs =  Map QName Definition
 data PState = PSt 
   { cnt :: Int 
   , lst :: [HsPat]
   , clause :: Clause
+  , defs :: Defs
   }
 
-initPState :: Clause -> PState
-initPState c = PSt 
+initPState :: Clause -> Defs -> PState
+initPState c d = PSt 
   { cnt = 0
   , lst = []
   , clause = c 
+  , defs = d
   }
 
 type PM a = State PState a
+
+getPDefs :: PM Defs
+getPDefs = get >>= (return . defs)
 
 getPcnt :: PM Int
 getPcnt = get >>= (return . cnt)

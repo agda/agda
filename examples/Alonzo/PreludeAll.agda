@@ -1,5 +1,5 @@
 module PreludeAll where
-import PreludeBool
+import PreludeBool public
 import PreludeNat
 import PreludeShow
 

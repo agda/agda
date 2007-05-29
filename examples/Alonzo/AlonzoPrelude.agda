@@ -14,16 +14,16 @@ module AlonzoPrelude where
   Char : Set
   Char = RTP.Char
 
-{-
+
   data True : Set where
     tt : True
--}
 
+{-
   record True : Set where
 
   tt : True
   tt = record{}
-
+-}
   data False : Set where
 
   elim-False : {A : Set} -> False -> A

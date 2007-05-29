@@ -39,7 +39,7 @@ hsLam :: String -> HsExp -> HsExp
 hsLam n e = HsLambda dummyLoc [HsPVar (HsIdent n)] e
 
 hsAp :: HsExp -> HsExp -> HsExp 
-hsAp e1 e2 =  HsApp e1 $ HsParen (hsCast e2)
+hsAp e1 e2 =  HsApp (hsCast e1) $ HsParen (hsCast e2)
 
 outputHsModule s hsmod numOfMainS = do
   handle <- openFile (s++".hs") WriteMode

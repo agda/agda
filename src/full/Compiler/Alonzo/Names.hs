@@ -27,6 +27,9 @@ conName = HsIdent . conStr
 dataName :: Name -> HsName
 dataName n = HsIdent $ "T" ++ (show (numOfName n))
 
+-- dataQName :: QName -> HsQName
+-- dataQName n = HsIdent $ "T" ++ (show (numOfName n))
+
 dfName :: Name -> HsName
 dfName = HsIdent . dfStr
 
