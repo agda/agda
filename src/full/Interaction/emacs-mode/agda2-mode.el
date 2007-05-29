@@ -437,8 +437,15 @@ annotate new goals NEW-GS"
 (defun agda2-annotate (goals pos)
   "Find GOALS in the current buffer starting from POS and annotate them
 with text-properties"
-  (agda2-let (stk top)
+
+  (agda2-let (stk top (inhibit-point-motion-hooks t))
       ((delims() (re-search-forward "[?]\\|[{][-!]\\|[-!][}]\\|--" nil t))
+       (is-lone-questionmark ()
+          (save-excursion
+            (save-match-data
+                (backward-char 3)
+                (looking-at
+                 "\\({!\\|.{\\|(\\|.\\s \\)[?]\\(\\s \\|)\\|}\\|!}\\|$\\)"))))
        (make(p)  (agda2-make-goal  p (point) (pop goals)))
        (err()    (error "Unbalanced \{- , -\} , \{\! , \!\}")))
     (save-excursion
@@ -453,9 +460,10 @@ with text-properties"
            ((c "!}") (if (and stk (setq top (pop stk)))
                          (or stk (make top))
                        (err)))
-           ((c "?")  (unless stk
-                       (delete-char -1)(insert "{! !}")
-                       (make (- (point) 5))))))))))
+           ((c "?")  (progn
+                       (when (and (not stk) (is-lone-questionmark))
+                         (delete-char -1)(insert "{! !}")
+                         (make (- (point) 5)))))))))))
 
 (defun agda2-make-goal (p q n)
   "Make a goal with number N at <P>{!...!}<Q>.  Assume the region is clean"
