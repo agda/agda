@@ -24,7 +24,8 @@ termTyAlg = record { nat = _; _⟶_ = \_ _ -> _ }
 record TyArrow {ty₁ ty₂ : Set}(T₁ : TyAlg ty₁)(T₂ : TyAlg ty₂) : Set where
   apply   : ty₁ -> ty₂
   respNat : apply (TyAlg.nat T₁) == TyAlg.nat T₂
-  resp⟶   : forall {τ₁ τ₂} -> apply (TyAlg._⟶_ T₁ τ₁ τ₂) == TyAlg._⟶_ T₂ (apply τ₁) (apply τ₂)
+  resp⟶   : forall {τ₁ τ₂} ->
+            apply (TyAlg._⟶_ T₁ τ₁ τ₂) == TyAlg._⟶_ T₂ (apply τ₁) (apply τ₂)
 
 _=Ty=>_ : {ty₁ ty₂ : Set}(T₁ : TyAlg ty₁)(T₂ : TyAlg ty₂) -> Set
 _=Ty=>_ = TyArrow

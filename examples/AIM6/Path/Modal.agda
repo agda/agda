@@ -60,4 +60,3 @@ lookup : {A : Set}{R : Rel A}{P Q : EdgePred R}{a b : A}{xs : Star R a b} ->
          Any P xs -> All Q xs -> Lookup (\{a b} -> P{a}{b}) Q
 lookup (step   • i) (check _ • xs) = lookup i xs
 lookup (done p • ε) (check q • _ ) = result _ p q
-
