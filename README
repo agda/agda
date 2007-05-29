@@ -114,20 +114,21 @@ To use the Agda 2 Emacs mode:
 
    (add-hook 'agda2-mode-hook
              '(lambda nil
+                (require 'quail)
                 (set-input-method 'TeX)
                 ))
 
    A side note: If you want to add your own keybindings to the TeX
    input method you can add the following to your .emacs:
 
-   (require 'quail)
-   (mapc (lambda (pair)
-           (quail-defrule (car pair) (cadr pair) "TeX"))
-      '(("\\comp" "∘")
-        ("\\[[" "⟦") ("\\]]" "⟧")
-        ; If you find it awkward to write comments using the TeX input
-        ; method the following bindings may make life more bearable
-        ; for you:
-        ("--" ["--"]) ("---" ["---"])
-        ; Add more keybindings here.
-        ))
+   (eval-after-load "quail/latin-ltx"
+     '(mapc (lambda (pair)
+              (quail-defrule (car pair) (cadr pair) "TeX"))
+         '(("\\comp" "∘")
+           ("\\[[" "⟦") ("\\]]" "⟧")
+           ; If you find it awkward to write comments using the TeX input
+           ; method the following bindings may make life more bearable
+           ; for you:
+           ("--" ["--"]) ("---" ["---"])
+           ; Add more keybindings here.
+           )))
