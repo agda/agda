@@ -8,6 +8,7 @@
 
 module Termination.Termination
   ( terminates
+  , Termination.Termination.tests
   ) where
 
 import Termination.Lexicographic
