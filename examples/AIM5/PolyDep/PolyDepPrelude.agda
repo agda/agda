@@ -1,4 +1,4 @@
-module Prelude where
+module PolyDepPrelude where
 
 data Pi {X : Set} (Y : X -> Set) : Set where
   pi : ((x : X) -> Y x) -> Pi Y
@@ -112,6 +112,11 @@ data Nat : Set where
 one : Nat
 one = suc zero
 
+elimNat : (C : Nat -> Set)
+         -> (C zero) -> ((m : Nat) -> C m -> C (suc m)) -> (n : Nat) -> C n
+elimNat C c_z c_s zero = c_z
+elimNat C c_z c_s (suc m') = c_s m' (elimNat C c_z c_s m')
+
 data List (A : Set) : Set where
   nil  : List A
   _::_ : A -> List A -> List A
@@ -120,6 +125,14 @@ data List (A : Set) : Set where
 {-# BUILTIN NIL  nil  #-}
 {-# BUILTIN CONS _::_ #-}
 
+elimList : {A : Set} ->
+          (C : List A -> Set) ->
+          (C nil) ->
+          ((a : A) -> (as : List A) -> C as -> C (a :: as)) ->
+          (as : List A) ->
+          C as
+elimList _ c_nil _ nil = c_nil
+elimList C c_nil c_con (a :: as) = c_con a as (elimList C c_nil c_con as)
 
 data Reflexive {X : Set} (_R_ : X -> X -> Set) : Set where
   reflexive : ((x : X) -> x R x) -> Reflexive _R_
