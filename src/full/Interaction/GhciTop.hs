@@ -542,7 +542,7 @@ infoOnException m = failOnException inform m where
 
 generateAndOutputSyntaxInfo
   :: FilePath           -- ^ The module to highlight.
-  -> TypeCheckingState  -- ^ Has it been highlighted?
+  -> TypeCheckingState  -- ^ Has it been type checked?
   -> [T.Token]          -- ^ The token stream for the module.
   -> TopLevelInfo       -- ^ The abstract syntax for the module.
   -> TCM ()
