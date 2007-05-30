@@ -72,6 +72,11 @@ getInteractionPoints = Map.keys <$> gets stInteractionPoints
 getInteractionMetas :: MonadTCM tcm => tcm [MetaId]
 getInteractionMetas = Map.elems <$> gets stInteractionPoints
 
+-- | Does the meta variable correspond to an interaction point?
+
+isInteractionMeta :: MonadTCM tcm => MetaId -> tcm Bool
+isInteractionMeta m = fmap (m `elem`) getInteractionMetas
+
 lookupInteractionId :: MonadTCM tcm => InteractionId -> tcm MetaId
 lookupInteractionId ii = 
     do  mmi <- Map.lookup ii <$> gets stInteractionPoints
