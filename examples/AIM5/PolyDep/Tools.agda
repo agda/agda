@@ -1,11 +1,11 @@
 module Tools where
-import Prelude
+import PolyDepPrelude
 -- import Sigma
 -- import And
 
-open Prelude  using(Datoid;  Bool; true; false; _&&_; Nat;  True;  Taut; unit)
+open PolyDepPrelude  using(Datoid;  Bool; true; false; _&&_; Nat;  True;  Taut; unit)
 
-liftAnd : (a:Bool)(b:Bool)(ta:True a)(tb:True b) -> True (_&&_ a b)
+liftAnd : (a : Bool)(b : Bool)(ta : True a)(tb : True b) -> True (a && b)
 liftAnd (true)  (true)  ta tb = unit
 liftAnd (true)  (false) ta () -- empty
 liftAnd (false) _       () _  -- empty
@@ -63,8 +63,8 @@ maybe (|A,|B:Set)(e:B)(f:A -> B) : Maybe A -> B
             (Nothing) -> e;
             (Just a) -> f a;}
 open SET
- use  List,  Absurd,  Unit,  Plus,  mapPlus,  Times,  mapTimes,  id,
-      uncur,  elimPlus
+ use  List,  Absurd,  Unit,  Either,  mapEither,  Times,  mapTimes,  id,
+      uncur,  elimEither
 elimList (|A:Set)
          (C:List A -> Type)
          (n:C nil@_)
@@ -101,11 +101,11 @@ eqAbsurd  : Absurd -> Absurd -> Bool = \h -> \h' -> case h of { }
 --   or x in
 -- Disjoint sum over a list of codes
 OPlus (A:Set) : (A -> Set) -> List A -> Set
-  = O A Absurd Plus
+  = O A Absurd Either
 -- corresponding map function
 mapOPlus (|A:Set)(X:A -> Set)(Y:A -> Set)(f:(a:A) -> X a -> Y a)
   : (as:List A) -> OPlus A X as -> OPlus A Y as
-  = mapO id mapPlus X Y f
+  = mapO id mapEither X Y f
 -- Cartesian product over a list of codes
 OTimes (A:Set) : (A -> Set) -> List A -> Set
   = O A Unit Times
@@ -152,10 +152,10 @@ eqOTimes (A:Set)(f:A -> Set)(g:A -> Set)(eq:EqFam A f g)
       (\as ->  (OTimes A f as -> OTimes A g as -> Bool))
       eqUnit
       (\a -> \as -> eqTimes (eq a))
-eqPlus (|A1,|A2,|B1,|B2:Set)
+eqEither (|A1,|A2,|B1,|B2:Set)
        (eq1:A1 -> B1 -> Bool)
        (eq2:A2 -> B2 -> Bool)
-  : Plus A1 A2 -> Plus B1 B2 -> Bool
+  : Either A1 A2 -> Either B1 B2 -> Bool
   = \x -> \y ->
             case x of {
               (inl x') ->
@@ -171,10 +171,10 @@ eqOPlus (A:Set)(f:A -> Set)(g:A -> Set)(eq:EqFam A f g)
   = elimList
       (\(as:List A) -> OPlus A f as -> OPlus A g as -> Bool)
       eqAbsurd
-      (\a -> \as -> eqPlus (eq a))
+      (\a -> \as -> eqEither (eq a))
 Fam (I:Set)(X:I -> Set) : Type
   = (i:I) -> X i -> Set
-eitherSet (A:Set)(B:Set)(f:A -> Set)(g:B -> Set)(x:Plus A B)
+eitherSet (A:Set)(B:Set)(f:A -> Set)(g:B -> Set)(x:Either A B)
   : Set
   = case x of {
       (inl x') -> f x';
@@ -204,7 +204,7 @@ eitherFAM (A:Set)
           (a2:A2)
           (f:(x:G a) -> H a x)
           (f2:(x2:G2 a2) -> H2 a2 x2)
-          (x:Plus (G a) (G2 a2))
+          (x:Either (G a) (G2 a2))
   : eitherSet (G a) (G2 a2) (H a) (H2 a2) x
   = case x of {
       (inl y) -> f y;
@@ -286,7 +286,7 @@ var "eqTimes" hide 4
 var "OTimesEq" hide 3
 var "elimList" hide 1
 var "eqOTimes" hide 3
-var "eqPlus" hide 4
+var "eqEither" hide 4
 var "eqOPlus" hide 3
 var "eitherSet" hide 2
 var "bothSet" hide 2
