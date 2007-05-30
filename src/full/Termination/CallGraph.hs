@@ -103,7 +103,6 @@ orderSemiring =
 
 prop_orderSemiring = Semiring.semiringInvariant orderSemiring
 
-
 ------------------------------------------------------------------------
 -- Call matrices
 

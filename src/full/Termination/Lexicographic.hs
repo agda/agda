@@ -86,21 +86,11 @@ instance (Arbitrary call, Arbitrary arg, Ord arg, Ord call)
 prop_recBehaviour_Arbitrary :: RecBehaviour Integer Integer -> Bool
 prop_recBehaviour_Arbitrary = recBehaviourInvariant
 
-
-
--- | Checks whether a recursion behaviour is empty (either no columns
--- or all columns empty).
-
-isEmpty :: RecBehaviour arg call -> Bool
-isEmpty rb = cols (size rb) == 0 || rows (size rb) == 0
+-- | Checks whether there are any calls left in the recursion
+-- behaviour.
 
 noCallsLeft :: RecBehaviour arg call -> Bool
 noCallsLeft rb = rows (size rb) == 0
-
-
-prop_isEmpty :: RecBehaviour Integer Integer -> Bool
-prop_isEmpty rb =
-  isEmpty rb == all Map.null (Map.elems $ columns rb)
 
 -- | Constructs a recursion behaviour from a list of matrix diagonals
 -- (\"rows\"). Note that the @call@ indices do not need to be
@@ -188,8 +178,8 @@ correctLexOrder rb (p0 : ps) =
 
 lexOrder :: (Ord arg, Ord call) =>
   RecBehaviour arg call -> Either (Set arg, Set call) (LexOrder arg)
-lexOrder rb | noCallsLeft rb = Right [] 
-            | otherwise   = case okColumns of 
+lexOrder rb | noCallsLeft rb = Right []
+            | otherwise      = case okColumns of
   []      -> Left errMsg
   (n : _) -> case lexOrder (newBehaviour n rb) of
     Left err -> Left err
@@ -212,21 +202,20 @@ prop_lexOrder rb =
     classify (cols (size rb) >= 2) "interesting" $
     correctLexOrder rb perm
 
-prop_lexOrder_noArgs n 
-  = n > 0 ==> isLeft (lexOrder rb)
-    where rb :: RecBehaviour Integer Integer
-          rb = RB { columns = Map.empty 
-                  , size = Size { rows = n, cols = 0 }
-                  }
+prop_lexOrder_noArgs =
+  forAll positive $ \n ->
+    isLeft (lexOrder $ rb n)
+    where rb :: Integer -> RecBehaviour Integer Integer
+          rb n = RB { columns = Map.empty
+                    , size = Size { rows = n, cols = 0 }
+                    }
 
 ------------------------------------------------------------------------
 -- All tests
 
 tests = do
   quickCheck prop_recBehaviour_Arbitrary
-  quickCheck prop_isEmpty
   quickCheck prop_fromDiagonals
   quickCheck prop_newBehaviour
   quickCheck prop_lexOrder
   quickCheck prop_lexOrder_noArgs
-  

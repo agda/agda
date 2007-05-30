@@ -184,14 +184,8 @@ example5 = Set.fromList [c1, c2, c3, c4]
             , cm = CallMatrix $ fromLists (Size 2 2) [ [Lt, Unknown]
                                                      , [Unknown, Le] ] }
 
-prop_terminates_example5 =
-  isRight (terminates example5)
-{-
-  terminates example5 ==
-  Right (Map.fromList [ (1, [2,1])
-                      , (2, [1])
-                      ])
--}
+prop_terminates_example5 = isRight (terminates example5)
+
 ------------------------------------------------------------------------
 -- All tests
 
