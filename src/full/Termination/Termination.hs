@@ -23,6 +23,7 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Map (Map)
 import qualified Data.Map as Map
+import Data.Monoid
 
 -- | @'terminates' cs@ checks if the functions represented by @cs@
 -- terminate. The call graph @cs@ should have one entry ('Call') per
@@ -44,7 +45,7 @@ import qualified Data.Map as Map
 --
 -- Precondition: @'completePrecondition' cs@.
 
-terminates :: Ord call =>
+terminates :: (Ord call, Monoid call) =>
   CallGraph call -> Either (Map Index (Set Index, Set call))
                            (Map Index (LexOrder Index))
 terminates cs | ok        = Right perms 
@@ -70,10 +71,45 @@ terminates cs | ok        = Right perms
 ------------------------------------------------------------------------
 -- Some examples
 
+-- First some infrastructure.
+
+-- | The monoid instance for @'R' a@ always chooses the
+-- right (second) value, if it is defined.
+
+data R a = RNothing | RJust a
+  deriving (Show, Eq, Ord)
+
+instance Monoid (R a) where
+  mempty        = RNothing
+  l@(RJust {}) `mappend` RNothing = l
+  _            `mappend` r        = r
+
+-- | The call graph instantiation used by the examples below.
+
+type CG = CallGraph (R Integer)
+
+-- | Constructs a call graph suitable for use with the 'R' monoid.
+
+buildCallGraph :: [Call Integer] -> CG
+buildCallGraph =
+  Set.fromList . map (\c -> c { callId = RJust $ callId c })
+
+-- | Constructs result lists suitable for use with the 'R' monoid.
+
+buildResults :: Ord a
+             => Either (Map Index (Set Index, Set a))     b
+             -> Either (Map Index (Set Index, Set (R a))) b
+buildResults =
+ (Map.fromList .
+  map (id *** (id *** Set.fromList . map RJust . Set.toList)) .
+  Map.toList)
+ +++
+ id
+
 -- | The example from the paper.
 
-example1 :: CallGraph Integer
-example1 = Set.fromList [c1, c2, c3]
+example1 :: CG
+example1 = buildCallGraph [c1, c2, c3]
   where
   flat = 1
   aux  = 2
@@ -86,7 +122,8 @@ example1 = Set.fromList [c1, c2, c3]
             , cm = CallMatrix $ fromLists (Size 1 2) [[Unknown, Le]] }
 
 prop_terminates_example1 =
-  terminates example1 == Right (Map.fromList [(1, [1]), (2, [2, 1])])
+  terminates example1 ==
+  buildResults (Right (Map.fromList [(1, [1]), (2, [2, 1])]))
 
 -- | An example which is not handled by this algorithm: argument
 -- swapping addition.
@@ -95,8 +132,8 @@ prop_terminates_example1 =
 --
 -- @Z   + y = y@
 
-example2 :: CallGraph Integer
-example2 = Set.fromList [c]
+example2 :: CG
+example2 = buildCallGraph [c]
   where
   plus = 1
   c = Call { source = plus, target = plus, callId = 1
@@ -105,7 +142,8 @@ example2 = Set.fromList [c]
 
 prop_terminates_example2 =
   terminates example2 ==
-  Left (Map.fromList [(1, (Set.fromList [1, 2], Set.fromList [1]))])
+  buildResults (Left (Map.fromList [(1, ( Set.fromList [1, 2]
+                                        , Set.fromList [1]))]))
 
 -- | A related example which /is/ handled: argument swapping addition
 -- using two alternating functions.
@@ -118,8 +156,8 @@ prop_terminates_example2 =
 --
 -- @Z   +' y = y@
 
-example3 :: CallGraph Integer
-example3 = Set.fromList [c plus plus' 1, c plus' plus 2]
+example3 :: CG
+example3 = buildCallGraph [c plus plus' 1, c plus' plus 2]
   where
   plus  = 1
   plus' = 2
@@ -128,7 +166,8 @@ example3 = Set.fromList [c plus plus' 1, c plus' plus 2]
                                                            , [Lt, Unknown] ] }
 
 prop_terminates_example3 =
-  terminates example3 == Right (Map.fromList [(1, [1]), (2, [1])])
+  terminates example3 ==
+  buildResults (Right (Map.fromList [(1, [1]), (2, [1])]))
 
 -- | A final, contrived example.
 --
@@ -140,8 +179,8 @@ prop_terminates_example3 =
 --
 -- This example checks that 'callId's are reported properly.
 
-example4 :: CallGraph Integer
-example4 = Set.fromList [c1, c2, c3]
+example4 :: CG
+example4 = buildCallGraph [c1, c2, c3]
   where
   f = 1
   g = 2
@@ -157,7 +196,8 @@ example4 = Set.fromList [c1, c2, c3]
 
 prop_terminates_example4 =
   terminates example4 ==
-  Left (Map.fromList [(1, (Set.fromList [2], Set.fromList [1]))])
+  buildResults (Left (Map.fromList [(1, ( Set.fromList [2]
+                                        , Set.fromList [1]))]))
 
 -- | This should terminate.  2007-05-29
 --
@@ -166,8 +206,8 @@ prop_terminates_example4 =
 --  @g (succ x) (succ y) = (f (succ x) (succ y)) + (g x (succ y))@
 --
 
-example5 :: CallGraph Integer
-example5 = Set.fromList [c1, c2, c3, c4]
+example5 :: CG
+example5 = buildCallGraph [c1, c2, c3, c4]
   where
   f = 1
   g = 2

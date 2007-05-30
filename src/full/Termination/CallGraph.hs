@@ -32,6 +32,7 @@ import qualified Termination.Semiring as Semiring
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.List
+import Data.Monoid
 
 ------------------------------------------------------------------------
 -- Structural orderings
@@ -229,16 +230,15 @@ prop_Arbitrary_Call = callInvariant
 callInvariant :: Call call -> Bool
 callInvariant = callMatrixInvariant . cm
 
--- | 'Call' combination. The new 'callId' is the 'callId' of the left
--- call, since that call is the one whose 'target' is preserved. (We
--- are interested in the source location of the call.)
+-- | 'Call' combination. The 'callId's are combined using the monoid.
 --
 -- Precondition: see '<*>'; furthermore the 'source' of the first
 -- argument should be equal to the 'target' of the second one.
 
-(>*<) :: Call call -> Call call -> Call call
+(>*<) :: Monoid call => Call call -> Call call -> Call call
 c1 >*< c2 =
-  Call { source = source c2, target = target c1, callId = callId c1
+  Call { source = source c2, target = target c1
+       , callId = callId c2 `mappend` callId c1
        , cm = cm c1 <*> cm c2 }
 
 ------------------------------------------------------------------------
@@ -288,7 +288,8 @@ prop_callGraph =
 --
 -- Precondition: see '<*>'.
 
-combine :: Ord call => CallGraph call -> CallGraph call -> CallGraph call
+combine :: (Ord call, Monoid call)
+        => CallGraph call -> CallGraph call -> CallGraph call
 combine s1 s2 =
   Set.fromList [ c1 >*< c2
                | c1 <- Set.toList s1, c2 <- Set.toList s2
@@ -301,7 +302,7 @@ combine s1 s2 =
 --
 -- Precondition: @'completePrecondition' cs@.
 
-complete :: Ord call => CallGraph call -> CallGraph call
+complete :: (Ord call, Monoid call) => CallGraph call -> CallGraph call
 complete c = complete' c
   where
   complete' cs | cs' == cs = cs
@@ -309,12 +310,12 @@ complete c = complete' c
     where cs' = Set.union cs (combine cs c)
 
 prop_complete =
-  forAll (callGraph :: Gen (CallGraph Integer)) $ \cs ->
+  forAll (callGraph :: Gen (CallGraph [Integer])) $ \cs ->
     isComplete (complete cs)
 
 -- | Returns 'True' iff the call graph is complete.
 
-isComplete :: Ord call => CallGraph call -> Bool
+isComplete :: (Ord call, Monoid call) => CallGraph call -> Bool
 isComplete s = all (`Set.member` s) combinations
   where
   calls = Set.toList s
