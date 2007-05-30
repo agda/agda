@@ -363,10 +363,9 @@ instance ToAbstract C.TypedBinding A.TypedBinding where
 newtype TopLevel a = TopLevel a
 
 -- | Returns the scope inside the checked module.
-scopeCheckModule :: Range -> Access -> IsAbstract -> C.QName -> C.Telescope -> [C.Declaration] ->
+scopeCheckModule :: Range -> Access -> IsAbstract -> C.QName -> A.ModuleName -> C.Telescope -> [C.Declaration] ->
 		    ScopeM (ScopeInfo, [A.Declaration])
-scopeCheckModule r a c x tel ds = do
-  m <- toAbstract (NewModuleQName x)
+scopeCheckModule r a c x m tel ds = do
   pushScope m
   qm <- getCurrentModule
   ds <- withLocalVars $ do
@@ -390,8 +389,9 @@ instance ToAbstract (TopLevel [C.Declaration]) TopLevelInfo where
     toAbstract (TopLevel ds) = case splitAt (length ds - 1) ds of
 	(ds', [C.Module r m tel ds]) -> do
 	  setTopLevelModule m
+	  am	       <- toAbstract (NewModuleQName m)
 	  ds'	       <- toAbstract ds'
-	  (scope0, ds) <- scopeCheckModule r PublicAccess ConcreteDef m tel ds
+	  (scope0, ds) <- scopeCheckModule r PublicAccess ConcreteDef m am tel ds
 	  scope	       <- getScope
 	  return $ TopLevelInfo (ds' ++ ds) scope scope0
 	_ -> __IMPOSSIBLE__
@@ -520,7 +520,9 @@ instance ToAbstract NiceDeclaration A.Declaration where
 			  -- TODO: what does the info mean here?
 
   -- TODO: what does an abstract module mean? The syntax doesn't allow it.
-    NiceModule r p a name tel ds -> snd <$> scopeCheckModule r p a name tel ds
+    NiceModule r p a name tel ds -> do
+      aname <- toAbstract (NewModuleQName name)
+      snd <$> scopeCheckModule r p a name aname tel ds
 
     NiceModuleMacro r p a x tel e open dir -> case appView e of
       AppView (Ident m) args  ->
@@ -668,7 +670,8 @@ instance ToAbstract C.Clause A.Clause where
 	_	-> do
 	  m <- C.QName <$> maybe (nameConcrete <$> freshNoName noRange) return whname
 	  let tel = []
-	  (scope, ds) <- scopeCheckModule (getRange wh) PublicAccess ConcreteDef m tel whds
+	  am <- toAbstract (NewModuleQName m)
+	  (scope, ds) <- scopeCheckModule (getRange wh) PublicAccess ConcreteDef m am tel whds
 	  setScope scope
 	  -- the right hand side is checked inside the module of the local definitions
 	  rhs <- toAbstractCtx TopCtx (RightHandSide vars with wcs rhs)
