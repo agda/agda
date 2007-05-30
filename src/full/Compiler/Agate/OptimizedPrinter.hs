@@ -21,15 +21,12 @@ import TypeChecking.Monad
 import TypeChecking.Reduce
 import TypeChecking.Free
 import Utils.Pretty
+import Utils.Size
 
 ----------------------------------------------------------------
 
-showQNameAsOptimizedConstructor :: QName -> TCM Doc
-showQNameAsOptimizedConstructor s =
-    return $ text $ translateNameAsOptimizedConstructor $ show s
-    
-showNameAsOptimizedConstructor :: QName -> TCM Doc
-showNameAsOptimizedConstructor s =
+showAsOptimizedConstructor :: QName -> TCM Doc
+showAsOptimizedConstructor s =
     return $ text $ translateNameAsOptimizedConstructor $ show s
 
 ----------------------------------------------------------------
@@ -37,13 +34,12 @@ showNameAsOptimizedConstructor s =
 showOptimizedDefinitions :: Definitions -> TCM ()
 showOptimizedDefinitions definitions = do
     liftIO $ putStrLn ("\n-----\n")
-    let allDatatypes = enumDatatypes definitions
-    compilableDatatypes <- enumCompilableDatatypes definitions allDatatypes
-    dtypedecls <- showTypeDeclarations definitions compilableDatatypes
+    typefams <- enumCompilableTypeFamilies definitions
+    dtypedecls <- showTypeDeclarations definitions typefams
     liftIO $ putStrLn $ render dtypedecls
-    optimizableConstants <- enumOptimizableConstants definitions compilableDatatypes
+    optimizableConstants <- enumOptimizableConstants definitions typefams
     liftIO $ putStrLn $ ""
-    dvaluedefs <- showValueDefinitions definitions compilableDatatypes
+    dvaluedefs <- showValueDefinitions definitions typefams
     liftIO $ putStrLn $ render dvaluedefs
     return ()
 
@@ -51,98 +47,169 @@ showOptimizedDefinitions definitions = do
 -- Generating GHC Type Declarations
 
 showTypeDeclarations :: Definitions -> [QName] -> TCM Doc
-showTypeDeclarations definitions compilableDatatypes = do
-    dtypedecls <- mapM (showTypeDeclaration definitions) compilableDatatypes
+showTypeDeclarations definitions typefams = do
+    dtypedecls <- mapM (showTypeDeclaration definitions) typefams
     return $ vcat dtypedecls
 
 showTypeDeclaration :: Definitions -> QName -> TCM Doc
 showTypeDeclaration definitions name = do
     let defn = definitions ! name
-    let (Datatype np ni _ qcnames s a) = theDef defn
-    ty <- instantiate $ defType defn
-    underContext ty $ do
-    	dtypename <- showAsOptimizedType name
-    	dparams <- mapM showTypeParameter $ reverse [0 .. np + ni - 1]
-    	dargs <- mapM (showConstructorDeclaration definitions np) qcnames
-    	case dargs of
-	    []  -> return $ (text "type") <+> (
-				sep (dtypename : dparams) <+> equals <+>
-				text "()")
-	    _:_ -> return $ (text "data") <+> (sep $
-				sep (dtypename : dparams) <+> equals :
-				punctuate (text " |") dargs)
-			    $+$ text "    -- deriving (Show)"
+    case theDef defn of
+        Datatype np ni _ cnames s a ->
+	    if ni > 0 then return empty -- __IMPOSSIBLE__
+	      else do
+	    	ty <- normalise $ defType defn
+		dtypename <- showAsOptimizedType name
+	    	dparams <- underDatatypeParameters np ty showTypeParameter
+				(\_ -> return [])
+	    	dargs <- mapM (showConstructorDeclaration definitions np) cnames
+	    	showDatatypeDeclaration dtypename dparams dargs
+	Record np clauses flds tel s a -> do
+		let arity = np `div` 2
+		ty <- normalise $ defType defn
+		dtypename <- showAsOptimizedType name
+	    	dparams <- underDatatypeParameters arity ty showTypeParameter
+				(\_ -> return [])
+	    	dcon <- showAsOptimizedConstructor name
+		dflds <- mapM (showRecordFieldDeclaration definitions (arity + 1)) flds
+		showDatatypeDeclaration dtypename dparams [sep $ dcon : dflds]
+     	_ -> return empty -- TODO
+    where
+        showDatatypeDeclaration dtypename dparams [] =
+	    return $ (text "type") <+> (sep (dtypename : dparams) <+> equals <+>
+					text "()")
+        showDatatypeDeclaration dtypename dparams dargs =
+	    return $ (text "data") <+> (sep $
+					sep (dtypename : dparams) <+> equals :
+					punctuate (text " |") dargs)
+				    $+$ text "    -- deriving (Show)"
 
-showTypeParameter :: Nat -> TCM Doc
-showTypeParameter n = do
-    dname <- showAsOptimizedTerm $ Var n []
-    ty <- typeOfBV n
+showTypeParameter :: Doc -> Type -> TCM ([Doc] -> [Doc])
+showTypeParameter dname ty = do
     ty <- instantiate ty
     (args,_) <- splitType ty
     case args of
-	[]  -> return dname
+	[]  -> return $ (:) dname
 	_:_ -> do
 		dk <- showAsOptimizedKind ty
-		return $ parens $ sep [ dname <+> text "::", dk ]
+		return $ (:) $ parens $ sep [ dname <+> text "::", dk ]
+
+showRecordFieldDeclaration :: Definitions -> Int -> QName -> TCM Doc
+showRecordFieldDeclaration definitions np fldname = do
+    let defn = definitions ! fldname
+    ty <- normalise $ defType defn
+    underDatatypeParameters np ty (\d t -> return id) $ showAsOptimizedType
 
 showConstructorDeclaration :: Definitions -> Int -> QName -> TCM Doc
-showConstructorDeclaration definitions np qcname = do
-    dcon <- showNameAsOptimizedConstructor qcname
-    let defn = definitions ! qcname
-    ty <- instantiate $ defType defn
-    ty <- dropArgs np ty
-    dargs <- forEachArgM showAsOptimizedType ty
-    return $ sep $ dcon : dargs
+showConstructorDeclaration definitions np cname = do
+    dcon <- showAsOptimizedConstructor cname
+    let defn = definitions ! cname
+    ty <- normalise $ defType defn
+    underDatatypeParameters np ty (\d t -> return id) $ \ty -> do
+    	dargs <- forEachArgM showAsOptimizedType ty
+    	return $ sep $ dcon : dargs
 
+underDatatypeParameters :: Int -> Type ->
+			   (Doc -> Type -> TCM (a -> a)) ->
+			   (Type -> TCM a) -> TCM a
+underDatatypeParameters np ty f k = go 0 ty where
+    go i ty        | i >= np = k ty
+    go i (El s tm)           = do
+      let varname = show (i + 1)
+      tm <- reduce tm
+      case ignoreBlocking tm of
+	Pi arg abs -> underAbstraction arg abs{absName = varname} $ \ty -> do
+	    dname <- showAsOptimizedTerm $ Var 0 []
+	    cont <- f dname $ unArg arg
+	    dparams <- go (i + 1) ty
+	    return $ cont dparams
+	Fun arg ty -> do
+	    let dname = text $ translateNameAsOptimizedTerm varname
+	    cont <- f dname $ unArg arg
+	    dparams <- go (i + 1) ty
+	    return $ cont dparams
+	Var _ _    -> __IMPOSSIBLE__
+	Def _ _    -> __IMPOSSIBLE__
+	Con _ _    -> __IMPOSSIBLE__
+	Sort _	   -> __IMPOSSIBLE__
+	Lit _	   -> __IMPOSSIBLE__
+	MetaV _ _  -> __IMPOSSIBLE__
+	Lam _ _	   -> __IMPOSSIBLE__
+	BlockedV _ -> __IMPOSSIBLE__
 
 ----------------------------------------------------------------
 -- Generating GHC Value Definitions
 
 showValueDefinitions :: Definitions -> [QName] -> TCM Doc
-showValueDefinitions definitions compilableDatatypes = do
+showValueDefinitions definitions typefams = do
     let defs = Map.toList definitions
-    dvaluedefs <- mapM (showValueDefinition definitions compilableDatatypes) defs
+    dvaluedefs <- mapM (showValueDefinition definitions typefams) defs
     return $ vcat dvaluedefs
 
 showValueDefinition :: Definitions -> [QName] -> (QName,Definition) -> TCM Doc
-showValueDefinition definitions compilableDatatypes (name,defn) = do
+showValueDefinition definitions typefams (name, defn) = do
     dname <- showAsOptimizedTerm name
-    ddef  <- case theDef defn of
-      Axiom -> do
-	return $ sep [ dname, equals ] <+>
-		 sep [ text "undefined {- postulate -}" ]
-      Function clauses a -> do
-	dclauses <- mapM (showClauseAsOptimized name) clauses
-	return $ vcat dclauses
-      Datatype np ni _ qcnames s a -> do
-	ty <- instantiate $ defType defn
-	underContext ty $ do
-    		dparams <- mapM (showAsOptimizedTerm. flip Var [])
-    			$ reverse [0..(np - 1)]
-		return $ sep [ sep (dname : dparams), equals ] <+>
-			 text "()"
-      Record _ _ _ _ _ _ -> return $ text "(error \"records\")"
-      Constructor np _ qtname a -> do
-	dcname <- showNameAsOptimizedConstructor name
-	let dparams = map (const $ text "_") [0..(np - 1)]
-	return $ sep [ sep (dname : dparams), equals ] <+> dcname
-      Primitive a pf _ -> do
-	doptname <- showAsOptimizedTerm name
-	return $ sep [ dname, equals ] <+>
-		 sep [ text (show name), text "{- primitive -}" ]
-    ty <- instantiate $ defType defn
+    ty <- normalise $ defType defn
     dty <- showAsOptimizedType ty
-    let dtype = sep [ dname, text "::" ] <+> dty
-    return $ dtype $+$ ddef		
+    let dtypedecl = sep [ dname, text "::" ] <+> dty
+    case theDef defn of
+	Axiom -> do
+	    let dvaluedef = sep [ dname, equals ] <+>
+			    sep [ text "undefined {- postulate -}" ]
+	    return $ dtypedecl $+$ dvaluedef
+	Function clauses a -> do
+	    dclauses <- mapM (showOptimizedClause name) clauses
+	    return $ vcat $ dtypedecl : dclauses
+	Datatype np ni _ cnames s a -> do
+	    let dvars = map (\i -> text ("v" ++ show i)) [1 .. np + ni]
+	    let dvaluedef = sep [ sep (dname : dvars), equals ] <+> text "()"
+	    return $ dtypedecl $+$ dvaluedef
+	Record np clauses flds tel s a -> 
+	    return empty  -- no o_xxx since we always use D_xxx
+	Constructor np _ qtname a ->
+	    return empty  -- no o_xxx since we always use D_xxx
+	Primitive a pf _ -> do
+	    let dvaluedef = sep [ dname, equals ] <+>
+			    sep [ text (show name), text "{- primitive -}" ]
+	    return $ dtypedecl $+$ dvaluedef
 
+--
 
-showClauseAsOptimized :: QName -> Clause -> TCM Doc
-showClauseAsOptimized name (Clause pats NoBody) = return empty
-showClauseAsOptimized name (Clause pats body)   = do
-    dname <- showAsOptimizedTerm name
-    dpats <- mapM (showAsOptimized . unArg) pats 
-    dbody <- showAsOptimizedTerm body
-    return $ dname <+> sep [ sep dpats <+> text "=", dbody ]
+underOptimizedClauseBody :: ClauseBody -> ([Doc] -> Term -> TCM Doc) -> TCM Doc
+underOptimizedClauseBody body k = go 0 [] body where
+    go n dvars NoBody        = return empty
+    go n dvars (Body t)      = k dvars t
+    go n dvars (NoBind body) = go n (dvars ++ [text "_"]) body
+    go n dvars (Bind abs)    =
+	underAbstraction_ abs{absName = show (n + 1)} $ \body -> do
+	    dvar <- showAsOptimizedTerm $ Var 0 []
+	    go (n + 1) (dvars ++ [dvar]) body
+
+showOptimizedClause :: QName -> Clause -> TCM Doc
+showOptimizedClause qname (Clause pats NoBody) = return empty
+showOptimizedClause qname (Clause pats body)   = underOptimizedClauseBody body $
+    \dvars term -> do
+	dname <- showAsOptimizedTerm qname
+	(_,dpats) <- showOptimizedPatterns dvars $ map unArg pats
+	dbody <- showAsOptimizedTerm term
+	return $ (sep (dname : dpats) <+> equals) <+> nest 2 dbody
+
+showOptimizedPatterns :: [Doc] -> [Pattern] -> TCM ([Doc], [Doc])
+showOptimizedPatterns dvars []           = return (dvars,[])
+showOptimizedPatterns dvars (pat : pats) = do
+    (dvars', dpat)  <- showOptimizedPattern  dvars  pat
+    (dvars'',dpats) <- showOptimizedPatterns dvars' pats
+    return (dvars'', (dpat : dpats))
+
+showOptimizedPattern :: [Doc] -> Pattern -> TCM ([Doc], Doc)
+showOptimizedPattern (dvar : dvars) (VarP s) = return (dvars, dvar)
+showOptimizedPattern []             (VarP s) = return __IMPOSSIBLE__
+showOptimizedPattern dvars (ConP qname args) = do
+    dname <- showAsOptimizedConstructor qname
+    (dvars',dargs) <- showOptimizedPatterns dvars (map unArg args)
+    return (dvars', parens $ sep (dname : dargs))
+showOptimizedPattern dvars (LitP lit) =
+    return (dvars, showOptimizedLiteral lit)
 
 ----------------------------------------------------------------
 -- implementation of the "K" function
@@ -166,7 +233,7 @@ instance ShowAsOptimizedKind Term where
 		dk2 <- showAsOptimizedKind $ ty
 		return $ parens $ sep [dk1 <+> text "->", dk2]
 	    Sort s     -> return $ text "*"
-	    Var _ _    -> return $ text "<var (impossible)>"
+	    Var _ _    -> return $ text "*"
 	    Def _ _    -> __IMPOSSIBLE__
 	    Con _ _    -> __IMPOSSIBLE__
 	    Lit _      -> __IMPOSSIBLE__
@@ -203,11 +270,10 @@ instance ShowAsOptimizedType Term where
 		return $ text "<constructor term (impossible)>"
 	    Pi arg abs -> do
 		dt1 <- showAsOptimizedType $ unArg arg
-		newname <- freshName_ $ absName abs
-		addCtx newname arg $ do
+		underAbstraction_ abs $ \body -> do
 		    dvar <- showAsOptimizedTerm $ Var 0 []
-		    dt2 <- showAsOptimizedType $ absBody abs
-		    case freeIn 0 $ absBody abs of
+		    dt2 <- showAsOptimizedType body
+		    case freeIn 0 body of
 			True  -> return $ parens $ sep $
 			    [ sep [ text "forall",
 				    dvar <> text ".", dt1, text "->" ],
@@ -237,56 +303,29 @@ instance ShowAsOptimizedTerm QName where
     showAsOptimizedTerm s = return $ text $ translateNameAsOptimizedTerm $ show s
 
 instance ShowAsOptimizedTerm Term where
-    showAsOptimizedTerm (Var n args)     = do
+    showAsOptimizedTerm (Var n args) = do
     	varname <- nameOfBV n
     	dvar <- showAsOptimizedTerm varname
     	dargs <- mapM (showAsOptimizedTerm . unArg) args
     	return $ psep $ dvar : dargs
-    showAsOptimizedTerm (Lam h abs)      = do
-    	newname <- freshName_ $ absName abs
-    	addCtx newname __IMPOSSIBLE__ $ do
-    	    dvar <- showAsOptimizedTerm $ Var 0 []
-    	    dt <- showAsOptimizedTerm $ absBody abs
-    	    return $ parens $ sep [ text "\\" <> dvar, text "->", dt ]
-    showAsOptimizedTerm (Lit lit) = return $ text $ showLiteralContent lit
+    showAsOptimizedTerm (Lam h abs) = underAbstraction_ abs $ \body -> do
+    	dvar <- showAsOptimizedTerm $ Var 0 []
+    	dt <- showAsOptimizedTerm body
+    	return $ parens $ sep [ text "\\" <> dvar, text "->", dt ]
     showAsOptimizedTerm (Def qname args) = do
-	let name = qnameName qname
-	dname <- showAsOptimizedTerm name
+	dname <- showAsOptimizedTerm qname
 	dargs <- mapM (showAsOptimizedTerm . unArg) args
 	return $ psep $ dname : dargs
     showAsOptimizedTerm (Con qname args) = do
-    	let name = qnameName qname
-    	dname <- showAsOptimizedTerm name
+    	dname <- showAsOptimizedConstructor qname
     	dargs <- mapM (showAsOptimizedTerm . unArg) args
     	return $ psep $ dname : dargs
+    showAsOptimizedTerm (Lit lit)        = return $ showOptimizedLiteral lit
     showAsOptimizedTerm (Pi _ _)	 = return $ text "()"
     showAsOptimizedTerm (Fun _ _)	 = return $ text "()"
     showAsOptimizedTerm (Sort _)	 = return $ text "()"
     showAsOptimizedTerm (MetaV id args)  = __IMPOSSIBLE__
     showAsOptimizedTerm (BlockedV bt)    = __IMPOSSIBLE__
-
-
-instance ShowAsOptimizedTerm ClauseBody where
-    showAsOptimizedTerm (Body t)      = showAsOptimizedTerm t
-    showAsOptimizedTerm (Bind abs)    = do
-	newname <- freshName_ (absName abs)
-	addCtx newname __IMPOSSIBLE__ $ showAsOptimizedTerm (absBody abs)
-    showAsOptimizedTerm (NoBind body) = showAsOptimizedTerm body
-    showAsOptimizedTerm NoBody        = return $ text "error \"impossible\""
-
-----------------------------------------------------------------
-
-class ShowAsOptimized a where
-    showAsOptimized :: a -> TCM Doc 
-
-instance ShowAsOptimized Pattern where
-    showAsOptimized (VarP s) =
-	return $ text $ translateNameAsOptimizedTerm s
-    showAsOptimized (ConP qname args) = do
-	dname <- showQNameAsOptimizedConstructor qname
-	dargs <- mapM (showAsOptimized . unArg) args
-	return $ parens $ sep $ dname : dargs
-    showAsOptimized (LitP lit) = return $ text $ show lit
 
 ----------------------------------------------------------------
 

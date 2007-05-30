@@ -12,16 +12,21 @@ import Data.Char
 ----------------------------------------------------------------
 
 translateNameAsUntypedTerm :: String -> String
-translateNameAsUntypedTerm s = 'x':'_':escape s
+translateNameAsUntypedTerm "_"                 = "_"
+translateNameAsUntypedTerm s   | all isDigit s = 'x':s
+translateNameAsUntypedTerm s                   = 'x':'_':escape s
 
 translateNameAsUntypedConstructor :: String -> String
 translateNameAsUntypedConstructor s = 'C':'_':escape s
 
 translateNameAsOptimizedType :: String -> String
-translateNameAsOptimizedType s = 'T':'_':escape s
+translateNameAsOptimizedType "_" = "_"
+translateNameAsOptimizedType s   = 'T':'_':escape s
 
 translateNameAsOptimizedTerm :: String -> String
-translateNameAsOptimizedTerm s = 'o':'_':escape s
+translateNameAsOptimizedTerm "_"                 = "_"
+translateNameAsOptimizedTerm s   | all isDigit s = 'o':s
+translateNameAsOptimizedTerm s                   = 'o':'_':escape s
 
 translateNameAsOptimizedConstructor :: String -> String
 translateNameAsOptimizedConstructor s = 'D':'_':escape s
@@ -29,10 +34,12 @@ translateNameAsOptimizedConstructor s = 'D':'_':escape s
 ----------------------------------------------------------------
 
 escape :: String -> String
-escape [] = []
+escape ""      = ""
+escape "_"     = "_"
 escape (c:s) | isUpper c || isLower c || isDigit c = c:escape s
-escape ('_':s) = '_':'_':escape s
-escape (c:s)   | ord c >= 256
+escape ('.':s) = '_':'_':escape s
+escape ('_':s) = '_':'z':escape s
+escape (c:s) | ord c >= 256
 	       = '_':'u'
                     :intToDigit (ord c `div` 4096)
                     :intToDigit ((ord c `div` 256) `mod` 16)

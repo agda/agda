@@ -3,40 +3,96 @@
 #include "../../undefined.h"
 
 {-| Classify type familes and constants
+    TODO: optimize by getting rid of !'s
 -}
 
 module Compiler.Agate.Classify where
 
 import Compiler.Agate.TranslateName
-import TypeChecking.MetaVars
+import Compiler.Agate.Common
 
-import Data.Map (Map)
+import TypeChecking.MetaVars
+import TypeChecking.Reduce
+import TypeChecking.Monad
+
+import Syntax.Common
+import Syntax.Internal
+import Syntax.Abstract.Name
+
+import Data.Map ((!), Map)
 import qualified Data.Map as Map
 
-import TypeChecking.Monad
-import Syntax.Abstract.Name
 
 ----------------------------------------------------------------
 
-enumDatatypes :: Map QName Definition -> [QName]
-enumDatatypes definitions = do
-	let ndefs = Map.toList definitions
-	concatMap f ndefs
-	where
-	f (name,d) = 
-		let def = theDef d in
-		case def of
-			Datatype _ _ _ _ _ _ -> [name]
-			_ -> []
+enumTypeFamilies :: Map QName Definition -> TCM [QName]
+enumTypeFamilies definitions = fmap concat $ mapM f $ Map.toList definitions
+    where
+      f (name,d) = do
+	--let def = theDef d
+	let ty = defType d
+	(_,ty2) <- splitType ty
+	(El sort term) <- reduce ty2
+	case ignoreBlocking term of
+	    Sort _ -> return [name]
+	    _      -> return []
 
-enumCompilableDatatypes :: Map QName Definition -> [QName] -> TCM [QName]
-enumCompilableDatatypes definitions names = do
-	computeGreatestFixedPoint f names
-	where
-	f :: [QName] -> QName -> TCM Bool
-	f names name = return True -- All datatypes are compilable at the moment
-	-- TODO: implement correctly
-
+enumCompilableTypeFamilies :: Map QName Definition -> TCM [QName]
+enumCompilableTypeFamilies definitions = do
+    names <- enumTypeFamilies definitions
+    computeGreatestFixedPoint f names where
+    f :: [QName] -> QName -> TCM Bool
+    f names name = do
+	let d = definitions ! name
+	let def = theDef d
+	case def of
+	    Axiom                        -> return False -- IO should get True
+	    Primitive a pf _             -> return False -- String should get True
+	    Function [] a                -> return False -- __IMPOSSIBLE__
+	    Function clauses a           -> return False -- TODO
+	    Constructor np _ tname a     -> return False -- ctor is not a typefam
+	    Datatype np ni _ cnames s a  -> do
+	    	let ty = defType d
+	    	ty <- reduce ty
+	    	ok <- isCompilableType ty
+	    	if ok then return True {-(
+	    	  fmap and (mapM ( \cname ->
+	    	      (do
+	    	  	let d = definitions ! cname
+	    	  	ty <- defType d
+	    	  	isCompilableType ty)) cnames ))
+	    	 -} else return False
+	    Record np claus flds tel s a -> return True
+	where -- TODO: implement correctly
+	isCompilableType :: Type -> TCM Bool
+	isCompilableType (El s t) = isCompilableTypeFamily t
+	
+	isCompilableTypeFamily :: Term -> TCM Bool
+	isCompilableTypeFamily tm = do
+	    tm <- reduce tm
+	    case ignoreBlocking tm of
+		Var n args -> return True
+		Sort _     -> return True
+		Lam h abs  -> return False -- this can be too strong
+		Def c args ->
+		    if elem c names then
+			fmap and $ mapM (isCompilableTypeFamily . unArg) args
+		      else return False
+		Pi arg abs -> do
+		    ok <- isCompilableType $ unArg arg
+		    if ok then underAbstraction_ abs isCompilableType
+		      else return False
+		Fun arg ty -> do
+		    ok <- isCompilableType $ unArg arg
+		    if ok then isCompilableType ty
+		      else return False
+		Lit lit    -> return False
+		Con c args -> return False
+		MetaV _ _  -> return __IMPOSSIBLE__
+		BlockedV _ -> return __IMPOSSIBLE__
+    
+    
+    
 ----------------------------------------------------------------
 
 
@@ -49,7 +105,7 @@ enumOptimizableConstants definitions names = do
 	-- TODO: implement correctly
 
 
---
+----------------------------------------------------------------
 
 computeGreatestFixedPoint :: ([QName] -> QName -> TCM Bool)-> [QName] -> TCM [QName]
 computeGreatestFixedPoint f names = go names True where

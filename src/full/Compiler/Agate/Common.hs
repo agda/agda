@@ -17,6 +17,7 @@ import Syntax.Internal
 
 import TypeChecking.Monad
 import TypeChecking.Reduce
+import TypeChecking.Substitute
 
 import Utils.Pretty
 import Utils.Monad
@@ -51,7 +52,7 @@ withFunctionDomain (El s tm) f ret = withDomain s tm
     where
 	withDomain s tm = do
 	    tm <- reduce tm
-	    case tm of
+	    case ignoreBlocking tm of
 		Pi arg abs -> do
 		    res	    <- f $ unArg arg
 		    underAbstraction arg abs $ \ty ->
@@ -79,10 +80,19 @@ forEachArgM f ty = withFunctionDomain ty f $ \ress _ -> return ress
 underContext :: Type -> TCM a -> TCM a
 underContext ty k = withFunctionDomain ty return $ \_ _ -> k
 
-showLiteralContent :: Literal -> String
-showLiteralContent (LitInt    _ i) = show i
-showLiteralContent (LitString _ s) = show s
-showLiteralContent (LitFloat  _ f) = show f
-showLiteralContent (LitChar   _ c) = show c
+--
+
+showOptimizedLiteral :: Literal -> Doc
+showOptimizedLiteral (LitInt    _ i) = text $ show i
+showOptimizedLiteral (LitString _ s) = text $ show s
+showOptimizedLiteral (LitFloat  _ f) = text $ show f
+showOptimizedLiteral (LitChar   _ c) = text $ show c
+
+showUntypedLiteral :: Literal -> Doc
+showUntypedLiteral (LitInt    _ i) = text "VInt"    <+> text (show i)
+showUntypedLiteral (LitString _ s) = text "VString" <+> text (show s)
+showUntypedLiteral (LitFloat  _ f) = text "VFloat"  <+> text (show f)
+showUntypedLiteral (LitChar   _ c) = text "VChar"   <+> text (show c)
 
 --
+

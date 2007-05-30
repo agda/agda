@@ -24,10 +24,6 @@ showAsUntypedConstructor :: QName -> TCM Doc
 showAsUntypedConstructor name =
     return $ text $ translateNameAsUntypedConstructor $ show name
 
-showQNameAsUntypedConstructor :: QName -> TCM Doc
-showQNameAsUntypedConstructor qname =
-    return $ text $ translateNameAsUntypedConstructor $ show qname
-
 ----------------------------------------------------------------
 -- implementation of the "X" function
 
@@ -41,111 +37,115 @@ instance ShowAsUntypedTerm QName where
     showAsUntypedTerm t = return $ text $ translateNameAsUntypedTerm $ show t
 
 instance ShowAsUntypedTerm Term where
-    showAsUntypedTerm (Var n args) =
-     do varname <- nameOfBV n
-    	dvar <- showAsUntypedTerm varname
-    	dargs <- mapM showAsUntypedTerm (map unArg args)
-        return $ foldl (\f a -> parens (f <+> text "|$|" <+> a)) dvar dargs
-    showAsUntypedTerm (Lam h abs@(Abs v b)) =
-     do newname <- freshName_ (absName abs)
-	addCtx newname __IMPOSSIBLE__ $ do
-	    dvar <- showAsUntypedTerm $ Var 0 []
-	    dbody <- showAsUntypedTerm (absBody abs)
-	    return $ parens $ text "VAbs" <+>
-		     parens (sep [ text "\\" <> dvar, text "->", dbody ])
-    showAsUntypedTerm (Con qname args) =
-     do dname <- showAsUntypedTerm qname
-    	dargs <- mapM showAsUntypedTerm (map unArg args)
-        return $ foldl (\f a -> parens (f <+> text "|$|" <+> a)) dname dargs
-    showAsUntypedTerm (Def qname args) =
-     do dname <- showAsUntypedTerm qname
-    	dargs <- mapM showAsUntypedTerm (map unArg args)
-        return $ foldl (\f a -> parens (f <+> text "|$|" <+> a)) dname dargs
-    showAsUntypedTerm (Lit (LitInt    _ i)) = return $ parens $ text "VInt" <+> text (show i)
-    showAsUntypedTerm (Lit (LitString _ s)) = return $ parens $ text "VString" <+> text (show s)
-    showAsUntypedTerm (Lit (LitFloat  _ f)) = return $ parens $ text "VFloat" <+> text (show f)
-    showAsUntypedTerm (Lit (LitChar   _ c)) = return $ parens $ text "VChar" <+> text (show c)
-    showAsUntypedTerm (Pi _ _)	   = __IMPOSSIBLE__ -- not impossible
-    showAsUntypedTerm (Fun _ _)    = __IMPOSSIBLE__ -- not impossible
-    showAsUntypedTerm (Sort _)	   = __IMPOSSIBLE__ -- not impossible
+    showAsUntypedTerm (Var n args) = do
+	varname <- nameOfBV n
+	dvar <- showAsUntypedTerm varname
+	dargs <- mapM (showAsUntypedTerm . unArg) args
+	return $ foldl (\f a -> parens (f <+> text "|$|" <+> a)) dvar dargs
+    showAsUntypedTerm (Lam h abs) = underAbstraction_ abs $ \body -> do
+	dvar <- showAsUntypedTerm $ Var 0 []
+	dbody <- showAsUntypedTerm body
+	return $ parens $ text "VAbs" <+>
+		 parens (sep [ text "\\" <> dvar, text "->", dbody ])
+    showAsUntypedTerm (Con qname args) = do
+	dname <- showAsUntypedTerm qname
+	dargs <- mapM (showAsUntypedTerm . unArg) args
+	return $ foldl (\f a -> parens (f <+> text "|$|" <+> a)) dname dargs
+    showAsUntypedTerm (Def qname args) = do
+	dname <- showAsUntypedTerm qname
+	dargs <- mapM (showAsUntypedTerm . unArg) args
+	return $ foldl (\f a -> parens (f <+> text "|$|" <+> a)) dname dargs
+    showAsUntypedTerm (Lit lit)    = return $ parens $ showUntypedLiteral lit
+    showAsUntypedTerm (Pi _ _)	   = return $ text "VNonData"
+    showAsUntypedTerm (Fun _ _)    = return $ text "VNonData"
+    showAsUntypedTerm (Sort _)	   = return $ text "VNonData"
     showAsUntypedTerm (MetaV _ _)  = __IMPOSSIBLE__
     showAsUntypedTerm (BlockedV _) = __IMPOSSIBLE__
 
-instance ShowAsUntypedTerm ClauseBody where
-    showAsUntypedTerm (Body t)      = showAsUntypedTerm t
-    showAsUntypedTerm (Bind abs)    = do
-	newname <- freshName_ (absName abs)
-	addCtx newname __IMPOSSIBLE__ $ showAsUntypedTerm (absBody abs)
-    showAsUntypedTerm (NoBind body) = showAsUntypedTerm body
-    showAsUntypedTerm NoBody        = return $ text "error \"impossible\""
-
 ----------------------------------------------------------------
 
-class ShowAsUntyped a where
-    showAsUntyped :: a -> TCM Doc 
-
-instance ShowAsUntyped Pattern where
-    showAsUntyped (VarP s)          =
-	return $ text $ translateNameAsUntypedTerm s
-    showAsUntyped (ConP qname args) = do
-	dname <- showQNameAsUntypedConstructor qname
-	dargs <- mapM (showAsUntyped . unArg) args
-	return $ parens $ (text "VCon" <> text (show (length dargs))) <+>
-			  sep (dname : dargs)
-    showAsUntyped (LitP lit) = return $ text (show lit)
-
-showClause :: Clause -> TCM Doc
-showClause (Clause pats NoBody) = return empty
-showClause (Clause pats body)   = do
-    dpats <- mapM (showAsUntyped . unArg) pats 
-    dbody <- showAsUntypedTerm body
-    return $ text "f" <+>
-	     sep [ sep [ sep dpats, equals ], dbody ]
-
-----------------------------------------------------------------
-
-showNDefinition :: (QName, Definition) -> TCM Doc
-showNDefinition (name, defn) = do
+showUntypedDefinition :: (QName, Definition) -> TCM Doc
+showUntypedDefinition (name, defn) = do
     dname <- showAsUntypedTerm name
     case theDef defn of
-      Axiom -> do
+      Axiom ->
 	return $ sep [ dname, equals ] <+>
 		 sep [ text "undefined {- postulate -}" ]
       Function [] a -> return $ text "return __IMPOSSIBLE__"
       Function clauses a -> do
         let (Clause pats body) = head clauses
-	let patsize = length pats
-	let dvars = map (\i -> text ("v" ++ show i)) [1..patsize]
+	let dvars = map (\i -> text ("v" ++ show i)) [1 .. length pats]
 	let drhs = untypedAbs dvars $ sep (text "f" : dvars)
-	dclauses <- mapM showClause clauses
+	dclauses <- mapM showUntypedClause clauses
 	return $ (dname <+> equals) <+> drhs <+> text "where" $+$
 		 nest 2 (vcat dclauses)
-      Datatype np ni _ qcnames s a -> do
-	ty <- instantiate $ defType defn
-	(args,_) <- splitType ty
+      Datatype np ni _ cnames s a -> do
 	let dvars = map (\i -> text ("v" ++ show i)) [1 .. np + ni]
 	let drhs = untypedAbs dvars $ text "VNonData"
 	return $ sep [ dname, equals ] <+> drhs <+> text "{- datatype -}"
-      Record _ _ _ _ _ _ -> return $ text "(error \"records\")"
+      Record np clauses flds tel s a -> do
+        dcname <- showAsUntypedConstructor name
+	let arity = length flds
+	let dvars = map (\i -> text ("v" ++ show i)) [1 .. arity]
+	let drhs = untypedAbs dvars $ sep $
+		   text "VCon" <> text (show arity) : dcname : dvars
+	return $ sep [ dname, equals ] <+> drhs
       Constructor np _ qtname a -> do
 	dcname <- showAsUntypedConstructor name
 	ty <- instantiate $ defType defn
 	(args,_) <- splitType ty
-	let argsize = length args
-	let dvars = map (\i -> text ("v" ++ show i)) [1..argsize]
-	let dargvars = drop np dvars
+	let arity = length args - np
+	let dvars = map (\i -> text ("v" ++ show i)) [1 .. arity]
 	let drhs = untypedAbs dvars $ sep $
-		    text "VCon" <> text (show (argsize - np)) : dcname : dargvars
+		   text "VCon" <> text (show arity) : dcname : dvars
 	return $ sep [ dname, equals ] <+> drhs
       Primitive a pf _ -> do
-	doname <- showAsOptimizedTerm name
+	doptname <- showAsOptimizedTerm name
 	return $ sep [ dname, equals ] <+>
-		 sep [ text "box", doname, text "{- primitive -}" ]
+		 sep [ text "box", doptname, text "{- primitive -}" ]
 
 untypedAbs :: [Doc] -> Doc -> Doc
 untypedAbs dvars dtail = foldr
     (\dvar d -> sep [ text "VAbs (\\" <> dvar <+> text "->",
 		      d <> text ")" ]) dtail dvars
+
+----------------------------------------------------------------
+
+underUntypedClauseBody :: ClauseBody -> ([Doc] -> Term -> TCM Doc) -> TCM Doc
+underUntypedClauseBody body k = go 0 [] body where
+    go n dvars NoBody        = return empty
+    go n dvars (Body t)      = k dvars t
+    go n dvars (NoBind body) = go n (dvars ++ [text "_"]) body
+    go n dvars (Bind abs)    =
+	underAbstraction_ abs{absName = show (n + 1)} $ \body -> do
+	    dvar <- showAsUntypedTerm $ Var 0 []
+	    go (n + 1) (dvars ++ [dvar]) body
+
+showUntypedClause :: Clause -> TCM Doc
+showUntypedClause (Clause pats NoBody) = return empty
+showUntypedClause (Clause pats body)   = underUntypedClauseBody body $
+    \dvars term -> do
+	(_,dpats) <- showUntypedPatterns dvars $ map unArg pats
+	dbody <- showAsUntypedTerm term
+	return $ text "f" <+> sep [ sep [ sep dpats, equals ], dbody ]
+
+showUntypedPatterns :: [Doc] -> [Pattern] -> TCM ([Doc], [Doc])
+showUntypedPatterns dvars []           = return (dvars,[])
+showUntypedPatterns dvars (pat : pats) = do
+    (dvars', dpat)  <- showUntypedPattern  dvars  pat
+    (dvars'',dpats) <- showUntypedPatterns dvars' pats
+    return (dvars'', (dpat : dpats))
+
+showUntypedPattern :: [Doc] -> Pattern -> TCM ([Doc], Doc)
+showUntypedPattern (dvar : dvars) (VarP s) = return (dvars, dvar)
+showUntypedPattern []             (VarP s) = return __IMPOSSIBLE__
+showUntypedPattern dvars (ConP qname args) = do
+    dname <- showAsUntypedConstructor qname
+    (dvars',dargs) <- showUntypedPatterns dvars (map unArg args)
+    return (dvars', parens $ (text "VCon" <> text (show (length dargs))) <+>
+			 sep (dname : dargs))
+showUntypedPattern dvars (LitP lit) =
+    return (dvars, parens $ showUntypedLiteral lit)
 
 ----------------------------------------------------------------
 --
