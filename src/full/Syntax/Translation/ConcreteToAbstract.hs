@@ -550,15 +550,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
 	printScope 20 $ case open of
 	  DontOpen  -> "didn't open"
 	  DoOpen    -> "opened"
-	let decl = Apply info m0 m1 args' renD renM
-	case tel' of
-	  []  -> return [ decl ]
-	  _	  -> do
-	    -- If the module is reabstracted we create an anonymous
-	    -- section around it.
-	    noName <- freshNoName (getRange x)
-	    top    <- getCurrentModule
-	    return $ makeSection info m0 tel' [ decl ]
+	return [ Apply info m0 tel' m1 args' renD renM ]
       _	-> notAModuleExpr e
       where
 	info = mkRangedModuleInfo p a r

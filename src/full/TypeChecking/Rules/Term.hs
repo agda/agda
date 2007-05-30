@@ -158,14 +158,14 @@ checkExpr e t =
 	-- Variable or constant application
 	_   | Application hd args <- appView e -> do
 		(f,  t0)     <- inferHead hd
-		(vs, t1, cs) <- checkArguments (getRange hd) args t0 t
+		(vs, t1, cs) <- checkArguments ExpandLast (getRange hd) args t0 t
 		blockTerm t (f vs) $ (cs ++) <$> equalType t1 t
 
 	A.WithApp _ e es -> typeError $ NotImplemented "type checking of with application"
 
 	A.App i e arg -> do
 	    (v0, t0)	 <- inferExpr e
-	    (vs, t1, cs) <- checkArguments (getRange e) [arg] t0 t
+	    (vs, t1, cs) <- checkArguments ExpandLast (getRange e) [arg] t0 t
 	    blockTerm t (apply v0 vs) $ (cs ++) <$> equalType t1 t
 
 	A.Lam i (A.DomainFull b) e ->
@@ -222,7 +222,7 @@ checkExpr e t =
 	      ftel <- getRecordFieldTypes r
 	      es <- orderFields r xs fs
 	      let tel = ftel `apply` vs
-	      (args, cs) <- checkArguments_ (getRange e)
+	      (args, cs) <- checkArguments_ ExpandLast (getRange e)
 			      (map (Arg NotHidden . unnamed) es) tel
 	      blockTerm t (Con r args) $ return cs
 	    _  -> typeError $ ShouldBeRecordType t
@@ -301,14 +301,16 @@ inferDef mkTerm x =
       liftIO $ putStrLn $ "inferred def " ++ unwords (show dx : map show ds) ++ " : " ++ show dt
     return (mkTerm x vs, defType d)
 
+data ExpandHidden = ExpandLast | DontExpandLast
 
 -- | Check a list of arguments: @checkArgs args t0 t1@ checks that
 --   @t0 = Delta -> t0'@ and @args : Delta@. Inserts hidden arguments to
 --   make this happen. Returns @t0'@ and any constraints that have to be
 --   solve for everything to be well-formed.
 --   TODO: doesn't do proper blocking of terms
-checkArguments :: Range -> [NamedArg A.Expr] -> Type -> Type -> TCM (Args, Type, Constraints)
-checkArguments r [] t0 t1 =
+checkArguments :: ExpandHidden -> Range -> [NamedArg A.Expr] -> Type -> Type -> TCM (Args, Type, Constraints)
+checkArguments DontExpandLast _ [] t0 t1 = return ([], t0, [])
+checkArguments exh r [] t0 t1 =
     traceCall (CheckArguments r [] t0 t1) $ do
 	t0' <- reduce t0
 	t1' <- reduce t1
@@ -316,7 +318,7 @@ checkArguments r [] t0 t1 =
 	    FunV (Arg Hidden a) _ | notHPi $ unEl t1'  -> do
 		v  <- newValueMeta a
 		let arg = Arg Hidden v
-		(vs, t0'',cs) <- checkArguments r [] (piApply t0' [arg]) t1'
+		(vs, t0'',cs) <- checkArguments exh r [] (piApply t0' [arg]) t1'
 		return (arg : vs, t0'',cs)
 	    _ -> return ([], t0', [])
     where
@@ -324,7 +326,7 @@ checkArguments r [] t0 t1 =
 	notHPi (Fun (Arg Hidden _) _) = False
 	notHPi _		      = True
 
-checkArguments r args0@(Arg h e : args) t0 t1 =
+checkArguments exh r args0@(Arg h e : args) t0 t1 =
     traceCall (CheckArguments r args0 t0 t1) $ do
 	(t0', cs) <- forcePi h (name e) t0
 	e' <- return $ namedThing e
@@ -332,20 +334,20 @@ checkArguments r args0@(Arg h e : args) t0 t1 =
 	    (NotHidden, FunV (Arg Hidden a) _) -> do
 		u  <- newValueMeta a
 		let arg = Arg Hidden u
-		(us, t0'',cs') <- checkArguments r (Arg h e : args)
+		(us, t0'',cs') <- checkArguments exh r (Arg h e : args)
 				       (piApply t0' [arg]) t1
 		return (arg : us, t0'', cs ++ cs')
 	    (Hidden, FunV (Arg Hidden a) _)
 		| not $ sameName (nameOf e) (nameInPi $ unEl t0') -> do
 		    u  <- newValueMeta a
 		    let arg = Arg Hidden u
-		    (us, t0'',cs') <- checkArguments r (Arg h e : args)
+		    (us, t0'',cs') <- checkArguments exh r (Arg h e : args)
 					   (piApply t0' [arg]) t1
 		    return (arg : us, t0'', cs ++ cs')
 	    (_, FunV (Arg h' a) _) | h == h' -> do
 		u  <- checkExpr e' a
 		let arg = Arg h u
-		(us, t0'', cs') <- checkArguments (fuseRange r e) args (piApply t0' [arg]) t1
+		(us, t0'', cs') <- checkArguments exh (fuseRange r e) args (piApply t0' [arg]) t1
 		return (arg : us, t0'', cs ++ cs')
 	    (Hidden, FunV (Arg NotHidden _) _) ->
 		typeError $ WrongHidingInApplication t0'
@@ -364,9 +366,9 @@ checkArguments r args0@(Arg h e : args) t0 t1 =
 
 
 -- | Check that a list of arguments fits a telescope.
-checkArguments_ :: Range -> [NamedArg A.Expr] -> Telescope -> TCM (Args, Constraints)
-checkArguments_ r args tel = do
-    (args, _, cs) <- checkArguments r args (telePi tel $ sort Prop) (sort Prop)
+checkArguments_ :: ExpandHidden -> Range -> [NamedArg A.Expr] -> Telescope -> TCM (Args, Constraints)
+checkArguments_ exh r args tel = do
+    (args, _, cs) <- checkArguments exh r args (telePi tel $ sort Prop) (sort Prop)
     return (args, cs)
 
 

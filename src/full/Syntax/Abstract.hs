@@ -48,7 +48,7 @@ data Declaration
 	| Primitive  DefInfo QName Expr				-- ^ primitive function
 	| Definition DeclInfo [TypeSignature] [Definition]	-- ^ a bunch of mutually recursive definitions
 	| Section    ModuleInfo ModuleName [TypedBindings] [Declaration]
-	| Apply	     ModuleInfo ModuleName ModuleName [NamedArg Expr] (Map QName QName) (Map ModuleName ModuleName)
+	| Apply	     ModuleInfo ModuleName [TypedBindings] ModuleName [NamedArg Expr] (Map QName QName) (Map ModuleName ModuleName)
 	| Import     ModuleInfo ModuleName
 	| Pragma     Range	Pragma
 	| ScopedDecl ScopeInfo [Declaration]  -- ^ scope annotation
@@ -197,14 +197,14 @@ instance HasRange Expr where
     getRange (ScopedExpr _ e)	= getRange e
 
 instance HasRange Declaration where
-    getRange (Axiom      i _ _	     ) = getRange i
-    getRange (Definition i _ _	     ) = getRange i
-    getRange (Section    i _ _ _     ) = getRange i
-    getRange (Apply	 i _ _ _ _ _ ) = getRange i
-    getRange (Import     i _	     ) = getRange i
-    getRange (Primitive  i _ _	     ) = getRange i
-    getRange (Pragma	 i _	     ) = getRange i
-    getRange (ScopedDecl _ d	     ) = getRange d
+    getRange (Axiom      i _ _	       ) = getRange i
+    getRange (Definition i _ _	       ) = getRange i
+    getRange (Section    i _ _ _       ) = getRange i
+    getRange (Apply	 i _ _ _ _ _ _ ) = getRange i
+    getRange (Import     i _	       ) = getRange i
+    getRange (Primitive  i _ _	       ) = getRange i
+    getRange (Pragma	 i _	       ) = getRange i
+    getRange (ScopedDecl _ d	       ) = getRange d
 
 instance HasRange Definition where
     getRange (FunDef  i _ _   ) = getRange i

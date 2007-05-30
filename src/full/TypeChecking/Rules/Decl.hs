@@ -21,7 +21,7 @@ import TypeChecking.Primitive
 import TypeChecking.Conversion
 import TypeChecking.Substitute
 
-import TypeChecking.Rules.Term	  ( checkArguments, checkArguments_, checkTelescope, isType_ )
+import TypeChecking.Rules.Term	  ( checkArguments, checkArguments_, checkTelescope, isType_, ExpandHidden(..) )
 import TypeChecking.Rules.Data	  ( checkDataDef )
 import TypeChecking.Rules.Record  ( checkRecDef )
 import TypeChecking.Rules.Def	  ( checkFunDef )
@@ -41,14 +41,14 @@ checkDecls ds = mapM_ checkDecl ds
 checkDecl :: A.Declaration -> TCM ()
 checkDecl d =
     case d of
-	A.Axiom i x e		 -> checkAxiom i x e
-	A.Primitive i x e	 -> checkPrimitive i x e
-	A.Definition i ts ds	 -> checkMutual i ts ds
-	A.Section i x tel ds	 -> checkSection i x tel ds
-	A.Apply i x m args rd rm -> checkSectionApplication i x m args rd rm
-	A.Import i x		 -> checkImport i x
-	A.Pragma i p		 -> checkPragma i p
-	A.ScopedDecl scope ds	 -> setScope scope >> checkDecls ds
+	A.Axiom i x e		     -> checkAxiom i x e
+	A.Primitive i x e	     -> checkPrimitive i x e
+	A.Definition i ts ds	     -> checkMutual i ts ds
+	A.Section i x tel ds	     -> checkSection i x tel ds
+	A.Apply i x tel m args rd rm -> checkSectionApplication i x tel m args rd rm
+	A.Import i x		     -> checkImport i x
+	A.Pragma i p		     -> checkPragma i p
+	A.ScopedDecl scope ds	     -> setScope scope >> checkDecls ds
 	    -- open is just an artifact from the concrete syntax
 
 
@@ -134,9 +134,11 @@ checkSection i x tel ds =
 
 -- | Check an application of a section.
 checkSectionApplication ::
-  Info.ModuleInfo -> ModuleName -> ModuleName -> [NamedArg A.Expr] ->
+  Info.ModuleInfo -> ModuleName -> A.Telescope -> ModuleName -> [NamedArg A.Expr] ->
   Map QName QName -> Map ModuleName ModuleName -> TCM ()
-checkSectionApplication i m1 m2 args rd rm = do
+checkSectionApplication i m1 ptel m2 args rd rm =
+  checkTelescope ptel $ \ptel -> do
+  addSection m1 (size ptel)
   tel <- lookupSection m2
   vs  <- freeVarsToApply $ qnameFromList $ mnameToList m2
   verbose 15 $ do
@@ -144,7 +146,7 @@ checkSectionApplication i m1 m2 args rd rm = do
     dtel <- prettyTCM tel
     liftIO $ putStrLn $ "applying section " ++ show dm2
     liftIO $ putStrLn $ "  tel = " ++ show dtel
-  (ts, cs)  <- checkArguments_ (getRange i) args (apply tel vs)
+  (ts, cs)  <- checkArguments_ DontExpandLast (getRange i) args (apply tel vs)
   noConstraints $ return cs
   verbose 15 $ do
     [d1,d2] <- mapM prettyTCM [m1,m2]

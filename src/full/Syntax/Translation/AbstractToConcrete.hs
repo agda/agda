@@ -510,12 +510,13 @@ instance ToConcrete A.Declaration [C.Declaration] where
     ds <- toConcrete ds
     return [ C.Module (getRange i) x tel ds ]
 
-  toConcrete (A.Apply i x y es _ _) = do
+  toConcrete (A.Apply i x tel y es _ _) = do
     x  <- unsafeQNameToName <$> toConcrete x
     y  <- toConcrete y
+    bindToConcrete tel $ \tel -> do
     es <- toConcrete es
     let r = fuseRange y es
-    return [ C.ModuleMacro (getRange i) x []
+    return [ C.ModuleMacro (getRange i) x tel
 		(foldl (C.App r) (C.Ident y) es) DontOpen
 		(ImportDirective r (Hiding []) [] False)
 	   ]
