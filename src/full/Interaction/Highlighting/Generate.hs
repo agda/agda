@@ -11,7 +11,9 @@ module Interaction.Highlighting.Generate
   ) where
 
 import Interaction.Highlighting.Precise hiding (tests)
-import TypeChecking.Monad hiding (MetaInfo, Primitive, Constructor, Record, Function, Datatype)
+import Interaction.Highlighting.Range   hiding (tests)
+import TypeChecking.Monad
+  hiding (MetaInfo, Primitive, Constructor, Record, Function, Datatype)
 import qualified TypeChecking.Monad as M
 import qualified Syntax.Abstract as A
 import qualified Syntax.Concrete as C
@@ -270,34 +272,6 @@ nameToFileA x m =
 concreteBase      = A.nameConcrete . A.qnameName
 concreteQualifier = map A.nameConcrete . A.mnameToList . A.qnameModule
 bindingSite       = A.nameBindingSite . A.qnameName
-
--- | Calculates a set of ranges associated with a name.
---
--- For an operator the ranges associated with the NameParts are
--- returned. Otherwise the range associated with the Name is returned.
---
--- A boolean, indicating operatorness, is also returned.
-
-getRanges :: C.Name -> ([Range], Bool)
-getRanges (C.NoName _ _) = ([], False)
-getRanges (C.Name r ps)  =
-  if r == P.noRange then (concatMap getR ps, True)
-                    else (rToR r, False)
-  where
-  getR C.Hole     = []
-  getR (C.Id r _) = rToR r
-
--- | Converts a 'P.Range' to a 'Range' (if the input range has
--- well-defined positions).
-
-rToR :: P.Range -> [Range]
-rToR r = case (p1, p2) of
-  (P.Pn { P.posPos = pos1 }, P.Pn { P.posPos = pos2 }) ->
-    [Range { from = toInteger pos1, to = toInteger pos2 }]
-  _ -> []
-  where
-  p1 = P.rStart r
-  p2 = P.rEnd r
 
 ------------------------------------------------------------------------
 -- All tests

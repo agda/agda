@@ -26,6 +26,7 @@ exposed-modules: AgdaMain
                  Interaction.Highlighting.Emacs
                  Interaction.Highlighting.Generate
                  Interaction.Highlighting.Precise
+                 Interaction.Highlighting.Range
                  Interaction.Highlighting.Vim
                  Interaction.Imports
                  Interaction.Monad

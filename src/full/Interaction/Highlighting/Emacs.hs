@@ -7,6 +7,7 @@ module Interaction.Highlighting.Emacs
   ) where
 
 import Interaction.Highlighting.Precise
+import Interaction.Highlighting.Range
 import Prelude hiding (writeFile, appendFile)
 import Utils.FileName
 import Utils.String

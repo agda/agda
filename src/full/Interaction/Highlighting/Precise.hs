@@ -6,14 +6,11 @@ module Interaction.Highlighting.Precise
   , OtherAspect(..)
   , MetaInfo(..)
   , File
-  , Range(..)
-  , rangeInvariant
-  , overlapping
   , singleton
   , several
   , smallestPos
   , compress
-  , tests
+  , Interaction.Highlighting.Precise.tests
   ) where
 
 import Utils.TestHelpers hiding (tests)
@@ -26,6 +23,8 @@ import Control.Monad
 import Test.QuickCheck
 import Data.Map (Map)
 import qualified Data.Map as Map
+
+import Interaction.Highlighting.Range
 
 ------------------------------------------------------------------------
 -- Files
@@ -87,36 +86,6 @@ data MetaInfo = MetaInfo
 
 newtype File = File { mapping :: Map Integer MetaInfo }
   deriving (Eq, Show)
-
-------------------------------------------------------------------------
--- Ranges
-
--- | Character ranges. The first character in the file has position 1.
--- Note that the 'to' position is considered to be outside of the
--- range.
---
--- Invariant: @'from' '<=' 'to'@.
-
-data Range = Range { from, to :: Integer }
-             deriving (Eq, Show)
-
--- | The 'Range' invariant.
-
-rangeInvariant :: Range -> Bool
-rangeInvariant r = from r <= to r
-
--- | 'True' iff the ranges overlap.
---
--- The ranges are assumed to be well-formed.
-
-overlapping :: Range -> Range -> Bool
-overlapping r1 r2 = not $
-  to r1 <= from r2 || to r2 <= from r1
-
--- | Converts a range to a list of positions.
-
-toList :: Range -> [Integer]
-toList r = [from r .. to r - 1]
 
 -- | Returns the smallest position, if any, in the 'File'.
 
@@ -256,12 +225,6 @@ instance Arbitrary File where
   arbitrary = fmap (File . Map.fromList) $ list arbitrary
   coarbitrary (File rs) = coarbitrary (Map.toAscList rs)
 
-instance Arbitrary Range where
-  arbitrary = do
-    [from, to] <- fmap sort $ listOfLength 2 positive
-    return $ Range { from = from, to = to }
-  coarbitrary (Range f t) = coarbitrary f . coarbitrary t
-
 ------------------------------------------------------------------------
 -- All tests
 
@@ -269,6 +232,5 @@ instance Arbitrary Range where
 
 tests :: IO ()
 tests = do
-  quickCheck rangeInvariant
   quickCheck prop_singleton
   quickCheck prop_compress
