@@ -1,7 +1,7 @@
 module Homogenous.Nat where
 
-import Prelude
-open Prelude using (zero; one; _::_; nil; right; left; pair; unit)
+import PolyDepPrelude
+open PolyDepPrelude using (zero; one; _::_; nil; right; left; pair; unit)
 
 import Homogenous.Base
 

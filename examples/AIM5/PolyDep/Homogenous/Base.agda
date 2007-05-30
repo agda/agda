@@ -3,9 +3,9 @@ module Homogenous.Base where
 -- module Homogenous.Base(Arity, Sig, T, Intro) where
 
 import TYPE
-import Prelude
+import PolyDepPrelude
 
-open Prelude using
+open PolyDepPrelude using
   ( Absurd
   ; Unit; unit
   ; Nat; zero; suc
@@ -23,7 +23,7 @@ Sig   : Set
 Sig   = List Arity
 
 -- Many definitions below come in pairs - one for Arity and one for
--- Sig - where name of the first one ends in a (as in Arity) : 
+-- Sig - where name of the first one ends in a (as in Arity) :
 --   funa : Arity -> ...
 --   fun  : Sig -> ...
 
@@ -138,4 +138,3 @@ RT : (fi : Sig)
      (d : (y : F fi (T fi)) -> FIHT fi (T fi) C y -> C (Intro y))
      (x : T fi) -> C x
 RT fi d (Intro i) = d i (FmapT fi (RT fi d) i)
-

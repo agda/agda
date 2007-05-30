@@ -1,3 +1,5 @@
+070502: Now (with Pi in Set) the Reflexivity example is also working
+
 060928: Status and plan
 
   Module hierarchy:
