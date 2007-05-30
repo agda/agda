@@ -496,6 +496,7 @@ data TypeError
 	    --	 target and the second term is the actual target.
 	| ShouldBeApplicationOf Type QName
 	    -- ^ Expected a type to be an application of a particular datatype.
+	| ConstructorPatternInWrongDatatype QName QName -- ^ constructor, datatype
 	| DifferentArities
 	    -- ^ Varying number of arguments for a function.
 	| WrongHidingInLHS Type

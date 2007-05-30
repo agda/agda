@@ -84,6 +84,7 @@ errorString err = case err of
     ClashingImport _ _			       -> "ClashingImport"
     ClashingModule _ _			       -> "ClashingModule"
     ClashingModuleImport _ _		       -> "ClashingModuleImport"
+    ConstructorPatternInWrongDatatype _ _      -> "ConstructorPatternInWrongDatatype"
     CyclicModuleDependency _		       -> "CyclicModuleDependency"
     DataMustEndInSort _			       -> "DataMustEndInSort"
     DifferentArities			       -> "DifferentArities"
@@ -194,6 +195,8 @@ instance PrettyTCM TypeError where
             WrongNumberOfConstructorArguments c expect given -> fsep $
               pwords "The constructor" ++ [prettyTCM c] ++ pwords "expects" ++
               [text (show expect)] ++ pwords "arguments, but has been given" ++ [text (show given)]
+            ConstructorPatternInWrongDatatype c d -> fsep $
+              [prettyTCM c] ++ pwords "is not a constructor of the datatype" ++ [prettyTCM d]
 	    ShouldBeEmpty t -> fsep $
 		[prettyTCM t] ++ pwords "should be empty, but it isn't (as far as I can see)"
 	    ShouldBeASort t -> fsep $

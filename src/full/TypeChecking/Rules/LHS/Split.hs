@@ -64,13 +64,19 @@ splitProblem (Problem ps (perm, qs) tel) = runErrorT $
 		    (fmap (LitFocus lit q i) a)
 		    (fmap (Problem ps ()) tel)
 	    else keepGoing
-	(xs, A.ConP _ c args) -> do
+	(xs, p@(A.ConP _ c args)) -> do
 	  a' <- reduce $ unArg a
 	  case unEl a' of
 	    Def d vs	-> do
 	      def <- theDef <$> getConstInfo d
 	      case def of
-		Datatype np _ _ _ _ _ -> do
+		Datatype np _ _ _ _ _ ->
+		  traceCall (CheckPattern p EmptyTel (unArg a)) $ do  -- TODO: wrong telescope
+                  -- Check that we construct something in the right datatype
+                  do c' <- canonicalName c
+                     d' <- canonicalName d
+                     Datatype _ _ _ cs _ _ <- theDef <$> getConstInfo d'
+                     unless (elem c' cs) $ typeError $ ConstructorPatternInWrongDatatype c d
 		  let (pars, ixs) = splitAt np vs
 		  reportSDoc "tc.lhs.split" 10 $
 		    vcat [ sep [ text "splitting on"

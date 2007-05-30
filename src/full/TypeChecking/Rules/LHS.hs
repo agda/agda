@@ -258,6 +258,13 @@ checkLeftHandSide ps a ret = do
 
 	    Con c [] <- constructorForm =<< normalise (Con c [])
 
+	    ca <- defType <$> getConstInfo c
+
+	    reportSDoc "tc.lhs.top" 20 $ nest 2 $ vcat
+	      [ text "ca =" <+> prettyTCM ca
+	      , text "vs =" <+> prettyList (map prettyTCM vs)
+	      ]
+
 	    -- Lookup the type of the constructor at the given parameters
 	    a <- normalise =<< (`piApply` vs) . defType <$> getConstInfo c
 

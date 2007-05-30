@@ -117,6 +117,22 @@ applySection new old ts rd rm = liftTCM $ do
       where
 	tel = secTelescope sec
 
+canonicalName :: MonadTCM tcm => QName -> tcm QName
+canonicalName x = do
+  def <- theDef <$> getConstInfo x
+  case def of
+    Constructor _ c _ _			      -> return c
+    Record _ (Just (Clause _ body)) _ _ _ _   -> return $ extract body
+    Datatype _ _ (Just (Clause _ body)) _ _ _ -> return $ extract body
+    _					      -> return x
+  where
+    extract NoBody	     = __IMPOSSIBLE__
+    extract (Body (Def x _)) = x
+    extract (Body _)	     = __IMPOSSIBLE__
+    extract (Bind (Abs _ b)) = extract b
+    extract (NoBind b)	     = extract b
+
+
 -- | Lookup the definition of a name. The result is a closed thing, all free
 --   variables have been abstracted over.
 getConstInfo :: MonadTCM tcm => QName -> tcm Definition
