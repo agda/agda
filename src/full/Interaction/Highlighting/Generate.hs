@@ -186,9 +186,6 @@ computeUnsolvedMetaWarnings = do
   rs <- mapM getMetaRange (ms \\ is)
   return $ several (concatMap rToR rs) $ mempty { warning = True }
 
-concreteBase      = A.nameConcrete . A.qnameName
-concreteQualifier = map A.nameConcrete . A.mnameToList . A.qnameModule
-
 -- | Generates a suitable file for a name.
 
 generate :: TypeCheckingState
@@ -202,10 +199,7 @@ generate tcs n = do
                else
                 return Nothing
   let m isOp = mempty { aspect = Just $ Name mNameKind isOp }
-  return (nameToFile (concreteQualifier n)
-                     (concreteBase n)
-                     m
-                     (Just $ A.nameBindingSite $ A.qnameName n))
+  return (nameToFileA n m)
   where
   toAspect :: Defn -> NameKind
   toAspect (M.Axiom {})       = Postulate
@@ -239,6 +233,24 @@ nameToFile xs x m mR = several rs' ((m isOp) { definitionSite = mFilePos =<< mR 
   mFilePos r = case P.rStart r of
     P.Pn { P.srcFile = f, P.posPos = p } -> Just (f, toInteger p)
     P.NoPos {}                           -> Nothing
+
+-- | A variant of 'nameToFile' for qualified abstract names.
+
+nameToFileA :: A.QName
+               -- ^ The name.
+            -> (Bool -- ^ 'True' iff the name is an operator.
+                -> MetaInfo)
+               -- ^ Meta information to be associated with the name.
+            -> File
+nameToFileA x m =
+  nameToFile (concreteQualifier x)
+             (concreteBase x)
+             m
+             (Just $ bindingSite x)
+
+concreteBase      = A.nameConcrete . A.qnameName
+concreteQualifier = map A.nameConcrete . A.mnameToList . A.qnameModule
+bindingSite       = A.nameBindingSite . A.qnameName
 
 -- | Calculates a set of ranges associated with a name.
 --
