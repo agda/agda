@@ -73,7 +73,7 @@ collectCalls f (a : as) = do c1 <- f a
                              c2 <- collectCalls f as
                              return (c1 `unionCallGraphs` c2)
 
--- | Termination check a bunch of mutual inductive recursive definitions.
+-- | Termination check a bunch of mutually inductive recursive definitions.
 termMutual :: Info.DeclInfo -> [A.TypeSignature] -> [A.Definition] -> TCM Result
 termMutual i ts ds = 
   (do calls <- collectCalls (termDefinition names) ds
