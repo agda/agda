@@ -102,57 +102,64 @@
   "The face used for errors."
   :group 'agda2-highlight)
 
-(defface agda2-highlight-warning-face
+(defface agda2-highlight-unsolved-meta-face
   '((t (:background "yellow")))
-  "The face used for warnings."
+  "The face used for unsolved meta variables."
+  :group 'agda2-highlight)
+
+(defface agda2-highlight-termination-problem-face
+  '((t (:background "light salmon")))
+  "The face used for termination problems."
   :group 'agda2-highlight)
 
 (defvar agda2-highlight-faces
   ; The faces that are pointers to other faces need to be evaluated,
   ; hence the splices.
-  `((comment           . agda2-highlight-comment-face)
-    (keyword           . agda2-highlight-keyword-face)
-    (string            . agda2-highlight-string-face)
-    (number            . agda2-highlight-number-face)
-    (symbol            . agda2-highlight-symbol-face)
-    (primitivetype     . agda2-highlight-primitive-type-face)
-    (bound             . agda2-highlight-bound-variable-face)
-    (constructor       . agda2-highlight-constructor-face)
-    (datatype          . agda2-highlight-datatype-face)
-    (field             . agda2-highlight-field-face)
-    (function          . agda2-highlight-function-face)
-    (module            . agda2-highlight-module-face)
-    (postulate         . agda2-highlight-postulate-face)
-    (primitive         . agda2-highlight-primitive-face)
-    (record            . agda2-highlight-record-face)
-    (dotted            . agda2-highlight-dotted-face)
-    (operator          . agda2-highlight-operator-face)
-    (error             . agda2-highlight-error-face)
-    (warning           . agda2-highlight-warning-face))
+  `((comment            . agda2-highlight-comment-face)
+    (keyword            . agda2-highlight-keyword-face)
+    (string             . agda2-highlight-string-face)
+    (number             . agda2-highlight-number-face)
+    (symbol             . agda2-highlight-symbol-face)
+    (primitivetype      . agda2-highlight-primitive-type-face)
+    (bound              . agda2-highlight-bound-variable-face)
+    (constructor        . agda2-highlight-constructor-face)
+    (datatype           . agda2-highlight-datatype-face)
+    (field              . agda2-highlight-field-face)
+    (function           . agda2-highlight-function-face)
+    (module             . agda2-highlight-module-face)
+    (postulate          . agda2-highlight-postulate-face)
+    (primitive          . agda2-highlight-primitive-face)
+    (record             . agda2-highlight-record-face)
+    (dotted             . agda2-highlight-dotted-face)
+    (operator           . agda2-highlight-operator-face)
+    (error              . agda2-highlight-error-face)
+    (unsolvedmeta       . agda2-highlight-unsolved-meta-face)
+    (terminationproblem . agda2-highlight-termination-problem-face))
   "An association list mapping from a code aspect to the face used when
 displaying the aspect.
 
 The aspects currently recognised are the following:
 
-`bound'             Bound variables.
-`comment'           Comments.
-`constructor'       Constructors.
-`datatype'          Data types.
-`dotted'            Dotted patterns.
-`error'             Errors.
-`field'             Record fields.
-`function'          Functions.
-`keyword'           Keywords.
-`module'            Module names.
-`number'            Numbers.
-`operator'          Operators.
-`postulate'         Postulates.
-`primitive'         Primitive functions.
-`primitivetype'     Primitive types (like Set and Prop).
-`record'            Record types.
-`string'            Strings.
-`symbol'            Symbols like forall, =, ->, etc.
-`warning'           Warnings.
+`bound'              Bound variables.
+`comment'            Comments.
+`constructor'        Constructors.
+`datatype'           Data types.
+`dotted'             Dotted patterns.
+`error'              Errors.
+`field'              Record fields.
+`function'           Functions.
+`keyword'            Keywords.
+`module'             Module names.
+`number'             Numbers.
+`operator'           Operators.
+`postulate'          Postulates.
+`primitive'          Primitive functions.
+`primitivetype'      Primitive types (like Set and Prop).
+`record'             Record types.
+`string'             Strings.
+`symbol'             Symbols like forall, =, ->, etc.
+`terminationproblem' Termination problems.
+`unsolvedmeta'       Unsolved meta variables.
 ")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

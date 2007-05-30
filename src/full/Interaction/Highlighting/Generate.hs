@@ -36,7 +36,7 @@ import qualified Data.Foldable as Seq (toList, foldMap)
 
 generateErrorInfo :: P.Range -> String -> File
 generateErrorInfo r s =
-  several (rToR r) (mempty { aspect = Just Error, note = Just s })
+  several (rToR r) (mempty { otherAspects = [Error], note = Just s })
 
 -- | Has typechecking been done yet?
 
@@ -162,8 +162,9 @@ generateSyntaxInfo tcs toks top = do
       getPattern :: A.Pattern -> File
       getPattern (A.VarP x)    = bound x
       getPattern (A.AsP _ x _) = bound x
-      getPattern (A.DotP pi _) = several (rToR $ P.getRange pi)
-                                         (mempty { dotted = True })
+      getPattern (A.DotP pi _) =
+        several (rToR $ P.getRange pi)
+                (mempty { otherAspects = [DottedPattern] })
       getPattern _             = mempty
 
       getFieldDecl :: A.Definition -> File
@@ -184,7 +185,8 @@ computeUnsolvedMetaWarnings = do
   is <- getInteractionMetas
   ms <- getOpenMetas
   rs <- mapM getMetaRange (ms \\ is)
-  return $ several (concatMap rToR rs) $ mempty { warning = True }
+  return $ several (concatMap rToR rs)
+         $ mempty { otherAspects = [UnsolvedMeta] }
 
 -- | Generates a suitable file for a name.
 

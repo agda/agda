@@ -23,15 +23,9 @@ import Test.QuickCheck
 -- the Emacs interface.
 
 toAtoms :: MetaInfo -> [String]
-toAtoms m = dottedAtom ++ warningAtom ++ toAtoms' (aspect m)
+toAtoms m = map toAtom (otherAspects m) ++ toAtoms' (aspect m)
   where
   toAtom x = map toLower (show x)
-
-  dottedAtom | dotted m  = ["dotted"]
-             | otherwise = []
-
-  warningAtom | warning m = ["warning"]
-              | otherwise = []
 
   toAtoms' Nothing               = []
   toAtoms' (Just (Name mKind op)) =

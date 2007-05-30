@@ -3,6 +3,7 @@
 module Interaction.Highlighting.Precise
   ( Aspect(..)
   , NameKind(..)
+  , OtherAspect(..)
   , MetaInfo(..)
   , File
   , Range(..)
@@ -29,11 +30,11 @@ import qualified Data.Map as Map
 ------------------------------------------------------------------------
 -- Files
 
--- | Various more or less syntactic aspects of the code.
+-- | Various more or less syntactic aspects of the code. (These cannot
+-- overlap.)
 
 data Aspect
-  = Error
-  | Comment
+  = Comment
   | Keyword
   | String
   | Number
@@ -54,16 +55,23 @@ data NameKind
   | Record       -- ^ Record type.
     deriving (Eq, Show, Enum, Bounded)
 
+-- | Other aspects. (These can overlap with each other and with
+-- 'Aspect's.)
+
+data OtherAspect
+  = Error
+  | DottedPattern
+  | UnsolvedMeta
+  | TerminationProblem
+    deriving (Eq, Show, Enum, Bounded)
+
 -- | Meta information which can be associated with a
 -- character/character range.
 
 data MetaInfo = MetaInfo
-  { aspect :: Maybe Aspect
-  , dotted :: Bool
-    -- ^ Is the range part of a dotted pattern?
-  , warning :: Bool
-    -- ^ Is the range part of something which requires a warning?
-  , note   :: Maybe String
+  { aspect       :: Maybe Aspect
+  , otherAspects :: [OtherAspect]  
+  , note         :: Maybe String
     -- ^ This note, if present, can be displayed as a tool-tip or
     -- something like that. It should contain useful information about
     -- the range (like the module containing a certain identifier, or
@@ -141,10 +149,9 @@ several rs m = mconcat $ map (\r -> singleton r m) rs
 
 mergeMetaInfo :: MetaInfo -> MetaInfo -> MetaInfo
 mergeMetaInfo m1 m2 = MetaInfo
-  { aspect  = (mplus `on` aspect) m1 m2
-  , dotted  = ((||)  `on` dotted) m1 m2
-  , warning = ((||)  `on` warning) m1 m2
-  , note    = case (note m1, note m2) of
+  { aspect       = (mplus `on` aspect) m1 m2
+  , otherAspects = nub $ ((++) `on` otherAspects) m1 m2
+  , note         = case (note m1, note m2) of
       (Just n1, Just n2) -> Just $
          if n1 == n2 then n1
                      else addFinalNewLine n1 ++ "----\n" ++ n2
@@ -156,8 +163,7 @@ mergeMetaInfo m1 m2 = MetaInfo
 
 instance Monoid MetaInfo where
   mempty = MetaInfo { aspect         = Nothing
-                    , dotted         = False
-		    , warning	     = False
+                    , otherAspects   = []
                     , note           = Nothing
                     , definitionSite = Nothing
                     }
@@ -207,39 +213,41 @@ prop_compress f =
 
 instance Arbitrary Aspect where
   arbitrary =
-    frequency [ (3, elements [ Error, Comment, Keyword, String, Number
+    frequency [ (3, elements [ Comment, Keyword, String, Number
                              , Symbol, PrimitiveType ])
               , (1, liftM2 Name (maybeGen arbitrary) arbitrary)
               ]
 
-  coarbitrary Error         = variant 0
-  coarbitrary Comment       = variant 1
-  coarbitrary Keyword       = variant 2
-  coarbitrary String        = variant 3
-  coarbitrary Number        = variant 4
-  coarbitrary Symbol        = variant 5
-  coarbitrary PrimitiveType = variant 6
+  coarbitrary Comment       = variant 0
+  coarbitrary Keyword       = variant 1
+  coarbitrary String        = variant 2
+  coarbitrary Number        = variant 3
+  coarbitrary Symbol        = variant 4
+  coarbitrary PrimitiveType = variant 5
   coarbitrary (Name nk b)   =
-    variant 7 . maybeCoGen coarbitrary nk . coarbitrary b
+    variant 6 . maybeCoGen coarbitrary nk . coarbitrary b
 
 instance Arbitrary NameKind where
+  arbitrary   = elements [minBound .. maxBound]
+  coarbitrary = coarbitrary . fromEnum
+
+instance Arbitrary OtherAspect where
   arbitrary   = elements [minBound .. maxBound]
   coarbitrary = coarbitrary . fromEnum
 
 instance Arbitrary MetaInfo where
   arbitrary = do
     aspect  <- maybeGen arbitrary
-    dotted  <- arbitrary
-    warning <- arbitrary
+    other   <- arbitrary
     note    <- maybeGen (list $ elements "abcdefABCDEF/\\.\"'@()åäö\n")
     defSite <- maybeGen (liftM2 (,)
                                 (list $ elements "abcdefABCDEF/\\.\"'@()åäö\n")
                                 arbitrary)
-    return (MetaInfo { aspect = aspect, dotted = dotted, warning = warning, note = note
+    return (MetaInfo { aspect = aspect, otherAspects = other, note = note
                      , definitionSite = defSite })
-  coarbitrary (MetaInfo aspect dotted warning note defSite) =
+  coarbitrary (MetaInfo aspect otherAspects note defSite) =
     maybeCoGen coarbitrary aspect .
-    coarbitrary dotted . coarbitrary warning .
+    coarbitrary otherAspects .
     maybeCoGen (coarbitrary . map fromEnum) note .
     maybeCoGen (\(f, p) -> coarbitrary p . coarbitrary (map fromEnum f))
                defSite
