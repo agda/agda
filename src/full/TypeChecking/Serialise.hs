@@ -52,7 +52,7 @@ import Utils.Tuple
 -- | Current version of the interface. Only interface files of this version
 --   will be parsed.
 currentInterfaceVersion :: Int
-currentInterfaceVersion = 122
+currentInterfaceVersion = 123
 
 ------------------------------------------------------------------------
 -- A wrapper around Data.Binary
@@ -525,8 +525,14 @@ instance Binary Syntax.Literal.Literal where
       _ -> fail "no parse"
 
 instance Binary DisplayForm where
-  put (Display a b c) = put a >> put b >> put c
-  get = get >>= \a -> get >>= \b -> get >>= \c -> return (Display a b c)
+  put NoDisplay = putWord8 0
+  put (Display a b c) = putWord8 1 >> put a >> put b >> put c
+  get = do
+    tag_ <- getWord8
+    case tag_ of
+      0	-> return NoDisplay
+      1 -> get >>= \a -> get >>= \b -> get >>= \c -> return (Display a b c)
+      _ -> fail "no parse"
 
 instance Binary DisplayTerm where
   put (DTerm a) = putWord8 0 >> put a

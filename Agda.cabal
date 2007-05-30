@@ -78,6 +78,7 @@ exposed-modules: AgdaMain
                  TypeChecker
                  TypeChecking.Constraints
                  TypeChecking.Conversion
+		 TypeChecking.DisplayForm
                  TypeChecking.Empty
                  TypeChecking.Errors
                  TypeChecking.Free

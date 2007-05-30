@@ -34,6 +34,7 @@ import Syntax.Scope.Monad
 import TypeChecking.Monad as M
 import TypeChecking.Reduce
 import TypeChecking.Records
+import TypeChecking.DisplayForm
 
 import Utils.Monad
 import Utils.Tuple
@@ -71,6 +72,23 @@ instance Reify MetaId Expr where
 			-> return $ A.QuestionMark $ mi' {metaNumber = Just n}
 		Nothing	-> return $ A.Underscore mi'
 
+instance Reify DisplayTerm Expr where
+  reify d = case d of
+    DTerm v -> reify v
+    DWithApp us vs -> do
+      us <- reify us
+      let wapp [e] = e
+	  wapp (e : es) = A.WithApp exprInfo e es
+	  wapp [] = __IMPOSSIBLE__
+      reifyApp (wapp us) vs
+
+reifyDisplayForm :: MonadTCM tcm => QName -> Args -> tcm A.Expr -> tcm A.Expr
+reifyDisplayForm x vs fallback = do
+  md <- displayForm x vs
+  case md of
+    Nothing -> fallback
+    Just d  -> reify d
+
 instance Reify Term Expr where
     reify v =
 	do  v <- instantiate v
@@ -78,9 +96,9 @@ instance Reify Term Expr where
 		I.Var n vs   ->
 		    do  x  <- liftTCM $ nameOfBV n `catchError` \_ -> freshName_ ("@" ++ show n)
 			reifyApp (A.Var x) vs
-		I.Def x vs   -> do
-		  n <- getDefFreeVars x
-		  reifyApp (A.Def x) $ drop n vs
+		I.Def x vs   -> reifyDisplayForm x vs $ do
+		    n <- getDefFreeVars x
+		    reifyApp (A.Def x) $ drop n vs
 		I.Con x vs   -> do
 		  isR <- isRecord x
 		  case isR of
@@ -88,7 +106,7 @@ instance Reify Term Expr where
 		      xs <- getRecordFieldNames x
 		      vs <- reify $ map unArg vs
 		      return $ A.Rec exprInfo $ zip xs vs
-		    False -> reifyApp (A.Con x) vs
+		    False -> reifyDisplayForm x vs $ reifyApp (A.Con x) vs
 		I.Lam h b    ->
 		    do	(x,e) <- reify b
 			return $ A.Lam exprInfo (DomainFree h x) e

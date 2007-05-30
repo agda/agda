@@ -433,6 +433,7 @@ instance InstantiateFull Definition where
       return $ Defn x t df d
 
 instance InstantiateFull DisplayForm where
+  instantiateFull NoDisplay = return NoDisplay
   instantiateFull (Display n ps v) = uncurry (Display n) <$> instantiateFull (ps, v)
 
 instance InstantiateFull DisplayTerm where

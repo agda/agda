@@ -279,6 +279,7 @@ emptySignature = Sig Map.empty Map.empty
 data DisplayForm = Display Nat	  -- ^ free variables
 			   [Term] -- ^ patterns for arguments
 			   DisplayTerm -- ^ display form
+		 | NoDisplay
   deriving (Typeable, Data)
 
 data DisplayTerm = DWithApp [DisplayTerm] Args
@@ -286,7 +287,7 @@ data DisplayTerm = DWithApp [DisplayTerm] Args
   deriving (Typeable, Data)
 
 defaultDisplayForm :: QName -> DisplayForm
-defaultDisplayForm c = Display 0 [] (DTerm $ Def c [])
+defaultDisplayForm c = NoDisplay
 
 data Definition = Defn { defName     :: QName
 		       , defType     :: Type	-- type of the lifted definition

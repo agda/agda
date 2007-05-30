@@ -1,16 +1,29 @@
 
 module TypeChecking.DisplayForm where
 
+import Control.Applicative
+
+import Syntax.Common
 import Syntax.Internal
-import TypeChecking.Monad.Base
+import TypeChecking.Monad
 import TypeChecking.Substitute
 
-matchDisplayForm :: QName -> DisplayForm -> Args -> DisplayTerm
-matchDisplayForm c (Display n ps v) vs
-  | length ps > length vs = def
-  | otherwise             = case match ps vs0 of
-    Just us -> substs us v `apply` vs1
-    Nothing -> DTerm def
+displayForm :: MonadTCM tcm => QName -> Args -> tcm (Maybe DisplayTerm)
+displayForm c vs = do
+  df <- defDisplay <$> getConstInfo c
+  return $ matchDisplayForm df vs
+
+matchDisplayForm :: DisplayForm -> Args -> Maybe DisplayTerm
+matchDisplayForm NoDisplay       _  = Nothing
+matchDisplayForm (Display n ps v) vs
+  | length ps > length vs = Nothing
+  | otherwise             = do
+    us <- match ps $ map unArg vs0
+    return $ substs us v `apply` vs1
   where
     (vs0, vs1) = splitAt (length ps) vs
-    def = Def c vs
+
+-- | Arguments have the same length.
+match :: [Term] -> [Term] -> Maybe [Term]
+match _ _ = Nothing
+
