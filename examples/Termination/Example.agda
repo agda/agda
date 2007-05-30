@@ -114,6 +114,25 @@ mutual
   g' (succ x) zero = zero
   g' (succ x) (succ y) = (f' (succ x) (succ y)) + (g' x (succ y))
 
+-- these are ok, however
+
+bla : Nat
+bla = succ (succ zero)
+
+mutual 
+
+  f'' : Nat -> Nat -> Nat
+
+  f'' zero y = zero
+  f'' (succ x) zero = zero
+  f'' (succ x) (succ y) = (g'' x (succ y)) + (f'' bla y) 
+
+  g'' : Nat -> Nat -> Nat
+ 
+  g'' zero y = zero
+  g'' (succ x) zero = zero
+  g'' (succ x) (succ y) = (f'' (succ x) (succ y)) + (g'' x (succ y))
+
 
 -- Ackermann
 

@@ -10,9 +10,9 @@
 module Termination.TermCheck (termDecls) where
 
 import Control.Monad.Error
+import Data.List as List
 import qualified Data.Map as Map
 import Data.Map (Map)
-import Data.HashTable (hashString)
 
 import qualified Syntax.Abstract as A
 import Syntax.Internal
@@ -68,7 +68,7 @@ collectCalls f (a : as) = do c1 <- f a
 -- | Termination check a bunch of mutual inductive recursive definitions.
 termMutual :: Info.DeclInfo -> [A.TypeSignature] -> [A.Definition] -> TCM ()
 termMutual i ts ds = 
-  (do calls <- collectCalls termDefinition ds
+  (do calls <- collectCalls (termDefinition names) ds
       case terminates calls of
         Left  _ -> failed
         Right _ -> when (names /= []) $ reportSLn "term.warn.yes" 2 (show (names) ++ " does termination check"))
@@ -83,10 +83,10 @@ termMutual i ts ds =
 
 -- | Check an inductive or recursive definition. Assumes the type has has been
 --   checked and added to the signature.
-termDefinition :: A.Definition -> TCM Calls
-termDefinition d =
+termDefinition :: [QName] -> A.Definition -> TCM Calls
+termDefinition names d =
     case d of
-	A.FunDef i x cs	    -> abstract (Info.defAbstract i) $ termFunDef i x cs
+	A.FunDef i x cs	    -> abstract (Info.defAbstract i) $ termFunDef names i x cs
 	A.DataDef i x ps cs -> return emptyCallGraph
 	A.RecDef i x ps cs  -> return emptyCallGraph
     where
@@ -135,8 +135,8 @@ termTypedBinding h (A.TNoBind e) ret = do
     ret [("_",t)]
 
 -- | Termination check a definition by pattern matching.
-termFunDef :: Info.DefInfo -> QName -> [A.Clause] -> TCM Calls
-termFunDef i name cs =
+termFunDef :: [QName] -> Info.DefInfo -> QName -> [A.Clause] -> TCM Calls
+termFunDef names i name cs =
 
     traceCall (TermFunDef (getRange i) (qnameName name) cs) $ do   -- TODO!! (qnameName)
 	-- Get the type of the function
@@ -152,7 +152,8 @@ termFunDef i name cs =
         def <- getConstInfo name
         -- returns a TC.Monad.Base.Definition
         case (theDef def) of
-           Function cls isAbstract -> collectCalls (termClause name) cls
+           Function cls isAbstract -> collectCalls (termClause names name) cls
+           Primitive _ _ _ -> return emptyCallGraph
            _ -> __IMPOSSIBLE__
 
 -- | Termination check clauses
@@ -225,68 +226,73 @@ stripBinds i (p:ps) b = do (i1,  dbp, b1) <- stripBind i p b
                            (i2, dbps, b2) <- stripBinds i1 ps b1
                            return (i2, dbp:dbps, b2)
 
-termClause :: QName -> Clause -> TCM Calls
-termClause name (Clause argPats body) = 
+termClause :: [QName] -> QName -> Clause -> TCM Calls
+termClause names name (Clause argPats body) = 
     case stripBinds 0 (map unArg argPats) body  of
        Nothing -> return emptyCallGraph
        Just (n, dbpats, Body t) -> 
-          termTerm name (map (adjIndexDBP ((n-1) - )) dbpats) t
+          termTerm names name (map (adjIndexDBP ((n-1) - )) dbpats) t
           -- note: convert dB levels into dB indices
        Just (n, dbpats, b)  -> internalError $ "termClause: not a Body" -- ++ show b
 
--- SEVERE HACK: using hashString to convert QName to Index
--- UNSOUND !!
-termTerm :: QName -> [DeBruijnPat] -> Term -> TCM Calls
-termTerm f pats t = do 
-  t' <- instantiate t          -- instantiate top-level MetaVar
-  case (ignoreBlocking t') of  -- removes BlockedV case
-
-     -- call to defined function
-     Def g args0 -> 
-        do let args1 = map unArg args0
-           args2 <- mapM instantiate args1
-           let args = map ignoreBlocking args2 
-           calls <- collectCalls (termTerm f pats) args
-           return (insertCallGraph 
-                     (Call { source = toInteger (hashString (show f))
-                            , target = toInteger (hashString (show g))
-                            , callId = show f ++ " --> " ++ show g
-                            , cm     = compareArgs pats args
-                            })
-                     calls)
-
-     -- abstraction
-     Lam _ (Abs _ t) -> termTerm f (map liftDBP pats) t
-
-     -- variable
-     Var i args -> collectCalls (termTerm f pats) (map unArg args)
-
-     -- constructed value
-     Con c args -> collectCalls (termTerm f pats) (map unArg args)
-
-     -- dependent function space
-     Pi (Arg _ (El _ a)) (Abs _ (El _ b)) -> 
-        do g1 <- termTerm f pats a
-           g2 <- termTerm f (map liftDBP pats) b
-           return $ unionCallGraphs g1 g2
-
-     -- non-dependent function space
-     Fun (Arg _ (El _ a)) (El _ b) -> 
-        do g1 <- termTerm f pats a
-           g2 <- termTerm f pats b
-           return $ unionCallGraphs g1 g2
-     
-     -- literal
-     Lit l -> return emptyCallGraph
-
-     -- sort
-     Sort s -> return emptyCallGraph
-
-     -- unsolved meta-variable: violates termination check
-     MetaV x args -> patternViolation -- HACK !! abuse of PatternError !!
-
-     BlockedV{} -> __IMPOSSIBLE__
-
+termTerm :: [QName] -> QName -> [DeBruijnPat] -> Term -> TCM Calls
+termTerm names f = loop
+ where Just fInd' = List.elemIndex f names
+       fInd = toInteger fInd'
+       loop pats t = do 
+         t' <- instantiate t          -- instantiate top-level MetaVar
+         case (ignoreBlocking t') of  -- removes BlockedV case
+       
+            -- call to defined function
+            Def g args0 -> 
+               do let args1 = map unArg args0
+                  args2 <- mapM instantiate args1
+                  let args = map ignoreBlocking args2 
+                  calls <- collectCalls (loop pats) args
+                  case List.elemIndex g names of
+                     Nothing   -> return calls
+                     Just gInd' ->
+                        return 
+                          (insertCallGraph 
+                            (Call { source = fInd
+                                  , target = toInteger gInd'
+                                  , callId = show f ++ " --> " ++ show g
+                                  , cm     = compareArgs pats args
+                                  })
+                            calls)
+       
+            -- abstraction
+            Lam _ (Abs _ t) -> loop (map liftDBP pats) t
+       
+            -- variable
+            Var i args -> collectCalls (loop pats) (map unArg args)
+       
+            -- constructed value
+            Con c args -> collectCalls (loop pats) (map unArg args)
+       
+            -- dependent function space
+            Pi (Arg _ (El _ a)) (Abs _ (El _ b)) -> 
+               do g1 <- loop pats a
+                  g2 <- loop (map liftDBP pats) b
+                  return $ unionCallGraphs g1 g2
+       
+            -- non-dependent function space
+            Fun (Arg _ (El _ a)) (El _ b) -> 
+               do g1 <- loop pats a
+                  g2 <- loop pats b
+                  return $ unionCallGraphs g1 g2
+            
+            -- literal
+            Lit l -> return emptyCallGraph
+       
+            -- sort
+            Sort s -> return emptyCallGraph
+       
+            -- unsolved meta-variable: violates termination check
+            MetaV x args -> patternViolation -- HACK !! abuse of PatternError !!
+       
+            BlockedV{} -> __IMPOSSIBLE__
+       
 compareArgs :: [DeBruijnPat] -> [Term] -> CallMatrix
 compareArgs pats ts 
     = CallMatrix (fromLists (Size (toInteger (length ts)) 
