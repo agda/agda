@@ -3,6 +3,9 @@ module Example where
 loop : Set
 loop = loop
 
+_∞_ : Set -> Set -> Set
+x ∞ y = x ∞ y
+
 data Nat : Set where
     zero : Nat
     succ : Nat -> Nat

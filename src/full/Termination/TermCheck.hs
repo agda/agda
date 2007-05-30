@@ -34,20 +34,22 @@ import TypeChecking.Reduce (instantiate -- try to get rid of top-level meta-var
 import TypeChecking.Rules.Term (isType_)
 import TypeChecking.Substitute (abstract,raise)
 
+import qualified Interaction.Highlighting.Range as R
+
 import Utils.Size -- "size" 
 import Utils.Monad (thread)
 
 -- for __IMPOSSIBLE__
 #include "../undefined.h"
 
-type Calls = CallGraph [Range]
+type Calls = CallGraph [R.Range]
 
 -- | The result of termination checking a module is a list of
 -- problematic mutual blocks (represented by the names of the
 -- functions in the block), along with the ranges for the problematic
 -- call sites (call site paths).
 
-type Result = [([A.QName], [Range])]
+type Result = [([A.QName], [R.Range])]
 
 -- | Termination check a sequence of declarations.
 termDecls :: [A.Declaration] -> TCM Result
@@ -270,7 +272,10 @@ termTerm names f = loop
                           (insertCallGraph 
                             (Call { source = fInd
                                   , target = toInteger gInd'
-                                  , callId = [getRange g]
+                                             -- Note that only the
+                                             -- base part of the name
+                                             -- is collected here.
+                                  , callId = fst $ R.getRangesA g
                                   , cm     = compareArgs pats args
                                   })
                             calls)

@@ -81,6 +81,7 @@ import Interaction.Exceptions
 import qualified Interaction.BasicOps as B
 import qualified Interaction.CommandLine.CommandLine as CL
 import Interaction.Highlighting.Precise (File)
+import qualified Interaction.Highlighting.Range as R
 import Interaction.Highlighting.Generate
 import Interaction.Highlighting.Emacs
 
@@ -564,7 +565,7 @@ generateAndOutputSyntaxInfo file tcs tokens topLevel = do
 generateAndOutputTerminationProblemInfo
   :: FilePath
      -- ^ The module to highlight.
-  -> [([SA.QName], [Range])]
+  -> [([SA.QName], [R.Range])]
      -- ^ Problematic function definitions (grouped if they are
      -- mutual), and corresponding problematic call sites.
   -> TCM ()

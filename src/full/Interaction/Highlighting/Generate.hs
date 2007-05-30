@@ -44,7 +44,7 @@ generateErrorInfo r s =
 -- | Generates syntax highlighting info for termination problems.
 
 generateTerminationInfo
-  :: [([A.QName], [P.Range])]
+  :: [([A.QName], [Range])]
      -- ^ Problematic function definitions (grouped if they are
      -- mutual), and corresponding problematic call sites.
   -> TCM File
@@ -54,7 +54,7 @@ generateTerminationInfo errs =
   m            = mempty { otherAspects = [TerminationProblem] }
   functionDefs = Fold.foldMap (\x -> several (rToR $ bindingSite x) m) $
                  concatMap fst errs
-  callSites    = Fold.foldMap (\r -> several (rToR r) m) $
+  callSites    = Fold.foldMap (\r -> singleton r m) $
                  concatMap snd errs
 
 -- | Has typechecking been done yet?
