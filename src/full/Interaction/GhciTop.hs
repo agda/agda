@@ -84,6 +84,8 @@ import Interaction.Highlighting.Precise (File)
 import Interaction.Highlighting.Generate
 import Interaction.Highlighting.Emacs
 
+import Termination.TermCheck
+
 #include "../undefined.h"
 
 theTCState :: IORef TCState
@@ -173,6 +175,10 @@ cmd_load file = infoOnException $ do
             -- following code is not executed).
             liftIO $ clearSyntaxInfo file
             generateAndOutputSyntaxInfo file TypeCheckingDone tokens topLevel
+
+            -- Do termination checking.
+            errs <- termDecls $ topLevelDecls topLevel
+            generateAndOutputTerminationProblemInfo file errs
 
 	    lispIP
 
@@ -549,6 +555,22 @@ generateAndOutputSyntaxInfo
 generateAndOutputSyntaxInfo file tcs tokens topLevel = do
   syntaxInfo <- generateSyntaxInfo tcs tokens topLevel
   liftIO $ outputSyntaxInfo file syntaxInfo
+
+-- | Generates and outputs termination checking information.
+--
+-- (Does not clear existing highlighting info, use 'clearSyntaxInfo'
+-- for that.)
+
+generateAndOutputTerminationProblemInfo
+  :: FilePath
+     -- ^ The module to highlight.
+  -> [([SA.QName], [Range])]
+     -- ^ Problematic function definitions (grouped if they are
+     -- mutual), and corresponding problematic call sites.
+  -> TCM ()
+generateAndOutputTerminationProblemInfo file errs = do
+  termInfo <- generateTerminationInfo errs
+  liftIO $ outputSyntaxInfo file termInfo
 
 -- | Output syntax highlighting information for the given file, and
 -- tell the Emacs mode to reload the highlighting information.

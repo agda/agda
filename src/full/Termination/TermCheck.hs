@@ -13,6 +13,8 @@ import Control.Monad.Error
 import Data.List as List
 import qualified Data.Map as Map
 import Data.Map (Map)
+import qualified Data.Set as Set
+import Data.Set (Set)
 
 import qualified Syntax.Abstract as A
 import Syntax.Internal
@@ -38,24 +40,30 @@ import Utils.Monad (thread)
 -- for __IMPOSSIBLE__
 #include "../undefined.h"
 
-type Calls = CallGraph String
+type Calls = CallGraph [Range]
 
+-- | The result of termination checking a module is a list of
+-- problematic mutual blocks (represented by the names of the
+-- functions in the block), along with the ranges for the problematic
+-- call sites (call site paths).
+
+type Result = [([A.QName], [Range])]
 
 -- | Termination check a sequence of declarations.
-termDecls :: [A.Declaration] -> TCM ()
-termDecls ds = mapM_ termDecl ds
+termDecls :: [A.Declaration] -> TCM Result
+termDecls ds = fmap concat $ mapM termDecl ds
 
 -- | Termination check a single declaration.
-termDecl :: A.Declaration -> TCM ()
+termDecl :: A.Declaration -> TCM Result
 termDecl d =
     case d of
-	A.Axiom i x e		 -> return ()
-	A.Primitive i x e	 -> return ()
+	A.Axiom i x e		 -> return []
+	A.Primitive i x e	 -> return []
 	A.Definition i ts ds	 -> termMutual i ts ds
 	A.Section i x tel ds	 -> termSection i x tel ds
-	A.Apply i x m args rd rm -> return ()
-	A.Import i x		 -> return ()
-	A.Pragma i p		 -> return ()
+	A.Apply i x m args rd rm -> return []
+	A.Import i x		 -> return []
+	A.Pragma i p		 -> return []
 	A.ScopedDecl scope ds	 -> setScope scope >> termDecls ds
 	    -- open is just an artifact from the concrete syntax
 
@@ -66,20 +74,26 @@ collectCalls f (a : as) = do c1 <- f a
                              return (c1 `unionCallGraphs` c2)
 
 -- | Termination check a bunch of mutual inductive recursive definitions.
-termMutual :: Info.DeclInfo -> [A.TypeSignature] -> [A.Definition] -> TCM ()
+termMutual :: Info.DeclInfo -> [A.TypeSignature] -> [A.Definition] -> TCM Result
 termMutual i ts ds = 
   (do calls <- collectCalls (termDefinition names) ds
       case terminates calls of
-        Left  _ -> failed
-        Right _ -> when (names /= []) $ reportSLn "term.warn.yes" 2 (show (names) ++ " does termination check"))
+        Left  errDesc -> do
+          let callSites = concat $ concatMap (Set.elems . snd) $ Map.elems errDesc
+          return [(names, callSites)]
+        Right _ -> do
+          when (names /= []) $
+            reportSLn "term.warn.yes" 2
+                      (show (names) ++ " does termination check")
+          return [])
   `catchError` \ e -> case e of
-                         PatternErr _ -> failed
-                         _ -> throwError e
+                         PatternErr _ -> return [(names, [])]
+                                         -- TODO: The call sites are
+                                         -- not reported properly here.
+                         _            -> throwError e
   where getName (A.FunDef i x cs) = [x]
         getName _                 = []
-        names = concat (map getName ds)
-        failed = reportSLn "term.warn.no" 1 
-                   (show (names) ++ " does NOT termination check")
+        names  = concat (map getName ds)
 
 -- | Check an inductive or recursive definition. Assumes the type has has been
 --   checked and added to the signature.
@@ -95,7 +109,7 @@ termDefinition names d =
 	abstract _	     = id
 
 -- | Termination check a module.
-termSection :: Info.ModuleInfo -> ModuleName -> A.Telescope -> [A.Declaration] -> TCM ()
+termSection :: Info.ModuleInfo -> ModuleName -> A.Telescope -> [A.Declaration] -> TCM Result
 termSection i x tel ds =
   termTelescope tel $ \tel' -> do
     addSection x (size tel')
@@ -256,7 +270,7 @@ termTerm names f = loop
                           (insertCallGraph 
                             (Call { source = fInd
                                   , target = toInteger gInd'
-                                  , callId = show f ++ " --> " ++ show g
+                                  , callId = [getRange g]
                                   , cm     = compareArgs pats args
                                   })
                             calls)

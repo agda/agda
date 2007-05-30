@@ -6,6 +6,7 @@ module Interaction.Highlighting.Generate
   ( TypeCheckingState(..)
   , generateSyntaxInfo
   , generateErrorInfo
+  , generateTerminationInfo
   , tests
   ) where
 
@@ -37,6 +38,22 @@ import qualified Data.Foldable as Fold (toList, foldMap)
 generateErrorInfo :: P.Range -> String -> File
 generateErrorInfo r s =
   several (rToR r) (mempty { otherAspects = [Error], note = Just s })
+
+-- | Generates syntax highlighting info for termination problems.
+
+generateTerminationInfo
+  :: [([A.QName], [P.Range])]
+     -- ^ Problematic function definitions (grouped if they are
+     -- mutual), and corresponding problematic call sites.
+  -> TCM File
+generateTerminationInfo errs =
+  return $ functionDefs `mappend` callSites
+  where
+  m            = mempty { otherAspects = [TerminationProblem] }
+  functionDefs = Fold.foldMap (\x -> several (rToR $ bindingSite x) m) $
+                 concatMap fst errs
+  callSites    = Fold.foldMap (\r -> several (rToR r) m) $
+                 concatMap snd errs
 
 -- | Has typechecking been done yet?
 
