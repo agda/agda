@@ -288,8 +288,14 @@ termTerm names f = loop
             -- sort
             Sort s -> return emptyCallGraph
        
-            -- unsolved meta-variable: violates termination check
-            MetaV x args -> patternViolation -- HACK !! abuse of PatternError !!
+            -- Unsolved meta-variable: Violates termination check if
+            -- it does not correspond to an interaction point.
+            MetaV x args -> do
+              isIntMeta <- isInteractionMeta x
+              if isIntMeta then
+                return emptyCallGraph
+               else
+                patternViolation -- HACK !! abuse of PatternError !!
        
             BlockedV{} -> __IMPOSSIBLE__
        
