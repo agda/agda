@@ -162,3 +162,9 @@ addord : Ord -> Ord -> Ord
 addord x ozero = x
 addord x (olim f) = olim (\ n -> addord x (f n))
 
+-- Higher-order example which should not pass the termination checker.
+-- (Not the current one, anyway.)
+
+foo : Ord -> (Nat -> Ord) -> Ord
+foo ozero    g = ozero
+foo (olim f) g = olim (\n -> foo (g n) f)
