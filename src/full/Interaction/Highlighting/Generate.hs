@@ -27,7 +27,7 @@ import Data.Map (Map)
 import Data.Sequence (Seq, (><))
 import Data.List ((\\))
 import qualified Data.Sequence as Seq
-import qualified Data.Foldable as Seq (toList, foldMap)
+import qualified Data.Foldable as Fold (toList, foldMap)
 
 #include "../../undefined.h"
 
@@ -54,16 +54,16 @@ data TypeCheckingState = TypeCheckingDone | TypeCheckingNotDone
 generateSyntaxInfo
   :: TypeCheckingState -> [T.Token] -> CA.TopLevelInfo -> TCM File
 generateSyntaxInfo tcs toks top = do
-  nameInfo <- fmap mconcat $ mapM (generate tcs) (Seq.toList names)
-  warningInfo <- if tcs == TypeCheckingNotDone
+  nameInfo <- fmap mconcat $ mapM (generate tcs) (Fold.toList names)
+  metaInfo <- if tcs == TypeCheckingNotDone
                  then return mempty
                  else computeUnsolvedMetaWarnings
   -- theRest need to be placed before nameInfo here since record field
   -- declarations contain QNames. tokInfo is placed last since token
   -- highlighting is more crude than the others.
-  return (theRest `mappend` nameInfo `mappend` tokInfo `mappend` warningInfo)
+  return (theRest `mappend` nameInfo `mappend` tokInfo `mappend` metaInfo)
   where
-    tokInfo = Seq.foldMap tokenToFile toks
+    tokInfo = Fold.foldMap tokenToFile toks
       where
       aToF a r = several (rToR r) (mempty { aspect = Just a })
 
@@ -168,9 +168,9 @@ generateSyntaxInfo tcs toks top = do
       getPattern _             = mempty
 
       getFieldDecl :: A.Definition -> File
-      getFieldDecl (A.RecDef _ _ _ fs) = Seq.foldMap extractAxiom fs
+      getFieldDecl (A.RecDef _ _ _ fs) = Fold.foldMap extractAxiom fs
         where
-        extractAxiom (A.ScopedDecl _ ds) = Seq.foldMap extractAxiom ds
+        extractAxiom (A.ScopedDecl _ ds) = Fold.foldMap extractAxiom ds
         extractAxiom (A.Axiom _ x _)     = field (concreteQualifier x)
                                                  (concreteBase x)
         extractAxiom _                   = __IMPOSSIBLE__
