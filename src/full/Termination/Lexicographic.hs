@@ -25,6 +25,7 @@ import qualified Data.Map as Map
 import Data.Array (Array, Ix)
 import qualified Data.Array as Array
 import Data.Set (Set)
+import qualified Data.Set as Set
 
 -- | A lexicographic ordering for the recursion behaviour of a
 -- given function is a permutation of the argument indices which can
@@ -40,6 +41,8 @@ type LexOrder arg = [arg]
 
 data RecBehaviour arg call =
   RB { columns :: Map arg (Column call)
+     , calls   :: Set call
+       -- ^ The indices to the columns.
      , size    :: Size Integer
      }
   deriving Show
@@ -61,7 +64,7 @@ recBehaviourInvariant rb =
   all (== rows (size rb))
       (map (genericLength . Map.elems) $ Map.elems $ columns rb)
   &&
-  allEqual (map Map.keysSet $ Map.elems $ columns rb)
+  allEqual (calls rb : (map Map.keysSet $ Map.elems $ columns rb))
 
 -- | Generates a recursion behaviour.
 
@@ -74,13 +77,16 @@ instance (Arbitrary call, Arbitrary arg, Ord arg, Ord call)
         cols = genericLength args
         sz   = Size { rows = rows, cols = cols }
         colGen = do
-          col <- fmap (zip calls) $ listOfLength rows arbitrary
-          return $ Map.fromList col
+          col <- listOfLength rows arbitrary
+          return $ Map.fromList (zip calls col)
     cols <- fmap (zip args) $ listOfLength cols colGen
-    return $ RB { columns = Map.fromList cols, size = sz }
+    return $ RB { columns = Map.fromList cols
+                , calls   = Set.fromList calls
+                , size    = sz }
 
-  coarbitrary (RB c s) =
+  coarbitrary (RB c cs s) =
     coarbitrary (map (id *** Map.toList) $ Map.toList c) .
+    coarbitrary (Set.toList cs) .
     coarbitrary s
 
 prop_recBehaviour_Arbitrary :: RecBehaviour Integer Integer -> Bool
@@ -100,10 +106,13 @@ noCallsLeft rb = rows (size rb) == 0
 
 fromDiagonals :: (Ord call, Ix arg)
               => [(call, Array arg Order)] -> RecBehaviour arg (Integer, call)
-fromDiagonals []   = RB { columns = Map.fromList [], size = Size 0 0 }
+fromDiagonals []   = RB { columns = Map.fromList []
+                        , calls   = Set.empty
+                        , size    = Size 0 0 }
 fromDiagonals rows = RB { columns = Map.fromList $ zip args cols
-                        , size = Size { rows = genericLength rows
-                                      , cols = genericLength cols }
+                        , calls   = Set.fromList calls
+                        , size    = Size { rows = genericLength rows
+                                         , cols = genericLength cols }
                         }
   where
   calls = zip [1 ..] $ map fst rows
@@ -142,13 +151,16 @@ newBehaviour :: (Ord arg, Ord call)
              => arg -> RecBehaviour arg call -> RecBehaviour arg call
 newBehaviour n rb =
   RB { columns = Map.map remove $ Map.delete n $ columns rb
-     , size = Size { rows = rows (size rb) - genericLength indicesToRemove
-                   , cols = cols (size rb) - 1 }
+     , calls   = Set.difference (calls rb)
+                                (Set.fromList indicesToRemove)
+     , size    = Size { rows = rows (size rb) -
+                               genericLength indicesToRemove
+                      , cols = cols (size rb) - 1 }
      }
   where
-  Just colN = Map.lookup n $ columns rb
+  Just colN       = Map.lookup n $ columns rb
   indicesToRemove = map fst $ filter ((== Lt) . snd) $ Map.toList colN
-  remove colJ = foldr Map.delete colJ indicesToRemove
+  remove colJ     = foldr Map.delete colJ indicesToRemove
 
 prop_newBehaviour :: RecBehaviour Integer Integer -> Property
 prop_newBehaviour rb =
@@ -180,7 +192,7 @@ lexOrder :: (Ord arg, Ord call) =>
   RecBehaviour arg call -> Either (Set arg, Set call) (LexOrder arg)
 lexOrder rb | noCallsLeft rb = Right []
             | otherwise      = case okColumns of
-  []      -> Left errMsg
+  []      -> Left (Map.keysSet $ columns rb, calls rb)
   (n : _) -> case lexOrder (newBehaviour n rb) of
     Left err -> Left err
     Right ps -> Right $ n : ps
@@ -188,10 +200,6 @@ lexOrder rb | noCallsLeft rb = Right []
   okColumns = map fst $ filter snd $
               map (id *** okColumn) $
               Map.toList $ columns rb
-
-  errMsg = ( Map.keysSet $ columns rb
-           , Map.keysSet $ head $ Map.elems $ columns rb
-           )
 
 prop_lexOrder :: RecBehaviour Integer Integer -> Property
 prop_lexOrder rb =
@@ -207,7 +215,8 @@ prop_lexOrder_noArgs =
     isLeft (lexOrder $ rb n)
     where rb :: Integer -> RecBehaviour Integer Integer
           rb n = RB { columns = Map.empty
-                    , size = Size { rows = n, cols = 0 }
+                    , calls   = Set.fromList [1 .. n]
+                    , size    = Size { rows = n, cols = 0 }
                     }
 
 ------------------------------------------------------------------------
