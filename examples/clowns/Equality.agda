@@ -12,7 +12,7 @@ module Equality where
     primEqElim : {A : Set}(x : A)(C : (y : A) -> x == y -> Set) ->
 		 C x refl -> (y : A) -> (p : x == y) -> C y p
 
-  elim-== = \{A:Set} -> primEqElim {A}
+  elim-== = \{A : Set} -> primEqElim {A}
 
   subst : {A : Set}(C : A -> Set){x y : A} -> x == y -> C y -> C x
   subst C {x}{y} p Cy = elim-== x (\z _ -> C z -> C x) (\Cx -> Cx) y p Cy
