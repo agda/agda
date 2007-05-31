@@ -5,10 +5,7 @@ module Syntax.Parser
       -- * Parse functions
     , Syntax.Parser.parse
     , Syntax.Parser.parsePosString
-    , Syntax.Parser.parseFile
     , parseFile'
-    , parseLiterate
-    , parseLiterateFile
       -- * Parsers
     , moduleParser
     , exprParser
@@ -19,6 +16,7 @@ module Syntax.Parser
 
 import Control.Exception
 import Data.List
+import System.Directory
 
 import Syntax.Position
 import Syntax.Parser.Monad as M hiding (Parser, parseFlags)
@@ -71,10 +69,19 @@ parsePosString :: Strict a => Parser a -> Position -> String -> IO a
 parsePosString p pos =
   wrapM . return . M.parsePosString pos (parseFlags p) normal (parser p)
 
+-- | 'parseFile'' first converts the path into an absolute one, to
+-- ensure that all the resulting ranges are absolute.
+--
+-- (It is good to have absolute paths in interface files, since
+-- otherwise the interactive mode gets confused.)
+
 parseFile' :: Strict a => Parser a -> FilePath -> IO a
-parseFile' p file
-    | "lagda" `isSuffixOf` file	= Syntax.Parser.parseLiterateFile p file
-    | otherwise			= Syntax.Parser.parseFile p file
+parseFile' p file = do
+  file <- canonicalizePath file
+  if "lagda" `isSuffixOf` file then
+    Syntax.Parser.parseLiterateFile p file
+   else
+    Syntax.Parser.parseFile p file
 
 ------------------------------------------------------------------------
 -- Specific parsers
