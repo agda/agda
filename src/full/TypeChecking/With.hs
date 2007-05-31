@@ -3,6 +3,9 @@ module TypeChecking.With where
 
 import Control.Applicative
 import Control.Monad
+import Control.Monad.State
+import qualified Data.Traversable as T (mapM)
+import Data.List
 
 import Syntax.Common
 import Syntax.Internal
@@ -139,4 +142,61 @@ stripWithClausePatterns gamma qs perm ps = do
       where
         mismatch = typeError $ WithClausePatternMismatch (namedThing $ unArg p) (unArg q)
     strip tel ps qs = error $ "huh? " ++ show (size tel) ++ " " ++ show (size ps) ++ " " ++ show (size qs)
+
+-- | Construct the display form for a with function. It will display
+--   applications of the with function as applications to the original function.
+--   For instance, @aux a b c@ as @f (suc a) (suc b) | c@
+withDisplayForm :: QName -> QName -> Telescope -> Nat -> [Arg Pattern] -> Permutation -> TCM DisplayForm
+withDisplayForm f aux delta n qs perm = do
+  topArgs <- raise (n + size delta) <$> getContextArgs
+  x <- freshNoName_
+  let wild = Def (qualify (mnameFromList []) x) []
+
+  let top = length topArgs
+      vs = topArgs ++ raise n (substs (sub wild) $ patsToTerms qs)
+      dt = DWithApp (map DTerm $ Def f vs : withArgs) []
+      withArgs = map var [0..n - 1]
+      pats = replicate (n + size delta + top) (Var 0 [])
+
+  reportSDoc "tc.with.display" 20 $ vcat
+    [ text "withDisplayForm"
+    , nest 2 $ vcat
+      [ text "delta =" <+> prettyTCM delta
+      , text "perm  =" <+> text (show perm)
+      , text "dt    =" <+> prettyTCM dt
+      ]
+    ]
+
+  return $ Display (n + size delta + top) pats dt
+  where
+    var i = Var i []
+    sub wild = map term [0..m - 1]
+      where
+        Perm m xs = reverseP perm
+        term i = case findIndex (i ==) xs of
+          Nothing -> wild
+          Just j  -> Var j []
+
+patsToTerms :: [Arg Pattern] -> [Arg Term]
+patsToTerms ps = evalState (toTerms ps) 0
+  where
+    mapMr f xs = reverse <$> mapM f (reverse xs)
+
+    var :: State Nat Nat
+    var = do
+      i <- get
+      put (i + 1)
+      return i
+
+    toTerms :: [Arg Pattern] -> State Nat [Arg Term]
+    toTerms ps = mapMr toArg ps
+
+    toArg :: Arg Pattern -> State Nat (Arg Term)
+    toArg = T.mapM toTerm
+
+    toTerm :: Pattern -> State Nat Term
+    toTerm p = case p of
+      VarP _    -> var >>= \i -> return $ Var i []
+      ConP c ps -> Con c <$> toTerms ps
+      LitP l    -> return $ Lit l
 

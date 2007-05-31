@@ -84,7 +84,7 @@ instance Reify DisplayTerm Expr where
 
 reifyDisplayForm :: MonadTCM tcm => QName -> Args -> tcm A.Expr -> tcm A.Expr
 reifyDisplayForm x vs fallback = do
-  md <- displayForm x vs
+  md <- liftTCM $ displayForm x vs
   case md of
     Nothing -> fallback
     Just d  -> reify d

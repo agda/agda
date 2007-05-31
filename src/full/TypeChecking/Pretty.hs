@@ -62,6 +62,7 @@ instance PrettyTCM a => PrettyTCM (Closure a) where
 instance PrettyTCM Term where prettyTCM x = prettyA =<< reify x
 instance PrettyTCM Type where prettyTCM x = prettyA =<< reify x
 instance PrettyTCM Sort where prettyTCM x = prettyA =<< reify x
+instance PrettyTCM DisplayTerm where prettyTCM x = prettyA =<< reify x
 
 instance (Reify a e, ToConcrete e c, P.Pretty c) => PrettyTCM (Arg a) where
     prettyTCM x = prettyA =<< reify x

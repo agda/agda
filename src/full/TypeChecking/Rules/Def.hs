@@ -84,7 +84,7 @@ checkFunDef i name cs =
 
 data WithFunctionProblem
       = NoWithFunction
-      | WithFunction QName Telescope Telescope [Type] Type [Arg Pattern] Permutation [A.Clause]
+      | WithFunction QName QName Telescope Telescope [Type] Type [Arg Pattern] Permutation [A.Clause]
 
 -- | Type check a function clause.
 checkClause :: Type -> A.Clause -> TCM Clause
@@ -118,18 +118,21 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs wh) =
 		      us   = [ Arg h (Var i []) | (i, Arg h _) <- zip [n - 1,n - 2..0] $ telToList ctx ]
 		      v	   = substs sub $ Def aux $ us ++ (map (Arg NotHidden) vs)
 
-		  reportSDoc "tc.with.top" 20 $ text "with arguments" <+> prettyList (map prettyTCM vs)
-		  reportSDoc "tc.with.top" 20 $ text "         types" <+> prettyList (map prettyTCM as)
-		  reportSDoc "tc.with.top" 20 $ text "with function call:" <+> prettyTCM v
+		  reportSDoc "tc.with.top" 20 $ vcat
+		    [ text "    with arguments" <+> prettyList (map prettyTCM vs)
+		    , text "             types" <+> prettyList (map prettyTCM as)
+		    , text "with function call" <+> prettyTCM (substs sub v)
+		    , text "           context" <+> (prettyTCM =<< getContextTelescope)
+		    ]
 
-		  return (mkBody v, WithFunction aux gamma delta as t' ps perm cs)
+		  return (mkBody v, WithFunction x aux gamma delta as t' ps perm cs)
       escapeContext (size delta) $ checkWithFunction with
       return $ Clause ps body
 checkClause t (A.Clause (A.LHS _ _ _ ps@(_ : _)) _ _) = typeError $ UnexpectedWithPatterns ps
 
 checkWithFunction :: WithFunctionProblem -> TCM ()
 checkWithFunction NoWithFunction = return ()
-checkWithFunction (WithFunction aux gamma delta as b qs perm cs) = do
+checkWithFunction (WithFunction f aux gamma delta as b qs perm cs) = do
 
   reportSDoc "tc.with.top" 10 $ vcat
     [ text "checkWithFunction"
@@ -142,8 +145,17 @@ checkWithFunction (WithFunction aux gamma delta as b qs perm cs) = do
     ]
 
   -- Add the type of the auxiliary function to the signature
+  df <- withDisplayForm f aux delta (size as) qs perm
+
   let auxType = telePi delta $ foldr fun b as
-  addConstant aux (Defn aux auxType (defaultDisplayForm aux) Axiom) -- TODO: with display forms
+  case df of
+    NoDisplay -> reportSDoc "tc.with.top" 20 $ text "NoDisplay"
+    Display n ts dt -> reportSDoc "tc.with.top" 20 $ text "Display" <+> fsep
+      [ text (show n)
+      , prettyList $ map prettyTCM ts
+      , prettyTCM dt
+      ]
+  addConstant aux (Defn aux auxType df Axiom)
   reportSDoc "tc.with.top" 10 $ sep
     [ text "added with function of type"
     , nest 2 $ prettyTCM auxType

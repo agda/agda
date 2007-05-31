@@ -53,9 +53,12 @@ addConstant :: MonadTCM tcm => QName -> Definition -> tcm ()
 addConstant q d = liftTCM $ do
   tel <- getContextTelescope
   modifySignature $ \sig -> sig
-    { sigDefinitions = Map.insert q (abstract tel d') $ sigDefinitions sig }
+    { sigDefinitions = Map.insertWith (+++) q (abstract tel d') $ sigDefinitions sig }
   where
     d' = d { defName = q }
+    new +++ old = new { defDisplay = defDisplay new ++++ defDisplay old }
+    NoDisplay ++++ d = d
+    d	      ++++ _ = d
 
 unionSignatures :: [Signature] -> Signature
 unionSignatures ss = foldr unionSignature emptySignature ss
