@@ -1,6 +1,6 @@
 errors/UnsolvedMetasInImport.agda:3,1-24
 There were unsolved metas in an imported module at the following
 locations:
-  errors/Imports/Unsolved.agda:5,5-6
+errors/Imports/Unsolved.agda:5,5-6
 when scope checking the declaration
   import Imports.Unsolved

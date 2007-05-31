@@ -1,5 +1,9 @@
 errors/AmbiguousName.agda:14,5-8
 Ambiguous name A.X. It could refer to any one of
-  Y bound at errors/AmbiguousName.agda:5,13-14
-  B.A.X bound at errors/AmbiguousName.agda:9,15-16
+  Y
+  bound at
+errors/AmbiguousName.agda:5,13-14
+  B.A.X
+  bound at
+errors/AmbiguousName.agda:9,15-16
 when scope checking A.X
