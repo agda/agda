@@ -8,6 +8,7 @@
 
 module Termination.Termination
   ( terminates
+  , recursionBehaviours
   , Termination.Termination.tests
   ) where
 
@@ -63,9 +64,20 @@ terminates cs | ok        = Right perms
 
 -- | Completes the call graph and computes the corresponding recursion
 -- behaviours.
+--
+-- Takes the same kind of input as 'terminates'.
+--
+-- For every function ('Index') a bunch of arrays is returned. Every
+-- array states one way in which the function calls itself (perhaps
+-- via other functions); one call path. The merged meta information
+-- associated with all the calls in such a call path is paired up with
+-- the array. It may be that several different call paths give rise to
+-- the same array. In that case the array is returned once; the pieces
+-- of meta information associated to the different call paths are
+-- merged using 'mappend'.
 
 recursionBehaviours :: (Ord meta, Monoid meta) =>
-  CallGraph meta -> [(Index, [(meta, Array Index Order)])]
+     CallGraph meta -> [(Index, [(meta, Array Index Order)])]
 recursionBehaviours cs = rbs'
   where
   -- Complete the call graph.

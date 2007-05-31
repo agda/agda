@@ -77,6 +77,9 @@ collectCalls f (a : as) = do c1 <- f a
 termMutual :: Info.DeclInfo -> [A.TypeSignature] -> [A.Definition] -> TCM Result
 termMutual i ts ds =
   (do calls <- collectCalls (termDefinition names) ds
+      reportSLn "term.lex" 30 $ "Calls: " ++ show calls
+      reportSLn "term.lex" 30 $ "Recursion behaviours: " ++
+                                show (Term.recursionBehaviours calls)
       case Term.terminates calls of
         Left  errDesc -> do
           let callSites = concat' $ concat' $ map snd $ Map.elems errDesc
@@ -325,7 +328,7 @@ compareArgs pats ts = Term.CallMatrix $
   Term.fromLists (Term.Size { Term.rows = toInteger (length ts)
                             , Term.cols = toInteger (length pats)
                             })
-               (map (\t -> map (compareTerm t) pats) ts)
+                 (map (\t -> map (compareTerm t) pats) ts)
 
 -- | compareTerm t dbpat
 --   Precondition: t not a BlockedV, top meta variable resolved
