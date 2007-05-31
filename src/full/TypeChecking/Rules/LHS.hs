@@ -124,7 +124,7 @@ bindLHSVars (p : ps) (ExtendTel a tel) ret =
     _		  -> __IMPOSSIBLE__
     where
       name "_" = freshNoName_
-      name s   = freshName_ ("_" ++ s)
+      name s   = freshName_ ("." ++ s)
       bindDummy s = do
 	x <- name s
 	addCtx x a $ bindLHSVars ps (absBody tel) ret
