@@ -17,13 +17,13 @@ id (succ n) = succ (id n)
 bad : Nat -> Nat
 bad n = bad n
 
-bad2 : Nat -> Nat
-bad2 (succ x) = bad2 x
-bad2 x = bad2 x
-
 _+_ : Nat -> Nat -> Nat
 zero     + n = n
 (succ m) + n = succ (m + n)
+
+bad2 : Nat -> Nat
+bad2 (succ x) = bad2 x + bad2 (succ x)
+bad2 x        = bad2 x
 
 data Bool : Set where
     true : Bool

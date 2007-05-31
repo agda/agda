@@ -24,6 +24,7 @@ import qualified Data.Set as Set
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Monoid
+import Data.Array (Array)
 
 -- | @'terminates' cs@ checks if the functions represented by @cs@
 -- terminate. The call graph @cs@ should have one entry ('Call') per
@@ -43,21 +44,15 @@ import Data.Monoid
 -- Note that this function assumes that all data types are strictly
 -- positive.
 
-terminates :: (Ord call, Monoid call) =>
-  CallGraph call -> Either (Map Index (Set Index, Set call))
+terminates :: (Ord meta, Monoid meta) =>
+  CallGraph meta -> Either (Map Index (Set Index, Set meta))
                            (Map Index (LexOrder Index))
 terminates cs | ok        = Right perms 
               | otherwise = Left problems
   where
-  -- Complete the call graph.
-  ccs = complete cs
-  -- Compute the "recursion behaviours" (matrix diagonals).
-  rbs = [ (source c, (callId c, diagonal (mat (cm c))))
-        | c <- toList ccs, source c == target c ]
-  -- Group them by function name.
-  rbs' = map (fst . head &&& map snd) $ groupOn fst rbs
   -- Try to find lexicographic orders.
-  lexs = [ (i, lexOrder $ fromDiagonals rb) | (i, rb) <- rbs' ]
+  lexs = [ (i, lexOrder $ fromDiagonals rb)
+         | (i, rb) <- recursionBehaviours cs ]
 
   ok = all (isRight . snd) lexs
   perms = Map.fromList $
@@ -66,42 +61,32 @@ terminates cs | ok        = Right perms
              map (id *** (\(Left x) -> (id *** Set.map snd) x)) $
              filter (isLeft . snd) lexs
 
+-- | Completes the call graph and computes the corresponding recursion
+-- behaviours.
+
+recursionBehaviours :: (Ord meta, Monoid meta) =>
+  CallGraph meta -> [(Index, [(meta, Array Index Order)])]
+recursionBehaviours cs = rbs'
+  where
+  -- Complete the call graph.
+  ccs = complete cs
+  -- Compute the "recursion behaviours" (matrix diagonals).
+  rbs = [ (source c, (callIds, diagonal (mat (cm c))))
+        | (c, callIds) <- toList ccs, source c == target c ]
+  -- Group them by function name.
+  rbs' = map (fst . head &&& map snd) $ groupOn fst rbs
+
 ------------------------------------------------------------------------
 -- Some examples
 
--- First some infrastructure.
-
--- | The monoid instance for @'R' a@ always chooses the
--- right (second) value, if it is defined.
-
-data R a = RNothing | RJust a
-  deriving (Show, Eq, Ord)
-
-instance Monoid (R a) where
-  mempty        = RNothing
-  l@(RJust {}) `mappend` RNothing = l
-  _            `mappend` r        = r
-
 -- | The call graph instantiation used by the examples below.
 
-type CG = CallGraph (R Integer)
+type CG = CallGraph (Set Integer)
 
 -- | Constructs a call graph suitable for use with the 'R' monoid.
 
-buildCallGraph :: [Call Integer] -> CG
-buildCallGraph = fromList . map (\c -> c { callId = RJust $ callId c })
-
--- | Constructs result lists suitable for use with the 'R' monoid.
-
-buildResults :: Ord a
-             => Either (Map Index (Set Index, Set a))     b
-             -> Either (Map Index (Set Index, Set (R a))) b
-buildResults =
- (Map.fromList .
-  map (id *** (id *** Set.fromList . map RJust . Set.toList)) .
-  Map.toList)
- +++
- id
+buildCallGraph :: [Call] -> CG
+buildCallGraph = fromList . flip zip (map Set.singleton [1 ..])
 
 -- | The example from the paper.
 
@@ -110,17 +95,16 @@ example1 = buildCallGraph [c1, c2, c3]
   where
   flat = 1
   aux  = 2
-  c1 = Call { source = flat, target = aux, callId = 1
+  c1 = Call { source = flat, target = aux
             , cm = CallMatrix $ fromLists (Size 2 1) [[Lt], [Lt]] }
-  c2 = Call { source = aux,  target = aux, callId = 2
+  c2 = Call { source = aux,  target = aux
             , cm = CallMatrix $ fromLists (Size 2 2) [ [Lt, Unknown]
                                                      , [Unknown, Le]] }
-  c3 = Call { source = aux,  target = flat, callId = 3
+  c3 = Call { source = aux,  target = flat
             , cm = CallMatrix $ fromLists (Size 1 2) [[Unknown, Le]] }
 
 prop_terminates_example1 =
-  terminates example1 ==
-  buildResults (Right (Map.fromList [(1, [1]), (2, [2, 1])]))
+  terminates example1 == Right (Map.fromList [(1, [1]), (2, [2, 1])])
 
 -- | An example which is not handled by this algorithm: argument
 -- swapping addition.
@@ -133,14 +117,14 @@ example2 :: CG
 example2 = buildCallGraph [c]
   where
   plus = 1
-  c = Call { source = plus, target = plus, callId = 1
+  c = Call { source = plus, target = plus
            , cm = CallMatrix $ fromLists (Size 2 2) [ [Unknown, Le]
                                                     , [Lt, Unknown] ] }
 
 prop_terminates_example2 =
   terminates example2 ==
-  buildResults (Left (Map.fromList [(1, ( Set.fromList [1, 2]
-                                        , Set.fromList [1]))]))
+  Left (Map.fromList [(1, ( Set.fromList [1, 2]
+                          , Set.fromList [Set.fromList [1]] ))])
 
 -- | A related example which /is/ handled: argument swapping addition
 -- using two alternating functions.
@@ -154,19 +138,18 @@ prop_terminates_example2 =
 -- @Z   +' y = y@
 
 example3 :: CG
-example3 = buildCallGraph [c plus plus' 1, c plus' plus 2]
+example3 = buildCallGraph [c plus plus', c plus' plus]
   where
   plus  = 1
   plus' = 2
-  c f g id = Call { source = f, target = g, callId = id
-                  , cm = CallMatrix $ fromLists (Size 2 2) [ [Unknown, Le]
-                                                           , [Lt, Unknown] ] }
+  c f g = Call { source = f, target = g
+               , cm = CallMatrix $ fromLists (Size 2 2) [ [Unknown, Le]
+                                                        , [Lt, Unknown] ] }
 
 prop_terminates_example3 =
-  terminates example3 ==
-  buildResults (Right (Map.fromList [(1, [1]), (2, [1])]))
+  terminates example3 == Right (Map.fromList [(1, [1]), (2, [1])])
 
--- | A final, contrived example.
+-- | A contrived example.
 --
 -- @f (S x) y = f (S x) y + g x y@
 --
@@ -174,54 +157,80 @@ prop_terminates_example3 =
 --
 -- @g x y = f x y@
 --
--- This example checks that 'callId's are reported properly.
+-- This example checks that the meta information is reported properly
+-- when an error is encountered.
 
 example4 :: CG
 example4 = buildCallGraph [c1, c2, c3]
   where
   f = 1
   g = 2
-  c1 = Call { source = f, target = f, callId = 1
+  c1 = Call { source = f, target = f
             , cm = CallMatrix $ fromLists (Size 2 2) [ [Le, Unknown]
                                                      , [Unknown, Le] ] }
-  c2 = Call { source = f, target = g, callId = 2
+  c2 = Call { source = f, target = g
             , cm = CallMatrix $ fromLists (Size 2 2) [ [Lt, Unknown]
                                                      , [Unknown, Le] ] }
-  c3 = Call { source = g, target = f, callId = 3
+  c3 = Call { source = g, target = f
             , cm = CallMatrix $ fromLists (Size 2 2) [ [Le, Unknown]
                                                      , [Unknown, Le] ] }
 
 prop_terminates_example4 =
   terminates example4 ==
-  buildResults (Left (Map.fromList [(1, ( Set.fromList [2]
-                                        , Set.fromList [1]))]))
+  Left (Map.fromList [(1, ( Set.fromList [2]
+                          , Set.fromList [Set.fromList [1]] ))])
 
--- | This should terminate.  2007-05-29
+-- | This should terminate.
 --
---  @f (succ x) (succ y) = (g x (succ y)) + (f  (succ (succ x)) y)@ 
+-- @f (S x) (S y) = g x (S y) + f (S (S x)) y@ 
 --
---  @g (succ x) (succ y) = (f (succ x) (succ y)) + (g x (succ y))@
---
+-- @g (S x) (S y) = f (S x) (S y) + g x (S y)@
 
 example5 :: CG
 example5 = buildCallGraph [c1, c2, c3, c4]
   where
   f = 1
   g = 2
-  c1 = Call { source = f, target = g, callId = 1
+  c1 = Call { source = f, target = g
             , cm = CallMatrix $ fromLists (Size 2 2) [ [Lt, Unknown]
                                                      , [Unknown, Le] ] }
-  c2 = Call { source = f, target = f, callId = 2
+  c2 = Call { source = f, target = f
             , cm = CallMatrix $ fromLists (Size 2 2) [ [Unknown, Unknown]
                                                      , [Unknown, Lt] ] }
-  c3 = Call { source = g, target = f, callId = 3
+  c3 = Call { source = g, target = f
             , cm = CallMatrix $ fromLists (Size 2 2) [ [Le, Unknown]
                                                      , [Unknown, Le] ] }
-  c4 = Call { source = g, target = g, callId = 4
+  c4 = Call { source = g, target = g
             , cm = CallMatrix $ fromLists (Size 2 2) [ [Lt, Unknown]
                                                      , [Unknown, Le] ] }
 
-prop_terminates_example5 = isRight (terminates example5)
+prop_terminates_example5 =
+  terminates example5 == Right (Map.fromList [(1, [2, 1]), (2, [2, 1])])
+
+-- | Another example which should fail.
+--
+-- @f (S x) = f x + f (S x)@
+--
+-- @f x     = f x@
+--
+-- This example checks that the meta information is reported properly
+-- when an error is encountered.
+
+example6 :: CG
+example6 = buildCallGraph [c1, c2, c3]
+  where
+  f = 1
+  c1 = Call { source = f, target = f
+            , cm = CallMatrix $ fromLists (Size 1 1) [ [Lt] ] }
+  c2 = Call { source = f, target = f
+            , cm = CallMatrix $ fromLists (Size 1 1) [ [Le] ] }
+  c3 = Call { source = f, target = f
+            , cm = CallMatrix $ fromLists (Size 1 1) [ [Le] ] }
+
+prop_terminates_example6 =
+  terminates example6 ==
+  Left (Map.fromList [(1, ( Set.fromList []
+                          , Set.fromList [Set.fromList [2, 3]] ))])
 
 ------------------------------------------------------------------------
 -- All tests
@@ -232,3 +241,4 @@ tests = do
   quickCheck prop_terminates_example3
   quickCheck prop_terminates_example4
   quickCheck prop_terminates_example5
+  quickCheck prop_terminates_example6

@@ -40,7 +40,7 @@ import Utils.Monad (thread)
 
 #include "../undefined.h"
 
-type Calls = Term.CallGraph [R.Range]
+type Calls = Term.CallGraph (Set R.Range)
 
 -- | The result of termination checking a module is a list of
 -- problematic mutual blocks (represented by the names of the
@@ -79,7 +79,7 @@ termMutual i ts ds =
   (do calls <- collectCalls (termDefinition names) ds
       case Term.terminates calls of
         Left  errDesc -> do
-          let callSites = concat $ concatMap (Set.elems . snd) $ Map.elems errDesc
+          let callSites = concat' $ concat' $ map snd $ Map.elems errDesc
           return [(names, callSites)]
         Right _ -> do
           when (names /= []) $
@@ -91,9 +91,14 @@ termMutual i ts ds =
                                          -- TODO: The call sites are
                                          -- not reported properly here.
                          _            -> throwError e
-  where getName (A.FunDef i x cs) = [x]
-        getName _                 = []
-        names  = concat (map getName ds)
+  where
+  getName (A.FunDef i x cs) = [x]
+  getName _                 = []
+
+  names = concatMap getName ds
+
+  concat' :: Ord a => [Set a] -> [a]
+  concat' = Set.toList . Set.unions
 
 -- | Check an inductive or recursive definition. Assumes the type has has been
 --   checked and added to the signature.
@@ -270,12 +275,11 @@ termTerm names f = loop
                           (Term.insert
                             (Term.Call { Term.source = fInd
                                        , Term.target = toInteger gInd'
-                                                  -- Note that only the
-                                                  -- base part of the name
-                                                  -- is collected here.
-                                       , Term.callId = fst $ R.getRangesA g
                                        , Term.cm     = compareArgs pats args
                                        })
+                            -- Note that only the base part of the
+                            -- name is collected here.
+                            (Set.fromList $ fst $ R.getRangesA g)
                             calls)
 
             -- abstraction

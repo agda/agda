@@ -190,112 +190,104 @@ prop_cmMul sz =
 --   The structural ordering used is defined in the paper referred to
 --   above.
 
-data Call call =
+data Call =
   Call { source :: Index   -- ^ The function making the call.
        , target :: Index   -- ^ The function being called.
-       , callId :: call    -- ^ An identifier for this particular call. 
-                           --   This identifier is not used when
-                           --   comparing calls in the 'Eq' and 'Ord'
-                           --   instances.
        , cm :: CallMatrix  -- ^ The call matrix describing the call.
        }
-  deriving Show
+  deriving (Eq, Ord, Show)
 
-callInfo c = (source c, target c, cm c)
-
-instance Eq (Call call) where
-  (==) = (==) `on` callInfo
-
-instance Ord (Call call) where
-  compare = compare `on` callInfo
-
-instance Arbitrary call => Arbitrary (Call call) where
+instance Arbitrary Call where
   arbitrary = do
     (s, t) <- two arbitrary
     cm     <- arbitrary
-    callId <- arbitrary
-    return (Call { source = s, target = t, callId = callId, cm = cm })
+    return (Call { source = s, target = t, cm = cm })
 
-  coarbitrary (Call s t callId cm) =
-    coarbitrary s . coarbitrary t . coarbitrary callId . coarbitrary cm
+  coarbitrary (Call s t cm) =
+    coarbitrary s . coarbitrary t . coarbitrary cm
 
-prop_Arbitrary_Call :: Call Integer -> Bool
+prop_Arbitrary_Call :: Call -> Bool
 prop_Arbitrary_Call = callInvariant
 
 -- | 'Call' invariant.
 
-callInvariant :: Call call -> Bool
+callInvariant :: Call -> Bool
 callInvariant = callMatrixInvariant . cm
 
--- | 'Call' combination. The 'callId's are combined using the monoid.
+-- | 'Call' combination.
 --
 -- Precondition: see '<*>'; furthermore the 'source' of the first
 -- argument should be equal to the 'target' of the second one.
 
-(>*<) :: Monoid call => Call call -> Call call -> Call call
+(>*<) :: Call -> Call -> Call
 c1 >*< c2 =
   Call { source = source c2, target = target c1
-       , callId = callId c2 `mappend` callId c1
        , cm = cm c1 <*> cm c2 }
 
 ------------------------------------------------------------------------
 -- Call graphs
 
--- | A call graph is a set of calls.
+-- | A call graph is a set of calls. Every call also has some
+-- associated meta information, which should be 'Monoid'al so that the
+-- meta information for different calls can be combined when the calls
+-- are combined.
 
-newtype CallGraph call = CallGraph { cg :: Set (Call call) }
+newtype CallGraph meta = CallGraph { cg :: Map Call meta }
   deriving (Eq, Show)
 
 -- | 'CallGraph' invariant.
 
-callGraphInvariant :: CallGraph call -> Bool
-callGraphInvariant = all callInvariant . toList
+callGraphInvariant :: CallGraph meta -> Bool
+callGraphInvariant = all (callInvariant . fst) . toList
 
--- | Converts a call graph to a list of calls.
+-- | Converts a call graph to a list of calls with associated meta
+-- information.
 
-toList :: CallGraph call -> [Call call]
-toList = Set.toList . cg
+toList :: CallGraph meta -> [(Call, meta)]
+toList = Map.toList . cg
 
--- | Converts a list of calls to a call graph.
+-- | Converts a list of calls with associated meta information to a
+-- call graph.
 
-fromList :: [Call call] -> CallGraph call
-fromList = CallGraph . Set.fromList
+fromList :: Monoid meta => [(Call, meta)] -> CallGraph meta
+fromList = CallGraph . Map.fromListWith mappend
 
 -- | Creates an empty call graph.
 
-empty :: CallGraph call
-empty = CallGraph Set.empty
+empty :: CallGraph meta
+empty = CallGraph Map.empty
 
 -- | Takes the union of two call graphs.
 
-union :: CallGraph call -> CallGraph call -> CallGraph call
-union cs1 cs2 = CallGraph $ (Set.union `on` cg) cs1 cs2
+union :: Monoid meta
+      => CallGraph meta -> CallGraph meta -> CallGraph meta
+union cs1 cs2 = CallGraph $ (Map.unionWith mappend `on` cg) cs1 cs2
 
 -- | Inserts a call into a call graph.
 
-insert :: Call call -> CallGraph call -> CallGraph call
-insert c cs = CallGraph $ Set.insert c (cg cs)
+insert :: Monoid meta
+       => Call -> meta -> CallGraph meta -> CallGraph meta
+insert c m = CallGraph . Map.insertWith mappend c m . cg
 
 -- | Generates a call graph.
 
-callGraph :: (Ord call, Arbitrary call) => Gen (CallGraph call)
+callGraph :: (Monoid meta, Arbitrary meta) => Gen (CallGraph meta)
 callGraph = do
   indices <- fmap nub arbitrary
   n <- natural :: Gen Integer
   let noMatrices | null indices = 0
                  | otherwise    = n `max` 3  -- Not too many.
-  fmap (CallGraph . Set.fromList) $
-       listOfLength noMatrices (matGen indices)
+  fmap fromList $ listOfLength noMatrices (matGen indices)
   where
   matGen indices = do
     (s, t) <- two (elements indices)
     (c, r) <- two (choose (0, 2))     -- Not too large.
     m <- callMatrix (Size { rows = r, cols = c })
     callId <- arbitrary
-    return $ Call { source = s, target = t, callId = callId, cm = m }
+    return (Call { source = s, target = t, cm = m }, callId)
 
 prop_callGraph =
-  forAll (callGraph :: Gen (CallGraph Integer)) $ \cs ->
+  forAll (callGraph :: Gen (CallGraph [Integer])) $ \cs ->
     callGraphInvariant cs
 
 -- | Call graph combination. (Application of '>*<' to all pairs @(c1,
@@ -303,26 +295,28 @@ prop_callGraph =
 --
 -- Precondition: see '<*>'.
 
-combine :: (Ord call, Monoid call)
-        => CallGraph call -> CallGraph call -> CallGraph call
-combine s1 s2 = CallGraph $
-  Set.fromList [ c1 >*< c2
-               | c1 <- toList s1, c2 <- toList s2
-               , source c1 == target c2
-               ]
+combine
+  :: Monoid meta => CallGraph meta -> CallGraph meta -> CallGraph meta
+combine s1 s2 = fromList $
+  [ (c1 >*< c2, m1 `mappend` m2)
+  | (c1, m1) <- toList s1, (c2, m2) <- toList s2
+  , source c1 == target c2
+  ]
 
 -- | @'complete' cs@ completes the call graph @cs@. A call graph is
 -- complete if it contains all indirect calls; if @f -> g@ and @g ->
 -- h@ are present in the graph, then @f -> h@ should also be present.
 
-complete :: (Ord call, Monoid call) => CallGraph call -> CallGraph call
+complete :: Monoid meta => CallGraph meta -> CallGraph meta
 complete cs = complete' safeCS
   where
   safeCS = ensureCompletePrecondition cs
 
-  complete' cs | cs' == cs = cs
-               | otherwise = complete' cs'
-    where cs' = cs `union` combine cs safeCS
+  complete' cs | cs' .==. cs = cs
+               | otherwise   = complete' cs'
+    where
+    cs' = cs `union` combine cs safeCS
+    (.==.) = ((==) `on` (Map.keys . cg))
 
 prop_complete =
   forAll (callGraph :: Gen (CallGraph [Integer])) $ \cs ->
@@ -330,36 +324,40 @@ prop_complete =
 
 -- | Returns 'True' iff the call graph is complete.
 
-isComplete :: (Ord call, Monoid call) => CallGraph call -> Bool
-isComplete s = all (`Set.member` cg s) combinations
+isComplete :: (Ord meta, Monoid meta) => CallGraph meta -> Bool
+isComplete s = all (`Map.member` cg s) combinations
   where
   calls = toList s
   combinations =
-    [ c2 >*< c1 | c1 <- calls, c2 <- calls, target c1 == source c2 ]
+    [ c2 >*< c1 | (c1, _) <- calls, (c2, _) <- calls
+                , target c1 == source c2 ]
 
 -- | Checks whether every 'Index' used in the call graph corresponds
 -- to a fixed number of arguments (i.e. rows\/columns).
 
-completePrecondition :: CallGraph call -> Bool
+completePrecondition :: CallGraph meta -> Bool
 completePrecondition cs =
   all (allEqual . map snd) $
   groupOn fst $
   concat [ [(source c, cols $ size' c), (target c, rows $ size' c)]
-         | c <- toList cs]
+         | (c, _) <- toList cs]
   where
   size' = size . mat . cm
 
 -- | Returns a call graph padded with 'Unknown's in such a way that
 -- 'completePrecondition' is satisfied.
 
-ensureCompletePrecondition :: CallGraph call -> CallGraph call
-ensureCompletePrecondition cs = CallGraph $ Set.map pad $ cg cs
+ensureCompletePrecondition
+  :: Monoid meta => CallGraph meta -> CallGraph meta
+ensureCompletePrecondition cs =
+  CallGraph $ Map.mapKeysWith mappend pad $ cg cs
   where
+  -- The maximum number of arguments detected for every index.
   noArgs :: Map Index Integer
-  noArgs = Set.fold (\c m -> insert (source c) (cols' c) $
-                             insert (target c) (rows' c) m)
-                    Map.empty
-                    (cg cs)
+  noArgs = foldr (\c m -> insert (source c) (cols' c) $
+                          insert (target c) (rows' c) m)
+                 Map.empty
+                 (map fst $ toList cs)
     where insert = Map.insertWith max
 
   pad c = c { cm = CallMatrix { mat = padRows $ padCols $ mat $ cm c } }
@@ -379,9 +377,10 @@ prop_ensureCompletePrecondition =
     let cs' = ensureCompletePrecondition cs in
     completePrecondition cs'
     &&
-    all callInvariant (toList cs')
+    all callInvariant (map fst $ toList cs')
     &&
-    and [ or [ new .==. old | old <- toList cs ] | new <- toList cs' ]
+    and [ or [ new .==. old | (old, _) <- toList cs ]
+        | (new, _) <- toList cs' ]
   where
   c1 .==. c2 = all (all (uncurry (==)))
                    ((zipZip `on` (toLists . mat . cm)) c1 c2)
