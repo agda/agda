@@ -171,3 +171,12 @@ addord x (olim f) = olim (\ n -> addord x (f n))
 foo : Ord -> (Nat -> Ord) -> Ord
 foo ozero    g = ozero
 foo (olim f) g = olim (\n -> foo (g n) f)
+
+-- Example checking that a function can be used with several different
+-- numbers of arguments on the right-hand side.
+
+const : {a b : Set1} -> a -> b -> a
+const x _ = x
+
+bar : Set -> Set
+bar x = const (bar Ord) bar

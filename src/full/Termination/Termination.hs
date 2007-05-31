@@ -42,8 +42,6 @@ import Data.Monoid
 --
 -- Note that this function assumes that all data types are strictly
 -- positive.
---
--- Precondition: @'completePrecondition' cs@.
 
 terminates :: (Ord call, Monoid call) =>
   CallGraph call -> Either (Map Index (Set Index, Set call))

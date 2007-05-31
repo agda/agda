@@ -15,15 +15,16 @@ module Termination.CallGraph
   , Call(..)
   , callInvariant
   , CallGraph
+  , callGraphInvariant
   , emptyCallGraph   
   , unionCallGraphs
   , insertCallGraph
   , complete
-  , completePrecondition
   , Termination.CallGraph.tests
   ) where
 
 import Test.QuickCheck
+import Utils.Function hiding (on)
 import Utils.TestHelpers
 import Termination.Utilities
 import Termination.Matrix
@@ -31,6 +32,8 @@ import Termination.Semiring (Semiring)
 import qualified Termination.Semiring as Semiring
 import Data.Set (Set)
 import qualified Data.Set as Set
+import Data.Map (Map, (!))
+import qualified Data.Map as Map
 import Data.List
 import Data.Monoid
 
@@ -248,6 +251,11 @@ c1 >*< c2 =
 
 type CallGraph call = Set (Call call)
 
+-- | 'CallGraph' invariant.
+
+callGraphInvariant :: CallGraph call -> Bool
+callGraphInvariant = all callInvariant . Set.toList
+
 emptyCallGraph :: CallGraph call
 emptyCallGraph = Set.empty
 
@@ -260,28 +268,26 @@ unionCallGraphs = Set.union
 insertCallGraph :: Call call -> CallGraph call -> CallGraph call
 insertCallGraph = Set.insert
 
--- | Generates a call set satisfying 'completePrecondition'.
+-- | Generates a call set.
 
 callGraph :: (Ord call, Arbitrary call) => Gen (CallGraph call)
 callGraph = do
   indices <- fmap nub arbitrary
-  lengths <- listOfLength (length indices) (choose (0, 2))  -- Not too large.
-  let indexMap = zip indices lengths
   n <- natural :: Gen Integer
-  let noMatrices | null indexMap = 0
-                 | otherwise     = n `max` 3  -- Not too many.
-  fmap Set.fromList $ listOfLength noMatrices (matGen indexMap)
+  let noMatrices | null indices = 0
+                 | otherwise    = n `max` 3  -- Not too many.
+  fmap Set.fromList $ listOfLength noMatrices (matGen indices)
   where
-  matGen indexMap = do
-    ((s, c), (t, r)) <- two (elements indexMap)
-    m <- matrix (Size { rows = r, cols = c })
+  matGen indices = do
+    (s, t) <- two (elements indices)
+    (c, r) <- two (choose (0, 2))     -- Not too large.
+    m <- callMatrix (Size { rows = r, cols = c })
     callId <- arbitrary
-    return $ Call { source = s, target = t, callId = callId
-                  , cm = CallMatrix { mat = m } }
+    return $ Call { source = s, target = t, callId = callId, cm = m }
 
 prop_callGraph =
   forAll (callGraph :: Gen (CallGraph Integer)) $ \cs ->
-    completePrecondition cs
+    callGraphInvariant cs
 
 -- | Call graph combination. (Application of '>*<' to all pairs @(c1,
 -- c2)@ for which @'source' c1 = 'target' c2@.)
@@ -299,15 +305,15 @@ combine s1 s2 =
 -- | @'complete' cs@ completes the call graph @cs@. A call graph is
 -- complete if it contains all indirect calls; if @f -> g@ and @g ->
 -- h@ are present in the graph, then @f -> h@ should also be present.
---
--- Precondition: @'completePrecondition' cs@.
 
 complete :: (Ord call, Monoid call) => CallGraph call -> CallGraph call
-complete c = complete' c
+complete cs = complete' safeCS
   where
+  safeCS = ensureCompletePrecondition cs
+
   complete' cs | cs' == cs = cs
                | otherwise = complete' cs'
-    where cs' = Set.union cs (combine cs c)
+    where cs' = Set.union cs (combine cs safeCS)
 
 prop_complete =
   forAll (callGraph :: Gen (CallGraph [Integer])) $ \cs ->
@@ -334,6 +340,48 @@ completePrecondition cs =
   where
   size' = size . mat . cm
 
+-- | Returns a call graph padded with 'Unknown's in such a way that
+-- 'completePrecondition' is satisfied.
+
+ensureCompletePrecondition :: CallGraph call -> CallGraph call
+ensureCompletePrecondition cs = Set.map pad cs
+  where
+  noArgs :: Map Index Integer
+  noArgs = Set.fold (\c m -> insert (source c) (cols' c) $
+                             insert (target c) (rows' c) m)
+                    Map.empty
+                    cs
+    where insert = Map.insertWith max
+
+  pad c = c { cm = CallMatrix { mat = padRows $ padCols $ mat $ cm c } }
+    where
+    padCols = iterate' ((noArgs ! source c) - cols' c)
+                       (addColumn Unknown)
+
+    padRows = iterate' ((noArgs ! target c) - rows' c)
+                       (addRow Unknown)
+
+  cols'  = cols . size'
+  rows'  = rows . size'
+  size'  = size . mat . cm
+
+prop_ensureCompletePrecondition =
+  forAll (callGraph :: Gen (CallGraph [Integer])) $ \cs ->
+    let cs' = ensureCompletePrecondition cs in
+    completePrecondition cs'
+    &&
+    all callInvariant (Set.toList cs')
+    &&
+    and [ or [ new .==. old | old <- Set.toAscList cs ]
+        | new <- Set.toAscList cs' ]
+  where
+  c1 .==. c2 = all (all (uncurry (==)))
+                   ((zipZip `on` (toLists . mat . cm)) c1 c2)
+
+  -- zipZip discards the new elements.
+  zipZip :: [[a]] -> [[b]] -> [[(a, b)]]
+  zipZip xs ys = map (uncurry zip) $ zip xs ys
+
 ------------------------------------------------------------------------
 -- All tests
 
@@ -345,3 +393,4 @@ tests = do
   quickCheck prop_Arbitrary_Call
   quickCheck prop_callGraph
   quickCheck prop_complete
+  quickCheck prop_ensureCompletePrecondition
