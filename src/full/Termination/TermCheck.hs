@@ -59,14 +59,14 @@ termDecls ds = fmap concat $ mapM termDecl ds
 termDecl :: A.Declaration -> TCM Result
 termDecl d =
     case d of
-	A.Axiom i x e                -> return []
-	A.Primitive i x e            -> return []
-	A.Definition i ts ds         -> termMutual i ts ds
-	A.Section i x tel ds         -> termSection i x tel ds
-	A.Apply i x tel m args rd rm -> return []
-	A.Import i x                 -> return []
-	A.Pragma i p                 -> return []
-	A.ScopedDecl scope ds        -> setScope scope >> termDecls ds
+	A.Axiom {}		 -> return []
+	A.Primitive {}  	 -> return []
+	A.Definition i ts ds	 -> termMutual i ts ds
+	A.Section i x tel ds	 -> termSection i x tel ds
+	A.Apply {}               -> return []
+	A.Import {}		 -> return []
+	A.Pragma {}		 -> return []
+	A.ScopedDecl scope ds	 -> setScope scope >> termDecls ds
 	    -- open is just an artifact from the concrete syntax
 
 collectCalls :: (a -> TCM Calls) -> [a] -> TCM Calls
