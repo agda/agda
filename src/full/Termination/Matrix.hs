@@ -23,6 +23,9 @@ module Termination.Matrix
   , add
   , mul
   , diagonal
+    -- * Modifying matrices
+  , addRow
+  , addColumn
     -- * Tests
   , Termination.Matrix.tests
   ) where
@@ -259,6 +262,44 @@ prop_diagonal =
     bounds (diagonal m) == (1, n)
 
 ------------------------------------------------------------------------
+-- Modifying matrices
+
+-- | @'addColumn' x m@ adds a new column to @m@, after the columns
+-- already existing in the matrix. All elements in the new column get
+-- set to @x@.
+
+addColumn :: (Ix i, Num i, Enum i) => b -> Matrix i b -> Matrix i b
+addColumn x m = fromLists sz . addCol' . toLists $ m
+  where
+  sz      = (size m) { cols = cols (size m) + 1 }
+  addCol' = map (++ [x])
+
+prop_addColumn :: Integer -> TM -> Bool
+prop_addColumn x m =
+  matrixInvariant m'
+  &&
+  map init (toLists m') == toLists m
+  where
+  m' = addColumn x m
+
+-- | @'addRow' x m@ adds a new row to @m@, after the rows already
+-- existing in the matrix. All elements in the new row get set to @x@.
+
+addRow :: (Ix i, Integral i) => b -> Matrix i b -> Matrix i b
+addRow x m = fromLists sz . addRow' . toLists $ m
+  where
+  sz      = (size m) { rows = rows (size m) + 1 }
+  addRow' = (++ [genericReplicate (cols (size m)) x])
+
+prop_addRow :: Integer -> TM -> Bool
+prop_addRow x m =
+  matrixInvariant m'
+  &&
+  init (toLists m') == toLists m
+  where
+  m' = addRow x m
+
+------------------------------------------------------------------------
 -- All tests
 
 tests = do
@@ -273,3 +314,5 @@ tests = do
   quickCheck prop_add
   quickCheck prop_mul
   quickCheck prop_diagonal
+  quickCheck prop_addColumn
+  quickCheck prop_addRow
