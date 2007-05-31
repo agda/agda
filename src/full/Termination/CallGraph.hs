@@ -5,21 +5,28 @@
 -- Originally copied from Agda1 sources.
 
 module Termination.CallGraph
+    -- * Structural orderings
   ( Order(..)
   , (.*.)
   , infimum
   , supremum
+    -- * Call matrices
   , Index
   , CallMatrix(..)
   , callMatrixInvariant
+    -- * Calls
   , Call(..)
   , callInvariant
+    -- * Call graphs
   , CallGraph
   , callGraphInvariant
-  , emptyCallGraph   
-  , unionCallGraphs
-  , insertCallGraph
+  , fromList
+  , toList
+  , empty
+  , union
+  , insert
   , complete
+    -- * Tests
   , Termination.CallGraph.tests
   ) where
 
@@ -34,24 +41,20 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Map (Map, (!))
 import qualified Data.Map as Map
-import Data.List
+import Data.List hiding (union, insert)
 import Data.Monoid
 
 ------------------------------------------------------------------------
 -- Structural orderings
 
--- | The order called R in the paper referred to above.
+-- | The order called R in the paper referred to above. Note that
+-- @'Unknown' '<=' 'Le' '<=' 'Lt'@.
 --
 -- See 'Call' for more information.
 
 data Order
   = Lt | Le | Unknown
   deriving (Eq, Show)
-
-{- | Information order.  'Unknown' <= 'Le' <= 'Lt'.
-     The bigger the element of 'Order' the smaller, hence, more informative, 
-     the order between values it represents.
--}
 
 instance Ord Order where
   _       <= Lt = True
@@ -66,22 +69,8 @@ instance Arbitrary Order where
   coarbitrary Le      = variant 1
   coarbitrary Unknown = variant 2
 
-{- | Addition of 'Order's.  This coincides with the supremum.  
-The neutral (and bottom) element is 'Unknown'. -}
-
-(.+.) :: Order -> Order -> Order
-(.+.) = max
-
-{-
-(.+.) :: Order -> Order -> Order
-Lt      .+. _  = Lt
-Le      .+. Lt = Lt
-Le      .+. _  = Le
-Unknown .+. o  = o
--}
-
-{- | Multiplication of 'Order's.  Sequential composition.  
-The neutral element is 'Le'. -}
+-- | Multiplication of 'Order's. (Corresponds to sequential
+-- composition.)
 
 (.*.) :: Order -> Order -> Order
 Lt      .*. Unknown = Unknown
@@ -89,21 +78,26 @@ Lt      .*. _       = Lt
 Le      .*. o       = o
 Unknown .*. _       = Unknown
 
--- | @('Order', '.+.', '.*.')@ forms a semiring, with 'Unknown' as zero
--- and 'Le' as one.  
+-- | The supremum of a list of 'Order's.
 
--- | 'supremum' works also for empty lists (unlike 'List.maximum').
 supremum :: [Order] -> Order
-supremum = foldl max Unknown
+supremum = foldr max Unknown
 
--- | 'infimum' works also for empty lists (unlike 'List.maximum').
+-- | The infimum of a list of 'Order's.
+
 infimum :: [Order] -> Order
-infimum = foldl min Lt
+infimum = foldr min Lt
+
+-- | @('Order', 'max', '.*.')@ forms a semiring, with 'Unknown' as zero
+-- and 'Le' as one.  
 
 orderSemiring :: Semiring Order
 orderSemiring =
-  Semiring.Semiring { Semiring.add = (.+.), Semiring.mul = (.*.)
-                    , Semiring.zero = Unknown, Semiring.one = Le}
+  Semiring.Semiring { Semiring.add = max
+                    , Semiring.mul = (.*.)
+                    , Semiring.zero = Unknown
+                    , Semiring.one = Le
+                    }
 
 prop_orderSemiring = Semiring.semiringInvariant orderSemiring
 
@@ -249,26 +243,40 @@ c1 >*< c2 =
 
 -- | A call graph is a set of calls.
 
-type CallGraph call = Set (Call call)
+newtype CallGraph call = CallGraph { cg :: Set (Call call) }
+  deriving (Eq, Show)
 
 -- | 'CallGraph' invariant.
 
 callGraphInvariant :: CallGraph call -> Bool
-callGraphInvariant = all callInvariant . Set.toList
+callGraphInvariant = all callInvariant . toList
 
-emptyCallGraph :: CallGraph call
-emptyCallGraph = Set.empty
+-- | Converts a call graph to a list of calls.
 
-sgCallGraph :: Call call -> CallGraph call
-sgCallGraph = Set.singleton
+toList :: CallGraph call -> [Call call]
+toList = Set.toList . cg
 
-unionCallGraphs :: CallGraph call -> CallGraph call -> CallGraph call
-unionCallGraphs = Set.union
+-- | Converts a list of calls to a call graph.
 
-insertCallGraph :: Call call -> CallGraph call -> CallGraph call
-insertCallGraph = Set.insert
+fromList :: [Call call] -> CallGraph call
+fromList = CallGraph . Set.fromList
 
--- | Generates a call set.
+-- | Creates an empty call graph.
+
+empty :: CallGraph call
+empty = CallGraph Set.empty
+
+-- | Takes the union of two call graphs.
+
+union :: CallGraph call -> CallGraph call -> CallGraph call
+union cs1 cs2 = CallGraph $ (Set.union `on` cg) cs1 cs2
+
+-- | Inserts a call into a call graph.
+
+insert :: Call call -> CallGraph call -> CallGraph call
+insert c cs = CallGraph $ Set.insert c (cg cs)
+
+-- | Generates a call graph.
 
 callGraph :: (Ord call, Arbitrary call) => Gen (CallGraph call)
 callGraph = do
@@ -276,7 +284,8 @@ callGraph = do
   n <- natural :: Gen Integer
   let noMatrices | null indices = 0
                  | otherwise    = n `max` 3  -- Not too many.
-  fmap Set.fromList $ listOfLength noMatrices (matGen indices)
+  fmap (CallGraph . Set.fromList) $
+       listOfLength noMatrices (matGen indices)
   where
   matGen indices = do
     (s, t) <- two (elements indices)
@@ -296,9 +305,9 @@ prop_callGraph =
 
 combine :: (Ord call, Monoid call)
         => CallGraph call -> CallGraph call -> CallGraph call
-combine s1 s2 =
+combine s1 s2 = CallGraph $
   Set.fromList [ c1 >*< c2
-               | c1 <- Set.toList s1, c2 <- Set.toList s2
+               | c1 <- toList s1, c2 <- toList s2
                , source c1 == target c2
                ]
 
@@ -313,7 +322,7 @@ complete cs = complete' safeCS
 
   complete' cs | cs' == cs = cs
                | otherwise = complete' cs'
-    where cs' = Set.union cs (combine cs safeCS)
+    where cs' = cs `union` combine cs safeCS
 
 prop_complete =
   forAll (callGraph :: Gen (CallGraph [Integer])) $ \cs ->
@@ -322,9 +331,9 @@ prop_complete =
 -- | Returns 'True' iff the call graph is complete.
 
 isComplete :: (Ord call, Monoid call) => CallGraph call -> Bool
-isComplete s = all (`Set.member` s) combinations
+isComplete s = all (`Set.member` cg s) combinations
   where
-  calls = Set.toList s
+  calls = toList s
   combinations =
     [ c2 >*< c1 | c1 <- calls, c2 <- calls, target c1 == source c2 ]
 
@@ -336,7 +345,7 @@ completePrecondition cs =
   all (allEqual . map snd) $
   groupOn fst $
   concat [ [(source c, cols $ size' c), (target c, rows $ size' c)]
-         | c <- Set.toList cs]
+         | c <- toList cs]
   where
   size' = size . mat . cm
 
@@ -344,13 +353,13 @@ completePrecondition cs =
 -- 'completePrecondition' is satisfied.
 
 ensureCompletePrecondition :: CallGraph call -> CallGraph call
-ensureCompletePrecondition cs = Set.map pad cs
+ensureCompletePrecondition cs = CallGraph $ Set.map pad $ cg cs
   where
   noArgs :: Map Index Integer
   noArgs = Set.fold (\c m -> insert (source c) (cols' c) $
                              insert (target c) (rows' c) m)
                     Map.empty
-                    cs
+                    (cg cs)
     where insert = Map.insertWith max
 
   pad c = c { cm = CallMatrix { mat = padRows $ padCols $ mat $ cm c } }
@@ -370,10 +379,9 @@ prop_ensureCompletePrecondition =
     let cs' = ensureCompletePrecondition cs in
     completePrecondition cs'
     &&
-    all callInvariant (Set.toList cs')
+    all callInvariant (toList cs')
     &&
-    and [ or [ new .==. old | old <- Set.toAscList cs ]
-        | new <- Set.toAscList cs' ]
+    and [ or [ new .==. old | old <- toList cs ] | new <- toList cs' ]
   where
   c1 .==. c2 = all (all (uncurry (==)))
                    ((zipZip `on` (toLists . mat . cm)) c1 c2)

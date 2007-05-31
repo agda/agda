@@ -1,10 +1,9 @@
-{-# OPTIONS -fglasgow-exts -cpp #-}
+{-# LANGUAGE CPP #-}
 
-{- Checking for Structural recursion 
-   Authors: Andreas Abel, Karl Mehltretter
+{- Checking for Structural recursion
+   Authors: Andreas Abel, Karl Mehltretter and others
    Created: 2007-05-28
    Source : TypeCheck.Rules.Decl
-
  -}
 
 module Termination.TermCheck (termDecls) where
@@ -23,9 +22,9 @@ import Syntax.Position
 import Syntax.Common
 import Syntax.Literal (Literal(LitString))
 
-import Termination.CallGraph
-import Termination.Matrix (Size(Size),fromLists)
-import Termination.Termination
+import qualified Termination.CallGraph   as Term
+import qualified Termination.Matrix      as Term
+import qualified Termination.Termination as Term
 
 import TypeChecking.Monad
 import TypeChecking.Pretty
@@ -36,13 +35,12 @@ import TypeChecking.Substitute (abstract,raise)
 
 import qualified Interaction.Highlighting.Range as R
 
-import Utils.Size -- "size" 
+import Utils.Size
 import Utils.Monad (thread)
 
--- for __IMPOSSIBLE__
 #include "../undefined.h"
 
-type Calls = CallGraph [R.Range]
+type Calls = Term.CallGraph [R.Range]
 
 -- | The result of termination checking a module is a list of
 -- problematic mutual blocks (represented by the names of the
@@ -70,16 +68,16 @@ termDecl d =
 	    -- open is just an artifact from the concrete syntax
 
 collectCalls :: (a -> TCM Calls) -> [a] -> TCM Calls
-collectCalls f [] = return emptyCallGraph
+collectCalls f [] = return Term.empty
 collectCalls f (a : as) = do c1 <- f a
                              c2 <- collectCalls f as
-                             return (c1 `unionCallGraphs` c2)
+                             return (c1 `Term.union` c2)
 
 -- | Termination check a bunch of mutually inductive recursive definitions.
 termMutual :: Info.DeclInfo -> [A.TypeSignature] -> [A.Definition] -> TCM Result
-termMutual i ts ds = 
+termMutual i ts ds =
   (do calls <- collectCalls (termDefinition names) ds
-      case terminates calls of
+      case Term.terminates calls of
         Left  errDesc -> do
           let callSites = concat $ concatMap (Set.elems . snd) $ Map.elems errDesc
           return [(names, callSites)]
@@ -103,8 +101,8 @@ termDefinition :: [QName] -> A.Definition -> TCM Calls
 termDefinition names d =
     case d of
 	A.FunDef i x cs	    -> abstract (Info.defAbstract i) $ termFunDef names i x cs
-	A.DataDef i x ps cs -> return emptyCallGraph
-	A.RecDef i x ps cs  -> return emptyCallGraph
+	A.DataDef i x ps cs -> return Term.empty
+	A.RecDef i x ps cs  -> return Term.empty
     where
 	-- Concrete definitions cannot use information about abstract things.
 	abstract ConcreteDef = inAbstractMode
@@ -169,7 +167,7 @@ termFunDef names i name cs =
         -- returns a TC.Monad.Base.Definition
         case (theDef def) of
            Function cls isAbstract -> collectCalls (termClause names name) cls
-           Primitive _ _ _ -> return emptyCallGraph
+           Primitive _ _ _ -> return Term.empty
            _ -> __IMPOSSIBLE__
 
 -- | Termination check clauses
@@ -179,7 +177,7 @@ termFunDef names i name cs =
 
    f x (cons y nil) = g x y
 
-   Clause 
+   Clause
      [VarP "x", ConP "List.cons" [VarP "y", ConP "List.nil" []]]
      Bind (Abs { absName = "x"
                , absBody = Bind (Abs { absName = "y"
@@ -227,8 +225,8 @@ stripBind i (VarP x) (Bind (Abs { absName = _, absBody = b })) =
   Just (i+1, VarDBP i, b)
 stripBind i (VarP x) (Body b) = __IMPOSSIBLE__
 stripBind i (LitP l) b = Just (i, LitDBP l, b)
-stripBind i (ConP c args) b 
-        = do (i', dbps, b') <- stripBinds i (map unArg args) b 
+stripBind i (ConP c args) b
+        = do (i', dbps, b') <- stripBinds i (map unArg args) b
              return (i', ConDBP c dbps, b')
 
 {- | stripBinds i ps b = Just (i', dbps, b')
@@ -243,10 +241,10 @@ stripBinds i (p:ps) b = do (i1,  dbp, b1) <- stripBind i p b
                            return (i2, dbp:dbps, b2)
 
 termClause :: [QName] -> QName -> Clause -> TCM Calls
-termClause names name (Clause argPats body) = 
+termClause names name (Clause argPats body) =
     case stripBinds 0 (map unArg argPats) body  of
-       Nothing -> return emptyCallGraph
-       Just (n, dbpats, Body t) -> 
+       Nothing -> return Term.empty
+       Just (n, dbpats, Body t) ->
           termTerm names name (map (adjIndexDBP ((n-1) - )) dbpats) t
           -- note: convert dB levels into dB indices
        Just (n, dbpats, b)  -> internalError $ "termClause: not a Body" -- ++ show b
@@ -255,94 +253,90 @@ termTerm :: [QName] -> QName -> [DeBruijnPat] -> Term -> TCM Calls
 termTerm names f = loop
  where Just fInd' = List.elemIndex f names
        fInd = toInteger fInd'
-       loop pats t = do 
+       loop pats t = do
          t' <- instantiate t          -- instantiate top-level MetaVar
          case (ignoreBlocking t') of  -- removes BlockedV case
-       
+
             -- call to defined function
-            Def g args0 -> 
+            Def g args0 ->
                do let args1 = map unArg args0
                   args2 <- mapM instantiate args1
-                  let args = map ignoreBlocking args2 
+                  let args = map ignoreBlocking args2
                   calls <- collectCalls (loop pats) args
                   case List.elemIndex g names of
                      Nothing   -> return calls
                      Just gInd' ->
-                        return 
-                          (insertCallGraph 
-                            (Call { source = fInd
-                                  , target = toInteger gInd'
-                                             -- Note that only the
-                                             -- base part of the name
-                                             -- is collected here.
-                                  , callId = fst $ R.getRangesA g
-                                  , cm     = compareArgs pats args
-                                  })
+                        return
+                          (Term.insert
+                            (Term.Call { Term.source = fInd
+                                       , Term.target = toInteger gInd'
+                                                  -- Note that only the
+                                                  -- base part of the name
+                                                  -- is collected here.
+                                       , Term.callId = fst $ R.getRangesA g
+                                       , Term.cm     = compareArgs pats args
+                                       })
                             calls)
-       
+
             -- abstraction
             Lam _ (Abs _ t) -> loop (map liftDBP pats) t
-       
+
             -- variable
             Var i args -> collectCalls (loop pats) (map unArg args)
-       
+
             -- constructed value
             Con c args -> collectCalls (loop pats) (map unArg args)
-       
+
             -- dependent function space
-            Pi (Arg _ (El _ a)) (Abs _ (El _ b)) -> 
+            Pi (Arg _ (El _ a)) (Abs _ (El _ b)) ->
                do g1 <- loop pats a
                   g2 <- loop (map liftDBP pats) b
-                  return $ unionCallGraphs g1 g2
-       
+                  return $ g1 `Term.union` g2
+
             -- non-dependent function space
-            Fun (Arg _ (El _ a)) (El _ b) -> 
+            Fun (Arg _ (El _ a)) (El _ b) ->
                do g1 <- loop pats a
                   g2 <- loop pats b
-                  return $ unionCallGraphs g1 g2
-            
+                  return $ g1 `Term.union` g2
+
             -- literal
-            Lit l -> return emptyCallGraph
-       
+            Lit l -> return Term.empty
+
             -- sort
-            Sort s -> return emptyCallGraph
-       
+            Sort s -> return Term.empty
+
             -- Unsolved meta-variable: Violates termination check if
             -- it does not correspond to an interaction point.
             MetaV x args -> do
               isIntMeta <- isInteractionMeta x
               if isIntMeta then
-                return emptyCallGraph
+                return Term.empty
                else
                 patternViolation -- HACK !! abuse of PatternError !!
-       
+
             BlockedV{} -> __IMPOSSIBLE__
-       
-compareArgs :: [DeBruijnPat] -> [Term] -> CallMatrix
-compareArgs pats ts 
-    = CallMatrix (fromLists (Size (toInteger (length ts)) 
-                                  (toInteger (length pats))) 
-                   (map (\ t -> map (compareTerm t) pats) ts))
 
--- | compareTerm t dbpat 
+compareArgs :: [DeBruijnPat] -> [Term] -> Term.CallMatrix
+compareArgs pats ts = Term.CallMatrix $
+  Term.fromLists (Term.Size { Term.rows = toInteger (length ts)
+                            , Term.cols = toInteger (length pats)
+                            })
+               (map (\t -> map (compareTerm t) pats) ts)
+
+-- | compareTerm t dbpat
 --   Precondition: t not a BlockedV, top meta variable resolved
-compareTerm :: Term -> DeBruijnPat -> Order
-compareTerm (Var i _) p         = compareVar i p
-compareTerm (Lit l) (LitDBP l') = if l==l' then Le else Unknown
-compareTerm (Lit l) _           = Unknown
-compareTerm (Con c ts) (ConDBP c' ps) 
-    = if c == c' then infimum (zipWith compareTerm (map unArg ts) ps)
-      else Unknown
-compareTerm _ _ = Unknown
+compareTerm :: Term -> DeBruijnPat -> Term.Order
+compareTerm (Var i _)  p              = compareVar i p
+compareTerm (Lit l)    (LitDBP l')    = if l == l' then Term.Le
+                                                   else Term.Unknown
+compareTerm (Lit l)    _              = Term.Unknown
+compareTerm (Con c ts) (ConDBP c' ps) =
+  if c == c' then Term.infimum (zipWith compareTerm (map unArg ts) ps)
+             else Term.Unknown
+compareTerm _ _ = Term.Unknown
 
-compareVar :: Nat -> DeBruijnPat -> Order
-compareVar i (VarDBP j) = if i==j then Le else Unknown
-compareVar i (LitDBP _) = Unknown
-compareVar i (ConDBP c ps) = Lt .*. supremum (map (compareVar i) ps) 
-
-
-
-     
-
-
-
+compareVar :: Nat -> DeBruijnPat -> Term.Order
+compareVar i (VarDBP j)    = if i == j then Term.Le else Term.Unknown
+compareVar i (LitDBP _)    = Term.Unknown
+compareVar i (ConDBP c ps) =
+  (Term..*.) Term.Lt (Term.supremum (map (compareVar i) ps))

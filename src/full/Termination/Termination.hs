@@ -53,7 +53,7 @@ terminates cs | ok        = Right perms
   ccs = complete cs
   -- Compute the "recursion behaviours" (matrix diagonals).
   rbs = [ (source c, (callId c, diagonal (mat (cm c))))
-        | c <- Set.toList ccs, source c == target c ]
+        | c <- toList ccs, source c == target c ]
   -- Group them by function name.
   rbs' = map (fst . head &&& map snd) $ groupOn fst rbs
   -- Try to find lexicographic orders.
@@ -89,8 +89,7 @@ type CG = CallGraph (R Integer)
 -- | Constructs a call graph suitable for use with the 'R' monoid.
 
 buildCallGraph :: [Call Integer] -> CG
-buildCallGraph =
-  Set.fromList . map (\c -> c { callId = RJust $ callId c })
+buildCallGraph = fromList . map (\c -> c { callId = RJust $ callId c })
 
 -- | Constructs result lists suitable for use with the 'R' monoid.
 
