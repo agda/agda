@@ -78,12 +78,12 @@ Lt      .*. _       = Lt
 Le      .*. o       = o
 Unknown .*. _       = Unknown
 
--- | The supremum of a list of 'Order's.
+-- | The supremum of a (possibly empty) list of 'Order's.
 
 supremum :: [Order] -> Order
 supremum = foldr max Unknown
 
--- | The infimum of a list of 'Order's.
+-- | The infimum of a (possibly empty) list of 'Order's.
 
 infimum :: [Order] -> Order
 infimum = foldr min Lt
