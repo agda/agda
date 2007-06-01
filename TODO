@@ -153,6 +153,11 @@ Fixes
 * change to named free variables and deBruijn bound variables (I'm not a number
   paper).
 
+[Termination checker]
+
+* Check that all meta variables are instantiated as much as possible
+  before the termination checker runs.
+
 [Imports]
 
 * handle clashing builtin things

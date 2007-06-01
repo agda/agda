@@ -76,24 +76,19 @@ collectCalls f (a : as) = do c1 <- f a
 -- | Termination check a bunch of mutually inductive recursive definitions.
 termMutual :: Info.DeclInfo -> [A.TypeSignature] -> [A.Definition] -> TCM Result
 termMutual i ts ds =
-  (do calls <- collectCalls (termDefinition names) ds
-      reportSLn "term.lex" 30 $ "Calls: " ++ show calls
-      reportSLn "term.lex" 30 $ "Recursion behaviours: " ++
-                                show (Term.recursionBehaviours calls)
-      case Term.terminates calls of
-        Left  errDesc -> do
-          let callSites = concat' $ concat' $ map snd $ Map.elems errDesc
-          return [(names, callSites)]
-        Right _ -> do
-          when (names /= []) $
-            reportSLn "term.warn.yes" 2
-                      (show (names) ++ " does termination check")
-          return [])
-  `catchError` \ e -> case e of
-                         PatternErr _ -> return [(names, [])]
-                                         -- TODO: The call sites are
-                                         -- not reported properly here.
-                         _            -> throwError e
+  do calls <- collectCalls (termDefinition names) ds
+     reportSLn "term.lex" 30 $ "Calls: " ++ show calls
+     reportSLn "term.lex" 30 $ "Recursion behaviours: " ++
+                               show (Term.recursionBehaviours calls)
+     case Term.terminates calls of
+       Left  errDesc -> do
+         let callSites = concat' $ concat' $ map snd $ Map.elems errDesc
+         return [(names, callSites)]
+       Right _ -> do
+         when (names /= []) $
+           reportSLn "term.warn.yes" 2
+                     (show (names) ++ " does termination check")
+         return []
   where
   getName (A.FunDef i x cs) = [x]
   getName _                 = []
@@ -312,14 +307,12 @@ termTerm names f = loop
             -- sort
             Sort s -> return Term.empty
 
-            -- Unsolved meta-variable: Violates termination check if
-            -- it does not correspond to an interaction point.
-            MetaV x args -> do
-              isIntMeta <- isInteractionMeta x
-              if isIntMeta then
-                return Term.empty
-               else
-                patternViolation -- HACK !! abuse of PatternError !!
+            -- Unsolved meta-variables do not count as termination
+            -- problems. TODO: Are all meta variables instantiated as
+            -- much as possible before the code is termination
+            -- checked? Otherwise it is dangerous to ignore meta
+            -- variables like this.
+            MetaV x args -> return Term.empty
 
             BlockedV{} -> __IMPOSSIBLE__
 
