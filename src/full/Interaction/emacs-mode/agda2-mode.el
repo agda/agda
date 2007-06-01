@@ -63,7 +63,7 @@ properties to add to the result."
   :type '(repeat string) :group 'agda2)
 
 (defcustom agda2-toplevel-module "Interaction.GhciTop"
-  "*The name of the Agda2 toplevel module (this must be INTERPRETED, for now)"
+  "*The name of the Agda2 toplevel module"
   :type 'string :group 'agda2)
   
 (defcustom agda2-mode-hook
