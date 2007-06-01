@@ -159,40 +159,42 @@ cmd_load file = infoOnException $ do
 	    pragmas  <- concreteToAbstract_ pragmas	-- identity for top-level pragmas at the moment
 	    topLevel <- concreteToAbstract_ (TopLevel m)
 
-            -- Generate syntax info. Currently highlighting
-            -- information is only generated when a file is loaded, or
-            -- an error is encountered.
             tokens <- liftIO $ parseFile' tokensParser file
-            generateAndOutputSyntaxInfo file TypeCheckingNotDone tokens topLevel
 
-	    setUndo
-	    setOptionsFromPragmas pragmas
-	    checkDecls $ topLevelDecls topLevel
-	    setScope $ outsideScope topLevel
+            handleError
+              -- If there is an error syntax highlighting info can
+              -- still be generated.
+              (\e -> do generateAndOutputSyntaxInfo
+                          file TypeCheckingNotDone tokens topLevel
+                        -- The outer error handler tells Emacs to
+                        -- reload the syntax highlighting info.
+                        throwError e) $ do
+              setUndo
+              setOptionsFromPragmas pragmas
+              checkDecls $ topLevelDecls topLevel
+              setScope $ outsideScope topLevel
 
-            -- Generate syntax info again, after type checking. We do
-            -- this twice to get highlighting (and especially point
-            -- warping) also when there is a type error (i.e. when the
-            -- following code is not executed).
-            liftIO $ clearSyntaxInfo file
-            generateAndOutputSyntaxInfo file TypeCheckingDone tokens topLevel
+              generateAndOutputSyntaxInfo file TypeCheckingDone tokens topLevel
 
-            -- Do termination checking.
-            errs <- termDecls $ topLevelDecls topLevel
-            generateAndOutputTerminationProblemInfo file errs
+              -- Do termination checking.
+              errs <- termDecls $ topLevelDecls topLevel
+              generateAndOutputTerminationProblemInfo file errs
 
 	    lispIP
 
     -- The Emacs mode uses two different annotation mechanisms, and
-    -- they cannot be invoked in any order. The one triggered by the
-    -- following line has to be run after the one triggered by
-    -- outputSyntaxInfo.
+    -- they cannot be invoked in any order. The one triggered by
+    -- adga2-load-action has to be run after the one triggered by
+    -- tellEmacsToReloadSyntaxInfo.
+    tellEmacsToReloadSyntaxInfo
     putStrLn $ response $ L [A "agda2-load-action", is]
     cmd_metas
   where lispIP  = format . sortRng <$> (tagRng =<< getInteractionPoints)
         tagRng  = mapM (\i -> (,)i <$> getInteractionRange i)
         sortRng = sortBy ((.snd) . compare . snd)
         format  = Q . L . List.map (A . tail . show . fst)
+
+        handleError = flip catchError
 
 cmd_constraints :: IO ()
 cmd_constraints = infoOnException $ ioTCM $ do
@@ -573,13 +575,17 @@ generateAndOutputTerminationProblemInfo file errs = do
   termInfo <- generateTerminationInfo errs
   liftIO $ outputSyntaxInfo file termInfo
 
--- | Output syntax highlighting information for the given file, and
--- tell the Emacs mode to reload the highlighting information.
+-- | Output syntax highlighting information for the given file
 
 outputSyntaxInfo :: FilePath -> File -> IO ()
 outputSyntaxInfo file syntaxInfo = do
     appendSyntaxInfo file syntaxInfo
-    putStrLn $ response $ L [A "agda2-highlight-reload"]
+
+-- | Tell the Emacs mode to reload the highlighting information.
+
+tellEmacsToReloadSyntaxInfo :: IO ()
+tellEmacsToReloadSyntaxInfo =
+  putStrLn $ response $ L [A "agda2-highlight-reload"]
 
 -- | Output syntax highlighting information for the given error
 -- (represented as a range and a string), and tell the Emacs mode to
@@ -598,3 +604,4 @@ outputErrorInfo mFile r s =
         L [A "annotation-goto", Q $ L [A (show f), A ".", A (show p)]]
       when (mFile /= Just f) $ clearSyntaxInfo f
       outputSyntaxInfo f $ generateErrorInfo r s
+      tellEmacsToReloadSyntaxInfo
