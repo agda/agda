@@ -98,7 +98,7 @@ the current buffer."
 
 (defun annotation-remove-annotations ()
   "Removes all text properties set by `annotation-annotate' in the
-current buffer, and clear `annotation-goto-map'. This function
+current buffer, and clears `annotation-goto-map'. This function
 preserves the file modification stamp of the current buffer."
   (clrhash annotation-goto-map)
   (annotation-preserve-modified-p
