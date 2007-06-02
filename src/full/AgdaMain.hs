@@ -105,9 +105,10 @@ runAgda =
 				checkDecls $ topLevelDecls topLevel
 
                                 -- Termination check
-                                errs <- termDecls $ topLevelDecls topLevel
-                                mapM_ (\e -> reportSLn "term.warn.no" 1
-                                             (show (fst e) ++ " does NOT termination check")) errs
+                                whenM (optTerminationCheck <$> commandLineOptions) $ do
+                                  errs <- termDecls $ topLevelDecls topLevel
+                                  mapM_ (\e -> reportSLn "term.warn.no" 1
+                                               (show (fst e) ++ " does NOT termination check")) errs
 
 				-- Set the scope
 				setScope $ outsideScope topLevel

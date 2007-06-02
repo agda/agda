@@ -59,6 +59,7 @@ data CommandLineOptions =
 	    , optIgnoreInterfaces  :: Bool
 	    , optDisablePositivity :: Bool
 	    , optCompileAlonzo     :: Bool
+	    , optTerminationCheck  :: Bool
 	    }
     deriving Show
 
@@ -86,6 +87,7 @@ defaultOptions =
 	    , optIgnoreInterfaces  = False
 	    , optDisablePositivity = False
 	    , optCompileAlonzo     = False
+            , optTerminationCheck  = True
 	    }
 
 {- | @f :: Flag opts@  is an action on the option record that results from
@@ -99,15 +101,16 @@ inputFlag f o	    =
 	Nothing  -> return $ o { optInputFile = Just f }
 	Just _	 -> fail "only one input file allowed"
 
-versionFlag	     o = return $ o { optShowVersion	   = True }
-helpFlag	     o = return $ o { optShowHelp	   = True }
-proofIrrelevanceFlag o = return $ o { optProofIrrelevance  = True }
-ignoreInterfacesFlag o = return $ o { optIgnoreInterfaces  = True }
-allowUnsolvedFlag    o = return $ o { optAllowUnsolved	   = True }
-showImplicitFlag     o = return $ o { optShowImplicit	   = True }
-runTestsFlag	     o = return $ o { optRunTests	   = True }
-vimFlag		     o = return $ o { optGenerateVimFile   = True }
-noPositivityFlag     o = return $ o { optDisablePositivity = True }
+versionFlag	         o = return $ o { optShowVersion       = True }
+helpFlag	         o = return $ o { optShowHelp	       = True }
+proofIrrelevanceFlag     o = return $ o { optProofIrrelevance  = True }
+ignoreInterfacesFlag     o = return $ o { optIgnoreInterfaces  = True }
+allowUnsolvedFlag        o = return $ o { optAllowUnsolved     = True }
+showImplicitFlag         o = return $ o { optShowImplicit      = True }
+runTestsFlag	         o = return $ o { optRunTests	       = True }
+vimFlag		         o = return $ o { optGenerateVimFile   = True }
+noPositivityFlag         o = return $ o { optDisablePositivity = True }
+dontTerminationCheckFlag o = return $ o { optTerminationCheck  = False }
 
 interactiveFlag o
     | optEmacsMode o = fail "cannot have both emacs mode and interactive mode"
@@ -173,6 +176,8 @@ pragmaOptions =
 		    "allow unsolved meta variables (only needed in batch mode)"
     , Option []	    ["disable-positivity-check"] (NoArg noPositivityFlag)
 		    "disable strict positivity check for datatypes"
+    , Option []	    ["dont-termination-check"] (NoArg dontTerminationCheckFlag)
+		    "do not try to verify that the code is terminating"
     ]
 
 -- | Used for printing usage info.
