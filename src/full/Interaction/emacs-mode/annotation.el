@@ -16,12 +16,13 @@ Becomes buffer-local when set.")
   "Keeps track of the positions that `annotation-goto' were invoked
 from.")
 
-(defun annotation-goto-indirect (pos)
+(defun annotation-goto-indirect (pos &optional other-window)
   "Go to the file/position specified by `annotation-goto-map' for the
-buffer position POS, if any."
+buffer position POS, if any. If OTHER-WINDOW is t, use another window
+to display the given position."
   (let* ((result (gethash pos annotation-goto-map))
          (current-file (buffer-file-name)))
-    (if (and (annotation-goto result)
+    (if (and (annotation-goto result other-window)
              (not (eq (point) pos)))
         (push `(,current-file . ,pos) annotation-goto-stack))))
 
@@ -32,14 +33,19 @@ successfully invoked."
     (let ((pos (pop annotation-goto-stack)))
       (annotation-goto pos))))
 
-(defun annotation-goto (filepos)
+(defun annotation-goto (filepos &optional other-window)
   "Go to file FILE, position POS, if FILEPOS = (FILE . POS), and the
-file is readable. Returns t if successful."
+file is readable. Returns t if successful.
+
+If OTHER-WINDOW is t, use another window to display the given
+position."
   (when (consp filepos)
     (let ((file (car filepos)))
       (if (file-readable-p file)
           (progn
-            (find-file file)
+            (if other-window
+                (find-file-other-window file)
+              (find-file file))
             (goto-char (cdr filepos))
             t)
         (error "File does not exist or is unreadable: %s." file)))))

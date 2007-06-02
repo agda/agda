@@ -703,10 +703,12 @@ setting of `agda2-indentation'."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Go to definition site
 
-(defun agda2-goto-definition-keyboard ()
-  "Go to the definition site of the name under point (if any)."
-  (interactive)
-  (annotation-goto-indirect (point)))
+(defun agda2-goto-definition-keyboard (&optional other-window)
+  "Go to the definition site of the name under point (if any). If this
+function is invoked with a prefix argument then another window is used
+to display the given position."
+  (interactive "P")
+  (annotation-goto-indirect (point) other-window))
 
 (defun agda2-goto-definition-mouse (ev)
   "Go to the definition site of the name clicked on (if any)."
