@@ -92,8 +92,9 @@ bounds for the current (possibly narrowed) buffer, or END < START."
   "Runs CODE, making sure to preserve the file modification stamp of
 the current buffer."
   `(let ((modp (buffer-modified-p)))
-     ,@code
-     (set-buffer-modified-p modp)))
+     (unwind-protect
+         (progn ,@code)
+       (set-buffer-modified-p modp))))
 
 (defun annotation-remove-annotations ()
   "Removes all text properties set by `annotation-annotate' in the
