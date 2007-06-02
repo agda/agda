@@ -42,15 +42,20 @@ properties to add to the result."
   `(let* ,varbind (labels ,funcbind ,@body)))
 (put 'agda2-let 'lisp-indent-function 2)
 
+; More undo stuff further down.
+
 (defmacro agda2-undoable (&rest body)
-  "Wrap BODY with `agda2-undo-list' book-keeping"
-  `(if (buffer-file-name) ; aggda-mode and visiting, i.e. not generated.
-       (let ((old-undo buffer-undo-list)
-             (old-state agda2-buffer-state))
-         (setq buffer-undo-list nil)
-         ,@body
-         (push (list buffer-undo-list old-undo old-state) agda2-undo-list)
-         (setq buffer-undo-list nil))))
+  "Wrap BODY with `agda2-undo-list' book-keeping (if `agda2-undo-kind'
+is `agda')."
+  `(if (eq agda2-undo-kind 'agda)
+      (if (buffer-file-name) ; aggda-mode and visiting, i.e. not generated.
+           (let ((old-undo buffer-undo-list)
+                 (old-state agda2-buffer-state))
+             (setq buffer-undo-list nil)
+             ,@body
+             (push (list buffer-undo-list old-undo old-state) agda2-undo-list)
+             (setq buffer-undo-list nil)))
+    ,@body))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; User options
@@ -65,7 +70,7 @@ properties to add to the result."
 (defcustom agda2-toplevel-module "Interaction.GhciTop"
   "*The name of the Agda2 toplevel module"
   :type 'string :group 'agda2)
-  
+
 (defcustom agda2-mode-hook
   '(agda2-fix-ghci-for-windows)
   "*Hooks for agda2-mode."
@@ -77,6 +82,14 @@ properties to add to the result."
   :type '(choice (const :tag "Haskell" haskell)
                  (const :tag "Extended relative" eri)
                  (const :tag "None" nil))
+  :group 'agda2)
+
+(defcustom agda2-undo-kind
+  'emacs
+  "*The kind of undo functionality used in `agda2-mode'. It may be
+necessary to restart Agda mode after changing this variable."
+  :type '(choice (const :tag "Emacs (just text)" emacs)
+                 (const :tag "Agda (also the type-checking state)" agda))
   :group 'agda2)
 
 (defun agda2-fix-ghci-for-windows ()
@@ -96,7 +109,7 @@ properties to add to the result."
 (defvar agda2-mode-map (make-sparse-keymap "Agda mode") "Keymap for agda2-mode")
 (defvar agda2-goal-map (make-sparse-keymap "Agda goal")
   "Keymap for agda2 goal menu")
-(let ((l 
+(let ((l
        '(
          (agda2-restart             "\C-c\C-x\C-c"  "Restart"               )
          (agda2-quit                "\C-c\C-q"      "Quit"                  )
@@ -107,6 +120,7 @@ properties to add to the result."
          (agda2-next-goal           "\C-c\C-f"      "Next goal"             )
          (agda2-previous-goal       "\C-c\C-b"      "Previous goal"         )
          (agda2-undo                "\C-c\C-u"      "Undo"                  )
+         (agda2-undo                "\C-_"          "Undo"                  )
          (agda2-text-state          "\C-c'"         "Text state"            )
          (agda2-give                "\C-c\C-g"  nil "Give"                  )
          (agda2-refine              "\C-c\C-r"  nil "Refine"                )
@@ -141,18 +155,10 @@ properties to add to the result."
 (defvar agda2-buffer  nil "Agda subprocess buffer.  Set in `agda2-restart'")
 (defvar agda2-process nil "Agda subprocess.  Set in `agda2-restart'")
 
-;; buffer locals
-;; memo: agda2-undo should take care of buffer locals
+;; Some buffer locals
 (defvar agda2-buffer-state "Text"
   "State of an agda2-mode buffer.  \"Text\" or \"Type Correct\"")
 (make-variable-buffer-local 'agda2-buffer-state)
-(defvar agda2-undo-list nil
-  "List of undo information produced at `agda2-undoable' and
-consumed at `agda2-undo'.  It is a list of list
- \(undo-list for one agda2-action
-   old buffer-undo-list before the action
-   old agda2-buffer-state before the action\)")
-(make-variable-buffer-local 'agda2-undo-list)
 
 (defconst agda2-buffer-identification '((:eval agda2-buffer-state) ": %12b"))
 (defconst agda2-help-address
@@ -280,7 +286,7 @@ WANT is an optional prompt.  When ASK is non-nil, use minibuffer."
 
 (defun agda2-load-action (gs)
   "Annotate new goals GS in current buffer."
-  (agda2-undoable 
+  (agda2-undoable
    (agda2-forget-all-goals)
    (agda2-annotate gs (point-min))
    (setq agda2-buffer-state "Type Checked")))
@@ -288,6 +294,7 @@ WANT is an optional prompt.  When ASK is non-nil, use minibuffer."
 (defun agda2-give()
   "Give to the goal at point the expression in it" (interactive)
   (agda2-goal-cmd "cmd_give" "expression to give"))
+
 (defun agda2-give-action (old-g paren new-gs)
   "Update the goal OLD-G with the expression in it and
 annotate new goals NEW-GS"
@@ -319,14 +326,17 @@ annotate new goals NEW-GS"
        (if newcls (insert "\n" (make-string indent ?  ))))
      (goto-char p1)))
   (agda2-load)
-  ;; merge two actions' undo
-  (let ((load-undo (car  agda2-undo-list))
-        (case-undo (cadr agda2-undo-list))
-        (rest-undo (cddr agda2-undo-list)))
-    (setq agda2-undo-list (cons (list (append (car load-undo) (car case-undo))
-                                      (cadr case-undo)
-                                      (elt  case-undo 2))
-                                rest-undo))))
+  (if (eq agda2-undo-kind 'agda)
+      (progn
+        ;; merge two actions' undo
+        (let ((load-undo (car  agda2-undo-list))
+              (case-undo (cadr agda2-undo-list))
+              (rest-undo (cddr agda2-undo-list)))
+          (setq agda2-undo-list (cons (list (append (car load-undo) (car case-undo))
+                                            (cadr case-undo)
+                                            (elt  case-undo 2))
+                                      rest-undo))))))
+
 (defun agda2-info-action (name text)
   "display buffer NAME with content TEXT"
   (interactive)
@@ -357,11 +367,13 @@ annotate new goals NEW-GS"
     (delete-overlay o))
   (agda2-go "cmd_reset")
   (let ((inhibit-read-only t) (inhibit-point-motion-hooks t))
-    (let (buffer-undo-list)
+    (let ((buffer-undo-list
+           (if (eq agda2-undo-kind 'agda) nil buffer-undo-list)))
       (agda2-no-modified-p 'remove-text-properties
        (point-min) (point-max)
        '(category intangible read-only invisible agda2-gn)))
-    (agda2-flatten-undo)
+    (if (eq agda2-undo-kind 'agda)
+        (agda2-flatten-undo))
     (setq agda2-buffer-state "Text")
     (force-mode-line-update)))
 
@@ -375,24 +387,6 @@ annotate new goals NEW-GS"
                            (not (eq (get-text-property p 'category) delim))))
            (if p (goto-char (+ adjust p)))))
     (or (go (point)) (go wrapped) (message "No goals in the buffer"))))
-
-(defun agda2-undo() "UNDERCONSTRUCTION: Undo" (interactive)
-  (labels ((remake-goal(); remake overlays based on undone text prop
-             (let ((p (point-min)))
-               (dolist (o (overlays-in  p (point-max))) (delete-overlay o))
-               (while (setq p (next-single-property-change p 'agda2-gn))
-                 (when (get-text-property p 'agda2-gn)
-                   (agda2-make-goal-B p))))))
-    (cond (buffer-undo-list (setq buffer-undo-list
-                                  (primitive-undo 2 buffer-undo-list)))
-          (agda2-undo-list   (let ((undos (pop agda2-undo-list)))
-                               (primitive-undo 10000 (car undos))
-                               (agda2-go "cmd_undo")
-                               (setq buffer-undo-list (cadr undos)
-                                     agda2-buffer-state (caddr undos))
-                               (force-mode-line-update)))
-          (t (error "No further undo information (agda2)")))
-    (remake-goal)))
 
 (defun agda2-quit ()
   "Quit and clean up after agda2" (interactive)
@@ -417,7 +411,7 @@ annotate new goals NEW-GS"
 (defun agda2-infer-type-normalised()
   "Infer normalised type of the goal at point" (interactive)
   (agda2-goal-cmd "cmd_infer Interaction.BasicOps.Normalised" "expression to type"))
-  
+
 (defun agda2-solveAll ()
   "Solve all goals that are internally already instantiated" (interactive)
   (agda2-go "cmd_solveAll" ))
@@ -611,6 +605,50 @@ notation used in Haskell strings."
   (interactive)
   (goto-char (agda2-decl-beginning)))
 
+(defun agda2-no-modified-p (func &rest args)
+  "call FUNC without affecting the buffer-modified flag."
+  (interactive)
+  (let ((old-buffer-modified (buffer-modified-p)))
+    (apply func args)
+    (set-buffer-modified-p old-buffer-modified)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; Undo
+
+(defun agda2-undo ()
+  "Undo something. The result of executing this function depends on
+the setting of `agda2-undo-kind'."
+  (interactive)
+  (cond ((eq agda2-undo-kind 'agda)  (agda2-agda-undo))
+        ((eq agda2-undo-kind 'emacs) (undo))))
+
+;; memo: agda2-agda-undo should take care of buffer locals
+(defvar agda2-undo-list nil
+  "List of undo information produced at `agda2-undoable' and
+consumed at `agda2-agda-undo'.  It is a list of list
+ \(undo-list for one agda2-action
+   old buffer-undo-list before the action
+   old agda2-buffer-state before the action\)")
+(make-variable-buffer-local 'agda2-undo-list)
+
+(defun agda2-agda-undo() "UNDERCONSTRUCTION: Undo" (interactive)
+  (labels ((remake-goal()  ; remake overlays based on undone text prop
+                       (let ((p (point-min)))
+                         (dolist (o (overlays-in  p (point-max))) (delete-overlay o))
+                         (while (setq p (next-single-property-change p 'agda2-gn))
+                           (when (get-text-property p 'agda2-gn)
+                             (agda2-make-goal-B p))))))
+    (cond (buffer-undo-list (setq buffer-undo-list
+                                  (primitive-undo 2 buffer-undo-list)))
+          (agda2-undo-list   (let ((undos (pop agda2-undo-list)))
+                               (primitive-undo 10000 (car undos))
+                               (agda2-go "cmd_undo")
+                               (setq buffer-undo-list (cadr undos)
+                                     agda2-buffer-state (caddr undos))
+                               (force-mode-line-update)))
+          (t (error "No further undo information (agda2)")))
+    (remake-goal)))
+
 (defun agda2-flatten-undo ()
   "Flatten agda2-undo-list onto buffer-undo-list,
 ignoring text-property undos."
@@ -633,12 +671,6 @@ ignoring text-property undos."
     (setq buffer-undo-list (append buffer-undo-list (reverse flat-undo))
           agda2-undo-list nil)))
 
-(defun agda2-no-modified-p (func &rest args)
-  "call FUNC without affecting the buffer-modified flag."
-  (interactive)
-  (let ((old-buffer-modified (buffer-modified-p)))
-    (apply func args)
-    (set-buffer-modified-p old-buffer-modified)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Indentation
