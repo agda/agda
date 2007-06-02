@@ -102,12 +102,24 @@ the current buffer."
          (progn ,@code)
        (set-buffer-modified-p modp))))
 
+(defmacro annotation-dont-modify-undo-list (&rest code)
+  "Runs CODE, but all changes to the undo list are undone after the
+call. (Annotating a buffer can add a lot of stuff to the undo list,
+and this list has a rather small default maximum size. Furthermore the
+text properties added by this library can easily be recomputed.)"
+  `(let ((ul buffer-undo-list))
+     (unwind-protect
+         (progn ,@code)
+       (setq buffer-undo-list ul))))
+
 (defun annotation-remove-annotations ()
   "Removes all text properties set by `annotation-annotate' in the
 current buffer, and clears `annotation-goto-map'. This function
-preserves the file modification stamp of the current buffer."
+preserves the file modification stamp of the current buffer and does
+not modify the undo list."
   (clrhash annotation-goto-map)
   (annotation-preserve-modified-p
+  (annotation-dont-modify-undo-list
    (let ((pos (point-min))
          pos2
          pos3)
@@ -121,20 +133,22 @@ preserves the file modification stamp of the current buffer."
                                    mouse-face nil
                                    help-echo nil
                                    face nil)))
-       (setq pos pos2)))))
+       (setq pos pos2))))))
 
 (defun annotation-load-file (file)
   "Loads and executes file FILE, which is assumed to contain calls to
 `annotation-annotate'. First all existing text properties set by
 `annotation-annotate' in the current buffer are removed. This function
-preserves the file modification stamp of the current buffer."
+preserves the file modification stamp of the current buffer and does
+not modify the undo list."
   (annotation-preserve-modified-p
+  (annotation-dont-modify-undo-list
    ; (make-hash-table) cannot simply be the default value of this
    ; variable, since then the hash table would be shared between
    ; buffers, and this is not a good idea.
    (setq annotation-goto-map (make-hash-table))
    (annotation-remove-annotations)
    (when (file-readable-p file)
-     (load-file file))))
+     (load-file file)))))
 
 (provide 'annotation)
