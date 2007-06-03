@@ -157,7 +157,7 @@ checkWithFunction (WithFunction f aux gamma delta as b qs perm cs) = do
       ]
   addConstant aux (Defn aux auxType df Axiom)
   reportSDoc "tc.with.top" 10 $ sep
-    [ text "added with function of type"
+    [ text "added with function" <+> (prettyTCM aux) <+> text "of type"
     , nest 2 $ prettyTCM auxType
     , nest 2 $ text "-|" <+> (prettyTCM =<< getContextTelescope)
     ]

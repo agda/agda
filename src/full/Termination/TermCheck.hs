@@ -159,22 +159,22 @@ termFunDef names i name cs =
 	-- Get the type of the function
 	t    <- typeOfConst name
 
-	reportSDoc "term.def.fun" 10 $
-	  sep [ text "termination checking body of" <+> prettyTCM name
-	      , nest 2 $ text ":" <+> prettyTCM t
-	      , nest 2 $ text "full type:" <+> (prettyTCM . defType =<< getConstInfo name)
-	      ]
-
 	-- Retrieve definition
         def <- getConstInfo name
         -- returns a TC.Monad.Base.Definition
+
+	reportSDoc "term.def.fun" 10 $
+	  sep [ text "termination checking body of" <+> prettyTCM name
+	      , nest 2 $ text ":" <+> prettyTCM t
+	      , nest 2 $ text "full type:" <+> (prettyTCM $ defType def)
+	      ]
         case (theDef def) of
            Function cls isAbstract -> collectCalls (termClause names name) cls
            Primitive _ _ _ -> return Term.empty
            _ -> __IMPOSSIBLE__
 
 -- | Termination check clauses
-{- Invariant: Each clause headed by the same number of patterns
+{- Precondition: Each clause headed by the same number of patterns
 
    For instance
 
@@ -218,19 +218,19 @@ liftDBP = adjIndexDBP (1+)
 
 {- | stripBind i p b = Just (i', dbp, b')
 
-  i  is the next free de Bruijn level before consumption of ps
-  i' is the next free de Bruijn level after  consumption of ps
+  i  is the next free de Bruijn level before consumption of p
+  i' is the next free de Bruijn level after  consumption of p
 -}
 stripBind :: Nat -> Pattern -> ClauseBody -> Maybe (Nat, DeBruijnPat, ClauseBody)
 stripBind _ _ NoBody            = Nothing
 stripBind i (VarP x) (NoBind b) = Just (i, unusedVar, b)
-stripBind i (VarP x) (Bind (Abs { absName = _, absBody = b })) =
-  Just (i+1, VarDBP i, b)
-stripBind i (VarP x) (Body b) = __IMPOSSIBLE__
-stripBind i (LitP l) b = Just (i, LitDBP l, b)
-stripBind i (ConP c args) b
-        = do (i', dbps, b') <- stripBinds i (map unArg args) b
-             return (i', ConDBP c dbps, b')
+stripBind i (VarP x) (Bind (Abs { absName = _, absBody = b })) 
+                                = Just (i+1, VarDBP i, b)
+stripBind i (VarP x) (Body b)   = __IMPOSSIBLE__
+stripBind i (LitP l) b          = Just (i, LitDBP l, b)
+stripBind i (ConP c args) b     = do 
+    (i', dbps, b') <- stripBinds i (map unArg args) b
+    return (i', ConDBP c dbps, b')
 
 {- | stripBinds i ps b = Just (i', dbps, b')
 
@@ -243,6 +243,7 @@ stripBinds i (p:ps) b = do (i1,  dbp, b1) <- stripBind i p b
                            (i2, dbps, b2) <- stripBinds i1 ps b1
                            return (i2, dbp:dbps, b2)
 
+-- | Extract recursive calls from one clause.
 termClause :: [QName] -> QName -> Clause -> TCM Calls
 termClause names name (Clause argPats body) =
     case stripBinds 0 (map unArg argPats) body  of
@@ -252,6 +253,7 @@ termClause names name (Clause argPats body) =
           -- note: convert dB levels into dB indices
        Just (n, dbpats, b)  -> internalError $ "termClause: not a Body" -- ++ show b
 
+-- | Extract recursive calls from a term.
 termTerm :: [QName] -> QName -> [DeBruijnPat] -> Term -> TCM Calls
 termTerm names f = loop
  where Just fInd' = List.elemIndex f names
@@ -265,10 +267,30 @@ termTerm names f = loop
                do let args1 = map unArg args0
                   args2 <- mapM instantiate args1
                   let args = map ignoreBlocking args2
+
+                  -- collect calls in the arguments of this call
                   calls <- collectCalls (loop pats) args
+
+
+                  reportSDoc "term.found.call" 10 
+                          (sep [ text "found call from" <+> prettyTCM f
+                               , nest 2 $ text "to" <+> prettyTCM g
+                	       ])
+
+                  -- insert this call into the call list
                   case List.elemIndex g names of
+ 
+                     -- call leads outside the mutual block and can be ignored
                      Nothing   -> return calls
+ 
+                     -- call is to one of the mutally recursive functions
                      Just gInd' ->
+
+                        reportSDoc "term.kept.call" 10 
+                          (sep [ text "kept call from" <+> prettyTCM f
+                               , nest 2 $ text "to" <+> prettyTCM t
+                	       ])
+                       >>
                         return
                           (Term.insert
                             (Term.Call { Term.source = fInd
@@ -316,6 +338,12 @@ termTerm names f = loop
 
             BlockedV{} -> __IMPOSSIBLE__
 
+{- | compareArgs pats ts
+
+     compare a list of de Bruijn patterns (=parameters) @pats@ 
+     with a list of arguments @ts@ and create a call maxtrix 
+     with |ts| rows and |pats| columns.
+ -} 
 compareArgs :: [DeBruijnPat] -> [Term] -> Term.CallMatrix
 compareArgs pats ts = Term.CallMatrix $
   Term.fromLists (Term.Size { Term.rows = toInteger (length ts)
