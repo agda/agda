@@ -197,3 +197,18 @@ mutual
 
   bar37 : ⊤ -> ⊤
   bar37 tt = foo37 tt
+
+-- Some examples involving with.
+
+-- Not OK:
+
+withNo : Nat -> Nat
+withNo n with n
+withNo n | m = withNo m
+
+-- OK:
+
+withYes : Nat -> Nat
+withYes n with n
+withYes n | zero   = zero
+withYes n | succ m = withYes m
