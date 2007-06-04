@@ -20,17 +20,17 @@ OPg I = OP I I
 g→rArgs : {I : Set}(γ : OPg I)(U : I -> Set)
 	      (a : Args γ U) ->
 	      rArgs (ε γ) U (index γ U a)
-g→rArgs (ι e)     U a	  = < refl | ★ >
-g→rArgs (σ A γ)   U < a | b > = < a | g→rArgs (γ a) U b >
-g→rArgs (δ H i γ) U < g | b > = < g | g→rArgs γ U b >
+g→rArgs (ι e)     U arg	= (refl , ★)
+g→rArgs (σ A γ)   U arg = (π₀ arg , g→rArgs (γ (π₀ arg)) U (π₁ arg))
+g→rArgs (δ H i γ) U arg = (π₀ arg , g→rArgs γ U (π₁ arg))
 
 -- Strips the equality proof.
 r→gArgs : {I : Set}(γ : OPg I)(U : I -> Set)
 	      (i : I)(a : rArgs (ε γ) U i) ->
 	      Args γ U
-r→gArgs (ι i)     U j _	    = ★
-r→gArgs (σ A γ)   U j < a | b > = < a | r→gArgs (γ a) U j b >
-r→gArgs (δ H i γ) U j < g | b > = < g | r→gArgs γ U j b >
+r→gArgs (ι i)     U j _	  = ★
+r→gArgs (σ A γ)   U j arg = (π₀ arg , r→gArgs (γ (π₀ arg)) U j (π₁ arg))
+r→gArgs (δ H i γ) U j arg = (π₀ arg , r→gArgs γ U j (π₁ arg))
 
 -- Converting an rArgs to a gArgs and back is (provably, not definitionally)
 -- the identity.
@@ -42,14 +42,14 @@ r←→gArgs-subst :
      (g→rArgs γ U (r→gArgs γ U i a))
   ) -> C i a
 
-r←→gArgs-subst {I} (ι i) U C j < p | ★ > m =
-  elim== i (\k q -> C k < q | ★ >) m j p
+r←→gArgs-subst {I} (ι i) U C j arg m =
+  elim== i (\k q -> C k (q , ★)) m j (π₀ arg)
 
-r←→gArgs-subst (σ A γ)   U C j < a | b > m = 
-  r←→gArgs-subst (γ a) U (\i c -> C i < a | c >) j b m
+r←→gArgs-subst (σ A γ)   U C j arg m = 
+  r←→gArgs-subst (γ (π₀ arg)) U (\i c -> C i (π₀ arg , c)) j (π₁ arg) m
 
-r←→gArgs-subst (δ H i γ) U C j < g | b > m =
-  r←→gArgs-subst γ U (\i c -> C i < g | c >) j b m
+r←→gArgs-subst (δ H i γ) U C j arg m =
+  r←→gArgs-subst γ U (\i c -> C i (π₀ arg , c)) j (π₁ arg) m
 
 -- r←→gArgs-subst eliminates the identity proof stored in the rArgs. If this proof is
 -- by reflexivity r←→gArgs-subst is a definitional identity. This is the case
@@ -63,30 +63,30 @@ r←→gArgs-subst-identity :
   (h : C (index γ U (r→gArgs γ U i a))
 	 (g→rArgs γ U (r→gArgs γ U i a))
   ) -> r←→gArgs-subst γ U C i a h ≡ h
-r←→gArgs-subst-identity (ι i)	  U C _		h = refl-≡
-r←→gArgs-subst-identity (σ A γ)	  U C < a | b > h = r←→gArgs-subst-identity (γ a) U C' b h
-  where C' = \i c -> C i < a | c >
-r←→gArgs-subst-identity (δ H i γ) U C < g | b > h = r←→gArgs-subst-identity γ U C' b h
-  where C' = \i c -> C i < g | c >
+r←→gArgs-subst-identity (ι i)	  U C _   h = refl-≡
+r←→gArgs-subst-identity (σ A γ)	  U C arg h = r←→gArgs-subst-identity (γ (π₀ arg)) U C' (π₁ arg) h
+  where C' = \i c -> C i (π₀ arg , c)
+r←→gArgs-subst-identity (δ H i γ) U C arg h = r←→gArgs-subst-identity γ U C' (π₁ arg) h
+  where C' = \i c -> C i (π₀ arg , c)
 
 -- Going the other way around is definitionally the identity.
 g←→rArgs-identity :
   {I : Set}(γ : OPg I)(U : I -> Set)
   (a : Args γ U) ->
   r→gArgs γ U (index γ U a) (g→rArgs γ U a) ≡ a
-g←→rArgs-identity (ι i)	    U ★		= refl-≡
-g←→rArgs-identity (σ A γ)   U < a | b > = cong-≡ (\ ∙ -> < a | ∙ >) (g←→rArgs-identity (γ a) U b)
-g←→rArgs-identity (δ H i γ) U < g | b > = cong-≡ (\ ∙ -> < g | ∙ >) (g←→rArgs-identity γ U b)
+g←→rArgs-identity (ι i)	    U _	  = refl-≡
+g←→rArgs-identity (σ A γ)   U arg = cong-≡ (\ ∙ -> (π₀ arg , ∙)) (g←→rArgs-identity (γ (π₀ arg)) U (π₁ arg))
+g←→rArgs-identity (δ H i γ) U arg = cong-≡ (\ ∙ -> (π₀ arg , ∙)) (g←→rArgs-identity γ U (π₁ arg))
 
 -- Corresponding conversion functions for assumptions to inductive occurrences.
 -- Basically an identity function.
 g→rIndArg : {I : Set}(γ : OPg I)(U : I -> Set)
         (i : I)(a : rArgs (ε γ) U i) ->
         IndArg γ U (r→gArgs γ U i a) -> IndArg (ε γ i) U a
-g→rIndArg (ι j)	    U i < h | ★ > ()
-g→rIndArg (σ A γ)   U i < a | b > v       = g→rIndArg (γ a) U i b v
-g→rIndArg (δ A j γ) U i < g | b > (inl a) = inl a
-g→rIndArg (δ A j γ) U i < g | b > (inr v) = inr (g→rIndArg γ U i b v)
+g→rIndArg (ι j)	    U i _ ()
+g→rIndArg (σ A γ)   U i arg v       = g→rIndArg (γ (π₀ arg)) U i (π₁ arg) v
+g→rIndArg (δ A j γ) U i arg (inl a) = inl a
+g→rIndArg (δ A j γ) U i arg (inr v) = inr (g→rIndArg γ U i (π₁ arg) v)
 
 -- Basically we can substitute general inductive occurences for the encoded
 -- restricted inductive occurrences.
@@ -99,10 +99,10 @@ g→rIndArg-subst :
       (Ind	(ε γ i) U a (g→rIndArg γ U i a v)) ->
     C (IndIndex γ U (r→gArgs γ U i a) v)
       (Ind	γ U (r→gArgs γ U i a) v)
-g→rIndArg-subst (ι j)	  U C i < p | _ > ()	  h
-g→rIndArg-subst (σ A γ)	  U C i < a | b > v	  h = g→rIndArg-subst (γ a) U C i b v h
-g→rIndArg-subst (δ A j γ) U C i < g | b > (inl a) h = h
-g→rIndArg-subst (δ A j γ) U C i < g | b > (inr v) h = g→rIndArg-subst γ U C i b v h
+g→rIndArg-subst (ι j)	  U C i _ ()	    h
+g→rIndArg-subst (σ A γ)	  U C i arg v	    h = g→rIndArg-subst (γ (π₀ arg)) U C i (π₁ arg) v h
+g→rIndArg-subst (δ A j γ) U C i arg (inl a) h = h
+g→rIndArg-subst (δ A j γ) U C i arg (inr v) h = g→rIndArg-subst γ U C i (π₁ arg) v h
 
 -- g→rIndArg-subst is purely book-keeping. On the object level it's definitional identity.
 g→rIndArg-subst-identity :
@@ -113,12 +113,12 @@ g→rIndArg-subst-identity :
     (h : C (IndIndex (ε γ i) U a (g→rIndArg γ U i a v))
 	   (Ind	(ε γ i) U a (g→rIndArg γ U i a v))
     ) -> g→rIndArg-subst γ U C i a v h ≡ h
-g→rIndArg-subst-identity (ι j)	   U C i < p | _ > ()	   h
-g→rIndArg-subst-identity (σ A γ)   U C i < a | b > v	   h =
-  g→rIndArg-subst-identity (γ a) U C i b v h
-g→rIndArg-subst-identity (δ A j γ) U C i < g | b > (inl a) h = refl-≡
-g→rIndArg-subst-identity (δ A j γ) U C i < g | b > (inr v) h =
-  g→rIndArg-subst-identity γ U C i b v h
+g→rIndArg-subst-identity (ι j)	   U C i _   ()	   h
+g→rIndArg-subst-identity (σ A γ)   U C i arg v	   h =
+  g→rIndArg-subst-identity (γ (π₀ arg)) U C i (π₁ arg) v h
+g→rIndArg-subst-identity (δ A j γ) U C i arg (inl a) h = refl-≡
+g→rIndArg-subst-identity (δ A j γ) U C i arg (inr v) h =
+  g→rIndArg-subst-identity γ U C i (π₁ arg) v h
 
 -- And finally conversion of induction hypotheses. This goes the other direction.
 r→gIndHyp :

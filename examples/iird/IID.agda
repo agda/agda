@@ -24,17 +24,17 @@ Args (δ A i γ) U = ((a : A) -> U (i a)) × \_ -> Args γ U
 
 -- Computing the index
 index : {I : Set}{E : Set}(γ : OP I E)(U : I -> Set) -> Args γ U -> E
-index (ι e)     U _	 = e
-index (σ A γ)   U < a | b > = index (γ a) U b
-index (δ A i γ) U < _ | b > = index γ U b
+index (ι e)     U _ = e
+index (σ A γ)   U a = index (γ (π₀ a)) U (π₁ a)
+index (δ A i γ) U a = index γ U (π₁ a)
 
 -- The assumptions of a particular inductive occurrence in a value.
 IndArg : {I : Set}{E : Set}
        (γ : OP I E)(U : I -> Set) ->
        Args γ U -> Set
-IndArg (ι e)     U _         = Zero
-IndArg (σ A γ)   U < a | b > = IndArg (γ a) U b
-IndArg (δ A i γ) U < g | b > = A + IndArg γ U b
+IndArg (ι e)     U _ = Zero
+IndArg (σ A γ)   U a = IndArg (γ (π₀ a)) U (π₁ a)
+IndArg (δ A i γ) U a = A + IndArg γ U (π₁ a)
 
 -- Given the assumptions of an inductive occurence in a value we can compute
 -- its index.
@@ -42,9 +42,9 @@ IndIndex : {I : Set}{E : Set}
           (γ : OP I E)(U : I -> Set) ->
           (a : Args γ U) -> IndArg γ U a -> I
 IndIndex (ι e)     U _	      ()
-IndIndex (σ A γ)   U < a | b > c       = IndIndex (γ a) U b c
-IndIndex (δ A i γ) U < g | b > (inl a) = i a
-IndIndex (δ A i γ) U < g | b > (inr a) = IndIndex γ U b a
+IndIndex (σ A γ)   U arg c       = IndIndex (γ (π₀ arg)) U (π₁ arg) c
+IndIndex (δ A i γ) U arg (inl a) = i a
+IndIndex (δ A i γ) U arg (inr a) = IndIndex γ U (π₁ arg) a
 
 -- Given the assumptions of an inductive occurrence in a value we can compute
 -- its value.
@@ -52,9 +52,9 @@ Ind : {I : Set}{E : Set}
       (γ : OP I E)(U : I -> Set) ->
       (a : Args γ U)(v : IndArg γ U a) -> U (IndIndex γ U a v)
 Ind (ι e)     U _	      ()
-Ind (σ A γ)   U < a | b > c       = Ind (γ a) U b c
-Ind (δ A i γ) U < g | b > (inl a) = g a
-Ind (δ A i γ) U < g | b > (inr a) = Ind γ U b a
+Ind (σ A γ)   U arg c       = Ind (γ (π₀ arg)) U (π₁ arg) c
+Ind (δ A i γ) U arg (inl a) = (π₀ arg) a
+Ind (δ A i γ) U arg (inr a) = Ind γ U (π₁ arg) a
 
 -- The type of induction hypotheses. Basically
 --  forall assumptions, the predicate holds for an inductive occurrence with
