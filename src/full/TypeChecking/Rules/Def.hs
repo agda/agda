@@ -117,12 +117,12 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs wh) =
 		  ctx <- getContextTelescope
 		  let n	   = size ctx
 		      us   = [ Arg h (Var i []) | (i, Arg h _) <- zip [n - 1,n - 2..0] $ telToList ctx ]
-		      v	   = substs sub $ Def aux $ us ++ (map (Arg NotHidden) vs)
+		      v	   = Def aux $ us ++ (map (Arg NotHidden) vs)
 
 		  reportSDoc "tc.with.top" 20 $ vcat
 		    [ text "    with arguments" <+> prettyList (map prettyTCM vs)
 		    , text "             types" <+> prettyList (map prettyTCM as)
-		    , text "with function call" <+> prettyTCM (substs sub v)
+		    , text "with function call" <+> prettyTCM v
 		    , text "           context" <+> (prettyTCM =<< getContextTelescope)
 		    ]
 
