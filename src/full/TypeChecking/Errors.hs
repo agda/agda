@@ -311,7 +311,8 @@ instance PrettyTCM TypeError where
 		    pwords "To do this the module first has to be instantiated. For instance:"
 		) $$ nest 2 (hsep [ text "module", pretty x <> text "'", text "=", pretty x, text "e1 .. en" ])
 	    ClashingDefinition x y -> fsep $
-		pwords "Multiple definitions of" ++ [pretty x]
+		pwords "Multiple definitions of" ++ [pretty x <> text "."] ++
+		pwords "Previous definition at" ++ [text $ show $ nameBindingSite $ qnameName y]
 	    ClashingModule m1 m2 -> fsep $
 		pwords "The modules" ++ [prettyTCM m1, text "and", prettyTCM m2] ++ pwords "clash."
 	    ClashingImport x y -> fsep $
@@ -447,7 +448,9 @@ instance PrettyTCM Call where
 	      where
 		bind :: C.LamBinding -> C.TypedBindings
 		bind (C.DomainFull b) = b
-		bind _		      = __IMPOSSIBLE__
+		bind (C.DomainFree h x) = C.TypedBindings r h [C.TBind r [x] (C.Underscore r Nothing)]
+		  where r = getRange x
+		-- bind _		      = __IMPOSSIBLE__
 
 	    simpleDecl d = case d of
 		D.Axiom _ _ _ _ x e		       -> C.TypeSig x e

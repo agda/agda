@@ -180,9 +180,14 @@ bindVariable x y = do
   let scope' = scope { scopeLocals = (x, y) : scopeLocals scope }
   setScope scope'
 
--- | Bind a defined name.
+-- | Bind a defined name. Must not shadow anything.
 bindName :: Access -> KindOfName -> C.Name -> A.QName -> ScopeM ()
-bindName acc kind x y =
+bindName acc kind x y = do
+  r  <- resolveName (C.QName x)
+  () <- case r of
+    DefinedName	d -> typeError $ ClashingDefinition x $ anameName d
+    VarName z	  -> typeError $ ClashingDefinition x $ A.qualify (mnameFromList []) z
+    UnknownName	  -> return ()
   modifyTopScope $ addNameToScope acc (C.QName x) $ AbsName y kind
 
 -- | Bind a module name.

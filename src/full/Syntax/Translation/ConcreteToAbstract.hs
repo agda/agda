@@ -467,7 +467,7 @@ instance ToAbstract NiceDefinition Definition where
 	let m = mnameFromList $ (:[]) $ last $ qnameToList x'
 	printScope 15 "before record"
 	pushScope m
-	afields <- toAbstract $ map FieldDecl fields
+	afields <- withLocalVars $ toAbstract $ map FieldDecl fields
 	let bindField (A.ScopedDecl _ [f]) = bindField f
 	    bindField (A.Axiom i y _) =
 	      bindName (defAccess i) DefName (declName $ defInfo i) y
