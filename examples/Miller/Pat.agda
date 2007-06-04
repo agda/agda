@@ -30,3 +30,4 @@ mutual
            Pat Δ Θ (σ ⟶ τ) Θ'
     _[_] : forall {Θ Θ' Δ σ τ} ->
            Take Θ σ Θ' -> Pats Δ σ • τ -> Pat Δ Θ τ Θ'
+
