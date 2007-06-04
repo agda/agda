@@ -1,9 +1,5 @@
-errors/ClashingDefinition.agda:8,5-6
-Ambiguous name X. It could refer to any one of
-  ClashingDefinition.X
-  bound at
+errors/ClashingDefinition.agda:6,3-10
+Multiple definitions of X. Previous definition at
 errors/ClashingDefinition.agda:5,3-4
-  ClashingDefinition.X
-  bound at
-errors/ClashingDefinition.agda:6,3-4
-when scope checking X
+when scope checking the declaration
+  X : Set
