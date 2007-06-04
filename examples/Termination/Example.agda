@@ -184,3 +184,16 @@ ok (succ x) y = const Nat (const (ok x y) (ok x))
 
 notOK : Set -> Set
 notOK x = const (notOK Ord) notOK
+
+-- An example which should fail (37 is an arbitrary number):
+
+data ⊤ : Set where
+  tt : ⊤
+
+mutual
+
+  foo37 : ⊤ -> ⊤
+  foo37 x = bar37 x
+
+  bar37 : ⊤ -> ⊤
+  bar37 tt = foo37 tt

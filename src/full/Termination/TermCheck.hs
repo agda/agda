@@ -351,8 +351,10 @@ compareTerm (Lit l)    (LitDBP l')    = if l == l' then Term.Le
                                                    else Term.Unknown
 compareTerm (Lit l)    _              = Term.Unknown
 compareTerm (Con c ts) (ConDBP c' ps) =
-  if c == c' then Term.infimum (zipWith compareTerm (map unArg ts) ps)
-             else Term.Unknown
+  if c == c' then
+    if null ts then Term.Le
+               else Term.infimum (zipWith compareTerm (map unArg ts) ps)
+   else Term.Unknown
 compareTerm _ _ = Term.Unknown
 
 compareVar :: Nat -> DeBruijnPat -> Term.Order
