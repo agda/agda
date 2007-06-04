@@ -329,11 +329,8 @@ termTerm names f = loop
             -- sort
             Sort s -> return Term.empty
 
-            -- Unsolved meta-variables do not count as termination
-            -- problems. TODO: Are all meta variables instantiated as
-            -- much as possible before the code is termination
-            -- checked? Otherwise it is dangerous to ignore meta
-            -- variables like this.
+	    -- Unsolved metas are not considered termination problems, there
+	    -- will be a warning for them anyway.
             MetaV x args -> return Term.empty
 
             BlockedV{} -> __IMPOSSIBLE__

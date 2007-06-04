@@ -2,8 +2,6 @@
 Features
 --------
 
-* with-clauses
-
 * remembering the last thing in scope when computation gets stuck
 
 * debug information
@@ -153,11 +151,6 @@ Fixes
 * change to named free variables and deBruijn bound variables (I'm not a number
   paper).
 
-[Termination checker]
-
-* Check that all meta variables are instantiated as much as possible
-  before the termination checker runs.
-
 [Imports]
 
 * handle clashing builtin things
@@ -214,6 +207,8 @@ Performance
 
 Done
 ----
+
+* with-clauses
 
 * better algorithm for pattern matching on inductive families
 
