@@ -94,5 +94,41 @@ showUntypedLiteral (LitString _ s) = text "VString" <+> text (show s)
 showUntypedLiteral (LitFloat  _ f) = text "VFloat"  <+> text (show f)
 showUntypedLiteral (LitChar   _ c) = text "VChar"   <+> text (show c)
 
+
+showClause :: (Term -> TCM Doc) ->
+	      (QName -> [Doc] -> TCM Doc) ->
+	      ([Doc] -> Term -> TCM Doc) -> Clause -> TCM Doc
+showClause fTerm fCon fBody (Clause pats NoBody) = return empty
+showClause fTerm fCon fBody (Clause pats body)   = go 0 [] body
+    where
+    go :: Int -> [Doc] -> ClauseBody -> TCM Doc
+    go n dvars NoBody        = return empty
+    go n dvars (NoBind body) = go n (dvars ++ [text "_"]) body
+    go n dvars (Bind abs)    =
+	underAbstraction_ abs{absName = show (n + 1)} $ \body -> do
+	    dvar <- fTerm $ Var 0 []
+	    go (n + 1) (dvars ++ [dvar]) body
+    go n dvars (Body term)   = do
+	(_,dpats) <- showPatterns dvars $ map unArg pats
+	fBody dpats term
+
+    showPatterns :: [Doc] -> [Pattern] -> TCM ([Doc], [Doc])
+    showPatterns dvars []           = return (dvars,[])
+    showPatterns dvars (pat : pats) = do
+	(dvars', dpat)  <- showPattern  dvars  pat
+	(dvars'',dpats) <- showPatterns dvars' pats
+	return (dvars'', (dpat : dpats))
+
+    showPattern :: [Doc] -> Pattern -> TCM ([Doc], Doc)
+    showPattern (dvar : dvars) (VarP s) = return (dvars, dvar)
+    showPattern []             (VarP s) = __IMPOSSIBLE__
+    showPattern dvars (ConP name args) = do
+	(dvars',dargs) <- showPatterns dvars (map unArg args)
+	dcon <- fCon name dargs
+	return (dvars', dcon)
+    showPattern dvars (LitP lit) = do
+	dlit <- fTerm $ Lit lit
+	return (dvars, dlit)
+
 --
 

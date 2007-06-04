@@ -22,6 +22,14 @@ import Syntax.Abstract.Name
 import Data.Map ((!), Map)
 import qualified Data.Map as Map
 
+import Control.Monad
+import Utils.Monad
+
+allM :: Monad m => (a -> m Bool) -> [a] -> m Bool
+allM f xs = liftM and $ mapM f xs
+
+andM :: Monad m => m Bool -> m Bool -> m Bool
+andM x y = ifM x y $ return False
 
 ----------------------------------------------------------------
 
@@ -46,55 +54,46 @@ enumCompilableTypeFamilies definitions = do
 	let d = definitions ! name
 	let def = theDef d
 	case def of
-	    Axiom                        -> return False -- IO should get True
-	    Primitive a pf _             -> return False -- String should get True
-	    Function [] a                -> return False -- __IMPOSSIBLE__
-	    Function clauses a           -> return False -- TODO
-	    Constructor np _ tname a     -> return False -- ctor is not a typefam
-	    Datatype np ni _ cnames s a  -> do
-	    	let ty = defType d
-	    	ty <- reduce ty
-	    	ok <- isCompilableType ty
-	    	if ok then return True {-(
-	    	  fmap and (mapM ( \cname ->
-	    	      (do
-	    	  	let d = definitions ! cname
-	    	  	ty <- defType d
-	    	  	isCompilableType ty)) cnames ))
-	    	 -} else return False
+	    Axiom                         -> return False -- IO should get True
+	    Primitive a pf _              -> return False -- String should get True
+	    Function [] a                 -> return False -- __IMPOSSIBLE__
+	    Function [Clause _ NoBody] a  -> return False
+	    Function [Clause pats body] a -> return False -- TODO
+	    Function clauses a            -> return False
+	    Constructor np _ tname a      -> return False -- ctor is not a typefam
+	    Datatype np ni _ cnames s a   -> do
+	    	ty <- instantiate $ defType d
+	    	andM (isCompilableType ty) $
+	    	    allM ( \cname ->
+	    	             do let d = definitions ! cname
+			    	ty <- instantiate $ defType d
+				isCompilableType ty ) cnames
 	    Record np claus flds tel s a -> return True
 	where -- TODO: implement correctly
+--	isCompilableType (El s tm) = isCompilableTypeFamily tm
+	
 	isCompilableType :: Type -> TCM Bool
-	isCompilableType (El s t) = isCompilableTypeFamily t
+	isCompilableType (El s tm) = isCompilableTypeFamily tm
 	
 	isCompilableTypeFamily :: Term -> TCM Bool
 	isCompilableTypeFamily tm = do
 	    tm <- reduce tm
 	    case ignoreBlocking tm of
-		Var n args -> return True
+		Var n args -> allM (isCompilableTypeFamily . unArg) args
 		Sort _     -> return True
 		Lam h abs  -> return False -- this can be too strong
-		Def c args ->
-		    if elem c names then
-			fmap and $ mapM (isCompilableTypeFamily . unArg) args
-		      else return False
-		Pi arg abs -> do
-		    ok <- isCompilableType $ unArg arg
-		    if ok then underAbstraction_ abs isCompilableType
-		      else return False
-		Fun arg ty -> do
-		    ok <- isCompilableType $ unArg arg
-		    if ok then isCompilableType ty
-		      else return False
+		Def c args -> andM (return $ elem c names) $
+		    allM (isCompilableTypeFamily . unArg) args
+		Pi arg abs -> andM (isCompilableType $ unArg arg) $
+		    underAbstraction_ abs isCompilableType
+		Fun arg ty -> andM (isCompilableType $ unArg arg) $
+		    isCompilableType ty
 		Lit lit    -> return False
 		Con c args -> return False
 		MetaV _ _  -> return __IMPOSSIBLE__
 		BlockedV _ -> return __IMPOSSIBLE__
-    
-    
-    
-----------------------------------------------------------------
 
+----------------------------------------------------------------
 
 enumOptimizableConstants :: Map QName Definition -> [QName] -> TCM [QName]
 enumOptimizableConstants definitions names = do
