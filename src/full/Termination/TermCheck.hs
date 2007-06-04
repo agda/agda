@@ -16,6 +16,7 @@ import Data.Map (Map)
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import Data.Set (Set)
+import Text.PrettyPrint (Doc)
 
 import qualified Syntax.Abstract as A
 import Syntax.Internal
@@ -194,6 +195,11 @@ data DeBruijnPat = VarDBP Nat  -- de Bruijn Index
 	         | ConDBP QName [DeBruijnPat]
 	         | LitDBP Literal
 
+instance PrettyTCM DeBruijnPat where
+  prettyTCM (VarDBP i)    = text $ show i
+  prettyTCM (ConDBP c ps) = parens (prettyTCM c <+> hsep (map prettyTCM ps))
+  prettyTCM (LitDBP l)    = prettyTCM l 
+
 unusedVar :: DeBruijnPat
 unusedVar = LitDBP (LitString noRange "term.unused.pat.var")
 
@@ -215,6 +221,9 @@ liftDBP = adjIndexDBP (1+)
 
   i  is the next free de Bruijn level before consumption of p
   i' is the next free de Bruijn level after  consumption of p
+
+  if the clause has no body (b = NoBody), Nothing is returned
+
 -}
 stripBind :: Nat -> Pattern -> ClauseBody -> Maybe (Nat, DeBruijnPat, ClauseBody)
 stripBind _ _ NoBody            = Nothing
@@ -250,8 +259,15 @@ termClause names name (Clause argPats body) =
 
 -- | Extract recursive calls from a term.
 termTerm :: MutualNames -> QName -> [DeBruijnPat] -> Term -> TCM Calls
-termTerm names f = loop
- where Just fInd' = List.elemIndex f names
+termTerm names f pats0 t0 = do
+  reportSDoc "term.check.clause" 10 
+    (sep [ text "termination checking clause of" <+> prettyTCM f
+         , nest 2 $ text "lhs:" <+> hsep (map prettyTCM pats0)
+         , nest 2 $ text "rhs:" <+> prettyTCM t0
+         ])
+  loop pats0 t0
+  where 
+       Just fInd' = List.elemIndex f names
        fInd = toInteger fInd'
        loop pats t = do
          t' <- instantiate t          -- instantiate top-level MetaVar
@@ -279,18 +295,23 @@ termTerm names f = loop
                      Nothing   -> return calls
  
                      -- call is to one of the mutally recursive functions
-                     Just gInd' ->
+                     Just gInd' -> do
+
+                        let matrix = compareArgs pats args
 
                         reportSDoc "term.kept.call" 10 
                           (sep [ text "kept call from" <+> prettyTCM f
-                               , nest 2 $ text "to" <+> prettyTCM t
+                                  <+> hsep (map prettyTCM pats)
+                               , nest 2 $ text "to" <+> prettyTCM g <+> 
+                                           hsep (map (parens . prettyTCM) args)
+                               , nest 2 $ text ("call matrix: " ++ show matrix)
                 	       ])
-                       >>
+                       
                         return
                           (Term.insert
                             (Term.Call { Term.source = fInd
                                        , Term.target = toInteger gInd'
-                                       , Term.cm     = compareArgs pats args
+                                       , Term.cm     = makeCM pats args matrix
                                        })
                             -- Note that only the base part of the
                             -- name is collected here.
@@ -336,12 +357,17 @@ termTerm names f = loop
      with a list of arguments @ts@ and create a call maxtrix 
      with |ts| rows and |pats| columns.
  -} 
-compareArgs :: [DeBruijnPat] -> [Term] -> Term.CallMatrix
-compareArgs pats ts = Term.CallMatrix $
+compareArgs :: [DeBruijnPat] -> [Term] -> [[Term.Order]]
+compareArgs pats ts = map (\t -> map (compareTerm t) pats) ts
+
+-- | 'makeCM' turns the result of 'compareArgs' into a proper call matrix
+makeCM :: [DeBruijnPat] -> [Term] -> [[Term.Order]] -> Term.CallMatrix
+makeCM pats ts matrix = Term.CallMatrix $
   Term.fromLists (Term.Size { Term.rows = toInteger (length ts)
                             , Term.cols = toInteger (length pats)
                             })
-                 (map (\t -> map (compareTerm t) pats) ts)
+                 matrix
+
 
 -- | compareTerm t dbpat
 --   Precondition: t not a BlockedV, top meta variable resolved

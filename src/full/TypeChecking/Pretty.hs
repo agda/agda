@@ -6,6 +6,7 @@ import Control.Applicative hiding (empty)
 
 import Syntax.Common
 import Syntax.Internal
+import Syntax.Literal
 import Syntax.Translation.InternalToAbstract
 import Syntax.Translation.AbstractToConcrete
 import qualified Syntax.Abstract as A
@@ -95,6 +96,12 @@ instance PrettyTCM Constraint where
 	    sep [ text (show m) <+> text ":="
 		, nest 2 $ prettyTCM t
 		]
+
+instance PrettyTCM Literal where
+    prettyTCM (LitInt    _ l) = text $ show l    
+    prettyTCM (LitFloat  _ l) = text $ show l    
+    prettyTCM (LitString _ l) = text $ show l    
+    prettyTCM (LitChar   _ l) = text $ show l     
 
 
 instance PrettyTCM Name where

@@ -54,7 +54,12 @@ import Data.Monoid
 
 data Order
   = Lt | Le | Unknown
-  deriving (Eq, Show)
+  deriving (Eq)
+
+instance Show Order where
+  show Lt      = "<"
+  show Le      = "="
+  show Unknown = "?"
 
 instance Ord Order where
   _       <= Lt = True
