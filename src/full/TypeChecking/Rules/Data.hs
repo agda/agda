@@ -53,7 +53,7 @@ checkDataDef i name ps cs =
 
 	    -- Change the datatype from an axiom to a datatype with no constructors.
 	    escapeContext (size tel) $
-	      addConstant name ( Defn name t (defaultDisplayForm name)
+	      addConstant name ( Defn name t (defaultDisplayForm name) 0
 			       $ Datatype npars nofIxs Nothing []
 					  s (Info.defAbstract i)
 			       )
@@ -73,7 +73,7 @@ checkDataDef i name ps cs =
 
 	-- Add the datatype to the signature as a datatype. It was previously
 	-- added as an axiom.
-	addConstant name (Defn name t (defaultDisplayForm name) $ Datatype npars nofIxs Nothing (map cname cs)
+	addConstant name (Defn name t (defaultDisplayForm name) 0 $ Datatype npars nofIxs Nothing (map cname cs)
 						 s (Info.defAbstract i)
 			 )
     where
@@ -110,7 +110,8 @@ checkConstructor d tel nofIxs s con@(A.Axiom i c e) =
 	t `fitsIn` s
 	escapeContext (size tel)
 	    $ addConstant c
-	    $ Defn c (telePi tel t) (defaultDisplayForm c) $ Constructor (size tel) c d $ Info.defAbstract i
+	    $ Defn c (telePi tel t) (defaultDisplayForm c) 0
+	    $ Constructor (size tel) c d $ Info.defAbstract i
 checkConstructor _ _ _ _ _ = __IMPOSSIBLE__ -- constructors are axioms
 
 
@@ -180,34 +181,17 @@ constructs nofPars t q = constrT 0 t
 		    noConstraints $ equalTerm t v (Var i [])
 
 
--- | Get the canonical datatype (i.e. the defining datatype) for a given name.
---   The name should be a datatype, but it can be a redefined datatype.
-canonicalDatatype :: MonadTCM tcm => QName -> tcm QName
-canonicalDatatype d = do
-  Datatype _ _ cl _ _ _ <- theDef <$> getConstInfo d
-  case cl of
-    Nothing	      -> return d
-    Just (Clause _ v) -> canonicalDatatype $ bodyName v
-  where
-    bodyName (Bind b)	= bodyName $ absBody b
-    bodyName (NoBind b) = bodyName b
-    bodyName (Body v)	= name v
-    bodyName  NoBody	= __IMPOSSIBLE__
-    name (Lam _ b) = name $ absBody b
-    name (Def d _) = d
-    name _	   = __IMPOSSIBLE__
-
 -- | Force a type to be a specific datatype.
 forceData :: MonadTCM tcm => QName -> Type -> tcm Type
 forceData d (El s0 t) = liftTCM $ do
     t' <- reduce t
-    d <- canonicalDatatype d
+    d  <- canonicalName d
     case t' of
 	Def d' _
 	    | d == d'   -> return $ El s0 t'
 	    | otherwise	-> fail $ "wrong datatype " ++ show d ++ " != " ++ show d'
 	MetaV m vs	    -> do
-	    Defn _ t _ (Datatype _ _ _ _ s _) <- getConstInfo d
+	    Defn _ t _ _ (Datatype _ _ _ _ s _) <- getConstInfo d
 	    ps <- newArgsMeta t
 	    noConstraints $ equalType (El s0 t') (El s (Def d ps)) -- TODO: too strict?
 	    reduce $ El s0 t'

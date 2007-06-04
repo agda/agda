@@ -3,6 +3,8 @@ module TypeChecking.Monad.Signature where
 
 import Control.Monad.State
 import Control.Monad.Reader
+import Data.Set (Set)
+import qualified Data.Set as Set
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.List
@@ -16,6 +18,7 @@ import TypeChecking.Monad.Base
 import TypeChecking.Monad.Context
 import TypeChecking.Monad.Options
 import TypeChecking.Monad.Env
+import TypeChecking.Monad.Mutual
 import TypeChecking.Substitute
 
 import Utils.Monad
@@ -54,9 +57,12 @@ addConstant q d = liftTCM $ do
   tel <- getContextTelescope
   modifySignature $ \sig -> sig
     { sigDefinitions = Map.insertWith (+++) q (abstract tel d') $ sigDefinitions sig }
+  i <- currentMutualBlock
+  setMutualBlock i q
   where
     d' = d { defName = q }
-    new +++ old = new { defDisplay = defDisplay new ++++ defDisplay old }
+    new +++ old = new { defDisplay = defDisplay new ++++ defDisplay old
+		      }
     NoDisplay ++++ d = d
     d	      ++++ _ = d
 
@@ -104,7 +110,7 @@ applySection new old ts rd rm = liftTCM $ do
       where
 	t  = defType d `apply` ts
 	-- the name is set by the addConstant function
-	nd y = Defn __IMPOSSIBLE__ t (defaultDisplayForm y) def
+	nd y = Defn __IMPOSSIBLE__ t (defaultDisplayForm y) (-1) def  -- TODO: mutual block?
 	def  = case theDef d of
 		Constructor n c d a	-> Constructor (n - size ts) c (copyName d) a
 		Datatype np ni _ cs s a -> Datatype (np - size ts) ni (Just cl) (map copyName cs) s a
@@ -125,8 +131,8 @@ canonicalName x = do
   def <- theDef <$> getConstInfo x
   case def of
     Constructor _ c _ _			      -> return c
-    Record _ (Just (Clause _ body)) _ _ _ _   -> return $ extract body
-    Datatype _ _ (Just (Clause _ body)) _ _ _ -> return $ extract body
+    Record _ (Just (Clause _ body)) _ _ _ _   -> canonicalName $ extract body
+    Datatype _ _ (Just (Clause _ body)) _ _ _ -> canonicalName $ extract body
     _					      -> return x
   where
     extract NoBody	     = __IMPOSSIBLE__

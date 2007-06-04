@@ -61,7 +61,7 @@ checkRecDef i name ps fields =
       let getName (A.Axiom _ x _)      = x
 	  getName (A.ScopedDecl _ [f]) = getName f
 	  getName _		       = __IMPOSSIBLE__
-      addConstant name $ Defn name t0 (defaultDisplayForm name)
+      addConstant name $ Defn name t0 (defaultDisplayForm name) 0
 		       $ Record (size tel) Nothing
 				(map getName fields) ftel s
 				(Info.defAbstract i)
@@ -154,7 +154,7 @@ checkRecordFields m q tel s ftel vs n (f : fs) = do
 		 $ Body $ Var 0 []
 	  clause = Clause (hps ++ [conp]) body
       escapeContext (size tel) $
-	addConstant projname (Defn projname finalt (defaultDisplayForm projname) $ Function [clause] ConcreteDef)
+	addConstant projname (Defn projname finalt (defaultDisplayForm projname) 0 $ Function [clause] ConcreteDef)
 
       -- The value of the projection is the projection function applied
       -- to the parameters and the record (these are free in the value)

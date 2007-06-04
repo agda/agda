@@ -23,7 +23,7 @@ isEmptyType t = do
     t <- reduce t
     case t of
 	El _ (Def d vs) -> do
-	    Defn _ _ _ di <- getConstInfo d
+	    di <- theDef <$> getConstInfo d
 	    case di of
 		-- No constructors
 		Datatype _ _ _ [] _ _ -> return ()

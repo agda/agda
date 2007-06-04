@@ -14,6 +14,7 @@ import Syntax.Common
 
 import TypeChecking.Monad
 import TypeChecking.Monad.Builtin
+import TypeChecking.Monad.Mutual
 import TypeChecking.Pretty
 import TypeChecking.Constraints
 import TypeChecking.Positivity
@@ -60,7 +61,7 @@ checkAxiom _ x e = do
     [ text "checked axiom"
     , nest 2 $ prettyTCM x <+> text ":" <+> prettyTCM t
     ]
-  addConstant x (Defn x t (defaultDisplayForm x) Axiom)
+  addConstant x (Defn x t (defaultDisplayForm x) 0 Axiom)
 
 
 -- | Type check a primitive function declaration.
@@ -72,7 +73,7 @@ checkPrimitive i x e =
     noConstraints $ equalType t t'
     let s  = show $ nameConcrete $ qnameName x
     bindPrimitive s $ pf { primFunName = x }
-    addConstant x (Defn x t (defaultDisplayForm x) $ Primitive (Info.defAbstract i) s [])
+    addConstant x (Defn x t (defaultDisplayForm x) 0 $ Primitive (Info.defAbstract i) s [])
     where
 	nameString (Name _ x _ _) = show x
 
@@ -86,7 +87,7 @@ checkPragma r p =
 
 -- | Type check a bunch of mutual inductive recursive definitions.
 checkMutual :: Info.DeclInfo -> [A.TypeSignature] -> [A.Definition] -> TCM ()
-checkMutual i ts ds = do
+checkMutual i ts ds = inMutualBlock $ do
   mapM_ checkTypeSignature ts
   mapM_ checkDefinition ds
   whenM positivityCheckEnabled $

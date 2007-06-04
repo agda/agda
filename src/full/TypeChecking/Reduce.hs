@@ -428,9 +428,9 @@ instance InstantiateFull Char where
     instantiateFull = return
 
 instance InstantiateFull Definition where
-    instantiateFull (Defn x t df d) = do
+    instantiateFull (Defn x t df i d) = do
       (t, (df, d)) <- instantiateFull (t, (df, d))
-      return $ Defn x t df d
+      return $ Defn x t df i d
 
 instance InstantiateFull DisplayForm where
   instantiateFull NoDisplay = return NoDisplay

@@ -46,6 +46,7 @@ data TCState =
 	 , stOptions	       :: CommandLineOptions
 	 , stStatistics	       :: Statistics
 	 , stTrace	       :: CallTrace
+	 , stMutualBlocks      :: Map MutualId (Set QName)
 	 , stBuiltinThings     :: BuiltinThings PrimFun
 	     -- ^ record what is happening (for error msgs)
 	 }
@@ -53,13 +54,14 @@ data TCState =
 data FreshThings =
 	Fresh { fMeta	     :: MetaId
 	      , fInteraction :: InteractionId
+	      , fMutual	     :: MutualId
 	      , fName	     :: NameId
 	      }
     deriving (Show)
 
 initState :: TCState
 initState =
-    TCSt { stFreshThings       = Fresh 0 0 (NameId 0 0)
+    TCSt { stFreshThings       = Fresh 0 0 0 (NameId 0 0)
 	 , stMetaStore	       = Map.empty
 	 , stInteractionPoints = Map.empty
 	 , stConstraints       = []
@@ -71,6 +73,7 @@ initState =
 	 , stOptions	       = defaultOptions
 	 , stStatistics	       = Map.empty
 	 , stTrace	       = noTrace
+	 , stMutualBlocks      = Map.empty
 	 , stBuiltinThings     = Map.empty
 	 }
 
@@ -78,6 +81,11 @@ instance HasFresh MetaId FreshThings where
     nextFresh s = (i, s { fMeta = i + 1 })
 	where
 	    i = fMeta s
+
+instance HasFresh MutualId FreshThings where
+    nextFresh s = (i, s { fMutual = i + 1 })
+	where
+	    i = fMutual s
 
 instance HasFresh InteractionId FreshThings where
     nextFresh s = (i, s { fInteraction = i + 1 })
@@ -292,6 +300,7 @@ defaultDisplayForm c = NoDisplay
 data Definition = Defn { defName     :: QName
 		       , defType     :: Type	-- type of the lifted definition
 		       , defDisplay  :: DisplayForm
+		       , defMutual   :: MutualId
 		       , theDef	     :: Defn
 		       }
     deriving (Typeable, Data)
@@ -326,10 +335,10 @@ data PrimFun = PrimFun
     deriving (Typeable)
 
 defClauses :: Definition -> [Clause]
-defClauses (Defn _ _ _ (Function cs _))		      = cs
-defClauses (Defn _ _ _ (Primitive _ _ cs))	      = cs
-defClauses (Defn _ _ _ (Datatype _ _ (Just c) _ _ _)) = [c]
-defClauses (Defn _ _ _ (Record _ (Just c) _ _ _ _))   = [c]
+defClauses Defn{theDef = Function cs _}		      = cs
+defClauses Defn{theDef = Primitive _ _ cs}	      = cs
+defClauses Defn{theDef = Datatype _ _ (Just c) _ _ _} = [c]
+defClauses Defn{theDef = Record _ (Just c) _ _ _ _}   = [c]
 defClauses _					      = []
 
 defAbstract :: Definition -> IsAbstract
@@ -340,6 +349,13 @@ defAbstract d = case theDef d of
     Record _ _ _ _ _ a	 -> a
     Constructor _ _ _ a  -> a
     Primitive a _ _	 -> a
+
+---------------------------------------------------------------------------
+-- ** Mutual blocks
+---------------------------------------------------------------------------
+
+newtype MutualId = MutId Int
+  deriving (Typeable, Data, Eq, Ord, Show, Num)
 
 ---------------------------------------------------------------------------
 -- ** Statistics
@@ -443,6 +459,7 @@ data TCEnv =
 	  , envLetBindings   :: LetBindings
 	  , envCurrentModule :: ModuleName
 	  , envImportPath    :: [ModuleName]	-- ^ to detect import cycles
+	  , envMutualBlock   :: Maybe MutualId	-- ^ the current (if any) mutual block
 	  , envAbstractMode  :: Bool
 		-- ^ When checking the typesignature of a public definition
 		--   or the body of a non-abstract definition this is true.
@@ -456,6 +473,7 @@ initEnv = TCEnv { envContext	   = []
 		, envLetBindings   = Map.empty
 		, envCurrentModule = noModuleName
 		, envImportPath	   = []
+		, envMutualBlock   = Nothing
 		, envAbstractMode  = False
 		}
 

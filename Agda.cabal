@@ -94,6 +94,7 @@ exposed-modules: AgdaMain
                  TypeChecking.Monad.Env
                  TypeChecking.Monad.Imports
                  TypeChecking.Monad.MetaVars
+		 TypeChecking.Monad.Mutual
                  TypeChecking.Monad.Open
                  TypeChecking.Monad.Options
                  TypeChecking.Monad.Signature

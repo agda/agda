@@ -74,7 +74,8 @@ checkFunDef i name cs =
 	cs <- mapM rebindClause cs
 
 	-- Add the definition
-	addConstant name $ Defn name t (defaultDisplayForm name) $ Function cs $ Info.defAbstract i
+	addConstant name $ Defn name t (defaultDisplayForm name) 0
+			 $ Function cs $ Info.defAbstract i
 	verbose 10 $ do
 	  dx <- prettyTCM name
 	  t' <- prettyTCM . defType =<< getConstInfo name
@@ -155,7 +156,8 @@ checkWithFunction (WithFunction f aux gamma delta as b qs perm cs) = do
       , prettyList $ map prettyTCM ts
       , prettyTCM dt
       ]
-  addConstant aux (Defn aux auxType df Axiom)
+  addConstant aux (Defn aux auxType df 0 Axiom)
+
   reportSDoc "tc.with.top" 10 $ sep
     [ text "added with function" <+> (prettyTCM aux) <+> text "of type"
     , nest 2 $ prettyTCM auxType

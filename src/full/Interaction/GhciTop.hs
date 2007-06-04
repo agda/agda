@@ -35,6 +35,7 @@ import System.IO.Unsafe
 import Data.Char
 import Data.IORef
 import qualified Text.PrettyPrint as P
+import Control.Applicative
 
 import Utils.Fresh
 import Utils.Monad
@@ -320,7 +321,7 @@ cmd_make_case ii rng s = infoOnException $ ioTCM $ do
     -- gather constructors for ex
     (vx,tx) <- inferExpr ex
     El _ (SI.Def d _) <- passElDef =<< reduce tx
-    Defn _ _ _ (Datatype _ _ _ ctors _ _) <- passData =<< getConstInfo d
+    Datatype _ _ _ ctors _ _ <- theDef <$> (passData =<< getConstInfo d)
     replpas <- (`mkPats` ctors) =<< List.delete sx <$> takenNameStr
     -- make new clauses
     let newpas = [repl sx pa targetPat | pa <- replpas]
@@ -349,7 +350,7 @@ cmd_make_case ii rng s = infoOnException $ ioTCM $ do
   mkPats tkn (c:cs) = do (tkn1, pa)<- mkPat tkn c; (pa:)<$> mkPats tkn1 cs
 
   mkPats tkn []     = return []
-  mkPat tkn c = do Defn _ tc _ (Constructor n _ _ _) <- getConstInfo c
+  mkPat tkn c = do Defn _ tc _ _ (Constructor n _ _ _) <- getConstInfo c
                    (tkn', pas) <- piToArgPats tkn <$> dePi n tc
                    return (tkn', SI.ConP c pas)
   repl sx replpa = go where
@@ -381,12 +382,12 @@ cmd_make_case ii rng s = infoOnException $ ioTCM $ do
   passAVar x   = fail . ("passAVar: got "++) =<< showA x
   passElDef t@(El _ (SI.Def _ _)) = return t
   passElDef t  = fail . ("passElDef: got "++) =<< showA =<< reify t
-  passData  d@(Defn _ _ _ (Datatype _ _ _ _ _ _))  = return d
-  passData  d@(Defn _ _ _ (TM.Record _ _ _ _ _ _)) = fail $ "passData: got record"
-  passData  d@(Defn _ _ _ (Function _ _))		 = fail $ "passData: got function"
-  passData  d@(Defn _ _ _ TM.Axiom)		 = fail $ "passData: got axiom"
-  passData  d@(Defn _ _ _ (Constructor _ _ _ _))	 = fail $ "passData: got constructor"
-  passData  d@(Defn _ _ _ (TM.Primitive _ _ _))	 = fail $ "passData: got primitive"
+  passData  d@(Defn { theDef = Datatype _ _ _ _ _ _ })  = return d
+  passData  d@(Defn { theDef = TM.Record _ _ _ _ _ _ }) = fail $ "passData: got record"
+  passData  d@(Defn { theDef = Function _ _ })		= fail $ "passData: got function"
+  passData  d@(Defn { theDef = TM.Axiom })		= fail $ "passData: got axiom"
+  passData  d@(Defn { theDef = Constructor _ _ _ _ })	= fail $ "passData: got constructor"
+  passData  d@(Defn { theDef = TM.Primitive _ _ _ })	= fail $ "passData: got primitive"
 
   dropUscore (SI.VarP ('_':s)) = dropUscore (SI.VarP s)
   dropUscore p@(SI.VarP s) = p

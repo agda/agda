@@ -50,7 +50,7 @@ instance Apply Telescope where
   apply (ExtendTel _ tel) (t : ts) = absApp tel (unArg t) `apply` ts
 
 instance Apply Definition where
-    apply (Defn x t df d) args = Defn x (piApply t args) df (apply d args)
+    apply (Defn x t df m d) args = Defn x (piApply t args) df m (apply d args)
 
 instance Apply Defn where
     apply Axiom _			  = Axiom
@@ -119,7 +119,7 @@ instance Abstract Telescope where
   abstract (ExtendTel arg tel') tel = ExtendTel arg $ fmap (`abstract` tel) tel'
 
 instance Abstract Definition where
-    abstract tel (Defn x t df d) = Defn x (telePi tel t) df (abstract tel d)
+    abstract tel (Defn x t df m d) = Defn x (telePi tel t) df m (abstract tel d)
 
 instance Abstract Defn where
     abstract tel Axiom			    = Axiom

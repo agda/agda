@@ -21,6 +21,7 @@ import Text.PrettyPrint
 import Syntax.Common
 -- import Syntax.Abstract(Pattern'(..),Pattern)
 
+import Control.Applicative
 import Control.Monad.State
 
 import Data.Set as Set
@@ -98,13 +99,13 @@ infoDecl name val = HsFunBind [ HsMatch dummyLoc hsname [] rhs []] where
 
 
 processDef :: (QName,Definition) -> IM [HsDecl]
-processDef (qname,Defn typ fvs _ (Function clauses isa)) =  do
+processDef (qname,Defn { theDef = Function clauses isa }) =  do
       hsDecls <- foldClauses name 1 clauses
       return [HsFunBind [HsMatch dummyLoc (dfName name) [] rhs hsDecls]] where
                 rhs = HsUnGuardedRhs $ HsVar $ UnQual $ dfNameSub name 1
                 name = qnameName qname
  
-processDef (qname,Defn typ fvs _ (Datatype n nind Nothing [] sort isa)) = do
+processDef (qname,Defn { theDef = Datatype n nind Nothing [] sort isa }) = do
   return [ddecl,vdecl]  where
       name = qnameName qname
       ddecl = HsDataDecl  dummyLoc [] (dataName name) tvars cons []
@@ -117,7 +118,7 @@ processDef (qname,Defn typ fvs _ (Datatype n nind Nothing [] sort isa)) = do
       nDummyArgs 0 = []
       nDummyArgs k = (HsPVar $ HsIdent ("v" ++ (show k))) : nDummyArgs (k-1)
 
-processDef (qname,Defn typ fvs _ (Datatype n nind Nothing cs sort isa)) = do
+processDef (qname,Defn { theDef = Datatype n nind Nothing cs sort isa }) = do
   cons <- consForName name cs
   arities <- getConArities cs
   return [ddecl cons arities,vdecl]  where
@@ -132,7 +133,7 @@ processDef (qname,Defn typ fvs _ (Datatype n nind Nothing cs sort isa)) = do
       nDummyArgs k = (HsPVar $ HsIdent ("v" ++ (show k))) : nDummyArgs (k-1)
 
 -- Records are translated to a data with one cons
-processDef (qname, Defn typ fvs _ (Record n clauses fields tel sort isa)) =  do
+processDef (qname, Defn { theDef = Record n clauses fields tel sort isa }) =  do
    return [ddecl arity tel,vdecl tel]  where
       name = qnameName qname
       arity = length fields
@@ -148,13 +149,13 @@ processDef (qname, Defn typ fvs _ (Record n clauses fields tel sort isa)) =  do
       nDummyArgs 0 = []
       nDummyArgs k = (HsPVar $ HsIdent ("v" ++ (show k))) : nDummyArgs (k-1)
 	
-processDef def@(qname,Defn typ fvs _ con@(Constructor n origqn qn isa)) =
+processDef def@(qname,Defn { theDef = con@(Constructor n origqn qn isa) }) =
     return []
 
 -- FIXME
-processDef def@(qname,Defn typ fvs _ Axiom) = return []
+processDef def@(qname,Defn { theDef = Axiom }) = return []
 
-processDef (qname,Defn typ fvs _ (Primitive info prim expr)) = return $
+processDef (qname,Defn { theDef = Primitive info prim expr }) = return $
   [HsFunBind [HsMatch dummyLoc hsid  [] rhs decls]] where
              -- rhs = HsUnGuardedRhs $ error $ "primitive: " ++ (show prim)
              rhs = HsUnGuardedRhs $ HsVar $ rtpQName prim
@@ -162,7 +163,7 @@ processDef (qname,Defn typ fvs _ (Primitive info prim expr)) = return $
              hsid = dfName name
              name = qnameName qname
 
-processDef (qname, (Defn typ fvs _ (Datatype _ _ (Just clause) _ _ _))) = do
+processDef (qname, (Defn { theDef = Datatype _ _ (Just clause) _ _ _ })) = do
            -- liftIO $ putStrLn $ gshow $ clauseBody clause 
     mkSynonym (clauseBody clause) where
     name = qnameName qname
@@ -203,15 +204,6 @@ processDef (qname, (Defn typ fvs _ (Datatype _ _ (Just clause) _ _ _))) = do
 
 
 -- error "Unimplemented: Datatype from module"
-
-{-
-processDef (name,Defn typ fvs _ _) = return $
-  [HsFunBind [HsMatch dummyLoc hsid  [] rhs decls]] where
-                    rhs = HsUnGuardedRhs hsUndefined
-                    decls = []
-                    hsid = dfName name
--}
-
 
 consForName dname qns = mapM (processCon dname)  qns
 
@@ -341,7 +333,7 @@ processTerm (Con qn ts) = do
             ldefs <- getPDefs
             if (Map.member qn ldefs) 
               then do 
-                (Defn _ _ _ definiens) <- Map.lookup qn ldefs
+                definiens <- theDef <$> Map.lookup qn ldefs
                 case definiens of
                  (Constructor n origqn qn isa) -> 
                        --trace ( "Good: " ++ (show qn)  ++ (gshow definiens)) $
@@ -404,7 +396,7 @@ getConArities cs = mapM getConArity cs
 
 getConArity :: QName -> IM Nat
 getConArity qn = do
-        (Defn _ ty _ (Constructor np origqn _ isa)) <- getConstInfo qn        
+        Defn _ ty _ _ (Constructor np origqn _ isa) <- getConstInfo qn        
 	ty' <- normalise ty
         return $ typeArity ty' - np
         -- return $ arity ty'
