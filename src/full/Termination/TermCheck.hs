@@ -1,7 +1,8 @@
 {-# LANGUAGE CPP #-}
 
 {- Checking for Structural recursion
-   Authors: Andreas Abel, Karl Mehltretter and others
+   Authors: Andreas Abel, Nils Anders Danielsson, Ulf Norell, 
+              Karl Mehltretter and others
    Created: 2007-05-28
    Source : TypeCheck.Rules.Decl
  -}
@@ -12,6 +13,7 @@ import Control.Monad.Error
 import Data.List as List
 import qualified Data.Map as Map
 import Data.Map (Map)
+import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import Data.Set (Set)
 
@@ -27,6 +29,7 @@ import qualified Termination.Matrix      as Term
 import qualified Termination.Termination as Term
 
 import TypeChecking.Monad
+import TypeChecking.Monad.Mutual (getMutualBlocks)
 import TypeChecking.Pretty
 import TypeChecking.Reduce (instantiate -- try to get rid of top-level meta-var
                             )
@@ -41,6 +44,7 @@ import Utils.Monad (thread)
 #include "../undefined.h"
 
 type Calls = Term.CallGraph (Set R.Range)
+type MutualNames = [QName]
 
 -- | The result of termination checking a module is a list of
 -- problematic mutual blocks (represented by the names of the
@@ -75,41 +79,38 @@ collectCalls f (a : as) = do c1 <- f a
 
 -- | Termination check a bunch of mutually inductive recursive definitions.
 termMutual :: Info.DeclInfo -> [A.TypeSignature] -> [A.Definition] -> TCM Result
-termMutual i ts ds =
-  do calls <- collectCalls (termDefinition names) ds
+termMutual i ts ds = if names == [] then return [] else
+  do -- get list of sets of mutually defined names from the TCM
+     -- this includes local and auxiliary functions introduced
+     -- during type-checking
+     mutualBlocks <- getMutualBlocks
+     -- look for the block containing one of the mutually defined names
+     let mutualBlock = Maybe.fromJust $  
+           List.find (Set.member (head names)) mutualBlocks
+     let allNames = Set.elems mutualBlock
+     -- collect all recursive calls in the block
+     calls <- collectCalls (termDef allNames) allNames
      reportSLn "term.lex" 30 $ "Calls: " ++ show calls
      reportSLn "term.lex" 30 $ "Recursion behaviours: " ++
                                show (Term.recursionBehaviours calls)
      case Term.terminates calls of
        Left  errDesc -> do
          let callSites = concat' $ concat' $ map snd $ Map.elems errDesc
-         return [(names, callSites)]
+         return [(names, callSites)] -- TODO: this could be changed to
+                                     -- [(allNames, callSites)]
        Right _ -> do
-         when (names /= []) $
-           reportSLn "term.warn.yes" 2
+         reportSLn "term.warn.yes" 2
                      (show (names) ++ " does termination check")
          return []
   where
   getName (A.FunDef i x cs) = [x]
   getName _                 = []
 
+  -- the mutual names mentioned in the abstract syntax
   names = concatMap getName ds
 
   concat' :: Ord a => [Set a] -> [a]
   concat' = Set.toList . Set.unions
-
--- | Check an inductive or recursive definition. Assumes the type has has been
---   checked and added to the signature.
-termDefinition :: [QName] -> A.Definition -> TCM Calls
-termDefinition names d =
-    case d of
-	A.FunDef i x cs	    -> abstract (Info.defAbstract i) $ termFunDef names i x cs
-	A.DataDef i x ps cs -> return Term.empty
-	A.RecDef i x ps cs  -> return Term.empty
-    where
-	-- Concrete definitions cannot use information about abstract things.
-	abstract ConcreteDef = inAbstractMode
-	abstract _	     = id
 
 -- | Termination check a module.
 termSection :: Info.ModuleInfo -> ModuleName -> A.Telescope -> [A.Declaration] -> TCM Result
@@ -152,26 +153,20 @@ termTypedBinding h (A.TNoBind e) ret = do
     ret [("_",t)]
 
 -- | Termination check a definition by pattern matching.
-termFunDef :: [QName] -> Info.DefInfo -> QName -> [A.Clause] -> TCM Calls
-termFunDef names i name cs =
-
-    traceCall (TermFunDef (getRange i) (qnameName name) cs) $ do   -- TODO!! (qnameName)
-	-- Get the type of the function
-	t    <- typeOfConst name
-
+termDef :: MutualNames -> QName -> TCM Calls
+termDef names name = do
 	-- Retrieve definition
         def <- getConstInfo name
         -- returns a TC.Monad.Base.Definition
 
 	reportSDoc "term.def.fun" 10 $
 	  sep [ text "termination checking body of" <+> prettyTCM name
-	      , nest 2 $ text ":" <+> prettyTCM t
-	      , nest 2 $ text "full type:" <+> (prettyTCM $ defType def)
+	      , nest 2 $ text ":" <+> (prettyTCM $ defType def)
 	      ]
         case (theDef def) of
            Function cls isAbstract -> collectCalls (termClause names name) cls
-           Primitive _ _ _ -> return Term.empty
-           _ -> __IMPOSSIBLE__
+           _ -> return Term.empty
+
 
 -- | Termination check clauses
 {- Precondition: Each clause headed by the same number of patterns
@@ -244,7 +239,7 @@ stripBinds i (p:ps) b = do (i1,  dbp, b1) <- stripBind i p b
                            return (i2, dbp:dbps, b2)
 
 -- | Extract recursive calls from one clause.
-termClause :: [QName] -> QName -> Clause -> TCM Calls
+termClause :: MutualNames -> QName -> Clause -> TCM Calls
 termClause names name (Clause argPats body) =
     case stripBinds 0 (map unArg argPats) body  of
        Nothing -> return Term.empty
@@ -254,7 +249,7 @@ termClause names name (Clause argPats body) =
        Just (n, dbpats, b)  -> internalError $ "termClause: not a Body" -- ++ show b
 
 -- | Extract recursive calls from a term.
-termTerm :: [QName] -> QName -> [DeBruijnPat] -> Term -> TCM Calls
+termTerm :: MutualNames -> QName -> [DeBruijnPat] -> Term -> TCM Calls
 termTerm names f = loop
  where Just fInd' = List.elemIndex f names
        fInd = toInteger fInd'
