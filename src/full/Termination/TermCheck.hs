@@ -85,7 +85,7 @@ termMutual i ts ds = if names == [] then return [] else
      -- during type-checking
      mutualBlocks <- getMutualBlocks
      -- look for the block containing one of the mutually defined names
-     let mutualBlock = Maybe.fromJust $  
+     let Just mutualBlock =
            List.find (Set.member (head names)) mutualBlocks
      let allNames = Set.elems mutualBlock
      -- collect all recursive calls in the block
