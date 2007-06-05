@@ -112,7 +112,6 @@ data Interface = Interface
 	{ iImportedModules :: [ModuleName]
 	, iScope	   :: Scope
 	, iSignature	   :: Signature
-	, iImports	   :: Signature
 	, iBuiltin	   :: BuiltinThings String
 	}
     deriving (Typeable, Data)

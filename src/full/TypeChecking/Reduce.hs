@@ -457,10 +457,9 @@ instance InstantiateFull Clause where
     instantiateFull (Clause ps b) = Clause ps <$> instantiateFull b
 
 instance InstantiateFull Interface where
-    instantiateFull (Interface ms scope sig isig b) =
+    instantiateFull (Interface ms scope sig b) =
 	Interface ms scope
 	    <$> instantiateFull sig
-	    <*> instantiateFull isig
 	    <*> instantiateFull b
 
 instance InstantiateFull a => InstantiateFull (Builtin a) where

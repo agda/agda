@@ -43,14 +43,13 @@ import Utils.IO
 mergeInterface :: Interface -> TCM ()
 mergeInterface i = do
     let sig	= iSignature i
-	isig	= iImports i
 	builtin = Map.toList $ iBuiltin i
 	prim	= [ x | (_,Prim x) <- builtin ]
 	bi	= Map.fromList [ (x,Builtin t) | (x,Builtin t) <- builtin ]
     modify $ \st -> st { stImportedModules = Set.union
 						(stImportedModules st)
 						(Set.fromList $ iImportedModules i)
-		       , stImports	   = unionSignatures [stImports st, sig, isig]
+		       , stImports	   = unionSignatures [stImports st, sig]
 		       , stBuiltinThings   = stBuiltinThings st `Map.union` bi
 			    -- TODO: not safe (?) ^
 		       }
@@ -88,11 +87,7 @@ scopeCheckImport x = do
     reportLn 5 $ "Scope checking " ++ show x
     visited <- Map.keys <$> getVisitedModules
     reportLn 10 $ "  visited: " ++ show visited
-    visited <- isVisited x
-    reportLn 5 $ if visited then "  We've been here. Don't merge."
-			    else "  New module. Let's check it out."
     (i,t)   <- getInterface x
-    unless visited $ mergeInterface i
     addImport x
     return $ iScope i
 
@@ -122,9 +117,16 @@ getInterface x = alreadyVisited x $ addImportCycleCheck x $ do
 
     reportLn 5 $ "  " ++ show x ++ " is " ++ (if uptodate then "" else "not ") ++ "up-to-date."
 
-    if uptodate
+    ic <- if uptodate
 	then skip      ifile file
 	else typeCheck ifile file
+
+    visited <- isVisited x
+    reportLn 5 $ if visited then "  We've been here. Don't merge."
+			    else "  New module. Let's check it out."
+    unless visited $ mergeInterface (fst ic)
+
+    return ic
 
     where
 	skip ifile file = do
@@ -170,7 +172,9 @@ getInterface x = alreadyVisited x $ addImportCycleCheck x $ do
 	    -- Write interface file and return
 	    case r of
 		Left err -> throwError err
-		Right (vs,i)  -> do
+		Right (vs, i, isig)  -> do
+                    -- Merge in the signatures imported by file.
+                    modify $ \st -> st { stImports = unionSignatures [stImports st, isig] }
 		    -- liftIO $ writeBinaryFile ifile (serialise i)
 		    liftIO $ writeInterface ifile i
 		    t <- liftIO $ getModificationTime ifile
@@ -211,7 +215,7 @@ writeInterface file i = do
     return ()
 
 createInterface :: CommandLineOptions -> CallTrace -> [ModuleName] -> VisitedModules -> FilePath ->
-		   IO (Either TCErr (VisitedModules, Interface))
+		   IO (Either TCErr (VisitedModules, Interface, Signature))
 createInterface opts trace path visited file = runTCM $ withImportPath path $ do
 
     setTrace trace
@@ -241,16 +245,16 @@ createInterface opts trace path visited file = runTCM $ withImportPath path $ do
 
     setScope $ outsideScope topLevel
 
-    i  <- buildInterface
-    vs <- getVisitedModules
-    return (vs, i)
+    i    <- buildInterface
+    isig <- getImportedSignature
+    vs   <- getVisitedModules
+    return (vs, i, isig)
 
 buildInterface :: TCM Interface
 buildInterface = do
     reportLn 5 "Building interface..."
     scope   <- getScope
     sig	    <- getSignature
-    isig    <- getImportedSignature
     builtin <- getBuiltinThings
     ms	    <- getImports
     let	builtin' = Map.mapWithKey (\x b -> fmap (const x) b) builtin
@@ -259,7 +263,6 @@ buildInterface = do
 			{ iImportedModules = Set.toList ms
 			, iScope	   = head $ scopeStack scope -- TODO!!
 			, iSignature	   = sig
-			, iImports	   = isig
 			, iBuiltin	   = builtin'
 			}
     reportLn 7 "  interface complete"

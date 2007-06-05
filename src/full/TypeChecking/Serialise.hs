@@ -52,7 +52,7 @@ import Utils.Tuple
 -- | Current version of the interface. Only interface files of this version
 --   will be parsed.
 currentInterfaceVersion :: Int
-currentInterfaceVersion = 124
+currentInterfaceVersion = 125
 
 ------------------------------------------------------------------------
 -- A wrapper around Data.Binary
@@ -622,7 +622,7 @@ instance Binary a => Binary (Builtin a) where
 
 instance Binary Interface where
     put (Interface a b c d e) = put a >> put b >> put c >> put d >> put e
-    get = {-# SCC "get<Interface>" #-} liftM5 Interface get get get get get
+    get = liftM5 Interface get get get get get
 
 ------------------------------------------------------------------------
 -- All tests
