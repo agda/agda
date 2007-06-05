@@ -12,6 +12,7 @@ import Control.Monad.State
 import qualified Data.Map as Map
 import qualified Data.List as List
 import qualified Data.Set as Set
+import qualified Data.ByteString.Lazy as BS
 import Data.Generics
 import System.Directory
 import System.Time
@@ -182,9 +183,9 @@ readInterface file = do
     (s, close) <- readBinaryFile' file
     do  let i = decode s
 
-        -- Force the entire interface, to allow the file to be closed.
-        let add x y = ((+) $! x) $! y
-        () <- when (0 == everything add (const 1) i) $ return ()
+        -- Force the entire string, to allow the file to be closed.
+        let n = BS.length s
+        () <- when (n == n) $ return ()
 
         -- Close the file
         close
