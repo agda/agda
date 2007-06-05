@@ -427,7 +427,6 @@ cmd_solveAll = infoOnException $ ioTCM $ do
                                    InstS _	  -> out (MetaS mi)
                                    TM.Open	  -> rest
 				   BlockedConst _ -> rest
-				   FirstOrder	  -> rest
   prn (ii,e)= [showNumIId ii, A $ emacsStr $ show e]
 
 class LowerMeta a where lowerMeta :: a -> a

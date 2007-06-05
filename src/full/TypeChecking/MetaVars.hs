@@ -53,28 +53,11 @@ isBlockedTerm x = do
     i <- mvInstantiation <$> lookupMeta x
     let r = case i of
 	    BlockedConst _ -> True
-	    FirstOrder	   -> False
 	    InstV _	   -> False
 	    InstS _	   -> False
 	    Open	   -> False
     reportLn 12 $ if r then "yes" else "no"
     return r
-
--- | Check if a meta variable is first order.
-isFirstOrder :: MonadTCM tcm => MetaId -> tcm Bool
-isFirstOrder x = do
-    report 12 $ "is " ++ show x ++ " first order? "
-    i <- mvInstantiation <$> lookupMeta x
-    let r = case i of
-	    FirstOrder	   -> True
-	    BlockedConst _ -> False
-	    InstV _	   -> False
-	    InstS _	   -> False
-	    Open	   -> False
-    reportLn 12 $ if r then "yes" else "no"
-    return r
-
-
 
 class HasMeta t where
     metaInstance :: MonadTCM tcm => t -> tcm MetaInstantiation
@@ -209,16 +192,6 @@ blockTerm t v m = do
     ins x i store = Map.adjust (inst i) x store
     inst i mv = mv { mvInstantiation = i }
 
--- | Create a fresh first-order meta-variable.
-newFirstOrderMeta :: MonadTCM tcm => MetaPriority -> Type -> tcm MetaId
-newFirstOrderMeta p a = do
-    i <- createMetaInfo
-    x <- fresh
-    o <- makeOpen a
-    let mv = MetaVar i p (HasType x o) FirstOrder Set.empty
-    modify $ \st -> st { stMetaStore = Map.insert x mv $ stMetaStore st }
-    return x
-
 -- | Eta expand metavariables listening on the current meta.
 etaExpandListeners :: MonadTCM tcm => MetaId -> tcm ()
 etaExpandListeners m = do
@@ -340,11 +313,6 @@ assignV t x args v =
 	    d2 <- prettyTCM v
 	    debug $ show d1 ++ " := " ++ show d2
 
-	-- First order meta variables can't be applied
-	-- TODO: this might interact badly with η-expansion
-	firstOrder <- isFirstOrder x
-	when (not (null args) && firstOrder) patternViolation
-
 	-- We don't instantiate blocked terms
 	whenM (isBlockedTerm x) patternViolation	-- TODO: not so nice
 
@@ -372,26 +340,23 @@ assignV t x args v =
 	reportLn 15 "passed occursCheck"
 
 	-- Check that all free variables of v are arguments to x
-	-- Not done for first order metas
-	unless firstOrder $ do
-	    let fv	  = freeVars v
-		idset = Set.fromList ids
-		badrv = Set.toList $ Set.difference (rigidVars fv) idset
-		badfv = Set.toList $ Set.difference (flexibleVars fv) idset
-	    -- If a rigid variable is not in ids there is no hope
-	    unless (null badrv) $ typeError $ MetaCannotDependOn x ids (head badrv)
-	    -- If a flexible variable is not in ids we can wait and hope that it goes away
-	    unless (null badfv) $ do
-	      verbose 15 $ do
-		bad <- mapM (prettyTCM . flip Var []) badfv
-		liftIO $ putStrLn $ "bad flexible variables: " ++ show bad
-	      patternViolation
+	let fv	  = freeVars v
+	    idset = Set.fromList ids
+	    badrv = Set.toList $ Set.difference (rigidVars fv) idset
+	    badfv = Set.toList $ Set.difference (flexibleVars fv) idset
+	-- If a rigid variable is not in ids there is no hope
+	unless (null badrv) $ typeError $ MetaCannotDependOn x ids (head badrv)
+	-- If a flexible variable is not in ids we can wait and hope that it goes away
+	unless (null badfv) $ do
+	  verbose 15 $ do
+	    bad <- mapM (prettyTCM . flip Var []) badfv
+	    liftIO $ putStrLn $ "bad flexible variables: " ++ show bad
+	  patternViolation
 
-	    reportLn 15 "passed free variable check"
+	reportLn 15 "passed free variable check"
 
 	-- Rename the variables in v to make it suitable for abstraction over ids.
-	-- Also not done for first order metas (is this correct?)
-	v' <- if firstOrder then return v else do
+	v' <- do
 	    -- Basically, if
 	    --   Γ	 = a b c d e
 	    --   ids = d b e
@@ -414,11 +379,10 @@ assignV t x args v =
 	    d <- prettyTCM (abstract tel' v')
 	    debug $ "final instantiation: " ++ show d
 
-	-- Perform the assignment (and wake constraints). Non first-order metas
+	-- Perform the assignment (and wake constraints). Metas
 	-- are top-level so we do the assignment at top-level.
 	n <- size <$> getContextTelescope
-	(if firstOrder then id else escapeContext n)
-	    $ x =: abstract tel' v'
+	escapeContext n $ x =: abstract tel' v'
 	return []
     where
 	rename ids i arg = case findIndex (==i) ids of

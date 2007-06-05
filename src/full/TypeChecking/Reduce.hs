@@ -45,7 +45,6 @@ instance Instantiate Term where
 		InstV a	       -> instantiate $ a `apply` args
 		Open	       -> return t
 		BlockedConst _ -> return t
-		FirstOrder     -> return t
 		InstS _	       -> __IMPOSSIBLE__
     instantiate v@(BlockedV (Blocked x u)) =
 	do  mi <- mvInstantiation <$> lookupMeta x
@@ -53,7 +52,6 @@ instance Instantiate Term where
 		InstV _	       -> instantiate u
 		Open	       -> return v
 		BlockedConst _ -> return v
-		FirstOrder     -> return v
 		InstS _	       -> __IMPOSSIBLE__
     instantiate t = return t
 
@@ -67,7 +65,6 @@ instance Instantiate Sort where
 	    case mi of
 		InstS s'       -> instantiate s'
 		Open	       -> return s
-		FirstOrder     -> __IMPOSSIBLE__
 		InstV _	       -> __IMPOSSIBLE__
 		BlockedConst _ -> __IMPOSSIBLE__
 	Type _	  -> return s

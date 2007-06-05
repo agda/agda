@@ -130,7 +130,6 @@ getInstantiatedMetas = do
     where
 	isInst Open		= False
 	isInst (BlockedConst _) = False
-	isInst FirstOrder	= False
 	isInst (InstV _)	= True
 	isInst (InstS _)	= True
 
@@ -141,7 +140,6 @@ getOpenMetas = do
     where
 	isOpen Open		= True
 	isOpen (BlockedConst _) = True
-	isOpen FirstOrder	= True
 	isOpen (InstV _)	= False
 	isOpen (InstS _)	= False
 

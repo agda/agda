@@ -29,7 +29,6 @@ import TypeChecking.Constraints
 import TypeChecking.Conversion
 import TypeChecking.Empty
 import TypeChecking.MetaVars
-import TypeChecking.Patterns.Monad
 import TypeChecking.Rebind
 import TypeChecking.Primitive
 import TypeChecking.With

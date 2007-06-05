@@ -103,7 +103,6 @@ exposed-modules: AgdaMain
                  TypeChecking.Monad.Trace
                  TypeChecking.Monad
                  TypeChecking.Patterns.Match
-                 TypeChecking.Patterns.Monad
                  TypeChecking.Positivity
 		 TypeChecking.Pretty
                  TypeChecking.Primitive
