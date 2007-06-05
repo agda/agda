@@ -473,3 +473,12 @@ instance InstantiateFull a => InstantiateFull (Builtin a) where
 instance InstantiateFull a => InstantiateFull (Maybe a) where
   instantiateFull = mapM instantiateFull
 
+telViewM :: MonadTCM tcm => Type -> tcm TelView
+telViewM t = do
+  t <- reduce t
+  case unEl t of
+    Pi a (Abs x b) -> absV a x <$> telViewM b
+    Fun a b	   -> absV a "_" <$> telViewM (raise 1 b)
+    _		   -> return $ TelV EmptyTel t
+  where
+    absV a x (TelV tel t) = TelV (ExtendTel a (Abs x tel)) t

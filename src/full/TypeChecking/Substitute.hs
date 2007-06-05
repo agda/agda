@@ -299,3 +299,13 @@ telePi (ExtendTel u tel) t = el $ fn u b
       | 0 `freeIn` absBody b = Pi a b
       | otherwise	     = Fun a $ absApp b __IMPOSSIBLE__
 
+-- | Everything will be a pi.
+telePi_ :: Telescope -> Type -> Type
+telePi_  EmptyTel	 t = t
+telePi_ (ExtendTel u tel) t = el $ Pi u b
+  where
+    el = El (sLub s1 s2)  
+    b = fmap (flip telePi_ t) tel
+    s1 = getSort $ unArg u
+    s2 = getSort $ absBody b
+

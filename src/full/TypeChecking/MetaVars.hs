@@ -120,13 +120,10 @@ newValueMeta ::  MonadTCM tcm => Type -> tcm Term
 newValueMeta t = do
   vs  <- getContextArgs
   tel <- getContextTelescope
-  newValueMetaCtx (abstract tel t) vs
+  newValueMetaCtx (telePi_ tel t) vs
 
 newValueMetaCtx :: MonadTCM tcm => Type -> Args -> tcm Term
 newValueMetaCtx t ctx = do
-  t' <- normalise t
-  let TelV tel a = telView t'
-  a  <- reduce $ unEl a
   m@(MetaV i _) <- newValueMetaCtx' t ctx
   etaExpandMeta i
   instantiateFull m
@@ -136,7 +133,7 @@ newValueMeta' :: MonadTCM tcm => Type -> tcm Term
 newValueMeta' t = do
   vs  <- getContextArgs
   tel <- getContextTelescope
-  newValueMetaCtx' (abstract tel t) vs
+  newValueMetaCtx' (telePi_ tel t) vs
 
 -- | Create a new value meta with specific dependencies.
 newValueMetaCtx' :: MonadTCM tcm => Type -> Args -> tcm Term
@@ -159,7 +156,7 @@ newArgsMetaCtx (El s tm) tel ctx = do
   tm <- reduce tm
   case funView tm of
       FunV (Arg h a) _  -> do
-	  v    <- newValueMetaCtx (abstract tel a) ctx
+	  v    <- newValueMetaCtx (telePi_ tel a) ctx
 	  args <- newArgsMetaCtx (El s tm `piApply` [Arg h v]) tel ctx
 	  return $ Arg h v : args
       NoFunV _    -> return []
@@ -175,7 +172,7 @@ newRecordMeta r pars = do
 newRecordMetaCtx :: MonadTCM tcm => QName -> Args -> Telescope -> Args -> tcm Term
 newRecordMetaCtx r pars tel ctx = do
   ftel	 <- flip apply pars <$> getRecordFieldTypes r
-  fields <- newArgsMetaCtx (telePi ftel $ sort Prop) tel ctx
+  fields <- newArgsMetaCtx (telePi_ ftel $ sort Prop) tel ctx
   return $ Con r fields
 
 newQuestionMark :: MonadTCM tcm => Type -> tcm Term
@@ -195,7 +192,7 @@ blockTerm t v m = do
 	    i	  <- createMetaInfo
 	    vs	  <- getContextArgs
 	    tel   <- getContextTelescope
-	    x	  <- newMeta i lowMetaPriority (HasType () $ makeClosed $ abstract tel t)
+	    x	  <- newMeta i lowMetaPriority (HasType () $ makeClosed $ telePi_ tel t)
 			    -- ^^ we don't instantiate blocked terms
 	    store <- getMetaStore
 	    modify $ \st -> st { stMetaStore = ins x (BlockedConst $ abstract tel v) store }
@@ -233,12 +230,11 @@ etaExpandListeners m = do
 etaExpandMeta :: MonadTCM tcm => MetaId -> tcm ()
 etaExpandMeta m = do
   HasType _ o <- mvJudgement <$> lookupMeta m
-  a <- normalise =<< getOpen o
-  let TelV tel b = telView a
-      args	 = [ Arg h $ Var i []
+  a <- getOpen o
+  TelV tel b <- telViewM a
+  let args	 = [ Arg h $ Var i []
 		   | (i, Arg h _) <- reverse $ zip [0..] $ reverse $ telToList tel
 		   ]
-  b <- reduce b
   case unEl b of
     BlockedV b	-> listenToMeta m (blockingMeta b)
     MetaV i _	-> listenToMeta m i

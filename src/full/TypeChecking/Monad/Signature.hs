@@ -149,11 +149,11 @@ getConstInfo q = liftTCM $ do
   ab    <- treatAbstractly q
   defs  <- sigDefinitions <$> getSignature
   idefs <- sigDefinitions <$> getImportedSignature
-  let allDefs = (Map.unionWith (++) `on` Map.map (:[])) defs idefs
-  case Map.lookup q allDefs of
-      Nothing	-> fail $ show (getRange q) ++ ": no such name " ++ show q
-      Just [d]	-> mkAbs ab d
-      Just ds	-> fail $ show (getRange q) ++ ": ambiguous name " ++ show q
+  let smash = (++) `on` maybe [] (:[])
+  case smash (Map.lookup q defs) (Map.lookup q idefs) of
+      []  -> fail $ show (getRange q) ++ ": no such name " ++ show q
+      [d] -> mkAbs ab d
+      ds  -> fail $ show (getRange q) ++ ": ambiguous name " ++ show q
   where
     mkAbs True d =
       case makeAbstract d of
