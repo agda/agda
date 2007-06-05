@@ -36,7 +36,8 @@ data DotPatternInst = DPI A.Expr Term Type
 data AsBinding	    = AsB Name Term Type
 
 instance Subst DotPatternInst where
-  substs us (DPI e v a) = uncurry (DPI e) $ substs us (v,a)
+  substs us	 (DPI e v a) = uncurry (DPI e) $ substs us (v,a)
+  substUnder n u (DPI e v a) = uncurry (DPI e) $ substUnder n u (v,a)
 
 instance PrettyTCM DotPatternInst where
   prettyTCM (DPI e v a) = sep [ prettyA e <+> text "="
@@ -45,7 +46,8 @@ instance PrettyTCM DotPatternInst where
 			      ]
 
 instance Subst AsBinding where
-  substs us (AsB x v a) = uncurry (AsB x) $ substs us (v, a)
+  substs us	 (AsB x v a) = uncurry (AsB x) $ substs us (v, a)
+  substUnder n u (AsB x v a) = uncurry (AsB x) $ substUnder n u (v, a)
 
 instance Raise AsBinding where
   raiseFrom m k (AsB x v a) = uncurry (AsB x) $ raiseFrom m k (v, a)

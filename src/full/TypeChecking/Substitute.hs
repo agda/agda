@@ -159,12 +159,11 @@ abstractArgs args x = abstract tel x
 -- | Substitute a term for the nth free variable.
 --
 class Subst t where
-    substs :: [Term] -> t -> t
+    substs     :: [Term] -> t -> t
+    substUnder :: Int -> Term -> t -> t
 
 subst :: Subst t => Term -> t -> t
-subst u t = substs (u : map var [0..]) t
-    where
-	var n = Var n []
+subst u t = substUnder 0 u t
 
 instance Subst Term where
     substs us t =
@@ -183,41 +182,71 @@ instance Subst Term where
             []     !!! n = error "unbound variable"
             (x:xs) !!! 0 = x
             (_:xs) !!! n = xs !!! (n - 1)
+    substUnder n u t =
+	case t of
+	    Var i vs
+	      | i == n	  -> raise n u `apply` substUnder n u vs
+	      | i < n	  -> Var i $ substUnder n u vs
+	      | otherwise -> Var (i - 1) $ substUnder n u vs
+	    Lam h m    -> Lam h $ substUnder n u m
+	    Def c vs   -> Def c $ substUnder n u vs
+	    Con c vs   -> Con c $ substUnder n u vs
+	    MetaV x vs -> MetaV x $ substUnder n u vs
+	    Lit l      -> Lit l
+	    Pi a b     -> uncurry Pi $ substUnder n u (a,b)
+	    Fun a b    -> uncurry Fun $ substUnder n u (a,b)
+	    Sort s     -> Sort s
+	    BlockedV b -> BlockedV $ substUnder n u b
 
 instance Subst Type where
     substs us (El s t) = El s $ substs us t
+    substUnder n u (El s t) = El s $ substUnder n u t
 
 instance Subst t => Subst (Blocked t) where
-    substs us b = fmap (substs us) b
+    substs us b	     = fmap (substs us) b
+    substUnder n u b = fmap (substUnder n u) b
 
 instance Subst DisplayTerm where
-  substs us (DTerm v)	     = DTerm $ substs us v
-  substs us (DWithApp vs ws) = uncurry DWithApp $ substs us (vs, ws)
+  substs us	 (DTerm v)	  = DTerm $ substs us v
+  substs us	 (DWithApp vs ws) = uncurry DWithApp $ substs us (vs, ws)
+  substUnder n u (DTerm v)	  = DTerm $ substUnder n u v
+  substUnder n u (DWithApp vs ws) = uncurry DWithApp $ substUnder n u (vs, ws)
 
 instance Subst Telescope where
-  substs us  EmptyTel	      = EmptyTel
-  substs us (ExtendTel t tel) = uncurry ExtendTel $ substs us (t, tel)
+  substs us  EmptyTel		   = EmptyTel
+  substs us (ExtendTel t tel)	   = uncurry ExtendTel $ substs us (t, tel)
+  substUnder n u  EmptyTel	   = EmptyTel
+  substUnder n u (ExtendTel t tel) = uncurry ExtendTel $ substUnder n u (t, tel)
 
 instance (Data a, Subst a) => Subst (Abs a) where
-    substs us (Abs x t) = Abs x $ substs (Var 0 [] : raise 1 us) t
+    substs us	   (Abs x t) = Abs x $ substs (Var 0 [] : raise 1 us) t
+    substUnder n u (Abs x t) = Abs x $ substUnder (n + 1) u t
 
 instance Subst a => Subst (Arg a) where
-    substs us = fmap (substs us)
+    substs us	   = fmap (substs us)
+    substUnder n u = fmap (substUnder n u)
 
 instance Subst a => Subst (Maybe a) where
-  substs us = fmap (substs us)
+  substs us	 = fmap (substs us)
+  substUnder n u = fmap (substUnder n u)
 
 instance Subst a => Subst [a] where
-    substs us = map (substs us)
+    substs us	   = map (substs us)
+    substUnder n u = map (substUnder n u)
 
 instance (Subst a, Subst b) => Subst (a,b) where
-    substs us (x,y) = (substs us x, substs us y)
+    substs us (x,y)	 = (substs us x, substs us y)
+    substUnder n u (x,y) = (substUnder n u x, substUnder n u y)
 
 instance Subst ClauseBody where
-    substs us (Body t)   = Body $ substs us t
-    substs us (Bind b)   = Bind $ substs us b
-    substs us (NoBind b) = NoBind $ substs us b
-    substs _   NoBody	 = NoBody
+    substs us (Body t)	      = Body $ substs us t
+    substs us (Bind b)	      = Bind $ substs us b
+    substs us (NoBind b)      = NoBind $ substs us b
+    substs _   NoBody	      = NoBody
+    substUnder n u (Body t)   = Body $ substUnder n u t
+    substUnder n u (Bind b)   = Bind $ substUnder n u b
+    substUnder n u (NoBind b) = NoBind $ substUnder n u b
+    substUnder _ _   NoBody   = NoBody
 
 -- | Instantiate an abstraction
 absApp :: Subst t => Abs t -> Term -> t
