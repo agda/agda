@@ -234,9 +234,9 @@ newMetaSame x meta =
 
 -- | Extended occurs check.
 class Occurs t where
-    occurs :: MonadTCM tcm => tcm () -> MetaId -> t -> tcm ()
+    occurs :: MonadTCM tcm => tcm () -> MetaId -> t -> tcm t
 
-occursCheck :: (MonadTCM tcm, Occurs a) => MetaId -> a -> tcm ()
+occursCheck :: (MonadTCM tcm, Occurs a) => MetaId -> a -> tcm a
 occursCheck m = occurs (typeError $ MetaOccursInItself m) m
 
 instance Occurs Term where
@@ -248,46 +248,46 @@ instance Occurs Term where
 	    _		-> occurs' abort v
 	where
 	    occurs' abort v = case ignoreBlocking v of
-		Var _ vs    -> occ vs
-		Lam _ f	    -> occ f
-		Lit l	    -> return ()
-		Def c vs    -> occ vs
-		Con c vs    -> occ vs
-		Pi a b	    -> occ (a,b)
-		Fun a b	    -> occ (a,b)
-		Sort s	    -> occ s
+		Var i vs    -> Var i <$> occ vs
+		Lam h f	    -> Lam h <$> occ f
+		Lit l	    -> return v
+		Def c vs    -> Def c <$> occ vs
+		Con c vs    -> Con c <$> occ vs
+		Pi a b	    -> uncurry Pi <$> occ (a,b)
+		Fun a b	    -> uncurry Fun <$> occ (a,b)
+		Sort s	    -> Sort <$> occ s
 		MetaV m' vs -> do
 		    when (m == m') abort
 		    -- Don't fail on flexible occurrence
-		    occurs patternViolation m vs
+		    MetaV m' <$> occurs patternViolation m vs
 		BlockedV _  -> __IMPOSSIBLE__
 		where
 		    occ x = occurs abort m x
 
 instance Occurs Type where
-    occurs abort m (El s v) = occurs abort m (s,v)
+    occurs abort m (El s v) = uncurry El <$> occurs abort m (s,v)
 
 instance Occurs Sort where
     occurs abort m s =
 	do  s' <- reduce s
 	    case s' of
-		MetaS m'  -> when (m == m') abort
-		Lub s1 s2 -> occurs abort m (s1,s2)
-		Suc s	  -> occurs abort m s
-		Type _	  -> return ()
-		Prop	  -> return ()
+		MetaS m'  -> when (m == m') abort >> return s'
+		Lub s1 s2 -> uncurry Lub <$> occurs abort m (s1,s2)
+		Suc s	  -> Suc <$> occurs abort m s
+		Type _	  -> return s'
+		Prop	  -> return s'
 
 instance Occurs a => Occurs (Abs a) where
-    occurs abort m (Abs _ x) = occurs abort m x
+    occurs abort m (Abs s x) = Abs s <$> occurs abort m x
 
 instance Occurs a => Occurs (Arg a) where
-    occurs abort m (Arg _ x) = occurs abort m x
+    occurs abort m (Arg h x) = Arg h <$> occurs abort m x
 
 instance (Occurs a, Occurs b) => Occurs (a,b) where
-    occurs abort m (x,y) = occurs abort m x >> occurs abort m y
+    occurs abort m (x,y) = (,) <$> occurs abort m x <*> occurs abort m y
 
 instance Occurs a => Occurs [a] where
-    occurs abort m xs = mapM_ (occurs abort m) xs
+    occurs abort m xs = mapM (occurs abort m) xs
 
 abortAssign :: MonadTCM tcm => tcm a
 abortAssign =
@@ -325,17 +325,12 @@ assignV t x args v =
             
 	ids <- checkArgs x args
 
-	-- When checking occurrence v must be normalised to not
-	-- get false positives.
-        reportLn 20 $ "preparing to instantiate"
-	v <- normalise v
-
 	verbose 15 $ do
 	    d <- prettyTCM v
-	    debug $ "fully instantiated: " ++ show d
+	    debug $ "preparing to instantiate: " ++ show d
 
 	-- Check that the x doesn't occur in the right hand side
-	occursCheck x v
+	v <- occursCheck x v
 
 	reportLn 15 "passed occursCheck"
 
