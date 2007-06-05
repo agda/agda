@@ -261,7 +261,7 @@ decodeFile f = liftM decode $ L.readFile f
 instance B.Binary Thing where
   put (String s) = B.putWord8 0 >> B.put s
   put (Range r)  = B.putWord8 1 >> B.put r
-  get = do
+  get = {-# SCC "get<Thing>" #-} do
     tag <- B.getWord8
     case tag of
       0 -> liftM String B.get
@@ -270,7 +270,7 @@ instance B.Binary Thing where
 
 instance B.Binary Range where
   put (P.Range a b) = B.put a >> B.put b
-  get = liftM2 P.Range B.get B.get
+  get = {-# SCC "get<Range>" #-} liftM2 P.Range B.get B.get
 
 instance B.Binary Position where
     put NoPos	     = B.putWord8 0
@@ -292,20 +292,20 @@ instance Binary Integer where
 
 instance Binary Int where
   put = liftedPut
-  get = liftedGet
+  get = {-# SCC "get<Int>" #-} liftedGet
 
 instance Binary Char where
   put = liftedPut
-  get = liftedGet
+  get = {-# SCC "get<Char>" #-} liftedGet
 
 instance (Binary a, Binary b) => Binary (a, b) where
   put (x, y) = put x >> put y
-  get = liftM2 (,) get get
+  get = {-# SCC "get<(,)>" #-} liftM2 (,) get get
 
 instance Binary a => Binary (Maybe a) where
   put Nothing  = putWord8 0
   put (Just x) = putWord8 1 >> put x
-  get = do
+  get = {-# SCC "get<Maybe>" #-} do
     tag <- getWord8
     case tag of
       0 -> return Nothing
@@ -315,7 +315,7 @@ instance Binary a => Binary (Maybe a) where
 instance Binary a => Binary [a] where
   put []       = putWord8 0
   put (x : xs) = putWord8 1 >> put x >> put xs
-  get = do
+  get = {-# SCC "get<[]>" #-} do
     tag <- getWord8
     case tag of
       0 -> return []
@@ -324,12 +324,12 @@ instance Binary a => Binary [a] where
 
 instance (Eq a, Binary a, Binary b) => Binary (Map a b) where
   put = put . Map.toAscList
-  get = liftM Map.fromAscList get
+  get = {-# SCC "get<Map>" #-} liftM Map.fromAscList get
 
 instance Binary C.Name where
     put (C.NoName a b) = putWord8 0 >> put a >> put b
     put (C.Name r xs) = putWord8 1 >> put r >> put xs
-    get = do
+    get = {-# SCC "get<C.Name>" #-} do
       tag_ <- getWord8
       case tag_ of
 	0 -> liftM2 C.NoName get get
@@ -339,7 +339,7 @@ instance Binary C.Name where
 instance Binary NamePart where
   put Hole     = putWord8 0
   put (Id r a) = putWord8 1 >> put r >> put a
-  get = do
+  get = {-# SCC "get<NamePart>" #-} do
     tag_ <- getWord8
     case tag_ of
       0 -> return Hole
@@ -349,7 +349,7 @@ instance Binary NamePart where
 instance Binary C.QName where
   put (Qual a b) = putWord8 0 >> put a >> put b
   put (C.QName a) = putWord8 1 >> put a
-  get = do
+  get = {-# SCC "get<C.QName>" #-} do
     tag_ <- getWord8
     case tag_ of
       0 -> get >>= \a -> get >>= \b -> return (Qual a b)
@@ -358,12 +358,12 @@ instance Binary C.QName where
 
 instance Binary Scope where
   put (Scope a b c) = put a >> put b >> put c
-  get = get >>= \a -> get >>= \b -> get >>= \c -> return (Scope a b c)
+  get = {-# SCC "get<Scope>" #-} get >>= \a -> get >>= \b -> get >>= \c -> return (Scope a b c)
 
 instance Binary Access where
   put PrivateAccess = putWord8 0
   put PublicAccess = putWord8 1
-  get = do
+  get = {-# SCC "get<Access>" #-} do
     tag_ <- getWord8
     case tag_ of
       0 -> return PrivateAccess
@@ -372,20 +372,20 @@ instance Binary Access where
 
 instance Binary NameSpace where
   put (NameSpace a b) = put a >> put b
-  get = get >>= \a -> get >>= \b -> return (NameSpace a b)
+  get = {-# SCC "get<NameSpace>" #-} get >>= \a -> get >>= \b -> return (NameSpace a b)
 
 instance Binary AbstractName where
   put (AbsName a b) = put a >> put b
-  get = get >>= \a -> get >>= \b -> return (AbsName a b)
+  get = {-# SCC "get<AbstractName>" #-} get >>= \a -> get >>= \b -> return (AbsName a b)
 
 instance Binary AbstractModule where
   put (AbsModule a) = put a
-  get = get >>= \a -> return (AbsModule a)
+  get = {-# SCC "get<AbstractModule>" #-} get >>= \a -> return (AbsModule a)
 
 instance Binary KindOfName where
   put DefName = putWord8 0
   put ConName = putWord8 1
-  get = do
+  get = {-# SCC "get<KindOfName>" #-} do
     tag_ <- getWord8
     case tag_ of
       0 -> return DefName
@@ -396,7 +396,7 @@ instance Binary Syntax.Fixity.Fixity where
   put (LeftAssoc a b) = putWord8 0 >> put a >> put b
   put (RightAssoc a b) = putWord8 1 >> put a >> put b
   put (NonAssoc a b) = putWord8 2 >> put a >> put b
-  get = do
+  get = {-# SCC "get<Fixity>" #-} do
     tag_ <- getWord8
     case tag_ of
       0 -> get >>= \a -> get >>= \b -> return (LeftAssoc a b)
@@ -406,32 +406,32 @@ instance Binary Syntax.Fixity.Fixity where
 
 instance Binary A.QName where
   put (A.QName a b) = put a >> put b
-  get = get >>= \a -> get >>= \b -> return (A.QName a b)
+  get = {-# SCC "get<A.QName>" #-} get >>= \a -> get >>= \b -> return (A.QName a b)
 
 instance Binary A.ModuleName where
   put (A.MName a) = put a
-  get = get >>= \a -> return (A.MName a)
+  get = {-# SCC "get<A.ModuleName>" #-} get >>= \a -> return (A.MName a)
 
 instance Binary A.Name where
   put (A.Name a b c d) = put a >> put b >> put c >> put d
-  get = get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d -> return (A.Name a b c d)
+  get = {-# SCC "get<A.Name>" #-} get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d -> return (A.Name a b c d)
 
 instance Binary NameId where
   put (NameId a b) = put a >> put b
-  get = get >>= \a -> get >>= \b -> return (NameId a b)
+  get = {-# SCC "get<A.NameId>" #-} get >>= \a -> get >>= \b -> return (NameId a b)
 
 instance Binary Signature where
   put (Sig a b) = put a >> put b
-  get = get >>= \a -> get >>= \b -> return (Sig a b)
+  get = {-# SCC "get<Signature>" #-} get >>= \a -> get >>= \b -> return (Sig a b)
 
 instance Binary Section where
   put (Section a b) = put a >> put b
-  get = get >>= \a -> get >>= \b -> return (Section a b)
+  get = {-# SCC "get<Section>" #-} get >>= \a -> get >>= \b -> return (Section a b)
 
 instance Binary Telescope where
   put EmptyTel = putWord8 0
   put (ExtendTel a b) = putWord8 1 >> put a >> put b
-  get = do
+  get = {-# SCC "get<Telescope>" #-} do
     tag_ <- getWord8
     case tag_ of
       0	-> return EmptyTel
@@ -440,12 +440,12 @@ instance Binary Telescope where
 
 instance (Binary a) => Binary (Syntax.Common.Arg a) where
   put (Arg a b) = put a >> put b
-  get = get >>= \a -> get >>= \b -> return (Arg a b)
+  get = {-# SCC "get<Arg>" #-} get >>= \a -> get >>= \b -> return (Arg a b)
 
 instance Binary Syntax.Common.Hiding where
   put Hidden = putWord8 0
   put NotHidden = putWord8 1
-  get = do
+  get = {-# SCC "get<Hiding>" #-} do
     tag_ <- getWord8
     case tag_ of
       0 -> return Hidden
@@ -454,19 +454,19 @@ instance Binary Syntax.Common.Hiding where
 
 instance Binary Syntax.Internal.Type where
   put (El a b) = put a >> put b
-  get = get >>= \a -> get >>= \b -> return (El a b)
+  get = {-# SCC "get<Type>" #-} get >>= \a -> get >>= \b -> return (El a b)
 
 instance Binary Syntax.Internal.MetaId where
   put (MetaId a) = put a
-  get = get >>= \a -> return (MetaId a)
+  get = {-# SCC "get<MetaId>" #-} get >>= \a -> return (MetaId a)
 
 instance (Binary a) => Binary (Syntax.Internal.Blocked a) where
   put (Blocked a b) = put a >> put b
-  get = get >>= \a -> get >>= \b -> return (Blocked a b)
+  get = {-# SCC "get<Blocked>" #-} get >>= \a -> get >>= \b -> return (Blocked a b)
 
 instance (Binary a) => Binary (Syntax.Internal.Abs a) where
   put (Abs a b) = put a >> put b
-  get = get >>= \a -> get >>= \b -> return (Abs a b)
+  get = {-# SCC "get<Abs>" #-} get >>= \a -> get >>= \b -> return (Abs a b)
 
 instance Binary Syntax.Internal.Term where
   put (Var a b) = putWord8 0 >> put a >> put b
@@ -479,7 +479,7 @@ instance Binary Syntax.Internal.Term where
   put (Sort a) = putWord8 7 >> put a
   put (MetaV a b) = putWord8 8 >> put a >> put b
   put (BlockedV a) = putWord8 9 >> put a
-  get = do
+  get = {-# SCC "get<Term>" #-} do
     tag_ <- getWord8
     case tag_ of
       0 -> get >>= \a -> get >>= \b -> return (Var a b)
@@ -500,7 +500,7 @@ instance Binary Syntax.Internal.Sort where
   put (Lub a b) = putWord8 2 >> put a >> put b
   put (Suc a) = putWord8 3 >> put a
   put (MetaS a) = putWord8 4 >> put a
-  get = do
+  get = {-# SCC "get<Sort>" #-} do
     tag_ <- getWord8
     case tag_ of
       0 -> get >>= \a -> return (Type a)
@@ -515,7 +515,7 @@ instance Binary Syntax.Literal.Literal where
   put (LitFloat a b) = putWord8 1 >> put a >> put b
   put (LitString a b) = putWord8 2 >> put a >> put b
   put (LitChar a b) = putWord8 3 >> put a >> put b
-  get = do
+  get = {-# SCC "get<Literal>" #-} do
     tag_ <- getWord8
     case tag_ of
       0 -> get >>= \a -> get >>= \b -> return (LitInt a b)
@@ -527,7 +527,7 @@ instance Binary Syntax.Literal.Literal where
 instance Binary DisplayForm where
   put NoDisplay = putWord8 0
   put (Display a b c) = putWord8 1 >> put a >> put b >> put c
-  get = do
+  get = {-# SCC "get<DisplayForm>" #-} do
     tag_ <- getWord8
     case tag_ of
       0	-> return NoDisplay
@@ -537,7 +537,7 @@ instance Binary DisplayForm where
 instance Binary DisplayTerm where
   put (DTerm a) = putWord8 0 >> put a
   put (DWithApp a b) = putWord8 1 >> put a >> put b
-  get = do
+  get = {-# SCC "get<DisplayTerm>" #-} do
     tag_ <- getWord8
     case tag_ of
       0	-> get >>= \a -> return (DTerm a)
@@ -546,11 +546,11 @@ instance Binary DisplayTerm where
 
 instance Binary MutualId where
   put (MutId a) = put a
-  get = get >>= \a -> return (MutId a)
+  get = {-# SCC "get<MutualId>" #-} get >>= \a -> return (MutId a)
 
 instance Binary Definition where
   put (Defn a b c d e) = put a >> put b >> put c >> put d >> put e
-  get = get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d -> get >>= \e -> return (Defn a b c d e)
+  get = {-# SCC "get<Definition>" #-} get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d -> get >>= \e -> return (Defn a b c d e)
 
 instance Binary Defn where
   put Axiom		     = putWord8 0
@@ -559,7 +559,7 @@ instance Binary Defn where
   put (Record a b c d e f)   = putWord8 3 >> put a >> put b >> put c >> put d >> put e >> put f
   put (Constructor a b c d)  = putWord8 4 >> put a >> put b >> put c >> put d
   put (Primitive a b c)	     = putWord8 5 >> put a >> put b >> put c
-  get = do
+  get = {-# SCC "get<Defn>" #-} do
     tag_ <- getWord8
     case tag_ of
       0 -> return Axiom
@@ -573,7 +573,7 @@ instance Binary Defn where
 instance Binary Syntax.Common.IsAbstract where
   put AbstractDef = putWord8 0
   put ConcreteDef = putWord8 1
-  get = do
+  get = {-# SCC "get<IsAbstract>" #-} do
     tag_ <- getWord8
     case tag_ of
       0 -> return AbstractDef
@@ -582,14 +582,14 @@ instance Binary Syntax.Common.IsAbstract where
 
 instance Binary Syntax.Internal.Clause where
   put (Clause a b) = put a >> put b
-  get = get >>= \a -> get >>= \b -> return (Clause a b)
+  get = {-# SCC "get<Clause>" #-} get >>= \a -> get >>= \b -> return (Clause a b)
 
 instance Binary Syntax.Internal.ClauseBody where
   put (Body a) = putWord8 0 >> put a
   put (Bind a) = putWord8 1 >> put a
   put (NoBind a) = putWord8 2 >> put a
   put NoBody = putWord8 3
-  get = do
+  get = {-# SCC "get<ClauseBody>" #-} do
     tag_ <- getWord8
     case tag_ of
       0 -> get >>= \a -> return (Body a)
@@ -602,7 +602,7 @@ instance Binary Syntax.Internal.Pattern where
   put (VarP a) = putWord8 0 >> put a
   put (ConP a b) = putWord8 1 >> put a >> put b
   put (LitP a) = putWord8 2 >> put a
-  get = do
+  get = {-# SCC "get<Pattern>" #-} do
     tag_ <- getWord8
     case tag_ of
       0 -> get >>= \a -> return (VarP a)
@@ -613,7 +613,7 @@ instance Binary Syntax.Internal.Pattern where
 instance Binary a => Binary (Builtin a) where
     put (Prim a) = putWord8 0 >> put a
     put (Builtin a) = putWord8 1 >> put a
-    get = do
+    get = {-# SCC "get<Builtin>" #-} do
 	tag_ <- getWord8
 	case tag_ of
 	    0	-> liftM Prim get
@@ -622,7 +622,7 @@ instance Binary a => Binary (Builtin a) where
 
 instance Binary Interface where
     put (Interface a b c d e) = put a >> put b >> put c >> put d >> put e
-    get = liftM5 Interface get get get get get
+    get = {-# SCC "get<Interface>" #-} liftM5 Interface get get get get get
 
 ------------------------------------------------------------------------
 -- All tests
