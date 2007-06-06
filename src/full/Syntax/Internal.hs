@@ -64,6 +64,22 @@ instance Foldable Blocked where
 instance Traversable Blocked where
     traverse f (Blocked m t) = Blocked m <$> f t
 
+instance Sized Term where
+  size v = case v of
+    Var _ vs   -> 1 + Prelude.sum (map size vs)
+    Def _ vs   -> 1 + Prelude.sum (map size vs)
+    Con _ vs   -> 1 + Prelude.sum (map size vs)
+    MetaV _ vs -> 1 + Prelude.sum (map size vs)
+    Lam _ f    -> 1 + size f
+    Lit _      -> 1
+    Pi a b     -> 1 + size a + size b
+    Fun a b    -> 1 + size a + size b
+    Sort s     -> 1
+    BlockedV b -> size (blockee b)
+
+instance Sized Type where
+  size = size . unEl
+
 -- | Type of argument lists.
 --                          
 type Args = [Arg Term]      
