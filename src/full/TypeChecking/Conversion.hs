@@ -65,7 +65,7 @@ equalTerm a m n =
 			    _ -> do
 			      (tel, m') <- etaExpandRecord r ps m
 			      (_  , n') <- etaExpandRecord r ps n
-			      equalArg (telePi tel $ sort Prop) m' n'
+			      equalArg (telePi_ tel $ sort Prop) m' n'
 			else equalAtom a' m n
 		    _	      -> equalAtom a' m n
     where
