@@ -98,11 +98,7 @@ instance PrettyTCM Constraint where
 		]
 
 instance PrettyTCM Literal where
-    prettyTCM (LitInt    _ l) = text $ show l    
-    prettyTCM (LitFloat  _ l) = text $ show l    
-    prettyTCM (LitString _ l) = text $ show l    
-    prettyTCM (LitChar   _ l) = text $ show l     
-
+  prettyTCM = text . show
 
 instance PrettyTCM Name where
     prettyTCM x = P.pretty <$> abstractToConcrete_ x
