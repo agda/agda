@@ -24,6 +24,7 @@ import TypeChecking.Constraints
 import TypeChecking.Errors
 import TypeChecking.Free
 import TypeChecking.Records
+import TypeChecking.Pretty
 
 #ifndef __HADDOCK__
 import {-# SOURCE #-} TypeChecking.Conversion
@@ -234,31 +235,23 @@ newMetaSame x meta =
 
 -- | Extended occurs check.
 class Occurs t where
-    {-# SPECIALIZE occurs :: TCM () -> MetaId -> Term -> TCM Term #-}
-    {-# SPECIALIZE occurs :: TCM () -> MetaId -> Type -> TCM Type #-}
-    {-# SPECIALIZE occurs :: TCM () -> MetaId -> Sort -> TCM Sort #-}
-    {-# SPECIALIZE occurs :: TCM () -> MetaId -> Arg Term -> TCM (Arg Term) #-}
-    {-# SPECIALIZE occurs :: TCM () -> MetaId -> Arg Type -> TCM (Arg Type) #-}
-    {-# SPECIALIZE occurs :: TCM () -> MetaId -> Abs Term -> TCM (Abs Term) #-}
-    {-# SPECIALIZE occurs :: TCM () -> MetaId -> Abs Type -> TCM (Abs Type) #-}
-    {-# SPECIALIZE occurs :: (Occurs a, Occurs b) => TCM () -> MetaId -> (a, b) -> TCM (a, b) #-}
-    {-# SPECIALIZE occurs :: TCM () -> MetaId -> [Arg Term] -> TCM [Arg Term] #-}
-    occurs :: TCM () -> MetaId -> t -> TCM t
+  occurs :: (TypeError -> TCM ()) -> MetaId -> [Nat] -> t -> TCM t
 
-{-# SPECIALIZE occursCheck :: MetaId -> Term -> TCM Term #-}
-occursCheck :: (MonadTCM tcm, Occurs a) => MetaId -> a -> tcm a
-occursCheck m = liftTCM . occurs (typeError $ MetaOccursInItself m) m
+occursCheck :: (MonadTCM tcm, Occurs a) => MetaId -> [Nat] -> a -> tcm a
+occursCheck m xs = liftTCM . occurs typeError m xs
 
 instance Occurs Term where
-    occurs abort m v = do
+    occurs abort m xs v = do
 	v <- reduce v
 	case v of
 	    -- Don't fail on blocked terms
-	    BlockedV b	-> occurs' patternViolation v
+	    BlockedV b	-> occurs' (const patternViolation) v
 	    _		-> occurs' abort v
 	where
 	    occurs' abort v = case ignoreBlocking v of
-		Var i vs    -> Var i <$> occ vs
+		Var i vs   -> do
+		  unless (i `elem` xs) $ abort $ MetaCannotDependOn m xs i
+		  Var i <$> occ vs
 		Lam h f	    -> Lam h <$> occ f
 		Lit l	    -> return v
 		Def c vs    -> Def c <$> occ vs
@@ -267,37 +260,39 @@ instance Occurs Term where
 		Fun a b	    -> uncurry Fun <$> occ (a,b)
 		Sort s	    -> Sort <$> occ s
 		MetaV m' vs -> do
-		    when (m == m') abort
+		    when (m == m') $ abort $ MetaOccursInItself m
 		    -- Don't fail on flexible occurrence
-		    MetaV m' <$> occurs patternViolation m vs
+		    MetaV m' <$> occurs (const patternViolation) m xs vs
 		BlockedV _  -> __IMPOSSIBLE__
 		where
-		    occ x = occurs abort m x
+		    occ x = occurs abort m xs x
 
 instance Occurs Type where
-    occurs abort m (El s v) = uncurry El <$> occurs abort m (s,v)
+    occurs abort m xs (El s v) = uncurry El <$> occurs abort m xs (s,v)
 
 instance Occurs Sort where
-    occurs abort m s =
+    occurs abort m xs s =
 	do  s' <- reduce s
 	    case s' of
-		MetaS m'  -> when (m == m') abort >> return s'
-		Lub s1 s2 -> uncurry Lub <$> occurs abort m (s1,s2)
-		Suc s	  -> Suc <$> occurs abort m s
+		MetaS m'  -> do
+		  when (m == m') $ abort $ MetaOccursInItself m
+		  return s'
+		Lub s1 s2 -> uncurry Lub <$> occurs abort m xs (s1,s2)
+		Suc s	  -> Suc <$> occurs abort m xs s
 		Type _	  -> return s'
 		Prop	  -> return s'
 
 instance Occurs a => Occurs (Abs a) where
-    occurs abort m (Abs s x) = Abs s <$> occurs abort m x
+    occurs abort m xs (Abs s x) = Abs s <$> occurs abort m (0 : map (1+) xs) x
 
 instance Occurs a => Occurs (Arg a) where
-    occurs abort m (Arg h x) = Arg h <$> occurs abort m x
+    occurs abort m xs (Arg h x) = Arg h <$> occurs abort m xs x
 
 instance (Occurs a, Occurs b) => Occurs (a,b) where
-    occurs abort m (x,y) = (,) <$> occurs abort m x <*> occurs abort m y
+    occurs abort m xs (x,y) = (,) <$> occurs abort m xs x <*> occurs abort m xs y
 
 instance Occurs a => Occurs [a] where
-    occurs abort m xs = mapM (occurs abort m) xs
+    occurs abort m xs ys = mapM (occurs abort m xs) ys
 
 abortAssign :: MonadTCM tcm => tcm a
 abortAssign =
@@ -340,25 +335,19 @@ assignV t x args v =
 	    debug $ "preparing to instantiate: " ++ show d
 
 	-- Check that the x doesn't occur in the right hand side
-	v <- liftTCM $ occursCheck x v
+	v <- liftTCM $ occursCheck x ids v
+
+	verboseS "tc.conv.assign" 30 $ do
+	  let n = size v
+	  when (n > 200) $ do
+	    r <- getMetaRange x
+	    d <- sep [ text "size" <+> text (show n)
+		     , nest 2 $ text "type" <+> prettyTCM t
+		     , nest 2 $ text "term" <+> prettyTCM v
+		     ]
+	    liftIO $ print d
 
 	reportLn 15 "passed occursCheck"
-
-	-- Check that all free variables of v are arguments to x
-	let fv	  = freeVars v
-	    idset = Set.fromList ids
-	    badrv = Set.toList $ Set.difference (rigidVars fv) idset
-	    badfv = Set.toList $ Set.difference (flexibleVars fv) idset
-	-- If a rigid variable is not in ids there is no hope
-	unless (null badrv) $ typeError $ MetaCannotDependOn x ids (head badrv)
-	-- If a flexible variable is not in ids we can wait and hope that it goes away
-	unless (null badfv) $ do
-	  verbose 15 $ do
-	    bad <- mapM (prettyTCM . flip Var []) badfv
-	    liftIO $ putStrLn $ "bad flexible variables: " ++ show bad
-	  patternViolation
-
-	reportLn 15 "passed free variable check"
 
 	-- Rename the variables in v to make it suitable for abstraction over ids.
 	v' <- do
@@ -378,7 +367,7 @@ assignV t x args v =
 	      t	  <- typeOfBV i
 	      x	  <- nameOfBV i
 	      return $ ExtendTel (Arg NotHidden t) (Abs (show x) tel)
-	tel' <- foldr extTel (return EmptyTel) ids
+	tel' <- foldr extTel (return EmptyTel) ids  -- TODO: this can't be the right way of building the tele
 
 	verbose 15 $ do
 	    d <- prettyTCM (abstract tel' v')
@@ -402,7 +391,7 @@ assignV t x args v =
 assignS :: MonadTCM tcm => MetaId -> Sort -> tcm Constraints
 assignS x s =
     handleAbort (equalSort (MetaS x) s) $ do
-	occursCheck x s
+	s <- occursCheck x [] s
 	x =: s
 	return []
 
