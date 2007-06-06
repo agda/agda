@@ -234,10 +234,20 @@ newMetaSame x meta =
 
 -- | Extended occurs check.
 class Occurs t where
-    occurs :: MonadTCM tcm => tcm () -> MetaId -> t -> tcm t
+    {-# SPECIALIZE occurs :: TCM () -> MetaId -> Term -> TCM Term #-}
+    {-# SPECIALIZE occurs :: TCM () -> MetaId -> Type -> TCM Type #-}
+    {-# SPECIALIZE occurs :: TCM () -> MetaId -> Sort -> TCM Sort #-}
+    {-# SPECIALIZE occurs :: TCM () -> MetaId -> Arg Term -> TCM (Arg Term) #-}
+    {-# SPECIALIZE occurs :: TCM () -> MetaId -> Arg Type -> TCM (Arg Type) #-}
+    {-# SPECIALIZE occurs :: TCM () -> MetaId -> Abs Term -> TCM (Abs Term) #-}
+    {-# SPECIALIZE occurs :: TCM () -> MetaId -> Abs Type -> TCM (Abs Type) #-}
+    {-# SPECIALIZE occurs :: (Occurs a, Occurs b) => TCM () -> MetaId -> (a, b) -> TCM (a, b) #-}
+    {-# SPECIALIZE occurs :: TCM () -> MetaId -> [Arg Term] -> TCM [Arg Term] #-}
+    occurs :: TCM () -> MetaId -> t -> TCM t
 
+{-# SPECIALIZE occursCheck :: MetaId -> Term -> TCM Term #-}
 occursCheck :: (MonadTCM tcm, Occurs a) => MetaId -> a -> tcm a
-occursCheck m = occurs (typeError $ MetaOccursInItself m) m
+occursCheck m = liftTCM . occurs (typeError $ MetaOccursInItself m) m
 
 instance Occurs Term where
     occurs abort m v = do
@@ -330,7 +340,7 @@ assignV t x args v =
 	    debug $ "preparing to instantiate: " ++ show d
 
 	-- Check that the x doesn't occur in the right hand side
-	v <- occursCheck x v
+	v <- liftTCM $ occursCheck x v
 
 	reportLn 15 "passed occursCheck"
 
