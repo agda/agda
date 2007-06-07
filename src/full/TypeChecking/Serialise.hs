@@ -621,8 +621,8 @@ instance Binary a => Binary (Builtin a) where
 	    _ -> fail "no parse"
 
 instance Binary Interface where
-    put (Interface a b c d e) = put a >> put b >> put c >> put d >> put e
-    get = liftM5 Interface get get get get get
+    put (Interface a b c d) = put a >> put b >> put c >> put d
+    get = {-# SCC "get<Interface>" #-} liftM4 Interface get get get get
 
 ------------------------------------------------------------------------
 -- All tests
