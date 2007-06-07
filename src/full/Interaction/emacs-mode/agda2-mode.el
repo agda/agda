@@ -160,7 +160,14 @@ necessary to restart Agda mode after changing this variable."
   "State of an agda2-mode buffer.  \"Text\" or \"Type Correct\"")
 (make-variable-buffer-local 'agda2-buffer-state)
 
-(defconst agda2-buffer-identification '((:eval agda2-buffer-state) ": %12b"))
+(defconst agda2-buffer-identification
+  '((:eval agda2-buffer-state)
+    ": "
+    (:eval (let ((b (copy-sequence (buffer-name))))
+             (put-text-property 0 (length b)
+                                'face '(:weight bold)
+                                b)
+             (substring b 0 (min (length b) 30))))))
 (defconst agda2-help-address
   ""
   "Address accepting submissions of bug reports and questions")
