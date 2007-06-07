@@ -393,6 +393,7 @@ data Call = CheckClause Type A.Clause (Maybe Clause)
 	  | ScopeCheckLHS C.Name C.Pattern (Maybe A.LHS)
 	  | ScopeCheckDefinition D.NiceDefinition (Maybe A.Definition)
 	  | forall a. TermFunDef Range Name [A.Clause] (Maybe a)
+	  | forall a. SetRange Range (Maybe a)	-- ^ used by 'setCurrentRange'
             -- actually, 'a' is Termination.TermCheck.CallGraph
             -- but I was to lazy to import the stuff here --Andreas,2007-5-29
 
@@ -400,7 +401,17 @@ data Call = CheckClause Type A.Clause (Maybe Clause)
 
 instance HasRange a => HasRange (Trace a) where
     getRange (TopLevel _)      = noRange
-    getRange (Current c _ _ _) = getRange c
+    getRange (Current c par _ _)
+      | r == noRange = r
+      | otherwise    = getRange par
+      where r = getRange c
+
+instance HasRange a => HasRange (ParentCall a) where
+  getRange NoParent = noRange
+  getRange (Parent c par _)
+    | r == noRange = r
+    | otherwise	   = getRange par
+    where r = getRange c
 
 instance HasRange Call where
     getRange (CheckClause _ c _)	  = getRange c
@@ -425,6 +436,7 @@ instance HasRange Call where
     getRange (ScopeCheckDefinition d _)	  = getRange d
     getRange (CheckDotPattern e _ _)	  = getRange e
     getRange (TermFunDef i _ _ _)	  = getRange i
+    getRange (SetRange r _)		  = r
 
 ---------------------------------------------------------------------------
 -- ** Builtin things

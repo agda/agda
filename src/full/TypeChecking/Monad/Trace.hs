@@ -45,6 +45,9 @@ setTrace tr = liftTCM $ modify $ \s -> s { stTrace = tr }
 getCurrentRange :: MonadTCM tcm => tcm Range
 getCurrentRange = getRange <$> getTrace
 
+setCurrentRange :: MonadTCM tcm => Range -> tcm a -> tcm a
+setCurrentRange r = traceCall (SetRange r)
+
 onTrace :: MonadTCM tcm => (CallTrace -> CallTrace) -> tcm ()
 onTrace f = do
     tr <- getTrace

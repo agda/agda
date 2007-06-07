@@ -431,6 +431,8 @@ instance PrettyTCM Call where
 		   pwords "in the definition of" ++ [pretty x]
 	TermFunDef _ f _ _ ->
 	    fsep $ pwords "when termination checking the definition of" ++ [prettyTCM f]
+	SetRange r _ ->
+	    fsep $ pwords "when doing something at" ++ [text $ show r]
 
 	where
 	    hPretty a@(Arg h _) = pretty =<< abstractToConcreteCtx (hiddenArgumentCtx h) a
@@ -467,5 +469,6 @@ interestingCall cl = case clValue cl of
     InferVar _ _	      -> Nothing
     InferDef _ _ _	      -> Nothing
     CheckArguments _ [] _ _ _ -> Nothing
+    SetRange _ _	      -> Nothing
     _			      -> Just cl
 

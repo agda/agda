@@ -214,7 +214,8 @@ etaExpandMeta m = do
     MetaV i _	-> listenToMeta m i
     Def r ps	->
       ifM (isRecord r) (do
-	u <- newRecordMetaCtx r ps tel args
+	rng <- getMetaRange m
+	u   <- setCurrentRange rng $ newRecordMetaCtx r ps tel args
 	inContext [] $ addCtxTel tel $ do
 	  verbose 20 $ do
 	    du <- prettyTCM u
@@ -224,14 +225,6 @@ etaExpandMeta m = do
     _		-> return ()
 
   return ()
-
--- | Generate new metavar of same kind ('Open'X) as that
---     pointed to by @MetaId@ arg.
---
-newMetaSame :: MonadTCM tcm => MetaId -> (MetaId -> a) -> tcm a
-newMetaSame x meta =
-    do	mv <- lookupMeta x
-	meta <$> newMeta (getMetaInfo mv) (mvPriority mv) (mvJudgement mv)
 
 -- | Extended occurs check.
 class Occurs t where
