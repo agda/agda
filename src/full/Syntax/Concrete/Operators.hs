@@ -43,6 +43,7 @@ import TypeChecking.Monad.State (getScope)
 import Utils.ReadP
 import Utils.Monad
 import Utils.Tuple
+import Utils.Function
 
 #include "../../undefined.h"
 
@@ -65,7 +66,7 @@ getDefinedNames kinds = do
   names <- allNamesInScope . mergeScopes . scopeStack <$> getScope
   return [ (x, A.nameFixity $ A.qnameName $ anameName d)
 	 | (QName x, ds) <- Map.assocs names
-	 , d		 <- ds
+	 , d		 <- take 1 ds
 	 , anameKind d `elem` kinds
 	 ]
 
@@ -75,7 +76,7 @@ localNames :: ScopeM ([Name], [(Name, Fixity)])
 localNames = do
   defs   <- getDefinedNames [DefName, ConName]
   locals <- scopeLocals <$> getScope
-  return $ split $ map localOp locals ++ defs
+  return $ split $ nubBy ((==) `on` fst) $ map localOp locals ++ defs
   where
     localOp (x, _) = (x, defaultFixity)
     split ops = ([ x | Left x <- zs], [ y | Right y <- zs ])
