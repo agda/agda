@@ -4,9 +4,17 @@ To install Agda 2, proceed as follows:
 0) Install prerequisites (recent versions of GHC, Alex and Happy).
 
    In addition to the libraries distributed with GHC you will need the binary
-   package which can be downloaded from
+   and zlib packages which can be downloaded from Hackage:
 
-   http://hackage.haskell.org/cgi-bin/hackage-scripts/package/binary-0.3
+     http://hackage.haskell.org/cgi-bin/hackage-scripts/package/binary-0.3
+     http://hackage.haskell.org/cgi-bin/hackage-scripts/package/zlib-0.3
+
+   The zlib Haskell package requires the development files of the zlib
+   C package to be installed (see http://zlib.net). Your package
+   manager may be able to install these files for you. (For instance,
+   on Debian or Ubuntu it should suffice to run
+     apt-get zlib1g-dev
+   as root to get the correct files installed.)
 
 1) Download Agda 2, perhaps as follows:
 

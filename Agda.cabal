@@ -5,7 +5,7 @@ author:          Ulf Norell, Catarina Coquand, Makoto Takeyama, Nils Anders Dani
 maintainer:      Ulf Norell <ulfn@cs.chalmers.se>
 homepage:
 category:        Theorem Proving
-build-depends:   base, mtl, QuickCheck >= 1.0 && < 2.0, readline, haskell98, haskell-src, binary >= 0.3
+build-depends:   base, mtl, QuickCheck >= 1.0 && < 2.0, readline, haskell98, haskell-src, binary >= 0.3, zlib
 synopsis:        A dependently typed proof checker / programming language.
 hs-source-dirs:  src/full
 exposed-modules: AgdaMain

@@ -32,6 +32,7 @@ import qualified Data.Binary.Builder as B
 import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString.Base as BB
 import Data.Word
+import qualified Codec.Compression.GZip as G
 
 import Syntax.Common
 import Syntax.Concrete.Name as C
@@ -52,7 +53,7 @@ import Utils.Tuple
 -- | Current version of the interface. Only interface files of this version
 --   will be parsed.
 currentInterfaceVersion :: Int
-currentInterfaceVersion = 125
+currentInterfaceVersion = 126
 
 ------------------------------------------------------------------------
 -- A wrapper around Data.Binary
@@ -221,7 +222,7 @@ instance Binary Range where
 -- takes care of this, and fails if the version does not match.
 
 encode :: Binary a => a -> L.ByteString
-encode x = header `append` s
+encode x = G.compress $ header `append` s
   where
   (s, getState) = runPut (put x)
   header        = B.encode currentInterfaceVersion `append`
@@ -244,10 +245,11 @@ encodeFile f x = L.writeFile f (encode x)
 decode :: Binary a => L.ByteString -> a
 decode s
   | v /= currentInterfaceVersion = error "Wrong interface version"
-  | otherwise                    = runGet getState get s''
+  | otherwise                    = runGet getState get s'''
   where
-  (v,        s',  _) = B.runGetState B.get s 0
-  (getState, s'', _) = B.runGetState B.get s' 0
+  s' = G.decompress s
+  (v,        s'',  _) = B.runGetState B.get s'  0
+  (getState, s''', _) = B.runGetState B.get s'' 0
 
 -- | Decodes a file written by 'encodeFile'.
 
