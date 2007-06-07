@@ -134,7 +134,11 @@ bindLHSVars (p : ps) (ExtendTel a tel) ret =
 -- | Bind as patterns
 bindAsPatterns :: [AsBinding] -> TCM a -> TCM a
 bindAsPatterns []		 ret = ret
-bindAsPatterns (AsB x v a : asb) ret =
+bindAsPatterns (AsB x v a : asb) ret = do
+  reportSDoc "tc.lhs.as" 10 $ text "as pattern" <+> prettyTCM x <+>
+    sep [ text ":" <+> prettyTCM a
+	, text "=" <+> prettyTCM v
+	]
   addLetBinding x v a $ bindAsPatterns asb ret
 
 -- | Check a LHS. Main function.
@@ -322,6 +326,7 @@ checkLeftHandSide ps a ret = do
 	    reportSDoc "tc.lhs.top" 15 $ addCtxTel (delta1 `abstract` gamma `abstract` delta2) $
 	      nest 2 $ vcat
 		[ text "dpi0 = " <+> brackets (fsep $ punctuate comma $ map prettyTCM dpi0)
+		, text "asb0 = " <+> brackets (fsep $ punctuate comma $ map prettyTCM asb0)
 		]
 
 	    -- Plug the hole in the out pattern with c ys
@@ -362,14 +367,14 @@ checkLeftHandSide ps a ret = do
 	      , text "ps0' =" <+> brackets (fsep $ punctuate comma $ map prettyA ps0')
 	      ]
 
-	    -- The final dpis are the new ones plus the old ones substituted by ρ
+	    -- The final dpis and asbs are the new ones plus the old ones substituted by ρ
 	    let dpi' = substs rho dpi0 ++ newDpi
+		asb' = substs rho $ asb0 ++ raise (size delta2) (map (\x -> AsB x (Con c ys) ca) xs)
 
-	    -- Add the new as-bindings
-	    let asb' = raise (size delta2) (map (\x -> AsB x (Con c ys) ca) xs) ++ asb0
-
-	    reportSDoc "tc.lhs.top" 15 $ nest 2 $
-	      text "dpi' = " <+> brackets (fsep $ punctuate comma $ map prettyTCM dpi')
+	    reportSDoc "tc.lhs.top" 15 $ nest 2 $ vcat
+	      [ text "dpi' = " <+> brackets (fsep $ punctuate comma $ map prettyTCM dpi')
+	      , text "asb' = " <+> brackets (fsep $ punctuate comma $ map prettyTCM asb')
+	      ]
 
 	    -- Apply the substitution to the type
 	    let sigma'   = substs rho sigma0
