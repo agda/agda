@@ -349,20 +349,22 @@ annotate new goals NEW-GS"
                                       rest-undo))))))
 
 (defun agda2-info-action (name text)
-  "display buffer NAME with content TEXT"
+  "Insert TEXT into the Agda info buffer, display it, and display NAME
+in the buffer's mode line."
   (interactive)
-  (with-current-buffer (get-buffer-create name)
+  (with-current-buffer (get-buffer-create "*Agda2 information*")
     (erase-buffer)
     (insert text)
     (goto-char (point-min))
+    (put-text-property 0 (length name) 'face '(:weight bold) name)
+    (setq mode-line-buffer-identification name)
     (save-selected-window
-      (select-window (display-buffer (current-buffer) 'not-this-window))
+      (pop-to-buffer (current-buffer) 'not-this-window 'norecord)
       (shrink-window
        (- (window-height)
           (min (/ (frame-height) 2)
                (max window-min-height
-                    (1+ (count-lines(point-min)(point-max))))))))))
-
+                    (1+ (count-lines (point-min) (point-max))))))))))
 
 (defun agda2-show-goals()
   "Show all goals" (interactive)
