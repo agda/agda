@@ -52,7 +52,7 @@ import Utils.Tuple
 -- | Current version of the interface. Only interface files of this version
 --   will be parsed.
 currentInterfaceVersion :: Int
-currentInterfaceVersion = 126
+currentInterfaceVersion = 125
 
 ------------------------------------------------------------------------
 -- A wrapper around Data.Binary
@@ -64,8 +64,8 @@ currentInterfaceVersion = 126
 
 -- | Things hashed by the map.
 
-data Thing = String   String
-           | Position Int Int Int
+data Thing = String String
+           | Range  Range
   deriving (Show, Eq, Ord)
 
 -- | Unique identifiers.
@@ -203,28 +203,15 @@ instance Binary String where
       String s -> return s
       _        -> corruptError
 
--- | Position instance (replaces positions with unique identifiers).
+-- | Range instance (replaces ranges with unique identifiers).
 
-instance Binary P.Position where
-  put P.NoPos        = putWord8 0
-  put (P.Pn f a b c) = do
-    putWord8 1
-    put =<< lookupId (Position a b c)
-    put =<< lookupId (String f)
-  get = do
-    tok <- getWord8
-    case tok of
-      0 -> return P.NoPos
-      1 -> do
-        p <- lookupThing =<< get
-        case p of
-          Position a b c -> do
-            s <- lookupThing =<< get
-            case s of
-              String f -> return $ P.Pn f a b c
-              _ -> corruptError
-          _ -> corruptError
-      _ -> corruptError
+instance Binary Range where
+  put r = put =<< lookupId (Range r)
+  get   = do
+    x <- lookupThing =<< get
+    case x of
+      Range r -> return r
+      _       -> corruptError
 
 -- | Encodes the input, ensuring that strings are stored as unique
 -- identifiers.
@@ -272,13 +259,13 @@ decodeFile f = liftM decode $ L.readFile f
 ------------------------------------------------------------------------
 
 instance B.Binary Thing where
-  put (String s)       = B.putWord8 0 >> B.put s
-  put (Position a b c) = B.putWord8 1 >> B.put a >> B.put b >> B.put c
+  put (String s) = B.putWord8 0 >> B.put s
+  put (Range r)  = B.putWord8 1 >> B.put r
   get = {-# SCC "get<Thing>" #-} do
     tag <- B.getWord8
     case tag of
-      0 -> liftM  String   B.get
-      1 -> liftM3 Position B.get B.get B.get
+      0 -> liftM String B.get
+      1 -> liftM Range B.get
       _ -> corruptError
 
 instance B.Binary Range where
@@ -338,10 +325,6 @@ instance Binary a => Binary [a] where
 instance (Eq a, Binary a, Binary b) => Binary (Map a b) where
   put = put . Map.toAscList
   get = {-# SCC "get<Map>" #-} liftM Map.fromAscList get
-
-instance Binary Range where
-  put (P.Range p1 p2) = put p1 >> put p2
-  get = liftM2 P.Range get get
 
 instance Binary C.Name where
     put (C.NoName a b) = putWord8 0 >> put a >> put b
