@@ -53,7 +53,7 @@ import Utils.Tuple
 -- | Current version of the interface. Only interface files of this version
 --   will be parsed.
 currentInterfaceVersion :: Int
-currentInterfaceVersion = 126
+currentInterfaceVersion = 127
 
 ------------------------------------------------------------------------
 -- A wrapper around Data.Binary
@@ -214,15 +214,15 @@ instance Binary Range where
       Range r -> return r
       _       -> corruptError
 
--- | Encodes the input, ensuring that strings are stored as unique
--- identifiers.
+-- | Encodes the input, ensuring that certain things are stored using
+-- unique identifiers.
 --
 -- Note that the interface version is stored as the first thing in the
 -- resulting string, to ensure that we can always check it; 'decode'
 -- takes care of this, and fails if the version does not match.
 
 encode :: Binary a => a -> L.ByteString
-encode x = G.compress $ header `append` s
+encode x = header `append` G.compress s
   where
   (s, getState) = runPut (put x)
   header        = B.encode currentInterfaceVersion `append`
@@ -233,23 +233,21 @@ encode x = G.compress $ header `append` s
   -- is compiled with optimisations turned on...
   append (BB.LPS xs) (BB.LPS ys) = BB.LPS (xs ++ ys)
 
--- | Encodes a file, ensuring that strings are stored as unique
--- identifiers. See 'encode'.
-
-encodeFile :: Binary a => FilePath -> a -> IO ()
-encodeFile f x = L.writeFile f (encode x)
-
 -- | Decodes something encoded by 'encode'. Fails with 'error' if the
 -- interface version does not match the current interface version.
 
 decode :: Binary a => L.ByteString -> a
 decode s
   | v /= currentInterfaceVersion = error "Wrong interface version"
-  | otherwise                    = runGet getState get s'''
+  | otherwise = runGet getState get (G.decompress s'')
   where
-  s' = G.decompress s
-  (v,        s'',  _) = B.runGetState B.get s'  0
-  (getState, s''', _) = B.runGetState B.get s'' 0
+  (v,        s',  _) = B.runGetState B.get s  0
+  (getState, s'', _) = B.runGetState B.get s' 0
+
+-- | Encodes a file. See 'encode'.
+
+encodeFile :: Binary a => FilePath -> a -> IO ()
+encodeFile f x = L.writeFile f (encode x)
 
 -- | Decodes a file written by 'encodeFile'.
 
