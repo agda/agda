@@ -194,7 +194,8 @@ readInterface file = do
         -- Close the file
         close
 
-        return $ Just i
+	-- Force the interface to make sure the interface version is looked at
+        i `seq` return $ Just i
       -- Catch exceptions and close
       `catch` \e -> close >> handler e
   -- Catch exceptions
