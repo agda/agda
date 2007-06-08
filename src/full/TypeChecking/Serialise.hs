@@ -53,7 +53,7 @@ import Utils.Tuple
 -- | Current version of the interface. Only interface files of this version
 --   will be parsed.
 currentInterfaceVersion :: Int
-currentInterfaceVersion = 127
+currentInterfaceVersion = 128
 
 ------------------------------------------------------------------------
 -- A wrapper around Data.Binary
@@ -222,11 +222,14 @@ instance Binary Range where
 -- takes care of this, and fails if the version does not match.
 
 encode :: Binary a => a -> L.ByteString
-encode x = header `append` G.compress s
+encode x = B.encode currentInterfaceVersion `append`
+           B.encode stLen `append`
+           st `append`
+           G.compress s
   where
   (s, getState) = runPut (put x)
-  header        = B.encode currentInterfaceVersion `append`
-                  B.encode getState
+  st            = G.compress $ B.encode getState
+  stLen         = L.length st
 
   -- L.append is currently (GHC 6.6.1) strict in its second argument,
   -- and this somehow changes the semantics of encode when this module
@@ -239,10 +242,12 @@ encode x = header `append` G.compress s
 decode :: Binary a => L.ByteString -> a
 decode s
   | v /= currentInterfaceVersion = error "Wrong interface version"
-  | otherwise = runGet getState get (G.decompress s'')
+  | otherwise = runGet getState get (G.decompress s4)
   where
-  (v,        s',  _) = B.runGetState B.get s  0
-  (getState, s'', _) = B.runGetState B.get s' 0
+  (v,        s1, _) = B.runGetState B.get s  0
+  (stLen,    s2, _) = B.runGetState B.get s1 0
+  (s3, s4)          = L.splitAt stLen s2
+  (getState, _,  _) = B.runGetState B.get (G.decompress s3) 0
 
 -- | Encodes a file. See 'encode'.
 
