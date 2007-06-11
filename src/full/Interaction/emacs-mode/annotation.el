@@ -16,6 +16,12 @@ Becomes buffer-local when set.")
   "Keeps track of the positions that `annotation-goto' were invoked
 from.")
 
+(defun annotation-goto-possible (pos)
+  "Returns t if `annotation-goto-map' has a binding for the buffer
+position POS, and nil otherwise."
+  (if (gethash pos annotation-goto-map)
+      t))
+
 (defun annotation-goto-indirect (pos &optional other-window)
   "Go to the file/position specified by `annotation-goto-map' for the
 buffer position POS, if any. If OTHER-WINDOW is t, use another window

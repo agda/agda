@@ -755,10 +755,14 @@ to display the given position."
   (interactive "P")
   (annotation-goto-indirect (point) other-window))
 
-(defun agda2-goto-definition-mouse (ev)
-  "Go to the definition site of the name clicked on (if any)."
-  (interactive "e")
-  (annotation-goto-indirect (posn-point (event-end ev))))
+(defun agda2-goto-definition-mouse (ev prefix)
+  "Go to the definition site of the name clicked on, if any, and yank
+otherwise (see `mouse-yank-at-click')."
+  (interactive "e\nP")
+  (let ((pos (posn-point (event-end ev))))
+    (if (annotation-goto-possible pos)
+        (annotation-goto-indirect pos)
+      (mouse-yank-at-click ev prefix))))
 
 (defun agda2-go-back nil
   "Go back to the previous position in which
