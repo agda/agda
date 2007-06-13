@@ -24,8 +24,12 @@ open import Prelude.BinaryRelation.OrderMorphism         public
 
 open import Prelude.Bool   public
 open import Prelude.Fin    public
-open import Prelude.List   public
 open import Prelude.Maybe  public
 open import Prelude.Nat    public
 open import Prelude.String public
 open import Prelude.Unit   public
+
+import Prelude.List
+import Prelude.Vec
+module List = Prelude.List
+module Vec  = Prelude.Vec
