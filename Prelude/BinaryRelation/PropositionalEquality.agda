@@ -24,6 +24,9 @@ abstract
   ≡-cong : Congruential _≡_
   ≡-cong = subst⟶cong ≡-reflexive ≡-subst
 
+  ≡-cong₂ : Congruential₂ _≡_
+  ≡-cong₂ = cong+trans⟶cong₂ ≡-cong ≡-trans
+
   ≡-preorder : forall {a} -> Preorder {a} _≡_ _≡_
   ≡-preorder = record
     { refl  = ≡-reflexive
