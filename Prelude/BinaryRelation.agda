@@ -45,7 +45,7 @@ _Respects₂_ : {a : Set} -> Rel a -> Rel a -> Set
   (forall {y} -> ∼ Respects (flip₁ P y))
 
 Substitutive : {a : Set} -> Rel a -> Set1
-Substitutive {a} ∼ = forall (P : a -> Set) -> ∼ Respects P
+Substitutive {a} ∼ = (P : a -> Set) -> ∼ Respects P
 
 _Preserves_,_ : forall {a₁ a₂} -> (a₁ -> a₂) -> Rel a₁ -> Rel a₂ -> Set
 f Preserves _∼₁_ , _∼₂_ = forall {x y} -> x ∼₁ y -> f x ∼₂ f y
