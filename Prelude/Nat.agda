@@ -10,6 +10,7 @@ open import Prelude.Sum
 open import Prelude.BinaryRelation
 open import Prelude.BinaryRelation.PropositionalEquality
 
+infixl 7 _*_
 infixl 6 _+_ _∸_
 
 ------------------------------------------------------------------------
@@ -44,6 +45,12 @@ _∸_ : ℕ -> ℕ -> ℕ
 m     ∸ zero  = m
 zero  ∸ suc n = zero
 suc m ∸ suc n = m ∸ n
+
+_*_ : ℕ -> ℕ -> ℕ
+zero  * n = zero
+suc m * n = m * n + n
+
+{-# BUILTIN NATTIMES _*_ #-}
 
 ------------------------------------------------------------------------
 -- Queries
