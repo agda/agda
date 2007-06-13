@@ -532,12 +532,14 @@ NEW-TXT is a string to replace OLD-G, or `'paren', or `'no-paren'"
             (point) (count-lines (point-min) (point)) (1+ (current-column)))))
 
 (defun agda2-char-quote (c)
-  "Converts non-ASCII characters to the \xNNNN notation used in
-Haskell strings. ASCII characters (code points < 128) are converted to
-singleton strings."
+  "Converts non-ASCII characters to the \\xNNNN notation used in
+Haskell strings. (The characters are actually rendered as
+\"\\xNNNN\\&\", i.e. followed by a \"null character\", to avoid
+problems if they are followed by digits.) ASCII characters (code
+points < 128) are converted to singleton strings."
   (if (< c 128)
       (list c)
-    (append (format "\\x%x" (encode-char c 'ucs)) nil)))
+    (append (format "\\x%x\\&" (encode-char c 'ucs)) nil)))
 
 (defun agda2-string-quote (s)
   "Escape newlines, double quotes, etc. in the string S, add
