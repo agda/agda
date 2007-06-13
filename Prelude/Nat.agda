@@ -10,7 +10,7 @@ open import Prelude.Sum
 open import Prelude.BinaryRelation
 open import Prelude.BinaryRelation.PropositionalEquality
 
-infixl 6 _+_
+infixl 6 _+_ _∸_
 
 ------------------------------------------------------------------------
 -- The types
@@ -39,6 +39,11 @@ zero  + n = n
 suc m + n = suc (m + n)
 
 {-# BUILTIN NATPLUS _+_ #-}
+
+_∸_ : ℕ -> ℕ -> ℕ
+m     ∸ zero  = m
+zero  ∸ suc n = zero
+suc m ∸ suc n = m ∸ n
 
 ------------------------------------------------------------------------
 -- Queries
