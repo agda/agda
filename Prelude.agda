@@ -13,12 +13,13 @@ open import Prelude.Sum      public
 
 -- Binary relations.
 
-open import Prelude.BinaryRelation                       public
-open import Prelude.BinaryRelation.Conversion            public
-open import Prelude.BinaryRelation.Product               public
-open import Prelude.BinaryRelation.Sum                   public
-open import Prelude.BinaryRelation.PropositionalEquality public
-open import Prelude.BinaryRelation.OrderMorphism         public
+open import Prelude.BinaryRelation                        public
+open import Prelude.BinaryRelation.Conversion             public
+open import Prelude.BinaryRelation.Product                public
+open import Prelude.BinaryRelation.Sum                    public
+open import Prelude.BinaryRelation.PropositionalEquality  public
+open import Prelude.BinaryRelation.PropositionalEquality1 public
+open import Prelude.BinaryRelation.OrderMorphism          public
 
 -- Data.
 

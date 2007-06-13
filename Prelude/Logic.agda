@@ -4,13 +4,16 @@
 
 module Prelude.Logic where
 
-infix 4 _≡_
+infix 4 _≡_ _≡₁_
 infix  3 ¬_
 
 -- Propositional equality.
 
 data _≡_ {a : Set} (x : a) : a -> Set where
   ≡-refl : x ≡ x
+
+data _≡₁_ {a : Set1} (x : a) : a -> Set where
+  ≡₁-refl : x ≡₁ x
 
 -- Empty type.
 
