@@ -470,7 +470,7 @@ data TCEnv =
 	  , envCurrentModule :: ModuleName
 	  , envImportPath    :: [ModuleName]	-- ^ to detect import cycles
 	  , envMutualBlock   :: Maybe MutualId	-- ^ the current (if any) mutual block
-	  , envAbstractMode  :: Bool
+	  , envAbstractMode  :: AbstractMode
 		-- ^ When checking the typesignature of a public definition
 		--   or the body of a non-abstract definition this is true.
 		--   To prevent information about abstract things leaking
@@ -484,7 +484,7 @@ initEnv = TCEnv { envContext	   = []
 		, envCurrentModule = noModuleName
 		, envImportPath	   = []
 		, envMutualBlock   = Nothing
-		, envAbstractMode  = False
+		, envAbstractMode  = AbstractMode
 		}
 
 ---------------------------------------------------------------------------
@@ -498,6 +498,15 @@ type Context = [Arg (Name, Type)]
 ---------------------------------------------------------------------------
 
 type LetBindings = Map Name (Open (Term, Type))
+
+---------------------------------------------------------------------------
+-- ** Abstract mode
+---------------------------------------------------------------------------
+
+data AbstractMode = AbstractMode       -- ^ abstract things in the current module can be accessed
+		  | ConcreteMode       -- ^ no abstract things can be accessed
+		  | IgnoreAbstractMode -- ^ all abstract things can be accessed
+  deriving (Typeable, Data)
 
 ---------------------------------------------------------------------------
 -- * Type checking errors

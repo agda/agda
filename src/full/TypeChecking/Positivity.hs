@@ -29,7 +29,7 @@ import Utils.Monad
 
 -- | Check that a set of mutually recursive datatypes are strictly positive.
 checkStrictlyPositive :: [QName] -> TCM ()
-checkStrictlyPositive ds = notInAbstractMode $ flip evalStateT noAssumptions $ do
+checkStrictlyPositive ds = ignoreAbstractMode $ flip evalStateT noAssumptions $ do
     cs <- concat <$> mapM constructors ds
     mapM_ (\(d,c) -> checkPos ds d c =<< lift (normalise =<< typeOfConst c)) cs
     where

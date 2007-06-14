@@ -203,13 +203,17 @@ makeAbstract d = do def <- makeAbs $ theDef d
 	makeAbs (Constructor _ _ _ AbstractDef)	 = Nothing
 	makeAbs d				 = Just d
 
--- | Enter abstract mode
+-- | Enter abstract mode. Abstract definition in the current module are transparent.
 inAbstractMode :: MonadTCM tcm => tcm a -> tcm a
-inAbstractMode = local $ \e -> e { envAbstractMode = True }
+inAbstractMode = local $ \e -> e { envAbstractMode = AbstractMode }
 
--- | Not in abstract mode.
-notInAbstractMode :: MonadTCM tcm => tcm a -> tcm a
-notInAbstractMode = local $ \e -> e { envAbstractMode = False }
+-- | Not in abstract mode. All abstract definitions are opaque.
+inConcreteMode :: MonadTCM tcm => tcm a -> tcm a
+inConcreteMode = local $ \e -> e { envAbstractMode = ConcreteMode }
+
+-- | Ignore abstract mode. All abstract definitions are transparent.
+ignoreAbstractMode :: MonadTCM tcm => tcm a -> tcm a
+ignoreAbstractMode = local $ \e -> e { envAbstractMode = IgnoreAbstractMode }
 
 -- | Check whether a name might have to be treated abstractly (either if we're
 --   'inAbstractMode' or it's not a local name). Returns true for things not
@@ -218,9 +222,10 @@ treatAbstractly :: MonadTCM tcm => QName -> tcm Bool
 treatAbstractly q = treatAbstractly' q <$> ask
 
 treatAbstractly' :: QName -> TCEnv -> Bool
-treatAbstractly' q env
-  | envAbstractMode env = True
-  | otherwise		= not $ current == m || current `isSubModuleOf` m
+treatAbstractly' q env = case envAbstractMode env of
+  ConcreteMode	     -> True
+  IgnoreAbstractMode -> False
+  AbstractMode	     -> not $ current == m || current `isSubModuleOf` m
   where
     current = envCurrentModule env
     m	    = qnameModule q
