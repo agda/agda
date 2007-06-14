@@ -124,15 +124,16 @@ abstract
 
   ×-lex-≤-transitive
     :  forall {a₁} -> {≈₁ ≤₁ : Rel a₁}
-    -> ≈₁ Respects₂ ≤₁ -> PartialOrder ≈₁ ≤₁
+    -> PartialOrder ≈₁ ≤₁
     -> forall {a₂} -> {≤₂ : Rel a₂}
     -> Transitive ≤₂
     -> Transitive (×-Lex-≤ ≈₁ ≤₁ ≤₂)
-  ×-lex-≤-transitive {≈₁ = ≈₁} {≤₁ = ≤₁} resp₁ po₁ {≤₂ = ≤₂} trans₂ =
+  ×-lex-≤-transitive {≈₁ = ≈₁} {≤₁ = ≤₁} po₁ {≤₂ = ≤₂} trans₂ =
     ×-lex-transitive
-      {<₁ = ≤⟶< ≈₁ ≤₁} eq₁ (resp-≤⟶< eq₁ resp₁) (trans-≤⟶< po₁)
+      {<₁ = ≤⟶< ≈₁ ≤₁} equiv (resp-≤⟶< equiv ≈-resp-≤) (trans-≤⟶< po₁)
       {≤₂ = ≤₂} trans₂
-    where eq₁ = PartialOrder.equiv po₁
+    where
+    open module PO = PartialOrder po₁
 
   _×-antisymmetric_
     :  forall {a₁} -> {≈₁ ≤₁ : Rel a₁}
@@ -214,6 +215,27 @@ abstract
     asym (inj₁ x₁<y₁) (inj₂ y≈<x)  = irrefl₁ (sym₁ $ proj₁ y≈<x) x₁<y₁
     asym (inj₂ x≈<y)  (inj₁ y₁<x₁) = irrefl₁ (sym₁ $ proj₁ x≈<y) y₁<x₁
     asym (inj₂ x≈<y)  (inj₂ y≈<x)  = asym₂ (proj₂ x≈<y) (proj₂ y≈<x)
+
+  _×-≈-respects₂_
+    :  forall {a₁} -> {≈₁ ∼₁ : Rel a₁}
+    -> ≈₁ Respects₂ ∼₁
+    -> forall {a₂} -> {≈₂ ∼₂ : Rel a₂}
+    -> ≈₂ Respects₂ ∼₂
+    -> (≈₁ ×-Rel ≈₂) Respects₂ (∼₁ ×-Rel ∼₂)
+  _×-≈-respects₂_ {≈₁ = ≈₁} {∼₁ = ∼₁} resp₁
+                  {≈₂ = ≈₂} {∼₂ = ∼₂} resp₂ =
+    (\{_ _ _} -> resp¹) ,
+    (\{_ _ _} -> resp²)
+    where
+    ∼ = ∼₁ ×-Rel ∼₂
+
+    resp¹ : forall {x} -> (≈₁ ×-Rel ≈₂) Respects (∼ x)
+    resp¹ y≈y' x∼y = proj₁ resp₁ (proj₁ y≈y') (proj₁ x∼y) ,
+                     proj₁ resp₂ (proj₂ y≈y') (proj₂ x∼y)
+
+    resp² : forall {y} -> (≈₁ ×-Rel ≈₂) Respects (flip₁ ∼ y)
+    resp² x≈x' x∼y = proj₂ resp₁ (proj₁ x≈x') (proj₁ x∼y) ,
+                     proj₂ resp₂ (proj₂ x≈x') (proj₂ x∼y)
 
   ×-lex-≈-respects₂
     :  forall {a₁} -> {≈₁ <₁ : Rel a₁}
@@ -415,24 +437,25 @@ abstract
     ; preorder = preorder po₁ ×-preorder    preorder po₂
     ; antisym  = _×-antisymmetric_ {≤₁ = ≤₁} (antisym po₁)
                                    {≤₂ = ≤₂} (antisym po₂)
+    ; ≈-resp-≤ = ≈-resp-≤ po₁ ×-≈-respects₂ ≈-resp-≤ po₂
     }
     where open PartialOrder
 
   ×-lex-partialOrder
-    :  forall {a₁} -> {≈₁ ≤₁ : Rel a₁}
-    -> ≈₁ Respects₂ ≤₁ -> PartialOrder ≈₁ ≤₁
-    -> forall {a₂} -> {≈₂ ≤₂ : Rel a₂}
-    -> PartialOrder ≈₂ ≤₂
+    :  forall {a₁} -> {≈₁ ≤₁ : Rel a₁} -> PartialOrder ≈₁ ≤₁
+    -> forall {a₂} -> {≈₂ ≤₂ : Rel a₂} -> PartialOrder ≈₂ ≤₂
     -> PartialOrder (≈₁ ×-Rel ≈₂) (×-Lex-≤ ≈₁ ≤₁ ≤₂)
-  ×-lex-partialOrder {≈₁ = ≈₁} {≤₁ = ≤₁} resp₁ po₁ {≤₂ = ≤₂} po₂ = record
+  ×-lex-partialOrder {≈₁ = ≈₁} {≤₁ = ≤₁} po₁ {≤₂ = ≤₂} po₂ = record
     { equiv    = equiv po₁ ×-equivalence equiv po₂
     ; preorder = record
         { refl  = ×-lex-≤-reflexive ≈₁ ≤₁ ≤₂ (refl $ preorder po₂)
-        ; trans = ×-lex-≤-transitive {≤₁ = ≤₁} resp₁ po₁
+        ; trans = ×-lex-≤-transitive           po₁
                                      {≤₂ = ≤₂} (trans (preorder po₂))
         }
     ; antisym  = ×-lex-≤-antisymmetric {≤₁ = ≤₁} po₁
                                        {≤₂ = ≤₂} (antisym po₂)
+    ; ≈-resp-≤ = ×-lex-≤-≈-respects₂ (equiv po₁) (≈-resp-≤ po₁)
+                                                 (≈-resp-≤ po₂)
     }
     where
     open PartialOrder
@@ -444,28 +467,31 @@ abstract
     -> StrictPartialOrder (≈₁ ×-Rel ≈₂) (<₁ ×-Rel <₂)
   _×-strictPartialOrder_ {<₁ = <₁} spo₁ {≈₂ = ≈₂} {<₂ = <₂} spo₂ =
     record
-      { equiv  = equiv spo₁ ×-equivalence equiv spo₂
-      ; irrefl = ×-irreflexive₁           {<₁ = <₁} (irrefl spo₁)
-                                {≈₂ = ≈₂} {<₂ = <₂}
-      ; trans  = _×-transitive_ {∼₁ = <₁} (trans spo₁)
-                                {∼₂ = <₂} (trans spo₂)
+      { equiv    = equiv spo₁ ×-equivalence equiv spo₂
+      ; irrefl   = ×-irreflexive₁           {<₁ = <₁} (irrefl spo₁)
+                                  {≈₂ = ≈₂} {<₂ = <₂}
+      ; trans    = _×-transitive_ {∼₁ = <₁} (trans spo₁)
+                                  {∼₂ = <₂} (trans spo₂)
+      ; ≈-resp-< = ≈-resp-< spo₁ ×-≈-respects₂ ≈-resp-< spo₂
       }
     where open StrictPartialOrder
 
   _×-lex-strictPartialOrder_
     :  forall {a₁} -> {≈₁ <₁ : Rel a₁}
-    -> ≈₁ Respects₂ <₁ -> StrictPartialOrder ≈₁ <₁
+    -> StrictPartialOrder ≈₁ <₁
     -> forall {a₂} -> {≈₂ <₂ : Rel a₂}
     -> StrictPartialOrder ≈₂ <₂
     -> StrictPartialOrder (≈₁ ×-Rel ≈₂) (×-Lex ≈₁ <₁ <₂)
-  _×-lex-strictPartialOrder_ {<₁ = <₁} resp₁ spo₁ {<₂ = <₂} spo₂ =
+  _×-lex-strictPartialOrder_ {<₁ = <₁} spo₁ {<₂ = <₂} spo₂ =
     record
-      { equiv  = equiv spo₁ ×-equivalence equiv spo₂
-      ; irrefl = _×-lex-irreflexive_ <₁ (irrefl spo₁)
-                                     <₂ (irrefl spo₂)
-      ; trans  =
-          ×-lex-transitive {<₁ = <₁} (equiv spo₁) resp₁ (trans spo₁)
-                           {≤₂ = <₂} (trans spo₂)
+      { equiv    = equiv spo₁ ×-equivalence equiv spo₂
+      ; irrefl   = _×-lex-irreflexive_ <₁ (irrefl spo₁)
+                                       <₂ (irrefl spo₂)
+      ; trans    = ×-lex-transitive
+                     {<₁ = <₁} (equiv spo₁) (≈-resp-< spo₁) (trans spo₁)
+                     {≤₂ = <₂} (trans spo₂)
+      ; ≈-resp-< = ×-lex-≈-respects₂ (equiv spo₁) (≈-resp-< spo₁)
+                                                  (≈-resp-< spo₂)
       }
     where open StrictPartialOrder
 
@@ -489,13 +515,10 @@ ds₁ ×-decSetoid ds₂ = record
 
 _×-poset_ : Poset -> Poset -> Poset
 po₁ ×-poset po₂ = record
-  { carrier  = carrier po₁ ×       carrier po₂
-  ; _≈_      = _≈_     po₁ ×-Rel   _≈_     po₂
-  ; _≤_      = ×-Lex-≤ (_≈_ po₁) (_≤_ po₁) (_≤_ po₂)
-  ; ≈-resp-≤ = ×-lex-≤-≈-respects₂ (equiv (ord po₁))
-                                   (≈-resp-≤ po₁)
-                                   (≈-resp-≤ po₂)
-  ; ord      = ×-lex-partialOrder (≈-resp-≤ po₁) (ord po₁) (ord po₂)
+  { carrier = carrier po₁ ×       carrier po₂
+  ; _≈_     = _≈_     po₁ ×-Rel   _≈_     po₂
+  ; _≤_     = ×-Lex-≤ (_≈_ po₁) (_≤_ po₁) (_≤_ po₂)
+  ; ord     = ×-lex-partialOrder (ord po₁) (ord po₂)
   }
   where
   open Poset

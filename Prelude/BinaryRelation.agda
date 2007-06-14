@@ -175,11 +175,13 @@ record PartialOrder {a : Set} (_≈_ _≤_ : Rel a) : Set where
   equiv    : Equivalence _≈_
   preorder : Preorder _≈_ _≤_
   antisym  : Antisymmetric _≈_ _≤_
+  ≈-resp-≤ : _≈_ Respects₂ _≤_
 
 record StrictPartialOrder {a : Set} (_≈_ _<_ : Rel a) : Set where
-  equiv   : Equivalence _≈_
-  irrefl  : Irreflexive _≈_ _<_
-  trans   : Transitive _<_
+  equiv    : Equivalence _≈_
+  irrefl   : Irreflexive _≈_ _<_
+  trans    : Transitive _<_
+  ≈-resp-< : _≈_ Respects₂ _<_
 
 ------------------------------------------------------------------------
 -- Properties packaged up with sets and relations
@@ -199,7 +201,6 @@ record Poset : Set1 where
   carrier  : Set
   _≈_      : Rel carrier
   _≤_      : Rel carrier
-  ≈-resp-≤ : _≈_ Respects₂ _≤_
   ord      : PartialOrder _≈_ _≤_
 
 open Poset

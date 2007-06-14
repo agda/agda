@@ -45,7 +45,8 @@ _ ⊤-≤? _ = yes _
       { refl    = \_ -> _
       ; trans   = \_ _ -> _
       }
-  ; antisym = antisym
+  ; antisym  = antisym
+  ; ≈-resp-≤ = subst⟶resp₂ _⊤-≤_ ≡-subst
   }
   where
   antisym : Antisymmetric _≡_ _⊤-≤_
@@ -56,7 +57,6 @@ _ ⊤-≤? _ = yes _
   { carrier  = ⊤
   ; _≈_      = _≡_
   ; _≤_      = _⊤-≤_
-  ; ≈-resp-≤ = subst⟶resp₂ _⊤-≤_ ≡-subst
   ; ord      = ⊤-partialOrder
   }
 

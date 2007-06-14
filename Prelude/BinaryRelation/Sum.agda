@@ -353,6 +353,7 @@ abstract
     { equiv    = equiv    po₁ ⊎-equivalence   equiv    po₂
     ; preorder = preorder po₁ ⊎-preorder      preorder po₂
     ; antisym  = antisym  po₁ ⊎-antisymmetric antisym  po₂
+    ; ≈-resp-≤ = ≈-resp-≤ po₁ ⊎-≈-respects₂   ≈-resp-≤ po₂
     }
     where open PartialOrder
 
@@ -374,6 +375,7 @@ abstract
     { equiv    = equiv    po₁ ⊎-equivalence     equiv    po₂
     ; preorder = preorder po₁ ⊎-≤-preorder      preorder po₂
     ; antisym  = antisym  po₁ ⊎-≤-antisymmetric antisym  po₂
+    ; ≈-resp-≤ = ≈-resp-≤ po₁ ⊎-≤-≈-respects₂   ≈-resp-≤ po₂
     }
     where open PartialOrder
 
@@ -382,9 +384,10 @@ abstract
     -> forall {a₂} -> {≈₂ <₂ : Rel a₂} -> StrictPartialOrder ≈₂ <₂
     -> StrictPartialOrder (≈₁ ⊎-Rel ≈₂) (<₁ ⊎-≤ <₂)
   spo₁ ⊎-≤-strictPartialOrder spo₂ = record
-    { equiv  = equiv  spo₁ ⊎-equivalence   equiv  spo₂
-    ; irrefl = irrefl spo₁ ⊎-≤-irreflexive irrefl spo₂
-    ; trans  = trans  spo₁ ⊎-≤-transitive  trans  spo₂
+    { equiv    = equiv    spo₁ ⊎-equivalence   equiv    spo₂
+    ; irrefl   = irrefl   spo₁ ⊎-≤-irreflexive irrefl   spo₂
+    ; trans    = trans    spo₁ ⊎-≤-transitive  trans    spo₂
+    ; ≈-resp-< = ≈-resp-< spo₁ ⊎-≤-≈-respects₂ ≈-resp-< spo₂
     }
     where open StrictPartialOrder
 
@@ -411,7 +414,6 @@ po₁ ⊎-poset po₂ = record
   { carrier  = carrier  po₁ ⊎              carrier  po₂
   ; _≈_      = _≈_      po₁ ⊎-Rel          _≈_      po₂
   ; _≤_      = _≤_      po₁ ⊎-Rel          _≤_      po₂
-  ; ≈-resp-≤ = ≈-resp-≤ po₁ ⊎-≈-respects₂  ≈-resp-≤ po₂
   ; ord      = ord      po₁ ⊎-partialOrder ord      po₂
   }
   where
@@ -423,7 +425,6 @@ po₁ ⊎-≤-poset po₂ = record
   { carrier  = carrier  po₁ ⊎                carrier  po₂
   ; _≈_      = _≈_      po₁ ⊎-Rel            _≈_      po₂
   ; _≤_      = _≤_      po₁ ⊎-≤              _≤_      po₂
-  ; ≈-resp-≤ = ≈-resp-≤ po₁ ⊎-≤-≈-respects₂  ≈-resp-≤ po₂
   ; ord      = ord      po₁ ⊎-≤-partialOrder ord      po₂
   }
   where

@@ -169,21 +169,25 @@ abstract
   po⟶spo :  forall {a} -> {≈ ≤ : Rel a}
          -> PartialOrder ≈ ≤ -> StrictPartialOrder ≈ (≤⟶< ≈ ≤)
   po⟶spo {≈ = _≈_} {≤ = _≤_} po = record
-    { equiv  = PartialOrder.equiv po
-    ; irrefl = irrefl-≤⟶< _≈_ _≤_
-    ; trans  = trans-≤⟶< po
+    { equiv    = equiv
+    ; irrefl   = irrefl-≤⟶< _≈_ _≤_
+    ; trans    = trans-≤⟶< po
+    ; ≈-resp-< = resp-≤⟶< equiv ≈-resp-≤
     }
+    where
+    open module PO = PartialOrder po
 
   spo⟶po :  forall {a} -> {≈ < : Rel a}
          -> ≈ Respects₂ < -> StrictPartialOrder ≈ <
          -> PartialOrder ≈ (<⟶≤ ≈ <)
   spo⟶po {≈ = ≈} {< = <} resp spo = record
-    { equiv   = equiv
+    { equiv    = equiv
     ; preorder = record
         { refl    = refl-<⟶≤ ≈ <
         ; trans   = trans-<⟶≤ {< = <} Eq.sym Pre.trans resp trans
         }
-    ; antisym = antisym-<⟶≤ equiv trans irrefl
+    ; antisym  = antisym-<⟶≤ equiv trans irrefl
+    ; ≈-resp-≤ = resp-<⟶≤ equiv ≈-resp-<
     }
     where
     open module SPO = StrictPartialOrder spo

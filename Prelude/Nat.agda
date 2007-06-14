@@ -108,7 +108,8 @@ abstract
       { refl  = refl
       ; trans = trans
       }
-  ; antisym = antisym
+  ; antisym  = antisym
+  ; ≈-resp-≤ = subst⟶resp₂ _ℕ-≤_ ≡-subst
   }
   where
   abstract
@@ -130,7 +131,6 @@ abstract
   { carrier  = ℕ
   ; _≈_      = _≡_
   ; _≤_      = _ℕ-≤_
-  ; ≈-resp-≤ = subst⟶resp₂ _ℕ-≤_ ≡-subst
   ; ord      = ℕ-partialOrder
   }
 
