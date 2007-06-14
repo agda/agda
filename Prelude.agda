@@ -35,3 +35,8 @@ import Prelude.List
 import Prelude.Vec
 module List = Prelude.List
 module Vec  = Prelude.Vec
+
+-- Utilities.
+
+import Prelude.PreorderProof
+module PreorderProof = Prelude.PreorderProof
