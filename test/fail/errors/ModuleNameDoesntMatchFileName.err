@@ -1,0 +1,5 @@
+errors/ModuleNameDoesntMatchFileName.agda:4,1-17
+The name of the top level module does not match the file name.
+Expected module Imports.B, found Imports.A
+when scope checking the declaration
+  import Imports.B

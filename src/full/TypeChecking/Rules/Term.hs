@@ -128,13 +128,14 @@ litType l = case l of
 checkExpr :: A.Expr -> Type -> TCM Term
 checkExpr e t =
     traceCall (CheckExpr e t) $ localScope $ do
-    verbose 15 $ do
-        d <- text "Checking" <+> fsep [ prettyTCM e, text ":", prettyTCM t ]
-        liftIO $ print d
+    reportSDoc "tc.term.expr.top" 15 $
+        text "Checking" <+> sep
+	  [ fsep [ prettyTCM e, text ":", prettyTCM t ]
+	  , nest 2 $ text "at " <+> (text . show =<< getCurrentRange)
+	  ]
     t <- reduce t
-    verbose 15 $ do
-        d <- text "    --> " <+> prettyTCM t
-        liftIO $ print d
+    reportSDoc "tc.term.expr.top" 15 $
+        text "    --> " <+> prettyTCM t
     let scopedExpr (A.ScopedExpr scope e) = setScope scope >> scopedExpr e
 	scopedExpr e			  = return e
     e <- scopedExpr e
@@ -144,7 +145,7 @@ checkExpr e t =
 	_   | not (hiddenLambda e)
 	    , FunV (Arg Hidden _) _ <- funView (unEl t) -> do
 		x <- freshName r (argName t)
-                reportLn 15 $ "Inserting implicit lambda"
+                reportSLn "tc.term.expr.impl" 15 $ "Inserting implicit lambda"
 		checkExpr (A.Lam (Info.ExprRange $ getRange e) (A.DomainFree Hidden x) e) t
 	    where
 		r = emptyR (rStart $ getRange e)

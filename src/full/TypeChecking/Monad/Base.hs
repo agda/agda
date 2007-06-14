@@ -401,15 +401,15 @@ data Call = CheckClause Type A.Clause (Maybe Clause)
 instance HasRange a => HasRange (Trace a) where
     getRange (TopLevel _)      = noRange
     getRange (Current c par _ _)
-      | r == noRange = r
-      | otherwise    = getRange par
+      | r == noRange = getRange par
+      | otherwise    = r
       where r = getRange c
 
 instance HasRange a => HasRange (ParentCall a) where
   getRange NoParent = noRange
   getRange (Parent c par _)
-    | r == noRange = r
-    | otherwise	   = getRange par
+    | r == noRange = getRange par
+    | otherwise	   = r
     where r = getRange c
 
 instance HasRange Call where

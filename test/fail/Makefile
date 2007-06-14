@@ -42,9 +42,12 @@ debug :
 $(allout) : %.err : %.agda
 	@echo "$*.agda"
 	@if $(agda) -v$(V) $(shell if [ -e $*.flags ]; then cat $*.flags; fi) $< > $*.tmp; \
-		then echo "Unexpected success"; rm $*.tmp; false; \
-    else if [ -s $@ ]; then sed -e "s/^.*test.fail.//g" $*.tmp > $@; cat $@; rm $*.tmp; \
-					else rm $@ $*.tmp; false; fi; fi
+		then echo "Unexpected success"; rm -f $*.tmp; false; \
+    else if [ -s $*.tmp ]; \
+				 then sed -e "s/^.*test.fail.//g" $*.tmp > $@; cat $@; rm -f $*.tmp; true; \
+				 else rm -f $@ $*.tmp; false; \
+				 fi; \
+		fi
 # Agda should fail with non-empty output
 
 $(allstems) : % : %.err
@@ -54,18 +57,18 @@ $(allstems) : % : %.err
 		then echo "Unexpected success"; rm -f $*.tmp.2; false; \
     else sed -e "s/^.*test.fail.//g" $*.tmp.2 > $*.tmp; true; fi
 	@if cmp $*.err $*.tmp; \
-		then rm $*.tmp; rm $*.tmp.2; \
+		then rm -f $*.tmp $*.tmp.2; true; \
 		else echo "== Old error ==="; \
 			 cat $*.err; \
 			 echo "== New error ==="; \
 			 cat $*.tmp; \
-			 rm $*.tmp; rm $*.tmp.2; \
+			 rm -f $*.tmp; rm -f $*.tmp.2; \
 			 false; \
 	 fi
 
 # Clean
 
 clean :
-	-rm *.err *.tmp *~
+	-rm -f *.err *.tmp *~
 
 # EOF
