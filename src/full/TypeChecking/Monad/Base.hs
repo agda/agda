@@ -580,6 +580,7 @@ data TypeError
 	| FileNotFound ModuleName [FilePath]
 	| ClashingFileNamesFor ModuleName [FilePath]
     -- Scope errors
+	| ModuleNameDoesntMatchFileName ModuleName ModuleName -- ^ @NoMatch given expected@
 	| BothWithAndRHS
 	| NotInScope [C.QName]
 	| NoSuchModule C.QName

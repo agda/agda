@@ -167,7 +167,7 @@ getInterface x = alreadyVisited x $ addImportCycleCheck x $ do
 	    vs	  <- getVisitedModules
 	    opts  <- commandLineOptions
 	    trace <- getTrace
-	    r  <- liftIO $ createInterface opts trace ms vs file
+	    r  <- liftIO $ createInterface opts trace ms vs x file
 
 	    -- Write interface file and return
 	    case r of
@@ -175,7 +175,6 @@ getInterface x = alreadyVisited x $ addImportCycleCheck x $ do
 		Right (vs, i, isig)  -> do
                     -- Merge in the signatures imported by file.
                     modify $ \st -> st { stImports = unionSignatures [stImports st, isig] }
-		    -- liftIO $ writeBinaryFile ifile (serialise i)
 		    liftIO $ writeInterface ifile i
 		    t <- liftIO $ getModificationTime ifile
 		    setVisitedModules vs
@@ -215,9 +214,10 @@ writeInterface file i = do
     putStrLn $ "failed to write interface: " ++ show e
     return ()
 
-createInterface :: CommandLineOptions -> CallTrace -> [ModuleName] -> VisitedModules -> FilePath ->
+createInterface :: CommandLineOptions -> CallTrace -> [ModuleName] -> VisitedModules ->
+		   ModuleName -> FilePath ->
 		   IO (Either TCErr (VisitedModules, Interface, Signature))
-createInterface opts trace path visited file = runTCM $ withImportPath path $ do
+createInterface opts trace path visited mname file = runTCM $ withImportPath path $ do
 
     setTrace trace
     setCommandLineOptions opts
@@ -227,6 +227,10 @@ createInterface opts trace path visited file = runTCM $ withImportPath path $ do
     (pragmas, top) <- liftIO $ parseFile' moduleParser file
     pragmas	   <- concreteToAbstract_ pragmas -- identity for top-level pragmas
     topLevel	   <- concreteToAbstract_ (TopLevel top)
+
+    -- Check the module name
+    let mname' = scopeName $ head $ scopeStack $ insideScope topLevel
+    unless (mname' == mname) $ typeError $ ModuleNameDoesntMatchFileName mname' mname
 
     setOptionsFromPragmas pragmas
 

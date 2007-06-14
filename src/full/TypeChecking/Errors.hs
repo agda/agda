@@ -100,6 +100,7 @@ errorString err = case err of
     MetaCannotDependOn _ _ _		       -> "MetaCannotDependOn"
     MetaOccursInItself _		       -> "MetaOccursInItself"
     ModuleDoesntExport _ _		       -> "ModuleDoesntExport"
+    ModuleNameDoesntMatchFileName _ _	       -> "ModuleNameDoesntMatchFileName"
     NoBindingForBuiltin _		       -> "NoBindingForBuiltin"
     NoParseForApplication _		       -> "NoParseForApplication"
     NoParseForLHS _			       -> "NoParseForLHS"
@@ -282,6 +283,9 @@ instance PrettyTCM TypeError where
 		fsep ( pwords "Multiple possible sources for module" ++ [text $ show x] ++
 		       pwords "found:"
 		     ) $$ nest 2 (vcat $ map text files)
+	    ModuleNameDoesntMatchFileName given expected -> fsep $
+	      pwords "The name of the top level module does not match the file name. Expected module" ++
+	      [ text (show expected) <> comma ] ++ pwords "found" ++ [ text (show given) ]
             BothWithAndRHS -> fsep $
               pwords "Unexpected right hand side"
 	    NotInScope xs ->
