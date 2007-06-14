@@ -5,7 +5,7 @@
 module Prelude.Logic where
 
 infix 4 _≡_ _≡₁_
-infix  3 ¬_
+infix 3 ¬_
 
 -- Propositional equality.
 

@@ -48,14 +48,14 @@ abstract
   ℕ-+-identity : Identity 0 _+_
   ℕ-+-identity = (\_ -> byDef) , n+0≡n
     where
-    n+0≡n : forall n -> n + 0 ≡ n
+    n+0≡n : RightIdentity 0 _+_
     n+0≡n zero    = byDef
     n+0≡n (suc n) = ≡-cong suc $ n+0≡n n
 
   ℕ-zero : Zero 0 _*_
   ℕ-zero = (\_ -> byDef) , n*0≡0
     where
-    n*0≡0 : forall n -> n * 0 ≡ 0
+    n*0≡0 : RightZero 0 _*_
     n*0≡0 zero    = byDef
     n*0≡0 (suc n) =
         suc n * 0
@@ -79,7 +79,7 @@ abstract
       n + suc m
     ∎
 
-  ℕ-*-comm : forall m n -> m * n ≡ n * m
+  ℕ-*-comm : Commutative _*_
   ℕ-*-comm zero    n = ≡-sym $ proj₂ ℕ-zero n
   ℕ-*-comm (suc m) n =
       suc m * n
@@ -109,7 +109,7 @@ abstract
   ℕ-*-identity : Identity 1 _*_
   ℕ-*-identity = (\_ -> byDef) , n*1≡n
     where
-    n*1≡n : forall n -> n * 1 ≡ n
+    n*1≡n : RightIdentity 1 _*_
     n*1≡n n =
         n * 1
       ≃⟨ ℕ-*-comm n 1 ⟩
@@ -154,7 +154,7 @@ abstract
        n * m + o * m
                       ∎
 
-  ℕ-*-assoc : forall m n o -> m * (n * o) ≡ (m * n) * o
+  ℕ-*-assoc : Associative _*_
   ℕ-*-assoc zero    n o = byDef
   ℕ-*-assoc (suc m) n o =
     suc m * (n * o)
@@ -203,7 +203,7 @@ abstract
 
 abstract
 
-  0∸n≡0 : forall n -> zero ∸ n ≡ zero
+  0∸n≡0 : LeftZero zero _∸_
   0∸n≡0 zero    = byDef
   0∸n≡0 (suc _) = byDef
 

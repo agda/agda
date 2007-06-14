@@ -75,8 +75,7 @@ abstract
   suc m ℕ-≟ suc .m | yes ≡-refl = yes ≡-refl
   suc m ℕ-≟ suc n  | no prf     = no (prf ∘ ≡-cong pred)
   zero  ℕ-≟ suc n  = no (⊥-elim ∘ zero≢suc)
-  suc m ℕ-≟ zero   = no (⊥-elim ∘ zero≢suc ∘ sym)
-    where sym = Equivalence.sym ≡-equivalence
+  suc m ℕ-≟ zero   = no (⊥-elim ∘ zero≢suc ∘ ≡-sym)
 
   suc≰zero : forall {n} -> ¬ suc n ℕ-≤ zero
   suc≰zero ()
