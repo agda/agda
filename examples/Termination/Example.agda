@@ -34,14 +34,14 @@ true && a = a
 false && a = false
 
 mutual
-  
+
   even : Nat -> Bool
   even zero = true
   even (succ n) = odd n
 
   odd  : Nat -> Bool
   odd zero = false
-  odd (succ n) = even n 
+  odd (succ n) = even n
 
 data Ty : {_ : Nat} -> Set where
     Base : forall {n} -> Ty {succ n}
@@ -60,17 +60,17 @@ subty _ _ = false
 -- the following is enough for making it termination check
 subty' : forall {n} -> Ty {n} -> Ty {n} -> Bool
 subty' Base Base = true
-subty' {succ n} (Arr a b) (Arr a' b') 
+subty' {succ n} (Arr a b) (Arr a' b')
      = (subty' a' a) && (subty' b b')
 subty' _ _ = false
 
 subty'' : forall {n} -> Ty {n} -> Ty {n} -> Bool
 subty'' Base Base = true
-subty'' {succ n} (Arr {.n} a b) (Arr .{n} a'' b'') 
+subty'' {succ n} (Arr {.n} a b) (Arr .{n} a'' b'')
      = (subty'' {n} a'' a) && (subty'' {n} b b'')
 subty'' _ _ = false
 
- 
+
 data _×_ (A B : Set) : Set where
     _,_ : A -> B -> A × B
 
@@ -86,16 +86,16 @@ eq _ = false
 
 -- the following should not termination check
 
-mutual 
+mutual
 
   f : Nat -> Nat -> Nat
 
   f zero y = zero
   f (succ x) zero = zero
-  f (succ x) (succ y) = (g x (succ y)) + (f  (succ (succ x)) y) 
+  f (succ x) (succ y) = (g x (succ y)) + (f  (succ (succ x)) y)
 
   g : Nat -> Nat -> Nat
- 
+
   g zero y = zero
   g (succ x) zero = zero
   g (succ x) (succ y) = (f (succ x) (succ y)) + (g x (succ (succ y)))
@@ -103,16 +103,16 @@ mutual
 
 -- these are ok, however
 
-mutual 
+mutual
 
   f' : Nat -> Nat -> Nat
 
   f' zero y = zero
   f' (succ x) zero = zero
-  f' (succ x) (succ y) = (g' x (succ y)) + (f'  (succ (succ x)) y) 
+  f' (succ x) (succ y) = (g' x (succ y)) + (f'  (succ (succ x)) y)
 
   g' : Nat -> Nat -> Nat
- 
+
   g' zero y = zero
   g' (succ x) zero = zero
   g' (succ x) (succ y) = (f' (succ x) (succ y)) + (g' x (succ y))
@@ -122,16 +122,16 @@ mutual
 bla : Nat
 bla = succ (succ zero)
 
-mutual 
+mutual
 
   f'' : Nat -> Nat -> Nat
 
   f'' zero y = zero
   f'' (succ x) zero = zero
-  f'' (succ x) (succ y) = (g'' x (succ y)) + (f'' bla y) 
+  f'' (succ x) (succ y) = (g'' x (succ y)) + (f'' bla y)
 
   g'' : Nat -> Nat -> Nat
- 
+
   g'' zero y = zero
   g'' (succ x) zero = zero
   g'' (succ x) (succ y) = (f'' (succ x) (succ y)) + (g'' x (succ y))
