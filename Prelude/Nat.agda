@@ -64,8 +64,8 @@ abstract
   ℕ-total (suc m) (suc n) | inj₁ m≤n = inj₁ (s≤s m≤n)
   ℕ-total (suc m) (suc n) | inj₂ n≤m = inj₂ (s≤s n≤m)
 
-abstract
- mutual
+  zero≢suc : forall {n} -> ¬ zero ≡ suc n
+  zero≢suc ()
 
   _ℕ-≟_ : Decidable {ℕ} _≡_
   zero  ℕ-≟ zero   = yes ≡-refl
@@ -76,6 +76,12 @@ abstract
   suc m ℕ-≟ zero   = no (⊥-elim ∘ zero≢suc ∘ sym)
     where sym = Equivalence.sym ≡-equivalence
 
+  suc≰zero : forall {n} -> ¬ suc n ℕ-≤ zero
+  suc≰zero ()
+
+  ℕ-≤-pred : forall {m n} -> suc m ℕ-≤ suc n -> m ℕ-≤ n
+  ℕ-≤-pred (s≤s m≤n) = m≤n
+
   _ℕ-≤?_ : Decidable _ℕ-≤_
   zero  ℕ-≤? _     = yes z≤n
   suc m ℕ-≤? zero  = no suc≰zero
@@ -85,15 +91,6 @@ abstract
 
 ------------------------------------------------------------------------
 -- Some properties
-
-  zero≢suc : forall {n} -> ¬ zero ≡ suc n
-  zero≢suc ()
-
-  suc≰zero : forall {n} -> ¬ suc n ℕ-≤ zero
-  suc≰zero ()
-
-  ℕ-≤-pred : forall {m n} -> suc m ℕ-≤ suc n -> m ℕ-≤ n
-  ℕ-≤-pred (s≤s m≤n) = m≤n
 
 ℕ-preSetoid : PreSetoid
 ℕ-preSetoid = ≡-preSetoid ℕ
