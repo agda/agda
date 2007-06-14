@@ -162,7 +162,8 @@ builtinPrimitives =
 		    x - y = minus @@ x @@ y
 
 		-- We allow recursion on any argument
-		zero  - m     == zero
+		zero  - zero  == zero
+		zero  - suc m == zero
 		suc n - zero  == suc n
 		suc n - suc m == (n - m)
 
