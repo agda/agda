@@ -17,6 +17,7 @@ open import proofs
 
 -}
 
+{-
 lem-tmp : {Γ : Con}{A : Type Γ}(B : Type (Γ , A)) ->
 	  Π A B =Ty Π A (B / (wk ∘ wk ,, castElem ? vz) / [ vz ])
 lem-tmp B = ?
@@ -27,4 +28,4 @@ lem-η : {Γ : Con}{A : Type Γ}{B : Type (Γ , A)}(w : Elem Γ (Π A B)) ->
 		 (castElem (symTy (lem-Π/ B wk)) (w // wk {A = A}) ∙ vz)
 	      )
 lem-η (elem (el < w , pw >)) = ?
-
+-}
