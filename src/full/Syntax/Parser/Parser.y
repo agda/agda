@@ -423,20 +423,17 @@ TBind :: { TypedBinding }
 TBind : CommaBIds ':' Expr  { TBind (fuseRange $1 $3) $1 $3 }
 
 
--- A non-empty sequence of lambda bindings. For purely aestethical reasons we
--- disallow mixing typed and untyped bindings in lambdas.
+-- A non-empty sequence of lambda bindings.
 LamBindings :: { [LamBinding] }
 LamBindings
-    : TypedBindingss '->'     { map DomainFull $1 }
-    | DomainFreeBindings '->' { $1 }
+  : LamBinds '->' { $1 }
 
-
--- A non-empty sequence of domain-free bindings
-DomainFreeBindings :: { [LamBinding] }
-DomainFreeBindings
-    : DomainFreeBinding DomainFreeBindings  { $1 ++ $2 }
-    | DomainFreeBinding			    { $1 }
-
+LamBinds :: { [LamBinding] }
+LamBinds
+  : DomainFreeBinding LamBinds	{ $1 ++ $2 }
+  | TypedBindings LamBinds	{ DomainFull $1 : $2 }
+  | DomainFreeBinding		{ $1 }
+  | TypedBindings		{ [DomainFull $1] }
 
 -- A domain free binding is either x or {x1 .. xn}
 DomainFreeBinding :: { [LamBinding] }
