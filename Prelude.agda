@@ -25,6 +25,8 @@ open import Prelude.BinaryRelation.OrderMorphism          public
 
 import Prelude.Algebra
 module Algebra = Prelude.Algebra
+import Prelude.Algebra.RingProperties
+module RingProperties = Prelude.Algebra.RingProperties
 open import Prelude.Algebraoid
 
 -- Data.
