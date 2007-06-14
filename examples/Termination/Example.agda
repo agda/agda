@@ -212,3 +212,38 @@ withYes : Nat -> Nat
 withYes n with n
 withYes n | zero   = zero
 withYes n | succ m = withYes m
+
+-- Some rather convoluted examples.
+
+-- OK:
+
+number : Nat
+number = zero
+  where
+  data Foo12 : Nat -> Set where
+    foo12 : Foo12 number
+
+-- Should the occurrence of number' in the type signature of foo12
+-- really be highlighted here?
+
+number' : Nat
+number' with zero
+number' | x = g12 foo12
+  where
+  data Foo12 : Nat -> Set where
+    foo12 : Foo12 number'
+  abstract
+    g12 : {i : Nat} -> Foo12 i -> Nat
+    g12 foo12 = zero
+
+-- Tests highlighting (but does not type check yet):
+
+-- number'' : Nat
+-- number'' with zero
+-- number'' | x = g12 (foo12 x)
+--   where
+--   data Foo12 : Nat -> Set where
+--     foo12 : (n : Nat) -> Foo12 (number'' | n)
+--   abstract
+--     g12 : {i : Nat} -> Foo12 i -> Nat
+--     g12 (foo12 n) = n
