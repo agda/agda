@@ -31,13 +31,14 @@ open import Prelude.Algebraoid
 
 -- Data.
 
-open import Prelude.Bool           public
-open import Prelude.Fin            public
-open import Prelude.Maybe          public
-open import Prelude.Nat            public
-open import Prelude.Nat.Properties public
-open import Prelude.String         public
-open import Prelude.Unit           public
+open import Prelude.Bool            public
+open import Prelude.Bool.Properties public
+open import Prelude.Fin             public
+open import Prelude.Maybe           public
+open import Prelude.Nat             public
+open import Prelude.Nat.Properties  public
+open import Prelude.String          public
+open import Prelude.Unit            public
 
 import Prelude.List
 import Prelude.Vec
