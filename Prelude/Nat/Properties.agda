@@ -9,6 +9,10 @@ open import Prelude.Logic
 open import Prelude.Function
 open import Prelude.BinaryRelation.PropositionalEquality
 
+import Prelude.PreorderProof
+private
+  open module PP = Prelude.PreorderProof ℕ-preSetoid
+
 abstract
 
   n+0≡n : forall n -> n + 0 ≡ n
@@ -26,9 +30,14 @@ abstract
   +-comm : forall m n -> m + n ≡ n + m
   +-comm zero    n = ≡-sym $ n+0≡n n
   +-comm (suc m) n =
-    ≡-cong suc (+-comm m n)
-      ⟨ ≡-trans ⟩
-    ≡-sym (m+1+n≡1+m+n n m)
+      suc m + n
+    ≃⟨ ≡-refl ⟩
+      suc (m + n)
+    ≃⟨ ≡-cong suc (+-comm m n) ⟩
+      suc (n + m)
+    ≃⟨ ≡-sym (m+1+n≡1+m+n n m) ⟩
+      n + suc m
+    ∎
 
   0∸n≡0 : forall n -> zero ∸ n ≡ zero
   0∸n≡0 zero    = ≡-refl
@@ -43,30 +52,55 @@ abstract
 
   n*0≡0 : forall n -> n * 0 ≡ 0
   n*0≡0 zero    = ≡-refl
-  n*0≡0 (suc n) = n+0≡n (n * 0) ⟨ ≡-trans ⟩ n*0≡0 n
+  n*0≡0 (suc n) =
+      suc n * 0
+    ≃⟨ ≡-refl ⟩
+      n * 0 + 0
+    ≃⟨ n+0≡n (n * 0) ⟩
+      n * 0
+    ≃⟨ n*0≡0 n ⟩
+      0
+    ∎
 
   m*1+n≡m+mn : forall m n -> m * suc n ≡ m + m * n
   m*1+n≡m+mn zero    n = ≡-refl
   m*1+n≡m+mn (suc m) n =
-    m+1+n≡1+m+n (m * suc n) n
-      ⟨ ≡-trans ⟩
-    ≡-cong suc (≡-cong (\x -> x + n) (m*1+n≡m+mn m n)
-                  ⟨ ≡-trans ⟩
-                ≡-sym (+-assoc m (m * n) n))
+      suc m * suc n
+    ≃⟨ ≡-refl ⟩
+      m * suc n + suc n
+    ≃⟨ m+1+n≡1+m+n (m * suc n) n ⟩
+      suc (m * suc n + n)
+    ≃⟨ ≡-cong (\x -> suc (x + n)) (m*1+n≡m+mn m n) ⟩
+      suc (m +  m * n + n)
+    ≃⟨ ≡-cong suc (≡-sym (+-assoc m (m * n) n)) ⟩
+      suc (m + (m * n + n))
+    ≃⟨ ≡-refl ⟩
+      suc m + suc m * n
+    ∎
 
   *-comm : forall m n -> m * n ≡ n * m
   *-comm zero    n = ≡-sym $ n*0≡0 n
   *-comm (suc m) n =
-    ≡-cong (\x -> x + n) (*-comm m n)
-      ⟨ ≡-trans ⟩
-    +-comm (n * m) n
-      ⟨ ≡-trans ⟩
-    ≡-sym (m*1+n≡m+mn n m)
+      suc m * n
+    ≃⟨ ≡-refl ⟩
+      m * n + n
+    ≃⟨ ≡-cong (\x -> x + n) (*-comm m n) ⟩
+      n * m + n
+    ≃⟨ +-comm (n * m) n ⟩
+      n + n * m
+    ≃⟨ ≡-sym (m*1+n≡m+mn n m) ⟩
+      n * suc m
+    ∎
 
   m*1+n≡m+m*n : forall m n -> m * suc n ≡ m + m * n
   m*1+n≡m+m*n m n =
-    *-comm m (suc n)
-      ⟨ ≡-trans ⟩
-    ≡-cong (\x -> x + m) (*-comm n m)
-      ⟨ ≡-trans ⟩
-    +-comm (m * n) m
+      m * suc n
+    ≃⟨ *-comm m (suc n) ⟩
+      suc n * m
+    ≃⟨ ≡-refl ⟩
+      n * m + m
+    ≃⟨ ≡-cong (\x -> x + m) (*-comm n m) ⟩
+      m * n + m
+    ≃⟨ +-comm (m * n) m ⟩
+      m + m * n
+    ∎
