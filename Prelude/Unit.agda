@@ -32,6 +32,9 @@ _ ⊤-≤? _ = yes _
 ------------------------------------------------------------------------
 -- Properties
 
+⊤-preSetoid : PreSetoid
+⊤-preSetoid = ≡-preSetoid ⊤
+
 ⊤-setoid : Setoid
 ⊤-setoid = ≡-setoid ⊤
 

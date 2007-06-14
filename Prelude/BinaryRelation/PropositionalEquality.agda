@@ -39,5 +39,16 @@ abstract
     ; sym      = ≡-sym
     }
 
+≡-preSetoid : Set -> PreSetoid
+≡-preSetoid a = record
+  { carrier  = a
+  ; _∼_      = _≡_
+  ; preorder = ≡-preorder
+  }
+
 ≡-setoid : Set -> Setoid
-≡-setoid a = record { carrier = a; _≈_ = _≡_; equiv = ≡-equivalence }
+≡-setoid a = record
+  { carrier = a
+  ; _≈_     = _≡_
+  ; equiv   = ≡-equivalence
+  }

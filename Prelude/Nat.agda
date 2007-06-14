@@ -95,6 +95,9 @@ abstract
   ℕ-≤-pred : forall {m n} -> suc m ℕ-≤ suc n -> m ℕ-≤ n
   ℕ-≤-pred (s≤s m≤n) = m≤n
 
+ℕ-preSetoid : PreSetoid
+ℕ-preSetoid = ≡-preSetoid ℕ
+
 ℕ-setoid : Setoid
 ℕ-setoid = ≡-setoid ℕ
 

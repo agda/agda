@@ -188,6 +188,11 @@ record StrictPartialOrder {a : Set} (_≈_ _<_ : Rel a) : Set where
 
 -- Just a small selection of interesting combinations.
 
+record PreSetoid : Set1 where
+  carrier  : Set
+  _∼_      : Rel carrier
+  preorder : Preorder _≡_ _∼_
+
 record Setoid : Set1 where
   carrier : Set
   _≈_     : Rel carrier
