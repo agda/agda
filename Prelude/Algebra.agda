@@ -11,7 +11,7 @@ private
   open module S = Setoid s
 
 ------------------------------------------------------------------------
--- Operations taking one and two arguments
+-- Unary and binary operations
 
 Op₁ : Set
 Op₁ = carrier -> carrier
@@ -67,7 +67,7 @@ _DistributesOver_ : Op₂ -> Op₂ -> Set
 * DistributesOver + = (* DistributesOverˡ +) × (* DistributesOverʳ +)
 
 ------------------------------------------------------------------------
--- Combinations of properties (one operation)
+-- Combinations of properties (one binary operation)
 
 record Semigroup (• : Op₂) : Set where
   assoc    : Associative •
@@ -91,7 +91,7 @@ record AbelianGroup (• : Op₂) (ε : carrier) (⁻¹ : Op₁) : Set where
   comm  : Commutative •
 
 ------------------------------------------------------------------------
--- Combinations of properties (two operations)
+-- Combinations of properties (two binary operations)
 
 record Semiring (+ * : Op₂) (0# 1# : carrier) : Set where
   +-monoid : CommutativeMonoid + 0#
