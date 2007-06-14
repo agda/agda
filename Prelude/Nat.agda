@@ -46,6 +46,8 @@ m     ∸ zero  = m
 zero  ∸ suc n = zero
 suc m ∸ suc n = m ∸ n
 
+{-# BUILTIN NATMINUS _∸_ #-}
+
 _*_ : ℕ -> ℕ -> ℕ
 zero  * n = zero
 suc m * n = m * n + n
