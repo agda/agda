@@ -157,10 +157,19 @@ resolveModule :: C.QName -> ScopeM AbstractModule
 resolveModule x = do
   ms <- allModulesInScope . mergeScopes . scopeStack <$> getScope
   case Map.lookup x ms of
-    Just [m] -> return $ setRange (getRange x) m
+    Just [m] -> return $ updateRange m x
     Just []  -> __IMPOSSIBLE__
     Just ms  -> typeError $ AmbiguousModule x (map amodName ms)
     Nothing  -> typeError $ NoSuchModule x
+  where
+  -- Sets the ranges of name parts present in the concrete name to
+  -- those used in that name, and sets other ranges to 'noRange'.
+  updateRange :: AbstractModule -> C.QName -> AbstractModule
+  updateRange (AbsModule (MName ms)) x = AbsModule $ MName $
+    reverse $ zipWith setRange
+                      (reverse (map getRange $ qnameParts x)
+                       ++ repeat noRange)
+                      (reverse ms)
 
 -- | Get the fixity of a name. The name is assumed to be in scope.
 getFixity :: C.QName -> ScopeM Fixity
