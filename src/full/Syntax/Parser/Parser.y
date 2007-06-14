@@ -761,7 +761,7 @@ mkName (r,s) = do
 	isValidId Hole     = return ()
 	isValidId (Id _ x) = case parse defaultParseFlags 0 (lexer return) x of
 	    ParseOk _ (TokId _) -> return ()
-	    _			-> fail $ "in the name " ++ s ++ ", the part " ++ x ++ " is not a valid"
+	    _			-> fail $ "in the name " ++ s ++ ", the part " ++ x ++ " is not valid"
 
 	-- we know that there aren't two Ids in a row
 	alternating (Hole : Hole : _) = False

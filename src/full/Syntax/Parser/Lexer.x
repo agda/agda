@@ -30,7 +30,7 @@ $digit	     = 0-9
 $hexdigit    = [ $digit a-f A-F ]
 $alpha	     = [ A-Z a-z _ ]
 $op	     = [ \- \! \# \$ \% \& \* \+ \/ \< \= \> \^ \| \~ \? \` \[ \] \, \: ]
-$idstart     = [ $alpha $op ]
+$idstart     = [ $digit $alpha $op ]
 $idchar	     = [ $idstart $digit ' \\ ]
 $endcomment  = ~ [ $idchar \\ ]
 $nonalpha    = $idchar # $alpha
@@ -158,14 +158,14 @@ tokens :-
 <0,code> "{"		{ symbol SymOpenBrace }	    -- you can't use braces for layout
 <0,code> "}"		{ symbol SymCloseBrace }
 
--- Identifiers
-<0,code> @q_ident	{ identifier }
-
 -- Literals
 <0,code> \'		{ litChar }
 <0,code> \"		{ litString }
 <0,code> @number	{ literal LitInt }
 <0,code> @float		{ literal LitFloat }
+
+-- Identifiers
+<0,code> @q_ident	{ identifier }
 
 {
 
