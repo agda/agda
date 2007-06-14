@@ -7,7 +7,7 @@ module Prelude.Vec where
 infixr 5 _∷_ _++_
 
 open import Prelude.Nat
-open import Prelude.Sum
+open import Prelude.Fin
 
 ------------------------------------------------------------------------
 -- The type
@@ -31,7 +31,11 @@ replicate : forall {a n} -> a -> Vec a n
 replicate {n = zero}  x = []
 replicate {n = suc n} x = x ∷ replicate x
 
-foldr :  {a b : Set} -> forall {m}
+foldr :  forall {a b : Set} {m}
       -> (a -> b -> b) -> b -> Vec a m -> b
 foldr c n []       = n
 foldr c n (x ∷ xs) = c x (foldr c n xs)
+
+lookup : forall {a n} -> Fin n -> Vec a n -> a
+lookup fz     (x ∷ xs) = x
+lookup (fs i) (x ∷ xs) = lookup i xs
