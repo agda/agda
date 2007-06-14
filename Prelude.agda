@@ -25,6 +25,7 @@ open import Prelude.BinaryRelation.OrderMorphism          public
 
 import Prelude.Algebra
 module Algebra = Prelude.Algebra
+open import Prelude.Algebraoid
 
 -- Data.
 
