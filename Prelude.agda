@@ -21,6 +21,11 @@ open import Prelude.BinaryRelation.PropositionalEquality  public
 open import Prelude.BinaryRelation.PropositionalEquality1 public
 open import Prelude.BinaryRelation.OrderMorphism          public
 
+-- Algebra.
+
+import Prelude.Algebra
+module Algebra = Prelude.Algebra
+
 -- Data.
 
 open import Prelude.Bool           public
