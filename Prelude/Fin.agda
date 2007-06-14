@@ -18,6 +18,13 @@ data Fin : ℕ -> Set where
   fs : {n : ℕ} -> Fin n -> Fin (suc n)
 
 ------------------------------------------------------------------------
+-- Operations
+
+raise : forall {n} m -> Fin n -> Fin (m + n)
+raise zero    i = i
+raise (suc n) i = fs (raise n i)
+
+------------------------------------------------------------------------
 -- Queries
 
 abstract
