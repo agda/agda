@@ -8,9 +8,9 @@
 -- n*0≡0 zero    = ≡-refl
 -- n*0≡0 (suc n) =
 --     suc n * 0
---   ≃⟨ ≡-refl ⟩
+--   ≃⟨ byDef ⟩
 --     n * 0 + 0
---   ≃⟨ n+0≡n (n * 0) ⟩
+--   ≃⟨ n+0≡n _ ⟩
 --     n * 0
 --   ≃⟨ n*0≡0 n ⟩
 --     0
@@ -39,3 +39,6 @@ abstract
 
   _∎ : forall x -> x ∼ x
   _∎ _ = refl ≡-refl
+
+  byDef : forall {x} -> x ∼ x
+  byDef = _ ∎
