@@ -175,7 +175,7 @@ cmd_load file = infoOnException $ do
               checkDecls $ topLevelDecls topLevel
               setScope $ outsideScope topLevel
 
-              generateAndOutputSyntaxInfo file TypeCheckingDone tokens topLevel
+              ignoreAbstractMode $ generateAndOutputSyntaxInfo file TypeCheckingDone tokens topLevel
 
               -- Do termination checking.
               errs <- termDecls $ topLevelDecls topLevel
