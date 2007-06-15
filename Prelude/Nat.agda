@@ -10,8 +10,8 @@ open import Prelude.Sum
 open import Prelude.BinaryRelation
 open import Prelude.BinaryRelation.PropositionalEquality
 
-infixl 7 _*_
-infixl 6 _+_ _∸_
+infixl 7 _*_ _⊓_
+infixl 6 _+_ _∸_ _⊔_
 
 ------------------------------------------------------------------------
 -- The types
@@ -53,6 +53,16 @@ zero  * n = zero
 suc m * n = m * n + n
 
 {-# BUILTIN NATTIMES _*_ #-}
+
+_⊔_ : ℕ -> ℕ -> ℕ
+zero  ⊔ n     = n
+suc m ⊔ zero  = suc m
+suc m ⊔ suc n = suc (m ⊔ n)
+
+_⊓_ : ℕ -> ℕ -> ℕ
+zero  ⊓ n     = zero
+suc m ⊓ zero  = zero
+suc m ⊓ suc n = suc (m ⊓ n)
 
 ------------------------------------------------------------------------
 -- Queries

@@ -213,3 +213,143 @@ abstract
   ℕ-∸-+-assoc zero    (suc n) (suc o) = byDef
   ℕ-∸-+-assoc (suc m) zero    (suc o) = byDef
   ℕ-∸-+-assoc (suc m) (suc n) (suc o) = ℕ-∸-+-assoc m n (suc o)
+
+abstract
+
+  -- Can we make use of duality in some nice way here?
+
+  ℕ-⊔-assoc : Associative _⊔_
+  ℕ-⊔-assoc zero    _       _       = byDef
+  ℕ-⊔-assoc (suc m) zero    o       = byDef
+  ℕ-⊔-assoc (suc m) (suc n) zero    = byDef
+  ℕ-⊔-assoc (suc m) (suc n) (suc o) = ≡-cong suc $ ℕ-⊔-assoc m n o
+
+  ℕ-⊓-assoc : Associative _⊓_
+  ℕ-⊓-assoc zero    _       _       = byDef
+  ℕ-⊓-assoc (suc m) zero    o       = byDef
+  ℕ-⊓-assoc (suc m) (suc n) zero    = byDef
+  ℕ-⊓-assoc (suc m) (suc n) (suc o) = ≡-cong suc $ ℕ-⊓-assoc m n o
+
+  ℕ-⊔-identity : Identity 0 _⊔_
+  ℕ-⊔-identity = (\_ -> byDef) , n⊔0≡n
+    where
+    n⊔0≡n : RightIdentity 0 _⊔_
+    n⊔0≡n zero    = byDef
+    n⊔0≡n (suc n) = byDef
+
+  ℕ-⊓-zero : Zero 0 _⊓_
+  ℕ-⊓-zero = (\_ -> byDef) , n⊓0≡0
+    where
+    n⊓0≡0 : RightZero 0 _⊓_
+    n⊓0≡0 zero    = byDef
+    n⊓0≡0 (suc n) = byDef
+
+  ℕ-⊔-comm : Commutative _⊔_
+  ℕ-⊔-comm zero    n       = ≡-sym $ proj₂ ℕ-⊔-identity n
+  ℕ-⊔-comm (suc m) zero    = byDef
+  ℕ-⊔-comm (suc m) (suc n) =
+      suc m ⊔ suc n
+    ≃⟨ byDef ⟩
+      suc (m ⊔ n)
+    ≃⟨ ≡-cong suc (ℕ-⊔-comm m n) ⟩
+      suc (n ⊔ m)
+    ≃⟨ byDef ⟩
+      suc n ⊔ suc m
+    ∎
+
+  ℕ-⊓-comm : Commutative _⊓_
+  ℕ-⊓-comm zero    n       = ≡-sym $ proj₂ ℕ-⊓-zero n
+  ℕ-⊓-comm (suc m) zero    = byDef
+  ℕ-⊓-comm (suc m) (suc n) =
+      suc m ⊓ suc n
+    ≃⟨ byDef ⟩
+      suc (m ⊓ n)
+    ≃⟨ ≡-cong suc (ℕ-⊓-comm m n) ⟩
+      suc (n ⊓ m)
+    ≃⟨ byDef ⟩
+      suc n ⊓ suc m
+    ∎
+
+  ℕ-distrib-⊓-⊔ : _⊓_ DistributesOver _⊔_
+  ℕ-distrib-⊓-⊔ = distˡ , distʳ
+    where
+    distˡ : _⊓_ DistributesOverˡ _⊔_
+    distˡ zero    n       o       = byDef
+    distˡ (suc m) zero    o       = byDef
+    distˡ (suc m) (suc n) zero    = byDef
+    distˡ (suc m) (suc n) (suc o) = ≡-cong suc $ distˡ m n o
+
+    distʳ : _⊓_ DistributesOverʳ _⊔_
+    distʳ m n o =
+       (n ⊔ o) ⊓ m
+                      ≃⟨ ℕ-⊓-comm (n ⊔ o) m ⟩
+       m ⊓ (n ⊔ o)
+                      ≃⟨ distˡ m n o ⟩
+       m ⊓ n ⊔ m ⊓ o
+                      ≃⟨ ≡-cong₂ _⊔_ (ℕ-⊓-comm m n) (ℕ-⊓-comm m o) ⟩
+       n ⊓ m ⊔ o ⊓ m
+                      ∎
+
+  ℕ-absorptive-⊔-⊓ : Absorptive _⊔_ _⊓_
+  ℕ-absorptive-⊔-⊓ = abs-⊔-⊓ , abs-⊓-⊔
+    where
+    abs-⊔-⊓ : _⊔_ Absorbs _⊓_
+    abs-⊔-⊓ zero    n       = byDef
+    abs-⊔-⊓ (suc m) zero    = byDef
+    abs-⊔-⊓ (suc m) (suc n) = ≡-cong suc $ abs-⊔-⊓ m n
+
+    abs-⊓-⊔ : _⊓_ Absorbs _⊔_
+    abs-⊓-⊔ zero    n       = byDef
+    abs-⊓-⊔ (suc m) (suc n) = ≡-cong suc $ abs-⊓-⊔ m n
+    abs-⊓-⊔ (suc m) zero    = ≡-cong suc $
+      m ⊓ m
+                   ≃⟨ ≡-cong (_⊓_ m) $ ≡-sym $ proj₂ ℕ-⊔-identity m ⟩
+      m ⊓ (m ⊔ 0)
+                   ≃⟨ abs-⊓-⊔ m zero ⟩
+      m
+                   ∎
+
+  ℕ-distrib-⊔-⊓ : _⊔_ DistributesOver _⊓_
+  ℕ-distrib-⊔-⊓ = distˡ , distʳ
+    where
+    distˡ : _⊔_ DistributesOverˡ _⊓_
+    distˡ zero    n       o       = byDef
+    distˡ (suc m) zero    o       = ≡-sym $ proj₂ ℕ-absorptive-⊔-⊓ (suc m) o
+    distˡ (suc m) (suc n) (suc o) = ≡-cong suc $ distˡ m n o
+    distˡ (suc m) (suc n) zero    = ≡-cong suc $ ≡-sym $
+      (m ⊔ n) ⊓ m
+                   ≃⟨ ℕ-⊓-comm (m ⊔ n) m ⟩
+      m ⊓ (m ⊔ n)
+                   ≃⟨ proj₂ ℕ-absorptive-⊔-⊓ m n ⟩
+      m
+                   ∎
+
+    distʳ : _⊔_ DistributesOverʳ _⊓_
+    distʳ m n o =
+       (n ⊓ o) ⊔ m
+                          ≃⟨ ℕ-⊔-comm (n ⊓ o) m ⟩
+       m ⊔ (n ⊓ o)
+                          ≃⟨ distˡ m n o ⟩
+       (m ⊔ n) ⊓ (m ⊔ o)
+                          ≃⟨ ≡-cong₂ _⊓_ (ℕ-⊔-comm m n) (ℕ-⊔-comm m o) ⟩
+       (n ⊔ m) ⊓ (o ⊔ m)
+                          ∎
+
+  ℕ-lattice : Lattice _⊔_ _⊓_
+  ℕ-lattice = record
+    { ∨-comm     = ℕ-⊔-comm
+    ; ∨-assoc    = ℕ-⊔-assoc
+    ; ∨-pres-≈   = ≡-cong₂ _⊔_
+    ; ∧-comm     = ℕ-⊓-comm
+    ; ∧-assoc    = ℕ-⊓-assoc
+    ; ∧-pres-≈   = ≡-cong₂ _⊓_
+    ; absorptive = ℕ-absorptive-⊔-⊓
+    }
+
+ℕ-latticoid : Latticoid
+ℕ-latticoid = record
+  { setoid  = ℕ-setoid
+  ; _∨_     = _⊔_
+  ; _∧_     = _⊓_
+  ; lattice = ℕ-lattice
+  }
