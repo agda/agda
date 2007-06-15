@@ -195,74 +195,6 @@ abstract
   Bool-not-involutive true  = byDef
   Bool-not-involutive false = byDef
 
-  Bool-⊕-assoc : Associative _⊕_
-  Bool-⊕-assoc true  true  z = Bool-not-involutive z
-  Bool-⊕-assoc true  false z = byDef
-  Bool-⊕-assoc false y     z = byDef
-
-  Bool-⊕-identity : Identity false _⊕_
-  Bool-⊕-identity = (\_ -> byDef) , x⊕⊥≡x
-    where
-    x⊕⊥≡x : RightIdentity false _⊕_
-    x⊕⊥≡x true  = byDef
-    x⊕⊥≡x false = byDef
-
-  Bool-⊕-comm : Commutative _⊕_
-  Bool-⊕-comm true  true  = byDef
-  Bool-⊕-comm true  false = byDef
-  Bool-⊕-comm false y     = ≡-sym $ proj₂ Bool-⊕-identity y
-
-  Bool-id-inverse : Inverse false id _⊕_
-  Bool-id-inverse = x⊕x≡⊥ , x⊕x≡⊥
-    where
-    x⊕x≡⊥ : LeftInverse false id _⊕_
-    x⊕x≡⊥ true  = byDef
-    x⊕x≡⊥ false = byDef
-
-  Bool-distrib-∧-⊕ : _∧_ DistributesOver _⊕_
-  Bool-distrib-∧-⊕ = distˡ , distʳ
-    where
-    distˡ : _∧_ DistributesOverˡ _⊕_
-    distˡ true  y z = byDef
-    distˡ false y z = byDef
-
-    distʳ : _∧_ DistributesOverʳ _⊕_
-    distʳ x y z =
-       y ⊕ z ∧ x
-                          ≃⟨ Bool-∧-comm (y ⊕ z) x ⟩
-       x ∧ y ⊕ z
-                          ≃⟨ distˡ x y z ⟩
-       (x ∧ y) ⊕ (x ∧ z)
-                          ≃⟨ ≡-cong₂ _⊕_ (Bool-∧-comm x y) (Bool-∧-comm x z) ⟩
-       (y ∧ x) ⊕ (z ∧ x)
-                          ∎
-
-  Bool-ring-⊕-∧ : Ring _⊕_ _∧_ id false true
-  Bool-ring-⊕-∧ = record
-    { +-group = record
-      { group = record
-        { monoid = record
-          { semigroup = record
-            { assoc    = Bool-⊕-assoc
-            ; •-pres-≈ = ≡-cong₂ _⊕_
-            }
-          ; identity = Bool-⊕-identity
-          }
-        ; inverse   = Bool-id-inverse
-        ; ⁻¹-pres-≈ = ≡-cong id
-        }
-      ; comm = Bool-⊕-comm
-      }
-    ; *-monoid = record
-      { semigroup = record
-        { assoc    = Bool-∧-assoc
-        ; •-pres-≈ = ≡-cong₂ _∧_
-        }
-      ; identity = Bool-∧-identity
-      }
-    ; distrib = Bool-distrib-∧-⊕
-    }
-
 Bool-semiringoid-∨-∧ : Semiringoid
 Bool-semiringoid-∨-∧ = record
   { setoid   = Bool-setoid
@@ -291,17 +223,6 @@ Bool-latticoid = record
   ; lattice = Bool-lattice
   }
 
-Bool-ringoid-⊕-∧ : Ringoid
-Bool-ringoid-⊕-∧ = record
-  { setoid = Bool-setoid
-  ; _+_    = _⊕_
-  ; _*_    = _∧_
-  ; -_     = id
-  ; 0#     = false
-  ; 1#     = true
-  ; ring   = Bool-ring-⊕-∧
-  }
-
 Bool-booleanAlgebraoid : BooleanAlgebraoid
 Bool-booleanAlgebraoid = record
   { setoid         = Bool-setoid
@@ -311,4 +232,31 @@ Bool-booleanAlgebraoid = record
   ; ⊤              = true
   ; ⊥              = false
   ; booleanAlgebra =  Bool-booleanAlgebra
+  }
+
+abstract
+
+  private
+
+    ⊕-is-ok : forall x y -> x ⊕ y ≡ (x ∨ y) ∧ not (x ∧ y)
+    ⊕-is-ok true  y = byDef
+    ⊕-is-ok false y = ≡-sym $ proj₂ Bool-∧-identity _
+
+  Bool-ring-⊕-∧ : Ring _⊕_ _∧_ id false true
+  Bool-ring-⊕-∧ = R.ring
+    where
+    import Prelude.Algebra.BooleanAlgebraProperties
+    module P = Prelude.Algebra.BooleanAlgebraProperties
+                 Bool-booleanAlgebraoid
+    module R = P.BoolAlgRing _⊕_ ⊕-is-ok
+
+Bool-ringoid-⊕-∧ : Ringoid
+Bool-ringoid-⊕-∧ = record
+  { setoid = Bool-setoid
+  ; _+_    = _⊕_
+  ; _*_    = _∧_
+  ; -_     = id
+  ; 0#     = false
+  ; 1#     = true
+  ; ring   = Bool-ring-⊕-∧
   }
