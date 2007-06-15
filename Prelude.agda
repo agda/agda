@@ -27,6 +27,8 @@ import Prelude.Algebra
 module Algebra = Prelude.Algebra
 import Prelude.Algebra.RingProperties
 module RingProperties = Prelude.Algebra.RingProperties
+import Prelude.Algebra.Operations
+module AlgebraOperations = Prelude.Algebra.Operations
 open import Prelude.Algebraoid
 
 -- Data.
