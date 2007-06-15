@@ -13,8 +13,10 @@ To install Agda 2, proceed as follows:
    C package to be installed (see http://zlib.net). Your package
    manager may be able to install these files for you. (For instance,
    on Debian or Ubuntu it should suffice to run
-     apt-get zlib1g-dev
+     apt-get install zlib1g-dev
    as root to get the correct files installed.)
+
+   See Appendix for concrete scripts for Ubuntu Linux.
 
 1) Download Agda 2, perhaps as follows:
 
@@ -140,3 +142,33 @@ To use the Agda 2 Emacs mode:
            ("--" ["--"]) ("---" ["---"])
            ; Add more keybindings here.
            )))
+
+----------------------------------------------------------------
+Appendix: Installation scripts for (at least Ubuntu Linux)
+
+# A.1 Installing binary
+
+  wget http://hackage.haskell.org/packages/archive/binary/0.3/binary-0.3.tar.gz
+  tar -zxf binary-0.3.tar.gz
+  cd binary-0.3
+  runhaskell Setup.lhs configure
+  runhaskell Setup.lhs build
+  sudo runhaskell Setup.lhs install
+  cd ..
+
+# A.2 Installing zlib
+
+  sudo apt-get install zlib1g-dev
+  wget http://hackage.haskell.org/packages/archive/zlib/0.3/zlib-0.3.tar.gz
+  tar -zxf zlib-0.3.tar.gz
+  cd zlib-0.3
+  runhaskell Setup.hs configure
+  runhaskell Setup.hs build
+  sudo runhaskell Setup.hs install
+  cd ..
+
+# A.3 Installing Agda
+
+  runhaskell Setup.hs configure
+  runhaskell Setup.hs build
+  sudo runhaskell Setup.hs install
