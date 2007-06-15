@@ -159,6 +159,28 @@ abstract
     ; zero = Bool-zero-∨
     }
 
+  Bool-absorptive : Absorptive _∨_ _∧_
+  Bool-absorptive = abs-∨-∧ , abs-∧-∨
+    where
+    abs-∨-∧ : _∨_ Absorbs _∧_
+    abs-∨-∧ true  y = byDef
+    abs-∨-∧ false y = byDef
+
+    abs-∧-∨ : _∧_ Absorbs _∨_
+    abs-∧-∨ true  y = byDef
+    abs-∧-∨ false y = byDef
+
+  Bool-lattice : Lattice _∨_ _∧_
+  Bool-lattice = record
+    { ∨-comm     = Bool-∨-comm
+    ; ∨-assoc    = Bool-∨-assoc
+    ; ∨-pres-≈   = ≡-cong₂ _∨_
+    ; ∧-comm     = Bool-∧-comm
+    ; ∧-assoc    = Bool-∧-assoc
+    ; ∧-pres-≈   = ≡-cong₂ _∧_
+    ; absorptive = Bool-absorptive
+    }
+
 Bool-semiringoid-∨-∧ : Semiringoid
 Bool-semiringoid-∨-∧ = record
   { setoid   = Bool-setoid
@@ -177,4 +199,12 @@ Bool-semiringoid-∧-∨ = record
   ; 0#       = true
   ; 1#       = false
   ; semiring = Bool-semiring-∧-∨
+  }
+
+Bool-latticoid : Latticoid
+Bool-latticoid = record
+  { setoid  = Bool-setoid
+  ; _∨_     = _∨_
+  ; _∧_     = _∧_
+  ; lattice = Bool-lattice
   }
