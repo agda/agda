@@ -16,7 +16,6 @@ private
   open module R  = Ringoid r
   open module S  = Setoid setoid
   open module E  = Equivalence equiv
-  open module P  = Preorder preorder
   open module PP = Prelude.PreorderProof (setoid⟶preSetoid setoid)
   open module R  = Prelude.Algebra setoid
   module R = Ring R.ring

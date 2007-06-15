@@ -66,12 +66,38 @@ _*_ DistributesOverʳ _+_ =
 _DistributesOver_ : Op₂ -> Op₂ -> Set
 * DistributesOver + = (* DistributesOverˡ +) × (* DistributesOverʳ +)
 
+_IdempotentOn_ : Op₂ -> carrier -> Set
+_•_ IdempotentOn x = (x • x) ≈ x
+
+Idempotent : Op₂ -> Set
+Idempotent • = forall x -> • IdempotentOn x
+
+Idempotent₁ : Op₁ -> Set
+Idempotent₁ f = forall x -> f (f x) ≈ f x
+
+_Absorbs_ : Op₂ -> Op₂ -> Set
+_•_ Absorbs _∘_ = forall x y -> (x • (x ∘ y)) ≈ x
+
+Absorptive : Op₂ -> Op₂ -> Set
+Absorptive • ∘ = (• Absorbs ∘) × (∘ Absorbs •)
+
+Involutive : Op₁ -> Set
+Involutive f = forall x -> f (f x) ≈ x
+
 ------------------------------------------------------------------------
 -- Combinations of properties (one binary operation)
 
+-- First some abbreviations:
+
+_Preserves-≈ : Op₁ -> Set
+• Preserves-≈ = • Preserves _≈_ , _≈_
+
+_Preserves₂-≈ : Op₂ -> Set
+• Preserves₂-≈ = • Preserves₂ _≈_ , _≈_ , _≈_
+
 record Semigroup (• : Op₂) : Set where
   assoc    : Associative •
-  •-pres-≈ : • Preserves₂ _≈_ , _≈_ , _≈_
+  •-pres-≈ : • Preserves₂-≈
 
 record Monoid (• : Op₂) (ε : carrier) : Set where
   semigroup : Semigroup •
@@ -84,7 +110,7 @@ record CommutativeMonoid (• : Op₂) (ε : carrier) : Set where
 record Group (• : Op₂) (ε : carrier) (⁻¹ : Op₁) : Set where
   monoid    : Monoid • ε
   inverse   : Inverse ε ⁻¹ •
-  ⁻¹-pres-≈ : ⁻¹ Preserves _≈_ , _≈_
+  ⁻¹-pres-≈ : ⁻¹ Preserves-≈
 
 record AbelianGroup (• : Op₂) (ε : carrier) (⁻¹ : Op₁) : Set where
   group : Group • ε ⁻¹
@@ -103,3 +129,12 @@ record Ring (+ * : Op₂) (- : Op₁) (0# 1# : carrier) : Set where
   +-group  : AbelianGroup + 0# -
   *-monoid : Monoid * 1#
   distrib  : * DistributesOver +
+
+record Lattice (∨ ∧ : Op₂) : Set where
+  ∨-comm     : Commutative ∨
+  ∨-assoc    : Associative ∨
+  ∨-pres-≈   : ∨ Preserves₂-≈
+  ∧-comm     : Commutative ∧
+  ∧-assoc    : Associative ∧
+  ∧-pres-≈   : ∧ Preserves₂-≈
+  absorptive : Absorptive ∨ ∧
