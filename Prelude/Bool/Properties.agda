@@ -181,6 +181,16 @@ abstract
     ; absorptive = Bool-absorptive
     }
 
+  Bool-booleanAlgebra : BooleanAlgebra _∨_ _∧_ not true false
+  Bool-booleanAlgebra = record
+    { lattice      = Bool-lattice
+    ; ∨-∧-distrib  = proj₁ Bool-distrib-∨-∧
+    ; ∨-complement = proj₂ Bool-not-∨-inverse
+    ; ∧-∨-distrib  = proj₁ Bool-distrib-∧-∨
+    ; ∧-complement = proj₂ Bool-not-∧-inverse
+    ; ¬-pres-≈     = ≡-cong not
+    }
+
   Bool-not-involutive : Involutive not
   Bool-not-involutive true  = byDef
   Bool-not-involutive false = byDef
@@ -290,4 +300,15 @@ Bool-ringoid-⊕-∧ = record
   ; 0#     = false
   ; 1#     = true
   ; ring   = Bool-ring-⊕-∧
+  }
+
+Bool-booleanAlgebraoid : BooleanAlgebraoid
+Bool-booleanAlgebraoid = record
+  { setoid         = Bool-setoid
+  ; _∨_            = _∨_
+  ; _∧_            = _∧_
+  ; ¬_             = not
+  ; ⊤              = true
+  ; ⊥              = false
+  ; booleanAlgebra =  Bool-booleanAlgebra
   }
