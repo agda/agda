@@ -30,3 +30,21 @@ record Latticoid : Set1 where
   _∨_     : Op₂ setoid
   _∧_     : Op₂ setoid
   lattice : Lattice setoid _∨_ _∧_
+
+record BooleanAlgebraoid : Set1 where
+  setoid         : Setoid
+  _∨_            : Op₂ setoid
+  _∧_            : Op₂ setoid
+  ¬_             : Op₁ setoid
+  ⊤              : carrier setoid
+  ⊥              : carrier setoid
+  booleanAlgebra : BooleanAlgebra setoid _∨_ _∧_ ¬_ ⊤ ⊥
+
+boolAlgoid⟶latticoid : BooleanAlgebraoid -> Latticoid
+boolAlgoid⟶latticoid b = record
+  { setoid = setoid
+  ; _∨_    = _∨_
+  ; _∧_    = _∧_
+  ; lattice = BooleanAlgebra.lattice setoid booleanAlgebra
+  }
+  where open module B = BooleanAlgebraoid b

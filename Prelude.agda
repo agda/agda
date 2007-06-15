@@ -29,6 +29,9 @@ import Prelude.Algebra.RingProperties
 module RingProperties = Prelude.Algebra.RingProperties
 import Prelude.Algebra.LatticeProperties
 module LatticeProperties = Prelude.Algebra.LatticeProperties
+import Prelude.Algebra.BooleanAlgebraProperties
+module BooleanAlgebraProperties =
+  Prelude.Algebra.BooleanAlgebraProperties
 import Prelude.Algebra.Operations
 module AlgebraOperations = Prelude.Algebra.Operations
 open import Prelude.Algebraoid

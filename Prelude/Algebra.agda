@@ -138,3 +138,11 @@ record Lattice (∨ ∧ : Op₂) : Set where
   ∧-assoc    : Associative ∧
   ∧-pres-≈   : ∧ Preserves₂-≈
   absorptive : Absorptive ∨ ∧
+
+record BooleanAlgebra (∨ ∧ : Op₂) (¬ : Op₁) (⊤ ⊥ : carrier) : Set where
+  lattice      : Lattice ∨ ∧
+  ∨-∧-distrib  : ∨ DistributesOverˡ ∧
+  ∨-complement : RightInverse ⊤ ¬ ∨
+  ∧-∨-distrib  : ∧ DistributesOverˡ ∨
+  ∧-complement : RightInverse ⊥ ¬ ∧
+  ¬-pres-≈     : ¬ Preserves-≈

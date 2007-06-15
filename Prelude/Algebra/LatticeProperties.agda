@@ -21,8 +21,8 @@ private
   open module S = Prelude.PreorderProof (setoid⟶preSetoid setoid)
 
 abstract
-  idempotent-∧ : Idempotent _∧_
-  idempotent-∧ x =
+  ∧-idempotent : Idempotent _∧_
+  ∧-idempotent x =
     x ∧ x
                        ≃⟨ byDef ⟨ ∧-pres-≈ ⟩ sym (proj₁ absorptive _ _) ⟩
     x ∧ (x ∨ (x ∧ x))
@@ -30,10 +30,10 @@ abstract
     x
                        ∎
 
-  idempotent-∨ : Idempotent _∨_
-  idempotent-∨ x =
+  ∨-idempotent : Idempotent _∨_
+  ∨-idempotent x =
     x ∨ x
-                 ≃⟨ byDef ⟨ ∨-pres-≈ ⟩ sym (idempotent-∧ _) ⟩
+                 ≃⟨ byDef ⟨ ∨-pres-≈ ⟩ sym (∧-idempotent _) ⟩
     x ∨ (x ∧ x)
                  ≃⟨ proj₁ absorptive _ _ ⟩
     x
