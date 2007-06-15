@@ -9,6 +9,7 @@ open import Prelude.Function
 open import Prelude.BinaryRelation
 open import Prelude.BinaryRelation.PropositionalEquality
 
+infixr 7 _⊕_
 infixr 6 _∧_
 infixr 5 _∨_
 
@@ -41,6 +42,12 @@ false ∨ b = b
 not : Bool -> Bool
 not true  = false
 not false = true
+
+-- Exclusive or.
+
+_⊕_ : Bool -> Bool -> Bool
+true  ⊕ b = not b
+false ⊕ b = b
 
 ------------------------------------------------------------------------
 -- Queries
