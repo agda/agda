@@ -238,25 +238,25 @@ abstract
 
   private
 
-    ⊕-is-ok : forall x y -> x ⊕ y ≡ (x ∨ y) ∧ not (x ∧ y)
-    ⊕-is-ok true  y = byDef
-    ⊕-is-ok false y = ≡-sym $ proj₂ Bool-∧-identity _
+    xor-is-ok : forall x y -> x xor y ≡ (x ∨ y) ∧ not (x ∧ y)
+    xor-is-ok true  y = byDef
+    xor-is-ok false y = ≡-sym $ proj₂ Bool-∧-identity _
 
-  Bool-ring-⊕-∧ : Ring _⊕_ _∧_ id false true
-  Bool-ring-⊕-∧ = R.ring
+  Bool-ring-xor-∧ : Ring _xor_ _∧_ id false true
+  Bool-ring-xor-∧ = R.ring
     where
     import Prelude.Algebra.BooleanAlgebraProperties
     module P = Prelude.Algebra.BooleanAlgebraProperties
                  Bool-booleanAlgebraoid
-    module R = P.BoolAlgRing _⊕_ ⊕-is-ok
+    module R = P.BoolAlgRing _xor_ xor-is-ok
 
-Bool-ringoid-⊕-∧ : Ringoid
-Bool-ringoid-⊕-∧ = record
+Bool-ringoid-xor-∧ : Ringoid
+Bool-ringoid-xor-∧ = record
   { setoid = Bool-setoid
-  ; _+_    = _⊕_
+  ; _+_    = _xor_
   ; _*_    = _∧_
   ; -_     = id
   ; 0#     = false
   ; 1#     = true
-  ; ring   = Bool-ring-⊕-∧
+  ; ring   = Bool-ring-xor-∧
   }
