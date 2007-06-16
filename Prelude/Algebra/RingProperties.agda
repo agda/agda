@@ -64,6 +64,19 @@ abstract
       0#
                                           ∎
 
+  semiring : Semiring _+_ _*_ 0# 1#
+  semiring = record
+    { +-monoid = record
+        { monoid = A.monoid
+        ; comm   = A.comm
+        }
+    ; *-monoid = R.*-monoid
+    ; distrib  = R.distrib
+    ; zero     = zero
+    }
+
+abstract
+
   minusDistribˡ : forall x y -> ((- x) * y) ≈ (- (x * y))
   minusDistribˡ x y =
     (- x) * y

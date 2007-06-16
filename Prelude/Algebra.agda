@@ -134,6 +134,10 @@ record Ring (+ * : Op₂) (- : Op₁) (0# 1# : carrier) : Set where
   *-monoid : Monoid * 1#
   distrib  : * DistributesOver +
 
+record CommutativeRing (+ * : Op₂) (- : Op₁) (0# 1# : carrier) : Set where
+  ring   : Ring + * - 0# 1#
+  *-comm : Commutative *
+
 record Lattice (∨ ∧ : Op₂) : Set where
   ∨-comm     : Commutative ∨
   ∨-assoc    : Associative ∨

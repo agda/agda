@@ -35,6 +35,7 @@ module BooleanAlgebraProperties =
 import Prelude.Algebra.Operations
 module AlgebraOperations = Prelude.Algebra.Operations
 open import Prelude.Algebraoid
+open import Prelude.Algebraoid.Conversion
 
 -- Data.
 

@@ -15,6 +15,7 @@ open Π
 import Prelude.PreorderProof
 import Prelude.Algebra
 import Prelude.Algebra.LatticeProperties
+open import Prelude.Algebraoid.Conversion
 private
   open module B = BooleanAlgebraoid b
   open module B = Prelude.Algebra setoid
