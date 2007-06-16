@@ -125,6 +125,10 @@ record Semiring (+ * : Op₂) (0# 1# : carrier) : Set where
   distrib  : * DistributesOver +
   zero     : Zero 0# *
 
+record CommutativeSemiring (+ * : Op₂) (0# 1# : carrier) : Set where
+  semiring : Semiring + * 0# 1#
+  *-comm   : Commutative *
+
 record Ring (+ * : Op₂) (- : Op₁) (0# 1# : carrier) : Set where
   +-group  : AbelianGroup + 0# -
   *-monoid : Monoid * 1#

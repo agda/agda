@@ -16,6 +16,25 @@ record Semiringoid : Set1 where
   1#       : carrier setoid
   semiring : Semiring setoid _+_ _*_ 0# 1#
 
+record CommutativeSemiringoid : Set1 where
+  setoid       : Setoid
+  _+_          : Op₂ setoid
+  _*_          : Op₂ setoid
+  0#           : carrier setoid
+  1#           : carrier setoid
+  commSemiring : CommutativeSemiring setoid _+_ _*_ 0# 1#
+
+commSemiringoid⟶semiringoid : CommutativeSemiringoid -> Semiringoid
+commSemiringoid⟶semiringoid cs = record
+  { setoid   = setoid
+  ; _+_      = _+_
+  ; _*_      = _*_
+  ; 0#       = 0#
+  ; 1#       = 1#
+  ; semiring = CommutativeSemiring.semiring setoid commSemiring
+  }
+  where open module CS = CommutativeSemiringoid cs
+
 record Ringoid : Set1 where
   setoid : Setoid
   _+_    : Op₂ setoid
