@@ -13,9 +13,11 @@ import Prelude.Algebra
 private
   open module A = Prelude.Algebra Bool-setoid
 open import Prelude.Algebraoid
+open import Prelude.Algebraoid.Conversion
 open import Prelude.BinaryRelation.PropositionalEquality
 open import Prelude.Product
 open Π
+import Prelude.SemiringSolver
 
 import Prelude.PreorderProof
 private
@@ -119,6 +121,9 @@ Bool-commSemiringoid-∨-∧ = record
   ; 1#           = true
   ; commSemiring = Bool-commSemiring-∨-∧
   }
+
+module Bool-semiringSolver =
+  Prelude.SemiringSolver Bool-commSemiringoid-∨-∧
 
 ------------------------------------------------------------------------
 -- (Bool, ∧, ∨, true, false) forms a commutative semiring
@@ -291,6 +296,10 @@ Bool-commRingoid-xor-∧ = record
   module P = Prelude.Algebra.BooleanAlgebraProperties
                Bool-booleanAlgebraoid
   module R = P.XorRing _xor_ xor-is-ok
+
+module Bool-xor-semiringSolver =
+  Prelude.SemiringSolver
+    (commRingoid⟶commSemiringoid Bool-commRingoid-xor-∧)
 
 ------------------------------------------------------------------------
 -- Miscellaneous other properties

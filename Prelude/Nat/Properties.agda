@@ -14,6 +14,7 @@ open import Prelude.Algebraoid
 open import Prelude.BinaryRelation.PropositionalEquality
 open import Prelude.Product
 open Π
+import Prelude.SemiringSolver
 
 import Prelude.PreorderProof
 private
@@ -199,6 +200,9 @@ abstract
   ; 1#           = 1
   ; commSemiring = ℕ-commSemiring
   }
+
+module ℕ-semiringSolver =
+  Prelude.SemiringSolver ℕ-commSemiringoid
 
 ------------------------------------------------------------------------
 -- (ℕ, ⊔, ⊓) is a lattice
