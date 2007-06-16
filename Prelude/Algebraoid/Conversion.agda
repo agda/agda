@@ -49,11 +49,20 @@ commRingoid⟶commSemiringoid cr = record
   }
   where open module CR = CommutativeRingoid cr
 
-boolAlgoid⟶latticoid : BooleanAlgebraoid -> Latticoid
-boolAlgoid⟶latticoid b = record
-  { setoid = setoid
-  ; _∨_    = _∨_
-  ; _∧_    = _∧_
-  ; lattice = BooleanAlgebra.lattice setoid booleanAlgebra
+distLatticoid⟶latticoid : DistributiveLatticoid -> Latticoid
+distLatticoid⟶latticoid dl = record
+  { setoid  = setoid
+  ; _∨_     = _∨_
+  ; _∧_     = _∧_
+  ; lattice = DistributiveLattice.lattice setoid distLattice
+  }
+  where open module DL = DistributiveLatticoid dl
+
+boolAlgoid⟶distLatticoid : BooleanAlgebraoid -> DistributiveLatticoid
+boolAlgoid⟶distLatticoid b = record
+  { setoid      = setoid
+  ; _∨_         = _∨_
+  ; _∧_         = _∧_
+  ; distLattice = BooleanAlgebra.distLattice setoid booleanAlgebra
   }
   where open module B = BooleanAlgebraoid b

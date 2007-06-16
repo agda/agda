@@ -189,7 +189,7 @@ Bool-commSemiringoid-∧-∨ = record
   }
 
 ------------------------------------------------------------------------
--- (Bool, ∨, ∧) is a lattice
+-- (Bool, ∨, ∧) is a distributive lattice
 
 abstract
  private
@@ -218,13 +218,11 @@ abstract
     ; absorptive = absorptive
     }
 
-Bool-latticoid : Latticoid
-Bool-latticoid = record
-  { setoid  = Bool-setoid
-  ; _∨_     = _∨_
-  ; _∧_     = _∧_
-  ; lattice = Bool-lattice
-  }
+  Bool-distLattice : DistributiveLattice _∨_ _∧_
+  Bool-distLattice = record
+    { lattice      = Bool-lattice
+    ; ∨-∧-distribˡ = proj₁ distrib-∨-∧
+    }
 
 ------------------------------------------------------------------------
 -- (Bool, ∨, ∧, not, true, false) is a boolean algebra
@@ -251,12 +249,10 @@ abstract
 
   Bool-booleanAlgebra : BooleanAlgebra _∨_ _∧_ not true false
   Bool-booleanAlgebra = record
-    { lattice      = Bool-lattice
-    ; ∨-∧-distrib  = proj₁ distrib-∨-∧
-    ; ∨-complement = proj₂ not-∨-inverse
-    ; ∧-∨-distrib  = proj₁ distrib-∧-∨
-    ; ∧-complement = proj₂ not-∧-inverse
-    ; ¬-pres-≈     = ≡-cong not
+    { distLattice   = Bool-distLattice
+    ; ∨-complementʳ = proj₂ not-∨-inverse
+    ; ∧-complementʳ = proj₂ not-∧-inverse
+    ; ¬-pres-≈      = ≡-cong not
     }
 
 Bool-booleanAlgebraoid : BooleanAlgebraoid
@@ -267,11 +263,11 @@ Bool-booleanAlgebraoid = record
   ; ¬_             = not
   ; ⊤              = true
   ; ⊥              = false
-  ; booleanAlgebra =  Bool-booleanAlgebra
+  ; booleanAlgebra = Bool-booleanAlgebra
   }
 
 ------------------------------------------------------------------------
--- (Bool, xor, ∧, id, false, true) forms a ring
+-- (Bool, xor, ∧, id, false, true) forms a commutative ring
 
 abstract
  private
@@ -280,26 +276,21 @@ abstract
   xor-is-ok true  y = byDef
   xor-is-ok false y = ≡-sym $ proj₂ ∧-identity _
 
-abstract
-
-  Bool-ring-xor-∧ : Ring _xor_ _∧_ id false true
-  Bool-ring-xor-∧ = R.ring
-    where
-    import Prelude.Algebra.BooleanAlgebraProperties
-    module P = Prelude.Algebra.BooleanAlgebraProperties
-                 Bool-booleanAlgebraoid
-    module R = P.BoolAlgRing _xor_ xor-is-ok
-
-Bool-ringoid-xor-∧ : Ringoid
-Bool-ringoid-xor-∧ = record
-  { setoid = Bool-setoid
-  ; _+_    = _xor_
-  ; _*_    = _∧_
-  ; -_     = id
-  ; 0#     = false
-  ; 1#     = true
-  ; ring   = Bool-ring-xor-∧
+Bool-commRingoid-xor-∧ : CommutativeRingoid
+Bool-commRingoid-xor-∧ = record
+  { setoid   = Bool-setoid
+  ; _+_      = _xor_
+  ; _*_      = _∧_
+  ; -_       = id
+  ; 0#       = false
+  ; 1#       = true
+  ; commRing = R.commRing
   }
+  where
+  import Prelude.Algebra.BooleanAlgebraProperties
+  module P = Prelude.Algebra.BooleanAlgebraProperties
+               Bool-booleanAlgebraoid
+  module R = P.XorRing _xor_ xor-is-ok
 
 ------------------------------------------------------------------------
 -- Miscellaneous other properties

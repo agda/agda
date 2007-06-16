@@ -279,6 +279,18 @@ abstract
       m
                    ∎
 
+  distribˡ-⊔-⊓ : _⊔_ DistributesOverˡ _⊓_
+  distribˡ-⊔-⊓ zero    n       o       = byDef
+  distribˡ-⊔-⊓ (suc m) zero    o       = ≡-sym $ proj₂ absorptive-⊔-⊓ (suc m) o
+  distribˡ-⊔-⊓ (suc m) (suc n) (suc o) = ≡-cong suc $ distribˡ-⊔-⊓ m n o
+  distribˡ-⊔-⊓ (suc m) (suc n) zero    = ≡-cong suc $ ≡-sym $
+    (m ⊔ n) ⊓ m
+                 ≃⟨ ⊓-comm (m ⊔ n) m ⟩
+    m ⊓ (m ⊔ n)
+                 ≃⟨ proj₂ absorptive-⊔-⊓ m n ⟩
+    m
+                 ∎
+
 abstract
 
   ℕ-lattice : Lattice _⊔_ _⊓_
@@ -292,64 +304,24 @@ abstract
     ; absorptive = absorptive-⊔-⊓
     }
 
-ℕ-latticoid : Latticoid
-ℕ-latticoid = record
-  { setoid  = ℕ-setoid
-  ; _∨_     = _⊔_
-  ; _∧_     = _⊓_
-  ; lattice = ℕ-lattice
+  ℕ-distLattice : DistributiveLattice _⊔_ _⊓_
+  ℕ-distLattice = record
+    { lattice      = ℕ-lattice
+    ; ∨-∧-distribˡ = distribˡ-⊔-⊓
+    }
+
+ℕ-distLatticoid : DistributiveLatticoid
+ℕ-distLatticoid = record
+  { setoid      = ℕ-setoid
+  ; _∨_         = _⊔_
+  ; _∧_         = _⊓_
+  ; distLattice = ℕ-distLattice
   }
 
 ------------------------------------------------------------------------
 -- Miscellaneous other properties
 
 abstract
-
-  ℕ-distrib-⊓-⊔ : _⊓_ DistributesOver _⊔_
-  ℕ-distrib-⊓-⊔ = distˡ , distʳ
-    where
-    distˡ : _⊓_ DistributesOverˡ _⊔_
-    distˡ zero    n       o       = byDef
-    distˡ (suc m) zero    o       = byDef
-    distˡ (suc m) (suc n) zero    = byDef
-    distˡ (suc m) (suc n) (suc o) = ≡-cong suc $ distˡ m n o
-
-    distʳ : _⊓_ DistributesOverʳ _⊔_
-    distʳ m n o =
-       (n ⊔ o) ⊓ m
-                      ≃⟨ ⊓-comm (n ⊔ o) m ⟩
-       m ⊓ (n ⊔ o)
-                      ≃⟨ distˡ m n o ⟩
-       m ⊓ n ⊔ m ⊓ o
-                      ≃⟨ ≡-cong₂ _⊔_ (⊓-comm m n) (⊓-comm m o) ⟩
-       n ⊓ m ⊔ o ⊓ m
-                      ∎
-
-  ℕ-distrib-⊔-⊓ : _⊔_ DistributesOver _⊓_
-  ℕ-distrib-⊔-⊓ = distˡ , distʳ
-    where
-    distˡ : _⊔_ DistributesOverˡ _⊓_
-    distˡ zero    n       o       = byDef
-    distˡ (suc m) zero    o       = ≡-sym $ proj₂ absorptive-⊔-⊓ (suc m) o
-    distˡ (suc m) (suc n) (suc o) = ≡-cong suc $ distˡ m n o
-    distˡ (suc m) (suc n) zero    = ≡-cong suc $ ≡-sym $
-      (m ⊔ n) ⊓ m
-                   ≃⟨ ⊓-comm (m ⊔ n) m ⟩
-      m ⊓ (m ⊔ n)
-                   ≃⟨ proj₂ absorptive-⊔-⊓ m n ⟩
-      m
-                   ∎
-
-    distʳ : _⊔_ DistributesOverʳ _⊓_
-    distʳ m n o =
-       (n ⊓ o) ⊔ m
-                          ≃⟨ ⊔-comm (n ⊓ o) m ⟩
-       m ⊔ (n ⊓ o)
-                          ≃⟨ distˡ m n o ⟩
-       (m ⊔ n) ⊓ (m ⊔ o)
-                          ≃⟨ ≡-cong₂ _⊓_ (⊔-comm m n) (⊔-comm m o) ⟩
-       (n ⊔ m) ⊓ (o ⊔ m)
-                          ∎
 
   0∸n≡0 : LeftZero zero _∸_
   0∸n≡0 zero    = byDef

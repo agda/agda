@@ -21,6 +21,20 @@ private
   open module S = Prelude.PreorderProof (setoid⟶preSetoid setoid)
 
 abstract
+
+  -- The dual construction is also a lattice.
+
+  ∧-∨-lattice : Lattice _∧_ _∨_
+  ∧-∨-lattice = record
+    { ∨-comm     = ∧-comm
+    ; ∨-assoc    = ∧-assoc
+    ; ∨-pres-≈   = ∧-pres-≈
+    ; ∧-comm     = ∨-comm
+    ; ∧-assoc    = ∨-assoc
+    ; ∧-pres-≈   = ∨-pres-≈
+    ; absorptive = swap absorptive
+    }
+
   ∧-idempotent : Idempotent _∧_
   ∧-idempotent x =
     x ∧ x

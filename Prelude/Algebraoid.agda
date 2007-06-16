@@ -48,6 +48,12 @@ record Latticoid : Set1 where
   _∧_     : Op₂ setoid
   lattice : Lattice setoid _∨_ _∧_
 
+record DistributiveLatticoid : Set1 where
+  setoid      : Setoid
+  _∨_         : Op₂ setoid
+  _∧_         : Op₂ setoid
+  distLattice : DistributiveLattice setoid _∨_ _∧_
+
 record BooleanAlgebraoid : Set1 where
   setoid         : Setoid
   _∨_            : Op₂ setoid

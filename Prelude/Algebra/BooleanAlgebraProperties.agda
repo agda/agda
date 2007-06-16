@@ -15,59 +15,68 @@ open Π
 import Prelude.PreorderProof
 import Prelude.Algebra
 import Prelude.Algebra.LatticeProperties
+import Prelude.Algebra.DistributiveLatticeProperties
 open import Prelude.Algebraoid.Conversion
 private
   open module B = BooleanAlgebraoid b
   open module B = Prelude.Algebra setoid
   open module B = BooleanAlgebra booleanAlgebra
+  open module B = DistributiveLattice distLattice
   open module B = Lattice lattice
   open module S = Setoid setoid
   open module S = Equivalence equiv
   open module S = Preorder preorder
   open module S = Prelude.PreorderProof (setoid⟶preSetoid setoid)
-  module LP = Prelude.Algebra.LatticeProperties (boolAlgoid⟶latticoid b)
-open LP public
+  module DLP = Prelude.Algebra.DistributiveLatticeProperties
+                 (boolAlgoid⟶distLatticoid b)
+open DLP public
+
+------------------------------------------------------------------------
+-- Some simple generalisations
 
 abstract
-  ∨-∧-distribʳ : _∨_ DistributesOverʳ _∧_
-  ∨-∧-distribʳ x y z =
-    (y ∧ z) ∨ x
-                       ≃⟨ ∨-comm _ _ ⟩
-    x ∨ (y ∧ z)
-                       ≃⟨ ∨-∧-distrib _ _ _ ⟩
-    (x ∨ y) ∧ (x ∨ z)
-                       ≃⟨ ∨-comm _ _ ⟨ ∧-pres-≈ ⟩ ∨-comm _ _ ⟩
-    (y ∨ x) ∧ (z ∨ x)
-                       ∎
+  ∨-complement : Inverse ⊤ ¬_ _∨_
+  ∨-complement = ∨-complementˡ , ∨-complementʳ
+    where
+    ∨-complementˡ : LeftInverse ⊤ ¬_ _∨_
+    ∨-complementˡ x =
+      (¬ x) ∨ x
+                 ≃⟨ ∨-comm _ _ ⟩
+      x ∨ (¬ x)
+                 ≃⟨ ∨-complementʳ _ ⟩
+      ⊤
+                 ∎
 
-  ∧-∨-distribʳ : _∧_ DistributesOverʳ _∨_
-  ∧-∨-distribʳ x y z =
-    (y ∨ z) ∧ x
-                       ≃⟨ ∧-comm _ _ ⟩
-    x ∧ (y ∨ z)
-                       ≃⟨ ∧-∨-distrib _ _ _ ⟩
-    (x ∧ y) ∨ (x ∧ z)
-                       ≃⟨ ∧-comm _ _ ⟨ ∨-pres-≈ ⟩ ∧-comm _ _ ⟩
-    (y ∧ x) ∨ (z ∧ x)
-                       ∎
+  ∧-complement : Inverse ⊥ ¬_ _∧_
+  ∧-complement = ∧-complementˡ , ∧-complementʳ
+    where
+    ∧-complementˡ : LeftInverse ⊥ ¬_ _∧_
+    ∧-complementˡ x =
+      (¬ x) ∧ x
+                 ≃⟨ ∧-comm _ _ ⟩
+      x ∧ (¬ x)
+                 ≃⟨ ∧-complementʳ _ ⟩
+      ⊥
+                 ∎
 
-  ∨-complementˡ : LeftInverse ⊤ ¬_ _∨_
-  ∨-complementˡ x =
-    (¬ x) ∨ x
-               ≃⟨ ∨-comm _ _ ⟩
-    x ∨ (¬ x)
-               ≃⟨ ∨-complement _ ⟩
-    ⊤
-               ∎
+------------------------------------------------------------------------
+-- The dual construction is also a boolean algebra
 
-  ∧-complementˡ : LeftInverse ⊥ ¬_ _∧_
-  ∧-complementˡ x =
-    (¬ x) ∧ x
-               ≃⟨ ∧-comm _ _ ⟩
-    x ∧ (¬ x)
-               ≃⟨ ∧-complement _ ⟩
-    ⊥
-               ∎
+abstract
+
+  ∧-∨-boolAlg : BooleanAlgebra _∧_ _∨_ ¬_ ⊥ ⊤
+  ∧-∨-boolAlg = record
+    { distLattice   = ∧-∨-distLattice
+    ; ∨-complementʳ = proj₂ ∧-complement
+    ; ∧-complementʳ = proj₂ ∨-complement
+    ; ¬-pres-≈      = ¬-pres-≈
+    }
+
+------------------------------------------------------------------------
+-- (∨, ∧, ⊥, ⊤) is a commutative semiring
+
+abstract
+ private
 
   ∧-identity : Identity ⊤ _∧_
   ∧-identity = (\_ -> ∧-comm _ _ ⟨ trans ⟩ x∧⊤=x _) , x∧⊤=x
@@ -75,7 +84,7 @@ abstract
     x∧⊤=x : forall x -> (x ∧ ⊤) ≈ x
     x∧⊤=x x =
       x ∧ ⊤
-                     ≃⟨ byDef ⟨ ∧-pres-≈ ⟩ sym (∨-complement _) ⟩
+                     ≃⟨ byDef ⟨ ∧-pres-≈ ⟩ sym (proj₂ ∨-complement _) ⟩
       x ∧ (x ∨ ¬ x)
                      ≃⟨ proj₂ absorptive _ _ ⟩
       x
@@ -87,7 +96,7 @@ abstract
     x∨⊥=x : forall x -> (x ∨ ⊥) ≈ x
     x∨⊥=x x =
       x ∨ ⊥
-                     ≃⟨ byDef ⟨ ∨-pres-≈ ⟩ sym (∧-complement _) ⟩
+                     ≃⟨ byDef ⟨ ∨-pres-≈ ⟩ sym (proj₂ ∧-complement _) ⟩
       x ∨ (x ∧ ¬ x)
                      ≃⟨ proj₁ absorptive _ _ ⟩
       x
@@ -99,15 +108,49 @@ abstract
     x∧⊥=⊥ : forall x -> (x ∧ ⊥) ≈ ⊥
     x∧⊥=⊥ x =
       x ∧ ⊥
-                     ≃⟨ byDef ⟨ ∧-pres-≈ ⟩ sym (∧-complement _) ⟩
+                     ≃⟨ byDef ⟨ ∧-pres-≈ ⟩ sym (proj₂ ∧-complement _) ⟩
       x ∧ (x ∧ ¬ x)
                      ≃⟨ ∧-assoc _ _ _ ⟩
       (x ∧ x) ∧ ¬ x
                      ≃⟨ ∧-idempotent _ ⟨ ∧-pres-≈ ⟩ byDef ⟩
       x ∧ ¬ x
-                     ≃⟨ ∧-complement _ ⟩
+                     ≃⟨ proj₂ ∧-complement _ ⟩
       ⊥
                      ∎
+
+abstract
+
+  ∨-∧-commSemiring : CommutativeSemiring _∨_ _∧_ ⊥ ⊤
+  ∨-∧-commSemiring = record
+    { semiring = record
+      { +-monoid = record
+        { monoid = record
+          { semigroup = record
+            { assoc    = ∨-assoc
+            ; •-pres-≈ = ∨-pres-≈
+            }
+          ; identity  = ∨-identity
+          }
+        ; comm  = ∨-comm
+        }
+      ; *-monoid = record
+        { semigroup = record
+          { assoc    = ∧-assoc
+          ; •-pres-≈ = ∧-pres-≈
+          }
+        ; identity  = ∧-identity
+        }
+      ; distrib = ∧-∨-distrib
+      ; zero    = ∧-zero
+      }
+    ; *-comm = ∧-comm
+    }
+
+------------------------------------------------------------------------
+-- (∧, ∨, ⊤, ⊥) is a commutative semiring
+
+abstract
+ private
 
   ∨-zero : Zero ⊤ _∨_
   ∨-zero = (\_ -> ∨-comm _ _ ⟨ trans ⟩ x∨⊤=⊤ _) , x∨⊤=⊤
@@ -115,15 +158,48 @@ abstract
     x∨⊤=⊤ : forall x -> (x ∨ ⊤) ≈ ⊤
     x∨⊤=⊤ x =
       x ∨ ⊤
-                     ≃⟨ byDef ⟨ ∨-pres-≈ ⟩ sym (∨-complement _) ⟩
+                     ≃⟨ byDef ⟨ ∨-pres-≈ ⟩ sym (proj₂ ∨-complement _) ⟩
       x ∨ (x ∨ ¬ x)
                      ≃⟨ ∨-assoc _ _ _ ⟩
       (x ∨ x) ∨ ¬ x
                      ≃⟨ ∨-idempotent _ ⟨ ∨-pres-≈ ⟩ byDef ⟩
       x ∨ ¬ x
-                     ≃⟨ ∨-complement _ ⟩
+                     ≃⟨ proj₂ ∨-complement _ ⟩
       ⊤
                      ∎
+
+abstract
+
+  ∧-∨-commSemiring : CommutativeSemiring _∧_ _∨_ ⊤ ⊥
+  ∧-∨-commSemiring = record
+    { semiring = record
+      { +-monoid = record
+        { monoid = record
+          { semigroup = record
+            { assoc    = ∧-assoc
+            ; •-pres-≈ = ∧-pres-≈
+            }
+          ; identity  = ∧-identity
+          }
+        ; comm  = ∧-comm
+        }
+      ; *-monoid = record
+        { semigroup = record
+          { assoc    = ∨-assoc
+          ; •-pres-≈ = ∨-pres-≈
+          }
+        ; identity  = ∨-identity
+        }
+      ; distrib = ∨-∧-distrib
+      ; zero    = ∨-zero
+      }
+    ; *-comm = ∨-comm
+    }
+
+------------------------------------------------------------------------
+-- Some other properties
+
+abstract
 
   -- I took the statement of this lemma (called Uniqueness of
   -- Complements) from some course notes, "Boolean Algebra", written
@@ -137,15 +213,15 @@ abstract
       (¬ x) ∧ ⊤
                                  ≃⟨ byDef ⟨ ∧-pres-≈ ⟩ sym x∨y=⊤ ⟩
       (¬ x) ∧ (x ∨ y)
-                                 ≃⟨ ∧-∨-distrib _ _ _ ⟩
+                                 ≃⟨ proj₁ ∧-∨-distrib _ _ _ ⟩
       ((¬ x) ∧ x) ∨ ((¬ x) ∧ y)
-                                 ≃⟨ ∧-complementˡ _ ⟨ ∨-pres-≈ ⟩ byDef ⟩
+                                 ≃⟨ proj₁ ∧-complement _ ⟨ ∨-pres-≈ ⟩ byDef ⟩
       ⊥ ∨ ((¬ x) ∧ y)
                                  ≃⟨ sym x∧y=⊥ ⟨ ∨-pres-≈ ⟩ byDef ⟩
       (x ∧ y) ∨ ((¬ x) ∧ y)
-                                 ≃⟨ sym $ ∧-∨-distribʳ _ _ _ ⟩
+                                 ≃⟨ sym $ proj₂ ∧-∨-distrib _ _ _ ⟩
       (x ∨ ¬ x) ∧ y
-                                 ≃⟨ ∨-complement _ ⟨ ∧-pres-≈ ⟩ byDef ⟩
+                                 ≃⟨ proj₂ ∨-complement _ ⟨ ∧-pres-≈ ⟩ byDef ⟩
       ⊤ ∧ y
                                  ≃⟨ proj₁ ∧-identity _ ⟩
       y
@@ -158,21 +234,21 @@ abstract
   ¬⊤=⊥ = lemma ⊤ ⊥ (proj₂ ∧-zero _) (proj₂ ∨-identity _)
 
   ¬-involutive : Involutive ¬_
-  ¬-involutive x = lemma (¬ x) x (∧-complementˡ _) (∨-complementˡ _)
+  ¬-involutive x = lemma (¬ x) x (proj₁ ∧-complement _) (proj₁ ∨-complement _)
 
   deMorgan₁ : forall x y -> ¬ (x ∧ y) ≈ ((¬ x) ∨ (¬ y))
   deMorgan₁ x y = lemma (x ∧ y) ((¬ x) ∨ (¬ y)) lem₁ lem₂
     where
     lem₁ =
       (x ∧ y) ∧ ((¬ x) ∨ (¬ y))
-                                             ≃⟨ ∧-∨-distrib _ _ _ ⟩
+                                             ≃⟨ proj₁ ∧-∨-distrib _ _ _ ⟩
       ((x ∧ y) ∧ (¬ x)) ∨ ((x ∧ y) ∧ (¬ y))
                                              ≃⟨ ∧-comm _ _ ⟨ ∧-pres-≈ ⟩ byDef ⟨ ∨-pres-≈ ⟩ byDef ⟩
       ((y ∧ x) ∧ (¬ x)) ∨ ((x ∧ y) ∧ (¬ y))
                                              ≃⟨ sym (∧-assoc _ _ _) ⟨ ∨-pres-≈ ⟩ sym (∧-assoc _ _ _) ⟩
       (y ∧ (x ∧ (¬ x))) ∨ (x ∧ (y ∧ (¬ y)))
-                                             ≃⟨ (byDef ⟨ ∧-pres-≈ ⟩ ∧-complement _) ⟨ ∨-pres-≈ ⟩
-                                                (byDef ⟨ ∧-pres-≈ ⟩ ∧-complement _) ⟩
+                                             ≃⟨ (byDef ⟨ ∧-pres-≈ ⟩ proj₂ ∧-complement _) ⟨ ∨-pres-≈ ⟩
+                                                (byDef ⟨ ∧-pres-≈ ⟩ proj₂ ∧-complement _) ⟩
       (y ∧ ⊥) ∨ (x ∧ ⊥)
                                              ≃⟨ proj₂ ∧-zero _ ⟨ ∨-pres-≈ ⟩ proj₂ ∧-zero _ ⟩
       ⊥ ∨ ⊥
@@ -182,9 +258,9 @@ abstract
 
     lem₃ =
       (x ∧ y) ∨ (¬ x)
-                                 ≃⟨ ∨-∧-distribʳ _ _ _ ⟩
+                                 ≃⟨ proj₂ ∨-∧-distrib _ _ _ ⟩
       (x ∨ (¬ x)) ∧ (y ∨ (¬ x))
-                                 ≃⟨ ∨-complement _ ⟨ ∧-pres-≈ ⟩ byDef ⟩
+                                 ≃⟨ proj₂ ∨-complement _ ⟨ ∧-pres-≈ ⟩ byDef ⟩
       ⊤ ∧ (y ∨ (¬ x))
                                  ≃⟨ proj₁ ∧-identity _ ⟩
       y ∨ (¬ x)
@@ -200,7 +276,7 @@ abstract
       ((¬ x) ∨ y) ∨ (¬ y)
                                  ≃⟨ sym $ ∨-assoc _ _ _ ⟩
       (¬ x) ∨ (y ∨ (¬ y))
-                                 ≃⟨ byDef ⟨ ∨-pres-≈ ⟩ ∨-complement _ ⟩
+                                 ≃⟨ byDef ⟨ ∨-pres-≈ ⟩ proj₂ ∨-complement _ ⟩
       (¬ x) ∨ ⊤
                                  ≃⟨ proj₂ ∨-zero _ ⟩
       ⊤
@@ -218,7 +294,12 @@ abstract
     (¬ x) ∧ (¬ y)
                            ∎
 
-module BoolAlgRing
+------------------------------------------------------------------------
+-- (⊕, ∧, id, ⊥, ⊤) is a commutative ring
+
+-- This construction is parameterised over the definition of xor.
+
+module XorRing
   (_⊕_ : Op₂)
   (⊕-def : forall x y -> (x ⊕ y) ≈ ((x ∨ y) ∧ ¬ (x ∧ y)))
   where
@@ -234,7 +315,7 @@ module BoolAlgRing
       ¬ (x ⊕ y)
                                              ≃⟨ ¬-pres-≈ $ ⊕-def _ _ ⟩
       ¬ ((x ∨ y) ∧ (¬ (x ∧ y)))
-                                             ≃⟨ ¬-pres-≈ (∧-∨-distribʳ _ _ _) ⟩
+                                             ≃⟨ ¬-pres-≈ (proj₂ ∧-∨-distrib _ _ _) ⟩
       ¬ ((x ∧ ¬ (x ∧ y)) ∨ (y ∧ ¬ (x ∧ y)))
                                              ≃⟨ ¬-pres-≈ $
                                                   byDef ⟨ ∨-pres-≈ ⟩
@@ -259,9 +340,9 @@ module BoolAlgRing
         x ∧ ¬ (x ∧ y)
                                    ≃⟨ byDef ⟨ ∧-pres-≈ ⟩ deMorgan₁ _ _ ⟩
         x ∧ ((¬ x) ∨ (¬ y))
-                                   ≃⟨ ∧-∨-distrib _ _ _ ⟩
+                                   ≃⟨ proj₁ ∧-∨-distrib _ _ _ ⟩
         (x ∧ (¬ x)) ∨ (x ∧ (¬ y))
-                                   ≃⟨ ∧-complement _ ⟨ ∨-pres-≈ ⟩ byDef ⟩
+                                   ≃⟨ proj₂ ∧-complement _ ⟨ ∨-pres-≈ ⟩ byDef ⟩
         ⊥ ∨ (x ∧ (¬ y))
                                    ≃⟨ proj₁ ∨-identity _ ⟩
         x ∧ (¬ y)
@@ -342,7 +423,7 @@ module BoolAlgRing
                                ≃⟨ helper (∨-idempotent _)
                                          (∧-idempotent _) ⟩
           x ∧ ¬ x
-                               ≃⟨ ∧-complement _ ⟩
+                               ≃⟨ proj₂ ∧-complement _ ⟩
           ⊥
                                ∎
 
@@ -367,7 +448,7 @@ module BoolAlgRing
           ((x ∧ (y ∨ z)) ∧ (¬ x)) ∨
           ((x ∧ (y ∨ z)) ∧
            ((¬ y) ∨ (¬ z)))
-                                     ≃⟨ sym $ ∧-∨-distrib _ _ _ ⟩
+                                     ≃⟨ sym $ proj₁ ∧-∨-distrib _ _ _ ⟩
           (x ∧ (y ∨ z)) ∧
           ((¬ x) ∨ ((¬ y) ∨ (¬ z)))
                                      ≃⟨  byDef ⟨ ∧-pres-≈ ⟩
@@ -380,7 +461,7 @@ module BoolAlgRing
                                      ≃⟨ helper byDef lem₁ ⟩
             (x ∧ (y ∨ z)) ∧
           ¬ ((x ∧ y) ∧ (x ∧ z))
-                                     ≃⟨ ∧-∨-distrib _ _ _ ⟨ ∧-pres-≈ ⟩
+                                     ≃⟨ proj₁ ∧-∨-distrib _ _ _ ⟨ ∧-pres-≈ ⟩
                                         byDef ⟩
             ((x ∧ y) ∨ (x ∧ z)) ∧
           ¬ ((x ∧ y) ∧ (x ∧ z))
@@ -414,7 +495,7 @@ module BoolAlgRing
             ⊥
                                    ≃⟨ sym $ proj₂ ∧-zero _ ⟩
             (y ∨ z) ∧ ⊥
-                                   ≃⟨ byDef ⟨ ∧-pres-≈ ⟩ sym (∧-complement _) ⟩
+                                   ≃⟨ byDef ⟨ ∧-pres-≈ ⟩ sym (proj₂ ∧-complement _) ⟩
             (y ∨ z) ∧ (x ∧ (¬ x))
                                    ≃⟨ ∧-assoc _ _ _ ⟩
             ((y ∨ z) ∧ x) ∧ (¬ x)
@@ -439,9 +520,9 @@ module BoolAlgRing
                  ((x ∨ v) ∧ (y ∨ v)))
       lemma₂ x y u v =
           (x ∧ y) ∨ (u ∧ v)
-        ≃⟨ ∨-∧-distrib _ _ _ ⟩
+        ≃⟨ proj₁ ∨-∧-distrib _ _ _ ⟩
           ((x ∧ y) ∨ u) ∧ ((x ∧ y) ∨ v)
-        ≃⟨ ∨-∧-distribʳ _ _ _ ⟨ ∧-pres-≈ ⟩ ∨-∧-distribʳ _ _ _ ⟩
+        ≃⟨ proj₂ ∨-∧-distrib _ _ _ ⟨ ∧-pres-≈ ⟩ proj₂ ∨-∧-distrib _ _ _ ⟩
           ((x ∨ u) ∧ (y ∨ u)) ∧ ((x ∨ v) ∧ (y ∨ v))
         ∎
 
@@ -478,7 +559,7 @@ module BoolAlgRing
         where
         lem₁ =
           ((x ∨ y) ∨ z) ∧ (((¬ x) ∨ (¬ y)) ∨ z)
-                                                 ≃⟨ sym $ ∨-∧-distribʳ _ _ _ ⟩
+                                                 ≃⟨ sym $ proj₂ ∨-∧-distrib _ _ _ ⟩
           ((x ∨ y) ∧ ((¬ x) ∨ (¬ y))) ∨ z
                                                  ≃⟨ byDef ⟨ ∧-pres-≈ ⟩ sym (deMorgan₁ _ _)
                                                       ⟨ ∨-pres-≈ ⟩ byDef ⟩
@@ -493,9 +574,9 @@ module BoolAlgRing
                                                       proj₂ ∧-identity _ ⟩
           (⊤ ∧ (x ∨ (¬ y))) ∧ (((¬ x) ∨ y) ∧ ⊤)
                                                  ≃⟨ sym $
-                                                      (∨-complementˡ _ ⟨ ∧-pres-≈ ⟩ ∨-comm _ _)
+                                                      (proj₁ ∨-complement _ ⟨ ∧-pres-≈ ⟩ ∨-comm _ _)
                                                         ⟨ ∧-pres-≈ ⟩
-                                                      (byDef ⟨ ∧-pres-≈ ⟩ ∨-complementˡ _) ⟩
+                                                      (byDef ⟨ ∧-pres-≈ ⟩ proj₁ ∨-complement _) ⟩
           (((¬ x) ∨ x) ∧ ((¬ y) ∨ x)) ∧
           (((¬ x) ∨ y) ∧ ((¬ y) ∨ y))
                                                  ≃⟨ sym $ lemma₂ _ _ _ _ ⟩
@@ -508,7 +589,7 @@ module BoolAlgRing
 
         lem₂ =
           ((x ∨ (¬ y)) ∨ ¬ z) ∧ (((¬ x) ∨ y) ∨ ¬ z)
-                                                     ≃⟨ sym $ ∨-∧-distribʳ _ _ _ ⟩
+                                                     ≃⟨ sym $ proj₂ ∨-∧-distrib _ _ _ ⟩
           ((x ∨ (¬ y)) ∧ ((¬ x) ∨ y)) ∨ ¬ z
                                                      ≃⟨ lem₂' ⟨ ∨-pres-≈ ⟩ byDef ⟩
           ¬ ((x ∨ y) ∧ ¬ (x ∧ y)) ∨ ¬ z
@@ -521,7 +602,7 @@ module BoolAlgRing
                                                  ≃⟨ byDef ⟨ ∨-pres-≈ ⟩
                                                       (byDef ⟨ ∧-pres-≈ ⟩ deMorgan₁ _ _) ⟩
           x ∨ ((y ∨ z) ∧ ((¬ y) ∨ (¬ z)))
-                                                 ≃⟨ ∨-∧-distrib _ _ _ ⟩
+                                                 ≃⟨ proj₁ ∨-∧-distrib _ _ _ ⟩
           (x ∨ (y ∨ z)) ∧ (x ∨ ((¬ y) ∨ (¬ z)))
                                                  ≃⟨ ∨-assoc _ _ _ ⟨ ∧-pres-≈ ⟩ ∨-assoc _ _ _ ⟩
           ((x ∨ y) ∨ z) ∧ ((x ∨ (¬ y)) ∨ (¬ z))
@@ -536,9 +617,9 @@ module BoolAlgRing
                                          ≃⟨ lemma₂ _ _ _ _ ⟩
           (((¬ y) ∨ y) ∧ ((¬ z) ∨ y)) ∧
           (((¬ y) ∨ z) ∧ ((¬ z) ∨ z))
-                                         ≃⟨ (∨-complementˡ _ ⟨ ∧-pres-≈ ⟩ ∨-comm _ _)
+                                         ≃⟨ (proj₁ ∨-complement _ ⟨ ∧-pres-≈ ⟩ ∨-comm _ _)
                                               ⟨ ∧-pres-≈ ⟩
-                                            (byDef ⟨ ∧-pres-≈ ⟩ ∨-complementˡ _) ⟩
+                                            (byDef ⟨ ∧-pres-≈ ⟩ proj₁ ∨-complement _) ⟩
           (⊤ ∧ (y ∨ (¬ z))) ∧
           (((¬ y) ∨ z) ∧ ⊤)
                                          ≃⟨ proj₁ ∧-identity _ ⟨ ∧-pres-≈ ⟩
@@ -552,7 +633,7 @@ module BoolAlgRing
           (¬ x) ∨ ¬ ((y ∨ z) ∧ ¬ (y ∧ z))
                                                   ≃⟨ byDef ⟨ ∨-pres-≈ ⟩ lem₄' ⟩
           (¬ x) ∨ ((y ∨ (¬ z)) ∧ ((¬ y) ∨ z))
-                                                  ≃⟨ ∨-∧-distrib _ _ _ ⟩
+                                                  ≃⟨ proj₁ ∨-∧-distrib _ _ _ ⟩
           ((¬ x) ∨ (y     ∨ (¬ z))) ∧
           ((¬ x) ∨ ((¬ y) ∨ z))
                                                   ≃⟨ ∨-assoc _ _ _ ⟨ ∧-pres-≈ ⟩ ∨-assoc _ _ _ ⟩
@@ -577,44 +658,47 @@ module BoolAlgRing
           (((x ∨ (¬ y)) ∨ ¬ z) ∧ (((¬ x) ∨ y) ∨ ¬ z))
                                                              ∎
 
-    ring : Ring _⊕_ _∧_ id ⊥ ⊤
-    ring = record
-      { +-group = record
-        { group = record
-          { monoid = record
-            { semigroup = record
-              { assoc    = ⊕-assoc
-              ; •-pres-≈ = ⊕-pres
+    commRing : CommutativeRing _⊕_ _∧_ id ⊥ ⊤
+    commRing = record
+      { ring = record
+        { +-group = record
+          { group = record
+            { monoid = record
+              { semigroup = record
+                { assoc    = ⊕-assoc
+                ; •-pres-≈ = ⊕-pres
+                }
+              ; identity = ⊕-identity
               }
-            ; identity = ⊕-identity
+            ; inverse   = ⊕-inverse
+            ; ⁻¹-pres-≈ = id
             }
-          ; inverse   = ⊕-inverse
-          ; ⁻¹-pres-≈ = id
+          ; comm = ⊕-comm
           }
-        ; comm = ⊕-comm
-        }
-      ; *-monoid = record
-        { semigroup = record
-          { assoc    = ∧-assoc
-          ; •-pres-≈ = ∧-pres-≈
+        ; *-monoid = record
+          { semigroup = record
+            { assoc    = ∧-assoc
+            ; •-pres-≈ = ∧-pres-≈
+            }
+          ; identity = ∧-identity
           }
-        ; identity = ∧-identity
+        ; distrib = distrib-∧-⊕
         }
-      ; distrib = distrib-∧-⊕
+      ; *-comm = ∧-comm
       }
 
-  ringoid : Ringoid
-  ringoid = record
-    { setoid = setoid
-    ; _+_    = _⊕_
-    ; _*_    = _∧_
-    ; -_     = id
-    ; 0#     = ⊥
-    ; 1#     = ⊤
-    ; ring   = ring
+  commRingoid : CommutativeRingoid
+  commRingoid = record
+    { setoid   = setoid
+    ; _+_      = _⊕_
+    ; _*_      = _∧_
+    ; -_       = id
+    ; 0#       = ⊥
+    ; 1#       = ⊤
+    ; commRing = commRing
     }
 
 _⊕_ : Op₂
 x ⊕ y = (x ∨ y) ∧ ¬ (x ∧ y)
 
-module DefaultRing = BoolAlgRing _⊕_ (\_ _ -> byDef)
+module DefaultXorRing = XorRing _⊕_ (\_ _ -> byDef)
