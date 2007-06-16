@@ -9,9 +9,8 @@ open import Prelude.Function
 open import Prelude.BinaryRelation
 open import Prelude.BinaryRelation.PropositionalEquality
 
-infixr 7 _xor_
 infixr 6 _∧_
-infixr 5 _∨_
+infixr 5 _∨_ _xor_
 
 ------------------------------------------------------------------------
 -- The type
