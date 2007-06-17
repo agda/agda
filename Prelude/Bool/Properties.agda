@@ -10,14 +10,15 @@ open import Prelude.Vec
 open import Prelude.Logic
 open import Prelude.Function
 import Prelude.Algebra
+import Prelude.Algebra.CommutativeSemiringProperties as CSProp
+import Prelude.Algebra.CommutativeRingProperties     as CRProp
 private
   open module A = Prelude.Algebra Bool-setoid
 open import Prelude.Algebraoid
-open import Prelude.Algebraoid.Conversion
 open import Prelude.BinaryRelation.PropositionalEquality
 open import Prelude.Product
 open Π
-import Prelude.SemiringSolver
+import Prelude.RingSolver
 
 import Prelude.PreorderProof
 private
@@ -122,8 +123,9 @@ Bool-commSemiringoid-∨-∧ = record
   ; commSemiring = Bool-commSemiring-∨-∧
   }
 
-module Bool-semiringSolver =
-  Prelude.SemiringSolver Bool-commSemiringoid-∨-∧
+module Bool-ringSolver =
+  Prelude.RingSolver (CSProp.almostCommRingoid
+                        Bool-commSemiringoid-∨-∧)
 
 ------------------------------------------------------------------------
 -- (Bool, ∧, ∨, true, false) forms a commutative semiring
@@ -297,9 +299,9 @@ Bool-commRingoid-xor-∧ = record
                Bool-booleanAlgebraoid
   module R = P.XorRing _xor_ xor-is-ok
 
-module Bool-xor-semiringSolver =
-  Prelude.SemiringSolver
-    (commRingoid⟶commSemiringoid Bool-commRingoid-xor-∧)
+module Bool-xor-ringSolver =
+  Prelude.RingSolver
+    (CRProp.almostCommRingoid Bool-commRingoid-xor-∧)
 
 ------------------------------------------------------------------------
 -- Miscellaneous other properties

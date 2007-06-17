@@ -1,13 +1,13 @@
 ------------------------------------------------------------------------
--- Some boring lemmas used by the semiring solver
+-- Some boring lemmas used by the ring solver
 ------------------------------------------------------------------------
 
--- Note that these proofs use all commutative semiring properties
--- except for the fact that 0# is a zero for _*_.
+-- Note that these proofs use all "almost commutative ring" properties
+-- except for the fact that 0# is a zero for *.
 
 open import Prelude.Algebraoid
 
-module Prelude.SemiringSolver.Lemmas (s : CommutativeSemiringoid) where
+module Prelude.RingSolver.Lemmas (r : AlmostCommRingoid) where
 
 open import Prelude.BinaryRelation
 open import Prelude.Function
@@ -16,17 +16,18 @@ open Π
 import Prelude.PreorderProof
 import Prelude.Algebra
 private
-  open module R = CommutativeSemiringoid s
+  open module R = AlmostCommRingoid r
   open module S = Setoid setoid
   open module S = Equivalence equiv
   open module S = Prelude.PreorderProof (setoid⟶preSetoid setoid)
   open module R = Prelude.Algebra setoid
-  module R = CommutativeSemiring commSemiring
-  module R = Semiring R.semiring
-  module A = CommutativeMonoid R.+-monoid
+  open module R = AlmostCommRing almostCommRing
+  open module R = CommutativeSemiring commSemiring
+  open module R = Semiring semiring
+  module A = CommutativeMonoid +-monoid
   module A = Monoid A.monoid
   module A = Semigroup A.semigroup
-  module M = Monoid R.*-monoid
+  module M = Monoid *-monoid
   module M = Semigroup M.semigroup
 
 abstract
@@ -34,7 +35,7 @@ abstract
          -> ((a + b) * x + (c + d)) ≈ (((a * x) + c) + ((b * x) + d))
   lemma₁ a b c d x =
     (a + b) * x + (c + d)
-                                   ≃⟨ proj₂ R.distrib _ _ _ ⟨ A.•-pres-≈ ⟩ byDef ⟩
+                                   ≃⟨ proj₂ distrib _ _ _ ⟨ A.•-pres-≈ ⟩ byDef ⟩
     ((a * x) + (b * x)) + (c + d)
                                    ≃⟨ sym $ A.assoc _ _ _ ⟩
     (a * x) + ((b * x) + (c + d))
@@ -65,7 +66,7 @@ abstract
     ((a * c) * x) + (b * c)
                              ≃⟨ lem ⟨ A.•-pres-≈ ⟩ byDef ⟩
     ((a * x) * c) + (b * c)
-                             ≃⟨ sym $ proj₂ R.distrib _ _ _ ⟩
+                             ≃⟨ sym $ proj₂ distrib _ _ _ ⟩
     ((a * x) + b) * c
                              ∎
     where
@@ -73,7 +74,7 @@ abstract
       (a * c) * x
                    ≃⟨ sym (M.assoc _ _ _) ⟩
       a * (c * x)
-                   ≃⟨ byDef ⟨ M.•-pres-≈ ⟩ R.*-comm _ _ ⟩
+                   ≃⟨ byDef ⟨ M.•-pres-≈ ⟩ *-comm _ _ ⟩
       a * (x * c)
                    ≃⟨ M.assoc _ _ _ ⟩
       (a * x) * c
@@ -87,7 +88,7 @@ abstract
                                   ⟨ A.•-pres-≈ ⟩
                                 byDef ⟩
     (a * (b * x)) + (a * c)
-                             ≃⟨ sym $ proj₁ R.distrib _ _ _ ⟩
+                             ≃⟨ sym $ proj₁ distrib _ _ _ ⟩
     a * ((b * x) + c)
                              ∎
 
@@ -110,12 +111,12 @@ abstract
                                              ≃⟨ A.assoc _ _ _ ⟩
     (((a * x) * (c * x)) + ((a * x) * d)) +
     ((b * (c * x)) + (b * d))
-                                             ≃⟨ sym $ proj₁ R.distrib _ _ _
+                                             ≃⟨ sym $ proj₁ distrib _ _ _
                                                       ⟨ A.•-pres-≈ ⟩
-                                                    proj₁ R.distrib _ _ _ ⟩
+                                                    proj₁ distrib _ _ _ ⟩
     ((a * x) * ((c * x) + d)) +
     (b * ((c * x) + d))
-                                             ≃⟨ sym $ proj₂ R.distrib _ _ _ ⟩
+                                             ≃⟨ sym $ proj₂ distrib _ _ _ ⟩
     ((a * x) + b) * ((c * x) + d)
                                              ∎
     where
@@ -123,7 +124,7 @@ abstract
       (a * c) * x
                    ≃⟨ sym $ M.assoc _ _ _ ⟩
       a * (c * x)
-                   ≃⟨ byDef ⟨ M.•-pres-≈ ⟩ R.*-comm _ _ ⟩
+                   ≃⟨ byDef ⟨ M.•-pres-≈ ⟩ *-comm _ _ ⟩
       a * (x * c)
                    ≃⟨ M.assoc _ _ _ ⟩
       (a * x) * c
@@ -139,19 +140,28 @@ abstract
 
     lem₂ =
       ((a * d) + (b * c)) * x
-                                     ≃⟨ proj₂ R.distrib _ _ _ ⟩
+                                     ≃⟨ proj₂ distrib _ _ _ ⟩
       ((a * d) * x) + ((b * c) * x)
                                      ≃⟨ sym $ M.assoc _ _ _ ⟨ A.•-pres-≈ ⟩ M.assoc _ _ _ ⟩
       (a * (d * x)) + (b * (c * x))
-                                     ≃⟨ (byDef ⟨ M.•-pres-≈ ⟩ R.*-comm _ _)
+                                     ≃⟨ (byDef ⟨ M.•-pres-≈ ⟩ *-comm _ _)
                                           ⟨ A.•-pres-≈ ⟩ byDef ⟩
       (a * (x * d)) + (b * (c * x))
                                      ≃⟨ M.assoc _ _ _ ⟨ A.•-pres-≈ ⟩ byDef ⟩
       ((a * x) * d) + (b * (c * x))
                                      ∎
 
-  lemma₆ : forall x -> ((1# * x) + 0#) ≈ x
-  lemma₆ x =
+  lemma₆ : forall a b x -> (((- a) * x) + (- b)) ≈ (- ((a * x) + b))
+  lemma₆ a b x =
+    ((- a) * x) + (- b)
+                         ≃⟨ ¬-*-distribˡ _ _ ⟨ A.•-pres-≈ ⟩ byDef ⟩
+    (- (a * x)) + (- b)
+                         ≃⟨ ¬-+-comm _ _ ⟩
+    - ((a * x) + b)
+                         ∎
+
+  lemma₇ : forall x -> ((1# * x) + 0#) ≈ x
+  lemma₇ x =
     (1# * x) + 0#
                    ≃⟨ proj₂ A.identity _ ⟩
     1# * x

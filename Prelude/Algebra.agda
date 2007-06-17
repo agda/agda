@@ -138,6 +138,17 @@ record CommutativeRing (+ * : Op₂) (- : Op₁) (0# 1# : carrier) : Set where
   ring   : Ring + * - 0# 1#
   *-comm : Commutative *
 
+-- A structure which lies somewhere between commutative rings and
+-- commutative semirings
+
+record AlmostCommRing (_+_ _*_ : Op₂)
+                      (¬_ : Op₁)
+                      (0# 1# : carrier) : Set where
+  commSemiring : CommutativeSemiring _+_ _*_ 0# 1#
+  ¬-pres-≈     : ¬_ Preserves-≈
+  ¬-*-distribˡ : forall x y -> ((¬ x) * y) ≈ (¬ (x * y))
+  ¬-+-comm     : forall x y -> ((¬ x) + (¬ y)) ≈ (¬ (x + y))
+
 record Lattice (∨ ∧ : Op₂) : Set where
   ∨-comm     : Commutative ∨
   ∨-assoc    : Associative ∨

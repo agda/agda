@@ -8,6 +8,22 @@ open import Prelude.BinaryRelation
 open import Prelude.Algebra
 open Setoid
 
+-- I know that groupoid really means something else...
+
+record Groupoid : Set1 where
+  setoid : Setoid
+  _+_    : Op₂ setoid
+  -_     : Op₁ setoid
+  0#     : carrier setoid
+  group  : Group setoid _+_ 0# -_
+
+record AbelianGroupoid : Set1 where
+  setoid       : Setoid
+  _+_          : Op₂ setoid
+  -_           : Op₁ setoid
+  0#           : carrier setoid
+  abelianGroup : AbelianGroup setoid _+_ 0# -_
+
 record Semiringoid : Set1 where
   setoid   : Setoid
   _+_      : Op₂ setoid
@@ -41,6 +57,15 @@ record CommutativeRingoid : Set1 where
   0#       : carrier setoid
   1#       : carrier setoid
   commRing : CommutativeRing setoid _+_ _*_ -_ 0# 1#
+
+record AlmostCommRingoid : Set1 where
+  setoid         : Setoid
+  _+_            : Op₂ setoid
+  _*_            : Op₂ setoid
+  -_             : Op₁ setoid
+  0#             : carrier setoid
+  1#             : carrier setoid
+  almostCommRing : AlmostCommRing setoid _+_ _*_ -_ 0# 1#
 
 record Latticoid : Set1 where
   setoid  : Setoid

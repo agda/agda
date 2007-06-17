@@ -25,8 +25,22 @@ open import Prelude.BinaryRelation.OrderMorphism          public
 
 import Prelude.Algebra
 module Algebra = Prelude.Algebra
+import Prelude.Algebra.GroupProperties
+module GroupProperties = Prelude.Algebra.GroupProperties
+import Prelude.Algebra.AbelianGroupProperties
+module AbelianGroupProperties =
+         Prelude.Algebra.AbelianGroupProperties
 import Prelude.Algebra.RingProperties
 module RingProperties = Prelude.Algebra.RingProperties
+import Prelude.Algebra.CommutativeRingProperties
+module CommutativeRingProperties =
+         Prelude.Algebra.CommutativeRingProperties
+import Prelude.Algebra.AlmostCommRingProperties
+module AlmostCommRingProperties =
+         Prelude.Algebra.AlmostCommRingProperties
+import Prelude.Algebra.CommutativeSemiringProperties
+module CommutativeSemiringProperties =
+         Prelude.Algebra.CommutativeSemiringProperties
 import Prelude.Algebra.LatticeProperties
 module LatticeProperties = Prelude.Algebra.LatticeProperties
 import Prelude.Algebra.DistributiveLatticeProperties
@@ -37,8 +51,9 @@ module BooleanAlgebraProperties =
   Prelude.Algebra.BooleanAlgebraProperties
 import Prelude.Algebra.Operations
 module AlgebraOperations = Prelude.Algebra.Operations
+import Prelude.RingSolver
+module RingSolver = Prelude.RingSolver
 open import Prelude.Algebraoid
-open import Prelude.Algebraoid.Conversion
 
 -- Data.
 

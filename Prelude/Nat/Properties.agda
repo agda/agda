@@ -8,13 +8,14 @@ open import Prelude.Nat
 open import Prelude.Logic
 open import Prelude.Function
 import Prelude.Algebra
+import Prelude.Algebra.CommutativeSemiringProperties as CSProp
 private
   open module A = Prelude.Algebra ℕ-setoid
 open import Prelude.Algebraoid
 open import Prelude.BinaryRelation.PropositionalEquality
 open import Prelude.Product
 open Π
-import Prelude.SemiringSolver
+import Prelude.RingSolver
 
 import Prelude.PreorderProof
 private
@@ -202,7 +203,7 @@ abstract
   }
 
 module ℕ-semiringSolver =
-  Prelude.SemiringSolver ℕ-commSemiringoid
+  Prelude.RingSolver (CSProp.almostCommRingoid ℕ-commSemiringoid)
 
 ------------------------------------------------------------------------
 -- (ℕ, ⊔, ⊓) is a lattice

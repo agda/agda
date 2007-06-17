@@ -15,7 +15,6 @@ open Π
 import Prelude.PreorderProof
 import Prelude.Algebra
 import Prelude.Algebra.LatticeProperties
-open import Prelude.Algebraoid.Conversion
 private
   open module L = DistributiveLatticoid dl
   open module L = Prelude.Algebra setoid
@@ -24,9 +23,24 @@ private
   open module S = Setoid setoid
   open module S = Equivalence equiv
   open module S = Prelude.PreorderProof (setoid⟶preSetoid setoid)
-  module LP = Prelude.Algebra.LatticeProperties
-                (distLatticoid⟶latticoid dl)
+
+------------------------------------------------------------------------
+-- A distributive lattice is a lattice
+
+latticoid : Latticoid
+latticoid = record
+  { setoid  = setoid
+  ; _∨_     = _∨_
+  ; _∧_     = _∧_
+  ; lattice = lattice
+  }
+
+private
+  module LP = Prelude.Algebra.LatticeProperties latticoid
 open LP public
+
+------------------------------------------------------------------------
+-- Some properties
 
 abstract
 

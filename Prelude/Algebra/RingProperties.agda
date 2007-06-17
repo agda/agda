@@ -12,6 +12,7 @@ open import Prelude.Product
 open Π
 import Prelude.PreorderProof
 import Prelude.Algebra
+import Prelude.Algebra.AbelianGroupProperties
 private
   open module R  = Ringoid r
   open module S  = Setoid setoid
@@ -25,6 +26,9 @@ private
   module A = Semigroup A.semigroup
   module M = Monoid R.*-monoid
   module M = Semigroup M.semigroup
+
+------------------------------------------------------------------------
+-- A ring is a semiring
 
 abstract
   zero : Zero 0# _*_
@@ -75,10 +79,39 @@ abstract
     ; zero     = zero
     }
 
+semiringoid : Semiringoid
+semiringoid = record
+  { setoid   = setoid
+  ; _+_      = _+_
+  ; _*_      = _*_
+  ; 0#       = 0#
+  ; 1#       = 1#
+  ; semiring = semiring
+  }
+
+------------------------------------------------------------------------
+-- (+, -_, 0#) is an abelian group
+
+abelianGroupoid : AbelianGroupoid
+abelianGroupoid = record
+  { setoid       = setoid
+  ; _+_          = _+_
+  ; -_           = -_
+  ; 0#           = 0#
+  ; abelianGroup = R.+-group
+  }
+
+private
+  module AP = Prelude.Algebra.AbelianGroupProperties abelianGroupoid
+open AP public
+
+------------------------------------------------------------------------
+-- Some properties
+
 abstract
 
-  minusDistribˡ : forall x y -> ((- x) * y) ≈ (- (x * y))
-  minusDistribˡ x y =
+  ¬-*-distribˡ : forall x y -> ((- x) * y) ≈ (- (x * y))
+  ¬-*-distribˡ x y =
     (- x) * y
                                          ≃⟨ sym $ proj₂ A.identity _ ⟩
     ((- x) * y) + 0#
@@ -96,8 +129,8 @@ abstract
     - (x * y)
                                          ∎
 
-  minusDistribʳ : forall x y -> (x * (- y)) ≈ (- (x * y))
-  minusDistribʳ x y =
+  ¬-*-distribʳ : forall x y -> (x * (- y)) ≈ (- (x * y))
+  ¬-*-distribʳ x y =
     x * (- y)
                                          ≃⟨ sym $ proj₁ A.identity _ ⟩
     0# + (x * (- y))

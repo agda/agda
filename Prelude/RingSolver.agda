@@ -1,5 +1,5 @@
 ------------------------------------------------------------------------
--- Solver for commutative semiring equalities
+-- Solver for commutative ring or semiring equalities
 ------------------------------------------------------------------------
 
 -- Uses ideas from the Coq ring tactic. See "Proving Equalities in a
@@ -8,11 +8,11 @@
 
 open import Prelude.Algebraoid
 
-module Prelude.SemiringSolver (s : CommutativeSemiringoid) where
+module Prelude.RingSolver (r : AlmostCommRingoid) where
 
 open import Prelude.BinaryRelation
 open import Prelude.Logic
-open import Prelude.Nat renaming (_+_ to _ℕ-+_; _*_ to _ℕ-*_)
+open import Prelude.Nat hiding (_*_) renaming (_+_ to _ℕ-+_)
 open import Prelude.Fin
 open import Prelude.Vec
 open import Prelude.Function hiding (const)
@@ -21,27 +21,26 @@ open Π
 import Prelude.PreorderProof
 import Prelude.Algebra
 import Prelude.Algebra.Operations
-import Prelude.SemiringSolver.Lemmas
-open import Prelude.Algebraoid.Conversion
+import Prelude.Algebra.AlmostCommRingProperties
+import Prelude.RingSolver.Lemmas
 private
-  open module L = Prelude.SemiringSolver.Lemmas s
-  open module R = CommutativeSemiringoid s
+  open module L = Prelude.RingSolver.Lemmas r
+  open module R = AlmostCommRingoid r
+  open module R = Prelude.Algebra.AlmostCommRingProperties r
   open module S = Setoid setoid
   open module S = Equivalence equiv
   open module S = Preorder preorder
   open module S = Prelude.PreorderProof (setoid⟶preSetoid setoid)
   open module R = Prelude.Algebra setoid
-  open module R = Prelude.Algebra.Operations
-                    (commSemiringoid⟶semiringoid s)
-  module R = CommutativeSemiring commSemiring
-  module R = Semiring R.semiring
-  module A = CommutativeMonoid R.+-monoid
-  module A = Monoid A.monoid
+  open module R = AlmostCommRing almostCommRing
+  open module R = CommutativeSemiring commSemiring
+  module I = Semiring semiring
+  module A = Monoid (CommutativeMonoid.monoid I.+-monoid)
   module A = Semigroup A.semigroup
-  module M = Monoid R.*-monoid
-  module M = Semigroup M.semigroup
+  module M = Semigroup (Monoid.semigroup I.*-monoid)
+  open module R = Prelude.Algebra.Operations semiringoid
 
-infix  9 _↑-NF
+infix  9 _↑-NF :-_ ¬-NF_
 infixr 9 _:^_ _^-NF_ _:↑_
 infix  8 _*x _*x+_
 infixl 8 _:*_ _*-NF_
@@ -62,6 +61,7 @@ data Polynomial (n : ℕ) : Set where
   con  : carrier -> Polynomial n
   var  : Fin n -> Polynomial n
   _:^_ : Polynomial n -> ℕ -> Polynomial n
+  :-_  : Polynomial n -> Polynomial n
 
 -- Short-hand notation.
 
@@ -82,6 +82,7 @@ sem [*] = _*_
 ⟦ con c ⟧      ρ = c
 ⟦ var x ⟧      ρ = lookup x ρ
 ⟦ p :^ n ⟧     ρ = ⟦ p ⟧ ρ ^ n
+⟦ :- p ⟧       ρ = - ⟦ p ⟧ ρ
 
 private
 
@@ -97,6 +98,7 @@ private
   con c      :↑ m = con c
   var x      :↑ m = var (raise m x)
   (p :^ n)   :↑ m = (p :↑ m) :^ n
+  (:- p)     :↑ m = :- (p :↑ m)
 
 ------------------------------------------------------------------------
 -- Normal forms of polynomials
@@ -166,8 +168,14 @@ private
     (p₁ *-NF p₂) *x *x +-NF
     (p₁ *-NF c₂ ↑-NF +-NF c₁ ↑-NF *-NF p₂) *x+ (c₁ *-NF c₂)             ∷-NF lemma₅ _ _ _ _ _
 
+  ¬-NF_ :  forall {n p} -> Normal n p -> Normal n (:- p)
+  ¬-NF_ (p ∷-NF eq) = ¬-NF_ p ∷-NF ¬-pres-≈ eq
+  ¬-NF_ (con-NF c)  = con-NF (- c) ∷-NF byDef
+  ¬-NF_ (p ↑-NF)    = ¬-NF_ p ↑-NF
+  ¬-NF_ (p *x+ c)   = ¬-NF_ p *x+ ¬-NF_ c ∷-NF lemma₆ _ _ _
+
   var-NF : forall {n} -> (i : Fin n) -> Normal n (var i)
-  var-NF fz     = con-NF⋆ 1# *x+ con-NF⋆ 0# ∷-NF lemma₆ _
+  var-NF fz     = con-NF⋆ 1# *x+ con-NF⋆ 0# ∷-NF lemma₇ _
   var-NF (fs i) = var-NF i ↑-NF
 
   _^-NF_ : forall {n p} -> Normal n p -> (i : ℕ) -> Normal n (p :^ i)
@@ -186,6 +194,7 @@ private
   normalise (con c)      = con-NF⋆ c
   normalise (var i)      = var-NF i
   normalise (p :^ n)     = normalise p ^-NF n
+  normalise (:- p)       = ¬-NF normalise p
 
 ⟦_⟧↓_ : forall {n} -> Polynomial n -> Vec carrier n -> carrier
 ⟦ p ⟧↓ ρ = ⟦ normalise p ⟧-NF ρ
@@ -206,9 +215,10 @@ abstract
   raise-sem (con c)      ρ = byDef
   raise-sem (var x)      ρ = byDef
   raise-sem (p :^ n)     ρ = raise-sem p ρ ⟨ ^-pres-≈ ⟩ ≡-refl {x = n}
+  raise-sem (:- p)       ρ = ¬-pres-≈ (raise-sem p ρ)
 
   nf-sound : forall {n p} (nf : Normal n p) ρ
-             -> ⟦ nf ⟧-NF ρ ≈ ⟦ p ⟧ ρ
+           -> ⟦ nf ⟧-NF ρ ≈ ⟦ p ⟧ ρ
   nf-sound (nf ∷-NF eq)       ρ       = nf-sound nf ρ ⟨ trans ⟩ eq
   nf-sound (con-NF c)         ρ       = byDef
   nf-sound (_↑-NF {p = p} nf) (x ∷ ρ) =
@@ -237,5 +247,5 @@ abstract
     nf-sound (normalise p₂) ρ
 
 -- For examples of how the function above can be used to
--- semi-automatically prove semiring equalities, see
--- Prelude.SemiringSolver.Examples.
+-- semi-automatically prove ring equalities, see
+-- Prelude.RingSolver.Examples.

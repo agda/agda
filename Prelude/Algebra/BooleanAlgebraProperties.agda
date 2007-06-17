@@ -16,7 +16,6 @@ import Prelude.PreorderProof
 import Prelude.Algebra
 import Prelude.Algebra.LatticeProperties
 import Prelude.Algebra.DistributiveLatticeProperties
-open import Prelude.Algebraoid.Conversion
 private
   open module B = BooleanAlgebraoid b
   open module B = Prelude.Algebra setoid
@@ -27,8 +26,21 @@ private
   open module S = Equivalence equiv
   open module S = Preorder preorder
   open module S = Prelude.PreorderProof (setoid⟶preSetoid setoid)
+
+------------------------------------------------------------------------
+-- A boolean algebra is a distributive lattice
+
+distLatticoid : DistributiveLatticoid
+distLatticoid = record
+  { setoid      = setoid
+  ; _∨_         = _∨_
+  ; _∧_         = _∧_
+  ; distLattice = distLattice
+  }
+
+private
   module DLP = Prelude.Algebra.DistributiveLatticeProperties
-                 (boolAlgoid⟶distLatticoid b)
+                 distLatticoid
 open DLP public
 
 ------------------------------------------------------------------------
