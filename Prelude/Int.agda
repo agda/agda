@@ -12,8 +12,10 @@ open import Prelude.BinaryRelation
 open import Prelude.BinaryRelation.PropositionalEquality
 open import Prelude.Algebra
 open import Prelude.Algebraoid
-import Prelude.RingSolver
+import Prelude.RingSolver.Simple as S
 import Prelude.Algebra.CommutativeRingProperties as CRProp
+import Prelude.Algebra.AlmostCommRingProperties  as AProp
+import Prelude.Algebra.Operations as Op
 
 infix  8 +_ -_
 infixl 7 _*_ _⊓_
@@ -96,6 +98,16 @@ i ≤? j | true  = no trustMe
   where postulate trustMe : _
 
 ------------------------------------------------------------------------
+-- Conversion
+
+toℕ : ℤ -> ℕ
+toℕ i with i ≟ (+ 0)
+toℕ i | yes _ = N.zero
+toℕ i | no _  with i ≤? (+ 0)
+toℕ i | no _  | yes _ = N.suc (toℕ (suc i))
+toℕ i | no _  | no _  = N.suc (toℕ (pred i))
+
+------------------------------------------------------------------------
 -- Some properties
 
 ℤ-setoid : Setoid
@@ -139,5 +151,34 @@ i ≤? j | true  = no trustMe
   }
   where postulate trustMe : _
 
-module ℤ-ringSolver =
-  Prelude.RingSolver (CRProp.almostCommRingoid ℤ-commRingoid)
+module ℤ-ringSolver = S (CRProp.almostCommRingoid ℤ-commRingoid)
+
+-- TODO: The properties below are probably provable.
+
+ℤ-morphism : forall r -> ℤ-bareRingoid -Bare-AlmostComm⟶ r
+ℤ-morphism r = record
+  { ⟦_⟧    = ⟦_⟧
+  ; +-homo = trustMe₁
+  ; *-homo = trustMe₂
+  ; ¬-homo = trustMe₃
+  ; 0-homo = trustMe₄
+  ; 1-homo = trustMe₅
+  }
+  where
+  open module R = AlmostCommRingoid r
+  module B = BareRingoid bare
+  open module R = Setoid B.setoid
+  module A = AProp r
+  open module O = Op A.semiringoid
+
+  ⟦_⟧ : ℤ -> carrier
+  ⟦ i ⟧ with i ≤? (+ 0)
+  ⟦ i ⟧ | yes _ = B.-_ (toℕ i × B.1#)
+  ⟦ i ⟧ | no _  = toℕ i × B.1#
+
+  postulate
+    trustMe₁ : _ -- forall x y -> ⟦ x + y ⟧ ≈ B._+_ ⟦ x ⟧ ⟦ y ⟧
+    trustMe₂ : _ -- forall x y -> ⟦ x * y ⟧ ≈ B._*_ ⟦ x ⟧ ⟦ y ⟧
+    trustMe₃ : _ -- forall x   -> ⟦ - x ⟧   ≈ B.-_ ⟦ x ⟧
+    trustMe₄ : B.-_ B.0# ≈ B.0#
+    trustMe₅ : B._+_ B.1# B.0# ≈ B.1#

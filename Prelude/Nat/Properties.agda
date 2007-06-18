@@ -15,7 +15,7 @@ open import Prelude.Algebraoid
 open import Prelude.BinaryRelation.PropositionalEquality
 open import Prelude.Product
 open Π
-import Prelude.RingSolver
+import Prelude.RingSolver.Simple as Solver
 
 import Prelude.PreorderProof
 private
@@ -203,7 +203,7 @@ abstract
   }
 
 module ℕ-semiringSolver =
-  Prelude.RingSolver (CSProp.almostCommRingoid ℕ-commSemiringoid)
+  Solver (CSProp.almostCommRingoid ℕ-commSemiringoid)
 
 ------------------------------------------------------------------------
 -- (ℕ, ⊔, ⊓) is a lattice

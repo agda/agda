@@ -8,7 +8,11 @@
 
 open import Prelude.Algebraoid
 
-module Prelude.RingSolver (r : AlmostCommRingoid) where
+module Prelude.RingSolver
+  (coeff : BareRingoid)    -- Coefficient "ring".
+  (r : AlmostCommRingoid)  -- Main "ring".
+  (morphism : coeff -Bare-AlmostComm⟶ r)
+  where
 
 open import Prelude.BinaryRelation
 open import Prelude.Logic
@@ -20,11 +24,12 @@ open import Prelude.Product
 open Π
 import Prelude.PreorderProof
 import Prelude.Algebra
+import Prelude.Algebra.Morphism as Morphism
 import Prelude.Algebra.Operations
 import Prelude.Algebra.AlmostCommRingProperties
 import Prelude.RingSolver.Lemmas
 private
-  open module L = Prelude.RingSolver.Lemmas r
+  open module L = Prelude.RingSolver.Lemmas coeff r morphism
   open module R = AlmostCommRingoid r
   open module R = BareRingoid bare
   open module R = Prelude.Algebra.AlmostCommRingProperties r
@@ -40,6 +45,10 @@ private
   module A = Semigroup A.semigroup
   module M = Semigroup (Monoid.semigroup I.*-monoid)
   open module R = Prelude.Algebra.Operations semiringoid
+  module C = BareRingoid coeff
+  module C = Setoid C.setoid
+  open module R = Morphism C.setoid setoid
+  open module R = RingHomomorphism morphism renaming (⟦_⟧ to ⟦_⟧')
 
 infix  9 _↑-NF :-_ ¬-NF_
 infixr 9 _:^_ _^-NF_ _:↑_
@@ -59,7 +68,7 @@ data Op : Set where
 
 data Polynomial (n : ℕ) : Set where
   op   : Op -> Polynomial n -> Polynomial n -> Polynomial n
-  con  : carrier -> Polynomial n
+  con  : C.carrier -> Polynomial n
   var  : Fin n -> Polynomial n
   _:^_ : Polynomial n -> ℕ -> Polynomial n
   :-_  : Polynomial n -> Polynomial n
@@ -80,7 +89,7 @@ sem [*] = _*_
 
 ⟦_⟧_ : forall {n} -> Polynomial n -> Vec carrier n -> carrier
 ⟦ op o p₁ p₂ ⟧ ρ = ⟦ p₁ ⟧ ρ ⟨ sem o ⟩ ⟦ p₂ ⟧ ρ
-⟦ con c ⟧      ρ = c
+⟦ con c ⟧      ρ = ⟦ c ⟧'
 ⟦ var x ⟧      ρ = lookup x ρ
 ⟦ p :^ n ⟧     ρ = ⟦ p ⟧ ρ ^ n
 ⟦ :- p ⟧       ρ = - ⟦ p ⟧ ρ
@@ -113,7 +122,7 @@ private
   data Normal : (n : ℕ) -> Polynomial n -> Set where
     _∷-NF_ :  forall {n p₁ p₂}
            -> Normal n p₁ -> p₁ ≛ p₂ -> Normal n p₂
-    con-NF :  (c : carrier) -> Normal 0 (con c)
+    con-NF :  (c : C.carrier) -> Normal 0 (con c)
     _↑-NF  :  forall {n p}
            -> Normal n p -> Normal (suc n) (p :↑ 1)
     _*x+_  :  forall {n p c}
@@ -122,16 +131,16 @@ private
 
   ⟦_⟧-NF_ : forall {n p} -> Normal n p -> Vec carrier n -> carrier
   ⟦ p ∷-NF _ ⟧-NF ρ       = ⟦ p ⟧-NF ρ
-  ⟦ con-NF c ⟧-NF ρ       = c
+  ⟦ con-NF c ⟧-NF ρ       = ⟦ c ⟧'
   ⟦ p ↑-NF   ⟧-NF (x ∷ ρ) = ⟦ p ⟧-NF ρ
   ⟦ p *x+ c  ⟧-NF (x ∷ ρ) = ⟦ p ⟧-NF (x ∷ ρ) * x + ⟦ c ⟧-NF ρ
 
-  con-NF⋆ : forall {n} -> (c : carrier) -> Normal n (con c)
+  con-NF⋆ : forall {n} -> (c : C.carrier) -> Normal n (con c)
   con-NF⋆ {zero}  c = con-NF c
   con-NF⋆ {suc _} c = con-NF⋆ c ↑-NF
 
   _*x : forall {n p} -> Normal (suc n) p -> Normal (suc n) (p :* var fz)
-  p *x = p *x+ con-NF⋆ 0# ∷-NF proj₂ A.identity _
+  p *x = p *x+ con-NF⋆ C.0# ∷-NF lemma₀ _
 
 ------------------------------------------------------------------------
 -- Normalisation
@@ -145,7 +154,7 @@ private
   (p₁ ∷-NF eq₁) +-NF (p₂ ∷-NF eq₂) = p₁ +-NF p₂                    ∷-NF eq₁   ⟨ A.•-pres-≈ ⟩ eq₂
   (p₁ ∷-NF eq)  +-NF p₂            = p₁ +-NF p₂                    ∷-NF eq    ⟨ A.•-pres-≈ ⟩ byDef
   p₁            +-NF (p₂ ∷-NF eq)  = p₁ +-NF p₂                    ∷-NF byDef ⟨ A.•-pres-≈ ⟩ eq
-  con-NF c₁     +-NF con-NF c₂     = con-NF (c₁ + c₂)              ∷-NF byDef
+  con-NF c₁     +-NF con-NF c₂     = con-NF (C._+_ c₁ c₂)          ∷-NF +-homo _ _
   p₁ ↑-NF       +-NF p₂ ↑-NF       = (p₁ +-NF p₂) ↑-NF             ∷-NF byDef
   p₁ *x+ c₁     +-NF p₂ ↑-NF       = p₁ *x+ (c₁ +-NF p₂)           ∷-NF A.assoc _ _ _
   p₁ *x+ c₁     +-NF p₂ *x+ c₂     = (p₁ +-NF p₂) *x+ (c₁ +-NF c₂) ∷-NF lemma₁ _ _ _ _ _
@@ -161,7 +170,7 @@ private
   (p₁ ∷-NF eq₁) *-NF (p₂ ∷-NF eq₂) = p₁ *-NF p₂                         ∷-NF eq₁   ⟨ M.•-pres-≈ ⟩ eq₂
   (p₁ ∷-NF eq)  *-NF p₂            = p₁ *-NF p₂                         ∷-NF eq    ⟨ M.•-pres-≈ ⟩ byDef
   p₁            *-NF (p₂ ∷-NF eq)  = p₁ *-NF p₂                         ∷-NF byDef ⟨ M.•-pres-≈ ⟩ eq
-  con-NF c₁     *-NF con-NF c₂     = con-NF (c₁ * c₂)                   ∷-NF byDef
+  con-NF c₁     *-NF con-NF c₂     = con-NF (C._*_ c₁ c₂)               ∷-NF *-homo _ _
   p₁ ↑-NF       *-NF p₂ ↑-NF       = (p₁ *-NF p₂) ↑-NF                  ∷-NF byDef
   (p₁ *x+ c₁)   *-NF p₂ ↑-NF       = (p₁ *-NF p₂ ↑-NF) *x+ (c₁ *-NF p₂) ∷-NF lemma₃ _ _ _ _
   p₁ ↑-NF       *-NF (p₂ *x+ c₂)   = (p₁ ↑-NF *-NF p₂) *x+ (p₁ *-NF c₂) ∷-NF lemma₄ _ _ _ _
@@ -171,16 +180,16 @@ private
 
   ¬-NF_ :  forall {n p} -> Normal n p -> Normal n (:- p)
   ¬-NF_ (p ∷-NF eq) = ¬-NF_ p ∷-NF ¬-pres-≈ eq
-  ¬-NF_ (con-NF c)  = con-NF (- c) ∷-NF byDef
+  ¬-NF_ (con-NF c)  = con-NF (C.-_ c) ∷-NF ¬-homo _
   ¬-NF_ (p ↑-NF)    = ¬-NF_ p ↑-NF
   ¬-NF_ (p *x+ c)   = ¬-NF_ p *x+ ¬-NF_ c ∷-NF lemma₆ _ _ _
 
   var-NF : forall {n} -> (i : Fin n) -> Normal n (var i)
-  var-NF fz     = con-NF⋆ 1# *x+ con-NF⋆ 0# ∷-NF lemma₇ _
+  var-NF fz     = con-NF⋆ C.1# *x+ con-NF⋆ C.0# ∷-NF lemma₇ _
   var-NF (fs i) = var-NF i ↑-NF
 
   _^-NF_ : forall {n p} -> Normal n p -> (i : ℕ) -> Normal n (p :^ i)
-  p ^-NF zero  = con-NF⋆ 1#      ∷-NF byDef
+  p ^-NF zero  = con-NF⋆ C.1#    ∷-NF 1-homo
   p ^-NF suc n = p *-NF p ^-NF n ∷-NF byDef
 
   normaliseOp
@@ -218,7 +227,7 @@ abstract
   raise-sem (p :^ n)     ρ = raise-sem p ρ ⟨ ^-pres-≈ ⟩ ≡-refl {x = n}
   raise-sem (:- p)       ρ = ¬-pres-≈ (raise-sem p ρ)
 
-  nf-sound : forall {n p} (nf : Normal n p) ρ
+  nf-sound :  forall {n p} (nf : Normal n p) ρ
            -> ⟦ nf ⟧-NF ρ ≈ ⟦ p ⟧ ρ
   nf-sound (nf ∷-NF eq)       ρ       = nf-sound nf ρ ⟨ trans ⟩ eq
   nf-sound (con-NF c)         ρ       = byDef

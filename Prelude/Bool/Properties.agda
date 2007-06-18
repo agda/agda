@@ -18,7 +18,7 @@ open import Prelude.Algebraoid
 open import Prelude.BinaryRelation.PropositionalEquality
 open import Prelude.Product
 open Π
-import Prelude.RingSolver
+import Prelude.RingSolver.Simple as Solver
 
 import Prelude.PreorderProof
 private
@@ -124,8 +124,7 @@ Bool-commSemiringoid-∨-∧ = record
   }
 
 module Bool-ringSolver =
-  Prelude.RingSolver (CSProp.almostCommRingoid
-                        Bool-commSemiringoid-∨-∧)
+  Solver (CSProp.almostCommRingoid Bool-commSemiringoid-∨-∧)
 
 ------------------------------------------------------------------------
 -- (Bool, ∧, ∨, true, false) forms a commutative semiring
@@ -302,8 +301,7 @@ Bool-commRingoid-xor-∧ = record
   module R = P.XorRing _xor_ xor-is-ok
 
 module Bool-xor-ringSolver =
-  Prelude.RingSolver
-    (CRProp.almostCommRingoid Bool-commRingoid-xor-∧)
+  Solver (CRProp.almostCommRingoid Bool-commRingoid-xor-∧)
 
 ------------------------------------------------------------------------
 -- Miscellaneous other properties

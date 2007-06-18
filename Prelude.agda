@@ -57,6 +57,10 @@ import Prelude.Algebra.Operations
 module AlgebraOperations = Prelude.Algebra.Operations
 import Prelude.RingSolver
 module RingSolver = Prelude.RingSolver
+import Prelude.RingSolver.Simple
+module SimpleRingSolver = Prelude.RingSolver.Simple
+import Prelude.RingSolver.Int
+module IntRingSolver = Prelude.RingSolver.Int
 open import Prelude.Algebraoid
 
 -- Data.

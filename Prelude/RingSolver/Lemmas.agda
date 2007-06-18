@@ -7,7 +7,11 @@
 
 open import Prelude.Algebraoid
 
-module Prelude.RingSolver.Lemmas (r : AlmostCommRingoid) where
+module Prelude.RingSolver.Lemmas
+  (coeff : BareRingoid)
+  (r : AlmostCommRingoid)
+  (morphism : coeff -Bare-AlmostComm⟶ r)
+  where
 
 open import Prelude.BinaryRelation
 open import Prelude.Function
@@ -15,6 +19,7 @@ open import Prelude.Product
 open Π
 import Prelude.PreorderProof
 import Prelude.Algebra
+import Prelude.Algebra.Morphism as Morphism
 private
   open module R = AlmostCommRingoid r
   open module R = BareRingoid bare
@@ -30,8 +35,22 @@ private
   module A = Semigroup A.semigroup
   module M = Monoid *-monoid
   module M = Semigroup M.semigroup
+  module C = BareRingoid coeff
+  module C = Setoid C.setoid
+  open module R = Morphism C.setoid setoid
+  open module R = RingHomomorphism morphism
 
 abstract
+
+  lemma₀ : forall x -> (x + ⟦ C.0# ⟧) ≈ x
+  lemma₀ x =
+    x + ⟦ C.0# ⟧
+                  ≃⟨ byDef ⟨ A.•-pres-≈ ⟩ 0-homo ⟩
+    x + 0#
+                  ≃⟨ proj₂ A.identity _ ⟩
+    x
+                  ∎
+
   lemma₁ :  forall a b c d x
          -> ((a + b) * x + (c + d)) ≈ (((a * x) + c) + ((b * x) + d))
   lemma₁ a b c d x =
@@ -161,11 +180,13 @@ abstract
     - ((a * x) + b)
                          ∎
 
-  lemma₇ : forall x -> ((1# * x) + 0#) ≈ x
+  lemma₇ : forall x -> ((⟦ C.1# ⟧ * x) + ⟦ C.0# ⟧) ≈ x
   lemma₇ x =
+    ((⟦ C.1# ⟧ * x) + ⟦ C.0# ⟧)
+                                ≃⟨ (1-homo ⟨ M.•-pres-≈ ⟩ byDef) ⟨ A.•-pres-≈ ⟩ 0-homo ⟩
     (1# * x) + 0#
-                   ≃⟨ proj₂ A.identity _ ⟩
+                                ≃⟨ proj₂ A.identity _ ⟩
     1# * x
-                   ≃⟨ proj₁ M.identity _ ⟩
+                                ≃⟨ proj₁ M.identity _ ⟩
     x
-                   ∎
+                                ∎
