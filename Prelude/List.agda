@@ -16,6 +16,10 @@ data [_] (a : Set) : Set where
   []  : [ a ]
   _∷_ : a -> [ a ] -> [ a ]
 
+{-# BUILTIN LIST [_] #-}
+{-# BUILTIN NIL  []  #-}
+{-# BUILTIN CONS _∷_ #-}
+
 ------------------------------------------------------------------------
 -- Some operations
 
