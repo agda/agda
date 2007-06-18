@@ -17,6 +17,7 @@ import Prelude.PreorderProof
 import Prelude.Algebra
 private
   open module R = AlmostCommRingoid r
+  open module R = BareRingoid bare
   open module S = Setoid setoid
   open module S = Equivalence equiv
   open module S = Prelude.PreorderProof (setoid⟶preSetoid setoid)

@@ -26,6 +26,7 @@ import Prelude.RingSolver.Lemmas
 private
   open module L = Prelude.RingSolver.Lemmas r
   open module R = AlmostCommRingoid r
+  open module R = BareRingoid bare
   open module R = Prelude.Algebra.AlmostCommRingProperties r
   open module S = Setoid setoid
   open module S = Equivalence equiv

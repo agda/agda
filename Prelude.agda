@@ -25,11 +25,15 @@ open import Prelude.BinaryRelation.OrderMorphism          public
 
 import Prelude.Algebra
 module Algebra = Prelude.Algebra
+import Prelude.Algebra.Morphism
+module Morphism = Prelude.Algebra.Morphism
 import Prelude.Algebra.GroupProperties
 module GroupProperties = Prelude.Algebra.GroupProperties
 import Prelude.Algebra.AbelianGroupProperties
 module AbelianGroupProperties =
          Prelude.Algebra.AbelianGroupProperties
+import Prelude.Algebra.SemiringProperties
+module SemiringProperties = Prelude.Algebra.SemiringProperties
 import Prelude.Algebra.RingProperties
 module RingProperties = Prelude.Algebra.RingProperties
 import Prelude.Algebra.CommutativeRingProperties

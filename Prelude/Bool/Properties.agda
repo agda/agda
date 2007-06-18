@@ -285,12 +285,14 @@ abstract
 
 Bool-commRingoid-xor-∧ : CommutativeRingoid
 Bool-commRingoid-xor-∧ = record
-  { setoid   = Bool-setoid
-  ; _+_      = _xor_
-  ; _*_      = _∧_
-  ; -_       = id
-  ; 0#       = false
-  ; 1#       = true
+  { bare = record
+    { setoid = Bool-setoid
+    ; _+_    = _xor_
+    ; _*_    = _∧_
+    ; -_     = id
+    ; 0#     = false
+    ; 1#     = true
+    }
   ; commRing = R.commRing
   }
   where

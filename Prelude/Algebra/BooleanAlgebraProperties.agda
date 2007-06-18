@@ -701,12 +701,14 @@ module XorRing
 
   commRingoid : CommutativeRingoid
   commRingoid = record
-    { setoid   = setoid
-    ; _+_      = _⊕_
-    ; _*_      = _∧_
-    ; -_       = id
-    ; 0#       = ⊥
-    ; 1#       = ⊤
+    { bare = record
+      { setoid = setoid
+      ; _+_    = _⊕_
+      ; _*_    = _∧_
+      ; -_     = id
+      ; 0#     = ⊥
+      ; 1#     = ⊤
+      }
     ; commRing = commRing
     }
 

@@ -15,6 +15,7 @@ import Prelude.Algebra
 import Prelude.Algebra.AbelianGroupProperties
 private
   open module R  = Ringoid r
+  open module R  = BareRingoid bare
   open module S  = Setoid setoid
   open module E  = Equivalence equiv
   open module PP = Prelude.PreorderProof (setoid⟶preSetoid setoid)

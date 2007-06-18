@@ -12,6 +12,7 @@ import Prelude.Algebra
 import Prelude.Algebra.RingProperties
 private
   open module R = CommutativeRingoid r
+  open module R = BareRingoid bare
   open module R = Prelude.Algebra setoid
   open module R = CommutativeRing commRing
 
@@ -20,13 +21,15 @@ private
 
 ringoid : Ringoid
 ringoid = record
-  { setoid = setoid
-  ; _+_    = _+_
-  ; _*_    = _*_
-  ; -_     = -_
-  ; 0#     = 0#
-  ; 1#     = 1#
-  ; ring   = ring
+  { bare = record
+    { setoid = setoid
+    ; _+_    = _+_
+    ; _*_    = _*_
+    ; -_     = -_
+    ; 0#     = 0#
+    ; 1#     = 1#
+    }
+  ; ring = ring
   }
 
 private
@@ -69,11 +72,13 @@ abstract
 
 almostCommRingoid : AlmostCommRingoid
 almostCommRingoid = record
-  { setoid         = setoid
-  ; _+_            = _+_
-  ; _*_            = _*_
-  ; -_             = -_
-  ; 0#             = 0#
-  ; 1#             = 1#
+  { bare = record
+    { setoid = setoid
+    ; _+_    = _+_
+    ; _*_    = _*_
+    ; -_     = -_
+    ; 0#     = 0#
+    ; 1#     = 1#
+    }
   ; almostCommRing = almostCommRing
   }

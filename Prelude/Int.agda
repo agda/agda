@@ -122,14 +122,19 @@ i ≤? j | true  = no trustMe
   }
   where postulate trustMe : _
 
+ℤ-bareRingoid : BareRingoid
+ℤ-bareRingoid = record
+  { setoid = ℤ-setoid
+  ; _+_    = _+_
+  ; _*_    = _*_
+  ; -_     = -_
+  ; 0#     = 0#
+  ; 1#     = 1#
+  }
+
 ℤ-commRingoid : CommutativeRingoid
 ℤ-commRingoid = record
-  { setoid   = ℤ-setoid
-  ; _+_      = _+_
-  ; _*_      = _*_
-  ; -_       = -_
-  ; 0#       = 0#
-  ; 1#       = 1#
+  { bare     = ℤ-bareRingoid
   ; commRing = trustMe
   }
   where postulate trustMe : _
