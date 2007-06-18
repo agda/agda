@@ -66,10 +66,12 @@ open import Prelude.Nat.Properties  public
 open import Prelude.String          public
 open import Prelude.Unit            public
 
+import Prelude.Integer
 import Prelude.List
 import Prelude.Vec
-module List = Prelude.List
-module Vec  = Prelude.Vec
+module Integer = Prelude.Integer
+module List    = Prelude.List
+module Vec     = Prelude.Vec
 
 -- Utilities.
 

@@ -29,6 +29,21 @@ data _ℕ-≤_ : ℕ -> ℕ -> Set where
   s≤s : forall {m n} -> m ℕ-≤ n -> suc m ℕ-≤ suc n
 
 ------------------------------------------------------------------------
+-- A generalisation of the arithmetic operations
+
+fold : {a : Set} -> a -> (a -> a) -> ℕ -> a
+fold z s zero    = z
+fold z s (suc n) = s (fold z s n)
+
+module GeneralisedArithmetic {a : Set} (0# : a) (1+ : a -> a) where
+
+  add : ℕ -> a -> a
+  add n z = fold z 1+ n
+
+  mul : (+ : a -> a -> a) -> (ℕ -> a -> a)
+  mul _+_ n x = fold 0# (\s -> s + x) n
+
+------------------------------------------------------------------------
 -- Arithmetic
 
 pred : ℕ -> ℕ
@@ -36,8 +51,7 @@ pred zero    = zero
 pred (suc n) = n
 
 _+_ : ℕ -> ℕ -> ℕ
-zero  + n = n
-suc m + n = suc (m + n)
+_+_ = GeneralisedArithmetic.add zero suc
 
 {-# BUILTIN NATPLUS _+_ #-}
 
@@ -49,8 +63,7 @@ suc m ∸ suc n = m ∸ n
 {-# BUILTIN NATMINUS _∸_ #-}
 
 _*_ : ℕ -> ℕ -> ℕ
-zero  * n = zero
-suc m * n = m * n + n
+_*_ = GeneralisedArithmetic.mul zero suc _+_
 
 {-# BUILTIN NATTIMES _*_ #-}
 
