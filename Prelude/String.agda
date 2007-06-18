@@ -10,3 +10,9 @@ module Prelude.String where
 postulate String : Set
 
 {-# BUILTIN STRING String #-}
+
+private
+  primitive primStringAppend : String -> String -> String
+
+_++_ : String -> String -> String
+_++_ = primStringAppend
