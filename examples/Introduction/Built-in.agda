@@ -3,7 +3,7 @@
 
 module Introduction.Built-in where
 
-{- Agda supports four built-in types : 
+{- Agda supports four built-in types :
 
     - integers,
     - floating point numbers,
@@ -136,6 +136,8 @@ primitive
   primIntegerMod     : Int -> Int -> Int  -- partial
   primIntegerEquals  : Int -> Int -> Bool
   primIntegerLess    : Int -> Int -> Bool
+  primIntegerAbs     : Int -> Nat
+  primNatToInteger   : Nat -> Int
   primShowInteger    : Int -> String
 
     -- Floating point functions

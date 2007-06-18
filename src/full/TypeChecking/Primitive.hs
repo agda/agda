@@ -350,6 +350,8 @@ primitiveFunctions = Map.fromList
     , "primIntegerMod"	    |-> mkPrimFun2 (mod	       :: Op Integer)    -- partial
     , "primIntegerEquals"   |-> mkPrimFun2 ((==)       :: Rel Integer)
     , "primIntegerLess"	    |-> mkPrimFun2 ((<)	       :: Rel Integer)
+    , "primIntegerAbs"      |-> mkPrimFun1 (Nat . abs  :: Integer -> Nat)
+    , "primNatToInteger"    |-> mkPrimFun1 (unNat      :: Nat -> Integer)
     , "primShowInteger"	    |-> mkPrimFun1 (Str . show :: Integer -> Str)
 
     -- Natural number functions
