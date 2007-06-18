@@ -34,17 +34,14 @@ postulate
 -- Arithmetic
 
 private
-  postulate Float : Set
-
-  {-# BUILTIN FLOAT Float #-}
-
   primitive
     primIntegerPlus   : ℤ -> ℤ -> ℤ
     primIntegerMinus  : ℤ -> ℤ -> ℤ
     primIntegerTimes  : ℤ -> ℤ -> ℤ
     primIntegerLess   : ℤ -> ℤ -> Bool
     primIntegerEquals : ℤ -> ℤ -> Bool
-    primRound         : Float -> ℤ
+    primNatToInteger  : ℕ -> ℤ
+    primIntegerAbs    : ℤ -> ℕ
 
 _+_ : ℤ -> ℤ -> ℤ
 _+_ = primIntegerPlus
@@ -55,24 +52,26 @@ _-_ = primIntegerMinus
 _*_ : ℤ -> ℤ -> ℤ
 _*_ = primIntegerTimes
 
++_ : ℕ -> ℤ
++_ = primNatToInteger
+
+∣_∣ : ℤ -> ℕ
+∣ i ∣ = primIntegerAbs i
+
 0# : ℤ
-0# = primRound 0.0
+0# = + 0
 
 1# : ℤ
-1# = primRound 1.0
+1# = + 1
+
+-_ : ℤ -> ℤ
+- i = 0# - i
 
 suc : ℤ -> ℤ
 suc i = i + 1#
 
 pred : ℤ -> ℤ
 pred i = i - 1#
-
-+_ : ℕ -> ℤ
-+ N.zero  = 0#
-+ N.suc n = suc (+ n)
-
--_ : ℤ -> ℤ
-- i = 0# - i
 
 _⊔_ : ℤ -> ℤ -> ℤ
 i ⊔ j = if primIntegerLess i j then i else j
@@ -96,16 +95,6 @@ i ≤? j | false = yes trustMe
   where postulate trustMe : _
 i ≤? j | true  = no trustMe
   where postulate trustMe : _
-
-------------------------------------------------------------------------
--- Conversion
-
-toℕ : ℤ -> ℕ
-toℕ i with i ≟ (+ 0)
-toℕ i | yes _ = N.zero
-toℕ i | no _  with i ≤? (+ 0)
-toℕ i | no _  | yes _ = N.suc (toℕ (suc i))
-toℕ i | no _  | no _  = N.suc (toℕ (pred i))
 
 ------------------------------------------------------------------------
 -- Some properties
@@ -153,7 +142,8 @@ toℕ i | no _  | no _  = N.suc (toℕ (pred i))
 
 module ℤ-ringSolver = S (CRProp.almostCommRingoid ℤ-commRingoid)
 
--- TODO: The properties below are probably provable.
+-- A morphism from the commutative ring over the integers to any other
+-- "almost commutative ring".
 
 ℤ-morphism : forall r -> ℤ-bareRingoid -Bare-AlmostComm⟶ r
 ℤ-morphism r = record
@@ -173,8 +163,8 @@ module ℤ-ringSolver = S (CRProp.almostCommRingoid ℤ-commRingoid)
 
   ⟦_⟧ : ℤ -> carrier
   ⟦ i ⟧ with i ≤? (+ 0)
-  ⟦ i ⟧ | yes _ = B.-_ (toℕ i × B.1#)
-  ⟦ i ⟧ | no _  = toℕ i × B.1#
+  ⟦ i ⟧ | yes _ = B.-_ (∣ i ∣ × B.1#)
+  ⟦ i ⟧ | no _  = ∣ i ∣ × B.1#
 
   postulate
     trustMe₁ : _ -- forall x y -> ⟦ x + y ⟧ ≈ B._+_ ⟦ x ⟧ ⟦ y ⟧
