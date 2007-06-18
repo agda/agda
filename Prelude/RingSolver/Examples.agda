@@ -81,3 +81,9 @@ abstract
   --   open Bool-semiringSolver
   --   X = var fz
   --   Y = var (fs fz)
+
+  example₅ : forall x -> x xor x ≡ false
+  example₅ x = prove (x ∷ []) (X :+ X) (con false) ≡-refl
+    where
+    open Bool-xor-ringSolver
+    X = var fz
