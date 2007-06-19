@@ -37,9 +37,17 @@ x ≢₁ y = ¬ (x ≡₁ y)
 
 -- Existential.
 
-record ∃ (a : Set) (P : a -> Set) : Set where
-  witness : a
-  proof   : P witness
+data ∃ (a : Set) (P : a -> Set) : Set where
+  exists : {witness : a} -> P witness -> ∃ a P
+
+∃₀ : {a : Set} (P : a -> Set) -> Set
+∃₀ = ∃ _
+
+witness : forall {a P} -> ∃ a P -> a
+witness (exists {x} p) = x
+
+proof : forall {a P} (x : ∃ a P) -> P (witness x)
+proof (exists p) = p
 
 ------------------------------------------------------------------------
 -- Some basic properties
