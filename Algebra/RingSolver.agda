@@ -17,8 +17,6 @@ module Algebra.RingSolver
 open import Relation.Binary
 open import Logic
 open import Data.Nat hiding (_*_) renaming (_+_ to _ℕ-+_)
-open import Data.Fin
-open import Data.Vec
 open import Data.Function hiding (const)
 open import Data.Product
 open Π
@@ -36,7 +34,6 @@ private
   open module S = Setoid setoid
   open module S = Equivalence equiv
   open module S = Preorder preorder
-  open module S = Relation.Binary.EqReasoning (setoid⟶preSetoid setoid)
   open module R = Algebra setoid
   open module R = AlmostCommRing almostCommRing
   open module R = CommutativeSemiring commSemiring
@@ -49,6 +46,11 @@ private
   module C = Setoid C.setoid
   open module R = Morphism C.setoid setoid
   open module R = RingHomomorphism morphism renaming (⟦_⟧ to ⟦_⟧')
+
+  module Eq = Relation.Binary.EqReasoning (setoid⟶preSetoid setoid)
+open Eq public
+open import Data.Vec public
+open import Data.Fin public
 
 infix  9 _↑-NF :-_ ¬-NF_
 infixr 9 _:^_ _^-NF_ _:↑_
