@@ -7,6 +7,9 @@ module Relation.Binary.PropositionalEquality where
 open import Logic
 open import Relation.Binary
 
+------------------------------------------------------------------------
+-- Some properties
+
 abstract
 
   ≡-reflexive : {a : Set} -> Reflexive {a} _≡_ _≡_
@@ -52,3 +55,17 @@ abstract
   ; _≈_     = _≡_
   ; equiv   = ≡-equivalence
   }
+
+------------------------------------------------------------------------
+-- The inspect idiom
+
+data Inspect {a : Set} (x : a) : Set where
+  _with-≡_ : (y : a) -> y ≡ x -> Inspect x
+
+inspect : forall {a} (x : a) -> Inspect x
+inspect x = x with-≡ ≡-refl
+
+-- Example usage:
+
+-- f x y with inspect (g x)
+-- f x y | z with-≡ eq = ...
