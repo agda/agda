@@ -12,11 +12,8 @@ infixr 2 _×_ _-×-_ _-,-_
 ------------------------------------------------------------------------
 -- Definition
 
-record Π (a : Set) (b : a -> Set) : Set where
-  proj₁ : a
-  proj₂ : b proj₁
-
-open Π public
+data Π (a : Set) (b : a -> Set) : Set where
+  _,_ : (x : a) -> b x -> Π a b
 
 _×_ : (a b : Set) -> Set
 a × b = Π a (\_ -> b)
@@ -24,8 +21,11 @@ a × b = Π a (\_ -> b)
 ------------------------------------------------------------------------
 -- Functions
 
-_,_ : forall {a b} -> (x : a) -> b x -> Π a b
-x , y = record { proj₁ = x; proj₂ = y }
+proj₁ : forall {a b} -> Π a b -> a
+proj₁ (x , y) = x
+
+proj₂ : forall {a b} -> (p : Π a b) -> b (proj₁ p)
+proj₂ (x , y) = y
 
 <_,_> :  {a b c : Set}
       -> (a -> b) -> (a -> c) -> (a -> b × c)
@@ -54,4 +54,4 @@ curry f x y = f (x , y)
 uncurry :  {a : Set} {b : a -> Set} {c : Π a b -> Set}
         -> ((x : a) -> (y : b x) -> c (x , y))
         -> ((p : Π a b) -> c p)
-uncurry f p = f (proj₁ p) (proj₂ p)
+uncurry f (p₁ , p₂) = f p₁ p₂
