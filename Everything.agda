@@ -32,10 +32,12 @@ import Data.Function
 import Data.Int
 import Data.Integer
 import Data.List
+import Data.Map
 import Data.Maybe
 import Data.Nat
 import Data.Nat.Properties
 import Data.Product
+import Data.Sets
 import Data.String
 import Data.Sum
 import Data.Unit
