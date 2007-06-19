@@ -115,7 +115,7 @@ private
 
 private
 
-  -- The normal forms are indexed over
+  -- The normal forms (Horner forms) are indexed over
   -- * the number of variables in the polynomial, and
   -- * an equivalent polynomial.
 
