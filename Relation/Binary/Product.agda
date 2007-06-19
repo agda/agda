@@ -281,8 +281,9 @@ abstract
     -> forall {a₂} -> {∼₂ : Rel a₂} -> Decidable ∼₂
     -> Decidable (∼₁ ×-Rel ∼₂)
   _×-decidable_ dec₁ dec₂ = \x y ->
-    dec-× (dec₁ (proj₁ x) (proj₁ y))
-          (dec₂ (proj₂ x) (proj₂ y))
+    dec₁ (proj₁ x) (proj₁ y)
+      ×-dec
+    dec₂ (proj₂ x) (proj₂ y)
 
   ×-lex-decidable
     :  forall {a₁} -> {≈₁ <₁ : Rel a₁}
@@ -291,9 +292,11 @@ abstract
     -> Decidable ≤₂
     -> Decidable (×-Lex ≈₁ <₁ ≤₂)
   ×-lex-decidable dec-≈₁ dec-<₁ dec-≤₂ = \x y ->
-    dec-⊎ (dec-<₁ (proj₁ x) (proj₁ y))
-          (dec-× (dec-≈₁ (proj₁ x) (proj₁ y))
-                 (dec-≤₂ (proj₂ x) (proj₂ y)))
+    dec-<₁ (proj₁ x) (proj₁ y)
+      ⊎-dec
+    (dec-≈₁ (proj₁ x) (proj₁ y)
+       ×-dec
+     dec-≤₂ (proj₂ x) (proj₂ y))
 
   ×-lex-≤-decidable
     :  forall {a₁} -> {≈₁ ≤₁ : Rel a₁}
