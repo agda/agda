@@ -9,6 +9,9 @@ open import Data.Function
 infixr 4 _,_
 infixr 2 _×_ _-×-_ _-,-_
 
+------------------------------------------------------------------------
+-- Definition
+
 record Π (a : Set) (b : a -> Set) : Set where
   proj₁ : a
   proj₂ : b proj₁
@@ -17,6 +20,9 @@ open Π
 
 _×_ : (a b : Set) -> Set
 a × b = Π a (\_ -> b)
+
+------------------------------------------------------------------------
+-- Functions
 
 _,_ : forall {a b} -> (x : a) -> b x -> Π a b
 x , y = record { proj₁ = x; proj₂ = y }
