@@ -7,6 +7,7 @@ module Data.Fin where
 open import Data.Nat
 open import Logic
 open import Data.Function
+open import Relation.Nullary
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality
 

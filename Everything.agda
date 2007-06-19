@@ -51,3 +51,4 @@ import Relation.Binary.Product
 import Relation.Binary.PropositionalEquality
 import Relation.Binary.PropositionalEquality1
 import Relation.Binary.Sum
+import Relation.Nullary

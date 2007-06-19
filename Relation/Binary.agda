@@ -8,6 +8,7 @@ open import Logic
 open import Data.Function
 open import Data.Sum
 open import Data.Product
+open import Relation.Nullary
 open Π
 
 -- Binary relations.

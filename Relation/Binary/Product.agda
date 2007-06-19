@@ -8,6 +8,7 @@ open import Logic
 open import Data.Function
 open import Data.Product
 open import Data.Sum
+open import Relation.Nullary
 open import Relation.Binary
 open import Relation.Binary.Conversion
 open Π
@@ -280,13 +281,9 @@ abstract
     :  forall {a₁} -> {∼₁ : Rel a₁} -> Decidable ∼₁
     -> forall {a₂} -> {∼₂ : Rel a₂} -> Decidable ∼₂
     -> Decidable (∼₁ ×-Rel ∼₂)
-  _×-decidable_ {∼₁ = ∼₁} dec₁ {∼₂ = ∼₂} dec₂ = dec
-    where
-    dec : Decidable (∼₁ ×-Rel ∼₂)
-    dec x y with dec₁ (proj₁ x) (proj₁ y) | dec₂ (proj₂ x) (proj₂ y)
-    dec x y | yes x₁∼y₁ | yes x₂∼y₂ = yes (x₁∼y₁ , x₂∼y₂)
-    dec x y | yes x₁∼y₁ | no  x₂≁y₂ = no  (x₂≁y₂ ∘ proj₂)
-    dec x y | no  x₁≁y₁ | _         = no  (x₁≁y₁ ∘ proj₁)
+  _×-decidable_ dec₁ dec₂ = \x y ->
+    dec-× (dec₁ (proj₁ x) (proj₁ y))
+          (dec₂ (proj₂ x) (proj₂ y))
 
   ×-lex-decidable
     :  forall {a₁} -> {≈₁ <₁ : Rel a₁}
@@ -294,28 +291,10 @@ abstract
     -> forall {a₂} -> {≤₂ : Rel a₂}
     -> Decidable ≤₂
     -> Decidable (×-Lex ≈₁ <₁ ≤₂)
-  ×-lex-decidable {≈₁ = ≈₁} {<₁ = <₁} dec-≈₁ dec-<₁
-                            {≤₂ = ≤₂} dec-≤₂ = dec
-    where
-    _≤_ = ×-Lex ≈₁ <₁ ≤₂
-
-    dec : Decidable _≤_
-    dec x y with dec-<₁ (proj₁ x) (proj₁ y)
-    dec x y | yes x₁<y₁ = yes (inj₁ x₁<y₁)
-    dec x y | no x₁≮y₁  with dec-≈₁ (proj₁ x) (proj₁ y)
-    dec x y | no x₁≮y₁  | yes x₁≈y₁ with dec-≤₂ (proj₂ x) (proj₂ y)
-    dec x y | no x₁≮y₁  | yes x₁≈y₁ | yes x₂≤y₂ = yes $ inj₂ ( x₁≈y₁
-                                                             , x₂≤y₂ )
-    dec x y | no x₁≮y₁  | yes x₁≈y₁ | no x₂≰y₂  = no helper
-      where
-      helper : x ≤ y -> ⊥
-      helper (inj₁ x₁<y₁) = x₁≮y₁ x₁<y₁
-      helper (inj₂ x≈≤y)  = x₂≰y₂ (proj₂ x≈≤y)
-    dec x y | no x₁≮y₁  | no  x₁≉y₁ = no helper
-      where
-      helper : x ≤ y -> ⊥
-      helper (inj₁ x₁<y₁) = x₁≮y₁ x₁<y₁
-      helper (inj₂ x≈≤y)  = x₁≉y₁ (proj₁ x≈≤y)
+  ×-lex-decidable dec-≈₁ dec-<₁ dec-≤₂ = \x y ->
+    dec-⊎ (dec-<₁ (proj₁ x) (proj₁ y))
+          (dec-× (dec-≈₁ (proj₁ x) (proj₁ y))
+                 (dec-≤₂ (proj₂ x) (proj₂ y)))
 
   ×-lex-≤-decidable
     :  forall {a₁} -> {≈₁ ≤₁ : Rel a₁}

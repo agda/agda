@@ -4,6 +4,7 @@
 
 module Relation.Binary.Conversion where
 
+open import Relation.Nullary
 open import Relation.Binary
 open import Data.Function
 open import Logic

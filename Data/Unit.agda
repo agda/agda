@@ -6,6 +6,7 @@ module Data.Unit where
 
 open import Logic
 open import Data.Sum
+open import Relation.Nullary
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality
 

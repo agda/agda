@@ -8,6 +8,7 @@ open import Data.Bool
 import Data.Nat as N
 open N using (ℕ)
 open import Logic
+open import Relation.Nullary
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality
 open import Algebra

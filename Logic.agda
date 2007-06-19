@@ -32,9 +32,3 @@ data ⊥ : Set where
 record ∃ (a : Set) (P : a -> Set) : Set where
   witness : a
   proof   : P witness
-
--- Decidable property.
-
-data Dec (P : Set) : Set where
-  yes : P   -> Dec P
-  no  : ¬ P -> Dec P
