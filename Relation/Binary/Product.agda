@@ -8,7 +8,8 @@ open import Logic
 open import Data.Function
 open import Data.Product
 open import Data.Sum
-open import Relation.Nullary
+open import Relation.Nullary.Product
+open import Relation.Nullary.Sum
 open import Relation.Binary
 open import Relation.Binary.Conversion
 
