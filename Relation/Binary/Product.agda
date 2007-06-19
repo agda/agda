@@ -11,7 +11,6 @@ open import Data.Sum
 open import Relation.Nullary
 open import Relation.Binary
 open import Relation.Binary.Conversion
-open Π
 
 infixr 2 _×-Rel_
 

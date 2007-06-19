@@ -11,7 +11,6 @@ module Algebra.Props.DistributiveLattice
 open import Relation.Binary
 open import Data.Function
 open import Data.Product
-open Π
 import Relation.Binary.EqReasoning
 import Algebra
 import Algebra.Props.Lattice

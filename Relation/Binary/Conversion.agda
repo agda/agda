@@ -10,7 +10,6 @@ open import Data.Function
 open import Logic
 open import Data.Product
 open import Data.Sum
-open Π
 
 -- TODO: Check if the following definitions are easier to work with:
 --

@@ -17,7 +17,6 @@ private
 open import Algebra.Packaged
 open import Relation.Binary.PropositionalEquality
 open import Data.Product
-open Π
 import Algebra.RingSolver.Simple as Solver
 
 import Relation.Binary.EqReasoning

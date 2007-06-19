@@ -16,7 +16,7 @@ record Π (a : Set) (b : a -> Set) : Set where
   proj₁ : a
   proj₂ : b proj₁
 
-open Π
+open Π public
 
 _×_ : (a b : Set) -> Set
 a × b = Π a (\_ -> b)

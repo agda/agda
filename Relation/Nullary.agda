@@ -7,7 +7,6 @@ module Relation.Nullary where
 open import Logic
 open import Data.Function
 open import Data.Product
-open Π
 open import Data.Sum
 
 ------------------------------------------------------------------------

@@ -10,7 +10,6 @@ open import Data.Sum
 open import Data.Product
 open import Relation.Nullary
 open import Relation.Binary
-open Π
 
 infixr 1 _⊎-Rel_ _⊎-≤_
 

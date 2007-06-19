@@ -19,7 +19,6 @@ open import Logic
 open import Data.Nat hiding (_*_) renaming (_+_ to _ℕ-+_)
 open import Data.Function hiding (const)
 open import Data.Product
-open Π
 import Relation.Binary.EqReasoning
 import Algebra
 import Algebra.Morphism as Morphism
