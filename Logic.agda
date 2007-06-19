@@ -43,6 +43,12 @@ data ∃ (a : Set) (P : a -> Set) : Set where
 ∃₀ : {a : Set} (P : a -> Set) -> Set
 ∃₀ = ∃ _
 
+∄ : (a : Set) (P : a -> Set) -> Set
+∄ a P = ¬ (∃ a P)
+
+∄₀ : {a : Set} (P : a -> Set) -> Set
+∄₀ = ∄ _
+
 witness : forall {a P} -> ∃ a P -> a
 witness (exists {x} p) = x
 
