@@ -29,7 +29,7 @@ fixityLevel (NonAssoc	_ n) = n
 
 -- | The default fixity. Currently defined to be @'LeftAssoc' 20@.
 defaultFixity :: Fixity
-defaultFixity = LeftAssoc noRange 20
+defaultFixity = NonAssoc noRange 20
 
 -- | Precedence is associated with a context.
 data Precedence = TopCtx | FunctionSpaceDomainCtx
