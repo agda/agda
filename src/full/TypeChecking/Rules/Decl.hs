@@ -21,6 +21,7 @@ import TypeChecking.Positivity
 import TypeChecking.Primitive
 import TypeChecking.Conversion
 import TypeChecking.Substitute
+import TypeChecking.Reduce
 
 import TypeChecking.Rules.Term	  ( checkArguments, checkArguments_, checkTelescope, isType_, ExpandHidden(..) )
 import TypeChecking.Rules.Data	  ( checkDataDef )
@@ -154,7 +155,8 @@ checkSectionApplication i m1 ptel m2 args rd rm =
     , nest 2 $ text "  defs:" <+> text (show rd)
     , nest 2 $ text "  mods:" <+> text (show rm)
     ]
-  applySection m1 ptel m2 (vs ++ ts) rd rm
+  args <- instantiateFull $ vs ++ ts
+  applySection m1 ptel m2 args rd rm
 
 -- | Type check an import declaration. Actually doesn't do anything, since all
 --   the work is done when scope checking.

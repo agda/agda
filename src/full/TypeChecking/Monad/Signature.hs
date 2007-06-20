@@ -1,4 +1,4 @@
-{-# OPTIONS -cpp #-}
+{-# OPTIONS -cpp -fglasgow-exts #-}
 module TypeChecking.Monad.Signature where
 
 import Control.Monad.State
@@ -88,6 +88,49 @@ lookupSection m = do
   isig <- sigSections <$> getImportedSignature
   return $ maybe EmptyTel secTelescope $ Map.lookup m sig `mplus` Map.lookup m isig
 
+-- Add display forms to all names @xn@ such that @x = x1 es1@, ... @xn-1 = xn esn@.
+addDisplayForms :: QName -> TCM ()
+addDisplayForms x = do
+  args <- getContextArgs
+  add args x x []
+  where
+    add args top x ps = do
+      cs <- defClauses <$> getConstInfo x
+      case cs of
+	[ Clause _ b ]
+	  | Just (m, Def y vs) <- strip b
+	  , m == length args && args `isPrefixOf` vs -> do
+	      let ps' = raise 1 (map unArg vs) ++ ps
+	      reportSLn "tc.section.apply.display" 20 $ "adding display form " ++ show y ++ " --> " ++ show top
+	      addDisplayForm y (Display 0 ps' $ DTerm $ Def top args)
+	      add args top y $ drop (length args) ps'
+	_ -> do
+	      let reason = case cs of
+		    []    -> "no clauses"
+		    _:_:_ -> "many clauses"
+		    [ Clause _ b ] -> case strip b of
+		      Nothing -> "bad body"
+		      Just (m, Def y vs)
+			| m < length args -> "too few args"
+			| m > length args -> "too many args"
+			| otherwise	      -> "args=" ++ unwords (map var args) ++ " vs=" ++ unwords (map var vs)
+			  where
+			    var (Arg h x) = hid h $ case x of
+			      Var i []	-> show i
+			      MetaV _ _	-> "?"
+			      _		-> "_"
+			    hid NotHidden s = s
+			    hid Hidden    s = "{" ++ s ++ "}"
+		      Just (m, v) -> "not a def body"
+	      reportSLn "tc.section.apply.display" 20 $ "no display form from" ++ show x ++ " because " ++ reason
+	      return ()
+    strip (Body v)   = return (0, v)
+    strip  NoBody    = Nothing
+    strip (NoBind b) = Nothing
+    strip (Bind b)   = do
+      (n, v) <- strip $ absBody b
+      return (n + 1, v)
+
 applySection ::
   MonadTCM tcm => ModuleName -> Telescope -> ModuleName -> Args ->
   Map QName QName -> Map ModuleName ModuleName -> tcm ()
@@ -112,8 +155,7 @@ applySection new ptel old ts rd rm = liftTCM $ do
 	  addConstant y (nd y)
 	  -- Set display form for the old name if it's not a constructor.
 	  unless (isCon || size ptel > 0) $ do
-	    args <- getContextArgs
-	    chaseOldNames y args y []
+	    addDisplayForms y
       where
 	t  = defType d `apply` ts
 	-- the name is set by the addConstant function
@@ -127,17 +169,6 @@ applySection new ptel old ts rd rm = liftTCM $ do
 		Record np _ fs tel s a	-> Record (np - size ts) (Just cl) fs (apply tel ts) s a
 		_			-> Function [cl] ConcreteDef
 	cl = Clause [] $ Body $ Def x ts
-
-	-- Add display forms to all names @xn@ such that @x = x1 es1@, ... @xn-1 = xn esn@.
-	chaseOldNames top args x ps = do
-	  cs <- defClauses <$> getConstInfo x
-	  case cs of
-	    [ Clause [] (Body (Def y ts)) ] -> do
-	      let ps' = raise 1 (map unArg ts) ++ ps
-	      reportSLn "tc.section.apply.display" 20 $ "adding display form " ++ show y ++ " --> " ++ show top
-	      addDisplayForm y (Display 0 ps' $ DTerm $ Def top args)
-	      chaseOldNames top args y ps'
-	    _ -> return ()
 
     copySec :: Args -> (ModuleName, Section) -> TCM ()
     copySec ts (x, sec) = case Map.lookup x rm of
