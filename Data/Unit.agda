@@ -13,8 +13,10 @@ open import Relation.Binary.PropositionalEquality
 ------------------------------------------------------------------------
 -- Types
 
-data ⊤ : Set where
-  tt : ⊤
+record ⊤ : Set where
+
+tt : ⊤
+tt = record {}
 
 record _⊤-≤_ (x y : ⊤) : Set where
 
@@ -22,7 +24,7 @@ record _⊤-≤_ (x y : ⊤) : Set where
 -- Operations
 
 _⊤-≟_ : Decidable {⊤} _≡_
-tt ⊤-≟ tt = yes ≡-refl
+_ ⊤-≟ _ = yes ≡-refl
 
 _⊤-≤?_ : Decidable _⊤-≤_
 _ ⊤-≤? _ = yes _
@@ -54,7 +56,7 @@ _ ⊤-≤? _ = yes _
   }
   where
   antisym : Antisymmetric _≡_ _⊤-≤_
-  antisym {tt} {tt} _ _ = ≡-refl
+  antisym _ _ = ≡-refl
 
 ⊤-poset : Poset
 ⊤-poset = record
