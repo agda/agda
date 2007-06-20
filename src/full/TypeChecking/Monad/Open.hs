@@ -4,10 +4,13 @@ module TypeChecking.Monad.Open
 	( makeOpen
 	, makeClosed
 	, getOpen
+	, tryOpen
 	) where
 
 import Control.Applicative
 import Control.Monad
+import Control.Monad.Error
+import Data.List
 
 import Syntax.Common
 
@@ -23,20 +26,25 @@ import {-# SOURCE #-} TypeChecking.Monad.Context
 -- | Create an open term in the current context.
 makeOpen :: MonadTCM tcm => a -> tcm (Open a)
 makeOpen x = do
-    n <- length <$> getContext
-    return $ OpenThing n x
+    ctx <- getContextId
+    return $ OpenThing ctx x
 
 -- | Create an open term which is closed.
 makeClosed :: a -> Open a
-makeClosed = OpenThing 0
+makeClosed = OpenThing []
 
 
 -- | Extract the value from an open term. Must be done in an extension of the
 --   context in which the term was created.
 getOpen :: (MonadTCM tcm, Raise a) => Open a -> tcm a
-getOpen (OpenThing 0 x) = return x
-getOpen (OpenThing n x) = do
-    m <- length <$> getContext
-    unless (m >= n) $ fail $ "thing out of context (" ++ show m ++ " < " ++ show n ++ ")"
-    return $ raise (m - n) x
+getOpen (OpenThing []  x) = return x
+getOpen (OpenThing ctx x) = do
+  ctx' <- getContextId
+  unless (ctx `isPrefixOf` ctx') $ fail $ "thing out of context (" ++ show ctx ++ " not prefix of " ++ show ctx' ++ ")"
+  return $ raise (length ctx' - length ctx) x
+
+tryOpen :: (MonadTCM tcm, Raise a) => Open a -> tcm (Maybe a)
+tryOpen o = liftTCM $
+  (Just <$> getOpen o)
+  `catchError` \_ -> return Nothing
 

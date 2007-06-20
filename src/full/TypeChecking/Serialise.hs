@@ -53,7 +53,7 @@ import Utils.Tuple
 -- | Current version of the interface. Only interface files of this version
 --   will be parsed.
 currentInterfaceVersion :: Int
-currentInterfaceVersion = 128
+currentInterfaceVersion = 131
 
 ------------------------------------------------------------------------
 -- A wrapper around Data.Binary
@@ -530,14 +530,17 @@ instance Binary Syntax.Literal.Literal where
       _ -> fail "no parse"
 
 instance Binary DisplayForm where
-  put NoDisplay = putWord8 0
-  put (Display a b c) = putWord8 1 >> put a >> put b >> put c
-  get = {-# SCC "get<DisplayForm>" #-} do
-    tag_ <- getWord8
-    case tag_ of
-      0	-> return NoDisplay
-      1 -> get >>= \a -> get >>= \b -> get >>= \c -> return (Display a b c)
-      _ -> fail "no parse"
+  put (Display a b c) = put a >> put b >> put c
+  get = {-# SCC "get<DisplayForm>" #-}
+	get >>= \a -> get >>= \b -> get >>= \c -> return (Display a b c)
+
+instance Binary a => Binary (Open a) where
+  put (OpenThing a b) = put a >> put b
+  get = get >>= \a -> get >>= \b -> return (OpenThing a b)
+
+instance Binary CtxId where
+  put (CtxId a) = put a
+  get = get >>= \a -> return (CtxId a)
 
 instance Binary DisplayTerm where
   put (DTerm a) = putWord8 0 >> put a

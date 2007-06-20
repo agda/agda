@@ -56,12 +56,13 @@ data FreshThings =
 	      , fInteraction :: InteractionId
 	      , fMutual	     :: MutualId
 	      , fName	     :: NameId
+	      , fCtx	     :: CtxId
 	      }
     deriving (Show)
 
 initState :: TCState
 initState =
-    TCSt { stFreshThings       = Fresh 0 0 0 (NameId 0 0)
+    TCSt { stFreshThings       = Fresh 0 0 0 (NameId 0 0) 0
 	 , stMetaStore	       = Map.empty
 	 , stInteractionPoints = Map.empty
 	 , stConstraints       = []
@@ -96,6 +97,11 @@ instance HasFresh NameId FreshThings where
     nextFresh s = (i, s { fName = succ i })
 	where
 	    i = fName s
+
+instance HasFresh CtxId FreshThings where
+    nextFresh s = (i, s { fCtx = succ i })
+	where
+	    i = fCtx s
 
 instance HasFresh i FreshThings => HasFresh i TCState where
     nextFresh s = (i, s { stFreshThings = f })
@@ -158,9 +164,8 @@ type Constraints = [ConstraintClosure]
 -- * Open things
 ---------------------------------------------------------------------------
 
--- | A thing tagged with the number of free variables. Could be tagged with the
---   exact context.
-data Open a = OpenThing Nat a
+-- | A thing tagged with the context it came from.
+data Open a = OpenThing [CtxId] a
     deriving (Typeable, Data)
 
 ---------------------------------------------------------------------------
@@ -491,7 +496,14 @@ initEnv = TCEnv { envContext	   = []
 -- ** Context
 ---------------------------------------------------------------------------
 
-type Context = [Arg (Name, Type)]
+type Context	  = [ContextEntry]
+data ContextEntry = Ctx { ctxId	   :: CtxId
+			, ctxEntry :: Arg (Name, Type)
+			}
+  deriving (Typeable, Data)
+
+newtype CtxId	  = CtxId Nat
+  deriving (Typeable, Data, Eq, Ord, Show, Enum, Num)
 
 ---------------------------------------------------------------------------
 -- ** Let bindings

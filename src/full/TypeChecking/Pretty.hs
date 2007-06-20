@@ -116,7 +116,7 @@ instance PrettyTCM Telescope where
     )
 
 instance PrettyTCM Context where
-    prettyTCM ctx = P.fsep . reverse <$> pr ctx
+    prettyTCM ctx = P.fsep . reverse <$> pr (map ctxEntry ctx)
 	where
 	    pr []		   = return []
 	    pr (Arg h (x,t) : ctx) = escapeContext 1 $ do

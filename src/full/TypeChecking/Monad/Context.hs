@@ -17,19 +17,28 @@ import TypeChecking.Substitute
 import TypeChecking.Monad.Open
 
 import Utils.Monad
+import Utils.Fresh
 
 #include "../../undefined.h"
+
+mkContextEntry :: MonadTCM tcm => Arg (Name, Type) -> tcm ContextEntry
+mkContextEntry x = do
+  i <- fresh
+  return $ Ctx i x
 
 -- | add a variable to the context
 --
 addCtx :: MonadTCM tcm => Name -> Arg Type -> tcm a -> tcm a
-addCtx x a = local $ \e ->
-		e { envContext	   = fmap ((,) x) a : envContext e
-		  } -- let-bindings keep track of their context
+addCtx x a ret = do
+  ce <- mkContextEntry $ fmap ((,) x) a
+  flip local ret $ \e -> e { envContext = ce : envContext e }
+      -- let-bindings keep track of own their context
 
 -- | Change the context
-inContext :: MonadTCM tcm => Context -> tcm a -> tcm a
-inContext ctx = local $ \e -> e { envContext = ctx }
+inContext :: MonadTCM tcm => [Arg (Name, Type)] -> tcm a -> tcm a
+inContext xs ret = do
+  ctx <- mapM mkContextEntry xs
+  flip local ret $ \e -> e { envContext = ctx }
 
 -- | Go under an abstraction.
 underAbstraction :: MonadTCM tcm => Arg Type -> Abs a -> (a -> tcm b) -> tcm b
@@ -53,8 +62,8 @@ addCtxTel EmptyTel	    ret = ret
 addCtxTel (ExtendTel t tel) ret = underAbstraction t tel $ \tel -> addCtxTel tel ret
 
 -- | Get the current context.
-getContext :: MonadTCM tcm => tcm Context
-getContext = asks envContext
+getContext :: MonadTCM tcm => tcm [Arg (Name, Type)]
+getContext = asks $ map ctxEntry . envContext
 
 -- | Generate [Var n - 1, .., Var 0] for all declarations in the context.
 getContextArgs :: MonadTCM tcm => tcm Args
@@ -75,6 +84,10 @@ getContextTelescope = foldr extTel EmptyTel . reverse <$> getContext
 addCtxs :: MonadTCM tcm => [Name] -> Arg Type -> tcm a -> tcm a
 addCtxs []     _ k = k
 addCtxs (x:xs) t k = addCtx x t $ addCtxs xs (raise 1 t) k
+
+-- | Check if we are in a compatible context, i.e. an extension of the given context.
+getContextId :: MonadTCM tcm => tcm [CtxId]
+getContextId = asks $ map ctxId . envContext
 
 -- | Add a let bound variable
 addLetBinding :: MonadTCM tcm => Name -> Term -> Type -> tcm a -> tcm a
