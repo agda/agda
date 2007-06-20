@@ -19,6 +19,7 @@ import TypeChecking.Monad.Context
 import TypeChecking.Monad.Options
 import TypeChecking.Monad.Env
 import TypeChecking.Monad.Mutual
+import TypeChecking.Monad.Open
 import TypeChecking.Substitute
 
 import Utils.Monad
@@ -30,6 +31,9 @@ import Utils.Function
 
 modifySignature :: MonadTCM tcm => (Signature -> Signature) -> tcm ()
 modifySignature f = modify $ \s -> s { stSignature = f $ stSignature s }
+
+modifyImportedSignature :: MonadTCM tcm => (Signature -> Signature) -> tcm ()
+modifyImportedSignature f = modify $ \s -> s { stImports = f $ stImports s }
 
 getSignature :: MonadTCM tcm => tcm Signature
 getSignature = liftTCM $ gets stSignature
@@ -61,10 +65,8 @@ addConstant q d = liftTCM $ do
   setMutualBlock i q
   where
     d' = d { defName = q }
-    new +++ old = new { defDisplay = defDisplay new ++++ defDisplay old
+    new +++ old = new { defDisplay = defDisplay new ++ defDisplay old
 		      }
-    NoDisplay ++++ d = d
-    d	      ++++ _ = d
 
 unionSignatures :: [Signature] -> Signature
 unionSignatures ss = foldr unionSignature emptySignature ss
@@ -87,9 +89,9 @@ lookupSection m = do
   return $ maybe EmptyTel secTelescope $ Map.lookup m sig `mplus` Map.lookup m isig
 
 applySection ::
-  MonadTCM tcm => ModuleName -> ModuleName -> Args ->
+  MonadTCM tcm => ModuleName -> Telescope -> ModuleName -> Args ->
   Map QName QName -> Map ModuleName ModuleName -> tcm ()
-applySection new old ts rd rm = liftTCM $ do
+applySection new ptel old ts rd rm = liftTCM $ do
   sig  <- getSignature
   isig <- getImportedSignature
   let ss = Map.toList $ Map.filterKeys partOfOldM $ sigSections sig `Map.union` sigSections isig
@@ -106,17 +108,36 @@ applySection new old ts rd rm = liftTCM $ do
     copyDef ts (x, d) = case Map.lookup x rd of
 	Nothing -> return ()  -- if it's not in the renaming it was private and
 			      -- we won't need it
-	Just y	-> addConstant y (nd y)
+	Just y	-> do
+	  addConstant y (nd y)
+	  -- Set display form for the old name if it's not a constructor.
+	  unless (isCon || size ptel > 0) $ do
+	    args <- getContextArgs
+	    chaseOldNames y args y []
       where
 	t  = defType d `apply` ts
 	-- the name is set by the addConstant function
-	nd y = Defn __IMPOSSIBLE__ t (defaultDisplayForm y) (-1) def  -- TODO: mutual block?
+	nd y = Defn y t [] (-1) def  -- TODO: mutual block?
+	isCon = case theDef d of
+	  Constructor _ _ _ _ -> True
+	  _		      -> False
 	def  = case theDef d of
 		Constructor n c d a	-> Constructor (n - size ts) c (copyName d) a
 		Datatype np ni _ cs s a -> Datatype (np - size ts) ni (Just cl) (map copyName cs) s a
 		Record np _ fs tel s a	-> Record (np - size ts) (Just cl) fs (apply tel ts) s a
 		_			-> Function [cl] ConcreteDef
 	cl = Clause [] $ Body $ Def x ts
+
+	-- Add display forms to all names @xn@ such that @x = x1 es1@, ... @xn-1 = xn esn@.
+	chaseOldNames top args x ps = do
+	  cs <- defClauses <$> getConstInfo x
+	  case cs of
+	    [ Clause [] (Body (Def y ts)) ] -> do
+	      let ps' = raise 1 (map unArg ts) ++ ps
+	      reportSLn "tc.section.apply.display" 20 $ "adding display form " ++ show y ++ " --> " ++ show top
+	      addDisplayForm y (Display 0 ps' $ DTerm $ Def top args)
+	      chaseOldNames top args y ps'
+	    _ -> return ()
 
     copySec :: Args -> (ModuleName, Section) -> TCM ()
     copySec ts (x, sec) = case Map.lookup x rm of
@@ -125,6 +146,17 @@ applySection new old ts rd rm = liftTCM $ do
 	Just y  -> addCtxTel (apply tel ts) $ addSection y 0
       where
 	tel = secTelescope sec
+
+addDisplayForm :: MonadTCM tcm => QName -> DisplayForm -> tcm ()
+addDisplayForm x df = do
+  d <- makeOpen df
+  modifyImportedSignature (add d)
+  modifySignature (add d)
+  where
+    add df sig = sig { sigDefinitions = Map.adjust addDf x defs }
+      where
+	addDf def = def { defDisplay = df : defDisplay def }
+	defs	  = sigDefinitions sig
 
 canonicalName :: MonadTCM tcm => QName -> tcm QName
 canonicalName x = do

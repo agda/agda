@@ -287,22 +287,22 @@ data Section = Section
 emptySignature :: Signature
 emptySignature = Sig Map.empty Map.empty
 
-data DisplayForm = Display Nat	  -- ^ free variables
-			   [Term] -- ^ patterns for arguments
-			   DisplayTerm -- ^ display form
-		 | NoDisplay
+data DisplayForm = Display Nat	  -- ^ @n@: number of free variables
+			   [Term] -- ^ Patterns for arguments, one extra free
+				  -- var which represents pattern vars. There should @n@ of them.
+			   DisplayTerm -- ^ Display form. @n@ free variables.
   deriving (Typeable, Data)
 
 data DisplayTerm = DWithApp [DisplayTerm] Args
 		 | DTerm Term
   deriving (Typeable, Data)
 
-defaultDisplayForm :: QName -> DisplayForm
-defaultDisplayForm c = NoDisplay
+defaultDisplayForm :: QName -> [Open DisplayForm]
+defaultDisplayForm c = []
 
 data Definition = Defn { defName     :: QName
 		       , defType     :: Type	-- type of the lifted definition
-		       , defDisplay  :: DisplayForm
+		       , defDisplay  :: [Open DisplayForm]
 		       , defMutual   :: MutualId
 		       , theDef	     :: Defn
 		       }

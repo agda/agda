@@ -142,20 +142,19 @@ checkSectionApplication i m1 ptel m2 args rd rm =
   addSection m1 (size ptel)
   tel <- lookupSection m2
   vs  <- freeVarsToApply $ qnameFromList $ mnameToList m2
-  verbose 15 $ do
-    dm2	 <- prettyTCM m2
-    dtel <- prettyTCM tel
-    liftIO $ putStrLn $ "applying section " ++ show dm2
-    liftIO $ putStrLn $ "  tel = " ++ show dtel
+  reportSDoc "tc.section.apply" 15 $ vcat
+    [ text "applying section" <+> prettyTCM m2
+    , nest 2 $ text "ptel =" <+> prettyTCM ptel
+    , nest 2 $ text "tel  =" <+> prettyTCM tel
+    ]
   (ts, cs)  <- checkArguments_ DontExpandLast (getRange i) args (apply tel vs)
   noConstraints $ return cs
-  verbose 15 $ do
-    [d1,d2] <- mapM prettyTCM [m1,m2]
-    dts	    <- mapM prettyTCM (vs ++ ts)
-    liftIO $ putStrLn $ unwords [ "applySection", show d1, "=", show d2, show dts ]
-    liftIO $ putStrLn $ "  defs: " ++ show rd
-    liftIO $ putStrLn $ "  mods: " ++ show rm
-  applySection m1 m2 (vs ++ ts) rd rm
+  reportSDoc "tc.section.apply" 20 $ vcat
+    [ sep [ text "applySection", prettyTCM m1, text "=", prettyTCM m2, fsep $ map prettyTCM (vs ++ ts) ]
+    , nest 2 $ text "  defs:" <+> text (show rd)
+    , nest 2 $ text "  mods:" <+> text (show rm)
+    ]
+  applySection m1 ptel m2 (vs ++ ts) rd rm
 
 -- | Type check an import declaration. Actually doesn't do anything, since all
 --   the work is done when scope checking.

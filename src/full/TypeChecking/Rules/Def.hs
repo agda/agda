@@ -145,17 +145,18 @@ checkWithFunction (WithFunction f aux gamma delta as b qs perm cs) = do
     ]
 
   -- Add the type of the auxiliary function to the signature
-  df <- withDisplayForm f aux delta (size as) qs perm
+
+  -- With display forms are closed
+  df <- makeClosed <$> withDisplayForm f aux delta (size as) qs perm
 
   let auxType = telePi delta $ foldr fun b as
   case df of
-    NoDisplay -> reportSDoc "tc.with.top" 20 $ text "NoDisplay"
-    Display n ts dt -> reportSDoc "tc.with.top" 20 $ text "Display" <+> fsep
+    OpenThing _ (Display n ts dt) -> reportSDoc "tc.with.top" 20 $ text "Display" <+> fsep
       [ text (show n)
       , prettyList $ map prettyTCM ts
       , prettyTCM dt
       ]
-  addConstant aux (Defn aux auxType df 0 Axiom)
+  addConstant aux (Defn aux auxType [df] 0 Axiom)
 
   reportSDoc "tc.with.top" 10 $ sep
     [ text "added with function" <+> (prettyTCM aux) <+> text "of type"

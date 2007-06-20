@@ -281,6 +281,14 @@ instance Raise Telescope where
     raiseFrom m k EmptyTel	    = EmptyTel
     raiseFrom m k (ExtendTel a tel) = uncurry ExtendTel $ raiseFrom m k (a, tel)
 
+instance Raise DisplayForm where
+  raiseFrom m k (Display n ps v) = Display n (raiseFrom (m + 1) k ps)
+					     (raiseFrom (m + n) k v)
+
+instance Raise DisplayTerm where
+  raiseFrom m k (DWithApp xs ys) = uncurry DWithApp $ raiseFrom m k (xs, ys)
+  raiseFrom m k (DTerm v)	 = DTerm $ raiseFrom m k v
+
 instance Raise t => Raise (Abs t) where
     raiseFrom m k = fmap (raiseFrom (m + 1) k)
 

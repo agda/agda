@@ -320,6 +320,9 @@ instance Normalise Constraint where
     normalise (Guarded c cs) = uncurry Guarded <$> normalise (c,cs)
     normalise (UnBlock m)    = return $ UnBlock m
 
+instance Normalise DisplayForm where
+  normalise (Display n ps v) = Display n <$> normalise ps <*> return v
+
 instance (Ord k, Normalise e) => Normalise (Map k e) where
     normalise = traverse normalise
 
@@ -429,8 +432,10 @@ instance InstantiateFull Definition where
       (t, (df, d)) <- instantiateFull (t, (df, d))
       return $ Defn x t df i d
 
+instance InstantiateFull a => InstantiateFull (Open a) where
+  instantiateFull (OpenThing n a) = OpenThing n <$> instantiateFull a
+
 instance InstantiateFull DisplayForm where
-  instantiateFull NoDisplay = return NoDisplay
   instantiateFull (Display n ps v) = uncurry (Display n) <$> instantiateFull (ps, v)
 
 instance InstantiateFull DisplayTerm where

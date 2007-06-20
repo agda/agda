@@ -10,17 +10,37 @@ import Syntax.Common
 import Syntax.Internal
 import TypeChecking.Monad
 import TypeChecking.Substitute
+import TypeChecking.Reduce
+import Syntax.Scope.Base
+import Utils.Size
 
 #include "../undefined.h"
 
 displayForm :: QName -> Args -> TCM (Maybe DisplayTerm)
 displayForm c vs = do
-    df <- defDisplay <$> getConstInfo c
-    return $ matchDisplayForm df vs
+    odfs  <- defDisplay <$> getConstInfo c
+    unless (null odfs) $ verboseS "tc.display.top" 30 $ do
+      n <- getContextId
+      let fvs = map (\(OpenThing n _) -> n) odfs
+      reportSLn "" 0 $ "displayForm: context = " ++ show n ++ ", dfs = " ++ show fvs
+    dfs	  <- do
+      xs <- mapM tryOpen odfs
+      return [ df | Just df <- xs ]
+    scope <- getScope
+    let matches dfs vs = [ m | Just m <- map (flip matchDisplayForm vs) dfs, inScope scope m ]
+    (nfdfs, us) <- normalise (dfs, vs)
+    return $ foldr (const . Just) Nothing $ matches dfs vs ++ matches nfdfs us
   `catchError` \_ -> return Nothing
+  where
+    inScope scope d = case hd d of
+      Just h  -> maybe False (const True) $ inverseScopeLookupName h scope
+      Nothing -> __IMPOSSIBLE__ -- TODO: currently all display forms have heads
+    hd (DTerm (Def x _))    = Just x
+    hd (DTerm (Con x _))    = Just x
+    hd (DWithApp (d : _) _) = hd d
+    hd _		    = Nothing
 
 matchDisplayForm :: DisplayForm -> Args -> Maybe DisplayTerm
-matchDisplayForm NoDisplay       _  = Nothing
 matchDisplayForm (Display n ps v) vs
   | length ps > length vs = Nothing
   | otherwise             = do
