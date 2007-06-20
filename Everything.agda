@@ -28,6 +28,9 @@ import Algebra.RingSolver.Simple
 import Data.Bool
 import Data.Bool.Properties
 import Data.Fin
+import Data.Fin.Dec
+import Data.Fin.Props
+import Data.Fin.Subset
 import Data.Function
 import Data.Int
 import Data.Integer
