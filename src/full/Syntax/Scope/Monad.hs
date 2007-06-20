@@ -244,6 +244,10 @@ popScope acc = do
 	qual' xs x = foldr C.Qual x $ map nameConcrete xs
     noPrivate s = s { scopePrivate = emptyNameSpace }
 
+-- | Pop the top scope from the stack and discard its contents.
+popScope_ :: ScopeM ()
+popScope_ = modifyScopeStack tail
+
 -- | Returns a scope containing everything starting with a particular module
 --   name. Used to open a module.
 matchPrefix :: C.QName -> ScopeM Scope

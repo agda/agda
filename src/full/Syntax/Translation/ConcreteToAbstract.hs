@@ -661,15 +661,18 @@ instance ToAbstract C.Clause A.Clause where
 	  return $ A.Clause lhs' rhs []
 	_	-> do
 	  m <- C.QName <$> maybe (nameConcrete <$> freshNoName noRange) return whname
+	  let acc = maybe PrivateAccess (const PublicAccess) whname  -- unnamed where's are private
 	  let tel = []
 	  am <- toAbstract (NewModuleQName m)
-	  (scope, ds) <- scopeCheckModule (getRange wh) PublicAccess ConcreteDef m am tel whds
+	  (scope, ds) <- scopeCheckModule (getRange wh) acc ConcreteDef m am tel whds
 	  setScope scope
 	  -- the right hand side is checked inside the module of the local definitions
 	  rhs <- toAbstractCtx TopCtx (RightHandSide vars with wcs rhs)
 	  qm <- getCurrentModule
-	  popScope PublicAccess
-	  bindQModule PublicAccess m qm
+	  case acc of
+	    PublicAccess  -> popScope PublicAccess
+	    PrivateAccess -> popScope_	-- unnamed where clauses are not in scope
+	  bindQModule acc m qm
 	  return $ A.Clause lhs' rhs ds
 
 data RightHandSide = RightHandSide LocalVars [C.Expr] [C.Clause] C.RHS
