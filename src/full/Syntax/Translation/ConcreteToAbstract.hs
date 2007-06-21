@@ -546,7 +546,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
 	bindModule p x m0
 	case open of
 	  DontOpen -> return ()
-	  DoOpen   -> openModule_ (C.QName x) defaultImportDir
+	  DoOpen   -> openModule_ (C.QName x) $ defaultImportDir { C.publicOpen = C.publicOpen dir }
 	printScope 20 $ case open of
 	  DontOpen  -> "didn't open"
 	  DoOpen    -> "opened"
