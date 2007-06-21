@@ -21,6 +21,17 @@ data Fin : ℕ -> Set where
   fs : {n : ℕ} -> Fin n -> Fin (suc n)
 
 ------------------------------------------------------------------------
+-- Conversion
+
+toℕ : forall {n} -> Fin n -> ℕ
+toℕ fz     = 0
+toℕ (fs i) = suc (toℕ i)
+
+fromℕ : (n : ℕ) -> Fin (suc n)
+fromℕ zero    = fz
+fromℕ (suc n) = fs (fromℕ n)
+
+------------------------------------------------------------------------
 -- Operations
 
 raise : forall {n} m -> Fin n -> Fin (m + n)
