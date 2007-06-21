@@ -5,6 +5,9 @@ data ℕ : Set where
   zero : ℕ
   suc  : ℕ -> ℕ
 
+infixl 60 _+_
+infixl 70 _*_
+
 _+_ : ℕ -> ℕ -> ℕ
 n + zero  = n
 n + suc m = suc (n + m)

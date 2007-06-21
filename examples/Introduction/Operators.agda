@@ -56,8 +56,8 @@ module BadIdea where
 
   _f_ : Nat -> Nat -> Nat
   zero	f zero	= zero
-  zero	f suc n = n f n
-  suc n f zero	= n f n
+  zero	f suc n = suc n
+  suc n f zero	= suc n
   suc n f suc m = suc (n f m)
 
   + : Nat -> Nat

@@ -137,6 +137,7 @@ reverse xs = rev xs nil
     rev nil	  ys = ys
     rev (x :: xs) ys = rev xs (x :: ys)
 
+infixr 20 _∘_
 _∘_ : {A B C : Set} -> (B -> C) -> (A -> B) -> A -> C
 f ∘ g = \x -> f (g x)
 
