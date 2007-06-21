@@ -11,6 +11,8 @@ open import Relation.Nullary
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality
 
+infixl 6 _-_
+
 ------------------------------------------------------------------------
 -- The type
 
@@ -24,6 +26,11 @@ data Fin : ℕ -> Set where
 raise : forall {n} m -> Fin n -> Fin (m + n)
 raise zero    i = i
 raise (suc n) i = fs (raise n i)
+
+_-_ : (n : ℕ) -> Fin n -> ℕ
+zero  - ()
+suc n - fz   = suc n
+suc n - fs i = n - i
 
 ------------------------------------------------------------------------
 -- Queries
