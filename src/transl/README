@@ -29,17 +29,17 @@ Following declarations cannot be translated.
 
 Following expressions cannot be translated.
 
-  - CRecord
   - CSelect
   - CExternal
   - CDo
   - CList
 
-Following expressions can be translated.
+Following expressions can be translated in some occasions.
 
-  - Ccase  --  if its occurence is in top level of RHS, and 
-               case on the variable of bound as function argument,
-               it can be translated.
+  - Ccase    --  if its occurence is in top level of RHS, and 
+                 case on the variable of bound as function argument,
+                 it can be translated.
+  - CRecord
 
 Comments embeded in expressions cannot be kept.
 
