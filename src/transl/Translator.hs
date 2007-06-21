@@ -11,7 +11,9 @@ import Data.List
 import Data.Maybe
 import Debug.Trace
 import System
+import System.Environment
 import System.IO
+import System.IO.Unsafe
 
 -- Agda
 import Position
@@ -25,6 +27,9 @@ import Lex
 import CSyntax
 import FString
 import PreStrings
+import Literal
+import PPrint
+import CPrinter
 
 -- Agda 2
 import Utils.Pretty
@@ -33,6 +38,9 @@ import Syntax.Concrete
 import Syntax.Concrete.Pretty
 import Syntax.Literal
 import Syntax.Position
+
+starling :: (a -> b -> c) -> (a -> b) -> (a -> c)
+starling f g x = f x (g x)
 
 ----------------------------------------------------------------------
 -- Interfaces
@@ -47,7 +55,7 @@ agda1Parser False = Old.finalP Old.pLetDefs
 
 agda1to2 :: ([CLetDef] -> StrTable -> IO ())
          -> Error ([CLetDef],StrTable) -> IO ()
-agda1to2 _  (Err e) = hPutStrLn stderr $ prEMsg e
+agda1to2 _  (Err e)            = hPutStrLn stderr $ prEMsg e
 agda1to2 io (Done (ctree,tab)) = io ctree tab
 
 
@@ -61,32 +69,31 @@ elimTopLam :: CLetDef -> CLetDef
 elimTopLam = mapCLetDef elimTopLamCDef
 
 elimTopLamCDef :: CDef -> CDef
-elimTopLamCDef (CDef props cdefn) = CDef props $ elimTopLamCDefn cdefn
-elimTopLamCDef def                = def
+elimTopLamCDef cdef = case cdef of
+  CDef props cdefn -> CDef props $ elimTopLamCDefn cdefn
+  _                -> cdef
 
 elimTopLamCDefn :: CDefn -> CDefn
-elimTopLamCDefn (CValueS i args ty clause)
- = CValueS i args ty (elimLamCClause clause)
-elimTopLamCDefn defns = defns
+elimTopLamCDefn cdefn = case cdefn of
+  CValueS i args ty clause -> CValueS i args ty (elimLamCClause clause)
+  _                        -> cdefn
 
 elimLamCClause :: CClause -> CClause
-elimLamCClause (CClause pats (Clam (flg,CBind [i] mctype) cexpr))
- = elimLamCClause (CClause (pats++[pat]) (elimLamCExpr cexpr))
-   where pat = case mctype of
+elimLamCClause cclause = case cclause of
+  CClause pats (Clam (flg,CBind [i] mctype) cexpr)
+    -> elimLamCClause (CClause (pats++[pat]) (elimLamCExpr cexpr))
+         where pat = case mctype of
                  Nothing -> (flg,CPVar (CPatId i))
                  Just e  -> (flg,CPVar (CPatT i e))
-elimLamCClause cclause = cclause
+  _ -> cclause
 
 elimLamCExpr :: CExpr -> CExpr
-elimLamCExpr (Clam b e)
- = Clam b (elimLamCExpr e)
-elimLamCExpr (Clet defs e)
- = Clet (map elimTopLam defs) (elimLamCExpr e)
-elimLamCExpr (Ccase e arms) 
- = Ccase e [(pat,elimLamCExpr expr) | (pat,expr) <- arms]
-elimLamCExpr (CApply f args)
- = CApply (elimLamCExpr f) [(b,elimLamCExpr e) | (b,e) <- args]
-elimLamCExpr e = e
+elimLamCExpr ce = case ce of
+  Clam b e        -> Clam b (elimLamCExpr e)
+  Clet defs e     -> Clet (map elimTopLam defs) (elimLamCExpr e)
+  Ccase e arms    -> Ccase e [(pat,elimLamCExpr expr) | (pat,expr) <- arms]
+  CApply f args   -> CApply (elimLamCExpr f) [(b,elimLamCExpr e) | (b,e) <- args]
+  _               -> ce
 
 -- eliminate top level case 
 
@@ -103,49 +110,47 @@ substdfn i new True ldf = (True,ldf)
 substdfn i new _    ldf = substLetDef i new ldf
 
 substLetDef :: Id -> CExpr -> CLetDef -> (Bool,CLetDef)
-substLetDef i new ld@(CSimple d)
- = case substcdef i new d of
-     (b,d') -> (b,CSimple d')    
-substLetDef i new ld@(CMutual ds)
- = case unzip $ map (substcdef i new) ds of
-     (bs,ds') -> if or bs then (True,CMutual ds) else (False,CMutual ds')
-substLetDef _ _ ld = (False,ld)
+substLetDef i new ld = case ld of
+  CSimple d  -> case substcdef i new d of
+		  (b,d') -> (b,CSimple d')    
+  CMutual ds -> case unzip $ map (substcdef i new) ds of
+                  (bs,ds') -> if or bs then (True,CMutual ds) else (False,CMutual ds')
+  _          -> (False,ld)
 
 substcdef :: Id -> CExpr -> CDef -> (Bool,CDef)
-substcdef i new (CDef cprops cdefn) 
- = case substcdefn i new cdefn of
-     (b,cdefn') -> (b,CDef cprops cdefn')
-substcdef i new cdef = (False,cdef)
+substcdef i new cdef = case cdef of
+  CDef cprops cdefn -> case substcdefn i new cdefn of
+		         (b,cdefn') -> (b,CDef cprops cdefn')
+  _                 -> (False,cdef)
 
 substcdefn :: Id -> CExpr -> CDefn -> (Bool,CDefn)
-substcdefn i new (CValueS i' cargs ctype cclause)
- = (i == i', CValueS i' cargs ctype $ substcclause i new cclause)
-substcdefn _ _ cdefn = (False, cdefn)
+substcdefn i new cdefn = case cdefn of
+  CValueS i' cargs ctype cclause
+    -> (i == i', CValueS i' cargs ctype $ substcclause i new cclause)
+  _ -> (False, cdefn)
 
 substcclause :: Id -> CExpr -> CClause -> CClause
 substcclause i new (CClause bcps cexpr)
  = if elem i (concatMap (exid . snd) bcps) 
       then CClause bcps cexpr
       else CClause bcps (substcexpr i new cexpr)
-
    where exid (CPCon i cpats) = i : concatMap exid cpats
          exid (CPVar (CPatT i _)) = [i]
          exid (CPVar (CPatId i))  = [i]
 
 substcexpr :: Id -> CExpr -> CExpr -> CExpr
-substcexpr i new (CVar x)
- | i == x         = new
-substcexpr i new (Clam b@(_,CBind is _) e)
- | notElem i is   = Clam b (substcexpr i new e)
-substcexpr i new (Clet dfs e)
- = case mapAccumL (substdfn i new) False dfs  of
-     (True, dfs') -> Clet dfs' e
-     (_   , dfs') -> Clet dfs' (substcexpr i new e)
-substcexpr i new (Ccase e arms)
- = Ccase (substcexpr i new e) [(pat,substcexpr i new expr) | (pat,expr) <- arms]
-substcexpr i new (CApply f args)
- = CApply (substcexpr i new f) [(b,substcexpr i new x) | (b,x) <- args ]
-substcexpr _ _  e = e
+substcexpr i new ce = case ce of
+  CVar x | i == x  -> new
+  Clam b@(_,CBind is _) e 
+    | notElem i is -> Clam b (substcexpr i new e)
+  Clet dfs e       -> case mapAccumL (substdfn i new) False dfs  of
+                        (True, dfs') -> Clet dfs' e
+                        (_   , dfs') -> Clet dfs' (substcexpr i new e)
+  Ccase e arms     -> Ccase (substcexpr i new e)
+                            [(pat,substcexpr i new expr) | (pat,expr) <- arms]
+  CApply f args    -> CApply (substcexpr i new f) [(b,substcexpr i new x) | (b,x) <- args ]
+  CBinOp e1 o e2   -> CBinOp (substcexpr i new e1) o (substcexpr i new e2)
+  _                -> ce
 
 exchcpat :: CPat -> Int -> [(Bool,CPat)] -> [(Bool,CPat)]
 exchcpat pat i cpats
@@ -160,47 +165,50 @@ valueT2valueS :: CLetDef -> CLetDef
 valueT2valueS = mapCLetDef t2sCDef
 
 t2sCDef :: CDef -> CDef
-t2sCDef (CDef props cdefn) = CDef props $ t2sCDefn cdefn
-t2sCDef def                = def
+t2sCDef cdef = case cdef of
+  CDef props cdefn -> CDef props $ t2sCDefn cdefn
+  _                -> cdef
 
 t2sCDefn :: CDefn -> CDefn
-t2sCDefn (CValueT i args ctype cexpr)
---  = CValueS i args ctype (CClause [] $ t2sCExpr cexpr)
- = CValueS i args ctype (CClause cpats $ t2sCExpr cexpr)
-   where cpats = concatMap carg2bcpat args
-         carg2bcpat (CArg bis _) = map f bis
-         f (b,i) = (b, CPVar (CPatId i))
-
-t2sCDefn cdefn = cdefn
+t2sCDefn cdefn = case cdefn of 
+  CValueT i args ctype cexpr -> CValueS i args ctype (CClause cpats $ t2sCExpr cexpr)
+                                  where cpats = concatMap carg2bcpat args
+                                        carg2bcpat (CArg bis _) = map f bis
+                                        f (b,i) = (b, CPVar (CPatId i))
+  _                          -> cdefn
 
 t2sCExpr :: CExpr -> CExpr
-t2sCExpr (CUniv arg expr) = CUniv arg (t2sCExpr expr)
-t2sCExpr (Clam bnd expr)  = Clam bnd (t2sCExpr expr)
-t2sCExpr (Clet defs expr) = Clet (map valueT2valueS defs) (t2sCExpr expr)
-t2sCExpr (CProduct pos signs) = CProduct pos $ map t2sCSign signs
-t2sCExpr (CRecord props pos defs) = CRecord props pos $ map valueT2valueS defs
-t2sCExpr (CSelect expr i) = CSelect (t2sCExpr expr) i
-t2sCExpr (Ccase expr arms) = Ccase (t2sCExpr expr) [(pat,t2sCExpr e)| (pat,e) <- arms]
-t2sCExpr (CApply expr args) = 
-  case expr of
-    (CVar i) | isSym (head (getIdString i))
-             -> CApply (CBinOp (snd $ head args) i (snd $ head $ tail  args))
-                       [(flg,t2sCExpr e) | (flg,e) <- tail (tail args)]
-    _        -> CApply (t2sCExpr expr) [(flg,t2sCExpr e) | (flg,e) <- args ]
-t2sCExpr (CBinOp e1 op e2) = CBinOp (t2sCExpr e1) op (t2sCExpr e2)
-t2sCExpr (Cif e0 e1 e2) = Cif (t2sCExpr e0) (t2sCExpr e1) (t2sCExpr e2)
-t2sCExpr (CDo pos dbnds) = CDo pos $ map t2sCDoBind dbnds
-t2sCExpr (CList pos exprs) = CList pos $ map t2sCExpr exprs
-t2sCExpr cexpr             = cexpr
+t2sCExpr ce = case ce of
+  CUniv arg expr   -> CUniv arg (t2sCExpr expr)
+  Clam bnd expr    -> Clam bnd (t2sCExpr expr)
+  Clet defs expr   -> Clet (map valueT2valueS defs) (t2sCExpr expr)
+  CProduct pos signs
+                   -> CProduct pos $ map t2sCSign signs
+  CRecord props pos defs
+                   -> CRecord props pos $ map valueT2valueS defs
+  CSelect expr i   -> CSelect (t2sCExpr expr) i
+  Ccase expr arms  -> Ccase (t2sCExpr expr) [(pat,t2sCExpr e)| (pat,e) <- arms]
+  CApply expr args -> case expr of
+			CVar i | isSym (head $ getIdString i)
+		          -> CApply (CBinOp (snd $ head args) i (snd $ head $ tail  args))
+                                    [(flg,t2sCExpr e) | (flg,e) <- tail (tail args)]
+                        _ -> CApply (t2sCExpr expr) [(flg,t2sCExpr e) | (flg,e) <- args ]
+  CBinOp e1 op e2  -> CBinOp (t2sCExpr e1) op (t2sCExpr e2)
+  Cif e0 e1 e2     -> Cif (t2sCExpr e0) (t2sCExpr e1) (t2sCExpr e2)
+  CDo pos dbnds    -> CDo pos $ map t2sCDoBind dbnds
+  CList pos exprs  -> CList pos $ map t2sCExpr exprs
+  _                -> ce
 
 t2sCSign :: CSign -> CSign
-t2sCSign (CSignDef defn) = CSignDef (t2sCDefn defn)
-t2sCSign csign = csign
+t2sCSign csign = case csign of
+  CSignDef defn -> CSignDef (t2sCDefn defn)
+  _             -> csign
 
 t2sCDoBind :: CDoBind -> CDoBind
-t2sCDoBind (CDoBind i expr) = CDoBind i (t2sCExpr expr)
-t2sCDoBind (CDoBind_ expr) = CDoBind_ (t2sCExpr expr)
-t2sCDoBind (CDoLet defs) = CDoLet (map valueT2valueS defs)
+t2sCDoBind cdobind = case cdobind of
+  CDoBind i expr -> CDoBind i (t2sCExpr expr)
+  CDoBind_ expr  -> CDoBind_ (t2sCExpr expr)
+  CDoLet defs    -> CDoLet (map valueT2valueS defs)
 
 ----------------------------------------------------------------------
 -- translator from Agda1 definition syntax to Agda2 declaration syntax
@@ -210,16 +218,18 @@ translate :: [CLetDef] -> [Declaration]
 translate = concatMap transCLetDef
 
 transCLetDef :: CLetDef -> [Declaration]
-transCLetDef (CSimple cdef)  = transCDef cdef
-transCLetDef (CMutual cdefs) = [Mutual noRange (concatMap transCDef cdefs)]
-transCLetDef (CLetDefComment cs)
- | not ("--#include" `isPrefixOf` cs) = commentDecls cs
- | otherwise = maybe []
+transCLetDef cletdef = case cletdef of
+  CSimple cdef  -> transCDef cdef
+  CMutual cdefs -> [Mutual noRange (concatMap transCDef cdefs)]
+  CLetDefComment cs
+    | not ("--#include" `isPrefixOf` cs) 
+                -> commentDecls cs
+    | otherwise -> maybe []
                      (\ md -> [Import noRange
- 				    (QName (Name noRange [Id noRange md]))
- 				    Nothing
-				    DontOpen
- 				    (ImportDirective noRange (Hiding []) [] False) ])
+ 		                      (QName (Name noRange [Id noRange md]))
+ 				      Nothing
+			              DontOpen
+ 				      (ImportDirective noRange (Hiding []) [] False) ])
                      mdlname
    where 
      trim str = case break ('\"'==) str of 
@@ -235,81 +245,96 @@ transCDef (CDef cprops cdefn)
 transCDef _               = []
 
 transCDefn :: CDefn -> [Declaration]
-transCDefn (CValueT i args ctype cexpr)
- = transCDefn (CValueS i args ctype (CClause cpats cexpr))
-   where cpats = concatMap carg2bcpat args
-         carg2bcpat (CArg bis _) = map f bis
-         f (b,i) = (b, CPVar (CPatId i))
-transCDefn (CValueS i [] ctype cclause@(CClause cpats cexpr))
- = case cexpr of
-     CProduct pos csigs
-       -> case ctype of
-            CUniv carg e 
-              -> [Record noRange name 
-                         (carg2telescope carg) 
-                         (transCExpr e) 
-                         (concatMap csig2fields csigs)]
-            CStar _ 0 _  
-              -> [Record noRange name [] (Set noRange) (concatMap csig2fields csigs)]
-            CStar _ n _  
-              -> [Record noRange name [] (SetN noRange n) (concatMap csig2fields csigs)]
-            _ -> errorDecls $ "transCDefn: cannot translate " ++ show csigs
-     CRecord cprops pos cletdefs
-       -> ctype2typesig flg i [] ctype 
-       :  [FunClause (LHS (RawAppP noRange (op : pats)) [] [])
-                     (RHS (Rec noRange $ map decls2namexpr decls))
-                     (localdefs undefined)]
-           where 
-             decls = map transCLetDef cletdefs
-             op  = IdentP $ str2qname $ getIdString i
-	     pats = ctype2pats ctype 
-     _ -> ctype2typesig flg i [] ctype : cclause2funclauses i flg cclause
-   where flg = isInfixOp i
-         name = if flg then id2infixName i else id2name i
-transCDefn (CValueS i args ctype cclause) 
- = transCDefn (CValueS i [] ctype' cclause)
-   where ctype' = foldr (\ carg e -> CUniv carg e) ctype args
-transCDefn (Ctype i args ctype) 
- = transCDefn (CValueT i args (CStar undefined 0 undefined) ctype)
-transCDefn (Cnewtype i args ctype csum) 
- = transCDefn (Cdata i args (Just ctype) [csum])
-transCDefn (Cdata i args mctype csums)
- = [Data noRange (id2name i) tls t (map (csummand2constructor ot) csums)]
-   where
-    t = maybe (Set noRange) transCExpr mctype 
-    tls = concatMap carg2telescope args
-    n = id2name i
-    ot = foldl (\ f (TypedBindings _ _ [TBind _ [x] _]) -> RawApp noRange [f, Ident (QName x)]) (Ident (QName n)) tls
-transCDefn (Cidata i args ctype csum)
--- = transCDefn (Cdata i args (Just ctype) (sind2s csum))
- = errorDecls "transCDefn: cannot translate: (Cidata i args ctype csum)"
-transCDefn (CValue i cexpr)
- = cclause2funclauses i (isInfixOp i) (CClause [] cexpr)
-transCDefn (CAxiom i args ctype)
- = [Postulate noRange [ctype2typesig flg i [] ctype']]
-   where ctype' = foldr (\ carg e -> CUniv carg e) ctype args
-         flg = isInfixOp i
-transCDefn (CNative i ctype)
- = errorDecls "transCDefn: cannot translate: (CNative i ctype)"
-transCDefn (CPackage i args pkgbody)
- = case pkgbody of
-     CPackageDef [] _ cletdefs 
-       -> [Module noRange (QName (id2name i)) (concatMap carg2telescope args)
-	   (concatMap transCLetDef cletdefs)]
-     _ -> errorDecls "Cannot translate: package definition other than (CPackageDef [] _ cletdefs)"
-transCDefn (COpen cexpr (COpenArgs coargs))
- = case cexpr of
-     (CVar i)
-       -> [Open noRange (QName (id2name i)) (copenargs2importdirective coargs)]
-     (CApply (CVar i) bces)
-       -> [Open noRange (QName (id2name i)) (copenargs2importdirective coargs)]
-     _ -> errorDecls ("cannot translate: COpen ("++show cexpr++") coargs")
-transCDefn (CClass classargs b csigns)
- = errorDecls "transCDefn: cannot translate: (CClass classargs b csigns)"
-transCDefn (CInstance i cargs cinsarg cletdefs)
- = errorDecls "transCDefn: cannot translate: (CInstance i cargs cinsarg cletdefs)"
+transCDefn cdefn = case cdefn of
+  CValueT i args ctype cexpr
+    -> transCDefn (CValueS i args ctype (CClause cpats cexpr))
+         where cpats = concatMap carg2bcpat args
+               carg2bcpat (CArg bis _) = map f bis
+	       f (b,i) = (b, CPVar (CPatId i))
+  CValueS i [] ctype cclause@(CClause cpats cexpr)
+    -> case cexpr of
+         CProduct pos csigs
+           -> case ctype of
+                CUniv carg e 
+                  -> [Record noRange name 
+                             (carg2telescope carg) 
+                             (transCExpr e) 
+                             (concatMap csig2fields csigs)]
+                CStar _ 0 _  
+                  -> [Record noRange name [] (Set noRange) (concatMap csig2fields csigs)]
+                CStar _ n _  
+                  -> [Record noRange name [] (SetN noRange n) (concatMap csig2fields csigs)]
+                _ -> errorDecls $ pp "" cdefn
+         CRecord cprops pos cletdefs
+           -> ctype2typesig flg i [] ctype 
+           :  [FunClause (LHS (RawAppP noRange (op : pats)) [] [])
+                         (RHS (Rec noRange $ map decls2namexpr decls))
+                         (localdefs undefined)]
+               where 
+                 decls = map transCLetDef cletdefs
+                 op  = IdentP $ str2qname $ getIdString i
+	         pats = ctype2pats ctype 
+         _ -> ctype2typesig flg i [] ctype : cclause2funclauses i flg cclause
+       where flg = isInfixOp i
+             name = if flg then id2infixName i else id2name i
+  CValueS i args ctype cclause
+    -> transCDefn (CValueS i [] ctype' cclause)
+       where ctype' = foldr (\ carg e -> CUniv carg e) ctype args
+  Ctype i args ctype
+    -> transCDefn (CValueT i args (CStar undefined 0 undefined) ctype)
+  Cnewtype i args ctype csum
+    -> transCDefn (Cdata i args (Just ctype) [csum])
+  Cdata i args mctype csums
+    -> [Data noRange n tls t (map (csummand2constructor ot) csums)]
+       where
+        t = maybe (Set noRange) transCExpr mctype 
+        tls = concatMap carg2telescope args
+        n = id2name i
+        ot = foldl (\ f (TypedBindings _ _ [TBind _ [x] _]) -> RawApp noRange [f, Ident (QName x)]) (Ident (QName n)) tls
+  Cidata i args ctype cindsums
+    -> errorDecls $ pp "" cdefn
+  CValue i cexpr
+    -> cclause2funclauses i (isInfixOp i) (CClause [] cexpr)
+  CAxiom i args ctype
+    -> [Postulate noRange [ctype2typesig flg i [] ctype']]
+       where ctype' = foldr (\ carg e -> CUniv carg e) ctype args
+             flg = isInfixOp i
+  CNative i ctype
+    -> errorDecls $ pp "" cdefn
+  CPackage i args pkgbody
+    -> case pkgbody of
+         CPackageDef [] _ cletdefs 
+           -> [Module noRange (QName (id2name i)) (concatMap carg2telescope args)
+	       (concatMap transCLetDef cletdefs)]
+         _ -> errorDecls $ pp "" cdefn
+  COpen cexpr (COpenArgs coargs)
+    -> case cexpr of
+         (CVar i)
+           -> [Open noRange (QName (id2name i)) (copenargs2importdirective coargs)]
+         (CApply (CVar i) bces)
+           -> [Open noRange (QName (id2name i)) (copenargs2importdirective coargs)]
+         _ -> errorDecls $ pp "" cdefn
+  CClass classargs b csigns
+    -> errorDecls $ pp "" cdefn
+  CInstance i cargs cinsarg cletdefs
+    -> errorDecls $ pp "" cdefn
 
 -- Utilities
+
+cletdef2bind :: CLetDef -> Maybe (Name,Expr)
+cletdef2bind cletdef = case cletdef of
+  CSimple cdef 
+    -> case [ (lhs,rhs) | FunClause lhs rhs ld <- transCDef cdef ] of
+         (LHS p _ _,RHS e):_
+           -> case p of 
+                IdentP    qn            -> Just (qn2n qn, e)
+                RawAppP _ (IdentP qn:_) -> Just (qn2n qn, e)
+                _ -> Nothing
+         _ -> Nothing
+  _ -> Nothing
+  where
+    qn2n (QName n)  = n
+    qn2n (Qual n _) = n
 
 ctype2pats :: CType -> [Pattern]
 ctype2pats (CUniv carg cexpr)
@@ -332,7 +357,7 @@ csig2fields (CSign is ctype)
          name i = if isSym $ head $ getIdString i then id2infixName i
                   else id2name i
 csig2fields csign
- = errorDecls $ "csig2fields: cannot translate ("++show csign++")"
+ = errorDecls $ "csig2fields cannot translate ("++pp "" csign++")"
 
 carg2telescope :: CArg -> Telescope
 carg2telescope (CArg bis ctype)
@@ -356,64 +381,89 @@ copenargs2importdirective coargs
 -- Translator from Agda1 expression syntax to Agda2 expression syntax
 
 transCExpr :: CExpr -> Expr
-transCExpr (CVar i)
- = Ident (QName (id2name i))
-transCExpr (CStar _ 0 _)
- = Set noRange
-transCExpr (CStar _ n _)
- = SetN noRange n
-transCExpr (Clam (flg,CBind [x] Nothing) e)
- = Lam noRange [DomainFree (bool2hiding flg) (id2name x)] (transCExpr e)
-transCExpr (Clam (flg,CBind xs (Just t)) e)
- = Lam noRange [DomainFull (TypedBindings noRange (bool2hiding flg) [TBind noRange (map id2name xs) (transCExpr t)])] (transCExpr e)
-transCExpr ce@(Clam _ _)
- = error $ "transCExpr: Never!! "++show ce
-transCExpr (CUniv a e)
- = case a of
-     (CArg bis ctype)
-       -> foldr (\ (b,i) expr -> Pi [TypedBindings noRange (bool2hiding b) [TBind noRange [(id2name i)] (transCExpr ctype)]] expr) (transCExpr e) bis 
-transCExpr (CArrow flg ce1 ce2)
- = Fun noRange (parenExpr (transCExpr ce1)) (transCExpr ce2)
-transCExpr (Clet defs cexpr) 
- = Let noRange (translate defs) (transCExpr cexpr)
-transCExpr ce@(CProduct pos csigs)
- = errorExpr $ "Cannot translate (" ++ show ce ++")"
-transCExpr ce@(CRecord cprops pos cletdefs)
- = errorExpr $ "Cannot translate (" ++ show ce ++")"
-transCExpr ce@(Copen cexpr1 coargs cexpr2)
- = errorExpr $ "Cannot translate (" ++ show ce ++")"
-transCExpr (CApply f args)
- = case f of
-    (CVar i) | isSym (head (getIdString i)) 
-             -> transCExpr $
-                CApply (CBinOp (snd $ head args) i (snd $ head $ tail  args))
-                       [(flg,t2sCExpr e) | (flg,e) <- tail (tail args)]
-    _        -> foldl (\ e (flg,cexpr) -> App noRange e
-                       (Arg { argHiding =(bool2hiding flg), unArg = unnamed (parenExpr (transCExpr cexpr)) }))
-                (parenExpr (transCExpr f))
-	        args
-transCExpr (CBinOp o1 b o2)
- | isSym (head (getIdString b)) = OpApp noRange (id2infixName b) (map (parenExpr . transCExpr) [o1,o2])
- | otherwise = transCExpr (CApply (CVar b) [(False,o1),(False,o2)])
+transCExpr ce = case ce of
+  CVar i      -> Ident (QName (id2name i))
+  CStar _ 0 _ -> Set noRange
+  CStar _ n _ -> SetN noRange n
+  Clam (flg,CBind [x] Nothing) e 
+              -> Lam noRange [DomainFree (bool2hiding flg) (id2name x)] (transCExpr e)
+  Clam (flg,CBind xs (Just t)) e
+              -> Lam noRange 
+                     [DomainFull (TypedBindings 
+                                    noRange
+                                    (bool2hiding flg)
+                                    [TBind noRange (map id2name xs) (transCExpr t)]
+                                 )
+                     ]
+                     (transCExpr e)
+  Clam _ _    -> error $ "transCExpr: Never!! "++pp' ce
+  CUniv a e   -> case a of
+		   CArg bis ctype
+                     -> foldr (\ (b,i) expr 
+                               -> Pi [TypedBindings noRange
+                                                    (bool2hiding b)
+                                                    [TBind noRange
+                                                           [(id2name i)]
+                                                           (transCExpr ctype)]
+                                     ]
+                                     expr)
+                              (transCExpr e) bis 
+  CArrow flg ce1 ce2
+              -> Fun noRange (parenExpr (transCExpr ce1)) (transCExpr ce2)
+  Clet defs cexpr
+              -> Let noRange (translate defs) (transCExpr cexpr)
+  CProduct pos csigs
+              -> errorExpr $ pp' ce
+  CRecord cprops pos cletdefs
+              -> let len   = length cletdefs
+                     binds = mapMaybe cletdef2bind cletdefs
+                     len'  = length binds
+                 in if len /= len' then errorExpr $ pp (show (len,len')) ce
+                    else Rec noRange binds
+  Copen cexpr1 coargs cexpr2
+              -> errorExpr $ pp' ce
+  CApply f args
+              -> case f of
+                   CVar i | isSym (head (getIdString i)) 
+                     -> transCExpr
+                     $  CApply (CBinOp (snd $ head args) i (snd $ head $ tail  args))
+                               [(flg,t2sCExpr e) | (flg,e) <- tail (tail args)]
+                   _        -> foldl (\ e (flg,cexpr)
+                                      -> App noRange 
+                                             e
+                                             (Arg { argHiding = bool2hiding flg
+                                                  , unArg = unnamed (parenExpr (transCExpr cexpr)) }))
+                                     (parenExpr (transCExpr f))
+                                     args
+  CBinOp o1 b o2
+    | isSym (head (getIdString b))
+              -> OpApp noRange (id2infixName b) (map (parenExpr . transCExpr) [o1,o2])
+    | otherwise 
+              -> transCExpr (CApply (CVar b) [(False,o1),(False,o2)])
+  CMeta _ _ _ _
+              -> QuestionMark noRange Nothing
+  Cif ec et ee-> RawApp noRange (Ident ifQName : map (parenExpr . transCExpr) [ec,et,ee])
+  CCConS i    -> transCExpr (CVar i)
+  CSelect _ _ -> errorExpr $ pp' ce
+  CSum _      -> errorExpr $ pp' ce
+  CCCon _ _   -> errorExpr $ pp' ce
+  Ccase _ _   -> errorExpr $ pp' ce
+  CClos _ _   -> errorExpr $ pp' ce
+--  Ccomment _ c e -> App noRange (commentExpr c) (transCExpr e)
+  Ccomment _ c e
+              -> transCExpr e
+  CPackageType-> errorExpr $ pp' ce
+  CIndSum _ _ -> errorExpr $ pp' ce
+  CExternal _ -> errorExpr $ pp' ce
+  CLit _ l    -> case l of
+      LString s   -> Lit (LitString noRange s)
+      LChar c     -> Lit (LitChar noRange c)
+      LInt i      -> Lit (LitInt noRange (fromInteger i))
+      LRational r -> Lit (LitFloat noRange (fromRational r))
+      _           -> errorExpr $ pp' ce
+  CDo _ _     -> errorExpr $ pp' ce
+  CList _ _   -> errorExpr $ pp' ce
 
-transCExpr (CMeta _ _ _ _)
- = QuestionMark noRange Nothing
-transCExpr (Cif ec et ee)
- = RawApp noRange (Ident ifQName : map (parenExpr . transCExpr) [ec,et,ee])
-transCExpr (CCConS i) = transCExpr (CVar i)
-transCExpr ce@(CSelect _ _) = errorExpr $ show ce
-transCExpr ce@(CSum _)      = errorExpr $ show ce
-transCExpr ce@(CCCon _ _)   = errorExpr $ show ce
-transCExpr ce@(Ccase _ _)   = errorExpr $ show ce
-transCExpr ce@(CClos _ _)   = errorExpr $ show ce
--- transCExpr ce@(Ccomment _ c e)   = App noRange (commentExpr c) (transCExpr e)
-transCExpr ce@(Ccomment _ c e)   = transCExpr e
-transCExpr ce@(CPackageType)   = errorExpr $ show ce
-transCExpr ce@(CIndSum _ _)   = errorExpr $ show ce
-transCExpr ce@(CExternal _)   = errorExpr $ show ce
-transCExpr ce@(CLit _ _)   = errorExpr $ show ce
-transCExpr ce@(CDo _ _)   = errorExpr $ show ce
-transCExpr ce@(CList _ _)   = errorExpr $ show ce
 ----
 
 ifQName :: QName
@@ -435,13 +485,23 @@ parenExpr e                    = Paren noRange e
 -- Utilities
 
 ---- for non-supported translation and for comment (all of these kluges !)
+debugFlg = False
+-- debugFlg = elem "-D" $ unsafePerformIO getArgs
+
+pp :: (PPrint a) => String -> a -> String
+pp s = if debugFlg then (++ (" (D-> "++s++" <-D) ")) . ppAll else ppAll
+
+pp' = starling (flip pp) show
 
 errorDecls :: String -> [Declaration]
 errorDecls msg 
- = [TypeSig (str2name "") (errorExpr msg)]
+ = [TypeSig (str2name "{- translation error! ") (errorExpr' msg)]
 
 errorExpr :: String -> Expr
-errorExpr s = Ident (str2qname $ "<error> : " ++ s)
+errorExpr s = Ident $ str2qname $ "{! "++ s ++ " !}"
+
+errorExpr' :: String -> Expr
+errorExpr' s = Ident $ str2qname $ s ++ " -}"
 
 commentDecls :: String -> [Declaration]
 commentDecls msg
@@ -522,8 +582,9 @@ liftCcase n flg pats (Ccase cexpr ccasearms)
                     -> case ccasearms of
                          [] -> absurdcc n flg pats iv
                          _  -> concatMap (liftcc n flg pats iv) ccasearms
-                  _ -> errorDecls (show cexpr ++ " not in args")
-      _      -> errorDecls "now liftCcase pats can be applied on simple variable"
+                  _ -> errorDecls ("cannot translate this case: "
+                                  ++ show cexpr ++ " not in args")
+      _      -> errorDecls "cannot translate 'case' on any but simple variable"
     where
       within x ((i,(_,CPVar (CPatId x'))):_)  | x == x' = Just i
       within x ((i,(_,CPVar (CPatT x' _))):_) | x == x' = Just i

@@ -1,0 +1,50 @@
+* agda1to2 -----------------------------------------------------------
+
+'agda1to2' is a translator from a program in Agda 1 to its
+coressponding program in Agda 2
+
+At the current moments, it is rather a helper for translating by hand.
+(Please don't expect it to be a perfect tool :)
+
+* usage --------------------------------------------------------------
+
+  $ agda1to2 foo.alfa > foo.agda
+
+foo.alfa is a program in Agda 1 (new syntax).  foo.agda is the output
+expected to be program in Agda 2.
+
+  $ agda1to2 --old foo.alfa > foo.agda
+
+In this case, foo.alfa is expected to be written in Agda 1 old syntax.
+(but I don't check that.)
+
+* what it cannot translate at the current moment ---------------------
+
+Following declarations cannot be translated.
+
+  - idata
+  - class
+  - instance
+  - native
+
+Following expressions cannot be translated.
+
+  - CRecord
+  - CSelect
+  - CExternal
+  - CDo
+  - CList
+
+Following expressions can be translated.
+
+  - Ccase  --  if its occurence is in top level of RHS, and 
+               case on the variable of bound as function argument,
+               it can be translated.
+
+Comments embeded in expressions cannot be kept.
+
+  (if Agda2 concrete syntax tree had a term for comment, it could be kept.)
+
+Standalone comment can be kept.
+
+  (by tricks)

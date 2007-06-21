@@ -101,6 +101,11 @@ AGDA2=$(TOP)/src/main/dist/build/agda/agda
 WORK=./test
 
 %.test	: $(OUT)/$(BIN)
-	$(OUT)/$(BIN) -D $(WORK)/$*.agda | $(GHC) -e "getContents>>=putStr.unlines.(\"module $* where\":).map (\"  \"++).lines" > $(WORK)/$*.ag2
-	-$(AGDA2) $(WORK)/$*.ag2
-	$(GHC) -e "getContents>>=sequence_ . zipWith (Text.Printf.printf \"%5d: %s\n\") ([1..]::[Int]) . lines" < $(WORK)/$*.ag2
+	$(OUT)/$(BIN) -D $(WORK)/$*.alfa | $(GHC) -e "getContents>>=putStr.unlines.(\"module $* where\":).map (\"  \"++).lines" > $(WORK)/$*.agda
+	-$(AGDA2) $(WORK)/$*.agda
+	$(GHC) -e "getContents>>=sequence_ . zipWith (Text.Printf.printf \"%5d: %s\n\") ([1..]::[Int]) . lines" < $(WORK)/$*.agda
+
+%.oldtest	: $(OUT)/$(BIN)
+	$(OUT)/$(BIN) --old -D $(WORK)/$*.alfa | $(GHC) -e "getContents>>=putStr.unlines.(\"module $* where\":).map (\"  \"++).lines" > $(WORK)/$*.agda
+	-$(AGDA2) $(WORK)/$*.agda
+	$(GHC) -e "getContents>>=sequence_ . zipWith (Text.Printf.printf \"%5d: %s\n\") ([1..]::[Int]) . lines" < $(WORK)/$*.agda
