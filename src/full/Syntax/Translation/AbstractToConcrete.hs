@@ -120,7 +120,7 @@ lookupQName x =
     do	scope <- asks currentScope
 	case inverseScopeLookupName x scope of
 	    Just y  -> return y
-	    Nothing -> return $ qnameToConcrete x
+	    Nothing -> return $ C.Qual (C.Name noRange [Id noRange ""]) $ qnameToConcrete x
 		-- this is what happens for names that are not in scope (private names)
 
 lookupModule :: A.ModuleName -> AbsToCon C.QName
