@@ -122,7 +122,7 @@ addDisplayForms x = do
 			    hid NotHidden s = s
 			    hid Hidden    s = "{" ++ s ++ "}"
 		      Just (m, v) -> "not a def body"
-	      reportSLn "tc.section.apply.display" 20 $ "no display form from" ++ show x ++ " because " ++ reason
+	      reportSLn "tc.section.apply.display" 30 $ "no display form from" ++ show x ++ " because " ++ reason
 	      return ()
     strip (Body v)   = return (0, v)
     strip  NoBody    = Nothing
