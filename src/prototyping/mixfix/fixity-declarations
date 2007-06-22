@@ -1,0 +1,158 @@
+Suggestion for how operator fixity should be specified
+------------------------------------------------------
+
+Nils Anders Danielsson
+
+(By fixity I mean associativity and precedence.)
+
+The current scheme is a mess. With Unicode symbols and mixfix
+operators users (such as myself) tend to define more operators than in
+Haskell, and then the Haskell fixity handling is too limited. It is
+very hard to get an overview over a total ordering which specifies how
+tight every operator binds in comparison to every other.
+
+This note describes a way to avoid these problems. The solution is not
+perfect--some limitations are discussed towards the end--but it is
+quite lightweight, so it should be relatively easy to implement and
+try out.
+
+New approach
+------------
+
+Associativity can be specified just as before. An operator is either
+left associative, right associative, or nonassociative. (Note that
+only infix operators can be left or right associative; pre- and
+postfix operators are always nonassociative.)
+
+The basic idea of the new approach to precedence handling is to
+abandon the current total order and instead have a partial order of
+precedences. This is an old idea, which is easy to understand. The
+basic difference compared to the current scheme is that two operators
+of noncomparable precedence cannot be used next to each other without
+inserting parentheses. The only crux is to find a good way of
+specifying the precedences.
+
+I believe that it is a good idea if the precedence of an operator can
+be understood locally, so I suggest that one should only be allowed to
+specify precedences at the binding site (in the defining module) of an
+operator, conservatively extended when new operators are defined.
+(This rules out having "first class precedences", where the
+precedences of an operator are free-standing entities which can be
+exported and imported separately from the operators themselves.)
+
+Precedences are defined for an operator • by relating it to
+previously defined operators. This can be done in three ways:
+
+* infix[lr ] • binds as ∘
+  This means that • (which is left, right or nonassociative) binds in
+  exactly the same way as ∘.
+
+* infix[lr ] • binds tighter-than (op₁…) looser-than (op₂…)
+  This means that • binds strictly tighter than op₁… and strictly
+  looser than op₂…. The two parts tighter-than (…) and looser-than (…)
+  can be given in any order, and one of them can be omitted.
+
+  This declaration is only valid if it does not change the relations
+  of any previously declared operators, i.e., if the precedence
+  relation before this declaration is denoted by ⊰ and the one after
+  this declaration by ⊰′, then the following property must hold:
+    ∀ op₁ ≠ •. ∀ op₂ ≠ •. op₁ ⊰ op₂ ⇔ op₁ ⊰′ op₂.
+  This property ensures some degree of locality for the precedences:
+  To see if/how two operators are related it is enough to inspect the
+  fixity declarations of these two operators, plus those of the
+  operators referred to in these declarations (transitively). It is
+  impossible for an unrelated fixity declaration to change this
+  relation.
+
+* infix[lr ] •
+  With this declaration • becomes unrelated to all other operators.
+
+* No fixity declaration for • is the same as specifying "infix •",
+  i.e. • becomes nonassociative and unrelated to all other operators.
+
+It should also be possible to combine the fixity declarations of
+several operators, for instance as follows:
+  infixl _op₁_ _op₂_ _op₃ binds looser-than (_+_)
+This is equivalent to the following three declarations:
+  infixl _op₁_ binds looser-than (_+_)
+  infixl _op₂_ binds as _op₁_
+  infixl _op₃  binds as _op₁_
+(Note the use of _op₁_ in the last two declarations.)
+
+Some minor details
+------------------
+
+Some minor details (as compared to the current fixity handling in
+Agda):
+
+* Non-operator (function) symbols should still bind tighter than
+  everything else.
+
+* Fixity declarations should of course be scope checked, and an error
+  given if a fixity declaration is given for an operator which is not
+  in scope.
+
+* It should be possible to give fixity declarations to record fields,
+  for instance as follows:
+    infix  Setoid._≈_ binds as _≡_
+    infixl Ring._-_   binds as Ring._+_
+
+* I do not like the fact that, for operators of the same precedence,
+  the following sub-order of precedence is used:
+    * postfix
+    * prefix
+    * infix right associative
+    * infix left associative
+    * infix nonassociative
+  As an example, take the following fixity declarations:
+    infixr 6 _∷_
+    infixl 6 _+_
+    infix  6 -_ _!
+  Currently they result in 5 + 6 ∷ [], - 5 + 6 and - 2 ! parsing as (5
+  + 6) ∷ [], (- 5) + 6 and - (2 !), even though these expressions
+  should not parse at all.
+
+Limitations
+-----------
+
+The scheme outlined above has a limitation, demonstrated by the
+following example:
+
+  Let us say that two libraries, one for sets and one for arithmetic,
+  are developed independently. It is probably unreasonable (if one
+  wants to keep unrelated code separate) for one of these libraries to
+  depend on the other. Hence expressions such as the following won't
+  parse: a + b ∈ c. Parentheses will have to be used: (a + b) ∈ c.
+
+To me this example is not very convincing, though. If the two
+libraries are really separate, then there should not be _any_
+connection between them. If, on the other hand, it is a requirement
+that _+_ should really bind tighter than _∈_, then the libraries are
+not unrelated, but one should import the other.
+
+Another possible problem with the scheme outlined above is its
+implementation. Currently mixfix operator parsing is implemented in
+Agda (more or less) as follows:
+
+* Expressions are first parsed as if every operator was a function
+  symbol. This yields parse trees (rose trees) which need to be
+  post-processed.
+
+* Operator parsing is then done as part of scope-checking. For every
+  symbol sequence (list in the rose tree) in a parsed expression a
+  dedicated parser is generated based on which operator parts are
+  present in the sequence. Scope information is needed for this step,
+  since the relative precedences of the operators and also their
+  associativity are used to construct the parser. The symbol sequence
+  is then parsed using this dedicated parser.
+
+It is currently unclear whether this implementation method can be made
+efficient for the fixity handling scheme outlined above.
+
+Conclusion
+----------
+
+If the implementation can be made efficient, then I believe that the
+scheme outlined above is strictly better than the one we have. It is
+also easy to understand. In other words, I will start thinking about
+the implementation.
