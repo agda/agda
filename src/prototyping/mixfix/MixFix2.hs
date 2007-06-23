@@ -47,8 +47,6 @@ data Op a
     -- ^ Prefix operator.
   | Post (a -> a)
     -- ^ Postfix operator.
-  | Nonfix a
-    -- ^ Nonfix operator (only internal mixfix parts).
 
 -- | Checks that the input, a sequence of terms (left) or operators
 -- (right), is valid. If it is valid the result of applying the
@@ -71,9 +69,6 @@ data Op a
 -- * With the exception that there may not be both prefix and postfix
 --   applications if there are zero infix applications.
 --
--- Note that nonfix applications can occur everywhere a term (left
--- thing) can.
---
 -- As an example, assume that @-@ is prefix, @+@, @*@ and @/@ infix,
 -- and @!@ postfix, all of the same precedence, with @+@ left
 -- associative, @*@ right associative, and @/@ nonassociative. All
@@ -86,9 +81,9 @@ data Op a
 checkOpApps :: ReadP (Either a (Op a)) a
 checkOpApps = atLeastOneMid +++ pres many1 +++ posts many
   where
-  elem = (do Left x <- get; return x)
-         +++
-         (do Right (Nonfix x) <- get; return x)
+  elem = do
+    Left x <- get
+    return x
 
   ass Non = mzero
   ass a   = do
@@ -229,7 +224,8 @@ base = var
        +++
        between (char '(') (char ')') expr
        +++
-       op' [(['⟦', ',', '⟧'], \[x, y] -> Nonfix (BinOp Sem x y))] mzero
+       liftM (\[x, y] -> BinOp Sem x y)
+             (intersperseP expr ['⟦', ',', '⟧'])
 
 var = liftM Var $ satisfy (\c -> isAscii c && isLower c)
 
@@ -240,7 +236,7 @@ var = liftM Var $ satisfy (\c -> isAscii c && isLower c)
 -- large enough).
 
 slow n
-  | n <= 0    = op [(["0"], \[] -> Nonfix 0)] mzero mzero
+  | n <= 0    = char "0" >> return 0
   | otherwise = op' "+" +++ op' "-"
                 --      ^^^ This choice causes the inefficiency.
                 -- Note that slow (n - 1) is used in both branches.
