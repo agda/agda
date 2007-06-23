@@ -13,6 +13,7 @@ import Termination.Semiring	         as TermRing   (tests)
 import Termination.Termination	         as TermTerm   (tests)
 import Termination.Utilities	         as TermUtil   (tests)
 import TypeChecking.Serialise	         as TypeSeri   (tests)
+import Utils.Either	                 as UtilEith   (tests)
 import Utils.FileName   	         as UtilFile   (tests)
 import Utils.List	                 as UtilList   (tests)
 import Utils.TestHelpers	         as UtilTest   (tests)
@@ -41,6 +42,8 @@ runTests = do
     TermCall.tests
     putStrLn "Tests in TypeChecking.Serialise"
     TypeSeri.tests
+    putStrLn "Tests in Utils.Either"
+    UtilEith.tests
     putStrLn "Tests in Utils.FileName"
     UtilFile.tests
     putStrLn "Tests in Utils.List"
