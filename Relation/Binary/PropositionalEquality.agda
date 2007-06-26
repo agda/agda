@@ -24,6 +24,10 @@ abstract
   ≡-subst : {a : Set} -> Substitutive {a} _≡_
   ≡-subst P ≡-refl p = p
 
+  ≡-subst₁ :  {a : Set} -> (P : a -> Set1)
+           -> forall {x y} -> x ≡ y -> P x -> P y
+  ≡-subst₁ P ≡-refl p = p
+
   ≡-cong : Congruential _≡_
   ≡-cong = subst⟶cong ≡-reflexive ≡-subst
 
