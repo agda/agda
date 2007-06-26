@@ -48,6 +48,8 @@ import Data.Vec
 
 import Logic
 
+import Meta
+
 import Relation.Binary
 import Relation.Binary.Conversion
 import Relation.Binary.EqReasoning
