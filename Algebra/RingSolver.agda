@@ -121,14 +121,14 @@ private
   -- * an equivalent polynomial.
 
   data Normal : (n : ℕ) -> Polynomial n -> Set where
-    _∷-NF_ :  forall {n p₁ p₂}
-           -> Normal n p₁ -> p₁ ≛ p₂ -> Normal n p₂
     con-NF :  (c : C.carrier) -> Normal 0 (con c)
     _↑-NF  :  forall {n p}
            -> Normal n p -> Normal (suc n) (p :↑ 1)
     _*x+_  :  forall {n p c}
            -> Normal (suc n) p -> Normal n c
            -> Normal (suc n) (p :* var fz :+ c :↑ 1)
+    _∷-NF_ :  forall {n p₁ p₂}
+           -> Normal n p₁ -> p₁ ≛ p₂ -> Normal n p₂
 
   ⟦_⟧-NF_ : forall {n p} -> Normal n p -> Vec carrier n -> carrier
   ⟦ p ∷-NF _ ⟧-NF ρ       = ⟦ p ⟧-NF ρ
@@ -136,17 +136,14 @@ private
   ⟦ p ↑-NF   ⟧-NF (x ∷ ρ) = ⟦ p ⟧-NF ρ
   ⟦ p *x+ c  ⟧-NF (x ∷ ρ) = ⟦ p ⟧-NF (x ∷ ρ) * x + ⟦ c ⟧-NF ρ
 
-  con-NF⋆ : forall {n} -> (c : C.carrier) -> Normal n (con c)
-  con-NF⋆ {zero}  c = con-NF c
-  con-NF⋆ {suc _} c = con-NF⋆ c ↑-NF
-
-  _*x : forall {n p} -> Normal (suc n) p -> Normal (suc n) (p :* var fz)
-  p *x = p *x+ con-NF⋆ C.0# ∷-NF lemma₀ _
-
 ------------------------------------------------------------------------
 -- Normalisation
 
 private
+
+  con-NF⋆ : forall {n} -> (c : C.carrier) -> Normal n (con c)
+  con-NF⋆ {zero}  c = con-NF c
+  con-NF⋆ {suc _} c = con-NF⋆ c ↑-NF
 
   _+-NF_
     :  forall {n p₁ p₂}
@@ -160,6 +157,9 @@ private
   p₁ *x+ c₁     +-NF p₂ ↑-NF       = p₁ *x+ (c₁ +-NF p₂)           ∷-NF A.assoc _ _ _
   p₁ *x+ c₁     +-NF p₂ *x+ c₂     = (p₁ +-NF p₂) *x+ (c₁ +-NF c₂) ∷-NF lemma₁ _ _ _ _ _
   p₁ ↑-NF       +-NF p₂ *x+ c₂     = p₂ *x+ (p₁ +-NF c₂)           ∷-NF lemma₂ _ _ _
+
+  _*x : forall {n p} -> Normal (suc n) p -> Normal (suc n) (p :* var fz)
+  p *x = p *x+ con-NF⋆ C.0# ∷-NF lemma₀ _
 
   -- TODO: The following function is terminating, but the termination
   -- checker cannot see it. Do something about this problem.
