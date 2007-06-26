@@ -5,6 +5,7 @@ open import Prelude
 open import PartialOrder as PO
 open import SemiLattice  as SL
 import Chain
+open POrder using (Dual)
 
 record Lattice (A : Set) : Set1 where
   sl : SemiLattice A

@@ -48,19 +48,11 @@ module POrder {A : Set}(ord : PartialOrder A) where
       y≤x = ==≤-R xy
       z≤y = ==≤-R yz
 
-Dual : {A : Set} -> PartialOrder A -> PartialOrder A
-Dual ord = record
-  { _==_    = _==_
-  ; _≤_     = \x y -> y ≤ x
-  ; ==-def  = \{x y} -> ==-def' {x}{y}
-  ; ≤-refl  = ≤-refl
-  ; ≤-trans = \yx zy -> ≤-trans zy yx
-  }
-  where
-    open module POrd = POrder ord
-
-    ==-def' : forall {x y} -> (x == y) ⇐⇒ (y ≤ x) ∧ (x ≤ y)
-    ==-def' = (swap ∘ r , l ∘ swap)
-      where
-        r = fst ==-def
-        l = snd ==-def
+  Dual : PartialOrder A
+  Dual = record
+    { _==_    = _==_
+    ; _≤_     = \x y -> y ≤ x
+    ; ==-def  = (swap ∘ fst ==-def , snd ==-def ∘ swap)
+    ; ≤-refl  = ≤-refl
+    ; ≤-trans = \yx zy -> ≤-trans zy yx
+    }
