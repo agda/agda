@@ -4,7 +4,7 @@
 
 module Logic where
 
-infix 4 _≡_ _≡₁_ _≢_ _≢₁_
+infix 4 _≡_ _≡₁_ _≢_ _≢₁_ _≅_ _≇_
 infix 3 ¬_
 
 ------------------------------------------------------------------------
@@ -18,6 +18,11 @@ data _≡_ {a : Set} (x : a) : a -> Set where
 data _≡₁_ {a : Set1} (x : a) : a -> Set where
   ≡₁-refl : x ≡₁ x
 
+-- Heterogeneous equality.
+
+data _≅_ {a : Set} (x : a) : {b : Set} -> b -> Set where
+  ≅-refl : x ≅ x
+
 -- Empty type.
 
 data ⊥ : Set where
@@ -30,10 +35,13 @@ data ⊥ : Set where
 -- Nonequality.
 
 _≢_ : {a : Set} -> a -> a -> Set
-x ≢ y = ¬ (x ≡ y)
+x ≢ y = ¬ x ≡ y
 
 _≢₁_ : {a : Set1} -> a -> a -> Set
-x ≢₁ y = ¬ (x ≡₁ y)
+x ≢₁ y = ¬ x ≡₁ y
+
+_≇_ : {a : Set} -> a -> {b : Set} -> b -> Set
+x ≇ y = ¬ x ≅ y
 
 -- Existential.
 
