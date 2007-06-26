@@ -1,5 +1,5 @@
 Datatype Bad is not strictly positive, because it occurs as the
-first argument to Neg in constructor NotStrictlyPositive.bad of
+first argument to Neg in constructor .NotStrictlyPositive.bad of
 datatype Bad, which occurs as the first argument to Not in
 constructor neg of datatype Neg, which occurs negatively in
 constructor not of datatype Not

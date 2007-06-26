@@ -1,2 +1,2 @@
 Datatype D is not strictly positive, because it occurs negatively
-in constructor PureLambda.lam of datatype D
+in constructor .PureLambda.lam of datatype D

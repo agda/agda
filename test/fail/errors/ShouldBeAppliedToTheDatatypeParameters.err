@@ -1,5 +1,5 @@
 errors/ShouldBeAppliedToTheDatatypeParameters.agda:15,5-25
 Nat != A of type Set
 when checking the constructor
-ShouldBeAppliedToTheDatatypeParameters.fooI1 in the declaration of
+.ShouldBeAppliedToTheDatatypeParameters.fooI1 in the declaration of
 Foo
