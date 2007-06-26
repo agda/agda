@@ -63,8 +63,8 @@ abstract
     :  forall {a₁} -> (≈₁ ≤₁ : Rel a₁)
     -> forall {a₂} -> {≈₂ : Rel a₂} -> forall ≤₂ -> Reflexive ≈₂ ≤₂
     -> Reflexive (≈₁ ×-Rel ≈₂) (×-Lex-≤ ≈₁ ≤₁ ≤₂)
-  ×-lex-≤-reflexive ≈₁ ≤₁ ≤₂ refl₂ =
-    ×-lex-reflexive ≈₁ (≤⟶< ≈₁ ≤₁) ≤₂ refl₂
+  ×-lex-≤-reflexive ≈₁ ≤₁ ≤₂ refl₂ {x} {y} =
+    ×-lex-reflexive ≈₁ (≤⟶< ≈₁ ≤₁) ≤₂ refl₂ {x} {y}
 
   ×-irreflexive₁
     :  forall {a₁} -> {≈₁ <₁ : Rel a₁} -> Irreflexive ≈₁ <₁
@@ -82,7 +82,8 @@ abstract
     :  forall {a₁} -> {≈₁ : Rel a₁} -> forall <₁ -> Irreflexive ≈₁ <₁
     -> forall {a₂} -> {≈₂ : Rel a₂} -> forall <₂ -> Irreflexive ≈₂ <₂
     -> Irreflexive (≈₁ ×-Rel ≈₂) (×-Lex ≈₁ <₁ <₂)
-  _×-lex-irreflexive_ {≈₁ = ≈₁} <₁ ir₁ {≈₂ = ≈₂} <₂ ir₂ = irrefl
+  _×-lex-irreflexive_ {≈₁ = ≈₁} <₁ ir₁ {≈₂ = ≈₂} <₂ ir₂ {x} {y} =
+    irrefl {x} {y}
     where
     irrefl : Irreflexive (≈₁ ×-Rel ≈₂) (×-Lex ≈₁ <₁ <₂)
     irrefl x≈y (inj₁ x₁<y₁) = ir₁ (proj₁ x≈y) x₁<y₁
@@ -109,7 +110,7 @@ abstract
     -> Transitive ≤₂
     -> Transitive (×-Lex ≈₁ <₁ ≤₂)
   ×-lex-transitive {≈₁ = ≈₁} {<₁ = <₁} eq₁ resp₁ trans₁
-                   {≤₂ = ≤₂} trans₂ = trans
+                   {≤₂ = ≤₂} trans₂ {x} {y} {z} = trans {x} {y} {z}
     where
     trans : Transitive (×-Lex ≈₁ <₁ ≤₂)
     trans (inj₁ x₁<y₁) (inj₁ y₁<z₁) = inj₁ (trans₁ x₁<y₁ y₁<z₁)
@@ -129,10 +130,11 @@ abstract
     -> forall {a₂} -> {≤₂ : Rel a₂}
     -> Transitive ≤₂
     -> Transitive (×-Lex-≤ ≈₁ ≤₁ ≤₂)
-  ×-lex-≤-transitive {≈₁ = ≈₁} {≤₁ = ≤₁} po₁ {≤₂ = ≤₂} trans₂ =
+  ×-lex-≤-transitive {≈₁ = ≈₁} {≤₁ = ≤₁} po₁ {≤₂ = ≤₂} trans₂
+                     {x} {y} {z} =
     ×-lex-transitive
       {<₁ = ≤⟶< ≈₁ ≤₁} equiv (resp-≤⟶< equiv ≈-resp-≤) (trans-≤⟶< po₁)
-      {≤₂ = ≤₂} trans₂
+      {≤₂ = ≤₂} trans₂ {x} {y} {z}
     where
     open module PO = PartialOrder po₁
 
@@ -153,7 +155,8 @@ abstract
     -> Antisymmetric ≈₂ ≤₂
     -> Antisymmetric (≈₁ ×-Rel ≈₂) (×-Lex ≈₁ <₁ ≤₂)
   ×-lex-antisymmetric {≈₁ = ≈₁} {<₁ = <₁} sym₁ irrefl₁ asym₁
-                      {≈₂ = ≈₂} {≤₂ = ≤₂} antisym₂ = antisym
+                      {≈₂ = ≈₂} {≤₂ = ≤₂} antisym₂ {x} {y} =
+    antisym {x} {y}
     where
     antisym : Antisymmetric (≈₁ ×-Rel ≈₂) (×-Lex ≈₁ <₁ ≤₂)
     antisym (inj₁ x₁<y₁) (inj₁ y₁<x₁) =
@@ -171,9 +174,10 @@ abstract
     -> forall {a₂} -> {≈₂ ≤₂ : Rel a₂}
     -> Antisymmetric ≈₂ ≤₂
     -> Antisymmetric (≈₁ ×-Rel ≈₂) (×-Lex-≤ ≈₁ ≤₁ ≤₂)
-  ×-lex-≤-antisymmetric {≈₁ = ≈₁} {≤₁ = ≤₁} po₁ {≤₂ = ≤₂} antisym₂ =
+  ×-lex-≤-antisymmetric {≈₁ = ≈₁} {≤₁ = ≤₁} po₁ {≤₂ = ≤₂} antisym₂
+                        {x} {y} =
     ×-lex-antisymmetric {<₁ = ≤⟶< ≈₁ ≤₁} sym₁ irrefl₁ asym₁
-                        {≤₂ = ≤₂} antisym₂
+                        {≤₂ = ≤₂} antisym₂ {x} {y}
     where
     open module PO = PartialOrder po₁
     refl₁   : Reflexive _≡_ ≈₁
@@ -206,7 +210,7 @@ abstract
     -> Asymmetric <₂
     -> Asymmetric (×-Lex ≈₁ <₁ <₂)
   ×-lex-asymmetric {≈₁ = ≈₁} {<₁ = <₁} sym₁ resp₁ asym₁
-                             {<₂ = <₂} asym₂ = asym
+                             {<₂ = <₂} asym₂ {x} {y} = asym {x} {y}
     where
     irrefl₁ : Irreflexive ≈₁ <₁
     irrefl₁ = asym⟶irr resp₁ sym₁ asym₁
@@ -225,8 +229,8 @@ abstract
     -> (≈₁ ×-Rel ≈₂) Respects₂ (∼₁ ×-Rel ∼₂)
   _×-≈-respects₂_ {≈₁ = ≈₁} {∼₁ = ∼₁} resp₁
                   {≈₂ = ≈₂} {∼₂ = ∼₂} resp₂ =
-    (\{_ _ _} -> resp¹) ,
-    (\{_ _ _} -> resp²)
+    (\{x y z} -> resp¹ {x} {y} {z}) ,
+    (\{x y z} -> resp² {x} {y} {z})
     where
     ∼ = ∼₁ ×-Rel ∼₂
 
@@ -246,8 +250,8 @@ abstract
     -> (≈₁ ×-Rel ≈₂) Respects₂ (×-Lex ≈₁ <₁ <₂)
   ×-lex-≈-respects₂ {≈₁ = ≈₁} {<₁ = <₁} eq₁ resp₁
                     {≈₂ = ≈₂} {<₂ = <₂}     resp₂ =
-    (\{_ _ _} -> resp¹) ,
-    (\{_ _ _} -> resp²)
+    (\{x y z} -> resp¹ {x} {y} {z}) ,
+    (\{x y z} -> resp² {x} {y} {z})
     where
     < = ×-Lex ≈₁ <₁ <₂
 
@@ -380,10 +384,12 @@ abstract
     -> forall {a₂} -> {≈₂ ∼₂ : Rel a₂} -> Preorder ≈₂ ∼₂
     -> Preorder (≈₁ ×-Rel ≈₂) (∼₁ ×-Rel ∼₂)
   _×-preorder_ {∼₁ = ∼₁} pre₁ {∼₂ = ∼₂} pre₂ = record
-    { refl  = _×-reflexive_  {∼₁ = ∼₁} (refl  pre₁)
-                             {∼₂ = ∼₂} (refl  pre₂)
-    ; trans = _×-transitive_ {∼₁ = ∼₁} (trans pre₁)
-                             {∼₂ = ∼₂} (trans pre₂)
+    { refl  = \{x y} ->
+              _×-reflexive_  {∼₁ = ∼₁} (refl  pre₁)
+                             {∼₂ = ∼₂} (refl  pre₂) {x} {y}
+    ; trans = \{x y z} ->
+              _×-transitive_ {∼₁ = ∼₁} (trans pre₁)
+                             {∼₂ = ∼₂} (trans pre₂) {x} {y} {z}
     }
     where open Preorder
 
@@ -394,8 +400,9 @@ abstract
   _×-preorder-≡_ {∼₁ = ∼₁} pre₁ {∼₂ = ∼₂} pre₂ = record
     { refl  = _×-reflexive-≡_ {∼₁ = ∼₁} (refl  pre₁)
                               {∼₂ = ∼₂} (refl  pre₂)
-    ; trans = _×-transitive_  {∼₁ = ∼₁} (trans pre₁)
-                              {∼₂ = ∼₂} (trans pre₂)
+    ; trans = \{x y z} ->
+              _×-transitive_  {∼₁ = ∼₁} (trans pre₁)
+                              {∼₂ = ∼₂} (trans pre₂) {x} {y} {z}
     }
     where open Preorder
 
@@ -405,8 +412,9 @@ abstract
     -> Equivalence (≈₁ ×-Rel ≈₂)
   _×-equivalence_ {≈₁ = ≈₁} eq₁ {≈₂ = ≈₂} eq₂ = record
     { preorder = preorder eq₁ ×-preorder-≡ preorder eq₂
-    ; sym      = _×-symmetric_ {∼₁ = ≈₁} (sym eq₁)
-                               {∼₂ = ≈₂} (sym eq₂)
+    ; sym      = \{x y} ->
+                 _×-symmetric_ {∼₁ = ≈₁} (sym eq₁)
+                               {∼₂ = ≈₂} (sym eq₂) {x} {y}
     }
     where open Equivalence
 
@@ -417,8 +425,9 @@ abstract
   _×-partialOrder_ {≤₁ = ≤₁} po₁ {≤₂ = ≤₂} po₂ = record
     { equiv    = equiv    po₁ ×-equivalence equiv    po₂
     ; preorder = preorder po₁ ×-preorder    preorder po₂
-    ; antisym  = _×-antisymmetric_ {≤₁ = ≤₁} (antisym po₁)
-                                   {≤₂ = ≤₂} (antisym po₂)
+    ; antisym  = \{x y} ->
+                 _×-antisymmetric_ {≤₁ = ≤₁} (antisym po₁)
+                                   {≤₂ = ≤₂} (antisym po₂) {x} {y}
     ; ≈-resp-≤ = ≈-resp-≤ po₁ ×-≈-respects₂ ≈-resp-≤ po₂
     }
     where open PartialOrder
@@ -430,12 +439,17 @@ abstract
   ×-lex-partialOrder {≈₁ = ≈₁} {≤₁ = ≤₁} po₁ {≤₂ = ≤₂} po₂ = record
     { equiv    = equiv po₁ ×-equivalence equiv po₂
     ; preorder = record
-        { refl  = ×-lex-≤-reflexive ≈₁ ≤₁ ≤₂ (refl $ preorder po₂)
-        ; trans = ×-lex-≤-transitive           po₁
+        { refl  = \{x y} ->
+                  ×-lex-≤-reflexive ≈₁ ≤₁ ≤₂ (refl $ preorder po₂)
+                  {x} {y}
+        ; trans = \{x y z} ->
+                  ×-lex-≤-transitive           po₁
                                      {≤₂ = ≤₂} (trans (preorder po₂))
+                  {x} {y} {z}
         }
-    ; antisym  = ×-lex-≤-antisymmetric {≤₁ = ≤₁} po₁
-                                       {≤₂ = ≤₂} (antisym po₂)
+    ; antisym  = \{x y} ->
+                 ×-lex-≤-antisymmetric {≤₁ = ≤₁} po₁
+                                       {≤₂ = ≤₂} (antisym po₂) {x} {y}
     ; ≈-resp-≤ = ×-lex-≤-≈-respects₂ (equiv po₁) (≈-resp-≤ po₁)
                                                  (≈-resp-≤ po₂)
     }
@@ -450,10 +464,12 @@ abstract
   _×-strictPartialOrder_ {<₁ = <₁} spo₁ {≈₂ = ≈₂} {<₂ = <₂} spo₂ =
     record
       { equiv    = equiv spo₁ ×-equivalence equiv spo₂
-      ; irrefl   = ×-irreflexive₁           {<₁ = <₁} (irrefl spo₁)
-                                  {≈₂ = ≈₂} {<₂ = <₂}
-      ; trans    = _×-transitive_ {∼₁ = <₁} (trans spo₁)
-                                  {∼₂ = <₂} (trans spo₂)
+      ; irrefl   = \{x y} ->
+                   ×-irreflexive₁           {<₁ = <₁} (irrefl spo₁)
+                                  {≈₂ = ≈₂} {<₂ = <₂} {x} {y}
+      ; trans    = \{x y z} ->
+                   _×-transitive_ {∼₁ = <₁} (trans spo₁)
+                                  {∼₂ = <₂} (trans spo₂) {x} {y} {z}
       ; ≈-resp-< = ≈-resp-< spo₁ ×-≈-respects₂ ≈-resp-< spo₂
       }
     where open StrictPartialOrder
@@ -467,11 +483,13 @@ abstract
   _×-lex-strictPartialOrder_ {<₁ = <₁} spo₁ {<₂ = <₂} spo₂ =
     record
       { equiv    = equiv spo₁ ×-equivalence equiv spo₂
-      ; irrefl   = _×-lex-irreflexive_ <₁ (irrefl spo₁)
-                                       <₂ (irrefl spo₂)
-      ; trans    = ×-lex-transitive
+      ; irrefl   = \{x y} ->
+                   _×-lex-irreflexive_ <₁ (irrefl spo₁)
+                                       <₂ (irrefl spo₂) {x} {y}
+      ; trans    = \{x y z} ->
+                   ×-lex-transitive
                      {<₁ = <₁} (equiv spo₁) (≈-resp-< spo₁) (trans spo₁)
-                     {≤₂ = <₂} (trans spo₂)
+                     {≤₂ = <₂} (trans spo₂) {x} {y} {z}
       ; ≈-resp-< = ×-lex-≈-respects₂ (equiv spo₁) (≈-resp-< spo₁)
                                                   (≈-resp-< spo₂)
       }
