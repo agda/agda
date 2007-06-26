@@ -168,7 +168,7 @@ arity t =
 argName :: Type -> String
 argName = argN . unEl
     where
-	argN (Pi _ b)  = "_" ++ absName b
+	argN (Pi _ b)  = "." ++ absName b
 	argN (Fun _ _) = "_"
 	argN _	  = __IMPOSSIBLE__
 
