@@ -561,9 +561,9 @@ instance ToAbstract NiceDeclaration A.Declaration where
       n	      <- length . scopeLocals <$> getScope
 
       printScope 20 $ "opening " ++ show x
-      -- Opening a submodule or opening into a non-parameterised module
+      -- Opening (privately) a submodule or opening into a non-parameterised module
       -- is fine. Otherwise we have to create a temporary module.
-      if m `isSubModuleOf` current || n == 0
+      if not (C.publicOpen dir) && (m `isSubModuleOf` current || n == 0)
 	then do
 	  reportLn 20 "normal open"
 	  openModule_ x dir
