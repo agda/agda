@@ -54,7 +54,7 @@ open import Data.Fin public
 infix  9 _↑-NF :-_ ¬-NF_
 infixr 9 _:^_ _^-NF_ _:↑_
 infix  8 _*x _*x+_
-infixl 8 _:*_ _*-NF_
+infixl 8 _:*_ _*-NF_ _*-NF-↑_ _↑-*-NF_
 infixl 7 _:+_ _+-NF_
 infixl 5 _∷-NF_
 
@@ -161,23 +161,42 @@ private
   _*x : forall {n p} -> Normal (suc n) p -> Normal (suc n) (p :* var fz)
   p *x = p *x+ con-NF⋆ C.0# ∷-NF lemma₀ _
 
-  -- TODO: The following function is terminating, but the termination
-  -- checker cannot see it. Do something about this problem.
+  mutual
 
-  _*-NF_
-    :  forall {n p₁ p₂}
-    -> Normal n p₁ -> Normal n p₂
-    -> Normal n (p₁ :* p₂)
-  (p₁ ∷-NF eq₁) *-NF (p₂ ∷-NF eq₂) = p₁ *-NF p₂                         ∷-NF eq₁   ⟨ M.•-pres-≈ ⟩ eq₂
-  (p₁ ∷-NF eq)  *-NF p₂            = p₁ *-NF p₂                         ∷-NF eq    ⟨ M.•-pres-≈ ⟩ byDef
-  p₁            *-NF (p₂ ∷-NF eq)  = p₁ *-NF p₂                         ∷-NF byDef ⟨ M.•-pres-≈ ⟩ eq
-  con-NF c₁     *-NF con-NF c₂     = con-NF (C._*_ c₁ c₂)               ∷-NF *-homo _ _
-  p₁ ↑-NF       *-NF p₂ ↑-NF       = (p₁ *-NF p₂) ↑-NF                  ∷-NF byDef
-  (p₁ *x+ c₁)   *-NF p₂ ↑-NF       = (p₁ *-NF p₂ ↑-NF) *x+ (c₁ *-NF p₂) ∷-NF lemma₃ _ _ _ _
-  p₁ ↑-NF       *-NF (p₂ *x+ c₂)   = (p₁ ↑-NF *-NF p₂) *x+ (p₁ *-NF c₂) ∷-NF lemma₄ _ _ _ _
-  (p₁ *x+ c₁)   *-NF (p₂ *x+ c₂)   =
-    (p₁ *-NF p₂) *x *x +-NF
-    (p₁ *-NF c₂ ↑-NF +-NF c₁ ↑-NF *-NF p₂) *x+ (c₁ *-NF c₂)             ∷-NF lemma₅ _ _ _ _ _
+    -- The first two functions are just variants of _*-NF_ which I
+    -- used to make the termination checker believe that the code is
+    -- terminating.
+
+    _*-NF-↑_
+      :  forall {n p₁ p₂}
+      -> Normal (suc n) p₁ -> Normal n p₂
+      -> Normal (suc n) (p₁ :* p₂ :↑ 1)
+    (p₁ ∷-NF eq) *-NF-↑ p₂ = p₁ *-NF-↑ p₂                    ∷-NF eq ⟨ M.•-pres-≈ ⟩ byDef
+    p₁ ↑-NF      *-NF-↑ p₂ = (p₁ *-NF p₂) ↑-NF               ∷-NF byDef
+    (p₁ *x+ c₁)  *-NF-↑ p₂ = (p₁ *-NF-↑ p₂) *x+ (c₁ *-NF p₂) ∷-NF lemma₃ _ _ _ _
+
+    _↑-*-NF_
+      :  forall {n p₁ p₂}
+      -> Normal n p₁ -> Normal (suc n) p₂
+      -> Normal (suc n) (p₁ :↑ 1 :* p₂)
+    p₁ ↑-*-NF (p₂ ∷-NF eq) = p₁ ↑-*-NF p₂                    ∷-NF byDef ⟨ M.•-pres-≈ ⟩ eq
+    p₁ ↑-*-NF p₂ ↑-NF      = (p₁ *-NF p₂) ↑-NF               ∷-NF byDef
+    p₁ ↑-*-NF (p₂ *x+ c₂)  = (p₁ ↑-*-NF p₂) *x+ (p₁ *-NF c₂) ∷-NF lemma₄ _ _ _ _
+
+    _*-NF_
+      :  forall {n p₁ p₂}
+      -> Normal n p₁ -> Normal n p₂
+      -> Normal n (p₁ :* p₂)
+    (p₁ ∷-NF eq₁) *-NF (p₂ ∷-NF eq₂) = p₁ *-NF p₂                         ∷-NF eq₁   ⟨ M.•-pres-≈ ⟩ eq₂
+    (p₁ ∷-NF eq)  *-NF p₂            = p₁ *-NF p₂                         ∷-NF eq    ⟨ M.•-pres-≈ ⟩ byDef
+    p₁            *-NF (p₂ ∷-NF eq)  = p₁ *-NF p₂                         ∷-NF byDef ⟨ M.•-pres-≈ ⟩ eq
+    con-NF c₁     *-NF con-NF c₂     = con-NF (C._*_ c₁ c₂)               ∷-NF *-homo _ _
+    p₁ ↑-NF       *-NF p₂ ↑-NF       = (p₁ *-NF p₂) ↑-NF                  ∷-NF byDef
+    (p₁ *x+ c₁)   *-NF p₂ ↑-NF       = (p₁ *-NF p₂ ↑-NF) *x+ (c₁ *-NF p₂) ∷-NF lemma₃ _ _ _ _
+    p₁ ↑-NF       *-NF (p₂ *x+ c₂)   = (p₁ ↑-NF *-NF p₂) *x+ (p₁ *-NF c₂) ∷-NF lemma₄ _ _ _ _
+    (p₁ *x+ c₁)   *-NF (p₂ *x+ c₂)   =
+      (p₁ *-NF p₂) *x *x +-NF
+      (p₁ *-NF-↑ c₂ +-NF c₁ ↑-*-NF p₂) *x+ (c₁ *-NF c₂)             ∷-NF lemma₅ _ _ _ _ _
 
   ¬-NF_ :  forall {n p} -> Normal n p -> Normal n (:- p)
   ¬-NF_ (p ∷-NF eq) = ¬-NF_ p ∷-NF ¬-pres-≈ eq
