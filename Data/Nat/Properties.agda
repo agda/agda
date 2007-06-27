@@ -341,3 +341,8 @@ abstract
   m+n∸m≡n : forall {m n} -> m ≤ n -> m + (n ∸ m) ≡ n
   m+n∸m≡n z≤n       = byDef
   m+n∸m≡n (s≤s m≤n) = ≡-cong suc $ m+n∸m≡n m≤n
+
+  m⊓n≤m : forall m n -> m ⊓ n ≤ m
+  m⊓n≤m zero    _       = z≤n
+  m⊓n≤m (suc m) zero    = z≤n
+  m⊓n≤m (suc m) (suc n) = s≤s $ m⊓n≤m m n
