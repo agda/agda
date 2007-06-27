@@ -5,7 +5,7 @@
 -- Some code is commented out due to a bug in Agda's treatment of
 -- builtin integers.
 
-module Prelude.SemiringSolver.Examples where
+module Algebra.RingSolver.Examples where
 
 open import Logic
 open import Data.Function
