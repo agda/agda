@@ -19,8 +19,8 @@ import Algebra.Props.Lattice
 import Algebra.Props.Ring
 import Algebra.Props.Semiring
 import Algebra.RingSolver
--- The following two modules are currently broken due to an Agda bug.
--- import Algebra.RingSolver.Examples
+import Algebra.RingSolver.Examples
+-- The following module is currently broken due to an Agda bug.
 -- import Algebra.RingSolver.Int
 import Algebra.RingSolver.Lemmas
 import Algebra.RingSolver.Simple
