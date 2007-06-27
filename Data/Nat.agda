@@ -13,6 +13,7 @@ open import Relation.Binary.PropositionalEquality
 
 infixl 7 _*_ _⊓_
 infixl 6 _+_ _∸_ _⊔_
+infix  4 _≤_
 
 ------------------------------------------------------------------------
 -- The types
@@ -25,9 +26,9 @@ data ℕ : Set where
 {-# BUILTIN ZERO    zero #-}
 {-# BUILTIN SUC     suc  #-}
 
-data _ℕ-≤_ : ℕ -> ℕ -> Set where
-  z≤n : forall {n}              -> zero  ℕ-≤ n
-  s≤s : forall {m n} -> m ℕ-≤ n -> suc m ℕ-≤ suc n
+data _≤_ : ℕ -> ℕ -> Set where
+  z≤n : forall {n}            -> zero  ≤ n
+  s≤s : forall {m n} -> m ≤ n -> suc m ≤ suc n
 
 ------------------------------------------------------------------------
 -- A generalisation of the arithmetic operations
@@ -83,7 +84,7 @@ suc m ⊓ suc n = suc (m ⊓ n)
 
 abstract
 
-  ℕ-total : Total _ℕ-≤_
+  ℕ-total : Total _≤_
   ℕ-total zero    _       = inj₁ z≤n
   ℕ-total _       zero    = inj₂ z≤n
   ℕ-total (suc m) (suc n) with ℕ-total m n
@@ -101,18 +102,18 @@ abstract
   zero  ℕ-≟ suc n  = no (⊥-elim ∘ zero≢suc)
   suc m ℕ-≟ zero   = no (⊥-elim ∘ zero≢suc ∘ ≡-sym)
 
-  suc≰zero : forall {n} -> ¬ suc n ℕ-≤ zero
+  suc≰zero : forall {n} -> ¬ suc n ≤ zero
   suc≰zero ()
 
-  ℕ-≤-pred : forall {m n} -> suc m ℕ-≤ suc n -> m ℕ-≤ n
-  ℕ-≤-pred (s≤s m≤n) = m≤n
+  ≤-pred : forall {m n} -> suc m ≤ suc n -> m ≤ n
+  ≤-pred (s≤s m≤n) = m≤n
 
-  _ℕ-≤?_ : Decidable _ℕ-≤_
-  zero  ℕ-≤? _     = yes z≤n
-  suc m ℕ-≤? zero  = no suc≰zero
-  suc m ℕ-≤? suc n with m ℕ-≤? n
-  suc m ℕ-≤? suc n | yes m≤n = yes (s≤s m≤n)
-  suc m ℕ-≤? suc n | no  m≰n = no  (m≰n ∘ ℕ-≤-pred)
+  _≤?_ : Decidable _≤_
+  zero  ≤? _     = yes z≤n
+  suc m ≤? zero  = no suc≰zero
+  suc m ≤? suc n with m ≤? n
+  suc m ≤? suc n | yes m≤n = yes (s≤s m≤n)
+  suc m ≤? suc n | no  m≰n = no  (m≰n ∘ ≤-pred)
 
 ------------------------------------------------------------------------
 -- Some properties
@@ -126,7 +127,7 @@ abstract
 ℕ-decSetoid : DecSetoid
 ℕ-decSetoid = record { setoid = ℕ-setoid; _≟_ = _ℕ-≟_ }
 
-ℕ-partialOrder : PartialOrder _≡_ _ℕ-≤_
+ℕ-partialOrder : PartialOrder _≡_ _≤_
 ℕ-partialOrder = record
   { equiv    = ≡-equivalence
   ; preorder = record
@@ -134,20 +135,20 @@ abstract
       ; trans = trans
       }
   ; antisym  = antisym
-  ; ≈-resp-≤ = subst⟶resp₂ _ℕ-≤_ ≡-subst
+  ; ≈-resp-≤ = subst⟶resp₂ _≤_ ≡-subst
   }
   where
   abstract
-    refl : Reflexive _≡_ _ℕ-≤_
+    refl : Reflexive _≡_ _≤_
     refl {zero}  ≡-refl = z≤n
     refl {suc m} ≡-refl = s≤s (refl ≡-refl)
 
-    antisym : Antisymmetric _≡_ _ℕ-≤_
+    antisym : Antisymmetric _≡_ _≤_
     antisym z≤n       z≤n       = ≡-refl
     antisym (s≤s m≤n) (s≤s n≤m) with antisym m≤n n≤m
     antisym (s≤s m≤n) (s≤s n≤m) | ≡-refl = ≡-refl
 
-    trans : Transitive _ℕ-≤_
+    trans : Transitive _≤_
     trans z≤n       _         = z≤n
     trans (s≤s m≤n) (s≤s n≤o) = s≤s (trans m≤n n≤o)
 
@@ -155,7 +156,7 @@ abstract
 ℕ-poset = record
   { carrier  = ℕ
   ; _≈_      = _≡_
-  ; _≤_      = _ℕ-≤_
+  ; _≤_      = _≤_
   ; ord      = ℕ-partialOrder
   }
 
@@ -163,6 +164,6 @@ abstract
 ℕ-decTotOrder = record
   { poset = ℕ-poset
   ; _≟_   = _ℕ-≟_
-  ; _≤?_  = _ℕ-≤?_
+  ; _≤?_  = _≤?_
   ; total = ℕ-total
   }
