@@ -6,6 +6,7 @@ module Data.Function where
 
 infixr 9 _∘_
 infixl 1 _on_ _on₁_
+infixl 1 _⟨_⟩_ _⟨_⟩₁_
 infixr 0 _-[_]₁-_ _-[_]-_ _$_
 
 _∘_ : {a b c : Set} -> (b -> c) -> (a -> b) -> (a -> c)

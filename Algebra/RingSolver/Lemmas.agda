@@ -51,9 +51,9 @@ abstract
                   ∎
 
   lemma₁ :  forall a b c d x
-         -> ((a + b) * x + (c + d)) ≈ (((a * x) + c) + ((b * x) + d))
+         -> (((a + b) * x) + (c + d)) ≈ (((a * x) + c) + ((b * x) + d))
   lemma₁ a b c d x =
-    (a + b) * x + (c + d)
+    ((a + b) * x) + (c + d)
                                    ≃⟨ proj₂ distrib _ _ _ ⟨ A.•-pres-≈ ⟩ byDef ⟩
     ((a * x) + (b * x)) + (c + d)
                                    ≃⟨ sym $ A.assoc _ _ _ ⟩

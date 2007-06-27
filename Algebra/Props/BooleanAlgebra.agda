@@ -254,7 +254,7 @@ abstract
       (x ∧ y) ∧ ((¬ x) ∨ (¬ y))
                                              ≃⟨ proj₁ ∧-∨-distrib _ _ _ ⟩
       ((x ∧ y) ∧ (¬ x)) ∨ ((x ∧ y) ∧ (¬ y))
-                                             ≃⟨ ∧-comm _ _ ⟨ ∧-pres-≈ ⟩ byDef ⟨ ∨-pres-≈ ⟩ byDef ⟩
+                                             ≃⟨ (∧-comm _ _ ⟨ ∧-pres-≈ ⟩ byDef) ⟨ ∨-pres-≈ ⟩ byDef ⟩
       ((y ∧ x) ∧ (¬ x)) ∨ ((x ∧ y) ∧ (¬ y))
                                              ≃⟨ sym (∧-assoc _ _ _) ⟨ ∨-pres-≈ ⟩ sym (∧-assoc _ _ _) ⟩
       (y ∧ (x ∧ (¬ x))) ∨ (x ∧ (y ∧ (¬ y)))
@@ -572,7 +572,7 @@ module XorRing
           ((x ∨ y) ∨ z) ∧ (((¬ x) ∨ (¬ y)) ∨ z)
                                                  ≃⟨ sym $ proj₂ ∨-∧-distrib _ _ _ ⟩
           ((x ∨ y) ∧ ((¬ x) ∨ (¬ y))) ∨ z
-                                                 ≃⟨ byDef ⟨ ∧-pres-≈ ⟩ sym (deMorgan₁ _ _)
+                                                 ≃⟨ (byDef ⟨ ∧-pres-≈ ⟩ sym (deMorgan₁ _ _))
                                                       ⟨ ∨-pres-≈ ⟩ byDef ⟩
           ((x ∨ y) ∧ ¬ (x ∧ y)) ∨ z
                                                  ∎

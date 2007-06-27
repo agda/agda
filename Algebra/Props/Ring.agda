@@ -45,7 +45,9 @@ abstract
       ((0# * x) + (0# * x)) + - (0# * x)
                                           ≃⟨ sym (proj₂ R.distrib _ _ _) ⟨ A.•-pres-≈ ⟩ byDef ⟩
       ((0# + 0#) * x) + - (0# * x)
-                                          ≃⟨ proj₂ A.identity _ ⟨ M.•-pres-≈ ⟩ byDef ⟨ A.•-pres-≈ ⟩ byDef ⟩
+                                          ≃⟨ (proj₂ A.identity _ ⟨ M.•-pres-≈ ⟩ byDef)
+                                               ⟨ A.•-pres-≈ ⟩
+                                             byDef ⟩
       (0# * x) + - (0# * x)
                                           ≃⟨ proj₂ A.inverse _ ⟩
       0#
@@ -62,7 +64,9 @@ abstract
       ((x * 0#) + (x * 0#)) + - (x * 0#)
                                           ≃⟨ sym (proj₁ R.distrib _ _ _) ⟨ A.•-pres-≈ ⟩ byDef ⟩
       (x * (0# + 0#)) + - (x * 0#)
-                                          ≃⟨ byDef ⟨ M.•-pres-≈ ⟩ proj₂ A.identity _ ⟨ A.•-pres-≈ ⟩ byDef ⟩
+                                          ≃⟨ (byDef ⟨ M.•-pres-≈ ⟩ proj₂ A.identity _)
+                                               ⟨ A.•-pres-≈ ⟩
+                                             byDef ⟩
       (x * 0#) + - (x * 0#)
                                           ≃⟨ proj₂ A.inverse _ ⟩
       0#
@@ -121,7 +125,9 @@ abstract
     (((- x) * y) + (x * y)) + - (x * y)
                                          ≃⟨ sym (proj₂ R.distrib _ _ _) ⟨ A.•-pres-≈ ⟩ byDef ⟩
     (((- x) + x) * y) + - (x * y)
-                                         ≃⟨ proj₁ A.inverse _ ⟨ M.•-pres-≈ ⟩ byDef ⟨ A.•-pres-≈ ⟩ byDef ⟩
+                                         ≃⟨ (proj₁ A.inverse _ ⟨ M.•-pres-≈ ⟩ byDef)
+                                              ⟨ A.•-pres-≈ ⟩
+                                            byDef ⟩
     (0# * y) + - (x * y)
                                          ≃⟨ proj₁ zero _ ⟨ A.•-pres-≈ ⟩ byDef ⟩
     0# + - (x * y)

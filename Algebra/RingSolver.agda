@@ -56,7 +56,7 @@ infixr 9 _:^_ _^-NF_ _:↑_
 infix  8 _*x _*x+_
 infixl 8 _:*_ _*-NF_ _*-NF-↑_ _↑-*-NF_
 infixl 7 _:+_ _+-NF_
-infixl 5 _∷-NF_
+infixl 0 _∷-NF_
 
 ------------------------------------------------------------------------
 -- Polynomials
@@ -134,7 +134,7 @@ private
   ⟦ p ∷-NF _ ⟧-NF ρ       = ⟦ p ⟧-NF ρ
   ⟦ con-NF c ⟧-NF ρ       = ⟦ c ⟧'
   ⟦ p ↑-NF   ⟧-NF (x ∷ ρ) = ⟦ p ⟧-NF ρ
-  ⟦ p *x+ c  ⟧-NF (x ∷ ρ) = ⟦ p ⟧-NF (x ∷ ρ) * x + ⟦ c ⟧-NF ρ
+  ⟦ p *x+ c  ⟧-NF (x ∷ ρ) = (⟦ p ⟧-NF (x ∷ ρ) * x) + ⟦ c ⟧-NF ρ
 
 ------------------------------------------------------------------------
 -- Normalisation
@@ -196,7 +196,7 @@ private
     p₁ ↑-NF       *-NF (p₂ *x+ c₂)   = (p₁ ↑-NF *-NF p₂) *x+ (p₁ *-NF c₂) ∷-NF lemma₄ _ _ _ _
     (p₁ *x+ c₁)   *-NF (p₂ *x+ c₂)   =
       (p₁ *-NF p₂) *x *x +-NF
-      (p₁ *-NF-↑ c₂ +-NF c₁ ↑-*-NF p₂) *x+ (c₁ *-NF c₂)             ∷-NF lemma₅ _ _ _ _ _
+      (p₁ *-NF-↑ c₂ +-NF c₁ ↑-*-NF p₂) *x+ (c₁ *-NF c₂)                   ∷-NF lemma₅ _ _ _ _ _
 
   ¬-NF_ :  forall {n p} -> Normal n p -> Normal n (:- p)
   ¬-NF_ (p ∷-NF eq) = ¬-NF_ p ∷-NF ¬-pres-≈ eq
