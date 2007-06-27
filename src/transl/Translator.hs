@@ -292,7 +292,18 @@ transCDefn cdefn = case cdefn of
         n = id2name i
         ot = foldl (\ f (TypedBindings _ _ [TBind _ [x] _]) -> RawApp noRange [f, Ident (QName x)]) (Ident (QName n)) tls
   Cidata i args ctype cindsums
-    -> errorDecls $ pp "" cdefn
+    -> if not (isLastSet ctype) || any (not . isSet) args then errorDecls $ pp "" cdefn
+       else -- errorDecls $ pp (show cdefn) cdefn
+            [Data noRange n (concatMap carg2telescope args) (transCExpr ctype) (mapMaybe cindsum2constructor cindsums)]
+       where
+         isLastSet (CStar _ 0 _)   = True
+         isLastSet (CUniv ca cty)  = not (isSet' ca) && isLastSet cty
+         isLastSet _               = False
+         isSet (CArg bis (CStar _ 0 _)) = not (any fst bis)
+         isSet _                        = False
+         isSet' (CArg _ (CStar _ _ _))  = True
+         isSet' _                       = False
+         n = id2name i
   CValue i cexpr
     -> cclause2funclauses i (isInfixOp i) (CClause [] cexpr)
   CAxiom i args ctype
@@ -367,6 +378,28 @@ csummand2constructor :: Expr -> CSummand -> Constructor
 csummand2constructor otype (i,cargs)
  = TypeSig (id2name i)
  $ foldr (\ (b,i,t) e -> Fun noRange (transCExpr t) e) otype (concatMap excargs cargs)
+
+csummand2constructor' otype (i,cargs)
+ = TypeSig (id2name i)
+ $ foldr (\ carg e -> Pi (carg2telescope carg) e) otype cargs
+
+cindsum2constructor :: CIndSummand -> Maybe Constructor
+cindsum2constructor (CIndExpl csum i bexps)
+ = Just $ csummand2constructor' otype csum
+   where otype = RawApp noRange (Ident (QName (id2name i)):map (paren . transCExpr . snd) bexps)
+cindsum2constructor _ = Nothing
+
+paren :: Expr -> Expr
+paren e = case e of
+ RawApp r _    -> Paren r e
+ App r _ _     -> Paren r e
+ OpApp r _ _   -> Paren r e
+ WithApp r _ _ -> Paren r e
+ Lam r _ _     -> Paren r e
+ Fun r _ _     -> Paren r e
+ Rec r _       -> Paren r e
+ Let r _ _     -> Paren r e
+ _             -> e
 
 copenargs2importdirective :: [COArg] -> ImportDirective
 copenargs2importdirective coargs 
@@ -485,7 +518,7 @@ parenExpr e                    = Paren noRange e
 -- Utilities
 
 ---- for non-supported translation and for comment (all of these kluges !)
-debugFlg = False
+debugFlg = True
 -- debugFlg = elem "-D" $ unsafePerformIO getArgs
 
 pp :: (PPrint a) => String -> a -> String
