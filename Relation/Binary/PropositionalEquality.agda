@@ -10,41 +10,39 @@ open import Relation.Binary
 ------------------------------------------------------------------------
 -- Some properties
 
-abstract
+≡-reflexive : {a : Set} -> Reflexive {a} _≡_ _≡_
+≡-reflexive ≡-refl = ≡-refl
 
-  ≡-reflexive : {a : Set} -> Reflexive {a} _≡_ _≡_
-  ≡-reflexive ≡-refl = ≡-refl
+≡-sym : {a : Set} -> Symmetric {a} _≡_
+≡-sym ≡-refl = ≡-refl
 
-  ≡-sym : {a : Set} -> Symmetric {a} _≡_
-  ≡-sym ≡-refl = ≡-refl
+≡-trans : {a : Set} -> Transitive {a} _≡_
+≡-trans ≡-refl ≡-refl = ≡-refl
 
-  ≡-trans : {a : Set} -> Transitive {a} _≡_
-  ≡-trans ≡-refl ≡-refl = ≡-refl
+≡-subst : {a : Set} -> Substitutive {a} _≡_
+≡-subst P ≡-refl p = p
 
-  ≡-subst : {a : Set} -> Substitutive {a} _≡_
-  ≡-subst P ≡-refl p = p
+≡-subst₁ :  {a : Set} -> (P : a -> Set1)
+         -> forall {x y} -> x ≡ y -> P x -> P y
+≡-subst₁ P ≡-refl p = p
 
-  ≡-subst₁ :  {a : Set} -> (P : a -> Set1)
-           -> forall {x y} -> x ≡ y -> P x -> P y
-  ≡-subst₁ P ≡-refl p = p
+≡-cong : Congruential _≡_
+≡-cong = subst⟶cong ≡-reflexive ≡-subst
 
-  ≡-cong : Congruential _≡_
-  ≡-cong = subst⟶cong ≡-reflexive ≡-subst
+≡-cong₂ : Congruential₂ _≡_
+≡-cong₂ = cong+trans⟶cong₂ ≡-cong ≡-trans
 
-  ≡-cong₂ : Congruential₂ _≡_
-  ≡-cong₂ = cong+trans⟶cong₂ ≡-cong ≡-trans
+≡-preorder : forall {a} -> Preorder {a} _≡_ _≡_
+≡-preorder = record
+  { refl  = ≡-reflexive
+  ; trans = ≡-trans
+  }
 
-  ≡-preorder : forall {a} -> Preorder {a} _≡_ _≡_
-  ≡-preorder = record
-    { refl  = ≡-reflexive
-    ; trans = ≡-trans
-    }
-
-  ≡-equivalence : forall {a} -> Equivalence {a} _≡_
-  ≡-equivalence {a} = record
-    { preorder = ≡-preorder
-    ; sym      = ≡-sym
-    }
+≡-equivalence : forall {a} -> Equivalence {a} _≡_
+≡-equivalence {a} = record
+  { preorder = ≡-preorder
+  ; sym      = ≡-sym
+  }
 
 ≡-preSetoid : Set -> PreSetoid
 ≡-preSetoid a = record
