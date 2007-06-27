@@ -337,3 +337,7 @@ abstract
   ℕ-∸-+-assoc zero    (suc n) (suc o) = byDef
   ℕ-∸-+-assoc (suc m) zero    (suc o) = byDef
   ℕ-∸-+-assoc (suc m) (suc n) (suc o) = ℕ-∸-+-assoc m n (suc o)
+
+  m+n∸m≡n : forall {m n} -> m ≤ n -> m + (n ∸ m) ≡ n
+  m+n∸m≡n z≤n       = byDef
+  m+n∸m≡n (s≤s m≤n) = ≡-cong suc $ m+n∸m≡n m≤n
