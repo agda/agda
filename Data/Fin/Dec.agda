@@ -8,7 +8,7 @@ open import Data.Function
 open import Data.Nat
 open import Data.Fin
 open import Data.Fin.Subset
-open import Data.Fin.Props
+open import Data.Fin.Subset.Props
 open import Relation.Nullary
 open import Logic
 

@@ -2,7 +2,7 @@
 -- Some properties about subsets
 ------------------------------------------------------------------------
 
-module Data.Fin.Props where
+module Data.Fin.Subset.Props where
 
 open import Data.Nat
 open import Data.Function
