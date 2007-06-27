@@ -16,8 +16,9 @@ module Sets₁ (dto : DecTotOrder) where
 
   private
     open module DTO = DecTotOrder dto
-    open module P   = Poset poset
-  open P public using (_≈_)
+    open module P   = Poset poset hiding (_≈_)
+    module P'       = Poset poset using (_≈_)
+  open P' public using (_≈_)
 
   infixr 6 _∪_
   infix  5 _∈?_

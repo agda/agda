@@ -14,8 +14,6 @@ open import Data.Nat.Properties
 open import Data.Bool
 open import Data.Bool.Properties
 -- import Data.Int as Int
-open import Data.Fin
-open import Data.Vec
 import Algebra.Operations as Op
 import Algebra.RingSolver as S
 -- import Algebra.RingSolver.Int as IS
