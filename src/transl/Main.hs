@@ -7,8 +7,8 @@ import Id
 
 import Data.Generics
 import Control.Monad.State
-import System
 import System.IO
+import System.Environment
 import Translator
 import System.Console.GetOpt
 

@@ -1,6 +1,6 @@
 module ISynEnv  where
 
-import List
+import Data.List
 import Id(UId,isDummyUId,SymTab)
 import Position(Position,noPosition)
 import ISynType

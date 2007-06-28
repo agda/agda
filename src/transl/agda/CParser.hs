@@ -1,5 +1,5 @@
 -- | Parsers for CSyntax
-import List(nub)
+import Data.List(nub)
 import Parse
 import BinParse
 import FString(getFString, StrTable)

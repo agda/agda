@@ -5,7 +5,7 @@ module Error(EMsg, ErrMsg(..), PassMsg(..),prEMsg, prError, eMany,eMsg,isPassMsg
 import Position
 import Util(unwordsWith)
 import PPrint
-import List(intersperse)
+import Data.List(intersperse)
 
 type EMsg = (Position, ErrMsg)
 

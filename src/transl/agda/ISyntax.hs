@@ -17,7 +17,7 @@ import Id
 import MetaVars
 import ISynType
 import ISynEnv
-import List(groupBy)
+import Data.List(groupBy)
 import PluginType
 
 -- import ISynPP

@@ -1,10 +1,10 @@
-module Monads(module Monads, module Monad) where
+module Monads(module Monads, module Control.Monad) where
 
 import AgdaTrace
 import Error
 import Position
 --import IO
-import Monad
+import Control.Monad
 
 infix 0 `handle`
 infix 0 `handle_`

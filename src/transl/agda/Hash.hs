@@ -5,9 +5,9 @@ module Hash(Hash, combineHash, emptyHash, hashToInt, hashToMax, Hashable(..)) wh
 -- Hash a value.  Hashing produces an Int of
 -- unspecified range.
 --
-import Array
-import Complex
-import Ratio
+import Data.Array
+import Data.Complex
+import Data.Ratio
 
 
 

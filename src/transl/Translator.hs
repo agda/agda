@@ -10,7 +10,6 @@ import Data.Char
 import Data.List
 import Data.Maybe
 import Debug.Trace
-import System
 import System.Environment
 import System.IO
 import System.IO.Unsafe
@@ -518,8 +517,8 @@ parenExpr e                    = Paren noRange e
 -- Utilities
 
 ---- for non-supported translation and for comment (all of these kluges !)
-debugFlg = True
--- debugFlg = elem "-D" $ unsafePerformIO getArgs
+-- debugFlg = True
+debugFlg = elem "-D" $ unsafePerformIO getArgs
 
 pp :: (PPrint a) => String -> a -> String
 pp s = if debugFlg then (++ (" (D-> "++s++" <-D) ")) . ppAll else ppAll

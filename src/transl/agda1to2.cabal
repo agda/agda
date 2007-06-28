@@ -1,0 +1,11 @@
+name:		Agda1to2
+version:	2.0.1
+license:	BSD3
+author:		Ulf Norell, Catarina Coquand, ..., Nobuo Yamashita
+maintainer:	Nobuo Yamashita <nobuo-yamashita@aist.go.jp>
+build-depends:	base, mtl, Agda >= 2.0.1
+synopsis:	translate programs in Agda 1 syntax to those in Agda 2 syntax.
+
+executable:	agda1to2
+main-is:	Main.hs
+hs-source-dirs: ./, ./agda

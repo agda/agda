@@ -1,12 +1,12 @@
-* agda1to2 -----------------------------------------------------------
+= Agda1to2
 
-'agda1to2' is a translator from a program in Agda 1 to its
+'Agda1to2' is a translator from a program in Agda 1 to its
 coressponding program in Agda 2
 
 At the current moments, it is rather a helper for translating by hand.
 (Please don't expect it to be a perfect tool :)
 
-* usage --------------------------------------------------------------
+== Usage
 
   $ agda1to2 foo.alfa > foo.agda
 
@@ -16,35 +16,68 @@ expected to be program in Agda 2.
   $ agda1to2 --old foo.alfa > foo.agda
 
 In this case, foo.alfa is expected to be written in Agda 1 old syntax.
-(but I don't check that.)
 
-* what it cannot translate at the current moment ---------------------
+== Declarations cannot be translated
 
-Following declarations cannot be translated.
+ * class
+ * instance
+ * native
 
-  - idata
-  - class
-  - instance
-  - native
+Following declaration can be translated in some occasions.
 
-Following expressions cannot be translated.
+ * idata
 
-  - CSelect
-  - CExternal
-  - CDo
-  - CList
+   idata Vec (!A::Set) :: Nat -> Set where
+     nl                                :: Vec A zero
+     cns (n::Nat) (a::A) (as::Vec A n) :: Vec A (succ n)
+    
+Above 'idata' declaration can be translated to
+
+   data Vec (A : Set) : Nat -> Set where
+     nl : Vec A zero
+     cns : (n : Nat) -> (a : A) -> (as : Vec A n) -> Vec A (succ n)
+
+== Expressions cannot be translated
+
+ * CSelect    : e.e
+ * CExternal  : external "Foo" bar
+ * CDo        : do { stm; ... }
+ * CList      : [ x, y, z ]
 
 Following expressions can be translated in some occasions.
 
-  - Ccase    --  if its occurence is in top level of RHS, and 
-                 case on the variable of bound as function argument,
-                 it can be translated.
-  - CRecord
+ * Ccase    --  if its occurence is in top level of RHS, and 
+                case on the variable of bound as function argument,
+                it can be translated.
+ * CRecord
 
-Comments embeded in expressions cannot be kept.
+Expressions not translated remain in {! !} like followings
 
-  (if Agda2 concrete syntax tree had a term for comment, it could be kept.)
+  lemma1 A S s r
+    = let s' : symmetrical S
+          s'
+            = \(x : A) ->
+                \(y : A) ->
+                  \(h : S x y) ->
+                    let P : Pred A
+                        P = \(z : A) -> S z x
+                        lem : (S x x) -> S y x
+                        lem = {! (s x y h P).fst !}    -- << not translated
+                    in lem (r x)
+          t : transitive S
+          t = \(x : A) ->
+                \(y : A) ->
+                  \(z : A) ->
+                    \(h : S x y) ->
+                      \(h' : S y z) ->
+                        let P : Pred A
+                            P = \(x : A) -> S x z
+                            lem : (S y z) -> S x z
+                            lem = {! (s x y h P).snd !} -- << not translated
+                        in lem h'
+      in record {R = S; refl = r; sym = s'; trans = t}
 
-Standalone comment can be kept.
+== Comments
 
-  (by tricks)
+ * Comments embeded in expressions cannot be kept.
+ * Standalone comment can be kept.

@@ -2,7 +2,7 @@
 -}
 
 module Util where
-import List(sort, sortBy, group, groupBy, union, partition)
+import Data.List(sort, sortBy, group, groupBy, union, partition)
 --import NameSupply
 
 import AgdaTrace

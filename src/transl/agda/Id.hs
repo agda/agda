@@ -15,10 +15,10 @@ import PreStrings
 import BinParse(Fixity(..))
 import AgdaTrace
 import Lex (isSym)
-import Maybe(catMaybes)
+import Data.Maybe(catMaybes)
 import Util(remDup)
-import List(sort)
-import Char(isAlpha)
+import Data.List(sort)
+import Data.Char(isAlpha)
 import Data.Map ( Map )
 import qualified Data.Map as Map
 

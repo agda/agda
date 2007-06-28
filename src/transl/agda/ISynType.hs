@@ -12,7 +12,7 @@
 -}
 
 module ISynType where
-import Maybe(catMaybes)
+import Data.Maybe(catMaybes)
 import Literal(Literal)
 import Id(Id,UId,dummyUId,toId,toDummyUId,dummyId,SymTab)
 import Position(Position,noPosition)

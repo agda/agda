@@ -13,7 +13,7 @@ import Id
 import Literal
 import MetaVars
 import PluginType(Plugin(..))
-import List (groupBy)
+import Data.List (groupBy)
 
 data CProgram
         = CProgram [CModule]    

@@ -4,7 +4,7 @@ import Position
 import Error
 import FString
 --import ListUtil
-import Char
+import Data.Char
 import AgdaTrace
 
 data LexItem = 

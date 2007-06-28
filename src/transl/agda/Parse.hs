@@ -8,7 +8,7 @@ module Parse(Parser, (+.+), (..+), (+..), (|||), (>>-), (>>>), (||!), (|!!), (.>
              ParseResult, parse, sParse, simpleParse) where
 
 import AgdaTrace
-import List(nub)
+import Data.List(nub)
 
 -- @@ Parsing combinatores with good error reporting.
 

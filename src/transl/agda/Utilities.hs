@@ -3,9 +3,9 @@
 module Utilities where
 import PPrint
 import Error --(prEMsg)
-import Monad
+import Control.Monad
 import Monads
-import Maybe 
+import Data.Maybe 
 
 infixr 9 `oM`
 infixl 2 `phandle`

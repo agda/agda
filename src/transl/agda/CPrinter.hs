@@ -10,10 +10,10 @@ import Utilities (pp,t,pre)
 import Id(Id,ppId,isBinOp,ppInfix,getFixity)
 import BinParse(Fixity(..))
 import MetaVars(MetaVar,preMetaVar)
-import List(groupBy)
+import Data.List(groupBy)
 import MiscId 
 import Literal
-import Maybe(fromMaybe,mapMaybe)
+import Data.Maybe(fromMaybe,mapMaybe)
 
 instance PPrint CProgram where
     pPrint d _ (CProgram ms) = vcat (map (pp d) ms)

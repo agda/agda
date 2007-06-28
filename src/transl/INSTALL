@@ -1,0 +1,17 @@
+= Installation
+
+== Preparation
+
+You have to have already installed Agda2, whose package contains this
+translator's package.
+
+== Instructions
+
+For example, if you do like followings
+
+  $ runhaskell Setup.hs configure --prefix=$HOME
+  $ runhaskell Setup.hs build
+  $ runhaskell Setup.hs install
+
+then you may get $HOME/bin/agda1to2
+
