@@ -88,7 +88,7 @@ core :
 ## Making the Agda 1 to Agda 2 translator #################################
 
 transl :
-	$(MAKE) -C $(TRANSL_SRC_DIR)
+	(cd $(TRANSL_SRC_DIR); $(RUNSETUP) build)
 
 ## Making the source distribution #########################################
 
