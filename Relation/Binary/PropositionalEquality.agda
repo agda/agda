@@ -81,3 +81,20 @@ inspect x = x with-≡ ≡-refl
 
 -- f x y with inspect (g x)
 -- f x y | z with-≡ eq = ...
+
+------------------------------------------------------------------------
+-- Convenient syntax for equality reasoning
+
+import Relation.Binary.EqReasoning as ER
+
+-- Relation.Binary.EqReasoning is more convenient to use with _≡_ if
+-- the combinators take the type argument (a) as a hidden argument,
+-- instead of being locked to a fixed type at module instantiation
+-- time.
+
+module ≡-Reasoning where
+  module ER-≡ {a : Set} where
+    private
+      module ER' = ER (≡-preSetoid a) renaming (_≃⟨_⟩_ to _≡⟨_⟩_)
+    open ER' public
+  open ER-≡ public
