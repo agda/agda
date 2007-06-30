@@ -270,6 +270,16 @@ cmd_goal_type norm ii _ _ = infoOnException $ do
     s <- ioTCM $ B.withInteractionId ii $ showA =<< B.typeOfMeta norm ii
     display_info "*Current Goal*" s
 
+-- | Displays the current goal _and_ infers the type of an expression.
+
+cmd_goal_type_infer :: B.Rewrite -> GoalCommand
+cmd_goal_type_infer norm ii rng s = infoOnException $ do 
+    goal <- ioTCM $ B.withInteractionId ii $ showA =<< B.typeOfMeta norm ii
+    typ  <- ioTCM (B.withInteractionId ii $
+                     showA =<< B.typeInMeta ii norm =<< parseExprIn ii rng s)
+    display_info "*Goal and inferred type*"
+                 (unlines (lines goal ++ [replicate 72 '-'] ++ lines typ))
+
 display_info :: String -> String -> IO()
 display_info bufname content =
   putStrLn . response
