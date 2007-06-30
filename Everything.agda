@@ -53,6 +53,7 @@ import Relation.Binary
 import Relation.Binary.Conversion
 import Relation.Binary.EqReasoning
 import Relation.Binary.HeterogeneousEquality
+import Relation.Binary.FunctionLifting
 import Relation.Binary.OrderMorphism
 import Relation.Binary.Product
 import Relation.Binary.PropositionalEquality

@@ -6,6 +6,7 @@ module Relation.Binary.PropositionalEquality where
 
 open import Logic
 open import Relation.Binary
+open import Relation.Binary.FunctionLifting
 
 ------------------------------------------------------------------------
 -- Some properties
@@ -57,6 +58,15 @@ open import Relation.Binary
   ; _≈_     = _≡_
   ; equiv   = ≡-equivalence
   }
+
+------------------------------------------------------------------------
+-- Pointwise equality
+
+_->-setoid_ : (a b : Set) -> Setoid
+a ->-setoid b = LiftSetoid (≡-setoid a) (≡-setoid b) ≡-cong
+
+_≗_ : {a b : Set} -> (f g : a -> b) -> Set
+_≗_ {a} {b} = Setoid._≈_ (a ->-setoid b)
 
 ------------------------------------------------------------------------
 -- The inspect idiom
