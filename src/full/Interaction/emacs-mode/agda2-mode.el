@@ -111,28 +111,29 @@ necessary to restart Agda mode after changing this variable."
   "Keymap for agda2 goal menu")
 (let ((l
        '(
-         (agda2-restart                  "\C-c\C-x\C-c"  "Restart"                        )
-         (agda2-quit                     "\C-c\C-q"      "Quit"                           )
-         (agda2-load                     "\C-c\C-x\C-b"  "Load"                           )
-         (agda2-show-constraints         "\C-c\C-e"      "Show constraints"               )
-         (agda2-solveAll                 "\C-c="         "Solve constraints"              )
-         (agda2-show-goals               "\C-c\C-x\C-a"  "Show goals"                     )
-         (agda2-next-goal                "\C-c\C-f"      "Next goal"                      )
-         (agda2-previous-goal            "\C-c\C-b"      "Previous goal"                  )
-         (agda2-undo                     "\C-c\C-u"      "Undo"                           )
-         (agda2-undo                     "\C-_"          "Undo"                           )
-         (agda2-text-state               "\C-c'"         "Text state"                     )
-         (agda2-give                     "\C-c\C-g"      nil "Give"                       )
-         (agda2-refine                   "\C-c\C-r"      nil "Refine"                     )
-         (agda2-make-case                "\C-c\C-c"      nil "Case"                       )
-         (agda2-goal-type                "\C-c\C-t"      nil "Goal type"                  )
-         (agda2-goal-type-normalised     "\C-c\C-x\C-r"  nil "Goal type (normalised)"     )
-         (agda2-show-context             "\C-c|"         nil "Context"                    )
-         (agda2-infer-type               "\C-c:"         nil "Infer type"                 )
-         (agda2-infer-type-normalised    "\C-c\C-x:"     nil "Infer type (normalised)"    )
-         (agda2-goal-type-and-infer-type [?\C-c?\C-.]    nil "Goal type and inferred type")
-         (agda2-compute-normalised       "\C-c\C-xn"     nil "Compute normal form"        )
-         (agda2-submit-bug-report        nil             "Submit bug report"              )
+         (agda2-restart                   "\C-c\C-x\C-c"  "Restart"                                     )
+         (agda2-quit                      "\C-c\C-q"      "Quit"                                        )
+         (agda2-load                      "\C-c\C-x\C-b"  "Load"                                        )
+         (agda2-show-constraints          "\C-c\C-e"      "Show constraints"                            )
+         (agda2-solveAll                  "\C-c="         "Solve constraints"                           )
+         (agda2-show-goals                "\C-c\C-x\C-a"  "Show goals"                                  )
+         (agda2-next-goal                 "\C-c\C-f"      "Next goal"                                   )
+         (agda2-previous-goal             "\C-c\C-b"      "Previous goal"                               )
+         (agda2-undo                      "\C-c\C-u"      "Undo"                                        )
+         (agda2-undo                      "\C-_"          "Undo"                                        )
+         (agda2-text-state                "\C-c'"         "Text state"                                  )
+         (agda2-give                      "\C-c\C-g"      nil "Give"                                    )
+         (agda2-refine                    "\C-c\C-r"      nil "Refine"                                  )
+         (agda2-make-case                 "\C-c\C-c"      nil "Case"                                    )
+         (agda2-goal-type                 "\C-c\C-t"      nil "Goal type"                               )
+         (agda2-goal-type-normalised      nil             nil "Goal type (normalised)"                  )
+         (agda2-show-context              "\C-c|"         nil "Context"                                 )
+         (agda2-infer-type                "\C-c:"         nil "Infer type"                              )
+         (agda2-infer-type-normalised     nil             nil "Infer type (normalised)"                 )
+         (agda2-goal-and-infer            [?\C-c?\C-.]    nil "Goal type and inferred type"             )
+         (agda2-goal-and-infer-normalised nil             nil "Goal type and inferred type (normalised)")
+         (agda2-compute-normalised        "\C-c\C-xn"     nil "Compute normal form"                     )
+         (agda2-submit-bug-report         nil             "Submit bug report"                           )
          (agda2-indent              [tab])
          (agda2-indent-reverse      [S-iso-lefttab])
          (agda2-indent-reverse      [S-lefttab])
@@ -410,29 +411,45 @@ in the buffer's mode line."
   "Show context of the goal at point" (interactive)
   (agda2-goal-cmd "cmd_context"))
 
-(defun agda2-goal-type ()
-  "Show the type of the goal at point" (interactive)
-  (agda2-goal-cmd "cmd_goal_type Interaction.BasicOps.Instantiated"))
+(defmacro agda2-maybe-normalised (name comment cmd prompt)
+  "This macro constructs two functions NAME and NAME-normalised, using
+COMMENT to build the functions' comments. The function NAME takes a
+prefix argument which tells whether it should normalise types or not
+when running CMD (through `agda2-goal-cmd'; PROMPT, if non-nil, is
+used as the goal command prompt)."
+  `(progn
+     (defun ,name (&optional normalise)
+       ,(concat comment ".
+With a prefix argument the type is normalised.")
+       (interactive "P")
+       (let ((eval (if normalise "Normalised" "Instantiated")))
+         (agda2-goal-cmd (concat ,cmd " Interaction.BasicOps." eval)
+                         ,prompt)))
 
-(defun agda2-goal-type-normalised ()
-  "Show the normalised type of the goal at point" (interactive)
-  (agda2-goal-cmd "cmd_goal_type Interaction.BasicOps.Normalised"))
+     (defun ,(intern (concat (symbol-name name) "-normalised")) ()
+       ,(concat comment " (normalised).")
+       (interactive)
+       (,name t))
+     ))
 
-(defun agda2-infer-type ()
-  "Infer type of the goal at point" (interactive)
-  (agda2-goal-cmd "cmd_infer Interaction.BasicOps.Instantiated" "expression to type"))
+(agda2-maybe-normalised
+ agda2-goal-type
+ "Show the type of the goal at point"
+ "cmd_goal_type"
+ nil)
 
-(defun agda2-infer-type-normalised()
-  "Infer normalised type of the goal at point" (interactive)
-  (agda2-goal-cmd "cmd_infer Interaction.BasicOps.Normalised" "expression to type"))
+(agda2-maybe-normalised
+ agda2-infer-type
+ "Infer the type of the goal at point"
+ "cmd_infer"
+ "expression to type")
 
-(defun agda2-goal-type-and-infer-type (&optional normalise)
-  "Shows the type of the goal at point and infers the type of the
-given expression. With a prefix argument the types are normalised."
-  (interactive "P")
-  (let ((eval (if normalise "Normalised" "Instantiated")))
-    (agda2-goal-cmd (concat "cmd_goal_type_infer Interaction.BasicOps." eval)
-                    "expression to type")))
+(agda2-maybe-normalised
+ agda2-goal-and-infer
+ "Shows the type of the goal at point and infers the type of the
+given expression."
+ "cmd_goal_type_infer"
+ "expression to type")
 
 (defun agda2-solveAll ()
   "Solve all goals that are internally already instantiated" (interactive)
