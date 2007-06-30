@@ -278,7 +278,12 @@ cmd_goal_type_infer norm ii rng s = infoOnException $ do
     typ  <- ioTCM (B.withInteractionId ii $
                      showA =<< B.typeInMeta ii norm =<< parseExprIn ii rng s)
     display_info "*Goal and inferred type*"
-                 (unlines (lines goal ++ [replicate 72 '-'] ++ lines typ))
+                 (unlines $
+                    ["Want:"] ++
+                    indent goal ++
+                    ["Have:"] ++
+                    indent typ)
+  where indent = List.map ("  " ++) . lines
 
 display_info :: String -> String -> IO()
 display_info bufname content =
