@@ -39,3 +39,8 @@ foldr c n (x ∷ xs) = c x (foldr c n xs)
 lookup : forall {a n} -> Fin n -> Vec a n -> a
 lookup fz     (x ∷ xs) = x
 lookup (fs i) (x ∷ xs) = lookup i xs
+
+take : forall {a n} (i : Fin (suc n)) -> Vec a n -> Vec a (toℕ i)
+take fz      xs       = []
+take (fs ()) []
+take (fs i)  (x ∷ xs) = x ∷ take i xs
