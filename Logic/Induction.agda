@@ -4,15 +4,16 @@
 
 module Logic.Induction where
 
--- Recursion predicates. The examples below should explain what this
--- is all about. See also Logic.Induction.Lexicographic.
+-- A RecStruct describes the allowed structure of recursion. The
+-- examples below should explain what this is all about.
 
-RecPred : Set -> Set1
-RecPred a = (a -> Set) -> (a -> Set)
+RecStruct : Set -> Set1
+RecStruct a = (a -> Set) -> (a -> Set)
 
--- Recursor builders build elements of recursion predicates.
+-- A recursor builder constructs a recursion structure for a given
+-- input.
 
-RecursorBuilder : forall {a} -> RecPred a -> Set1
+RecursorBuilder : forall {a} -> RecStruct a -> Set1
 RecursorBuilder {a} Rec =
      (P : a -> Set)
   -> (forall x -> Rec P x -> P x)
@@ -20,7 +21,7 @@ RecursorBuilder {a} Rec =
 
 -- A recursor can be used to actually compute/prove something useful.
 
-Recursor : forall {a} -> RecPred a -> Set1
+Recursor : forall {a} -> RecStruct a -> Set1
 Recursor {a} Rec =
      (P : a -> Set)
   -> (forall x -> Rec P x -> P x)
@@ -29,7 +30,7 @@ Recursor {a} Rec =
 -- And recursors can be constructed from recursor builders.
 
 build
-  :  forall {a} {Rec : RecPred a}
+  :  forall {a} {Rec : RecStruct a}
   -> RecursorBuilder Rec
   -> Recursor Rec
 build builder P f x = f x (builder P f x)
@@ -41,7 +42,7 @@ open import Data.Nat
 open import Data.Unit
 open import Data.Product
 
-ℕ-Rec : RecPred ℕ
+ℕ-Rec : RecStruct ℕ
 ℕ-Rec P zero    = ⊤
 ℕ-Rec P (suc n) = P n
 
@@ -55,14 +56,14 @@ open import Data.Product
 ------------------------------------------------------------------------
 -- Example: Complete induction for natural numbers
 
-ℕ-CRec : RecPred ℕ
+ℕ-CRec : RecStruct ℕ
 ℕ-CRec P zero    = ⊤
 ℕ-CRec P (suc n) = P n × ℕ-CRec P n
 
-ℕ-crec-builder : RecursorBuilder ℕ-CRec
-ℕ-crec-builder P f zero    = tt
-ℕ-crec-builder P f (suc n) = f n ih , ih
-  where ih = ℕ-crec-builder P f n
+ℕ-cRec-builder : RecursorBuilder ℕ-CRec
+ℕ-cRec-builder P f zero    = tt
+ℕ-cRec-builder P f (suc n) = f n ih , ih
+  where ih = ℕ-cRec-builder P f n
 
-ℕ-crec : Recursor ℕ-CRec
-ℕ-crec = build ℕ-crec-builder
+ℕ-cRec : Recursor ℕ-CRec
+ℕ-cRec = build ℕ-cRec-builder

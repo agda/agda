@@ -7,44 +7,34 @@ module Logic.Induction.Lexicographic where
 open import Logic.Induction
 open import Data.Product
 
-LexRecPred : Set -> Set -> Set1
-LexRecPred a b = (a -> b -> Set) -> (a -> b -> Set)
+-- The structure of lexicographic induction.
 
-LexRec : forall {a b} -> RecPred a -> RecPred b -> LexRecPred a b
-LexRec RecA RecB = \P x y ->
-  -- Either x is constant and y is smaller, ...
-  RecB (P x) y ×
-  -- ...or x is smaller and y is arbitrary.
-  RecA (\x' -> forall y' -> P x' y') x
+_⊗_ : forall {a b} -> RecStruct a -> RecStruct b -> RecStruct (a × b)
+_⊗_ RecA RecB P (x , y) =
+  -- Either x is constant and y is "smaller", ...
+  RecB (\y' -> P (x , y')) y
+    ×
+  -- ...or x is "smaller" and y is arbitrary.
+  RecA (\x' -> forall y' -> P (x' , y')) x
 
-lexRecBuilder
-  :  forall {a b}
-  -> {RecA : RecPred a} (recA : RecursorBuilder RecA)
-  -> {RecB : RecPred b} (recB : RecursorBuilder RecB)
-  -> (P : a -> b -> Set)
-  -> (forall x y -> LexRec RecA RecB P x y -> P x y)
-  -> forall x y -> LexRec RecA RecB P x y
-lexRecBuilder {RecA = RecA} recA {RecB = RecB} recB P f =
-  \x y -> (p₁ x y (p₂ x) , p₂ x)
+-- Constructs a recursor builder for lexicographic induction.
+
+[_⊗_]
+  :  forall {a} {RecA : RecStruct a} -> RecursorBuilder RecA
+  -> forall {b} {RecB : RecStruct b} -> RecursorBuilder RecB
+  -> RecursorBuilder (RecA ⊗ RecB)
+[_⊗_] {RecA = RecA} recA {RecB = RecB} recB P f (x , y) =
+  (p₁ x y p₂x , p₂x)
   where
   p₁ :  forall x y
-     -> RecA (\x' -> forall y' -> P x' y') x
-     -> RecB (P x) y
-  p₁ x y x-rec = recB (P x)
-                      (\y y-rec -> f x y (y-rec , x-rec))
+     -> RecA (\x' -> forall y' -> P (x' , y')) x
+     -> RecB (\y' -> P (x , y')) y
+  p₁ x y x-rec = recB (\y' -> P (x , y'))
+                      (\y y-rec -> f (x , y) (y-rec , x-rec))
                       y
 
-  p₂ : forall x -> RecA (\x' -> forall y' -> P x' y') x
-  p₂ = recA (\x -> forall y -> P x y)
-            (\x x-rec y ->
-                f x y (p₁ x y x-rec , x-rec))
+  p₂ : forall x -> RecA (\x' -> forall y' -> P (x' , y')) x
+  p₂ = recA (\x -> forall y -> P (x , y))
+            (\x x-rec y -> f (x , y) (p₁ x y x-rec , x-rec))
 
-lexRec
-  :  forall {a b}
-  -> {RecA : RecPred a} (recA : RecursorBuilder RecA)
-  -> {RecB : RecPred b} (recB : RecursorBuilder RecB)
-  -> (P : a -> b -> Set)
-  -> (forall x y -> LexRec RecA RecB P x y -> P x y)
-  -> forall x y -> P x y
-lexRec recA recB P f x y =
-  f x y (lexRecBuilder recA recB P f x y)
+  p₂x = p₂ x
