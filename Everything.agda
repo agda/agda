@@ -48,6 +48,8 @@ import Data.Unit
 import Data.Vec
 
 import Logic
+import Logic.Induction
+import Logic.Induction.Lexicographic
 
 import Relation.Binary
 import Relation.Binary.Conversion
