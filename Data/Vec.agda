@@ -44,3 +44,6 @@ take : forall {a n} (i : Fin (suc n)) -> Vec a n -> Vec a (toℕ i)
 take fz      xs       = []
 take (fs ()) []
 take (fs i)  (x ∷ xs) = x ∷ take i xs
+
+sum : forall {n} -> Vec ℕ n -> ℕ
+sum = foldr _+_ 0
