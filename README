@@ -114,7 +114,8 @@ To use the Agda 2 Emacs mode:
    M-x load-library RET agda2-mode RET
    M-x customize-group RET agda2 RET
 
-   This should not be necessary, though.
+   This is useful if you want to change the Agda search path, in which
+   case you should change the agda2-include-dirs variable.
 
 5. If you want some specific settings for the Emacs mode you can add
    them to agda2-mode-hook. For instance, if you want to enable the

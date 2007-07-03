@@ -79,6 +79,7 @@ import Syntax.Translation.InternalToAbstract
 import Syntax.Abstract.Name
 
 import Interaction.Exceptions
+import Interaction.Options
 import qualified Interaction.BasicOps as B
 import qualified Interaction.CommandLine.CommandLine as CL
 import Interaction.Highlighting.Precise (File)
@@ -150,12 +151,21 @@ setWorkingDirectory file xs = case last xs of
   (path, _, _) = splitFilePath file
   newDir n     = dropDirectory n path
 
-cmd_load :: String -> IO ()
-cmd_load file = infoOnException $ do
+-- | Sets the Agda include directories (corresponding to the -i
+-- option).
+
+setIncludeDirectories :: [FilePath] -> TCM ()
+setIncludeDirectories is = do
+  opts <- commandLineOptions
+  setCommandLineOptions (opts { optIncludeDirs = is })
+
+cmd_load :: FilePath -> [FilePath] -> IO ()
+cmd_load file includes = infoOnException $ do
     clearSyntaxInfo file
     (pragmas, m) <- parseFile' moduleParser file
     setWorkingDirectory file m
     is <- ioTCM' (Just file) $ do
+            setIncludeDirectories includes
 	    resetState
 	    pragmas  <- concreteToAbstract_ pragmas	-- identity for top-level pragmas at the moment
 	    topLevel <- concreteToAbstract_ (TopLevel m)

@@ -62,6 +62,13 @@ is `agda')."
 
 (defgroup agda2 nil "User options for agda2-mode")
 
+(defcustom agda2-include-dirs
+  (list ".")
+  "*The directories Agda uses to search for files (relative to the
+top-level of the current project)."
+  :type '(repeat directory)
+  :group 'agda2)
+
 (defcustom agda2-ghci-options
   (list "-package Agda")
   "*The options for ghci to load `agda2-toplevel-module'."
@@ -294,8 +301,12 @@ WANT is an optional prompt.  When ASK is non-nil, use minibuffer."
 ;;;; User commands and response processing
 
 (defun agda2-load ()
-  "Load current buffer" (interactive)
-  (agda2-go "cmd_load" (agda2-string-quote (buffer-file-name))))
+  "Load current buffer"
+  (interactive)
+  (agda2-go "cmd_load"
+            (agda2-string-quote (buffer-file-name))
+            (agda2-list-quote agda2-include-dirs)
+            ))
 
 (defun agda2-load-action (gs)
   "Annotate new goals GS in current buffer."
@@ -573,6 +584,11 @@ surrounding double quotes, and convert non-ASCII characters to the \xNNNN
 notation used in Haskell strings."
   (let ((pp-escape-newlines t))
     (mapconcat 'agda2-char-quote (pp-to-string s) "")))
+
+(defun agda2-list-quote (strings)
+  "Converts a list of strings into a string representing a Haskell
+list containing the strings."
+  (concat "[" (mapconcat 'agda2-string-quote strings ", ") "]"))
 
 (defun agda2-goal-at(pos)
   "Return (goal overlay, goal number) at POS, or nil"
