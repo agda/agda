@@ -53,7 +53,8 @@ pred zero    = zero
 pred (suc n) = n
 
 _+_ : ℕ -> ℕ -> ℕ
-_+_ = GeneralisedArithmetic.add zero suc
+zero  + n = n
+suc m + n = suc (m + n)
 
 {-# BUILTIN NATPLUS _+_ #-}
 
@@ -65,7 +66,8 @@ suc m ∸ suc n = m ∸ n
 {-# BUILTIN NATMINUS _∸_ #-}
 
 _*_ : ℕ -> ℕ -> ℕ
-_*_ = GeneralisedArithmetic.mul zero suc _+_
+zero  * n = zero
+suc m * n = m * n + n
 
 {-# BUILTIN NATTIMES _*_ #-}
 
