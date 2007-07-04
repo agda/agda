@@ -10,6 +10,8 @@ open import Data.Sum
 open import Relation.Nullary
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality
+open import Relation.Binary.Conversion
+import Relation.Binary.EqReasoning as ER
 
 infixl 7 _*_ _⊓_
 infixl 6 _+_ _∸_ _⊔_
@@ -161,6 +163,9 @@ abstract
   ; _≤_      = _≤_
   ; ord      = ℕ-partialOrder
   }
+
+module ≤-Reasoning = ER (poset⟶preSetoid ℕ-poset)
+  renaming (_≃⟨_⟩_ to _≤⟨_⟩_)
 
 ℕ-decTotOrder : DecTotOrder
 ℕ-decTotOrder = record
