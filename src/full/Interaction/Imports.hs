@@ -73,6 +73,7 @@ findFile ft m = do
 		, file <- map (moduleNameToFileName x) exts
 		]
     files' <- liftIO $ filterM doesFileExist files
+    files' <- liftIO $ nubFiles files'
     case files' of
 	[]	-> typeError $ FileNotFound m files
 	[file]	-> return file
