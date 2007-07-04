@@ -15,6 +15,7 @@ module Algebra.RingSolver
   where
 
 open import Relation.Binary
+open import Relation.Binary.Conversion
 open import Logic
 open import Data.Nat hiding (_*_) renaming (_+_ to _ℕ-+_)
 open import Data.Function hiding (const)

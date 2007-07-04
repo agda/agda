@@ -6,6 +6,7 @@ module Relation.Binary.HeterogeneousEquality where
 
 open import Logic
 open import Relation.Binary
+import Relation.Binary.PropositionalEquality as Homo
 
 ------------------------------------------------------------------------
 -- Some properties
@@ -58,7 +59,9 @@ open import Relation.Binary
 ≅-preSetoid a = record
   { carrier  = a
   ; _∼_      = \x y -> x ≅ y
+  ; _≈_      = _≡_
   ; preorder = ≅-preorder-≡
+  ; equiv    = Homo.≡-equivalence
   }
 
 ≅-setoid : Set -> Setoid

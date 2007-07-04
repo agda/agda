@@ -9,6 +9,7 @@ module Algebra.Props.BooleanAlgebra
   where
 
 open import Relation.Binary
+open import Relation.Binary.Conversion
 open import Data.Function
 open import Data.Product
 import Relation.Binary.EqReasoning

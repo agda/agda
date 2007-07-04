@@ -9,6 +9,7 @@ module Algebra.Props.Group (g : Groupoid) where
 open import Relation.Binary
 open import Data.Function
 open import Data.Product
+open import Relation.Binary.Conversion
 import Relation.Binary.EqReasoning
 import Algebra
 private

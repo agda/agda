@@ -7,6 +7,7 @@ open import Algebra.Packaged
 module Algebra.Operations (s : Semiringoid) where
 
 open import Relation.Binary
+open import Relation.Binary.Conversion
 open import Relation.Binary.PropositionalEquality
 open import Logic
 open import Data.Function

@@ -11,7 +11,7 @@ open import Data.Sum
 open import Relation.Nullary.Product
 open import Relation.Nullary.Sum
 open import Relation.Binary
-open import Relation.Binary.Conversion
+open import Relation.Binary.Conversion.PartialOrder
 
 infixr 2 _×-Rel_
 

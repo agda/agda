@@ -11,6 +11,7 @@ module Algebra.Props.CommutativeSemiring
 import Algebra
 import Relation.Binary.EqReasoning
 open import Relation.Binary
+open import Relation.Binary.Conversion
 open import Data.Function
 import Algebra.Props.Semiring as SProp
 private

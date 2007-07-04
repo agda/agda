@@ -191,7 +191,9 @@ record StrictPartialOrder {a : Set} (_≈_ _<_ : Rel a) : Set where
 record PreSetoid : Set1 where
   carrier  : Set
   _∼_      : Rel carrier
-  preorder : Preorder _≡_ _∼_
+  _≈_      : Rel carrier
+  preorder : Preorder _≈_ _∼_
+  equiv    : Equivalence _≈_
 
 record Setoid : Set1 where
   carrier : Set
@@ -215,16 +217,3 @@ record DecTotOrder : Set1 where
   _≟_   : Decidable (_≈_ poset)
   _≤?_  : Decidable (_≤_ poset)
   total : Total (_≤_ poset)
-
-------------------------------------------------------------------------
--- Some conversions
-
-setoid⟶preSetoid : Setoid -> PreSetoid
-setoid⟶preSetoid s = record
-  { carrier  = S.carrier
-  ; _∼_      = S._≈_
-  ; preorder = preorder
-  }
-  where
-  open module S = Setoid s
-  open module E = Equivalence equiv

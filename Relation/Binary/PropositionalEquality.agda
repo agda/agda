@@ -49,7 +49,9 @@ open import Relation.Binary.FunctionLifting
 ≡-preSetoid a = record
   { carrier  = a
   ; _∼_      = _≡_
+  ; _≈_      = _≡_
   ; preorder = ≡-preorder
+  ; equiv    = ≡-equivalence
   }
 
 ≡-setoid : Set -> Setoid

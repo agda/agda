@@ -28,6 +28,8 @@ open import Logic
 private
   open module P   = PreSetoid p
   open module Pre = Preorder preorder
+  module E    = Equivalence equiv
+  module EPre = Preorder E.preorder
 
 infix  2 _∎
 infixr 2 _≃⟨_⟩_
@@ -38,7 +40,7 @@ abstract
   _ ≃⟨ x∼y ⟩ y∼z = trans x∼y y∼z
 
   _∎ : forall x -> x ∼ x
-  _∎ _ = refl ≡-refl
+  _∎ _ = refl (EPre.refl ≡-refl)
 
   byDef : forall {x} -> x ∼ x
   byDef = _ ∎

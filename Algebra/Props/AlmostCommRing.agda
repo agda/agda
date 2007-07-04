@@ -10,6 +10,7 @@ module Algebra.Props.AlmostCommRing
 
 open import Data.Function
 open import Relation.Binary
+open import Relation.Binary.Conversion
 import Algebra
 import Algebra.Props.CommutativeSemiring as CSProp
 import Relation.Binary.EqReasoning as PP
