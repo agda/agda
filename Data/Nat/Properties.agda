@@ -5,6 +5,7 @@
 module Data.Nat.Properties where
 
 open import Data.Nat
+open ≤-Reasoning renaming (_∎ to _□; byDef to ≤-refl)
 open import Logic
 open import Data.Function
 import Algebra
@@ -346,3 +347,17 @@ abstract
   m⊓n≤m zero    _       = z≤n
   m⊓n≤m (suc m) zero    = z≤n
   m⊓n≤m (suc m) (suc n) = s≤s $ m⊓n≤m m n
+
+  n≤1+n : forall n -> n ≤ 1 + n
+  n≤1+n zero    = z≤n
+  n≤1+n (suc n) = s≤s $ n≤1+n n
+
+  n≤m+n : forall m n -> n ≤ m + n
+  n≤m+n zero    n = ≤-refl
+  n≤m+n (suc m) n =
+    n
+               ≤⟨ n≤m+n m n ⟩
+    m + n
+               ≤⟨ n≤1+n _ ⟩
+    1 + m + n
+               □
