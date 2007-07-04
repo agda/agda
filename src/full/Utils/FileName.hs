@@ -7,6 +7,7 @@ import Utils.TestHelpers
 import Test.QuickCheck
 import Data.List
 import Control.Monad
+import System.Directory
 
 splitFilePath :: FilePath -> (FilePath, String, String)
 #ifdef mingw32_HOST_OS
@@ -152,6 +153,42 @@ slashes = ['\\','/']
 slash = '/'
 slashes = ['/']
 #endif
+
+-- | Removes duplicate file names from the list. Nonexisting files are
+-- compared by name only. Two existing files are considered to be
+-- equal if
+--
+-- * 'canonicalizePath' returns the same canonical path for them,
+--
+-- * and they have the same modification time.
+--
+-- Nonexisting and existing files are not compared.
+--
+-- The size test for existing files is included since the first method
+-- may not always give correct results. I would want to check the
+-- files' sizes instead of their modification times, but
+-- "System.Directory" does not contain a function for querying the
+-- size of a file.
+--
+-- This function is of course prone to errors if files are changed
+-- while it is running.
+--
+-- To summarise: There are no guarantees that this function gives
+-- correct results. Do not use it for mission-critical code.
+
+nubFiles :: [FilePath] -> IO [FilePath]
+nubFiles fs = do
+  infos <- mapM getInfo fs
+  return (map (either id fst) . nub $ infos)
+  where
+  getInfo f = do
+    ex <- doesFileExist f
+    if ex then do
+      f' <- canonicalizePath f
+      t  <- getModificationTime f
+      return $ Right (f', t)
+     else
+      return $ Left f
 
 ------------------------------------------------------------------------
 -- Generators
