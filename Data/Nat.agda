@@ -15,7 +15,7 @@ import Relation.Binary.EqReasoning as ER
 
 infixl 7 _*_ _⊓_
 infixl 6 _+_ _∸_ _⊔_
-infix  4 _≤_
+infix  4 _≤_ _<_
 
 ------------------------------------------------------------------------
 -- The types
@@ -31,6 +31,9 @@ data ℕ : Set where
 data _≤_ : ℕ -> ℕ -> Set where
   z≤n : forall {n}            -> zero  ≤ n
   s≤s : forall {m n} -> m ≤ n -> suc m ≤ suc n
+
+_<_ : ℕ -> ℕ -> Set
+m < n = suc m ≤ n
 
 ------------------------------------------------------------------------
 -- A generalisation of the arithmetic operations
