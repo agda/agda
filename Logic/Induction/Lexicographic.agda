@@ -38,3 +38,25 @@ _⊗_ RecA RecB P (x , y) =
             (\x x-rec y -> f (x , y) (p₁ x y x-rec , x-rec))
 
   p₂x = p₂ x
+
+------------------------------------------------------------------------
+-- Example
+
+private
+
+  open import Data.Nat
+  open import Logic.Induction.Nat as N
+
+  -- The Ackermann function à la Rózsa Péter.
+
+  ackermann : ℕ -> ℕ -> ℕ
+  ackermann m n = build [ N.rec-builder ⊗ N.rec-builder ]
+                        AckPred ack (m , n)
+    where
+    AckPred : ℕ × ℕ -> Set
+    AckPred _ = ℕ
+
+    ack : forall p -> (N.Rec ⊗ N.Rec) AckPred p -> AckPred p
+    ack (zero  , n)     _                   = 1 + n
+    ack (suc m , zero)  (_         , ackm•) = ackm• 1
+    ack (suc m , suc n) (ack[1+m]n , ackm•) = ackm• ack[1+m]n
