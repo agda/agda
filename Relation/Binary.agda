@@ -84,6 +84,13 @@ Monotone
   -> (a₁ -> a₂) -> Set
 Monotone ≤₁ ≤₂ f = f Preserves ≤₁ , ≤₂
 
+Monotone₂
+  :  forall {a₁} -> (≤₁ : Rel a₁)
+  -> forall {a₂} -> (≤₂ : Rel a₂)
+  -> forall {a₃} -> (≤₃ : Rel a₃)
+  -> (a₁ -> a₂ -> a₃) -> Set
+Monotone₂ ≤₁ ≤₂ ≤₃ • = • Preserves₂ ≤₁ , ≤₂ , ≤₃
+
 ------------------------------------------------------------------------
 -- Some properties imply others
 
