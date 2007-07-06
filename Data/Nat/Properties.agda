@@ -13,6 +13,7 @@ import Algebra.Props.CommutativeSemiring as CSProp
 private
   open module A = Algebra ℕ-setoid
 open import Algebra.Packaged
+open import Relation.Binary
 open import Relation.Binary.PropositionalEquality
 open import Data.Product
 import Algebra.RingSolver.Simple as Solver
@@ -361,3 +362,10 @@ abstract
                ≤⟨ n≤1+n _ ⟩
     1 + m + n
                □
+
+  _+-mono_ : Monotone₂ _≤_ _≤_ _≤_ _+_
+  _+-mono_ {zero} {m₂} {n₁} {n₂} z≤n n₁≤n₂ =
+    n₁      ≤⟨ n₁≤n₂ ⟩
+    n₂      ≤⟨ n≤m+n m₂ n₂ ⟩
+    m₂ + n₂ □
+  s≤s m₁≤m₂ +-mono n₁≤n₂ = s≤s (m₁≤m₂ +-mono n₁≤n₂)
