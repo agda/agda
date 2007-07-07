@@ -47,11 +47,11 @@ abstract
   +-comm zero    n = ≡-sym $ proj₂ +-identity n
   +-comm (suc m) n =
       suc m + n
-    ≃⟨ byDef ⟩
+    ∼⟨ byDef ⟩
       suc (m + n)
-    ≃⟨ ≡-cong suc (+-comm m n) ⟩
+    ∼⟨ ≡-cong suc (+-comm m n) ⟩
       suc (n + m)
-    ≃⟨ ≡-sym (m+1+n≡1+m+n n m) ⟩
+    ∼⟨ ≡-sym (m+1+n≡1+m+n n m) ⟩
       n + suc m
     ∎
 
@@ -59,15 +59,15 @@ abstract
   m*1+n≡m+mn zero    n = byDef
   m*1+n≡m+mn (suc m) n =
       suc m * suc n
-    ≃⟨ byDef ⟩
+    ∼⟨ byDef ⟩
       m * suc n + suc n
-    ≃⟨ m+1+n≡1+m+n (m * suc n) n ⟩
+    ∼⟨ m+1+n≡1+m+n (m * suc n) n ⟩
       suc (m * suc n + n)
-    ≃⟨ ≡-cong (\x -> suc (x + n)) (m*1+n≡m+mn m n) ⟩
+    ∼⟨ ≡-cong (\x -> suc (x + n)) (m*1+n≡m+mn m n) ⟩
       suc (m +  m * n + n)
-    ≃⟨ ≡-cong suc (≡-sym (+-assoc m (m * n) n)) ⟩
+    ∼⟨ ≡-cong suc (≡-sym (+-assoc m (m * n) n)) ⟩
       suc (m + (m * n + n))
-    ≃⟨ byDef ⟩
+    ∼⟨ byDef ⟩
       suc m + suc m * n
     ∎
 
@@ -78,11 +78,11 @@ abstract
     n*0≡0 zero    = byDef
     n*0≡0 (suc n) =
         suc n * 0
-      ≃⟨ byDef ⟩
+      ∼⟨ byDef ⟩
         n * 0 + 0
-      ≃⟨ proj₂ +-identity _ ⟩
+      ∼⟨ proj₂ +-identity _ ⟩
         n * 0
-      ≃⟨ n*0≡0 n ⟩
+      ∼⟨ n*0≡0 n ⟩
         0
       ∎
 
@@ -90,13 +90,13 @@ abstract
   *-comm zero    n = ≡-sym $ proj₂ *-zero n
   *-comm (suc m) n =
       suc m * n
-    ≃⟨ byDef ⟩
+    ∼⟨ byDef ⟩
       m * n + n
-    ≃⟨ ≡-cong (\x -> x + n) (*-comm m n) ⟩
+    ∼⟨ ≡-cong (\x -> x + n) (*-comm m n) ⟩
       n * m + n
-    ≃⟨ +-comm (n * m) n ⟩
+    ∼⟨ +-comm (n * m) n ⟩
       n + n * m
-    ≃⟨ ≡-sym (m*1+n≡m+mn n m) ⟩
+    ∼⟨ ≡-sym (m*1+n≡m+mn n m) ⟩
       n * suc m
     ∎
 
@@ -107,32 +107,32 @@ abstract
     distˡ zero    n o = byDef
     distˡ (suc m) n o =
       suc m * (n + o)
-                                 ≃⟨ byDef ⟩
+                                 ∼⟨ byDef ⟩
       m * (n + o) + (n + o)
-                                 ≃⟨ ≡-cong (\x -> x + (n + o)) (distˡ m n o) ⟩
+                                 ∼⟨ ≡-cong (\x -> x + (n + o)) (distˡ m n o) ⟩
       (m * n + m * o) + (n + o)
-                                 ≃⟨ ≡-sym $ +-assoc (m * n) (m * o) (n + o) ⟩
+                                 ∼⟨ ≡-sym $ +-assoc (m * n) (m * o) (n + o) ⟩
       m * n + (m * o + (n + o))
-                                 ≃⟨ ≡-cong (\x -> (m * n) + x) $ +-assoc (m * o) n o ⟩
+                                 ∼⟨ ≡-cong (\x -> (m * n) + x) $ +-assoc (m * o) n o ⟩
       m * n + ((m * o + n) + o)
-                                 ≃⟨ ≡-cong (\x -> (m * n) + (x + o)) $ +-comm (m * o) n ⟩
+                                 ∼⟨ ≡-cong (\x -> (m * n) + (x + o)) $ +-comm (m * o) n ⟩
       m * n + ((n + m * o) + o)
-                                 ≃⟨ ≡-cong (\x -> (m * n) + x) $ ≡-sym $ +-assoc n (m * o) o ⟩
+                                 ∼⟨ ≡-cong (\x -> (m * n) + x) $ ≡-sym $ +-assoc n (m * o) o ⟩
       m * n + (n + (m * o + o))
-                                 ≃⟨ +-assoc (m * n) n (m * o + o) ⟩
+                                 ∼⟨ +-assoc (m * n) n (m * o + o) ⟩
       (m * n + n) + (m * o + o)
-                                 ≃⟨ byDef ⟩
+                                 ∼⟨ byDef ⟩
       suc m * n + suc m * o
                                  ∎
 
     distʳ : _*_ DistributesOverʳ _+_
     distʳ m n o =
        (n + o) * m
-                      ≃⟨ *-comm (n + o) m ⟩
+                      ∼⟨ *-comm (n + o) m ⟩
        m * (n + o)
-                      ≃⟨ distˡ m n o ⟩
+                      ∼⟨ distˡ m n o ⟩
        m * n + m * o
-                      ≃⟨ ≡-cong₂ _+_ (*-comm m n) (*-comm m o) ⟩
+                      ∼⟨ ≡-cong₂ _+_ (*-comm m n) (*-comm m o) ⟩
        n * m + o * m
                       ∎
 
@@ -140,13 +140,13 @@ abstract
   *-assoc zero    n o = byDef
   *-assoc (suc m) n o =
     suc m * (n * o)
-                         ≃⟨ byDef ⟩
+                         ∼⟨ byDef ⟩
     m * (n * o) + n * o
-                         ≃⟨ ≡-cong (\x -> x + n * o) $ *-assoc m n o ⟩
+                         ∼⟨ ≡-cong (\x -> x + n * o) $ *-assoc m n o ⟩
     (m * n) * o + n * o
-                         ≃⟨ ≡-sym $ proj₂ distrib-*-+ o (m * n) n ⟩
+                         ∼⟨ ≡-sym $ proj₂ distrib-*-+ o (m * n) n ⟩
     (m * n + n) * o
-                         ≃⟨ byDef ⟩
+                         ∼⟨ byDef ⟩
     (suc m * n) * o
                          ∎
 
@@ -156,9 +156,9 @@ abstract
     n*1≡n : RightIdentity 1 _*_
     n*1≡n n =
         n * 1
-      ≃⟨ *-comm n 1 ⟩
+      ∼⟨ *-comm n 1 ⟩
         1 * n
-      ≃⟨ byDef ⟩
+      ∼⟨ byDef ⟩
         n
       ∎
 
@@ -226,11 +226,11 @@ abstract
   ⊔-comm (suc m) zero    = byDef
   ⊔-comm (suc m) (suc n) =
       suc m ⊔ suc n
-    ≃⟨ byDef ⟩
+    ∼⟨ byDef ⟩
       suc (m ⊔ n)
-    ≃⟨ ≡-cong suc (⊔-comm m n) ⟩
+    ∼⟨ ≡-cong suc (⊔-comm m n) ⟩
       suc (n ⊔ m)
-    ≃⟨ byDef ⟩
+    ∼⟨ byDef ⟩
       suc n ⊔ suc m
     ∎
 
@@ -252,11 +252,11 @@ abstract
   ⊓-comm (suc m) zero    = byDef
   ⊓-comm (suc m) (suc n) =
       suc m ⊓ suc n
-    ≃⟨ byDef ⟩
+    ∼⟨ byDef ⟩
       suc (m ⊓ n)
-    ≃⟨ ≡-cong suc (⊓-comm m n) ⟩
+    ∼⟨ ≡-cong suc (⊓-comm m n) ⟩
       suc (n ⊓ m)
-    ≃⟨ byDef ⟩
+    ∼⟨ byDef ⟩
       suc n ⊓ suc m
     ∎
 
@@ -279,9 +279,9 @@ abstract
     abs-⊓-⊔ (suc m) (suc n) = ≡-cong suc $ abs-⊓-⊔ m n
     abs-⊓-⊔ (suc m) zero    = ≡-cong suc $
       m ⊓ m
-                   ≃⟨ ≡-cong (_⊓_ m) $ ≡-sym $ proj₂ ⊔-identity m ⟩
+                   ∼⟨ ≡-cong (_⊓_ m) $ ≡-sym $ proj₂ ⊔-identity m ⟩
       m ⊓ (m ⊔ 0)
-                   ≃⟨ abs-⊓-⊔ m zero ⟩
+                   ∼⟨ abs-⊓-⊔ m zero ⟩
       m
                    ∎
 
@@ -291,9 +291,9 @@ abstract
   distribˡ-⊔-⊓ (suc m) (suc n) (suc o) = ≡-cong suc $ distribˡ-⊔-⊓ m n o
   distribˡ-⊔-⊓ (suc m) (suc n) zero    = ≡-cong suc $ ≡-sym $
     (m ⊔ n) ⊓ m
-                 ≃⟨ ⊓-comm (m ⊔ n) m ⟩
+                 ∼⟨ ⊓-comm (m ⊔ n) m ⟩
     m ⊓ (m ⊔ n)
-                 ≃⟨ proj₂ absorptive-⊔-⊓ m n ⟩
+                 ∼⟨ proj₂ absorptive-⊔-⊓ m n ⟩
     m
                  ∎
 
@@ -343,6 +343,12 @@ abstract
   m+n∸m≡n : forall {m n} -> m ≤ n -> m + (n ∸ m) ≡ n
   m+n∸m≡n z≤n       = byDef
   m+n∸m≡n (s≤s m≤n) = ≡-cong suc $ m+n∸m≡n m≤n
+
+  n≤m+n∸m : forall m n -> n ≤ m + (n ∸ m)
+  n≤m+n∸m m       zero    = z≤n
+  n≤m+n∸m zero    (suc n) = refl (byDef {x = suc n})
+    where refl = Preorder.refl (PartialOrder.preorder ℕ-partialOrder)
+  n≤m+n∸m (suc m) (suc n) = s≤s (n≤m+n∸m m n)
 
   m⊓n≤m : forall m n -> m ⊓ n ≤ m
   m⊓n≤m zero    _       = z≤n

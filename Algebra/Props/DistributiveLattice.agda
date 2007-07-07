@@ -50,11 +50,11 @@ abstract
     ∨-∧-distribʳ : _∨_ DistributesOverʳ _∧_
     ∨-∧-distribʳ x y z =
       (y ∧ z) ∨ x
-                         ≃⟨ ∨-comm _ _ ⟩
+                         ∼⟨ ∨-comm _ _ ⟩
       x ∨ (y ∧ z)
-                         ≃⟨ ∨-∧-distribˡ _ _ _ ⟩
+                         ∼⟨ ∨-∧-distribˡ _ _ _ ⟩
       (x ∨ y) ∧ (x ∨ z)
-                         ≃⟨ ∨-comm _ _ ⟨ ∧-pres-≈ ⟩ ∨-comm _ _ ⟩
+                         ∼⟨ ∨-comm _ _ ⟨ ∧-pres-≈ ⟩ ∨-comm _ _ ⟩
       (y ∨ x) ∧ (z ∨ x)
                          ∎
 
@@ -64,28 +64,28 @@ abstract
     ∧-∨-distribˡ : _∧_ DistributesOverˡ _∨_
     ∧-∨-distribˡ x y z =
       x ∧ (y ∨ z)
-                                     ≃⟨ sym (proj₂ absorptive _ _) ⟨ ∧-pres-≈ ⟩ byDef ⟩
+                                     ∼⟨ sym (proj₂ absorptive _ _) ⟨ ∧-pres-≈ ⟩ byDef ⟩
       (x ∧ (x ∨ y)) ∧ (y ∨ z)
-                                     ≃⟨ (byDef ⟨ ∧-pres-≈ ⟩ ∨-comm _ _) ⟨ ∧-pres-≈ ⟩ byDef ⟩
+                                     ∼⟨ (byDef ⟨ ∧-pres-≈ ⟩ ∨-comm _ _) ⟨ ∧-pres-≈ ⟩ byDef ⟩
       (x ∧ (y ∨ x)) ∧ (y ∨ z)
-                                     ≃⟨ sym $ ∧-assoc _ _ _ ⟩
+                                     ∼⟨ sym $ ∧-assoc _ _ _ ⟩
       x ∧ ((y ∨ x) ∧ (y ∨ z))
-                                     ≃⟨ byDef ⟨ ∧-pres-≈ ⟩ sym (proj₁ ∨-∧-distrib _ _ _) ⟩
+                                     ∼⟨ byDef ⟨ ∧-pres-≈ ⟩ sym (proj₁ ∨-∧-distrib _ _ _) ⟩
       x ∧ (y ∨ (x ∧ z))
-                                     ≃⟨ sym (proj₁ absorptive _ _) ⟨ ∧-pres-≈ ⟩ byDef ⟩
+                                     ∼⟨ sym (proj₁ absorptive _ _) ⟨ ∧-pres-≈ ⟩ byDef ⟩
       (x ∨ (x ∧ z)) ∧ (y ∨ (x ∧ z))
-                                     ≃⟨ sym $ proj₂ ∨-∧-distrib _ _ _ ⟩
+                                     ∼⟨ sym $ proj₂ ∨-∧-distrib _ _ _ ⟩
       (x ∧ y) ∨ (x ∧ z)
                         ∎
 
     ∧-∨-distribʳ : _∧_ DistributesOverʳ _∨_
     ∧-∨-distribʳ x y z =
       (y ∨ z) ∧ x
-                         ≃⟨ ∧-comm _ _ ⟩
+                         ∼⟨ ∧-comm _ _ ⟩
       x ∧ (y ∨ z)
-                         ≃⟨ ∧-∨-distribˡ _ _ _ ⟩
+                         ∼⟨ ∧-∨-distribˡ _ _ _ ⟩
       (x ∧ y) ∨ (x ∧ z)
-                         ≃⟨ ∧-comm _ _ ⟨ ∨-pres-≈ ⟩ ∧-comm _ _ ⟩
+                         ∼⟨ ∧-comm _ _ ⟨ ∨-pres-≈ ⟩ ∧-comm _ _ ⟩
       (y ∧ x) ∨ (z ∧ x)
                          ∎
 

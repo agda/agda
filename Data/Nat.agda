@@ -168,7 +168,7 @@ abstract
   }
 
 module ≤-Reasoning = ER (poset⟶preSetoid ℕ-poset)
-  renaming (_≃⟨_⟩_ to _≤⟨_⟩_)
+  renaming (_∼⟨_⟩_ to _≤⟨_⟩_; _≈⟨_⟩_ to _≡⟨_⟩_)
 
 ℕ-decTotOrder : DecTotOrder
 ℕ-decTotOrder = record

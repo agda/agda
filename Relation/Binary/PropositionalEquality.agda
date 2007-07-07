@@ -97,6 +97,8 @@ import Relation.Binary.EqReasoning as ER
 module ≡-Reasoning where
   module ER-≡ {a : Set} where
     private
-      module ER' = ER (≡-preSetoid a) renaming (_≃⟨_⟩_ to _≡⟨_⟩_)
+      module ER' = ER (≡-preSetoid a)
+        hiding (_≈⟨_⟩_)
+        renaming (_∼⟨_⟩_ to _≡⟨_⟩_)
     open ER' public
   open ER-≡ public

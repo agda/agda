@@ -30,14 +30,14 @@ abstract
   ¬-involutive : forall x -> (- - x) ≈ x
   ¬-involutive x =
     - - x
-                           ≃⟨ sym $ proj₂ identity _ ⟩
+                           ∼⟨ sym $ proj₂ identity _ ⟩
     (- - x) + 0#
-                           ≃⟨ byDef ⟨ •-pres-≈ ⟩ sym (proj₁ inverse _) ⟩
+                           ∼⟨ byDef ⟨ •-pres-≈ ⟩ sym (proj₁ inverse _) ⟩
     (- - x) + ((- x) + x)
-                           ≃⟨ assoc _ _ _ ⟩
+                           ∼⟨ assoc _ _ _ ⟩
     ((- - x) + - x) + x
-                           ≃⟨ proj₁ inverse _ ⟨ •-pres-≈ ⟩ byDef ⟩
+                           ∼⟨ proj₁ inverse _ ⟨ •-pres-≈ ⟩ byDef ⟩
     0# + x
-                           ≃⟨ proj₁ identity _ ⟩
+                           ∼⟨ proj₁ identity _ ⟩
     x
                            ∎

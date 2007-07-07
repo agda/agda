@@ -73,11 +73,11 @@ abstract
     distʳ : _∧_ DistributesOverʳ _∨_
     distʳ x y z =
        (y ∨ z) ∧ x
-                      ≃⟨ ∧-comm (y ∨ z) x ⟩
+                      ∼⟨ ∧-comm (y ∨ z) x ⟩
        x ∧ (y ∨ z)
-                      ≃⟨ distˡ x y z ⟩
+                      ∼⟨ distˡ x y z ⟩
        x ∧ y ∨ x ∧ z
-                      ≃⟨ ≡-cong₂ _∨_ (∧-comm x y) (∧-comm x z) ⟩
+                      ∼⟨ ≡-cong₂ _∨_ (∧-comm x y) (∧-comm x z) ⟩
        y ∧ x ∨ z ∧ x
                       ∎
 
@@ -144,11 +144,11 @@ abstract
     distʳ : _∨_ DistributesOverʳ _∧_
     distʳ x y z =
        (y ∧ z) ∨ x
-                          ≃⟨ ∨-comm (y ∧ z) x ⟩
+                          ∼⟨ ∨-comm (y ∧ z) x ⟩
        x ∨ (y ∧ z)
-                          ≃⟨ distˡ x y z ⟩
+                          ∼⟨ distˡ x y z ⟩
        (x ∨ y) ∧ (x ∨ z)
-                          ≃⟨ ≡-cong₂ _∧_ (∨-comm x y) (∨-comm x z) ⟩
+                          ∼⟨ ≡-cong₂ _∧_ (∨-comm x y) (∨-comm x z) ⟩
        (y ∨ x) ∧ (z ∨ x)
                           ∎
 

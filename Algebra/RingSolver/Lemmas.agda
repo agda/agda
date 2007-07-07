@@ -45,9 +45,9 @@ abstract
   lemma₀ : forall x -> (x + ⟦ C.0# ⟧) ≈ x
   lemma₀ x =
     x + ⟦ C.0# ⟧
-                  ≃⟨ byDef ⟨ A.•-pres-≈ ⟩ 0-homo ⟩
+                  ∼⟨ byDef ⟨ A.•-pres-≈ ⟩ 0-homo ⟩
     x + 0#
-                  ≃⟨ proj₂ A.identity _ ⟩
+                  ∼⟨ proj₂ A.identity _ ⟩
     x
                   ∎
 
@@ -55,28 +55,28 @@ abstract
          -> (((a + b) * x) + (c + d)) ≈ (((a * x) + c) + ((b * x) + d))
   lemma₁ a b c d x =
     ((a + b) * x) + (c + d)
-                                   ≃⟨ proj₂ distrib _ _ _ ⟨ A.•-pres-≈ ⟩ byDef ⟩
+                                   ∼⟨ proj₂ distrib _ _ _ ⟨ A.•-pres-≈ ⟩ byDef ⟩
     ((a * x) + (b * x)) + (c + d)
-                                   ≃⟨ sym $ A.assoc _ _ _ ⟩
+                                   ∼⟨ sym $ A.assoc _ _ _ ⟩
     (a * x) + ((b * x) + (c + d))
-                                   ≃⟨ byDef ⟨ A.•-pres-≈ ⟩ A.assoc _ _ _ ⟩
+                                   ∼⟨ byDef ⟨ A.•-pres-≈ ⟩ A.assoc _ _ _ ⟩
     (a * x) + (((b * x) + c) + d)
-                                   ≃⟨ byDef ⟨ A.•-pres-≈ ⟩ (A.comm _ _ ⟨ A.•-pres-≈ ⟩ byDef) ⟩
+                                   ∼⟨ byDef ⟨ A.•-pres-≈ ⟩ (A.comm _ _ ⟨ A.•-pres-≈ ⟩ byDef) ⟩
     (a * x) + ((c + (b * x)) + d)
-                                   ≃⟨ byDef ⟨ A.•-pres-≈ ⟩ sym (A.assoc _ _ _) ⟩
+                                   ∼⟨ byDef ⟨ A.•-pres-≈ ⟩ sym (A.assoc _ _ _) ⟩
     (a * x) + (c + ((b * x) + d))
-                                   ≃⟨ A.assoc _ _ _ ⟩
+                                   ∼⟨ A.assoc _ _ _ ⟩
     ((a * x) + c) + ((b * x) + d)
                                    ∎
 
   lemma₂ : forall x y z -> (x + (y + z)) ≈ (y + (x + z))
   lemma₂ x y z =
     x + (y + z)
-                 ≃⟨ A.assoc _ _ _ ⟩
+                 ∼⟨ A.assoc _ _ _ ⟩
     (x + y) + z
-                 ≃⟨ A.comm _ _ ⟨ A.•-pres-≈ ⟩ byDef ⟩
+                 ∼⟨ A.comm _ _ ⟨ A.•-pres-≈ ⟩ byDef ⟩
     (y + x) + z
-                 ≃⟨ sym $ A.assoc _ _ _ ⟩
+                 ∼⟨ sym $ A.assoc _ _ _ ⟩
     y + (x + z)
                  ∎
 
@@ -84,19 +84,19 @@ abstract
          -> (((a * c) * x) + (b * c))  ≈ (((a * x) + b) * c)
   lemma₃ a b c x =
     ((a * c) * x) + (b * c)
-                             ≃⟨ lem ⟨ A.•-pres-≈ ⟩ byDef ⟩
+                             ∼⟨ lem ⟨ A.•-pres-≈ ⟩ byDef ⟩
     ((a * x) * c) + (b * c)
-                             ≃⟨ sym $ proj₂ distrib _ _ _ ⟩
+                             ∼⟨ sym $ proj₂ distrib _ _ _ ⟩
     ((a * x) + b) * c
                              ∎
     where
     lem =
       (a * c) * x
-                   ≃⟨ sym (M.assoc _ _ _) ⟩
+                   ∼⟨ sym (M.assoc _ _ _) ⟩
       a * (c * x)
-                   ≃⟨ byDef ⟨ M.•-pres-≈ ⟩ *-comm _ _ ⟩
+                   ∼⟨ byDef ⟨ M.•-pres-≈ ⟩ *-comm _ _ ⟩
       a * (x * c)
-                   ≃⟨ M.assoc _ _ _ ⟩
+                   ∼⟨ M.assoc _ _ _ ⟩
       (a * x) * c
                    ∎
 
@@ -104,11 +104,11 @@ abstract
          -> (((a * b) * x) + (a * c)) ≈ (a * ((b * x) + c))
   lemma₄ a b c x =
     ((a * b) * x) + (a * c)
-                             ≃⟨ sym (M.assoc _ _ _)
+                             ∼⟨ sym (M.assoc _ _ _)
                                   ⟨ A.•-pres-≈ ⟩
                                 byDef ⟩
     (a * (b * x)) + (a * c)
-                             ≃⟨ sym $ proj₁ distrib _ _ _ ⟩
+                             ∼⟨ sym $ proj₁ distrib _ _ _ ⟩
     a * ((b * x) + c)
                              ∎
 
@@ -119,74 +119,74 @@ abstract
   lemma₅ a b c d x =
     (((a * c) * x) * x) +
     ((((a * d) + (b * c)) * x) + (b * d))
-                                             ≃⟨ lem₁ ⟨ A.•-pres-≈ ⟩
+                                             ∼⟨ lem₁ ⟨ A.•-pres-≈ ⟩
                                                 (lem₂ ⟨ A.•-pres-≈ ⟩ byDef) ⟩
     ((a * x) * (c * x)) +
     ((((a * x) * d) + (b * (c * x))) +
      (b * d))
-                                             ≃⟨ byDef ⟨ A.•-pres-≈ ⟩ sym (A.assoc _ _ _) ⟩
+                                             ∼⟨ byDef ⟨ A.•-pres-≈ ⟩ sym (A.assoc _ _ _) ⟩
     ((a * x) * (c * x)) +
     (((a * x) * d) +
      ((b * (c * x)) + (b * d)))
-                                             ≃⟨ A.assoc _ _ _ ⟩
+                                             ∼⟨ A.assoc _ _ _ ⟩
     (((a * x) * (c * x)) + ((a * x) * d)) +
     ((b * (c * x)) + (b * d))
-                                             ≃⟨ sym $ proj₁ distrib _ _ _
+                                             ∼⟨ sym $ proj₁ distrib _ _ _
                                                       ⟨ A.•-pres-≈ ⟩
                                                     proj₁ distrib _ _ _ ⟩
     ((a * x) * ((c * x) + d)) +
     (b * ((c * x) + d))
-                                             ≃⟨ sym $ proj₂ distrib _ _ _ ⟩
+                                             ∼⟨ sym $ proj₂ distrib _ _ _ ⟩
     ((a * x) + b) * ((c * x) + d)
                                              ∎
     where
     lem₁' =
       (a * c) * x
-                   ≃⟨ sym $ M.assoc _ _ _ ⟩
+                   ∼⟨ sym $ M.assoc _ _ _ ⟩
       a * (c * x)
-                   ≃⟨ byDef ⟨ M.•-pres-≈ ⟩ *-comm _ _ ⟩
+                   ∼⟨ byDef ⟨ M.•-pres-≈ ⟩ *-comm _ _ ⟩
       a * (x * c)
-                   ≃⟨ M.assoc _ _ _ ⟩
+                   ∼⟨ M.assoc _ _ _ ⟩
       (a * x) * c
                    ∎
 
     lem₁ =
       ((a * c) * x) * x
-                         ≃⟨ lem₁' ⟨ M.•-pres-≈ ⟩ byDef ⟩
+                         ∼⟨ lem₁' ⟨ M.•-pres-≈ ⟩ byDef ⟩
       ((a * x) * c) * x
-                         ≃⟨ sym $ M.assoc _ _ _ ⟩
+                         ∼⟨ sym $ M.assoc _ _ _ ⟩
       (a * x) * (c * x)
                          ∎
 
     lem₂ =
       ((a * d) + (b * c)) * x
-                                     ≃⟨ proj₂ distrib _ _ _ ⟩
+                                     ∼⟨ proj₂ distrib _ _ _ ⟩
       ((a * d) * x) + ((b * c) * x)
-                                     ≃⟨ sym $ M.assoc _ _ _ ⟨ A.•-pres-≈ ⟩ M.assoc _ _ _ ⟩
+                                     ∼⟨ sym $ M.assoc _ _ _ ⟨ A.•-pres-≈ ⟩ M.assoc _ _ _ ⟩
       (a * (d * x)) + (b * (c * x))
-                                     ≃⟨ (byDef ⟨ M.•-pres-≈ ⟩ *-comm _ _)
+                                     ∼⟨ (byDef ⟨ M.•-pres-≈ ⟩ *-comm _ _)
                                           ⟨ A.•-pres-≈ ⟩ byDef ⟩
       (a * (x * d)) + (b * (c * x))
-                                     ≃⟨ M.assoc _ _ _ ⟨ A.•-pres-≈ ⟩ byDef ⟩
+                                     ∼⟨ M.assoc _ _ _ ⟨ A.•-pres-≈ ⟩ byDef ⟩
       ((a * x) * d) + (b * (c * x))
                                      ∎
 
   lemma₆ : forall a b x -> (((- a) * x) + (- b)) ≈ (- ((a * x) + b))
   lemma₆ a b x =
     ((- a) * x) + (- b)
-                         ≃⟨ ¬-*-distribˡ _ _ ⟨ A.•-pres-≈ ⟩ byDef ⟩
+                         ∼⟨ ¬-*-distribˡ _ _ ⟨ A.•-pres-≈ ⟩ byDef ⟩
     (- (a * x)) + (- b)
-                         ≃⟨ ¬-+-comm _ _ ⟩
+                         ∼⟨ ¬-+-comm _ _ ⟩
     - ((a * x) + b)
                          ∎
 
   lemma₇ : forall x -> ((⟦ C.1# ⟧ * x) + ⟦ C.0# ⟧) ≈ x
   lemma₇ x =
     ((⟦ C.1# ⟧ * x) + ⟦ C.0# ⟧)
-                                ≃⟨ (1-homo ⟨ M.•-pres-≈ ⟩ byDef) ⟨ A.•-pres-≈ ⟩ 0-homo ⟩
+                                ∼⟨ (1-homo ⟨ M.•-pres-≈ ⟩ byDef) ⟨ A.•-pres-≈ ⟩ 0-homo ⟩
     (1# * x) + 0#
-                                ≃⟨ proj₂ A.identity _ ⟩
+                                ∼⟨ proj₂ A.identity _ ⟩
     1# * x
-                                ≃⟨ proj₁ M.identity _ ⟩
+                                ∼⟨ proj₁ M.identity _ ⟩
     x
                                 ∎

@@ -51,37 +51,37 @@ abstract
     lemma : forall x y -> ((x + y) + - x) ≈ y
     lemma x y =
       (x + y) + - x
-                     ≃⟨ comm _ _ ⟨ •-pres-≈ ⟩ byDef ⟩
+                     ∼⟨ comm _ _ ⟨ •-pres-≈ ⟩ byDef ⟩
       (y + x) + - x
-                     ≃⟨ sym $ assoc _ _ _ ⟩
+                     ∼⟨ sym $ assoc _ _ _ ⟩
       y + (x + - x)
-                     ≃⟨ byDef ⟨ •-pres-≈ ⟩ proj₂ inverse _ ⟩
+                     ∼⟨ byDef ⟨ •-pres-≈ ⟩ proj₂ inverse _ ⟩
       y + 0#
-                     ≃⟨ proj₂ identity _ ⟩
+                     ∼⟨ proj₂ identity _ ⟩
       y
                      ∎
 
   ¬-+-comm : forall x y -> ((- x) + (- y)) ≈ (- (x + y))
   ¬-+-comm x y =
     (- x) + - y
-                                           ≃⟨ comm _ _ ⟩
+                                           ∼⟨ comm _ _ ⟩
     (- y) + - x
-                                           ≃⟨ sym $ lem ⟨ •-pres-≈ ⟩ byDef ⟩
+                                           ∼⟨ sym $ lem ⟨ •-pres-≈ ⟩ byDef ⟩
     (x + ((y + (- (x + y))) + - y)) + - x
-                                           ≃⟨ lemma _ _ ⟩
+                                           ∼⟨ lemma _ _ ⟩
     (y + (- (x + y))) + - y
-                                           ≃⟨ lemma _ _ ⟩
+                                           ∼⟨ lemma _ _ ⟩
     (- (x + y))
                                            ∎
     where
     lem =
       x + ((y + (- (x + y))) + - y)
-                                     ≃⟨ assoc _ _ _ ⟩
+                                     ∼⟨ assoc _ _ _ ⟩
       (x + (y + (- (x + y)))) + - y
-                                     ≃⟨ assoc _ _ _ ⟨ •-pres-≈ ⟩ byDef ⟩
+                                     ∼⟨ assoc _ _ _ ⟨ •-pres-≈ ⟩ byDef ⟩
       ((x + y) + (- (x + y))) + - y
-                                     ≃⟨ proj₂ inverse _ ⟨ •-pres-≈ ⟩ byDef ⟩
+                                     ∼⟨ proj₂ inverse _ ⟨ •-pres-≈ ⟩ byDef ⟩
       0# + (- y)
-                                     ≃⟨ proj₁ identity _ ⟩
+                                     ∼⟨ proj₁ identity _ ⟩
       - y
                                      ∎
