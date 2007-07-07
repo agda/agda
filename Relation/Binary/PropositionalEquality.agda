@@ -98,7 +98,7 @@ module ≡-Reasoning where
   module ER-≡ {a : Set} where
     private
       module ER' = ER (≡-preSetoid a)
-        hiding (_≈⟨_⟩_)
+        hiding (_≈⟨_⟩_; ≈-byDef)
         renaming (_∼⟨_⟩_ to _≡⟨_⟩_)
     open ER' public
   open ER-≡ public

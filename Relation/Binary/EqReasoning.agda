@@ -42,8 +42,11 @@ abstract
   _≈⟨_⟩_ : forall x {y z} -> x ≈ y -> y ∼ z -> x ∼ z
   _ ≈⟨ x≈y ⟩ y∼z = trans (refl x≈y) y∼z
 
-  _∎ : forall x -> x ∼ x
-  _∎ _ = refl (EPre.refl ≡-refl)
+  ≈-byDef : forall {x} -> x ≈ x
+  ≈-byDef = EPre.refl ≡-refl
 
   byDef : forall {x} -> x ∼ x
-  byDef = _ ∎
+  byDef = refl ≈-byDef
+
+  _∎ : forall x -> x ∼ x
+  _∎ _ = byDef
