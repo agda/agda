@@ -32,6 +32,11 @@ import Relation.Binary.PropositionalEquality as Homo
          -> forall {x y} -> x ≅ y -> P x -> P y
 ≅-subst₁ P ≅-refl p = p
 
+≅-subst-removable
+  :  forall {a} (P : a -> Set) {x y} (eq : x ≅ y) z
+  -> ≅-subst P eq z ≅ z
+≅-subst-removable P ≅-refl z = ≅-refl
+
 ≅-cong : Congruential (\x y -> x ≅ y)
 ≅-cong = subst⟶cong ≅-reflexive-≡ ≅-subst
 
