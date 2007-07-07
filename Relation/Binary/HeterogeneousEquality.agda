@@ -18,10 +18,11 @@ import Relation.Binary.PropositionalEquality as Homo
             -> Reflexive {a} (\x y -> x ≅ y) (\x y -> x ≅ y)
 ≅-reflexive ≅-refl = ≅-refl
 
-≅-sym : {a : Set} -> Symmetric {a} (\x y -> x ≅ y)
+≅-sym : forall {a b} {x : a} {y : b} -> x ≅ y -> y ≅ x
 ≅-sym ≅-refl = ≅-refl
 
-≅-trans : {a : Set} -> Transitive {a} (\x y -> x ≅ y)
+≅-trans :  forall {a b c} {x : a} {y : b} {z : c}
+        -> x ≅ y -> y ≅ z -> x ≅ z
 ≅-trans ≅-refl ≅-refl = ≅-refl
 
 ≅-subst : {a : Set} -> Substitutive {a} (\x y -> x ≅ y)
