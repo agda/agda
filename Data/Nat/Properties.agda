@@ -344,17 +344,6 @@ abstract
   m+n∸m≡n z≤n       = byDef
   m+n∸m≡n (s≤s m≤n) = ≡-cong suc $ m+n∸m≡n m≤n
 
-  n≤m+n∸m : forall m n -> n ≤ m + (n ∸ m)
-  n≤m+n∸m m       zero    = z≤n
-  n≤m+n∸m zero    (suc n) = refl (byDef {x = suc n})
-    where refl = Preorder.refl (PartialOrder.preorder ℕ-partialOrder)
-  n≤m+n∸m (suc m) (suc n) = s≤s (n≤m+n∸m m n)
-
-  m⊓n≤m : forall m n -> m ⊓ n ≤ m
-  m⊓n≤m zero    _       = z≤n
-  m⊓n≤m (suc m) zero    = z≤n
-  m⊓n≤m (suc m) (suc n) = s≤s $ m⊓n≤m m n
-
   n≤1+n : forall n -> n ≤ 1 + n
   n≤1+n zero    = z≤n
   n≤1+n (suc n) = s≤s $ n≤1+n n
@@ -368,6 +357,24 @@ abstract
                ≤⟨ n≤1+n _ ⟩
     1 + m + n
                □
+
+  n∸m≤n : forall m n -> n ∸ m ≤ n
+  n∸m≤n zero    n       = ≤-refl
+  n∸m≤n (suc m) zero    = ≤-refl
+  n∸m≤n (suc m) (suc n) =
+    n ∸ m  ≤⟨ n∸m≤n m n ⟩
+    n      ≤⟨ n≤1+n n ⟩
+    suc n  □
+
+  n≤m+n∸m : forall m n -> n ≤ m + (n ∸ m)
+  n≤m+n∸m m       zero    = z≤n
+  n≤m+n∸m zero    (suc n) = ≤-refl
+  n≤m+n∸m (suc m) (suc n) = s≤s (n≤m+n∸m m n)
+
+  m⊓n≤m : forall m n -> m ⊓ n ≤ m
+  m⊓n≤m zero    _       = z≤n
+  m⊓n≤m (suc m) zero    = z≤n
+  m⊓n≤m (suc m) (suc n) = s≤s $ m⊓n≤m m n
 
   _+-mono_ : Monotone₂ _≤_ _≤_ _≤_ _+_
   _+-mono_ {zero} {m₂} {n₁} {n₂} z≤n n₁≤n₂ =
