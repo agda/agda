@@ -179,7 +179,6 @@ module Semantics
       proof true  (a ≡ b) isValid = lambda eq[ a ≡ b ] \ρ ->
 	  trans (step-a ρ) (trans (step-ab ρ) (step-b ρ))
 	where
-
 	  step-a : forall ρ -> eq[ a ≡ normalise a ↓ ] ρ
 	  step-a ρ = lem1 a ρ
 
