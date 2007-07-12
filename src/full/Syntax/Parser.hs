@@ -4,6 +4,7 @@ module Syntax.Parser
       Parser
       -- * Parse functions
     , Syntax.Parser.parse
+    , Syntax.Parser.parseLiterate
     , Syntax.Parser.parsePosString
     , parseFile'
       -- * Parsers
@@ -52,22 +53,22 @@ data Parser a = Parser
   }
 
 parse :: Strict a => Parser a -> String -> IO a
-parse p = wrapM . return . M.parse (parseFlags p) normal (parser p)
+parse p = wrapM . return . M.parse (parseFlags p) [normal] (parser p)
 
 parseFile :: Strict a => Parser a -> FilePath -> IO a
-parseFile p = wrapM . M.parseFile (parseFlags p) normal (parser p)
+parseFile p = wrapM . M.parseFile (parseFlags p) [normal] (parser p)
 
 parseLiterate :: Strict a => Parser a -> String -> IO a
 parseLiterate p =
-  wrapM . return . M.parse (parseFlags p) literate (parser p)
+  wrapM . return . M.parse (parseFlags p) [literate, code] (parser p)
 
 parseLiterateFile :: Strict a => Parser a -> FilePath -> IO a
 parseLiterateFile p =
-  wrapM . M.parseFile (parseFlags p) literate (parser p)
+  wrapM . M.parseFile (parseFlags p) [literate, code] (parser p)
 
 parsePosString :: Strict a => Parser a -> Position -> String -> IO a
 parsePosString p pos =
-  wrapM . return . M.parsePosString pos (parseFlags p) normal (parser p)
+  wrapM . return . M.parsePosString pos (parseFlags p) [normal] (parser p)
 
 -- | 'parseFile'' first converts the path into an absolute one, to
 -- ensure that all the resulting ranges are absolute.

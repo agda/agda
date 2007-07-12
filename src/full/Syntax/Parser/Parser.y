@@ -180,13 +180,21 @@ Token
     | literal	    { TokLiteral $1 }
 
 {--------------------------------------------------------------------------
+    TeX
+ --------------------------------------------------------------------------}
+
+TeX :: { () }
+TeX : {- empty -} { () }
+    | tex TeX	  { () }
+
+{--------------------------------------------------------------------------
     Top level
  --------------------------------------------------------------------------}
 
 File :: { ([Pragma], [Declaration]) }
-File : TopLevel		   { ([], $1) }
-     | TopLevelPragma File { let (ps,m) = $2 in ($1 : ps, m) }
-     | tex File		   { $2 }
+File : TopLevel		       { ([], $1) }
+     | TeX TopLevelPragma File { let (ps,m) = $3 in ($2 : ps, m) }
+     | File tex		       { $1 }
 
 
 {--------------------------------------------------------------------------
@@ -205,7 +213,7 @@ File : TopLevel		   { ([], $1) }
     brace. However when the parser sees the 'in' there will be a parse error.
     This is our cue to close the layout block.
 -}
-close : vclose	{ () }
+close : vclose  { () }
       | error	{% popContext }
 
 
@@ -213,8 +221,8 @@ close : vclose	{ () }
 -- brace, so we don't have to distinguish between the two semi colons. You can't
 -- use a virtual semi colon in a block started by a concrete brace, but this is
 -- simply because the lexer will not generate virtual semis in this case.
-semi : ';'	{ $1 }
-     | vsemi	{ $1 }
+semi : ';'	  { $1 }
+     | TeX vsemi  { $2 }
 
 
 -- Enter the 'imp_dir' lex state, where we can parse the keywords 'using',
@@ -644,9 +652,9 @@ Module : 'module' Id TypedBindingss0 'where' Declarations0
 
 -- The top-level consist of a bunch of import and open followed by a top-level module.
 TopLevel :: { [Declaration] }
-TopLevel : TopModule	   { [$1] }
-	 | Import TopLevel { $1 : $2 }
-	 | Open   TopLevel { $1 : $2 }
+TopLevel : TeX TopModule       { [$2] }
+	 | TeX Import TopLevel { $2 : $3 }
+	 | TeX Open   TopLevel { $2 : $3 }
 
 -- The top-level module can have a qualified name.
 TopModule :: { Declaration }
@@ -674,37 +682,36 @@ DeclarationPragma
 -- Non-empty list of type signatures. Used in postulates.
 TypeSignatures :: { [TypeSignature] }
 TypeSignatures
-    : vopen TypeSignatures1 close   { reverse $2 }
+    : TeX vopen TypeSignatures1 TeX close   { reverse $3 }
 
 -- Inside the layout block.
 TypeSignatures1 :: { [TypeSignature] }
 TypeSignatures1
-    : TypeSignatures1 semi TypeSig  { $3 : $1 }
-    | TypeSig			    { [$1] }
+    : TypeSignatures1 semi TeX TypeSig  { $4 : $1 }
+    | TeX TypeSig			{ [$2] }
 
 -- Constructors are type signatures. But constructor lists can be empty.
 Constructors :: { [Constructor] }
 Constructors
-    : TypeSignatures		    { $1 }
-    | vopen close		    { [] }
+    : TypeSignatures	  { $1 }
+    | TeX vopen TeX close { [] }
 
 -- Arbitrary declarations
 Declarations :: { [Declaration] }
 Declarations
-    : vopen Declarations1 close { reverse $2 }
+    : TeX vopen Declarations1 TeX close { reverse $3 }
 
 -- Arbitrary declarations
 Declarations0 :: { [Declaration] }
 Declarations0
-    : vopen close  { [] }
+    : TeX vopen TeX close  { [] }
     | Declarations { $1 }
 
 Declarations1 :: { [Declaration] }
 Declarations1
-    : Declarations1 semi Declaration { $3 : $1 }
-    | Declarations1 tex		     { $1 }
-    | Declaration		     { [$1] }
-    | tex Declaration		     { [$2] }
+    : Declarations1 semi TeX Declaration { $4 : $1 }
+--    | Declarations1 tex			 { $1 }
+    | TeX Declaration			 { [$2] }
 
 
 {
@@ -756,7 +763,7 @@ mkName (r,s) = do
             (x, s') = break (== '_') s
 
 	isValidId Hole     = return ()
-	isValidId (Id _ x) = case parse defaultParseFlags 0 (lexer return) x of
+	isValidId (Id _ x) = case parse defaultParseFlags [0] (lexer return) x of
 	    ParseOk _ (TokId _) -> return ()
 	    _			-> fail $ "in the name " ++ s ++ ", the part " ++ x ++ " is not valid"
 

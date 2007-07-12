@@ -158,14 +158,14 @@ instance HasRange ParseError where
     Running the parser
  --------------------------------------------------------------------------}
 
-initStatePos :: Position -> ParseFlags -> String -> LexState -> ParseState
+initStatePos :: Position -> ParseFlags -> String -> [LexState] -> ParseState
 initStatePos pos flags inp st =
 	PState  { parsePos	    = pos
 		, parseLastPos	    = pos
 		, parseInp	    = inp
 		, parsePrevChar	    = '\n'
 		, parsePrevToken    = ""
-		, parseLexState	    = [st]
+		, parseLexState	    = st
 		, parseLayout	    = [NoLayout]
 		, parseFlags	    = flags
 		}
@@ -173,7 +173,7 @@ initStatePos pos flags inp st =
 -- | Constructs the initial state of the parser. The string argument
 --   is the input string, the file path is only there because it's part
 --   of a position.
-initState :: FilePath -> ParseFlags -> String -> LexState -> ParseState
+initState :: FilePath -> ParseFlags -> String -> [LexState] -> ParseState
 initState file = initStatePos (startPos file)
 
 -- | The default flags.
@@ -183,18 +183,18 @@ defaultParseFlags = ParseFlags { parseKeepComments = False }
 -- | The most general way of parsing a string. The "Syntax.Parser" will define
 --   more specialised functions that supply the 'ParseFlags' and the
 --   'LexState'.
-parse :: ParseFlags -> LexState -> Parser a -> String -> ParseResult a
+parse :: ParseFlags -> [LexState] -> Parser a -> String -> ParseResult a
 parse flags st p input = unP p (initState "" flags input st)
 
 -- | The even more general way of parsing a string.
-parsePosString :: Position -> ParseFlags -> LexState -> Parser a -> String ->
+parsePosString :: Position -> ParseFlags -> [LexState] -> Parser a -> String ->
                   ParseResult a
 parsePosString pos flags st p input = unP p (initStatePos pos flags input st)
 
 -- | The most general way of parsing a file. The "Syntax.Parser" will define
 --   more specialised functions that supply the 'ParseFlags' and the
 --   'LexState'.
-parseFile :: ParseFlags -> LexState -> Parser a -> FilePath -> IO (ParseResult a)
+parseFile :: ParseFlags -> [LexState] -> Parser a -> FilePath -> IO (ParseResult a)
 parseFile flags st p file =
     do	input <- liftIO $ readFileUTF8 file
 	return $ unP p (initState file flags input st)

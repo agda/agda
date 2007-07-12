@@ -7,7 +7,7 @@ module Syntax.Parser.Lexer
     ( -- * The main function
       lexer
       -- * Lex states
-    , normal, literate
+    , normal, literate, code
     , layout, empty_layout, bol, imp_dir
       -- * Alex generated functions
     , AlexReturn(..), alexScanUser
@@ -53,10 +53,10 @@ $white_nonl  = $white # \n
 tokens :-
 
 -- Lexing literate files
-<tex>	 ^ \\ "begin{code}" \n	{ begin_ code }
-<tex>	 ^ .* \n		{ withRange TokTeX }
-<tex>	 ^ .+			{ withRange TokTeX }
-<code>   ^ \\ "end{code}" \n	{ end_ }
+<tex>	 ^ \\ "begin{code}" \n	    { end_ }
+<tex>	 ^ .* \n		    { withRange TokTeX }
+<tex>	 ^ .+			    { withRange TokTeX }
+<bol_,layout_>   \\ "end{code}" \n  { begin_ tex }
 
 -- White space
 <0,code,bol_,layout_,empty_layout_,imp_dir_,pragma_>
@@ -92,7 +92,7 @@ tokens :-
 <bol_>
     {
 	\n		    ;
-	^ \\ "end{code}"    { end }
+--	^ \\ "end{code}"    { end }
 	() / { notEOF }	    { offsideRule }
     }
 
