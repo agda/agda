@@ -3,5 +3,5 @@ module Version where
 
 -- | TODO: cpp this one
 version :: String
-version = "2.1.0"
+version = "2.1.1"
 
