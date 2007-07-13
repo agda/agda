@@ -32,6 +32,7 @@ import TypeChecking.MetaVars
 import TypeChecking.Rebind
 import TypeChecking.Primitive
 import TypeChecking.With
+import TypeChecking.Telescope
 
 import TypeChecking.Rules.Term		      ( checkExpr, inferExpr, checkTelescope )
 import TypeChecking.Rules.LHS		      ( checkLeftHandSide )
@@ -84,7 +85,16 @@ checkFunDef i name cs =
 
 data WithFunctionProblem
       = NoWithFunction
-      | WithFunction QName QName Telescope Telescope [Type] Type [Arg Pattern] Permutation [A.Clause]
+      | WithFunction QName          -- parent function name
+                     QName          -- with function name
+                     Telescope      -- arguments to parent function
+                     Telescope      -- arguments to the with function before the with expressions
+                     Telescope      -- arguments to the with function after the with expressions
+                     [Type]         -- types of the with expressions
+                     Type           -- type of the right hand side
+                     [Arg Pattern]  -- parent patterns
+                     Permutation    -- permutation reordering the variables in the parent pattern
+                     [A.Clause]     -- the given clauses for the with function
 
 -- | Type check a function clause.
 checkClause :: Type -> A.Clause -> TCM Clause
@@ -106,50 +116,72 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs wh) =
 		  -- Infer the types of the with expressions
 		  vas <- mapM inferExpr es
 		  let (vs, as) = unzip vas
+                  as  <- instantiateFull as
 
 		  -- Invent a clever name for the with function
 		  m <- currentModule
 		  reportSDoc "tc.with.top" 20 $ text "with function module:" <+> prettyList (map prettyTCM $ mnameToList m)
 		  aux <- qualify m <$> freshName_ "aux"
 
+                  -- Split the telescope into the part needed to type the with arguments
+                  -- and all the other stuff
+                  let fv = allVars $ freeVars as
+                      SplitTel delta1 delta2 perm' = splitTelescope fv delta
+                      finalPerm = composeP perm' perm
+
 		  -- Create the body of the original function
 		  ctx <- getContextTelescope
 		  let n	   = size ctx
+                      m    = size delta
 		      us   = [ Arg h (Var i []) | (i, Arg h _) <- zip [n - 1,n - 2..0] $ telToList ctx ]
-		      v	   = Def aux $ us ++ (map (Arg NotHidden) vs)
+                      (us0, us1') = splitAt (n - m) us
+                      (us1, us2)  = splitAt (size delta1) $ permute perm' us1'
+		      v	   = Def aux $ us0 ++ us1 ++ (map (Arg NotHidden) vs) ++ us2
+
+                  -- We need Δ₁Δ₂ ⊢ t'
+                  t' <- return $ rename (reverseP perm') t'
+                  -- and Δ₁ ⊢ as
+                  as <- do
+                    let var = flip Var []
+                        -- We know that as does not depend on Δ₂
+                        rho = replicate (size delta2) __IMPOSSIBLE__ ++ map var [0..]
+                    return $ substs rho (rename (reverseP perm') as)
 
 		  reportSDoc "tc.with.top" 20 $ vcat
 		    [ text "    with arguments" <+> prettyList (map prettyTCM vs)
 		    , text "             types" <+> prettyList (map prettyTCM as)
 		    , text "with function call" <+> prettyTCM v
 		    , text "           context" <+> (prettyTCM =<< getContextTelescope)
-		    ]
+                    , text "             delta" <+> prettyTCM delta
+                    , text "                fv" <+> text (show fv)
+                    ]
 
-		  return (mkBody v, WithFunction x aux gamma delta as t' ps perm cs)
+		  return (mkBody v, WithFunction x aux gamma delta1 delta2 as t' ps finalPerm cs)
       escapeContext (size delta) $ checkWithFunction with
       return $ Clause ps body
 checkClause t (A.Clause (A.LHS _ _ _ ps@(_ : _)) _ _) = typeError $ UnexpectedWithPatterns ps
 
 checkWithFunction :: WithFunctionProblem -> TCM ()
 checkWithFunction NoWithFunction = return ()
-checkWithFunction (WithFunction f aux gamma delta as b qs perm cs) = do
+checkWithFunction (WithFunction f aux gamma delta1 delta2 as b qs perm cs) = do
 
   reportSDoc "tc.with.top" 10 $ vcat
     [ text "checkWithFunction"
     , nest 2 $ vcat
-      [ text "delta =" <+> prettyTCM delta
-      , text "gamma =" <+> prettyTCM gamma
-      , text "as    =" <+> prettyList (map prettyTCM as)
-      , text "b     =" <+> prettyTCM b
+      [ text "delta1 =" <+> prettyTCM delta1
+      , text "delta2 =" <+> prettyTCM delta2
+      , text "gamma  =" <+> prettyTCM gamma
+      , text "as     =" <+> prettyList (map prettyTCM as)
+      , text "b      =" <+> prettyTCM b
       ]
     ]
 
   -- Add the type of the auxiliary function to the signature
 
   -- With display forms are closed
-  df <- makeClosed <$> withDisplayForm f aux delta (size as) qs perm
+  df <- makeClosed <$> withDisplayForm f aux delta1 delta2 (size as) qs perm
 
-  let auxType = telePi delta $ foldr fun b as
+  let auxType = telePi delta1 $ flip (foldr fun) as $ telePi delta2 b
   case df of
     OpenThing _ (Display n ts dt) -> reportSDoc "tc.with.top" 20 $ text "Display" <+> fsep
       [ text (show n)
@@ -165,7 +197,7 @@ checkWithFunction (WithFunction f aux gamma delta as b qs perm cs) = do
     ]
 
   -- Construct the body for the with function
-  cs <- buildWithFunction aux gamma qs perm (size as) cs
+  cs <- buildWithFunction aux gamma qs perm (size delta1) (size as) cs
 
   -- Check the with function
   checkFunDef info aux cs

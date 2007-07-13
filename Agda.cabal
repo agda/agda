@@ -123,6 +123,7 @@ exposed-modules: AgdaMain
 		 TypeChecking.Rules.Term
                  TypeChecking.Serialise
                  TypeChecking.Substitute
+                 TypeChecking.Telescope
 		 TypeChecking.With
                  Utils.Char
                  Utils.FileName

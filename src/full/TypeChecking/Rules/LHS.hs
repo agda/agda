@@ -19,6 +19,7 @@ import TypeChecking.Conversion
 import TypeChecking.Constraints
 import TypeChecking.Primitive (constructorForm)
 import TypeChecking.Empty (isEmptyType)
+import TypeChecking.Telescope (renamingR)
 
 import TypeChecking.Rules.Term (checkExpr)
 import TypeChecking.Rules.LHS.Problem

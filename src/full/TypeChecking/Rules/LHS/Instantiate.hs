@@ -11,6 +11,7 @@ import TypeChecking.Substitute
 import TypeChecking.Free
 import TypeChecking.Pretty
 import TypeChecking.Reduce
+import TypeChecking.Telescope
 
 import TypeChecking.Rules.LHS.Problem
 import TypeChecking.Rules.LHS.Split ( asView )
@@ -19,25 +20,6 @@ import Utils.Permutation
 import Utils.Size
 
 #include "../../../undefined.h"
-
--- | The permutation should permute the corresponding telescope. (left-to-right list)
-rename :: Subst t => Permutation -> t -> t
-rename p = substs (renaming p)
-
--- | If @permute π : [a]Γ -> [a]Δ@, then @substs (renaming π) : Term Γ -> Term Δ@
-renaming :: Permutation -> [Term]
-renaming p = gamma'
-  where
-    n	   = size p
-    gamma  = permute (reverseP $ invertP $ reverseP p) $ map var [0..]
-    gamma' = gamma ++ map var [n..]
-    var i  = Var i []
-
--- | If @permute π : [a]Γ -> [a]Δ@, then @substs (renamingR π) : Term Δ -> Term Γ@
-renamingR :: Permutation -> [Term]
-renamingR p@(Perm n _) = permute (reverseP p) (map var [0..]) ++ map var [n..]
-  where
-    var i  = Var i []
 
 -- | Instantiate a telescope with a substitution. Might reorder the telescope.
 --   @instantiateTel (Γ : Tel)(σ : Γ --> Γ) = Γσ~@
@@ -73,7 +55,7 @@ instantiateTel s tel = do
 
   -- tel1 : [Type Γ]Γ
   let tel1   = flattenTel tel
-      names1 = map (fst . unArg) $ telToList tel
+      names1 = teleNames tel
 
   reportSDoc "tc.lhs.inst" 15 $ nest 2 $ 
     text "tel1 =" <+> brackets (fsep $ punctuate comma $ map prettyTCM tel1)
@@ -127,32 +109,6 @@ instantiateTel s tel = do
 	    rho i (Nothing : s) = Var i [] : rho (i + 1) s
 	    rho i (Just u  : s) = u : rho i s
 	    rho _ []		= __IMPOSSIBLE__
-
-    -- Flatten telescope: (Γ : Tel) -> [Type Γ]
-    flattenTel :: Telescope -> [Arg Type]
-    flattenTel EmptyTel		 = []
-    flattenTel (ExtendTel a tel) = raise (size tel + 1) a : flattenTel (absBody tel)
-
-    -- Reorder: Γ -> Permutation (Γ -> Γ~)
-    reorderTel :: [Arg Type] -> Permutation
-    reorderTel tel = case topoSort comesBefore tel' of
-      Nothing -> __IMPOSSIBLE__
-      Just p  -> p
-      where
-	tel' = reverse $ zip [0..] $ reverse tel
-	(i, _) `comesBefore` (_, a) = i `freeIn` a
-
-    -- Unflatten: turns a flattened telescope into a proper telescope.
-    unflattenTel :: [String] -> [Arg Type] -> Telescope
-    unflattenTel []	  []	    = EmptyTel
-    unflattenTel (x : xs) (a : tel) = ExtendTel a' (Abs x tel')
-      where
-	tel' = unflattenTel xs tel
-	a'   = substs rho a
-	rho  = replicate (size tel + 1) __IMPOSSIBLE__ ++ map var [0..]
-	  where var i = Var i []
-    unflattenTel [] (_ : _) = __IMPOSSIBLE__
-    unflattenTel (_ : _) [] = __IMPOSSIBLE__
 
 -- | Produce a nice error message when splitting failed
 nothingToSplitError :: Problem -> TCM a

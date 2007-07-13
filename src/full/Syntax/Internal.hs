@@ -37,23 +37,27 @@ data Term = Var Nat Args
 	  | Sort Sort
 	  | MetaV MetaId Args
 	  | BlockedV (Blocked Term) -- ^ returned by 'TypeChecking.Reduce.reduce'
-  deriving (Typeable, Data, Eq)
+  deriving (Typeable, Data, Eq, Show)
 
 data Type = El Sort Term
-  deriving (Typeable, Data, Eq)
+  deriving (Typeable, Data, Eq, Show)
 
 data Sort = Type Nat
 	  | Prop 
 	  | Lub Sort Sort
 	  | Suc Sort
 	  | MetaS MetaId 
-  deriving (Typeable, Data, Eq)
+  deriving (Typeable, Data, Eq, Show)
 
 -- | Something where a particular meta variable blocks reduction.
 data Blocked t = Blocked { blockingMeta :: MetaId
 			 , blockee	:: t
 			 }
     deriving (Typeable, Data, Eq)
+
+instance Show t => Show (Blocked t) where
+  showsPrec p (Blocked m x) = showParen (p > 0) $
+    showString "Blocked " . shows m . showString " " . showsPrec 10 x
 
 instance Functor Blocked where
     fmap f (Blocked m t) = Blocked m $ f t
@@ -88,7 +92,7 @@ type Args = [Arg Term]
 --   and so on.
 data Telescope = EmptyTel
 	       | ExtendTel (Arg Type) (Abs Telescope)
-  deriving (Typeable, Data)
+  deriving (Typeable, Data, Show)
 
 instance Sized Telescope where
   size  EmptyTel	 = 0
@@ -99,6 +103,10 @@ data Abs a = Abs { absName :: String
 		 , absBody :: a
 		 }
   deriving (Typeable, Data, Eq)
+
+instance Show a => Show (Abs a) where
+  showsPrec p (Abs x a) = showParen (p > 0) $
+    showString "Abs " . shows x . showString " " . showsPrec 10 a
 
 instance Functor Abs where
   fmap f (Abs x t) = Abs x $ f t
@@ -129,12 +137,12 @@ telToList (ExtendTel arg (Abs x tel)) = fmap ((,) x) arg : telToList tel
 --   The @NoBind@ constructor is an optimisation to avoid
 --   substituting for variables that aren't used.
 --
-data Clause = Clause [Arg Pattern] ClauseBody deriving (Typeable, Data) 
+data Clause = Clause [Arg Pattern] ClauseBody deriving (Typeable, Data, Show)
 data ClauseBody = Body Term 
 		| Bind (Abs ClauseBody)
 		| NoBind ClauseBody
 		| NoBody    -- for absurd clauses
-  deriving (Typeable, Data)
+  deriving (Typeable, Data, Show)
 
 -- | Patterns are variables, constructors, or wildcards.
 --   @QName@ is used in @ConP@ rather than @Name@ since
@@ -145,7 +153,7 @@ data ClauseBody = Body Term
 data Pattern = VarP String  -- name suggestion
 	     | ConP QName [Arg Pattern]
 	     | LitP Literal
-  deriving (Typeable, Data)
+  deriving (Typeable, Data, Show)
 
 newtype MetaId = MetaId Nat
     deriving (Eq, Ord, Num, Typeable, Data)

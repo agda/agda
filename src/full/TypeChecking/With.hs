@@ -29,15 +29,16 @@ showPat (ConP c ps) = parens $ prettyTCM c <+> fsep (map (showPat . unArg) ps)
 showPat (LitP l)    = text (show l)
 
 -- | Compute the clauses for the with-function given the original patterns.
-buildWithFunction :: QName -> Telescope -> [Arg Pattern] -> Permutation -> Nat -> [A.Clause] -> TCM [A.Clause]
-buildWithFunction aux gamma qs perm n cs = mapM buildWithClause cs
+buildWithFunction :: QName -> Telescope -> [Arg Pattern] -> Permutation ->
+                     Nat -> Nat -> [A.Clause] -> TCM [A.Clause]
+buildWithFunction aux gamma qs perm n1 n cs = mapM buildWithClause cs
   where
     buildWithClause (A.Clause (LHS i _ ps wps) rhs wh) = do
       let (wps0, wps1) = splitAt n wps
           ps0          = map (Arg NotHidden . unnamed) wps0
       rhs <- buildRHS rhs
-      ps  <- stripWithClausePatterns gamma qs perm ps
-      return $ A.Clause (LHS i aux (ps ++ ps0) wps1) rhs wh
+      (ps1, ps2)  <- splitAt n1 <$> stripWithClausePatterns gamma qs perm ps
+      return $ A.Clause (LHS i aux (ps1 ++ ps0 ++ ps2) wps1) rhs wh
 
     buildRHS rhs@(RHS _)     = return rhs
     buildRHS rhs@AbsurdRHS   = return rhs
@@ -146,28 +147,29 @@ stripWithClausePatterns gamma qs perm ps = do
 -- | Construct the display form for a with function. It will display
 --   applications of the with function as applications to the original function.
 --   For instance, @aux a b c@ as @f (suc a) (suc b) | c@
-withDisplayForm :: QName -> QName -> Telescope -> Nat -> [Arg Pattern] -> Permutation -> TCM DisplayForm
-withDisplayForm f aux delta n qs perm = do
-  topArgs <- raise (n + size delta) <$> getContextArgs
+withDisplayForm :: QName -> QName -> Telescope -> Telescope -> Nat -> [Arg Pattern] -> Permutation -> TCM DisplayForm
+withDisplayForm f aux delta1 delta2 n qs perm = do
+  topArgs <- raise (n + size delta1 + size delta2) <$> getContextArgs
   x <- freshNoName_
   let wild = Def (qualify (mnameFromList []) x) []
 
   let top = length topArgs
-      vs = topArgs ++ raise n (substs (sub wild) $ patsToTerms qs)
+      vs = topArgs ++ raiseFrom (size delta2) n (substs (sub wild) $ patsToTerms qs)
       dt = DWithApp (map DTerm $ Def f vs : withArgs) []
-      withArgs = map var [0..n - 1]
-      pats = replicate (n + size delta + top) (Var 0 [])
+      withArgs = map var [size delta2..size delta2 + n - 1]
+      pats = replicate (n + size delta1 + size delta2 + top) (Var 0 [])
 
   reportSDoc "tc.with.display" 20 $ vcat
     [ text "withDisplayForm"
     , nest 2 $ vcat
-      [ text "delta =" <+> prettyTCM delta
-      , text "perm  =" <+> text (show perm)
-      , text "dt    =" <+> prettyTCM dt
+      [ text "delta1 =" <+> prettyTCM delta1
+      , text "delta2 = " <+> prettyTCM delta2
+      , text "perm   =" <+> text (show perm)
+      , text "dt     =" <+> prettyTCM dt
       ]
     ]
 
-  return $ Display (n + size delta + top) pats dt
+  return $ Display (n + size delta1 + size delta2 + top) pats dt
   where
     var i = Var i []
     sub wild = map term [0..m - 1]
