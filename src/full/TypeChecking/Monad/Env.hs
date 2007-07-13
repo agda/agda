@@ -24,4 +24,3 @@ withEnv env m = local (const env) m
 getEnv :: MonadTCM tcm => tcm TCEnv
 getEnv = ask
 
-

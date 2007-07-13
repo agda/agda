@@ -4,6 +4,7 @@ module TypeChecking.Monad.Options where
 
 import Prelude hiding (putStr, putStrLn, print)
 
+import Control.Monad.Reader
 import Control.Monad.State
 import Data.Maybe
 import Text.PrettyPrint
@@ -43,6 +44,20 @@ bracketOptions m = do
     x    <- m
     setCommandLineOptions opts
     return x
+
+-- | Disable display forms.
+enableDisplayForms :: MonadTCM tcm => tcm a -> tcm a
+enableDisplayForms =
+  local $ \e -> e { envDisplayFormsEnabled = True }
+
+-- | Disable display forms.
+disableDisplayForms :: MonadTCM tcm => tcm a -> tcm a
+disableDisplayForms =
+  local $ \e -> e { envDisplayFormsEnabled = False }
+
+-- | Check if display forms are enabled.
+displayFormsEnabled :: MonadTCM tcm => tcm Bool
+displayFormsEnabled = asks envDisplayFormsEnabled
 
 getIncludeDirs :: MonadTCM tcm => tcm [FilePath]
 getIncludeDirs = addDot . optIncludeDirs <$> commandLineOptions

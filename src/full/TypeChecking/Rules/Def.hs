@@ -19,6 +19,7 @@ import Syntax.Internal
 import qualified Syntax.Info as Info
 import qualified Syntax.Abstract.Pretty as A
 import Syntax.Fixity
+import Syntax.Translation.InternalToAbstract
 
 import TypeChecking.Monad
 import TypeChecking.Reduce
@@ -34,7 +35,7 @@ import TypeChecking.Primitive
 import TypeChecking.With
 import TypeChecking.Telescope
 
-import TypeChecking.Rules.Term		      ( checkExpr, inferExpr, checkTelescope )
+import TypeChecking.Rules.Term		      ( checkExpr, inferExpr, checkTelescope, isType_ )
 import TypeChecking.Rules.LHS		      ( checkLeftHandSide )
 import {-# SOURCE #-} TypeChecking.Rules.Decl ( checkDecls )
 
@@ -90,6 +91,7 @@ data WithFunctionProblem
                      Telescope      -- arguments to parent function
                      Telescope      -- arguments to the with function before the with expressions
                      Telescope      -- arguments to the with function after the with expressions
+                     [Term]         -- with expressions
                      [Type]         -- types of the with expressions
                      Type           -- type of the right hand side
                      [Arg Pattern]  -- parent patterns
@@ -115,8 +117,7 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs wh) =
 
 		  -- Infer the types of the with expressions
 		  vas <- mapM inferExpr es
-		  let (vs, as) = unzip vas
-                  as  <- instantiateFull as
+		  (vs, as) <- instantiateFull $ unzip vas
 
 		  -- Invent a clever name for the with function
 		  m <- currentModule
@@ -125,7 +126,7 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs wh) =
 
                   -- Split the telescope into the part needed to type the with arguments
                   -- and all the other stuff
-                  let fv = allVars $ freeVars as
+                  let fv = allVars $ freeVars vs
                       SplitTel delta1 delta2 perm' = splitTelescope fv delta
                       finalPerm = composeP perm' perm
 
@@ -140,12 +141,12 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs wh) =
 
                   -- We need Δ₁Δ₂ ⊢ t'
                   t' <- return $ rename (reverseP perm') t'
-                  -- and Δ₁ ⊢ as
-                  as <- do
+                  -- and Δ₁ ⊢ vs : as
+                  (vs, as) <- do
                     let var = flip Var []
                         -- We know that as does not depend on Δ₂
                         rho = replicate (size delta2) __IMPOSSIBLE__ ++ map var [0..]
-                    return $ substs rho (rename (reverseP perm') as)
+                    return $ substs rho $ rename (reverseP perm') (vs, as)
 
 		  reportSDoc "tc.with.top" 20 $ vcat
 		    [ text "    with arguments" <+> prettyList (map prettyTCM vs)
@@ -156,14 +157,14 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs wh) =
                     , text "                fv" <+> text (show fv)
                     ]
 
-		  return (mkBody v, WithFunction x aux gamma delta1 delta2 as t' ps finalPerm cs)
+		  return (mkBody v, WithFunction x aux gamma delta1 delta2 vs as t' ps finalPerm cs)
       escapeContext (size delta) $ checkWithFunction with
       return $ Clause ps body
 checkClause t (A.Clause (A.LHS _ _ _ ps@(_ : _)) _ _) = typeError $ UnexpectedWithPatterns ps
 
 checkWithFunction :: WithFunctionProblem -> TCM ()
 checkWithFunction NoWithFunction = return ()
-checkWithFunction (WithFunction f aux gamma delta1 delta2 as b qs perm cs) = do
+checkWithFunction (WithFunction f aux gamma delta1 delta2 vs as b qs perm cs) = do
 
   reportSDoc "tc.with.top" 10 $ vcat
     [ text "checkWithFunction"
@@ -181,7 +182,9 @@ checkWithFunction (WithFunction f aux gamma delta1 delta2 as b qs perm cs) = do
   -- With display forms are closed
   df <- makeClosed <$> withDisplayForm f aux delta1 delta2 (size as) qs perm
 
-  let auxType = telePi delta1 $ flip (foldr fun) as $ telePi delta2 b
+  absAuxType <- disableDisplayForms $ reify =<< withFunctionType delta1 vs as delta2 b
+  auxType <- isType_ absAuxType
+
   case df of
     OpenThing _ (Display n ts dt) -> reportSDoc "tc.with.top" 20 $ text "Display" <+> fsep
       [ text (show n)
@@ -203,8 +206,6 @@ checkWithFunction (WithFunction f aux gamma delta1 delta2 as b qs perm cs) = do
   checkFunDef info aux cs
 
   where
-    fun a b = El s $ Fun (Arg NotHidden a) b
-      where s = (sLub `on` getSort) a b
     info = Info.mkRangedDefInfo (nameConcrete $ qnameName aux) defaultFixity PublicAccess ConcreteDef (getRange cs)
 
 -- | Type check a where clause. The first argument is the number of variables

@@ -480,16 +480,19 @@ data TCEnv =
 		--   or the body of a non-abstract definition this is true.
 		--   To prevent information about abstract things leaking
 		--   outside the module.
+          , envDisplayFormsEnabled :: Bool
+                -- ^ Sometimes we want to disable display forms.
 	  }
     deriving (Typeable, Data)
 
 initEnv :: TCEnv
-initEnv = TCEnv { envContext	   = []
-		, envLetBindings   = Map.empty
-		, envCurrentModule = noModuleName
-		, envImportPath	   = []
-		, envMutualBlock   = Nothing
-		, envAbstractMode  = AbstractMode
+initEnv = TCEnv { envContext	         = []
+		, envLetBindings         = Map.empty
+		, envCurrentModule       = noModuleName
+		, envImportPath          = []
+		, envMutualBlock         = Nothing
+		, envAbstractMode        = AbstractMode
+                , envDisplayFormsEnabled = True
 		}
 
 ---------------------------------------------------------------------------

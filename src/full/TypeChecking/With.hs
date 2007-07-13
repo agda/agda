@@ -18,6 +18,7 @@ import TypeChecking.Reduce
 import TypeChecking.Primitive hiding (Nat)
 import TypeChecking.Pretty
 import TypeChecking.Rules.LHS.Implicit
+import TypeChecking.Abstract
 
 import Utils.Permutation
 import Utils.Size
@@ -27,6 +28,12 @@ import Utils.Size
 showPat (VarP x)    = text x
 showPat (ConP c ps) = parens $ prettyTCM c <+> fsep (map (showPat . unArg) ps)
 showPat (LitP l)    = text (show l)
+
+withFunctionType :: Telescope -> [Term] -> [Type] -> Telescope -> Type -> TCM Type
+withFunctionType delta1 vs as delta2 b = do
+  vas <- normalise $ zip vs as
+  b   <- normalise $ telePi delta2 b
+  return $ telePi delta1 $ foldr (uncurry piAbstractTerm) b vas
 
 -- | Compute the clauses for the with-function given the original patterns.
 buildWithFunction :: QName -> Telescope -> [Arg Pattern] -> Permutation ->
