@@ -1,0 +1,3 @@
+
+fst p != w of type Nat
+when checking that the expression snd p has type IsZero w
