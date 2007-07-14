@@ -118,6 +118,9 @@ type Telescope = [TypedBindings]
 data LHS = LHS Pattern   -- ^ original pattern
                [Pattern] -- ^ with-patterns
                [Expr]    -- ^ with-expressions
+         | Ellipsis Range
+                    [Pattern] -- ^ new with-patterns
+                    [Expr]    -- ^ with-expressions
   deriving (Typeable, Data, Eq)
 
 data RHS = AbsurdRHS
@@ -283,6 +286,7 @@ instance HasRange Declaration where
 
 instance HasRange LHS where
   getRange (LHS p ps es) = fuseRange p (fuseRange ps es)
+  getRange (Ellipsis r _ _) = r
 
 instance HasRange RHS where
     getRange AbsurdRHS = noRange

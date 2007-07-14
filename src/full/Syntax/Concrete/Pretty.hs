@@ -144,12 +144,15 @@ instance Pretty WhereClause where
 	 ]
 
 instance Pretty LHS where
-  pretty (LHS p ps es) =
-    sep [ pretty p
-	, nest 2 $ fsep $ map ((text "|" <+>) . pretty) ps
-	, nest 2 $ pWith es
-	]
+  pretty lhs = case lhs of
+    LHS p ps es      -> pr (pretty p) ps es
+    Ellipsis _ ps es -> pr (text "...") ps es
     where
+      pr d ps es =
+        sep [ d
+            , nest 2 $ fsep $ map ((text "|" <+>) . pretty) ps
+            , nest 2 $ pWith es
+            ]
       pWith []	     = empty
       pWith (e : es) = fsep $ (text "with" <+> pretty e)
 			    : map ((text "|" <+>) . pretty) es

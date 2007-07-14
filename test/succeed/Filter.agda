@@ -14,8 +14,8 @@ data List (A : Set) : Set where
 filter : {A : Set} -> (A -> Bool) -> List A -> List A
 filter p [] = []
 filter p (x :: xs) with p x
-filter p (x :: xs) | true = x :: filter p xs
-filter p (X :: xs) | false = filter p xs
+...                | true  = x :: filter p xs
+...                | false = filter p xs
 
 infix 20 _⊆_
 
@@ -27,5 +27,6 @@ data _⊆_ {A : Set} : List A -> List A -> Set where
 subset : {A : Set}(p : A -> Bool)(xs : List A) -> filter p xs ⊆ xs
 subset p [] = stop
 subset p (x :: xs) with p x
-subset p (x :: xs) | true  = keep (subset p xs)
-subset p (x :: xs) | false = drop (subset p xs)
+...                | true  = keep (subset p xs)
+...                | false = drop (subset p xs)
+

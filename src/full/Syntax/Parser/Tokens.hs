@@ -31,7 +31,7 @@ data Symbol
 	| SymOpenParen	      | SymCloseParen
 	| SymOpenBrace	      | SymCloseBrace
 	| SymOpenVirtualBrace | SymCloseVirtualBrace
-	| SymOpenPragma	      | SymClosePragma
+	| SymOpenPragma	      | SymClosePragma | SymEllipsis
     deriving (Eq, Show)
 
 data Token

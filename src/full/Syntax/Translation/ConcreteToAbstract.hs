@@ -100,6 +100,11 @@ annotateExpr e = do
   s <- getScope
   return $ ScopedExpr s e
 
+expandEllipsis :: C.Pattern -> [C.Pattern] -> C.Clause -> C.Clause
+expandEllipsis _ _ c@(C.Clause _ (C.LHS _ _ _) _ _ _) = c
+expandEllipsis p ps (C.Clause x (C.Ellipsis _ ps' es) rhs wh wcs) =
+  C.Clause x (C.LHS p (ps ++ ps') es) rhs wh wcs
+
 {--------------------------------------------------------------------------
     Translation
  --------------------------------------------------------------------------}
@@ -445,9 +450,9 @@ instance ToAbstract NiceDefinition Definition where
 
     -- Function definitions
     toAbstract d@(C.FunDef r ds f p a x cs) =
-      traceCall (ScopeCheckDefinition d) $
-	do  (x',cs') <- toAbstract (OldName x,cs)
-	    return $ A.FunDef (mkSourcedDefInfo x f p a ds) x' cs'
+      traceCall (ScopeCheckDefinition d) $ do
+        (x',cs') <- toAbstract (OldName x,cs)
+	return $ A.FunDef (mkSourcedDefInfo x f p a ds) x' cs'
 
     -- Data definitions
     toAbstract d@(C.DataDef r f p a x pars cons) =
@@ -647,7 +652,9 @@ instance ToAbstract (Constr C.NiceDeclaration) A.Declaration where
 --   toAbstract _ = __IMPOSSIBLE__	-- constructors are axioms
 
 instance ToAbstract C.Clause A.Clause where
+    toAbstract (C.Clause top (C.Ellipsis _ _ _) _ _ _) = fail "bad '...'" -- TODO: errors message
     toAbstract (C.Clause top lhs@(C.LHS p wps with) rhs wh wcs) = withLocalVars $ do
+      let wcs' = map (expandEllipsis p wps) wcs
       vars <- getLocalVars
       lhs' <- toAbstract (LeftHandSide top p wps)
       printLocals 10 "after lhs:"
@@ -657,7 +664,7 @@ instance ToAbstract C.Clause A.Clause where
 	    SomeWhere m ds -> (Just m, ds)
       case whds of
 	[] -> do
-	  rhs <- toAbstractCtx TopCtx (RightHandSide vars with wcs rhs)
+	  rhs <- toAbstractCtx TopCtx (RightHandSide vars with wcs' rhs)
 	  return $ A.Clause lhs' rhs []
 	_	-> do
 	  m <- C.QName <$> maybe (nameConcrete <$> freshNoName noRange) return whname
@@ -667,7 +674,7 @@ instance ToAbstract C.Clause A.Clause where
 	  (scope, ds) <- scopeCheckModule (getRange wh) acc ConcreteDef m am tel whds
 	  setScope scope
 	  -- the right hand side is checked inside the module of the local definitions
-	  rhs <- toAbstractCtx TopCtx (RightHandSide vars with wcs rhs)
+	  rhs <- toAbstractCtx TopCtx (RightHandSide vars with wcs' rhs)
 	  qm <- getCurrentModule
 	  case acc of
 	    PublicAccess  -> popScope PublicAccess

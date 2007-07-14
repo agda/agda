@@ -304,13 +304,17 @@ niceDeclarations ds = nice (fixities ds) ds
             -- A clause is a subclause if the number of with-patterns is
             -- greater or equal to the current number of with-patterns plus the
             -- number of with arguments.
-            subClause (FunClause (LHS _ ps' _) _ _) = length ps' >= length ps + length es
-            subClause _                             = __IMPOSSIBLE__
+            subClause (FunClause (LHS _ ps' _) _ _)      = length ps' >= length ps + length es
+            subClause (FunClause (Ellipsis _ ps' _) _ _) = True
+            subClause _                                  = __IMPOSSIBLE__
+        mkClauses x (FunClause lhs@(Ellipsis _ _ _) rhs wh : cs) =
+          Clause x lhs rhs wh [] : mkClauses x cs   -- Will result in an error later.
         mkClauses _ _ = __IMPOSSIBLE__
 
 	noSingletonRawAppP (RawAppP _ [p]) = noSingletonRawAppP p
 	noSingletonRawAppP p		   = p
 
+        isFunClauseOf x (FunClause (Ellipsis _ _ _) _ _) = True
 	isFunClauseOf x (FunClause (LHS p _ _) _ _) = case noSingletonRawAppP p of
 	    IdentP (QName q)	-> x == q
 	    _			-> True

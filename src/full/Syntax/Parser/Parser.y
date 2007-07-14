@@ -76,6 +76,7 @@ import Utils.Monad
     tex		{ TokTeX $$ }
     comment	{ TokComment $$ }
 
+    '...'	{ TokSymbol SymEllipsis $$ }
     '.'		{ TokSymbol SymDot $$ }
     ';'		{ TokSymbol SymSemi $$ }
     ':'		{ TokSymbol SymColon $$ }
@@ -153,6 +154,7 @@ Token
     | tex	    { TokTeX $1 }
     | comment	    { TokComment $1 }
 
+    | '...'	    { TokSymbol SymEllipsis $1 }
     | '.'	    { TokSymbol SymDot $1 }
     | ';'	    { TokSymbol SymSemi $1 }
     | ':'	    { TokSymbol SymColon $1 }
@@ -192,9 +194,10 @@ TeX : {- empty -} { () }
  --------------------------------------------------------------------------}
 
 File :: { ([Pragma], [Declaration]) }
-File : TopLevel		       { ([], $1) }
-     | TeX TopLevelPragma File { let (ps,m) = $3 in ($2 : ps, m) }
-     | File tex		       { $1 }
+File : File1 TeX  { $1 }
+
+File1 : TopLevel		 { ([], $1) }
+      | TeX TopLevelPragma File1 { let (ps,m) = $3 in ($2 : ps, m) }
 
 
 {--------------------------------------------------------------------------
@@ -524,7 +527,15 @@ CommaImportNames1
 -- A left hand side of a function clause. We parse it as an expression, and
 -- then check that it is a valid left hand side.
 LHS :: { LHS }
-LHS : Expr1 WithExpressions {% exprToLHS $1 >>= \p -> return (p $2) }
+LHS : Expr1 WithExpressions	     {% exprToLHS $1 >>= \p -> return (p $2) }
+    | '...' WithPats WithExpressions { Ellipsis (fuseRange $1 $3) $2 $3 }
+
+WithPats :: { [Pattern] }
+WithPats : {- empty -}	{ [] }
+	 | '|' Application3 WithPats
+		{% exprToPattern (RawApp (getRange $2) $2) >>= \p ->
+		   return (p : $3)
+		}
 
 WithExpressions :: { [Expr] }
 WithExpressions
