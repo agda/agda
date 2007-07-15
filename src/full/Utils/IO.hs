@@ -46,7 +46,7 @@ readBinaryFile file = liftM fst $ readBinaryFile' file
 readBinaryFile' :: FilePath -> IO (ByteString, IO ())
 readBinaryFile' file = do
 #ifdef mingw32_HOST_OS
-    h <- openFile file ReadMode
+    h <- System.IO.openBinaryFile file ReadMode
     s <- BS8.pack `fmap` hGetContents h
 #else
     h <- openBinaryFile file ReadMode
@@ -57,10 +57,10 @@ readBinaryFile' file = do
 writeBinaryFile :: FilePath -> String -> IO ()
 writeBinaryFile file s = do
 #ifdef mingw32_HOST_OS
-    Prelude.writeFile file s
+    h <- System.IO.openBinaryFile file WriteMode
 #else
     h <- openBinaryFile file WriteMode
+#endif
     hPutStr h s
     hClose h
-#endif
 

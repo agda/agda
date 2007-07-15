@@ -1,5 +1,6 @@
 {-# LANGUAGE OverlappingInstances,
              GeneralizedNewtypeDeriving #-}
+{-# OPTIONS  -cpp #-}
 
 -- | Serialisation of Agda interface files.
 
@@ -30,6 +31,7 @@ import qualified Data.Binary.Put as B
 import qualified Data.Binary.Get as B
 import qualified Data.Binary.Builder as B
 import qualified Data.ByteString.Lazy as L
+import qualified Data.ByteString.Lazy.Char8 as L8
 import qualified Data.ByteString.Base as BB
 import Data.Word
 import qualified Codec.Compression.GZip as G
@@ -49,6 +51,7 @@ import TypeChecking.Monad
 
 import Utils.Serialise
 import Utils.Tuple
+import qualified Utils.IO
 
 -- | Current version of the interface. Only interface files of this version
 --   will be parsed.
@@ -252,13 +255,20 @@ decode s
 -- | Encodes a file. See 'encode'.
 
 encodeFile :: Binary a => FilePath -> a -> IO ()
+#ifdef mingw32_HOST_OS
+encodeFile f x = Utils.IO.writeBinaryFile f $ L8.unpack $ encode x
+#else
 encodeFile f x = L.writeFile f (encode x)
+#endif
 
 -- | Decodes a file written by 'encodeFile'.
 
 decodeFile :: Binary a => FilePath -> IO a
+#ifdef mingw32_HOST_OS
+decodeFile f = liftM decode $ Utils.IO.readBinaryFile f
+#else
 decodeFile f = liftM decode $ L.readFile f
-
+#endif
 ------------------------------------------------------------------------
 -- More boring instances
 ------------------------------------------------------------------------
