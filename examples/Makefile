@@ -3,7 +3,7 @@ TOP = ..
 
 include $(TOP)/mk/paths.mk
 
-default : test polydep aim4-bag ac minmax clowns real
+default : test polydep aim4-bag ac minmax clowns vfl real
 
 agda = $(AGDA_BIN)
 
@@ -43,6 +43,11 @@ minmax : order/MinMax.agda
 real : lib/Data/Real/CReal.agda
 	@echo "Testing $<... "
 	@echo :q | $(run_agda) -ilib $<
+	@echo "ok"
+
+view : vfl/Typechecker.agda
+	@echo "Testing $<... "
+	@echo :q | $(run_agda) $<
 	@echo "ok"
 
 test : $(agda) $(tests)
