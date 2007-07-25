@@ -282,13 +282,33 @@ niceDeclarations ds = nice (fixities ds) ds
 		    (TypeSig x t : ds0)
 		    [ Axiom (fuseRange x t) f PublicAccess ConcreteDef x t ]
 		    [ FunDef (getRange ds0) ds0 f PublicAccess ConcreteDef x
-			     (mkClauses x ds0)
+			     (mkClauses x $ expandEllipsis ds0)
 		    ]
 	    where
 		f  = fixity x fixs
 		t = case mt of
 			Just t	-> t
 			Nothing	-> Underscore (getRange x) Nothing
+
+
+        expandEllipsis :: [Declaration] -> [Declaration]
+        expandEllipsis [] = []
+        expandEllipsis (d@(FunClause (Ellipsis _ _ _) _ _) : ds) =
+          d : expandEllipsis ds
+        expandEllipsis (d@(FunClause lhs@(LHS p ps _) _ _) : ds) =
+          d : expand p ps ds
+          where
+            expand _ _ [] = []
+            expand p ps (FunClause (Ellipsis _ ps' []) rhs wh : ds) =
+              FunClause (LHS p (ps ++ ps') []) rhs wh : expand p ps ds
+            expand p ps (FunClause (Ellipsis _ ps' es) rhs wh : ds) =
+              FunClause (LHS p (ps ++ ps') es) rhs wh : expand p (ps ++ ps') ds
+            expand p ps (d@(FunClause (LHS _ _ []) _ _) : ds) =
+              d : expand p ps ds
+            expand _ _ (d@(FunClause (LHS p ps (_ : _)) _ _) : ds) =
+              d : expand p ps ds
+            expand _ _ (_ : ds) = __IMPOSSIBLE__
+        expandEllipsis (_ : ds) = __IMPOSSIBLE__
 
 
         -- Turn function clauses into nice function clauses.
