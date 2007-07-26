@@ -368,20 +368,31 @@ makeCM pats ts matrix = Term.CallMatrix $
                             })
                  matrix
 
+-- | Compute the sub patterns of a 'DeBruijnPat'.
+subPatterns :: DeBruijnPat -> [DeBruijnPat]
+subPatterns p = case p of
+  VarDBP _    -> []
+  ConDBP c ps -> ps ++ concatMap subPatterns ps
+  LitDBP _    -> []
+
+compareTerm :: Term -> DeBruijnPat -> Term.Order
+compareTerm t p = Term.supremum $ compareTerm' t p : map cmp (subPatterns p)
+  where
+    cmp p' = (Term..*.) Term.Lt (compareTerm' t p')
 
 -- | compareTerm t dbpat
 --   Precondition: t not a BlockedV, top meta variable resolved
-compareTerm :: Term -> DeBruijnPat -> Term.Order
-compareTerm (Var i _)  p              = compareVar i p
-compareTerm (Lit l)    (LitDBP l')    = if l == l' then Term.Le
+compareTerm' :: Term -> DeBruijnPat -> Term.Order
+compareTerm' (Var i _)  p              = compareVar i p
+compareTerm' (Lit l)    (LitDBP l')    = if l == l' then Term.Le
                                                    else Term.Unknown
-compareTerm (Lit l)    _              = Term.Unknown
-compareTerm (Con c ts) (ConDBP c' ps) =
+compareTerm' (Lit l)    _              = Term.Unknown
+compareTerm' (Con c ts) (ConDBP c' ps) =
   if c == c' then
     if null ts then Term.Le
-               else Term.infimum (zipWith compareTerm (map unArg ts) ps)
+               else Term.infimum (zipWith compareTerm' (map unArg ts) ps)
    else Term.Unknown
-compareTerm _ _ = Term.Unknown
+compareTerm' _ _ = Term.Unknown
 
 compareVar :: Nat -> DeBruijnPat -> Term.Order
 compareVar i (VarDBP j)    = if i == j then Term.Le else Term.Unknown
