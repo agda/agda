@@ -11,8 +11,10 @@ import Data.List as List
 import Syntax.Internal
 import TypeChecking.Monad
 import TypeChecking.Errors
+import TypeChecking.Reduce
 
 #ifndef __HADDOCK__
+import {-# SOURCE #-} TypeChecking.Rules.Term (checkExpr)
 import {-# SOURCE #-} TypeChecking.Conversion
 import {-# SOURCE #-} TypeChecking.MetaVars
 #endif
@@ -79,10 +81,21 @@ solveConstraint (TypeEq a b)	= equalType a b
 solveConstraint (SortEq s1 s2)	= equalSort s1 s2
 solveConstraint (Guarded c cs)	= guardConstraint (return cs) c
 solveConstraint (UnBlock m) = do
-    BlockedConst t <- mvInstantiation <$> lookupMeta m
-    verbose 5 $ do
-	d <- prettyTCM t
-	debug $ show m ++ " := " ++ show d
-    assignTerm m t
-    return []
+    inst <- mvInstantiation <$> lookupMeta m
+    case inst of
+      BlockedConst t -> do
+        verbose 5 $ do
+            d <- prettyTCM t
+            debug $ show m ++ " := " ++ show d
+        assignTerm m t
+        return []
+      PostponedTypeCheckingProblem e t -> do
+        t <- reduce t
+        case unEl t of
+          MetaV _ _ -> buildConstraint $ UnBlock m
+          _         -> do
+            v <- liftTCM $ checkExpr e t
+            assignTerm m v
+            return []
+      _ -> __IMPOSSIBLE__
 

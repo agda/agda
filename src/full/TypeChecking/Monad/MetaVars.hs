@@ -99,9 +99,13 @@ getOpenJudgement (IsSort a)    = return $ IsSort a
 
 -- | Generate new meta variable.
 newMeta :: MonadTCM tcm => MetaInfo -> MetaPriority -> Judgement (Open Type) a -> tcm MetaId
-newMeta mi p j = do
+newMeta = newMeta' Open
+
+newMeta' :: MonadTCM tcm => MetaInstantiation -> MetaInfo -> MetaPriority ->
+            Judgement (Open Type) a -> tcm MetaId
+newMeta' inst mi p j = do
   x <- fresh
-  let mv = MetaVar mi p (fmap (const x) j) Open Set.empty
+  let mv = MetaVar mi p (fmap (const x) j) inst Set.empty
   modify $ \st -> st { stMetaStore = Map.insert x mv $ stMetaStore st }
   return x
 
@@ -128,20 +132,22 @@ getInstantiatedMetas = do
     store <- getMetaStore
     return [ i | (i, MetaVar _ _ _ mi _) <- Map.assocs store, isInst mi ]
     where
-	isInst Open		= False
-	isInst (BlockedConst _) = False
-	isInst (InstV _)	= True
-	isInst (InstS _)	= True
+	isInst Open                               = False
+	isInst (BlockedConst _)                   = False
+        isInst (PostponedTypeCheckingProblem _ _) = False
+	isInst (InstV _)                          = True
+	isInst (InstS _)                          = True
 
 getOpenMetas :: MonadTCM tcm => tcm [MetaId]
 getOpenMetas = do
     store <- getMetaStore
     return [ i | (i, MetaVar _ _ _ mi _) <- Map.assocs store, isOpen mi ]
     where
-	isOpen Open		= True
-	isOpen (BlockedConst _) = True
-	isOpen (InstV _)	= False
-	isOpen (InstS _)	= False
+	isOpen Open                               = True
+	isOpen (BlockedConst _)                   = True
+        isOpen (PostponedTypeCheckingProblem _ _) = True
+	isOpen (InstV _)                          = False
+	isOpen (InstS _)                          = False
 
 -- | @listenToMeta l m@: register @l@ as a listener to @m@. This is done
 --   when the type of l is blocked by @m@.

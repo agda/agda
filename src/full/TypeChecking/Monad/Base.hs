@@ -211,6 +211,7 @@ data MetaInstantiation
 	| InstS Sort
 	| Open
 	| BlockedConst Term
+        | PostponedTypeCheckingProblem A.Expr Type
     deriving (Typeable, Data)
 
 newtype MetaPriority = MetaPriority Int

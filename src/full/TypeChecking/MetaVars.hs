@@ -16,6 +16,7 @@ import Syntax.Common
 import qualified Syntax.Info as Info
 import Syntax.Internal
 import Syntax.Position
+import qualified Syntax.Abstract as A
 
 import TypeChecking.Monad
 import TypeChecking.Reduce
@@ -53,10 +54,11 @@ isBlockedTerm x = do
     report 12 $ "is " ++ show x ++ " a blocked term? "
     i <- mvInstantiation <$> lookupMeta x
     let r = case i of
-	    BlockedConst _ -> True
-	    InstV _	   -> False
-	    InstS _	   -> False
-	    Open	   -> False
+	    BlockedConst _                   -> True
+            PostponedTypeCheckingProblem _ _ -> True
+	    InstV _                          -> False
+	    InstS _                          -> False
+	    Open                             -> False
     reportLn 12 $ if r then "yes" else "no"
     return r
 
@@ -176,10 +178,9 @@ blockTerm t v m = do
 	    i	  <- createMetaInfo
 	    vs	  <- getContextArgs
 	    tel   <- getContextTelescope
-	    x	  <- newMeta i lowMetaPriority (HasType () $ makeClosed $ telePi_ tel t)
+	    x	  <- newMeta' (BlockedConst $ abstract tel v)
+                              i lowMetaPriority (HasType () $ makeClosed $ telePi_ tel t)
 			    -- ^^ we don't instantiate blocked terms
-	    store <- getMetaStore
-	    modify $ \st -> st { stMetaStore = ins x (BlockedConst $ abstract tel v) store }
 	    c <- escapeContext (size tel) $ guardConstraint (return cs) (UnBlock x)
             verbose 20 $ do
                 dx  <- prettyTCM (MetaV x [])
@@ -190,8 +191,17 @@ blockTerm t v m = do
 	    addConstraints c
 	    return $ MetaV x vs
   where
-    ins x i store = Map.adjust (inst i) x store
     inst i mv = mv { mvInstantiation = i }
+
+postponeTypeCheckingProblem :: MonadTCM tcm => A.Expr -> Type -> tcm Term
+postponeTypeCheckingProblem e t = do
+  i   <- createMetaInfo
+  tel <- getContextTelescope
+  m   <- newMeta' (PostponedTypeCheckingProblem e t)
+                  i normalMetaPriority $ HasType () $
+                  makeClosed $ telePi_ tel t
+  addConstraints =<< buildConstraint (UnBlock m)
+  MetaV m <$> getContextArgs
 
 -- | Eta expand metavariables listening on the current meta.
 etaExpandListeners :: MonadTCM tcm => MetaId -> tcm ()

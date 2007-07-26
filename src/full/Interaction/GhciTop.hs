@@ -448,10 +448,11 @@ cmd_solveAll = infoOnException $ ioTCM $ do
         args <- getContextArgs
         let out m = do e <- lowerMeta <$> (abstractToConcrete_ =<< reify m)
                        ((ii, e):) <$> rest
-        case mvInstantiation mv of InstV _	  -> out (MetaV mi args)
-                                   InstS _	  -> out (MetaS mi)
-                                   TM.Open	  -> rest
-				   BlockedConst _ -> rest
+        case mvInstantiation mv of InstV _                          -> out (MetaV mi args)
+                                   InstS _                          -> out (MetaS mi)
+                                   TM.Open                          -> rest
+				   BlockedConst _                   -> rest
+                                   PostponedTypeCheckingProblem _ _ -> rest
   prn (ii,e)= [showNumIId ii, A $ emacsStr $ show e]
 
 class LowerMeta a where lowerMeta :: a -> a

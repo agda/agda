@@ -226,7 +226,8 @@ checkExpr e t =
 	      (args, cs) <- checkArguments_ ExpandLast (getRange e)
 			      (map (Arg NotHidden . unnamed) es) tel
 	      blockTerm t (Con r args) $ return cs
-	    _  -> typeError $ ShouldBeRecordType t
+            MetaV _ _ -> postponeTypeCheckingProblem e t
+	    _         -> typeError $ ShouldBeRecordType t
 
 	A.Var _    -> __IMPOSSIBLE__
 	A.Def _    -> __IMPOSSIBLE__

@@ -42,17 +42,19 @@ instance Instantiate Term where
     instantiate t@(MetaV x args) =
 	do  mi <- mvInstantiation <$> lookupMeta x
 	    case mi of
-		InstV a	       -> instantiate $ a `apply` args
-		Open	       -> return t
-		BlockedConst _ -> return t
-		InstS _	       -> __IMPOSSIBLE__
+		InstV a                          -> instantiate $ a `apply` args
+		Open                             -> return t
+		BlockedConst _                   -> return t
+                PostponedTypeCheckingProblem _ _ -> return t
+		InstS _                          -> __IMPOSSIBLE__
     instantiate v@(BlockedV (Blocked x u)) =
 	do  mi <- mvInstantiation <$> lookupMeta x
 	    case mi of
-		InstV _	       -> instantiate u
-		Open	       -> return v
-		BlockedConst _ -> return v
-		InstS _	       -> __IMPOSSIBLE__
+		InstV _                          -> instantiate u
+		Open                             -> return v
+		BlockedConst _                   -> return v
+                PostponedTypeCheckingProblem _ _ -> return v
+		InstS _                          -> __IMPOSSIBLE__
     instantiate t = return t
 
 instance Instantiate Type where
@@ -63,10 +65,11 @@ instance Instantiate Sort where
 	MetaS x -> do
 	    mi <- mvInstantiation <$> lookupMeta x
 	    case mi of
-		InstS s'       -> instantiate s'
-		Open	       -> return s
-		InstV _	       -> __IMPOSSIBLE__
-		BlockedConst _ -> __IMPOSSIBLE__
+		InstS s'                         -> instantiate s'
+		Open                             -> return s
+		InstV _                          -> __IMPOSSIBLE__
+		BlockedConst _                   -> __IMPOSSIBLE__
+                PostponedTypeCheckingProblem _ _ -> __IMPOSSIBLE__
 	Type _	  -> return s
 	Prop	  -> return s
 	Suc s	  -> sSuc <$> instantiate s
