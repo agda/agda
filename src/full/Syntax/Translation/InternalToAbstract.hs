@@ -60,7 +60,7 @@ class Reify i a | i -> a where
     reify :: MonadTCM tcm => i -> tcm a
 
 instance Reify MetaId Expr where
-    reify x@(MetaId n) =
+    reify x@(MetaId n) = liftTCM $
 	do  mi  <- getMetaInfo <$> lookupMeta x
 	    let mi' = Info.MetaInfo (getRange mi)
 				    (M.clScope mi)
@@ -110,7 +110,14 @@ instance Reify Term Expr where
 		      xs <- getRecordFieldNames x
 		      vs <- reify $ map unArg vs
 		      return $ A.Rec exprInfo $ zip xs vs
-		    False -> reifyDisplayForm x vs $ reifyApp (A.Con x) vs
+		    False -> reifyDisplayForm x vs $ do
+                      let hide (Arg _ x) = Arg Hidden x
+                      Constructor np _ _ _ <- theDef <$> getConstInfo x
+                      let whocares = A.Underscore (Info.MetaInfo noRange __IMPOSSIBLE__ Nothing)
+                          us = replicate np $ Arg Hidden whocares
+                      n  <- getDefFreeVars x
+                      es <- reify vs
+                      apps (A.Con x, drop n $ us ++ es)
 		I.Lam h b    ->
 		    do	(x,e) <- reify b
 			return $ A.Lam exprInfo (DomainFree h x) e

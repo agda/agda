@@ -182,7 +182,8 @@ checkWithFunction (WithFunction f aux gamma delta1 delta2 vs as b qs perm cs) = 
   -- With display forms are closed
   df <- makeClosed <$> withDisplayForm f aux delta1 delta2 (size as) qs perm
 
-  absAuxType <- disableDisplayForms $ reify =<< withFunctionType delta1 vs as delta2 b
+  absAuxType <- setShowImplicitArguments True $ disableDisplayForms
+                $ reify =<< withFunctionType delta1 vs as delta2 b
   reportSDoc "tc.with.top" 15 $
     vcat [ text "type of with function:"
          , nest 2 $ prettyTCM absAuxType

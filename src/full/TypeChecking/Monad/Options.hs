@@ -87,6 +87,16 @@ proofIrrelevance = optProofIrrelevance <$> commandLineOptions
 showImplicitArguments :: MonadTCM tcm => tcm Bool
 showImplicitArguments = optShowImplicit <$> commandLineOptions
 
+setShowImplicitArguments :: MonadTCM tcm => Bool -> tcm a -> tcm a
+setShowImplicitArguments showImp ret = do
+  opts <- commandLineOptions
+  let imp = optShowImplicit opts
+  setCommandLineOptions $ opts { optShowImplicit = showImp }
+  x <- ret
+  opts <- commandLineOptions
+  setCommandLineOptions $ opts { optShowImplicit = imp }
+  return x
+
 ignoreInterfaces :: MonadTCM tcm => tcm Bool
 ignoreInterfaces = optIgnoreInterfaces <$> commandLineOptions
 
