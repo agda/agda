@@ -72,7 +72,7 @@ module Eval where
 
  _[_] : forall {Γ τ} -> Env Γ -> Var Γ τ -> ty⟦ τ ⟧
  ρ [ x ] with lookup x ρ
- ρ [ x ] | result _ refl v = v
+ ...     | result _ refl v = v
 
  ⟦_⟧_ : forall {Γ τ} -> Tm Γ τ -> Env Γ -> ty⟦ τ ⟧
  ⟦ var x ⟧ ρ = ρ [ x ]
@@ -87,17 +87,17 @@ module Examples where
   private open module Tm = Term freeTyAlg
   open Eval
 
-  tm_one : Tm ε nat
-  tm_one = ss $ zz
+  tm-one : Tm ε nat
+  tm-one = ss $ zz
 
-  tm_id : Tm ε (nat ⟶ nat)
-  tm_id = λ (var (done refl • ε))
+  tm-id : Tm ε (nat ⟶ nat)
+  tm-id = λ (var (done refl • ε))
 
   tm    : Tm ε nat
-  tm    = tm_id $ tm_one
+  tm    = tm-id $ tm-one
 
-  tm_twice : Tm ε ((nat ⟶ nat) ⟶ (nat ⟶ nat))
-  tm_twice = λ (λ (f $ (f $ x)))
+  tm-twice : Tm ε ((nat ⟶ nat) ⟶ (nat ⟶ nat))
+  tm-twice = λ (λ (f $ (f $ x)))
     where Γ : Ctx
           Γ = nat • (nat ⟶ nat) • ε
           f : Tm Γ (nat ⟶ nat)
@@ -112,4 +112,4 @@ module Examples where
   one = sem tm
 
   twice : (Nat -> Nat) -> (Nat -> Nat)
-  twice = sem tm_twice
+  twice = sem tm-twice
