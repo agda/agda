@@ -3,13 +3,14 @@ TOP = ..
 
 include $(TOP)/mk/paths.mk
 
-default : test polydep aim4-bag ac minmax clowns vfl real
+default : test polydep aim4-bag ac minmax clowns vfl real effects
 
 agda = $(AGDA_BIN)
 
 run_agda = $(agda) $(EXTRA_AGDA_FLAGS)
 
-test_files = Vec.agda Setoid.agda TT.agda ISWIM.agda \
+test_files = Vec.agda Lookup.agda Binary.agda Setoid.agda \
+			 TT.agda ISWIM.agda \
 			 AIM5/Hedberg/SET.agda AIM5/yoshiki/SET.agda \
 			 SimpleTypes.agda \
        $(shell find Introduction -name '*.agda')
@@ -28,6 +29,11 @@ aim4-bag : AIM4/bag/Bag.agda
 ac : tactics/ac/AC.agda
 	@echo "Testing $<... "
 	@echo :q | $(run_agda) -itactics/ac $<
+	@echo "ok"
+
+effects : sinatra/Typed.agda
+	@echo "Testing $<..."
+	@echo :q | $(run_agda) -isinatra $<
 	@echo "ok"
 
 clowns : clowns/Clowns.agda
