@@ -112,21 +112,21 @@ checkRecordFields m q tel s ftel vs n (f : fs) = do
 
       {- what are the contexts?
 
-	  tel, ftel    ⊢ t
-	  tel, r       ⊢ vs
-	  tel, r, ftel ⊢ raiseFrom (size ftel) 1 t
-	  tel, r       ⊢ substs vs (raiseFrom (size ftel) 1 t)
+	  Γ, tel, ftel    ⊢ t
+	  Γ, tel, r       ⊢ vs
+	  Γ, tel, r, ftel ⊢ raiseFrom (size ftel) 1 t
+	  Γ, tel, r       ⊢ substs vs (raiseFrom (size ftel) 1 t)
       -}
 
       -- The type of the projection function should be
-      -- {tel} -> (r : R Γ) -> t[vs/ftel]
-      -- where Γ is the current context
-      gamma <- getContextTelescope
+      --  {tel} -> (r : R Δ) -> t[vs/ftel]
+      -- where Δ = Γ, tel is the current context
+      delta <- getContextTelescope
       let hide (Arg _ x) = Arg Hidden x
 	  htel	   = telFromList $ map hide $ telToList tel
 	  rect	   = El s $ Def q $ reverse 
 		      [ Arg h (Var i [])
-		      | (i, Arg h _) <- zip [0..] $ reverse $ telToList gamma
+		      | (i, Arg h _) <- zip [0..] $ reverse $ telToList delta
 		      ]
 	  projt	   = substs (vs ++ map (flip Var []) [0..]) $ raiseFrom (size ftel) 1 t
 	  finalt   = telePi htel
@@ -160,7 +160,9 @@ checkRecordFields m q tel s ftel vs n (f : fs) = do
       -- to the parameters and the record (these are free in the value)
       let projval = Def projname $
 		    reverse [ Arg h (Var i [])
-			    | (i, h) <- zip [0..size gamma] $ NotHidden : repeat Hidden
+			    | (i, h) <- zip [0..size tel] (NotHidden : repeat Hidden) ++
+                                        zip [size tel + 1 .. size delta]
+                                            (drop (size tel) $ reverse $ map argHiding $ telToList delta)
 			    ]
 
       return (qnameName projname, t, projval)
