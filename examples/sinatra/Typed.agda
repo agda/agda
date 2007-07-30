@@ -9,7 +9,6 @@ module Typed
 
   -- Effect stuff
   (Effect : Set)
-  (Id     : Effect)
   (_⊆_    : Effect -> Effect -> Set)
   (Monad  : Effect -> Set -> Set)
   (return : forall {M A} -> A -> Monad M A)
