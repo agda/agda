@@ -29,6 +29,8 @@ properties to add to the result."
   (let ((str (copy-sequence string)))
     (add-text-properties 0 (length str) properties str)
     str)))
+(unless (fboundp 'run-mode-hooks)
+  (fset 'run-mode-hooks 'run-hooks))  ; For Emacs versions < 21.
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Programming utilities
@@ -146,6 +148,7 @@ necessary to restart Agda mode after changing this variable."
          (agda2-indent-reverse      [S-lefttab])
          (agda2-indent-reverse      [S-tab])
          (agda2-goto-definition-mouse    [mouse-2])
+         (mouse-face [follow-link])  ; Enables using mouse-1 to click on links in Emacs 22.
          (agda2-goto-definition-keyboard "\M-.")
          (agda2-go-back                  "\M-*")
          )))
@@ -223,7 +226,7 @@ necessary to restart Agda mode after changing this variable."
  (agda2-comments-and-paragraphs-setup)
  (agda2-restart)
  (force-mode-line-update)
- (run-hooks 'agda2-mode-hook))
+ (run-mode-hooks 'agda2-mode-hook))
 
 (defun agda2-restart (&optional force)
   "Load agda2-toplevel-module to ghci"
