@@ -250,11 +250,11 @@ abstract
     where
     dec : Decidable (∼₁ ⊎-Rel ∼₂)
     dec (inj₁ x) (inj₁ y) with dec₁ x y
-    dec (inj₁ x) (inj₁ y) | yes x∼y = yes (inj₁-Rel x∼y)
-    dec (inj₁ x) (inj₁ y) | no  x≁y = no (x≁y ∘ drop-inj₁)
+    ...                   | yes x∼y = yes (inj₁-Rel x∼y)
+    ...                   | no  x≁y = no (x≁y ∘ drop-inj₁)
     dec (inj₂ x) (inj₂ y) with dec₂ x y
-    dec (inj₂ x) (inj₂ y) | yes x∼y = yes (inj₂-Rel x∼y)
-    dec (inj₂ x) (inj₂ y) | no  x≁y = no (x≁y ∘ drop-inj₂)
+    ...                   | yes x∼y = yes (inj₂-Rel x∼y)
+    ...                   | no  x≁y = no (x≁y ∘ drop-inj₂)
     dec (inj₁ x) (inj₂ y) = no ₁≁₂
     dec (inj₂ x) (inj₁ y) = no ₂≁₁
 
@@ -268,11 +268,11 @@ abstract
     dec (inj₁ x) (inj₂ y) = yes ₁≤₂
     dec (inj₂ x) (inj₁ y) = no  ₂≰₁
     dec (inj₁ x) (inj₁ y) with dec₁ x y
-    dec (inj₁ x) (inj₁ y) | yes x∼y = yes (₁≤₁ x∼y)
-    dec (inj₁ x) (inj₁ y) | no  x≁y = no (x≁y ∘ drop-₁≤₁)
+    ...                   | yes x∼y = yes (₁≤₁ x∼y)
+    ...                   | no  x≁y = no (x≁y ∘ drop-₁≤₁)
     dec (inj₂ x) (inj₂ y) with dec₂ x y
-    dec (inj₂ x) (inj₂ y) | yes x∼y = yes (₂≤₂ x∼y)
-    dec (inj₂ x) (inj₂ y) | no  x≁y = no (x≁y ∘ drop-₂≤₂)
+    ...                   | yes x∼y = yes (₂≤₂ x∼y)
+    ...                   | no  x≁y = no (x≁y ∘ drop-₂≤₂)
 
   _⊎-≤-total_
     :  forall {a₁} -> {≤₁ : Rel a₁} -> Total ≤₁
@@ -297,18 +297,18 @@ abstract
     tri (inj₁ x) (inj₂ y) = Tri₁ ₁≤₂ ₁≁₂ ₂≰₁
     tri (inj₂ x) (inj₁ y) = Tri₃ ₂≰₁ ₂≁₁ ₁≤₂
     tri (inj₁ x) (inj₁ y) with tri₁ x y
-    tri (inj₁ x) (inj₁ y) | Tri₁ x<y x≉y x≯y =
+    ...                   | Tri₁ x<y x≉y x≯y =
       Tri₁ (₁≤₁ x<y)        (x≉y ∘ drop-inj₁) (x≯y ∘ drop-₁≤₁)
-    tri (inj₁ x) (inj₁ y) | Tri₂ x≮y x≈y x≯y =
+    ...                   | Tri₂ x≮y x≈y x≯y =
       Tri₂ (x≮y ∘ drop-₁≤₁) (inj₁-Rel x≈y)    (x≯y ∘ drop-₁≤₁)
-    tri (inj₁ x) (inj₁ y) | Tri₃ x≮y x≉y x>y =
+    ...                   | Tri₃ x≮y x≉y x>y =
       Tri₃ (x≮y ∘ drop-₁≤₁) (x≉y ∘ drop-inj₁) (₁≤₁ x>y)
     tri (inj₂ x) (inj₂ y) with tri₂ x y
-    tri (inj₂ x) (inj₂ y) | Tri₁ x<y x≉y x≯y =
+    ...                   | Tri₁ x<y x≉y x≯y =
       Tri₁ (₂≤₂ x<y)        (x≉y ∘ drop-inj₂) (x≯y ∘ drop-₂≤₂)
-    tri (inj₂ x) (inj₂ y) | Tri₂ x≮y x≈y x≯y =
+    ...                   | Tri₂ x≮y x≈y x≯y =
       Tri₂ (x≮y ∘ drop-₂≤₂) (inj₂-Rel x≈y)    (x≯y ∘ drop-₂≤₂)
-    tri (inj₂ x) (inj₂ y) | Tri₃ x≮y x≉y x>y =
+    ...                   | Tri₃ x≮y x≉y x>y =
       Tri₃ (x≮y ∘ drop-₂≤₂) (x≉y ∘ drop-inj₂) (₂≤₂ x>y)
 
 ------------------------------------------------------------------------

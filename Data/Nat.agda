@@ -95,8 +95,8 @@ abstract
   ℕ-total zero    _       = inj₁ z≤n
   ℕ-total _       zero    = inj₂ z≤n
   ℕ-total (suc m) (suc n) with ℕ-total m n
-  ℕ-total (suc m) (suc n) | inj₁ m≤n = inj₁ (s≤s m≤n)
-  ℕ-total (suc m) (suc n) | inj₂ n≤m = inj₂ (s≤s n≤m)
+  ...                     | inj₁ m≤n = inj₁ (s≤s m≤n)
+  ...                     | inj₂ n≤m = inj₂ (s≤s n≤m)
 
   zero≢suc : forall {n} -> ¬ zero ≡ suc n
   zero≢suc ()
@@ -119,8 +119,8 @@ abstract
   zero  ≤? _     = yes z≤n
   suc m ≤? zero  = no suc≰zero
   suc m ≤? suc n with m ≤? n
-  suc m ≤? suc n | yes m≤n = yes (s≤s m≤n)
-  suc m ≤? suc n | no  m≰n = no  (m≰n ∘ ≤-pred)
+  ...            | yes m≤n = yes (s≤s m≤n)
+  ...            | no  m≰n = no  (m≰n ∘ ≤-pred)
 
 ------------------------------------------------------------------------
 -- Some properties
@@ -153,7 +153,7 @@ abstract
     antisym : Antisymmetric _≡_ _≤_
     antisym z≤n       z≤n       = ≡-refl
     antisym (s≤s m≤n) (s≤s n≤m) with antisym m≤n n≤m
-    antisym (s≤s m≤n) (s≤s n≤m) | ≡-refl = ≡-refl
+    ...                         | ≡-refl = ≡-refl
 
     trans : Transitive _≤_
     trans z≤n       _         = z≤n

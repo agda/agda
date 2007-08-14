@@ -56,9 +56,9 @@ abstract
     helper (p ▻ outside) (.p ▻ outside) ₁⊆₂ ₂⊆₁ | ≡-refl = ≡-refl
     helper (p ▻ inside)  (.p ▻ inside)  ₁⊆₂ ₂⊆₁ | ≡-refl = ≡-refl
     helper (p ▻ outside) (.p ▻ inside)  ₁⊆₂ ₂⊆₁ | ≡-refl with ₂⊆₁ fzIn
-    helper (p ▻ outside) (.p ▻ inside)  ₁⊆₂ ₂⊆₁ | ≡-refl | ()
+    ...                                                  | ()
     helper (p ▻ inside)  (.p ▻ outside) ₁⊆₂ ₂⊆₁ | ≡-refl with ₁⊆₂ fzIn
-    helper (p ▻ inside)  (.p ▻ outside) ₁⊆₂ ₂⊆₁ | ≡-refl | ()
+    ...                                                  | ()
 
   ∅⟶allOutside
     :  forall {n} {p : Subset n}

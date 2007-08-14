@@ -323,10 +323,10 @@ abstract
     total : Total (∼₁ ×-Rel ∼₂)
     total x y with total₁ (proj₁ x) (proj₁ y)
                  | total₂ (proj₂ x) (proj₂ y)
-    total x y | inj₁ x₁∼y₁ | inj₁ x₂∼y₂ = inj₁ (     x₁∼y₁ , x₂∼y₂)
-    total x y | inj₁ x₁∼y₁ | inj₂ y₂∼x₂ = inj₂ (sym₁ x₁∼y₁ , y₂∼x₂)
-    total x y | inj₂ y₁∼x₁ | inj₂ y₂∼x₂ = inj₂ (     y₁∼x₁ , y₂∼x₂)
-    total x y | inj₂ y₁∼x₁ | inj₁ x₂∼y₂ = inj₁ (sym₁ y₁∼x₁ , x₂∼y₂)
+    ... | inj₁ x₁∼y₁ | inj₁ x₂∼y₂ = inj₁ (     x₁∼y₁ , x₂∼y₂)
+    ... | inj₁ x₁∼y₁ | inj₂ y₂∼x₂ = inj₂ (sym₁ x₁∼y₁ , y₂∼x₂)
+    ... | inj₂ y₁∼x₁ | inj₂ y₂∼x₂ = inj₂ (     y₁∼x₁ , y₂∼x₂)
+    ... | inj₂ y₁∼x₁ | inj₁ x₂∼y₂ = inj₁ (sym₁ y₁∼x₁ , x₂∼y₂)
 
   ×-total₂
     :  forall {a₁} -> {∼₁ : Rel a₁}
@@ -348,8 +348,8 @@ abstract
     where
     total : Total (×-Lex ≈₁ <₁ ≤₂)
     total x y with total₁ (proj₁ x) (proj₁ y)
-    total x y | inj₁ x₁<y₁ = inj₁ (inj₁ x₁<y₁)
-    total x y | inj₂ x₁>y₁ = inj₂ (inj₁ x₁>y₁)
+    ... | inj₁ x₁<y₁ = inj₁ (inj₁ x₁<y₁)
+    ... | inj₂ x₁>y₁ = inj₂ (inj₁ x₁>y₁)
 
   ×-lex-≤-total
     :  forall {a₁} -> {≈₁ ≤₁ : Rel a₁}
@@ -366,13 +366,11 @@ abstract
 
     total : Total (×-Lex-≤ ≈₁ ≤₁ ≤₂)
     total x y with tri₁ (proj₁ x) (proj₁ y)
-    total x y | Tri₁ x₁<y₁ x₁≉y₁ x₁≯y₁ = inj₁ (inj₁ x₁<y₁)
-    total x y | Tri₃ x₁≮y₁ x₁≉y₁ x₁>y₁ = inj₂ (inj₁ x₁>y₁)
-    total x y | Tri₂ x₁≮y₁ x₁≈y₁ x₁≯y₁ with total₂ (proj₂ x) (proj₂ y)
-    total x y | Tri₂ x₁≮y₁ x₁≈y₁ x₁≯y₁ | inj₁ x₂≤y₂ =
-      inj₁ (inj₂ (x₁≈y₁ , x₂≤y₂))
-    total x y | Tri₂ x₁≮y₁ x₁≈y₁ x₁≯y₁ | inj₂ x₂≥y₂ =
-      inj₂ (inj₂ (sym₁ x₁≈y₁ , x₂≥y₂))
+    ... | Tri₁ x₁<y₁ x₁≉y₁ x₁≯y₁ = inj₁ (inj₁ x₁<y₁)
+    ... | Tri₃ x₁≮y₁ x₁≉y₁ x₁>y₁ = inj₂ (inj₁ x₁>y₁)
+    ... | Tri₂ x₁≮y₁ x₁≈y₁ x₁≯y₁ with total₂ (proj₂ x) (proj₂ y)
+    ...   | inj₁ x₂≤y₂ = inj₁ (inj₂ (x₁≈y₁ , x₂≤y₂))
+    ...   | inj₂ x₂≥y₂ = inj₂ (inj₂ (sym₁ x₁≈y₁ , x₂≥y₂))
 
 ------------------------------------------------------------------------
 -- Some collections of properties are also preserved

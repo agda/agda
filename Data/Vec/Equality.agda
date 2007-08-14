@@ -33,7 +33,7 @@ to-≅ :  forall {n¹} {xs¹ : Vec a n¹}
      -> xs¹ ≈-Vec xs² -> xs¹ ≅ xs²
 to-≅ []-cong             = ≅-refl
 to-≅ (≡-refl ∷-cong eq₂) with length-equal eq₂
-to-≅ (≡-refl ∷-cong eq₂) | ≡-refl = ≅-cong (_∷_ _) $ to-≅ eq₂
+...                      | ≡-refl = ≅-cong (_∷_ _) $ to-≅ eq₂
 
 abstract
 

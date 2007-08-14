@@ -20,8 +20,8 @@ abstract
   fz   ∈? p ▻ inside  = yes fzIn
   fz   ∈? p ▻ outside = no  fz∉
   fs n ∈? (p ▻ s) with n ∈? p
-  fs n ∈? (p ▻ s) | yes n∈p = yes (fsIn n∈p)
-  fs n ∈? (p ▻ s) | no  n∉p = no  (n∉p ∘ drop-fsIn)
+  ...             | yes n∈p = yes (fsIn n∈p)
+  ...             | no  n∉p = no  (n∉p ∘ drop-fsIn)
 
   private
 
@@ -41,10 +41,10 @@ abstract
     where
     helper : ∄₀ P
     helper (exists {witness = ()} _)
-  any? {suc n}     dec with dec fz | any? (restrict dec)
-  any? {suc n}     dec | yes p | _               = yes (exists p)
-  any? {suc n}     dec | _     | yes (exists p') = yes (exists p')
-  any? {suc n} {P} dec | no ¬p | no ¬p' = no helper
+  any? {suc n} {P} dec with dec fz | any? (restrict dec)
+  ...                  | yes p | _               = yes (exists p)
+  ...                  | _     | yes (exists p') = yes (exists p')
+  ...                  | no ¬p | no ¬p'          = no helper
     where
     helper : ∄₀ P
     helper (exists {witness = fz}   p)  = ¬p p
@@ -97,8 +97,8 @@ abstract
        -> (forall f -> Dec (P f))
        -> Dec (forall f -> P f)
   all? dec with all∈? {q = all inside} (\{f} _ -> dec f)
-  all? dec | yes ∀p = yes (\f -> ∀p (allInside f))
-  all? dec | no ¬∀p = no  (\ ∀p -> ¬∀p (\{f} _ -> ∀p f))
+  ...      | yes ∀p = yes (\f -> ∀p (allInside f))
+  ...      | no ¬∀p = no  (\ ∀p -> ¬∀p (\{f} _ -> ∀p f))
 
   lift :  forall {n} {P : Fin n -> Set}
        -> (forall x -> Dec (P x))
@@ -122,17 +122,17 @@ abstract
   anySubset? :  forall {n} {P : Subset n -> Set}
              -> (forall s -> Dec (P s))
              -> Dec (∃₀ P)
-  anySubset? {zero}     dec with dec ε
-  anySubset? {zero}     dec | yes Pε = yes (exists Pε)
-  anySubset? {zero} {P} dec | no ¬Pε = no helper
+  anySubset? {zero} {P} dec with dec ε
+  ... | yes Pε = yes (exists Pε)
+  ... | no ¬Pε = no helper
     where
     helper : ∄₀ P
     helper (exists {witness = ε} Pε) = ¬Pε Pε
-  anySubset? {suc n} dec with anySubset? (restrictS inside  dec)
-                            | anySubset? (restrictS outside dec)
-  anySubset? {suc n}     dec | yes (exists Pp) | _ = yes (exists Pp)
-  anySubset? {suc n}     dec | _ | yes (exists Pp) = yes (exists Pp)
-  anySubset? {suc n} {P} dec | no ¬Pp | no ¬Pp' = no helper
+  anySubset? {suc n} {P} dec with anySubset? (restrictS inside  dec)
+                                | anySubset? (restrictS outside dec)
+  ... | yes (exists Pp) | _               = yes (exists Pp)
+  ... | _               | yes (exists Pp) = yes (exists Pp)
+  ... | no ¬Pp          | no ¬Pp'         = no helper
       where
       helper : ∄₀ P
       helper (exists {witness = p ▻ inside}  Pp)  = ¬Pp  (exists Pp)

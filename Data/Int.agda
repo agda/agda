@@ -85,16 +85,16 @@ i ⊓ j = if primIntegerLess i j then j else i
 
 _≟_ : Decidable {ℤ} _≡_
 i ≟ j with primIntegerEquals i j
-i ≟ j | true  = yes trustMe
+...   | true  = yes trustMe
   where postulate trustMe : _
-i ≟ j | false = no trustMe
+...   | false = no trustMe
   where postulate trustMe : _
 
 _≤?_ : Decidable {ℤ} _≤_
 i ≤? j with primIntegerLess j i
-i ≤? j | false = yes trustMe
+...    | false = yes trustMe
   where postulate trustMe : _
-i ≤? j | true  = no trustMe
+...    | true  = no trustMe
   where postulate trustMe : _
 
 ------------------------------------------------------------------------

@@ -99,12 +99,12 @@ abstract
 
     tri : Trichotomous ≈ <
     tri x y with dec x y
-    tri x y | yes x≈y = Tri₂ (irrefl x≈y) x≈y (irrefl (sym x≈y))
-    tri x y | no  x≉y with total x y
-    tri x y | no  x≉y | inj₁ x≤y =
-      Tri₁ (x≤y , x≉y) x≉y (x≉y ∘ antisym x≤y ∘ proj₁)
-    tri x y | no  x≉y | inj₂ x≥y =
-      Tri₃ (x≉y ∘ flip antisym x≥y ∘ proj₁) x≉y (x≥y , x≉y ∘ sym)
+    ... | yes x≈y = Tri₂ (irrefl x≈y) x≈y (irrefl (sym x≈y))
+    ... | no  x≉y with total x y
+    ...   | inj₁ x≤y = Tri₁ (x≤y , x≉y) x≉y
+                            (x≉y ∘ antisym x≤y ∘ proj₁)
+    ...   | inj₂ x≥y = Tri₃ (x≉y ∘ flip antisym x≥y ∘ proj₁) x≉y
+                            (x≥y , x≉y ∘ sym)
 
   resp-≤⟶<
     :  forall {a} -> {≈ ≤ : Rel a}
@@ -145,9 +145,9 @@ abstract
     where
     dec : Decidable (≤⟶< ≈ ≤)
     dec x y with dec-≈ x y | dec-≤ x y
-    dec x y | yes x≈y | _       = no (flip proj₂ x≈y)
-    dec x y | no  x≉y | yes x≤y = yes (x≤y , x≉y)
-    dec x y | no  x≉y | no  x≰y = no (x≰y ∘ proj₁)
+    ...     | yes x≈y | _       = no (flip proj₂ x≈y)
+    ...     | no  x≉y | yes x≤y = yes (x≤y , x≉y)
+    ...     | no  x≉y | no  x≰y = no (x≰y ∘ proj₁)
 
   decidable-<⟶≤
     :  forall {a} -> {≈ < : Rel a}
@@ -158,9 +158,9 @@ abstract
 
     dec : Decidable _≤_
     dec x y with dec-≈ x y | dec-< x y
-    dec x y | yes x≈y | _       = yes (inj₂ x≈y)
-    dec x y | no  x≉y | yes x<y = yes (inj₁ x<y)
-    dec x y | no  x≉y | no  x≮y = no helper
+    ...     | yes x≈y | _       = yes (inj₂ x≈y)
+    ...     | no  x≉y | yes x<y = yes (inj₁ x<y)
+    ...     | no  x≉y | no  x≮y = no helper
       where
       helper : x ≤ y -> ⊥
       helper (inj₁ x<y) = x≮y x<y

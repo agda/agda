@@ -139,16 +139,16 @@ total⟶refl {≈ = ≈} {∼ = ∼} resp sym total = refl
   where
   refl : Reflexive ≈ ∼
   refl {x} {y} x≈y with total x y
-  refl {x} {y} x≈y | inj₁ x∼y = x∼y
-  refl {x} {y} x≈y | inj₂ y∼x =
+  ...              | inj₁ x∼y = x∼y
+  ...              | inj₂ y∼x =
     proj₁ resp x≈y (proj₂ resp (sym x≈y) y∼x)
 
 tri⟶asym : forall {a} -> {≈ < : Rel a}
          -> Trichotomous ≈ < -> Asymmetric <
 tri⟶asym tri {x} {y} x<y x>y with tri x y
-tri⟶asym _ x<y x>y | Tri₁ _   _ x≯y = x≯y x>y
-tri⟶asym _ x<y x>y | Tri₂ _   _ x≯y = x≯y x>y
-tri⟶asym _ x<y x>y | Tri₃ x≮y _ _   = x≮y x<y
+... | Tri₁ _   _ x≯y = x≯y x>y
+... | Tri₂ _   _ x≯y = x≯y x>y
+... | Tri₃ x≮y _ _   = x≮y x<y
 
 subst⟶cong
   :  {≈ : forall {a} -> Rel a}
