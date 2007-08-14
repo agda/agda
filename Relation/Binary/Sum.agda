@@ -246,9 +246,9 @@ abstract
     :  forall {a₁} -> {∼₁ : Rel a₁} -> Decidable ∼₁
     -> forall {a₂} -> {∼₂ : Rel a₂} -> Decidable ∼₂
     -> Decidable (∼₁ ⊎-Rel ∼₂)
-  dec₁ ⊎-decidable dec₂ = dec
+  _⊎-decidable_ {∼₁ = ∼₁} dec₁ {∼₂ = ∼₂} dec₂ = dec
     where
-    dec : Decidable (_ ⊎-Rel _)
+    dec : Decidable (∼₁ ⊎-Rel ∼₂)
     dec (inj₁ x) (inj₁ y) with dec₁ x y
     dec (inj₁ x) (inj₁ y) | yes x∼y = yes (inj₁-Rel x∼y)
     dec (inj₁ x) (inj₁ y) | no  x≁y = no (x≁y ∘ drop-inj₁)
@@ -262,9 +262,9 @@ abstract
     :  forall {a₁} -> {≤₁ : Rel a₁} -> Decidable ≤₁
     -> forall {a₂} -> {≤₂ : Rel a₂} -> Decidable ≤₂
     -> Decidable (≤₁ ⊎-≤ ≤₂)
-  dec₁ ⊎-≤-decidable dec₂ = dec
+  _⊎-≤-decidable_ {≤₁ = ≤₁} dec₁ {≤₂ = ≤₂} dec₂ = dec
     where
-    dec : Decidable (_ ⊎-≤ _)
+    dec : Decidable (≤₁ ⊎-≤ ≤₂)
     dec (inj₁ x) (inj₂ y) = yes ₁≤₂
     dec (inj₂ x) (inj₁ y) = no  ₂≰₁
     dec (inj₁ x) (inj₁ y) with dec₁ x y
@@ -290,9 +290,10 @@ abstract
     :  forall {a₁} -> {≈₁ <₁ : Rel a₁} -> Trichotomous ≈₁ <₁
     -> forall {a₂} -> {≈₂ <₂ : Rel a₂} -> Trichotomous ≈₂ <₂
     -> Trichotomous (≈₁ ⊎-Rel ≈₂) (<₁ ⊎-≤ <₂)
-  tri₁ ⊎-≤-trichotomous tri₂ = tri
+  _⊎-≤-trichotomous_ {≈₁ = ≈₁} {<₁ = <₁} tri₁
+                     {≈₂ = ≈₂} {<₂ = <₂} tri₂ = tri
     where
-    tri : Trichotomous (_ ⊎-Rel _) (_ ⊎-≤ _)
+    tri : Trichotomous (≈₁ ⊎-Rel ≈₂) (<₁ ⊎-≤ <₂)
     tri (inj₁ x) (inj₂ y) = Tri₁ ₁≤₂ ₁≁₂ ₂≰₁
     tri (inj₂ x) (inj₁ y) = Tri₃ ₂≰₁ ₂≁₁ ₁≤₂
     tri (inj₁ x) (inj₁ y) with tri₁ x y
