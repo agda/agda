@@ -5,7 +5,7 @@
 module Data.Nat.Properties where
 
 open import Data.Nat
-open ≤-Reasoning renaming (_∎ to _□; byDef to ≤-refl)
+open ≤-Reasoning renaming (begin_ to start_; _∎ to _□; byDef to ≤-refl)
 open import Logic
 open import Data.Function
 import Algebra
@@ -46,6 +46,7 @@ abstract
   +-comm : Commutative _+_
   +-comm zero    n = ≡-sym $ proj₂ +-identity n
   +-comm (suc m) n =
+    begin
       suc m + n
     ∼⟨ byDef ⟩
       suc (m + n)
@@ -58,6 +59,7 @@ abstract
   m*1+n≡m+mn : forall m n -> m * suc n ≡ m + m * n
   m*1+n≡m+mn zero    n = byDef
   m*1+n≡m+mn (suc m) n =
+    begin
       suc m * suc n
     ∼⟨ byDef ⟩
       m * suc n + suc n
@@ -77,6 +79,7 @@ abstract
     n*0≡0 : RightZero 0 _*_
     n*0≡0 zero    = byDef
     n*0≡0 (suc n) =
+      begin
         suc n * 0
       ∼⟨ byDef ⟩
         n * 0 + 0
@@ -89,6 +92,7 @@ abstract
   *-comm : Commutative _*_
   *-comm zero    n = ≡-sym $ proj₂ *-zero n
   *-comm (suc m) n =
+    begin
       suc m * n
     ∼⟨ byDef ⟩
       m * n + n
@@ -106,6 +110,7 @@ abstract
     distˡ : _*_ DistributesOverˡ _+_
     distˡ zero    n o = byDef
     distˡ (suc m) n o =
+                                 begin
       suc m * (n + o)
                                  ∼⟨ byDef ⟩
       m * (n + o) + (n + o)
@@ -127,6 +132,7 @@ abstract
 
     distʳ : _*_ DistributesOverʳ _+_
     distʳ m n o =
+                      begin
        (n + o) * m
                       ∼⟨ *-comm (n + o) m ⟩
        m * (n + o)
@@ -139,6 +145,7 @@ abstract
   *-assoc : Associative _*_
   *-assoc zero    n o = byDef
   *-assoc (suc m) n o =
+                         begin
     suc m * (n * o)
                          ∼⟨ byDef ⟩
     m * (n * o) + n * o
@@ -155,6 +162,7 @@ abstract
     where
     n*1≡n : RightIdentity 1 _*_
     n*1≡n n =
+      begin
         n * 1
       ∼⟨ *-comm n 1 ⟩
         1 * n
@@ -225,6 +233,7 @@ abstract
   ⊔-comm zero    n       = ≡-sym $ proj₂ ⊔-identity n
   ⊔-comm (suc m) zero    = byDef
   ⊔-comm (suc m) (suc n) =
+    begin
       suc m ⊔ suc n
     ∼⟨ byDef ⟩
       suc (m ⊔ n)
@@ -251,6 +260,7 @@ abstract
   ⊓-comm zero    n       = ≡-sym $ proj₂ ⊓-zero n
   ⊓-comm (suc m) zero    = byDef
   ⊓-comm (suc m) (suc n) =
+    begin
       suc m ⊓ suc n
     ∼⟨ byDef ⟩
       suc (m ⊓ n)
@@ -278,6 +288,7 @@ abstract
     abs-⊓-⊔ zero    n       = byDef
     abs-⊓-⊔ (suc m) (suc n) = ≡-cong suc $ abs-⊓-⊔ m n
     abs-⊓-⊔ (suc m) zero    = ≡-cong suc $
+                   begin
       m ⊓ m
                    ∼⟨ ≡-cong (_⊓_ m) $ ≡-sym $ proj₂ ⊔-identity m ⟩
       m ⊓ (m ⊔ 0)
@@ -290,6 +301,7 @@ abstract
   distribˡ-⊔-⊓ (suc m) zero    o       = ≡-sym $ proj₂ absorptive-⊔-⊓ (suc m) o
   distribˡ-⊔-⊓ (suc m) (suc n) (suc o) = ≡-cong suc $ distribˡ-⊔-⊓ m n o
   distribˡ-⊔-⊓ (suc m) (suc n) zero    = ≡-cong suc $ ≡-sym $
+                 begin
     (m ⊔ n) ⊓ m
                  ∼⟨ ⊓-comm (m ⊔ n) m ⟩
     m ⊓ (m ⊔ n)
@@ -351,6 +363,7 @@ abstract
   n≤m+n : forall m n -> n ≤ m + n
   n≤m+n zero    n = ≤-refl
   n≤m+n (suc m) n =
+               start
     n
                ≤⟨ n≤m+n m n ⟩
     m + n
@@ -361,7 +374,7 @@ abstract
   n∸m≤n : forall m n -> n ∸ m ≤ n
   n∸m≤n zero    n       = ≤-refl
   n∸m≤n (suc m) zero    = ≤-refl
-  n∸m≤n (suc m) (suc n) =
+  n∸m≤n (suc m) (suc n) = start
     n ∸ m  ≤⟨ n∸m≤n m n ⟩
     n      ≤⟨ n≤1+n n ⟩
     suc n  □
@@ -377,7 +390,7 @@ abstract
   m⊓n≤m (suc m) (suc n) = s≤s $ m⊓n≤m m n
 
   _+-mono_ : Monotone₂ _≤_ _≤_ _≤_ _+_
-  _+-mono_ {zero} {m₂} {n₁} {n₂} z≤n n₁≤n₂ =
+  _+-mono_ {zero} {m₂} {n₁} {n₂} z≤n n₁≤n₂ = start
     n₁      ≤⟨ n₁≤n₂ ⟩
     n₂      ≤⟨ n≤m+n m₂ n₂ ⟩
     m₂ + n₂ □

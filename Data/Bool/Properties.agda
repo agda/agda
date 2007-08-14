@@ -72,6 +72,7 @@ abstract
 
     distʳ : _∧_ DistributesOverʳ _∨_
     distʳ x y z =
+                      begin
        (y ∨ z) ∧ x
                       ∼⟨ ∧-comm (y ∨ z) x ⟩
        x ∧ (y ∨ z)
@@ -143,6 +144,7 @@ abstract
 
     distʳ : _∨_ DistributesOverʳ _∧_
     distʳ x y z =
+                          begin
        (y ∧ z) ∨ x
                           ∼⟨ ∨-comm (y ∧ z) x ⟩
        x ∨ (y ∧ z)

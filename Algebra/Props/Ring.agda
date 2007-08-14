@@ -37,6 +37,7 @@ abstract
     where
     zeroˡ : LeftZero 0# _*_
     zeroˡ x =
+                                          begin
       0# * x
                                           ∼⟨ sym $ proj₂ A.identity _ ⟩
       (0# * x) + 0#
@@ -56,6 +57,7 @@ abstract
 
     zeroʳ : RightZero 0# _*_
     zeroʳ x =
+                                          begin
       x * 0#
                                           ∼⟨ sym $ proj₂ A.identity _ ⟩
       (x * 0#) + 0#
@@ -117,6 +119,7 @@ abstract
 
   ¬-*-distribˡ : forall x y -> ((- x) * y) ≈ (- (x * y))
   ¬-*-distribˡ x y =
+                                         begin
     (- x) * y
                                          ∼⟨ sym $ proj₂ A.identity _ ⟩
     ((- x) * y) + 0#
@@ -138,6 +141,7 @@ abstract
 
   ¬-*-distribʳ : forall x y -> (x * (- y)) ≈ (- (x * y))
   ¬-*-distribʳ x y =
+                                         begin
     x * (- y)
                                          ∼⟨ sym $ proj₁ A.identity _ ⟩
     0# + (x * (- y))

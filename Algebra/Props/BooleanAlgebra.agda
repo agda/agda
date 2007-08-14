@@ -52,6 +52,7 @@ abstract
     where
     ∨-complementˡ : LeftInverse ⊤ ¬_ _∨_
     ∨-complementˡ x =
+                 begin
       (¬ x) ∨ x
                  ∼⟨ ∨-comm _ _ ⟩
       x ∨ (¬ x)
@@ -64,6 +65,7 @@ abstract
     where
     ∧-complementˡ : LeftInverse ⊥ ¬_ _∧_
     ∧-complementˡ x =
+                 begin
       (¬ x) ∧ x
                  ∼⟨ ∧-comm _ _ ⟩
       x ∧ (¬ x)
@@ -95,6 +97,7 @@ abstract
     where
     x∧⊤=x : forall x -> (x ∧ ⊤) ≈ x
     x∧⊤=x x =
+                     begin
       x ∧ ⊤
                      ∼⟨ byDef ⟨ ∧-pres-≈ ⟩ sym (proj₂ ∨-complement _) ⟩
       x ∧ (x ∨ ¬ x)
@@ -107,6 +110,7 @@ abstract
     where
     x∨⊥=x : forall x -> (x ∨ ⊥) ≈ x
     x∨⊥=x x =
+                     begin
       x ∨ ⊥
                      ∼⟨ byDef ⟨ ∨-pres-≈ ⟩ sym (proj₂ ∧-complement _) ⟩
       x ∨ (x ∧ ¬ x)
@@ -119,6 +123,7 @@ abstract
     where
     x∧⊥=⊥ : forall x -> (x ∧ ⊥) ≈ ⊥
     x∧⊥=⊥ x =
+                     begin
       x ∧ ⊥
                      ∼⟨ byDef ⟨ ∧-pres-≈ ⟩ sym (proj₂ ∧-complement _) ⟩
       x ∧ (x ∧ ¬ x)
@@ -169,6 +174,7 @@ abstract
     where
     x∨⊤=⊤ : forall x -> (x ∨ ⊤) ≈ ⊤
     x∨⊤=⊤ x =
+                     begin
       x ∨ ⊤
                      ∼⟨ byDef ⟨ ∨-pres-≈ ⟩ sym (proj₂ ∨-complement _) ⟩
       x ∨ (x ∨ ¬ x)
@@ -220,6 +226,7 @@ abstract
   private
     lemma : forall x y -> (x ∧ y) ≈ ⊥ -> (x ∨ y) ≈ ⊤ -> (¬ x) ≈ y
     lemma x y x∧y=⊥ x∨y=⊤ =
+                                 begin
       (¬ x)
                                  ∼⟨ sym $ proj₂ ∧-identity _ ⟩
       (¬ x) ∧ ⊤
@@ -252,6 +259,7 @@ abstract
   deMorgan₁ x y = lemma (x ∧ y) ((¬ x) ∨ (¬ y)) lem₁ lem₂
     where
     lem₁ =
+                                             begin
       (x ∧ y) ∧ ((¬ x) ∨ (¬ y))
                                              ∼⟨ proj₁ ∧-∨-distrib _ _ _ ⟩
       ((x ∧ y) ∧ (¬ x)) ∨ ((x ∧ y) ∧ (¬ y))
@@ -269,6 +277,7 @@ abstract
                                              ∎
 
     lem₃ =
+                                 begin
       (x ∧ y) ∨ (¬ x)
                                  ∼⟨ proj₂ ∨-∧-distrib _ _ _ ⟩
       (x ∨ (¬ x)) ∧ (y ∨ (¬ x))
@@ -281,6 +290,7 @@ abstract
                                  ∎
 
     lem₂ =
+                                 begin
       (x ∧ y) ∨ ((¬ x) ∨ (¬ y))
                                  ∼⟨ ∨-assoc _ _ _ ⟩
       ((x ∧ y) ∨ (¬ x)) ∨ (¬ y)
@@ -296,6 +306,7 @@ abstract
 
   deMorgan₂ : forall x y -> ¬ (x ∨ y) ≈ ((¬ x) ∧ (¬ y))
   deMorgan₂ x y =
+                           begin
     ¬ (x ∨ y)
                            ∼⟨ ¬-pres-≈ $ sym (¬-involutive _) ⟨ ∨-pres-≈ ⟩
                                          sym (¬-involutive _) ⟩
@@ -324,6 +335,7 @@ module XorRing
 
     ⊕-¬-distribˡ : forall x y -> ¬ (x ⊕ y) ≈ ((¬ x) ⊕ y)
     ⊕-¬-distribˡ x y =
+                                             begin
       ¬ (x ⊕ y)
                                              ∼⟨ ¬-pres-≈ $ ⊕-def _ _ ⟩
       ¬ ((x ∨ y) ∧ (¬ (x ∧ y)))
@@ -349,6 +361,7 @@ module XorRing
       where
       lem : forall x y -> (x ∧ ¬ (x ∧ y)) ≈ (x ∧ (¬ y))
       lem x y =
+                                   begin
         x ∧ ¬ (x ∧ y)
                                    ∼⟨ byDef ⟨ ∧-pres-≈ ⟩ deMorgan₁ _ _ ⟩
         x ∧ ((¬ x) ∨ (¬ y))
@@ -363,6 +376,7 @@ module XorRing
     private
       ⊕-comm : Commutative _⊕_
       ⊕-comm x y =
+                             begin
         x ⊕ y
                              ∼⟨ ⊕-def _ _ ⟩
         (x ∨ y) ∧ ¬ (x ∧ y)
@@ -374,6 +388,7 @@ module XorRing
 
     ⊕-¬-distribʳ : forall x y -> ¬ (x ⊕ y) ≈ (x ⊕ (¬ y))
     ⊕-¬-distribʳ x y =
+                   begin
       ¬ (x ⊕ y)
                    ∼⟨ ¬-pres-≈ $ ⊕-comm _ _ ⟩
       ¬ (y ⊕ x)
@@ -385,6 +400,7 @@ module XorRing
 
     ⊕-annihilates-¬ : forall x y -> (x ⊕ y) ≈ ((¬ x) ⊕ (¬ y))
     ⊕-annihilates-¬ x y =
+                       begin
       x ⊕ y
                        ∼⟨ sym $ ¬-involutive _ ⟩
       ¬ ¬ (x ⊕ y)
@@ -397,6 +413,7 @@ module XorRing
     private
       ⊕-pres : _⊕_ Preserves₂-≈
       ⊕-pres {x} {y} {u} {v} x≈y u≈v =
+                             begin
         x ⊕ u
                              ∼⟨ ⊕-def _ _ ⟩
         (x ∨ u) ∧ ¬ (x ∧ u)
@@ -412,6 +429,7 @@ module XorRing
         where
         ⊥⊕x=x : forall x -> (⊥ ⊕ x) ≈ x
         ⊥⊕x=x x =
+                               begin
           ⊥ ⊕ x
                                ∼⟨ ⊕-def _ _ ⟩
           (⊥ ∨ x) ∧ ¬ (⊥ ∧ x)
@@ -429,6 +447,7 @@ module XorRing
         where
         x⊕x=⊥ : forall x -> (x ⊕ x) ≈ ⊥
         x⊕x=⊥ x =
+                               begin
           x ⊕ x
                                ∼⟨ ⊕-def _ _ ⟩
           (x ∨ x) ∧ ¬ (x ∧ x)
@@ -444,6 +463,7 @@ module XorRing
         where
         distˡ : _∧_ DistributesOverˡ _⊕_
         distˡ x y z =
+                                     begin
           x ∧ (y ⊕ z)
                                      ∼⟨ byDef ⟨ ∧-pres-≈ ⟩ ⊕-def _ _ ⟩
           x ∧ ((y ∨ z) ∧ ¬ (y ∧ z))
@@ -482,6 +502,7 @@ module XorRing
                                      ∎
           where
           lem₂ =
+                         begin
             x ∧ (y ∧ z)
                          ∼⟨ ∧-assoc _ _ _ ⟩
             (x ∧ y) ∧ z
@@ -492,6 +513,7 @@ module XorRing
                          ∎
 
           lem₁ =
+                               begin
             x ∧ (y ∧ z)
                                ∼⟨ sym (∧-idempotent _) ⟨ ∧-pres-≈ ⟩ byDef ⟩
             (x ∧ x) ∧ (y ∧ z)
@@ -504,6 +526,7 @@ module XorRing
                                ∎
 
           lem₃ =
+                                   begin
             ⊥
                                    ∼⟨ sym $ proj₂ ∧-zero _ ⟩
             (y ∨ z) ∧ ⊥
@@ -517,6 +540,7 @@ module XorRing
 
         distʳ : _∧_ DistributesOverʳ _⊕_
         distʳ x y z =
+                             begin
           (y ⊕ z) ∧ x
                              ∼⟨ ∧-comm _ _ ⟩
           x ∧ (y ⊕ z)
@@ -531,6 +555,7 @@ module XorRing
                 (((x ∨ u) ∧ (y ∨ u)) ∧
                  ((x ∨ v) ∧ (y ∨ v)))
       lemma₂ x y u v =
+        begin
           (x ∧ y) ∨ (u ∧ v)
         ∼⟨ proj₁ ∨-∧-distrib _ _ _ ⟩
           ((x ∧ y) ∨ u) ∧ ((x ∧ y) ∨ v)
@@ -540,6 +565,7 @@ module XorRing
 
       ⊕-assoc : Associative _⊕_
       ⊕-assoc x y z =
+                                                            begin
         x ⊕ (y ⊕ z)
                                                             ∼⟨ byDef ⟨ ⊕-pres ⟩ ⊕-def _ _ ⟩
         x ⊕ ((y ∨ z) ∧ ¬ (y ∧ z))
@@ -570,6 +596,7 @@ module XorRing
                                                             ∎
         where
         lem₁ =
+                                                 begin
           ((x ∨ y) ∨ z) ∧ (((¬ x) ∨ (¬ y)) ∨ z)
                                                  ∼⟨ sym $ proj₂ ∨-∧-distrib _ _ _ ⟩
           ((x ∨ y) ∧ ((¬ x) ∨ (¬ y))) ∨ z
@@ -579,6 +606,7 @@ module XorRing
                                                  ∎
 
         lem₂' =
+                                                 begin
           (x ∨ (¬ y)) ∧ ((¬ x) ∨ y)
                                                  ∼⟨ sym $
                                                       proj₁ ∧-identity _
@@ -600,6 +628,7 @@ module XorRing
                                                  ∎
 
         lem₂ =
+                                                     begin
           ((x ∨ (¬ y)) ∨ ¬ z) ∧ (((¬ x) ∨ y) ∨ ¬ z)
                                                      ∼⟨ sym $ proj₂ ∨-∧-distrib _ _ _ ⟩
           ((x ∨ (¬ y)) ∧ ((¬ x) ∨ y)) ∨ ¬ z
@@ -610,6 +639,7 @@ module XorRing
                                                      ∎
 
         lem₃ =
+                                                 begin
           x ∨ ((y ∨ z) ∧ ¬ (y ∧ z))
                                                  ∼⟨ byDef ⟨ ∨-pres-≈ ⟩
                                                       (byDef ⟨ ∧-pres-≈ ⟩ deMorgan₁ _ _) ⟩
@@ -621,6 +651,7 @@ module XorRing
                                                  ∎
 
         lem₄' =
+                                         begin
           ¬ ((y ∨ z) ∧ ¬ (y ∧ z))
                                          ∼⟨ deMorgan₁ _ _ ⟩
           ¬ (y ∨ z) ∨ ¬ ¬ (y ∧ z)
@@ -640,6 +671,7 @@ module XorRing
                                          ∎
 
         lem₄ =
+                                                  begin
           ¬ (x ∧ ((y ∨ z) ∧ ¬ (y ∧ z)))
                                                   ∼⟨ deMorgan₁ _ _ ⟩
           (¬ x) ∨ ¬ ((y ∨ z) ∧ ¬ (y ∧ z))
@@ -657,6 +689,7 @@ module XorRing
                                                   ∎
 
         lem₅ =
+                                                             begin
           ((x ∨ (¬ y)) ∨ (¬ z)) ∧
           ((((¬ x) ∨ (¬ y)) ∨ z) ∧ (((¬ x) ∨ y) ∨ (¬ z)))
                                                              ∼⟨ ∧-assoc _ _ _ ⟩

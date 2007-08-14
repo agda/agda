@@ -29,6 +29,7 @@ abstract
 
   ¬-involutive : forall x -> (- - x) ≈ x
   ¬-involutive x =
+                           begin
     - - x
                            ∼⟨ sym $ proj₂ identity _ ⟩
     (- - x) + 0#

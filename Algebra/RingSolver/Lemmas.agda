@@ -44,6 +44,7 @@ abstract
 
   lemma₀ : forall x -> (x + ⟦ C.0# ⟧) ≈ x
   lemma₀ x =
+                  begin
     x + ⟦ C.0# ⟧
                   ∼⟨ byDef ⟨ A.•-pres-≈ ⟩ 0-homo ⟩
     x + 0#
@@ -54,6 +55,7 @@ abstract
   lemma₁ :  forall a b c d x
          -> (((a + b) * x) + (c + d)) ≈ (((a * x) + c) + ((b * x) + d))
   lemma₁ a b c d x =
+                                   begin
     ((a + b) * x) + (c + d)
                                    ∼⟨ proj₂ distrib _ _ _ ⟨ A.•-pres-≈ ⟩ byDef ⟩
     ((a * x) + (b * x)) + (c + d)
@@ -71,6 +73,7 @@ abstract
 
   lemma₂ : forall x y z -> (x + (y + z)) ≈ (y + (x + z))
   lemma₂ x y z =
+                 begin
     x + (y + z)
                  ∼⟨ A.assoc _ _ _ ⟩
     (x + y) + z
@@ -83,6 +86,7 @@ abstract
   lemma₃ :  forall a b c x
          -> (((a * c) * x) + (b * c))  ≈ (((a * x) + b) * c)
   lemma₃ a b c x =
+                             begin
     ((a * c) * x) + (b * c)
                              ∼⟨ lem ⟨ A.•-pres-≈ ⟩ byDef ⟩
     ((a * x) * c) + (b * c)
@@ -91,6 +95,7 @@ abstract
                              ∎
     where
     lem =
+                   begin
       (a * c) * x
                    ∼⟨ sym (M.assoc _ _ _) ⟩
       a * (c * x)
@@ -103,6 +108,7 @@ abstract
   lemma₄ :  forall a b c x
          -> (((a * b) * x) + (a * c)) ≈ (a * ((b * x) + c))
   lemma₄ a b c x =
+                             begin
     ((a * b) * x) + (a * c)
                              ∼⟨ sym (M.assoc _ _ _)
                                   ⟨ A.•-pres-≈ ⟩
@@ -117,6 +123,7 @@ abstract
              ((((a * d) + (b * c)) * x) + (b * d))) ≈
             (((a * x) + b) * ((c * x) + d))
   lemma₅ a b c d x =
+                                             begin
     (((a * c) * x) * x) +
     ((((a * d) + (b * c)) * x) + (b * d))
                                              ∼⟨ lem₁ ⟨ A.•-pres-≈ ⟩
@@ -141,6 +148,7 @@ abstract
                                              ∎
     where
     lem₁' =
+                   begin
       (a * c) * x
                    ∼⟨ sym $ M.assoc _ _ _ ⟩
       a * (c * x)
@@ -151,6 +159,7 @@ abstract
                    ∎
 
     lem₁ =
+                         begin
       ((a * c) * x) * x
                          ∼⟨ lem₁' ⟨ M.•-pres-≈ ⟩ byDef ⟩
       ((a * x) * c) * x
@@ -159,6 +168,7 @@ abstract
                          ∎
 
     lem₂ =
+                                     begin
       ((a * d) + (b * c)) * x
                                      ∼⟨ proj₂ distrib _ _ _ ⟩
       ((a * d) * x) + ((b * c) * x)
@@ -173,6 +183,7 @@ abstract
 
   lemma₆ : forall a b x -> (((- a) * x) + (- b)) ≈ (- ((a * x) + b))
   lemma₆ a b x =
+                         begin
     ((- a) * x) + (- b)
                          ∼⟨ ¬-*-distribˡ _ _ ⟨ A.•-pres-≈ ⟩ byDef ⟩
     (- (a * x)) + (- b)
@@ -182,6 +193,7 @@ abstract
 
   lemma₇ : forall x -> ((⟦ C.1# ⟧ * x) + ⟦ C.0# ⟧) ≈ x
   lemma₇ x =
+                                begin
     ((⟦ C.1# ⟧ * x) + ⟦ C.0# ⟧)
                                 ∼⟨ (1-homo ⟨ M.•-pres-≈ ⟩ byDef) ⟨ A.•-pres-≈ ⟩ 0-homo ⟩
     (1# * x) + 0#

@@ -50,6 +50,7 @@ abstract
   private
     lemma : forall x y -> ((x + y) + - x) ≈ y
     lemma x y =
+                     begin
       (x + y) + - x
                      ∼⟨ comm _ _ ⟨ •-pres-≈ ⟩ byDef ⟩
       (y + x) + - x
@@ -63,6 +64,7 @@ abstract
 
   ¬-+-comm : forall x y -> ((- x) + (- y)) ≈ (- (x + y))
   ¬-+-comm x y =
+                                           begin
     (- x) + - y
                                            ∼⟨ comm _ _ ⟩
     (- y) + - x
@@ -75,6 +77,7 @@ abstract
                                            ∎
     where
     lem =
+                                     begin
       x + ((y + (- (x + y))) + - y)
                                      ∼⟨ assoc _ _ _ ⟩
       (x + (y + (- (x + y)))) + - y

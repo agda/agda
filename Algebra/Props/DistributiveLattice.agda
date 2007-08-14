@@ -49,6 +49,7 @@ abstract
     where
     ∨-∧-distribʳ : _∨_ DistributesOverʳ _∧_
     ∨-∧-distribʳ x y z =
+                         begin
       (y ∧ z) ∨ x
                          ∼⟨ ∨-comm _ _ ⟩
       x ∨ (y ∧ z)
@@ -63,6 +64,7 @@ abstract
     where
     ∧-∨-distribˡ : _∧_ DistributesOverˡ _∨_
     ∧-∨-distribˡ x y z =
+                                     begin
       x ∧ (y ∨ z)
                                      ∼⟨ sym (proj₂ absorptive _ _) ⟨ ∧-pres-≈ ⟩ byDef ⟩
       (x ∧ (x ∨ y)) ∧ (y ∨ z)
@@ -80,6 +82,7 @@ abstract
 
     ∧-∨-distribʳ : _∧_ DistributesOverʳ _∨_
     ∧-∨-distribʳ x y z =
+                         begin
       (y ∨ z) ∧ x
                          ∼⟨ ∧-comm _ _ ⟩
       x ∧ (y ∨ z)

@@ -50,6 +50,7 @@ abstract
 
   ×-pres-≈ : _×_ Preserves₂ _≡_ , _≈_ , _≈_
   ×-pres-≈ {n} {n'} {x} {x'} n≡n' x≈x' =
+            begin
     n × x
             ∼⟨ refl $ ≡-cong (\n -> n × x) n≡n' ⟩
     n' × x
@@ -63,6 +64,7 @@ abstract
 
   ^-pres-≈ : _^_ Preserves₂ _≈_ , _≡_ , _≈_
   ^-pres-≈ {x} {x'} {n} {n'} x≈x' n≡n' =
+            begin
     x ^ n
             ∼⟨ refl $ ≡-cong (_^_ x) n≡n' ⟩
     x ^ n'
