@@ -59,14 +59,20 @@ withSignature sig m =
 addConstant :: MonadTCM tcm => QName -> Definition -> tcm ()
 addConstant q d = liftTCM $ do
   tel <- getContextTelescope
+  let tel' = case theDef d of
+	      Constructor _ _ _ _ -> hideTel tel
+	      _			  -> tel
   modifySignature $ \sig -> sig
-    { sigDefinitions = Map.insertWith (+++) q (abstract tel d') $ sigDefinitions sig }
+    { sigDefinitions = Map.insertWith (+++) q (abstract tel' d') $ sigDefinitions sig }
   i <- currentMutualBlock
   setMutualBlock i q
   where
     d' = d { defName = q }
-    new +++ old = new { defDisplay = defDisplay new ++ defDisplay old
-		      }
+    new +++ old = new { defDisplay = defDisplay new ++ defDisplay old }
+    
+    hideTel  EmptyTel		      = EmptyTel
+    hideTel (ExtendTel (Arg _ t) tel) = ExtendTel (Arg Hidden t) $ hideTel <$> tel
+
 
 unionSignatures :: [Signature] -> Signature
 unionSignatures ss = foldr unionSignature emptySignature ss
