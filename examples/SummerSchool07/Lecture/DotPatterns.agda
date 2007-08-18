@@ -1,0 +1,3 @@
+
+module DotPatterns where
+

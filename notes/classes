@@ -73,7 +73,7 @@ Searching for instances:
 
   The instance search is performed in several "levels". First a match
   for C Γ is searched for. If several matches are found, an error is
-  omitted (ambiguous instances). If exactly one match is found, that
+  emitted (ambiguous instances). If exactly one match is found, that
   match is bound to the meta variable. And if no matches are found,
   the search continues with the superclasses of C Γ, in a
   breadth-first manner. (First all immediate superclasses, all at the
