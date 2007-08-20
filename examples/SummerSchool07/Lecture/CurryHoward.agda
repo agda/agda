@@ -1,3 +1,16 @@
+{-
+
+          Types Summer School 2007
+
+                 Bertinoro
+             Aug 19 - 31, 2007
+
+
+                   Agda
+
+                Ulf Norell
+
+-}
 
 module CurryHoward where
 
@@ -25,6 +38,9 @@ data ∃ (A : Set)(P : A -> Set) : Set where
 ∀ A P = (x : A) -> P x
 
 -- Some simple examples
+
+const : {A B : Set} -> A -> (B -> A)
+const = {! !}
 
 swap : {P Q : Set} -> P ∧ Q -> Q ∧ P
 swap (p , q) = (q , p)

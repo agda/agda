@@ -23,13 +23,13 @@ module Datatypes where
 
 -}
 
--- Now which datatype should we start with...?
+-- Let's define natural numbers.
 
 data Nat : Set where
   zero : Nat
   suc  : Nat -> Nat
 
--- Let's start simple.
+-- A simple function.
 pred : Nat -> Nat
 pred zero    = zero
 pred (suc n) = n
@@ -60,8 +60,6 @@ if false then x else y = y
 data List (A : Set) : Set where
   []   : List A
   _::_ : A -> List A -> List A
-
-infixr 50 _::_
 
 -- The parameters are implicit arguments to the constructors.
 nil : (A : Set) -> List A
@@ -95,7 +93,5 @@ elim-False ()  -- Look Ma, no right hand side!
 
 -}
 
--- Fun as they are, eventually you'll get bored with
--- inductive datatypes.
-
--- Move on to: Families.agda
+-- The Curry-Howard isomorphism.
+--   CurryHoward.agda

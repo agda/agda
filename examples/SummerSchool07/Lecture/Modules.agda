@@ -1,12 +1,12 @@
 {-
 
-        Agda Implementors' Meeting VI
+          Types Summer School 2007
 
-                  Göteborg
-             May 24 - 30, 2007
+                 Bertinoro
+             Aug 19 - 31, 2007
 
 
-                Hello Agda!
+                   Agda
 
                 Ulf Norell
 
@@ -131,36 +131,8 @@ lem₁ zero    = refl
 lem₁ (suc n) = cong suc (lem₁ n)
 
 lem₂ : (n m : Nat) -> n + suc m == suc n + m
-lem₂  zero   m = refl
-lem₂ (suc n) m = cong suc (lem₂ n m)
-
--- You can define things locally to a function clause
-reverse : {A : Set}{n : Nat} -> Vec A n -> Vec A n
-reverse {A} = \xs -> subst (Vec A) (lem₁ _) (rev xs [])
-  where
-    rev : {n m : Nat} -> Vec A n -> Vec A m -> Vec A (n + m)
-    rev []              ys = ys
-    rev (_::_ {n} x xs) ys = subst (Vec A) (lem₂ n _)
-                                   (rev xs (x :: ys))
-
--- More precisely, each clause can have one local module. In the
--- example above we didn't bother naming the module. We could've
--- said
-reverse' : {A : Set}{n : Nat} -> Vec A n -> Vec A n
-reverse' {A}{n} = \xs -> subst (Vec A) (lem₁ n) (rev xs [])
-  module Rev where
-    rev : {m p : Nat} -> Vec A m -> Vec A p -> Vec A (m + p)
-    rev []              ys = ys
-    rev (_::_ {n} x xs) ys = subst (Vec A) (lem₂ n _)
-                                   (rev xs (x :: ys))
-
--- Now we can access the local function from inside the module Rev.
--- Variables bound in the left hand side of the clause become
--- parameters to the module, so since the implicit n argument to
--- reverse' is bound implicitly there's an extra argument of type
--- Nat which isn't used.
-
-test'' = Rev.rev {_}{0} (4 :: 3 :: 2 :: []) (5 :: 6 :: [])
+lem₂ n  zero   = refl
+lem₂ n (suc m) = cong suc (lem₂ n m)
 
 {-
 

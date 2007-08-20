@@ -28,7 +28,7 @@ parity : (n : Nat) -> Parity n
 parity  zero = even zero
 parity (suc n)         with parity n
 parity (suc .(2 * k))     | even k = {! !}
-parity (suc .(2 * k + 1)) | odd  k = ?
+parity (suc .(2 * k + 1)) | odd  k = {! !}
 
 half : Nat -> Nat
 half n         with parity n

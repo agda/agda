@@ -1,12 +1,12 @@
 {-
 
-        Agda Implementors' Meeting VI
+          Types Summer School 2007
 
-                  Göteborg
-             May 24 - 30, 2007
+                 Bertinoro
+             Aug 19 - 31, 2007
 
 
-                Hello Agda!
+                   Agda
 
                 Ulf Norell
 
