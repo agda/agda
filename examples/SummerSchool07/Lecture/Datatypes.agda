@@ -51,13 +51,6 @@ if_then_else_ : {A : Set} -> Bool -> A -> A -> A
 if true  then x else y = x
 if false then x else y = y
 
--- To declare the associativity and precedence of an operator
--- we write. In this case we need parenthesis around the else branch
--- if its precedence is lower than 10. For the condition and the then
--- branch we only need parenthesis for things like λs.
-infix 10 if_then_else_
-
-
 {-
 
   Parameterised datatypes

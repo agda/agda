@@ -6,18 +6,19 @@ data Nat : Set where
   suc  : Nat -> Nat
 
 infixl 60 _+_
-infixl 80 _*_
+infixl 70 _*_
 
 _+_ : Nat -> Nat -> Nat
-zero  + m = m
-suc n + m = suc (n + m)
+n + zero  = n
+n + suc m = suc (n + m)
 
 _*_ : Nat -> Nat -> Nat
-zero  * m = zero
-suc n * m = m + n * m
+n * zero  = zero
+n * suc m = n * m + n
 
-{-# BUILTIN NATURAL  Nat  #-}
-{-# BUILTIN ZERO     zero #-}
-{-# BUILTIN SUC      suc  #-}
-{-# BUILTIN NATPLUS  _+_  #-}
-{-# BUILTIN NATTIMES _*_  #-}
+{-# BUILTIN NATURAL Nat #-}
+{-# BUILTIN ZERO zero #-}
+{-# BUILTIN SUC suc #-}
+-- {-# BUILTIN NATPLUS _+_ #-}
+-- {-# BUILTIN NATTIMES _*_ #-}
+

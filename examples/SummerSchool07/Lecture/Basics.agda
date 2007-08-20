@@ -18,6 +18,8 @@
 
     http://www.cs.chalmers.se/~ulfn/Agda
 
+  This is where you find the exercises for the afternoon.
+
 -}
 
 -- Each Agda file contains a top-level module, whose
@@ -51,9 +53,13 @@ id₂ = \ A x -> id₁ A (id₁ A x)
 
 -- Another useful function, featuring telescopes
 -- and typed λs.
-compose : (A B : Set)(C : B -> Set)
-          (f : (x : B) -> C x)(g : A -> B) -> (x : A) -> C (g x)
-compose = \(A B : Set)(C : B -> Set) -> \ f g x -> f (g x)
+compose : (A B C : Set) -> (B -> C) -> (A -> B) -> A -> C
+compose = \(A B C : Set) f g x -> f (g x)
+
+compose' : (A B : Set)(C : B -> Set)
+           (f : (x : B) -> C x)(g : A -> B) ->
+           (x : A) -> C (g x)
+compose' = \(A B : Set)(C : B -> Set) -> \ f g x -> f (g x)
 
 {-
 

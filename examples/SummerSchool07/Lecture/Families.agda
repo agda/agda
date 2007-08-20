@@ -70,30 +70,19 @@ inv f .(f x) (im x) = x
 data _==_ {A : Set}(x : A) : A -> Set where
   refl : x == x
 
-infix 30 _==_ _!=_
-infix 20 ¬_
+subst : {A : Set}(C : A -> Set)(x y : A) -> x == y -> C x -> C y
+subst C x .x refl cx = cx
 
--- In the presence of families we get a lot more empty types.
+-- Finite sets
 
-data Bool : Set where
-  true  : Bool
-  false : Bool
+data Fin : Nat -> Set where
+  fzero : {n : Nat} -> Fin (suc n)
+  fsuc  : {n : Nat} -> Fin n -> Fin (suc n)
 
-data False : Set where
-
-¬_ : Set -> Set
-¬ A = A -> False
-
-_≠_ : {A : Set} -> A -> A -> Set
-x ≠ y = ¬ x == y
-
-true≠false : true == false -> False -- true ≠ false
-true≠false ()
-
-lem : (n : Nat) -> n == suc n -> False
-lem n ()
-
--- Why does this work: true == false is an empty type.
+_!_ : {A : Set}{n : Nat} -> Vec A n -> Fin n -> A
+[]        ! ()
+(x :: xs) ! fzero  = x
+(x :: xs) ! fsuc i = xs ! i
 
 {-
 
@@ -104,4 +93,4 @@ lem n ()
 -- Actually, inductive families are sufficiently fun that
 -- you'll never get bored, but there's even more fun to be had.
 
--- Move on to: With.agda
+-- Move on to: Filter.agda
