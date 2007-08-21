@@ -43,3 +43,5 @@ src/prototyping/modules/flat/module$
 notes/papers/iird/paper.tex
 \.setup-config$
 src/transl/dist
+src/rts/dist
+\.(installed|inplace)-pkg-config

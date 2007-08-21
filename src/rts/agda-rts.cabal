@@ -1,0 +1,13 @@
+name:            agda-rts
+version:         2.1.3
+license:         BSD3
+author:          Marcin Benke, Ulf Norell
+maintainer:      Ulf Norell <ulfn@cs.chalmers.se>
+homepage:
+category:        Dependent types
+build-depends:   base, mtl
+synopsis:        Runtime system for compiled Agda programs
+hs-source-dirs:  .
+exposed-modules: RTS RTN RTP
+ghc-options:     -O -Wall -Werror -fno-warn-missing-signatures -fno-warn-name-shadowing -fno-warn-simple-patterns -fno-warn-unused-matches -fno-warn-unused-binds -fno-warn-unused-imports -fno-warn-type-defaults -fno-warn-orphans -auto-all
+
