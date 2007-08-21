@@ -18,7 +18,15 @@ module Families where
 
 -- You can import modules defined in other files.
 -- More details later...
-open import Nat
+-- open import Nat
+
+data Nat : Set where
+  zero : Nat
+  suc  : Nat -> Nat
+
+_+_ : Nat -> Nat -> Nat
+zero + m = m
+suc n + m = suc (n + m)
 
 -- Think of an inductive family...
 
@@ -67,13 +75,21 @@ inv f .(f x) (im x) = x
 -- Let's do some other interesting families.
 
 -- The identity type.
-data _==_ {A : Set}(x : A) : A -> Set where
-  refl : x == x
+data _==_ {A : Set} : A -> A -> Set where
+  refl : (x : A) -> x == x
 
 subst : {A : Set}(C : A -> Set)(x y : A) -> x == y -> C x -> C y
-subst C x .x refl cx = cx
+subst C .x .x (refl x) cx = cx
 
 -- Finite sets
+
+{-
+
+Fin zero        -
+Fin (suc zero)  fzero
+Fin 2           fzero, fsuc fzero
+
+-}
 
 data Fin : Nat -> Set where
   fzero : {n : Nat} -> Fin (suc n)

@@ -59,7 +59,7 @@ compose = \(A B C : Set) f g x -> f (g x)
 compose' : (A B : Set)(C : B -> Set)
            (f : (x : B) -> C x)(g : A -> B) ->
            (x : A) -> C (g x)
-compose' = \(A B : Set)(C : B -> Set) -> \ f g x -> f (g x)
+compose' = \A B C f g x -> f (g x)
 
 {-
 

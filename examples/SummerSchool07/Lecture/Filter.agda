@@ -14,6 +14,8 @@
 
 module Filter where
 
+open import Nat
+
 data Bool : Set where
   false : Bool
   true  : Bool
@@ -39,10 +41,17 @@ data _⊆_ {A : Set} : List A -> List A -> Set where
 
 subset : {A : Set}(p : A -> Bool)(xs : List A) -> filter p xs ⊆ xs
 subset p []        = stop
-subset p (x :: xs) = {! !}
+subset p (x :: xs) with p x
+... | true = keep (subset p xs) 
+... | false = drop (subset p xs) 
 
 {-
 subset p (x :: xs) with p x
 subset p (x :: xs) | true  = keep (subset p xs)
 subset p (x :: xs) | false = drop (subset p xs)
 -}
+
+f : Nat -> Nat
+f x = f x
+
+foo = 432894 + 8902843920 

@@ -40,10 +40,10 @@ data ∃ (A : Set)(P : A -> Set) : Set where
 -- Some simple examples
 
 const : {A B : Set} -> A -> (B -> A)
-const = {! !}
+const = \x y -> x  
 
 swap : {P Q : Set} -> P ∧ Q -> Q ∧ P
 swap (p , q) = (q , p)
 
 notNotEM : (P : Set) -> ¬ ¬ (P ∨ ¬ P)
-notNotEM P = {! !}
+notNotEM P = \f -> f (inr (\p -> f (inl p)))

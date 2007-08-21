@@ -39,6 +39,8 @@ _+_ : Nat -> Nat -> Nat
 zero  + m = m
 suc n + m = suc (n + m)
 
+infixl 60 _+_
+
 -- An aside on infix operators:
 -- Any name containing _ can be used as a mixfix operator.
 -- The arguments simply go in place of the _. For instance:
@@ -49,7 +51,8 @@ data Bool : Set where
 
 if_then_else_ : {A : Set} -> Bool -> A -> A -> A
 if true  then x else y = x
-if false then x else y = y
+-- if false then x else y = y
+if_then_else_ false x y = y
 
 {-
 
