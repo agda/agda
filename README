@@ -144,12 +144,17 @@ To use the Agda 2 Emacs mode:
            ; Add more keybindings here.
            )))
 
-6. In order to display the unicode characters you need the appropriate font.
-   Something like this in your .Xdefaults or .Xresources should do the trick:
+   Another side note: In order to display Unicode characters you need
+   to use a font which contains the glyphs in question. Depending on
+   your installation this may be enabled by default; if not, try
+   putting something like the following in your .Xdefaults or
+   .Xresources file (under a Linux-like OS) and log in again:
 
-    emacs*font: -misc-fixed-medium-r-normal--15-140-75-75-c-90-iso10646-1
+   emacs*font: -misc-fixed-medium-r-normal--15-140-75-75-c-90-iso10646-1
 
-  The key is the iso10646 part.
+   (Look for fonts with iso10646 in their names; however, note that
+   this part does not guarantee that the font has glyphs for the
+   characters you want...)
 
 ----------------------------------------------------------------
 Appendix: Installation scripts for (at least Ubuntu Linux)
