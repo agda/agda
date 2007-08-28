@@ -11,8 +11,8 @@ module Logic.Induction where
 RecStruct : Set -> Set1
 RecStruct a = (a -> Set) -> (a -> Set)
 
--- A recursor builder constructs a recursion structure for a given
--- input.
+-- A recursor builder constructs an instance of a recursion structure
+-- for a given input.
 
 RecursorBuilder : forall {a} -> RecStruct a -> Set1
 RecursorBuilder {a} Rec =
