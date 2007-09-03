@@ -4,6 +4,7 @@
 
 module Utils.Either
   ( rights
+  , isLeft, isRight
   , tests
   ) where
 
@@ -19,6 +20,18 @@ rights xs = [ x | Right x <- xs ]
 
 lefts :: [Either a b] -> [a]
 lefts xs = [ x | Left x <- xs ]
+
+-- | Returns 'True' iff the argument is @'Right' x@ for some @x@.
+
+isRight :: Either a b -> Bool
+isRight (Right _) = True
+isRight (Left  _) = False
+
+-- | Returns 'True' iff the argument is @'Left' x@ for some @x@.
+
+isLeft :: Either a b -> Bool
+isLeft (Right _) = False
+isLeft (Left _)  = True
 
 ------------------------------------------------------------------------
 -- All tests

@@ -4,8 +4,6 @@ module Termination.Utilities
   ( extractNthElement
   , groupOn
   , on
-  , isRight
-  , isLeft
   , tests
   ) where
 
@@ -35,18 +33,6 @@ groupOn f = groupBy ((==) `on` f) . sortBy (compare `on` f)
 
 on :: (b -> b -> c) -> (a -> b) -> a -> a -> c
 (*) `on` f = \x y -> f x * f y
-
--- | Returns 'True' iff the argument is @'Right' x@ for some @x@.
-
-isRight :: Either a b -> Bool
-isRight (Right _) = True
-isRight (Left  _) = False
-
--- | Returns 'True' iff the argument is @'Left' x@ for some @x@.
-
-isLeft :: Either a b -> Bool
-isLeft (Right _) = False
-isLeft (Left _)  = True
 
 ------------------------------------------------------------------------
 -- All tests

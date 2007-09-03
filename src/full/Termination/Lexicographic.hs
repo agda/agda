@@ -16,6 +16,7 @@ import Test.QuickCheck
 import Termination.Utilities
 import Termination.Matrix (Size (..))
 import qualified Termination.Matrix as M
+import Utils.Either
 import Utils.TestHelpers
 import Termination.CallGraph
 import Control.Arrow
