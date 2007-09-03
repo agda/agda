@@ -92,8 +92,10 @@ termMutual i ts ds = if names == [] then return [] else
      -- collect all recursive calls in the block
      calls <- collectCalls (termDef allNames) allNames
      reportSLn "term.lex" 30 $ "Calls: " ++ show calls
+{- -- applies only to FoetusTermination
      reportSLn "term.lex" 30 $ "Recursion behaviours: " ++
                                show (Term.recursionBehaviours calls)
+-}
      case Term.terminates calls of
        Left  errDesc -> do
          let callSites = Set.toList errDesc
@@ -260,7 +262,7 @@ termClause names name (Clause argPats body) =
 -- | Extract recursive calls from a term.
 termTerm :: MutualNames -> QName -> [DeBruijnPat] -> Term -> TCM Calls
 termTerm names f pats0 t0 = do
-  reportSDoc "term.check.clause" 10 
+  reportSDoc "term.check.clause" 10
     (sep [ text "termination checking clause of" <+> prettyTCM f
          , nest 2 $ text "lhs:" <+> hsep (map prettyTCM pats0)
          , nest 2 $ text "rhs:" <+> prettyTCM t0
@@ -376,9 +378,12 @@ subPatterns p = case p of
   LitDBP _    -> []
 
 compareTerm :: Term -> DeBruijnPat -> Term.Order
+compareTerm = compareTerm'
+{-
 compareTerm t p = Term.supremum $ compareTerm' t p : map cmp (subPatterns p)
   where
     cmp p' = (Term..*.) Term.Lt (compareTerm' t p')
+-}
 
 -- | compareTerm t dbpat
 --   Precondition: t not a BlockedV, top meta variable resolved
@@ -389,13 +394,25 @@ compareTerm' (Lit l)    (LitDBP l')    = if l == l' then Term.Le
 compareTerm' (Lit l)    _              = Term.Unknown
 compareTerm' (Con c ts) (ConDBP c' ps) =
   if c == c' then
-      if (length ts <= 0) then 
-          foldl (Term..*.) Term.Le $ map (compareTerm' (unArg $ head (ts))) ps
-      else
+  -- we may assume |ps| >= |ts|, otherwise c ps would be of functional type
+  -- which is impossible
+      case (length ts, length ps) of
+        (0,0) -> Term.Le        -- c <= c
+        (0,1) -> Term.Unknown   -- c not<= c x
+        (1,0) -> __IMPOSSIBLE__ 
+        (1,1) -> compareTerm' (unArg (head ts)) (head ps)
+        (_,_) -> -- build "call matrix"
           let m =  map (\t -> map (compareTerm' (unArg t)) ps) ts
               m2 = makeCM ps (map unArg ts) m
           in
             Term.Mat (Term.mat m2)
+{-
+--    if null ts then Term.Le
+--               else Term.infimum (zipWith compareTerm' (map unArg ts) ps)
+     foldl (Term..*.) Term.Le (zipWith compareTerm' (map unArg ts) ps)
+       -- corresponds to taking the size, not the height
+       -- allows examples like (x, y) < (Succ x, y)
+-}
    else Term.Unknown
 compareTerm' _ _ = Term.Unknown
 

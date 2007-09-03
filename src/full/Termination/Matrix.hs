@@ -14,6 +14,7 @@ module Termination.Matrix
   , fromLists
   , fromIndexList
   , toLists
+  , Termination.Matrix.zipWith
   , matrix
   , matrixUsingRowGen
     -- * Combining and querying matrices
@@ -31,7 +32,7 @@ module Termination.Matrix
   ) where
 
 import Data.Array
-import Data.List
+import Data.List as List
 import Test.QuickCheck
 import Utils.TestHelpers
 import Termination.Semiring (Semiring)
@@ -298,6 +299,17 @@ prop_addRow x m =
   init (toLists m') == toLists m
   where
   m' = addRow x m
+
+------------------------------------------------------------------------
+-- Zipping (assumes non-empty matrices)
+
+zipWith :: (a -> b -> c) -> 
+           Matrix Integer a -> Matrix Integer b -> Matrix Integer c
+zipWith f m1 m2 
+  = fromLists (Size { rows = toInteger $ length ll, 
+                      cols = toInteger $ length (head ll) }) ll
+    where ll = List.zipWith (List.zipWith f) (toLists m1) (toLists m2)
+
 
 ------------------------------------------------------------------------
 -- All tests

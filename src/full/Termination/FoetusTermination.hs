@@ -1,9 +1,6 @@
 -- | Termination checker, based on
 --     \"A Predicative Analysis of Structural Recursion\" by
---     Andreas Abel and Thorsten Altenkirch (JFP'01).
---   and
---     \"The Size-Change Principle for Program Termination\" by
---     Chin Soon Lee, Neil Jones, and Amir Ben-Amram (POPL'01).
+--     Andreas Abel and Thorsten Altenkirch.
 --
 -- TODO: Note that we should also check that data type definitions are
 -- strictly positive. Furthermore, for inductive-recursive families we
@@ -11,6 +8,7 @@
 
 module Termination.Termination
   ( terminates
+  , recursionBehaviours
   , Termination.Termination.tests
   ) where
 
@@ -18,7 +16,6 @@ import Termination.Lexicographic
 import Termination.Utilities
 import Termination.CallGraph
 import Termination.Matrix
-import Utils.Either
 import Control.Arrow
 import Test.QuickCheck
 import qualified Data.Set as Set
@@ -30,50 +27,66 @@ import qualified Data.Map as Map
 import Data.Monoid
 import Data.Array (Array)
 
-
 -- | @'terminates' cs@ checks if the functions represented by @cs@
 -- terminate. The call graph @cs@ should have one entry ('Call') per
 -- recursive function application.
 --
--- @'Right' perms@ is returned if the functions are size-change terminating.
+-- @'Right' perms@ is returned if the algorithm in the paper referred
+-- to above can detect that the functions terminate. Here @perms@
+-- contains one permutation (lexicographic ordering) for every
+-- function; these permutations witness the termination of the
+-- functions. (For more details, see the paper and 'lexOrder'.)
 --
 -- If termination can not be established, then @'Left' problems@ is
--- returned instead. Here @problems@ contains an
+-- returned instead. Here @problems@ contains, for every function, an
 -- indication of why termination cannot be established. See 'lexOrder'
 -- for further details.
 --
 -- Note that this function assumes that all data types are strictly
 -- positive.
 
--- The termination criterion is taken from Jones et al.
--- In the completed call graph, each idempotent call-matrix 
--- from a function to itself must have a decreasing argument.
--- Idempotency is wrt. matrix multiplication.
+terminates :: (Ord meta, Monoid meta) =>
+  CallGraph meta -> Either (Map Index (Set Index, Set meta))
+                           (Map Index (LexOrder Index))
+terminates cs | ok        = Right perms 
+              | otherwise = Left problems
+  where
+  -- Try to find lexicographic orders.
+  lexs = [ (i, lexOrder $ fromDiagonals rb)
+         | (i, rb) <- recursionBehaviours cs ]
+
+  ok = all (isRight . snd) lexs
+  perms = Map.fromList $
+          map (id *** (\(Right x) -> x)) $ filter (isRight . snd) lexs
+  problems = Map.fromList $
+             map (id *** (\(Left x) -> (id *** Set.map snd) x)) $
+             filter (isLeft . snd) lexs
+
+-- | Completes the call graph and computes the corresponding recursion
+-- behaviours.
 --
--- This criterion is strictly more liberal than searching for a 
--- lexicographic order (and easier to implement, but harder to justify).
+-- Takes the same kind of input as 'terminates'.
+--
+-- For every function ('Index') a bunch of arrays is returned. Every
+-- array states one way in which the function calls itself (perhaps
+-- via other functions); one call path. The merged meta information
+-- associated with all the calls in such a call path is paired up with
+-- the array. It may be that several different call paths give rise to
+-- the same array. In that case the array is returned once; the pieces
+-- of meta information associated to the different call paths are
+-- merged using 'mappend'.
 
-terminates :: (Ord meta, Monoid meta) => CallGraph meta -> Either meta ()
-terminates cs = let ccs = complete cs
-                in
-                  checkIdems $ toList ccs
-
-checkIdems :: (Ord meta,Monoid meta) => [(Call,meta)] -> Either meta ()
-checkIdems [] = Right ()
-checkIdems ((c,m):xs) = if (checkIdem c) then checkIdems xs else Left m
-
-checkIdem :: Call -> Bool
-checkIdem c = let b = target c == source c
-                  idem = (c >*< c) == c
-                  hasDecr = any isDecr $ Array.elems $ diagonal (mat (cm c))
-                  in
-                    (not b) || (not idem) || hasDecr
-
--- matrix is decreasing if any diagonal element is Lt
-isDecr :: Order -> Bool
-isDecr Lt = True
-isDecr (Mat m) = any isDecr $ Array.elems $ diagonal m
-isDecr _ = False
+recursionBehaviours :: (Ord meta, Monoid meta) =>
+     CallGraph meta -> [(Index, [(meta, Array Index Order)])]
+recursionBehaviours cs = rbs'
+  where
+  -- Complete the call graph.
+  ccs = complete cs
+  -- Compute the "recursion behaviours" (matrix diagonals).
+  rbs = [ (source c, (callIds, diagonal (mat (cm c))))
+        | (c, callIds) <- toList ccs, source c == target c ]
+  -- Group them by function name.
+  rbs' = map (fst . head &&& map snd) $ groupOn fst rbs
 
 ------------------------------------------------------------------------
 -- Some examples
@@ -87,7 +100,7 @@ type CG = CallGraph (Set Integer)
 buildCallGraph :: [Call] -> CG
 buildCallGraph = fromList . flip zip (map Set.singleton [1 ..])
 
--- | The example from the JFP'02 paper.
+-- | The example from the paper.
 
 example1 :: CG
 example1 = buildCallGraph [c1, c2, c3]
@@ -102,9 +115,10 @@ example1 = buildCallGraph [c1, c2, c3]
   c3 = Call { source = aux,  target = flat
             , cm = CallMatrix $ fromLists (Size 1 2) [[Unknown, Le]] }
 
-prop_terminates_example1 = isRight $ terminates example1
+prop_terminates_example1 =
+  terminates example1 == Right (Map.fromList [(1, [1]), (2, [2, 1])])
 
--- | An example which is now handled by this algorithm: argument
+-- | An example which is not handled by this algorithm: argument
 -- swapping addition.
 --
 -- @S x + y = S (y + x)@
@@ -119,9 +133,12 @@ example2 = buildCallGraph [c]
            , cm = CallMatrix $ fromLists (Size 2 2) [ [Unknown, Le]
                                                     , [Lt, Unknown] ] }
 
-prop_terminates_example2 = isRight $ terminates example2 
+prop_terminates_example2 =
+  terminates example2 ==
+  Left (Map.fromList [(1, ( Set.fromList [1, 2]
+                          , Set.fromList [Set.fromList [1]] ))])
 
--- | A related example which is anyway handled: argument swapping addition
+-- | A related example which /is/ handled: argument swapping addition
 -- using two alternating functions.
 --
 -- @S x + y = S (y +' x)@
@@ -141,7 +158,8 @@ example3 = buildCallGraph [c plus plus', c plus' plus]
                , cm = CallMatrix $ fromLists (Size 2 2) [ [Unknown, Le]
                                                         , [Lt, Unknown] ] }
 
-prop_terminates_example3 = isRight $ terminates example3 
+prop_terminates_example3 =
+  terminates example3 == Right (Map.fromList [(1, [1]), (2, [1])])
 
 -- | A contrived example.
 --
@@ -151,7 +169,7 @@ prop_terminates_example3 = isRight $ terminates example3
 --
 -- @g x y = f x y@
 --
--- TODO: This example checks that the meta information is reported properly
+-- This example checks that the meta information is reported properly
 -- when an error is encountered.
 
 example4 :: CG
@@ -169,7 +187,10 @@ example4 = buildCallGraph [c1, c2, c3]
             , cm = CallMatrix $ fromLists (Size 2 2) [ [Le, Unknown]
                                                      , [Unknown, Le] ] }
 
-prop_terminates_example4 = isLeft $ terminates example4
+prop_terminates_example4 =
+  terminates example4 ==
+  Left (Map.fromList [(1, ( Set.fromList [2]
+                          , Set.fromList [Set.fromList [1]] ))])
 
 -- | This should terminate.
 --
@@ -195,7 +216,8 @@ example5 = buildCallGraph [c1, c2, c3, c4]
             , cm = CallMatrix $ fromLists (Size 2 2) [ [Lt, Unknown]
                                                      , [Unknown, Le] ] }
 
-prop_terminates_example5 = isRight $ terminates example5 
+prop_terminates_example5 =
+  terminates example5 == Right (Map.fromList [(1, [2, 1]), (2, [2, 1])])
 
 -- | Another example which should fail.
 --
@@ -203,7 +225,7 @@ prop_terminates_example5 = isRight $ terminates example5
 --
 -- @f x     = f x@
 --
--- TODO: This example checks that the meta information is reported properly
+-- This example checks that the meta information is reported properly
 -- when an error is encountered.
 
 example6 :: CG
@@ -217,7 +239,10 @@ example6 = buildCallGraph [c1, c2, c3]
   c3 = Call { source = f, target = f
             , cm = CallMatrix $ fromLists (Size 1 1) [ [Le] ] }
 
-prop_terminates_example6 = isLeft $ terminates example6 
+prop_terminates_example6 =
+  terminates example6 ==
+  Left (Map.fromList [(1, ( Set.fromList []
+                          , Set.fromList [Set.fromList [2, 3]] ))])
 
 ------------------------------------------------------------------------
 -- All tests

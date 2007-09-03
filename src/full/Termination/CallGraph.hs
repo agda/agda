@@ -34,7 +34,7 @@ import Test.QuickCheck
 import Utils.Function hiding (on)
 import Utils.TestHelpers
 import Termination.Utilities
-import Termination.Matrix
+import Termination.Matrix as Matrix
 import Termination.Semiring (Semiring)
 import qualified Termination.Semiring as Semiring
 import Data.Set (Set)
@@ -51,7 +51,8 @@ import Data.Array (elems)
 -- @'Unknown' '<=' 'Le' '<=' 'Lt'@.
 --
 -- See 'Call' for more information.
-
+-- 
+-- TODO: document orders which are call-matrices themselves.
 data Order
   = Lt | Le | Unknown | Mat (Matrix Integer Order)
   deriving (Eq,Ord)
@@ -60,7 +61,7 @@ instance Show Order where
   show Lt      = "<"
   show Le      = "="
   show Unknown = "?"
-  show (Mat m) = "Mat" 
+  show (Mat m) = "Mat " ++ show m 
 
 --instance Ord Order where
 --    max = maxO
@@ -104,6 +105,7 @@ maxO o1 o2 = case (o1,o2) of
                (Lt,_) -> Lt
                (Unknown,_) -> o2
                (_,Unknown) -> o1
+               (Mat m1, Mat m2) -> Mat (Matrix.zipWith maxO m1 m2)
                (Mat m,_) -> maxO (collapse m) o2
                (_,Mat m) ->  maxO o1 (collapse m)
                (Le,Le) -> Le

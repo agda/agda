@@ -101,6 +101,21 @@ mutual
   g (succ x) (succ y) = (f (succ x) (succ y)) + (g x (succ (succ y)))
 
 
+mutual
+
+  badf : Nat ×  Nat -> Nat
+
+  badf (zero , y) = zero
+  badf (succ x , zero) = zero
+  badf (succ x , succ y) = badg (x , succ y) + badf  (succ (succ x) , y)
+
+  badg : Nat × Nat -> Nat
+
+  badg (zero , y) = zero
+  badg (succ x , zero) = zero
+  badg (succ x , succ y) = badf (succ x , succ y) +  badg (x , succ (succ y))
+
+
 -- these are ok, however
 
 mutual
@@ -147,7 +162,7 @@ ack (succ x) (succ y) = ack x (ack (succ x) y)
 ack' : Nat × Nat -> Nat
 ack' (zero , y) = succ y
 ack' (succ x , zero) = ack' (x , succ zero)
-ack' (succ x ,  succ y) = ack' (x , (ack' (succ x , y)))
+ack' (succ x , succ y) = ack' (x , ack' (succ x , y))
 
 -- Maximum of 3 numbers
 
@@ -252,3 +267,36 @@ number' | x = g12 foo12
 --   abstract
 --     g12 : {i : Nat} -> Foo12 i -> Nat
 --     g12 (foo12 n) = n
+
+
+data List (A : Set) : Set where
+  [] : List A
+  _::_ : A -> List A -> List A
+
+infixr 50 _::_
+
+-- butlast function
+good1 : {A : Set} -> List A -> A 
+good1 (a :: []) = a
+good1 (a :: b :: bs) = good1 (b :: bs)
+
+infixl 10 _⊕_
+postulate
+  _⊕_ : {A : Set} -> A -> A -> A  -- non-deterministic choice
+
+
+-- a funny formulation of insert
+-- insert (a :: l)  inserts a into l 
+insert : {A : Set} -> List A -> List A
+insert [] = []
+insert (a :: []) = a :: []
+insert (a :: b :: bs) = a :: b :: bs ⊕        -- case a <= b 
+                        b :: insert (a :: bs) -- case a > b
+
+-- list flattening
+flat : {A : Set} -> List (List A) -> List A
+flat [] = []
+flat ([] :: ll) = flat ll
+flat ((x :: l) :: ll) = x :: flat (l :: ll)
+
+

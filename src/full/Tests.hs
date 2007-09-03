@@ -6,6 +6,7 @@ import Interaction.Highlighting.Emacs	 as InteEmac   (tests)
 import Interaction.Highlighting.Generate as InteGene   (tests)
 import Interaction.Highlighting.Precise	 as IntePrec   (tests)
 import Interaction.Highlighting.Range	 as InteRang   (tests)
+import Termination.Termination	         as TermTerm   (tests)
 import Termination.CallGraph	         as TermCall   (tests)
 import Termination.Lexicographic         as TermLex    (tests)
 import Termination.Matrix	         as TermMatrix (tests)
@@ -27,6 +28,8 @@ runTests = do
     IntePrec.tests
     putStrLn "Tests in Interaction.Highlighting.Range"
     InteRang.tests
+    putStrLn "Tests in Termination.Termination"
+    TermTerm.tests
     putStrLn "Tests in Termination.Utilities"
     TermUtil.tests
     putStrLn "Tests in Termination.Semiring"

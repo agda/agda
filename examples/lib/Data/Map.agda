@@ -29,17 +29,20 @@ empty = leaf
 
 insert : {a : Set} -> Key -> a -> Map a -> Map a
 insert k v leaf = node k v leaf leaf
+{-
 insert k v (node k' v' l r) =
   | k < k' => node k' v' (insert k v l) r
   | k > k' => node k' v' l (insert k v r)
   | otherwise node k' v l r
+-}
 
 open Data.Maybe
 
 lookup : {a : Set} -> Key -> Map a -> Maybe a
 lookup k leaf = nothing
+{-
 lookup k (node k' v l r) =
   | k < k' => lookup k l
   | k > k' => lookup k r
   | otherwise just v
-
+-}
