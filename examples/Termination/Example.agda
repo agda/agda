@@ -300,3 +300,16 @@ flat ([] :: ll) = flat ll
 flat ((x :: l) :: ll) = x :: flat (l :: ll)
 
 
+-- leaf-labelled trees
+
+data Tree (A : Set) : Set where
+  leaf : A -> Tree A
+  node : Tree A -> Tree A -> Tree A
+
+-- flattening (does not termination check)
+
+tflat : {A : Set} -> Tree A -> List A
+tflat (leaf a) = a :: []
+tflat (node (leaf a) r) = a :: tflat r
+tflat (node (node l1 l2) r) = tflat (node l1 (node l2 r))
+

@@ -78,15 +78,18 @@ instance Arbitrary Order where
 -- composition.)
 
 (.*.) :: Order -> Order -> Order
-Lt      .*. Unknown = Unknown
-Lt      .*. _       = Lt
-Le      .*. o       = o
-Unknown .*. _       = Unknown
+Lt      .*. Unknown   = Unknown
+Lt      .*. (Mat m)   = Lt .*. (collapse m)
+Lt      .*. _         = Lt
+Le      .*. o         = o
+Unknown .*. _         = Unknown
 (Mat m1) .*. (Mat m2) = if (okM m1 m2) then 
                             Mat $ mul orderSemiring m1 m2
                         else
                             (collapse m1) .*. (collapse m2)
-(Mat m) .*. x = (collapse m) .*. x 
+(Mat m) .*. Le        = Mat m
+(Mat m) .*. Unknown   = Unknown
+(Mat m) .*. Lt        = (collapse m) .*. Lt
 
 collapse :: Matrix Integer Order -> Order
 collapse m = foldl (.*.) Le (Data.Array.elems $ diagonal m)

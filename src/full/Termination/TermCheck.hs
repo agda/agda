@@ -262,7 +262,7 @@ termClause names name (Clause argPats body) =
 -- | Extract recursive calls from a term.
 termTerm :: MutualNames -> QName -> [DeBruijnPat] -> Term -> TCM Calls
 termTerm names f pats0 t0 = do
-  reportSDoc "term.check.clause" 10
+  reportSDoc "term.check.clause" 11
     (sep [ text "termination checking clause of" <+> prettyTCM f
          , nest 2 $ text "lhs:" <+> hsep (map prettyTCM pats0)
          , nest 2 $ text "rhs:" <+> prettyTCM t0
