@@ -96,7 +96,7 @@ termMutual i ts ds = if names == [] then return [] else
                                show (Term.recursionBehaviours calls)
      case Term.terminates calls of
        Left  errDesc -> do
-         let callSites = concat' $ concat' $ map snd $ Map.elems errDesc
+         let callSites = Set.toList errDesc
          return [(names, callSites)] -- TODO: this could be changed to
                                      -- [(allNames, callSites)]
        Right _ -> do
@@ -389,8 +389,13 @@ compareTerm' (Lit l)    (LitDBP l')    = if l == l' then Term.Le
 compareTerm' (Lit l)    _              = Term.Unknown
 compareTerm' (Con c ts) (ConDBP c' ps) =
   if c == c' then
-    if null ts then Term.Le
-               else Term.infimum (zipWith compareTerm' (map unArg ts) ps)
+      if (length ts <= 0) then 
+          foldl (Term..*.) Term.Le $ map (compareTerm' (unArg $ head (ts))) ps
+      else
+          let m =  map (\t -> map (compareTerm' (unArg t)) ps) ts
+              m2 = makeCM ps (map unArg ts) m
+          in
+            Term.Mat (Term.mat m2)
    else Term.Unknown
 compareTerm' _ _ = Term.Unknown
 

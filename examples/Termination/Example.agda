@@ -144,6 +144,11 @@ ack zero y = succ y
 ack (succ x) zero = ack x (succ zero)
 ack (succ x) (succ y) = ack x (ack (succ x) y)
 
+ack' : Nat × Nat -> Nat
+ack' (zero , y) = succ y
+ack' (succ x , zero) = ack' (x , succ zero)
+ack' (succ x ,  succ y) = ack' (x , (ack' (succ x , y)))
+
 -- Maximum of 3 numbers
 
 max3 : Nat -> Nat -> Nat -> Nat

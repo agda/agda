@@ -8,11 +8,11 @@ module Termination.CallGraph
     -- * Structural orderings
   ( Order(..)
   , (.*.)
-  , infimum
   , supremum
     -- * Call matrices
   , Index
   , CallMatrix(..)
+  , (>*<)
   , callMatrixInvariant
     -- * Calls
   , Call(..)
@@ -43,7 +43,7 @@ import Data.Map (Map, (!))
 import qualified Data.Map as Map
 import Data.List hiding (union, insert)
 import Data.Monoid
-
+import Data.Array (elems)
 ------------------------------------------------------------------------
 -- Structural orderings
 
@@ -53,19 +53,17 @@ import Data.Monoid
 -- See 'Call' for more information.
 
 data Order
-  = Lt | Le | Unknown
-  deriving (Eq)
+  = Lt | Le | Unknown | Mat (Matrix Integer Order)
+  deriving (Eq,Ord)
 
 instance Show Order where
   show Lt      = "<"
   show Le      = "="
   show Unknown = "?"
+  show (Mat m) = "Mat" 
 
-instance Ord Order where
-  _       <= Lt = True
-  Unknown <= _  = True
-  Le      <= Le = True
-  _       <= _  = False
+--instance Ord Order where
+--    max = maxO
 
 instance Arbitrary Order where
   arbitrary = elements [Lt, Le, Unknown]
@@ -73,6 +71,7 @@ instance Arbitrary Order where
   coarbitrary Lt      = variant 0
   coarbitrary Le      = variant 1
   coarbitrary Unknown = variant 2
+  coarbitrary (Mat m) = variant 3 
 
 -- | Multiplication of 'Order's. (Corresponds to sequential
 -- composition.)
@@ -82,23 +81,44 @@ Lt      .*. Unknown = Unknown
 Lt      .*. _       = Lt
 Le      .*. o       = o
 Unknown .*. _       = Unknown
+(Mat m1) .*. (Mat m2) = if (okM m1 m2) then 
+                            Mat $ mul orderSemiring m1 m2
+                        else
+                            (collapse m1) .*. (collapse m2)
+(Mat m) .*. x = (collapse m) .*. x 
+
+collapse :: Matrix Integer Order -> Order
+collapse m = foldl (.*.) Le (Data.Array.elems $ diagonal m)
+
+okM :: Matrix Integer Order -> Matrix Integer Order -> Bool
+okM m1 m2 = (rows $ size m2) == (cols $ size m1)
 
 -- | The supremum of a (possibly empty) list of 'Order's.
 
 supremum :: [Order] -> Order
-supremum = foldr max Unknown
+supremum = foldr maxO Unknown
+
+maxO :: Order -> Order -> Order
+maxO o1 o2 = case (o1,o2) of 
+               (_,Lt) -> Lt
+               (Lt,_) -> Lt
+               (Unknown,_) -> o2
+               (_,Unknown) -> o1
+               (Mat m,_) -> maxO (collapse m) o2
+               (_,Mat m) ->  maxO o1 (collapse m)
+               (Le,Le) -> Le
 
 -- | The infimum of a (possibly empty) list of 'Order's.
 
-infimum :: [Order] -> Order
-infimum = foldr min Lt
+-- infimum :: [Order] -> Order
+-- infimum = foldr min Lt -- DELETE ?
 
 -- | @('Order', 'max', '.*.')@ forms a semiring, with 'Unknown' as zero
 -- and 'Le' as one.  
 
 orderSemiring :: Semiring Order
 orderSemiring =
-  Semiring.Semiring { Semiring.add = max
+  Semiring.Semiring { Semiring.add = maxO
                     , Semiring.mul = (.*.)
                     , Semiring.zero = Unknown
                     , Semiring.one = Le

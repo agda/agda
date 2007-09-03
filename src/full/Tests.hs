@@ -10,7 +10,6 @@ import Termination.CallGraph	         as TermCall   (tests)
 import Termination.Lexicographic         as TermLex    (tests)
 import Termination.Matrix	         as TermMatrix (tests)
 import Termination.Semiring	         as TermRing   (tests)
-import Termination.Termination	         as TermTerm   (tests)
 import Termination.Utilities	         as TermUtil   (tests)
 import TypeChecking.Serialise	         as TypeSeri   (tests)
 import Utils.Either	                 as UtilEith   (tests)
@@ -32,8 +31,6 @@ runTests = do
     TermUtil.tests
     putStrLn "Tests in Termination.Semiring"
     TermRing.tests
-    putStrLn "Tests in Termination.Termination"
-    TermTerm.tests
     putStrLn "Tests in Termination.Matrix"
     TermMatrix.tests
     putStrLn "Tests in Termination.Lexicographic"
