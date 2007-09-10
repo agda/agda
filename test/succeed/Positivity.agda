@@ -1,5 +1,5 @@
 
-module Bad where
+module Positivity where
 
 data Nat : Set where
   zero : Nat
@@ -14,6 +14,17 @@ data Tree : Set where
 
 data Loop (A : Set) : Set where
   loop : Loop (Loop A) -> Loop A
+
+data _×_ (A B : Set) : Set where
+  _,_ : A -> B -> A × B
+
+data PList (A : Set) : Set where
+  zero : A -> PList A
+  succ : PList (A × A) -> PList A
+
+data Bush (A : Set) : Set where
+  nil  : Bush A
+  cons : A -> Bush (Bush A) -> Bush A
 
 F : Set -> Set
 F A = A
