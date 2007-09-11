@@ -19,7 +19,7 @@ data _×_ (A B : Set) : Set where
   _,_ : A -> B -> A × B
 
 data PList (A : Set) : Set where
-  zero : A -> PList A
+  leaf : A -> PList A
   succ : PList (A × A) -> PList A
 
 data Bush (A : Set) : Set where
