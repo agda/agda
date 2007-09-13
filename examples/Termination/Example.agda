@@ -314,3 +314,15 @@ tflat (leaf a) = a :: []
 tflat (node (leaf a) r) = a :: tflat r
 tflat (node (node l1 l2) r) = tflat (node l1 (node l2 r))
 
+
+-- Maximum of 3 numbers
+-- mixing tupling and swapping: does not work with structured orders
+
+max3' : Nat × Nat -> Nat -> Nat
+max3' (zero , zero) z = z
+max3' (zero , y) zero = y
+max3' (x , zero) zero = x
+max3' (succ x , succ y) zero   = succ (max3' (x , y) zero)
+max3' (succ x , zero) (succ z) = succ (max3' (x , z) zero)
+max3' (zero , succ y) (succ z) = succ (max3' (y , z) zero)
+max3' (succ x , succ y) (succ z) = succ (max3' (z , x) y)
