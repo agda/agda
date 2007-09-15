@@ -4,7 +4,7 @@
 
 module Data.Function where
 
-infixr 9 _∘_
+infixr 9 _∘_ _∘₁_
 infixl 1 _on_ _on₁_
 infixl 1 _⟨_⟩_ _⟨_⟩₁_
 infixr 0 _-[_]₁-_ _-[_]-_ _$_
@@ -12,8 +12,14 @@ infixr 0 _-[_]₁-_ _-[_]-_ _$_
 _∘_ : {a b c : Set} -> (b -> c) -> (a -> b) -> (a -> c)
 f ∘ g = \x -> f (g x)
 
+_∘₁_ : {a b c : Set1} -> (b -> c) -> (a -> b) -> (a -> c)
+f ∘₁ g = \x -> f (g x)
+
 id : {a : Set} -> a -> a
 id x = x
+
+id₁ : {a : Set1} -> a -> a
+id₁ x = x
 
 const : {a b : Set} -> a -> b -> a
 const x = \_ -> x
