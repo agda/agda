@@ -64,6 +64,8 @@ open import Relation.Binary.FunctionLifting
 ------------------------------------------------------------------------
 -- Pointwise equality
 
+infix 4 _≗_
+
 _->-setoid_ : (a b : Set) -> Setoid
 a ->-setoid b = LiftSetoid (≡-setoid a) (≡-setoid b) ≡-cong
 
