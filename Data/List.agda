@@ -4,6 +4,8 @@
 
 module Data.List where
 
+open import Data.Nat
+
 infixr 5 _∷_ _++_
 
 open import Data.Nat
@@ -38,6 +40,9 @@ replicate (suc n) x = x ∷ replicate n x
 foldr : {a b : Set} -> (a -> b -> b) -> b -> [ a ] -> b
 foldr c n []       = n
 foldr c n (x ∷ xs) = c x (foldr c n xs)
+
+sum : [ ℕ ] -> ℕ
+sum = foldr _+_ 0
 
 -- Possibly the following functions should be called lefts and rights.
 
