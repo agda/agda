@@ -679,12 +679,17 @@ Pragma :: { Declaration }
 Pragma : DeclarationPragma  { Pragma $1 }
 
 TopLevelPragma :: { Pragma }
-TopLevelPragma : '{-#' 'OPTIONS' PragmaStrings '#-}' { OptionsPragma (fuseRange $1 $4) $3 }
+TopLevelPragma
+  : OptionsPragma { $1 }
+  | LinePragma	  { $1 }
 
 DeclarationPragma :: { Pragma }
 DeclarationPragma
   : BuiltinPragma { $1 }
   | LinePragma	  { $1 }
+
+OptionsPragma :: { Pragma }
+OptionsPragma : '{-#' 'OPTIONS' PragmaStrings '#-}' { OptionsPragma (fuseRange $1 $4) $3 }
 
 BuiltinPragma :: { Pragma }
 BuiltinPragma
