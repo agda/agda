@@ -227,6 +227,7 @@ instance Pretty OpenShortHand where
 instance Pretty Pragma where
     pretty (OptionsPragma _ opts) = fsep $ map text $ "OPTIONS" : opts
     pretty (BuiltinPragma _ b x)  = hsep [ text "BUILTIN", text b, pretty x ]
+    pretty (LinePragma _ n f)	  = hsep [ text "LINE", text (show n), text (show f) ]
 
 instance Pretty Fixity where
     pretty (LeftAssoc _ n)  = text "infixl" <+> text (show n)

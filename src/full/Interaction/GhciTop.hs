@@ -167,7 +167,7 @@ cmd_load file includes = infoOnException $ do
     is <- ioTCM' (Just file) $ do
             setIncludeDirectories includes
 	    resetState
-	    pragmas  <- concreteToAbstract_ pragmas	-- identity for top-level pragmas at the moment
+	    pragmas  <- concat <$> concreteToAbstract_ pragmas	-- identity for top-level pragmas at the moment
 	    topLevel <- concreteToAbstract_ (TopLevel m)
 
             tokens <- liftIO $ parseFile' tokensParser file

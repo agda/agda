@@ -199,6 +199,7 @@ data OpenShortHand = DoOpen | DontOpen
 
 data Pragma = OptionsPragma !Range [String]
 	    | BuiltinPragma !Range String Expr
+	    | LinePragma    !Range Int String
     deriving (Eq, Typeable, Data)
 
 {--------------------------------------------------------------------------
@@ -295,6 +296,7 @@ instance HasRange RHS where
 instance HasRange Pragma where
     getRange (OptionsPragma r _)   = r
     getRange (BuiltinPragma r _ _) = r
+    getRange (LinePragma r _ _)	   = r
 
 instance HasRange UsingOrHiding where
     getRange (Using xs)	    = getRange xs

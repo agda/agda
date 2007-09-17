@@ -16,7 +16,7 @@ module Syntax.Parser.Monad
     , parsePosString
     , parseFile
       -- * Manipulating the state
-    , setLastPos, getParseRange
+    , setParsePos, setLastPos, getParseRange
     , setPrevToken
     , getParseFlags
     , getLexState, pushLexState, popLexState
@@ -202,6 +202,9 @@ parseFile flags st p file =
 {--------------------------------------------------------------------------
     Manipulating the state
  --------------------------------------------------------------------------}
+
+setParsePos :: Position -> Parser ()
+setParsePos p = modify $ \s -> s { parsePos = p }
 
 setLastPos :: Position -> Parser ()
 setLastPos p = modify $ \s -> s { parseLastPos = p }

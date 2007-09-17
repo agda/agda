@@ -17,7 +17,7 @@ data Keyword
 	| KwInfix | KwInfixL | KwInfixR | KwWith
 	| KwSet | KwProp | KwForall | KwRecord
 	| KwHiding | KwUsing | KwRenaming | KwTo | KwPublic
-	| KwOPTIONS | KwBUILTIN
+	| KwOPTIONS | KwBUILTIN | KwLINE
     deriving (Eq, Show)
 
 layoutKeywords :: [Keyword]
@@ -45,7 +45,7 @@ data Token
 	  -- Special symbols
 	| TokSymbol Symbol Range
 	  -- Other tokens
-	| TokString String  -- arbitrary string, used in pragmas
+	| TokString (Range, String)  -- arbitrary string, used in pragmas
 	| TokSetN (Range, Int)
 	| TokTeX (Range, String)
         | TokComment (Range, String)

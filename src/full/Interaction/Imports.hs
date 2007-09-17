@@ -226,7 +226,7 @@ createInterface opts trace path visited mname file = runTCM $ withImportPath pat
     mapM_ (mergeInterface . fst) $ Map.elems visited
 
     (pragmas, top) <- liftIO $ parseFile' moduleParser file
-    pragmas	   <- concreteToAbstract_ pragmas -- identity for top-level pragmas
+    pragmas	   <- concat <$> concreteToAbstract_ pragmas -- identity for top-level pragmas
     topLevel	   <- concreteToAbstract_ (TopLevel top)
 
     -- Check the module name

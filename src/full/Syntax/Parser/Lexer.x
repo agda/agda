@@ -68,7 +68,8 @@ tokens :-
 <pragma_>   "#-}"		{ endWith $ symbol SymClosePragma }
 <pragma_>   "OPTIONS"		{ keyword KwOPTIONS }
 <pragma_>   "BUILTIN"		{ keyword KwBUILTIN }
-<pragma_>   . # [ \, $white ] + { withRange $ TokString . snd }
+<pragma_>   "LINE"		{ keyword KwLINE }
+<pragma_>   . # [ \, $white ] + { withRange $ TokString }
 
 -- Comments
     -- We need to rule out pragmas here. Usually longest match would take

@@ -9,6 +9,7 @@ module Syntax.Parser.Parser (
     ) where
 
 import Control.Monad
+import Data.Char  (isDigit)
 import Data.List
 import Data.Maybe
 import qualified Data.Traversable as T
@@ -71,6 +72,7 @@ import Utils.Monad
     'forall'	{ TokKeyword KwForall $$ }
     'OPTIONS'	{ TokKeyword KwOPTIONS $$ }
     'BUILTIN'	{ TokKeyword KwBUILTIN $$ }
+    'LINE'	{ TokKeyword KwLINE $$ }
 
     setN	{ TokSetN $$ }
     tex		{ TokTeX $$ }
@@ -149,6 +151,7 @@ Token
     | 'forall'	    { TokKeyword KwForall $1 }
     | 'OPTIONS'	    { TokKeyword KwOPTIONS $1 }
     | 'BUILTIN'     { TokKeyword KwBUILTIN $1 }
+    | 'LINE'	    { TokKeyword KwLINE $1 }
 
     | setN	    { TokSetN $1 }
     | tex	    { TokTeX $1 }
@@ -298,7 +301,7 @@ CommaBIds : Application {%
 PragmaStrings :: { [String] }
 PragmaStrings
     : {- empty -}	    { [] }
-    | string PragmaStrings  { $1 : $2 }
+    | string PragmaStrings  { snd $1 : $2 }
 
 {--------------------------------------------------------------------------
     Expressions (terms and types)
@@ -680,10 +683,36 @@ TopLevelPragma : '{-#' 'OPTIONS' PragmaStrings '#-}' { OptionsPragma (fuseRange 
 
 DeclarationPragma :: { Pragma }
 DeclarationPragma
+  : BuiltinPragma { $1 }
+  | LinePragma	  { $1 }
+
+BuiltinPragma :: { Pragma }
+BuiltinPragma
     : '{-#' 'BUILTIN' string string '#-}' {% do
 	let r = fuseRange $1 $5
-	x <- mkName (r,$4)
-	return $ BuiltinPragma r $3 (Ident $ QName x)
+	x <- mkName $4
+	return $ BuiltinPragma r (snd $3) (Ident $ QName x)
+    }
+
+LinePragma :: { Pragma }
+LinePragma
+    : '{-#' 'LINE' string string '#-}' {% do
+      let r = fuseRange $1 $5
+	  parseFile (r, f)
+	    | head f == '"' && last f == '"'  = return $ init (tail f)
+	    | otherwise	= parseErrorAt (rStart r) $ "Expected \"filename\", found " ++ f
+	  parseLine (r, l)
+	    | all isDigit l = return $ read l
+	    | otherwise	    = parseErrorAt (rStart r) $ "Expected line number, found " ++ l
+      line <- parseLine $3
+      file <- parseFile $4
+      setParsePos $ Pn
+	{ srcFile = file
+	, posPos  = 1	  -- TODO: what to do about this?
+	, posLine = line
+	, posCol  = 1
+	}
+      return $ LinePragma r line file
     }
 
 {--------------------------------------------------------------------------
