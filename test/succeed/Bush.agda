@@ -9,6 +9,10 @@ data Nat : Set where
 {-# BUILTIN ZERO zero #-}
 {-# BUILTIN SUC suc #-}
 
+_+_ : Nat -> Nat -> Nat
+zero  + m = m
+suc n + m = suc (n + m)
+
 _^_ : (Set -> Set) -> Nat -> Set -> Set
 (F ^ zero)  A = A
 (F ^ suc n) A = F ((F ^ n) A)
@@ -26,6 +30,14 @@ elim :
 elim P l n A leaf       = l A
 elim P l n A (node x b) = n A x b (elim P l n ((Bush ^ 2) A) b)
 
+iter :
+  (P : (A : Set) -> Set) ->
+  ((A : Set) -> P A) ->
+  ((A : Set) -> A -> P ((Bush ^ 2) A) -> P A) ->
+  (A : Set) -> Bush A -> P A
+iter P l n A leaf       = l A
+iter P l n A (node x b) = n A x (iter P l n ((Bush ^ 2) A) b)
+
 data List (A : Set) : Set where
   []   : List A
   _::_ : A -> List A -> List A
@@ -34,13 +46,7 @@ _++_ : {A : Set} -> List A -> List A -> List A
 [] ++ ys = ys
 (x :: xs) ++ ys = x :: (xs ++ ys)
 
-Flatter : Set -> Set -> Set
-Flatter A B = A -> List B
-
-flatterN : {A B : Set} -> (n : Nat) ->  Flatter A B -> Flatter ((Bush ^ n) A) B
-flatterN zero    f x          = f x
-flatterN (suc n) f leaf       = []
-flatterN (suc n) f (node x b) = flatterN n f x ++ flatterN (suc (suc (suc n))) f b
-
-flatten : {A : Set} -> Bush A -> List A
-flatten = flatterN (suc zero) (\x -> x :: [])
+flatten : {A : Set}(n : Nat) -> (Bush ^ n) A -> List A
+flatten zero    x          = x :: []
+flatten (suc n) leaf       = []
+flatten (suc n) (node x b) = flatten n x ++ flatten (3 + n) b
