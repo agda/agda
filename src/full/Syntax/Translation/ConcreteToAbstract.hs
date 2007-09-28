@@ -223,7 +223,6 @@ instance ToAbstract OldName A.QName where
     case rx of
       DefinedName d -> return $ anameName d
       _		    -> __IMPOSSIBLE__
-	  -- fail $ "panic: " ++ show x ++ " should have been defined (not " ++ show rx ++ ")"
 
 newtype NewModuleName  = NewModuleName  C.Name
 newtype NewModuleQName = NewModuleQName C.QName
@@ -709,13 +708,13 @@ instance ToAbstract LeftHandSide A.LHS where
 	p <- parseLHS (Just top) lhs
 	printLocals 10 "before lhs:"
         let (x, ps) = lhsArgs p
+	x    <- toAbstract (OldName x)
 	args <- toAbstract ps
 	wps  <- toAbstract =<< mapM (parseLHS Nothing) wps
 	printLocals 10 "checked pattern:"
 	args <- toAbstract args -- take care of dot patterns
 	wps  <- toAbstract wps
 	printLocals 10 "checked dots:"
-	x    <- toAbstract (OldName x)
 	return $ A.LHS (LHSRange $ getRange (lhs, wps)) x args wps
 
 instance ToAbstract c a => ToAbstract (Arg c) (Arg a) where
