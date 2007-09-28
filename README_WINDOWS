@@ -1,0 +1,158 @@
+To install Agda 2, under Windows with Cygwin, proceed as follows:
+
+0) Install prerequisites (recent versions of GHC, Alex and Happy).
+
+   darcs:  http://darcs.net/
+   GHC:	   http://www.haskell.org/ghc/
+   Alex:   http://www.haskell.org/alex/
+   Happy:  http://www.haskell.org/happy/
+
+   In addition to the libraries distributed with GHC you will need the
+   `binary' and `zlib' packages which can be downloaded in the following way:
+
+   Download
+
+       http://hackage.haskell.org/cgi-bin/hackage-scripts/package/binary-0.3
+
+   in some directory, change to that directory and do 
+
+	runhaskell Setup.lhs configure
+	runhaskell Setup.lhs build
+	runhaskell Setup.lhs install
+     
+   Haskell zlib install procedure on windows
+   
+   1.    Installation of the zlib dll version
+   
+      1.1 Download "zlib compiled dll" from
+          http://www.zlib.net/
+   
+      1.2 copy files to the ghc direcotry
+          (replace c:/ghc/ghc-6.6.1 to wherever your version of ghc resides)
+   
+          cd zlib123-dll
+          cp include/zlib.h c:/ghc/ghc-6.6.1/include/zlib.h
+          cp include/zconf.h c:/ghc/ghc-6.6.1/include/zconf.h
+          cp zlib1.dll c:/WINDOWS/SYSTEM/zlib1.dll
+          cp zlib1.dll c:/ghc/ghc-6.6.1/zlib1.dll
+          cp lib/zdll.lib   c:/ghc/ghc-6.6.1/libzdll.a
+   
+   2.    Installation of the Haskell zlib package
+   
+     2.1 Download from
+      http://hackage.haskell.org/cgi-bin/hackage-scripts/package/zlib-0.3
+
+     2.2 Edit zlib-0.3/zlib.cabal file.
+
+      Change the two lines
+
+        extra-libraies: z
+        ghc-options: -O -fvia-C -Wall
+
+      to
+
+        extra-libraies: zlib1
+        ghc-options: -O -fvia-C -Wall -lzdll
+
+     2.3 Compile and install
+
+      runhaskell Setup.hs configure
+      runhaskell Setup.hs build
+      runhaskell Setup.hs install
+
+
+1) Download Agda 2, perhaps as follows:
+
+     darcs get --partial http://www.cs.chalmers.se/~ulfn/darcs/Agda2
+     cd Agda2
+
+1.5) On Windows, edit Agda.cabal file to remove dependencty on "readline".
+     With any text-editor, open the file Agda.cabal and edit the line
+     that looks like+
+
+        build-depends:   base, mtl, QuickCheck >= 1.0 && < 2.0, readline, haskell98, haskell-src, binary >= 0.3
+
+     to
+        build-depends:   base, mtl, QuickCheck >= 1.0 && < 2.0, haskell98, haskell-src, binary >= 0.3
+
+2) Build and install the Agda 2 library. If you want to install it in
+   the default location (you may need root privileges for this), use
+   the following commands:
+
+     runhaskell Setup.hs configure
+     runhaskell Setup.hs build
+     runhaskell Setup.hs install
+
+3) If you want to use the Emacs mode, build and install it (see
+   below).
+
+4) If you want to use the stand-alone "interpreter", build and install
+   it:
+
+     cd src/main
+     runhaskell Setup.hs configure
+     runhaskell Setup.hs build
+     runhaskell Setup.hs install
+     cd -
+
+   Or:
+
+     cd src/main
+     runhaskell Setup.hs configure --prefix=<the install path>
+     runhaskell Setup.hs build
+     runhaskell Setup.hs install --user
+     cd -
+
+------------------------------------------------------------------------
+To use the Agda 2 Emacs mode:
+
+0. Install haskell-mode, version 2.1 or later (see
+   http://haskell.org/haskell-mode/).
+
+   Create the directory
+
+   ..../Meadow/site-lisp/haskell-mode-2.3
+
+   and put all the files in it.  Then, add the line
+
+   (load "..../Meadow/site-lisp/haskell-mode-2.3/haskell-site-file")
+
+   in your .emacs file.
+
+1. Install Agda 2. (See above.)
+
+
+
+2. Copy the .el files in src/full/Interaction/emacs-mode to some
+   directory which is listed in your Emacs load-path
+   (..../Meadow/site-lisp , for instance.). You may want to
+   byte-compile the files.
+
+   Untested example installation (creates a new directory and adds it
+   to your load-path, does not byte-compile the files):
+
+   mkdir <...>/agda2-mode
+   cp src/full/Interaction/emacs-mode/*.el <...>/agda2-mode
+   echo "(add-to-list 'load-path \"<...>/agda2-mode/\")" >> ~/.emacs
+
+3. Add the following to your .emacs:
+
+   (autoload 'agda2-mode "agda2-mode" "Agda2 mode." t)
+   (add-to-list 'auto-mode-alist '("\\.l?agda$" . agda2-mode))
+
+   If you have already set up the suffix .agda for use with some other
+   mode you may need to remove or alter that setting. You are
+   encouraged to use the suffix .alfa for Agda 1 files.
+
+  Now, if you open a file named XXX.agda the buffer will use
+  agda2-mode. It may take 5 or 10 seconds before you see anything in
+  the buffer, but that is normal.
+
+4. If you want to you can customise some settings. Just start Emacs
+   and type the following:
+
+   M-x load-library RET agda2-mode RET
+   M-x customize-group RET agda2 RET
+
+   This is useful if you want to change the Agda search path, in which
+   case you should change the agda2-include-dirs variable.
