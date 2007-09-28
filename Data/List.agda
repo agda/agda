@@ -44,6 +44,9 @@ foldr c n (x ∷ xs) = c x (foldr c n xs)
 sum : [ ℕ ] -> ℕ
 sum = foldr _+_ 0
 
+length : forall {a} -> [ a ] -> ℕ
+length = foldr (\_ -> suc) 0
+
 -- Possibly the following functions should be called lefts and rights.
 
 inj₁s : forall {a b} -> [ a ⊎ b ] -> [ a ]
