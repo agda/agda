@@ -39,20 +39,6 @@ module Process (param : Param) where
   private open module Par = Param param      public
   private open module Pro = ProcDef U T Name public
 
-  PPred : U -> Set1
-  PPred a = Proc a -> Set
-
-  RelWP : U -> Set1
-  RelWP a = LT a -> PPred a
-
-  emptyRelWP : {a : U} -> LT a -> Proc a -> Set
-  emptyRelWP _ _ = False
-
-  record ExRes {a : U}(S : RelWP a) : Set where
-    w : LT a
-    p : Proc a
-    s : S w p
-
   infixr 40 _!g_ _!_+g_
   infix  40 >g_
   infixr 30 _||g_ _/|g_
@@ -104,4 +90,14 @@ module Process (param : Param) where
     tx-def : {w : LT a}{p : Proc a}{x : Name a} ->
              env a x -! w !⟶ p ->
              def x -! w !⟶ p
+
+  data Silent {a : U} : Proc a -> Set where
+    silent-o   : Silent o
+    silent->   : {f : T a -> Proc a} -> Silent (> f)
+    silent-||  : {p₁ p₂ : Proc a} ->
+                 Silent p₁ -> Silent p₂ -> Silent (p₁ || p₂)
+    silent-def : {x : Name a} ->
+                 Silent (env _ x) -> Silent (def x)
+    silent-/|  : {b : U}{φ : Tran a b}{p : Proc b} ->
+                 Silent p -> Silent (φ /| p)
 

@@ -1,13 +1,22 @@
 
 open import Proc
 
-module Receipt (param : Param) where
+module Hear (param : Param) where
 
-import Interp
 open import Basics
-
 private open module P = Process param
-private open module I = Interp param
+
+open Tran
+
+hear : {a : U}{p : Proc a} -> Guard p -> LT a -> Proc a
+hear {p = p} g    ⊥        = p
+hear og           (lift v) = o
+hear (w !g p)     (lift v) = w ! p
+hear (>g f)       (lift v) = f v
+hear (_ ! _ +g f) (lift v) = f v
+hear (g₁ ||g g₂)  (lift v) = hear g₁ (lift v) || hear g₂ (lift v)
+hear (φ /|g g)    (lift v) = φ /| hear g (downV φ v)
+hear (defg x g)   (lift v) = hear g (lift v)
 
 sound : {a : U}{p : Proc a}(g : Guard p){w : LT a} ->
         p -[ w ]⟶ hear g w

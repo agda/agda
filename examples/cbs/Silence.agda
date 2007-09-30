@@ -4,21 +4,13 @@ open import Proc
 module Silence (param : Param) where
 
 open import Basics
-import Receipt
+import Interp
+import Hear
 
 private
   open module P = Process param
-  open module H = Receipt param
-
-data Silent {a : U} : Proc a -> Set where
-  silent-o   : Silent o
-  silent->   : {f : T a -> Proc a} -> Silent (> f)
-  silent-||  : {p₁ p₂ : Proc a} ->
-               Silent p₁ -> Silent p₂ -> Silent (p₁ || p₂)
-  silent-def : {x : Name a} ->
-               Silent (env _ x) -> Silent (def x)
-  silent-/|  : {b : U}{φ : Tran a b}{p : Proc b} ->
-               Silent p -> Silent (φ /| p)
+  open module I = Interp param
+  open module H = Hear param
 
 NoSpeak : {a : U} -> Proc a -> Set
 NoSpeak {a} p = (w : LT a)(q : Proc a) -> ¬ (p -! w !⟶ q)
@@ -55,4 +47,3 @@ nospeak-silent (defg x g)   s = silent-def (nospeak-silent g (inv s))
   where
     inv : NoSpeak (def x) -> NoSpeak (env _ x)
     inv h w p t = h _ _ (tx-def t)
-

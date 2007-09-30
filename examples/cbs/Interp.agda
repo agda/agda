@@ -1,30 +1,23 @@
-
 open import Proc
 
 module Interp (param : Param) where
 
+import Hear
 open import Basics
-private open module P = Process param
+
+private
+  open module P = Process param
+  open module H = Hear param
 
 open Tran
 
-hear : {a : U}{p : Proc a} -> Guard p -> LT a -> Proc a
-hear {p = p} g    ⊥        = p
-hear og           (lift v) = o
-hear (w !g p)     (lift v) = w ! p
-hear (>g f)       (lift v) = f v
-hear (_ ! _ +g f) (lift v) = f v
-hear (g₁ ||g g₂)  (lift v) = hear g₁ (lift v) || hear g₂ (lift v)
-hear (φ /|g g)    (lift v) = φ /| hear g (downV φ v)
-hear (defg x g)   (lift v) = hear g (lift v)
+data Result {a : U}(p : Proc a) : Set where
+  speak  : forall {w q} -> p -! w !⟶ q -> Result p
+  refuse : Silent p -> Result p
 
-data Result (a : U) : Set where
-  _/_    : LT a -> Proc a -> Result a
-  refuse : Result a
-
-upR : {a b : U} -> Tran a b -> Result b -> Result a
-upR φ (w / p) = (upV φ =<< w) / φ /| p
-upR φ refuse  = refuse
+upR : {a b : U}{p : Proc b}(φ : Tran a b) -> Result p -> Result (φ /| p)
+upR φ (speak  s) = speak  (tx-/| s)
+upR φ (refuse s) = refuse (silent-/| s)
 
 Oracle : Set
 Oracle = Nat -> LR
@@ -44,18 +37,20 @@ _::_ : LR -> Oracle -> Oracle
 (l :: or) zero    = l
 (l :: or) (suc n) = or n
 
-step : {a : U}{p : Proc a} -> Guard p -> Oracle -> Result a
-step og           _  = refuse
-step (>g _)       _  = refuse
-step (w !g p)     _  = w / p
-step (w ! p +g f) _  = w / p
-step (defg x g)   ol = step g ol
+step : {a : U}{p : Proc a} -> Guard p -> Oracle -> Result p
+step og           _  = refuse silent-o
+step (>g _)       _  = refuse silent->
+step (w !g p)     _  = speak tx-!
+step (w ! p +g f) _  = speak tx-+
+step (defg x g)   ol with step g ol
+... | refuse s₁ = refuse (silent-def s₁)
+... | speak  s₁ = speak (tx-def s₁)
 step (g₁ ||g g₂)  ol with step g₁ (nextOracle ol)
                         | step g₂ (nextOracle ol)
                         | prophecy ol
-... | refuse | refuse | _     = refuse
-... | w / p  | refuse | _     = w / (p || hear g₂ w)
-... | refuse | w / p  | _     = w / (hear g₁ w || p)
-... | w / p  | _ / _  | left  = w / (p || hear g₂ w)
-... | _ / _  | w / p  | right = w / (hear g₁ w || p)
+... | refuse s₁ | refuse s₂ | _     = refuse (silent-|| s₁ s₂)
+... | speak s₁  | refuse s₂ | _     = speak (tx-!| s₁ (sound g₂))
+... | refuse s₁ | speak s₂  | _     = speak (tx-|! (sound g₁) s₂)
+... | speak s₁  | speak _   | left  = speak (tx-!| s₁ (sound g₂))
+... | speak _   | speak s₂  | right = speak (tx-|! (sound g₁) s₂)
 step (φ /|g g)    ol = upR φ (step g ol)

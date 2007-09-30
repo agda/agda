@@ -7,18 +7,8 @@ record True  : Set where
 tt : True
 tt = _
 
-kill : False -> {A : Set} -> A
-kill ()
-
-data _\/_ (A B : Set) : Set where
-  inl : A -> A \/ B
-  inr : B -> A \/ B
-
 ¬_ : Set -> Set
 ¬ A = A -> False
-
-data ∃ (A : Set)(P : A -> Set) : Set where
-  _,_ : (x : A) -> P x -> ∃ A P
 
 data Lift (A : Set) : Set where
   ⊥    : Lift A
