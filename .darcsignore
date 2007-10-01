@@ -45,3 +45,4 @@ notes/papers/iird/paper.tex
 src/transl/dist
 src/rts/dist
 \.(installed|inplace)-pkg-config
+examples/cbs/agda1

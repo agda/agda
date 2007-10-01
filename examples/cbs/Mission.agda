@@ -28,11 +28,12 @@ completeS og           silent-o          oracle = isRefuse
 completeS (>g f)       silent->          oracle = isRefuse
 completeS (_ !g _)     ()                oracle
 completeS (_ ! _ +g _) ()                oracle
-completeS (g₁ ||g g₂)  (silent-|| s₁ s₂) oracle with step g₁ (nextOracle oracle)
-                                                   | completeS g₁ s₁ (nextOracle oracle)
-                                                   | step g₂ (nextOracle oracle)
-                                                   | completeS g₂ s₂ (nextOracle oracle)
-                                                   | prophecy oracle
+completeS (g₁ ||g g₂)  (silent-|| s₁ s₂) oracle
+  with step g₁ (nextOracle oracle)
+       | completeS g₁ s₁ (nextOracle oracle)
+       | step g₂ (nextOracle oracle)
+       | completeS g₂ s₂ (nextOracle oracle)
+       | prophecy oracle
 ... | refuse _ | _  | refuse _ | _  | _     = isRefuse
 ... | speak _  | () | speak _  | _  | _
 ... | refuse _ | _  | speak _  | () | _
