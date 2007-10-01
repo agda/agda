@@ -102,8 +102,8 @@ checkTypeSignature (A.ScopedDecl scope ds) = do
   mapM_ checkTypeSignature ds
 checkTypeSignature (A.Axiom i x e) =
     case Info.defAccess i of
-	PublicAccess	-> inConcreteMode $ checkAxiom i x e
-	_		-> checkAxiom i x e
+	PublicAccess  -> inConcreteMode $ checkAxiom i x e
+	PrivateAccess -> inAbstractMode $ checkAxiom i x e
 checkTypeSignature _ = __IMPOSSIBLE__	-- type signatures are always axioms
 
 
@@ -118,7 +118,7 @@ checkDefinition d =
     where
 	-- Concrete definitions cannot use information about abstract things.
 	abstract ConcreteDef = inConcreteMode
-	abstract _	     = id
+	abstract AbstractDef = inAbstractMode
 
 
 -- | Type check a module.
