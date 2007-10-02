@@ -8,6 +8,7 @@ infixr 5 _∷_ _++_
 
 open import Data.Nat
 open import Data.Fin
+open import Data.Product
 
 ------------------------------------------------------------------------
 -- The type
@@ -49,6 +50,11 @@ drop : forall {a n} (i : Fin (suc n)) -> Vec a n -> Vec a (n ∸ toℕ i)
 drop fz      xs       = xs
 drop (fs ()) []
 drop (fs i)  (x ∷ xs) = drop i xs
+
+splitAt : forall {a} m {n} -> Vec a (m + n) -> Vec a m × Vec a n
+splitAt zero    xs       = ([] , xs)
+splitAt (suc m) (x ∷ xs) with splitAt m xs
+... | (ys , zs) = (x ∷ ys , zs)
 
 sum : forall {n} -> Vec ℕ n -> ℕ
 sum = foldr _+_ 0
