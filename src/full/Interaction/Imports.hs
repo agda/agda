@@ -46,10 +46,7 @@ mergeInterface i = do
 	builtin = Map.toList $ iBuiltin i
 	prim	= [ x | (_,Prim x) <- builtin ]
 	bi	= Map.fromList [ (x,Builtin t) | (x,Builtin t) <- builtin ]
-    modify $ \st -> st { stImportedModules = Set.union
-						(stImportedModules st)
-						(Set.fromList $ iImportedModules i)
-		       , stImports	   = unionSignatures [stImports st, sig]
+    modify $ \st -> st { stImports	   = unionSignatures [stImports st, sig]
 		       , stBuiltinThings   = stBuiltinThings st `Map.union` bi
 			    -- TODO: not safe (?) ^
 		       }
