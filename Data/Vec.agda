@@ -28,6 +28,13 @@ private
                    ≡-refl
     where N = var fz; K = var (fs fz)
 
+  lem₂ : forall m n -> m + n * m ≡ n * m + m
+  lem₂ m n = prove (m ∷ n ∷ [])
+                   (M :+ N :* M)
+                   (N :* M :+ M)
+                   ≡-refl
+    where M = var fz; N = var (fs fz)
+
 ------------------------------------------------------------------------
 -- Some operations
 
@@ -47,6 +54,11 @@ foldr :  forall {a b : Set} {m}
       -> (a -> b -> b) -> b -> Vec a m -> b
 foldr c n []       = n
 foldr c n (x ∷ xs) = c x (foldr c n xs)
+
+concat : forall {a m n} -> Vec (Vec a m) n -> Vec a (n * m)
+concat                 []                   = []
+concat {a = a} {m = m} (_∷_ {n = n} xs xss) =
+  ≡-subst (Vec a) (lem₂ m n) (xs ++ concat xss)
 
 take : forall {a n} (i : Fin (suc n)) -> Vec a n -> Vec a (toℕ i)
 take fz      xs       = []
