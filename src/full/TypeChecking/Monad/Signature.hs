@@ -227,7 +227,8 @@ getConstInfo q = liftTCM $ do
     mkAbs True d =
       case makeAbstract d of
 	Just d	-> return d
-	Nothing	-> fail $ "panic: Not in scope " ++ show q -- __IMPOSSIBLE__
+	Nothing	-> typeError $ NotInScope [qnameToConcrete q]
+	  -- the above can happen since the scope checker is a bit sloppy with 'abstract'
     mkAbs False d = return d
 
 -- | Look up the number of free variables of a section. This is equal to the
