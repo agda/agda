@@ -352,6 +352,17 @@ abstract
   ℕ-∸-+-assoc (suc m) zero    (suc o) = byDef
   ℕ-∸-+-assoc (suc m) (suc n) (suc o) = ℕ-∸-+-assoc m n (suc o)
 
+  m+n∸n≡m : forall m n -> (m + n) ∸ n ≡ m
+  m+n∸n≡m m       zero    = proj₂ +-identity m
+  m+n∸n≡m zero    (suc n) = m+n∸n≡m zero n
+  m+n∸n≡m (suc m) (suc n) = begin
+    m + suc n ∸ n
+                   ∼⟨ ≡-cong (\x -> x ∸ n) (m+1+n≡1+m+n m n) ⟩
+    suc m + n ∸ n
+                   ∼⟨ m+n∸n≡m (suc m) n ⟩
+    suc m
+                   ∎
+
   m+n∸m≡n : forall {m n} -> m ≤ n -> m + (n ∸ m) ≡ n
   m+n∸m≡n z≤n       = byDef
   m+n∸m≡n (s≤s m≤n) = ≡-cong suc $ m+n∸m≡n m≤n
