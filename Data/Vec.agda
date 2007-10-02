@@ -8,8 +8,25 @@ infixr 5 _++_
 
 open import Data.Vec.Core public
 open import Data.Nat
+open import Data.Nat.Properties
+open ℕ-semiringSolver
 open import Data.Fin
 open import Data.Product
+open import Logic
+open import Relation.Binary.PropositionalEquality
+
+------------------------------------------------------------------------
+-- Boring lemmas
+
+private
+ abstract
+
+  lem₁ : forall n k -> n * k + k ≡ k + n * k
+  lem₁ n k = prove (n ∷ k ∷ [])
+                   (N :* K :+ K)
+                   (K :+ N :* K)
+                   ≡-refl
+    where N = var fz; K = var (fs fz)
 
 ------------------------------------------------------------------------
 -- Some operations
@@ -45,6 +62,12 @@ splitAt : forall {a} m {n} -> Vec a (m + n) -> Vec a m × Vec a n
 splitAt zero    xs       = ([] , xs)
 splitAt (suc m) (x ∷ xs) with splitAt m xs
 ... | (ys , zs) = (x ∷ ys , zs)
+
+group : forall {a n} -> (k : ℕ) -> Vec a (n * k) -> Vec (Vec a k) n
+group         {n = zero}  k [] = []
+group {a = a} {n = suc n} k xs
+  with splitAt k (≡-subst (Vec a) (lem₁ n k) xs)
+... | (ys , zs) = ys ∷ group {n = n} k zs
 
 sum : forall {n} -> Vec ℕ n -> ℕ
 sum = foldr _+_ 0
