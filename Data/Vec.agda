@@ -4,18 +4,12 @@
 
 module Data.Vec where
 
-infixr 5 _∷_ _++_
+infixr 5 _++_
 
+open import Data.Vec.Core public
 open import Data.Nat
 open import Data.Fin
 open import Data.Product
-
-------------------------------------------------------------------------
--- The type
-
-data Vec (a : Set) : ℕ -> Set where
-  []  : Vec a zero
-  _∷_ : forall {n} -> a -> Vec a n -> Vec a (suc n)
 
 ------------------------------------------------------------------------
 -- Some operations
@@ -36,10 +30,6 @@ foldr :  forall {a b : Set} {m}
       -> (a -> b -> b) -> b -> Vec a m -> b
 foldr c n []       = n
 foldr c n (x ∷ xs) = c x (foldr c n xs)
-
-lookup : forall {a n} -> Fin n -> Vec a n -> a
-lookup fz     (x ∷ xs) = x
-lookup (fs i) (x ∷ xs) = lookup i xs
 
 take : forall {a n} (i : Fin (suc n)) -> Vec a n -> Vec a (toℕ i)
 take fz      xs       = []

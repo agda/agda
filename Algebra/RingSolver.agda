@@ -49,7 +49,7 @@ private
 
   module Eq = Relation.Binary.EqReasoning (setoid⟶preSetoid setoid)
 open Eq
-open import Data.Vec
+open import Data.Vec.Core
 open import Data.Fin
 
 infix  9 _↑-NF :-_ ¬-NF_
