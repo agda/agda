@@ -52,6 +52,14 @@ map : forall {a b n} -> (a -> b) -> Vec a n -> Vec b n
 map f []       = []
 map f (x ∷ xs) = f x ∷ map f xs
 
+zipWith :  forall {a b c n}
+        -> (a -> b -> c) -> Vec a n -> Vec b n -> Vec c n
+zipWith _⊕_ []       []       = []
+zipWith _⊕_ (x ∷ xs) (y ∷ ys) = (x ⊕ y) ∷ zipWith _⊕_ xs ys
+
+zip : forall {a b n} -> Vec a n -> Vec b n -> Vec (a × b) n
+zip = zipWith _,_
+
 replicate : forall {a n} -> a -> Vec a n
 replicate {n = zero}  x = []
 replicate {n = suc n} x = x ∷ replicate x
