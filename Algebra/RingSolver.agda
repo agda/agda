@@ -48,9 +48,9 @@ private
   open module R = RingHomomorphism morphism renaming (⟦_⟧ to ⟦_⟧')
 
   module Eq = Relation.Binary.EqReasoning (setoid⟶preSetoid setoid)
-open Eq public
-open import Data.Vec public
-open import Data.Fin public
+open Eq
+open import Data.Vec
+open import Data.Fin
 
 infix  9 _↑-NF :-_ ¬-NF_
 infixr 9 _:^_ _^-NF_ _:↑_

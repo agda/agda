@@ -9,6 +9,8 @@ module Algebra.RingSolver.Examples where
 
 open import Logic
 open import Data.Function
+open import Data.Vec
+open import Data.Fin
 open import Data.Nat
 open import Data.Nat.Properties
 open import Data.Bool
