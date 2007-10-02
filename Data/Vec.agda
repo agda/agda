@@ -38,6 +38,12 @@ private
 ------------------------------------------------------------------------
 -- Some operations
 
+head : forall {a n} -> Vec a (1 + n) -> a
+head (x ∷ xs) = x
+
+tail : forall {a n} -> Vec a (1 + n) -> Vec a n
+tail (x ∷ xs) = xs
+
 _++_ : forall {a m n} -> Vec a m -> Vec a n -> Vec a (m + n)
 []       ++ ys = ys
 (x ∷ xs) ++ ys = x ∷ (xs ++ ys)
