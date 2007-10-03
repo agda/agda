@@ -156,7 +156,7 @@ necessary to restart Agda mode after changing this variable."
          )))
   (define-key agda2-mode-map [menu-bar Agda2]
     (cons "Agda2" (make-sparse-keymap "Agda2")))
-  (define-key agda2-mode-map [down-mouse-3]  'agda2-popup-menu-3)
+  (define-key agda2-mode-map [S-mouse-2]  'agda2-popup-menu-3)
   (dolist (d (reverse l))
     (let ((f (car d)) (k (cadr d)) (s1 (elt d 2)) (s2 (elt d 3)))
       (if k  (define-key agda2-mode-map k f))
