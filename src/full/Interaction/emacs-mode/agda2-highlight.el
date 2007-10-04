@@ -5,110 +5,143 @@
 (require 'annotation)
 (require 'font-lock)
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Faces
-
 (defgroup agda2-highlight nil
   "Syntax highlighting for Agda."
   :group 'agda2)
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; An Agda fontset
+
+(defcustom agda2-highlight-fontset-spec
+  "-misc-fixed-medium-r-normal-*-15-*-*-*-*-*-fontset-agda2"
+  "The agda2 fontset, which provides the default value for
+`agda2-default-face', is created based on this string. Note that
+this only works under the X Window System."
+  :group 'agda2-highlight
+  :type 'string)
+
+(if (eq window-system 'x)
+    (create-fontset-from-fontset-spec agda2-highlight-fontset-spec))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Faces
+
+; The default face is used for every character which is not
+; highlighted. The other faces all inherit from this face (by
+; default). The point of this face is to enable using a dedicated font
+; family, with good support for Unicode characters, in Agda buffers
+; without forcing this change upon the Emacs user's other buffers.
+
+; Using a fontset/font to specify the face is not really nice, since
+; it is not possible to customise the :font field. However, when I
+; tried other approaches, including setting the relevant fields
+; directly, some characters (mathematical operators) were not
+; displayed properly (when the default Emacs font did not support
+; them). This method seems to work (at least on the current system). I
+; would prefer a solution which was easier to customise, though.
+
+(defface agda2-default-face
+  '((t (:font "fontset-agda2")))
+  "*The default face used in Agda buffers."
+  :group 'agda2-highlight)
+
 (defface agda2-highlight-comment-face
-  '((t (:foreground "firebrick")))
+  '((t (:foreground "firebrick" :inherit agda2-default-face)))
   "*The face used for comments."
   :group 'agda2-highlight)
 
 (defface agda2-highlight-keyword-face
-  '((t (:foreground "DarkOrange3")))
+  '((t (:foreground "DarkOrange3" :inherit agda2-default-face)))
   "*The face used for keywords."
   :group 'agda2-highlight)
 
 (defface agda2-highlight-string-face
-  '((t (:foreground "firebrick")))
+  '((t (:foreground "firebrick" :inherit agda2-default-face)))
   "*The face used for strings."
   :group 'agda2-highlight)
 
 (defface agda2-highlight-number-face
-  '((t (:foreground "purple")))
+  '((t (:foreground "purple" :inherit agda2-default-face)))
   "*The face used for numbers."
   :group 'agda2-highlight)
 
 (defface agda2-highlight-symbol-face
-  '((t (:foreground "gray25")))
+  '((t (:foreground "gray25" :inherit agda2-default-face)))
   "*The face used for symbols like forall, =, ->, etc."
   :group 'agda2-highlight)
 
 (defface agda2-highlight-primitive-type-face
-  '((t (:foreground "medium blue")))
+  '((t (:foreground "medium blue" :inherit agda2-default-face)))
   "*The face used for primitive types (like Set and Prop)."
   :group 'agda2-highlight)
 
 (defface agda2-highlight-bound-variable-face
-  '((t nil))
+  '((t (:inherit agda2-default-face)))
   "*The face used for bound variables."
   :group 'agda2-highlight)
 
 (defface agda2-highlight-constructor-face
-  '((t (:foreground "green4")))
+  '((t (:foreground "green4" :inherit agda2-default-face)))
   "The face used for constructors."
   :group 'agda2-highlight)
 
 (defface agda2-highlight-datatype-face
-  '((t (:foreground "dark green")))
+  '((t (:foreground "dark green" :inherit agda2-default-face)))
   "*The face used for datatypes."
   :group 'agda2-highlight)
 
 (defface agda2-highlight-field-face
-  '((t (:foreground "DeepPink2")))
+  '((t (:foreground "DeepPink2" :inherit agda2-default-face)))
   "The face used for record fields."
   :group 'agda2-highlight)
 
 (defface agda2-highlight-function-face
-  '((t (:foreground "blue2")))
+  '((t (:foreground "blue2" :inherit agda2-default-face)))
   "*The face used for functions."
   :group 'agda2-highlight)
 
 (defface agda2-highlight-module-face
-  '((t (:foreground "purple")))
+  '((t (:foreground "purple" :inherit agda2-default-face)))
   "*The face used for module names."
   :group 'agda2-highlight)
 
 (defface agda2-highlight-postulate-face
-  '((t (:foreground "blue4")))
+  '((t (:foreground "blue4" :inherit agda2-default-face)))
   "The face used for postulates."
   :group 'agda2-highlight)
 
 (defface agda2-highlight-primitive-face
-  '((t (:foreground "DodgerBlue1")))
+  '((t (:foreground "DodgerBlue1" :inherit agda2-default-face)))
   "The face used for primitive functions."
   :group 'agda2-highlight)
 
 (defface agda2-highlight-record-face
-  '((t (:foreground "DeepPink4")))
+  '((t (:foreground "DeepPink4" :inherit agda2-default-face)))
   "*The face used for record types."
   :group 'agda2-highlight)
 
 (defface agda2-highlight-dotted-face
-  '((t nil))
+  '((t (:inherit agda2-default-face)))
   "The face used for dotted patterns."
   :group 'agda2-highlight)
 
 (defface agda2-highlight-operator-face
-  '((t nil))
+  '((t (:inherit agda2-default-face)))
   "The face used for operators."
   :group 'agda2-highlight)
 
 (defface agda2-highlight-error-face
-  '((t (:foreground "red")))
+  '((t (:foreground "red" :inherit agda2-default-face)))
   "The face used for errors."
   :group 'agda2-highlight)
 
 (defface agda2-highlight-unsolved-meta-face
-  '((t (:background "yellow")))
+  '((t (:background "yellow" :inherit agda2-default-face)))
   "The face used for unsolved meta variables."
   :group 'agda2-highlight)
 
 (defface agda2-highlight-termination-problem-face
-  '((t (:background "light salmon")))
+  '((t (:background "light salmon" :inherit agda2-default-face)))
   "The face used for termination problems."
   :group 'agda2-highlight)
 
@@ -165,10 +198,20 @@ The aspects currently recognised are the following:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Functions
 
+(defun agda2-highlight-set-face (face)
+  "Sets the `face' text property of every character in the buffer
+to FACE. Makes the property front- and rear-sticky."
+  (annotation-preserve-mod-p-and-undo
+   (add-text-properties (point-min) (point-max)
+                        `(face ,face front-sticky t
+                                     rear-nonsticky nil))))
+
 (defun agda2-highlight-reload nil
-  "Reloads syntax information from the syntax file associated with the
-current buffer."
+  "Sets the `face' property of all text to `agda2-default-face'
+and then reloads syntax information from the syntax file
+associated with the current buffer."
   (interactive)
+  (agda2-highlight-set-face 'agda2-default-face)
   (let* ((dir (file-name-directory (buffer-file-name)))
          (name (file-name-nondirectory (buffer-file-name)))
          (file (concat dir "." name ".el"))
@@ -181,9 +224,12 @@ current buffer."
   (setq annotation-bindings agda2-highlight-faces))
 
 (defun agda2-highlight-clear nil
-  "Removes all syntax highlighting added by `agda2-highlight-reload'."
+  "Removes all syntax highlighting added by
+`agda2-highlight-reload'. Sets the `face' property of all text to
+`default'."
   (interactive)
   (annotation-remove-annotations)
+  (agda2-highlight-set-face 'default)
   )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
