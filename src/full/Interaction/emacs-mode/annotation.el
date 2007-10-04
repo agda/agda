@@ -118,14 +118,19 @@ text properties added by this library can easily be recomputed.)"
          (progn ,@code)
        (setq buffer-undo-list ul))))
 
+(defmacro annotation-preserve-mod-p-and-undo (&rest code)
+  "A combination of `annotation-preserve-modified-p' and
+`annotation-dont-modify-undo-list'."
+  `(annotation-preserve-modified-p
+    (annotation-dont-modify-undo-list ,@code)))
+
 (defun annotation-remove-annotations ()
   "Removes all text properties set by `annotation-annotate' in the
 current buffer, and clears `annotation-goto-map'. This function
 preserves the file modification stamp of the current buffer and does
 not modify the undo list."
   (clrhash annotation-goto-map)
-  (annotation-preserve-modified-p
-  (annotation-dont-modify-undo-list
+  (annotation-preserve-mod-p-and-undo
    (let ((pos (point-min))
          pos2
          pos3)
@@ -139,7 +144,7 @@ not modify the undo list."
                                    mouse-face nil
                                    help-echo nil
                                    face nil)))
-       (setq pos pos2))))))
+       (setq pos pos2)))))
 
 (defun annotation-load-file (file)
   "Loads and executes file FILE, which is assumed to contain calls to
@@ -147,14 +152,13 @@ not modify the undo list."
 `annotation-annotate' in the current buffer are removed. This function
 preserves the file modification stamp of the current buffer and does
 not modify the undo list."
-  (annotation-preserve-modified-p
-  (annotation-dont-modify-undo-list
+  (annotation-preserve-mod-p-and-undo
    ; (make-hash-table) cannot simply be the default value of this
    ; variable, since then the hash table would be shared between
    ; buffers, and this is not a good idea.
    (setq annotation-goto-map (make-hash-table))
    (annotation-remove-annotations)
    (when (file-readable-p file)
-     (load-file file)))))
+     (load-file file))))
 
 (provide 'annotation)
