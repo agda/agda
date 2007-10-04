@@ -74,7 +74,7 @@ Note also that setting the face text property does not work when
 `font-lock-mode' is activated.
 
 All characters whose text properties get set also have the
-rear-nonsticky and annotation-annotated properties set to t.
+annotation-annotated property set to t.
 
 Note finally that nothing happens if either START or END are out of
 bounds for the current (possibly narrowed) buffer, or END < START."
@@ -98,7 +98,7 @@ bounds for the current (possibly narrowed) buffer, or END < START."
         (add-text-properties start end '(mouse-face highlight keymap map)))
       (when (or faces info (consp goto))
         (add-text-properties start end
-                             '(annotation-annotated t rear-nonsticky t))))))
+                             '(annotation-annotated t))))))
 
 (defmacro annotation-preserve-modified-p (&rest code)
   "Runs CODE, making sure to preserve the file modification stamp of
