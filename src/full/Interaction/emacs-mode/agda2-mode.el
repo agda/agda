@@ -62,7 +62,9 @@ is `agda')."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; User options
 
-(defgroup agda2 nil "User options for agda2-mode")
+(defgroup agda2 nil
+  "Major mode for interactively developing Agda programs."
+  :group 'languages)
 
 (defcustom agda2-include-dirs
   (list ".")
