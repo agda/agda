@@ -42,7 +42,9 @@ this only works under the X Window System."
 
 (defface agda2-default-face
   '((t (:font "fontset-agda2")))
-  "*The default face used in Agda buffers."
+  "*The default face used for Agda buffers.
+In order to use the same face as in regular Emacs buffers, change
+all settings below to the default (untick all boxes)."
   :group 'agda2-highlight)
 
 (defface agda2-highlight-comment-face
