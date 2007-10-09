@@ -13,13 +13,13 @@ private
   open module H = Hear param
 
 NoSpeak : {a : U} -> Proc a -> Set
-NoSpeak {a} p = (w : LT a)(q : Proc a) -> ¬ (p -! w !⟶ q)
+NoSpeak {a} p = (w : LT a)(q : Proc a) -> ¬ (p -! w !-> q)
 
 silent-nospeak : {a : U}{p : Proc a} -> Silent p -> NoSpeak p
 silent-nospeak silent-o          w  q  ()
 silent-nospeak silent->          w  q  ()
-silent-nospeak (silent-|| s₁ s₂) w  ._ (tx-!| h _) = silent-nospeak s₁ _ _ h
-silent-nospeak (silent-|| s₁ s₂) w  ._ (tx-|! _ h) = silent-nospeak s₂ _ _ h
+silent-nospeak (silent-|| s1 s2) w  ._ (tx-!| h _) = silent-nospeak s1 _ _ h
+silent-nospeak (silent-|| s1 s2) w  ._ (tx-|! _ h) = silent-nospeak s2 _ _ h
 silent-nospeak (silent-def s)    w  q  (tx-def h)  = silent-nospeak s _ _ h
 silent-nospeak (silent-/| s)     ._ ._ (tx-/| h)   = silent-nospeak s _ _ h
 
@@ -28,16 +28,16 @@ nospeak-silent og           s = silent-o
 nospeak-silent (>g f)       s = silent->
 nospeak-silent (w !g p)     s = kill (s _ _ tx-!)
 nospeak-silent (w ! p +g f) s = kill (s _ _ tx-+)
-nospeak-silent (g₁ ||g g₂)  s =
-    silent-|| (nospeak-silent g₁ (inv₁ g₂ s))
-              (nospeak-silent g₂ (inv₂ g₁ s))
+nospeak-silent (g1 ||g g2)  s =
+    silent-|| (nospeak-silent g1 (inv1 g2 s))
+              (nospeak-silent g2 (inv2 g1 s))
   where
-    module Inv {a : U}{p₁ p₂ : Proc a} where
-      inv₁ : Guard p₂ -> NoSpeak (p₁ || p₂) -> NoSpeak p₁
-      inv₁ g₂ h w p t = h _ _ (tx-!| t (sound g₂))
+    module Inv {a : U}{p1 p2 : Proc a} where
+      inv1 : Guard p2 -> NoSpeak (p1 || p2) -> NoSpeak p1
+      inv1 g2 h w p t = h _ _ (tx-!| t (sound g2))
 
-      inv₂ : Guard p₁ -> NoSpeak (p₁ || p₂) -> NoSpeak p₂
-      inv₂ g₁ h w p t = h _ _ (tx-|! (sound g₁) t)
+      inv2 : Guard p1 -> NoSpeak (p1 || p2) -> NoSpeak p2
+      inv2 g1 h w p t = h _ _ (tx-|! (sound g1) t)
     open Inv
 nospeak-silent (φ /|g g)    s = silent-/| (nospeak-silent g (inv s))
   where

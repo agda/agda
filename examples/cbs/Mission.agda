@@ -28,11 +28,11 @@ completeS og           silent-o          oracle = isRefuse
 completeS (>g f)       silent->          oracle = isRefuse
 completeS (_ !g _)     ()                oracle
 completeS (_ ! _ +g _) ()                oracle
-completeS (g₁ ||g g₂)  (silent-|| s₁ s₂) oracle
-  with step g₁ (nextOracle oracle)
-       | completeS g₁ s₁ (nextOracle oracle)
-       | step g₂ (nextOracle oracle)
-       | completeS g₂ s₂ (nextOracle oracle)
+completeS (g1 ||g g2)  (silent-|| s1 s2) oracle
+  with step g1 (nextOracle oracle)
+       | completeS g1 s1 (nextOracle oracle)
+       | step g2 (nextOracle oracle)
+       | completeS g2 s2 (nextOracle oracle)
        | prophecy oracle
 ... | refuse _ | _  | refuse _ | _  | _     = isRefuse
 ... | speak _  | () | speak _  | _  | _
@@ -49,33 +49,33 @@ completeS (defg x g)   (silent-def s) oracle with step g oracle
 ... | refuse _ | _ = isRefuse
 
 theOracle : {a : U}{p : Proc a}{w : LT a}{q : Proc a} ->
-            p -! w !⟶ q -> Oracle
+            p -! w !-> q -> Oracle
 theOracle tx-!        = anyOracle
 theOracle tx-+        = anyOracle
-theOracle (tx-!| s r) = left  :: theOracle s
-theOracle (tx-|! r s) = right :: theOracle s
+theOracle (tx-!| s r) = ocons left  (theOracle s)
+theOracle (tx-|! r s) = ocons right (theOracle s)
 theOracle (tx-/| s)   = theOracle s
 theOracle (tx-def s)  = theOracle s
 
 data IsSpeak {a : U}{p : Proc a}(w : LT a)(q : Proc a) : Result p -> Set where
-  isSpeak : {r : p -! w !⟶ q} -> IsSpeak w q (speak r)
+  isSpeak : {r : p -! w !-> q} -> IsSpeak w q (speak r)
 
 completeT : {a : U}{p : Proc a}(g : Guard p){w : LT a}{q : Proc a} ->
-            (r : p -! w !⟶ q) -> IsSpeak w q (step g (\x -> theOracle r x))
+            (r : p -! w !-> q) -> IsSpeak w q (step g (\x -> theOracle r x))
 completeT og           ()
 completeT (>g _)       ()
 completeT (w !g p)     tx-!        = isSpeak
 completeT (w ! p +g f) tx-+        = isSpeak
-completeT (g₁ ||g  g₂) (tx-!| s r) with step g₁ (\x -> theOracle s x)
-                                      | step g₂ (\x -> theOracle s x)
-                                      | completeT g₁ s
-                                      | hear-complete g₂ r
+completeT (g1 ||g  g2) (tx-!| s r) with step g1 (\x -> theOracle s x)
+                                      | step g2 (\x -> theOracle s x)
+                                      | completeT g1 s
+                                      | hear-complete g2 r
 ... | .(speak _) | refuse _ | isSpeak | refl = isSpeak
 ... | .(speak _) | speak _  | isSpeak | refl = isSpeak
-completeT (g₁ ||g  g₂) (tx-|! r s) with step g₁ (\x -> theOracle s x)
-                                      | step g₂ (\x -> theOracle s x)
-                                      | hear-complete g₁ r
-                                      | completeT g₂ s
+completeT (g1 ||g  g2) (tx-|! r s) with step g1 (\x -> theOracle s x)
+                                      | step g2 (\x -> theOracle s x)
+                                      | hear-complete g1 r
+                                      | completeT g2 s
 ... | refuse _ | .(speak _) | refl | isSpeak = isSpeak
 ... | speak _  | .(speak _) | refl | isSpeak = isSpeak
 completeT (φ /|g g) (tx-/| s) with step g (\x -> theOracle s x)

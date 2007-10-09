@@ -12,7 +12,7 @@ private
 open Tran
 
 data Result {a : U}(p : Proc a) : Set where
-  speak  : forall {w q} -> p -! w !⟶ q -> Result p
+  speak  : forall {w q} -> p -! w !-> q -> Result p
   refuse : Silent p -> Result p
 
 upR : {a b : U}{p : Proc b}(φ : Tran a b) -> Result p -> Result (φ /| p)
@@ -26,16 +26,14 @@ prophecy : Oracle -> LR
 prophecy ol = ol zero
 
 nextOracle : Oracle -> Oracle
-nextOracle ol = ol ∘ suc
+nextOracle ol = ol % suc
 
 anyOracle : Oracle
 anyOracle _ = left
 
-infixr 50 _::_
-
-_::_ : LR -> Oracle -> Oracle
-(l :: or) zero    = l
-(l :: or) (suc n) = or n
+ocons : LR -> Oracle -> Oracle
+ocons l or zero    = l
+ocons l or (suc n) = or n
 
 step : {a : U}{p : Proc a} -> Guard p -> Oracle -> Result p
 step og           _  = refuse silent-o
@@ -43,14 +41,14 @@ step (>g _)       _  = refuse silent->
 step (w !g p)     _  = speak tx-!
 step (w ! p +g f) _  = speak tx-+
 step (defg x g)   ol with step g ol
-... | refuse s₁ = refuse (silent-def s₁)
-... | speak  s₁ = speak (tx-def s₁)
-step (g₁ ||g g₂)  ol with step g₁ (nextOracle ol)
-                        | step g₂ (nextOracle ol)
+... | refuse s1 = refuse (silent-def s1)
+... | speak  s1 = speak (tx-def s1)
+step (g1 ||g g2)  ol with step g1 (nextOracle ol)
+                        | step g2 (nextOracle ol)
                         | prophecy ol
-... | refuse s₁ | refuse s₂ | _     = refuse (silent-|| s₁ s₂)
-... | speak s₁  | refuse s₂ | _     = speak (tx-!| s₁ (sound g₂))
-... | refuse s₁ | speak s₂  | _     = speak (tx-|! (sound g₁) s₂)
-... | speak s₁  | speak _   | left  = speak (tx-!| s₁ (sound g₂))
-... | speak _   | speak s₂  | right = speak (tx-|! (sound g₁) s₂)
+... | refuse s1 | refuse s2 | _     = refuse (silent-|| s1 s2)
+... | speak s1  | refuse s2 | _     = speak (tx-!| s1 (sound g2))
+... | refuse s1 | speak s2  | _     = speak (tx-|! (sound g1) s2)
+... | speak s1  | speak _   | left  = speak (tx-!| s1 (sound g2))
+... | speak _   | speak s2  | right = speak (tx-|! (sound g1) s2)
 step (φ /|g g)    ol = upR φ (step g ol)
