@@ -103,6 +103,65 @@ necessary to restart Agda mode after changing this variable."
                  (const :tag "Agda (also the type-checking state)" agda))
   :group 'agda2)
 
+(defcustom agda2-change-default-font t
+  "Should the Agda mode change the default font of the current
+frame when activated?"
+  :type '(choice (const :tag "Change" t)
+                 (const :tag "Don't change" nil))
+  :group 'agda2)
+
+(defcustom agda2-fontset-spec
+  (concat
+   "-misc-fixed-medium-r-normal-*-15-*-*-*-*-*-fontset-agda2"
+   (cond
+    ((eq window-system 'x) "")
+    ((eq window-system 'w32) ",
+    ascii:-Misc-Fixed-Medium-R-Normal--15-140-75-75-C-90-ISO8859-1,
+    latin-iso8859-2:-*-Fixed-*-r-*-*-15-*-*-*-c-*-iso8859-2,
+    latin-iso8859-3:-*-Fixed-*-r-*-*-15-*-*-*-c-*-iso8859-3,
+    latin-iso8859-4:-*-Fixed-*-r-*-*-15-*-*-*-c-*-iso8859-4,
+    cyrillic-iso8859-5:-*-Fixed-*-r-*-*-15-*-*-*-c-*-iso8859-5,
+    greek-iso8859-7:-*-Fixed-*-r-*-*-15-*-*-*-c-*-iso8859-7,
+    latin-iso8859-9:-*-Fixed-*-r-*-*-15-*-*-*-c-*-iso8859-9,
+    mule-unicode-0100-24ff:-Misc-Fixed-Medium-R-Normal--15-140-75-75-C-90-ISO10646-1,
+    mule-unicode-2500-33ff:-Misc-Fixed-Medium-R-Normal--15-140-75-75-C-90-ISO10646-1,
+    mule-unicode-e000-ffff:-Misc-Fixed-Medium-R-Normal--15-140-75-75-C-90-ISO10646-1,
+    japanese-jisx0208:-JIS-Fixed-Medium-R-Normal--16-150-75-75-C-160-JISX0208.1983-0,
+    japanese-jisx0208-1978:-Misc-Fixed-Medium-R-Normal--16-150-75-75-C-160-JISC6226.1978-0,
+    japanese-jisx0212:-Misc-Fixed-Medium-R-Normal--16-150-75-75-C-160-JISX0212.1990-0,
+    latin-jisx0201:-*-*-medium-r-normal-*-16-*-*-*-c-*-jisx0201*-*,
+    katakana-jisx0201:-Sony-Fixed-Medium-R-Normal--16-120-100-100-C-80-JISX0201.1976-0,
+    thai-tis620:-Misc-Fixed-Medium-R-Normal--24-240-72-72-C-120-TIS620.2529-1,
+    lao:-Misc-Fixed-Medium-R-Normal--24-240-72-72-C-120-MuleLao-1,
+    tibetan:-TibMdXA-fixed-medium-r-normal--16-160-72-72-m-160-MuleTibetan-0,
+    tibetan-1-column:-TibMdXA-fixed-medium-r-normal--16-160-72-72-m-80-MuleTibetan-1,
+    korean-ksc5601:-Daewoo-Mincho-Medium-R-Normal--16-120-100-100-C-160-KSC5601.1987-0,
+    chinese-gb2312:-ISAS-Fangsong ti-Medium-R-Normal--16-160-72-72-c-160-GB2312.1980-0,
+    chinese-cns11643-1:-HKU-Fixed-Medium-R-Normal--16-160-72-72-C-160-CNS11643.1992.1-0,
+    chinese-big5-1:-ETen-Fixed-Medium-R-Normal--16-150-75-75-C-160-Big5.ETen-0,
+    chinese-big5-2:-ETen-Fixed-Medium-R-Normal--16-150-75-75-C-160-Big5.ETen-0")))
+  "*The \"fontset-agda2\" fontset is created based on this string,
+provided that `window-system' is x or w32. The default font of
+the current frame is changed to \"fontset-agda2\" when the Agda2
+mode is activated.
+
+Note that the text \"fontset-agda2\" has to be part of the
+string (in a certain way; see the default setting) in order for the
+agda2 fontset to be created properly.
+
+Note also that the default setting may not work unless suitable
+fonts are installed on your system. Refer to the README and
+README_WINDOWS files accompanying the Agda distribution for
+details.
+
+Note finally that you have to reload the Agda2 library if you
+want settings to this variable to take effect."
+  :group 'agda2
+  :type 'string)
+
+(if (memq window-system '(x w32))
+  (create-fontset-from-fontset-spec agda2-fontset-spec))
+
 (defun agda2-fix-ghci-for-windows ()
   (if (string-match "windows" system-configuration)
       (setq haskell-ghci-program-name "ghc"
@@ -209,8 +268,17 @@ necessary to restart Agda mode after changing this variable."
 
 (defun agda2-mode ()
  "Major mode for agda2 files.
-  Special commands:
- \\{agda2-mode-map}"
+
+Note that when this mode is activated the default font of the
+current frame is changed to \"fontset-agda2\" (see
+`agda2-fontset-spec'). The reason is that Agda programs often use
+mathematical symbols and other Unicode characters, so we try to
+provide a suitable default font setting, which can display many
+of the characters encountered. If you prefer to use your own
+settings, change the setting of `agda2-change-default-font'.
+
+Special commands:
+\\{agda2-mode-map}"
  (interactive)
  (kill-all-local-variables)
  (use-local-map    agda2-mode-map)
@@ -223,6 +291,8 @@ necessary to restart Agda mode after changing this variable."
  (let ((l '(max-specpdl-size    2600
             max-lisp-eval-depth 2800)))
    (while l (set (make-local-variable (pop l)) (pop l))))
+ (if agda2-change-default-font
+     (set-frame-font "fontset-agda2"))
  (agda2-indent-setup)
  (agda2-highlight-setup)
  (agda2-comments-and-paragraphs-setup)
@@ -242,8 +312,7 @@ necessary to restart Agda mode after changing this variable."
                             mode-name "Agda2 GHCi")
                       (set-buffer-file-coding-system 'utf-8)
 		      (set-buffer-process-coding-system 'utf-8 'utf-8)
-                      (rename-buffer agda2-bufname)
-                      (agda2-set-default-face))))
+                      (rename-buffer agda2-bufname))))
   (apply 'agda2-go ":set" agda2-ghci-options)
   (agda2-go ":mod +" agda2-toplevel-module)
   (agda2-text-state)
@@ -379,7 +448,6 @@ in the buffer's mode line."
     (goto-char (point-min))
     (put-text-property 0 (length name) 'face '(:weight bold) name)
     (setq mode-line-buffer-identification name)
-    (agda2-set-default-face)
     (save-selected-window
       (pop-to-buffer (current-buffer) 'not-this-window 'norecord)
       (shrink-window
@@ -836,10 +904,5 @@ invoked."
            (setq choice (x-popup-menu ev agda2-goal-map))
            (call-interactively
             (lookup-key agda2-goal-map (apply 'vector choice)))))))
-
-(defun agda2-set-default-face (&optional face)
-  (interactive)
-  (set (make-local-variable 'default-text-properties)
-       `(face ,(or face 'agda2-default-face))))
 
 (provide 'agda2-mode)

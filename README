@@ -150,8 +150,9 @@ To use the Agda 2 Emacs mode:
    is not enabled by default (empty boxes are displayed instead of
    proper characters) you need to select another font. Do this by
    running
-     M-x customize-face RET agda2-default-face RET
-   in Emacs and changing the options in a suitable way.
+     M-x customize-face RET agda2-fontset-spec RET
+   in Emacs (after you have started the Agda mode) and change the
+   setting to a suitable font.
 
 ----------------------------------------------------------------
 Appendix: Installation scripts for (at least Ubuntu Linux)
