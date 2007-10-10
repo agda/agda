@@ -156,7 +156,7 @@ necessary to restart Agda mode after changing this variable."
          )))
   (define-key agda2-mode-map [menu-bar Agda2]
     (cons "Agda2" (make-sparse-keymap "Agda2")))
-  (define-key agda2-mode-map [S-mouse-2]  'agda2-popup-menu-3)
+  (define-key agda2-mode-map [down-mouse-3]  'agda2-popup-menu-3)
   (dolist (d (reverse l))
     (let ((f (car d)) (k (cadr d)) (s1 (elt d 2)) (s2 (elt d 3)))
       (if k  (define-key agda2-mode-map k f))
@@ -240,7 +240,10 @@ necessary to restart Agda mode after changing this variable."
                       (setq agda2-process  haskell-ghci-process
                             agda2-buffer   haskell-ghci-process-buffer
                             mode-name "Agda2 GHCi")
-                      (rename-buffer agda2-bufname))))
+                      (set-buffer-file-coding-system 'utf-8)
+		      (set-buffer-process-coding-system 'utf-8 'utf-8)
+                      (rename-buffer agda2-bufname)
+                      (agda2-set-default-face))))
   (apply 'agda2-go ":set" agda2-ghci-options)
   (agda2-go ":mod +" agda2-toplevel-module)
   (agda2-text-state)
@@ -376,6 +379,7 @@ in the buffer's mode line."
     (goto-char (point-min))
     (put-text-property 0 (length name) 'face '(:weight bold) name)
     (setq mode-line-buffer-identification name)
+    (agda2-set-default-face)
     (save-selected-window
       (pop-to-buffer (current-buffer) 'not-this-window 'norecord)
       (shrink-window
@@ -832,5 +836,10 @@ invoked."
            (setq choice (x-popup-menu ev agda2-goal-map))
            (call-interactively
             (lookup-key agda2-goal-map (apply 'vector choice)))))))
+
+(defun agda2-set-default-face (&optional face)
+  (interactive)
+  (set (make-local-variable 'default-text-properties)
+       `(face ,(or face 'agda2-default-face))))
 
 (provide 'agda2-mode)

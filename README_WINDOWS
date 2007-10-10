@@ -27,7 +27,7 @@ To install Agda 2, under Windows with Cygwin, proceed as follows:
       1.1 Download "zlib compiled dll" from
           http://www.zlib.net/
    
-      1.2 copy files to the ghc direcotry
+      1.2 copy files to the ghc directory
           (replace c:/ghc/ghc-6.6.1 to wherever your version of ghc resides)
    
           cd zlib123-dll
@@ -46,12 +46,12 @@ To install Agda 2, under Windows with Cygwin, proceed as follows:
 
       Change the two lines
 
-        extra-libraies: z
+        extra-libraries: z
         ghc-options: -O -fvia-C -Wall
 
       to
 
-        extra-libraies: zlib1
+        extra-libraries: zlib1
         ghc-options: -O -fvia-C -Wall -lzdll
 
      2.3 Compile and install
@@ -66,9 +66,9 @@ To install Agda 2, under Windows with Cygwin, proceed as follows:
      darcs get --partial http://www.cs.chalmers.se/~ulfn/darcs/Agda2
      cd Agda2
 
-1.5) On Windows, edit Agda.cabal file to remove dependencty on "readline".
-     With any text-editor, open the file Agda.cabal and edit the line
-     that looks like+
+1.5) On Windows, edit Agda.cabal file to remove dependency on
+     "readline".  To do so, open the file Agda.cabal with any
+     text-editor, and edit the line that looks like
 
         build-depends:   base, mtl, QuickCheck >= 1.0 && < 2.0, readline, haskell98, haskell-src, binary >= 0.3
 
@@ -106,37 +106,144 @@ To install Agda 2, under Windows with Cygwin, proceed as follows:
 ------------------------------------------------------------------------
 To use the Agda 2 Emacs mode:
 
-0. Install haskell-mode, version 2.1 or later (see
-   http://haskell.org/haskell-mode/).
+1. Install NTEmacs 22.
 
-   Create the directory
+   Download from
+       http://ntemacs.sourceforge.net/
+   the self-extracting executable
+       ntemacs22-bin-20070819.exe
 
-   ..../Meadow/site-lisp/haskell-mode-2.3
+   When executed, it asks where to extract itself.  This can be
+   anywhere you like, but here we write the top directory for ntemacs as
+       c:/pkg/ntemacs
+   in the following.
 
-   and put all the files in it.  Then, add the line
+   What follows is tested only on this version.  Other versions may
+   work but you have to figure out yourself how to use Unicode fonts
+   on your version.
 
-   (load "..../Meadow/site-lisp/haskell-mode-2.3/haskell-site-file")
+2. Install ucs-fonts and mule-fonts for emacs.
 
-   in your .emacs file.
+   Download from
+       http://www.cl.cam.ac.uk/~mgk25/ucs-fonts.html
+   the tar file
+       http://www.cl.cam.ac.uk/~mgk25/download/ucs-fonts.tar.gz
+   Let us write the top directory of extracted files as
+       c:/pkg/ucs-fonts 
+   Next we create some derived fonts.
+       cd c:/pkg/ucs-fonts/submission
+       make all-bdfs
+   This gives an error message about missing fonts, but ignore it.
 
-1. Install Agda 2. (See above.)
+   Download from
+       http://www.meadowy.org/
+   the tar file
+       http://www.meadowy.org/meadow/dists/3.00/packages/mule-fonts-1.0-4-pkg.tar.bz2
+   The untarred top directory is named "packages", but we are only
+   interested in the subdirectory "packages/fonts".  Let us assume
+   we moved this subdirectory to 
+       c:/pkg/mule-fonts
 
 
+   Add the following to your .emacs
 
-2. Copy the .el files in src/full/Interaction/emacs-mode to some
-   directory which is listed in your Emacs load-path
-   (..../Meadow/site-lisp , for instance.). You may want to
-   byte-compile the files.
+;;;;;;;;; start of quoted elisp code
 
-   Untested example installation (creates a new directory and adds it
-   to your load-path, does not byte-compile the files):
+(setq bdf-directory-list
+      '(
+        "c:/pkg/ucs-fonts/submission"
+        "c:/pkg/mule-fonts/intlfonts"
+        "c:/pkg/mule-fonts/efonts"
+        "c:/pkg/mule-fonts/bitmap"
+        "c:/pkg/mule-fonts/CDAC"
+        "c:/pkg/mule-fonts/AkrutiFreeFonts"
+        ))
+        
+(setq w32-bdf-filename-alist
+      (w32-find-bdf-fonts bdf-directory-list))
 
-   mkdir <...>/agda2-mode
-   cp src/full/Interaction/emacs-mode/*.el <...>/agda2-mode
-   echo "(add-to-list 'load-path \"<...>/agda2-mode/\")" >> ~/.emacs
+(create-fontset-from-fontset-spec
+    "-*-fixed-Medium-r-Normal-*-15-*-*-*-c-*-fontset-bdf,
+    ascii:-Misc-Fixed-Medium-R-Normal--15-140-75-75-C-90-ISO8859-1,
+    latin-iso8859-2:-*-Fixed-*-r-*-*-15-*-*-*-c-*-iso8859-2,
+    latin-iso8859-3:-*-Fixed-*-r-*-*-15-*-*-*-c-*-iso8859-3,
+    latin-iso8859-4:-*-Fixed-*-r-*-*-15-*-*-*-c-*-iso8859-4,
+    cyrillic-iso8859-5:-*-Fixed-*-r-*-*-15-*-*-*-c-*-iso8859-5,
+    greek-iso8859-7:-*-Fixed-*-r-*-*-15-*-*-*-c-*-iso8859-7,
+    latin-iso8859-9:-*-Fixed-*-r-*-*-15-*-*-*-c-*-iso8859-9,
+    mule-unicode-0100-24ff:-Misc-Fixed-Medium-R-Normal--15-140-75-75-C-90-ISO10646-1,
+    mule-unicode-2500-33ff:-Misc-Fixed-Medium-R-Normal--15-140-75-75-C-90-ISO10646-1,
+    mule-unicode-e000-ffff:-Misc-Fixed-Medium-R-Normal--15-140-75-75-C-90-ISO10646-1,
+    japanese-jisx0208:-JIS-Fixed-Medium-R-Normal--16-150-75-75-C-160-JISX0208.1983-0,
+    japanese-jisx0208-1978:-Misc-Fixed-Medium-R-Normal--16-150-75-75-C-160-JISC6226.1978-0,
+    japanese-jisx0212:-Misc-Fixed-Medium-R-Normal--16-150-75-75-C-160-JISX0212.1990-0,
+    latin-jisx0201:-*-*-medium-r-normal-*-16-*-*-*-c-*-jisx0201*-*,
+    katakana-jisx0201:-Sony-Fixed-Medium-R-Normal--16-120-100-100-C-80-JISX0201.1976-0,
+    thai-tis620:-Misc-Fixed-Medium-R-Normal--24-240-72-72-C-120-TIS620.2529-1,
+    lao:-Misc-Fixed-Medium-R-Normal--24-240-72-72-C-120-MuleLao-1,
+    tibetan:-TibMdXA-fixed-medium-r-normal--16-160-72-72-m-160-MuleTibetan-0,
+    tibetan-1-column:-TibMdXA-fixed-medium-r-normal--16-160-72-72-m-80-MuleTibetan-1,
+    korean-ksc5601:-Daewoo-Mincho-Medium-R-Normal--16-120-100-100-C-160-KSC5601.1987-0,
+    chinese-gb2312:-ISAS-Fangsong ti-Medium-R-Normal--16-160-72-72-c-160-GB2312.1980-0,
+    chinese-cns11643-1:-HKU-Fixed-Medium-R-Normal--16-160-72-72-C-160-CNS11643.1992.1-0,
+    chinese-big5-1:-ETen-Fixed-Medium-R-Normal--16-150-75-75-C-160-Big5.ETen-0,
+    chinese-big5-2:-ETen-Fixed-Medium-R-Normal--16-150-75-75-C-160-Big5.ETen-0
+    " t)
 
-3. Add the following to your .emacs:
+(setq font-encoding-alist
+      (append '(
+                ("JISX0208" (japanese-jisx0208 . 0))
+                ("JISX0212" (japanese-jisx0212 . 0))
+                ("CNS11643.1992.1-0" (chinese-cns11643-1 . 0))
+                ("GB2312" (chinese-gb2312 . 0))
+                ("KSC5601" (korean-ksc5601 . 0))
+                ("VISCII" (vietnamese-viscii-lower . 0))
+                ("MuleArabic-0" (arabic-digit . 0))
+                ("MuleArabic-1" (arabic-1-column . 0))
+                ("MuleArabic-2" (arabic-2-column . 0))
+                ("muleindian-1" (indian-1-column . 0))
+                ("muleindian-2" (indian-2-column . 0))
+                ("MuleTibetan-0" (tibetan . 0))
+                ("MuleTibetan-1" (tibetan-1-column . 0))
+                ) font-encoding-alist))
 
+;;;;;;; end of quoted elisp code
+
+   To test the fonts, try
+
+       M-x eval-expression RET
+       (set-default-font "fontset-bdf") RET
+       M-x view-hello-file
+
+   You should see all the characters without white-boxes.
+
+
+3. Install haskell-mode, version 2.1 or later.
+
+   Download via 
+       http://haskell.org/haskell-mode/
+   the tar file
+       http://www.iro.umontreal.ca/~monnier/elisp/haskell-mode.tar.gz
+   Let us write the untarred top directory
+       c:/pkg/haskell-mode-2.3
+
+
+   Add the following line to your .emacs
+
+       (load "c:/pkg/haskell-mode-2.3/haskell-site-file")
+
+   To test it, open a file with the name "foo.hs", write some haskell,
+   and do
+       M-x inferior-haskell-load-file
+
+4. Install Agda 2. (See above.)
+   Let us write
+       c:/pkg/Agda2
+   for the top directory of Agda2.
+
+5. Add the following to your .emacs
+
+   (add-to-list 'load-path "c:/pkg/Agda2/src/full/Interaction/emacs-mode")
    (autoload 'agda2-mode "agda2-mode" "Agda2 mode." t)
    (add-to-list 'auto-mode-alist '("\\.l?agda$" . agda2-mode))
 
@@ -148,7 +255,7 @@ To use the Agda 2 Emacs mode:
   agda2-mode. It may take 5 or 10 seconds before you see anything in
   the buffer, but that is normal.
 
-4. If you want to you can customise some settings. Just start Emacs
+6. If you want to you can customize some settings. Just start Emacs
    and type the following:
 
    M-x load-library RET agda2-mode RET
