@@ -173,9 +173,8 @@ The aspects currently recognised are the following:
 ;; Functions
 
 (defun agda2-highlight-reload nil
-  "Sets the `face' property of all text to `agda2-default-face'
-and then reloads syntax information from the syntax file
-associated with the current buffer."
+  "Reloads syntax information from the syntax file associated with the
+current buffer."
   (interactive)
   (let* ((dir (file-name-directory (buffer-file-name)))
          (name (file-name-nondirectory (buffer-file-name)))
