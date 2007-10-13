@@ -60,6 +60,7 @@ data CommandLineOptions =
 	    , optDisablePositivity :: Bool
 	    , optCompileAlonzo     :: Bool
 	    , optTerminationCheck  :: Bool
+	    , optCompletenessCheck :: Bool
 	    }
     deriving Show
 
@@ -88,6 +89,7 @@ defaultOptions =
 	    , optDisablePositivity = False
 	    , optCompileAlonzo     = False
             , optTerminationCheck  = True
+            , optCompletenessCheck = True
 	    }
 
 {- | @f :: Flag opts@  is an action on the option record that results from
@@ -101,16 +103,17 @@ inputFlag f o	    =
 	Nothing  -> return $ o { optInputFile = Just f }
 	Just _	 -> fail "only one input file allowed"
 
-versionFlag	         o = return $ o { optShowVersion       = True }
-helpFlag	         o = return $ o { optShowHelp	       = True }
-proofIrrelevanceFlag     o = return $ o { optProofIrrelevance  = True }
-ignoreInterfacesFlag     o = return $ o { optIgnoreInterfaces  = True }
-allowUnsolvedFlag        o = return $ o { optAllowUnsolved     = True }
-showImplicitFlag         o = return $ o { optShowImplicit      = True }
-runTestsFlag	         o = return $ o { optRunTests	       = True }
-vimFlag		         o = return $ o { optGenerateVimFile   = True }
-noPositivityFlag         o = return $ o { optDisablePositivity = True }
-dontTerminationCheckFlag o = return $ o { optTerminationCheck  = False }
+versionFlag               o = return $ o { optShowVersion       = True }
+helpFlag                  o = return $ o { optShowHelp	       = True }
+proofIrrelevanceFlag      o = return $ o { optProofIrrelevance  = True }
+ignoreInterfacesFlag      o = return $ o { optIgnoreInterfaces  = True }
+allowUnsolvedFlag         o = return $ o { optAllowUnsolved     = True }
+showImplicitFlag          o = return $ o { optShowImplicit      = True }
+runTestsFlag              o = return $ o { optRunTests	       = True }
+vimFlag                   o = return $ o { optGenerateVimFile   = True }
+noPositivityFlag          o = return $ o { optDisablePositivity = True }
+dontTerminationCheckFlag  o = return $ o { optTerminationCheck  = False }
+dontCompletenessCheckFlag o = return $ o { optCompletenessCheck = False }
 
 interactiveFlag o
     | optEmacsMode o = fail "cannot have both emacs mode and interactive mode"
@@ -178,6 +181,8 @@ pragmaOptions =
 		    "disable strict positivity check for datatypes"
     , Option []	    ["dont-termination-check"] (NoArg dontTerminationCheckFlag)
 		    "do not try to verify that the code is terminating"
+    , Option []	    ["dont-completeness-check"] (NoArg dontCompletenessCheckFlag)
+		    "do not try to verify that pattern matches are complete"
     ]
 
 -- | Used for printing usage info.
