@@ -178,11 +178,11 @@ pragmaOptions =
     , Option []	    ["allow-unsolved-metas"] (NoArg allowUnsolvedFlag)
 		    "allow unsolved meta variables (only needed in batch mode)"
     , Option []	    ["disable-positivity-check"] (NoArg noPositivityFlag)
-		    "disable strict positivity check for datatypes"
+		    "do not warn about not strictly positive data types"
     , Option []	    ["dont-termination-check"] (NoArg dontTerminationCheckFlag)
-		    "do not try to verify that the code is terminating"
+		    "do not warn about possibly nonterminating code"
     , Option []	    ["dont-completeness-check"] (NoArg dontCompletenessCheckFlag)
-		    "do not try to verify that pattern matches are complete"
+		    "do not warn about possibly incomplete pattern matches"
     ]
 
 -- | Used for printing usage info.
