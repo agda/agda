@@ -190,8 +190,7 @@ associated with the current buffer."
 
 (defun agda2-highlight-clear nil
   "Removes all syntax highlighting added by
-`agda2-highlight-reload'. Sets the `face' property of all text to
-`default'."
+`agda2-highlight-reload'."
   (interactive)
   (annotation-remove-annotations)
   )
