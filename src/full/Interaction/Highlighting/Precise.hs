@@ -62,6 +62,9 @@ data OtherAspect
   | DottedPattern
   | UnsolvedMeta
   | TerminationProblem
+  | IncompletePattern
+    -- ^ When this constructor is used it is probably a good idea to
+    -- include a 'note' explaining why the pattern is incomplete.
     deriving (Eq, Show, Enum, Bounded)
 
 -- | Meta information which can be associated with a

@@ -112,6 +112,11 @@
   "The face used for termination problems."
   :group 'agda2-highlight)
 
+(defface agda2-highlight-incomplete-pattern-face
+  '((t (:background "wheat")))
+  "The face used for incomplete patterns."
+  :group 'agda2-highlight)
+
 (defvar agda2-highlight-faces
   ; The faces that are pointers to other faces need to be evaluated,
   ; hence the splices.
@@ -134,7 +139,8 @@
     (operator           . agda2-highlight-operator-face)
     (error              . agda2-highlight-error-face)
     (unsolvedmeta       . agda2-highlight-unsolved-meta-face)
-    (terminationproblem . agda2-highlight-termination-problem-face))
+    (terminationproblem . agda2-highlight-termination-problem-face)
+    (incompletepattern  . agda2-highlight-incomplete-pattern-face))
   "An association list mapping from a code aspect to the face used when
 displaying the aspect.
 
@@ -148,6 +154,7 @@ The aspects currently recognised are the following:
 `error'              Errors.
 `field'              Record fields.
 `function'           Functions.
+`incompletepattern'  Incomplete patterns.
 `keyword'            Keywords.
 `module'             Module names.
 `number'             Numbers.
