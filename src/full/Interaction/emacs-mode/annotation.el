@@ -128,7 +128,12 @@ text properties added by this library can easily be recomputed.)"
   "Removes all text properties set by `annotation-annotate' in the
 current buffer, and clears `annotation-goto-map'. This function
 preserves the file modification stamp of the current buffer and does
-not modify the undo list."
+not modify the undo list.
+
+Note: This function may fail if there is read-only text in the buffer."
+
+; remove-text-properties fails for read-only text.
+
   (clrhash annotation-goto-map)
   (annotation-preserve-mod-p-and-undo
    (let ((pos (point-min))
@@ -151,7 +156,9 @@ not modify the undo list."
 `annotation-annotate'. First all existing text properties set by
 `annotation-annotate' in the current buffer are removed. This function
 preserves the file modification stamp of the current buffer and does
-not modify the undo list."
+not modify the undo list.
+
+Note: This function may fail if there is read-only text in the buffer."
   (annotation-preserve-mod-p-and-undo
    ; (make-hash-table) cannot simply be the default value of this
    ; variable, since then the hash table would be shared between

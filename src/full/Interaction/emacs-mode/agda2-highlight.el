@@ -179,8 +179,9 @@ current buffer."
   (let* ((dir (file-name-directory (buffer-file-name)))
          (name (file-name-nondirectory (buffer-file-name)))
          (file (concat dir "." name ".el"))
-         )
-  (annotation-load-file file)))
+         (inhibit-read-only t))
+         ; Ignore read-only status, otherwise this function may fail.
+    (annotation-load-file file)))
 
 (defun agda2-highlight-setup nil
   "Sets up the `annotation' library for use with `agda2-mode'."
@@ -191,8 +192,9 @@ current buffer."
   "Removes all syntax highlighting added by
 `agda2-highlight-reload'."
   (interactive)
-  (annotation-remove-annotations)
-  )
+  (let ((inhibit-read-only t))
+       ; Ignore read-only status, otherwise this function may fail.
+    (annotation-remove-annotations)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Administrative details
