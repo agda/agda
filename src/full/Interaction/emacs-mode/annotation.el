@@ -2,6 +2,8 @@
 ;; Functions for annotating text with faces and help bubbles
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(require 'cl)
+
 (defvar annotation-bindings nil
   "An association list mapping symbols to faces. Becomes buffer-local
 when set.")
@@ -74,7 +76,11 @@ Note also that setting the face text property does not work when
 `font-lock-mode' is activated.
 
 All characters whose text properties get set also have the
-annotation-annotated property set to t.
+annotation-annotated property set to t, and
+annotation-annotations is set to a list with all the properties
+that have been set; this ensures that the text properties can
+later be removed (if the annotation-* properties are not tampered
+with).
 
 Note finally that nothing happens if either START or END are out of
 bounds for the current (possibly narrowed) buffer, or END < START."
@@ -84,21 +90,28 @@ bounds for the current (possibly narrowed) buffer, or END < START."
     (let ((faces (delq nil
                        (mapcar (lambda (ann)
                                  (cdr (assoc ann annotation-bindings)))
-                               anns))))
+                               anns)))
+          (props nil))
       (when faces
-        (add-text-properties start end `(face ,faces)))
+        (add-text-properties start end `(face ,faces))
+        (add-to-list 'props 'face))
       (when info
         (add-text-properties start end
-                             `(mouse-face highlight help-echo ,info)))
+                             `(mouse-face highlight help-echo ,info))
+        (add-to-list 'props 'mouse-face)
+        (add-to-list 'props 'help-echo))
       (when (consp goto)
         (let ((pos start))
           (while (< pos end)
             (puthash pos goto annotation-goto-map)
             (setq pos (1+ pos))))
-        (add-text-properties start end '(mouse-face highlight keymap map)))
-      (when (or faces info (consp goto))
+        (add-text-properties start end '(mouse-face highlight keymap map))
+        (add-to-list 'props 'mouse-face)
+        (add-to-list 'props 'keymap))
+      (when props
         (add-text-properties start end
-                             '(annotation-annotated t))))))
+                             `(annotation-annotated   t
+                               annotation-annotations ,props))))))
 
 (defmacro annotation-preserve-modified-p (&rest code)
   "Runs CODE, making sure to preserve the file modification stamp of
@@ -125,10 +138,11 @@ text properties added by this library can easily be recomputed.)"
     (annotation-dont-modify-undo-list ,@code)))
 
 (defun annotation-remove-annotations ()
-  "Removes all text properties set by `annotation-annotate' in the
-current buffer, and clears `annotation-goto-map'. This function
-preserves the file modification stamp of the current buffer and does
-not modify the undo list.
+  "Removes (as opposed to restores) all text properties set by
+`annotation-annotate' in the current buffer, and clears
+`annotation-goto-map'. This function preserves the file
+modification stamp of the current buffer and does not modify the
+undo list.
 
 Note: This function may fail if there is read-only text in the buffer."
 
@@ -142,13 +156,12 @@ Note: This function may fail if there is read-only text in the buffer."
      (while pos
        (setq pos2 (next-single-property-change pos 'annotation-annotated))
        (setq pos3 (or pos2 (point-max)))
-       (when (get-text-property pos 'annotation-annotated)
-         (remove-text-properties pos pos3
-                                 '(annotation-annotated nil
-                                   rear-nonsticky nil
-                                   mouse-face nil
-                                   help-echo nil
-                                   face nil)))
+       (let ((props (get-text-property pos 'annotation-annotations)))
+         (when props
+           (remove-text-properties pos pos3
+              (mapcan (lambda (prop) (list prop nil))
+                             (append '(annotation-annotated annotation-annotations)
+                                     props)))))
        (setq pos pos2)))))
 
 (defun annotation-load-file (file)
