@@ -2,6 +2,8 @@
 ;; Enhanced relative indentation (eri)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(require 'cl)
+
 (defun eri-current-line-length nil
   "Calculates length of current line."
   (- (line-end-position) (line-beginning-position))
