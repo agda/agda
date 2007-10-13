@@ -198,6 +198,7 @@ want settings to this variable to take effect."
          (agda2-goal-type                 "\C-c\C-t"      nil "Goal type"                               )
          (agda2-goal-type-normalised      nil             nil "Goal type (normalised)"                  )
          (agda2-show-context              "\C-c|"         nil "Context"                                 )
+         (agda2-show-context-normalised   nil             nil "Context (normalised)"                    )
          (agda2-infer-type                "\C-c:"         nil "Infer type"                              )
          (agda2-infer-type-normalised     nil             nil "Infer type (normalised)"                 )
          (agda2-goal-and-infer            [?\C-c?\C-.]    nil "Goal type and inferred type"             )
@@ -495,9 +496,6 @@ in the buffer's mode line."
   "Quit and clean up after agda2" (interactive)
   (agda2-protect (progn (kill-buffer agda2-buffer)
                         (kill-buffer (current-buffer)))))
-(defun agda2-show-context ()
-  "Show context of the goal at point" (interactive)
-  (agda2-goal-cmd "cmd_context"))
 
 (defmacro agda2-maybe-normalised (name comment cmd prompt)
   "This macro constructs two functions NAME and NAME-normalised, using
@@ -538,6 +536,12 @@ With a prefix argument the type is normalised.")
 given expression."
  "cmd_goal_type_infer"
  "expression to type")
+
+(agda2-maybe-normalised
+ agda2-show-context
+ "Show the context of the goal at point"
+ "cmd_context"
+ nil)
 
 (defun agda2-solveAll ()
   "Solve all goals that are internally already instantiated" (interactive)

@@ -264,10 +264,10 @@ parseExprIn ii rng s = do
     e <- liftIO $ parsePosString exprParser (rStart (getRange mi)) s
     concreteToAbstract (clScope mi) e
 
-cmd_context :: GoalCommand
-cmd_context ii _ _ = infoOnException $ do
+cmd_context :: B.Rewrite -> GoalCommand
+cmd_context norm ii _ _ = infoOnException $ do
   display_info "*Context*" . unlines
-      =<< ioTCM (B.withInteractionId ii $ mapM showA =<< B.contextOfMeta ii)
+      =<< ioTCM (B.withInteractionId ii $ mapM showA =<< B.contextOfMeta ii norm)
 
 cmd_infer :: B.Rewrite -> GoalCommand
 cmd_infer norm ii rng s = infoOnException $ do

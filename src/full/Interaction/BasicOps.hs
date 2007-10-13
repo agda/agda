@@ -299,14 +299,15 @@ typeOfMetas norm = liftTCM $
 	       openAndImplicit is x (MetaVar _ _ _ (M.BlockedConst _) _) = True
 	       openAndImplicit _ _ _					 = False
 
-contextOfMeta :: InteractionId -> IM [OutputForm Expr Name]
-contextOfMeta ii = do
+contextOfMeta :: InteractionId -> Rewrite -> IM [OutputForm Expr Name]
+contextOfMeta ii norm = do
   info <- getMetaInfo <$> (lookupMeta =<< lookupInteractionId ii)
   let localVars = filter visible . map ctxEntry . envContext . clEnv $ info
   withMetaInfo info $ reifyContext localVars
   where visible (Arg _ (x,_))  = show x /= "_"
         reifyContext   = foldr out (return []) . reverse
-	out (Arg h (x,t)) rest = liftM2 (:) (OfType x <$> reify t) (addCtx x (Arg h t) rest)
+	out (Arg h (x,t)) rest = liftM2 (:) (OfType x <$> (reify =<< rewrite norm t))
+                                            (addCtx x (Arg h t) rest)
 
 
 {-| Returns the type of the expression in the current environment -}
