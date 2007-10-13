@@ -20,8 +20,8 @@ import Test.QuickCheck
 ------------------------------------------------------------------------
 -- Read/show functions
 
--- | Converts the 'aspect' and 'dotted' fields to atoms readable by
--- the Emacs interface.
+-- | Converts the 'aspect' and 'otherAspects' fields to atoms readable
+-- by the Emacs interface.
 
 toAtoms :: MetaInfo -> [String]
 toAtoms m = map toAtom (otherAspects m) ++ toAtoms' (aspect m)
