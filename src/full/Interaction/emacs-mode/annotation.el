@@ -116,20 +116,22 @@ bounds for the current (possibly narrowed) buffer, or END < START."
 (defmacro annotation-preserve-modified-p (&rest code)
   "Runs CODE, making sure to preserve the file modification stamp of
 the current buffer."
-  `(let ((modp (buffer-modified-p)))
+  (let ((modp (make-symbol "modp")))
+  `(let ((,modp (buffer-modified-p)))
      (unwind-protect
          (progn ,@code)
-       (set-buffer-modified-p modp))))
+       (set-buffer-modified-p ,modp)))))
 
 (defmacro annotation-dont-modify-undo-list (&rest code)
   "Runs CODE, but all changes to the undo list are undone after the
 call. (Annotating a buffer can add a lot of stuff to the undo list,
 and this list has a rather small default maximum size. Furthermore the
 text properties added by this library can easily be recomputed.)"
-  `(let ((ul buffer-undo-list))
+  (let ((ul (make-symbol "ul")))
+  `(let ((,ul buffer-undo-list))
      (unwind-protect
          (progn ,@code)
-       (setq buffer-undo-list ul))))
+       (setq buffer-undo-list ,ul)))))
 
 (defmacro annotation-preserve-mod-p-and-undo (&rest code)
   "A combination of `annotation-preserve-modified-p' and

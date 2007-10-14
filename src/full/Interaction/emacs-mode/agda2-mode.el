@@ -49,15 +49,18 @@ properties to add to the result."
 (defmacro agda2-undoable (&rest body)
   "Wrap BODY with `agda2-undo-list' book-keeping (if `agda2-undo-kind'
 is `agda')."
+  (let ((old-undo  (make-symbol "old-undo"))
+        (old-state (make-symbol "old-state")))
   `(if (eq agda2-undo-kind 'agda)
       (if (buffer-file-name) ; aggda-mode and visiting, i.e. not generated.
-           (let ((old-undo buffer-undo-list)
-                 (old-state agda2-buffer-state))
+           (let ((,old-undo buffer-undo-list)
+                 (,old-state agda2-buffer-state))
              (setq buffer-undo-list nil)
              ,@body
-             (push (list buffer-undo-list old-undo old-state) agda2-undo-list)
+             (push (list buffer-undo-list ,old-undo ,old-state)
+                   agda2-undo-list)
              (setq buffer-undo-list nil)))
-    ,@body))
+    ,@body)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; User options
@@ -503,20 +506,21 @@ COMMENT to build the functions' comments. The function NAME takes a
 prefix argument which tells whether it should normalise types or not
 when running CMD (through `agda2-goal-cmd'; PROMPT, if non-nil, is
 used as the goal command prompt)."
+  (let ((eval (make-symbol "eval")))
   `(progn
      (defun ,name (&optional normalise)
        ,(concat comment ".
 With a prefix argument the type is normalised.")
        (interactive "P")
-       (let ((eval (if normalise "Normalised" "Instantiated")))
-         (agda2-goal-cmd (concat ,cmd " Interaction.BasicOps." eval)
+       (let ((,eval (if normalise "Normalised" "Instantiated")))
+         (agda2-goal-cmd (concat ,cmd " Interaction.BasicOps." ,eval)
                          ,prompt)))
 
      (defun ,(intern (concat (symbol-name name) "-normalised")) ()
        ,(concat comment " (normalised).")
        (interactive)
        (,name t))
-     ))
+     )))
 
 (agda2-maybe-normalised
  agda2-goal-type
