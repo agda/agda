@@ -363,6 +363,47 @@ abstract
     suc m
                    ∎
 
+  m⊓n+n∸m≡n : forall m n -> (m ⊓ n) + (n ∸ m) ≡ n
+  m⊓n+n∸m≡n zero    n       = byDef
+  m⊓n+n∸m≡n (suc m) zero    = byDef
+  m⊓n+n∸m≡n (suc m) (suc n) = ≡-cong suc $ m⊓n+n∸m≡n m n
+
+  -- TODO: Can this proof be simplified? An automatic solver which can
+  -- handle ∸ would be nice...
+
+  i∸k∸j+j∸k≡i+j∸k : forall i j k -> i ∸ (k ∸ j) + (j ∸ k) ≡ i + j ∸ k
+  i∸k∸j+j∸k≡i+j∸k zero j k = begin
+    0 ∸ (k ∸ j) + (j ∸ k)
+                           ∼⟨ ≡-cong (\x -> x + (j ∸ k))
+                                     (0∸n≡0 (k ∸ j)) ⟩
+    0 + (j ∸ k)
+                           ∼⟨ byDef ⟩
+    j ∸ k
+                           ∎
+  i∸k∸j+j∸k≡i+j∸k (suc i) j zero = begin
+    suc i ∸ (0 ∸ j) + j
+                         ∼⟨ ≡-cong (\x -> suc i ∸ x + j) (0∸n≡0 j) ⟩
+    suc i ∸ 0 + j
+                         ∼⟨ byDef ⟩
+    suc (i + j)
+                         ∎
+  i∸k∸j+j∸k≡i+j∸k (suc i) zero (suc k) = begin
+    i ∸ k + 0
+               ∼⟨ proj₂ +-identity _ ⟩
+    i ∸ k
+               ∼⟨ ≡-cong (\x -> x ∸ k)
+                         (≡-sym (proj₂ +-identity _)) ⟩
+    i + 0 ∸ k
+               ∎
+  i∸k∸j+j∸k≡i+j∸k (suc i) (suc j) (suc k) = begin
+    suc i ∸ (k ∸ j) + (j ∸ k)
+                               ∼⟨ i∸k∸j+j∸k≡i+j∸k (suc i) j k ⟩
+    suc i + j ∸ k
+                               ∼⟨ ≡-cong (\x -> x ∸ k)
+                                         (≡-sym (m+1+n≡1+m+n i j)) ⟩
+    i + suc j ∸ k
+                               ∎
+
   m+n∸m≡n : forall {m n} -> m ≤ n -> m + (n ∸ m) ≡ n
   m+n∸m≡n z≤n       = byDef
   m+n∸m≡n (s≤s m≤n) = ≡-cong suc $ m+n∸m≡n m≤n
