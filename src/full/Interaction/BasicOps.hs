@@ -42,21 +42,19 @@ giveExpr :: MetaId -> Expr -> IM Expr
 -- the expression returned by the type checker.
 giveExpr mi e = 
     do  mv <- lookupMeta mi 
-        withMetaInfo (getMetaInfo mv) $
-	  	do vs <- getContextArgs
-		   metaTypeCheck' mi e mv vs
+        withMetaInfo (getMetaInfo mv) $ metaTypeCheck' mi e mv
         
-  where  metaTypeCheck' mi e mv vs = 
+  where  metaTypeCheck' mi e mv = 
             case mvJudgement mv of 
 		 HasType _ o  -> do
 		    t	<- getOpen o
 		    ctx <- getContextArgs
-		    v	<- checkExpr e (t `piApply` ctx)
+		    let t' = t `piApply` ctx
+		    v	<- checkExpr e t'
 		    case mvInstantiation mv of
 			InstV v' ->
-			    addConstraints =<< equalTerm t v (v' `apply` vs)
-			_	     -> return ()
-		    updateMeta mi v
+			    addConstraints =<< equalTerm t' v (v' `apply` ctx)
+			_	 -> updateMeta mi v
 		    reify v
 		 IsSort _ -> __IMPOSSIBLE__
 
