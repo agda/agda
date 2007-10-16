@@ -89,7 +89,7 @@ tokens :-
 -- We need to check the offside rule for the first token on each line.  We
 -- should not check the offside rule for the end of file token or an
 -- '\end{code}'
-<0,code,imp_dir_> \n	{ begin bol_ }
+<0,code,imp_dir_,pragma_> \n	{ begin bol_ }
 <bol_>
     {
 	\n		    ;
