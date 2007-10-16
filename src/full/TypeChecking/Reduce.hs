@@ -187,7 +187,7 @@ instance Reduce Term where
 	    reducePrimitive x v0 f args pf cls
 		| n < ar    = return $ v0 `apply` args	-- not fully applied
 		| otherwise = do
-		    let (args1,args2) = splitAt n args
+		    let (args1,args2) = splitAt ar args
 		    r <- def args1
 		    case r of
 			NoReduction args1' -> reduceNormal v0 f (args1' ++ args2) cls
