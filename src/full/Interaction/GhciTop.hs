@@ -631,3 +631,22 @@ outputErrorInfo mFile r s =
       when (mFile /= Just f) $ clearSyntaxInfo f
       outputSyntaxInfo f $ generateErrorInfo r s
       tellEmacsToReloadSyntaxInfo
+
+------------------------------------------------------------------------
+-- Implicit arguments
+
+-- | Tells Agda whether or not to show implicit arguments.
+
+showImplicitArgs :: Bool -- ^ Show them?
+                 -> IO ()
+showImplicitArgs showImpl = ioTCM $ do
+  opts <- commandLineOptions
+  setCommandLineOptions (opts { optShowImplicit = showImpl })
+
+-- | Toggle display of implicit arguments.
+
+toggleImplicitArgs :: IO ()
+toggleImplicitArgs = ioTCM $ do
+  opts <- commandLineOptions
+  setCommandLineOptions (opts { optShowImplicit =
+                                  not $ optShowImplicit opts })
