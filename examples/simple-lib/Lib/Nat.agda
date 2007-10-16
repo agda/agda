@@ -9,8 +9,16 @@ data Nat : Set where
 {-# BUILTIN ZERO    zero #-}
 {-# BUILTIN SUC     suc  #-}
 
+infixr 50 _*_
+infixr 40 _+_
+
 _+_ : Nat -> Nat -> Nat
 zero  + m = m
 suc n + m = suc (n + m)
 
-{-# BUILTIN NATPLUS _+_ #-}
+_*_ : Nat -> Nat -> Nat
+zero  * m = zero
+suc n * m = n * m + m
+
+{-# BUILTIN NATPLUS  _+_ #-}
+{-# BUILTIN NATTIMES _*_ #-}
