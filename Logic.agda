@@ -77,3 +77,12 @@ contravariant f ¬q p = contradiction (f p) ¬q
 
 map-¬¬ : forall {P Q} -> (P -> Q) -> ¬ (¬ P) -> ¬ (¬ Q)
 map-¬¬ f = contravariant (contravariant f)
+
+------------------------------------------------------------------------
+-- Conversion
+
+≡-to-≅ : forall {a} {x y : a} -> x ≡ y -> x ≅ y
+≡-to-≅ ≡-refl = ≅-refl
+
+≅-to-≡ : forall {a} {x y : a} -> x ≅ y -> x ≡ y
+≅-to-≡ ≅-refl = ≡-refl
