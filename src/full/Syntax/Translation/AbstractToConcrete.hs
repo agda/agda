@@ -366,7 +366,7 @@ instance ToConcrete A.Expr C.Expr where
 	es <- toConcreteCtx TopCtx es
 	return $ C.Rec (getRange i) $ zip xs es
 
-    toConcrete (A.ScopedExpr scope e) = withScope scope $ toConcrete e
+    toConcrete (A.ScopedExpr _ e) = toConcrete e
 
 -- Binder instances -------------------------------------------------------
 
