@@ -15,6 +15,7 @@ module RTP where
     Char   : Set
 
   {-# BUILTIN FLOAT Float #-}
+  {-# BUILTIN STRING String #-}
 
 
   -- postulate primShowBool : Bool -> String
