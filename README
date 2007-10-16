@@ -23,15 +23,6 @@ To install Agda 2, proceed as follows:
      darcs get http://www.cs.chalmers.se/~ulfn/darcs/Agda2
      cd Agda2
 
-1.5) On Windows, edit Agda.cabal file to remove dependencty on "readline".
-     With any text-editor, open the file Agda.cabal and edit the line
-     that looks like
-
-        build-depends:   base, mtl, QuickCheck >= 1.0 && < 2.0, readline, haskell98, binary >= 0.3
-
-     to
-        build-depends:   base, mtl, QuickCheck >= 1.0 && < 2.0, haskell98, binary >= 0.3
-
 2) Build and install the Agda 2 library. If you want to install it in
    the default location (you may need root privileges for this), use
    the following commands:
