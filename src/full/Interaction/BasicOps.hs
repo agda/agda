@@ -300,12 +300,15 @@ typeOfMetas norm = liftTCM $
 contextOfMeta :: InteractionId -> Rewrite -> IM [OutputForm Expr Name]
 contextOfMeta ii norm = do
   info <- getMetaInfo <$> (lookupMeta =<< lookupInteractionId ii)
-  let localVars = filter visible . map ctxEntry . envContext . clEnv $ info
-  withMetaInfo info $ reifyContext localVars
-  where visible (Arg _ (x,_))  = show x /= "_"
+  let localVars = map ctxEntry . envContext . clEnv $ info
+  withMetaInfo info $ filter visible <$> reifyContext localVars
+  where visible (OfType x _) = show x /= "_"
+	visible _	     = __IMPOSSIBLE__
         reifyContext   = foldr out (return []) . reverse
-	out (Arg h (x,t)) rest = liftM2 (:) (OfType x <$> (reify =<< rewrite norm t))
-                                            (addCtx x (Arg h t) rest)
+	out (Arg h (x,t)) rest = do
+	  t' <- reify =<< rewrite norm t
+	  ts <- addCtx x (Arg h t) rest
+	  return $ OfType x t' : ts
 
 
 {-| Returns the type of the expression in the current environment -}
