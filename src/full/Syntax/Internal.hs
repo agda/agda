@@ -165,13 +165,10 @@ instance Show MetaId where
 arity :: Type -> Int
 arity t =
     case unEl t of
-	Pi  (Arg h _) (Abs _ b) -> count h + arity b
-	Fun (Arg h _)	     b	-> count h + arity b
-	_			-> 0
-    where
-	count Hidden	= 0
-	count NotHidden = 1
-   
+	Pi  _ (Abs _ b) -> 1 + arity b
+	Fun _	     b	-> 1 + arity b
+	_		-> 0
+
 -- | Suggest a name for the first argument of a function of the given type.
 argName :: Type -> String
 argName = argN . unEl

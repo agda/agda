@@ -4,6 +4,7 @@
 -}
 module TypeChecking.Primitive where
 
+import Control.Monad
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Char
@@ -21,6 +22,7 @@ import TypeChecking.Monad.Builtin
 import TypeChecking.Reduce
 import TypeChecking.Substitute
 import TypeChecking.Errors
+import TypeChecking.Pretty ()  -- instances only
 
 import Utils.Monad
 import Utils.Pretty (pretty)
@@ -271,6 +273,9 @@ primEqElim = do
 		    _	    -> __IMPOSSIBLE__
 	      in return $ name r
     return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ (arity t) $ \args -> do
+	unless (length args >= 6) $ do
+	  ps <- mapM prettyTCM args
+	  fail $ "too few arguments to primEqElim: " ++ show ps
 	let h = unArg $ args !! 3
 	    p = args !! 5
 	p' <- reduce p

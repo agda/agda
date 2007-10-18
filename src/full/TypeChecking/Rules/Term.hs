@@ -235,36 +235,6 @@ checkExpr e t =
 
 	A.ScopedExpr scope e -> setScope scope >> checkExpr e t
 
--- | TODO: think this through
-{-
-nofConstructorPars :: QName -> TCM Int
-nofConstructorPars c = do
-    Con c' [] <- constructorForm =<< reduce (Con c [])
-    nargs     <- constructorArgs c
-    nargs'    <- constructorArgs c'
-    npars'    <- constructorPars c'
-    return $ nargs - (nargs' - npars')
-  where
-    constructorPars :: QName -> TCM Int
-    constructorPars c = do
-      c' <- actualConstructor c
-      Constructor _ d _	  <- theDef <$> getConstInfo c'
-      Datatype np _ _ _ _ <- theDef <$> getConstInfo d
-      return np
-
-    constructorArgs :: QName -> TCM Int
-    constructorArgs c = do
-      t <- defType <$> getConstInfo c
-      arity <$> normalise t
-
-    arity :: Type -> Int
-    arity t = 
-      case unEl t of
-	Pi _ (Abs _ b)	-> 1 + arity b
-	Fun _ b		-> 1 + arity b
-	_		-> 0
--}
-
 -- | Infer the type of a head thing (variable, function symbol, or constructor)
 inferHead :: Head -> TCM (Args -> Term, Type)
 inferHead (HeadVar x) = do -- traceCall (InferVar x) $ do
