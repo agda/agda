@@ -349,8 +349,12 @@ niceDeclarations ds = nice (fixities ds) ds
 		setConcrete cs (NiceDef r _ ts ds)  = NiceDef r cs ts ds
 		setConcrete cs d		    = throwDyn $ NotAllowedInMutual d
 
-		smash (NiceDef r0 _ ts0 ds0) (NiceDef r1 _ ts1 ds1) =
-		    NiceDef (fuseRange r0 r1) [] (ts0 ++ ts1) (ds0 ++ ds1)
+		isRecord RecDef{} = True
+		isRecord _	  = False
+
+		smash nd@(NiceDef r0 _ ts0 ds0) (NiceDef r1 _ ts1 ds1)
+		  | any isRecord ds0 = throwDyn $ NotAllowedInMutual nd
+		  | otherwise	     = NiceDef (fuseRange r0 r1) [] (ts0 ++ ts1) (ds0 ++ ds1)
 		smash (NiceDef _ _ _ _) d = throwDyn $ NotAllowedInMutual d
 		smash d _		  = throwDyn $ NotAllowedInMutual d
 
