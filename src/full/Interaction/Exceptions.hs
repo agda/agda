@@ -11,9 +11,6 @@ import Syntax.Position
 import Syntax.Parser		    ( ParseError(..)	       )
 import Syntax.Concrete.Definitions  ( DeclarationException(..) )
 
-instance Show DeclarationException where
-  show _ = "TODO: we shouldn't 'show' DeclarationExceptions"
-
 crash :: Range -> String -> IO b
 crash r x =
     do	print r

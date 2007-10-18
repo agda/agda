@@ -73,6 +73,8 @@ import Syntax.Concrete
 import Syntax.Common
 import Syntax.Position
 import Syntax.Fixity
+import Syntax.Concrete.Pretty
+import Utils.Pretty
 
 #include "../../undefined.h"
 
@@ -146,6 +148,29 @@ instance HasRange NiceDefinition where
   getRange (FunDef r _ _ _ _ _ _)  = r
   getRange (DataDef r _ _ _ _ _ _) = r
   getRange (RecDef r _ _ _ _ _ _)  = r
+
+instance Show DeclarationException where
+  show (MultipleFixityDecls xs) = show $
+    sep [ fsep $ pwords "Multiple fixity declarations for"
+	, vcat $ map f xs
+	]
+      where
+	f (x, fs) = pretty x <> text ":" <+> fsep (map (text . show) fs)
+  show (MissingDefinition x) = show $ fsep $
+    pwords "Missing definition for" ++ [pretty x]
+  show (MissingTypeSignature x) = show $ fsep $
+    pwords "Missing type signature for left hand side" ++ [pretty x]
+  show (NotAllowedInMutual nd) = show $ fsep $
+    [text $ decl nd] ++ pwords "are not allowed in mutual blocks"
+    where
+      decl (Axiom _ _ _ _ _ _)		     = "Postulates"
+      decl (NiceDef _ _ _ _)		     = "Record types"
+      decl (NiceModule _ _ _ _ _ _)	     = "Modules"
+      decl (NiceModuleMacro _ _ _ _ _ _ _ _) = "Modules"
+      decl (NiceOpen _ _ _)		     = "Open declarations"
+      decl (NiceImport _ _ _ _ _)	     = "Import statements"
+      decl (NicePragma _ _)		     = "Pragmas"
+      decl (PrimitiveFunction _ _ _ _ _ _)   = "Primitive declarations"
 
 {--------------------------------------------------------------------------
     The niceifier
