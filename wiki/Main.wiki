@@ -2,4 +2,4 @@
 
 Agda is a dependently typed programming language with good support for programming with inductively defined families of types.
 
-The current wiki is locate at [http://www.cs.chalmers.se/~ulfn/Agda].
+The current wiki is located at [http://www.cs.chalmers.se/~ulfn/Agda].
