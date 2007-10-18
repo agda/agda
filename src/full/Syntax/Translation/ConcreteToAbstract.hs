@@ -15,6 +15,7 @@ module Syntax.Translation.ConcreteToAbstract
 import Prelude hiding (mapM)
 import Control.Applicative
 import Control.Monad.Reader hiding (mapM)
+import Control.Monad.Error hiding (mapM)
 import Data.Typeable
 import Data.Traversable (mapM)
 
@@ -30,7 +31,7 @@ import Syntax.Scope.Base
 import Syntax.Scope.Monad
 import Syntax.Strict
 
-import TypeChecking.Monad.Base (TypeError(..), Call(..), typeError)
+import TypeChecking.Monad.Base (TypeError(..), Call(..), typeError, TCErr(..))
 import TypeChecking.Monad.Trace (traceCall, traceCallCPS)
 import TypeChecking.Monad.State
 import TypeChecking.Monad.Options
@@ -400,15 +401,21 @@ instance ToAbstract (TopLevel [C.Declaration]) TopLevelInfo where
 	  return $ TopLevelInfo (ds' ++ ds) scope scope0
 	_ -> __IMPOSSIBLE__
 
+
+niceDecls :: [C.Declaration] -> ScopeM [NiceDeclaration]
+niceDecls ds = case runNice $ niceDeclarations ds of
+  Left e   -> throwError $ Exception (getRange e) (show e)
+  Right ds -> return ds
+
 instance ToAbstract [C.Declaration] [A.Declaration] where
-  toAbstract = toAbstract . niceDeclarations
+  toAbstract ds = toAbstract =<< niceDecls ds
 
 newtype LetDefs = LetDefs [C.Declaration]
 newtype LetDef = LetDef NiceDeclaration
 
 instance ToAbstract LetDefs [A.LetBinding] where
     toAbstract (LetDefs ds) =
-	toAbstract (map LetDef $ niceDeclarations ds)
+	toAbstract =<< map LetDef <$> niceDecls ds
 
 instance ToAbstract LetDef A.LetBinding where
     toAbstract (LetDef d) =
