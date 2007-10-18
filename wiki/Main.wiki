@@ -1,0 +1,5 @@
+#summary One-sentence summary of this page.
+
+= Agda =
+
+Agda is a dependently typed programming language with good support for programming with inductively defined families of types.
