@@ -538,7 +538,7 @@ With a prefix argument the type is normalised.")
 (agda2-maybe-normalised
  agda2-goal-and-infer
  "Shows the type of the goal at point and infers the type of the
-given expression."
+given expression"
  "cmd_goal_type_infer"
  "expression to type")
 
