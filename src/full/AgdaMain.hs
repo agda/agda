@@ -36,7 +36,8 @@ import Interaction.CommandLine.CommandLine
 import Interaction.Options
 import Interaction.Monad
 import Interaction.GhciTop ()	-- to make sure it compiles
-import Interaction.Highlighting.Vim (generateVimFile)
+import Interaction.Highlighting.Vim   (generateVimFile)
+import Interaction.Highlighting.Emacs (generateEmacsFile)
 import Interaction.Imports
 
 import TypeChecker
@@ -105,10 +106,11 @@ runAgda =
 				checkDecls $ topLevelDecls topLevel
 
                                 -- Termination check
-                                whenM (optTerminationCheck <$> commandLineOptions) $ do
-                                  errs <- termDecls $ topLevelDecls topLevel
-                                  mapM_ (\e -> reportSLn "term.warn.no" 1
-                                               (show (fst e) ++ " does NOT termination check")) errs
+                                errs <- ifM (optTerminationCheck <$> commandLineOptions)
+                                            (termDecls $ topLevelDecls topLevel)
+                                            (return [])
+                                mapM_ (\e -> reportSLn "term.warn.no" 1
+                                             (show (fst e) ++ " does NOT termination check")) errs
 
 				-- Set the scope
 				setScope $ outsideScope topLevel
@@ -118,6 +120,11 @@ runAgda =
 				-- Generate Vim file
 				whenM (optGenerateVimFile <$> commandLineOptions) $
 				    withScope_ (insideScope topLevel) $ generateVimFile file
+
+				-- Generate Emacs file
+				whenM (optGenerateEmacsFile <$> commandLineOptions) $
+			          withScope_ (insideScope topLevel) $
+                                    generateEmacsFile file topLevel errs
 
 				-- Give error for unsolved metas
 				unsolved <- getOpenMetas

@@ -82,10 +82,8 @@ import Interaction.Exceptions
 import Interaction.Options
 import qualified Interaction.BasicOps as B
 import qualified Interaction.CommandLine.CommandLine as CL
-import Interaction.Highlighting.Precise (File)
-import qualified Interaction.Highlighting.Range as R
-import Interaction.Highlighting.Generate
 import Interaction.Highlighting.Emacs
+import Interaction.Highlighting.Generate
 
 import Termination.TermCheck
 
@@ -165,18 +163,17 @@ cmd_load file includes = infoOnException $ do
     (pragmas, m) <- parseFile' moduleParser file
     setWorkingDirectory file m
     is <- ioTCM' (Just file) $ do
+            enableSyntaxHighlighting
             setIncludeDirectories includes
 	    resetState
 	    pragmas  <- concat <$> concreteToAbstract_ pragmas	-- identity for top-level pragmas at the moment
 	    topLevel <- concreteToAbstract_ (TopLevel m)
 
-            tokens <- liftIO $ parseFile' tokensParser file
-
             handleError
               -- If there is an error syntax highlighting info can
               -- still be generated.
               (\e -> do generateAndOutputSyntaxInfo
-                          file TypeCheckingNotDone tokens topLevel
+                          file TypeCheckingNotDone topLevel
                         -- The outer error handler tells Emacs to
                         -- reload the syntax highlighting info.
                         throwError e) $ do
@@ -185,7 +182,8 @@ cmd_load file includes = infoOnException $ do
               checkDecls $ topLevelDecls topLevel
               setScope $ outsideScope topLevel
 
-              ignoreAbstractMode $ generateAndOutputSyntaxInfo file TypeCheckingDone tokens topLevel
+              ignoreAbstractMode $
+                generateAndOutputSyntaxInfo file TypeCheckingDone topLevel
 
               -- Do termination checking.
               whenM (optTerminationCheck <$> commandLineOptions) $ do
@@ -571,42 +569,13 @@ infoOnException m = failOnException inform m where
 ------------------------------------------------------------------------
 -- Syntax highlighting
 
--- | Generates and outputs syntax highlighting information.
---
--- (Does not clear existing highlighting info, use 'clearSyntaxInfo'
--- for that.)
+-- | Turns on syntax highlighting for other parts of Agda (notably the
+-- import chaser, which sometimes type checks things).
 
-generateAndOutputSyntaxInfo
-  :: FilePath           -- ^ The module to highlight.
-  -> TypeCheckingState  -- ^ Has it been type checked?
-  -> [T.Token]          -- ^ The token stream for the module.
-  -> TopLevelInfo       -- ^ The abstract syntax for the module.
-  -> TCM ()
-generateAndOutputSyntaxInfo file tcs tokens topLevel = do
-  syntaxInfo <- generateSyntaxInfo tcs tokens topLevel
-  liftIO $ outputSyntaxInfo file syntaxInfo
-
--- | Generates and outputs termination checking information.
---
--- (Does not clear existing highlighting info, use 'clearSyntaxInfo'
--- for that.)
-
-generateAndOutputTerminationProblemInfo
-  :: FilePath
-     -- ^ The module to highlight.
-  -> [([SA.QName], [R.Range])]
-     -- ^ Problematic function definitions (grouped if they are
-     -- mutual), and corresponding problematic call sites.
-  -> TCM ()
-generateAndOutputTerminationProblemInfo file errs = do
-  termInfo <- generateTerminationInfo errs
-  liftIO $ outputSyntaxInfo file termInfo
-
--- | Output syntax highlighting information for the given file
-
-outputSyntaxInfo :: FilePath -> File -> IO ()
-outputSyntaxInfo file syntaxInfo = do
-    appendSyntaxInfo file syntaxInfo
+enableSyntaxHighlighting :: TCM ()
+enableSyntaxHighlighting = do
+  opts <- commandLineOptions
+  setCommandLineOptions (opts { optGenerateEmacsFile = True })
 
 -- | Tell the Emacs mode to reload the highlighting information.
 
@@ -630,7 +599,7 @@ outputErrorInfo mFile r s =
       putStrLn $ response $
         L [A "annotation-goto", Q $ L [A (show f), A ".", A (show p)]]
       when (mFile /= Just f) $ clearSyntaxInfo f
-      outputSyntaxInfo f $ generateErrorInfo r s
+      appendSyntaxInfo f $ generateErrorInfo r s
       tellEmacsToReloadSyntaxInfo
 
 ------------------------------------------------------------------------

@@ -24,6 +24,8 @@ import Syntax.Parser
 import Syntax.Scope.Base
 import Syntax.Translation.ConcreteToAbstract
 
+import Termination.TermCheck
+
 import TypeChecking.Reduce
 import TypeChecking.Monad
 import TypeChecking.Monad.Builtin
@@ -32,6 +34,7 @@ import TypeChecking.Primitive
 import TypeChecker
 
 import Interaction.Options
+import Interaction.Highlighting.Emacs
 import Interaction.Highlighting.Vim
 
 import Utils.FileName
@@ -233,10 +236,18 @@ createInterface opts trace path visited mname file = runTCM $ withImportPath pat
     setOptionsFromPragmas pragmas
 
     checkDecls $ topLevelDecls topLevel
+    errs <- ifM (optTerminationCheck <$> commandLineOptions)
+                (termDecls $ topLevelDecls topLevel)
+                (return [])
 
     -- Generate Vim file
     whenM (optGenerateVimFile <$> commandLineOptions) $
 	withScope_ (insideScope topLevel) $ generateVimFile file
+
+    -- Generate Emacs file
+    whenM (optGenerateEmacsFile <$> commandLineOptions) $
+      withScope_ (insideScope topLevel) $
+        generateEmacsFile file topLevel errs
 
     -- check that metas have been solved
     ms <- getOpenMetas

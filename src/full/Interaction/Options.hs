@@ -56,6 +56,7 @@ data CommandLineOptions =
 	    , optRunTests	   :: Bool
 	    , optCompile	   :: Bool
 	    , optGenerateVimFile   :: Bool
+	    , optGenerateEmacsFile :: Bool
 	    , optIgnoreInterfaces  :: Bool
 	    , optDisablePositivity :: Bool
 	    , optCompileAlonzo     :: Bool
@@ -85,6 +86,7 @@ defaultOptions =
 	    , optRunTests	   = False
 	    , optCompile	   = False
 	    , optGenerateVimFile   = False
+	    , optGenerateEmacsFile = False
 	    , optIgnoreInterfaces  = False
 	    , optDisablePositivity = False
 	    , optCompileAlonzo     = False
@@ -111,6 +113,7 @@ allowUnsolvedFlag         o = return $ o { optAllowUnsolved     = True }
 showImplicitFlag          o = return $ o { optShowImplicit      = True }
 runTestsFlag              o = return $ o { optRunTests	       = True }
 vimFlag                   o = return $ o { optGenerateVimFile   = True }
+emacsFlag                 o = return $ o { optGenerateEmacsFile = True }
 noPositivityFlag          o = return $ o { optDisablePositivity = True }
 dontTerminationCheckFlag  o = return $ o { optTerminationCheck  = False }
 dontCompletenessCheckFlag o = return $ o { optCompletenessCheck = False }
@@ -122,8 +125,9 @@ interactiveFlag o
 				  }
 emacsModeFlag o
     | optInteractive o = fail "cannot have both emacs mode and interactive mode"
-    | otherwise	       = return $ o { optEmacsMode     = True
-				    , optAllowUnsolved = True
+    | otherwise	       = return $ o { optEmacsMode         = True
+				    , optGenerateEmacsFile = True
+				    , optAllowUnsolved     = True
 				    }
 compileFlag o = return $ o { optCompile = True } -- todo: check exclusion
 alonzoFlag o = return $ o { optCompileAlonzo = True } 
@@ -167,6 +171,8 @@ standardOptions =
 		    "run internal test suite"
     , Option []	    ["vim"] (NoArg vimFlag)
 		    "generate Vim highlighting files"
+    , Option []	    ["emacs"] (NoArg emacsFlag)
+		    "generate Emacs highlighting files"
     , Option []	    ["ignore-interfaces"] (NoArg ignoreInterfacesFlag)
 		    "ignore interface files (re-type check everything)"
     ] ++ pragmaOptions
