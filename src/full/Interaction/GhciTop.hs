@@ -1,4 +1,4 @@
-{-# OPTIONS -cpp -fglasgow-exts -fallow-overlapping-instances #-}
+{-# OPTIONS -fno-cse -cpp -fglasgow-exts -fallow-overlapping-instances #-}
 
 module Interaction.GhciTop
   ( module Interaction.GhciTop
@@ -89,12 +89,15 @@ import Termination.TermCheck
 
 #include "../undefined.h"
 
+{-# NOINLINE theTCState #-}
 theTCState :: IORef TCState
 theTCState = unsafePerformIO $ newIORef initState
 
+{-# NOINLINE theTCEnv #-}
 theTCEnv :: IORef TCEnv
 theTCEnv = unsafePerformIO $ newIORef initEnv
 
+{-# NOINLINE theUndoStack #-}
 theUndoStack :: IORef [TCState]
 theUndoStack = unsafePerformIO $ newIORef []
 
