@@ -188,8 +188,9 @@ cmd_load file includes = infoOnException $ do
               ignoreAbstractMode $ generateAndOutputSyntaxInfo file TypeCheckingDone tokens topLevel
 
               -- Do termination checking.
-              errs <- termDecls $ topLevelDecls topLevel
-              generateAndOutputTerminationProblemInfo file errs
+              whenM (optTerminationCheck <$> commandLineOptions) $ do
+                errs <- termDecls $ topLevelDecls topLevel
+                generateAndOutputTerminationProblemInfo file errs
 
 	    lispIP
 
