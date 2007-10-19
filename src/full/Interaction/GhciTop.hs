@@ -93,12 +93,14 @@ import Termination.TermCheck
 data State = State
   { theTCState   :: TCState
   , theUndoStack :: [TCState]
+  , theTopLevel  :: Maybe TopLevelInfo
   }
 
 initState :: State
 initState = State
   { theTCState   = TM.initState
   , theUndoStack = []
+  , theTopLevel  = Nothing
   }
 
 {-# NOINLINE theState #-}
@@ -199,6 +201,12 @@ cmd_load file includes = infoOnException $ do
                 errs <- termDecls $ topLevelDecls topLevel
                 generateAndOutputTerminationProblemInfo file errs
 
+            -- The module type checked, so let us store the abstract
+            -- syntax information. (It could be stored before type
+            -- checking, but the functions using it may not work if
+            -- the code is not type correct.)
+            liftIO $ modifyIORef theState $ \s ->
+                       s { theTopLevel = Just topLevel }
 	    lispIP
 
     -- The Emacs mode uses two different annotation mechanisms, and
@@ -281,7 +289,6 @@ cmd_infer :: B.Rewrite -> GoalCommand
 cmd_infer norm ii rng s = infoOnException $ do
   display_info "*Inferred Type*"
       =<< ioTCM (B.withInteractionId ii $ showA =<< B.typeInMeta ii norm =<< parseExprIn ii rng s)
-
 
 cmd_goal_type :: B.Rewrite -> GoalCommand
 cmd_goal_type norm ii _ _ = infoOnException $ do 
@@ -558,6 +565,45 @@ cmd_compute _ ii rng s = infoOnException $ do
       prettyA v
   display_info "*Normal Form*" (show d)
 
+-- | Parses and scope checks an expression (using insideScope topLevel
+-- as the scope), performs the given command with the expression as
+-- input, and displays the result.
+
+parseAndDoAtToplevel
+  :: (SA.Expr -> TCM SA.Expr)
+     -- ^ The command to perform.
+  -> String
+     -- ^ The name to used for the buffer displaying the output.
+  -> String
+     -- ^ The expression to parse.
+  -> IO ()
+parseAndDoAtToplevel cmd title s = infoOnException $ do
+  e <- parse exprParser s
+  mTopLevel <- theTopLevel <$> readIORef theState
+  display_info title =<< ioTCM (
+    case mTopLevel of
+      Nothing       -> return "Error: First load the file."
+      Just topLevel -> do
+        setScope $ insideScope topLevel
+        showA =<< cmd =<< concreteToAbstract_ e)
+
+-- | Parse the given expression (as if it were defined at the
+-- top-level of the current module) and infer its type.
+
+cmd_infer_toplevel
+  :: B.Rewrite  -- ^ Normalise the type?
+  -> String
+  -> IO ()
+cmd_infer_toplevel norm =
+  parseAndDoAtToplevel (B.typeInCurrent norm) "*Inferred Type*"
+
+-- | Parse and type check the given expression (as if it were defined
+-- at the top-level of the current module) and normalise it.
+
+cmd_compute_toplevel :: String -> IO ()
+cmd_compute_toplevel =
+  parseAndDoAtToplevel B.evalInCurrent "*Normal Form*"
+
 -- change "\<decimal>" to a single character
 -- TODO: This seems to be the wrong solution to the problem. Attack
 -- the source instead.
@@ -604,6 +650,9 @@ outputErrorInfo
 outputErrorInfo mFile r s =
   case rStart r of
     NoPos                          -> return ()
+    -- Errors for expressions entered using the command line sometimes
+    -- have an empty file name component.
+    Pn { srcFile = "" }            -> return ()
     Pn { srcFile = f, posPos = p } -> do
       putStrLn $ response $
         L [A "annotation-goto", Q $ L [A (show f), A ".", A (show p)]]

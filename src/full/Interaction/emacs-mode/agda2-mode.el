@@ -184,31 +184,34 @@ want settings to this variable to take effect."
   "Keymap for agda2 goal menu")
 (let ((l
        '(
-         (agda2-restart                    "\C-c\C-x\C-c"  "Restart"                                     )
-         (agda2-quit                       "\C-c\C-q"      "Quit"                                        )
-         (agda2-load                       "\C-c\C-x\C-b"  "Load"                                        )
-         (agda2-show-constraints           "\C-c\C-e"      "Show constraints"                            )
-         (agda2-solveAll                   "\C-c="         "Solve constraints"                           )
-         (agda2-show-goals                 "\C-c\C-x\C-a"  "Show goals"                                  )
-         (agda2-next-goal                  "\C-c\C-f"      "Next goal"                                   )
-         (agda2-previous-goal              "\C-c\C-b"      "Previous goal"                               )
-         (agda2-undo                       "\C-c\C-u"      "Undo"                                        )
-         (agda2-undo                       "\C-_"          "Undo"                                        )
-         (agda2-text-state                 "\C-c'"         "Text state"                                  )
-         (agda2-display-implicit-arguments "\C-c\C-i"      "Toggle display of implicit arguments"        )
-         (agda2-highlight-reload-or-clear  "\C-c\C-h"      "Reload syntax highlighting information"      )
-         (agda2-give                       "\C-c\C-g"      nil "Give"                                    )
-         (agda2-refine                     "\C-c\C-r"      nil "Refine"                                  )
-         (agda2-make-case                  "\C-c\C-c"      nil "Case"                                    )
-         (agda2-goal-type                  "\C-c\C-t"      nil "Goal type"                               )
-         (agda2-goal-type-normalised       nil             nil "Goal type (normalised)"                  )
-         (agda2-show-context               "\C-c|"         nil "Context"                                 )
-         (agda2-show-context-normalised    nil             nil "Context (normalised)"                    )
-         (agda2-infer-type                 "\C-c:"         nil "Infer type"                              )
-         (agda2-infer-type-normalised      nil             nil "Infer type (normalised)"                 )
-         (agda2-goal-and-infer             [?\C-c?\C-.]    nil "Goal type and inferred type"             )
-         (agda2-goal-and-infer-normalised  nil             nil "Goal type and inferred type (normalised)")
-         (agda2-compute-normalised         "\C-c\C-xn"     nil "Compute normal form"                     )
+         (agda2-restart                            "\C-c\C-x\C-c"  "Restart"                                     )
+         (agda2-quit                               "\C-c\C-q"      "Quit"                                        )
+         (agda2-load                               "\C-c\C-x\C-b"  "Load"                                        )
+         (agda2-show-constraints                   "\C-c\C-e"      "Show constraints"                            )
+         (agda2-solveAll                           "\C-c="         "Solve constraints"                           )
+         (agda2-show-goals                         "\C-c\C-x\C-a"  "Show goals"                                  )
+         (agda2-next-goal                          "\C-c\C-f"      "Next goal"                                   )
+         (agda2-previous-goal                      "\C-c\C-b"      "Previous goal"                               )
+         (agda2-undo                               "\C-c\C-u"      "Undo"                                        )
+         (agda2-undo                               "\C-_"          "Undo"                                        )
+         (agda2-infer-type-maybe-toplevel          "\C-c:"         "Infer type"                                  )
+         (agda2-infer-type-toplevel-normalised     nil             "Infer type (normalised)"                     )
+         (agda2-compute-normalised-maybe-toplevel  "\C-c\C-xn"     "Compute normal form"                         )
+         (agda2-text-state                         "\C-c'"         "Text state"                                  )
+         (agda2-display-implicit-arguments         "\C-c\C-i"      "Toggle display of implicit arguments"        )
+         (agda2-highlight-reload-or-clear          "\C-c\C-h"      "Reload syntax highlighting information"      )
+         (agda2-give                               "\C-c\C-g"      nil "Give"                                    )
+         (agda2-refine                             "\C-c\C-r"      nil "Refine"                                  )
+         (agda2-make-case                          "\C-c\C-c"      nil "Case"                                    )
+         (agda2-goal-type                          "\C-c\C-t"      nil "Goal type"                               )
+         (agda2-goal-type-normalised               nil             nil "Goal type (normalised)"                  )
+         (agda2-show-context                       "\C-c|"         nil "Context"                                 )
+         (agda2-show-context-normalised            nil             nil "Context (normalised)"                    )
+         (agda2-infer-type-maybe-toplevel          "\C-c:"         nil "Infer type"                              )
+         (agda2-infer-type-normalised              nil             nil "Infer type (normalised)"                 )
+         (agda2-goal-and-infer                     [?\C-c?\C-.]    nil "Goal type and inferred type"             )
+         (agda2-goal-and-infer-normalised          nil             nil "Goal type and inferred type (normalised)")
+         (agda2-compute-normalised-maybe-toplevel  "\C-c\C-xn"     nil "Compute normal form"                     )
          (agda2-indent              [tab])
          (agda2-indent-reverse      [S-iso-lefttab])
          (agda2-indent-reverse      [S-lefttab])
@@ -500,7 +503,7 @@ in the buffer's mode line."
   "Quit and clean up after agda2" (interactive)
   (agda2-protect (progn (kill-buffer agda2-buffer)
                         (kill-buffer (current-buffer)))))
-
+ 
 (defmacro agda2-maybe-normalised (name comment cmd prompt)
   "This macro constructs two functions NAME and NAME-normalised, using
 COMMENT to build the functions' comments. The function NAME takes a
@@ -511,7 +514,8 @@ used as the goal command prompt)."
   `(progn
      (defun ,name (&optional normalise)
        ,(concat comment ".
-With a prefix argument the type is normalised.")
+
+With a prefix argument the result is normalised.")
        (interactive "P")
        (let ((,eval (if normalise "Normalised" "Instantiated")))
          (agda2-goal-cmd (concat ,cmd " Interaction.BasicOps." ,eval)
@@ -521,6 +525,31 @@ With a prefix argument the type is normalised.")
        ,(concat comment " (normalised).")
        (interactive)
        (,name t))
+     )))
+
+(defmacro agda2-maybe-normalised-toplevel (name comment cmd prompt)
+  "This macro constructs two functions NAME and NAME-normalised, using
+COMMENT to build the functions' comments. The function NAME takes a
+prefix argument which tells whether it should normalise types or not
+when running CMD (through `agda2-go'; the string PROMPT is
+used as the goal command prompt)."
+  (let ((eval (make-symbol "eval")))
+  `(progn
+     (defun ,name (normalise expr)
+       ,(concat comment ".
+
+With a prefix argument the result is normalised.")
+       (interactive ,(concat "P\nM" prompt ": "))
+       (let ((,eval (if normalise "Normalised" "Instantiated")))
+         (agda2-go (concat ,cmd " Interaction.BasicOps." ,eval " "
+                           (agda2-string-quote expr)))))
+
+     (defun ,(intern (concat (symbol-name name) "-normalised")) (expr)
+       ,(concat comment ".
+
+The result is normalised.")
+       (interactive ,(concat "M" prompt ": "))
+       (,name t expr))
      )))
 
 (agda2-maybe-normalised
@@ -534,6 +563,23 @@ With a prefix argument the type is normalised.")
  "Infer the type of the goal at point"
  "cmd_infer"
  "expression to type")
+
+(agda2-maybe-normalised-toplevel
+   agda2-infer-type-toplevel
+   "Infers the type of the given expression. The scope used for
+the expression is that of the last point inside the current
+top-level module"
+   "cmd_infer_toplevel"
+   "Expression")
+
+(defun agda2-infer-type-maybe-toplevel ()
+  "Infers the type of the given expression, using the
+scope of the current goal or, if point is not in a goal, the
+top-level scope."
+  (interactive)
+  (if (agda2-goal-at (point))
+      (call-interactively 'agda2-infer-type)
+    (call-interactively 'agda2-infer-type-toplevel)))
 
 (agda2-maybe-normalised
  agda2-goal-and-infer
@@ -561,8 +607,27 @@ given expression"
         (agda2-give)))))
 
 (defun agda2-compute-normalised ()
-  "Compute the normal form of exp in the goal at point" (interactive)
-  (agda2-goal-cmd "cmd_compute Interaction.BasicOps.Normalised" "expression to normalise"))
+  "Compute the normal form of exp in the goal at point"
+  (interactive)
+  (agda2-goal-cmd "cmd_compute Interaction.BasicOps.Normalised"
+                  "expression to normalise"))
+
+(defun agda2-compute-normalised-toplevel (expr)
+  "Computes the normal form of the given expression. The scope used for
+the expression is that of the last point inside the current
+top-level module."
+  (interactive "MExpression: ")
+  (agda2-go (concat "cmd_compute_toplevel "
+                    (agda2-string-quote expr))))
+
+(defun agda2-compute-normalised-maybe-toplevel ()
+  "Computes the normal form of the given expression, using the
+scope of the current goal or, if point is not in a goal, the
+top-level scope."
+  (interactive)
+  (if (agda2-goal-at (point))
+      (call-interactively 'agda2-compute-normalised)
+    (call-interactively 'agda2-compute-normalised-toplevel)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;
