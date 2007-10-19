@@ -239,6 +239,8 @@ createInterface opts trace path visited mname file = runTCM $ withImportPath pat
     errs <- ifM (optTerminationCheck <$> commandLineOptions)
                 (termDecls $ topLevelDecls topLevel)
                 (return [])
+    mapM_ (\e -> reportSLn "term.warn.no" 1
+                 (show (fst e) ++ " does NOT termination check")) errs
 
     -- Generate Vim file
     whenM (optGenerateVimFile <$> commandLineOptions) $
