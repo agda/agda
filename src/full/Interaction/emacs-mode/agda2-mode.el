@@ -209,7 +209,6 @@ want settings to this variable to take effect."
          (agda2-goal-and-infer             [?\C-c?\C-.]    nil "Goal type and inferred type"             )
          (agda2-goal-and-infer-normalised  nil             nil "Goal type and inferred type (normalised)")
          (agda2-compute-normalised         "\C-c\C-xn"     nil "Compute normal form"                     )
-         (agda2-submit-bug-report          nil             "Submit bug report"                           )
          (agda2-indent              [tab])
          (agda2-indent-reverse      [S-iso-lefttab])
          (agda2-indent-reverse      [S-lefttab])
