@@ -196,6 +196,7 @@ want settings to this variable to take effect."
          (agda2-undo                       "\C-_"          "Undo"                                        )
          (agda2-text-state                 "\C-c'"         "Text state"                                  )
          (agda2-display-implicit-arguments "\C-c\C-i"      "Toggle display of implicit arguments"        )
+         (agda2-highlight-reload-or-clear  "\C-c\C-h"      "Reload syntax highlighting information"      )
          (agda2-give                       "\C-c\C-g"      nil "Give"                                    )
          (agda2-refine                     "\C-c\C-r"      nil "Refine"                                  )
          (agda2-make-case                  "\C-c\C-c"      nil "Case"                                    )

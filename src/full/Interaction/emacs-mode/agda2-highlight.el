@@ -196,6 +196,13 @@ current buffer."
        ; Ignore read-only status, otherwise this function may fail.
     (annotation-remove-annotations)))
 
+(defun agda2-highlight-reload-or-clear (&optional arg)
+  "Reloads syntax highlighting information.
+With prefix argument: Removes syntax highlighting."
+  (interactive "P")
+  (if arg (agda2-highlight-clear)
+    (agda2-highlight-reload)))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Administrative details
 
