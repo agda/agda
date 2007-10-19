@@ -48,14 +48,15 @@ import Utils.Tuple
 
 import Control.Monad.Error
 import Control.Monad.Reader
-import Control.Monad.State
+import Control.Monad.State hiding (State)
 import Control.Exception
 import Data.List as List
 import Data.Map as Map
 import System.Exit
 
 import TypeChecker
-import TypeChecking.Monad as TM
+import TypeChecking.Monad as TM hiding (initState)
+import qualified TypeChecking.Monad as TM
 import TypeChecking.MetaVars
 import TypeChecking.Reduce
 import TypeChecking.Errors
@@ -89,17 +90,20 @@ import Termination.TermCheck
 
 #include "../undefined.h"
 
-{-# NOINLINE theTCState #-}
-theTCState :: IORef TCState
-theTCState = unsafePerformIO $ newIORef initState
+data State = State
+  { theTCState   :: TCState
+  , theUndoStack :: [TCState]
+  }
 
-{-# NOINLINE theTCEnv #-}
-theTCEnv :: IORef TCEnv
-theTCEnv = unsafePerformIO $ newIORef initEnv
+initState :: State
+initState = State
+  { theTCState   = TM.initState
+  , theUndoStack = []
+  }
 
-{-# NOINLINE theUndoStack #-}
-theUndoStack :: IORef [TCState]
-theUndoStack = unsafePerformIO $ newIORef []
+{-# NOINLINE theState #-}
+theState :: IORef State
+theState = unsafePerformIO $ newIORef initState
 
 ioTCM :: TCM a -> IO a
 ioTCM = ioTCM' Nothing
@@ -107,14 +111,14 @@ ioTCM = ioTCM' Nothing
 ioTCM' :: Maybe FilePath
          -- ^ The module being checked (if known).
       -> TCM a -> IO a
-ioTCM' mFile cmd = do 
-  us  <- readIORef theUndoStack
-  st  <- readIORef theTCState
-  env <- readIORef theTCEnv
-  r   <- runTCM $ do
+ioTCM' mFile cmd = do
+  State { theTCState   = st
+        , theUndoStack = us
+        } <- readIORef theState
+  r <- runTCM $ do
       putUndoStack us
       put st
-      x <- withEnv env cmd
+      x <- withEnv initEnv cmd
       st <- get
       us <- getUndoStack
       return (x,st,us)
@@ -125,8 +129,10 @@ ioTCM' mFile cmd = do
 	fail "exit"
   case r of
     Right (a,st',ss') -> do
-      writeIORef theTCState st'
-      writeIORef theUndoStack ss'
+      modifyIORef theState $ \s ->
+        s { theTCState = st'
+          , theUndoStack = ss'
+          }
       return a
     Left _ -> exitWith $ ExitFailure 1
 
