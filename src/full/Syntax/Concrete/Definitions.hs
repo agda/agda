@@ -16,6 +16,7 @@ import Control.Applicative
 import Data.Generics (Data, Typeable)
 import qualified Data.Map as Map
 import Control.Monad.Error
+import Data.List
 
 import Syntax.Concrete
 import Syntax.Common
@@ -74,15 +75,17 @@ data DeclarationException
 	| MissingDefinition Name
 	| MissingTypeSignature LHS
 	| NotAllowedInMutual NiceDeclaration
+	| UnknownNamesInFixityDecl [Name]
 	| DeclarationPanic String
     deriving (Typeable)
 
 instance HasRange DeclarationException where
-    getRange (MultipleFixityDecls xs) = getRange (fst $ head xs)
-    getRange (MissingDefinition x)    = getRange x
-    getRange (MissingTypeSignature x) = getRange x
-    getRange (NotAllowedInMutual x)   = getRange x
-    getRange (DeclarationPanic _)     = noRange
+    getRange (MultipleFixityDecls xs)	   = getRange (fst $ head xs)
+    getRange (MissingDefinition x)	   = getRange x
+    getRange (MissingTypeSignature x)	   = getRange x
+    getRange (NotAllowedInMutual x)	   = getRange x
+    getRange (UnknownNamesInFixityDecl xs) = getRange . head $ xs
+    getRange (DeclarationPanic _)	   = noRange
 
 instance HasRange NiceDeclaration where
     getRange (Axiom r _ _ _ _ _)	       = r
@@ -114,6 +117,8 @@ instance Show DeclarationException where
     pwords "Missing definition for" ++ [pretty x]
   show (MissingTypeSignature x) = show $ fsep $
     pwords "Missing type signature for left hand side" ++ [pretty x]
+  show (UnknownNamesInFixityDecl xs) = show $ fsep $
+    pwords "Names out of scope in fixity declarations:" ++ map pretty xs
   show (NotAllowedInMutual nd) = show $ fsep $
     [text $ decl nd] ++ pwords "are not allowed in mutual blocks"
     where
@@ -137,7 +142,11 @@ runNice :: Nice a -> Either DeclarationException a
 runNice = id
 
 niceDeclarations :: [Declaration] -> Nice [NiceDeclaration]
-niceDeclarations ds = flip nice ds =<< fixities ds
+niceDeclarations ds = do
+      fixs <- fixities ds
+      case Map.keys fixs \\ concatMap declaredNames ds of
+	[]  -> nice fixs ds
+	xs  -> throwError $ UnknownNamesInFixityDecl xs
     where
 
 	-- If no fixity is given we return the default fixity.
@@ -148,6 +157,27 @@ niceDeclarations ds = flip nice ds =<< fixities ds
 	-- fixity declarations have to appear at the same level as the
 	-- declaration.
 	fmapNice x = mapM niceDeclarations x
+
+	-- Compute the names defined in a declaration
+	declaredNames :: Declaration -> [Name]
+	declaredNames d = case d of
+	  TypeSig x _				       -> [x]
+	  FunClause (LHS p [] _) _ _
+            | IdentP (QName x) <- noSingletonRawAppP p -> [x]
+	  FunClause{}				       -> []
+	  Data _ x _ _ cs			       -> x : concatMap declaredNames cs
+	  Record _ x _ _ _			       -> [x] -- TODO: fields
+	  Infix _ _				       -> []
+	  Mutual _ ds				       -> concatMap declaredNames ds
+	  Abstract _ ds				       -> concatMap declaredNames ds
+	  Private _ ds				       -> concatMap declaredNames ds
+	  Postulate _ ds			       -> concatMap declaredNames ds
+	  Primitive _ ds			       -> concatMap declaredNames ds
+	  Open{}				       -> []
+	  Import{}				       -> []
+	  ModuleMacro{}				       -> []
+	  Module{}				       -> []
+	  Pragma{}				       -> []
 
 	nice _ []	 = return []
 	nice fixs (d:ds) =

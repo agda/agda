@@ -38,7 +38,7 @@ module Prelude where
 
   module NatEq where
 
-    infix 5 ==
+    infix 5 _==_
 
     _==_ : Nat -> Nat -> Prop
     zero  == zero = True
@@ -96,7 +96,7 @@ module Fin where
 
   module FinEq where
 
-    infix 5 ==
+    infix 5 _==_
 
     _==_ : {n : Nat} -> Fin n -> Fin n -> Prop
     _==_ {suc _} (finI  fzero'	) (finI  fzero'	 ) = True
@@ -112,7 +112,7 @@ module Vec where
   open Prelude
   open Fin
 
-  infixr 15 ::
+  infixr 15 _::_
 
   -- Vectors ----------------------------------------------------------------
 
@@ -175,7 +175,7 @@ module Untyped where
 
   module ExprEq where
 
-    infix 5 ==
+    infix 5 _==_
 
     _==_ : {n : Nat} -> Expr n -> Expr n -> Prop
     eVar i	        == eVar j		 = FinEq._==_ i j

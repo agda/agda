@@ -80,7 +80,8 @@ infix  50 λ_
 
 -- Type equality
 
-infix 30 ≟
+infix 30 _≟_
+
 _≟_ : (σ τ : Type) -> Maybe (σ == τ)
 ι       ≟ ι       = just refl
 σ₁ ⟶ τ₁ ≟ σ₂ ⟶ τ₂ with σ₁ ≟ σ₂ | τ₁ ≟ τ₂

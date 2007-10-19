@@ -16,12 +16,12 @@ _$$_ : {X Y : Set} -> (X => Y) -> X -> Y
 lam f $$ x = f x
 
 
-infixr 0 $$
+infixr 0 _$$_
 
 id : {a : Set} -> a -> a
 id x = x
 
-infixr 0 $
+infixr 0 _$_
 
 _$_ : {a b : Set} -> (a -> b) -> a -> b
 f $ x = f x

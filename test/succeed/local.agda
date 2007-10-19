@@ -5,7 +5,7 @@ data Nat : Set where
   zero : Nat
   suc  : Nat -> Nat
 
-infixr 15 ::
+infixr 15 _::_
 
 data List (A : Set) : Set where
   nil  : List A
