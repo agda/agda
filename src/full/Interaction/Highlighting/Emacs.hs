@@ -64,8 +64,11 @@ showFile = unlines . map showMetaInfo . compress
 -- with the given Agda file.
 
 infoFileName :: FilePath -> String
-infoFileName path = dir ++ [slash, '.'] ++ name ++ ext ++ ".el"
-  where (dir, name, ext) = splitFilePath path
+infoFileName path | null dir  = base
+                  | otherwise = dir ++ slash : base
+  where
+  (dir, name, ext) = splitFilePath path
+  base = '.' : name ++ ext ++ ".el"
 
 -- | Clears a syntax highlighting information file.
 --
