@@ -303,19 +303,9 @@ checkArguments exh r args0@(Arg h e : args) t0 t1 =
 	(t0', cs) <- forcePi h (name e) t0
 	e' <- return $ namedThing e
 	case (h, funView $ unEl t0') of
-	    (NotHidden, FunV (Arg Hidden a) _) -> do
-		u  <- newValueMeta a
-		let arg = Arg Hidden u
-		(us, t0'',cs') <- checkArguments exh r (Arg h e : args)
-				       (piApply t0' [arg]) t1
-		return (arg : us, t0'', cs ++ cs')
+	    (NotHidden, FunV (Arg Hidden a) _) -> insertUnderscore
 	    (Hidden, FunV (Arg Hidden a) _)
-		| not $ sameName (nameOf e) (nameInPi $ unEl t0') -> do
-		    u  <- newValueMeta a
-		    let arg = Arg Hidden u
-		    (us, t0'',cs') <- checkArguments exh r (Arg h e : args)
-					   (piApply t0' [arg]) t1
-		    return (arg : us, t0'', cs ++ cs')
+		| not $ sameName (nameOf e) (nameInPi $ unEl t0') -> insertUnderscore
 	    (_, FunV (Arg h' a) _) | h == h' -> do
 		u  <- checkExpr e' a
 		let arg = Arg h u
@@ -325,6 +315,15 @@ checkArguments exh r args0@(Arg h e : args) t0 t1 =
 		typeError $ WrongHidingInApplication t0'
 	    _ -> __IMPOSSIBLE__
     where
+	insertUnderscore = do
+	  scope <- getScope
+	  let m = A.Underscore $ Info.MetaInfo
+		  { Info.metaRange  = r
+		  , Info.metaScope  = scope
+		  , Info.metaNumber = Nothing
+		  }
+	  checkArguments exh r (Arg Hidden (unnamed m) : args0) t0 t1
+
 	name (Named _ (A.Var x)) = show x
 	name (Named (Just x) _)    = x
 	name _			   = "x"
