@@ -618,6 +618,7 @@ data TypeError
 	| ClashingModuleImport C.Name A.ModuleName
 	| ModuleDoesntExport C.QName [C.ImportedName]
 	| InvalidPattern C.Pattern
+	| RepeatedVariablesInPattern [C.Name]
     -- Concrete to Abstract errors
 	| NotAModuleExpr C.Expr
 	    -- ^ The expr was used in the right hand side of an implicit module

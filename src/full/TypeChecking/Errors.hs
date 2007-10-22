@@ -118,6 +118,7 @@ errorString err = case err of
     NotStrictlyPositive _ _		       -> "NotStrictlyPositive"
     NothingAppliedToHiddenArg _		       -> "NothingAppliedToHiddenArg"
     PropMustBeSingleton			       -> "PropMustBeSingleton"
+    RepeatedVariablesInPattern _	       -> "RepeatedVariablesInPattern"
     ShouldBeASort _			       -> "ShouldBeASort"
     ShouldBeApplicationOf _ _		       -> "ShouldBeApplicationOf"
     ShouldBeAppliedToTheDatatypeParameters _ _ -> "ShouldBeAppliedToTheDatatypeParameters"
@@ -331,6 +332,8 @@ instance PrettyTCM TypeError where
 		pwords "where M is a module name. The expression" ++ [pretty e, text "doesn't."]
             InvalidPattern p -> fsep $
               pretty p : pwords "is not a valid pattern"
+	    RepeatedVariablesInPattern xs -> fsep $
+	      pwords "Repeated variables in left hand side:" ++ map pretty xs
 	    NotAnExpression e -> fsep $
 		[pretty e] ++ pwords "is not a valid expression."
 	    NotAValidLetBinding nd -> fwords $

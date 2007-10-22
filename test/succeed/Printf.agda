@@ -1,8 +1,9 @@
 
 module Printf where
 
-_∘_ : {A B C : Set} -> (B -> C) -> (A -> B) -> A -> C
-f ∘ g = \x -> f (g x)
+_∘_ : {A : Set}{B : A -> Set}{C : {x : A} -> B x -> Set} ->
+      (f : {x : A}(y : B x) -> C y)(g : (x : A) -> B x)(x : A) -> C (g x)
+(f ∘ g) x = f (g x)
 
 infixr 10 _::_
 data List (A : Set) : Set where
@@ -92,7 +93,7 @@ Printf : String -> Set
 Printf fmt = Printf' (format fmt)
 
 printf : (fmt : String) -> Printf fmt -> String
-printf fmt = printf' (format fmt)
+printf = printf' ∘ format
   where
     printf' : (fmt : List Format) -> Printf' fmt -> String
     printf' (stringArg   :: fmt) (s ◅ args) = s			 ++ printf' fmt args

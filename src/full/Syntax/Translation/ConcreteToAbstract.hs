@@ -18,6 +18,7 @@ import Control.Monad.Reader hiding (mapM)
 import Control.Monad.Error hiding (mapM)
 import Data.Typeable
 import Data.Traversable (mapM)
+import Data.List ((\\), nub)
 
 import Syntax.Concrete as C
 import Syntax.Abstract as A
@@ -105,6 +106,26 @@ expandEllipsis :: C.Pattern -> [C.Pattern] -> C.Clause -> C.Clause
 expandEllipsis _ _ c@(C.Clause _ (C.LHS _ _ _) _ _ _) = c
 expandEllipsis p ps (C.Clause x (C.Ellipsis _ ps' es) rhs wh wcs) =
   C.Clause x (C.LHS p (ps ++ ps') es) rhs wh wcs
+
+-- | Make sure that each variable occurs only once.
+checkPatternLinearity :: [A.Pattern' e] -> ScopeM ()
+checkPatternLinearity ps = case xs \\ nub xs of
+    []	-> return ()
+    ys	-> typeError $ RepeatedVariablesInPattern $ nub ys
+  where
+    xs = concatMap vars ps
+    vars :: A.Pattern' e -> [C.Name]
+    vars p = case p of
+      A.VarP x	      -> [nameConcrete x]
+      A.ConP _ _ args -> concatMap (vars . namedThing . unArg) args
+      A.WildP _	      -> []
+      A.AsP _ x p     -> nameConcrete x : vars p
+      A.DotP _ _      -> []
+      A.AbsurdP _     -> []
+      A.LitP _	      -> []
+      A.DefP _ _ args -> __IMPOSSIBLE__
+      A.ImplicitP _   -> __IMPOSSIBLE__
+
 
 {--------------------------------------------------------------------------
     Translation
@@ -202,7 +223,7 @@ instance ToAbstract PatName APatName where
     rx <- resolveName x
     z  <- case (rx, x) of
       -- TODO: warn about shadowing
-      (VarName y,     C.QName x)			  -> return $ Left x
+      (VarName y,     C.QName x)			  -> return $ Left x -- typeError $ RepeatedVariableInPattern y x
       (DefinedName d, C.QName x) | DefName == anameKind d -> return $ Left x
       (UnknownName,   C.QName x)			  -> return $ Left x
       (DefinedName d, _	 )	 | ConName == anameKind d -> return $ Right d
@@ -718,6 +739,7 @@ instance ToAbstract LeftHandSide A.LHS where
 	x    <- toAbstract (OldName x)
 	args <- toAbstract ps
 	wps  <- toAbstract =<< mapM (parseLHS Nothing) wps
+	checkPatternLinearity (map (namedThing . unArg) args ++ wps)
 	printLocals 10 "checked pattern:"
 	args <- toAbstract args -- take care of dot patterns
 	wps  <- toAbstract wps
