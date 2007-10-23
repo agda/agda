@@ -57,6 +57,7 @@ import Relation.Binary
 import Relation.Binary.Conversion
 import Relation.Binary.Conversion.PartialOrder
 import Relation.Binary.EqReasoning
+import Relation.Binary.EqReasoning.Abstract
 import Relation.Binary.HeterogeneousEquality
 import Relation.Binary.FunctionLifting
 import Relation.Binary.OrderMorphism

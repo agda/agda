@@ -32,33 +32,24 @@ private
   module E    = Equivalence equiv
   module EPre = Preorder E.preorder
 
-infix  4 _equalTo_
 infix  2 _∎
 infixr 2 _∼⟨_⟩_ _≈⟨_⟩_
 infix  1 begin_
 
-abstract
+begin_ : forall {x y} -> x ∼ y -> x ∼ y
+begin_ eq = eq
 
-  -- The equality type is abstract to make it possible to infer
-  -- arguments even if the underlying equality evaluates.
+_∼⟨_⟩_ : forall x {y z} -> x ∼ y -> y ∼ z -> x ∼ z
+_ ∼⟨ x∼y ⟩ y∼z = trans x∼y y∼z
 
-  _equalTo_ : carrier -> carrier -> Set
-  _equalTo_ = _∼_
+_≈⟨_⟩_ : forall x {y z} -> x ≈ y -> y ∼ z -> x ∼ z
+_ ≈⟨ x≈y ⟩ y∼z = trans (refl x≈y) y∼z
 
-  begin_ : forall {x y} -> x equalTo y -> x ∼ y
-  begin_ eq = eq
+≈-byDef : forall {x} -> x ≈ x
+≈-byDef = EPre.refl ≡-refl
 
-  _∼⟨_⟩_ : forall x {y z} -> x ∼ y -> y equalTo z -> x equalTo z
-  _ ∼⟨ x∼y ⟩ y∼z = trans x∼y y∼z
+byDef : forall {x} -> x ∼ x
+byDef = refl ≈-byDef
 
-  _≈⟨_⟩_ : forall x {y z} -> x ≈ y -> y equalTo z -> x equalTo z
-  _ ≈⟨ x≈y ⟩ y∼z = trans (refl x≈y) y∼z
-
-  ≈-byDef : forall {x} -> x ≈ x
-  ≈-byDef = EPre.refl ≡-refl
-
-  byDef : forall {x} -> x ∼ x
-  byDef = refl ≈-byDef
-
-  _∎ : forall x -> x equalTo x
-  _∎ _ = byDef
+_∎ : forall x -> x ∼ x
+_∎ _ = byDef
