@@ -30,13 +30,14 @@ import Data.Bool.Properties
 import Data.Fin
 import Data.Fin.Dec
 import Data.Fin.Props
-import Data.Fin.Subset.Props
 import Data.Fin.Subset
+import Data.Fin.Subset.Props
 import Data.Function
 -- The following module is currently broken due to an Agda bug.
 -- import Data.Int
 import Data.Integer
 import Data.List
+import Data.List.Properties
 import Data.Map
 import Data.Maybe
 import Data.Nat
@@ -47,6 +48,9 @@ import Data.String
 import Data.Sum
 import Data.Unit
 import Data.Vec
+import Data.Vec.Core
+import Data.Vec.Equality
+import Data.Vec.Properties
 
 import Logic
 import Logic.Induction
@@ -58,8 +62,8 @@ import Relation.Binary.Conversion
 import Relation.Binary.Conversion.PartialOrder
 import Relation.Binary.EqReasoning
 import Relation.Binary.EqReasoning.Abstract
-import Relation.Binary.HeterogeneousEquality
 import Relation.Binary.FunctionLifting
+import Relation.Binary.HeterogeneousEquality
 import Relation.Binary.OrderMorphism
 import Relation.Binary.Product
 import Relation.Binary.PropositionalEquality
