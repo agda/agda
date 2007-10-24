@@ -10,14 +10,14 @@ open PolyDepPrelude using ( Datoid
                    ; Bool; true; false; _&&_
                    ; Pair; pair
                    ; Either; left; right
-                   ; suc
+                   ; suc; zero
                    ; _::_; nil
-                   ; cmp
+                   ; cmp; Unit; unit
                    )
 open Homogenous.Base using (Arity; Sig; Fa; F; T; It; out)
 
 eq_step_ar : (n : Arity){X : Set}(fs : Fa n (X -> Bool))(xs : Fa n X) -> Bool
-eq_step_ar (zer)   unit         unit         = true
+eq_step_ar zero    unit         unit         = true
 eq_step_ar (suc m) (pair f fs') (pair x xs') = f x && eq_step_ar m fs' xs'
 
 -- We write left as This (as in "This constructor" and right as Other

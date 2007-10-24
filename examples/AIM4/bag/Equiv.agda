@@ -28,9 +28,9 @@ module Equiv where
       -> (b : Bool)
       -> (b =^= f x y)
       -> Either (T' f x y) (Not (T' f x y))
-    boolFunctionsDecidable' eq x y True  eq = left (leibnizSubst eq T unit)
-    boolFunctionsDecidable' eq x y False eq =
-      right (not (\xy -> leibnizSubst (leibnizSym eq) T xy))
+    boolFunctionsDecidable' eq x y True  p = left (leibnizSubst p T unit)
+    boolFunctionsDecidable' eq x y False p =
+      right (not (\xy -> leibnizSubst (leibnizSym p) T xy))
 
   boolFunctionsDecidable
     : {a : Set} -> (f : a -> a -> Bool) -> Decidable (T' f)
