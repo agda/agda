@@ -1,4 +1,4 @@
-{-# OPTIONS --disable-positivity-check #-}
+{-# OPTIONS --disable-positivity-check --dont-termination-check #-}
 module Homogenous.Base where
 -- module Homogenous.Base(Arity, Sig, T, Intro) where
 

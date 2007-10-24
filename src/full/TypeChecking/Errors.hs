@@ -126,6 +126,7 @@ errorString err = case err of
     ShouldBePi _			       -> "ShouldBePi"
     ShouldBeRecordType _		       -> "ShouldBeRecordType"
     ShouldEndInApplicationOfTheDatatype _      -> "ShouldEndInApplicationOfTheDatatype"
+    TerminationCheckFailed		       -> "TerminationCheckFailed"
     TooFewFields _ _			       -> "TooFewFields"
     TooManyArgumentsInLHS _ _                  -> "TooManyArgumentsInLHS"
     TooManyFields _ _			       -> "TooManyFields"
@@ -164,6 +165,8 @@ instance PrettyTCM TypeError where
 	    InternalError s  -> panic s
 	    NotImplemented s -> fwords $ "Not implemented: " ++ s
 	    GenericError s   -> fwords s
+	    TerminationCheckFailed -> fwords
+	      "The program did not termination check"
 	    PropMustBeSingleton -> fwords
 		"Datatypes in Prop must have at most one constructor when proof irrelevance is enabled"
 	    DataMustEndInSort t -> fsep $

@@ -89,14 +89,14 @@ interaction prompt cmds eval = loop
 		    loop
 
 -- | The interaction loop.
-interactionLoop :: IM ScopeInfo -> IM ()
+interactionLoop :: IM (ScopeInfo, a) -> IM ()
 interactionLoop typeCheck =
     do  reload
 	interaction "Main> " commands evalTerm
     where
 	reload = do
 	    setUndo
-	    scope <- typeCheck
+	    (scope, a) <- typeCheck
 	    setScope scope
 	  `catchError` \e -> do
 	    s <- prettyError e

@@ -87,7 +87,9 @@ runAgda =
 		let interaction | i	  = interactionLoop
 				| compile = Agate.compilerMain .(>> return ())
 				| alonzo  = Alonzo.compilerMain .(>> return ())
-				| otherwise = (>> return ())
+				| otherwise = \m -> do
+				    (_, err) <- m
+				    maybe (return ()) typeError err
 		interaction $ liftTCM $
 		    do	hasFile <- hasInputFile
 			resetState
@@ -111,6 +113,9 @@ runAgda =
                                             (return [])
                                 mapM_ (\e -> reportSLn "term.warn.no" 1
                                              (show (fst e) ++ " does NOT termination check")) errs
+
+				let batchError | null errs = Nothing
+					       | otherwise = Just TerminationCheckFailed
 
 				-- Set the scope
 				setScope $ outsideScope topLevel
@@ -148,8 +153,8 @@ runAgda =
 					mapM_ (\ (s,n) -> putStrLn $ s ++ " : " ++ show n) $
 					    sortBy (\x y -> compare (snd x) (snd y)) stats
 
-				return $ insideScope topLevel
-			  else return emptyScopeInfo
+				return (insideScope topLevel, batchError)
+			  else return (emptyScopeInfo, Nothing)
 
 		return ()
 
