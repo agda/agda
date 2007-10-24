@@ -28,8 +28,9 @@ displayForm c vs = do
       return [ df | Just df <- xs ]
     scope <- getScope
     let matches dfs vs = [ m | Just m <- map (flip matchDisplayForm vs) dfs, inScope scope m ]
-    (nfdfs, us) <- normalise (dfs, vs)
-    return $ foldr (const . Just) Nothing $ matches dfs vs ++ matches nfdfs us
+    -- Not safe when printing non-terminating terms.
+    -- (nfdfs, us) <- normalise (dfs, vs)
+    return $ foldr (const . Just) Nothing $ matches dfs vs -- ++ matches nfdfs us
   `catchError` \_ -> return Nothing
   where
     inScope scope d = case hd d of
