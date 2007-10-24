@@ -52,18 +52,13 @@ i |-> (u, a) = do
   reportSDoc "tc.lhs.unify" 15 $ prettyTCM (Var i []) <+> text ":=" <+> prettyTCM u
   U . modify $ Map.insert i u
 
--- | Compute the unification weak head normal form of a term, i.e. if it's a
--- flexible variable look it up in the current substitution.
+-- | Apply the current substitution on a term and reduce to weak head normal form.
 ureduce :: Term -> Unify Term
 ureduce u = do
-  u <- liftTCM $ reduce u
-  case u of
-    Var i vs -> do
-      mv <- U $ gets $ Map.lookup i
-      case mv of
-	Nothing	-> return u
-	Just v	-> ureduce $ v `apply` vs
-    _ -> return u
+  sub <- U get
+  let val i = maybe (Var i []) id $ Map.lookup i sub
+      rho   = map val [0..]
+  liftTCM $ reduce $ substs rho u
 
 -- | Take a substitution σ and ensure that no variables from the domain appear
 --   in the targets. The context of the targets is not changed.
