@@ -31,8 +31,24 @@ import Utils.Monad
 checkStrictlyPositive :: [QName] -> TCM ()
 checkStrictlyPositive ds = flip evalStateT noAssumptions $ do
     cs <- concat <$> mapM constructors ds
-    mapM_ (\(d,c) -> checkPos ds d c =<< lift (normalise =<< typeOfConst c)) cs
+    mapM_ check cs
     where
+	check (d, c) = do
+	  a <- lift $ defAbstract <$> getConstInfo d
+	  inMode a $ do
+	    t <- lift (normalise =<< typeOfConst c)
+	    checkPos ds d c t
+
+	inMode :: IsAbstract -> PosM a -> PosM a
+	inMode a m = do
+	  s	 <- get
+	  (x, s) <- lift $ mode a $ runStateT m s
+	  put s
+	  return x
+	  where
+	    mode AbstractDef = inAbstractMode
+	    mode ConcreteDef = inConcreteMode
+
 	constructors :: QName -> StateT Assumptions TCM [(QName, QName)]
 	constructors d = do
 	    def <- lift $ theDef <$> getConstInfo d
