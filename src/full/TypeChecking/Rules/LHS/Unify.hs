@@ -26,19 +26,54 @@ import TypeChecking.Rules.LHS.Problem
 
 #include "../../../undefined.h"
 
-newtype Unify a = U { unUnify :: StateT Sub TCM a }
+newtype Unify a = U { unUnify :: (StateT UnifyState TCM) a }
   deriving (Monad, MonadIO, Functor, Applicative, MonadReader TCEnv)
 
+data Equality = Equal Type Term Term
 type Sub = Map Nat Term
 
+data UnifyState = USt { uniSub	  :: Sub
+		      , uniConstr :: [Equality]
+		      }
+
+emptyUState = USt Map.empty []
+
 instance MonadState TCState Unify where
-  get = U $ lift $ get
+  get = U . lift $ get
   put = U . lift . put
 
 instance MonadTCM Unify where
   liftTCM = U . lift
 
+instance Subst Equality where
+  substs us	 (Equal a s t) = Equal (substs us a)	  (substs us s)	     (substs us t)
+  substUnder n u (Equal a s t) = Equal (substUnder n u a) (substUnder n u s) (substUnder n u t)
+
+getSub :: Unify Sub
+getSub = U $ gets uniSub
+
+onSub :: (Sub -> a) -> Unify a
+onSub f = U $ gets $ f . uniSub
+
+modSub :: (Sub -> Sub) -> Unify ()
+modSub f = U $ modify $ \s -> s { uniSub = f $ uniSub s }
+
+checkEqualities :: [Equality] -> TCM ()
+checkEqualities eqs = noConstraints $ concat <$> mapM checkEq eqs
+  where
+    checkEq (Equal a s t) = equalTerm a s t
+
+addEquality :: Type -> Term -> Term -> Unify ()
+addEquality a u v = U $ modify $ \s -> s { uniConstr = Equal a u v : uniConstr s }
+
+takeEqualities :: Unify [Equality]
+takeEqualities = U $ do
+  s <- get
+  put $ s { uniConstr = [] }
+  return $ uniConstr s
+
 -- | Includes flexible occurrences, metas need to be solved. TODO: relax?
+--   TODO: later solutions may remove flexible occurences
 occursCheck :: Nat -> Term -> Type -> Unify ()
 occursCheck i u a
   | i `freeIn` u = do
@@ -50,18 +85,22 @@ occursCheck i u a
 i |-> (u, a) = do
   occursCheck i u a
   reportSDoc "tc.lhs.unify" 15 $ prettyTCM (Var i []) <+> text ":=" <+> prettyTCM u
-  U . modify $ Map.insert i u
+  modSub $ Map.insert i u
+
+makeSubstitution :: Sub -> [Term]
+makeSubstitution sub = map val [0..]
+  where
+    val i = maybe (Var i []) id $ Map.lookup i sub
 
 -- | Apply the current substitution on a term and reduce to weak head normal form.
 ureduce :: Term -> Unify Term
 ureduce u = do
-  sub <- U get
-  let val i = maybe (Var i []) id $ Map.lookup i sub
-      rho   = map val [0..]
+  rho <- onSub makeSubstitution
   liftTCM $ reduce $ substs rho u
 
 -- | Take a substitution σ and ensure that no variables from the domain appear
 --   in the targets. The context of the targets is not changed.
+--   TODO: can this be expressed using makeSubstitution and substs?
 flattenSubstitution :: Substitution -> Substitution
 flattenSubstitution s = foldr instantiate s is
   where
@@ -89,7 +128,8 @@ unifyIndices flex a us vs = do
 	, nest 2 $ prettyList $ map prettyTCM vs
 	, nest 2 $ text "context: " <+> (prettyTCM =<< getContextTelescope)
 	]
-  s <- flip execStateT Map.empty . unUnify $ unifyArgs a us vs
+  USt s eqs <- flip execStateT emptyUState . unUnify $ unifyArgs a us vs
+  checkEqualities $ substs (makeSubstitution s) eqs
   let n = maximum $ (-1) : flex
   return $ flattenSubstitution [ Map.lookup i s | i <- [0..n] ]
   where
@@ -113,6 +153,16 @@ unifyIndices flex a us vs = do
 	  unifyArgs (a `piApply` [arg]) us vs
 	_	  -> __IMPOSSIBLE__
 
+    recheckConstraints :: Unify ()
+    recheckConstraints = mapM_ unifyEquality =<< takeEqualities
+
+    unifyEquality :: Equality -> Unify ()
+    unifyEquality (Equal a u v) = unify a u v
+
+    i |->> x = do
+      i |-> x
+      recheckConstraints
+
     -- TODO: eta for records here
 
     unify :: Type -> Term -> Term -> Unify ()
@@ -129,8 +179,8 @@ unifyIndices flex a us vs = do
 	(Var i us, Var j vs) | i == j  -> do
 	    a <- typeOfBV i
 	    unifyArgs a us vs
-	(Var i [], v) | flexible i -> i |-> (v, a)
-	(u, Var j []) | flexible j -> j |-> (u, a)
+	(Var i [], v) | flexible i -> i |->> (v, a)
+	(u, Var j []) | flexible j -> j |->> (u, a)
 	(Con c us, Con c' vs) | c == c' -> do
 	    -- The type is a datatype or a record.
 	    Def d args <- reduce $ unEl a
@@ -143,5 +193,5 @@ unifyIndices flex a us vs = do
 	      Record n _ _ _ _ _   -> getRecordConstructorType d (take n args)
 	      _			   -> __IMPOSSIBLE__
 	    unifyArgs a' us vs
-	_  -> noConstraints $ equalTerm a u v
+	_  -> addEquality a u v
 

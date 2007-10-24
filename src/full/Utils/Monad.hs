@@ -10,23 +10,29 @@ import Control.Monad
 import Control.Monad.Error
 import Control.Monad.Reader
 import Control.Monad.State
+import Control.Monad.Writer
 import Control.Applicative
 import Data.Traversable
 import Data.Foldable
+import Data.Monoid
 
 -- Instances --------------------------------------------------------------
 
 instance Applicative (Reader env) where
-    pure  = return
-    (<*>) = ap
+  pure  = return
+  (<*>) = ap
 
 instance Monad m => Applicative (ReaderT env m) where
-    pure  = return
-    (<*>) = ap
+  pure  = return
+  (<*>) = ap
 
 instance Monad m => Applicative (StateT s m) where
-    pure  = return
-    (<*>) = ap
+  pure  = return
+  (<*>) = ap
+
+instance (Monoid o, Monad m) => Applicative (WriterT o m) where
+  pure	= return
+  (<*>)	= ap
 
 -- Monads -----------------------------------------------------------------
 
