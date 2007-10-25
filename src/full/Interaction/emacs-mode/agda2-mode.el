@@ -207,7 +207,7 @@ want settings to this variable to take effect."
          (agda2-goal-type-normalised               nil                nil "Goal type (normalised)")
          (agda2-show-context                       "\C-c\C-e"         nil "Context")  ; Environment.
          (agda2-show-context-normalised            nil                nil "Context (normalised)")
-         (agda2-infer-type-maybe-toplevel          "\C-c\C-i"         nil "Infer type")
+         (agda2-infer-type-maybe-toplevel          "\C-c\C-d"         nil "Infer type")  ; Deduce.
          (agda2-infer-type-normalised              nil                nil "Infer type (normalised)")
          (agda2-goal-and-infer                     ,(kbd "C-c C-.")   nil "Goal type and inferred type")
          (agda2-goal-and-infer-normalised          nil                nil "Goal type and inferred type (normalised)")
