@@ -197,7 +197,7 @@ want settings to this variable to take effect."
          (agda2-previous-goal                      "\C-c\C-b"         "Previous goal")  ; Back.
          (agda2-undo                               "\C-c\C-u"         "Undo")
          (agda2-undo                               "\C-_"             "Undo")
-         (agda2-infer-type-maybe-toplevel          nil                "Infer type")
+         (agda2-infer-type-maybe-toplevel          nil                "Infer (deduce) type")
          (agda2-infer-type-toplevel-normalised     nil                "Infer type (normalised)")
          (agda2-compute-normalised-maybe-toplevel  nil                "Compute normal form")
          (agda2-give                               ,(kbd "C-c C-SPC") nil "Give")
@@ -205,9 +205,9 @@ want settings to this variable to take effect."
          (agda2-make-case                          "\C-c\C-c"         nil "Case")
          (agda2-goal-type                          "\C-c\C-t"         nil "Goal type")
          (agda2-goal-type-normalised               nil                nil "Goal type (normalised)")
-         (agda2-show-context                       "\C-c\C-e"         nil "Context")  ; Environment.
+         (agda2-show-context                       "\C-c\C-e"         nil "Context (environment)")
          (agda2-show-context-normalised            nil                nil "Context (normalised)")
-         (agda2-infer-type-maybe-toplevel          "\C-c\C-d"         nil "Infer type")  ; Deduce.
+         (agda2-infer-type-maybe-toplevel          "\C-c\C-d"         nil "Infer (deduce) type")
          (agda2-infer-type-normalised              nil                nil "Infer type (normalised)")
          (agda2-goal-and-infer                     ,(kbd "C-c C-.")   nil "Goal type and inferred type")
          (agda2-goal-and-infer-normalised          nil                nil "Goal type and inferred type (normalised)")
