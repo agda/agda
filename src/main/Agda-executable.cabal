@@ -6,8 +6,10 @@ author:        Ulf Norell, Catarina Coquand, Makoto Takeyama, Nils Anders Daniel
 maintainer:    Ulf Norell <ulfn@cs.chalmers.se>
 homepage:
 category:      Theorem Proving
-build-depends: base, Agda
 synopsis:      A dependently typed proof checker / programming language.
+cabal-version: >= 1.2
 
-executable:    agda
-main-is:       Main.hs
+Executable agda
+  build-depends: base, Agda
+  executable:    agda
+  main-is:       Main.hs
