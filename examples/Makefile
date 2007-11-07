@@ -56,7 +56,7 @@ view : vfl/Typechecker.agda
 	@echo :q | $(run_agda) $<
 	@echo "ok"
 
-test : $(agda) $(tests)
+test : $(tests)
 
 $(tests) : %.test : %
 	@echo -n "Testing $<... "

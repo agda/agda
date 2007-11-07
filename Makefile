@@ -22,7 +22,8 @@ endif
 ## Phony targets ##########################################################
 
 .PHONY : default all clean install full prof core \
-		 debug doc dist make_configure clean_test examples
+		 debug doc dist make_configure clean_test examples \
+		 test succeed fail
 
 ## Default target #########################################################
 
