@@ -1,5 +1,5 @@
 module PreludeNat where
-open import AlonzoPrelude public
+open import AlonzoPrelude
 import PreludeBool as Bool
 
 open Bool

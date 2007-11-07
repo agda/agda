@@ -27,8 +27,8 @@ debugData = debugMsg . gshow
 
 debugSigInfo :: Signature -> IM()
 debugSigInfo sig = do
---  mapM_ debugData (keys sig)
-  mapM_ (debugMsg . show) (keys sig)
+  mapM_ debugData (keys sig)
+--  mapM_ (debugMsg . show) (keys sig)
 
 -- instance Show ModuleName where
 --    show (MName id c) = show c

@@ -53,7 +53,6 @@ compilerMain :: IM () -> IM ()
 compilerMain typeCheck = do
 	typeCheck
 	sig <- gets stSignature
-        -- debugSigInfo sig
         let (moduleName:_) =  keys $ sigSections sig
         builtinMap <- getBuiltinThings
 	-- let sigs = toList sig
@@ -64,10 +63,23 @@ compilerMain typeCheck = do
         hsdefs <- mapM processDefWithDebug defs
         impNames <- getImports
         let imps = List.map show (Set.toList impNames)
+        liftIO $ print imps
+        -- Now getting modules imported publicly by imported modules
+        -- idefs :: Map QName Definition
+        idefs <- sigDefinitions <$> getImportedSignature 
+        -- idefnames :: [QName]         
+        let idefnames = Map.keys idefs 
+        -- idefmods :: [ModuleName]
+        let idefmods =  List.map qnameModule idefnames 
+        -- iimps :: [String]
+        -- Exclude M._ type modules - need a better way, but for now...
+        let iimps = List.filter (\m -> last m /= '_') $ List.map show idefmods
+        let allImps = List.nub(iimps ++ imps)
+        liftIO $ print allImps           
         let mainNum = (numOfMainS names)
         let fileBase =  show moduleName
         let moduleString = fileBase
-        let hsmod = hsModuleImporting moduleString imps (concat hsdefs)
+        let hsmod = hsModuleImporting moduleString allImps (concat hsdefs)
         liftIO $ outputHsModule fileBase hsmod mainNum
         -- let almod = List.map AlDecl hsdefs
         -- liftIO $ printAlModule moduleString almod
@@ -386,10 +398,10 @@ unfoldVap p e ((Arg Hidden t):ts) = unfoldVap p (hsAp e e1) ts where
 getDefinitions :: IM Definitions
 getDefinitions = do
   sig <- gets stSignature
-  -- let sigs = toList sig
-  -- let definitions = mdefDefs (snd (head sigs)) -- :: Map Name Definition
   let definitions = sigDefinitions sig -- :: Map QName Definition
-  return definitions
+  idefs <- sigDefinitions <$> getImportedSignature
+  return (definitions `Map.union` idefs)
+
 
 
 getConArities cs = mapM getConArity cs

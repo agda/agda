@@ -73,7 +73,7 @@ module AlonzoPrelude where
   [ x ] = x :: nil
 -}
   {-# BUILTIN INTEGER Int    #-}
-  {-# BUILTIN STRING  String #-}
+--  {-# BUILTIN STRING  String #-}
 --   {-# BUILTIN FLOAT   Float  #-}
   {-# BUILTIN CHAR    Char   #-}
   
