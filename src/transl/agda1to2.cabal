@@ -3,9 +3,18 @@ version:	2.0.1
 license:	BSD3
 author:		Ulf Norell, Catarina Coquand, ..., Nobuo Yamashita
 maintainer:	Nobuo Yamashita <nobuo-yamashita@aist.go.jp>
-build-depends:	base, mtl, Agda >= 2.0.1
 synopsis:	translate programs in Agda 1 syntax to those in Agda 2 syntax.
+cabal-version:	>= 1.2
 
-executable:	agda1to2
-main-is:	Main.hs
-hs-source-dirs: ./, ./agda
+flag splitBase
+  description: Use new split up base library
+
+Executable agda1to2
+  if flag(splitBase)
+    build-depends: base >= 3, containers, array
+  else
+    build-depends: base < 3
+  build-depends: mtl, Agda >= 2.0.1
+  executable:	agda1to2
+  main-is:	Main.hs
+  hs-source-dirs: ./, ./agda
