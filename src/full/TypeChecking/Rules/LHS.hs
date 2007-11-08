@@ -161,16 +161,16 @@ checkLeftHandSide ps a ret = do
 
   reportSDoc "tc.lhs.top" 10 $
     vcat [ text "checking lhs:"
-         , nest 2 $ vcat
-           [ text "ps    =" <+> fsep (map prettyA ps)
-           , text "a     =" <+> prettyTCM a
-           , text "a'    =" <+> prettyTCM (telePi tel0 b0)
-           , text "tel0  =" <+> prettyTCM tel0
-           , text "b0    =" <+> prettyTCM b0
-           , text "gamma =" <+> prettyTCM gamma
-           , text "b     =" <+> addCtxTel gamma (prettyTCM b)
-           ]
-         ]
+	 , nest 2 $ vcat
+	   [ text "ps    =" <+> fsep (map prettyA ps)
+	   , text "a     =" <+> prettyTCM a
+	   , text "a'    =" <+> prettyTCM (telePi tel0 b0)
+	   , text "tel0  =" <+> prettyTCM tel0
+	   , text "b0    =" <+> prettyTCM b0
+	   , text "gamma =" <+> prettyTCM gamma
+	   , text "b	 =" <+> addCtxTel gamma (prettyTCM b)
+	   ]
+	 ]
 
   let idsub = [ Var i [] | i <- [0..] ]
 
@@ -179,13 +179,13 @@ checkLeftHandSide ps a ret = do
 
   reportSDoc "tc.lhs.top" 10 $
     vcat [ text "checked lhs:"
-         , nest 2 $ vcat
-           [ text "ps    = " <+> fsep (map prettyA ps)
-           , text "perm  = " <+> text (show perm)
-           , text "delta = " <+> prettyTCM delta
-           , text "dpi   = " <+> brackets (fsep $ punctuate comma $ map prettyTCM dpi)
-           , text "asb   = " <+> brackets (fsep $ punctuate comma $ map prettyTCM asb)
-           ]
+	 , nest 2 $ vcat
+	   [ text "ps    = " <+> fsep (map prettyA ps)
+	   , text "perm  = " <+> text (show perm)
+	   , text "delta = " <+> prettyTCM delta
+	   , text "dpi	 = " <+> brackets (fsep $ punctuate comma $ map prettyTCM dpi)
+	   , text "asb	 = " <+> brackets (fsep $ punctuate comma $ map prettyTCM asb)
+	   ]
          ]
   bindLHSVars ps delta $ bindAsPatterns asb $ do
     reportSDoc "tc.lhs.top" 10 $ nest 2 $ text "type  = " <+> prettyTCM b'
@@ -293,16 +293,16 @@ checkLeftHandSide ps a ret = do
             -- Compute the flexible variables
             let flex = flexiblePatterns (problemInPat p0 ++ qs')
 
-            reportSDoc "tc.lhs.top" 15 $ addCtxTel delta1 $
-              sep [ text "preparing to unify"
-                  , nest 2 $ vcat
-                    [ text "c     =" <+> prettyTCM c <+> text ":" <+> prettyTCM a
-                    , text "d     =" <+> prettyTCM d <+> text ":" <+> prettyTCM da
-                    , text "gamma =" <+> prettyTCM gamma
-                    , text "vs    =" <+> brackets (fsep $ punctuate comma $ map prettyTCM vs)
-                    , text "ws    =" <+> brackets (fsep $ punctuate comma $ map prettyTCM ws)
-                    ]
-                  ]
+	    reportSDoc "tc.lhs.top" 15 $ addCtxTel delta1 $
+	      sep [ text "preparing to unify"
+		  , nest 2 $ vcat
+		    [ text "c	  =" <+> prettyTCM c <+> text ":" <+> prettyTCM a
+		    , text "d	  =" <+> prettyTCM d <+> text ":" <+> prettyTCM da
+		    , text "gamma =" <+> prettyTCM gamma
+		    , text "vs	  =" <+> brackets (fsep $ punctuate comma $ map prettyTCM vs)
+		    , text "ws	  =" <+> brackets (fsep $ punctuate comma $ map prettyTCM ws)
+		    ]
+		  ]
 
             -- Unify constructor target and given type (in Δ₁Γ)
             sub0 <- addCtxTel (delta1 `abstract` gamma) $

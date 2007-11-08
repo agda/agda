@@ -229,7 +229,7 @@ checkWhere n [A.Section _ m tel ds]  ret = do
       dtel <- mapM prettyA tel
       dtel' <- prettyTCM =<< lookupSection m
       liftIO $ putStrLn $ "checking where section " ++ show dx ++ " " ++ show dtel
-      liftIO $ putStrLn $ "        actual tele: " ++ show dtel'
+      liftIO $ putStrLn $ "	   actual tele: " ++ show dtel'
     x <- withCurrentModule m $ checkDecls ds >> ret
     return x
 checkWhere _ _ _ = __IMPOSSIBLE__
