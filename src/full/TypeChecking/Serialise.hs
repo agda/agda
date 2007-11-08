@@ -1,8 +1,5 @@
 {-# LANGUAGE OverlappingInstances,
-             GeneralizedNewtypeDeriving,
-             TypeSynonymInstances,
-             FlexibleContexts
-  #-}
+             GeneralizedNewtypeDeriving #-}
 {-# OPTIONS  -cpp #-}
 
 -- | Serialisation of Agda interface files.
@@ -35,9 +32,7 @@ import qualified Data.Binary.Get as B
 import qualified Data.Binary.Builder as B
 import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString.Lazy.Char8 as L8
-#if __GLASGOW_HASKELL__ < 608
 import qualified Data.ByteString.Base as BB
-#endif
 import Data.Word
 import qualified Codec.Compression.GZip as G
 
@@ -61,7 +56,7 @@ import qualified Utils.IO
 -- | Current version of the interface. Only interface files of this version
 --   will be parsed.
 currentInterfaceVersion :: Int
-currentInterfaceVersion = 131
+currentInterfaceVersion = 132
 
 ------------------------------------------------------------------------
 -- A wrapper around Data.Binary
@@ -230,23 +225,17 @@ instance Binary Range where
 -- takes care of this, and fails if the version does not match.
 
 encode :: Binary a => a -> L.ByteString
-encode x = B.encode currentInterfaceVersion `append`
-           B.encode stLen `append`
-           st `append`
-           G.compress s
+encode x = B.encode currentInterfaceVersion `L.append`
+           G.compress (B.encode getState `L.append` s)
   where
   (s, getState) = runPut (put x)
   st            = G.compress $ B.encode getState
   stLen         = L.length st
 
-#if __GLASGOW_HASKELL__ < 608
-  -- In GHC 6.6 L.append is strict in its second argument,
+  -- L.append is currently (GHC 6.6.1) strict in its second argument,
   -- and this somehow changes the semantics of encode when this module
   -- is compiled with optimisations turned on...
-  append = (BB.LPS xs) (BB.LPS ys) = BB.LPS (xs ++ ys)
-#else
-  append = L.append
-#endif
+  append (BB.LPS xs) (BB.LPS ys) = BB.LPS (xs ++ ys)
 
 -- | Decodes something encoded by 'encode'. Fails with 'error' if the
 -- interface version does not match the current interface version.
@@ -254,12 +243,10 @@ encode x = B.encode currentInterfaceVersion `append`
 decode :: Binary a => L.ByteString -> a
 decode s
   | v /= currentInterfaceVersion = error "Wrong interface version"
-  | otherwise = runGet getState get (G.decompress s4)
+  | otherwise = runGet getState get s2
   where
-  (v,        s1, _) = B.runGetState B.get s  0
-  (stLen,    s2, _) = B.runGetState B.get s1 0
-  (s3, s4)          = L.splitAt stLen s2
-  (getState, _,  _) = B.runGetState B.get (G.decompress s3) 0
+  (v,        s1, _) = B.runGetState B.get s                 0
+  (getState, s2, _) = B.runGetState B.get (G.decompress s1) 0
 
 -- | Encodes a file. See 'encode'.
 
@@ -278,6 +265,7 @@ decodeFile f = liftM decode $ Utils.IO.readBinaryFile f
 #else
 decodeFile f = liftM decode $ L.readFile f
 #endif
+
 ------------------------------------------------------------------------
 -- More boring instances
 ------------------------------------------------------------------------
