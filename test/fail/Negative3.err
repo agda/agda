@@ -1,3 +1,2 @@
-Negative3.agda:4,5-5
-Negative3.agda:4,5: Parse
-error in<ERROR> : F (Mu F) -> Mu F ...
+Datatype Mu is not strictly positive, because it occurs negatively
+in constructor .Negative3.inn of datatype Mu
