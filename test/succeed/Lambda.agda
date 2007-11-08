@@ -1,4 +1,4 @@
-{-# OPTIONS --dont-termination-check #-}
+
 module Lambda where
 
 module Prelude where
