@@ -44,22 +44,19 @@ To install Agda 2, proceed as follows:
 3) If you want to use the Emacs mode, build and install it (see
    below).
 
-4) If you want to use the stand-alone "interpreter", build and install
+4) If you want to use the stand-alone "interpreter", go to the
+   src/main directory, and build and install
    it:
 
-     cd src/main
      runhaskell Setup.hs configure
      runhaskell Setup.hs build
      runhaskell Setup.hs install
-     cd -
 
    Or:
 
-     cd src/main
      runhaskell Setup.hs configure --prefix=<the install path>
      runhaskell Setup.hs build
      runhaskell Setup.hs install --user
-     cd -
 
 ------------------------------------------------------------------------
 To use the Agda 2 Emacs mode:
