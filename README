@@ -6,8 +6,8 @@ To install Agda 2, proceed as follows:
    In addition to the libraries distributed with GHC you will need the binary
    and zlib packages which can be downloaded from Hackage:
 
-     http://hackage.haskell.org/cgi-bin/hackage-scripts/package/binary-0.3
-     http://hackage.haskell.org/cgi-bin/hackage-scripts/package/zlib-0.3
+     http://hackage.haskell.org/cgi-bin/hackage-scripts/package/binary-0.4.1
+     http://hackage.haskell.org/cgi-bin/hackage-scripts/package/zlib-0.4.0.1
 
    The zlib Haskell package requires the development files of the zlib
    C package to be installed (see http://zlib.net). Your package
@@ -34,9 +34,9 @@ To install Agda 2, proceed as follows:
    You can select another location for the installation of the library
    by using the following commands:
 
-     runhaskell Setup.hs configure --prefix=<the install path>
+     runhaskell Setup.hs configure --user --prefix=<the install path>
      runhaskell Setup.hs build
-     runhaskell Setup.hs install --user
+     runhaskell Setup.hs install
 
    You can also give other options to the installation script, see
    runhaskell Setup.hs configure --help.
@@ -54,9 +54,9 @@ To install Agda 2, proceed as follows:
 
    Or:
 
-     runhaskell Setup.hs configure --prefix=<the install path>
+     runhaskell Setup.hs configure --user --prefix=<the install path>
      runhaskell Setup.hs build
-     runhaskell Setup.hs install --user
+     runhaskell Setup.hs install
 
 ------------------------------------------------------------------------
 To use the Agda 2 Emacs mode:
@@ -147,9 +147,9 @@ Appendix: Installation scripts for (at least) Ubuntu Linux
 
 # A.1 Installing binary
 
-  wget http://hackage.haskell.org/packages/archive/binary/0.3/binary-0.3.tar.gz
-  tar -zxf binary-0.3.tar.gz
-  cd binary-0.3
+  wget http://hackage.haskell.org/packages/archive/binary/0.4.1/binary-0.4.1.tar.gz
+  tar -zxf binary-0.4.1.tar.gz
+  cd binary-0.4.1
   runhaskell Setup.lhs configure
   runhaskell Setup.lhs build
   sudo runhaskell Setup.lhs install
@@ -158,9 +158,9 @@ Appendix: Installation scripts for (at least) Ubuntu Linux
 # A.2 Installing zlib
 
   sudo apt-get install zlib1g-dev
-  wget http://hackage.haskell.org/packages/archive/zlib/0.3/zlib-0.3.tar.gz
-  tar -zxf zlib-0.3.tar.gz
-  cd zlib-0.3
+  wget http://hackage.haskell.org/packages/archive/zlib/0.4.0.1/zlib-0.4.0.1.tar.gz
+  tar -zxf zlib-0.4.0.1.tar.gz
+  cd zlib-0.4.0.1
   runhaskell Setup.hs configure
   runhaskell Setup.hs build
   sudo runhaskell Setup.hs install
