@@ -166,7 +166,7 @@ Appendix: Installation scripts for (at least) Ubuntu Linux
   sudo runhaskell Setup.hs install
   cd ..
 
-# A.3 Installing Agda
+# A.3 Installing Agda (excluding the stand-alone executable)
 
   runhaskell Setup.hs configure
   runhaskell Setup.hs build
