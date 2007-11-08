@@ -93,11 +93,7 @@ newtype File = File { mapping :: Map Integer MetaInfo }
 -- | Returns the smallest position, if any, in the 'File'.
 
 smallestPos :: File -> Maybe Integer
-#if __GLASGOW_HASKELL__ < 608
 smallestPos = fmap (fst . snd) . Map.minView . mapping
-#else
-smallestPos = fmap (fst . fst) . Map.minViewWithKey . mapping
-#endif
 
 ------------------------------------------------------------------------
 -- Creation
