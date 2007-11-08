@@ -1,15 +1,12 @@
 name:          Agda-executable
 version:       2.1.3
 license:       BSD3
-license-file:  LICENSE
 author:        Ulf Norell, Catarina Coquand, Makoto Takeyama, Nils Anders Danielsson, ...
 maintainer:    Ulf Norell <ulfn@cs.chalmers.se>
 homepage:
 category:      Theorem Proving
+build-depends: base, Agda
 synopsis:      A dependently typed proof checker / programming language.
-cabal-version: >= 1.2
 
-Executable agda
-  build-depends: base, Agda
-  executable:    agda
-  main-is:       Main.hs
+executable:    agda
+main-is:       Main.hs
