@@ -10,7 +10,9 @@
 module Syntax.Parser.Comments
     where
 
-import Syntax.Parser.LexActions
+#ifndef __HADDOCK__
+import {-# SOURCE #-} Syntax.Parser.LexActions
+#endif
 import Syntax.Parser.Monad
 import Syntax.Parser.Tokens
 import Syntax.Parser.Alex

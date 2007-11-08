@@ -17,8 +17,10 @@ import Data.List
 
 import Syntax.Parser.Alex
 import Syntax.Parser.Comments
-import Syntax.Parser.Layout
-import Syntax.Parser.LexActions
+#ifndef __HADDOCK__
+import {-# SOURCE #-} Syntax.Parser.Layout
+import {-# SOURCE #-} Syntax.Parser.LexActions
+#endif
 import Syntax.Parser.Monad
 import Syntax.Parser.StringLiterals
 import Syntax.Parser.Tokens

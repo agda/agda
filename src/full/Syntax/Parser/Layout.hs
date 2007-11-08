@@ -27,10 +27,7 @@ module Syntax.Parser.Layout
     , emptyLayout
     ) where
 
-#ifndef __HADDOCK__
-import {-# SOURCE #-} Syntax.Parser.Lexer
-#endif
-
+import Syntax.Parser.Lexer
 import Syntax.Parser.Alex
 import Syntax.Parser.Monad
 import Syntax.Parser.Tokens
