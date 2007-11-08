@@ -16,11 +16,7 @@ module Utils.TestHelpers
   , positive
   , maybeGen
   , maybeCoGen
-  , list
-  , nonEmptyList
-  , listOfLength
-    -- * Tests
-  , tests
+  , listOfElements
   )
   where
 
@@ -109,36 +105,10 @@ natural = fmap abs arbitrary
 positive :: (Arbitrary i, Integral i) => Gen i
 positive = fmap ((+ 1) . abs) arbitrary
 
--- | Generates a list of the given length, using the given generator
--- to generate the elements.
-
-listOfLength :: Integral i => i -> Gen a -> Gen [a]
-listOfLength n gen = sequence $ genericReplicate n gen
-
-prop_listOfLength =
-  forAll (natural :: Gen Integer) $ \n ->
-    forAll (listOfLength n arbitrary :: Gen [Integer]) $ \xs ->
-      genericLength xs == n
-
--- | Generates a non-empty list, using the given generator to generate
--- the elements.
-
-nonEmptyList :: Gen a -> Gen [a]
-nonEmptyList gen = do
-  n <- positive :: Gen Integer
-  listOfLength n gen
-
-prop_nonEmptyList =
-  forAll (nonEmptyList arbitrary :: Gen [Integer]) $ \xs ->
-    not (null xs)
-
--- | Generates a list, using the given generator to generate the
--- elements.
-
-list :: Gen a -> Gen [a]
-list gen = do
-  n <- natural :: Gen Integer
-  listOfLength n gen
+-- | Generates a list of elements picked from a given list.
+listOfElements :: [a] -> Gen [a]
+listOfElements [] = return []
+listOfElements xs = listOf $ elements xs
 
 -- | Generates values of 'Maybe' type, using the given generator to
 -- generate the contents of the 'Just' constructor.
@@ -154,9 +124,3 @@ maybeCoGen :: (a -> Gen b -> Gen b) -> (Maybe a -> Gen b -> Gen b)
 maybeCoGen f Nothing  = variant 0
 maybeCoGen f (Just x) = variant 1 . f x
 
-------------------------------------------------------------------------
--- All tests
-
-tests = do
-  quickCheck prop_listOfLength
-  quickCheck prop_nonEmptyList

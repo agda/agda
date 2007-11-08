@@ -88,8 +88,10 @@ rToR r = case (p1, p2) of
 
 instance Arbitrary Range where
   arbitrary = do
-    [from, to] <- fmap sort $ listOfLength 2 positive
+    [from, to] <- fmap sort $ vectorOf 2 positive
     return $ Range { from = from, to = to }
+
+instance CoArbitrary Range where
   coarbitrary (Range f t) = coarbitrary f . coarbitrary t
 
 ------------------------------------------------------------------------

@@ -64,12 +64,12 @@ unsplitPath ((drive:':':path):paths) = drive:':':unsplitPath (path:paths)
 unsplitPath dirs = concat $ intersperse [slash] $ "" : dirs ++ [""]
 
 prop_splitPath_unsplitPath =
-  forAll (list name) $ \dirs ->
+  forAll (listOf name) $ \dirs ->
     splitPath (unsplitPath dirs) == dirs
 
 prop_splitPath =
-  forAll (positive :: Gen Integer) $ \n ->
-  forAll (listOfLength n nonEmptyName) $ \dirs ->
+  forAll positive		   $ \n ->
+  forAll (vectorOf n nonEmptyName) $ \dirs ->
     let path = concat $ intersperse [slash] dirs
     in
     genericLength (splitPath   path)                    == n
@@ -94,8 +94,8 @@ dropDirectory n =
 -- of paths should be used.
 
 prop_dropDirectory =
-  forAll (natural :: Gen Integer) $ \n ->
-  forAll path $ \p ->
+  forAll natural	  $ \n ->
+  forAll path		  $ \p ->
   forAll (pathOfLength n) $ \dirs ->
   forAll nonEmptyName $ \name ->
     dropDirectory n "" == "/"
@@ -204,29 +204,29 @@ nameChar = elements $ filter (not . (`elem` forbidden)) chars
 -- | Generates a possibly empty string of 'nameChar's.
 
 name :: Gen FilePath
-name = list nameChar
+name = listOf nameChar
 
 -- | Generates a non-empty string of 'nameChar's.
 
 nonEmptyName :: Gen FilePath
-nonEmptyName = nonEmptyList nameChar
+nonEmptyName = listOf1 nameChar
 
 -- | Generates a possibly empty path (without any drive).
 
 path :: Gen FilePath
-path = list $ elements chars
+path = listOfElements chars
   where
   chars = "/." ++ ['a' .. 'g']
 
 -- | @'pathOfLength' n@ generates a path which contains @n '+' 1@
 -- 'slash'es and starts and ends with a 'slash'.
 
-pathOfLength :: Integral i => i -> Gen FilePath
+pathOfLength :: Int -> Gen FilePath
 pathOfLength n = fmap ((++ [slash]) . concat) $
-  listOfLength n (fmap (slash :) name)
+  vectorOf n (fmap (slash :) name)
 
 prop_pathOfLength =
-  forAll (natural :: Gen Integer) $ \n ->
+  forAll natural	  $ \n ->
   forAll (pathOfLength n) $ \path ->
     dropDirectory n path == [slash]
     &&

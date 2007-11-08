@@ -69,6 +69,7 @@ instance Show Order where
 instance Arbitrary Order where
   arbitrary = elements [Lt, Le, Unknown]
 
+instance CoArbitrary Order where
   coarbitrary Lt      = variant 0
   coarbitrary Le      = variant 1
   coarbitrary Unknown = variant 2
@@ -149,6 +150,7 @@ instance Arbitrary CallMatrix where
     sz <- arbitrary
     callMatrix sz
 
+instance CoArbitrary CallMatrix where
   coarbitrary (CallMatrix m) = coarbitrary m
 
 prop_Arbitrary_CallMatrix = callMatrixInvariant
@@ -229,10 +231,11 @@ data Call =
 
 instance Arbitrary Call where
   arbitrary = do
-    (s, t) <- two arbitrary
+    [s, t] <- vectorOf 2 arbitrary
     cm     <- arbitrary
     return (Call { source = s, target = t, cm = cm })
 
+instance CoArbitrary Call where
   coarbitrary (Call s t cm) =
     coarbitrary s . coarbitrary t . coarbitrary cm
 
@@ -304,14 +307,14 @@ insert c m = CallGraph . Map.insertWith mappend c m . cg
 callGraph :: (Monoid meta, Arbitrary meta) => Gen (CallGraph meta)
 callGraph = do
   indices <- fmap nub arbitrary
-  n <- natural :: Gen Integer
+  n <- natural
   let noMatrices | null indices = 0
                  | otherwise    = n `max` 3  -- Not too many.
-  fmap fromList $ listOfLength noMatrices (matGen indices)
+  fmap fromList $ vectorOf noMatrices (matGen indices)
   where
   matGen indices = do
-    (s, t) <- two (elements indices)
-    (c, r) <- two (choose (0, 2))     -- Not too large.
+    [s, t] <- vectorOf 2 (elements indices)
+    [c, r] <- vectorOf 2 (choose (0, 2))     -- Not too large.
     m <- callMatrix (Size { rows = r, cols = c })
     callId <- arbitrary
     return (Call { source = s, target = t, cm = m }, callId)

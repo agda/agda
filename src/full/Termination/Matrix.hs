@@ -55,9 +55,11 @@ sizeInvariant sz = rows sz >= 0 && cols sz >= 0
 
 instance (Arbitrary i, Integral i) => Arbitrary (Size i) where
   arbitrary = do
-    (r, c) <- two natural
+    r <- natural
+    c <- natural
     return $ Size { rows = r, cols = c }
 
+instance CoArbitrary i => CoArbitrary (Size i) where
   coarbitrary (Size rs cs) = coarbitrary rs . coarbitrary cs
 
 prop_Arbitrary_Size :: Size Integer -> Bool
@@ -76,9 +78,11 @@ data MIx i = MIx { row, col :: i }
 
 instance (Arbitrary i, Integral i) => Arbitrary (MIx i) where
   arbitrary = do
-    (r, c) <- two positive
+    r <- positive
+    c <- positive
     return $ MIx { row = r, col = c }
 
+instance CoArbitrary i => CoArbitrary (MIx i) where
   coarbitrary (MIx r c) = coarbitrary r . coarbitrary c
 
 -- | No nonpositive indices are allowed.
@@ -108,6 +112,8 @@ instance (Ix i, Num i, Enum i, Show i, Show b) => Show (Matrix i b) where
 instance (Arbitrary i, Num i, Integral i, Ix i, Arbitrary b)
          => Arbitrary (Matrix i b) where
   arbitrary     = matrix =<< arbitrary
+
+instance (Ix i, Num i, Enum i, CoArbitrary b) => CoArbitrary (Matrix i b) where
   coarbitrary m = coarbitrary (toLists m)
 
 prop_Arbitrary_Matrix :: TM -> Bool
@@ -125,14 +131,14 @@ matrixUsingRowGen :: (Arbitrary i, Integral i, Ix i, Arbitrary b)
      -- ^ The generator is parameterised on the size of the row.
   -> Gen (Matrix i b)
 matrixUsingRowGen sz rowGen = do
-  rows <- listOfLength (rows sz) (rowGen $ cols sz)
+  rows <- vectorOf (fromIntegral $ rows sz) (rowGen $ cols sz)
   return $ fromLists sz rows
 
 -- | Generates a matrix of the given size.
 
 matrix :: (Arbitrary i, Integral i, Ix i, Arbitrary b)
   => Size i -> Gen (Matrix i b)
-matrix sz = matrixUsingRowGen sz (\n -> listOfLength n arbitrary)
+matrix sz = matrixUsingRowGen sz (\n -> vectorOf (fromIntegral n) arbitrary)
 
 prop_matrix sz = forAll (matrix sz :: Gen TM) $ \m ->
   matrixInvariant m &&
@@ -205,7 +211,7 @@ add (+) m1 m2 =
                 | i <- range $ toBounds $ size m1 ]
 
 prop_add sz =
-  forAll (three (matrix sz :: Gen TM)) $ \(m1, m2, m3) ->
+  forAll (vectorOf 3 (matrix sz :: Gen TM)) $ \[m1, m2, m3] ->
     let m' = add (+) m1 m2 in
       associative (add (+)) m1 m2 m3 &&
       commutative (add (+)) m1 m2 &&
@@ -238,7 +244,7 @@ mul semiring m1 m2 =
              | i <- [1 .. cols (size m1)]]
 
 prop_mul sz =
-  forAll (two natural) $ \(c2, c3) ->
+  forAll (vectorOf 2 natural) $ \[c2, c3] ->
   forAll (matrix sz :: Gen TM) $ \m1 ->
   forAll (matrix (Size { rows = cols sz, cols = c2 })) $ \m2 ->
   forAll (matrix (Size { rows = c2, cols = c3 })) $ \m3 ->

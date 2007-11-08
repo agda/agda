@@ -72,19 +72,20 @@ recBehaviourInvariant rb =
 instance (Arbitrary call, Arbitrary arg, Ord arg, Ord call)
   => Arbitrary (RecBehaviour call arg) where
   arbitrary = do
-    calls <- fmap nub $ list arbitrary
-    args  <- fmap nub $ list arbitrary
+    calls <- fmap nub $ listOf arbitrary
+    args  <- fmap nub $ listOf arbitrary
     let rows = genericLength calls
         cols = genericLength args
         sz   = Size { rows = rows, cols = cols }
         colGen = do
-          col <- listOfLength rows arbitrary
+          col <- vectorOf (fromIntegral rows) arbitrary
           return $ Map.fromList (zip calls col)
-    cols <- fmap (zip args) $ listOfLength cols colGen
+    cols <- fmap (zip args) $ vectorOf (fromIntegral cols) colGen
     return $ RB { columns = Map.fromList cols
                 , calls   = Set.fromList calls
                 , size    = sz }
 
+instance (CoArbitrary call, CoArbitrary arg) => CoArbitrary (RecBehaviour call arg) where
   coarbitrary (RB c cs s) =
     coarbitrary (map (id *** Map.toList) $ Map.toList c) .
     coarbitrary (Set.toList cs) .
@@ -122,7 +123,7 @@ fromDiagonals rows = RB { columns = Map.fromList $ zip args cols
   args = Array.range $ Array.bounds $ snd $ head rows
 
 prop_fromDiagonals m =
-  forAll (listOfLength (rows $ M.size m) arbitrary) $ \calls ->
+  forAll (vectorOf (fromIntegral $ rows $ M.size m) arbitrary) $ \calls ->
     let oss = zip calls $
               map (Array.listArray (1, cols $ M.size m)) $
               M.toLists m

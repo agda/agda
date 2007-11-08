@@ -13,7 +13,7 @@ module Interaction.Highlighting.Precise
   , Interaction.Highlighting.Precise.tests
   ) where
 
-import Utils.TestHelpers hiding (tests)
+import Utils.TestHelpers
 import Utils.Function
 import Utils.String
 import Utils.List hiding (tests)
@@ -194,6 +194,7 @@ instance Arbitrary Aspect where
               , (1, liftM2 Name (maybeGen arbitrary) arbitrary)
               ]
 
+instance CoArbitrary Aspect where
   coarbitrary Comment       = variant 0
   coarbitrary Keyword       = variant 1
   coarbitrary String        = variant 2
@@ -205,22 +206,28 @@ instance Arbitrary Aspect where
 
 instance Arbitrary NameKind where
   arbitrary   = elements [minBound .. maxBound]
+
+instance CoArbitrary NameKind where
   coarbitrary = coarbitrary . fromEnum
 
 instance Arbitrary OtherAspect where
   arbitrary   = elements [minBound .. maxBound]
+
+instance CoArbitrary OtherAspect where
   coarbitrary = coarbitrary . fromEnum
 
 instance Arbitrary MetaInfo where
   arbitrary = do
     aspect  <- maybeGen arbitrary
     other   <- arbitrary
-    note    <- maybeGen (list $ elements "abcdefABCDEF/\\.\"'@()åäö\n")
+    note    <- maybeGen (listOfElements "abcdefABCDEF/\\.\"'@()åäö\n")
     defSite <- maybeGen (liftM2 (,)
-                                (list $ elements "abcdefABCDEF/\\.\"'@()åäö\n")
+                                (listOfElements "abcdefABCDEF/\\.\"'@()åäö\n")
                                 arbitrary)
     return (MetaInfo { aspect = aspect, otherAspects = other, note = note
                      , definitionSite = defSite })
+
+instance CoArbitrary MetaInfo where
   coarbitrary (MetaInfo aspect otherAspects note defSite) =
     maybeCoGen coarbitrary aspect .
     coarbitrary otherAspects .
@@ -229,7 +236,9 @@ instance Arbitrary MetaInfo where
                defSite
 
 instance Arbitrary File where
-  arbitrary = fmap (File . Map.fromList) $ list arbitrary
+  arbitrary = fmap (File . Map.fromList) $ listOf arbitrary
+
+instance CoArbitrary File where
   coarbitrary (File rs) = coarbitrary (Map.toAscList rs)
 
 ------------------------------------------------------------------------

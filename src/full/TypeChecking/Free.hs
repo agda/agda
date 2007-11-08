@@ -3,7 +3,7 @@
 -- | Computing the free variables of a term.
 module TypeChecking.Free 
     ( FreeVars(..)
-    , freeVars
+    , Free(..)
     , allVars
     , freeIn
     ) where
@@ -51,41 +51,45 @@ singleton x = FV { rigidVars	= Set.singleton x
 
 -- | Doesn't go inside metas.
 class Free a where
-    freeVars :: a -> FreeVars
+  freeVars :: a -> FreeVars
 
 instance Free Term where
-    freeVars t = case ignoreBlocking t of
-	Var n ts   -> singleton n `union` freeVars ts
-	Lam _ t    -> freeVars t
-	Lit _	   -> empty
-	Def _ ts   -> freeVars ts
-	Con _ ts   -> freeVars ts
-	Pi a b	   -> freeVars (a,b)
-	Fun a b    -> freeVars (a,b)
-	Sort _	   -> empty
-	MetaV _ ts -> flexible $ freeVars ts
-	BlockedV b -> __IMPOSSIBLE__
+  freeVars t = case ignoreBlocking t of
+    Var n ts   -> singleton n `union` freeVars ts
+    Lam _ t    -> freeVars t
+    Lit _      -> empty
+    Def _ ts   -> freeVars ts
+    Con _ ts   -> freeVars ts
+    Pi a b     -> freeVars (a,b)
+    Fun a b    -> freeVars (a,b)
+    Sort _     -> empty
+    MetaV _ ts -> flexible $ freeVars ts
+    BlockedV b -> __IMPOSSIBLE__
 
 instance Free Type where
-    freeVars (El _ t) = freeVars t
+  freeVars (El _ t) = freeVars t
 
 instance Free a => Free [a] where
-    freeVars xs = unions $ map freeVars xs
+  freeVars xs = unions $ map freeVars xs
 
 instance (Free a, Free b) => Free (a,b) where
-    freeVars (x,y) = freeVars x `union` freeVars y
+  freeVars (x,y) = freeVars x `union` freeVars y
 
 instance Free a => Free (Arg a) where
-    freeVars = freeVars . unArg
+  freeVars = freeVars . unArg
 
 instance Free a => Free (Abs a) where
-    freeVars (Abs _ b) = mapFV (subtract 1) $ delete 0 $ freeVars b
+  freeVars (Abs _ b) = mapFV (subtract 1) $ delete 0 $ freeVars b
+
+instance Free Telescope where
+  freeVars EmptyTel	     = empty
+  freeVars (ExtendTel a tel) = freeVars (a, tel)
 
 instance Free ClauseBody where
-    freeVars (Body t)	= freeVars t
-    freeVars (Bind b)	= freeVars b
-    freeVars (NoBind b) = freeVars b
-    freeVars  NoBody	= empty
+  freeVars (Body t)   = freeVars t
+  freeVars (Bind b)   = freeVars b
+  freeVars (NoBind b) = freeVars b
+  freeVars  NoBody    = empty
 
 freeIn :: Free a => Nat -> a -> Bool
 freeIn v t = v `Set.member` allVars (freeVars t)

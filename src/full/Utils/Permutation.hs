@@ -7,7 +7,7 @@ import Utils.Size
 
 -- | @permute [2,3,1] [x,y,z] = [y,z,x]@
 data Permutation = Perm Int [Int]
-  deriving (Show)
+  deriving (Show, Eq)
 
 instance Sized Permutation where
   size (Perm _ xs) = size xs

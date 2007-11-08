@@ -92,7 +92,7 @@ type Args = [Arg Term]
 --   and so on.
 data Telescope = EmptyTel
 	       | ExtendTel (Arg Type) (Abs Telescope)
-  deriving (Typeable, Data, Show)
+  deriving (Typeable, Data, Show, Eq)
 
 instance Sized Telescope where
   size  EmptyTel	 = 0

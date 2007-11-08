@@ -108,3 +108,4 @@ splitTelescope fv tel = SplitTel tel1 tel2 perm
     Perm _ js = perm
     m         = length $ takeWhile (`notElem` is) (reverse js)
     (tel1, tel2) = telFromList -*- telFromList $ splitAt (n - m) $ telToList tel'
+

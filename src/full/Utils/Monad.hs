@@ -34,6 +34,10 @@ instance (Monoid o, Monad m) => Applicative (WriterT o m) where
   pure	= return
   (<*>)	= ap
 
+instance Applicative (State s) where
+  pure	= return
+  (<*>)	= ap
+
 -- Monads -----------------------------------------------------------------
 
 infixl 8 <.>
