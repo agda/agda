@@ -1,3 +1,5 @@
+{-# OPTIONS --dont-termination-check #-}
+
 module Qsort where
 
   _o_ : {a : Set} -> {b : Set} -> {c : Set} -> (b -> c) -> (a -> b) -> a -> c

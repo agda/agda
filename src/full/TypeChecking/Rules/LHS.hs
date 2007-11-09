@@ -168,7 +168,7 @@ checkLeftHandSide ps a ret = do
 	   , text "tel0  =" <+> prettyTCM tel0
 	   , text "b0    =" <+> prettyTCM b0
 	   , text "gamma =" <+> prettyTCM gamma
-	   , text "b	 =" <+> addCtxTel gamma (prettyTCM b)
+	   , text "b     =" <+> addCtxTel gamma (prettyTCM b)
 	   ]
 	 ]
 
@@ -183,8 +183,8 @@ checkLeftHandSide ps a ret = do
 	   [ text "ps    = " <+> fsep (map prettyA ps)
 	   , text "perm  = " <+> text (show perm)
 	   , text "delta = " <+> prettyTCM delta
-	   , text "dpi	 = " <+> brackets (fsep $ punctuate comma $ map prettyTCM dpi)
-	   , text "asb	 = " <+> brackets (fsep $ punctuate comma $ map prettyTCM asb)
+	   , text "dpi   = " <+> brackets (fsep $ punctuate comma $ map prettyTCM dpi)
+	   , text "asb   = " <+> brackets (fsep $ punctuate comma $ map prettyTCM asb)
 	   ]
          ]
   bindLHSVars ps delta $ bindAsPatterns asb $ do
@@ -296,11 +296,11 @@ checkLeftHandSide ps a ret = do
 	    reportSDoc "tc.lhs.top" 15 $ addCtxTel delta1 $
 	      sep [ text "preparing to unify"
 		  , nest 2 $ vcat
-		    [ text "c	  =" <+> prettyTCM c <+> text ":" <+> prettyTCM a
-		    , text "d	  =" <+> prettyTCM d <+> text ":" <+> prettyTCM da
+		    [ text "c     =" <+> prettyTCM c <+> text ":" <+> prettyTCM a
+		    , text "d     =" <+> prettyTCM d <+> text ":" <+> prettyTCM da
 		    , text "gamma =" <+> prettyTCM gamma
-		    , text "vs	  =" <+> brackets (fsep $ punctuate comma $ map prettyTCM vs)
-		    , text "ws	  =" <+> brackets (fsep $ punctuate comma $ map prettyTCM ws)
+		    , text "vs    =" <+> brackets (fsep $ punctuate comma $ map prettyTCM vs)
+		    , text "ws    =" <+> brackets (fsep $ punctuate comma $ map prettyTCM ws)
 		    ]
 		  ]
 

@@ -1,6 +1,8 @@
 {-# LANGUAGE OverlappingInstances,
-             GeneralizedNewtypeDeriving #-}
-{-# OPTIONS  -cpp #-}
+             TypeSynonymInstances,
+             GeneralizedNewtypeDeriving,
+             FlexibleContexts,
+             CPP #-}
 
 -- | Serialisation of Agda interface files.
 
@@ -32,7 +34,6 @@ import qualified Data.Binary.Get as B
 import qualified Data.Binary.Builder as B
 import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString.Lazy.Char8 as L8
-import qualified Data.ByteString.Base as BB
 import Data.Word
 import qualified Codec.Compression.GZip as G
 
@@ -229,13 +230,6 @@ encode x = B.encode currentInterfaceVersion `L.append`
            G.compress (B.encode getState `L.append` s)
   where
   (s, getState) = runPut (put x)
-  st            = G.compress $ B.encode getState
-  stLen         = L.length st
-
-  -- L.append is currently (GHC 6.6.1) strict in its second argument,
-  -- and this somehow changes the semantics of encode when this module
-  -- is compiled with optimisations turned on...
-  append (BB.LPS xs) (BB.LPS ys) = BB.LPS (xs ++ ys)
 
 -- | Decodes something encoded by 'encode'. Fails with 'error' if the
 -- interface version does not match the current interface version.

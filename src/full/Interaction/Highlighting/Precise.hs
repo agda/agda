@@ -1,5 +1,5 @@
 -- | Types used for precise syntax highlighting.
-{-# OPTIONS -cpp #-}
+
 module Interaction.Highlighting.Precise
   ( Aspect(..)
   , NameKind(..)
@@ -93,7 +93,7 @@ newtype File = File { mapping :: Map Integer MetaInfo }
 -- | Returns the smallest position, if any, in the 'File'.
 
 smallestPos :: File -> Maybe Integer
-smallestPos = fmap (fst . snd) . Map.minView . mapping
+smallestPos = fmap (fst . fst) . Map.minViewWithKey . mapping
 
 ------------------------------------------------------------------------
 -- Creation

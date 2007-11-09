@@ -16,15 +16,12 @@ module Interaction.GhciTop
 --  , module SI
   , module Syntax.Scope.Base
   , module Syntax.Scope.Monad
-  , module Info
   , module Syntax.Translation.ConcreteToAbstract
   , module Syntax.Translation.AbstractToConcrete
   , module Syntax.Translation.InternalToAbstract
   , module Syntax.Abstract.Name
 
   , module Interaction.Exceptions
-  , module B
-  , module CL
   )
   where
 
