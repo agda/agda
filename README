@@ -18,6 +18,14 @@ To install Agda 2, proceed as follows:
 
    See Appendix for concrete scripts for Ubuntu Linux.
 
+   You will also need QuickCheck version 2, which can be obtained using darcs
+
+     darcs get --partial http://darcs.haskell.org/QuickCheck
+
+   or downloaded from
+
+     http://www.cs.chalmers.se/~ulfn/files/QuickCheck-2.0.tar.gz
+
 1) Download Agda 2, perhaps as follows:
 
      darcs get http://www.cs.chalmers.se/~ulfn/darcs/Agda2
