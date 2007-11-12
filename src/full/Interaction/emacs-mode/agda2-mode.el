@@ -78,8 +78,11 @@ top-level of the current project)."
 
 (defcustom agda2-ghci-options
   (list "-package Agda")
-  "*The options for ghci to load `agda2-toplevel-module'."
-  :type '(repeat string) :group 'agda2)
+  "*These options are set in GHCi before `agda2-toplevel-module' is
+loaded. Note that only dynamic options can be set using this
+variable."
+  :type '(repeat string)
+  :group 'agda2)
 
 (defcustom agda2-toplevel-module "Interaction.GhciTop"
   "*The name of the Agda2 toplevel module"
