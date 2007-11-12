@@ -156,9 +156,8 @@ string (in a certain way; see the default setting) in order for the
 agda2 fontset to be created properly.
 
 Note also that the default setting may not work unless suitable
-fonts are installed on your system. Refer to the README and
-README_WINDOWS files accompanying the Agda distribution for
-details.
+fonts are installed on your system. Refer to the README file
+accompanying the Agda distribution for details.
 
 Note finally that you have to reload the Agda2 library if you
 want settings to this variable to take effect."

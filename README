@@ -1,7 +1,16 @@
 ------------------------------------------------------------------------
 To install Agda 2, proceed as follows:
 
-0) Install prerequisites (recent versions of GHC, Alex and Happy).
+(An appendix below lists partial installation scripts for Ubuntu
+Linux.)
+
+0) Install prerequisites (recent versions of GHC, Alex and Happy, and
+   perhaps also darcs).
+
+   GHC:	   http://www.haskell.org/ghc/
+   Alex:   http://www.haskell.org/alex/
+   Happy:  http://www.haskell.org/happy/
+   darcs:  http://darcs.net/
 
    In addition to the libraries distributed with GHC you will need the binary
    and zlib packages which can be downloaded from Hackage:
@@ -9,14 +18,13 @@ To install Agda 2, proceed as follows:
      http://hackage.haskell.org/cgi-bin/hackage-scripts/package/binary-0.4.1
      http://hackage.haskell.org/cgi-bin/hackage-scripts/package/zlib-0.4.0.1
 
-   The zlib Haskell package requires the development files of the zlib
-   C package to be installed (see http://zlib.net). Your package
-   manager may be able to install these files for you. (For instance,
-   on Debian or Ubuntu it should suffice to run
-     apt-get install zlib1g-dev
-   as root to get the correct files installed.)
-
-   See Appendix for concrete scripts for Ubuntu Linux.
+   For non-Windows users:
+     The zlib Haskell package requires the development files of the zlib
+     C package to be installed (see http://zlib.net). Your package
+     manager may be able to install these files for you. (For instance,
+     on Debian or Ubuntu it should suffice to run
+       apt-get install zlib1g-dev
+     as root to get the correct files installed.)
 
    You will also need QuickCheck version 2, which can be obtained using darcs
 
@@ -69,30 +77,140 @@ To install Agda 2, proceed as follows:
 ------------------------------------------------------------------------
 To use the Agda 2 Emacs mode:
 
+-1. Install Emacs.
+
+    Under Windows you may want to follow the following procedure:
+
+      1. Install NTEmacs 22.
+
+         Download from
+             http://ntemacs.sourceforge.net/
+         the self-extracting executable
+             ntemacs22-bin-20070819.exe
+
+         When executed, it asks where to extract itself.  This can be
+         anywhere you like, but here we write the top directory for ntemacs as
+             c:/pkg/ntemacs
+         in the following.
+
+         What follows is tested only on this version.  Other versions may
+         work but you have to figure out yourself how to use Unicode fonts
+         on your version.
+
+      2. Install ucs-fonts and mule-fonts for emacs.
+
+         Download from
+             http://www.cl.cam.ac.uk/~mgk25/ucs-fonts.html
+         the tar file
+             http://www.cl.cam.ac.uk/~mgk25/download/ucs-fonts.tar.gz
+         Let us write the top directory of extracted files as
+             c:/pkg/ucs-fonts
+         Next we create some derived fonts.
+             cd c:/pkg/ucs-fonts/submission
+             make all-bdfs
+         This gives an error message about missing fonts, but ignore it.
+
+         Download from
+             http://www.meadowy.org/
+         the tar file
+             http://www.meadowy.org/meadow/dists/3.00/packages/mule-fonts-1.0-4-pkg.tar.bz2
+         The untarred top directory is named "packages", but we are only
+         interested in the subdirectory "packages/fonts".  Let us assume
+         we moved this subdirectory to
+             c:/pkg/mule-fonts
+
+         Add the following to your .emacs
+
+      ;;;;;;;;; start of quoted elisp code
+
+      (setq bdf-directory-list
+            '(
+              "c:/pkg/ucs-fonts/submission"
+              "c:/pkg/mule-fonts/intlfonts"
+              "c:/pkg/mule-fonts/efonts"
+              "c:/pkg/mule-fonts/bitmap"
+              "c:/pkg/mule-fonts/CDAC"
+              "c:/pkg/mule-fonts/AkrutiFreeFonts"
+              ))
+
+      (setq w32-bdf-filename-alist
+            (w32-find-bdf-fonts bdf-directory-list))
+
+      (create-fontset-from-fontset-spec
+          "-*-fixed-Medium-r-Normal-*-15-*-*-*-c-*-fontset-bdf,
+          ascii:-Misc-Fixed-Medium-R-Normal--15-140-75-75-C-90-ISO8859-1,
+          latin-iso8859-2:-*-Fixed-*-r-*-*-15-*-*-*-c-*-iso8859-2,
+          latin-iso8859-3:-*-Fixed-*-r-*-*-15-*-*-*-c-*-iso8859-3,
+          latin-iso8859-4:-*-Fixed-*-r-*-*-15-*-*-*-c-*-iso8859-4,
+          cyrillic-iso8859-5:-*-Fixed-*-r-*-*-15-*-*-*-c-*-iso8859-5,
+          greek-iso8859-7:-*-Fixed-*-r-*-*-15-*-*-*-c-*-iso8859-7,
+          latin-iso8859-9:-*-Fixed-*-r-*-*-15-*-*-*-c-*-iso8859-9,
+          mule-unicode-0100-24ff:-Misc-Fixed-Medium-R-Normal--15-140-75-75-C-90-ISO10646-1,
+          mule-unicode-2500-33ff:-Misc-Fixed-Medium-R-Normal--15-140-75-75-C-90-ISO10646-1,
+          mule-unicode-e000-ffff:-Misc-Fixed-Medium-R-Normal--15-140-75-75-C-90-ISO10646-1,
+          japanese-jisx0208:-JIS-Fixed-Medium-R-Normal--16-150-75-75-C-160-JISX0208.1983-0,
+          japanese-jisx0208-1978:-Misc-Fixed-Medium-R-Normal--16-150-75-75-C-160-JISC6226.1978-0,
+          japanese-jisx0212:-Misc-Fixed-Medium-R-Normal--16-150-75-75-C-160-JISX0212.1990-0,
+          latin-jisx0201:-*-*-medium-r-normal-*-16-*-*-*-c-*-jisx0201*-*,
+          katakana-jisx0201:-Sony-Fixed-Medium-R-Normal--16-120-100-100-C-80-JISX0201.1976-0,
+          thai-tis620:-Misc-Fixed-Medium-R-Normal--24-240-72-72-C-120-TIS620.2529-1,
+          lao:-Misc-Fixed-Medium-R-Normal--24-240-72-72-C-120-MuleLao-1,
+          tibetan:-TibMdXA-fixed-medium-r-normal--16-160-72-72-m-160-MuleTibetan-0,
+          tibetan-1-column:-TibMdXA-fixed-medium-r-normal--16-160-72-72-m-80-MuleTibetan-1,
+          korean-ksc5601:-Daewoo-Mincho-Medium-R-Normal--16-120-100-100-C-160-KSC5601.1987-0,
+          chinese-gb2312:-ISAS-Fangsong ti-Medium-R-Normal--16-160-72-72-c-160-GB2312.1980-0,
+          chinese-cns11643-1:-HKU-Fixed-Medium-R-Normal--16-160-72-72-C-160-CNS11643.1992.1-0,
+          chinese-big5-1:-ETen-Fixed-Medium-R-Normal--16-150-75-75-C-160-Big5.ETen-0,
+          chinese-big5-2:-ETen-Fixed-Medium-R-Normal--16-150-75-75-C-160-Big5.ETen-0
+          " t)
+
+      (setq font-encoding-alist
+            (append '(
+                      ("JISX0208" (japanese-jisx0208 . 0))
+                      ("JISX0212" (japanese-jisx0212 . 0))
+                      ("CNS11643.1992.1-0" (chinese-cns11643-1 . 0))
+                      ("GB2312" (chinese-gb2312 . 0))
+                      ("KSC5601" (korean-ksc5601 . 0))
+                      ("VISCII" (vietnamese-viscii-lower . 0))
+                      ("MuleArabic-0" (arabic-digit . 0))
+                      ("MuleArabic-1" (arabic-1-column . 0))
+                      ("MuleArabic-2" (arabic-2-column . 0))
+                      ("muleindian-1" (indian-1-column . 0))
+                      ("muleindian-2" (indian-2-column . 0))
+                      ("MuleTibetan-0" (tibetan . 0))
+                      ("MuleTibetan-1" (tibetan-1-column . 0))
+                      ) font-encoding-alist))
+
+      ;;;;;;; end of quoted elisp code
+
+         To test the fonts, try
+
+             M-x eval-expression RET
+             (set-default-font "fontset-bdf") RET
+             M-x view-hello-file
+
+         You should see all the characters without white-boxes.
+
 0. Install haskell-mode, version 2.1 or later (see
    http://haskell.org/haskell-mode/).
 
-0.1 Add
+   Add
 
-    (add-to-list 'load-path "<The Directory Where You Downloaded haskell-mode>")
+     (add-to-list 'load-path "<The directory where you installed haskell-mode>")
 
-    to your .emacs file.
+   to your .emacs file.
 
 1. Install Agda 2. (See above.)
 
-2. Copy the .el files in src/full/Interaction/emacs-mode to some directory
-   which is listed in your Emacs load-path. You may want to
-   byte-compile the files.
+2. Copy the .el files in src/full/Interaction/emacs-mode to some
+   directory <agda-mode-dir>. Example installation:
 
-   Untested example installation (creates a new directory and adds it
-   to your load-path, does not byte-compile the files):
-
-   mkdir <...>/agda2-mode
-   cp src/full/Interaction/emacs-mode/*.el <...>/agda2-mode
-   echo "(add-to-list 'load-path \"<...>/agda2-mode/\")" >> ~/.emacs
+   mkdir <agda-mode-dir>
+   cp src/full/Interaction/emacs-mode/*.el <agda-mode-dir>
 
 3. Add the following to your .emacs:
 
+   (add-to-list 'load-path "<agda-mode-dir>")
    (autoload 'agda2-mode "agda2-mode" "Agda2 mode." t)
    (add-to-list 'auto-mode-alist '("\\.l?agda$" . agda2-mode))
    (modify-coding-system-alist 'file "\\.l?agda$" 'utf-8)
@@ -101,9 +219,9 @@ To use the Agda 2 Emacs mode:
    mode you may need to remove or alter that setting. You are
    encouraged to use the suffix .alfa for Agda 1 files.
 
-  Now, if you open a file named XXX.agda the buffer will use
-  agda2-mode. It may take 5 or 10 seconds before you see anything in
-  the buffer, but that is normal.
+   Now, if you open a file named XXX.agda the buffer will use
+   agda2-mode. It may take 5 or 10 seconds before you see anything in
+   the buffer, but that is normal.
 
 4. If you want to you can customise some settings. Just start Emacs
    and type the following:
@@ -150,8 +268,11 @@ To use the Agda 2 Emacs mode:
    in Emacs (after you have started the Agda mode) and change the
    setting to a suitable font.
 
-----------------------------------------------------------------
-Appendix: Installation scripts for (at least) Ubuntu Linux
+------------------------------------------------------------------
+Appendix: Partial installation scripts for (at least) Ubuntu Linux
+
+(This assumes that you have already installed GHC, Alex and Happy
+using the package manager.)
 
 # A.1 Installing binary
 
@@ -175,6 +296,9 @@ Appendix: Installation scripts for (at least) Ubuntu Linux
   cd ..
 
 # A.3 Installing Agda (excluding the stand-alone executable)
+
+  This has to be done from the root directory of an Agda distribution,
+  see point 1 above.
 
   runhaskell Setup.hs configure
   runhaskell Setup.hs build
