@@ -20,13 +20,13 @@ fzero≠fsuc ()
 fsuc-inj : {n : Nat}{i j : Fin n} -> fsuc i ≡ fsuc j -> i ≡ j
 fsuc-inj refl = refl
 
-_==_ : {n : Nat}(i j : Fin n) -> i ≡ j \/ i ≢ j
+_==_ : {n : Nat}(i j : Fin n) -> (i ≡ j) \/ (i ≢ j)
 fzero  == fzero  = \/-IL refl
 fzero  == fsuc j = \/-IR fzero≠fsuc
 fsuc i == fzero  = \/-IR (sym≢ fzero≠fsuc)
 fsuc i == fsuc j = aux i j (i == j)
   where
-    aux : {n : Nat}(i j : Fin n) -> i ≡ j \/ i ≢ j -> fsuc i ≡ fsuc j \/ fsuc i ≢ fsuc j
+    aux : {n : Nat}(i j : Fin n) -> (i ≡ j) \/ (i ≢ j) -> (fsuc i ≡ fsuc j) \/ (fsuc i ≢ fsuc j)
     aux i .i (\/-IL refl) = \/-IL refl
     aux i j  (\/-IR i≠j)  = \/-IR \si=sj -> i≠j (fsuc-inj si=sj)
 

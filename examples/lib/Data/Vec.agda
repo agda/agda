@@ -86,11 +86,11 @@ module Elem where
   ∈=¬∉ : {A : Set}{x : A}{n : Nat}{xs : Vec A n} -> x ∈ xs -> ¬ (x ∉ xs)
   ∈=¬∉ e ne = ∉=¬∈ ne e
 
-  find : {A : Set}{n : Nat} -> ((x y : A) -> x ≡ y \/ x ≢ y) ->
+  find : {A : Set}{n : Nat} -> ((x y : A) -> (x ≡ y) \/ (x ≢ y)) ->
 	 (x : A)(xs : Vec A n) -> x ∈ xs \/ x ∉ xs
   find _  _ []	      = \/-IR nl
   find eq y (x :: xs) = aux x y (eq y x) (find eq y xs) where
-    aux : forall x y -> y ≡ x \/ y ≢ x -> y ∈ xs \/ y ∉ xs -> y ∈ x :: xs \/ y ∉ x :: xs
+    aux : forall x y -> (y ≡ x) \/ (y ≢ x) -> y ∈ xs \/ y ∉ xs -> y ∈ x :: xs \/ y ∉ x :: xs
     aux x .x (\/-IL refl)  _	       = \/-IL hd
     aux x y  (\/-IR y≠x)  (\/-IR y∉xs) = \/-IR (cns y≠x y∉xs)
     aux x y  (\/-IR _)	  (\/-IL y∈xs) = \/-IL (tl y∈xs)
