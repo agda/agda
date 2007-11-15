@@ -5,11 +5,9 @@
 module Data.List where
 
 open import Data.Nat
+open import Data.Sum
 
 infixr 5 _∷_ _++_
-
-open import Data.Nat
-open import Data.Sum
 
 ------------------------------------------------------------------------
 -- The type
@@ -61,3 +59,26 @@ inj₂s : forall {a b} -> [ a ⊎ b ] -> [ b ]
 inj₂s []            = []
 inj₂s (inj₁ x ∷ xs) = inj₂s xs
 inj₂s (inj₂ x ∷ xs) = x ∷ inj₂s xs
+
+------------------------------------------------------------------------
+-- List monad
+
+open import Monad
+
+ListMonad : RawMonad [_]
+ListMonad = record
+  { return = \x -> x ∷ []
+  ; bind   = \xs f -> concat (map f xs)
+  }
+
+ListMonadZero : RawMonadZero [_]
+ListMonadZero = record
+  { monad = ListMonad
+  ; zero  = []
+  }
+
+ListMonadPlus : RawMonadPlus [_]
+ListMonadPlus = record
+  { monadZero = ListMonadZero
+  ; plus      = _++_
+  }

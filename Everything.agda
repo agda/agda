@@ -58,6 +58,8 @@ import Logic.Induction
 import Logic.Induction.Lexicographic
 import Logic.Induction.Nat
 
+import Monad
+
 import Relation.Binary
 import Relation.Binary.Conversion
 import Relation.Binary.Conversion.PartialOrder
