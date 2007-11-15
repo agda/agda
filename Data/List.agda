@@ -47,6 +47,9 @@ sum = foldr _+_ 0
 length : forall {a} -> [ a ] -> ℕ
 length = foldr (\_ -> suc) 0
 
+concat : forall {a} -> [ [ a ] ] -> [ a ]
+concat = foldr _++_ []
+
 -- Possibly the following functions should be called lefts and rights.
 
 inj₁s : forall {a b} -> [ a ⊎ b ] -> [ a ]
