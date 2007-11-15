@@ -43,6 +43,7 @@ import Data.Maybe
 import Data.Nat
 import Data.Nat.Properties
 import Data.Product
+import Data.Product.Record
 import Data.Sets
 import Data.String
 import Data.Sum
