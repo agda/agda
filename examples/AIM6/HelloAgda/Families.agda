@@ -79,7 +79,7 @@ module WhatsGoingOnHere? where
 data _==_ {A : Set}(x : A) : A -> Set where
   refl : x == x
 
-infix 30 _==_ _!=_
+infix 30 _==_
 infix 20 ¬_
 
 -- In the presence of families we get a lot more empty types.
