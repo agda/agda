@@ -52,9 +52,9 @@ module Prelude where
   {-# BUILTIN CONS    _::_    #-}
 
   primitive
-    primStringEqual : String -> String -> Bool
+    primStringEquality : String -> String -> Bool
 
-  _==_ = primStringEqual
+  _==_ = primStringEquality
 
   infix 10 if_then_else_
   infixr 50 _::_ _++_

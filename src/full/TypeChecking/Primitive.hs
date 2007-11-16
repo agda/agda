@@ -353,7 +353,7 @@ primitiveFunctions = Map.fromList
     , "primIntegerTimes"    |-> mkPrimFun2 ((*)	       :: Op Integer)
     , "primIntegerDiv"	    |-> mkPrimFun2 (div	       :: Op Integer)    -- partial
     , "primIntegerMod"	    |-> mkPrimFun2 (mod	       :: Op Integer)    -- partial
-    , "primIntegerEquals"   |-> mkPrimFun2 ((==)       :: Rel Integer)
+    , "primIntegerEquality" |-> mkPrimFun2 ((==)       :: Rel Integer)
     , "primIntegerLess"	    |-> mkPrimFun2 ((<)	       :: Rel Integer)
     , "primIntegerAbs"      |-> mkPrimFun1 (Nat . abs  :: Integer -> Nat)
     , "primNatToInteger"    |-> mkPrimFun1 (unNat      :: Nat -> Integer)
@@ -365,7 +365,7 @@ primitiveFunctions = Map.fromList
     , "primNatTimes"	    |-> mkPrimFun2 ((*)			    :: Op Nat)
     , "primNatDivSuc"	    |-> mkPrimFun2 ((\x y -> div x (y + 1)) :: Op Nat)
     , "primNatModSuc"	    |-> mkPrimFun2 ((\x y -> mod x (y + 1)) :: Op Nat)
-    , "primNatEquals"	    |-> mkPrimFun2 ((==)		    :: Rel Nat)
+    , "primNatEquality"	    |-> mkPrimFun2 ((==)		    :: Rel Nat)
     , "primNatLess"	    |-> mkPrimFun2 ((<)			    :: Rel Nat)
 
     -- Floating point functions
@@ -384,6 +384,7 @@ primitiveFunctions = Map.fromList
     , "primShowFloat"	    |-> mkPrimFun1 (Str . show	 :: Double -> Str)
 
     -- Character functions
+    , "primCharEquality"    |-> mkPrimFun2 ((==) :: Rel Char)
     , "primIsLower"	    |-> mkPrimFun1 isLower
     , "primIsDigit"	    |-> mkPrimFun1 isDigit
     , "primIsAlpha"	    |-> mkPrimFun1 isAlpha
@@ -394,15 +395,15 @@ primitiveFunctions = Map.fromList
     , "primIsHexDigit"	    |-> mkPrimFun1 isHexDigit
     , "primToUpper"	    |-> mkPrimFun1 toUpper
     , "primToLower"	    |-> mkPrimFun1 toLower
-    , "primCharToInteger"   |-> mkPrimFun1 (fromIntegral . fromEnum :: Char -> Integer)
-    , "primIntegerToChar"   |-> mkPrimFun1 (toEnum . fromIntegral   :: Integer -> Char)
+    , "primCharToNat"       |-> mkPrimFun1 (fromIntegral . fromEnum :: Char -> Nat)
+    , "primNatToChar"       |-> mkPrimFun1 (toEnum . fromIntegral   :: Nat -> Char)
     , "primShowChar"	    |-> mkPrimFun1 (Str . show . pretty . LitChar noRange)
 
     -- String functions
     , "primStringToList"    |-> mkPrimFun1 unStr
     , "primStringFromList"  |-> mkPrimFun1 Str
     , "primStringAppend"    |-> mkPrimFun2 (\s1 s2 -> Str $ unStr s1 ++ unStr s2)
-    , "primStringEqual"	    |-> mkPrimFun2 ((==) :: Rel Str)
+    , "primStringEquality"  |-> mkPrimFun2 ((==) :: Rel Str)
     , "primShowString"	    |-> mkPrimFun1 (Str . show . pretty . LitString noRange . unStr)
 
     -- IO functions

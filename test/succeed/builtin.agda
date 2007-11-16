@@ -51,14 +51,15 @@ data List (A : Set) : Set where
 primitive
 
   -- Integer functions
-  primIntegerPlus    : Int -> Int -> Int
-  primIntegerMinus   : Int -> Int -> Int
-  primIntegerTimes   : Int -> Int -> Int
-  primIntegerDiv     : Int -> Int -> Int
-  primIntegerMod     : Int -> Int -> Int
-  primIntegerEquals  : Int -> Int -> Bool
-  primIntegerLess    : Int -> Int -> Bool
-  primShowInteger    : Int -> String
+  primIntegerPlus     : Int -> Int -> Int
+  primIntegerMinus    : Int -> Int -> Int
+  primIntegerTimes    : Int -> Int -> Int
+  primIntegerDiv      : Int -> Int -> Int
+  primIntegerMod      : Int -> Int -> Int
+  primIntegerEquality : Int -> Int -> Bool
+  primIntegerLess     : Int -> Int -> Bool
+  primNatToInteger    : Nat -> Int
+  primShowInteger     : Int -> String
 
     -- Floating point functions
   primIntegerToFloat : Int -> Float
@@ -76,6 +77,7 @@ primitive
   primShowFloat	     : Float -> String
 
     -- Character functions
+  primCharEquality   : Char -> Char -> Bool
   primIsLower	     : Char -> Bool
   primIsDigit	     : Char -> Bool
   primIsAlpha	     : Char -> Bool
@@ -86,15 +88,15 @@ primitive
   primIsHexDigit     : Char -> Bool
   primToUpper	     : Char -> Char
   primToLower	     : Char -> Char
-  primCharToInteger  : Char -> Int
-  primIntegerToChar  : Int  -> Char -- partial
+  primCharToNat      : Char -> Nat
+  primNatToChar      : Nat  -> Char -- partial
   primShowChar	     : Char -> String
 
     -- String functions
   primStringToList   : String -> List Char
   primStringFromList : List Char -> String
   primStringAppend   : String -> String -> String
-  primStringEqual    : String -> String -> Bool
+  primStringEquality : String -> String -> Bool
   primShowString     : String -> String
 
 isLower : Char -> Bool
@@ -111,13 +113,14 @@ infix  12 -_
 infixl 12 _+_ _-_
 infixl 8  _==_
 
-int0 = primCharToInteger '\0'
+nat0 = primCharToNat '\0'
+int0 = primNatToInteger nat0
 
 _+_  = primIntegerPlus
 _*_  = primIntegerTimes
 _-_  = primIntegerMinus
 -_   = \x -> int0 - x
-_==_ = primIntegerEquals
+_==_ = primIntegerEquality
 _/_  = primFloatDiv
 
 pi = 3.141592653589793

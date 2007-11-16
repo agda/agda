@@ -135,7 +135,7 @@ builtinPrimitives =
     , "NATTIMES"  |-> ("primNatTimes", verifyTimes)
     , "NATDIVSUC" |-> ("primNatDivSuc", verifyDivSuc)
     , "NATMODSUC" |-> ("primNatModSuc", verifyModSuc)
-    , "NATEQUALS" |-> ("primNatEquals", verifyEquals)
+    , "NATEQUALS" |-> ("primNatEquality", verifyEquals)
     , "NATLESS"	  |-> ("primNatLess", verifyLess)
     ]
     where

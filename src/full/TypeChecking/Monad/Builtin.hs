@@ -56,32 +56,32 @@ getPrimitive x = do
 primInteger, primFloat, primChar, primString, primBool, primTrue, primFalse,
     primList, primNil, primCons, primIO, primUnit, primNat, primSuc, primZero,
     primNatPlus, primNatMinus, primNatTimes, primNatDivSuc, primNatModSuc,
-    primNatEquals, primNatLess, primEqual, primRefl
+    primNatEquality, primNatLess, primEqual, primRefl
     :: MonadTCM tcm => tcm Term
-primInteger   = getBuiltin builtinInteger
-primFloat     = getBuiltin builtinFloat
-primChar      = getBuiltin builtinChar
-primString    = getBuiltin builtinString
-primBool      = getBuiltin builtinBool
-primTrue      = getBuiltin builtinTrue
-primFalse     = getBuiltin builtinFalse
-primList      = getBuiltin builtinList
-primNil       = getBuiltin builtinNil
-primCons      = getBuiltin builtinCons
-primIO        = getBuiltin builtinIO
-primUnit      = getBuiltin builtinUnit
-primNat       = getBuiltin builtinNat
-primSuc       = getBuiltin builtinSuc
-primZero      = getBuiltin builtinZero
-primNatPlus   = getBuiltin builtinNatPlus
-primNatMinus  = getBuiltin builtinNatMinus
-primNatTimes  = getBuiltin builtinNatTimes
-primNatDivSuc = getBuiltin builtinNatDivSuc
-primNatModSuc = getBuiltin builtinNatModSuc
-primNatEquals = getBuiltin builtinNatEquals
-primNatLess   = getBuiltin builtinNatLess
-primEqual     = getBuiltin builtinEquality
-primRefl      = getBuiltin builtinRefl
+primInteger     = getBuiltin builtinInteger
+primFloat       = getBuiltin builtinFloat
+primChar        = getBuiltin builtinChar
+primString      = getBuiltin builtinString
+primBool        = getBuiltin builtinBool
+primTrue        = getBuiltin builtinTrue
+primFalse       = getBuiltin builtinFalse
+primList        = getBuiltin builtinList
+primNil         = getBuiltin builtinNil
+primCons        = getBuiltin builtinCons
+primIO          = getBuiltin builtinIO
+primUnit        = getBuiltin builtinUnit
+primNat         = getBuiltin builtinNat
+primSuc         = getBuiltin builtinSuc
+primZero        = getBuiltin builtinZero
+primNatPlus     = getBuiltin builtinNatPlus
+primNatMinus    = getBuiltin builtinNatMinus
+primNatTimes    = getBuiltin builtinNatTimes
+primNatDivSuc   = getBuiltin builtinNatDivSuc
+primNatModSuc   = getBuiltin builtinNatModSuc
+primNatEquality = getBuiltin builtinNatEquals
+primNatLess     = getBuiltin builtinNatLess
+primEqual       = getBuiltin builtinEquality
+primRefl        = getBuiltin builtinRefl
 
 builtinNat       = "NATURAL"
 builtinSuc       = "SUC"

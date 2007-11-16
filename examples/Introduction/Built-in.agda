@@ -124,21 +124,22 @@ module IO where
   primitive
     primPutStr : String -> IO Unit
 
--- Below is the complete list of primitive functions.
+-- Below is a partial version of the complete list of primitive
+-- functions.
 
 primitive
 
-  -- Integer functions
-  primIntegerPlus    : Int -> Int -> Int
-  primIntegerMinus   : Int -> Int -> Int
-  primIntegerTimes   : Int -> Int -> Int
-  primIntegerDiv     : Int -> Int -> Int  -- partial
-  primIntegerMod     : Int -> Int -> Int  -- partial
-  primIntegerEquals  : Int -> Int -> Bool
-  primIntegerLess    : Int -> Int -> Bool
-  primIntegerAbs     : Int -> Nat
-  primNatToInteger   : Nat -> Int
-  primShowInteger    : Int -> String
+    -- Integer functions
+  primIntegerPlus     : Int -> Int -> Int
+  primIntegerMinus    : Int -> Int -> Int
+  primIntegerTimes    : Int -> Int -> Int
+  primIntegerDiv      : Int -> Int -> Int  -- partial
+  primIntegerMod      : Int -> Int -> Int  -- partial
+  primIntegerEquality : Int -> Int -> Bool
+  primIntegerLess     : Int -> Int -> Bool
+  primIntegerAbs      : Int -> Nat
+  primNatToInteger    : Nat -> Int
+  primShowInteger     : Int -> String
 
     -- Floating point functions
   primIntegerToFloat : Int -> Float
@@ -156,25 +157,26 @@ primitive
   primShowFloat	     : Float -> String
 
     -- Character functions
-  primIsLower	     : Char -> Bool
-  primIsDigit	     : Char -> Bool
-  primIsAlpha	     : Char -> Bool
-  primIsSpace	     : Char -> Bool
-  primIsAscii	     : Char -> Bool
-  primIsLatin1	     : Char -> Bool
-  primIsPrint	     : Char -> Bool
-  primIsHexDigit     : Char -> Bool
-  primToUpper	     : Char -> Char
-  primToLower	     : Char -> Char
-  primCharToInteger  : Char -> Int
-  primIntegerToChar  : Int  -> Char -- partial
-  primShowChar	     : Char -> String
+  primCharEquality : Char -> Char -> Bool
+  primIsLower	   : Char -> Bool
+  primIsDigit	   : Char -> Bool
+  primIsAlpha	   : Char -> Bool
+  primIsSpace	   : Char -> Bool
+  primIsAscii	   : Char -> Bool
+  primIsLatin1	   : Char -> Bool
+  primIsPrint	   : Char -> Bool
+  primIsHexDigit   : Char -> Bool
+  primToUpper	   : Char -> Char
+  primToLower	   : Char -> Char
+  primCharToNat    : Char -> Nat
+  primNatToChar    : Nat  -> Char -- partial
+  primShowChar	   : Char -> String
 
     -- String functions
   primStringToList   : String -> List Char
   primStringFromList : List Char -> String
   primStringAppend   : String -> String -> String
-  primStringEqual    : String -> String -> Bool
+  primStringEquality : String -> String -> Bool
   primShowString     : String -> String
 
     -- IO functions (more to come)
