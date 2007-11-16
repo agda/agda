@@ -36,13 +36,13 @@ postulate
 
 private
   primitive
-    primIntegerPlus   : ℤ -> ℤ -> ℤ
-    primIntegerMinus  : ℤ -> ℤ -> ℤ
-    primIntegerTimes  : ℤ -> ℤ -> ℤ
-    primIntegerLess   : ℤ -> ℤ -> Bool
-    primIntegerEquals : ℤ -> ℤ -> Bool
-    primNatToInteger  : ℕ -> ℤ
-    primIntegerAbs    : ℤ -> ℕ
+    primIntegerPlus     : ℤ -> ℤ -> ℤ
+    primIntegerMinus    : ℤ -> ℤ -> ℤ
+    primIntegerTimes    : ℤ -> ℤ -> ℤ
+    primIntegerLess     : ℤ -> ℤ -> Bool
+    primIntegerEquality : ℤ -> ℤ -> Bool
+    primNatToInteger    : ℕ -> ℤ
+    primIntegerAbs      : ℤ -> ℕ
 
 _+_ : ℤ -> ℤ -> ℤ
 _+_ = primIntegerPlus
@@ -84,7 +84,7 @@ i ⊓ j = if primIntegerLess i j then j else i
 -- Queries
 
 _≟_ : Decidable {ℤ} _≡_
-i ≟ j with primIntegerEquals i j
+i ≟ j with primIntegerEquality i j
 ...   | true  = yes trustMe
   where postulate trustMe : _
 ...   | false = no trustMe
