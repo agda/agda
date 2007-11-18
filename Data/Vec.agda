@@ -11,6 +11,8 @@ open import Data.Nat
 open import Data.Nat.Properties
 open ℕ-semiringSolver
 open import Data.Fin
+import Data.List as List
+open List using ([_])
 open import Data.Product
 open import Logic
 open import Relation.Binary.PropositionalEquality
@@ -97,3 +99,11 @@ group {a = a} {n = suc n} k xs
 
 sum : forall {n} -> Vec ℕ n -> ℕ
 sum = foldr _+_ 0
+
+toList : forall {a n} -> Vec a n -> [ a ]
+toList []       = List.[]
+toList (x ∷ xs) = List._∷_ x (toList xs)
+
+fromList : forall {a} -> (xs : [ a ]) -> Vec a (List.length xs)
+fromList List.[]         = []
+fromList (List._∷_ x xs) = x ∷ fromList xs
