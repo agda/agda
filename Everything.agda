@@ -27,6 +27,7 @@ import Algebra.RingSolver.Simple
 
 import Data.Bool
 import Data.Bool.Properties
+import Data.BoundedVec
 import Data.Char
 import Data.Fin
 import Data.Fin.Dec
