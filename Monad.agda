@@ -14,7 +14,7 @@ record RawMonad (M : Set -> Set) : Set1 where
 
 record RawMonadZero (M : Set -> Set) : Set1 where
   monad  : RawMonad M
-  zero   : forall {a} -> M a
+  mzero  : forall {a} -> M a
 
 record RawMonadPlus (M : Set -> Set) : Set1 where
   monadZero : RawMonadZero M
@@ -52,7 +52,7 @@ module MonadZeroOps (M : Set -> Set) (Mon : RawMonadZero M) where
 
   private
     module MZ = RawMonadZero Mon
-    open MZ public using (zero)
+    open MZ public using (mzero)
     open module MO = MonadOps M MZ.monad public
 
 module MonadPlusOps (M : Set -> Set) (Mon : RawMonadPlus M) where

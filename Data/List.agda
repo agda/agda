@@ -74,7 +74,7 @@ ListMonad = record
 ListMonadZero : RawMonadZero [_]
 ListMonadZero = record
   { monad = ListMonad
-  ; zero  = []
+  ; mzero = []
   }
 
 ListMonadPlus : RawMonadPlus [_]
