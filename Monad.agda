@@ -26,8 +26,7 @@ module MonadOps (M : Set -> Set) (Mon : RawMonad M) where
     module MM = RawMonad Mon
     open MM public using (return)
 
-  infixl 4 _<*>_
-  infixl 3 _ap_
+  infixl 4 _<$>_ _<*>_
   infixl 1 _>>=_
   infixr 1 _=<<_
 
@@ -37,16 +36,16 @@ module MonadOps (M : Set -> Set) (Mon : RawMonad M) where
   _=<<_ : forall {a b} -> (a -> M b) -> M a -> M b
   f =<< c = c >>= f
 
-  -- _<*>_ is also known as liftM.
+  -- _<$>_ is also known as liftM.
 
-  _<*>_ : forall {a b} -> (a -> b) -> M a -> M b
-  f <*> x = x >>= (return ∘ f)
+  _<$>_ : forall {a b} -> (a -> b) -> M a -> M b
+  f <$> x = x >>= (return ∘ f)
 
   liftM₂ : forall {a b c} -> (a -> b -> c) -> M a -> M b -> M c
   liftM₂ f x y = x >>= \x' -> y >>= \y' -> return (f x' y')
 
-  _ap_ : forall {a b} -> M (a -> b) -> M a -> M b
-  f ap x = f >>= \f' -> x >>= \x' -> return (f' x')
+  _<*>_ : forall {a b} -> M (a -> b) -> M a -> M b
+  f <*> x = f >>= \f' -> x >>= \x' -> return (f' x')
 
 module MonadZeroOps (M : Set -> Set) (Mon : RawMonadZero M) where
 
