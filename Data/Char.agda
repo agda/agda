@@ -15,7 +15,7 @@ open import Relation.Binary.PropositionalEquality
 -- The type
 
 postulate
-  Char   : Set
+  Char : Set
 
 {-# BUILTIN CHAR Char #-}
 
