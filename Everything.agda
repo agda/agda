@@ -35,6 +35,7 @@ import Data.Fin.Props
 import Data.Fin.Subset
 import Data.Fin.Subset.Props
 import Data.Function
+import Data.HeterogeneousCollection
 -- The following module is currently broken due to an Agda bug.
 -- import Data.Int
 import Data.Integer
