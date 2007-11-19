@@ -13,4 +13,6 @@ synopsis:        A dependently typed proof checker / programming language.
 executable agda
   main-is:       Main.hs
   build-depends: Agda,
-                 base >= 3 && < 4
+                 base >= 3 && < 4,
+                 readline >= 1.0.1 && < 2
+  extra-libraries: readline
