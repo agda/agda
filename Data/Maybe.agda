@@ -29,7 +29,7 @@ MaybeMonad = record
 MaybeMonadZero : RawMonadZero Maybe
 MaybeMonadZero = record
   { monad = MaybeMonad
-  ; zero  = nothing
+  ; mzero = nothing
   }
 
 MaybeMonadPlus : RawMonadPlus Maybe
