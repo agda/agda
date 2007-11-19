@@ -142,7 +142,7 @@ checkExpr e t =
     case e of
 
 	-- Insert hidden lambda if appropriate
-	_   | not (hiddenLambda e)
+	_   | not (hiddenLambdaOrHole e)
 	    , FunV (Arg Hidden _) _ <- funView (unEl t) -> do
 		x <- freshName r (argName t)
                 reportSLn "tc.term.expr.impl" 15 $ "Inserting implicit lambda"
@@ -152,9 +152,10 @@ checkExpr e t =
 		    where
 			emptyR r = Range r r
 
-		hiddenLambda (A.Lam _ (A.DomainFree Hidden _) _)		     = True
-		hiddenLambda (A.Lam _ (A.DomainFull (A.TypedBindings _ Hidden _)) _) = True
-		hiddenLambda _							     = False
+		hiddenLambdaOrHole (A.Lam _ (A.DomainFree Hidden _) _)			   = True
+		hiddenLambdaOrHole (A.Lam _ (A.DomainFull (A.TypedBindings _ Hidden _)) _) = True
+		hiddenLambdaOrHole (A.QuestionMark _)					   = True
+		hiddenLambdaOrHole _							   = False
 
 	-- Variable or constant application
 	_   | Application hd args <- appView e -> do
