@@ -7,60 +7,23 @@
 module Monad where
 
 open import Data.Function
+open import Monad.Indexed
+open import Logic
 
-record RawMonad (M : Set -> Set) : Set1 where
-  return : forall {a} -> a -> M a
-  bind   : forall {a b} -> M a -> (a -> M b) -> M b
+RawMonad : (Set -> Set) -> Set1
+RawMonad M = RawIMonad {⊤} (\_ _ -> M)
 
-record RawMonadZero (M : Set -> Set) : Set1 where
-  monad  : RawMonad M
-  mzero  : forall {a} -> M a
+RawMonadZero : (Set -> Set) -> Set1
+RawMonadZero M = RawIMonadZero {⊤} (\_ _ -> M)
 
-record RawMonadPlus (M : Set -> Set) : Set1 where
-  monadZero : RawMonadZero M
-  plus      : forall {a} -> M a -> M a -> M a
+RawMonadPlus : (Set -> Set) -> Set1
+RawMonadPlus M = RawIMonadPlus {⊤} (\_ _ -> M)
 
 module MonadOps (M : Set -> Set) (Mon : RawMonad M) where
-
-  private
-    module MM = RawMonad Mon
-    open MM public using (return)
-
-  infixl 4 _<$>_ _<*>_
-  infixl 1 _>>=_
-  infixr 1 _=<<_
-
-  _>>=_ : forall {a b} -> M a -> (a -> M b) -> M b
-  _>>=_ = MM.bind
-
-  _=<<_ : forall {a b} -> (a -> M b) -> M a -> M b
-  f =<< c = c >>= f
-
-  -- _<$>_ is also known as liftM.
-
-  _<$>_ : forall {a b} -> (a -> b) -> M a -> M b
-  f <$> x = x >>= (return ∘ f)
-
-  liftM₂ : forall {a b c} -> (a -> b -> c) -> M a -> M b -> M c
-  liftM₂ f x y = x >>= \x' -> y >>= \y' -> return (f x' y')
-
-  _<*>_ : forall {a b} -> M (a -> b) -> M a -> M b
-  f <*> x = f >>= \f' -> x >>= \x' -> return (f' x')
+  private open module M = IMonadOps _ Mon public
 
 module MonadZeroOps (M : Set -> Set) (Mon : RawMonadZero M) where
-
-  private
-    module MZ = RawMonadZero Mon
-    open MZ public using (mzero)
-    open module MO = MonadOps M MZ.monad public
+  private open module M = IMonadZeroOps _ Mon public
 
 module MonadPlusOps (M : Set -> Set) (Mon : RawMonadPlus M) where
-
-  private
-    module MP = RawMonadPlus Mon
-    open module MZO = MonadZeroOps M MP.monadZero public
-
-  infixr 5 _++_
-
-  _++_ : forall {a} -> M a -> M a -> M a
-  _++_ = MP.plus
+  private open module M = IMonadPlusOps _ Mon public

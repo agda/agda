@@ -62,6 +62,9 @@ import Logic.Induction.Lexicographic
 import Logic.Induction.Nat
 
 import Monad
+import Monad.Indexed
+import Monad.Identity
+import Monad.State
 
 import Relation.Binary
 import Relation.Binary.Conversion
