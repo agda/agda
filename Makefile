@@ -71,12 +71,22 @@ $(SETUP) : Setup.hs
 
 endif
 
-full : $(SETUP) $(MAIN_SETUP)
+CONFIG	= dist/setup-config
+CABAL		= Agda.cabal
+LIB			= dist/build/AgdaMain.o
+SOURCES = $(find $(FULL_SRC_DIR) -name '*hs' -o -name '*.y' -o -name '*.x')
+
+$(CONFIG) : $(CABAL) $(SETUP)
+	$(RUNSETUP) configure
+
+$(LIB) : $(CONFIG) $(SOURCES)
 	$(RUNSETUP) build
 	$(RUNSETUP) register --user --inplace
+
+$(AGDA_BIN) : $(LIB) $(MAIN_SRC_DIR)/Main.hs
 	$(MAKE) -C $(MAIN_SRC_DIR)
 
-# $(MAKE) -C $(FULL_SRC_DIR)
+full : $(AGDA_BIN)
 
 prof :
 	$(MAKE) -C $(MAIN_SRC_DIR) prof
