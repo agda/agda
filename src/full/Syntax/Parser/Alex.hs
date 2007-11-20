@@ -82,7 +82,7 @@ type LexAction r    = PreviousInput -> CurrentInput -> TokenLength -> Parser r
 -- | Sometimes regular expressions aren't enough. Alex provides a way to do
 --   arbitrary computations to see if the input matches. This is done with a
 --   lex predicate.
-type LexPredicate   = ParseFlags -> PreviousInput -> TokenLength -> CurrentInput -> Bool
+type LexPredicate   = ([LexState], ParseFlags) -> PreviousInput -> TokenLength -> CurrentInput -> Bool
 
 -- | Conjunction of 'LexPredicate's.
 (.&&.) :: LexPredicate -> LexPredicate -> LexPredicate

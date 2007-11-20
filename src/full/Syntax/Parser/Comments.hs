@@ -26,7 +26,7 @@ import Utils.Monad
 -- | Should comment tokens be output?
 
 keepComments :: LexPredicate
-keepComments s _ _ _ = parseKeepComments s
+keepComments (_, s) _ _ _ = parseKeepComments s
 
 -- | Should comment tokens be output?
 

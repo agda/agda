@@ -16,7 +16,7 @@ module Syntax.Parser.LexActions
       -- ** Specialized actions
     , keyword, symbol, identifier, literal
       -- * Lex predicates
-    , notFollowedBy, followedBy, notEOF
+    , notFollowedBy, followedBy, notEOF, inState
     ) where
 
 import Data.Char
@@ -58,9 +58,9 @@ used by the parser is the continuation version of this function.
 lexToken :: Parser Token
 lexToken =
     do	inp <- getLexInput
-	ls:_ <- getLexState
+	lss@(ls:_) <- getLexState
         flags <- getParseFlags
-	case alexScanUser flags (foolAlex inp) ls of
+	case alexScanUser (lss, flags) (foolAlex inp) ls of
 	    AlexEOF			-> returnEOF inp
 	    AlexError _			-> parseError "Lexical error"
 	    AlexSkip inp' len		-> skipTo (newInput inp inp' len)
@@ -222,4 +222,8 @@ followedBy c' x y z inp = not $ notFollowedBy c' x y z inp
 -- | True if we are not at the end of the file.
 notEOF :: LexPredicate
 notEOF _ _ _ inp = not $ null $ lexInput inp
+
+-- | True if the given state appears somewhere on the state stack
+inState :: LexState -> LexPredicate
+inState s (ls, _) _ _ _ = s `elem` ls
 
