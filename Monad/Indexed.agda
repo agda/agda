@@ -27,11 +27,14 @@ module IMonadOps {I : Set}(M : I -> I -> Set -> Set) (Mon : RawIMonad M) where
     open MM public using (return)
 
   infixl 4 _<$>_ _<*>_
-  infixl 1 _>>=_
+  infixl 1 _>>=_ _>>_
   infixr 1 _=<<_
 
   _>>=_ : forall {i j k a b} -> M i j a -> (a -> M j k b) -> M i k b
   _>>=_ = MM.bind
+
+  _>>_ : forall {i j k a b} -> M i j a -> M j k b -> M i k b
+  m₁ >> m₂ = m₁ >>= \_ -> m₂
 
   _=<<_ : forall {i j k a b} -> (a -> M j k b) -> M i j a -> M i k b
   f =<< c = c >>= f

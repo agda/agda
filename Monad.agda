@@ -8,7 +8,7 @@ module Monad where
 
 open import Data.Function
 open import Monad.Indexed
-open import Logic
+open import Data.Unit
 
 RawMonad : (Set -> Set) -> Set1
 RawMonad M = RawIMonad {⊤} (\_ _ -> M)
@@ -18,6 +18,15 @@ RawMonadZero M = RawIMonadZero {⊤} (\_ _ -> M)
 
 RawMonadPlus : (Set -> Set) -> Set1
 RawMonadPlus M = RawIMonadPlus {⊤} (\_ _ -> M)
+
+module RawMonad {M : Set -> Set}(Mon : RawMonad M) where
+  private open module M = RawIMonad Mon public
+
+module RawMonadZero {M : Set -> Set}(Mon : RawMonadZero M) where
+  private open module M = RawIMonadZero Mon public
+
+module RawMonadPlus {M : Set -> Set}(Mon : RawMonadPlus M) where
+  private open module M = RawIMonadPlus Mon public
 
 module MonadOps (M : Set -> Set) (Mon : RawMonad M) where
   private open module M = IMonadOps _ Mon public
