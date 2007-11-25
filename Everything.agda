@@ -61,6 +61,9 @@ import Logic.Induction
 import Logic.Induction.Lexicographic
 import Logic.Induction.Nat
 
+import Category.Applicative
+import Category.Applicative.Indexed
+import Category.Functor
 import Category.Monad
 import Category.Monad.Indexed
 import Category.Monad.Identity
