@@ -1,5 +1,6 @@
-
+------------------------------------------------------------------------
 -- The state monad
+------------------------------------------------------------------------
 
 module Category.Monad.State where
 
@@ -10,6 +11,9 @@ open import Data.Product
 open import Data.Function
 open import Data.Unit
 open import Category.Applicative.Indexed
+
+------------------------------------------------------------------------
+-- Indexed state monads
 
 IStateT : {I : Set} -> (I -> Set) -> (Set -> Set) -> IFun I
 IStateT S M i j A = S i -> M (A × S j)
@@ -38,6 +42,9 @@ StateTIMonadPlus S Mon = record
   }
   where open module M = MonadPlusOps Mon
 
+------------------------------------------------------------------------
+-- Ordinary state monads
+
 StateT : Set -> (Set -> Set) -> Set -> Set
 StateT S M = IStateT {⊤} (\_ -> S) M _ _
 
@@ -46,6 +53,9 @@ State S = StateT S Identity
 
 StateMonad : (S : Set) -> RawMonad (State S)
 StateMonad S = StateTIMonad _ IdentityMonad
+
+------------------------------------------------------------------------
+-- State monad operations
 
 record RawIMonadState {I : Set} (S : I -> Set)
                       (M : I -> I -> Set -> Set) : Set1 where
