@@ -7,63 +7,71 @@
 module Category.Monad.Indexed where
 
 open import Data.Function
+open import Category.Applicative.Indexed
 
-record RawIMonad {I : Set}(M : I -> I -> Set -> Set) : Set1 where
-  return : forall {i a} -> a -> M i i a
-  bind   : forall {i j k a b} -> M i j a -> (a -> M j k b) -> M i k b
+record RawIMonad {I : Set}(M : IFun I) : Set1 where
+  return : forall {i A} -> A -> M i i A
+  bind   : forall {i j k A B} -> M i j A -> (A -> M j k B) -> M i k B
 
-record RawIMonadZero {I : Set}(M : I -> I -> Set -> Set) : Set1 where
-  monad  : RawIMonad M
-  mzero  : forall {i j a} -> M i j a
+record RawIMonadZero {I : Set}(M : IFun I) : Set1 where
+  monad : RawIMonad M
+  mzero : forall {i j A} -> M i j A
 
-record RawIMonadPlus {I : Set}(M : I -> I -> Set -> Set) : Set1 where
+record RawIMonadPlus {I : Set}(M : IFun I) : Set1 where
   monadZero : RawIMonadZero M
-  plus      : forall {i j a} -> M i j a -> M i j a -> M i j a
+  plus      : forall {i j A} -> M i j A -> M i j A -> M i j A
 
-module IMonadOps {I : Set}(M : I -> I -> Set -> Set) (Mon : RawIMonad M) where
+module IMonadOps {I : Set} {M : IFun I}
+                 (Mon : RawIMonad M)
+                 where
 
   private
     module MM = RawIMonad Mon
     open MM public using (return)
 
-  infixl 4 _<$>_ _<*>_
   infixl 1 _>>=_ _>>_
   infixr 1 _=<<_
 
-  _>>=_ : forall {i j k a b} -> M i j a -> (a -> M j k b) -> M i k b
+  _>>=_ : forall {i j k A B} -> M i j A -> (A -> M j k B) -> M i k B
   _>>=_ = MM.bind
 
-  _>>_ : forall {i j k a b} -> M i j a -> M j k b -> M i k b
+  _>>_ : forall {i j k A B} -> M i j A -> M j k B -> M i k B
   m₁ >> m₂ = m₁ >>= \_ -> m₂
 
-  _=<<_ : forall {i j k a b} -> (a -> M j k b) -> M i j a -> M i k b
+  _=<<_ : forall {i j k A B} -> (A -> M j k B) -> M i j A -> M i k B
   f =<< c = c >>= f
 
-  -- _<$>_ is also known as liftM.
+  rawIApplicative : RawIApplicative M
+  rawIApplicative = record
+    { pure = return
+    ; fapp = \f x -> f >>= \f' -> x >>= \x' -> return (f' x')
+    }
 
-  _<$>_ : forall {i j a b} -> (a -> b) -> M i j a -> M i j b
-  f <$> x = x >>= (return ∘ f)
+  private
+    open module RIA = IApplicativeOps rawIApplicative public
 
-  _<*>_ : forall {i j k a b} -> M i j (a -> b) -> M j k a -> M i k b
-  f <*> x = f >>= \f' -> x >>= \x' -> return (f' x')
-
-  liftM₂ : forall {i j k a b c} -> (a -> b -> c) -> M i j a -> M j k b -> M i k c
+  liftM₂ : forall {i j k A B C} ->
+           (A -> B -> C) ->
+           M i j A -> M j k B -> M i k C
   liftM₂ f x y = f <$> x <*> y
 
-module IMonadZeroOps {I : Set}(M : I -> I -> Set -> Set) (Mon : RawIMonadZero M) where
+module IMonadZeroOps {I : Set} {M : IFun I}
+                     (Mon : RawIMonadZero M)
+                     where
 
   private
     module MZ = RawIMonadZero Mon
     open MZ public using (mzero)
-    open module MO = IMonadOps M MZ.monad public
+    open module MO = IMonadOps MZ.monad public
 
-module IMonadPlusOps {I : Set}(M : I -> I -> Set -> Set) (Mon : RawIMonadPlus M) where
+module IMonadPlusOps {I : Set} {M : IFun I}
+                     (Mon : RawIMonadPlus M) where
 
   private
     module MP = RawIMonadPlus Mon
-    open module MZO = IMonadZeroOps M MP.monadZero public
+    open module MZO = IMonadZeroOps MP.monadZero public
 
   infixr 5 _++_
 
-  _++_ : forall {i j a} -> M i j a -> M i j a -> M i j a
+  _++_ : forall {i j A} -> M i j A -> M i j A -> M i j A
   _++_ = MP.plus
