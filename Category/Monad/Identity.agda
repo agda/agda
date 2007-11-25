@@ -1,7 +1,7 @@
 
-module Monad.Identity where
+module Category.Monad.Identity where
 
-open import Monad
+open import Category.Monad
 
 Identity : Set -> Set
 Identity A = A

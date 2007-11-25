@@ -1,11 +1,11 @@
 
 -- The state monad
 
-module Monad.State where
+module Category.Monad.State where
 
-open import Monad
-open import Monad.Indexed
-open import Monad.Identity
+open import Category.Monad
+open import Category.Monad.Indexed
+open import Category.Monad.Identity
 open import Data.Product
 open import Data.Function
 open import Data.Unit

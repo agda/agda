@@ -14,7 +14,7 @@ data Maybe (a : Set) : Set where
 ------------------------------------------------------------------------
 -- Maybe monad
 
-open import Monad
+open import Category.Monad
 
 MaybeMonad : RawMonad Maybe
 MaybeMonad = record

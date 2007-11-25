@@ -4,10 +4,10 @@
 
 -- Note that currently the monad laws are not included here.
 
-module Monad where
+module Category.Monad where
 
 open import Data.Function
-open import Monad.Indexed
+open import Category.Monad.Indexed
 open import Data.Unit
 
 RawMonad : (Set -> Set) -> Set1

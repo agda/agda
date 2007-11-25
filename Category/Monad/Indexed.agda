@@ -4,7 +4,7 @@
 
 -- Note that currently the monad laws are not included here.
 
-module Monad.Indexed where
+module Category.Monad.Indexed where
 
 open import Data.Function
 

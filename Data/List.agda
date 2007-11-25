@@ -63,7 +63,7 @@ inj₂s (inj₂ x ∷ xs) = x ∷ inj₂s xs
 ------------------------------------------------------------------------
 -- List monad
 
-open import Monad
+open import Category.Monad
 
 ListMonad : RawMonad [_]
 ListMonad = record
