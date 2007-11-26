@@ -22,7 +22,7 @@ StateTIMonad : forall {I} (S : I -> Set) {M} ->
                RawMonad M -> RawIMonad (IStateT S M)
 StateTIMonad s Mon = record
   { return = \x s -> return (x , s)
-  ; bind   = \m f s -> m s >>= \r -> f (proj₁ r) (proj₂ r)
+  ; bind   = \m f s -> m s >>= uncurry f
   }
   where open module M = MonadOps Mon
 
