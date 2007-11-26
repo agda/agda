@@ -57,7 +57,7 @@ import qualified Utils.IO
 -- | Current version of the interface. Only interface files of this version
 --   will be parsed.
 currentInterfaceVersion :: Int
-currentInterfaceVersion = 132
+currentInterfaceVersion = 133
 
 ------------------------------------------------------------------------
 -- A wrapper around Data.Binary
@@ -611,12 +611,14 @@ instance Binary Syntax.Internal.Pattern where
   put (VarP a) = putWord8 0 >> put a
   put (ConP a b) = putWord8 1 >> put a >> put b
   put (LitP a) = putWord8 2 >> put a
+  put (DotP a) = putWord8 3 >> put a
   get = {-# SCC "get<Pattern>" #-} do
     tag_ <- getWord8
     case tag_ of
       0 -> get >>= \a -> return (VarP a)
       1 -> get >>= \a -> get >>= \b -> return (ConP a b)
       2 -> get >>= \a -> return (LitP a)
+      3 -> get >>= \a -> return (DotP a)
       _ -> fail "no parse"
 
 instance Binary a => Binary (Builtin a) where

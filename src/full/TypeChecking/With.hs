@@ -26,6 +26,7 @@ import Utils.Size
 #include "../undefined.h"
 
 showPat (VarP x)    = text x
+showPat (DotP t)    = comma <> text (showsPrec 10 t "")
 showPat (ConP c ps) = parens $ prettyTCM c <+> fsep (map (showPat . unArg) ps)
 showPat (LitP l)    = text (show l)
 
@@ -99,6 +100,10 @@ stripWithClausePatterns gamma qs perm ps = do
         ]
       case unArg q of
         VarP _  -> do
+          ps <- underAbstraction a tel $ \tel -> strip tel ps qs
+          return $ p : ps
+
+        DotP _  -> do
           ps <- underAbstraction a tel $ \tel -> strip tel ps qs
           return $ p : ps
 
@@ -206,6 +211,7 @@ patsToTerms ps = evalState (toTerms ps) 0
     toTerm :: Pattern -> State Nat Term
     toTerm p = case p of
       VarP _    -> var >>= \i -> return $ Var i []
+      DotP t    -> return t
       ConP c ps -> Con c <$> toTerms ps
       LitP l    -> return $ Lit l
 

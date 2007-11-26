@@ -233,6 +233,10 @@ stripBind i (VarP x) (NoBind b) = Just (i, unusedVar, b)
 stripBind i (VarP x) (Bind (Abs { absName = _, absBody = b })) 
                                 = Just (i+1, VarDBP i, b)
 stripBind i (VarP x) (Body b)   = __IMPOSSIBLE__
+stripBind i (DotP _) (NoBind b) = Just (i, unusedVar, b)
+stripBind i (DotP _) (Bind (Abs { absName = _, absBody = b })) 
+                                = Just (i+1, VarDBP i, b)
+stripBind i (DotP _) (Body b)   = __IMPOSSIBLE__
 stripBind i (LitP l) b          = Just (i, LitDBP l, b)
 stripBind i (ConP c args) b     = do 
     (i', dbps, b') <- stripBinds i (map unArg args) b

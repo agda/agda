@@ -45,6 +45,7 @@ matchPatterns ps vs =
 
 matchPattern :: MonadTCM tcm => Arg Pattern -> Arg Term -> tcm (Match, Arg Term)
 matchPattern (Arg h' (VarP _))	  arg@(Arg _ v) = return (Yes [v], arg)
+matchPattern (Arg _  (DotP _))    arg@(Arg _ v) = return (Yes [v], arg)
 matchPattern (Arg h' (LitP l))	  arg@(Arg h v) = do
     v <- reduce v
     case v of

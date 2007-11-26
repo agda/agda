@@ -122,6 +122,8 @@ showClause fTerm fCon fBody (Clause pats body)   = go 0 [] body
     showPattern :: [Doc] -> Pattern -> TCM ([Doc], Doc)
     showPattern (dvar : dvars) (VarP s) = return (dvars, dvar)
     showPattern []             (VarP s) = __IMPOSSIBLE__
+    showPattern (dvar : dvars) (DotP _) = return (dvars, dvar)
+    showPattern []             (DotP _) = __IMPOSSIBLE__
     showPattern dvars (ConP name args) = do
 	(dvars',dargs) <- showPatterns dvars (map unArg args)
 	dcon <- fCon name dargs

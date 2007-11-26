@@ -304,6 +304,8 @@ processPat (VarP _) = do
 	  putPlst ps
 	  return p
 
+processPat (DotP _) = return HsPWildCard
+
 processPat (ConP qname args) = do 
   let name = qnameName qname   
   hspats <- mapM processArgPat args

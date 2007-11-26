@@ -151,6 +151,7 @@ data ClauseBody = Body Term
 --     the arguments we are matching with) use @QName@.
 --
 data Pattern = VarP String  -- name suggestion
+             | DotP Term
 	     | ConP QName [Arg Pattern]
 	     | LitP Literal
   deriving (Typeable, Data, Show)

@@ -393,6 +393,7 @@ cmd_make_case ii rng s = infoOnException $ ioTCM $ do
   repl sx replpa = go where
     go pa@(SI.VarP y) | y == sx   = replpa
                       | otherwise = pa
+    go (SI.DotP t)        = SI.DotP t
     go (SI.ConP c argpas) = SI.ConP c $ List.map (fmap go) argpas
     go (SI.LitP l)	  = SI.LitP l
 
@@ -430,9 +431,11 @@ cmd_make_case ii rng s = infoOnException $ ioTCM $ do
   dropUscore p@(SI.VarP s) = p
   dropUscore (SI.ConP c apas) = SI.ConP c (List.map (fmap dropUscore) apas)
   dropUscore (SI.LitP l) = SI.LitP l
+  dropUscore (SI.DotP t) = SI.DotP t
 
   -- | To do : precedence of ops
   ppPa prec (SI.VarP n) = P.text n
+  ppPa prec (SI.DotP t) = P.text "._"
   ppPa prec (SI.LitP l) = pretty l
   ppPa prec (SI.ConP qn []) = P.text (show qn)
   ppPa prec (SI.ConP qn [apa1,apa2])

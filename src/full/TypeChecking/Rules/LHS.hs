@@ -86,6 +86,41 @@ dotPatternInsts ps s as = dpi (map (namedThing . unArg) ps) (reverse s) as
         A.ImplicitP _ -> dpi ps s as
         _           -> __IMPOSSIBLE__
 
+instantiatePattern :: Substitution -> [Arg Pattern] -> [Arg Pattern]
+instantiatePattern sub ps
+  | length sub /= length (allHoles ps) = error $ unlines ["sub = " ++ show (length sub), "ps  = " ++ show ps ]
+  | otherwise  = foldr merge ps $ zipWith inst (reverse sub) (allHoles ps)
+  where
+    inst Nothing  hps = Nothing
+    inst (Just t) hps = Just $ plugHole (DotP t) hps
+
+    merge Nothing   ps = ps
+    merge (Just qs) ps = zipWith mergeA qs ps
+      where
+        mergeA (Arg h p) (Arg _ q) = Arg h $ mergeP p q
+        mergeP (DotP s)  (DotP t)
+          | s == t                 = DotP s
+          | otherwise              = __IMPOSSIBLE__
+        mergeP (DotP t)  (VarP _)  = DotP t
+        mergeP (VarP _)  (DotP t)  = DotP t
+        mergeP (DotP _)  _         = __IMPOSSIBLE__
+        mergeP _         (DotP _)  = __IMPOSSIBLE__
+        mergeP (ConP c1 ps) (ConP c2 qs)
+          | c1 == c2               = ConP c1 $ zipWith mergeA ps qs
+          | otherwise              = __IMPOSSIBLE__
+        mergeP (LitP l1) (LitP l2)
+          | l1 == l2               = LitP l1
+          | otherwise              = __IMPOSSIBLE__
+        mergeP (VarP x) (VarP y)
+          | x == y                 = VarP x
+          | otherwise              = __IMPOSSIBLE__
+        mergeP (ConP _ _) (VarP _) = __IMPOSSIBLE__
+        mergeP (ConP _ _) (LitP _) = __IMPOSSIBLE__
+        mergeP (VarP _) (ConP _ _) = __IMPOSSIBLE__
+        mergeP (VarP _) (LitP _)   = __IMPOSSIBLE__
+        mergeP (LitP _) (ConP _ _) = __IMPOSSIBLE__
+        mergeP (LitP _) (VarP _)   = __IMPOSSIBLE__
+
 -- | Check if a problem is solved. That is, if the patterns are all variables.
 isSolvedProblem :: Problem -> Bool
 isSolvedProblem = all (isVar . snd . asView . namedThing . unArg) . problemInPat
@@ -340,10 +375,13 @@ checkLeftHandSide ps a ret = do
                 newTel = problemTel p0 `abstract` (gamma `abstract` delta2)
                 sub    = replicate (size delta2) Nothing ++
                          pad (size delta1 + size gamma) (raise (size delta2) sub0) Nothing
+                ip'    = instantiatePattern sub ip
 
             reportSDoc "tc.lhs.top" 15 $ nest 2 $ vcat
               [ text "newTel =" <+> prettyTCM newTel
               , addCtxTel newTel $ text "sub =" <+> brackets (fsep $ punctuate comma $ map (maybe (text "_") prettyTCM) sub)
+              , text "ip  =" <+> text (show ip)
+              , text "ip' =" <+> text (show ip')
               ]
 
             -- Instantiate the new telescope with the given substitution
