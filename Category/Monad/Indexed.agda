@@ -50,11 +50,6 @@ module IMonadOps {I : Set} {M : IFun I}
   private
     open module RIA = IApplicativeOps rawIApplicative public
 
-  liftM₂ : forall {i j k A B C} ->
-           (A -> B -> C) ->
-           M i j A -> M j k B -> M i k C
-  liftM₂ f x y = f <$> x <*> y
-
 module IMonadZeroOps {I : Set} {M : IFun I}
                      (Mon : RawIMonadZero M)
                      where
