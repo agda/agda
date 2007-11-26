@@ -41,8 +41,10 @@ asView p	     = ([], p)
 -- | Split a problem at the first constructor of datatype type. Implicit
 --   patterns should have been inserted.
 splitProblem :: Problem -> TCM (Either SplitError SplitProblem)
-splitProblem (Problem ps (perm, qs) tel) = runErrorT $
-    splitP ps (permute perm $ zip [0..] $ allHoles qs) tel
+splitProblem (Problem ps (perm, qs) tel) = do
+    reportS "tc.lhs.split" 20 $ "initiating splitting\n"
+    runErrorT $
+      splitP ps (permute perm $ zip [0..] $ allHoles qs) tel
   where
     splitP :: [NamedArg A.Pattern] -> [(Int, OneHolePatterns)] -> Telescope -> ErrorT SplitError TCM SplitProblem
     splitP _	    []		 (ExtendTel _ _)	 = __IMPOSSIBLE__

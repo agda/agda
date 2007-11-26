@@ -86,11 +86,16 @@ dotPatternInsts ps s as = dpi (map (namedThing . unArg) ps) (reverse s) as
         A.ImplicitP _ -> dpi ps s as
         _           -> __IMPOSSIBLE__
 
-instantiatePattern :: Substitution -> [Arg Pattern] -> [Arg Pattern]
-instantiatePattern sub ps
-  | length sub /= length (allHoles ps) = error $ unlines ["sub = " ++ show (length sub), "ps  = " ++ show ps ]
-  | otherwise  = foldr merge ps $ zipWith inst (reverse sub) (allHoles ps)
+instantiatePattern :: Substitution -> Permutation -> [Arg Pattern] -> [Arg Pattern]
+instantiatePattern sub perm ps
+  | length sub /= length hps = error $ unlines [ "instantiatePattern:"
+                                               , "  sub  = " ++ show (length sub)
+                                               , "  perm = " ++ show perm
+                                               , "  ps   = " ++ show ps
+                                               ]
+  | otherwise  = foldr merge ps $ zipWith inst (reverse sub) hps
   where
+    hps = permute perm $ allHoles ps
     inst Nothing  hps = Nothing
     inst (Just t) hps = Just $ plugHole (DotP t) hps
 
@@ -238,6 +243,7 @@ checkLeftHandSide ps a ret = do
         return (problem, sigma, dpi, asb)
       | otherwise               = do
         sp <- splitProblem =<< insertImplicitProblem problem
+        reportSDoc "tc.lhs.top" 20 $ text "splitting completed"
         case sp of
           Left NothingToSplit   -> nothingToSplitError problem
           Left (SplitPanic err) -> __IMPOSSIBLE__
@@ -375,17 +381,16 @@ checkLeftHandSide ps a ret = do
                 newTel = problemTel p0 `abstract` (gamma `abstract` delta2)
                 sub    = replicate (size delta2) Nothing ++
                          pad (size delta1 + size gamma) (raise (size delta2) sub0) Nothing
-                ip'    = instantiatePattern sub ip
 
             reportSDoc "tc.lhs.top" 15 $ nest 2 $ vcat
               [ text "newTel =" <+> prettyTCM newTel
               , addCtxTel newTel $ text "sub =" <+> brackets (fsep $ punctuate comma $ map (maybe (text "_") prettyTCM) sub)
               , text "ip  =" <+> text (show ip)
-              , text "ip' =" <+> text (show ip')
               ]
 
             -- Instantiate the new telescope with the given substitution
             (delta', perm, rho, instTypes) <- instantiateTel sub newTel
+
 
             reportSDoc "tc.lhs.inst" 12 $
               vcat [ sep [ text "instantiateTel"
@@ -403,7 +408,7 @@ checkLeftHandSide ps a ret = do
 
             reportSDoc "tc.lhs.top" 15 $ nest 2 $ vcat
               [ text "subst rho sub =" <+> brackets (fsep $ punctuate comma $ map (maybe (text "_") prettyTCM) (substs rho sub))
-              , text "ps0' =" <+> brackets (fsep $ punctuate comma $ map prettyA ps0')
+              , text "ps0'  =" <+> brackets (fsep $ punctuate comma $ map prettyA ps0')
               ]
 
             -- The final dpis and asbs are the new ones plus the old ones substituted by ρ
@@ -430,8 +435,12 @@ checkLeftHandSide ps a ret = do
             let perm'  = expandP hix (size gamma) $ fst (problemOutPat problem)
                 iperm' = perm `composeP` perm'
 
+            -- Instantiate the out patterns
+            let ip'    = instantiatePattern sub perm' ip
+                newip  = substs rho ip'
+
             -- Construct the new problem
-            let problem' = Problem ps' (iperm', ip) delta'
+            let problem' = Problem ps' (iperm', newip) delta'
 
             reportSDoc "tc.lhs.top" 12 $ sep
               [ text "new problem"
@@ -444,6 +453,10 @@ checkLeftHandSide ps a ret = do
             reportSDoc "tc.lhs.top" 14 $ nest 2 $ vcat
               [ text "perm'  =" <+> text (show perm')
               , text "iperm' =" <+> text (show iperm')
+              ]
+            reportSDoc "tc.lhs.top" 14 $ nest 2 $ vcat
+              [ text "ip'    =" <+> text (show ip')
+              , text "newip  =" <+> text (show newip)
               ]
 
             -- Continue splitting

@@ -23,6 +23,7 @@ allHoles (p : ps) = map left phs ++ map right (allHoles ps)
 
     holes :: Pattern -> [OneHolePattern]
     holes (VarP _)    = [Hole]
+    holes (DotP _)    = [Hole]
     holes (ConP c qs) = map (OHCon c) $ allHoles qs
     holes _	      = []
 
