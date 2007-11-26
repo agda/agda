@@ -73,8 +73,10 @@ endif
 
 CONFIG	= dist/setup-config
 CABAL		= Agda.cabal
-LIB			= dist/build/AgdaMain.o
-SOURCES = $(find $(FULL_SRC_DIR) -name '*hs' -o -name '*.y' -o -name '*.x')
+LIB			= dist/build-complete
+SOURCES = $(shell $(FIND) $(FULL_SRC_DIR) -name '*hs') \
+					$(shell $(FIND) $(FULL_SRC_DIR) -name '*.y') \
+					$(shell $(FIND) $(FULL_SRC_DIR) -name '*.x')
 
 $(CONFIG) : $(CABAL) $(SETUP)
 	$(RUNSETUP) configure
@@ -82,6 +84,7 @@ $(CONFIG) : $(CABAL) $(SETUP)
 $(LIB) : $(CONFIG) $(SOURCES)
 	$(RUNSETUP) build
 	$(RUNSETUP) register --user --inplace
+	@date > $(LIB)
 
 $(AGDA_BIN) : $(LIB) $(MAIN_SRC_DIR)/Main.hs
 	$(MAKE) -C $(MAIN_SRC_DIR)
