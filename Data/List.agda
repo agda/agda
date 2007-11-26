@@ -39,6 +39,10 @@ foldr : {a b : Set} -> (a -> b -> b) -> b -> [ a ] -> b
 foldr c n []       = n
 foldr c n (x ∷ xs) = c x (foldr c n xs)
 
+foldl : {a b : Set} -> (a -> b -> a) -> a -> [ b ] -> a
+foldl c n []       = n
+foldl c n (x ∷ xs) = foldl c (c n x) xs
+
 sum : [ ℕ ] -> ℕ
 sum = foldr _+_ 0
 
