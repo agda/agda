@@ -1,4 +1,5 @@
-{-# OPTIONS --allow-unsolved-metas #-}
+{-# OPTIONS --allow-unsolved-metas --dont-termination-check
+  #-}
 module Bag where
 
   import Prelude
