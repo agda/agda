@@ -556,12 +556,14 @@ instance LowerMeta a => LowerMeta (Named name a) where
 preMeta   = SC.QuestionMark noRange Nothing
 preUscore = SC.Underscore   noRange Nothing
 
-cmd_compute :: B.Rewrite -> GoalCommand
-cmd_compute _ ii rng s = infoOnException $ do
+cmd_compute :: Bool -- ^ Ignore abstract?
+            -> B.Rewrite -> GoalCommand
+cmd_compute ignore _ ii rng s = infoOnException $ do
   d <- ioTCM $ do
     e <- parseExprIn ii rng s
     B.withInteractionId ii $ do
-      v <- B.evalInCurrent e
+      let c = B.evalInCurrent e
+      v <- if ignore then ignoreAbstractMode c else c
       prettyA v
   display_info "*Normal Form*" (show d)
 
@@ -600,9 +602,12 @@ cmd_infer_toplevel norm =
 -- | Parse and type check the given expression (as if it were defined
 -- at the top-level of the current module) and normalise it.
 
-cmd_compute_toplevel :: String -> IO ()
-cmd_compute_toplevel =
-  parseAndDoAtToplevel B.evalInCurrent "*Normal Form*"
+cmd_compute_toplevel :: Bool -- ^ Ignore abstract?
+                     -> String -> IO ()
+cmd_compute_toplevel ignore =
+  parseAndDoAtToplevel (if ignore then ignoreAbstractMode . c else c)
+                       "*Normal Form*"
+  where c = B.evalInCurrent
 
 -- change "\<decimal>" to a single character
 -- TODO: This seems to be the wrong solution to the problem. Attack

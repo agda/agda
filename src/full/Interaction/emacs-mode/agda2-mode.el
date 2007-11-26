@@ -608,24 +608,30 @@ given expression"
         (agda2-goto-goal g)
         (agda2-give)))))
 
-(defun agda2-compute-normalised ()
-  "Compute the normal form of exp in the goal at point"
-  (interactive)
-  (agda2-goal-cmd "cmd_compute Interaction.BasicOps.Normalised"
-                  "expression to normalise"))
+(defun agda2-compute-normalised (&optional arg)
+  "Compute the normal form of the expression in the goal at point.
+With a prefix argument \"abstract\" is ignored during the computation."
+  (interactive "P")
+  (let ((cmd (concat "cmd_compute"
+                     (if arg " True" " False")
+                     " Interaction.BasicOps.Normalised")))
+    (agda2-goal-cmd cmd "expression to normalise")))
 
-(defun agda2-compute-normalised-toplevel (expr)
+(defun agda2-compute-normalised-toplevel (expr &optional arg)
   "Computes the normal form of the given expression. The scope used for
 the expression is that of the last point inside the current
-top-level module."
-  (interactive "MExpression: ")
-  (agda2-go (concat "cmd_compute_toplevel "
-                    (agda2-string-quote expr))))
+top-level module.
+With a prefix argument \"abstract\" is ignored during the computation."
+  (interactive "MExpression: \nP")
+  (let ((cmd (concat "cmd_compute_toplevel"
+                     (if arg " True" " False"))))
+    (agda2-go (concat cmd (agda2-string-quote expr)))))
 
 (defun agda2-compute-normalised-maybe-toplevel ()
   "Computes the normal form of the given expression, using the
 scope of the current goal or, if point is not in a goal, the
-top-level scope."
+top-level scope.
+With a prefix argument \"abstract\" is ignored during the computation."
   (interactive)
   (if (agda2-goal-at (point))
       (call-interactively 'agda2-compute-normalised)
