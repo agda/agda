@@ -66,6 +66,10 @@ filter p (x ∷ xs) with p x
 ... | true  = x ∷ filter p xs
 ... | false =     filter p xs
 
+null : forall {a} -> [ a ] -> Bool
+null []       = true
+null (x ∷ xs) = false
+
 -- Possibly the following functions should be called lefts and rights.
 
 inj₁s : forall {a b} -> [ a ⊎ b ] -> [ a ]
