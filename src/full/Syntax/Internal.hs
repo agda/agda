@@ -17,6 +17,7 @@ import Syntax.Abstract.Name
 
 import Utils.Monad
 import Utils.Size
+import Utils.Permutation
 
 #include "../undefined.h"
 
@@ -137,7 +138,11 @@ telToList (ExtendTel arg (Abs x tel)) = fmap ((,) x) arg : telToList tel
 --   The @NoBind@ constructor is an optimisation to avoid
 --   substituting for variables that aren't used.
 --
-data Clause = Clause [Arg Pattern] ClauseBody deriving (Typeable, Data, Show)
+--  The telescope contains the types of the pattern variables and
+--  the permutation is how to get from the order the variables
+--  occur in the patterns to the order they occur in the telescope.
+data Clause = Clause Telescope Permutation [Arg Pattern] ClauseBody
+  deriving (Typeable, Data, Show)
 data ClauseBody = Body Term 
 		| Bind (Abs ClauseBody)
 		| NoBind ClauseBody

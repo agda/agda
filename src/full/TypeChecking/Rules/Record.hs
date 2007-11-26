@@ -19,6 +19,7 @@ import TypeChecking.Rules.Data ( bindParameters, fitsIn )
 import TypeChecking.Rules.Term ( isType_ )
 
 import Utils.Size
+import Utils.Permutation
 
 #include "../../undefined.h"
 
@@ -53,7 +54,8 @@ checkRecDef i name ps fields =
 	addSection m (size tel')
 
       -- Check the types of the fields
-      ftel <- withCurrentModule m $ checkRecordFields m name tel s [] [] (size fields) fields
+      ftel <- checkRecordFields m name tel s [] (size fields) fields
+      withCurrentModule m $ checkRecordProjections m name tel ftel s fields
 
       -- Check that the fields fit inside the sort
       telePi ftel t0 `fitsIn` s
@@ -79,16 +81,16 @@ checkRecDef i name ps fields =
     @fs@: the fields to be checked
 -}
 checkRecordFields :: ModuleName -> QName -> Telescope -> Sort ->
-		     [(Name, Type)] -> [Term] -> Arity -> [A.Field] ->
+		     [(Name, Type)] -> Arity -> [A.Field] ->
 		     TCM Telescope
-checkRecordFields m q tel s ftel vs n [] = return EmptyTel
-checkRecordFields m q tel s ftel vs n (f : fs) = do
-  (x, a, v) <- checkField f
+checkRecordFields m q tel s ftel n [] = return EmptyTel
+checkRecordFields m q tel s ftel n (f : fs) = do
+  (x, a) <- checkField f
   let ftel' = ftel ++ [(x, a)]
-  tel <- checkRecordFields m q tel s ftel' (v : vs) n fs
+  tel <- checkRecordFields m q tel s ftel' n fs
   return $ Arg NotHidden a `ExtendTel` Abs (show x) tel
   where
-    checkField :: A.Field -> TCM (Name, Type, Term)
+    checkField :: A.Field -> TCM (Name, Type)
     checkField (A.ScopedDecl scope [f]) =
       setScope scope >> checkField f
     checkField (A.Axiom i x t) = do
@@ -102,20 +104,57 @@ checkRecordFields m q tel s ftel vs n (f : fs) = do
 	  , text "ftel1 =" <+> prettyList (map (prettyTCM . fst) ftel)
 	  , text "ftel2 =" <+> prettyList (map (prettyTCM . snd) ftel)
 	  , text "t     =" <+> prettyA t
-	  , text "vs    =" <+> prettyList (map prettyTCM vs)
 	  ]
 	]
       let add (x, t) = addCtx x (Arg NotHidden t)
       t <- flip (foldr add) ftel $ isType_ t
+      return (qnameName x, t)
+    checkField _ = __IMPOSSIBLE__ -- record fields are always axioms
+
+{-| @checkRecordProjections q tel ftel s vs n fs@:
+    @m@: name of the generated module
+    @q@: name of the record
+    @tel@: parameters
+    @s@: sort of the record
+    @ftel@: telescope of fields
+    @vs@: values of previous fields (should have one free variable, which is
+	  the record)
+    @fs@: the fields to be checked
+-}
+checkRecordProjections ::
+  ModuleName -> QName -> Telescope -> Telescope -> Sort ->
+  [A.Field] -> TCM ()
+checkRecordProjections m q tel ftel s fs = checkProjs EmptyTel ftel [] fs
+  where
+    checkProjs :: Telescope -> Telescope -> [Term] -> [A.Field] -> TCM ()
+    checkProjs _ _ _ [] = return ()
+    checkProjs ftel1 ftel2 vs (A.ScopedDecl scope [f] : fs) =
+      setScope scope >> checkProjs ftel1 ftel2 vs (f : fs)
+    checkProjs ftel1 (ExtendTel (Arg _ t) ftel2) vs (A.Axiom _ x _ : fs) = do
+      -- check the type (in the context of the telescope)
+      -- the previous fields will be free in 
+      reportSDoc "tc.rec.proj" 5 $ sep
+	[ text "checking projection"
+	, nest 2 $ vcat
+	  [ text "top   =" <+> (prettyTCM =<< getContextTelescope)
+	  , text "ftel1 =" <+> prettyTCM ftel1
+	  , text "ftel2 =" <+> prettyTCM (absBody ftel2)
+	  , text "t     =" <+> prettyTCM t
+	  , text "vs    =" <+> prettyList (map prettyTCM vs)
+	  ]
+	]
+      let add (x, t) = addCtx x (Arg NotHidden t)
+          n          = size ftel
+
       -- create the projection functions (instantiate the type with the values
       -- of the previous fields)
 
       {- what are the contexts?
 
-	  Γ, tel, ftel    ⊢ t
-	  Γ, tel, r       ⊢ vs
-	  Γ, tel, r, ftel ⊢ raiseFrom (size ftel) 1 t
-	  Γ, tel, r       ⊢ substs vs (raiseFrom (size ftel) 1 t)
+	  Γ, tel, ftel₁     ⊢ t
+	  Γ, tel, r         ⊢ vs
+	  Γ, tel, r, ftel₁  ⊢ raiseFrom (size ftel₁) 1 t
+	  Γ, tel, r         ⊢ substs vs (raiseFrom (size ftel₁) 1 t)
       -}
 
       -- The type of the projection function should be
@@ -128,13 +167,13 @@ checkRecordFields m q tel s ftel vs n (f : fs) = do
 		      [ Arg h (Var i [])
 		      | (i, Arg h _) <- zip [0..] $ reverse $ telToList delta
 		      ]
-	  projt	   = substs (vs ++ map (flip Var []) [0..]) $ raiseFrom (size ftel) 1 t
+	  projt	   = substs (vs ++ map (flip Var []) [0..]) $ raiseFrom (size ftel1) 1 t
 	  finalt   = telePi htel
 		   $ telePi (ExtendTel (Arg NotHidden rect) (Abs "r" EmptyTel))
 		   $ projt
 	  projname = qualify m $ qnameName x
 
-      reportSDoc "tc.rec.field" 10 $ sep
+      reportSDoc "tc.rec.proj" 10 $ sep
 	[ text "adding projection"
 	, nest 2 $ prettyTCM projname <+> text ":" <+> prettyTCM finalt
 	]
@@ -148,11 +187,12 @@ checkRecordFields m q tel s ftel vs n (f : fs) = do
 	  nobind 0 = id
 	  nobind n = NoBind . nobind (n - 1)
 	  body	 = nobind (size htel)
-		 $ nobind (size ftel)
+		 $ nobind (size ftel1)
 		 $ Bind . Abs "x"
-		 $ nobind (n - size ftel - 1)
+		 $ nobind (size ftel2)
 		 $ Body $ Var 0 []
-	  clause = Clause (hps ++ [conp]) body
+          cltel  = htel `abstract` ftel
+	  clause = Clause cltel (idP $ size htel + size ftel) (hps ++ [conp]) body
       escapeContext (size tel) $
 	addConstant projname (Defn projname finalt (defaultDisplayForm projname) 0 $ Function [clause] ConcreteDef)
 
@@ -165,6 +205,8 @@ checkRecordFields m q tel s ftel vs n (f : fs) = do
                                             (drop (size tel) $ reverse $ map argHiding $ telToList delta)
 			    ]
 
-      return (qnameName projname, t, projval)
-    checkField _ = __IMPOSSIBLE__ -- record fields are always axioms
+      checkProjs (abstract ftel1 $ ExtendTel (Arg NotHidden t)
+                                 $ Abs (show $ qnameName projname) EmptyTel
+                 ) (absBody ftel2) (projval : vs) fs
+    checkProjs _ _ _ _ = __IMPOSSIBLE__ -- record fields are always axioms
 

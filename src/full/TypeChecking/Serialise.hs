@@ -52,12 +52,13 @@ import TypeChecking.Monad
 
 import Utils.Serialise
 import Utils.Tuple
+import Utils.Permutation
 import qualified Utils.IO
 
 -- | Current version of the interface. Only interface files of this version
 --   will be parsed.
 currentInterfaceVersion :: Int
-currentInterfaceVersion = 133
+currentInterfaceVersion = 134
 
 ------------------------------------------------------------------------
 -- A wrapper around Data.Binary
@@ -444,6 +445,10 @@ instance Binary Telescope where
       1 -> get >>= \a -> get >>= \b -> return (ExtendTel a b)
       _ -> fail "no parse"
 
+instance Binary Permutation where
+  put (Perm a b) = put a >> put b
+  get = get >>= \a -> get >>= \b -> return (Perm a b)
+
 instance (Binary a) => Binary (Syntax.Common.Arg a) where
   put (Arg a b) = put a >> put b
   get = {-# SCC "get<Arg>" #-} get >>= \a -> get >>= \b -> return (Arg a b)
@@ -590,8 +595,8 @@ instance Binary Syntax.Common.IsAbstract where
       _ -> fail "no parse"
 
 instance Binary Syntax.Internal.Clause where
-  put (Clause a b) = put a >> put b
-  get = {-# SCC "get<Clause>" #-} get >>= \a -> get >>= \b -> return (Clause a b)
+  put (Clause a b c d) = put a >> put b >> put c >> put d
+  get = {-# SCC "get<Clause>" #-} get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d -> return (Clause a b c d)
 
 instance Binary Syntax.Internal.ClauseBody where
   put (Body a) = putWord8 0 >> put a

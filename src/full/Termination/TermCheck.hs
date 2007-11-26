@@ -262,7 +262,7 @@ stripBinds i (p:ps) b = do (i1,  dbp, b1) <- stripBind i p b
 
 -- | Extract recursive calls from one clause.
 termClause :: MutualNames -> QName -> Clause -> TCM Calls
-termClause names name (Clause argPats body) =
+termClause names name (Clause _ _ argPats body) =
     case stripBinds (nVars - 1) (map unArg argPats) body  of
        Nothing -> return Term.empty
        Just (-1, dbpats, Body t) ->

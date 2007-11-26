@@ -71,7 +71,7 @@ showUntypedDefinition (name, defn) = do
 		     sep [ text "undefined {- postulate -}" ]
 	Function [] a -> __IMPOSSIBLE__
 	Function clauses a -> do
-            let (Clause pats body) = head clauses
+            let (Clause _ _ pats body) = head clauses
 	    let dvars = map (\i -> text ("v" ++ show i)) [1 .. length pats]
 	    let drhs = untypedAbs dvars $ sep (text "f" : dvars)
 	    dclauses <- mapM showUntypedClause clauses

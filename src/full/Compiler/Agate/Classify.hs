@@ -57,8 +57,8 @@ enumCompilableTypeFamilies definitions = do
 	    Axiom                         -> return False -- IO should get True
 	    Primitive a pf _              -> return False -- String should get True
 	    Function [] a                 -> return False -- __IMPOSSIBLE__
-	    Function [Clause _ NoBody] a  -> return False
-	    Function [Clause pats body] a -> return False -- TODO
+	    Function [Clause _ _ _ NoBody] a  -> return False
+	    Function [Clause _ _ pats body] a -> return False -- TODO
 	    Function clauses a            -> return False
 	    Constructor np _ tname a      -> return False -- ctor is not a typefam
 	    Datatype np ni _ cnames s a   -> do

@@ -378,7 +378,7 @@ cmd_make_case ii rng s = infoOnException $ ioTCM $ do
                    (drop n pats))
        | (dnam, n, dbdy) <- xs
        , Function cls _ <- [theDef dbdy]
-       , SI.Clause pats cbdy <- cls
+       , SI.Clause _ _ pats cbdy <- cls
        , Just (MetaV x _) <- [deAbs cbdy]
        , x == wanted ] of
       (h : _ ) -> return h

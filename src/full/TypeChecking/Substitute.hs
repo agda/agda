@@ -14,6 +14,7 @@ import TypeChecking.Free
 
 import Utils.Monad
 import Utils.Size
+import Utils.Permutation
 
 #include "../undefined.h"
 
@@ -64,7 +65,9 @@ instance Apply PrimFun where
     apply (PrimFun x ar def) args   = PrimFun x (ar - size args) $ \vs -> def (args ++ vs)
 
 instance Apply Clause where
-    apply (Clause ps b) args = Clause (drop (size args) ps) $ apply b args
+    apply (Clause tel perm ps b) args =
+      Clause (apply tel args) (apply perm args)
+             (drop (size args) ps) (apply b args)
 
 instance Apply ClauseBody where
     apply  b		   []		  = b
@@ -91,6 +94,17 @@ instance (Apply a, Apply b) => Apply (a,b) where
 
 instance (Apply a, Apply b, Apply c) => Apply (a,b,c) where
     apply (x,y,z) args = (apply x args, apply y args, apply z args)
+
+instance Apply Permutation where
+  -- The permutation must start with [0..m - 1]
+  apply (Perm n xs) args = Perm (n - m) $ map (flip (-) m) $ drop m xs
+    where
+      m = size args
+
+instance Abstract Permutation where
+  abstract tel (Perm n xs) = Perm (n + m) $ [0..m - 1] ++ map (+ m) xs
+    where
+      m = size tel
 
 -- | The type must contain the right number of pis without have to perform any
 -- reduction.
@@ -134,7 +148,9 @@ instance Abstract PrimFun where
 	where n = size tel
 
 instance Abstract Clause where
-  abstract tel (Clause ps b) = Clause (telVars tel ++ ps) $ abstract tel b
+  abstract tel (Clause tel' perm ps b) =
+    Clause (abstract tel tel') (abstract tel perm)
+           (telVars tel ++ ps) (abstract tel b)
     where
       telVars EmptyTel			  = []
       telVars (ExtendTel arg (Abs x tel)) = fmap (const $ VarP x) arg : telVars tel

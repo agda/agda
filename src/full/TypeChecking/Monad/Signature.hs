@@ -26,6 +26,7 @@ import Utils.Monad
 import Utils.Map as Map
 import Utils.Size
 import Utils.Function
+import Utils.Permutation
 
 #include "../../undefined.h"
 
@@ -103,7 +104,7 @@ addDisplayForms x = do
     add args top x ps = do
       cs <- defClauses <$> getConstInfo x
       case cs of
-	[ Clause _ b ]
+	[ Clause _ _ _ b ]
 	  | Just (m, Def y vs) <- strip b
 	  , m == length args && args `isPrefixOf` vs -> do
 	      let ps' = raise 1 (map unArg vs) ++ ps
@@ -114,7 +115,7 @@ addDisplayForms x = do
 	      let reason = case cs of
 		    []    -> "no clauses"
 		    _:_:_ -> "many clauses"
-		    [ Clause _ b ] -> case strip b of
+		    [ Clause _ _ _ b ] -> case strip b of
 		      Nothing -> "bad body"
 		      Just (m, Def y vs)
 			| m < length args -> "too few args"
@@ -174,7 +175,7 @@ applySection new ptel old ts rd rm = liftTCM $ do
 		Datatype np ni _ cs s a -> Datatype (np - size ts) ni (Just cl) (map copyName cs) s a
 		Record np _ fs tel s a	-> Record (np - size ts) (Just cl) fs (apply tel ts) s a
 		_			-> Function [cl] ConcreteDef
-	cl = Clause [] $ Body $ Def x ts
+	cl = Clause EmptyTel (idP 0) [] $ Body $ Def x ts
 
     copySec :: Args -> (ModuleName, Section) -> TCM ()
     copySec ts (x, sec) = case Map.lookup x rm of
@@ -199,10 +200,10 @@ canonicalName :: MonadTCM tcm => QName -> tcm QName
 canonicalName x = do
   def <- theDef <$> getConstInfo x
   case def of
-    Constructor _ c _ _			      -> return c
-    Record _ (Just (Clause _ body)) _ _ _ _   -> canonicalName $ extract body
-    Datatype _ _ (Just (Clause _ body)) _ _ _ -> canonicalName $ extract body
-    _					      -> return x
+    Constructor _ c _ _                           -> return c
+    Record _ (Just (Clause _ _ _ body)) _ _ _ _   -> canonicalName $ extract body
+    Datatype _ _ (Just (Clause _ _ _ body)) _ _ _ -> canonicalName $ extract body
+    _                                             -> return x
   where
     extract NoBody	     = __IMPOSSIBLE__
     extract (Body (Def x _)) = x

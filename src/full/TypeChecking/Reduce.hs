@@ -200,7 +200,7 @@ instance Reduce Term where
 	    reduceNormal v0 f args def = do
 		case def of
 		    [] -> return $ v0 `apply` args -- no definition for head
-		    cls@(Clause ps _ : _)
+		    cls@(Clause _ _ ps _ : _)
 			| length ps <= length args ->
 			    do  let (args1,args2) = splitAt (length ps) args 
 				ev <- appDef v0 cls args1
@@ -216,7 +216,7 @@ instance Reduce Term where
 
 		goCls :: MonadTCM tcm => [Clause] -> Args -> tcm (Reduced Term Term)
 		goCls [] args = typeError $ IncompletePatternMatching v args
-		goCls (cl@(Clause pats body) : cls) args = do
+		goCls (cl@(Clause _ _ pats body) : cls) args = do
 		    (m, args) <- matchPatterns pats args
 		    case m of
 			No		  -> goCls cls args
@@ -462,7 +462,10 @@ instance InstantiateFull Defn where
 	Primitive a s cs	-> Primitive a s <$> instantiateFull cs
 
 instance InstantiateFull Clause where
-    instantiateFull (Clause ps b) = Clause ps <$> instantiateFull b
+    instantiateFull (Clause tel perm ps b) = Clause <$> instantiateFull tel
+                                                    <*> return perm
+                                                    <*> return ps
+                                                    <*> instantiateFull b
 
 instance InstantiateFull Interface where
     instantiateFull (Interface ms scope sig b) =

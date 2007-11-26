@@ -82,7 +82,7 @@ checkFunDef i name cs =
           t' <- prettyTCM . defType =<< getConstInfo name
           liftIO $ putStrLn $ "added " ++ show dx ++ " : " ++ show t'
     where
-        npats (Clause ps _) = size ps
+        npats (Clause _ _ ps _) = size ps
 
 data WithFunctionProblem
       = NoWithFunction
@@ -159,7 +159,7 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs wh) =
 
                   return (mkBody v, WithFunction x aux gamma delta1 delta2 vs as t' ps finalPerm cs)
       escapeContext (size delta) $ checkWithFunction with
-      return $ Clause ps body
+      return $ Clause delta perm ps body  -- TODO: make sure delta and perm are what we want
 checkClause t (A.Clause (A.LHS _ _ _ ps@(_ : _)) _ _) = typeError $ UnexpectedWithPatterns ps
 
 checkWithFunction :: WithFunctionProblem -> TCM ()

@@ -252,7 +252,7 @@ consDefs qns = do
 
 
 processClause :: Name -> Int -> Clause -> IM HsDecl
-processClause name number clause@(Clause args (body)) = do
+processClause name number clause@(Clause _ _ args (body)) = do
   ldefs <- getDefinitions
   let bodyPM = processBody body
   let (exp, pst) =  runState bodyPM (initPState clause ldefs)
@@ -265,7 +265,7 @@ processClause name number clause@(Clause args (body)) = do
                     -- pats =  processArgPats  args               
                     
 contClause :: Name -> Int -> Clause -> IM HsDecl
-contClause name number (Clause args (body)) = do
+contClause name number (Clause _ _ args (body)) = do
   return $ HsFunBind $ [HsMatch dummyLoc hsid pats rhs decls] where
                 decls = []
                 hsid = dfNameSub name number
@@ -422,7 +422,7 @@ typeArity (El s t) = ar t where
     ar _ = 0
 
 clauseBody :: Clause -> Term
-clauseBody (Clause args bound) = stripBinds bound where
+clauseBody (Clause _ _ args bound) = stripBinds bound where
   stripBinds (Bind (Abs _ r)) = stripBinds r
   stripBinds (NoBind r) = stripBinds r
   stripBinds (Body r) = r
