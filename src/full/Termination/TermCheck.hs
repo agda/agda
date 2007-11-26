@@ -219,6 +219,15 @@ adjIndexDBP f (LitDBP l) = LitDBP l
 liftDBP :: DeBruijnPat -> DeBruijnPat
 liftDBP = adjIndexDBP (1+)
 
+{- | Convert a term (from a dot pattern) to a DeBruijn pattern.
+-}
+
+termToDBP :: Term -> DeBruijnPat
+termToDBP t = case t of
+  Var i []    -> VarDBP i
+  Con c args  -> ConDBP c $ map (termToDBP . unArg) args
+  _           -> unusedVar
+
 {- | stripBind i p b = Just (i', dbp, b')
 
   i  is the next free de Bruijn level before consumption of p
@@ -230,12 +239,10 @@ liftDBP = adjIndexDBP (1+)
 stripBind :: Nat -> Pattern -> ClauseBody -> Maybe (Nat, DeBruijnPat, ClauseBody)
 stripBind _ _ NoBody            = Nothing
 stripBind i (VarP x) (NoBind b) = Just (i, unusedVar, b)
-stripBind i (VarP x) (Bind (Abs { absName = _, absBody = b })) 
-                                = Just (i+1, VarDBP i, b)
+stripBind i (VarP x) (Bind b)   = Just (i - 1, VarDBP i, absBody b)
 stripBind i (VarP x) (Body b)   = __IMPOSSIBLE__
-stripBind i (DotP _) (NoBind b) = Just (i, unusedVar, b)
-stripBind i (DotP _) (Bind (Abs { absName = _, absBody = b })) 
-                                = Just (i+1, VarDBP i, b)
+stripBind i (DotP t) (NoBind b) = Just (i, termToDBP t, b)
+stripBind i (DotP t) (Bind b)   = Just (i - 1, termToDBP t, absBody b)
 stripBind i (DotP _) (Body b)   = __IMPOSSIBLE__
 stripBind i (LitP l) b          = Just (i, LitDBP l, b)
 stripBind i (ConP c args) b     = do 
@@ -256,12 +263,19 @@ stripBinds i (p:ps) b = do (i1,  dbp, b1) <- stripBind i p b
 -- | Extract recursive calls from one clause.
 termClause :: MutualNames -> QName -> Clause -> TCM Calls
 termClause names name (Clause argPats body) =
-    case stripBinds 0 (map unArg argPats) body  of
+    case stripBinds (nVars - 1) (map unArg argPats) body  of
        Nothing -> return Term.empty
-       Just (n, dbpats, Body t) ->
-          termTerm names name (map (adjIndexDBP ((n-1) - )) dbpats) t
+       Just (-1, dbpats, Body t) ->
+          termTerm names name dbpats t
           -- note: convert dB levels into dB indices
+       Just (n, dbpats, Body t) -> internalError $ "termClause: misscalculated number of vars: guess=" ++ show nVars ++ ", real=" ++ show (nVars - 1 - n)
        Just (n, dbpats, b)  -> internalError $ "termClause: not a Body" -- ++ show b
+  where
+    nVars = boundVars body
+    boundVars (Bind b)   = 1 + boundVars (absBody b)
+    boundVars (NoBind b) = boundVars b
+    boundVars NoBody     = 0
+    boundVars (Body _)   = 0
 
 -- | Extract recursive calls from a term.
 termTerm :: MutualNames -> QName -> [DeBruijnPat] -> Term -> TCM Calls
