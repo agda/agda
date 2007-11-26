@@ -233,7 +233,8 @@ checkLeftHandSide ps a ret = do
     let rho = renamingR perm -- I'm not certain about this...
         Perm n _ = perm
         xs  = replicate n "z" -- map (fst . unArg) $ telToList tel
-    ret gamma delta rho xs qs b' perm
+        qs' = substs rho qs   -- Think about this
+    ret gamma delta rho xs qs' b' perm
   where
     checkLHS :: Problem -> [Term] -> [DotPatternInst] -> [AsBinding] ->
                 TCM (Problem, [Term], [DotPatternInst], [AsBinding])
