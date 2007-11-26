@@ -225,6 +225,7 @@ checkLeftHandSide ps a ret = do
 	   , text "delta = " <+> prettyTCM delta
 	   , text "dpi   = " <+> brackets (fsep $ punctuate comma $ map prettyTCM dpi)
 	   , text "asb   = " <+> brackets (fsep $ punctuate comma $ map prettyTCM asb)
+           , text "qs    = " <+> text (show qs)
 	   ]
          ]
   bindLHSVars ps delta $ bindAsPatterns asb $ do
@@ -234,6 +235,9 @@ checkLeftHandSide ps a ret = do
         Perm n _ = perm
         xs  = replicate n "z" -- map (fst . unArg) $ telToList tel
         qs' = substs rho qs   -- Think about this
+    reportSDoc "tc.lhs.top" 10 $ nest 2 $ vcat
+             [ text "qs'   = " <+> text (show qs')
+             ]
     ret gamma delta rho xs qs' b' perm
   where
     checkLHS :: Problem -> [Term] -> [DotPatternInst] -> [AsBinding] ->
@@ -375,6 +379,7 @@ checkLeftHandSide ps a ret = do
             -- Plug the hole in the out pattern with c ys
             let ysp = map (fmap (VarP . fst)) $ telToList gamma
                 ip  = plugHole (ConP c ysp) iph
+                ip0 = substs rho0 ip
 
             -- Δ₁Γ ⊢ sub0, we need something in Δ₁ΓΔ₂
             -- Also needs to be padded with Nothing's to have the right length.
@@ -387,6 +392,7 @@ checkLeftHandSide ps a ret = do
               [ text "newTel =" <+> prettyTCM newTel
               , addCtxTel newTel $ text "sub =" <+> brackets (fsep $ punctuate comma $ map (maybe (text "_") prettyTCM) sub)
               , text "ip  =" <+> text (show ip)
+              , text "ip0  = " <+> text (show ip0)
               ]
 
             -- Instantiate the new telescope with the given substitution
@@ -437,7 +443,7 @@ checkLeftHandSide ps a ret = do
                 iperm' = perm `composeP` perm'
 
             -- Instantiate the out patterns
-            let ip'    = instantiatePattern sub perm' ip
+            let ip'    = instantiatePattern sub perm' ip0
                 newip  = substs rho ip'
 
             -- Construct the new problem
