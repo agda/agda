@@ -48,6 +48,13 @@ length = foldr (\_ -> suc) 0
 concat : forall {a} -> [ [ a ] ] -> [ a ]
 concat = foldr _++_ []
 
+reverse : forall {a} -> [ a ] -> [ a ]
+reverse xs = rev xs []
+  where
+  rev : forall {a} -> [ a ] -> [ a ] -> [ a ]
+  rev []       ys = ys
+  rev (x ∷ xs) ys = rev xs (x ∷ ys)
+
 -- Possibly the following functions should be called lefts and rights.
 
 inj₁s : forall {a b} -> [ a ⊎ b ] -> [ a ]
