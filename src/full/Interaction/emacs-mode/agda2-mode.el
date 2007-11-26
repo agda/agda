@@ -193,7 +193,7 @@ want settings to this variable to take effect."
          (agda2-display-implicit-arguments         "\C-c\C-x\C-h"     "Toggle display of hidden arguments")
          (agda2-highlight-reload-or-clear          "\C-c\C-x\C-s"     "Reload syntax highlighting information")
          (agda2-show-constraints                   ,(kbd "C-c C-=")   "Show constraints")
-         (agda2-solveAll                           ,(kbd "C-c C-!")   "Solve constraints")
+         (agda2-solveAll                           ,(kbd "C-c C-s")   "Solve constraints")
          (agda2-show-goals                         ,(kbd "C-c C-?")   "Show goals")
          (agda2-next-goal                          "\C-c\C-f"         "Next goal")      ; Forward.
          (agda2-previous-goal                      "\C-c\C-b"         "Previous goal")  ; Back.
