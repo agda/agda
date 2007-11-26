@@ -6,6 +6,7 @@ module Data.List where
 
 open import Data.Nat
 open import Data.Sum
+open import Data.Bool
 
 infixr 5 _∷_ _++_
 
@@ -58,6 +59,12 @@ reverse xs = rev xs []
   rev : forall {a} -> [ a ] -> [ a ] -> [ a ]
   rev []       ys = ys
   rev (x ∷ xs) ys = rev xs (x ∷ ys)
+
+filter : forall {a} -> (a -> Bool) -> [ a ] -> [ a ]
+filter p []       = []
+filter p (x ∷ xs) with p x
+... | true  = x ∷ filter p xs
+... | false =     filter p xs
 
 -- Possibly the following functions should be called lefts and rights.
 
