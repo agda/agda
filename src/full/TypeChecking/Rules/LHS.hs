@@ -271,11 +271,12 @@ checkLeftHandSide ps a ret = do
                 sigma'   = substs rho sigma
                 dpi'     = substs rho dpi
                 asb0     = substs rho asb
+                ip'      = substs rho ip
 
             -- Compute the new problem
             let ps'      = problemInPat p0 ++ problemInPat (absBody p1)
                 delta'   = abstract delta1 delta2
-                problem' = Problem ps' (iperm, ip) delta'
+                problem' = Problem ps' (iperm, ip') delta'
                 asb'     = raise (size delta2) (map (\x -> AsB x (Lit lit) a) xs) ++ asb0
             checkLHS problem' sigma' dpi' asb'
 
