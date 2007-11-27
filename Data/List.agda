@@ -104,3 +104,32 @@ ListMonadPlus = record
   { monadZero = ListMonadZero
   ; plus      = _++_
   }
+
+------------------------------------------------------------------------
+-- (Not so) nice syntax for list constants
+
+module NiceSyntax where
+  infix  6 _|]
+  infixr 5 _,_
+  infix  4 [|_
+
+  data ListConst (a : Set) : Set where
+    _|] : a -> ListConst a
+    _,_ : a -> ListConst a -> ListConst a
+
+  [|_ : forall {a} -> ListConst a -> [ a ]
+  [| x |]     = x ∷ []
+  [| (x , xs) = x ∷ ([| xs)
+
+  private
+    ex₁ : [ ℕ ]
+    ex₁ = [| 0 |]
+
+    ex₂ : [ ℕ ]
+    ex₂ = [| 0 , 1 , 2 , 3 |]
+
+    -- Note, however, that the following does not work, since [| and
+    -- |] do not form a single mixfix operator.
+
+    -- ex₃ : ℕ
+    -- ex₃ = length [| 0 , 1 , 2 |]
