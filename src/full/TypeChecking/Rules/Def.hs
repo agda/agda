@@ -34,6 +34,7 @@ import TypeChecking.Rebind
 import TypeChecking.Primitive
 import TypeChecking.With
 import TypeChecking.Telescope
+import TypeChecking.Coverage
 
 import TypeChecking.Rules.Term                ( checkExpr, inferExpr, checkTelescope, isType_ )
 import TypeChecking.Rules.LHS                 ( checkLeftHandSide )
@@ -81,6 +82,9 @@ checkFunDef i name cs =
           dx <- prettyTCM name
           t' <- prettyTCM . defType =<< getConstInfo name
           liftIO $ putStrLn $ "added " ++ show dx ++ " : " ++ show t'
+
+        -- Check pattern coverage
+        checkCoverage name
     where
         npats (Clause _ _ ps _) = size ps
 
