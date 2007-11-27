@@ -116,6 +116,7 @@ library
                    TypeChecking.Monad.Context
                    TypeChecking.Monad.Debug
                    TypeChecking.Monad.Env
+                   TypeChecking.Monad.Exception
                    TypeChecking.Monad.Imports
                    TypeChecking.Monad.MetaVars
                    TypeChecking.Monad.Mutual
