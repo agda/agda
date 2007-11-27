@@ -353,7 +353,7 @@ checkLeftHandSide ps a ret = do
 
             -- Unify constructor target and given type (in Δ₁Γ)
             sub0 <- addCtxTel (delta1 `abstract` gamma) $
-                    unifyIndices flex (raise (size gamma) da) (drop (size vs) us) (raise (size gamma) ws)
+                    unifyIndices_ flex (raise (size gamma) da) (drop (size vs) us) (raise (size gamma) ws)
 
             -- We should subsitute c ys for x in Δ₂ and sigma
             let ys     = reverse [ Arg h (Var i []) | (i, Arg h _) <- zip [0..] $ reverse (telToList gamma) ]

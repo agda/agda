@@ -5,6 +5,7 @@ module TypeChecking.Rules.LHS.Unify where
 import Control.Applicative
 import Control.Monad.State
 import Control.Monad.Reader
+import Control.Monad.Error
 
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -13,6 +14,7 @@ import Syntax.Common
 import Syntax.Internal
 
 import TypeChecking.Monad
+import TypeChecking.Monad.Exception
 import TypeChecking.Conversion
 import TypeChecking.Constraints
 import TypeChecking.Reduce
@@ -26,11 +28,18 @@ import TypeChecking.Rules.LHS.Problem
 
 #include "../../../undefined.h"
 
-newtype Unify a = U { unUnify :: (StateT UnifyState TCM) a }
-  deriving (Monad, MonadIO, Functor, Applicative, MonadReader TCEnv)
+newtype Unify a = U { unUnify :: ExceptionT UnifyException (StateT UnifyState TCM) a }
+  deriving (Monad, MonadIO, Functor, Applicative, MonadReader TCEnv, MonadException UnifyException)
 
 data Equality = Equal Type Term Term
 type Sub = Map Nat Term
+
+data UnifyException = ConstructorMismatch Type Term Term
+                    | GenericUnifyException String
+
+instance Error UnifyException where
+  noMsg  = strMsg ""
+  strMsg = GenericUnifyException
 
 data UnifyState = USt { uniSub	  :: Sub
 		      , uniConstr :: [Equality]
@@ -38,12 +47,15 @@ data UnifyState = USt { uniSub	  :: Sub
 
 emptyUState = USt Map.empty []
 
+constructorMismatch :: Type -> Term -> Term -> Unify a
+constructorMismatch a u v = throwException $ ConstructorMismatch a u v
+
 instance MonadState TCState Unify where
-  get = U . lift $ get
-  put = U . lift . put
+  get = U . lift . lift $ get
+  put = U . lift . lift . put
 
 instance MonadTCM Unify where
-  liftTCM = U . lift
+  liftTCM = U . lift . lift
 
 instance Subst Equality where
   substs us	 (Equal a s t) = Equal (substs us a)	  (substs us s)	     (substs us t)
@@ -117,21 +129,38 @@ flattenSubstitution s = foldr instantiate s is
       where us = [var j | j <- [0..i - 1] ] ++ [u] ++ [var j | j <- [i + 1..] ]
 	    var j = Var j []
 
+data UnificationResult = Unifies Substitution | NoUnify Type Term Term | DontKnow TCErr
+
 -- | Unify indices.
-unifyIndices :: FlexibleVars -> Type -> [Arg Term] -> [Arg Term] -> TCM Substitution
-unifyIndices flex a us vs = do
-  reportSDoc "tc.lhs.unify" 10 $
-    sep [ text "unifyIndices"
-	, nest 2 $ text (show flex)
-	, nest 2 $ parens (prettyTCM a)
-	, nest 2 $ prettyList $ map prettyTCM us
-	, nest 2 $ prettyList $ map prettyTCM vs
-	, nest 2 $ text "context: " <+> (prettyTCM =<< getContextTelescope)
-	]
-  USt s eqs <- flip execStateT emptyUState . unUnify $ unifyArgs a us vs
-  checkEqualities $ substs (makeSubstitution s) eqs
-  let n = maximum $ (-1) : flex
-  return $ flattenSubstitution [ Map.lookup i s | i <- [0..n] ]
+unifyIndices_ :: MonadTCM tcm => FlexibleVars -> Type -> [Arg Term] -> [Arg Term] -> tcm Substitution
+unifyIndices_ flex a us vs = liftTCM $ do
+  r <- unifyIndices flex a us vs
+  case r of
+    Unifies sub   -> return sub
+    DontKnow err  -> throwError err
+    NoUnify a u v -> typeError $ UnequalTerms u v a
+
+unifyIndices :: MonadTCM tcm => FlexibleVars -> Type -> [Arg Term] -> [Arg Term] -> tcm UnificationResult
+unifyIndices flex a us vs = liftTCM $ do
+    reportSDoc "tc.lhs.unify" 10 $
+      sep [ text "unifyIndices"
+          , nest 2 $ text (show flex)
+          , nest 2 $ parens (prettyTCM a)
+          , nest 2 $ prettyList $ map prettyTCM us
+          , nest 2 $ prettyList $ map prettyTCM vs
+          , nest 2 $ text "context: " <+> (prettyTCM =<< getContextTelescope)
+          ]
+    (r, USt s eqs) <- flip runStateT emptyUState . runExceptionT . unUnify $
+                      unifyArgs a us vs >> recheckConstraints
+
+    case r of
+      Left (ConstructorMismatch a u v)  -> return $ NoUnify a u v
+      Left (GenericUnifyException err)  -> fail err
+      Right _                           -> do
+        checkEqualities $ substs (makeSubstitution s) eqs
+        let n = maximum $ (-1) : flex
+        return $ Unifies $ flattenSubstitution [ Map.lookup i s | i <- [0..n] ]
+  `catchError` \err -> return $ DontKnow err
   where
     flexible i = i `elem` flex
 
@@ -181,17 +210,22 @@ unifyIndices flex a us vs = do
 	    unifyArgs a us vs
 	(Var i [], v) | flexible i -> i |->> (v, a)
 	(u, Var j []) | flexible j -> j |->> (u, a)
-	(Con c us, Con c' vs) | c == c' -> do
-	    -- The type is a datatype or a record.
-	    Def d args <- reduce $ unEl a
-	    -- Get the number of parameters.
-	    def <- theDef <$> getConstInfo d
-	    a'  <- case def of
-	      Datatype n _ _ _ _ _ -> do
-                a <- defType <$> getConstInfo c
-                return $ piApply a (take n args)
-	      Record n _ _ _ _ _   -> getRecordConstructorType d (take n args)
-	      _			   -> __IMPOSSIBLE__
-	    unifyArgs a' us vs
+	(Con c us, Con c' vs)
+          | c == c' -> do
+              -- The type is a datatype or a record.
+              Def d args <- reduce $ unEl a
+              -- Get the number of parameters.
+              def <- theDef <$> getConstInfo d
+              a'  <- case def of
+                Datatype n _ _ _ _ _ -> do
+                  a <- defType <$> getConstInfo c
+                  return $ piApply a (take n args)
+                Record n _ _ _ _ _   -> getRecordConstructorType d (take n args)
+                _			   -> __IMPOSSIBLE__
+              unifyArgs a' us vs
+          | otherwise -> constructorMismatch a u v
+        (Lit l1, Lit l2)
+          | l1 == l2  -> return ()
+          | otherwise -> constructorMismatch a u v
 	_  -> addEquality a u v
 
