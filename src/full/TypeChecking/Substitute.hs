@@ -178,6 +178,9 @@ class Subst t where
     substs     :: [Term] -> t -> t
     substUnder :: Int -> Term -> t -> t
 
+idSub :: Telescope -> [Term]
+idSub tel = [ Var i [] | i <- [0..size tel - 1] ]
+
 subst :: Subst t => Term -> t -> t
 subst u t = substUnder 0 u t
 

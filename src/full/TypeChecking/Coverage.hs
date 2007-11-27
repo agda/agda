@@ -19,6 +19,7 @@ import Utils.Size
 
 data SplitClause = SClause
       { scTel   :: Telescope      -- ^ type of variables in scPats
+      , scPerm  :: Permutation    -- ^ how to get from the variables in the patterns to the telescope
       , scPats  :: [Arg Pattern]
       , scSubst :: [Term]         -- ^ substitution from scTel to old context
       }
@@ -39,14 +40,14 @@ checkCoverage f = do
   let t    = defType d
       defn = theDef d
   case defn of
-    Function cs _ -> mapM_ splitClause cs
+    Function cs _ -> mapM_ splitC cs
     _             -> __IMPOSSIBLE__
   where
-    splitClause (Clause tel perm ps _) = mapM_ (\i -> split tel perm i ps) [0..size tel - 1]
+    splitClause cl@(Clause tel _ _ _) = mapM_ (\i -> splitClause cl i) [0..size tel - 1]
 
 -- | split Δ x ps. Δ ⊢ ps, x ∈ Δ (deBruijn index)
-split :: Telescope -> Permutation -> Nat -> [Arg Pattern] -> TCM Covering
-split tel perm x ps = do
+splitClause :: Clause -> Nat -> TCM Covering
+splitClause (Clause tel perm ps _) x = do
   reportSDoc "tc.cover.top" 10 $ vcat
     [ text "split"
     , nest 2 $ vcat
@@ -72,5 +73,7 @@ split tel perm x ps = do
     , text "t   =" <+> prettyTCM t
     ]
 
-  return []
+  let same = SClause tel perm ps (idSub tel)
+
+  return [same, same]
 
