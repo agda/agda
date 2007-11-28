@@ -75,7 +75,6 @@ import Relation.Binary.Consequences
 import Relation.Binary.Consequences.Core
 import Relation.Binary.Core
 import Relation.Binary.EqReasoning
-import Relation.Binary.EqReasoning.Abstract
 import Relation.Binary.FunctionLifting
 import Relation.Binary.HeterogeneousEquality
 import Relation.Binary.NonstrictToStrict
