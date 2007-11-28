@@ -7,9 +7,9 @@ module Relation.Nullary where
 open import Logic
 
 ------------------------------------------------------------------------
--- Properties
+-- Properties of nullary relations
 
--- Decidable property.
+-- P is decidable.
 
 data Dec (P : Set) : Set where
   yes : P   -> Dec P
