@@ -15,7 +15,7 @@ LogicalRelation _∼₁_ _∼₂_ =
 
 LiftEquiv
   :  forall {a b} {∼₁ : Rel a} {∼₂ : Rel b}
-  -> (forall f -> f Preserves ∼₁ , ∼₂)
+  -> (forall f -> f Preserves ∼₁ → ∼₂)
   -> Equivalence ∼₁ -> Equivalence ∼₂
   -> Equivalence (LogicalRelation ∼₁ ∼₂)
 LiftEquiv {a} {b} {∼₁} {∼₂} pres eq₁ eq₂ = record
@@ -29,7 +29,7 @@ LiftEquiv {a} {b} {∼₁} {∼₂} pres eq₁ eq₂ = record
   open Equivalence
   open Preorder
   abstract
-    refl' :  (forall f -> f Preserves ∼₁ , ∼₂)
+    refl' :  (forall f -> f Preserves ∼₁ → ∼₂)
           -> Reflexive _≡_ (LogicalRelation ∼₁ ∼₂)
     refl' pres {f} ≡-refl x∼₁y = pres f x∼₁y
 
@@ -47,7 +47,7 @@ LiftEquiv {a} {b} {∼₁} {∼₂} pres eq₁ eq₂ = record
 open Setoid
 
 LiftSetoid :  (s₁ s₂ : Setoid)
-           -> (forall f -> f Preserves _≈_ s₁ , _≈_ s₂)
+           -> (forall f -> f Preserves _≈_ s₁ → _≈_ s₂)
            -> Setoid
 LiftSetoid s₁ s₂ pres = record
   { carrier = carrier s₁ -> carrier s₂

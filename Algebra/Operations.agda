@@ -48,7 +48,7 @@ x ^ suc n = x * (x ^ n)
 
 abstract
 
-  ×-pres-≈ : _×_ Preserves₂ _≡_ , _≈_ , _≈_
+  ×-pres-≈ : _×_ Preserves₂ _≡_ → _≈_ → _≈_
   ×-pres-≈ {n} {n'} {x} {x'} n≡n' x≈x' =
             begin
     n × x
@@ -62,7 +62,7 @@ abstract
     ×-pres-≈ʳ zero    x≈x' = byDef
     ×-pres-≈ʳ (suc n) x≈x' = x≈x' ⟨ A.•-pres-≈ ⟩ ×-pres-≈ʳ n x≈x'
 
-  ^-pres-≈ : _^_ Preserves₂ _≈_ , _≡_ , _≈_
+  ^-pres-≈ : _^_ Preserves₂ _≈_ → _≡_ → _≈_
   ^-pres-≈ {x} {x'} {n} {n'} x≈x' n≡n' =
             begin
     x ^ n

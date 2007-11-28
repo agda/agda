@@ -90,10 +90,10 @@ Involutive f = forall x -> f (f x) ≈ x
 -- First some abbreviations:
 
 _Preserves-≈ : Op₁ -> Set
-• Preserves-≈ = • Preserves _≈_ , _≈_
+• Preserves-≈ = • Preserves _≈_ → _≈_
 
 _Preserves₂-≈ : Op₂ -> Set
-• Preserves₂-≈ = • Preserves₂ _≈_ , _≈_ , _≈_
+• Preserves₂-≈ = • Preserves₂ _≈_ → _≈_ → _≈_
 
 record Semigroup (• : Op₂) : Set where
   assoc    : Associative •

@@ -47,21 +47,21 @@ _Respects₂_ : {a : Set} -> Rel a -> Rel a -> Set
 Substitutive : {a : Set} -> Rel a -> Set1
 Substitutive {a} ∼ = (P : a -> Set) -> ∼ Respects P
 
-_Preserves_,_ : forall {a₁ a₂} -> (a₁ -> a₂) -> Rel a₁ -> Rel a₂ -> Set
-f Preserves _∼₁_ , _∼₂_ = forall {x y} -> x ∼₁ y -> f x ∼₂ f y
+_Preserves_→_ : forall {a₁ a₂} -> (a₁ -> a₂) -> Rel a₁ -> Rel a₂ -> Set
+f Preserves _∼₁_ → _∼₂_ = forall {x y} -> x ∼₁ y -> f x ∼₂ f y
 
-_Preserves₂_,_,_
+_Preserves₂_→_→_
   :  forall {a₁ a₂ a₃}
   -> (a₁ -> a₂ -> a₃) -> Rel a₁ -> Rel a₂ -> Rel a₃ -> Set
-_+_ Preserves₂ _∼₁_ , _∼₂_ , _∼₃_ =
+_+_ Preserves₂ _∼₁_ → _∼₂_ → _∼₃_ =
   forall {x y u v} -> x ∼₁ y -> u ∼₂ v -> (x + u) ∼₃ (y + v)
 
 Congruential : ({a : Set} -> Rel a) -> Set1
-Congruential ∼ = forall {a b} -> (f : a -> b) -> f Preserves ∼ , ∼
+Congruential ∼ = forall {a b} -> (f : a -> b) -> f Preserves ∼ → ∼
 
 Congruential₂ : ({a : Set} -> Rel a) -> Set1
 Congruential₂ ∼ =
-  forall {a b c} -> (f : a -> b -> c) -> f Preserves₂ ∼ , ∼ , ∼
+  forall {a b c} -> (f : a -> b -> c) -> f Preserves₂ ∼ → ∼ → ∼
 
 Decidable : {a : Set} -> Rel a -> Set
 Decidable _∼_ = forall x y -> Dec (x ∼ y)
@@ -82,14 +82,14 @@ Monotone
   :  forall {a₁} -> (≤₁ : Rel a₁)
   -> forall {a₂} -> (≤₂ : Rel a₂)
   -> (a₁ -> a₂) -> Set
-Monotone ≤₁ ≤₂ f = f Preserves ≤₁ , ≤₂
+Monotone ≤₁ ≤₂ f = f Preserves ≤₁ → ≤₂
 
 Monotone₂
   :  forall {a₁} -> (≤₁ : Rel a₁)
   -> forall {a₂} -> (≤₂ : Rel a₂)
   -> forall {a₃} -> (≤₃ : Rel a₃)
   -> (a₁ -> a₂ -> a₃) -> Set
-Monotone₂ ≤₁ ≤₂ ≤₃ • = • Preserves₂ ≤₁ , ≤₂ , ≤₃
+Monotone₂ ≤₁ ≤₂ ≤₃ • = • Preserves₂ ≤₁ → ≤₂ → ≤₃
 
 ------------------------------------------------------------------------
 -- Some properties imply others
