@@ -59,12 +59,12 @@ nothingAppliedToHiddenArg e = typeError $ NothingAppliedToHiddenArg e
 -- Debugging
 
 printLocals :: Int -> String -> ScopeM ()
-printLocals v s = verbose v $ do
+printLocals v s = verboseS "scope.top" v $ do
   locals <- scopeLocals <$> getScope
   liftIO $ putStrLn $ s ++ " " ++ show locals
 
 printScope :: Int -> String -> ScopeM ()
-printScope v s = verbose v $ do
+printScope v s = verboseS "scope.top" v $ do
   scope <- getScope
   liftIO $ putStrLn $ s ++ " " ++ show scope
 
@@ -500,11 +500,11 @@ instance ToAbstract NiceDefinition Definition where
 	let m = mnameFromList $ (:[]) $ last $ qnameToList x'
 	printScope 15 "before record"
 	pushScope m
-	afields <- withLocalVars $ toAbstract $ map FieldDecl fields
+	afields <- withLocalVars $ toAbstract fields
 	let bindField (A.ScopedDecl _ [f]) = bindField f
-	    bindField (A.Axiom i y _) =
+	    bindField (A.Field i y _) =
 	      bindName (defAccess i) DefName (declName $ defInfo i) y
-	    bindField _ = __IMPOSSIBLE__
+	    bindField _ = return ()
 	printScope 15 "binding fields"
 	mapM_ bindField afields
 	printScope 15 "bound fields"
@@ -513,16 +513,6 @@ instance ToAbstract NiceDefinition Definition where
 	bindModule p x qm
 	printScope 15 "record complete"
 	return $ A.RecDef (mkRangedDefInfo x f p a r) x' pars afields
-
-newtype FieldDecl a = FieldDecl a
-
-instance ToAbstract (FieldDecl NiceDeclaration) A.Field where
-  toAbstract (FieldDecl (C.Axiom r f p a x t)) = annotateDecls =<< do
-    t'	<- toAbstractCtx TopCtx t
-    y	<- toAbstract (NewName x)
-    top <- getCurrentModule
-    return [ A.Axiom (mkRangedDefInfo x f p a r) (A.qualify top y) t' ]
-  toAbstract _ = __IMPOSSIBLE__
 
 -- The only reason why we return a list is that open declarations disappears.
 -- For every other declaration we get a singleton list.
@@ -538,6 +528,15 @@ instance ToAbstract NiceDeclaration A.Declaration where
       y  <- freshAbstractQName f x
       bindName p DefName x y
       return [ A.Axiom (mkRangedDefInfo x f p a r) y t' ]
+
+  -- Fields
+    C.NiceField r f p a x t -> do
+      printScope 50 "before record field"
+      t'  <- toAbstractCtx TopCtx t
+      y   <- toAbstract (NewName x)
+      top <- getCurrentModule
+      printScope 50 "checked record field"
+      return [ A.Field (mkRangedDefInfo x f p a r) (A.qualify top y) t' ]
 
   -- Primitive function
     PrimitiveFunction r f p a x t -> do

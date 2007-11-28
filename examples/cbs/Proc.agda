@@ -9,8 +9,9 @@ module ProcDef (U : Set)(T : U -> Set)(Name : U -> Set) where
   LT a = Lift (T a)
 
   record Tran (a b : U) : Set where
-    upV   : T b -> LT a
-    downV : T a -> LT b
+    field
+      upV   : T b -> LT a
+      downV : T a -> LT b
 
   mapLT : {a b : U} -> (T a -> LT b) -> List (T a) -> List (T b)
   mapLT f [] = []

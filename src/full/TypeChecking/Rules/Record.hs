@@ -60,7 +60,7 @@ checkRecDef i name ps fields =
       -- Check that the fields fit inside the sort
       telePi ftel t0 `fitsIn` s
 
-      let getName (A.Axiom _ x _)      = x
+      let getName (A.Field _ x _)      = x
 	  getName (A.ScopedDecl _ [f]) = getName f
 	  getName _		       = __IMPOSSIBLE__
       addConstant name $ Defn name t0 (defaultDisplayForm name) 0
@@ -93,7 +93,7 @@ checkRecordFields m q tel s ftel n (f : fs) = do
     checkField :: A.Field -> TCM (Name, Type)
     checkField (A.ScopedDecl scope [f]) =
       setScope scope >> checkField f
-    checkField (A.Axiom i x t) = do
+    checkField (A.Field i x t) = do
       -- check the type (in the context of the telescope)
       -- the previous fields will be free in 
       reportSDoc "tc.rec.field" 5 $ sep
@@ -130,7 +130,7 @@ checkRecordProjections m q tel ftel s fs = checkProjs EmptyTel ftel [] fs
     checkProjs _ _ _ [] = return ()
     checkProjs ftel1 ftel2 vs (A.ScopedDecl scope [f] : fs) =
       setScope scope >> checkProjs ftel1 ftel2 vs (f : fs)
-    checkProjs ftel1 (ExtendTel (Arg _ t) ftel2) vs (A.Axiom _ x _ : fs) = do
+    checkProjs ftel1 (ExtendTel (Arg _ t) ftel2) vs (A.Field _ x _ : fs) = do
       -- check the type (in the context of the telescope)
       -- the previous fields will be free in 
       reportSDoc "tc.rec.proj" 5 $ sep

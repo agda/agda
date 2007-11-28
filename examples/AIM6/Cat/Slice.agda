@@ -12,12 +12,14 @@ module SliceCat (ℂ : Cat)(Γ : Category.Obj ℂ) where
 
 
   record SlObj : Set1 where
-    dom : Obj
-    arr : dom ─→ Γ 
+    field
+      dom : Obj
+      arr : dom ─→ Γ 
 
   record _Sl→_ (f f' : SlObj) : Set where
-    h : (SlObj.dom f) ─→ (SlObj.dom f')
-    π : (SlObj.arr f') ∘ h == (SlObj.arr f)
+    field
+      h : (SlObj.dom f) ─→ (SlObj.dom f')
+      π : (SlObj.arr f') ∘ h == (SlObj.arr f)
 
   SlId : {f : SlObj} -> f Sl→ f
   SlId = record

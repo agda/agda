@@ -30,8 +30,9 @@ data _+_ (A : Set)(B : Set) : Set where
   inr : B -> A + B
 
 record _×_ (A : Set)(B : A -> Set) : Set where
-  π₀ : A
-  π₁ : B π₀
+  field
+    π₀ : A
+    π₁ : B π₀
 
 open _×_ public
 

@@ -59,6 +59,7 @@ import Utils.Monad
     'module'	{ TokKeyword KwModule $$ }
     'data'	{ TokKeyword KwData $$ }
     'record'	{ TokKeyword KwRecord $$ }
+    'field'	{ TokKeyword KwField $$ }
     'infix'	{ TokKeyword KwInfix $$ }
     'infixl'	{ TokKeyword KwInfixL $$ }
     'infixr'	{ TokKeyword KwInfixR $$ }
@@ -138,6 +139,7 @@ Token
     | 'module'	    { TokKeyword KwModule $1 }
     | 'data'	    { TokKeyword KwData $1 }
     | 'record'	    { TokKeyword KwRecord $1 }
+    | 'field'       { TokKeyword KwField $1 }
     | 'infix'	    { TokKeyword KwInfix $1 }
     | 'infixl'	    { TokKeyword KwInfixL $1 }
     | 'infixr'	    { TokKeyword KwInfixR $1 }
@@ -556,23 +558,24 @@ WhereClause
  --------------------------------------------------------------------------}
 
 -- Top-level defintions.
-Declaration :: { Declaration }
+Declaration :: { [Declaration] }
 Declaration
-    : TypeSig	    { $1 }
-    | FunClause	    { $1 }
-    | Data	    { $1 }
-    | Record	    { $1 }
-    | Infix	    { $1 }
-    | Mutual	    { $1 }
-    | Abstract	    { $1 }
-    | Private	    { $1 }
-    | Postulate	    { $1 }
-    | Primitive	    { $1 }
-    | Open	    { $1 }
-    | Import	    { $1 }
-    | ModuleMacro   { $1 }
-    | Module	    { $1 }
-    | Pragma	    { $1 }
+    : TypeSig	    { [$1] }
+    | Fields        { $1   }
+    | FunClause	    { [$1] }
+    | Data	    { [$1] }
+    | Record	    { [$1] }
+    | Infix	    { [$1] }
+    | Mutual	    { [$1] }
+    | Abstract	    { [$1] }
+    | Private	    { [$1] }
+    | Postulate	    { [$1] }
+    | Primitive	    { [$1] }
+    | Open	    { [$1] }
+    | Import	    { [$1] }
+    | ModuleMacro   { [$1] }
+    | Module	    { [$1] }
+    | Pragma	    { [$1] }
 
 
 {--------------------------------------------------------------------------
@@ -603,7 +606,7 @@ Data : 'data' Id TypedBindingss0 ':' Expr 'where'
 -- Record declarations.
 Record :: { Declaration }
 Record : 'record' Id TypedBindingss0 ':' Expr 'where'
-	    Constructors  { Record (getRange ($1, $6, $7)) $2 $3 $5 $7 }
+	    Declarations0 { Record (getRange ($1, $6, $7)) $2 $3 $5 $7 }
 
 
 -- Fixity declarations.
@@ -612,6 +615,9 @@ Infix : 'infix'  Int SpaceBIds  { Infix (NonAssoc (fuseRange $1 $3) $2) $3 }
       | 'infixl' Int SpaceBIds  { Infix (LeftAssoc (fuseRange $1 $3) $2) $3 }
       | 'infixr' Int SpaceBIds  { Infix (RightAssoc (fuseRange $1 $3) $2) $3 }
 
+-- Field declarations.
+Fields :: { [Declaration] }
+Fields : 'field' TypeSignatures { let toField (TypeSig x t) = Field x t in map toField $2 }
 
 -- Mutually recursive declarations.
 Mutual :: { Declaration }
@@ -752,9 +758,8 @@ Declarations0
 
 Declarations1 :: { [Declaration] }
 Declarations1
-    : Declarations1 semi TeX Declaration { $4 : $1 }
---    | Declarations1 tex			 { $1 }
-    | TeX Declaration			 { [$2] }
+    : Declarations1 semi TeX Declaration { reverse $4 ++ $1 }
+    | TeX Declaration			 { reverse $2 }
 
 
 {

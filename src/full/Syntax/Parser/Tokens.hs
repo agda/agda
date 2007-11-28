@@ -15,14 +15,14 @@ data Keyword
 	| KwPostulate | KwMutual | KwAbstract | KwPrivate
 	| KwOpen | KwImport | KwModule | KwPrimitive
 	| KwInfix | KwInfixL | KwInfixR | KwWith
-	| KwSet | KwProp | KwForall | KwRecord
+	| KwSet | KwProp | KwForall | KwRecord | KwField
 	| KwHiding | KwUsing | KwRenaming | KwTo | KwPublic
 	| KwOPTIONS | KwBUILTIN | KwLINE
     deriving (Eq, Show)
 
 layoutKeywords :: [Keyword]
 layoutKeywords =
-    [ KwLet, KwWhere, KwPostulate, KwMutual, KwAbstract, KwPrivate, KwPrimitive ]
+    [ KwLet, KwWhere, KwPostulate, KwMutual, KwAbstract, KwPrivate, KwPrimitive, KwField ]
 
 data Symbol
 	= SymDot | SymSemi | SymVirtualSemi | SymBar

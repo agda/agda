@@ -91,6 +91,7 @@ errorString err = case err of
     DifferentArities			       -> "DifferentArities"
     DuplicateBuiltinBinding _ _ _	       -> "DuplicateBuiltinBinding"
     DuplicateFields _			       -> "DuplicateFields"
+    FieldOutsideRecord                         -> "FieldOutsideRecord"
     FileNotFound _ _			       -> "FileNotFound"
     GenericError _			       -> "GenericError"
     IlltypedPattern _ _                        -> "IlltypedPattern"
@@ -334,6 +335,8 @@ instance PrettyTCM TypeError where
 	    NotAModuleExpr e -> fsep $
 		pwords "The right-hand side of a module definition must have the form 'M e1 .. en'" ++
 		pwords "where M is a module name. The expression" ++ [pretty e, text "doesn't."]
+            FieldOutsideRecord -> fsep $
+              pwords "Field appearing outside record declaration."
             InvalidPattern p -> fsep $
               pretty p : pwords "is not a valid pattern"
 	    RepeatedVariablesInPattern xs -> fsep $
@@ -484,6 +487,7 @@ instance PrettyTCM Call where
 
 	    simpleDecl d = case d of
 		D.Axiom _ _ _ _ x e		       -> C.TypeSig x e
+		D.NiceField _ _ _ _ x e		       -> C.Field x e
 		D.PrimitiveFunction r _ _ _ x e	       -> C.Primitive r [C.TypeSig x e]
 		D.NiceDef r ds _ _		       -> C.Mutual r ds
 		D.NiceModule r _ _ x tel _	       -> C.Module r x tel []

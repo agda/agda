@@ -4,11 +4,12 @@ module PartialOrder where
 open import Prelude
 
 record PartialOrder (A : Set) : Set1 where
-  _==_    : A -> A -> Set
-  _≤_     : A -> A -> Set
-  ==-def  : forall {x y} -> (x == y) ⇐⇒ (x ≤ y) ∧ (y ≤ x)
-  ≤-refl  : forall {x} -> x ≤ x
-  ≤-trans : forall {x y z} -> x ≤ y -> y ≤ z -> x ≤ z
+  field
+    _==_    : A -> A -> Set
+    _≤_     : A -> A -> Set
+    ==-def  : forall {x y} -> (x == y) ⇐⇒ (x ≤ y) ∧ (y ≤ x)
+    ≤-refl  : forall {x} -> x ≤ x
+    ≤-trans : forall {x y z} -> x ≤ y -> y ≤ z -> x ≤ z
 
 module POrder {A : Set}(ord : PartialOrder A) where
 

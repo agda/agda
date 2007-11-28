@@ -10,7 +10,7 @@ F : Set -> Set
 F _ = R
   where
     record R : Set where
-      x : F Nat
+      field x : F Nat
 
 r : F Nat
 r = _

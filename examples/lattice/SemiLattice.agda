@@ -11,16 +11,18 @@ private
   private open module PO = PartialOrder po
 
   record IsSemiLattice : Set where
-    ⊓-lbL : forall {x y}   -> (x ⊓ y) ≤ x
-    ⊓-lbR : forall {x y}   -> (x ⊓ y) ≤ y
-    ⊓-glb : forall {x y z} -> z ≤ x -> z ≤ y -> z ≤ (x ⊓ y)
+    field
+      ⊓-lbL : forall {x y}   -> (x ⊓ y) ≤ x
+      ⊓-lbR : forall {x y}   -> (x ⊓ y) ≤ y
+      ⊓-glb : forall {x y z} -> z ≤ x -> z ≤ y -> z ≤ (x ⊓ y)
 
 open IsSemiLat public
 
 record SemiLattice (A : Set) : Set1 where
-  po  : PartialOrder A
-  _⊓_ : A -> A -> A
-  prf : IsSemiLattice po _⊓_
+  field
+    po  : PartialOrder A
+    _⊓_ : A -> A -> A
+    prf : IsSemiLattice po _⊓_
 
 module SemiLat {A : Set}(L : SemiLattice A) where
 

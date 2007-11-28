@@ -596,6 +596,7 @@ data TypeError
 	| DuplicateFields [C.Name]
 	| UnexpectedWithPatterns [A.Pattern]
 	| WithClausePatternMismatch A.Pattern Pattern
+        | FieldOutsideRecord
     -- Positivity errors
 	| NotStrictlyPositive QName [Occ]
     -- Import errors

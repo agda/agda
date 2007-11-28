@@ -117,6 +117,7 @@ tokens :-
 <0,code> let		{ keyword KwLet }
 <0,code> in		{ keyword KwIn }
 <0,code> where		{ keyword KwWhere }
+<0,code> field		{ keyword KwField }
 <0,code> with           { keyword KwWith }
 <0,code> postulate	{ keyword KwPostulate }
 <0,code> primitive	{ keyword KwPrimitive }

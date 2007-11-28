@@ -17,8 +17,9 @@ tt = _
 ¬ A = A -> False
 
 record ∃ {A : Set}(P : A -> Set) : Set where
-  witness : A
-  proof   : P witness
+  field
+    witness : A
+    proof   : P witness
 
 ∃-intro : {A : Set}{P : A -> Set}(x : A) -> P x -> ∃ P
 ∃-intro x p = record { witness = x; proof = p }

@@ -8,9 +8,10 @@ import Chain
 open POrder using (Dual)
 
 record Lattice (A : Set) : Set1 where
-  sl : SemiLattice A
-  _⊔_ : A -> A -> A
-  prf : IsSemiLattice (Dual (SemiLat.po sl)) _⊔_
+  field
+    sl : SemiLattice A
+    _⊔_ : A -> A -> A
+    prf : IsSemiLattice (Dual (SemiLat.po sl)) _⊔_
 
 module Lat {A : Set}(L : Lattice A) where
 

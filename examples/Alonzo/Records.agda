@@ -26,8 +26,9 @@ open import Bool
 -}
 
 record Point : Set where
-  x : Nat
-  y : Nat
+  field
+    x : Nat
+    y : Nat
 
 -- A record can be seen as a one constructor datatype. In this case:
 data Point' : Set where

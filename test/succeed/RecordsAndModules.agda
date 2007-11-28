@@ -4,12 +4,14 @@ module RecordsAndModules where
 module Setoids where
 
   record Equiv (a : Set) : Set where
-    x : a
-    y : a
+    field
+      x : a
+      y : a
 
   record Setoid : Set1 where
-    carrier : Set
-    equiv   : Equiv carrier
+    field
+      carrier : Set
+      equiv   : Equiv carrier
 
 module RegExps (S : Setoids.Setoid) where
 

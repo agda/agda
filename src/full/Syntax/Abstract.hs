@@ -45,6 +45,7 @@ data Expr
 
 data Declaration
 	= Axiom      DefInfo QName Expr				-- ^ postulate
+	| Field      DefInfo QName Expr				-- ^ record field
 	| Primitive  DefInfo QName Expr				-- ^ primitive function
 	| Definition DeclInfo [TypeSignature] [Definition]	-- ^ a bunch of mutually recursive definitions
 	| Section    ModuleInfo ModuleName [TypedBindings] [Declaration]
@@ -198,6 +199,7 @@ instance HasRange Expr where
 
 instance HasRange Declaration where
     getRange (Axiom      i _ _	       ) = getRange i
+    getRange (Field      i _ _         ) = getRange i
     getRange (Definition i _ _	       ) = getRange i
     getRange (Section    i _ _ _       ) = getRange i
     getRange (Apply	 i _ _ _ _ _ _ ) = getRange i

@@ -1,7 +1,7 @@
 module LocalOpenImplicit where
 
 record Id (a : Set) : Set where
-  id : a -> a
+  field id : a -> a
 
 foo : {a b : Set} -> Id a -> Id b -> (a -> b) -> a -> b
 foo id1 id2 f x = id id2 (f (id id1 x))

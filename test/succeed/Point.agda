@@ -6,8 +6,9 @@ data Nat : Set where
   suc  : Nat -> Nat
 
 record Point : Set where
-  x : Nat
-  y : Nat
+  field
+    x : Nat
+    y : Nat
 
 data _==_ {A : Set}(x : A) : A -> Set where
   refl : x == x

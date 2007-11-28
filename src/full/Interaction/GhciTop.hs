@@ -520,6 +520,7 @@ instance LowerMeta SC.Declaration where
   lowerMeta = go where
     go d = case d of
       TypeSig n e1            -> TypeSig n (lowerMeta e1)
+      SC.Field n e1           -> SC.Field n (lowerMeta e1)
       FunClause lhs rhs whcl  -> FunClause lhs (lowerMeta rhs) (lowerMeta whcl)
       Data r n tel e1 cs      -> Data r n
                                  (lowerMeta tel) (lowerMeta e1) (lowerMeta cs)

@@ -8,8 +8,9 @@ open import Modal
 -- Environments
 
 record TyAlg (ty : Set) : Set where
-  nat : ty
-  _⟶_ : ty -> ty -> ty
+  field
+    nat : ty
+    _⟶_ : ty -> ty -> ty
 
 data Ty : Set where
   <nat> : Ty

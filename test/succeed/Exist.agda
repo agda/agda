@@ -10,8 +10,9 @@ map f []       = []
 map f (x ∷ xs) = f x ∷ map f xs
 
 record ∃ (a : Set) (P : a -> Set) : Set where
-  witness : a
-  proof   : P witness
+  field
+    witness : a
+    proof   : P witness
 
 ListP : (a : Set) -> (a -> Set) -> Set
 ListP a P = [ ∃ a P ]

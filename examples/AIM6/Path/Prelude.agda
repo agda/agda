@@ -43,8 +43,9 @@ data _×_ (A B : Set) : Set where
 infixr 10 _,_
 
 record Σ (A : Set)(B : A -> Set) : Set where
-  fst : A
-  snd : B fst
+  field
+    fst : A
+    snd : B fst
 
 _,,_ : {A : Set}{B : A -> Set}(x : A) -> B x -> Σ A B
 x ,, y = record { fst = x; snd = y }

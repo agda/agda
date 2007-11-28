@@ -63,6 +63,7 @@ termDecl :: A.Declaration -> TCM Result
 termDecl d =
     case d of
 	A.Axiom {}		 -> return []
+        A.Field {}               -> return []
 	A.Primitive {}  	 -> return []
 	A.Definition i ts ds	 -> termMutual i ts ds
 	A.Section i x tel ds	 -> termSection i x tel ds

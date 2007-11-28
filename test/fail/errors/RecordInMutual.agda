@@ -4,7 +4,7 @@ module RecordInMutual where
 
 mutual
   record A : Set where
-    x : B
+    field x : B
   record B : Set where
-    x : A
+    field x : A
 

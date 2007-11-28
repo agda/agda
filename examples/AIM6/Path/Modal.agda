@@ -9,9 +9,10 @@ data Progress (A : Set) : Set where
   stop : Progress A
 
 record Some {A : Set}(R : Rel A) : Set where
-  a    : A
-  b    : A
-  edge : R a b
+  field
+    a    : A
+    b    : A
+    edge : R a b
 
 some : {A : Set}{R : Rel A}{a b : A} -> R a b -> Some R
 some x = record {a = _; b = _; edge = x}

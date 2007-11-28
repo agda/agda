@@ -13,8 +13,9 @@ _∘_ : {A B C : Set} -> (A -> B) -> (C -> A) -> C -> B
 (f ∘ g) x = f (g x)
 
 record _∧_ (A B : Set) : Set where
-  p₁ : A
-  p₂ : B
+  field
+    p₁ : A
+    p₂ : B
 
 open _∧_ public renaming (p₁ to fst; p₂ to snd)
 

@@ -5,7 +5,9 @@ include $(TOP)/mk/paths.mk
 include $(TOP)/mk/config.mk
 include $(TOP)/mk/rules.mk
 
-src_files = $(shell $(FIND) $(FULL_SRC_DIR) -name '*hs')
+src_files = $(shell $(FIND) $(FULL_SRC_DIR) -name '*hs') \
+						$(shell $(FIND) $(FULL_SRC_DIR) -name '*.x') \
+						$(shell $(FIND) $(FULL_SRC_DIR) -name '*.y')
 
 AGDA_BIN_P = dist/build/agda/agda_p
 

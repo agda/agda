@@ -38,6 +38,7 @@ import Utils.Pretty
 -}
 data NiceDeclaration
 	= Axiom Range Fixity Access IsAbstract Name Expr
+        | NiceField Range Fixity Access IsAbstract Name Expr
 	| PrimitiveFunction Range Fixity Access IsAbstract Name Expr
 	| NiceDef Range [Declaration] [NiceTypeSignature] [NiceDefinition]
 	    -- ^ A bunch of mutually recursive functions\/datatypes.
@@ -89,6 +90,7 @@ instance HasRange DeclarationException where
 
 instance HasRange NiceDeclaration where
     getRange (Axiom r _ _ _ _ _)	       = r
+    getRange (NiceField r _ _ _ _ _)	       = r
     getRange (NiceDef r _ _ _)		       = r
     getRange (NiceModule r _ _ _ _ _)	       = r
     getRange (NiceModuleMacro r _ _ _ _ _ _ _) = r
@@ -123,6 +125,7 @@ instance Show DeclarationException where
     [text $ decl nd] ++ pwords "are not allowed in mutual blocks"
     where
       decl (Axiom _ _ _ _ _ _)		     = "Postulates"
+      decl (NiceField _ _ _ _ _ _)           = "Fields"
       decl (NiceDef _ _ _ _)		     = "Record types"
       decl (NiceModule _ _ _ _ _ _)	     = "Modules"
       decl (NiceModuleMacro _ _ _ _ _ _ _ _) = "Modules"
@@ -162,6 +165,7 @@ niceDeclarations ds = do
 	declaredNames :: Declaration -> [Name]
 	declaredNames d = case d of
 	  TypeSig x _				       -> [x]
+          Field x _                                    -> [x]
 	  FunClause (LHS p [] _) _ _
             | IdentP (QName x) <- noSingletonRawAppP p -> [x]
 	  FunClause{}				       -> []
@@ -201,8 +205,9 @@ niceDeclarations ds = do
 		_   -> liftM2 (++) nds (nice fixs ds)
 		    where
 			nds = case d of
-			    Data   r x tel t cs -> return $ dataOrRec DataDef r x tel t cs
-			    Record r x tel t cs -> return $ dataOrRec RecDef  r x tel t cs
+                            Field x t           -> return $ niceAxioms fixs [ Field x t ]
+			    Data   r x tel t cs -> dataOrRec DataDef niceAx r x tel t cs
+			    Record r x tel t cs -> dataOrRec RecDef  nice   r x tel t cs
 			    Mutual r ds -> do
 			      fixs <- plusFixities fixs =<< fixities ds
 			      d <- mkMutual r [d] =<< nice fixs ds
@@ -235,34 +240,41 @@ niceDeclarations ds = do
 			    FunClause _ _ _	-> __IMPOSSIBLE__
 			    TypeSig _ _		-> __IMPOSSIBLE__
 			  where
-			    dataOrRec mkDef r x tel t cs =
-			      [ NiceDef r [d]
-				[ Axiom (fuseRange x t) f PublicAccess ConcreteDef
-					x (Pi tel t)
-				]
-				[ mkDef (getRange cs) f PublicAccess ConcreteDef x
-					(concatMap binding tel)
-					(niceAxioms fixs cs)
-				]
-			      ]
-				where
-				  f = fixity x fixs
-				  binding (TypedBindings _ h bs) =
-				      concatMap (bind h) bs
-				  bind h (TBind _ xs _) =
-				      map (DomainFree h) xs
-				  bind h (TNoBind e) =
-				      [ DomainFree h $ noName (getRange e) ]
+			    dataOrRec mkDef niceD r x tel t cs = do
+                              ds <- niceD fixs cs
+                              return $ 
+                                [ NiceDef r [d]
+                                  [ Axiom (fuseRange x t) f PublicAccess ConcreteDef
+                                          x (Pi tel t)
+                                  ]
+                                  [ mkDef (getRange cs) f PublicAccess ConcreteDef x
+                                          (concatMap binding tel)
+                                          ds
+                                  ]
+                                ]
+                              where
+                                f = fixity x fixs
+                                binding (TypedBindings _ h bs) =
+                                    concatMap (bind h) bs
+                                bind h (TBind _ xs _) =
+                                    map (DomainFree h) xs
+                                bind h (TNoBind e) =
+                                    [ DomainFree h $ noName (getRange e) ]
 
 
 
 	-- Translate axioms
+        niceAx fixs ds = return $ niceAxioms fixs ds
+
 	niceAxioms :: Map.Map Name Fixity -> [TypeSignature] -> [NiceDeclaration]
 	niceAxioms fixs ds = nice ds
 	    where
 		nice [] = []
 		nice (d@(TypeSig x t) : ds) =
 		    Axiom (getRange d) (fixity x fixs) PublicAccess ConcreteDef x t
+		    : nice ds
+		nice (d@(Field x t) : ds) =
+		    NiceField (getRange d) (fixity x fixs) PublicAccess ConcreteDef x t
 		    : nice ds
 		nice _ = __IMPOSSIBLE__
 
@@ -356,6 +368,7 @@ niceDeclarations ds = do
 	mkAbstract d =
 	    case d of
 		Axiom r f a _ x e		    -> Axiom r f a AbstractDef x e
+		NiceField r f a _ x e		    -> NiceField r f a AbstractDef x e
 		PrimitiveFunction r f a _ x e	    -> PrimitiveFunction r f a AbstractDef x e
 		NiceDef r cs ts ds		    -> NiceDef r cs (map mkAbstract ts)
 								 (map mkAbstractDef ds)
@@ -383,6 +396,7 @@ niceDeclarations ds = do
 	mkPrivate d =
 	    case d of
 		Axiom r f _ a x e		    -> Axiom r f PrivateAccess a x e
+		NiceField r f _ a x e		    -> NiceField r f PrivateAccess a x e
 		PrimitiveFunction r f _ a x e	    -> PrimitiveFunction r f PrivateAccess a x e
 		NiceDef r cs ts ds		    -> NiceDef r cs (map mkPrivate ts)
 								    (map mkPrivateDef ds)

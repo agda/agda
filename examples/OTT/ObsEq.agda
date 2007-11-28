@@ -12,8 +12,9 @@ data Two : Set where
 Π S T = (x : S) -> T x
 
 record Σ (S : Set)(T : S -> Set) : Set where
-  fst : S
-  snd : T fst
+  field
+    fst : S
+    snd : T fst
 
 _,_ : {S : Set}{T : S -> Set}(s : S) -> T s -> Σ S T
 s , t = record {fst = s; snd = t}

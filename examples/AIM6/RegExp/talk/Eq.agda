@@ -10,9 +10,10 @@ infix 4 _≡_
 -- Definition
 
 record Equiv {a : Set} (_≈_ : a -> a -> Set) : Set where
-  refl      : forall x       -> x ≈ x
-  sym       : forall {x y}   -> x ≈ y -> y ≈ x
-  _`trans`_ : forall {x y z} -> x ≈ y -> y ≈ z -> x ≈ z
+  field
+    refl      : forall x       -> x ≈ x
+    sym       : forall {x y}   -> x ≈ y -> y ≈ x
+    _`trans`_ : forall {x y z} -> x ≈ y -> y ≈ z -> x ≈ z
 
 ------------------------------------------------------------------------
 -- Propositional equality
