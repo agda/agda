@@ -590,6 +590,7 @@ data TypeError
 	| BuiltinInParameterisedModule String
 	| NoRHSRequiresAbsurdPattern [NamedArg A.Pattern]
 	| IncompletePatternMatching Term Args
+        | CoverageFailure QName [[Arg Pattern]]
 	| TooFewFields QName [C.Name]
 	| TooManyFields QName [C.Name]
 	| DuplicateFields [C.Name]

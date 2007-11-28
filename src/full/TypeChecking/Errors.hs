@@ -85,6 +85,7 @@ errorString err = case err of
     ClashingModule _ _			       -> "ClashingModule"
     ClashingModuleImport _ _		       -> "ClashingModuleImport"
     ConstructorPatternInWrongDatatype _ _      -> "ConstructorPatternInWrongDatatype"
+    CoverageFailure _ _                        -> "CoverageFailure"
     CyclicModuleDependency _		       -> "CyclicModuleDependency"
     DataMustEndInSort _			       -> "DataMustEndInSort"
     DifferentArities			       -> "DifferentArities"
@@ -357,8 +358,25 @@ instance PrettyTCM TypeError where
 		    pwords "Could mean any one of:"
 		) $$ nest 2 (vcat $ map pretty ps)
 	    IncompletePatternMatching v args -> fsep $
-		pwords "Incomplete pattern matching for" ++ [prettyTCM v <> text"."] ++
+		pwords "Incomplete pattern matching for" ++ [prettyTCM v <> text "."] ++
 		pwords "No match for" ++ map prettyTCM args
+            CoverageFailure f pss -> fsep (
+                pwords "Incomplete pattern matching for" ++ [prettyTCM f <> text "."] ++
+                pwords "Missing cases:") $$ nest 2 (vcat $ map display pss)
+                where
+                  display ps = prettyTCM f <+> fsep (map showArg ps)
+                  showArg (Arg Hidden x)    = braces $ showPat 0 x
+                  showArg (Arg NotHidden x) = showPat 1 x
+
+                  showPat _ (I.VarP _)      = text "_"
+                  showPat _ (I.DotP _)      = text "._"
+                  showPat n (I.ConP c args) = mpar n args $ prettyTCM c <+> fsep (map showArg args)
+                  showPat _ (I.LitP l)      = text (show l)
+
+                  mpar n args
+                    | n > 0 && not (null args) = parens
+                    | otherwise                = id
+
 	    NotStrictlyPositive d ocs -> fsep $
 		pwords "Datatype" ++ [prettyTCM d] ++ pwords "is not strictly positive, because"
 		++ prettyOcc "it" ocs

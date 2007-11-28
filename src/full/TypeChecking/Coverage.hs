@@ -66,11 +66,14 @@ checkCoverage f = do
         [ text "Coverage checking"
         , nest 2 $ vcat $ map (\(Clause _ _ ps _) -> text $ show ps) cs
         ]
-      cover cs $ SClause gamma' (idP n) xs (idSub gamma')
+      pss <- cover cs $ SClause gamma' (idP n) xs (idSub gamma')
+      case pss of
+        []  -> return ()
+        _   -> typeError $ CoverageFailure f pss
     _             -> __IMPOSSIBLE__
 
 -- | Check that the list of clauses covers the given split clause
-cover :: MonadTCM tcm => [Clause] -> SplitClause -> tcm ()
+cover :: MonadTCM tcm => [Clause] -> SplitClause -> tcm [[Arg Pattern]]
 cover cs (SClause tel perm ps _) = do
   reportSDoc "tc.cover.cover" 10 $ vcat
     [ text "checking coverage of pattern:"
@@ -81,14 +84,14 @@ cover cs (SClause tel perm ps _) = do
   case match cs ps perm of
     Yes            -> do
       reportSLn "tc.cover.cover" 10 "pattern covered"
-      return ()
-    No             -> fail $ "pattern not matched: " ++ show ps
+      return []
+    No             -> return [ps]
     Block Nothing  -> fail $ "blocked by dot pattern"
     Block (Just x) -> do
       r <- split tel perm ps x
       case r of
         Left err  -> fail $ "failed to split: " ++ show err
-        Right scs -> mapM_ (cover cs) scs
+        Right scs -> concat <$> mapM (cover cs) scs
 
 -- | Check that a type is a datatype
 isDatatype :: MonadTCM tcm => Type -> tcm (Maybe (QName, [Arg Term], [Arg Term], [QName]))

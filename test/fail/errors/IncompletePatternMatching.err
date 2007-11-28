@@ -1,4 +1,5 @@
 errors/IncompletePatternMatching.agda:14,1-15,24
-Panic: pattern not matched: [(ConP IncompletePatternMatching.zero
-[]),(ConP IncompletePatternMatching.suc [(VarP "_")])]
+Incomplete pattern matching for _==_. Missing cases:
+  _==_ zero (suc _)
+  _==_ (suc _) zero
 when checking the definition of _==_
