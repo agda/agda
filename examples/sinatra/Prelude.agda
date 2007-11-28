@@ -22,6 +22,7 @@ data Box {A : Set}(P : A -> Set) : List A -> Set where
 
 _!_ : {A : Set}{P : A -> Set}{xs : List A}{x : A} ->
       Box P xs -> x ∈ xs -> P x
+⟨⟩      ! ()
 (_ ◃ v) ! hd   = v
 (ρ ◃ _) ! tl x = ρ ! x
 

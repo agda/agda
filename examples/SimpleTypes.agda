@@ -119,6 +119,7 @@ mutual
   Γ ⊢ ι       ∋ λʳ e = bad
   Γ ⊢ (σ ⟶ τ) ∋ λʳ e with Γ , σ ⊢ τ ∋ e
   Γ ⊢ (σ ⟶ τ) ∋ λʳ .(⌊ t ⌋) | ok t = ok (λ t)
+  Γ ⊢ (σ ⟶ τ) ∋ λʳ _        | bad  = bad
   Γ ⊢ τ ∋ e with Γ ⊢ e ∈
   Γ ⊢ τ ∋ .(⌊ t ⌋) | yes σ t with τ ≟ σ
   Γ ⊢ τ ∋ .(⌊ t ⌋) | yes .τ t | just refl = ok t
@@ -127,12 +128,14 @@ mutual
 
   _⊢_∈ : (Γ : Ctx)(e : Expr) -> Infer Γ e
   Γ ⊢ varʳ i         ∈ with lookup Γ i
-  Γ ⊢ varʳ .(⌊ x ⌋ˣ) ∈ | found τ x = yes τ (var x)
+  Γ ⊢ varʳ .(⌊ x ⌋ˣ) ∈ | found τ x  = yes τ (var x)
+  Γ ⊢ varʳ _         ∈ | outofscope = no
   Γ ⊢ e₁        •ʳ e₂ ∈        with Γ ⊢ e₁ ∈
   Γ ⊢ e₁        •ʳ e₂ ∈        | no       = no
   Γ ⊢ .(⌊ t₁ ⌋) •ʳ e₂ ∈        | yes ι t₁ = no
   Γ ⊢ .(⌊ t₁ ⌋) •ʳ e₂ ∈        | yes (σ ⟶ τ) t₁ with Γ ⊢ σ ∋ e₂
   Γ ⊢ .(⌊ t₁ ⌋) •ʳ .(⌊ t₂ ⌋) ∈ | yes (σ ⟶ τ) t₁ | ok t₂ = yes τ (t₁ • t₂)
+  Γ ⊢ .(⌊ t₁ ⌋) •ʳ _         ∈ | yes (σ ⟶ τ) t₁ | bad   = no
   Γ ⊢ λʳ e     ∈ = no
 
 -- Proving completeness (for normal terms)

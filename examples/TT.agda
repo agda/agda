@@ -48,6 +48,8 @@ module Prelude where
     rewrite : (C : Nat -> Set){m n : Nat} -> m == n -> C n -> C m
     rewrite C {zero}  {zero}  _	 x = x
     rewrite C {suc _} {suc _} eq x = rewrite (\z -> C (suc z)) eq x
+    rewrite C {zero}  {suc _} () _
+    rewrite C {suc _} {zero}  () _
 
 module Chain {A : Set}(_==_ : A -> A -> Prop)
 	     (_trans_ : {x y z : A} -> x == y -> y == z -> x == z)
@@ -106,6 +108,9 @@ module Fin where
     rewrite : {n : Nat}(C : Fin n -> Set){i j : Fin n} -> i == j -> C j -> C i
     rewrite {suc _} C {finI  fzero'  } {finI  fzero'  } eq x = x
     rewrite {suc _} C {finI (fsuc' i)} {finI (fsuc' j)} eq x = rewrite (\z -> C (fsuc z)) eq x
+    rewrite {suc _} C {finI (fsuc' _)} {finI fzero'   } () _
+    rewrite {suc _} C {finI fzero'   } {finI (fsuc' _)} () _
+    rewrite {zero}  C {finI ()}        {_}              _  _
 
 module Vec where
 
@@ -149,6 +154,7 @@ module Vec where
   map {suc n} f (vecI (cons' x xs)) = f x :: map f xs
 
   _!_ : {n : Nat}{A : Set} -> Vec A n -> Fin n -> A
+  _!_ {zero } _                   (finI ())
   _!_ {suc n} (vecI (cons' x _ )) (finI fzero')    = x
   _!_ {suc n} (vecI (cons' _ xs)) (finI (fsuc' i)) = xs ! i
 
@@ -188,16 +194,64 @@ module Untyped where
     _			== _			 = False
 
     rewrite : {n : Nat}(C : Expr n -> Set){r s : Expr n} -> r == s -> C s -> C r
-    rewrite {_} C {eVar i    } {eVar j	  } eq x = FinEq.rewrite (\z -> C (eVar z)) eq x
-    rewrite {_} C {eLam e1   } {eLam e2	  } eq x = rewrite (\z -> C (eLam z)) eq x
-    rewrite {_} C {eSet	     } {eSet	  } eq x = x
-    rewrite {_} C {eEl	     } {eEl	  } eq x = x
-    rewrite {_} C {ePi	     } {ePi	  } eq x = x
-    rewrite {_} C {eCon f    } {eCon g	  } eq x = NatEq.rewrite (\z -> C (eCon z)) eq x
-    rewrite {_} C {eApp e1 e2} {eApp e3 e4} (andI eq13 eq24) x =
+    rewrite C {eVar i    } {eVar j    } eq x = FinEq.rewrite (\z -> C (eVar z)) eq x
+    rewrite C {eLam e1   } {eLam e2   } eq x = rewrite (\z -> C (eLam z)) eq x
+    rewrite C {eSet	 } {eSet      } eq x = x
+    rewrite C {eEl	 } {eEl	      } eq x = x
+    rewrite C {ePi	 } {ePi	      } eq x = x
+    rewrite C {eCon f    } {eCon g    } eq x = NatEq.rewrite (\z -> C (eCon z)) eq x
+    rewrite C {eApp e1 e2} {eApp e3 e4} (andI eq13 eq24) x =
       rewrite (\z -> C (eApp z e2)) eq13 (
 	rewrite (\z -> C (eApp e3 z)) eq24 x
       )
+    rewrite C {eVar _} {eLam _  } () _
+    rewrite C {eVar _} {eSet    } () _
+    rewrite C {eVar _} {eEl     } () _
+    rewrite C {eVar _} {eCon _  } () _
+    rewrite C {eVar _} {ePi     } () _
+    rewrite C {eVar _} {eApp _ _} () _
+
+    rewrite C {eLam _} {eVar _  } () _
+    rewrite C {eLam _} {eSet    } () _
+    rewrite C {eLam _} {eEl     } () _
+    rewrite C {eLam _} {eCon _  } () _
+    rewrite C {eLam _} {ePi     } () _
+    rewrite C {eLam _} {eApp _ _} () _
+
+    rewrite C {eSet  } {eLam _  } () _
+    rewrite C {eSet  } {eVar _  } () _
+    rewrite C {eSet  } {eEl     } () _
+    rewrite C {eSet  } {eCon _  } () _
+    rewrite C {eSet  } {ePi     } () _
+    rewrite C {eSet  } {eApp _ _} () _
+
+    rewrite C {eEl   } {eLam _  } () _
+    rewrite C {eEl   } {eSet    } () _
+    rewrite C {eEl   } {eVar _  } () _
+    rewrite C {eEl   } {eCon _  } () _
+    rewrite C {eEl   } {ePi     } () _
+    rewrite C {eEl   } {eApp _ _} () _
+
+    rewrite C {eCon _} {eLam _  } () _
+    rewrite C {eCon _} {eSet    } () _
+    rewrite C {eCon _} {eEl     } () _
+    rewrite C {eCon _} {eVar _  } () _
+    rewrite C {eCon _} {ePi     } () _
+    rewrite C {eCon _} {eApp _ _} () _
+
+    rewrite C {ePi   } {eLam _  } () _
+    rewrite C {ePi   } {eSet    } () _
+    rewrite C {ePi   } {eEl     } () _
+    rewrite C {ePi   } {eCon _  } () _
+    rewrite C {ePi   } {eVar _  } () _
+    rewrite C {ePi   } {eApp _ _} () _
+
+    rewrite C {eApp _ _} {eLam _  } () _
+    rewrite C {eApp _ _} {eSet    } () _
+    rewrite C {eApp _ _} {eEl     } () _
+    rewrite C {eApp _ _} {eCon _  } () _
+    rewrite C {eApp _ _} {ePi     } () _
+    rewrite C {eApp _ _} {eVar _  } () _
 
 module Typed where
 
@@ -260,6 +314,7 @@ module Typed where
     ∅ = ctxI nil'
 
     _!!_ : {n : Nat}(Γ : Context n) -> Fin n -> Type Γ
+    _!!_ {zero}  _                (finI ())
     _!!_ {suc _} (ctxI (ext Γ A)) (finI fzero')	   = rename upR A
     _!!_ {suc _} (ctxI (ext Γ A)) (finI (fsuc' i)) = rename upR (Γ !! i)
 
@@ -296,6 +351,7 @@ module Typed where
 
     lookupR : {n m : Nat}{Γ : Context n}{A : Type Γ}{Δ : Context m}
 	      (ρ : Ren Γ Δ)(x : Var Γ A) -> Var Δ (rename ρ A)
+    lookupR {zero} _ (varI ())
     lookupR {suc n} {_} {ctxI (ext Γ B)} {A} {Δ}
 	    (renI (extRen' ρ z)) (varI (vzero_ eq)) = ?
     lookupR {suc n} {_} {ctxI (ext Γ B)} {A} {Δ}

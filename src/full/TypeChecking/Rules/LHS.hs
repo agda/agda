@@ -89,7 +89,7 @@ dotPatternInsts ps s as = dpi (map (namedThing . unArg) ps) (reverse s) as
 instantiatePattern :: Substitution -> Permutation -> [Arg Pattern] -> [Arg Pattern]
 instantiatePattern sub perm ps
   | length sub /= length hps = error $ unlines [ "instantiatePattern:"
-                                               , "  sub  = " ++ show (length sub)
+                                               , "  sub  = " ++ show sub
                                                , "  perm = " ++ show perm
                                                , "  ps   = " ++ show ps
                                                ]

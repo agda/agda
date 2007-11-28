@@ -21,7 +21,8 @@ f n | false = suc zero
 g : Nat -> Nat
 g zero = zero
 g (suc n) with g n
-g (suc n) | zero = n
+g (suc n) | zero  = n
+g (suc n) | suc _ = n
 
 data T : Set where
   tt : T

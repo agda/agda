@@ -107,6 +107,7 @@ module Datastructures where
       -- make sure the invariant is preserved
       flip : {A : Set} -> Queue A -> Queue A
       flip (queue nil back) = queue (reverse back) nil
+      flip q                = q
 
     -- these functions will not reduce outside the module
     emptyQ : {A : Set} -> Queue A

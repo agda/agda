@@ -74,7 +74,7 @@ module examples.Vec where
   {- We can use these sets to index vectors safely. -}
 
   vProj : {X : Set} -> (n : Nat)-> Vec n X -> Fin n -> X
-  -- vProj zero () we can pretend that there is an exhaustiveness check
+  vProj  zero   _           ()
   vProj (suc n) (pair x xs) (inl unit) = x
   vProj (suc n) (pair x xs) (inr i)    = vProj n xs i
 

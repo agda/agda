@@ -57,10 +57,10 @@ pos n * neg m = neg (n *' suc m -' 1)
 neg n * pos m = neg (suc n *' m -' 1)
 
 div : Int -> Int -> Int
-div _             (pos 0)       = pos 0
+div _             (pos zero)    = pos 0
 div (pos n)       (pos m)       = pos (div' n m)
 div (neg n)       (neg m)       = pos (div' (suc n) (suc m))
-div (pos 0)       (neg _)       = pos 0
+div (pos zero)    (neg _)       = pos 0
 div (pos (suc n)) (neg m)       = neg (div' n (suc m))
 div (neg n)       (pos (suc m)) = div (pos (suc n)) (neg m)
 

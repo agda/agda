@@ -103,6 +103,7 @@ library
                    TypeChecking.Constraints
                    TypeChecking.Conversion
                    TypeChecking.Coverage
+                   TypeChecking.Coverage.Match
                    TypeChecking.DisplayForm
                    TypeChecking.Empty
                    TypeChecking.Errors

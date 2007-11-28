@@ -109,6 +109,11 @@ module Semantics (R : Set) where
     ⟦ e PP f	⟧ ρ = callcc \k ->
 		      let throw = \x -> ⟦ f ⟧ (ρ || x) >>= k
 		      in  ⟦ e ⟧ (ρ || throw)
+    ⟦ if        ⟧ ρ = return \x -> return \y -> return \z -> return (iff x y z)
+      where
+        iff : {A : Set} -> Bool -> A -> A -> A
+        iff true  x y = x
+        iff false x y = y
 
 module Test where
 

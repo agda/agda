@@ -28,6 +28,8 @@ module Subst {A : Set}(_=A=_ : A -> A -> Bool)
   open EqA
 
   subst : {xs ys : List A} -> (P : List A -> Set) -> IsTrue (xs == ys) -> P xs -> P ys
+  subst {[]     } {_ :: _ } _ () _
+  subst {_ :: _ } {[]     } _ () _
   subst {[]	} {[]	  } P eq pxs = pxs
   subst {x :: xs} {y :: ys} P eq pxs =
     substA (\z -> P (z :: ys)) x==y (

@@ -39,7 +39,7 @@ approxBase x e = help err
     help (pos (suc n)) = round (x * fromNat k) % pos k
       where
         k = shiftL 1 (suc n)
-    help (pos 0) = x
+    help (pos zero) = x
     help (neg n) = fromInt $ (round $ x / fromInt k) *' k
       where
         k = pos (shiftL 1 ! neg n !)

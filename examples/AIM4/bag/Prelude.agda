@@ -53,7 +53,9 @@ module Prelude where
   T False = Absurd
 
   andT : {x y : Bool} -> T x -> T y -> T (x && y)
-  andT {True} {True} _ _ = unit
+  andT {True}  {True}  _  _ = unit
+  andT {True}  {False} _  ()
+  andT {False} {_}     () _
 
   T' : {a : Set} -> (a -> a -> Bool) -> (a -> a -> Set)
   T' f x y = T (f x y)

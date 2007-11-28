@@ -233,12 +233,17 @@ module Nat where
     s : (x y : Nat) -> eqNat x y -> eqNat y x
     s  zero    zero   _ = tt
     s (suc n) (suc m) h = s n m h
+    s zero    (suc _) ()
+    s (suc _) zero    ()
 
     sy = \x y h -> eqnat (s x y (uneqnat h))
 
     t : (x y z : Nat) -> eqNat x y -> eqNat y z -> eqNat x z
     t  zero    zero    z      xy yz = yz
     t (suc x) (suc y) (suc z) xy yz = t x y z xy yz
+    t  zero   (suc _)  _      () _
+    t (suc _)  zero    _      () _
+    t (suc _) (suc _)  zero   _  ()
 
     tr = \x y z xy yz -> eqnat (t x y z (uneqnat xy) (uneqnat yz))
 
@@ -262,6 +267,8 @@ module Nat where
 	eqnat (uneqnat (eqPlus{n}{n'} (eqnat nn)
 			      {m}{m'} (eqnat mm)
 	      )	       )
+      eqPlus {zero}  {suc _}  (eqnat ())  _
+      eqPlus {suc _} {zero}   (eqnat ())  _
 
 module List where
 
@@ -291,11 +298,16 @@ module List where
       s : (x y : List (El A)) -> eqList x y -> eqList y x
       s  nil       nil       h		  = h
       s (x :: xs) (y :: ys) (andI xy xys) = andI (sym xy) (s xs ys xys)
+      s  nil      (_ :: _)  ()
+      s (_ :: _)   nil      ()
 
       t : (x y z : List (El A)) -> eqList x y -> eqList y z -> eqList x z
       t  nil       nil       zs        _             h            = h
       t (x :: xs) (y :: ys) (z :: zs) (andI xy xys) (andI yz yzs) =
         andI (trans xy yz) (t xs ys zs xys yzs)
+      t  nil      (_ :: _)  _          () _
+      t (_ :: _)   nil      _          () _
+      t (_ :: _)  (_ :: _)  nil        _  ()
 
 open Fun
 

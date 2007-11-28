@@ -20,6 +20,8 @@ import TypeChecking.Rules.LHS.Unify
 import TypeChecking.Rules.LHS.Instantiate
 import TypeChecking.Rules.LHS
 
+import TypeChecking.Coverage.Match
+
 import TypeChecking.Pretty
 import TypeChecking.Substitute
 import TypeChecking.Reduce
@@ -52,31 +54,41 @@ typeOfVar tel n
 checkCoverage :: QName -> TCM ()
 checkCoverage f = do
   d <- getConstInfo f
-  let t    = defType d
-      defn = theDef d
+  t <- normalise $ defType d
+  let defn = theDef d
   case defn of
-    Function cs _ -> mapM_ splitC cs
+    Function cs@((Clause _ _ ps _) : _) _ -> do
+      let n            = length ps
+          TelV gamma _ = telView t
+          gamma'       = telFromList $ take n $ telToList gamma
+          xs           = map (fmap $ const $ VarP "_") $ telToList gamma'
+      reportSDoc "tc.cover.top" 10 $ vcat
+        [ text "Coverage checking"
+        , nest 2 $ vcat $ map (\(Clause _ _ ps _) -> text $ show ps) cs
+        ]
+      cover cs $ SClause gamma' (idP n) xs (idSub gamma')
     _             -> __IMPOSSIBLE__
-  where
-    splitC cl@(Clause tel _ _ _) = do
-      mapM_ (try cl) [0..size tel - 1]
-    try cl i = do
-      r <- splitClause cl i
+
+-- | Check that the list of clauses covers the given split clause
+cover :: MonadTCM tcm => [Clause] -> SplitClause -> tcm ()
+cover cs (SClause tel perm ps _) = do
+  reportSDoc "tc.cover.cover" 10 $ vcat
+    [ text "checking coverage of pattern:"
+    , nest 2 $ text "tel  =" <+> prettyTCM tel
+    , nest 2 $ text "perm =" <+> text (show perm)
+    , nest 2 $ text "ps   =" <+> text (show ps)
+    ]
+  case match cs ps perm of
+    Yes            -> do
+      reportSLn "tc.cover.cover" 10 "pattern covered"
+      return ()
+    No             -> fail $ "pattern not matched: " ++ show ps
+    Block Nothing  -> fail $ "blocked by dot pattern"
+    Block (Just x) -> do
+      r <- split tel perm ps x
       case r of
-        Left err  -> reportSLn "tc.cover.top" 10 $ "split failed: " ++ show err
-        Right cs  ->
-          reportSDoc "tc.cover.top" 10 $ vcat
-            [ text "split accomplished:"
-            , nest 2 $ vcat $ map prClause cs
-            ]
-    prClause (SClause tel perm ps _) =
-      vcat [ text "clause:"
-           , nest 2 $ vcat
-             [ text "tel  =" <+> prettyTCM tel
-             , text "perm =" <+> text (show perm)
-             , text "ps   =" <+> text (show ps)
-             ]
-           ]
+        Left err  -> fail $ "failed to split: " ++ show err
+        Right scs -> mapM_ (cover cs) scs
 
 -- | Check that a type is a datatype
 isDatatype :: MonadTCM tcm => Type -> tcm (Maybe (QName, [Arg Term], [Arg Term], [QName]))
@@ -119,7 +131,7 @@ computeNeighbourhood delta1 delta2 perm d pars ixs hix hps con = do
   -- Lookup the type of the constructor at the given parameters
   TelV gamma (El _ (Def _ cixs)) <- telView <$> normalise (ctype `piApply` pars)
 
-  debugInit con ctype pars ixs cixs delta1 delta2 gamma
+  debugInit con ctype pars ixs cixs delta1 delta2 gamma hps hix
 
   -- All variables are flexible
   let flex = [0..size delta1 + size gamma - 1]
@@ -136,16 +148,17 @@ computeNeighbourhood delta1 delta2 perm d pars ixs hix hps con = do
       debugCantSplit
       throwException $ CantSplit con
     Unifies sub   -> do
-      debugSubst sub
+      debugSubst "sub" sub
 
       -- Substitute the constructor for x in Δ₂: Δ₂' = Δ₂[conv/x]
       let conv    = Con con  $ teleArgs gamma   -- Θ Γ ⊢ conv (for any Θ)
-          delta2' = subst conv delta2
+          delta2' = subst conv $ raiseFrom 1 (size gamma) delta2
+      debugTel "delta2'" delta2'
 
       -- Compute a substitution ρ : Δ₁ΓΔ₂' → Δ₁(x:D)Δ₂
-      let rho = [ Var i [] | i <- [0..size delta2 - 1] ]
-             ++ [ raise (size delta2) conv ]
-             ++ [ Var i [] | i <- [size delta2 + size gamma ..] ]
+      let rho = [ Var i [] | i <- [0..size delta2' - 1] ]
+             ++ [ raise (size delta2') conv ]
+             ++ [ Var i [] | i <- [size delta2' + size gamma ..] ]
 
       -- Plug the hole with the constructor and apply ρ
       let conp = ConP con $ map (fmap VarP) $ teleArgNames gamma
@@ -158,19 +171,24 @@ computeNeighbourhood delta1 delta2 perm d pars ixs hix hps con = do
       let pad n xs x = xs ++ replicate (max 0 $ n - size xs) x
           sub'       = replicate (size delta2') Nothing ++
                        pad (size delta1 + size gamma) (raise (size delta2') sub) Nothing
-      debugSubst sub'
+      debugSubst "sub'" sub'
 
       -- Θ = Δ₁ΓΔ₂'
       let theta = delta1 `abstract` gamma `abstract` delta2'
+      debugTel "theta" theta
 
       -- Apply the unifying substitution to Θ 
       -- We get ρ' : Θ' -> Θ
       --        π  : Θ' -> Θ
-      (theta', iperm, rho', instTypes) <- instantiateTel sub' theta
+      (theta', iperm, rho', _) <- instantiateTel sub' theta
+      debugTel "theta'" theta'
+      debugShow "iperm" iperm
 
       -- Compute final permutation
-      let perm' = expandP hix (size gamma) perm
+      let perm' = expandP hix (size gamma) perm -- perm' : Θ -> Δ₁(x : D)Δ₂
           rperm = iperm `composeP` perm'
+      debugShow "perm'" perm'
+      debugShow "rperm" rperm
 
       -- Compute the final patterns
       let ps'' = instantiatePattern sub' perm' ps'
@@ -179,21 +197,25 @@ computeNeighbourhood delta1 delta2 perm d pars ixs hix hps con = do
       -- Compute the final substitution
       let rsub  = substs rho' rho
 
+      debugFinal theta' rperm rps
+
       return [SClause theta' rperm rps rsub]
 
   where
-    debugInit con ctype pars ixs cixs delta1 delta2 gamma =
+    debugInit con ctype pars ixs cixs delta1 delta2 gamma hps hix =
       reportSDoc "tc.cover.split.con" 20 $ vcat
         [ text "computeNeighbourhood"
         , nest 2 $ vcat
           [ text "con    =" <+> prettyTCM con
           , text "ctype  =" <+> prettyTCM ctype
+          , text "hps    =" <+> text (show hps)
           , text "pars   =" <+> prettyList (map prettyTCM pars)
           , text "ixs    =" <+> prettyList (map prettyTCM ixs)
           , text "cixs   =" <+> prettyList (map prettyTCM cixs)
           , text "delta1 =" <+> prettyTCM delta1
           , text "delta2 =" <+> prettyTCM delta2
           , text "gamma  =" <+> prettyTCM gamma
+          , text "hix    =" <+> text (show hix)
           ]
         ]
 
@@ -203,21 +225,40 @@ computeNeighbourhood delta1 delta2 perm d pars ixs hix hps con = do
     debugCantSplit =
       reportSLn "tc.cover.split.con" 20 "  Bad split!"
 
-    debugSubst sub =
+    debugSubst s sub =
       reportSDoc "tc.cover.split.con" 20 $ nest 2 $ vcat
-        [ text "sub    =" <+> brackets (fsep $ punctuate comma $ map (maybe (text "_") prettyTCM) sub)
+        [ text (s ++ " =") <+> brackets (fsep $ punctuate comma $ map (maybe (text "_") prettyTCM) sub)
         ]
 
-    debugPlugged ps rps =
+    debugTel s tel =
+      reportSDoc "tc.cover.split.con" 20 $ nest 2 $ vcat
+        [ text (s ++ " =") <+> prettyTCM tel
+        ]
+
+    debugShow s x =
+      reportSDoc "tc.cover.split.con" 20 $ nest 2 $ vcat
+        [ text (s ++ " =") <+> text (show x)
+        ]
+
+    debugPlugged ps ps' =
       reportSDoc "tc.cover.split.con" 20 $ nest 2 $ vcat
         [ text "ps     =" <+> text (show ps)
-        , text "rps    =" <+> text (show rps)
+        , text "ps'    =" <+> text (show ps')
         ]
 
+    debugFinal tel perm ps =
+      reportSDoc "tc.cover.split.con" 20 $ nest 2 $ vcat
+        [ text "rtel   =" <+> prettyTCM tel
+        , text "rperm  =" <+> text (show perm)
+        , text "rps    =" <+> text (show ps)
+        ]
 
 -- | split Δ x ps. Δ ⊢ ps, x ∈ Δ (deBruijn index)
 splitClause :: Clause -> Nat -> TCM (Either SplitError Covering)
-splitClause (Clause tel perm ps _) x = runExceptionT $ do
+splitClause (Clause tel perm ps _) x = split tel perm ps x
+
+split :: MonadTCM tcm => Telescope -> Permutation -> [Arg Pattern] -> Nat -> tcm (Either SplitError Covering)
+split tel perm ps x = liftTCM $ runExceptionT $ do
 
   debugInit tel perm x ps
 
@@ -230,7 +271,7 @@ splitClause (Clause tel perm ps _) x = runExceptionT $ do
   t <- normalise $ typeOfVar tel x  -- Δ₁ ⊢ t
 
   -- Compute the one hole context of the patterns at the variable
-  hps <- do
+  (hps, n) <- do
     let holes = reverse $ permute perm $ allHolesWithContents ps
     unless (length holes == length (telToList tel)) $
       fail "split: bad holes or tel"
@@ -239,7 +280,9 @@ splitClause (Clause tel perm ps _) x = runExceptionT $ do
     let (VarP s, hps) = holes !! x
     debugHoleAndType s hps t
 
-    return hps
+    let Perm n _ = perm
+
+    return (hps, n)
 
   -- Check that t is a datatype
   (d, pars, ixs, cons) <- do
@@ -249,7 +292,7 @@ splitClause (Clause tel perm ps _) x = runExceptionT $ do
       Just d  -> return d
 
   -- Compute the neighbourhoods for the constructors
-  concat <$> mapM (computeNeighbourhood delta1 delta2 perm d pars ixs x hps) cons
+  concat <$> mapM (computeNeighbourhood delta1 delta2 perm d pars ixs (n - 1 - x) hps) cons
 
   where
 

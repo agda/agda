@@ -70,7 +70,9 @@ T true  = Unit
 T false = Absurd
 
 andT : {x y : Bool} -> T x -> T y -> T (x && y)
-andT {true} {true} _ _ = unit
+andT {true}  {true}  _  _ = unit
+andT {false} {_}     () _
+andT {true}  {false} _  ()
 
 T' : {a : Set} -> (a -> a -> Bool) -> (a -> a -> Set)
 T' f x y = T (f x y)

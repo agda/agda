@@ -27,6 +27,7 @@ module Test2 where
 
   g : forall {d r} -> P d r -> Nat
   g .{suc d} {r} (c {d} .{r} x) = g (c' x)
+  g (c' _) = zero
 
 -- Another bug where the dot patterns weren't substituted properly.
 module Test3 where
@@ -38,5 +39,7 @@ module Test3 where
 
   parse₀ : (d : Nat) -> Parser d -> Nat
   parse₀ .(suc d) (alt d zero p) = parse₀ d p
+  parse₀ .(suc d) (alt d _ p)    = parse₀ d p
   parse₀ ._       (! d)          = parse₀ d (pp d)
+  parse₀ ._       (pp d)         = zero
 

@@ -327,6 +327,7 @@ module SET where
   Fin 3 = { zerS (sucS zerS) (sucS (sucS zerS)) }
 -}
   valFin : (n' : Nat) -> Fin n' -> Nat
+  valFin zero     ()
   valFin (succ n) zerS = zero
   valFin (succ n) (sucS x) = succ (valFin n x)
   zeroFin : (n : Nat) -> Fin (succ n)
