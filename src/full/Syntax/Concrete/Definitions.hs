@@ -183,6 +183,10 @@ niceDeclarations ds = do
 	  Module{}				       -> []
 	  Pragma{}				       -> []
 
+        niceFix fixs ds = do
+	  fixs <- plusFixities fixs =<< fixities ds
+          nice fixs ds
+
 	nice _ []	 = return []
 	nice fixs (d:ds) =
 	    case d of
@@ -206,20 +210,17 @@ niceDeclarations ds = do
 		    where
 			nds = case d of
                             Field x t           -> return $ niceAxioms fixs [ Field x t ]
-			    Data   r x tel t cs -> dataOrRec DataDef niceAx r x tel t cs
-			    Record r x tel t cs -> dataOrRec RecDef  nice   r x tel t cs
+			    Data   r x tel t cs -> dataOrRec DataDef niceAx  r x tel t cs
+			    Record r x tel t cs -> dataOrRec RecDef  niceFix r x tel t cs
 			    Mutual r ds -> do
-			      fixs <- plusFixities fixs =<< fixities ds
-			      d <- mkMutual r [d] =<< nice fixs ds
+			      d <- mkMutual r [d] =<< niceFix fixs ds
 			      return [d]
 
 			    Abstract r ds -> do
-			      fixs <- plusFixities fixs =<< fixities ds
-			      map mkAbstract <$> nice fixs ds
+			      map mkAbstract <$> niceFix fixs ds
 
 			    Private _ ds -> do
-			      fixs <- plusFixities fixs =<< fixities ds
-			      map mkPrivate <$> nice fixs ds
+			      map mkPrivate <$> niceFix fixs ds
 
 			    Postulate _ ds -> return $ niceAxioms fixs ds
 

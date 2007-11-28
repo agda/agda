@@ -533,7 +533,8 @@ instance ToAbstract NiceDeclaration A.Declaration where
     C.NiceField r f p a x t -> do
       printScope 50 "before record field"
       t'  <- toAbstractCtx TopCtx t
-      y   <- toAbstract (NewName x)
+      y   <- freshAbstractName f x
+      bindVariable x y
       top <- getCurrentModule
       printScope 50 "checked record field"
       return [ A.Field (mkRangedDefInfo x f p a r) (A.qualify top y) t' ]

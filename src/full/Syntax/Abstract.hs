@@ -67,13 +67,12 @@ data Definition
 	= FunDef     DefInfo QName [Clause]
 	| DataDef    DefInfo QName [LamBinding] [Constructor]
 	    -- ^ the 'LamBinding's are 'DomainFree' and binds the parameters of the datatype.
-	| RecDef     DefInfo QName [LamBinding] [Field]
+	| RecDef     DefInfo QName [LamBinding] [Declaration]
   deriving (Typeable, Data)
 
 -- | Only 'Axiom's.
 type TypeSignature  = Declaration
 type Constructor    = TypeSignature
-type Field	    = TypeSignature
 
 -- | A lambda binding is either domain free or typed.
 data LamBinding

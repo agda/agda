@@ -81,7 +81,7 @@ checkRecDef i name ps fields =
     @fs@: the fields to be checked
 -}
 checkRecordFields :: ModuleName -> QName -> Telescope -> Sort ->
-		     [(Name, Type)] -> Arity -> [A.Field] ->
+		     [(Name, Type)] -> Arity -> [A.Declaration] ->
 		     TCM Telescope
 checkRecordFields m q tel s ftel n [] = return EmptyTel
 checkRecordFields m q tel s ftel n (f : fs) = do
@@ -90,7 +90,7 @@ checkRecordFields m q tel s ftel n (f : fs) = do
   tel <- checkRecordFields m q tel s ftel' n fs
   return $ Arg NotHidden a `ExtendTel` Abs (show x) tel
   where
-    checkField :: A.Field -> TCM (Name, Type)
+    checkField :: A.Declaration -> TCM (Name, Type)
     checkField (A.ScopedDecl scope [f]) =
       setScope scope >> checkField f
     checkField (A.Field i x t) = do
@@ -123,10 +123,10 @@ checkRecordFields m q tel s ftel n (f : fs) = do
 -}
 checkRecordProjections ::
   ModuleName -> QName -> Telescope -> Telescope -> Sort ->
-  [A.Field] -> TCM ()
+  [A.Declaration] -> TCM ()
 checkRecordProjections m q tel ftel s fs = checkProjs EmptyTel ftel [] fs
   where
-    checkProjs :: Telescope -> Telescope -> [Term] -> [A.Field] -> TCM ()
+    checkProjs :: Telescope -> Telescope -> [Term] -> [A.Declaration] -> TCM ()
     checkProjs _ _ _ [] = return ()
     checkProjs ftel1 ftel2 vs (A.ScopedDecl scope [f] : fs) =
       setScope scope >> checkProjs ftel1 ftel2 vs (f : fs)

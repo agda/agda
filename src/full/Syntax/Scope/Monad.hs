@@ -176,7 +176,7 @@ getFixity :: C.QName -> ScopeM Fixity
 getFixity x = do
   r <- resolveName x
   case r of
-    VarName _	  -> return defaultFixity
+    VarName y	  -> return $ nameFixity y
     DefinedName d -> return $ nameFixity $ qnameName $ anameName d
     UnknownName	  -> __IMPOSSIBLE__
 

@@ -78,7 +78,7 @@ localNames = do
   locals <- scopeLocals <$> getScope
   return $ split $ nubBy ((==) `on` fst) $ map localOp locals ++ defs
   where
-    localOp (x, _) = (x, defaultFixity)
+    localOp (x, y) = (x, A.nameFixity y)
     split ops = ([ x | Left x <- zs], [ y | Right y <- zs ])
 	where
 	    zs = concatMap opOrNot ops
