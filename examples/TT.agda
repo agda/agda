@@ -1,4 +1,4 @@
-{-# OPTIONS --allow-unsolved-metas --dont-termination-check #-}
+{-# OPTIONS --allow-unsolved-metas --no-termination-check #-}
 
 module TT where
 

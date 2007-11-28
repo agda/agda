@@ -183,11 +183,11 @@ pragmaOptions =
 		    "enable proof irrelevance (experimental feature)"
     , Option []	    ["allow-unsolved-metas"] (NoArg allowUnsolvedFlag)
 		    "allow unsolved meta variables (only needed in batch mode)"
-    , Option []	    ["disable-positivity-check"] (NoArg noPositivityFlag)
+    , Option []	    ["no-positivity-check"] (NoArg noPositivityFlag)
 		    "do not warn about not strictly positive data types"
-    , Option []	    ["dont-termination-check"] (NoArg dontTerminationCheckFlag)
+    , Option []	    ["no-termination-check"] (NoArg dontTerminationCheckFlag)
 		    "do not warn about possibly nonterminating code"
-    , Option []	    ["dont-completeness-check"] (NoArg dontCompletenessCheckFlag)
+    , Option []	    ["no-coverage-check"] (NoArg dontCompletenessCheckFlag)
 		    "do not warn about possibly incomplete pattern matches"
     ]
 

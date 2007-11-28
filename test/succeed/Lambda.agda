@@ -1,4 +1,4 @@
-{-# OPTIONS --dont-termination-check #-}
+{-# OPTIONS --no-termination-check #-}
 
 module Lambda where
 
