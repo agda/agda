@@ -24,8 +24,8 @@ import Utils.Size
 -- | Instantiate a telescope with a substitution. Might reorder the telescope.
 --   @instantiateTel (Γ : Tel)(σ : Γ --> Γ) = Γσ~@
 --   Monadic only for debugging purposes.
-instantiateTel :: Substitution -> Telescope -> TCM (Telescope, Permutation, [Term], [Type])
-instantiateTel s tel = do
+instantiateTel :: MonadTCM tcm => Substitution -> Telescope -> tcm (Telescope, Permutation, [Term], [Type])
+instantiateTel s tel = liftTCM $ do
 
   reportSDoc "tc.lhs.inst" 10 $ sep
     [ text "instantiateTel "

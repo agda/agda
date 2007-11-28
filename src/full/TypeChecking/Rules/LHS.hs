@@ -19,7 +19,7 @@ import TypeChecking.Conversion
 import TypeChecking.Constraints
 import TypeChecking.Primitive (constructorForm)
 import TypeChecking.Empty (isEmptyType)
-import TypeChecking.Telescope (renamingR)
+import TypeChecking.Telescope (renamingR, teleArgs)
 
 import TypeChecking.Rules.Term (checkExpr)
 import TypeChecking.Rules.LHS.Problem
@@ -356,7 +356,7 @@ checkLeftHandSide ps a ret = do
                     unifyIndices_ flex (raise (size gamma) da) (drop (size vs) us) (raise (size gamma) ws)
 
             -- We should subsitute c ys for x in Δ₂ and sigma
-            let ys     = reverse [ Arg h (Var i []) | (i, Arg h _) <- zip [0..] $ reverse (telToList gamma) ]
+            let ys     = teleArgs gamma
                 delta2 = absApp (raise (size gamma) $ fmap problemTel p1) (Con c ys)
                 rho0 = [ var i | i <- [0..size delta2 - 1] ]
                     ++ [ raise (size delta2) $ Con c ys ]

@@ -70,6 +70,13 @@ unflattenTel (_ : _) [] = __IMPOSSIBLE__
 teleNames :: Telescope -> [String]
 teleNames = map (fst . unArg) . telToList
 
+teleArgNames :: Telescope -> [Arg String]
+teleArgNames = map (fmap fst) . telToList
+
+teleArgs :: Telescope -> Args
+teleArgs tel = 
+  reverse [ Arg h (Var i []) | (i, Arg h _) <- zip [0..] $ reverse (telToList tel) ]
+
 -- | A telescope split in two.
 data SplitTel = SplitTel
       { firstPart  :: Telescope
