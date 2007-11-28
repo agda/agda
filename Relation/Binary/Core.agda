@@ -87,21 +87,6 @@ Trichotomous : {a : Set} -> Rel a -> Rel a -> Set
 Trichotomous _≈_ _<_ = forall x y -> Tri (x < y) (x ≈ y) (x > y)
   where _>_ = flip₁ _<_
 
--- Is there any point with these synonyms?
-
-Monotone
-  :  forall {a₁} -> (≤₁ : Rel a₁)
-  -> forall {a₂} -> (≤₂ : Rel a₂)
-  -> (a₁ -> a₂) -> Set
-Monotone ≤₁ ≤₂ f = f Preserves ≤₁ → ≤₂
-
-Monotone₂
-  :  forall {a₁} -> (≤₁ : Rel a₁)
-  -> forall {a₂} -> (≤₂ : Rel a₂)
-  -> forall {a₃} -> (≤₃ : Rel a₃)
-  -> (a₁ -> a₂ -> a₃) -> Set
-Monotone₂ ≤₁ ≤₂ ≤₃ • = • Preserves₂ ≤₁ → ≤₂ → ≤₃
-
 ------------------------------------------------------------------------
 -- Equivalence relations
 

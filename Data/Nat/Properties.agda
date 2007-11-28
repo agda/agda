@@ -441,7 +441,7 @@ abstract
   m⊓n≤m (suc m) zero    = z≤n
   m⊓n≤m (suc m) (suc n) = s≤s $ m⊓n≤m m n
 
-  _+-mono_ : Monotone₂ _≤_ _≤_ _≤_ _+_
+  _+-mono_ : _+_ Preserves₂ _≤_ → _≤_ → _≤_
   _+-mono_ {zero} {m₂} {n₁} {n₂} z≤n n₁≤n₂ = start
     n₁      ≤⟨ n₁≤n₂ ⟩
     n₂      ≤⟨ n≤m+n m₂ n₂ ⟩

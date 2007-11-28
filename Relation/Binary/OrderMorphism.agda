@@ -8,8 +8,8 @@ open import Relation.Binary
 open PosetOps
 
 record _⇒_ (po₁ po₂ : Poset) : Set where
-  fun  : carrier po₁ -> carrier po₂
-  mono : Monotone (_≤_ po₁) (_≤_ po₂) fun
+  fun      : carrier po₁ -> carrier po₂
+  monotone : fun Preserves _≤_ po₁ → _≤_ po₂
 
 _⇒-DTO_ : (dto₁ dto₂ : DecTotalOrder) -> Set
 dto₁ ⇒-DTO dto₂ = poset dto₁ ⇒ poset dto₂
