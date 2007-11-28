@@ -271,18 +271,16 @@ split tel perm ps x = liftTCM $ runExceptionT $ do
   t <- normalise $ typeOfVar tel x  -- Δ₁ ⊢ t
 
   -- Compute the one hole context of the patterns at the variable
-  (hps, n) <- do
-    let holes = reverse $ permute perm $ allHolesWithContents ps
+  (hps, hix) <- do
+    let holes = reverse $ permute perm $ zip [0..] $ allHolesWithContents ps
     unless (length holes == length (telToList tel)) $
       fail "split: bad holes or tel"
 
     -- There is always a variable at the given hole.
-    let (VarP s, hps) = holes !! x
+    let (hix, (VarP s, hps)) = holes !! x
     debugHoleAndType s hps t
 
-    let Perm n _ = perm
-
-    return (hps, n)
+    return (hps, hix)
 
   -- Check that t is a datatype
   (d, pars, ixs, cons) <- do
@@ -292,7 +290,7 @@ split tel perm ps x = liftTCM $ runExceptionT $ do
       Just d  -> return d
 
   -- Compute the neighbourhoods for the constructors
-  concat <$> mapM (computeNeighbourhood delta1 delta2 perm d pars ixs (n - 1 - x) hps) cons
+  concat <$> mapM (computeNeighbourhood delta1 delta2 perm d pars ixs hix hps) cons
 
   where
 

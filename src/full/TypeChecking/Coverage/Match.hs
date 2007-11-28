@@ -14,6 +14,7 @@ import Syntax.Internal.Pattern
 import Syntax.Literal
 
 import Utils.Permutation
+import Utils.Size
 
 #include "../../undefined.h"
 
@@ -25,12 +26,12 @@ data MPat = VarMP Nat | ConMP QName [Arg MPat] | LitMP Literal | WildMP
 buildMPatterns :: Permutation -> [Arg Pattern] -> [Arg MPat]
 buildMPatterns perm ps = evalState (mapM (traverse build) ps) xs
   where
-    xs   = permute perm $ reverse [0 .. length (allHoles ps) - 1]
+    xs   = permute (invertP perm) $ reverse [0 .. size perm - 1]
     tick = do x : xs <- get; put xs; return x
 
     build (VarP _)      = VarMP <$> tick
     build (ConP con ps) = ConMP con <$> mapM (traverse build) ps
-    build (DotP _)      = return WildMP
+    build (DotP _)      = WildMP <$ tick
     build (LitP l)      = return $ LitMP l
 
 -- | If matching is inconclusive (@Block@) we want to know which

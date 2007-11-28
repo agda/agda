@@ -1,3 +1,4 @@
-errors/IncompletePatternMatching.agda:18,1-9
-Incomplete pattern matching for _==_. No match for zero suc zero
-when checking that the clause thm = tt has type zero == suc zero
+errors/IncompletePatternMatching.agda:14,1-15,24
+Panic: pattern not matched: [(ConP IncompletePatternMatching.zero
+[]),(ConP IncompletePatternMatching.suc [(VarP "_")])]
+when checking the definition of _==_
