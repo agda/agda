@@ -213,6 +213,7 @@ writeInterface file i = do
     encodeFile file i
   `catch` \e -> do
     putStrLn $ "failed to write interface: " ++ show e
+    removeFile file
     return ()
 
 createInterface :: CommandLineOptions -> CallTrace -> [ModuleName] -> VisitedModules ->
