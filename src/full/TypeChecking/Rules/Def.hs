@@ -40,11 +40,14 @@ import TypeChecking.Rules.Term                ( checkExpr, inferExpr, checkTeles
 import TypeChecking.Rules.LHS                 ( checkLeftHandSide )
 import {-# SOURCE #-} TypeChecking.Rules.Decl ( checkDecls )
 
+import Interaction.Options
+
 import Utils.Tuple
 import Utils.Size
 import Utils.Function
 import Utils.List
 import Utils.Permutation
+import Utils.Monad
 
 #include "../../undefined.h"
 
@@ -84,7 +87,7 @@ checkFunDef i name cs =
           liftIO $ putStrLn $ "added " ++ show dx ++ " : " ++ show t'
 
         -- Check pattern coverage
-        checkCoverage name
+        whenM (optCompletenessCheck <$> commandLineOptions) $ checkCoverage name
     where
         npats (Clause _ _ ps _) = size ps
 
