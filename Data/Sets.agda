@@ -12,13 +12,12 @@ open import Data.Function
 open import Data.List hiding (map)
 open import Data.Product
 
-module Sets₁ (dto : DecTotOrder) where
+module Sets₁ (dto : DecTotalOrder) where
 
   private
-    open module DTO = DecTotOrder dto
-    open module P   = Poset poset hiding (_≈_)
-    module P'       = Poset poset using (_≈_)
-  open P' public using (_≈_)
+    module DTO = DecTotalOrderOps dto
+  open DTO hiding (_≈_)
+  open DTO public using (_≈_)
 
   infixr 6 _∪_
   infix  5 _∈?_
@@ -27,10 +26,10 @@ module Sets₁ (dto : DecTotOrder) where
   abstract postulate Set-decSetoid : DecSetoid
 
   <Set> : Set
-  <Set> = Setoid.carrier (DecSetoid.setoid Set-decSetoid)
+  <Set> = SetoidOps.carrier (DecSetoidOps.setoid Set-decSetoid)
 
   _|≈|_ : Rel <Set>
-  _|≈|_ = Setoid._≈_ (DecSetoid.setoid Set-decSetoid)
+  _|≈|_ = SetoidOps._≈_ (DecSetoidOps.setoid Set-decSetoid)
 
   abstract
    postulate
@@ -72,8 +71,7 @@ module Sets₁ (dto : DecTotOrder) where
   s₁ ⊆ s₂ = forall x -> x ∈ s₁ -> x ∈ s₂
 
 open Sets₁ public
-open DecTotOrder
-open Poset using (carrier)
+open DecTotalOrderOps hiding (_≈_)
 open _⇒_
 
 abstract
@@ -81,7 +79,7 @@ abstract
   map : forall {do₁ do₂} -> do₁ ⇒-DTO do₂ -> <Set> do₁ -> <Set> do₂
   mapToSet
     :  forall {do₁ do₂}
-    -> (carrier (poset do₁) -> <Set> do₂)
+    -> (carrier do₁ -> <Set> do₂)
     -> <Set> do₁ -> <Set> do₂
 
   prop-map-∈₁

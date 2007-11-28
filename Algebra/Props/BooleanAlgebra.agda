@@ -9,7 +9,6 @@ module Algebra.Props.BooleanAlgebra
   where
 
 open import Relation.Binary
-open import Relation.Binary.Conversion
 open import Data.Function
 open import Data.Product
 import Relation.Binary.EqReasoning
@@ -22,10 +21,8 @@ private
   open module B = BooleanAlgebra booleanAlgebra
   open module B = DistributiveLattice distLattice
   open module B = Lattice lattice
-  open module S = Setoid setoid
-  open module S = Equivalence equiv
-  open module S = Preorder preorder
-  open module S = Relation.Binary.EqReasoning (setoid⟶preSetoid setoid)
+  open module S = SetoidOps setoid
+  open module S = Relation.Binary.EqReasoning preorder
 
 ------------------------------------------------------------------------
 -- A boolean algebra is a distributive lattice

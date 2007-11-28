@@ -21,7 +21,7 @@ import Algebra.RingSolver.Simple as Solver
 
 import Relation.Binary.EqReasoning
 private
-  open module PP = Relation.Binary.EqReasoning Bool-preSetoid
+  open module PP = Relation.Binary.EqReasoning Bool-preorder
 
 ------------------------------------------------------------------------
 -- Duality

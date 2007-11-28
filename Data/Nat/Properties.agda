@@ -20,7 +20,7 @@ import Algebra.RingSolver.Simple as Solver
 
 import Relation.Binary.EqReasoning
 private
-  open module PP = Relation.Binary.EqReasoning ℕ-preSetoid
+  open module PP = Relation.Binary.EqReasoning ℕ-preorder
 
 ------------------------------------------------------------------------
 -- (ℕ, +, *, 0, 1) is a commutative semiring

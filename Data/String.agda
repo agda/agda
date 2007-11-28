@@ -52,4 +52,4 @@ setoid : Setoid
 setoid = ≡-setoid String
 
 decSetoid : DecSetoid
-decSetoid = record { setoid = setoid; _≟_ = _≟_ }
+decSetoid = ≡-decSetoid _≟_

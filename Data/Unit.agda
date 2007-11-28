@@ -35,41 +35,40 @@ _ ⊤-≤? _ = yes _
 ------------------------------------------------------------------------
 -- Properties
 
-⊤-preSetoid : PreSetoid
-⊤-preSetoid = ≡-preSetoid ⊤
+⊤-preorder : Preorder
+⊤-preorder = ≡-preorder ⊤
 
 ⊤-setoid : Setoid
 ⊤-setoid = ≡-setoid ⊤
 
-⊤-decSetoid : DecSetoid
-⊤-decSetoid = record { setoid = ⊤-setoid; _≟_ = _⊤-≟_ }
-
-⊤-partialOrder : PartialOrder _≡_ _⊤-≤_
-⊤-partialOrder = record
-  { equiv    = ≡-equivalence
-  ; preorder = record
-      { refl    = \_ -> _
-      ; trans   = \_ _ -> _
+⊤-decTotalOrder : DecTotalOrder
+⊤-decTotalOrder = record
+  { carrier         = ⊤
+  ; underlyingEq    = _≡_
+  ; order           = _⊤-≤_
+  ; isDecTotalOrder = record
+      { isTotalOrder = record
+          { isPartialOrder = record
+              { isPreorder = record
+                  { isEquivalence = ≡-isEquivalence
+                  ; refl          = \_ -> _
+                  ; trans         = \_ _ -> _
+                  ; ≈-resp-∼      = ≡-resp _⊤-≤_
+                  }
+              ; antisym  = antisym
+              }
+          ; total = ⊤-total
+          }
+      ; ≈-decidable = _⊤-≟_
+      ; ≤-decidable = _⊤-≤?_
       }
-  ; antisym  = antisym
-  ; ≈-resp-≤ = subst⟶resp₂ _⊤-≤_ ≡-subst
   }
   where
   antisym : Antisymmetric _≡_ _⊤-≤_
   antisym _ _ = ≡-refl
 
-⊤-poset : Poset
-⊤-poset = record
-  { carrier  = ⊤
-  ; _≈_      = _≡_
-  ; _≤_      = _⊤-≤_
-  ; ord      = ⊤-partialOrder
-  }
+⊤-decSetoid : DecSetoid
+⊤-decSetoid = DecTotalOrderOps.decSetoid ⊤-decTotalOrder
 
-⊤-decTotOrder : DecTotOrder
-⊤-decTotOrder = record
-  { poset = ⊤-poset
-  ; _≟_   = _⊤-≟_
-  ; _≤?_  = _⊤-≤?_
-  ; total = ⊤-total
-  }
+⊤-poset : Poset
+⊤-poset = DecTotalOrderOps.poset ⊤-decTotalOrder

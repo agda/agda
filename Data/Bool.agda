@@ -64,11 +64,11 @@ abstract
 ------------------------------------------------------------------------
 -- Some properties
 
-Bool-preSetoid : PreSetoid
-Bool-preSetoid = ≡-preSetoid Bool
+Bool-preorder : Preorder
+Bool-preorder = ≡-preorder Bool
 
 Bool-setoid : Setoid
 Bool-setoid = ≡-setoid Bool
 
 Bool-decSetoid : DecSetoid
-Bool-decSetoid = record { setoid = Bool-setoid; _≟_ = _Bool-≟_ }
+Bool-decSetoid = ≡-decSetoid _Bool-≟_

@@ -8,7 +8,7 @@ module Algebra (s : Setoid) where
 
 open import Data.Product
 private
-  open module S = Setoid s
+  open module S = SetoidOps s
 
 ------------------------------------------------------------------------
 -- Unary and binary operations

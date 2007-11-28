@@ -7,7 +7,6 @@ open import Algebra.Packaged
 module Algebra.Props.Lattice (l : Latticoid) where
 
 open import Relation.Binary
-open import Relation.Binary.Conversion
 open import Data.Function
 open import Data.Product
 import Relation.Binary.EqReasoning
@@ -16,9 +15,8 @@ private
   open module L = Latticoid l
   open module L = Algebra setoid
   open module L = Lattice lattice
-  open module S = Setoid setoid
-  open module S = Equivalence equiv
-  open module S = Relation.Binary.EqReasoning (setoid⟶preSetoid setoid)
+  open module S = SetoidOps setoid
+  open module S = Relation.Binary.EqReasoning preorder
 
 abstract
 

@@ -1,224 +1,289 @@
 ------------------------------------------------------------------------
--- Binary relations
+-- Properties of homogeneous binary relations
 ------------------------------------------------------------------------
 
 module Relation.Binary where
 
 open import Logic
-open import Data.Function
-open import Data.Sum
 open import Data.Product
+open import Data.Sum
+open import Data.Function
 open import Relation.Nullary
+open import Relation.Binary.PropositionalEquality.Core
 
--- Binary relations.
-
-Rel : Set -> Set1
-Rel a = a -> a -> Set
+open import Relation.Binary.Core public
 
 ------------------------------------------------------------------------
--- Properties
+-- Preorders
 
-Reflexive : {a : Set} -> (_≈_ _∼_ : Rel a) -> Set
-Reflexive _≈_ _∼_ = forall {x y} -> x ≈ y -> x ∼ y
+record IsPreorder {a : Set}
+                  (_≈_ : Rel a) -- The underlying equality.
+                  (_∼_ : Rel a) -- The relation.
+                  : Set where
+  isEquivalence : IsEquivalence _≈_
+  refl          : Reflexive _≈_ _∼_
+  trans         : Transitive _∼_
+  ≈-resp-∼      : _≈_ Respects₂ _∼_
 
-Irreflexive : {a : Set} -> (_≈_ _<_ : Rel a) -> Set
-Irreflexive _≈_ _<_ = forall {x y} -> x ≈ y -> ¬ (x < y)
+module IsPreorderOps {a : Set} {_≈_ _∼_ : Rel a}
+                     (p : IsPreorder _≈_ _∼_) where
+  private
+    module IP = IsPreorder p
+    open IP public
+  module Eq = IsEquivalence IP.isEquivalence
 
-Symmetric : {a : Set} -> Rel a -> Set
-Symmetric _∼_ = forall {x y} -> x ∼ y -> y ∼ x
+record Preorder : Set1 where
+  carrier       : Set
+  underlyingEq  : Rel carrier  -- The underlying equality.
+  rel           : Rel carrier  -- The relation.
+  isPreorder    : IsPreorder underlyingEq rel
 
-Transitive : {a : Set} -> Rel a -> Set
-Transitive _∼_ = forall {x y z} -> x ∼ y -> y ∼ z -> x ∼ z
+module PreorderOps (p : Preorder) where
+  private
+    module P = Preorder p
+    open P public using (carrier; isPreorder)
+    open module IP = IsPreorderOps P.isPreorder public
 
-Antisymmetric : {a : Set} -> (_≈_ _≤_ : Rel a) -> Set
-Antisymmetric _≈_ _≤_ = forall {x y} -> x ≤ y -> y ≤ x -> x ≈ y
+  _≈_ : Rel carrier
+  _≈_ = P.underlyingEq
 
-Asymmetric : {a : Set} -> (_<_ : Rel a) -> Set
-Asymmetric _<_ = forall {x y} -> x < y -> ¬ (y < x)
-
-_Respects_ : {a : Set} -> Rel a -> (a -> Set) -> Set
-_∼_ Respects P = forall {x y} -> x ∼ y -> P x -> P y
-
-_Respects₂_ : {a : Set} -> Rel a -> Rel a -> Set
-∼ Respects₂ P =
-  (forall {x} -> ∼ Respects (P x)      ) ×
-  (forall {y} -> ∼ Respects (flip₁ P y))
-
-Substitutive : {a : Set} -> Rel a -> Set1
-Substitutive {a} ∼ = (P : a -> Set) -> ∼ Respects P
-
-_Preserves_→_ : forall {a₁ a₂} -> (a₁ -> a₂) -> Rel a₁ -> Rel a₂ -> Set
-f Preserves _∼₁_ → _∼₂_ = forall {x y} -> x ∼₁ y -> f x ∼₂ f y
-
-_Preserves₂_→_→_
-  :  forall {a₁ a₂ a₃}
-  -> (a₁ -> a₂ -> a₃) -> Rel a₁ -> Rel a₂ -> Rel a₃ -> Set
-_+_ Preserves₂ _∼₁_ → _∼₂_ → _∼₃_ =
-  forall {x y u v} -> x ∼₁ y -> u ∼₂ v -> (x + u) ∼₃ (y + v)
-
-Congruential : ({a : Set} -> Rel a) -> Set1
-Congruential ∼ = forall {a b} -> (f : a -> b) -> f Preserves ∼ → ∼
-
-Congruential₂ : ({a : Set} -> Rel a) -> Set1
-Congruential₂ ∼ =
-  forall {a b c} -> (f : a -> b -> c) -> f Preserves₂ ∼ → ∼ → ∼
-
-Decidable : {a : Set} -> Rel a -> Set
-Decidable _∼_ = forall x y -> Dec (x ∼ y)
-
-Total : {a : Set} -> Rel a -> Set
-Total _∼_ = forall x y -> (x ∼ y) ⊎ (y ∼ x)
-
-data Tri (a b c : Set) : Set where
-  Tri₁ :   a -> ¬ b -> ¬ c -> Tri a b c
-  Tri₂ : ¬ a ->   b -> ¬ c -> Tri a b c
-  Tri₃ : ¬ a -> ¬ b ->   c -> Tri a b c
-
-Trichotomous : {a : Set} -> Rel a -> Rel a -> Set
-Trichotomous _≈_ _<_ = forall x y -> Tri (x < y) (x ≈ y) (x > y)
-  where _>_ = flip₁ _<_
-
-Monotone
-  :  forall {a₁} -> (≤₁ : Rel a₁)
-  -> forall {a₂} -> (≤₂ : Rel a₂)
-  -> (a₁ -> a₂) -> Set
-Monotone ≤₁ ≤₂ f = f Preserves ≤₁ → ≤₂
-
-Monotone₂
-  :  forall {a₁} -> (≤₁ : Rel a₁)
-  -> forall {a₂} -> (≤₂ : Rel a₂)
-  -> forall {a₃} -> (≤₃ : Rel a₃)
-  -> (a₁ -> a₂ -> a₃) -> Set
-Monotone₂ ≤₁ ≤₂ ≤₃ • = • Preserves₂ ≤₁ → ≤₂ → ≤₃
+  _∼_ : Rel carrier
+  _∼_ = P.rel
 
 ------------------------------------------------------------------------
--- Some properties imply others
+-- Setoids
 
-trans∧irr⟶asym
-  :  forall {a} -> {≈ < : Rel a}
-  -> Reflexive _≡_ ≈
-  -> Transitive < -> Irreflexive ≈ < -> Asymmetric <
-trans∧irr⟶asym refl trans irrefl = \x<y y<x ->
-  irrefl (refl ≡-refl) (trans x<y y<x)
-
-irr∧antisym⟶asym
-  :  forall {a} -> {≈ < : Rel a}
-  -> Irreflexive ≈ < -> Antisymmetric ≈ < -> Asymmetric <
-irr∧antisym⟶asym irrefl antisym = \x<y y<x ->
-  irrefl (antisym x<y y<x) x<y
-
-asym⟶antisym
-  :  forall {a} -> {≈ < : Rel a}
-  -> Asymmetric < -> Antisymmetric ≈ <
-asym⟶antisym asym x<y y<x = ⊥-elim (asym x<y y<x)
-
-asym⟶irr
-  :  forall {a} -> {≈ < : Rel a}
-  -> ≈ Respects₂ < -> Symmetric ≈
-  -> Asymmetric < -> Irreflexive ≈ <
-asym⟶irr {< = _<_} resp sym asym {x} {y} x≈y x<y = asym x<y y<x
-  where
-  y<y : y < y
-  y<y = proj₂ resp x≈y x<y
-  y<x : y < x
-  y<x = proj₁ resp (sym x≈y) y<y
-
-subst⟶resp₂
-  :  forall {a ∼} -> (P : Rel a)
-  -> Substitutive ∼
-  -> ∼ Respects₂ P
-subst⟶resp₂ {∼ = ∼} P subst =
-  (\{x _ _} y'∼y Pxy' -> subst (P x)         y'∼y Pxy') ,
-  (\{y _ _} x'∼x Px'y -> subst (\x -> P x y) x'∼x Px'y)
-
-total⟶refl
-  : forall {a} -> {≈ ∼ : Rel a}
-  -> ≈ Respects₂ ∼ -> Symmetric ≈
-  -> Total ∼ -> Reflexive ≈ ∼
-total⟶refl {≈ = ≈} {∼ = ∼} resp sym total = refl
-  where
-  refl : Reflexive ≈ ∼
-  refl {x} {y} x≈y with total x y
-  ...              | inj₁ x∼y = x∼y
-  ...              | inj₂ y∼x =
-    proj₁ resp x≈y (proj₂ resp (sym x≈y) y∼x)
-
-tri⟶asym : forall {a} -> {≈ < : Rel a}
-         -> Trichotomous ≈ < -> Asymmetric <
-tri⟶asym tri {x} {y} x<y x>y with tri x y
-... | Tri₁ _   _ x≯y = x≯y x>y
-... | Tri₂ _   _ x≯y = x≯y x>y
-... | Tri₃ x≮y _ _   = x≮y x<y
-
-subst⟶cong
-  :  {≈ : forall {a} -> Rel a}
-  -> (forall {a} -> Reflexive {a} _≡_ ≈)
-  -> (forall {a} -> Substitutive {a} ≈)
-  -> Congruential ≈
-subst⟶cong {≈ = _≈_} refl subst f {x} x≈y =
-  subst (\y -> f x ≈ f y) x≈y (refl ≡-refl)
-
-cong+trans⟶cong₂
-  :  {≈ : forall {a} -> Rel a}
-  -> Congruential  ≈ -> (forall {a} -> Transitive {a} ≈)
-  -> Congruential₂ ≈
-cong+trans⟶cong₂ cong trans f {x = x} {v = v} x≈y u≈v =
-  cong (f x) u≈v ⟨ trans ⟩ cong (flip f v) x≈y
-
-------------------------------------------------------------------------
--- Interesting combinations of properties
-
-record Preorder {a : Set} (_≈_ _∼_ : Rel a) : Set where
-  refl  : Reflexive _≈_ _∼_
-  trans : Transitive _∼_
-
-record Equivalence {a : Set} (_≈_ : Rel a) : Set where
-  preorder : Preorder _≡_ _≈_
-  sym      : Symmetric _≈_
-
-record PartialOrder {a : Set} (_≈_ _≤_ : Rel a) : Set where
-  equiv    : Equivalence _≈_
-  preorder : Preorder _≈_ _≤_
-  antisym  : Antisymmetric _≈_ _≤_
-  ≈-resp-≤ : _≈_ Respects₂ _≤_
-
-record StrictPartialOrder {a : Set} (_≈_ _<_ : Rel a) : Set where
-  equiv    : Equivalence _≈_
-  irrefl   : Irreflexive _≈_ _<_
-  trans    : Transitive _<_
-  ≈-resp-< : _≈_ Respects₂ _<_
-
-------------------------------------------------------------------------
--- Properties packaged up with sets and relations
-
--- Just a small selection of interesting combinations.
-
-record PreSetoid : Set1 where
-  carrier  : Set
-  _∼_      : Rel carrier
-  _≈_      : Rel carrier
-  preorder : Preorder _≈_ _∼_
-  equiv    : Equivalence _≈_
+-- Equivalence relations are defined in Relation.Binary.Core.
 
 record Setoid : Set1 where
-  carrier : Set
-  _≈_     : Rel carrier
-  equiv   : Equivalence _≈_
+  carrier       : Set
+  eq            : Rel carrier
+  isEquivalence : IsEquivalence eq
+
+module SetoidOps (s : Setoid) where
+  private
+    module S = Setoid s
+    open S public using (carrier; isEquivalence)
+    open module IE = IsEquivalence S.isEquivalence public
+
+  _≈_ : Rel carrier
+  _≈_ = S.eq
+
+  preorder : Preorder
+  preorder = record
+    { carrier      = carrier
+    ; underlyingEq = _≡_
+    ; rel          = _≈_
+    ; isPreorder   = record
+      { isEquivalence = ≡-isEquivalence
+      ; refl          = refl
+      ; trans         = trans
+      ; ≈-resp-∼      = ≡-resp _≈_
+      }
+    }
+
+------------------------------------------------------------------------
+-- Decidable equivalence relations
+
+record IsDecEquivalence {a : Set} (_≈_ : Rel a) : Set where
+  isEquivalence : IsEquivalence _≈_
+  decidable     : Decidable _≈_
+
+module IsDecEquivalenceOps {a : Set} {_≈_ : Rel a}
+                           (de : IsDecEquivalence _≈_) where
+  private
+    module IDE = IsDecEquivalence de
+    open IDE public using (isEquivalence)
+    open module IE = IsEquivalence IDE.isEquivalence public
+
+  _≟_ : Decidable _≈_
+  _≟_ = IDE.decidable
 
 record DecSetoid : Set1 where
+  carrier          : Set
+  eq               : Rel carrier
+  isDecEquivalence : IsDecEquivalence eq
+
+module DecSetoidOps (ds : DecSetoid) where
+  private
+    module DS = DecSetoid ds
+    open DS public using (carrier; isDecEquivalence)
+    open module IDE = IsDecEquivalenceOps DS.isDecEquivalence public
+
+  _≈_ : Rel carrier
+  _≈_ = DS.eq
+
   setoid : Setoid
-  _≟_    : Decidable (Setoid._≈_ setoid)
+  setoid = record
+    { carrier       = carrier
+    ; eq            = _≈_
+    ; isEquivalence = isEquivalence
+    }
+
+------------------------------------------------------------------------
+-- Partial orders
+
+record IsPartialOrder {a : Set} (_≈_ _≤_ : Rel a) : Set where
+  isPreorder    : IsPreorder _≈_ _≤_
+  antisym       : Antisymmetric _≈_ _≤_
+
+module IsPartialOrderOps {a : Set} {_≈_ _≤_ : Rel a}
+                         (po : IsPartialOrder _≈_ _≤_) where
+  private
+    module IPO = IsPartialOrder po
+    open IPO public
+    open module IP = IsPreorderOps IPO.isPreorder public
+           renaming (≈-resp-∼ to ≈-resp-≤)
 
 record Poset : Set1 where
-  carrier  : Set
-  _≈_      : Rel carrier
-  _≤_      : Rel carrier
-  ord      : PartialOrder _≈_ _≤_
+  carrier        : Set
+  underlyingEq   : Rel carrier
+  order          : Rel carrier
+  isPartialOrder : IsPartialOrder underlyingEq order
 
-open Poset
+module PosetOps (p : Poset) where
+  private
+    module P = Poset p
+    open P public using (carrier; isPartialOrder)
+    open module IPO = IsPartialOrderOps P.isPartialOrder public
 
-record DecTotOrder : Set1 where
+  _≈_ : Rel carrier
+  _≈_ = P.underlyingEq
+
+  _≤_ : Rel carrier
+  _≤_ = P.order
+
+  -- TODO: One could add more conversions like this one.
+
+  preorder : Preorder
+  preorder = record
+    { carrier      = carrier
+    ; underlyingEq = _≈_
+    ; rel          = _≤_
+    ; isPreorder   = isPreorder
+    }
+
+------------------------------------------------------------------------
+-- Strict partial orders
+
+record IsStrictPartialOrder {a : Set} (_≈_ _<_ : Rel a) : Set where
+  isEquivalence : IsEquivalence _≈_
+  irrefl        : Irreflexive _≈_ _<_
+  trans         : Transitive _<_
+  ≈-resp-<      : _≈_ Respects₂ _<_
+
+module IsStrictPartialOrderOps
+         {a : Set} {_≈_ _≤_ : Rel a}
+         (spo : IsStrictPartialOrder _≈_ _≤_) where
+  private
+    module ISPO = IsStrictPartialOrder spo
+    open ISPO public
+  module Eq = IsEquivalence ISPO.isEquivalence public
+
+record StrictPartialOrder : Set1 where
+  carrier              : Set
+  underlyingEq         : Rel carrier
+  order                : Rel carrier
+  isStrictPartialOrder : IsStrictPartialOrder underlyingEq order
+
+module StrictPartialOrderOps (spo : StrictPartialOrder) where
+  private
+    module SPO = StrictPartialOrder spo
+    open SPO public using (carrier; isStrictPartialOrder)
+    open module ISPO = IsStrictPartialOrderOps SPO.isStrictPartialOrder
+                       public
+
+  _≈_ : Rel carrier
+  _≈_ = SPO.underlyingEq
+
+  _<_ : Rel carrier
+  _<_ = SPO.order
+
+------------------------------------------------------------------------
+-- Total orders
+
+record IsTotalOrder {a : Set} (_≈_ _≤_ : Rel a) : Set where
+  isPartialOrder : IsPartialOrder _≈_ _≤_
+  total          : Total _≤_
+
+module IsTotalOrderOps {a : Set} {_≈_ _≤_ : Rel a}
+                       (to : IsTotalOrder _≈_ _≤_) where
+  private
+    module ITO = IsTotalOrder to
+    open ITO public
+    open module IPO = IsPartialOrderOps ITO.isPartialOrder public
+
+record TotalOrder : Set1 where
+  carrier      : Set
+  underlyingEq : Rel carrier
+  order        : Rel carrier
+  isTotalOrder : IsTotalOrder underlyingEq order
+
+module TotalOrderOps (p : TotalOrder) where
+  private
+    module TO = TotalOrder p
+    open TO public using (carrier; isTotalOrder)
+    open module ITO = IsTotalOrderOps TO.isTotalOrder public
+
+  _≈_ : Rel carrier
+  _≈_ = TO.underlyingEq
+
+  _≤_ : Rel carrier
+  _≤_ = TO.order
+
+------------------------------------------------------------------------
+-- Decidable total orders
+
+record IsDecTotalOrder {a : Set} (_≈_ _≤_ : Rel a) : Set where
+  isTotalOrder : IsTotalOrder _≈_ _≤_
+  ≈-decidable  : Decidable _≈_
+  ≤-decidable  : Decidable _≤_
+
+module IsDecTotalOrderOps {a : Set} {_≈_ _≤_ : Rel a}
+                          (dto : IsDecTotalOrder _≈_ _≤_) where
+  private
+    module IDTO = IsDecTotalOrder dto
+    open IDTO public using (isTotalOrder)
+    open module ITO = IsTotalOrderOps IDTO.isTotalOrder public
+
+  _≟_ : Decidable _≈_
+  _≟_ = IDTO.≈-decidable
+
+  _≤?_ : Decidable _≤_
+  _≤?_ = IDTO.≤-decidable
+
+record DecTotalOrder : Set1 where
+  carrier         : Set
+  underlyingEq    : Rel carrier
+  order           : Rel carrier
+  isDecTotalOrder : IsDecTotalOrder underlyingEq order
+
+module DecTotalOrderOps (p : DecTotalOrder) where
+  private
+    module DTO = DecTotalOrder p
+    open DTO public using (carrier; isDecTotalOrder)
+    open module ITO = IsDecTotalOrderOps DTO.isDecTotalOrder public
+
+  _≈_ : Rel carrier
+  _≈_ = DTO.underlyingEq
+
+  _≤_ : Rel carrier
+  _≤_ = DTO.order
+
   poset : Poset
-  _≟_   : Decidable (_≈_ poset)
-  _≤?_  : Decidable (_≤_ poset)
-  total : Total (_≤_ poset)
+  poset = record
+    { carrier        = carrier
+    ; underlyingEq   = _≈_
+    ; order          = _≤_
+    ; isPartialOrder = isPartialOrder
+    }
+
+  decSetoid : DecSetoid
+  decSetoid = record
+    { carrier          = carrier
+    ; eq               = _≈_
+    ; isDecEquivalence = record
+        { isEquivalence = isEquivalence
+        ; decidable     = _≟_
+        }
+    }

@@ -23,14 +23,11 @@
 
 open import Relation.Binary
 
-module Relation.Binary.EqReasoning (p : PreSetoid) where
+module Relation.Binary.EqReasoning (p : Preorder) where
 
 open import Logic
 private
-  open module P   = PreSetoid p
-  open module Pre = Preorder preorder
-  module E    = Equivalence equiv
-  module EPre = Preorder E.preorder
+  open module P = PreorderOps p
 
 infix  2 _∎
 infixr 2 _∼⟨_⟩_ _≈⟨_⟩_
@@ -46,7 +43,7 @@ _≈⟨_⟩_ : forall x {y z} -> x ≈ y -> y ∼ z -> x ∼ z
 _ ≈⟨ x≈y ⟩ y∼z = trans (refl x≈y) y∼z
 
 ≈-byDef : forall {x} -> x ≈ x
-≈-byDef = EPre.refl ≡-refl
+≈-byDef = Eq.refl ≡-refl
 
 byDef : forall {x} -> x ∼ x
 byDef = refl ≈-byDef

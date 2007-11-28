@@ -7,7 +7,6 @@ open import Algebra.Packaged
 module Algebra.Operations (s : Semiringoid) where
 
 open import Relation.Binary
-open import Relation.Binary.Conversion
 open import Relation.Binary.PropositionalEquality
 open import Logic
 open import Data.Function
@@ -17,16 +16,14 @@ import Relation.Binary.EqReasoning
 private
   open module R = Semiringoid s
   open module A = Algebra setoid
-  open module S = Setoid setoid
-  open module S = Equivalence equiv
-  open module S = Preorder preorder
+  open module S = SetoidOps setoid
   module R = Semiring semiring
   module A = CommutativeMonoid R.+-monoid
   module A = Monoid A.monoid
   module A = Semigroup A.semigroup
   module M = Monoid R.*-monoid
   module M = Semigroup M.semigroup
-  open module S = Relation.Binary.EqReasoning (setoid⟶preSetoid setoid)
+  open module S = Relation.Binary.EqReasoning preorder
 
 ------------------------------------------------------------------------
 -- Operations

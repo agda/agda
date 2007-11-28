@@ -14,7 +14,6 @@ module Algebra.RingSolver.Lemmas
   where
 
 open import Relation.Binary
-open import Relation.Binary.Conversion
 open import Data.Function
 open import Data.Product
 import Relation.Binary.EqReasoning
@@ -23,9 +22,8 @@ import Algebra.Morphism as Morphism
 private
   open module R = AlmostCommRingoid r
   open module R = BareRingoid bare
-  open module S = Setoid setoid
-  open module S = Equivalence equiv
-  open module S = Relation.Binary.EqReasoning (setoid⟶preSetoid setoid)
+  open module S = SetoidOps setoid
+  open module S = Relation.Binary.EqReasoning preorder
   open module R = Algebra setoid
   open module R = AlmostCommRing almostCommRing
   open module R = CommutativeSemiring commSemiring

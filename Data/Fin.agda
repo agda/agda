@@ -62,16 +62,16 @@ abstract
   fs m Fin-≟ fs n  | no prf     = no (prf ∘ drop-fs)
   fz   Fin-≟ fs n  = no (⊥-elim ∘ fz≢fs)
   fs m Fin-≟ fz    = no (⊥-elim ∘ fz≢fs ∘ sym)
-    where sym = Equivalence.sym ≡-equivalence
+    where sym = IsEquivalence.sym ≡-isEquivalence
 
 ------------------------------------------------------------------------
 -- Some properties
 
-Fin-preSetoid : ℕ -> PreSetoid
-Fin-preSetoid n = ≡-preSetoid (Fin n)
+Fin-preorder : ℕ -> Preorder
+Fin-preorder n = ≡-preorder (Fin n)
 
 Fin-setoid : ℕ -> Setoid
 Fin-setoid n = ≡-setoid (Fin n)
 
 Fin-decSetoid : ℕ -> DecSetoid
-Fin-decSetoid n = record { setoid = Fin-setoid n; _≟_ = _Fin-≟_ }
+Fin-decSetoid n = ≡-decSetoid (_Fin-≟_ {n = n})

@@ -10,7 +10,6 @@ module Algebra.Props.AlmostCommRing
 
 open import Data.Function
 open import Relation.Binary
-open import Relation.Binary.Conversion
 import Algebra
 import Algebra.Props.CommutativeSemiring as CSProp
 import Relation.Binary.EqReasoning as PP
@@ -19,7 +18,7 @@ private
   open module R = BareRingoid bare
   open module R = Algebra setoid
   open module R = AlmostCommRing almostCommRing
-  open module S = PP (setoid⟶preSetoid setoid)
+  open module S = PP (SetoidOps.preorder setoid)
 
 ------------------------------------------------------------------------
 -- An "almost commutative ring" is a commutative semiring

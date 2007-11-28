@@ -11,14 +11,11 @@
 
 open import Relation.Binary
 
-module Relation.Binary.EqReasoning.Abstract (p : PreSetoid) where
+module Relation.Binary.EqReasoning.Abstract (p : Preorder) where
 
 open import Logic
 private
-  open module P   = PreSetoid p
-  open module Pre = Preorder preorder
-  module E    = Equivalence equiv
-  module EPre = Preorder E.preorder
+  open module P = PreorderOps p
 
 infix  4 _equalTo_
 infix  2 _∎
@@ -40,7 +37,7 @@ abstract
   _ ≈⟨ x≈y ⟩ y∼z = trans (refl x≈y) y∼z
 
   ≈-byDef : forall {x} -> x ≈ x
-  ≈-byDef = EPre.refl ≡-refl
+  ≈-byDef = Eq.refl ≡-refl
 
   byDef : forall {x} -> x ∼ x
   byDef = refl ≈-byDef

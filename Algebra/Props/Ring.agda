@@ -7,7 +7,6 @@ open import Algebra.Packaged
 module Algebra.Props.Ring (r : Ringoid) where
 
 open import Relation.Binary
-open import Relation.Binary.Conversion
 open import Data.Function
 open import Data.Product
 import Relation.Binary.EqReasoning
@@ -16,9 +15,8 @@ import Algebra.Props.AbelianGroup
 private
   open module R  = Ringoid r
   open module R  = BareRingoid bare
-  open module S  = Setoid setoid
-  open module E  = Equivalence equiv
-  open module PP = Relation.Binary.EqReasoning (setoid⟶preSetoid setoid)
+  open module S  = SetoidOps setoid
+  open module PP = Relation.Binary.EqReasoning preorder
   open module R  = Algebra setoid
   module R = Ring R.ring
   module A = AbelianGroup R.+-group

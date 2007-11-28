@@ -12,7 +12,7 @@ private
   module F = Alg from
   module T = Setoid to
   module T = Alg to
-  open module TE = Setoid to using (_≈_)
+  open module TE = SetoidOps to using (_≈_)
 
 ------------------------------------------------------------------------
 -- Basic definitions

@@ -11,15 +11,13 @@ module Algebra.Props.AbelianGroup
 open import Relation.Binary
 open import Data.Function
 open import Data.Product
-open import Relation.Binary.Conversion
 import Relation.Binary.EqReasoning
 import Algebra
 import Algebra.Props.Group
 private
   open module G  = AbelianGroupoid g
-  open module S  = Setoid setoid
-  open module E  = Equivalence equiv
-  open module PP = Relation.Binary.EqReasoning (setoid⟶preSetoid setoid)
+  open module S  = SetoidOps setoid
+  open module PP = Relation.Binary.EqReasoning preorder
   open module G  = Algebra setoid
   open module G  = AbelianGroup abelianGroup
   open module G  = Group group

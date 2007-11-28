@@ -10,7 +10,6 @@ open import Data.Sum
 open import Relation.Nullary
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality
-open import Relation.Binary.Conversion
 import Relation.Binary.EqReasoning as ER
 
 infixl 7 _*_ _⊓_
@@ -125,24 +124,33 @@ abstract
 ------------------------------------------------------------------------
 -- Some properties
 
-ℕ-preSetoid : PreSetoid
-ℕ-preSetoid = ≡-preSetoid ℕ
+ℕ-preorder : Preorder
+ℕ-preorder = ≡-preorder ℕ
 
 ℕ-setoid : Setoid
 ℕ-setoid = ≡-setoid ℕ
 
-ℕ-decSetoid : DecSetoid
-ℕ-decSetoid = record { setoid = ℕ-setoid; _≟_ = _ℕ-≟_ }
-
-ℕ-partialOrder : PartialOrder _≡_ _≤_
-ℕ-partialOrder = record
-  { equiv    = ≡-equivalence
-  ; preorder = record
-      { refl  = refl
-      ; trans = trans
+ℕ-decTotalOrder : DecTotalOrder
+ℕ-decTotalOrder = record
+  { carrier         = ℕ
+  ; underlyingEq    = _≡_
+  ; order           = _≤_
+  ; isDecTotalOrder = record
+      { isTotalOrder = record
+          { isPartialOrder = record
+              { isPreorder = record
+                  { isEquivalence = ≡-isEquivalence
+                  ; refl          = refl
+                  ; trans         = trans
+                  ; ≈-resp-∼      = ≡-resp _≤_
+                  }
+              ; antisym  = antisym
+              }
+          ; total = ℕ-total
+          }
+      ; ≈-decidable = _ℕ-≟_
+      ; ≤-decidable = _≤?_
       }
-  ; antisym  = antisym
-  ; ≈-resp-≤ = subst⟶resp₂ _≤_ ≡-subst
   }
   where
   abstract
@@ -159,21 +167,11 @@ abstract
     trans z≤n       _         = z≤n
     trans (s≤s m≤n) (s≤s n≤o) = s≤s (trans m≤n n≤o)
 
+ℕ-decSetoid : DecSetoid
+ℕ-decSetoid = DecTotalOrderOps.decSetoid ℕ-decTotalOrder
+
 ℕ-poset : Poset
-ℕ-poset = record
-  { carrier  = ℕ
-  ; _≈_      = _≡_
-  ; _≤_      = _≤_
-  ; ord      = ℕ-partialOrder
-  }
+ℕ-poset = DecTotalOrderOps.poset ℕ-decTotalOrder
 
-module ≤-Reasoning = ER (poset⟶preSetoid ℕ-poset)
+module ≤-Reasoning = ER (PosetOps.preorder ℕ-poset)
   renaming (_∼⟨_⟩_ to _≤⟨_⟩_; _≈⟨_⟩_ to _≡⟨_⟩_; ≈-byDef to ≡-byDef)
-
-ℕ-decTotOrder : DecTotOrder
-ℕ-decTotOrder = record
-  { poset = ℕ-poset
-  ; _≟_   = _ℕ-≟_
-  ; _≤?_  = _≤?_
-  ; total = ℕ-total
-  }

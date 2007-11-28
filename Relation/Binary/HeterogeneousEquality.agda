@@ -6,7 +6,10 @@ module Relation.Binary.HeterogeneousEquality where
 
 open import Logic
 open import Relation.Binary
+open import Relation.Binary.Consequences
 import Relation.Binary.PropositionalEquality as Homo
+open import Data.Function
+open import Data.Product
 
 ------------------------------------------------------------------------
 -- Some properties
@@ -48,38 +51,56 @@ import Relation.Binary.PropositionalEquality as Homo
 ≅-cong₂ : Congruential₂ (\x y -> x ≅ y)
 ≅-cong₂ = cong+trans⟶cong₂ ≅-cong ≅-trans
 
-≅-preorder : forall {a} -> Preorder {a} (\x y -> x ≅ y) (\x y -> x ≅ y)
-≅-preorder = record
-  { refl  = ≅-reflexive
-  ; trans = ≅-trans
-  }
+≅-resp : forall {a} (∼ : Rel a) -> (\x y -> x ≅ y) Respects₂ ∼
+≅-resp _∼_ = subst⟶resp₂ _∼_ ≅-subst
 
-≅-preorder-≡ : forall {a} -> Preorder {a} _≡_ (\x y -> x ≅ y)
-≅-preorder-≡ = record
+≅-isEquivalence : forall {a} -> IsEquivalence {a} (\x y -> x ≅ y)
+≅-isEquivalence = record
   { refl  = ≅-reflexive-≡
+  ; sym   = ≅-sym
   ; trans = ≅-trans
-  }
-
-≅-equivalence : forall {a} -> Equivalence {a} (\x y -> x ≅ y)
-≅-equivalence {a} = record
-  { preorder = ≅-preorder-≡
-  ; sym      = ≅-sym
-  }
-
-≅-preSetoid : Set -> PreSetoid
-≅-preSetoid a = record
-  { carrier  = a
-  ; _∼_      = \x y -> x ≅ y
-  ; _≈_      = _≡_
-  ; preorder = ≅-preorder-≡
-  ; equiv    = Homo.≡-equivalence
   }
 
 ≅-setoid : Set -> Setoid
 ≅-setoid a = record
-  { carrier = a
-  ; _≈_     = \x y -> x ≅ y
-  ; equiv   = ≅-equivalence
+  { carrier       = a
+  ; eq            = \x y -> x ≅ y
+  ; isEquivalence = ≅-isEquivalence
+  }
+
+≅-decSetoid : forall {a} -> Decidable (\x y -> _≅_ {a} x y) -> DecSetoid
+≅-decSetoid ≅-dec = record
+  { carrier = _
+  ; eq      = \x y -> x ≅ y
+  ; isDecEquivalence = record
+      { isEquivalence = ≅-isEquivalence
+      ; decidable     = ≅-dec
+      }
+  }
+
+≅-isPreorder : forall {a} ->
+               IsPreorder {a} (\x y -> x ≅ y) (\x y -> x ≅ y)
+≅-isPreorder = record
+  { isEquivalence = ≅-isEquivalence
+  ; refl          = ≅-reflexive
+  ; trans         = ≅-trans
+  ; ≈-resp-∼      = ≅-resp (\x y -> x ≅ y)
+  }
+
+≅-isPreorder-≡ : forall {a} -> IsPreorder {a} _≡_ (\x y -> x ≅ y)
+≅-isPreorder-≡ = record
+  { isEquivalence = Homo.≡-isEquivalence
+  ; refl          = ≅-reflexive-≡
+  ; trans         = ≅-trans
+  ; ≈-resp-∼      = Homo.≡-resp (\x y -> x ≅ y)
+  }
+
+≅-preorder : Set -> Preorder
+≅-preorder a = record
+  { carrier      = a
+  ; underlyingEq = _≡_
+  ; rel          = \x y -> x ≅ y
+  ; isPreorder   = ≅-isPreorder-≡
   }
 
 ------------------------------------------------------------------------
@@ -109,7 +130,7 @@ import Relation.Binary.EqReasoning as ER
 module ≅-Reasoning where
   module ER-≅ {a : Set} where
     private
-      module ER' = ER (≅-preSetoid a)
+      module ER' = ER (≅-preorder a)
         hiding (_≈⟨_⟩_; ≈-byDef)
         renaming (_∼⟨_⟩_ to _≅⟨_⟩_)
     open ER' public

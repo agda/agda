@@ -43,4 +43,4 @@ setoid : Setoid
 setoid = ≡-setoid Char
 
 decSetoid : DecSetoid
-decSetoid = record { setoid = setoid; _≟_ = _≟_ }
+decSetoid = ≡-decSetoid _≟_

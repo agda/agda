@@ -11,14 +11,14 @@ module Algebra.Props.CommutativeSemiring
 import Algebra
 import Relation.Binary.EqReasoning
 open import Relation.Binary
-open import Relation.Binary.Conversion
 open import Data.Function
 import Algebra.Props.Semiring as SProp
 private
   open module R = CommutativeSemiringoid r
   open module R = Algebra setoid
   open module R = CommutativeSemiring commSemiring
-  open module S = Relation.Binary.EqReasoning (setoid⟶preSetoid setoid)
+  open module S = Relation.Binary.EqReasoning
+                    (SetoidOps.preorder setoid)
 
 ------------------------------------------------------------------------
 -- A commutative semiring is a semiring
