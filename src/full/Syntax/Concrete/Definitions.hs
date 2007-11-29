@@ -411,7 +411,7 @@ niceDeclarations ds = do
 	    case d of
 		FunDef r ds f _ a x cs	-> FunDef r ds f PrivateAccess a x
 						  (map mkPrivateClause cs)
-		DataDef r f _ a x ps cs	-> DataDef r f PrivateAccess a x ps cs
+		DataDef r f _ a x ps cs	-> DataDef r f PrivateAccess a x ps (map mkPrivate cs)
 		RecDef r f _ a x ps cs	-> RecDef r f PrivateAccess a x ps cs
 
 	mkPrivateClause (Clause x lhs rhs wh with) =
