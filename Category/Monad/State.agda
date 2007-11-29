@@ -59,9 +59,10 @@ StateMonad S = StateTIMonad _ IdentityMonad
 
 record RawIMonadState {I : Set} (S : I -> Set)
                       (M : I -> I -> Set -> Set) : Set1 where
-  monad : RawIMonad M
-  get   : forall {i} -> M i i (S i)
-  put   : forall {i j} -> S j -> M i j ⊤
+  field
+    monad : RawIMonad M
+    get   : forall {i} -> M i i (S i)
+    put   : forall {i j} -> S j -> M i j ⊤
 
 module IMonadStateOps {I : Set} {S : I -> Set}
                       {M : I -> I -> Set -> Set}

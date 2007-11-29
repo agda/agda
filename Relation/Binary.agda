@@ -20,10 +20,11 @@ record IsPreorder {a : Set}
                   (_≈_ : Rel a) -- The underlying equality.
                   (_∼_ : Rel a) -- The relation.
                   : Set where
-  isEquivalence : IsEquivalence _≈_
-  refl          : Reflexive _≈_ _∼_
-  trans         : Transitive _∼_
-  ≈-resp-∼      : _≈_ Respects₂ _∼_
+  field
+    isEquivalence : IsEquivalence _≈_
+    refl          : Reflexive _≈_ _∼_
+    trans         : Transitive _∼_
+    ≈-resp-∼      : _≈_ Respects₂ _∼_
 
 module IsPreorderOps {a : Set} {_≈_ _∼_ : Rel a}
                      (p : IsPreorder _≈_ _∼_) where
@@ -33,10 +34,11 @@ module IsPreorderOps {a : Set} {_≈_ _∼_ : Rel a}
   module Eq = IsEquivalence IP.isEquivalence
 
 record Preorder : Set1 where
-  carrier       : Set
-  underlyingEq  : Rel carrier  -- The underlying equality.
-  rel           : Rel carrier  -- The relation.
-  isPreorder    : IsPreorder underlyingEq rel
+  field
+    carrier       : Set
+    underlyingEq  : Rel carrier  -- The underlying equality.
+    rel           : Rel carrier  -- The relation.
+    isPreorder    : IsPreorder underlyingEq rel
 
 module PreorderOps (p : Preorder) where
   private
@@ -56,9 +58,10 @@ module PreorderOps (p : Preorder) where
 -- Equivalence relations are defined in Relation.Binary.Core.
 
 record Setoid : Set1 where
-  carrier       : Set
-  eq            : Rel carrier
-  isEquivalence : IsEquivalence eq
+  field
+    carrier       : Set
+    eq            : Rel carrier
+    isEquivalence : IsEquivalence eq
 
 module SetoidOps (s : Setoid) where
   private
@@ -86,8 +89,9 @@ module SetoidOps (s : Setoid) where
 -- Decidable equivalence relations
 
 record IsDecEquivalence {a : Set} (_≈_ : Rel a) : Set where
-  isEquivalence : IsEquivalence _≈_
-  decidable     : Decidable _≈_
+  field
+    isEquivalence : IsEquivalence _≈_
+    decidable     : Decidable _≈_
 
 module IsDecEquivalenceOps {a : Set} {_≈_ : Rel a}
                            (de : IsDecEquivalence _≈_) where
@@ -100,9 +104,10 @@ module IsDecEquivalenceOps {a : Set} {_≈_ : Rel a}
   _≟_ = IDE.decidable
 
 record DecSetoid : Set1 where
-  carrier          : Set
-  eq               : Rel carrier
-  isDecEquivalence : IsDecEquivalence eq
+  field
+    carrier          : Set
+    eq               : Rel carrier
+    isDecEquivalence : IsDecEquivalence eq
 
 module DecSetoidOps (ds : DecSetoid) where
   private
@@ -124,8 +129,9 @@ module DecSetoidOps (ds : DecSetoid) where
 -- Partial orders
 
 record IsPartialOrder {a : Set} (_≈_ _≤_ : Rel a) : Set where
-  isPreorder    : IsPreorder _≈_ _≤_
-  antisym       : Antisymmetric _≈_ _≤_
+  field
+    isPreorder    : IsPreorder _≈_ _≤_
+    antisym       : Antisymmetric _≈_ _≤_
 
 module IsPartialOrderOps {a : Set} {_≈_ _≤_ : Rel a}
                          (po : IsPartialOrder _≈_ _≤_) where
@@ -136,10 +142,11 @@ module IsPartialOrderOps {a : Set} {_≈_ _≤_ : Rel a}
            renaming (≈-resp-∼ to ≈-resp-≤)
 
 record Poset : Set1 where
-  carrier        : Set
-  underlyingEq   : Rel carrier
-  order          : Rel carrier
-  isPartialOrder : IsPartialOrder underlyingEq order
+  field
+    carrier        : Set
+    underlyingEq   : Rel carrier
+    order          : Rel carrier
+    isPartialOrder : IsPartialOrder underlyingEq order
 
 module PosetOps (p : Poset) where
   private
@@ -167,10 +174,11 @@ module PosetOps (p : Poset) where
 -- Strict partial orders
 
 record IsStrictPartialOrder {a : Set} (_≈_ _<_ : Rel a) : Set where
-  isEquivalence : IsEquivalence _≈_
-  irrefl        : Irreflexive _≈_ _<_
-  trans         : Transitive _<_
-  ≈-resp-<      : _≈_ Respects₂ _<_
+  field
+    isEquivalence : IsEquivalence _≈_
+    irrefl        : Irreflexive _≈_ _<_
+    trans         : Transitive _<_
+    ≈-resp-<      : _≈_ Respects₂ _<_
 
 module IsStrictPartialOrderOps
          {a : Set} {_≈_ _≤_ : Rel a}
@@ -181,10 +189,11 @@ module IsStrictPartialOrderOps
   module Eq = IsEquivalence ISPO.isEquivalence public
 
 record StrictPartialOrder : Set1 where
-  carrier              : Set
-  underlyingEq         : Rel carrier
-  order                : Rel carrier
-  isStrictPartialOrder : IsStrictPartialOrder underlyingEq order
+  field
+    carrier              : Set
+    underlyingEq         : Rel carrier
+    order                : Rel carrier
+    isStrictPartialOrder : IsStrictPartialOrder underlyingEq order
 
 module StrictPartialOrderOps (spo : StrictPartialOrder) where
   private
@@ -203,8 +212,9 @@ module StrictPartialOrderOps (spo : StrictPartialOrder) where
 -- Total orders
 
 record IsTotalOrder {a : Set} (_≈_ _≤_ : Rel a) : Set where
-  isPartialOrder : IsPartialOrder _≈_ _≤_
-  total          : Total _≤_
+  field
+    isPartialOrder : IsPartialOrder _≈_ _≤_
+    total          : Total _≤_
 
 module IsTotalOrderOps {a : Set} {_≈_ _≤_ : Rel a}
                        (to : IsTotalOrder _≈_ _≤_) where
@@ -214,10 +224,11 @@ module IsTotalOrderOps {a : Set} {_≈_ _≤_ : Rel a}
     open module IPO = IsPartialOrderOps ITO.isPartialOrder public
 
 record TotalOrder : Set1 where
-  carrier      : Set
-  underlyingEq : Rel carrier
-  order        : Rel carrier
-  isTotalOrder : IsTotalOrder underlyingEq order
+  field
+    carrier      : Set
+    underlyingEq : Rel carrier
+    order        : Rel carrier
+    isTotalOrder : IsTotalOrder underlyingEq order
 
 module TotalOrderOps (p : TotalOrder) where
   private
@@ -235,9 +246,10 @@ module TotalOrderOps (p : TotalOrder) where
 -- Decidable total orders
 
 record IsDecTotalOrder {a : Set} (_≈_ _≤_ : Rel a) : Set where
-  isTotalOrder : IsTotalOrder _≈_ _≤_
-  ≈-decidable  : Decidable _≈_
-  ≤-decidable  : Decidable _≤_
+  field
+    isTotalOrder : IsTotalOrder _≈_ _≤_
+    ≈-decidable  : Decidable _≈_
+    ≤-decidable  : Decidable _≤_
 
 module IsDecTotalOrderOps {a : Set} {_≈_ _≤_ : Rel a}
                           (dto : IsDecTotalOrder _≈_ _≤_) where
@@ -253,10 +265,11 @@ module IsDecTotalOrderOps {a : Set} {_≈_ _≤_ : Rel a}
   _≤?_ = IDTO.≤-decidable
 
 record DecTotalOrder : Set1 where
-  carrier         : Set
-  underlyingEq    : Rel carrier
-  order           : Rel carrier
-  isDecTotalOrder : IsDecTotalOrder underlyingEq order
+  field
+    carrier         : Set
+    underlyingEq    : Rel carrier
+    order           : Rel carrier
+    isDecTotalOrder : IsDecTotalOrder underlyingEq order
 
 module DecTotalOrderOps (p : DecTotalOrder) where
   private

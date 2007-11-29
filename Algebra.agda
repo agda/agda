@@ -96,47 +96,56 @@ _Preserves₂-≈ : Op₂ -> Set
 • Preserves₂-≈ = • Preserves₂ _≈_ → _≈_ → _≈_
 
 record Semigroup (• : Op₂) : Set where
-  assoc    : Associative •
-  •-pres-≈ : • Preserves₂-≈
+  field
+    assoc    : Associative •
+    •-pres-≈ : • Preserves₂-≈
 
 record Monoid (• : Op₂) (ε : carrier) : Set where
-  semigroup : Semigroup •
-  identity  : Identity ε •
+  field
+    semigroup : Semigroup •
+    identity  : Identity ε •
 
 record CommutativeMonoid (• : Op₂) (ε : carrier) : Set where
-  monoid : Monoid • ε
-  comm   : Commutative •
+  field
+    monoid : Monoid • ε
+    comm   : Commutative •
 
 record Group (• : Op₂) (ε : carrier) (⁻¹ : Op₁) : Set where
-  monoid    : Monoid • ε
-  inverse   : Inverse ε ⁻¹ •
-  ⁻¹-pres-≈ : ⁻¹ Preserves-≈
+  field
+    monoid    : Monoid • ε
+    inverse   : Inverse ε ⁻¹ •
+    ⁻¹-pres-≈ : ⁻¹ Preserves-≈
 
 record AbelianGroup (• : Op₂) (ε : carrier) (⁻¹ : Op₁) : Set where
-  group : Group • ε ⁻¹
-  comm  : Commutative •
+  field
+    group : Group • ε ⁻¹
+    comm  : Commutative •
 
 ------------------------------------------------------------------------
 -- Combinations of properties (two binary operations)
 
 record Semiring (+ * : Op₂) (0# 1# : carrier) : Set where
-  +-monoid : CommutativeMonoid + 0#
-  *-monoid : Monoid * 1#
-  distrib  : * DistributesOver +
-  zero     : Zero 0# *
+  field
+    +-monoid : CommutativeMonoid + 0#
+    *-monoid : Monoid * 1#
+    distrib  : * DistributesOver +
+    zero     : Zero 0# *
 
 record CommutativeSemiring (+ * : Op₂) (0# 1# : carrier) : Set where
-  semiring : Semiring + * 0# 1#
-  *-comm   : Commutative *
+  field
+    semiring : Semiring + * 0# 1#
+    *-comm   : Commutative *
 
 record Ring (+ * : Op₂) (- : Op₁) (0# 1# : carrier) : Set where
-  +-group  : AbelianGroup + 0# -
-  *-monoid : Monoid * 1#
-  distrib  : * DistributesOver +
+  field
+    +-group  : AbelianGroup + 0# -
+    *-monoid : Monoid * 1#
+    distrib  : * DistributesOver +
 
 record CommutativeRing (+ * : Op₂) (- : Op₁) (0# 1# : carrier) : Set where
-  ring   : Ring + * - 0# 1#
-  *-comm : Commutative *
+  field
+    ring   : Ring + * - 0# 1#
+    *-comm : Commutative *
 
 -- A structure which lies somewhere between commutative rings and
 -- commutative semirings
@@ -144,26 +153,30 @@ record CommutativeRing (+ * : Op₂) (- : Op₁) (0# 1# : carrier) : Set where
 record AlmostCommRing (_+_ _*_ : Op₂)
                       (¬_ : Op₁)
                       (0# 1# : carrier) : Set where
-  commSemiring : CommutativeSemiring _+_ _*_ 0# 1#
-  ¬-pres-≈     : ¬_ Preserves-≈
-  ¬-*-distribˡ : forall x y -> ((¬ x) * y) ≈ (¬ (x * y))
-  ¬-+-comm     : forall x y -> ((¬ x) + (¬ y)) ≈ (¬ (x + y))
+  field
+    commSemiring : CommutativeSemiring _+_ _*_ 0# 1#
+    ¬-pres-≈     : ¬_ Preserves-≈
+    ¬-*-distribˡ : forall x y -> ((¬ x) * y) ≈ (¬ (x * y))
+    ¬-+-comm     : forall x y -> ((¬ x) + (¬ y)) ≈ (¬ (x + y))
 
 record Lattice (∨ ∧ : Op₂) : Set where
-  ∨-comm     : Commutative ∨
-  ∨-assoc    : Associative ∨
-  ∨-pres-≈   : ∨ Preserves₂-≈
-  ∧-comm     : Commutative ∧
-  ∧-assoc    : Associative ∧
-  ∧-pres-≈   : ∧ Preserves₂-≈
-  absorptive : Absorptive ∨ ∧
+  field
+    ∨-comm     : Commutative ∨
+    ∨-assoc    : Associative ∨
+    ∨-pres-≈   : ∨ Preserves₂-≈
+    ∧-comm     : Commutative ∧
+    ∧-assoc    : Associative ∧
+    ∧-pres-≈   : ∧ Preserves₂-≈
+    absorptive : Absorptive ∨ ∧
 
 record DistributiveLattice (∨ ∧ : Op₂) : Set where
-  lattice      : Lattice ∨ ∧
-  ∨-∧-distribˡ : ∨ DistributesOverˡ ∧
+  field
+    lattice      : Lattice ∨ ∧
+    ∨-∧-distribˡ : ∨ DistributesOverˡ ∧
 
 record BooleanAlgebra (∨ ∧ : Op₂) (¬ : Op₁) (⊤ ⊥ : carrier) : Set where
-  distLattice   : DistributiveLattice ∨ ∧
-  ∨-complementʳ : RightInverse ⊤ ¬ ∨
-  ∧-complementʳ : RightInverse ⊥ ¬ ∧
-  ¬-pres-≈      : ¬ Preserves-≈
+  field
+    distLattice   : DistributiveLattice ∨ ∧
+    ∨-complementʳ : RightInverse ⊤ ¬ ∨
+    ∧-complementʳ : RightInverse ⊥ ¬ ∧
+    ¬-pres-≈      : ¬ Preserves-≈

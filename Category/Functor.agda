@@ -9,7 +9,8 @@ module Category.Functor where
 open import Data.Function
 
 record RawFunctor (f : Set -> Set) : Set1 where
-  fmap : forall {a b} -> (a -> b) -> f a -> f b
+  field
+    fmap : forall {a b} -> (a -> b) -> f a -> f b
 
 module FunctorOps {f : Set -> Set} (fun : RawFunctor f) where
 

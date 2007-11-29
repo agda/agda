@@ -97,6 +97,7 @@ Trichotomous _≈_ _<_ = forall x y -> Tri (x < y) (x ≈ y) (x > y)
 -- _≡_ in the definition of IsEquivalence).
 
 record IsEquivalence {a : Set} (_≈_ : Rel a) : Set where
-  refl  : Reflexive _≡_ _≈_
-  sym   : Symmetric _≈_
-  trans : Transitive _≈_
+  field
+    refl  : Reflexive _≡_ _≈_
+    sym   : Symmetric _≈_
+    trans : Transitive _≈_

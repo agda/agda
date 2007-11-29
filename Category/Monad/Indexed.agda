@@ -10,16 +10,19 @@ open import Data.Function
 open import Category.Applicative.Indexed
 
 record RawIMonad {I : Set}(M : IFun I) : Set1 where
-  return : forall {i A} -> A -> M i i A
-  bind   : forall {i j k A B} -> M i j A -> (A -> M j k B) -> M i k B
+  field
+    return : forall {i A} -> A -> M i i A
+    bind   : forall {i j k A B} -> M i j A -> (A -> M j k B) -> M i k B
 
 record RawIMonadZero {I : Set}(M : IFun I) : Set1 where
-  monad : RawIMonad M
-  mzero : forall {i j A} -> M i j A
+  field
+    monad : RawIMonad M
+    mzero : forall {i j A} -> M i j A
 
 record RawIMonadPlus {I : Set}(M : IFun I) : Set1 where
-  monadZero : RawIMonadZero M
-  plus      : forall {i j A} -> M i j A -> M i j A -> M i j A
+  field
+    monadZero : RawIMonadZero M
+    plus      : forall {i j A} -> M i j A -> M i j A -> M i j A
 
 module IMonadOps {I : Set} {M : IFun I}
                  (Mon : RawIMonad M)

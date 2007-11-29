@@ -37,9 +37,10 @@ record RingHomomorphism
   (F+ F* : F.Op₂) (F- : F.Op₁) (F0# F1# : F.carrier)
   (T+ T* : T.Op₂) (T- : T.Op₁) (T0# T1# : T.carrier)
   : Set where
-  ⟦_⟧    : Morphism
-  +-homo : Homomorphic₂ ⟦_⟧ F+ T+
-  *-homo : Homomorphic₂ ⟦_⟧ F* T*
-  ¬-homo : Homomorphic₁ ⟦_⟧ F- T-
-  0-homo : Homomorphic₀ ⟦_⟧ F0# T0#
-  1-homo : Homomorphic₀ ⟦_⟧ F1# T1#
+  field
+    ⟦_⟧    : Morphism
+    +-homo : Homomorphic₂ ⟦_⟧ F+ T+
+    *-homo : Homomorphic₂ ⟦_⟧ F* T*
+    ¬-homo : Homomorphic₁ ⟦_⟧ F- T-
+    0-homo : Homomorphic₀ ⟦_⟧ F0# T0#
+    1-homo : Homomorphic₀ ⟦_⟧ F1# T1#

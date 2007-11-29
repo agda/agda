@@ -16,8 +16,9 @@ infixr 2 _×_ _-×-_ _-,-_
 -- Definition
 
 record Σ (a : Set) (b : a -> Set) : Set where
-  proj₁ : a
-  proj₂ : b proj₁
+  field
+    proj₁ : a
+    proj₂ : b proj₁
 
 open Σ public
 
