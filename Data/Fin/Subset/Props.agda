@@ -42,6 +42,7 @@ abstract
   allInside (fs x) = fsIn (allInside x)
 
   allOutside : forall {n} (x : Fin n) -> x ∉ all outside
+  allOutside fz     ()
   allOutside (fs x) (fsIn x∈) = allOutside x x∈
 
   ⊆⊇⟶≡ :  forall {n} {p₁ p₂ : Subset n}

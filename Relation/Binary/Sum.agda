@@ -188,6 +188,7 @@ abstract
     antisym : Antisymmetric (_ ⊎-Rel _) (_ ⊎-< _)
     antisym (₁<₁ x≤y) (₁<₁ y≤x) = inj₁-Rel (antisym₁ x≤y y≤x)
     antisym (₂<₂ x≤y) (₂<₂ y≤x) = inj₂-Rel (antisym₂ x≤y y≤x)
+    antisym ₁<₂       ()
 
   _⊎-asymmetric_
     :  forall {a₁} -> {<₁ : Rel a₁} -> Asymmetric <₁
@@ -208,6 +209,7 @@ abstract
     asym : Asymmetric (_ ⊎-< _)
     asym (₁<₁ x<y) (₁<₁ y<x) = asym₁ x<y y<x
     asym (₂<₂ x<y) (₂<₂ y<x) = asym₂ x<y y<x
+    asym ₁<₂       ()
 
   _⊎-≈-respects₂_
     :  forall {a₁} -> {≈₁ ∼₁ : Rel a₁}
