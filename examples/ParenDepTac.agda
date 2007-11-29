@@ -201,7 +201,13 @@ complete xs0 p0 = parse init εS xs0 p0
            {xs : Parens} -> St n xs ->
            {ys : Parens} -> ys ∈S   ->
            St (suc n) (xs · ys ≪')
-  
+
+  stPar : forall {n xs} -> St n xs -> Parens
+  stPar {xs = xs} _ = xs
+
+  ∈SPar : forall {xs} -> xs ∈S -> Parens
+  ∈SPar {xs} _ = xs
+
   parse : {n  : Nat} ->
           {xs : Parens} -> St n xs   ->
           {ys : Parens} -> ys ∈S     ->
@@ -216,9 +222,9 @@ complete xs0 p0 = parse init εS xs0 p0
     where open module foo = tac4 xs ys zs ε
           eq = tac (v0 ⊙ v1 ⊙ [≪]  ⊙ v2) ((v0 ⊙ v1 ⊙ [≪]) ⊙ v2) refl
 
-  parse (_*_≪{_}{us} st {vs} s3) {ys} s (≫ zs) p
+  parse (st * s3 ≪) {ys} s (≫ zs) p
                                     = subst _∈S eq (parse st (s3 • < s >) zs p)
-    where open module foo = tac4 us vs ys zs
+    where open module foo = tac4 (stPar st) (∈SPar s3) ys zs
           eq = tac ((v0 ⊙  v1 ⊙ [≪]) ⊙ v2 ⊙ [≫]  ⊙ v3)
                    ( v0 ⊙ (v1 ⊙ [≪]  ⊙ v2 ⊙ [≫]) ⊙ v3) refl
   
