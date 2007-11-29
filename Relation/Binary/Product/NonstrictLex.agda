@@ -2,16 +2,16 @@
 -- Lexicographic products of binary relations
 ------------------------------------------------------------------------
 
--- The definition here is suitable if the left-hand relation is a
--- partial order.
+-- The definition of lexicographic product used here is suitable if
+-- the left-hand relation is a (non-strict) partial order.
 
-module Relation.Binary.Product.NonstrictLex where
+module Relation.Binary.Product.NonStrictLex where
 
 open import Data.Product
 open import Data.Sum
 open import Relation.Binary
 open import Relation.Binary.Consequences
-import Relation.Binary.NonstrictToStrict as Conv
+import Relation.Binary.NonStrictToStrict as Conv
 import Relation.Binary.Product.PointWise as PointWise
 open PointWise using (_×-Rel_)
 import Relation.Binary.Product.StrictLex as Strict

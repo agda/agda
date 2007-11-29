@@ -8,7 +8,7 @@
 
 open import Relation.Binary
 
-module Relation.Binary.StrictToNonstrict
+module Relation.Binary.StrictToNonStrict
          {a : Set} (_≈_ _<_ : Rel a)
          where
 

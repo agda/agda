@@ -10,7 +10,7 @@ module Relation.Binary.Props.StrictPartialOrder
 
 private
   open module SPO = Relation.Binary.StrictPartialOrderOps spo
-import Relation.Binary.StrictToNonstrict as Conv
+import Relation.Binary.StrictToNonStrict as Conv
 private
   open module C = Conv _≈_ _<_
 

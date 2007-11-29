@@ -77,9 +77,9 @@ import Relation.Binary.Core
 import Relation.Binary.EqReasoning
 import Relation.Binary.FunctionLifting
 import Relation.Binary.HeterogeneousEquality
-import Relation.Binary.NonstrictToStrict
+import Relation.Binary.NonStrictToStrict
 import Relation.Binary.OrderMorphism
-import Relation.Binary.Product.NonstrictLex
+import Relation.Binary.Product.NonStrictLex
 import Relation.Binary.Product.PointWise
 import Relation.Binary.Product.StrictLex
 import Relation.Binary.PropositionalEquality
@@ -88,7 +88,7 @@ import Relation.Binary.PropositionalEquality1
 import Relation.Binary.Props.Poset
 import Relation.Binary.Props.StrictPartialOrder
 import Relation.Binary.Props.TotalOrder
-import Relation.Binary.StrictToNonstrict
+import Relation.Binary.StrictToNonStrict
 import Relation.Binary.Sum
 import Relation.Nullary
 import Relation.Nullary.Product

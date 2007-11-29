@@ -2,8 +2,8 @@
 -- Lexicographic products of binary relations
 ------------------------------------------------------------------------
 
--- The definition here is suitable if the left-hand relation is a
--- strict partial order.
+-- The definition of lexicographic product used here is suitable if
+-- the left-hand relation is a strict partial order.
 
 module Relation.Binary.Product.StrictLex where
 

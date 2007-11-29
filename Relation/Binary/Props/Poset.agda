@@ -8,7 +8,7 @@ module Relation.Binary.Props.Poset (p : Poset) where
 
 private
   open module P = Relation.Binary.PosetOps p
-import Relation.Binary.NonstrictToStrict as Conv
+import Relation.Binary.NonStrictToStrict as Conv
 private
   open module C = Conv _≈_ _≤_
 
