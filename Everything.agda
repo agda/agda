@@ -1,6 +1,12 @@
 ------------------------------------------------------------------------
--- Imports everything so that it is easy to see if everything builds
+-- Imports every non-internal module so that it is easy to see if
+-- everything builds
 ------------------------------------------------------------------------
+
+-- This module is also used to generate some overall documentation of
+-- the library, by extracting the header of every module listed. Hence
+-- internal modules should not be listed here. (Internal modules are
+-- normally imported by other modules anyway.)
 
 module Everything where
 
@@ -53,7 +59,6 @@ import Data.String
 import Data.Sum
 import Data.Unit
 import Data.Vec
-import Data.Vec.Core
 import Data.Vec.Equality
 import Data.Vec.Properties
 
@@ -72,8 +77,6 @@ import Category.Monad.State
 
 import Relation.Binary
 import Relation.Binary.Consequences
-import Relation.Binary.Consequences.Core
-import Relation.Binary.Core
 import Relation.Binary.EqReasoning
 import Relation.Binary.FunctionLifting
 import Relation.Binary.HeterogeneousEquality
@@ -83,7 +86,6 @@ import Relation.Binary.Product.NonStrictLex
 import Relation.Binary.Product.PointWise
 import Relation.Binary.Product.StrictLex
 import Relation.Binary.PropositionalEquality
-import Relation.Binary.PropositionalEquality.Core
 import Relation.Binary.PropositionalEquality1
 import Relation.Binary.Props.Poset
 import Relation.Binary.Props.StrictPartialOrder

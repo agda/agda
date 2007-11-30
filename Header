@@ -1,0 +1,98 @@
+(:comment NOTE THAT THIS PAGE IS GENERATED AUTOMATICALLY. Please do not edit it; your changes may be removed. :)
+The source code of this library is available from its [[http://www.cs.chalmers.se/~nad/repos/lib/|Darcs repository]].
+
+Contributions to this library are welcome if they use the library's [[http://www.cs.chalmers.se/~nad/repos/lib/LICENCE|licence]] and adhere to certain (currently unspecified) standards.
+
+The top-level module names of the library are currently allocated as
+follows:
+:Algebra: Abstract algebra (monoids, groups, rings etc.), along with properties needed to specify these structures (associativity, commutativity, etc.), and operations on and proofs about the structures.
+:Category: Category theory-inspired idioms used to structure functional programs (functors and monads, for instance).
+:Data: Data types and properties about data types. (Also some combinators working solely on and with functions; see @@Data.Function@@.)
+:Logic: "Logic"-related definitions (for instance equality and negation) and proofs.
+:Relation: Properties of and proofs about relations (mostly homogeneous binary relations).
+
+When an abstract hierarchy of some sort (for instance preorder → partial order → total order) is included in the library the basic approach is to specify the properties of every concept in terms of a record containing just properties, parameterised on the underlying sets and operations:
+  record IsPreorder {a : Set}
+                    (_≈_ : Rel a) [=--=] The underlying equality.
+                    (_∼_ : Rel a) [=--=] The relation.
+                    : Set where
+    field
+      isEquivalence : IsEquivalence _≈_
+      refl          : Reflexive _≈_ _∼_
+      trans         : Transitive _∼_
+      ≈-resp-∼      : _≈_ Respects₂ _∼_
+More specific concepts are then specified in terms of the simpler ones:
+  record IsPartialOrder {a : Set} (_≈_ _≤_ : Rel a) : Set where
+    field
+      isPreorder    : IsPreorder _≈_ _≤_
+      antisym       : Antisymmetric _≈_ _≤_
+Properties packaged up with sets and operations are then specified as follows:
+  record Preorder : Set1 where
+    field
+      carrier       : Set
+      underlyingEq  : Rel carrier  [=--=] The underlying equality.
+      rel           : Rel carrier  [=--=] The relation.
+      isPreorder    : IsPreorder underlyingEq rel
+
+  record Poset : Set1 where
+    field
+      carrier        : Set
+      underlyingEq   : Rel carrier
+      order          : Rel carrier
+      isPartialOrder : IsPartialOrder underlyingEq order
+Note that the @@Poset@@ record does not include a @@Preorder@@ field.
+Finally modules with record selectors and suitable "repackaging" functions are defined:
+  module IsPreorderOps {a : Set} {_≈_ _∼_ : Rel a}
+                       (p : IsPreorder _≈_ _∼_) where
+    private
+      module IP = IsPreorder p
+      open IP public
+    module Eq = IsEquivalence IP.isEquivalence
+
+  module PreorderOps (p : Preorder) where
+    private
+      module P = Preorder p
+      open P public using (carrier; isPreorder)
+      open module IP = IsPreorderOps P.isPreorder public
+
+    _≈_ : Rel carrier
+    _≈_ = P.underlyingEq
+
+    _∼_ : Rel carrier
+    _∼_ = P.rel
+
+  module IsPartialOrderOps {a : Set} {_≈_ _≤_ : Rel a}
+                           (po : IsPartialOrder _≈_ _≤_) where
+    private
+      module IPO = IsPartialOrder po
+      open IPO public
+      open module IP = IsPreorderOps IPO.isPreorder public
+             renaming (≈-resp-∼ to ≈-resp-≤)
+
+  module PosetOps (p : Poset) where
+    private
+      module P = Poset p
+      open P public using (carrier; isPartialOrder)
+      open module IPO = IsPartialOrderOps P.isPartialOrder public
+
+    _≈_ : Rel carrier
+    _≈_ = P.underlyingEq
+
+    _≤_ : Rel carrier
+    _≤_ = P.order
+
+    preorder : Preorder
+    preorder = record
+      { carrier      = carrier
+      ; underlyingEq = _≈_
+      ; rel          = _≤_
+      ; isPreorder   = isPreorder
+      }
+Note that @@PosetOps@@ includes a @@Preorder@@. The above setup may seem a bit complicated, but we think it makes the library quite easy to work with.
+
+(Note that the @@Algebra@@ hierarchy currently does not follow the approach above.)
+
+!! All library modules
+
+(Internal modules, which should not be used, are not listed.)
+
