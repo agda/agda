@@ -371,7 +371,7 @@ instance ToConcrete A.Expr C.Expr where
 -- Binder instances -------------------------------------------------------
 
 instance ToConcrete A.LamBinding C.LamBinding where
-    bindToConcrete (A.DomainFree h x) ret = bindToConcrete x $ ret . C.DomainFree h
+    bindToConcrete (A.DomainFree h x) ret = bindToConcrete x $ ret . C.DomainFree h . mkBoundName_
     bindToConcrete (A.DomainFull b)   ret = bindToConcrete b $ ret . C.DomainFull
 
 instance ToConcrete A.TypedBindings C.TypedBindings where
@@ -383,7 +383,7 @@ instance ToConcrete A.TypedBinding C.TypedBinding where
     bindToConcrete (A.TBind r xs e) ret =
 	bindToConcrete xs $ \xs -> do
 	e <- toConcreteCtx TopCtx e
-	ret (C.TBind r xs e)
+	ret (C.TBind r (map mkBoundName_ xs) e)
     bindToConcrete (A.TNoBind e) ret = do
 	e <- toConcreteCtx TopCtx e
 	ret (C.TNoBind e)

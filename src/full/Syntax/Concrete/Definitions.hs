@@ -260,7 +260,7 @@ niceDeclarations ds = do
                                 bind h (TBind _ xs _) =
                                     map (DomainFree h) xs
                                 bind h (TNoBind e) =
-                                    [ DomainFree h $ noName (getRange e) ]
+                                    [ DomainFree h $ mkBoundName_ (noName (getRange e)) ]
 
 
 

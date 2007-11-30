@@ -400,7 +400,7 @@ instance ToAbstract C.Expr A.Expr where
       C.Absurd _ -> notAnExpression e
 
 instance ToAbstract C.LamBinding A.LamBinding where
-  toAbstract (C.DomainFree h x) = A.DomainFree h <$> toAbstract (NewName x)
+  toAbstract (C.DomainFree h x) = A.DomainFree h <$> toAbstract (NewName $ boundName x)
   toAbstract (C.DomainFull tb)	= A.DomainFull <$> toAbstract tb
 
 instance ToAbstract C.TypedBindings A.TypedBindings where
@@ -409,7 +409,7 @@ instance ToAbstract C.TypedBindings A.TypedBindings where
 instance ToAbstract C.TypedBinding A.TypedBinding where
   toAbstract (C.TBind r xs t) = do
     t' <- toAbstractCtx TopCtx t
-    xs' <- toAbstract (map NewName xs)
+    xs' <- toAbstract (map (NewName . boundName) xs)
     return $ A.TBind r xs' t'
   toAbstract (C.TNoBind e) = do
     e <- toAbstractCtx TopCtx e

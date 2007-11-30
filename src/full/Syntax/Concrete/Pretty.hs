@@ -112,6 +112,9 @@ instance Pretty Expr where
 				, nest 2 $ pretty e
 				]
 
+instance Pretty BoundName where
+  pretty = pretty . boundName
+
 instance Pretty LamBinding where
     pretty (DomainFree h x) = pHidden h (pretty x)
     pretty (DomainFull b)   = pretty b

@@ -434,7 +434,7 @@ TBinds2 : TBinds	   { $1 }
 
 -- x1,..,xn:A
 TBind :: { TypedBinding }
-TBind : CommaBIds ':' Expr  { TBind (fuseRange $1 $3) $1 $3 }
+TBind : CommaBIds ':' Expr  { TBind (fuseRange $1 $3) (map mkBoundName_ $1) $3 }
 
 
 -- A non-empty sequence of lambda bindings.
@@ -452,8 +452,8 @@ LamBinds
 -- A domain free binding is either x or {x1 .. xn}
 DomainFreeBinding :: { [LamBinding] }
 DomainFreeBinding
-    : BId		{ [DomainFree NotHidden $1]  }
-    | '{' CommaBIds '}' { map (DomainFree Hidden) $2 }
+    : BId		{ [DomainFree NotHidden $ mkBoundName_ $1]  }
+    | '{' CommaBIds '}' { map (DomainFree Hidden . mkBoundName_) $2 }
 
 
 {--------------------------------------------------------------------------

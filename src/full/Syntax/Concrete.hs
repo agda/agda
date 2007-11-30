@@ -14,6 +14,7 @@ module Syntax.Concrete
     , LamBinding(..)
     , TypedBindings(..)
     , TypedBinding(..)
+    , BoundName(..), mkBoundName_
     , Telescope -- (..)
       -- * Declarations
     , Declaration(..)
@@ -81,8 +82,8 @@ data Pattern
 
 -- | A lambda binding is either domain free or typed.
 data LamBinding
-	= DomainFree Hiding Name     -- ^ . @x@ or @{x}@
-	| DomainFull TypedBindings   -- ^ . @(xs:e,..,ys:e')@ or @{xs:e,..,ys:e'}@
+	= DomainFree Hiding BoundName -- ^ . @x@ or @{x}@
+	| DomainFull TypedBindings    -- ^ . @(xs:e,..,ys:e')@ or @{xs:e,..,ys:e'}@
     deriving (Typeable, Data, Eq)
 
 
@@ -93,9 +94,17 @@ data TypedBindings = TypedBindings !Range Hiding [TypedBinding]
     deriving (Typeable, Data, Eq)
 
 
+data BoundName = BName { boundName   :: Name
+                       , bnameFixity :: Fixity
+                       }
+    deriving (Typeable, Data, Eq)
+
+mkBoundName_ :: Name -> BoundName
+mkBoundName_ x = BName x defaultFixity
+
 -- | A typed binding.
 data TypedBinding
-	= TBind !Range [Name] Expr   -- Binding @x1,..,xn:A@
+	= TBind !Range [BoundName] Expr   -- Binding @x1,..,xn:A@
 	| TNoBind Expr		    -- No binding @A@, equivalent to @_ : A@.
     deriving (Typeable, Data, Eq)
 
@@ -263,6 +272,9 @@ instance HasRange TypedBinding where
 instance HasRange LamBinding where
     getRange (DomainFree _ x)	= getRange x
     getRange (DomainFull b)	= getRange b
+
+instance HasRange BoundName where
+  getRange = getRange . boundName
 
 instance HasRange WhereClause where
   getRange  NoWhere	    = noRange

@@ -367,7 +367,9 @@ instance PrettyTCM TypeError where
                 pwords "Incomplete pattern matching for" ++ [prettyTCM f <> text "."] ++
                 pwords "Missing cases:") $$ nest 2 (vcat $ map display pss)
                 where
-                  display ps = prettyTCM f <+> fsep (map showArg ps)
+                  display ps = do
+                    ps <- nicify f ps
+                    prettyTCM f <+> fsep (map showArg ps)
                   showArg (Arg Hidden x)    = braces $ showPat 0 x
                   showArg (Arg NotHidden x) = showPat 1 x
 
@@ -375,6 +377,12 @@ instance PrettyTCM TypeError where
                   showPat _ (I.DotP _)      = text "._"
                   showPat n (I.ConP c args) = mpar n args $ prettyTCM c <+> fsep (map showArg args)
                   showPat _ (I.LitP l)      = text (show l)
+
+                  nicify f ps = do
+                    showImp <- showImplicitArguments
+                    if showImp
+                      then return ps
+                      else return ps  -- TODO: remove implicit arguments which aren't constructors
 
                   mpar n args
                     | n > 0 && not (null args) = parens
