@@ -31,8 +31,11 @@ buildMPatterns perm ps = evalState (mapM (traverse build) ps) xs
 
     build (VarP _)      = VarMP <$> tick
     build (ConP con ps) = ConMP con <$> mapM (traverse build) ps
-    build (DotP _)      = WildMP <$ tick
+    build (DotP t)      = tick *> buildT t
     build (LitP l)      = return $ LitMP l
+
+    buildT (Con c args) = ConMP c <$> mapM (traverse buildT) args
+    buildT _            = return WildMP
 
 -- | If matching is inconclusive (@Block@) we want to know which
 --   variable is blocking the match. If a dot pattern is blocking a match
