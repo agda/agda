@@ -33,8 +33,6 @@ User interface
 
 * locally nameless representation
 
-* pattern completeness
-
 Fixes
 -----
 
@@ -107,8 +105,6 @@ Fixes
   2) After a question mark has been converted into {! !} the point
      warping does not work (the offsets into the file have changed).
 
-* emacs interface gets the metas in the wrong order for local definitions (?)
-
 * importing A after importing A.B causes a clash
 
 * Too many open files
@@ -126,9 +122,6 @@ Fixes
   I think this is what happens in the polydep example if everything is
   up-to-date except TYPE.agda.
 
-* Spurious implicit lambda found where explicit was expected for implicit
-  lambdas inserted by the type checker.
-
 [Interaction]
 
 [Errors]
@@ -136,8 +129,6 @@ Fixes
 * Remember/figure out range of previous binding in DuplicateBuiltinBinding.
 
 * wrong "When..." reported for f (g x) if g x is well-typed but of wrong type.
-
-* weird meta cannot depend on errors
 
 * ranges of constructors in patterns are wrong. (also in right-hand sides?)
 
@@ -148,9 +139,6 @@ Fixes
 * When do we have to turn on abstractMode. When checking anything public? Not
   done at the moment.
 
-* change to named free variables and deBruijn bound variables (I'm not a number
-  paper).
-
 [Imports]
 
 * handle clashing builtin things
@@ -159,10 +147,6 @@ Fixes
 
 * allow the source to not exist if there is an interface file
   (what if it needs rebuilding? throw error)
-
-* insert pragmas to specialise interface parsers (if this is the problem)
-
-* close file handles properly
 
 [Builtin]
 
@@ -207,6 +191,8 @@ Performance
 
 Done
 ----
+
+* pattern coverage
 
 * with-clauses
 
