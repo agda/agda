@@ -73,7 +73,6 @@ runAgda =
 		| optRunTests opts	-> liftIO runTests
 		| isNothing (optInputFile opts)
 		    && not (optInteractive opts)
-		    && not (optEmacsMode opts)
 					-> liftIO printUsage
 		| otherwise		-> do setCommandLineOptions opts
 					      checkFile

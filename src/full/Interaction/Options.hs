@@ -48,7 +48,6 @@ data CommandLineOptions =
 	    , optShowVersion	   :: Bool
 	    , optShowHelp	   :: Bool
 	    , optInteractive	   :: Bool
-	    , optEmacsMode	   :: Bool
 	    , optVerbose	   :: Trie String Int
 	    , optProofIrrelevance  :: Bool
 	    , optAllowUnsolved	   :: Bool
@@ -78,7 +77,6 @@ defaultOptions =
 	    , optShowVersion	   = False
 	    , optShowHelp	   = False
 	    , optInteractive	   = False
-	    , optEmacsMode	   = False
 	    , optVerbose	   = Trie.singleton [] 1
 	    , optProofIrrelevance  = False
 	    , optAllowUnsolved	   = False
@@ -106,31 +104,28 @@ inputFlag f o	    =
 	Just _	 -> fail "only one input file allowed"
 
 versionFlag               o = return $ o { optShowVersion       = True }
-helpFlag                  o = return $ o { optShowHelp	       = True }
+helpFlag                  o = return $ o { optShowHelp	        = True }
 proofIrrelevanceFlag      o = return $ o { optProofIrrelevance  = True }
 ignoreInterfacesFlag      o = return $ o { optIgnoreInterfaces  = True }
 allowUnsolvedFlag         o = return $ o { optAllowUnsolved     = True }
 showImplicitFlag          o = return $ o { optShowImplicit      = True }
-runTestsFlag              o = return $ o { optRunTests	       = True }
+runTestsFlag              o = return $ o { optRunTests	        = True }
 vimFlag                   o = return $ o { optGenerateVimFile   = True }
 emacsFlag                 o = return $ o { optGenerateEmacsFile = True }
 noPositivityFlag          o = return $ o { optDisablePositivity = True }
 dontTerminationCheckFlag  o = return $ o { optTerminationCheck  = False }
 dontCompletenessCheckFlag o = return $ o { optCompletenessCheck = False }
 
-interactiveFlag o
-    | optEmacsMode o = fail "cannot have both emacs mode and interactive mode"
-    | otherwise	     = return $ o { optInteractive   = True
-				  , optAllowUnsolved = True
-				  }
-emacsModeFlag o
-    | optInteractive o = fail "cannot have both emacs mode and interactive mode"
-    | otherwise	       = return $ o { optEmacsMode         = True
-				    , optGenerateEmacsFile = True
-				    , optAllowUnsolved     = True
-				    }
-compileFlag o = return $ o { optCompile = True } -- todo: check exclusion
-alonzoFlag o = return $ o { optCompileAlonzo = True } 
+interactiveFlag o = return $ o { optInteractive   = True
+			       , optAllowUnsolved = True
+			       }
+compileFlag o = return $ o { optCompileAlonzo = True }
+agateFlag o   = return $ o { optCompileAlonzo = False
+                           , optCompile       = True
+                           } 
+alonzoFlag o  = return $ o { optCompileAlonzo = True
+                           , optCompile       = False
+                           } 
 
 includeFlag d o	    = return $ o { optIncludeDirs   = d : optIncludeDirs o   }
 verboseFlag s o	    =
@@ -159,14 +154,14 @@ standardOptions =
 		    "look for imports in DIR"
     , Option ['I']  ["interactive"] (NoArg interactiveFlag)
 		    "start in interactive mode"
-    , Option []	    ["emacs-mode"] (NoArg emacsModeFlag)
-		    "start in emacs mode"
     , Option []	    ["show-implicit"] (NoArg showImplicitFlag)
 		    "show implicit arguments when printing"
-    , Option []	    ["compile"] (NoArg compileFlag)
-		    "translate program into GHC (experimental)"
-    , Option ['c']  ["alonzo"] (NoArg alonzoFlag)
-		    "translate program with Alonzo into GHC (experimental)"
+    , Option ['c']  ["compile"] (NoArg compileFlag)
+                    "compile program to Haskell (experimental)"
+    , Option []	    ["agate"] (NoArg agateFlag)
+		    "use the Agate compiler (only with --compile)"
+    , Option []     ["alonzo"] (NoArg alonzoFlag)
+		    "use the Alonzo compiler (DEFAULT) (only with --compile)"
     , Option []	    ["test"] (NoArg runTestsFlag)
 		    "run internal test suite"
     , Option []	    ["vim"] (NoArg vimFlag)
