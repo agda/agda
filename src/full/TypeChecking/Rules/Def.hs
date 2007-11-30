@@ -181,6 +181,8 @@ checkWithFunction (WithFunction f aux gamma delta1 delta2 vs as b qs perm cs) = 
       , text "gamma  =" <+> prettyTCM gamma
       , text "as     =" <+> prettyList (map prettyTCM as)
       , text "b      =" <+> prettyTCM b
+      , text "qs     =" <+> text (show qs)
+      , text "perm   =" <+> text (show perm)
       ]
     ]
 
@@ -189,8 +191,11 @@ checkWithFunction (WithFunction f aux gamma delta1 delta2 vs as b qs perm cs) = 
   -- With display forms are closed
   df <- makeClosed <$> withDisplayForm f aux delta1 delta2 (size as) qs perm
 
-  absAuxType <- setShowImplicitArguments True $ disableDisplayForms
-                $ reify =<< withFunctionType delta1 vs as delta2 b
+  reportSLn "tc.with.top" 20 "created with display form"
+
+  candidateType <- withFunctionType delta1 vs as delta2 b
+  reportSDoc "tc.with.type" 10 $ sep [ text "candidate type:", nest 2 $ prettyTCM candidateType ]
+  absAuxType <- setShowImplicitArguments True $ disableDisplayForms $ reify candidateType
   reportSDoc "tc.with.top" 15 $
     vcat [ text "type of with function:"
          , nest 2 $ prettyTCM absAuxType

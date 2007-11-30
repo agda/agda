@@ -184,7 +184,7 @@ withDisplayForm f aux delta1 delta2 n qs perm = do
   return $ Display (n + size delta1 + size delta2 + top) pats dt
   where
     var i = Var i []
-    sub wild = map term [0..m - 1]
+    sub wild = map term [0..] -- m - 1]
       where
         Perm m xs = reverseP perm
         term i = case findIndex (i ==) xs of
