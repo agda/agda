@@ -132,22 +132,22 @@ getInstantiatedMetas = do
     store <- getMetaStore
     return [ i | (i, MetaVar _ _ _ mi _) <- Map.assocs store, isInst mi ]
     where
-	isInst Open                               = False
-	isInst (BlockedConst _)                   = False
-        isInst (PostponedTypeCheckingProblem _ _) = False
-	isInst (InstV _)                          = True
-	isInst (InstS _)                          = True
+	isInst Open                             = False
+	isInst (BlockedConst _)                 = False
+        isInst (PostponedTypeCheckingProblem _) = False
+	isInst (InstV _)                        = True
+	isInst (InstS _)                        = True
 
 getOpenMetas :: MonadTCM tcm => tcm [MetaId]
 getOpenMetas = do
     store <- getMetaStore
     return [ i | (i, MetaVar _ _ _ mi _) <- Map.assocs store, isOpen mi ]
     where
-	isOpen Open                               = True
-	isOpen (BlockedConst _)                   = True
-        isOpen (PostponedTypeCheckingProblem _ _) = True
-	isOpen (InstV _)                          = False
-	isOpen (InstS _)                          = False
+	isOpen Open                             = True
+	isOpen (BlockedConst _)                 = True
+        isOpen (PostponedTypeCheckingProblem _) = True
+	isOpen (InstV _)                        = False
+	isOpen (InstS _)                        = False
 
 -- | @listenToMeta l m@: register @l@ as a listener to @m@. This is done
 --   when the type of l is blocked by @m@.

@@ -89,13 +89,14 @@ solveConstraint (UnBlock m) = do
             debug $ show m ++ " := " ++ show d
         assignTerm m t
         return []
-      PostponedTypeCheckingProblem e t -> do
+      PostponedTypeCheckingProblem cl -> enterClosure cl $ \(e, t) -> do
         t <- reduce t
         case unEl t of
           MetaV _ _ -> buildConstraint $ UnBlock m
           _         -> do
-            v <- liftTCM $ checkExpr e t
-            assignTerm m v
+            tel <- getContextTelescope
+            v   <- liftTCM $ checkExpr e t
+            assignTerm m $ teleLam tel v
             return []
       _ -> __IMPOSSIBLE__
 

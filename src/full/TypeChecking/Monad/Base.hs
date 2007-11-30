@@ -29,6 +29,8 @@ import Utils.Monad
 import Utils.Monad.Undo
 import Utils.Trace
 
+#include "../../undefined.h"
+
 ---------------------------------------------------------------------------
 -- * Type checking state
 ---------------------------------------------------------------------------
@@ -132,7 +134,7 @@ data Closure a = Closure { clSignature  :: Signature
 			 , clTrace	:: CallTrace
 			 , clValue	:: a
 			 }
-    deriving (Typeable)
+    deriving (Typeable, Data)
 
 instance HasRange a => HasRange (Closure a) where
     getRange = getRange . clValue
@@ -211,7 +213,7 @@ data MetaInstantiation
 	| InstS Sort
 	| Open
 	| BlockedConst Term
-        | PostponedTypeCheckingProblem A.Expr Type
+        | PostponedTypeCheckingProblem (Closure (A.Expr, Type))
     deriving (Typeable, Data)
 
 newtype MetaPriority = MetaPriority Int
@@ -403,6 +405,12 @@ data Call = CheckClause Type A.Clause (Maybe Clause)
             -- but I was to lazy to import the stuff here --Andreas,2007-5-29
 
     deriving (Typeable)
+
+-- Dummy instance
+instance Data Call where
+  dataTypeOf _  = mkDataType "Call" []
+  toConstr   x  = mkConstr (dataTypeOf x) "Dummy" [] Prefix
+  gunfold k z _ = __IMPOSSIBLE__
 
 instance HasRange a => HasRange (Trace a) where
     getRange (TopLevel _)      = noRange

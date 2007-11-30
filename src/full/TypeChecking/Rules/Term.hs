@@ -227,7 +227,12 @@ checkExpr e t =
 	      (args, cs) <- checkArguments_ ExpandLast (getRange e)
 			      (map (Arg NotHidden . unnamed) es) tel
 	      blockTerm t (Con r args) $ return cs
-            MetaV _ _ -> postponeTypeCheckingProblem e t
+            MetaV _ _ -> do
+              reportSDoc "tc.term.expr.rec" 10 $ sep
+                [ text "Postponing type checking of"
+                , nest 2 $ prettyA e <+> text ":" <+> prettyTCM t
+                ]
+              postponeTypeCheckingProblem e t
 	    _         -> typeError $ ShouldBeRecordType t
 
 	A.Var _    -> __IMPOSSIBLE__

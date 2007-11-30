@@ -54,11 +54,11 @@ isBlockedTerm x = do
     report 12 $ "is " ++ show x ++ " a blocked term? "
     i <- mvInstantiation <$> lookupMeta x
     let r = case i of
-	    BlockedConst _                   -> True
-            PostponedTypeCheckingProblem _ _ -> True
-	    InstV _                          -> False
-	    InstS _                          -> False
-	    Open                             -> False
+	    BlockedConst{}                 -> True
+            PostponedTypeCheckingProblem{} -> True
+	    InstV{}                        -> False
+	    InstS{}                        -> False
+	    Open{}                         -> False
     reportLn 12 $ if r then "yes" else "no"
     return r
 
@@ -197,7 +197,8 @@ postponeTypeCheckingProblem :: MonadTCM tcm => A.Expr -> Type -> tcm Term
 postponeTypeCheckingProblem e t = do
   i   <- createMetaInfo
   tel <- getContextTelescope
-  m   <- newMeta' (PostponedTypeCheckingProblem e t)
+  cl  <- buildClosure (e, t)
+  m   <- newMeta' (PostponedTypeCheckingProblem cl)
                   i normalMetaPriority $ HasType () $
                   makeClosed $ telePi_ tel t
   addConstraints =<< buildConstraint (UnBlock m)

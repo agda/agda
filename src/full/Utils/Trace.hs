@@ -1,8 +1,10 @@
+{-# OPTIONS -fglasgow-exts #-}
 
 module Utils.Trace where
 
 import Control.Monad
 import Data.Monoid
+import Data.Generics (Typeable, Data)
 
 type Trace = CurrentCall
 type SiblingCall = ChildCall
@@ -10,10 +12,13 @@ type SiblingCall = ChildCall
 data CurrentCall a
     = Current a (ParentCall a) [SiblingCall a] [ChildCall a]
     | TopLevel [ChildCall a]
+  deriving (Typeable, Data)
 data ParentCall a
     = Parent  a (ParentCall a) [SiblingCall a]
     | NoParent
+  deriving (Typeable, Data)
 data ChildCall a = Child a [ChildCall a]
+  deriving (Typeable, Data)
 
 newCall :: a -> Trace a -> Trace a
 newCall c (TopLevel cs)	       = Current c NoParent cs []
