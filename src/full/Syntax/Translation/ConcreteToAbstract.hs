@@ -167,6 +167,9 @@ checkModuleMacro apply r p a x tel m args open dir =
     printScope 20 $ case open of
       DontOpen  -> "didn't open"
       DoOpen    -> "opened"
+    printScope 10 $ "before stripping"
+    stripNoNames
+    printScope 10 $ "after stripping"
     return [ apply info m0 tel' m1 args' renD renM ]
   where
     info = mkRangedModuleInfo p a r

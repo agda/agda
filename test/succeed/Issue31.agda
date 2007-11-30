@@ -16,3 +16,20 @@ open MOps m using (A)
 
 postulate foo : A -> Set
 
+module AnotherBug where
+
+  postulate Z : Set
+
+  module A (X : Set) where
+    postulate H : Set
+  module B (Y : Set) where
+
+  module C where
+    open A Z
+    open B Z public
+
+  postulate H : Set
+  open C
+
+  X = H
+

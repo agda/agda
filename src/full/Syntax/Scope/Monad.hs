@@ -209,6 +209,14 @@ bindQModule acc x m = modifyTopScope $ addModuleToScope acc x $ AbsModule m
 
 -- * Module manipulation operations
 
+-- | Clear the scope of any no names.
+stripNoNames :: ScopeM ()
+stripNoNames = modifyScopeStack $ map strip
+  where
+    strip     = mapScope (\_ -> stripN) (\_ -> stripN)
+    stripN m  = Map.filterWithKey (const . notNoName) m
+    notNoName = not . any isNoName . qnameParts
+
 -- | Push a new scope onto the scope stack
 pushScope :: A.ModuleName -> ScopeM ()
 pushScope name = modifyScopeStack (s:)
