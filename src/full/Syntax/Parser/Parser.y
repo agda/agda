@@ -655,8 +655,9 @@ Open : 'open' ModuleName OpenArgs ImportDirective {
     } in
     case es of
     { []  -> Open r m dir
-    ; _   -> ModuleMacro r (noName $ getRange m) []
+    ; _   -> Private r [ ModuleMacro r (noName $ getRange m) []
                            (RawApp (fuseRange m es) (Ident m : es)) DoOpen dir
+                       ]
     }
   }
 
