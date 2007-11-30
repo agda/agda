@@ -22,6 +22,10 @@ import TypeChecking.Pretty
 import TypeChecking.Records
 import TypeChecking.Conversion
 
+#ifndef __HADDOCK__
+import {-# SOURCE #-} TypeChecking.Rules.Decl (checkSectionApplication)
+#endif
+
 import Utils.Monad
 import Utils.Size
 
@@ -366,9 +370,11 @@ checkLetBindings = foldr (.) id . map checkLetBinding
 
 checkLetBinding :: A.LetBinding -> TCM a -> TCM a
 checkLetBinding b@(A.LetBind i x t e) ret =
-    traceCallCPS_ (CheckLetBinding b) ret $ \ret -> do
-	t <- isType_ t
-	v <- checkExpr e t
-	addLetBinding x v t ret
-checkLetBinding A.LetApply{} ret = typeError $ NotImplemented "module instantiation in let"
+  traceCallCPS_ (CheckLetBinding b) ret $ \ret -> do
+    t <- isType_ t
+    v <- checkExpr e t
+    addLetBinding x v t ret
+checkLetBinding (A.LetApply i x tel m args rd rm) ret = do
+  checkSectionApplication i x tel m args rd rm
+  ret
 

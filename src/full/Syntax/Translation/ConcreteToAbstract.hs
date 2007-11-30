@@ -127,6 +127,35 @@ checkPatternLinearity ps = case xs \\ nub xs of
       A.ImplicitP _   -> __IMPOSSIBLE__
 
 
+checkModuleMacro apply r p a x tel m args open dir =
+    withLocalVars $ do
+    tel' <- toAbstract tel
+    (x',m1,args') <- toAbstract ( NewModuleName x
+                                , OldModuleName m
+                                , args
+                                )
+    printScope 20 "module macro"
+    pushScope x'
+    m0 <- getCurrentModule
+    openModule_ m $ dir { C.publicOpen = True }
+    printScope 20 "opened source module"
+    s : _ <- scopeStack <$> getScope
+    (renD, renM) <- renamedCanonicalNames m1 m0 s
+    modifyTopScope $ renameCanonicalNames renD renM
+    printScope 20 "renamed stuff"
+    popScope p
+    printScope 20 "popped"
+    bindModule p x m0
+    case open of
+      DontOpen -> return ()
+      DoOpen   -> openModule_ (C.QName x) $ defaultImportDir { C.publicOpen = C.publicOpen dir }
+    printScope 20 $ case open of
+      DontOpen  -> "didn't open"
+      DoOpen    -> "opened"
+    return [ apply info m0 tel' m1 args' renD renM ]
+  where
+    info = mkRangedModuleInfo p a r
+
 {--------------------------------------------------------------------------
     Translation
  --------------------------------------------------------------------------}
@@ -455,6 +484,10 @@ instance ToAbstract LetDef [A.LetBinding] where
               openModule_ x dirs
               return []
 
+            NiceModuleMacro r p a x tel e open dir | not (C.publicOpen dir) -> case appView e of
+              AppView (Ident m) args -> checkModuleMacro LetApply r p a x tel m args open dir
+              _                      -> notAModuleExpr e
+
 	    _	-> notAValidLetBinding d
 	where
 	    letToAbstract (C.Clause top clhs@(C.LHS p [] []) (C.RHS rhs) NoWhere []) = do
@@ -567,35 +600,8 @@ instance ToAbstract NiceDeclaration A.Declaration where
       snd <$> scopeCheckModule r p a name aname tel ds
 
     NiceModuleMacro r p a x tel e open dir -> case appView e of
-      AppView (Ident m) args  ->
-	withLocalVars $ do
-	tel' <- toAbstract tel
-	(x',m1,args') <- toAbstract ( NewModuleName x
-				    , OldModuleName m
-				    , args
-				    )
-	printScope 20 "module macro"
-	pushScope x'
-	m0 <- getCurrentModule
-	openModule_ m $ dir { C.publicOpen = True }
-	printScope 20 "opened source module"
-	s : _ <- scopeStack <$> getScope
-	(renD, renM) <- renamedCanonicalNames m1 m0 s
-	modifyTopScope $ renameCanonicalNames renD renM
-	printScope 20 "renamed stuff"
-	popScope p
-	printScope 20 "popped"
-	bindModule p x m0
-	case open of
-	  DontOpen -> return ()
-	  DoOpen   -> openModule_ (C.QName x) $ defaultImportDir { C.publicOpen = C.publicOpen dir }
-	printScope 20 $ case open of
-	  DontOpen  -> "didn't open"
-	  DoOpen    -> "opened"
-	return [ Apply info m0 tel' m1 args' renD renM ]
-      _	-> notAModuleExpr e
-      where
-	info = mkRangedModuleInfo p a r
+      AppView (Ident m) args -> checkModuleMacro Apply r p a x tel m args open dir
+      _                      -> notAModuleExpr e
 
     NiceOpen r x dir -> do
       current <- getCurrentModule
