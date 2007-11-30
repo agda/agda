@@ -436,16 +436,25 @@ newtype LetDef = LetDef NiceDeclaration
 
 instance ToAbstract LetDefs [A.LetBinding] where
     toAbstract (LetDefs ds) =
-	toAbstract =<< map LetDef <$> niceDecls ds
+	concat <$> (toAbstract =<< map LetDef <$> niceDecls ds)
 
-instance ToAbstract LetDef A.LetBinding where
+instance ToAbstract LetDef [A.LetBinding] where
     toAbstract (LetDef d) =
 	case d of
 	    NiceDef _ c [C.Axiom _ _ _ _ x t] [C.FunDef _ _ _ _ _ _ [cl]] ->
 		do  e <- letToAbstract cl
 		    t <- toAbstract t
 		    x <- toAbstract (NewName x)
-		    return $ A.LetBind (LetSource c) x t e
+		    return [ A.LetBind (LetSource c) x t e ]
+
+            -- You can't open public in a let
+            NiceOpen r x dirs | not (C.publicOpen dirs) -> do
+              current <- getCurrentModule
+              m	      <- toAbstract (OldModuleName x)
+              n	      <- length . scopeLocals <$> getScope
+              openModule_ x dirs
+              return []
+
 	    _	-> notAValidLetBinding d
 	where
 	    letToAbstract (C.Clause top clhs@(C.LHS p [] []) (C.RHS rhs) NoWhere []) = do

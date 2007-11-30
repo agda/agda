@@ -169,6 +169,7 @@ generateSyntaxInfo tcs toks top = do
 
       getLet :: A.LetBinding -> File
       getLet (A.LetBind _ x _ _) = bound x
+      getLet A.LetApply{}        = mempty
 
       getLam :: A.LamBinding -> File
       getLam (A.DomainFree _ x) = bound x

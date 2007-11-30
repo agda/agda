@@ -60,6 +60,7 @@ data Pragma = OptionsPragma [String]
   deriving (Typeable, Data)
 
 data LetBinding = LetBind LetInfo Name Expr Expr    -- ^ LetBind info name type defn
+                | LetApply ModuleInfo ModuleName [TypedBindings] ModuleName [NamedArg Expr] (Map QName QName) (Map ModuleName ModuleName)
   deriving (Typeable, Data)
 
 -- | A definition without its type signature.
@@ -235,5 +236,6 @@ instance HasRange RHS where
     getRange (WithRHS e cs) = fuseRange e cs
 
 instance HasRange LetBinding where
-    getRange (LetBind i _ _ _) = getRange i
+    getRange (LetBind  i _ _ _       ) = getRange i
+    getRange (LetApply i _ _ _ _ _ _ ) = getRange i
 

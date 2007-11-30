@@ -393,6 +393,17 @@ instance ToConcrete LetBinding [C.Declaration] where
 	bindToConcrete x $ \x ->
 	do  (t,(e, [], [])) <- toConcrete (t,A.RHS e)
 	    ret [C.TypeSig x t, C.FunClause (C.LHS (C.IdentP $ C.QName x) [] []) e C.NoWhere]
+    bindToConcrete (LetApply i x tel y es _ _) ret = do
+      x  <- unsafeQNameToName <$> toConcrete x
+      y  <- toConcrete y
+      bindToConcrete tel $ \tel -> do
+      es <- toConcrete es
+      let r = fuseRange y es
+      ret [ C.ModuleMacro (getRange i) x tel
+                  (foldl (C.App r) (C.Ident y) es) DontOpen
+                  (ImportDirective r (Hiding []) [] False)
+          ]
+
 
 -- Declaration instances --------------------------------------------------
 

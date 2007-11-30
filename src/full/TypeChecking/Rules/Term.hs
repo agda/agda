@@ -365,4 +365,5 @@ checkLetBinding b@(A.LetBind i x t e) ret =
 	t <- isType_ t
 	v <- checkExpr e t
 	addLetBinding x v t ret
+checkLetBinding A.LetApply{} ret = typeError $ NotImplemented "module instantiation in let"
 
