@@ -188,7 +188,7 @@ generateSyntaxInfo tcs toks top = do
       getPattern _             = mempty
 
       getFieldDecl :: A.Definition -> File
-      getFieldDecl (A.RecDef _ _ _ fs) = Fold.foldMap extractField fs
+      getFieldDecl (A.RecDef _ _ _ _ fs) = Fold.foldMap extractField fs
         where
         extractField (A.ScopedDecl _ ds) = Fold.foldMap extractField ds
         extractField (A.Field _ x _)     = field (concreteQualifier x)

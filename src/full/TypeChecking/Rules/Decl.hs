@@ -113,9 +113,9 @@ checkTypeSignature _ = __IMPOSSIBLE__	-- type signatures are always axioms
 checkDefinition :: A.Definition -> TCM ()
 checkDefinition d =
     case d of
-	A.FunDef i x cs	    -> abstract (Info.defAbstract i) $ checkFunDef i x cs
-	A.DataDef i x ps cs -> abstract (Info.defAbstract i) $ checkDataDef i x ps cs
-	A.RecDef i x ps cs  -> abstract (Info.defAbstract i) $ checkRecDef i x ps cs
+	A.FunDef i x cs        -> abstract (Info.defAbstract i) $ checkFunDef i x cs
+	A.DataDef i x ps cs    -> abstract (Info.defAbstract i) $ checkDataDef i x ps cs
+	A.RecDef i x ps tel cs -> abstract (Info.defAbstract i) $ checkRecDef i x ps tel cs
     where
 	-- Concrete definitions cannot use information about abstract things.
 	abstract ConcreteDef = inConcreteMode

@@ -126,6 +126,21 @@ checkPatternLinearity ps = case xs \\ nub xs of
       A.DefP _ _ args -> __IMPOSSIBLE__
       A.ImplicitP _   -> __IMPOSSIBLE__
 
+-- | Compute the type of the record constructor (with bogus target type)
+recordConstructorType :: [NiceDeclaration] -> C.Expr
+recordConstructorType fields = build fs
+  where
+    fs = reverse $ dropWhile notField $ reverse fields
+
+    notField NiceField{} = False
+    notField _           = True
+
+    build (NiceField r f _ _ x e : fs) = C.Pi [C.TypedBindings r NotHidden
+                                                [C.TBind r [BName x f] e]
+                                              ] $ build fs
+      where r = getRange x
+    build (d : fs)                     = C.Let noRange (notSoNiceDeclarations [d]) $ build fs
+    build []                           = C.Prop noRange
 
 checkModuleMacro apply r p a x tel m args open dir =
     withLocalVars $ do
@@ -218,14 +233,20 @@ instance ToAbstract c a => ToAbstract (Maybe c) (Maybe a) where
 
 -- Names ------------------------------------------------------------------
 
-newtype NewName = NewName C.Name
-newtype OldQName = OldQName C.QName
-newtype OldName = OldName C.Name
-newtype PatName = PatName C.QName
+newtype NewName a = NewName a
+newtype OldQName  = OldQName C.QName
+newtype OldName   = OldName C.Name
+newtype PatName   = PatName C.QName
 
-instance ToAbstract NewName A.Name where
+instance ToAbstract (NewName C.Name) A.Name where
   toAbstract (NewName x) = do
     y <- freshAbstractName_ x
+    bindVariable x y
+    return y
+
+instance ToAbstract (NewName C.BoundName) A.Name where
+  toAbstract (NewName (BName x fx)) = do
+    y <- freshAbstractName fx x
     bindVariable x y
     return y
 
@@ -400,7 +421,7 @@ instance ToAbstract C.Expr A.Expr where
       C.Absurd _ -> notAnExpression e
 
 instance ToAbstract C.LamBinding A.LamBinding where
-  toAbstract (C.DomainFree h x) = A.DomainFree h <$> toAbstract (NewName $ boundName x)
+  toAbstract (C.DomainFree h x) = A.DomainFree h <$> toAbstract (NewName x)
   toAbstract (C.DomainFull tb)	= A.DomainFull <$> toAbstract tb
 
 instance ToAbstract C.TypedBindings A.TypedBindings where
@@ -409,7 +430,7 @@ instance ToAbstract C.TypedBindings A.TypedBindings where
 instance ToAbstract C.TypedBinding A.TypedBinding where
   toAbstract (C.TBind r xs t) = do
     t' <- toAbstractCtx TopCtx t
-    xs' <- toAbstract (map (NewName . boundName) xs)
+    xs' <- toAbstract (map NewName xs)
     return $ A.TBind r xs' t'
   toAbstract (C.TNoBind e) = do
     e <- toAbstractCtx TopCtx e
@@ -537,24 +558,19 @@ instance ToAbstract NiceDefinition Definition where
     toAbstract d@(C.RecDef r f p a x pars fields) =
       traceCall (ScopeCheckDefinition d) $
       withLocalVars $ do
-	pars <- toAbstract pars
-	x'   <- toAbstract (OldName x)
+	pars   <- toAbstract pars
+	x'     <- toAbstract (OldName x)
+        contel <- toAbstract $ recordConstructorType fields
 	let m = mnameFromList $ (:[]) $ last $ qnameToList x'
 	printScope 15 "before record"
 	pushScope m
-	afields <- withLocalVars $ toAbstract fields
-	let bindField (A.ScopedDecl _ [f]) = bindField f
-	    bindField (A.Field i y _) =
-	      bindName (defAccess i) DefName (declName $ defInfo i) y
-	    bindField _ = return ()
-	printScope 15 "binding fields"
-	mapM_ bindField afields
-	printScope 15 "bound fields"
+	afields <- toAbstract fields
+	printScope 15 "checked fields"
 	qm <- getCurrentModule
 	popScope p
 	bindModule p x qm
 	printScope 15 "record complete"
-	return $ A.RecDef (mkRangedDefInfo x f p a r) x' pars afields
+	return $ A.RecDef (mkRangedDefInfo x f p a r) x' pars contel afields
 
 -- The only reason why we return a list is that open declarations disappears.
 -- For every other declaration we get a singleton list.
@@ -573,13 +589,10 @@ instance ToAbstract NiceDeclaration A.Declaration where
 
   -- Fields
     C.NiceField r f p a x t -> do
-      printScope 50 "before record field"
-      t'  <- toAbstractCtx TopCtx t
-      y   <- freshAbstractName f x
-      bindVariable x y
-      top <- getCurrentModule
-      printScope 50 "checked record field"
-      return [ A.Field (mkRangedDefInfo x f p a r) (A.qualify top y) t' ]
+      t' <- toAbstractCtx TopCtx t
+      y  <- freshAbstractQName f x
+      bindName p DefName x y
+      return [ A.Field (mkRangedDefInfo x f p a r) y t' ]
 
   -- Primitive function
     PrimitiveFunction r f p a x t -> do

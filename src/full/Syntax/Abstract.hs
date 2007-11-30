@@ -68,7 +68,9 @@ data Definition
 	= FunDef     DefInfo QName [Clause]
 	| DataDef    DefInfo QName [LamBinding] [Constructor]
 	    -- ^ the 'LamBinding's are 'DomainFree' and binds the parameters of the datatype.
-	| RecDef     DefInfo QName [LamBinding] [Declaration]
+	| RecDef     DefInfo QName [LamBinding]
+                        Expr          -- ^ Constructor type telescope: @(x1 : A1)..(xn : An) -> Prop@
+                        [Declaration] -- ^ Declarations
   deriving (Typeable, Data)
 
 -- | Only 'Axiom's.
@@ -209,9 +211,9 @@ instance HasRange Declaration where
     getRange (ScopedDecl _ d	       ) = getRange d
 
 instance HasRange Definition where
-    getRange (FunDef  i _ _   ) = getRange i
-    getRange (DataDef i _ _ _ ) = getRange i
-    getRange (RecDef  i _ _ _ ) = getRange i
+    getRange (FunDef  i _ _    ) = getRange i
+    getRange (DataDef i _ _ _  ) = getRange i
+    getRange (RecDef  i _ _ _ _) = getRange i
 
 instance HasRange (Pattern' e) where
     getRange (VarP x)	   = getRange x

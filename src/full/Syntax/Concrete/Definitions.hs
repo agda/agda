@@ -8,6 +8,7 @@ module Syntax.Concrete.Definitions
     , DeclarationException(..)
     , Nice, runNice
     , niceDeclarations
+    , notSoNiceDeclarations
     ) where
 
 import Control.Exception
@@ -443,4 +444,17 @@ fixities (d:ds) =
 			=<< fixities ds
 	_	    -> fixities ds
 fixities [] = return $ Map.empty
+
+notSoNiceDeclarations :: [NiceDeclaration] -> [Declaration]
+notSoNiceDeclarations = concatMap notNice
+  where
+    notNice (Axiom _ _ _ _ x e)                   = [TypeSig x e]
+    notNice (NiceField _ _ _ _ x e)               = [Field x e]
+    notNice (PrimitiveFunction r _ _ _ x e)       = [Primitive r [TypeSig x e]]
+    notNice (NiceDef _ ds _ _)                    = ds
+    notNice (NiceModule r _ _ x tel ds)           = [Module r x tel ds]
+    notNice (NiceModuleMacro r _ _ x tel e o dir) = [ModuleMacro r x tel e o dir]
+    notNice (NiceOpen r x dir)                    = [Open r x dir]
+    notNice (NiceImport r x as o dir)             = [Import r x as o dir]
+    notNice (NicePragma _ p)                      = [Pragma p]
 

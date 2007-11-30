@@ -447,7 +447,7 @@ instance ToConcrete TypeAndDef [C.Declaration] where
       mkTel n (A.Pi _ b t) = (b++) -*- id $ mkTel (n - 1) t
       mkTel _ _		   = __IMPOSSIBLE__
 
-  toConcrete (TypeAndDef (Axiom _ x t) (RecDef  i _ bs cs)) =
+  toConcrete (TypeAndDef (Axiom _ x t) (RecDef  i _ bs _ cs)) =
     withAbstractPrivate i $
     bindToConcrete tel $ \tel' -> do
       t'       <- toConcreteCtx TopCtx t0
