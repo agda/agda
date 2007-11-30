@@ -7,7 +7,7 @@ default : test polydep aim4-bag ac minmax clowns vfl real effects
 
 agda = $(AGDA_BIN)
 
-run_agda = $(agda) $(EXTRA_AGDA_FLAGS)
+run_agda = $(agda) --vim --emacs $(EXTRA_AGDA_FLAGS)
 
 test_files = Vec.agda Lookup.agda Binary.agda Setoid.agda \
 			 TT.agda ISWIM.agda ParenDepTac.agda \
