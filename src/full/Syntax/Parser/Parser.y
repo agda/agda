@@ -646,8 +646,23 @@ Primitive : 'primitive' TypeSignatures	{ Primitive (fuseRange $1 $2) $2 }
 
 -- Open
 Open :: { Declaration }
-Open : 'open' ModuleName ImportDirective   { Open (getRange ($1,$2,$3)) $2 $3 }
+Open : 'open' ModuleName OpenArgs ImportDirective {
+    let
+    { m   = $2
+    ; es  = $3
+    ; dir = $4
+    ; r   = getRange ($1, m, dir)
+    } in
+    case es of
+    { []  -> Open r m dir
+    ; _   -> ModuleMacro r (noName $ getRange m) []
+                           (RawApp (fuseRange m es) (Ident m : es)) DoOpen dir
+    }
+  }
 
+OpenArgs :: { [Expr] }
+OpenArgs : {- empty -}    { [] }
+         | Expr3 OpenArgs { $1 : $2 }
 
 -- Module instantiation
 ModuleMacro :: { Declaration }
