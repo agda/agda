@@ -47,6 +47,6 @@ LiftSetoid :  (s₁ s₂ : Setoid)
            -> Setoid
 LiftSetoid s₁ s₂ pres = record
   { carrier       = carrier s₁ -> carrier s₂
-  ; eq            = LogicalRelation (_≈_ s₁) (_≈_ s₂)
+  ; _≈_           = LogicalRelation (_≈_ s₁) (_≈_ s₂)
   ; isEquivalence = LiftEquiv pres (isEquivalence s₁) (isEquivalence s₂)
   }

@@ -12,16 +12,14 @@ open import Data.Function
 import Algebra
 import Algebra.Props.CommutativeSemiring as CSProp
 import Algebra.Props.CommutativeRing     as CRProp
-private
-  open module A = Algebra Bool-setoid
+open Algebra Bool-setoid
 open import Algebra.Packaged
 open import Relation.Binary.PropositionalEquality
 open import Data.Product
 import Algebra.RingSolver.Simple as Solver
 
 import Relation.Binary.EqReasoning
-private
-  open module PP = Relation.Binary.EqReasoning Bool-preorder
+open Relation.Binary.EqReasoning Bool-preorder
 
 ------------------------------------------------------------------------
 -- Duality

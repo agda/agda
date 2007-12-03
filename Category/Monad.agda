@@ -20,19 +20,19 @@ RawMonadPlus : (Set -> Set) -> Set1
 RawMonadPlus M = RawIMonadPlus {⊤} (\_ _ -> M)
 
 module RawMonad {M : Set -> Set} (Mon : RawMonad M) where
-  private open module M = RawIMonad Mon public
+  open RawIMonad Mon public
 
 module RawMonadZero {M : Set -> Set} (Mon : RawMonadZero M) where
-  private open module M = RawIMonadZero Mon public
+  open RawIMonadZero Mon public
 
 module RawMonadPlus {M : Set -> Set} (Mon : RawMonadPlus M) where
-  private open module M = RawIMonadPlus Mon public
+  open RawIMonadPlus Mon public
 
 module MonadOps {M : Set -> Set} (Mon : RawMonad M) where
-  private open module M = IMonadOps Mon public
+  open IMonadOps Mon public
 
 module MonadZeroOps {M : Set -> Set} (Mon : RawMonadZero M) where
-  private open module M = IMonadZeroOps Mon public
+  open IMonadZeroOps Mon public
 
 module MonadPlusOps {M : Set -> Set} (Mon : RawMonadPlus M) where
-  private open module M = IMonadPlusOps Mon public
+  open IMonadPlusOps Mon public

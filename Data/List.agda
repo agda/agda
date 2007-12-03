@@ -90,7 +90,7 @@ open import Category.Monad
 ListMonad : RawMonad [_]
 ListMonad = record
   { return = \x -> x ∷ []
-  ; bind   = \xs f -> concat (map f xs)
+  ; _>>=_  = \xs f -> concat (map f xs)
   }
 
 ListMonadZero : RawMonadZero [_]
@@ -102,5 +102,5 @@ ListMonadZero = record
 ListMonadPlus : RawMonadPlus [_]
 ListMonadPlus = record
   { monadZero = ListMonadZero
-  ; plus      = _++_
+  ; _++_      = _++_
   }

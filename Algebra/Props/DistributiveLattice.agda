@@ -14,13 +14,12 @@ open import Data.Product
 import Relation.Binary.EqReasoning
 import Algebra
 import Algebra.Props.Lattice
-private
-  open module L = DistributiveLatticoid dl
-  open module L = Algebra setoid
-  open module L = DistributiveLattice distLattice
-  open module L = Lattice lattice
-  open module S = SetoidOps setoid
-  open module S = Relation.Binary.EqReasoning preorder
+open DistributiveLatticoid dl
+open Algebra setoid
+open DistributiveLattice distLattice
+open Lattice lattice
+open SetoidOps setoid
+open Relation.Binary.EqReasoning preorder
 
 ------------------------------------------------------------------------
 -- A distributive lattice is a lattice
@@ -33,9 +32,7 @@ latticoid = record
   ; lattice = lattice
   }
 
-private
-  module LP = Algebra.Props.Lattice latticoid
-open LP public
+open Algebra.Props.Lattice latticoid public
 
 ------------------------------------------------------------------------
 -- Some properties

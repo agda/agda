@@ -6,11 +6,9 @@ open import Relation.Binary
 
 module Relation.Binary.Props.Poset (p : Poset) where
 
-private
-  open module P = Relation.Binary.PosetOps p
+open Relation.Binary.PosetOps p
 import Relation.Binary.NonStrictToStrict as Conv
-private
-  open module C = Conv _≈_ _≤_
+open Conv _≈_ _≤_
 
 ------------------------------------------------------------------------
 -- Posets can be turned into strict partial orders
@@ -18,8 +16,8 @@ private
 strictPartialOrder : StrictPartialOrder
 strictPartialOrder = record
   { carrier              = carrier
-  ; underlyingEq         = _≈_
-  ; order                = _<_
+  ; _≈_                  = _≈_
+  ; _<_                  = _<_
   ; isStrictPartialOrder = record
     { isEquivalence = isEquivalence
     ; irrefl        = <-irrefl

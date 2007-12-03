@@ -44,8 +44,7 @@ private
         isEquivalence (Conv.≈-resp-< _ _ isEquivalence ≈-resp-≤)
         (Conv.<-trans _ _ po₁)
         {≤₂ = ≤₂} trans₂ {x} {y} {z}
-      where
-      open module PO = IsPartialOrderOps po₁
+      where open IsPartialOrderOps po₁
 
     ×-antisymmetric
       :  forall {≈₁ ≤₁} -> IsPartialOrder ≈₁ ≤₁
@@ -56,8 +55,8 @@ private
       Strict.×-antisymmetric {<₁ = Conv._<_ ≈₁ ≤₁} ≈-sym₁ irrefl₁ asym₁
                              {≤₂ = ≤₂} antisym₂ {x} {y}
       where
-      open module PO = IsPartialOrderOps po₁
-      open module E  = Eq renaming (refl to ≈-refl₁; sym to ≈-sym₁)
+      open IsPartialOrderOps po₁
+      open Eq renaming (refl to ≈-refl₁; sym to ≈-sym₁)
 
       irrefl₁ : Irreflexive ≈₁ (Conv._<_ ≈₁ ≤₁)
       irrefl₁ = Conv.<-irrefl ≈₁ ≤₁
@@ -150,8 +149,8 @@ private
       { isTotalOrder = ×-isTotalOrder (_≟_ to₁)
                                       (isTotalOrder to₁)
                                       (isTotalOrder to₂)
-      ; ≈-decidable  = PointWise._×-decidable_ (_≟_ to₁) (_≟_ to₂)
-      ; ≤-decidable  = ×-decidable (_≟_ to₁) (_≤?_ to₁) (_≤?_ to₂)
+      ; _≟_          = PointWise._×-decidable_ (_≟_ to₁) (_≟_ to₂)
+      ; _≤?_         = ×-decidable (_≟_ to₁) (_≤?_ to₁) (_≤?_ to₂)
       }
       where open IsDecTotalOrderOps
 
@@ -162,8 +161,8 @@ open Dummy public
 _×-poset_ : Poset -> Poset -> Poset
 p₁ ×-poset p₂ = record
   { carrier        = carrier p₁ ×     carrier p₂
-  ; underlyingEq   = _≈_     p₁ ×-Rel _≈_     p₂
-  ; order          = ×-Lex (_≈_ p₁) (_≤_ p₁) (_≤_ p₂)
+  ; _≈_            = _≈_     p₁ ×-Rel _≈_     p₂
+  ; _≤_            = ×-Lex (_≈_ p₁) (_≤_ p₁) (_≤_ p₂)
   ; isPartialOrder = isPartialOrder p₁ ×-isPartialOrder
                      isPartialOrder p₂
   }
@@ -172,8 +171,8 @@ p₁ ×-poset p₂ = record
 _×-totalOrder_ : DecTotalOrder -> TotalOrder -> TotalOrder
 t₁ ×-totalOrder t₂ = record
   { carrier      = T₁.carrier ×     T₂.carrier
-  ; underlyingEq = T₁._≈_     ×-Rel T₂._≈_
-  ; order        = ×-Lex T₁._≈_ T₁._≤_ T₂._≤_
+  ; _≈_          = T₁._≈_     ×-Rel T₂._≈_
+  ; _≤_          = ×-Lex T₁._≈_ T₁._≤_ T₂._≤_
   ; isTotalOrder = ×-isTotalOrder T₁._≟_ T₁.isTotalOrder T₂.isTotalOrder
   }
   where
@@ -183,8 +182,8 @@ t₁ ×-totalOrder t₂ = record
 _×-decTotalOrder_ : DecTotalOrder -> DecTotalOrder -> DecTotalOrder
 t₁ ×-decTotalOrder t₂ = record
   { carrier         = carrier t₁ ×     carrier t₂
-  ; underlyingEq    = _≈_     t₁ ×-Rel _≈_     t₂
-  ; order           = ×-Lex (_≈_ t₁) (_≤_ t₁) (_≤_ t₂)
+  ; _≈_             = _≈_     t₁ ×-Rel _≈_     t₂
+  ; _≤_             = ×-Lex (_≈_ t₁) (_≤_ t₁) (_≤_ t₂)
   ; isDecTotalOrder = isDecTotalOrder t₁ ×-isDecTotalOrder
                       isDecTotalOrder t₂
   }

@@ -64,17 +64,17 @@ open import Data.Product
 ≅-setoid : Set -> Setoid
 ≅-setoid a = record
   { carrier       = a
-  ; eq            = \x y -> x ≅ y
+  ; _≈_           = \x y -> x ≅ y
   ; isEquivalence = ≅-isEquivalence
   }
 
 ≅-decSetoid : forall {a} -> Decidable (\x y -> _≅_ {a} x y) -> DecSetoid
 ≅-decSetoid ≅-dec = record
   { carrier = _
-  ; eq      = \x y -> x ≅ y
+  ; _≈_     = \x y -> x ≅ y
   ; isDecEquivalence = record
       { isEquivalence = ≅-isEquivalence
-      ; decidable     = ≅-dec
+      ; _≟_           = ≅-dec
       }
   }
 
@@ -97,10 +97,10 @@ open import Data.Product
 
 ≅-preorder : Set -> Preorder
 ≅-preorder a = record
-  { carrier      = a
-  ; underlyingEq = _≡_
-  ; rel          = \x y -> x ≅ y
-  ; isPreorder   = ≅-isPreorder-≡
+  { carrier    = a
+  ; _≈_        = _≡_
+  ; _∼_        = \x y -> x ≅ y
+  ; isPreorder = ≅-isPreorder-≡
   }
 
 ------------------------------------------------------------------------
@@ -128,10 +128,9 @@ import Relation.Binary.EqReasoning as ER
 -- time.
 
 module ≅-Reasoning where
-  module ER-≅ {a : Set} where
-    private
-      module ER' = ER (≅-preorder a)
+  private
+    module Dummy {a : Set} where
+      open ER (≅-preorder a) public
         hiding (_≈⟨_⟩_; ≈-byDef)
         renaming (_∼⟨_⟩_ to _≅⟨_⟩_)
-    open ER' public
-  open ER-≅ public
+  open Dummy public

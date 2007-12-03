@@ -133,8 +133,8 @@ abstract
 ℕ-decTotalOrder : DecTotalOrder
 ℕ-decTotalOrder = record
   { carrier         = ℕ
-  ; underlyingEq    = _≡_
-  ; order           = _≤_
+  ; _≈_             = _≡_
+  ; _≤_             = _≤_
   ; isDecTotalOrder = record
       { isTotalOrder = record
           { isPartialOrder = record
@@ -148,8 +148,8 @@ abstract
               }
           ; total = ℕ-total
           }
-      ; ≈-decidable = _ℕ-≟_
-      ; ≤-decidable = _≤?_
+      ; _≟_  = _ℕ-≟_
+      ; _≤?_ = _≤?_
       }
   }
   where

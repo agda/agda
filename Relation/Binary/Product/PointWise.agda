@@ -181,7 +181,7 @@ private
     eq₁ ×-isDecEquivalence eq₂ = record
       { isEquivalence = isEquivalence eq₁ ×-isEquivalence
                         isEquivalence eq₂
-      ; decidable     = decidable eq₁ ×-decidable decidable eq₂
+      ; _≟_           = _≟_ eq₁ ×-decidable _≟_ eq₂
       }
       where open IsDecEquivalence
 
@@ -223,17 +223,17 @@ open Dummy public
 
 _×-preorder_ : Preorder -> Preorder -> Preorder
 p₁ ×-preorder p₂ = record
-  { carrier       = carrier    p₁ ×            carrier    p₂
-  ; underlyingEq  = _≈_        p₁ ×-Rel        _≈_        p₂
-  ; rel           = _∼_        p₁ ×-Rel        _∼_        p₂
-  ; isPreorder    = isPreorder p₁ ×-isPreorder isPreorder p₂
+  { carrier    = carrier    p₁ ×            carrier    p₂
+  ; _≈_        = _≈_        p₁ ×-Rel        _≈_        p₂
+  ; _∼_        = _∼_        p₁ ×-Rel        _∼_        p₂
+  ; isPreorder = isPreorder p₁ ×-isPreorder isPreorder p₂
   }
   where open PreorderOps
 
 _×-setoid_ : Setoid -> Setoid -> Setoid
 s₁ ×-setoid s₂ = record
   { carrier       = carrier       s₁ ×               carrier       s₂
-  ; eq            = _≈_           s₁ ×-Rel           _≈_           s₂
+  ; _≈_           = _≈_           s₁ ×-Rel           _≈_           s₂
   ; isEquivalence = isEquivalence s₁ ×-isEquivalence isEquivalence s₂
   }
   where open SetoidOps
@@ -241,7 +241,7 @@ s₁ ×-setoid s₂ = record
 _×-decSetoid_ : DecSetoid -> DecSetoid -> DecSetoid
 s₁ ×-decSetoid s₂ = record
   { carrier          = carrier s₁ ×     carrier s₂
-  ; eq               = _≈_     s₁ ×-Rel _≈_     s₂
+  ; _≈_              = _≈_     s₁ ×-Rel _≈_     s₂
   ; isDecEquivalence = isDecEquivalence s₁ ×-isDecEquivalence
                        isDecEquivalence s₂
   }
@@ -250,8 +250,8 @@ s₁ ×-decSetoid s₂ = record
 _×-poset_ : Poset -> Poset -> Poset
 s₁ ×-poset s₂ = record
   { carrier        = carrier s₁ ×     carrier s₂
-  ; underlyingEq   = _≈_     s₁ ×-Rel _≈_     s₂
-  ; order          = _≤_     s₁ ×-Rel _≤_     s₂
+  ; _≈_            = _≈_     s₁ ×-Rel _≈_     s₂
+  ; _≤_            = _≤_     s₁ ×-Rel _≤_     s₂
   ; isPartialOrder = isPartialOrder s₁ ×-isPartialOrder
                      isPartialOrder s₂
   }
@@ -261,8 +261,8 @@ _×-strictPartialOrder_
   : StrictPartialOrder -> StrictPartialOrder -> StrictPartialOrder
 s₁ ×-strictPartialOrder s₂ = record
   { carrier              = carrier s₁ ×     carrier s₂
-  ; underlyingEq         = _≈_     s₁ ×-Rel _≈_     s₂
-  ; order                = _<_     s₁ ×-Rel _<_     s₂
+  ; _≈_                  = _≈_     s₁ ×-Rel _≈_     s₂
+  ; _<_                  = _<_     s₁ ×-Rel _<_     s₂
   ; isStrictPartialOrder = isStrictPartialOrder s₁
                              ×-isStrictPartialOrder
                            isStrictPartialOrder s₂

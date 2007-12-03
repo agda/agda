@@ -67,15 +67,15 @@ abstract
   ≈-resp-≤ : IsEquivalence _≈_ -> _≈_ Respects₂ _<_ -> _≈_ Respects₂ _≤_
   ≈-resp-≤ eq ≈-resp-< = ((\{_ _ _} -> resp₁) , (\{_ _ _} -> resp₂))
     where
-    module Eq = IsEquivalence eq
+    open IsEquivalence eq
 
     resp₁ : forall {x y' y} -> y' ≈ y -> x  ≤ y' -> x ≤ y
     resp₁ y'≈y (inj₁ x<y') = inj₁ (proj₁ ≈-resp-< y'≈y x<y')
-    resp₁ y'≈y (inj₂ x≈y') = inj₂ (Eq.trans x≈y' y'≈y)
+    resp₁ y'≈y (inj₂ x≈y') = inj₂ (trans x≈y' y'≈y)
 
     resp₂ : forall {y x' x} -> x' ≈ x -> x' ≤ y  -> x ≤ y
     resp₂ x'≈x (inj₁ x'<y) = inj₁ (proj₂ ≈-resp-< x'≈x x'<y)
-    resp₂ x'≈x (inj₂ x'≈y) = inj₂ (Eq.trans (Eq.sym x'≈x) x'≈y)
+    resp₂ x'≈x (inj₂ x'≈y) = inj₂ (trans (sym x'≈x) x'≈y)
 
   ≤-total : Trichotomous _≈_ _<_ -> Total _≤_
   ≤-total <-tri x y with <-tri x y

@@ -12,5 +12,5 @@ Identity A = A
 IdentityMonad : RawMonad Identity
 IdentityMonad = record
   { return = \x -> x
-  ; bind   = \x f -> f x
+  ; _>>=_  = \x f -> f x
   }

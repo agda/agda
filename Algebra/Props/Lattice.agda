@@ -11,12 +11,11 @@ open import Data.Function
 open import Data.Product
 import Relation.Binary.EqReasoning
 import Algebra
-private
-  open module L = Latticoid l
-  open module L = Algebra setoid
-  open module L = Lattice lattice
-  open module S = SetoidOps setoid
-  open module S = Relation.Binary.EqReasoning preorder
+open Latticoid l
+open Algebra setoid
+open Lattice lattice
+open SetoidOps setoid
+open Relation.Binary.EqReasoning preorder
 
 abstract
 

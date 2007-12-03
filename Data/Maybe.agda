@@ -19,7 +19,7 @@ open import Category.Monad
 MaybeMonad : RawMonad Maybe
 MaybeMonad = record
   { return = just
-  ; bind   = _>>=_
+  ; _>>=_  = _>>=_
   }
   where
   _>>=_ : forall {a b} -> Maybe a -> (a -> Maybe b) -> Maybe b
@@ -35,7 +35,7 @@ MaybeMonadZero = record
 MaybeMonadPlus : RawMonadPlus Maybe
 MaybeMonadPlus = record
   { monadZero = MaybeMonadZero
-  ; plus      = _++_
+  ; _++_      = _++_
   }
   where
   _++_ : forall {a} -> Maybe a -> Maybe a -> Maybe a

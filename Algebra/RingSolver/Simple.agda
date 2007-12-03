@@ -8,7 +8,5 @@ module Algebra.RingSolver.Simple (r : AlmostCommRingoid) where
 
 import Algebra.RingSolver as R
 import Algebra.Props.AlmostCommRing as A
-private
-  open module A' = A r
-  module R' = R bareRingoid r -bare-almostComm⟶
-open R' public
+open A r
+open R bareRingoid r -bare-almostComm⟶ public

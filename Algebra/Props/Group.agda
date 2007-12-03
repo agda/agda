@@ -11,14 +11,13 @@ open import Data.Function
 open import Data.Product
 import Relation.Binary.EqReasoning
 import Algebra
-private
-  open module G  = Groupoid g
-  open module S  = SetoidOps setoid
-  open module PP = Relation.Binary.EqReasoning preorder
-  open module G  = Algebra setoid
-  open module G  = Group group
-  open module G  = Monoid monoid
-  open module G  = Semigroup semigroup
+open Groupoid g
+open SetoidOps setoid
+open Relation.Binary.EqReasoning preorder
+open Algebra setoid
+open Group group
+open Monoid monoid
+open Semigroup semigroup
 
 ------------------------------------------------------------------------
 -- Some properties

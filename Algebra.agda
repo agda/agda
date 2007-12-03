@@ -7,8 +7,7 @@ open import Relation.Binary
 module Algebra (s : Setoid) where
 
 open import Data.Product
-private
-  open module S = SetoidOps s
+open SetoidOps s
 
 ------------------------------------------------------------------------
 -- Unary and binary operations

@@ -110,8 +110,7 @@ private
       where
       < = ×-Lex ≈₁ <₁ <₂
 
-      open module E = IsEquivalence eq₁
-             renaming (sym to sym₁; trans to trans₁)
+      open IsEquivalence eq₁ renaming (sym to sym₁; trans to trans₁)
 
       resp¹ : forall {x} -> (≈₁ ×-Rel ≈₂) Respects (< x)
       resp¹ y≈y' (inj₁ x₁<y₁) = inj₁ (proj₁ resp₁ (proj₁ y≈y') x₁<y₁)
@@ -198,10 +197,10 @@ open Dummy public
 
 _×-preorder_ : Preorder -> Preorder -> Preorder
 p₁ ×-preorder p₂ = record
-  { carrier       = carrier p₁ ×     carrier p₂
-  ; underlyingEq  = _≈_     p₁ ×-Rel _≈_     p₂
-  ; rel           = ×-Lex (_≈_ p₁) (_∼_ p₁) (_∼_ p₂)
-  ; isPreorder    = isPreorder p₁ ×-isPreorder isPreorder p₂
+  { carrier    = carrier p₁ ×     carrier p₂
+  ; _≈_        = _≈_     p₁ ×-Rel _≈_     p₂
+  ; _∼_        = ×-Lex (_≈_ p₁) (_∼_ p₁) (_∼_ p₂)
+  ; isPreorder = isPreorder p₁ ×-isPreorder isPreorder p₂
   }
   where open PreorderOps
 
@@ -209,8 +208,8 @@ _×-strictPartialOrder_
   : StrictPartialOrder -> StrictPartialOrder -> StrictPartialOrder
 s₁ ×-strictPartialOrder s₂ = record
   { carrier              = carrier s₁ ×     carrier s₂
-  ; underlyingEq         = _≈_     s₁ ×-Rel _≈_     s₂
-  ; order                = ×-Lex (_≈_ s₁) (_<_ s₁) (_<_ s₂)
+  ; _≈_                  = _≈_     s₁ ×-Rel _≈_     s₂
+  ; _<_                  = ×-Lex (_≈_ s₁) (_<_ s₁) (_<_ s₂)
   ; isStrictPartialOrder = isStrictPartialOrder s₁
                              ×-isStrictPartialOrder
                            isStrictPartialOrder s₂

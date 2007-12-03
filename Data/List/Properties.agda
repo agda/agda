@@ -11,8 +11,7 @@ open import Logic
 open import Relation.Binary.PropositionalEquality
 open ≡-Reasoning
 import Algebra
-private
-  open module A = Algebra ℕ-setoid
+open Algebra ℕ-setoid
 
 map-++-commute :  forall {a b} (f : a -> b) xs ys
                -> map f (xs ++ ys) ≡ map f xs ++ map f ys

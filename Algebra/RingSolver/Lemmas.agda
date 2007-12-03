@@ -19,15 +19,15 @@ open import Data.Product
 import Relation.Binary.EqReasoning
 import Algebra
 import Algebra.Morphism as Morphism
+open AlmostCommRingoid r
+open BareRingoid bare
+open SetoidOps setoid
+open Relation.Binary.EqReasoning preorder
+open Algebra setoid
+open AlmostCommRing almostCommRing
+open CommutativeSemiring commSemiring
+open Semiring semiring
 private
-  open module R = AlmostCommRingoid r
-  open module R = BareRingoid bare
-  open module S = SetoidOps setoid
-  open module S = Relation.Binary.EqReasoning preorder
-  open module R = Algebra setoid
-  open module R = AlmostCommRing almostCommRing
-  open module R = CommutativeSemiring commSemiring
-  open module R = Semiring semiring
   module A = CommutativeMonoid +-monoid
   module A = Monoid A.monoid
   module A = Semigroup A.semigroup
@@ -35,8 +35,8 @@ private
   module M = Semigroup M.semigroup
   module C = BareRingoid coeff
   module C = Setoid C.setoid
-  open module R = Morphism C.setoid setoid
-  open module R = RingHomomorphism morphism
+open Morphism C.setoid setoid
+open RingHomomorphism morphism
 
 abstract
 

@@ -13,12 +13,11 @@ open import Relation.Binary
 import Algebra
 import Algebra.Props.CommutativeSemiring as CSProp
 import Relation.Binary.EqReasoning as PP
-private
-  open module R = AlmostCommRingoid r
-  open module R = BareRingoid bare
-  open module R = Algebra setoid
-  open module R = AlmostCommRing almostCommRing
-  open module S = PP (SetoidOps.preorder setoid)
+open AlmostCommRingoid r
+open BareRingoid bare
+open Algebra setoid
+open AlmostCommRing almostCommRing
+open PP (SetoidOps.preorder setoid)
 
 ------------------------------------------------------------------------
 -- An "almost commutative ring" is a commutative semiring
@@ -33,8 +32,7 @@ commSemiringoid = record
   ; commSemiring = commSemiring
   }
 
-private module RP = CSProp commSemiringoid hiding (bareRingoid)
-open RP public
+open CSProp commSemiringoid public hiding (bareRingoid)
 
 ------------------------------------------------------------------------
 -- An "almost commutative ring" is a bare ring

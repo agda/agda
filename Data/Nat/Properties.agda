@@ -10,8 +10,7 @@ open import Logic
 open import Data.Function
 import Algebra
 import Algebra.Props.CommutativeSemiring as CSProp
-private
-  open module A = Algebra ℕ-setoid
+open Algebra ℕ-setoid
 open import Algebra.Packaged
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality
@@ -19,8 +18,7 @@ open import Data.Product
 import Algebra.RingSolver.Simple as Solver
 
 import Relation.Binary.EqReasoning
-private
-  open module PP = Relation.Binary.EqReasoning ℕ-preorder
+open Relation.Binary.EqReasoning ℕ-preorder
 
 ------------------------------------------------------------------------
 -- (ℕ, +, *, 0, 1) is a commutative semiring

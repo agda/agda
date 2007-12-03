@@ -10,11 +10,10 @@ module Algebra.Props.CommutativeRing
 
 import Algebra
 import Algebra.Props.Ring
-private
-  open module R = CommutativeRingoid r
-  open module R = BareRingoid bare
-  open module R = Algebra setoid
-  open module R = CommutativeRing commRing
+open CommutativeRingoid r
+open BareRingoid bare
+open Algebra setoid
+open CommutativeRing commRing
 
 ------------------------------------------------------------------------
 -- A commutative ring is a ring
@@ -32,9 +31,7 @@ ringoid = record
   ; ring = ring
   }
 
-private
-  module RP = Algebra.Props.Ring ringoid
-open RP public
+open Algebra.Props.Ring ringoid public
 
 ------------------------------------------------------------------------
 -- A commutative ring is a commutative semiring

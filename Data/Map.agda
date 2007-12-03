@@ -12,12 +12,8 @@ open import Data.Product
 
 module Map₁ (key-dto : DecTotalOrder) (elem-s : Setoid) where
 
-  private
-    open module DTO = DecTotalOrderOps key-dto
-    open module P   = Poset poset
-      renaming (carrier to key)
-    open module S   = SetoidOps elem-s
-      renaming (carrier to elem; _≈_ to _≗_)
+  open DecTotalOrderOps key-dto renaming (carrier to key)
+  open SetoidOps elem-s         renaming (carrier to elem; _≈_ to _≗_)
 
   infixr 6 _∪_
   infix  5 _∈?_

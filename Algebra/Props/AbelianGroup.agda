@@ -14,15 +14,14 @@ open import Data.Product
 import Relation.Binary.EqReasoning
 import Algebra
 import Algebra.Props.Group
-private
-  open module G  = AbelianGroupoid g
-  open module S  = SetoidOps setoid
-  open module PP = Relation.Binary.EqReasoning preorder
-  open module G  = Algebra setoid
-  open module G  = AbelianGroup abelianGroup
-  open module G  = Group group
-  open module G  = Monoid monoid
-  open module G  = Semigroup semigroup
+open AbelianGroupoid g
+open SetoidOps setoid
+open Relation.Binary.EqReasoning preorder
+open Algebra setoid
+open AbelianGroup abelianGroup
+open Group group
+open Monoid monoid
+open Semigroup semigroup
 
 ------------------------------------------------------------------------
 -- An abelian group is a group
@@ -36,9 +35,7 @@ groupoid = record
   ; group  = group
   }
 
-private
-  module GP = Algebra.Props.Group groupoid
-open GP public
+open Algebra.Props.Group groupoid public
 
 ------------------------------------------------------------------------
 -- Some properties

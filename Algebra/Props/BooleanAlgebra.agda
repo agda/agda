@@ -15,14 +15,13 @@ import Relation.Binary.EqReasoning
 import Algebra
 import Algebra.Props.Lattice
 import Algebra.Props.DistributiveLattice
-private
-  open module B = BooleanAlgebraoid b
-  open module B = Algebra setoid
-  open module B = BooleanAlgebra booleanAlgebra
-  open module B = DistributiveLattice distLattice
-  open module B = Lattice lattice
-  open module S = SetoidOps setoid
-  open module S = Relation.Binary.EqReasoning preorder
+open BooleanAlgebraoid b
+open Algebra setoid
+open BooleanAlgebra booleanAlgebra
+open DistributiveLattice distLattice
+open Lattice lattice
+open SetoidOps setoid
+open Relation.Binary.EqReasoning preorder
 
 ------------------------------------------------------------------------
 -- A boolean algebra is a distributive lattice
@@ -35,10 +34,7 @@ distLatticoid = record
   ; distLattice = distLattice
   }
 
-private
-  module DLP = Algebra.Props.DistributiveLattice
-                 distLatticoid
-open DLP public
+open Algebra.Props.DistributiveLattice distLatticoid public
 
 ------------------------------------------------------------------------
 -- Some simple generalisations

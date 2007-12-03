@@ -29,17 +29,17 @@ open import Relation.Binary.PropositionalEquality.Core public
 ≡-setoid : Set -> Setoid
 ≡-setoid a = record
   { carrier       = a
-  ; eq            = _≡_
+  ; _≈_           = _≡_
   ; isEquivalence = ≡-isEquivalence
   }
 
 ≡-decSetoid : forall {a} -> Decidable (_≡_ {a}) -> DecSetoid
 ≡-decSetoid ≡-dec = record
   { carrier = _
-  ; eq      = _≡_
+  ; _≈_     = _≡_
   ; isDecEquivalence = record
       { isEquivalence = ≡-isEquivalence
-      ; decidable     = ≡-dec
+      ; _≟_           = ≡-dec
       }
   }
 
@@ -53,10 +53,10 @@ open import Relation.Binary.PropositionalEquality.Core public
 
 ≡-preorder : Set -> Preorder
 ≡-preorder a = record
-  { carrier       = a
-  ; underlyingEq  = _≡_
-  ; rel           = _≡_
-  ; isPreorder    = ≡-isPreorder
+  { carrier    = a
+  ; _≈_        = _≡_
+  ; _∼_        = _≡_
+  ; isPreorder = ≡-isPreorder
   }
 
 ------------------------------------------------------------------------
@@ -95,10 +95,9 @@ import Relation.Binary.EqReasoning as ER
 -- time.
 
 module ≡-Reasoning where
-  module ER-≡ {a : Set} where
-    private
-      module ER' = ER (≡-preorder a)
+  private
+    module Dummy {a : Set} where
+      open ER (≡-preorder a) public
         hiding (_≈⟨_⟩_; ≈-byDef)
         renaming (_∼⟨_⟩_ to _≡⟨_⟩_)
-    open ER' public
-  open ER-≡ public
+  open Dummy public

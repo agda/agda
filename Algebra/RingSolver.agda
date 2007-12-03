@@ -25,27 +25,26 @@ import Algebra.Morphism as Morphism
 import Algebra.Operations
 import Algebra.Props.AlmostCommRing
 import Algebra.RingSolver.Lemmas
+open Algebra.RingSolver.Lemmas coeff r morphism
+open AlmostCommRingoid r
+open BareRingoid bare
+open Algebra.Props.AlmostCommRing r
+open SetoidOps setoid
+open Algebra setoid
+open AlmostCommRing almostCommRing
+open CommutativeSemiring commSemiring
 private
-  open module L = Algebra.RingSolver.Lemmas coeff r morphism
-  open module R = AlmostCommRingoid r
-  open module R = BareRingoid bare
-  open module R = Algebra.Props.AlmostCommRing r
-  open module S = SetoidOps setoid
-  open module R = Algebra setoid
-  open module R = AlmostCommRing almostCommRing
-  open module R = CommutativeSemiring commSemiring
   module I = Semiring semiring
   module A = Monoid (CommutativeMonoid.monoid I.+-monoid)
   module A = Semigroup A.semigroup
   module M = Semigroup (Monoid.semigroup I.*-monoid)
-  open module R = Algebra.Operations semiringoid
+open Algebra.Operations semiringoid
+private
   module C = BareRingoid coeff
   module C = Setoid C.setoid
-  open module R = Morphism C.setoid setoid
-  open module R = RingHomomorphism morphism renaming (⟦_⟧ to ⟦_⟧')
-
-  module Eq = Relation.Binary.EqReasoning preorder
-open Eq
+open Morphism C.setoid setoid
+open RingHomomorphism morphism renaming (⟦_⟧ to ⟦_⟧')
+open Relation.Binary.EqReasoning preorder
 open import Data.Vec.Core
 open import Data.Fin
 

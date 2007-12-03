@@ -44,8 +44,8 @@ _ ⊤-≤? _ = yes _
 ⊤-decTotalOrder : DecTotalOrder
 ⊤-decTotalOrder = record
   { carrier         = ⊤
-  ; underlyingEq    = _≡_
-  ; order           = _⊤-≤_
+  ; _≈_             = _≡_
+  ; _≤_             = _⊤-≤_
   ; isDecTotalOrder = record
       { isTotalOrder = record
           { isPartialOrder = record
@@ -59,8 +59,8 @@ _ ⊤-≤? _ = yes _
               }
           ; total = ⊤-total
           }
-      ; ≈-decidable = _⊤-≟_
-      ; ≤-decidable = _⊤-≤?_
+      ; _≟_  = _⊤-≟_
+      ; _≤?_ = _⊤-≤?_
       }
   }
   where

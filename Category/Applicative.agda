@@ -17,5 +17,4 @@ module RawApplicativeOps {F : Set -> Set}
                          (app : RawApplicative F)
                          where
 
-  private
-    open module RIA = RawIApplicative app public
+  open RawIApplicative app public

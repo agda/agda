@@ -7,8 +7,7 @@ open import Algebra.Packaged
 module Algebra.Props.Semiring (r : Semiringoid) where
 
 open import Data.Function
-private
-  open module R = Semiringoid r
+open Semiringoid r
 
 ------------------------------------------------------------------------
 -- A semiring is a bare ring (using identity as the "almost negation")

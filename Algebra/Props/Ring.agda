@@ -12,13 +12,13 @@ open import Data.Product
 import Relation.Binary.EqReasoning
 import Algebra
 import Algebra.Props.AbelianGroup
+open Ringoid r
+open BareRingoid bare
+open SetoidOps setoid
+open Relation.Binary.EqReasoning preorder
+open Algebra setoid
 private
-  open module R  = Ringoid r
-  open module R  = BareRingoid bare
-  open module S  = SetoidOps setoid
-  open module PP = Relation.Binary.EqReasoning preorder
-  open module R  = Algebra setoid
-  module R = Ring R.ring
+  module R = Ring ring
   module A = AbelianGroup R.+-group
   module A = Group A.group
   module A = Monoid A.monoid
@@ -106,9 +106,7 @@ abelianGroupoid = record
   ; abelianGroup = R.+-group
   }
 
-private
-  module AP = Algebra.Props.AbelianGroup abelianGroupoid
-open AP public
+open Algebra.Props.AbelianGroup abelianGroupoid public
 
 ------------------------------------------------------------------------
 -- Some properties

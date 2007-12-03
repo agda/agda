@@ -116,4 +116,4 @@ b -Bare-AlmostComm⟶ a =
   module B = BareRingoid b
   module A = AlmostCommRingoid a
   module A = BareRingoid A.bare
-  open module MM = M B.setoid A.setoid
+  open M B.setoid A.setoid

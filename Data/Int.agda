@@ -103,26 +103,24 @@ i ≤? j with primIntegerLess j i
 ℤ-setoid : Setoid
 ℤ-setoid = ≡-setoid ℤ
 
+ℤ-decTotalOrder : DecTotalOrder
+ℤ-decTotalOrder = record
+  { carrier         = ℤ
+  ; _≈_             = _≡_
+  ; _≤_             = _≤_
+  ; isDecTotalOrder = record
+      { isTotalOrder = trustMe
+      ; _≟_          = _≟_
+      ; _≤?_         = _≤?_
+      }
+  }
+  where postulate trustMe : _
+
 ℤ-decSetoid : DecSetoid
-ℤ-decSetoid = record { setoid = ℤ-setoid; _≟_ = _≟_ }
+ℤ-decSetoid = DecTotalOrderOps.decSetoid ℤ-decTotalOrder
 
 ℤ-poset : Poset
-ℤ-poset = record
-  { carrier  = ℤ
-  ; _≈_      = _≡_
-  ; _≤_      = _≤_
-  ; ord      = trustMe
-  }
-  where postulate trustMe : _
-
-ℤ-decTotOrder : DecTotOrder
-ℤ-decTotOrder = record
-  { poset = ℤ-poset
-  ; _≟_   = _≟_
-  ; _≤?_  = _≤?_
-  ; total = trustMe
-  }
-  where postulate trustMe : _
+ℤ-poset = DecTotalOrderOps.poset ℤ-decTotalOrder
 
 ℤ-bareRingoid : BareRingoid
 ℤ-bareRingoid = record
@@ -156,11 +154,11 @@ module ℤ-ringSolver = S (CRProp.almostCommRingoid ℤ-commRingoid)
   ; 1-homo = trustMe₅
   }
   where
-  open module R = AlmostCommRingoid r
+  open AlmostCommRingoid r
   module B = BareRingoid bare
-  open module R = Setoid B.setoid
+  open Setoid B.setoid
   module A = AProp r
-  open module O = Op A.semiringoid
+  open Op A.semiringoid
 
   ⟦_⟧ : ℤ -> carrier
   ⟦ i ⟧ with i ≤? (+ 0)

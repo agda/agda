@@ -13,17 +13,17 @@ open import Data.Function
 open import Data.Nat using (zero; suc; ℕ)
 import Algebra
 import Relation.Binary.EqReasoning
+open Semiringoid s
+open Algebra setoid
+open SetoidOps setoid
 private
-  open module R = Semiringoid s
-  open module A = Algebra setoid
-  open module S = SetoidOps setoid
   module R = Semiring semiring
   module A = CommutativeMonoid R.+-monoid
   module A = Monoid A.monoid
   module A = Semigroup A.semigroup
   module M = Monoid R.*-monoid
   module M = Semigroup M.semigroup
-  open module S = Relation.Binary.EqReasoning preorder
+open Relation.Binary.EqReasoning preorder
 
 ------------------------------------------------------------------------
 -- Operations

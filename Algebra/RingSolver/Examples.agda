@@ -22,12 +22,9 @@ import Algebra.RingSolver as S
 import Algebra.Props.CommutativeSemiring as CSProp
 import Algebra.Props.CommutativeRing     as CRProp
 import Algebra.Props.AlmostCommRing      as ACRProp
-private
-  open module ON =
-    Op (CSProp.semiringoid ℕ-commSemiringoid) using (_^_)
-  open module OB =
-    Op (CRProp.semiringoid Bool-commRingoid-xor-∧)
-    renaming (_^_ to _↑_)
+open Op (CSProp.semiringoid ℕ-commSemiringoid) using (_^_)
+open Op (CRProp.semiringoid Bool-commRingoid-xor-∧)
+  renaming (_^_ to _↑_)
 
 abstract
 
@@ -77,8 +74,7 @@ abstract
   --         (X :^ 3 :+ (con 3 :* X :^ 2 :* Y :+ (con 3 :* X :* Y :^ 2 :+ Y :^ 3)))
   --         ≡-refl
   --   where
-  --   open module IS' =
-  --          IS (CSProp.almostCommRingoid Bool-commSemiringoid-∨-∧)
+  --   open IS (CSProp.almostCommRingoid Bool-commSemiringoid-∨-∧)
   --   X = var fz
   --   Y = var (fs fz)
 

@@ -13,12 +13,10 @@ import Relation.Binary.EqReasoning
 open import Relation.Binary
 open import Data.Function
 import Algebra.Props.Semiring as SProp
-private
-  open module R = CommutativeSemiringoid r
-  open module R = Algebra setoid
-  open module R = CommutativeSemiring commSemiring
-  open module S = Relation.Binary.EqReasoning
-                    (SetoidOps.preorder setoid)
+open CommutativeSemiringoid r
+open Algebra setoid
+open CommutativeSemiring commSemiring
+open Relation.Binary.EqReasoning (SetoidOps.preorder setoid)
 
 ------------------------------------------------------------------------
 -- A commutative semiring is a semiring
@@ -33,9 +31,7 @@ semiringoid = record
   ; semiring = semiring
   }
 
-private
-  module SP = SProp semiringoid
-open SP public
+open SProp semiringoid public
 
 ------------------------------------------------------------------------
 -- Commutative semirings can be viewed as almost commutative rings by

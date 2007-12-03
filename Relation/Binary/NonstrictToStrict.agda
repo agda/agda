@@ -42,7 +42,7 @@ abstract
     , \x≈z -> proj₂ x<y $ lemma (proj₁ x<y) (proj₁ y<z) x≈z
     )
     where
-    open module PO = IsPartialOrderOps po
+    open IsPartialOrderOps po
 
     lemma : forall {x y z} -> x ≤ y -> y ≤ z -> x ≈ z -> x ≈ y
     lemma x≤y y≤z x≈z =
@@ -53,15 +53,14 @@ abstract
   ≈-resp-< eq ≈-resp-≤ =
     (\{x y' y} y'≈y x<y' ->
       ( proj₁ ≈-resp-≤ y'≈y (proj₁ x<y')
-      , \x≈y -> proj₂ x<y' (Eq.trans x≈y (Eq.sym y'≈y))
+      , \x≈y -> proj₂ x<y' (trans x≈y (sym y'≈y))
       )
     ) ,
     (\{y x' x} x'≈x x'<y ->
       ( proj₂ ≈-resp-≤ x'≈x (proj₁ x'<y)
-      , \x≈y -> proj₂ x'<y (Eq.trans x'≈x x≈y)
+      , \x≈y -> proj₂ x'<y (trans x'≈x x≈y)
       ))
-    where
-    open module Eq = IsEquivalence eq
+    where open IsEquivalence eq
 
   <-trichotomous
     :  Symmetric _≈_ -> Decidable _≈_
