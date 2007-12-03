@@ -11,6 +11,8 @@ open import Data.Function
 open import Data.Sum
 open import Data.Product
 
+-- Some of the definitions can be found in the following module:
+
 open import Relation.Binary.Consequences.Core public
 
 trans∧irr⟶asym

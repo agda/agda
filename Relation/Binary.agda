@@ -11,6 +11,9 @@ open import Data.Function
 open import Relation.Nullary
 open import Relation.Binary.PropositionalEquality.Core
 
+------------------------------------------------------------------------
+-- Simple properties and equivalence relations
+
 open import Relation.Binary.Core public
 
 ------------------------------------------------------------------------

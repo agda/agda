@@ -6,7 +6,6 @@ module Data.Vec where
 
 infixr 5 _++_
 
-open import Data.Vec.Core public
 open import Data.Nat
 open import Data.Nat.Properties
 open ℕ-semiringSolver
@@ -16,6 +15,11 @@ open List using ([_])
 open import Data.Product
 open import Logic
 open import Relation.Binary.PropositionalEquality
+
+------------------------------------------------------------------------
+-- The vector type along with some operations
+
+open import Data.Vec.Core public
 
 ------------------------------------------------------------------------
 -- Boring lemmas

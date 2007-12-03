@@ -2,6 +2,8 @@
 -- Vectors (some core definitions)
 ------------------------------------------------------------------------
 
+-- The definitions in this file are reexported by Data.Vec.
+
 module Data.Vec.Core where
 
 infixr 5 _∷_

@@ -11,6 +11,8 @@ open import Relation.Binary.FunctionLifting
 open import Data.Function
 open import Data.Product
 
+-- Some of the definitions can be found in the following module:
+
 open import Relation.Binary.PropositionalEquality.Core public
 
 ------------------------------------------------------------------------
