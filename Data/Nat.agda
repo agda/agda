@@ -168,10 +168,10 @@ abstract
     trans (s≤s m≤n) (s≤s n≤o) = s≤s (trans m≤n n≤o)
 
 ℕ-decSetoid : DecSetoid
-ℕ-decSetoid = DecTotalOrderOps.decSetoid ℕ-decTotalOrder
+ℕ-decSetoid = DecTotalOrder.decSetoid ℕ-decTotalOrder
 
 ℕ-poset : Poset
-ℕ-poset = DecTotalOrderOps.poset ℕ-decTotalOrder
+ℕ-poset = DecTotalOrder.poset ℕ-decTotalOrder
 
-module ≤-Reasoning = ER (PosetOps.preorder ℕ-poset)
+module ≤-Reasoning = ER (Poset.preorder ℕ-poset)
   renaming (_∼⟨_⟩_ to _≤⟨_⟩_; _≈⟨_⟩_ to _≡⟨_⟩_; ≈-byDef to ≡-byDef)

@@ -20,11 +20,11 @@ IStateT S M i j A = S i -> M (A × S j)
 
 StateTIMonad : forall {I} (S : I -> Set) {M} ->
                RawMonad M -> RawIMonad (IStateT S M)
-StateTIMonad s Mon = record
+StateTIMonad S Mon = record
   { return = \x s -> return (x , s)
   ; _>>=_  = \m f s -> m s >>= uncurry f
   }
-  where open MonadOps Mon
+  where open RawMonad Mon
 
 StateTIMonadZero : forall {I} (S : I -> Set) {M} ->
                    RawMonadZero M -> RawIMonadZero (IStateT S M)
@@ -32,7 +32,7 @@ StateTIMonadZero S Mon = record
   { monad = StateTIMonad S (RawMonadZero.monad Mon)
   ; mzero = \s -> mzero
   }
-  where open MonadZeroOps Mon
+  where open RawMonadZero Mon
 
 StateTIMonadPlus : forall {I} (S : I -> Set) {M} ->
                    RawMonadPlus M -> RawIMonadPlus (IStateT S M)
@@ -40,7 +40,7 @@ StateTIMonadPlus S Mon = record
   { monadZero = StateTIMonadZero S (RawIMonadPlus.monadZero Mon)
   ; _++_      = \m₁ m₂ s -> m₁ s ++ m₂ s
   }
-  where open MonadPlusOps Mon
+  where open RawMonadPlus Mon
 
 ------------------------------------------------------------------------
 -- Ordinary state monads
@@ -64,11 +64,7 @@ record RawIMonadState {I : Set} (S : I -> Set)
     get   : forall {i} -> M i i (S i)
     put   : forall {i j} -> S j -> M i j ⊤
 
-module IMonadStateOps {I : Set} {S : I -> Set}
-                      {M : I -> I -> Set -> Set}
-                      (Mon : RawIMonadState S M) where
-  open RawIMonadState Mon public
-  open IMonadOps monad public
+  open RawIMonad monad public
 
   modify : forall {i j} -> (S i -> S j) -> M i j ⊤
   modify f = get >>= put ∘ f
@@ -80,4 +76,4 @@ StateTIMonadState S Mon = record
   ; get   = \s   -> return (s , s)
   ; put   = \s _ -> return (_ , s)
   }
-  where open IMonadOps Mon
+  where open RawIMonad Mon

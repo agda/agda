@@ -42,7 +42,7 @@ abstract
     , \x≈z -> proj₂ x<y $ lemma (proj₁ x<y) (proj₁ y<z) x≈z
     )
     where
-    open IsPartialOrderOps po
+    open IsPartialOrder po
 
     lemma : forall {x y z} -> x ≤ y -> y ≤ z -> x ≈ z -> x ≈ y
     lemma x≤y y≤z x≈z =

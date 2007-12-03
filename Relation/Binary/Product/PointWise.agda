@@ -228,7 +228,7 @@ p₁ ×-preorder p₂ = record
   ; _∼_        = _∼_        p₁ ×-Rel        _∼_        p₂
   ; isPreorder = isPreorder p₁ ×-isPreorder isPreorder p₂
   }
-  where open PreorderOps
+  where open Preorder
 
 _×-setoid_ : Setoid -> Setoid -> Setoid
 s₁ ×-setoid s₂ = record
@@ -236,7 +236,7 @@ s₁ ×-setoid s₂ = record
   ; _≈_           = _≈_           s₁ ×-Rel           _≈_           s₂
   ; isEquivalence = isEquivalence s₁ ×-isEquivalence isEquivalence s₂
   }
-  where open SetoidOps
+  where open Setoid
 
 _×-decSetoid_ : DecSetoid -> DecSetoid -> DecSetoid
 s₁ ×-decSetoid s₂ = record
@@ -245,7 +245,7 @@ s₁ ×-decSetoid s₂ = record
   ; isDecEquivalence = isDecEquivalence s₁ ×-isDecEquivalence
                        isDecEquivalence s₂
   }
-  where open DecSetoidOps
+  where open DecSetoid
 
 _×-poset_ : Poset -> Poset -> Poset
 s₁ ×-poset s₂ = record
@@ -255,7 +255,7 @@ s₁ ×-poset s₂ = record
   ; isPartialOrder = isPartialOrder s₁ ×-isPartialOrder
                      isPartialOrder s₂
   }
-  where open PosetOps
+  where open Poset
 
 _×-strictPartialOrder_
   : StrictPartialOrder -> StrictPartialOrder -> StrictPartialOrder
@@ -267,4 +267,4 @@ s₁ ×-strictPartialOrder s₂ = record
                              ×-isStrictPartialOrder
                            isStrictPartialOrder s₂
   }
-  where open StrictPartialOrderOps
+  where open StrictPartialOrder

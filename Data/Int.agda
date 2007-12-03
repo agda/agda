@@ -117,10 +117,10 @@ i ≤? j with primIntegerLess j i
   where postulate trustMe : _
 
 ℤ-decSetoid : DecSetoid
-ℤ-decSetoid = DecTotalOrderOps.decSetoid ℤ-decTotalOrder
+ℤ-decSetoid = DecTotalOrder.decSetoid ℤ-decTotalOrder
 
 ℤ-poset : Poset
-ℤ-poset = DecTotalOrderOps.poset ℤ-decTotalOrder
+ℤ-poset = DecTotalOrder.poset ℤ-decTotalOrder
 
 ℤ-bareRingoid : BareRingoid
 ℤ-bareRingoid = record

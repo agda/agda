@@ -18,7 +18,7 @@ open DistributiveLatticoid dl
 open Algebra setoid
 open DistributiveLattice distLattice
 open Lattice lattice
-open SetoidOps setoid
+open Setoid setoid
 open Relation.Binary.EqReasoning preorder
 
 ------------------------------------------------------------------------

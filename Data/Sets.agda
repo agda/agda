@@ -14,8 +14,8 @@ open import Data.Product
 
 module Sets₁ (dto : DecTotalOrder) where
 
-  open DecTotalOrderOps dto public using (_≈_)
-  open DecTotalOrderOps dto hiding (_≈_)
+  open DecTotalOrder dto public using (_≈_)
+  open DecTotalOrder dto hiding (_≈_)
 
   infixr 6 _∪_
   infix  5 _∈?_
@@ -24,10 +24,10 @@ module Sets₁ (dto : DecTotalOrder) where
   abstract postulate Set-decSetoid : DecSetoid
 
   <Set> : Set
-  <Set> = DecSetoidOps.carrier Set-decSetoid
+  <Set> = DecSetoid.carrier Set-decSetoid
 
   _|≈|_ : Rel <Set>
-  _|≈|_ = DecSetoidOps._≈_ Set-decSetoid
+  _|≈|_ = DecSetoid._≈_ Set-decSetoid
 
   abstract
    postulate
@@ -69,7 +69,7 @@ module Sets₁ (dto : DecTotalOrder) where
   s₁ ⊆ s₂ = forall x -> x ∈ s₁ -> x ∈ s₂
 
 open Sets₁ public
-open DecTotalOrderOps hiding (_≈_)
+open DecTotalOrder hiding (_≈_)
 open _⇒_
 
 abstract

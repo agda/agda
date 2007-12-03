@@ -27,12 +27,3 @@ module RawMonadZero {M : Set -> Set} (Mon : RawMonadZero M) where
 
 module RawMonadPlus {M : Set -> Set} (Mon : RawMonadPlus M) where
   open RawIMonadPlus Mon public
-
-module MonadOps {M : Set -> Set} (Mon : RawMonad M) where
-  open IMonadOps Mon public
-
-module MonadZeroOps {M : Set -> Set} (Mon : RawMonadZero M) where
-  open IMonadZeroOps Mon public
-
-module MonadPlusOps {M : Set -> Set} (Mon : RawMonadPlus M) where
-  open IMonadPlusOps Mon public

@@ -14,7 +14,7 @@ import Algebra
 import Algebra.Props.AbelianGroup
 open Ringoid r
 open BareRingoid bare
-open SetoidOps setoid
+open Setoid setoid
 open Relation.Binary.EqReasoning preorder
 open Algebra setoid
 private

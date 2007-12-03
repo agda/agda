@@ -44,7 +44,7 @@ private
         isEquivalence (Conv.≈-resp-< _ _ isEquivalence ≈-resp-≤)
         (Conv.<-trans _ _ po₁)
         {≤₂ = ≤₂} trans₂ {x} {y} {z}
-      where open IsPartialOrderOps po₁
+      where open IsPartialOrder po₁
 
     ×-antisymmetric
       :  forall {≈₁ ≤₁} -> IsPartialOrder ≈₁ ≤₁
@@ -55,7 +55,7 @@ private
       Strict.×-antisymmetric {<₁ = Conv._<_ ≈₁ ≤₁} ≈-sym₁ irrefl₁ asym₁
                              {≤₂ = ≤₂} antisym₂ {x} {y}
       where
-      open IsPartialOrderOps po₁
+      open IsPartialOrder po₁
       open Eq renaming (refl to ≈-refl₁; sym to ≈-sym₁)
 
       irrefl₁ : Irreflexive ≈₁ (Conv._<_ ≈₁ ≤₁)
@@ -126,7 +126,7 @@ private
                   ×-antisymmetric {≤₁ = ≤₁} po₁
                                   {≤₂ = ≤₂} (antisym po₂) {x} {y}
       }
-      where open IsPartialOrderOps
+      where open IsPartialOrder
 
     ×-isTotalOrder
       :  forall {≈₁ ≤₁} -> Decidable ≈₁ -> IsTotalOrder ≈₁ ≤₁
@@ -139,7 +139,7 @@ private
                                            (antisym to₁) (total to₁)
                                  {≤₂ = ≤₂} (total to₂)
       }
-      where open IsTotalOrderOps
+      where open IsTotalOrder
 
     _×-isDecTotalOrder_
       :  forall {≈₁ ≤₁} -> IsDecTotalOrder ≈₁ ≤₁
@@ -152,7 +152,7 @@ private
       ; _≟_          = PointWise._×-decidable_ (_≟_ to₁) (_≟_ to₂)
       ; _≤?_         = ×-decidable (_≟_ to₁) (_≤?_ to₁) (_≤?_ to₂)
       }
-      where open IsDecTotalOrderOps
+      where open IsDecTotalOrder
 
 open Dummy public
 
@@ -166,7 +166,7 @@ p₁ ×-poset p₂ = record
   ; isPartialOrder = isPartialOrder p₁ ×-isPartialOrder
                      isPartialOrder p₂
   }
-  where open PosetOps
+  where open Poset
 
 _×-totalOrder_ : DecTotalOrder -> TotalOrder -> TotalOrder
 t₁ ×-totalOrder t₂ = record
@@ -176,8 +176,8 @@ t₁ ×-totalOrder t₂ = record
   ; isTotalOrder = ×-isTotalOrder T₁._≟_ T₁.isTotalOrder T₂.isTotalOrder
   }
   where
-  module T₁ = DecTotalOrderOps t₁
-  module T₂ =    TotalOrderOps t₂
+  module T₁ = DecTotalOrder t₁
+  module T₂ =    TotalOrder t₂
 
 _×-decTotalOrder_ : DecTotalOrder -> DecTotalOrder -> DecTotalOrder
 t₁ ×-decTotalOrder t₂ = record
@@ -187,4 +187,4 @@ t₁ ×-decTotalOrder t₂ = record
   ; isDecTotalOrder = isDecTotalOrder t₁ ×-isDecTotalOrder
                       isDecTotalOrder t₂
   }
-  where open DecTotalOrderOps
+  where open DecTotalOrder

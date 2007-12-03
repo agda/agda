@@ -40,7 +40,7 @@ LiftEquiv {a} {b} {∼₁} {∼₂} pres eq₁ eq₂ = record
     trans' refl₁ trans₂ = \f∼g g∼h x∼y ->
       trans₂ (f∼g (refl₁ ≡-refl)) (g∼h x∼y)
 
-open SetoidOps
+open Setoid
 
 LiftSetoid :  (s₁ s₂ : Setoid)
            -> (forall f -> f Preserves _≈_ s₁ → _≈_ s₂)

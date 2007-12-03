@@ -15,7 +15,7 @@ import Algebra
 import Relation.Binary.EqReasoning
 open Semiringoid s
 open Algebra setoid
-open SetoidOps setoid
+open Setoid setoid
 private
   module R = Semiring semiring
   module A = CommutativeMonoid R.+-monoid

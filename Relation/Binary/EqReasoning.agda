@@ -26,7 +26,7 @@ open import Relation.Binary
 module Relation.Binary.EqReasoning (p : Preorder) where
 
 open import Logic
-open PreorderOps p
+open Preorder p
 
 infix  4 _IsEqualTo_
 infix  2 _∎

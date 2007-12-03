@@ -16,7 +16,7 @@ import Algebra.Props.Semiring as SProp
 open CommutativeSemiringoid r
 open Algebra setoid
 open CommutativeSemiring commSemiring
-open Relation.Binary.EqReasoning (SetoidOps.preorder setoid)
+open Relation.Binary.EqReasoning (Setoid.preorder setoid)
 
 ------------------------------------------------------------------------
 -- A commutative semiring is a semiring

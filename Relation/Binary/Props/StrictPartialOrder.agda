@@ -8,7 +8,7 @@ module Relation.Binary.Props.StrictPartialOrder
        (spo : StrictPartialOrder)
        where
 
-open Relation.Binary.StrictPartialOrderOps spo
+open Relation.Binary.StrictPartialOrder spo
 import Relation.Binary.StrictToNonStrict as Conv
 open Conv _≈_ _<_
 

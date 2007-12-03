@@ -13,8 +13,5 @@ open import Category.Applicative.Indexed
 RawApplicative : (Set -> Set) -> Set1
 RawApplicative F = RawIApplicative {I = ⊤} (\_ _ -> F)
 
-module RawApplicativeOps {F : Set -> Set}
-                         (app : RawApplicative F)
-                         where
-
+module RawApplicative {F : Set -> Set} (app : RawApplicative F) where
   open RawIApplicative app public

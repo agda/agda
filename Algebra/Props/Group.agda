@@ -12,7 +12,7 @@ open import Data.Product
 import Relation.Binary.EqReasoning
 import Algebra
 open Groupoid g
-open SetoidOps setoid
+open Setoid setoid
 open Relation.Binary.EqReasoning preorder
 open Algebra setoid
 open Group group

@@ -15,7 +15,7 @@ import Relation.Binary.EqReasoning
 import Algebra
 import Algebra.Props.Group
 open AbelianGroupoid g
-open SetoidOps setoid
+open Setoid setoid
 open Relation.Binary.EqReasoning preorder
 open Algebra setoid
 open AbelianGroup abelianGroup

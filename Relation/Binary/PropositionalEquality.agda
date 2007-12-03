@@ -68,7 +68,7 @@ _->-setoid_ : (a b : Set) -> Setoid
 a ->-setoid b = LiftSetoid (≡-setoid a) (≡-setoid b) ≡-cong
 
 _≗_ : {a b : Set} -> (f g : a -> b) -> Set
-_≗_ {a} {b} = SetoidOps._≈_ (a ->-setoid b)
+_≗_ {a} {b} = Setoid._≈_ (a ->-setoid b)
 
 ------------------------------------------------------------------------
 -- The inspect idiom

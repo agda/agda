@@ -17,7 +17,7 @@ open AlmostCommRingoid r
 open BareRingoid bare
 open Algebra setoid
 open AlmostCommRing almostCommRing
-open PP (SetoidOps.preorder setoid)
+open PP (Setoid.preorder setoid)
 
 ------------------------------------------------------------------------
 -- An "almost commutative ring" is a commutative semiring

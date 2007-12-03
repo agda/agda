@@ -6,7 +6,7 @@ open import Relation.Binary
 
 module Relation.Binary.Props.Poset (p : Poset) where
 
-open Relation.Binary.PosetOps p
+open Relation.Binary.Poset p
 import Relation.Binary.NonStrictToStrict as Conv
 open Conv _≈_ _≤_
 

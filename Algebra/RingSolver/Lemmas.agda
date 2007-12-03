@@ -21,7 +21,7 @@ import Algebra
 import Algebra.Morphism as Morphism
 open AlmostCommRingoid r
 open BareRingoid bare
-open SetoidOps setoid
+open Setoid setoid
 open Relation.Binary.EqReasoning preorder
 open Algebra setoid
 open AlmostCommRing almostCommRing

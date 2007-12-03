@@ -5,7 +5,7 @@
 module Relation.Binary.OrderMorphism where
 
 open import Relation.Binary
-open PosetOps
+open Poset
 
 record _⇒_ (po₁ po₂ : Poset) : Set where
   field
@@ -14,4 +14,4 @@ record _⇒_ (po₁ po₂ : Poset) : Set where
 
 _⇒-DTO_ : (dto₁ dto₂ : DecTotalOrder) -> Set
 dto₁ ⇒-DTO dto₂ = poset dto₁ ⇒ poset dto₂
-  where open DecTotalOrderOps
+  where open DecTotalOrder

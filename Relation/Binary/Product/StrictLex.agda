@@ -202,7 +202,7 @@ p₁ ×-preorder p₂ = record
   ; _∼_        = ×-Lex (_≈_ p₁) (_∼_ p₁) (_∼_ p₂)
   ; isPreorder = isPreorder p₁ ×-isPreorder isPreorder p₂
   }
-  where open PreorderOps
+  where open Preorder
 
 _×-strictPartialOrder_
   : StrictPartialOrder -> StrictPartialOrder -> StrictPartialOrder
@@ -214,4 +214,4 @@ s₁ ×-strictPartialOrder s₂ = record
                              ×-isStrictPartialOrder
                            isStrictPartialOrder s₂
   }
-  where open StrictPartialOrderOps
+  where open StrictPartialOrder

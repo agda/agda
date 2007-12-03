@@ -20,7 +20,7 @@ open Algebra setoid
 open BooleanAlgebra booleanAlgebra
 open DistributiveLattice distLattice
 open Lattice lattice
-open SetoidOps setoid
+open Setoid setoid
 open Relation.Binary.EqReasoning preorder
 
 ------------------------------------------------------------------------

@@ -12,8 +12,8 @@ open import Data.Product
 
 module Map₁ (key-dto : DecTotalOrder) (elem-s : Setoid) where
 
-  open DecTotalOrderOps key-dto renaming (carrier to key)
-  open SetoidOps elem-s         renaming (carrier to elem; _≈_ to _≗_)
+  open DecTotalOrder key-dto renaming (carrier to key)
+  open Setoid elem-s         renaming (carrier to elem; _≈_ to _≗_)
 
   infixr 6 _∪_
   infix  5 _∈?_
@@ -22,10 +22,10 @@ module Map₁ (key-dto : DecTotalOrder) (elem-s : Setoid) where
   abstract postulate Map-decSetoid : DecSetoid
 
   Map : Set
-  Map = SetoidOps.carrier (DecSetoidOps.setoid Map-decSetoid)
+  Map = Setoid.carrier (DecSetoid.setoid Map-decSetoid)
 
   _|≈|_ : Rel Map
-  _|≈|_ = SetoidOps._≈_ (DecSetoidOps.setoid Map-decSetoid)
+  _|≈|_ = Setoid._≈_ (DecSetoid.setoid Map-decSetoid)
 
   abstract
    postulate

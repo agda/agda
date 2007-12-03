@@ -29,7 +29,7 @@ open Algebra.RingSolver.Lemmas coeff r morphism
 open AlmostCommRingoid r
 open BareRingoid bare
 open Algebra.Props.AlmostCommRing r
-open SetoidOps setoid
+open Setoid setoid
 open Algebra setoid
 open AlmostCommRing almostCommRing
 open CommutativeSemiring commSemiring

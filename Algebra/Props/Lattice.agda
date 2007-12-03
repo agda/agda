@@ -14,7 +14,7 @@ import Algebra
 open Latticoid l
 open Algebra setoid
 open Lattice lattice
-open SetoidOps setoid
+open Setoid setoid
 open Relation.Binary.EqReasoning preorder
 
 abstract
