@@ -9,6 +9,22 @@ infixl 1 _on_ _on₁_
 infixl 1 _⟨_⟩_ _⟨_⟩₁_
 infixr 0 _-[_]₁-_ _-[_]-_ _$_
 
+------------------------------------------------------------------------
+-- Types
+
+-- Unary functions on a given set.
+
+Fun₁ : Set -> Set
+Fun₁ a = a -> a
+
+-- Binary functions on a given set.
+
+Fun₂ : Set -> Set
+Fun₂ a = a -> a -> a
+
+------------------------------------------------------------------------
+-- Functions
+
 _∘_ : {a b c : Set} -> (b -> c) -> (a -> b) -> (a -> c)
 f ∘ g = \x -> f (g x)
 
