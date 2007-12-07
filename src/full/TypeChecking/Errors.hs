@@ -25,7 +25,6 @@ import TypeChecking.Pretty
 
 import Utils.Monad
 import Utils.Trace
-import Utils.Pretty (Doc)
 
 #include "../undefined.h"
 

@@ -16,11 +16,12 @@ import qualified Syntax.Concrete.Pretty as P
 import TypeChecking.Monad
 
 import qualified Utils.Pretty as P
-import Utils.Pretty (Doc)
 
 ---------------------------------------------------------------------------
 -- * Wrappers for pretty printing combinators
 ---------------------------------------------------------------------------
+
+type Doc = P.Doc
 
 empty, comma :: MonadTCM tcm => tcm Doc
 
