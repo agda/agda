@@ -18,7 +18,7 @@ import TypeChecking.Monad.Mutual
 import TypeChecking.Pretty
 import TypeChecking.Constraints
 import TypeChecking.Positivity
-import TypeChecking.Primitive
+import TypeChecking.Primitive hiding (Nat)
 import TypeChecking.Conversion
 import TypeChecking.Substitute
 import TypeChecking.Reduce
@@ -139,9 +139,17 @@ checkSection i x tel ds =
 checkSectionApplication ::
   Info.ModuleInfo -> ModuleName -> A.Telescope -> ModuleName -> [NamedArg A.Expr] ->
   Map QName QName -> Map ModuleName ModuleName -> TCM ()
-checkSectionApplication i m1 ptel m2 args rd rm =
+checkSectionApplication i = checkSectionApplication' i 0
+
+-- | Check an application of a section. Takes an extra argument which is the number of
+--   free variables that should be included as part of the created module (when applying
+--   under a context).
+checkSectionApplication' ::
+  Info.ModuleInfo -> Nat -> ModuleName -> A.Telescope -> ModuleName -> [NamedArg A.Expr] ->
+  Map QName QName -> Map ModuleName ModuleName -> TCM ()
+checkSectionApplication' i extraArgs m1 ptel m2 args rd rm =
   checkTelescope ptel $ \ptel -> do
-  addSection m1 (size ptel)
+  addSection m1 (size ptel + extraArgs)
   tel <- lookupSection m2
   vs  <- freeVarsToApply $ qnameFromList $ mnameToList m2
   reportSDoc "tc.section.apply" 15 $ vcat

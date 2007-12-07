@@ -23,7 +23,7 @@ import TypeChecking.Records
 import TypeChecking.Conversion
 
 #ifndef __HADDOCK__
-import {-# SOURCE #-} TypeChecking.Rules.Decl (checkSectionApplication)
+import {-# SOURCE #-} TypeChecking.Rules.Decl (checkSectionApplication')
 #endif
 
 import Utils.Monad
@@ -375,6 +375,11 @@ checkLetBinding b@(A.LetBind i x t e) ret =
     v <- checkExpr e t
     addLetBinding x v t ret
 checkLetBinding (A.LetApply i x tel m args rd rm) ret = do
-  checkSectionApplication i x tel m args rd rm
-  ret
+  -- Any variables in the context that doesn't belong to the current
+  -- module should go with the new module.
+  fv <- getDefFreeVars =<< (qnameFromList . mnameToList) <$> currentModule
+  n  <- size <$> getContext
+  reportSLn "tc.term.let.apply" 10 $ "Applying " ++ show m ++ " with " ++ show (n - fv) ++ " free variables"
+  checkSectionApplication' i (n - fv) x tel m args rd rm
+  withCurrentModule x ret
 
