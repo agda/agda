@@ -2,40 +2,22 @@
 -- Some derivable properties
 ------------------------------------------------------------------------
 
-open import Algebra.Packaged
+open import Algebra
 
-module Algebra.Props.Group (g : Groupoid) where
+module Algebra.Props.Group (g : Group) where
 
-open import Relation.Binary
+open Group g
+import Relation.Binary.EqReasoning as EqR; open EqR setoid
 open import Data.Function
 open import Data.Product
-import Relation.Binary.EqReasoning
-import Algebra
-open Groupoid g
-open Setoid setoid
-open Relation.Binary.EqReasoning preorder
-open Algebra setoid
-open Group group
-open Monoid monoid
-open Semigroup semigroup
-
-------------------------------------------------------------------------
--- Some properties
 
 abstract
 
-  ¬-involutive : forall x -> (- - x) ≈ x
-  ¬-involutive x =
-                           begin
-    - - x
-                           ∼⟨ sym $ proj₂ identity _ ⟩
-    (- - x) + 0#
-                           ∼⟨ byDef ⟨ •-pres-≈ ⟩ sym (proj₁ inverse _) ⟩
-    (- - x) + ((- x) + x)
-                           ∼⟨ assoc _ _ _ ⟩
-    ((- - x) + - x) + x
-                           ∼⟨ proj₁ inverse _ ⟨ •-pres-≈ ⟩ byDef ⟩
-    0# + x
-                           ∼⟨ proj₁ identity _ ⟩
-    x
-                           ∎
+  ⁻¹-involutive : forall x -> x ⁻¹ ⁻¹ ≈ x
+  ⁻¹-involutive x = begin
+    x ⁻¹ ⁻¹               ≈⟨ sym $ proj₂ identity _ ⟩
+    x ⁻¹ ⁻¹ • ε           ≈⟨ byDef ⟨ •-pres-≈ ⟩ sym (proj₁ inverse _) ⟩
+    x ⁻¹ ⁻¹ • (x ⁻¹ • x)  ≈⟨ assoc _ _ _ ⟩
+    x ⁻¹ ⁻¹ • x ⁻¹ • x    ≈⟨ proj₁ inverse _ ⟨ •-pres-≈ ⟩ byDef ⟩
+    ε • x                 ≈⟨ proj₁ identity _ ⟩
+    x                     ∎

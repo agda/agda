@@ -6,49 +6,32 @@
 -- Commutative Ring Done Right in Coq" by Grégoire and Mahboubi. The
 -- code below is not optimised like theirs, though.
 
-open import Algebra.Packaged
+open import Algebra
+open import Algebra.RingSolver.AlmostCommutativeRing
 
 module Algebra.RingSolver
-  (coeff : BareRingoid)    -- Coefficient "ring".
-  (r : AlmostCommRingoid)  -- Main "ring".
-  (morphism : coeff -Bare-AlmostComm⟶ r)
+  (coeff : RawRing)            -- Coefficient "ring".
+  (r : AlmostCommutativeRing)  -- Main "ring".
+  (morphism : coeff -Raw-AlmostCommutative⟶ r)
   where
 
-open import Relation.Binary
-open import Logic
-open import Data.Nat hiding (_*_) renaming (_+_ to _ℕ-+_)
-open import Data.Function hiding (const)
-open import Data.Product
-import Relation.Binary.EqReasoning
-import Algebra
-import Algebra.Morphism as Morphism
-import Algebra.Operations
-import Algebra.Props.AlmostCommRing
-import Algebra.RingSolver.Lemmas
-open Algebra.RingSolver.Lemmas coeff r morphism
-open AlmostCommRingoid r
-open BareRingoid bare
-open Algebra.Props.AlmostCommRing r
-open Setoid setoid
-open Algebra setoid
-open AlmostCommRing almostCommRing
-open CommutativeSemiring commSemiring
-private
-  module I = Semiring semiring
-  module A = Monoid (CommutativeMonoid.monoid I.+-monoid)
-  module A = Semigroup A.semigroup
-  module M = Semigroup (Monoid.semigroup I.*-monoid)
-open Algebra.Operations semiringoid
-private
-  module C = BareRingoid coeff
-  module C = Setoid C.setoid
-open Morphism C.setoid setoid
-open RingHomomorphism morphism renaming (⟦_⟧ to ⟦_⟧')
-open Relation.Binary.EqReasoning preorder
-open import Data.Vec.Core
-open import Data.Fin
+import Algebra.RingSolver.Lemmas as L; open L coeff r morphism
+private module C = RawRing coeff
+open AlmostCommutativeRing r hiding (zero)
+import Algebra.FunctionProperties as P; open P setoid
+open import Algebra.Morphism
+open _-RawRing⟶_ morphism renaming (⟦_⟧ to ⟦_⟧')
+import Algebra.Operations as Ops; open Ops semiring
 
-infix  9 _↑-NF :-_ ¬-NF_
+open import Logic
+open import Relation.Binary
+
+open import Data.Nat using (ℕ; suc; zero) renaming (_+_ to _ℕ-+_)
+open import Data.Fin
+open import Data.Vec.Core
+open import Data.Function
+
+infix  9 _↑-NF :-_ --NF_
 infixr 9 _:^_ _^-NF_ _:↑_
 infix  8 _*x _*x+_
 infixl 8 _:*_ _*-NF_ _*-NF-↑_ _↑-*-NF_
@@ -146,12 +129,12 @@ private
     :  forall {n p₁ p₂}
     -> Normal n p₁ -> Normal n p₂
     -> Normal n (p₁ :+ p₂)
-  (p₁ ∷-NF eq₁) +-NF (p₂ ∷-NF eq₂) = p₁ +-NF p₂                    ∷-NF eq₁   ⟨ A.•-pres-≈ ⟩ eq₂
-  (p₁ ∷-NF eq)  +-NF p₂            = p₁ +-NF p₂                    ∷-NF eq    ⟨ A.•-pres-≈ ⟩ byDef
-  p₁            +-NF (p₂ ∷-NF eq)  = p₁ +-NF p₂                    ∷-NF byDef ⟨ A.•-pres-≈ ⟩ eq
+  (p₁ ∷-NF eq₁) +-NF (p₂ ∷-NF eq₂) = p₁ +-NF p₂                    ∷-NF eq₁  ⟨ +-pres-≈ ⟩ eq₂
+  (p₁ ∷-NF eq)  +-NF p₂            = p₁ +-NF p₂                    ∷-NF eq   ⟨ +-pres-≈ ⟩ refl
+  p₁            +-NF (p₂ ∷-NF eq)  = p₁ +-NF p₂                    ∷-NF refl ⟨ +-pres-≈ ⟩ eq
   con-NF c₁     +-NF con-NF c₂     = con-NF (C._+_ c₁ c₂)          ∷-NF +-homo _ _
-  p₁ ↑-NF       +-NF p₂ ↑-NF       = (p₁ +-NF p₂) ↑-NF             ∷-NF byDef
-  p₁ *x+ c₁     +-NF p₂ ↑-NF       = p₁ *x+ (c₁ +-NF p₂)           ∷-NF A.assoc _ _ _
+  p₁ ↑-NF       +-NF p₂ ↑-NF       = (p₁ +-NF p₂) ↑-NF             ∷-NF refl
+  p₁ *x+ c₁     +-NF p₂ ↑-NF       = p₁ *x+ (c₁ +-NF p₂)           ∷-NF +-assoc _ _ _
   p₁ *x+ c₁     +-NF p₂ *x+ c₂     = (p₁ +-NF p₂) *x+ (c₁ +-NF c₂) ∷-NF lemma₁ _ _ _ _ _
   p₁ ↑-NF       +-NF p₂ *x+ c₂     = p₂ *x+ (p₁ +-NF c₂)           ∷-NF lemma₂ _ _ _
 
@@ -168,38 +151,38 @@ private
       :  forall {n p₁ p₂}
       -> Normal (suc n) p₁ -> Normal n p₂
       -> Normal (suc n) (p₁ :* p₂ :↑ 1)
-    (p₁ ∷-NF eq) *-NF-↑ p₂ = p₁ *-NF-↑ p₂                    ∷-NF eq ⟨ M.•-pres-≈ ⟩ byDef
-    p₁ ↑-NF      *-NF-↑ p₂ = (p₁ *-NF p₂) ↑-NF               ∷-NF byDef
+    (p₁ ∷-NF eq) *-NF-↑ p₂ = p₁ *-NF-↑ p₂                    ∷-NF eq ⟨ *-pres-≈ ⟩ refl
+    p₁ ↑-NF      *-NF-↑ p₂ = (p₁ *-NF p₂) ↑-NF               ∷-NF refl
     (p₁ *x+ c₁)  *-NF-↑ p₂ = (p₁ *-NF-↑ p₂) *x+ (c₁ *-NF p₂) ∷-NF lemma₃ _ _ _ _
 
     _↑-*-NF_
       :  forall {n p₁ p₂}
       -> Normal n p₁ -> Normal (suc n) p₂
       -> Normal (suc n) (p₁ :↑ 1 :* p₂)
-    p₁ ↑-*-NF (p₂ ∷-NF eq) = p₁ ↑-*-NF p₂                    ∷-NF byDef ⟨ M.•-pres-≈ ⟩ eq
-    p₁ ↑-*-NF p₂ ↑-NF      = (p₁ *-NF p₂) ↑-NF               ∷-NF byDef
+    p₁ ↑-*-NF (p₂ ∷-NF eq) = p₁ ↑-*-NF p₂                    ∷-NF refl ⟨ *-pres-≈ ⟩ eq
+    p₁ ↑-*-NF p₂ ↑-NF      = (p₁ *-NF p₂) ↑-NF               ∷-NF refl
     p₁ ↑-*-NF (p₂ *x+ c₂)  = (p₁ ↑-*-NF p₂) *x+ (p₁ *-NF c₂) ∷-NF lemma₄ _ _ _ _
 
     _*-NF_
       :  forall {n p₁ p₂}
       -> Normal n p₁ -> Normal n p₂
       -> Normal n (p₁ :* p₂)
-    (p₁ ∷-NF eq₁) *-NF (p₂ ∷-NF eq₂) = p₁ *-NF p₂                         ∷-NF eq₁   ⟨ M.•-pres-≈ ⟩ eq₂
-    (p₁ ∷-NF eq)  *-NF p₂            = p₁ *-NF p₂                         ∷-NF eq    ⟨ M.•-pres-≈ ⟩ byDef
-    p₁            *-NF (p₂ ∷-NF eq)  = p₁ *-NF p₂                         ∷-NF byDef ⟨ M.•-pres-≈ ⟩ eq
+    (p₁ ∷-NF eq₁) *-NF (p₂ ∷-NF eq₂) = p₁ *-NF p₂                         ∷-NF eq₁  ⟨ *-pres-≈ ⟩ eq₂
+    (p₁ ∷-NF eq)  *-NF p₂            = p₁ *-NF p₂                         ∷-NF eq   ⟨ *-pres-≈ ⟩ refl
+    p₁            *-NF (p₂ ∷-NF eq)  = p₁ *-NF p₂                         ∷-NF refl ⟨ *-pres-≈ ⟩ eq
     con-NF c₁     *-NF con-NF c₂     = con-NF (C._*_ c₁ c₂)               ∷-NF *-homo _ _
-    p₁ ↑-NF       *-NF p₂ ↑-NF       = (p₁ *-NF p₂) ↑-NF                  ∷-NF byDef
+    p₁ ↑-NF       *-NF p₂ ↑-NF       = (p₁ *-NF p₂) ↑-NF                  ∷-NF refl
     (p₁ *x+ c₁)   *-NF p₂ ↑-NF       = (p₁ *-NF p₂ ↑-NF) *x+ (c₁ *-NF p₂) ∷-NF lemma₃ _ _ _ _
     p₁ ↑-NF       *-NF (p₂ *x+ c₂)   = (p₁ ↑-NF *-NF p₂) *x+ (p₁ *-NF c₂) ∷-NF lemma₄ _ _ _ _
     (p₁ *x+ c₁)   *-NF (p₂ *x+ c₂)   =
       (p₁ *-NF p₂) *x *x +-NF
       (p₁ *-NF-↑ c₂ +-NF c₁ ↑-*-NF p₂) *x+ (c₁ *-NF c₂)                   ∷-NF lemma₅ _ _ _ _ _
 
-  ¬-NF_ :  forall {n p} -> Normal n p -> Normal n (:- p)
-  ¬-NF_ (p ∷-NF eq) = ¬-NF_ p ∷-NF ¬-pres-≈ eq
-  ¬-NF_ (con-NF c)  = con-NF (C.-_ c) ∷-NF ¬-homo _
-  ¬-NF_ (p ↑-NF)    = ¬-NF_ p ↑-NF
-  ¬-NF_ (p *x+ c)   = ¬-NF_ p *x+ ¬-NF_ c ∷-NF lemma₆ _ _ _
+  --NF_ :  forall {n p} -> Normal n p -> Normal n (:- p)
+  --NF_ (p ∷-NF eq) = --NF_ p ∷-NF --pres-≈ eq
+  --NF_ (con-NF c)  = con-NF (C.-_ c) ∷-NF --homo _
+  --NF_ (p ↑-NF)    = --NF_ p ↑-NF
+  --NF_ (p *x+ c)   = --NF_ p *x+ --NF_ c ∷-NF lemma₆ _ _ _
 
   var-NF : forall {n} -> (i : Fin n) -> Normal n (var i)
   var-NF fz     = con-NF⋆ C.1# *x+ con-NF⋆ C.0# ∷-NF lemma₇ _
@@ -207,7 +190,7 @@ private
 
   _^-NF_ : forall {n p} -> Normal n p -> (i : ℕ) -> Normal n (p :^ i)
   p ^-NF zero  = con-NF⋆ C.1#    ∷-NF 1-homo
-  p ^-NF suc n = p *-NF p ^-NF n ∷-NF byDef
+  p ^-NF suc n = p *-NF p ^-NF n ∷-NF refl
 
   normaliseOp
     :  (o : Op)
@@ -221,7 +204,7 @@ private
   normalise (con c)      = con-NF⋆ c
   normalise (var i)      = var-NF i
   normalise (p :^ n)     = normalise p ^-NF n
-  normalise (:- p)       = ¬-NF normalise p
+  normalise (:- p)       = --NF normalise p
 
 ⟦_⟧↓_ : forall {n} -> Polynomial n -> Vec carrier n -> carrier
 ⟦ p ⟧↓ ρ = ⟦ normalise p ⟧-NF ρ
@@ -231,28 +214,28 @@ private
 
 abstract
  private
-  sem-pres-≈ : forall op -> sem op Preserves₂-≈
-  sem-pres-≈ [+] = A.•-pres-≈
-  sem-pres-≈ [*] = M.•-pres-≈
+  sem-pres-≈ : forall op -> sem op Preserves₂ _≈_ → _≈_ → _≈_
+  sem-pres-≈ [+] = +-pres-≈
+  sem-pres-≈ [*] = *-pres-≈
 
   raise-sem :  forall {n x} (p : Polynomial n) ρ
             -> ⟦ p :↑ 1 ⟧ (x ∷ ρ) ≈ ⟦ p ⟧ ρ
   raise-sem (op o p₁ p₂) ρ = raise-sem p₁ ρ ⟨ sem-pres-≈ o ⟩
                              raise-sem p₂ ρ
-  raise-sem (con c)      ρ = byDef
-  raise-sem (var x)      ρ = byDef
+  raise-sem (con c)      ρ = refl
+  raise-sem (var x)      ρ = refl
   raise-sem (p :^ n)     ρ = raise-sem p ρ ⟨ ^-pres-≈ ⟩ ≡-refl {x = n}
-  raise-sem (:- p)       ρ = ¬-pres-≈ (raise-sem p ρ)
+  raise-sem (:- p)       ρ = --pres-≈ (raise-sem p ρ)
 
   nf-sound :  forall {n p} (nf : Normal n p) ρ
            -> ⟦ nf ⟧-NF ρ ≈ ⟦ p ⟧ ρ
   nf-sound (nf ∷-NF eq)       ρ       = nf-sound nf ρ ⟨ trans ⟩ eq
-  nf-sound (con-NF c)         ρ       = byDef
+  nf-sound (con-NF c)         ρ       = refl
   nf-sound (_↑-NF {p = p} nf) (x ∷ ρ) =
     nf-sound nf ρ ⟨ trans ⟩ sym (raise-sem p ρ)
   nf-sound (_*x+_ {c = c} nf₁ nf₂) (x ∷ ρ) =
-    (nf-sound nf₁ (x ∷ ρ) ⟨ M.•-pres-≈ ⟩ byDef)
-      ⟨ A.•-pres-≈ ⟩
+    (nf-sound nf₁ (x ∷ ρ) ⟨ *-pres-≈ ⟩ refl)
+      ⟨ +-pres-≈ ⟩
     (nf-sound nf₂ ρ ⟨ trans ⟩ sym (raise-sem c ρ))
 
 -- Completeness can presumably also be proved (i.e. the normal forms

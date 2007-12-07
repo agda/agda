@@ -2,11 +2,10 @@
 -- Instantiates the ring solver with two copies of the same ring
 ------------------------------------------------------------------------
 
-open import Algebra.Packaged
+open import Algebra.RingSolver.AlmostCommutativeRing
 
-module Algebra.RingSolver.Simple (r : AlmostCommRingoid) where
+module Algebra.RingSolver.Simple (r : AlmostCommutativeRing) where
 
+open AlmostCommutativeRing r
 import Algebra.RingSolver as R
-import Algebra.Props.AlmostCommRing as A
-open A r
-open R bareRingoid r -bare-almostComm⟶ public
+open R rawRing r (-raw-almostCommutative⟶ r) public

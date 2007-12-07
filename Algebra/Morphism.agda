@@ -1,46 +1,49 @@
 ------------------------------------------------------------------------
--- Definitions of morphisms
+-- Morphisms between algebraic structures
 ------------------------------------------------------------------------
 
+module Algebra.Morphism where
+
 open import Relation.Binary
-
-module Algebra.Morphism (from to : Setoid) where
-
-import Algebra as Alg
-private
-  module F = Setoid from
-  module F = Alg from
-  module T = Setoid to
-  module T = Alg to
-open Setoid to using (_≈_)
+open import Algebra
+open import Algebra.FunctionProperties
+open import Data.Function
 
 ------------------------------------------------------------------------
 -- Basic definitions
 
-Morphism : Set
-Morphism = F.carrier -> T.carrier
+module Definitions (from : Set) (to : Setoid) where
+  open Setoid to renaming (carrier to to-carrier)
 
-Homomorphic₀ : Morphism -> F.carrier -> T.carrier -> Set
-Homomorphic₀ ⟦_⟧ • •' = ⟦ • ⟧ ≈ •'
+  Morphism : Set
+  Morphism = from -> to-carrier
 
-Homomorphic₁ : Morphism -> F.Op₁ -> T.Op₁ -> Set
-Homomorphic₁ ⟦_⟧ •_ •'_ = forall x -> ⟦ • x ⟧ ≈ •' ⟦ x ⟧
+  Homomorphic₀ : Morphism -> from -> to-carrier -> Set
+  Homomorphic₀ ⟦_⟧ • ∘ = ⟦ • ⟧ ≈ ∘
 
-Homomorphic₂ : Morphism -> F.Op₂ -> T.Op₂ -> Set
-Homomorphic₂ ⟦_⟧ _•_ _•'_ =
-  forall x y -> ⟦ x • y ⟧ ≈ (⟦ x ⟧ •' ⟦ y ⟧)
+  Homomorphic₁ : Morphism -> Fun₁ from -> Op₁ to -> Set
+  Homomorphic₁ ⟦_⟧ •_ ∘_ = forall x -> ⟦ • x ⟧ ≈ ∘ ⟦ x ⟧
+
+  Homomorphic₂ : Morphism -> Fun₂ from -> Op₂ to -> Set
+  Homomorphic₂ ⟦_⟧ _•_ _∘_ =
+    forall x y -> ⟦ x • y ⟧ ≈ (⟦ x ⟧ ∘ ⟦ y ⟧)
 
 ------------------------------------------------------------------------
 -- Some specific morphisms
 
-record RingHomomorphism
-  (F+ F* : F.Op₂) (F- : F.Op₁) (F0# F1# : F.carrier)
-  (T+ T* : T.Op₂) (T- : T.Op₁) (T0# T1# : T.carrier)
-  : Set where
+-- Other morphisms could of course be defined.
+
+record _-RawRing⟶_ (from to : RawRing) : Set where
+  open RawRing
+  open Definitions (carrier from) (setoid to)
   field
     ⟦_⟧    : Morphism
-    +-homo : Homomorphic₂ ⟦_⟧ F+ T+
-    *-homo : Homomorphic₂ ⟦_⟧ F* T*
-    ¬-homo : Homomorphic₁ ⟦_⟧ F- T-
-    0-homo : Homomorphic₀ ⟦_⟧ F0# T0#
-    1-homo : Homomorphic₀ ⟦_⟧ F1# T1#
+    +-homo : Homomorphic₂ ⟦_⟧ (_+_ from) (_+_ to)
+    *-homo : Homomorphic₂ ⟦_⟧ (_*_ from) (_*_ to)
+    --homo : Homomorphic₁ ⟦_⟧ (-_  from) (-_  to)
+    0-homo : Homomorphic₀ ⟦_⟧ (0#  from) (0#  to)
+    1-homo : Homomorphic₀ ⟦_⟧ (1#  from) (1#  to)
+
+_-Ring⟶_ : Ring -> Ring -> Set
+from -Ring⟶ to = rawRing from -RawRing⟶ rawRing to
+  where open Ring

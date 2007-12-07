@@ -8,14 +8,12 @@ open import Data.Nat
 open ≤-Reasoning renaming (begin_ to start_; _∎ to _□; byDef to ≤-refl)
 open import Logic
 open import Data.Function
-import Algebra
-import Algebra.Props.CommutativeSemiring as CSProp
-open Algebra ℕ-setoid
-open import Algebra.Packaged
+open import Algebra
+open import Algebra.Structures
+import Algebra.FunctionProperties as P; open P ℕ-setoid
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality
 open import Data.Product
-import Algebra.RingSolver.Simple as Solver
 
 import Relation.Binary.EqReasoning as EqR; open EqR ℕ-setoid
 
@@ -169,47 +167,46 @@ abstract
 
 abstract
 
-  ℕ-semiring : Semiring _+_ _*_ 0 1
-  ℕ-semiring = record
-    { +-monoid = record
-      { monoid = record
-        { semigroup = record
-          { assoc    = +-assoc
-          ; •-pres-≈ = ≡-cong₂ _+_
+  ℕ-isCommutativeSemiring : IsCommutativeSemiring ℕ-setoid _+_ _*_ 0 1
+  ℕ-isCommutativeSemiring = record
+    { isSemiring = record
+      { +-isCommutativeMonoid = record
+        { isMonoid = record
+          { isSemigroup = record
+            { assoc    = +-assoc
+            ; •-pres-≈ = ≡-cong₂ _+_
+            }
+          ; identity = +-identity
           }
-        ; identity = +-identity
+        ; comm = +-comm
         }
-      ; comm = +-comm
-      }
-    ; *-monoid = record
-      { semigroup = record
-        { assoc    = *-assoc
-        ; •-pres-≈ = ≡-cong₂ _*_
+      ; *-isMonoid = record
+        { isSemigroup = record
+          { assoc    = *-assoc
+          ; •-pres-≈ = ≡-cong₂ _*_
+          }
+        ; identity = *-identity
         }
-      ; identity = *-identity
+      ; distrib = distrib-*-+
+      ; zero = *-zero
       }
-    ; distrib = distrib-*-+
-    ; zero = *-zero
+    ; *-comm = *-comm
     }
 
-  ℕ-commSemiring : CommutativeSemiring _+_ _*_ 0 1
-  ℕ-commSemiring = record
-    { semiring = ℕ-semiring
-    ; *-comm   = *-comm
-    }
-
-ℕ-commSemiringoid : CommutativeSemiringoid
-ℕ-commSemiringoid = record
-  { setoid       = ℕ-setoid
-  ; _+_          = _+_
-  ; _*_          = _*_
-  ; 0#           = 0
-  ; 1#           = 1
-  ; commSemiring = ℕ-commSemiring
+ℕ-commutativeSemiring : CommutativeSemiring
+ℕ-commutativeSemiring = record
+  { setoid                = ℕ-setoid
+  ; _+_                   = _+_
+  ; _*_                   = _*_
+  ; 0#                    = 0
+  ; 1#                    = 1
+  ; isCommutativeSemiring = ℕ-isCommutativeSemiring
   }
 
+import Algebra.RingSolver.Simple as Solver
+import Algebra.RingSolver.AlmostCommutativeRing as ACR
 module ℕ-semiringSolver =
-  Solver (CSProp.almostCommRingoid ℕ-commSemiringoid)
+  Solver (ACR.fromCommutativeSemiring ℕ-commutativeSemiring)
 
 ------------------------------------------------------------------------
 -- (ℕ, ⊔, ⊓) is a lattice
@@ -308,29 +305,26 @@ abstract
 
 abstract
 
-  ℕ-lattice : Lattice _⊔_ _⊓_
-  ℕ-lattice = record
-    { ∨-comm     = ⊔-comm
-    ; ∨-assoc    = ⊔-assoc
-    ; ∨-pres-≈   = ≡-cong₂ _⊔_
-    ; ∧-comm     = ⊓-comm
-    ; ∧-assoc    = ⊓-assoc
-    ; ∧-pres-≈   = ≡-cong₂ _⊓_
-    ; absorptive = absorptive-⊔-⊓
-    }
-
-  ℕ-distLattice : DistributiveLattice _⊔_ _⊓_
-  ℕ-distLattice = record
-    { lattice      = ℕ-lattice
+  ℕ-isDistributiveLattice : IsDistributiveLattice ℕ-setoid _⊔_ _⊓_
+  ℕ-isDistributiveLattice = record
+    { isLattice = record
+        { ∨-comm     = ⊔-comm
+        ; ∨-assoc    = ⊔-assoc
+        ; ∨-pres-≈   = ≡-cong₂ _⊔_
+        ; ∧-comm     = ⊓-comm
+        ; ∧-assoc    = ⊓-assoc
+        ; ∧-pres-≈   = ≡-cong₂ _⊓_
+        ; absorptive = absorptive-⊔-⊓
+        }
     ; ∨-∧-distribˡ = distribˡ-⊔-⊓
     }
 
-ℕ-distLatticoid : DistributiveLatticoid
-ℕ-distLatticoid = record
-  { setoid      = ℕ-setoid
-  ; _∨_         = _⊔_
-  ; _∧_         = _⊓_
-  ; distLattice = ℕ-distLattice
+ℕ-distributiveLattice : DistributiveLattice
+ℕ-distributiveLattice = record
+  { setoid                = ℕ-setoid
+  ; _∨_                   = _⊔_
+  ; _∧_                   = _⊓_
+  ; isDistributiveLattice = ℕ-isDistributiveLattice
   }
 
 ------------------------------------------------------------------------

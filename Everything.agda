@@ -11,23 +11,21 @@
 module Everything where
 
 import Algebra
+import Algebra.FunctionProperties
 import Algebra.Morphism
 import Algebra.Operations
-import Algebra.Packaged
 import Algebra.Props.AbelianGroup
-import Algebra.Props.AlmostCommRing
 import Algebra.Props.BooleanAlgebra
-import Algebra.Props.CommutativeRing
-import Algebra.Props.CommutativeSemiring
 import Algebra.Props.DistributiveLattice
 import Algebra.Props.Group
 import Algebra.Props.Lattice
 import Algebra.Props.Ring
-import Algebra.Props.Semiring
 import Algebra.RingSolver
+import Algebra.RingSolver.AlmostCommutativeRing
 import Algebra.RingSolver.Examples
 import Algebra.RingSolver.Lemmas
 import Algebra.RingSolver.Simple
+import Algebra.Structures
 
 import Data.Bool
 import Data.Bool.Properties

@@ -10,8 +10,7 @@ open import Data.Nat.Properties
 open import Logic
 open import Relation.Binary.PropositionalEquality
 open ≡-Reasoning
-import Algebra
-open Algebra ℕ-setoid
+open import Algebra
 
 map-++-commute :  forall {a b} (f : a -> b) xs ys
                -> map f (xs ++ ys) ≡ map f xs ++ map f ys
@@ -28,6 +27,4 @@ sum-++-commute (x ∷ xs) ys = begin
                          ≡⟨ +-assoc x _ _ ⟩
   (x + sum xs) + sum ys
                          ∎
-  where
-  +-assoc = Semigroup.assoc (Monoid.semigroup (CommutativeMonoid.monoid
-              (Semiring.+-monoid ℕ-semiring)))
+  where open CommutativeSemiring ℕ-commutativeSemiring hiding (_+_)

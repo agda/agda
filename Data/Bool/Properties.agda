@@ -9,14 +9,13 @@ open import Data.Fin
 open import Data.Vec
 open import Logic
 open import Data.Function
-import Algebra
-import Algebra.Props.CommutativeSemiring as CSProp
-import Algebra.Props.CommutativeRing     as CRProp
-open Algebra Bool-setoid
-open import Algebra.Packaged
+open import Algebra
+import Algebra.FunctionProperties as P; open P Bool-setoid
+open import Algebra.Structures
+import Algebra.RingSolver.Simple as Solver
+import Algebra.RingSolver.AlmostCommutativeRing as ACR
 open import Relation.Binary.PropositionalEquality
 open import Data.Product
-import Algebra.RingSolver.Simple as Solver
 
 import Relation.Binary.EqReasoning as EqR; open EqR Bool-setoid
 
@@ -81,47 +80,45 @@ abstract
 
 abstract
 
-  Bool-semiring-∨-∧ : Semiring _∨_ _∧_ false true
-  Bool-semiring-∨-∧ = record
-    { +-monoid = record
-      { monoid = record
-        { semigroup = record
-          { assoc    = ∨-assoc
-          ; •-pres-≈ = ≡-cong₂ _∨_
+  Bool-isCommutativeSemiring-∨-∧
+    : IsCommutativeSemiring Bool-setoid _∨_ _∧_ false true
+  Bool-isCommutativeSemiring-∨-∧ = record
+    { isSemiring = record
+      { +-isCommutativeMonoid = record
+        { isMonoid = record
+          { isSemigroup = record
+            { assoc    = ∨-assoc
+            ; •-pres-≈ = ≡-cong₂ _∨_
+            }
+          ; identity = ∨-identity
           }
-        ; identity = ∨-identity
+        ; comm = ∨-comm
         }
-      ; comm = ∨-comm
-      }
-    ; *-monoid = record
-      { semigroup = record
-        { assoc    = ∧-assoc
-        ; •-pres-≈ = ≡-cong₂ _∧_
+      ; *-isMonoid = record
+        { isSemigroup = record
+          { assoc    = ∧-assoc
+          ; •-pres-≈ = ≡-cong₂ _∧_
+          }
+        ; identity = ∧-identity
         }
-      ; identity = ∧-identity
+      ; distrib = distrib-∧-∨
+      ; zero    = zero-∧
       }
-    ; distrib = distrib-∧-∨
-    ; zero = zero-∧
+    ; *-comm = ∧-comm
     }
 
-  Bool-commSemiring-∨-∧ : CommutativeSemiring _∨_ _∧_ false true
-  Bool-commSemiring-∨-∧ = record
-    { semiring = Bool-semiring-∨-∧
-    ; *-comm   = ∧-comm
-    }
-
-Bool-commSemiringoid-∨-∧ : CommutativeSemiringoid
-Bool-commSemiringoid-∨-∧ = record
-  { setoid       = Bool-setoid
-  ; _+_          = _∨_
-  ; _*_          = _∧_
-  ; 0#           = false
-  ; 1#           = true
-  ; commSemiring = Bool-commSemiring-∨-∧
+Bool-commutativeSemiring-∨-∧ : CommutativeSemiring
+Bool-commutativeSemiring-∨-∧ = record
+  { setoid                = Bool-setoid
+  ; _+_                   = _∨_
+  ; _*_                   = _∧_
+  ; 0#                    = false
+  ; 1#                    = true
+  ; isCommutativeSemiring = Bool-isCommutativeSemiring-∨-∧
   }
 
 module Bool-ringSolver =
-  Solver (CSProp.almostCommRingoid Bool-commSemiringoid-∨-∧)
+  Solver (ACR.fromCommutativeSemiring Bool-commutativeSemiring-∨-∧)
 
 ------------------------------------------------------------------------
 -- (Bool, ∧, ∨, true, false) forms a commutative semiring
@@ -153,47 +150,45 @@ abstract
 
 abstract
 
-  Bool-semiring-∧-∨ : Semiring _∧_ _∨_ true false
-  Bool-semiring-∧-∨ = record
-    { +-monoid = record
-      { monoid = record
-        { semigroup = record
-          { assoc    = ∧-assoc
-          ; •-pres-≈ = ≡-cong₂ _∧_
+  Bool-isCommutativeSemiring-∧-∨
+    : IsCommutativeSemiring Bool-setoid _∧_ _∨_ true false
+  Bool-isCommutativeSemiring-∧-∨ = record
+    { isSemiring = record
+      { +-isCommutativeMonoid = record
+        { isMonoid = record
+          { isSemigroup = record
+            { assoc    = ∧-assoc
+            ; •-pres-≈ = ≡-cong₂ _∧_
+            }
+          ; identity = ∧-identity
           }
-        ; identity = ∧-identity
+        ; comm = ∧-comm
         }
-      ; comm = ∧-comm
-      }
-    ; *-monoid = record
-      { semigroup = record
-        { assoc    = ∨-assoc
-        ; •-pres-≈ = ≡-cong₂ _∨_
+      ; *-isMonoid = record
+        { isSemigroup = record
+          { assoc    = ∨-assoc
+          ; •-pres-≈ = ≡-cong₂ _∨_
+          }
+        ; identity = ∨-identity
         }
-      ; identity = ∨-identity
+      ; distrib = distrib-∨-∧
+      ; zero    = zero-∨
       }
-    ; distrib = distrib-∨-∧
-    ; zero = zero-∨
+    ; *-comm = ∨-comm
     }
 
-  Bool-commSemiring-∧-∨ : CommutativeSemiring _∧_ _∨_ true false
-  Bool-commSemiring-∧-∨ = record
-    { semiring = Bool-semiring-∧-∨
-    ; *-comm   = ∨-comm
-    }
-
-Bool-commSemiringoid-∧-∨ : CommutativeSemiringoid
-Bool-commSemiringoid-∧-∨ = record
-  { setoid       = Bool-setoid
-  ; _+_          = _∧_
-  ; _*_          = _∨_
-  ; 0#           = true
-  ; 1#           = false
-  ; commSemiring = Bool-commSemiring-∧-∨
+Bool-commutativeSemiring-∧-∨ : CommutativeSemiring
+Bool-commutativeSemiring-∧-∨ = record
+  { setoid                = Bool-setoid
+  ; _+_                   = _∧_
+  ; _*_                   = _∨_
+  ; 0#                    = true
+  ; 1#                    = false
+  ; isCommutativeSemiring = Bool-isCommutativeSemiring-∧-∨
   }
 
 ------------------------------------------------------------------------
--- (Bool, ∨, ∧) is a distributive lattice
+-- (Bool, ∨, ∧, not, true, false) is a boolean algebra
 
 abstract
  private
@@ -209,30 +204,6 @@ abstract
     abs-∧-∨ true  y = byDef
     abs-∧-∨ false y = byDef
 
-abstract
-
-  Bool-lattice : Lattice _∨_ _∧_
-  Bool-lattice = record
-    { ∨-comm     = ∨-comm
-    ; ∨-assoc    = ∨-assoc
-    ; ∨-pres-≈   = ≡-cong₂ _∨_
-    ; ∧-comm     = ∧-comm
-    ; ∧-assoc    = ∧-assoc
-    ; ∧-pres-≈   = ≡-cong₂ _∧_
-    ; absorptive = absorptive
-    }
-
-  Bool-distLattice : DistributiveLattice _∨_ _∧_
-  Bool-distLattice = record
-    { lattice      = Bool-lattice
-    ; ∨-∧-distribˡ = proj₁ distrib-∨-∧
-    }
-
-------------------------------------------------------------------------
--- (Bool, ∨, ∧, not, true, false) is a boolean algebra
-
-abstract
- private
   not-∧-inverse : Inverse false not _∧_
   not-∧-inverse =
     ¬x∧x≡⊥ , (\x -> ∧-comm x (not x) ⟨ ≡-trans ⟩ ¬x∧x≡⊥ x)
@@ -251,23 +222,35 @@ abstract
 
 abstract
 
-  Bool-booleanAlgebra : BooleanAlgebra _∨_ _∧_ not true false
-  Bool-booleanAlgebra = record
-    { distLattice   = Bool-distLattice
+  Bool-isBooleanAlgebra
+    : IsBooleanAlgebra Bool-setoid _∨_ _∧_ not true false
+  Bool-isBooleanAlgebra = record
+    { isDistributiveLattice = record
+        { isLattice = record
+            { ∨-comm     = ∨-comm
+            ; ∨-assoc    = ∨-assoc
+            ; ∨-pres-≈   = ≡-cong₂ _∨_
+            ; ∧-comm     = ∧-comm
+            ; ∧-assoc    = ∧-assoc
+            ; ∧-pres-≈   = ≡-cong₂ _∧_
+            ; absorptive = absorptive
+            }
+        ; ∨-∧-distribˡ = proj₁ distrib-∨-∧
+        }
     ; ∨-complementʳ = proj₂ not-∨-inverse
     ; ∧-complementʳ = proj₂ not-∧-inverse
     ; ¬-pres-≈      = ≡-cong not
     }
 
-Bool-booleanAlgebraoid : BooleanAlgebraoid
-Bool-booleanAlgebraoid = record
-  { setoid         = Bool-setoid
-  ; _∨_            = _∨_
-  ; _∧_            = _∧_
-  ; ¬_             = not
-  ; ⊤              = true
-  ; ⊥              = false
-  ; booleanAlgebra = Bool-booleanAlgebra
+Bool-booleanAlgebra : BooleanAlgebra
+Bool-booleanAlgebra = record
+  { setoid           = Bool-setoid
+  ; _∨_              = _∨_
+  ; _∧_              = _∧_
+  ; ¬_               = not
+  ; ⊤                = true
+  ; ⊥                = false
+  ; isBooleanAlgebra = Bool-isBooleanAlgebra
   }
 
 ------------------------------------------------------------------------
@@ -280,26 +263,15 @@ abstract
   xor-is-ok true  y = byDef
   xor-is-ok false y = ≡-sym $ proj₂ ∧-identity _
 
-Bool-commRingoid-xor-∧ : CommutativeRingoid
-Bool-commRingoid-xor-∧ = record
-  { bare = record
-    { setoid = Bool-setoid
-    ; _+_    = _xor_
-    ; _*_    = _∧_
-    ; -_     = id
-    ; 0#     = false
-    ; 1#     = true
-    }
-  ; commRing = R.commRing
-  }
+Bool-commutativeRing-xor-∧ : CommutativeRing
+Bool-commutativeRing-xor-∧ = commutativeRing
   where
-  import Algebra.Props.BooleanAlgebra
-  module P = Algebra.Props.BooleanAlgebra
-               Bool-booleanAlgebraoid
-  module R = P.XorRing _xor_ xor-is-ok
+  import Algebra.Props.BooleanAlgebra as BA
+  open BA Bool-booleanAlgebra
+  open XorRing _xor_ xor-is-ok
 
 module Bool-xor-ringSolver =
-  Solver (CRProp.almostCommRingoid Bool-commRingoid-xor-∧)
+  Solver (ACR.fromCommutativeRing Bool-commutativeRing-xor-∧)
 
 ------------------------------------------------------------------------
 -- Miscellaneous other properties

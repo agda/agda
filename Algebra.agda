@@ -1,181 +1,374 @@
 ------------------------------------------------------------------------
--- Some algebraic structures
+-- Algebraic structures
 ------------------------------------------------------------------------
+
+-- Algebraic structures packed up with setoids and operations.
+
+module Algebra where
 
 open import Relation.Binary
-
-module Algebra (s : Setoid) where
-
-open import Data.Product
-open Setoid s
+import Algebra.FunctionProperties as P
+open import Algebra.Structures
+open import Data.Function
 
 ------------------------------------------------------------------------
--- Unary and binary operations
+-- Semigroups, (commutative) monoids and (abelian) groups
 
-Op₁ : Set
-Op₁ = carrier -> carrier
+record Semigroup : Set1 where
+  infixl 7 _•_
+  field
+    setoid      : Setoid
+    _•_         : P.Op₂ setoid
+    isSemigroup : IsSemigroup setoid _•_
 
-Op₂ : Set
-Op₂ = carrier -> carrier -> carrier
+  open Setoid setoid public
+  open IsSemigroup setoid isSemigroup public
+
+record Monoid : Set1 where
+  infixl 7 _•_
+  field
+    setoid   : Setoid
+    _•_      : P.Op₂ setoid
+    ε        : Setoid.carrier setoid
+    isMonoid : IsMonoid setoid _•_ ε
+
+  open Setoid setoid public
+  open IsMonoid setoid isMonoid public
+
+  semigroup : Semigroup
+  semigroup = record
+    { setoid      = setoid
+    ; _•_         = _•_
+    ; isSemigroup = isSemigroup
+    }
+
+record CommutativeMonoid : Set1 where
+  infixl 7 _•_
+  field
+    setoid              : Setoid
+    _•_                 : P.Op₂ setoid
+    ε                   : Setoid.carrier setoid
+    isCommutativeMonoid : IsCommutativeMonoid setoid _•_ ε
+
+  open Setoid setoid public
+  open IsCommutativeMonoid setoid isCommutativeMonoid public
+
+  monoid : Monoid
+  monoid = record
+    { setoid   = setoid
+    ; _•_      = _•_
+    ; ε        = ε
+    ; isMonoid = isMonoid
+    }
+
+  open Setoid setoid public
+  open Monoid monoid public using (semigroup)
+
+record Group : Set1 where
+  infix  8 _⁻¹
+  infixl 7 _•_
+  field
+    setoid  : Setoid
+    _•_     : P.Op₂ setoid
+    ε       : Setoid.carrier setoid
+    _⁻¹     : P.Op₁ setoid
+    isGroup : IsGroup setoid _•_ ε _⁻¹
+
+  open Setoid setoid public
+  open IsGroup setoid isGroup public
+
+  monoid : Monoid
+  monoid = record
+    { setoid   = setoid
+    ; _•_      = _•_
+    ; ε        = ε
+    ; isMonoid = isMonoid
+    }
+
+  open Monoid monoid public using (semigroup)
+
+record AbelianGroup : Set1 where
+  infix  8 _⁻¹
+  infixl 7 _•_
+  field
+    setoid         : Setoid
+    _•_            : P.Op₂ setoid
+    ε              : Setoid.carrier setoid
+    _⁻¹            : P.Op₁ setoid
+    isAbelianGroup : IsAbelianGroup setoid _•_ ε _⁻¹
+
+  open Setoid setoid public
+  open IsAbelianGroup setoid isAbelianGroup public
+
+  group : Group
+  group = record
+    { setoid  = setoid
+    ; _•_     = _•_
+    ; ε       = ε
+    ; _⁻¹     = _⁻¹
+    ; isGroup = isGroup
+    }
+
+  open Group group public using (semigroup; monoid)
+
+  commutativeMonoid : CommutativeMonoid
+  commutativeMonoid = record
+    { setoid              = setoid
+    ; _•_                 = _•_
+    ; ε                   = ε
+    ; isCommutativeMonoid = isCommutativeMonoid
+    }
 
 ------------------------------------------------------------------------
--- Properties of operations
+-- (Commutative) semirings
 
-Associative : Op₂ -> Set
-Associative _•_ = forall x y z -> (x • (y • z)) ≈ ((x • y) • z)
+record Semiring : Set1 where
+  infixl 7 _*_
+  infixl 6 _+_
+  field
+    setoid         : Setoid
+    _+_            : P.Op₂ setoid
+    _*_            : P.Op₂ setoid
+    0#             : Setoid.carrier setoid
+    1#             : Setoid.carrier setoid
+    isSemiring     : IsSemiring setoid _+_ _*_ 0# 1#
 
-Commutative : Op₂ -> Set
-Commutative _•_ = forall x y -> (x • y) ≈ (y • x)
+  open Setoid setoid public
+  open IsSemiring setoid isSemiring public
 
-LeftIdentity : carrier -> Op₂ -> Set
-LeftIdentity e _•_ = forall x -> (e • x) ≈ x
+  +-commutativeMonoid : CommutativeMonoid
+  +-commutativeMonoid = record
+    { setoid              = setoid
+    ; _•_                 = _+_
+    ; ε                   = 0#
+    ; isCommutativeMonoid = +-isCommutativeMonoid
+    }
 
-RightIdentity : carrier -> Op₂ -> Set
-RightIdentity e _•_ = forall x -> (x • e) ≈ x
+  open CommutativeMonoid +-commutativeMonoid public
+         using () renaming ( semigroup to +-semigroup
+                           ; monoid    to +-monoid
+                           )
 
-Identity : carrier -> Op₂ -> Set
-Identity e • = LeftIdentity e • × RightIdentity e •
+  *-monoid : Monoid
+  *-monoid = record
+    { setoid   = setoid
+    ; _•_      = _*_
+    ; ε        = 1#
+    ; isMonoid = *-isMonoid
+    }
 
-LeftZero : carrier -> Op₂ -> Set
-LeftZero z _•_ = forall x -> (z • x) ≈ z
+  open Monoid *-monoid public
+         using () renaming (semigroup to *-semigroup)
 
-RightZero : carrier -> Op₂ -> Set
-RightZero z _•_ = forall x -> (x • z) ≈ z
+record CommutativeSemiring : Set1 where
+  infixl 7 _*_
+  infixl 6 _+_
+  field
+    setoid                : Setoid
+    _+_                   : P.Op₂ setoid
+    _*_                   : P.Op₂ setoid
+    0#                    : Setoid.carrier setoid
+    1#                    : Setoid.carrier setoid
+    isCommutativeSemiring : IsCommutativeSemiring setoid _+_ _*_ 0# 1#
 
-Zero : carrier -> Op₂ -> Set
-Zero z • = LeftZero z • × RightZero z •
+  open Setoid setoid public
+  open IsCommutativeSemiring setoid isCommutativeSemiring public
 
-LeftInverse : carrier -> Op₁ -> Op₂ -> Set
-LeftInverse e _⁻¹ _•_ = forall x -> (x ⁻¹ • x) ≈ e
+  semiring : Semiring
+  semiring = record
+    { setoid     = setoid
+    ; _+_        = _+_
+    ; _*_        = _*_
+    ; 0#         = 0#
+    ; 1#         = 1#
+    ; isSemiring = isSemiring
+    }
 
-RightInverse : carrier -> Op₁ -> Op₂ -> Set
-RightInverse e _⁻¹ _•_ = forall x -> (x • (x ⁻¹)) ≈ e
+  open Semiring semiring public
+         using ( +-semigroup; +-monoid; +-commutativeMonoid
+               ; *-semigroup; *-monoid
+               )
 
-Inverse : carrier -> Op₁ -> Op₂ -> Set
-Inverse e ⁻¹ • = LeftInverse e ⁻¹ • × RightInverse e ⁻¹ •
-
-_DistributesOverˡ_ : Op₂ -> Op₂ -> Set
-_*_ DistributesOverˡ _+_ =
-  forall x y z -> (x * (y + z)) ≈ ((x * y) + (x * z))
-
-_DistributesOverʳ_ : Op₂ -> Op₂ -> Set
-_*_ DistributesOverʳ _+_ =
-  forall x y z -> ((y + z) * x) ≈ ((y * x) + (z * x))
-
-_DistributesOver_ : Op₂ -> Op₂ -> Set
-* DistributesOver + = (* DistributesOverˡ +) × (* DistributesOverʳ +)
-
-_IdempotentOn_ : Op₂ -> carrier -> Set
-_•_ IdempotentOn x = (x • x) ≈ x
-
-Idempotent : Op₂ -> Set
-Idempotent • = forall x -> • IdempotentOn x
-
-Idempotent₁ : Op₁ -> Set
-Idempotent₁ f = forall x -> f (f x) ≈ f x
-
-_Absorbs_ : Op₂ -> Op₂ -> Set
-_•_ Absorbs _∘_ = forall x y -> (x • (x ∘ y)) ≈ x
-
-Absorptive : Op₂ -> Op₂ -> Set
-Absorptive • ∘ = (• Absorbs ∘) × (∘ Absorbs •)
-
-Involutive : Op₁ -> Set
-Involutive f = forall x -> f (f x) ≈ x
+  *-commutativeMonoid : CommutativeMonoid
+  *-commutativeMonoid = record
+    { setoid              = setoid
+    ; _•_                 = _*_
+    ; ε                   = 1#
+    ; isCommutativeMonoid = *-isCommutativeMonoid
+    }
 
 ------------------------------------------------------------------------
--- Combinations of properties (one binary operation)
+-- (Commutative) rings
 
--- First some abbreviations:
+-- A raw ring is a ring without any laws (except for the underlying
+-- equality).
 
-_Preserves-≈ : Op₁ -> Set
-• Preserves-≈ = • Preserves _≈_ → _≈_
-
-_Preserves₂-≈ : Op₂ -> Set
-• Preserves₂-≈ = • Preserves₂ _≈_ → _≈_ → _≈_
-
-record Semigroup (• : Op₂) : Set where
+record RawRing : Set1 where
+  infix  8 -_
+  infixl 7 _*_
+  infixl 6 _+_
   field
-    assoc    : Associative •
-    •-pres-≈ : • Preserves₂-≈
+    setoid : Setoid
+    _+_    : P.Op₂ setoid
+    _*_    : P.Op₂ setoid
+    -_     : P.Op₁ setoid
+    0#     : Setoid.carrier setoid
+    1#     : Setoid.carrier setoid
 
-record Monoid (• : Op₂) (ε : carrier) : Set where
-  field
-    semigroup : Semigroup •
-    identity  : Identity ε •
+  open Setoid setoid public
 
-record CommutativeMonoid (• : Op₂) (ε : carrier) : Set where
+record Ring : Set1 where
+  infix  8 -_
+  infixl 7 _*_
+  infixl 6 _+_
   field
-    monoid : Monoid • ε
-    comm   : Commutative •
+    setoid : Setoid
+    _+_    : P.Op₂ setoid
+    _*_    : P.Op₂ setoid
+    -_     : P.Op₁ setoid
+    0#     : Setoid.carrier setoid
+    1#     : Setoid.carrier setoid
+    isRing : IsRing setoid _+_ _*_ -_ 0# 1#
 
-record Group (• : Op₂) (ε : carrier) (⁻¹ : Op₁) : Set where
-  field
-    monoid    : Monoid • ε
-    inverse   : Inverse ε ⁻¹ •
-    ⁻¹-pres-≈ : ⁻¹ Preserves-≈
+  open Setoid setoid public
+  open IsRing setoid isRing public
 
-record AbelianGroup (• : Op₂) (ε : carrier) (⁻¹ : Op₁) : Set where
+  +-abelianGroup : AbelianGroup
+  +-abelianGroup = record
+    { setoid         = setoid
+    ; _•_            = _+_
+    ; ε              = 0#
+    ; _⁻¹            = -_
+    ; isAbelianGroup = +-isAbelianGroup
+    }
+
+  semiring : Semiring
+  semiring = record
+    { setoid     = setoid
+    ; _+_        = _+_
+    ; _*_        = _*_
+    ; 0#         = 0#
+    ; 1#         = 1#
+    ; isSemiring = isSemiring
+    }
+
+  open Semiring semiring public
+         using ( +-semigroup; +-monoid; +-commutativeMonoid
+               ; *-semigroup; *-monoid
+               )
+
+  rawRing : RawRing
+  rawRing = record
+    { setoid = setoid
+    ; _+_    = _+_
+    ; _*_    = _*_
+    ; -_     = -_
+    ; 0#     = 0#
+    ; 1#     = 1#
+    }
+
+record CommutativeRing : Set1 where
+  infix  8 -_
+  infixl 7 _*_
+  infixl 6 _+_
   field
-    group : Group • ε ⁻¹
-    comm  : Commutative •
+    setoid            : Setoid
+    _+_               : P.Op₂ setoid
+    _*_               : P.Op₂ setoid
+    -_                : P.Op₁ setoid
+    0#                : Setoid.carrier setoid
+    1#                : Setoid.carrier setoid
+    isCommutativeRing : IsCommutativeRing setoid _+_ _*_ -_ 0# 1#
+
+  open Setoid setoid public
+  open IsCommutativeRing setoid isCommutativeRing public
+
+  ring : Ring
+  ring = record
+    { setoid = setoid
+    ; _+_    = _+_
+    ; _*_    = _*_
+    ; -_     = -_
+    ; 0#     = 0#
+    ; 1#     = 1#
+    ; isRing = isRing
+    }
+
+  commutativeSemiring : CommutativeSemiring
+  commutativeSemiring = record
+    { setoid                = setoid
+    ; _+_                   = _+_
+    ; _*_                   = _*_
+    ; 0#                    = 0#
+    ; 1#                    = 1#
+    ; isCommutativeSemiring = isCommutativeSemiring
+    }
+
+  open Ring ring public using (rawRing; +-abelianGroup)
+  open CommutativeSemiring commutativeSemiring public
+         using ( +-semigroup; +-monoid; +-commutativeMonoid
+               ; *-semigroup; *-monoid; *-commutativeMonoid
+               ; semiring
+               )
 
 ------------------------------------------------------------------------
--- Combinations of properties (two binary operations)
+-- (Distributive) lattices and boolean algebras
 
-record Semiring (+ * : Op₂) (0# 1# : carrier) : Set where
+record Lattice : Set1 where
+  infixr 7 _∧_
+  infixr 6 _∨_
   field
-    +-monoid : CommutativeMonoid + 0#
-    *-monoid : Monoid * 1#
-    distrib  : * DistributesOver +
-    zero     : Zero 0# *
+    setoid    : Setoid
+    _∨_       : P.Op₂ setoid
+    _∧_       : P.Op₂ setoid
+    isLattice : IsLattice setoid _∨_ _∧_
 
-record CommutativeSemiring (+ * : Op₂) (0# 1# : carrier) : Set where
+  open Setoid setoid public
+  open IsLattice setoid isLattice public
+
+record DistributiveLattice : Set1 where
+  infixr 7 _∧_
+  infixr 6 _∨_
   field
-    semiring : Semiring + * 0# 1#
-    *-comm   : Commutative *
+    setoid                : Setoid
+    _∨_                   : P.Op₂ setoid
+    _∧_                   : P.Op₂ setoid
+    isDistributiveLattice : IsDistributiveLattice setoid _∨_ _∧_
 
-record Ring (+ * : Op₂) (- : Op₁) (0# 1# : carrier) : Set where
+  open Setoid setoid public
+  open IsDistributiveLattice setoid isDistributiveLattice public
+
+  lattice : Lattice
+  lattice = record
+    { setoid    = setoid
+    ; _∨_       = _∨_
+    ; _∧_       = _∧_
+    ; isLattice = isLattice
+    }
+
+record BooleanAlgebra : Set1 where
+  infix  8 ¬_
+  infixr 7 _∧_
+  infixr 6 _∨_
   field
-    +-group  : AbelianGroup + 0# -
-    *-monoid : Monoid * 1#
-    distrib  : * DistributesOver +
+    setoid           : Setoid
+    _∨_              : P.Op₂ setoid
+    _∧_              : P.Op₂ setoid
+    ¬_               : P.Op₁ setoid
+    ⊤                : Setoid.carrier setoid
+    ⊥                : Setoid.carrier setoid
+    isBooleanAlgebra : IsBooleanAlgebra setoid _∨_ _∧_ ¬_ ⊤ ⊥
 
-record CommutativeRing (+ * : Op₂) (- : Op₁) (0# 1# : carrier) : Set where
-  field
-    ring   : Ring + * - 0# 1#
-    *-comm : Commutative *
+  open Setoid setoid public
+  open IsBooleanAlgebra setoid isBooleanAlgebra public
 
--- A structure which lies somewhere between commutative rings and
--- commutative semirings
+  distributiveLattice : DistributiveLattice
+  distributiveLattice = record
+    { setoid                = setoid
+    ; _∨_                   = _∨_
+    ; _∧_                   = _∧_
+    ; isDistributiveLattice = isDistributiveLattice
+    }
 
-record AlmostCommRing (_+_ _*_ : Op₂)
-                      (¬_ : Op₁)
-                      (0# 1# : carrier) : Set where
-  field
-    commSemiring : CommutativeSemiring _+_ _*_ 0# 1#
-    ¬-pres-≈     : ¬_ Preserves-≈
-    ¬-*-distribˡ : forall x y -> ((¬ x) * y) ≈ (¬ (x * y))
-    ¬-+-comm     : forall x y -> ((¬ x) + (¬ y)) ≈ (¬ (x + y))
-
-record Lattice (∨ ∧ : Op₂) : Set where
-  field
-    ∨-comm     : Commutative ∨
-    ∨-assoc    : Associative ∨
-    ∨-pres-≈   : ∨ Preserves₂-≈
-    ∧-comm     : Commutative ∧
-    ∧-assoc    : Associative ∧
-    ∧-pres-≈   : ∧ Preserves₂-≈
-    absorptive : Absorptive ∨ ∧
-
-record DistributiveLattice (∨ ∧ : Op₂) : Set where
-  field
-    lattice      : Lattice ∨ ∧
-    ∨-∧-distribˡ : ∨ DistributesOverˡ ∧
-
-record BooleanAlgebra (∨ ∧ : Op₂) (¬ : Op₁) (⊤ ⊥ : carrier) : Set where
-  field
-    distLattice   : DistributiveLattice ∨ ∧
-    ∨-complementʳ : RightInverse ⊤ ¬ ∨
-    ∧-complementʳ : RightInverse ⊥ ¬ ∧
-    ¬-pres-≈      : ¬ Preserves-≈
+  open DistributiveLattice distributiveLattice public
+         using (lattice)
