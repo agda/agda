@@ -39,7 +39,7 @@ import TypeChecking.Substitute (abstract,raise)
 import qualified Interaction.Highlighting.Range as R
 
 import Utils.Size
-import Utils.Monad (thread)
+import Utils.Monad (thread, (<$>))
 
 #include "../undefined.h"
 
@@ -90,13 +90,17 @@ termMutual i ts ds = if names == [] then return [] else
            List.find (Set.member (head names)) mutualBlocks
      let allNames = Set.elems mutualBlock
      -- collect all recursive calls in the block
-     calls <- collectCalls (termDef allNames) allNames
-     reportSLn "term.lex" 30 $ "Calls: " ++ show calls
-{- -- applies only to FoetusTermination
-     reportSLn "term.lex" 30 $ "Recursion behaviours: " ++
-                               show (Term.recursionBehaviours calls)
--}
-     case Term.terminates calls of
+     let collect use = collectCalls (termDef use allNames) allNames
+     r <- do r <- Term.terminates <$> collect DontUseDotPatterns
+             case r of
+               Left _  -> Term.terminates <$> collect UseDotPatterns
+               Right _ -> return r
+     verboseS "term.lex" 30 $ do
+      calls1 <- collect DontUseDotPatterns
+      calls2 <- collect UseDotPatterns
+      liftIO $ putStrLn $ "Calls (no dot patterns): " ++ show calls1
+      liftIO $ putStrLn $ "Calls (dot patterns)   : " ++ show calls2
+     case r of
        Left  errDesc -> do
          let callSites = Set.toList errDesc
          return [(names, callSites)] -- TODO: this could be changed to
@@ -156,8 +160,8 @@ termTypedBinding h (A.TNoBind e) ret = do
     ret [("_",t)]
 
 -- | Termination check a definition by pattern matching.
-termDef :: MutualNames -> QName -> TCM Calls
-termDef names name = do
+termDef :: UseDotPatterns -> MutualNames -> QName -> TCM Calls
+termDef use names name = do
 	-- Retrieve definition
         def <- getConstInfo name
         -- returns a TC.Monad.Base.Definition
@@ -167,7 +171,7 @@ termDef names name = do
 	      , nest 2 $ text ":" <+> (prettyTCM $ defType def)
 	      ]
         case (theDef def) of
-           Function cls isAbstract -> collectCalls (termClause names name) cls
+           Function cls isAbstract -> collectCalls (termClause use names name) cls
            _ -> return Term.empty
 
 
@@ -219,13 +223,18 @@ adjIndexDBP f (LitDBP l) = LitDBP l
 liftDBP :: DeBruijnPat -> DeBruijnPat
 liftDBP = adjIndexDBP (1+)
 
+{- | Indicates whether or not to use dot patterns when checking termination.
+-}
+data UseDotPatterns = UseDotPatterns | DontUseDotPatterns
+
 {- | Convert a term (from a dot pattern) to a DeBruijn pattern.
 -}
 
-termToDBP :: Term -> DeBruijnPat
-termToDBP t = case t of
+termToDBP :: UseDotPatterns -> Term -> DeBruijnPat
+termToDBP DontUseDotPatterns _ = unusedVar
+termToDBP UseDotPatterns     t = case t of
   Var i []    -> VarDBP i
-  Con c args  -> ConDBP c $ map (termToDBP . unArg) args
+  Con c args  -> ConDBP c $ map (termToDBP UseDotPatterns . unArg) args
   _           -> unusedVar
 
 {- | stripBind i p b = Just (i', dbp, b')
@@ -236,17 +245,17 @@ termToDBP t = case t of
   if the clause has no body (b = NoBody), Nothing is returned
 
 -}
-stripBind :: Nat -> Pattern -> ClauseBody -> Maybe (Nat, DeBruijnPat, ClauseBody)
-stripBind _ _ NoBody            = Nothing
-stripBind i (VarP x) (NoBind b) = Just (i, unusedVar, b)
-stripBind i (VarP x) (Bind b)   = Just (i - 1, VarDBP i, absBody b)
-stripBind i (VarP x) (Body b)   = __IMPOSSIBLE__
-stripBind i (DotP t) (NoBind b) = Just (i, termToDBP t, b)
-stripBind i (DotP t) (Bind b)   = Just (i - 1, termToDBP t, absBody b)
-stripBind i (DotP _) (Body b)   = __IMPOSSIBLE__
-stripBind i (LitP l) b          = Just (i, LitDBP l, b)
-stripBind i (ConP c args) b     = do 
-    (i', dbps, b') <- stripBinds i (map unArg args) b
+stripBind :: UseDotPatterns -> Nat -> Pattern -> ClauseBody -> Maybe (Nat, DeBruijnPat, ClauseBody)
+stripBind _ _ _ NoBody            = Nothing
+stripBind use i (VarP x) (NoBind b) = Just (i, unusedVar, b)
+stripBind use i (VarP x) (Bind b)   = Just (i - 1, VarDBP i, absBody b)
+stripBind use i (VarP x) (Body b)   = __IMPOSSIBLE__
+stripBind use i (DotP t) (NoBind b) = Just (i, termToDBP use t, b)
+stripBind use i (DotP t) (Bind b)   = Just (i - 1, termToDBP use t, absBody b)
+stripBind use i (DotP _) (Body b)   = __IMPOSSIBLE__
+stripBind use i (LitP l) b          = Just (i, LitDBP l, b)
+stripBind use i (ConP c args) b     = do 
+    (i', dbps, b') <- stripBinds use i (map unArg args) b
     return (i', ConDBP c dbps, b')
 
 {- | stripBinds i ps b = Just (i', dbps, b')
@@ -254,16 +263,17 @@ stripBind i (ConP c args) b     = do
   i  is the next free de Bruijn level before consumption of ps
   i' is the next free de Bruijn level after  consumption of ps
 -}
-stripBinds :: Nat -> [Pattern] -> ClauseBody -> Maybe (Nat, [DeBruijnPat], ClauseBody)
-stripBinds i [] b     = return (i, [], b)
-stripBinds i (p:ps) b = do (i1,  dbp, b1) <- stripBind i p b
-                           (i2, dbps, b2) <- stripBinds i1 ps b1
-                           return (i2, dbp:dbps, b2)
+stripBinds :: UseDotPatterns -> Nat -> [Pattern] -> ClauseBody -> Maybe (Nat, [DeBruijnPat], ClauseBody)
+stripBinds use i [] b     = return (i, [], b)
+stripBinds use i (p:ps) b = do
+  (i1,  dbp, b1) <- stripBind use i p b
+  (i2, dbps, b2) <- stripBinds use i1 ps b1
+  return (i2, dbp:dbps, b2)
 
 -- | Extract recursive calls from one clause.
-termClause :: MutualNames -> QName -> Clause -> TCM Calls
-termClause names name (Clause _ _ argPats body) =
-    case stripBinds (nVars - 1) (map unArg argPats) body  of
+termClause :: UseDotPatterns -> MutualNames -> QName -> Clause -> TCM Calls
+termClause use names name (Clause _ _ argPats body) =
+    case stripBinds use (nVars - 1) (map unArg argPats) body  of
        Nothing -> return Term.empty
        Just (-1, dbpats, Body t) ->
           termTerm names name dbpats t
