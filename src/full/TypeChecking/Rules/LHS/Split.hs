@@ -12,6 +12,7 @@ import Syntax.Position
 import Syntax.Internal
 import Syntax.Internal.Pattern
 import qualified Syntax.Abstract as A
+import qualified Syntax.Info as A
 
 import TypeChecking.Monad
 import TypeChecking.Pretty
@@ -20,6 +21,7 @@ import TypeChecking.Constraints
 import TypeChecking.Conversion
 import TypeChecking.Rules.LHS.Problem
 import TypeChecking.Rules.Term
+import TypeChecking.Monad.Builtin
 
 import Utils.Permutation
 import Utils.Tuple
@@ -53,6 +55,19 @@ splitProblem (Problem ps (perm, qs) tel) = do
     splitP ps	    []		  EmptyTel		 = __IMPOSSIBLE__
     splitP (p : ps) ((i, q) : qs) tel0@(ExtendTel a tel) =
       case asView $ namedThing $ unArg p of
+	(xs, A.LitP (LitInt r n)) | n < 0     -> __IMPOSSIBLE__
+                                  | n > 20    -> typeError $ GenericError $
+                                                "Matching on natural number literals is done by expanding "
+                                                ++ "the literal to the corresponding constructor pattern, so "
+                                                ++ "you probably don't want to do it this way."
+                                  | otherwise -> do
+          Con z _ <- primZero
+          Con s  _ <- primSuc
+          let zero  = A.ConP info (setRange r z) []
+              suc p = A.ConP info (setRange r s) [Arg NotHidden $ unnamed p]
+              info  = A.PatRange r
+              p'    = fmap (fmap $ const $ foldr ($) zero $ replicate (fromIntegral n) suc) p
+          splitP (p' : ps) ((i, q) : qs) tel0
 	(xs, A.LitP lit)  -> do
 	  b <- lift $ litType lit
 	  ok <- lift $ do
