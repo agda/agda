@@ -55,19 +55,17 @@ record Setoid : Set1 where
 
   open IsEquivalence isEquivalence public
 
-  -- TODO: One could add more conversions like this one.
-
   preorder : Preorder
   preorder = record
     { carrier    = carrier
     ; _≈_        = _≡_
     ; _∼_        = _≈_
     ; isPreorder = record
-      { isEquivalence = ≡-isEquivalence
-      ; refl          = refl
-      ; trans         = trans
-      ; ≈-resp-∼      = ≡-resp _≈_
-      }
+        { isEquivalence = ≡-isEquivalence
+        ; refl          = refl
+        ; trans         = trans
+        ; ≈-resp-∼      = ≡-resp _≈_
+        }
     }
 
 ------------------------------------------------------------------------
@@ -95,6 +93,8 @@ record DecSetoid : Set1 where
     ; _≈_           = _≈_
     ; isEquivalence = isEquivalence
     }
+
+  open Setoid setoid public using (preorder)
 
 ------------------------------------------------------------------------
 -- Partial orders
@@ -167,6 +167,16 @@ record TotalOrder : Set1 where
 
   open IsTotalOrder isTotalOrder public
 
+  poset : Poset
+  poset = record
+    { carrier        = carrier
+    ; _≈_            = _≈_
+    ; _≤_            = _≤_
+    ; isPartialOrder = isPartialOrder
+    }
+
+  open Poset poset public using (preorder)
+
 ------------------------------------------------------------------------
 -- Decidable total orders
 
@@ -176,7 +186,19 @@ record IsDecTotalOrder {a : Set} (_≈_ _≤_ : Rel a) : Set where
     _≟_          : Decidable _≈_
     _≤?_         : Decidable _≤_
 
-  open IsTotalOrder isTotalOrder public
+  private
+    module TO = IsTotalOrder isTotalOrder
+  open TO public hiding (module Eq)
+
+  module Eq where
+
+    isDecEquivalence : IsDecEquivalence _≈_
+    isDecEquivalence = record
+      { isEquivalence = TO.isEquivalence
+      ; _≟_           = _≟_
+      }
+
+    open IsDecEquivalence isDecEquivalence public
 
 record DecTotalOrder : Set1 where
   infix 4 _≈_ _≤_
@@ -186,22 +208,27 @@ record DecTotalOrder : Set1 where
     _≤_             : Rel carrier
     isDecTotalOrder : IsDecTotalOrder _≈_ _≤_
 
-  open IsDecTotalOrder isDecTotalOrder public
+  private
+    module DTO = IsDecTotalOrder isDecTotalOrder
+  open DTO public hiding (module Eq)
 
-  poset : Poset
-  poset = record
-    { carrier        = carrier
-    ; _≈_            = _≈_
-    ; _≤_            = _≤_
-    ; isPartialOrder = isPartialOrder
+  totalOrder : TotalOrder
+  totalOrder = record
+    { carrier      = carrier
+    ; _≈_          = _≈_
+    ; _≤_          = _≤_
+    ; isTotalOrder = isTotalOrder
     }
 
-  decSetoid : DecSetoid
-  decSetoid = record
-    { carrier          = carrier
-    ; _≈_              = _≈_
-    ; isDecEquivalence = record
-        { isEquivalence = isEquivalence
-        ; _≟_           = _≟_
-        }
-    }
+  open TotalOrder totalOrder public using (poset; preorder)
+
+  module Eq where
+
+    decSetoid : DecSetoid
+    decSetoid = record
+      { carrier          = carrier
+      ; _≈_              = _≈_
+      ; isDecEquivalence = DTO.Eq.isDecEquivalence
+      }
+
+    open DecSetoid decSetoid public using (setoid; preorder)

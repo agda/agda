@@ -168,7 +168,7 @@ abstract
     trans (s≤s m≤n) (s≤s n≤o) = s≤s (trans m≤n n≤o)
 
 ℕ-decSetoid : DecSetoid
-ℕ-decSetoid = DecTotalOrder.decSetoid ℕ-decTotalOrder
+ℕ-decSetoid = DecTotalOrder.Eq.decSetoid ℕ-decTotalOrder
 
 ℕ-poset : Poset
 ℕ-poset = DecTotalOrder.poset ℕ-decTotalOrder
