@@ -26,8 +26,6 @@ import Algebra.Props.Ring
 import Algebra.Props.Semiring
 import Algebra.RingSolver
 import Algebra.RingSolver.Examples
--- The following module is currently broken due to an Agda bug.
--- import Algebra.RingSolver.Int
 import Algebra.RingSolver.Lemmas
 import Algebra.RingSolver.Simple
 
@@ -43,8 +41,6 @@ import Data.Fin.Subset
 import Data.Fin.Subset.Props
 import Data.Function
 import Data.HeterogeneousCollection
--- The following module is currently broken due to an Agda bug.
--- import Data.Int
 import Data.Integer
 import Data.List
 import Data.List.Properties
