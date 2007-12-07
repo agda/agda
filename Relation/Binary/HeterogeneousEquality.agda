@@ -120,7 +120,7 @@ inspect x = x with-≅ ≅-refl
 ------------------------------------------------------------------------
 -- Convenient syntax for equality reasoning
 
-import Relation.Binary.EqReasoning as ER
+import Relation.Binary.EqReasoning as EqR
 
 -- Relation.Binary.EqReasoning is more convenient to use with _≅_ if
 -- the combinators take the type argument (a) as a hidden argument,
@@ -130,7 +130,7 @@ import Relation.Binary.EqReasoning as ER
 module ≅-Reasoning where
   private
     module Dummy {a : Set} where
-      open ER (≅-preorder a) public
-        hiding (_≈⟨_⟩_; ≈-byDef)
-        renaming (_∼⟨_⟩_ to _≅⟨_⟩_)
+      open EqR (≅-setoid a) public
+        hiding (_≡⟨_⟩_; ≡-byDef)
+        renaming (_≈⟨_⟩_ to _≅⟨_⟩_)
   open Dummy public

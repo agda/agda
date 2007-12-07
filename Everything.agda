@@ -82,6 +82,7 @@ import Relation.Binary.FunctionLifting
 import Relation.Binary.HeterogeneousEquality
 import Relation.Binary.NonStrictToStrict
 import Relation.Binary.OrderMorphism
+import Relation.Binary.PreorderReasoning
 import Relation.Binary.Product.NonStrictLex
 import Relation.Binary.Product.PointWise
 import Relation.Binary.Product.StrictLex
