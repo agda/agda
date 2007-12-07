@@ -253,41 +253,6 @@ abstractFromType mt = do
     t <- mt
     return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ (arity t) $ \args -> NoReduction <$> normalise args
 
--- Primitive equality elimination
-primEqElim :: MonadTCM tcm => tcm PrimitiveImpl
-primEqElim = do
-    let eq a x y = el $ primEqual <#> a <@> x <@> y
-    t <- hPi "A" tset $
-	 nPi "x" (el $ var 0) $
-	 nPi "C" (nPi "y" (el $ var 1) $ eq (var 2) (var 1) (var 0) --> tset) $
-	 el (var 0 <@> var 1 <@> (primRefl <#> var 2 <#> var 1)) -->
-	 nPi "y" (el $ var 2) (
-	     nPi "p" (eq (var 3) (var 2) (var 0)) $
-	     el (var 2 <@> var 1 <@> var 0)
-	)
-    refl <- primRefl >>= \r -> 
-	      let name r = case r of
-		    Lam _ b -> name $ absBody b
-		    Def c _ -> c
-		    Con c _ -> c
-		    _	    -> __IMPOSSIBLE__
-	      in return $ name r
-    return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ (arity t) $ \args -> do
-	unless (length args >= 6) $ do
-	  ps <- mapM prettyTCM args
-	  fail $ "too few arguments to primEqElim: " ++ show ps
-	let h = unArg $ args !! 3
-	    p = args !! 5
-	p' <- reduce p
-	case unArg p' of
-	    Def c _ | c == refl -> return $ YesReduction h
-	    Con c _ | c == refl -> return $ YesReduction h
-	    _			-> return $ NoReduction $ upd args 5 p'
-		where
-		    upd [] _ _ = __IMPOSSIBLE__
-		    upd (_ : xs) 0 x = x : xs
-		    upd (x : xs) n y = x : upd xs (n - 1) y
-
 -- Type combinators
 infixr 4 -->
 
@@ -419,8 +384,6 @@ primitiveFunctions = Map.fromList
 				    --> (el (var 1) --> el (io (var 0)))
 				    --> el (io (var 0))
 				)
-    -- Equality elimination
-    , "primEqElim"	    |-> primEqElim
     ]
     where
 	(|->) = (,)
