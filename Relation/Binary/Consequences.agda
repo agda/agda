@@ -17,10 +17,10 @@ open import Relation.Binary.Consequences.Core public
 
 trans∧irr⟶asym
   :  forall {a} -> {≈ < : Rel a}
-  -> Reflexive _≡_ ≈
+  -> Refl ≈
   -> Transitive < -> Irreflexive ≈ < -> Asymmetric <
 trans∧irr⟶asym refl trans irrefl = \x<y y<x ->
-  irrefl (refl ≡-refl) (trans x<y y<x)
+  irrefl refl (trans x<y y<x)
 
 irr∧antisym⟶asym
   :  forall {a} -> {≈ < : Rel a}
@@ -78,11 +78,11 @@ tri⟶asym tri {x} {y} x<y x>y with tri x y
 
 subst⟶cong
   :  {≈ : forall {a} -> Rel a}
-  -> (forall {a} -> Reflexive {a} _≡_ ≈)
+  -> (forall {a} -> Refl {a} ≈)
   -> (forall {a} -> Substitutive {a} ≈)
   -> Congruential ≈
 subst⟶cong {≈ = _≈_} refl subst f {x} x≈y =
-  subst (\y -> f x ≈ f y) x≈y (refl ≡-refl)
+  subst (\y -> f x ≈ f y) x≈y refl
 
 cong+trans⟶cong₂
   :  {≈ : forall {a} -> Rel a}

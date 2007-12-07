@@ -32,11 +32,9 @@ private
     refl₁ ×-reflexive refl₂ = \x≈y ->
       (refl₁ (proj₁ x≈y) , refl₂ (proj₂ x≈y))
 
-    _×-reflexive-≡_
-      :  forall {∼₁ ∼₂}
-      -> Reflexive _≡_ ∼₁ -> Reflexive _≡_ ∼₂
-      -> Reflexive _≡_ (∼₁ ×-Rel ∼₂)
-    (refl₁ ×-reflexive-≡ refl₂) ≡-refl = (refl₁ ≡-refl , refl₂ ≡-refl)
+    _×-refl_
+      : forall {∼₁ ∼₂} -> Refl ∼₁ -> Refl ∼₂ -> Refl (∼₁ ×-Rel ∼₂)
+    refl₁ ×-refl refl₂ = (refl₁ , refl₂)
 
     ×-irreflexive₁
       :  forall {≈₁ <₁ ≈₂ <₂}
@@ -128,9 +126,9 @@ private
       -> IsEquivalence ≈₁ -> IsEquivalence ≈₂
       -> IsEquivalence (≈₁ ×-Rel ≈₂)
     _×-isEquivalence_ {≈₁ = ≈₁} {≈₂ = ≈₂} eq₁ eq₂ = record
-      { refl  = \{x y} ->
-                _×-reflexive-≡_ {∼₁ = ≈₁} {∼₂ = ≈₂}
-                                (refl  eq₁) (refl  eq₂) {x} {y}
+      { refl  = \{x} ->
+                _×-refl_        {∼₁ = ≈₁} {∼₂ = ≈₂}
+                                (refl  eq₁) (refl  eq₂) {x}
       ; sym   = \{x y} ->
                 _×-symmetric_   {∼₁ = ≈₁} {∼₂ = ≈₂}
                                 (sym   eq₁) (sym   eq₂) {x} {y}
@@ -155,22 +153,6 @@ private
                                        (trans pre₁) (trans pre₂)
                                        {x} {y} {z}
       ; ≈-resp-∼      = ≈-resp-∼ pre₁ ×-≈-respects₂ ≈-resp-∼ pre₂
-      }
-      where open IsPreorder
-
-    _×-isPreorder-≡_
-      :  forall {∼₁ ∼₂}
-      -> IsPreorder _≡_ ∼₁ -> IsPreorder _≡_ ∼₂
-      -> IsPreorder _≡_ (∼₁ ×-Rel ∼₂)
-    _×-isPreorder-≡_ {∼₁ = ∼₁} {∼₂ = ∼₂} pre₁ pre₂ = record
-      { isEquivalence = ≡-isEquivalence
-      ; refl          = _×-reflexive-≡_ {∼₁ = ∼₁} {∼₂ = ∼₂}
-                                        (refl  pre₁) (refl  pre₂)
-      ; trans         = \{x y z} ->
-                        _×-transitive_  {∼₁ = ∼₁} {∼₂ = ∼₂}
-                                        (trans pre₁) (trans pre₂)
-                                        {x} {y} {z}
-      ; ≈-resp-∼      = ≡-resp _
       }
       where open IsPreorder
 

@@ -97,15 +97,15 @@ abstract
     refl (inj₁-Rel x₁≈y₁) = inj₁-Rel (refl₁ x₁≈y₁)
     refl (inj₂-Rel x₂≈y₂) = inj₂-Rel (refl₂ x₂≈y₂)
 
-  _⊎-reflexive-≡_
-    :  forall {a₁} -> {∼₁ : Rel a₁} -> Reflexive _≡_ ∼₁
-    -> forall {a₂} -> {∼₂ : Rel a₂} -> Reflexive _≡_ ∼₂
-    -> Reflexive _≡_ (∼₁ ⊎-Rel ∼₂)
-  refl₁ ⊎-reflexive-≡ refl₂ = refl
+  _⊎-refl_
+    :  forall {a₁} -> {∼₁ : Rel a₁} -> Refl ∼₁
+    -> forall {a₂} -> {∼₂ : Rel a₂} -> Refl ∼₂
+    -> Refl (∼₁ ⊎-Rel ∼₂)
+  refl₁ ⊎-refl refl₂ = refl
     where
-    refl : Reflexive _≡_ (_ ⊎-Rel _)
-    refl {inj₁ x} ≡-refl = inj₁-Rel (refl₁ ≡-refl)
-    refl {inj₂ y} ≡-refl = inj₂-Rel (refl₂ ≡-refl)
+    refl : Refl (_ ⊎-Rel _)
+    refl {x = inj₁ _} = inj₁-Rel refl₁
+    refl {x = inj₂ _} = inj₂-Rel refl₂
 
   _⊎-<-reflexive_
     :  forall {a₁} -> {≈₁ ≤₁ : Rel a₁} -> Reflexive ≈₁ ≤₁
@@ -345,7 +345,7 @@ abstract
     -> forall {a₂} -> {≈₂ : Rel a₂} -> IsEquivalence ≈₂
     -> IsEquivalence (≈₁ ⊎-Rel ≈₂)
   eq₁ ⊎-isEquivalence eq₂ = record
-    { refl  = refl  eq₁ ⊎-reflexive-≡ refl  eq₂
+    { refl  = refl  eq₁ ⊎-refl        refl  eq₂
     ; sym   = sym   eq₁ ⊎-symmetric   sym   eq₂
     ; trans = trans eq₁ ⊎-transitive  trans eq₂
     }
@@ -361,18 +361,6 @@ abstract
     ; refl          = refl     pre₁ ⊎-reflexive   refl     pre₂
     ; trans         = trans    pre₁ ⊎-transitive  trans    pre₂
     ; ≈-resp-∼      = ≈-resp-∼ pre₁ ⊎-≈-respects₂ ≈-resp-∼ pre₂
-    }
-    where open IsPreorder
-
-  _⊎-isPreorder-≡_
-    :  forall {a₁} -> {∼₁ : Rel a₁} -> IsPreorder _≡_ ∼₁
-    -> forall {a₂} -> {∼₂ : Rel a₂} -> IsPreorder _≡_ ∼₂
-    -> IsPreorder _≡_ (∼₁ ⊎-Rel ∼₂)
-  pre₁ ⊎-isPreorder-≡ pre₂ = record
-    { isEquivalence = ≡-isEquivalence
-    ; refl          = refl  pre₁ ⊎-reflexive-≡ refl  pre₂
-    ; trans         = trans pre₁ ⊎-transitive  trans pre₂
-    ; ≈-resp-∼      = ≡-resp _
     }
     where open IsPreorder
 

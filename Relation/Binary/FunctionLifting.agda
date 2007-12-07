@@ -19,26 +19,26 @@ LiftEquiv
   -> IsEquivalence ∼₁ -> IsEquivalence ∼₂
   -> IsEquivalence (LogicalRelation ∼₁ ∼₂)
 LiftEquiv {a} {b} {∼₁} {∼₂} pres eq₁ eq₂ = record
-  { refl  = refl'
+  { refl  = \{f} -> refl' {f}
   ; sym   = sym' (sym eq₁) (sym eq₂)
   ; trans = trans' (refl eq₁) (trans eq₂)
   }
   where
   open IsEquivalence
   abstract
-    refl' : Reflexive _≡_ (LogicalRelation ∼₁ ∼₂)
-    refl' {f} ≡-refl x∼₁y = pres f x∼₁y
+    refl' : Refl (LogicalRelation ∼₁ ∼₂)
+    refl' {f} x∼₁y = pres f x∼₁y
 
     sym' :  Symmetric ∼₁
          -> Symmetric ∼₂
          -> Symmetric (LogicalRelation ∼₁ ∼₂)
     sym' sym₁ sym₂ = \f∼g x∼y -> sym₂ (f∼g (sym₁ x∼y))
 
-    trans' :  Reflexive _≡_ ∼₁
+    trans' :  Refl ∼₁
            -> Transitive ∼₂
            -> Transitive (LogicalRelation ∼₁ ∼₂)
     trans' refl₁ trans₂ = \f∼g g∼h x∼y ->
-      trans₂ (f∼g (refl₁ ≡-refl)) (g∼h x∼y)
+      trans₂ (f∼g refl₁) (g∼h x∼y)
 
 open Setoid
 

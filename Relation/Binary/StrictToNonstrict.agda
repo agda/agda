@@ -49,7 +49,7 @@ abstract
     antisym (inj₂ x≈y) _          = x≈y
     antisym (inj₁ _)   (inj₂ y≈x) = Eq.sym y≈x
     antisym (inj₁ x<y) (inj₁ y<x) =
-      ⊥-elim (trans∧irr⟶asym Eq.refl trans irrefl x<y y<x)
+      ⊥-elim (trans∧irr⟶asym {≈ = _≈_} Eq.refl trans irrefl x<y y<x)
 
   ≤-trans
     :  IsEquivalence _≈_ -> _≈_ Respects₂ _<_

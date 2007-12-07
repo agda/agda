@@ -55,17 +55,20 @@ record Setoid : Set1 where
 
   open IsEquivalence isEquivalence public
 
+  isPreorder : IsPreorder _≡_ _≈_
+  isPreorder = record
+    { isEquivalence = ≡-isEquivalence
+    ; refl          = reflexive
+    ; trans         = trans
+    ; ≈-resp-∼      = ≡-resp _≈_
+    }
+
   preorder : Preorder
   preorder = record
     { carrier    = carrier
     ; _≈_        = _≡_
     ; _∼_        = _≈_
-    ; isPreorder = record
-        { isEquivalence = ≡-isEquivalence
-        ; refl          = refl
-        ; trans         = trans
-        ; ≈-resp-∼      = ≡-resp _≈_
-        }
+    ; isPreorder = isPreorder
     }
 
 ------------------------------------------------------------------------

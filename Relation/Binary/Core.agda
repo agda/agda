@@ -28,7 +28,12 @@ Rel a = a -> a -> Set
 Reflexive : {a : Set} -> (_≈_ _∼_ : Rel a) -> Set
 Reflexive _≈_ _∼_ = forall {x y} -> x ≈ y -> x ∼ y
 
--- The same applies to irreflexivity.
+-- However, the following variant is often easier to use.
+
+Refl : {a : Set} -> (_∼_ : Rel a) -> Set
+Refl _∼_ = forall {x} -> x ∼ x
+
+-- Irreflexivity is also defined using an underlying equality.
 
 Irreflexive : {a : Set} -> (_≈_ _<_ : Rel a) -> Set
 Irreflexive _≈_ _<_ = forall {x y} -> x ≈ y -> ¬ (x < y)
@@ -90,14 +95,15 @@ Trichotomous _≈_ _<_ = forall x y -> Tri (x < y) (x ≈ y) (x > y)
 ------------------------------------------------------------------------
 -- Equivalence relations
 
--- One could presumably define equivalence relations in terms of
--- preorders. However, the preorders of this library are defined in
--- terms of an underlying equivalence relation (used to define
--- reflexivity; note that this underlying equality is hard-wired to
--- _≡_ in the definition of IsEquivalence).
+-- The preorders of this library are defined in terms of an underlying
+-- equivalence relation, and hence equivalence relations are not
+-- defined in terms of preorders.
 
 record IsEquivalence {a : Set} (_≈_ : Rel a) : Set where
   field
-    refl  : Reflexive _≡_ _≈_
+    refl  : Refl _≈_
     sym   : Symmetric _≈_
     trans : Transitive _≈_
+
+  reflexive : Reflexive _≡_ _≈_
+  reflexive ≡-refl = refl

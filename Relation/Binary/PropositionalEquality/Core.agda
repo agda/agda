@@ -33,7 +33,7 @@ open import Relation.Binary.Consequences.Core
 
 ≡-isEquivalence : forall {a} -> IsEquivalence {a} _≡_
 ≡-isEquivalence = record
-  { refl  = ≡-reflexive
+  { refl  = ≡-refl
   ; sym   = ≡-sym
   ; trans = ≡-trans
   }

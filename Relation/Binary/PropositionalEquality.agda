@@ -23,7 +23,7 @@ open import Relation.Binary.PropositionalEquality.Core public
 ≡-subst₁ P ≡-refl p = p
 
 ≡-cong : Congruential _≡_
-≡-cong = subst⟶cong ≡-reflexive ≡-subst
+≡-cong = subst⟶cong ≡-refl ≡-subst
 
 ≡-cong₂ : Congruential₂ _≡_
 ≡-cong₂ = cong+trans⟶cong₂ ≡-cong ≡-trans

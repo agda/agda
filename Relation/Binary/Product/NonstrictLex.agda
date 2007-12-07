@@ -62,7 +62,8 @@ private
       irrefl₁ = Conv.<-irrefl ≈₁ ≤₁
 
       asym₁ : Asymmetric (Conv._<_ ≈₁ ≤₁)
-      asym₁ = trans∧irr⟶asym ≈-refl₁ (Conv.<-trans _ _ po₁) irrefl₁
+      asym₁ = trans∧irr⟶asym {≈ = ≈₁}
+                             ≈-refl₁ (Conv.<-trans _ _ po₁) irrefl₁
 
     ×-≈-respects₂
       :  forall {≈₁ ≤₁} -> IsEquivalence ≈₁ -> ≈₁ Respects₂ ≤₁

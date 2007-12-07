@@ -36,7 +36,7 @@ _≈⟨_⟩_ : forall x {y z} -> x ≈ y -> y IsRelatedTo z -> x IsRelatedTo z
 _ ≈⟨ x≈y ⟩ relTo y∼z = relTo (trans (refl x≈y) y∼z)
 
 ≈-byDef : forall {x} -> x ≈ x
-≈-byDef = Eq.refl ≡-refl
+≈-byDef = Eq.refl
 
 byDef : forall {x} -> x ∼ x
 byDef = refl ≈-byDef

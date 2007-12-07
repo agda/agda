@@ -46,7 +46,7 @@ open import Data.Product
 ≡-subst-removable P ≡-refl z = ≅-refl
 
 ≅-cong : Congruential (\x y -> x ≅ y)
-≅-cong = subst⟶cong ≅-reflexive-≡ ≅-subst
+≅-cong = subst⟶cong ≅-refl ≅-subst
 
 ≅-cong₂ : Congruential₂ (\x y -> x ≅ y)
 ≅-cong₂ = cong+trans⟶cong₂ ≅-cong ≅-trans
@@ -56,7 +56,7 @@ open import Data.Product
 
 ≅-isEquivalence : forall {a} -> IsEquivalence {a} (\x y -> x ≅ y)
 ≅-isEquivalence = record
-  { refl  = ≅-reflexive-≡
+  { refl  = ≅-refl
   ; sym   = ≅-sym
   ; trans = ≅-trans
   }
