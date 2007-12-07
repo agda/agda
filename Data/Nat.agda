@@ -10,7 +10,6 @@ open import Data.Sum
 open import Relation.Nullary
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality
-import Relation.Binary.PreorderReasoning as PreR
 
 infixl 7 _*_ _⊓_
 infixl 6 _+_ _∸_ _⊔_
@@ -173,5 +172,6 @@ abstract
 ℕ-poset : Poset
 ℕ-poset = DecTotalOrder.poset ℕ-decTotalOrder
 
-module ≤-Reasoning = PreR (Poset.preorder ℕ-poset)
-  renaming (_∼⟨_⟩_ to _≤⟨_⟩_; _≈⟨_⟩_ to _≡⟨_⟩_; ≈-byDef to ≡-byDef)
+import Relation.Binary.PartialOrderReasoning as POR
+module ≤-Reasoning = POR ℕ-poset
+  renaming (_≈⟨_⟩_ to _≡⟨_⟩_; ≈-byDef to ≡-byDef)
