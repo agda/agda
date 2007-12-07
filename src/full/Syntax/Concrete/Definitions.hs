@@ -171,7 +171,7 @@ niceDeclarations ds = do
             | IdentP (QName x) <- noSingletonRawAppP p -> [x]
 	  FunClause{}				       -> []
 	  Data _ x _ _ cs			       -> x : concatMap declaredNames cs
-	  Record _ x _ _ _			       -> [x] -- TODO: fields
+	  Record _ x _ _ _			       -> [x]
 	  Infix _ _				       -> []
 	  Mutual _ ds				       -> concatMap declaredNames ds
 	  Abstract _ ds				       -> concatMap declaredNames ds
@@ -212,7 +212,7 @@ niceDeclarations ds = do
 			nds = case d of
                             Field x t           -> return $ niceAxioms fixs [ Field x t ]
 			    Data   r x tel t cs -> dataOrRec DataDef niceAx  r x tel t cs
-			    Record r x tel t cs -> dataOrRec RecDef  niceFix r x tel t cs
+			    Record r x tel t cs -> dataOrRec RecDef  (const niceDeclarations) r x tel t cs
 			    Mutual r ds -> do
 			      d <- mkMutual r [d] =<< niceFix fixs ds
 			      return [d]
@@ -438,11 +438,9 @@ plusFixities m1 m2
 --   level (or possibly outside an abstract or mutual block) as its target
 --   declaration.
 fixities :: [Declaration] -> Nice (Map.Map Name Fixity)
-fixities (d:ds) =
-    case d of
-	Infix f xs  -> plusFixities (Map.fromList [ (x,f) | x <- xs ])
-			=<< fixities ds
-	_	    -> fixities ds
+fixities (d:ds) = case d of
+  Infix f xs -> plusFixities (Map.fromList [ (x,f) | x <- xs ]) =<< fixities ds
+  _          -> fixities ds
 fixities [] = return $ Map.empty
 
 notSoNiceDeclarations :: [NiceDeclaration] -> [Declaration]
