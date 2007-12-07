@@ -32,6 +32,7 @@ record IsPreorder {a : Set}
   module Eq = IsEquivalence isEquivalence
 
 record Preorder : Set1 where
+  infix 4 _≈_ _∼_
   field
     carrier    : Set
     _≈_        : Rel carrier  -- The underlying equality.
@@ -46,6 +47,7 @@ record Preorder : Set1 where
 -- Equivalence relations are defined in Relation.Binary.Core.
 
 record Setoid : Set1 where
+  infix 4 _≈_
   field
     carrier       : Set
     _≈_           : Rel carrier
@@ -79,6 +81,7 @@ record IsDecEquivalence {a : Set} (_≈_ : Rel a) : Set where
   open IsEquivalence isEquivalence public
 
 record DecSetoid : Set1 where
+  infix 4 _≈_
   field
     carrier          : Set
     _≈_              : Rel carrier
@@ -105,6 +108,7 @@ record IsPartialOrder {a : Set} (_≈_ _≤_ : Rel a) : Set where
          renaming (≈-resp-∼ to ≈-resp-≤)
 
 record Poset : Set1 where
+  infix 4 _≈_ _≤_
   field
     carrier        : Set
     _≈_            : Rel carrier
@@ -134,6 +138,7 @@ record IsStrictPartialOrder {a : Set} (_≈_ _<_ : Rel a) : Set where
   module Eq = IsEquivalence isEquivalence
 
 record StrictPartialOrder : Set1 where
+  infix 4 _≈_ _<_
   field
     carrier              : Set
     _≈_                  : Rel carrier
@@ -153,6 +158,7 @@ record IsTotalOrder {a : Set} (_≈_ _≤_ : Rel a) : Set where
   open IsPartialOrder isPartialOrder public
 
 record TotalOrder : Set1 where
+  infix 4 _≈_ _≤_
   field
     carrier      : Set
     _≈_          : Rel carrier
@@ -173,6 +179,7 @@ record IsDecTotalOrder {a : Set} (_≈_ _≤_ : Rel a) : Set where
   open IsTotalOrder isTotalOrder public
 
 record DecTotalOrder : Set1 where
+  infix 4 _≈_ _≤_
   field
     carrier         : Set
     _≈_             : Rel carrier
