@@ -17,8 +17,7 @@ open import Relation.Binary.PropositionalEquality
 open import Data.Product
 import Algebra.RingSolver.Simple as Solver
 
-import Relation.Binary.EqReasoning
-open Relation.Binary.EqReasoning ℕ-preorder
+import Relation.Binary.EqReasoning as EqR; open EqR ℕ-setoid
 
 ------------------------------------------------------------------------
 -- (ℕ, +, *, 0, 1) is a commutative semiring
@@ -46,11 +45,11 @@ abstract
   +-comm (suc m) n =
     begin
       suc m + n
-    ∼⟨ byDef ⟩
+    ≈⟨ byDef ⟩
       suc (m + n)
-    ∼⟨ ≡-cong suc (+-comm m n) ⟩
+    ≈⟨ ≡-cong suc (+-comm m n) ⟩
       suc (n + m)
-    ∼⟨ ≡-sym (m+1+n≡1+m+n n m) ⟩
+    ≈⟨ ≡-sym (m+1+n≡1+m+n n m) ⟩
       n + suc m
     ∎
 
@@ -59,15 +58,15 @@ abstract
   m*1+n≡m+mn (suc m) n =
     begin
       suc m * suc n
-    ∼⟨ byDef ⟩
+    ≈⟨ byDef ⟩
       m * suc n + suc n
-    ∼⟨ m+1+n≡1+m+n (m * suc n) n ⟩
+    ≈⟨ m+1+n≡1+m+n (m * suc n) n ⟩
       suc (m * suc n + n)
-    ∼⟨ ≡-cong (\x -> suc (x + n)) (m*1+n≡m+mn m n) ⟩
+    ≈⟨ ≡-cong (\x -> suc (x + n)) (m*1+n≡m+mn m n) ⟩
       suc (m +  m * n + n)
-    ∼⟨ ≡-cong suc (≡-sym (+-assoc m (m * n) n)) ⟩
+    ≈⟨ ≡-cong suc (≡-sym (+-assoc m (m * n) n)) ⟩
       suc (m + (m * n + n))
-    ∼⟨ byDef ⟩
+    ≈⟨ byDef ⟩
       suc m + suc m * n
     ∎
 
@@ -79,11 +78,11 @@ abstract
     n*0≡0 (suc n) =
       begin
         suc n * 0
-      ∼⟨ byDef ⟩
+      ≈⟨ byDef ⟩
         n * 0 + 0
-      ∼⟨ proj₂ +-identity _ ⟩
+      ≈⟨ proj₂ +-identity _ ⟩
         n * 0
-      ∼⟨ n*0≡0 n ⟩
+      ≈⟨ n*0≡0 n ⟩
         0
       ∎
 
@@ -92,13 +91,13 @@ abstract
   *-comm (suc m) n =
     begin
       suc m * n
-    ∼⟨ byDef ⟩
+    ≈⟨ byDef ⟩
       m * n + n
-    ∼⟨ ≡-cong (\x -> x + n) (*-comm m n) ⟩
+    ≈⟨ ≡-cong (\x -> x + n) (*-comm m n) ⟩
       n * m + n
-    ∼⟨ +-comm (n * m) n ⟩
+    ≈⟨ +-comm (n * m) n ⟩
       n + n * m
-    ∼⟨ ≡-sym (m*1+n≡m+mn n m) ⟩
+    ≈⟨ ≡-sym (m*1+n≡m+mn n m) ⟩
       n * suc m
     ∎
 
@@ -110,21 +109,21 @@ abstract
     distˡ (suc m) n o =
                                  begin
       suc m * (n + o)
-                                 ∼⟨ byDef ⟩
+                                 ≈⟨ byDef ⟩
       m * (n + o) + (n + o)
-                                 ∼⟨ ≡-cong (\x -> x + (n + o)) (distˡ m n o) ⟩
+                                 ≈⟨ ≡-cong (\x -> x + (n + o)) (distˡ m n o) ⟩
       (m * n + m * o) + (n + o)
-                                 ∼⟨ ≡-sym $ +-assoc (m * n) (m * o) (n + o) ⟩
+                                 ≈⟨ ≡-sym $ +-assoc (m * n) (m * o) (n + o) ⟩
       m * n + (m * o + (n + o))
-                                 ∼⟨ ≡-cong (\x -> (m * n) + x) $ +-assoc (m * o) n o ⟩
+                                 ≈⟨ ≡-cong (\x -> (m * n) + x) $ +-assoc (m * o) n o ⟩
       m * n + ((m * o + n) + o)
-                                 ∼⟨ ≡-cong (\x -> (m * n) + (x + o)) $ +-comm (m * o) n ⟩
+                                 ≈⟨ ≡-cong (\x -> (m * n) + (x + o)) $ +-comm (m * o) n ⟩
       m * n + ((n + m * o) + o)
-                                 ∼⟨ ≡-cong (\x -> (m * n) + x) $ ≡-sym $ +-assoc n (m * o) o ⟩
+                                 ≈⟨ ≡-cong (\x -> (m * n) + x) $ ≡-sym $ +-assoc n (m * o) o ⟩
       m * n + (n + (m * o + o))
-                                 ∼⟨ +-assoc (m * n) n (m * o + o) ⟩
+                                 ≈⟨ +-assoc (m * n) n (m * o + o) ⟩
       (m * n + n) + (m * o + o)
-                                 ∼⟨ byDef ⟩
+                                 ≈⟨ byDef ⟩
       suc m * n + suc m * o
                                  ∎
 
@@ -132,11 +131,11 @@ abstract
     distʳ m n o =
                       begin
        (n + o) * m
-                      ∼⟨ *-comm (n + o) m ⟩
+                      ≈⟨ *-comm (n + o) m ⟩
        m * (n + o)
-                      ∼⟨ distˡ m n o ⟩
+                      ≈⟨ distˡ m n o ⟩
        m * n + m * o
-                      ∼⟨ ≡-cong₂ _+_ (*-comm m n) (*-comm m o) ⟩
+                      ≈⟨ ≡-cong₂ _+_ (*-comm m n) (*-comm m o) ⟩
        n * m + o * m
                       ∎
 
@@ -145,13 +144,13 @@ abstract
   *-assoc (suc m) n o =
                          begin
     suc m * (n * o)
-                         ∼⟨ byDef ⟩
+                         ≈⟨ byDef ⟩
     m * (n * o) + n * o
-                         ∼⟨ ≡-cong (\x -> x + n * o) $ *-assoc m n o ⟩
+                         ≈⟨ ≡-cong (\x -> x + n * o) $ *-assoc m n o ⟩
     (m * n) * o + n * o
-                         ∼⟨ ≡-sym $ proj₂ distrib-*-+ o (m * n) n ⟩
+                         ≈⟨ ≡-sym $ proj₂ distrib-*-+ o (m * n) n ⟩
     (m * n + n) * o
-                         ∼⟨ byDef ⟩
+                         ≈⟨ byDef ⟩
     (suc m * n) * o
                          ∎
 
@@ -162,9 +161,9 @@ abstract
     n*1≡n n =
       begin
         n * 1
-      ∼⟨ *-comm n 1 ⟩
+      ≈⟨ *-comm n 1 ⟩
         1 * n
-      ∼⟨ byDef ⟩
+      ≈⟨ byDef ⟩
         n
       ∎
 
@@ -233,11 +232,11 @@ abstract
   ⊔-comm (suc m) (suc n) =
     begin
       suc m ⊔ suc n
-    ∼⟨ byDef ⟩
+    ≈⟨ byDef ⟩
       suc (m ⊔ n)
-    ∼⟨ ≡-cong suc (⊔-comm m n) ⟩
+    ≈⟨ ≡-cong suc (⊔-comm m n) ⟩
       suc (n ⊔ m)
-    ∼⟨ byDef ⟩
+    ≈⟨ byDef ⟩
       suc n ⊔ suc m
     ∎
 
@@ -260,11 +259,11 @@ abstract
   ⊓-comm (suc m) (suc n) =
     begin
       suc m ⊓ suc n
-    ∼⟨ byDef ⟩
+    ≈⟨ byDef ⟩
       suc (m ⊓ n)
-    ∼⟨ ≡-cong suc (⊓-comm m n) ⟩
+    ≈⟨ ≡-cong suc (⊓-comm m n) ⟩
       suc (n ⊓ m)
-    ∼⟨ byDef ⟩
+    ≈⟨ byDef ⟩
       suc n ⊓ suc m
     ∎
 
@@ -288,9 +287,9 @@ abstract
     abs-⊓-⊔ (suc m) zero    = ≡-cong suc $
                    begin
       m ⊓ m
-                   ∼⟨ ≡-cong (_⊓_ m) $ ≡-sym $ proj₂ ⊔-identity m ⟩
+                   ≈⟨ ≡-cong (_⊓_ m) $ ≡-sym $ proj₂ ⊔-identity m ⟩
       m ⊓ (m ⊔ 0)
-                   ∼⟨ abs-⊓-⊔ m zero ⟩
+                   ≈⟨ abs-⊓-⊔ m zero ⟩
       m
                    ∎
 
@@ -301,9 +300,9 @@ abstract
   distribˡ-⊔-⊓ (suc m) (suc n) zero    = ≡-cong suc $ ≡-sym $
                  begin
     (m ⊔ n) ⊓ m
-                 ∼⟨ ⊓-comm (m ⊔ n) m ⟩
+                 ≈⟨ ⊓-comm (m ⊔ n) m ⟩
     m ⊓ (m ⊔ n)
-                 ∼⟨ proj₂ absorptive-⊔-⊓ m n ⟩
+                 ≈⟨ proj₂ absorptive-⊔-⊓ m n ⟩
     m
                  ∎
 
@@ -355,9 +354,9 @@ abstract
   m+n∸n≡m zero    (suc n) = m+n∸n≡m zero n
   m+n∸n≡m (suc m) (suc n) = begin
     m + suc n ∸ n
-                   ∼⟨ ≡-cong (\x -> x ∸ n) (m+1+n≡1+m+n m n) ⟩
+                   ≈⟨ ≡-cong (\x -> x ∸ n) (m+1+n≡1+m+n m n) ⟩
     suc m + n ∸ n
-                   ∼⟨ m+n∸n≡m (suc m) n ⟩
+                   ≈⟨ m+n∸n≡m (suc m) n ⟩
     suc m
                    ∎
 
@@ -372,32 +371,32 @@ abstract
   i∸k∸j+j∸k≡i+j∸k : forall i j k -> i ∸ (k ∸ j) + (j ∸ k) ≡ i + j ∸ k
   i∸k∸j+j∸k≡i+j∸k zero j k = begin
     0 ∸ (k ∸ j) + (j ∸ k)
-                           ∼⟨ ≡-cong (\x -> x + (j ∸ k))
+                           ≈⟨ ≡-cong (\x -> x + (j ∸ k))
                                      (0∸n≡0 (k ∸ j)) ⟩
     0 + (j ∸ k)
-                           ∼⟨ byDef ⟩
+                           ≈⟨ byDef ⟩
     j ∸ k
                            ∎
   i∸k∸j+j∸k≡i+j∸k (suc i) j zero = begin
     suc i ∸ (0 ∸ j) + j
-                         ∼⟨ ≡-cong (\x -> suc i ∸ x + j) (0∸n≡0 j) ⟩
+                         ≈⟨ ≡-cong (\x -> suc i ∸ x + j) (0∸n≡0 j) ⟩
     suc i ∸ 0 + j
-                         ∼⟨ byDef ⟩
+                         ≈⟨ byDef ⟩
     suc (i + j)
                          ∎
   i∸k∸j+j∸k≡i+j∸k (suc i) zero (suc k) = begin
     i ∸ k + 0
-               ∼⟨ proj₂ +-identity _ ⟩
+               ≈⟨ proj₂ +-identity _ ⟩
     i ∸ k
-               ∼⟨ ≡-cong (\x -> x ∸ k)
+               ≈⟨ ≡-cong (\x -> x ∸ k)
                          (≡-sym (proj₂ +-identity _)) ⟩
     i + 0 ∸ k
                ∎
   i∸k∸j+j∸k≡i+j∸k (suc i) (suc j) (suc k) = begin
     suc i ∸ (k ∸ j) + (j ∸ k)
-                               ∼⟨ i∸k∸j+j∸k≡i+j∸k (suc i) j k ⟩
+                               ≈⟨ i∸k∸j+j∸k≡i+j∸k (suc i) j k ⟩
     suc i + j ∸ k
-                               ∼⟨ ≡-cong (\x -> x ∸ k)
+                               ≈⟨ ≡-cong (\x -> x ∸ k)
                                          (≡-sym (m+1+n≡1+m+n i j)) ⟩
     i + suc j ∸ k
                                ∎

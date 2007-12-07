@@ -18,8 +18,7 @@ open import Relation.Binary.PropositionalEquality
 open import Data.Product
 import Algebra.RingSolver.Simple as Solver
 
-import Relation.Binary.EqReasoning
-open Relation.Binary.EqReasoning Bool-preorder
+import Relation.Binary.EqReasoning as EqR; open EqR Bool-setoid
 
 ------------------------------------------------------------------------
 -- Duality
@@ -72,11 +71,11 @@ abstract
     distʳ x y z =
                       begin
        (y ∨ z) ∧ x
-                      ∼⟨ ∧-comm (y ∨ z) x ⟩
+                      ≈⟨ ∧-comm (y ∨ z) x ⟩
        x ∧ (y ∨ z)
-                      ∼⟨ distˡ x y z ⟩
+                      ≈⟨ distˡ x y z ⟩
        x ∧ y ∨ x ∧ z
-                      ∼⟨ ≡-cong₂ _∨_ (∧-comm x y) (∧-comm x z) ⟩
+                      ≈⟨ ≡-cong₂ _∨_ (∧-comm x y) (∧-comm x z) ⟩
        y ∧ x ∨ z ∧ x
                       ∎
 
@@ -144,11 +143,11 @@ abstract
     distʳ x y z =
                           begin
        (y ∧ z) ∨ x
-                          ∼⟨ ∨-comm (y ∧ z) x ⟩
+                          ≈⟨ ∨-comm (y ∧ z) x ⟩
        x ∨ (y ∧ z)
-                          ∼⟨ distˡ x y z ⟩
+                          ≈⟨ distˡ x y z ⟩
        (x ∨ y) ∧ (x ∨ z)
-                          ∼⟨ ≡-cong₂ _∧_ (∨-comm x y) (∨-comm x z) ⟩
+                          ≈⟨ ≡-cong₂ _∧_ (∨-comm x y) (∨-comm x z) ⟩
        (y ∨ x) ∧ (z ∨ x)
                           ∎
 
