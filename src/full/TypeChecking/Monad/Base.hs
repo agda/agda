@@ -591,6 +591,7 @@ data TypeError
 	    --	 depend on and the paratemeter that it wants to depend on.
 	| MetaOccursInItself MetaId
 	| GenericError String
+        | BuiltinMustBeConstructor String A.Expr
 	| NoSuchBuiltinName String
 	| DuplicateBuiltinBinding String Term Term
 	| NoBindingForBuiltin String

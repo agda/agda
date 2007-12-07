@@ -78,6 +78,7 @@ errorString err = case err of
     AmbiguousParseForLHS _ _		       -> "AmbiguousParseForLHS"
     BothWithAndRHS                             -> "BothWithAndRHS"
     BuiltinInParameterisedModule _	       -> "BuiltinInParameterisedModule"
+    BuiltinMustBeConstructor _ _               -> "BuiltinMustBeConstructor"
     ClashingDefinition _ _		       -> "ClashingDefinition"
     ClashingFileNamesFor _ _		       -> "ClashingFileNamesFor"
     ClashingImport _ _			       -> "ClashingImport"
@@ -249,6 +250,8 @@ instance PrettyTCM TypeError where
 
 	    MetaOccursInItself m -> fsep $
 		pwords "Cannot construct infinite solution of metavariable" ++ [prettyTCM $ MetaV m []]
+            BuiltinMustBeConstructor s e -> fsep $
+                [prettyA e] ++ pwords "must be a constructor in the binding to builtin" ++ [text s]
 	    NoSuchBuiltinName s -> fsep $
 		pwords "There is no built-in thing called" ++ [text s]
 	    DuplicateBuiltinBinding b x y -> fsep $

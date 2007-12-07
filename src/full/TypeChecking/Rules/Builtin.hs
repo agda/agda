@@ -5,6 +5,7 @@ module TypeChecking.Rules.Builtin where
 import Control.Applicative
 import Control.Monad
 import Control.Monad.Error
+import Data.Maybe
 
 import qualified Syntax.Abstract as A
 import Syntax.Internal
@@ -244,6 +245,26 @@ builtinPrimitives =
 	    xs <- mapM freshName_ xs
 	    addCtxs xs (Arg NotHidden nat) $ f (@@) zero suc (==) choice
 
+-- | Builtin constructors
+builtinConstructors :: [(String, A.Expr -> TCM ())]
+builtinConstructors =
+  [ (builtinNil,   bindBuiltinNil               )
+  , (builtinCons,  bindBuiltinCons              )
+  , (builtinZero,  bindBuiltinZero              )
+  , (builtinSuc,   bindBuiltinSuc               )
+  , (builtinTrue,  bindBuiltinBool builtinTrue  )
+  , (builtinFalse, bindBuiltinBool builtinFalse )
+  ]
+
+-- | Bind a builtin constructor. Pre-condition: argument is an element of
+--   builtinConstructors.
+bindConstructor :: String -> (A.Expr -> TCM ()) -> A.Expr -> TCM ()
+bindConstructor s bind (A.ScopedExpr scope e) = do
+  setScope scope
+  bindConstructor s bind e
+bindConstructor s bind e@(A.Con _) = bind e
+bindConstructor s _ e              = typeError $ BuiltinMustBeConstructor s e
+
 -- | Bind a builtin thing to an expression.
 bindBuiltin :: String -> A.Expr -> TCM ()
 bindBuiltin b e = do
@@ -252,16 +273,11 @@ bindBuiltin b e = do
     bind b e
     where
 	bind b e
-	    | elem b builtinTypes		 = bindBuiltinType b e
-	    | elem b [builtinTrue, builtinFalse] = bindBuiltinBool b e
-	    | elem b [builtinList, builtinIO]	 = bindBuiltinType1 b e
-	    | b == builtinNil			 = bindBuiltinNil e
-	    | b == builtinCons			 = bindBuiltinCons e
-	    | b == builtinZero			 = bindBuiltinZero e
-	    | b == builtinSuc			 = bindBuiltinSuc e
-	    | Just (s,v) <- lookup b builtinPrimitives =
-		bindBuiltinPrimitive s b e v
-	    | b == builtinEquality		 = bindBuiltinEqual e
-	    | b == builtinRefl			 = bindBuiltinRefl e
-	    | otherwise				 = typeError $ NoSuchBuiltinName b
+	    | elem b builtinTypes                        = bindBuiltinType b e
+	    | elem b [builtinList, builtinIO]            = bindBuiltinType1 b e
+            | Just bind  <- lookup b builtinConstructors = bindConstructor b bind e
+	    | Just (s,v) <- lookup b builtinPrimitives   = bindBuiltinPrimitive s b e v
+	    | b == builtinEquality		         = bindBuiltinEqual e
+            | b == builtinRefl                           = bindBuiltinRefl e
+	    | otherwise                                  = typeError $ NoSuchBuiltinName b
 
