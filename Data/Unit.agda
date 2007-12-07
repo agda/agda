@@ -68,7 +68,7 @@ _ ⊤-≤? _ = yes _
   antisym _ _ = ≡-refl
 
 ⊤-decSetoid : DecSetoid
-⊤-decSetoid = DecTotalOrder.decSetoid ⊤-decTotalOrder
+⊤-decSetoid = DecTotalOrder.Eq.decSetoid ⊤-decTotalOrder
 
 ⊤-poset : Poset
 ⊤-poset = DecTotalOrder.poset ⊤-decTotalOrder
