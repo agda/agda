@@ -51,18 +51,28 @@ checkRecDef i name ps contel fields =
           extWithR ret   = underAbstraction (Arg NotHidden rect) (Abs "r" ()) $ \_ -> ret
           ext (Arg h (x, t)) = addCtx x (Arg h t)
 
+      let getName (A.Field _ x _)      = [x]
+	  getName (A.ScopedDecl _ [f]) = getName f
+	  getName _		       = []
+
       ctx <- (reverse . map hide . take (size tel)) <$> getContext
 
       -- We have to rebind the parameters to make them hidden
       -- Check the field telescope
-      contype <- isType_ contel
+      contype <- instantiateFull =<< isType_ contel
       let TelV ftel _ = telView contype
 
       escapeContext (size tel) $ flip (foldr ext) ctx $ extWithR $ do
 	reportSDoc "tc.rec.def" 10 $ sep
 	  [ text "record section:"
-	  , nest 2 $ prettyTCM m <+> (prettyTCM =<< getContextTelescope)
+	  , nest 2 $ sep
+            [ prettyTCM m <+> (prettyTCM =<< getContextTelescope)
+            , fsep $ punctuate comma $ map (text . show . getName) fields
+            ]
 	  ]
+        reportSDoc "tc.rec.def" 15 $ nest 2 $ vcat
+          [ text "field tel =" <+> prettyTCM ftel
+          ]
 	addSection m (size tel')
 
         -- Check the types of the fields
@@ -72,9 +82,6 @@ checkRecDef i name ps contel fields =
       -- Check that the fields fit inside the sort
       telePi ftel t0 `fitsIn` s
 
-      let getName (A.Field _ x _)      = [x]
-	  getName (A.ScopedDecl _ [f]) = getName f
-	  getName _		       = []
       addConstant name $ Defn name t0 (defaultDisplayForm name) 0
 		       $ Record (size tel) Nothing
 				(concatMap getName fields) ftel s
@@ -98,8 +105,8 @@ checkRecordProjections m q tel ftel s fs = checkProjs EmptyTel ftel fs
   where
     checkProjs :: Telescope -> Telescope -> [A.Declaration] -> TCM ()
     checkProjs _ _ [] = return ()
-    checkProjs ftel1 ftel2 (A.ScopedDecl scope [f] : fs) =
-      setScope scope >> checkProjs ftel1 ftel2 (f : fs)
+    checkProjs ftel1 ftel2 (A.ScopedDecl scope fs' : fs) =
+      setScope scope >> checkProjs ftel1 ftel2 (fs' ++ fs)
     checkProjs ftel1 (ExtendTel (Arg _ _) ftel2) (A.Field _ x t : fs) = do
       -- check the type (in the context of the telescope)
       -- the previous fields will be free in 
