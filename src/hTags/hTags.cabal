@@ -1,0 +1,14 @@
+name: hTags
+version: 0.1
+cabal-version: >= 1.2 && < 2
+author: Ulf Norell
+
+executable hTags
+  main-is:       Main.hs
+  build-depends: ghc >= 6.8 && < 6.10,
+                 base >= 3,
+                 filepath >= 1.1 && < 2,
+                 directory >= 1.0 && < 2,
+                 process >= 1.0 && < 2
+  ghc-options:   -fwarn-incomplete-patterns -O
+

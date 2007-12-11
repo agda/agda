@@ -47,3 +47,4 @@ src/rts/dist
 \.(installed|inplace)-pkg-config
 examples/cbs/agda1
 \.prof$
+src/hTags/dist$
