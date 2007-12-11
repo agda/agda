@@ -103,13 +103,14 @@ $(OUT_P)/%.hs : %.y
 
 ## Tags ###################################################################
 
-ifeq ($(HAVE_HASKTAGS),Yes)
-tags : $(src_files)
-	$(HASKTAGS) -c $(src_files)
-	@mv tags tags.tmp
-	@sort tags.tmp > tags
-	@rm tags.tmp
+hTags=../hTags/dist/build/hTags/hTags
 
-TAGS : $(src_files)
-	$(HASKTAGS) -e $(src_files)
-endif
+$(hTags) :
+	$(MAKE) -C ../hTags
+
+tags : $(src_files) $(hTags)
+	$(hTags) -c $(src_files)
+
+TAGS : $(src_files) $(hTags)
+	$(hTags) -e $(src_files)
+
