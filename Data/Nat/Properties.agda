@@ -209,7 +209,7 @@ module ℕ-semiringSolver =
   Solver (ACR.fromCommutativeSemiring ℕ-commutativeSemiring)
 
 ------------------------------------------------------------------------
--- (ℕ, ⊓, ⊔) is a lattice
+-- (ℕ, ⊔, 0) is a commutative monoid
 
 abstract
  private
@@ -241,6 +241,42 @@ abstract
   ⊔-assoc (suc m) (suc n) zero    = byDef
   ⊔-assoc (suc m) (suc n) (suc o) = ≡-cong suc $ ⊔-assoc m n o
 
+abstract
+
+  ℕ-⊔-0-isCommutativeMonoid : IsCommutativeMonoid ℕ-setoid _⊔_ 0
+  ℕ-⊔-0-isCommutativeMonoid = record
+    { isMonoid = record
+        { isSemigroup = record
+            { assoc = ⊔-assoc
+            ; •-pres-≈ = ≡-cong₂ _⊔_
+            }
+        ; identity = ⊔-identity
+        }
+    ; comm = ⊔-comm
+    }
+
+ℕ-⊔-0-commutativeMonoid : CommutativeMonoid
+ℕ-⊔-0-commutativeMonoid = record
+  { setoid              = ℕ-setoid
+  ; _•_                 = _⊔_
+  ; ε                   = 0
+  ; isCommutativeMonoid = ℕ-⊔-0-isCommutativeMonoid
+  }
+
+------------------------------------------------------------------------
+-- (ℕ, ⊔, ⊓, 0) is a near-semiring
+
+-- In fact it is something stronger: a semiring without one.
+
+abstract
+ private
+
+  ⊓-assoc : Associative _⊓_
+  ⊓-assoc zero    _       _       = byDef
+  ⊓-assoc (suc m) zero    o       = byDef
+  ⊓-assoc (suc m) (suc n) zero    = byDef
+  ⊓-assoc (suc m) (suc n) (suc o) = ≡-cong suc $ ⊓-assoc m n o
+
   ⊓-zero : Zero 0 _⊓_
   ⊓-zero = (\_ -> byDef) , n⊓0≡0
     where
@@ -261,12 +297,6 @@ abstract
     ≈⟨ byDef ⟩
       suc n ⊓ suc m
     ∎
-
-  ⊓-assoc : Associative _⊓_
-  ⊓-assoc zero    _       _       = byDef
-  ⊓-assoc (suc m) zero    o       = byDef
-  ⊓-assoc (suc m) (suc n) zero    = byDef
-  ⊓-assoc (suc m) (suc n) (suc o) = ≡-cong suc $ ⊓-assoc m n o
 
   absorptive-⊓-⊔ : Absorptive _⊓_ _⊔_
   absorptive-⊓-⊔ = abs-⊓-⊔ , abs-⊔-⊓
@@ -297,6 +327,32 @@ abstract
     0 ⊓ (n ⊔ o)    ≈⟨ byDef ⟩
     0 ⊓ n ⊔ 0 ⊓ o  ≈⟨ ⊓-comm 0 n ⟨ ≡-cong₂ _⊔_ ⟩ ⊓-comm 0 o ⟩
     n ⊓ 0 ⊔ o ⊓ 0  ∎
+
+abstract
+
+  ℕ-⊔-⊓-0-isNearSemiring : IsNearSemiring ℕ-setoid _⊔_ _⊓_ 0
+  ℕ-⊔-⊓-0-isNearSemiring = record
+    { +-isMonoid = IsCommutativeMonoid.isMonoid
+                     _ ℕ-⊔-0-isCommutativeMonoid
+    ; *-isSemigroup = record
+        { assoc    = ⊓-assoc
+        ; •-pres-≈ = ≡-cong₂ _⊓_
+        }
+    ; distribʳ = distribʳ-⊓-⊔
+    ; zeroˡ    = proj₁ ⊓-zero
+    }
+
+ℕ-⊔-⊓-0-nearSemiring : NearSemiring
+ℕ-⊔-⊓-0-nearSemiring = record
+  { setoid         = ℕ-setoid
+  ; _+_            = _⊔_
+  ; _*_            = _⊓_
+  ; 0#             = 0
+  ; isNearSemiring = ℕ-⊔-⊓-0-isNearSemiring
+  }
+
+------------------------------------------------------------------------
+-- (ℕ, ⊓, ⊔) is a lattice
 
 abstract
 
