@@ -209,9 +209,7 @@ module ℕ-semiringSolver =
   Solver (ACR.fromCommutativeSemiring ℕ-commutativeSemiring)
 
 ------------------------------------------------------------------------
--- (ℕ, ⊔, ⊓) is a lattice
-
--- Can we make use of duality in some nice way here?
+-- (ℕ, ⊓, ⊔) is a lattice
 
 abstract
  private
@@ -270,8 +268,8 @@ abstract
   ⊓-assoc (suc m) (suc n) zero    = byDef
   ⊓-assoc (suc m) (suc n) (suc o) = ≡-cong suc $ ⊓-assoc m n o
 
-  absorptive-⊔-⊓ : Absorptive _⊔_ _⊓_
-  absorptive-⊔-⊓ = abs-⊔-⊓ , abs-⊓-⊔
+  absorptive-⊓-⊔ : Absorptive _⊓_ _⊔_
+  absorptive-⊓-⊔ = abs-⊓-⊔ , abs-⊔-⊓
     where
     abs-⊔-⊓ : _⊔_ Absorbs _⊓_
     abs-⊔-⊓ zero    n       = byDef
@@ -290,40 +288,37 @@ abstract
       m
                    ∎
 
-  distribˡ-⊔-⊓ : _⊔_ DistributesOverˡ _⊓_
-  distribˡ-⊔-⊓ zero    n       o       = byDef
-  distribˡ-⊔-⊓ (suc m) zero    o       = ≡-sym $ proj₂ absorptive-⊔-⊓ (suc m) o
-  distribˡ-⊔-⊓ (suc m) (suc n) (suc o) = ≡-cong suc $ distribˡ-⊔-⊓ m n o
-  distribˡ-⊔-⊓ (suc m) (suc n) zero    = ≡-cong suc $ ≡-sym $
-                 begin
-    (m ⊔ n) ⊓ m
-                 ≈⟨ ⊓-comm (m ⊔ n) m ⟩
-    m ⊓ (m ⊔ n)
-                 ≈⟨ proj₂ absorptive-⊔-⊓ m n ⟩
-    m
-                 ∎
+  distribʳ-⊓-⊔ : _⊓_ DistributesOverʳ _⊔_
+  distribʳ-⊓-⊔ (suc m) (suc n) (suc o) = ≡-cong suc $ distribʳ-⊓-⊔ m n o
+  distribʳ-⊓-⊔ (suc m) (suc n) zero    = ≡-cong suc $ byDef
+  distribʳ-⊓-⊔ (suc m) zero    o       = byDef
+  distribʳ-⊓-⊔ zero    n       o       = begin
+    (n ⊔ o) ⊓ 0    ≈⟨ ⊓-comm (n ⊔ o) 0 ⟩
+    0 ⊓ (n ⊔ o)    ≈⟨ byDef ⟩
+    0 ⊓ n ⊔ 0 ⊓ o  ≈⟨ ⊓-comm 0 n ⟨ ≡-cong₂ _⊔_ ⟩ ⊓-comm 0 o ⟩
+    n ⊓ 0 ⊔ o ⊓ 0  ∎
 
 abstract
 
-  ℕ-isDistributiveLattice : IsDistributiveLattice ℕ-setoid _⊔_ _⊓_
+  ℕ-isDistributiveLattice : IsDistributiveLattice ℕ-setoid _⊓_ _⊔_
   ℕ-isDistributiveLattice = record
     { isLattice = record
-        { ∨-comm     = ⊔-comm
-        ; ∨-assoc    = ⊔-assoc
-        ; ∨-pres-≈   = ≡-cong₂ _⊔_
-        ; ∧-comm     = ⊓-comm
-        ; ∧-assoc    = ⊓-assoc
-        ; ∧-pres-≈   = ≡-cong₂ _⊓_
-        ; absorptive = absorptive-⊔-⊓
+        { ∨-comm     = ⊓-comm
+        ; ∨-assoc    = ⊓-assoc
+        ; ∨-pres-≈   = ≡-cong₂ _⊓_
+        ; ∧-comm     = ⊔-comm
+        ; ∧-assoc    = ⊔-assoc
+        ; ∧-pres-≈   = ≡-cong₂ _⊔_
+        ; absorptive = absorptive-⊓-⊔
         }
-    ; ∨-∧-distribˡ = distribˡ-⊔-⊓
+    ; ∨-∧-distribʳ = distribʳ-⊓-⊔
     }
 
 ℕ-distributiveLattice : DistributiveLattice
 ℕ-distributiveLattice = record
   { setoid                = ℕ-setoid
-  ; _∨_                   = _⊔_
-  ; _∧_                   = _⊓_
+  ; _∨_                   = _⊓_
+  ; _∧_                   = _⊔_
   ; isDistributiveLattice = ℕ-isDistributiveLattice
   }
 

@@ -197,7 +197,7 @@ record IsLattice (∨ ∧ : Op₂) : Set where
 record IsDistributiveLattice (∨ ∧ : Op₂) : Set where
   field
     isLattice    : IsLattice ∨ ∧
-    ∨-∧-distribˡ : ∨ DistributesOverˡ ∧
+    ∨-∧-distribʳ : ∨ DistributesOverʳ ∧
 
   open IsLattice isLattice public
 

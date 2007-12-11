@@ -235,7 +235,7 @@ abstract
             ; ∧-pres-≈   = ≡-cong₂ _∧_
             ; absorptive = absorptive
             }
-        ; ∨-∧-distribˡ = proj₁ distrib-∨-∧
+        ; ∨-∧-distribʳ = proj₂ distrib-∨-∧
         }
     ; ∨-complementʳ = proj₂ not-∨-inverse
     ; ∧-complementʳ = proj₂ not-∧-inverse

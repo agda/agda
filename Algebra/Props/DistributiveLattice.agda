@@ -21,12 +21,12 @@ abstract
   ∨-∧-distrib : _∨_ DistributesOver _∧_
   ∨-∧-distrib = ∨-∧-distribˡ , ∨-∧-distribʳ
     where
-    ∨-∧-distribʳ : _∨_ DistributesOverʳ _∧_
-    ∨-∧-distribʳ x y z = begin
-      y ∧ z ∨ x          ≈⟨ ∨-comm _ _ ⟩
-      x ∨ y ∧ z          ≈⟨ ∨-∧-distribˡ _ _ _ ⟩
-      (x ∨ y) ∧ (x ∨ z)  ≈⟨ ∨-comm _ _ ⟨ ∧-pres-≈ ⟩ ∨-comm _ _ ⟩
-      (y ∨ x) ∧ (z ∨ x)  ∎
+    ∨-∧-distribˡ : _∨_ DistributesOverˡ _∧_
+    ∨-∧-distribˡ x y z = begin
+      x ∨ y ∧ z          ≈⟨ ∨-comm _ _ ⟩
+      y ∧ z ∨ x          ≈⟨ ∨-∧-distribʳ _ _ _ ⟩
+      (y ∨ x) ∧ (z ∨ x)  ≈⟨ ∨-comm _ _ ⟨ ∧-pres-≈ ⟩ ∨-comm _ _ ⟩
+      (x ∨ y) ∧ (x ∨ z)  ∎
 
   ∧-∨-distrib : _∧_ DistributesOver _∨_
   ∧-∨-distrib = ∧-∨-distribˡ , ∧-∨-distribʳ
@@ -53,7 +53,7 @@ abstract
   ∧-∨-isDistributiveLattice : IsDistributiveLattice _∧_ _∨_
   ∧-∨-isDistributiveLattice = record
     { isLattice    = ∧-∨-isLattice
-    ; ∨-∧-distribˡ = proj₁ ∧-∨-distrib
+    ; ∨-∧-distribʳ = proj₂ ∧-∨-distrib
     }
 
 ∧-∨-distributiveLattice : DistributiveLattice
