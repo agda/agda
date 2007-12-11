@@ -170,25 +170,25 @@ abstract
   ℕ-isCommutativeSemiring : IsCommutativeSemiring ℕ-setoid _+_ _*_ 0 1
   ℕ-isCommutativeSemiring = record
     { isSemiring = record
-      { +-isCommutativeMonoid = record
-        { isMonoid = record
-          { isSemigroup = record
-            { assoc    = +-assoc
-            ; •-pres-≈ = ≡-cong₂ _+_
+      { isSemiringWithoutOne = record
+        { +-isCommutativeMonoid = record
+          { isMonoid = record
+            { isSemigroup = record
+              { assoc    = +-assoc
+              ; •-pres-≈ = ≡-cong₂ _+_
+              }
+            ; identity = +-identity
             }
-          ; identity = +-identity
+          ; comm = +-comm
           }
-        ; comm = +-comm
+        ; *-isSemigroup = record
+            { assoc    = *-assoc
+            ; •-pres-≈ = ≡-cong₂ _*_
+            }
+        ; distrib = distrib-*-+
+        ; zero = *-zero
         }
-      ; *-isMonoid = record
-        { isSemigroup = record
-          { assoc    = *-assoc
-          ; •-pres-≈ = ≡-cong₂ _*_
-          }
-        ; identity = *-identity
-        }
-      ; distrib = distrib-*-+
-      ; zero = *-zero
+      ; *-identity = *-identity
       }
     ; *-comm = *-comm
     }

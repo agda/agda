@@ -92,10 +92,10 @@ record IsNearSemiring (+ * : Op₂) (0# : carrier) : Set where
                   ; •-pres-≈ to *-pres-≈
                   )
 
-record IsSemiring (+ * : Op₂) (0# 1# : carrier) : Set where
+record IsSemiringWithoutOne (+ * : Op₂) (0# : carrier) : Set where
   field
     +-isCommutativeMonoid : IsCommutativeMonoid + 0#
-    *-isMonoid            : IsMonoid * 1#
+    *-isSemigroup         : IsSemigroup *
     distrib               : * DistributesOver +
     zero                  : Zero 0# *
 
@@ -108,11 +108,9 @@ record IsSemiring (+ * : Op₂) (0# 1# : carrier) : Set where
                   ; comm        to +-comm
                   )
 
-  open IsMonoid *-isMonoid public
+  open IsSemigroup *-isSemigroup public
          renaming ( assoc       to *-assoc
                   ; •-pres-≈    to *-pres-≈
-                  ; isSemigroup to *-isSemigroup
-                  ; identity    to *-identity
                   )
 
   isNearSemiring : IsNearSemiring + * 0#
@@ -121,6 +119,19 @@ record IsSemiring (+ * : Op₂) (0# 1# : carrier) : Set where
     ; *-isSemigroup = *-isSemigroup
     ; distribʳ      = proj₂ distrib
     ; zeroˡ         = proj₁ zero
+    }
+
+record IsSemiring (+ * : Op₂) (0# 1# : carrier) : Set where
+  field
+    isSemiringWithoutOne : IsSemiringWithoutOne + * 0#
+    *-identity           : Identity 1# *
+
+  open IsSemiringWithoutOne isSemiringWithoutOne public
+
+  *-isMonoid : IsMonoid * 1#
+  *-isMonoid = record
+    { isSemigroup = *-isSemigroup
+    ; identity    = *-identity
     }
 
 record IsCommutativeSemiring (+ * : Op₂) (0# 1# : carrier) : Set where
@@ -189,12 +200,18 @@ record IsRing (_+_ _*_ : Op₂) (-_ : Op₁) (0# 1# : carrier) : Set where
       (x * 0#) + - (x * 0#)               ≈⟨ proj₂ --inverse _ ⟩
       0#                                  ∎
 
-  isSemiring : IsSemiring _+_ _*_ 0# 1#
-  isSemiring = record
+  isSemiringWithoutOne : IsSemiringWithoutOne _+_ _*_ 0#
+  isSemiringWithoutOne = record
     { +-isCommutativeMonoid = +-isCommutativeMonoid
-    ; *-isMonoid            = *-isMonoid
+    ; *-isSemigroup         = *-isSemigroup
     ; distrib               = distrib
     ; zero                  = zero
+    }
+
+  isSemiring : IsSemiring _+_ _*_ 0# 1#
+  isSemiring = record
+    { isSemiringWithoutOne = isSemiringWithoutOne
+    ; *-identity           = *-identity
     }
 
   open IsSemiring isSemiring using (isNearSemiring)

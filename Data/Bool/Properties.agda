@@ -84,25 +84,25 @@ abstract
     : IsCommutativeSemiring Bool-setoid _∨_ _∧_ false true
   Bool-isCommutativeSemiring-∨-∧ = record
     { isSemiring = record
-      { +-isCommutativeMonoid = record
-        { isMonoid = record
-          { isSemigroup = record
-            { assoc    = ∨-assoc
-            ; •-pres-≈ = ≡-cong₂ _∨_
+      { isSemiringWithoutOne = record
+        { +-isCommutativeMonoid = record
+          { isMonoid = record
+            { isSemigroup = record
+              { assoc    = ∨-assoc
+              ; •-pres-≈ = ≡-cong₂ _∨_
+              }
+            ; identity = ∨-identity
             }
-          ; identity = ∨-identity
+          ; comm = ∨-comm
           }
-        ; comm = ∨-comm
+        ; *-isSemigroup = record
+            { assoc    = ∧-assoc
+            ; •-pres-≈ = ≡-cong₂ _∧_
+            }
+        ; distrib = distrib-∧-∨
+        ; zero    = zero-∧
         }
-      ; *-isMonoid = record
-        { isSemigroup = record
-          { assoc    = ∧-assoc
-          ; •-pres-≈ = ≡-cong₂ _∧_
-          }
-        ; identity = ∧-identity
-        }
-      ; distrib = distrib-∧-∨
-      ; zero    = zero-∧
+      ; *-identity = ∧-identity
       }
     ; *-comm = ∧-comm
     }
@@ -154,25 +154,25 @@ abstract
     : IsCommutativeSemiring Bool-setoid _∧_ _∨_ true false
   Bool-isCommutativeSemiring-∧-∨ = record
     { isSemiring = record
-      { +-isCommutativeMonoid = record
-        { isMonoid = record
-          { isSemigroup = record
-            { assoc    = ∧-assoc
-            ; •-pres-≈ = ≡-cong₂ _∧_
+      { isSemiringWithoutOne = record
+        { +-isCommutativeMonoid = record
+          { isMonoid = record
+            { isSemigroup = record
+              { assoc    = ∧-assoc
+              ; •-pres-≈ = ≡-cong₂ _∧_
+              }
+            ; identity = ∧-identity
             }
-          ; identity = ∧-identity
+          ; comm = ∧-comm
           }
-        ; comm = ∧-comm
+        ; *-isSemigroup = record
+            { assoc    = ∨-assoc
+            ; •-pres-≈ = ≡-cong₂ _∨_
+            }
+        ; distrib = distrib-∨-∧
+        ; zero    = zero-∨
         }
-      ; *-isMonoid = record
-        { isSemigroup = record
-          { assoc    = ∨-assoc
-          ; •-pres-≈ = ≡-cong₂ _∨_
-          }
-        ; identity = ∨-identity
-        }
-      ; distrib = distrib-∨-∧
-      ; zero    = zero-∨
+      ; *-identity = ∨-identity
       }
     ; *-comm = ∨-comm
     }
