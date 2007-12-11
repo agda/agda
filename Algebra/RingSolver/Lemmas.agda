@@ -3,7 +3,7 @@
 ------------------------------------------------------------------------
 
 -- Note that these proofs use all "almost commutative ring" properties
--- except for the fact that 0# is a zero for *.
+-- except for zero and --pres-≈.
 
 open import Algebra
 open import Algebra.RingSolver.AlmostCommutativeRing
