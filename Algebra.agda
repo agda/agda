@@ -120,7 +120,38 @@ record AbelianGroup : Set1 where
     }
 
 ------------------------------------------------------------------------
--- (Commutative) semirings
+-- (Commutative/near) semirings
+
+record NearSemiring : Set1 where
+  infixl 7 _*_
+  infixl 6 _+_
+  field
+    setoid         : Setoid
+    _+_            : P.Op₂ setoid
+    _*_            : P.Op₂ setoid
+    0#             : Setoid.carrier setoid
+    isNearSemiring : IsNearSemiring setoid _+_ _*_ 0#
+
+  open Setoid setoid public
+  open IsNearSemiring setoid isNearSemiring public
+
+  +-monoid : Monoid
+  +-monoid = record
+    { setoid   = setoid
+    ; _•_      = _+_
+    ; ε        = 0#
+    ; isMonoid = +-isMonoid
+    }
+
+  open Monoid +-monoid public
+         using () renaming (semigroup to +-semigroup)
+
+  *-semigroup : Semigroup
+  *-semigroup = record
+    { setoid      = setoid
+    ; _•_         = _*_
+    ; isSemigroup = *-isSemigroup
+    }
 
 record Semiring : Set1 where
   infixl 7 _*_
@@ -160,6 +191,15 @@ record Semiring : Set1 where
   open Monoid *-monoid public
          using () renaming (semigroup to *-semigroup)
 
+  nearSemiring : NearSemiring
+  nearSemiring = record
+    { setoid         = setoid
+    ; _+_            = _+_
+    ; _*_            = _*_
+    ; 0#             = 0#
+    ; isNearSemiring = isNearSemiring
+    }
+
 record CommutativeSemiring : Set1 where
   infixl 7 _*_
   infixl 6 _+_
@@ -187,6 +227,7 @@ record CommutativeSemiring : Set1 where
   open Semiring semiring public
          using ( +-semigroup; +-monoid; +-commutativeMonoid
                ; *-semigroup; *-monoid
+               ; nearSemiring
                )
 
   *-commutativeMonoid : CommutativeMonoid
@@ -255,6 +296,7 @@ record Ring : Set1 where
   open Semiring semiring public
          using ( +-semigroup; +-monoid; +-commutativeMonoid
                ; *-semigroup; *-monoid
+               ; nearSemiring
                )
 
   rawRing : RawRing
@@ -308,7 +350,7 @@ record CommutativeRing : Set1 where
   open CommutativeSemiring commutativeSemiring public
          using ( +-semigroup; +-monoid; +-commutativeMonoid
                ; *-semigroup; *-monoid; *-commutativeMonoid
-               ; semiring
+               ; nearSemiring; semiring
                )
 
 ------------------------------------------------------------------------

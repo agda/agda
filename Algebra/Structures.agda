@@ -73,6 +73,25 @@ record IsAbelianGroup (• : Op₂) (ε : carrier) (⁻¹ : Op₁) : Set where
 ----------------------------------------------------------------------
 -- Two binary operations
 
+record IsNearSemiring (+ * : Op₂) (0# : carrier) : Set where
+  field
+    +-isMonoid    : IsMonoid + 0#
+    *-isSemigroup : IsSemigroup *
+    distribʳ      : * DistributesOverʳ +
+    zeroˡ         : LeftZero 0# *
+
+  open IsMonoid +-isMonoid public
+         renaming ( assoc       to +-assoc
+                  ; •-pres-≈    to +-pres-≈
+                  ; isSemigroup to +-isSemigroup
+                  ; identity    to +-identity
+                  )
+
+  open IsSemigroup *-isSemigroup public
+         renaming ( assoc    to *-assoc
+                  ; •-pres-≈ to *-pres-≈
+                  )
+
 record IsSemiring (+ * : Op₂) (0# 1# : carrier) : Set where
   field
     +-isCommutativeMonoid : IsCommutativeMonoid + 0#
@@ -95,6 +114,14 @@ record IsSemiring (+ * : Op₂) (0# 1# : carrier) : Set where
                   ; isSemigroup to *-isSemigroup
                   ; identity    to *-identity
                   )
+
+  isNearSemiring : IsNearSemiring + * 0#
+  isNearSemiring = record
+    { +-isMonoid    = +-isMonoid
+    ; *-isSemigroup = *-isSemigroup
+    ; distribʳ      = proj₂ distrib
+    ; zeroˡ         = proj₁ zero
+    }
 
 record IsCommutativeSemiring (+ * : Op₂) (0# 1# : carrier) : Set where
   field
@@ -169,6 +196,8 @@ record IsRing (_+_ _*_ : Op₂) (-_ : Op₁) (0# 1# : carrier) : Set where
     ; distrib               = distrib
     ; zero                  = zero
     }
+
+  open IsSemiring isSemiring using (isNearSemiring)
 
 record IsCommutativeRing (+ * : Op₂) (- : Op₁) (0# 1# : carrier)
          : Set where
