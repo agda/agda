@@ -225,6 +225,36 @@ record Semiring : Set1 where
     ; isMonoid = *-isMonoid
     }
 
+record CommutativeSemiringWithoutOne : Set1 where
+  infixl 7 _*_
+  infixl 6 _+_
+  field
+    setoid                          : Setoid
+    _+_                             : P.Op₂ setoid
+    _*_                             : P.Op₂ setoid
+    0#                              : Setoid.carrier setoid
+    isCommutativeSemiringWithoutOne :
+      IsCommutativeSemiringWithoutOne setoid _+_ _*_ 0#
+
+  open Setoid setoid public
+  open IsCommutativeSemiringWithoutOne
+         setoid isCommutativeSemiringWithoutOne public
+
+  semiringWithoutOne : SemiringWithoutOne
+  semiringWithoutOne = record
+    { setoid               = setoid
+    ; _+_                  = _+_
+    ; _*_                  = _*_
+    ; 0#                   = 0#
+    ; isSemiringWithoutOne = isSemiringWithoutOne
+    }
+
+  open SemiringWithoutOne semiringWithoutOne public
+         using ( +-semigroup; +-monoid; +-commutativeMonoid
+               ; *-semigroup
+               ; nearSemiring
+               )
+
 record CommutativeSemiring : Set1 where
   infixl 7 _*_
   infixl 6 _+_
@@ -261,6 +291,15 @@ record CommutativeSemiring : Set1 where
     ; _•_                 = _*_
     ; ε                   = 1#
     ; isCommutativeMonoid = *-isCommutativeMonoid
+    }
+
+  commutativeSemiringWithoutOne : CommutativeSemiringWithoutOne
+  commutativeSemiringWithoutOne = record
+    { setoid                          = setoid
+    ; _+_                             = _+_
+    ; _*_                             = _*_
+    ; 0#                              = 0#
+    ; isCommutativeSemiringWithoutOne = isCommutativeSemiringWithoutOne
     }
 
 ------------------------------------------------------------------------
@@ -376,6 +415,7 @@ record CommutativeRing : Set1 where
          using ( +-semigroup; +-monoid; +-commutativeMonoid
                ; *-semigroup; *-monoid; *-commutativeMonoid
                ; nearSemiring; semiringWithoutOne; semiring
+               ; commutativeSemiringWithoutOne
                )
 
 ------------------------------------------------------------------------

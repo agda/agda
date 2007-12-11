@@ -134,6 +134,14 @@ record IsSemiring (+ * : Op₂) (0# 1# : carrier) : Set where
     ; identity    = *-identity
     }
 
+record IsCommutativeSemiringWithoutOne (+ * : Op₂) (0# : carrier)
+         : Set where
+  field
+    isSemiringWithoutOne : IsSemiringWithoutOne + * 0#
+    *-comm               : Commutative *
+
+  open IsSemiringWithoutOne isSemiringWithoutOne public
+
 record IsCommutativeSemiring (+ * : Op₂) (0# 1# : carrier) : Set where
   field
     isSemiring : IsSemiring + * 0# 1#
@@ -146,6 +154,13 @@ record IsCommutativeSemiring (+ * : Op₂) (0# 1# : carrier) : Set where
       { isMonoid = *-isMonoid
       ; comm     = *-comm
       }
+
+  isCommutativeSemiringWithoutOne :
+    IsCommutativeSemiringWithoutOne + * 0#
+  isCommutativeSemiringWithoutOne = record
+    { isSemiringWithoutOne = isSemiringWithoutOne
+    ; *-comm               = *-comm
+    }
 
 record IsRing (_+_ _*_ : Op₂) (-_ : Op₁) (0# 1# : carrier) : Set where
   field
@@ -229,6 +244,9 @@ record IsCommutativeRing (+ * : Op₂) (- : Op₁) (0# 1# : carrier)
     { isSemiring = isSemiring
     ; *-comm     = *-comm
     }
+
+  open IsCommutativeSemiring isCommutativeSemiring public
+         using (isCommutativeSemiringWithoutOne)
 
 record IsLattice (∨ ∧ : Op₂) : Set where
   field
