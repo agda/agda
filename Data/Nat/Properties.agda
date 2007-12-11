@@ -209,10 +209,16 @@ module ℕ-semiringSolver =
   Solver (ACR.fromCommutativeSemiring ℕ-commutativeSemiring)
 
 ------------------------------------------------------------------------
--- (ℕ, ⊔, 0) is a commutative monoid
+-- (ℕ, ⊔, ⊓, 0) is a commutative semiring without one
 
 abstract
  private
+
+  ⊔-assoc : Associative _⊔_
+  ⊔-assoc zero    _       _       = byDef
+  ⊔-assoc (suc m) zero    o       = byDef
+  ⊔-assoc (suc m) (suc n) zero    = byDef
+  ⊔-assoc (suc m) (suc n) (suc o) = ≡-cong suc $ ⊔-assoc m n o
 
   ⊔-identity : Identity 0 _⊔_
   ⊔-identity = (\_ -> byDef) , n⊔0≡n
@@ -234,42 +240,6 @@ abstract
     ≈⟨ byDef ⟩
       suc n ⊔ suc m
     ∎
-
-  ⊔-assoc : Associative _⊔_
-  ⊔-assoc zero    _       _       = byDef
-  ⊔-assoc (suc m) zero    o       = byDef
-  ⊔-assoc (suc m) (suc n) zero    = byDef
-  ⊔-assoc (suc m) (suc n) (suc o) = ≡-cong suc $ ⊔-assoc m n o
-
-abstract
-
-  ℕ-⊔-0-isCommutativeMonoid : IsCommutativeMonoid ℕ-setoid _⊔_ 0
-  ℕ-⊔-0-isCommutativeMonoid = record
-    { isMonoid = record
-        { isSemigroup = record
-            { assoc = ⊔-assoc
-            ; •-pres-≈ = ≡-cong₂ _⊔_
-            }
-        ; identity = ⊔-identity
-        }
-    ; comm = ⊔-comm
-    }
-
-ℕ-⊔-0-commutativeMonoid : CommutativeMonoid
-ℕ-⊔-0-commutativeMonoid = record
-  { setoid              = ℕ-setoid
-  ; _•_                 = _⊔_
-  ; ε                   = 0
-  ; isCommutativeMonoid = ℕ-⊔-0-isCommutativeMonoid
-  }
-
-------------------------------------------------------------------------
--- (ℕ, ⊔, ⊓, 0) is a near-semiring
-
--- In fact it is something stronger: a semiring without one.
-
-abstract
- private
 
   ⊓-assoc : Associative _⊓_
   ⊓-assoc zero    _       _       = byDef
@@ -298,6 +268,68 @@ abstract
       suc n ⊓ suc m
     ∎
 
+  distrib-⊓-⊔ : _⊓_ DistributesOver _⊔_
+  distrib-⊓-⊔ = (distribˡ-⊓-⊔ , distribʳ-⊓-⊔)
+    where
+    distribʳ-⊓-⊔ : _⊓_ DistributesOverʳ _⊔_
+    distribʳ-⊓-⊔ (suc m) (suc n) (suc o) = ≡-cong suc $ distribʳ-⊓-⊔ m n o
+    distribʳ-⊓-⊔ (suc m) (suc n) zero    = ≡-cong suc $ byDef
+    distribʳ-⊓-⊔ (suc m) zero    o       = byDef
+    distribʳ-⊓-⊔ zero    n       o       = begin
+      (n ⊔ o) ⊓ 0    ≈⟨ ⊓-comm (n ⊔ o) 0 ⟩
+      0 ⊓ (n ⊔ o)    ≈⟨ byDef ⟩
+      0 ⊓ n ⊔ 0 ⊓ o  ≈⟨ ⊓-comm 0 n ⟨ ≡-cong₂ _⊔_ ⟩ ⊓-comm 0 o ⟩
+      n ⊓ 0 ⊔ o ⊓ 0  ∎
+
+    distribˡ-⊓-⊔ : _⊓_ DistributesOverˡ _⊔_
+    distribˡ-⊓-⊔ m n o = begin
+      m ⊓ (n ⊔ o)    ≈⟨ ⊓-comm m _ ⟩
+      (n ⊔ o) ⊓ m    ≈⟨ distribʳ-⊓-⊔ m n o ⟩
+      n ⊓ m ⊔ o ⊓ m  ≈⟨ ⊓-comm n m ⟨ ≡-cong₂ _⊔_ ⟩ ⊓-comm o m ⟩
+      m ⊓ n ⊔ m ⊓ o  ∎
+
+abstract
+
+  ℕ-⊔-⊓-0-isCommutativeSemiringWithoutOne
+    : IsCommutativeSemiringWithoutOne ℕ-setoid _⊔_ _⊓_ 0
+  ℕ-⊔-⊓-0-isCommutativeSemiringWithoutOne = record
+    { isSemiringWithoutOne = record
+        { +-isCommutativeMonoid = record
+            { isMonoid = record
+                { isSemigroup = record
+                    { assoc = ⊔-assoc
+                    ; •-pres-≈ = ≡-cong₂ _⊔_
+                    }
+                ; identity = ⊔-identity
+                }
+            ; comm = ⊔-comm
+            }
+        ; *-isSemigroup = record
+            { assoc    = ⊓-assoc
+            ; •-pres-≈ = ≡-cong₂ _⊓_
+            }
+        ; distrib = distrib-⊓-⊔
+        ; zero    = ⊓-zero
+        }
+    ; *-comm = ⊓-comm
+    }
+
+ℕ-⊔-⊓-0-commutativeSemiringWithoutOne : CommutativeSemiringWithoutOne
+ℕ-⊔-⊓-0-commutativeSemiringWithoutOne = record
+  { setoid                          = ℕ-setoid
+  ; _+_                             = _⊔_
+  ; _*_                             = _⊓_
+  ; 0#                              = 0
+  ; isCommutativeSemiringWithoutOne =
+      ℕ-⊔-⊓-0-isCommutativeSemiringWithoutOne
+  }
+
+------------------------------------------------------------------------
+-- (ℕ, ⊓, ⊔) is a lattice
+
+abstract
+ private
+
   absorptive-⊓-⊔ : Absorptive _⊓_ _⊔_
   absorptive-⊓-⊔ = abs-⊓-⊔ , abs-⊔-⊓
     where
@@ -318,42 +350,6 @@ abstract
       m
                    ∎
 
-  distribʳ-⊓-⊔ : _⊓_ DistributesOverʳ _⊔_
-  distribʳ-⊓-⊔ (suc m) (suc n) (suc o) = ≡-cong suc $ distribʳ-⊓-⊔ m n o
-  distribʳ-⊓-⊔ (suc m) (suc n) zero    = ≡-cong suc $ byDef
-  distribʳ-⊓-⊔ (suc m) zero    o       = byDef
-  distribʳ-⊓-⊔ zero    n       o       = begin
-    (n ⊔ o) ⊓ 0    ≈⟨ ⊓-comm (n ⊔ o) 0 ⟩
-    0 ⊓ (n ⊔ o)    ≈⟨ byDef ⟩
-    0 ⊓ n ⊔ 0 ⊓ o  ≈⟨ ⊓-comm 0 n ⟨ ≡-cong₂ _⊔_ ⟩ ⊓-comm 0 o ⟩
-    n ⊓ 0 ⊔ o ⊓ 0  ∎
-
-abstract
-
-  ℕ-⊔-⊓-0-isNearSemiring : IsNearSemiring ℕ-setoid _⊔_ _⊓_ 0
-  ℕ-⊔-⊓-0-isNearSemiring = record
-    { +-isMonoid = IsCommutativeMonoid.isMonoid
-                     _ ℕ-⊔-0-isCommutativeMonoid
-    ; *-isSemigroup = record
-        { assoc    = ⊓-assoc
-        ; •-pres-≈ = ≡-cong₂ _⊓_
-        }
-    ; distribʳ = distribʳ-⊓-⊔
-    ; zeroˡ    = proj₁ ⊓-zero
-    }
-
-ℕ-⊔-⊓-0-nearSemiring : NearSemiring
-ℕ-⊔-⊓-0-nearSemiring = record
-  { setoid         = ℕ-setoid
-  ; _+_            = _⊔_
-  ; _*_            = _⊓_
-  ; 0#             = 0
-  ; isNearSemiring = ℕ-⊔-⊓-0-isNearSemiring
-  }
-
-------------------------------------------------------------------------
--- (ℕ, ⊓, ⊔) is a lattice
-
 abstract
 
   ℕ-isDistributiveLattice : IsDistributiveLattice ℕ-setoid _⊓_ _⊔_
@@ -367,7 +363,7 @@ abstract
         ; ∧-pres-≈   = ≡-cong₂ _⊔_
         ; absorptive = absorptive-⊓-⊔
         }
-    ; ∨-∧-distribʳ = distribʳ-⊓-⊔
+    ; ∨-∧-distribʳ = proj₂ distrib-⊓-⊔
     }
 
 ℕ-distributiveLattice : DistributiveLattice
