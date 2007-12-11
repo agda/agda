@@ -34,7 +34,7 @@ open import Data.Function
 infix  9 _↑-NF :-_ --NF_
 infixr 9 _:^_ _^-NF_ _:↑_
 infix  8 _*x _*x+_
-infixl 8 _:*_ _*-NF_ _*-NF-↑_ _↑-*-NF_
+infixl 8 _:*_ _*-NF_ _↑-*-NF_
 infixl 7 _:+_ _+-NF_
 infixl 0 _∷-NF_
 
@@ -143,17 +143,9 @@ private
 
   mutual
 
-    -- The first two functions are just variants of _*-NF_ which I
-    -- used to make the termination checker believe that the code is
+    -- The first function is just a variant of _*-NF_ which I used to
+    -- make the termination checker believe that the code is
     -- terminating.
-
-    _*-NF-↑_
-      :  forall {n p₁ p₂}
-      -> Normal (suc n) p₁ -> Normal n p₂
-      -> Normal (suc n) (p₁ :* p₂ :↑ 1)
-    (p₁ ∷-NF eq) *-NF-↑ p₂ = p₁ *-NF-↑ p₂                    ∷-NF eq ⟨ *-pres-≈ ⟩ refl
-    p₁ ↑-NF      *-NF-↑ p₂ = (p₁ *-NF p₂) ↑-NF               ∷-NF refl
-    (p₁ *x+ c₁)  *-NF-↑ p₂ = (p₁ *-NF-↑ p₂) *x+ (c₁ *-NF p₂) ∷-NF lemma₃ _ _ _ _
 
     _↑-*-NF_
       :  forall {n p₁ p₂}
@@ -176,7 +168,7 @@ private
     p₁ ↑-NF       *-NF (p₂ *x+ c₂)   = (p₁ ↑-NF *-NF p₂) *x+ (p₁ *-NF c₂) ∷-NF lemma₄ _ _ _ _
     (p₁ *x+ c₁)   *-NF (p₂ *x+ c₂)   =
       (p₁ *-NF p₂) *x *x +-NF
-      (p₁ *-NF-↑ c₂ +-NF c₁ ↑-*-NF p₂) *x+ (c₁ *-NF c₂)                   ∷-NF lemma₅ _ _ _ _ _
+      (p₁ *-NF c₂ ↑-NF +-NF c₁ ↑-*-NF p₂) *x+ (c₁ *-NF c₂)                ∷-NF lemma₅ _ _ _ _ _
 
   --NF_ :  forall {n p} -> Normal n p -> Normal n (:- p)
   --NF_ (p ∷-NF eq) = --NF_ p ∷-NF --pres-≈ eq
