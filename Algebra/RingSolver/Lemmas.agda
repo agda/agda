@@ -35,18 +35,18 @@ abstract
          -> (a + b) * x + (c + d) ≈ (a * x + c) + (b * x + d)
   lemma₁ a b c d x = begin
     (a + b) * x + (c + d)      ≈⟨ proj₂ distrib _ _ _ ⟨ +-pres-≈ ⟩ byDef ⟩
-    (a * x + b * x) + (c + d)  ≈⟨ sym $ +-assoc _ _ _ ⟩
-    a * x + (b * x + (c + d))  ≈⟨ byDef ⟨ +-pres-≈ ⟩ +-assoc _ _ _ ⟩
+    (a * x + b * x) + (c + d)  ≈⟨ +-assoc _ _ _ ⟩
+    a * x + (b * x + (c + d))  ≈⟨ byDef ⟨ +-pres-≈ ⟩ sym (+-assoc _ _ _) ⟩
     a * x + ((b * x + c) + d)  ≈⟨ byDef ⟨ +-pres-≈ ⟩ (+-comm _ _ ⟨ +-pres-≈ ⟩ byDef) ⟩
-    a * x + ((c + b * x) + d)  ≈⟨ byDef ⟨ +-pres-≈ ⟩ sym (+-assoc _ _ _) ⟩
-    a * x + (c + (b * x + d))  ≈⟨ +-assoc _ _ _ ⟩
+    a * x + ((c + b * x) + d)  ≈⟨ byDef ⟨ +-pres-≈ ⟩ +-assoc _ _ _ ⟩
+    a * x + (c + (b * x + d))  ≈⟨ sym $ +-assoc _ _ _ ⟩
     (a * x + c) + (b * x + d)  ∎
 
   lemma₂ : forall x y z -> x + (y + z) ≈ y + (x + z)
   lemma₂ x y z = begin
-    x + (y + z)  ≈⟨ +-assoc _ _ _ ⟩
+    x + (y + z)  ≈⟨ sym $ +-assoc _ _ _ ⟩
     (x + y) + z  ≈⟨ +-comm _ _ ⟨ +-pres-≈ ⟩ byDef ⟩
-    (y + x) + z  ≈⟨ sym $ +-assoc _ _ _ ⟩
+    (y + x) + z  ≈⟨ +-assoc _ _ _ ⟩
     y + (x + z)  ∎
 
   lemma₃ :  forall a b c x
@@ -57,17 +57,15 @@ abstract
     (a * x + b) * c    ∎
     where
     lem = begin
-      a * c * x    ≈⟨ sym (*-assoc _ _ _) ⟩
+      a * c * x    ≈⟨ *-assoc _ _ _ ⟩
       a * (c * x)  ≈⟨ byDef ⟨ *-pres-≈ ⟩ *-comm _ _ ⟩
-      a * (x * c)  ≈⟨ *-assoc _ _ _ ⟩
+      a * (x * c)  ≈⟨ sym $ *-assoc _ _ _ ⟩
       a * x * c    ∎
 
   lemma₄ :  forall a b c x
          -> a * b * x + a * c ≈ a * (b * x + c)
   lemma₄ a b c x = begin
-    a * b * x + a * c    ≈⟨ sym (*-assoc _ _ _)
-                              ⟨ +-pres-≈ ⟩
-                            byDef ⟩
+    a * b * x + a * c    ≈⟨ *-assoc _ _ _ ⟨ +-pres-≈ ⟩ byDef ⟩
     a * (b * x) + a * c  ≈⟨ sym $ proj₁ distrib _ _ _ ⟩
     a * (b * x + c)      ∎
 
@@ -79,9 +77,9 @@ abstract
     ((a * d + b * c) * x + b * d)          ≈⟨ lem₁ ⟨ +-pres-≈ ⟩
                                               (lem₂ ⟨ +-pres-≈ ⟩ byDef) ⟩
     a * x * (c * x) +
-    (a * x * d + b * (c * x) + b * d)      ≈⟨ byDef ⟨ +-pres-≈ ⟩ sym (+-assoc _ _ _) ⟩
+    (a * x * d + b * (c * x) + b * d)      ≈⟨ byDef ⟨ +-pres-≈ ⟩ +-assoc _ _ _ ⟩
     a * x * (c * x) +
-    (a * x * d + (b * (c * x) + b * d))    ≈⟨ +-assoc _ _ _ ⟩
+    (a * x * d + (b * (c * x) + b * d))    ≈⟨ sym $ +-assoc _ _ _ ⟩
     a * x * (c * x) + a * x * d +
     (b * (c * x) + b * d)                  ≈⟨ sym $ proj₁ distrib _ _ _
                                                     ⟨ +-pres-≈ ⟩
@@ -90,22 +88,22 @@ abstract
     (a * x + b) * (c * x + d)              ∎
     where
     lem₁' = begin
-      a * c * x    ≈⟨ sym $ *-assoc _ _ _ ⟩
+      a * c * x    ≈⟨ *-assoc _ _ _ ⟩
       a * (c * x)  ≈⟨ byDef ⟨ *-pres-≈ ⟩ *-comm _ _ ⟩
-      a * (x * c)  ≈⟨ *-assoc _ _ _ ⟩
+      a * (x * c)  ≈⟨ sym $ *-assoc _ _ _ ⟩
       a * x * c    ∎
 
     lem₁ = begin
       a * c * x * x    ≈⟨ lem₁' ⟨ *-pres-≈ ⟩ byDef ⟩
-      a * x * c * x    ≈⟨ sym $ *-assoc _ _ _ ⟩
+      a * x * c * x    ≈⟨ *-assoc _ _ _ ⟩
       a * x * (c * x)  ∎
 
     lem₂ = begin
       (a * d + b * c) * x        ≈⟨ proj₂ distrib _ _ _ ⟩
-      a * d * x + b * c * x      ≈⟨ sym $ *-assoc _ _ _ ⟨ +-pres-≈ ⟩ *-assoc _ _ _ ⟩
+      a * d * x + b * c * x      ≈⟨ *-assoc _ _ _ ⟨ +-pres-≈ ⟩ *-assoc _ _ _ ⟩
       a * (d * x) + b * (c * x)  ≈⟨ (byDef ⟨ *-pres-≈ ⟩ *-comm _ _)
                                       ⟨ +-pres-≈ ⟩ byDef ⟩
-      a * (x * d) + b * (c * x)  ≈⟨ *-assoc _ _ _ ⟨ +-pres-≈ ⟩ byDef ⟩
+      a * (x * d) + b * (c * x)  ≈⟨ sym $ *-assoc _ _ _ ⟨ +-pres-≈ ⟩ byDef ⟩
       a * x * d + b * (c * x)    ∎
 
   lemma₆ : forall a b x -> - a * x + - b ≈ - (a * x + b)

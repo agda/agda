@@ -93,7 +93,7 @@ abstract
     x∧⊥=⊥ : forall x -> x ∧ ⊥ ≈ ⊥
     x∧⊥=⊥ x = begin
       x ∧ ⊥          ≈⟨ byDef ⟨ ∧-pres-≈ ⟩ sym (proj₂ ∧-complement _) ⟩
-      x ∧  x  ∧ ¬ x  ≈⟨ ∧-assoc _ _ _ ⟩
+      x ∧  x  ∧ ¬ x  ≈⟨ sym $ ∧-assoc _ _ _ ⟩
       (x ∧ x) ∧ ¬ x  ≈⟨ ∧-idempotent _ ⟨ ∧-pres-≈ ⟩ byDef ⟩
       x       ∧ ¬ x  ≈⟨ proj₂ ∧-complement _ ⟩
       ⊥              ∎
@@ -150,7 +150,7 @@ abstract
     x∨⊤=⊤ : forall x -> x ∨ ⊤ ≈ ⊤
     x∨⊤=⊤ x = begin
       x ∨ ⊤          ≈⟨ byDef ⟨ ∨-pres-≈ ⟩ sym (proj₂ ∨-complement _) ⟩
-      x ∨  x  ∨ ¬ x  ≈⟨ ∨-assoc _ _ _ ⟩
+      x ∨  x  ∨ ¬ x  ≈⟨ sym $ ∨-assoc _ _ _ ⟩
       (x ∨ x) ∨ ¬ x  ≈⟨ ∨-idempotent _ ⟨ ∨-pres-≈ ⟩ byDef ⟩
       x       ∨ ¬ x  ≈⟨ proj₂ ∨-complement _ ⟩
       ⊤              ∎
@@ -232,7 +232,7 @@ abstract
     lem₁ = begin
       (x ∧ y) ∧ (¬ x ∨ ¬ y)          ≈⟨ proj₁ ∧-∨-distrib _ _ _ ⟩
       (x ∧ y) ∧ ¬ x ∨ (x ∧ y) ∧ ¬ y  ≈⟨ (∧-comm _ _ ⟨ ∧-pres-≈ ⟩ byDef) ⟨ ∨-pres-≈ ⟩ byDef ⟩
-      (y ∧ x) ∧ ¬ x ∨ (x ∧ y) ∧ ¬ y  ≈⟨ sym (∧-assoc _ _ _) ⟨ ∨-pres-≈ ⟩ sym (∧-assoc _ _ _) ⟩
+      (y ∧ x) ∧ ¬ x ∨ (x ∧ y) ∧ ¬ y  ≈⟨ ∧-assoc _ _ _ ⟨ ∨-pres-≈ ⟩ ∧-assoc _ _ _ ⟩
       y ∧ (x ∧ ¬ x) ∨ x ∧ (y ∧ ¬ y)  ≈⟨ (byDef ⟨ ∧-pres-≈ ⟩ proj₂ ∧-complement _) ⟨ ∨-pres-≈ ⟩
                                         (byDef ⟨ ∧-pres-≈ ⟩ proj₂ ∧-complement _) ⟩
       (y ∧ ⊥) ∨ (x ∧ ⊥)              ≈⟨ proj₂ ∧-zero _ ⟨ ∨-pres-≈ ⟩ proj₂ ∧-zero _ ⟩
@@ -247,9 +247,9 @@ abstract
       ¬ x ∨ y                ∎
 
     lem₂ = begin
-      (x ∧ y) ∨ (¬ x ∨ ¬ y)  ≈⟨ ∨-assoc _ _ _ ⟩
+      (x ∧ y) ∨ (¬ x ∨ ¬ y)  ≈⟨ sym $ ∨-assoc _ _ _ ⟩
       ((x ∧ y) ∨ ¬ x) ∨ ¬ y  ≈⟨ lem₃ ⟨ ∨-pres-≈ ⟩ byDef ⟩
-      (¬ x ∨ y) ∨ ¬ y        ≈⟨ sym $ ∨-assoc _ _ _ ⟩
+      (¬ x ∨ y) ∨ ¬ y        ≈⟨ ∨-assoc _ _ _ ⟩
       ¬ x ∨ (y ∨ ¬ y)        ≈⟨ byDef ⟨ ∨-pres-≈ ⟩ proj₂ ∨-complement _ ⟩
       ¬ x ∨ ⊤                ≈⟨ proj₂ ∨-zero _ ⟩
       ⊤                      ∎
@@ -368,7 +368,7 @@ module XorRing
         distˡ : _∧_ DistributesOverˡ _⊕_
         distˡ x y z = begin
           x ∧ (y ⊕ z)                ≈⟨ byDef ⟨ ∧-pres-≈ ⟩ ⊕-def _ _ ⟩
-          x ∧ ((y ∨ z) ∧ ¬ (y ∧ z))  ≈⟨ ∧-assoc _ _ _ ⟩
+          x ∧ ((y ∨ z) ∧ ¬ (y ∧ z))  ≈⟨ sym $ ∧-assoc _ _ _ ⟩
           (x ∧ (y ∨ z)) ∧ ¬ (y ∧ z)  ≈⟨ byDef ⟨ ∧-pres-≈ ⟩ deMorgan₁ _ _ ⟩
           (x ∧ (y ∨ z)) ∧
           (¬ y ∨ ¬ z)                ≈⟨ sym $ proj₁ ∨-identity _ ⟩
@@ -393,22 +393,22 @@ module XorRing
           (x ∧ y) ⊕ (x ∧ z)          ∎
           where
           lem₂ = begin
-            x ∧ (y ∧ z)  ≈⟨ ∧-assoc _ _ _ ⟩
+            x ∧ (y ∧ z)  ≈⟨ sym $ ∧-assoc _ _ _ ⟩
             (x ∧ y) ∧ z  ≈⟨ ∧-comm _ _ ⟨ ∧-pres-≈ ⟩ byDef ⟩
-            (y ∧ x) ∧ z  ≈⟨ sym $ ∧-assoc _ _ _ ⟩
+            (y ∧ x) ∧ z  ≈⟨ ∧-assoc _ _ _ ⟩
             y ∧ (x ∧ z)  ∎
 
           lem₁ = begin
             x ∧ (y ∧ z)        ≈⟨ sym (∧-idempotent _) ⟨ ∧-pres-≈ ⟩ byDef ⟩
-            (x ∧ x) ∧ (y ∧ z)  ≈⟨ sym $ ∧-assoc _ _ _ ⟩
+            (x ∧ x) ∧ (y ∧ z)  ≈⟨ ∧-assoc _ _ _ ⟩
             x ∧ (x ∧ (y ∧ z))  ≈⟨ byDef ⟨ ∧-pres-≈ ⟩ lem₂ ⟩
-            x ∧ (y ∧ (x ∧ z))  ≈⟨ ∧-assoc _ _ _ ⟩
+            x ∧ (y ∧ (x ∧ z))  ≈⟨ sym $ ∧-assoc _ _ _ ⟩
             (x ∧ y) ∧ (x ∧ z)  ∎
 
           lem₃ = begin
             ⊥                      ≈⟨ sym $ proj₂ ∧-zero _ ⟩
             (y ∨ z) ∧ ⊥            ≈⟨ byDef ⟨ ∧-pres-≈ ⟩ sym (proj₂ ∧-complement _) ⟩
-            (y ∨ z) ∧ (x ∧ ¬ x)    ≈⟨ ∧-assoc _ _ _ ⟩
+            (y ∨ z) ∧ (x ∧ ¬ x)    ≈⟨ sym $ ∧-assoc _ _ _ ⟩
             ((y ∨ z) ∧ x) ∧ ¬ x    ≈⟨ ∧-comm _ _ ⟨ ∧-pres-≈ ⟩ byDef  ⟩
             (x ∧ (y ∨ z)) ∧ ¬ x    ∎
 
@@ -432,19 +432,19 @@ module XorRing
           ((x ∨ v) ∧ (y ∨ v))            ∎
 
       ⊕-assoc : Associative _⊕_
-      ⊕-assoc x y z = begin
+      ⊕-assoc x y z = sym $ begin
         x ⊕ (y ⊕ z)                                ≈⟨ byDef ⟨ ⊕-pres ⟩ ⊕-def _ _ ⟩
         x ⊕ ((y ∨ z) ∧ ¬ (y ∧ z))                  ≈⟨ ⊕-def _ _ ⟩
           (x ∨ ((y ∨ z) ∧ ¬ (y ∧ z))) ∧
         ¬ (x ∧ ((y ∨ z) ∧ ¬ (y ∧ z)))              ≈⟨ lem₃ ⟨ ∧-pres-≈ ⟩ lem₄ ⟩
         (((x ∨ y) ∨ z) ∧ ((x ∨ ¬ y) ∨ ¬ z)) ∧
-        (((¬ x ∨ ¬ y) ∨ z) ∧ ((¬ x ∨ y) ∨ ¬ z))    ≈⟨ sym $ ∧-assoc _ _ _ ⟩
+        (((¬ x ∨ ¬ y) ∨ z) ∧ ((¬ x ∨ y) ∨ ¬ z))    ≈⟨ ∧-assoc _ _ _ ⟩
         ((x ∨ y) ∨ z) ∧
         (((x ∨ ¬ y) ∨ ¬ z) ∧
          (((¬ x ∨ ¬ y) ∨ z) ∧ ((¬ x ∨ y) ∨ ¬ z)))  ≈⟨ byDef ⟨ ∧-pres-≈ ⟩ lem₅ ⟩
         ((x ∨ y) ∨ z) ∧
         (((¬ x ∨ ¬ y) ∨ z) ∧
-         (((x ∨ ¬ y) ∨ ¬ z) ∧ ((¬ x ∨ y) ∨ ¬ z)))  ≈⟨ ∧-assoc _ _ _ ⟩
+         (((x ∨ ¬ y) ∨ ¬ z) ∧ ((¬ x ∨ y) ∨ ¬ z)))  ≈⟨ sym $ ∧-assoc _ _ _ ⟩
         (((x ∨ y) ∨ z) ∧ ((¬ x ∨ ¬ y) ∨ z)) ∧
         (((x ∨ ¬ y) ∨ ¬ z) ∧ ((¬ x ∨ y) ∨ ¬ z))    ≈⟨ lem₁ ⟨ ∧-pres-≈ ⟩ lem₂ ⟩
           (((x ∨ y) ∧ ¬ (x ∧ y)) ∨ z) ∧
@@ -483,7 +483,8 @@ module XorRing
           x ∨ ((y ∨ z) ∧ ¬ (y ∧ z))          ≈⟨ byDef ⟨ ∨-pres-≈ ⟩
                                                   (byDef ⟨ ∧-pres-≈ ⟩ deMorgan₁ _ _) ⟩
           x ∨ ((y ∨ z) ∧ (¬ y ∨ ¬ z))        ≈⟨ proj₁ ∨-∧-distrib _ _ _ ⟩
-          (x ∨ (y ∨ z)) ∧ (x ∨ (¬ y ∨ ¬ z))  ≈⟨ ∨-assoc _ _ _ ⟨ ∧-pres-≈ ⟩ ∨-assoc _ _ _ ⟩
+          (x ∨ (y ∨ z)) ∧ (x ∨ (¬ y ∨ ¬ z))  ≈⟨ sym (∨-assoc _ _ _) ⟨ ∧-pres-≈ ⟩
+                                                sym (∨-assoc _ _ _) ⟩
           ((x ∨ y) ∨ z) ∧ ((x ∨ ¬ y) ∨ ¬ z)  ∎
 
         lem₄' = begin
@@ -504,7 +505,8 @@ module XorRing
           ¬ x ∨ ¬ ((y ∨ z) ∧ ¬ (y ∧ z))  ≈⟨ byDef ⟨ ∨-pres-≈ ⟩ lem₄' ⟩
           ¬ x ∨ ((y ∨ ¬ z) ∧ (¬ y ∨ z))  ≈⟨ proj₁ ∨-∧-distrib _ _ _ ⟩
           (¬ x ∨ (y     ∨ ¬ z)) ∧
-          (¬ x ∨ (¬ y ∨ z))              ≈⟨ ∨-assoc _ _ _ ⟨ ∧-pres-≈ ⟩ ∨-assoc _ _ _ ⟩
+          (¬ x ∨ (¬ y ∨ z))              ≈⟨ sym (∨-assoc _ _ _) ⟨ ∧-pres-≈ ⟩
+                                            sym (∨-assoc _ _ _) ⟩
           ((¬ x ∨ y)     ∨ ¬ z) ∧
           ((¬ x ∨ ¬ y) ∨ z)              ≈⟨ ∧-comm _ _ ⟩
           ((¬ x ∨ ¬ y) ∨ z) ∧
@@ -512,11 +514,11 @@ module XorRing
 
         lem₅ = begin
           ((x ∨ ¬ y) ∨ ¬ z) ∧
-          (((¬ x ∨ ¬ y) ∨ z) ∧ ((¬ x ∨ y) ∨ ¬ z))    ≈⟨ ∧-assoc _ _ _ ⟩
+          (((¬ x ∨ ¬ y) ∨ z) ∧ ((¬ x ∨ y) ∨ ¬ z))    ≈⟨ sym $ ∧-assoc _ _ _ ⟩
           (((x ∨ ¬ y) ∨ ¬ z) ∧ ((¬ x ∨ ¬ y) ∨ z)) ∧
           ((¬ x ∨ y) ∨ ¬ z)                          ≈⟨ ∧-comm _ _ ⟨ ∧-pres-≈ ⟩ byDef ⟩
           (((¬ x ∨ ¬ y) ∨ z) ∧ ((x ∨ ¬ y) ∨ ¬ z)) ∧
-          ((¬ x ∨ y) ∨ ¬ z)                          ≈⟨ sym $ ∧-assoc _ _ _ ⟩
+          ((¬ x ∨ y) ∨ ¬ z)                          ≈⟨ ∧-assoc _ _ _ ⟩
           ((¬ x ∨ ¬ y) ∨ z) ∧
           (((x ∨ ¬ y) ∨ ¬ z) ∧ ((¬ x ∨ y) ∨ ¬ z))    ∎
 

@@ -227,7 +227,7 @@ record IsRing (_+_ _*_ : Op₂) (-_ : Op₁) (0# 1# : carrier) : Set where
     zeroˡ x = begin
         0# * x                              ≈⟨ sym $ proj₂ +-identity _ ⟩
        (0# * x) +            0#             ≈⟨ byDef ⟨ +-pres-≈ ⟩ sym (proj₂ --inverse _) ⟩
-       (0# * x) + ((0# * x)  + - (0# * x))  ≈⟨ +-assoc _ _ _ ⟩
+       (0# * x) + ((0# * x)  + - (0# * x))  ≈⟨ sym $ +-assoc _ _ _ ⟩
       ((0# * x) +  (0# * x)) + - (0# * x)   ≈⟨ sym (proj₂ distrib _ _ _) ⟨ +-pres-≈ ⟩ byDef ⟩
              ((0# + 0#) * x) + - (0# * x)   ≈⟨ (proj₂ +-identity _ ⟨ *-pres-≈ ⟩ byDef)
                                                  ⟨ +-pres-≈ ⟩
@@ -239,7 +239,7 @@ record IsRing (_+_ _*_ : Op₂) (-_ : Op₁) (0# 1# : carrier) : Set where
     zeroʳ x = begin
       x * 0#                              ≈⟨ sym $ proj₂ +-identity _ ⟩
       (x * 0#) + 0#                       ≈⟨ byDef ⟨ +-pres-≈ ⟩ sym (proj₂ --inverse _) ⟩
-      (x * 0#) + ((x * 0#) + - (x * 0#))  ≈⟨ +-assoc _ _ _ ⟩
+      (x * 0#) + ((x * 0#) + - (x * 0#))  ≈⟨ sym $ +-assoc _ _ _ ⟩
       ((x * 0#) + (x * 0#)) + - (x * 0#)  ≈⟨ sym (proj₁ distrib _ _ _) ⟨ +-pres-≈ ⟩ byDef ⟩
       (x * (0# + 0#)) + - (x * 0#)        ≈⟨ (byDef ⟨ *-pres-≈ ⟩ proj₂ +-identity _)
                                                ⟨ +-pres-≈ ⟩

@@ -62,7 +62,7 @@ abstract
       suc (m * suc n + n)
     ≈⟨ ≡-cong (\x -> suc (x + n)) (m*1+n≡m+mn m n) ⟩
       suc (m +  m * n + n)
-    ≈⟨ ≡-cong suc (≡-sym (+-assoc m (m * n) n)) ⟩
+    ≈⟨ ≡-cong suc (+-assoc m (m * n) n) ⟩
       suc (m + (m * n + n))
     ≈⟨ byDef ⟩
       suc m + suc m * n
@@ -111,15 +111,15 @@ abstract
       m * (n + o) + (n + o)
                                  ≈⟨ ≡-cong (\x -> x + (n + o)) (distˡ m n o) ⟩
       (m * n + m * o) + (n + o)
-                                 ≈⟨ ≡-sym $ +-assoc (m * n) (m * o) (n + o) ⟩
+                                 ≈⟨ +-assoc (m * n) (m * o) (n + o) ⟩
       m * n + (m * o + (n + o))
-                                 ≈⟨ ≡-cong (\x -> (m * n) + x) $ +-assoc (m * o) n o ⟩
+                                 ≈⟨ ≡-cong (\x -> (m * n) + x) $ ≡-sym $ +-assoc (m * o) n o ⟩
       m * n + ((m * o + n) + o)
                                  ≈⟨ ≡-cong (\x -> (m * n) + (x + o)) $ +-comm (m * o) n ⟩
       m * n + ((n + m * o) + o)
-                                 ≈⟨ ≡-cong (\x -> (m * n) + x) $ ≡-sym $ +-assoc n (m * o) o ⟩
+                                 ≈⟨ ≡-cong (\x -> (m * n) + x) $ +-assoc n (m * o) o ⟩
       m * n + (n + (m * o + o))
-                                 ≈⟨ +-assoc (m * n) n (m * o + o) ⟩
+                                 ≈⟨ ≡-sym $ +-assoc (m * n) n (m * o + o) ⟩
       (m * n + n) + (m * o + o)
                                  ≈⟨ byDef ⟩
       suc m * n + suc m * o
@@ -141,15 +141,15 @@ abstract
   *-assoc zero    n o = byDef
   *-assoc (suc m) n o =
                          begin
-    suc m * (n * o)
-                         ≈⟨ byDef ⟩
-    m * (n * o) + n * o
-                         ≈⟨ ≡-cong (\x -> x + n * o) $ *-assoc m n o ⟩
-    (m * n) * o + n * o
-                         ≈⟨ ≡-sym $ proj₂ distrib-*-+ o (m * n) n ⟩
-    (m * n + n) * o
-                         ≈⟨ byDef ⟩
     (suc m * n) * o
+                         ≈⟨ byDef ⟩
+    (m * n + n) * o
+                         ≈⟨ proj₂ distrib-*-+ o (m * n) n ⟩
+    (m * n) * o + n * o
+                         ≈⟨ ≡-cong (\x -> x + n * o) $ *-assoc m n o ⟩
+    m * (n * o) + n * o
+                         ≈⟨ byDef ⟩
+    suc m * (n * o)
                          ∎
 
   *-identity : Identity 1 _*_

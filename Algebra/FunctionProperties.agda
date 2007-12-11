@@ -28,7 +28,7 @@ Op₂ = carrier -> carrier -> carrier
 -- Properties of operations
 
 Associative : Op₂ -> Set
-Associative _•_ = forall x y z -> (x • (y • z)) ≈ ((x • y) • z)
+Associative _•_ = forall x y z -> ((x • y) • z) ≈ (x • (y • z))
 
 Commutative : Op₂ -> Set
 Commutative _•_ = forall x y -> (x • y) ≈ (y • x)

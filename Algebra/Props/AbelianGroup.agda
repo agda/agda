@@ -17,7 +17,7 @@ abstract
     lemma : forall x y -> x • y • x ⁻¹ ≈ y
     lemma x y = begin
       x • y • x ⁻¹    ≈⟨ comm _ _ ⟨ •-pres-≈ ⟩ byDef ⟩
-      y • x • x ⁻¹    ≈⟨ sym $ assoc _ _ _ ⟩
+      y • x • x ⁻¹    ≈⟨ assoc _ _ _ ⟩
       y • (x • x ⁻¹)  ≈⟨ byDef ⟨ •-pres-≈ ⟩ proj₂ inverse _ ⟩
       y • ε           ≈⟨ proj₂ identity _ ⟩
       y               ∎
@@ -31,8 +31,8 @@ abstract
     (x • y) ⁻¹                          ∎
     where
     lem = begin
-      x • (y • (x • y) ⁻¹ • y ⁻¹)  ≈⟨ assoc _ _ _ ⟩
-      x • (y • (x • y) ⁻¹) • y ⁻¹  ≈⟨ assoc _ _ _ ⟨ •-pres-≈ ⟩ byDef ⟩
+      x • (y • (x • y) ⁻¹ • y ⁻¹)  ≈⟨ sym $ assoc _ _ _ ⟩
+      x • (y • (x • y) ⁻¹) • y ⁻¹  ≈⟨ sym $ assoc _ _ _ ⟨ •-pres-≈ ⟩ byDef ⟩
       x • y • (x • y) ⁻¹ • y ⁻¹    ≈⟨ proj₂ inverse _ ⟨ •-pres-≈ ⟩ byDef ⟩
       ε • y ⁻¹                     ≈⟨ proj₁ identity _ ⟩
       y ⁻¹                         ∎

@@ -7,6 +7,7 @@ module Data.List.Properties where
 open import Data.List
 open import Data.Nat
 open import Data.Nat.Properties
+open import Data.Function
 open import Logic
 open import Relation.Binary.PropositionalEquality
 open ≡-Reasoning
@@ -24,7 +25,7 @@ sum-++-commute (x ∷ xs) ys = begin
   x + sum (xs ++ ys)
                          ≡⟨ ≡-cong (_+_ x) (sum-++-commute xs ys) ⟩
   x + (sum xs + sum ys)
-                         ≡⟨ +-assoc x _ _ ⟩
+                         ≡⟨ sym $ +-assoc x _ _ ⟩
   (x + sum xs) + sum ys
                          ∎
   where open CommutativeSemiring ℕ-commutativeSemiring hiding (_+_)

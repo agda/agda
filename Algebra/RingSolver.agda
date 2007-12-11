@@ -134,7 +134,7 @@ private
   p₁            +-NF (p₂ ∷-NF eq)  = p₁ +-NF p₂                    ∷-NF refl ⟨ +-pres-≈ ⟩ eq
   con-NF c₁     +-NF con-NF c₂     = con-NF (C._+_ c₁ c₂)          ∷-NF +-homo _ _
   p₁ ↑-NF       +-NF p₂ ↑-NF       = (p₁ +-NF p₂) ↑-NF             ∷-NF refl
-  p₁ *x+ c₁     +-NF p₂ ↑-NF       = p₁ *x+ (c₁ +-NF p₂)           ∷-NF +-assoc _ _ _
+  p₁ *x+ c₁     +-NF p₂ ↑-NF       = p₁ *x+ (c₁ +-NF p₂)           ∷-NF sym (+-assoc _ _ _)
   p₁ *x+ c₁     +-NF p₂ *x+ c₂     = (p₁ +-NF p₂) *x+ (c₁ +-NF c₂) ∷-NF lemma₁ _ _ _ _ _
   p₁ ↑-NF       +-NF p₂ *x+ c₂     = p₂ *x+ (p₁ +-NF c₂)           ∷-NF lemma₂ _ _ _
 

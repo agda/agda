@@ -17,7 +17,7 @@ abstract
   --*-distribˡ x y = begin
     - x * y                        ≈⟨ sym $ proj₂ +-identity _ ⟩
     - x * y + 0#                   ≈⟨ byDef ⟨ +-pres-≈ ⟩ sym (proj₂ --inverse _) ⟩
-    - x * y + (x * y + - (x * y))  ≈⟨ +-assoc _ _ _  ⟩
+    - x * y + (x * y + - (x * y))  ≈⟨ sym $ +-assoc _ _ _  ⟩
     - x * y + x * y + - (x * y)    ≈⟨ sym (proj₂ distrib _ _ _) ⟨ +-pres-≈ ⟩ byDef ⟩
     (- x + x) * y + - (x * y)      ≈⟨ (proj₁ --inverse _ ⟨ *-pres-≈ ⟩ byDef)
                                         ⟨ +-pres-≈ ⟩
@@ -30,7 +30,7 @@ abstract
   --*-distribʳ x y = begin
     x * - y                        ≈⟨ sym $ proj₁ +-identity _ ⟩
     0# + x * - y                   ≈⟨ sym (proj₁ --inverse _) ⟨ +-pres-≈ ⟩ byDef ⟩
-    - (x * y) + x * y + x * - y    ≈⟨ sym $ +-assoc _ _ _  ⟩
+    - (x * y) + x * y + x * - y    ≈⟨ +-assoc _ _ _  ⟩
     - (x * y) + (x * y + x * - y)  ≈⟨ byDef ⟨ +-pres-≈ ⟩ sym (proj₁ distrib _ _ _)  ⟩
     - (x * y) + x * (y + - y)      ≈⟨ byDef ⟨ +-pres-≈ ⟩ (byDef ⟨ *-pres-≈ ⟩ proj₂ --inverse _) ⟩
     - (x * y) + x * 0#             ≈⟨ byDef ⟨ +-pres-≈ ⟩ proj₂ zero _ ⟩
