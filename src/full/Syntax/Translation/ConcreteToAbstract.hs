@@ -702,19 +702,10 @@ instance ToAbstract (Constr C.NiceDeclaration) A.Declaration where
 
     toAbstract _ = __IMPOSSIBLE__    -- a constructor is always an axiom
 
--- -- TODO: do this in a nicer way?
--- instance ToAbstract (Constr A.Constructor) () where
---   toAbstract (Constr (A.ScopedDecl _ [d])) = toAbstract $ Constr d
---   toAbstract (Constr (A.Axiom i y _)) = do
---     let x = nameConcrete $ qnameName y	-- TODO: right name?
---     bindName (defAccess i) ConName x y
---   toAbstract _ = __IMPOSSIBLE__	-- constructors are axioms
-
 instance ToAbstract C.Clause A.Clause where
     toAbstract (C.Clause top (C.Ellipsis _ _ _) _ _ _) = fail "bad '...'" -- TODO: errors message
     toAbstract (C.Clause top lhs@(C.LHS p wps with) rhs wh wcs) = withLocalVars $ do
       let wcs' = map (expandEllipsis p wps) wcs
-      vars <- getLocalVars
       lhs' <- toAbstract (LeftHandSide top p wps)
       printLocals 10 "after lhs:"
       let (whname, whds) = case wh of
@@ -723,7 +714,7 @@ instance ToAbstract C.Clause A.Clause where
 	    SomeWhere m ds -> (Just m, ds)
       case whds of
 	[] -> do
-	  rhs <- toAbstractCtx TopCtx (RightHandSide vars with wcs' rhs)
+	  rhs <- toAbstract =<< toAbstractCtx TopCtx (RightHandSide with wcs' rhs)
 	  return $ A.Clause lhs' rhs []
 	_	-> do
 	  m <- C.QName <$> maybe (nameConcrete <$> freshNoName noRange) return whname
@@ -733,31 +724,36 @@ instance ToAbstract C.Clause A.Clause where
 	  (scope, ds) <- scopeCheckModule (getRange wh) acc ConcreteDef m am tel whds
 	  setScope scope
 	  -- the right hand side is checked inside the module of the local definitions
-	  rhs <- toAbstractCtx TopCtx (RightHandSide vars with wcs' rhs)
+	  rhs <- toAbstractCtx TopCtx (RightHandSide with wcs' rhs)
 	  qm <- getCurrentModule
 	  case acc of
 	    PublicAccess  -> popScope PublicAccess
 	    PrivateAccess -> popScope_	-- unnamed where clauses are not in scope
 	  bindQModule acc m qm
+          rhs <- toAbstract rhs
 	  return $ A.Clause lhs' rhs ds
 
-data RightHandSide = RightHandSide LocalVars [C.Expr] [C.Clause] C.RHS
+data RightHandSide = RightHandSide [C.Expr] [C.Clause] C.RHS
+data AbstractRHS = AbsurdRHS'
+                 | WithRHS' [A.Expr] [C.Clause]  -- ^ The with clauses haven't been translated yet
+                 | RHS' A.Expr
 
-instance ToAbstract RightHandSide A.RHS where
-  toAbstract (RightHandSide _ [] (_ : _) _)	    = __IMPOSSIBLE__
-  toAbstract (RightHandSide _ (_ : _) _ (C.RHS _))  = typeError $ BothWithAndRHS
-  toAbstract (RightHandSide _ [] [] rhs)	    = toAbstract rhs
-  toAbstract (RightHandSide vars es cs C.AbsurdRHS) = do
+instance ToAbstract AbstractRHS A.RHS where
+  toAbstract AbsurdRHS'       = return A.AbsurdRHS
+  toAbstract (RHS' e)         = return $ A.RHS e
+  toAbstract (WithRHS' es cs) = A.WithRHS es <$> toAbstract cs
+
+instance ToAbstract RightHandSide AbstractRHS where
+  toAbstract (RightHandSide [] (_ : _) _)        = __IMPOSSIBLE__
+  toAbstract (RightHandSide (_ : _) _ (C.RHS _)) = typeError $ BothWithAndRHS
+  toAbstract (RightHandSide [] [] rhs)           = toAbstract rhs
+  toAbstract (RightHandSide es cs C.AbsurdRHS) = do
     es <- toAbstractCtx TopCtx es
-    -- The variables bound in the left hand side are not in scope
-    -- in the with-clauses
-    setLocalVars vars
-    cs <- toAbstract cs
-    return $ WithRHS es cs
+    return $ WithRHS' es cs
 
-instance ToAbstract C.RHS A.RHS where
-    toAbstract C.AbsurdRHS = return $ A.AbsurdRHS
-    toAbstract (C.RHS e)   = A.RHS <$> toAbstract e
+instance ToAbstract C.RHS AbstractRHS where
+    toAbstract C.AbsurdRHS = return $ AbsurdRHS'
+    toAbstract (C.RHS e)   = RHS' <$> toAbstract e
 
 data LeftHandSide = LeftHandSide C.Name C.Pattern [C.Pattern]
 
