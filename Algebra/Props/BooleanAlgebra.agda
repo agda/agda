@@ -100,8 +100,8 @@ abstract
 
 abstract
 
-  ∨-∧-isCommutativSemiring : IsCommutativeSemiring _∨_ _∧_ ⊥ ⊤
-  ∨-∧-isCommutativSemiring = record
+  ∨-∧-isCommutativeSemiring : IsCommutativeSemiring _∨_ _∧_ ⊥ ⊤
+  ∨-∧-isCommutativeSemiring = record
     { isSemiring = record
       { isSemiringWithoutOne = record
         { +-isCommutativeMonoid = record
@@ -133,7 +133,7 @@ abstract
   ; _*_                   = _∧_
   ; 0#                    = ⊥
   ; 1#                    = ⊤
-  ; isCommutativeSemiring = ∨-∧-isCommutativSemiring
+  ; isCommutativeSemiring = ∨-∧-isCommutativeSemiring
   }
 
 ------------------------------------------------------------------------
