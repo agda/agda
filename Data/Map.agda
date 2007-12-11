@@ -1,5 +1,6 @@
 ------------------------------------------------------------------------
--- Finite maps (i.e. lookup tables)
+-- Finite maps, i.e. lookup tables (currently only some type
+-- signatures)
 ------------------------------------------------------------------------
 
 module Data.Map where
