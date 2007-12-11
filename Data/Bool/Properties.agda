@@ -84,7 +84,7 @@ abstract
     : IsCommutativeSemiring Bool-setoid _∨_ _∧_ false true
   Bool-isCommutativeSemiring-∨-∧ = record
     { isSemiring = record
-      { isSemiringWithoutOne = record
+      { isSemiringWithoutAnnihilatingZero = record
         { +-isCommutativeMonoid = record
           { isMonoid = record
             { isSemigroup = record
@@ -95,14 +95,16 @@ abstract
             }
           ; comm = ∨-comm
           }
-        ; *-isSemigroup = record
+        ; *-isMonoid = record
+          { isSemigroup = record
             { assoc    = ∧-assoc
             ; •-pres-≈ = ≡-cong₂ _∧_
             }
+          ; identity = ∧-identity
+          }
         ; distrib = distrib-∧-∨
-        ; zero    = zero-∧
         }
-      ; *-identity = ∧-identity
+      ; zero = zero-∧
       }
     ; *-comm = ∧-comm
     }
@@ -154,7 +156,7 @@ abstract
     : IsCommutativeSemiring Bool-setoid _∧_ _∨_ true false
   Bool-isCommutativeSemiring-∧-∨ = record
     { isSemiring = record
-      { isSemiringWithoutOne = record
+      { isSemiringWithoutAnnihilatingZero = record
         { +-isCommutativeMonoid = record
           { isMonoid = record
             { isSemigroup = record
@@ -165,14 +167,16 @@ abstract
             }
           ; comm = ∧-comm
           }
-        ; *-isSemigroup = record
+        ; *-isMonoid = record
+          { isSemigroup = record
             { assoc    = ∨-assoc
             ; •-pres-≈ = ≡-cong₂ _∨_
             }
+          ; identity = ∨-identity
+          }
         ; distrib = distrib-∨-∧
-        ; zero    = zero-∨
         }
-      ; *-identity = ∨-identity
+      ; zero = zero-∨
       }
     ; *-comm = ∨-comm
     }

@@ -120,7 +120,7 @@ record AbelianGroup : Set1 where
     }
 
 ------------------------------------------------------------------------
--- (Commutative/near) semirings (without one)
+-- Various kinds of semirings
 
 record NearSemiring : Set1 where
   infixl 7 _*_
@@ -188,19 +188,74 @@ record SemiringWithoutOne : Set1 where
     ; isCommutativeMonoid = +-isCommutativeMonoid
     }
 
+record SemiringWithoutAnnihilatingZero : Set1 where
+  infixl 7 _*_
+  infixl 6 _+_
+  field
+    setoid                            : Setoid
+    _+_                               : P.Op₂ setoid
+    _*_                               : P.Op₂ setoid
+    0#                                : Setoid.carrier setoid
+    1#                                : Setoid.carrier setoid
+    isSemiringWithoutAnnihilatingZero :
+      IsSemiringWithoutAnnihilatingZero setoid _+_ _*_ 0# 1#
+
+  open Setoid setoid public
+  open IsSemiringWithoutAnnihilatingZero
+         setoid isSemiringWithoutAnnihilatingZero public
+
+  +-commutativeMonoid : CommutativeMonoid
+  +-commutativeMonoid = record
+    { setoid              = setoid
+    ; _•_                 = _+_
+    ; ε                   = 0#
+    ; isCommutativeMonoid = +-isCommutativeMonoid
+    }
+
+  open CommutativeMonoid +-commutativeMonoid public using ()
+         renaming (semigroup to +-semigroup; monoid to +-monoid)
+
+  *-monoid : Monoid
+  *-monoid = record
+    { setoid   = setoid
+    ; _•_      = _*_
+    ; ε        = 1#
+    ; isMonoid = *-isMonoid
+    }
+
+  open Monoid *-monoid public using ()
+         renaming (semigroup to *-semigroup)
+
 record Semiring : Set1 where
   infixl 7 _*_
   infixl 6 _+_
   field
-    setoid         : Setoid
-    _+_            : P.Op₂ setoid
-    _*_            : P.Op₂ setoid
-    0#             : Setoid.carrier setoid
-    1#             : Setoid.carrier setoid
-    isSemiring     : IsSemiring setoid _+_ _*_ 0# 1#
+    setoid     : Setoid
+    _+_        : P.Op₂ setoid
+    _*_        : P.Op₂ setoid
+    0#         : Setoid.carrier setoid
+    1#         : Setoid.carrier setoid
+    isSemiring : IsSemiring setoid _+_ _*_ 0# 1#
 
   open Setoid setoid public
   open IsSemiring setoid isSemiring public
+
+  semiringWithoutAnnihilatingZero : SemiringWithoutAnnihilatingZero
+  semiringWithoutAnnihilatingZero = record
+    { setoid                            = setoid
+    ; _+_                               = _+_
+    ; _*_                               = _*_
+    ; 0#                                = 0#
+    ; 1#                                = 1#
+    ; isSemiringWithoutAnnihilatingZero =
+        isSemiringWithoutAnnihilatingZero
+    }
+
+  open SemiringWithoutAnnihilatingZero
+         semiringWithoutAnnihilatingZero public
+         using ( +-semigroup; +-monoid; +-commutativeMonoid
+               ; *-semigroup; *-monoid
+               )
 
   semiringWithoutOne : SemiringWithoutOne
   semiringWithoutOne = record
@@ -212,18 +267,7 @@ record Semiring : Set1 where
     }
 
   open SemiringWithoutOne semiringWithoutOne public
-         using ( +-semigroup; +-monoid; +-commutativeMonoid
-               ; *-semigroup
-               ; nearSemiring
-               )
-
-  *-monoid : Monoid
-  *-monoid = record
-    { setoid   = setoid
-    ; _•_      = _*_
-    ; ε        = 1#
-    ; isMonoid = *-isMonoid
-    }
+         using (nearSemiring)
 
 record CommutativeSemiringWithoutOne : Set1 where
   infixl 7 _*_
@@ -283,6 +327,7 @@ record CommutativeSemiring : Set1 where
          using ( +-semigroup; +-monoid; +-commutativeMonoid
                ; *-semigroup; *-monoid
                ; nearSemiring; semiringWithoutOne
+               ; semiringWithoutAnnihilatingZero
                )
 
   *-commutativeMonoid : CommutativeMonoid
@@ -361,6 +406,7 @@ record Ring : Set1 where
          using ( +-semigroup; +-monoid; +-commutativeMonoid
                ; *-semigroup; *-monoid
                ; nearSemiring; semiringWithoutOne
+               ; semiringWithoutAnnihilatingZero
                )
 
   rawRing : RawRing
@@ -414,7 +460,8 @@ record CommutativeRing : Set1 where
   open CommutativeSemiring commutativeSemiring public
          using ( +-semigroup; +-monoid; +-commutativeMonoid
                ; *-semigroup; *-monoid; *-commutativeMonoid
-               ; nearSemiring; semiringWithoutOne; semiring
+               ; nearSemiring; semiringWithoutOne
+               ; semiringWithoutAnnihilatingZero; semiring
                ; commutativeSemiringWithoutOne
                )
 

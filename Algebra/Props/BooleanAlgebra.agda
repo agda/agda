@@ -103,7 +103,7 @@ abstract
   ∨-∧-isCommutativeSemiring : IsCommutativeSemiring _∨_ _∧_ ⊥ ⊤
   ∨-∧-isCommutativeSemiring = record
     { isSemiring = record
-      { isSemiringWithoutOne = record
+      { isSemiringWithoutAnnihilatingZero = record
         { +-isCommutativeMonoid = record
           { isMonoid = record
             { isSemigroup = record
@@ -114,14 +114,16 @@ abstract
             }
           ; comm  = ∨-comm
           }
-        ; *-isSemigroup = record
+        ; *-isMonoid = record
+          { isSemigroup = record
             { assoc    = ∧-assoc
             ; •-pres-≈ = ∧-pres-≈
             }
+          ; identity = ∧-identity
+          }
         ; distrib = ∧-∨-distrib
-        ; zero    = ∧-zero
         }
-      ; *-identity = ∧-identity
+      ; zero = ∧-zero
       }
     ; *-comm = ∧-comm
     }
@@ -158,7 +160,7 @@ abstract
   ∧-∨-isCommutativeSemiring : IsCommutativeSemiring _∧_ _∨_ ⊤ ⊥
   ∧-∨-isCommutativeSemiring = record
     { isSemiring = record
-      { isSemiringWithoutOne = record
+      { isSemiringWithoutAnnihilatingZero = record
         { +-isCommutativeMonoid = record
           { isMonoid = record
             { isSemigroup = record
@@ -169,14 +171,16 @@ abstract
             }
           ; comm  = ∧-comm
           }
-        ; *-isSemigroup = record
+        ; *-isMonoid = record
+          { isSemigroup = record
             { assoc    = ∨-assoc
             ; •-pres-≈ = ∨-pres-≈
             }
+          ; identity = ∨-identity
+          }
         ; distrib = ∨-∧-distrib
-        ; zero    = ∨-zero
         }
-      ; *-identity = ∨-identity
+      ; zero = ∨-zero
       }
     ; *-comm = ∨-comm
     }

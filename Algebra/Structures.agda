@@ -121,18 +121,50 @@ record IsSemiringWithoutOne (+ * : Op₂) (0# : carrier) : Set where
     ; zeroˡ         = proj₁ zero
     }
 
+record IsSemiringWithoutAnnihilatingZero (+ * : Op₂) (0# 1# : carrier)
+         : Set where
+  field
+    -- Note that these structures do have an additive unit, but this
+    -- unit does not necessarily annihilate multiplication.
+    +-isCommutativeMonoid : IsCommutativeMonoid + 0#
+    *-isMonoid            : IsMonoid * 1#
+    distrib               : * DistributesOver +
+
+  open IsCommutativeMonoid +-isCommutativeMonoid public
+         renaming ( assoc       to +-assoc
+                  ; •-pres-≈    to +-pres-≈
+                  ; isSemigroup to +-isSemigroup
+                  ; identity    to +-identity
+                  ; isMonoid    to +-isMonoid
+                  ; comm        to +-comm
+                  )
+
+  open IsMonoid *-isMonoid public
+         renaming ( assoc       to *-assoc
+                  ; •-pres-≈    to *-pres-≈
+                  ; isSemigroup to *-isSemigroup
+                  ; identity    to *-identity
+                  )
+
 record IsSemiring (+ * : Op₂) (0# 1# : carrier) : Set where
   field
-    isSemiringWithoutOne : IsSemiringWithoutOne + * 0#
-    *-identity           : Identity 1# *
+    isSemiringWithoutAnnihilatingZero :
+      IsSemiringWithoutAnnihilatingZero + * 0# 1#
+    zero : Zero 0# *
+
+  open IsSemiringWithoutAnnihilatingZero
+         isSemiringWithoutAnnihilatingZero public
+
+  isSemiringWithoutOne : IsSemiringWithoutOne + * 0#
+  isSemiringWithoutOne = record
+    { +-isCommutativeMonoid = +-isCommutativeMonoid
+    ; *-isSemigroup         = *-isSemigroup
+    ; distrib               = distrib
+    ; zero                  = zero
+    }
 
   open IsSemiringWithoutOne isSemiringWithoutOne public
-
-  *-isMonoid : IsMonoid * 1#
-  *-isMonoid = record
-    { isSemigroup = *-isSemigroup
-    ; identity    = *-identity
-    }
+         using (isNearSemiring)
 
 record IsCommutativeSemiringWithoutOne (+ * : Op₂) (0# : carrier)
          : Set where
@@ -215,21 +247,23 @@ record IsRing (_+_ _*_ : Op₂) (-_ : Op₁) (0# 1# : carrier) : Set where
       (x * 0#) + - (x * 0#)               ≈⟨ proj₂ --inverse _ ⟩
       0#                                  ∎
 
-  isSemiringWithoutOne : IsSemiringWithoutOne _+_ _*_ 0#
-  isSemiringWithoutOne = record
+  isSemiringWithoutAnnihilatingZero
+    : IsSemiringWithoutAnnihilatingZero _+_ _*_ 0# 1#
+  isSemiringWithoutAnnihilatingZero = record
     { +-isCommutativeMonoid = +-isCommutativeMonoid
-    ; *-isSemigroup         = *-isSemigroup
+    ; *-isMonoid            = *-isMonoid
     ; distrib               = distrib
-    ; zero                  = zero
     }
 
   isSemiring : IsSemiring _+_ _*_ 0# 1#
   isSemiring = record
-    { isSemiringWithoutOne = isSemiringWithoutOne
-    ; *-identity           = *-identity
+    { isSemiringWithoutAnnihilatingZero =
+        isSemiringWithoutAnnihilatingZero
+    ; zero = zero
     }
 
-  open IsSemiring isSemiring using (isNearSemiring)
+  open IsSemiring isSemiring
+         using (isNearSemiring; isSemiringWithoutOne)
 
 record IsCommutativeRing (+ * : Op₂) (- : Op₁) (0# 1# : carrier)
          : Set where
