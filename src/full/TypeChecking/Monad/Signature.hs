@@ -245,9 +245,10 @@ getSecFreeVars m = do
 -- | Compute the number of free variables of a defined name. This is the sum of
 --   the free variables of the sections it's contained in.
 getDefFreeVars :: MonadTCM tcm => QName -> tcm Nat
-getDefFreeVars q = sum <$> mapM getSecFreeVars ms
+getDefFreeVars q = sum <$> ((:) <$> getAnonymousVariables m <*> mapM getSecFreeVars ms)
   where
-    ms = map mnameFromList . inits . mnameToList . qnameModule $ q
+    m  = qnameModule q
+    ms = map mnameFromList . inits . mnameToList $ m
 
 -- | Compute the context variables to apply a definition to.
 freeVarsToApply :: MonadTCM tcm => QName -> tcm Args
@@ -258,9 +259,10 @@ freeVarsToApply x = take <$> getDefFreeVars x <*> getContextArgs
 instantiateDef :: MonadTCM tcm => Definition -> tcm Definition
 instantiateDef d = do
   vs  <- freeVarsToApply $ defName d
-  verbose 30 $ do
+  verboseS "tc.sig.inst" 30 $ do
     ctx <- getContext
-    liftIO $ putStrLn $ "instDef " ++ show (defName d) ++ " " ++
+    m   <- currentModule
+    liftIO $ putStrLn $ "instDef in " ++ show m ++ ": " ++ show (defName d) ++ " " ++
 			unwords (map show . take (size vs) . reverse . map (fst . unArg) $ ctx)
   return $ d `apply` vs
 

@@ -139,17 +139,9 @@ checkSection i x tel ds =
 checkSectionApplication ::
   Info.ModuleInfo -> ModuleName -> A.Telescope -> ModuleName -> [NamedArg A.Expr] ->
   Map QName QName -> Map ModuleName ModuleName -> TCM ()
-checkSectionApplication i = checkSectionApplication' i 0
-
--- | Check an application of a section. Takes an extra argument which is the number of
---   free variables that should be included as part of the created module (when applying
---   under a context).
-checkSectionApplication' ::
-  Info.ModuleInfo -> Nat -> ModuleName -> A.Telescope -> ModuleName -> [NamedArg A.Expr] ->
-  Map QName QName -> Map ModuleName ModuleName -> TCM ()
-checkSectionApplication' i extraArgs m1 ptel m2 args rd rm =
+checkSectionApplication i m1 ptel m2 args rd rm =
   checkTelescope ptel $ \ptel -> do
-  addSection m1 (size ptel + extraArgs)
+  addSection m1 (size ptel)
   tel <- lookupSection m2
   vs  <- freeVarsToApply $ qnameFromList $ mnameToList m2
   reportSDoc "tc.section.apply" 15 $ vcat

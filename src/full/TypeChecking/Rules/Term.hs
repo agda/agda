@@ -23,7 +23,7 @@ import TypeChecking.Records
 import TypeChecking.Conversion
 
 #ifndef __HADDOCK__
-import {-# SOURCE #-} TypeChecking.Rules.Decl (checkSectionApplication')
+import {-# SOURCE #-} TypeChecking.Rules.Decl (checkSectionApplication)
 #endif
 
 import Utils.Monad
@@ -380,6 +380,6 @@ checkLetBinding (A.LetApply i x tel m args rd rm) ret = do
   fv <- getDefFreeVars =<< (qnameFromList . mnameToList) <$> currentModule
   n  <- size <$> getContext
   reportSLn "tc.term.let.apply" 10 $ "Applying " ++ show m ++ " with " ++ show (n - fv) ++ " free variables"
-  checkSectionApplication' i (n - fv) x tel m args rd rm
-  withCurrentModule x ret
+  checkSectionApplication i x tel m args rd rm
+  withAnonymousModule x (n - fv) ret
 

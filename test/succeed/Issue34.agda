@@ -11,3 +11,8 @@ record B (X : Set) : Set where
   open A X
   field f : A
 
+postulate
+  foo : (X : Set)(b : B X) ->
+        let open A X
+            open B b in
+        A -> Set

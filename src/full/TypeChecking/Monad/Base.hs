@@ -479,12 +479,14 @@ instance Traversable Builtin where
 ---------------------------------------------------------------------------
 
 data TCEnv =
-    TCEnv { envContext	     :: Context
-	  , envLetBindings   :: LetBindings
-	  , envCurrentModule :: ModuleName
-	  , envImportPath    :: [ModuleName]	-- ^ to detect import cycles
-	  , envMutualBlock   :: Maybe MutualId	-- ^ the current (if any) mutual block
-	  , envAbstractMode  :: AbstractMode
+    TCEnv { envContext             :: Context
+	  , envLetBindings         :: LetBindings
+	  , envCurrentModule       :: ModuleName
+          , envAnonymousVariables  :: Nat            -- ^ free variables from anonymous modules
+          , envAnonymousModules    :: [ModuleName]   -- ^ anonymous modules (has anonymous variables as free variables)
+	  , envImportPath          :: [ModuleName]   -- ^ to detect import cycles
+	  , envMutualBlock         :: Maybe MutualId -- ^ the current (if any) mutual block
+	  , envAbstractMode        :: AbstractMode
 		-- ^ When checking the typesignature of a public definition
 		--   or the body of a non-abstract definition this is true.
 		--   To prevent information about abstract things leaking
@@ -498,6 +500,8 @@ initEnv :: TCEnv
 initEnv = TCEnv { envContext	         = []
 		, envLetBindings         = Map.empty
 		, envCurrentModule       = noModuleName
+                , envAnonymousVariables  = 0
+                , envAnonymousModules    = []
 		, envImportPath          = []
 		, envMutualBlock         = Nothing
 		, envAbstractMode        = AbstractMode
