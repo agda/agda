@@ -346,7 +346,7 @@ instance PrettyTCM TypeError where
 	    NotAnExpression e -> fsep $
 		[pretty e] ++ pwords "is not a valid expression."
 	    NotAValidLetBinding nd -> fwords $
-		"Let-definitions cannot do pattern matching or be recursive."
+		"Not a valid let-declaration"
 	    NothingAppliedToHiddenArg e	-> fsep $
 		[pretty e] ++ pwords "cannot appear by itself. It needs to be the argument to" ++
 		pwords "a function expecting an implicit argument."
