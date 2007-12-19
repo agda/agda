@@ -4,7 +4,7 @@ include $(TOP)/mk/paths.mk
 
 include tests.mk
 
-SUFFIX = $(shell echo `hostname -s`-`date +"%Y%m%d-%H.%M"`.log)
+SUFFIX = $(shell echo `hostname -s`-`date +"%Y%m%d-%H.%M"`)
 LOG_DIR = logs
 
 logFiles = $(patsubst %,$(LOG_DIR)/%-$(SUFFIX),$(allTests))
