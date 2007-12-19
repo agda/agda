@@ -23,7 +23,7 @@ endif
 
 .PHONY : default all clean install full prof core \
 		 debug doc dist make_configure clean_test examples \
-		 test succeed fail
+		 test succeed fail benchmark
 
 ## Default target #########################################################
 
