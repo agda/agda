@@ -156,3 +156,70 @@ If the implementation can be made efficient, then I believe that the
 scheme outlined above is strictly better than the one we have. It is
 also easy to understand. In other words, I will start thinking about
 the implementation.
+
+------------------------------------------------------------------------
+Improved syntax
+------------------------------------------------------------------------
+
+infix [ε|left|right] <operators>
+  [ε|binds [as <operator>
+           |looser  than <operators>
+           |tighter than <operators>
+           |looser  than <operators> tighter than <operators>
+           |tighter than <operators> looser  than <operators>
+           ]]
+
+------------------------------------------------------------------------
+Refinement
+------------------------------------------------------------------------
+
+Ulf commented that the scheme above is too inflexible. If (the already
+existing) library A defines _+_, and library B defines _&_ (which is
+unrelated to _+_), then it is impossible to define _==_ in library C
+in such a way that _+_ binds tighter than _==_, which in turn binds
+tighter than _&_. In order to accommodate this, let us drop
+transitivity.
+
+Details (based on discussions with Ulf):
+
+  Precedence relations are DAGs, whose nodes are annotated with sets
+  of operators. Let node(•) be the node of operator • (if any), and
+  let n₁ ⊰ n₂ mean that there is an edge from node n₁ to node n₂.
+
+  Fixity declarations get the following meanings:
+
+  • binds as ∘:
+
+    • is added to node(∘).
+
+  • binds looser than ∘₁ tighter than ∘₂:
+
+    A new node annotated with {•} is added,
+    plus an edge from node(∘₁) and an edge from node n for all n with
+      n ⊰ node(∘₁),
+    plus an edge to node(∘₂) and an edge to node n for all n with
+      node(∘₂) ⊰ n.
+
+    Note that this does not create any new dependencies between ∘₁ and
+    ∘₂, but • inherits earlier dependencies.
+
+  A precedence relation now gives rise to a context free grammar in
+  the following way (for simplicity I only include binary,
+  nonassociative, non-mixfix operators here):
+
+  * For every node n annotated with _•₁_, _•₂_, …, _•k_ the following
+    productions are added:
+
+      n  ∷= n↑ op n↑
+      op ∷= •₁ | •₂ | … | •k
+      n↑ ∷= <atom> | ⋁ {n' | n ⊰ n'}
+
+  * The top-level production is as follows:
+
+      expr ∷= <atom> | ⋁ {n | n is a node in the graph}
+
+  It should be easy to generalise this to arbitrary mixfix operators
+  with arbitrary associativity.
+
+  The resulting grammar may require a large lookahead, so it may need
+  to be optimised (left factored, for instance).
