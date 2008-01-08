@@ -624,7 +624,8 @@ top-level module.
 With a prefix argument \"abstract\" is ignored during the computation."
   (interactive "MExpression: \nP")
   (let ((cmd (concat "cmd_compute_toplevel"
-                     (if arg " True" " False"))))
+                     (if arg " True" " False")
+                     " ")))
     (agda2-go (concat cmd (agda2-string-quote expr)))))
 
 (defun agda2-compute-normalised-maybe-toplevel ()
