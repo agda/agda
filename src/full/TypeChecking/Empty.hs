@@ -15,6 +15,8 @@ import TypeChecking.Monad
 import TypeChecking.Reduce
 import TypeChecking.Errors
 import TypeChecking.Primitive
+import TypeChecking.Pretty
+import TypeChecking.Substitute
 import Utils.Function
 
 -- | Make sure that a type is empty.
@@ -32,7 +34,7 @@ isEmptyType t = do
 		-- uninhabited.
 		Datatype nPs nIxs _ cs _ _ | nIxs > 0 -> do
 		    ixs <- normalise $ map unArg vs
-		    verbose 10 $ do
+		    verboseS "tc.empty" 10 $ do
 			ds <- mapM prettyTCM ixs
 			liftIO $ putStrLn $ "empty inductive family?"
 			liftIO $ putStrLn $ "nIxs = " ++ show nIxs
@@ -47,15 +49,20 @@ notEmpty :: MonadTCM tcm => Type -> tcm a
 notEmpty t = typeError $ ShouldBeEmpty t
 
 -- | Make sure that a constructor cannot produce an element at the given index.
---   TODO: Handle cases like @zero == suc _@. To do this we need to do some
---   unification.
 impossibleConstr :: MonadTCM tcm => Type -> [Term] -> QName -> tcm ()
 impossibleConstr a ixs c = do
-    reportLn 10 $ "impossible constructor " ++ show c ++ " ?"
+    reportSLn "tc.empty" 10 $ "impossible constructor " ++ show c ++ " ?"
     t <- normalise =<< typeOfConst c
     let Def _ vs = stripPi $ unEl t
-	ixs'	 = map unArg vs
-    d <- distinct ixs ixs'
+        ixs0     = raise (arity t) ixs  -- avoid variable clashes
+	ixs1	 = map unArg vs
+    reportSDoc "tc.empty" 12 $ sep [ text "distinct?"
+                                   , nest 2 $ sep [ text (show ixs0)
+                                                  , text " and "
+                                                  , text (show ixs1)
+                                                  ]
+                                   ]
+    d <- distinct ixs0 ixs1
     unless d $ notEmpty a
     where
 	stripPi t = case t of
@@ -97,7 +104,7 @@ unify u v = do
     s <- lift $ lift $ constructorForm $ theTerm u
     t <- lift $ lift $ constructorForm $ theTerm v
     let varsOf u t = (if hasVars u then yesVars else noVars) $ unArg t
-    lift $ lift $ reportLn 10 $ "unifying " ++ hd s ++ " and " ++ hd t
+    lift $ lift $ reportSLn "tc.empty.unify" 10 $ "unifying " ++ hd s ++ " and " ++ hd t
     case (s, t) of
 	(Con c us, Con c' vs)
 	    | c /= c'	-> throwError ()
