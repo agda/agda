@@ -1,4 +1,5 @@
 WithScopeError.agda:11,11-14
 Not in scope:
+  y
 WithScopeError.agda:11,11-12
 when scope checking y x

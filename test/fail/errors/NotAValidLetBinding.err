@@ -1,5 +1,5 @@
 errors/NotAValidLetBinding.agda:8,7-11,24
-Let-definitions cannot do pattern matching or be recursive.
+Not a valid let-declaration
 when scope checking
 let pred : N -> N
     pred z = z
