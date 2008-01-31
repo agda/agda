@@ -289,7 +289,7 @@ transCDefn cdefn = case cdefn of
         t = maybe (Set noRange) transCExpr mctype 
         tls = concatMap carg2telescope args
         n = id2name i
-        ot = foldl (\ f (TypedBindings _ _ [TBind _ [x] _]) -> RawApp noRange [f, Ident (QName x)]) (Ident (QName n)) tls
+        ot = foldl (\ f (TypedBindings _ _ [TBind _ [BName x _] _]) -> RawApp noRange [f, Ident (QName x)]) (Ident (QName n)) tls
   Cidata i args ctype cindsums
     -> if not (isLastSet ctype) || any (not . isSet) args then errorDecls $ pp "" cdefn
        else -- errorDecls $ pp (show cdefn) cdefn
@@ -371,7 +371,7 @@ csig2fields csign
 
 carg2telescope :: CArg -> Telescope
 carg2telescope (CArg bis ctype)
-  = map (\ (b,i) -> TypedBindings noRange (bool2hiding b) [TBind noRange [id2name i] (transCExpr ctype)]) bis
+  = map (\ (b,i) -> TypedBindings noRange (bool2hiding b) [TBind noRange [mkBoundName_ $ id2name i] (transCExpr ctype)]) bis
 
 csummand2constructor :: Expr -> CSummand -> Constructor
 csummand2constructor otype (i,cargs)
@@ -418,13 +418,13 @@ transCExpr ce = case ce of
   CStar _ 0 _ -> Set noRange
   CStar _ n _ -> SetN noRange n
   Clam (flg,CBind [x] Nothing) e 
-              -> Lam noRange [DomainFree (bool2hiding flg) (id2name x)] (transCExpr e)
+              -> Lam noRange [DomainFree (bool2hiding flg) (mkBoundName_ $ id2name x)] (transCExpr e)
   Clam (flg,CBind xs (Just t)) e
               -> Lam noRange 
                      [DomainFull (TypedBindings 
                                     noRange
                                     (bool2hiding flg)
-                                    [TBind noRange (map id2name xs) (transCExpr t)]
+                                    [TBind noRange (map (mkBoundName_ . id2name) xs) (transCExpr t)]
                                  )
                      ]
                      (transCExpr e)
@@ -435,7 +435,7 @@ transCExpr ce = case ce of
                                -> Pi [TypedBindings noRange
                                                     (bool2hiding b)
                                                     [TBind noRange
-                                                           [(id2name i)]
+                                                           [mkBoundName_ $ id2name i]
                                                            (transCExpr ctype)]
                                      ]
                                      expr)
