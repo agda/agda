@@ -110,6 +110,9 @@ unify u v = do
 	    | c /= c'	-> throwError ()
 	    | otherwise	-> zipWithM_ unify (map (varsOf u) us)
 					   (map (varsOf v) vs)
+        (Lit l, Lit l')
+            | l /= l'   -> throwError ()
+            | otherwise -> return ()
 	(_, Var i []) | hasVars v   -> i =: s
 	(Var i [], _) | hasVars u   -> i =: t
 	_			    -> return ()
