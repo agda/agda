@@ -72,19 +72,20 @@ main = do
   let go | optHelp opts = do
             printUsage stdout
             exitWith ExitSuccess
-         | optETags opts = do
-            debug $ "etags not supported"
-            exitWith $ ExitFailure 1
          | otherwise = do
             top : _ <- lines <$> runCmd "ghc --print-libdir"
             session <- newSession (Just top)
             -- This looks like a no-op but it's actually not.
             -- setSessionDynFlags does interesting (and necessary) things.
             setSessionDynFlags session =<< getSessionDynFlags session
-            ts <- mapM (goFile session) $ optFiles opts
-            let sts = sort $ concat ts
+            ts <- mapM (\f -> liftM2 ((,,) f) (readFile f)
+                                              (goFile session f)) $
+                       optFiles opts
             when (optCTags opts) $
+              let sts = sort $ concat $ map (\(_, _, t) -> t) ts in
               writeFile (optCTagsFile opts) $ unlines $ map show sts
+            when (optETags opts) $
+              writeFile (optETagsFile opts) $ showETags ts
   go
 
 getOptions :: IO Options

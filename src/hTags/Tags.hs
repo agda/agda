@@ -2,6 +2,9 @@
 module Tags where
 
 import Data.List
+import Data.Maybe
+import Data.Map (Map, (!))
+import qualified Data.Map as Map
 
 import HsSyn
 import SrcLoc
@@ -11,18 +14,61 @@ import qualified Name
 import FastString
 import Bag
 
+data Pos = Pos { line, column :: Int }
+           deriving (Eq, Ord)
+
 data Tag = NoLoc String
-         | Tag String FilePath Int
+         | Tag String FilePath Pos
   deriving (Eq, Ord)
 
+-- | Takes a list of (filename, file contents, tags) and generates
+-- text for an etags file.
+
+-- I found the etags file format on Wikipedia; I have not found an
+-- authoritative definition of it.
+--
+-- For every file containing tags a section is generated.
+-- Section header (two lines):
+--   \x0c
+--   <file name>,<size of the following lines in bytes>
+-- This is followed by one line for every tag:
+--   <text from start of line to end of tag>\x7f
+--   <tag name>\x01
+--   <line number>,<some form of offset in bytes>
+
+showETags :: [(FilePath, String, [Tag])] -> String
+showETags = concatMap showFile
+  where
+  showFile (f, contents, ts) =
+    unlines ["\x0c", f ++ "," ++ show bytes] ++ ts'
+    where
+    ts' = unlines $ catMaybes $ map showTag ts
+
+    -- TODO: This should be the length in _bytes_ of ts'. However,
+    -- since the rest of this program seems to assume an 8-bit
+    -- character encoding I just count the number of characters.
+    bytes = length ts'
+
+    lineMap = Map.fromList $ zip [1..] (lines contents)
+
+    showTag (NoLoc _)   = Nothing
+    showTag (Tag t f p) = Just $
+      take (column p) (lineMap ! line p) ++ t ++ "\x7f" ++
+      t ++ "\x01" ++
+      show (line p) ++ ",0"
+      -- I don't know what the last offset is used for, so I have set
+      -- it to 0. This seems to work.
+
 instance Show Tag where
-  show (Tag t f n) = intercalate "\t" [t, f, show n]
+  show (Tag t f p) = intercalate "\t" [t, f, show (line p)]
   show (NoLoc t)   = unwords [t, ".", "0"]
 
 srcLocTag :: SrcLoc -> Tag -> Tag
 srcLocTag l (NoLoc t) = Tag t
                             (unpackFS $ srcLocFile l)
-                            (srcLocLine l)
+                            (Pos { line   = srcLocLine l
+                                 , column = srcLocCol l
+                                 })
 srcLocTag _ t@Tag{}   = t
 
 class TagName a where
