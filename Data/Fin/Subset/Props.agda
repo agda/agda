@@ -18,7 +18,7 @@ abstract
   fin-0-∅ : Fin zero -> ⊥
   fin-0-∅ ()
 
-  fz∉ : forall {n s} {p : Subset n} -> fz ∉ p ▻ s
+  fz∉ : forall {n} {p : Subset n} -> fz ∉ p ▻ outside
   fz∉ ()
 
   drop-fsIn : forall {s n x} {p : Subset n} -> fs x ∈ p ▻ s -> x ∈ p
