@@ -7,6 +7,9 @@ module Data.List where
 open import Data.Nat
 open import Data.Sum
 open import Data.Bool
+open import Data.Maybe
+open import Data.Product
+open import Data.Fin
 
 infixr 5 _∷_ _++_
 
@@ -81,6 +84,25 @@ inj₂s : forall {a b} -> [ a ⊎ b ] -> [ b ]
 inj₂s []            = []
 inj₂s (inj₁ x ∷ xs) = inj₂s xs
 inj₂s (inj₂ x ∷ xs) = x ∷ inj₂s xs
+
+-- Unfold. Uses a measure (a natural number) to ensure termination.
+
+unfold :  {A : Set} (B : ℕ -> Set)
+          (f : forall {n} -> B (suc n) -> Maybe (A × B n))
+       -> forall {n} -> B n -> [ A ]
+unfold B f {n = zero}  s = []
+unfold B f {n = suc n} s with f s
+... | nothing       = []
+... | just (x , s') = x ∷ unfold B f s'
+
+-- downFrom 3 = 2 ∷ 1 ∷ 0 ∷ [].
+
+downFrom : ℕ -> [ ℕ ]
+downFrom n = unfold Fin f (fromℕ n)
+  where
+  f : forall {n} -> Fin (suc n) -> Maybe (ℕ × Fin n)
+  f fz     = nothing
+  f (fs i) = just (toℕ i , i)
 
 ------------------------------------------------------------------------
 -- List monad
