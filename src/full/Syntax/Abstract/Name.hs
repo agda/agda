@@ -16,6 +16,7 @@ import qualified Syntax.Concrete.Name as C
 import Utils.Fresh
 import Utils.Function
 import Utils.Size
+import Utils.Suffix
 
 #include "../../undefined.h"
 
@@ -113,6 +114,20 @@ freshNoName r =
 
 freshNoName_ :: (MonadState s m, HasFresh NameId s) => m Name
 freshNoName_ = freshNoName noRange
+
+-- | Get the next version of the concrete name. For instance, @nextName "x" = "x'"@.
+--   The name must not be a 'NoName'.
+nextName :: Name -> Name
+nextName x = x { nameConcrete = C.Name r $ nextSuf ps }
+    where
+	C.Name r ps = nameConcrete x
+	-- NoName cannot appear here
+	nextSuf [C.Id _ s]         = [ C.Id noRange $ nextStr s ]
+	nextSuf [C.Id _ s, C.Hole] = [ C.Id noRange $ nextStr s, C.Hole ]
+	nextSuf (p : ps)           = p : nextSuf ps
+	nextSuf []                 = __IMPOSSIBLE__
+	nextStr s = case suffixView s of
+	    (s0, suf) -> addSuffix s0 (nextSuffix suf)
 
 instance Show NameId where
   show (NameId x i) = show x ++ "@" ++ show i

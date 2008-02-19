@@ -147,18 +147,6 @@ bindName x ret = do
 		       }
 	      ) $ ret y
 
-nextName :: A.Name -> A.Name
-nextName x = x { nameConcrete = C.Name r $ nextSuf ps }
-    where
-	C.Name r ps = nameConcrete x
-	-- NoName cannot appear here
-	nextSuf [Id _ s]       = [ Id noRange $ nextStr s ]
-	nextSuf [Id _ s, Hole] = [ Id noRange $ nextStr s, Hole ]
-	nextSuf (p : ps)       = p : nextSuf ps
-	nextSuf []	       = __IMPOSSIBLE__
-	nextStr s = case suffixView s of
-	    (s0, suf) -> addSuffix s0 (nextSuffix suf)
-
 -- Dealing with precedences -----------------------------------------------
 
 -- | General bracketing function.

@@ -37,8 +37,9 @@ noName :: Range -> Name
 noName r = NoName r (NameId 0 0)
 
 isNoName :: Name -> Bool
-isNoName (NoName _ _) = True
-isNoName _	      = False
+isNoName (NoName _ _)    = True
+isNoName (Name _ [Hole]) = True   -- TODO: Track down where these come from
+isNoName _               = False
 
 nameParts :: Name -> [NamePart]
 nameParts (Name _ ps)  = ps

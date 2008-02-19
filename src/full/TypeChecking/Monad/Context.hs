@@ -6,12 +6,11 @@ import Control.Monad.Reader
 import Data.List hiding (sort)
 import qualified Data.Map as Map
 
+import Syntax.Concrete.Name (isNoName)
 import Syntax.Abstract.Name
 import Syntax.Common
 import Syntax.Internal
 import Syntax.Scope.Base
-import Syntax.Translation.AbstractToConcrete (nextName)
-
 import TypeChecking.Monad.Base
 import TypeChecking.Substitute
 import TypeChecking.Monad.Open
@@ -30,9 +29,13 @@ mkContextEntry x = do
 --
 addCtx :: MonadTCM tcm => Name -> Arg Type -> tcm a -> tcm a
 addCtx x a ret = do
-  ce <- mkContextEntry $ fmap ((,) x) a
+  ctx <- map (nameConcrete . fst . unArg) <$> getContext
+  let x' = head $ filter (notTaken ctx) $ iterate nextName x
+  ce <- mkContextEntry $ fmap ((,) x') a
   flip local ret $ \e -> e { envContext = ce : envContext e }
       -- let-bindings keep track of own their context
+  where
+    notTaken xs x = isNoName (nameConcrete x) || nameConcrete x `notElem` xs
 
 -- | Change the context
 inContext :: MonadTCM tcm => [Arg (Name, Type)] -> tcm a -> tcm a

@@ -304,7 +304,7 @@ contextOfMeta ii norm = do
   withMetaInfo info $ filter visible <$> reifyContext localVars
   where visible (OfType x _) = show x /= "_"
 	visible _	     = __IMPOSSIBLE__
-        reifyContext   = foldr out (return []) . reverse
+        reifyContext xs = escapeContext (length xs) $ foldr out (return []) $ reverse xs
 	out (Arg h (x,t)) rest = do
 	  t' <- reify =<< rewrite norm t
 	  ts <- addCtx x (Arg h t) rest
