@@ -25,10 +25,14 @@ Fun₂ a = a -> a -> a
 ------------------------------------------------------------------------
 -- Functions
 
-_∘_ : {a b c : Set} -> (b -> c) -> (a -> b) -> (a -> c)
+_∘_ : {a : Set} {b c : a -> Set} ->
+      (forall {x} -> b x -> c x) ->
+      ((x : a) -> b x) -> ((x : a) -> c x)
 f ∘ g = \x -> f (g x)
 
-_∘₁_ : {a b c : Set1} -> (b -> c) -> (a -> b) -> (a -> c)
+_∘₁_ : {a : Set1} {b c : a -> Set1} ->
+       (forall {x} -> b x -> c x) ->
+       ((x : a) -> b x) -> ((x : a) -> c x)
 f ∘₁ g = \x -> f (g x)
 
 id : {a : Set} -> a -> a
