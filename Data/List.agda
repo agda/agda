@@ -9,7 +9,7 @@ open import Data.Sum
 open import Data.Bool
 open import Data.Maybe
 open import Data.Product
-open import Data.Fin
+open import Data.Function
 
 infixr 5 _∷_ _++_
 
@@ -98,11 +98,13 @@ unfold B f {n = suc n} s with f s
 -- downFrom 3 = 2 ∷ 1 ∷ 0 ∷ [].
 
 downFrom : ℕ -> [ ℕ ]
-downFrom n = unfold Fin f (fromℕ n)
+downFrom = unfold Singleton f ∘ wrap
   where
-  f : forall {n} -> Fin (suc n) -> Maybe (ℕ × Fin n)
-  f fz     = nothing
-  f (fs i) = just (toℕ i , i)
+  data Singleton : ℕ -> Set where
+    wrap : (n : ℕ) -> Singleton n
+
+  f : forall {n} -> Singleton (suc n) -> Maybe (ℕ × Singleton n)
+  f {n} (wrap .(suc n)) = just (n , wrap n)
 
 ------------------------------------------------------------------------
 -- List monad
