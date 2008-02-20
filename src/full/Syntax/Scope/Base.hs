@@ -312,12 +312,16 @@ setScopeAccess a s = s { scopePublic  = pub
       PublicAccess  -> (one, zero)
       PrivateAccess -> (zero, one)
 
--- | Add a name to a scope.
-addNameToScope :: Access -> C.QName -> AbstractName -> Scope -> Scope
-addNameToScope acc x y s = mergeScope s s1
+-- | Add names to a scope.
+addNamesToScope :: Access -> C.QName -> [AbstractName] -> Scope -> Scope
+addNamesToScope acc x ys s = mergeScope s s1
   where
     s1 = setScopeAccess acc $ emptyScope
-	 { scopePublic = emptyNameSpace { nsNames = Map.singleton x [y] } }
+	 { scopePublic = emptyNameSpace { nsNames = Map.singleton x ys } }
+
+-- | Add a name to a scope.
+addNameToScope :: Access -> C.QName -> AbstractName -> Scope -> Scope
+addNameToScope acc x y s = addNamesToScope acc x [y] s
 
 -- | Add a module to a scope.
 addModuleToScope :: Access -> C.QName -> AbstractModule -> Scope -> Scope
@@ -409,7 +413,10 @@ inverseScopeLookupName x s = best $ invert x $ mergeScopes $ scopeStack s
 
     invert x s = ds
       where
-	ds = [ y | (y, [z]) <- Map.toList $ allNamesInScope s,   x == anameName z ]
+	ds = [ y | (y, zs) <- Map.toList $ allNamesInScope s
+                 , x `elem` map anameName zs
+                 , length zs == 1 || all ((==ConName) . anameKind) zs
+             ]
 
 -- | Takes the second component of 'inverseScopeLookup'.
 inverseScopeLookupModule :: A.ModuleName -> ScopeInfo -> Maybe C.QName

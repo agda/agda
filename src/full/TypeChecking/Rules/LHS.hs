@@ -292,7 +292,7 @@ checkLeftHandSide ps a ret = do
                           , focusIndices  = ws
                           }
                   )) p1
-                ) -> traceCall (CheckPattern (A.ConP (PatRange r) c qs) (problemTel p0)
+                ) -> traceCall (CheckPattern (A.ConP (PatRange r) [c] qs) (problemTel p0)
                                (El Prop $ Def d $ vs ++ ws)) $ do
 
             let delta1 = problemTel p0

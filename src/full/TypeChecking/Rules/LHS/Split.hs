@@ -63,8 +63,8 @@ splitProblem (Problem ps (perm, qs) tel) = do
                                   | otherwise -> do
           Con z _ <- primZero
           Con s  _ <- primSuc
-          let zero  = A.ConP info (setRange r z) []
-              suc p = A.ConP info (setRange r s) [Arg NotHidden $ unnamed p]
+          let zero  = A.ConP info [setRange r z] []
+              suc p = A.ConP info [setRange r s] [Arg NotHidden $ unnamed p]
               info  = A.PatRange r
               p'    = fmap (fmap $ const $ foldr ($) zero $ replicate (fromIntegral n) suc) p
           splitP (p' : ps) ((i, q) : qs) tel0
@@ -81,7 +81,7 @@ splitProblem (Problem ps (perm, qs) tel) = do
 		    (fmap (LitFocus lit q i) a)
 		    (fmap (Problem ps ()) tel)
 	    else keepGoing
-	(xs, p@(A.ConP _ c args)) -> do
+	(xs, p@(A.ConP _ cs args)) -> do
 	  a' <- reduce $ unArg a
 	  case unEl a' of
 	    Def d vs	-> do
@@ -90,10 +90,14 @@ splitProblem (Problem ps (perm, qs) tel) = do
 		Datatype np _ _ _ _ _ ->
 		  traceCall (CheckPattern p EmptyTel (unArg a)) $ do  -- TODO: wrong telescope
                   -- Check that we construct something in the right datatype
-                  do c' <- canonicalName c
-                     d' <- canonicalName d
-                     Datatype _ _ _ cs _ _ <- theDef <$> getConstInfo d'
-                     unless (elem c' cs) $ typeError $ ConstructorPatternInWrongDatatype c d
+                  c <- do
+                      cs' <- mapM canonicalName cs
+                      d'  <- canonicalName d
+                      Datatype _ _ _ cs0 _ _ <- theDef <$> getConstInfo d'
+                      case [ c | (c, c') <- zip cs cs', elem c' cs0 ] of
+                        [c] -> return c
+                        []  -> typeError $ ConstructorPatternInWrongDatatype (head cs) d
+                        _   -> __IMPOSSIBLE__
 		  let (pars, ixs) = splitAt np vs
 		  reportSDoc "tc.lhs.split" 10 $
 		    vcat [ sep [ text "splitting on"

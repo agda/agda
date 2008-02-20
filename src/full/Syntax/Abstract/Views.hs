@@ -12,7 +12,7 @@ data AppView = Application Head [NamedArg Expr]
 
 data Head = HeadVar Name
 	  | HeadDef QName
-	  | HeadCon QName
+	  | HeadCon [QName]
 
 appView :: Expr -> AppView
 appView e =

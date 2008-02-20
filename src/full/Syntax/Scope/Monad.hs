@@ -26,6 +26,7 @@ import TypeChecking.Monad.Options
 import Utils.Tuple
 import Utils.Fresh
 import Utils.Size
+import Utils.List
 
 #include "../../undefined.h"
 
@@ -133,6 +134,7 @@ getCurrentModule =
 
 data ResolvedName = VarName A.Name
 		  | DefinedName AbstractName
+                  | ConstructorName [AbstractName]
 		  | UnknownName
 
 -- | Look up the abstract name referred to by a given concrete name.
@@ -144,6 +146,9 @@ resolveName x = do
   case lookup x vars of
     Just y  -> return $ VarName $ y { nameConcrete = unqualify x }
     Nothing -> case Map.lookup x defs of
+      Just ds | all ((==ConName) . anameKind) ds ->
+        return $ ConstructorName
+               $ map (\d -> updateConcreteName d $ unqualify x) ds
       Just [d] -> return $ DefinedName $ updateConcreteName d (unqualify x)
       Just ds  -> typeError $ AmbiguousName x (map anameName ds)
       Nothing  -> return UnknownName
@@ -176,9 +181,14 @@ getFixity :: C.QName -> ScopeM Fixity
 getFixity x = do
   r <- resolveName x
   case r of
-    VarName y	  -> return $ nameFixity y
-    DefinedName d -> return $ nameFixity $ qnameName $ anameName d
-    UnknownName	  -> __IMPOSSIBLE__
+    VarName y          -> return $ nameFixity y
+    DefinedName d      -> return $ nameFixity $ qnameName $ anameName d
+    ConstructorName ds
+      | allEqual fs    -> return $ head fs
+      | otherwise      -> return defaultFixity
+      where
+        fs = map (nameFixity . qnameName . anameName) ds
+    UnknownName        -> __IMPOSSIBLE__
 
 -- * Binding names
 
@@ -193,11 +203,14 @@ bindVariable x y = do
 bindName :: Access -> KindOfName -> C.Name -> A.QName -> ScopeM ()
 bindName acc kind x y = do
   r  <- resolveName (C.QName x)
-  () <- case r of
-    DefinedName	d -> typeError $ ClashingDefinition x $ anameName d
-    VarName z	  -> typeError $ ClashingDefinition x $ A.qualify (mnameFromList []) z
-    UnknownName	  -> return ()
-  modifyTopScope $ addNameToScope acc (C.QName x) $ AbsName y kind
+  ys <- case r of
+    DefinedName	d      -> typeError $ ClashingDefinition x $ anameName d
+    VarName z          -> typeError $ ClashingDefinition x $ A.qualify (mnameFromList []) z
+    ConstructorName ds
+      | kind == ConName && all ((==ConName) . anameKind) ds -> return $ AbsName y kind : ds
+      | otherwise -> typeError $ ClashingDefinition x $ anameName (head ds) -- TODO: head
+    UnknownName        -> return [AbsName y kind]
+  modifyTopScope $ addNamesToScope acc (C.QName x) ys
 
 -- | Bind a module name.
 bindModule :: Access -> C.Name -> A.ModuleName -> ScopeM ()

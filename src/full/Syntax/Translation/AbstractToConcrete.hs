@@ -270,9 +270,10 @@ instance ToConcrete A.ModuleName C.QName where
 -- Expression instance ----------------------------------------------------
 
 instance ToConcrete A.Expr C.Expr where
-    toConcrete (Var x) = Ident . C.QName <$> toConcrete x
-    toConcrete (Def x) = Ident <$> toConcrete x
-    toConcrete (Con x) = Ident <$> toConcrete x
+    toConcrete (Var x)     = Ident . C.QName <$> toConcrete x
+    toConcrete (Def x)     = Ident <$> toConcrete x
+    toConcrete (Con (x:_)) = Ident <$> toConcrete x
+    toConcrete (Con []) = __IMPOSSIBLE__
 	-- for names we have to use the name from the info, since the abstract
 	-- name has been resolved to a fully qualified name (except for
 	-- variables)
@@ -565,7 +566,8 @@ instance ToConcrete A.Pattern [C.Pattern] where
     bindToConcrete (VarP x)	   ret = bindToConcrete x $ ret . (:[]) . IdentP . C.QName
     bindToConcrete (A.WildP i)	   ret =
 	ret [ C.WildP (getRange i) ]
-    bindToConcrete (ConP i x args) ret =
+    bindToConcrete (ConP i [] args) ret = __IMPOSSIBLE__
+    bindToConcrete (ConP i (x:_) args) ret =
 	bracketP (appBrackets' args) ret $ \ret -> do
 	    x <- toConcrete x
 	    bindToConcrete args $ \args ->
@@ -596,8 +598,9 @@ tryToRecoverOpApp e mdefault = case AV.appView e of
 	HeadVar n  -> do
 	  x <- toConcrete n
 	  doCName (nameFixity n) x args'
-	HeadDef qn -> doQName qn args'
-	HeadCon qn -> doQName qn args'
+	HeadDef qn     -> doQName qn args'
+	HeadCon (qn:_) -> doQName qn args'
+        HeadCon []     -> __IMPOSSIBLE__
     | otherwise -> mdefault
   where
 

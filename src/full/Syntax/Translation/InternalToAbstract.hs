@@ -118,7 +118,7 @@ instance Reify Term Expr where
                           us = replicate np $ Arg Hidden whocares
                       n  <- getDefFreeVars x
                       es <- reify vs
-                      apps (A.Con x, drop n $ us ++ es)
+                      apps (A.Con [x], drop n $ us ++ es)
 		I.Lam h b    ->
 		    do	(x,e) <- reify b
 			return $ A.Lam exprInfo (DomainFree h x) e

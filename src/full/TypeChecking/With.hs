@@ -109,12 +109,14 @@ stripWithClausePatterns gamma qs perm ps = do
           return $ p : ps
 
         ConP c qs' -> case namedThing $ unArg p of
-          A.ConP _ c' ps' -> do
+          A.ConP _ cs' ps' -> do
           
             Con c  [] <- constructorForm =<< reduce (Con c [])
-            Con c' [] <- constructorForm =<< reduce (Con c' [])
+            let getCon (Con c []) = c
+                getCon _ = __IMPOSSIBLE__
+            cs' <- map getCon <$> (mapM constructorForm =<< mapM (\c' -> reduce $ Con c' []) cs')
 
-            unless (c == c') mismatch
+            unless (elem c cs') mismatch
 
             -- The type is a datatype
             Def d us <- normalise $ unEl (unArg a)

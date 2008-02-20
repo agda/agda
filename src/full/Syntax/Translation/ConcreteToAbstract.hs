@@ -257,18 +257,19 @@ nameExpr :: AbstractName -> A.Expr
 nameExpr d = mk (anameKind d) $ anameName d
   where
     mk DefName = Def
-    mk ConName = Con
+    mk ConName = Con . (:[])
 
 instance ToAbstract OldQName A.Expr where
   toAbstract (OldQName x) = do
     qx <- resolveName x
     case qx of
-      VarName x'    -> return $ A.Var x'
-      DefinedName d -> return $ nameExpr d
-      UnknownName   -> notInScope x
+      VarName x'         -> return $ A.Var x'
+      DefinedName d      -> return $ nameExpr d
+      ConstructorName ds -> return $ A.Con (map anameName ds)
+      UnknownName        -> notInScope x
 
 data APatName = VarPatName A.Name
-	      | ConPatName AbstractName
+	      | ConPatName [AbstractName]
 
 instance ToAbstract PatName APatName where
   toAbstract (PatName x) = do
@@ -279,7 +280,7 @@ instance ToAbstract PatName APatName where
       (VarName y,     C.QName x)			  -> return $ Left x -- typeError $ RepeatedVariableInPattern y x
       (DefinedName d, C.QName x) | DefName == anameKind d -> return $ Left x
       (UnknownName,   C.QName x)			  -> return $ Left x
-      (DefinedName d, _	 )	 | ConName == anameKind d -> return $ Right d
+      (ConstructorName ds, _)	                          -> return $ Right ds
       _							  -> fail $ "not a constructor: " ++ show x -- TODO
     case z of
       Left x  -> do
@@ -287,9 +288,9 @@ instance ToAbstract PatName APatName where
 	p <- VarPatName <$> toAbstract (NewName x)
 	printLocals 10 "bound it:"
 	return p
-      Right c -> do
-	reportLn 10 $ "it was a con: " ++ show (anameName c)
-	return $ ConPatName c
+      Right cs -> do
+	reportLn 10 $ "it was a con: " ++ show (map anameName cs)
+	return $ ConPatName cs
 
 -- Should be a defined name.
 instance ToAbstract OldName A.QName where
@@ -791,8 +792,8 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
     toAbstract p@(C.IdentP x) = do
 	px <- toAbstract (PatName x)
 	case px of
-	    VarPatName y -> return $ VarP y
-	    ConPatName d -> return $ ConP (PatRange (getRange p)) (anameName d) []
+	    VarPatName y  -> return $ VarP y
+	    ConPatName ds -> return $ ConP (PatRange (getRange p)) (map anameName ds) []
 
     toAbstract p0@(AppP p q) = do
 	(p', q') <- toAbstract (p,q)
