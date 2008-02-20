@@ -19,6 +19,7 @@ import TypeChecking.Primitive hiding (Nat)
 import TypeChecking.Pretty
 import TypeChecking.Rules.LHS.Implicit
 import TypeChecking.Abstract
+import TypeChecking.EtaContract
 
 import Utils.Permutation
 import Utils.Size
@@ -32,8 +33,8 @@ showPat (LitP l)    = text (show l)
 
 withFunctionType :: Telescope -> [Term] -> [Type] -> Telescope -> Type -> TCM Type
 withFunctionType delta1 vs as delta2 b = do
-  vas <- normalise $ zip vs as
-  b   <- normalise $ telePi delta2 b
+  vas <- etaContract <$> normalise (zip vs as)
+  b   <- etaContract <$> normalise (telePi delta2 b)
   return $ telePi delta1 $ foldr (uncurry piAbstractTerm) b vas
 
 -- | Compute the clauses for the with-function given the original patterns.

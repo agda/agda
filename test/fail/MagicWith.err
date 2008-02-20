@@ -1,4 +1,4 @@
 
 fst p != w of type Nat
-when checking that the expression snd {Nat} {\x -> IsZero x} p has
-type IsZero w
+when checking that the expression snd {Nat} {IsZero} p has type
+IsZero w

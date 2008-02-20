@@ -67,6 +67,7 @@ library
                    Syntax.Fixity
                    Syntax.Info
                    Syntax.Internal
+                   Syntax.Internal.Generic
                    Syntax.Internal.Pattern
                    Syntax.Literal
                    Syntax.Parser.Alex
@@ -106,6 +107,7 @@ library
                    TypeChecking.Coverage.Match
                    TypeChecking.DisplayForm
                    TypeChecking.Empty
+                   TypeChecking.EtaContract
                    TypeChecking.Errors
                    TypeChecking.Free
                    TypeChecking.Implicit
