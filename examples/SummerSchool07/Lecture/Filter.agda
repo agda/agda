@@ -50,8 +50,3 @@ subset p (x :: xs) with p x
 subset p (x :: xs) | true  = keep (subset p xs)
 subset p (x :: xs) | false = drop (subset p xs)
 -}
-
-f : Nat -> Nat
-f x = f x
-
-foo = 432894 + 8902843920 
