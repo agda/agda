@@ -174,6 +174,7 @@ checkExpr e t =
 
                 -- Lets look at the target type at this point
                 let TelV _ t1 = telView t
+                t1 <- reduce t1
                 case unEl t1 of
                   Def d _ -> case [ c | (d', c) <- dcs, d == d' ] of
                     [c]  -> do
