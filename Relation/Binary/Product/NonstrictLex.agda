@@ -12,8 +12,8 @@ open import Data.Sum
 open import Relation.Binary
 open import Relation.Binary.Consequences
 import Relation.Binary.NonStrictToStrict as Conv
-import Relation.Binary.Product.PointWise as PointWise
-open PointWise using (_×-Rel_)
+import Relation.Binary.Product.Pointwise as Pointwise
+open Pointwise using (_×-Rel_)
 import Relation.Binary.Product.StrictLex as Strict
 
 private
@@ -111,7 +111,7 @@ private
       -> IsPartialOrder (≈₁ ×-Rel ≈₂) (×-Lex ≈₁ ≤₁ ≤₂)
     _×-isPartialOrder_ {≈₁ = ≈₁} {≤₁ = ≤₁} po₁ {≤₂ = ≤₂} po₂ = record
       { isPreorder = record
-          { isEquivalence = PointWise._×-isEquivalence_
+          { isEquivalence = Pointwise._×-isEquivalence_
                               (isEquivalence po₁)
                               (isEquivalence po₂)
           ; refl          = \{x y} ->
@@ -150,7 +150,7 @@ private
       { isTotalOrder = ×-isTotalOrder (_≟_ to₁)
                                       (isTotalOrder to₁)
                                       (isTotalOrder to₂)
-      ; _≟_          = PointWise._×-decidable_ (_≟_ to₁) (_≟_ to₂)
+      ; _≟_          = Pointwise._×-decidable_ (_≟_ to₁) (_≟_ to₂)
       ; _≤?_         = ×-decidable (_≟_ to₁) (_≤?_ to₁) (_≤?_ to₂)
       }
       where open IsDecTotalOrder

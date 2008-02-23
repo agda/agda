@@ -82,7 +82,7 @@ import Relation.Binary.PartialOrderReasoning.Flexible
 import Relation.Binary.PreorderReasoning
 import Relation.Binary.PreorderReasoning.Flexible
 import Relation.Binary.Product.NonStrictLex
-import Relation.Binary.Product.PointWise
+import Relation.Binary.Product.Pointwise
 import Relation.Binary.Product.StrictLex
 import Relation.Binary.PropositionalEquality
 import Relation.Binary.PropositionalEquality1

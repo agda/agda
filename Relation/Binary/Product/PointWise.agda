@@ -2,7 +2,7 @@
 -- Pointwise products of binary relations
 ------------------------------------------------------------------------
 
-module Relation.Binary.Product.PointWise where
+module Relation.Binary.Product.Pointwise where
 
 open import Logic
 open import Data.Function

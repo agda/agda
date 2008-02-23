@@ -15,8 +15,8 @@ open import Relation.Nullary.Product
 open import Relation.Nullary.Sum
 open import Relation.Binary
 open import Relation.Binary.Consequences
-import Relation.Binary.Product.PointWise as PointWise
-open PointWise using (_×-Rel_)
+import Relation.Binary.Product.Pointwise as Pointwise
+open Pointwise using (_×-Rel_)
 
 private
  module Dummy {a₁ a₂ : Set} where
@@ -155,7 +155,7 @@ private
       -> forall {≈₂ ∼₂} -> IsPreorder ≈₂ ∼₂
       -> IsPreorder (≈₁ ×-Rel ≈₂) (×-Lex ≈₁ ∼₁ ∼₂)
     _×-isPreorder_ {≈₁ = ≈₁} {∼₁ = ∼₁} pre₁ {∼₂ = ∼₂} pre₂ = record
-      { isEquivalence = PointWise._×-isEquivalence_
+      { isEquivalence = Pointwise._×-isEquivalence_
                           (isEquivalence pre₁) (isEquivalence pre₂)
       ; refl          = \{x y} ->
                         ×-reflexive ≈₁ ∼₁ ∼₂ (refl pre₂) {x} {y}
@@ -175,7 +175,7 @@ private
       -> IsStrictPartialOrder (≈₁ ×-Rel ≈₂) (×-Lex ≈₁ <₁ <₂)
     _×-isStrictPartialOrder_ {<₁ = <₁} spo₁ {<₂ = <₂} spo₂ =
       record
-        { isEquivalence = PointWise._×-isEquivalence_
+        { isEquivalence = Pointwise._×-isEquivalence_
                             (isEquivalence spo₁) (isEquivalence spo₂)
         ; irrefl        = \{x y} ->
                           _×-irreflexive_ {<₁ = <₁} (irrefl spo₁)
