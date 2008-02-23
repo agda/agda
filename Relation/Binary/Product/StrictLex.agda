@@ -16,7 +16,7 @@ open import Relation.Nullary.Sum
 open import Relation.Binary
 open import Relation.Binary.Consequences
 import Relation.Binary.Product.Pointwise as Pointwise
-open Pointwise using (_×-Rel_)
+open Pointwise using (_×-Rel_; _,-rel_; ,-rel₁; ,-rel₂)
 
 private
  module Dummy {a₁ a₂ : Set} where
@@ -33,15 +33,15 @@ private
       :  forall ≈₁ ∼₁ {≈₂} ≤₂
       -> Reflexive ≈₂ ≤₂ -> Reflexive (≈₁ ×-Rel ≈₂) (×-Lex ≈₁ ∼₁ ≤₂)
     ×-reflexive _ _ _ refl₂ = \x≈y ->
-      inj₂ (proj₁ x≈y , refl₂ (proj₂ x≈y))
+      inj₂ (,-rel₁ x≈y , refl₂ (,-rel₂ x≈y))
 
     _×-irreflexive_
       :  forall {≈₁ <₁} -> Irreflexive ≈₁ <₁
       -> forall {≈₂ <₂} -> Irreflexive ≈₂ <₂
       -> Irreflexive (≈₁ ×-Rel ≈₂) (×-Lex ≈₁ <₁ <₂)
-    (ir₁ ×-irreflexive ir₂) x≈y (inj₁ x₁<y₁) = ir₁ (proj₁ x≈y) x₁<y₁
+    (ir₁ ×-irreflexive ir₂) x≈y (inj₁ x₁<y₁) = ir₁ (,-rel₁ x≈y) x₁<y₁
     (ir₁ ×-irreflexive ir₂) x≈y (inj₂ x≈<y)  =
-      ir₂ (proj₂ x≈y) (proj₂ x≈<y)
+      ir₂ (,-rel₂ x≈y) (proj₂ x≈<y)
 
     ×-transitive
       :  forall {≈₁ <₁}
@@ -74,13 +74,13 @@ private
       where
       antisym : Antisymmetric (≈₁ ×-Rel ≈₂) (×-Lex ≈₁ <₁ ≤₂)
       antisym (inj₁ x₁<y₁) (inj₁ y₁<x₁) =
-        ⊥-elim {_ × _} $ asym₁ x₁<y₁ y₁<x₁
+        ⊥-elim {(_ ×-Rel _) _ _} $ asym₁ x₁<y₁ y₁<x₁
       antisym (inj₁ x₁<y₁) (inj₂ y≈≤x)  =
-        ⊥-elim {_ × _} $ irrefl₁ (sym₁ $ proj₁ y≈≤x) x₁<y₁
+        ⊥-elim {(_ ×-Rel _) _ _} $ irrefl₁ (sym₁ $ proj₁ y≈≤x) x₁<y₁
       antisym (inj₂ x≈≤y)  (inj₁ y₁<x₁) =
-        ⊥-elim {_ × _} $ irrefl₁ (sym₁ $ proj₁ x≈≤y) y₁<x₁
+        ⊥-elim {(_ ×-Rel _) _ _} $ irrefl₁ (sym₁ $ proj₁ x≈≤y) y₁<x₁
       antisym (inj₂ x≈≤y)  (inj₂ y≈≤x)  =
-        proj₁ x≈≤y , antisym₂ (proj₂ x≈≤y) (proj₂ y≈≤x)
+        proj₁ x≈≤y ,-rel antisym₂ (proj₂ x≈≤y) (proj₂ y≈≤x)
 
     ×-asymmetric
       :  forall {≈₁ <₁}
@@ -113,16 +113,16 @@ private
       open IsEquivalence eq₁ renaming (sym to sym₁; trans to trans₁)
 
       resp¹ : forall {x} -> (≈₁ ×-Rel ≈₂) Respects (< x)
-      resp¹ y≈y' (inj₁ x₁<y₁) = inj₁ (proj₁ resp₁ (proj₁ y≈y') x₁<y₁)
+      resp¹ y≈y' (inj₁ x₁<y₁) = inj₁ (proj₁ resp₁ (,-rel₁ y≈y') x₁<y₁)
       resp¹ y≈y' (inj₂ x≈<y)  =
-        inj₂ ( trans₁ (proj₁ x≈<y) (proj₁ y≈y')
-             , proj₁ resp₂ (proj₂ y≈y') (proj₂ x≈<y) )
+        inj₂ ( trans₁ (proj₁ x≈<y) (,-rel₁ y≈y')
+             , proj₁ resp₂ (,-rel₂ y≈y') (proj₂ x≈<y) )
 
       resp² : forall {y} -> (≈₁ ×-Rel ≈₂) Respects (flip₁ < y)
-      resp² x≈x' (inj₁ x₁<y₁) = inj₁ (proj₂ resp₁ (proj₁ x≈x') x₁<y₁)
+      resp² x≈x' (inj₁ x₁<y₁) = inj₁ (proj₂ resp₁ (,-rel₁ x≈x') x₁<y₁)
       resp² x≈x' (inj₂ x≈<y)  =
-        inj₂ ( trans₁ (sym₁ $ proj₁ x≈x') (proj₁ x≈<y)
-             , proj₂ resp₂ (proj₂ x≈x') (proj₂ x≈<y) )
+        inj₂ ( trans₁ (sym₁ $ ,-rel₁ x≈x') (proj₁ x≈<y)
+             , proj₂ resp₂ (,-rel₂ x≈x') (proj₂ x≈<y) )
 
     ×-decidable
       :  forall {≈₁ <₁} -> Decidable ≈₁ -> Decidable <₁
