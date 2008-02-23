@@ -266,7 +266,7 @@ record IsRing (_+_ _*_ : Op₂) (-_ : Op₁) (0# 1# : carrier) : Set where
     ; zero = zero
     }
 
-  open IsSemiring isSemiring
+  open IsSemiring isSemiring public
          using (isNearSemiring; isSemiringWithoutOne)
 
 record IsCommutativeRing (+ * : Op₂) (- : Op₁) (0# 1# : carrier)
