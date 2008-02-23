@@ -49,13 +49,17 @@ record IsCommutativeMonoid (• : Op₂) (ε : carrier) : Set where
 
   open IsMonoid isMonoid public
 
-record IsGroup (• : Op₂) (ε : carrier) (⁻¹ : Op₁) : Set where
+record IsGroup (_•_ : Op₂) (ε : carrier) (_⁻¹ : Op₁) : Set where
+  infixl 7 _-_
   field
-    isMonoid  : IsMonoid • ε
-    inverse   : Inverse ε ⁻¹ •
-    ⁻¹-pres-≈ : ⁻¹ Preserves-≈
+    isMonoid  : IsMonoid _•_ ε
+    inverse   : Inverse ε _⁻¹ _•_
+    ⁻¹-pres-≈ : _⁻¹ Preserves-≈
 
   open IsMonoid isMonoid public
+
+  _-_ : Op₂
+  x - y = x • (y ⁻¹)
 
 record IsAbelianGroup (• : Op₂) (ε : carrier) (⁻¹ : Op₁) : Set where
   field
