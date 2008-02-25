@@ -87,22 +87,14 @@ lookupInteractionId ii =
 judgementInteractionId :: MonadTCM tcm => InteractionId -> tcm (Judgement Type MetaId)
 judgementInteractionId ii = 
     do  mi <- lookupInteractionId ii
-        getOpenJudgement =<< mvJudgement <$> lookupMeta mi
-
-makeOpenJudgement :: MonadTCM tcm => Judgement t a -> tcm (Judgement (Open t) a)
-makeOpenJudgement (HasType a t) = HasType a <$> makeOpen t
-makeOpenJudgement (IsSort a)	= return $ IsSort a
-
-getOpenJudgement :: (Raise t, MonadTCM tcm) => Judgement (Open t) a -> tcm (Judgement t a)
-getOpenJudgement (HasType a t) = HasType a <$> getOpen t
-getOpenJudgement (IsSort a)    = return $ IsSort a
+        mvJudgement <$> lookupMeta mi
 
 -- | Generate new meta variable.
-newMeta :: MonadTCM tcm => MetaInfo -> MetaPriority -> Judgement (Open Type) a -> tcm MetaId
+newMeta :: MonadTCM tcm => MetaInfo -> MetaPriority -> Judgement Type a -> tcm MetaId
 newMeta = newMeta' Open
 
 newMeta' :: MonadTCM tcm => MetaInstantiation -> MetaInfo -> MetaPriority ->
-            Judgement (Open Type) a -> tcm MetaId
+            Judgement Type a -> tcm MetaId
 newMeta' inst mi p j = do
   x <- fresh
   let mv = MetaVar mi p (fmap (const x) j) inst Set.empty

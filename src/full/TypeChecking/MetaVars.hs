@@ -125,7 +125,7 @@ newValueMeta' t = do
 newValueMetaCtx' :: MonadTCM tcm => Type -> Args -> tcm Term
 newValueMetaCtx' t vs = do
   i <- createMetaInfo
-  x <- newMeta i normalMetaPriority (HasType () $ makeClosed t)
+  x <- newMeta i normalMetaPriority (HasType () t)
   verbose 50 $ do
     dt <- prettyTCM t
     liftIO $ putStrLn $ "new meta: " ++ show x ++ " : " ++ show dt
@@ -179,7 +179,7 @@ blockTerm t v m = do
 	    vs	  <- getContextArgs
 	    tel   <- getContextTelescope
 	    x	  <- newMeta' (BlockedConst $ abstract tel v)
-                              i lowMetaPriority (HasType () $ makeClosed $ telePi_ tel t)
+                              i lowMetaPriority (HasType () $ telePi_ tel t)
 			    -- ^^ we don't instantiate blocked terms
 	    c <- escapeContext (size tel) $ guardConstraint (return cs) (UnBlock x)
             verbose 20 $ do
@@ -199,8 +199,7 @@ postponeTypeCheckingProblem e t = do
   tel <- getContextTelescope
   cl  <- buildClosure (e, t)
   m   <- newMeta' (PostponedTypeCheckingProblem cl)
-                  i normalMetaPriority $ HasType () $
-                  makeClosed $ telePi_ tel t
+                  i normalMetaPriority $ HasType () $ telePi_ tel t
   addConstraints =<< buildConstraint (UnBlock m)
   MetaV m <$> getContextArgs
 
@@ -214,8 +213,7 @@ etaExpandListeners m = do
 -- | Eta expand a metavariable.
 etaExpandMeta :: MonadTCM tcm => MetaId -> tcm ()
 etaExpandMeta m = do
-  HasType _ o <- mvJudgement <$> lookupMeta m
-  a <- getOpen o
+  HasType _ a <- mvJudgement <$> lookupMeta m
   TelV tel b <- telViewM a
   let args	 = [ Arg h $ Var i []
 		   | (i, Arg h _) <- reverse $ zip [0..] $ reverse $ telToList tel
@@ -437,8 +435,7 @@ updateMeta mI t =
     where
 	upd mI args j t = (__IMPOSSIBLE__ `mkQ` updV j `extQ` updS) t
 	    where
-		updV (HasType _ o) v = do
-		  t <- getOpen o
+		updV (HasType _ t) v =
 		  assignV (t `piApply` args) mI args v
 		updV _ _	     = __IMPOSSIBLE__
 

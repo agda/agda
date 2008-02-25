@@ -46,8 +46,7 @@ giveExpr mi e =
         
   where  metaTypeCheck' mi e mv = 
             case mvJudgement mv of 
-		 HasType _ o  -> do
-		    t	<- getOpen o
+		 HasType _ t  -> do
 		    ctx <- getContextArgs
 		    let t' = t `piApply` ctx
 		    v	<- checkExpr e t'
@@ -263,7 +262,7 @@ typeOfMetaMI :: Rewrite -> MetaId -> IM (OutputForm Expr MetaId)
 typeOfMetaMI norm mi = 
      do mv <- lookupMeta mi
 	withMetaInfo (getMetaInfo mv) $
-	  rewriteJudg mv =<< getOpenJudgement (mvJudgement mv)
+	  rewriteJudg mv (mvJudgement mv)
    where
     rewriteJudg mv (HasType i t) = 
 	withMetaInfo (getMetaInfo mv) $ do

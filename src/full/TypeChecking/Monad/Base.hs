@@ -202,7 +202,7 @@ instance Traversable (Judgement t) where
 data MetaVariable = 
 	MetaVar	{ mvInfo	  :: MetaInfo
 		, mvPriority	  :: MetaPriority -- ^ some metavariables are more eager to be instantiated
-		, mvJudgement	  :: Judgement (Open Type) MetaId -- ^ only first order metas have open types
+		, mvJudgement	  :: Judgement Type MetaId
 		, mvInstantiation :: MetaInstantiation
 		, mvListeners	  :: Set MetaId	  -- ^ metavariables interested in what happens to this guy
 		}

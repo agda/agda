@@ -58,7 +58,7 @@ import qualified Utils.IO
 -- | Current version of the interface. Only interface files of this version
 --   will be parsed.
 currentInterfaceVersion :: Int
-currentInterfaceVersion = 135
+currentInterfaceVersion = 136
 
 ------------------------------------------------------------------------
 -- A wrapper around Data.Binary
