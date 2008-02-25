@@ -98,7 +98,7 @@ unfold B f {n = suc n} s with f s
 -- downFrom 3 = 2 ∷ 1 ∷ 0 ∷ [].
 
 downFrom : ℕ -> [ ℕ ]
-downFrom = unfold Singleton f ∘ wrap
+downFrom n = unfold Singleton f (wrap n)
   where
   data Singleton : ℕ -> Set where
     wrap : (n : ℕ) -> Singleton n
