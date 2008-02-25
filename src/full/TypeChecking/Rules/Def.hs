@@ -80,7 +80,7 @@ checkFunDef i name cs =
         cs <- mapM rebindClause cs
 
         -- Check if the function is injective
-        inv <- checkInjectivity cs
+        inv <- checkInjectivity name cs
 
         -- Add the definition
         addConstant name $ Defn name t (defaultDisplayForm name) 0

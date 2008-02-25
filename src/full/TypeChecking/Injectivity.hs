@@ -1,32 +1,148 @@
+{-# OPTIONS -cpp #-}
 
 module TypeChecking.Injectivity where
 
 import Control.Applicative
+import Control.Monad
+import Data.Map (Map)
+import qualified Data.Map as Map
+import Data.Maybe
 
+import Syntax.Common
 import Syntax.Internal
 import TypeChecking.Monad
 import TypeChecking.Substitute
+import TypeChecking.Reduce
+import TypeChecking.Primitive
+import TypeChecking.MetaVars
+import {-# SOURCE #-} TypeChecking.Conversion
+import TypeChecking.Pretty
+import Utils.List
 
-checkInjectivity :: [Clause] -> TCM FunctionInverse
-checkInjectivity _ = return NotInjective
+#include "../undefined.h"
 
-functionInverse :: QName -> TCM FunctionInverse
-functionInverse f = do
-  d <- theDef <$> getConstInfo f
-  case d of
-    Function _ inv _ -> return inv
-    _                -> return NotInjective
+headSymbol :: Term -> TCM (Maybe TermHead)
+headSymbol v = do
+  v <- constructorForm v
+  case v of
+    Def f _ -> do
+      def <- theDef <$> getConstInfo f
+      case def of
+        Datatype{}  -> return (Just $ ConHead f)
+        Record{}    -> return (Just $ ConHead f)
+        _           -> return Nothing
+    Con c _ -> return (Just $ ConHead c)
+    Sort _  -> return (Just SortHead)
+    Pi _ _  -> return (Just PiHead)
+    Fun _ _ -> return (Just PiHead)
+    Lit _   -> return Nothing -- handle literal heads as well? can't think of
+                              -- any examples where it would be useful...
+    _       -> return Nothing
+
+checkInjectivity :: QName -> [Clause] -> TCM FunctionInverse
+checkInjectivity f cs = do
+  es <- concat <$> mapM entry cs
+  let (hs, ps) = unzip es
+  if all isJust hs && distinct hs
+    then do
+      let inv = Map.fromList (map fromJust hs `zip` ps)
+      reportSLn "tc.inj.check" 20 $ show f ++ " is injective."
+      reportSDoc "tc.inj.check" 30 $ nest 2 $ vcat $
+        map (\ (h, ps) -> text (show h) <+> text "-->" <+>
+                          fsep (punctuate comma $ map (text . show) ps)
+            ) $ Map.toList inv
+      return $ Inverse inv
+    else return NotInjective
+  where
+    entry (Clause _ _ ps b) = do
+      mv <- rhs b
+      case mv of
+        Nothing -> return []
+        Just v  -> do
+          h <- headSymbol v
+          return [(h, ps)]
+
+    rhs (NoBind b) = rhs b
+    rhs (Bind b)   = underAbstraction_ b rhs
+    rhs (Body v)   = Just <$> reduce v
+    rhs NoBody     = return Nothing
+
+-- | Argument should be on weak head normal form.
+functionInverse :: Term -> TCM InvView
+functionInverse v = case ignoreBlocking v of
+  Def f args -> do
+    d <- theDef <$> getConstInfo f
+    case d of
+      Function _ inv _ -> case inv of
+        NotInjective  -> return NoInv
+        Inverse m     -> return $ Inv f args m
+      _ -> return NoInv
+  _ -> return NoInv
+
+data InvView = Inv QName Args (Map TermHead [Arg Pattern])
+             | NoInv
 
 useInjectivity :: Type -> Term -> Term -> TCM Constraints
-useInjectivity a u v = buildConstraint $ ValueEq a u v
-
-tryInverse :: Type -> QName -> Args -> Term -> TCM Constraints
-tryInverse a f us v = do
-  inv <- functionInverse f
-  case inv of
-    NotInjective -> fallBack
-    Inverse inv  -> do
-      fallBack
+useInjectivity a u v = do
+  uinv <- functionInverse u
+  vinv <- functionInverse v
+  case (uinv, vinv) of
+    (Inv f fArgs _, Inv g gArgs _)
+      | f == g    -> do
+        a <- defType <$> getConstInfo f
+        reportSDoc "tc.inj.use" 20 $ vcat
+          [ fsep (pwords "comparing application of injective function" ++ [prettyTCM f] ++
+                pwords "at")
+          , nest 2 $ fsep $ punctuate comma $ map prettyTCM fArgs
+          , nest 2 $ fsep $ punctuate comma $ map prettyTCM gArgs
+          , nest 2 $ text "and type" <+> prettyTCM a
+          ]
+        equalArgs a fArgs gArgs
+      | otherwise -> fallBack
+    (Inv f args inv, NoInv) -> do
+      reportSDoc "tc.inj.use" 20 $ fsep $
+        pwords "inverting injective function" ++ [prettyTCM f, text "for", prettyTCM v]
+      invert inv args =<< headSymbol v
+    (NoInv, Inv g args inv) -> do
+      reportSDoc "tc.inj.use" 20 $ fsep $
+        pwords "inverting injective function" ++ [prettyTCM g, text "for", prettyTCM u]
+      invert inv args =<< headSymbol u
+    (NoInv, NoInv)          -> fallBack
   where
-    fallBack = buildConstraint $ ValueEq a (Def f us) v
+    fallBack = buildConstraint $ ValueEq a u v
+
+    invert inv args Nothing  = fallBack
+    invert inv args (Just h) = case Map.lookup h inv of
+      Nothing -> typeError $ UnequalTerms u v a
+      Just ps -> instArgs args ps
+
+    instArgs args ps = concat <$> zipWithM instArg args ps
+    instArg a p = inst (unArg a) (unArg p)
+
+    inst (MetaV m vs) (ConP c _) = do
+      HasType _ mty <- mvJudgement <$> lookupMeta m
+      let TelV tel dty = telView mty
+      d <- reduce $ unEl dty
+      case ignoreBlocking d of
+        Def d us -> do
+          Datatype np _ _ _ _ _ <- theDef <$> getConstInfo d
+          def  <- getConstInfo c
+          let cty                  = defType def
+              Constructor np _ _ _ = theDef def
+          argm <- newArgsMetaCtx (cty `piApply` take np us) tel vs
+          reportSDoc "tc.inj.use" 50 $ text "inversion:" <+> nest 2 (vcat
+            [ sep [ prettyTCM (MetaV m vs) <+> text ":="
+                  , nest 2 $ prettyTCM (Con c argm)
+                  ]
+            , text "of type" <+> prettyTCM (mty `piApply` vs)
+            ] )
+          cs <- assignV (mty `piApply` vs) m vs (Con c argm)
+          case cs of
+            [] -> equalTerm a u v
+            _  -> (cs ++) <$> fallBack
+        _ -> fallBack
+    inst (Con c vs) (ConP c' ps)
+      | c == c'   = instArgs vs ps
+      | otherwise = __IMPOSSIBLE__
+    inst _ _ = return []
 

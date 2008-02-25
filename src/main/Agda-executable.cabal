@@ -16,3 +16,11 @@ executable agda
                  base >= 3 && < 4,
                  readline >= 1.0.1 && < 2
   extra-libraries: readline
+
+executable agda_p
+  main-is:         Main.hs
+  build-depends:   Agda,
+                   base >= 3 && < 4,
+                   readline >= 1.0.1 && < 2
+  extra-libraries: readline
+  ghc-options:     -prof -auto-all

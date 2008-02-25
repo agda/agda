@@ -362,8 +362,13 @@ defAbstract d = case theDef d of
 ---------------------------------------------------------------------------
 
 data FunctionInverse = NotInjective
-                     | Inverse (Map QName [Arg Pattern])
+                     | Inverse (Map TermHead [Arg Pattern])
   deriving (Typeable, Data)
+
+data TermHead = SortHead
+              | PiHead
+              | ConHead QName
+  deriving (Typeable, Data, Eq, Ord, Show)
 
 ---------------------------------------------------------------------------
 -- ** Mutual blocks

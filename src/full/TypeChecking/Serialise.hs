@@ -58,7 +58,7 @@ import qualified Utils.IO
 -- | Current version of the interface. Only interface files of this version
 --   will be parsed.
 currentInterfaceVersion :: Int
-currentInterfaceVersion = 136
+currentInterfaceVersion = 137
 
 ------------------------------------------------------------------------
 -- A wrapper around Data.Binary
@@ -593,6 +593,19 @@ instance Binary FunctionInverse where
     case tag_ of
       0 -> return NotInjective
       1 -> get >>= \a -> return (Inverse a)
+      _ -> fail "no parse"
+
+instance Binary TermHead where
+  put SortHead    = putWord8 0
+  put PiHead      = putWord8 1
+  put (ConHead a) = putWord8 2 >> put a
+
+  get = do
+    tag_ <- getWord8
+    case tag_ of
+      0 -> return SortHead
+      1 -> return PiHead
+      2 -> get >>= \a -> return (ConHead a)
       _ -> fail "no parse"
 
 instance Binary Syntax.Common.IsAbstract where

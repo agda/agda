@@ -66,7 +66,7 @@ equalTerm a m n =
 			    _ -> do
 			      (tel, m') <- etaExpandRecord r ps m
 			      (_  , n') <- etaExpandRecord r ps n
-			      equalArg (telePi_ tel $ sort Prop) m' n'
+			      equalArgs (telePi_ tel $ sort Prop) m' n'
 			else equalAtom a' m n
 		    _	      -> equalAtom a' m n
     where
@@ -104,14 +104,14 @@ equalAtom t m n =
 	    (Lit l1, Lit l2) | l1 == l2 -> return []
 	    (Var i iArgs, Var j jArgs) | i == j -> do
 		a <- typeOfBV i
-		equalArg a iArgs jArgs
+		equalArgs a iArgs jArgs
 	    (Def x xArgs, Def y yArgs) | x == y -> do
 		reportSDoc "tc.conv.atom" 20 $
-		  text "equalArg" <+> sep [ brackets (fsep $ punctuate comma $ map prettyTCM xArgs)
+		  text "equalArgs" <+> sep [ brackets (fsep $ punctuate comma $ map prettyTCM xArgs)
 					  , brackets (fsep $ punctuate comma $ map prettyTCM yArgs)
 					  ]
 		a <- defType <$> getConstInfo x
-		equalArg a xArgs yArgs
+		equalArgs a xArgs yArgs
 	    (Con x xArgs, Con y yArgs)
 		| x == y -> do
 		    -- The type is a datatype.
@@ -122,7 +122,7 @@ equalAtom t m n =
 		    -- instantiating the parameters.
 		    a <- defType <$> getConstInfo x
 		    let a' = piApply a (take npars args)
-		    equalArg a' xArgs yArgs
+		    equalArgs a' xArgs yArgs
 	    (MetaV x xArgs, MetaV y yArgs)
 		| x == y -> if   sameVars xArgs yArgs
 			    then return []
@@ -206,11 +206,11 @@ equalAtom t m n =
 
 -- | Type-directed equality on argument lists
 --
-equalArg :: MonadTCM tcm => Type -> Args -> Args -> tcm Constraints
-equalArg _ [] [] = return []
-equalArg _ [] (_:_) = __IMPOSSIBLE__
-equalArg _ (_:_) [] = __IMPOSSIBLE__
-equalArg a (arg1 : args1) (arg2 : args2) = do
+equalArgs :: MonadTCM tcm => Type -> Args -> Args -> tcm Constraints
+equalArgs _ [] [] = return []
+equalArgs _ [] (_:_) = __IMPOSSIBLE__
+equalArgs _ (_:_) [] = __IMPOSSIBLE__
+equalArgs a (arg1 : args1) (arg2 : args2) = do
     a <- reduce a
     case funView (unEl a) of
 	FunV (Arg _ b) _ -> do
@@ -218,7 +218,7 @@ equalArg a (arg1 : args1) (arg2 : args2) = do
 		db <- prettyTCM b
 		darg1 <- prettyTCM arg1
 		darg2 <- prettyTCM arg2
-		debug $ "equalArg " ++ show darg1 ++ "  ==  " ++ show darg2 ++ " : " ++ show db
+		debug $ "equalArgs " ++ show darg1 ++ "  ==  " ++ show darg2 ++ " : " ++ show db
             cs1 <- equalTerm b (unArg arg1) (unArg arg2)
 	    case (cs1, unEl a) of
 		(_:_, Pi _ c) | 0 `freeIn` absBody c
@@ -228,7 +228,7 @@ equalArg a (arg1 : args1) (arg2 : args2) = do
                             darg1 <- prettyTCM arg1
                             darg2 <- prettyTCM arg2
                             dcs   <- mapM prettyTCM cs1
-                            debug $ "aborting equalArg " ++ show darg1 ++ "  ==  " ++ show darg2 ++ " : " ++ show db
+                            debug $ "aborting equalArgs " ++ show darg1 ++ "  ==  " ++ show darg2 ++ " : " ++ show db
                             debug $ " --> " ++ show dcs
                         patternViolation   -- TODO: will duplicate work (all arguments checked so far)
 		_   -> do
@@ -237,7 +237,7 @@ equalArg a (arg1 : args1) (arg2 : args2) = do
                         darg1 <- mapM prettyTCM args1
                         darg2 <- mapM prettyTCM args2
                         debug $ "equalArgs " ++ show darg1 ++ "  ==  " ++ show darg2 ++ " : " ++ show db
-		    cs2 <- equalArg (piApply a [arg1]) args1 args2
+		    cs2 <- equalArgs (piApply a [arg1]) args1 args2
 		    return $ cs1 ++ cs2
         _   -> patternViolation
 
