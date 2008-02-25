@@ -1,5 +1,5 @@
 errors/ClashingImport.agda:3,5-34
 Not in scope:
   TODO--Can't-make-this-happen!
-errors/ClashingImport.agda:3,5-34
+  at errors/ClashingImport.agda:3,5-34
 when scope checking TODO--Can't-make-this-happen!

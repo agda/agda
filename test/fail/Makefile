@@ -44,7 +44,7 @@ $(allout) : %.err : %.agda
 	@if $(agda) -v$(V) $(shell if [ -e $*.flags ]; then cat $*.flags; fi) $< > $*.tmp; \
 		then echo "Unexpected success"; rm -f $*.tmp; false; \
     else if [ -s $*.tmp ]; \
-				 then sed -e "s/^.*test.fail.//g" $*.tmp > $@; cat $@; rm -f $*.tmp; true; \
+				 then sed -e "s/\/\S*test.fail.//g" $*.tmp > $@; cat $@; rm -f $*.tmp; true; \
 				 else rm -f $@ $*.tmp; false; \
 				 fi; \
 		fi
@@ -55,7 +55,7 @@ $(allstems) : % : %.err
 	@if $(agda) -v$(V) $(shell if [ -e $*.flags ]; then cat $*.flags; fi) $*.agda \
 		 > $*.tmp.2; \
 		then echo "Unexpected success"; rm -f $*.tmp.2; false; \
-    else sed -e "s/^.*test.fail.//g" $*.tmp.2 > $*.tmp; true; fi
+    else sed -e "s/\/\S*test.fail.//g" $*.tmp.2 > $*.tmp; true; fi
 	@if cmp $*.err $*.tmp; \
 		then rm -f $*.tmp $*.tmp.2; true; \
 		else echo "== Old error ==="; \

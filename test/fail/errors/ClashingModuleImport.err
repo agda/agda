@@ -1,5 +1,5 @@
 errors/ClashingModuleImport.agda:3,5-46
 Not in scope:
   TODO--I-haven't-fully-understood-this-one
-errors/ClashingModuleImport.agda:3,5-46
+  at errors/ClashingModuleImport.agda:3,5-46
 when scope checking TODO--I-haven't-fully-understood-this-one

@@ -1,6 +1,6 @@
 errors/ClashingFileNamesFor.agda:5,1-18
 Multiple possible sources for module ShouldBePi found:
-errors/Imports/ShouldBePi.agda
-errors/ShouldBePi.agda
+  errors/Imports/ShouldBePi.agda
+  errors/ShouldBePi.agda
 when scope checking the declaration
   import ShouldBePi

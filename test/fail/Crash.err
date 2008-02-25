@@ -1,5 +1,3 @@
-Unsolved metas at the following locations:
-Crash.agda:20,13-14
-Crash.agda:20,26-27
 Crash.agda:21,9-13
-Crash.agda:21,7-13
+N != B of type Set
+when checking that the expression zero has type B
