@@ -111,7 +111,7 @@ infoDecl name val = HsFunBind [ HsMatch dummyLoc hsname [] rhs []] where
 
 
 processDef :: (QName,Definition) -> IM [HsDecl]
-processDef (qname,Defn { theDef = Function clauses isa }) =  do
+processDef (qname,Defn { theDef = Function clauses _ isa }) =  do
       hsDecls <- foldClauses name 1 clauses
       return [HsFunBind [HsMatch dummyLoc (dfName name) [] rhs hsDecls]] where
                 rhs = HsUnGuardedRhs $ HsVar $ UnQual $ dfNameSub name 1

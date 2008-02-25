@@ -312,7 +312,7 @@ data Definition = Defn { defName     :: QName
     deriving (Typeable, Data)
 
 data Defn = Axiom
-	  | Function [Clause] IsAbstract
+	  | Function [Clause] FunctionInverse IsAbstract
 	  | Datatype Nat	    -- nof parameters
 		     Nat	    -- nof indices
 		     (Maybe Clause) -- this might be in an instantiated module
@@ -341,7 +341,7 @@ data PrimFun = PrimFun
     deriving (Typeable)
 
 defClauses :: Definition -> [Clause]
-defClauses Defn{theDef = Function cs _}		      = cs
+defClauses Defn{theDef = Function cs _ _}	      = cs
 defClauses Defn{theDef = Primitive _ _ cs}	      = cs
 defClauses Defn{theDef = Datatype _ _ (Just c) _ _ _} = [c]
 defClauses Defn{theDef = Record _ (Just c) _ _ _ _}   = [c]
@@ -350,11 +350,20 @@ defClauses _					      = []
 defAbstract :: Definition -> IsAbstract
 defAbstract d = case theDef d of
     Axiom		 -> AbstractDef
-    Function _ a	 -> a
+    Function _ _ a	 -> a
     Datatype _ _ _ _ _ a -> a
     Record _ _ _ _ _ a	 -> a
     Constructor _ _ _ a  -> a
     Primitive a _ _	 -> a
+
+
+---------------------------------------------------------------------------
+-- ** Injectivity
+---------------------------------------------------------------------------
+
+data FunctionInverse = NotInjective
+                     | Inverse (Map QName [Arg Pattern])
+  deriving (Typeable, Data)
 
 ---------------------------------------------------------------------------
 -- ** Mutual blocks

@@ -57,7 +57,7 @@ checkCoverage f = do
   t <- normalise $ defType d
   let defn = theDef d
   case defn of
-    Function cs@((Clause _ _ ps _) : _) _ -> do
+    Function cs@((Clause _ _ ps _) : _) _ _ -> do
       let n            = length ps
           TelV gamma _ = telView t
           gamma'       = telFromList $ take n $ telToList gamma

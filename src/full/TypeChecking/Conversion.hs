@@ -19,6 +19,7 @@ import TypeChecking.Primitive (constructorForm)
 import TypeChecking.Free
 import TypeChecking.Records
 import TypeChecking.Pretty
+import TypeChecking.Injectivity
 
 import Utils.Monad
 
@@ -164,9 +165,9 @@ equalAtom t m n =
 		m <- normalise m
 		if m == n
 		    then return []	-- Check syntactic equality for blocked terms
-		    else buildConstraint (ValueEq t m n)
-	    (BlockedV b, _)    -> buildConstraint (ValueEq t m n)
-	    (_,BlockedV b)     -> buildConstraint (ValueEq t m n)
+		    else useInjectivity t m n
+	    (BlockedV b, _)    -> useInjectivity t m n
+	    (_,BlockedV b)     -> useInjectivity t m n
 	    _		       -> typeError $ UnequalTerms m n t
     where
 	equalFun (FunV arg1@(Arg h1 a1) t1) (FunV (Arg h2 a2) t2)

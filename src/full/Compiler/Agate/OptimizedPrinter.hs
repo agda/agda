@@ -67,7 +67,7 @@ showTypeDeclaration definitions name = do
 	    dcon <- showAsOptimizedConstructor name
 	    dflds <- mapM (showRecordFieldDeclaration (arity + 1)) flds
 	    showDatatypeDeclaration dtypename dparams [sep $ dcon : dflds]
-     	Function [clause@(Clause _ _ pat body)] a -> do
+     	Function [clause@(Clause _ _ pat body)] _ a -> do
 	    (args,_) <- splitType ty
 	    let dextra = map (\i -> text $ "a" ++ show i)
 			     [length pat + 1 .. length args]
@@ -162,7 +162,7 @@ showValueDefinition definitions typefams (name, defn) = do
 	    let dvaluedef = sep [ dname, equals ] <+>
 			    sep [ text "undefined {- postulate -}" ]
 	    return $ dtypedecl $+$ dvaluedef
-	Function clauses a -> do
+	Function clauses _ a -> do
 	    dclauses <- mapM (showOptimizedClause dname) clauses
 	    return $ vcat $ dtypedecl : dclauses
 	Datatype np ni _ cnames s a -> do

@@ -58,7 +58,7 @@ import qualified Utils.IO
 -- | Current version of the interface. Only interface files of this version
 --   will be parsed.
 currentInterfaceVersion :: Int
-currentInterfaceVersion = 134
+currentInterfaceVersion = 135
 
 ------------------------------------------------------------------------
 -- A wrapper around Data.Binary
@@ -568,7 +568,7 @@ instance Binary Definition where
 
 instance Binary Defn where
   put Axiom		     = putWord8 0
-  put (Function a b)	     = putWord8 1 >> put a >> put b
+  put (Function a b c)	     = putWord8 1 >> put a >> put b >> put c
   put (Datatype a b c d e f) = putWord8 2 >> put a >> put b >> put c >> put d >> put e >> put f
   put (Record a b c d e f)   = putWord8 3 >> put a >> put b >> put c >> put d >> put e >> put f
   put (Constructor a b c d)  = putWord8 4 >> put a >> put b >> put c >> put d
@@ -577,11 +577,22 @@ instance Binary Defn where
     tag_ <- getWord8
     case tag_ of
       0 -> return Axiom
-      1 -> get >>= \a -> get >>= \b -> return (Function a b)
+      1 -> get >>= \a -> get >>= \b -> get >>= \c -> return (Function a b c)
       2 -> get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d -> get >>= \e -> get >>= \f -> return (Datatype a b c d e f)
       3 -> get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d -> get >>= \e -> get >>= \f -> return (Record a b c d e f)
       4 -> get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d -> return (Constructor a b c d)
       5 -> get >>= \a -> get >>= \b -> get >>= \c -> return (Primitive a b c)
+      _ -> fail "no parse"
+
+instance Binary FunctionInverse where
+  put NotInjective = putWord8 0
+  put (Inverse a)  = putWord8 1 >> put a
+
+  get = do
+    tag_ <- getWord8
+    case tag_ of
+      0 -> return NotInjective
+      1 -> get >>= \a -> return (Inverse a)
       _ -> fail "no parse"
 
 instance Binary Syntax.Common.IsAbstract where

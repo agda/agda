@@ -35,6 +35,7 @@ import TypeChecking.Primitive
 import TypeChecking.With
 import TypeChecking.Telescope
 import TypeChecking.Coverage
+import TypeChecking.Injectivity
 
 import TypeChecking.Rules.Term                ( checkExpr, inferExpr, checkTelescope, isType_ )
 import TypeChecking.Rules.LHS                 ( checkLeftHandSide )
@@ -78,9 +79,12 @@ checkFunDef i name cs =
         -- Annotate the clauses with which arguments are actually used.
         cs <- mapM rebindClause cs
 
+        -- Check if the function is injective
+        inv <- checkInjectivity cs
+
         -- Add the definition
         addConstant name $ Defn name t (defaultDisplayForm name) 0
-                         $ Function cs $ Info.defAbstract i
+                         $ Function cs inv $ Info.defAbstract i
         verbose 10 $ do
           dx <- prettyTCM name
           t' <- prettyTCM . defType =<< getConstInfo name

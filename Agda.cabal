@@ -111,6 +111,7 @@ library
                    TypeChecking.Errors
                    TypeChecking.Free
                    TypeChecking.Implicit
+                   TypeChecking.Injectivity
                    TypeChecking.MetaVars
                    TypeChecking.Monad.Base
                    TypeChecking.Monad.Builtin

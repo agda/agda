@@ -174,7 +174,7 @@ applySection new ptel old ts rd rm = liftTCM $ do
 		Constructor n c d a	-> Constructor (n - size ts) c (copyName d) a
 		Datatype np ni _ cs s a -> Datatype (np - size ts) ni (Just cl) (map copyName cs) s a
 		Record np _ fs tel s a	-> Record (np - size ts) (Just cl) fs (apply tel ts) s a
-		_			-> Function [cl] ConcreteDef
+		_			-> Function [cl] NotInjective ConcreteDef
 	cl = Clause EmptyTel (idP 0) [] $ Body $ Def x ts
 
     copySec :: Args -> (ModuleName, Section) -> TCM ()
@@ -272,7 +272,7 @@ makeAbstract d = do def <- makeAbs $ theDef d
 		    return d { theDef = def }
     where
 	makeAbs (Datatype _ _ _ _ _ AbstractDef) = Just Axiom
-	makeAbs (Function _ AbstractDef)	 = Just Axiom
+	makeAbs (Function _ _ AbstractDef)	 = Just Axiom
 	makeAbs (Constructor _ _ _ AbstractDef)	 = Nothing
 	makeAbs d				 = Just d
 

@@ -171,7 +171,7 @@ termDef use names name = do
 	      , nest 2 $ text ":" <+> (prettyTCM $ defType def)
 	      ]
         case (theDef def) of
-           Function cls isAbstract -> collectCalls (termClause use names name) cls
+           Function cls _ isAbstract -> collectCalls (termClause use names name) cls
            _ -> return Term.empty
 
 

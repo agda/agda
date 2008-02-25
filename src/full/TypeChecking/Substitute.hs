@@ -5,6 +5,7 @@ import Control.Monad.Identity
 import Control.Monad.Reader
 import Data.Generics
 import Data.Map (Map)
+import qualified Data.Map as Map
 
 import Syntax.Common
 import Syntax.Internal
@@ -55,7 +56,7 @@ instance Apply Definition where
 
 instance Apply Defn where
     apply Axiom _			  = Axiom
-    apply (Function cs a) args		  = Function (apply cs args) a
+    apply (Function cs inv a) args	  = Function (apply cs args) (apply inv args) a
     apply (Datatype np ni cl cs s a) args = Datatype (np - size args) ni (apply cl args) cs s a
     apply (Record np cl fs tel s a) args  = Record (np - size args) (apply cl args) fs (apply tel args) s a
     apply (Constructor np c d a) args	  = Constructor (np - size args) c d a
@@ -68,6 +69,10 @@ instance Apply Clause where
     apply (Clause tel perm ps b) args =
       Clause (apply tel args) (apply perm args)
              (drop (size args) ps) (apply b args)
+
+instance Apply FunctionInverse where
+  apply NotInjective  args = NotInjective
+  apply (Inverse inv) args = Inverse $ Map.map (drop $ size args) inv
 
 instance Apply ClauseBody where
     apply  b		   []		  = b
@@ -137,7 +142,7 @@ instance Abstract Definition where
 
 instance Abstract Defn where
     abstract tel Axiom			    = Axiom
-    abstract tel (Function cs a)	    = Function (abstract tel cs) a
+    abstract tel (Function cs inv a)	    = Function (abstract tel cs) (abstract tel inv) a
     abstract tel (Datatype np ni cl cs s a) = Datatype (size tel + np) ni (abstract tel cl) cs s a
     abstract tel (Record np cl fs ftel s a) = Record (size tel + np) (abstract tel cl) fs (abstract tel ftel) s a
     abstract tel (Constructor np c d a)	    = Constructor (size tel + np) c d a
@@ -151,9 +156,13 @@ instance Abstract Clause where
   abstract tel (Clause tel' perm ps b) =
     Clause (abstract tel tel') (abstract tel perm)
            (telVars tel ++ ps) (abstract tel b)
-    where
-      telVars EmptyTel			  = []
-      telVars (ExtendTel arg (Abs x tel)) = fmap (const $ VarP x) arg : telVars tel
+
+telVars EmptyTel		    = []
+telVars (ExtendTel arg (Abs x tel)) = fmap (const $ VarP x) arg : telVars tel
+
+instance Abstract FunctionInverse where
+  abstract tel NotInjective  = NotInjective
+  abstract tel (Inverse inv) = Inverse $ Map.map (telVars tel ++) inv
 
 instance Abstract ClauseBody where
     abstract EmptyTel		 b = b

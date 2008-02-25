@@ -69,8 +69,8 @@ showUntypedDefinition (name, defn) = do
 	Axiom ->
 	    return $ sep [ dname, equals ] <+>
 		     sep [ text "undefined {- postulate -}" ]
-	Function [] a -> __IMPOSSIBLE__
-	Function clauses a -> do
+	Function [] _ a -> __IMPOSSIBLE__
+	Function clauses _ a -> do
             let (Clause _ _ pats body) = head clauses
 	    let dvars = map (\i -> text ("v" ++ show i)) [1 .. length pats]
 	    let drhs = untypedAbs dvars $ sep (text "f" : dvars)

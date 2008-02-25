@@ -377,7 +377,7 @@ cmd_make_case ii rng s = infoOnException $ ioTCM $ do
        [dropUscore(SI.ConP dnam
                    (drop n pats))
        | (dnam, n, dbdy) <- xs
-       , Function cls _ <- [theDef dbdy]
+       , Function cls _ _ <- [theDef dbdy]
        , SI.Clause _ _ pats cbdy <- cls
        , Just (MetaV x _) <- [deAbs cbdy]
        , x == wanted ] of
@@ -420,12 +420,12 @@ cmd_make_case ii rng s = infoOnException $ ioTCM $ do
   passAVar x   = fail . ("passAVar: got "++) =<< showA x
   passElDef t@(El _ (SI.Def _ _)) = return t
   passElDef t  = fail . ("passElDef: got "++) =<< showA =<< reify t
-  passData  d@(Defn { theDef = Datatype _ _ _ _ _ _ })  = return d
-  passData  d@(Defn { theDef = TM.Record _ _ _ _ _ _ }) = fail $ "passData: got record"
-  passData  d@(Defn { theDef = Function _ _ })		= fail $ "passData: got function"
-  passData  d@(Defn { theDef = TM.Axiom })		= fail $ "passData: got axiom"
-  passData  d@(Defn { theDef = Constructor _ _ _ _ })	= fail $ "passData: got constructor"
-  passData  d@(Defn { theDef = TM.Primitive _ _ _ })	= fail $ "passData: got primitive"
+  passData  d@(Defn { theDef = Datatype{} })     = return d
+  passData  d@(Defn { theDef = TM.Record{} })    = fail $ "passData: got record"
+  passData  d@(Defn { theDef = Function{} })     = fail $ "passData: got function"
+  passData  d@(Defn { theDef = TM.Axiom{} })     = fail $ "passData: got axiom"
+  passData  d@(Defn { theDef = Constructor{} })  = fail $ "passData: got constructor"
+  passData  d@(Defn { theDef = TM.Primitive{} }) = fail $ "passData: got primitive"
 
   dropUscore (SI.VarP ('_':s)) = dropUscore (SI.VarP s)
   dropUscore p@(SI.VarP s) = p
