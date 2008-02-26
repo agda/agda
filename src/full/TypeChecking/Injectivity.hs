@@ -127,27 +127,27 @@ useInjectivity a u v = do
       d <- reduce $ unEl dty
       case ignoreBlocking d of
         Def d us -> do
-          Datatype np _ _ _ _ _ <- theDef <$> getConstInfo d
-          def  <- getConstInfo c
-          let cty                  = defType def
-              Constructor np _ _ _ = theDef def
-              cty'                 = cty `piApply` take np us
-          argm <- newArgsMetaCtx cty' tel vs
-          -- Compute the type of the instantiation and the orignial type.
-          -- We need to make sure they are the same to ensure that index
-          -- arguments to the constructor are instantiated.
-          let mtyI = cty' `piApply` argm
-              mtyO = mty `piApply` vs
-          reportSDoc "tc.inj.use" 50 $ text "inversion:" <+> nest 2 (vcat
-            [ sep [ prettyTCM (MetaV m vs) <+> text ":="
-                  , nest 2 $ prettyTCM (Con c argm)
-                  ]
-            , text "of type" <+> prettyTCM mtyO
-            ] )
-          do  noConstraints $ equalType mtyO mtyI
-              noConstraints $ assignV (mty `piApply` vs) m vs (Con c argm)
-              equalTerm a u v
-            `catchError` \_ -> fallBack
+            Datatype np _ _ _ _ _ <- theDef <$> getConstInfo d
+            def  <- getConstInfo c
+            let cty                  = defType def
+                Constructor np _ _ _ = theDef def
+                cty'                 = cty `piApply` take np us
+            argm <- newArgsMetaCtx cty' tel vs
+            -- Compute the type of the instantiation and the orignial type.
+            -- We need to make sure they are the same to ensure that index
+            -- arguments to the constructor are instantiated.
+            let mtyI = cty' `piApply` argm
+                mtyO = mty `piApply` vs
+            reportSDoc "tc.inj.use" 50 $ text "inversion:" <+> nest 2 (vcat
+              [ sep [ prettyTCM (MetaV m vs) <+> text ":="
+                    , nest 2 $ prettyTCM (Con c argm)
+                    ]
+              , text "of type" <+> prettyTCM mtyO
+              ] )
+            noConstraints $ equalType mtyO mtyI
+            noConstraints $ assignV (mty `piApply` vs) m vs (Con c argm)
+            equalTerm a u v
+          `catchError` \_ -> fallBack
 
         _ -> fallBack
     inst (Con c vs) (ConP c' ps)
