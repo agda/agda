@@ -32,6 +32,7 @@ import Data.Bool.Properties
 import Data.BoundedVec
 import Data.BoundedVec.Inefficient
 import Data.Char
+import Data.DifferenceList
 import Data.Fin
 import Data.Fin.Dec
 import Data.Fin.Props
