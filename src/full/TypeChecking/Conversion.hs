@@ -165,7 +165,7 @@ equalAtom t m n =
 		m <- normalise m
 		if m == n
 		    then return []	-- Check syntactic equality for blocked terms
-		    else useInjectivity t m n
+		    else buildConstraint $ ValueEq t m n
 	    (BlockedV b, _)    -> useInjectivity t m n
 	    (_,BlockedV b)     -> useInjectivity t m n
 	    _		       -> typeError $ UnequalTerms m n t
