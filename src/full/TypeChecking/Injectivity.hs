@@ -4,6 +4,7 @@ module TypeChecking.Injectivity where
 
 import Control.Applicative
 import Control.Monad
+import Control.Monad.Error
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe
@@ -17,6 +18,7 @@ import TypeChecking.Primitive
 import TypeChecking.MetaVars
 import {-# SOURCE #-} TypeChecking.Conversion
 import TypeChecking.Pretty
+import TypeChecking.Constraints
 import Utils.List
 
 #include "../undefined.h"
@@ -129,17 +131,24 @@ useInjectivity a u v = do
           def  <- getConstInfo c
           let cty                  = defType def
               Constructor np _ _ _ = theDef def
-          argm <- newArgsMetaCtx (cty `piApply` take np us) tel vs
+              cty'                 = cty `piApply` take np us
+          argm <- newArgsMetaCtx cty' tel vs
+          -- Compute the type of the instantiation and the orignial type.
+          -- We need to make sure they are the same to ensure that index
+          -- arguments to the constructor are instantiated.
+          let mtyI = cty' `piApply` argm
+              mtyO = mty `piApply` vs
           reportSDoc "tc.inj.use" 50 $ text "inversion:" <+> nest 2 (vcat
             [ sep [ prettyTCM (MetaV m vs) <+> text ":="
                   , nest 2 $ prettyTCM (Con c argm)
                   ]
-            , text "of type" <+> prettyTCM (mty `piApply` vs)
+            , text "of type" <+> prettyTCM mtyO
             ] )
-          cs <- assignV (mty `piApply` vs) m vs (Con c argm)
-          case cs of
-            [] -> equalTerm a u v
-            _  -> (cs ++) <$> fallBack
+          do  noConstraints $ equalType mtyO mtyI
+              noConstraints $ assignV (mty `piApply` vs) m vs (Con c argm)
+              equalTerm a u v
+            `catchError` \_ -> fallBack
+
         _ -> fallBack
     inst (Con c vs) (ConP c' ps)
       | c == c'   = instArgs vs ps
