@@ -184,7 +184,8 @@ checkExpr e t =
                       blockTerm t (f vs) $ (cs ++) <$> equalType t1 t
                     [] -> fail $ show (head cs) ++ " does not constructor an element of the datatype " ++ show d
                     _:_:_ -> __IMPOSSIBLE__
-                  MetaV _ _ -> postponeTypeCheckingProblem e t
+                  MetaV _ _  -> postponeTypeCheckingProblem e t
+                  BlockedV _ -> postponeTypeCheckingProblem e t
                        -- TODO: error message
                   _ -> fail $ show (head cs) ++ " does not construct an element of " ++ show t
 

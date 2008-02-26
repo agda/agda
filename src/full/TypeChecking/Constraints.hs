@@ -92,8 +92,9 @@ solveConstraint (UnBlock m) = do
       PostponedTypeCheckingProblem cl -> enterClosure cl $ \(e, t) -> do
         t <- reduce t
         case unEl t of
-          MetaV _ _ -> buildConstraint $ UnBlock m
-          _         -> do
+          MetaV _ _  -> buildConstraint $ UnBlock m
+          BlockedV _ -> buildConstraint $ UnBlock m
+          _          -> do
             tel <- getContextTelescope
             v   <- liftTCM $ checkExpr e t
             assignTerm m $ teleLam tel v
