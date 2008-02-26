@@ -27,6 +27,9 @@ data [_] (a : Set) : Set where
 ------------------------------------------------------------------------
 -- Some operations
 
+singleton : forall {a} -> a -> [ a ]
+singleton x = x ∷ []
+
 _++_ : forall {a} -> [ a ] -> [ a ] -> [ a ]
 []       ++ ys = ys
 (x ∷ xs) ++ ys = x ∷ (xs ++ ys)

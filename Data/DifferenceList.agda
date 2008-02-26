@@ -19,6 +19,9 @@ DiffList a = [ a ] -> [ a ]
 _∷_ : forall {a} -> a -> DiffList a -> DiffList a
 x ∷ xs = \k -> L._∷_ x (xs k)
 
+singleton : forall {a} -> a -> DiffList a
+singleton x = x ∷ []
+
 _++_ : forall {a} -> DiffList a -> DiffList a -> DiffList a
 xs ++ ys = \k -> xs (ys k)
 

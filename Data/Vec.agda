@@ -50,6 +50,9 @@ head (x ∷ xs) = x
 tail : forall {a n} -> Vec a (1 + n) -> Vec a n
 tail (x ∷ xs) = xs
 
+singleton : forall {a} -> a -> Vec a 1
+singleton x = x ∷ []
+
 _++_ : forall {a m n} -> Vec a m -> Vec a n -> Vec a (m + n)
 []       ++ ys = ys
 (x ∷ xs) ++ ys = x ∷ (xs ++ ys)
