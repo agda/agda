@@ -235,7 +235,7 @@ checkExpr e t =
 	A.Let i ds e -> checkLetBindings ds $ checkExpr e t
 	A.Pi _ tel e ->
 	    checkTelescope tel $ \tel -> do
-	    t' <- telePi tel <$> isType_ e
+	    t' <- telePi_ tel <$> isType_ e
 	    blockTerm t (unEl t') $ equalType (sort $ getSort t') t
 	A.Fun _ (Arg h a) b -> do
 	    a' <- isType_ a
