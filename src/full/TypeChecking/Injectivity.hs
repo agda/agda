@@ -147,7 +147,11 @@ useInjectivity a u v = do
             noConstraints $ equalType mtyO mtyI
             noConstraints $ assignV (mty `piApply` vs) m vs (Con c argm)
             equalTerm a u v
-          `catchError` \_ -> fallBack
+          `catchError` \err -> case err of
+            TypeError _ _ -> throwError err
+            Exception _ _ -> throwError err
+            PatternErr _  -> fallBack
+            AbortAssign _ -> fallBack
 
         _ -> fallBack
     inst (Con c vs) (ConP c' ps)
