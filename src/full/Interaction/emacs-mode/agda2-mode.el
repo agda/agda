@@ -111,7 +111,8 @@ necessary to restart Agda mode after changing this variable."
 
 (defcustom agda2-change-default-font t
   "Should the Agda mode change the default font of the current
-frame when activated?"
+frame when activated? (This setting does not apply when Emacs is
+run in a terminal.)"
   :type '(choice (const :tag "Change" t)
                  (const :tag "Don't change" nil))
   :group 'agda2)
@@ -120,7 +121,6 @@ frame when activated?"
   (concat
    "-misc-fixed-medium-r-normal-*-15-*-*-*-*-*-fontset-agda2"
    (cond
-    ((eq window-system 'x) "")
     ((eq window-system 'w32) ",
     ascii:-Misc-Fixed-Medium-R-Normal--15-140-75-75-C-90-ISO8859-1,
     latin-iso8859-2:-*-Fixed-*-r-*-*-15-*-*-*-c-*-iso8859-2,
@@ -146,8 +146,8 @@ frame when activated?"
     chinese-cns11643-1:-HKU-Fixed-Medium-R-Normal--16-160-72-72-C-160-CNS11643.1992.1-0,
     chinese-big5-1:-ETen-Fixed-Medium-R-Normal--16-150-75-75-C-160-Big5.ETen-0,
     chinese-big5-2:-ETen-Fixed-Medium-R-Normal--16-150-75-75-C-160-Big5.ETen-0")))
-  "*The \"fontset-agda2\" fontset is created based on this string,
-provided that `window-system' is x or w32. The default font of
+  "*The \"fontset-agda2\" fontset is created based on this
+string (if Emacs is not run in a terminal). The default font of
 the current frame is changed to \"fontset-agda2\" when the Agda2
 mode is activated.
 
@@ -164,7 +164,7 @@ want settings to this variable to take effect."
   :group 'agda2
   :type 'string)
 
-(if (memq window-system '(x w32))
+(if window-system
   (create-fontset-from-fontset-spec agda2-fontset-spec))
 
 (defun agda2-fix-ghci-for-windows ()
@@ -301,8 +301,11 @@ Special commands:
  (let ((l '(max-specpdl-size    2600
             max-lisp-eval-depth 2800)))
    (while l (set (make-local-variable (pop l)) (pop l))))
- (if agda2-change-default-font
-     (set-frame-font "fontset-agda2"))
+ (if (and window-system agda2-change-default-font)
+     (condition-case nil
+       (set-frame-font "fontset-agda2")
+       (error (error "Unable to change the font; toggle agda2-change-default-font
+or tweak agda2-fontset-spec"))))
  (agda2-indent-setup)
  (agda2-highlight-setup)
  (agda2-comments-and-paragraphs-setup)
