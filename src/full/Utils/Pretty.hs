@@ -23,3 +23,7 @@ pwords = map text . words
 fwords :: String -> Doc
 fwords = fsep . pwords
 
+mparens :: Bool -> Doc -> Doc
+mparens True  = parens
+mparens False = id
+
