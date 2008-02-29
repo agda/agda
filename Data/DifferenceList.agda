@@ -31,4 +31,10 @@ toList xs = xs L.[]
 -- fromList xs is linear in the length of xs.
 
 fromList : forall {a} -> [ a ] -> DiffList a
-fromList xs = \k -> L._++_ xs k
+fromList xs = \k -> xs ⟨ L._++_ ⟩ k
+
+-- It is OK to use L._++_ here, since map is linear in the length of
+-- the list anyway.
+
+map : forall {a b} -> (a -> b) -> DiffList a -> DiffList b
+map f xs = \k -> L.map f (toList xs) ⟨ L._++_ ⟩ k
