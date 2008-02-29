@@ -38,3 +38,11 @@ fromList xs = \k -> xs ⟨ L._++_ ⟩ k
 
 map : forall {a b} -> (a -> b) -> DiffList a -> DiffList b
 map f xs = \k -> L.map f (toList xs) ⟨ L._++_ ⟩ k
+
+-- concat is linear in the length of the outer list.
+
+concat : forall {a} -> DiffList (DiffList a) -> DiffList a
+concat xs = concat' (toList xs)
+  where
+  concat' : forall {a} -> [ DiffList a ] -> DiffList a
+  concat' = L.foldr _++_ []
