@@ -175,6 +175,8 @@ cmd_load file includes = infoOnException $ do
             setIncludeDirectories includes
 	    resetState
 	    pragmas  <- concat <$> concreteToAbstract_ pragmas	-- identity for top-level pragmas at the moment
+            -- Note that pragmas can affect scope checking.
+            setOptionsFromPragmas pragmas
 	    topLevel <- concreteToAbstract_ (TopLevel m)
 
             handleError
@@ -186,7 +188,6 @@ cmd_load file includes = infoOnException $ do
                         -- reload the syntax highlighting info.
                         throwError e) $ do
               setUndo
-              setOptionsFromPragmas pragmas
               checkDecls $ topLevelDecls topLevel
               setScope $ outsideScope topLevel
 
