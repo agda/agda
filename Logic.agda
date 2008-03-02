@@ -63,6 +63,18 @@ witness (exists {x} p) = x
 proof : forall {a P} (x : ∃ a P) -> P (witness x)
 proof (exists p) = p
 
+data ∃₁ (a : Set1) (P : a -> Set) : Set1 where
+  exists₁ : {witness : a} -> P witness -> ∃₁ a P
+
+∃₁₀ : {a : Set1} (P : a -> Set) -> Set1
+∃₁₀ = ∃₁ _
+
+witness₁ : forall {a P} -> ∃₁ a P -> a
+witness₁ (exists₁ {x} p) = x
+
+proof₁ : forall {a P} (x : ∃₁ a P) -> P (witness₁ x)
+proof₁ (exists₁ p) = p
+
 ------------------------------------------------------------------------
 -- Some basic properties
 
