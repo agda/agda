@@ -224,6 +224,19 @@ unifyIndices flex a us vs = liftTCM $ do
                 _			   -> __IMPOSSIBLE__
               unifyArgs a' us vs
           | otherwise -> constructorMismatch a u v
+        -- Definitions are ok as long as they can't reduce (i.e. datatypes/axioms)
+	(Def d us, Def d' vs)
+          | d == d' -> do
+              -- d must be a data, record or axiom
+              def <- getConstInfo d
+              let ok = case theDef def of
+                    Datatype{} -> True
+                    Record{}   -> True
+                    Axiom{}    -> True
+                    _          -> False
+              if ok
+                then unifyArgs (defType def) us vs
+                else addEquality a u v
         (Lit l1, Lit l2)
           | l1 == l2  -> return ()
           | otherwise -> constructorMismatch a u v
