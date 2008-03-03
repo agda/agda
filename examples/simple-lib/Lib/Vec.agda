@@ -5,11 +5,15 @@ open import Lib.Prelude
 open import Lib.Nat
 open import Lib.Fin
 
-infixr 40 _::_
+infixr 40 _::_ _++_
 
 data Vec (A : Set) : Nat -> Set where
   []   : Vec A 0
   _::_ : forall {n} -> A -> Vec A n -> Vec A (suc n)
+
+_++_ : {A : Set}{n m : Nat} -> Vec A n -> Vec A m -> Vec A (n + m)
+[]        ++ ys = ys
+(x :: xs) ++ ys = x :: xs ++ ys
 
 _!_ : forall {A n} -> Vec A n -> Fin n -> A
 []      ! ()

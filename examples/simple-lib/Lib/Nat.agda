@@ -18,7 +18,7 @@ suc n + m = suc (n + m)
 
 _*_ : Nat -> Nat -> Nat
 zero  * m = zero
-suc n * m = n * m + m
+suc n * m = m + n * m
 
 {-# BUILTIN NATPLUS  _+_ #-}
 {-# BUILTIN NATTIMES _*_ #-}
