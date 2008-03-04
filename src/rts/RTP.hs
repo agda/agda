@@ -1,17 +1,20 @@
 module RTP where
 import RTS
 import qualified RTN
-import qualified Prelude
+import Prelude ((.), Eq, (==), Show, show)
+import qualified Prelude hiding ((.), Eq, (==))
 
+import Data.Char
 
 -- import qualified RTS
 
 undefined = Prelude.undefined
+
 data Bool = False | True
 
 type Float = Prelude.Double
 -- newtype Float = FloatT { unboxFloat :: Prelude.Float}
-newtype Char = CharT { unboxChar :: Prelude.Char }
+newtype Char = CharT { unboxChar :: Prelude.Char } deriving (Prelude.Eq)
 
 _Int = ()
 _Float = ()
@@ -68,8 +71,25 @@ _primShowFloat f = Prelude.show f
 
 _primShowChar c = [ unboxChar c]
 
+_primCharEquality c1 c2 = c1 == c2
+_primIsLower = isLower . unboxChar
+_primIsDigit = isDigit . unboxChar
+_primIsAlpha = isAlpha . unboxChar
+_primIsSpace = isSpace . unboxChar
+_primIsAscii = isAscii . unboxChar
+_primIsLatin1 = isLatin1 . unboxChar
+_primIsPrint = isPrint . unboxChar
+_primIsHexDigit = isHexDigit . unboxChar
+_primToUpper = toUpper . unboxChar
+_primToLower = toLower . unboxChar
+_primCharToNat = CharT . chr
+_primNatToChar = ord . unboxChar
+
 _primStringAppend :: Prelude.String -> Prelude.String -> Prelude.String
 _primStringAppend = (Prelude.++)
+
+_primShowString :: Prelude.String -> Prelude.String
+_primShowString s = show s
 
 _primStringReverse = Prelude.reverse
 _primStringToList s = Prelude.map CharT s
