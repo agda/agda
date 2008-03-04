@@ -10,6 +10,8 @@ homepage:        http://www.cs.chalmers.se/~ulfn/Agda/
 category:        Dependent types
 synopsis:        A dependently typed proof checker / programming language.
 tested-with:     GHC == 6.8.1
+extra-source-files: configure.ac configure install-sh mk/config.mk.in
+                    src/full/undefined.h
 
 library
   hs-source-dirs:  src/full
