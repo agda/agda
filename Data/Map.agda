@@ -8,7 +8,8 @@ module Data.Map where
 open import Relation.Nullary
 open import Relation.Binary
 open import Logic
-open import Data.List hiding (map)
+import Data.List as L
+open L using ([_])
 open import Data.Product
 
 module Map₁ (key-dto : DecTotalOrder) (elem-s : Setoid) where
@@ -76,9 +77,9 @@ module Map₁ (key-dto : DecTotalOrder) (elem-s : Setoid) where
   singleton k v = insert k v empty
 
   ⋃_ : [ Map ] -> Map
-  ⋃_ = foldr _∪_ empty
+  ⋃_ = L.foldr _∪_ empty
 
   fromList : [ key × elem ] -> Map
-  fromList = foldr (uncurry insert) empty
+  fromList = L.foldr (uncurry insert) empty
 
 open Map₁ public renaming (Map to _⇰_)

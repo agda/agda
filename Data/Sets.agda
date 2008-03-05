@@ -9,7 +9,8 @@ open import Relation.Binary
 open import Relation.Binary.OrderMorphism
 open import Logic
 open import Data.Function
-open import Data.List hiding (map)
+import Data.List as L
+open L using ([_])
 open import Data.Product
 
 module Sets₁ (dto : DecTotalOrder) where
@@ -60,10 +61,10 @@ module Sets₁ (dto : DecTotalOrder) where
   singleton x = insert x empty
 
   ⋃_ : [ <Set> ] -> <Set>
-  ⋃_ = foldr _∪_ empty
+  ⋃_ = L.foldr _∪_ empty
 
   fromList : [ carrier ] -> <Set>
-  fromList = foldr insert empty
+  fromList = L.foldr insert empty
 
   _⊆_ : <Set> -> <Set> -> Set
   s₁ ⊆ s₂ = forall x -> x ∈ s₁ -> x ∈ s₂
