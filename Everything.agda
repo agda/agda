@@ -22,7 +22,6 @@ import Algebra.Props.Lattice
 import Algebra.Props.Ring
 import Algebra.RingSolver
 import Algebra.RingSolver.AlmostCommutativeRing
-import Algebra.RingSolver.Examples
 import Algebra.RingSolver.Lemmas
 import Algebra.RingSolver.Simple
 import Algebra.Structures

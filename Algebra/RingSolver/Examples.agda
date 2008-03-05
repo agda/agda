@@ -2,6 +2,8 @@
 -- Some examples showing the solver in action
 ------------------------------------------------------------------------
 
+-- Warning: This module requires lots of resources to type check.
+
 module Algebra.RingSolver.Examples where
 
 open import Logic
