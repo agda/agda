@@ -43,6 +43,7 @@ import Data.HeterogeneousCollection
 import Data.Integer
 import Data.List
 import Data.List.Properties
+import Data.List1
 import Data.Map
 import Data.Maybe
 import Data.Nat
