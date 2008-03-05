@@ -44,7 +44,8 @@ import TypeChecker
 import TypeChecking.Monad
 import TypeChecking.Reduce
 import TypeChecking.Errors
-import TypeChecking.Serialise
+import qualified TypeChecking.Serialise
+import TypeChecking.SerialiseShare
 
 import Compiler.Agate.Main as Agate
 import Compiler.Alonzo.Main as Alonzo

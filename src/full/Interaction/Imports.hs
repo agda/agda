@@ -29,7 +29,8 @@ import Termination.TermCheck
 import TypeChecking.Reduce
 import TypeChecking.Monad
 import TypeChecking.Monad.Builtin
-import TypeChecking.Serialise
+import qualified TypeChecking.Serialise
+import TypeChecking.SerialiseShare
 import TypeChecking.Primitive
 import TypeChecker
 

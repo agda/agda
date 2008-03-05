@@ -153,6 +153,7 @@ library
                    TypeChecking.Rules.Record
                    TypeChecking.Rules.Term
                    TypeChecking.Serialise
+                   TypeChecking.SerialiseShare
                    TypeChecking.Substitute
                    TypeChecking.Telescope
                    TypeChecking.Test.Generators
