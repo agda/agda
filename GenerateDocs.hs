@@ -10,7 +10,7 @@ import System.Exit
 
 -- | The base URL of the darcs repository of the library.
 
-baseURL = "http://www.cs.chalmers.se/~nad/repos/lib"
+baseURL = "http://www.cs.nott.ac.uk/~nad/repos/lib"
 
 main = do
   args <- getArgs
