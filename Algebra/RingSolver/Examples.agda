@@ -18,41 +18,39 @@ open Ops (CommutativeSemiring.semiring ℕ-commutativeSemiring)
 open Ops (CommutativeRing.semiring Bool-commutativeRing-xor-∧)
   renaming (_^_ to _↑_)
 
-abstract
+example₁
+  :  forall x y
+  -> (x + y) ^ 3 ≡ x ^ 3 + 3 * x ^ 2 * y + 3 * x * y ^ 2 + y ^ 3
+example₁ x y =
+  prove (x ∷ y ∷ [])
+        ((X :+ Y) :^ 3)
+        (X :^ 3 :+ con 3 :* X :^ 2 :* Y :+
+         con 3 :* X :* Y :^ 2 :+ Y :^ 3)
+        ≡-refl
+  where
+  open ℕ-semiringSolver
+  X = var fz
+  Y = var (fs fz)
 
-  example₁
-    :  forall x y
-    -> (x + y) ^ 3 ≡ x ^ 3 + 3 * x ^ 2 * y + 3 * x * y ^ 2 + y ^ 3
-  example₁ x y =
-    prove (x ∷ y ∷ [])
-          ((X :+ Y) :^ 3)
-          (X :^ 3 :+ con 3 :* X :^ 2 :* Y :+
-           con 3 :* X :* Y :^ 2 :+ Y :^ 3)
-          ≡-refl
-    where
-    open ℕ-semiringSolver
-    X = var fz
-    Y = var (fs fz)
+-- The following example is commented out because it is (currently)
+-- too slow.
 
-  -- The following example is commented out because it is (currently)
-  -- too slow.
+-- example₂
+--   :  forall x y
+--   -> (x xor y) ↑ 3 ≡
+--      (x ↑ 3) xor ((x ↑ 2) ∧ y) xor (x ∧ (y ↑ 2)) xor (y ↑ 3)
+-- example₂ x y =
+--   prove (x ∷ y ∷ [])
+--         ((X :+ Y) :^ 3)
+--         (X :^ 3 :+ (X :^ 2 :* Y :+ (X :* Y :^ 2 :+ Y :^ 3)))
+--         ≡-refl
+--   where
+--   open Bool-xor-ringSolver
+--   X = var fz
+--   Y = var (fs fz)
 
-  -- example₂
-  --   :  forall x y
-  --   -> (x xor y) ↑ 3 ≡
-  --      (x ↑ 3) xor ((x ↑ 2) ∧ y) xor (x ∧ (y ↑ 2)) xor (y ↑ 3)
-  -- example₂ x y =
-  --   prove (x ∷ y ∷ [])
-  --         ((X :+ Y) :^ 3)
-  --         (X :^ 3 :+ (X :^ 2 :* Y :+ (X :* Y :^ 2 :+ Y :^ 3)))
-  --         ≡-refl
-  --   where
-  --   open Bool-xor-ringSolver
-  --   X = var fz
-  --   Y = var (fs fz)
-
-  example₃ : forall x -> x xor x ≡ false
-  example₃ x = prove (x ∷ []) (X :+ X) (con false) ≡-refl
-    where
-    open Bool-xor-ringSolver
-    X = var fz
+example₃ : forall x -> x xor x ≡ false
+example₃ x = prove (x ∷ []) (X :+ X) (con false) ≡-refl
+  where
+  open Bool-xor-ringSolver
+  X = var fz

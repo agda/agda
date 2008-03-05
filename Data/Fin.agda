@@ -46,23 +46,21 @@ suc n - fs i = n - i
 ------------------------------------------------------------------------
 -- Queries
 
-abstract
+fz≢fs : forall {n} {x : Fin n} -> ¬ fz ≡ fs x
+fz≢fs ()
 
-  fz≢fs : forall {n} {x : Fin n} -> ¬ fz ≡ fs x
-  fz≢fs ()
+private
+  drop-fs : forall {o} {m n : Fin o} -> fs m ≡ fs n -> m ≡ n
+  drop-fs ≡-refl = ≡-refl
 
-  private
-    drop-fs : forall {o} {m n : Fin o} -> fs m ≡ fs n -> m ≡ n
-    drop-fs ≡-refl = ≡-refl
-
-  _Fin-≟_ : {n : ℕ} -> Decidable {Fin n} _≡_
-  fz   Fin-≟ fz    = yes ≡-refl
-  fs m Fin-≟ fs n  with m Fin-≟ n
-  fs m Fin-≟ fs .m | yes ≡-refl = yes ≡-refl
-  fs m Fin-≟ fs n  | no prf     = no (prf ∘ drop-fs)
-  fz   Fin-≟ fs n  = no (⊥-elim ∘ fz≢fs)
-  fs m Fin-≟ fz    = no (⊥-elim ∘ fz≢fs ∘ sym)
-    where sym = IsEquivalence.sym ≡-isEquivalence
+_Fin-≟_ : {n : ℕ} -> Decidable {Fin n} _≡_
+fz   Fin-≟ fz    = yes ≡-refl
+fs m Fin-≟ fs n  with m Fin-≟ n
+fs m Fin-≟ fs .m | yes ≡-refl = yes ≡-refl
+fs m Fin-≟ fs n  | no prf     = no (prf ∘ drop-fs)
+fz   Fin-≟ fs n  = no (⊥-elim ∘ fz≢fs)
+fs m Fin-≟ fz    = no (⊥-elim ∘ fz≢fs ∘ sym)
+  where sym = IsEquivalence.sym ≡-isEquivalence
 
 ------------------------------------------------------------------------
 -- Some properties

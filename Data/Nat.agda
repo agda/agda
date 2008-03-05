@@ -87,38 +87,36 @@ suc m ⊓ suc n = suc (m ⊓ n)
 ------------------------------------------------------------------------
 -- Queries
 
-abstract
+ℕ-total : Total _≤_
+ℕ-total zero    _       = inj₁ z≤n
+ℕ-total _       zero    = inj₂ z≤n
+ℕ-total (suc m) (suc n) with ℕ-total m n
+...                     | inj₁ m≤n = inj₁ (s≤s m≤n)
+...                     | inj₂ n≤m = inj₂ (s≤s n≤m)
 
-  ℕ-total : Total _≤_
-  ℕ-total zero    _       = inj₁ z≤n
-  ℕ-total _       zero    = inj₂ z≤n
-  ℕ-total (suc m) (suc n) with ℕ-total m n
-  ...                     | inj₁ m≤n = inj₁ (s≤s m≤n)
-  ...                     | inj₂ n≤m = inj₂ (s≤s n≤m)
+zero≢suc : forall {n} -> ¬ zero ≡ suc n
+zero≢suc ()
 
-  zero≢suc : forall {n} -> ¬ zero ≡ suc n
-  zero≢suc ()
+_ℕ-≟_ : Decidable {ℕ} _≡_
+zero  ℕ-≟ zero   = yes ≡-refl
+suc m ℕ-≟ suc n  with m ℕ-≟ n
+suc m ℕ-≟ suc .m | yes ≡-refl = yes ≡-refl
+suc m ℕ-≟ suc n  | no prf     = no (prf ∘ ≡-cong pred)
+zero  ℕ-≟ suc n  = no (⊥-elim ∘ zero≢suc)
+suc m ℕ-≟ zero   = no (⊥-elim ∘ zero≢suc ∘ ≡-sym)
 
-  _ℕ-≟_ : Decidable {ℕ} _≡_
-  zero  ℕ-≟ zero   = yes ≡-refl
-  suc m ℕ-≟ suc n  with m ℕ-≟ n
-  suc m ℕ-≟ suc .m | yes ≡-refl = yes ≡-refl
-  suc m ℕ-≟ suc n  | no prf     = no (prf ∘ ≡-cong pred)
-  zero  ℕ-≟ suc n  = no (⊥-elim ∘ zero≢suc)
-  suc m ℕ-≟ zero   = no (⊥-elim ∘ zero≢suc ∘ ≡-sym)
+suc≰zero : forall {n} -> ¬ suc n ≤ zero
+suc≰zero ()
 
-  suc≰zero : forall {n} -> ¬ suc n ≤ zero
-  suc≰zero ()
+≤-pred : forall {m n} -> suc m ≤ suc n -> m ≤ n
+≤-pred (s≤s m≤n) = m≤n
 
-  ≤-pred : forall {m n} -> suc m ≤ suc n -> m ≤ n
-  ≤-pred (s≤s m≤n) = m≤n
-
-  _≤?_ : Decidable _≤_
-  zero  ≤? _     = yes z≤n
-  suc m ≤? zero  = no suc≰zero
-  suc m ≤? suc n with m ≤? n
-  ...            | yes m≤n = yes (s≤s m≤n)
-  ...            | no  m≰n = no  (m≰n ∘ ≤-pred)
+_≤?_ : Decidable _≤_
+zero  ≤? _     = yes z≤n
+suc m ≤? zero  = no suc≰zero
+suc m ≤? suc n with m ≤? n
+...            | yes m≤n = yes (s≤s m≤n)
+...            | no  m≰n = no  (m≰n ∘ ≤-pred)
 
 ------------------------------------------------------------------------
 -- Some properties
@@ -152,19 +150,18 @@ abstract
       }
   }
   where
-  abstract
-    refl : Reflexive _≡_ _≤_
-    refl {zero}  ≡-refl = z≤n
-    refl {suc m} ≡-refl = s≤s (refl ≡-refl)
+  refl : Reflexive _≡_ _≤_
+  refl {zero}  ≡-refl = z≤n
+  refl {suc m} ≡-refl = s≤s (refl ≡-refl)
 
-    antisym : Antisymmetric _≡_ _≤_
-    antisym z≤n       z≤n       = ≡-refl
-    antisym (s≤s m≤n) (s≤s n≤m) with antisym m≤n n≤m
-    ...                         | ≡-refl = ≡-refl
+  antisym : Antisymmetric _≡_ _≤_
+  antisym z≤n       z≤n       = ≡-refl
+  antisym (s≤s m≤n) (s≤s n≤m) with antisym m≤n n≤m
+  ...                         | ≡-refl = ≡-refl
 
-    trans : Transitive _≤_
-    trans z≤n       _         = z≤n
-    trans (s≤s m≤n) (s≤s n≤o) = s≤s (trans m≤n n≤o)
+  trans : Transitive _≤_
+  trans z≤n       _         = z≤n
+  trans (s≤s m≤n) (s≤s n≤o) = s≤s (trans m≤n n≤o)
 
 ℕ-decSetoid : DecSetoid
 ℕ-decSetoid = DecTotalOrder.Eq.decSetoid ℕ-decTotalOrder

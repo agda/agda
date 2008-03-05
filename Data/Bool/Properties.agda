@@ -27,8 +27,7 @@ import Relation.Binary.EqReasoning as EqR; open EqR Bool-setoid
 ------------------------------------------------------------------------
 -- (Bool, ∨, ∧, false, true) forms a commutative semiring
 
-abstract
- private
+private
 
   ∨-assoc : Associative _∨_
   ∨-assoc true  y z = byDef
@@ -78,36 +77,34 @@ abstract
        y ∧ x ∨ z ∧ x
                       ∎
 
-abstract
-
-  Bool-isCommutativeSemiring-∨-∧
-    : IsCommutativeSemiring Bool-setoid _∨_ _∧_ false true
-  Bool-isCommutativeSemiring-∨-∧ = record
-    { isSemiring = record
-      { isSemiringWithoutAnnihilatingZero = record
-        { +-isCommutativeMonoid = record
-          { isMonoid = record
-            { isSemigroup = record
-              { assoc    = ∨-assoc
-              ; •-pres-≈ = ≡-cong₂ _∨_
-              }
-            ; identity = ∨-identity
-            }
-          ; comm = ∨-comm
-          }
-        ; *-isMonoid = record
+Bool-isCommutativeSemiring-∨-∧
+  : IsCommutativeSemiring Bool-setoid _∨_ _∧_ false true
+Bool-isCommutativeSemiring-∨-∧ = record
+  { isSemiring = record
+    { isSemiringWithoutAnnihilatingZero = record
+      { +-isCommutativeMonoid = record
+        { isMonoid = record
           { isSemigroup = record
-            { assoc    = ∧-assoc
-            ; •-pres-≈ = ≡-cong₂ _∧_
+            { assoc    = ∨-assoc
+            ; •-pres-≈ = ≡-cong₂ _∨_
             }
-          ; identity = ∧-identity
+          ; identity = ∨-identity
           }
-        ; distrib = distrib-∧-∨
+        ; comm = ∨-comm
         }
-      ; zero = zero-∧
+      ; *-isMonoid = record
+        { isSemigroup = record
+          { assoc    = ∧-assoc
+          ; •-pres-≈ = ≡-cong₂ _∧_
+          }
+        ; identity = ∧-identity
+        }
+      ; distrib = distrib-∧-∨
       }
-    ; *-comm = ∧-comm
+    ; zero = zero-∧
     }
+  ; *-comm = ∧-comm
+  }
 
 Bool-commutativeSemiring-∨-∧ : CommutativeSemiring
 Bool-commutativeSemiring-∨-∧ = record
@@ -125,8 +122,7 @@ module Bool-ringSolver =
 ------------------------------------------------------------------------
 -- (Bool, ∧, ∨, true, false) forms a commutative semiring
 
-abstract
- private
+private
 
   zero-∨ : Zero true _∨_
   zero-∨ = (\_ -> byDef) , (\x -> ∨-comm x true)
@@ -150,36 +146,34 @@ abstract
        (y ∨ x) ∧ (z ∨ x)
                           ∎
 
-abstract
-
-  Bool-isCommutativeSemiring-∧-∨
-    : IsCommutativeSemiring Bool-setoid _∧_ _∨_ true false
-  Bool-isCommutativeSemiring-∧-∨ = record
-    { isSemiring = record
-      { isSemiringWithoutAnnihilatingZero = record
-        { +-isCommutativeMonoid = record
-          { isMonoid = record
-            { isSemigroup = record
-              { assoc    = ∧-assoc
-              ; •-pres-≈ = ≡-cong₂ _∧_
-              }
-            ; identity = ∧-identity
-            }
-          ; comm = ∧-comm
-          }
-        ; *-isMonoid = record
+Bool-isCommutativeSemiring-∧-∨
+  : IsCommutativeSemiring Bool-setoid _∧_ _∨_ true false
+Bool-isCommutativeSemiring-∧-∨ = record
+  { isSemiring = record
+    { isSemiringWithoutAnnihilatingZero = record
+      { +-isCommutativeMonoid = record
+        { isMonoid = record
           { isSemigroup = record
-            { assoc    = ∨-assoc
-            ; •-pres-≈ = ≡-cong₂ _∨_
+            { assoc    = ∧-assoc
+            ; •-pres-≈ = ≡-cong₂ _∧_
             }
-          ; identity = ∨-identity
+          ; identity = ∧-identity
           }
-        ; distrib = distrib-∨-∧
+        ; comm = ∧-comm
         }
-      ; zero = zero-∨
+      ; *-isMonoid = record
+        { isSemigroup = record
+          { assoc    = ∨-assoc
+          ; •-pres-≈ = ≡-cong₂ _∨_
+          }
+        ; identity = ∨-identity
+        }
+      ; distrib = distrib-∨-∧
       }
-    ; *-comm = ∨-comm
+    ; zero = zero-∨
     }
+  ; *-comm = ∨-comm
+  }
 
 Bool-commutativeSemiring-∧-∨ : CommutativeSemiring
 Bool-commutativeSemiring-∧-∨ = record
@@ -194,8 +188,7 @@ Bool-commutativeSemiring-∧-∨ = record
 ------------------------------------------------------------------------
 -- (Bool, ∨, ∧, not, true, false) is a boolean algebra
 
-abstract
- private
+private
 
   absorptive : Absorptive _∨_ _∧_
   absorptive = abs-∨-∧ , abs-∧-∨
@@ -224,27 +217,25 @@ abstract
     ¬x∨x≡⊤ false = byDef
     ¬x∨x≡⊤ true  = byDef
 
-abstract
-
-  Bool-isBooleanAlgebra
-    : IsBooleanAlgebra Bool-setoid _∨_ _∧_ not true false
-  Bool-isBooleanAlgebra = record
-    { isDistributiveLattice = record
-        { isLattice = record
-            { ∨-comm     = ∨-comm
-            ; ∨-assoc    = ∨-assoc
-            ; ∨-pres-≈   = ≡-cong₂ _∨_
-            ; ∧-comm     = ∧-comm
-            ; ∧-assoc    = ∧-assoc
-            ; ∧-pres-≈   = ≡-cong₂ _∧_
-            ; absorptive = absorptive
-            }
-        ; ∨-∧-distribʳ = proj₂ distrib-∨-∧
-        }
-    ; ∨-complementʳ = proj₂ not-∨-inverse
-    ; ∧-complementʳ = proj₂ not-∧-inverse
-    ; ¬-pres-≈      = ≡-cong not
-    }
+Bool-isBooleanAlgebra
+  : IsBooleanAlgebra Bool-setoid _∨_ _∧_ not true false
+Bool-isBooleanAlgebra = record
+  { isDistributiveLattice = record
+      { isLattice = record
+          { ∨-comm     = ∨-comm
+          ; ∨-assoc    = ∨-assoc
+          ; ∨-pres-≈   = ≡-cong₂ _∨_
+          ; ∧-comm     = ∧-comm
+          ; ∧-assoc    = ∧-assoc
+          ; ∧-pres-≈   = ≡-cong₂ _∧_
+          ; absorptive = absorptive
+          }
+      ; ∨-∧-distribʳ = proj₂ distrib-∨-∧
+      }
+  ; ∨-complementʳ = proj₂ not-∨-inverse
+  ; ∧-complementʳ = proj₂ not-∧-inverse
+  ; ¬-pres-≈      = ≡-cong not
+  }
 
 Bool-booleanAlgebra : BooleanAlgebra
 Bool-booleanAlgebra = record
@@ -260,8 +251,7 @@ Bool-booleanAlgebra = record
 ------------------------------------------------------------------------
 -- (Bool, xor, ∧, id, false, true) forms a commutative ring
 
-abstract
- private
+private
 
   xor-is-ok : forall x y -> x xor y ≡ (x ∨ y) ∧ not (x ∧ y)
   xor-is-ok true  y = byDef
@@ -280,8 +270,6 @@ module Bool-xor-ringSolver =
 ------------------------------------------------------------------------
 -- Miscellaneous other properties
 
-abstract
-
-  Bool-not-involutive : Involutive not
-  Bool-not-involutive true  = byDef
-  Bool-not-involutive false = byDef
+Bool-not-involutive : Involutive not
+Bool-not-involutive true  = byDef
+Bool-not-involutive false = byDef

@@ -204,8 +204,7 @@ private
 ------------------------------------------------------------------------
 -- Correctness
 
-abstract
- private
+private
   sem-pres-≈ : forall op -> sem op Preserves₂ _≈_ → _≈_ → _≈_
   sem-pres-≈ [+] = +-pres-≈
   sem-pres-≈ [*] = *-pres-≈
@@ -236,17 +235,15 @@ abstract
 ------------------------------------------------------------------------
 -- "Tactic"
 
-abstract
-
-  prove :  forall {n} (ρ : Vec carrier n) p₁ p₂
-        -> ⟦ p₁ ⟧↓ ρ ≈ ⟦ p₂ ⟧↓ ρ
-        -> ⟦ p₁ ⟧  ρ ≈ ⟦ p₂ ⟧  ρ
-  prove ρ p₁ p₂ eq =
-    sym (nf-sound (normalise p₁) ρ)
-      ⟨ trans ⟩
-    eq
-      ⟨ trans ⟩
-    nf-sound (normalise p₂) ρ
+prove :  forall {n} (ρ : Vec carrier n) p₁ p₂
+      -> ⟦ p₁ ⟧↓ ρ ≈ ⟦ p₂ ⟧↓ ρ
+      -> ⟦ p₁ ⟧  ρ ≈ ⟦ p₂ ⟧  ρ
+prove ρ p₁ p₂ eq =
+  sym (nf-sound (normalise p₁) ρ)
+    ⟨ trans ⟩
+  eq
+    ⟨ trans ⟩
+  nf-sound (normalise p₂) ρ
 
 -- For examples of how the function above can be used to
 -- semi-automatically prove ring equalities, see

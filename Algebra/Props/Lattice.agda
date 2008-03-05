@@ -13,32 +13,30 @@ import Relation.Binary.EqReasoning as EqR; open EqR setoid
 open import Data.Function
 open import Data.Product
 
-abstract
+∧-idempotent : Idempotent _∧_
+∧-idempotent x = begin
+  x ∧ x            ≈⟨ byDef ⟨ ∧-pres-≈ ⟩ sym (proj₁ absorptive _ _) ⟩
+  x ∧ (x ∨ x ∧ x)  ≈⟨ proj₂ absorptive _ _ ⟩
+  x                ∎
 
-  ∧-idempotent : Idempotent _∧_
-  ∧-idempotent x = begin
-    x ∧ x            ≈⟨ byDef ⟨ ∧-pres-≈ ⟩ sym (proj₁ absorptive _ _) ⟩
-    x ∧ (x ∨ x ∧ x)  ≈⟨ proj₂ absorptive _ _ ⟩
-    x                ∎
+∨-idempotent : Idempotent _∨_
+∨-idempotent x = begin
+  x ∨ x      ≈⟨ byDef ⟨ ∨-pres-≈ ⟩ sym (∧-idempotent _) ⟩
+  x ∨ x ∧ x  ≈⟨ proj₁ absorptive _ _ ⟩
+  x          ∎
 
-  ∨-idempotent : Idempotent _∨_
-  ∨-idempotent x = begin
-    x ∨ x      ≈⟨ byDef ⟨ ∨-pres-≈ ⟩ sym (∧-idempotent _) ⟩
-    x ∨ x ∧ x  ≈⟨ proj₁ absorptive _ _ ⟩
-    x          ∎
+-- The dual construction is also a lattice.
 
-  -- The dual construction is also a lattice.
-
-  ∧-∨-isLattice : IsLattice _∧_ _∨_
-  ∧-∨-isLattice = record
-    { ∨-comm     = ∧-comm
-    ; ∨-assoc    = ∧-assoc
-    ; ∨-pres-≈   = ∧-pres-≈
-    ; ∧-comm     = ∨-comm
-    ; ∧-assoc    = ∨-assoc
-    ; ∧-pres-≈   = ∨-pres-≈
-    ; absorptive = swap absorptive
-    }
+∧-∨-isLattice : IsLattice _∧_ _∨_
+∧-∨-isLattice = record
+  { ∨-comm     = ∧-comm
+  ; ∨-assoc    = ∧-assoc
+  ; ∨-pres-≈   = ∧-pres-≈
+  ; ∧-comm     = ∨-comm
+  ; ∧-assoc    = ∨-assoc
+  ; ∧-pres-≈   = ∨-pres-≈
+  ; absorptive = swap absorptive
+  }
 
 ∧-∨-lattice : Lattice
 ∧-∨-lattice = record

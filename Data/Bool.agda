@@ -50,16 +50,14 @@ false xor b = b
 ------------------------------------------------------------------------
 -- Queries
 
-abstract
+true≢false : ¬ true ≡ false
+true≢false ()
 
-  true≢false : ¬ true ≡ false
-  true≢false ()
-
-  _Bool-≟_ : Decidable {Bool} _≡_
-  true  Bool-≟ true  = yes ≡-refl
-  false Bool-≟ false = yes ≡-refl
-  true  Bool-≟ false = no (⊥-elim ∘ true≢false)
-  false Bool-≟ true  = no (⊥-elim ∘ true≢false ∘ ≡-sym)
+_Bool-≟_ : Decidable {Bool} _≡_
+true  Bool-≟ true  = yes ≡-refl
+false Bool-≟ false = yes ≡-refl
+true  Bool-≟ false = no (⊥-elim ∘ true≢false)
+false Bool-≟ true  = no (⊥-elim ∘ true≢false ∘ ≡-sym)
 
 ------------------------------------------------------------------------
 -- Some properties

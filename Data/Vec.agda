@@ -25,7 +25,6 @@ open import Data.Vec.Core public
 -- Boring lemmas
 
 private
- abstract
 
   lem₁ : forall n k -> n * k + k ≡ k + n * k
   lem₁ n k = prove (n ∷ k ∷ [])

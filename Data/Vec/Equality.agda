@@ -35,16 +35,14 @@ to-≅ []-cong             = ≅-refl
 to-≅ (≡-refl ∷-cong eq₂) with length-equal eq₂
 ...                      | ≡-refl = ≅-cong (_∷_ _) $ to-≅ eq₂
 
-abstract
+Vec-refl : forall {n} (xs : Vec a n) -> xs ≈-Vec xs
+Vec-refl []       = []-cong
+Vec-refl (x ∷ xs) = ≡-refl ∷-cong Vec-refl xs
 
-  Vec-refl : forall {n} (xs : Vec a n) -> xs ≈-Vec xs
-  Vec-refl []       = []-cong
-  Vec-refl (x ∷ xs) = ≡-refl ∷-cong Vec-refl xs
-
-  _++-cong_
-    :  forall {n₁¹ n₂¹} {xs₁¹ : Vec a n₁¹} {xs₂¹ : Vec a n₂¹}
-              {n₁² n₂²} {xs₁² : Vec a n₁²} {xs₂² : Vec a n₂²}
-    -> xs₁¹ ≈-Vec xs₁² -> xs₂¹ ≈-Vec xs₂²
-    -> xs₁¹ ++ xs₂¹ ≈-Vec xs₁² ++ xs₂²
-  []-cong          ++-cong eq₃ = eq₃
-  (eq₁ ∷-cong eq₂) ++-cong eq₃ = eq₁ ∷-cong (eq₂ ++-cong eq₃)
+_++-cong_
+  :  forall {n₁¹ n₂¹} {xs₁¹ : Vec a n₁¹} {xs₂¹ : Vec a n₂¹}
+            {n₁² n₂²} {xs₁² : Vec a n₁²} {xs₂² : Vec a n₂²}
+  -> xs₁¹ ≈-Vec xs₁² -> xs₂¹ ≈-Vec xs₂²
+  -> xs₁¹ ++ xs₂¹ ≈-Vec xs₁² ++ xs₂²
+[]-cong          ++-cong eq₃ = eq₃
+(eq₁ ∷-cong eq₂) ++-cong eq₃ = eq₁ ∷-cong (eq₂ ++-cong eq₃)
