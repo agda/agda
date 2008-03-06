@@ -1,0 +1,137 @@
+This directory produces a peculiar issue when the file
+
+  UntypedLambda.agda
+
+is loaded, as per this message on the Agda mailing
+list:
+
+Hi folks
+
+First, thanks for the aquamacs tips. Whatever it was,
+it's now in colour and going well. (Peculiarly, before
+I copied .emacs stuff from Ulf, I had *one* file
+which suddenly started appearing in colour for no
+obvious reason, when the rest stayed stubbornly
+monochrome. Hmm.)
+
+So yes, I've been messing about with enough stuff to
+need more than one file. And I've hit a distinctly
+bizarre happening. Maybe I'm not using modules in the
+right way, but I don't think it's falling over as
+gracefully as it might. I know these things take time,
+and I expect I can work around the issue.
+
+Er, um, I'm afraid I've (tried and) failed to condense
+the problem to a toy example, so I'll summarize. If
+you want a tar of the files, just ask.
+
+Here goes. I developed a library of stuff in short
+files, not entirely linearly. I wanted to build a
+wrapper so I could import in one go.
+
+{--- begin Syntacticosmos.agda ----------------------}
+module Syntacticosmos (Gnd : Set)(U : Set)(El : U -> Set) where
+
+open import Basics
+open import Pr
+open import Nom
+import Kind
+open module KindGUEl = Kind Gnd U El public
+import Cxt
+open module CxtK = Cxt Kind public
+import Loc
+open module LocK = Loc Kind public
+import Term
+open module TermGUEl = Term Gnd U El public
+import Shift
+open module ShiftGUEl = Shift Gnd U El public
+import Eta
+open module EtaGUEl = Eta Gnd U El public
+import Inst
+open module InstGUEl = Inst Gnd U El public
+import Subst
+open module SubstGUEl = Subst Gnd U El public
+{--- end Syntacticosmos.agda ----------------------}
+
+The file loads fine. So far so good. Then I tried to
+use it...
+
+{--- begin UntypedLambda.agda -----------------------}
+module UntypedLambda where
+
+open import Basics
+open import Pr
+open import Nom
+import Syntacticosmos
+
+data Tag : Set where
+  lamT : Tag
+  appT : Tag
+
+open module ULam = Syntacticosmos TT TT (\_ -> Tag)
+
+LAM : Kind
+LAM = Ty _
+
+SigLAM : Kind
+SigLAM = Pi _ conk where
+  conk : Tag -> Kind
+  conk lamT = (LAM |> LAM) |> LAM
+  conk appT = LAM |> LAM |> LAM
+
+Lam : Cxt -> Set
+Lam G = G [! SigLAM !]- LAM
+
+lam : {G : Cxt}(x : Nom){Gx : [| G Hasn't x |]} ->
+      Lam ((G [ x - LAM ]) {Gx}) -> Lam G
+lam x {Gx} b = G[ lamT G^ G\\ (bind x {Gx} b) G& Gnil ]
+
+app : {G : Cxt} -> Lam G -> Lam G -> Lam G
+app f s = G[ appT G^ f G& s G& Gnil ]
+
+moo : Lam EC
+moo = lam Ze (lam (Su Ze) (var Ze))
+
+noo : Lam EC
+noo = lam (Su Ze) (lam Ze (var (Su Ze)))
+
+coo : Id moo noo
+coo = refl
+{--- end UntypedLambda.agda ----------------------------}
+
+When I try to load UntypedLambda.agda, it fails at
+import Syntacticosmos with the following error:
+
+  /Users/ctm/Desktop/Syntacticosmos/UntypedLambda.agda:6,1-22
+  /Users/ctm/Desktop/Syntacticosmos/Syntacticosmos.agdai:
+  getModificationTime: does not exist (No such file or directory)
+
+Moreover, by the joy of Finder, I watched the directory
+as this ran. The file Syntacticosmos.agdai appeared and
+then disappeared in the course of the failed load.
+My attempts to mimic the pattern of files with similar
+structure but less distraction have not reproduced the
+problem. I hope you enjoy the distraction...
+
+Does this ring any bells with any one? How should I be
+organizing the library modules, anyway?
+
+I'm sorry it's all a bit sick. On the upside, I'm really
+pleased at the way the engines are taking what I'm
+throwing at them (a universe of globally named, locally
+nameless syntaxes with binding). I probably shouldn't
+be allowed this much fun, but it's the weekend and I'm
+not so well at the moment, hence hacking therapy.
+
+Anyhow, I thought I'd share this peculiar happening.
+I don't even know how to begin speculating about the
+problem.
+
+All the best
+
+Conor
+
+_______________________________________________
+Agda mailing list
+Agda@lists.chalmers.se
+https://lists.chalmers.se/mailman/listinfo/agda
