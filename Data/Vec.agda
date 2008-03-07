@@ -101,7 +101,7 @@ group : forall {a n} -> (k : ℕ) -> Vec a (n * k) -> Vec (Vec a k) n
 group         {n = zero}  k [] = []
 group {a = a} {n = suc n} k xs
   with splitAt k (≡-subst (Vec a) (lem₁ n k) xs)
-... | (ys , zs) = ys ∷ group {n = n} k zs
+... | (ys , zs) = ys ∷ group k zs
 
 sum : forall {n} -> Vec ℕ n -> ℕ
 sum = foldr _+_ 0
