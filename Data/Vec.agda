@@ -40,6 +40,20 @@ private
                    ≡-refl
     where M = var fz; N = var (fs fz)
 
+  lem₃ : forall m -> m + 0 ≡ m
+  lem₃ m = prove (m ∷ []) (M :+ con 0) M ≡-refl
+    where M = var fz
+
+  lem₄ : forall m n -> m + (1 + n) ≡ (1 + m) + n
+  lem₄ m n = prove (m ∷ n ∷ [])
+                   (M :+ (con 1 :+ N))
+                   ((con 1 :+ M) :+ N)
+                   ≡-refl
+    where M = var fz; N = var (fs fz)
+
+  cast : forall {a n₁ n₂} -> n₁ ≡ n₂ -> Vec a n₁ -> Vec a n₂
+  cast {a = a} = ≡-subst (Vec a)
+
 ------------------------------------------------------------------------
 -- Some operations
 
@@ -80,7 +94,7 @@ foldr c n (x ∷ xs) = c x (foldr c n xs)
 concat : forall {a m n} -> Vec (Vec a m) n -> Vec a (n * m)
 concat                 []                   = []
 concat {a = a} {m = m} (_∷_ {n = n} xs xss) =
-  ≡-subst (Vec a) (lem₂ m n) (xs ++ concat xss)
+  cast (lem₂ m n) (xs ++ concat xss)
 
 take : forall {a n} (i : Fin (suc n)) -> Vec a n -> Vec a (toℕ i)
 take fz      xs       = []
@@ -100,8 +114,16 @@ splitAt (suc m) (x ∷ xs) with splitAt m xs
 group : forall {a n} -> (k : ℕ) -> Vec a (n * k) -> Vec (Vec a k) n
 group         {n = zero}  k [] = []
 group {a = a} {n = suc n} k xs
-  with splitAt k (≡-subst (Vec a) (lem₁ n k) xs)
+  with splitAt k (cast (lem₁ n k) xs)
 ... | (ys , zs) = ys ∷ group k zs
+
+revApp : forall {a m n} -> Vec a m -> Vec a n -> Vec a (m + n)
+revApp         []                 ys = ys
+revApp {n = n} (_∷_ {n = m} x xs) ys =
+  cast (lem₄ m n) (revApp xs (x ∷ ys))
+
+reverse : forall {a n} -> Vec a n -> Vec a n
+reverse {n = n} xs = cast (lem₃ n) (revApp xs [])
 
 sum : forall {n} -> Vec ℕ n -> ℕ
 sum = foldr _+_ 0
