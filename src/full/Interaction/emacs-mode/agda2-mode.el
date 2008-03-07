@@ -458,6 +458,7 @@ in the buffer's mode line."
   (with-current-buffer (get-buffer-create "*Agda2 information*")
     (erase-buffer)
     (insert text)
+    (set-syntax-table agda2-mode-syntax-table)
     (goto-char (point-min))
     (put-text-property 0 (length name) 'face '(:weight bold) name)
     (setq mode-line-buffer-identification name)
