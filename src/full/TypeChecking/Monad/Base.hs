@@ -616,14 +616,17 @@ data TypeError
 	| NoSuchPrimitiveFunction String
 	| BuiltinInParameterisedModule String
 	| NoRHSRequiresAbsurdPattern [NamedArg A.Pattern]
-	| IncompletePatternMatching Term Args
-        | CoverageFailure QName [[Arg Pattern]]
 	| TooFewFields QName [C.Name]
 	| TooManyFields QName [C.Name]
 	| DuplicateFields [C.Name]
 	| UnexpectedWithPatterns [A.Pattern]
 	| WithClausePatternMismatch A.Pattern Pattern
         | FieldOutsideRecord
+    -- Coverage errors
+	| IncompletePatternMatching Term Args -- can only happen if coverage checking is switched off
+        | CoverageFailure QName [[Arg Pattern]]
+        | CoverageCantSplitOn QName
+        | CoverageCantSplitType Type
     -- Positivity errors
 	| NotStrictlyPositive QName [Occ]
     -- Import errors

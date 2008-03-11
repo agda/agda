@@ -90,7 +90,10 @@ cover cs (SClause tel perm ps _) = do
     Block (Just x) -> do
       r <- split tel perm ps x
       case r of
-        Left err  -> fail $ "failed to split: " ++ show err
+        Left err  -> case err of
+          CantSplit c         -> typeError $ CoverageCantSplitOn c
+          NotADatatype a      -> typeError $ CoverageCantSplitType a
+          GenericSplitError s -> fail $ "failed to split: " ++ s
         Right scs -> concat <$> mapM (cover cs) scs
 
 -- | Check that a type is a datatype

@@ -86,6 +86,8 @@ errorString err = case err of
     ClashingModuleImport _ _		       -> "ClashingModuleImport"
     ConstructorPatternInWrongDatatype _ _      -> "ConstructorPatternInWrongDatatype"
     CoverageFailure _ _                        -> "CoverageFailure"
+    CoverageCantSplitOn _                      -> "CoverageCantSplitOn"
+    CoverageCantSplitType _                    -> "CoverageCantSplitType"
     CyclicModuleDependency _		       -> "CyclicModuleDependency"
     DataMustEndInSort _			       -> "DataMustEndInSort"
     DifferentArities			       -> "DifferentArities"
@@ -389,6 +391,12 @@ instance PrettyTCM TypeError where
                   mpar n args
                     | n > 0 && not (null args) = parens
                     | otherwise                = id
+
+            CoverageCantSplitOn c -> fsep $
+              pwords "Cannot split on the constructor" ++ [prettyTCM c]
+
+            CoverageCantSplitType a -> fsep $
+              pwords "Cannot split on argument of non-datatype" ++ [prettyTCM a]
 
 	    NotStrictlyPositive d ocs -> fsep $
 		pwords "Datatype" ++ [prettyTCM d] ++ pwords "is not strictly positive, because"
