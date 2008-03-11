@@ -28,11 +28,11 @@ instance Apply Term where
     apply m [] = m
     apply m args@(Arg _ v:args0) =
 	case m of
-	    Var i args'   -> Var i (args'++args)
-	    Def c args'   -> Def c (args'++args)
-	    Con c args'   -> Con c (args'++args)
+	    Var i args'   -> Var i (args' ++ args)
+	    Def c args'   -> Def c (args' ++ args)
+	    Con c args'   -> Con c (args' ++ args)
 	    Lam _ u	  -> absApp u v `apply` args0
-	    MetaV x args' -> MetaV x (args'++args) 
+	    MetaV x args' -> MetaV x (args' ++ args) 
 	    BlockedV b	  -> BlockedV $ b `apply` args
 	    Lit l	  -> __IMPOSSIBLE__
 	    Pi _ _	  -> __IMPOSSIBLE__
@@ -127,7 +127,7 @@ instance Abstract Term where
     abstract = teleLam
 
 instance Abstract Type where
-    abstract = telePi
+    abstract = telePi_
 
 instance Abstract Sort where
     abstract EmptyTel s = s
@@ -138,7 +138,7 @@ instance Abstract Telescope where
   abstract (ExtendTel arg tel') tel = ExtendTel arg $ fmap (`abstract` tel) tel'
 
 instance Abstract Definition where
-    abstract tel (Defn x t df m d) = Defn x (telePi tel t) df m (abstract tel d)
+    abstract tel (Defn x t df m d) = Defn x (abstract tel t) df m (abstract tel d)
 
 instance Abstract Defn where
     abstract tel Axiom			    = Axiom
