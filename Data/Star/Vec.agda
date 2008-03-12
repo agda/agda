@@ -27,7 +27,7 @@ Vec a = All (\_ -> a)
 infixr 5 _∷_
 
 _∷_ : forall {a n} -> a -> Vec a n -> Vec a (suc n)
-x ∷ xs = dec x ◅ xs
+x ∷ xs = ↦ x ◅ xs
 
 -- Unfortunately we don't get append for free.
 
@@ -42,7 +42,7 @@ _++_ {a = a} {n = n} xs ys = gmap (plus n) lift xs ◅▻ ys
   lift : forall {n i j} ->
          DecoratedWith (\_ -> a) i j ->
          DecoratedWith (\_ -> a) (plus n i) (plus n j)
-  lift (dec x) = dec x
+  lift (↦ x) = ↦ x
 
 -- Safe lookup.
 

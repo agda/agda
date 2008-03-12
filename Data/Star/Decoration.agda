@@ -17,8 +17,8 @@ EdgePred T = forall {i j} -> T i j -> Set
 
 data DecoratedWith {I : Set} {T : Rel I} (P : EdgePred T)
        : Rel (NonEmpty (Star T)) where
-  dec : forall {i j k} {x : T i j} {xs : Star T j k} ->
-        P x -> DecoratedWith P (nonEmpty (x ◅ xs)) (nonEmpty xs)
+  ↦ : forall {i j k} {x : T i j} {xs : Star T j k} ->
+      P x -> DecoratedWith P (nonEmpty (x ◅ xs)) (nonEmpty xs)
 
 -- Star-lists decorated with extra information. All P xs means that
 -- all edges in xs satisfy P.
@@ -65,6 +65,6 @@ data Result {I : Set} (T : Rel I) (P Q : EdgePred T) : Set where
 lookup : forall {I} {T : Rel I} {P Q : EdgePred T}
                 {i j} {xs : Star T i j} ->
          Any P xs -> All Q xs -> Result T P Q
-lookup (done p ◅ ε)      (dec q ◅ _)  = result p q
-lookup (step   ◅ ps)     (dec q ◅ qs) = lookup ps qs
+lookup (done p ◅ ε)      (↦ q ◅ _)  = result p q
+lookup (step   ◅ ps)     (↦ q ◅ qs) = lookup ps qs
 lookup (done _ ◅ () ◅ _) _
