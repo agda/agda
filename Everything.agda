@@ -26,6 +26,14 @@ import Algebra.RingSolver.Lemmas
 import Algebra.RingSolver.Simple
 import Algebra.Structures
 
+import Category.Applicative
+import Category.Applicative.Indexed
+import Category.Functor
+import Category.Monad
+import Category.Monad.Identity
+import Category.Monad.Indexed
+import Category.Monad.State
+
 import Data.Bool
 import Data.Bool.Properties
 import Data.BoundedVec
@@ -67,14 +75,6 @@ import Logic
 import Logic.Induction
 import Logic.Induction.Lexicographic
 import Logic.Induction.Nat
-
-import Category.Applicative
-import Category.Applicative.Indexed
-import Category.Functor
-import Category.Monad
-import Category.Monad.Indexed
-import Category.Monad.Identity
-import Category.Monad.State
 
 import Relation.Binary
 import Relation.Binary.Consequences
