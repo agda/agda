@@ -16,9 +16,6 @@ open import Relation.Binary.Consequences.Core
 ------------------------------------------------------------------------
 -- Some properties
 
-≡-reflexive : {a : Set} -> Reflexive {a} _≡_ _≡_
-≡-reflexive ≡-refl = ≡-refl
-
 ≡-sym : {a : Set} -> Symmetric {a} _≡_
 ≡-sym ≡-refl = ≡-refl
 

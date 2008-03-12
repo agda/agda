@@ -78,23 +78,23 @@ private
 -- Some properties which are preserved by the relation formers above
 
 _⊎-reflexive_
-  :  forall {a₁} -> {≈₁ ∼₁ : Rel a₁} -> Reflexive ≈₁ ∼₁
-  -> forall {a₂} -> {≈₂ ∼₂ : Rel a₂} -> Reflexive ≈₂ ∼₂
-  -> forall {P} -> Reflexive (≈₁ ⊎-Rel ≈₂) (⊎ʳ P ∼₁ ∼₂)
+  :  forall {a₁} -> {≈₁ ∼₁ : Rel a₁} -> ≈₁ ⇒ ∼₁
+  -> forall {a₂} -> {≈₂ ∼₂ : Rel a₂} -> ≈₂ ⇒ ∼₂
+  -> forall {P} -> (≈₁ ⊎-Rel ≈₂) ⇒ (⊎ʳ P ∼₁ ∼₂)
 refl₁ ⊎-reflexive refl₂ = refl
   where
-  refl : Reflexive (_ ⊎-Rel _) (⊎ʳ _ _ _)
+  refl : (_ ⊎-Rel _) ⇒ (⊎ʳ _ _ _)
   refl (₁∼₁ x₁≈y₁) = ₁∼₁ (refl₁ x₁≈y₁)
   refl (₂∼₂ x₂≈y₂) = ₂∼₂ (refl₂ x₂≈y₂)
   refl (₁∼₂ ())
 
 _⊎-refl_
-  :  forall {a₁} -> {∼₁ : Rel a₁} -> Refl ∼₁
-  -> forall {a₂} -> {∼₂ : Rel a₂} -> Refl ∼₂
-  -> Refl (∼₁ ⊎-Rel ∼₂)
+  :  forall {a₁} -> {∼₁ : Rel a₁} -> Reflexive ∼₁
+  -> forall {a₂} -> {∼₂ : Rel a₂} -> Reflexive ∼₂
+  -> Reflexive (∼₁ ⊎-Rel ∼₂)
 refl₁ ⊎-refl refl₂ = refl
   where
-  refl : Refl (_ ⊎-Rel _)
+  refl : Reflexive (_ ⊎-Rel _)
   refl {x = inj₁ _} = ₁∼₁ refl₁
   refl {x = inj₂ _} = ₂∼₂ refl₂
 

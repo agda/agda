@@ -25,13 +25,12 @@ private
 
   _×-reflexive_
     :  forall {≈₁ ∼₁ ≈₂ ∼₂}
-    -> Reflexive ≈₁ ∼₁ -> Reflexive ≈₂ ∼₂
-    -> Reflexive (≈₁ ×-Rel ≈₂) (∼₁ ×-Rel ∼₂)
+    -> ≈₁ ⇒ ∼₁ -> ≈₂ ⇒ ∼₂ -> (≈₁ ×-Rel ≈₂) ⇒ (∼₁ ×-Rel ∼₂)
   refl₁ ×-reflexive refl₂ = \x≈y ->
     (refl₁ (proj₁ x≈y) , refl₂ (proj₂ x≈y))
 
-  _×-refl_
-    : forall {∼₁ ∼₂} -> Refl ∼₁ -> Refl ∼₂ -> Refl (∼₁ ×-Rel ∼₂)
+  _×-refl_ : forall {∼₁ ∼₂} ->
+             Reflexive ∼₁ -> Reflexive ∼₂ -> Reflexive (∼₁ ×-Rel ∼₂)
   refl₁ ×-refl refl₂ = (refl₁ , refl₂)
 
   ×-irreflexive₁

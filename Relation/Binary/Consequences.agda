@@ -17,7 +17,7 @@ open import Relation.Binary.Consequences.Core public
 
 trans∧irr⟶asym
   :  forall {a} -> {≈ < : Rel a}
-  -> Refl ≈
+  -> Reflexive ≈
   -> Transitive < -> Irreflexive ≈ < -> Asymmetric <
 trans∧irr⟶asym refl trans irrefl = \x<y y<x ->
   irrefl refl (trans x<y y<x)
@@ -47,10 +47,10 @@ asym⟶irr {< = _<_} resp sym asym {x} {y} x≈y x<y = asym x<y y<x
 total⟶refl
   : forall {a} -> {≈ ∼ : Rel a}
   -> ≈ Respects₂ ∼ -> Symmetric ≈
-  -> Total ∼ -> Reflexive ≈ ∼
+  -> Total ∼ -> ≈ ⇒ ∼
 total⟶refl {≈ = ≈} {∼ = ∼} resp sym total = refl
   where
-  refl : Reflexive ≈ ∼
+  refl : ≈ ⇒ ∼
   refl {x} {y} x≈y with total x y
   ...              | inj₁ x∼y = x∼y
   ...              | inj₂ y∼x =
@@ -58,7 +58,7 @@ total⟶refl {≈ = ≈} {∼ = ∼} resp sym total = refl
 
 total+dec⟶dec
   : forall {a} -> {≈ ≤ : Rel a}
-  -> Reflexive ≈ ≤ -> Antisymmetric ≈ ≤
+  -> ≈ ⇒ ≤ -> Antisymmetric ≈ ≤
   -> Total ≤ -> Decidable ≈ -> Decidable ≤
 total+dec⟶dec {≈ = ≈} {≤ = ≤} refl antisym total _≟_ = dec
   where
@@ -78,7 +78,7 @@ tri⟶asym tri {x} {y} x<y x>y with tri x y
 
 subst⟶cong
   :  {≈ : forall {a} -> Rel a}
-  -> (forall {a} -> Refl {a} ≈)
+  -> (forall {a} -> Reflexive {a} ≈)
   -> (forall {a} -> Substitutive {a} ≈)
   -> Congruential ≈
 subst⟶cong {≈ = _≈_} refl subst f {x} x≈y =

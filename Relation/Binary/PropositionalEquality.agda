@@ -48,7 +48,7 @@ open import Relation.Binary.PropositionalEquality.Core public
 ≡-isPreorder : forall {a} -> IsPreorder {a} _≡_ _≡_
 ≡-isPreorder = record
   { isEquivalence = ≡-isEquivalence
-  ; refl          = ≡-reflexive
+  ; refl          = id
   ; trans         = ≡-trans
   ; ≈-resp-∼      = ≡-resp _≡_
   }

@@ -22,27 +22,57 @@ Rel a = a -> a -> Set
 ------------------------------------------------------------------------
 -- Simple properties of binary relations
 
--- Reflexivity is expressed in terms of an underlying, more "basic"
--- equality, which could for instance be _≡_.
+infixr 4 _⇒_ _=[_]⇒_
 
-Reflexive : {a : Set} -> (_≈_ _∼_ : Rel a) -> Set
-Reflexive _≈_ _∼_ = forall {x y} -> x ≈ y -> x ∼ y
+-- Implication/containment. Could also be written ⊆.
 
--- However, the following variant is often easier to use.
+_⇒_ : forall {a} -> Rel a -> Rel a -> Set
+P ⇒ Q = forall {i j} -> P i j -> Q i j
 
-Refl : {a : Set} -> (_∼_ : Rel a) -> Set
-Refl _∼_ = forall {x} -> x ∼ x
+-- Generalised implication. If P ≡ Q it can be read as "f preserves
+-- P".
 
--- Irreflexivity is also defined using an underlying equality.
+_=[_]⇒_ : forall {a b} -> Rel a -> (a -> b) -> Rel b -> Set
+P =[ f ]⇒ Q = P ⇒ (Q on₁ f)
+
+-- A synonym, along with a binary variant.
+
+_Preserves_→_ : forall {a₁ a₂} -> (a₁ -> a₂) -> Rel a₁ -> Rel a₂ -> Set
+f Preserves P → Q = P =[ f ]⇒ Q
+
+_Preserves₂_→_→_
+  :  forall {a₁ a₂ a₃}
+  -> (a₁ -> a₂ -> a₃) -> Rel a₁ -> Rel a₂ -> Rel a₃ -> Set
+_+_ Preserves₂ P → Q → R =
+  forall {x y u v} -> P x y -> Q u v -> R (x + u) (y + v)
+
+-- Reflexivity of _∼_ can be expressed as _≈_ ⇒ _∼_, for some
+-- underlying equality _≈_. However, the following variant is often
+-- easier to use.
+
+Reflexive : {a : Set} -> (_∼_ : Rel a) -> Set
+Reflexive _∼_ = forall {x} -> x ∼ x
+
+-- Irreflexivity is defined using an underlying equality.
 
 Irreflexive : {a : Set} -> (_≈_ _<_ : Rel a) -> Set
 Irreflexive _≈_ _<_ = forall {x y} -> x ≈ y -> ¬ (x < y)
 
+-- Generalised symmetry.
+
+Sym : forall {a} -> Rel a -> Rel a -> Set
+Sym P Q = P ⇒ flip₁ Q
+
 Symmetric : {a : Set} -> Rel a -> Set
-Symmetric _∼_ = forall {x y} -> x ∼ y -> y ∼ x
+Symmetric _∼_ = Sym _∼_ _∼_
+
+-- Generalised transitivity.
+
+Trans : forall {a} -> Rel a -> Rel a -> Rel a -> Set
+Trans P Q R = forall {i j k} -> P i j -> Q j k -> R i k
 
 Transitive : {a : Set} -> Rel a -> Set
-Transitive _∼_ = forall {x y z} -> x ∼ y -> y ∼ z -> x ∼ z
+Transitive _∼_ = Trans _∼_ _∼_ _∼_
 
 Antisymmetric : {a : Set} -> (_≈_ _≤_ : Rel a) -> Set
 Antisymmetric _≈_ _≤_ = forall {x y} -> x ≤ y -> y ≤ x -> x ≈ y
@@ -60,15 +90,6 @@ _Respects₂_ : {a : Set} -> Rel a -> Rel a -> Set
 
 Substitutive : {a : Set} -> Rel a -> Set1
 Substitutive {a} ∼ = (P : a -> Set) -> ∼ Respects P
-
-_Preserves_→_ : forall {a₁ a₂} -> (a₁ -> a₂) -> Rel a₁ -> Rel a₂ -> Set
-f Preserves _∼₁_ → _∼₂_ = forall {x y} -> x ∼₁ y -> f x ∼₂ f y
-
-_Preserves₂_→_→_
-  :  forall {a₁ a₂ a₃}
-  -> (a₁ -> a₂ -> a₃) -> Rel a₁ -> Rel a₂ -> Rel a₃ -> Set
-_+_ Preserves₂ _∼₁_ → _∼₂_ → _∼₃_ =
-  forall {x y u v} -> x ∼₁ y -> u ∼₂ v -> (x + u) ∼₃ (y + v)
 
 Congruential : ({a : Set} -> Rel a) -> Set1
 Congruential ∼ = forall {a b} -> (f : a -> b) -> f Preserves ∼ → ∼
@@ -101,9 +122,9 @@ Trichotomous _≈_ _<_ = forall x y -> Tri (x < y) (x ≈ y) (x > y)
 
 record IsEquivalence {a : Set} (_≈_ : Rel a) : Set where
   field
-    refl  : Refl _≈_
+    refl  : Reflexive _≈_
     sym   : Symmetric _≈_
     trans : Transitive _≈_
 
-  reflexive : Reflexive _≡_ _≈_
+  reflexive : _≡_ ⇒ _≈_
   reflexive ≡-refl = refl

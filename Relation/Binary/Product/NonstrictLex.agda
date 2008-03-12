@@ -27,7 +27,7 @@ private
 
   ×-reflexive
     :  forall ≈₁ ≤₁ {≈₂} ≤₂
-    -> Reflexive ≈₂ ≤₂ -> Reflexive (≈₁ ×-Rel ≈₂) (×-Lex ≈₁ ≤₁ ≤₂)
+    -> ≈₂ ⇒ ≤₂ -> (≈₁ ×-Rel ≈₂) ⇒ (×-Lex ≈₁ ≤₁ ≤₂)
   ×-reflexive ≈₁ ≤₁ ≤₂ refl₂ {x} {y} =
     Strict.×-reflexive ≈₁ (Conv._<_ ≈₁ ≤₁) ≤₂ refl₂ {x} {y}
 

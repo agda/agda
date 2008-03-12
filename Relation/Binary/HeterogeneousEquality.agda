@@ -14,12 +14,8 @@ open import Data.Product
 ------------------------------------------------------------------------
 -- Some properties
 
-≅-reflexive-≡ : {a : Set} -> Reflexive {a} _≡_ (\x y -> x ≅ y)
-≅-reflexive-≡ ≡-refl = ≅-refl
-
-≅-reflexive :  {a : Set}
-            -> Reflexive {a} (\x y -> x ≅ y) (\x y -> x ≅ y)
-≅-reflexive ≅-refl = ≅-refl
+≅-reflexive : {a : Set} -> _⇒_ {a} _≡_ (\x y -> x ≅ y)
+≅-reflexive ≡-refl = ≅-refl
 
 ≅-sym : forall {a b} {x : a} {y : b} -> x ≅ y -> y ≅ x
 ≅-sym ≅-refl = ≅-refl
@@ -82,7 +78,7 @@ open import Data.Product
                IsPreorder {a} (\x y -> x ≅ y) (\x y -> x ≅ y)
 ≅-isPreorder = record
   { isEquivalence = ≅-isEquivalence
-  ; refl          = ≅-reflexive
+  ; refl          = id
   ; trans         = ≅-trans
   ; ≈-resp-∼      = ≅-resp (\x y -> x ≅ y)
   }
@@ -90,7 +86,7 @@ open import Data.Product
 ≅-isPreorder-≡ : forall {a} -> IsPreorder {a} _≡_ (\x y -> x ≅ y)
 ≅-isPreorder-≡ = record
   { isEquivalence = Homo.≡-isEquivalence
-  ; refl          = ≅-reflexive-≡
+  ; refl          = ≅-reflexive
   ; trans         = ≅-trans
   ; ≈-resp-∼      = Homo.≡-resp (\x y -> x ≅ y)
   }

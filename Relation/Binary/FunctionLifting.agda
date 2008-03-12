@@ -26,7 +26,7 @@ LiftEquiv {a} {b} {∼₁} {∼₂} pres eq₁ eq₂ = record
   where
   open IsEquivalence
 
-  refl' : Refl (LogicalRelation ∼₁ ∼₂)
+  refl' : Reflexive (LogicalRelation ∼₁ ∼₂)
   refl' {f} x∼₁y = pres f x∼₁y
 
   sym' :  Symmetric ∼₁
@@ -34,7 +34,7 @@ LiftEquiv {a} {b} {∼₁} {∼₂} pres eq₁ eq₂ = record
        -> Symmetric (LogicalRelation ∼₁ ∼₂)
   sym' sym₁ sym₂ = \f∼g x∼y -> sym₂ (f∼g (sym₁ x∼y))
 
-  trans' :  Refl ∼₁
+  trans' :  Reflexive ∼₁
          -> Transitive ∼₂
          -> Transitive (LogicalRelation ∼₁ ∼₂)
   trans' refl₁ trans₂ = \f∼g g∼h x∼y ->

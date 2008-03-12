@@ -71,7 +71,7 @@ module Sets₁ (dto : DecTotalOrder) where
 
 open Sets₁ public
 open DecTotalOrder hiding (_≈_)
-open _⇒_
+open _⇒-Poset_
 
 abstract
  postulate

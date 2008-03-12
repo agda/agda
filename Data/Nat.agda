@@ -150,7 +150,7 @@ suc m ≤? suc n with m ≤? n
       }
   }
   where
-  refl : Reflexive _≡_ _≤_
+  refl : _≡_ ⇒ _≤_
   refl {zero}  ≡-refl = z≤n
   refl {suc m} ≡-refl = s≤s (refl ≡-refl)
 

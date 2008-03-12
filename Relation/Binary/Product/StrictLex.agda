@@ -29,7 +29,7 @@ private
 
   ×-reflexive
     :  forall ≈₁ ∼₁ {≈₂} ≤₂
-    -> Reflexive ≈₂ ≤₂ -> Reflexive (≈₁ ×-Rel ≈₂) (×-Lex ≈₁ ∼₁ ≤₂)
+    -> ≈₂ ⇒ ≤₂ -> (≈₁ ×-Rel ≈₂) ⇒ (×-Lex ≈₁ ∼₁ ≤₂)
   ×-reflexive _ _ _ refl₂ = \x≈y ->
     inj₂ (proj₁ x≈y , refl₂ (proj₂ x≈y))
 
