@@ -32,6 +32,5 @@ data Coll (T : Index -> Set) : Ctxt -> Set where
 
 lookup :  forall {Γ i} {T : Index -> Set}
        -> Label Γ i -> Coll T Γ -> T i
-lookup ()     ∅
 lookup lz     (ρ ▷ p) = p
 lookup (ls l) (ρ ▷ p) = lookup l ρ
