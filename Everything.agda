@@ -51,9 +51,9 @@ import Data.Product
 import Data.Product.Record
 import Data.Sets
 import Data.Star
+import Data.Star.Decoration
 import Data.Star.Fin
 import Data.Star.List
-import Data.Star.Lookup
 import Data.Star.Nat
 import Data.Star.Vec
 import Data.String

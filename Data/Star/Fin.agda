@@ -6,17 +6,18 @@ module Data.Star.Fin where
 
 open import Data.Star
 open import Data.Star.Nat
-open import Data.Star.Lookup
+open import Data.Star.Decoration
+open import Data.Unit
 
--- Finite sets.
+-- Finite sets are undecorated pointers into natural numbers.
 
 Fin : ℕ -> Set
-Fin = NonEmptyPrefixOf
+Fin = Any (\_ -> ⊤)
 
 -- "Constructors".
 
 fz : forall {n} -> Fin (suc n)
-fz = this
+fz = this tt
 
 fs : forall {n} -> Fin n -> Fin (suc n)
 fs = that

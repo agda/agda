@@ -9,7 +9,7 @@ open import Data.Unit
 open import Relation.Binary
 open import Data.Function
 
--- The natural number relation and type.
+-- Natural numbers.
 
 ℕ : Set
 ℕ = Star Always tt tt
@@ -22,7 +22,7 @@ zero = ε
 suc : ℕ -> ℕ
 suc = _◅_ tt
 
--- The length of any element of Star.
+-- The length of a star-list.
 
 length : forall {I} {T : Rel I} {i j} -> Star T i j -> ℕ
 length = gmap (const tt) (const tt)

@@ -9,7 +9,7 @@ open import Data.Unit
 open import Relation.Binary
 open import Data.Star.Nat
 
--- The list type.
+-- Lists.
 
 [_] : Set -> Set
 [ a ] = Star (Const a) tt tt
