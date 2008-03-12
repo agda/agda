@@ -11,6 +11,7 @@ open import Logic
 open import Data.Product
 open import Data.Sum
 open import Data.Function
+open import Data.Unit.Core
 open import Relation.Nullary
 
 ------------------------------------------------------------------------
@@ -18,6 +19,24 @@ open import Relation.Nullary
 
 Rel : Set -> Set1
 Rel a = a -> a -> Set
+
+------------------------------------------------------------------------
+-- Some simple relations
+
+-- Constant relations.
+
+Const : forall {a} -> Set -> Rel a
+Const I = \_ _ -> I
+
+-- The universally true relation.
+
+Always : forall {a} -> Rel a
+Always = Const ⊤
+
+-- The universally false relation.
+
+Never : forall {a} -> Rel a
+Never = Const ⊥
 
 ------------------------------------------------------------------------
 -- Simple properties of binary relations
@@ -112,6 +131,9 @@ data Tri (a b c : Set) : Set where
 Trichotomous : {a : Set} -> Rel a -> Rel a -> Set
 Trichotomous _≈_ _<_ = forall x y -> Tri (x < y) (x ≈ y) (x > y)
   where _>_ = flip₁ _<_
+
+data NonEmpty {I : Set} (T : Rel I) : Set where
+  nonEmpty : forall {i j} -> T i j -> NonEmpty T
 
 ------------------------------------------------------------------------
 -- Equivalence relations
