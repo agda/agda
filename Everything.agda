@@ -38,7 +38,6 @@ import Data.Fin.Props
 import Data.Fin.Subset
 import Data.Fin.Subset.Props
 import Data.Function
-import Data.HeterogeneousCollection
 import Data.Integer
 import Data.List
 import Data.List.Properties
@@ -52,6 +51,7 @@ import Data.Product.Record
 import Data.Sets
 import Data.Star
 import Data.Star.Decoration
+import Data.Star.Environment
 import Data.Star.Fin
 import Data.Star.List
 import Data.Star.Nat
