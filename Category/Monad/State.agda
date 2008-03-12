@@ -30,7 +30,7 @@ StateTIMonadZero : forall {I} (S : I -> Set) {M} ->
                    RawMonadZero M -> RawIMonadZero (IStateT S M)
 StateTIMonadZero S Mon = record
   { monad = StateTIMonad S (RawMonadZero.monad Mon)
-  ; mzero = \s -> mzero
+  ; ∅     = const ∅
   }
   where open RawMonadZero Mon
 
@@ -38,7 +38,7 @@ StateTIMonadPlus : forall {I} (S : I -> Set) {M} ->
                    RawMonadPlus M -> RawIMonadPlus (IStateT S M)
 StateTIMonadPlus S Mon = record
   { monadZero = StateTIMonadZero S (RawIMonadPlus.monadZero Mon)
-  ; _++_      = \m₁ m₂ s -> m₁ s ++ m₂ s
+  ; _∣_       = \m₁ m₂ s -> m₁ s ∣ m₂ s
   }
   where open RawMonadPlus Mon
 

@@ -25,8 +25,8 @@ record RawIMonad {I : Set} (M : IFun I) : Set1 where
 
   rawIApplicative : RawIApplicative M
   rawIApplicative = record
-    { pure  = return
-    ; _<*>_ = \f x -> f >>= \f' -> x >>= \x' -> return (f' x')
+    { pure = return
+    ; _⊛_  = \f x -> f >>= \f' -> x >>= \x' -> return (f' x')
     }
 
   open RawIApplicative rawIApplicative public
@@ -34,14 +34,14 @@ record RawIMonad {I : Set} (M : IFun I) : Set1 where
 record RawIMonadZero {I : Set} (M : IFun I) : Set1 where
   field
     monad : RawIMonad M
-    mzero : forall {i j A} -> M i j A
+    ∅     : forall {i j A} -> M i j A
 
   open RawIMonad monad public
 
 record RawIMonadPlus {I : Set} (M : IFun I) : Set1 where
-  infixr 5 _++_
+  infixr 5 _∣_
   field
     monadZero : RawIMonadZero M
-    _++_      : forall {i j A} -> M i j A -> M i j A -> M i j A
+    _∣_       : forall {i j A} -> M i j A -> M i j A -> M i j A
 
   open RawIMonadZero monadZero public

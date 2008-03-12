@@ -123,11 +123,11 @@ ListMonad = record
 ListMonadZero : RawMonadZero [_]
 ListMonadZero = record
   { monad = ListMonad
-  ; mzero = []
+  ; ∅     = []
   }
 
 ListMonadPlus : RawMonadPlus [_]
 ListMonadPlus = record
   { monadZero = ListMonadZero
-  ; _++_      = _++_
+  ; _∣_       = _++_
   }

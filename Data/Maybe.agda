@@ -29,15 +29,15 @@ MaybeMonad = record
 MaybeMonadZero : RawMonadZero Maybe
 MaybeMonadZero = record
   { monad = MaybeMonad
-  ; mzero = nothing
+  ; ∅     = nothing
   }
 
 MaybeMonadPlus : RawMonadPlus Maybe
 MaybeMonadPlus = record
   { monadZero = MaybeMonadZero
-  ; _++_      = _++_
+  ; _∣_       = _∣_
   }
   where
-  _++_ : forall {a} -> Maybe a -> Maybe a -> Maybe a
-  nothing ++ y = y
-  just x  ++ y = just x
+  _∣_ : forall {a} -> Maybe a -> Maybe a -> Maybe a
+  nothing ∣ y = y
+  just x  ∣ y = just x
