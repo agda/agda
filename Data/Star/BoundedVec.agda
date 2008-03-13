@@ -50,3 +50,16 @@ _∷_ = that
          Pointer (\_ -> a) (\_ -> ⊤)
   lift (step x) = step x
   lift (done _) = done _
+
+------------------------------------------------------------------------
+-- Conversions
+
+fromList : forall {a} -> (xs : [ a ]) -> BoundedVec a (length xs)
+fromList ε        = []
+fromList (x ◅ xs) = x ∷ fromList xs
+
+toList : forall {a n} -> BoundedVec a n -> [ a ]
+toList {a} xs = gmap (const tt) elem (init xs)
+  where
+  elem : DecoratedWith (\_ -> a) =[ const tt ]⇒ Const a
+  elem (↦ x) = x
