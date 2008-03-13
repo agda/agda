@@ -73,3 +73,23 @@ lookup : forall {I} {T : Rel I} {P Q R : EdgePred T}
 lookup (done q ◅ ε)      (↦ r ◅ _)  = result q r
 lookup (step p ◅ ps)     (↦ r ◅ rs) = lookup ps rs
 lookup (done _ ◅ () ◅ _) _
+
+-- Using Any we can define init.
+
+prefixIndex : forall {I} {T : Rel I} {P Q : EdgePred T}
+                     {i j} {xs : Star T i j} ->
+              Any P Q xs -> I
+prefixIndex (done {i = i} q ◅ _)  = i
+prefixIndex (step p         ◅ ps) = prefixIndex ps
+
+prefix : forall {I} {T : Rel I} {P Q : EdgePred T}
+                {i j} {xs : Star T i j} ->
+         (ps : Any P Q xs) -> Star T i (prefixIndex ps)
+prefix (done q         ◅ _)  = ε
+prefix (step {x = x} p ◅ ps) = x ◅ prefix ps
+
+init : forall {I} {T : Rel I} {P Q : EdgePred T}
+              {i j} {xs : Star T i j} ->
+       (ps : Any P Q xs) -> All P (prefix ps)
+init (done q ◅ _)  = ε
+init (step p ◅ ps) = ↦ p ◅ init ps
