@@ -1,3 +1,3 @@
-errors/ShouldBeEmpty.agda:12,1-13
+errors/ShouldBeEmpty.agda:12,1-7
 One should be empty, but it isn't (as far as I can see)
-when checking that the clause bad () = one has type One -> One
+when checking that the clause bad () has type One -> One

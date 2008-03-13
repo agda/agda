@@ -6,8 +6,8 @@ data One : Set where
   one : One
 
 ok : Zero -> One
-ok () = one
+ok ()
 
 bad : One -> One
-bad () = one
+bad ()
 

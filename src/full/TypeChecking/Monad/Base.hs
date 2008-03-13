@@ -616,6 +616,7 @@ data TypeError
 	| NoSuchPrimitiveFunction String
 	| BuiltinInParameterisedModule String
 	| NoRHSRequiresAbsurdPattern [NamedArg A.Pattern]
+	| AbsurdPatternRequiresNoRHS [NamedArg A.Pattern]
 	| TooFewFields QName [C.Name]
 	| TooManyFields QName [C.Name]
 	| DuplicateFields [C.Name]

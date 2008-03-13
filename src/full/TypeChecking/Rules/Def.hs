@@ -117,9 +117,12 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs wh) =
       let mkBody v = foldr (\x t -> Bind $ Abs x t) (Body $ substs sub v) xs
       (body, with) <- checkWhere (size delta) wh $ 
               case rhs of
-                A.RHS e -> do
-                  v <- checkExpr e t'
-                  return (mkBody v, NoWithFunction)
+                A.RHS e
+                  | any (containsAbsurdPattern . namedThing . unArg) aps ->
+                    typeError $ AbsurdPatternRequiresNoRHS aps
+                  | otherwise -> do
+                    v <- checkExpr e t'
+                    return (mkBody v, NoWithFunction)
                 A.AbsurdRHS
                   | any (containsAbsurdPattern . namedThing . unArg) aps
                               -> return (NoBody, NoWithFunction)

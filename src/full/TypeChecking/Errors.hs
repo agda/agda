@@ -109,6 +109,7 @@ errorString err = case err of
     NoParseForApplication _		       -> "NoParseForApplication"
     NoParseForLHS _			       -> "NoParseForLHS"
     NoRHSRequiresAbsurdPattern _	       -> "NoRHSRequiresAbsurdPattern"
+    AbsurdPatternRequiresNoRHS _	       -> "AbsurdPatternRequiresNoRHS"
     NoSuchBuiltinName _			       -> "NoSuchBuiltinName"
     NoSuchModule _			       -> "NoSuchModule"
     NoSuchPrimitiveFunction _		       -> "NoSuchPrimitiveFunction"
@@ -269,6 +270,9 @@ instance PrettyTCM TypeError where
 		"(for instance, in a parameterised module or as a local declaration)"
 	    NoRHSRequiresAbsurdPattern ps -> fwords $
 		"The right-hand side can only be omitted if there " ++
+		"is an absurd pattern, () or {}, in the left-hand side."
+	    AbsurdPatternRequiresNoRHS ps -> fwords $
+		"The right-hand side must be omitted if there " ++
 		"is an absurd pattern, () or {}, in the left-hand side."
 	    LocalVsImportedModuleClash m -> fsep $
 		pwords "The module" ++ [text $ show m] ++
