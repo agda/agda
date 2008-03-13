@@ -90,3 +90,7 @@ cong+trans⟶cong₂
   -> Congruential₂ ≈
 cong+trans⟶cong₂ cong trans f {x = x} {v = v} x≈y u≈v =
   cong (f x) u≈v ⟨ trans ⟩ cong (flip f v) x≈y
+
+map-NonEmpty : forall {I} {P Q : Rel I} ->
+               P ⇒ Q -> NonEmpty P -> NonEmpty Q
+map-NonEmpty f (nonEmpty x) = nonEmpty (f x)
