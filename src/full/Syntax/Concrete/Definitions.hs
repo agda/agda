@@ -75,6 +75,7 @@ data Clause = Clause Name LHS RHS WhereClause [Clause]
 data DeclarationException
 	= MultipleFixityDecls [(Name, [Fixity])]
 	| MissingDefinition Name
+        | MissingWithClauses Name
 	| MissingTypeSignature LHS
 	| NotAllowedInMutual NiceDeclaration
 	| UnknownNamesInFixityDecl [Name]
@@ -84,6 +85,7 @@ data DeclarationException
 instance HasRange DeclarationException where
     getRange (MultipleFixityDecls xs)	   = getRange (fst $ head xs)
     getRange (MissingDefinition x)	   = getRange x
+    getRange (MissingWithClauses x)        = getRange x
     getRange (MissingTypeSignature x)	   = getRange x
     getRange (NotAllowedInMutual x)	   = getRange x
     getRange (UnknownNamesInFixityDecl xs) = getRange . head $ xs
@@ -118,6 +120,8 @@ instance Show DeclarationException where
 	f (x, fs) = pretty x <> text ":" <+> fsep (map (text . show) fs)
   show (MissingDefinition x) = show $ fsep $
     pwords "Missing definition for" ++ [pretty x]
+  show (MissingWithClauses x) = show $ fsep $
+    pwords "Missing with-clauses for function" ++ [pretty x]
   show (MissingTypeSignature x) = show $ fsep $
     pwords "Missing type signature for left hand side" ++ [pretty x]
   show (UnknownNamesInFixityDecl xs) = show $ fsep $
@@ -198,13 +202,15 @@ niceDeclarations ds = do
 			([], _)	    -> throwError $ MissingDefinition x
 			(ds0,ds1)   -> do
 			  ds1 <- nice fixs ds1
-			  return $ mkFunDef fixs x (Just t) ds0 : ds1
+			  d <- mkFunDef fixs x (Just t) ds0
+                          return $ d : ds1
 
 		cl@(FunClause lhs@(LHS p [] _) _ _)
                   | IdentP (QName x) <- noSingletonRawAppP p
                                   -> do
 		      ds <- nice fixs ds
-		      return $ mkFunDef fixs x Nothing [cl] : ds
+		      d <- mkFunDef fixs x Nothing [cl]
+                      return $ d : ds
                 FunClause lhs _ _ -> throwError $ MissingTypeSignature lhs
 
 		_   -> liftM2 (++) nds (nice fixs ds)
@@ -285,12 +291,13 @@ niceDeclarations ds = do
 	toPrim _		   = __IMPOSSIBLE__
 
 	-- Create a function definition.
-	mkFunDef fixs x mt ds0 =
+	mkFunDef fixs x mt ds0 = do
+          cs <- mkClauses x $ expandEllipsis ds0
+          return $
 	    NiceDef (fuseRange x ds0)
 		    (TypeSig x t : ds0)
 		    [ Axiom (fuseRange x t) f PublicAccess ConcreteDef x t ]
-		    [ FunDef (getRange ds0) ds0 f PublicAccess ConcreteDef x
-			     (mkClauses x $ expandEllipsis ds0)
+		    [ FunDef (getRange ds0) ds0 f PublicAccess ConcreteDef x cs
 		    ]
 	    where
 	      f = fixity x fixs
@@ -320,12 +327,14 @@ niceDeclarations ds = do
 
 
         -- Turn function clauses into nice function clauses.
-        mkClauses :: Name -> [Declaration] -> [Clause]
-        mkClauses _ [] = []
+        mkClauses :: Name -> [Declaration] -> Nice [Clause]
+        mkClauses _ [] = return []
         mkClauses x (FunClause lhs@(LHS _ _ []) rhs wh : cs) =
-          Clause x lhs rhs wh [] : mkClauses x cs
-        mkClauses x (FunClause lhs@(LHS _ ps es) rhs wh : cs) =
-          Clause x lhs rhs wh (mkClauses x with) : mkClauses x cs'
+          (Clause x lhs rhs wh [] :) <$> mkClauses x cs
+        mkClauses x (FunClause lhs@(LHS _ ps es) rhs wh : cs) = do
+          when (null with) $ throwError $ MissingWithClauses x
+          wcs <- mkClauses x with
+          (Clause x lhs rhs wh wcs :) <$> mkClauses x cs'
           where
             (with, cs') = span subClause cs
 
@@ -336,7 +345,7 @@ niceDeclarations ds = do
             subClause (FunClause (Ellipsis _ ps' _) _ _) = True
             subClause _                                  = __IMPOSSIBLE__
         mkClauses x (FunClause lhs@(Ellipsis _ _ _) rhs wh : cs) =
-          Clause x lhs rhs wh [] : mkClauses x cs   -- Will result in an error later.
+          (Clause x lhs rhs wh [] :) <$> mkClauses x cs   -- Will result in an error later.
         mkClauses _ _ = __IMPOSSIBLE__
 
 	noSingletonRawAppP (RawAppP _ [p]) = noSingletonRawAppP p
