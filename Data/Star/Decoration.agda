@@ -9,6 +9,8 @@ open import Data.Maybe
 open import Relation.Binary
 open import Relation.Binary.Consequences
 open import Data.Function
+open import Data.Unit
+open import Logic
 
 -- A predicate on relation "edges" (think of the relation as a graph).
 
@@ -28,6 +30,11 @@ data DecoratedWith {I : Set} {T : Rel I} (P : EdgePred T)
 All : forall {I} {T : Rel I} -> EdgePred T -> EdgePred (Star T)
 All P {j = j} xs =
   Star (DecoratedWith P) (nonEmpty xs) (nonEmpty {j = j} ε)
+
+trivialAll : forall {I} {T : Rel I} {i j}
+             (xs : Star T i j) -> All (\_ -> ⊤) xs
+trivialAll ε        = ε
+trivialAll (x ◅ xs) = ↦ {x = x} _ ◅ trivialAll xs
 
 -- Pointers into star-lists. The edge pointed to is decorated with Q,
 -- while other edges are decorated with P.
@@ -74,7 +81,7 @@ lookup (done q ◅ ε)      (↦ r ◅ _)  = result q r
 lookup (step p ◅ ps)     (↦ r ◅ rs) = lookup ps rs
 lookup (done _ ◅ () ◅ _) _
 
--- Using Any we can define init.
+-- We can define something resembling init.
 
 prefixIndex : forall {I} {T : Rel I} {P Q : EdgePred T}
                      {i j} {xs : Star T i j} ->
@@ -88,8 +95,24 @@ prefix : forall {I} {T : Rel I} {P Q : EdgePred T}
 prefix (done q         ◅ _)  = ε
 prefix (step {x = x} p ◅ ps) = x ◅ prefix ps
 
+-- Here we are taking the initial segment of ps (all elements but the
+-- last, i.e. all edges satisfying P).
+
 init : forall {I} {T : Rel I} {P Q : EdgePred T}
               {i j} {xs : Star T i j} ->
        (ps : Any P Q xs) -> All P (prefix ps)
 init (done q ◅ _)  = ε
 init (step p ◅ ps) = ↦ p ◅ init ps
+
+-- One can simplify the implementation by not carrying around the
+-- indices in the type:
+
+data NonEmptyEdgePred {I : Set} (T : Rel I) (P : EdgePred T) : Set where
+  nonEmptyEdgePred : forall {i j} {x : T i j} ->
+                     P x -> NonEmptyEdgePred T P
+
+last : forall {I} {T : Rel I} {P Q : EdgePred T}
+              {i j} {xs : Star T i j} ->
+       Any P Q xs -> NonEmptyEdgePred T Q
+last ps with lookup ps (trivialAll _)
+... | result q _ = nonEmptyEdgePred q
