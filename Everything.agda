@@ -58,6 +58,7 @@ import Data.Product
 import Data.Product.Record
 import Data.Sets
 import Data.Star
+import Data.Star.BoundedVec
 import Data.Star.Decoration
 import Data.Star.Environment
 import Data.Star.Fin
