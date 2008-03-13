@@ -10,6 +10,7 @@ open import Data.Star.Fin
 import Data.Star.Decoration as Dec
 open Dec hiding (lookup)
 open import Relation.Binary
+open import Relation.Binary.Consequences
 open import Data.Function
 open import Data.Unit
 
@@ -34,14 +35,11 @@ x ∷ xs = ↦ x ◅ xs
 infixr 5 _++_
 
 _++_ : forall {a m n} -> Vec a m -> Vec a n -> Vec a (m + n)
-_++_ {a = a} {n = n} xs ys = gmap (plus n) lift xs ◅▻ ys
+_++_ {a = a} {n = n} xs ys = gmap plus lift xs ◅▻ ys
   where
-  plus : ℕ -> NonEmpty {⊤} (Star Always) -> NonEmpty {⊤} (Star Always)
-  plus n (nonEmpty m) = nonEmpty (m + n)
+  plus = map-NonEmpty (\m -> m + n)
 
-  lift : forall {n i j} ->
-         DecoratedWith (\_ -> a) i j ->
-         DecoratedWith (\_ -> a) (plus n i) (plus n j)
+  lift : DecoratedWith (\_ -> a) =[ plus ]⇒ DecoratedWith (\_ -> a)
   lift (↦ x) = ↦ x
 
 -- Safe lookup.

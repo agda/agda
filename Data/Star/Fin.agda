@@ -12,7 +12,7 @@ open import Data.Unit
 -- Finite sets are undecorated pointers into natural numbers.
 
 Fin : ℕ -> Set
-Fin = Any (\_ -> ⊤)
+Fin = Any (\_ -> ⊤) (\_ -> ⊤)
 
 -- "Constructors".
 
@@ -20,4 +20,4 @@ fz : forall {n} -> Fin (suc n)
 fz = this tt
 
 fs : forall {n} -> Fin n -> Fin (suc n)
-fs = that
+fs = that tt

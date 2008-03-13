@@ -9,6 +9,7 @@ open import Data.Star.List
 import Data.Star.Decoration as Dec
 open Dec hiding (lookup)
 open import Logic
+open import Data.Unit
 
 -- Contexts, listing the types of all the elements in an environment.
 
@@ -20,13 +21,13 @@ Ctxt = [ Ty ]
 infix 4 _∋_
 
 _∋_ : Ctxt -> Ty -> Set
-Γ ∋ σ = Any (_≡_ σ) Γ
+Γ ∋ σ = Any (\_ -> ⊤) (_≡_ σ) Γ
 
 vz : forall {Γ σ} -> σ ◅ Γ ∋ σ
 vz = this ≡-refl
 
 vs : forall {Γ σ τ} -> Γ ∋ τ -> σ ◅ Γ ∋ τ
-vs = that
+vs = that tt
 
 -- Environments. The T function maps types to element types.
 
