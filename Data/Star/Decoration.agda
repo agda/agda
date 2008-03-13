@@ -24,6 +24,15 @@ data DecoratedWith {I : Set} {T : Rel I} (P : EdgePred T)
   ↦ : forall {i j k} {x : T i j} {xs : Star T j k} ->
       P x -> DecoratedWith P (nonEmpty (x ◅ xs)) (nonEmpty xs)
 
+edge : forall {I} {T : Rel I} {P : EdgePred T} {i j} ->
+       DecoratedWith {T = T} P i j -> NonEmpty T
+edge (↦ {x = x} p) = nonEmpty x
+
+decoration : forall {I} {T : Rel I} {P : EdgePred T} {i j} ->
+             (d : DecoratedWith {T = T} P i j) ->
+             P (NonEmpty.proof (edge d))
+decoration (↦ p) = p
+
 -- Star-lists decorated with extra information. All P xs means that
 -- all edges in xs satisfy P.
 
