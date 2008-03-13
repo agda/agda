@@ -9,6 +9,7 @@ open import Data.Star.Nat
 open import Data.Star.Fin
 import Data.Star.Decoration as Dec
 open Dec hiding (lookup)
+open import Data.Star.List using ([_])
 open import Relation.Binary
 open import Relation.Binary.Consequences
 open import Data.Function
@@ -47,3 +48,13 @@ _++_ {a = a} {n = n} xs ys = gmap plus lift xs ◅▻ ys
 lookup : forall {a n} -> Fin n -> Vec a n -> a
 lookup i xs with Dec.lookup i xs
 ... | result _ x = x
+
+------------------------------------------------------------------------
+-- Conversions
+
+fromList : forall {a} -> (xs : [ a ]) -> Vec a (length xs)
+fromList ε        = []
+fromList (x ◅ xs) = x ∷ fromList xs
+
+toList : forall {a n} -> Vec a n -> [ a ]
+toList = gmap (const tt) decoration
