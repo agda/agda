@@ -93,4 +93,4 @@ cong+trans⟶cong₂ cong trans f {x = x} {v = v} x≈y u≈v =
 
 map-NonEmpty : forall {I} {P Q : Rel I} ->
                P ⇒ Q -> NonEmpty P -> NonEmpty Q
-map-NonEmpty f (nonEmpty x) = nonEmpty (f x)
+map-NonEmpty f x = nonEmpty (f (NonEmpty.proof x))

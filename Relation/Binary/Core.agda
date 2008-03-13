@@ -7,7 +7,7 @@
 
 module Relation.Binary.Core where
 
-open import Logic
+open import Logic hiding (proof)
 open import Data.Product
 open import Data.Sum
 open import Data.Function
@@ -132,8 +132,14 @@ Trichotomous : {a : Set} -> Rel a -> Rel a -> Set
 Trichotomous _≈_ _<_ = forall x y -> Tri (x < y) (x ≈ y) (x > y)
   where _>_ = flip₁ _<_
 
-data NonEmpty {I : Set} (T : Rel I) : Set where
-  nonEmpty : forall {i j} -> T i j -> NonEmpty T
+record NonEmpty {I : Set} (T : Rel I) : Set where
+  field
+    i     : I
+    j     : I
+    proof : T i j
+
+nonEmpty : forall {I} {T : Rel I} {i j} -> T i j -> NonEmpty T
+nonEmpty p = record { i = _; j = _; proof = p }
 
 ------------------------------------------------------------------------
 -- Equivalence relations
