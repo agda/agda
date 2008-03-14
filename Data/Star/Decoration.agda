@@ -64,12 +64,13 @@ mapAll {P = P} {Q} f ps = map F ps
   F : DecoratedWith P ⇒ DecoratedWith Q
   F (↦ x) = ↦ (f x)
 
--- We can decorate any star-list with the trivial predicate.
+-- We can decorate star-lists with universally true predicates.
 
-trivialAll : forall {I} {T : Rel I} {i j}
-             (xs : Star T i j) -> All (\_ -> ⊤) xs
-trivialAll ε        = ε
-trivialAll (x ◅ xs) = ↦ {x = x} _ ◅ trivialAll xs
+decorate : forall {I} {T : Rel I} {P : EdgePred T} {i j} ->
+           (forall {i j} (x : T i j) -> P x) ->
+           (xs : Star T i j) -> All P xs
+decorate f ε        = ε
+decorate f (x ◅ xs) = ↦ (f x) ◅ decorate f xs
 
 -- We can append Alls. Unfortunately _◅◅_ does not quite work.
 

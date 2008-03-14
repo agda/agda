@@ -8,6 +8,8 @@ open import Data.Star
 open import Data.Star.Decoration
 open import Relation.Binary
 open import Data.Maybe
+open import Data.Unit
+open import Data.Function
 
 -- Pointers into star-lists. The edge pointed to is decorated with Q,
 -- while other edges are decorated with P.
@@ -83,5 +85,5 @@ init (step p ◅ ps) = ↦ p ◅ init ps
 last : forall {I} {T : Rel I} {P Q : EdgePred T}
               {i j} {xs : Star T i j} ->
        Any P Q xs -> NonEmptyEdgePred T Q
-last ps with lookup ps (trivialAll _)
+last ps with lookup ps (decorate (const tt) _)
 ... | result q _ = nonEmptyEdgePred q
