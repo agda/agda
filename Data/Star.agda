@@ -24,18 +24,37 @@ data Star {I : Set} (T : Rel I) : Rel I where
 
 -- Append/transitivity.
 
-infixr 5 _◅▻_
+infixr 5 _◅◅_
 
-_◅▻_ : forall {I} {T : Rel I} -> Transitive (Star T)
-ε        ◅▻ ys = ys
-(x ◅ xs) ◅▻ ys = x ◅ (xs ◅▻ ys)
+_◅◅_ : forall {I} {T : Rel I} -> Transitive (Star T)
+ε        ◅◅ ys = ys
+(x ◅ xs) ◅◅ ys = x ◅ (xs ◅◅ ys)
 
-◅▻-assoc : forall {I} {T : Rel I} {i j k l}
+◅◅-assoc : forall {I} {T : Rel I} {i j k l}
                   (xs : Star T i j) (ys : Star T j k)
                   (zs : Star T k l) ->
-           (xs ◅▻ ys) ◅▻ zs ≡ xs ◅▻ (ys ◅▻ zs)
-◅▻-assoc ε        ys zs = ≡-refl
-◅▻-assoc (x ◅ xs) ys zs = ≡-cong (_◅_ x) (◅▻-assoc xs ys zs)
+           (xs ◅◅ ys) ◅◅ zs ≡ xs ◅◅ (ys ◅◅ zs)
+◅◅-assoc ε        ys zs = ≡-refl
+◅◅-assoc (x ◅ xs) ys zs = ≡-cong (_◅_ x) (◅◅-assoc xs ys zs)
+
+-- Sometimes you want to view cons-lists as snoc-lists. Then the
+-- following "constructor" is handy. Note that this is _not_ snoc for
+-- cons-lists, it is just a synonym for cons (with a different
+-- argument order).
+
+infixl 5 _▻_
+
+_▻_ : forall {I} {T : Rel I} {i j k} ->
+      Star T j k -> T i j -> Star T i k
+_▻_ = flip _◅_
+
+-- A corresponding variant of append.
+
+infixr 5 _▻▻_
+
+_▻▻_ : forall {I} {T : Rel I} {i j k} ->
+       Star T j k -> Star T i j -> Star T i k
+_▻▻_ = flip _◅◅_
 
 -- A generalised variant of map which allows the index type to change.
 
@@ -60,7 +79,7 @@ fold : forall {I T} (P : Rel I) ->
 fold = gfold id
 
 concat : forall {I} {T : Rel I} -> Star (Star T) ⇒ Star T
-concat {T = T} = fold (Star T) _◅▻_ ε
+concat {T = T} = fold (Star T) _◅◅_ ε
 
 -- If the underlying relation is symmetric, then the reflexive
 -- transitive closure is also symmetric.
@@ -117,7 +136,7 @@ starPreorder {I} T = record
   ; isPreorder = record
     { isEquivalence = ≡-isEquivalence
     ; refl          = refl
-    ; trans         = _◅▻_
+    ; trans         = _◅◅_
     ; ≈-resp-∼      = ≡-resp (Star T)
     }
   }

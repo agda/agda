@@ -22,10 +22,10 @@ infix 4 _∋_
 _∋_ : Ctxt -> Ty -> Set
 Γ ∋ σ = Any (\_ -> ⊤) (_≡_ σ) Γ
 
-vz : forall {Γ σ} -> σ ◅ Γ ∋ σ
+vz : forall {Γ σ} -> Γ ▻ σ ∋ σ
 vz = this ≡-refl
 
-vs : forall {Γ σ τ} -> Γ ∋ τ -> σ ◅ Γ ∋ τ
+vs : forall {Γ σ τ} -> Γ ∋ τ -> Γ ▻ σ ∋ τ
 vs = that tt
 
 -- Environments. The T function maps types to element types.
