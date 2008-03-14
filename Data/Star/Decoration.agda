@@ -40,6 +40,29 @@ All : forall {I} {T : Rel I} -> EdgePred T -> EdgePred (Star T)
 All P {j = j} xs =
   Star (DecoratedWith P) (nonEmpty xs) (nonEmpty {j = j} ε)
 
+-- We can map over decorated vectors.
+
+gmapAll : forall {I} {T : Rel I} {P : EdgePred T}
+                 {J} {U : Rel J} {Q : EdgePred U}
+                 {i j} {xs : Star T i j}
+          (f : I -> J) (g : T =[ f ]⇒ U) ->
+          (forall {i j} {x : T i j} -> P x -> Q (g x)) ->
+          All P xs -> All {T = U} Q (gmap f g xs)
+gmapAll f g h ε          = ε
+gmapAll f g h (↦ x ◅ xs) = ↦ (h x) ◅ gmapAll f g h xs
+
+-- Since we don't automatically have gmap id id xs ≡ xs it is easier
+-- to implement mapAll in terms of map than in terms of gmapAll.
+
+mapAll : forall {I} {T : Rel I} {P Q : EdgePred T}
+                {i j} {xs : Star T i j} ->
+         (forall {i j} {x : T i j} -> P x -> Q x) ->
+         All P xs -> All Q xs
+mapAll {P = P} {Q} f ps = map F ps
+  where
+  F : DecoratedWith P ⇒ DecoratedWith Q
+  F (↦ x) = ↦ (f x)
+
 trivialAll : forall {I} {T : Rel I} {i j}
              (xs : Star T i j) -> All (\_ -> ⊤) xs
 trivialAll ε        = ε
