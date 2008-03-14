@@ -7,6 +7,7 @@ module Data.Star.Environment (Ty : Set) where
 open import Data.Star
 open import Data.Star.List
 open import Data.Star.Decoration
+open import Data.Star.Pointer
 open import Logic
 open import Data.Unit
 

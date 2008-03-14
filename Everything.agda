@@ -64,6 +64,7 @@ import Data.Star.Environment
 import Data.Star.Fin
 import Data.Star.List
 import Data.Star.Nat
+import Data.Star.Pointer
 import Data.Star.Vec
 import Data.String
 import Data.Sum

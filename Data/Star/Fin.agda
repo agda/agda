@@ -6,7 +6,7 @@ module Data.Star.Fin where
 
 open import Data.Star
 open import Data.Star.Nat
-open import Data.Star.Decoration
+open import Data.Star.Pointer
 open import Data.Unit
 
 -- Finite sets are undecorated pointers into natural numbers.
