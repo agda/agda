@@ -45,6 +45,21 @@ trivialAll : forall {I} {T : Rel I} {i j}
 trivialAll ε        = ε
 trivialAll (x ◅ xs) = ↦ {x = x} _ ◅ trivialAll xs
 
+-- We can append Alls. Unfortunately _◅◅_ does not quite work.
+
+infixr 5 _◅◅◅_ _▻▻▻_
+
+_◅◅◅_ : forall {I} {T : Rel I} {P : EdgePred T}
+               {i j k} {xs : Star T i j} {ys : Star T j k} ->
+        All P xs -> All P ys -> All P (xs ◅◅ ys)
+ε          ◅◅◅ ys = ys
+(↦ x ◅ xs) ◅◅◅ ys = ↦ x ◅ xs ◅◅◅ ys
+
+_▻▻▻_ : forall {I} {T : Rel I} {P : EdgePred T}
+               {i j k} {xs : Star T j k} {ys : Star T i j} ->
+        All P xs -> All P ys -> All P (xs ▻▻ ys)
+_▻▻▻_ = flip _◅◅◅_
+
 -- Pointers into star-lists. The edge pointed to is decorated with Q,
 -- while other edges are decorated with P.
 

@@ -30,17 +30,12 @@ infixr 5 _∷_
 _∷_ : forall {a n} -> a -> Vec a n -> Vec a (suc n)
 x ∷ xs = ↦ x ◅ xs
 
--- Unfortunately we don't get append for free.
+-- Append.
 
 infixr 5 _++_
 
 _++_ : forall {a m n} -> Vec a m -> Vec a n -> Vec a (m + n)
-_++_ {a = a} {n = n} xs ys = gmap plus lift xs ◅▻ ys
-  where
-  plus = map-NonEmpty (\m -> m + n)
-
-  lift : DecoratedWith (\_ -> a) =[ plus ]⇒ DecoratedWith (\_ -> a)
-  lift (↦ x) = ↦ x
+_++_ = _◅◅◅_
 
 -- Safe lookup.
 
