@@ -7,8 +7,7 @@ module Data.Star.Vec where
 open import Data.Star
 open import Data.Star.Nat
 open import Data.Star.Fin
-import Data.Star.Decoration as Dec
-open Dec hiding (lookup)
+open import Data.Star.Decoration
 open import Data.Star.List using ([_])
 open import Relation.Binary
 open import Relation.Binary.Consequences
@@ -45,8 +44,8 @@ _++_ {a = a} {n = n} xs ys = gmap plus lift xs ◅▻ ys
 
 -- Safe lookup.
 
-lookup : forall {a n} -> Fin n -> Vec a n -> a
-lookup i xs with Dec.lookup i xs
+Vec-lookup : forall {a n} -> Fin n -> Vec a n -> a
+Vec-lookup i xs with lookup i xs
 ... | result _ x = x
 
 ------------------------------------------------------------------------

@@ -6,8 +6,7 @@ module Data.Star.Environment (Ty : Set) where
 
 open import Data.Star
 open import Data.Star.List
-import Data.Star.Decoration as Dec
-open Dec hiding (lookup)
+open import Data.Star.Decoration
 open import Logic
 open import Data.Unit
 
@@ -36,7 +35,7 @@ Env T Γ = All T Γ
 
 -- A safe lookup function for environments.
 
-lookup : forall {Γ σ} {T : Ty -> Set} ->
+Env-lookup : forall {Γ σ} {T : Ty -> Set} ->
          Γ ∋ σ -> Env T Γ -> T σ
-lookup i ρ with Dec.lookup i ρ
+Env-lookup i ρ with lookup i ρ
 ... | result ≡-refl x = x
