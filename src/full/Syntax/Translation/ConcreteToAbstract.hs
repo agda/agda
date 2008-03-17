@@ -519,7 +519,7 @@ instance ToAbstract LetDef [A.LetBinding] where
 		p    <- parseLHS (Just top) p
 		localToAbstract (snd $ lhsArgs p) $ \args ->
 		    do	rhs <- toAbstract rhs
-			foldM lambda rhs args
+			foldM lambda rhs (reverse args)  -- just reverse because these DomainFree
 	    letToAbstract _ = notAValidLetBinding d
 
 	    -- Named patterns not allowed in let definitions
