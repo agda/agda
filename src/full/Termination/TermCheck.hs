@@ -32,7 +32,7 @@ import qualified Termination.Termination as Term
 import TypeChecking.Monad
 import TypeChecking.Monad.Mutual (getMutualBlocks)
 import TypeChecking.Pretty
-import TypeChecking.Reduce (instantiate, instantiateFull)
+import TypeChecking.Reduce (reduce, instantiate, instantiateFull)
 import TypeChecking.Rules.Term (isType_)
 import TypeChecking.Substitute (abstract,raise)
 
@@ -307,6 +307,11 @@ termTerm names f pats0 t0 = do
             Def g args0 ->
                do let args1 = map unArg args0
                   args2 <- mapM instantiateFull args1
+
+                  -- We have to reduce constructors in case they're reexported.
+                  let reduceCon t@(Con _ _) = reduce t
+                      reduceCon t           = return t
+                  args2 <- mapM reduceCon args2
                   let args = map ignoreBlocking args2
 
                   -- collect calls in the arguments of this call
