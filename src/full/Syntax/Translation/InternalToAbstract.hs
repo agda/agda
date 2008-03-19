@@ -112,7 +112,7 @@ instance Reify Term Expr where
 		      return $ A.Rec exprInfo $ zip xs vs
 		    False -> reifyDisplayForm x vs $ do
                       let hide (Arg _ x) = Arg Hidden x
-                      Constructor np _ _ _ <- theDef <$> getConstInfo x
+                      Constructor{conPars = np} <- theDef <$> getConstInfo x
 		      scope <- getScope
                       let whocares = A.Underscore (Info.MetaInfo noRange scope Nothing)
                           us = replicate np $ Arg Hidden whocares

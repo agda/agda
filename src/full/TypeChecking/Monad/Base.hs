@@ -311,20 +311,44 @@ data Definition = Defn { defName     :: QName
 		       }
     deriving (Typeable, Data)
 
+type HaskellCode = String
+
 data Defn = Axiom
-	  | Function [Clause] FunctionInverse IsAbstract
-	  | Datatype Nat	    -- nof parameters
-		     Nat	    -- nof indices
-		     (Maybe Clause) -- this might be in an instantiated module
-		     [QName]	    -- constructor names
-		     Sort
-		     IsAbstract
-	  | Record Nat (Maybe Clause) [A.QName] Telescope Sort IsAbstract
-	  | Constructor Nat	-- nof parameters
-			QName	-- original constructor (this might be in a module instance)
-			QName	-- name of datatype
-			IsAbstract
-	  | Primitive IsAbstract String [Clause] -- PrimFun
+            { axHsCode   :: Maybe HaskellCode
+            }
+	  | Function
+            { funClauses :: [Clause]
+            , funInv     :: FunctionInverse
+            , funAbstr   :: IsAbstract
+            }
+	  | Datatype
+            { dataPars   :: Nat           -- nof parameters
+	    , dataIxs    :: Nat           -- nof indices
+            , dataClause :: (Maybe Clause) -- this might be in an instantiated module
+            , dataCons   :: [QName]        -- constructor names
+            , dataSort   :: Sort
+            , dataAbstr  :: IsAbstract
+            }
+	  | Record
+            { recPars   :: Nat
+            , recClause :: Maybe Clause
+            , recFields :: [A.QName]
+            , recTel    :: Telescope
+            , recSort   :: Sort
+            , recAbstr  :: IsAbstract
+            }
+	  | Constructor
+            { conPars   :: Nat         -- nof parameters
+	    , conSrcCon :: QName       -- original constructor (this might be in a module instance)
+	    , conData   :: QName       -- name of datatype
+            , conHsCode :: Maybe HaskellCode -- used by the compiler
+	    , conAbstr  :: IsAbstract
+            }
+	  | Primitive -- PrimFun
+            { primAbstr :: IsAbstract
+            , primName  :: String
+            , primClauses :: [Clause]
+            }
     deriving (Typeable, Data)
 
 newtype Fields = Fields [(C.Name, Type)]
@@ -341,20 +365,20 @@ data PrimFun = PrimFun
     deriving (Typeable)
 
 defClauses :: Definition -> [Clause]
-defClauses Defn{theDef = Function cs _ _}	      = cs
-defClauses Defn{theDef = Primitive _ _ cs}	      = cs
-defClauses Defn{theDef = Datatype _ _ (Just c) _ _ _} = [c]
-defClauses Defn{theDef = Record _ (Just c) _ _ _ _}   = [c]
-defClauses _					      = []
+defClauses Defn{theDef = Function{funClauses = cs}}	= cs
+defClauses Defn{theDef = Primitive{primClauses = cs}}	= cs
+defClauses Defn{theDef = Datatype{dataClause = Just c}} = [c]
+defClauses Defn{theDef = Record{recClause = Just c}}    = [c]
+defClauses _					        = []
 
 defAbstract :: Definition -> IsAbstract
 defAbstract d = case theDef d of
-    Axiom		 -> AbstractDef
-    Function _ _ a	 -> a
-    Datatype _ _ _ _ _ a -> a
-    Record _ _ _ _ _ a	 -> a
-    Constructor _ _ _ a  -> a
-    Primitive a _ _	 -> a
+    Axiom{}                   -> AbstractDef
+    Function{funAbstr = a}    -> a
+    Datatype{dataAbstr = a}   -> a
+    Record{recAbstr = a}      -> a
+    Constructor{conAbstr = a} -> a
+    Primitive{primAbstr = a}  -> a
 
 
 ---------------------------------------------------------------------------

@@ -130,9 +130,9 @@ compilerMain typeCheck = do
 enumConstructors :: Definitions -> [QName]
 enumConstructors = concatMap f . Map.toList where
     f (name, d) = case theDef d of
-			Constructor _ _ _ _ -> [name]
-                        Record  _ _ _ _ _ _ -> [name]
-                        _                   -> []
+			Constructor{} -> [name]
+                        Record{}      -> [name]
+                        _             -> []
 
 computeMaxArity :: Definitions -> IM Int
 computeMaxArity dd =
@@ -140,8 +140,8 @@ computeMaxArity dd =
 
 getConstructorArity :: Definition -> IM Int
 getConstructorArity defn = case theDef defn of
-    Record np clauses flds tel s a -> return $ length flds
-    Constructor np _ qtname a -> do
+    Record{recFields = flds} -> return $ length flds
+    Constructor{conPars = np} -> do
 	ty <- normalise $ defType defn
 	(args,_) <- splitType ty
 	return $ length args - np

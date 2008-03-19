@@ -8,6 +8,7 @@ import Control.Monad.Error
 import Data.Map 
 
 import Language.Haskell.Syntax
+import TypeChecking.Monad
 
 type Defs =  Map QName Definition
 data PState = PSt 
@@ -25,7 +26,7 @@ initPState c d = PSt
   , defs = d
   }
 
-type PM a = State PState a
+type PM a = StateT PState TCM a
 
 getPDefs :: PM Defs
 getPDefs = get >>= (return . defs)

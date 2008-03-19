@@ -104,7 +104,7 @@ isDatatype t = do
     Def d args -> do
       def <- theDef <$> getConstInfo d
       case def of
-        Datatype np _ _ cs _ _ -> do
+        Datatype{dataPars = np, dataCons = cs} -> do
           let (ps, is) = splitAt np args
           return $ Just (d, ps, is, cs)
         _ -> return Nothing

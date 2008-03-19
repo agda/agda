@@ -66,7 +66,7 @@ showUntypedDefinition :: (QName, Definition) -> TCM Doc
 showUntypedDefinition (name, defn) = do
     dname <- showAsUntypedTerm name
     case theDef defn of
-	Axiom ->
+	Axiom{} ->
 	    return $ sep [ dname, equals ] <+>
 		     sep [ text "undefined {- postulate -}" ]
 	Function [] _ a -> __IMPOSSIBLE__
@@ -88,7 +88,7 @@ showUntypedDefinition (name, defn) = do
 	    let drhs = untypedAbs dvars $ sep $
 		       text "VCon" <> text (show arity) : dcname : dvars
 	    return $ sep [ dname, equals ] <+> drhs
-	Constructor np _ tname a -> do
+	Constructor np _ tname _ a -> do
 	    dcname <- showAsUntypedConstructor name
 	    ty <- instantiate $ defType defn
 	    (args,_) <- splitType ty

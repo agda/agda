@@ -48,7 +48,7 @@ import Utils.Permutation
 import Utils.Function (on)
 
 currentInterfaceVersion :: Int
-currentInterfaceVersion = 20080305
+currentInterfaceVersion = 20080319
 
 type Node = [Int] -- constructor tag (maybe omitted) and arg indices
 
@@ -364,18 +364,18 @@ instance EmbPrj Definition where
                            valu _               = corrupt "Definition"
 
 instance EmbPrj Defn where
-  icode Axiom                     = icode0'
+  icode (Axiom       a)           = icode1 0 a
   icode (Function    a b c)       = icode3 1 a b c
   icode (Datatype    a b c d e f) = icode6 2 a b c d e f
   icode (Record      a b c d e f) = icode6 3 a b c d e f
-  icode (Constructor a b c d)     = icode4 4 a b c d
-  icode (Primitive   a b c)	 = icode3 5 a b c
+  icode (Constructor a b c d e)   = icode5 4 a b c d e
+  icode (Primitive   a b c)       = icode3 5 a b c
   value = vcase valu where
-    valu []                    = valu0 Axiom
-    valu [1, a, b, c]          = valu3 Function a b c
+    valu [0, a]                = valu1 Axiom       a
+    valu [1, a, b, c]          = valu3 Function    a b c
     valu [2, a, b, c, d, e, f] = valu6 Datatype    a b c d e f
     valu [3, a, b, c, d, e, f] = valu6 Record      a b c d e f
-    valu [4, a, b, c, d]       = valu4 Constructor a b c d
+    valu [4, a, b, c, d, e]    = valu5 Constructor a b c d e
     valu [5, a, b, c]          = valu3 Primitive   a b c
     valu _                     = corrupt "Defn"
 
@@ -456,29 +456,32 @@ icodeN = icodeX nodeD (\d st -> st{nodeD = d})
 
 vcase valu ix =  valu . (! ix) =<< asks nodeE
 
-icode0 tag             = icodeN [tag]
-icode1 tag a           = icodeN . (tag :) =<< sequence [icode a]
-icode2 tag a b         = icodeN . (tag :) =<< sequence [icode a, icode b]
-icode3 tag a b c       = icodeN . (tag :) =<< sequence [icode a, icode b, icode c]
-icode4 tag a b c d     = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d]
-icode5 tag a b c d e   = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e]
-icode6 tag a b c d e f = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f]
+icode0 tag               = icodeN [tag]
+icode1 tag a             = icodeN . (tag :) =<< sequence [icode a]
+icode2 tag a b           = icodeN . (tag :) =<< sequence [icode a, icode b]
+icode3 tag a b c         = icodeN . (tag :) =<< sequence [icode a, icode b, icode c]
+icode4 tag a b c d       = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d]
+icode5 tag a b c d e     = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e]
+icode6 tag a b c d e f   = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f]
+icode7 tag a b c d e f g = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g]
 
-icode0'             = icodeN []
-icode1' a           = icodeN =<< sequence [icode a]
-icode2' a b         = icodeN =<< sequence [icode a, icode b]
-icode3' a b c       = icodeN =<< sequence [icode a, icode b, icode c]
-icode4' a b c d     = icodeN =<< sequence [icode a, icode b, icode c, icode d]
-icode5' a b c d e   = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e]
-icode6' a b c d e f = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f]
+icode0'               = icodeN []
+icode1' a             = icodeN =<< sequence [icode a]
+icode2' a b           = icodeN =<< sequence [icode a, icode b]
+icode3' a b c         = icodeN =<< sequence [icode a, icode b, icode c]
+icode4' a b c d       = icodeN =<< sequence [icode a, icode b, icode c, icode d]
+icode5' a b c d e     = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e]
+icode6' a b c d e f   = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f]
+icode7' a b c d e f g = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g]
 
-valu0 h             = return h
-valu1 h a           = fmap  h                (value a)
-valu2 h a b         = valu1 h a         `ap` (value b)
-valu3 h a b c       = valu2 h a b       `ap` (value c)
-valu4 h a b c d     = valu3 h a b c     `ap` (value d)
-valu5 h a b c d e   = valu4 h a b c d   `ap` (value e)
-valu6 h a b c d e f = valu5 h a b c d e `ap` (value f)
+valu0 h               = return h
+valu1 h a             = fmap  h                  (value a)
+valu2 h a b           = valu1 h a           `ap` (value b)
+valu3 h a b c         = valu2 h a b         `ap` (value c)
+valu4 h a b c d       = valu3 h a b c       `ap` (value d)
+valu5 h a b c d e     = valu4 h a b c d     `ap` (value e)
+valu6 h a b c d e f   = valu5 h a b c d e   `ap` (value f)
+valu7 h a b c d e f g = valu6 h a b c d e f `ap` (value g)
 
 corrupt msg = error $ "Serialize: corrupt interface? (" ++ msg ++")"
 

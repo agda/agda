@@ -2,6 +2,7 @@
 
 module TypeChecking.Rules.Decl where
 
+import Control.Monad
 import Control.Monad.Trans
 import qualified Data.Map as Map
 import Data.Map (Map)
@@ -63,7 +64,7 @@ checkAxiom _ x e = do
     [ text "checked axiom"
     , nest 2 $ prettyTCM x <+> text ":" <+> prettyTCM t
     ]
-  addConstant x (Defn x t (defaultDisplayForm x) 0 Axiom)
+  addConstant x (Defn x t (defaultDisplayForm x) 0 $ Axiom Nothing)
 
 
 -- | Type check a primitive function declaration.
@@ -85,6 +86,18 @@ checkPragma :: Range -> A.Pragma -> TCM ()
 checkPragma r p =
     traceCall (CheckPragma r p) $ case p of
 	A.BuiltinPragma x e -> bindBuiltin x e
+        A.CompiledDataPragma x hcs -> do
+          def <- theDef <$> getConstInfo x
+          case def of
+            Datatype{dataCons = cs}
+              | length cs /= length hcs -> fail "Mismatch in number of constructors" -- TODO: error message
+              | otherwise -> zipWithM_ addHaskellCode cs hcs
+            _ -> fail $ "Not a datatype: " ++ show x  -- TODO: error message
+        A.CompiledPragma x hs -> do
+          def <- theDef <$> getConstInfo x
+          case def of
+            Axiom{} -> addHaskellCode x hs
+            _       -> fail "COMPILED directive only works on postulates."
 	A.OptionsPragma _   -> __IMPOSSIBLE__	-- not allowed here
 
 -- | Type check a bunch of mutual inductive recursive definitions.

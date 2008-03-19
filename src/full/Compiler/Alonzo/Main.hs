@@ -91,7 +91,7 @@ numOfMainS (n:ns) | isMain (qnameName n) = Just $ numOfQName n
                   | otherwise = numOfMainS ns
 
 -- isMain (Name _ (C.Name _ [C.Id _ "mainS"]) _ _ ) = True
-isMain n = (show n == "mainS")
+isMain n = (show n == "main")
 
 	
 
@@ -161,11 +161,15 @@ processDef (qname, Defn { theDef = Record n clauses fields tel sort isa }) =  do
       nDummyArgs 0 = []
       nDummyArgs k = (HsPVar $ HsIdent ("v" ++ (show k))) : nDummyArgs (k-1)
 	
-processDef def@(qname,Defn { theDef = con@(Constructor n origqn qn isa) }) =
+processDef def@(qname,Defn { theDef = Constructor{} }) =
     return []
 
--- FIXME
-processDef def@(qname,Defn { theDef = Axiom }) = return []
+processDef def@(qname,Defn { theDef = Axiom{} }) = return
+  [HsFunBind [HsMatch dummyLoc hsid  [] rhs decls]] where
+             rhs = HsUnGuardedRhs $ hsError $ "axiom: " ++ show qname
+             decls = []
+             hsid = dfName name
+             name = qnameName qname
 
 processDef (qname,Defn { theDef = Primitive info prim expr }) = return $
   [HsFunBind [HsMatch dummyLoc hsid  [] rhs decls]] where
@@ -175,7 +179,7 @@ processDef (qname,Defn { theDef = Primitive info prim expr }) = return $
              hsid = dfName name
              name = qnameName qname
 
-processDef (qname, (Defn { theDef = Datatype _ _ (Just clause) _ _ _ })) = do
+processDef (qname, (Defn { theDef = Datatype{dataClause = Just clause} })) = do
            -- liftIO $ putStrLn $ gshow $ clauseBody clause 
     mkSynonym (clauseBody clause) where
     name = qnameName qname
@@ -237,7 +241,7 @@ processCon dname qn = do
 dummyCon :: Int -> Int -> HsConDecl
 dummyCon i j = HsConDecl dummyLoc (mangleConName i j) []
 
-mangleConName :: Int -> Int -> HsName
+mangleConName :: Int -> Int -> HsCode
 -- mangleConName i j = (HsIdent $ "C"++(show i)++"_"++(show j))
 mangleConName i j = (HsIdent $ "C"++(show j))
 -}
@@ -255,9 +259,9 @@ processClause :: Name -> Int -> Clause -> IM HsDecl
 processClause name number clause@(Clause _ _ args (body)) = do
   ldefs <- getDefinitions
   let bodyPM = processBody body
-  let (exp, pst) =  runState bodyPM (initPState clause ldefs)
+  (exp, pst) <- runStateT bodyPM (initPState clause ldefs)
   let rhs = HsUnGuardedRhs exp
-  let (pats, pst2) = runState (processArgPats args) pst
+  (pats, pst2) <- runStateT (processArgPats args) pst
   return $ HsFunBind $ [HsMatch dummyLoc hsid pats rhs decls] 
     where
                     decls = []
@@ -306,10 +310,13 @@ processPat (VarP _) = do
 
 processPat (DotP _) = return HsPWildCard
 
-processPat (ConP qname args) = do 
-  let name = qnameName qname   
+processPat (ConP qname args) = do
+  Constructor{conHsCode = hsCode} <- lift $ theDef <$> getConstInfo qname
+  let cname = case hsCode of
+        Just h  -> UnQual $ HsIdent h
+        Nothing -> conQName qname
   hspats <- mapM processArgPat args
-  return $ HsPParen $ HsPApp (conQName qname) hspats
+  return $ HsPParen $ HsPApp cname hspats
 
 processPat (LitP (LitInt _ i)) = return $ HsPLit (HsInt i)
 processPat (LitP (LitChar _ c)) = 
@@ -338,23 +345,32 @@ processTerm (Var n ts) = do
   cnt <- getPcnt
   processVap (hsVar $ "v" ++ (show (cnt - n - 1))) ts
 
-processTerm (Def qn ts) = processVap (HsVar $ dfQName qn) ts
+processTerm (Def qn ts) = do
+  def <- lift $ theDef <$> getConstInfo qn
+  let x = case def of
+        Axiom{axHsCode = Just hs} -> hsVar hs
+        _ -> HsVar $ dfQName qn
+  processVap x ts
 
 -- Check if the con was redefined from other module
 -- if so, use the original name
 -- !!!
 processTerm (Con qn ts) = do
-            ldefs <- getPDefs
-            if (Map.member qn ldefs) 
-              then do 
-                definiens <- theDef <$> Map.lookup qn ldefs
-                case definiens of
-                 (Constructor n origqn qn isa) -> 
-                       --trace ( "Good: " ++ (show qn)  ++ (gshow definiens)) $
-                     processVap (HsCon $ conQName origqn) ts
-                 _ ->       -- trace ( "Careful: " ++ (show qn)  ++ (gshow definiens)) $
-                         processVap (HsCon $ conQName qn) ts
-              else processVap (HsCon $ conQName qn) ts
+  Constructor{conHsCode = hsCode} <- lift $ theDef <$> getConstInfo qn
+  case hsCode of
+    Just hs -> processVap (HsCon $ UnQual $ HsIdent hs) ts
+    Nothing -> do
+      ldefs <- getPDefs
+      if (Map.member qn ldefs) 
+        then do 
+          definiens <- theDef <$> Map.lookup qn ldefs
+          case definiens of
+           Constructor{conSrcCon = origqn} -> 
+                 --trace ( "Good: " ++ (show qn)  ++ (gshow definiens)) $
+               processVap (HsCon $ conQName origqn) ts
+           _ ->       -- trace ( "Careful: " ++ (show qn)  ++ (gshow definiens)) $
+                   processVap (HsCon $ conQName qn) ts
+        else processVap (HsCon $ conQName qn) ts
 
 processTerm (Lam h (Abs n t)) = do
   cnt <- getPcnt
@@ -385,15 +401,17 @@ processLit (LitChar _ c) =  HsApp (HsVar $ rtpCon "CharT")
 processVap :: HsExp -> [Arg Term] -> PM HsExp
 processVap e ts = do
   p <- get
-  return $ unfoldVap p  e ts
+  lift $ unfoldVap p e ts
 
-unfoldVap :: PState -> HsExp -> [Arg Term] -> HsExp
-unfoldVap _ e [] = e
-unfoldVap p e ((Arg NotHidden t):ts) = unfoldVap p (hsAp e e1) ts where
- e1 = evalState (processTerm t) p
+unfoldVap :: PState -> HsExp -> [Arg Term] -> TCM HsExp
+unfoldVap _ e [] = return e
+unfoldVap p e ((Arg NotHidden t):ts) = do
+  e1 <- evalStateT (processTerm t) p
+  unfoldVap p (hsAp e e1) ts
 -- unfoldVap p e ((Arg Hidden t):ts) = unfoldVap p e ts 
-unfoldVap p e ((Arg Hidden t):ts) = unfoldVap p (hsAp e e1) ts where
- e1 = evalState (processTerm t) p
+unfoldVap p e ((Arg Hidden t):ts) = do
+  e1 <- evalStateT (processTerm t) p
+  unfoldVap p (hsAp e e1) ts
 
 
 
@@ -410,7 +428,7 @@ getConArities cs = mapM getConArity cs
 
 getConArity :: QName -> IM Nat
 getConArity qn = do
-        Defn _ ty _ _ (Constructor np origqn _ isa) <- getConstInfo qn        
+        Defn _ ty _ _ Constructor{conPars = np} <- getConstInfo qn        
 	ty' <- normalise ty
         return $ typeArity ty' - np
         -- return $ arity ty'

@@ -128,11 +128,11 @@ useInjectivity a u v = do
       d <- reduce $ unEl dty
       case ignoreBlocking d of
         Def d us -> do
-            Datatype np _ _ _ _ _ <- theDef <$> getConstInfo d
+            Datatype{dataPars = np} <- theDef <$> getConstInfo d
             def  <- getConstInfo c
-            let cty                  = defType def
-                Constructor np _ _ _ = theDef def
-                cty'                 = cty `piApply` take np us
+            let cty                       = defType def
+                Constructor{conPars = np} = theDef def
+                cty'                      = cty `piApply` take np us
             argm <- newArgsMetaCtx cty' tel vs
             -- Compute the type of the instantiation and the orignial type.
             -- We need to make sure they are the same to ensure that index

@@ -359,7 +359,7 @@ cmd_make_case ii rng s = infoOnException $ ioTCM $ do
     -- gather constructors for ex
     (vx,tx) <- inferExpr ex
     El _ (SI.Def d _) <- passElDef =<< reduce tx
-    Datatype _ _ _ ctors _ _ <- theDef <$> (passData =<< getConstInfo d)
+    Datatype{dataCons = ctors} <- theDef <$> (passData =<< getConstInfo d)
     replpas <- (`mkPats` ctors) =<< List.delete sx <$> takenNameStr
     -- make new clauses
     let newpas = [repl sx pa targetPat | pa <- replpas]
@@ -388,7 +388,7 @@ cmd_make_case ii rng s = infoOnException $ ioTCM $ do
   mkPats tkn (c:cs) = do (tkn1, pa)<- mkPat tkn c; (pa:)<$> mkPats tkn1 cs
 
   mkPats tkn []     = return []
-  mkPat tkn c = do Defn _ tc _ _ (Constructor n _ _ _) <- getConstInfo c
+  mkPat tkn c = do Defn _ tc _ _ Constructor{conPars = n} <- getConstInfo c
                    (tkn', pas) <- piToArgPats tkn <$> dePi n tc
                    return (tkn', SI.ConP c pas)
   repl sx replpa = go where

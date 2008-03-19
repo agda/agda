@@ -87,13 +87,13 @@ splitProblem (Problem ps (perm, qs) tel) = do
 	    Def d vs	-> do
 	      def <- theDef <$> getConstInfo d
 	      case def of
-		Datatype np _ _ _ _ _ ->
+		Datatype{dataPars = np} ->
 		  traceCall (CheckPattern p EmptyTel (unArg a)) $ do  -- TODO: wrong telescope
                   -- Check that we construct something in the right datatype
                   c <- do
                       cs' <- mapM canonicalName cs
                       d'  <- canonicalName d
-                      Datatype _ _ _ cs0 _ _ <- theDef <$> getConstInfo d'
+                      Datatype{dataCons = cs0} <- theDef <$> getConstInfo d'
                       case [ c | (c, c') <- zip cs cs', elem c' cs0 ] of
                         [c] -> return c
                         []  -> typeError $ ConstructorPatternInWrongDatatype (head cs) d

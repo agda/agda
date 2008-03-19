@@ -25,6 +25,9 @@ impRTP = HsImportDecl dummyLoc (Module "RTP") True Nothing Nothing
 hsUndefined :: HsExp
 hsUndefined = hsVar "undefined"
 
+hsError :: String -> HsExp
+hsError s = HsApp (hsVar "error") (HsLit $ HsString s)
+
 hsCast e@(HsVar _) = HsApp (hsVar "cast") e
 hsCast e@(HsCon _) = HsApp (hsVar "cast") e
 hsCast e = HsApp (hsVar "cast") (HsParen e)
@@ -51,7 +54,8 @@ outputHsModule s hsmod numOfMainS = do
 
 printHsMain handle i = do
   hPutStrLn handle mainStr where
-      mainStr = "main = putStrLn d" ++ (show i)
+      -- mainStr = "main = putStrLn d" ++ (show i)
+      mainStr = "main = d" ++ show i
 
 printHsModule :: Handle -> HsModule -> IO ()
 printHsModule handle hsmod = do

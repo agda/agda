@@ -217,11 +217,11 @@ unifyIndices flex a us vs = liftTCM $ do
               -- Get the number of parameters.
               def <- theDef <$> getConstInfo d
               a'  <- case def of
-                Datatype n _ _ _ _ _ -> do
+                Datatype{dataPars = n} -> do
                   a <- defType <$> getConstInfo c
                   return $ piApply a (take n args)
-                Record n _ _ _ _ _   -> getRecordConstructorType d (take n args)
-                _			   -> __IMPOSSIBLE__
+                Record{recPars = n} -> getRecordConstructorType d (take n args)
+                _		    -> __IMPOSSIBLE__
               unifyArgs a' us vs
           | otherwise -> constructorMismatch a u v
         -- Definitions are ok as long as they can't reduce (i.e. datatypes/axioms)

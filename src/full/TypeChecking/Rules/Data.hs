@@ -73,8 +73,9 @@ checkDataDef i name ps cs =
 
 	-- Add the datatype to the signature as a datatype. It was previously
 	-- added as an axiom.
-	addConstant name (Defn name t (defaultDisplayForm name) 0 $ Datatype npars nofIxs Nothing (map cname cs)
-						 s (Info.defAbstract i)
+	addConstant name (Defn name t (defaultDisplayForm name) 0 $
+                            Datatype npars nofIxs Nothing (map cname cs)
+				     s (Info.defAbstract i)
 			 )
     where
 	cname (A.ScopedDecl _ [d]) = cname d
@@ -111,7 +112,7 @@ checkConstructor d tel nofIxs s con@(A.Axiom i c e) =
 	escapeContext (size tel)
 	    $ addConstant c
 	    $ Defn c (telePi tel t) (defaultDisplayForm c) 0
-	    $ Constructor (size tel) c d $ Info.defAbstract i
+	    $ Constructor (size tel) c d Nothing $ Info.defAbstract i
 checkConstructor _ _ _ _ _ = __IMPOSSIBLE__ -- constructors are axioms
 
 
@@ -191,7 +192,7 @@ forceData d (El s0 t) = liftTCM $ do
 	    | d == d'   -> return $ El s0 t'
 	    | otherwise	-> fail $ "wrong datatype " ++ show d ++ " != " ++ show d'
 	MetaV m vs	    -> do
-	    Defn _ t _ _ (Datatype _ _ _ _ s _) <- getConstInfo d
+	    Defn _ t _ _ Datatype{dataSort = s} <- getConstInfo d
 	    ps <- newArgsMeta t
 	    noConstraints $ equalType (El s0 t') (El s (Def d ps)) -- TODO: too strict?
 	    reduce $ El s0 t'

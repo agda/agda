@@ -57,6 +57,8 @@ data Declaration
 
 data Pragma = OptionsPragma [String]
 	    | BuiltinPragma String Expr
+            | CompiledPragma QName String
+            | CompiledDataPragma QName [String]
   deriving (Typeable, Data)
 
 data LetBinding = LetBind LetInfo Name Expr Expr    -- ^ LetBind info name type defn

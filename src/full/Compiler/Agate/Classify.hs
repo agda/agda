@@ -54,21 +54,21 @@ enumCompilableTypeFamilies definitions = do
 	let d = definitions ! name
 	let def = theDef d
 	case def of
-	    Axiom                               -> return False -- IO should get True
-	    Primitive a pf _                    -> return False -- String should get True
-	    Function [] _ a                     -> return False -- __IMPOSSIBLE__
-	    Function [Clause _ _ _ NoBody] _ a  -> return False
-	    Function [Clause _ _ pats body] _ a -> return False -- TODO
-	    Function clauses _ a                -> return False
-	    Constructor np _ tname a            -> return False -- ctor is not a typefam
-	    Datatype np ni _ cnames s a         -> do
+	    Axiom{}                                       -> return False -- IO should get True
+	    Primitive{}                                   -> return False -- String should get True
+	    Function{funClauses = []}                     -> __IMPOSSIBLE__
+	    Function{funClauses = [Clause _ _ _ NoBody]}  -> return False
+	    Function{funClauses = [Clause _ _ pats body]} -> return False -- TODO
+	    Function{}                                    -> return False
+	    Constructor{}                                 -> return False -- ctor is not a typefam
+	    Datatype{dataCons = cnames} -> do
 	    	ty <- instantiate $ defType d
 	    	andM (isCompilableType ty) $
 	    	    allM ( \cname ->
 	    	             do let d = definitions ! cname
 			    	ty <- instantiate $ defType d
 				isCompilableType ty ) cnames
-	    Record np claus flds tel s a -> return True
+	    Record{} -> return True
 	where -- TODO: implement correctly
 --	isCompilableType (El s tm) = isCompilableTypeFamily tm
 	

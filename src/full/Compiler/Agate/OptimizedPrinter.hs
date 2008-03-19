@@ -158,7 +158,7 @@ showValueDefinition definitions typefams (name, defn) = do
     dty <- showAsOptimizedType ty
     let dtypedecl = sep [ dname, text "::" ] <+> dty
     case theDef defn of
-	Axiom -> do
+	Axiom{} -> do
 	    let dvaluedef = sep [ dname, equals ] <+>
 			    sep [ text "undefined {- postulate -}" ]
 	    return $ dtypedecl $+$ dvaluedef
@@ -169,9 +169,9 @@ showValueDefinition definitions typefams (name, defn) = do
 	    let dvars = map (\i -> text ("v" ++ show i)) [1 .. np + ni]
 	    let dvaluedef = sep [ sep (dname : dvars), equals ] <+> text "()"
 	    return $ dtypedecl $+$ dvaluedef
-	Record np clauses flds tel s a -> 
+	Record{} -> 
 	    return empty  -- no o_xxx since we always use D_xxx
-	Constructor np _ tname a ->
+	Constructor{} ->
 	    return empty  -- no o_xxx since we always use D_xxx
 	Primitive a pf _ -> do
 	    let dvaluedef = sep [ dname, equals ] <+>

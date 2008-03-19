@@ -535,6 +535,18 @@ instance ToAbstract LetDef [A.LetBinding] where
 
 instance ToAbstract C.Pragma [A.Pragma] where
     toAbstract (C.OptionsPragma _ opts) = return [ A.OptionsPragma opts ]
+    toAbstract (C.CompiledDataPragma _ x hcs) = do
+      e <- toAbstract $ OldQName x
+      case e of
+        A.Def x -> return [ A.CompiledDataPragma x hcs ]
+        _       -> fail $ "Not a datatype: " ++ show x  -- TODO: error message
+    toAbstract (C.CompiledPragma _ x hs) = do
+      e <- toAbstract $ OldQName x
+      y <- case e of
+            A.Def x -> return x
+            A.Con _ -> fail "Use HASKELL_DATA for constructors" -- TODO
+            _       -> __IMPOSSIBLE__
+      return [ A.CompiledPragma y hs ]
     toAbstract (C.BuiltinPragma _ b e) = do
 	e <- toAbstract e
 	return [ A.BuiltinPragma b e ]

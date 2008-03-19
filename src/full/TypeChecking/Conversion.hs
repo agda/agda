@@ -117,7 +117,7 @@ equalAtom t m n =
 		    -- The type is a datatype.
 		    Def d args <- reduce $ unEl t
 		    -- Get the number of parameters to the datatype
-		    Datatype npars _ _ _ _ _ <- theDef <$> getConstInfo d
+		    Datatype{dataPars = npars} <- theDef <$> getConstInfo d
 		    -- The type to compare the arguments at is obtained by
 		    -- instantiating the parameters.
 		    a <- defType <$> getConstInfo x

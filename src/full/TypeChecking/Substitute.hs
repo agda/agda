@@ -55,12 +55,12 @@ instance Apply Definition where
     apply (Defn x t df m d) args = Defn x (piApply t args) df m (apply d args)
 
 instance Apply Defn where
-    apply Axiom _			  = Axiom
-    apply (Function cs inv a) args	  = Function (apply cs args) (apply inv args) a
+    apply (Axiom hs) _                    = Axiom hs
+    apply (Function cs inv a) args        = Function (apply cs args) (apply inv args) a
     apply (Datatype np ni cl cs s a) args = Datatype (np - size args) ni (apply cl args) cs s a
     apply (Record np cl fs tel s a) args  = Record (np - size args) (apply cl args) fs (apply tel args) s a
-    apply (Constructor np c d a) args	  = Constructor (np - size args) c d a
-    apply (Primitive a x cs) args	  = Primitive a x cs
+    apply (Constructor np c d hs a) args  = Constructor (np - size args) c d hs a
+    apply (Primitive a x cs) args         = Primitive a x cs
 
 instance Apply PrimFun where
     apply (PrimFun x ar def) args   = PrimFun x (ar - size args) $ \vs -> def (args ++ vs)
@@ -141,12 +141,12 @@ instance Abstract Definition where
     abstract tel (Defn x t df m d) = Defn x (abstract tel t) df m (abstract tel d)
 
 instance Abstract Defn where
-    abstract tel Axiom			    = Axiom
-    abstract tel (Function cs inv a)	    = Function (abstract tel cs) (abstract tel inv) a
+    abstract tel (Axiom hs)                 = Axiom hs
+    abstract tel (Function cs inv a)        = Function (abstract tel cs) (abstract tel inv) a
     abstract tel (Datatype np ni cl cs s a) = Datatype (size tel + np) ni (abstract tel cl) cs s a
     abstract tel (Record np cl fs ftel s a) = Record (size tel + np) (abstract tel cl) fs (abstract tel ftel) s a
-    abstract tel (Constructor np c d a)	    = Constructor (size tel + np) c d a
-    abstract tel (Primitive a x cs)	    = Primitive a x (abstract tel cs)
+    abstract tel (Constructor np c d hs a)  = Constructor (size tel + np) c d hs a
+    abstract tel (Primitive a x cs)         = Primitive a x (abstract tel cs)
 
 instance Abstract PrimFun where
     abstract tel (PrimFun x ar def) = PrimFun x (ar + n) $ \ts -> def $ drop n ts

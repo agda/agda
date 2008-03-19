@@ -541,8 +541,14 @@ instance ToConcrete RangeAndPragma C.Pragma where
     toConcrete (RangeAndPragma r p) = case p of
 	A.OptionsPragma xs  -> return $ C.OptionsPragma r xs
 	A.BuiltinPragma b x -> do
-	    x <- toConcrete x
-	    return $ C.BuiltinPragma r b x
+          x <- toConcrete x
+          return $ C.BuiltinPragma r b x
+        A.CompiledDataPragma x hcs -> do
+          x <- toConcrete x
+          return $ C.CompiledDataPragma r x hcs
+        A.CompiledPragma x hs -> do
+          x <- toConcrete x
+          return $ C.CompiledPragma r x hs
 
 -- Left hand sides --------------------------------------------------------
 

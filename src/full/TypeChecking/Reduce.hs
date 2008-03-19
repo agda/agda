@@ -181,7 +181,7 @@ instance Reduce Term where
 			Primitive ConcreteDef x cls -> do
 			    pf <- getPrimitive x
 			    reducePrimitive x v0 f args pf cls
-			Constructor _ c _ _ -> return $ Con c args
+			Constructor{conSrcCon = c} -> return $ Con c args
 			_		    -> reduceNormal v0 f args $ defClauses info
 
 	    reducePrimitive x v0 f args pf cls
@@ -447,7 +447,7 @@ instance InstantiateFull DisplayTerm where
 
 instance InstantiateFull Defn where
     instantiateFull d = case d of
-	Axiom			-> return Axiom
+	Axiom h			-> return (Axiom h)
 	Function cs inv a	-> flip (flip Function inv) a <$> instantiateFull cs
 	Datatype np ni cl cs s a -> do
 	    s  <- instantiateFull s
@@ -458,7 +458,7 @@ instance InstantiateFull Defn where
 	    cl	<- instantiateFull cl
 	    tel <- instantiateFull tel
 	    return $ Record np cl cs tel s a
-	Constructor n c d a	-> return $ Constructor n c d a
+	Constructor n c d hs a	-> return $ Constructor n c d hs a
 	Primitive a s cs	-> Primitive a s <$> instantiateFull cs
 
 instance InstantiateFull Clause where

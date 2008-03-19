@@ -168,8 +168,8 @@ checkExpr e t =
                 -- First we should figure out which constructor we want.
 
                 -- Get the datatypes of the various constructors
-                let getData (Constructor _ _ d _) = d
-                    getData _                     = __IMPOSSIBLE__
+                let getData Constructor{conData = d} = d
+                    getData _                        = __IMPOSSIBLE__
                 dcs <- mapM (\c -> (getData /\ const c) . theDef <$> getConstInfo c) cs
 
                 -- Lets look at the target type at this point
@@ -290,7 +290,7 @@ inferHead (HeadCon [c]) = do
   (u, a) <- inferDef (\c _ -> Con c []) c
 
   -- Next get the number of parameters in the current context.
-  Constructor n _ _ _ <- theDef <$> (instantiateDef =<< getConstInfo c)
+  Constructor{conPars = n} <- theDef <$> (instantiateDef =<< getConstInfo c)
 
   verbose 7 $ do
     liftIO $ putStrLn $ unwords [show c, "has", show n, "parameters."]

@@ -215,7 +215,7 @@ checkWithFunction (WithFunction f aux gamma delta1 delta2 vs as b qs perm cs) = 
       , prettyList $ map prettyTCM ts
       , prettyTCM dt
       ]
-  addConstant aux (Defn aux auxType [df] 0 Axiom)
+  addConstant aux (Defn aux auxType [df] 0 $ Axiom Nothing)
 
   reportSDoc "tc.with.top" 10 $ sep
     [ text "added with function" <+> (prettyTCM aux) <+> text "of type"
