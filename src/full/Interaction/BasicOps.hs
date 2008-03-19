@@ -203,10 +203,18 @@ instance Reify Constraint (OutputForm Expr Expr) where
 	os <- mapM (withConstraint reify) cs
 	return $ Guard o os
     reify (UnBlock m) = do
-	BlockedConst t <- mvInstantiation <$> lookupMeta m
-	e  <- reify t
-	m' <- reify (MetaV m [])
-	return $ Assign m' e
+        mi <- mvInstantiation <$> lookupMeta m
+        case mi of
+          BlockedConst t -> do
+            e  <- reify t
+            m' <- reify (MetaV m [])
+            return $ Assign m' e
+          PostponedTypeCheckingProblem cl -> enterClosure cl $ \(e, a) -> do
+            a <- reify a
+            return $ OfType e a
+          Open{}  -> __IMPOSSIBLE__
+          InstS{} -> __IMPOSSIBLE__
+          InstV{} -> __IMPOSSIBLE__
 
 instance (Show a,Show b) => Show (OutputForm a b) where
     show (OfType e t) = show e ++ " : " ++ show t
