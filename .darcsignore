@@ -48,3 +48,5 @@ src/rts/dist
 examples/cbs/agda1
 \.prof$
 src/hTags/dist$
+examples/fileIO/.*\.hs$
+examples/fileIO/Main$

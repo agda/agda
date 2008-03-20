@@ -97,7 +97,7 @@ abstract
   hGetLine h _ = fileIO (hs-hGetLine h)
 
   hGetContents : {hs : Handles}{m : IOMode}{isRead : CanRead m}(h : Handle)
-             (p : (h , m) ∈ hs) -> FileIO₋ String hs hs
+             (p : (h , m) ∈ hs) -> FileIO₋ String hs (delete hs p)
   hGetContents h _ = fileIO (hs-hGetContents h)
 
 abstract

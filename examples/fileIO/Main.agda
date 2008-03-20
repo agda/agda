@@ -1,4 +1,5 @@
 
+
 module Main where
 
 {-# IMPORT System.IO #-}
@@ -23,8 +24,9 @@ main = getArgs `bindIO` mainWithArgs
     mainWithArgs (file :: []) =
       runFileIO (
         openFile file readMode >>= \h ->
-        hGetLine h hd          >>= \s ->
-        hClose h hd            >>= \_ ->
+        -- hGetLine h hd          >>= \s ->
+        -- hClose h hd            >>= \_ ->
+        hGetContents h hd         >>= \s ->
         return s
       ) `bindIO` \s -> putStrLn s
     mainWithArgs (_ :: _ :: _) =
