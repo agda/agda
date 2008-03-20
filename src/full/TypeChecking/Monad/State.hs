@@ -77,3 +77,12 @@ withTopLevelModule x m = do
   modify $ \s -> s { stFreshThings = (stFreshThings s) { fName = next } }
   return y
 
+-- | Tell the compiler to import the given Haskell module.
+addHaskellImport :: MonadTCM tcm => String -> tcm ()
+addHaskellImport i =
+  modify $ \s -> s { stHaskellImports = i : stHaskellImports s }
+
+-- | Get the Haskell imports.
+getHaskellImports :: MonadTCM tcm => tcm [String]
+getHaskellImports = gets stHaskellImports
+

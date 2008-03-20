@@ -551,6 +551,9 @@ instance ToAbstract C.Pragma [A.Pragma] where
 	e <- toAbstract e
 	return [ A.BuiltinPragma b e ]
     toAbstract (C.LinePragma _ _ _) = return []
+    toAbstract (C.ImportPragma _ i) = do
+      addHaskellImport i
+      return []
 
 -- Only constructor names are bound by definitions.
 instance ToAbstract NiceDefinition Definition where

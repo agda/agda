@@ -212,6 +212,7 @@ data Pragma = OptionsPragma     !Range [String]
 	    | LinePragma        !Range Int String
             | CompiledDataPragma !Range QName [String]
             | CompiledPragma    !Range QName String
+            | ImportPragma      !Range String
     deriving (Eq, Typeable, Data)
 
 {--------------------------------------------------------------------------
@@ -315,6 +316,7 @@ instance HasRange Pragma where
     getRange (LinePragma r _ _)         = r
     getRange (CompiledDataPragma r _ _) = r
     getRange (CompiledPragma r _ _)     = r
+    getRange (ImportPragma r _)         = r
 
 instance HasRange UsingOrHiding where
     getRange (Using xs)	    = getRange xs

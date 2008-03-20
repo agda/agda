@@ -17,7 +17,8 @@ data Keyword
 	| KwInfix | KwInfixL | KwInfixR | KwWith
 	| KwSet | KwProp | KwForall | KwRecord | KwField
 	| KwHiding | KwUsing | KwRenaming | KwTo | KwPublic
-	| KwOPTIONS | KwBUILTIN | KwLINE | KwCOMPILED_DATA | KwCOMPILED
+	| KwOPTIONS | KwBUILTIN | KwLINE
+        | KwCOMPILED_DATA | KwCOMPILED | KwIMPORT
     deriving (Eq, Show)
 
 layoutKeywords :: [Keyword]

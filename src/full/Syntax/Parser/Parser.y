@@ -71,6 +71,7 @@ import Utils.Monad
     'forall'	{ TokKeyword KwForall $$ }
     'OPTIONS'	{ TokKeyword KwOPTIONS $$ }
     'BUILTIN'	{ TokKeyword KwBUILTIN $$ }
+    'IMPORT'	{ TokKeyword KwIMPORT $$ }
     'COMPILED'	{ TokKeyword KwCOMPILED $$ }
     'COMPILED_DATA' { TokKeyword KwCOMPILED_DATA $$ }
     'LINE'	{ TokKeyword KwLINE $$ }
@@ -153,6 +154,7 @@ Token
     | 'forall'	    { TokKeyword KwForall $1 }
     | 'OPTIONS'	    { TokKeyword KwOPTIONS $1 }
     | 'BUILTIN'     { TokKeyword KwBUILTIN $1 }
+    | 'IMPORT'      { TokKeyword KwIMPORT $1 }
     | 'COMPILED'    { TokKeyword KwCOMPILED $1 }
     | 'COMPILED_DATA'{ TokKeyword KwCOMPILED_DATA $1 }
     | 'LINE'	    { TokKeyword KwLINE $1 }
@@ -712,10 +714,11 @@ TopLevelPragma
 
 DeclarationPragma :: { Pragma }
 DeclarationPragma
-  : BuiltinPragma     { $1 }
-  | LinePragma	      { $1 }
-  | CompiledPragma    { $1 }
+  : BuiltinPragma      { $1 }
+  | LinePragma	       { $1 }
+  | CompiledPragma     { $1 }
   | CompiledDataPragma { $1 }
+  | ImportPragma       { $1 }
 
 OptionsPragma :: { Pragma }
 OptionsPragma : '{-#' 'OPTIONS' PragmaStrings '#-}' { OptionsPragma (fuseRange $1 $4) $3 }
@@ -734,6 +737,11 @@ CompiledDataPragma :: { Pragma }
 CompiledDataPragma
   : '{-#' 'COMPILED_DATA' PragmaName PragmaStrings '#-}'
     { CompiledDataPragma (fuseRange $1 $5) $3 $4 }
+
+ImportPragma :: { Pragma }
+ImportPragma
+  : '{-#' 'IMPORT' PragmaStrings '#-}'
+    { ImportPragma (fuseRange $1 $4) (unwords $3) }
 
 LinePragma :: { Pragma }
 LinePragma

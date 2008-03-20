@@ -48,9 +48,11 @@ data TCState =
 	 , stOptions	       :: CommandLineOptions
 	 , stStatistics	       :: Statistics
 	 , stTrace	       :: CallTrace
+	     -- ^ record what is happening (for error msgs)
 	 , stMutualBlocks      :: Map MutualId (Set QName)
 	 , stBuiltinThings     :: BuiltinThings PrimFun
-	     -- ^ record what is happening (for error msgs)
+         , stHaskellImports    :: [String]  -- ^ imports that should be generated
+                                            --   by the compiler
 	 }
 
 data FreshThings =
@@ -78,6 +80,7 @@ initState =
 	 , stTrace	       = noTrace
 	 , stMutualBlocks      = Map.empty
 	 , stBuiltinThings     = Map.empty
+         , stHaskellImports    = []
 	 }
 
 instance HasFresh MetaId FreshThings where

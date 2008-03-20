@@ -75,6 +75,7 @@ tokens :-
 <pragma_>   "BUILTIN"		{ keyword KwBUILTIN }
 <pragma_>   "COMPILED_DATA"	{ keyword KwCOMPILED_DATA }
 <pragma_>   "COMPILED"	        { keyword KwCOMPILED }
+<pragma_>   "IMPORT"	        { keyword KwIMPORT }
 <pragma_>   "LINE"		{ keyword KwLINE }
 <pragma_>   . # [ \, $white ] + { withRange $ TokString }
 

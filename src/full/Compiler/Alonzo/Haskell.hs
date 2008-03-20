@@ -9,18 +9,22 @@ dummyLoc = SrcLoc "=alonzo=" 0 0
 hsModule :: String -> [HsDecl] -> HsModule
 hsModule name decls = HsModule dummyLoc (Module name) Nothing [] decls
 
-hsModuleImporting :: String -> [String] -> [HsDecl] -> HsModule
-hsModuleImporting name imps decls = 
-  HsModule dummyLoc (Module name) Nothing (impRTS:impRTP:(map hsImport imps)) decls
+hsModuleImporting :: String -> [String] -> [String] -> [HsDecl] -> HsModule
+hsModuleImporting name imps qimps decls = 
+  HsModule dummyLoc (Module name) Nothing
+    (map hsImport imps ++ impRTS : impRTP : map hsQImport qimps) decls
 
 hsImport :: String -> HsImportDecl
-hsImport s = HsImportDecl dummyLoc (Module s) True Nothing Nothing
+hsImport s = HsImportDecl dummyLoc (Module s) False Nothing Nothing
+
+hsQImport :: String -> HsImportDecl
+hsQImport s = HsImportDecl dummyLoc (Module s) True Nothing Nothing
 
 impRTS :: HsImportDecl
-impRTS = HsImportDecl dummyLoc (Module "RTS") False Nothing Nothing
+impRTS = hsImport "RTS"
 
 impRTP :: HsImportDecl
-impRTP = HsImportDecl dummyLoc (Module "RTP") True Nothing Nothing
+impRTP = hsQImport "RTP"
 
 hsUndefined :: HsExp
 hsUndefined = hsVar "undefined"

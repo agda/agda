@@ -74,12 +74,13 @@ compilerMain typeCheck = do
         -- iimps :: [String]
         -- Exclude M._ type modules - need a better way, but for now...
         let iimps = List.filter (\m -> last m /= '_') $ List.map show idefmods
-        let allImps = List.nub(iimps ++ imps)
+        hImps <- getHaskellImports
+        let allImps = List.nub (iimps ++ imps)
         verboseS "comp.alonzo.import" 20 $ liftIO $ print allImps           
         let mainNum = (numOfMainS names)
         let fileBase =  show moduleName
         let moduleString = fileBase
-        let hsmod = hsModuleImporting moduleString allImps (concat hsdefs)
+        let hsmod = hsModuleImporting moduleString hImps allImps (concat hsdefs)
         liftIO $ outputHsModule fileBase hsmod mainNum
         -- let almod = List.map AlDecl hsdefs
         -- liftIO $ printAlModule moduleString almod
