@@ -77,7 +77,7 @@ tokens :-
 <pragma_>   "COMPILED"	        { keyword KwCOMPILED }
 <pragma_>   "IMPORT"	        { keyword KwIMPORT }
 <pragma_>   "LINE"		{ keyword KwLINE }
-<pragma_>   . # [ \, $white ] + { withRange $ TokString }
+<pragma_>   . # [ $white ] +    { withRange $ TokString }
 
 -- Comments
     -- We need to rule out pragmas here. Usually longest match would take
