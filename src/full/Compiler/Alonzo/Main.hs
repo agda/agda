@@ -50,7 +50,7 @@ import System.IO
 
 -- | The main function
 compilerMain :: IM () -> IM ()
-compilerMain typeCheck = do
+compilerMain typeCheck = ignoreAbstractMode $ do
 	typeCheck
 	sig <- gets stSignature
         let (moduleName:_) =  keys $ sigSections sig

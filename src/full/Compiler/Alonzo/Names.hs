@@ -1,4 +1,6 @@
 module Compiler.Alonzo.Names where
+
+import Data.List
 import Language.Haskell.Syntax
 import Syntax.Abstract.Name
 import Syntax.Common
@@ -16,11 +18,12 @@ conQStr qn = "C" ++ (show $ numOfQName qn)
 dfQStr :: QName -> String
 dfQStr qn = "d" ++ (show $ numOfQName qn)
 
--- For now a hack that allows local modules, but not hierarhical modules
+-- For now a hack that allows hierarhical modules, but not local modules(?)
 moduleStr :: ModuleName -> String
 -- moduleStr m = show m
-moduleStr (MName (n:ns)) = show n
 moduleStr (MName []) = error "Empty module list!"
+moduleStr (MName ns) = intercalate "." (map show ns)
+
 conName :: Name -> HsName
 conName = HsIdent . conStr
 
