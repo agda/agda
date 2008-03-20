@@ -26,7 +26,8 @@ library
                    bytestring >= 0.9.0.1 && < 1,
                    array >= 0.1 && < 1,
                    binary >= 0.4.1 && < 1,
-                   zlib >= 0.4.0.1 && < 1
+                   zlib >= 0.4.0.1 && < 1,
+                   filepath >= 1.1 && < 2
   if !os(windows)
     build-depends: readline >= 1.0.1 && < 2
   build-tools:     happy >= 1.15 && < 2,

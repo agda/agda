@@ -5,6 +5,7 @@ module Compiler.Alonzo.Main where
 import Debug.Trace(trace)
 import Language.Haskell.Syntax
 import Language.Haskell.Pretty
+import System.FilePath (pathSeparator)
 
 import Compiler.Alonzo.Haskell
 -- import Compiler.Alonzo.Debug
@@ -24,9 +25,11 @@ import Syntax.Common
 import Control.Applicative
 import Control.Monad.State
 
-import Data.Set as Set
+import qualified Data.Set as Set
+import qualified Data.Map as Map
 import Data.List as List
-import Data.Map as Map
+import Data.Set (Set)
+import Data.Map (Map, (!))
 import Data.Generics.Text
 
 -- import Syntax.Abstract.Test
@@ -53,7 +56,7 @@ compilerMain :: IM () -> IM ()
 compilerMain typeCheck = ignoreAbstractMode $ do
 	typeCheck
 	sig <- gets stSignature
-        let (moduleName:_) =  keys $ sigSections sig
+        let (moduleName:_) =  Map.keys $ sigSections sig
         builtinMap <- getBuiltinThings
 	-- let sigs = toList sig
 	-- let definitions = mdefDefs (snd (head sigs)) -- :: Map Name Definition       
@@ -78,8 +81,11 @@ compilerMain typeCheck = ignoreAbstractMode $ do
         let allImps = List.nub (iimps ++ imps)
         verboseS "comp.alonzo.import" 20 $ liftIO $ print allImps           
         let mainNum = (numOfMainS names)
-        let fileBase =  show moduleName
-        let moduleString = fileBase
+        let fileBase = map pathSep (show moduleName)
+              where
+                pathSep '.' = pathSeparator
+                pathSep c   = c
+        let moduleString = show moduleName
         let hsmod = hsModuleImporting moduleString hImps allImps (concat hsdefs)
         liftIO $ outputHsModule fileBase hsmod mainNum
         -- let almod = List.map AlDecl hsdefs
