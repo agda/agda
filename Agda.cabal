@@ -1,7 +1,7 @@
 name:            Agda
 version:         2.1.3
 cabal-version:   >= 1.2 && < 2
-build-type:      Configure
+build-type:      Simple
 license:         OtherLicense
 license-file:    LICENSE
 author:          Ulf Norell, Catarina Coquand, Makoto Takeyama, Nils Anders Danielsson, ...
@@ -10,8 +10,7 @@ homepage:        http://www.cs.chalmers.se/~ulfn/Agda/
 category:        Dependent types
 synopsis:        A dependently typed proof checker / programming language.
 tested-with:     GHC == 6.8.2
-extra-source-files: configure.ac configure install-sh mk/config.mk.in
-                    src/full/undefined.h
+extra-source-files: src/full/undefined.h
 
 library
   hs-source-dirs:  src/full
