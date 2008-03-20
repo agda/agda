@@ -5,22 +5,27 @@ import TypeChecking.Monad.Base
 import Control.Monad.State
 import Control.Monad.Error
 
-import Data.Map 
+import qualified Data.Map
+import Data.Map (Map)
 
 import Language.Haskell.Syntax
 import TypeChecking.Monad
+import Utils.Permutation
+import Utils.Size
 
 type Defs =  Map QName Definition
 data PState = PSt 
-  { cnt :: Int 
+  { cnt :: Int
+  , vars :: [Int]
   , lst :: [HsPat]
   , clause :: Clause
   , defs :: Defs
   }
 
 initPState :: Clause -> Defs -> PState
-initPState c d = PSt 
+initPState c@(Clause _ perm _ _) d = PSt 
   { cnt = 0
+  , vars = permute perm [0..]
   , lst = []
   , clause = c 
   , defs = d
@@ -29,16 +34,16 @@ initPState c d = PSt
 type PM a = StateT PState TCM a
 
 getPDefs :: PM Defs
-getPDefs = get >>= (return . defs)
+getPDefs = gets defs
 
 getPcnt :: PM Int
-getPcnt = get >>= (return . cnt)
+getPcnt = gets cnt
 
 getPlst :: PM [HsPat]
-getPlst = get >>= (return . lst)
+getPlst = gets lst
 
 getPclause :: PM Clause
-getPclause = get >>= (return . clause)
+getPclause = gets clause
 
 putPlst :: [HsPat] -> PM()
 putPlst newlst = modify $ \s -> s { lst = newlst }
@@ -46,19 +51,18 @@ putPlst newlst = modify $ \s -> s { lst = newlst }
 putPcnt :: Int -> PM()
 putPcnt newcnt = modify $ \s -> s { cnt = newcnt }
 
-
 incPcnt :: PM()
-incPcnt = do
-        n <- getPcnt
-        putPcnt (n+1)
-
+incPcnt = modify $ \s -> s { cnt = 1 + cnt s }
 
 addWildcard :: PM()
 addWildcard = do 
         lst <- getPlst
         putPlst $ lst++[HsPWildCard]
 
-addVar :: Int -> PM()
-addVar n = do
+addVar :: PM()
+addVar = do
         lst <- getPlst
-        putPlst $ lst++[HsPVar(HsIdent ("v" ++ (show n)))]
+        s <- get
+        let v : vs = vars s
+        put $ s { vars = vs }
+        putPlst $ lst++[HsPVar(HsIdent ("v" ++ show v))]

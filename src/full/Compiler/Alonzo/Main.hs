@@ -45,6 +45,7 @@ import TypeChecking.Monad.Builtin
 import TypeChecking.Reduce
 
 import Utils.Monad
+import Utils.Permutation
 
 import System.IO
 -- import Data.List(nub)
@@ -54,9 +55,10 @@ import System.IO
 -- | The main function
 compilerMain :: IM () -> IM ()
 compilerMain typeCheck = ignoreAbstractMode $ do
-	typeCheck
-	sig <- gets stSignature
-        let (moduleName:_) =  Map.keys $ sigSections sig
+      typeCheck
+      sig <- gets stSignature
+      let (moduleName:_) =  Map.keys $ sigSections sig
+      withCurrentModule moduleName $ do -- TODO: Hack!
         builtinMap <- getBuiltinThings
 	-- let sigs = toList sig
 	-- let definitions = mdefDefs (snd (head sigs)) -- :: Map Name Definition       
@@ -90,7 +92,25 @@ compilerMain typeCheck = ignoreAbstractMode $ do
         liftIO $ outputHsModule fileBase hsmod mainNum
         -- let almod = List.map AlDecl hsdefs
         -- liftIO $ printAlModule moduleString almod
-       
+
+-- TODO: move somewhere else
+fromCurrentModule :: QName -> IM Bool
+fromCurrentModule q = do
+  m <- qnameFromList . mnameToList <$> currentModule
+  return $ moduleId q == moduleId m
+  where
+    moduleId q = mi
+      where NameId _ mi = nameId $ qnameName q
+
+maybeQualName :: (QName -> HsQName) -> (Name -> HsName) -> QName -> PM HsQName
+maybeQualName qual unqual q = do
+  here <- lift $ fromCurrentModule q
+  return $ if here
+           then UnQual (unqual $ qnameName q)
+           else qual q
+
+maybeQualConName = maybeQualName conQName conName
+maybeQualDefName = maybeQualName dfQName dfName
 
 numOfMainS :: [QName] -> Maybe Int
 numOfMainS [] = Nothing
@@ -265,10 +285,15 @@ consDefs qns = do
 
 
 processClause :: Name -> Int -> Clause -> IM HsDecl
-processClause name number clause@(Clause _ _ args (body)) = do
+processClause name number clause@(Clause _ perm args (body)) = do
+  reportSLn "comp.alonzo.clause" 20 $
+    "processClause " ++ show name ++ "\n" ++
+    "  perm = " ++ show perm ++ "\n" ++
+    "  args = " ++ show args ++ "\n"
   ldefs <- getDefinitions
   let bodyPM = processBody body
-  (exp, pst) <- runStateT bodyPM (initPState clause ldefs)
+      pst0   = initPState clause ldefs
+  (exp, pst) <- runStateT bodyPM pst0
   let rhs = HsUnGuardedRhs exp
   (pats, pst2) <- runStateT (processArgPats args) pst
   return $ HsFunBind $ [HsMatch dummyLoc hsid pats rhs decls] 
@@ -321,9 +346,9 @@ processPat (DotP _) = return HsPWildCard
 
 processPat (ConP qname args) = do
   Constructor{conHsCode = hsCode} <- lift $ theDef <$> getConstInfo qname
-  let cname = case hsCode of
-        Just h  -> UnQual $ HsIdent h
-        Nothing -> conQName qname
+  cname <- case hsCode of
+        Just h  -> return $ UnQual $ HsIdent h
+        Nothing -> maybeQualConName qname
   hspats <- mapM processArgPat args
   return $ HsPParen $ HsPApp cname hspats
 
@@ -339,8 +364,8 @@ processBody (NoBind cb) = do
         addWildcard
 	processBody cb 
 processBody (Bind (Abs name cb)) = do
-	cnt <- getPcnt
-	addVar (cnt)
+	-- cnt <- getPcnt
+	addVar
 	incPcnt
 	processBody cb
 
@@ -354,28 +379,34 @@ processTerm (Var n ts) = do
   cnt <- getPcnt
   processVap (hsVar $ "v" ++ (show (cnt - n - 1))) ts
 
-processTerm (Def qn ts) =
-  processVap (HsVar $ dfQName qn) ts
+processTerm (Def qn ts) = do
+  x <- maybeQualDefName qn
+  processVap (HsVar x) ts
 
 -- Check if the con was redefined from other module
 -- if so, use the original name
 -- !!!
 processTerm (Con qn ts) = do
-  Constructor{conHsCode = hsCode} <- lift $ theDef <$> getConstInfo qn
-  case hsCode of
-    Just hs -> processVap (HsCon $ UnQual $ HsIdent hs) ts
-    Nothing -> do
+  def <- lift $ theDef <$> getConstInfo qn
+  case def of
+    Constructor{conHsCode = Just hs} ->
+        processVap (HsCon $ UnQual $ HsIdent hs) ts
+    -- Can be a record constructor in which case the def will be for the record.
+    _ -> do
       ldefs <- getPDefs
       if (Map.member qn ldefs) 
         then do 
           definiens <- theDef <$> Map.lookup qn ldefs
           case definiens of
-           Constructor{conSrcCon = origqn} -> 
-                 --trace ( "Good: " ++ (show qn)  ++ (gshow definiens)) $
-               processVap (HsCon $ conQName origqn) ts
-           _ ->       -- trace ( "Careful: " ++ (show qn)  ++ (gshow definiens)) $
-                   processVap (HsCon $ conQName qn) ts
-        else processVap (HsCon $ conQName qn) ts
+            Constructor{conSrcCon = origqn} -> do
+              x <- maybeQualConName origqn
+              processVap (HsCon x) ts
+            _ -> do
+              x <- maybeQualConName qn
+              processVap (HsCon x) ts
+        else do
+          x <- maybeQualConName qn
+          processVap (HsCon x) ts
 
 processTerm (Lam h (Abs n t)) = do
   cnt <- getPcnt
