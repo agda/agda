@@ -63,7 +63,7 @@ compilerMain typeCheck = do
         hsdefs <- mapM processDefWithDebug defs
         impNames <- getImports
         let imps = List.map show (Set.toList impNames)
-        liftIO $ print imps
+        verboseS "comp.alonzo.import" 20 $ liftIO $ print imps
         -- Now getting modules imported publicly by imported modules
         -- idefs :: Map QName Definition
         idefs <- sigDefinitions <$> getImportedSignature 
@@ -75,7 +75,7 @@ compilerMain typeCheck = do
         -- Exclude M._ type modules - need a better way, but for now...
         let iimps = List.filter (\m -> last m /= '_') $ List.map show idefmods
         let allImps = List.nub(iimps ++ imps)
-        liftIO $ print allImps           
+        verboseS "comp.alonzo.import" 20 $ liftIO $ print allImps           
         let mainNum = (numOfMainS names)
         let fileBase =  show moduleName
         let moduleString = fileBase
@@ -164,9 +164,11 @@ processDef (qname, Defn { theDef = Record n clauses fields tel sort isa }) =  do
 processDef def@(qname,Defn { theDef = Constructor{} }) =
     return []
 
-processDef def@(qname,Defn { theDef = Axiom{} }) = return
+processDef def@(qname,Defn { theDef = Axiom{axHsCode = mhs} }) = return
   [HsFunBind [HsMatch dummyLoc hsid  [] rhs decls]] where
-             rhs = HsUnGuardedRhs $ hsError $ "axiom: " ++ show qname
+             rhs = HsUnGuardedRhs $ case mhs of
+                    Nothing -> hsError $ "axiom: " ++ show qname
+                    Just hs -> hsVar hs
              decls = []
              hsid = dfName name
              name = qnameName qname
@@ -345,12 +347,8 @@ processTerm (Var n ts) = do
   cnt <- getPcnt
   processVap (hsVar $ "v" ++ (show (cnt - n - 1))) ts
 
-processTerm (Def qn ts) = do
-  def <- lift $ theDef <$> getConstInfo qn
-  let x = case def of
-        Axiom{axHsCode = Just hs} -> hsVar hs
-        _ -> HsVar $ dfQName qn
-  processVap x ts
+processTerm (Def qn ts) =
+  processVap (HsVar $ dfQName qn) ts
 
 -- Check if the con was redefined from other module
 -- if so, use the original name
