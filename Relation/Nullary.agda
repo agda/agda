@@ -5,6 +5,7 @@
 module Relation.Nullary where
 
 open import Logic
+open import Data.Bool.Core
 
 ------------------------------------------------------------------------
 -- Properties of nullary relations
@@ -14,3 +15,7 @@ open import Logic
 data Dec (P : Set) : Set where
   yes : P   -> Dec P
   no  : ¬ P -> Dec P
+
+decToBool : forall {P} -> Dec P -> Bool
+decToBool (yes _) = true
+decToBool (no  _) = false

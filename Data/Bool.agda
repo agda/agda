@@ -14,15 +14,9 @@ infixr 6 _∧_
 infixr 5 _∨_ _xor_
 
 ------------------------------------------------------------------------
--- The type
+-- The boolean type
 
-data Bool : Set where
-  true  : Bool
-  false : Bool
-
-{-# BUILTIN BOOL  Bool  #-}
-{-# BUILTIN TRUE  true  #-}
-{-# BUILTIN FALSE false #-}
+open import Data.Bool.Core public
 
 ------------------------------------------------------------------------
 -- Some operations
