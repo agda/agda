@@ -2,6 +2,10 @@
 -- Finite sets
 ------------------------------------------------------------------------
 
+-- Note that elements of Fin n can be seen as natural numbers in the
+-- set {m | m < n}. The notation "m" in comments below refers to this
+-- natural number view.
+
 module Data.Fin where
 
 open import Data.Nat
@@ -23,9 +27,13 @@ data Fin : ℕ -> Set where
 ------------------------------------------------------------------------
 -- Conversion
 
+-- toℕ "n" = n.
+
 toℕ : forall {n} -> Fin n -> ℕ
 toℕ fz     = 0
 toℕ (fs i) = suc (toℕ i)
+
+-- fromℕ n = "n".
 
 fromℕ : (n : ℕ) -> Fin (suc n)
 fromℕ zero    = fz
@@ -34,9 +42,17 @@ fromℕ (suc n) = fs (fromℕ n)
 ------------------------------------------------------------------------
 -- Operations
 
+-- raise m "n" = "m + n".
+
 raise : forall {n} m -> Fin n -> Fin (m + n)
 raise zero    i = i
 raise (suc n) i = fs (raise n i)
+
+-- inject m "n" = "n".
+
+inject : forall {m} n -> Fin m -> Fin (m + n)
+inject m fz     = fz
+inject m (fs i) = fs (inject m i)
 
 _-_ : (n : ℕ) -> Fin n -> ℕ
 zero  - ()
