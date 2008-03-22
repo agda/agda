@@ -72,6 +72,7 @@ import Data.Unit
 import Data.Vec
 import Data.Vec.Equality
 import Data.Vec.Properties
+import Data.Vec1
 
 import Logic
 import Logic.Induction
