@@ -48,7 +48,7 @@ raise : forall {n} m -> Fin n -> Fin (m + n)
 raise zero    i = i
 raise (suc n) i = fs (raise n i)
 
--- inject m "n" = "n".
+-- inject m "n" = "n" (see Data.Fin.Props.inject-lemma).
 
 inject : forall {m} n -> Fin m -> Fin (m + n)
 inject m fz     = fz
