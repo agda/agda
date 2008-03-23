@@ -27,6 +27,8 @@ private
   primStringFromList : [ Char ] -> String
   primStringEquality : String -> String -> Bool
 
+infixr 5 _++_
+
 _++_ : String -> String -> String
 _++_ = primStringAppend
 
