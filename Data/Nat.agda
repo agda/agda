@@ -74,10 +74,14 @@ suc m * n = m * n + n
 
 {-# BUILTIN NATTIMES _*_ #-}
 
+-- Max.
+
 _⊔_ : ℕ -> ℕ -> ℕ
 zero  ⊔ n     = n
 suc m ⊔ zero  = suc m
 suc m ⊔ suc n = suc (m ⊔ n)
+
+-- Min.
 
 _⊓_ : ℕ -> ℕ -> ℕ
 zero  ⊓ n     = zero
