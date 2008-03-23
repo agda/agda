@@ -25,7 +25,7 @@ data ℕ : Set where
 {-# BUILTIN ZERO    zero #-}
 {-# BUILTIN SUC     suc  #-}
 
-infix 4 _≤_ _<_
+infix 4 _≤_ _<_ _≥_ _>_
 
 data _≤_ : ℕ -> ℕ -> Set where
   z≤n : forall {n}            -> zero  ≤ n
@@ -33,6 +33,12 @@ data _≤_ : ℕ -> ℕ -> Set where
 
 _<_ : ℕ -> ℕ -> Set
 m < n = suc m ≤ n
+
+_≥_ : ℕ -> ℕ -> Set
+m ≥ n = n ≤ m
+
+_>_ : ℕ -> ℕ -> Set
+m > n = n < m
 
 ------------------------------------------------------------------------
 -- A generalisation of the arithmetic operations
