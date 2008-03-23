@@ -8,7 +8,7 @@
 
 module Data.Fin where
 
-open import Data.Nat
+open import Data.Nat.Core
 open import Logic
 open import Data.Function
 open import Relation.Nullary

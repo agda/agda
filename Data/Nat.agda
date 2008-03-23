@@ -2,36 +2,30 @@
 -- Natural numbers
 ------------------------------------------------------------------------
 
+-- For some reason Agda panics when DivMod.helper is checked for
+-- pattern completeness.
+
+{-# OPTIONS --no-coverage-check
+  #-}
+
 module Data.Nat where
 
 open import Data.Function
 open import Logic
 open import Data.Sum
+open import Data.Fin
+open import Data.Product
 open import Relation.Nullary
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality
 
 infixl 7 _*_ _⊓_
-infixl 6 _+_ _∸_ _⊔_
-infix  4 _≤_ _<_
+infixl 6 _∸_ _⊔_
 
 ------------------------------------------------------------------------
 -- The types
 
-data ℕ : Set where
-  zero : ℕ
-  suc  : ℕ -> ℕ
-
-{-# BUILTIN NATURAL ℕ    #-}
-{-# BUILTIN ZERO    zero #-}
-{-# BUILTIN SUC     suc  #-}
-
-data _≤_ : ℕ -> ℕ -> Set where
-  z≤n : forall {n}            -> zero  ≤ n
-  s≤s : forall {m n} -> m ≤ n -> suc m ≤ suc n
-
-_<_ : ℕ -> ℕ -> Set
-m < n = suc m ≤ n
+open import Data.Nat.Core public
 
 ------------------------------------------------------------------------
 -- A generalisation of the arithmetic operations
@@ -55,11 +49,7 @@ pred : ℕ -> ℕ
 pred zero    = zero
 pred (suc n) = n
 
-_+_ : ℕ -> ℕ -> ℕ
-zero  + n = n
-suc m + n = suc (m + n)
-
-{-# BUILTIN NATPLUS _+_ #-}
+-- _+_ is defined in Data.Nat.Core.
 
 _∸_ : ℕ -> ℕ -> ℕ
 m     ∸ zero  = m
@@ -138,6 +128,27 @@ compare (suc m) (suc n) with compare m n
 compare (suc .m)           (suc .(suc m + k)) | less    m k = less    (suc m) k
 compare (suc .m)           (suc .m)           | equal   m   = equal   (suc m)
 compare (suc .(suc m + k)) (suc .m)           | greater m k = greater (suc m) k
+
+------------------------------------------------------------------------
+-- More arithmetic
+
+-- Integer division.
+
+-- It is "obvious" that suc k is smaller than suc (suc (n + k)), but
+-- unfortunately the termination checker cannot see this.
+
+_divMod_ : (divisor dividend : ℕ) {≢0 : False (dividend ℕ-≟ 0)} ->
+           ℕ × Fin dividend
+(m divMod zero) {≢0 = ()}
+m  divMod suc n = helper m n (compare m (suc n)) ≡-refl
+  module DivMod where
+    helper : forall m n {o} -> Ordering m o -> o ≡ suc n -> ℕ × Fin (suc n)
+    helper .m                   .(m + k) (less m k)          ≡-refl = (0 , inject k (fromℕ m))
+    helper .(suc n)             .n       (equal (suc n))     ≡-refl = (1 , fz)
+    helper .(suc (suc (n + k))) .n       (greater (suc n) k) ≡-refl with suc k divMod suc n
+    ...                                                             | (x , r) = (suc x , r)
+    helper ._ _ (equal zero) ()
+    helper ._ _ (greater zero _) ()
 
 ------------------------------------------------------------------------
 -- Some properties
