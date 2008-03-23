@@ -45,7 +45,7 @@ cRec = build cRec-builder
 -- Complete induction based on <
 
 <-Rec : RecStruct ℕ
-<-Rec P n = forall {m} -> m < n -> P m
+<-Rec P n = forall m -> m < n -> P m
 
 -- This function makes a case distinction not on zero and suc, but on
 -- "anything smaller than n" and n.
@@ -62,8 +62,8 @@ max-case             P lt eq (s≤s m≤n) =
   max-case (\n -> P (suc n)) (lt ∘ s≤s) eq m≤n
 
 <-rec-builder : RecursorBuilder <-Rec
-<-rec-builder P f zero    ()
-<-rec-builder P f (suc n) (s≤s m≤n) = max-case P ih (f n ih) m≤n
+<-rec-builder P f zero    m ()
+<-rec-builder P f (suc n) m (s≤s m≤n) = max-case P (ih _) (f n ih) m≤n
   where
   ih : <-Rec P n
   ih = <-rec-builder P f n
@@ -97,4 +97,4 @@ private
     half₂' : forall n -> <-Rec HalfPred n -> HalfPred n
     half₂' zero          _   = zero
     half₂' (suc zero)    _   = zero
-    half₂' (suc (suc n)) rec = suc (rec {m = n} (n≤1+n (suc n)))
+    half₂' (suc (suc n)) rec = suc (rec n (n≤1+n (suc n)))
