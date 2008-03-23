@@ -5,7 +5,7 @@
 module Logic.Induction.Nat where
 
 open import Data.Function
-open import Data.Nat
+open import Data.Nat.Core
 open import Data.Product
 open import Data.Unit
 open import Logic
@@ -72,11 +72,13 @@ max-case             P lt eq (s≤s m≤n) =
 <-rec = build <-rec-builder
 
 ------------------------------------------------------------------------
--- Example
+-- Examples
 
 private
 
-  open import Data.Nat.Properties
+ module Examples where
+
+  open import Data.Nat.Properties.Core
 
   -- The half function.
 

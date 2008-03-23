@@ -4,6 +4,8 @@
 
 module Data.Nat.Properties where
 
+open import Data.Nat.Properties.Core public
+
 open import Data.Nat
 open ≤-Reasoning renaming (begin_ to start_; _∎ to _□; byDef to ≤-refl)
 open import Logic
@@ -437,20 +439,7 @@ m+n∸m≡n : forall {m n} -> m ≤ n -> m + (n ∸ m) ≡ n
 m+n∸m≡n z≤n       = byDef
 m+n∸m≡n (s≤s m≤n) = ≡-cong suc $ m+n∸m≡n m≤n
 
-n≤1+n : forall n -> n ≤ 1 + n
-n≤1+n zero    = z≤n
-n≤1+n (suc n) = s≤s $ n≤1+n n
-
-n≤m+n : forall m n -> n ≤ m + n
-n≤m+n zero    n = ≤-refl
-n≤m+n (suc m) n =
-             start
-  n
-             ≤⟨ n≤m+n m n ⟩
-  m + n
-             ≤⟨ n≤1+n _ ⟩
-  1 + m + n
-             □
+-- n≤1+n and n≤m+n are defined in Data.Nat.Properties.Core.
 
 n∸m≤n : forall m n -> n ∸ m ≤ n
 n∸m≤n zero    n       = ≤-refl
