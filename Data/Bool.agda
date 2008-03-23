@@ -5,6 +5,7 @@
 module Data.Bool where
 
 open import Logic
+open import Data.Unit
 open import Data.Function
 open import Relation.Nullary
 open import Relation.Binary
@@ -40,6 +41,13 @@ not false = true
 _xor_ : Bool -> Bool -> Bool
 true  xor b = not b
 false xor b = b
+
+-- A function mapping true to an inhabited type and false to an empty
+-- type.
+
+Is : Bool -> Set
+Is true  = ⊤
+Is false = ⊥
 
 ------------------------------------------------------------------------
 -- Queries
