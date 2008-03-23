@@ -118,6 +118,23 @@ suc m ≤? suc n with m ≤? n
 ...            | yes m≤n = yes (s≤s m≤n)
 ...            | no  m≰n = no  (m≰n ∘ ≤-pred)
 
+-- A comparison view. Taken from "View from the left"
+-- (McBride/McKinna); details may differ.
+
+data Ordering : ℕ -> ℕ -> Set where
+  less    : forall m k -> Ordering m (suc (m + k))
+  equal   : forall m   -> Ordering m m
+  greater : forall m k -> Ordering (suc (m + k)) m
+
+compare : forall m n -> Ordering m n
+compare zero    zero    = equal   zero
+compare (suc m) zero    = greater zero m
+compare zero    (suc n) = less    zero n
+compare (suc m) (suc n) with compare m n
+compare (suc .m)           (suc .(suc m + k)) | less    m k = less    (suc m) k
+compare (suc .m)           (suc .m)           | equal   m   = equal   (suc m)
+compare (suc .(suc m + k)) (suc .m)           | greater m k = greater (suc m) k
+
 ------------------------------------------------------------------------
 -- Some properties
 
