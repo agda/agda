@@ -5,7 +5,7 @@
 module Logic.Induction.Nat where
 
 open import Data.Function
-open import Data.Nat.Core
+open import Data.Nat
 open import Data.Product
 open import Data.Unit
 open import Logic
@@ -78,7 +78,7 @@ private
 
  module Examples where
 
-  open import Data.Nat.Properties.Core
+  open import Data.Nat.Properties
 
   -- The half function.
 

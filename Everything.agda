@@ -53,6 +53,7 @@ import Data.List1
 import Data.Map
 import Data.Maybe
 import Data.Nat
+import Data.Nat.DivMod
 import Data.Nat.Properties
 import Data.Product
 import Data.Product.Record
