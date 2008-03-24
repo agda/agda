@@ -55,6 +55,7 @@ import Data.Maybe
 import Data.Nat
 import Data.Nat.DivMod
 import Data.Nat.Properties
+import Data.Nat.Show
 import Data.Product
 import Data.Product.Record
 import Data.Sets
