@@ -6,6 +6,9 @@
 
 module Data.Bool.Core where
 
+open import Logic
+open import Data.Unit.Core
+
 ------------------------------------------------------------------------
 -- The type
 
@@ -16,3 +19,17 @@ data Bool : Set where
 {-# BUILTIN BOOL  Bool  #-}
 {-# BUILTIN TRUE  true  #-}
 {-# BUILTIN FALSE false #-}
+
+------------------------------------------------------------------------
+-- Some operations
+
+not : Bool -> Bool
+not true  = false
+not false = true
+
+-- A function mapping true to an inhabited type and false to an empty
+-- type.
+
+Is : Bool -> Set
+Is true  = ⊤
+Is false = ⊥

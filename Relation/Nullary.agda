@@ -9,9 +9,7 @@ open import Data.Unit.Core
 open import Data.Bool.Core
 
 ------------------------------------------------------------------------
--- Properties of nullary relations
-
--- P is decidable.
+-- Decidable relations
 
 data Dec (P : Set) : Set where
   yes : P   -> Dec P
@@ -22,9 +20,11 @@ decToBool (yes _) = true
 decToBool (no  _) = false
 
 True : forall {P} -> Dec P -> Set
-True (yes _) = ⊤
-True (no _)  = ⊥
+True Q = Is (decToBool Q)
 
 False : forall {P} -> Dec P -> Set
-False (yes _) = ⊥
-False (no _)  = ⊤
+False Q = Is (not (decToBool Q))
+
+witnessToTruth : forall {P} {Q : Dec P} -> True Q -> P
+witnessToTruth {Q = yes p} _  = p
+witnessToTruth {Q = no  _} ()
