@@ -481,6 +481,28 @@ m⊓n≤m zero    _       = z≤n
 m⊓n≤m (suc m) zero    = z≤n
 m⊓n≤m (suc m) (suc n) = s≤s $ m⊓n≤m m n
 
+⌈n/2⌉≤n : forall n -> ⌈ n /2⌉ ≤ n
+⌈n/2⌉≤n zero          = ≤-refl
+⌈n/2⌉≤n (suc zero)    = ≤-refl
+⌈n/2⌉≤n (suc (suc n)) = s≤s (start
+  ⌈ n /2⌉
+    ≤⟨ ⌈n/2⌉≤n n ⟩
+  n
+    ≤⟨ n≤1+n n ⟩
+  suc n
+   □)
+
+⌊n/2⌋≤n : forall n -> ⌊ n /2⌋ ≤ n
+⌊n/2⌋≤n zero          = ≤-refl
+⌊n/2⌋≤n (suc zero)    = z≤n
+⌊n/2⌋≤n (suc (suc n)) = s≤s (start
+  ⌊ n /2⌋
+    ≤⟨ ⌊n/2⌋≤n n ⟩
+  n
+    ≤⟨ n≤1+n n ⟩
+  suc n
+   □)
+
 _+-mono_ : _+_ Preserves₂ _≤_ → _≤_ → _≤_
 _+-mono_ {zero} {m₂} {n₁} {n₂} z≤n n₁≤n₂ = start
   n₁      ≤⟨ n₁≤n₂ ⟩
