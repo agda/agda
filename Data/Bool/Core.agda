@@ -30,6 +30,6 @@ not false = true
 -- A function mapping true to an inhabited type and false to an empty
 -- type.
 
-Is : Bool -> Set
-Is true  = ⊤
-Is false = ⊥
+T : Bool -> Set
+T true  = ⊤
+T false = ⊥

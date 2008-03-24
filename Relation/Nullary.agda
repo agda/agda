@@ -20,10 +20,10 @@ decToBool (yes _) = true
 decToBool (no  _) = false
 
 True : forall {P} -> Dec P -> Set
-True Q = Is (decToBool Q)
+True Q = T (decToBool Q)
 
 False : forall {P} -> Dec P -> Set
-False Q = Is (not (decToBool Q))
+False Q = T (not (decToBool Q))
 
 witnessToTruth : forall {P} {Q : Dec P} -> True Q -> P
 witnessToTruth {Q = yes p} _  = p
