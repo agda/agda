@@ -97,6 +97,20 @@ zero  ⊓ n     = zero
 suc m ⊓ zero  = zero
 suc m ⊓ suc n = suc (m ⊓ n)
 
+-- Division by 2, rounded upwards.
+
+⌈_/2⌉ : ℕ -> ℕ
+⌈ 0 /2⌉           = 0
+⌈ 1 /2⌉           = 1
+⌈ suc (suc n) /2⌉ = suc ⌈ n /2⌉
+
+-- Division by 2, rounded downwards.
+
+⌊_/2⌋ : ℕ -> ℕ
+⌊ 0 /2⌋           = 0
+⌊ 1 /2⌋           = 0
+⌊ suc (suc n) /2⌋ = suc ⌊ n /2⌋
+
 ------------------------------------------------------------------------
 -- Queries
 
