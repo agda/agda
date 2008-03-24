@@ -89,3 +89,12 @@ private
 _divMod_ : (divisor dividend : ℕ) {≢0 : False (dividend ℕ-≟ 0)} ->
            Result divisor dividend
 _divMod_ = <-rec Pred divMod'
+
+_div_ : (divisor dividend : ℕ) {≢0 : False (dividend ℕ-≟ 0)} -> ℕ
+_div_ m n {≢0} with _divMod_ m n {≢0}
+... | result x _ _ = x
+
+_mod_ : (divisor dividend : ℕ) {≢0 : False (dividend ℕ-≟ 0)} ->
+        Fin dividend
+_mod_ m n {≢0} with _divMod_ m n {≢0}
+... | result _ r _ = r
