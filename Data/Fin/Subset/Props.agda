@@ -28,7 +28,7 @@ drop-▻-⊆ p₁s₁⊆p₂s₂ x∈p₁ = drop-fsIn $ p₁s₁⊆p₂s₂ (fsI
 
 drop-▻-Empty :  forall {n s} {p : Subset n}
              -> Empty (p ▻ s) -> Empty p
-drop-▻-Empty ¬¬∅ ¬∅ = contradiction (exists (fsIn $ proof ¬∅)) ¬¬∅
+drop-▻-Empty ¬¬∅ ¬∅ = contradiction (exists _ (fsIn $ proof ¬∅)) ¬¬∅
 
 ------------------------------------------------------------------------
 -- More interesting properties
@@ -64,4 +64,4 @@ allOutside (fs x) (fsIn x∈) = allOutside x x∈
 ∅⟶allOutside {p = p ▻ s} ¬¬∅ with ∅⟶allOutside (drop-▻-Empty ¬¬∅)
 ∅⟶allOutside {p = .(all outside) ▻ outside} ¬¬∅ | ≡-refl = ≡-refl
 ∅⟶allOutside {p = .(all outside) ▻ inside}  ¬¬∅ | ≡-refl =
-    contradiction (exists fzIn) ¬¬∅
+    contradiction (exists _ fzIn) ¬¬∅

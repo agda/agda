@@ -38,16 +38,15 @@ any? :  forall {n} {P : Fin n -> Set}
 any? {zero} {P} dec = no helper
   where
   helper : ∄₀ P
-  helper (exists {witness = ()} _)
+  helper (exists () _)
 any? {suc n} {P} dec with dec fz | any? (restrict dec)
-...                  | yes p | _               = yes (exists p)
-...                  | _     | yes (exists p') = yes (exists p')
+...                  | yes p | _                 = yes (exists _ p)
+...                  | _     | yes (exists _ p') = yes (exists _ p')
 ...                  | no ¬p | no ¬p'          = no helper
   where
   helper : ∄₀ P
-  helper (exists {witness = fz}   p)  = ¬p p
-  helper (exists {witness = fs f} p') =
-    contradiction (exists p') ¬p'
+  helper (exists fz     p)  = ¬p p
+  helper (exists (fs f) p') = contradiction (exists _ p') ¬p'
 
 nonempty? : forall {n} (p : Subset n) -> Dec (Nonempty p)
 nonempty? p = any? (\x -> x ∈? p)
@@ -121,17 +120,17 @@ anySubset? :  forall {n} {P : Subset n -> Set}
            -> (forall s -> Dec (P s))
            -> Dec (∃₀ P)
 anySubset? {zero} {P} dec with dec ε
-... | yes Pε = yes (exists Pε)
+... | yes Pε = yes (exists _ Pε)
 ... | no ¬Pε = no helper
   where
   helper : ∄₀ P
-  helper (exists {witness = ε} Pε) = ¬Pε Pε
+  helper (exists ε Pε) = ¬Pε Pε
 anySubset? {suc n} {P} dec with anySubset? (restrictS inside  dec)
                               | anySubset? (restrictS outside dec)
-... | yes (exists Pp) | _               = yes (exists Pp)
-... | _               | yes (exists Pp) = yes (exists Pp)
-... | no ¬Pp          | no ¬Pp'         = no helper
+... | yes (exists _ Pp) | _                 = yes (exists _ Pp)
+... | _                 | yes (exists _ Pp) = yes (exists _ Pp)
+... | no ¬Pp            | no ¬Pp'           = no helper
     where
     helper : ∄₀ P
-    helper (exists {witness = p ▻ inside}  Pp)  = ¬Pp  (exists Pp)
-    helper (exists {witness = p ▻ outside} Pp') = ¬Pp' (exists Pp')
+    helper (exists (p ▻ inside)  Pp)  = ¬Pp  (exists _ Pp)
+    helper (exists (p ▻ outside) Pp') = ¬Pp' (exists _ Pp')

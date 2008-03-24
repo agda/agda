@@ -52,7 +52,7 @@ x ≇₁ y = ¬ x ≅₁ y
 -- Existential.
 
 data ∃ (a : Set) (P : a -> Set) : Set where
-  exists : {witness : a} -> P witness -> ∃ a P
+  exists : (witness : a) -> P witness -> ∃ a P
 
 ∃₀ : {a : Set} (P : a -> Set) -> Set
 ∃₀ = ∃ _
@@ -64,22 +64,22 @@ data ∃ (a : Set) (P : a -> Set) : Set where
 ∄₀ = ∄ _
 
 witness : forall {a P} -> ∃ a P -> a
-witness (exists {x} p) = x
+witness (exists x p) = x
 
 proof : forall {a P} (x : ∃ a P) -> P (witness x)
-proof (exists p) = p
+proof (exists x p) = p
 
 data ∃₁ (a : Set1) (P : a -> Set) : Set1 where
-  exists₁ : {witness : a} -> P witness -> ∃₁ a P
+  exists₁ : (witness : a) -> P witness -> ∃₁ a P
 
 ∃₁₀ : {a : Set1} (P : a -> Set) -> Set1
 ∃₁₀ = ∃₁ _
 
 witness₁ : forall {a P} -> ∃₁ a P -> a
-witness₁ (exists₁ {x} p) = x
+witness₁ (exists₁ x p) = x
 
 proof₁ : forall {a P} (x : ∃₁ a P) -> P (witness₁ x)
-proof₁ (exists₁ p) = p
+proof₁ (exists₁ x p) = p
 
 ------------------------------------------------------------------------
 -- Some basic properties
