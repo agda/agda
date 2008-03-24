@@ -4,7 +4,10 @@
 
 module Data.String where
 
-open import Data.List using ([_])
+import Data.List as List
+open List using ([_])
+import Data.Vec as Vec
+open Vec using (Vec)
 open import Data.Char using (Char)
 open import Data.Bool
 open import Logic
@@ -37,6 +40,9 @@ toList = primStringToList
 
 fromList : [ Char ] -> String
 fromList = primStringFromList
+
+toVec : (s : String) -> Vec Char (List.length (toList s))
+toVec s = Vec.fromList (toList s)
 
 infix 4 _==_
 
