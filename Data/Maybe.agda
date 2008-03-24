@@ -12,6 +12,20 @@ data Maybe (a : Set) : Set where
   nothing : Maybe a
 
 ------------------------------------------------------------------------
+-- Some operations
+
+open import Data.Bool
+open import Data.Unit
+
+boolToMaybe : Bool -> Maybe ⊤
+boolToMaybe true  = just _
+boolToMaybe false = nothing
+
+maybeToBool : Maybe ⊤ -> Bool
+maybeToBool (just _) = true
+maybeToBool nothing  = false
+
+------------------------------------------------------------------------
 -- Maybe monad
 
 open import Category.Monad
