@@ -54,10 +54,10 @@ inject : forall {m} n -> Fin m -> Fin (m + n)
 inject m fz     = fz
 inject m (fs i) = fs (inject m i)
 
-_-_ : (n : ℕ) -> Fin n -> ℕ
-zero  - ()
-suc n - fz   = suc n
-suc n - fs i = n - i
+_-_ : (n : ℕ) -> Fin (suc n) -> ℕ
+m     - fz    = m
+zero  - fs ()
+suc n - fs i  = n - i
 
 ------------------------------------------------------------------------
 -- Queries
