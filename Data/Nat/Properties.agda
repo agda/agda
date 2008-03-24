@@ -5,7 +5,9 @@
 module Data.Nat.Properties where
 
 open import Data.Nat
-open ≤-Reasoning renaming (begin_ to start_; _∎ to _□; byDef to ≤-refl)
+open ≤-Reasoning
+  renaming ( begin_ to start_; _∎ to _□; byDef to ≤-refl
+           ; _≡⟨_⟩_ to _≡⟨_⟩'_ )
 open import Logic
 open import Data.Function
 open import Algebra
@@ -451,6 +453,15 @@ n≤m+n (suc m) n =
              ≤⟨ n≤1+n _ ⟩
   1 + m + n
              □
+
+n≤n+m : forall m n -> n ≤ n + m
+n≤n+m m n = start
+  n
+    ≤⟨ n≤m+n m n ⟩
+  m + n
+    ≡⟨ +-comm m n ⟩'
+  n + m
+    □
 
 n∸m≤n : forall m n -> n ∸ m ≤ n
 n∸m≤n zero    n       = ≤-refl
