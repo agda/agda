@@ -9,7 +9,7 @@ module Data.Vec.Core where
 infixr 5 _∷_
 
 open import Data.Nat
-open import Data.Fin
+open import Data.Fin.Core
 
 ------------------------------------------------------------------------
 -- The type

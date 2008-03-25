@@ -27,7 +27,7 @@ open import Logic
 open import Relation.Binary
 
 open import Data.Nat using (ℕ; suc; zero) renaming (_+_ to _ℕ-+_)
-open import Data.Fin
+open import Data.Fin.Core
 open import Data.Vec.Core
 open import Data.Function
 
