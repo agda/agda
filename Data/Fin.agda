@@ -61,6 +61,13 @@ m     - fz    = m
 zero  - fs ()
 suc n - fs i  = n - i
 
+-- addFin "m" "n" = "m + n".
+
+addFin : forall {m n} -> Fin (suc m) -> Fin n -> Fin (m + n)
+addFin {m}     {n} fz      j = inject' m j
+addFin {zero}  {n} (fs ()) j
+addFin {suc m} {n} (fs i)  j = fs (addFin i j)
+
 ------------------------------------------------------------------------
 -- Queries
 
