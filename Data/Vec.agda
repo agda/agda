@@ -135,3 +135,11 @@ toList (x ∷ xs) = List._∷_ x (toList xs)
 fromList : forall {a} -> (xs : [ a ]) -> Vec a (List.length xs)
 fromList List.[]         = []
 fromList (List._∷_ x xs) = x ∷ fromList xs
+
+init : forall {a n} -> Vec a (suc n) -> Vec a n
+init (x ∷ [])         = []
+init (x ∷ xs@(_ ∷ _)) = x ∷ init xs
+
+last : forall {a n} -> Vec a (suc n) -> a
+last (x ∷ [])         = x
+last (x ∷ xs@(_ ∷ _)) = last xs
