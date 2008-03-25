@@ -83,6 +83,7 @@ import Logic
 import Logic.Induction
 import Logic.Induction.Lexicographic
 import Logic.Induction.Nat
+import Logic.Induction.WellFounded
 
 import Relation.Binary
 import Relation.Binary.Consequences
