@@ -12,6 +12,7 @@ open import Relation.Binary.PropositionalEquality
 
 infixr 6 _∧_
 infixr 5 _∨_ _xor_
+infix  0 if_then_else_
 
 ------------------------------------------------------------------------
 -- The boolean type
