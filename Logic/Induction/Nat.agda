@@ -10,6 +10,7 @@ open import Data.Product
 open import Data.Unit
 open import Logic
 open import Logic.Induction
+import Logic.Induction.WellFounded as WF
 open import Relation.Binary.PropositionalEquality
 
 ------------------------------------------------------------------------
@@ -42,34 +43,22 @@ cRec : Recursor CRec
 cRec = build cRec-builder
 
 ------------------------------------------------------------------------
--- Complete induction based on <
+-- Complete induction based on <′
 
-<-Rec : RecStruct ℕ
-<-Rec P n = forall m -> m < n -> P m
+open WF _<′_ using (Acc; acc)
 
--- This function makes a case distinction not on zero and suc, but on
--- "anything smaller than n" and n.
-
-max-case
-  :  forall {n}
-  -> (P : ℕ -> Set)
-  -> (forall {m} -> m < n -> P m)
-  -> P n
-  -> forall {m} -> m ≤ n -> P m
-max-case {n = zero}  P lt eq z≤n       = eq
-max-case {n = suc n} P lt eq z≤n       = lt (s≤s z≤n)
-max-case             P lt eq (s≤s m≤n) =
-  max-case (\n -> P (suc n)) (lt ∘ s≤s) eq m≤n
-
-<-rec-builder : RecursorBuilder <-Rec
-<-rec-builder P f zero    m ()
-<-rec-builder P f (suc n) m (s≤s m≤n) = max-case P (ih _) (f n ih) m≤n
+allAcc : forall n -> Acc n
+allAcc n = acc helper
   where
-  ih : <-Rec P n
-  ih = <-rec-builder P f n
+  helper : forall {m n} -> m <′ n -> Acc m
+  helper ≤′-refl        = acc helper
+  helper (≤′-step m<′n) = helper m<′n
 
-<-rec : Recursor <-Rec
-<-rec = build <-rec-builder
+open WF _<′_ public using () renaming (AccRec to <-Rec)
+open WF.All _<′_ allAcc public
+  renaming ( accRec-builder to <-rec-builder
+           ; accRec to <-rec
+           )
 
 ------------------------------------------------------------------------
 -- Examples
@@ -77,8 +66,6 @@ max-case             P lt eq (s≤s m≤n) =
 private
 
  module Examples where
-
-  open import Data.Nat.Properties
 
   -- The half function.
 
@@ -99,4 +86,4 @@ private
     half₂' : forall n -> <-Rec HalfPred n -> HalfPred n
     half₂' zero          _   = zero
     half₂' (suc zero)    _   = zero
-    half₂' (suc (suc n)) rec = suc (rec n (n≤1+n (suc n)))
+    half₂' (suc (suc n)) rec = suc (rec n (≤′-step ≤′-refl))

@@ -27,18 +27,30 @@ data ℕ : Set where
 
 infix 4 _≤_ _<_ _≥_ _>_
 
-data _≤_ : ℕ -> ℕ -> Set where
+data _≤_ : Rel ℕ where
   z≤n : forall {n}            -> zero  ≤ n
   s≤s : forall {m n} -> m ≤ n -> suc m ≤ suc n
 
-_<_ : ℕ -> ℕ -> Set
+_<_ : Rel ℕ
 m < n = suc m ≤ n
 
-_≥_ : ℕ -> ℕ -> Set
+_≥_ : Rel ℕ
 m ≥ n = n ≤ m
 
-_>_ : ℕ -> ℕ -> Set
+_>_ : Rel ℕ
 m > n = n < m
+
+-- The following, alternative definition of _≤_ is more suitable for
+-- well-founded induction (see Logic.Induction.Nat).
+
+infix 4 _≤′_ _<′_
+
+data _≤′_ : Rel ℕ where
+  ≤′-refl : forall {n} -> n ≤′ n
+  ≤′-step : forall {m n} -> m ≤′ n -> m ≤′ suc n
+
+_<′_ : Rel ℕ
+m <′ n = suc m ≤′ n
 
 ------------------------------------------------------------------------
 -- A generalisation of the arithmetic operations
@@ -146,7 +158,7 @@ suc m ≤? suc n with m ≤? n
 -- A comparison view. Taken from "View from the left"
 -- (McBride/McKinna); details may differ.
 
-data Ordering : ℕ -> ℕ -> Set where
+data Ordering : Rel ℕ where
   less    : forall m k -> Ordering m (suc (m + k))
   equal   : forall m   -> Ordering m m
   greater : forall m k -> Ordering (suc (m + k)) m

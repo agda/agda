@@ -19,6 +19,7 @@ open import Data.Nat.Properties
 open ≤-Reasoning
 open import Relation.Binary.PropositionalEquality
 open import Data.Product
+open import Data.Function
 open import Logic
 
 ------------------------------------------------------------------------
@@ -32,8 +33,8 @@ private
                    ≡-refl
     where R = var fz; K = var (fs fz)
 
-  lem₁ : forall x k r -> 1 ≤ x -> 1 + x ≤ x * (2 + k) + r
-  lem₁ x k r 1≤x = begin
+  lem₁ : forall x k r -> 1 ≤ x -> 1 + x ≤′ x * (2 + k) + r
+  lem₁ x k r 1≤x = ≤⇒≤′ $ begin
     1 + x
       ≤⟨ 1≤x +-mono byDef ⟩
     x + x

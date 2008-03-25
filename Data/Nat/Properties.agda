@@ -439,20 +439,40 @@ m+n∸m≡n : forall {m n} -> m ≤ n -> m + (n ∸ m) ≡ n
 m+n∸m≡n z≤n       = byDef
 m+n∸m≡n (s≤s m≤n) = ≡-cong suc $ m+n∸m≡n m≤n
 
+-- Converting between ≤ and ≤′.
+
 n≤1+n : forall n -> n ≤ 1 + n
 n≤1+n zero    = z≤n
 n≤1+n (suc n) = s≤s $ n≤1+n n
 
-n≤m+n : forall m n -> n ≤ m + n
-n≤m+n zero    n = ≤-refl
-n≤m+n (suc m) n =
-             start
+≤′⇒≤ : _≤′_ ⇒ _≤_
+≤′⇒≤             ≤′-refl        = ≤-refl
+≤′⇒≤ {i} {suc n} (≤′-step m≤′n) = start
+  i
+    ≤⟨ ≤′⇒≤ m≤′n ⟩
   n
-             ≤⟨ n≤m+n m n ⟩
-  m + n
-             ≤⟨ n≤1+n _ ⟩
-  1 + m + n
-             □
+    ≤⟨ n≤1+n n ⟩
+  suc n
+    □
+
+z≤′n : forall {n} -> zero ≤′ n
+z≤′n {zero}  = ≤′-refl
+z≤′n {suc n} = ≤′-step z≤′n
+
+s≤′s : forall {m n} -> m ≤′ n -> suc m ≤′ suc n
+s≤′s ≤′-refl        = ≤′-refl
+s≤′s (≤′-step m≤′n) = ≤′-step (s≤′s m≤′n)
+
+≤⇒≤′ : _≤_ ⇒ _≤′_
+≤⇒≤′ z≤n       = z≤′n
+≤⇒≤′ (s≤s m≤n) = s≤′s (≤⇒≤′ m≤n)
+
+n≤′m+n : forall m n -> n ≤′ m + n
+n≤′m+n zero    n = ≤′-refl
+n≤′m+n (suc m) n = ≤′-step (n≤′m+n m n)
+
+n≤m+n : forall m n -> n ≤ m + n
+n≤m+n m n = ≤′⇒≤ (n≤′m+n m n)
 
 n≤n+m : forall m n -> n ≤ n + m
 n≤n+m m n = start
@@ -481,30 +501,19 @@ m⊓n≤m zero    _       = z≤n
 m⊓n≤m (suc m) zero    = z≤n
 m⊓n≤m (suc m) (suc n) = s≤s $ m⊓n≤m m n
 
-⌈n/2⌉≤n : forall n -> ⌈ n /2⌉ ≤ n
-⌈n/2⌉≤n zero          = ≤-refl
-⌈n/2⌉≤n (suc zero)    = ≤-refl
-⌈n/2⌉≤n (suc (suc n)) = s≤s (start
-  ⌈ n /2⌉
-    ≤⟨ ⌈n/2⌉≤n n ⟩
-  n
-    ≤⟨ n≤1+n n ⟩
-  suc n
-   □)
+⌈n/2⌉≤′n : forall n -> ⌈ n /2⌉ ≤′ n
+⌈n/2⌉≤′n zero          = ≤′-refl
+⌈n/2⌉≤′n (suc zero)    = ≤′-refl
+⌈n/2⌉≤′n (suc (suc n)) = s≤′s (≤′-step (⌈n/2⌉≤′n n))
+
+⌊n/2⌋≤′n : forall n -> ⌊ n /2⌋ ≤′ n
+⌊n/2⌋≤′n zero    = ≤′-refl
+⌊n/2⌋≤′n (suc n) = ≤′-step (⌈n/2⌉≤′n n)
 
 ⌊n/2⌋-mono : ⌊_/2⌋ Preserves _≤_ → _≤_
 ⌊n/2⌋-mono z≤n             = z≤n
 ⌊n/2⌋-mono (s≤s z≤n)       = z≤n
 ⌊n/2⌋-mono (s≤s (s≤s m≤n)) = s≤s (⌊n/2⌋-mono m≤n)
-
-⌊n/2⌋≤n : forall n -> ⌊ n /2⌋ ≤ n
-⌊n/2⌋≤n n = start
-  ⌊ n /2⌋
-    ≤⟨ ⌊n/2⌋-mono (n≤1+n n) ⟩
-  ⌊ suc n /2⌋
-    ≤⟨ ⌈n/2⌉≤n n ⟩
-  n
-   □
 
 ⌈n/2⌉-mono : ⌈_/2⌉ Preserves _≤_ → _≤_
 ⌈n/2⌉-mono m≤n = ⌊n/2⌋-mono (s≤s m≤n)

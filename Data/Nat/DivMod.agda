@@ -57,7 +57,7 @@ private
 
   -- m > suc n.
   helper .(suc (suc (n + k))) .n (greater (suc n) k) ≡-refl rec
-    with rec (suc k) (s≤s (s≤s (n≤m+n n k))) (suc n)
+    with rec (suc k) (s≤′s (s≤′s (n≤′m+n n k))) (suc n)
   ... | result x r eq = result (suc x) r lemma
     where
     lemma = begin
