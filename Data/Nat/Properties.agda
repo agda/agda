@@ -441,19 +441,13 @@ m+n∸m≡n (s≤s m≤n) = ≡-cong suc $ m+n∸m≡n m≤n
 
 -- Converting between ≤ and ≤′.
 
-n≤1+n : forall n -> n ≤ 1 + n
-n≤1+n zero    = z≤n
-n≤1+n (suc n) = s≤s $ n≤1+n n
+≤-step : forall {m n} -> m ≤ n -> m ≤ 1 + n
+≤-step z≤n       = z≤n
+≤-step (s≤s m≤n) = s≤s (≤-step m≤n)
 
 ≤′⇒≤ : _≤′_ ⇒ _≤_
-≤′⇒≤             ≤′-refl        = ≤-refl
-≤′⇒≤ {i} {suc n} (≤′-step m≤′n) = start
-  i
-    ≤⟨ ≤′⇒≤ m≤′n ⟩
-  n
-    ≤⟨ n≤1+n n ⟩
-  suc n
-    □
+≤′⇒≤ ≤′-refl        = ≤-refl
+≤′⇒≤ (≤′-step m≤′n) = ≤-step (≤′⇒≤ m≤′n)
 
 z≤′n : forall {n} -> zero ≤′ n
 z≤′n {zero}  = ≤′-refl
@@ -480,6 +474,9 @@ n≤′m+n (suc m) n = ≤′-step (n≤′m+n m n)
 
 n≤m+n : forall m n -> n ≤ m + n
 n≤m+n m n = ≤′⇒≤ (n≤′m+n m n)
+
+n≤1+n : forall n -> n ≤ 1 + n
+n≤1+n _ = ≤-step ≤-refl
 
 n∸m≤n : forall m n -> n ∸ m ≤ n
 n∸m≤n zero    n       = ≤-refl
