@@ -40,11 +40,11 @@ private
     x + x
       ≡⟨ *-comm 2 x ⟩
     x * 2
-      ≤⟨ n≤n+m _ _ ⟩
+      ≤⟨ m≤m+n _ _ ⟩
     x * 2 + x * k
       ≡⟨ ≡-sym (proj₁ distrib x 2 k) ⟩
     x * (2 + k)
-      ≤⟨ n≤n+m _ _ ⟩
+      ≤⟨ m≤m+n _ _ ⟩
     x * (2 + k) + r
       ∎
     where open IsCommutativeSemiring _ ℕ-isCommutativeSemiring

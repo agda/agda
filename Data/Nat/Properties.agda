@@ -467,21 +467,19 @@ s≤′s (≤′-step m≤′n) = ≤′-step (s≤′s m≤′n)
 ≤⇒≤′ z≤n       = z≤′n
 ≤⇒≤′ (s≤s m≤n) = s≤′s (≤⇒≤′ m≤n)
 
+m≤m+n : forall m n -> m ≤ m + n
+m≤m+n zero    n = z≤n
+m≤m+n (suc m) n = s≤s (m≤m+n m n)
+
+m≤′m+n : forall m n -> m ≤′ m + n
+m≤′m+n m n = ≤⇒≤′ (m≤m+n m n)
+
 n≤′m+n : forall m n -> n ≤′ m + n
 n≤′m+n zero    n = ≤′-refl
 n≤′m+n (suc m) n = ≤′-step (n≤′m+n m n)
 
 n≤m+n : forall m n -> n ≤ m + n
 n≤m+n m n = ≤′⇒≤ (n≤′m+n m n)
-
-n≤n+m : forall m n -> n ≤ n + m
-n≤n+m m n = start
-  n
-    ≤⟨ n≤m+n m n ⟩
-  m + n
-    ≡⟨ +-comm m n ⟩'
-  n + m
-    □
 
 n∸m≤n : forall m n -> n ∸ m ≤ n
 n∸m≤n zero    n       = ≤-refl
