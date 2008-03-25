@@ -50,6 +50,7 @@ import Data.Fin.Subset.Props
 import Data.Function
 import Data.Integer
 import Data.List
+import Data.List.Equality
 import Data.List.Properties
 import Data.List1
 import Data.Map
