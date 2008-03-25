@@ -63,6 +63,19 @@ private
 Digit : ℕ -> Set
 Digit b = Fin b
 
+-- Some specific digit kinds.
+
+Decimal = Digit 10
+Bit     = Digit 2
+
+-- Some named digits.
+
+0b : Bit
+0b = fz
+
+1b : Bit
+1b = fs fz
+
 ------------------------------------------------------------------------
 -- Showing digits
 
