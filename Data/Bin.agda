@@ -7,11 +7,20 @@ module Data.Bin where
 import Data.Nat as Nat
 open Nat using (ℕ)
 open import Data.Digit
-open import Data.Fin using (fz; fs; addFin)
+open import Data.Fin using (Fin; fz; fs; addFin; Fin-decSetoid)
 open import Data.List
 import Data.Vec as Vec
 open import Data.Function
 open import Data.Product
+open import Relation.Binary
+open import Relation.Binary.PropositionalEquality
+open import Relation.Nullary
+open import Logic
+import Data.List.Equality as ListEq
+private
+  module DecEq  = DecSetoid (ListEq.DecidableEquality.decSetoid
+                               (Fin-decSetoid 2))
+  module PropEq = ListEq.PropositionalEquality (Fin 2)
 
 ------------------------------------------------------------------------
 -- The type
@@ -63,6 +72,31 @@ fromBits = fromBits' ∘ reverse
 
 fromℕ : ℕ -> Bin
 fromℕ = fromBits ∘ toDigits 2
+
+------------------------------------------------------------------------
+-- Queries
+
+infix 4 _Bin-≟_
+
+_Bin-≟_ : Decidable {Bin} _≡_
+0#     Bin-≟ 0#     = yes ≡-refl
+bs₁ 1# Bin-≟ bs₂ 1# with DecEq._≟_ bs₁ bs₂
+... | yes eq = yes (≡-cong _1# (PropEq.ListEq⇒≡ eq))
+... | no ¬eq = no (¬eq ∘ DecEq.reflexive ∘ helper)
+  where
+  helper : forall {bs₁ bs₂} -> bs₁ 1# ≡ bs₂ 1# -> bs₁ ≡ bs₂
+  helper ≡-refl = ≡-refl
+0# Bin-≟ bs₂ 1# = no helper
+  where
+  helper : ¬ 0# ≡ bs₂ 1#
+  helper ()
+bs₁ 1# Bin-≟ 0# = no helper
+  where
+  helper : ¬ bs₁ 1# ≡ 0#
+  helper ()
+
+Bin-decSetoid : DecSetoid
+Bin-decSetoid = ≡-decSetoid _Bin-≟_
 
 ------------------------------------------------------------------------
 -- Arithmetic
