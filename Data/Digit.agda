@@ -5,10 +5,13 @@
 module Data.Digit where
 
 open import Data.Nat
+open import Data.Nat.Properties
+open ℕ-semiringSolver
 open import Data.Fin
 open import Relation.Nullary
 open import Data.Char using (Char)
 open import Data.List
+import Data.Vec as Vec
 open import Logic.Induction.Nat
 open import Data.Nat.DivMod
 open import Algebra.Structures
@@ -17,6 +20,40 @@ open ≤-Reasoning
 open import Relation.Binary.PropositionalEquality
 open import Data.Product
 open import Logic
+
+------------------------------------------------------------------------
+-- Some boring lemmas
+
+private
+
+  lem₀ : forall r k -> r + (k * 0 + 0 + 0) ≡ r
+  lem₀ r k = prove (Vec.fromList (r ∷ k ∷ []))
+                   (R :+ (K :* con 0 :+ con 0 :+ con 0)) R
+                   ≡-refl
+    where R = var fz; K = var (fs fz)
+
+  lem₁ : forall x k r -> 1 ≤ x -> 1 + x ≤ x * (2 + k) + r
+  lem₁ x k r 1≤x = begin
+    1 + x
+      ≤⟨ 1≤x +-mono byDef ⟩
+    x + x
+      ≡⟨ *-comm 2 x ⟩
+    x * 2
+      ≤⟨ n≤n+m _ _ ⟩
+    x * 2 + x * k
+      ≡⟨ ≡-sym (proj₁ distrib x 2 k) ⟩
+    x * (2 + k)
+      ≤⟨ n≤n+m _ _ ⟩
+    x * (2 + k) + r
+      ∎
+    where open IsCommutativeSemiring _ ℕ-isCommutativeSemiring
+
+  lem₂ : forall {s} x r k -> s ≡ x -> r + k * s ≡ x * k + r
+  lem₂ x r k ≡-refl =
+    prove (Vec.fromList (x ∷ r ∷ k ∷ []))
+          (R :+ K :* X) (X :* K :+ R)
+          ≡-refl
+    where X = var fz; R = var (fs fz); K = var (fs (fs fz))
 
 ------------------------------------------------------------------------
 -- Digits
@@ -62,40 +99,38 @@ showDigit (fs (fs (fs (fs (fs (fs (fs (fs (fs (fs (fs (fs (fs (fs (fs (fs ()))))
 ------------------------------------------------------------------------
 -- Digit expansions
 
--- digits b ge n yields the digits of n, in base b, starting with the
+-- fromDigits takes a digit expansion of a natural number, starting
+-- with the _least_ significant digit, and returns the corresponding
+-- natural number.
+
+fromDigits : forall {base} -> [ Fin base ] -> ℕ
+fromDigits        []       = 0
+fromDigits {base} (d ∷ ds) = toℕ d + base * fromDigits ds
+
+-- digits b n yields the digits of n, in base b, starting with the
 -- _least_ significant digit.
 --
--- Note: As a special case the expansion of n in base 1 consists of
--- n + 1 zeros.
+-- Note that the list of digits is always non-empty.
 
-digits : (base : ℕ) {base≥1 : True (1 ≤? base)} -> ℕ -> [ Fin base ]
-digits zero {base≥1 = ()} _
-digits (suc zero)         n = replicate (suc n) fz
+digits : (base : ℕ) {base≥2 : True (2 ≤? base)} (n : ℕ) ->
+         ∃ [ Fin base ] (\ds -> fromDigits ds ≡ n)
+digits zero       {base≥2 = ()} _
+digits (suc zero) {base≥2 = ()} _
 digits base@(suc (suc k)) n = <-rec Pred helper n
   where
-  Pred = \_ -> [ Fin base ]
+  Pred = \n -> ∃ [ Fin base ] (\ds -> fromDigits ds ≡ n)
 
   helper : forall n -> <-Rec Pred n -> Pred n
   helper n rec with n divMod base
-  helper .(toℕ r)            rec | result zero      r ≡-refl = r ∷ []
-  helper .(x * base + toℕ r) rec | result x@(suc _) r ≡-refl =
-    r ∷ rec x lemma
-    where
-    open IsCommutativeSemiring _ ℕ-isCommutativeSemiring
 
-    1≤x : 1 ≤ x
-    1≤x = s≤s z≤n
+  helper .(toℕ r) rec | result zero r ≡-refl =
+    exists (r ∷ []) (lem₀ (toℕ r) k)
 
-    lemma = begin
-      1 + x
-        ≤⟨ 1≤x +-mono byDef ⟩
-      x + x
-        ≡⟨ *-comm 2 x ⟩
-      x * 2
-        ≤⟨ n≤n+m _ _ ⟩
-      x * 2 + x * k
-        ≡⟨ ≡-sym (proj₁ distrib x 2 k) ⟩
-      x * (2 + k)
-        ≤⟨ n≤n+m _ _ ⟩
-      x * base + toℕ r
-        ∎
+  helper .(x * base + toℕ r) rec | result x@(suc _) r ≡-refl
+    with rec x (lem₁ x k (toℕ r) (s≤s z≤n))
+  helper .(x * base + toℕ r) rec | result (suc m) r ≡-refl
+                                 | exists rs eq =
+    exists (r ∷ rs) (lem₂ (suc m) (toℕ r) base eq)
+
+toDigits : (base : ℕ) {base≥2 : True (2 ≤? base)} -> ℕ -> [ Fin base ]
+toDigits base {base≥2} n = witness (digits base {base≥2} n)
