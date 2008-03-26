@@ -46,12 +46,18 @@ _-,-_ :  {a b c d : Set}
       -> (a -> b -> c) -> (a -> b -> d) -> (a -> b -> c × d)
 f -,- g = f -[ _,_ ]- g
 
-curry :  {a : Set} {b : a -> Set} {c : Σ a b -> Set}
-      -> ((p : Σ a b) -> c p)
-      -> ((x : a) -> (y : b x) -> c (x , y))
-curry f x y = f (x , y)
+Σ-curry :  {a : Set} {b : a -> Set} {c : Σ a b -> Set}
+       -> ((p : Σ a b) -> c p)
+       -> ((x : a) -> (y : b x) -> c (x , y))
+Σ-curry f x y = f (x , y)
 
-uncurry :  {a : Set} {b : a -> Set} {c : Σ a b -> Set}
-        -> ((x : a) -> (y : b x) -> c (x , y))
-        -> ((p : Σ a b) -> c p)
-uncurry f (p₁ , p₂) = f p₁ p₂
+Σ-uncurry :  {a : Set} {b : a -> Set} {c : Σ a b -> Set}
+          -> ((x : a) -> (y : b x) -> c (x , y))
+          -> ((p : Σ a b) -> c p)
+Σ-uncurry f (p₁ , p₂) = f p₁ p₂
+
+curry : {a b c : Set} -> (a × b -> c) -> (a -> b -> c)
+curry = Σ-curry
+
+uncurry : {a b c : Set} -> (a -> b -> c) -> (a × b -> c)
+uncurry = Σ-uncurry
