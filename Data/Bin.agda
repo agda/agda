@@ -103,11 +103,15 @@ Bin-decSetoid = ≡-decSetoid _Bin-≟_
 
 -- Multiplication by 2.
 
-infix 7 _*2
+infix 7 _*2 _*2+1
 
 _*2 : Bin -> Bin
 0#      *2 = 0#
 (bs 1#) *2 = (0b ∷ bs) 1#
+
+_*2+1 : Bin -> Bin
+0#      *2+1 = [] 1#
+(bs 1#) *2+1 = (1b ∷ bs) 1#
 
 -- Division by 2, rounded downwards.
 
