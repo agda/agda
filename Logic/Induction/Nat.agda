@@ -48,16 +48,17 @@ cRec = build cRec-builder
 open WF _<′_ using (Acc; acc)
 
 allAcc : forall n -> Acc n
-allAcc n = acc helper
+allAcc n = acc (helper n)
   where
-  helper : forall {m n} -> m <′ n -> Acc m
-  helper ≤′-refl        = acc helper
-  helper (≤′-step m<′n) = helper m<′n
+  helper : forall n m -> m <′ n -> Acc m
+  helper zero     _ ()
+  helper (suc n) .n ≤′-refl        = acc (helper n)
+  helper (suc n)  m (≤′-step m<′n) = helper n m m<′n
 
-open WF _<′_ public using () renaming (AccRec to <-Rec)
+open WF _<′_ public using () renaming (WfRec to <-Rec)
 open WF.All _<′_ allAcc public
-  renaming ( accRec-builder to <-rec-builder
-           ; accRec to <-rec
+  renaming ( wfRec-builder to <-rec-builder
+           ; wfRec to <-rec
            )
 
 ------------------------------------------------------------------------

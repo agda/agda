@@ -8,35 +8,38 @@ module Logic.Induction.WellFounded {a : Set} (_<_ : Rel a) where
 
 open import Logic.Induction
 
--- The accessibility predicate.
+-- When using well-founded recursion you can recurse arbitrarily, as
+-- long as the arguments become smaller, and "smaller" is
+-- well-founded.
+
+WfRec : RecStruct a
+WfRec P x = forall y -> y < x -> P y
+
+-- The accessibility predicate encodes what it means to be
+-- well-founded; if all elements are accessible, then _<_ is
+-- well-founded.
 
 data Acc (x : a) : Set where
-  acc : (forall {y} -> y < x -> Acc y) -> Acc x
+  acc : WfRec Acc x -> Acc x
 
-AccRec : RecStruct a
-AccRec P x = forall y -> y < x -> P y
-
--- Standard well-founded induction does not quite fit into the scheme
--- set up in Logic.Induction:
+-- Well-founded induction for the subset of accessible elements:
 
 module Some where
 
-  accRec : (P : a -> Set) ->
-           (forall x -> AccRec P x -> P x) ->
-           forall {x} -> Acc x -> P x
-  accRec P f (acc g) = f _ (\_ y<x -> accRec P f (g y<x))
+  wfRec-builder : SubsetRecursorBuilder Acc WfRec
+  wfRec-builder P f x (acc g) = \y y<x ->
+    f y (wfRec-builder P f y (g y y<x))
 
-  accRec-builder : (P : a -> Set) ->
-                   (forall x -> AccRec P x -> P x) ->
-                   forall {x} -> Acc x -> AccRec P x
-  accRec-builder P f (acc g) _ y<x = accRec P f (g y<x)
+  wfRec : SubsetRecursor Acc WfRec
+  wfRec = subsetBuild wfRec-builder
 
--- However, if _all_ elements are accessible, then it does:
+-- Well-founded induction for all elements, assuming they are all
+-- accessible:
 
 module All (allAcc : forall x -> Acc x) where
 
-  accRec-builder : RecursorBuilder AccRec
-  accRec-builder P f x = Some.accRec-builder P f (allAcc x)
+  wfRec-builder : RecursorBuilder WfRec
+  wfRec-builder P f x = Some.wfRec-builder P f x (allAcc x)
 
-  accRec : Recursor AccRec
-  accRec = build accRec-builder
+  wfRec : Recursor WfRec
+  wfRec = build wfRec-builder
