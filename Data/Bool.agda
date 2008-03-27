@@ -22,7 +22,7 @@ open import Data.Bool.Core public
 ------------------------------------------------------------------------
 -- Some operations
 
--- not and Is are defined in Data.Bool.Core.
+-- not and T are defined in Data.Bool.Core.
 
 if_then_else_ : {a : Set} -> Bool -> a -> a -> a
 if true  then t else f = t
