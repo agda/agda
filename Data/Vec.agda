@@ -88,8 +88,13 @@ replicate {n = suc n} x = x ∷ replicate x
 
 foldr :  forall {a b : Set} {m}
       -> (a -> b -> b) -> b -> Vec a m -> b
-foldr c n []       = n
-foldr c n (x ∷ xs) = c x (foldr c n xs)
+foldr _⊕_ n []       = n
+foldr _⊕_ n (x ∷ xs) = x ⊕ foldr _⊕_ n xs
+
+foldr₁ :  forall {a : Set} {m}
+       -> (a -> a -> a) -> Vec a (suc m) -> a
+foldr₁ _⊕_ (x ∷ [])         = x
+foldr₁ _⊕_ (x ∷ xs@(_ ∷ _)) = x ⊕ foldr₁ _⊕_ xs
 
 concat : forall {a m n} -> Vec (Vec a m) n -> Vec a (n * m)
 concat                 []                   = []
