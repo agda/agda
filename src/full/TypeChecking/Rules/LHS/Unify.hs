@@ -23,6 +23,7 @@ import TypeChecking.Substitute
 import TypeChecking.Free
 import TypeChecking.Records
 import TypeChecking.Primitive (constructorForm)
+import TypeChecking.MetaVars (assignV, newArgsMetaCtx)
 
 import TypeChecking.Rules.LHS.Problem
 
@@ -240,5 +241,65 @@ unifyIndices flex a us vs = liftTCM $ do
         (Lit l1, Lit l2)
           | l1 == l2  -> return ()
           | otherwise -> constructorMismatch a u v
+
+        -- We can instantiate metas if the other term is inert (constructor application)
+        (MetaV m us, v) -> do
+            ok <- liftTCM $ instMeta a m us v
+            reportSDoc "tc.lhs.unify" 40 $
+              vcat [ fsep [ text "inst meta", text $ if ok then "(ok)" else "(not ok)" ]
+                   , nest 2 $ sep [ prettyTCM u, text ":=", prettyTCM =<< normalise u ]
+                   ]
+            if ok then unify a u v
+                  else addEquality a u v
+        (u, MetaV m vs) -> do
+            ok <- liftTCM $ instMeta a m vs u
+            reportSDoc "tc.lhs.unify" 40 $
+              vcat [ fsep [ text "inst meta", text $ if ok then "(ok)" else "(not ok)" ]
+                   , nest 2 $ sep [ prettyTCM v, text ":=", prettyTCM =<< normalise v ]
+                   ]
+            if ok then unify a u v
+                  else addEquality a u v
 	_  -> addEquality a u v
+
+    instMeta a m us v = do
+      app <- inertApplication a v
+      reportSDoc "tc.lhs.unify" 50 $
+        sep [ text "inert"
+              <+> sep [ text (show m), text (show us), parens $ prettyTCM v ]
+            , nest 2 $ text "==" <+> text (show app)
+            ]
+      case app of
+        Nothing -> return False
+        Just (v', b, _) -> do
+            tel   <- do
+              -- The new metas should have the same dependencies as the original meta
+              mi <- getMetaInfo <$> lookupMeta m
+              withMetaInfo mi getContextTelescope
+            margs <- newArgsMetaCtx b tel us
+            noConstraints $ assignV a m us (v' `apply` margs)
+            return True
+          `catchError` \_ -> return False
+
+    inertApplication :: Type -> Term -> TCM (Maybe (Term, Type, Args))
+    inertApplication a v =
+      case v of
+        Con c vs -> do
+          Def d args <- reduce $ unEl a
+          def <- theDef <$> getConstInfo d
+          b   <- case def of
+            Datatype{dataPars = n} -> do
+              a <- defType <$> getConstInfo c
+              return $ piApply a (take n args)
+            Record{recPars = n} -> getRecordConstructorType d (take n args)
+            _		    -> __IMPOSSIBLE__
+          return $ Just (Con c [], b, vs)
+        Def d vs -> do
+          def <- getConstInfo d
+          let ans = Just (Def d [], defType def, vs)
+          return $ case theDef def of
+            Datatype{} -> ans
+            Record{}   -> ans
+            Axiom{}    -> ans
+            _          -> Nothing
+        _        -> return Nothing
 
