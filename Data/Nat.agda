@@ -11,6 +11,7 @@ open import Relation.Nullary
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality
 
+infix  7 2*_
 infixl 7 _*_ _⊓_
 infixl 6 _∸_ _⊔_
 
@@ -108,6 +109,12 @@ _⊓_ : ℕ -> ℕ -> ℕ
 zero  ⊓ n     = zero
 suc m ⊓ zero  = zero
 suc m ⊓ suc n = suc (m ⊓ n)
+
+-- Multiplication by 2.
+
+2*_ : ℕ -> ℕ
+2* zero    = zero
+2* (suc n) = 2 + 2* n
 
 -- Division by 2, rounded downwards.
 
