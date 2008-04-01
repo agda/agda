@@ -31,6 +31,10 @@ replicate₁ : forall {a} -> (n : ℕ) -> a -> [ a ]₁
 replicate₁ zero    x = []
 replicate₁ (suc n) x = x ∷ replicate₁ n x
 
+foldr₁₀ : {a : Set1} {b : Set} -> (a -> b -> b) -> b -> [ a ]₁ -> b
+foldr₁₀ c n []       = n
+foldr₁₀ c n (x ∷ xs) = c x (foldr₁₀ c n xs)
+
 foldr₁₁ : {a b : Set1} -> (a -> b -> b) -> b -> [ a ]₁ -> b
 foldr₁₁ c n []       = n
 foldr₁₁ c n (x ∷ xs) = c x (foldr₁₁ c n xs)
