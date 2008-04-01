@@ -20,6 +20,7 @@ import {-# SOURCE #-} TypeChecking.Conversion
 import TypeChecking.Pretty
 import TypeChecking.Constraints
 import Utils.List
+import Utils.Monad
 
 #include "../undefined.h"
 
@@ -43,7 +44,8 @@ headSymbol v = do
     _       -> return Nothing
 
 checkInjectivity :: QName -> [Clause] -> TCM FunctionInverse
-checkInjectivity f cs = do
+checkInjectivity f cs = ifM (not <$> positivityCheckEnabled)
+                            (return NotInjective) $ {- else -} do
   es <- concat <$> mapM entry cs
   let (hs, ps) = unzip es
   if all isJust hs && distinct hs
