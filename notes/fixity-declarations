@@ -204,19 +204,23 @@ Details (based on discussions with Ulf):
     ∘₂, but • inherits earlier dependencies.
 
   A precedence relation now gives rise to a context free grammar in
-  the following way (for simplicity I only include binary,
-  nonassociative, non-mixfix operators here):
-
-  * For every node n annotated with _•₁_, _•₂_, …, _•k_ the following
-    productions are added:
-
-      n  ∷= n↑ op n↑
-      op ∷= •₁ | •₂ | … | •k
-      n↑ ∷= <atom> | ⋁ {n' | n ⊰ n'}
+  the following way:
 
   * The top-level production is as follows:
 
       expr ∷= <atom> | ⋁ {n | n is a node in the graph}
+
+  * For every node n the following productions are added:
+
+      n ∷= prefix-op⁺ n↑
+         | n↑ postfix-op⁺
+         | n↑ infix-non-assoc-op n↑
+         | (n↑ infix-left-assoc-op)⁺ n↑
+         | n↑ (infix-right-assoc-op n↑)⁺
+      n↑ ∷= <atom> | ⋁ {n' | n ⊰ n'}
+      x-op ∷= ⋁ {op-prod | op is an "x" operator annotating n}
+      op-prod ∷= op₁ expr op₂ expr op₃ … op_n
+         (where op_i are the name parts of the mixfix operator op)
 
   It should be easy to generalise this to arbitrary mixfix operators
   with arbitrary associativity.
