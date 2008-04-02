@@ -2,6 +2,8 @@
 -- Precedence graphs
 ------------------------------------------------------------------------
 
+{-# LANGUAGE FlexibleContexts #-}
+
 module PrecedenceGraph
     -- * Precedence graphs.
   ( Name
@@ -26,14 +28,16 @@ import qualified Data.Map as Map
 import Data.Map (Map)
 import qualified Data.Graph.Inductive as G
 import Data.Graph.Inductive ((&))
+import Control.Applicative hiding (empty)
+import qualified Control.Applicative as A
 
 ------------------------------------------------------------------------
 -- Some helper functions
 
 -- [x, y, z] `sepBy'` • ≈ x • y • z.
 
-sepBy' :: (Ord tok, Parser p) => [tok] -> p tok a -> p tok [a]
-[]       `sepBy'` p = zero
+sepBy' :: Parser p tok => [tok] -> p a -> p [a]
+[]       `sepBy'` p = A.empty
 [x]      `sepBy'` p = [] <$ sym x
 (x : xs) `sepBy'` p = (:) <$> (sym x *> p) <*> (xs `sepBy'` p)
 
@@ -169,29 +173,29 @@ type Op = (String, [Expr])
 -- | Expression parser. Parameterised on a graph describing the
 -- operators.
 
-expressionParser :: Parser p => PrecedenceGraph -> p Token Expr
+expressionParser :: Parser p Token => PrecedenceGraph -> p Expr
 expressionParser g = expr g (nodes g)
 
 -- | Parses atoms.
 
-atom :: Parser p => p Token Expr
+atom :: Parser p Token => p Expr
 atom = AtomE <$ sym Atom
 
 -- | Parses a subset of the expressions. Only the nodes reachable from
 -- the given list of nodes are recognised by the parser.
 
-expr :: Parser p => PrecedenceGraph -> [Node] -> p Token Expr
+expr :: Parser p Token => PrecedenceGraph -> [Node] -> p Expr
 expr g ns = atom <|> choice (map (node g) ns)
 
 -- | Parser for one operator (just the internal, mixfix part).
 
-opProd :: Parser p => PrecedenceGraph -> Name -> p Token Op
+opProd :: Parser p Token => PrecedenceGraph -> Name -> p Op
 opProd g nameParts = (,) (List.intercalate "_" nameParts) <$>
                      (map Name nameParts `sepBy'` expressionParser g)
 
 -- | Parser for several operators.
 
-opProds :: Parser p => PrecedenceGraph -> [Name] -> p Token Op
+opProds :: Parser p Token => PrecedenceGraph -> [Name] -> p Op
 opProds g ops = choice (map (opProd g) ops)
 
 appLeft :: Expr -> Op -> Expr
@@ -205,7 +209,7 @@ appBoth (n, es) l r = Op ('_' : n ++ "_") (l : es ++ [r])
 
 -- | Parser for a node.
 
-node :: Parser p => PrecedenceGraph -> Node -> p Token Expr
+node :: Parser p Token => PrecedenceGraph -> Node -> p Expr
 node g n = pre <|> post <|> nonass <|> left <|> right
   where
   ann = annotation g n

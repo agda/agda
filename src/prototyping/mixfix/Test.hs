@@ -11,7 +11,9 @@
 -- the tests below), perhaps because the grammars are slightly
 -- ambiguous.
 
-{-# LANGUAGE ExistentialQuantification, Rank2Types #-}
+{-# LANGUAGE ExistentialQuantification, Rank2Types,
+             MultiParamTypeClasses, FlexibleInstances,
+             FlexibleContexts #-}
 
 module Main where
 
@@ -27,15 +29,20 @@ import System.Environment
 import PrecedenceGraph
 import Data.Char
 import qualified Data.List as List
+import qualified Control.Applicative as A
 
 ------------------------------------------------------------------------
 -- Encapsulating parser libraries
 
-instance Parser ReadP.ReadP where
-  ret       = return
+instance A.Applicative (ReadP.ReadP tok) where
+  pure      = return
   p1 <*> p2 = p1 >>= \f -> p2 >>= \x -> return (f x)
-  zero      = mzero
-  (<|>)     = mplus
+
+instance A.Alternative (ReadP.ReadP tok) where
+  empty = mzero
+  (<|>) = mplus
+
+instance Ord tok => Parser (ReadP.ReadP tok) tok where
   sym       = ReadP.char
   parse     = ReadP.parse
 
@@ -44,14 +51,14 @@ instance Parser ReadP.ReadP where
   chainr1   = ReadP.chainr1
   chainl1   = ReadP.chainl1
 
-data P = forall p. Parser p =>
-         P (forall tok r. Ord tok => p tok r -> [tok] -> [r])
+data P tok = forall p. Parser p tok =>
+             P (forall r. p r -> [tok] -> [r])
 
 parse :: Ord tok =>
-         P -> (forall p. Parser p => p tok r) -> [tok] -> [r]
+         P tok -> (forall p. Parser p tok => p r) -> [tok] -> [r]
 parse (P p) g = p g
 
-parser :: Integer -> P
+parser :: Ord tok => Integer -> P tok
 parser 0 = P ReadP.parse
 parser 1 = P AmbTrie.parse
 parser 2 = P AmbExTrie.parse
@@ -61,7 +68,7 @@ parser _ = error "No more parser combinator libraries."
 ------------------------------------------------------------------------
 -- Test driver
 
-test :: Bool -> P -> String -> [Expr] -> IO ()
+test :: Bool -> P Token -> String -> [Expr] -> IO ()
 test remDups p s es =
   putStrLn $ pad 40 (show s) ++ pad 8 (isOK ++ ": ") ++ show es'
   where
