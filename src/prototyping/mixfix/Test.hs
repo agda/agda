@@ -7,11 +7,9 @@
 -- all seem to be reasonably efficient. There are faster
 -- parsers/parser combinators, but they may be unnecessary, unless
 -- someone decides to define and use horribly ambiguous operators.
--- ReadP is a bit too slow for these grammars (∼ 10 times slower on
--- the tests below), perhaps because the grammars are slightly
--- ambiguous. Note that applying one of the continuation transformers
--- to, say, AmbExTrie2 makes it a lot slower (in this context,
--- anyway).
+-- ReadP is too slow for these grammars. Note that applying one of the
+-- continuation transformers to, say, AmbExTrie2 makes it a lot slower
+-- (in this context, anyway).
 
 {-# LANGUAGE ExistentialQuantification, Rank2Types,
              MultiParamTypeClasses, FlexibleInstances,
@@ -102,27 +100,30 @@ main = do
 lift :: (s -> (a, s)) -> State s a
 lift = State
 
-lift0 :: (s -> s) -> State s s
-lift0 f = State (\x -> let s' = f x in (s', s'))
+lift0 :: (s -> s) -> State s ()
+lift0 f = State (\x -> ((), f x))
 
 unrelated'    op fix     = lift  $ unrelated    op fix        
 bindsAs'      op fix n   = lift0 $ bindsAs      op fix n       
 bindsBetween' op fix t l = lift  $ bindsBetween op fix t l 
+
+-- Note that this graph is not intended to be representative of how I
+-- want operator precedences to be specified for the operators given.
 
 example :: PrecedenceGraph
 example = flip execState empty $ do
   eq   <- unrelated'    ["="]                  (Infix Non)
   unrelated'            ["<",">"]              (Infix Non)
   plus <- bindsBetween' ["+"]                  (Infix L)   [eq]   []
-  bindsAs'              ["-"]                  (Infix L)   plus
+  bindsAs'              ["-"]                  (Infix R)   plus
   mul  <- bindsBetween' ["*"]                  (Infix L)   [plus] []
   bindsAs'              ["/"]                  (Infix L)   mul
   pow  <- bindsBetween' ["^"]                  (Infix R)   [mul]  []
   or   <- bindsBetween' ["||"]                 (Infix R)   [eq]   []
   not  <- bindsBetween' ["!"]                  Prefix      [or]   []
-  and  <- bindsBetween' ["&&"]                 (Infix R)   [or]   [not]
+  and  <- bindsBetween' ["&&"]                 (Infix R)   [or]   [not, plus]
   eq'  <- bindsBetween' ["=="]                 (Infix Non) []     [or]
-  ite  <- bindsBetween' ["if", "then", "else"] Prefix      [eq]   []
+  ite  <- bindsBetween' ["if", "then", "else"] Prefix      [eq]   [and, mul]
   bindsAs'              ["if", "then"]         Prefix      ite
   ox   <- unrelated'    ["[[","]]"]            Postfix
   bindsAs'              ["[[","]]*"]           Postfix     ox
@@ -143,8 +144,9 @@ tests n = do
   test' "x < x = x > x"                        [Op "_<_>_" [a, Op "_=_" [a, a], a]]
   test' "x + x"                                [Op "_+_" [a, a]]
   test' "x + y + z"                            [Op "_+_" [Op "_+_" [a, a], a]]
-  test' "x + y - z"                            [Op "_-_" [Op "_+_" [a, a], a]]
-  test' "x + y && z"                           []
+  test' "x + y - z"                            []
+  test' "x * y / z"                            [Op "_/_" [Op "_*_" [a, a], a]]
+  test' "x + y && z"                           [Op "_&&_" [Op "_+_" [a, a], a]]
   test' "x ^ y ^ z"                            [Op "_^_" [a, Op "_^_" [a, a]]]
   test' "! x"                                  [Op "!_" [a]]
   test' "! ! x"                                [Op "!_" [Op "!_" [a]]]
