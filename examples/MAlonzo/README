@@ -1,0 +1,42 @@
+Usage
+
+  agda --compile --malonzo --malonzoDir <DIR> <FILE>.agda
+
+Compiles <FILE>.agda and hereditarily imported agda files to Haskell.
+Haskell files are written under the directory <DIR>/MAlonzo.
+If --manlonzoDir <DIR> is omitted, the current directory is used instead.
+
+Agda module A.B.C translates to Haskell module MAlonzo.A.B.C
+(to avoid conflicts between Agda and Haskell standard libraries.)
+
+To compile the output Haskell files by ghc, do
+
+  ghc -i<DIR> -main-is MAlonzo.<FILE> <DIR>/Malonzo/<FILE>.hs --make
+
+You need to add something like lib/System/IO.agda below to
+the library.   Then, main : IO () in <FILE>.agda translates to
+main :: IO () in <FILE>.hs
+
+A known problem: it tries to compile like ghc --make (skipping an
+imported file if it already has an up-to-date haskell file), but
+it occasionally fails during type checking (an agda problem).
+
+
+
+module System.IO where
+
+open import Data.Unit   using (⊤)
+open import Data.String using (String)
+
+postulate
+  IO : Set -> Set
+
+{-# BUILTIN IO	 IO #-}
+{-# BUILTIN UNIT ⊤  #-}
+
+primitive
+  primPutStr	     : String -> IO ⊤
+  primIOReturn	     : {a : Set} -> a -> IO a
+  primIOBind	     : {a b : Set} -> IO a -> (a -> IO b) -> IO b
+
+

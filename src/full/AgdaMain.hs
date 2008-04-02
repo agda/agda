@@ -49,6 +49,7 @@ import TypeChecking.SerialiseShare
 
 import Compiler.Agate.Main as Agate
 import Compiler.Alonzo.Main as Alonzo
+import Compiler.MAlonzo.Compiler as MAlonzo
 
 import Termination.TermCheck
 
@@ -83,10 +84,12 @@ runAgda =
 	    do	i	<- optInteractive <$> liftTCM commandLineOptions
 		compile <- optCompile <$> liftTCM commandLineOptions
 		alonzo <- optCompileAlonzo <$> liftTCM commandLineOptions
+                malonzo <- optCompileMAlonzo <$> liftTCM commandLineOptions
 		when i $ liftIO $ putStr splashScreen
 		let interaction | i	  = interactionLoop
 				| compile = Agate.compilerMain .(>> return ())
 				| alonzo  = Alonzo.compilerMain .(>> return ())
+                                | malonzo = MAlonzo.compilerMain .(>> return())
 				| otherwise = \m -> do
 				    (_, err) <- m
 				    maybe (return ()) typeError err

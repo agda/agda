@@ -7,6 +7,7 @@ module Syntax.Translation.ConcreteToAbstract
     ( ToAbstract(..), localToAbstract
     , concreteToAbstract_
     , concreteToAbstract
+    , NewModuleQName(..)
     , OldName(..)
     , TopLevel(..)
     , TopLevelInfo(..)

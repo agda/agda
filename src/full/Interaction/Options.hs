@@ -60,6 +60,8 @@ data CommandLineOptions =
 	    , optDisablePositivity :: Bool
             , optDisableInjectivity:: Bool
 	    , optCompileAlonzo     :: Bool
+            , optCompileMAlonzo    :: Bool
+            , optMAlonzoDir        :: Maybe FilePath
 	    , optTerminationCheck  :: Bool
 	    , optCompletenessCheck :: Bool
 	    }
@@ -90,6 +92,8 @@ defaultOptions =
 	    , optDisablePositivity = False
 	    , optDisableInjectivity= False
 	    , optCompileAlonzo     = False
+	    , optCompileMAlonzo    = False
+            , optMAlonzoDir        = Nothing
             , optTerminationCheck  = True
             , optCompletenessCheck = True
 	    }
@@ -124,11 +128,21 @@ interactiveFlag o = return $ o { optInteractive   = True
 			       }
 compileFlag o = return $ o { optCompileAlonzo = True }
 agateFlag o   = return $ o { optCompileAlonzo = False
+                           , optCompileMAlonzo= False
                            , optCompile       = True
                            } 
 alonzoFlag o  = return $ o { optCompileAlonzo = True
+                           , optCompileMAlonzo= False
                            , optCompile       = False
                            } 
+malonzoFlag o = return $ o { optCompileAlonzo = False
+                           , optCompileMAlonzo= True
+                           , optCompile       = False
+                           } 
+
+malonzoDirFlag f o = case optMAlonzoDir o of
+  Nothing  -> return $ o { optMAlonzoDir = Just f }
+  Just _   -> fail "only one MAlonzo directory is allowed"
 
 includeFlag d o	    = return $ o { optIncludeDirs   = d : optIncludeDirs o   }
 verboseFlag s o	    =
@@ -165,6 +179,10 @@ standardOptions =
 		    "use the Agate compiler (only with --compile)"
     , Option []     ["alonzo"] (NoArg alonzoFlag)
 		    "use the Alonzo compiler (DEFAULT) (only with --compile)"
+    , Option []     ["malonzo"] (NoArg malonzoFlag)
+		    "use the MAlonzo compiler (only with --compile and --malonzodir DIR)"
+    , Option []     ["malonzodir"] (ReqArg malonzoDirFlag "DIR")
+		    "set the directory for MAlonzo output"
     , Option []	    ["test"] (NoArg runTestsFlag)
 		    "run internal test suite"
     , Option []	    ["vim"] (NoArg vimFlag)

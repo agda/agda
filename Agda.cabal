@@ -45,6 +45,10 @@ library
                    Compiler.Alonzo.Names
                    Compiler.Alonzo.Haskell
                    Compiler.Alonzo.PatternMonad
+                   Compiler.MAlonzo.Compiler
+                   Compiler.MAlonzo.Misc
+                   Compiler.MAlonzo.Pretty
+                   Compiler.MAlonzo.Primitives
                    Interaction.CommandLine.CommandLine
                    Interaction.Exceptions
                    Interaction.Highlighting.Emacs
