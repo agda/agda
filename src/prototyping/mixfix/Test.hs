@@ -25,6 +25,7 @@ import qualified AmbExTrie
 import qualified AmbExTrie2
 import qualified ContTrans
 import qualified StackContTrans
+import qualified SlowParser
 import Control.Monad
 import Control.Monad.State hiding (lift)
 import qualified Parser
@@ -69,6 +70,7 @@ parser 2 = P AmbExTrie.parse
 parser 3 = P AmbExTrie2.parse
 parser 4 = P (ContTrans.parse AmbExTrie2.parse)
 parser 5 = P (StackContTrans.parse AmbExTrie2.parse)
+parser 6 = P SlowParser.parse
 parser _ = error "No more parser combinator libraries."
 
 ------------------------------------------------------------------------
