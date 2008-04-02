@@ -9,7 +9,9 @@
 -- someone decides to define and use horribly ambiguous operators.
 -- ReadP is a bit too slow for these grammars (∼ 10 times slower on
 -- the tests below), perhaps because the grammars are slightly
--- ambiguous.
+-- ambiguous. Note that applying one of the continuation transformers
+-- to, say, AmbExTrie2 makes it a lot slower (in this context,
+-- anyway).
 
 {-# LANGUAGE ExistentialQuantification, Rank2Types,
              MultiParamTypeClasses, FlexibleInstances,
@@ -21,6 +23,8 @@ import qualified ReadP
 import qualified AmbTrie
 import qualified AmbExTrie
 import qualified AmbExTrie2
+import qualified ContTrans
+import qualified StackContTrans
 import Control.Monad
 import Control.Monad.State hiding (lift)
 import qualified Parser
@@ -63,6 +67,8 @@ parser 0 = P ReadP.parse
 parser 1 = P AmbTrie.parse
 parser 2 = P AmbExTrie.parse
 parser 3 = P AmbExTrie2.parse
+parser 4 = P (ContTrans.parse AmbExTrie2.parse)
+parser 5 = P (StackContTrans.parse AmbExTrie2.parse)
 parser _ = error "No more parser combinator libraries."
 
 ------------------------------------------------------------------------
