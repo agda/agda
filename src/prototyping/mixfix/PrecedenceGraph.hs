@@ -2,7 +2,8 @@
 -- Precedence graphs
 ------------------------------------------------------------------------
 
-{-# LANGUAGE FlexibleContexts #-}
+{-# OPTIONS_GHC -fglasgow-exts #-} -- LiberalTypeSynonyms does not work.
+{-# LANGUAGE FlexibleContexts, LiberalTypeSynonyms #-}
 
 module PrecedenceGraph
     -- * Precedence graphs.
@@ -30,6 +31,8 @@ import qualified Data.Graph.Inductive as G
 import Data.Graph.Inductive ((&))
 import Control.Applicative hiding (empty)
 import qualified Control.Applicative as A
+import qualified Control.Monad.State as S
+import qualified Control.Monad.Identity as I
 
 ------------------------------------------------------------------------
 -- Some helper functions
@@ -170,33 +173,46 @@ data Expr = AtomE | Op String [Expr]
 
 type Op = (String, [Expr])
 
+-- | The parser type used below. The state component is used to
+-- memoise the computation of node parsers.
+
+type P r = forall p. Parser p Token =>
+           S.State (Map Node (p Expr)) (p r)
+
 -- | Expression parser. Parameterised on a graph describing the
 -- operators.
 
 expressionParser :: Parser p Token => PrecedenceGraph -> p Expr
-expressionParser g = expr g (nodes g)
-
--- | Parses atoms.
-
-atom :: Parser p Token => p Expr
-atom = AtomE <$ sym Atom
+expressionParser g = S.evalState (expr g (nodes g)) Map.empty
 
 -- | Parses a subset of the expressions. Only the nodes reachable from
 -- the given list of nodes are recognised by the parser.
 
-expr :: Parser p Token => PrecedenceGraph -> [Node] -> p Expr
-expr g ns = atom <|> choice (map (node g) ns)
+expr :: PrecedenceGraph -> [Node] -> P Expr
+expr g ns = do
+  ns <- mapM (node g) ns
+  return $ (AtomE <$ sym Atom) <|> choice ns
 
 -- | Parser for one operator (just the internal, mixfix part).
 
-opProd :: Parser p Token => PrecedenceGraph -> Name -> p Op
-opProd g nameParts = (,) (List.intercalate "_" nameParts) <$>
-                     (map Name nameParts `sepBy'` expressionParser g)
+-- Note that this function uses the non-memoised (expressionParser g)
+-- instead of the memoised (expr g (nodes g)). The reason is that
+-- otherwise the memoisation is not sufficiently productive. This
+-- could be fixed by inserting the parsers into the memo table
+-- _before_ computing them, by using recursive do in "node" below.
+-- However, I think recursive do is too complicated. The current
+-- solution is easier to understand and gives roughly the same
+-- performance.
+
+opProd :: PrecedenceGraph -> Name -> P Op
+opProd g nameParts =
+  return $ (,) (List.intercalate "_" nameParts) <$>
+           (map Name nameParts `sepBy'` expressionParser g)
 
 -- | Parser for several operators.
 
-opProds :: Parser p Token => PrecedenceGraph -> [Name] -> p Op
-opProds g ops = choice (map (opProd g) ops)
+opProds :: PrecedenceGraph -> [Name] -> P Op
+opProds g ops = fmap choice (mapM (opProd g) ops)
 
 appLeft :: Expr -> Op -> Expr
 appLeft e (n, es) = Op ('_' : n) (e : es)
@@ -209,19 +225,29 @@ appBoth (n, es) l r = Op ('_' : n ++ "_") (l : es ++ [r])
 
 -- | Parser for a node.
 
-node :: Parser p Token => PrecedenceGraph -> Node -> p Expr
-node g n = pre <|> post <|> nonass <|> left <|> right
+-- The graph typically has lots of sharing (many pointers to the same
+-- node), so this function is memoised.
+
+node :: PrecedenceGraph -> Node -> P Expr
+node g n = do
+  memoisedP <- fmap (Map.lookup n) S.get
+  case memoisedP of
+    Just p  -> return p
+    Nothing -> do
+      -- Parser for operators of higher precedence.
+      h <- expr g (successors g n)
+      p <- fmap choice $ sequence (opParsers h)
+      S.modify (Map.insert n p)
+      return p
   where
-  ann = annotation g n
+  ops fixity f = fmap f (opProds g (annotation g n ! fixity))
+                        -- Parser for the internal parts of operators
+                        -- of the given fixity (in this node).
 
-  pre    = flip (foldr appRight) <$>
-           many1 (opProds g (ann ! Prefix)) <*> higher
-  post   = foldl appLeft <$>
-           higher <*> many1 (opProds g (ann ! Postfix))
-  nonass = flip appBoth <$>
-           higher <*> opProds g (ann ! Infix Non) <*> higher
-  left   = chainl3 higher (appBoth <$> opProds g (ann ! Infix L))
-  right  = chainr3 higher (appBoth <$> opProds g (ann ! Infix R))
-
-  -- Parser for operators of higher precedence.
-  higher = expr g (successors g n)
+  opParsers h =
+    [ ops Prefix      (\o -> flip (foldr appRight) <$> many1 o <*> h)
+    , ops Postfix     (\o -> foldl appLeft         <$> h <*> many1 o)
+    , ops (Infix Non) (\o -> flip appBoth <$> h <*> o <*> h)
+    , ops (Infix L)   (\o -> chainl3 h (appBoth <$> o))
+    , ops (Infix R)   (\o -> chainr3 h (appBoth <$> o))
+    ]
