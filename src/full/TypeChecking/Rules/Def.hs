@@ -85,7 +85,7 @@ checkFunDef i name cs =
         -- Add the definition
         addConstant name $ Defn name t (defaultDisplayForm name) 0
                          $ Function cs inv $ Info.defAbstract i
-        verbose 10 $ do
+        verboseS "tc.def.fun" 10 $ do
           dx <- prettyTCM name
           t' <- prettyTCM . defType =<< getConstInfo name
           liftIO $ putStrLn $ "added " ++ show dx ++ " : " ++ show t'

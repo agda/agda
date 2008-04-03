@@ -44,10 +44,12 @@ headSymbol v = do
     _       -> return Nothing
 
 checkInjectivity :: QName -> [Clause] -> TCM FunctionInverse
-checkInjectivity f cs = ifM (not <$> positivityCheckEnabled)
+checkInjectivity f cs = ifM (not <$> injectivityCheckEnabled)
                             (return NotInjective) $ {- else -} do
+  reportSLn "tc.inj.check" 40 $ "Checking injectivity of " ++ show f
   es <- concat <$> mapM entry cs
   let (hs, ps) = unzip es
+  reportSLn "tc.inj.check" 40 $ "  right hand sides: " ++ show hs
   if all isJust hs && distinct hs
     then do
       let inv = Map.fromList (map fromJust hs `zip` ps)
