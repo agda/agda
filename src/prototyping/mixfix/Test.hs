@@ -74,13 +74,13 @@ parser _ = error "No more parser combinator libraries."
 ------------------------------------------------------------------------
 -- Test driver
 
-test :: Bool -> P Token -> String -> [Expr] -> IO ()
-test remDups p s es =
+test :: P Token -> PrecedenceGraph -> String -> [Expr] -> IO ()
+test p g s es =
   putStrLn $ pad 40 (show s) ++ pad 8 (isOK ++ ": ") ++ show es'
   where
   pad n s = s ++ replicate (n - length s) ' '
 
-  es'  = parse p (expressionParser example) (lex s)
+  es'  = parse p (expressionParser g) (lex s)
 
   isOK | List.sort es' == List.sort es = "OK"
        | otherwise                     = "Not OK"
@@ -103,9 +103,9 @@ lift = State
 lift0 :: (s -> s) -> State s ()
 lift0 f = State (\x -> ((), f x))
 
-unrelated'    op fix     = lift  $ unrelated    op fix        
-bindsAs'      op fix n   = lift0 $ bindsAs      op fix n       
-bindsBetween' op fix t l = lift  $ bindsBetween op fix t l 
+unrelated'    op fix     = lift  $ unrelated    op fix
+bindsAs'      op fix n   = lift0 $ bindsAs      op fix n
+bindsBetween' op fix t l = lift  $ bindsBetween op fix t l
 
 -- Note that this graph is not intended to be representative of how I
 -- want operator precedences to be specified for the operators given.
@@ -132,6 +132,59 @@ example = flip execState empty $ do
   unrelated'            ["foo"]                (Infix R)
   unrelated'            ["<<",">>"]            (Infix L)
   unrelated'            [">>","<<"]            (Infix Non)
+
+------------------------------------------------------------------------
+-- A very ambiguous graph
+
+-- stressTest n yields a graph which is the transitive closure of a
+-- graph with the following shape (with edges going upwards):
+--
+--  ⋱      ⋰
+--   ⋱    ⋰
+--    ⋱  ⋰
+--     n₂
+--    ╱  ╲
+--   ╱    ╲
+--  ╱      ╲
+-- a₂       b₂
+--  ╲      ╱
+--   ╲    ╱
+--    ╲  ╱
+--     n₁
+--    ╱  ╲
+--   ╱    ╲
+--  ╱      ╲
+-- a₁       b₁
+--  ╲      ╱
+--   ╲    ╱
+--    ╲  ╱
+--     n₀
+--
+-- The top-most node is n_n.
+
+-- These graphs are tricky to parse for all but very small n, or if
+-- the "width" is increased. If this should turn out to be a problem
+-- in practice we have (at least) two ways out:
+--
+-- ⑴ Prune the graph, keeping only those nodes which have operator
+--   parts occurring in the expression at hand. I think that this
+--   covers all practical cases. If someone actually tries to make
+--   things hard for the parser, then it won't, though.
+--
+-- ⑵ Use an efficient parser which can return many ambiguous results
+--   compactly. These representations are harder to work with, though,
+--   so I'd rather avoid this solution.
+
+stressTest :: Integer -> (Node, PrecedenceGraph)
+stressTest n | n <= 0 = unrelated ["n0"] (Infix Non) empty
+stressTest n = flip runState g $ do
+  a <- bindsBetween' (name 'a') (Infix Non) [node] []
+  b <- bindsBetween' (name 'b') (Infix Non) [node] []
+  c <- bindsBetween' (name 'n') (Infix Non) [a, b] []
+  return c
+  where
+  (node, g) = stressTest (n - 1)
+  name c    = [c : show n]
 
 ------------------------------------------------------------------------
 -- Tests
@@ -165,6 +218,20 @@ tests n = do
                                                , Op "_foo_" [Op "_foo_" [a, a], a] ]
   test' "x foo x foo x foo x"                  [ Op "_foo_" [a, Op "_foo_" [a, Op "_foo_" [a, a]]]
                                                , Op "_foo_" [Op "_foo_" [Op "_foo_" [a, a], a], a] ]
+
+  test'' 6 2 6
+  test'' 6 1 5
   where
-  a     = AtomE
-  test' = test True (parser n)
+  a      = AtomE
+  test_n = test (parser n)
+
+  test'  = test_n example
+
+  -- Precondition: m >= j > i > 0.
+  test'' m i j = test_n (snd $ stressTest m)
+                        (unwords ["x", op 'a' i, "x", op 'b' j, "x"])
+                        (replicate (2 ^ (j - i - 1))
+                                   (Op (op' 'a' i) [a, Op (op' 'b' j) [a, a]]))
+    where
+    op  c i = c : show i
+    op' c i = "_" ++ op c i ++ "_"
