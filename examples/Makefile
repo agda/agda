@@ -3,7 +3,7 @@ TOP = ..
 
 include $(TOP)/mk/paths.mk
 
-default : test polydep aim4-bag ac minmax clowns vfl real effects simplelib
+default : test polydep aim4-bag ac minmax clowns vfl real effects simplelib divmod
 
 agda = $(AGDA_BIN)
 
@@ -57,6 +57,11 @@ view : vfl/Typechecker.agda
 	@echo "ok"
 
 simplelib : simple-lib/TestLib.agda
+	@echo "Testing $<... "
+	@echo :q | $(run_agda) -isimple-lib $<
+	@echo "ok"
+
+divmod : arith/DivMod.agda
 	@echo "Testing $<... "
 	@echo :q | $(run_agda) -isimple-lib $<
 	@echo "ok"
