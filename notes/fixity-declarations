@@ -227,3 +227,55 @@ Details (based on discussions with Ulf):
 
   The resulting grammar may require a large lookahead, so it may need
   to be optimised (left factored, for instance).
+
+------------------------------------------------------------------------
+Open questions
+------------------------------------------------------------------------
+
+* What is the sub-class of DAGs that the declarations introduced above
+  can give rise to? Not all DAGs can be constructed in this way. Take
+  •⟶•⟶•⟶•, for instance. Could this be overly limiting?
+
+* Does the order of the declarations matter? If it does, then the
+  scheme should be changed, since otherwise we would have a
+  non-declarative language for specifying fixities. (It would not be
+  very nice if the relative precedence of two operators depended on in
+  which order two modules were imported, for instance.)
+
+  Order does not matter for this simple example:
+
+    infix      _≡_
+    infix left _+_ binds tighter than _≡_
+    infix      ¬_  binds looser  than _≡_
+
+  The declarations give rise to the following precedence graph:
+
+    ╭─────╮
+    │ _+_ ├⟵╮
+    ╰──┬──╯ │
+       ↑    │
+    ╭──┴──╮ │
+    │ _≡_ │ │
+    ╰──┬──╯ │
+       ↑    │
+    ╭──┴──╮ │
+    │ ¬_  ├─╯
+    ╰─────╯
+
+  If the order of the declarations is changed to
+
+    infix      _≡_
+    infix      ¬_  binds looser  than _≡_
+    infix left _+_ binds tighter than _≡_
+
+  we still get the same graph. Is this generally true?
+
+------------------------------------------------------------------------
+Summary of important "correctness" criteria
+------------------------------------------------------------------------
+
+• Adding a new declaration should not change the relations between
+  previously declared operators.
+
+• If declarations can be reordered, then the semantics must be
+  independent of their order.
