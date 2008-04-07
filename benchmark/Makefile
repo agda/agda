@@ -19,13 +19,16 @@ else
 INFO = $(HOST_INFO)
 endif
 
-logFiles = $(patsubst %,$(LOG_DIR)/$(TAG)/%,$(allTests))
+logDir = $(LOG_DIR)/$(TAG)
+logFiles = $(patsubst %,$(logDir)/%,$(allTests))
 
-all : $(logFiles)
+all : $(logDir) $(logFiles)
+
+$(logDir) :
+	@mkdir -p $@
 
 $(LOG_DIR)/$(TAG)/% :
 	@echo Running benchmark $*
-	@mkdir -p $(LOG_DIR)/$(TAG)
 	@$(AGDA_BIN) $($*) +RTS -s$@
 	@echo "──────────────────────────────────────────────────────────────────" >> $@
 	@$(INFO) >> $@

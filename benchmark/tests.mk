@@ -14,6 +14,10 @@ syntax1	= Syntacticosmos/UntypedLambda.agda --ignore-interfaces -iSyntacticosmos
 syntax2	= Syntacticosmos/UntypedLambda.agda -iSyntacticosmos -v0 +RTS -K32M
 syntaxTests = syntax1 syntax2
 
+# cwf
+cwf = cwf/CwF.agda --ignore-interfaces -icwf -v0
+cwfTests = cwf
+
 # All tests
-allTests = $(catTests) $(acTests) $(syntaxTests)
+allTests = $(catTests) $(acTests) $(syntaxTests) $(cwfTests)
 
