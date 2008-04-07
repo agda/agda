@@ -27,10 +27,10 @@ open import Data.Vec
 
 -- The specification of integer division.
 
-data Result (divisor dividend : ℕ) : Set where
-  result : (n : ℕ) (r : Fin dividend) ->
-           divisor ≡ n * dividend + toℕ r ->
-           Result divisor dividend
+data Result (dividend divisor : ℕ) : Set where
+  result : (n : ℕ) (r : Fin divisor) ->
+           dividend ≡ n * divisor + toℕ r ->
+           Result dividend divisor
 
 -- The implementation. Note that Logic.Induction.Nat is used to ensure
 -- termination of division.
@@ -38,8 +38,8 @@ data Result (divisor dividend : ℕ) : Set where
 private
 
   Pred : ℕ -> Set
-  Pred divisor = (dividend : ℕ) {≢0 : False (dividend ℕ-≟ 0)} ->
-                 Result divisor dividend
+  Pred dividend = (divisor : ℕ) {≢0 : False (divisor ℕ-≟ 0)} ->
+                  Result dividend divisor
 
   helper : forall m n {o} ->
            Ordering m o -> o ≡ suc n -> <-Rec Pred m ->
@@ -80,21 +80,21 @@ private
   helper ._ _ (equal zero)     () _
   helper ._ _ (greater zero _) () _
 
-  divMod' : (divisor : ℕ) -> <-Rec Pred divisor -> Pred divisor
+  divMod' : (dividend : ℕ) -> <-Rec Pred dividend -> Pred dividend
   divMod' m rec zero    {≢0 = ()}
   divMod' m rec (suc n) = helper m n (compare m (suc n)) ≡-refl rec
 
 -- And the interface.
 
-_divMod_ : (divisor dividend : ℕ) {≢0 : False (dividend ℕ-≟ 0)} ->
-           Result divisor dividend
+_divMod_ : (dividend divisor : ℕ) {≢0 : False (divisor ℕ-≟ 0)} ->
+           Result dividend divisor
 _divMod_ = <-rec Pred divMod'
 
-_div_ : (divisor dividend : ℕ) {≢0 : False (dividend ℕ-≟ 0)} -> ℕ
+_div_ : (dividend divisor : ℕ) {≢0 : False (divisor ℕ-≟ 0)} -> ℕ
 _div_ m n {≢0} with _divMod_ m n {≢0}
 ... | result x _ _ = x
 
-_mod_ : (divisor dividend : ℕ) {≢0 : False (dividend ℕ-≟ 0)} ->
-        Fin dividend
+_mod_ : (dividend divisor : ℕ) {≢0 : False (divisor ℕ-≟ 0)} ->
+        Fin divisor
 _mod_ m n {≢0} with _divMod_ m n {≢0}
 ... | result _ r _ = r
