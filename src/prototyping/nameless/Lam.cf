@@ -1,0 +1,26 @@
+
+entrypoints Prog, Exp;
+
+layout toplevel ;
+
+token VarName letter (lower | upper | digit)* ;
+
+Prog. Prog ::= [Decl] ;
+
+separator Decl ";" ;
+
+Def.   Decl ::= VarName ":" Exp "=" Exp ;
+Axiom. Decl ::= VarName ":" Exp ;
+
+Lam.  Exp  ::= "\\" [VarName] "->" Exp ;
+Pi.   Exp  ::= "(" VarName ":" Exp ")" "->" Exp ;
+Fun.  Exp  ::= Exp1 "->" Exp ;
+App.  Exp1 ::= Exp1 Exp2 ;
+Var.  Exp2 ::= VarName ;
+Star. Exp2 ::= "*";
+
+separator nonempty VarName "" ;
+coercions Exp 2;
+
+comment "--" ;
+

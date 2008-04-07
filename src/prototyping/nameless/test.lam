@@ -1,0 +1,12 @@
+
+Nat  : *
+zero : Nat
+suc  : Nat -> Nat
+
+elimNat : (P : Nat -> *) ->
+          P zero -> ((n : Nat) -> P n -> P (suc n)) ->
+          (n : Nat) -> P n
+
+id : (A : *) -> A -> A
+   = \A x -> x
+

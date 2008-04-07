@@ -1,7 +1,6 @@
 
 
 module Main where
-
 {-# IMPORT System.IO #-}
 {-# IMPORT System.Environment #-}
 

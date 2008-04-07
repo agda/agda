@@ -50,3 +50,4 @@ examples/cbs/agda1
 src/hTags/dist$
 examples/fileIO/.*\.hs$
 examples/fileIO/Main$
+src/prototyping/nameless/(nameless|Lam)$
