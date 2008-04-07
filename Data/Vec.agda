@@ -26,20 +26,6 @@ open import Data.Vec.Core public
 
 private
 
-  lem₁ : forall n k -> n * k + k ≡ k + n * k
-  lem₁ n k = prove (n ∷ k ∷ [])
-                   (N :* K :+ K)
-                   (K :+ N :* K)
-                   ≡-refl
-    where N = var fz; K = var (fs fz)
-
-  lem₂ : forall m n -> m + n * m ≡ n * m + m
-  lem₂ m n = prove (m ∷ n ∷ [])
-                   (M :+ N :* M)
-                   (N :* M :+ M)
-                   ≡-refl
-    where M = var fz; N = var (fs fz)
-
   lem₃ : forall m -> m + 0 ≡ m
   lem₃ m = prove (m ∷ []) (M :+ con 0) M ≡-refl
     where M = var fz
@@ -97,9 +83,8 @@ foldr₁ _⊕_ (x ∷ [])         = x
 foldr₁ _⊕_ (x ∷ xs@(_ ∷ _)) = x ⊕ foldr₁ _⊕_ xs
 
 concat : forall {a m n} -> Vec (Vec a m) n -> Vec a (n * m)
-concat                 []                   = []
-concat {a = a} {m = m} (_∷_ {n = n} xs xss) =
-  cast (lem₂ m n) (xs ++ concat xss)
+concat []         = []
+concat (xs ∷ xss) = xs ++ concat xss
 
 take : forall {a n} (i : Fin (suc n)) -> Vec a n -> Vec a (toℕ i)
 take fz      xs       = []
@@ -117,9 +102,8 @@ splitAt (suc m) (x ∷ xs) with splitAt m xs
 ... | (ys , zs) = (x ∷ ys , zs)
 
 group : forall {a n} -> (k : ℕ) -> Vec a (n * k) -> Vec (Vec a k) n
-group         {n = zero}  k [] = []
-group {a = a} {n = suc n} k xs
-  with splitAt k (cast (lem₁ n k) xs)
+group {n = zero}  k [] = []
+group {n = suc n} k xs with splitAt k xs
 ... | (ys , zs) = ys ∷ group k zs
 
 revApp : forall {a m n} -> Vec a m -> Vec a n -> Vec a (m + n)

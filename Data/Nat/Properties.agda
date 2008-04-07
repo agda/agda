@@ -58,13 +58,17 @@ private
     begin
       suc m * suc n
     ≈⟨ byDef ⟩
-      m * suc n + suc n
-    ≈⟨ m+1+n≡1+m+n (m * suc n) n ⟩
-      suc (m * suc n + n)
-    ≈⟨ ≡-cong (\x -> suc (x + n)) (m*1+n≡m+mn m n) ⟩
-      suc (m +  m * n + n)
-    ≈⟨ ≡-cong suc (+-assoc m (m * n) n) ⟩
-      suc (m + (m * n + n))
+      suc n + m * suc n
+    ≈⟨ ≡-cong (\x -> suc n + x) (m*1+n≡m+mn m n) ⟩
+      suc n + (m + m * n)
+    ≈⟨ byDef ⟩
+      suc (n + (m + m * n))
+    ≈⟨ ≡-cong suc (≡-sym $ +-assoc n m (m * n)) ⟩
+      suc (n + m + m * n)
+    ≈⟨ ≡-cong (\x -> suc (x + m * n)) (+-comm n m) ⟩
+      suc (m + n + m * n)
+    ≈⟨ ≡-cong suc (+-assoc m n (m * n)) ⟩
+      suc (m + (n + m * n))
     ≈⟨ byDef ⟩
       suc m + suc m * n
     ∎
@@ -74,16 +78,7 @@ private
     where
     n*0≡0 : RightZero 0 _*_
     n*0≡0 zero    = byDef
-    n*0≡0 (suc n) =
-      begin
-        suc n * 0
-      ≈⟨ byDef ⟩
-        n * 0 + 0
-      ≈⟨ proj₂ +-identity _ ⟩
-        n * 0
-      ≈⟨ n*0≡0 n ⟩
-        0
-      ∎
+    n*0≡0 (suc n) = n*0≡0 n
 
   *-comm : Commutative _*_
   *-comm zero    n = ≡-sym $ proj₂ *-zero n
@@ -91,10 +86,8 @@ private
     begin
       suc m * n
     ≈⟨ byDef ⟩
-      m * n + n
-    ≈⟨ ≡-cong (\x -> x + n) (*-comm m n) ⟩
-      n * m + n
-    ≈⟨ +-comm (n * m) n ⟩
+      n + m * n
+    ≈⟨ ≡-cong (\x -> n + x) (*-comm m n) ⟩
       n + n * m
     ≈⟨ ≡-sym (m*1+n≡m+mn n m) ⟩
       n * suc m
@@ -109,19 +102,19 @@ private
                                  begin
       suc m * (n + o)
                                  ≈⟨ byDef ⟩
-      m * (n + o) + (n + o)
-                                 ≈⟨ ≡-cong (\x -> x + (n + o)) (distˡ m n o) ⟩
-      (m * n + m * o) + (n + o)
-                                 ≈⟨ +-assoc (m * n) (m * o) (n + o) ⟩
-      m * n + (m * o + (n + o))
-                                 ≈⟨ ≡-cong (\x -> (m * n) + x) $ ≡-sym $ +-assoc (m * o) n o ⟩
-      m * n + ((m * o + n) + o)
-                                 ≈⟨ ≡-cong (\x -> (m * n) + (x + o)) $ +-comm (m * o) n ⟩
-      m * n + ((n + m * o) + o)
-                                 ≈⟨ ≡-cong (\x -> (m * n) + x) $ +-assoc n (m * o) o ⟩
-      m * n + (n + (m * o + o))
-                                 ≈⟨ ≡-sym $ +-assoc (m * n) n (m * o + o) ⟩
-      (m * n + n) + (m * o + o)
+      (n + o) + m * (n + o)
+                                 ≈⟨ ≡-cong (\x -> (n + o) + x) (distˡ m n o) ⟩
+      (n + o) + (m * n + m * o)
+                                 ≈⟨ ≡-sym $ +-assoc (n + o) (m * n) (m * o) ⟩
+      ((n + o) + m * n) + m * o
+                                 ≈⟨ ≡-cong (\x -> x + (m * o)) $ +-assoc n o (m * n) ⟩
+      (n + (o + m * n)) + m * o
+                                 ≈⟨ ≡-cong (\x -> (n + x) + m * o) $ +-comm o (m * n) ⟩
+      (n + (m * n + o)) + m * o
+                                 ≈⟨ ≡-cong (\x -> x + (m * o)) $ ≡-sym $ +-assoc n (m * n) o ⟩
+      ((n + m * n) + o) + m * o
+                                 ≈⟨ +-assoc (n + m * n) o (m * o) ⟩
+      (n + m * n) + (o + m * o)
                                  ≈⟨ byDef ⟩
       suc m * n + suc m * o
                                  ∎
@@ -144,17 +137,17 @@ private
                          begin
     (suc m * n) * o
                          ≈⟨ byDef ⟩
-    (m * n + n) * o
-                         ≈⟨ proj₂ distrib-*-+ o (m * n) n ⟩
-    (m * n) * o + n * o
-                         ≈⟨ ≡-cong (\x -> x + n * o) $ *-assoc m n o ⟩
-    m * (n * o) + n * o
+    (n + m * n) * o
+                         ≈⟨ proj₂ distrib-*-+ o n (m * n) ⟩
+    n * o + (m * n) * o
+                         ≈⟨ ≡-cong (\x -> n * o + x) $ *-assoc m n o ⟩
+    n * o + m * (n * o)
                          ≈⟨ byDef ⟩
     suc m * (n * o)
                          ∎
 
   *-identity : Identity 1 _*_
-  *-identity = (\_ -> byDef) , n*1≡n
+  *-identity = proj₂ +-identity , n*1≡n
     where
     n*1≡n : RightIdentity 1 _*_
     n*1≡n n =
@@ -163,6 +156,8 @@ private
       ≈⟨ *-comm n 1 ⟩
         1 * n
       ≈⟨ byDef ⟩
+        n + 0
+      ≈⟨ proj₂ +-identity n ⟩
         n
       ∎
 

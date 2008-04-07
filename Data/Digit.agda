@@ -14,47 +14,29 @@ open import Data.List
 import Data.Vec as Vec
 open import Logic.Induction.Nat
 open import Data.Nat.DivMod
-open import Algebra.Structures
 open import Data.Nat.Properties
 open ≤-Reasoning
 open import Relation.Binary.PropositionalEquality
-open import Data.Product
 open import Data.Function
 open import Logic
 
 ------------------------------------------------------------------------
--- Some boring lemmas
+-- A boring lemma
 
 private
 
-  lem₀ : forall r k -> r + (k * 0 + 0 + 0) ≡ r
-  lem₀ r k = prove (Vec.fromList (r ∷ k ∷ []))
-                   (R :+ (K :* con 0 :+ con 0 :+ con 0)) R
-                   ≡-refl
-    where R = var fz; K = var (fs fz)
-
-  lem₁ : forall x k r -> 1 ≤ x -> 1 + x ≤′ x * (2 + k) + r
-  lem₁ x k r 1≤x = ≤⇒≤′ $ begin
-    1 + x
-      ≤⟨ 1≤x +-mono byDef ⟩
-    x + x
-      ≡⟨ *-comm 2 x ⟩
-    x * 2
+  lem : forall x k r -> 2 + x ≤′ r + (1 + x) * (2 + k)
+  lem x k r = ≤⇒≤′ $ begin
+    2 + x
       ≤⟨ m≤m+n _ _ ⟩
-    x * 2 + x * k
-      ≡⟨ ≡-sym (proj₁ distrib x 2 k) ⟩
-    x * (2 + k)
-      ≤⟨ m≤m+n _ _ ⟩
-    x * (2 + k) + r
+    2 + x + (x + (1 + x) * k + r)
+      ≡⟨ (let X = var fz; R = var (fs fz); K = var (fs (fs fz)) in
+         prove (Vec.fromList (x ∷ r ∷ k ∷ []))
+               (con 2 :+ X :+ (X :+ (con 1 :+ X) :* K :+ R))
+               (R :+ (con 1 :+ X) :* (con 2 :+ K))
+               ≡-refl) ⟩
+    r + (1 + x) * (2 + k)
       ∎
-    where open IsCommutativeSemiring _ ℕ-isCommutativeSemiring
-
-  lem₂ : forall {s} x r k -> s ≡ x -> r + k * s ≡ x * k + r
-  lem₂ x r k ≡-refl =
-    prove (Vec.fromList (x ∷ r ∷ k ∷ []))
-          (R :+ K :* X) (X :* K :+ R)
-          ≡-refl
-    where X = var fz; R = var (fs fz); K = var (fs (fs fz))
 
 ------------------------------------------------------------------------
 -- Digits
@@ -119,7 +101,7 @@ showDigit (fs (fs (fs (fs (fs (fs (fs (fs (fs (fs (fs (fs (fs (fs (fs (fs ()))))
 
 fromDigits : forall {base} -> [ Fin base ] -> ℕ
 fromDigits        []       = 0
-fromDigits {base} (d ∷ ds) = toℕ d + base * fromDigits ds
+fromDigits {base} (d ∷ ds) = toℕ d + fromDigits ds * base
 
 -- digits b n yields the digits of n, in base b, starting with the
 -- _least_ significant digit.
@@ -137,14 +119,14 @@ digits base@(suc (suc k)) n = <-rec Pred helper n
   helper : forall n -> <-Rec Pred n -> Pred n
   helper n rec with n divMod base
 
-  helper .(toℕ r) rec | result zero r ≡-refl =
-    exists (r ∷ []) (lem₀ (toℕ r) k)
+  helper .(toℕ r + 0 * base) rec | result zero r ≡-refl =
+    exists (r ∷ []) ≡-refl
 
-  helper .(x * base + toℕ r) rec | result x@(suc _) r ≡-refl
-    with rec x (lem₁ x k (toℕ r) (s≤s z≤n))
-  helper .(x * base + toℕ r) rec | result (suc m) r ≡-refl
+  helper .(toℕ r + x * base) rec | result x@(suc _) r ≡-refl
+    with rec x (lem (pred x) k (toℕ r))
+  helper .(toℕ r + x * base) rec | result (suc m) r ≡-refl
                                  | exists rs eq =
-    exists (r ∷ rs) (lem₂ (suc m) (toℕ r) base eq)
+    exists (r ∷ rs) (≡-cong (\x -> toℕ r + x * base) eq)
 
 toDigits : (base : ℕ) {base≥2 : True (2 ≤? base)} -> ℕ -> [ Fin base ]
 toDigits base {base≥2} n = witness (digits base {base≥2} n)

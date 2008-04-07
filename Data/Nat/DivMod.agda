@@ -29,7 +29,7 @@ open import Data.Vec
 
 data Result (dividend divisor : ℕ) : Set where
   result : (n : ℕ) (r : Fin divisor) ->
-           dividend ≡ n * divisor + toℕ r ->
+           dividend ≡ toℕ r + n * divisor ->
            Result dividend divisor
 
 -- The implementation. Note that Logic.Induction.Nat is used to ensure
@@ -46,7 +46,16 @@ private
            Result m (suc n)
   -- m < suc n.
   helper .m .(m + k) (less m k) ≡-refl rec =
-    result 0 (inject k (fromℕ m)) (inject-lemma m k)
+    result 0 (inject k (fromℕ m)) lemma
+    where
+    lemma = begin
+      m
+        ≡⟨ inject-lemma m k ⟩
+      toℕ (inject k (fromℕ m))
+        ≡⟨ (let X = var fz in
+           prove (toℕ (inject k (fromℕ m)) ∷ []) X (X :+ con 0) ≡-refl) ⟩
+      toℕ (inject k (fromℕ m)) + 0
+        ∎
 
   -- m ≡ suc n.
   helper .(suc n) .n (equal (suc n)) ≡-refl rec =
@@ -68,12 +77,12 @@ private
                   ≡-refl) ⟩
       suc n + suc k
         ≡⟨ ≡-cong (_+_ (suc n)) eq ⟩
-      suc n + (x * suc n + toℕ r)
-        ≡⟨ (let A = var fz; B = var (fs fz); C = var (fs (fs fz)) in
-            prove (suc n ∷ x * suc n ∷ toℕ r ∷ [])
-                  (A :+ (B :+ C)) ((B :+ A) :+ C)
+      suc n + (toℕ r + x * suc n)
+        ≡⟨ (let N = var fz; R = var (fs fz); X = var (fs (fs fz)) in
+            prove (suc n ∷ toℕ r ∷ x ∷ [])
+                  (N :+ (R :+ X :* N)) (R :+ (con 1 :+ X) :* N)
                   ≡-refl) ⟩
-      (x * suc n + suc n) + toℕ r
+      toℕ r + suc x * suc n
         ∎
 
   -- Impossible cases.

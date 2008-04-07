@@ -66,7 +66,7 @@ module GeneralisedArithmetic {a : Set} (0# : a) (1+ : a -> a) where
   add n z = fold z 1+ n
 
   mul : (+ : a -> a -> a) -> (ℕ -> a -> a)
-  mul _+_ n x = fold 0# (\s -> s + x) n
+  mul _+_ n x = fold 0# (\s -> x + s) n
 
 ------------------------------------------------------------------------
 -- Arithmetic
@@ -92,7 +92,7 @@ suc m ∸ suc n = m ∸ n
 
 _*_ : ℕ -> ℕ -> ℕ
 zero  * n = zero
-suc m * n = m * n + n
+suc m * n = n + m * n
 
 {-# BUILTIN NATTIMES _*_ #-}
 
@@ -113,8 +113,7 @@ suc m ⊓ suc n = suc (m ⊓ n)
 -- Multiplication by 2.
 
 2*_ : ℕ -> ℕ
-2* zero    = zero
-2* (suc n) = 2 + 2* n
+2* n = n * 2
 
 -- Division by 2, rounded downwards.
 
