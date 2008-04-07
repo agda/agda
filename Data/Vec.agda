@@ -82,6 +82,15 @@ foldr₁ :  forall {a : Set} {m}
 foldr₁ _⊕_ (x ∷ [])         = x
 foldr₁ _⊕_ (x ∷ xs@(_ ∷ _)) = x ⊕ foldr₁ _⊕_ xs
 
+foldl :  forall {a b : Set} {m}
+      -> (b -> a -> b) -> b -> Vec a m -> b
+foldl _⊕_ n []       = n
+foldl _⊕_ n (x ∷ xs) = foldl _⊕_ (n ⊕ x) xs
+
+foldl₁ :  forall {a : Set} {m}
+       -> (a -> a -> a) -> Vec a (suc m) -> a
+foldl₁ _⊕_ (x ∷ xs) = foldl _⊕_ x xs
+
 concat : forall {a m n} -> Vec (Vec a m) n -> Vec a (n * m)
 concat []         = []
 concat (xs ∷ xss) = xs ++ concat xss
