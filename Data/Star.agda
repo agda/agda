@@ -78,6 +78,17 @@ fold : forall {I T} (P : Rel I) ->
        Trans T P P -> Reflexive P -> Star T ⇒ P
 fold = gfold id
 
+gfoldl : forall {I J T} (f : I -> J) P ->
+         Trans (P on₁ f) T        (P on₁ f) ->
+         Trans (P on₁ f) (Star T) (P on₁ f)
+gfoldl f P _⊕_ ∅ ε        = ∅
+gfoldl f P _⊕_ ∅ (x ◅ xs) = gfoldl f P _⊕_ (∅ ⊕ x) xs
+
+foldl : forall {I T} (P : Rel I) ->
+        Trans P T        P ->
+        Trans P (Star T) P
+foldl = gfoldl id
+
 concat : forall {I} {T : Rel I} -> Star (Star T) ⇒ Star T
 concat {T = T} = fold (Star T) _◅◅_ ε
 
