@@ -514,3 +514,7 @@ _+-mono_ {zero} {m₂} {n₁} {n₂} z≤n n₁≤n₂ = start
   n₂      ≤⟨ n≤m+n m₂ n₂ ⟩
   m₂ + n₂ □
 s≤s m₁≤m₂ +-mono n₁≤n₂ = s≤s (m₁≤m₂ +-mono n₁≤n₂)
+
+_*-mono_ : _*_ Preserves₂ _≤_ → _≤_ → _≤_
+z≤n       *-mono n₁≤n₂ = z≤n
+s≤s m₁≤m₂ *-mono n₁≤n₂ = n₁≤n₂ +-mono (m₁≤m₂ *-mono n₁≤n₂)
