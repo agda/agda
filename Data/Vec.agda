@@ -100,7 +100,7 @@ take fz      xs       = []
 take (fs ()) []
 take (fs i)  (x ∷ xs) = x ∷ take i xs
 
-drop : forall {a n} (i : Fin (suc n)) -> Vec a n -> Vec a (n ∸ toℕ i)
+drop : forall {a n} (i : Fin (suc n)) -> Vec a n -> Vec a (n - i)
 drop fz      xs       = xs
 drop (fs ()) []
 drop (fs i)  (x ∷ xs) = drop i xs
