@@ -4,7 +4,7 @@
 
 module Data.Function where
 
-infixr 9 _∘_ _∘₁_
+infixr 9 _∘_ _∘′_ _∘₁_
 infixl 1 _on_ _on₁_
 infixl 1 _⟨_⟩_ _⟨_⟩₁_
 infixr 0 _-[_]₁-_ _-[_]-_ _$_
@@ -27,6 +27,11 @@ Fun₂ a = a -> a -> a
 
 _∘_ : {a b c : Set} -> (b -> c) -> (a -> b) -> (a -> c)
 f ∘ g = \x -> f (g x)
+
+_∘′_ : {a : Set} {b c : a -> Set} ->
+       (forall {x} -> b x -> c x) -> ((x : a) -> b x) ->
+       ((x : a) -> c x)
+f ∘′ g = \x -> f (g x)
 
 _∘₁_ : {a b c : Set1} -> (b -> c) -> (a -> b) -> (a -> c)
 f ∘₁ g = \x -> f (g x)
