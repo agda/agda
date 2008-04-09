@@ -10,8 +10,9 @@ open import Data.Nat.Properties
 open import Data.Function
 open import Logic
 open import Relation.Binary.PropositionalEquality
-open ≡-Reasoning
+import Relation.Binary.EqReasoning as Eq
 open import Algebra
+open import Relation.Binary.FunctionLifting
 
 map-++-commute :  forall {a b} (f : a -> b) xs ys
                -> map f (xs ++ ys) ≡ map f xs ++ map f ys
@@ -28,108 +29,116 @@ sum-++-commute (x ∷ xs) ys = begin
                          ≡⟨ sym $ +-assoc x _ _ ⟩
   (x + sum xs) + sum ys
                          ∎
-  where open CommutativeSemiring ℕ-commutativeSemiring hiding (_+_)
+  where
+  open CommutativeSemiring ℕ-commutativeSemiring hiding (_+_)
+  open ≡-Reasoning
 
-foldr-universal : forall {a b} -> (h : [ a ] -> b) -> forall f e ->
-  (h [] ≡ e) -> (forall x xs -> h (x ∷ xs) ≡ f x (h xs)) ->
-  (forall x -> h x ≡ foldr f e x)
-foldr-universal h f e base step []       = base
-foldr-universal h f e base step (x ∷ xs) =
-  ≡-trans (step x xs)
-          (≡-cong (f x) (foldr-universal h f e base step xs))
+foldr-universal : forall {a b} (h : [ a ] -> b) f e ->
+                  (h [] ≡ e) ->
+                  (forall x xs -> h (x ∷ xs) ≡ f x (h xs)) ->
+                  h ≗ foldr f e
+foldr-universal h f e base step {x = []}     ≡-refl = base
+foldr-universal h f e base step {x = x ∷ xs} ≡-refl = begin
+  h (x ∷ xs)
+    ≡⟨ step x xs ⟩
+  f x (h xs)
+    ≡⟨ ≡-cong (f x) (foldr-universal h f e base step ≡-refl) ⟩
+  f x (foldr f e xs)
+    ∎
+  where open ≡-Reasoning
 
-foldr-fusion : forall {a b c} -> (h : b -> c) -> {f : a -> b -> b} -> 
-   {g : a -> c -> c} -> {e : b} -> 
-   (push : forall x y -> h (f x y) ≡ g x (h y)) ->
-       forall xs -> (h ∘ foldr f e) xs ≡ foldr g (h e) xs
+foldr-fusion : forall {a b c} (h : b -> c)
+                      {f : a -> b -> b} {g : a -> c -> c} {e : b} ->
+               (forall x y -> h (f x y) ≡ g x (h y)) ->
+               h ∘ foldr f e ≗ foldr g (h e)
 foldr-fusion h {f} {g} {e} fuse =
   foldr-universal (h ∘ foldr f e) g (h e) ≡-refl
-              (\x xs -> fuse x (foldr f e xs))
+                  (\x xs -> fuse x (foldr f e xs))
 
-idIsFold : forall {a} -> (xs : [ a ]) ->
-              (id xs ≡ foldr _∷_ [] xs)
+idIsFold : forall {a} -> id {a = [ a ]} ≗ foldr _∷_ []
 idIsFold = foldr-universal id _∷_ [] ≡-refl (\_ _ -> ≡-refl)
 
-++IsFold : forall {a} -> (xs : [ a ]) -> {ys : [ a ]} -> 
-             xs ++ ys ≡ (foldr _∷_ ys xs)
-++IsFold xs {ys} = 
-     begin
-          xs ++ ys
-     ≡⟨ ≡-cong (\xs -> xs ++ ys) (idIsFold xs) ⟩ 
-          (foldr _∷_ [] xs) ++ ys
-     ≡⟨ foldr-fusion (\xs -> xs ++ ys) (\_ _ -> ≡-refl) xs ⟩
-          foldr _∷_ ([] ++ ys) xs
-     ≡⟨ ≡-refl ⟩ 
-          foldr _∷_ ys xs 
-     ∎
+++IsFold : forall {a} (xs ys : [ a ]) ->
+           xs ++ ys ≡ foldr _∷_ ys xs
+++IsFold xs ys =
+  begin
+       xs ++ ys
+  ≡⟨ ≡-cong (\xs -> xs ++ ys) (idIsFold {x = xs} ≡-refl) ⟩
+       foldr _∷_ [] xs ++ ys
+  ≡⟨ foldr-fusion (\xs -> xs ++ ys) (\_ _ -> ≡-refl) {x = xs} ≡-refl ⟩
+       foldr _∷_ ([] ++ ys) xs
+  ≡⟨ ≡-refl ⟩
+       foldr _∷_ ys xs
+  ∎
+  where open ≡-Reasoning
 
-private
+mapIsFold : forall {a b} {f : a -> b} ->
+            map f ≗ foldr (\x ys -> f x ∷ ys) []
+mapIsFold {f = f} =
+  begin
+    map f
+  ≈⟨ ≡-cong (map f) ∘ idIsFold ⟩
+    map f ∘ foldr _∷_ []
+  ≈⟨ foldr-fusion (map f) (\_ _ -> ≡-refl) ⟩
+    foldr (\x ys -> f x ∷ ys) []
+  ∎
+  where open Eq (_ ->-setoid _)
 
-  infix 4 _≐_
+concat-map : forall {a b} {f : a -> b} ->
+             concat ∘ map (map f) ≗ map f ∘ concat
+concat-map {f = f} =
+  begin
+    concat ∘ map (map f)
+  ≈⟨ ≡-cong concat ∘ mapIsFold ⟩
+    concat ∘ foldr (\xs ys -> map f xs ∷ ys) []
+  ≈⟨ foldr-fusion concat (\_ _ -> ≡-refl) ⟩
+    foldr (\ys zs -> map f ys ++ zs) []
+  ≈⟨ ≡-sym ∘
+     foldr-fusion (map f) {e = []} (\ys zs -> map-++-commute f ys zs) ∘
+     ≡-sym ⟩
+    map f ∘ concat
+  ∎
+  where open Eq (_ ->-setoid _)
 
-  _≐_ : {a b : Set} -> (a -> b) -> (a -> b) -> Set
-  f ≐ g = forall x -> f x ≡ g x
+map-compose : forall {a b c} {g : b -> c} {f : a -> b} ->
+              map (g ∘ f) ≗ map g ∘ map f
+map-compose {g = g} {f} =
+  begin
+    map (g ∘ f)
+  ≈⟨ ≡-cong (map (g ∘ f)) ∘ idIsFold ⟩
+    map (g ∘ f) ∘ foldr _∷_ []
+  ≈⟨ foldr-fusion (map (g ∘ f)) (\_ _ -> ≡-refl) ⟩
+    foldr (\a y -> g (f a) ∷ y) []
+  ≈⟨ ≡-sym ∘ foldr-fusion (map g) {e = []} (\_ _ -> ≡-refl) ∘ ≡-sym ⟩
+    map g ∘ foldr (\a y -> f a ∷ y) []
+  ≈⟨ ≡-cong (map g) ∘ ≡-sym ∘ mapIsFold ∘ ≡-sym ⟩
+    map g ∘ map f
+  ∎
+  where open Eq (_ ->-setoid _)
 
-mapIsFold : forall {a b} -> {f : a -> b} ->
-              map f ≐ foldr (\x ys -> f x ∷ ys) []
-mapIsFold {_} {_} {f} xs =
-     begin
-       map f xs
-     ≡⟨ ≡-cong (map f) (idIsFold xs) ⟩ 
-       (map f ∘ foldr _∷_ []) xs
-     ≡⟨ foldr-fusion (map f) (\_ _ -> ≡-refl) xs ⟩ 
-       foldr (\x ys -> f x ∷ ys) [] xs
-     ∎
+foldr-cong : forall {a b} {f₁ f₂ : a -> b -> b} {e₁ e₂ : b} ->
+             let _≈_ = LogicalRelation _≡_ (LogicalRelation _≡_ _≡_) in
+             f₁ ≈ f₂ -> e₁ ≡ e₂ -> foldr f₁ e₁ ≗ foldr f₂ e₂
+foldr-cong {f₁ = f₁} {f₂} {e} f₁≈f₂ ≡-refl =
+  begin
+    foldr f₁ e
+  ≈⟨ ≡-cong (foldr f₁ e) ∘ idIsFold ⟩
+    foldr f₁ e ∘ foldr _∷_ []
+  ≈⟨ foldr-fusion (foldr f₁ e) (\x ys -> f₁≈f₂ ≡-refl ≡-refl) ⟩
+    foldr f₂ e
+  ∎
+  where open Eq (_ ->-setoid _)
 
-concat-map : forall {a b} -> {f : a -> b} -> 
-          concat ∘ map (map f) ≐ map f ∘ concat
-concat-map {A} {B} {f} xs = 
-     begin
-       (concat ∘ map (map f)) xs
-     ≡⟨ ≡-cong concat (mapIsFold xs) ⟩ 
-       (concat ∘ foldr (\xs ys -> map f xs ∷ ys) []) xs
-     ≡⟨ foldr-fusion concat (\_ _ -> ≡-refl) xs ⟩ 
-       foldr (\ys zs -> map f ys ++ zs) [] xs
-     ≡⟨ ≡-sym (foldr-fusion (map f) (\ys zs -> map-++-commute f ys zs) xs) ⟩ 
-       (map f ∘ concat) xs
-     ∎
-
-map-compose : forall {a b c} -> {g : b -> c} -> {f : a -> b} -> 
-                 map (g ∘ f) ≐ map g ∘ map f
-map-compose {_} {_} {_} {g} {f} xs = 
-     begin
-       map (g ∘ f) xs
-     ≡⟨ ≡-cong (map (g ∘ f)) (idIsFold xs) ⟩ 
-       (map (g ∘ f) ∘ foldr _∷_ []) xs
-     ≡⟨ foldr-fusion (map (g ∘ f)) (\_ _ -> ≡-refl) xs ⟩ 
-       foldr (\a y -> g (f a) ∷ y) [] xs
-     ≡⟨ ≡-sym (foldr-fusion (map g) (\_ _ -> ≡-refl) xs) ⟩ 
-       (map g ∘ foldr (\a y -> f a ∷ y) []) xs
-     ≡⟨ ≡-cong (map g) (≡-sym (mapIsFold xs))  ⟩ 
-       (map g ∘ map f) xs
-     ∎
-
-foldr-eq : forall {a b} -> {f g : a -> b -> b} -> {e : b} ->
-             (forall x -> forall y -> f x y ≡ g x y) ->
-               foldr f e ≐ foldr g e
-foldr-eq {A} {B} {f} {g} {e} f≡g xs =
-     begin
-       foldr f e xs
-     ≡⟨ ≡-cong (foldr f e) (idIsFold xs) ⟩ 
-       (foldr f e ∘ foldr _∷_ []) xs
-     ≡⟨ foldr-fusion (foldr f e) (\x ys -> f≡g x (foldr f e ys)) xs ⟩ 
-       foldr g e xs
-     ∎
-
-map-eq : forall {a b} -> {f g : a -> b} ->
-            f ≐ g -> map f ≐ map g
-map-eq {_} {_} {f} {g} f≡g xs = 
-     begin
-       map f xs
-     ≡⟨ mapIsFold xs ⟩ 
-       foldr (\x ys -> f x ∷ ys) [] xs
-     ≡⟨ foldr-eq (\x ys -> ≡-cong (\y -> y ∷ ys) (f≡g x)) xs ⟩
-       foldr (\x ys -> g x ∷ ys) [] xs
-     ≡⟨ ≡-sym (mapIsFold xs) ⟩ 
-       map g xs
-     ∎
+map-cong : forall {a b} {f g : a -> b} ->
+           f ≗ g -> map f ≗ map g
+map-cong {f = f} {g} f≡g =
+  begin
+    map f
+  ≈⟨ mapIsFold ⟩
+    foldr (\x ys -> f x ∷ ys) []
+  ≈⟨ foldr-cong (\x≡y xs≡ys -> ≡-cong₂ _∷_ (f≡g x≡y) xs≡ys) ≡-refl ⟩
+    foldr (\x ys -> g x ∷ ys) []
+  ≈⟨ ≡-sym ∘ mapIsFold ∘ ≡-sym ⟩
+    map g
+  ∎
+  where open Eq (_ ->-setoid _)
