@@ -67,7 +67,15 @@ open import Relation.Binary.PropositionalEquality.Core public
 infix 4 _≗_
 
 _->-setoid_ : (a b : Set) -> Setoid
-a ->-setoid b = LiftSetoid (≡-setoid a) (≡-setoid b) ≡-cong
+a ->-setoid b = record
+  { carrier       = a -> b
+  ; _≈_           = \f g -> forall x -> f x ≡ g x
+  ; isEquivalence = record
+    { refl  = \        _ -> ≡-refl
+    ; sym   = \f≗g     x -> ≡-sym   (f≗g x)
+    ; trans = \f≗g g≗h x -> ≡-trans (f≗g x) (g≗h x)
+    }
+  }
 
 _≗_ : {a b : Set} -> (f g : a -> b) -> Set
 _≗_ {a} {b} = Setoid._≈_ (a ->-setoid b)
