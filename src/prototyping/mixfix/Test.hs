@@ -139,49 +139,46 @@ example = flip execState empty $ do
 -- stressTest n yields a graph which is the transitive closure of a
 -- graph with the following shape (with edges going upwards):
 --
---  ⋱      ⋰
---   ⋱    ⋰
---    ⋱  ⋰
+--  ⋱  ⋮  ⋰
+--   ⋱ ⋮ ⋰
+--    ⋱⋮⋰
 --     n₂
---    ╱  ╲
---   ╱    ╲
---  ╱      ╲
--- a₂       b₂
---  ╲      ╱
---   ╲    ╱
---    ╲  ╱
+--    ╱│╲
+--   ╱ │ ╲
+--  ╱  │  ╲
+-- a₂  b₂  c₂
+--  ╲  │  ╱
+--   ╲ │ ╱
+--    ╲│╱
 --     n₁
---    ╱  ╲
---   ╱    ╲
---  ╱      ╲
--- a₁       b₁
---  ╲      ╱
---   ╲    ╱
---    ╲  ╱
+--    ╱│╲
+--   ╱ │ ╲
+--  ╱  │  ╲
+-- a₁  b₁  c₁
+--  ╲  │  ╱
+--   ╲ │ ╱
+--    ╲│╱
 --     n₀
 --
 -- The top-most node is n_n.
 
--- These graphs are tricky to parse for all but very small n, or if
--- the "width" is increased. If this should turn out to be a problem
--- in practice we have (at least) two ways out:
+-- These graphs are tricky to parse for all but small n, or if the
+-- "width" is increased too much. If this should turn out to be a
+-- problem in practice we have (at least) two ways out:
 --
 -- ⑴ Prune the graph, keeping only those nodes which have operator
 --   parts occurring in the expression at hand. I think that this
 --   covers all practical cases. If someone actually tries to make
 --   things hard for the parser, then it won't, though.
 --
--- ⑵ Use an efficient parser which can return many ambiguous results
---   compactly. These representations are harder to work with, though,
---   so I'd rather avoid this solution.
+-- ⑵ Use a more efficient parser backend.
 
 stressTest :: Integer -> (Node, PrecedenceGraph)
 stressTest n | n <= 0 = unrelated ["n0"] (Infix Non) empty
 stressTest n = flip runState g $ do
-  a <- bindsBetween' (name 'a') (Infix Non) [node] []
-  b <- bindsBetween' (name 'b') (Infix Non) [node] []
-  c <- bindsBetween' (name 'n') (Infix Non) [a, b] []
-  return c
+  cs <- mapM (\c -> bindsBetween' (name c) (Infix Non) [node] [])
+             ['a'..'c']
+  bindsBetween' (name 'n') (Infix Non) cs []
   where
   (node, g) = stressTest (n - 1)
   name c    = [c : show n]
@@ -221,6 +218,8 @@ tests n = do
 
   test'' 6 2 6
   test'' 6 1 5
+  test'' 10 1 8
+  test'' 12 2 11
   where
   a      = AtomE
   test_n = test (parser n)
@@ -230,8 +229,7 @@ tests n = do
   -- Precondition: m >= j > i > 0.
   test'' m i j = test_n (snd $ stressTest m)
                         (unwords ["x", op 'a' i, "x", op 'b' j, "x"])
-                        (replicate (2 ^ (j - i - 1))
-                                   (Op (op' 'a' i) [a, Op (op' 'b' j) [a, a]]))
+                        [Op (op' 'a' i) [a, Op (op' 'b' j) [a, a]]]
     where
     op  c i = c : show i
     op' c i = "_" ++ op c i ++ "_"

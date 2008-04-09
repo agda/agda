@@ -133,18 +133,18 @@ bindsAs op fix n (PG g) = case G.match n g of
 
 bindsBetween :: Name -> Fixity -> [Node] -> [Node] ->
                 PrecedenceGraph -> (Node, PrecedenceGraph)
-bindsBetween op fix tighterThan looserThan (PG g)
+bindsBetween op fixity tighterThan looserThan (PG g)
   | acyclic g' = (new, g')
   | otherwise  = error "bindsBetween: Cyclic result."
   where
   [new]          = G.newNodes 1 g
   allLooserThan  = looserThan  ++ concatMap (G.suc g) looserThan
   allTighterThan = tighterThan ++ concatMap (G.pre g) tighterThan
-  label          = map ((,) ())
-  ctxt           = ( label allTighterThan
+  fix            = map ((,) ()) . List.nub
+  ctxt           = ( fix allTighterThan
                    , new
-                   , Map.singleton fix [op]
-                   , label allLooserThan
+                   , Map.singleton fixity [op]
+                   , fix allLooserThan
                    )
   g'             = PG (ctxt & g)
 
