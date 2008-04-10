@@ -3,21 +3,33 @@
 -- backends
 ------------------------------------------------------------------------
 
--- Summary: The trie parsers (which do left factorisation on the fly)
--- all seem to be reasonably efficient. There are faster
--- parsers/parser combinators, but they may be unnecessary, unless
--- someone decides to define and use horribly ambiguous operators.
--- ReadP is too slow for these grammars. Note that applying one of the
--- continuation transformers to, say, AmbExTrie2 makes it a lot slower
--- (in this context, anyway).
-
 {-# LANGUAGE ExistentialQuantification, Rank2Types,
              MultiParamTypeClasses, FlexibleInstances,
              FlexibleContexts #-}
 
+-- Summary: The trie parsers (which do left factorisation on the fly)
+-- all seem to be reasonably efficient. The memoised backtracking
+-- parser is a bit faster (possibly asymptotically more efficient),
+-- but makes the code constructing the parser a bit more complicated.
+-- ReadP is too slow for these grammars. Note that applying one of the
+-- continuation transformers to, say, AmbExTrie2 makes it a lot slower
+-- (in this context, anyway).
+--
+-- Note that if the best parsers used here are not fast enough, then
+-- we can apply another optimisation: pruning the graph, keeping only
+-- those nodes which have operator parts occurring in the expression
+-- at hand. I think that this covers all practical cases. If someone
+-- actually tries to make things hard for the parser, then it might
+-- not, though.
+--
+-- One can guarantee polynomial complexity of parsing by using a dense
+-- representation of ambiguous results. However, the most ambiguous
+-- result in the test below has length 2, and I think that we won't
+-- encounter very much more than that in practice.
+
 module Main where
 
-import qualified ReadP
+import qualified ReadPWrapper as ReadP
 import qualified AmbTrie
 import qualified AmbExTrie
 import qualified AmbExTrie2
@@ -25,58 +37,44 @@ import qualified ContTrans
 import qualified StackContTrans
 import qualified SlowParser
 import qualified Standard
-import Control.Monad
+import qualified Memoised
 import Control.Monad.State hiding (lift)
-import qualified Parser
 import Parser (Parser)
 import System.Environment
 import PrecedenceGraph
 import Data.Char
 import qualified Data.List as List
-import qualified Control.Applicative as A
 
 ------------------------------------------------------------------------
 -- Encapsulating parser libraries
 
-instance A.Applicative (ReadP.ReadP tok) where
-  pure      = return
-  p1 <*> p2 = p1 >>= \f -> p2 >>= \x -> return (f x)
+data P k r' tok = forall p. Parser p k r' tok =>
+                  P (forall r. p r -> [tok] -> [r])
 
-instance A.Alternative (ReadP.ReadP tok) where
-  empty = mzero
-  (<|>) = mplus
-
-instance Ord tok => Parser (ReadP.ReadP tok) tok where
-  sym       = ReadP.char
-  parse     = ReadP.parse
-
-  choice    = ReadP.choice
-  many1     = ReadP.many1
-  chainr1   = ReadP.chainr1
-  chainl1   = ReadP.chainl1
-
-data P tok = forall p. Parser p tok =>
-             P (forall r. p r -> [tok] -> [r])
-
-parse :: Ord tok =>
-         P tok -> (forall p. Parser p tok => p r) -> [tok] -> [r]
+parse :: (Ord k, Ord tok) =>
+         P k r' tok -> (forall p. Parser p k r' tok => p r) ->
+         [tok] -> [r]
 parse (P p) g = p g
 
-parser :: Ord tok => Integer -> P tok
-parser 0 = P ReadP.parse
-parser 1 = P AmbTrie.parse
-parser 2 = P AmbExTrie.parse
-parser 3 = P AmbExTrie2.parse
-parser 4 = P (ContTrans.parse AmbExTrie2.parse)
-parser 5 = P (StackContTrans.parse AmbExTrie2.parse)
-parser 6 = P SlowParser.parse
-parser 7 = P Standard.parse
-parser _ = error "No more parser combinator libraries."
+parser :: (Ord k, Ord tok) => Integer -> P k r' tok
+parser  0 = P ReadP.parse
+parser  1 = P AmbTrie.parse
+parser  2 = P AmbExTrie.parse
+parser  3 = P AmbExTrie2.parse
+parser  4 = P (ContTrans.parse AmbExTrie2.parse)
+parser  5 = P (StackContTrans.parse AmbExTrie2.parse)
+parser  6 = P SlowParser.parse
+parser  7 = P Standard.parse
+parser  8 = P Memoised.parse
+parser  9 = P (ContTrans.parse Memoised.parse)
+parser 10 = P (StackContTrans.parse Memoised.parse)
+parser  _ = error "No more parser combinator libraries."
 
 ------------------------------------------------------------------------
 -- Test driver
 
-test :: P Token -> PrecedenceGraph -> String -> [Expr] -> IO ()
+test :: P Node Expr Token -> PrecedenceGraph ->
+        String -> [Expr] -> IO ()
 test p g s es =
   putStrLn $ pad 40 (show s) ++ pad 8 (isOK ++ ": ") ++ show es'
   where
@@ -164,17 +162,6 @@ example = flip execState empty $ do
 --
 -- The top-most node is n_n.
 
--- These graphs are tricky to parse for all but small n, or if the
--- "width" is increased too much. If this should turn out to be a
--- problem in practice we have (at least) two ways out:
---
--- ⑴ Prune the graph, keeping only those nodes which have operator
---   parts occurring in the expression at hand. I think that this
---   covers all practical cases. If someone actually tries to make
---   things hard for the parser, then it won't, though.
---
--- ⑵ Use a more efficient parser backend.
-
 stressTest :: Integer -> (Node, PrecedenceGraph)
 stressTest n | n <= 0 = unrelated ["n0"] (Infix Non) empty
 stressTest n = flip runState g $ do
@@ -222,6 +209,7 @@ tests n = do
   test'' 6 1 5
   test'' 10 1 8
   test'' 12 2 11
+  test'' 17 1 17
   where
   a      = AtomE
   test_n = test (parser n)

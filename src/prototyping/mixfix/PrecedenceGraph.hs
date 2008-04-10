@@ -35,19 +35,6 @@ import qualified Control.Monad.State as S
 import qualified Control.Monad.Identity as I
 
 ------------------------------------------------------------------------
--- Some helper functions
-
--- [x, y, z] `sepBy'` • ≈ x • y • z.
-
-sepBy' :: Parser p tok => [tok] -> p a -> p [a]
-[]       `sepBy'` p = A.empty
-[x]      `sepBy'` p = [] <$ sym x
-(x : xs) `sepBy'` p = (:) <$> (sym x *> p) <*> (xs `sepBy'` p)
-
-(!) :: Ord k => Map k [v] -> k -> [v]
-m ! k = concat $ Map.lookup k m
-
-------------------------------------------------------------------------
 -- Types
 
 -- | A name is a /non-empty/ list of /non-empty/ name parts.
@@ -176,13 +163,14 @@ type Op = (String, [Expr])
 -- | The parser type used below. The state component is used to
 -- memoise the computation of node parsers.
 
-type P r = forall p. Parser p Token =>
+type P r = forall p. Parser p Node Expr Token =>
            S.State (Map Node (p Expr)) (p r)
 
 -- | Expression parser. Parameterised on a graph describing the
 -- operators.
 
-expressionParser :: Parser p Token => PrecedenceGraph -> p Expr
+expressionParser :: Parser p Node Expr Token =>
+                    PrecedenceGraph -> p Expr
 expressionParser g = S.evalState (expr g (nodes g)) Map.empty
 
 -- | Parses a subset of the expressions. Only the nodes reachable from
@@ -207,7 +195,7 @@ expr g ns = do
 opProd :: PrecedenceGraph -> Name -> P Op
 opProd g nameParts =
   return $ (,) (List.intercalate "_" nameParts) <$>
-           (map Name nameParts `sepBy'` expressionParser g)
+           (expressionParser g `between` map Name nameParts)
 
 -- | Parser for several operators.
 
@@ -224,9 +212,18 @@ appBoth :: Op -> Expr -> Expr -> Expr
 appBoth (n, es) l r = Op ('_' : n ++ "_") (l : es ++ [r])
 
 -- | Parser for a node.
-
+--
 -- The graph typically has lots of sharing (many pointers to the same
--- node), so this function is memoised.
+-- node), so this function is memoised. In two ways, actually:
+--
+-- 1) The construction of the parsers is memoised.
+--
+-- 2) If a memoising parser is used the results of parsing a given
+--    node at a specific position are also memoised.
+--
+-- Note that the second memoisation is potentially unsafe, if this
+-- parser is combined with another memoised parser. The memoisation
+-- keys have to be unique.
 
 node :: PrecedenceGraph -> Node -> P Expr
 node g n = do
@@ -236,10 +233,12 @@ node g n = do
     Nothing -> do
       -- Parser for operators of higher precedence.
       h <- expr g (successors g n)
-      p <- fmap choice $ sequence (opParsers h)
+      p <- fmap (memoise n . choice) $ sequence (opParsers h)
       S.modify (Map.insert n p)
       return p
   where
+  m ! k = concat $ Map.lookup k m
+
   ops fixity f = fmap f (opProds g (annotation g n ! fixity))
                         -- Parser for the internal parts of operators
                         -- of the given fixity (in this node).

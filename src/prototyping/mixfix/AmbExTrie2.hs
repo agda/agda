@@ -27,17 +27,17 @@ import qualified Data.Foldable as Seq
 -- code considerably slower, at least in one of my tests (roughly 50%
 -- slower).
 
-data Parser tok r
-  = forall s. FMap (s -> r) !(Seq s) !(Map tok (Parser tok s))
-  | NoMap !(Seq r) !(Map tok (Parser tok r))
+data Parser k r' tok r
+  = forall s. FMap (s -> r) !(Seq s) !(Map tok (Parser k r' tok s))
+  | NoMap !(Seq r) !(Map tok (Parser k r' tok r))
 
-instance Functor (Parser tok) where
+instance Functor (Parser k r' tok) where
   fmap f (FMap g xs m) = FMap (f . g) xs m
   fmap f (NoMap xs m)  = FMap f xs m
 
 -- Note that (<|>) is productive. (If we assume a total language.)
 
-instance Ord tok => Alternative (Parser tok) where
+instance Ord tok => Alternative (Parser k r' tok) where
   empty = NoMap Seq.empty Map.empty
   NoMap xs1 f1 <|> NoMap xs2 f2 =
     NoMap (xs1 >< xs2) (Map.unionWith (<|>) f1 f2)
@@ -54,7 +54,7 @@ instance Ord tok => Alternative (Parser tok) where
 
 -- Note that bind is productive.
 
-instance Ord tok => Monad (Parser tok) where
+instance Ord tok => Monad (Parser k r' tok) where
   return x         = NoMap (Seq.singleton x) Map.empty
   NoMap xs f >>= g =
     Seq.foldr (<|>) (NoMap Seq.empty (Map.map (>>= g) f)) (fmap g xs)
@@ -62,7 +62,7 @@ instance Ord tok => Monad (Parser tok) where
     Seq.foldr (<|>) (NoMap Seq.empty (Map.map (>>= gh) f)) (fmap gh xs)
     where gh = \x -> h (g x)
 
-instance Ord tok => Applicative (Parser tok) where
+instance Ord tok => Applicative (Parser k r' tok) where
   pure      = return
   p1 <*> p2 = p1 >>= \f -> fmap f p2
 
@@ -72,7 +72,7 @@ instance Ord tok => Applicative (Parser tok) where
 
 -- Note that parse is structurally recursive.
 
-parse :: Ord tok => Parser tok r -> [ tok ] -> [ r ]
+parse :: Ord tok => Parser k r' tok r -> [ tok ] -> [ r ]
 parse (NoMap xs f)  []      = Seq.toList xs
 parse (NoMap xs f)  (c : s) = case Map.lookup c f of
   Nothing -> []
@@ -82,6 +82,7 @@ parse (FMap g xs f) (c : s) = case Map.lookup c f of
   Nothing -> []
   Just p' -> map g (parse p' s)
 
-instance Ord tok => Parser.Parser (Parser tok) tok where
+instance (Ord k, Ord tok) =>
+         Parser.Parser (Parser k r' tok) k r' tok where
   sym c = NoMap Seq.empty (Map.singleton c (return c))
   parse = parse
