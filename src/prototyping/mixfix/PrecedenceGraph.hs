@@ -176,6 +176,11 @@ expressionParser g = S.evalState (expr g (nodes g)) Map.empty
 -- | Parses a subset of the expressions. Only the nodes reachable from
 -- the given list of nodes are recognised by the parser.
 
+-- Note that Atom stands for applications of one or more identifiers,
+-- parenthesised expressions, or mixfix operators that are not prefix,
+-- postfix or infix. Hence the atom parser will probably be
+-- implemented using expressionParser.
+
 expr :: PrecedenceGraph -> [Node] -> P Expr
 expr g ns = do
   ns <- mapM (node g) ns
