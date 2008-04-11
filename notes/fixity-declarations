@@ -222,12 +222,6 @@ Details (based on discussions with Ulf):
       op-prod ∷= op₁ expr op₂ expr op₃ … op_n
          (where op_i are the name parts of the mixfix operator op)
 
-  It should be easy to generalise this to arbitrary mixfix operators
-  with arbitrary associativity.
-
-  The resulting grammar may require a large lookahead, so it may need
-  to be optimised (left factored, for instance).
-
 ------------------------------------------------------------------------
 Open questions
 ------------------------------------------------------------------------
