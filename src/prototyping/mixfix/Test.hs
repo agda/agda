@@ -3,17 +3,15 @@
 -- backends
 ------------------------------------------------------------------------
 
-{-# LANGUAGE ExistentialQuantification, Rank2Types,
-             MultiParamTypeClasses, FlexibleInstances,
-             FlexibleContexts #-}
+{-# LANGUAGE ExistentialQuantification, Rank2Types #-}
 
 -- Summary: The trie parsers (which do left factorisation on the fly)
 -- all seem to be reasonably efficient. The memoised backtracking
--- parser is a bit faster (possibly asymptotically more efficient),
--- but makes the code constructing the parser a bit more complicated.
--- ReadP is too slow for these grammars. Note that applying one of the
--- continuation transformers to, say, AmbExTrie2 makes it a lot slower
--- (in this context, anyway).
+-- parser is even faster (possibly asymptotically more efficient); on
+-- the other hand it makes the code constructing the parser a bit more
+-- complicated. ReadP is too slow for these grammars. Note that
+-- applying one of the continuation transformers to, say, AmbExTrie2
+-- makes it a lot slower (in this context, anyway).
 --
 -- Note that if the best parsers used here are not fast enough, then
 -- we can apply another optimisation: pruning the graph, keeping only
@@ -76,9 +74,10 @@ parser  _ = error "No more parser combinator libraries."
 test :: P Node Expr Token -> PrecedenceGraph ->
         String -> [Expr] -> IO ()
 test p g s es =
-  putStrLn $ pad 40 (show s) ++ pad 8 (isOK ++ ": ") ++ show es'
+  putStrLn $ pad 40 (show s) ++ pad 8 (isOK ++ ": ")
+                             ++ pad 90 (show es')
   where
-  pad n s = s ++ replicate (n - length s) ' '
+  pad n s = take n s ++ replicate (n - length s) ' ' ++ " "
 
   es'  = parse p (expressionParser g) (lex s)
 
@@ -134,7 +133,7 @@ example = flip execState empty $ do
   unrelated'            [">>","<<"]            (Infix Non)
 
 ------------------------------------------------------------------------
--- A very ambiguous graph
+-- A demanding graph
 
 -- stressTest n yields a graph which is the transitive closure of a
 -- graph with the following shape (with edges going upwards):
@@ -205,6 +204,9 @@ tests n = do
   test' "x foo x foo x foo x"                  [ Op "_foo_" [a, Op "_foo_" [a, Op "_foo_" [a, a]]]
                                                , Op "_foo_" [Op "_foo_" [Op "_foo_" [a, a], a], a] ]
 
+  test' (nested nestingDepth)                  [nestedResult nestingDepth]
+  test' (assoc  nestingDepth)                  [assocResult  nestingDepth]
+
   test'' 6 2 6
   test'' 6 1 5
   test'' 10 1 8
@@ -214,7 +216,17 @@ tests n = do
   a      = AtomE
   test_n = test (parser n)
 
-  test'  = test_n example
+  test'    = test_n example
+
+  nestingDepth = 100
+
+  iterateN n f x = List.iterate f x List.!! n
+
+  nested       d = iterateN d (\s -> "x [[ " ++ s ++ " ]]") "x"
+  nestedResult d = iterateN d (\x -> Op "_[[_]]" [a, x]) a
+
+  assoc       d = iterateN d ("x + " ++) "x"
+  assocResult d = iterateN d (\x -> Op "_+_" [x, a]) a
 
   -- Precondition: m >= j > i > 0.
   test'' m i j = test_n (snd $ stressTest m)
