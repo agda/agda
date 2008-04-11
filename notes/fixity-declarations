@@ -222,6 +222,23 @@ Details (based on discussions with Ulf):
       op-prod ∷= op₁ expr op₂ expr op₃ … op_n
          (where op_i are the name parts of the mixfix operator op)
 
+  Note that if all operator name parts are unique, and <atom>s don't
+  introduce any ambiguity, then the grammar is unambiguous. However,
+  we don't want to require all operator name parts to be unique, since
+  this can be rather inflexible. (Consider a DSEL containing both
+  if_then_ and if_then_else_, for instance. Or the two operators ⟦_⟧_
+  and ⟦_⟧'_.) All ambiguous parses will be rejected, in many cases
+  with an error message listing all possible parses:
+
+    Ambiguous parse. Could mean any of the following:
+      if x then (if y then a) else b
+      if x then (if y then a else b)
+
+  We expect there to be rather few cases of ambiguity. A large number
+  of potentially ambiguous operators will make it harder to write
+  syntactically correct programs, and programmers will presumably be
+  reluctant to subject themselves to this situation.
+
 ------------------------------------------------------------------------
 Open questions
 ------------------------------------------------------------------------
