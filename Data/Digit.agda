@@ -119,13 +119,12 @@ digits base@(suc (suc k)) n = <-rec Pred helper n
   helper : forall n -> <-Rec Pred n -> Pred n
   helper n rec with n divMod base
 
-  helper .(toℕ r + 0 * base) rec | result zero r ≡-refl =
+  helper .(toℕ r + 0 * base) rec | result zero r =
     exists (r ∷ []) ≡-refl
 
-  helper .(toℕ r + x * base) rec | result x@(suc _) r ≡-refl
+  helper .(toℕ r + x * base) rec | result x@(suc _) r
     with rec x (lem (pred x) k (toℕ r))
-  helper .(toℕ r + x * base) rec | result (suc m) r ≡-refl
-                                 | exists rs eq =
+  helper .(toℕ r + x * base) rec | result (suc m) r | exists rs eq =
     exists (r ∷ rs) (≡-cong (\x -> toℕ r + x * base) eq)
 
 toDigits : (base : ℕ) {base≥2 : True (2 ≤? base)} -> ℕ -> [ Fin base ]

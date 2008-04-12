@@ -67,35 +67,39 @@ private
 
 -- The specification of integer division.
 
-data Result (dividend divisor : ℕ) : Set where
-  result : (n : ℕ) (r : Fin divisor) ->
-           dividend ≡ toℕ r + n * divisor ->
-           Result dividend divisor
+data Result : ℕ -> ℕ -> Set where
+  result : {divisor : ℕ} (n : ℕ) (r : Fin divisor) ->
+           Result (toℕ r + n * divisor) divisor
 
 -- The implementation. Note that Logic.Induction.Nat is used to ensure
 -- termination of division.
 
 private
 
+  data Result' (dividend divisor : ℕ) : Set where
+    result' : (n : ℕ) (r : Fin divisor) ->
+              dividend ≡ toℕ r + n * divisor ->
+              Result' dividend divisor
+
   Pred : ℕ -> Set
   Pred dividend = (divisor : ℕ) {≢0 : False (divisor ℕ-≟ 0)} ->
-                  Result dividend divisor
+                  Result' dividend divisor
 
   helper : forall m n {o} ->
            Ordering m o -> o ≡ suc n -> <-Rec Pred m ->
-           Result m (suc n)
+           Result' m (suc n)
   -- m < suc n.
   helper .m .(m + k) (less m k) ≡-refl rec =
-    result 0 (inject k (fromℕ m)) (lem₁ m k)
+    result' 0 (inject k (fromℕ m)) (lem₁ m k)
 
   -- m ≡ suc n.
   helper .(suc n) .n (equal (suc n)) ≡-refl rec =
-    result 1 fz (lem₂ n)
+    result' 1 fz (lem₂ n)
 
   -- m > suc n.
   helper .(suc (suc (n + k))) .n (greater (suc n) k) ≡-refl rec
     with rec (suc k) (s≤′s (s≤′s (n≤′m+n n k))) (suc n)
-  ... | result x r eq = result (suc x) r (lem₃ n k x r eq)
+  ... | result' x r eq = result' (suc x) r (lem₃ n k x r eq)
 
   -- Impossible cases.
   helper ._ _ (equal zero)     () _
@@ -109,13 +113,14 @@ private
 
 _divMod_ : (dividend divisor : ℕ) {≢0 : False (divisor ℕ-≟ 0)} ->
            Result dividend divisor
-_divMod_ = <-rec Pred divMod'
+_divMod_ m n {≢0} with <-rec Pred divMod' m n {≢0}
+.(toℕ r + x * n) divMod n | result' x r ≡-refl = result x r
 
 _div_ : (dividend divisor : ℕ) {≢0 : False (divisor ℕ-≟ 0)} -> ℕ
 _div_ m n {≢0} with _divMod_ m n {≢0}
-... | result x _ _ = x
+.(toℕ r + x * n) div n | result x r = x
 
 _mod_ : (dividend divisor : ℕ) {≢0 : False (divisor ℕ-≟ 0)} ->
         Fin divisor
 _mod_ m n {≢0} with _divMod_ m n {≢0}
-... | result _ r _ = r
+.(toℕ r + x * n) mod n | result x r = r
