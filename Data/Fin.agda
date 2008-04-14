@@ -98,3 +98,7 @@ Fin-setoid n = ≡-setoid (Fin n)
 
 Fin-decSetoid : ℕ -> DecSetoid
 Fin-decSetoid n = ≡-decSetoid (_Fin-≟_ {n = n})
+
+Fin-bounded : forall {n} (i : Fin n) -> toℕ i < n
+Fin-bounded fz     = s≤s z≤n
+Fin-bounded (fs i) = s≤s (Fin-bounded i)
