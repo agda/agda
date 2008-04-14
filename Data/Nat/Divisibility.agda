@@ -33,8 +33,8 @@ quotient (divides q _) = q
 
 -- CommonDivisor d m n means that d divides both m and n.
 
-data CommonDivisor (d m n : ℕ) : Set where
-  commonDivisor : d Divides m -> d Divides n -> CommonDivisor d m n
+CommonDivisor : (d m n : ℕ) -> Set
+CommonDivisor d m n = d Divides m × d Divides n
 
 -- The divisibility relation is reflexive.
 
@@ -72,18 +72,22 @@ divides-≡ {m = 0}         d  _  = ≡-sym $ 0-dividesOnly-0 d
 divides-≡ {n = 0}         _  d  = 0-dividesOnly-0 d
 divides-≡ {suc m} {suc n} d₁ d₂ = ≤≥⇒≡ (divides-≤ d₁) (divides-≤ d₂)
 
--- If i divides m and m + n, then i divides n.
-
 divides-+ : forall {i m n} ->
-            i Divides m -> i Divides (m + n) -> i Divides n
-divides-+ {i} (divides q ≡-refl) (divides q' eq) =
+            i Divides m -> i Divides n -> i Divides (m + n)
+divides-+ {i} (divides q ≡-refl) (divides q' ≡-refl) =
+  divides (q + q') (≡-sym $ proj₂ CS.distrib i q q')
+
+-- If i divides m and n, then i divides their difference.
+
+divides-∸ : forall {i m n} ->
+            i Divides (m + n) -> i Divides m -> i Divides n
+divides-∸ {i} (divides q' eq) (divides q ≡-refl) =
   divides (q' ∸ q) (≡-sym $ im≡jm+n⇒[i∸j]m≡n q' q i _ $ ≡-sym eq)
 
 -- If i divides i + n, then i divides n.
 
-divides-∸ : forall {i n} -> i Divides (i + n) -> i Divides n
-divides-∸ {i} (divides zero    eq) = divides 0 (i+j≡0⇒j≡0 i eq)
-divides-∸ {i} (divides (suc q) eq) = divides q (i+j≡i+k⇒j≡k i eq)
+divides-Δ : forall {i n} -> i Divides (i + n) -> i Divides n
+divides-Δ {i} d = divides-∸ d (divides-refl i)
 
 -- If the remainder after division is non-zero, then the divisor does
 -- not divide the dividend.
@@ -115,7 +119,7 @@ nonZeroDivisor-lemma m zero r r≢fz (divides (suc q) eq) =
       ∎
   where open ≤-Reasoning
 nonZeroDivisor-lemma m (suc q) r r≢fz d =
-  nonZeroDivisor-lemma m q r r≢fz (divides-∸ d')
+  nonZeroDivisor-lemma m q r r≢fz (divides-Δ d')
   where
   lem = prove (suc m ∷ toℕ r ∷ q * suc m ∷ [])
               (R :+ (M :+ Q)) (M :+ (R :+ Q))
