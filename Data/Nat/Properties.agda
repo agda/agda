@@ -434,6 +434,44 @@ m+n∸m≡n : forall {m n} -> m ≤ n -> m + (n ∸ m) ≡ n
 m+n∸m≡n z≤n       = byDef
 m+n∸m≡n (s≤s m≤n) = ≡-cong suc $ m+n∸m≡n m≤n
 
+i+j≡0⇒i≡0 : forall i {j} -> i + j ≡ 0 -> i ≡ 0
+i+j≡0⇒i≡0 zero    eq = ≡-refl
+i+j≡0⇒i≡0 (suc i) ()
+
+i+j≡0⇒j≡0 : forall i {j} -> i + j ≡ 0 -> j ≡ 0
+i+j≡0⇒j≡0 i {j} i+j≡0 = i+j≡0⇒i≡0 j $ begin
+  j + i
+    ≡⟨ +-comm j i ⟩
+  i + j
+    ≡⟨ i+j≡0 ⟩
+  0
+    ∎
+
+i+j≡i+k⇒j≡k : forall i {j k} -> i + j ≡ i + k -> j ≡ k
+i+j≡i+k⇒j≡k zero    eq = eq
+i+j≡i+k⇒j≡k (suc i) eq = i+j≡i+k⇒j≡k i (≡-cong pred eq)
+
+im≡jm+n⇒[i∸j]m≡n
+  : forall i j m n ->
+    i * m ≡ j * m + n -> (i ∸ j) * m ≡ n
+im≡jm+n⇒[i∸j]m≡n i       zero    m n eq = eq
+im≡jm+n⇒[i∸j]m≡n zero    (suc j) m n eq =
+  ≡-sym $ i+j≡0⇒j≡0 (m + j * m) $ ≡-sym eq
+im≡jm+n⇒[i∸j]m≡n (suc i) (suc j) m n eq =
+  im≡jm+n⇒[i∸j]m≡n i j m n (i+j≡i+k⇒j≡k m eq')
+  where
+  eq' = begin
+    m + i * m
+      ≡⟨ eq ⟩
+    m + j * m + n
+      ≡⟨ +-assoc m (j * m) n ⟩
+    m + (j * m + n)
+      ∎
+
+≤≥⇒≡ : forall {m n} -> m ≤ n -> m ≥ n -> m ≡ n
+≤≥⇒≡ z≤n       z≤n       = ≡-refl
+≤≥⇒≡ (s≤s m≤n) (s≤s m≥n) = ≡-cong suc (≤≥⇒≡ m≤n m≥n)
+
 -- Converting between ≤ and ≤′.
 
 ≤-step : forall {m n} -> m ≤ n -> m ≤ 1 + n
@@ -472,6 +510,14 @@ n≤m+n m n = ≤′⇒≤ (n≤′m+n m n)
 
 n≤1+n : forall n -> n ≤ 1 + n
 n≤1+n _ = ≤-step ≤-refl
+
+¬i+1+j≤i : forall i {j} -> ¬ i + suc j ≤ i
+¬i+1+j≤i zero    ()
+¬i+1+j≤i (suc i) le = ¬i+1+j≤i i (≤-pred le)
+
+i+1+j≢i : forall i {j} -> i + suc j ≢ i
+i+1+j≢i i eq = ¬i+1+j≤i i (refl eq)
+  where open DecTotalOrder ℕ-decTotalOrder
 
 n∸m≤n : forall m n -> n ∸ m ≤ n
 n∸m≤n zero    n       = ≤-refl
