@@ -31,10 +31,10 @@ data _Divides_ (m n : ℕ) : Set where
 quotient : forall {m n} -> m Divides n -> ℕ
 quotient (divides q _) = q
 
--- CommonDivisor d m n means that d divides both m and n.
+-- d Divides m And n means that d is a common divisor of m and n.
 
-CommonDivisor : (d m n : ℕ) -> Set
-CommonDivisor d m n = d Divides m × d Divides n
+_Divides_And_ : (d m n : ℕ) -> Set
+d Divides m And n = d Divides m × d Divides n
 
 -- The divisibility relation is reflexive.
 
