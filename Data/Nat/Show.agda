@@ -23,7 +23,7 @@ showInBase base {base≥2} {base≤16} =
   String.fromList ∘
   map (showDigit {base≤16 = base≤16}) ∘
   reverse ∘
-  toDigits base {base≥2 = base≥2}
+  theDigits base {base≥2 = base≥2}
 
 -- show n is a string containing the decimal expansion of n (starting
 -- with the most significant digit).

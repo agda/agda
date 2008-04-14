@@ -103,29 +103,35 @@ fromDigits : forall {base} -> [ Fin base ] -> ℕ
 fromDigits        []       = 0
 fromDigits {base} (d ∷ ds) = toℕ d + fromDigits ds * base
 
--- digits b n yields the digits of n, in base b, starting with the
+-- toDigits b n yields the digits of n, in base b, starting with the
 -- _least_ significant digit.
 --
 -- Note that the list of digits is always non-empty.
+--
+-- This function should be linear in n, if optimised properly (see
+-- Data.Nat.DivMod).
 
-digits : (base : ℕ) {base≥2 : True (2 ≤? base)} (n : ℕ) ->
-         ∃ [ Fin base ] (\ds -> fromDigits ds ≡ n)
-digits zero       {base≥2 = ()} _
-digits (suc zero) {base≥2 = ()} _
-digits base@(suc (suc k)) n = <-rec Pred helper n
+data Digits (base : ℕ) : ℕ -> Set where
+  digits : (ds : [ Fin base ]) -> Digits base (fromDigits ds)
+
+toDigits : (base : ℕ) {base≥2 : True (2 ≤? base)} (n : ℕ) ->
+           Digits base n
+toDigits zero       {base≥2 = ()} _
+toDigits (suc zero) {base≥2 = ()} _
+toDigits base@(suc (suc k)) n = <-rec Pred helper n
   where
-  Pred = \n -> ∃ [ Fin base ] (\ds -> fromDigits ds ≡ n)
+  Pred = Digits base
+
+  cons : forall {n} (r : Fin base) -> Pred n -> Pred (toℕ r + n * base)
+  cons r (digits ds) = digits (r ∷ ds)
 
   helper : forall n -> <-Rec Pred n -> Pred n
   helper n rec with n divMod base
+  helper .(toℕ r + 0 * base) rec | result zero      r = digits (r ∷ [])
+  helper .(toℕ r + x * base) rec | result x@(suc _) r =
+    cons r (rec x (lem (pred x) k (toℕ r)))
 
-  helper .(toℕ r + 0 * base) rec | result zero r =
-    exists (r ∷ []) ≡-refl
-
-  helper .(toℕ r + x * base) rec | result x@(suc _) r
-    with rec x (lem (pred x) k (toℕ r))
-  helper .(toℕ r + x * base) rec | result (suc m) r | exists rs eq =
-    exists (r ∷ rs) (≡-cong (\x -> toℕ r + x * base) eq)
-
-toDigits : (base : ℕ) {base≥2 : True (2 ≤? base)} -> ℕ -> [ Fin base ]
-toDigits base {base≥2} n = witness (digits base {base≥2} n)
+theDigits : (base : ℕ) {base≥2 : True (2 ≤? base)} (n : ℕ) ->
+            [ Fin base ]
+theDigits base {base≥2} n       with toDigits base {base≥2} n
+theDigits base .(fromDigits ds) | digits ds = ds

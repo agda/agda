@@ -71,7 +71,8 @@ fromBits = fromBits' ∘ reverse
 -- Converting from a natural number.
 
 fromℕ : ℕ -> Bin
-fromℕ = fromBits ∘ toDigits 2
+fromℕ n                with toDigits 2 n
+fromℕ .(fromDigits bs) | digits bs = fromBits bs
 
 ------------------------------------------------------------------------
 -- Queries
