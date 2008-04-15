@@ -41,6 +41,11 @@ d Divides m And n = d Divides m × d Divides n
 divides-refl : forall n -> n Divides n
 divides-refl n = divides 1 (≡-sym $ proj₁ CS.*-identity n)
 
+-- 1 divides everything.
+
+1-divides_ : forall n -> 1 Divides n
+1-divides n = divides n (≡-sym $ proj₂ CS.*-identity n)
+
 -- Everything divides 0.
 
 _divides-0 : forall n -> n Divides 0
