@@ -67,54 +67,61 @@ private
 
 -- The specification of integer division.
 
-data Result : ℕ -> ℕ -> Set where
+data DivMod : ℕ -> ℕ -> Set where
   result : {divisor : ℕ} (n : ℕ) (r : Fin divisor) ->
-           Result (toℕ r + n * divisor) divisor
+           DivMod (toℕ r + n * divisor) divisor
+
+-- Sometimes the following type is more usable; functions in indices
+-- can be inconvenient.
+
+data DivMod' (dividend divisor : ℕ) : Set where
+  result : (n : ℕ) (r : Fin divisor) ->
+           dividend ≡ toℕ r + n * divisor ->
+           DivMod' dividend divisor
 
 -- The implementation. Note that Logic.Induction.Nat is used to ensure
 -- termination of division.
 
 private
 
-  data Result' (dividend divisor : ℕ) : Set where
-    result' : (n : ℕ) (r : Fin divisor) ->
-              dividend ≡ toℕ r + n * divisor ->
-              Result' dividend divisor
-
   Pred : ℕ -> Set
   Pred dividend = (divisor : ℕ) {≢0 : False (divisor ℕ-≟ 0)} ->
-                  Result' dividend divisor
+                  DivMod' dividend divisor
 
   helper : forall m n {o} ->
            Ordering m o -> o ≡ suc n -> <-Rec Pred m ->
-           Result' m (suc n)
+           DivMod' m (suc n)
   -- m < suc n.
   helper .m .(m + k) (less m k) ≡-refl rec =
-    result' 0 (inject k (fromℕ m)) (lem₁ m k)
+    result 0 (inject k (fromℕ m)) (lem₁ m k)
 
   -- m ≡ suc n.
   helper .(suc n) .n (equal (suc n)) ≡-refl rec =
-    result' 1 fz (lem₂ n)
+    result 1 fz (lem₂ n)
 
   -- m > suc n.
   helper .(suc (suc (n + k))) .n (greater (suc n) k) ≡-refl rec
     with rec (suc k) (s≤′s (s≤′s (n≤′m+n n k))) (suc n)
-  ... | result' x r eq = result' (suc x) r (lem₃ n k x r eq)
+  ... | result x r eq = result (suc x) r (lem₃ n k x r eq)
 
   -- Impossible cases.
   helper ._ _ (equal zero)     () _
   helper ._ _ (greater zero _) () _
 
-  divMod' : (dividend : ℕ) -> <-Rec Pred dividend -> Pred dividend
-  divMod' m rec zero    {≢0 = ()}
-  divMod' m rec (suc n) = helper m n (compare m (suc n)) ≡-refl rec
+  dm : (dividend : ℕ) -> <-Rec Pred dividend -> Pred dividend
+  dm m rec zero    {≢0 = ()}
+  dm m rec (suc n) = helper m n (compare m (suc n)) ≡-refl rec
 
 -- And the interface.
 
+_divMod'_ : (dividend divisor : ℕ) {≢0 : False (divisor ℕ-≟ 0)} ->
+            DivMod' dividend divisor
+_divMod'_ m n {≢0} = <-rec Pred dm m n {≢0}
+
 _divMod_ : (dividend divisor : ℕ) {≢0 : False (divisor ℕ-≟ 0)} ->
-           Result dividend divisor
-_divMod_ m n {≢0} with <-rec Pred divMod' m n {≢0}
-.(toℕ r + x * n) divMod n | result' x r ≡-refl = result x r
+           DivMod dividend divisor
+_divMod_ m n {≢0} with _divMod'_ m n {≢0}
+.(toℕ r + x * n) divMod n | result x r ≡-refl = result x r
 
 _div_ : (dividend divisor : ℕ) {≢0 : False (divisor ℕ-≟ 0)} -> ℕ
 _div_ m n {≢0} with _divMod_ m n {≢0}
