@@ -2,18 +2,6 @@
 -- Integer division
 ------------------------------------------------------------------------
 
--- The run-time complexity of this implementation of integer division
--- should be linear in the size of the dividend, assuming that
--- well-founded recursion and the equality type are optimised properly
--- (see "Inductive Families Need Not Store Their Indices" (Brady,
--- McBride, McKinna, TYPES 2003)).
-
--- For some reason Agda panics when checking the pattern completeness
--- of helper.
-
-{-# OPTIONS --no-coverage-check
-  #-}
-
 module Data.Nat.DivMod where
 
 open import Data.Nat
@@ -27,13 +15,14 @@ open import Relation.Nullary
 open import Relation.Binary.PropositionalEquality
 open ≡-Reasoning
 open import Data.Vec
+open import Data.Function
 
 ------------------------------------------------------------------------
 -- Some boring lemmas
 
 private
 
-  lem₁ = \m k -> begin
+  lem₁ = \m k -> ≡-cong suc $ begin
     m
       ≡⟨ inject-lemma m k ⟩
     toℕ (inject k (fromℕ m))
@@ -46,88 +35,86 @@ private
     let N = var fz in
     prove (n ∷ []) (con 1 :+ N) (con 1 :+ (N :+ con 0)) ≡-refl
 
-  lem₃ = \n k x r eq -> begin
-      suc (suc (n + k))
+  lem₃ = \n k q r eq -> begin
+      suc n + k
         ≡⟨ (let N = var fz; K = var (fs fz) in
-            prove (suc n ∷ k ∷ [])
-                  (con 1 :+ (N :+ K)) (N :+ (con 1 :+ K))
+            prove (n ∷ k ∷ [])
+                  (con 1 :+ N :+ K) (N :+ (con 1 :+ K))
                   ≡-refl) ⟩
-      suc n + suc k
-        ≡⟨ ≡-cong (_+_ (suc n)) eq ⟩
-      suc n + (toℕ r + x * suc n)
-        ≡⟨ (let N = var fz; R = var (fs fz); X = var (fs (fs fz)) in
-            prove (suc n ∷ toℕ r ∷ x ∷ [])
-                  (N :+ (R :+ X :* N)) (R :+ (con 1 :+ X) :* N)
+      n + suc k
+        ≡⟨ ≡-cong (_+_ n) eq ⟩
+      n + (toℕ r + q * n)
+        ≡⟨ (let N = var fz; R = var (fs fz); Q = var (fs (fs fz)) in
+            prove (n ∷ toℕ r ∷ q ∷ [])
+                  (N :+ (R :+ Q :* N)) (R :+ (con 1 :+ Q) :* N)
                   ≡-refl) ⟩
-      toℕ r + suc x * suc n
+      toℕ r + suc q * n
         ∎
 
 ------------------------------------------------------------------------
 -- Division
 
--- The specification of integer division.
+-- A specification of integer division.
 
 data DivMod : ℕ -> ℕ -> Set where
-  result : {divisor : ℕ} (n : ℕ) (r : Fin divisor) ->
-           DivMod (toℕ r + n * divisor) divisor
+  result : {divisor : ℕ} (q : ℕ) (r : Fin divisor) ->
+           DivMod (toℕ r + q * divisor) divisor
 
 -- Sometimes the following type is more usable; functions in indices
 -- can be inconvenient.
 
 data DivMod' (dividend divisor : ℕ) : Set where
-  result : (n : ℕ) (r : Fin divisor) ->
-           dividend ≡ toℕ r + n * divisor ->
+  result : (q : ℕ) (r : Fin divisor) ->
+           dividend ≡ toℕ r + q * divisor ->
            DivMod' dividend divisor
 
--- The implementation. Note that Logic.Induction.Nat is used to ensure
--- termination of division.
+-- Integer division with remainder.
 
-private
-
-  Pred : ℕ -> Set
-  Pred dividend = (divisor : ℕ) {≢0 : False (divisor ℕ-≟ 0)} ->
-                  DivMod' dividend divisor
-
-  helper : forall m n {o} ->
-           Ordering m o -> o ≡ suc n -> <-Rec Pred m ->
-           DivMod' m (suc n)
-  -- m < suc n.
-  helper .m .(m + k) (less m k) ≡-refl rec =
-    result 0 (inject k (fromℕ m)) (lem₁ m k)
-
-  -- m ≡ suc n.
-  helper .(suc n) .n (equal (suc n)) ≡-refl rec =
-    result 1 fz (lem₂ n)
-
-  -- m > suc n.
-  helper .(suc (suc (n + k))) .n (greater (suc n) k) ≡-refl rec
-    with rec (suc k) (s≤′s (s≤′s (n≤′m+n n k))) (suc n)
-  ... | result x r eq = result (suc x) r (lem₃ n k x r eq)
-
-  -- Impossible cases.
-  helper ._ _ (equal zero)     () _
-  helper ._ _ (greater zero _) () _
-
-  dm : (dividend : ℕ) -> <-Rec Pred dividend -> Pred dividend
-  dm m rec zero    {≢0 = ()}
-  dm m rec (suc n) = helper m n (compare m (suc n)) ≡-refl rec
-
--- And the interface.
+-- Note that Logic.Induction.Nat.<-rec is used to ensure termination
+-- of division. The run-time complexity of this implementation of
+-- integer division should be linear in the size of the dividend,
+-- assuming that well-founded recursion and the equality type are
+-- optimised properly (see "Inductive Families Need Not Store Their
+-- Indices" (Brady, McBride, McKinna, TYPES 2003)).
 
 _divMod'_ : (dividend divisor : ℕ) {≢0 : False (divisor ℕ-≟ 0)} ->
             DivMod' dividend divisor
 _divMod'_ m n {≢0} = <-rec Pred dm m n {≢0}
+  where
+  Pred : ℕ -> Set
+  Pred dividend = (divisor : ℕ) {≢0 : False (divisor ℕ-≟ 0)} ->
+                  DivMod' dividend divisor
+
+  1+_ : forall {k n} -> DivMod' (suc k) n -> DivMod' (suc n + k) n
+  1+_ {k} {n} (result q r eq) = result (1 + q) r (lem₃ n k q r eq)
+
+  dm : (dividend : ℕ) -> <-Rec Pred dividend -> Pred dividend
+  dm m       rec zero    {≢0 = ()}
+  dm zero    rec (suc n)            = result 0 fz ≡-refl
+  dm (suc m) rec (suc n)            with compare m n
+  dm (suc m) rec (suc .(suc m + k)) | less .m k    = result 0 r  (lem₁ m k)
+                                        where r = fs (inject k (fromℕ m))
+  dm (suc m) rec (suc .m)           | equal .m     = result 1 fz (lem₂ m)
+  dm (suc .(suc n + k)) rec (suc n) | greater .n k =
+    1+ rec (suc k) le (suc n)
+    where le = s≤′s (s≤′s (n≤′m+n n k))
+
+-- A variant.
 
 _divMod_ : (dividend divisor : ℕ) {≢0 : False (divisor ℕ-≟ 0)} ->
            DivMod dividend divisor
 _divMod_ m n {≢0} with _divMod'_ m n {≢0}
-.(toℕ r + x * n) divMod n | result x r ≡-refl = result x r
+.(toℕ r + q * n) divMod n | result q r ≡-refl = result q r
+
+-- Integer division.
 
 _div_ : (dividend divisor : ℕ) {≢0 : False (divisor ℕ-≟ 0)} -> ℕ
 _div_ m n {≢0} with _divMod_ m n {≢0}
-.(toℕ r + x * n) div n | result x r = x
+.(toℕ r + q * n) div n | result q r = q
+
+-- The remainder after integer division.
 
 _mod_ : (dividend divisor : ℕ) {≢0 : False (divisor ℕ-≟ 0)} ->
         Fin divisor
 _mod_ m n {≢0} with _divMod_ m n {≢0}
-.(toℕ r + x * n) mod n | result x r = r
+.(toℕ r + q * n) mod n | result q r = r
