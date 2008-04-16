@@ -20,11 +20,13 @@ open import Relation.Binary
 open import Relation.Binary.PropositionalEquality
 open import Data.Function
 
--- m Divides n is inhabited iff m divides n. (Note that the definition
--- does not require the numbers to be positive.)
+-- m Divides n is inhabited iff m is non-zero and divides n. (The
+-- requirement that m should be non-zero follows MathWorld, which
+-- follows Hardy and Wright's "An Introduction to the Theory of
+-- Numbers".)
 
-data _Divides_ (m n : ℕ) : Set where
-  divides : (q : ℕ) -> n ≡ q * m -> m Divides n
+data _Divides_ : ℕ -> ℕ -> Set where
+  divides : {m n : ℕ} (q : ℕ) -> n ≡ q * suc m -> suc m Divides n
 
 -- Extracts the quotient.
 
@@ -36,63 +38,65 @@ quotient (divides q _) = q
 _Divides_And_ : (d m n : ℕ) -> Set
 d Divides m And n = d Divides m × d Divides n
 
--- The divisibility relation is reflexive.
+-- The divisibility relation is reflexive for positive integers.
 
-divides-refl : forall n -> n Divides n
-divides-refl n = divides 1 (≡-sym $ proj₁ CS.*-identity n)
+divides-refl : forall n -> suc n Divides suc n
+divides-refl n = divides 1 (≡-sym $ proj₁ CS.*-identity (suc n))
 
 -- 1 divides everything.
 
 1-divides_ : forall n -> 1 Divides n
 1-divides n = divides n (≡-sym $ proj₂ CS.*-identity n)
 
--- Everything divides 0.
+-- Every positive integer divides 0.
 
-_divides-0 : forall n -> n Divides 0
-n divides-0 = divides 0 ≡-refl
+_+1-divides-0 : forall n -> suc n Divides 0
+n +1-divides-0 = divides 0 ≡-refl
 
--- If 0 divides n, then n is 0.
+-- 0 divides nothing.
 
-0-dividesOnly-0 : forall {n} -> 0 Divides n -> n ≡ 0
-0-dividesOnly-0 {n} (divides q eq) = begin
-  n
-    ≡⟨ eq ⟩
-  q * 0
-    ≡⟨ proj₂ CS.zero q ⟩
-  0
-    ∎
-  where open ≡-Reasoning
+0-doesNotDivide : forall {n} -> ¬ 0 Divides n
+0-doesNotDivide ()
 
 -- If m divides n, and n is positive, then m ≤ n.
 
 divides-≤ : forall {m n} -> m Divides suc n -> m ≤ suc n
-divides-≤ {m = zero}  _                        = z≤n  -- Impossible.
-divides-≤             (divides zero    ())
-divides-≤ {m = suc m} (divides (suc q) ≡-refl) = m≤m+n (suc m) (q * suc m)
+divides-≤             (divides 0       ())
+divides-≤ {suc m} {n} (divides (suc q) eq) = begin
+  suc m
+    ≤⟨ m≤m+n (suc m) (q * suc m) ⟩
+  suc q * suc m
+    ≡⟨ ≡-sym eq ⟩
+  suc n
+    ∎
+  where open ≤-Reasoning
 
 -- If m and n divide each other, then they are equal.
 
 divides-≡ : forall {m n} -> m Divides n -> n Divides m -> m ≡ n
-divides-≡ {m = 0}         d  _  = ≡-sym $ 0-dividesOnly-0 d
-divides-≡ {n = 0}         _  d  = 0-dividesOnly-0 d
-divides-≡ {suc m} {suc n} d₁ d₂ = ≤≥⇒≡ (divides-≤ d₁) (divides-≤ d₂)
+divides-≡ d₁@(divides _ _) d₂@(divides _ _) =
+  ≤≥⇒≡ (divides-≤ d₁) (divides-≤ d₂)
+
+-- If i divides m and n, then i divides their sum.
 
 divides-+ : forall {i m n} ->
             i Divides m -> i Divides n -> i Divides (m + n)
-divides-+ {i} (divides q ≡-refl) (divides q' ≡-refl) =
-  divides (q + q') (≡-sym $ proj₂ CS.distrib i q q')
+divides-+ (divides {m = i} q ≡-refl) (divides q' ≡-refl) =
+  divides (q + q') (≡-sym $ proj₂ CS.distrib (suc i) q q')
 
 -- If i divides m and n, then i divides their difference.
 
 divides-∸ : forall {i m n} ->
             i Divides (m + n) -> i Divides m -> i Divides n
-divides-∸ {i} (divides q' eq) (divides q ≡-refl) =
-  divides (q' ∸ q) (≡-sym $ im≡jm+n⇒[i∸j]m≡n q' q i _ $ ≡-sym eq)
+divides-∸ (divides {m = i} q' eq) (divides q ≡-refl) =
+  divides (q' ∸ q)
+          (≡-sym $ im≡jm+n⇒[i∸j]m≡n q' q (suc i) _ $ ≡-sym eq)
 
--- If i divides i + n, then i divides n.
+-- If i divides i + n then i divides n.
 
 divides-Δ : forall {i n} -> i Divides (i + n) -> i Divides n
-divides-Δ {i} d = divides-∸ d (divides-refl i)
+divides-Δ {suc i} d  = divides-∸ d (divides-refl i)
+divides-Δ {zero}  ()
 
 -- If the remainder after division is non-zero, then the divisor does
 -- not divide the dividend.
@@ -135,8 +139,7 @@ nonZeroDivisor-lemma m (suc q) r r≢fz d =
 -- Divisibility is decidable.
 
 divisible? : Decidable _Divides_
-divisible? zero    zero    = yes $ 0 divides-0
-divisible? zero    (suc n) = no  $ zero≢suc ∘ ≡-sym ∘ 0-dividesOnly-0
+divisible? zero    n                        = no 0-doesNotDivide
 divisible? (suc m) n                        with n divMod suc m
 divisible? (suc m) .(q * suc m)             | result q fz     =
   yes $ divides q ≡-refl

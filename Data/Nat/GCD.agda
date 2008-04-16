@@ -30,8 +30,11 @@ private
                  prove (n ∷ k ∷ [])
                        (N :+ (con 1 :+ K)) (con 1 :+ N :+ K) ≡-refl
 
-  lem₁ : forall i j -> 2 + i ≤′ 2 + j + i
-  lem₁ i j = ≤⇒≤′ $ s≤s $ s≤s $ n≤m+n j i
+  lem₁ : forall i j -> 1 + i ≤′ 1 + j + i
+  lem₁ i j = ≤⇒≤′ $ s≤s $ n≤m+n j i
+
+  lem₂ : forall {n} -> ¬ 1 + n ≤ n
+  lem₂ (s≤s 1+n≤n) = lem₂ 1+n≤n
 
 ------------------------------------------------------------------------
 -- Greatest common divisor
@@ -41,10 +44,10 @@ private
 
 record GCD (m n gcd : ℕ) : Set where
   field
-    -- The GCD is a common divisor.
+    -- The gcd is a common divisor.
     commonDivisor : gcd Divides m And n
 
-    -- All common divisors divide the GCD.
+    -- All common divisors divide the gcd.
     divisible     : forall {d} -> d Divides m And n -> d Divides gcd
 
 isGCD : forall {gcd m n} ->
@@ -56,32 +59,44 @@ isGCD cd div = record
   ; divisible     = div
   }
 
--- The GCD is the largest common divisor, except if both dividends are
--- zero (in which case all natural numbers are common divisors).
+-- The gcd is the largest common divisor.
 
-gcd-largest
-  : forall {d d' m n} ->
-    GCD m n d -> ¬ (m ≡ 0 × n ≡ 0) -> d' Divides m And n -> d' ≤ d
-gcd-largest {zero} g mn≢0 _ with GCD.commonDivisor g
-gcd-largest {zero} {d'} {m = .(m * 0)} {n = .(n * 0)} g mn≢0 _
-  | (divides m ≡-refl , divides n ≡-refl) =
-  ⊥-elim {d' ≤ 0} $ mn≢0 (proj₂ CS.zero m , proj₂ CS.zero n)
-gcd-largest {suc _} g _ c = divides-≤ (GCD.divisible g c)
+gcd-largest : forall {d d' m n} ->
+              GCD m n d -> d' Divides m And n -> d' ≤ d
+gcd-largest {zero}  g _ = ⊥-elim {_ ≤ 0} $ 0-doesNotDivide $
+                            proj₁ (GCD.commonDivisor g)
+gcd-largest {suc _} g c = divides-≤ (GCD.divisible g c)
 
--- The GCD is unique.
+-- The gcd is unique.
 
 gcd-unique : forall {d₁ d₂ m n} -> GCD m n d₁ -> GCD m n d₂ -> d₁ ≡ d₂
 gcd-unique d₁ d₂ = divides-≡ (GCD.divisible d₂ (GCD.commonDivisor d₁))
                              (GCD.divisible d₁ (GCD.commonDivisor d₂))
 
--- The GCD relation is "symmetric".
+-- The gcd relation is "symmetric".
 
 gcd-sym : forall {d m n} -> GCD m n d -> GCD n m d
 gcd-sym g = isGCD (swap $ GCD.commonDivisor g) (GCD.divisible g ∘ swap)
 
+-- The gcd relation is "reflexive" (for positive numbers).
+
+gcd-refl : forall n -> let m = suc n in GCD m m m
+gcd-refl n = isGCD (divides-refl n , divides-refl n) proj₁
+
+-- 0 and 0 have no gcd.
+
+no-GCD-for-0-0 : ∄₀ \d -> GCD 0 0 d
+no-GCD-for-0-0 (exists 0         g) = 0-doesNotDivide $
+                                        proj₁ $ GCD.commonDivisor g
+no-GCD-for-0-0 (exists d@(suc _) g) = lem₂ 1+d≤d
+  where
+  1+d|0 = d +1-divides-0
+  1+d|d = GCD.divisible g (1+d|0 , 1+d|0)
+  1+d≤d = divides-≤ 1+d|d
+
 private
 
-  ∃GCD = \m n -> ∃ ℕ (GCD m n)
+  ∃GCD = \m n -> ∃₀ (GCD m n)
 
   step₁ : forall {n k} -> ∃GCD n (suc k) -> ∃GCD n (suc (n + k))
   step₁ (exists d g) with GCD.commonDivisor g
@@ -99,37 +114,20 @@ private
   step₂ : forall {n k} -> ∃GCD (suc k) n -> ∃GCD (suc (n + k)) n
   step₂ = ∃gcd-sym ∘ step₁ ∘ ∃gcd-sym
 
--- GCD calculated using Euclid's algorithm (except, perhaps, for the
--- "equal" case).
+-- Gcd calculated using (a variant of) Euclid's algorithm. Note that
+-- it is the gcd of the successors of the arguments that is
+-- calculated; 0 and 0 have no greatest common divisor (see above).
 
-gcd : (m n : ℕ) -> ∃ ℕ (\d -> GCD m n d)
+gcd : (m n : ℕ) -> ∃₀ \d -> GCD (suc m) (suc n) d
 gcd m n = build [ <-rec-builder ⊗ <-rec-builder ] P gcd' (m , n)
   where
   P : ℕ × ℕ -> Set
-  P (m , n) = ∃GCD m n
-
-  res₁ = \n -> exists n       (isGCD (n divides-0          , divides-refl n      ) proj₂)
-  res₂ = \m -> exists (suc m) (isGCD (divides-refl (suc m) , suc m divides-0     ) proj₁)
-  res₃ = \m -> exists (suc m) (isGCD (divides-refl (suc m) , divides-refl (suc m)) proj₁)
+  P (m , n) = ∃GCD (suc m) (suc n)
 
   gcd' : forall p -> (<-Rec ⊗ <-Rec) P p -> P p
-  gcd' (zero               , n                 ) rec = res₁ n
-  gcd' (suc m              , zero              ) rec = res₂ m
-  gcd' (suc m              , suc n             ) rec with compare m n
-  gcd' (suc m              , suc .m            ) rec | equal .m     = res₃ m
-  gcd' (suc m              , suc .(suc (m + k))) rec | less .m k    =
-    step₁ $ proj₁ rec (suc k) (lem₁ k m)          -- gcd (suc m) (suc k)
-  gcd' (suc .(suc (n + k)) , suc n             ) rec | greater .n k =
-    step₂ $ proj₂ rec (suc k) (lem₁ k n) (suc n)  -- gcd (suc k) (suc n)
-
--- Another interface to the gcd function, which may sometimes be
--- useful.
-
-data GCD' : ℕ -> ℕ -> Set where
-  result : (m n d : ℕ) -> GCD' (m * d) (n * d)
-
-gcd' : (m n : ℕ) -> GCD' m n
-gcd' m         n         with gcd m n
-gcd' m         n         | exists d g with GCD.commonDivisor g
-gcd' .(m' * d) .(n' * d) | exists d g
-  | (divides m' ≡-refl , divides n' ≡-refl) = result m' n' d
+  gcd' (m , n             ) rec with compare m n
+  gcd' (m , .m            ) rec | equal .m     = exists (suc m) (gcd-refl m)
+                                                         -- gcd m k
+  gcd' (m , .(suc (m + k))) rec | less .m k    = step₁ $ proj₁ rec k (lem₁ k m)
+                                                         -- gcd k n
+  gcd' (.(suc (n + k)) , n) rec | greater .n k = step₂ $ proj₂ rec k (lem₁ k n) n
