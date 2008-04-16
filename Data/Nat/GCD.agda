@@ -20,6 +20,7 @@ open import Logic.Induction
 open import Logic.Induction.Nat
 open import Logic.Induction.Lexicographic
 open import Data.Function
+open import Relation.Nullary
 
 ------------------------------------------------------------------------
 -- Boring lemmas
@@ -118,8 +119,8 @@ private
 -- it is the gcd of the successors of the arguments that is
 -- calculated; 0 and 0 have no greatest common divisor (see above).
 
-gcd : (m n : ℕ) -> ∃₀ \d -> GCD (suc m) (suc n) d
-gcd m n = build [ <-rec-builder ⊗ <-rec-builder ] P gcd' (m , n)
+gcd⁺ : (m n : ℕ) -> ∃₀ \d -> GCD (suc m) (suc n) d
+gcd⁺ m n = build [ <-rec-builder ⊗ <-rec-builder ] P gcd' (m , n)
   where
   P : ℕ × ℕ -> Set
   P (m , n) = ∃GCD (suc m) (suc n)
@@ -127,7 +128,16 @@ gcd m n = build [ <-rec-builder ⊗ <-rec-builder ] P gcd' (m , n)
   gcd' : forall p -> (<-Rec ⊗ <-Rec) P p -> P p
   gcd' (m , n             ) rec with compare m n
   gcd' (m , .m            ) rec | equal .m     = exists (suc m) (gcd-refl m)
-                                                         -- gcd m k
+                                                         -- gcd⁺ m k
   gcd' (m , .(suc (m + k))) rec | less .m k    = step₁ $ proj₁ rec k (lem₁ k m)
-                                                         -- gcd k n
+                                                         -- gcd⁺ k n
   gcd' (.(suc (n + k)) , n) rec | greater .n k = step₂ $ proj₂ rec k (lem₁ k n) n
+
+-- Calculates the gcd of the arguments, which have to be positive.
+
+gcd : (m : ℕ) {m≢0 : False (m ℕ-≟ 0)}
+      (n : ℕ) {n≢0 : False (n ℕ-≟ 0)} ->
+      ∃₀ \d -> GCD m n d
+gcd (suc m) (suc n) = gcd⁺ m n
+gcd (suc m) zero {n≢0 = ()}
+gcd zero {m≢0 = ()} _
