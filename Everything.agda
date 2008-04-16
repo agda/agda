@@ -56,7 +56,10 @@ import Data.List1
 import Data.Map
 import Data.Maybe
 import Data.Nat
+import Data.Nat.Coprimality
 import Data.Nat.DivMod
+import Data.Nat.Divisibility
+import Data.Nat.GCD
 import Data.Nat.Properties
 import Data.Nat.Show
 import Data.Product
