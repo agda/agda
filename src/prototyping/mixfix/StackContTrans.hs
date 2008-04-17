@@ -33,4 +33,3 @@ parse parse' (P p) = parse' (p pure id)
 instance (Ord tok, Alternative p, Monad p, Parser.Parser p k r' tok) =>
          Parser.Parser (StackContTrans p) k r' tok where
   sym c = P (\k s -> Parser.sym c >>= k . s)
-  parse = parse Parser.parse

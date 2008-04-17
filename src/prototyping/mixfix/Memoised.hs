@@ -68,8 +68,6 @@ instance (Ord k, Ord tok) =>
       (_, c') : cs | c == c' -> return (c', cs)
       _                      -> empty
 
-  parse = parse
-
   memoise k (P p) = P $ \input -> do
     let key = (k, case input of
                     (pos, _) : _ -> Just pos

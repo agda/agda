@@ -11,8 +11,7 @@ import Data.Foldable
 
 class (Alternative p, Ord k, Ord tok) => Parser p k r' tok
       | p -> tok, p -> k, p -> r' where
-  sym     :: tok -> p tok
-  parse   :: p r -> [tok] -> [r]
+  sym :: tok -> p tok
 
   -- | The user must annotate every memoised parser with a /unique/
   -- key. (Parameterised parsers need separate keys for separate

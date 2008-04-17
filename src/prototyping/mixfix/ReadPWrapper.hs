@@ -29,7 +29,6 @@ parse = ReadP.parse . unR
 instance (Ord k, Ord tok) =>
          Parser.Parser (ReadP k r' tok) k r' tok where
   sym                  = R . ReadP.char
-  parse                = parse
 
   choice               = R . ReadP.choice . map unR
   many1                = R . ReadP.many1 . unR

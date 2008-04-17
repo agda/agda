@@ -36,4 +36,3 @@ instance (Ord k, Ord tok) =>
         put cs
         return c' 
       _ -> mzero
-  parse = parse

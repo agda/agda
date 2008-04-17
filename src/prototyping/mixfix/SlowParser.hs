@@ -49,4 +49,3 @@ parse (xs :&: f) (c : s) = parse (f c) s
 instance (Ord k, Ord tok) =>
          Parser.Parser (Parser k r' tok) k r' tok where
   sym c = [] :&: \c' -> if c == c' then return c' else empty
-  parse = parse

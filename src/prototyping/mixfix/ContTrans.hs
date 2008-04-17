@@ -37,4 +37,3 @@ parse parse' (P p) = parse' (p return)
 instance (Monad p, Alternative p, Parser.Parser p k r' tok) =>
          Parser.Parser (ContTrans p) k r' tok where
   sym c = P (\k -> Parser.sym c >>= k)
-  parse = parse Parser.parse

@@ -63,4 +63,3 @@ parse p s = parse' p s id
 instance (Ord k, Ord tok) =>
          Parser.Parser (Parser k r' tok) k r' tok where
   sym c = [] :&: Map.singleton c (return c)
-  parse = parse
