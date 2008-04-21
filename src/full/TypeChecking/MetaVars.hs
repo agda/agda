@@ -193,11 +193,22 @@ blockTerm t v m = do
   where
     inst i mv = mv { mvInstantiation = i }
 
-postponeTypeCheckingProblem :: MonadTCM tcm => A.Expr -> Type -> tcm Term
-postponeTypeCheckingProblem e t = do
+postponeTypeCheckingProblem_ :: MonadTCM tcm => A.Expr -> Type -> tcm Term
+postponeTypeCheckingProblem_ e t =
+  postponeTypeCheckingProblem e t unblock
+  where
+    unblock = do
+      t <- reduce t
+      case unEl t of
+        MetaV _ _  -> return False
+        BlockedV _ -> return False
+        _          -> return True
+
+postponeTypeCheckingProblem :: MonadTCM tcm => A.Expr -> Type -> TCM Bool -> tcm Term
+postponeTypeCheckingProblem e t unblock = do
   i   <- createMetaInfo
   tel <- getContextTelescope
-  cl  <- buildClosure (e, t)
+  cl  <- buildClosure (e, t, unblock)
   m   <- newMeta' (PostponedTypeCheckingProblem cl)
                   i normalMetaPriority $ HasType () $ telePi_ tel t
   addConstraints =<< buildConstraint (UnBlock m)

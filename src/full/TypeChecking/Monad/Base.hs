@@ -216,8 +216,8 @@ data MetaInstantiation
 	| InstS Sort
 	| Open
 	| BlockedConst Term
-        | PostponedTypeCheckingProblem (Closure (A.Expr, Type))
-    deriving (Typeable, Data)
+        | PostponedTypeCheckingProblem (Closure (A.Expr, Type, TCM Bool))
+    deriving (Typeable)
 
 newtype MetaPriority = MetaPriority Int
     deriving (Eq, Ord, Show)

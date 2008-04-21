@@ -209,7 +209,7 @@ instance Reify Constraint (OutputForm Expr Expr) where
             e  <- reify t
             m' <- reify (MetaV m [])
             return $ Assign m' e
-          PostponedTypeCheckingProblem cl -> enterClosure cl $ \(e, a) -> do
+          PostponedTypeCheckingProblem cl -> enterClosure cl $ \(e, a, _) -> do
             a <- reify a
             return $ OfType e a
           Open{}  -> __IMPOSSIBLE__

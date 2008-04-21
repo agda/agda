@@ -4,6 +4,7 @@ module TypeChecking.Rules.Term where
 
 import Control.Applicative
 import Control.Monad.Trans
+import Data.Maybe
 
 import qualified Syntax.Abstract as A
 import Syntax.Common
@@ -166,6 +167,7 @@ checkExpr e t =
 	-- Variable or constant application
 	_   | Application (HeadCon cs@(_:_:_)) args <- appView e -> do
                 -- First we should figure out which constructor we want.
+                reportSLn "tc.check.term" 40 $ "Ambiguous constructor: " ++ show cs
 
                 -- Get the datatypes of the various constructors
                 let getData Constructor{conData = d} = d
@@ -173,21 +175,27 @@ checkExpr e t =
                 dcs <- mapM (\c -> (getData /\ const c) . theDef <$> getConstInfo c) cs
 
                 -- Lets look at the target type at this point
-                let TelV _ t1 = telView t
-                t1 <- reduce t1
-                case unEl t1 of
-                  Def d _ -> case [ c | (d', c) <- dcs, d == d' ] of
-                    [c]  -> do
-                      let hd = HeadCon [c]
-                      (f,  t0)     <- inferHead hd
-                      (vs, t1, cs) <- checkArguments ExpandLast (getRange hd) args t0 t
-                      blockTerm t (f vs) $ (cs ++) <$> equalType t1 t
-                    [] -> fail $ show (head cs) ++ " does not constructor an element of the datatype " ++ show d
-                    _:_:_ -> __IMPOSSIBLE__
-                  MetaV _ _  -> postponeTypeCheckingProblem e t
-                  BlockedV _ -> postponeTypeCheckingProblem e t
-                       -- TODO: error message
-                  _ -> fail $ show (head cs) ++ " does not construct an element of " ++ show t
+                let getCon = do
+                      t <- normalise t
+                      let TelV _ t1 = telView t
+                      case unEl t1 of
+                        Def d _ -> case [ c | (d', c) <- dcs, d == d' ] of
+                          [c]   -> return (Just c)
+                          []    -> fail $ show (head cs) ++ " does not constructor an element of the datatype " ++ show d
+                          _:_:_ -> __IMPOSSIBLE__
+                        MetaV _ _  -> return Nothing
+                        BlockedV _ -> return Nothing
+                             -- TODO: error message
+                        _ -> fail $ show (head cs) ++ " does not construct an element of " ++ show t
+                let unblock = isJust <$> getCon
+                mc <- getCon
+                case mc of
+                  Just c -> do
+                    let hd = HeadCon [c]
+                    (f,  t0)     <- inferHead hd
+                    (vs, t1, cs) <- checkArguments ExpandLast (getRange hd) args t0 t
+                    blockTerm t (f vs) $ (cs ++) <$> equalType t1 t
+                  Nothing -> postponeTypeCheckingProblem e t unblock
 
             | Application hd args <- appView e -> do
 		(f,  t0)     <- inferHead hd
@@ -263,7 +271,7 @@ checkExpr e t =
                 [ text "Postponing type checking of"
                 , nest 2 $ prettyA e <+> text ":" <+> prettyTCM t
                 ]
-              postponeTypeCheckingProblem e t
+              postponeTypeCheckingProblem_ e t
 	    _         -> typeError $ ShouldBeRecordType t
 
 	A.Var _    -> __IMPOSSIBLE__
