@@ -51,6 +51,11 @@ flip f = \x y -> f y x
 flip₁ : {a b : Set} -> (a -> b -> Set) -> (b -> a -> Set)
 flip₁ f = \x y -> f y x
 
+-- Note that _$_ is right associative, like in Haskell. If you want a
+-- left associative infix application operator, use
+-- Category.Functor._<$>_, available from
+-- Category.Monad.Identity.IdentityMonad.
+
 _$_ : {a : Set} {b : a -> Set} -> ((x : a) -> b x) -> ((x : a) -> b x)
 f $ x = f x
 
