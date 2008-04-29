@@ -293,6 +293,16 @@ cmd_goal_type norm ii _ _ = infoOnException $ do
     s <- ioTCM $ B.withInteractionId ii $ showA =<< B.typeOfMeta norm ii
     display_info "*Current Goal*" s
 
+-- | Displays the current goal and context.
+
+cmd_goal_type_context :: B.Rewrite -> GoalCommand
+cmd_goal_type_context norm ii _ _ = infoOnException $ do 
+    goal <- ioTCM $ B.withInteractionId ii $ showA =<< B.typeOfMeta norm ii
+    ctx  <- ioTCM (B.withInteractionId ii $ mapM showA =<< B.contextOfMeta ii norm)
+    display_info "*Goal and context*"
+                 (unlines $ ctx ++ [replicate 40 '-'] ++ lines goal)
+  where indent = List.map ("  " ++) . lines
+
 -- | Displays the current goal _and_ infers the type of an expression.
 
 cmd_goal_type_infer :: B.Rewrite -> GoalCommand

@@ -211,6 +211,8 @@ want settings to this variable to take effect."
          (agda2-show-context-normalised            nil                nil "Context (normalised)")
          (agda2-infer-type-maybe-toplevel          "\C-c\C-d"         nil "Infer (deduce) type")
          (agda2-infer-type-normalised              nil                nil "Infer type (normalised)")
+         (agda2-goal-and-context                   ,(kbd "C-c C-,")   nil "Goal type and context")
+         (agda2-goal-and-context-normalised        nil                nil "Goal type and context (normalised)")
          (agda2-goal-and-infer                     ,(kbd "C-c C-.")   nil "Goal type and inferred type")
          (agda2-goal-and-infer-normalised          nil                nil "Goal type and inferred type (normalised)")
          (agda2-compute-normalised-maybe-toplevel  "\C-c\C-n"         nil "Compute normal form")
@@ -586,6 +588,12 @@ top-level scope."
   (if (agda2-goal-at (point))
       (call-interactively 'agda2-infer-type)
     (call-interactively 'agda2-infer-type-toplevel)))
+
+(agda2-maybe-normalised
+ agda2-goal-and-context
+ "Shows the type of the goal at point and the currect context"
+ "cmd_goal_type_context"
+ nil)
 
 (agda2-maybe-normalised
  agda2-goal-and-infer
