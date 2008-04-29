@@ -10,6 +10,11 @@ module Relation.Unary where
 Pred : Set -> Set1
 Pred a = a -> Set
 
+-- Unary relations can be seen as sets.
+
+_∈_ : {a : Set} -> a -> Pred a -> Set
+x ∈ P = P x
+
 ------------------------------------------------------------------------
 -- Simple properties of unary relations
 
