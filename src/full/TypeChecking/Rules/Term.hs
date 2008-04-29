@@ -179,10 +179,15 @@ checkExpr e t =
                       t <- normalise t
                       let TelV _ t1 = telView t
                       case unEl t1 of
-                        Def d _ -> case [ c | (d', c) <- dcs, d == d' ] of
-                          [c]   -> return (Just c)
-                          []    -> fail $ show (head cs) ++ " does not constructor an element of the datatype " ++ show d
-                          _:_:_ -> __IMPOSSIBLE__
+                        Def d _ -> do
+                          defn <- theDef <$> getConstInfo d
+                          case defn of
+                            Datatype{} ->
+                              case [ c | (d', c) <- dcs, d == d' ] of
+                                [c]   -> return (Just c)
+                                []    -> fail $ show (head cs) ++ " does not constructor an element of the datatype " ++ show d
+                                _:_:_ -> __IMPOSSIBLE__
+                            _ -> return Nothing
                         MetaV _ _  -> return Nothing
                         BlockedV _ -> return Nothing
                              -- TODO: error message
