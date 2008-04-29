@@ -96,6 +96,15 @@ contravariant f ¬q p = contradiction (f p) ¬q
 map-¬¬ : forall {P Q} -> (P -> Q) -> ¬ (¬ P) -> ¬ (¬ Q)
 map-¬¬ f = contravariant (contravariant f)
 
+map-∃ : forall {a P Q} -> (forall {x} -> P x -> Q x) -> ∃ a P -> ∃ a Q
+map-∃ f (exists x p) = exists x (f p)
+
+map-∃₂ : forall {a P Q R} ->
+         (_+_ : a -> a -> a) ->
+         (forall {x y} -> P x -> Q y -> R (x + y)) ->
+         ∃ a P -> ∃ a Q -> ∃ a R
+map-∃₂ _+_ f (exists x p) (exists y q) = exists (x + y) (f p q)
+
 ------------------------------------------------------------------------
 -- Conversion
 
