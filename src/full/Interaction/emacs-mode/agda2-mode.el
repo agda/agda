@@ -643,8 +643,7 @@ given expression"
 With a prefix argument \"abstract\" is ignored during the computation."
   (interactive "P")
   (let ((cmd (concat "cmd_compute"
-                     (if arg " True" " False")
-                     " Interaction.BasicOps.Normalised")))
+                     (if arg " True" " False"))))
     (agda2-goal-cmd cmd "expression to normalise")))
 
 (defun agda2-compute-normalised-toplevel (expr &optional arg)

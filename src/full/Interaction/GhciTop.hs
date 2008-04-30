@@ -569,8 +569,8 @@ preMeta   = SC.QuestionMark noRange Nothing
 preUscore = SC.Underscore   noRange Nothing
 
 cmd_compute :: Bool -- ^ Ignore abstract?
-            -> B.Rewrite -> GoalCommand
-cmd_compute ignore _ ii rng s = infoOnException $ do
+               -> GoalCommand
+cmd_compute ignore ii rng s = infoOnException $ do
   d <- ioTCM $ do
     e <- parseExprIn ii rng s
     B.withInteractionId ii $ do
