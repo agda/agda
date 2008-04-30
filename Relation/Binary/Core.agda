@@ -124,9 +124,9 @@ Total : {a : Set} -> Rel a -> Set
 Total _∼_ = forall x y -> (x ∼ y) ⊎ (y ∼ x)
 
 data Tri (a b c : Set) : Set where
-  Tri₁ :   a -> ¬ b -> ¬ c -> Tri a b c
-  Tri₂ : ¬ a ->   b -> ¬ c -> Tri a b c
-  Tri₃ : ¬ a -> ¬ b ->   c -> Tri a b c
+  tri< :   a -> ¬ b -> ¬ c -> Tri a b c
+  tri≈ : ¬ a ->   b -> ¬ c -> Tri a b c
+  tri> : ¬ a -> ¬ b ->   c -> Tri a b c
 
 Trichotomous : {a : Set} -> Rel a -> Rel a -> Set
 Trichotomous _≈_ _<_ = forall x y -> Tri (x < y) (x ≈ y) (x > y)

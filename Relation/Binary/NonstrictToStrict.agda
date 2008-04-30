@@ -65,11 +65,11 @@ x < y = (x ≤ y) × ¬ (x ≈ y)
   -> Antisymmetric _≈_ _≤_ -> Total _≤_
   -> Trichotomous _≈_ _<_
 <-trichotomous ≈-sym ≈-dec antisym total x y with ≈-dec x y
-... | yes x≈y = Tri₂ (<-irrefl x≈y) x≈y (<-irrefl (≈-sym x≈y))
+... | yes x≈y = tri≈ (<-irrefl x≈y) x≈y (<-irrefl (≈-sym x≈y))
 ... | no  x≉y with total x y
-...   | inj₁ x≤y = Tri₁ (x≤y , x≉y) x≉y
+...   | inj₁ x≤y = tri< (x≤y , x≉y) x≉y
                         (x≉y ∘ antisym x≤y ∘ proj₁)
-...   | inj₂ x≥y = Tri₃ (x≉y ∘ flip antisym x≥y ∘ proj₁) x≉y
+...   | inj₂ x≥y = tri> (x≉y ∘ flip antisym x≥y ∘ proj₁) x≉y
                         (x≥y , x≉y ∘ ≈-sym)
 
 <-decidable : Decidable _≈_ -> Decidable _≤_ -> Decidable _<_

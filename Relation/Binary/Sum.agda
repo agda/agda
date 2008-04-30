@@ -227,22 +227,22 @@ _⊎-<-trichotomous_ {≈₁ = ≈₁} {<₁ = <₁} tri₁
                    {≈₂ = ≈₂} {<₂ = <₂} tri₂ = tri
   where
   tri : Trichotomous (≈₁ ⊎-Rel ≈₂) (<₁ ⊎-< <₂)
-  tri (inj₁ x) (inj₂ y) = Tri₁ (₁∼₂ _) ₁≁₂ ₂≁₁
-  tri (inj₂ x) (inj₁ y) = Tri₃ ₂≁₁ ₂≁₁ (₁∼₂ _)
+  tri (inj₁ x) (inj₂ y) = tri< (₁∼₂ _) ₁≁₂ ₂≁₁
+  tri (inj₂ x) (inj₁ y) = tri> ₂≁₁ ₂≁₁ (₁∼₂ _)
   tri (inj₁ x) (inj₁ y) with tri₁ x y
-  ...                   | Tri₁ x<y x≉y x≯y =
-    Tri₁ (₁∼₁ x<y)        (x≉y ∘ drop-inj₁) (x≯y ∘ drop-inj₁)
-  ...                   | Tri₂ x≮y x≈y x≯y =
-    Tri₂ (x≮y ∘ drop-inj₁) (₁∼₁ x≈y)    (x≯y ∘ drop-inj₁)
-  ...                   | Tri₃ x≮y x≉y x>y =
-    Tri₃ (x≮y ∘ drop-inj₁) (x≉y ∘ drop-inj₁) (₁∼₁ x>y)
+  ...                   | tri< x<y x≉y x≯y =
+    tri< (₁∼₁ x<y)        (x≉y ∘ drop-inj₁) (x≯y ∘ drop-inj₁)
+  ...                   | tri≈ x≮y x≈y x≯y =
+    tri≈ (x≮y ∘ drop-inj₁) (₁∼₁ x≈y)    (x≯y ∘ drop-inj₁)
+  ...                   | tri> x≮y x≉y x>y =
+    tri> (x≮y ∘ drop-inj₁) (x≉y ∘ drop-inj₁) (₁∼₁ x>y)
   tri (inj₂ x) (inj₂ y) with tri₂ x y
-  ...                   | Tri₁ x<y x≉y x≯y =
-    Tri₁ (₂∼₂ x<y)        (x≉y ∘ drop-inj₂) (x≯y ∘ drop-inj₂)
-  ...                   | Tri₂ x≮y x≈y x≯y =
-    Tri₂ (x≮y ∘ drop-inj₂) (₂∼₂ x≈y)    (x≯y ∘ drop-inj₂)
-  ...                   | Tri₃ x≮y x≉y x>y =
-    Tri₃ (x≮y ∘ drop-inj₂) (x≉y ∘ drop-inj₂) (₂∼₂ x>y)
+  ...                   | tri< x<y x≉y x≯y =
+    tri< (₂∼₂ x<y)        (x≉y ∘ drop-inj₂) (x≯y ∘ drop-inj₂)
+  ...                   | tri≈ x≮y x≈y x≯y =
+    tri≈ (x≮y ∘ drop-inj₂) (₂∼₂ x≈y)    (x≯y ∘ drop-inj₂)
+  ...                   | tri> x≮y x≉y x>y =
+    tri> (x≮y ∘ drop-inj₂) (x≉y ∘ drop-inj₂) (₂∼₂ x>y)
 
 ------------------------------------------------------------------------
 -- Some collections of properties which are preserved

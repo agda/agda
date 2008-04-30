@@ -77,9 +77,9 @@ x ≤ y = (x < y) ⊎ (x ≈ y)
 
 ≤-total : Trichotomous _≈_ _<_ -> Total _≤_
 ≤-total <-tri x y with <-tri x y
-... | Tri₁ x<y x≉y x≯y = inj₁ (inj₁ x<y)
-... | Tri₂ x≮y x≈y x≯y = inj₁ (inj₂ x≈y)
-... | Tri₃ x≮y x≉y x>y = inj₂ (inj₁ x>y)
+... | tri< x<y x≉y x≯y = inj₁ (inj₁ x<y)
+... | tri≈ x≮y x≈y x≯y = inj₁ (inj₂ x≈y)
+... | tri> x≮y x≉y x>y = inj₂ (inj₁ x>y)
 
 ≤-decidable : Decidable _≈_ -> Decidable _<_ -> Decidable _≤_
 ≤-decidable ≈-dec <-dec x y with ≈-dec x y | <-dec x y

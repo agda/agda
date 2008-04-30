@@ -72,9 +72,9 @@ total+dec⟶dec {≈ = ≈} {≤ = ≤} refl antisym total _≟_ = dec
 tri⟶asym : forall {a} -> {≈ < : Rel a}
          -> Trichotomous ≈ < -> Asymmetric <
 tri⟶asym tri {x} {y} x<y x>y with tri x y
-... | Tri₁ _   _ x≯y = x≯y x>y
-... | Tri₂ _   _ x≯y = x≯y x>y
-... | Tri₃ x≮y _ _   = x≮y x<y
+... | tri< _   _ x≯y = x≯y x>y
+... | tri≈ _   _ x≯y = x≯y x>y
+... | tri> x≮y _ _   = x≮y x<y
 
 subst⟶cong
   :  {≈ : forall {a} -> Rel a}
