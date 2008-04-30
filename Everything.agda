@@ -108,6 +108,7 @@ import Relation.Binary.PropositionalEquality1
 import Relation.Binary.Props.Poset
 import Relation.Binary.Props.StrictPartialOrder
 import Relation.Binary.Props.TotalOrder
+import Relation.Binary.StrictPartialOrderReasoning
 import Relation.Binary.StrictToNonStrict
 import Relation.Binary.Sum
 import Relation.Nullary

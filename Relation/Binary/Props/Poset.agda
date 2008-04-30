@@ -25,3 +25,5 @@ strictPartialOrder = record
     ; ≈-resp-<      = ≈-resp-< isEquivalence ≈-resp-≤
     }
   }
+
+open StrictPartialOrder strictPartialOrder

@@ -30,3 +30,5 @@ poset = record
     ; antisym = ≤-antisym isEquivalence trans irrefl
     }
   }
+
+open Poset poset public
