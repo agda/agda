@@ -59,7 +59,6 @@ open import Data.Product
   ; isBooleanAlgebra = ∧-∨-isBooleanAlgebra
   }
 
-
 ------------------------------------------------------------------------
 -- (∨, ∧, ⊥, ⊤) is a commutative semiring
 
