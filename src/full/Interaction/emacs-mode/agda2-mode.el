@@ -175,12 +175,30 @@ want settings to this variable to take effect."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Global and buffer-local vars, initialization
 
+; Syntax table:
+; {}            | Comment characters, matching parentheses.
+; -             | Comment character, word constituent.
+; \n            | Comment ender.
+; space\t\v\f\r | White space.
+; .;            | Punctuation.
+; ()[]⟦⟧⟪⟫      | Matching parentheses.
+; Anything else | Word constituents.
+
 (defvar agda2-mode-syntax-table
   (let ((tbl (make-syntax-table))
-        (l  '(?{ "(}1n" ?} "){4n" ?-  "_ 123b" ?\n "> b"
-              ?\\ "." ?_  "w"  ?\' "w" ?. "."  ?=  "."  ?: "." ?, "." )))
-    (while l (modify-syntax-entry (pop l) (pop l) tbl)) tbl)
-  "Syntax table used while in agda2 mode")
+        (special '((?{ . "(}1n") (?} . "){4n") (?- . "w 123b") (?\n . "> b")
+                   (?\s . " ") (?\t . " ") (?\v . " ") (?\f . " ") (?\r . " ")
+                   (?. . ".") (?\; . ".")
+                   (?\( . "()") (?\) . ")(") (?[ . "(]") (?] . ")[")
+                   (?⟦ . "(⟧") (?⟧ . ")⟦") (?⟪ . "(⟫") (?⟫ . ")⟪")))
+        (i 0))
+    (while (<= i #x7ffff)
+      (if (char-valid-p i)
+          (modify-syntax-entry i (or (cdr-safe (assq i special)) "w") tbl))
+      (setq i (1+ i)))
+    tbl)
+  "Syntax table used by the Agda 2 mode.")
+
 (defvar agda2-mode-map (make-sparse-keymap "Agda mode") "Keymap for agda2-mode")
 (defvar agda2-goal-map (make-sparse-keymap "Agda goal")
   "Keymap for agda2 goal menu")
