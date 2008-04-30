@@ -15,6 +15,9 @@ infixr 2 _×_ _-×-_ _-,-_
 data Σ (a : Set) (b : a -> Set) : Set where
   _,_ : (x : a) -> b x -> Σ a b
 
+Σ₀ : {a : Set} -> (a -> Set) -> Set
+Σ₀ = Σ _
+
 _×_ : (a b : Set) -> Set
 a × b = Σ a (\_ -> b)
 
@@ -29,7 +32,7 @@ proj₂ (x , y) = y
 
 <_,_> :  {a b c : Set}
       -> (a -> b) -> (a -> c) -> (a -> b × c)
-< f , g > x = f x , g x
+< f , g > x = (f x , g x)
 
 map-× :  {a b c d : Set}
       -> (a -> c) -> (b -> d) -> (a × b -> c × d)
@@ -61,3 +64,12 @@ curry = Σ-curry
 
 uncurry : {a b c : Set} -> (a -> b -> c) -> (a × b -> c)
 uncurry = Σ-uncurry
+
+zip-Σ : forall {a P Q R} ->
+        (_•_ : a -> a -> a) ->
+        (forall {x y} -> P x -> Q y -> R (x • y)) ->
+        Σ a P -> Σ a Q -> Σ a R
+zip-Σ _•_ _○_ (x , y) (u , v) = (x • u , y ○ v)
+
+map-Σ₂ : forall {a P Q} -> (forall {x} -> P x -> Q x) -> Σ a P -> Σ a Q
+map-Σ₂ f (x , y) = (x , f y)

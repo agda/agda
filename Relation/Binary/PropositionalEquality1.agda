@@ -4,8 +4,25 @@
 
 module Relation.Binary.PropositionalEquality1 where
 
-open import Logic
+open import Relation.Nullary
 open import Relation.Binary
+open import Relation.Binary.PropositionalEquality using (_≡_; ≡-refl)
+
+------------------------------------------------------------------------
+-- Propositional equality
+
+infix 4 _≡₁_ _≢₁_
+
+data _≡₁_ {a : Set1} (x : a) : a -> Set where
+  ≡₁-refl : x ≡₁ x
+
+-- Nonequality.
+
+_≢₁_ : {a : Set1} -> a -> a -> Set
+x ≢₁ y = ¬ x ≡₁ y
+
+------------------------------------------------------------------------
+-- Some properties
 
 ≡₁-reflexive : {a : Set1} -> (x : a) -> x ≡₁ x
 ≡₁-reflexive _ = ≡₁-refl

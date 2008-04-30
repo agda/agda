@@ -13,7 +13,6 @@ open import Data.Fin
 import Data.List as List
 open List using ([_])
 open import Data.Product
-open import Logic
 open import Relation.Binary.PropositionalEquality
 
 ------------------------------------------------------------------------

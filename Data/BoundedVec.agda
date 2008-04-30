@@ -15,7 +15,6 @@ open import Relation.Binary.PropositionalEquality
 open import Data.Nat.Properties
 open ℕ-semiringSolver
 open import Data.Fin
-open import Logic
 
 ------------------------------------------------------------------------
 -- The type

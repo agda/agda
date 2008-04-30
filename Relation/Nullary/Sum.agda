@@ -4,8 +4,8 @@
 
 module Relation.Nullary.Sum where
 
-open import Logic
 open import Data.Sum
+open import Data.Empty
 open import Relation.Nullary
 
 -- Some properties which are preserved by _⊎_.

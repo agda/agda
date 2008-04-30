@@ -23,8 +23,8 @@ open import Algebra.Morphism
 open _-RawRing⟶_ morphism renaming (⟦_⟧ to ⟦_⟧')
 import Algebra.Operations as Ops; open Ops semiring
 
-open import Logic
 open import Relation.Binary
+open import Relation.Binary.PropositionalEquality
 
 open import Data.Nat using (ℕ; suc; zero) renaming (_+_ to _ℕ-+_)
 open import Data.Fin.Core

@@ -7,7 +7,6 @@ module Data.Map where
 
 open import Relation.Nullary
 open import Relation.Binary
-open import Logic
 import Data.List as L
 open L using ([_])
 open import Data.Product
@@ -48,7 +47,7 @@ module Map₁ (key-dto : DecTotalOrder) (elem-s : Setoid) where
 
    postulate
     prop-∈₁ : forall {x v s}   -> x ↦ v ∈ s -> x ∈ s
-    prop-∈₂ : forall {x s}     -> x ∈ s -> ∃ elem (\v -> x ↦ v ∈ s)
+    prop-∈₂ : forall {x s}     -> x ∈ s -> Σ elem (\v -> x ↦ v ∈ s)
     prop-∈₃ : forall {x v w s} -> x ↦ v ∈ s -> x ↦ w ∈ s -> v ≗ w
 
     prop-∈-insert₁ :  forall {x y v w s}

@@ -10,7 +10,6 @@ open import Relation.Binary
 
 module Relation.Binary.PreorderReasoning (p : Preorder) where
 
-open import Logic
 open Preorder p
 
 infix  4 _IsRelatedTo_

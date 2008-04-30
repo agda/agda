@@ -15,7 +15,6 @@ module Relation.Binary.NonStrictToStrict
 open import Relation.Nullary
 open import Relation.Binary.Consequences
 open import Data.Function
-open import Logic
 open import Data.Product
 open import Data.Sum
 

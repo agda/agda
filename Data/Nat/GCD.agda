@@ -11,7 +11,6 @@ open import Algebra
 private
   module CS = CommutativeSemiring ℕ-commutativeSemiring
 open import Data.Product
-open import Logic
 open import Relation.Binary.PropositionalEquality
 open import Data.Fin
 open import Data.Vec
@@ -20,6 +19,7 @@ open import Logic.Induction
 open import Logic.Induction.Nat
 open import Logic.Induction.Lexicographic
 open import Data.Function
+open import Data.Empty
 open import Relation.Nullary
 
 ------------------------------------------------------------------------
@@ -86,10 +86,9 @@ gcd-refl n = isGCD (divides-refl n , divides-refl n) proj₁
 
 -- 0 and 0 have no gcd.
 
-no-GCD-for-0-0 : ∄₀ \d -> GCD 0 0 d
-no-GCD-for-0-0 (exists 0         g) = 0-doesNotDivide $
-                                        proj₁ $ GCD.commonDivisor g
-no-GCD-for-0-0 (exists d@(suc _) g) = lem₂ 1+d≤d
+no-GCD-for-0-0 : ¬ Σ₀ \d -> GCD 0 0 d
+no-GCD-for-0-0 (0 , g) = 0-doesNotDivide $ proj₁ $ GCD.commonDivisor g
+no-GCD-for-0-0 (d@(suc _) , g) = lem₂ 1+d≤d
   where
   1+d|0 = d +1-divides-0
   1+d|d = GCD.divisible g (1+d|0 , 1+d|0)
@@ -97,29 +96,26 @@ no-GCD-for-0-0 (exists d@(suc _) g) = lem₂ 1+d≤d
 
 private
 
-  ∃GCD = \m n -> ∃₀ (GCD m n)
+  ∃GCD = \m n -> Σ₀ (GCD m n)
 
   step₁ : forall {n k} -> ∃GCD n (suc k) -> ∃GCD n (suc (n + k))
-  step₁ (exists d g) with GCD.commonDivisor g
-  step₁ {n} {k} (exists d g) | (d₁ , d₂) =
+  step₁ (d , g) with GCD.commonDivisor g
+  step₁ {n} {k} (d , g) | (d₁ , d₂) =
     ≡-subst (∃GCD n) (lem₀ n k) $
-      exists d (isGCD (d₁ , divides-+ d₁ d₂) div')
+      (d , isGCD (d₁ , divides-+ d₁ d₂) div')
     where
     div' : forall {d'} ->
            d' Divides n And (n + suc k) -> d' Divides d
     div' (d₁ , d₂) = GCD.divisible g (d₁ , divides-∸ d₂ d₁)
 
-  ∃gcd-sym : forall {m n} -> ∃GCD m n -> ∃GCD n m
-  ∃gcd-sym (exists d g) = exists d (gcd-sym g)
-
   step₂ : forall {n k} -> ∃GCD (suc k) n -> ∃GCD (suc (n + k)) n
-  step₂ = ∃gcd-sym ∘ step₁ ∘ ∃gcd-sym
+  step₂ = map-Σ₂ gcd-sym ∘ step₁ ∘ map-Σ₂ gcd-sym
 
 -- Gcd calculated using (a variant of) Euclid's algorithm. Note that
 -- it is the gcd of the successors of the arguments that is
 -- calculated; 0 and 0 have no greatest common divisor (see above).
 
-gcd⁺ : (m n : ℕ) -> ∃₀ \d -> GCD (suc m) (suc n) d
+gcd⁺ : (m n : ℕ) -> Σ₀ \d -> GCD (suc m) (suc n) d
 gcd⁺ m n = build [ <-rec-builder ⊗ <-rec-builder ] P gcd' (m , n)
   where
   P : ℕ × ℕ -> Set
@@ -127,7 +123,7 @@ gcd⁺ m n = build [ <-rec-builder ⊗ <-rec-builder ] P gcd' (m , n)
 
   gcd' : forall p -> (<-Rec ⊗ <-Rec) P p -> P p
   gcd' (m , n             ) rec with compare m n
-  gcd' (m , .m            ) rec | equal .m     = exists (suc m) (gcd-refl m)
+  gcd' (m , .m            ) rec | equal .m     = (suc m , gcd-refl m)
                                                          -- gcd⁺ m k
   gcd' (m , .(suc (m + k))) rec | less .m k    = step₁ $ proj₁ rec k (lem₁ k m)
                                                          -- gcd⁺ k n
@@ -137,7 +133,7 @@ gcd⁺ m n = build [ <-rec-builder ⊗ <-rec-builder ] P gcd' (m , n)
 
 gcd : (m : ℕ) {m≢0 : False (m ℕ-≟ 0)}
       (n : ℕ) {n≢0 : False (n ℕ-≟ 0)} ->
-      ∃₀ \d -> GCD m n d
+      Σ₀ \d -> GCD m n d
 gcd (suc m) (suc n) = gcd⁺ m n
 gcd (suc m) zero {n≢0 = ()}
 gcd zero {m≢0 = ()} _

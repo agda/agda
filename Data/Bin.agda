@@ -15,7 +15,6 @@ open import Data.Product
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality
 open import Relation.Nullary
-open import Logic
 import Data.List.Equality as ListEq
 private
   module DecEq  = DecSetoid (ListEq.DecidableEquality.decSetoid

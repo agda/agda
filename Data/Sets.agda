@@ -7,7 +7,6 @@ module Data.Sets where
 open import Relation.Nullary
 open import Relation.Binary
 open import Relation.Binary.OrderMorphism
-open import Logic
 open import Data.Function
 import Data.List as L
 open L using ([_])
@@ -88,8 +87,8 @@ abstract
   prop-map-∈₂
     :  forall {do₁ do₂ f y s}
     -> y ⟨ _∈_ do₂ ⟩₁ map f s
-    -> ∃ _ (\x -> (fun f x ⟨ _≈_ do₂ ⟩₁ y) ×
-                  (      x ⟨ _∈_ do₁ ⟩₁ s))
+    -> Σ₀ \x -> (fun f x ⟨ _≈_ do₂ ⟩₁ y) ×
+                (      x ⟨ _∈_ do₁ ⟩₁ s)
 
   prop-mapToSet₁
     :  forall {do₁ do₂ f x s}
@@ -98,5 +97,5 @@ abstract
   prop-mapToSet₂
     :  forall {do₁ do₂ f y s}
     -> y ⟨ _∈_ do₂ ⟩₁ mapToSet f s
-    -> ∃ _ (\x -> (y ⟨ _∈_ do₂ ⟩₁ f x) ×
-                  (x ⟨ _∈_ do₁ ⟩₁ s))
+    -> Σ₀ \x -> (y ⟨ _∈_ do₂ ⟩₁ f x) ×
+                (x ⟨ _∈_ do₁ ⟩₁ s)

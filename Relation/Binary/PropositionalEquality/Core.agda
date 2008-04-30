@@ -7,10 +7,8 @@
 
 module Relation.Binary.PropositionalEquality.Core where
 
-open import Logic
+open import Relation.Nullary
 open import Relation.Binary.Core
-open import Data.Function
-open import Data.Product
 open import Relation.Binary.Consequences.Core
 
 ------------------------------------------------------------------------

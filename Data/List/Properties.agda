@@ -11,7 +11,6 @@ open import Data.List
 open import Data.Nat
 open import Data.Nat.Properties
 open import Data.Function
-open import Logic
 open import Relation.Binary.PropositionalEquality
 import Relation.Binary.EqReasoning as Eq
 open import Algebra

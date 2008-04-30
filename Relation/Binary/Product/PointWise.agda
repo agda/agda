@@ -4,7 +4,6 @@
 
 module Relation.Binary.Product.Pointwise where
 
-open import Logic
 open import Data.Function
 open import Data.Product
 open import Data.Sum

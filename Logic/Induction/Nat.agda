@@ -8,7 +8,6 @@ open import Data.Function
 open import Data.Nat
 open import Data.Product
 open import Data.Unit
-open import Logic
 open import Logic.Induction
 import Logic.Induction.WellFounded as WF
 open import Relation.Binary.PropositionalEquality

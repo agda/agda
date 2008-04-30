@@ -4,7 +4,6 @@
 
 module Relation.Binary.FunctionLifting where
 
-open import Logic
 open import Relation.Binary
 
 LogicalRelation

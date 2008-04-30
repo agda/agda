@@ -5,10 +5,13 @@
 module Data.Fin.Subset.Props where
 
 open import Data.Nat
+open import Data.Empty
 open import Data.Function
 open import Data.Fin
 open import Data.Fin.Subset
-open import Logic
+open import Data.Product
+open import Relation.Nullary
+open import Relation.Binary.PropositionalEquality
 
 ------------------------------------------------------------------------
 -- Constructor mangling
@@ -28,7 +31,7 @@ drop-▻-⊆ p₁s₁⊆p₂s₂ x∈p₁ = drop-fsIn $ p₁s₁⊆p₂s₂ (fsI
 
 drop-▻-Empty :  forall {n s} {p : Subset n}
              -> Empty (p ▻ s) -> Empty p
-drop-▻-Empty ¬¬∅ ¬∅ = contradiction (exists _ (fsIn $ proof ¬∅)) ¬¬∅
+drop-▻-Empty ¬¬∅ ¬∅ = contradiction (_ , (fsIn $ proj₂ ¬∅)) ¬¬∅
 
 ------------------------------------------------------------------------
 -- More interesting properties
@@ -64,4 +67,4 @@ allOutside (fs x) (fsIn x∈) = allOutside x x∈
 ∅⟶allOutside {p = p ▻ s} ¬¬∅ with ∅⟶allOutside (drop-▻-Empty ¬¬∅)
 ∅⟶allOutside {p = .(all outside) ▻ outside} ¬¬∅ | ≡-refl = ≡-refl
 ∅⟶allOutside {p = .(all outside) ▻ inside}  ¬¬∅ | ≡-refl =
-    contradiction (exists _ fzIn) ¬¬∅
+    contradiction (_ , fzIn) ¬¬∅

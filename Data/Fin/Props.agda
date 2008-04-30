@@ -6,7 +6,6 @@ module Data.Fin.Props where
 
 open import Data.Fin
 open import Data.Nat
-open import Logic
 open import Relation.Binary.PropositionalEquality
 
 prop-toℕ-≤ : forall {n} (x : Fin n) -> toℕ x ≤ n

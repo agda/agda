@@ -42,6 +42,7 @@ import Data.BoundedVec.Inefficient
 import Data.Char
 import Data.DifferenceList
 import Data.Digit
+import Data.Empty
 import Data.Fin
 import Data.Fin.Dec
 import Data.Fin.Props
@@ -82,7 +83,6 @@ import Data.Vec.Equality
 import Data.Vec.Properties
 import Data.Vec1
 
-import Logic
 import Logic.Induction
 import Logic.Induction.Lexicographic
 import Logic.Induction.Nat

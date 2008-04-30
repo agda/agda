@@ -9,8 +9,9 @@ open import Data.Nat
 open import Data.Fin
 open import Data.Fin.Subset
 open import Data.Fin.Subset.Props
+open import Data.Product
+open import Data.Empty
 open import Relation.Nullary
-open import Logic
 
 infix 4 _∈?_
 
@@ -34,19 +35,19 @@ private
 
 any? :  forall {n} {P : Fin n -> Set}
      -> ((f : Fin n) -> Dec (P f))
-     -> Dec (∃₀ P)
+     -> Dec (Σ₀ P)
 any? {zero} {P} dec = no helper
   where
-  helper : ∄₀ P
-  helper (exists () _)
+  helper : ¬ Σ₀ P
+  helper (() , _)
 any? {suc n} {P} dec with dec fz | any? (restrict dec)
-...                  | yes p | _                 = yes (exists _ p)
-...                  | _     | yes (exists _ p') = yes (exists _ p')
-...                  | no ¬p | no ¬p'          = no helper
+...                  | yes p | _            = yes (_ , p)
+...                  | _     | yes (_ , p') = yes (_ , p')
+...                  | no ¬p | no ¬p'       = no helper
   where
-  helper : ∄₀ P
-  helper (exists fz     p)  = ¬p p
-  helper (exists (fs f) p') = contradiction (exists _ p') ¬p'
+  helper : ¬ Σ₀ P
+  helper (fz   , p)  = ¬p p
+  helper (fs f , p') = contradiction (_ , p') ¬p'
 
 nonempty? : forall {n} (p : Subset n) -> Dec (Nonempty p)
 nonempty? p = any? (\x -> x ∈? p)
@@ -118,19 +119,19 @@ private
 
 anySubset? :  forall {n} {P : Subset n -> Set}
            -> (forall s -> Dec (P s))
-           -> Dec (∃₀ P)
+           -> Dec (Σ₀ P)
 anySubset? {zero} {P} dec with dec ε
-... | yes Pε = yes (exists _ Pε)
+... | yes Pε = yes (_ , Pε)
 ... | no ¬Pε = no helper
   where
-  helper : ∄₀ P
-  helper (exists ε Pε) = ¬Pε Pε
+  helper : ¬ Σ₀ P
+  helper (ε , Pε) = ¬Pε Pε
 anySubset? {suc n} {P} dec with anySubset? (restrictS inside  dec)
                               | anySubset? (restrictS outside dec)
-... | yes (exists _ Pp) | _                 = yes (exists _ Pp)
-... | _                 | yes (exists _ Pp) = yes (exists _ Pp)
-... | no ¬Pp            | no ¬Pp'           = no helper
+... | yes (_ , Pp) | _            = yes (_ , Pp)
+... | _            | yes (_ , Pp) = yes (_ , Pp)
+... | no ¬Pp       | no ¬Pp'      = no helper
     where
-    helper : ∄₀ P
-    helper (exists (p ▻ inside)  Pp)  = ¬Pp  (exists _ Pp)
-    helper (exists (p ▻ outside) Pp') = ¬Pp' (exists _ Pp')
+    helper : ¬ Σ₀ P
+    helper (p ▻ inside  , Pp)  = ¬Pp  (_ , Pp)
+    helper (p ▻ outside , Pp') = ¬Pp' (_ , Pp')

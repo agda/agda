@@ -8,7 +8,6 @@
 
 module Data.Star where
 
-open import Logic
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality
 open import Data.Function

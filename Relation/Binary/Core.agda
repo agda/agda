@@ -3,15 +3,15 @@
 ------------------------------------------------------------------------
 
 -- This file contains some core definitions which are reexported by
--- Relation.Binary.
+-- Relation.Binary or Relation.Binary.PropositionalEquality.
 
 module Relation.Binary.Core where
 
-open import Logic hiding (proof)
 open import Data.Product
-open import Data.Sum
+open import Data.Sum.Core
 open import Data.Function
 open import Data.Unit.Core
+open import Data.Empty
 open import Relation.Nullary
 
 ------------------------------------------------------------------------
@@ -37,6 +37,19 @@ Always = Const ⊤
 
 Never : forall {a} -> Rel a
 Never = Const ⊥
+
+------------------------------------------------------------------------
+-- Propositional equality
+
+infix 4 _≡_ _≢_
+
+data _≡_ {a : Set} (x : a) : a -> Set where
+  ≡-refl : x ≡ x
+
+-- Nonequality.
+
+_≢_ : {a : Set} -> a -> a -> Set
+x ≢ y = ¬ x ≡ y
 
 ------------------------------------------------------------------------
 -- Simple properties of binary relations

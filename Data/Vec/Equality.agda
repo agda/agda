@@ -7,7 +7,6 @@ module Data.Vec.Equality {a : Set} where
 open import Data.Vec
 open import Data.Nat
 open import Data.Function
-open import Logic
 open import Relation.Binary.PropositionalEquality
 open import Relation.Binary.HeterogeneousEquality
 

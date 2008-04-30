@@ -7,7 +7,6 @@ module Data.List.Equality where
 open import Data.List
 open import Relation.Nullary
 open import Relation.Binary
-open import Logic
 open import Relation.Binary.PropositionalEquality
 
 module Equality (S : Setoid) where

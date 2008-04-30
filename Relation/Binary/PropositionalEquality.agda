@@ -4,15 +4,15 @@
 
 module Relation.Binary.PropositionalEquality where
 
-open import Logic
 open import Relation.Binary
 open import Relation.Binary.Consequences
 open import Relation.Binary.FunctionLifting
 open import Data.Function
 open import Data.Product
 
--- Some of the definitions can be found in the following module:
+-- Some of the definitions can be found in the following modules:
 
+open import Relation.Binary.Core public using (_≡_; ≡-refl; _≢_)
 open import Relation.Binary.PropositionalEquality.Core public
 
 ------------------------------------------------------------------------

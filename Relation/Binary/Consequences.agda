@@ -6,10 +6,11 @@ module Relation.Binary.Consequences where
 
 open import Relation.Binary.Core
 open import Relation.Nullary
-open import Logic
+open import Relation.Binary.PropositionalEquality.Core
 open import Data.Function
-open import Data.Sum
+open import Data.Sum.Core
 open import Data.Product
+open import Data.Empty
 
 -- Some of the definitions can be found in the following module:
 

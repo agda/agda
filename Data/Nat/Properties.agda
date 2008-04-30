@@ -8,11 +8,11 @@ open import Data.Nat
 open ≤-Reasoning
   renaming ( begin_ to start_; _∎ to _□; byDef to ≤-refl
            ; _≡⟨_⟩_ to _≡⟨_⟩'_ )
-open import Logic
 open import Data.Function
 open import Algebra
 open import Algebra.Structures
 import Algebra.FunctionProperties as P; open P ℕ-setoid
+open import Relation.Nullary
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality
 open import Data.Product

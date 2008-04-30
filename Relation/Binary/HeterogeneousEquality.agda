@@ -4,12 +4,41 @@
 
 module Relation.Binary.HeterogeneousEquality where
 
-open import Logic
+open import Relation.Nullary
 open import Relation.Binary
 open import Relation.Binary.Consequences
 import Relation.Binary.PropositionalEquality as Homo
+open Homo using (_≡_; ≡-refl)
 open import Data.Function
 open import Data.Product
+
+------------------------------------------------------------------------
+-- Heterogeneous equality
+
+infix 4 _≅_ _≇_ _≅₁_ _≇₁_
+
+data _≅_ {a : Set} (x : a) : {b : Set} -> b -> Set where
+  ≅-refl : x ≅ x
+
+data _≅₁_ {a : Set1} (x : a) : {b : Set1} -> b -> Set where
+  ≅₁-refl : x ≅₁ x
+
+-- Nonequality.
+
+_≇_ : {a : Set} -> a -> {b : Set} -> b -> Set
+x ≇ y = ¬ x ≅ y
+
+_≇₁_ : {a : Set1} -> a -> {b : Set1} -> b -> Set
+x ≇₁ y = ¬ x ≅₁ y
+
+------------------------------------------------------------------------
+-- Conversion
+
+≡-to-≅ : forall {a} {x y : a} -> x ≡ y -> x ≅ y
+≡-to-≅ ≡-refl = ≅-refl
+
+≅-to-≡ : forall {a} {x y : a} -> x ≅ y -> x ≡ y
+≅-to-≡ ≅-refl = ≡-refl
 
 ------------------------------------------------------------------------
 -- Some properties

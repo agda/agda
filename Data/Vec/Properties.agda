@@ -7,7 +7,7 @@ module Data.Vec.Properties where
 open import Data.Vec
 open import Data.Vec.Equality
 open import Data.Nat
-open import Logic
+open import Relation.Binary.PropositionalEquality
 
 replicate-lemma : forall {a m} n x (xs : Vec a m)
   -> replicate {n = n}     x ++ (x ∷ xs) ≈-Vec

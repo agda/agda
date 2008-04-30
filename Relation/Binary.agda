@@ -4,18 +4,19 @@
 
 module Relation.Binary where
 
-open import Logic
 open import Data.Product
-open import Data.Sum
+open import Data.Sum.Core
 open import Data.Function
 open import Relation.Nullary
 open import Relation.Binary.PropositionalEquality.Core
 open import Relation.Binary.Consequences
+import Relation.Binary.Core as Core
+open Core using (_≡_)
 
 ------------------------------------------------------------------------
 -- Simple properties and equivalence relations
 
-open import Relation.Binary.Core public
+open Core public hiding (_≡_; ≡-refl; _≢_)
 
 ------------------------------------------------------------------------
 -- Preorders

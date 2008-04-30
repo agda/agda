@@ -5,7 +5,6 @@
 module Data.Unit where
 
 open import Data.Unit.Core public
-open import Logic
 open import Data.Sum
 open import Relation.Nullary
 open import Relation.Binary

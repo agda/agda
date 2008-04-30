@@ -7,9 +7,10 @@ module Data.Nat.Coprimality where
 open import Data.Nat
 open import Data.Nat.Divisibility
 open import Data.Nat.GCD
-open import Logic
 open import Data.Product
 open import Data.Function
+open import Data.Empty
+open import Relation.Binary.PropositionalEquality
 
 -- Coprime m n is inhabited iff m and n are coprime (relatively
 -- prime), i.e. if their only common divisor is 1.

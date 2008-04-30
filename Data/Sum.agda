@@ -5,16 +5,14 @@
 module Data.Sum where
 
 open import Data.Function
-open import Logic
+open import Relation.Binary.PropositionalEquality
 
-infixr 1 _⊎_ _-⊎-_
+infixr 1 _-⊎-_
 
 ------------------------------------------------------------------------
 -- Definition
 
-data _⊎_ (a b : Set) : Set where
-  inj₁ : a -> a ⊎ b
-  inj₂ : b -> a ⊎ b
+open import Data.Sum.Core public
 
 ------------------------------------------------------------------------
 -- Functions

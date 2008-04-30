@@ -8,8 +8,8 @@ open import Data.Star
 open import Data.Star.List
 open import Data.Star.Decoration
 open import Data.Star.Pointer
-open import Logic
 open import Data.Unit
+open import Relation.Binary.PropositionalEquality
 
 -- Contexts, listing the types of all the elements in an environment.
 

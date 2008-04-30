@@ -18,7 +18,6 @@ open import Data.Nat.Properties
 open ≤-Reasoning
 open import Relation.Binary.PropositionalEquality
 open import Data.Function
-open import Logic
 
 ------------------------------------------------------------------------
 -- A boring lemma

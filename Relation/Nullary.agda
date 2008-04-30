@@ -2,11 +2,30 @@
 -- Nullary relations
 ------------------------------------------------------------------------
 
+-- Some operations on/properties of nullary relations, i.e. sets.
+
 module Relation.Nullary where
 
-open import Logic
 open import Data.Unit.Core
 open import Data.Bool.Core
+open import Data.Empty
+
+------------------------------------------------------------------------
+-- Negation
+
+infix 3 ¬_
+
+¬_ : Set -> Set
+¬ P = P -> ⊥
+
+contradiction : forall {P whatever} -> P -> ¬ P -> whatever
+contradiction p np = ⊥-elim (np p)
+
+contravariant : forall {P Q} -> (P -> Q) -> ¬ Q -> ¬ P
+contravariant f ¬q p = contradiction (f p) ¬q
+
+map-¬¬ : forall {P Q} -> (P -> Q) -> ¬ (¬ P) -> ¬ (¬ Q)
+map-¬¬ f = contravariant (contravariant f)
 
 ------------------------------------------------------------------------
 -- Decidable relations

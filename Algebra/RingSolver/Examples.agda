@@ -6,7 +6,6 @@
 
 module Algebra.RingSolver.Examples where
 
-open import Logic
 open import Data.Vec
 open import Data.Fin
 open import Data.Nat

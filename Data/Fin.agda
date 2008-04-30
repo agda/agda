@@ -10,8 +10,8 @@ module Data.Fin where
 
 open import Data.Nat
 open import Data.Nat.Properties
-open import Logic
 open import Data.Function
+open import Data.Empty
 open import Relation.Nullary
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality

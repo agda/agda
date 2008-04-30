@@ -7,7 +7,6 @@ module Data.Bool.Properties where
 open import Data.Bool
 open import Data.Fin
 open import Data.Vec
-open import Logic
 open import Data.Function
 open import Algebra
 import Algebra.FunctionProperties as P; open P Bool-setoid

@@ -6,8 +6,8 @@
 
 module Data.Bool.Core where
 
-open import Logic
 open import Data.Unit.Core
+open import Data.Empty
 
 ------------------------------------------------------------------------
 -- The type

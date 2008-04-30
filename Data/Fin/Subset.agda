@@ -4,9 +4,10 @@
 
 module Data.Fin.Subset where
 
-open import Logic
 open import Data.Nat
 open import Data.Fin
+open import Data.Product
+open import Relation.Nullary
 
 infixl 5 _▻_
 infixr 2 _∈_ _∉_ _⊆_ _⊈_
@@ -53,7 +54,7 @@ all {suc n} s = all s ▻ s
 -- Properties
 
 Nonempty : forall {n} (p : Subset n) -> Set
-Nonempty p = ∃₀ (\f -> f ∈ p)
+Nonempty p = Σ₀ (\f -> f ∈ p)
 
 Empty : forall {n} (p : Subset n) -> Set
 Empty p = ¬ Nonempty p

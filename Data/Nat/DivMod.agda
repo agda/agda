@@ -7,7 +7,6 @@ module Data.Nat.DivMod where
 open import Data.Nat
 open import Data.Nat.Properties
 open ℕ-semiringSolver
-open import Logic
 open import Data.Fin
 open import Data.Fin.Props
 open import Logic.Induction.Nat

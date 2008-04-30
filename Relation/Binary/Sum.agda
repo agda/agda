@@ -4,11 +4,11 @@
 
 module Relation.Binary.Sum where
 
-open import Logic
 open import Data.Function
 open import Data.Sum
 open import Data.Product
 open import Data.Unit
+open import Data.Empty
 open import Relation.Nullary
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality

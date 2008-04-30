@@ -10,7 +10,6 @@ module Algebra.Operations (s : Semiring) where
 open Semiring s hiding (zero)
 open import Data.Nat using (zero; suc; ℕ)
 open import Data.Function
-open import Logic
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality
 import Relation.Binary.EqReasoning as EqR

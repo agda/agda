@@ -10,7 +10,6 @@ import Data.Vec as Vec
 open Vec using (Vec)
 open import Data.Char using (Char)
 open import Data.Bool
-open import Logic
 open import Relation.Nullary
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality
