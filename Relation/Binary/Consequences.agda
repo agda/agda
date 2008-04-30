@@ -4,7 +4,7 @@
 
 module Relation.Binary.Consequences where
 
-open import Relation.Binary
+open import Relation.Binary.Core
 open import Relation.Nullary
 open import Logic
 open import Data.Function
@@ -45,7 +45,7 @@ asym⟶irr {< = _<_} resp sym asym {x} {y} x≈y x<y = asym x<y y<x
   y<x = proj₁ resp (sym x≈y) y<y
 
 total⟶refl
-  : forall {a} -> {≈ ∼ : Rel a}
+  :  forall {a} -> {≈ ∼ : Rel a}
   -> ≈ Respects₂ ∼ -> Symmetric ≈
   -> Total ∼ -> ≈ ⇒ ∼
 total⟶refl {≈ = ≈} {∼ = ∼} resp sym total = refl
@@ -57,7 +57,7 @@ total⟶refl {≈ = ≈} {∼ = ∼} resp sym total = refl
     proj₁ resp x≈y (proj₂ resp (sym x≈y) y∼x)
 
 total+dec⟶dec
-  : forall {a} -> {≈ ≤ : Rel a}
+  :  forall {a} -> {≈ ≤ : Rel a}
   -> ≈ ⇒ ≤ -> Antisymmetric ≈ ≤
   -> Total ≤ -> Decidable ≈ -> Decidable ≤
 total+dec⟶dec {≈ = ≈} {≤ = ≤} refl antisym total _≟_ = dec
@@ -69,12 +69,31 @@ total+dec⟶dec {≈ = ≈} {≤ = ≤} refl antisym total _≟_ = dec
   ...   | yes  x≈y = yes (refl x≈y)
   ...   | no  ¬x≈y = no (\x≤y -> ¬x≈y (antisym x≤y y≤x))
 
-tri⟶asym : forall {a} -> {≈ < : Rel a}
+tri⟶asym :  forall {a} -> {≈ < : Rel a}
          -> Trichotomous ≈ < -> Asymmetric <
 tri⟶asym tri {x} {y} x<y x>y with tri x y
 ... | tri< _   _ x≯y = x≯y x>y
 ... | tri≈ _   _ x≯y = x≯y x>y
 ... | tri> x≮y _ _   = x≮y x<y
+
+tri⟶irr :  forall {a} -> {≈ < : Rel a}
+        -> ≈ Respects₂ < -> Symmetric ≈
+        -> Trichotomous ≈ < -> Irreflexive ≈ <
+tri⟶irr resp sym tri = asym⟶irr resp sym (tri⟶asym tri)
+
+tri⟶dec≈ :  forall {a} -> {≈ < : Rel a}
+         -> Trichotomous ≈ < -> Decidable ≈
+tri⟶dec≈ compare x y with compare x y
+... | tri< _ x≉y _ = no  x≉y
+... | tri≈ _ x≈y _ = yes x≈y
+... | tri> _ x≉y _ = no  x≉y
+
+tri⟶dec< :  forall {a} -> {≈ < : Rel a}
+         -> Trichotomous ≈ < -> Decidable <
+tri⟶dec< compare x y with compare x y
+... | tri< x<y _ _ = yes x<y
+... | tri≈ x≮y _ _ = no  x≮y
+... | tri> x≮y _ _ = no  x≮y
 
 subst⟶cong
   :  {≈ : forall {a} -> Rel a}

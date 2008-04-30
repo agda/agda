@@ -90,3 +90,13 @@ x ≤ y = (x < y) ⊎ (x ≈ y)
   helper : x ≤ y -> ⊥
   helper (inj₁ x<y) = x≮y x<y
   helper (inj₂ x≈y) = x≉y x≈y
+
+≤-decidable' : Trichotomous _≈_ _<_ -> Decidable _≤_
+≤-decidable' compare x y with compare x y
+... | tri< x<y _   _ = yes (inj₁ x<y)
+... | tri≈ _   x≈y _ = yes (inj₂ x≈y)
+... | tri> x≮y x≉y _ = no helper
+  where
+  helper : x ≤ y -> ⊥
+  helper (inj₁ x<y) = x≮y x<y
+  helper (inj₂ x≈y) = x≉y x≈y

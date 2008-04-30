@@ -10,6 +10,7 @@ open import Data.Sum
 open import Data.Function
 open import Relation.Nullary
 open import Relation.Binary.PropositionalEquality.Core
+open import Relation.Binary.Consequences
 
 ------------------------------------------------------------------------
 -- Simple properties and equivalence relations
@@ -239,3 +240,48 @@ record DecTotalOrder : Set1 where
       }
 
     open DecSetoid decSetoid public
+
+------------------------------------------------------------------------
+-- Strict total orders
+
+-- Note that these orders are decidable (see compare).
+
+record IsStrictTotalOrder {a : Set} (_≈_ _<_ : Rel a) : Set where
+  field
+    isEquivalence : IsEquivalence _≈_
+    trans         : Transitive _<_
+    compare       : Trichotomous _≈_ _<_
+    ≈-resp-<      : _≈_ Respects₂ _<_
+
+  module Eq = IsEquivalence isEquivalence
+
+  isStrictPartialOrder : IsStrictPartialOrder _≈_ _<_
+  isStrictPartialOrder = record
+    { isEquivalence = isEquivalence
+    ; irrefl        = tri⟶irr ≈-resp-< Eq.sym compare
+    ; trans         = trans
+    ; ≈-resp-<      = ≈-resp-<
+    }
+
+  open IsStrictPartialOrder isStrictPartialOrder using (irrefl)
+
+  _≟_ : Decidable _≈_
+  _≟_ = tri⟶dec≈ compare
+
+record StrictTotalOrder : Set1 where
+  infix 4 _≈_ _<_
+  field
+    carrier            : Set
+    _≈_                : Rel carrier
+    _<_                : Rel carrier
+    isStrictTotalOrder : IsStrictTotalOrder _≈_ _<_
+
+  open IsStrictTotalOrder isStrictTotalOrder public
+
+  strictPartialOrder : StrictPartialOrder
+  strictPartialOrder = record
+    { carrier              = carrier
+    ; _≈_                  = _≈_
+    ; _<_                  = _<_
+    ; isStrictPartialOrder = isStrictPartialOrder
+    }
