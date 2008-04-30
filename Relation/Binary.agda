@@ -235,4 +235,4 @@ record DecTotalOrder : Set1 where
       ; isDecEquivalence = DTO.Eq.isDecEquivalence
       }
 
-    open DecSetoid decSetoid public using (setoid; preorder)
+    open DecSetoid decSetoid public
