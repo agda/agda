@@ -146,14 +146,14 @@ starPreorder {I} T = record
   ; _∼_        = Star T
   ; isPreorder = record
     { isEquivalence = ≡-isEquivalence
-    ; refl          = refl
+    ; reflexive     = reflexive
     ; trans         = _◅◅_
     ; ≈-resp-∼      = ≡-resp (Star T)
     }
   }
   where
-  refl : _≡_ ⇒ Star T
-  refl ≡-refl = ε
+  reflexive : _≡_ ⇒ Star T
+  reflexive ≡-refl = ε
 
 -- Preorder reasoning for Star.
 

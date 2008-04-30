@@ -516,7 +516,7 @@ n≤1+n _ = ≤-step ≤-refl
 ¬i+1+j≤i (suc i) le = ¬i+1+j≤i i (≤-pred le)
 
 i+1+j≢i : forall i {j} -> i + suc j ≢ i
-i+1+j≢i i eq = ¬i+1+j≤i i (refl eq)
+i+1+j≢i i eq = ¬i+1+j≤i i (reflexive eq)
   where open DecTotalOrder ℕ-decTotalOrder
 
 n∸m≤n : forall m n -> n ∸ m ≤ n

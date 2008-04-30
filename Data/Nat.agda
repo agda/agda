@@ -191,7 +191,7 @@ compare (suc .(suc m + k)) (suc .m)           | greater m k = greater (suc m) k
           { isPartialOrder = record
               { isPreorder = record
                   { isEquivalence = ≡-isEquivalence
-                  ; refl          = refl
+                  ; reflexive     = refl
                   ; trans         = trans
                   ; ≈-resp-∼      = ≡-resp _≤_
                   }

@@ -31,8 +31,8 @@ x ≤ y = (x < y) ⊎ (x ≈ y)
 -- The converted relations have certain properties
 -- (if the original relations have certain other properties)
 
-≤-refl : _≈_ ⇒ _≤_
-≤-refl = inj₂
+≤-reflexive : _≈_ ⇒ _≤_
+≤-reflexive = inj₂
 
 ≤-antisym
   :  IsEquivalence _≈_

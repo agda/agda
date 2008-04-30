@@ -78,7 +78,7 @@ open import Data.Product
                IsPreorder {a} (\x y -> x ≅ y) (\x y -> x ≅ y)
 ≅-isPreorder = record
   { isEquivalence = ≅-isEquivalence
-  ; refl          = id
+  ; reflexive     = id
   ; trans         = ≅-trans
   ; ≈-resp-∼      = ≅-resp (\x y -> x ≅ y)
   }
@@ -86,7 +86,7 @@ open import Data.Product
 ≅-isPreorder-≡ : forall {a} -> IsPreorder {a} _≡_ (\x y -> x ≅ y)
 ≅-isPreorder-≡ = record
   { isEquivalence = Homo.≡-isEquivalence
-  ; refl          = ≅-reflexive
+  ; reflexive     = ≅-reflexive
   ; trans         = ≅-trans
   ; ≈-resp-∼      = Homo.≡-resp (\x y -> x ≅ y)
   }

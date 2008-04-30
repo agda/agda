@@ -44,7 +44,7 @@ x < y = (x ≤ y) × ¬ (x ≈ y)
 
   lemma : forall {x y z} -> x ≤ y -> y ≤ z -> x ≈ z -> x ≈ y
   lemma x≤y y≤z x≈z =
-    antisym x≤y $ trans y≤z (refl $ Eq.sym x≈z)
+    antisym x≤y $ trans y≤z (reflexive $ Eq.sym x≈z)
 
 ≈-resp-<
   : IsEquivalence _≈_ -> _≈_ Respects₂ _≤_ -> _≈_ Respects₂ _<_

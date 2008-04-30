@@ -37,9 +37,9 @@ _∼⟨_⟩_ {p} _ x∼y (relTo y∼z) = relTo (trans x∼y y∼z)
 
 _≈⟨_⟩_ : forall {p} -> let open Preorder p in forall x {y z} ->
          x ≈ y -> Under p , y IsRelatedTo z -> Under p , x IsRelatedTo z
-_≈⟨_⟩_ {p} _ x≈y (relTo y∼z) = relTo (trans (refl x≈y) y∼z)
+_≈⟨_⟩_ {p} _ x≈y (relTo y∼z) = relTo (trans (reflexive x≈y) y∼z)
   where open Preorder p
 
 _∎ : forall {p} x -> Under p , x IsRelatedTo x
-_∎ {p} _ = relTo (refl Eq.refl)
+_∎ {p} _ = relTo refl
   where open Preorder p

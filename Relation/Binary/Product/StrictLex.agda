@@ -153,8 +153,8 @@ private
   _×-isPreorder_ {≈₁ = ≈₁} {∼₁ = ∼₁} pre₁ {∼₂ = ∼₂} pre₂ = record
     { isEquivalence = Pointwise._×-isEquivalence_
                         (isEquivalence pre₁) (isEquivalence pre₂)
-    ; refl          = \{x y} ->
-                      ×-reflexive ≈₁ ∼₁ ∼₂ (refl pre₂) {x} {y}
+    ; reflexive     = \{x y} ->
+                      ×-reflexive ≈₁ ∼₁ ∼₂ (reflexive pre₂) {x} {y}
     ; trans         = \{x y z} ->
                       ×-transitive
                         (isEquivalence pre₁) (≈-resp-∼ pre₁) (trans pre₁)

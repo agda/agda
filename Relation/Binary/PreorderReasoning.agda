@@ -31,13 +31,13 @@ _∼⟨_⟩_ : forall x {y z} -> x ∼ y -> y IsRelatedTo z -> x IsRelatedTo z
 _ ∼⟨ x∼y ⟩ relTo y∼z = relTo (trans x∼y y∼z)
 
 _≈⟨_⟩_ : forall x {y z} -> x ≈ y -> y IsRelatedTo z -> x IsRelatedTo z
-_ ≈⟨ x≈y ⟩ relTo y∼z = relTo (trans (refl x≈y) y∼z)
+_ ≈⟨ x≈y ⟩ relTo y∼z = relTo (trans (reflexive x≈y) y∼z)
 
 ≈-byDef : forall {x} -> x ≈ x
 ≈-byDef = Eq.refl
 
 byDef : forall {x} -> x ∼ x
-byDef = refl ≈-byDef
+byDef = reflexive ≈-byDef
 
 _∎ : forall x -> x IsRelatedTo x
 _∎ _ = relTo byDef

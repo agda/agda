@@ -26,11 +26,14 @@ record IsPreorder {a : Set}
   field
     isEquivalence : IsEquivalence _≈_
     -- Reflexivity is expressed in terms of an underlying equality.
-    refl          : _≈_ ⇒ _∼_
+    reflexive     : _≈_ ⇒ _∼_
     trans         : Transitive _∼_
     ≈-resp-∼      : _≈_ Respects₂ _∼_
 
   module Eq = IsEquivalence isEquivalence
+
+  refl : Reflexive _∼_
+  refl = reflexive Eq.refl
 
 record Preorder : Set1 where
   infix 4 _≈_ _∼_
@@ -59,7 +62,7 @@ record Setoid : Set1 where
   isPreorder : IsPreorder _≡_ _≈_
   isPreorder = record
     { isEquivalence = ≡-isEquivalence
-    ; refl          = reflexive
+    ; reflexive     = reflexive
     ; trans         = trans
     ; ≈-resp-∼      = ≡-resp _≈_
     }

@@ -17,6 +17,6 @@ decTotalOrder ≟ = record
   ; isDecTotalOrder = record
       { isTotalOrder = isTotalOrder
       ; _≟_          = ≟
-      ; _≤?_         = total+dec⟶dec refl antisym total ≟
+      ; _≤?_         = total+dec⟶dec reflexive antisym total ≟
       }
   }

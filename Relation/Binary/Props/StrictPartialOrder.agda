@@ -23,9 +23,9 @@ poset = record
   ; isPartialOrder = record
     { isPreorder = record
         { isEquivalence = isEquivalence
-        ; refl     = ≤-refl
-        ; trans    = ≤-trans isEquivalence ≈-resp-< trans
-        ; ≈-resp-∼ = ≈-resp-≤ isEquivalence ≈-resp-<
+        ; reflexive     = ≤-reflexive
+        ; trans         = ≤-trans isEquivalence ≈-resp-< trans
+        ; ≈-resp-∼      = ≈-resp-≤ isEquivalence ≈-resp-<
         }
     ; antisym = ≤-antisym isEquivalence trans irrefl
     }

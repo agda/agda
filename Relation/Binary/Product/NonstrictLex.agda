@@ -110,8 +110,8 @@ private
         { isEquivalence = Pointwise._×-isEquivalence_
                             (isEquivalence po₁)
                             (isEquivalence po₂)
-        ; refl          = \{x y} ->
-                          ×-reflexive ≈₁ ≤₁ ≤₂ (refl po₂) {x} {y}
+        ; reflexive     = \{x y} ->
+                          ×-reflexive ≈₁ ≤₁ ≤₂ (reflexive po₂) {x} {y}
         ; trans         = \{x y z} ->
                           ×-transitive po₁ {≤₂ = ≤₂} (trans po₂)
                                        {x} {y} {z}

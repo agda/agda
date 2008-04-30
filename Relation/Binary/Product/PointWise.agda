@@ -140,9 +140,10 @@ private
   _×-isPreorder_ {∼₁ = ∼₁} {∼₂ = ∼₂} pre₁ pre₂ = record
     { isEquivalence = isEquivalence pre₁ ×-isEquivalence
                       isEquivalence pre₂
-    ; refl          = \{x y} ->
+    ; reflexive     = \{x y} ->
                       _×-reflexive_  {∼₁ = ∼₁} {∼₂ = ∼₂}
-                                     (refl  pre₁) (refl  pre₂) {x} {y}
+                                     (reflexive pre₁) (reflexive pre₂)
+                                     {x} {y}
     ; trans         = \{x y z} ->
                       _×-transitive_ {∼₁ = ∼₁} {∼₂ = ∼₂}
                                      (trans pre₁) (trans pre₂)

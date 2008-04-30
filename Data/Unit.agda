@@ -50,7 +50,7 @@ _ ⊤-≤? _ = yes _
           { isPartialOrder = record
               { isPreorder = record
                   { isEquivalence = ≡-isEquivalence
-                  ; refl          = \_ -> _
+                  ; reflexive     = \_ -> _
                   ; trans         = \_ _ -> _
                   ; ≈-resp-∼      = ≡-resp _⊤-≤_
                   }

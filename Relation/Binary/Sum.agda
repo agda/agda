@@ -265,9 +265,9 @@ _⊎-isPreorder_
 pre₁ ⊎-isPreorder pre₂ = record
   { isEquivalence = isEquivalence pre₁ ⊎-isEquivalence
                     isEquivalence pre₂
-  ; refl          = refl     pre₁ ⊎-reflexive   refl     pre₂
-  ; trans         = trans    pre₁ ⊎-transitive  trans    pre₂
-  ; ≈-resp-∼      = ≈-resp-∼ pre₁ ⊎-≈-respects₂ ≈-resp-∼ pre₂
+  ; reflexive     = reflexive pre₁ ⊎-reflexive   reflexive pre₂
+  ; trans         = trans     pre₁ ⊎-transitive  trans     pre₂
+  ; ≈-resp-∼      = ≈-resp-∼  pre₁ ⊎-≈-respects₂ ≈-resp-∼  pre₂
   }
   where open IsPreorder
 
