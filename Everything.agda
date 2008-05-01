@@ -83,10 +83,10 @@ import Data.Vec.Equality
 import Data.Vec.Properties
 import Data.Vec1
 
-import Logic.Induction
-import Logic.Induction.Lexicographic
-import Logic.Induction.Nat
-import Logic.Induction.WellFounded
+import Induction
+import Induction.Lexicographic
+import Induction.Nat
+import Induction.WellFounded
 
 import Relation.Binary
 import Relation.Binary.Consequences

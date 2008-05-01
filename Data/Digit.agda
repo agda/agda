@@ -12,7 +12,7 @@ open import Relation.Nullary
 open import Data.Char using (Char)
 open import Data.List
 import Data.Vec as Vec
-open import Logic.Induction.Nat
+open import Induction.Nat
 open import Data.Nat.DivMod
 open import Data.Nat.Properties
 open ≤-Reasoning

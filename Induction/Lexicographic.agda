@@ -2,9 +2,9 @@
 -- Lexicographic induction
 ------------------------------------------------------------------------
 
-module Logic.Induction.Lexicographic where
+module Induction.Lexicographic where
 
-open import Logic.Induction
+open import Induction
 open import Data.Product
 
 -- The structure of lexicographic induction.
@@ -45,7 +45,7 @@ _⊗_ RecA RecB P (x , y) =
 private
 
   open import Data.Nat
-  open import Logic.Induction.Nat as N
+  open import Induction.Nat as N
 
   -- The Ackermann function à la Rózsa Péter.
 

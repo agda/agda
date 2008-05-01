@@ -2,14 +2,14 @@
 -- Various forms of induction for natural numbers
 ------------------------------------------------------------------------
 
-module Logic.Induction.Nat where
+module Induction.Nat where
 
 open import Data.Function
 open import Data.Nat
 open import Data.Product
 open import Data.Unit
-open import Logic.Induction
-import Logic.Induction.WellFounded as WF
+open import Induction
+import Induction.WellFounded as WF
 open import Relation.Binary.PropositionalEquality
 
 ------------------------------------------------------------------------

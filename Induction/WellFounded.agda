@@ -4,9 +4,9 @@
 
 open import Relation.Binary
 
-module Logic.Induction.WellFounded {a : Set} (_<_ : Rel a) where
+module Induction.WellFounded {a : Set} (_<_ : Rel a) where
 
-open import Logic.Induction
+open import Induction
 
 -- When using well-founded recursion you can recurse arbitrarily, as
 -- long as the arguments become smaller, and "smaller" is

@@ -9,7 +9,7 @@ open import Data.Nat.Properties
 open ℕ-semiringSolver
 open import Data.Fin
 open import Data.Fin.Props
-open import Logic.Induction.Nat
+open import Induction.Nat
 open import Relation.Nullary
 open import Relation.Binary.PropositionalEquality
 open ≡-Reasoning
@@ -69,12 +69,12 @@ data DivMod' (dividend divisor : ℕ) : Set where
 
 -- Integer division with remainder.
 
--- Note that Logic.Induction.Nat.<-rec is used to ensure termination
--- of division. The run-time complexity of this implementation of
--- integer division should be linear in the size of the dividend,
--- assuming that well-founded recursion and the equality type are
--- optimised properly (see "Inductive Families Need Not Store Their
--- Indices" (Brady, McBride, McKinna, TYPES 2003)).
+-- Note that Induction.Nat.<-rec is used to ensure termination of
+-- division. The run-time complexity of this implementation of integer
+-- division should be linear in the size of the dividend, assuming
+-- that well-founded recursion and the equality type are optimised
+-- properly (see "Inductive Families Need Not Store Their Indices"
+-- (Brady, McBride, McKinna, TYPES 2003)).
 
 _divMod'_ : (dividend divisor : ℕ) {≢0 : False (divisor ℕ-≟ 0)} ->
             DivMod' dividend divisor

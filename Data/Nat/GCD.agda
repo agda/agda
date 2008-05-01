@@ -15,9 +15,9 @@ open import Relation.Binary.PropositionalEquality
 open import Data.Fin
 open import Data.Vec
 open ℕ-semiringSolver
-open import Logic.Induction
-open import Logic.Induction.Nat
-open import Logic.Induction.Lexicographic
+open import Induction
+open import Induction.Nat
+open import Induction.Lexicographic
 open import Data.Function
 open import Data.Empty
 open import Relation.Nullary

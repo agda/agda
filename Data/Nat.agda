@@ -41,7 +41,7 @@ _>_ : Rel ℕ
 m > n = n < m
 
 -- The following, alternative definition of _≤_ is more suitable for
--- well-founded induction (see Logic.Induction.Nat).
+-- well-founded induction (see Induction.Nat).
 
 infix 4 _≤′_ _<′_
 

@@ -2,13 +2,12 @@
 -- An abstraction of various forms of recursion/induction
 ------------------------------------------------------------------------
 
-module Logic.Induction where
+module Induction where
 
 open import Relation.Unary
 
 -- A RecStruct describes the allowed structure of recursion. The
--- examples in Logic.Induction.Nat should explain what this is all
--- about.
+-- examples in Induction.Nat should explain what this is all about.
 
 RecStruct : Set -> Set1
 RecStruct a = Pred a -> Pred a
