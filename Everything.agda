@@ -106,6 +106,7 @@ import Relation.Binary.Product.StrictLex
 import Relation.Binary.PropositionalEquality
 import Relation.Binary.PropositionalEquality1
 import Relation.Binary.Props.Poset
+import Relation.Binary.Props.DecTotalOrder
 import Relation.Binary.Props.StrictPartialOrder
 import Relation.Binary.Props.StrictTotalOrder
 import Relation.Binary.Props.TotalOrder
