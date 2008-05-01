@@ -5,8 +5,9 @@
 module Data.Bool where
 
 open import Data.Function
+open import Data.Unit.Core
 open import Data.Empty
-open import Relation.Nullary
+open import Relation.Nullary.Core
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality
 
@@ -17,12 +18,27 @@ infix  0 if_then_else_
 ------------------------------------------------------------------------
 -- The boolean type
 
-open import Data.Bool.Core public
+data Bool : Set where
+  true  : Bool
+  false : Bool
+
+{-# BUILTIN BOOL  Bool  #-}
+{-# BUILTIN TRUE  true  #-}
+{-# BUILTIN FALSE false #-}
 
 ------------------------------------------------------------------------
 -- Some operations
 
--- not and T are defined in Data.Bool.Core.
+not : Bool -> Bool
+not true  = false
+not false = true
+
+-- A function mapping true to an inhabited type and false to an empty
+-- type.
+
+T : Bool -> Set
+T true  = ⊤
+T false = ⊥
 
 if_then_else_ : {a : Set} -> Bool -> a -> a -> a
 if true  then t else f = t

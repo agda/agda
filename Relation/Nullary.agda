@@ -7,16 +7,13 @@
 module Relation.Nullary where
 
 open import Data.Unit.Core
-open import Data.Bool.Core
+open import Data.Bool
 open import Data.Empty
+
+open import Relation.Nullary.Core public
 
 ------------------------------------------------------------------------
 -- Negation
-
-infix 3 ¬_
-
-¬_ : Set -> Set
-¬ P = P -> ⊥
 
 contradiction : forall {P whatever} -> P -> ¬ P -> whatever
 contradiction p np = ⊥-elim (np p)
@@ -29,10 +26,6 @@ map-¬¬ f = contravariant (contravariant f)
 
 ------------------------------------------------------------------------
 -- Decidable relations
-
-data Dec (P : Set) : Set where
-  yes : P   -> Dec P
-  no  : ¬ P -> Dec P
 
 decToBool : forall {P} -> Dec P -> Bool
 decToBool (yes _) = true

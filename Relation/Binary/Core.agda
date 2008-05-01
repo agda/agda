@@ -12,7 +12,7 @@ open import Data.Sum.Core
 open import Data.Function
 open import Data.Unit.Core
 open import Data.Empty
-open import Relation.Nullary
+open import Relation.Nullary.Core
 
 ------------------------------------------------------------------------
 -- Homogeneous binary relations

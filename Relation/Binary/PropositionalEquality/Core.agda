@@ -7,7 +7,6 @@
 
 module Relation.Binary.PropositionalEquality.Core where
 
-open import Relation.Nullary
 open import Relation.Binary.Core
 open import Relation.Binary.Consequences.Core
 

@@ -5,7 +5,7 @@
 module Relation.Binary.Consequences where
 
 open import Relation.Binary.Core
-open import Relation.Nullary
+open import Relation.Nullary.Core
 open import Relation.Binary.PropositionalEquality.Core
 open import Data.Function
 open import Data.Sum.Core
