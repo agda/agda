@@ -2,6 +2,10 @@
 -- An abstraction of various forms of recursion/induction
 ------------------------------------------------------------------------
 
+-- Note: The types in this module can perhaps be easier to understand
+-- if they are normalised. Note also that Agda can do the
+-- normalisation for you.
+
 module Induction where
 
 open import Relation.Unary
@@ -17,12 +21,12 @@ RecStruct a = Pred a -> Pred a
 
 RecursorBuilder : forall {a} -> RecStruct a -> Set1
 RecursorBuilder {a} Rec =
-     (P : Pred a) -> Rec P ⟶ P -> forall x -> Rec P x
+  (P : Pred a) -> Rec P ⊆ P -> Universal (Rec P)
 
 -- A recursor can be used to actually compute/prove something useful.
 
 Recursor : forall {a} -> RecStruct a -> Set1
-Recursor {a} Rec = (P : Pred a) -> Rec P ⟶ P -> forall x -> P x
+Recursor {a} Rec = (P : Pred a) -> Rec P ⊆ P -> Universal P
 
 -- And recursors can be constructed from recursor builders.
 
@@ -37,10 +41,10 @@ build builder P f x = f x (builder P f x)
 
 SubsetRecursorBuilder : forall {a} -> Pred a -> RecStruct a -> Set1
 SubsetRecursorBuilder {a} Q Rec =
-     (P : Pred a) -> Rec P ⟶ P -> Q ⟶ Rec P
+  (P : Pred a) -> Rec P ⊆ P -> Q ⊆ Rec P
 
 SubsetRecursor : forall {a} -> Pred a -> RecStruct a -> Set1
-SubsetRecursor {a} Q Rec = (P : Pred a) -> Rec P ⟶ P -> Q ⟶ P
+SubsetRecursor {a} Q Rec = (P : Pred a) -> Rec P ⊆ P -> Q ⊆ P
 
 subsetBuild
   :  forall {a} {Q : Pred a} {Rec : RecStruct a}
