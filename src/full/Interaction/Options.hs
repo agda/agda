@@ -64,6 +64,7 @@ data CommandLineOptions =
             , optMAlonzoDir        :: Maybe FilePath
 	    , optTerminationCheck  :: Bool
 	    , optCompletenessCheck :: Bool
+	    , optUniverseCheck     :: Bool
 	    }
     deriving Show
 
@@ -96,6 +97,7 @@ defaultOptions =
             , optMAlonzoDir        = Nothing
             , optTerminationCheck  = True
             , optCompletenessCheck = True
+            , optUniverseCheck     = True
 	    }
 
 {- | @f :: Flag opts@  is an action on the option record that results from
@@ -122,6 +124,7 @@ noPositivityFlag          o = return $ o { optDisablePositivity = True }
 noInjectivityFlag         o = return $ o { optDisableInjectivity= True }
 dontTerminationCheckFlag  o = return $ o { optTerminationCheck  = False }
 dontCompletenessCheckFlag o = return $ o { optCompletenessCheck = False }
+dontUniverseCheckFlag     o = return $ o { optUniverseCheck     = False }
 
 interactiveFlag o = return $ o { optInteractive   = True
 			       , optAllowUnsolved = True
@@ -207,6 +210,8 @@ pragmaOptions =
 		    "do not warn about possibly nonterminating code"
     , Option []	    ["no-coverage-check"] (NoArg dontCompletenessCheckFlag)
 		    "do not warn about possibly incomplete pattern matches"
+    , Option []	    ["no-universe-check"] (NoArg dontUniverseCheckFlag)
+		    "do not check that constructor types fit in data type sorts"
     ]
 
 -- | Used for printing usage info.

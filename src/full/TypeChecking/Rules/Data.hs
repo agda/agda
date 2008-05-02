@@ -22,6 +22,9 @@ import TypeChecking.Pretty
 
 import TypeChecking.Rules.Term ( isType_ )
 
+import Interaction.Options
+
+import Utils.Monad
 import Utils.Size
 import Utils.Tuple
 
@@ -144,7 +147,9 @@ fitsIn t s =
 	case funView $ unEl t of
 	    FunV arg@(Arg h a) _ -> do
 		let s' = getSort a
-		s' `leqSort` s
+                ifM (optUniverseCheck <$> commandLineOptions)
+                    (s' `leqSort` s)
+                    (return [])
 		x <- freshName_ (argName t)
 		let v  = Arg h $ Var 0 []
 		    t' = piApply (raise 1 t) [v]
