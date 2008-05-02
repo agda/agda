@@ -91,15 +91,12 @@ import Induction.WellFounded
 import Relation.Binary
 import Relation.Binary.Consequences
 import Relation.Binary.EqReasoning
-import Relation.Binary.EqReasoning.Flexible
 import Relation.Binary.FunctionLifting
 import Relation.Binary.HeterogeneousEquality
 import Relation.Binary.NonStrictToStrict
 import Relation.Binary.OrderMorphism
 import Relation.Binary.PartialOrderReasoning
-import Relation.Binary.PartialOrderReasoning.Flexible
 import Relation.Binary.PreorderReasoning
-import Relation.Binary.PreorderReasoning.Flexible
 import Relation.Binary.Product.NonStrictLex
 import Relation.Binary.Product.Pointwise
 import Relation.Binary.Product.StrictLex

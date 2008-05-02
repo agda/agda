@@ -6,6 +6,21 @@
 -- Norell's. I have adapted it to my tastes and mixfix operators,
 -- though.
 
+-- If you need to use several instances of this module in a given
+-- file, then you can use the following approach:
+--
+--   import Relation.Binary.PreorderReasoning as Pre
+--
+--   f x y z = begin
+--     ...
+--       ∎
+--     where open Pre preorder₁
+--
+--   g i j = begin
+--     ...
+--       ∎
+--     where open Pre preorder₂
+
 open import Relation.Binary
 
 module Relation.Binary.PreorderReasoning (p : Preorder) where
