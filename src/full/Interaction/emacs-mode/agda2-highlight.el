@@ -33,7 +33,10 @@
   :group 'agda2-highlight)
 
 (defface agda2-highlight-symbol-face
-  '((t (:foreground "gray25")))
+  '((((background light))
+     (:foreground "gray25"))
+    (((background dark))
+     (:foreground "gray75")))
   "*The face used for symbols like forall, =, ->, etc."
   :group 'agda2-highlight)
 
@@ -103,17 +106,20 @@
   :group 'agda2-highlight)
 
 (defface agda2-highlight-unsolved-meta-face
-  '((t (:background "yellow")))
+  '((t (:background "yellow"
+        :foreground "black")))
   "The face used for unsolved meta variables."
   :group 'agda2-highlight)
 
 (defface agda2-highlight-termination-problem-face
-  '((t (:background "light salmon")))
+  '((t (:background "light salmon"
+        :forebround "black")))
   "The face used for termination problems."
   :group 'agda2-highlight)
 
 (defface agda2-highlight-incomplete-pattern-face
-  '((t (:background "wheat")))
+  '((t (:background "wheat"
+        :foreground "black")))
   "The face used for incomplete patterns."
   :group 'agda2-highlight)
 
