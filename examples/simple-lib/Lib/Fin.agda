@@ -49,3 +49,32 @@ maxView {suc n} zero = notMax zero
 maxView {suc n} (suc i) with maxView i
 maxView {suc n} (suc .(fromNat n)) | theMax   = theMax
 maxView {suc n} (suc .(weaken i))  | notMax i = notMax (suc i)
+
+-- The non zero view
+
+data NonEmptyView : {n : Nat} -> Fin n -> Set where
+  ne : {n : Nat}{i : Fin (suc n)} -> NonEmptyView i
+
+nonEmpty : {n : Nat}(i : Fin n) -> NonEmptyView i
+nonEmpty zero    = ne
+nonEmpty (suc _) = ne
+
+-- The thinning view
+
+thin : {n : Nat} -> Fin (suc n) -> Fin n -> Fin (suc n)
+thin zero    j       = suc j
+thin (suc i) zero    = zero
+thin (suc i) (suc j) = suc (thin i j)
+
+data EqView : {n : Nat} -> Fin n -> Fin n -> Set where
+  equal    : {n : Nat}{i : Fin n} -> EqView i i
+  notequal : {n : Nat}{i : Fin (suc n)}(j : Fin n) -> EqView i (thin i j)
+
+compare : {n : Nat}(i j : Fin n) -> EqView i j
+compare zero    zero    = equal
+compare zero    (suc j) = notequal j
+compare (suc i) zero    with nonEmpty i
+...                | ne = notequal zero
+compare (suc i) (suc j) with compare i j
+compare (suc i) (suc .i)          | equal      = equal
+compare (suc i) (suc .(thin i j)) | notequal j = notequal (suc j)

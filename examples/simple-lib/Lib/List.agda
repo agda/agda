@@ -2,7 +2,7 @@
 module Lib.List where
 
 open import Lib.Prelude
-open import Lib.Id renaming (_==_ to _≡_)
+open import Lib.Id
 
 infix  30 _∈_
 infixr 40 _::_ _++_
@@ -11,6 +11,11 @@ infix  45 _!_
 data List (A : Set) : Set where
   []   : List A
   _::_ : A -> List A -> List A
+
+{-# COMPILED_DATA List [] (:) #-}
+{-# BUILTIN LIST List #-}
+{-# BUILTIN NIL [] #-}
+{-# BUILTIN CONS _::_ #-}
 
 _++_ : {A : Set} -> List A -> List A -> List A
 []        ++ ys = ys
