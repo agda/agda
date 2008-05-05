@@ -65,7 +65,7 @@ _primIntegerAbs n | (Prelude.>) n (0 :: Prelude.Integer) = suc (cast (_primInteg
 	| Prelude.otherwise = _primIntegerAbs (_primIntSub 0 n)
 _abs = _primIntegerAbs
 
-_primIntToNat n = _primIntegerAbs (Prelude.fromIntegral (n :: Prelude.Int))
+_primIntegerToNat n = _primIntegerAbs (Prelude.fromIntegral (n :: Prelude.Int))
 
 _primShowFloat :: Float -> Prelude.String
 _primShowFloat f = Prelude.show f
