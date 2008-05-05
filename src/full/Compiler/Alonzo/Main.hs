@@ -425,7 +425,7 @@ processTerm (MetaV _ _) =  error "Can't have metavariables"
 processLit :: Literal -> HsExp
 processLit (LitInt _ i) =  HsApp toNat $ intLit i where
 	intLit i = HsParen $ hsPreludeTypedExp "Int" $ HsLit $ HsInt i
-	toNat = HsVar $ Qual (Module "RTP") $ HsIdent "_primIntToNat"
+	toNat = HsVar $ Qual (Module "RTP") $ HsIdent "_primIntegerToNat"
 processLit (LitFloat _ f) =  hsPreludeTypedExp "Double" $ 
 						HsLit $ HsFrac $ toRational f
 -- processLit (LitFloat _ f) =  HsApp (HsVar $ rtpCon "FloatT")

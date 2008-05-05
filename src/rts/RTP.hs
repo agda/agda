@@ -16,7 +16,7 @@ type Float = Prelude.Double
 -- newtype Float = FloatT { unboxFloat :: Prelude.Float}
 newtype Char = CharT { unboxChar :: Prelude.Char } deriving (Prelude.Eq)
 
-_Int = ()
+_Integer = ()
 _Float = ()
 _String =  ()
 _Char = ()
@@ -25,45 +25,47 @@ _primShowBool :: Bool -> Prelude.String
 _primShowBool False = "False"
 _primShowBool True = "True"
 
-_primShowInt :: Prelude.Int -> Prelude.String
-_primShowInt = Prelude.show
+_primShowInteger :: Prelude.Integer -> Prelude.String
+_primShowInteger = Prelude.show
 
-_primIntZero :: Prelude.Int 
-_primIntZero = (0::Prelude.Int)
+_primIntZero :: Prelude.Integer 
+_primIntZero = (0::Prelude.Integer)
 
-_primIntOne :: Prelude.Int 
-_primIntOne = (1::Prelude.Int)
+_primIntOne :: Prelude.Integer 
+_primIntOne = (1::Prelude.Integer)
 
-_primIntAdd :: Prelude.Int -> Prelude.Int -> Prelude.Int
+_primIntAdd :: Prelude.Integer -> Prelude.Integer -> Prelude.Integer
 _primIntAdd = (Prelude.+)
 
-_primIntSub :: Prelude.Int -> Prelude.Int -> Prelude.Int
+_primIntSub :: Prelude.Integer -> Prelude.Integer -> Prelude.Integer
 _primIntSub = (Prelude.-)
 
 
-_primIntMul :: Prelude.Int -> Prelude.Int -> Prelude.Int
+_primIntMul :: Prelude.Integer -> Prelude.Integer -> Prelude.Integer
 _primIntMul = (Prelude.*)
 
-_primIntDiv :: Prelude.Int -> Prelude.Int -> Prelude.Int
+_primIntDiv :: Prelude.Integer -> Prelude.Integer -> Prelude.Integer
 _primIntDiv = (Prelude.div)
 
-_primIntMod :: Prelude.Int -> Prelude.Int -> Prelude.Int
+_primIntMod :: Prelude.Integer -> Prelude.Integer -> Prelude.Integer
 _primIntMod = (Prelude.mod)
 
-_primIntEquals :: Prelude.Int -> Prelude.Int -> Prelude.Bool
-_primIntEquals = (Prelude.==)
+_primIntEquality :: Prelude.Integer -> Prelude.Integer -> Prelude.Bool
+_primIntEquality = (Prelude.==)
 
-_primIntLess :: Prelude.Int -> Prelude.Int -> Prelude.Bool
+_primIntLess :: Prelude.Integer -> Prelude.Integer -> Prelude.Bool
 _primIntLess = (Prelude.<)
 
-_int = _primNatToInt
-_primNatToInt RTN.C2 = (0::Prelude.Int)
-_primNatToInt (RTN.C3 n) = ( _primIntAdd (1::Prelude.Int)  ( (_primNatToInt(cast n))))
+_int = _primNatToInteger
+_primNatToInteger RTN.C2 = (0::Prelude.Integer)
+_primNatToInteger (RTN.C3 n) = ( _primIntAdd (1::Prelude.Integer)  ( (_primNatToInteger(cast n))))
 
-_primIntToNat 0 = zero
-_primIntToNat n | (Prelude.>) n (0 :: Prelude.Int) = suc (cast (_primIntToNat (  _primIntSub n (1::Prelude.Int))))
-	| Prelude.otherwise = _primIntToNat (_primIntSub 0 n)
-_abs = _primIntToNat
+_primIntegerAbs 0 = zero
+_primIntegerAbs n | (Prelude.>) n (0 :: Prelude.Integer) = suc (cast (_primIntegerAbs (  _primIntSub n (1::Prelude.Integer))))
+	| Prelude.otherwise = _primIntegerAbs (_primIntSub 0 n)
+_abs = _primIntegerAbs
+
+_primIntToNat n = _primIntegerAbs (Prelude.fromIntegral (n :: Prelude.Int))
 
 _primShowFloat :: Float -> Prelude.String
 _primShowFloat f = Prelude.show f
@@ -88,6 +90,9 @@ _primNatToChar = ord . unboxChar
 _primStringAppend :: Prelude.String -> Prelude.String -> Prelude.String
 _primStringAppend = (Prelude.++)
 
+_primStringEquality :: Prelude.String -> Prelude.String -> Prelude.Bool
+_primStringEquality = (Prelude.==)
+
 _primShowString :: Prelude.String -> Prelude.String
 _primShowString s = show s
 
@@ -101,7 +106,7 @@ _primNatTimes m n = _abs (_primIntMul (_int m) (_int n))
 _primNatDivSuc m n= _abs (_primIntDiv (_int m) (_int n))
 _primNatModSuc m n = _abs (_primIntMod (_int m) (_int n))
 _primNatLess m n = _primIntLess (_int m) (_int n)
-_primNatEquals m n = _primIntEquals (_int m) (_int n)
+_primNatEquality m n = _primIntEquality (_int m) (_int n)
 
 -- For tests
 zero = RTN.C2
