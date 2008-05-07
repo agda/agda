@@ -60,10 +60,10 @@ foldr-universal h f e base step (x ∷ xs) = begin
   where open ≡-Reasoning
 
 foldr-fusion : forall {a b c} (h : b -> c)
-                      {f : a -> b -> b} {g : a -> c -> c} {e : b} ->
+                      {f : a -> b -> b} {g : a -> c -> c} (e : b) ->
                (forall x y -> h (f x y) ≡ g x (h y)) ->
                h ∘ foldr f e ≗ foldr g (h e)
-foldr-fusion h {f} {g} {e} fuse =
+foldr-fusion h {f} {g} e fuse =
   foldr-universal (h ∘ foldr f e) g (h e) ≡-refl
                   (\x xs -> fuse x (foldr f e xs))
 
@@ -77,7 +77,7 @@ idIsFold = foldr-universal id _∷_ [] ≡-refl (\_ _ -> ≡-refl)
     xs ++ ys
   ≡⟨ ≡-cong (\xs -> xs ++ ys) (idIsFold xs) ⟩
     foldr _∷_ [] xs ++ ys
-  ≡⟨ foldr-fusion (\xs -> xs ++ ys) (\_ _ -> ≡-refl) xs ⟩
+  ≡⟨ foldr-fusion (\xs -> xs ++ ys) [] (\_ _ -> ≡-refl) xs ⟩
     foldr _∷_ ([] ++ ys) xs
   ≡⟨ ≡-refl ⟩
     foldr _∷_ ys xs
@@ -91,7 +91,7 @@ mapIsFold {f = f} =
     map f
   ≈⟨ ≡-cong (map f) ∘′ idIsFold ⟩
     map f ∘ foldr _∷_ []
-  ≈⟨ foldr-fusion (map f) (\_ _ -> ≡-refl) ⟩
+  ≈⟨ foldr-fusion (map f) [] (\_ _ -> ≡-refl) ⟩
     foldr (\x ys -> f x ∷ ys) []
   ∎
   where open Eq (_ ->-setoid _)
@@ -103,10 +103,10 @@ concat-map {f = f} =
     concat ∘ map (map f)
   ≈⟨ ≡-cong concat ∘′ mapIsFold ⟩
     concat ∘ foldr (\xs ys -> map f xs ∷ ys) []
-  ≈⟨ foldr-fusion concat (\_ _ -> ≡-refl) ⟩
+  ≈⟨ foldr-fusion concat [] (\_ _ -> ≡-refl) ⟩
     foldr (\ys zs -> map f ys ++ zs) []
   ≈⟨ ≡-sym ∘′
-     foldr-fusion (map f) {e = []} (\ys zs -> map-++-commute f ys zs) ⟩
+     foldr-fusion (map f) [] (\ys zs -> map-++-commute f ys zs) ⟩
     map f ∘ concat
   ∎
   where open Eq (_ ->-setoid _)
@@ -118,9 +118,9 @@ map-compose {g = g} {f} =
     map (g ∘ f)
   ≈⟨ ≡-cong (map (g ∘ f)) ∘′ idIsFold ⟩
     map (g ∘ f) ∘ foldr _∷_ []
-  ≈⟨ foldr-fusion (map (g ∘ f)) (\_ _ -> ≡-refl) ⟩
+  ≈⟨ foldr-fusion (map (g ∘ f)) [] (\_ _ -> ≡-refl) ⟩
     foldr (\a y -> g (f a) ∷ y) []
-  ≈⟨ ≡-sym ∘′ foldr-fusion (map g) {e = []} (\_ _ -> ≡-refl) ⟩
+  ≈⟨ ≡-sym ∘′ foldr-fusion (map g) [] (\_ _ -> ≡-refl) ⟩
     map g ∘ foldr (\a y -> f a ∷ y) []
   ≈⟨ ≡-cong (map g) ∘′ ≡-sym ∘′ mapIsFold ⟩
     map g ∘ map f
@@ -135,7 +135,7 @@ foldr-cong {f₁ = f₁} {f₂} {e} f₁≗₂f₂ ≡-refl =
     foldr f₁ e
   ≈⟨ ≡-cong (foldr f₁ e) ∘′ idIsFold ⟩
     foldr f₁ e ∘ foldr _∷_ []
-  ≈⟨ foldr-fusion (foldr f₁ e) (\x xs -> f₁≗₂f₂ x (foldr f₁ e xs)) ⟩
+  ≈⟨ foldr-fusion (foldr f₁ e) [] (\x xs -> f₁≗₂f₂ x (foldr f₁ e xs)) ⟩
     foldr f₂ e
   ∎
   where open Eq (_ ->-setoid _)
