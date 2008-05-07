@@ -20,7 +20,7 @@ module Main where
 
 import qualified Memoised
 import Control.Monad.State hiding (lift)
-import PrecedenceGraph hiding (tests)
+import PrecedenceGraph
 import Data.Char
 import qualified Data.List as List
 
