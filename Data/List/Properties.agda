@@ -10,11 +10,19 @@ module Data.List.Properties where
 open import Data.List
 open import Data.Nat
 open import Data.Nat.Properties
+open import Data.Bool
 open import Data.Function
+open import Data.Product
 open import Relation.Binary.PropositionalEquality
 import Relation.Binary.EqReasoning as Eq
 open import Algebra
 open import Relation.Binary.FunctionLifting
+
+∷-injective : forall {a} -> {x y : a} {xs ys : [ a ]} ->
+              (x ∷ xs) ≡ (y ∷ ys) -> (x ≡ y) × (xs ≡ ys)
+∷-injective ≡-refl = (≡-refl , ≡-refl)
+
+-- Map, sum, and append.
 
 map-++-commute :  forall {a b} (f : a -> b) xs ys
                -> map f (xs ++ ys) ≡ map f xs ++ map f ys
@@ -34,6 +42,8 @@ sum-++-commute (x ∷ xs) ys = begin
   where
   open CommutativeSemiring ℕ-commutativeSemiring hiding (_+_)
   open ≡-Reasoning
+
+-- Various properties about folds.
 
 foldr-universal : forall {a b} (h : [ a ] -> b) f e ->
                   (h [] ≡ e) ->
@@ -143,3 +153,74 @@ map-cong {f = f} {g} f≗g =
     map g
   ∎
   where open Eq (_ ->-setoid _)
+
+-- Take, drop, and splitAt.
+
+take++drop : forall {a} -> forall n -> (xs : [ a ]) -> 
+            take n xs ++ drop n xs ≡ xs
+take++drop zero xs = ≡-refl 
+take++drop (suc n) [] = ≡-refl 
+take++drop (suc n) (x ∷ xs) = 
+  ≡-cong (\xs -> x ∷ xs) (take++drop n xs)
+
+splitAt-defn : forall {a} -> forall n ->
+               splitAt {a} n ≗ < take n , drop n >
+splitAt-defn zero xs = ≡-refl
+splitAt-defn (suc n) [] = ≡-refl
+splitAt-defn (suc n) (x ∷ xs) with splitAt n xs | splitAt-defn n xs
+... | (ys , zs) | ih = ≡-cong (map-× (_∷_ x) id) ih  
+
+-- TakeWhile, dropWhile, and span.
+
+takeWhile++dropWhile : forall {a} -> (p : a -> Bool) -> (xs : [ a ]) -> 
+            takeWhile p xs ++ dropWhile p xs ≡ xs
+takeWhile++dropWhile p [] = ≡-refl 
+takeWhile++dropWhile p (x ∷ xs) with p x
+... | true  = ≡-cong (_∷_ x) (takeWhile++dropWhile p xs) 
+... | false = ≡-refl 
+
+span-defn : forall {a} -> (p : a -> Bool) ->
+            span p ≗ < takeWhile p , dropWhile p >
+span-defn p [] = ≡-refl
+span-defn p (x ∷ xs) with p x
+... | true = ≡-cong (map-× (_∷_ x) id) (span-defn p xs) 
+... | false = ≡-refl
+
+-- Partition
+
+partition-defn : forall {a} -> (p : a -> Bool) -> 
+                 partition p ≗ < filter p , filter (not ∘ p) >
+partition-defn p [] = ≡-refl
+partition-defn p (x ∷ xs) 
+ with p x | partition p xs | partition-defn p xs
+...  | true  | (ys , zs) | eq = ≡-cong (map-× (_∷_ x) id) eq 
+...  | false | (ys , zs) | eq = ≡-cong (map-× id (_∷_ x)) eq 
+
+-- Inits, tails, and scanr.
+
+scanr-defn : forall {a b} -> (f : a -> b -> b) -> (e : b) ->
+             scanr f e ≗ map (foldr f e) ∘ tails
+scanr-defn f e [] = ≡-refl
+scanr-defn f e (x ∷ []) = ≡-refl
+scanr-defn f e (x₁ ∷ x₂ ∷ xs) 
+  with scanr f e (x₂ ∷ xs) | scanr-defn f e (x₂ ∷ xs)
+...  | [] | ()
+...  | y ∷ ys | eq with ∷-injective eq
+...        | y≡fx₂⦇f⦈xs , _ = ≡-cong₂ (\z zs -> f x₁ z ∷ zs) y≡fx₂⦇f⦈xs eq  
+
+scanl-defn : forall {a b} -> (f : a -> b -> a) -> (e : a) ->
+             scanl f e ≗ map (foldl f e) ∘ inits
+scanl-defn f e [] = ≡-refl
+scanl-defn f e (x ∷ xs)  with scanl-defn f (f e x) xs
+... | ind-hypothesis = ≡-cong (_∷_ e) lemma
+  where lemma : scanl f (f e x) xs ≡ map (foldl f e) (map (_∷_ x) (inits xs))
+        lemma = begin
+             scanl f (f e x) xs
+          ≡⟨ ind-hypothesis ⟩
+             map (foldl f (f e x)) (inits xs)
+          ≡⟨ ≡-refl ⟩
+             map (foldl f e ∘ (_∷_ x)) (inits xs)
+          ≡⟨ map-compose (inits xs) ⟩
+             map (foldl f e) (map (_∷_ x) (inits xs))
+          ∎
+         where open ≡-Reasoning
