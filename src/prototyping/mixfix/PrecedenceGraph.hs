@@ -25,6 +25,8 @@ module PrecedenceGraph
 
 import Parser
 import qualified Data.List as List
+import qualified Data.Set as Set
+import Data.Set (Set)
 import qualified Data.Map as Map
 import Data.Map (Map)
 import qualified Data.Graph.Inductive as G
@@ -33,6 +35,14 @@ import Control.Applicative hiding (empty)
 import qualified Control.Applicative as A
 import qualified Control.Monad.State as S
 import qualified Control.Monad.Identity as I
+
+------------------------------------------------------------------------
+-- A helper function
+
+-- | Converts a set to a list and maps over it.
+
+mapM' :: Monad m => (a -> m b) -> Set a -> m [b]
+mapM' f = mapM f . Set.toList
 
 ------------------------------------------------------------------------
 -- Types
@@ -60,7 +70,7 @@ type Node = Int
 -- Invariant: Has to be acyclic.
 
 newtype PrecedenceGraph =
-  PG { unPG :: G.Gr (Map Fixity [Name]) () }
+  PG { unPG :: G.Gr (Map Fixity (Set Name)) () }
      deriving Show
 
 ------------------------------------------------------------------------
@@ -68,20 +78,20 @@ newtype PrecedenceGraph =
 
 -- | The successors of a node.
 
-successors :: PrecedenceGraph -> Node -> [Node]
-successors = G.suc . unPG
+successors :: PrecedenceGraph -> Node -> Set Node
+successors g n = Set.fromList $ G.suc (unPG g) n
 
 -- | A node's annotation.
 
-annotation :: PrecedenceGraph -> Node -> Map Fixity [Name]
+annotation :: PrecedenceGraph -> Node -> Map Fixity (Set Name)
 annotation g n = case G.lab (unPG g) n of
   Nothing  -> Map.empty
   Just ann -> ann
 
 -- | The nodes in the graph.
 
-nodes :: PrecedenceGraph -> [Node]
-nodes = G.nodes . unPG
+nodes :: PrecedenceGraph -> Set Node
+nodes = Set.fromList . G.nodes . unPG
 
 -- | Is the graph acyclic?
 
@@ -108,7 +118,7 @@ bindsAs :: Name -> Fixity -> Node -> PrecedenceGraph -> PrecedenceGraph
 bindsAs op fix n (PG g) = case G.match n g of
   (Nothing, g') -> error "bindsAs: The node does not exist."
   (Just (pre, n, a, suc), g') ->
-    PG ((pre, n, Map.adjust (op :) fix a, suc) & g')
+    PG ((pre, n, Map.adjust (Set.insert op) fix a, suc) & g')
 
 -- @bindsBetween op fix tighterThan looserThan n g@ adds a new node to
 -- @g@, annotated with @op@ (with fixity @fix@). Edges are added from
@@ -130,7 +140,7 @@ bindsBetween op fixity tighterThan looserThan (PG g)
   fix            = map ((,) ()) . List.nub
   ctxt           = ( fix allTighterThan
                    , new
-                   , Map.singleton fixity [op]
+                   , Map.singleton fixity (Set.singleton op)
                    , fix allLooserThan
                    )
   g'             = PG (ctxt & g)
@@ -181,9 +191,9 @@ expressionParser g = S.evalState (expr g (nodes g)) Map.empty
 -- postfix or infix. Hence the atom parser will probably be
 -- implemented using expressionParser.
 
-expr :: PrecedenceGraph -> [Node] -> P Expr
+expr :: PrecedenceGraph -> Set Node -> P Expr
 expr g ns = do
-  ns <- mapM (node g) ns
+  ns <- mapM' (node g) ns
   return $ (AtomE <$ sym Atom) <|> choice ns
 
 -- | Parser for one operator (just the internal, mixfix part).
@@ -204,8 +214,8 @@ opProd g nameParts =
 
 -- | Parser for several operators.
 
-opProds :: PrecedenceGraph -> [Name] -> P Op
-opProds g ops = fmap choice (mapM (opProd g) ops)
+opProds :: PrecedenceGraph -> Set Name -> P Op
+opProds g ops = fmap choice (mapM' (opProd g) ops)
 
 appLeft :: Expr -> Op -> Expr
 appLeft e (n, es) = Op ('_' : n) (e : es)
@@ -242,7 +252,9 @@ node g n = do
       S.modify (Map.insert n p)
       return p
   where
-  m ! k = concat $ Map.lookup k m
+  m ! k = case Map.lookup k m of
+    Nothing -> Set.empty
+    Just ns -> ns
 
   ops fixity f = fmap f (opProds g (annotation g n ! fixity))
                         -- Parser for the internal parts of operators
