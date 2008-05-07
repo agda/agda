@@ -1,15 +1,24 @@
 ------------------------------------------------------------------------
--- Tests the performance and correctness of the precedence handling
+-- Tests the precedence handling using several different parser
+-- backends
 ------------------------------------------------------------------------
 
--- Summary: The memoising backtracking parser seems to be fast enough.
+{-# LANGUAGE ExistentialQuantification, Rank2Types #-}
+
+-- Summary: The trie parsers (which do left factorisation on the fly)
+-- all seem to be reasonably efficient. The memoised backtracking
+-- parser is even faster (possibly asymptotically more efficient); on
+-- the other hand it makes the code constructing the parser a bit more
+-- complicated. ReadP is too slow for these grammars. Note that
+-- applying one of the continuation transformers to, say, AmbExTrie2
+-- makes it a lot slower (in this context, anyway).
 --
--- Note that if this code is not fast enough, then we can apply
--- another optimisation: pruning the graph, keeping only those nodes
--- which have operator parts occurring in the expression at hand. I
--- think that this covers all practical cases. If someone actually
--- tries to make things hard for the parser, then it might not,
--- though.
+-- Note that if the best parsers used here are not fast enough, then
+-- we can apply another optimisation: pruning the graph, keeping only
+-- those nodes which have operator parts occurring in the expression
+-- at hand. I think that this covers all practical cases. If someone
+-- actually tries to make things hard for the parser, then it might
+-- not, though.
 --
 -- One can guarantee polynomial complexity of parsing by using a dense
 -- representation of ambiguous results. However, the most ambiguous
@@ -18,23 +27,59 @@
 
 module Main where
 
+import qualified ReadPWrapper as ReadP
+import qualified AmbTrie
+import qualified AmbExTrie
+import qualified AmbExTrie2
+import qualified ContTrans
+import qualified StackContTrans
+import qualified SlowParser
+import qualified Standard
 import qualified Memoised
 import Control.Monad.State hiding (lift)
+import Parser (Parser)
+import System.Environment
 import PrecedenceGraph hiding (tests)
 import Data.Char
 import qualified Data.List as List
 
 ------------------------------------------------------------------------
+-- Encapsulating parser libraries
+
+data P k r' tok = forall p. Parser p k r' tok =>
+                  P (forall r. p r -> [tok] -> [r])
+
+parse :: (Ord k, Ord tok) =>
+         P k r' tok -> (forall p. Parser p k r' tok => p r) ->
+         [tok] -> [r]
+parse (P p) g = p g
+
+parser :: (Ord k, Ord tok) => Integer -> P k r' tok
+parser  0 = P ReadP.parse
+parser  1 = P AmbTrie.parse
+parser  2 = P AmbExTrie.parse
+parser  3 = P AmbExTrie2.parse
+parser  4 = P (ContTrans.parse AmbExTrie2.parse)
+parser  5 = P (StackContTrans.parse AmbExTrie2.parse)
+parser  6 = P SlowParser.parse
+parser  7 = P Standard.parse
+parser  8 = P Memoised.parse
+parser  9 = P (ContTrans.parse Memoised.parse)
+parser 10 = P (StackContTrans.parse Memoised.parse)
+parser  _ = error "No more parser combinator libraries."
+
+------------------------------------------------------------------------
 -- Test driver
 
-test :: PrecedenceGraph -> String -> [Expr] -> IO ()
-test g s es =
+test :: P Node Expr Token -> PrecedenceGraph ->
+        String -> [Expr] -> IO ()
+test p g s es =
   putStrLn $ pad 40 (show s) ++ pad 8 (isOK ++ ": ")
                              ++ pad 90 (show es')
   where
   pad n s = take n s ++ replicate (n - length s) ' ' ++ " "
 
-  es'  = Memoised.parse (grammar g) (expression g) (lex s)
+  es'  = parse p (expressionParser g) (lex s)
 
   isOK | List.sort es' == List.sort es = "OK"
        | otherwise                     = "Not OK"
@@ -43,6 +88,10 @@ test g s es =
     where
     toToken [c] | isAlpha c = Atom
     toToken cs              = Name cs
+
+main = do
+  [which] <- fmap (map read) getArgs
+  tests which
 
 ------------------------------------------------------------------------
 -- Example precedence graph
@@ -58,7 +107,7 @@ bindsAs'      op fix n   = lift0 $ bindsAs      op fix n
 bindsBetween' op fix t l = lift  $ bindsBetween op fix t l
 
 -- Note that this graph is not intended to be representative of how I
--- want operator precedences to be specified for the given operators.
+-- want operator precedences to be specified for the operators given.
 
 example :: PrecedenceGraph
 example = flip execState empty $ do
@@ -125,7 +174,7 @@ stressTest n = flip runState g $ do
 ------------------------------------------------------------------------
 -- Tests
 
-main = do
+tests n = do
   test' "x"                                    [a]
   test' "x = x"                                [Op "_=_" [a, a]]
   test' "x = x = x"                            []
@@ -164,9 +213,10 @@ main = do
   test'' 12 2 11
   test'' 17 1 17
   where
-  a = AtomE
+  a      = AtomE
+  test_n = test (parser n)
 
-  test' = test example
+  test'    = test_n example
 
   nestingDepth = 100
 
@@ -179,9 +229,9 @@ main = do
   assocResult d = iterateN d (\x -> Op "_+_" [x, a]) a
 
   -- Precondition: m >= j > i > 0.
-  test'' m i j = test (snd $ stressTest m)
-                      (unwords ["x", op 'a' i, "x", op 'b' j, "x"])
-                      [Op (op' 'a' i) [a, Op (op' 'b' j) [a, a]]]
+  test'' m i j = test_n (snd $ stressTest m)
+                        (unwords ["x", op 'a' i, "x", op 'b' j, "x"])
+                        [Op (op' 'a' i) [a, Op (op' 'b' j) [a, a]]]
     where
     op  c i = c : show i
     op' c i = "_" ++ op c i ++ "_"

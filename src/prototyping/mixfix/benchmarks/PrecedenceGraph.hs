@@ -2,7 +2,8 @@
 -- Precedence graphs
 ------------------------------------------------------------------------
 
-{-# LANGUAGE FlexibleContexts, GADTs #-}
+{-# OPTIONS_GHC -fglasgow-exts #-} -- LiberalTypeSynonyms does not work.
+{-# LANGUAGE FlexibleContexts, LiberalTypeSynonyms #-}
 
 module PrecedenceGraph
     -- * Precedence graphs.
@@ -19,15 +20,12 @@ module PrecedenceGraph
     -- * Parsing expressions.
   , Token(..)
   , Expr(..)
-  , NT
-  , expression
-  , grammar
+  , expressionParser
     -- * Testing.
   , tests
   ) where
 
 import Parser
-import IndexedOrd
 import qualified Data.List as List
 import qualified Data.Set as Set
 import Data.Set (Set)
@@ -37,6 +35,9 @@ import qualified Data.Graph.Inductive as G
 import Data.Graph.Inductive ((&))
 import Control.Applicative hiding (empty)
 import Control.Monad
+import qualified Control.Applicative as A
+import qualified Control.Monad.State as S
+import qualified Control.Monad.Identity as I
 import Data.Function
 import Test.QuickCheck
 
@@ -45,8 +46,8 @@ import Test.QuickCheck
 
 -- | Converts a set to a list and maps over it.
 
-map' :: (a -> b) -> Set a -> [b]
-map' f = map f . Set.toList
+mapM' :: Monad m => (a -> m b) -> Set a -> m [b]
+mapM' f = mapM f . Set.toList
 
 -- | An efficient variant of 'List.nub'.
 
@@ -214,7 +215,52 @@ data Expr = AtomE | Op String [Expr]
 
 type Op = (String, [Expr])
 
--- | Functions for building Expressions.
+-- | The parser type used below. The state component is used to
+-- memoise the computation of node parsers.
+
+type P r = forall p. Parser p Node Expr Token =>
+           S.State (Map Node (p Expr)) (p r)
+
+-- | Expression parser. Parameterised on a graph describing the
+-- operators.
+
+expressionParser :: Parser p Node Expr Token =>
+                    PrecedenceGraph -> p Expr
+expressionParser g = S.evalState (expr g (nodes g)) Map.empty
+
+-- | Parses a subset of the expressions. Only the nodes reachable from
+-- the given list of nodes are recognised by the parser.
+
+-- Note that Atom stands for applications of one or more identifiers,
+-- parenthesised expressions, or mixfix operators that are not prefix,
+-- postfix or infix. Hence the atom parser will probably be
+-- implemented using expressionParser.
+
+expr :: PrecedenceGraph -> Set Node -> P Expr
+expr g ns = do
+  ns <- mapM' (node g) ns
+  return $ (AtomE <$ sym Atom) <|> choice ns
+
+-- | Parser for one operator (just the internal, mixfix part).
+
+-- Note that this function uses the non-memoised (expressionParser g)
+-- instead of the memoised (expr g (nodes g)). The reason is that
+-- otherwise the memoisation is not sufficiently productive. This
+-- could be fixed by inserting the parsers into the memo table
+-- _before_ computing them, by using recursive do in "node" below.
+-- However, I think recursive do is too complicated. The current
+-- solution is easier to understand and gives roughly the same
+-- performance.
+
+opProd :: PrecedenceGraph -> Name -> P Op
+opProd g nameParts =
+  return $ (,) (List.intercalate "_" nameParts) <$>
+           (expressionParser g `between` map Name nameParts)
+
+-- | Parser for several operators.
+
+opProds :: PrecedenceGraph -> Set Name -> P Op
+opProds g ops = fmap choice (mapM' (opProd g) ops)
 
 appLeft :: Expr -> Op -> Expr
 appLeft e (n, es) = Op ('_' : n) (e : es)
@@ -225,77 +271,47 @@ appRight (n, es) e = Op (n ++ "_") (es ++ [e])
 appBoth :: Op -> Expr -> Expr -> Expr
 appBoth (n, es) l r = Op ('_' : n ++ "_") (l : es ++ [r])
 
--- | Nonterminals used by the expression grammar.
-
-data NT r where
-  ExprN :: Set Node -> NT Expr
-  OpN   :: Set Name -> NT Op
-  NodeN :: Node     -> NT Expr
-
-instance IndexedEq NT where
-  iEq (ExprN ns1) (ExprN ns2) = boolToEq $ ns1 == ns2
-  iEq (OpN ns1)   (OpN ns2)   = boolToEq $ ns1 == ns2
-  iEq (NodeN n1)  (NodeN n2)  = boolToEq $ n1  == n2
-  iEq _           _           = Nothing
-
-instance IndexedOrd NT where
-  iCompare (ExprN ns1) (ExprN ns2) = compare ns1 ns2
-  iCompare (ExprN _)   _           = LT
-  iCompare (OpN _)     (ExprN _)   = GT
-  iCompare (OpN ns1)   (OpN ns2)   = compare ns1 ns2
-  iCompare (OpN _)     _           = LT
-  iCompare (NodeN n1)  (NodeN n2)  = compare n1 n2
-  iCompare (NodeN n1)  _           = GT
-
--- | Non-terminal for an expression.
-
-expression :: PrecedenceGraph -> NT Expr
-expression g = ExprN (nodes g)
-
--- | The expression grammar.
-
-grammar :: NTParser p NT Token => PrecedenceGraph -> NT r -> p r
-
--- Production for a subset of the expressions. Only the nodes
--- reachable from the given set of nodes are recognised.
+-- | Parser for a node.
 --
--- Note that Atom stands for applications of one or more identifiers,
--- parenthesised expressions, or mixfix operators that are not prefix,
--- postfix or infix. Hence the atom parser will probably be
--- implemented as part of, or using, this grammar.
+-- The graph typically has lots of sharing (many pointers to the same
+-- node), so this function is memoised. In two ways, actually:
+--
+-- 1) The construction of the parsers is memoised.
+--
+-- 2) If a memoising parser is used the results of parsing a given
+--    node at a specific position are also memoised.
+--
+-- Note that the second memoisation is potentially unsafe, if this
+-- parser is combined with another memoised parser. The memoisation
+-- keys have to be unique.
 
-grammar g (ExprN ns) =  AtomE <$ sym Atom
-                    <|> choice (map' (nonTerm . NodeN) ns)
-
--- Production for operators (just the internal, mixfix parts; not the
--- "outer" arguments).
-
-grammar g (OpN ops) = choice $ map' op ops
+node :: PrecedenceGraph -> Node -> P Expr
+node g n = do
+  memoisedP <- fmap (Map.lookup n) S.get
+  case memoisedP of
+    Just p  -> return p
+    Nothing -> do
+      -- Parser for operators of higher precedence.
+      h <- expr g (successors g n)
+      p <- fmap (memoise n . choice) $ sequence (opParsers h)
+      S.modify (Map.insert n p)
+      return p
   where
-  op nameParts =
-    (,) (List.intercalate "_" nameParts) <$>
-        nonTerm (expression g) `between` map Name nameParts
-
--- Production for a graph node.
-
-grammar g (NodeN n) = choice $
-  [ flip (foldr appRight) <$> many1 (int Prefix) <*> h
-  , foldl appLeft         <$> h <*> many1 (int Postfix)
-  , flip appBoth <$> h <*> int (Infix Non) <*> h
-  , chainl3 h (appBoth <$> int (Infix L))
-  , chainr3 h (appBoth <$> int (Infix R))
-  ]
-  where
-  -- Operators of higher precedence.
-  h = nonTerm $ ExprN (successors g n)
-
-  -- The internal parts of operators of the given fixity (in this
-  -- node).
-  int fixity = nonTerm $ OpN (annotation g n ! fixity)
-
   m ! k = case Map.lookup k m of
     Nothing -> Set.empty
     Just ns -> ns
+
+  ops fixity f = fmap f (opProds g (annotation g n ! fixity))
+                        -- Parser for the internal parts of operators
+                        -- of the given fixity (in this node).
+
+  opParsers h =
+    [ ops Prefix      (\o -> flip (foldr appRight) <$> many1 o <*> h)
+    , ops Postfix     (\o -> foldl appLeft         <$> h <*> many1 o)
+    , ops (Infix Non) (\o -> flip appBoth <$> h <*> o <*> h)
+    , ops (Infix L)   (\o -> chainl3 h (appBoth <$> o))
+    , ops (Infix R)   (\o -> chainr3 h (appBoth <$> o))
+    ]
 
 ------------------------------------------------------------------------
 -- All test cases

@@ -3,9 +3,11 @@
 ------------------------------------------------------------------------
 
 -- Following Frost/Szydlowski and Frost/Hafiz/Callaghan (but without
--- the left recursion fix).
-
--- Note that the user has to insert "memoise" annotations manually.
+-- the left recursion fix). An improvement has been made: The user
+-- does not have to insert memoisation annotations manually. Instead
+-- all grammar non-terminals are memoised. This is perhaps a bit less
+-- flexible, but less error-prone, since there is no need to guarantee
+-- that all "keys" (arguments to the memoise combinator) are unique.
 
 {-# LANGUAGE MultiParamTypeClasses, FlexibleInstances #-}
 
@@ -13,11 +15,11 @@ module Memoised where
 
 import Control.Monad.Trans
 import Control.Monad.State.Strict
-import qualified Parser
 import Control.Applicative
-import qualified Data.Map as Map
-import Data.Map (Map)
+import qualified IndexedMap as IMap
 import Control.Arrow
+import IndexedOrd
+import qualified Parser
 
 -- | Positions.
 
@@ -27,55 +29,85 @@ type Pos = Integer
 
 type AnnList tok = [ (Pos, tok) ]
 
--- | The state used below.
+-- | Keys used by the memoisation code. 'Nothing' is used to indicate
+-- the end of the input.
 
-type S k r' tok = Map (k, Maybe Pos) [(r', AnnList tok)]
+data Key nt r = Key (nt r) (Maybe Pos)
 
-newtype Parser k r' tok r =
-  P { unP :: AnnList tok -> State (S k r' tok) [(r, AnnList tok)] }
+instance IndexedEq nt => IndexedEq (Key nt) where
+  iEq (Key x1 y1) (Key x2 y2) = case (y1 == y2, iEq x1 x2) of
+    (True, Just eq) -> Just eq
+    _               -> Nothing
 
-lookupTable k = fmap (Map.lookup k) get
-modifyTable f = modify f
+instance IndexedOrd nt => IndexedOrd (Key nt) where
+  iCompare (Key x1 y1) (Key x2 y2) = case compare y1 y2 of
+    LT -> LT
+    EQ -> iCompare x1 x2
+    GT -> GT
 
-instance Functor (Parser k r' tok) where
-  fmap f (P p) = P $ fmap (map (f *** id)) . p
+-- | Memoised values.
 
-instance Monad (Parser k r' tok) where
-  return x  = P $ \input -> return [(x, input)]
-  P p >>= f = P $ \input -> do
-    rs <- p input
-    fmap concat $ mapM (uncurry $ unP . f) rs
+newtype Value tok r = Value [(r, AnnList tok)]
 
-instance Applicative (Parser k r' tok) where
+-- | The parser type.
+
+-- I did not replace the first function space with a reader monad
+-- since the type checker had trouble handling the rank-2 argument
+-- type (Parser.Grammar ...). Furthermore I did not use a state monad
+-- transformer instead of the AnnList tok -> ... part since the
+-- instances below do not quite match those associated with the state
+-- monad transformer (see (<|>)).
+
+newtype Parser nt tok r =
+  P { unP :: Parser.Grammar (Parser nt tok) nt ->
+             AnnList tok ->
+             State (IMap.Map (Key nt) (Value tok)) [(r, AnnList tok)] }
+
+instance Functor (Parser nt tok) where
+  fmap f (P p) = P $ \g input -> fmap (map (f *** id)) (p g input)
+
+instance Monad (Parser nt tok) where
+  return x  = P $ \_ input -> return [(x, input)]
+  P p >>= f = P $ \g input -> do
+    rs <- p g input
+    fmap concat $ mapM (\(x, toks) -> unP (f x) g toks) rs
+
+instance Applicative (Parser nt tok) where
   pure      = return
   p1 <*> p2 = p1 >>= \f -> fmap f p2
 
-instance Alternative (Parser k r' tok) where
-  empty         = P $ \_     -> return empty
-  P p1 <|> P p2 = P $ \input -> liftM2 (<|>) (p1 input) (p2 input)
+instance Alternative (Parser nt tok) where
+  empty         = P $ \_ _     -> return empty
+  P p1 <|> P p2 = P $ \g input -> liftM2 (<|>) (p1 g input) (p2 g input)
 
-parse :: Parser k r' tok r -> [ tok ] -> [ r ]
-parse p xs =
+parse :: (Ord tok, IndexedOrd nt) =>
+         Parser.Grammar (Parser nt tok) nt ->
+         nt r -> [ tok ] -> [ r ]
+parse g x xs =
   map fst .
   filter (null . snd) .
-  flip evalState Map.empty $
-  unP p (zip [1 ..] xs)
+  flip evalState IMap.empty $
+  unP (Parser.nonTerm x) g (zip [1 ..] xs)
 
-instance (Ord k, Ord tok) =>
-         Parser.Parser (Parser k r' tok) k r' tok where
-  sym c = P $ \input -> return $
+instance Ord tok => Parser.Parser (Parser nt tok) tok where
+  sym c = P $ \_ input -> return $
     case input of
       (_, c') : cs | c == c' -> return (c', cs)
       _                      -> empty
 
-  memoise k (P p) = P $ \input -> do
-    let key = (k, case input of
-                    (pos, _) : _ -> Just pos
-                    []           -> Nothing)
+instance (Ord tok, IndexedOrd nt) =>
+         Parser.NTParser (Parser nt tok) nt tok where
+  nonTerm x = P $ \grammar input -> do
+    let key = Key x (case input of
+                       (pos, _) : _ -> Just pos
+                       []           -> Nothing)
     res' <- lookupTable key
     case res' of
-      Just res -> return res
-      Nothing  -> do
-        rs <- p input
-        modifyTable (Map.insert key rs)
+      Just (Value v) -> return v
+      Nothing        -> do
+        rs <- unP (grammar x) grammar input
+        modifyTable (IMap.insert key (Value rs))
         return rs
+    where
+    lookupTable k = fmap (IMap.lookup k) get
+    modifyTable f = modify f
