@@ -187,7 +187,7 @@ want settings to this variable to take effect."
 (defvar agda2-mode-syntax-table
   (let ((tbl (make-syntax-table))
         (special '((?{ . "(}1n") (?} . "){4n") (?- . "w 123b") (?\n . "> b")
-                   (?\s . " ") (?\t . " ") (?\v . " ") (?\f . " ") (?\r . " ")
+                   (?  . " ") (?\t . " ") (?\v . " ") (?\f . " ") (?\r . " ")
                    (?. . ".") (?\; . ".")
                    (?\( . "()") (?\) . ")(") (?[ . "(]") (?] . ")[")
                    (?⟦ . "(⟧") (?⟧ . ")⟦") (?⟪ . "(⟫") (?⟫ . ")⟪")))
@@ -769,7 +769,7 @@ points < 128) are converted to singleton strings."
 
 (defun agda2-string-quote (s)
   "Escape newlines, double quotes, etc. in the string S, add
-surrounding double quotes, and convert non-ASCII characters to the \xNNNN
+surrounding double quotes, and convert non-ASCII characters to the \\xNNNN
 notation used in Haskell strings."
   (let ((pp-escape-newlines t))
     (mapconcat 'agda2-char-quote (pp-to-string s) "")))
