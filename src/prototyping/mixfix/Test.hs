@@ -39,7 +39,7 @@ import qualified Memoised
 import Control.Monad.State hiding (lift)
 import Parser (Parser)
 import System.Environment
-import PrecedenceGraph
+import PrecedenceGraph hiding (tests)
 import Data.Char
 import qualified Data.List as List
 
