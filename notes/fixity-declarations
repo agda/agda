@@ -240,6 +240,49 @@ Details (based on discussions with Ulf):
   reluctant to subject themselves to this situation.
 
 ------------------------------------------------------------------------
+Sections
+------------------------------------------------------------------------
+
+We can also support sections. Some examples will outline how this can
+be accomplished:
+
+  If we have
+
+    _+_ : ...
+
+  then 5 +_ and _+ 3 are sections. They stand for
+
+    \x -> 5 + x
+
+  and
+
+    \x -> x + 3,
+
+  respectively. Note that +_ becomes a postfix operator, and _+ a
+  prefix operator. Note also that _+_ can be viewed as a section, and
+  does not need to be treated as a special case. (The qualified
+  variant M._+_ still needs special treatment, though.)
+
+  All mixfix operators can be sectioned. For instance, if we have
+
+    if_then_else_ : ...
+
+  then if_then x else y stands for
+
+    \b -> if b then x else y.
+
+  Parsing of sections is accomplished by letting the lexer distinguish
+  different uses of '_':
+
+  * As a wildcard.
+  * At the beginning of an operator.
+  * In the middle of an operator.
+  * At the end of an operator.
+
+  The different uses can be distinguished by examining surrounding
+  white space.
+
+------------------------------------------------------------------------
 Open questions
 ------------------------------------------------------------------------
 
