@@ -29,7 +29,7 @@ instance Alternative p => Alternative (NTTrans p nt) where
   NTTrans m1 <|> NTTrans m2 = NTTrans $ \g -> m1 g <|> m2 g
 
 instance Parser p tok => Parser (NTTrans p nt) tok where
-  sym c = NTTrans $ \_ -> sym c
+  symbol = NTTrans $ \_ -> symbol
 
 instance Parser p tok => NTParser (NTTrans p nt) nt tok where
   nonTerm x = NTTrans $ \g -> unNTTrans (g x) g

@@ -13,7 +13,6 @@
 
 module Memoised where
 
-import Control.Monad.Trans
 import Control.Monad.State.Strict
 import Control.Applicative
 import qualified IndexedMap as IMap
@@ -90,10 +89,12 @@ parse g x xs =
   unP (Parser.nonTerm x) g (zip [1 ..] xs)
 
 instance Ord tok => Parser.Parser (Parser nt tok) tok where
-  sym c = P $ \_ input -> return $
+  symbol = P $ \_ input -> return $
     case input of
-      (_, c') : cs | c == c' -> return (c', cs)
-      _                      -> empty
+      (_, c) : cs -> return (c, cs)
+      _           -> empty
+
+-- | Non-terminals are memoised.
 
 instance (Ord tok, IndexedOrd nt) =>
          Parser.NTParser (Parser nt tok) nt tok where

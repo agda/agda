@@ -11,8 +11,13 @@ import Control.Applicative
 import Data.Foldable
 import IndexedOrd
 
-class (Eq tok, Alternative p) => Parser p tok | p -> tok where
-  sym :: tok -> p tok
+class (Eq tok, Alternative p, Monad p) => Parser p tok | p -> tok where
+  symbol :: p tok
+
+sym :: Parser p tok => tok -> p tok
+sym c = do
+  c' <- symbol
+  if c == c' then return c' else empty
 
 choice :: Parser p tok => [p r] -> p r
 choice = asum
