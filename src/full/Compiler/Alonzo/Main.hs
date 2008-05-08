@@ -66,22 +66,10 @@ compilerMain typeCheck = ignoreAbstractMode $ do
 	let defs = Map.toList definitions
         let names = List.map fst defs
         hsdefs <- mapM processDefWithDebug defs
-        impNames <- getImports
-        let imps = List.map show (Set.toList impNames)
-        verboseS "comp.alonzo.import" 20 $ liftIO $ print imps
-        -- Now getting modules imported publicly by imported modules
-        -- idefs :: Map QName Definition
-        idefs <- sigDefinitions <$> getImportedSignature 
-        -- idefnames :: [QName]         
-        let idefnames = Map.keys idefs 
-        -- idefmods :: [ModuleName]
-        let idefmods =  List.map qnameModule idefnames 
-        -- iimps :: [String]
-        -- Exclude M._ type modules - need a better way, but for now...
-        let iimps = List.filter (\m -> last m /= '_') $ List.map show idefmods
+        -- We get more than we need here
+        allImps <- map show . Map.keys <$> getVisitedModules
+        verboseS "comp.alonzo.import" 20 $ liftIO $ mapM_ (\m -> putStrLn $ "import " ++ m) allImps
         hImps <- getHaskellImports
-        let allImps = List.nub (iimps ++ imps)
-        verboseS "comp.alonzo.import" 20 $ liftIO $ print allImps           
         let mainNum = (numOfMainS names)
         let fileBase = map pathSep (show moduleName)
               where
@@ -102,12 +90,22 @@ fromCurrentModule q = do
     moduleId q = mi
       where NameId _ mi = nameId $ qnameName q
 
+flattenSubmodules :: QName -> IM QName
+flattenSubmodules q = do
+  ifM (fromCurrentModule q)
+      (return q)
+  $ do
+    topModules <- Map.keys <$> getVisitedModules
+    case filter (isInModule q) topModules of
+      [top]     -> return $ q { qnameModule = top }
+      []        -> error $ "flattenSubmodules: " ++ show q ++ " </- " ++ show topModules
+      _ : _ : _ -> __IMPOSSIBLE__
+
 maybeQualName :: (QName -> HsQName) -> (Name -> HsName) -> QName -> PM HsQName
-maybeQualName qual unqual q = do
-  here <- lift $ fromCurrentModule q
-  return $ if here
-           then UnQual (unqual $ qnameName q)
-           else qual q
+maybeQualName qual unqual q = lift $ do
+  ifM (fromCurrentModule q)
+      (return $ UnQual (unqual $ qnameName q))
+      (qual <$> flattenSubmodules q)
 
 maybeQualConName = maybeQualName conQName conName
 maybeQualDefName = maybeQualName dfQName dfName
@@ -345,7 +343,12 @@ processPat (VarP _) = do
 processPat (DotP _) = return HsPWildCard
 
 processPat (ConP qname args) = do
-  Constructor{conHsCode = hsCode} <- lift $ theDef <$> getConstInfo qname
+  hsCode <- do
+    def <- lift $ theDef <$> getConstInfo qname
+    case def of
+      Constructor{conHsCode = c} -> return c
+      Record{}                   -> return Nothing  -- no COMPILED_DATA for records yet
+      _                          -> __IMPOSSIBLE__
   cname <- case hsCode of
         Just h  -> return $ UnQual $ HsIdent h
         Nothing -> maybeQualConName qname
@@ -424,7 +427,7 @@ processTerm (MetaV _ _) =  error "Can't have metavariables"
 
 processLit :: Literal -> HsExp
 processLit (LitInt _ i) =  HsApp toNat $ intLit i where
-	intLit i = HsParen $ hsPreludeTypedExp "Int" $ HsLit $ HsInt i
+	intLit i = HsParen $ hsPreludeTypedExp "Integer" $ HsLit $ HsInt i
 	toNat = HsVar $ Qual (Module "RTP") $ HsIdent "_primIntegerToNat"
 processLit (LitFloat _ f) =  hsPreludeTypedExp "Double" $ 
 						HsLit $ HsFrac $ toRational f

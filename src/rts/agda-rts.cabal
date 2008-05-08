@@ -8,6 +8,6 @@ category:        Dependent types
 build-depends:   base, mtl
 synopsis:        Runtime system for compiled Agda programs
 hs-source-dirs:  .
-exposed-modules: RTS RTN RTP
+exposed-modules: RTS RTP
 ghc-options:     -O -Wall -Werror -fno-warn-missing-signatures -fno-warn-name-shadowing -fno-warn-simple-patterns -fno-warn-unused-matches -fno-warn-unused-binds -fno-warn-unused-imports -fno-warn-type-defaults -fno-warn-orphans -auto-all
 

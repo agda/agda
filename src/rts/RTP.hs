@@ -1,6 +1,5 @@
 module RTP where
 import RTS
-import qualified RTN
 import Prelude ((.), Eq, (==), Show, show)
 import qualified Prelude hiding ((.), Eq, (==))
 
@@ -9,6 +8,8 @@ import Data.Char
 -- import qualified RTS
 
 undefined = Prelude.undefined
+
+data Nat = Zero | Suc Nat
 
 data Bool = False | True
 
@@ -57,15 +58,15 @@ _primIntLess :: Prelude.Integer -> Prelude.Integer -> Prelude.Bool
 _primIntLess = (Prelude.<)
 
 _int = _primNatToInteger
-_primNatToInteger RTN.C2 = (0::Prelude.Integer)
-_primNatToInteger (RTN.C3 n) = ( _primIntAdd (1::Prelude.Integer)  ( (_primNatToInteger(cast n))))
+_primNatToInteger Zero = (0::Prelude.Integer)
+_primNatToInteger (Suc n) = ( _primIntAdd (1::Prelude.Integer)  ( (_primNatToInteger(cast n))))
 
 _primIntegerAbs 0 = zero
 _primIntegerAbs n | (Prelude.>) n (0 :: Prelude.Integer) = suc (cast (_primIntegerAbs (  _primIntSub n (1::Prelude.Integer))))
 	| Prelude.otherwise = _primIntegerAbs (_primIntSub 0 n)
 _abs = _primIntegerAbs
 
-_primIntegerToNat n = _primIntegerAbs (Prelude.fromIntegral (n :: Prelude.Int))
+_primIntegerToNat n = _primIntegerAbs n
 
 _primShowFloat :: Float -> Prelude.String
 _primShowFloat f = Prelude.show f
@@ -109,8 +110,8 @@ _primNatLess m n = _primIntLess (_int m) (_int n)
 _primNatEquality m n = _primIntEquality (_int m) (_int n)
 
 -- For tests
-zero = RTN.C2
-suc = RTN.C3
+zero = Zero
+suc = Suc
 one = suc zero
 two = suc one
 
