@@ -3,10 +3,16 @@
 ------------------------------------------------------------------------
 
 module Utilities
-  ( efficientNub
+  ( map'
+  , (!)
+  , efficientNub
   , tests
   ) where
 
+import qualified Data.Set as Set
+import Data.Set (Set)
+import qualified Data.Map as Map
+import Data.Map (Map)
 import qualified Data.List as List
 import Control.Monad
 import Data.Function
@@ -14,6 +20,18 @@ import Test.QuickCheck
 
 ------------------------------------------------------------------------
 -- Helper functions
+
+-- | Converts a set to a list and maps over it.
+
+map' :: (a -> b) -> Set a -> [b]
+map' f = map f . Set.toList
+
+-- | A (safe) variant of 'Map.(!)'.
+
+(!) :: Ord k => Map k (Set v) -> k -> Set v
+m ! k = case Map.lookup k m of
+  Nothing -> Set.empty
+  Just ns -> ns
 
 -- | An efficient variant of 'List.nub'.
 

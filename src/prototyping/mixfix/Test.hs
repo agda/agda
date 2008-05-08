@@ -23,6 +23,7 @@ module Main where
 import qualified Memoised
 import Control.Monad.State hiding (lift)
 import PrecedenceGraph
+import ExpressionParser
 import Data.Char
 import Data.List
 import qualified Data.Set as Set
