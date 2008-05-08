@@ -229,7 +229,8 @@ cmd_constraints = infoOnException $ ioTCM $ do
 
 cmd_metas :: IO ()
 cmd_metas = infoOnException $ ioTCM $ do -- CL.showMetas []
-  (ims, hms) <- B.typeOfMetas B.AsIs
+  ims <- fst <$> B.typeOfMetas B.AsIs
+  hms <- snd <$> B.typeOfMetas B.Normalised -- show unsolved implicit arguments normalised
   di <- mapM (\i -> B.withInteractionId (B.outputFormId i) (showA i)) ims
   dh <- mapM showA' hms
   liftIO $ display_info "*All Goals*" $ unlines $
