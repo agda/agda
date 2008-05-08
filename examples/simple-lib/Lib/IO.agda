@@ -13,7 +13,6 @@ postulate
   getLine   : IO String
   putStrLn  : String -> IO Unit
   putStr    : String -> IO Unit
-  mapM₋     : {A : Set} -> (A -> IO Unit) -> List A -> IO Unit
   bindIO    : {A B : Set} -> IO A -> (A -> IO B) -> IO B
   returnIO  : {A : Set} -> A -> IO A
   getArgs   : IO (List String)
@@ -22,14 +21,19 @@ postulate
 
 {-# COMPILED putStr putStr #-}
 {-# COMPILED putStrLn putStrLn #-}
-{-# COMPILED mapM₋ (\_ -> mapM_ :: (a -> IO ()) -> [a] -> IO ()) #-}
-  -- we need to throw away the type argument to mapM_
-  -- and resolve the overloading explicitly (since Alonzo
-  -- output is sprinkled with unsafeCoerce#).
 {-# COMPILED bindIO (\_ _ -> (>>=) :: IO a -> (a -> IO b) -> IO b) #-}
 {-# COMPILED returnIO (\_ -> return :: a -> IO a) #-}
+  -- we need to throw away the type argument to return and bind
+  -- and resolve the overloading explicitly (since Alonzo
+  -- output is sprinkled with unsafeCoerce#).
 {-# COMPILED getLine getLine #-}
 {-# COMPILED getArgs getArgs #-}
 {-# COMPILED readFile readFile #-}
 {-# COMPILED writeFile writeFile #-}
 
+mapM : {A B : Set} -> (A -> IO B) -> List A -> IO (List B)
+mapM f [] = returnIO []
+mapM f (x :: xs) = bindIO (f x) \y -> bindIO (mapM f xs) \ys -> returnIO (y :: ys)
+
+mapM₋ : {A : Set} -> (A -> IO Unit) -> List A -> IO Unit
+mapM₋ f xs = bindIO (mapM f xs) \_ -> returnIO unit

@@ -1,6 +1,9 @@
 
 module Lib.Prelude where
 
+infixr 90 _∘_
+infixr 1 _,_
+
 id : {A : Set} -> A -> A
 id x = x
 

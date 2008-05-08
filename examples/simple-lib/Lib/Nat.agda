@@ -9,6 +9,8 @@ data Nat : Set where
   zero : Nat
   suc  : Nat -> Nat
 
+{-# COMPILED_DATA Nat RTP.Zero RTP.Suc #-}
+
 {-# BUILTIN NATURAL Nat  #-}
 {-# BUILTIN ZERO    zero #-}
 {-# BUILTIN SUC     suc  #-}
