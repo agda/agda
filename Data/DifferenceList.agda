@@ -14,7 +14,7 @@ DiffList : Set -> Set
 DiffList a = [ a ] -> [ a ]
 
 [] : forall {a} -> DiffList a
-[] = const L.[]
+[] = \k -> k
 
 _∷_ : forall {a} -> a -> DiffList a -> DiffList a
 x ∷ xs = \k -> L._∷_ x (xs k)
