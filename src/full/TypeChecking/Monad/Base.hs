@@ -582,10 +582,14 @@ data AbstractMode = AbstractMode       -- ^ abstract things in the current modul
 ---------------------------------------------------------------------------
 
 -- Occurence of a name in a datatype definition
-data Occ = Occ { occDatatype	:: QName
-	       , occConstructor :: QName
-	       , occPosition	:: OccPos
-	       }
+data Occ = OccCon { occDatatype	:: QName
+	          , occConstructor :: QName
+	          , occPosition	:: OccPos
+	          }
+         | OccClause { occFunction :: QName
+                     , occClause   :: Int
+                     , occPosition :: OccPos
+                     }
 
 data OccPos = NonPositively | ArgumentTo Nat QName
 

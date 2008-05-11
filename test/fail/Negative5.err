@@ -1,2 +1,2 @@
-Datatype Funny is not strictly positive, because it occurs
-negatively in constructor .Negative5.funny of datatype Funny
+The datatype Funny is not strictly positive, because it occurs
+negatively in the constructor .Negative5.funny of Funny

@@ -3,14 +3,15 @@
 -- | Check that a datatype is strictly positive.
 module TypeChecking.Positivity (checkStrictlyPositive) where
 
-import Prelude hiding (foldr, mapM_, elem, concat)
+import Prelude hiding (foldr, mapM_, mapM, elem, concat)
 
 import Control.Applicative
-import Control.Monad hiding (mapM_)
+import Control.Monad hiding (mapM_, mapM)
 import Control.Monad.Trans (liftIO)
-import Control.Monad.State hiding (mapM_)
-import Control.Monad.Error hiding (mapM_)
+import Control.Monad.State hiding (mapM_, mapM)
+import Control.Monad.Error hiding (mapM_, mapM)
 import Data.Foldable
+import Data.Traversable
 import Data.Set (Set)
 import Data.Monoid
 import qualified Data.Set as Set
@@ -22,6 +23,7 @@ import TypeChecking.Monad
 import TypeChecking.Substitute
 import TypeChecking.Errors
 import TypeChecking.Reduce
+import TypeChecking.Pretty
 
 import Utils.Monad
 
@@ -37,7 +39,7 @@ checkStrictlyPositive ds = flip evalStateT noAssumptions $ do
 	  a <- lift $ defAbstract <$> getConstInfo d
 	  inMode a $ do
 	    t <- lift (normalise =<< typeOfConst c)
-	    checkPos ds d c t
+	    checkPos ds (OccCon d c) t
 
 	inMode :: IsAbstract -> PosM a -> PosM a
 	inMode a m = do
@@ -74,14 +76,14 @@ assume q i = modify $ Set.insert (q,i)
 
 -- | @checkPos ds d c t@: Check that @ds@ only occurs stricly positively in the
 --   type @t@ of the constructor @c@ of datatype @d@.
-checkPos :: [QName] -> QName -> QName -> Type -> PosM ()
-checkPos ds d0 c t = mapM_ check ds
+checkPos :: [QName] -> (OccPos -> Occ) -> Type -> PosM ()
+checkPos ds mkReason t = mapM_ check ds
     where
 	check d = case Map.lookup d defs of
 	    Nothing  -> return ()    -- non-recursive
 	    Just ocs
 		| NonPositive `elem` ocs -> lift $ typeError $
-		    NotStrictlyPositive d [Occ d0 c NonPositively]
+		    NotStrictlyPositive d [mkReason NonPositively]
 		| otherwise		 -> mapM_ (uncurry checkPosArg') args
 		where
 		    args = [ (q, i) | Argument q i <- Set.toList ocs ]
@@ -91,7 +93,7 @@ checkPos ds d0 c t = mapM_ check ds
 			TypeError _ Closure{clValue = NotStrictlyPositive _ reason} ->
 			    lift $ typeError
 				 $ NotStrictlyPositive d
-				 $ Occ d0 c (ArgumentTo i q) : reason
+				 $ mkReason (ArgumentTo i q) : reason
 			_   -> throwError e
 
 	defs = unMap $ getDefs $ arguments t
@@ -105,6 +107,7 @@ checkPos ds d0 c t = mapM_ check ds
 checkPosArg :: QName -> Int -> PosM ()
 checkPosArg d i = unlessM (isAssumption d i) $ do
     assume d i
+    lift $ reportSLn "tc.pos.arg" 20 $ "checkPosArg " ++ show d ++ " " ++ show i
     def <- lift $ theDef <$> getConstInfo d
     case def of
 	Datatype{dataCons = cs} -> do
@@ -114,10 +117,41 @@ checkPosArg d i = unlessM (isAssumption d i) $ do
 		args = map (Arg NotHidden . flip Def []) xs
 	    let check c = do
 		    t <- lift $ normalise =<< (defType <$> getConstInfo c)
-		    checkPos [x] d c (t `piApply` args)
+		    checkPos [x] (OccCon d c) (t `piApply` args)
 
 	    mapM_ check cs
+        Function{funClauses = cs} -> zipWithM_ (checkPosClause d i) [0..] cs
 	_   -> lift $ typeError $ NotStrictlyPositive d []
+
+checkPosClause :: QName -> Int -> Int -> Clause -> PosM ()
+checkPosClause f i n (Clause _ _ ps body) = do
+  x    <- lift $ freshName_ "checkMe"
+  args <- concat <$> zipWithM (mkArg $ def x) [0..] ps
+  lift $ reportSLn "tc.pos.clause" 20 $ "checkPosClause\n" ++ unlines (map ("  " ++) [ show body, show args, show ps ])
+  case body `apply` args of
+    Body b -> do
+      let t = -- b -> Prop
+              El Prop $ Fun (Arg NotHidden $ El Prop b) (El Prop $ Sort Prop)
+      checkPos [qnameFromList [x]] (OccClause f n) t
+    NoBody -> return ()
+    _     -> __IMPOSSIBLE__
+  where
+    mkArgs :: Term -> Int -> [Arg Pattern] -> PosM Args
+    mkArgs me j ps = concat <$> mapM (mkArg me j) ps
+
+    mkArg :: Term -> Int -> Arg Pattern -> PosM Args
+    mkArg me j (Arg _ p) = map (Arg NotHidden) <$> mkPat me j p
+
+    mkPat me j (VarP _)
+                | i == j = return [me]
+    mkPat _ j _ | i == j = lift $ typeError $ NotStrictlyPositive f []
+    mkPat me j (ConP c ps) = map unArg <$> mkArgs me j ps
+    mkPat me j (DotP _) = return []
+    mkPat me j (VarP _) = (:[]) <$> dummy
+    mkPat me j (LitP l) = return []
+
+    def = flip Def [] . qnameFromList . (:[])
+    dummy = lift $ def <$> freshName_ "dummy"
 
 data Occurence = Positive | NonPositive | Argument QName Nat
     deriving (Show, Eq, Ord)

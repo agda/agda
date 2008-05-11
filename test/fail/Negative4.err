@@ -1,2 +1,2 @@
-Datatype NSPos is not strictly positive, because it occurs
-negatively in constructor .Negative4.c of datatype NSPos
+The datatype NSPos is not strictly positive, because it occurs
+negatively in the constructor .Negative4.c of NSPos

@@ -403,14 +403,19 @@ instance PrettyTCM TypeError where
               pwords "Cannot split on argument of non-datatype" ++ [prettyTCM a]
 
 	    NotStrictlyPositive d ocs -> fsep $
-		pwords "Datatype" ++ [prettyTCM d] ++ pwords "is not strictly positive, because"
+		pwords "The datatype" ++ [prettyTCM d] ++ pwords "is not strictly positive, because"
 		++ prettyOcc "it" ocs
 		where
 		    prettyOcc _ [] = []
-		    prettyOcc it (Occ d c r : ocs) = concat
+		    prettyOcc it (OccCon d c r : ocs) = concat
 			[ pwords it, pwords "occurs", prettyR r
-			, pwords "in constructor", [prettyTCM c], pwords "of datatype"
+			, pwords "in the constructor", [prettyTCM c], pwords "of"
 			, [prettyTCM d <> com ocs], prettyOcc "which" ocs
+			]
+		    prettyOcc it (OccClause f n r : ocs) = concat
+			[ pwords it, pwords "occurs", prettyR r
+			, pwords "in the", [th n], pwords "clause of"
+			, [prettyTCM f <> com ocs], prettyOcc "which" ocs
 			]
 		    prettyR NonPositively = pwords "negatively"
 		    prettyR (ArgumentTo i q) =
