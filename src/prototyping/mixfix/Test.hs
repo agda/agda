@@ -13,7 +13,8 @@
 -- tries to make things hard for the parser, then it might not,
 -- though.
 --
--- One can guarantee polynomial complexity of parsing by using a dense
+-- One can guarantee polynomial complexity of parsing (for
+-- context-free grammars) by, among other things, using a dense
 -- representation of ambiguous results. However, the most ambiguous
 -- result in the test below has length 2, and I think that we won't
 -- encounter very much more than that in practice.
