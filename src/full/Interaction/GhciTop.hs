@@ -78,6 +78,7 @@ import Syntax.Abstract.Name
 
 import Interaction.Exceptions
 import Interaction.Options
+import Interaction.MakeCase
 import qualified Interaction.BasicOps as B
 import qualified Interaction.CommandLine.CommandLine as CL
 import Interaction.Highlighting.Emacs
@@ -264,20 +265,12 @@ cmd_refine = give_gen B.refine $ \s -> emacsStr . show
 give_gen give_ref mk_newtxt ii rng s = infoOnException $ do
     ioTCM $ do
       prec      <- scopePrecedence <$> getInteractionScope ii
-      (ae, iis) <- give_ref ii Nothing =<< parseExprIn ii rng s
+      (ae, iis) <- give_ref ii Nothing =<< B.parseExprIn ii rng s
       newtxt <- A . mk_newtxt s <$> abstractToConcreteCtx prec ae
       let newgs  = Q . L $ List.map showNumIId iis
       liftIO $ putStrLn $ response $
                  L[A"agda2-give-action", showNumIId ii, newtxt, newgs]
     cmd_metas
-
-parseExprIn :: InteractionId -> Range -> String -> TCM SA.Expr
-parseExprIn ii rng s = do
-    mId <- lookupInteractionId ii
-    updateMetaVarRange mId rng       
-    mi  <- getMetaInfo <$> lookupMeta mId
-    e <- liftIO $ parsePosString exprParser (rStart (getRange mi)) s
-    concreteToAbstract (clScope mi) e
 
 cmd_context :: B.Rewrite -> GoalCommand
 cmd_context norm ii _ _ = infoOnException $ do
@@ -287,7 +280,7 @@ cmd_context norm ii _ _ = infoOnException $ do
 cmd_infer :: B.Rewrite -> GoalCommand
 cmd_infer norm ii rng s = infoOnException $ do
   display_info "*Inferred Type*"
-      =<< ioTCM (B.withInteractionId ii $ showA =<< B.typeInMeta ii norm =<< parseExprIn ii rng s)
+      =<< ioTCM (B.withInteractionId ii $ showA =<< B.typeInMeta ii norm =<< B.parseExprIn ii rng s)
 
 cmd_goal_type :: B.Rewrite -> GoalCommand
 cmd_goal_type norm ii _ _ = infoOnException $ do 
@@ -310,7 +303,7 @@ cmd_goal_type_infer :: B.Rewrite -> GoalCommand
 cmd_goal_type_infer norm ii rng s = infoOnException $ do 
     goal <- ioTCM $ B.withInteractionId ii $ showA =<< B.typeOfMeta norm ii
     typ  <- ioTCM (B.withInteractionId ii $
-                     showA =<< B.typeInMeta ii norm =<< parseExprIn ii rng s)
+                     showA =<< B.typeInMeta ii norm =<< B.parseExprIn ii rng s)
     display_info "*Goal and inferred type*"
                  (unlines $
                     ["Want:"] ++
@@ -360,106 +353,13 @@ nameModifiers = "" : "'" : "''" : [show i | i <-[3..]]
 
 cmd_make_case :: GoalCommand
 cmd_make_case ii rng s = infoOnException $ ioTCM $ do
-  mId <- lookupInteractionId ii
-  mfo <- getMetaInfo <$> lookupMeta mId
-  ex  <- passAVar =<< parseExprIn ii rng s -- the pattern variable to case on
-  -- find the clause to refine
-  targetPat <- findClause mId =<< getSignature -- not the metaSig.
-  withMetaInfo mfo $ do
-    sx  <- showA ex
-    -- gather constructors for ex
-    (vx,tx) <- inferExpr ex
-    El _ (SI.Def d _) <- passElDef =<< reduce tx
-    Datatype{dataCons = ctors} <- theDef <$> (passData =<< getConstInfo d)
-    replpas <- (`mkPats` ctors) =<< List.delete sx <$> takenNameStr
-    -- make new clauses
-    let newpas = [repl sx pa targetPat | pa <- replpas]
-    --
+  cs <- makeCase ii rng s
+  B.withInteractionId ii $ do
+    pcs <- mapM prettyA cs
     liftIO $ putStrLn $ response $
-      L[A"agda2-make-case-action",
-        Q $ L $ List.map (A . quote . (++ " = ?") . show . ppPa 0) newpas]
-
-  where
-  findClause wanted sig = do
-    let defFree (x, d) = do
-	  n <- getDefFreeVars x
-	  return (x, n, d)
-    xs <- mapM defFree $ assocs $ sigDefinitions sig
-    case
-       [dropUscore(SI.ConP dnam
-                   (drop n pats))
-       | (dnam, n, dbdy) <- xs
-       , Function cls _ _ <- [theDef dbdy]
-       , SI.Clause _ _ pats cbdy <- cls
-       , Just (MetaV x _) <- [deAbs cbdy]
-       , x == wanted ] of
-      (h : _ ) -> return h
-      _ -> fail $ "findClause: can't find <clause = " ++ show ii ++ ">"
-
-  mkPats tkn (c:cs) = do (tkn1, pa)<- mkPat tkn c; (pa:)<$> mkPats tkn1 cs
-
-  mkPats tkn []     = return []
-  mkPat tkn c = do Defn _ tc _ _ Constructor{conPars = n} <- getConstInfo c
-                   (tkn', pas) <- piToArgPats tkn <$> dePi n tc
-                   return (tkn', SI.ConP c pas)
-  repl sx replpa = go where
-    go pa@(SI.VarP y) | y == sx   = replpa
-                      | otherwise = pa
-    go (SI.DotP t)        = SI.DotP t
-    go (SI.ConP c argpas) = SI.ConP c $ List.map (fmap go) argpas
-    go (SI.LitP l)	  = SI.LitP l
-
-  dePi 0 t = return t
-  dePi i (El _ (SI.Pi _ (Abs _ t))) = dePi (i-1) t
-  dePi i (El _ (SI.Fun _       t))  = dePi (i-1) t
-  dePi i t = fail "dePi: not a pi"
- 
-  piToArgPats tkn t = case unEl t of
-    SI.Pi (Arg h _) (Abs s t) -> go h s   t
-    SI.Fun (Arg h _) t        -> go h "x" t
-    _                         -> (tkn, [])
-    where go h ('_':s) t = go h s t
-          go h s t = let (tkn1, s1 ) = refreshStr tkn s
-                         (tkn2, pas) = piToArgPats tkn1 t
-                     in  (tkn2, Arg h (SI.VarP s1) : pas)
-
-  deAbs (Bind (Abs _ b)) = deAbs b
-  deAbs (NoBind b)	 = deAbs b
-  deAbs (Body t        ) = Just t
-  deAbs  NoBody		 = Nothing
-
-  passAVar e@(SA.Var _) = return e
-  passAVar x   = fail . ("passAVar: got "++) =<< showA x
-  passElDef t@(El _ (SI.Def _ _)) = return t
-  passElDef t  = fail . ("passElDef: got "++) =<< showA =<< reify t
-  passData  d@(Defn { theDef = Datatype{} })     = return d
-  passData  d@(Defn { theDef = TM.Record{} })    = fail $ "passData: got record"
-  passData  d@(Defn { theDef = Function{} })     = fail $ "passData: got function"
-  passData  d@(Defn { theDef = TM.Axiom{} })     = fail $ "passData: got axiom"
-  passData  d@(Defn { theDef = Constructor{} })  = fail $ "passData: got constructor"
-  passData  d@(Defn { theDef = TM.Primitive{} }) = fail $ "passData: got primitive"
-
-  dropUscore (SI.VarP ('_':s)) = dropUscore (SI.VarP s)
-  dropUscore p@(SI.VarP s) = p
-  dropUscore (SI.ConP c apas) = SI.ConP c (List.map (fmap dropUscore) apas)
-  dropUscore (SI.LitP l) = SI.LitP l
-  dropUscore (SI.DotP t) = SI.DotP t
-
-  -- | To do : precedence of ops
-  ppPa prec (SI.VarP n) = P.text n
-  ppPa prec (SI.DotP t) = P.text "._"
-  ppPa prec (SI.LitP l) = pretty l
-  ppPa prec (SI.ConP qn []) = P.text (show qn)
-  ppPa prec (SI.ConP qn [apa1,apa2])
-      | (c:_) <- show qn, not(isAlpha c || c == '_') =
-    (if prec > 9 then P.parens else id) $
-    ppAPa 10 apa1 P.<+> P.text (show qn) <+> ppAPa 10 apa2
-  ppPa prec (SI.ConP qn apas) =
-    (if prec > 9 then P.parens else id) $
-    P.text (show qn) <+> P.sep (List.map (ppAPa 10) apas)
-  ppAPa prec (Arg Hidden pa) = P.braces (ppPa 0 pa)
-  ppAPa prec (Arg _      pa) = ppPa prec pa
-
+      L [ A "agda2-make-case-action",
+          Q $ L $ List.map (A . quote . show) pcs
+        ]
 
 cmd_solveAll :: IO ()
 cmd_solveAll = infoOnException $ ioTCM $ do
@@ -573,7 +473,7 @@ cmd_compute :: Bool -- ^ Ignore abstract?
                -> GoalCommand
 cmd_compute ignore ii rng s = infoOnException $ do
   d <- ioTCM $ do
-    e <- parseExprIn ii rng s
+    e <- B.parseExprIn ii rng s
     B.withInteractionId ii $ do
       let c = B.evalInCurrent e
       v <- if ignore then ignoreAbstractMode c else c

@@ -160,6 +160,9 @@ instance Pretty LHS where
       pWith (e : es) = fsep $ (text "with" <+> pretty e)
 			    : map ((text "|" <+>) . pretty) es
 
+instance Pretty [Declaration] where
+  pretty = vcat . map pretty
+
 instance Pretty Declaration where
     pretty d =
 	case d of

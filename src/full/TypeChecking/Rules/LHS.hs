@@ -233,13 +233,11 @@ checkLeftHandSide ps a ret = do
     mapM_ checkDotPattern dpi
     let rho = renamingR perm -- I'm not certain about this...
         Perm n _ = perm
-        xs  = replicate n "z" -- map (fst . unArg) $ telToList tel
-        qs' = substs rho qs   -- Think about this
-    reportSDoc "tc.lhs.top" 10 $ nest 2 $ vcat
-             [ text "qs'   = " <+> text (show qs')
-             ]
-    ret gamma delta rho xs qs' b' perm
+        xs  = replicate n "z"
+    ret gamma delta rho xs qs b' perm
   where
+    madeUpName "_" = "z"
+    madeUpName s = s
     checkLHS :: Problem -> [Term] -> [DotPatternInst] -> [AsBinding] ->
                 TCM (Problem, [Term], [DotPatternInst], [AsBinding])
     checkLHS problem sigma dpi asb

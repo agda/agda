@@ -57,6 +57,7 @@ library
                    Interaction.Highlighting.Range
                    Interaction.Highlighting.Vim
                    Interaction.Imports
+                   Interaction.MakeCase
                    Interaction.Monad
                    Interaction.Options
                    Syntax.Abstract.Name

@@ -173,6 +173,15 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs wh) =
 
                   return (mkBody v, WithFunction x aux gamma delta1 delta2 vs as t' ps finalPerm cs)
       escapeContext (size delta) $ checkWithFunction with
+      reportSDoc "tc.lhs.top" 10 $ vcat
+        [ text "Final clause:"
+        , nest 2 $ vcat
+          [ text "delta =" <+> prettyTCM delta
+          , text "perm  =" <+> text (show perm)
+          , text "ps    =" <+> text (show ps)
+          , text "body  =" <+> text (show body)
+          ]
+        ]
       return $ Clause delta perm ps body  -- TODO: make sure delta and perm are what we want
 checkClause t (A.Clause (A.LHS _ _ _ ps@(_ : _)) _ _) = typeError $ UnexpectedWithPatterns ps
 

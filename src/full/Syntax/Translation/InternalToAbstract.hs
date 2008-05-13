@@ -13,8 +13,9 @@
 -}
 module Syntax.Translation.InternalToAbstract where
 
-import Control.Monad.State
-import Control.Monad.Error
+import Prelude hiding (mapM_, mapM)
+import Control.Monad.State hiding (mapM_, mapM)
+import Control.Monad.Error hiding (mapM_, mapM)
 
 import qualified Data.Map as Map
 import Data.Map (Map)
@@ -38,6 +39,8 @@ import TypeChecking.DisplayForm
 
 import Utils.Monad
 import Utils.Tuple
+import Utils.Permutation
+import Utils.Size
 
 #include "../../undefined.h"
 
@@ -132,6 +135,49 @@ instance Reify Term Expr where
 		I.Sort s     -> reify s
 		I.MetaV x vs -> apps =<< reify (x,vs)
 		I.BlockedV _ -> __IMPOSSIBLE__
+
+data NamedClause = NamedClause QName I.Clause
+
+instance Reify ClauseBody RHS where
+  reify NoBody     = return AbsurdRHS
+  reify (Body v)   = RHS <$> reify v
+  reify (NoBind b) = reify b
+  reify (Bind b)   = reify $ absBody b  -- the variables should already be bound
+
+
+reifyPatterns :: MonadTCM tcm =>
+  I.Telescope -> Permutation -> [Arg I.Pattern] -> tcm [NamedArg A.Pattern]
+reifyPatterns tel perm ps =
+  evalStateT (reifyArgs ps) 0
+  where
+    reifyArgs as = map (fmap unnamed) <$> mapM reifyArg as
+    reifyArg a   = traverse reifyPat a
+
+    tick = do i <- get; put (i + 1); return i
+
+    translate = (vars !!)
+      where
+        vars = permute (invertP perm) [0..]
+
+    reifyPat p = case p of
+      I.VarP s    -> do
+        i <- tick
+        let j = translate i
+        lift $ A.VarP <$> nameOfBV (size tel - 1 - j)
+      I.DotP v    -> tick >> lift (A.DotP i <$> reify v)
+      I.LitP l    -> return $ A.LitP l
+      I.ConP c ps -> A.ConP i [c] <$> reifyArgs ps
+      where
+        i = PatRange noRange
+
+instance Reify NamedClause A.Clause where
+  reify (NamedClause f (I.Clause tel perm ps body)) = addCtxTel tel $ do
+    ps  <- reifyPatterns tel perm ps
+    lhs <- return $ LHS info f ps []
+    rhs <- reify body
+    return $ A.Clause lhs rhs []
+    where
+      info = LHSRange noRange
 
 instance Reify Type Expr where
     reify (I.El _ t) = reify t

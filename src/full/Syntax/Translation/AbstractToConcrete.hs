@@ -565,23 +565,23 @@ instance ToConcrete A.LHS C.LHS where
 
 appBrackets' :: [arg] -> Precedence -> Bool
 appBrackets' []	   _   = False
-appBrackets' (_:_) ctx = appBrackets ctx
+appBrackets' (_:_) ctx = True -- appBrackets ctx -- TODO: Weird bug
 
--- TODO: bracket patterns
+-- TODO: bind variables properly
 instance ToConcrete A.Pattern [C.Pattern] where
-    bindToConcrete (VarP x)	   ret = bindToConcrete x $ ret . (:[]) . IdentP . C.QName
+    bindToConcrete (VarP x)	   ret = toConcrete x >>= ret . (:[]) . IdentP . C.QName
     bindToConcrete (A.WildP i)	   ret =
 	ret [ C.WildP (getRange i) ]
     bindToConcrete (ConP i [] args) ret = __IMPOSSIBLE__
     bindToConcrete (ConP i (x:_) args) ret =
 	bracketP (appBrackets' args) ret $ \ret -> do
 	    x <- toConcrete x
-	    bindToConcrete args $ \args ->
+	    bindToConcreteCtx ArgumentCtx args $ \args ->
 		ret [ foldl AppP (C.IdentP x) $ concatArgs args ]
     bindToConcrete (DefP i x args) ret =
 	bracketP (appBrackets' args) ret $ \ret -> do
 	    x <- toConcrete x
-	    bindToConcrete args $ \args ->
+	    bindToConcreteCtx ArgumentCtx args $ \args ->
 		ret [ foldl AppP (C.IdentP x) $ concatArgs args ]
     bindToConcrete (A.AsP i x p)   ret = bindToConcreteCtx ArgumentCtx (x,p) $ \ (x,p) ->
 					    ret $ map (C.AsP (getRange i) x) p

@@ -34,7 +34,8 @@ import TypeChecking.Monad.Mutual (getMutualBlocks)
 import TypeChecking.Pretty
 import TypeChecking.Reduce (reduce, instantiate, instantiateFull)
 import TypeChecking.Rules.Term (isType_)
-import TypeChecking.Substitute (abstract,raise)
+import TypeChecking.Substitute (abstract,raise,substs)
+import TypeChecking.Telescope
 
 import qualified Interaction.Highlighting.Range as R
 
@@ -272,7 +273,7 @@ stripBinds use i (p:ps) b = do
 
 -- | Extract recursive calls from one clause.
 termClause :: UseDotPatterns -> MutualNames -> QName -> Clause -> TCM Calls
-termClause use names name (Clause _ _ argPats body) =
+termClause use names name (Clause _ perm argPats' body) =
     case stripBinds use (nVars - 1) (map unArg argPats) body  of
        Nothing -> return Term.empty
        Just (-1, dbpats, Body t) ->
@@ -281,6 +282,8 @@ termClause use names name (Clause _ _ argPats body) =
        Just (n, dbpats, Body t) -> internalError $ "termClause: misscalculated number of vars: guess=" ++ show nVars ++ ", real=" ++ show (nVars - 1 - n)
        Just (n, dbpats, b)  -> internalError $ "termClause: not a Body" -- ++ show b
   where
+    -- The termination checker doesn't know about reordered telescopes
+    argPats = substs (renamingR perm) argPats'
     nVars = boundVars body
     boundVars (Bind b)   = 1 + boundVars (absBody b)
     boundVars (NoBind b) = boundVars b

@@ -22,8 +22,10 @@ import Syntax.Info(ExprInfo(..),MetaInfo(..))
 import Syntax.Internal (MetaId(..),Type(..),Term(..),Sort)
 import Syntax.Translation.InternalToAbstract
 import Syntax.Translation.AbstractToConcrete
+import Syntax.Translation.ConcreteToAbstract
 import Syntax.Scope.Base
 import Syntax.Fixity(Precedence(..))
+import Syntax.Parser
 
 import TypeChecker
 import TypeChecking.Conversion
@@ -36,6 +38,14 @@ import Utils.Monad
 import Utils.Monad.Undo
 
 #include "../undefined.h"
+
+parseExprIn :: InteractionId -> Range -> String -> TCM Expr
+parseExprIn ii rng s = do
+    mId <- lookupInteractionId ii
+    updateMetaVarRange mId rng       
+    mi  <- getMetaInfo <$> lookupMeta mId
+    e <- liftIO $ parsePosString exprParser (rStart (getRange mi)) s
+    concreteToAbstract (clScope mi) e
 
 giveExpr :: MetaId -> Expr -> IM Expr
 -- When translater from internal to abstract is given, this function might return
