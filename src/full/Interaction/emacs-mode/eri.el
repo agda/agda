@@ -133,7 +133,7 @@ foo = f a b
     f (Foo x) y = let bar = x
                       baz = 3 + 5
 
-....
+...
 
 ^ ^ ^ ^    ^  ^ ^ ^   ^ * ^ ^ ^ ^
 

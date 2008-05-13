@@ -113,7 +113,7 @@
 
 (defface agda2-highlight-termination-problem-face
   '((t (:background "light salmon"
-        :forebround "black")))
+        :foreground "black")))
   "The face used for termination problems."
   :group 'agda2-highlight)
 
