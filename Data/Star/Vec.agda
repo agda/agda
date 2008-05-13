@@ -31,6 +31,14 @@ infixr 5 _∷_
 _∷_ : forall {a n} -> a -> Vec a n -> Vec a (suc n)
 x ∷ xs = ↦ x ◅ xs
 
+-- Projections.
+
+head : forall {a n} -> Vec a (1# + n) -> a
+head (↦ x ◅ _) = x
+
+tail : forall {a n} -> Vec a (1# + n) -> Vec a n
+tail (↦ _ ◅ xs) = xs
+
 -- Append.
 
 infixr 5 _++_
