@@ -23,6 +23,10 @@ open import Data.Vec.Core public
 
 private
 
+  lem₂ : forall n -> 1 + n ≡ n + 1
+  lem₂ n = prove (n ∷ []) (con 1 :+ N) (N :+ con 1) ≡-refl
+    where N = var fz
+
   lem₃ : forall m -> m + 0 ≡ m
   lem₃ m = prove (m ∷ []) (M :+ con 0) M ≡-refl
     where M = var fz
@@ -111,15 +115,24 @@ drop fz      xs       = xs
 drop (fs ()) []
 drop (fs i)  (x ∷ xs) = drop i xs
 
-splitAt : forall {a} m {n} -> Vec a (m + n) -> Vec a m × Vec a n
-splitAt zero    xs       = ([] , xs)
-splitAt (suc m) (x ∷ xs) with splitAt m xs
-... | (ys , zs) = (x ∷ ys , zs)
+infixr 5 _++'_
 
-group : forall {a n} -> (k : ℕ) -> Vec a (n * k) -> Vec (Vec a k) n
-group {n = zero}  k [] = []
-group {n = suc n} k xs with splitAt k xs
-... | (ys , zs) = ys ∷ group k zs
+data SplitAt {a : Set} (m : ℕ) {n : ℕ} : Vec a (m + n) -> Set where
+  _++'_ : (xs : Vec a m) (ys : Vec a n) -> SplitAt m (xs ++ ys)
+
+splitAt : forall {a} m {n} (xs : Vec a (m + n)) -> SplitAt m xs
+splitAt zero    xs                = [] ++' xs
+splitAt (suc m) (x ∷ xs)          with splitAt m xs
+splitAt (suc m) (x ∷ .(ys ++ zs)) | ys ++' zs = (x ∷ ys) ++' zs
+
+data Group {a : Set} (n k : ℕ) : Vec a (n * k) -> Set where
+  concat' : (xss : Vec (Vec a k) n) -> Group n k (concat xss)
+
+group : forall {a} n k (xs : Vec a (n * k)) -> Group n k xs
+group zero    k []                  = concat' []
+group (suc n) k xs                  with splitAt k xs
+group (suc n) k .(ys ++ zs)         | ys ++' zs with group n k zs
+group (suc n) k .(ys ++ concat zss) | ys ++' ._ | concat' zss = concat' (ys ∷ zss)
 
 revApp : forall {a m n} -> Vec a m -> Vec a n -> Vec a (m + n)
 revApp         []                 ys = ys
@@ -139,6 +152,32 @@ toList (x ∷ xs) = List._∷_ x (toList xs)
 fromList : forall {a} -> (xs : [ a ]) -> Vec a (List.length xs)
 fromList List.[]         = []
 fromList (List._∷_ x xs) = x ∷ fromList xs
+
+infixl 5 _∷ʳ'_
+
+data InitLast {a : Set} (n : ℕ) : Vec a (n + 1) -> Set where
+  _∷ʳ'_ : (xs : Vec a n) -> (x : a) -> InitLast n (xs ∷ʳ x)
+
+initLast : forall {a} n (xs : Vec a (n + 1)) -> InitLast n xs
+initLast zero    (x ∷ [])         = [] ∷ʳ' x
+initLast (suc n) (x ∷ xs)         with initLast n xs
+initLast (suc n) (x ∷ .(ys ∷ʳ y)) | ys ∷ʳ' y = (x ∷ ys) ∷ʳ' y
+
+-- Note that the following two implementations are complicated (since
+-- the index of the input is (1 + n) instead of (n + 1)):
+
+private
+ module Unused where
+
+  init : forall {a n} -> Vec a (suc n) -> Vec a n
+  init {n = n} xs with cast (lem₂ n) xs | initLast n (cast (lem₂ n) xs)
+  init xs | .(ys ∷ʳ y) | ys ∷ʳ' y = ys
+
+  last : forall {a n} -> Vec a (suc n) -> a
+  last {n = n} xs with cast (lem₂ n) xs | initLast n (cast (lem₂ n) xs)
+  last xs | .(ys ∷ʳ y) | ys ∷ʳ' y = y
+
+-- So the following recursive definitions are used instead:
 
 init : forall {a n} -> Vec a (suc n) -> Vec a n
 init (x ∷ [])         = []
