@@ -4,8 +4,6 @@
 
 module Data.Vec where
 
-infixr 5 _++_
-
 open import Data.Nat
 open import Data.Nat.Properties
 open ℕ-semiringSolver
@@ -51,9 +49,18 @@ tail (x ∷ xs) = xs
 singleton : forall {a} -> a -> Vec a 1
 singleton x = x ∷ []
 
+infixr 5 _++_
+
 _++_ : forall {a m n} -> Vec a m -> Vec a n -> Vec a (m + n)
 []       ++ ys = ys
 (x ∷ xs) ++ ys = x ∷ (xs ++ ys)
+
+infixl 5 _∷ʳ_
+
+-- Snoc.
+
+_∷ʳ_ : forall {a n} -> Vec a n -> a -> Vec a (n + 1)
+xs ∷ʳ x = xs ++ singleton x
 
 map : forall {a b n} -> (a -> b) -> Vec a n -> Vec b n
 map f []       = []
