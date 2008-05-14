@@ -58,7 +58,6 @@ data CommandLineOptions =
 	    , optGenerateEmacsFile :: Bool
 	    , optIgnoreInterfaces  :: Bool
 	    , optDisablePositivity :: Bool
-            , optDisableInjectivity:: Bool
 	    , optCompileAlonzo     :: Bool
             , optCompileMAlonzo    :: Bool
             , optMAlonzoDir        :: Maybe FilePath
@@ -91,7 +90,6 @@ defaultOptions =
 	    , optGenerateEmacsFile = False
 	    , optIgnoreInterfaces  = False
 	    , optDisablePositivity = False
-	    , optDisableInjectivity= False
 	    , optCompileAlonzo     = False
 	    , optCompileMAlonzo    = False
             , optMAlonzoDir        = Nothing
@@ -121,7 +119,6 @@ runTestsFlag              o = return $ o { optRunTests	        = True }
 vimFlag                   o = return $ o { optGenerateVimFile   = True }
 emacsFlag                 o = return $ o { optGenerateEmacsFile = True }
 noPositivityFlag          o = return $ o { optDisablePositivity = True }
-noInjectivityFlag         o = return $ o { optDisableInjectivity= True }
 dontTerminationCheckFlag  o = return $ o { optTerminationCheck  = False }
 dontCompletenessCheckFlag o = return $ o { optCompletenessCheck = False }
 dontUniverseCheckFlag     o = return $ o { optUniverseCheck     = False }
@@ -204,8 +201,6 @@ pragmaOptions =
 		    "allow unsolved meta variables (only needed in batch mode)"
     , Option []	    ["no-positivity-check"] (NoArg noPositivityFlag)
 		    "do not warn about not strictly positive data types"
-    , Option []	    ["no-injectivity-check"] (NoArg noInjectivityFlag)
-		    "do not use injectivity analysis"
     , Option []	    ["no-termination-check"] (NoArg dontTerminationCheckFlag)
 		    "do not warn about possibly nonterminating code"
     , Option []	    ["no-coverage-check"] (NoArg dontCompletenessCheckFlag)

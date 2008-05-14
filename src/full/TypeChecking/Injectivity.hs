@@ -44,8 +44,7 @@ headSymbol v = do
     _       -> return Nothing
 
 checkInjectivity :: QName -> [Clause] -> TCM FunctionInverse
-checkInjectivity f cs = ifM (not <$> injectivityCheckEnabled)
-                            (return NotInjective) $ {- else -} do
+checkInjectivity f cs = do
   reportSLn "tc.inj.check" 40 $ "Checking injectivity of " ++ show f
   es <- concat <$> mapM entry cs
   let (hs, ps) = unzip es

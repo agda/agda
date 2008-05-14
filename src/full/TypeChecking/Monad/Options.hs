@@ -103,9 +103,6 @@ ignoreInterfaces = optIgnoreInterfaces <$> commandLineOptions
 positivityCheckEnabled :: MonadTCM tcm => tcm Bool
 positivityCheckEnabled = not . optDisablePositivity <$> commandLineOptions
 
-injectivityCheckEnabled :: MonadTCM tcm => tcm Bool
-injectivityCheckEnabled = not . optDisableInjectivity <$> commandLineOptions
-
 typeInType :: MonadTCM tcm => tcm Bool
 typeInType = not . optUniverseCheck <$> commandLineOptions
 
