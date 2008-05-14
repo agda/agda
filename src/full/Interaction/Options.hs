@@ -204,7 +204,7 @@ pragmaOptions =
 		    "allow unsolved meta variables (only needed in batch mode)"
     , Option []	    ["no-positivity-check"] (NoArg noPositivityFlag)
 		    "do not warn about not strictly positive data types"
-    , Option []	    ["no-injectivity-check"] (NoArg noPositivityFlag)
+    , Option []	    ["no-injectivity-check"] (NoArg noInjectivityFlag)
 		    "do not use injectivity analysis"
     , Option []	    ["no-termination-check"] (NoArg dontTerminationCheckFlag)
 		    "do not warn about possibly nonterminating code"

@@ -71,7 +71,7 @@ checkInjectivity f cs = ifM (not <$> injectivityCheckEnabled)
 
     rhs (NoBind b) = rhs b
     rhs (Bind b)   = underAbstraction_ b rhs
-    rhs (Body v)   = Just <$> reduce v
+    rhs (Body v)   = return $ Just v
     rhs NoBody     = return Nothing
 
 -- | Argument should be on weak head normal form.
