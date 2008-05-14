@@ -263,8 +263,21 @@ computeNeighbourhood delta1 delta2 perm d pars ixs hix hps con = do
 splitClause :: Clause -> Nat -> TCM (Either SplitError Covering)
 splitClause (Clause tel perm ps _) x = split tel perm ps x
 
-split :: MonadTCM tcm => Telescope -> Permutation -> [Arg Pattern] -> Nat -> tcm (Either SplitError Covering)
-split tel perm ps x = liftTCM $ runExceptionT $ do
+splitClauseWithAbs :: Clause -> Nat -> TCM (Either SplitError (Either SplitClause Covering))
+splitClauseWithAbs (Clause tel perm ps _) x = split' tel perm ps x
+
+split :: MonadTCM tcm => Telescope -> Permutation -> [Arg Pattern] -> Nat ->
+         tcm (Either SplitError Covering)
+split tel perm ps x = do
+  r <- split' tel perm ps x
+  return $ case r of
+    Left err        -> Left err
+    Right (Left _)  -> Right []
+    Right (Right c) -> Right c
+
+split' :: MonadTCM tcm => Telescope -> Permutation -> [Arg Pattern] -> Nat ->
+         tcm (Either SplitError (Either SplitClause Covering))
+split' tel perm ps x = liftTCM $ runExceptionT $ do
 
   debugInit tel perm x ps
 
@@ -296,7 +309,20 @@ split tel perm ps x = liftTCM $ runExceptionT $ do
       Just d  -> return d
 
   -- Compute the neighbourhoods for the constructors
-  concat <$> mapM (computeNeighbourhood delta1 delta2 perm d pars ixs hix hps) cons
+  ns <- concat <$> mapM (computeNeighbourhood delta1 delta2 perm d pars ixs hix hps) cons
+  case ns of
+    []  -> do
+      let absurd = VarP "()"
+      return $ Left $ SClause
+               { scTel  = telFromList $ telToList delta1 ++
+                                        [Arg NotHidden ("()", t)] ++
+                                        telToList delta2
+               , scPerm = perm
+               , scPats = plugHole absurd hps
+               , scSubst = [] -- not used anyway
+               }
+
+    _   -> return $ Right ns
 
   where
 

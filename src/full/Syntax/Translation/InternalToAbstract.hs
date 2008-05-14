@@ -17,6 +17,8 @@ import Prelude hiding (mapM_, mapM)
 import Control.Monad.State hiding (mapM_, mapM)
 import Control.Monad.Error hiding (mapM_, mapM)
 
+import qualified Data.Set as Set
+import Data.Set (Set)
 import qualified Data.Map as Map
 import Data.Map (Map)
 import Data.List hiding (sort)
@@ -144,11 +146,102 @@ instance Reify ClauseBody RHS where
   reify (NoBind b) = reify b
   reify (Bind b)   = reify $ absBody b  -- the variables should already be bound
 
+stripImplicits :: MonadTCM tcm => [NamedArg A.Pattern] -> tcm [NamedArg A.Pattern]
+stripImplicits ps =
+  ifM showImplicitArguments (return ps) $ do
+  let vars = dotVars ps
+  return $ strip vars ps
+  where
+    argsVars = Set.unions . map argVars
+    argVars = patVars . namedThing . unArg
+    patVars p = case p of
+      A.VarP x      -> Set.singleton x
+      A.ConP _ _ ps -> argsVars ps
+      A.DefP _ _ ps -> Set.empty
+      A.DotP _ e    -> Set.empty
+      A.WildP _     -> Set.empty
+      A.AbsurdP _   -> Set.empty
+      A.LitP _      -> Set.empty
+      A.ImplicitP _ -> Set.empty
+      A.AsP _ _ p   -> patVars p
+
+    strip dvs = stripArgs
+      where
+        stripArgs = concatMap stripArg
+        stripArg (Arg Hidden p)
+          | Set.null (Set.intersection dvs $ patVars $ namedThing p) = []
+        stripArg a = [fmap (fmap stripPat) a]
+
+        stripPat p = case p of
+          A.VarP _      -> p
+          A.ConP i c ps -> A.ConP i c $ stripArgs ps
+          A.DefP _ _ _  -> p
+          A.DotP _ e    -> p
+          A.WildP _     -> p
+          A.AbsurdP _   -> p
+          A.LitP _      -> p
+          A.ImplicitP _ -> p
+          A.AsP i x p   -> A.AsP i x $ stripPat p
+
+
+class DotVars a where
+  dotVars :: a -> Set Name
+
+instance DotVars a => DotVars (Arg a) where
+  dotVars (Arg Hidden _)    = Set.empty
+  dotVars (Arg NotHidden x) = dotVars x
+
+instance DotVars a => DotVars (Named s a) where
+  dotVars = dotVars . namedThing
+
+instance DotVars a => DotVars [a] where
+  dotVars = Set.unions . map dotVars
+
+instance (DotVars a, DotVars b) => DotVars (a, b) where
+  dotVars (x, y) = Set.union (dotVars x) (dotVars y)
+
+instance DotVars A.Pattern where
+  dotVars p = case p of
+    A.VarP _      -> Set.empty
+    A.ConP _ _ ps -> dotVars ps
+    A.DefP _ _ ps -> dotVars ps
+    A.DotP _ e    -> dotVars e
+    A.WildP _     -> Set.empty
+    A.AbsurdP _   -> Set.empty
+    A.LitP _      -> Set.empty
+    A.ImplicitP _ -> Set.empty
+    A.AsP _ _ p   -> dotVars p
+
+instance DotVars A.Expr where
+  dotVars e = case e of
+    A.ScopedExpr _ e -> dotVars e
+    A.Var x          -> Set.singleton x
+    A.Def _          -> Set.empty
+    A.Con _          -> Set.empty
+    A.Lit _          -> Set.empty
+    A.QuestionMark _ -> Set.empty
+    A.Underscore _   -> Set.empty
+    A.App _ e1 e2    -> dotVars (e1, e2)
+    A.WithApp _ e es -> dotVars (e, es)
+    A.Lam _ _ e      -> dotVars e
+    A.Pi _ tel e     ->  dotVars (tel, e)
+    A.Fun _ a b      -> dotVars (a, b)
+    A.Set _ _        -> Set.empty
+    A.Prop _         -> Set.empty
+    A.Let _ _ _      -> __IMPOSSIBLE__
+    A.Rec _ es       -> dotVars $ map snd es
+
+instance DotVars TypedBindings where
+  dotVars (TypedBindings _ _ bs) = dotVars bs
+
+instance DotVars TypedBinding where
+  dotVars (TBind _ _ e) = dotVars e
+  dotVars (TNoBind e)   = dotVars e
 
 reifyPatterns :: MonadTCM tcm =>
   I.Telescope -> Permutation -> [Arg I.Pattern] -> tcm [NamedArg A.Pattern]
 reifyPatterns tel perm ps =
-  evalStateT (reifyArgs ps) 0
+  stripImplicits =<< evalStateT (reifyArgs ps) 0
   where
     reifyArgs as = map (fmap unnamed) <$> mapM reifyArg as
     reifyArg a   = traverse reifyPat a

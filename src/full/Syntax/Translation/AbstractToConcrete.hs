@@ -164,12 +164,18 @@ bracket par m =
 	bracket' (Paren (getRange e)) par e
 
 -- | Pattern bracketing
-bracketP :: (Precedence -> Bool) -> ([C.Pattern] -> AbsToCon a)
-				 -> (([C.Pattern] -> AbsToCon a) -> AbsToCon a)
+bracketP_ :: (Precedence -> Bool) -> AbsToCon C.Pattern -> AbsToCon C.Pattern
+bracketP_ par m =
+    do	e <- m
+	bracket' (ParenP (getRange e)) par e
+
+-- | Pattern bracketing
+bracketP :: (Precedence -> Bool) -> (C.Pattern -> AbsToCon a)
+				 -> ((C.Pattern -> AbsToCon a) -> AbsToCon a)
 				 -> AbsToCon a
-bracketP par ret m = m $ \ps -> do
-    ps' <- mapM (bracket' (ParenP (getRange ps)) par) ps
-    ret ps'
+bracketP par ret m = m $ \p -> do
+    p <- bracket' (ParenP $ getRange p) par p
+    ret p
 
 -- Dealing with infix declarations ----------------------------------------
 
@@ -552,61 +558,90 @@ instance ToConcrete RangeAndPragma C.Pragma where
 
 -- Left hand sides --------------------------------------------------------
 
-concatArgs :: [NamedArg [C.Pattern]] -> [NamedArg C.Pattern]
-concatArgs args = [ Arg h (Named name p) | Arg h (Named name [p]) <- args ]
+noImplicitArgs = filter (noImplicit . namedThing . unArg)
+noImplicitPats = filter noImplicit
+
+noImplicit (A.ImplicitP _) = False
+noImplicit _               = True
 
 instance ToConcrete A.LHS C.LHS where
-    bindToConcrete (A.LHS i x args wps) ret =
-	do  x <- toConcrete x
-	    -- TODO: mixfix applications
-	    bindToConcreteCtx ArgumentCtx args $ \args ->
-	      bindToConcreteCtx TopCtx wps $ \wps ->
-		ret $ C.LHS (foldl C.AppP (IdentP x) $ concatArgs args) (concat wps) []
+    bindToConcrete (A.LHS i x args wps) ret = do
+      bindToConcreteCtx TopCtx (A.DefP info x args) $ \lhs ->
+        bindToConcreteCtx TopCtx (noImplicitPats wps) $ \wps ->
+          ret $ C.LHS lhs wps []
+      where info = PatRange (getRange i)
 
 appBrackets' :: [arg] -> Precedence -> Bool
 appBrackets' []	   _   = False
-appBrackets' (_:_) ctx = True -- appBrackets ctx -- TODO: Weird bug
+appBrackets' (_:_) ctx = appBrackets ctx
 
 -- TODO: bind variables properly
-instance ToConcrete A.Pattern [C.Pattern] where
-    bindToConcrete (VarP x)	   ret = toConcrete x >>= ret . (:[]) . IdentP . C.QName
-    bindToConcrete (A.WildP i)	   ret =
-	ret [ C.WildP (getRange i) ]
-    bindToConcrete (ConP i [] args) ret = __IMPOSSIBLE__
-    bindToConcrete (ConP i (x:_) args) ret =
-	bracketP (appBrackets' args) ret $ \ret -> do
+instance ToConcrete A.Pattern C.Pattern where
+    toConcrete (VarP x)	   = toConcrete x >>= return . IdentP . C.QName
+    toConcrete (A.WildP i)	   =
+	return $ C.WildP (getRange i)
+    toConcrete (ConP i [] args) = __IMPOSSIBLE__
+    toConcrete p@(ConP i (x:_) args) =
+      tryToRecoverOpAppP p $
+	bracketP_ (appBrackets' args) $ do
 	    x <- toConcrete x
-	    bindToConcreteCtx ArgumentCtx args $ \args ->
-		ret [ foldl AppP (C.IdentP x) $ concatArgs args ]
-    bindToConcrete (DefP i x args) ret =
-	bracketP (appBrackets' args) ret $ \ret -> do
+	    args <- toConcreteCtx ArgumentCtx (noImplicitArgs args)
+	    return $ foldl AppP (C.IdentP x) args
+    toConcrete p@(DefP i x args) =
+      tryToRecoverOpAppP p $
+	bracketP_ (appBrackets' args) $ do
 	    x <- toConcrete x
-	    bindToConcreteCtx ArgumentCtx args $ \args ->
-		ret [ foldl AppP (C.IdentP x) $ concatArgs args ]
-    bindToConcrete (A.AsP i x p)   ret = bindToConcreteCtx ArgumentCtx (x,p) $ \ (x,p) ->
-					    ret $ map (C.AsP (getRange i) x) p
-    bindToConcrete (A.AbsurdP i)   ret = ret [ C.AbsurdP (getRange i) ]
-    bindToConcrete (A.LitP l)	   ret = ret [ C.LitP l ]
-    bindToConcrete (A.DotP i e)	   ret = do
+	    args <- toConcreteCtx ArgumentCtx (noImplicitArgs args)
+	    return $ foldl AppP (C.IdentP x) args
+    toConcrete (A.AsP i x p)   = do
+      (x, p) <- toConcreteCtx ArgumentCtx (x,p)
+      return $ C.AsP (getRange i) x p
+    toConcrete (A.AbsurdP i) = return $ C.AbsurdP (getRange i)
+    toConcrete (A.LitP l)    = return $ C.LitP l
+    toConcrete (A.DotP i e)  = do
 	e <- toConcreteCtx ArgumentCtx e
-	ret [ C.DotP (getRange i) e ]
-    bindToConcrete (A.ImplicitP i) ret = ret []
+	return $ C.DotP (getRange i) e
+    toConcrete (A.ImplicitP i) = __IMPOSSIBLE__
 
 -- Helpers for recovering C.OpApp ------------------------------------------
 
+data Hd = HdVar A.Name | HdCon A.QName | HdDef A.QName
+
 tryToRecoverOpApp :: A.Expr -> AbsToCon C.Expr -> AbsToCon C.Expr
-tryToRecoverOpApp e mdefault = case AV.appView e of
-  NonApplication _ -> mdefault
-  Application hd args
+tryToRecoverOpApp e def = recoverOpApp bracket C.OpApp view e def
+  where
+    view e = case AV.appView e of
+      NonApplication _   -> Nothing
+      Application h args -> Just (mkHd h, args)
+
+    mkHd (HeadVar x)     = HdVar x
+    mkHd (HeadCon (c:_)) = HdCon c
+    mkHd (HeadCon [])    = __IMPOSSIBLE__
+    mkHd (HeadDef f)     = HdDef f
+
+tryToRecoverOpAppP :: A.Pattern -> AbsToCon C.Pattern -> AbsToCon C.Pattern
+tryToRecoverOpAppP p def = recoverOpApp bracketP_ C.OpAppP view p def
+  where
+    view p = case p of
+      ConP _ (c:_) ps -> Just (HdCon c, ps)
+      DefP _ f ps     -> Just (HdDef f, ps)
+      _               -> Nothing
+
+recoverOpApp :: (ToConcrete a c, HasRange c) =>
+                ((Precedence -> Bool) -> AbsToCon c -> AbsToCon c) ->
+                (Range -> C.Name -> [c] -> c) -> (a -> Maybe (Hd, [NamedArg a])) -> a ->
+                AbsToCon c -> AbsToCon c
+recoverOpApp bracket opApp view e mdefault = case view e of
+  Nothing -> mdefault
+  Just (hd, args)
     | all notHidden args  -> do
       let  args' = map (namedThing . unArg) args
       case hd of
-	HeadVar n  -> do
+	HdVar n  -> do
 	  x <- toConcrete n
 	  doCName (nameFixity n) x args'
-	HeadDef qn     -> doQName qn args'
-	HeadCon (qn:_) -> doQName qn args'
-        HeadCon []     -> __IMPOSSIBLE__
+	HdDef qn -> doQName qn args'
+	HdCon qn -> doQName qn args'
     | otherwise -> mdefault
   where
 
@@ -637,7 +672,7 @@ tryToRecoverOpApp e mdefault = case AV.appView e of
 	es <- mapM (toConcreteCtx InsideOperandCtx) as'
 	en <- toConcreteCtx (RightOperandCtx fixity) an
 	bracket (opBrackets fixity)
-	    $ return $ OpApp (getRange (e1,en)) cn ([e1] ++ es ++ [en])
+	    $ return $ opApp (getRange (e1,en)) cn ([e1] ++ es ++ [en])
 
   -- prefix
   doCName fixity cn@(C.Name _ xs) as
@@ -647,7 +682,7 @@ tryToRecoverOpApp e mdefault = case AV.appView e of
 	es <- mapM (toConcreteCtx InsideOperandCtx) as'
 	en <- toConcreteCtx (RightOperandCtx fixity) an
 	bracket (opBrackets fixity)
-	    $ return $ OpApp (getRange (cn,en)) cn (es ++ [en])
+	    $ return $ opApp (getRange (cn,en)) cn (es ++ [en])
 
   -- postfix
   doCName fixity cn@(C.Name _ xs) as
@@ -657,10 +692,10 @@ tryToRecoverOpApp e mdefault = case AV.appView e of
 	e1 <- toConcreteCtx (LeftOperandCtx fixity) a1
 	es <- mapM (toConcreteCtx InsideOperandCtx) as'
 	bracket (opBrackets fixity)
-	    $ return $ OpApp (getRange (e1,cn)) cn ([e1] ++ es)
+	    $ return $ opApp (getRange (e1,cn)) cn ([e1] ++ es)
 
   -- roundfix
   doCName _ cn as = do
     es <- mapM (toConcreteCtx InsideOperandCtx) as
-    return $ OpApp (getRange cn) cn es
+    return $ opApp (getRange cn) cn es
 

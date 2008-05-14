@@ -58,23 +58,26 @@ makeCase :: InteractionId -> Range -> String -> TCM [A.Clause]
 makeCase hole rng s = do
   meta        <- lookupInteractionId hole
   (f, clause) <- findClause meta
-  var         <- withInteractionId hole $
-                  deBruijnIndex =<< parseExprIn hole rng s
-  z           <- splitClause clause var
-  covering    <- case z of
-    Left err -> fail $ show err
-    Right c  -> return c
-  mapM (makeAbstractClause f) covering
+  var         <- withInteractionId hole $ deBruijnIndex =<< parseExprIn hole rng s
+  z           <- splitClauseWithAbs clause var
+  case z of
+    Left err        -> fail $ show err
+    Right (Left cl) -> (:[]) <$> makeAbsurdClause f cl
+    Right (Right c) -> mapM (makeAbstractClause f) c
 
-makeAbstractClause :: QName -> SplitClause -> TCM A.Clause
-makeAbstractClause f (SClause tel perm ps _) = do
+makeAbsurdClause :: QName -> SplitClause -> TCM A.Clause
+makeAbsurdClause f (SClause tel perm ps _) = do
   reportSDoc "" 1 $ vcat
     [ text "context =" <+> (prettyTCM =<< getContextTelescope)
     , text "tel =" <+> prettyTCM tel
     , text "perm =" <+> text (show perm)
     , text "ps =" <+> text (show ps)
     ]
-  A.Clause lhs _ _ <- reify $ NamedClause f $ Clause tel perm ps NoBody
+  reify $ NamedClause f $ Clause tel perm ps NoBody
+
+makeAbstractClause :: QName -> SplitClause -> TCM A.Clause
+makeAbstractClause f cl = do
+  A.Clause lhs _ _ <- makeAbsurdClause f cl
   return $ mkClause lhs
   where
     mkClause :: A.LHS -> A.Clause
