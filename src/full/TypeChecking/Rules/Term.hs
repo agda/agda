@@ -255,10 +255,12 @@ checkExpr e t =
 	    b' <- isType_ b
 	    let s = getSort a' `sLub` getSort b'
 	    blockTerm t (Fun (Arg h a') b') $ equalType (sort s) t
-	A.Set _ n    ->
-	    blockTerm t (Sort (Type n)) $ equalType (sort $ Type $ n + 1) t
-	A.Prop _     ->
-	    blockTerm t (Sort Prop) $ equalType (sort $ Type 1) t
+	A.Set _ n    -> do
+          n <- ifM typeInType (return 0) (return n)
+	  blockTerm t (Sort (Type n)) $ equalType (sort $ Type $ n + 1) t
+	A.Prop _     -> do
+          s <- ifM typeInType (return $ Type 0) (return Prop)
+	  blockTerm t (Sort Prop) $ equalType (sort $ Type 1) t
 
 	A.Rec _ fs  -> do
 	  t <- normalise t

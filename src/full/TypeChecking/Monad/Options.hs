@@ -106,6 +106,9 @@ positivityCheckEnabled = not . optDisablePositivity <$> commandLineOptions
 injectivityCheckEnabled :: MonadTCM tcm => tcm Bool
 injectivityCheckEnabled = not . optDisableInjectivity <$> commandLineOptions
 
+typeInType :: MonadTCM tcm => tcm Bool
+typeInType = not . optUniverseCheck <$> commandLineOptions
+
 getVerbosity :: MonadTCM tcm => tcm (Trie String Int)
 getVerbosity = optVerbose <$> commandLineOptions
 

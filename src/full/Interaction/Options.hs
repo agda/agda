@@ -210,8 +210,8 @@ pragmaOptions =
 		    "do not warn about possibly nonterminating code"
     , Option []	    ["no-coverage-check"] (NoArg dontCompletenessCheckFlag)
 		    "do not warn about possibly incomplete pattern matches"
-    , Option []	    ["no-universe-check"] (NoArg dontUniverseCheckFlag)
-		    "do not check that constructor types fit in data type sorts"
+    , Option []	    ["type-in-type"] (NoArg dontUniverseCheckFlag)
+		    "ignore universe levels (this makes Agda inconsistent)"
     ]
 
 -- | Used for printing usage info.

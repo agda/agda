@@ -147,9 +147,7 @@ fitsIn t s =
 	case funView $ unEl t of
 	    FunV arg@(Arg h a) _ -> do
 		let s' = getSort a
-                ifM (optUniverseCheck <$> commandLineOptions)
-                    (s' `leqSort` s)
-                    (return [])
+                s' `leqSort` s
 		x <- freshName_ (argName t)
 		let v  = Arg h $ Var 0 []
 		    t' = piApply (raise 1 t) [v]

@@ -276,6 +276,7 @@ leqType ty1@(El s1 a1) ty2@(El s2 a2) = do
 -- | Check that the first sort is less or equal to the second.
 leqSort :: MonadTCM tcm => Sort -> Sort -> tcm Constraints
 leqSort s1 s2 =
+  ifM typeInType (return []) $
     catchConstraint (SortEq s1 s2) $
     do	(s1,s2) <- reduce (s1,s2)
 -- 	do  d1 <- prettyTCM s1
@@ -306,6 +307,7 @@ leqSort s1 s2 =
 -- | Check that the first sort equal to the second.
 equalSort :: MonadTCM tcm => Sort -> Sort -> tcm Constraints
 equalSort s1 s2 =
+  ifM typeInType (return []) $
     catchConstraint (SortEq s1 s2) $
     do	(s1,s2) <- reduce (s1,s2)
 -- 	do  d1 <- prettyTCM s1

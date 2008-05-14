@@ -91,9 +91,10 @@ assignTerm :: MonadTCM tcm => MetaId -> Term -> tcm ()
 assignTerm = (=:)
 
 newSortMeta :: MonadTCM tcm => tcm Sort
-newSortMeta = 
-    do  i <- createMetaInfo
-	MetaS <$> newMeta i normalMetaPriority (IsSort ())
+newSortMeta =
+  ifM typeInType (return $ Type 0) $ do
+    i <- createMetaInfo
+    MetaS <$> newMeta i normalMetaPriority (IsSort ())
 
 newTypeMeta :: MonadTCM tcm => Sort -> tcm Type
 newTypeMeta s = El s <$> newValueMeta (sort s)

@@ -1,4 +1,4 @@
-{-# OPTIONS --no-universe-check #-}
+{-# OPTIONS --type-in-type #-}
 
 module NoUniverseCheck where
 
