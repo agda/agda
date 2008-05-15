@@ -67,13 +67,14 @@ makeCase hole rng s = do
 
 makeAbsurdClause :: QName -> SplitClause -> TCM A.Clause
 makeAbsurdClause f (SClause tel perm ps _) = do
-  reportSDoc "" 1 $ vcat
+  reportSDoc "interaction.case" 1 $ vcat
     [ text "context =" <+> (prettyTCM =<< getContextTelescope)
     , text "tel =" <+> prettyTCM tel
     , text "perm =" <+> text (show perm)
     , text "ps =" <+> text (show ps)
     ]
-  reify $ NamedClause f $ Clause tel perm ps NoBody
+  withCurrentModule (qnameModule f) $
+    reify $ NamedClause f $ Clause tel perm ps NoBody
 
 makeAbstractClause :: QName -> SplitClause -> TCM A.Clause
 makeAbstractClause f cl = do

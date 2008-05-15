@@ -98,6 +98,50 @@ reifyDisplayForm x vs fallback = do
         Just d  -> reify d
     else fallback
 
+reifyDisplayFormP :: MonadTCM tcm => A.LHS -> tcm A.LHS
+reifyDisplayFormP lhs@(A.LHS i x ps wps) =
+  ifM (not <$> displayFormsEnabled) (return lhs) $ do
+    let vs = [ Arg h $ I.Var n [] | (n, h) <- zip [0..] $ map argHiding ps]
+    md <- liftTCM $ displayForm x vs
+    reportSLn "syntax.reify.display" 20 $ "display form of " ++ show x ++ ": " ++ show md
+    case md of
+      Just d  | okDisplayForm d ->
+        reifyDisplayFormP $ displayLHS (map (namedThing . unArg) ps) wps d
+      _ -> return lhs
+  where
+    okDisplayForm (DWithApp (d : ds) []) =
+      okDisplayForm d && all okDisplayTerm ds
+    okDisplayForm (DTerm (I.Def f vs)) = all okArg vs
+    okDisplayForm _ = False
+
+    okDisplayTerm (DTerm v) = okTerm v
+    okDisplayTerm _ = False
+
+    okArg = okTerm . unArg
+
+    okTerm (I.Var _ []) = True
+    okTerm (I.Con c vs) = all okArg vs
+    okTerm _            = False
+
+    flattenWith (DWithApp (d : ds) []) = case flattenWith d of
+      (f, vs, ds') -> (f, vs, ds' ++ map unDTerm ds)
+    flattenWith (DTerm (I.Def f vs)) = (f, vs, [])
+    flattenWith _ = __IMPOSSIBLE__
+
+    unDTerm (DTerm v) = v
+    unDTerm _ = __IMPOSSIBLE__
+
+    displayLHS ps wps d = case flattenWith d of
+      (f, vs, ds) -> LHS i f (map argToPat vs)
+                             (map termToPat ds ++ wps)
+      where
+        info = PatRange noRange
+        argToPat = fmap (unnamed . termToPat)
+
+        termToPat (I.Var n []) = ps !! n
+        termToPat (I.Con c vs) = A.ConP info [c] $ map argToPat vs
+        termToPat _ = __IMPOSSIBLE__
+
 instance Reify Term Expr where
     reify v =
 	do  v <- instantiate v
@@ -167,10 +211,20 @@ stripImplicits ps =
 
     strip dvs = stripArgs
       where
-        stripArgs = concatMap stripArg
-        stripArg (Arg Hidden p)
-          | Set.null (Set.intersection dvs $ patVars $ namedThing p) = []
-        stripArg a = [fmap (fmap stripPat) a]
+        stripArgs [] = []
+        stripArgs (a : as) = case argHiding a of
+          Hidden | canStrip a as -> stripArgs as
+          _                      -> stripArg a : stripArgs as
+
+        -- TODO: use named implicits (need to get the names from somewhere!)
+        canStrip a as = and
+          [ varOrDot p
+          , noInterestingBindings p
+          , all (flip canStrip []) $ takeWhile ((Hidden ==) . argHiding) as
+          ]
+          where p = namedThing $ unArg a
+
+        stripArg a = fmap (fmap stripPat) a
 
         stripPat p = case p of
           A.VarP _      -> p
@@ -182,6 +236,14 @@ stripImplicits ps =
           A.LitP _      -> p
           A.ImplicitP _ -> p
           A.AsP i x p   -> A.AsP i x $ stripPat p
+
+        noInterestingBindings p =
+          Set.null $ dvs `Set.intersection` patVars p
+
+        varOrDot (A.VarP _)      = True
+        varOrDot (A.DotP _ _)    = True
+        varOrDot (A.ImplicitP _) = True
+        varOrDot _               = False
 
 
 class DotVars a where
@@ -266,11 +328,13 @@ reifyPatterns tel perm ps =
 instance Reify NamedClause A.Clause where
   reify (NamedClause f (I.Clause tel perm ps body)) = addCtxTel tel $ do
     ps  <- reifyPatterns tel perm ps
-    lhs <- return $ LHS info f ps []
+    lhs <- reifyDisplayFormP $ LHS info f ps []
+    nfv <- getDefFreeVars f
     rhs <- reify body
-    return $ A.Clause lhs rhs []
+    return $ A.Clause (dropParams nfv lhs) rhs []
     where
       info = LHSRange noRange
+      dropParams n (LHS i f ps wps) = LHS i f (drop n ps) wps
 
 instance Reify Type Expr where
     reify (I.El _ t) = reify t

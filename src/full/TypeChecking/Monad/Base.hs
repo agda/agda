@@ -297,11 +297,11 @@ data DisplayForm = Display Nat	  -- ^ @n@: number of free variables
 			   [Term] -- ^ Patterns for arguments, one extra free
 				  -- var which represents pattern vars. There should @n@ of them.
 			   DisplayTerm -- ^ Display form. @n@ free variables.
-  deriving (Typeable, Data)
+  deriving (Typeable, Data, Show)
 
 data DisplayTerm = DWithApp [DisplayTerm] Args
 		 | DTerm Term
-  deriving (Typeable, Data)
+  deriving (Typeable, Data, Show)
 
 defaultDisplayForm :: QName -> [Open DisplayForm]
 defaultDisplayForm c = []

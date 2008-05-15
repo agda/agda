@@ -30,12 +30,18 @@ displayForm c vs = do
     let matches dfs vs = [ m | Just m <- map (flip matchDisplayForm vs) dfs, inScope scope m ]
     -- Not safe when printing non-terminating terms.
     -- (nfdfs, us) <- normalise (dfs, vs)
+    unless (null odfs) $ reportSLn "tc.display.top" 20 $ unlines
+      [ "displayForms: " ++ show dfs
+      , "arguments   : " ++ show vs
+      , "matches     : " ++ show (matches dfs vs)
+      ]
     return $ foldr (const . Just) Nothing $ matches dfs vs -- ++ matches nfdfs us
   `catchError` \_ -> return Nothing
   where
-    inScope scope d = case hd d of
-      Just h  -> maybe False (const True) $ inverseScopeLookupName h scope
-      Nothing -> __IMPOSSIBLE__ -- TODO: currently all display forms have heads
+    inScope _ _ = True  -- TODO: distinguish between with display forms and other display forms
+--     inScope scope d = case hd d of
+--       Just h  -> maybe False (const True) $ inverseScopeLookupName h scope
+--       Nothing -> __IMPOSSIBLE__ -- TODO: currently all display forms have heads
     hd (DTerm (Def x _))    = Just x
     hd (DTerm (Con x _))    = Just x
     hd (DWithApp (d : _) _) = hd d

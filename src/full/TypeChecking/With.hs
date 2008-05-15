@@ -174,17 +174,22 @@ withDisplayForm f aux delta1 delta2 n qs perm = do
       withArgs = map var [size delta2..size delta2 + n - 1]
       pats = replicate (n + size delta1 + size delta2 + top) (Var 0 [])
 
+  let display = Display (n + size delta1 + size delta2 + top) pats dt
+
   reportSDoc "tc.with.display" 20 $ vcat
     [ text "withDisplayForm"
     , nest 2 $ vcat
-      [ text "delta1 =" <+> prettyTCM delta1
-      , text "delta2 = " <+> prettyTCM delta2
+      [ text "f      =" <+> text (show f)
+      , text "aux    =" <+> text (show aux)
+      , text "delta1 =" <+> prettyTCM delta1
+      , text "delta2 =" <+> prettyTCM delta2
       , text "perm   =" <+> text (show perm)
       , text "dt     =" <+> prettyTCM dt
+      , text "raw    =" <+> text (show display)
       ]
     ]
 
-  return $ Display (n + size delta1 + size delta2 + top) pats dt
+  return display
   where
     var i = Var i []
     sub wild = map term [0..] -- m - 1]

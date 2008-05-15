@@ -302,7 +302,8 @@ instance ToConcrete A.Expr C.Expr where
 
     toConcrete (A.WithApp i e es) =
       bracket withAppBrackets $ do
-	e : es <- mapM (toConcreteCtx WithAppCtx) (e : es)
+        e <- toConcreteCtx WithFunCtx e
+	es <- mapM (toConcreteCtx WithArgCtx) es
 	return $ C.WithApp (getRange i) e es
 
     toConcrete e@(A.Lam i _ _)	    =
@@ -601,7 +602,8 @@ instance ToConcrete A.Pattern C.Pattern where
     toConcrete (A.DotP i e)  = do
 	e <- toConcreteCtx ArgumentCtx e
 	return $ C.DotP (getRange i) e
-    toConcrete (A.ImplicitP i) = __IMPOSSIBLE__
+    -- just for debugging purposes (shouldn't show up in practise)
+    toConcrete (A.ImplicitP i) = return $ C.IdentP (C.QName $ C.Name noRange [C.Id noRange "(implicit)"])
 
 -- Helpers for recovering C.OpApp ------------------------------------------
 

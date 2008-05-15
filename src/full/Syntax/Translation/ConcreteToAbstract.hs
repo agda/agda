@@ -371,7 +371,8 @@ instance ToAbstract C.Expr A.Expr where
 
   -- With application
       C.WithApp r e es -> do
-	e : es <- mapM (toAbstractCtx WithAppCtx) (e : es)
+	e  <- toAbstractCtx WithFunCtx e
+	es <- mapM (toAbstractCtx WithArgCtx) es
 	return $ A.WithApp (ExprRange r) e es
 
   -- Malplaced hidden argument

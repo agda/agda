@@ -144,6 +144,12 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs wh) =
                       SplitTel delta1 delta2 perm' = splitTelescope fv delta
                       finalPerm = composeP perm' perm
 
+                  reportSDoc "tc.with.top" 25 $ vcat
+                    [ text "delta  =" <+> prettyTCM delta
+                    , text "delta1 =" <+> prettyTCM delta1
+                    , text "delta2 =" <+> addCtxTel delta1 (prettyTCM delta2)
+                    ]
+
                   -- Create the body of the original function
                   ctx <- getContextTelescope
                   let n    = size ctx

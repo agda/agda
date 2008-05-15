@@ -165,8 +165,6 @@ standardOptions :: [OptDescr (Flag CommandLineOptions)]
 standardOptions =
     [ Option ['V']  ["version"]	(NoArg versionFlag) "show version number"
     , Option ['?']  ["help"]	(NoArg helpFlag)    "show this help"
-    , Option ['v']  ["verbose"]	(ReqArg verboseFlag "N")
-		    "set verbosity level to N"
     , Option ['i']  ["include-path"] (ReqArg includeFlag "DIR")
 		    "look for imports in DIR"
     , Option ['I']  ["interactive"] (NoArg interactiveFlag)
@@ -195,7 +193,9 @@ standardOptions =
 
 pragmaOptions :: [OptDescr (Flag CommandLineOptions)]
 pragmaOptions =
-    [ Option []	    ["proof-irrelevance"] (NoArg proofIrrelevanceFlag)
+    [ Option ['v']  ["verbose"]	(ReqArg verboseFlag "N")
+		    "set verbosity level to N"
+    , Option []	    ["proof-irrelevance"] (NoArg proofIrrelevanceFlag)
 		    "enable proof irrelevance (experimental feature)"
     , Option []	    ["allow-unsolved-metas"] (NoArg allowUnsolvedFlag)
 		    "allow unsolved meta variables (only needed in batch mode)"
