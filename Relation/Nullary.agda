@@ -7,10 +7,19 @@
 module Relation.Nullary where
 
 open import Data.Unit.Core
+open import Data.Product
 open import Data.Bool
 open import Data.Empty
 
 open import Relation.Nullary.Core public
+
+------------------------------------------------------------------------
+-- Equivalence
+
+infix 4 _⇔_
+
+_⇔_ : Set -> Set -> Set
+P ⇔ Q = (P -> Q) × (Q -> P)
 
 ------------------------------------------------------------------------
 -- Negation
