@@ -74,10 +74,13 @@ private
 
   -- P ⊆ Q means that P is a subset of Q.
 
-  infix 4 _⊆_
+  infix 4 _⊆_ _⊇_
 
   _⊆_ : Pred a -> Pred a -> Set
   P ⊆ Q = forall x -> x ∈ P -> x ∈ Q
+
+  _⊇_ : Pred a -> Pred a -> Set
+  Q ⊇ P = P ⊆ Q
 
   ∅-⊆ : (P : Pred a) -> ∅ ⊆ P
   ∅-⊆ P x ()
