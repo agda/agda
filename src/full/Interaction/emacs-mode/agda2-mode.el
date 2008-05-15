@@ -449,7 +449,8 @@ annotate new goals NEW-GS"
   (agda2-undoable
    (agda2-forget-all-goals);; we reload later anyway.
    (let* ((p0 (point))
-          (p1 (goto-char (agda2-decl-beginning)))
+          ; (p1 (goto-char (agda2-decl-beginning)))
+          (p1 (goto-char (+ (current-indentation) (line-beginning-position))))
           (indent (current-column))
           cl)
      (goto-char p0)
