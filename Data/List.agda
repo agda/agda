@@ -101,16 +101,17 @@ length = foldr (\_ -> suc) 0
 -- ** Scans
 
 scanr : forall {a b} -> (a -> b -> b) -> b -> [ a ] -> [ b ]
-scanr f e []     = e ∷ []
+scanr f e []       = e ∷ []
 scanr f e (x ∷ xs) with scanr f e xs
 ... | []     = []                -- dead branch
 ... | y ∷ ys = f x y ∷ y ∷ ys
 
 scanl : forall {a b} -> (a -> b -> a) -> a -> [ b ] -> [ a ]
-scanl f e [] = e ∷ []
+scanl f e []       = e ∷ []
 scanl f e (x ∷ xs) = e ∷ scanl f (f e x) xs
 
 -- ** Unfolding
+
 -- Unfold. Uses a measure (a natural number) to ensure termination.
 
 unfold :  {A : Set} (B : ℕ -> Set)
@@ -137,35 +138,35 @@ downFrom n = unfold Singleton f (wrap n)
 -- ** Extracting sublists
 
 take : forall {a} -> ℕ -> [ a ] -> [ a ]
-take zero xs = []
-take (suc n) [] = []
+take zero    xs       = []
+take (suc n) []       = []
 take (suc n) (x ∷ xs) = x ∷ take n xs
 
 drop : forall {a} -> ℕ -> [ a ] -> [ a ]
-drop zero xs = xs
-drop (suc n) [] = []
+drop zero    xs       = xs
+drop (suc n) []       = []
 drop (suc n) (x ∷ xs) = drop n xs
 
 splitAt : forall {a} -> ℕ -> [ a ] -> ([ a ] × [ a ])
-splitAt zero xs = ([] , xs)
-splitAt (suc n) [] = ([] , [])
-splitAt (suc n) (x ∷ xs)  with splitAt n xs
+splitAt zero    xs       = ([] , xs)
+splitAt (suc n) []       = ([] , [])
+splitAt (suc n) (x ∷ xs) with splitAt n xs
 ... | (ys , zs) = (x ∷ ys , zs)
 
 takeWhile : forall {a} -> (a -> Bool) -> [ a ] -> [ a ]
-takeWhile p [] = []
+takeWhile p []       = []
 takeWhile p (x ∷ xs) with p x
 ... | true  = x ∷ takeWhile p xs
 ... | false = []
 
 dropWhile : forall {a} -> (a -> Bool) -> [ a ] -> [ a ]
-dropWhile p [] = []
+dropWhile p []       = []
 dropWhile p (x ∷ xs) with p x
 ... | true  = dropWhile p xs
 ... | false = x ∷ xs
 
 span : forall {a} -> (a -> Bool) -> [ a ] -> ([ a ] × [ a ])
-span p [] = ([] , [])
+span p []       = ([] , [])
 span p (x ∷ xs) with p x
 ... | true  = map-× (_∷_ x) id (span p xs)
 ... | false = ([] , x ∷ xs)
@@ -174,11 +175,11 @@ break : forall {a} -> (a -> Bool) -> [ a ] -> ([ a ] × [ a ])
 break p = span (not ∘ p)
 
 inits : forall {a} ->  [ a ] -> [ [ a ] ]
-inits [] =  [] ∷ []
-inits (x ∷ xs) =  [] ∷ map (_∷_ x) (inits xs)
+inits []       = [] ∷ []
+inits (x ∷ xs) = [] ∷ map (_∷_ x) (inits xs)
 
 tails : forall {a} -> [ a ] -> [ [ a ] ]
-tails [] = [] ∷ []
+tails []       = [] ∷ []
 tails (x ∷ xs) = (x ∷ xs) ∷ tails xs
 
 -- * Searching lists
@@ -192,7 +193,7 @@ filter p (x ∷ xs) with p x
 ... | false =     filter p xs
 
 partition : forall {a} -> (a -> Bool) -> [ a ] -> ([ a ] × [ a ])
-partition p [] = ([] , [])
+partition p []       = ([] , [])
 partition p (x ∷ xs) with p x | partition p xs
 ... | true  | (ys , zs) = (x ∷ ys , zs)
 ... | false | (ys , zs) = (ys , x ∷ zs)

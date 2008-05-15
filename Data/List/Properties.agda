@@ -156,71 +156,71 @@ map-cong {f = f} {g} f≗g =
 
 -- Take, drop, and splitAt.
 
-take++drop : forall {a} -> forall n -> (xs : [ a ]) -> 
-            take n xs ++ drop n xs ≡ xs
-take++drop zero xs = ≡-refl 
-take++drop (suc n) [] = ≡-refl 
-take++drop (suc n) (x ∷ xs) = 
+take++drop : forall {a} n (xs : [ a ]) ->
+             take n xs ++ drop n xs ≡ xs
+take++drop zero    xs       = ≡-refl
+take++drop (suc n) []       = ≡-refl
+take++drop (suc n) (x ∷ xs) =
   ≡-cong (\xs -> x ∷ xs) (take++drop n xs)
 
-splitAt-defn : forall {a} -> forall n ->
+splitAt-defn : forall {a} n ->
                splitAt {a} n ≗ < take n , drop n >
-splitAt-defn zero xs = ≡-refl
-splitAt-defn (suc n) [] = ≡-refl
+splitAt-defn zero    xs       = ≡-refl
+splitAt-defn (suc n) []       = ≡-refl
 splitAt-defn (suc n) (x ∷ xs) with splitAt n xs | splitAt-defn n xs
-... | (ys , zs) | ih = ≡-cong (map-× (_∷_ x) id) ih  
+... | (ys , zs) | ih = ≡-cong (map-× (_∷_ x) id) ih
 
 -- TakeWhile, dropWhile, and span.
 
-takeWhile++dropWhile : forall {a} -> (p : a -> Bool) -> (xs : [ a ]) -> 
-            takeWhile p xs ++ dropWhile p xs ≡ xs
-takeWhile++dropWhile p [] = ≡-refl 
+takeWhile++dropWhile : forall {a} (p : a -> Bool) (xs : [ a ]) ->
+                       takeWhile p xs ++ dropWhile p xs ≡ xs
+takeWhile++dropWhile p []       = ≡-refl
 takeWhile++dropWhile p (x ∷ xs) with p x
-... | true  = ≡-cong (_∷_ x) (takeWhile++dropWhile p xs) 
-... | false = ≡-refl 
-
-span-defn : forall {a} -> (p : a -> Bool) ->
-            span p ≗ < takeWhile p , dropWhile p >
-span-defn p [] = ≡-refl
-span-defn p (x ∷ xs) with p x
-... | true = ≡-cong (map-× (_∷_ x) id) (span-defn p xs) 
+... | true  = ≡-cong (_∷_ x) (takeWhile++dropWhile p xs)
 ... | false = ≡-refl
 
--- Partition
+span-defn : forall {a} (p : a -> Bool) ->
+            span p ≗ < takeWhile p , dropWhile p >
+span-defn p []       = ≡-refl
+span-defn p (x ∷ xs) with p x
+... | true  = ≡-cong (map-× (_∷_ x) id) (span-defn p xs)
+... | false = ≡-refl
 
-partition-defn : forall {a} -> (p : a -> Bool) -> 
+-- Partition.
+
+partition-defn : forall {a} (p : a -> Bool) ->
                  partition p ≗ < filter p , filter (not ∘ p) >
-partition-defn p [] = ≡-refl
-partition-defn p (x ∷ xs) 
+partition-defn p []       = ≡-refl
+partition-defn p (x ∷ xs)
  with p x | partition p xs | partition-defn p xs
-...  | true  | (ys , zs) | eq = ≡-cong (map-× (_∷_ x) id) eq 
-...  | false | (ys , zs) | eq = ≡-cong (map-× id (_∷_ x)) eq 
+...  | true  | (ys , zs) | eq = ≡-cong (map-× (_∷_ x) id) eq
+...  | false | (ys , zs) | eq = ≡-cong (map-× id (_∷_ x)) eq
 
 -- Inits, tails, and scanr.
 
-scanr-defn : forall {a b} -> (f : a -> b -> b) -> (e : b) ->
+scanr-defn : forall {a b} (f : a -> b -> b) (e : b) ->
              scanr f e ≗ map (foldr f e) ∘ tails
-scanr-defn f e [] = ≡-refl
-scanr-defn f e (x ∷ []) = ≡-refl
-scanr-defn f e (x₁ ∷ x₂ ∷ xs) 
+scanr-defn f e []             = ≡-refl
+scanr-defn f e (x ∷ [])       = ≡-refl
+scanr-defn f e (x₁ ∷ x₂ ∷ xs)
   with scanr f e (x₂ ∷ xs) | scanr-defn f e (x₂ ∷ xs)
 ...  | [] | ()
 ...  | y ∷ ys | eq with ∷-injective eq
-...        | y≡fx₂⦇f⦈xs , _ = ≡-cong₂ (\z zs -> f x₁ z ∷ zs) y≡fx₂⦇f⦈xs eq  
+...        | y≡fx₂⦇f⦈xs , _ = ≡-cong₂ (\z zs -> f x₁ z ∷ zs) y≡fx₂⦇f⦈xs eq
 
-scanl-defn : forall {a b} -> (f : a -> b -> a) -> (e : a) ->
+scanl-defn : forall {a b} (f : a -> b -> a) (e : a) ->
              scanl f e ≗ map (foldl f e) ∘ inits
-scanl-defn f e [] = ≡-refl
-scanl-defn f e (x ∷ xs)  with scanl-defn f (f e x) xs
+scanl-defn f e []       = ≡-refl
+scanl-defn f e (x ∷ xs) with scanl-defn f (f e x) xs
 ... | ind-hypothesis = ≡-cong (_∷_ e) lemma
-  where lemma : scanl f (f e x) xs ≡ map (foldl f e) (map (_∷_ x) (inits xs))
-        lemma = begin
-             scanl f (f e x) xs
-          ≡⟨ ind-hypothesis ⟩
-             map (foldl f (f e x)) (inits xs)
-          ≡⟨ ≡-refl ⟩
-             map (foldl f e ∘ (_∷_ x)) (inits xs)
-          ≡⟨ map-compose (inits xs) ⟩
-             map (foldl f e) (map (_∷_ x) (inits xs))
-          ∎
-         where open ≡-Reasoning
+  where
+  open ≡-Reasoning
+  lemma = begin
+       scanl f (f e x) xs
+    ≡⟨ ind-hypothesis ⟩
+       map (foldl f (f e x)) (inits xs)
+    ≡⟨ ≡-refl ⟩
+       map (foldl f e ∘ (_∷_ x)) (inits xs)
+    ≡⟨ map-compose (inits xs) ⟩
+       map (foldl f e) (map (_∷_ x) (inits xs))
+    ∎
