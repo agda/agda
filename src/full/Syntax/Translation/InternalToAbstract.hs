@@ -147,9 +147,15 @@ instance Reify Term Expr where
     reify v =
 	do  v <- instantiate v
 	    case ignoreBlocking v of
-		I.Var n vs   ->
-		    do  x  <- liftTCM $ nameOfBV n `catchError` \_ -> freshName_ ("@" ++ show n)
-			reifyApp (A.Var x) vs
+		I.Var n vs   -> do
+                    x  <- liftTCM $ nameOfBV n `catchError` \_ -> freshName_ ("@" ++ show n)
+                    y <- absurdPatternHack x
+                    reifyApp (A.Var y) vs
+                  where
+                    -- Absurd patterns are variables when making case.
+                    absurdPatternHack x
+                      | show x == "()" = freshNoName_
+                      | otherwise      = return x
 		I.Def x vs   -> reifyDisplayForm x vs $ do
 		    n <- getDefFreeVars x
 		    reifyApp (A.Def x) $ drop n vs
