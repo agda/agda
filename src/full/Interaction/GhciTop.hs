@@ -539,8 +539,11 @@ infoOnException m =
   where
   inform rng msg = do
     outputErrorInfo Nothing rng msg
-    display_info "*Error*" $ unlines [show rng ++ " : ", msg]
+    display_info "*Error*" $ rng' ++ msg
     exitWith (ExitFailure 1)
+    where
+    rng' | rng == noRange = ""
+         | otherwise      = show rng ++ "\n"
 
 ------------------------------------------------------------------------
 -- Syntax highlighting
