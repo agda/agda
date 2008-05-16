@@ -191,10 +191,10 @@ instance Reify ClauseBody RHS where
   reify (NoBind b) = reify b
   reify (Bind b)   = reify $ absBody b  -- the variables should already be bound
 
-stripImplicits :: MonadTCM tcm => [NamedArg A.Pattern] -> tcm [NamedArg A.Pattern]
-stripImplicits ps =
+stripImplicits :: MonadTCM tcm => [NamedArg A.Pattern] -> [A.Pattern] -> tcm [NamedArg A.Pattern]
+stripImplicits ps wps =
   ifM showImplicitArguments (return ps) $ do
-  let vars = dotVars ps
+  let vars = dotVars (ps, wps)
   return $ strip vars ps
   where
     argsVars = Set.unions . map argVars
@@ -303,8 +303,7 @@ instance DotVars TypedBinding where
 
 reifyPatterns :: MonadTCM tcm =>
   I.Telescope -> Permutation -> [Arg I.Pattern] -> tcm [NamedArg A.Pattern]
-reifyPatterns tel perm ps =
-  stripImplicits =<< evalStateT (reifyArgs ps) 0
+reifyPatterns tel perm ps = evalStateT (reifyArgs ps) 0
   where
     reifyArgs as = map (fmap unnamed) <$> mapM reifyArg as
     reifyArg a   = traverse reifyPat a
@@ -330,12 +329,16 @@ instance Reify NamedClause A.Clause where
   reify (NamedClause f (I.Clause tel perm ps body)) = addCtxTel tel $ do
     ps  <- reifyPatterns tel perm ps
     lhs <- reifyDisplayFormP $ LHS info f ps []
+    lhs <- stripImps lhs
     nfv <- getDefFreeVars f
     rhs <- reify body
     return $ A.Clause (dropParams nfv lhs) rhs []
     where
       info = LHSRange noRange
       dropParams n (LHS i f ps wps) = LHS i f (drop n ps) wps
+      stripImps (LHS i f ps wps) = do
+        ps <- stripImplicits ps wps
+        return $ LHS i f ps wps
 
 instance Reify Type Expr where
     reify (I.El _ t) = reify t

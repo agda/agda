@@ -68,7 +68,7 @@ makeCase hole rng s = do
 
 makeAbsurdClause :: QName -> SplitClause -> TCM A.Clause
 makeAbsurdClause f (SClause tel perm ps _) = do
-  reportSDoc "interaction.case" 1 $ vcat
+  reportSDoc "interaction.case" 10 $ vcat
     [ text "context =" <+> (prettyTCM =<< getContextTelescope)
     , text "tel =" <+> prettyTCM tel
     , text "perm =" <+> text (show perm)
