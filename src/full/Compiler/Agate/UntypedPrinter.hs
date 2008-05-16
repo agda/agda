@@ -1,11 +1,12 @@
 {-# OPTIONS -fglasgow-exts -cpp #-}
 
-#include "../../undefined.h"
-
 {-| Generate GHC code for untyped execution
 -}
 
 module Compiler.Agate.UntypedPrinter where
+
+#include "../../undefined.h"
+import Utils.Impossible
 
 import Compiler.Agate.TranslateName
 import Compiler.Agate.Common

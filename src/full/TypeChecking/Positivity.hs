@@ -28,6 +28,7 @@ import TypeChecking.Pretty
 import Utils.Monad
 
 #include "../undefined.h"
+import Utils.Impossible
 
 -- | Check that a set of mutually recursive datatypes are strictly positive.
 checkStrictlyPositive :: [QName] -> TCM ()

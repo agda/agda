@@ -32,6 +32,7 @@ import Utils.Permutation
 import Utils.Size
 
 #include "../undefined.h"
+import Utils.Impossible
 
 data SplitClause = SClause
       { scTel   :: Telescope      -- ^ type of variables in scPats

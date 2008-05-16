@@ -30,6 +30,7 @@ import Utils.Size
 import Utils.Permutation
 
 #include "../undefined.h"
+import Utils.Impossible
 
 -- | Find the clause whose right hand side is the given meta.
 --   Raises an error if there is no such clause.

@@ -27,6 +27,7 @@ import Utils.Permutation
 import Utils.Tuple
 
 #include "../../../undefined.h"
+import Utils.Impossible
 
 instance (Monad m, Error err) => Applicative (ErrorT err m) where
   pure	= return

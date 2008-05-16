@@ -1,11 +1,12 @@
 {-# OPTIONS -fglasgow-exts -cpp #-}
 
-#include "../../undefined.h"
-
 {-| Generate GHC code for optimized datatypes and their values
 -}
 
 module Compiler.Agate.OptimizedPrinter where
+
+#include "../../undefined.h"
+import Utils.Impossible
 
 import Control.Monad.Trans
 import qualified Data.Map as Map

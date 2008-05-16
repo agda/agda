@@ -23,6 +23,7 @@ import Utils.List
 import Utils.Monad
 
 #include "../undefined.h"
+import Utils.Impossible
 
 headSymbol :: Term -> TCM (Maybe TermHead)
 headSymbol v = do

@@ -10,6 +10,7 @@ import TypeChecking.Substitute
 import TypeChecking.Free
 
 #include "../undefined.h"
+import Utils.Impossible
 
 -- TODO: move to Syntax.Internal.SomeThing
 data BinAppView = App Term (Arg Term)

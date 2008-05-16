@@ -1,11 +1,12 @@
 {-# OPTIONS -fglasgow-exts -cpp #-}
 
-#include "../../undefined.h"
-
 {-| Translate Agda names into a variety of GHC names
 -}
 
 module Compiler.Agate.TranslateName where
+
+#include "../../undefined.h"
+import Utils.Impossible
 
 import Data.Char
 

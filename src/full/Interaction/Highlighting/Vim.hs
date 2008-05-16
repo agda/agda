@@ -23,6 +23,7 @@ import Utils.FileName
 import Utils.Tuple
 
 #include "../../undefined.h"
+import Utils.Impossible
 
 on f g x y = f (g x) (g y)
 

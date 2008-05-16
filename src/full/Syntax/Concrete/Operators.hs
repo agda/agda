@@ -46,6 +46,7 @@ import Utils.Tuple
 import Utils.Function
 
 #include "../../undefined.h"
+import Utils.Impossible
 
 ---------------------------------------------------------------------------
 -- * Building the parser

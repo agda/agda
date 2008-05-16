@@ -6,6 +6,7 @@ import Syntax.Common
 import Syntax.Internal
 
 #include "../../undefined.h"
+import Utils.Impossible
 
 class TermLike a where
   traverseTerm :: (Term -> Term) -> a -> a

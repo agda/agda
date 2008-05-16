@@ -15,6 +15,7 @@ import Syntax.Scope.Base
 import Utils.Size
 
 #include "../undefined.h"
+import Utils.Impossible
 
 displayForm :: QName -> Args -> TCM (Maybe DisplayTerm)
 displayForm c vs = do

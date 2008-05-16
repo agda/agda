@@ -29,6 +29,7 @@ import Utils.Size
 import Utils.List
 
 #include "../../undefined.h"
+import Utils.Impossible
 
 -- * The scope checking monad
 

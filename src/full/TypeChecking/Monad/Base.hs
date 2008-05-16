@@ -30,6 +30,7 @@ import Utils.Monad.Undo
 import Utils.Trace
 
 #include "../../undefined.h"
+import Utils.Impossible
 
 ---------------------------------------------------------------------------
 -- * Type checking state

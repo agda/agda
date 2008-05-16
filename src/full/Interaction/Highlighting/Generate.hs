@@ -33,6 +33,7 @@ import qualified Data.Sequence as Seq
 import qualified Data.Foldable as Fold (toList, foldMap)
 
 #include "../../undefined.h"
+import Utils.Impossible
 
 -- | Generates syntax highlighting information for an error,
 -- represented as a range and a string.

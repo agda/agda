@@ -14,6 +14,7 @@ import TypeChecking.Monad
 import TypeChecking.Substitute
 
 #include "../undefined.h"
+import Utils.Impossible
 
 -- | Order the fields of a record construction.
 orderFields :: MonadTCM tcm => QName -> [C.Name] -> [(C.Name, a)] -> tcm [a]

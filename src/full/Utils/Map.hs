@@ -9,6 +9,7 @@ import Data.Traversable
 import Utils.Monad
 
 #include "../undefined.h"
+import Utils.Impossible
 
 data EitherOrBoth a b = L a | B a b | R b
 

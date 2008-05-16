@@ -34,6 +34,7 @@ import Utils.Tuple
 import Utils.Unicode
 
 #include "../../undefined.h"
+import Utils.Impossible
 
 {--------------------------------------------------------------------------
     Scan functions

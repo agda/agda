@@ -34,6 +34,7 @@ import Utils.Size
 import Utils.Monad
 
 #include "../../undefined.h"
+import Utils.Impossible
 
 -- | Type check a sequence of declarations.
 checkDecls :: [A.Declaration] -> TCM ()

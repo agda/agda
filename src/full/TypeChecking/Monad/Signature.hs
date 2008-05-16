@@ -29,6 +29,7 @@ import Utils.Function
 import Utils.Permutation
 
 #include "../../undefined.h"
+import Utils.Impossible
 
 modifySignature :: MonadTCM tcm => (Signature -> Signature) -> tcm ()
 modifySignature f = modify $ \s -> s { stSignature = f $ stSignature s }

@@ -24,6 +24,7 @@ import Utils.Monad
 import Utils.Fresh
 
 #include "../../undefined.h"
+import Utils.Impossible
 
 -- | Get the meta store.
 getMetaStore :: MonadTCM tcm => tcm MetaStore

@@ -47,6 +47,7 @@ import Utils.Fresh
 import Utils.Monad.Undo
 
 #include "../../undefined.h"
+import Utils.Impossible
 
 data ExitCode a = Continue | ContinueIn TCEnv | Return a
 

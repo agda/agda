@@ -10,6 +10,7 @@ import Utils.ReadP
 import Utils.Monad
 
 #include "../../../undefined.h"
+import Utils.Impossible
 
 data ExprView e
     = LocalV Name

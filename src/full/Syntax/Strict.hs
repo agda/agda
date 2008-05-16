@@ -11,6 +11,7 @@ import qualified Syntax.Concrete as C
 import qualified Syntax.Concrete.Definitions as C
 
 #include "../undefined.h"
+import Utils.Impossible
 
 class Strict a where
     force :: a -> Int

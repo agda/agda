@@ -28,6 +28,7 @@ import TypeChecking.MetaVars (assignV, newArgsMetaCtx)
 import TypeChecking.Rules.LHS.Problem
 
 #include "../../../undefined.h"
+import Utils.Impossible
 
 newtype Unify a = U { unUnify :: ExceptionT UnifyException (StateT UnifyState TCM) a }
   deriving (Monad, MonadIO, Functor, Applicative, MonadReader TCEnv, MonadException UnifyException)

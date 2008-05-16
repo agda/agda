@@ -46,6 +46,7 @@ import Utils.Monad
 import Utils.Tuple
 
 #include "../../undefined.h"
+import Utils.Impossible
 
 
 {--------------------------------------------------------------------------

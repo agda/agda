@@ -32,6 +32,7 @@ import Utils.Permutation
 import Utils.Size
 
 #include "../../undefined.h"
+import Utils.Impossible
 
 data DotPatternInst = DPI A.Expr Term Type
 data AsBinding      = AsB Name Term Type

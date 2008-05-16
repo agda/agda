@@ -20,6 +20,7 @@ import Utils.Permutation
 import Utils.Size
 
 #include "../../../undefined.h"
+import Utils.Impossible
 
 -- | Instantiate a telescope with a substitution. Might reorder the telescope.
 --   @instantiateTel (Γ : Tel)(σ : Γ --> Γ) = Γσ~@

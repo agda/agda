@@ -27,6 +27,7 @@ import Utils.Monad
 import Utils.Trace
 
 #include "../undefined.h"
+import Utils.Impossible
 
 ---------------------------------------------------------------------------
 -- * Top level function

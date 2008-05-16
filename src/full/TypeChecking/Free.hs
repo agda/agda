@@ -15,6 +15,7 @@ import Syntax.Common
 import Syntax.Internal
 
 #include "../undefined.h"
+import Utils.Impossible
 
 data FreeVars = FV { rigidVars	  :: Set Nat
 		   , flexibleVars :: Set Nat

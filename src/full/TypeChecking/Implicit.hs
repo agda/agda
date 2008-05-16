@@ -7,6 +7,7 @@ module TypeChecking.Implicit where
 import Syntax.Common
 
 #include "../undefined.h"
+import Utils.Impossible
 
 data ImplicitInsertion
       = ImpInsert Int	  -- ^ this many implicits have to be inserted

@@ -22,6 +22,7 @@ import {-# SOURCE #-} TypeChecking.MetaVars
 import Utils.Fresh
 
 #include "../undefined.h"
+import Utils.Impossible
 
 -- | Catch pattern violation errors and adds a constraint.
 --

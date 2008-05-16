@@ -22,6 +22,7 @@ import {-# SOURCE #-} TypeChecking.Monad.Context
 #endif
 
 #include "../../undefined.h"
+import Utils.Impossible
 
 -- | Create an open term in the current context.
 makeOpen :: MonadTCM tcm => a -> tcm (Open a)

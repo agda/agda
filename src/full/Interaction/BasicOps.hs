@@ -38,6 +38,7 @@ import Utils.Monad
 import Utils.Monad.Undo
 
 #include "../undefined.h"
+import Utils.Impossible
 
 parseExprIn :: InteractionId -> Range -> String -> TCM Expr
 parseExprIn ii rng s = do

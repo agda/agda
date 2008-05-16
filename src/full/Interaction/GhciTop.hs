@@ -87,6 +87,7 @@ import Interaction.Highlighting.Generate
 import Termination.TermCheck
 
 #include "../undefined.h"
+import Utils.Impossible
 
 data State = State
   { theTCState   :: TCState
@@ -532,8 +533,10 @@ emacsStr s = go (show s) where
   go (c:s) = c : go s
   go []    = []
 
-
-infoOnException m = failOnException inform m where
+infoOnException m =
+  failOnException inform m `catchImpossible` \e ->
+    inform noRange (show e)
+  where
   inform rng msg = do
     outputErrorInfo Nothing rng msg
     display_info "*Error*" $ unlines [show rng ++ " : ", msg]

@@ -14,6 +14,7 @@ import Utils.Monad
 import Utils.Size
 
 #include "../undefined.h"
+import Utils.Impossible
 
 data Hiding  = Hidden | NotHidden
     deriving (Typeable, Data, Show, Eq)

@@ -17,6 +17,7 @@ import TypeChecking.Primitive
 import Utils.Monad
 
 #include "../../undefined.h"
+import Utils.Impossible
 
 -- | If matching is inconclusive (@DontKnow@) we want to know whether
 --   it is due to a particular meta variable.

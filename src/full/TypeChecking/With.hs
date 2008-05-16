@@ -25,6 +25,7 @@ import Utils.Permutation
 import Utils.Size
 
 #include "../undefined.h"
+import Utils.Impossible
 
 showPat (VarP x)    = text x
 showPat (DotP t)    = comma <> text (showsPrec 10 t "")

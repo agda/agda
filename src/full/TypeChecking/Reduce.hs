@@ -30,6 +30,7 @@ import {-# SOURCE #-} TypeChecking.Patterns.Match
 import Utils.Monad
 
 #include "../undefined.h"
+import Utils.Impossible
 
 -- | Instantiate something.
 --   Results in an open meta variable or a non meta.

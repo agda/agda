@@ -19,6 +19,7 @@ import Utils.Size
 import Utils.Suffix
 
 #include "../../undefined.h"
+import Utils.Impossible
 
 -- | A name is a unique identifier and a suggestion for a concrete name. The
 --   concrete name contains the source location (if any) of the name. The

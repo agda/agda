@@ -1,11 +1,12 @@
 {-# OPTIONS -fglasgow-exts -cpp #-}
 
-#include "../../undefined.h"
-
 {-| main module.
 -}
 
 module Compiler.Agate.Main where
+
+#include "../../undefined.h"
+import Utils.Impossible
 
 import Compiler.Agate.TranslateName
 import Compiler.Agate.OptimizedPrinter

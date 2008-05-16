@@ -29,6 +29,7 @@ import Utils.Size
 import Utils.Tuple
 
 #include "../../undefined.h"
+import Utils.Impossible
 
 ---------------------------------------------------------------------------
 -- * Datatypes

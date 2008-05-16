@@ -9,6 +9,7 @@ import TypeChecking.Substitute
 import Utils.Function
 
 #include "../undefined.h"
+import Utils.Impossible
 
 piAbstractTerm :: Term -> Type -> Type -> Type
 piAbstractTerm v a b = fun a (abstractTerm v b)

@@ -45,6 +45,7 @@ import Utils.Permutation
 import Utils.Size
 
 #include "../../undefined.h"
+import Utils.Impossible
 
 apps :: MonadTCM tcm => (Expr, [Arg Expr]) -> tcm Expr
 apps (e, [])		    = return e

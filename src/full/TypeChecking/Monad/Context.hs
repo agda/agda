@@ -19,6 +19,7 @@ import Utils.Monad
 import Utils.Fresh
 
 #include "../../undefined.h"
+import Utils.Impossible
 
 mkContextEntry :: MonadTCM tcm => Arg (Name, Type) -> tcm ContextEntry
 mkContextEntry x = do

@@ -18,6 +18,7 @@ import Utils.Size
 import Utils.Permutation
 
 #include "../undefined.h"
+import Utils.Impossible
 
 -- | Apply something to a bunch of arguments.
 --   Preserves blocking tags (application can never resolve blocking).

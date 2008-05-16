@@ -1,11 +1,12 @@
 {-# OPTIONS -fglasgow-exts -cpp #-}
 
-#include "../../undefined.h"
-
 {-| common
 -}
 
 module Compiler.Agate.Common where
+
+#include "../../undefined.h"
+import Utils.Impossible
 
 import Control.Monad
 

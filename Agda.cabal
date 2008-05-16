@@ -171,6 +171,7 @@ library
                    Utils.Function
                    Utils.Generics
                    Utils.Hash
+                   Utils.Impossible
                    Utils.IO
                    Utils.List
                    Utils.Map

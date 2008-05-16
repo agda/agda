@@ -26,6 +26,7 @@ import Utils.Monad
 import TypeChecking.Monad.Debug
 
 #include "../undefined.h"
+import Utils.Impossible
 
 -- | Check if to lists of arguments are the same (and all variables).
 --   Precondition: the lists have the same length.

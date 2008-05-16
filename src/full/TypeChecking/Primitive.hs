@@ -28,6 +28,7 @@ import Utils.Monad
 import Utils.Pretty (pretty)
 
 #include "../undefined.h"
+import Utils.Impossible
 
 -- | Rewrite a literal to constructor form if possible.
 constructorForm :: MonadTCM tcm => Term -> tcm Term

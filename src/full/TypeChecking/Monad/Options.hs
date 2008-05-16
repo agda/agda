@@ -19,6 +19,7 @@ import Utils.Trie (Trie)
 import qualified Utils.Trie as Trie
 
 #include "../../undefined.h"
+import Utils.Impossible
 
 setCommandLineOptions :: MonadTCM tcm => CommandLineOptions -> tcm ()
 setCommandLineOptions opts =

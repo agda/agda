@@ -21,6 +21,7 @@ import Utils.TestHelpers
 import Utils.Monad
 
 #include "../../undefined.h"
+import Utils.Impossible
 
 instance Applicative Gen where
   pure	= return

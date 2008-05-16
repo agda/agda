@@ -17,6 +17,7 @@ import Utils.Permutation
 import Utils.Size
 
 #include "../../undefined.h"
+import Utils.Impossible
 
 -- | We use a special representation of the patterns we're trying to match
 --   against a clause. In particular we want to keep track of which variables

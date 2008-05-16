@@ -36,6 +36,7 @@ import Utils.Tuple
 import Utils.Suffix
 
 #include "../../undefined.h"
+import Utils.Impossible
 
 -- Environment ------------------------------------------------------------
 

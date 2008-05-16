@@ -20,6 +20,7 @@ import Utils.Function
 import Utils.Tuple
 
 #include "../../undefined.h"
+import Utils.Impossible
 
 -- * Scope representation
 

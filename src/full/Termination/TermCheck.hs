@@ -43,6 +43,7 @@ import Utils.Size
 import Utils.Monad (thread, (<$>))
 
 #include "../undefined.h"
+import Utils.Impossible
 
 type Calls = Term.CallGraph (Set R.Range)
 type MutualNames = [QName]

@@ -18,6 +18,7 @@ import Utils.Size
 import Utils.Tuple
 
 #include "../undefined.h"
+import Utils.Impossible
 
 -- | The permutation should permute the corresponding telescope. (left-to-right list)
 rename :: Subst t => Permutation -> t -> t

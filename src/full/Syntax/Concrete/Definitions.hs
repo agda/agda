@@ -27,6 +27,7 @@ import Syntax.Concrete.Pretty
 import Utils.Pretty
 
 #include "../../undefined.h"
+import Utils.Impossible
 
 {--------------------------------------------------------------------------
     Types

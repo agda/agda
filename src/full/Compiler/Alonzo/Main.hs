@@ -1,7 +1,10 @@
 {-# LANGUAGE CPP #-}
-#include "../../undefined.h"
 
 module Compiler.Alonzo.Main where
+
+#include "../../undefined.h"
+import Utils.Impossible
+
 import Debug.Trace(trace)
 import Language.Haskell.Syntax
 import Language.Haskell.Pretty

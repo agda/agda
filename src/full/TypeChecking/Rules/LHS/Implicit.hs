@@ -18,6 +18,7 @@ import TypeChecking.Pretty
 import TypeChecking.Rules.LHS.Problem
 
 #include "../../../undefined.h"
+import Utils.Impossible
 
 -- | Insert implicit patterns in a problem.
 insertImplicitProblem :: Problem -> TCM Problem

@@ -26,6 +26,7 @@ import Utils.Size
 import Utils.Permutation
 
 #include "../../undefined.h"
+import Utils.Impossible
 
 ---------------------------------------------------------------------------
 -- * Records

@@ -22,6 +22,7 @@ import Syntax.Position
 import Utils.Monad
 
 #include "../../undefined.h"
+import Utils.Impossible
 
 -- | Should comment tokens be output?
 

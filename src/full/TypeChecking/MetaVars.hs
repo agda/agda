@@ -39,6 +39,7 @@ import Utils.Size
 import TypeChecking.Monad.Debug
 
 #include "../undefined.h"
+import Utils.Impossible
 
 -- | Find position of a value in a list.
 --   Used to change metavar argument indices during assignment.

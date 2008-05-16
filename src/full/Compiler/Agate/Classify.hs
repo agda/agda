@@ -1,12 +1,13 @@
 {-# OPTIONS -fglasgow-exts -cpp #-}
 
-#include "../../undefined.h"
-
 {-| Classify type familes and constants
     TODO: optimize by getting rid of !'s
 -}
 
 module Compiler.Agate.Classify where
+
+#include "../../undefined.h"
+import Utils.Impossible
 
 import Compiler.Agate.TranslateName
 import Compiler.Agate.Common

@@ -51,6 +51,7 @@ import Utils.Permutation
 import Utils.Monad
 
 #include "../../undefined.h"
+import Utils.Impossible
 
 ---------------------------------------------------------------------------
 -- * Definitions by pattern matching
