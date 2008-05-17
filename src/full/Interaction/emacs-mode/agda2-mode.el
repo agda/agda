@@ -175,90 +175,35 @@ want settings to this variable to take effect."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Global and buffer-local vars, initialization
 
-; Syntax table:
-; {}            | Comment characters, matching parentheses.
-; -             | Comment character, word constituent.
-; \n            | Comment ender.
-; space\t\v\f\r | White space.
-; .;            | Punctuation.
-; ()[]⟦⟧⟪⟫❨❩❪❫❬❭❮❯❰❱❲❳❴❵〈〉⦃⦄〈〉《》「」『』【】〔〕〖〗〚〛︵︶︷︸︹
-; ︺︻︼︽︾︿﹀﹁﹂﹃﹄﹇﹈﹙﹚﹛﹜﹝﹞（）［］｛｝⦅⦆⦇⦈⦉⦊⦋⦌⦍⦎⦏⦐⦑⦒⦓⦔⦕⦖⦗⦘
-; (and possibly more)
-;               | Matching parentheses.
-; Anything else | Word constituents.
-
 (defvar agda2-mode-syntax-table
   (let ((tbl (make-syntax-table))
+        (std (standard-syntax-table))
         (special '((?{ . "(}1n") (?} . "){4n") (?- . "w 123b") (?\n . "> b")
-                   (?  . " ") (?\t . " ") (?\v . " ") (?\f . " ") (?\r . " ")
-                   (?. . ".") (?\; . ".")
-                   (?[ . "(]") (?] . ")[")
-                   (?［ . "(］") (?］ . ")［")
-                   (?｛ . "(｝") (?｝ . ")｛")
-                   ;; The rest of this list can be removed when
-                   ;; support for Emacs 22 is dropped.
-                   (?\( . "()") (?\) . ")(")
-                   (?⟦ . "(⟧") (?⟧ . ")⟦")
-                   (?⟪ . "(⟫") (?⟫ . ")⟪")
-                   (?❨ . "(❩") (?❩ . ")❨")
-                   (?❪ . "(❫") (?❫ . ")❪")
-                   (?❬ . "(❭") (?❭ . ")❬")
-                   (?❮ . "(❯") (?❯ . ")❮")
-                   (?❰ . "(❱") (?❱ . ")❰")
-                   (?❲ . "(❳") (?❳ . ")❲")
-                   (?❴ . "(❵") (?❵ . ")❴")
-                   (?〈 . "(〉") (?〉 . ")〈")
-                   (?⦃ . "(⦄") (?⦄ . ")⦃")
-                   (?〈 . "(〉") (?〉 . ")〈")
-                   (?《 . "(》") (?》 . ")《")
-                   (?「 . "(」") (?」 . ")「")
-                   (?『 . "(』") (?』 . ")『")
-                   (?【 . "(】") (?】 . ")【")
-                   (?〔 . "(〕") (?〕 . ")〔")
-                   (?〖 . "(〗") (?〗 . ")〖")
-                   (?〚 . "(〛") (?〛 . ")〚")
-                   (?︵ . "(︶") (?︶ . ")︵")
-                   (?︷ . "(︸") (?︸ . ")︷")
-                   (?︹ . "(︺") (?︺ . ")︹")
-                   (?︻ . "(︼") (?︼ . ")︻")
-                   (?︽ . "(︾") (?︾ . ")︽")
-                   (?︿ . "(﹀") (?﹀ . ")︿")
-                   (?﹁ . "(﹂") (?﹂ . ")﹁")
-                   (?﹃ . "(﹄") (?﹄ . ")﹃")
-                   (?﹇ . "(﹈") (?﹈ . ")﹇")
-                   (?﹙ . "(﹚") (?﹚ . ")﹙")
-                   (?﹛ . "(﹜") (?﹜ . ")﹛")
-                   (?﹝ . "(﹞") (?﹞ . ")﹝")
-                   (?（ . "(）") (?） . ")（")
-                   (?⦅ . "(⦆") (?⦆ . ")⦅")
-                   (?⦇ . "(⦈") (?⦈ . ")⦇")
-                   (?⦉ . "(⦊") (?⦊ . ")⦉")
-                   (?⦋ . "(⦌") (?⦌ . ")⦋")
-                   (?⦍ . "(⦎") (?⦎ . ")⦍")
-                   (?⦏ . "(⦐") (?⦐ . ")⦏")
-                   (?⦑ . "(⦒") (?⦒ . ")⦑")
-                   (?⦓ . "(⦔") (?⦔ . ")⦓")
-                   (?⦕ . "(⦖") (?⦖ . ")⦕")
-                   (?⦗ . "(⦘") (?⦘ . ")⦗")))
+                   (?. . ".") (?\; . ".")))
         (i 0))
-    (while (<= i #x7ffff)
-      (if (char-valid-p i)
-          ; The following if statement always takes the "then" branch
-          ; on Emacs 22. When Emacs 23 is released we can remove
-          ; almost all the parentheses from the `special' list,
-          ; because they are detected automatically by the code below.
-          (if (and (equal (get-char-code-property i      'general-category) 'Ps) ; Open  paren.
-                   (equal (get-char-code-property (1+ i) 'general-category) 'Pe) ; Close paren.
-                   (not (assq i      special))
-                   (not (assq (1+ i) special)))
-              (progn
-                (modify-syntax-entry i      (concat "(" `(,(1+ i))) tbl)
-                (modify-syntax-entry (1+ i) (concat ")" `(,i))       tbl)
-                (setq i (1+ i)))
-            (modify-syntax-entry i (or (cdr-safe (assq i special)) "w") tbl)))
-      (setq i (1+ i)))
+    (with-syntax-table std
+      (while (<= i #x7ffff)
+        (if (char-valid-p i)
+            (let ((syntax (or (cdr-safe (assq i special))
+                              (cond ((equal (char-syntax i) ? ) " ")
+                                    ((equal (char-syntax i) ?\()
+                                     (concat "(" (string (cdr-safe (aref std i)))))
+                                    ((equal (char-syntax i) ?\))
+                                     (concat ")" (string (cdr-safe (aref std i)))))
+                                    (t "w")))))
+              (modify-syntax-entry i syntax tbl)))
+        (setq i (1+ i))))
     tbl)
-  "Syntax table used by the Agda 2 mode.")
+  "Syntax table used by the Agda 2 mode:
+
+{} | Comment characters, matching parentheses.
+-  | Comment character, word constituent.
+\n | Comment ender.
+.; | Punctuation.
+
+Remaining characters are treated as matching parentheses or
+whitespace if the standard syntax table treats them like that, and
+as word constituents otherwise.")
 
 (defvar agda2-mode-map (make-sparse-keymap "Agda mode") "Keymap for agda2-mode")
 (defvar agda2-goal-map (make-sparse-keymap "Agda goal")
