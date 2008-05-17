@@ -88,7 +88,7 @@ them (globally) according to ATTRS."
   "*You can change the face settings below to a predefined colour
 scheme by changing this option. Note that changing this option does
 not remove the customisations below; you can get them back by
-resetting this option."
+resetting this option and restarting Emacs."
   :type '(choice
             (const :tag "Use the settings below." nil)
             (const :tag "Use a (currently unfinished) approximation of
