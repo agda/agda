@@ -181,7 +181,10 @@ want settings to this variable to take effect."
 ; \n            | Comment ender.
 ; space\t\v\f\r | White space.
 ; .;            | Punctuation.
-; ()[]⟦⟧⟪⟫      | Matching parentheses.
+; ()[]⟦⟧⟪⟫❨❩❪❫❬❭❮❯❰❱❲❳❴❵〈〉⦃⦄〈〉《》「」『』【】〔〕〖〗〚〛︵︶︷︸︹
+; ︺︻︼︽︾︿﹀﹁﹂﹃﹄﹇﹈﹙﹚﹛﹜﹝﹞（）［］｛｝⦅⦆⦇⦈⦉⦊⦋⦌⦍⦎⦏⦐⦑⦒⦓⦔⦕⦖⦗⦘
+; (and possibly more)
+;               | Matching parentheses.
 ; Anything else | Word constituents.
 
 (defvar agda2-mode-syntax-table
@@ -189,12 +192,70 @@ want settings to this variable to take effect."
         (special '((?{ . "(}1n") (?} . "){4n") (?- . "w 123b") (?\n . "> b")
                    (?  . " ") (?\t . " ") (?\v . " ") (?\f . " ") (?\r . " ")
                    (?. . ".") (?\; . ".")
-                   (?\( . "()") (?\) . ")(") (?[ . "(]") (?] . ")[")
-                   (?⟦ . "(⟧") (?⟧ . ")⟦") (?⟪ . "(⟫") (?⟫ . ")⟪")))
+                   (?[ . "(]") (?] . ")[")
+                   (?［ . "(］") (?］ . ")［")
+                   (?｛ . "(｝") (?｝ . ")｛")
+                   ;; The rest of this list can be removed when
+                   ;; support for Emacs 22 is dropped.
+                   (?\( . "()") (?\) . ")(")
+                   (?⟦ . "(⟧") (?⟧ . ")⟦")
+                   (?⟪ . "(⟫") (?⟫ . ")⟪")
+                   (?❨ . "(❩") (?❩ . ")❨")
+                   (?❪ . "(❫") (?❫ . ")❪")
+                   (?❬ . "(❭") (?❭ . ")❬")
+                   (?❮ . "(❯") (?❯ . ")❮")
+                   (?❰ . "(❱") (?❱ . ")❰")
+                   (?❲ . "(❳") (?❳ . ")❲")
+                   (?❴ . "(❵") (?❵ . ")❴")
+                   (?〈 . "(〉") (?〉 . ")〈")
+                   (?⦃ . "(⦄") (?⦄ . ")⦃")
+                   (?〈 . "(〉") (?〉 . ")〈")
+                   (?《 . "(》") (?》 . ")《")
+                   (?「 . "(」") (?」 . ")「")
+                   (?『 . "(』") (?』 . ")『")
+                   (?【 . "(】") (?】 . ")【")
+                   (?〔 . "(〕") (?〕 . ")〔")
+                   (?〖 . "(〗") (?〗 . ")〖")
+                   (?〚 . "(〛") (?〛 . ")〚")
+                   (?︵ . "(︶") (?︶ . ")︵")
+                   (?︷ . "(︸") (?︸ . ")︷")
+                   (?︹ . "(︺") (?︺ . ")︹")
+                   (?︻ . "(︼") (?︼ . ")︻")
+                   (?︽ . "(︾") (?︾ . ")︽")
+                   (?︿ . "(﹀") (?﹀ . ")︿")
+                   (?﹁ . "(﹂") (?﹂ . ")﹁")
+                   (?﹃ . "(﹄") (?﹄ . ")﹃")
+                   (?﹇ . "(﹈") (?﹈ . ")﹇")
+                   (?﹙ . "(﹚") (?﹚ . ")﹙")
+                   (?﹛ . "(﹜") (?﹜ . ")﹛")
+                   (?﹝ . "(﹞") (?﹞ . ")﹝")
+                   (?（ . "(）") (?） . ")（")
+                   (?⦅ . "(⦆") (?⦆ . ")⦅")
+                   (?⦇ . "(⦈") (?⦈ . ")⦇")
+                   (?⦉ . "(⦊") (?⦊ . ")⦉")
+                   (?⦋ . "(⦌") (?⦌ . ")⦋")
+                   (?⦍ . "(⦎") (?⦎ . ")⦍")
+                   (?⦏ . "(⦐") (?⦐ . ")⦏")
+                   (?⦑ . "(⦒") (?⦒ . ")⦑")
+                   (?⦓ . "(⦔") (?⦔ . ")⦓")
+                   (?⦕ . "(⦖") (?⦖ . ")⦕")
+                   (?⦗ . "(⦘") (?⦘ . ")⦗")))
         (i 0))
     (while (<= i #x7ffff)
       (if (char-valid-p i)
-          (modify-syntax-entry i (or (cdr-safe (assq i special)) "w") tbl))
+          ; The following if statement always takes the "then" branch
+          ; on Emacs 22. When Emacs 23 is released we can remove
+          ; almost all the parentheses from the `special' list,
+          ; because they are detected automatically by the code below.
+          (if (and (equal (get-char-code-property i      'general-category) 'Ps) ; Open  paren.
+                   (equal (get-char-code-property (1+ i) 'general-category) 'Pe) ; Close paren.
+                   (not (assq i      special))
+                   (not (assq (1+ i) special)))
+              (progn
+                (modify-syntax-entry i      (concat "(" `(,(1+ i))) tbl)
+                (modify-syntax-entry (1+ i) (concat ")" `(,i))       tbl)
+                (setq i (1+ i)))
+            (modify-syntax-entry i (or (cdr-safe (assq i special)) "w") tbl)))
       (setq i (1+ i)))
     tbl)
   "Syntax table used by the Agda 2 mode.")
