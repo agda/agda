@@ -262,6 +262,10 @@ want settings to this variable to take effect."
 (defvar agda2-buffer-state "Text"
   "State of an agda2-mode buffer. \"Text\" or \"Checked\".")
 (make-variable-buffer-local 'agda2-buffer-state)
+(defvar agda2-buffer-external-status ""
+  "External status of an agda2-mode buffer (dictated by the Haskell
+side).")
+(make-variable-buffer-local 'agda2-buffer-external-status)
 
 (defconst agda2-help-address
   ""
@@ -309,7 +313,10 @@ Special commands:
        major-mode         'agda2-mode
        local-abbrev-table agda2-mode-abbrev-table
        indent-tabs-mode   nil
-       mode-line-process  '(":" (:eval agda2-buffer-state)))
+       mode-line-process
+         '(":" (:eval agda2-buffer-state)
+               (:eval (unless (eq 0 (length agda2-buffer-external-status))
+                              (concat "(" agda2-buffer-external-status ")")))))
  (let ((l '(max-specpdl-size    2600
             max-lisp-eval-depth 2800)))
    (while l (set (make-local-variable (pop l)) (pop l))))
@@ -463,6 +470,13 @@ annotate new goals NEW-GS"
                                             (cadr case-undo)
                                             (elt  case-undo 2))
                                       rest-undo))))))
+
+(defun agda2-status-action (status)
+  "Display the string STATUS in the current buffer's mode line
+(precondition: the current buffer has to use the Agda mode as the
+major mode)."
+  (interactive)
+  (setq agda2-buffer-external-status status))
 
 (defun agda2-info-action (name text)
   "Insert TEXT into the Agda info buffer, display it, and display NAME

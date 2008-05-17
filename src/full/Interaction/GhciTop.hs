@@ -52,7 +52,8 @@ import Data.Map as Map
 import System.Exit
 
 import TypeChecker
-import TypeChecking.Monad as TM hiding (initState)
+import TypeChecking.Monad as TM
+  hiding (initState, setCommandLineOptions)
 import qualified TypeChecking.Monad as TM
 import TypeChecking.MetaVars
 import TypeChecking.Reduce
@@ -126,7 +127,7 @@ ioTCM' mFile cmd = do
     `catchError` \err -> do
 	s <- prettyError err
         liftIO $ outputErrorInfo mFile (getRange err) s
-	liftIO $ display_info "*Error*" s
+	display_info "*Error*" s
 	fail "exit"
   case r of
     Right (a,st',ss') -> do
@@ -230,7 +231,7 @@ cmd_load file includes = infoOnException $ do
 cmd_constraints :: IO ()
 cmd_constraints = infoOnException $ ioTCM $ do
     cs <- mapM showA =<< B.getConstraints
-    liftIO $ display_info "*Constraints*" (unlines cs)
+    display_info "*Constraints*" (unlines cs)
 
 
 cmd_metas :: IO ()
@@ -239,8 +240,7 @@ cmd_metas = infoOnException $ ioTCM $ do -- CL.showMetas []
   hms <- snd <$> B.typeOfMetas B.Normalised -- show unsolved implicit arguments normalised
   di <- mapM (\i -> B.withInteractionId (B.outputFormId i) (showA i)) ims
   dh <- mapM showA' hms
-  liftIO $ display_info "*All Goals*" $ unlines $
-    di ++ dh
+  display_info "*All Goals*" $ unlines $ di ++ dh
   where
     metaId (B.OfType i _) = i
     metaId (B.JustType i) = i
@@ -278,26 +278,26 @@ give_gen give_ref mk_newtxt ii rng s = infoOnException $ do
     cmd_metas
 
 cmd_context :: B.Rewrite -> GoalCommand
-cmd_context norm ii _ _ = infoOnException $ do
+cmd_context norm ii _ _ = infoOnException $ ioTCM $
   display_info "*Context*" . unlines
-      =<< ioTCM (B.withInteractionId ii $ mapM showA =<< B.contextOfMeta ii norm)
+    =<< B.withInteractionId ii (mapM showA =<< B.contextOfMeta ii norm)
 
 cmd_infer :: B.Rewrite -> GoalCommand
-cmd_infer norm ii rng s = infoOnException $ do
+cmd_infer norm ii rng s = infoOnException $ ioTCM $
   display_info "*Inferred Type*"
-      =<< ioTCM (B.withInteractionId ii $ showA =<< B.typeInMeta ii norm =<< B.parseExprIn ii rng s)
+    =<< B.withInteractionId ii (showA =<< B.typeInMeta ii norm =<< B.parseExprIn ii rng s)
 
 cmd_goal_type :: B.Rewrite -> GoalCommand
-cmd_goal_type norm ii _ _ = infoOnException $ do 
-    s <- ioTCM $ B.withInteractionId ii $ showA =<< B.typeOfMeta norm ii
+cmd_goal_type norm ii _ _ = infoOnException $ ioTCM $ do
+    s <- B.withInteractionId ii $ showA =<< B.typeOfMeta norm ii
     display_info "*Current Goal*" s
 
 -- | Displays the current goal and context.
 
 cmd_goal_type_context :: B.Rewrite -> GoalCommand
-cmd_goal_type_context norm ii _ _ = infoOnException $ do 
-    goal <- ioTCM $ B.withInteractionId ii $ showA =<< B.typeOfMeta norm ii
-    ctx  <- ioTCM (B.withInteractionId ii $ mapM showA =<< B.contextOfMeta ii norm)
+cmd_goal_type_context norm ii _ _ = infoOnException $ ioTCM $ do
+    goal <- B.withInteractionId ii $ showA =<< B.typeOfMeta norm ii
+    ctx  <- B.withInteractionId ii $ mapM showA =<< B.contextOfMeta ii norm
     display_info "*Goal and context*"
                  (unlines $ ctx ++ [replicate 40 '-'] ++ lines goal)
   where indent = List.map ("  " ++) . lines
@@ -305,10 +305,10 @@ cmd_goal_type_context norm ii _ _ = infoOnException $ do
 -- | Displays the current goal _and_ infers the type of an expression.
 
 cmd_goal_type_infer :: B.Rewrite -> GoalCommand
-cmd_goal_type_infer norm ii rng s = infoOnException $ do 
-    goal <- ioTCM $ B.withInteractionId ii $ showA =<< B.typeOfMeta norm ii
-    typ  <- ioTCM (B.withInteractionId ii $
-                     showA =<< B.typeInMeta ii norm =<< B.parseExprIn ii rng s)
+cmd_goal_type_infer norm ii rng s = infoOnException $ ioTCM $ do
+    goal <- B.withInteractionId ii $ showA =<< B.typeOfMeta norm ii
+    typ  <- B.withInteractionId ii $
+               showA =<< B.typeInMeta ii norm =<< B.parseExprIn ii rng s
     display_info "*Goal and inferred type*"
                  (unlines $
                     ["Want:"] ++
@@ -317,10 +317,41 @@ cmd_goal_type_infer norm ii rng s = infoOnException $ do
                     indent typ)
   where indent = List.map ("  " ++) . lines
 
-display_info :: String -> String -> IO()
-display_info bufname content =
-  putStrLn . response
-    $ L[A"agda2-info-action", A(quote bufname),  A(quote content)]
+-- | Sets the command line options and updates the status information.
+
+setCommandLineOptions :: CommandLineOptions -> TCM ()
+setCommandLineOptions opts = do
+  TM.setCommandLineOptions opts
+  displayStatus
+
+-- | Displays/updates some status information (currently just
+-- indicates whether or not implicit arguments are shown).
+
+displayStatus :: TCM ()
+displayStatus = do
+  showImpl <- showImplicitArguments
+  let statusString = if showImpl then "ShowImplicit" else ""
+  liftIO $ putStrLn $ response $
+    L [A "agda2-status-action", A (quote statusString)]
+
+-- | @display_info header content@ displays @content@ (with header
+-- @header@) in some suitable way, and also displays some status
+-- information (see 'displayStatus').
+
+display_info :: String -> String -> TCM ()
+display_info bufname content = do
+  displayStatus
+  liftIO $ display_info' bufname content
+
+-- | Like 'display_info', but does not display status information.
+
+display_info' :: String -> String -> IO ()
+display_info' bufname content =
+  putStrLn $ response $
+    L [ A "agda2-info-action"
+      , A (quote bufname)
+      , A (quote content)
+      ]
 
 response :: Lisp String -> String
 response l = show (text "agda2_mode_code" <+> pretty l)
@@ -376,7 +407,7 @@ cmd_solveAll = infoOnException $ ioTCM $ do
     go :: InteractionId -> MetaId -> TCM [(InteractionId, SC.Expr)] -> TCM [(InteractionId, SC.Expr)]
     go ii mi rest = do
       mv <- lookupMeta mi
-      withMetaInfo (getMetaInfo mv) $ do    
+      withMetaInfo (getMetaInfo mv) $ do
         args <- getContextArgs
         let out m = do e <- lowerMeta <$> (abstractToConcrete_ =<< reify m)
                        ((ii, e):) <$> rest
@@ -476,13 +507,12 @@ preUscore = SC.Underscore   noRange Nothing
 
 cmd_compute :: Bool -- ^ Ignore abstract?
                -> GoalCommand
-cmd_compute ignore ii rng s = infoOnException $ do
-  d <- ioTCM $ do
-    e <- B.parseExprIn ii rng s
-    B.withInteractionId ii $ do
-      let c = B.evalInCurrent e
-      v <- if ignore then ignoreAbstractMode c else c
-      prettyA v
+cmd_compute ignore ii rng s = infoOnException $ ioTCM $ do
+  e <- B.parseExprIn ii rng s
+  d <- B.withInteractionId ii $ do
+         let c = B.evalInCurrent e
+         v <- if ignore then ignoreAbstractMode c else c
+         prettyA v
   display_info "*Normal Form*" (show d)
 
 -- | Parses and scope checks an expression (using insideScope topLevel
@@ -500,12 +530,12 @@ parseAndDoAtToplevel
 parseAndDoAtToplevel cmd title s = infoOnException $ do
   e <- parse exprParser s
   mTopLevel <- theTopLevel <$> readIORef theState
-  display_info title =<< ioTCM (
+  ioTCM $ display_info title =<<
     case mTopLevel of
       Nothing       -> return "Error: First load the file."
       Just topLevel -> do
         setScope $ insideScope topLevel
-        showA =<< cmd =<< concreteToAbstract_ e)
+        showA =<< cmd =<< concreteToAbstract_ e
 
 -- | Parse the given expression (as if it were defined at the
 -- top-level of the current module) and infer its type.
@@ -543,7 +573,7 @@ infoOnException m =
   where
   inform rng msg = do
     outputErrorInfo Nothing rng msg
-    display_info "*Error*" $ rng' ++ msg
+    display_info' "*Error*" $ rng' ++ msg
     exitWith (ExitFailure 1)
     where
     rng' | rng == noRange = ""
