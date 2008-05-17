@@ -173,6 +173,10 @@ cmd_load file includes = infoOnException $ do
     (pragmas, m) <- parseFile' moduleParser file
     setWorkingDirectory file m
     is <- ioTCM' (Just file) $ do
+            -- All options are reset when a file is reloaded,
+            -- including the choice of whether or not to display
+            -- implicit arguments.
+            setCommandLineOptions defaultOptions
             enableSyntaxHighlighting
             setIncludeDirectories includes
 	    resetState
