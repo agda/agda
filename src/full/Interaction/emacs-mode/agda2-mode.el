@@ -260,17 +260,9 @@ want settings to this variable to take effect."
 
 ;; Some buffer locals
 (defvar agda2-buffer-state "Text"
-  "State of an agda2-mode buffer.  \"Text\" or \"Type Correct\"")
+  "State of an agda2-mode buffer. \"Text\" or \"Checked\".")
 (make-variable-buffer-local 'agda2-buffer-state)
 
-(defconst agda2-buffer-identification
-  '((:eval agda2-buffer-state)
-    ": "
-    (:eval (let ((b (copy-sequence (buffer-name))))
-             (put-text-property 0 (length b)
-                                'face '(:weight bold)
-                                b)
-             (substring b 0 (min (length b) 30))))))
 (defconst agda2-help-address
   ""
   "Address accepting submissions of bug reports and questions")
@@ -317,7 +309,7 @@ Special commands:
        major-mode         'agda2-mode
        local-abbrev-table agda2-mode-abbrev-table
        indent-tabs-mode   nil
-       mode-line-buffer-identification agda2-buffer-identification)
+       mode-line-process  '(":" (:eval agda2-buffer-state)))
  (let ((l '(max-specpdl-size    2600
             max-lisp-eval-depth 2800)))
    (while l (set (make-local-variable (pop l)) (pop l))))
@@ -423,7 +415,7 @@ WANT is an optional prompt.  When ASK is non-nil, use minibuffer."
   (agda2-undoable
    (agda2-forget-all-goals)
    (agda2-annotate gs (point-min))
-   (setq agda2-buffer-state "Type Checked")))
+   (setq agda2-buffer-state "Checked")))
 
 (defun agda2-give()
   "Give to the goal at point the expression in it" (interactive)
