@@ -10,7 +10,92 @@
   :group 'agda2)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Functions for setting faces
+
+(defun agda2-highlight-set-face-attribute (face attrs)
+  "Clears all attributes of the face FACE, and then sets
+them (globally) according to ATTRS."
+  (set-face-attribute face nil
+                      :family         'unspecified
+                      :width          'unspecified
+                      :height         'unspecified
+                      :weight         'unspecified
+                      :slant          'unspecified
+                      :foreground     'unspecified
+                      :background     'unspecified
+                      :inverse-video  'unspecified
+                      :stipple        'unspecified
+                      :underline      'unspecified
+                      :overline       'unspecified
+                      :strike-through 'unspecified
+                      :inherit        'unspecified
+                      :box            'unspecified)
+  (eval `(set-face-attribute face nil ,@attrs)))
+
+(defun agda2-highlight-set-faces (variable group)
+  "Sets all Agda faces according to the value of GROUP."
+  (set-default variable group)
+  (mapc (lambda (face-and-attrs)
+          (agda2-highlight-set-face-attribute
+           (car face-and-attrs) (cdr face-and-attrs)))
+        (cond
+         ((equal group 'conor)
+          '((agda2-highlight-comment-face
+             :foreground "gray35")
+            (agda2-highlight-keyword-face
+             :underline t)
+            (agda2-highlight-string-face)
+            (agda2-highlight-number-face)
+            (agda2-highlight-symbol-face)
+            (agda2-highlight-primitive-type-face
+             :foreground "blue")
+            (agda2-highlight-bound-variable-face
+             :foreground "purple")
+            (agda2-highlight-constructor-face
+             :foreground "dark red")
+            (agda2-highlight-datatype-face
+             :foreground "blue")
+            (agda2-highlight-field-face
+             :foreground "dark red")
+            (agda2-highlight-function-face
+             :foreground "dark green")
+            (agda2-highlight-module-face
+             :foreground "dark green")
+            (agda2-highlight-postulate-face
+             :foreground "dark green")
+            (agda2-highlight-primitive-face
+             :foreground "dark green")
+            (agda2-highlight-record-face
+             :foreground "blue")
+            (agda2-highlight-dotted-face)
+            (agda2-highlight-error-face
+             :foreground "black"
+             :background "sandy brown")
+            (agda2-highlight-unsolved-meta-face
+             :foreground "black"
+             :background "gold")
+            (agda2-highlight-termination-problem-face
+             :foreground "black"
+             :background "sandy brown")
+            (agda2-highlight-incomplete-pattern-face
+             :foreground "black"
+             :background "sandy brown"))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Faces
+
+(defcustom agda2-highlight-face-groups nil
+  "*You can change the face settings below to a predefined colour
+scheme by changing this option. Note that changing this option does
+not remove the customisations below; you can get them back by
+resetting this option."
+  :type '(choice
+            (const :tag "Use the settings below." nil)
+            (const :tag "Use a (currently unfinished) approximation of
+Conor McBride's colour scheme."
+                   conor))
+  :group 'agda2-highlight
+  :set 'agda2-highlight-set-faces)
 
 (defface agda2-highlight-comment-face
   '((t (:foreground "firebrick")))
