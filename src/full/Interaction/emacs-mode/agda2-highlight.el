@@ -124,9 +124,7 @@
   :group 'agda2-highlight)
 
 (defvar agda2-highlight-faces
-  ; The faces that are pointers to other faces need to be evaluated,
-  ; hence the splices.
-  `((comment            . agda2-highlight-comment-face)
+  '((comment            . agda2-highlight-comment-face)
     (keyword            . agda2-highlight-keyword-face)
     (string             . agda2-highlight-string-face)
     (number             . agda2-highlight-number-face)
