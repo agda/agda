@@ -342,8 +342,17 @@ or tweak agda2-fontset-spec"))))
   "Load agda2-toplevel-module to ghci"
   (interactive)
   (if (or force (not (eq 'run (agda2-process-status))))
-    (save-excursion (let ((agda2-bufname "*ghci*"))
+    (save-excursion (let ((agda2-bufname "*ghci*")
+                          (ignore-dot-ghci "-ignore-dot-ghci"))
                       (agda2-protect (kill-buffer agda2-bufname))
+                      ; Make sure that the user's .ghci is not read.
+                      ; Users can override this by adding
+                      ; "-read-dot-ghci" to
+                      ; `haskell-ghci-program-args'.
+                      (unless (equal (car-safe haskell-ghci-program-args)
+                                     ignore-dot-ghci)
+                        (set (make-local-variable 'haskell-ghci-program-args)
+                             (cons ignore-dot-ghci haskell-ghci-program-args)))
                       (haskell-ghci-start-process nil)
                       (setq agda2-process  haskell-ghci-process
                             agda2-buffer   haskell-ghci-process-buffer
