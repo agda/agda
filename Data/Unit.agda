@@ -1,5 +1,5 @@
 ------------------------------------------------------------------------
--- The unit type ⊤ (\top, not a T!)
+-- The unit type
 ------------------------------------------------------------------------
 
 module Data.Unit where
@@ -13,7 +13,8 @@ open import Relation.Binary.PropositionalEquality
 ------------------------------------------------------------------------
 -- Types
 
--- again, this is a \top symbol, not a T
+-- Note that the name of this type is "\top", not T.
+
 tt : ⊤
 tt = record {}
 

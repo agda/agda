@@ -6,4 +6,6 @@
 
 module Data.Unit.Core where
 
+-- Note that the name of this type is "\top", not T.
+
 record ⊤ : Set where
