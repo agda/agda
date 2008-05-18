@@ -5,7 +5,7 @@ open Homogenous.Base	 using(Arity; Sig; Fa; Fa1; F; F1; T; It; FIHa; FIH; R)
 open Homogenous.Equality using(equal; eq_step; eq_step'; eq_step_ar)
 
 import PolyDepPrelude
-open PolyDepPrelude using(Bool; True;
+open PolyDepPrelude using(Bool; true; false; True;
                    pair; fst; snd;
                    zero; suc;
                    left; right;
@@ -33,8 +33,11 @@ F1rel fi X r = F1 fi (\x -> (\y -> r x y) )
 ref_eq_step_ar : (n : Arity) (Y : Set) (e : Y -> Y -> Bool) (x : Fa n Y)
                  (ih : FIHa n (lref e) x)
   -> True (eq_step_ar n (Fa1rel n Y e x) x)
-ref_eq_step_ar   (zero)  Y e   (unit)      (unit)      = unit
-ref_eq_step_ar   (suc m) Y e   (pair y ys) (pair r rs) = unit
+ref_eq_step_ar (zero)  Y e (unit)      (unit)      = unit
+ref_eq_step_ar (suc m) Y e (pair y ys) (pair r rs) with e y y | r
+ref_eq_step_ar (suc m) Y e (pair y ys) (pair r rs) | false | ()
+ref_eq_step_ar (suc m) Y e (pair y ys) (pair r rs) | true  | unit =
+  ref_eq_step_ar m Y e ys rs
 
 -- Reflexivity for matching constructors is trivial
 ref_eq_step' : (fi : Sig)(X : Set)(e : X -> X -> Bool)(x : F fi X)

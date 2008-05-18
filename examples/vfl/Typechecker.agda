@@ -36,6 +36,7 @@ data Chop {A : Set} : {n : Nat} -> Vect A n -> Fin n -> Set where
              Chop (xs :: x ++ ys) (fs^ m f0)
 
 chop : {A : Set}{n : Nat}(xs : Vect A n)(i : Fin n) -> Chop xs i
+chop ε         ()
 chop (xs :: x) f0 = chopGlue xs x ε
 chop (xs :: y) (fs i) with chop xs i
 chop (.(xs :: x ++ ys) :: y) (fs .(fs^ m f0))

@@ -18,13 +18,15 @@ data Vec (A : Set) : Nat -> Set where
 
 -- Indexing
 _!_ : {n : Nat}{A : Set} -> Vec A n -> Fin n -> A
+[]      ! ()
 x :: xs ! fzero  = x
 x :: xs ! fsuc i = xs ! i
 
 -- Insertion
 insert : {n : Nat}{A : Set} -> Fin (suc n) -> A -> Vec A n -> Vec A (suc n)
-insert fzero	y  xs	    = y :: xs
-insert (fsuc i) y (x :: xs) = x :: insert i y xs
+insert fzero	 y  xs       = y :: xs
+insert (fsuc i)  y (x :: xs) = x :: insert i y xs
+insert (fsuc ()) y []
 
 -- Index view
 data IndexView {A : Set} : {n : Nat}(i : Fin n) -> Vec A n -> Set where
@@ -32,6 +34,7 @@ data IndexView {A : Set} : {n : Nat}(i : Fin n) -> Vec A n -> Set where
 	 IndexView i (insert i x xs)
 
 _[!]_ : {A : Set}{n : Nat}(xs : Vec A n)(i : Fin n) -> IndexView i xs
+[]	[!] ()
 x :: xs	[!] fzero  = ixV x xs
 x :: xs [!] fsuc i = aux xs i (xs [!] i)
   where

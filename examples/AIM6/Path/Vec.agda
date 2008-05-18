@@ -30,6 +30,7 @@ vec {n = _ • n} x = x :: vec x
 _⊗_ : {A B : Set}{n : Nat} -> Vec (A -> B) n -> Vec A n -> Vec B n
 ε             ⊗ ε             = []
 (step f • fs) ⊗ (step x • xs) = f x :: (fs ⊗ xs)
+ε             ⊗ (() • _)
 
 {- Some proof about _-_ needed...
 

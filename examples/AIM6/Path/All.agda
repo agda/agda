@@ -9,4 +9,6 @@ import Elem
 import Fin
 import Modal
 import Lambda
-
+import Span
+import MapTm
+import Examples

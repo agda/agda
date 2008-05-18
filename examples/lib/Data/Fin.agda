@@ -59,11 +59,11 @@ data ThinView : {n : Nat}(i j : Fin n) -> Set where
   diff : {n : Nat}{i : Fin (suc n)}(j : Fin n) -> ThinView i (thin i j)
 
 thinView : {n : Nat}(i j : Fin n) -> ThinView i j
-thinView fzero fzero		      = same
-thinView  fzero (fsuc j) = diff j
-thinView {suc zero} (fsuc ()) fzero
-thinView {suc (suc n)} (fsuc i) fzero	 = diff fzero
-thinView (fsuc i) (fsuc j) = aux i j (thinView i j)
+thinView {suc _}       fzero     fzero    = same
+thinView {suc _}       fzero     (fsuc j) = diff j
+thinView {suc zero}    (fsuc ()) fzero
+thinView {suc (suc _)} (fsuc i)  fzero    = diff fzero
+thinView               (fsuc i)  (fsuc j) = aux i j (thinView i j)
   where
     aux : {n : Nat}(i j : Fin n) -> ThinView i j -> ThinView (fsuc i) (fsuc j)
     aux i .i	       same    = same
@@ -86,8 +86,8 @@ thick i j i≠j = thick' i j i≠j (thinView i j) where
 -- thin∘thick=id : {n : Nat}(i j : Fin (suc n))(p : i ≢ j) ->
 -- 		thin i (thick i j p) ≡ j
 -- thin∘thick=id i j p = ?
--- 
+--
 -- thick∘thin=id : {n : Nat}(i : Fin (suc n))(j : Fin n) ->
 -- 		thick i (thin i j) (sym≢ (thin-ij≠i i j)) ≡ j
 -- thick∘thin=id i j = ?
--- 
+--

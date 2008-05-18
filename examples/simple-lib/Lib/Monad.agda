@@ -3,7 +3,7 @@ module Lib.Monad where
 
 open import Lib.Nat
 open import Lib.List
-open import Lib.IO
+open import Lib.IO hiding (mapM)
 open import Lib.Maybe
 open import Lib.Prelude
 
@@ -141,6 +141,6 @@ modify f = get >>= \s -> put (f s)
 --    ElRd ?0 == reader Nat ?1
 --    ElM ?1 == Maybe
 -- it seems that the injectivity of ElRd isn't taken into account(?)
-m : ReaderT Nat Maybe Nat
-m = ask
+-- m : ReaderT Nat Maybe Nat
+-- m = ask
 

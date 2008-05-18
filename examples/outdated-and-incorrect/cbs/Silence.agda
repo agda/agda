@@ -7,10 +7,9 @@ open import Basics
 import Interp
 import Hear
 
-private
-  open module P = Process param
-  open module I = Interp param
-  open module H = Hear param
+open Process param
+open Interp param
+open Hear param
 
 NoSpeak : {a : U} -> Proc a -> Set
 NoSpeak {a} p = (w : LT a)(q : Proc a) -> ¬ (p -! w !-> q)

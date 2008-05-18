@@ -1,0 +1,3 @@
+This directory contains old examples which have bit-rotted. Only move
+them out of this directory if you fix them and add them to the
+test-suite (so we notice if they get broken again).

@@ -27,9 +27,10 @@ zero  ! = suc zero
 suc n ! = n - n !
 
 record Equiv {a : Set} (_≈_ : a -> a -> Set) : Set where
-  refl      : forall x       -> x ≈ x
-  sym       : {x y : a}      -> x ≈ y -> y ≈ x
-  _`trans`_ : forall {x y z} -> x ≈ y -> y ≈ z -> x ≈ z
+  field
+    refl      : forall x       -> x ≈ x
+    sym       : {x y : a}      -> x ≈ y -> y ≈ x
+    _`trans`_ : forall {x y z} -> x ≈ y -> y ≈ z -> x ≈ z
 
 data _≡_ {a : Set} (x : a) : a -> Set where
   refl : x ≡ x

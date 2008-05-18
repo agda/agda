@@ -36,10 +36,11 @@ module ProcDef (U : Set)(T : U -> Set)(Name : U -> Set) where
   Env = (a : U) -> Name a -> Proc a
 
 record Param : Set1 where
-  U    : Set
-  T    : U -> Set
-  Name : U -> Set
-  env  : ProcDef.Env U T Name
+  field
+    U    : Set
+    T    : U -> Set
+    Name : U -> Set
+    env  : ProcDef.Env U T Name
 
 module Process (param : Param) where
 

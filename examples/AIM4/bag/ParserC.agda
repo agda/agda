@@ -1,6 +1,8 @@
 
 module ParserC where
 
+{-
+
   import Prelude
   import Equiv
   import Eq
@@ -87,5 +89,7 @@ module ParserC where
   data Parsing (s, a : Datoid) : Set1 where
     P :  (List (El s) -> El (parserDatoid a s))
       -> Parsing s a
+
+-}
 
 -}

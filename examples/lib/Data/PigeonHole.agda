@@ -1,5 +1,5 @@
 
-module PigeonHole where
+module Data.PigeonHole where
 
 open import Prelude
 open import Data.Nat hiding (_==_; _<_)
@@ -35,7 +35,7 @@ tooManyPigeons {suc n} zs = aux zs (find _==_ fzero zs)
 
 	-- First observe that if i ∉ map pred xs then fsuc i ∉ xs. Using this
 	-- lemma we conclude that fsuc p ∉ delete fzero xs.
-	lem₀ : {n m : Nat}(i : Fin (suc n))(xs : Vec (Fin (suc (suc n))) m) -> 
+	lem₀ : {n m : Nat}(i : Fin (suc n))(xs : Vec (Fin (suc (suc n))) m) ->
 	      i ∉ map pred xs -> fsuc i ∉ xs
 	lem₀ i []	 nl	  = nl
 	lem₀ i (x :: xs) (cns h t) = cns (rem₀ h) (lem₀ i xs t)

@@ -1,6 +1,8 @@
 
 module Data.Permutation where
 
+{-
+
 open import Prelude
 open import Data.Fin as Fin hiding (_==_; _<_)
 open import Data.Nat
@@ -128,3 +130,4 @@ _○_ : {n : Nat} -> Permutation n -> Permutation n -> Permutation n
 i ◅ π₁ ○ π₂ = (indices π₂ ! i) ◅ (π₁ ○ delete i π₂)
 -}
 
+-}

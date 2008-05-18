@@ -39,6 +39,7 @@ completeS (g1 ||g g2)  (silent-|| s1 s2) oracle
 ... | refuse _ | _  | speak _  | () | _
 ... | speak _  | () | speak _  | _  | left
 ... | speak _  | _  | speak _  | () | right
+... | speak _  | _  | refuse _ | () | _
 completeS (φ /|g g)    (silent-/| s)  oracle with step g oracle
                                                 | completeS g s oracle
 ... | speak _  | ()

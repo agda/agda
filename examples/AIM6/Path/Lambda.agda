@@ -23,10 +23,11 @@ termTyAlg : TyAlg True
 termTyAlg = record { nat = _; _⟶_ = \_ _ -> _ }
 
 record TyArrow {ty₁ ty₂ : Set}(T₁ : TyAlg ty₁)(T₂ : TyAlg ty₂) : Set where
-  apply   : ty₁ -> ty₂
-  respNat : apply (TyAlg.nat T₁) == TyAlg.nat T₂
-  resp⟶   : forall {τ₁ τ₂} ->
-            apply (TyAlg._⟶_ T₁ τ₁ τ₂) == TyAlg._⟶_ T₂ (apply τ₁) (apply τ₂)
+  field
+    apply   : ty₁ -> ty₂
+    respNat : apply (TyAlg.nat T₁) == TyAlg.nat T₂
+    resp⟶   : forall {τ₁ τ₂} ->
+              apply (TyAlg._⟶_ T₁ τ₁ τ₂) == TyAlg._⟶_ T₂ (apply τ₁) (apply τ₂)
 
 _=Ty=>_ : {ty₁ ty₂ : Set}(T₁ : TyAlg ty₁)(T₂ : TyAlg ty₂) -> Set
 _=Ty=>_ = TyArrow
@@ -61,7 +62,7 @@ module Term {ty : Set}(T : TyAlg ty) where
     _$_ : forall {Γ σ τ} -> Tm Γ (σ ⟶ τ) -> Tm Γ σ -> Tm Γ τ
 
 module Eval where
-  
+
  private open module TT = Term freeTyAlg
 
  ty⟦_⟧ : Ty -> Set

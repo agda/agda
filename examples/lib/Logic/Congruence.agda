@@ -8,18 +8,18 @@ import Logic.Equivalence
 open Prelude
 open Logic.Relations
 open Logic.Equivalence using    (Equivalence)
-                       renaming (module Projections to Proj)
+                       renaming (module Equivalence to Proj)
 
 data Congruence (A : Set) : Set1 where
   congruence :
     (Eq : Equivalence A) ->
-    Congruent (Proj.eq Eq) ->
+    Congruent (Proj._==_ Eq) ->
     Congruence A
 
 module Projections where
 
   eq : {A : Set} -> Congruence A -> Rel A
-  eq (congruence Eq _) = Proj.eq Eq
+  eq (congruence Eq _) = Proj._==_ Eq
 
   refl : {A : Set}(Cong : Congruence A) -> Reflexive (eq Cong)
   refl (congruence Eq _) = Proj.refl Eq

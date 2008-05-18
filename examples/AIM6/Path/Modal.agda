@@ -37,6 +37,7 @@ mapAny : {A₁ A₂ : Set}{R₁ : Rel A₁}{R₂ : Rel A₂}
          Any P₁ xs -> Any (\{a b} -> P₂{a}{b}) (map i f xs)
 mapAny h (step   • i) = step • mapAny h i
 mapAny h (done p • ε) = done (h p) • ε
+mapAny h (done p • (() • _))
 
 data Check {A : Set}{R : Rel A}(P : EdgePred R) :
            Rel (Some (Star R)) where
@@ -61,3 +62,4 @@ lookup : {A : Set}{R : Rel A}{P Q : EdgePred R}{a b : A}{xs : Star R a b} ->
          Any P xs -> All Q xs -> Lookup (\{a b} -> P{a}{b}) Q
 lookup (step   • i) (check _ • xs) = lookup i xs
 lookup (done p • ε) (check q • _ ) = result _ p q
+lookup (done p • (() • _)) (check q • _ )

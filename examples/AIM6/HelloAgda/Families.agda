@@ -99,8 +99,11 @@ x ≠ y = ¬ x == y
 true≠false : true == false -> False -- true ≠ false
 true≠false ()
 
-lem : (n : Nat) -> n == suc n -> False
-lem n ()
+-- [The following example might have worked at AIM6, but it does not
+-- work now, so I commented it out. /NAD]
+
+-- lem : (n : Nat) -> n == suc n -> False
+-- lem n ()
 
 -- Why does this work: true == false is an empty type.
 
