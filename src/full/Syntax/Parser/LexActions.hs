@@ -79,14 +79,17 @@ newInput inp inp' len =
 	[]	-> __IMPOSSIBLE__
 
 -- | Alex can't handle unicode characters. To solve this we translate all
---   unicode identifiers to @z@ and all unicode operator characters to @+@.
---   It is important that there aren't any keywords containing @z@ or @+@.
+--   Unicode (non-ASCII) identifiers to @z@, all Unicode operator
+--   characters to @+@, and all whitespace characters (except for @\t@
+--   and @\n@) to ' '. It is important that there aren't any keywords
+--   containing @z@, @+@ or @ @.
 foolAlex :: AlexInput -> AlexInput
 foolAlex inp = inp { lexInput = map fool $ lexInput inp }
     where
 	fool c
+            | isSpace c && not (c `elem` "\t\n") = ' '
 	    | isUnicodeId c = if isAlpha c then 'z' else '+'
-	    | otherwise	    = c
+	    | otherwise     = c
 
 {--------------------------------------------------------------------------
     Lex actions
