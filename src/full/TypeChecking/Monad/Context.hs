@@ -53,7 +53,7 @@ underAbstraction t a k = do
     addCtx y t $ k $ absBody a
   where
     notTaken xs x = notElem (nameConcrete x) xs
-    realName "_" = "z"
+    realName "_" = "y"
     realName s   = s
 
 -- | Go under an abstract without worrying about the type to add to the context.

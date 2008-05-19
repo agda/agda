@@ -183,15 +183,24 @@ bindAsPatterns (AsB x v a : asb) ret = do
         ]
   addLetBinding x v a $ bindAsPatterns asb ret
 
+-- | Rename the variables in a telescope using the names from a given pattern
+useNamesFromPattern :: [NamedArg A.Pattern] -> Telescope -> Telescope
+useNamesFromPattern ps = telFromList . zipWith ren (toPats ps) . telToList
+  where
+    ren (A.VarP x) (Arg h (_, a)) = Arg h (show x, a)
+    ren _ a = a
+    toPats = map (namedThing . unArg)
+
 -- | Check a LHS. Main function.
 checkLeftHandSide :: [NamedArg A.Pattern] -> Type ->
                      (Telescope -> Telescope -> [Term] -> [String] -> [Arg Pattern] -> Type -> Permutation -> TCM a) -> TCM a
 checkLeftHandSide ps a ret = do
   a <- normalise a
-  let TelV tel0 b0 = telView a
-  ps <- insertImplicitPatterns ps tel0
-  unless (size tel0 >= size ps) $ typeError $ TooManyArgumentsInLHS (size ps) a
-  let (as, bs) = splitAt (size ps) $ telToList tel0
+  let TelV tel0' b0 = telView a
+  ps <- insertImplicitPatterns ps tel0'
+  unless (size tel0' >= size ps) $ typeError $ TooManyArgumentsInLHS (size ps) a
+  let tel0     = useNamesFromPattern ps tel0'   
+      (as, bs) = splitAt (size ps) $ telToList tel0
       gamma    = telFromList as
       b        = telePi (telFromList bs) b0
 
@@ -206,6 +215,7 @@ checkLeftHandSide ps a ret = do
 	   [ text "ps    =" <+> fsep (map prettyA ps)
 	   , text "a     =" <+> prettyTCM a
 	   , text "a'    =" <+> prettyTCM (telePi tel0 b0)
+           , text "xs    =" <+> text (show $ map (fst . unArg) as)
 	   , text "tel0  =" <+> prettyTCM tel0
 	   , text "b0    =" <+> prettyTCM b0
 	   , text "gamma =" <+> prettyTCM gamma
@@ -234,7 +244,7 @@ checkLeftHandSide ps a ret = do
     mapM_ checkDotPattern dpi
     let rho = renamingR perm -- I'm not certain about this...
         Perm n _ = perm
-        xs  = replicate n "z"
+        xs  = replicate n "h"
     ret gamma delta rho xs qs b' perm
   where
     madeUpName "_" = "z"
@@ -322,16 +332,18 @@ checkLeftHandSide ps a ret = do
             a <- normalise =<< (`piApply` vs) . defType <$> getConstInfo c
 
             -- It will end in an application of the datatype
-            let TelV gamma ca@(El _ (Def d' us)) = telView a
+            let TelV gamma' ca@(El _ (Def d' us)) = telView a
 
             -- This should be the same datatype as we split on
             unless (d == d') $ typeError $ ShouldBeApplicationOf ca d'
 
             -- Insert implicit patterns
-            qs' <- insertImplicitPatterns qs gamma
+            qs' <- insertImplicitPatterns qs gamma'
 
-            unless (size qs' == size gamma) $
-              typeError $ WrongNumberOfConstructorArguments c (size gamma) (size qs')
+            unless (size qs' == size gamma') $
+              typeError $ WrongNumberOfConstructorArguments c (size gamma') (size qs')
+
+            let gamma = useNamesFromPattern qs' gamma'
 
             -- Get the type of the datatype.
             da <- normalise =<< (`piApply` vs) . defType <$> getConstInfo d

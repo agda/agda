@@ -58,7 +58,16 @@ findClause m = do
 makeCase :: InteractionId -> Range -> String -> TCM [A.Clause]
 makeCase hole rng s = do
   meta        <- lookupInteractionId hole
-  (f, clause) <- findClause meta
+  (f, clause@(Clause tel perm ps _)) <- findClause meta
+  reportSDoc "interaction.case" 10 $ vcat
+    [ text "splitting clause:"
+    , nest 2 $ vcat
+      [ text "context =" <+> (prettyTCM =<< getContextTelescope)
+      , text "tel     =" <+> prettyTCM tel
+      , text "perm    =" <+> text (show perm)
+      , text "ps      =" <+> text (show ps)
+      ]
+    ]
   var         <- withInteractionId hole $ deBruijnIndex =<< parseExprIn hole rng s
   z           <- splitClauseWithAbs clause var
   case z of
@@ -69,10 +78,13 @@ makeCase hole rng s = do
 makeAbsurdClause :: QName -> SplitClause -> TCM A.Clause
 makeAbsurdClause f (SClause tel perm ps _) = do
   reportSDoc "interaction.case" 10 $ vcat
-    [ text "context =" <+> (prettyTCM =<< getContextTelescope)
-    , text "tel =" <+> prettyTCM tel
-    , text "perm =" <+> text (show perm)
-    , text "ps =" <+> text (show ps)
+    [ text "split clause:"
+    , nest 2 $ vcat
+      [ text "context =" <+> (prettyTCM =<< getContextTelescope)
+      , text "tel =" <+> prettyTCM tel
+      , text "perm =" <+> text (show perm)
+      , text "ps =" <+> text (show ps)
+      ]
     ]
   withCurrentModule (qnameModule f) $
     reify $ NamedClause f $ Clause tel perm ps NoBody

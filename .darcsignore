@@ -48,7 +48,7 @@ src/rts/dist
 examples/cbs/agda1
 \.prof$
 src/hTags/dist$
-examples/fileIO/.*\.hs$
-examples/fileIO/Main$
+fileIO/.*\.hs$
+fileIO/Main$
 src/prototyping/nameless/(nameless|Lam)$
 examples/simple-lib/.*\.hs
