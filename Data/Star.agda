@@ -159,3 +159,8 @@ starPreorder {I} T = record
 module StarReasoning {I : Set} (T : Rel I) where
   open PreR (starPreorder T) public
     renaming (_∼⟨_⟩_ to _⟶⋆⟨_⟩_)
+
+  infixr 2 _⟶⟨_⟩_
+
+  _⟶⟨_⟩_ : forall x {y z} -> T x y -> y IsRelatedTo z -> x IsRelatedTo z
+  x ⟶⟨ x⟶y ⟩ y⟶⋆z = x ⟶⋆⟨ x⟶y ◅ ε ⟩ y⟶⋆z
