@@ -122,6 +122,7 @@ reifyDisplayFormP lhs@(A.LHS i x ps wps) =
 
     okTerm (I.Var _ []) = True
     okTerm (I.Con c vs) = all okArg vs
+    okTerm (I.Def x []) = show x == "_" -- Handling wildcards in display forms
     okTerm _            = False
 
     flattenWith (DWithApp (d : ds) []) = case flattenWith d of
@@ -141,6 +142,7 @@ reifyDisplayFormP lhs@(A.LHS i x ps wps) =
 
         termToPat (I.Var n []) = ps !! n
         termToPat (I.Con c vs) = A.ConP info [c] $ map argToPat vs
+        termToPat (I.Def _ []) = A.WildP info
         termToPat _ = __IMPOSSIBLE__
 
 instance Reify Term Expr where
@@ -201,6 +203,12 @@ stripImplicits :: MonadTCM tcm => [NamedArg A.Pattern] -> [A.Pattern] -> tcm [Na
 stripImplicits ps wps =
   ifM showImplicitArguments (return ps) $ do
   let vars = dotVars (ps, wps)
+  reportSLn "syntax.reify.implicit" 30 $ unlines
+    [ "stripping implicits"
+--     , "  ps   = " ++ show ps
+--     , "  wps  = " ++ show wps
+    , "  vars = " ++ show vars
+    ]
   return $ strip vars ps
   where
     argsVars = Set.unions . map argVars
@@ -248,6 +256,7 @@ stripImplicits ps wps =
           Set.null $ dvs `Set.intersection` patVars p
 
         varOrDot (A.VarP _)      = True
+        varOrDot (A.WildP _)     = True
         varOrDot (A.DotP _ _)    = True
         varOrDot (A.ImplicitP _) = True
         varOrDot _               = False

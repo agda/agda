@@ -172,7 +172,7 @@ withDisplayForm f aux delta1 delta2 n qs perm = do
   let top = length topArgs
       vs = topArgs ++ raiseFrom (size delta2) n (substs (sub wild) $ patsToTerms qs)
       dt = DWithApp (map DTerm $ Def f vs : withArgs) []
-      withArgs = map var [size delta2..size delta2 + n - 1]
+      withArgs = reverse $ map var [size delta2..size delta2 + n - 1]
       pats = replicate (n + size delta1 + size delta2 + top) (Var 0 [])
 
   let display = Display (n + size delta1 + size delta2 + top) pats dt

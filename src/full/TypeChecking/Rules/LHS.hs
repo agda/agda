@@ -185,8 +185,9 @@ bindAsPatterns (AsB x v a : asb) ret = do
 
 -- | Rename the variables in a telescope using the names from a given pattern
 useNamesFromPattern :: [NamedArg A.Pattern] -> Telescope -> Telescope
-useNamesFromPattern ps = telFromList . zipWith ren (toPats ps) . telToList
+useNamesFromPattern ps = telFromList . zipWith ren (toPats ps ++ repeat dummy) . telToList
   where
+    dummy = A.WildP __IMPOSSIBLE__
     ren (A.VarP x) (Arg h (_, a)) = Arg h (show x, a)
     ren _ a = a
     toPats = map (namedThing . unArg)
