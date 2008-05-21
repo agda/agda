@@ -43,7 +43,7 @@ m > n = n < m
 -- The following, alternative definition of _≤_ is more suitable for
 -- well-founded induction (see Induction.Nat).
 
-infix 4 _≤′_ _<′_
+infix 4 _≤′_ _<′_ _≥′_ _>′_
 
 data _≤′_ : Rel ℕ where
   ≤′-refl : forall {n} -> n ≤′ n
@@ -51,6 +51,12 @@ data _≤′_ : Rel ℕ where
 
 _<′_ : Rel ℕ
 m <′ n = suc m ≤′ n
+
+_≥′_ : Rel ℕ
+m ≥′ n = n ≤′ m
+
+_>′_ : Rel ℕ
+m >′ n = n <′ m
 
 ------------------------------------------------------------------------
 -- A generalisation of the arithmetic operations
