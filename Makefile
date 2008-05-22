@@ -141,7 +141,7 @@ endif
 
 ## Testing ###########################################################
 
-test : succeed examples fail tests
+test : succeed examples fail tests library-test
 
 tests :
 	@echo "======================================================================"
@@ -166,6 +166,16 @@ fail :
 	@echo "======================= Suite of failing tests ======================="
 	@echo "======================================================================"
 	@$(MAKE) -C test/fail
+
+library-test :
+	@echo "======================================================================"
+	@echo "========================== Standard library =========================="
+	@echo "======================================================================"
+	@DIR=`mktemp -dt` && \
+	  (darcs get --partial --repo-name=$$DIR/lib \
+		 http://www.cs.nott.ac.uk/~nad/repos/lib/ && \
+	   $(AGDA_BIN) -i$$DIR/lib $$DIR/lib/Everything.agda); \
+	  RETURN_VALUE=$$?; rm -rf $$DIR && [ $$RETURN_VALUE = 0 ]
 
 benchmark :
 	@$(MAKE) -C benchmark
