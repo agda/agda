@@ -71,5 +71,10 @@ zip-Σ : forall {a P Q R} ->
         Σ a P -> Σ a Q -> Σ a R
 zip-Σ _•_ _○_ (x , y) (u , v) = (x • u , y ○ v)
 
+map-Σ : forall {A B P Q}
+        -> (f : A -> B) -> (forall {x} -> P x -> Q (f x))
+        -> Σ A P -> Σ B Q
+map-Σ f g (x , y) = (f x , g y)
+
 map-Σ₂ : forall {a P Q} -> (forall {x} -> P x -> Q x) -> Σ a P -> Σ a Q
 map-Σ₂ f (x , y) = (x , f y)
