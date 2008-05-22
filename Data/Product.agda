@@ -65,10 +65,10 @@ curry = Σ-curry
 uncurry : {a b c : Set} -> (a -> b -> c) -> (a × b -> c)
 uncurry = Σ-uncurry
 
-zip-Σ : forall {a P Q R} ->
-        (_•_ : a -> a -> a) ->
+zip-Σ : forall {A B C P Q R} ->
+        (_•_ : A -> B -> C) ->
         (forall {x y} -> P x -> Q y -> R (x • y)) ->
-        Σ a P -> Σ a Q -> Σ a R
+        Σ A P -> Σ B Q -> Σ C R
 zip-Σ _•_ _○_ (x , y) (u , v) = (x • u , y ○ v)
 
 map-Σ : forall {A B P Q}
