@@ -79,10 +79,10 @@ then it is created first."
              :background "gold")
             (agda2-highlight-termination-problem-face
              :foreground "black"
-             :background "sandy brown")
+             :background "red")
             (agda2-highlight-incomplete-pattern-face
              :foreground "black"
-             :background "sandy brown"))))))
+             :background "purple"))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Faces
@@ -94,8 +94,7 @@ not remove the customisations below; you can get them back by
 resetting this option and restarting Emacs."
   :type '(choice
             (const :tag "Use the settings below." nil)
-            (const :tag "Use a (currently unfinished) approximation of
-Conor McBride's colour scheme."
+            (const :tag "Use an approximation of Conor McBride's colour scheme."
                    conor))
   :group 'agda2-highlight
   :set 'agda2-highlight-set-faces)
