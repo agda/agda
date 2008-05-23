@@ -207,7 +207,7 @@ resetting this option and restarting Emacs."
 (defface agda2-highlight-incomplete-pattern-face
   '((t (:background "wheat"
         :foreground "black")))
-  "The face used for incomplete patterns."
+  "The face used for incomplete patterns. (Currently unused.)"
   :group 'agda2-highlight)
 
 (defvar agda2-highlight-faces
