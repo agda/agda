@@ -14,7 +14,9 @@
 
 (defun agda2-highlight-set-face-attribute (face attrs)
   "Clears all attributes of the face FACE, and then sets
-them (globally) according to ATTRS."
+them (globally) according to ATTRS. If the face does not exist,
+then it is created first."
+  (make-face face)
   (set-face-attribute face nil
                       :family         'unspecified
                       :width          'unspecified
@@ -29,7 +31,8 @@ them (globally) according to ATTRS."
                       :overline       'unspecified
                       :strike-through 'unspecified
                       :inherit        'unspecified
-                      :box            'unspecified)
+                      :box            'unspecified
+                      :font           'unspecified)
   (eval `(set-face-attribute face nil ,@attrs)))
 
 (defun agda2-highlight-set-faces (variable group)
