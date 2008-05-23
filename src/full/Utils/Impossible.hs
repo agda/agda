@@ -1,5 +1,5 @@
 ------------------------------------------------------------------------
--- | A slightly saner interface for reporting \"impossible\" errors
+-- | An interface for reporting \"impossible\" errors
 ------------------------------------------------------------------------
 
 {-# LANGUAGE DeriveDataTypeable #-}
