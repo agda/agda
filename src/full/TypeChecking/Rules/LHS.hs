@@ -188,7 +188,7 @@ useNamesFromPattern :: [NamedArg A.Pattern] -> Telescope -> Telescope
 useNamesFromPattern ps = telFromList . zipWith ren (toPats ps ++ repeat dummy) . telToList
   where
     dummy = A.WildP __IMPOSSIBLE__
-    ren (A.VarP x) (Arg h (_, a)) = Arg h (show x, a)
+    ren (A.VarP x) (Arg NotHidden (_, a)) = Arg NotHidden (show x, a)
     ren _ a = a
     toPats = map (namedThing . unArg)
 
@@ -215,7 +215,8 @@ checkLeftHandSide ps a ret = do
 	 , nest 2 $ vcat
 	   [ text "ps    =" <+> fsep (map prettyA ps)
 	   , text "a     =" <+> prettyTCM a
-	   , text "a'    =" <+> prettyTCM (telePi tel0 b0)
+	   , text "a'    =" <+> prettyTCM (telePi tel0  b0)
+	   , text "a''   =" <+> prettyTCM (telePi tel0' b0)
            , text "xs    =" <+> text (show $ map (fst . unArg) as)
 	   , text "tel0  =" <+> prettyTCM tel0
 	   , text "b0    =" <+> prettyTCM b0
@@ -355,11 +356,12 @@ checkLeftHandSide ps a ret = do
 	    reportSDoc "tc.lhs.top" 15 $ addCtxTel delta1 $
 	      sep [ text "preparing to unify"
 		  , nest 2 $ vcat
-		    [ text "c     =" <+> prettyTCM c <+> text ":" <+> prettyTCM a
-		    , text "d     =" <+> prettyTCM d <+> text ":" <+> prettyTCM da
-		    , text "gamma =" <+> prettyTCM gamma
-		    , text "vs    =" <+> brackets (fsep $ punctuate comma $ map prettyTCM vs)
-		    , text "ws    =" <+> brackets (fsep $ punctuate comma $ map prettyTCM ws)
+		    [ text "c      =" <+> prettyTCM c <+> text ":" <+> prettyTCM a
+		    , text "d      =" <+> prettyTCM d <+> text ":" <+> prettyTCM da
+		    , text "gamma  =" <+> prettyTCM gamma
+		    , text "gamma' =" <+> prettyTCM gamma'
+		    , text "vs     =" <+> brackets (fsep $ punctuate comma $ map prettyTCM vs)
+		    , text "ws     =" <+> brackets (fsep $ punctuate comma $ map prettyTCM ws)
 		    ]
 		  ]
 
