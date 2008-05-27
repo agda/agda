@@ -258,7 +258,6 @@ instance Reduce Constraint where
 instance (Ord k, Reduce e) => Reduce (Map k e) where
     reduce = traverse reduce
 
-
 ---------------------------------------------------------------------------
 -- * Normalisation
 ---------------------------------------------------------------------------

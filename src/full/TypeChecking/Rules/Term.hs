@@ -22,6 +22,7 @@ import TypeChecking.MetaVars
 import TypeChecking.Pretty
 import TypeChecking.Records
 import TypeChecking.Conversion
+import TypeChecking.Primitive
 
 import Utils.Tuple
 
@@ -132,6 +133,12 @@ litType l = case l of
 -- * Terms
 ---------------------------------------------------------------------------
 
+-- TODO: move somewhere suitable
+reduceCon :: MonadTCM tcm => QName -> tcm QName
+reduceCon c = do
+  Con c [] <- constructorForm =<< reduce (Con c [])
+  return c
+
 -- | Type check an expression.
 checkExpr :: A.Expr -> Type -> TCM Term
 checkExpr e t =
@@ -173,6 +180,8 @@ checkExpr e t =
                 -- Get the datatypes of the various constructors
                 let getData Constructor{conData = d} = d
                     getData _                        = __IMPOSSIBLE__
+                cs  <- mapM reduceCon cs
+                reportSLn "tc.check.term" 40 $ "  reduced: " ++ show cs
                 dcs <- mapM (\c -> (getData /\ const c) . theDef <$> getConstInfo c) cs
 
                 -- Lets look at the target type at this point
