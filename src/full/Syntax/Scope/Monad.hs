@@ -137,6 +137,7 @@ data ResolvedName = VarName A.Name
 		  | DefinedName AbstractName
                   | ConstructorName [AbstractName]
 		  | UnknownName
+  deriving (Show)
 
 -- | Look up the abstract name referred to by a given concrete name.
 resolveName :: C.QName -> ScopeM ResolvedName
@@ -208,7 +209,7 @@ bindName acc kind x y = do
     DefinedName	d      -> typeError $ ClashingDefinition x $ anameName d
     VarName z          -> typeError $ ClashingDefinition x $ A.qualify (mnameFromList []) z
     ConstructorName ds
-      | kind == ConName && all ((==ConName) . anameKind) ds -> return $ AbsName y kind : ds
+      | kind == ConName && all ((==ConName) . anameKind) ds -> return [ AbsName y kind ]
       | otherwise -> typeError $ ClashingDefinition x $ anameName (head ds) -- TODO: head
     UnknownName        -> return [AbsName y kind]
   modifyTopScope $ addNamesToScope acc (C.QName x) ys

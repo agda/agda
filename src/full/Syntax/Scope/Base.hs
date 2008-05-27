@@ -94,30 +94,30 @@ instance Ord AbstractModule where
 instance Show ScopeInfo where
   show (ScopeInfo stack locals ctx) =
     unlines $
-      [ "ScopeInfo"
-      , "  locals  = " ++ show locals
-      , "  context = " ++ show ctx
+      [ "ScopeInfo" ] ++
+      (if null locals then [] else [ "  locals  = " ++ show locals ]) ++
+      [ "  context = " ++ show ctx
       , "  stack"
       ] ++ map ("    "++) (relines . map show $ stack)
     where
       relines = filter (not . null) . lines . unlines
 
+blockOfLines :: String -> [String] -> [String]
+blockOfLines _  [] = []
+blockOfLines hd ss = hd : map ("  "++) ss
+
 instance Show Scope where
   show (Scope { scopeName = name, scopePublic = pub, scopePrivate = pri }) =
     unlines $
-      [ "scope " ++ show name
-      , "public"
-      ] ++ map ("  "++) (lines . show $ pub) ++
-      [ "private"
-      ] ++ map ("  "++) (lines . show $ pri)
+      [ "scope " ++ show name ]
+      ++ blockOfLines "public"  (lines $ show pub)
+      ++ blockOfLines "private" (lines $ show pri)
 
 instance Show NameSpace where
   show (NameSpace names mods) =
     unlines $
-      [ "names" ]
-      ++ map pr (Map.toList names) ++
-      [ "modules" ]
-      ++ map pr (Map.toList mods)
+      blockOfLines "names"   (map pr $ Map.toList names) ++
+      blockOfLines "modules" (map pr $ Map.toList mods)
     where
       pr (x, y) = show x ++ " --> " ++ show y
 

@@ -65,8 +65,8 @@ printLocals v s = verboseS "scope.top" v $ do
   locals <- scopeLocals <$> getScope
   liftIO $ putStrLn $ s ++ " " ++ show locals
 
-printScope :: Int -> String -> ScopeM ()
-printScope v s = verboseS "scope.top" v $ do
+printScope :: String -> Int -> String -> ScopeM ()
+printScope tag v s = verboseS ("scope." ++ tag) v $ do
   scope <- getScope
   liftIO $ putStrLn $ s ++ " " ++ show scope
 
@@ -151,27 +151,27 @@ checkModuleMacro apply r p a x tel m args open dir =
                                 , OldModuleName m
                                 , args
                                 )
-    printScope 20 "module macro"
+    printScope "mod.inst" 20 "module macro"
     pushScope x'
     m0 <- getCurrentModule
     openModule_ m $ dir { C.publicOpen = True }
-    printScope 20 "opened source module"
+    printScope "mod.inst" 20 "opened source module"
     s : _ <- scopeStack <$> getScope
     (renD, renM) <- renamedCanonicalNames m1 m0 s
     modifyTopScope $ renameCanonicalNames renD renM
-    printScope 20 "renamed stuff"
+    printScope "mod.inst" 20 "renamed stuff"
     popScope p
-    printScope 20 "popped"
+    printScope "mod.inst" 20 "popped"
     bindModule p x m0
     case open of
       DontOpen -> return ()
       DoOpen   -> openModule_ (C.QName x) $ defaultImportDir { C.publicOpen = C.publicOpen dir }
-    printScope 20 $ case open of
+    printScope "mod.inst" 20 $ case open of
       DontOpen  -> "didn't open"
       DoOpen    -> "opened"
-    printScope 10 $ "before stripping"
+    printScope "mod.inst" 10 $ "before stripping"
     stripNoNames
-    printScope 10 $ "after stripping"
+    printScope "mod.inst" 10 $ "after stripping"
     return [ apply info m0 tel' m1 args' renD renM ]
   where
     info = mkRangedModuleInfo p a r
@@ -264,6 +264,7 @@ nameExpr d = mk (anameKind d) $ anameName d
 instance ToAbstract OldQName A.Expr where
   toAbstract (OldQName x) = do
     qx <- resolveName x
+    reportSLn "scope.name" 10 $ "resolved " ++ show x ++ ": " ++ show qx
     case qx of
       VarName x'         -> return $ A.Var x'
       DefinedName d      -> return $ nameExpr d
@@ -275,7 +276,7 @@ data APatName = VarPatName A.Name
 
 instance ToAbstract PatName APatName where
   toAbstract (PatName x) = do
-    reportLn 10 $ "checking pattern name: " ++ show x
+    reportSLn "scope.pat" 10 $ "checking pattern name: " ++ show x
     rx <- resolveName x
     z  <- case (rx, x) of
       -- TODO: warn about shadowing
@@ -286,12 +287,12 @@ instance ToAbstract PatName APatName where
       _							  -> fail $ "not a constructor: " ++ show x -- TODO
     case z of
       Left x  -> do
-	reportLn 10 $ "it was a var: " ++ show x
+	reportSLn "scope.pat" 10 $ "it was a var: " ++ show x
 	p <- VarPatName <$> toAbstract (NewName x)
 	printLocals 10 "bound it:"
 	return p
       Right cs -> do
-	reportLn 10 $ "it was a con: " ++ show (map anameName cs)
+	reportSLn "scope.pat" 10 $ "it was a con: " ++ show (map anameName cs)
 	return $ ConPatName cs
 
 -- Should be a defined name.
@@ -574,6 +575,7 @@ instance ToAbstract NiceDefinition Definition where
 	pars <- toAbstract pars
 	cons <- toAbstract (map Constr cons)
 	x'   <- toAbstract (OldName x)
+        printScope "data" 20 $ "Checked data " ++ show x
 	return $ A.DataDef (mkRangedDefInfo x f p a r) x' pars cons
 
     -- Record definitions (mucho interesting)
@@ -584,14 +586,14 @@ instance ToAbstract NiceDefinition Definition where
 	x'     <- toAbstract (OldName x)
         contel <- toAbstract $ recordConstructorType fields
 	let m = mnameFromList $ (:[]) $ last $ qnameToList x'
-	printScope 15 "before record"
+	printScope "rec" 15 "before record"
 	pushScope m
 	afields <- toAbstract fields
-	printScope 15 "checked fields"
+	printScope "rec" 15 "checked fields"
 	qm <- getCurrentModule
 	popScope p
 	bindModule p x qm
-	printScope 15 "record complete"
+	printScope "rec" 15 "record complete"
 	return $ A.RecDef (mkRangedDefInfo x f p a r) x' pars contel afields
 
 -- The only reason why we return a list is that open declarations disappears.
@@ -643,21 +645,21 @@ instance ToAbstract NiceDeclaration A.Declaration where
       m	      <- toAbstract (OldModuleName x)
       n	      <- length . scopeLocals <$> getScope
 
-      printScope 20 $ "opening " ++ show x
+      printScope "open" 20 $ "opening " ++ show x
       -- Opening (privately) a submodule or opening into a non-parameterised module
       -- is fine. Otherwise we have to create a temporary module.
       if not (C.publicOpen dir) -- && (m `isSubModuleOf` current || n == 0)
 	then do
-	  reportLn 20 "normal open"
+	  reportSLn "scope.open" 20 "normal open"
 	  openModule_ x dir
-	  printScope 20 $ "result:"
+	  printScope "open" 20 $ "result:"
 	  return []
 	else do
-	  reportLn 20 "fancy open"
+	  reportSLn "scope.open" 20 "fancy open"
 	  tmp <- nameConcrete <$> freshNoName (getRange x)
 	  d   <- toAbstract $ NiceModuleMacro r PrivateAccess ConcreteDef
 					    tmp [] (C.Ident x) DoOpen dir
-	  printScope 20 "result:"
+	  printScope "open" 20 "result:"
 	  return [d]
 
     NicePragma r p -> do
@@ -670,9 +672,9 @@ instance ToAbstract NiceDeclaration A.Declaration where
       -- interface. This is done with that module as the top-level module.
       (m, i) <- withTopLevelModule x $ do
 	m <- toAbstract $ NewModuleQName x
-	printScope 10 "before import:"
+	printScope "import" 10 "before import:"
 	i <- scopeCheckImport m
-	printScope 10 $ "scope checked import: " ++ show i
+	printScope "import" 10 $ "scope checked import: " ++ show i
 	return (m, i)
 
       -- Abstract name for the imported module.
@@ -692,7 +694,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
       -- Finally we bind the desired module name to the right abstract name.
       bindQModule PrivateAccess name m
 
-      printScope 10 "merged imported sig:"
+      printScope "import" 10 "merged imported sig:"
       ds <- case open of
 	DontOpen -> return []
 	DoOpen   -> do
