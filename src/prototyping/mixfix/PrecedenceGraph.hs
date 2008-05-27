@@ -125,8 +125,7 @@ prop_empty = graphInvariant empty
 
 -- @bindsAs op fix n g@ adds @op@ (with fixity @fix@) to node @n@.
 -- 
--- Precondition: @n@ has to exist in @g@, and @n@ should not already
--- be annotated with @op@. (The second precondition is not checked.)
+-- Precondition: @n@ has to exist in @g@.
 
 bindsAs :: Name -> Fixity -> Node -> PrecedenceGraph -> PrecedenceGraph
 bindsAs op fix n (PG g) = case G.match n g of
