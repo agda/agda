@@ -167,15 +167,15 @@ fail :
 	@echo "======================================================================"
 	@$(MAKE) -C test/fail
 
-library-test :
+std-lib :
+	darcs get --partial --repo-name=$@ \
+		 http://www.cs.nott.ac.uk/~nad/repos/lib/
+
+library-test : std-lib
 	@echo "======================================================================"
 	@echo "========================== Standard library =========================="
 	@echo "======================================================================"
-	@DIR=`mktemp -dt` && \
-	  (darcs get --partial --repo-name=$$DIR/lib \
-		 http://www.cs.nott.ac.uk/~nad/repos/lib/ && \
-	   $(AGDA_BIN) -i$$DIR/lib $$DIR/lib/Everything.agda); \
-	  RETURN_VALUE=$$?; rm -rf $$DIR && [ $$RETURN_VALUE = 0 ]
+	@(cd std-lib; darcs pull && ../$(AGDA_BIN) Everything.agda $(EXTRA_AGDA_FLAGS))
 
 benchmark :
 	@$(MAKE) -C benchmark

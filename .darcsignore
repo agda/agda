@@ -52,3 +52,4 @@ fileIO/.*\.hs$
 fileIO/Main$
 src/prototyping/nameless/(nameless|Lam)$
 examples/simple-lib/.*\.hs
+^std-lib$
