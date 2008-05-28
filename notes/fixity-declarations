@@ -333,3 +333,30 @@ Summary of important "correctness" criteria
 
 • If declarations can be reordered, then the semantics must be
   independent of their order.
+
+------------------------------------------------------------------------
+A possible problem with the scheme above
+------------------------------------------------------------------------
+
+Consider the following (Agda-like) modules:
+
+  module A where
+    infix _*_
+
+  module B where
+    import A
+    infix _^_ binds tighter-than (_*_)
+
+  module C where
+    import A
+    infix _+_ binds looser-than (_*_)
+
+  module D where
+    import B; import C
+
+In D, do we have node(_+_) ⊰ node(_^_)? If not, then order of
+declarations does (in some sense) matter, since putting the two
+declarations in the same module would lead to a different result.
+However, if we do have node(_+_) ⊰ node(_^_), then the relationship
+between the two operators is not fixed until they are brought into the
+same scope. Neither scenario feels appealing.
