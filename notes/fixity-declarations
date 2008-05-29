@@ -360,3 +360,28 @@ declarations in the same module would lead to a different result.
 However, if we do have node(_+_) ⊰ node(_^_), then the relationship
 between the two operators is not fixed until they are brought into the
 same scope. Neither scenario feels appealing.
+
+------------------------------------------------------------------------
+Refinement of the refinement
+------------------------------------------------------------------------
+
+I am compelled to remove the transitivity emulation from fixity
+declarations. It is too hard to understand. To start with we can
+require the user to specify every relationship explicitly. If this
+should turn out to require too much work, then the following
+extensions seem promising:
+
+• One could invent some notation for specifying the fixity of several
+  operator groups at once, for instance:
+
+    infix (_+_ _-_) < (_*_ _/_) < (_^_)
+
+  The different groups in this kind of declaration would be
+  transitively related.
+
+• One could specify a /module/ in an operator list; this would stand
+  for all the operators exported from the module (top-level, plus
+  perhaps records). Note that this may be a bit coarse. If Agda's open
+  public was more like Haskell's re-exports, then it would be easy to
+  use the module system to package operators for inclusion in fixity
+  declarations, though.
