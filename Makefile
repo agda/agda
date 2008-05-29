@@ -175,7 +175,7 @@ library-test : std-lib
 	@echo "======================================================================"
 	@echo "========================== Standard library =========================="
 	@echo "======================================================================"
-	@(cd std-lib; darcs pull && ../$(AGDA_BIN) Everything.agda $(EXTRA_AGDA_FLAGS))
+	@(cd std-lib; darcs pull && ../$(AGDA_BIN) Everything.agda $(AGDA_TEST_FLAGS))
 
 benchmark :
 	@$(MAKE) -C benchmark

@@ -2,12 +2,13 @@
 TOP = ..
 
 include $(TOP)/mk/paths.mk
+include $(TOP)/mk/config.mk
 
 default : test polydep hello path regexp-talk aim4-bag ac effects minmax real view simplelib lib divmod
 
 agda = $(AGDA_BIN)
 
-run_agda = $(agda) --vim --emacs $(EXTRA_AGDA_FLAGS)
+run_agda = $(agda) --vim --emacs $(AGDA_TEST_FLAGS)
 
 test_files = Vec.agda Lookup.agda Binary.agda Setoid.agda \
 			 TT.agda ISWIM.agda ParenDepTac.agda \

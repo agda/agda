@@ -1,3 +1,4 @@
+AGDA_TEST_FLAGS = --ignore-interfaces
 
 INSTALL		= @INSTALL@
 INSTALL_DATA	= @INSTALL_DATA@

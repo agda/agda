@@ -17,9 +17,10 @@
 TOP = ../..
 
 include $(TOP)/mk/paths.mk
+include $(TOP)/mk/config.mk
 
 # Path to Agda
-agda=$(AGDA_BIN)
+agda=$(AGDA_BIN) $(AGDA_TEST_FLAGS)
 
 # Verbosity default = 0, can be overridden
 V = 0

@@ -6,6 +6,7 @@
 TOP=../..
 
 include $(TOP)/mk/paths.mk
+include $(TOP)/mk/config.mk
 
 # Verbosity
 V = 0
@@ -17,7 +18,7 @@ alllagda=$(patsubst %.lagda,%,$(shell find . -name "*.lagda"))
 default : all
 all : $(allagda) $(alllagda)
 
-RUN_AGDA = $(AGDA_BIN) --emacs --vim $(EXTRA_AGDA_FLAGS)
+RUN_AGDA = $(AGDA_BIN) --emacs --vim $(AGDA_TEST_FLAGS)
 
 $(allagda) : % : %.agda
 	@echo $<
