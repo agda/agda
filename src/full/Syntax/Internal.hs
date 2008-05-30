@@ -169,7 +169,7 @@ instance Show MetaId where
     show (MetaId n) = "_" ++ show n
 
 -- | Doesn't do any reduction.
-arity :: Type -> Int
+arity :: Type -> Nat
 arity t =
     case unEl t of
 	Pi  _ (Abs _ b) -> 1 + arity b

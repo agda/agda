@@ -6,6 +6,7 @@ import Control.Applicative
 import Control.Monad.Trans
 import Control.Monad.Reader
 import Data.Maybe
+import Data.List hiding (sort)
 
 import qualified Syntax.Abstract as A
 import Syntax.Common
@@ -322,7 +323,7 @@ inferHead (HeadCon [c]) = do
     liftIO $ putStrLn $ unwords [show c, "has", show n, "parameters."]
 
   -- So when applying the constructor throw away the parameters.
-  return (apply u . drop n, a)
+  return (apply u . genericDrop n, a)
 inferHead (HeadCon _) = __IMPOSSIBLE__  -- inferHead will only be called on unambiguous constructors
 
 inferDef :: (QName -> Args -> Term) -> QName -> TCM (Term, Type)

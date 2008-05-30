@@ -77,7 +77,7 @@ definition (Defn q ty _ _ d) = (infodecl q :) <$> case d of
   Constructor _ _ _ _ _    -> return []
   Record _ cl flds _ _ _   -> do
     ar <- arity <$> normalise ty
-    return $ tvaldecl q (length flds) ar [cdecl q (length flds)] cl  
+    return $ tvaldecl q (genericLength flds) ar [cdecl q (genericLength flds)] cl  
   Primitive _ s _          -> fb <$> primBody s
   where
   tag _ []       = []
@@ -89,12 +89,12 @@ definition (Defn q ty _ _ d) = (infodecl q :) <$> case d of
   fb e  =[HsFunBind[HsMatch dummy (unqhname "d" q)[] (HsUnGuardedRhs $ e) []]]
   axiom = rtmError $ "postulate evaluated: " ++ show q
 
-clause :: QName -> (Int, Bool, Clause) -> TCM HsDecl
+clause :: QName -> (Nat, Bool, Clause) -> TCM HsDecl
 clause q (i, isLast, Clause _ _ ps b) = HsFunBind . (: cont) <$> main where
-  main = match <$> argpatts ps (bvars b (0::Int)) <*> clausebody b
+  main = match <$> argpatts ps (bvars b (0::Nat)) <*> clausebody b
   cont | isLast    = []
        | otherwise = [match (L.map HsPVar cvs) crhs]
-  cvs  = L.map (ihname "v") [0 .. length ps - 1]
+  cvs  = L.map (ihname "v") [0 .. genericLength ps - 1]
   crhs = hsCast$ foldl HsApp (hsVarUQ $ dsubname q (i + 1)) (L.map hsVarUQ cvs)
   match hps rhs = HsMatch dummy (dsubname q i) hps (HsUnGuardedRhs rhs) []
   bvars (Body _)          _ = []
@@ -117,7 +117,7 @@ clausebody b0 = runReaderT (go b0) 0 where
   go (NoBind b        ) = go b
   go NoBody             = return$ rtmError$ "Impossible Clause Body"
 
-term :: Term -> ReaderT Int TCM HsExp
+term :: Term -> ReaderT Nat TCM HsExp
 term tm0 = case tm0 of
   Var   i as -> do n <- ask; apps (hsVarUQ $ ihname "v" (n - i - 1)) as
   Lam   _ at -> do n <- ask; HsLambda dummy [HsPVar $ ihname "v" n] <$>
@@ -147,7 +147,7 @@ hslit l = case l of LitInt    _ x -> HsInt    x
                     LitString _ x -> HsString x 
                     LitChar   _ x -> HsChar   x
 
-condecl :: QName -> TCM (Int, HsConDecl)
+condecl :: QName -> TCM (Nat, HsConDecl)
 condecl q = ignoreAbstractMode (getConstInfo q) >>= \d -> case d of
   Defn _ ty _ _ (Constructor np _ _ _ _) -> do ar <- arity <$> normalise ty
                                                return $ (ar, cdecl q (ar - np))

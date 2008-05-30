@@ -27,7 +27,7 @@ data MPat = VarMP Nat | ConMP QName [Arg MPat] | LitMP Literal | WildMP
 buildMPatterns :: Permutation -> [Arg Pattern] -> [Arg MPat]
 buildMPatterns perm ps = evalState (mapM (traverse build) ps) xs
   where
-    xs   = permute (invertP perm) $ reverse [0 .. size perm - 1]
+    xs   = permute (invertP perm) $ reverse [0 .. fromIntegral (size perm) - 1]
     tick = do x : xs <- get; put xs; return x
 
     build (VarP _)      = VarMP <$> tick

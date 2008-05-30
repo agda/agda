@@ -14,7 +14,7 @@ import Syntax.Internal
 import TypeChecking.Monad
 import TypeChecking.Reduce
 import TypeChecking.Errors
-import TypeChecking.Primitive
+import TypeChecking.Primitive hiding (Nat)
 import TypeChecking.Pretty
 import TypeChecking.Substitute
 import Utils.Function
@@ -81,7 +81,7 @@ distinct us vs = do
 	Left err    -> return True
 	Right _	    -> return False
 
-type Substitution = Map Int Term
+type Substitution = Map Nat Term
 
 data UTerm = UTerm { hasVars :: Bool
 		   , theTerm :: Term

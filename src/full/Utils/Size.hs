@@ -5,16 +5,17 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
+import Data.List
 
 class Sized a where
-  size :: a -> Int
+  size :: Integral n => a -> n
 
 instance Sized [a] where
-  size = length
+  size = genericLength
 
 instance Sized (Map k a) where
-  size = Map.size
+  size = fromIntegral . Map.size
 
 instance Sized (Set a) where
-  size = Set.size
+  size = fromIntegral . Set.size
 

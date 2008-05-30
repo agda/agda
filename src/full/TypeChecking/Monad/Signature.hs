@@ -264,7 +264,7 @@ getDefFreeVars q = sum <$> ((:) <$> getAnonymousVariables m <*> mapM getSecFreeV
 
 -- | Compute the context variables to apply a definition to.
 freeVarsToApply :: MonadTCM tcm => QName -> tcm Args
-freeVarsToApply x = take <$> getDefFreeVars x <*> getContextArgs
+freeVarsToApply x = genericTake <$> getDefFreeVars x <*> getContextArgs
 
 -- | Instantiate a closed definition with the correct part of the current
 --   context.

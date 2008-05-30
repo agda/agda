@@ -246,7 +246,7 @@ checkLeftHandSide ps a ret = do
     mapM_ checkDotPattern dpi
     let rho = renamingR perm -- I'm not certain about this...
         Perm n _ = perm
-        xs  = replicate n "h"
+        xs  = replicate (fromIntegral n) "h"
     ret gamma delta rho xs qs b' perm
   where
     madeUpName "_" = "z"
@@ -269,7 +269,7 @@ checkLeftHandSide ps a ret = do
 
             -- plug the hole with a lit pattern
             let ip    = plugHole (LitP lit) iph
-                iperm = expandP hix 0 $ fst (problemOutPat problem)
+                iperm = expandP (fromIntegral hix) 0 $ fst (problemOutPat problem)
 
             -- substitute the literal in p1 and sigma and dpi and asb
             let delta1 = problemTel p0
@@ -454,7 +454,7 @@ checkLeftHandSide ps a ret = do
            -- Compute the new permutation of the out patterns. This is the composition of
             -- the new permutation with the expansion of the old permutation to
             -- reflect the split.
-            let perm'  = expandP hix (size gamma) $ fst (problemOutPat problem)
+            let perm'  = expandP (fromIntegral hix) (size gamma) $ fst (problemOutPat problem)
                 iperm' = perm `composeP` perm'
 
             -- Instantiate the out patterns

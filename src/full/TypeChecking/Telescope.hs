@@ -4,7 +4,7 @@ module TypeChecking.Telescope where
 
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.List ((\\))
+import Data.List
 
 import Syntax.Common
 import Syntax.Internal
@@ -37,7 +37,7 @@ renaming p = gamma'
 renamingR :: Permutation -> [Term]
 renamingR p@(Perm n _) = permute (reverseP p) (map var [0..]) ++ map var [n..]
   where
-    var i  = Var i []
+    var i  = Var (fromIntegral i) []
 
 -- | Flatten telescope: (Γ : Tel) -> [Type Γ]
 flattenTel :: Telescope -> [Arg Type]
@@ -114,6 +114,6 @@ splitTelescope fv tel = SplitTel tel1 tel2 perm
     tel'  = unflattenTel (permute perm names) ts2
 
     Perm _ js = perm
-    m         = length $ takeWhile (`notElem` is) (reverse js)
-    (tel1, tel2) = telFromList -*- telFromList $ splitAt (n - m) $ telToList tel'
+    m         = genericLength $ takeWhile (`notElem` is) (reverse js)
+    (tel1, tel2) = telFromList -*- telFromList $ genericSplitAt (n - m) $ telToList tel'
 

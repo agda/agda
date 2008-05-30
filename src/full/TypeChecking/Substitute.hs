@@ -4,6 +4,7 @@ module TypeChecking.Substitute where
 import Control.Monad.Identity
 import Control.Monad.Reader
 import Data.Generics
+import Data.List hiding (sort)
 import Data.Map (Map)
 import qualified Data.Map as Map
 
@@ -103,7 +104,7 @@ instance (Apply a, Apply b, Apply c) => Apply (a,b,c) where
 
 instance Apply Permutation where
   -- The permutation must start with [0..m - 1]
-  apply (Perm n xs) args = Perm (n - m) $ map (flip (-) m) $ drop m xs
+  apply (Perm n xs) args = Perm (n - m) $ map (flip (-) m) $ genericDrop m xs
     where
       m = size args
 
@@ -150,7 +151,7 @@ instance Abstract Defn where
     abstract tel (Primitive a x cs)         = Primitive a x (abstract tel cs)
 
 instance Abstract PrimFun where
-    abstract tel (PrimFun x ar def) = PrimFun x (ar + n) $ \ts -> def $ drop n ts
+    abstract tel (PrimFun x ar def) = PrimFun x (ar + n) $ \ts -> def $ genericDrop n ts
 	where n = size tel
 
 instance Abstract Clause where
@@ -186,7 +187,7 @@ abstractArgs args x = abstract tel x
 --
 class Subst t where
     substs     :: [Term] -> t -> t
-    substUnder :: Int -> Term -> t -> t
+    substUnder :: Nat -> Term -> t -> t
 
 idSub :: Telescope -> [Term]
 idSub tel = [ Var i [] | i <- [0..size tel - 1] ]
@@ -295,7 +296,7 @@ absApp (Abs _ v) u = subst u v
 
 -- | Add @k@ to index of each open variable in @x@.
 class Raise t where
-    raiseFrom :: Int -> Int -> t -> t
+    raiseFrom :: Nat -> Nat -> t -> t
 
 instance Raise Term where
     raiseFrom m k v =
@@ -351,7 +352,7 @@ instance Raise v => Raise (Map k v) where
 instance (Raise a, Raise b) => Raise (a,b) where
     raiseFrom m k (x,y) = (raiseFrom m k x, raiseFrom m k y)
 
-raise :: Raise t => Int -> t -> t
+raise :: Raise t => Nat -> t -> t
 raise = raiseFrom 0
 
 data TelView = TelV Telescope Type

@@ -42,7 +42,7 @@ getOpen (OpenThing []  x) = return x
 getOpen (OpenThing ctx x) = do
   ctx' <- getContextId
   unless (ctx `isSuffixOf` ctx') $ fail $ "thing out of context (" ++ show ctx ++ " is not a sub context of " ++ show ctx' ++ ")"
-  return $ raise (length ctx' - length ctx) x
+  return $ raise (genericLength ctx' - genericLength ctx) x
 
 tryOpen :: (MonadTCM tcm, Raise a) => Open a -> tcm (Maybe a)
 tryOpen o = liftTCM $

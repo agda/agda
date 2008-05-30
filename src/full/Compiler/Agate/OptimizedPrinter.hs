@@ -116,7 +116,7 @@ showTypeParameter dname ty = do
 		dk <- showAsOptimizedKind ty
 		return $ (:) $ parens $ sep [ dname <+> text "::", dk ]
 
-underDatatypeParameters :: Int -> Type -> (Doc -> Type -> TCM (a -> a)) ->
+underDatatypeParameters :: Nat -> Type -> (Doc -> Type -> TCM (a -> a)) ->
 			   (Type -> TCM a) -> TCM a
 underDatatypeParameters np ty f k = go 0 ty where
     go i ty        | i >= np = k ty

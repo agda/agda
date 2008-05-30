@@ -89,7 +89,7 @@ data Access = PrivateAccess | PublicAccess
 data IsAbstract = AbstractDef | ConcreteDef
     deriving (Typeable, Data, Show, Eq)
 
-type Nat    = Int
+type Nat    = Integer
 type Arity  = Nat
 
 -- | The unique identifier of a name. Second argument is the top-level module
@@ -101,5 +101,5 @@ instance Enum NameId where
   succ (NameId n m)	= NameId (n + 1) m
   pred (NameId n m)	= NameId (n - 1) m
   toEnum n		= __IMPOSSIBLE__  -- should not be used
-  fromEnum (NameId n _) = n
+  fromEnum (NameId n _) = fromIntegral n
 

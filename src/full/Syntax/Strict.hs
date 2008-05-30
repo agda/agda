@@ -34,7 +34,7 @@ instance Strict Type where
 
 instance Strict Sort where
     force s = case s of
-	Type n	  -> n
+	Type n	  -> fromIntegral n
 	Prop	  -> 0
 	Lub s1 s2 -> force (s1,s2)
 	Suc s	  -> force s

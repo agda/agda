@@ -48,7 +48,7 @@ import Utils.Permutation
 import Utils.Function (on)
 
 currentInterfaceVersion :: Int
-currentInterfaceVersion = 20080319
+currentInterfaceVersion = 20080530
 
 type Node = [Int] -- constructor tag (maybe omitted) and arg indices
 

@@ -8,6 +8,7 @@ import Control.Monad.Error
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe
+import Data.List
 
 import Syntax.Common
 import Syntax.Internal
@@ -136,7 +137,7 @@ useInjectivity a u v = do
             def  <- getConstInfo c
             let cty                       = defType def
                 Constructor{conPars = np} = theDef def
-                cty'                      = cty `piApply` take np us
+                cty'                      = cty `piApply` genericTake np us
             argm <- newArgsMetaCtx cty' tel vs
             -- Compute the type of the instantiation and the orignial type.
             -- We need to make sure they are the same to ensure that index

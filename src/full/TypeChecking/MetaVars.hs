@@ -395,7 +395,7 @@ assignV t x args v =
 	return []
     where
 	rename ids i arg = case findIndex (==i) ids of
-	    Just j  -> fmap (const $ Var j []) arg
+	    Just j  -> fmap (const $ Var (fromIntegral j) []) arg
 	    Nothing -> fmap (const __IMPOSSIBLE__) arg	-- we will end up here, but never look at the result
 
 	handler :: MonadTCM tcm => tcm Constraints

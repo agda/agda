@@ -7,16 +7,16 @@ import Data.List
 import Utils.Size
 
 -- | @permute [2,3,1] [x,y,z] = [y,z,x]@
-data Permutation = Perm Int [Int]
+data Permutation = Perm Integer [Integer]
   deriving (Show, Eq, Data, Typeable)
 
 instance Sized Permutation where
   size (Perm _ xs) = size xs
 
 permute :: Permutation -> [a] -> [a]
-permute (Perm _ is) xs = map (xs !!) is
+permute (Perm _ is) xs = map ((xs !!) . fromIntegral) is
 
-idP :: Int -> Permutation
+idP :: Integer -> Permutation
 idP n = Perm n [0..n - 1]
 
 -- | @permute (compose p1 p2) == permute p1 . permute p2@
@@ -38,14 +38,14 @@ invertP :: Permutation -> Permutation
 invertP p@(Perm n xs) = Perm (size xs) $ map inv [0..n - 1]
   where
     inv x = case findIndex (x ==) xs of
-	      Just y  -> y
+	      Just y  -> fromIntegral y
 	      Nothing -> error $ "invertP: non-surjective permutation " ++ show p
 
 reverseP :: Permutation -> Permutation
 reverseP (Perm n xs) = Perm n $ map ((n - 1) -) $ reverse xs
 
 -- | @expandP i n π@ in the domain of @π@ replace the /i/th element by /n/ elements.
-expandP :: Int -> Int -> Permutation -> Permutation
+expandP :: Integer -> Integer -> Permutation -> Permutation
 expandP i n (Perm m xs) = Perm (m + n - 1) $ concatMap expand xs
   where
     expand j

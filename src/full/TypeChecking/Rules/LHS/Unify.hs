@@ -9,6 +9,7 @@ import Control.Monad.Error
 
 import Data.Map (Map)
 import qualified Data.Map as Map
+import Data.List
 
 import Syntax.Common
 import Syntax.Internal
@@ -124,7 +125,7 @@ flattenSubstitution s = foldr instantiate s is
     instantiate :: Nat -> Substitution -> Substitution
     instantiate i s = map (fmap $ inst i u) s
       where
-	Just u = s !! i
+	Just u = s !! fromIntegral i
 
     inst :: Nat -> Term -> Term -> Term
     inst i u v = substs us v
@@ -221,8 +222,8 @@ unifyIndices flex a us vs = liftTCM $ do
               a'  <- case def of
                 Datatype{dataPars = n} -> do
                   a <- defType <$> getConstInfo c
-                  return $ piApply a (take n args)
-                Record{recPars = n} -> getRecordConstructorType d (take n args)
+                  return $ piApply a (genericTake n args)
+                Record{recPars = n} -> getRecordConstructorType d (genericTake n args)
                 _		    -> __IMPOSSIBLE__
               unifyArgs a' us vs
           | otherwise -> constructorMismatch a u v
@@ -290,8 +291,8 @@ unifyIndices flex a us vs = liftTCM $ do
           b   <- case def of
             Datatype{dataPars = n} -> do
               a <- defType <$> getConstInfo c
-              return $ piApply a (take n args)
-            Record{recPars = n} -> getRecordConstructorType d (take n args)
+              return $ piApply a (genericTake n args)
+            Record{recPars = n} -> getRecordConstructorType d (genericTake n args)
             _		    -> __IMPOSSIBLE__
           return $ Just (Con c [], b, vs)
         Def d vs -> do

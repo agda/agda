@@ -113,7 +113,7 @@ maybeQualName qual unqual q = lift $ do
 maybeQualConName = maybeQualName conQName conName
 maybeQualDefName = maybeQualName dfQName dfName
 
-numOfMainS :: [QName] -> Maybe Int
+numOfMainS :: [QName] -> Maybe Nat
 numOfMainS [] = Nothing
 numOfMainS (n:ns) | isMain (qnameName n) = Just $ numOfQName n
                   | otherwise = numOfMainS ns
@@ -165,7 +165,7 @@ processDef (qname,Defn { theDef = Datatype n nind Nothing cs sort isa }) = do
       name = qnameName qname
       dataname = dataName name
       ddecl cs arities = HsDataDecl  dummyLoc [] dataname (tvars arities) cs []
-      tvars arities = take (List.maximum arities) $ List.map HsIdent letters
+      tvars arities = genericTake (List.maximum arities) $ List.map HsIdent letters
       vdecl = HsFunBind [ HsMatch dummyLoc hsname (nDummyArgs (n+nind)) rhs []]
       rhs = HsUnGuardedRhs $ HsVar $ unit_con_name
       hsname = dfName name
@@ -176,13 +176,13 @@ processDef (qname,Defn { theDef = Datatype n nind Nothing cs sort isa }) = do
 processDef (qname, Defn { theDef = Record n clauses fields tel sort isa }) =  do
    return [ddecl arity tel,vdecl tel]  where
       name = qnameName qname
-      arity = length fields
+      arity = genericLength fields
       ddecl n tel = HsDataDecl  dummyLoc [] dataname (tvars n) [con n] []
       dataname = (dataName name)
-      tvars n = take n idents
+      tvars n = genericTake n idents
       con n = HsConDecl dummyLoc (conName  name) args
       idents = List.map HsIdent letters
-      args =  List.map (HsUnBangedTy . HsTyVar) $ take arity idents
+      args =  List.map (HsUnBangedTy . HsTyVar) $ genericTake arity idents
       vdecl tel = HsFunBind [ HsMatch dummyLoc hsname (nDummyArgs 0) rhs []]
       rhs = HsUnGuardedRhs $ HsVar $ unit_con_name
       hsname = dfName name
@@ -264,14 +264,14 @@ processCon dname qn = do
   -- let arg = HsUnBangedTy $ HsTyCon unit_tycon_name
   let arg = HsUnBangedTy $ HsTyVar $ HsIdent "a"
   let idents =  List.map HsIdent letters
-  let args =  List.map (HsUnBangedTy . HsTyVar) $ take arity idents
+  let args =  List.map (HsUnBangedTy . HsTyVar) $ genericTake arity idents
   return $ HsConDecl dummyLoc (conName $ qnameName qn) args
 
 {-
-dummyCon :: Int -> Int -> HsConDecl
+dummyCon :: Nat -> Nat -> HsConDecl
 dummyCon i j = HsConDecl dummyLoc (mangleConName i j) []
 
-mangleConName :: Int -> Int -> HsCode
+mangleConName :: Nat -> Nat -> HsCode
 -- mangleConName i j = (HsIdent $ "C"++(show i)++"_"++(show j))
 mangleConName i j = (HsIdent $ "C"++(show j))
 -}
@@ -285,7 +285,7 @@ consDefs qns = do
   return [definitions ! qn | qn <- qns]
 
 
-processClause :: Name -> Int -> Clause -> IM HsDecl
+processClause :: Name -> Nat -> Clause -> IM HsDecl
 processClause name number clause@(Clause _ perm args (body)) = do
   reportSLn "comp.alonzo.clause" 20 $
     "processClause " ++ show name ++ "\n" ++
@@ -300,19 +300,19 @@ processClause name number clause@(Clause _ perm args (body)) = do
   return $ HsFunBind $ [HsMatch dummyLoc hsid pats rhs decls] 
     where
                     decls = []
-                    hsid = dfNameSub name number
+                    hsid = dfNameSub name $ fromIntegral number
                     -- pats =  processArgPats  args               
                     
-contClause :: Name -> Int -> Clause -> IM HsDecl
+contClause :: Name -> Nat -> Clause -> IM HsDecl
 contClause name number (Clause _ _ args (body)) = do
   return $ HsFunBind $ [HsMatch dummyLoc hsid pats rhs decls] where
                 decls = []
-                hsid = dfNameSub name number
-                rightLetters =  take (length args) letters
+                hsid = dfNameSub name (fromIntegral number)
+                rightLetters =  genericTake (length args) letters
                 pats = List.map (HsPVar . HsIdent) rightLetters
                 rhs = HsUnGuardedRhs exp
 		exp = vecApp expfun expargs
-                expfun = hsCast$ HsVar $ UnQual $ dfNameSub name (number+1)
+                expfun = hsCast$ HsVar $ UnQual $ dfNameSub name (fromIntegral $ number+1)
                 expargs = List.map (HsVar . UnQual . HsIdent) rightLetters
 
 foldClauses :: Name -> Nat -> [Clause] -> IM [HsDecl]
@@ -383,7 +383,7 @@ processBody NoBody = do
 processTerm :: Term -> PM HsExp
 processTerm (Var n ts) = do
   cnt <- getPcnt
-  processVap (hsVar $ "v" ++ (show (cnt - n - 1))) ts
+  processVap (hsVar $ "v" ++ (show (cnt - fromIntegral n - 1))) ts
 
 processTerm (Def qn ts) = do
   x <- maybeQualDefName qn

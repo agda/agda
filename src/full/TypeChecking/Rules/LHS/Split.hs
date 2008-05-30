@@ -5,6 +5,7 @@ module TypeChecking.Rules.LHS.Split where
 import Control.Applicative
 import Control.Monad.Error
 import Data.Monoid
+import Data.List
 
 import Syntax.Common
 import Syntax.Literal
@@ -99,7 +100,7 @@ splitProblem (Problem ps (perm, qs) tel) = do
                         [c] -> return c
                         []  -> typeError $ ConstructorPatternInWrongDatatype (head cs) d
                         _   -> __IMPOSSIBLE__
-		  let (pars, ixs) = splitAt np vs
+		  let (pars, ixs) = genericSplitAt np vs
 		  reportSDoc "tc.lhs.split" 10 $
 		    vcat [ sep [ text "splitting on"
 			       , nest 2 $ fsep [ prettyA p, text ":", prettyTCM a ]

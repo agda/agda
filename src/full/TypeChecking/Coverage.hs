@@ -5,6 +5,7 @@ module TypeChecking.Coverage where
 import Control.Monad
 import Control.Monad.Error
 import Control.Applicative
+import Data.List
 
 import Syntax.Common
 import Syntax.Internal
@@ -46,9 +47,9 @@ type Covering = [SplitClause]
 typeOfVar :: Telescope -> Nat -> Type
 typeOfVar tel n
   | n >= len  = __IMPOSSIBLE__
-  | otherwise = snd . unArg $ ts !! n
+  | otherwise = snd . unArg $ ts !! fromIntegral n
   where
-    len = length ts
+    len = genericLength ts
     ts  = reverse $ telToList tel
 
 -- | Top-level function for checking pattern coverage.
@@ -59,9 +60,9 @@ checkCoverage f = do
   let defn = theDef d
   case defn of
     Function cs@((Clause _ _ ps _) : _) _ _ -> do
-      let n            = length ps
+      let n            = genericLength ps
           TelV gamma _ = telView t
-          gamma'       = telFromList $ take n $ telToList gamma
+          gamma'       = telFromList $ genericTake n $ telToList gamma
           xs           = map (fmap $ const $ VarP "_") $ telToList gamma'
       reportSDoc "tc.cover.top" 10 $ vcat
         [ text "Coverage checking"
@@ -106,7 +107,7 @@ isDatatype t = do
       def <- theDef <$> getConstInfo d
       case def of
         Datatype{dataPars = np, dataCons = cs} -> do
-          let (ps, is) = splitAt np args
+          let (ps, is) = genericSplitAt np args
           return $ Just (d, ps, is, cs)
         _ -> return Nothing
     _ -> return Nothing
@@ -284,7 +285,7 @@ split' tel perm ps x = liftTCM $ runExceptionT $ do
 
   -- Split the telescope at the variable
   (delta1, delta2) <- do
-    let (tel1, _ : tel2) = splitAt (size tel - x - 1) $ telToList tel
+    let (tel1, _ : tel2) = genericSplitAt (size tel - x - 1) $ telToList tel
     return (telFromList tel1, telFromList tel2)
 
   -- Get the type of the variable
@@ -297,7 +298,7 @@ split' tel perm ps x = liftTCM $ runExceptionT $ do
       fail "split: bad holes or tel"
 
     -- There is always a variable at the given hole.
-    let (hix, (VarP s, hps)) = holes !! x
+    let (hix, (VarP s, hps)) = holes !! fromIntegral x
     debugHoleAndType s hps t
 
     return (hps, hix)

@@ -70,13 +70,13 @@ sigMName = head . M.keys . sigSections
 -- utilities for haskell names
 --------------------------------------------------
 
-ihname :: String -> Int -> HsName
+ihname :: String -> Nat -> HsName
 ihname s i = HsIdent $ s ++ show i
 
 unqhname :: String -> QName -> HsName
 unqhname s q | ("d", "main") == (s, show(qnameName q)) = HsIdent "main :: IO()"
              | otherwise = ihname s (idnum $ nameId $ qnameName $ q)
-  where idnum (NameId x _) = x
+  where idnum (NameId x _) = fromIntegral x
 
 -- the toplevel module containing the given one
 tlmodOf :: ModuleName -> TCM Module

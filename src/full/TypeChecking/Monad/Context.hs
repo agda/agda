@@ -134,7 +134,8 @@ getVarInfo x =
 	def <- asks envLetBindings
 	case findIndex ((==x) . fst . unArg) ctx of
 	    Just n  ->
-		do  t <- typeOfBV n
+		do  n <- return $ fromIntegral n
+                    t <- typeOfBV n
 		    return (Var n [], t)
 	    _	    ->
 		case Map.lookup x def of

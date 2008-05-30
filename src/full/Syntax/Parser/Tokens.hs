@@ -47,7 +47,7 @@ data Token
 	| TokSymbol Symbol Range
 	  -- Other tokens
 	| TokString (Range, String)  -- arbitrary string, used in pragmas
-	| TokSetN (Range, Int)
+	| TokSetN (Range, Integer)
 	| TokTeX (Range, String)
         | TokComment (Range, String)
 	| TokDummy	-- Dummy token to make Happy not complain

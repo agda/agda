@@ -31,7 +31,7 @@ import TypeChecking.Conversion
 import TypeChecking.Empty
 import TypeChecking.MetaVars
 import TypeChecking.Rebind
-import TypeChecking.Primitive
+import TypeChecking.Primitive hiding (Nat)
 import TypeChecking.With
 import TypeChecking.Telescope
 import TypeChecking.Coverage
@@ -156,8 +156,8 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs wh) =
                   let n    = size ctx
                       m    = size delta
                       us   = [ Arg h (Var i []) | (i, Arg h _) <- zip [n - 1,n - 2..0] $ telToList ctx ]
-                      (us0, us1') = splitAt (n - m) us
-                      (us1, us2)  = splitAt (size delta1) $ permute perm' us1'
+                      (us0, us1') = genericSplitAt (n - m) us
+                      (us1, us2)  = genericSplitAt (size delta1) $ permute perm' us1'
                       v    = Def aux $ us0 ++ us1 ++ (map (Arg NotHidden) vs) ++ us2
 
                   -- We need Δ₁Δ₂ ⊢ t'
@@ -250,7 +250,7 @@ checkWithFunction (WithFunction f aux gamma delta1 delta2 vs as b qs perm cs) = 
 
 -- | Type check a where clause. The first argument is the number of variables
 --   bound in the left hand side.
-checkWhere :: Int -> [A.Declaration] -> TCM a -> TCM a
+checkWhere :: Nat -> [A.Declaration] -> TCM a -> TCM a
 checkWhere _ []                      ret = ret
 checkWhere n [A.ScopedDecl scope ds] ret = withScope_ scope $ checkWhere n ds ret
 checkWhere n [A.Section _ m tel ds]  ret = do

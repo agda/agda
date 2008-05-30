@@ -5,6 +5,8 @@
 
 module Compiler.Agate.UntypedPrinter where
 
+import Data.List
+
 #include "../../undefined.h"
 import Utils.Impossible
 
@@ -93,7 +95,7 @@ showUntypedDefinition (name, defn) = do
 	    dcname <- showAsUntypedConstructor name
 	    ty <- instantiate $ defType defn
 	    (args,_) <- splitType ty
-	    let arity = length args - np
+	    let arity = genericLength args - np
 	    let dvars = map (\i -> text ("v" ++ show i)) [1 .. arity]
 	    let drhs = untypedAbs dvars $ sep $
 		       text "VCon" <> text (show arity) : dcname : dvars

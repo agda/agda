@@ -96,7 +96,7 @@ checkDataDef i name ps cs =
 
 -- | Type check a constructor declaration. Checks that the constructor targets
 --   the datatype and that it fits inside the declared sort.
-checkConstructor :: QName -> Telescope -> Int -> Sort -> A.Constructor -> TCM ()
+checkConstructor :: QName -> Telescope -> Nat -> Sort -> A.Constructor -> TCM ()
 checkConstructor d tel nofIxs s (A.ScopedDecl scope [con]) = do
   setScope scope
   checkConstructor d tel nofIxs s con

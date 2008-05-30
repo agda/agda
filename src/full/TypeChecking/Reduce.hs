@@ -188,13 +188,13 @@ instance Reduce Term where
 	    reducePrimitive x v0 f args pf cls
 		| n < ar    = return $ v0 `apply` args	-- not fully applied
 		| otherwise = do
-		    let (args1,args2) = splitAt ar args
+		    let (args1,args2) = genericSplitAt ar args
 		    r <- def args1
 		    case r of
 			NoReduction args1' -> reduceNormal v0 f (args1' ++ args2) cls
 			YesReduction v	   -> reduce $ v  `apply` args2
 		where
-		    n	= length args
+		    n	= genericLength args
 		    ar  = primFunArity pf
 		    def = primFunImplementation pf
 

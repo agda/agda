@@ -184,7 +184,7 @@ callsArgs name num as = concat  $ List.map ((callsTerm name num).unArg) as
 --cmpQn (QName (Name id _) _ _) (Name id' _) = id == id'
 callsDef :: QName -> Nat -> Term -> [RCall]
 callsDef name num (Def name'  args)
-  | name == name' = [RCall name num 0 args]
+  | name == name' = [RCall name (fromIntegral num) 0 args]
   | otherwise	  = []
 callsDef name num _ = []
 

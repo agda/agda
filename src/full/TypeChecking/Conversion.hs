@@ -6,6 +6,7 @@ import Control.Applicative
 import Control.Monad
 import Control.Monad.State
 import Data.Generics
+import Data.List hiding (sort)
 
 import Syntax.Common
 import Syntax.Internal
@@ -122,7 +123,7 @@ equalAtom t m n =
 		    -- The type to compare the arguments at is obtained by
 		    -- instantiating the parameters.
 		    a <- defType <$> getConstInfo x
-		    let a' = piApply a (take npars args)
+		    let a' = piApply a (genericTake npars args)
 		    equalArgs a' xArgs yArgs
 	    (MetaV x xArgs, MetaV y yArgs)
 		| x == y -> if   sameVars xArgs yArgs

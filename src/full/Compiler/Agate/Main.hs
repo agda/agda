@@ -53,9 +53,9 @@ compilerMain typeCheck = do
 	    printConstants definitions
 	    putStrLn ""
 	    putStrLn "data Value = VAbs (Value -> Value)"
-	    putStrLn "           | VCon0 !Int"
-	    mapM_ (\k -> putStrLn $ "           | VCon" ++ show k ++ " !Int"
-	 			 ++ concat (replicate k " Value") )
+	    putStrLn "           | VCon0 !Nat"
+	    mapM_ (\k -> putStrLn $ "           | VCon" ++ show k ++ " !Nat"
+	 			 ++ concat (genericReplicate k " Value") )
 	    	  [1..maxconargs]
 	    putStrLn "           | VNonData"
 	    putStrLn "           | VIO      !(IO Value)"
@@ -135,17 +135,17 @@ enumConstructors = concatMap f . Map.toList where
                         Record{}      -> [name]
                         _             -> []
 
-computeMaxArity :: Definitions -> IM Int
+computeMaxArity :: Definitions -> IM Nat
 computeMaxArity dd =
     fmap maximum $ mapM getConstructorArity $ map snd $ Map.toList dd
 
-getConstructorArity :: Definition -> IM Int
+getConstructorArity :: Definition -> IM Nat
 getConstructorArity defn = case theDef defn of
-    Record{recFields = flds} -> return $ length flds
+    Record{recFields = flds} -> return $ genericLength flds
     Constructor{conPars = np} -> do
 	ty <- normalise $ defType defn
 	(args,_) <- splitType ty
-	return $ length args - np
+	return $ genericLength args - np
     _ -> return 0
 
 printConstants :: Definitions -> IO ()

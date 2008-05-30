@@ -140,7 +140,7 @@ reifyDisplayFormP lhs@(A.LHS i x ps wps) =
         info = PatRange noRange
         argToPat = fmap (unnamed . termToPat)
 
-        termToPat (I.Var n []) = ps !! n
+        termToPat (I.Var n []) = ps !! fromIntegral n
         termToPat (I.Con c vs) = A.ConP info [c] $ map argToPat vs
         termToPat (I.Def _ []) = A.WildP info
         termToPat _ = __IMPOSSIBLE__
@@ -160,7 +160,7 @@ instance Reify Term Expr where
                       | otherwise      = return x
 		I.Def x vs   -> reifyDisplayForm x vs $ do
 		    n <- getDefFreeVars x
-		    reifyApp (A.Def x) $ drop n vs
+		    reifyApp (A.Def x) $ genericDrop n vs
 		I.Con x vs   -> do
 		  isR <- isRecord x
 		  case isR of
@@ -173,10 +173,10 @@ instance Reify Term Expr where
                       Constructor{conPars = np} <- theDef <$> getConstInfo x
 		      scope <- getScope
                       let whocares = A.Underscore (Info.MetaInfo noRange scope Nothing)
-                          us = replicate np $ Arg Hidden whocares
+                          us = replicate (fromIntegral np) $ Arg Hidden whocares
                       n  <- getDefFreeVars x
                       es <- reify vs
-                      apps (A.Con [x], drop n $ us ++ es)
+                      apps (A.Con [x], genericDrop n $ us ++ es)
 		I.Lam h b    ->
 		    do	(x,e) <- reify b
 			return $ A.Lam exprInfo (DomainFree h x) e
@@ -350,7 +350,7 @@ instance Reify NamedClause A.Clause where
     return $ A.Clause (dropParams nfv lhs) rhs []
     where
       info = LHSRange noRange
-      dropParams n (LHS i f ps wps) = LHS i f (drop n ps) wps
+      dropParams n (LHS i f ps wps) = LHS i f (genericDrop n ps) wps
       stripImps (LHS i f ps wps) = do
         ps <- stripImplicits ps wps
         return $ LHS i f ps wps

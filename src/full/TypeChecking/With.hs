@@ -44,10 +44,10 @@ buildWithFunction :: QName -> Telescope -> [Arg Pattern] -> Permutation ->
 buildWithFunction aux gamma qs perm n1 n cs = mapM buildWithClause cs
   where
     buildWithClause (A.Clause (LHS i _ ps wps) rhs wh) = do
-      let (wps0, wps1) = splitAt n wps
+      let (wps0, wps1) = genericSplitAt n wps
           ps0          = map (Arg NotHidden . unnamed) wps0
       rhs <- buildRHS rhs
-      (ps1, ps2)  <- splitAt n1 <$> stripWithClausePatterns gamma qs perm ps
+      (ps1, ps2)  <- genericSplitAt n1 <$> stripWithClausePatterns gamma qs perm ps
       return $ A.Clause (LHS i aux (ps1 ++ ps0 ++ ps2) wps1) rhs wh
 
     buildRHS rhs@(RHS _)     = return rhs
@@ -126,11 +126,11 @@ stripWithClausePatterns gamma qs perm ps = do
             Con c []    <- constructorForm =<< normalise (Con c [])
             Defn _ ct _ _ Constructor{conPars = np}  <- getConstInfo c
             reportSDoc "tc.with.strip" 20 $ text "ct = " <+> prettyTCM ct
-            let ct' = flip apply (take np us) ct
+            let ct' = flip apply (genericTake np us) ct
             reportSDoc "tc.with.strip" 20 $ text "ct' = " <+> prettyTCM ct
-            reportSDoc "tc.with.strip" 20 $ text "us = " <+> prettyList (map prettyTCM $ take np us)
+            reportSDoc "tc.with.strip" 20 $ text "us = " <+> prettyList (map prettyTCM $ genericTake np us)
 
-            TelV tel' _ <- telView . flip apply (take np us) . defType <$> getConstInfo c
+            TelV tel' _ <- telView . flip apply (genericTake np us) . defType <$> getConstInfo c
 
             -- Compute the new telescope
             let v     = Con c $ reverse [ Arg h (Var i []) | (i, Arg h _) <- zip [0..] $ reverse qs' ]
@@ -169,11 +169,11 @@ withDisplayForm f aux delta1 delta2 n qs perm = do
   x <- freshNoName_
   let wild = Def (qualify (mnameFromList []) x) []
 
-  let top = length topArgs
+  let top = genericLength topArgs
       vs = topArgs ++ raiseFrom (size delta2) n (substs (sub wild) $ patsToTerms qs)
       dt = DWithApp (map DTerm $ Def f vs : withArgs) []
       withArgs = reverse $ map var [size delta2..size delta2 + n - 1]
-      pats = replicate (n + size delta1 + size delta2 + top) (Var 0 [])
+      pats = genericReplicate (n + size delta1 + size delta2 + top) (Var 0 [])
 
   let display = Display (n + size delta1 + size delta2 + top) pats dt
 
@@ -198,7 +198,7 @@ withDisplayForm f aux delta1 delta2 n qs perm = do
         Perm m xs = reverseP perm
         term i = case findIndex (i ==) xs of
           Nothing -> wild
-          Just j  -> Var j []
+          Just j  -> Var (fromIntegral j) []
 
 patsToTerms :: [Arg Pattern] -> [Arg Term]
 patsToTerms ps = evalState (toTerms ps) 0

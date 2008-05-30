@@ -50,13 +50,13 @@ conQName (QName m n)
   |(moduleStr m)=="RTP" = Qual (Module $ moduleStr m)  (HsIdent $ show n)
   | otherwise = Qual (Module $ moduleStr m) (conName n)
 
-numOfName :: Name -> Int
+numOfName :: Name -> Nat
 numOfName n = i where
 	id = nameId n
         (NameId i mi) = id
 
 
-numOfQName :: QName -> Int
+numOfQName :: QName -> Nat
 -- numOfQName (QName m (Name (NameId i) nc) ) = i
 numOfQName = numOfName . qnameName
 

@@ -60,19 +60,19 @@ checkStrictlyPositive ds = flip evalStateT noAssumptions $ do
 		_                       -> __IMPOSSIBLE__
 
 -- | Assumptions about arguments to datatypes
-type Assumptions = Set (QName, Int)
+type Assumptions = Set (QName, Nat)
 
 noAssumptions :: Assumptions
 noAssumptions = Set.empty
 
 type PosM = StateT Assumptions TCM
 
-isAssumption :: QName -> Int -> PosM Bool
+isAssumption :: QName -> Nat -> PosM Bool
 isAssumption q i = do
     a <- get
     return $ Set.member (q,i) a
 
-assume :: QName -> Int -> PosM ()
+assume :: QName -> Nat -> PosM ()
 assume q i = modify $ Set.insert (q,i)
 
 -- | @checkPos ds d c t@: Check that @ds@ only occurs stricly positively in the
@@ -94,7 +94,7 @@ checkPos ds mkReason t = mapM_ check ds
 			TypeError _ Closure{clValue = NotStrictlyPositive _ reason} ->
 			    lift $ typeError
 				 $ NotStrictlyPositive d
-				 $ mkReason (ArgumentTo i q) : reason
+				 $ mkReason (ArgumentTo (fromIntegral i) q) : reason
 			_   -> throwError e
 
 	defs = unMap $ getDefs $ arguments t
@@ -105,7 +105,7 @@ checkPos ds mkReason t = mapM_ check ds
 
 -- | Check that a particular argument occurs strictly positively in the
 --   definition of a datatype.
-checkPosArg :: QName -> Int -> PosM ()
+checkPosArg :: QName -> Nat -> PosM ()
 checkPosArg d i = unlessM (isAssumption d i) $ do
     assume d i
     lift $ reportSLn "tc.pos.arg" 20 $ "checkPosArg " ++ show d ++ " " ++ show i
@@ -113,8 +113,8 @@ checkPosArg d i = unlessM (isAssumption d i) $ do
     case def of
 	Datatype{dataCons = cs} -> do
 	    xs <- lift $ map (qnameFromList . (:[])) <$>
-		  replicateM (i + 1) (freshName_ "dummy")
-	    let x = xs !! i
+		  replicateM (fromIntegral $ i + 1) (freshName_ "dummy")
+	    let x = xs !! fromIntegral i
 		args = map (Arg NotHidden . flip Def []) xs
 	    let check c = do
 		    t <- lift $ normalise =<< (defType <$> getConstInfo c)
@@ -124,7 +124,7 @@ checkPosArg d i = unlessM (isAssumption d i) $ do
         Function{funClauses = cs} -> zipWithM_ (checkPosClause d i) [0..] cs
 	_   -> lift $ typeError $ NotStrictlyPositive d []
 
-checkPosClause :: QName -> Int -> Int -> Clause -> PosM ()
+checkPosClause :: QName -> Nat -> Nat -> Clause -> PosM ()
 checkPosClause f i n (Clause _ _ ps body) = do
   x    <- lift $ freshName_ "checkMe"
   args <- concat <$> zipWithM (mkArg $ def x) [0..] ps
@@ -133,14 +133,14 @@ checkPosClause f i n (Clause _ _ ps body) = do
     Body b -> do
       let t = -- b -> Prop
               El Prop $ Fun (Arg NotHidden $ El Prop b) (El Prop $ Sort Prop)
-      checkPos [qnameFromList [x]] (OccClause f n) t
+      checkPos [qnameFromList [x]] (OccClause f $ fromIntegral n) t
     NoBody -> return ()
     _     -> __IMPOSSIBLE__
   where
-    mkArgs :: Term -> Int -> [Arg Pattern] -> PosM Args
+    mkArgs :: Term -> Nat -> [Arg Pattern] -> PosM Args
     mkArgs me j ps = concat <$> mapM (mkArg me j) ps
 
-    mkArg :: Term -> Int -> Arg Pattern -> PosM Args
+    mkArg :: Term -> Nat -> Arg Pattern -> PosM Args
     mkArg me j (Arg _ p) = map (Arg NotHidden) <$> mkPat me j p
 
     mkPat me j (VarP _)
@@ -170,7 +170,7 @@ instance Ord k => Functor (Map k) where
 makeNegative :: Defs -> Defs
 makeNegative = fmap (const $ Set.singleton NonPositive)
 
-makeArgument :: QName -> Int -> Defs -> Defs
+makeArgument :: QName -> Nat -> Defs -> Defs
 makeArgument q i = fmap (Set.insert (Argument q i) . Set.delete Positive)
 
 singlePositive :: QName -> Defs

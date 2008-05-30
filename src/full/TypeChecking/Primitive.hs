@@ -274,7 +274,7 @@ hPi, nPi :: MonadTCM tcm => String -> tcm Type -> tcm Type -> tcm Type
 hPi = gpi Hidden
 nPi = gpi NotHidden
 
-var :: MonadTCM tcm => Int -> tcm Term
+var :: MonadTCM tcm => Integer -> tcm Term
 var n = return $ Var n []
 
 infixl 9 <@>, <#>
