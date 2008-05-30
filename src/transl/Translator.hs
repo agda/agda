@@ -31,12 +31,12 @@ import PPrint
 import CPrinter
 
 -- Agda 2
-import Utils.Pretty
-import Syntax.Common
-import Syntax.Concrete
-import Syntax.Concrete.Pretty
-import Syntax.Literal
-import Syntax.Position
+import Agda.Utils.Pretty
+import Agda.Syntax.Common
+import Agda.Syntax.Concrete
+import Agda.Syntax.Concrete.Pretty
+import Agda.Syntax.Literal
+import Agda.Syntax.Position
 
 starling :: (a -> b -> c) -> (a -> b) -> (a -> c)
 starling f g x = f x (g x)
@@ -262,7 +262,7 @@ transCDefn cdefn = case cdefn of
                 CStar _ 0 _  
                   -> [Record noRange name [] (Set noRange) (concatMap csig2fields csigs)]
                 CStar _ n _  
-                  -> [Record noRange name [] (SetN noRange n) (concatMap csig2fields csigs)]
+                  -> [Record noRange name [] (SetN noRange $ fromIntegral n) (concatMap csig2fields csigs)]
                 _ -> errorDecls $ pp "" cdefn
          CRecord cprops pos cletdefs
            -> ctype2typesig flg i [] ctype 
@@ -416,7 +416,7 @@ transCExpr :: CExpr -> Expr
 transCExpr ce = case ce of
   CVar i      -> Ident (QName (id2name i))
   CStar _ 0 _ -> Set noRange
-  CStar _ n _ -> SetN noRange n
+  CStar _ n _ -> SetN noRange (fromIntegral n)
   Clam (flg,CBind [x] Nothing) e 
               -> Lam noRange [DomainFree (bool2hiding flg) (mkBoundName_ $ id2name x)] (transCExpr e)
   Clam (flg,CBind xs (Just t)) e
