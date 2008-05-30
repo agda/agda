@@ -16,7 +16,7 @@ import qualified Data.Map as Map
 import Data.Maybe
 
 import System.Environment
-import System.IO hiding (putStrLn, putStr, print)
+import System.IO hiding (putStrLn, putStr, print, hPutStr)
 import System.Exit
 
 import Syntax.Position
@@ -57,6 +57,7 @@ import Utils.Monad
 import Utils.IO
 import Utils.FileName
 import Utils.Pretty
+import Utils.Impossible
 
 import Tests
 import Version
@@ -189,4 +190,7 @@ main = do
     case r of
 	Right _	-> return ()
 	Left _	-> exitFailure
+  `catchImpossible` \e -> do
+    putStr $ show e
+    exitFailure
 
