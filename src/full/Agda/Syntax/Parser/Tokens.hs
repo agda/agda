@@ -11,7 +11,7 @@ import Agda.Syntax.Concrete.Name (Name, QName)
 import Agda.Syntax.Position
 
 data Keyword
-	= KwLet | KwIn | KwWhere | KwData
+	= KwLet | KwIn | KwWhere | KwData | KwCoData
 	| KwPostulate | KwMutual | KwAbstract | KwPrivate
 	| KwOpen | KwImport | KwModule | KwPrimitive
 	| KwInfix | KwInfixL | KwInfixR | KwWith
@@ -27,7 +27,7 @@ layoutKeywords =
 
 data Symbol
 	= SymDot | SymSemi | SymVirtualSemi | SymBar
-	| SymColon | SymArrow | SymEqual | SymLambda
+	| SymColon | SymArrow | SymEqual | SymSim | SymLambda
 	| SymUnderscore	| SymQuestionMark   | SymAs
 	| SymOpenParen	      | SymCloseParen
 	| SymOpenBrace	      | SymCloseBrace

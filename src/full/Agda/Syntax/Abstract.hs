@@ -68,7 +68,7 @@ data LetBinding = LetBind LetInfo Name Expr Expr    -- ^ LetBind info name type 
 -- | A definition without its type signature.
 data Definition
 	= FunDef     DefInfo QName [Clause]
-	| DataDef    DefInfo QName [LamBinding] [Constructor]
+	| DataDef    DefInfo QName Induction [LamBinding] [Constructor]
 	    -- ^ the 'LamBinding's are 'DomainFree' and binds the parameters of the datatype.
 	| RecDef     DefInfo QName [LamBinding]
                         Expr          -- ^ Constructor type telescope: @(x1 : A1)..(xn : An) -> Prop@
@@ -107,7 +107,7 @@ type Telescope	= [TypedBindings]
 --   @where@ clause though, so for the time being we keep it here.
 data Clause	= Clause LHS RHS [Declaration]
   deriving (Typeable, Data)
-data RHS	= RHS Expr
+data RHS	= RHS Recursion Expr
 		| AbsurdRHS
 		| WithRHS [Expr] [Clause]
   deriving (Typeable, Data)
@@ -213,9 +213,9 @@ instance HasRange Declaration where
     getRange (ScopedDecl _ d	       ) = getRange d
 
 instance HasRange Definition where
-    getRange (FunDef  i _ _    ) = getRange i
-    getRange (DataDef i _ _ _  ) = getRange i
-    getRange (RecDef  i _ _ _ _) = getRange i
+    getRange (FunDef  i _ _    )   = getRange i
+    getRange (DataDef i _ _ _ _  ) = getRange i
+    getRange (RecDef  i _ _ _ _)   = getRange i
 
 instance HasRange (Pattern' e) where
     getRange (VarP x)	   = getRange x
@@ -236,7 +236,7 @@ instance HasRange Clause where
 
 instance HasRange RHS where
     getRange AbsurdRHS	    = noRange
-    getRange (RHS e)	    = getRange e
+    getRange (RHS _ e)	    = getRange e
     getRange (WithRHS e cs) = fuseRange e cs
 
 instance HasRange LetBinding where

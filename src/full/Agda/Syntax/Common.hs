@@ -16,6 +16,12 @@ import Agda.Utils.Size
 #include "../undefined.h"
 import Agda.Utils.Impossible
 
+data Induction = Inductive | CoInductive
+  deriving (Typeable, Data, Show, Eq)
+
+data Recursion = Recursive | CoRecursive
+  deriving (Typeable, Data, Show, Eq)
+
 data Hiding  = Hidden | NotHidden
     deriving (Typeable, Data, Show, Eq)
 

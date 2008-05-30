@@ -448,11 +448,11 @@ instance InstantiateFull DisplayTerm where
 instance InstantiateFull Defn where
     instantiateFull d = case d of
 	Axiom h			-> return (Axiom h)
-	Function cs inv a	-> flip (flip Function inv) a <$> instantiateFull cs
-	Datatype np ni cl cs s a -> do
+	Function cs rec inv a	-> (\cs -> Function cs rec inv a) <$> instantiateFull cs
+	Datatype np ni ind cl cs s a -> do
 	    s  <- instantiateFull s
 	    cl <- instantiateFull cl
-	    return $ Datatype np ni cl cs s a
+	    return $ Datatype np ni ind cl cs s a
 	Record np cl cs tel s a -> do
 	    s	<- instantiateFull s
 	    cl	<- instantiateFull cl

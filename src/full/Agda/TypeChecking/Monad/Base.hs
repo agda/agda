@@ -321,17 +321,19 @@ data Defn = Axiom
             { axHsCode   :: Maybe HaskellCode
             }
 	  | Function
-            { funClauses :: [Clause]
-            , funInv     :: FunctionInverse
-            , funAbstr   :: IsAbstract
+            { funClauses   :: [Clause]
+            , funRecursion :: Recursion
+            , funInv       :: FunctionInverse
+            , funAbstr     :: IsAbstract
             }
 	  | Datatype
-            { dataPars   :: Nat           -- nof parameters
-	    , dataIxs    :: Nat           -- nof indices
-            , dataClause :: (Maybe Clause) -- this might be in an instantiated module
-            , dataCons   :: [QName]        -- constructor names
-            , dataSort   :: Sort
-            , dataAbstr  :: IsAbstract
+            { dataPars      :: Nat           -- nof parameters
+	    , dataIxs       :: Nat           -- nof indices
+            , dataInduction :: Induction  -- data or codata?
+            , dataClause    :: (Maybe Clause) -- this might be in an instantiated module
+            , dataCons      :: [QName]        -- constructor names
+            , dataSort      :: Sort
+            , dataAbstr     :: IsAbstract
             }
 	  | Record
             { recPars   :: Nat

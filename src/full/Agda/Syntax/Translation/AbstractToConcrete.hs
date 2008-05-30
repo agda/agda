@@ -388,7 +388,7 @@ instance ToConcrete A.TypedBinding C.TypedBinding where
 instance ToConcrete LetBinding [C.Declaration] where
     bindToConcrete (LetBind i x t e) ret =
 	bindToConcrete x $ \x ->
-	do  (t,(e, [], [])) <- toConcrete (t,A.RHS e)
+	do  (t,(e, [], [])) <- toConcrete (t, A.RHS Recursive e)
 	    ret [C.TypeSig x t, C.FunClause (C.LHS (C.IdentP $ C.QName x) [] []) e C.NoWhere]
     bindToConcrete (LetApply i x tel y es _ _) ret = do
       x  <- unsafeQNameToName <$> toConcrete x
@@ -408,9 +408,9 @@ instance ToConcrete [A.Declaration] [C.Declaration] where
     toConcrete ds = concat <$> mapM toConcrete ds
 
 instance ToConcrete A.RHS (C.RHS, [C.Expr], [C.Declaration]) where
-    toConcrete (A.RHS e)   = do
+    toConcrete (A.RHS rec e)   = do
       e <- toConcrete e
-      return (C.RHS e, [], [])
+      return (C.RHS rec e, [], [])
     toConcrete A.AbsurdRHS = return (C.AbsurdRHS, [], [])
     toConcrete (A.WithRHS es cs) = do
       es <- toConcrete es
@@ -432,12 +432,12 @@ instance ToConcrete TypeAndDef [C.Declaration] where
     x'  <- unsafeQNameToName <$> toConcrete x
     return $ TypeSig x' t' : concat cs'
 
-  toConcrete (TypeAndDef (Axiom _ x t) (DataDef i _ bs cs)) =
+  toConcrete (TypeAndDef (Axiom _ x t) (DataDef i _ ind bs cs)) =
     withAbstractPrivate i $
     bindToConcrete tel $ \tel' -> do
       t'       <- toConcreteCtx TopCtx t0
       (x',cs') <- (unsafeQNameToName -*- id) <$> toConcrete (x, map Constr cs)
-      return [ C.Record (getRange i) x' tel' t' cs' ]
+      return [ C.Data (getRange i) ind x' tel' t' cs' ]
     where
       (tel, t0) = mkTel (length bs) t
       mkTel 0 t		   = ([], t)
@@ -449,7 +449,7 @@ instance ToConcrete TypeAndDef [C.Declaration] where
     bindToConcrete tel $ \tel' -> do
       t'       <- toConcreteCtx TopCtx t0
       (x',cs') <- (unsafeQNameToName -*- id) <$> toConcrete (x, map Constr cs)
-      return [ C.Data (getRange i) x' tel' t' cs' ]
+      return [ C.Record (getRange i) x' tel' t' cs' ]
     where
       (tel, t0) = mkTel (length bs) t
       mkTel 0 t		   = ([], t)

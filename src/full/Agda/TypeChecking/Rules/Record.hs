@@ -165,7 +165,7 @@ checkRecordProjections m q tel ftel s fs = checkProjs EmptyTel ftel fs
 	  clause = Clause cltel (idP $ size ptel + size ftel) (hps ++ [conp]) body
       escapeContext (size tel) $
 	addConstant projname (Defn projname finalt (defaultDisplayForm projname) 0
-          $ Function [clause] NotInjective ConcreteDef)
+          $ Function [clause] Recursive NotInjective ConcreteDef)
 
       checkProjs (abstract ftel1 $ ExtendTel (Arg NotHidden t)
                                  $ Abs (show $ qnameName projname) EmptyTel

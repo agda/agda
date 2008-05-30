@@ -519,7 +519,7 @@ instance ToAbstract LetDef [A.LetBinding] where
 
 	    _	-> notAValidLetBinding d
 	where
-	    letToAbstract (C.Clause top clhs@(C.LHS p [] []) (C.RHS rhs) NoWhere []) = do
+	    letToAbstract (C.Clause top clhs@(C.LHS p [] []) (C.RHS Recursive rhs) NoWhere []) = do
 		p    <- parseLHS (Just top) p
 		localToAbstract (snd $ lhsArgs p) $ \args ->
 		    do	rhs <- toAbstract rhs
@@ -569,14 +569,14 @@ instance ToAbstract NiceDefinition Definition where
 	return $ A.FunDef (mkSourcedDefInfo x f p a ds) x' cs'
 
     -- Data definitions
-    toAbstract d@(C.DataDef r f p a x pars cons) =
+    toAbstract d@(C.DataDef r ind f p a x pars cons) =
       traceCall (ScopeCheckDefinition d) $
       withLocalVars $ do
 	pars <- toAbstract pars
 	cons <- toAbstract (map Constr cons)
 	x'   <- toAbstract (OldName x)
         printScope "data" 20 $ "Checked data " ++ show x
-	return $ A.DataDef (mkRangedDefInfo x f p a r) x' pars cons
+	return $ A.DataDef (mkRangedDefInfo x f p a r) x' ind pars cons
 
     -- Record definitions (mucho interesting)
     toAbstract d@(C.RecDef r f p a x pars fields) =
@@ -757,24 +757,24 @@ instance ToAbstract C.Clause A.Clause where
 data RightHandSide = RightHandSide [C.Expr] [C.Clause] C.RHS
 data AbstractRHS = AbsurdRHS'
                  | WithRHS' [A.Expr] [C.Clause]  -- ^ The with clauses haven't been translated yet
-                 | RHS' A.Expr
+                 | RHS' Recursion A.Expr
 
 instance ToAbstract AbstractRHS A.RHS where
   toAbstract AbsurdRHS'       = return A.AbsurdRHS
-  toAbstract (RHS' e)         = return $ A.RHS e
+  toAbstract (RHS' rec e)     = return $ A.RHS rec e
   toAbstract (WithRHS' es cs) = A.WithRHS es <$> toAbstract cs
 
 instance ToAbstract RightHandSide AbstractRHS where
-  toAbstract (RightHandSide [] (_ : _) _)        = __IMPOSSIBLE__
-  toAbstract (RightHandSide (_ : _) _ (C.RHS _)) = typeError $ BothWithAndRHS
-  toAbstract (RightHandSide [] [] rhs)           = toAbstract rhs
-  toAbstract (RightHandSide es cs C.AbsurdRHS) = do
+  toAbstract (RightHandSide [] (_ : _) _)          = __IMPOSSIBLE__
+  toAbstract (RightHandSide (_ : _) _ (C.RHS _ _)) = typeError $ BothWithAndRHS
+  toAbstract (RightHandSide [] [] rhs)             = toAbstract rhs
+  toAbstract (RightHandSide es cs C.AbsurdRHS)     = do
     es <- toAbstractCtx TopCtx es
     return $ WithRHS' es cs
 
 instance ToAbstract C.RHS AbstractRHS where
     toAbstract C.AbsurdRHS = return $ AbsurdRHS'
-    toAbstract (C.RHS e)   = RHS' <$> toAbstract e
+    toAbstract (C.RHS rec e)   = RHS' rec <$> toAbstract e
 
 data LeftHandSide = LeftHandSide C.Name C.Pattern [C.Pattern]
 

@@ -107,7 +107,7 @@ checkMutual i ts ds = inMutualBlock $ do
   mapM_ checkTypeSignature ts
   mapM_ checkDefinition ds
   whenM positivityCheckEnabled $
-      checkStrictlyPositive [ name | A.DataDef _ name _ _ <- ds ]
+      checkStrictlyPositive [ name | A.DataDef _ name _ _ _ <- ds ]
 
 
 -- | Type check the type signature of an inductive or recursive definition.
@@ -127,9 +127,9 @@ checkTypeSignature _ = __IMPOSSIBLE__	-- type signatures are always axioms
 checkDefinition :: A.Definition -> TCM ()
 checkDefinition d =
     case d of
-	A.FunDef i x cs        -> abstract (Info.defAbstract i) $ checkFunDef i x cs
-	A.DataDef i x ps cs    -> abstract (Info.defAbstract i) $ checkDataDef i x ps cs
-	A.RecDef i x ps tel cs -> abstract (Info.defAbstract i) $ checkRecDef i x ps tel cs
+	A.FunDef i x cs         -> abstract (Info.defAbstract i) $ checkFunDef i x cs
+	A.DataDef i x ind ps cs -> abstract (Info.defAbstract i) $ checkDataDef i ind x ps cs
+	A.RecDef i x ps tel cs  -> abstract (Info.defAbstract i) $ checkRecDef i x ps tel cs
     where
 	-- Concrete definitions cannot use information about abstract things.
 	abstract ConcreteDef = inConcreteMode

@@ -57,6 +57,17 @@ import Agda.Utils.Impossible
 -- * Definitions by pattern matching
 ---------------------------------------------------------------------------
 
+getRecursion :: [A.Clause] -> TCM Recursion
+getRecursion cs = case nub $ concatMap clRec cs of
+  []  -> return Recursive
+  [rec] -> return rec
+  _     -> fail "Cannot mix recursion and corecursion in the same definition"
+  where
+    clRec (A.Clause _ rhs _) = case rhs of
+      A.RHS rec _    -> [rec]
+      A.AbsurdRHS    -> []
+      A.WithRHS _ cs -> concatMap clRec cs
+
 -- | Type check a definition by pattern matching.
 checkFunDef :: Info.DefInfo -> QName -> [A.Clause] -> TCM ()
 checkFunDef i name cs =
@@ -70,6 +81,8 @@ checkFunDef i name cs =
               , nest 2 $ text ":" <+> prettyTCM t
               , nest 2 $ text "full type:" <+> (prettyTCM . defType =<< getConstInfo name)
               ]
+
+        rec <- getRecursion cs
 
         -- Check the clauses
         cs <- mapM (checkClause t) cs
@@ -85,7 +98,7 @@ checkFunDef i name cs =
 
         -- Add the definition
         addConstant name $ Defn name t (defaultDisplayForm name) 0
-                         $ Function cs inv $ Info.defAbstract i
+                         $ Function cs rec inv $ Info.defAbstract i
         verboseS "tc.def.fun" 10 $ do
           dx <- prettyTCM name
           t' <- prettyTCM . defType =<< getConstInfo name
@@ -118,7 +131,7 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs wh) =
       let mkBody v = foldr (\x t -> Bind $ Abs x t) (Body $ substs sub v) xs
       (body, with) <- checkWhere (size delta) wh $ 
               case rhs of
-                A.RHS e
+                A.RHS _ e
                   | any (containsAbsurdPattern . namedThing . unArg) aps ->
                     typeError $ AbsurdPatternRequiresNoRHS aps
                   | otherwise -> do

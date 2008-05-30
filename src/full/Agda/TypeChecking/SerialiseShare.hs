@@ -259,7 +259,21 @@ instance (EmbPrj a) => EmbPrj (Agda.Syntax.Common.Arg a) where
   icode (Arg a b) = icode2' a b
   value = vcase valu where valu [a, b] = valu2 Arg a b
                            valu _      = corrupt "Agda.Syntax.Common.Arg"
-  
+
+instance EmbPrj Agda.Syntax.Common.Recursion where
+  icode Recursive   = icode0 0
+  icode CoRecursive = icode0 1
+  value = vcase valu where valu [0] = valu0 Recursive
+                           valu [1] = valu0 CoRecursive
+                           valu _   = corrupt "Agda.Syntax.Common.Recursion"
+
+instance EmbPrj Agda.Syntax.Common.Induction where
+  icode Inductive   = icode0 0
+  icode CoInductive = icode0 1
+  value = vcase valu where valu [0] = valu0 Inductive
+                           valu [1] = valu0 CoInductive
+                           valu _   = corrupt "Agda.Syntax.Common.Induction"
+
 instance EmbPrj Agda.Syntax.Common.Hiding where
   icode Hidden    = icode0 0
   icode NotHidden = icode0 1
@@ -364,20 +378,20 @@ instance EmbPrj Definition where
                            valu _               = corrupt "Definition"
 
 instance EmbPrj Defn where
-  icode (Axiom       a)           = icode1 0 a
-  icode (Function    a b c)       = icode3 1 a b c
-  icode (Datatype    a b c d e f) = icode6 2 a b c d e f
-  icode (Record      a b c d e f) = icode6 3 a b c d e f
-  icode (Constructor a b c d e)   = icode5 4 a b c d e
-  icode (Primitive   a b c)       = icode3 5 a b c
+  icode (Axiom       a)             = icode1 0 a
+  icode (Function    a b c d)       = icode4 1 a b c d
+  icode (Datatype    a b c d e f g) = icode7 2 a b c d e f g
+  icode (Record      a b c d e f)   = icode6 3 a b c d e f
+  icode (Constructor a b c d e)     = icode5 4 a b c d e
+  icode (Primitive   a b c)         = icode3 5 a b c
   value = vcase valu where
-    valu [0, a]                = valu1 Axiom       a
-    valu [1, a, b, c]          = valu3 Function    a b c
-    valu [2, a, b, c, d, e, f] = valu6 Datatype    a b c d e f
-    valu [3, a, b, c, d, e, f] = valu6 Record      a b c d e f
-    valu [4, a, b, c, d, e]    = valu5 Constructor a b c d e
-    valu [5, a, b, c]          = valu3 Primitive   a b c
-    valu _                     = corrupt "Defn"
+    valu [0, a]                   = valu1 Axiom       a
+    valu [1, a, b, c, d]          = valu4 Function    a b c d
+    valu [2, a, b, c, d, e, f, g] = valu7 Datatype    a b c d e f g
+    valu [3, a, b, c, d, e, f]    = valu6 Record      a b c d e f
+    valu [4, a, b, c, d, e]       = valu5 Constructor a b c d e
+    valu [5, a, b, c]             = valu3 Primitive   a b c
+    valu _                        = corrupt "Defn"
 
 instance EmbPrj FunctionInverse where
   icode NotInjective = icode0'

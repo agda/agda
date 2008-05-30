@@ -54,6 +54,14 @@ showChar' c
     where
 	escapeMe c = not (isPrint c) || c == '\\'
 
+instance Pretty Induction where
+  pretty Inductive = text "data"
+  pretty CoInductive = text "codata"
+
+instance Pretty Recursion where
+  pretty Recursive = text "="
+  pretty CoRecursive = text "~"
+
 instance Pretty Expr where
     pretty e =
 	case e of
@@ -136,7 +144,7 @@ instance Pretty TypedBinding where
 	    ]
 
 instance Pretty RHS where
-    pretty (RHS e)   = text "=" <+> pretty e
+    pretty (RHS rec e)   = pretty rec <+> pretty e
     pretty AbsurdRHS = empty
 
 instance Pretty WhereClause where
@@ -149,7 +157,7 @@ instance Pretty WhereClause where
 
 instance Pretty LHS where
   pretty lhs = case lhs of
-    LHS p ps es      -> pr (pretty p) ps es
+    LHS p ps es  -> pr (pretty p) ps es
     Ellipsis _ ps es -> pr (text "...") ps es
     where
       pr d ps es =
@@ -175,8 +183,8 @@ instance Pretty Declaration where
 		sep [ pretty lhs
 		    , nest 2 $ pretty rhs
 		    ] $$ nest 2 (pretty wh)
-	    Data _ x tel e cs ->
-		sep [ hsep  [ text "data"
+	    Data _ ind x tel e cs ->
+		sep [ hsep  [ pretty ind
 			    , pretty x
 			    , fcat (map pretty tel)
 			    ]

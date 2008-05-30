@@ -81,7 +81,7 @@ functionInverse v = case ignoreBlocking v of
   Def f args -> do
     d <- theDef <$> getConstInfo f
     case d of
-      Function _ inv _ -> case inv of
+      Function{ funInv = inv } -> case inv of
         NotInjective  -> return NoInv
         Inverse m     -> return $ Inv f args m
       _ -> return NoInv

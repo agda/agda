@@ -139,13 +139,13 @@ infoDecl name val = HsFunBind [ HsMatch dummyLoc hsname [] rhs []] where
 
 
 processDef :: (QName,Definition) -> IM [HsDecl]
-processDef (qname,Defn { theDef = Function clauses _ isa }) =  do
+processDef (qname,Defn { theDef = Function { funClauses = clauses } }) =  do
       hsDecls <- foldClauses name 1 clauses
       return [HsFunBind [HsMatch dummyLoc (dfName name) [] rhs hsDecls]] where
                 rhs = HsUnGuardedRhs $ HsVar $ UnQual $ dfNameSub name 1
                 name = qnameName qname
  
-processDef (qname,Defn { theDef = Datatype n nind Nothing [] sort isa }) = do
+processDef (qname,Defn { theDef = Datatype n nind _ Nothing [] sort isa }) = do
   return [ddecl,vdecl]  where
       name = qnameName qname
       ddecl = HsDataDecl  dummyLoc [] (dataName name) tvars cons []
@@ -158,7 +158,7 @@ processDef (qname,Defn { theDef = Datatype n nind Nothing [] sort isa }) = do
       nDummyArgs 0 = []
       nDummyArgs k = (HsPVar $ HsIdent ("v" ++ (show k))) : nDummyArgs (k-1)
 
-processDef (qname,Defn { theDef = Datatype n nind Nothing cs sort isa }) = do
+processDef (qname,Defn { theDef = Datatype n nind _ Nothing cs sort isa }) = do
   cons <- consForName name cs
   arities <- getConArities cs
   return [ddecl cons arities,vdecl]  where

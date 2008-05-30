@@ -70,8 +70,8 @@ definitions = M.fold (liftM2(++).(definition<.>instantiateFull)) declsForPrim
 definition :: Definition -> TCM [HsDecl]
 definition (Defn q ty _ _ d) = (infodecl q :) <$> case d of
   Axiom _                  -> return $ fb axiom
-  Function cls _ _         -> mkwhere <$> mapM (clause q) (tag 0 cls)
-  Datatype np ni cl cs _ _ -> do
+  Function cls _ _ _       -> mkwhere <$> mapM (clause q) (tag 0 cls)
+  Datatype np ni _ cl cs _ _ -> do
     (ars, cds) <- unzip <$> mapM condecl cs
     return $ tvaldecl q (maximum (np:ars) - np) (np + ni) cds cl
   Constructor _ _ _ _ _    -> return []

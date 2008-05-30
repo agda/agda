@@ -133,7 +133,7 @@ data LHS = LHS Pattern   -- ^ original pattern
   deriving (Typeable, Data, Eq)
 
 data RHS = AbsurdRHS
-	 | RHS Expr
+	 | RHS Recursion Expr
     deriving (Typeable, Data, Eq)
 
 data WhereClause = NoWhere | AnyWhere [Declaration] | SomeWhere Name [Declaration]
@@ -179,7 +179,6 @@ type TypeSignature   = Declaration
 type Constructor = TypeSignature
 type Field	 = TypeSignature
 
-
 {-| The representation type of a declaration. The comments indicate
     which type in the intended family the constructor targets.
 -}
@@ -187,7 +186,7 @@ data Declaration
 	= TypeSig Name Expr
         | Field Name Expr
 	| FunClause LHS RHS WhereClause
-	| Data        !Range Name [TypedBindings] Expr [Constructor]
+	| Data        !Range Induction Name [TypedBindings] Expr [Constructor]
 	| Record      !Range Name [TypedBindings] Expr [Field]
 	| Infix Fixity [Name]
 	| Mutual      !Range [Declaration]
@@ -288,7 +287,7 @@ instance HasRange Declaration where
     getRange (TypeSig x t)		= fuseRange x t
     getRange (Field x t)                = fuseRange x t
     getRange (FunClause lhs rhs wh)	= fuseRange lhs rhs `fuseRange` wh
-    getRange (Data r _ _ _ _)		= r
+    getRange (Data r _ _ _ _ _)		= r
     getRange (Record r _ _ _ _)		= r
     getRange (Mutual r _)		= r
     getRange (Abstract r _)		= r
@@ -308,7 +307,7 @@ instance HasRange LHS where
 
 instance HasRange RHS where
     getRange AbsurdRHS = noRange
-    getRange (RHS e)   = getRange e
+    getRange (RHS _ e)   = getRange e
 
 instance HasRange Pragma where
     getRange (OptionsPragma r _)        = r

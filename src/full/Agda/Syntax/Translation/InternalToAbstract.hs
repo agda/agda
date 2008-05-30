@@ -191,11 +191,11 @@ instance Reify Term Expr where
 		I.MetaV x vs -> apps =<< reify (x,vs)
 		I.BlockedV _ -> __IMPOSSIBLE__
 
-data NamedClause = NamedClause QName I.Clause
+data NamedClause = NamedClause QName Recursion I.Clause
 
-instance Reify ClauseBody RHS where
-  reify NoBody     = return AbsurdRHS
-  reify (Body v)   = RHS <$> reify v
+instance Reify ClauseBody (Recursion -> RHS) where
+  reify NoBody     = return $ \_ -> AbsurdRHS
+  reify (Body v)   = flip RHS <$> reify v
   reify (NoBind b) = reify b
   reify (Bind b)   = reify $ absBody b  -- the variables should already be bound
 
@@ -341,13 +341,13 @@ reifyPatterns tel perm ps = evalStateT (reifyArgs ps) 0
         i = PatRange noRange
 
 instance Reify NamedClause A.Clause where
-  reify (NamedClause f (I.Clause tel perm ps body)) = addCtxTel tel $ do
+  reify (NamedClause f rec (I.Clause tel perm ps body)) = addCtxTel tel $ do
     ps  <- reifyPatterns tel perm ps
     lhs <- reifyDisplayFormP $ LHS info f ps []
     lhs <- stripImps lhs
     nfv <- getDefFreeVars f
     rhs <- reify body
-    return $ A.Clause (dropParams nfv lhs) rhs []
+    return $ A.Clause (dropParams nfv lhs) (rhs rec) []
     where
       info = LHSRange noRange
       dropParams n (LHS i f ps wps) = LHS i f (genericDrop n ps) wps

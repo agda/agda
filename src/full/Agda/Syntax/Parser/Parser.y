@@ -58,6 +58,7 @@ import Agda.Utils.Monad
     'public'	{ TokKeyword KwPublic $$ }
     'module'	{ TokKeyword KwModule $$ }
     'data'	{ TokKeyword KwData $$ }
+    'codata'	{ TokKeyword KwCoData $$ }
     'record'	{ TokKeyword KwRecord $$ }
     'field'	{ TokKeyword KwField $$ }
     'infix'	{ TokKeyword KwInfix $$ }
@@ -85,6 +86,7 @@ import Agda.Utils.Monad
     ';'		{ TokSymbol SymSemi $$ }
     ':'		{ TokSymbol SymColon $$ }
     '='		{ TokSymbol SymEqual $$ }
+    '~'		{ TokSymbol SymSim $$ }
     '_'		{ TokSymbol SymUnderscore $$ }
     '?'		{ TokSymbol SymQuestionMark $$ }
     '->'	{ TokSymbol SymArrow $$ }
@@ -141,6 +143,7 @@ Token
     | 'public'	    { TokKeyword KwPublic $1 }
     | 'module'	    { TokKeyword KwModule $1 }
     | 'data'	    { TokKeyword KwData $1 }
+    | 'codata'	    { TokKeyword KwCoData $1 }
     | 'record'	    { TokKeyword KwRecord $1 }
     | 'field'       { TokKeyword KwField $1 }
     | 'infix'	    { TokKeyword KwInfix $1 }
@@ -168,6 +171,7 @@ Token
     | ';'	    { TokSymbol SymSemi $1 }
     | ':'	    { TokSymbol SymColon $1 }
     | '='	    { TokSymbol SymEqual $1 }
+    | '~'	    { TokSymbol SymSim $1 }
     | '_'	    { TokSymbol SymUnderscore $1 }
     | '?'	    { TokSymbol SymQuestionMark $1 }
     | '->'	    { TokSymbol SymArrow $1 }
@@ -603,13 +607,16 @@ FunClause :: { Declaration }
 FunClause : LHS RHS WhereClause	{ FunClause $1 $2 $3 }
 
 RHS :: { RHS }
-RHS : '=' Expr	    { RHS $2 }
+RHS : '=' Expr	    { RHS Recursive $2 }
+    | '~' Expr	    { RHS CoRecursive $2 }
     | {- empty -}   { AbsurdRHS }
 
 -- Data declaration. Can be local.
 Data :: { Declaration }
 Data : 'data' Id TypedBindingss0 ':' Expr 'where'
-	    Constructors	{ Data (getRange ($1, $6, $7)) $2 $3 $5 $7 }
+	    Constructors	{ Data (getRange ($1, $6, $7)) Inductive $2 $3 $5 $7 }
+     | 'codata' Id TypedBindingss0 ':' Expr 'where'
+	    Constructors	{ Data (getRange ($1, $6, $7)) CoInductive $2 $3 $5 $7 }
 
 
 -- Record declarations.

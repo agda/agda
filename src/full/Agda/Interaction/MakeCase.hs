@@ -77,6 +77,7 @@ makeCase hole rng s = do
 
 makeAbsurdClause :: QName -> SplitClause -> TCM A.Clause
 makeAbsurdClause f (SClause tel perm ps _) = do
+  rec <- funRecursion . theDef <$> getConstInfo f 
   reportSDoc "interaction.case" 10 $ vcat
     [ text "split clause:"
     , nest 2 $ vcat
@@ -87,15 +88,16 @@ makeAbsurdClause f (SClause tel perm ps _) = do
       ]
     ]
   withCurrentModule (qnameModule f) $
-    reify $ NamedClause f $ Clause tel perm ps NoBody
+    reify $ NamedClause f rec $ Clause tel perm ps NoBody
 
 makeAbstractClause :: QName -> SplitClause -> TCM A.Clause
 makeAbstractClause f cl = do
+  rec <- funRecursion . theDef <$> getConstInfo f
   A.Clause lhs _ _ <- makeAbsurdClause f cl
-  return $ mkClause lhs
+  return $ mkClause rec lhs
   where
-    mkClause :: A.LHS -> A.Clause
-    mkClause lhs = A.Clause lhs (A.RHS $ A.QuestionMark info) []
+    mkClause :: Recursion -> A.LHS -> A.Clause
+    mkClause rec lhs = A.Clause lhs (A.RHS rec $ A.QuestionMark info) []
       where
         info = A.MetaInfo noRange emptyScopeInfo Nothing
 

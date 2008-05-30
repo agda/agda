@@ -56,7 +56,7 @@ data NiceDeclaration
 -- | A definition without its type signature.
 data NiceDefinition
 	= FunDef  Range [Declaration] Fixity Access IsAbstract Name [Clause]
-	| DataDef Range Fixity Access IsAbstract Name [LamBinding] [NiceConstructor]
+	| DataDef Range Induction Fixity Access IsAbstract Name [LamBinding] [NiceConstructor]
 	| RecDef Range Fixity Access IsAbstract Name [LamBinding] [NiceField]
     deriving (Typeable, Data)
 
@@ -104,9 +104,9 @@ instance HasRange NiceDeclaration where
     getRange (PrimitiveFunction r _ _ _ _ _)   = r
 
 instance HasRange NiceDefinition where
-  getRange (FunDef r _ _ _ _ _ _)  = r
-  getRange (DataDef r _ _ _ _ _ _) = r
-  getRange (RecDef r _ _ _ _ _ _)  = r
+  getRange (FunDef r _ _ _ _ _ _)    = r
+  getRange (DataDef r _ _ _ _ _ _ _) = r
+  getRange (RecDef r _ _ _ _ _ _)    = r
 
 instance Error DeclarationException where
   noMsg  = strMsg ""
@@ -175,7 +175,7 @@ niceDeclarations ds = do
 	  FunClause (LHS p [] _) _ _
             | IdentP (QName x) <- noSingletonRawAppP p -> [x]
 	  FunClause{}				       -> []
-	  Data _ x _ _ cs			       -> x : concatMap declaredNames cs
+	  Data _ _ x _ _ cs			       -> x : concatMap declaredNames cs
 	  Record _ x _ _ _			       -> [x]
 	  Infix _ _				       -> []
 	  Mutual _ ds				       -> concatMap declaredNames ds
@@ -217,9 +217,9 @@ niceDeclarations ds = do
 		_   -> liftM2 (++) nds (nice fixs ds)
 		    where
 			nds = case d of
-                            Field x t           -> return $ niceAxioms fixs [ Field x t ]
-			    Data   r x tel t cs -> dataOrRec DataDef niceAx  r x tel t cs
-			    Record r x tel t cs -> dataOrRec RecDef  (const niceDeclarations) r x tel t cs
+                            Field x t               -> return $ niceAxioms fixs [ Field x t ]
+			    Data   r ind x tel t cs -> dataOrRec (flip DataDef ind) niceAx r x tel t cs
+			    Record r x tel t cs     -> dataOrRec RecDef (const niceDeclarations) r x tel t cs
 			    Mutual r ds -> do
 			      d <- mkMutual r [d] =<< niceFix fixs ds
 			      return [d]
@@ -392,10 +392,10 @@ niceDeclarations ds = do
 
 	mkAbstractDef d =
 	    case d of
-		FunDef r ds f a _ x cs	-> FunDef r ds f a AbstractDef x
+		FunDef r ds f a _ x cs      -> FunDef r ds f a AbstractDef x
 						  (map mkAbstractClause cs)
-		DataDef r f a _ x ps cs	-> DataDef r f a AbstractDef x ps $ map mkAbstract cs
-		RecDef r f a _ x ps cs	-> RecDef r f a AbstractDef x ps $ map mkAbstract cs
+		DataDef r ind f a _ x ps cs -> DataDef r ind f a AbstractDef x ps $ map mkAbstract cs
+		RecDef r f a _ x ps cs      -> RecDef r f a AbstractDef x ps $ map mkAbstract cs
 
 	mkAbstractClause (Clause x lhs rhs wh with) =
 	    Clause x lhs rhs (mkAbstractWhere wh) (map mkAbstractClause with)
@@ -420,10 +420,10 @@ niceDeclarations ds = do
 
 	mkPrivateDef d =
 	    case d of
-		FunDef r ds f _ a x cs	-> FunDef r ds f PrivateAccess a x
+		FunDef r ds f _ a x cs      -> FunDef r ds f PrivateAccess a x
 						  (map mkPrivateClause cs)
-		DataDef r f _ a x ps cs	-> DataDef r f PrivateAccess a x ps (map mkPrivate cs)
-		RecDef r f _ a x ps cs	-> RecDef r f PrivateAccess a x ps cs
+		DataDef r ind f _ a x ps cs -> DataDef r ind f PrivateAccess a x ps (map mkPrivate cs)
+		RecDef r f _ a x ps cs      -> RecDef r f PrivateAccess a x ps cs
 
 	mkPrivateClause (Clause x lhs rhs wh with) =
 	    Clause x lhs rhs (mkPrivateWhere wh) (map mkPrivateClause with)

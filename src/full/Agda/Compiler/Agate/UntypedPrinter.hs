@@ -72,15 +72,15 @@ showUntypedDefinition (name, defn) = do
 	Axiom{} ->
 	    return $ sep [ dname, equals ] <+>
 		     sep [ text "undefined {- postulate -}" ]
-	Function [] _ a -> __IMPOSSIBLE__
-	Function clauses _ a -> do
+	Function {funClauses = []} -> __IMPOSSIBLE__
+	Function {funClauses = clauses} -> do
             let (Clause _ _ pats body) = head clauses
 	    let dvars = map (\i -> text ("v" ++ show i)) [1 .. length pats]
 	    let drhs = untypedAbs dvars $ sep (text "f" : dvars)
 	    dclauses <- mapM showUntypedClause clauses
 	    return $ (dname <+> equals) <+> drhs <+> text "where" $+$
 		     nest 2 (vcat dclauses)
-	Datatype np ni _ cnames s a -> do
+	Datatype np ni _ _ cnames s a -> do
 	    let dvars = map (\i -> text ("v" ++ show i)) [1 .. np + ni]
 	    let drhs = untypedAbs dvars $ text "VNonData"
 	    return $ sep [ dname, equals ] <+> drhs <+> text "{- datatype -}"

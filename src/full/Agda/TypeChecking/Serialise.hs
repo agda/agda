@@ -58,7 +58,7 @@ import qualified Agda.Utils.IO
 -- | Current version of the interface. Only interface files of this version
 --   will be parsed.
 currentInterfaceVersion :: Int
-currentInterfaceVersion = 140
+currentInterfaceVersion = 141
 
 ------------------------------------------------------------------------
 -- A wrapper around Data.Binary
@@ -566,19 +566,39 @@ instance Binary Definition where
   put (Defn a b c d e) = put a >> put b >> put c >> put d >> put e
   get = {-# SCC "get<Definition>" #-} get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d -> get >>= \e -> return (Defn a b c d e)
 
+instance Binary Induction where
+  put Inductive   = putWord8 0
+  put CoInductive = putWord8 1
+  get = do
+    tag_ <- getWord8
+    case tag_ of
+      0 -> return Inductive
+      1 -> return CoInductive
+      _	-> fail "no parse"
+
+instance Binary Recursion where
+  put Recursive   = putWord8 0
+  put CoRecursive = putWord8 1
+  get = do
+    tag_ <- getWord8
+    case tag_ of
+      0 -> return Recursive
+      1 -> return CoRecursive
+      _	-> fail "no parse"
+
 instance Binary Defn where
-  put (Axiom a)               = putWord8 0 >> put a
-  put (Function a b c)        = putWord8 1 >> put a >> put b >> put c
-  put (Datatype a b c d e f)  = putWord8 2 >> put a >> put b >> put c >> put d >> put e >> put f
-  put (Record a b c d e f)    = putWord8 3 >> put a >> put b >> put c >> put d >> put e >> put f
-  put (Constructor a b c d e) = putWord8 4 >> put a >> put b >> put c >> put d >> put e
-  put (Primitive a b c)       = putWord8 5 >> put a >> put b >> put c
+  put (Axiom a)                = putWord8 0 >> put a
+  put (Function a b c d)       = putWord8 1 >> put a >> put b >> put c >> put d
+  put (Datatype a b c d e f g) = putWord8 2 >> put a >> put b >> put c >> put d >> put e >> put f >> put g
+  put (Record a b c d e f)     = putWord8 3 >> put a >> put b >> put c >> put d >> put e >> put f
+  put (Constructor a b c d e)  = putWord8 4 >> put a >> put b >> put c >> put d >> put e
+  put (Primitive a b c)        = putWord8 5 >> put a >> put b >> put c
   get = {-# SCC "get<Defn>" #-} do
     tag_ <- getWord8
     case tag_ of
       0 -> get >>= \a -> return (Axiom a)
-      1 -> get >>= \a -> get >>= \b -> get >>= \c -> return (Function a b c)
-      2 -> get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d -> get >>= \e -> get >>= \f -> return (Datatype a b c d e f)
+      1 -> get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d -> return (Function a b c d)
+      2 -> get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d -> get >>= \e -> get >>= \f -> get >>= \g -> return (Datatype a b c d e f g)
       3 -> get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d -> get >>= \e -> get >>= \f -> return (Record a b c d e f)
       4 -> get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d -> get >>= \e -> return (Constructor a b c d e)
       5 -> get >>= \a -> get >>= \b -> get >>= \c -> return (Primitive a b c)

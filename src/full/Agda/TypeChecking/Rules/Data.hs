@@ -37,8 +37,8 @@ import Agda.Utils.Impossible
 
 -- | Type check a datatype definition. Assumes that the type has already been
 --   checked.
-checkDataDef :: Info.DefInfo -> QName -> [A.LamBinding] -> [A.Constructor] -> TCM ()
-checkDataDef i name ps cs =
+checkDataDef :: Info.DefInfo -> Induction -> QName -> [A.LamBinding] -> [A.Constructor] -> TCM ()
+checkDataDef i ind name ps cs =
     traceCall (CheckDataDef (getRange i) (qnameName name) ps cs) $ do -- TODO!! (qnameName)
 	let npars = size ps
 
@@ -58,7 +58,7 @@ checkDataDef i name ps cs =
 	    -- Change the datatype from an axiom to a datatype with no constructors.
 	    escapeContext (size tel) $
 	      addConstant name ( Defn name t (defaultDisplayForm name) 0
-			       $ Datatype npars nofIxs Nothing []
+			       $ Datatype npars nofIxs ind Nothing []
 					  s (Info.defAbstract i)
 			       )
 
@@ -78,7 +78,7 @@ checkDataDef i name ps cs =
 	-- Add the datatype to the signature as a datatype. It was previously
 	-- added as an axiom.
 	addConstant name (Defn name t (defaultDisplayForm name) 0 $
-                            Datatype npars nofIxs Nothing (map cname cs)
+                            Datatype npars nofIxs ind Nothing (map cname cs)
 				     s (Info.defAbstract i)
 			 )
     where

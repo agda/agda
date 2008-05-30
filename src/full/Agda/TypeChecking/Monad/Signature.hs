@@ -183,10 +183,10 @@ applySection new ptel old ts rd rm = liftTCM $ do
 	  Constructor{} -> True
 	  _		-> False
 	def  = case theDef d of
-		Constructor n c d hs a  -> Constructor (n - size ts) c (copyName d) hs a
-		Datatype np ni _ cs s a -> Datatype (np - size ts) ni (Just cl) (map copyName cs) s a
-		Record np _ fs tel s a  -> Record (np - size ts) (Just cl) fs (apply tel ts) s a
-		_                       -> Function [cl] NotInjective ConcreteDef
+		Constructor n c d hs a      -> Constructor (n - size ts) c (copyName d) hs a
+		Datatype np ni ind _ cs s a -> Datatype (np - size ts) ni ind (Just cl) (map copyName cs) s a
+		Record np _ fs tel s a      -> Record (np - size ts) (Just cl) fs (apply tel ts) s a
+		_                           -> Function [cl] Recursive NotInjective ConcreteDef
 	cl = Clause EmptyTel (idP 0) [] $ Body $ Def x ts
 
     copySec :: Args -> (ModuleName, Section) -> TCM ()
