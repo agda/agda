@@ -16,10 +16,10 @@ OUT_P	= $(FULL_OUT_DIR)/prof
 ## Source files ###########################################################
 
 src_files		= $(patsubst ./%,%,$(shell $(FIND) . -name '*.hs' -o -name '*.lhs'))
-all_hs_files	= $(src_files) $(OUT)/Syntax/Parser/Parser.hs \
-							   $(OUT)/Syntax/Parser/Lexer.hs
-all_hs_files_p	= $(src_files) $(OUT_P)/Syntax/Parser/Parser.hs \
-							   $(OUT_P)/Syntax/Parser/Lexer.hs
+all_hs_files	= $(src_files) $(OUT)/Agda/Syntax/Parser/Parser.hs \
+							   $(OUT)/Agda/Syntax/Parser/Lexer.hs
+all_hs_files_p	= $(src_files) $(OUT_P)/Agda/Syntax/Parser/Parser.hs \
+							   $(OUT_P)/Agda/Syntax/Parser/Lexer.hs
 
 h_files			= undefined.h
 out_h_files		= $(patsubst %,$(OUT)/%,$(h_files))
@@ -48,8 +48,8 @@ $(out_dirs) $(out_dirs_p) :
 # Thus we have to copy the boot files for the generated files (Lexer and
 # Parser) to the out directiory.
 
-boot_files = $(OUT)/Syntax/Parser/Lexer.hs-boot
-boot_files_p = $(OUT_P)/Syntax/Parser/Lexer.hs-boot
+boot_files = $(OUT)/Agda/Syntax/Parser/Lexer.hs-boot
+boot_files_p = $(OUT_P)/Agda/Syntax/Parser/Lexer.hs-boot
 
 $(OUT)/% : %
 	@cp $< $@

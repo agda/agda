@@ -1,10 +1,10 @@
--- | Wrapper for "AgdaMain".
+-- | Wrapper for "Agda.Main".
 --
 -- Agda is installed as a library. This module is used to build the
 -- executable.
 
 module Main (main) where
 
-import qualified AgdaMain
+import qualified Agda.Main
 
-main = AgdaMain.main
+main = Agda.Main.main
