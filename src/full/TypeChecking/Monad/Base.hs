@@ -524,8 +524,7 @@ data TCEnv =
     TCEnv { envContext             :: Context
 	  , envLetBindings         :: LetBindings
 	  , envCurrentModule       :: ModuleName
-          , envAnonymousVariables  :: Nat            -- ^ free variables from anonymous modules
-          , envAnonymousModules    :: [ModuleName]   -- ^ anonymous modules (has anonymous variables as free variables)
+          , envAnonymousModules    :: [(ModuleName, Nat)] -- ^ anonymous modules and their number of free variables
 	  , envImportPath          :: [ModuleName]   -- ^ to detect import cycles
 	  , envMutualBlock         :: Maybe MutualId -- ^ the current (if any) mutual block
 	  , envAbstractMode        :: AbstractMode
@@ -542,7 +541,6 @@ initEnv :: TCEnv
 initEnv = TCEnv { envContext	         = []
 		, envLetBindings         = Map.empty
 		, envCurrentModule       = noModuleName
-                , envAnonymousVariables  = 0
                 , envAnonymousModules    = []
 		, envImportPath          = []
 		, envMutualBlock         = Nothing

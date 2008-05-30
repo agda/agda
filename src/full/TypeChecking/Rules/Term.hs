@@ -4,6 +4,7 @@ module TypeChecking.Rules.Term where
 
 import Control.Applicative
 import Control.Monad.Trans
+import Control.Monad.Reader
 import Data.Maybe
 
 import qualified Syntax.Abstract as A
@@ -430,9 +431,10 @@ checkLetBinding b@(A.LetBind i x t e) ret =
 checkLetBinding (A.LetApply i x tel m args rd rm) ret = do
   -- Any variables in the context that doesn't belong to the current
   -- module should go with the new module.
-  fv <- getDefFreeVars =<< (qnameFromList . mnameToList) <$> currentModule
-  n  <- size <$> getContext
-  reportSLn "tc.term.let.apply" 10 $ "Applying " ++ show m ++ " with " ++ show (n - fv) ++ " free variables"
+  fv   <- getDefFreeVars =<< (qnameFromList . mnameToList) <$> currentModule
+  n    <- size <$> getContext
+  let new = n - fv
+  reportSLn "tc.term.let.apply" 10 $ "Applying " ++ show m ++ " with " ++ show new ++ " free variables"
   checkSectionApplication i x tel m args rd rm
-  withAnonymousModule x (n - fv) ret
+  withAnonymousModule x new ret
 
