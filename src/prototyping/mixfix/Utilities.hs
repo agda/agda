@@ -11,8 +11,11 @@ module Utilities
     -- * Map/set utilities
   , map'
   , (!)
+  , setToMap
     -- * List utilities
   , sublist
+  , partitionsOf
+  , list
   , distinct
   , efficientNub
   , tests
@@ -45,42 +48,48 @@ acyclic g = isSimple g && all (\c -> length c == 1) (scc g)
 graph :: Graph gr => gr n e -> Bool
 graph g = all (distinct . suc g) (nodes g)
 
--- | Generates an acyclic graph (not a multi-graph).
+-- | Generates an acyclic graph (not a multi-graph). The first
+-- argument is a list containing all the node annotations (so the
+-- length of the list determines the number of nodes in the graph).
 
-acyclicGraph :: Graph gr => Gen node -> Gen edge -> Gen (gr node edge)
-acyclicGraph nodeG edgeG = do
-  NonNegative n <- fmap smaller arbitrary
-  let nodes = [1 .. n]
-  lNodes <- mapM (\n -> liftM ((,) n) nodeG) nodes
-  lEdges <- liftM concat $ mapM edges nodes
-  return $ mkGraph lNodes lEdges
+acyclicGraph :: Graph gr =>
+                [node] -> Gen edge -> Gen (gr node edge)
+acyclicGraph nodes edge =
+  liftM (mkGraph ns . concat) $ mapM edges (map fst ns)
   where
-  smaller n | n <= 3    = n
-            | otherwise = n `div` 3
+  ns = zip [1..] nodes
 
   -- Generates edges from prior nodes to n.
   edges n | n <= 1 = return []
   edges n = do
     NonNegative len <- fmap smaller arbitrary
     liftM (List.nubBy ((==) `on` fst3)) $
-      vectorOf len (liftM3 (,,) (choose (1, n - 1)) (return n) edgeG)
+      vectorOf len (liftM3 (,,) (choose (1, n - 1)) (return n) edge)
+
+  smaller n | n <= 3    = n
+            | otherwise = n `div` 3
 
   fst3 (x, y, z) = x
 
-prop_acyclicGraph =
-  forAll (acyclicGraph arbitrary arbitrary
+prop_acyclicGraph ns =
+  forAll (acyclicGraph ns arbitrary
             :: Gen (Gr Integer Bool)) $ \g ->
     acyclic g && graph g
+
+-- | Shrinks a graph by removing a node or an edge.
+
+shrinkGraph :: DynGraph gr => gr node edge -> [gr node edge]
+shrinkGraph g = map (flip delNode g) (nodes g) ++
+                map (flip delEdge g) (edges g)
 
 -- | Shrinks a graph by removing a node or an edge, or shrinking a
 -- node or an edge.
 
-shrinkGraph :: (DynGraph gr, Arbitrary node, Arbitrary edge, Eq edge) =>
-               gr node edge -> [gr node edge]
-shrinkGraph g = map (flip delNode g) (nodes g) ++
-                map (flip delEdge g) (edges g) ++
-                concatMap shrinkNode (nodes g) ++
-                concatMap shrinkEdge (edges' g)
+shrinkGraph' :: (DynGraph gr, Arbitrary node, Arbitrary edge, Eq edge) =>
+                gr node edge -> [gr node edge]
+shrinkGraph' g = shrinkGraph g ++
+                 concatMap shrinkNode (nodes g) ++
+                 concatMap shrinkEdge (edges' g)
   where
   shrinkNode n = case match n g of
     (Nothing, _)                -> []
@@ -110,6 +119,12 @@ m ! k = case Map.lookup k m of
   Nothing -> Set.empty
   Just ns -> ns
 
+-- | Converts a set to a finite map.
+
+setToMap :: Set k -> Map k ()
+setToMap =
+  Map.fromDistinctAscList . map (\x -> (x, ())) . Set.toAscList
+
 ------------------------------------------------------------------------
 -- List utilities
 
@@ -122,6 +137,39 @@ sublist xs = fmap concat $ mapM possibly xs
 prop_sublist (NonNegative n) =
   forAll (sublist [1 .. n]) $ \xs ->
     distinct xs && xs == List.sort xs
+
+-- | @partitionsOf xs@ generates a number of non-empty lists that
+-- partition @xs@.
+--
+-- Precondition: @xs@ has to be finite.
+
+partitionsOf :: [a] -> Gen [[a]]
+partitionsOf xs =
+  fmap (split . zip xs) $
+    sequence $ repeat (choose (1, length xs))
+  where
+  split =
+    map (map fst) .
+    List.groupBy ((==) `on` snd) .
+    List.sortBy (compare `on` snd)
+
+prop_partitionsOf xs =
+  forAll (partitionsOf xs) $ \xxs ->
+    concat xxs =^= xs &&
+    all (not . null) xxs
+  where (=^=) = (==) `on` List.sort
+
+-- | @list l g@ generates a list whoose length is determined by @l@,
+-- containing elements determined by @g@.
+
+list :: Integral i => Gen i -> Gen a -> Gen [a]
+list l g = do
+  len <- l
+  sequence $ List.genericReplicate len g
+
+prop_list (NonNegative m) (NonNegative n) =
+  forAll (list (choose (m, m + n)) arbitrary :: Gen [()]) $ \xs ->
+    m <= length xs && length xs <= m + n
 
 -- | Are all elements in the list distinct?
 
@@ -180,7 +228,9 @@ prop_efficientNub xs =
 
 tests = do
   quickCheck prop_acyclicGraph
-  quickCheck (prop_sublist   :: NonNegative Integer -> Property)
-  quickCheck (prop_distinct1 :: NonEmptyList [Integer] -> Bool)
-  quickCheck (prop_distinct2 :: NonNegative Integer -> Bool)
+  quickCheck (prop_sublist      :: NonNegative Integer -> Property)
+  quickCheck (prop_partitionsOf :: [Integer] -> Property)
+  quickCheck prop_list
+  quickCheck (prop_distinct1    :: NonEmptyList [Integer] -> Bool)
+  quickCheck (prop_distinct2    :: NonNegative Integer -> Bool)
   quickCheck prop_efficientNub

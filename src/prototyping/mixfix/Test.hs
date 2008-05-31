@@ -23,7 +23,7 @@ module Main where
 
 import qualified Memoised
 import Control.Monad.State hiding (lift)
-import PrecedenceGraph
+import PrecedenceGraph hiding (tests)
 import ExpressionParser
 import Data.Char
 import Data.List
@@ -59,48 +59,64 @@ main = do
 ------------------------------------------------------------------------
 -- Example precedence graph
 
-lift :: (s -> (a, s)) -> State s a
-lift = State
+lift :: (s -> s) -> State s ()
+lift f = State (\x -> ((), f x))
 
-lift0 :: (s -> s) -> State s ()
-lift0 f = State (\x -> ((), f x))
-
-unrelated'    op fix     = lift  $ unrelated    op fix
-bindsAs'      op fix n   = lift0 $ bindsAs      op fix n
-bindsBetween' op fix t l = lift  $ bindsBetween op fix t l
+eq      = Name []    (Just (Infix Non)) ["="]
+ltgt    = Name []    (Just (Infix Non)) ["<",">"]
+plus    = Name []    (Just (Infix L))   ["+"]
+plus'   = Name []    (Just (Infix L))   ["+'"]
+minus   = Name []    (Just (Infix R))   ["-"]
+mul     = Name []    (Just (Infix L))   ["*"]
+div'    = Name []    (Just (Infix L))   ["/"]
+pow     = Name []    (Just (Infix R))   ["^"]
+or'     = Name []    (Just (Infix R))   ["||"]
+not'    = Name []    (Just Prefix)      ["!"]
+and'    = Name []    (Just (Infix R))   ["&&"]
+eq'     = Name []    (Just (Infix Non)) ["=="]
+ite     = Name []    (Just Prefix)      ["if", "then", "else"]
+it      = Name []    (Just Prefix)      ["if", "then"]
+ox      = Name []    (Just Postfix)     ["<[","]>"]
+oxstar  = Name []    (Just Postfix)     ["<[","]>*"]
+oxplus  = Name []    (Just Prefix)      ["<[","]>+"]
+foo1    = Name ["1"] (Just (Infix L))   ["foo"]
+foo2    = Name ["2"] (Just (Infix R))   ["foo"]
+llgg    = Name []    (Just (Infix L))   ["<<",">>"]
+ggll    = Name []    (Just (Infix Non)) [">>","<<"]
+ox'     = Name []    Nothing            ["[[","]]"]
+ox'star = Name []    Nothing            ["[[","]]*"]
+ox'plus = Name []    Nothing            ["[[","]]+"]
 
 -- Note that this graph is not intended to be representative of how I
 -- want operator precedences to be specified for the given operators.
 
 example :: PrecedenceGraph
-example = flip execState empty $ do
-  eq   <- unrelated'    ["="]                  (Infix Non)
-  unrelated'            ["<",">"]              (Infix Non)
-  plus <- bindsBetween' ["+"]                  (Infix L)   [eq]   []
-  bindsAs'              ["+'"]                 (Infix L)   plus
-  bindsAs'              ["-"]                  (Infix R)   plus
-  mul  <- bindsBetween' ["*"]                  (Infix L)   [plus] []
-  bindsAs'              ["/"]                  (Infix L)   mul
-  pow  <- bindsBetween' ["^"]                  (Infix R)   [mul]  []
-  or   <- bindsBetween' ["||"]                 (Infix R)   [eq]   []
-  not  <- bindsBetween' ["!"]                  Prefix      [or]   []
-  and  <- bindsBetween' ["&&"]                 (Infix R)   [or]   [not, plus]
-  eq'  <- bindsBetween' ["=="]                 (Infix Non) []     [or]
-  ite  <- bindsBetween' ["if", "then", "else"] Prefix      [eq]   [and, mul]
-  bindsAs'              ["if", "then"]         Prefix      ite
-  ox   <- unrelated'    ["<[","]>"]            Postfix
-  bindsAs'              ["<[","]>*"]           Postfix     ox
-  bindsAs'              ["<[","]>+"]           Prefix      ox
-  unrelated'            ["foo"]                (Infix L)
-  unrelated'            ["foo"]                (Infix R)
-  unrelated'            ["<<",">>"]            (Infix L)
-  unrelated'            [">>","<<"]            (Infix Non)
+example = flip execState empty $ mapM lift
+  [ unrelated    eq
+  , unrelated    ltgt
+  , bindsBetween plus   [eq]   []
+  , bindsAs      plus'  plus
+  , bindsAs      minus  plus
+  , bindsBetween mul    [plus] []
+  , bindsAs      div'   mul
+  , bindsBetween pow    [mul]  []
+  , bindsBetween or'    [eq]   []
+  , bindsBetween not'   [or']  []
+  , bindsBetween and'   [or']  [not', plus]
+  , bindsBetween eq'    []     [or']
+  , bindsBetween ite    [eq]   [and', mul]
+  , bindsAs      it     ite
+  , unrelated    ox
+  , bindsAs      oxstar ox
+  , bindsAs      oxplus ox
+  , unrelated    foo1
+  , unrelated    foo2
+  , unrelated    llgg
+  , unrelated    ggll
+  ]
 
 exampleClosed :: Set Name
-exampleClosed = Set.fromList [ ["[[","]]"]
-                             , ["[[", "]]*"]
-                             , ["[[", "]]+"]
-                             ]
+exampleClosed = Set.fromList [ox', ox'star, ox'plus]
 
 ------------------------------------------------------------------------
 -- Lexer
@@ -124,7 +140,7 @@ lex = concatMap toToken .
     fixL $ fixR $ map toT $ groupBy ((&&) `on` (/= '_')) cs
     where
     toT "_" = Placeholder Mid
-    toT cs  = Name cs
+    toT cs  = NamePart cs
 
     fix p (Placeholder _ : toks) = Placeholder p : toks
     fix p toks                   = toks
@@ -136,10 +152,10 @@ lex = concatMap toToken .
 -- characters are taken as function names, while other character
 -- sequences are taken as operator parts.
 
-ident :: NTParser p NT Token => p String
+ident :: NTParser p NT Token => p Name
 ident = symbol >>= \s -> case s of
-  Name n@[c] | isAlpha c -> A.pure n
-  _                      -> A.empty
+  NamePart n@[c] | isAlpha c -> A.pure (Name [] Nothing [n])
+  _                          -> A.empty
 
 ------------------------------------------------------------------------
 -- A demanding graph
@@ -170,73 +186,76 @@ ident = symbol >>= \s -> case s of
 --
 -- The top-most node is n_n.
 
-stressTest :: Integer -> (Node, PrecedenceGraph)
-stressTest n | n <= 0 = unrelated ["n0"] (Infix Non) empty
-stressTest n = flip runState g $ do
-  cs <- mapM (\c -> bindsBetween' (name c) (Infix Non) [node] [])
-             ['a'..'c']
-  bindsBetween' (name 'n') (Infix Non) cs []
+stressTest :: Integer -> PrecedenceGraph
+stressTest n =
+  if n <= 0 then unrelated (stressTestName 0 'n') empty
+            else flip execState (stressTest (n - 1)) $ do
+                   mapM_ (\n -> lift $ bindsBetween n [prev] []) names
+                   lift $ bindsBetween (stressTestName n 'n') names []
   where
-  (node, g) = stressTest (n - 1)
-  name c    = [c : show n]
+  prev       = stressTestName (pred n) 'n'
+  names      = map (stressTestName n) ['a'..'c']
+
+stressTestName n c = Name [] (Just $ Infix Non) [c : show n]
 
 ------------------------------------------------------------------------
 -- Tests
 
 tests :: IO Bool
 tests = fmap and $ sequence
-  [ test' "x"                                   [Fun "x"]
-  , test' "x = x"                               [Op "_=_" [jF "x", jF "x"]]
+  [ test' "x"                                   [fun "x"]
+  , test' "x = x"                               [Op eq [jF "x", jF "x"]]
   , test' "x = x = x"                           []
-  , test' "x < x > x"                           [Op "_<_>_" [jF "x", jF "x", jF "x"]]
-  , test' "x < x = x > x"                       [Op "_<_>_" [jF "x", jOp "_=_" [jF "x", jF "x"], jF "x"]]
-  , test' "x + x"                               [Op "_+_" [jF "x", jF "x"]]
-  , test' "x + y + z"                           [Op "_+_" [jOp "_+_" [jF "x", jF "y"], jF "z"]]
+  , test' "x < x > x"                           [Op ltgt [jF "x", jF "x", jF "x"]]
+  , test' "x < x = x > x"                       [Op ltgt [jF "x", jOp eq [jF "x", jF "x"], jF "x"]]
+  , test' "x + x"                               [Op plus [jF "x", jF "x"]]
+  , test' "x + y + z"                           [Op plus [jOp plus [jF "x", jF "y"], jF "z"]]
+  , test' "x - y"                               [Op minus [jF "x", jF "y"]]
   , test' "x + y - z"                           []
-  , test' "x * y / z"                           [Op "_/_" [jOp "_*_" [jF "x", jF "y"], jF "z"]]
-  , test' "x + y && z"                          [Op "_&&_" [jOp "_+_" [jF "x", jF "y"], jF "z"]]
-  , test' "x ^ y ^ z"                           [Op "_^_" [jF "x", jOp "_^_" [jF "y", jF "z"]]]
-  , test' "! x"                                 [Op "!_" [jF "x"]]
-  , test' "! ! x"                               [Op "!_" [jOp "!_" [jF "x"]]]
+  , test' "x * y / z"                           [Op div' [jOp mul [jF "x", jF "y"], jF "z"]]
+  , test' "x + y && z"                          [Op and' [jOp plus [jF "x", jF "y"], jF "z"]]
+  , test' "x ^ y ^ z"                           [Op pow [jF "x", jOp pow [jF "y", jF "z"]]]
+  , test' "! x"                                 [Op not' [jF "x"]]
+  , test' "! ! x"                               [Op not' [jOp not' [jF "x"]]]
   , test' "! x + y"                             []
-  , test' "! x && y"                            [Op "_&&_" [jOp "!_" [jF "x"], jF "y"]]
-  , test' "x <[ x <[ x ]>* ]>"                  [Op "_<[_]>" [jF "x", jOp "_<[_]>*" [jF "x", jF "x"]]]
-  , test' "x <[ x ]> <[ x ]>*"                  [Op "_<[_]>*" [jOp "_<[_]>" [jF "x", jF "x"], jF "x"]]
-  , test' "x << x >> x << x >> x"               [ Op "_<<_>>_" [jF "x", jOp "_>>_<<_" [jF "x", jF "x", jF "x"], jF "x"]
-                                                , Op "_<<_>>_" [jOp "_<<_>>_" [jF "x", jF "x", jF "x"], jF "x", jF "x"] ]
-  , test' "if x then a else b"                  [Op "if_then_else_" [jF "x", jF "a", jF "b"]]
-  , test' "if x then if y then a else b else c" [Op "if_then_else_" [jF "x", jOp "if_then_else_" [jF "y", jF "a", jF "b"], jF "c"]]
-  , test' "if x then if y then a else b"        [ Op "if_then_else_" [jF "x", jOp "if_then_" [jF "y", jF "a"], jF "b"]
-                                                , Op "if_then_" [jF "x", jOp "if_then_else_" [jF "y", jF "a", jF "b"]] ]
-  , test' "if x then a + b else c = d"          [Op "_=_" [jOp "if_then_else_" [jF "x", jOp "_+_" [jF "a", jF "b"], jF "c"], jF "d"]]
-  , test' "x foo x foo x"                       [ Op "_foo_" [jF "x", jOp "_foo_" [jF "x", jF "x"]]
-                                                , Op "_foo_" [jOp "_foo_" [jF "x", jF "x"], jF "x"] ]
-  , test' "x foo x foo x foo x"                 [ Op "_foo_" [jF "x", jOp "_foo_" [jF "x", jOp "_foo_" [jF "x", jF "x"]]]
-                                                , Op "_foo_" [jOp "_foo_" [jOp "_foo_" [jF "x", jF "x"], jF "x"], jF "x"] ]
+  , test' "! x && y"                            [Op and' [jOp not' [jF "x"], jF "y"]]
+  , test' "x <[ x <[ x ]>* ]>"                  [Op ox [jF "x", jOp oxstar [jF "x", jF "x"]]]
+  , test' "x <[ x ]> <[ x ]>*"                  [Op oxstar [jOp ox [jF "x", jF "x"], jF "x"]]
+  , test' "x << x >> x << x >> x"               [ Op llgg [jF "x", jOp ggll [jF "x", jF "x", jF "x"], jF "x"]
+                                                , Op llgg [jOp llgg [jF "x", jF "x", jF "x"], jF "x", jF "x"] ]
+  , test' "if x then a else b"                  [Op ite [jF "x", jF "a", jF "b"]]
+  , test' "if x then if y then a else b else c" [Op ite [jF "x", jOp ite [jF "y", jF "a", jF "b"], jF "c"]]
+  , test' "if x then if y then a else b"        [ Op ite [jF "x", jOp it [jF "y", jF "a"], jF "b"]
+                                                , Op it [jF "x", jOp ite [jF "y", jF "a", jF "b"]] ]
+  , test' "if x then a + b else c = d"          [Op eq [jOp ite [jF "x", jOp plus [jF "a", jF "b"], jF "c"], jF "d"]]
+  , test' "x foo x foo x"                       [ Op foo2 [jF "x", jOp foo2 [jF "x", jF "x"]]
+                                                , Op foo1 [jOp foo1 [jF "x", jF "x"], jF "x"] ]
+  , test' "x foo x foo x foo x"                 [ Op foo2 [jF "x", jOp foo2 [jF "x", jOp foo2 [jF "x", jF "x"]]]
+                                                , Op foo1 [jOp foo1 [jOp foo1 [jF "x", jF "x"], jF "x"], jF "x"] ]
   , test' "_"                                   [w]
-  , test' "_+_"                                 [Op "_+_" [p, p]]
-  , test' "_ + _"                               [Op "_+_" [Just w, Just w]]
-  , test' "if_then a + _ else_ = d"             [Op "_=_" [jOp "if_then_else_" [p, jOp "_+_" [jF "a", Just w], p], jF "d"]]
+  , test' "_+_"                                 [Op plus [p, p]]
+  , test' "_ + _"                               [Op plus [Just w, Just w]]
+  , test' "if_then a + _ else_ = d"             [Op eq [jOp ite [p, jOp plus [jF "a", Just w], p], jF "d"]]
   , test' "if__then a + _ else_ = d"            []
-  , test' "f (_+_)"                             [App (Fun "f") [Op "_+_" [p, p]]]
-  , test' "(_+_) f"                             [App (Op "_+_" [p, p]) [Fun "f"]]
-  , test' "f _+_"                               [App (Fun "f") [Op "_+_" [p, p]]]
-  , test' "f _ +_"                              [Op "_+_" [jApp (Fun "f") [w], p]]
-  , test' "(((f))) (((x))) (((y)))"             [App (Fun "f") [Fun "x", Fun "y"]]
+  , test' "f (_+_)"                             [App (fun "f") [Op plus [p, p]]]
+  , test' "(_+_) f"                             [App (Op plus [p, p]) [fun "f"]]
+  , test' "f _+_"                               [App (fun "f") [Op plus [p, p]]]
+  , test' "f _ +_"                              [Op plus [jApp (fun "f") [w], p]]
+  , test' "(((f))) (((x))) (((y)))"             [App (fun "f") [fun "x", fun "y"]]
   , test' "(_)"                                 [w]
-  , test' "_<[_]>"                              [Op "_<[_]>" [p, p]]
-  , test' "_+ _+'_"                             [Op "_+_" [p, jOp "_+'_" [p, p]]]
-  , test' "_+_ +'_"                             [Op "_+'_" [jOp "_+_" [p, p], p]]
-  , test' "f (x <[ y ]>) + z"                   [Op "_+_" [jApp (Fun "f") [Op "_<[_]>" [jF "x", jF "y"]], jF "z"]]
-  , test' "f (_+_ <[ y ]>) + z"                 [Op "_+_" [jApp (Fun "f") [Op "_<[_]>" [jOp "_+_" [p, p], jF "y"]], jF "z"]]
-  , test' "f (x <[ _+_ ]>) + z"                 [Op "_+_" [jApp (Fun "f") [Op "_<[_]>" [jF "x", jOp "_+_" [p, p]]], jF "z"]]
+  , test' "_<[_]>"                              [Op ox [p, p]]
+  , test' "_+ _+'_"                             [Op plus [p, jOp plus' [p, p]]]
+  , test' "_+_ +'_"                             [Op plus' [jOp plus [p, p], p]]
+  , test' "f (x <[ y ]>) + z"                   [Op plus [jApp (fun "f") [Op ox [jF "x", jF "y"]], jF "z"]]
+  , test' "f (_+_ <[ y ]>) + z"                 [Op plus [jApp (fun "f") [Op ox [jOp plus [p, p], jF "y"]], jF "z"]]
+  , test' "f (x <[ _+_ ]>) + z"                 [Op plus [jApp (fun "f") [Op ox [jF "x", jOp plus [p, p]]], jF "z"]]
   , test' "f x <[ _+_ ]> + z"                   []
-  , test' "f x <[ _+_ ]>"                       [Op "_<[_]>" [jApp (Fun "f") [Fun "x"], jOp "_+_" [p, p]]]
-  , test' "f if_then_else_ * z"                 [Op "_*_" [jApp (Fun "f") [Op "if_then_else_" [p, p, p]], jF "z"]]
-  , test' "f (if_then_else_) * z"               [Op "_*_" [jApp (Fun "f") [Op "if_then_else_" [p, p, p]], jF "z"]]
-  , test' "[[_]]"                               [Op "[[_]]" [p]]
-  , test' "[[ [[ x ]]* ]]"                      [Op "[[_]]" [jOp "[[_]]*" [jF "x"]]]
-  , test' "f [[ g [[ x ]]* ]]"                  [App (Fun "f") [Op "[[_]]" [jApp (Fun "g") [Op "[[_]]*" [jF "x"]]]]]
+  , test' "f x <[ _+_ ]>"                       [Op ox [jApp (fun "f") [fun "x"], jOp plus [p, p]]]
+  , test' "f if_then_else_ * z"                 [Op mul [jApp (fun "f") [Op ite [p, p, p]], jF "z"]]
+  , test' "f (if_then_else_) * z"               [Op mul [jApp (fun "f") [Op ite [p, p, p]], jF "z"]]
+  , test' "[[_]]"                               [Op ox' [p]]
+  , test' "[[ [[ x ]]* ]]"                      [Op ox' [jOp ox'star [jF "x"]]]
+  , test' "f [[ g [[ x ]]* ]]"                  [App (fun "f") [Op ox' [jApp (fun "g") [Op ox'star [jF "x"]]]]]
 
   , test' (nested nestingDepth)                 [nestedResult nestingDepth]
   , test' (assoc  nestingDepth)                 [assocResult  nestingDepth]
@@ -249,9 +268,10 @@ tests = fmap and $ sequence
   ]
   where
   -- Some abbreviations.
+  fun s          = Fun (Name [] Nothing [s])
   w              = WildcardE
   p              = Nothing  -- Placeholder.
-  jF             = Just . Fun
+  jF             = Just . fun
   jOp name args  = Just $ Op name args
   jApp expr args = Just $ App expr args
 
@@ -262,19 +282,19 @@ tests = fmap and $ sequence
   iterateN n f x = iterate f x !! n
 
   nested       d = iterateN d (\s -> "x <[ " ++ s ++ " ]>") "x"
-  nestedResult d = iterateN d (\x -> Op "_<[_]>" [jF "x", Just x]) (Fun "x")
+  nestedResult d = iterateN d (\x -> Op ox [jF "x", Just x]) (fun "x")
 
   assoc       d = iterateN d ("x + " ++) "x"
-  assocResult d = iterateN d (\x -> Op "_+_" [Just x, jF "x"]) (Fun "x")
+  assocResult d = iterateN d (\x -> Op plus [Just x, jF "x"]) (fun "x")
 
   test'' m i k | not (m >= k && k > i && i > 0) =
                    error "test'': Precondition failed."
                | otherwise =
-    test Set.empty (snd $ stressTest m)
-         (unwords ["x", op 'a' i, "x", op 'b' k, "x"])
-         [Op (op' 'a' i) [ jF "x"
-                         , Just $ Op (op' 'b' k) [jF "x", jF "x"]
-                         ]]
-    where
-    op  c i = c : show i
-    op' c i = "_" ++ op c i ++ "_"
+    test Set.empty (stressTest m)
+         (unwords ["x", op i 'a', "x", op k 'b', "x"])
+         [Op (stressTestName i 'a')
+             [ jF "x"
+             , Just $ Op (stressTestName k 'b') [jF "x", jF "x"]
+             ]
+         ]
+    where op i c = c : show i

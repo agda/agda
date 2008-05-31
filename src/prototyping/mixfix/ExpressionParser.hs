@@ -24,10 +24,11 @@ import Data.Set (Set)
 
 -- | Tokens. Placeholders are used to indicate sections. Wildcards
 -- indicate things the type checker should fill in automatically
--- (hopefully). Names stand for operator name parts (and possibly
+-- (hopefully). Name parts stand for operator name parts (and possibly
 -- other identifiers as well).
 
-data Token = Name String | Placeholder Pos | Wildcard | LParen | RParen
+data Token = NamePart String | Placeholder Pos
+           | Wildcard | LParen | RParen
   deriving (Eq, Ord, Show)
 
 -- | Placeholder positions.
@@ -39,11 +40,11 @@ data Pos = Beg  -- ^ At the beginning of an operator.
 
 -- | Expressions.
 
-data Expr = Fun String
+data Expr = Fun Name
           | App Expr [Expr]
             -- ^ Note that the application of an operator to its
             -- arguments is represented using 'Op', not 'App'.
-          | Op String [Maybe Expr]
+          | Op Name [Maybe Expr]
             -- ^ An application of an operator to /all/ its arguments.
             -- 'Nothing' stands for a placeholder.
           | WildcardE
@@ -51,15 +52,15 @@ data Expr = Fun String
 
 -- | Operator applications.
 
-type Op = (String, [Maybe Expr])
+type Op = (Name, [Maybe Expr])
 
 -- | Functions for applying 'Op'erator applications to 'Expr'essions.
 
 appLeft :: Maybe Expr -> Op -> Op
-appLeft e (n, es) = ('_' : n, e : es)
+appLeft e (u, es) = (u, e : es)
 
 appRight :: Op -> Maybe Expr -> Op
-appRight (n, es) e = (n ++ "_", es ++ [e])
+appRight (u, es) e = (u, es ++ [e])
 
 appBoth :: Maybe Expr -> Op -> Maybe Expr -> Op
 appBoth e1 o e2 = appLeft e1 (appRight o e2)
@@ -67,7 +68,7 @@ appBoth e1 o e2 = appLeft e1 (appRight o e2)
 -- | Converts an 'Op'erator application to an 'Expr'ession.
 
 toE :: Op -> Expr
-toE (n, es) = Op n es
+toE (u, es) = Op u es
 
 -- | Nonterminals used by the expression grammar.
 
@@ -114,7 +115,7 @@ placeholder p = Nothing <$ sym (Placeholder p)
 grammar :: NTParser p NT Token =>
            PrecedenceGraph ->
            -- ^ The precedence graph.
-           p String ->
+           p Name ->
            -- ^ Parser for identifiers/function names (not operator
            -- name parts).
            Set Name ->
@@ -157,11 +158,10 @@ grammar _ _ _ (ExprN ns)
 
 grammar g _ _ (OpN ops) = choice $ map' op ops
   where
-  op nameParts =
-    (,) (List.intercalate "_" nameParts) <$>
-        (Just <$> nonTerm (expression g) <|> placeholder Mid)
-          `between`
-        map Name nameParts
+  op n = (,) n <$>
+    (Just <$> nonTerm (expression g) <|> placeholder Mid)
+      `between`
+    map NamePart (nameParts n)
 
 -- Production for a graph node.
 
