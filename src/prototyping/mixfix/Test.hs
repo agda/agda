@@ -186,15 +186,19 @@ ident = symbol >>= \s -> case s of
 --
 -- The top-most node is n_n.
 
-stressTest :: Integer -> PrecedenceGraph
+stressTest :: Integer -> ([Name], PrecedenceGraph)
 stressTest n =
-  if n <= 0 then unrelated (stressTestName 0 'n') empty
-            else flip execState (stressTest (n - 1)) $ do
-                   mapM_ (\n -> lift $ bindsBetween n [prev] []) names
-                   lift $ bindsBetween (stressTestName n 'n') names []
+  if n <= 0 then let n = stressTestName 0 'n'
+                 in  ([n], unrelated n empty)
+            else ( topName : names ++ below
+                 , flip execState g $ do
+                     mapM_ (\n -> lift $ bindsBetween n below []) names
+                     lift $ bindsBetween topName (names ++ below) [])
   where
+  (below, g) = stressTest (n - 1)
   prev       = stressTestName (pred n) 'n'
   names      = map (stressTestName n) ['a'..'c']
+  topName    = stressTestName n 'n'
 
 stressTestName n c = Name [] (Just $ Infix Non) [c : show n]
 
@@ -213,6 +217,8 @@ tests = fmap and $ sequence
   , test' "x - y"                               [Op minus [jF "x", jF "y"]]
   , test' "x + y - z"                           []
   , test' "x * y / z"                           [Op div' [jOp mul [jF "x", jF "y"], jF "z"]]
+  , test' "x * y = z"                           []
+  , test' "x ^ y = z"                           []
   , test' "x + y && z"                          [Op and' [jOp plus [jF "x", jF "y"], jF "z"]]
   , test' "x ^ y ^ z"                           [Op pow [jF "x", jOp pow [jF "y", jF "z"]]]
   , test' "! x"                                 [Op not' [jF "x"]]
@@ -290,7 +296,7 @@ tests = fmap and $ sequence
   test'' m i k | not (m >= k && k > i && i > 0) =
                    error "test'': Precondition failed."
                | otherwise =
-    test Set.empty (stressTest m)
+    test Set.empty (snd $ stressTest m)
          (unwords ["x", op i 'a', "x", op k 'b', "x"])
          [Op (stressTestName i 'a')
              [ jF "x"

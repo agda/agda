@@ -231,9 +231,8 @@ prop_bindsAs pg =
 
 -- @bindsBetween op fix tighterThan looserThan pg@ adds a new node to
 -- @pg@, annotated with @op@ (with fixity @fix@). Edges are added from
--- all nodes (corresponding to names) in @tighterThan@, and their
--- predecessors. Edges are also added to all nodes in @looserThan@,
--- and their successors.
+-- all nodes corresponding to names in @tighterThan@, and to all nodes
+-- corresponding to names in @looserThan@.
 --
 -- Precondition: The resulting graph has to be acyclic, @op@ must be
 -- an operator, @op@ must not exist in @pg@, and all the other names
@@ -245,8 +244,8 @@ bindsBetween op tighterThan looserThan pg@(PG g _)
   | op `containedIn` pg =
       error "bindsBetween: The name is already in the graph."
   | otherwise = case ( fixity op
-                     , targetNodes (G.suc g) looserThan
-                     , targetNodes (G.pre g) tighterThan
+                     , targetNodes looserThan
+                     , targetNodes tighterThan
                      ) of
       (Just f, Just allLooserThan, Just allTighterThan)
         | acyclic g' -> PG g' (Map.insert op new (nameMap pg))
@@ -261,11 +260,9 @@ bindsBetween op tighterThan looserThan pg@(PG g _)
       (Nothing, _, _) -> error "bindsBetween: The name is not an operator."
       _ -> error "bindsBetween: Some name is not present in the graph."
   where
-  targetNodes f us = case mapM (\u -> Map.lookup u (nameMap pg)) us of
-    Nothing -> Nothing
-    Just ns -> Just (ns : map f ns)
+  targetNodes us = mapM (\u -> Map.lookup u (nameMap pg)) us
 
-  fix   = map ((,) ()) . efficientNub . concat
+  fix   = map ((,) ()) . efficientNub
   [new] = G.newNodes 1 g
 
 -- Note that the distribution of random values used to test this
