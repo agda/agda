@@ -22,15 +22,18 @@
 module Main where
 
 import qualified Memoised
-import Control.Monad.State hiding (lift)
 import PrecedenceGraph hiding (tests)
 import ExpressionParser
+import Parser
+import Name hiding (tests)
+import Expression
+
+import Control.Monad.State hiding (lift)
 import Data.Char
 import Data.List
 import qualified Data.Set as Set
 import Data.Set (Set)
 import Data.Function
-import Parser
 import qualified Control.Applicative as A
 import Prelude hiding (lex)
 

@@ -6,10 +6,7 @@
 
 module PrecedenceGraph
     -- * Precedence graphs
-  ( Assoc(..)
-  , Fixity(..)
-  , Name(..)
-  , Node
+  ( Node
   , PrecedenceGraph
     -- * Constructing precedence graphs
   , empty
@@ -41,58 +38,11 @@ import qualified Data.List  as List
 import qualified Data.Maybe as Maybe
 import Test.QuickCheck
 
+import Name      hiding (tests)
 import Utilities hiding (tests)
 
 ------------------------------------------------------------------------
 -- Types
-
--- | Associativity.
-
-data Assoc = Non | L | R
-             deriving (Eq, Ord, Show)
-
--- | Fixity.
-
-data Fixity = Prefix | Postfix | Infix Assoc
-              deriving (Eq, Ord, Show)
-
--- | A name is a completely qualified name.
-
-data Name = Name { moduleName :: [String]
-                 , fixity     :: Maybe Fixity
-                   -- ^ 'Just' something for operators.
-                 , nameParts  :: [String]
-                   -- ^ A /non-empty/ list of /non-empty/ name parts.
-                   -- A singleton list for non-operators.
-                 }
-            deriving (Show)
-
-isOperator :: Name -> Bool
-isOperator = Maybe.isJust . fixity
-
--- | The associativity of a name should be uniquely determined by the
--- other components, so equality and ordering does not make use of the
--- associativity.
-
-relevant (Name m f n) = (m, dropAssoc f, n)
-  where
-  dropAssoc Nothing          = 0
-  dropAssoc (Just Prefix)    = 1
-  dropAssoc (Just Postfix)   = 2
-  dropAssoc (Just (Infix _)) = 3
-
-instance Eq Name where
-  (==) = (==) `on` relevant
-
-instance Ord Name where
-  compare = compare `on` relevant
-
--- | The name invariant.
-
-nameInvariant n@(Name m f ns) =
-  nonEmpty ns && all nonEmpty ns &&
-  if isOperator n then True else length ns == 1
-  where nonEmpty = not . null
 
 -- | Precedence graph node labels.
 
@@ -138,7 +88,8 @@ calculatedNameMap g
 
 graphInvariant :: PrecedenceGraph -> Bool
 graphInvariant pg@(PG g m) =
-  acyclic g && graph g && m == calculatedNameMap g && 
+  acyclic g && graph g && m == calculatedNameMap g &&
+  all nameInvariant (Map.keys m) &&
   all (\(f, s) -> all (== Just f) $ map' fixity s)
       (Map.toList $ allOperators pg) &&
   all (not . Map.null) maps &&
@@ -202,7 +153,9 @@ allInfix m = Set.unions [m ! Infix p | p <- [Non, L, R]]
 empty :: PrecedenceGraph
 empty = PG G.empty Map.empty
 
-prop_empty = graphInvariant empty
+prop_empty =
+  graphInvariant empty &&
+  isEmpty empty
 
 -- @bindsAs op fix n pg@ adds @op@ (with fixity @fix@) to the node
 -- corresponding to @n@.
@@ -227,7 +180,10 @@ prop_bindsAs pg =
   not (isEmpty pg) ==>
   forAll (operatorNotIn pg) $ \op ->
   forAll (nameIn pg) $ \n ->
-    graphInvariant (bindsAs op n pg)
+    let pg' = bindsAs op n pg in
+    graphInvariant pg' &&
+    op `containedIn` pg' &&
+    lookupNode pg' op == lookupNode pg' n
 
 -- @bindsBetween op fix tighterThan looserThan pg@ adds a new node to
 -- @pg@, annotated with @op@ (with fixity @fix@). Edges are added from
@@ -272,7 +228,19 @@ prop_bindsBetween pg =
   forAll (operatorNotIn pg) $ \op ->
   forAll (namesIn pg) $ \tighterThan ->
   forAll (namesNotBelow tighterThan pg) $ \looserThan ->
-    graphInvariant (bindsBetween op tighterThan looserThan pg)
+    let pg' = bindsBetween op tighterThan looserThan pg in
+    graphInvariant pg' &&
+    -- The operator is in the graph,
+    op `containedIn` pg' &&
+    -- below looserThan,
+    (fmap (successors pg') $ lookupNode pg' op) ==
+    (fmap Set.fromList $ sequence $ map (lookupNode pg') looserThan) &&
+    -- and above tighterThan.
+    all (\n -> case ( lookupNode pg' op
+                    , fmap (successors pg') (lookupNode pg' n) ) of
+                 (Just n', Just ss) -> n' `Set.member` ss
+                 _                  -> False)
+        tighterThan
 
 -- @unrelated op fix pg@ add a fresh node to @pg@, annotated with @op@
 -- (with fixity @fix@). No new edges are added.
@@ -282,46 +250,6 @@ unrelated op = bindsBetween op [] []
 
 ------------------------------------------------------------------------
 -- Generators and other test helpers
-
-instance Arbitrary Assoc where
-  arbitrary = elements [Non, L, R]
-
-instance Arbitrary Fixity where
-  arbitrary = frequency [ (2, elements [Prefix, Postfix])
-                        , (3, liftM Infix arbitrary)
-                        ]
-
--- | Generates a name with the given fixity.
-
-name :: Maybe Fixity -> Gen Name
-name mfix = do
-  liftM3 Name mod (return mfix) $ case mfix of
-    Nothing -> op 1
-    Just _  -> op 6
-  where
-  character = elements "abcd"
-  mod       = list' (choose (0, 2)) $ list' (choose (0, 2)) character
-  op n      = list' (choose (1, n)) $ list' (choose (1, 3)) character
-
-  list' :: Gen Integer -> Gen a -> Gen [a]
-  list' = list
-
--- | Generates an operator.
-
-operator :: Gen Name
-operator = name . Just =<< arbitrary
-
-prop_operator =
-  forAll operator $ \op ->
-    isOperator op
-
-instance Arbitrary Name where
-  arbitrary = name =<< arbitrary
-
-  shrink (Name u f op) =
-    filter nameInvariant $
-    map (\(x, y, z) -> Name x y z) $
-    shrink (u, f, op)
 
 instance Arbitrary PrecedenceGraph where
   arbitrary = do
@@ -398,9 +326,6 @@ namesNotBelow us pg@(PG g m) = sublist namesNotBelow
 -- | All tests.
 
 tests = do
-  quickCheck nameInvariant
-  quickCheck (all nameInvariant . shrink)
-  quickCheck prop_operator
   quickCheck graphInvariant
   quickCheck (all graphInvariant . takeSome . shrink)
   quickCheck prop_nameIn
