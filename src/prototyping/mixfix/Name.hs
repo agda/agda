@@ -5,6 +5,8 @@
 module Name
   ( Assoc(..)
   , Fixity(..)
+  , fixAssocInvariant
+  , ignoreAssoc
   , Name(..)
   , isOperator
   , nameInvariant
@@ -30,8 +32,22 @@ data Assoc = Non | L | R
 
 -- | Fixity.
 
-data Fixity = Prefix | Postfix | Infix Assoc
+data Fixity = Prefix | Postfix | Infix
               deriving (Eq, Ord, Show)
+
+-- | The associativity should always be 'Non' for non-infix operators.
+
+fixAssocInvariant :: (Fixity, Assoc) -> Bool
+fixAssocInvariant (Infix, _) = True
+fixAssocInvariant (_, ass)   = ass == Non
+
+-- | Ignores the associativity of non-infix operators.
+
+ignoreAssoc :: Fixity -> Assoc -> (Fixity, Assoc)
+ignoreAssoc Infix ass = (Infix, ass)
+ignoreAssoc f     _   = (f,     Non)
+
+prop_ignoreAssoc f a = fixAssocInvariant (ignoreAssoc f a)
 
 -- | A name is a completely qualified name.
 
@@ -42,29 +58,12 @@ data Name = Name { moduleName :: [String]
                    -- ^ A /non-empty/ list of /non-empty/ name parts.
                    -- A singleton list for non-operators.
                  }
-            deriving (Show)
+            deriving (Show, Eq, Ord)
 
 -- | Is the name an operator?
 
 isOperator :: Name -> Bool
 isOperator = Maybe.isJust . fixity
-
--- | The associativity of a name should be uniquely determined by the
--- other components, so equality and ordering does not make use of the
--- associativity.
-
-relevant (Name m f n) = (m, dropAssoc f, n)
-  where
-  dropAssoc Nothing          = 0
-  dropAssoc (Just Prefix)    = 1
-  dropAssoc (Just Postfix)   = 2
-  dropAssoc (Just (Infix _)) = 3
-
-instance Eq Name where
-  (==) = (==) `on` relevant
-
-instance Ord Name where
-  compare = compare `on` relevant
 
 -- | The name invariant.
 
@@ -80,9 +79,7 @@ instance Arbitrary Assoc where
   arbitrary = elements [Non, L, R]
 
 instance Arbitrary Fixity where
-  arbitrary = frequency [ (2, elements [Prefix, Postfix])
-                        , (3, liftM Infix arbitrary)
-                        ]
+  arbitrary = elements [Prefix, Postfix, Infix]
 
 -- | Generates a name with the given fixity.
 
@@ -124,4 +121,5 @@ instance Arbitrary Name where
 tests = do
   quickCheck nameInvariant
   quickCheck (all nameInvariant . shrink)
+  quickCheck prop_ignoreAssoc
   quickCheck prop_operator

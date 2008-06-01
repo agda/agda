@@ -65,57 +65,57 @@ main = do
 lift :: (s -> s) -> State s ()
 lift f = State (\x -> ((), f x))
 
-eq      = Name []    (Just (Infix Non)) ["="]
-ltgt    = Name []    (Just (Infix Non)) ["<",">"]
-plus    = Name []    (Just (Infix L))   ["+"]
-plus'   = Name []    (Just (Infix L))   ["+'"]
-minus   = Name []    (Just (Infix R))   ["-"]
-mul     = Name []    (Just (Infix L))   ["*"]
-div'    = Name []    (Just (Infix L))   ["/"]
-pow     = Name []    (Just (Infix R))   ["^"]
-or'     = Name []    (Just (Infix R))   ["||"]
-not'    = Name []    (Just Prefix)      ["!"]
-and'    = Name []    (Just (Infix R))   ["&&"]
-eq'     = Name []    (Just (Infix Non)) ["=="]
-ite     = Name []    (Just Prefix)      ["if", "then", "else"]
-it      = Name []    (Just Prefix)      ["if", "then"]
-ox      = Name []    (Just Postfix)     ["<[","]>"]
-oxstar  = Name []    (Just Postfix)     ["<[","]>*"]
-oxplus  = Name []    (Just Prefix)      ["<[","]>+"]
-foo1    = Name ["1"] (Just (Infix L))   ["foo"]
-foo2    = Name ["2"] (Just (Infix R))   ["foo"]
-llgg    = Name []    (Just (Infix L))   ["<<",">>"]
-ggll    = Name []    (Just (Infix Non)) [">>","<<"]
-ox'     = Name []    Nothing            ["[[","]]"]
-ox'star = Name []    Nothing            ["[[","]]*"]
-ox'plus = Name []    Nothing            ["[[","]]+"]
+eq      = Name []    (Just Infix)   ["="]
+ltgt    = Name []    (Just Infix)   ["<",">"]
+plus    = Name []    (Just Infix)   ["+"]
+plus'   = Name []    (Just Infix)   ["+'"]
+minus   = Name []    (Just Infix)   ["-"]
+mul     = Name []    (Just Infix)   ["*"]
+div'    = Name []    (Just Infix)   ["/"]
+pow     = Name []    (Just Infix)   ["^"]
+or'     = Name []    (Just Infix)   ["||"]
+not'    = Name []    (Just Prefix)  ["!"]
+and'    = Name []    (Just Infix)   ["&&"]
+eq'     = Name []    (Just Infix)   ["=="]
+ite     = Name []    (Just Prefix)  ["if", "then", "else"]
+it      = Name []    (Just Prefix)  ["if", "then"]
+ox      = Name []    (Just Postfix) ["<[","]>"]
+oxstar  = Name []    (Just Postfix) ["<[","]>*"]
+oxplus  = Name []    (Just Prefix)  ["<[","]>+"]
+foo1    = Name ["1"] (Just Infix)   ["foo"]
+foo2    = Name ["2"] (Just Infix)   ["foo"]
+llgg    = Name []    (Just Infix)   ["<<",">>"]
+ggll    = Name []    (Just Infix)   [">>","<<"]
+ox'     = Name []    Nothing        ["[[","]]"]
+ox'star = Name []    Nothing        ["[[","]]*"]
+ox'plus = Name []    Nothing        ["[[","]]+"]
 
 -- Note that this graph is not intended to be representative of how I
 -- want operator precedences to be specified for the given operators.
 
 example :: PrecedenceGraph
 example = flip execState empty $ mapM lift
-  [ unrelated    eq
-  , unrelated    ltgt
-  , bindsBetween plus   [eq]   []
-  , bindsAs      plus'  plus
-  , bindsAs      minus  plus
-  , bindsBetween mul    [plus] []
-  , bindsAs      div'   mul
-  , bindsBetween pow    [mul]  []
-  , bindsBetween or'    [eq]   []
-  , bindsBetween not'   [or']  []
-  , bindsBetween and'   [or']  [not', plus]
-  , bindsBetween eq'    []     [or']
-  , bindsBetween ite    [eq]   [and', mul]
-  , bindsAs      it     ite
-  , unrelated    ox
-  , bindsAs      oxstar ox
-  , bindsAs      oxplus ox
-  , unrelated    foo1
-  , unrelated    foo2
-  , unrelated    llgg
-  , unrelated    ggll
+  [ unrelated    eq     Non
+  , unrelated    ltgt   Non
+  , bindsBetween plus   L   [eq]   []
+  , bindsAs      plus'  L   plus
+  , bindsAs      minus  R   plus
+  , bindsBetween mul    L   [plus] []
+  , bindsAs      div'   L   mul
+  , bindsBetween pow    R   [mul]  []
+  , bindsBetween or'    R   [eq]   []
+  , bindsBetween not'   Non [or']  []
+  , bindsBetween and'   R   [or']  [not', plus]
+  , bindsBetween eq'    Non []     [or']
+  , bindsBetween ite    Non [eq]   [and', mul]
+  , bindsAs      it     Non ite
+  , unrelated    ox     Non
+  , bindsAs      oxstar Non ox
+  , bindsAs      oxplus Non ox
+  , unrelated    foo1   L
+  , unrelated    foo2   R
+  , unrelated    llgg   L
+  , unrelated    ggll   Non
   ]
 
 exampleClosed :: Set Name
@@ -192,18 +192,18 @@ ident = symbol >>= \s -> case s of
 stressTest :: Integer -> ([Name], PrecedenceGraph)
 stressTest n =
   if n <= 0 then let n = stressTestName 0 'n'
-                 in  ([n], unrelated n empty)
+                 in  ([n], unrelated n Non empty)
             else ( topName : names ++ below
                  , flip execState g $ do
-                     mapM_ (\n -> lift $ bindsBetween n below []) names
-                     lift $ bindsBetween topName (names ++ below) [])
+                     mapM_ (\n -> lift $ bindsBetween n Non below []) names
+                     lift $ bindsBetween topName Non (names ++ below) [])
   where
   (below, g) = stressTest (n - 1)
   prev       = stressTestName (pred n) 'n'
   names      = map (stressTestName n) ['a'..'c']
   topName    = stressTestName n 'n'
 
-stressTestName n c = Name [] (Just $ Infix Non) [c : show n]
+stressTestName n c = Name [] (Just Infix) [c : show n]
 
 ------------------------------------------------------------------------
 -- Tests

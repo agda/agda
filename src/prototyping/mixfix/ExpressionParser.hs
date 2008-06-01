@@ -19,7 +19,14 @@ import Expression
 
 import Control.Applicative as A
 import qualified Data.List as List
+import qualified Data.Set  as Set
 import Data.Set (Set)
+
+-- | Looks up all names of the given fixity, regardless of the
+-- annotation.
+
+(!*) :: Annotation -> Fixity -> Set Name
+m !* k = Set.unions [m ! (k, ass) | ass <- [Non, L, R]]
 
 -- | Operator applications.
 
@@ -112,9 +119,9 @@ grammar g identifier closed AtomN =
                      placeholder End)
   where
   allOps  = allOperators g
-  prefix  = allOps ! Prefix
-  postfix = allOps ! Postfix
-  infx    = allInfix allOps
+  prefix  = allOps !* Prefix
+  postfix = allOps !* Postfix
+  infx    = allOps !* Infix
 
 -- Production for a subset of the expressions. Only the nodes
 -- reachable from the given set of nodes are recognised.
@@ -137,11 +144,11 @@ grammar g _ _ (OpN ops) = choice $ map' op ops
 -- Production for a graph node.
 
 grammar g _ _ (NodeN n) = choice $
-  [ flip (foldr appRight') <$> many1 (internal Prefix) <*> higher
-  , foldl appLeft'         <$> higher <*> many1 (internal Postfix)
-  , appBoth' <$> higher <*> internal (Infix Non) <*> higher
-  , chainl3 higher (flip appBoth' <$> internal (Infix L))
-  , chainr3 higher (flip appBoth' <$> internal (Infix R))
+  [ flip (foldr appRight') <$> many1 (internal Prefix Non) <*> higher
+  , foldl appLeft'         <$> higher <*> many1 (internal Postfix Non)
+  , appBoth' <$> higher <*> internal Infix Non <*> higher
+  , chainl3 higher (flip appBoth' <$> internal Infix L)
+  , chainr3 higher (flip appBoth' <$> internal Infix R)
   ]
   where
   -- Operators of higher precedence or atoms.
@@ -150,14 +157,14 @@ grammar g _ _ (NodeN n) = choice $
   -- The internal parts of operators of the given fixity (in this
   -- node). Includes certain sections; for instance, a left-sectioned
   -- infix operator becomes a prefix operator.
-  internal f =  nonTerm (OpN (ann ! f))
+  internal f ass =  nonTerm (OpN (ann ! (f, ass)))
             <|> case f of
                   Prefix  -> appLeft  <$> placeholder Beg <*> infx
                   Postfix -> appRight <$> infx <*> placeholder End
-                  Infix _ -> A.empty
+                  Infix   -> A.empty
     where
     ann  = annotation g n
-    infx = nonTerm (OpN (allInfix ann))
+    infx = nonTerm (OpN (ann !* Infix))
 
   appLeft'  e o     = toE $ appLeft  (Just e) o
   appRight' o e     = toE $ appRight o (Just e)

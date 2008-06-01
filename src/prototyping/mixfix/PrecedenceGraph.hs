@@ -7,6 +7,7 @@
 module PrecedenceGraph
     -- * Precedence graphs
   ( Node
+  , Annotation
   , PrecedenceGraph
     -- * Constructing precedence graphs
   , empty
@@ -20,7 +21,6 @@ module PrecedenceGraph
   , annotation
   , nodes
   , allOperators
-  , allInfix
     -- * Tests
   , tests
   ) where
@@ -48,14 +48,22 @@ import Utilities hiding (tests)
 
 type Node = Int
 
--- | Node contents.
+-- | Node annotations. The associativity should be 'Non' for non-infix
+-- operators.
 
-type NodeContents = Map Fixity (Set Name)
+type Annotation = Map (Fixity, Assoc) (Set Name)
+
+annotationInvariant ann =
+  all (\(fa, s) -> all (== Just (fst fa)) (map' fixity s) &&
+                       fixAssocInvariant fa)
+      (Map.toList ann) &&
+  not (Map.null ann) &&
+  not (any Set.null (Map.elems ann))
 
 -- | Precedence graphs.
 
 data PrecedenceGraph =
-  PG { precGraph :: G.Gr NodeContents ()
+  PG { precGraph :: G.Gr Annotation ()
      , nameMap   :: Map Name Node
        -- ^ This should be a trie.
      }
@@ -63,7 +71,7 @@ data PrecedenceGraph =
 
 -- | All names from the node.
 
-nodeNames :: NodeContents -> [Name]
+nodeNames :: Annotation -> [Name]
 nodeNames = concatMap Set.elems . Map.elems
 
 -- | The name map can be calculated from the precedence graph. (This
@@ -71,8 +79,7 @@ nodeNames = concatMap Set.elems . Map.elems
 --
 -- Precondition: Every unique name must occur at most once.
 
-calculatedNameMap :: G.Gr (Map Fixity (Set Name)) () ->
-                     Map Name Node
+calculatedNameMap :: G.Gr Annotation () -> Map Name Node
 calculatedNameMap g
   | distinct (map fst nns) = Map.fromList nns
   | otherwise              =
@@ -83,20 +90,14 @@ calculatedNameMap g
         G.labNodes g
 
 -- | The graph has to be an acyclic graph (not a multi-graph), the
--- name map should be consistent, the fixity maps have to be
--- consistent, and all nodes and fixity maps have to be non-empty.
+-- name map should be consistent, and the annotations have to be
+-- consistent.
 
 graphInvariant :: PrecedenceGraph -> Bool
 graphInvariant pg@(PG g m) =
-  acyclic g && graph g && m == calculatedNameMap g &&
-  all nameInvariant (Map.keys m) &&
-  all (\(f, s) -> all (== Just f) $ map' fixity s)
-      (Map.toList $ allOperators pg) &&
-  all (not . Map.null) maps &&
-  all (all (not . Set.null)) (map Map.elems maps)
-  where
-  maps     = map' (annotation pg) $ nodes pg
-  nonEmpty = not . null
+  acyclic g && graph g &&
+  m == calculatedNameMap g && all nameInvariant (Map.keys m) &&
+  all annotationInvariant (map' (annotation pg) $ nodes pg)
 
 ------------------------------------------------------------------------
 -- Inspecting precedence graphs
@@ -123,10 +124,24 @@ successors pg n = Set.fromList $ G.suc (precGraph pg) n
 
 -- | A node's annotation.
 
-annotation :: PrecedenceGraph -> Node -> Map Fixity (Set Name)
+annotation :: PrecedenceGraph -> Node -> Annotation
 annotation pg n = case G.lab (precGraph pg) n of
   Nothing  -> Map.empty
   Just ann -> ann
+
+-- | The associativity corresponding to a given name, if any. (This is
+-- a potentially inefficient function.)
+
+associativity :: PrecedenceGraph -> Name -> Maybe Assoc
+associativity pg n = do
+  node <- lookupNode pg n
+  return $
+    head $
+    map (snd . fst) $
+    filter snd $
+    map (id *** (n `Set.member`)) $
+    Map.toList $
+    annotation pg node
 
 -- | The nodes in the graph.
 
@@ -135,15 +150,10 @@ nodes = Set.fromList . G.nodes . precGraph
 
 -- | All operators in the graph.
 
-allOperators :: PrecedenceGraph -> Map Fixity (Set Name)
+allOperators :: PrecedenceGraph -> Annotation
 allOperators pg =
   Map.unionsWith (Set.union) $
     map' (annotation pg) (nodes pg)
-
--- | All infix operators in the range of the map.
-
-allInfix :: Map Fixity (Set Name) -> Set Name
-allInfix m = Set.unions [m ! Infix p | p <- [Non, L, R]]
 
 ------------------------------------------------------------------------
 -- Constructing precedence graphs
@@ -157,14 +167,15 @@ prop_empty =
   graphInvariant empty &&
   isEmpty empty
 
--- @bindsAs op fix n pg@ adds @op@ (with fixity @fix@) to the node
--- corresponding to @n@.
+-- @bindsAs op ass n pg@ adds @op@ (with associativity @ass@) to the
+-- node corresponding to @n@. (The associativity is ignored in the
+-- case of pre- and postfix operators.)
 --
 -- Precondition: @n@ has to exist in @pg@, @op@ must not exist in
 -- @pg@, and @op@ has to be an operator.
 
-bindsAs :: Name -> Name -> PrecedenceGraph -> PrecedenceGraph
-bindsAs op asThis pg = case fixity op of
+bindsAs :: Name -> Assoc -> Name -> PrecedenceGraph -> PrecedenceGraph
+bindsAs op ass asThis pg = case fixity op of
   Nothing -> error "bindsAs: This is not an operator."
   Just f  -> case (Map.lookup asThis (nameMap pg), lookupNode pg op) of
     (Nothing, _) -> error "bindsAs: The node does not exist."
@@ -174,29 +185,39 @@ bindsAs op asThis pg = case fixity op of
       (Just (pre, n, a,  suc), g') ->
         PG ((pre, n, a', suc) & g')
            (Map.insert op n (nameMap pg))
-        where a' = Map.insertWith Set.union f (Set.singleton op) a
+        where a' = Map.insertWith Set.union
+                     (ignoreAssoc f ass) (Set.singleton op) a
 
-prop_bindsAs pg =
+-- | @associativityCorrect pg op ass@ checks that the associativity of
+-- @op@ in @pg@ corresponds to @ass@ (modulo @ignoreAssoc@).
+
+associativityCorrect pg op ass = case fixity op of
+  Nothing  -> False
+  Just fix -> associativity pg op == Just (snd $ ignoreAssoc fix ass)
+
+prop_bindsAs pg ass =
   not (isEmpty pg) ==>
   forAll (operatorNotIn pg) $ \op ->
   forAll (nameIn pg) $ \n ->
-    let pg' = bindsAs op n pg in
+    let pg' = bindsAs op ass n pg in
     graphInvariant pg' &&
     op `containedIn` pg' &&
-    lookupNode pg' op == lookupNode pg' n
+    lookupNode pg' op == lookupNode pg' n &&
+    associativityCorrect pg' op ass
 
--- @bindsBetween op fix tighterThan looserThan pg@ adds a new node to
--- @pg@, annotated with @op@ (with fixity @fix@). Edges are added from
--- all nodes corresponding to names in @tighterThan@, and to all nodes
--- corresponding to names in @looserThan@.
+-- @bindsBetween op ass tighterThan looserThan pg@ adds a new node to
+-- @pg@, annotated with @op@ (with associativity @ass@, ignored for
+-- non-infix operators). Edges are added from all nodes corresponding
+-- to names in @tighterThan@, and to all nodes corresponding to names
+-- in @looserThan@.
 --
 -- Precondition: The resulting graph has to be acyclic, @op@ must be
 -- an operator, @op@ must not exist in @pg@, and all the other names
 -- in the input have to exist in @pg@.
 
-bindsBetween :: Name -> [Name] -> [Name] ->
+bindsBetween :: Name -> Assoc -> [Name] -> [Name] ->
                 PrecedenceGraph -> PrecedenceGraph
-bindsBetween op tighterThan looserThan pg@(PG g _)
+bindsBetween op ass tighterThan looserThan pg@(PG g _)
   | op `containedIn` pg =
       error "bindsBetween: The name is already in the graph."
   | otherwise = case ( fixity op
@@ -209,7 +230,7 @@ bindsBetween op tighterThan looserThan pg@(PG g _)
         where
         ctxt = ( fix allTighterThan
                , new
-               , Map.singleton f (Set.singleton op)
+               , Map.singleton (ignoreAssoc f ass) (Set.singleton op)
                , fix allLooserThan
                )
         g'   = ctxt & g
@@ -224,11 +245,11 @@ bindsBetween op tighterThan looserThan pg@(PG g _)
 -- Note that the distribution of random values used to test this
 -- function is not uniform.
 
-prop_bindsBetween pg =
+prop_bindsBetween pg ass =
   forAll (operatorNotIn pg) $ \op ->
   forAll (namesIn pg) $ \tighterThan ->
   forAll (namesNotBelow tighterThan pg) $ \looserThan ->
-    let pg' = bindsBetween op tighterThan looserThan pg in
+    let pg' = bindsBetween op ass tighterThan looserThan pg in
     graphInvariant pg' &&
     -- The operator is in the graph,
     op `containedIn` pg' &&
@@ -240,13 +261,15 @@ prop_bindsBetween pg =
                     , fmap (successors pg') (lookupNode pg' n) ) of
                  (Just n', Just ss) -> n' `Set.member` ss
                  _                  -> False)
-        tighterThan
+        tighterThan &&
+    -- Furthermore its associativity is correct.
+    associativityCorrect pg' op ass
 
--- @unrelated op fix pg@ add a fresh node to @pg@, annotated with @op@
--- (with fixity @fix@). No new edges are added.
+-- @unrelated op ass pg@ adds a fresh node to @pg@, annotated with
+-- @op@ (with associativity @ass@). No new edges are added.
 
-unrelated :: Name -> PrecedenceGraph -> PrecedenceGraph
-unrelated op = bindsBetween op [] []
+unrelated :: Name -> Assoc -> PrecedenceGraph -> PrecedenceGraph
+unrelated op ass = bindsBetween op ass [] []
 
 ------------------------------------------------------------------------
 -- Generators and other test helpers
@@ -255,16 +278,18 @@ instance Arbitrary PrecedenceGraph where
   arbitrary = do
     -- Since names is a set the generated names have to be unique.
     names <- fmap Set.fromList arbitrary
-    nodeContents <- partitionsOf $ Set.toList names
+    nodeContents <- partitionsOf =<< pairUp (Set.toList names) arbitrary
     g <- acyclicGraph (Maybe.catMaybes $ map mkNode nodeContents)
                       arbitrary
     return (PG g (calculatedNameMap g))
     where
-    mkNode :: [Name] -> Maybe NodeContents
+    mkNode :: [(Name, Assoc)] -> Maybe Annotation
     mkNode = ensureNonEmpty .
              Map.fromListWith Set.union .
-             map (\n -> (Maybe.fromJust (fixity n), Set.singleton n)) .
-             filter isOperator
+             map (\(n, ass) ->
+                     ( ignoreAssoc (Maybe.fromJust $ fixity n) ass
+                     , Set.singleton n )) .
+             filter (isOperator . fst)
 
     ensureNonEmpty ns =
       case (Map.null ns, any Set.null (Map.elems ns)) of
