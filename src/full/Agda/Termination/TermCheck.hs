@@ -25,7 +25,7 @@ import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Literal (Literal(LitString))
 
-import qualified Agda.Termination.CallGraph   as Term
+import Agda.Termination.CallGraph   as Term
 import qualified Agda.Termination.Matrix      as Term
 import qualified Agda.Termination.Termination as Term
 
@@ -79,6 +79,12 @@ collectCalls f (a : as) = do c1 <- f a
                              c2 <- collectCalls f as
                              return (c1 `Term.union` c2)
 
+sameRecursion :: [Recursion] -> TCM Recursion
+sameRecursion rs = case nub rs of
+  []  -> return Recursive
+  [r] -> return r
+  _   -> typeError $ NotImplemented "mutual recursion and corecursion"
+
 -- | Termination check a bunch of mutually inductive recursive definitions.
 termMutual :: Info.DeclInfo -> [A.TypeSignature] -> [A.Definition] -> TCM Result
 termMutual i ts ds = if names == [] then return [] else
@@ -87,8 +93,10 @@ termMutual i ts ds = if names == [] then return [] else
      -- during type-checking
      mutualBlock <- findMutualBlock (head names)
      let allNames = Set.elems mutualBlock
+     -- Get the kind of recursion (you can't mix recursion and corecursion at the moment)
+     rec <- sameRecursion =<< mapM whatRecursion allNames
      -- collect all recursive calls in the block
-     let collect use = collectCalls (termDef use allNames) allNames
+     let collect use = collectCalls (termDef rec use allNames) allNames
      r <- do r <- Term.terminates <$> collect DontUseDotPatterns
              case r of
                Left _  -> Term.terminates <$> collect UseDotPatterns
@@ -158,8 +166,8 @@ termTypedBinding h (A.TNoBind e) ret = do
     ret [("_",t)]
 
 -- | Termination check a definition by pattern matching.
-termDef :: UseDotPatterns -> MutualNames -> QName -> TCM Calls
-termDef use names name = do
+termDef :: Recursion -> UseDotPatterns -> MutualNames -> QName -> TCM Calls
+termDef rec use names name = do
 	-- Retrieve definition
         def <- getConstInfo name
         -- returns a TC.Monad.Base.Definition
@@ -169,7 +177,7 @@ termDef use names name = do
 	      , nest 2 $ text ":" <+> (prettyTCM $ defType def)
 	      ]
         case (theDef def) of
-           Function cls _ _ isAbstract -> collectCalls (termClause use names name) cls
+           Function cls _ _ isAbstract -> collectCalls (termClause rec use names name) cls
            _ -> return Term.empty
 
 
@@ -280,13 +288,16 @@ stripBinds use i (p:ps) b = do
   return (i2, dbp:dbps, b2)
 
 -- | Extract recursive calls from one clause.
-termClause :: UseDotPatterns -> MutualNames -> QName -> Clause -> TCM Calls
-termClause use names name (Clause _ perm argPats' body) =
+termClause :: Recursion -> UseDotPatterns -> MutualNames -> QName -> Clause -> TCM Calls
+termClause rec use names name (Clause _ perm argPats' body) =
     case stripBinds use (nVars - 1) (map unArg argPats) body  of
        Nothing -> return Term.empty
        Just (-1, dbpats, Body t) -> do
           dbpats <- mapM stripCoConstructors dbpats
-          termTerm names name dbpats t
+          let guarded = case rec of
+                          Recursive   -> Unknown
+                          CoRecursive -> Le
+          termTerm names name dbpats guarded t
           -- note: convert dB levels into dB indices
        Just (n, dbpats, Body t) -> internalError $ "termClause: misscalculated number of vars: guess=" ++ show nVars ++ ", real=" ++ show (nVars - 1 - n)
        Just (n, dbpats, b)  -> internalError $ "termClause: not a Body" -- ++ show b
@@ -300,18 +311,18 @@ termClause use names name (Clause _ perm argPats' body) =
     boundVars (Body _)   = 0
 
 -- | Extract recursive calls from a term.
-termTerm :: MutualNames -> QName -> [DeBruijnPat] -> Term -> TCM Calls
-termTerm names f pats0 t0 = do
+termTerm :: MutualNames -> QName -> [DeBruijnPat] -> Order -> Term -> TCM Calls
+termTerm names f pats0 guarded t0 = do
   reportSDoc "term.check.clause" 11
     (sep [ text "termination checking clause of" <+> prettyTCM f
          , nest 2 $ text "lhs:" <+> hsep (map prettyTCM pats0)
          , nest 2 $ text "rhs:" <+> prettyTCM t0
          ])
-  loop pats0 t0
+  loop pats0 guarded t0
   where 
        Just fInd' = List.elemIndex f names
        fInd = toInteger fInd'
-       loop pats t = do
+       loop pats guarded t = do
          t' <- instantiate t          -- instantiate top-level MetaVar
          case (ignoreBlocking t') of  -- removes BlockedV case
 
@@ -327,7 +338,7 @@ termTerm names f pats0 t0 = do
                   let args = map ignoreBlocking args2
 
                   -- collect calls in the arguments of this call
-                  calls <- collectCalls (loop pats) args
+                  calls <- collectCalls (loop pats Unknown) args
 
 
                   reportSDoc "term.found.call" 10 
@@ -358,7 +369,7 @@ termTerm names f pats0 t0 = do
                           (Term.insert
                             (Term.Call { Term.source = fInd
                                        , Term.target = toInteger gInd'
-                                       , Term.cm     = makeCM pats args matrix
+                                       , Term.cm     = makeCM guarded pats args matrix
                                        })
                             -- Note that only the base part of the
                             -- name is collected here.
@@ -366,24 +377,29 @@ termTerm names f pats0 t0 = do
                             calls)
 
             -- abstraction
-            Lam _ (Abs _ t) -> loop (map liftDBP pats) t
+            Lam _ (Abs _ t) -> loop (map liftDBP pats) guarded t
 
             -- variable
-            Var i args -> collectCalls (loop pats) (map unArg args)
+            Var i args -> collectCalls (loop pats Unknown) (map unArg args)
 
             -- constructed value
-            Con c args -> collectCalls (loop pats) (map unArg args)
+            Con c args -> do
+              ind <- whatInduction c
+              let g' = case ind of
+                        Inductive   -> guarded
+                        CoInductive -> Lt .*. guarded
+              collectCalls (loop pats g') (map unArg args)
 
             -- dependent function space
             Pi (Arg _ (El _ a)) (Abs _ (El _ b)) ->
-               do g1 <- loop pats a
-                  g2 <- loop (map liftDBP pats) b
+               do g1 <- loop pats guarded a
+                  g2 <- loop (map liftDBP pats) guarded b
                   return $ g1 `Term.union` g2
 
             -- non-dependent function space
             Fun (Arg _ (El _ a)) (El _ b) ->
-               do g1 <- loop pats a
-                  g2 <- loop pats b
+               do g1 <- loop pats guarded a
+                  g2 <- loop pats guarded b
                   return $ g1 `Term.union` g2
 
             -- literal
@@ -408,12 +424,16 @@ compareArgs :: [DeBruijnPat] -> [Term] -> [[Term.Order]]
 compareArgs pats ts = map (\t -> map (compareTerm t) pats) ts
 
 -- | 'makeCM' turns the result of 'compareArgs' into a proper call matrix
-makeCM :: [DeBruijnPat] -> [Term] -> [[Term.Order]] -> Term.CallMatrix
-makeCM pats ts matrix = Term.CallMatrix $
-  Term.fromLists (Term.Size { Term.rows = toInteger (length ts)
-                            , Term.cols = toInteger (length pats)
+makeCM :: Order -> [DeBruijnPat] -> [Term] -> [[Term.Order]] -> Term.CallMatrix
+makeCM guarded pats ts matrix = Term.CallMatrix $
+  Term.fromLists (Term.Size { Term.rows = 1 + nrows
+                            , Term.cols = 1 + ncols
                             })
-                 matrix
+                 matrix'
+  where
+    nrows = toInteger (length ts)
+    ncols = toInteger (length pats)
+    matrix' = (guarded : genericReplicate ncols Unknown) : map (Unknown :) matrix
 
 -- | Compute the sub patterns of a 'DeBruijnPat'.
 subPatterns :: DeBruijnPat -> [DeBruijnPat]
@@ -448,7 +468,7 @@ compareTerm' (Con c ts) (ConDBP c' ps) =
         (1,1) -> compareTerm' (unArg (head ts)) (head ps)
         (_,_) -> -- build "call matrix"
           let m =  map (\t -> map (compareTerm' (unArg t)) ps) ts
-              m2 = makeCM ps (map unArg ts) m
+              m2 = makeCM Unknown ps (map unArg ts) m
           in
             Term.Mat (Term.mat m2)
 {-

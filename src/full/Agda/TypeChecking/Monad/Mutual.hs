@@ -49,7 +49,6 @@ findMutualBlock :: MonadTCM tcm => QName -> tcm (Set QName)
 findMutualBlock f = do
   bs <- getMutualBlocks
   case filter (Set.member f) bs of
-    [b]   -> return b
     []    -> fail $ "No mutual block for " ++ show f
-    _:_:_ -> __IMPOSSIBLE__
+    b : _ -> return b
 
