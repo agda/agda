@@ -91,6 +91,7 @@ termMutual i ts ds = if names == [] then return [] else
   do -- get list of sets of mutually defined names from the TCM
      -- this includes local and auxiliary functions introduced
      -- during type-checking
+     reportSLn "term.top" 20 $ "Termination checking " ++ show names ++ "..."
      mutualBlock <- findMutualBlock (head names)
      let allNames = Set.elems mutualBlock
      -- Get the kind of recursion (you can't mix recursion and corecursion at the moment)
@@ -294,10 +295,7 @@ termClause rec use names name (Clause _ perm argPats' body) =
        Nothing -> return Term.empty
        Just (-1, dbpats, Body t) -> do
           dbpats <- mapM stripCoConstructors dbpats
-          let guarded = case rec of
-                          Recursive   -> Unknown
-                          CoRecursive -> Le
-          termTerm names name dbpats guarded t
+          termTerm names name dbpats rec t
           -- note: convert dB levels into dB indices
        Just (n, dbpats, Body t) -> internalError $ "termClause: misscalculated number of vars: guess=" ++ show nVars ++ ", real=" ++ show (nVars - 1 - n)
        Just (n, dbpats, b)  -> internalError $ "termClause: not a Body" -- ++ show b
@@ -311,13 +309,16 @@ termClause rec use names name (Clause _ perm argPats' body) =
     boundVars (Body _)   = 0
 
 -- | Extract recursive calls from a term.
-termTerm :: MutualNames -> QName -> [DeBruijnPat] -> Order -> Term -> TCM Calls
-termTerm names f pats0 guarded t0 = do
+termTerm :: MutualNames -> QName -> [DeBruijnPat] -> Recursion -> Term -> TCM Calls
+termTerm names f pats0 rec t0 = do
   reportSDoc "term.check.clause" 11
     (sep [ text "termination checking clause of" <+> prettyTCM f
          , nest 2 $ text "lhs:" <+> hsep (map prettyTCM pats0)
          , nest 2 $ text "rhs:" <+> prettyTCM t0
          ])
+  let guarded = case rec of
+                  Recursive   -> Unknown
+                  CoRecursive -> Le
   loop pats0 guarded t0
   where 
        Just fInd' = List.elemIndex f names
@@ -355,7 +356,10 @@ termTerm names f pats0 guarded t0 = do
                      -- call is to one of the mutally recursive functions
                      Just gInd' -> do
 
-                        let matrix = compareArgs pats args
+                        let matrix  = compareArgs pats args
+                            ncols   = genericLength pats + 1
+                            nrows   = genericLength args + 1
+                            matrix' = addGuardedness guarded (ncols - 1) matrix
 
                         reportSDoc "term.kept.call" 10 
                           (sep [ text "kept call from" <+> prettyTCM f
@@ -369,7 +373,7 @@ termTerm names f pats0 guarded t0 = do
                           (Term.insert
                             (Term.Call { Term.source = fInd
                                        , Term.target = toInteger gInd'
-                                       , Term.cm     = makeCM guarded pats args matrix
+                                       , Term.cm     = makeCM ncols nrows matrix'
                                        })
                             -- Note that only the base part of the
                             -- name is collected here.
@@ -424,16 +428,16 @@ compareArgs :: [DeBruijnPat] -> [Term] -> [[Term.Order]]
 compareArgs pats ts = map (\t -> map (compareTerm t) pats) ts
 
 -- | 'makeCM' turns the result of 'compareArgs' into a proper call matrix
-makeCM :: Order -> [DeBruijnPat] -> [Term] -> [[Term.Order]] -> Term.CallMatrix
-makeCM guarded pats ts matrix = Term.CallMatrix $
-  Term.fromLists (Term.Size { Term.rows = 1 + nrows
-                            , Term.cols = 1 + ncols
+makeCM :: Index -> Index -> [[Term.Order]] -> Term.CallMatrix
+makeCM ncols nrows matrix = Term.CallMatrix $
+  Term.fromLists (Term.Size { Term.rows = nrows
+                            , Term.cols = ncols
                             })
-                 matrix'
-  where
-    nrows = toInteger (length ts)
-    ncols = toInteger (length pats)
-    matrix' = (guarded : genericReplicate ncols Unknown) : map (Unknown :) matrix
+                 matrix
+
+addGuardedness :: Integral n => Order -> n -> [[Term.Order]] -> [[Term.Order]]
+addGuardedness g ncols m =
+  (g : genericReplicate ncols Unknown) : map (Unknown :) m
 
 -- | Compute the sub patterns of a 'DeBruijnPat'.
 subPatterns :: DeBruijnPat -> [DeBruijnPat]
@@ -468,7 +472,7 @@ compareTerm' (Con c ts) (ConDBP c' ps) =
         (1,1) -> compareTerm' (unArg (head ts)) (head ps)
         (_,_) -> -- build "call matrix"
           let m =  map (\t -> map (compareTerm' (unArg t)) ps) ts
-              m2 = makeCM Unknown ps (map unArg ts) m
+              m2 = makeCM (genericLength ps) (genericLength ts) m
           in
             Term.Mat (Term.mat m2)
 {-
