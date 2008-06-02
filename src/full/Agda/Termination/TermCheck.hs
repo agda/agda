@@ -239,6 +239,17 @@ termToDBP UseDotPatterns     t = case t of
   Con c args  -> ConDBP c $ map (termToDBP UseDotPatterns . unArg) args
   _           -> unusedVar
 
+-- | Removes coconstructors from a deBruijn pattern.
+stripCoConstructors :: DeBruijnPat -> TCM DeBruijnPat
+stripCoConstructors p = case p of
+  VarDBP _  -> return p
+  LitDBP _ -> return p
+  ConDBP c args -> do
+    ind <- whatInduction c
+    case ind of
+      Inductive   -> ConDBP c <$> mapM stripCoConstructors args
+      CoInductive -> return unusedVar
+
 {- | stripBind i p b = Just (i', dbp, b')
 
   i  is the next free de Bruijn level before consumption of p
@@ -277,7 +288,8 @@ termClause :: UseDotPatterns -> MutualNames -> QName -> Clause -> TCM Calls
 termClause use names name (Clause _ perm argPats' body) =
     case stripBinds use (nVars - 1) (map unArg argPats) body  of
        Nothing -> return Term.empty
-       Just (-1, dbpats, Body t) ->
+       Just (-1, dbpats, Body t) -> do
+          dbpats <- mapM stripCoConstructors dbpats
           termTerm names name dbpats t
           -- note: convert dB levels into dB indices
        Just (n, dbpats, Body t) -> internalError $ "termClause: misscalculated number of vars: guess=" ++ show nVars ++ ", real=" ++ show (nVars - 1 - n)
