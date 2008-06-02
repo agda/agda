@@ -31,6 +31,7 @@ import qualified Data.Map as Map
 import Data.Map (Map)
 import Control.Arrow
 import Control.Monad
+import Control.Applicative hiding (empty)
 import qualified Data.Graph.Inductive as G
 import Data.Graph.Inductive ((&))
 import Data.Function
@@ -121,6 +122,11 @@ isEmpty = G.isEmpty . precGraph
 
 successors :: PrecedenceGraph -> Node -> Set Node
 successors pg n = Set.fromList $ G.suc (precGraph pg) n
+
+-- | The predecessors of a node.
+
+predecessors :: PrecedenceGraph -> Node -> Set Node
+predecessors pg n = Set.fromList $ G.pre (precGraph pg) n
 
 -- | A node's annotation.
 
@@ -249,19 +255,18 @@ prop_bindsBetween pg ass =
   forAll (operatorNotIn pg) $ \op ->
   forAll (namesIn pg) $ \tighterThan ->
   forAll (namesNotBelow tighterThan pg) $ \looserThan ->
-    let pg' = bindsBetween op ass tighterThan looserThan pg in
+    let pg' = bindsBetween op ass tighterThan looserThan pg
+        pred `matches` list =
+          (pred pg' <$> lookupNode pg' op) ==
+          (Set.fromList <$> mapM (lookupNode pg') list)
+    in
     graphInvariant pg' &&
     -- The operator is in the graph,
     op `containedIn` pg' &&
-    -- below looserThan,
-    (fmap (successors pg') $ lookupNode pg' op) ==
-    (fmap Set.fromList $ sequence $ map (lookupNode pg') looserThan) &&
-    -- and above tighterThan.
-    all (\n -> case ( lookupNode pg' op
-                    , fmap (successors pg') (lookupNode pg' n) ) of
-                 (Just n', Just ss) -> n' `Set.member` ss
-                 _                  -> False)
-        tighterThan &&
+    -- directly below looserThan (and nothing else),
+    successors `matches` looserThan &&
+    -- and directly above tighterThan (and nothing else).
+    predecessors `matches` tighterThan &&
     -- Furthermore its associativity is correct.
     associativityCorrect pg' op ass
 
