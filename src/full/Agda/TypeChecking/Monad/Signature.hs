@@ -223,6 +223,21 @@ canonicalName x = do
     extract (Bind (Abs _ b)) = extract b
     extract (NoBind b)	     = extract b
 
+whatRecursion :: MonadTCM tcm => QName -> tcm Recursion
+whatRecursion f = do
+  def <- theDef <$> getConstInfo f
+  case def of
+    Function{ funRecursion = r } -> return r
+    _                            -> return Recursive
+
+-- | Can be called on either a (co)datatype or a (co)constructor.
+whatInduction :: MonadTCM tcm => QName -> tcm Induction
+whatInduction c = do
+  def <- theDef <$> getConstInfo c
+  case def of
+    Datatype{ dataInduction = i } -> return i
+    Constructor{ conData = d }    -> whatInduction d
+    _                             -> return Inductive   -- fail instead?
 
 -- | Lookup the definition of a name. The result is a closed thing, all free
 --   variables have been abstracted over.

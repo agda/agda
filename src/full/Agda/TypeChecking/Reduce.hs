@@ -147,9 +147,13 @@ instance Reduce Term where
 	do  v <- instantiate v
 	    case v of
 		MetaV x args -> MetaV x <$> reduce args
-		Def f args   -> reduceDef (Def f []) f args
+		Def f args   -> do
+                  rec <- whatRecursion f
+                  case rec of
+                    Recursive   -> unfoldDefinition (Def f []) f args
+                    CoRecursive -> return $ Def f args
 		Con c args   -> do
-		    v <- reduceDef (Con c []) c args -- constructors can reduce
+		    v <- unfoldDefinition (Con c []) c args -- constructors can reduce
 		    reduceNat v			     -- when they come from an instantiated module
 		Sort s	   -> Sort <$> reduce s
 		Pi _ _	   -> return v
@@ -175,70 +179,77 @@ instance Reduce Term where
 		    _	-> return v
 	    reduceNat v = return v
 
-	    reduceDef v0 f args =
-		{-# SCC "reduceDef" #-}
-		do  info <- getConstInfo f
-		    case theDef info of
-			Primitive ConcreteDef x cls -> do
-			    pf <- getPrimitive x
-			    reducePrimitive x v0 f args pf cls
-			Constructor{conSrcCon = c} -> return $ Con c args
-			_		    -> reduceNormal v0 f args $ defClauses info
+-- | The term should already be 'reduced'.
+forceCorecursion :: MonadTCM tcm => Term -> tcm Term
+forceCorecursion v = case v of
+  Def f args  -> unfoldDefinition (Def f []) f args
+  _           -> return v
 
-	    reducePrimitive x v0 f args pf cls
-		| n < ar    = return $ v0 `apply` args	-- not fully applied
-		| otherwise = do
-		    let (args1,args2) = genericSplitAt ar args
-		    r <- def args1
-		    case r of
-			NoReduction args1' -> reduceNormal v0 f (args1' ++ args2) cls
-			YesReduction v	   -> reduce $ v  `apply` args2
-		where
-		    n	= genericLength args
-		    ar  = primFunArity pf
-		    def = primFunImplementation pf
+unfoldDefinition :: MonadTCM tcm => Term -> QName -> Args -> tcm Term
+unfoldDefinition v0 f args =
+    {-# SCC "reduceDef" #-}
+    do  info <- getConstInfo f
+        case theDef info of
+            Primitive ConcreteDef x cls -> do
+                pf <- getPrimitive x
+                reducePrimitive x v0 f args pf cls
+            Constructor{conSrcCon = c} -> return $ Con c args
+            _		    -> reduceNormal v0 f args $ defClauses info
+  where
+    reducePrimitive x v0 f args pf cls
+        | n < ar    = return $ v0 `apply` args	-- not fully applied
+        | otherwise = do
+            let (args1,args2) = genericSplitAt ar args
+            r <- def args1
+            case r of
+                NoReduction args1' -> reduceNormal v0 f (args1' ++ args2) cls
+                YesReduction v	   -> reduce $ v  `apply` args2
+        where
+            n	= genericLength args
+            ar  = primFunArity pf
+            def = primFunImplementation pf
 
-	    reduceNormal v0 f args def = do
-		case def of
-		    [] -> return $ v0 `apply` args -- no definition for head
-		    cls@(Clause _ _ ps _ : _)
-			| length ps <= length args ->
-			    do  let (args1,args2) = splitAt (length ps) args 
-				ev <- appDef v0 cls args1
-				case ev of
-				    NoReduction v  -> return $ v `apply` args2
-				    YesReduction v -> reduce $ v `apply` args2
-			| otherwise	-> return $ v0 `apply` args -- partial application
+    reduceNormal v0 f args def = do
+        case def of
+            [] -> return $ v0 `apply` args -- no definition for head
+            cls@(Clause _ _ ps _ : _)
+                | length ps <= length args ->
+                    do  let (args1,args2) = splitAt (length ps) args 
+                        ev <- appDef v0 cls args1
+                        case ev of
+                            NoReduction v  -> return $ v `apply` args2
+                            YesReduction v -> reduce $ v `apply` args2
+                | otherwise	-> return $ v0 `apply` args -- partial application
 
-	    -- Apply a defined function to it's arguments.
-	    --   The original term is the first argument applied to the third.
-	    appDef :: MonadTCM tcm => Term -> [Clause] -> Args -> tcm (Reduced Term Term)
-	    appDef v cls args = goCls cls args where
+    -- Apply a defined function to it's arguments.
+    --   The original term is the first argument applied to the third.
+    appDef :: MonadTCM tcm => Term -> [Clause] -> Args -> tcm (Reduced Term Term)
+    appDef v cls args = goCls cls args where
 
-		goCls :: MonadTCM tcm => [Clause] -> Args -> tcm (Reduced Term Term)
-		goCls [] args = typeError $ IncompletePatternMatching v args
-		goCls (cl@(Clause _ _ pats body) : cls) args = do
-		    (m, args) <- matchPatterns pats args
-		    case m of
-			No		  -> goCls cls args
-			DontKnow Nothing  -> return $ NoReduction $ v `apply` args
-			DontKnow (Just m) -> return $ NoReduction $ blocked m $ v `apply` args
-			Yes args'
-			  | hasBody body  -> return $ YesReduction $ app args' body
-			  | otherwise	  -> return $ NoReduction $ v `apply` args
+        goCls :: MonadTCM tcm => [Clause] -> Args -> tcm (Reduced Term Term)
+        goCls [] args = typeError $ IncompletePatternMatching v args
+        goCls (cl@(Clause _ _ pats body) : cls) args = do
+            (m, args) <- matchPatterns pats args
+            case m of
+                No		  -> goCls cls args
+                DontKnow Nothing  -> return $ NoReduction $ v `apply` args
+                DontKnow (Just m) -> return $ NoReduction $ blocked m $ v `apply` args
+                Yes args'
+                  | hasBody body  -> return $ YesReduction $ app args' body
+                  | otherwise	  -> return $ NoReduction $ v `apply` args
 
-		hasBody (Body _)	 = True
-		hasBody NoBody		 = False
-		hasBody (Bind (Abs _ b)) = hasBody b
-		hasBody (NoBind b)	 = hasBody b
+        hasBody (Body _)	 = True
+        hasBody NoBody		 = False
+        hasBody (Bind (Abs _ b)) = hasBody b
+        hasBody (NoBind b)	 = hasBody b
 
-		app []		 (Body v')	     = v'
-		app (arg : args) (Bind (Abs _ body)) = app args $ subst arg body -- CBN
-		app (_   : args) (NoBind body)	     = app args body
-		app  _		  NoBody	     = __IMPOSSIBLE__
-		app (_ : _)	 (Body _)	     = __IMPOSSIBLE__
-		app []		 (Bind _)	     = __IMPOSSIBLE__
-		app []		 (NoBind _)	     = __IMPOSSIBLE__
+        app []		 (Body v')	     = v'
+        app (arg : args) (Bind (Abs _ body)) = app args $ subst arg body -- CBN
+        app (_   : args) (NoBind body)	     = app args body
+        app  _		  NoBody	     = __IMPOSSIBLE__
+        app (_ : _)	 (Body _)	     = __IMPOSSIBLE__
+        app []		 (Bind _)	     = __IMPOSSIBLE__
+        app []		 (NoBind _)	     = __IMPOSSIBLE__
 
 
 instance Reduce a => Reduce (Closure a) where
