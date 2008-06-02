@@ -30,7 +30,6 @@ import qualified Agda.Termination.Matrix      as Term
 import qualified Agda.Termination.Termination as Term
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Mutual (getMutualBlocks)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce (reduce, instantiate, instantiateFull)
 import Agda.TypeChecking.Rules.Term (isType_)
@@ -86,10 +85,7 @@ termMutual i ts ds = if names == [] then return [] else
   do -- get list of sets of mutually defined names from the TCM
      -- this includes local and auxiliary functions introduced
      -- during type-checking
-     mutualBlocks <- getMutualBlocks
-     -- look for the block containing one of the mutually defined names
-     let Just mutualBlock =
-           List.find (Set.member (head names)) mutualBlocks
+     mutualBlock <- findMutualBlock (head names)
      let allNames = Set.elems mutualBlock
      -- collect all recursive calls in the block
      let collect use = collectCalls (termDef use allNames) allNames
