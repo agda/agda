@@ -289,7 +289,7 @@ instance Arbitrary PrecedenceGraph where
              map (\(n, ass) ->
                      ( ignoreAssoc (Maybe.fromJust $ fixity n) ass
                      , Set.singleton n )) .
-             filter (isOperator . fst)
+             filter (isOpenOperator . fst)
 
     ensureNonEmpty ns =
       case (Map.null ns, any Set.null (Map.elems ns)) of
@@ -306,11 +306,11 @@ instance Arbitrary PrecedenceGraph where
     mapOfSetsFromList = Map.fromList . map (id *** Set.fromList)
     mapOfSetsToList   = map (id *** Set.toList) . Map.toList
 
--- | Generates an operator which is not contained in the graph.
+-- | Generates an (open) operator which is not contained in the graph.
 
 operatorNotIn :: PrecedenceGraph -> Gen Name
 operatorNotIn pg =
-  operator `suchThat` \op ->
+  openOperator `suchThat` \op ->
     not (op `containedIn` pg)
 
 -- | Generates a name contained in the graph.

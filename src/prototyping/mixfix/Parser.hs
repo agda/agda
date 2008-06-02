@@ -8,22 +8,23 @@
 module Parser where
 
 import Control.Applicative
-import Data.Foldable
 import IndexedOrd
 
 class (Eq tok, Alternative p, Monad p) => Parser p tok | p -> tok where
   symbol :: p tok
 
+  parse :: p r -> [ tok ] -> [ r ]
+
+sat :: Parser p tok => (tok -> Bool) -> p tok
+sat p = do
+  c <- symbol
+  if p c then return c else empty
+
 sym :: Parser p tok => tok -> p tok
-sym c = do
-  c' <- symbol
-  if c == c' then return c' else empty
+sym c = sat (== c)
 
-choice :: Parser p tok => [p r] -> p r
-choice = asum
-
-many1 :: Parser p tok => p a -> p [a]
-many1 = some
+sepBy :: Parser p tok => p r -> p sep -> p [r]
+p `sepBy` sep = (:) <$> p <*> many (sep *> p)
 
 chainr1 :: Parser p tok => p a -> p (a -> a -> a) -> p a
 chainr1 p op = c
@@ -42,16 +43,18 @@ chainr3 p op = (\x f y -> f x y) <$> p <*> op <*> chainr1 p op
 chainl3 :: Parser p tok => p a -> p (a -> a -> a) -> p a
 chainl3 p op = (\x f y -> f x y) <$> chainl1 p op <*> op <*> p
 
--- • `between` [x, y, z] ≈ x • y • z.
+-- | • `between` [x, y, z] ≈ x • y • z.
 
-between :: Parser p tok => p a -> [tok] -> p [a]
+between :: Parser p tok => p a -> [p b] -> p [a]
 p `between` []       = empty
-p `between` [x]      = [] <$ sym x
-p `between` (x : xs) = (:) <$> (sym x *> p) <*> (p `between` xs)
+p `between` [x]      = [] <$ x
+p `between` (x : xs) = (:) <$> (x *> p) <*> (p `between` xs)
 
 class Parser p tok => NTParser p nt tok | p -> tok nt where
   -- | Parser for the given non-terminal.
   nonTerm :: nt r -> p r
+
+  parseNT :: Grammar p nt -> nt r -> [ tok ] -> [ r ]
 
 -- | A \"grammar\": a mapping from non-terminals to right-hand sides
 -- (parsers).

@@ -6,18 +6,21 @@
 
 module ExpressionParser
   ( NT
-  , expression
-  , grammar
+  , parse
   ) where
 
-import Parser
+import qualified Parser
+import Parser hiding (parse)
 import PrecedenceGraph
 import Utilities
 import IndexedOrd
 import Name
+import Token
 import Expression
+import qualified Memoised
 
 import Control.Applicative as A
+import Data.Foldable (asum)
 import qualified Data.List as List
 import qualified Data.Set  as Set
 import Data.Set (Set)
@@ -56,28 +59,6 @@ data NT r where
   NodeN :: Node     -> NT Expr
   AtomN ::             NT Expr
 
-instance IndexedEq NT where
-  iEq (ExprN ns1) (ExprN ns2) = boolToEq $ ns1 == ns2
-  iEq (OpN ns1)   (OpN ns2)   = boolToEq $ ns1 == ns2
-  iEq (NodeN n1)  (NodeN n2)  = boolToEq $ n1  == n2
-  iEq AtomN       AtomN       = Just Refl
-  iEq _           _           = Nothing
-
-instance IndexedOrd NT where
-  iCompare (ExprN ns1) (ExprN ns2) = compare ns1 ns2
-  iCompare (ExprN _)   _           = LT
-  iCompare (OpN _)     (ExprN _)   = GT
-  iCompare (OpN ns1)   (OpN ns2)   = compare ns1 ns2
-  iCompare (OpN _)     _           = LT
-  iCompare (NodeN n1)  (ExprN _)   = GT
-  iCompare (NodeN n1)  (OpN _)     = GT
-  iCompare (NodeN n1)  (NodeN n2)  = compare n1 n2
-  iCompare (NodeN n1)  _           = LT
-  iCompare AtomN       (ExprN _)   = GT
-  iCompare AtomN       (OpN _)     = GT
-  iCompare AtomN       (NodeN _)   = GT
-  iCompare AtomN       AtomN       = EQ
-
 -- | Non-terminal for an expression.
 
 expression :: PrecedenceGraph -> NT Expr
@@ -88,14 +69,29 @@ expression g = ExprN (nodes g)
 placeholder :: NTParser p NT Token => Pos -> p (Maybe Expr)
 placeholder p = Nothing <$ sym (Placeholder p)
 
+-- | Parses the given name part (possibly with a shorter module
+-- prefix).
+
+namePart :: NTParser p NT Token
+         => [String]
+         -- ^ Module name.
+         -> String
+         -- ^ Name part.
+         -> p ()
+namePart ms n = symbol >>= \s -> case s of
+  QualifiedName ms' n' -> if ms' `List.isSuffixOf` ms && n' == n
+                          then return () else A.empty
+  _ -> A.empty
+
 -- | The expression grammar.
 
 grammar :: NTParser p NT Token =>
            PrecedenceGraph ->
            -- ^ The precedence graph.
-           p Name ->
-           -- ^ Parser for identifiers/function names (not operator
-           -- name parts).
+           (Name -> Set Name) ->
+           -- ^ A function giving all qualified names matching the
+           -- given qualified name (which might be given with an
+           -- incomplete module name prefix).
            Set Name ->
            -- ^ Closed mixfix operators.
            NT r -> p r
@@ -108,8 +104,9 @@ grammar :: NTParser p NT Token =>
 -- Note also that an operator which is sectioned in the right way
 -- becomes closed.
 
-grammar g identifier closed AtomN =
-      Fun <$> identifier
+grammar g lookupName closed AtomN =
+      Fun <$> (asum =<< map return . filter (not . isOperator) .
+                        Set.toList . lookupName <$> parseName)
   <|> WildcardE <$ sym Wildcard
   <|> sym LParen *> nonTerm (expression g) <* sym RParen
   <|> toE <$> (      nonTerm (OpN closed)
@@ -127,25 +124,24 @@ grammar g identifier closed AtomN =
 -- reachable from the given set of nodes are recognised.
 
 grammar _ _ _ (ExprN ns)
-   =  nonTerm AtomN
-  <|> App <$> nonTerm AtomN <*> many1 (nonTerm AtomN)
-  <|> choice (map' (nonTerm . NodeN) ns)
+   =  app <$> nonTerm AtomN <*> many (nonTerm AtomN)
+  <|> asum (map' (nonTerm . NodeN) ns)
 
 -- Production for operators (just the internal, mixfix parts; not the
 -- "outer" arguments).
 
-grammar g _ _ (OpN ops) = choice $ map' op ops
+grammar g _ _ (OpN ops) = asum $ map' op ops
   where
   op n = (,) n <$>
     (Just <$> nonTerm (expression g) <|> placeholder Mid)
       `between`
-    map NamePart (nameParts n)
+    map (namePart (moduleName n)) (nameParts n)
 
 -- Production for a graph node.
 
-grammar g _ _ (NodeN n) = choice $
-  [ flip (foldr appRight') <$> many1 (internal Prefix Non) <*> higher
-  , foldl appLeft'         <$> higher <*> many1 (internal Postfix Non)
+grammar g _ _ (NodeN n) = asum $
+  [ flip (foldr appRight') <$> some (internal Prefix Non) <*> higher
+  , foldl appLeft'         <$> higher <*> some (internal Postfix Non)
   , appBoth' <$> higher <*> internal Infix Non <*> higher
   , chainl3 higher (flip appBoth' <$> internal Infix L)
   , chainr3 higher (flip appBoth' <$> internal Infix R)
@@ -169,3 +165,45 @@ grammar g _ _ (NodeN n) = choice $
   appLeft'  e o     = toE $ appLeft  (Just e) o
   appRight' o e     = toE $ appRight o (Just e)
   appBoth'  e1 o e2 = toE $ appBoth  (Just e1) o (Just e2)
+
+-- | Parses an expression.
+
+parse :: PrecedenceGraph ->
+         -- ^ The precedence graph.
+         (Name -> Set Name) ->
+         -- ^ A function giving all qualified names matching the
+         -- given qualified name (which might be given with an
+         -- incomplete module name prefix).
+         Set Name ->
+         -- ^ Closed mixfix operators.
+         [Token] ->
+         -- ^ Input tokens.
+         [Expr]
+parse g lookupName closed =
+  Memoised.memoParse (grammar g lookupName closed)
+                     (nonTerm $ expression g)
+
+------------------------------------------------------------------------
+-- Boring instances
+
+instance IndexedEq NT where
+  iEq (ExprN ns1) (ExprN ns2) = boolToEq $ ns1 == ns2
+  iEq (OpN ns1)   (OpN ns2)   = boolToEq $ ns1 == ns2
+  iEq (NodeN n1)  (NodeN n2)  = boolToEq $ n1  == n2
+  iEq AtomN       AtomN       = Just Refl
+  iEq _           _           = Nothing
+
+instance IndexedOrd NT where
+  iCompare (ExprN ns1) (ExprN ns2) = compare ns1 ns2
+  iCompare (ExprN _)   _           = LT
+  iCompare (OpN _)     (ExprN _)   = GT
+  iCompare (OpN ns1)   (OpN ns2)   = compare ns1 ns2
+  iCompare (OpN _)     _           = LT
+  iCompare (NodeN n1)  (ExprN _)   = GT
+  iCompare (NodeN n1)  (OpN _)     = GT
+  iCompare (NodeN n1)  (NodeN n2)  = compare n1 n2
+  iCompare (NodeN n1)  _           = LT
+  iCompare AtomN       (ExprN _)   = GT
+  iCompare AtomN       (OpN _)     = GT
+  iCompare AtomN       (NodeN _)   = GT
+  iCompare AtomN       AtomN       = EQ

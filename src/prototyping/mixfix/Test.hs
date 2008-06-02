@@ -22,15 +22,17 @@
 module Main where
 
 import qualified Memoised
-import PrecedenceGraph hiding (tests)
-import ExpressionParser
+import qualified ExpressionParser as Expr
 import Parser
-import Name hiding (tests)
-import Expression
+import PrecedenceGraph hiding (tests)
+import Name            hiding (tests)
+import Expression      hiding (tests)
+import Token           hiding (tests)
 
 import Control.Monad.State hiding (lift)
 import Data.Char
 import Data.List
+import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Set (Set)
 import Data.Function
@@ -40,19 +42,21 @@ import Prelude hiding (lex)
 ------------------------------------------------------------------------
 -- Test driver
 
-test :: Set Name -> PrecedenceGraph -> String -> [Expr] -> IO Bool
-test closed g s es = do
-  putStrLn $ pad 40 (show s) ++ pad 8 (isOK ++ ": ")
-                             ++ pad 90 (show es')
-  return correct
+test :: Set Name -> Set Name -> PrecedenceGraph ->
+        String -> [Expr] -> IO Bool
+test closed names g s es = case Token.lex s of
+  Nothing -> do
+    putStrLn $ "Lex error: " ++ show s
+    return (es == [])
+  Just ts -> do
+    let es'     = Expr.parse g (lookupName names) closed ts
+        correct = sort es' == sort es
+        isOK    = if correct then "OK" else "Not OK"
+    putStrLn $ pad 40 (show s) ++ pad 8 (isOK ++ ": ")
+                               ++ pad 90 (show es')
+    return correct
   where
   pad n s = take n s ++ replicate (n - length s) ' ' ++ " "
-
-  es' = Memoised.parse (grammar g ident closed) (expression g) (lex s)
-
-  correct = sort es' == sort es
-
-  isOK = if correct then "OK" else "Not OK"
 
 main = do
   ok <- tests
@@ -118,47 +122,28 @@ example = flip execState empty $ mapM lift
   , unrelated    ggll   Non
   ]
 
-exampleClosed :: Set Name
 exampleClosed = Set.fromList [ox', ox'star, ox'plus]
 
+exampleNames = Set.unions $
+  Map.elems (allOperators example) ++
+  [ exampleClosed
+  , Set.fromList $
+      map (Name [] Nothing . (: []))
+          ["x", "y", "z", "a", "b", "c", "d", "f", "g"]
+  ]
+
 ------------------------------------------------------------------------
--- Lexer
+-- Looking up names
 
--- | A simple lexer. Note that @_@ is treated differently depending on
--- whether or not it is located next to a name. Note also that
--- parentheses do not need to be separated from other tokens with
--- white space.
+-- | A smarter data structure should be used here.
 
-lex :: String -> [Token]
-lex = concatMap toToken .
-      filter (not . all isSpace) .
-      groupBy ((&&) `on` notSpaceOrParen)
+lookupName :: Set Name -> Name -> Set Name
+lookupName names n = Set.filter p names
   where
-  notSpaceOrParen c = not (isSpace c || c `elem` "()")
-
-  toToken "_"             = [Wildcard]
-  toToken "("             = [LParen]
-  toToken ")"             = [RParen]
-  toToken cs              =
-    fixL $ fixR $ map toT $ groupBy ((&&) `on` (/= '_')) cs
+  p n' = n' == n { moduleName = drop (length mn - length mn') mn }
     where
-    toT "_" = Placeholder Mid
-    toT cs  = NamePart cs
-
-    fix p (Placeholder _ : toks) = Placeholder p : toks
-    fix p toks                   = toks
-
-    fixL = fix Beg
-    fixR = reverse . fix End . reverse
-
--- | Parser for identifiers. For simplicity single alphabetic
--- characters are taken as function names, while other character
--- sequences are taken as operator parts.
-
-ident :: NTParser p NT Token => p Name
-ident = symbol >>= \s -> case s of
-  NamePart n@[c] | isAlpha c -> A.pure (Name [] Nothing [n])
-  _                          -> A.empty
+    mn  = moduleName n
+    mn' = moduleName n'
 
 ------------------------------------------------------------------------
 -- A demanding graph
@@ -205,6 +190,12 @@ stressTest n =
 
 stressTestName n c = Name [] (Just Infix) [c : show n]
 
+stressTestNames :: Integer -> Set Name
+stressTestNames n = Set.fromList $
+  Name [] Nothing ["x"] :
+  stressTestName 0 'n' :
+  [ stressTestName i c | i <- [1 .. n], c <- "abcn" ]
+
 ------------------------------------------------------------------------
 -- Tests
 
@@ -241,16 +232,23 @@ tests = fmap and $ sequence
                                                 , Op foo1 [jOp foo1 [jF "x", jF "x"], jF "x"] ]
   , test' "x foo x foo x foo x"                 [ Op foo2 [jF "x", jOp foo2 [jF "x", jOp foo2 [jF "x", jF "x"]]]
                                                 , Op foo1 [jOp foo1 [jOp foo1 [jF "x", jF "x"], jF "x"], jF "x"] ]
+  , test' "x 1.foo x 1.foo x"                   [Op foo1 [jOp foo1 [jF "x", jF "x"], jF "x"]]
+  , test' "x 1.foo x 2.foo x"                   []
+  , test' "1._foo_"                             [Op foo1 [p, p]]
+  , test' "2._foo_"                             [Op foo2 [p, p]]
+  , test' "x 1.foo_"                            [Op foo1 [jF "x", p]]
+  , test' "1._foo x"                            [Op foo1 [p, jF "x"]]
+  , test' "_1.foo x"                            []
   , test' "_"                                   [w]
   , test' "_+_"                                 [Op plus [p, p]]
   , test' "_ + _"                               [Op plus [Just w, Just w]]
   , test' "if_then a + _ else_ = d"             [Op eq [jOp ite [p, jOp plus [jF "a", Just w], p], jF "d"]]
   , test' "if__then a + _ else_ = d"            []
-  , test' "f (_+_)"                             [App (fun "f") [Op plus [p, p]]]
-  , test' "(_+_) f"                             [App (Op plus [p, p]) [fun "f"]]
-  , test' "f _+_"                               [App (fun "f") [Op plus [p, p]]]
+  , test' "f (_+_)"                             [app (fun "f") [Op plus [p, p]]]
+  , test' "(_+_) f"                             [app (Op plus [p, p]) [fun "f"]]
+  , test' "f _+_"                               [app (fun "f") [Op plus [p, p]]]
   , test' "f _ +_"                              [Op plus [jApp (fun "f") [w], p]]
-  , test' "(((f))) (((x))) (((y)))"             [App (fun "f") [fun "x", fun "y"]]
+  , test' "(((f))) (((x))) (((y)))"             [app (fun "f") [fun "x", fun "y"]]
   , test' "(_)"                                 [w]
   , test' "_<[_]>"                              [Op ox [p, p]]
   , test' "_+ _+'_"                             [Op plus [p, jOp plus' [p, p]]]
@@ -264,7 +262,7 @@ tests = fmap and $ sequence
   , test' "f (if_then_else_) * z"               [Op mul [jApp (fun "f") [Op ite [p, p, p]], jF "z"]]
   , test' "[[_]]"                               [Op ox' [p]]
   , test' "[[ [[ x ]]* ]]"                      [Op ox' [jOp ox'star [jF "x"]]]
-  , test' "f [[ g [[ x ]]* ]]"                  [App (fun "f") [Op ox' [jApp (fun "g") [Op ox'star [jF "x"]]]]]
+  , test' "f [[ g [[ x ]]* ]]"                  [app (fun "f") [Op ox' [jApp (fun "g") [Op ox'star [jF "x"]]]]]
 
   , test' (nested nestingDepth)                 [nestedResult nestingDepth]
   , test' (assoc  nestingDepth)                 [assocResult  nestingDepth]
@@ -282,9 +280,9 @@ tests = fmap and $ sequence
   p              = Nothing  -- Placeholder.
   jF             = Just . fun
   jOp name args  = Just $ Op name args
-  jApp expr args = Just $ App expr args
+  jApp expr args = Just $ app expr args
 
-  test' = test exampleClosed example
+  test' = test exampleClosed exampleNames example
 
   nestingDepth = 100
 
@@ -299,7 +297,9 @@ tests = fmap and $ sequence
   test'' m i k | not (m >= k && k > i && i > 0) =
                    error "test'': Precondition failed."
                | otherwise =
-    test Set.empty (snd $ stressTest m)
+    test Set.empty
+         (stressTestNames m)
+         (snd $ stressTest m)
          (unwords ["x", op i 'a', "x", op k 'b', "x"])
          [Op (stressTestName i 'a')
              [ jF "x"
