@@ -18,6 +18,8 @@ module Utilities
   , list
   , pairUp
   , distinct
+  , separate
+  , twoAdjacent
   , efficientNub
   , tests
   ) where
@@ -31,6 +33,7 @@ import Data.Graph.Inductive
 import Control.Monad
 import Data.Function
 import Test.QuickCheck
+import Text.Show.Functions
 
 ------------------------------------------------------------------------
 -- Graph utilities
@@ -188,6 +191,34 @@ distinct xs = List.sort xs == efficientNub xs
 prop_distinct1 (NonEmpty xs)   = not (distinct $ xs ++ xs)
 prop_distinct2 (NonNegative n) = distinct [1 .. n]
 
+-- | Splits up a list, using the predicate to identify separators. The
+-- separators are retained in the output, in singleton lists.
+
+separate :: (a -> Bool) -> [a] -> [[a]]
+separate p = List.groupBy ((&&) `on` not . p)
+
+prop_separate p xs =
+  classify (length segments == 1) "trivial" $
+    all (not . null) segments &&
+    all (\s -> if length s > 1 then all (not . p) s else True) segments
+  where segments = separate p xs
+
+-- Does the list contain two adjacent elements satisfying the
+-- predicate?
+
+twoAdjacent :: (a -> Bool) -> [a] -> Bool
+twoAdjacent p ys = case ys of
+  [] -> False
+  ps -> anyPair ((&&) `on` p) $ zip (init ps) (tail ps)
+    where anyPair p = any (uncurry p)
+
+prop_twoAdjacent p xs x ys =
+  (twoAdjacent p list || twoAdjacent (not . p) list) &&
+  not (twoAdjacent (const False) xs) &&
+  not (twoAdjacent p [x]) &&
+  not (twoAdjacent p [])
+  where list = xs ++ [x, x] ++ ys
+
 -- | An efficient variant of 'List.nub'. Note that the resulting list
 -- is sorted.
 
@@ -243,4 +274,9 @@ tests = do
   quickCheck prop_pairUp
   quickCheck (prop_distinct1    :: NonEmptyList [Integer] -> Bool)
   quickCheck (prop_distinct2    :: NonNegative Integer -> Bool)
+  quickCheck (prop_separate     :: (Integer -> Bool) -> [Integer] ->
+                                   Property)
+  quickCheck (prop_twoAdjacent  :: (Integer -> Bool) ->
+                                   [Integer] -> Integer -> [Integer] ->
+                                   Bool)
   quickCheck prop_efficientNub
