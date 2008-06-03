@@ -72,15 +72,16 @@ stripWithClausePatterns :: Telescope -> [Arg Pattern] -> Permutation -> [NamedAr
 stripWithClausePatterns gamma qs perm ps = do
   psi <- insertImplicitPatterns ps gamma
   unless (size psi == size gamma) $ fail $ "wrong number of arguments in with clause: given " ++ show (size psi) ++ ", expected " ++ show (size gamma)
-  ps' <- strip gamma psi qs
-  -- TODO: remember dot patterns
   reportSDoc "tc.with.strip" 10 $ vcat
     [ text "stripping patterns"
     , nest 2 $ text "gamma = " <+> prettyTCM gamma
     , nest 2 $ text "psi = " <+> fsep (punctuate comma $ map prettyA psi)
-    , nest 2 $ text "ps' = " <+> fsep (punctuate comma $ map prettyA ps')
-    , nest 2 $ text "psp = " <+> fsep (punctuate comma $ map prettyA $ permute perm ps')
     , nest 2 $ text "qs  = " <+> fsep (punctuate comma $ map (showPat . unArg) qs)
+    ]
+  ps' <- strip gamma psi qs
+  reportSDoc "tc.with.strip" 10 $ vcat
+    [ nest 2 $ text "ps' = " <+> fsep (punctuate comma $ map prettyA ps')
+    , nest 2 $ text "psp = " <+> fsep (punctuate comma $ map prettyA $ permute perm ps')
     ]
 
   return $ permute perm ps'
@@ -105,8 +106,8 @@ stripWithClausePatterns gamma qs perm ps = do
           ps <- underAbstraction a tel $ \tel -> strip tel ps qs
           return $ p : ps
 
-        DotP _  -> do
-          ps <- underAbstraction a tel $ \tel -> strip tel ps qs
+        DotP v  -> do
+          ps <- strip (tel `absApp` v) ps qs
           return $ p : ps
 
         ConP c qs' -> case namedThing $ unArg p of
