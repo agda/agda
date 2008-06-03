@@ -334,6 +334,13 @@ instance Normalise Constraint where
     normalise (Guarded c cs) = uncurry Guarded <$> normalise (c,cs)
     normalise (UnBlock m)    = return $ UnBlock m
 
+instance Normalise Pattern where
+  normalise p = case p of
+    VarP _    -> return p
+    LitP _    -> return p
+    ConP c ps -> ConP c <$> normalise ps
+    DotP v    -> DotP <$> normalise v
+
 instance Normalise DisplayForm where
   normalise (Display n ps v) = Display n <$> normalise ps <*> return v
 

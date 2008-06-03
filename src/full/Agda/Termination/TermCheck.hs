@@ -31,7 +31,7 @@ import qualified Agda.Termination.Termination as Term
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Reduce (reduce, instantiate, instantiateFull)
+import Agda.TypeChecking.Reduce (reduce, normalise, instantiate, instantiateFull)
 import Agda.TypeChecking.Rules.Term (isType_)
 import Agda.TypeChecking.Substitute (abstract,raise,substs)
 import Agda.TypeChecking.Telescope
@@ -290,7 +290,10 @@ stripBinds use i (p:ps) b = do
 
 -- | Extract recursive calls from one clause.
 termClause :: Recursion -> UseDotPatterns -> MutualNames -> QName -> Clause -> TCM Calls
-termClause rec use names name (Clause _ perm argPats' body) =
+termClause rec use names name (Clause tel perm argPats' body) = do
+    argPats' <- addCtxTel tel $ normalise argPats'
+    -- The termination checker doesn't know about reordered telescopes
+    let argPats = substs (renamingR perm) argPats'
     case stripBinds use (nVars - 1) (map unArg argPats) body  of
        Nothing -> return Term.empty
        Just (-1, dbpats, Body t) -> do
@@ -300,8 +303,6 @@ termClause rec use names name (Clause _ perm argPats' body) =
        Just (n, dbpats, Body t) -> internalError $ "termClause: misscalculated number of vars: guess=" ++ show nVars ++ ", real=" ++ show (nVars - 1 - n)
        Just (n, dbpats, b)  -> internalError $ "termClause: not a Body" -- ++ show b
   where
-    -- The termination checker doesn't know about reordered telescopes
-    argPats = substs (renamingR perm) argPats'
     nVars = boundVars body
     boundVars (Bind b)   = 1 + boundVars (absBody b)
     boundVars (NoBind b) = boundVars b
