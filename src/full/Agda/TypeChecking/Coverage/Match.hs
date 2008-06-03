@@ -36,6 +36,7 @@ buildMPatterns perm ps = evalState (mapM (traverse build) ps) xs
     build (LitP l)      = return $ LitMP l
 
     buildT (Con c args) = ConMP c <$> mapM (traverse buildT) args
+    buildT (Var i [])   = return (VarMP i)
     buildT _            = return WildMP
 
 -- | If matching is inconclusive (@Block@) we want to know which
