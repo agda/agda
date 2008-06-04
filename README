@@ -83,7 +83,8 @@ To use the Agda 2 Emacs mode:
 
 -1. Install Emacs.
 
-    Under Windows you may want to follow the following procedure:
+   (For non-Windows - jump down to **END OF "Under Windows ...")
+   **Under Windows you may want to follow the following procedure:
 
       1. Install NTEmacs 22.
 
@@ -194,6 +195,7 @@ To use the Agda 2 Emacs mode:
              M-x view-hello-file
 
          You should see all the characters without white-boxes.
+  **END OF "Under Windows ..."
 
 0. Install haskell-mode, version 2.1 or later (see
    http://haskell.org/haskell-mode/).
@@ -282,7 +284,7 @@ using the package manager.)
   sudo runhaskell Setup.hs install
   cd ..
 
-# A.3 Installing Agda (excluding the stand-alone executable)
+# A.3 Installing Agda (including the stand-alone executable)
 
   This has to be done from the root directory of an Agda distribution,
   see point 1 above.
@@ -290,3 +292,10 @@ using the package manager.)
   runhaskell Setup.hs configure
   runhaskell Setup.hs build
   sudo runhaskell Setup.hs install
+
+  cd src/main
+  runhaskell Setup.hs configure
+  runhaskell Setup.hs build
+  sudo runhaskell Setup.hs install
+  cd ../..
+
