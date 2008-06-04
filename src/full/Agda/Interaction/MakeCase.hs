@@ -22,6 +22,7 @@ import Agda.Syntax.Scope.Base (emptyScopeInfo)
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Coverage
 import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Reduce
 import Agda.TypeChecker
 
 import Agda.Interaction.BasicOps
@@ -87,7 +88,9 @@ makeAbsurdClause f (SClause tel perm ps _) = do
       , text "ps =" <+> text (show ps)
       ]
     ]
-  withCurrentModule (qnameModule f) $
+  withCurrentModule (qnameModule f) $ do
+    -- Normalise the dot patterns
+    ps <- addCtxTel tel $ normalise ps
     reify $ NamedClause f rec $ Clause tel perm ps NoBody
 
 makeAbstractClause :: QName -> SplitClause -> TCM A.Clause

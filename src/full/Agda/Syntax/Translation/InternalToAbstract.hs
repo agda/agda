@@ -151,13 +151,7 @@ instance Reify Term Expr where
 	    case ignoreBlocking v of
 		I.Var n vs   -> do
                     x  <- liftTCM $ nameOfBV n `catchError` \_ -> freshName_ ("@" ++ show n)
-                    y <- absurdPatternHack x
-                    reifyApp (A.Var y) vs
-                  where
-                    -- Absurd patterns are variables when making case.
-                    absurdPatternHack x
-                      | show x == "()" = freshNoName_
-                      | otherwise      = return x
+                    reifyApp (A.Var x) vs
 		I.Def x vs   -> reifyDisplayForm x vs $ do
 		    n <- getDefFreeVars x
 		    reifyApp (A.Def x) $ genericDrop n vs
@@ -334,11 +328,17 @@ reifyPatterns tel perm ps = evalStateT (reifyArgs ps) 0
         i <- tick
         let j = translate i
         lift $ A.VarP <$> nameOfBV (size tel - 1 - j)
-      I.DotP v    -> tick >> lift (A.DotP i <$> reify v)
+      I.DotP v -> do
+        t <- lift $ reify v
+        let vars = Set.map show (dotVars t)
+        if Set.member "()" vars
+          then tick >> (return $ A.DotP i $ A.Underscore mi)
+          else tick >> lift (A.DotP i <$> reify v)
       I.LitP l    -> return $ A.LitP l
       I.ConP c ps -> A.ConP i [c] <$> reifyArgs ps
       where
         i = PatRange noRange
+        mi = MetaInfo noRange emptyScopeInfo Nothing
 
 instance Reify NamedClause A.Clause where
   reify (NamedClause f rec (I.Clause tel perm ps body)) = addCtxTel tel $ do
