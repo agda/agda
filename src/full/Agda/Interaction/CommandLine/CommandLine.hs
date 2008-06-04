@@ -295,6 +295,8 @@ splashScreen = unlines
     , " |_|  |\\___  /____\\_____/|______|  Type :? for help."
     , "        __/ /"
     , "        \\__/"
+    , ""
+    , "The interactive mode is no longer supported. Don't complain if it doesn't work."
     ]
 
 -- | The help message
