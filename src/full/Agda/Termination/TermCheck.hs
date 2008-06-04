@@ -35,6 +35,7 @@ import Agda.TypeChecking.Reduce (reduce, normalise, instantiate, instantiateFull
 import Agda.TypeChecking.Rules.Term (isType_)
 import Agda.TypeChecking.Substitute (abstract,raise,substs)
 import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.EtaContract
 
 import qualified Agda.Interaction.Highlighting.Range as R
 
@@ -324,9 +325,10 @@ termTerm names f pats0 rec t0 = do
   where 
        Just fInd' = List.elemIndex f names
        fInd = toInteger fInd'
+       loop :: [DeBruijnPat] -> Order -> Term -> TCM Calls
        loop pats guarded t = do
-         t' <- instantiate t          -- instantiate top-level MetaVar
-         case (ignoreBlocking t') of  -- removes BlockedV case
+         t <- instantiate t          -- instantiate top-level MetaVar
+         case ignoreBlocking t of  -- removes BlockedV case
 
             -- call to defined function
             Def g args0 ->
@@ -337,7 +339,7 @@ termTerm names f pats0 rec t0 = do
                   let reduceCon t@(Con _ _) = reduce t
                       reduceCon t           = return t
                   args2 <- mapM reduceCon args2
-                  let args = map ignoreBlocking args2
+                  let args = map (etaContract . ignoreBlocking) args2
 
                   -- collect calls in the arguments of this call
                   calls <- collectCalls (loop pats Unknown) args
