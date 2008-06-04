@@ -42,6 +42,10 @@ data QName = QName { qnameModule :: ModuleName
 newtype ModuleName = MName { mnameToList :: [Name] }
   deriving (Eq, Ord, Typeable, Data)
 
+instance HasRange ModuleName where
+  getRange (MName []) = noRange
+  getRange (MName xs) = getRange $ last xs
+
 mnameFromList :: [Name] -> ModuleName
 mnameFromList = MName
 

@@ -311,8 +311,11 @@ instance ToAbstract NewModuleName A.ModuleName where
   toAbstract (NewModuleName x) = mnameFromList . (:[]) <$> freshAbstractName_ x
 
 instance ToAbstract NewModuleQName A.ModuleName where
-  toAbstract (NewModuleQName q) =
-    foldr1 A.qualifyM <$> mapM (toAbstract . NewModuleName) (toList q)
+  toAbstract (NewModuleQName q) = do
+    ms <- resolveModule' q
+    case ms of
+      [] -> foldr1 A.qualifyM <$> mapM (toAbstract . NewModuleName) (toList q)
+      ms -> typeError $ ShadowedModule $ map amodName ms
     where
       toList (C.QName  x) = [x]
       toList (C.Qual m x) = m : toList x

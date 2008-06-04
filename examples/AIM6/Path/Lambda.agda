@@ -83,7 +83,7 @@ module Eval where
  ⟦ λ t   ⟧ ρ = \x -> ⟦ t ⟧ (check x • ρ)
  ⟦ s $ t ⟧ ρ = (⟦ s ⟧ ρ) (⟦ t ⟧ ρ)
 
-module Examples where
+module MoreExamples where
 
   private open module TT = TyAlg freeTyAlg
   private open module Tm = Term freeTyAlg

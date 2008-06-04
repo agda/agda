@@ -1,0 +1,6 @@
+errors/ShadowModule.agda:10,1-15
+Shadowing of module B defined at
+errors/ShadowModule.agda:5,10-11
+is not allowed
+when scope checking the declaration
+  module B where

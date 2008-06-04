@@ -1,6 +1,6 @@
-errors/ClashingModule.agda:7,1-7
-Ambiguous module name A. It could refer to any one of
-  ClashingModule.A
-  ClashingModule.A
+errors/ClashingModule.agda:5,1-15
+Shadowing of module A defined at
+errors/ClashingModule.agda:4,8-9
+is not allowed
 when scope checking the declaration
-  open A
+  module A where
