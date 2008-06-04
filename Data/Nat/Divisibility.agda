@@ -73,8 +73,8 @@ divides-≤ {suc m} {n} (divides (suc q) eq) = begin
 -- If m and n divide each other, then they are equal.
 
 divides-≡ : forall {m n} -> m Divides n -> n Divides m -> m ≡ n
-divides-≡ d₁@(divides _ _) d₂@(divides _ _) =
-  ≤≥⇒≡ (divides-≤ d₁) (divides-≤ d₂)
+divides-≡ (divides a₁ b₁) (divides a₂ b₂) =
+  ≤≥⇒≡ (divides-≤ (divides a₁ b₁)) (divides-≤ (divides a₂ b₂))
 
 -- If i divides m and n, then i divides their sum.
 

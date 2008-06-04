@@ -116,8 +116,9 @@ toDigits : (base : ℕ) {base≥2 : True (2 ≤? base)} (n : ℕ) ->
            Digits base n
 toDigits zero       {base≥2 = ()} _
 toDigits (suc zero) {base≥2 = ()} _
-toDigits base@(suc (suc k)) n = <-rec Pred helper n
+toDigits (suc (suc k)) n = <-rec Pred helper n
   where
+  base = suc (suc k)
   Pred = Digits base
 
   cons : forall {n} (r : Fin base) -> Pred n -> Pred (toℕ r + n * base)
@@ -126,8 +127,8 @@ toDigits base@(suc (suc k)) n = <-rec Pred helper n
   helper : forall n -> <-Rec Pred n -> Pred n
   helper n rec with n divMod base
   helper .(toℕ r + 0 * base) rec | result zero      r = digits (r ∷ [])
-  helper .(toℕ r + x * base) rec | result x@(suc _) r =
-    cons r (rec x (lem (pred x) k (toℕ r)))
+  helper .(toℕ r + suc x * base) rec | result (suc x) r =
+    cons r (rec (suc x) (lem (pred (suc x)) k (toℕ r)))
 
 theDigits : (base : ℕ) {base≥2 : True (2 ≤? base)} (n : ℕ) ->
             [ Fin base ]

@@ -88,8 +88,9 @@ gcd-refl n = isGCD (divides-refl n , divides-refl n) proj₁
 
 no-GCD-for-0-0 : ¬ Σ₀ \d -> GCD 0 0 d
 no-GCD-for-0-0 (0 , g) = 0-doesNotDivide $ proj₁ $ GCD.commonDivisor g
-no-GCD-for-0-0 (d@(suc _) , g) = lem₂ 1+d≤d
+no-GCD-for-0-0 (suc n , g) = lem₂ 1+d≤d
   where
+  d = suc n
   1+d|0 = d +1-divides-0
   1+d|d = GCD.divisible g (1+d|0 , 1+d|0)
   1+d≤d = divides-≤ 1+d|d

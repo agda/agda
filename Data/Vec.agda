@@ -90,7 +90,7 @@ foldr _⊕_ n (x ∷ xs) = x ⊕ foldr _⊕_ n xs
 foldr₁ :  forall {a : Set} {m}
        -> (a -> a -> a) -> Vec a (suc m) -> a
 foldr₁ _⊕_ (x ∷ [])         = x
-foldr₁ _⊕_ (x ∷ xs@(_ ∷ _)) = x ⊕ foldr₁ _⊕_ xs
+foldr₁ _⊕_ (x ∷ y ∷ ys) = x ⊕ foldr₁ _⊕_ (y ∷ ys)
 
 foldl :  forall {a b : Set} {m}
       -> (b -> a -> b) -> b -> Vec a m -> b
@@ -180,9 +180,9 @@ private
 -- So the following recursive definitions are used instead:
 
 init : forall {a n} -> Vec a (suc n) -> Vec a n
-init (x ∷ [])         = []
-init (x ∷ xs@(_ ∷ _)) = x ∷ init xs
+init (x ∷ [])     = []
+init (x ∷ y ∷ ys) = x ∷ init (y ∷ ys)
 
 last : forall {a n} -> Vec a (suc n) -> a
-last (x ∷ [])         = x
-last (x ∷ xs@(_ ∷ _)) = last xs
+last (x ∷ [])     = x
+last (x ∷ y ∷ ys) = last (y ∷ ys)
