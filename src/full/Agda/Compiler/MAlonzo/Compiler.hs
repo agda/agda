@@ -8,7 +8,9 @@ import Data.List as L
 import Data.Map as M
 import Data.Set as S
 import Language.Haskell.Syntax
+import System.Cmd
 import System.Directory
+import System.Exit
 import System.IO
 import System.Time
 
@@ -29,9 +31,10 @@ import Agda.Utils.Monad
 import Agda.Utils.Unicode
 
 compilerMain :: IM () -> IM ()
-compilerMain typecheck = (typecheck >>) $ liftTCM $ do
-  mapM_ compile =<< ((:) <$> ((,) <$> buildInterface <*> liftIO getClockTime)
-                         <*> (M.elems <$> getVisitedModules))
+compilerMain typecheck = (typecheck >>) $ liftTCM $ ignoreAbstractMode $ do
+  mainICT <- (,) <$> buildInterface <*> liftIO getClockTime
+  mapM_ compile =<< ((mainICT :) . M.elems <$> getVisitedModules)
+  callGHC mainICT
 
 compile :: (Interface, ClockTime) -> TCM ()
 compile ict = do
@@ -53,12 +56,15 @@ compile ict = do
 --------------------------------------------------
 
 imports :: TCM [HsImportDecl]
-imports = (decl False unsafeCoerceMod :) . L.map (decl True) . uniq <$>
-          ((++) <$> importsForPrim <*> (L.map mazMod <$> mnames))
-  where decl qual m = HsImportDecl dummy m qual Nothing Nothing
-        mnames      = (++) <$> (S.elems <$> gets stImportedModules)
-                           <*> (iImportedModules <$> curIF)
-        uniq        = L.map head . group . L.sort
+imports = (++) <$> unqualImps <*> qualImps where
+  unqualImps = (L.map (decl False) . (unsafeCoerceMod :) . L.map Module) <$>
+               getHaskellImports
+  qualImps   = L.map (decl True) . uniq <$>
+               ((++) <$> importsForPrim <*> (L.map mazMod <$> mnames))
+  decl qual m = HsImportDecl dummy m qual Nothing Nothing
+  mnames      = (++) <$> (S.elems <$> gets stImportedModules)
+                     <*> (iImportedModules <$> curIF)
+  uniq        = L.map head . group . L.sort
 
 --------------------------------------------------
 -- Main compiling clauses
@@ -69,7 +75,7 @@ definitions = M.fold (liftM2(++).(definition<.>instantiateFull)) declsForPrim
 
 definition :: Definition -> TCM [HsDecl]
 definition (Defn q ty _ _ d) = (infodecl q :) <$> case d of
-  Axiom _                  -> return $ fb axiom
+  Axiom mhs                -> return $ fb (maybe axiomErr fakeExp mhs)
   Function cls _ _ _       -> mkwhere <$> mapM (clause q) (tag 0 cls)
   Datatype np ni _ cl cs _ _ -> do
     (ars, cds) <- unzip <$> mapM condecl cs
@@ -87,7 +93,7 @@ definition (Defn q ty _ _ d) = (infodecl q :) <$> case d of
           [HsFunBind [m0, HsMatch dummy dn ps rhs fbs]]
   mkwhere fbs = fbs
   fb e  =[HsFunBind[HsMatch dummy (unqhname "d" q)[] (HsUnGuardedRhs $ e) []]]
-  axiom = rtmError $ "postulate evaluated: " ++ show q
+  axiomErr = rtmError $ "postulate evaluated: " ++ show q
 
 clause :: QName -> (Nat, Bool, Clause) -> TCM HsDecl
 clause q (i, isLast, Clause _ _ ps b) = HsFunBind . (: cont) <$> main where
@@ -148,7 +154,7 @@ hslit l = case l of LitInt    _ x -> HsInt    x
                     LitChar   _ x -> HsChar   x
 
 condecl :: QName -> TCM (Nat, HsConDecl)
-condecl q = ignoreAbstractMode (getConstInfo q) >>= \d -> case d of
+condecl q = getConstInfo q >>= \d -> case d of
   Defn _ ty _ _ (Constructor np _ _ _ _) -> do ar <- arity <$> normalise ty
                                                return $ (ar, cdecl q (ar - np))
   _ -> mazerror $ "condecl:" ++ gshow' (q, d)
@@ -173,6 +179,7 @@ infodecl q = fakeD (unqhname "name" q)  $ "\"\" -- " ++ show q
 --------------------------------------------------
 
 hsCast :: HsExp -> HsExp
+{-
 hsCast = addcast . go where
   addcast [e@(HsVar(UnQual(HsIdent(c:ns))))] | c == 'v' && all isDigit ns = e
   addcast es = foldl HsApp mazCoerce es
@@ -180,12 +187,12 @@ hsCast = addcast . go where
   go (HsApp e1 e2    ) = go e1 ++ [hsCast e2]
   go (HsLambda _ ps e) = [ HsLambda dummy ps (hsCast e) ]
   go e = [e]
-
-{-
-hsCast (HsApp e1 e2)     = hsCast e1 `HsApp` (mazCoerce `HsApp` hsCast e2)
-hsCast (HsLambda _ ps e) = HsLambda dummy ps $ hsCast e
-hsCast e = e
 -}
+
+hsCast e = mazCoerce `HsApp` hsCast' e
+hsCast' (HsApp e1 e2)     = hsCast' e1 `HsApp` (mazCoerce `HsApp` hsCast' e2)
+hsCast' (HsLambda _ ps e) = HsLambda dummy ps $ hsCast' e
+hsCast' e = e
 
 --------------------------------------------------
 -- Writing out a haskell module
@@ -198,15 +205,43 @@ writeModule m = liftIO .(`writeFileUTF8`(preamble ++ prettyPrint m))=<< outFile
                        , "           , ExistentialQuantification"
                        , "           , PatternSignatures"
                        , "           , UnicodeSyntax"
+                       , "           , NoMonomorphismRestriction"
                        , "  #-}"
                        ]
-outFile = do
+
+outFile' = do
   mdir <- maybe (liftIO getCurrentDirectory) return =<<
           gets (optMAlonzoDir . stOptions)
   (fdir, fn, _) <- splitFilePath . repldot slash . prettyPrint <$> curHsMod
   let (dir, fp) = (addSlash mdir ++ fdir, addSlash dir ++ fn ++ ".hs")
   liftIO $ createDirectoryIfMissing True dir
-  return fp
+  return (mdir, fp)
   where
   repldot c = L.map (\c' -> if c' == '.' then c else c')
+
+outFile :: TCM FilePath
+outFile = snd <$> outFile'
            
+callGHC :: (Interface, ClockTime) -> TCM ()
+callGHC mainICT = do
+  setInterface mainICT
+  hsmod      <- prettyPrint <$> curHsMod
+  (mdir, fp) <- outFile'
+  opts       <- gets (optGhcFlags . stOptions)
+  let cmd = concat $ L.intersperse " " $
+            "ghc" : opts ++ ["-i"++mdir, "-main-is", hsmod, fp, "--make"]
+  reportLn 1 $ "calling: " ++ cmd
+  flush
+  exitcode <- liftIO $ system cmd
+  case exitcode of
+    ExitFailure _ -> flush >> fail ("MAlonzo: GHC failed:\n" ++ show exitcode)
+    _             -> return ()
+  where
+  flush = liftIO $ hFlush stdout >> hFlush stderr
+
+
+        
+   
+  
+  
+  

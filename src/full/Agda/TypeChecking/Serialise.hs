@@ -33,7 +33,6 @@ import qualified Data.Binary.Put as B
 import qualified Data.Binary.Get as B
 import qualified Data.Binary.Builder as B
 import qualified Data.ByteString.Lazy as L
-import qualified Data.ByteString.Lazy.Char8 as L8
 import Data.Word
 import qualified Codec.Compression.GZip as G
 
@@ -246,20 +245,12 @@ decode s
 -- | Encodes a file. See 'encode'.
 
 encodeFile :: Binary a => FilePath -> a -> IO ()
-#ifdef mingw32_HOST_OS
-encodeFile f x = Agda.Utils.IO.writeBinaryFile f $ L8.unpack $ encode x
-#else
 encodeFile f x = L.writeFile f (encode x)
-#endif
 
 -- | Decodes a file written by 'encodeFile'.
 
 decodeFile :: Binary a => FilePath -> IO a
-#ifdef mingw32_HOST_OS
-decodeFile f = liftM decode $ Agda.Utils.IO.readBinaryFile f
-#else
 decodeFile f = liftM decode $ L.readFile f
-#endif
 
 ------------------------------------------------------------------------
 -- More boring instances
@@ -681,8 +672,8 @@ instance Binary a => Binary (Builtin a) where
 	    _ -> fail "no parse"
 
 instance Binary Interface where
-    put (Interface a b c d) = put a >> put b >> put c >> put d
-    get = {-# SCC "get<Interface>" #-} liftM4 Interface get get get get
+    put (Interface a b c d e) = put a >> put b >> put c >> put d >> put e
+    get = {-# SCC "get<Interface>" #-} liftM5 Interface get get get get get
 
 ------------------------------------------------------------------------
 -- All tests

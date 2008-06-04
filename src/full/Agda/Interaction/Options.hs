@@ -64,6 +64,7 @@ data CommandLineOptions =
 	    , optTerminationCheck  :: Bool
 	    , optCompletenessCheck :: Bool
 	    , optUniverseCheck     :: Bool
+            , optGhcFlags          :: [String]
 	    }
     deriving Show
 
@@ -96,6 +97,7 @@ defaultOptions =
             , optTerminationCheck  = True
             , optCompletenessCheck = True
             , optUniverseCheck     = True
+            , optGhcFlags          = []
 	    }
 
 {- | @f :: Flag opts@  is an action on the option record that results from
@@ -144,6 +146,8 @@ malonzoDirFlag f o = case optMAlonzoDir o of
   Nothing  -> return $ o { optMAlonzoDir = Just f }
   Just _   -> fail "only one MAlonzo directory is allowed"
 
+ghcFlag     f o     = return $ o { optGhcFlags      = f : optGhcFlags o }
+
 includeFlag d o	    = return $ o { optIncludeDirs   = d : optIncludeDirs o   }
 verboseFlag s o	    =
     do	(k,n) <- parseVerbose s
@@ -189,6 +193,8 @@ standardOptions =
 		    "generate Emacs highlighting files"
     , Option []	    ["ignore-interfaces"] (NoArg ignoreInterfacesFlag)
 		    "ignore interface files (re-type check everything)"
+    , Option []     ["ghc-flag"] (ReqArg ghcFlag "GHC-FLAG")
+                    "use GHC-FLAG for compilation"
     ] ++ pragmaOptions
 
 pragmaOptions :: [OptDescr (Flag CommandLineOptions)]

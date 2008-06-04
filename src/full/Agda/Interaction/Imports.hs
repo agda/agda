@@ -43,6 +43,7 @@ import Agda.Utils.Monad
 import Agda.Utils.IO
 -- import Agda.Utils.Serialise
 
+
 -- | Merge an interface into the current proof state.
 mergeInterface :: Interface -> TCM ()
 mergeInterface i = do
@@ -178,7 +179,10 @@ getInterface x = alreadyVisited x $ addImportCycleCheck x $ do
                     -- Merge in the signatures imported by file.
                     modify $ \st -> st { stImports = unionSignatures [stImports st, isig] }
 		    liftIO $ writeInterface ifile i
-		    t <- liftIO $ getModificationTime ifile
+                    -- writeInterface may remove ifile.
+		    t <- liftIO $ ifM (doesFileExist ifile)
+                           (getModificationTime ifile)
+                           getClockTime
 		    setVisitedModules vs
 		    return (i, t)
 
@@ -186,7 +190,7 @@ readInterface :: FilePath -> IO (Maybe Interface)
 readInterface file = do
     -- Decode the interface file
     (s, close) <- readBinaryFile' file
-    do  let i = decode s
+    do  i <- decode s
 
         -- Force the entire string, to allow the file to be closed.
         let n = BS.length s
@@ -213,7 +217,7 @@ writeInterface :: FilePath -> Interface -> IO ()
 writeInterface file i = do
     encodeFile file i
   `catch` \e -> do
-    putStrLn $ "failed to write interface: " ++ show e
+    putStrLn $ "failed to write interface " ++ file ++ " : " ++ show e
     removeFile file
     return ()
 
@@ -275,6 +279,7 @@ buildInterface = do
     sig	    <- getSignature
     builtin <- getBuiltinThings
     ms	    <- getImports
+    hsImps  <- getHaskellImports
     let	builtin' = Map.mapWithKey (\x b -> fmap (const x) b) builtin
     reportLn 7 "  instantiating all meta variables"
     i <- instantiateFull $ Interface
@@ -282,6 +287,7 @@ buildInterface = do
 			, iScope	   = head $ scopeStack scope -- TODO!!
 			, iSignature	   = sig
 			, iBuiltin	   = builtin'
+                        , iHaskellImports  = hsImps
 			}
     reportLn 7 "  interface complete"
     return i

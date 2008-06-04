@@ -39,8 +39,10 @@ mnameFromFileName typecheck = (sigMName <$>) .
 mazCurrentMod = "MazCurrentModule"
 
 setInterface :: (Interface, ClockTime) -> TCM ()
-setInterface ict = do modify $ \s -> s {stImportedModules = S.empty}
-                      (`uncurry` ict) . visitModule =<< mazCurMName
+setInterface (i,t) = do modify $ \s -> s{ stImportedModules = S.empty
+                                        , stHaskellImports  = iHaskellImports i
+                                        }
+                        (`uncurry` (i,t)) . visitModule =<< mazCurMName
 
 mazCurMName :: TCM ModuleName
 mazCurMName = maybe firstTime return .  L.lookup mazCurrentMod .
@@ -102,7 +104,11 @@ xhqn s q = xqual q (unqhname s q)
 
 -- always use the original name for a constructor even when it's redefined.
 conhqn :: QName -> TCM HsQName
-conhqn q = xhqn "C" =<< ignoreAbstractMode (canonicalName q)
+conhqn q = do
+    cq   <- canonicalName q
+    defn <- theDef <$> getConstInfo cq
+    case defn of Constructor{conHsCode = Just hs} -> xqual cq (HsIdent hs)
+                 _                                -> xhqn "C" cq
 
 -- qualify name s by the module of builtin b
 bltQual :: String -> String -> TCM HsQName
@@ -149,6 +155,9 @@ fakeDS = fakeD . HsIdent
 
 fakeDQ :: QName -> String -> HsDecl
 fakeDQ = fakeD . unqhname "d"
+
+fakeExp :: String -> HsExp
+fakeExp = HsVar . UnQual . HsIdent
 
 dummy :: a
 dummy = error "MAlonzo : this dummy value should not have been eval'ed."

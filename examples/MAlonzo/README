@@ -1,27 +1,28 @@
 Usage
 
-  agda --compile --malonzo --malonzoDir <DIR> <FILE>.agda
+agda --compile --malonzo --malonzodir <DIR> --ghc-flag "<GHC FLAGS>" <FILE>.agda
 
-Compiles <FILE>.agda and hereditarily imported agda files to Haskell.
+Compiles <FILE>.agda and hereditarily imported agda files to Haskell
+and to an executable.
+
 Haskell files are written under the directory <DIR>/MAlonzo.
-If --manlonzoDir <DIR> is omitted, the current directory is used instead.
-
+If --manlonzodir <DIR> is omitted, the current directory is used instead.
 Agda module A.B.C translates to Haskell module MAlonzo.A.B.C
 (to avoid conflicts between Agda and Haskell standard libraries.)
 
-To compile the output Haskell files by ghc, do
+Those haskell files are then compiled to object files and an executable
+by the command 
 
-  ghc -i<DIR> -main-is MAlonzo.<FILE> <DIR>/Malonzo/<FILE>.hs --make
+ghc <GHC FLAGS> -i<DIR> -main-is MAlonzo.<FILE> <DIR>/Malonzo/<FILE>.hs --make
 
-You need to add something like lib/System/IO.agda below to
-the library.   Then, main : IO () in <FILE>.agda translates to
+It is assumed that <FILE>.agda contains a definition of main :: IO ().
+If it does not, ghc finishes with an error, but never mind.
+
+
+To do anything useful, you need to add something like
+lib/System/IO.agda shown below to the library.
+Then, main : IO () in <FILE>.agda translates to
 main :: IO () in <FILE>.hs
-
-A known problem: it tries to compile like ghc --make (skipping an
-imported file if it already has an up-to-date haskell file), but
-it occasionally fails during type checking (an agda problem).
-
-
 
 module System.IO where
 
@@ -38,5 +39,3 @@ primitive
   primPutStr	     : String -> IO ⊤
   primIOReturn	     : {a : Set} -> a -> IO a
   primIOBind	     : {a b : Set} -> IO a -> (a -> IO b) -> IO b
-
-

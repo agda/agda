@@ -486,10 +486,11 @@ instance InstantiateFull Clause where
                                                     <*> instantiateFull b
 
 instance InstantiateFull Interface where
-    instantiateFull (Interface ms scope sig b) =
+    instantiateFull (Interface ms scope sig b hsImports) =
 	Interface ms scope
 	    <$> instantiateFull sig
 	    <*> instantiateFull b
+            <*> return hsImports
 
 instance InstantiateFull a => InstantiateFull (Builtin a) where
     instantiateFull (Builtin t) = Builtin <$> instantiateFull t

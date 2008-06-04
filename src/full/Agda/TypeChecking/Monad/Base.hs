@@ -125,6 +125,7 @@ data Interface = Interface
 	, iScope	   :: Scope
 	, iSignature	   :: Signature
 	, iBuiltin	   :: BuiltinThings String
+        , iHaskellImports  :: [String]
 	}
     deriving (Typeable, Data)
 
