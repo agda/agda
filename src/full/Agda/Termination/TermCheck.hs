@@ -463,10 +463,7 @@ compareTerm' (Lit l)    (LitDBP l')    = if l == l' then Term.Le
                                                    else Term.Unknown
 compareTerm' (Lit l)    _              = Term.Unknown
 compareTerm' (Con c ts) (ConDBP c' ps) =
-{-  -- we can treat all constructors as equal
-  if c /= c' then Term.Unknown
-  else
--}
+  if c == c' then
   -- we may assume |ps| >= |ts|, otherwise c ps would be of functional type
   -- which is impossible
       case (length ts, length ps) of
@@ -486,6 +483,7 @@ compareTerm' (Con c ts) (ConDBP c' ps) =
        -- corresponds to taking the size, not the height
        -- allows examples like (x, y) < (Succ x, y)
 -}
+   else Term.Unknown
 compareTerm' _ _ = Term.Unknown
 
 compareVar :: Nat -> DeBruijnPat -> Term.Order
