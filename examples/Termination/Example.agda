@@ -57,7 +57,7 @@ subty : forall {n} -> Ty {n} -> Ty {n} -> Bool
 subty Base Base = true
 subty (Arr a b) (Arr a' b') = (subty a' a) && (subty b b')
 subty _ _ = false
-
+ 
 -- the following is enough for making it termination check
 subty' : forall {n} -> Ty {n} -> Ty {n} -> Bool
 subty' Base Base = true
