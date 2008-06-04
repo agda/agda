@@ -20,7 +20,7 @@ import Algebra.Props.DistributiveLattice
 import Algebra.Props.Group
 import Algebra.Props.Lattice
 import Algebra.Props.Ring
-import Algebra.RingSolver
+import Algebra.RingSolver hiding (module AlmostCommutativeRing)
 import Algebra.RingSolver.AlmostCommutativeRing
 import Algebra.RingSolver.Lemmas
 import Algebra.RingSolver.Simple

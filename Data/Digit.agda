@@ -14,7 +14,6 @@ open import Data.List
 import Data.Vec as Vec
 open import Induction.Nat
 open import Data.Nat.DivMod
-open import Data.Nat.Properties
 open ≤-Reasoning
 open import Relation.Binary.PropositionalEquality
 open import Data.Function
