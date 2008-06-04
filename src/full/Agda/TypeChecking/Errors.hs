@@ -119,6 +119,7 @@ errorString err = case err of
     NotAValidLetBinding _		       -> "NotAValidLetBinding"
     NotAnExpression _			       -> "NotAnExpression"
     NotImplemented _			       -> "NotImplemented"
+    NotSupported _			       -> "NotSupported"
     NotInScope _			       -> "NotInScope"
     NotLeqSort _ _			       -> "NotLeqSort"
     NotStrictlyPositive _ _		       -> "NotStrictlyPositive"
@@ -170,6 +171,7 @@ instance PrettyTCM TypeError where
 	case err of
 	    InternalError s  -> panic s
 	    NotImplemented s -> fwords $ "Not implemented: " ++ s
+	    NotSupported s -> fwords $ "Not supported: " ++ s
 	    GenericError s   -> fwords s
 	    TerminationCheckFailed -> fwords
 	      "The program did not termination check"

@@ -89,7 +89,7 @@ stripWithClausePatterns gamma qs perm ps = do
     -- implicit args inserted at top level
     -- all three arguments should have the same size
     strip :: Telescope -> [NamedArg A.Pattern] -> [Arg Pattern] -> TCM [NamedArg A.Pattern]
-    strip _           []      (_ : _) = __IMPOSSIBLE__    -- This case doesn't trigger!!
+    strip _           []      (_ : _) = __IMPOSSIBLE__
     strip _           (_ : _) []      = __IMPOSSIBLE__
     strip EmptyTel    (_ : _) _       = __IMPOSSIBLE__
     strip ExtendTel{} []      _       = __IMPOSSIBLE__

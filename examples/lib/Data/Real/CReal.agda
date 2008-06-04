@@ -137,7 +137,7 @@ bound : Interval Base -> Base
 bound [ lb ▻ ub ] = max ub (- lb)
 
 realMultBound : BoundedCReal -> CReal -> CReal
-realMultBound bx @ (x ∈ i) y = mapCR2 (multCts b) y (choke bx)
+realMultBound (x ∈ i) y = mapCR2 (multCts b) y (choke (x ∈ i))
   where
     b = bound i
 
@@ -183,7 +183,7 @@ intPowerCts maxx n = uniformCts μ (flip _^_ n)
     μ = \ε -> ε / (Rational.fromInt n * maxx ^ (n -i pos 1))
 
 realPowerIntBound : BoundedCReal -> Int -> CReal
-realPowerIntBound bx @ (x ∈ i) n = mapCR (intPowerCts b n) (choke bx)
+realPowerIntBound (x ∈ i) n = mapCR (intPowerCts b n) (choke (x ∈ i))
   where
     b = bound i
 

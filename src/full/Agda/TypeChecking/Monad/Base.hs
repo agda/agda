@@ -597,6 +597,7 @@ data OccPos = NonPositively | ArgumentTo Nat QName
 data TypeError
 	= InternalError String
 	| NotImplemented String
+	| NotSupported String
 	| TerminationCheckFailed
 	| PropMustBeSingleton
 	| DataMustEndInSort Term
