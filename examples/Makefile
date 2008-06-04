@@ -4,7 +4,7 @@ TOP = ..
 include $(TOP)/mk/paths.mk
 include $(TOP)/mk/config.mk
 
-default : test polydep hello path regexp-talk aim4-bag ac effects minmax real view simplelib lib divmod
+default : test polydep hello path regexp-talk aim4-bag ac effects minmax real view simplelib lib divmod term1 term2 term3
 
 agda = $(AGDA_BIN)
 
@@ -17,6 +17,21 @@ test_files = Vec.agda Lookup.agda Binary.agda Setoid.agda \
                          syntax/Literate.lagda \
        $(shell find Introduction -name '*.agda')
 tests	   = $(patsubst %,%.test,$(test_files))
+
+term1 : Termination/Mutual.agda
+	@echo "Testing $<... "
+	@echo :q | $(run_agda) $<
+	@echo "ok"
+
+term2 : Termination/StructuralOrder.agda
+	@echo "Testing $<... "
+	@echo :q | $(run_agda) $<
+	@echo "ok"
+
+term3 : Termination/Tuple.agda
+	@echo "Testing $<... "
+	@echo :q | $(run_agda) $<
+	@echo "ok"
 
 polydep : AIM5/PolyDep/Main.agda
 	@echo "Testing $<... "
