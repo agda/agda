@@ -19,6 +19,7 @@ data T (A : Set) (B : Set) : Set where
   c1 : A -> B -> T A B
   c2 : A -> B -> T A B
 
+{-
 -- constructor names do not matter
 add' : T Nat Nat -> Nat
 add' (c1 x (succ y)) = succ (add' (c2 x y))
@@ -32,4 +33,4 @@ add'' (c1 x (succ y)) = succ (add'' (c2 y x))
 add'' (c2 (succ y) x) = succ (add'' (c1 x y))
 add'' (c1 x zero) = x
 add'' (c2 zero x) = x
-
+-}

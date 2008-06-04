@@ -18,6 +18,10 @@ plus x zero        = x
 -- e.g. c0 (c1 x) > c0 x
 --      c0 (c0 x) > c1 x
 
+-- Actually constructor names does matter until the non-mattering is
+-- implemented properly.
+
+{-
 data Bin : Set where
   eps : Bin
   c0  : Bin -> Bin
@@ -29,3 +33,4 @@ foo (c0 eps) = zero
 foo (c0 (c1 x)) = succ (foo (c0 x))
 foo (c0 (c0 x)) = succ (foo (c1 x))
 foo (c1 x)      = succ (foo x)
+-}
