@@ -208,11 +208,11 @@ To use the Agda 2 Emacs mode:
 
 1. Install Agda 2. (See above.)
 
-2. Copy the .el files in src/full/Agda/Interaction/emacs-mode to some
+2. Copy the .el files in src/full/Interaction/emacs-mode to some
    directory <agda-mode-dir>. Example installation:
 
    mkdir <agda-mode-dir>
-   cp src/full/Agda/Interaction/emacs-mode/*.el <agda-mode-dir>
+   cp src/full/Interaction/emacs-mode/*.el <agda-mode-dir>
 
 3. Add the following to your .emacs:
 
