@@ -50,6 +50,7 @@ import Control.Exception
 import Data.List as List
 import Data.Map as Map
 import System.Exit
+import qualified System.Mem as System
 
 import Agda.TypeChecker
 import Agda.TypeChecking.Monad as TM
@@ -174,6 +175,7 @@ cmd_load file includes = infoOnException $ do
     (pragmas, m) <- parseFile' moduleParser file
     setWorkingDirectory file m
     is <- ioTCM' (Just file) $ do
+            clearUndoHistory
             -- All options are reset when a file is reloaded,
             -- including the choice of whether or not to display
             -- implicit arguments.
@@ -219,6 +221,7 @@ cmd_load file includes = infoOnException $ do
     -- adga2-load-action has to be run after the one triggered by
     -- tellEmacsToReloadSyntaxInfo.
     tellEmacsToReloadSyntaxInfo
+    System.performGC
     putStrLn $ response $ L [A "agda2-load-action", is]
     cmd_metas
   where lispIP  = format . sortRng <$> (tagRng =<< getInteractionPoints)
