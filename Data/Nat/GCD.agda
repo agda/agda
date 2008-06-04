@@ -95,6 +95,11 @@ no-GCD-for-0-0 (suc n , g) = lem₂ 1+d≤d
   1+d|d = GCD.divisible g (1+d|0 , 1+d|0)
   1+d≤d = divides-≤ 1+d|d
 
+-- The GCD of 0 and n, for positive n, is n.
+
+gcd-0-pos : forall n -> GCD 0 (suc n) (suc n)
+gcd-0-pos n = isGCD (n +1-divides-0 , divides-refl n) proj₂
+
 private
 
   ∃GCD = \m n -> Σ₀ (GCD m n)
@@ -114,7 +119,7 @@ private
 
 -- Gcd calculated using (a variant of) Euclid's algorithm. Note that
 -- it is the gcd of the successors of the arguments that is
--- calculated; 0 and 0 have no greatest common divisor (see above).
+-- calculated.
 
 gcd⁺ : (m n : ℕ) -> Σ₀ \d -> GCD (suc m) (suc n) d
 gcd⁺ m n = build [ <-rec-builder ⊗ <-rec-builder ] P gcd' (m , n)
@@ -130,11 +135,12 @@ gcd⁺ m n = build [ <-rec-builder ⊗ <-rec-builder ] P gcd' (m , n)
                                                          -- gcd⁺ k n
   gcd' (.(suc (n + k)) , n) rec | greater .n k = step₂ $ proj₂ rec k (lem₁ k n) n
 
--- Calculates the gcd of the arguments, which have to be positive.
+-- Calculates the gcd of the arguments, of which at least one must be
+-- positive.
 
-gcd : (m : ℕ) {m≢0 : False (m ℕ-≟ 0)}
-      (n : ℕ) {n≢0 : False (n ℕ-≟ 0)} ->
+gcd : (m : ℕ) (n : ℕ) {mn≢0 : False ((m * n) ℕ-≟ 0)} ->
       Σ₀ \d -> GCD m n d
 gcd (suc m) (suc n) = gcd⁺ m n
-gcd (suc m) zero {n≢0 = ()}
-gcd zero {m≢0 = ()} _
+gcd (suc m) zero    = (suc m , gcd-sym (gcd-0-pos m))
+gcd zero    (suc n) = (suc n , gcd-0-pos n)
+gcd zero    zero {mn≢0 = ()}
