@@ -344,10 +344,10 @@ instance Reify NamedClause A.Clause where
   reify (NamedClause f rec (I.Clause tel perm ps body)) = addCtxTel tel $ do
     ps  <- reifyPatterns tel perm ps
     lhs <- reifyDisplayFormP $ LHS info f ps []
-    lhs <- stripImps lhs
     nfv <- getDefFreeVars f
+    lhs <- stripImps $ dropParams nfv lhs
     rhs <- reify body
-    return $ A.Clause (dropParams nfv lhs) (rhs rec) []
+    return $ A.Clause lhs (rhs rec) []
     where
       info = LHSRange noRange
       dropParams n (LHS i f ps wps) = LHS i f (genericDrop n ps) wps
