@@ -7,7 +7,8 @@ module Data.Bin where
 import Data.Nat as Nat
 open Nat using (ℕ)
 open import Data.Digit
-open import Data.Fin using (Fin; fz; fs; addFin; Fin-decSetoid)
+open import Data.Fin using (Fin; fz; fs; Fin-decSetoid)
+open import Data.Fin.Props using (addFin')
 open import Data.List
 import Data.Vec as Vec
 open import Data.Function
@@ -126,7 +127,7 @@ Carry : Set
 Carry = Bit
 
 addBits : Carry -> Bit -> Bit -> Carry × Bit
-addBits c b₁ b₂ with addFin c (addFin b₁ b₂)
+addBits c b₁ b₂ with addFin' c (addFin' b₁ b₂)
 ... | fz              = (0b , 0b)
 ... | fs fz           = (0b , 1b)
 ... | fs (fs fz)      = (1b , 0b)

@@ -5,44 +5,26 @@
 module Data.Vec where
 
 open import Data.Nat
-open import Data.Nat.Properties
-open ℕ-semiringSolver
 open import Data.Fin
 import Data.List as List
 open List using ([_])
 open import Data.Product
-open import Relation.Binary.PropositionalEquality
 
 ------------------------------------------------------------------------
--- The vector type along with some operations
+-- The type
 
-open import Data.Vec.Core public
+infixr 5 _∷_
 
-------------------------------------------------------------------------
--- Boring lemmas
-
-private
-
-  lem₂ : forall n -> 1 + n ≡ n + 1
-  lem₂ n = prove (n ∷ []) (con 1 :+ N) (N :+ con 1) ≡-refl
-    where N = var fz
-
-  lem₃ : forall m -> m + 0 ≡ m
-  lem₃ m = prove (m ∷ []) (M :+ con 0) M ≡-refl
-    where M = var fz
-
-  lem₄ : forall m n -> m + (1 + n) ≡ (1 + m) + n
-  lem₄ m n = prove (m ∷ n ∷ [])
-                   (M :+ (con 1 :+ N))
-                   ((con 1 :+ M) :+ N)
-                   ≡-refl
-    where M = var fz; N = var (fs fz)
-
-  cast : forall {a n₁ n₂} -> n₁ ≡ n₂ -> Vec a n₁ -> Vec a n₂
-  cast {a = a} = ≡-subst (Vec a)
+data Vec (a : Set) : ℕ -> Set where
+  []  : Vec a zero
+  _∷_ : forall {n} -> a -> Vec a n -> Vec a (suc n)
 
 ------------------------------------------------------------------------
 -- Some operations
+
+lookup : forall {a n} -> Fin n -> Vec a n -> a
+lookup fz     (x ∷ xs) = x
+lookup (fs i) (x ∷ xs) = lookup i xs
 
 head : forall {a n} -> Vec a (1 + n) -> a
 head (x ∷ xs) = x
@@ -58,13 +40,6 @@ infixr 5 _++_
 _++_ : forall {a m n} -> Vec a m -> Vec a n -> Vec a (m + n)
 []       ++ ys = ys
 (x ∷ xs) ++ ys = x ∷ (xs ++ ys)
-
-infixl 5 _∷ʳ_
-
--- Snoc.
-
-_∷ʳ_ : forall {a n} -> Vec a n -> a -> Vec a (n + 1)
-xs ∷ʳ x = xs ++ singleton x
 
 map : forall {a b n} -> (a -> b) -> Vec a n -> Vec b n
 map f []       = []
@@ -82,24 +57,28 @@ replicate : forall {a n} -> a -> Vec a n
 replicate {n = zero}  x = []
 replicate {n = suc n} x = x ∷ replicate x
 
-foldr :  forall {a b : Set} {m}
-      -> (a -> b -> b) -> b -> Vec a m -> b
-foldr _⊕_ n []       = n
-foldr _⊕_ n (x ∷ xs) = x ⊕ foldr _⊕_ n xs
+foldr :  forall {a} (b : ℕ -> Set) {m}
+      -> (forall {n} -> a -> b n -> b (suc n))
+      -> b zero
+      -> Vec a m -> b m
+foldr b _⊕_ n []       = n
+foldr b _⊕_ n (x ∷ xs) = x ⊕ foldr b _⊕_ n xs
 
 foldr₁ :  forall {a : Set} {m}
        -> (a -> a -> a) -> Vec a (suc m) -> a
-foldr₁ _⊕_ (x ∷ [])         = x
+foldr₁ _⊕_ (x ∷ [])     = x
 foldr₁ _⊕_ (x ∷ y ∷ ys) = x ⊕ foldr₁ _⊕_ (y ∷ ys)
 
-foldl :  forall {a b : Set} {m}
-      -> (b -> a -> b) -> b -> Vec a m -> b
-foldl _⊕_ n []       = n
-foldl _⊕_ n (x ∷ xs) = foldl _⊕_ (n ⊕ x) xs
+foldl :  forall {a : Set} (b : ℕ -> Set) {m}
+      -> (forall {n} -> b n -> a -> b (suc n))
+      -> b zero
+      -> Vec a m -> b m
+foldl b _⊕_ n []       = n
+foldl b _⊕_ n (x ∷ xs) = foldl (\n -> b (suc n)) _⊕_ (n ⊕ x) xs
 
 foldl₁ :  forall {a : Set} {m}
        -> (a -> a -> a) -> Vec a (suc m) -> a
-foldl₁ _⊕_ (x ∷ xs) = foldl _⊕_ x xs
+foldl₁ _⊕_ (x ∷ xs) = foldl _ _⊕_ x xs
 
 concat : forall {a m n} -> Vec (Vec a m) n -> Vec a (n * m)
 concat []         = []
@@ -134,16 +113,11 @@ group (suc n) k xs                  with splitAt k xs
 group (suc n) k .(ys ++ zs)         | ys ++' zs with group n k zs
 group (suc n) k .(ys ++ concat zss) | ys ++' ._ | concat' zss = concat' (ys ∷ zss)
 
-revApp : forall {a m n} -> Vec a m -> Vec a n -> Vec a (m + n)
-revApp         []                 ys = ys
-revApp {n = n} (_∷_ {n = m} x xs) ys =
-  cast (lem₄ m n) (revApp xs (x ∷ ys))
-
 reverse : forall {a n} -> Vec a n -> Vec a n
-reverse {n = n} xs = cast (lem₃ n) (revApp xs [])
+reverse {a} = foldl (Vec a) (\rev x -> x ∷ rev) []
 
 sum : forall {n} -> Vec ℕ n -> ℕ
-sum = foldr _+_ 0
+sum = foldr _ _+_ 0
 
 toList : forall {a n} -> Vec a n -> [ a ]
 toList []       = List.[]
@@ -153,36 +127,28 @@ fromList : forall {a} -> (xs : [ a ]) -> Vec a (List.length xs)
 fromList List.[]         = []
 fromList (List._∷_ x xs) = x ∷ fromList xs
 
+-- Snoc.
+
+infixl 5 _∷ʳ_
+
+_∷ʳ_ : forall {a n} -> Vec a n -> a -> Vec a (1 + n)
+[]       ∷ʳ y = singleton y
+(x ∷ xs) ∷ʳ y = x ∷ (xs ∷ʳ y)
+
 infixl 5 _∷ʳ'_
 
-data InitLast {a : Set} (n : ℕ) : Vec a (n + 1) -> Set where
+data InitLast {a : Set} (n : ℕ) : Vec a (1 + n) -> Set where
   _∷ʳ'_ : (xs : Vec a n) -> (x : a) -> InitLast n (xs ∷ʳ x)
 
-initLast : forall {a} n (xs : Vec a (n + 1)) -> InitLast n xs
-initLast zero    (x ∷ [])         = [] ∷ʳ' x
-initLast (suc n) (x ∷ xs)         with initLast n xs
-initLast (suc n) (x ∷ .(ys ∷ʳ y)) | ys ∷ʳ' y = (x ∷ ys) ∷ʳ' y
+initLast : forall {a n} (xs : Vec a (1 + n)) -> InitLast n xs
+initLast {n = zero}  (x ∷ [])         = [] ∷ʳ' x
+initLast {n = suc n} (x ∷ xs)         with initLast xs
+initLast {n = suc n} (x ∷ .(ys ∷ʳ y)) | ys ∷ʳ' y = (x ∷ ys) ∷ʳ' y
 
--- Note that the following two implementations are complicated (since
--- the index of the input is (1 + n) instead of (n + 1)):
+init : forall {a n} -> Vec a (1 + n) -> Vec a n
+init xs with initLast xs
+init .(ys ∷ʳ y) | ys ∷ʳ' y = ys
 
-private
- module Unused where
-
-  init : forall {a n} -> Vec a (suc n) -> Vec a n
-  init {n = n} xs with cast (lem₂ n) xs | initLast n (cast (lem₂ n) xs)
-  init xs | .(ys ∷ʳ y) | ys ∷ʳ' y = ys
-
-  last : forall {a n} -> Vec a (suc n) -> a
-  last {n = n} xs with cast (lem₂ n) xs | initLast n (cast (lem₂ n) xs)
-  last xs | .(ys ∷ʳ y) | ys ∷ʳ' y = y
-
--- So the following recursive definitions are used instead:
-
-init : forall {a n} -> Vec a (suc n) -> Vec a n
-init (x ∷ [])     = []
-init (x ∷ y ∷ ys) = x ∷ init (y ∷ ys)
-
-last : forall {a n} -> Vec a (suc n) -> a
-last (x ∷ [])     = x
-last (x ∷ y ∷ ys) = last (y ∷ ys)
+last : forall {a n} -> Vec a (1 + n) -> a
+last xs with initLast xs
+last .(ys ∷ʳ y) | ys ∷ʳ' y = y

@@ -9,7 +9,6 @@
 module Data.Fin where
 
 open import Data.Nat
-open import Data.Nat.Properties
 open import Data.Function
 open import Data.Empty
 open import Relation.Nullary
@@ -17,12 +16,12 @@ open import Relation.Binary
 open import Relation.Binary.PropositionalEquality
 open import Algebra
 
-infixl 6 _-_
-
 ------------------------------------------------------------------------
 -- The type
 
-open import Data.Fin.Core public
+data Fin : ℕ -> Set where
+  fz : {n : ℕ} -> Fin (suc n)
+  fs : {n : ℕ} -> Fin n -> Fin (suc n)
 
 ------------------------------------------------------------------------
 -- Conversion
@@ -42,7 +41,11 @@ fromℕ (suc n) = fs (fromℕ n)
 ------------------------------------------------------------------------
 -- Operations
 
--- raise is defined in Data.Fin.Core.
+-- raise m "n" = "m + n".
+
+raise : forall {m} n -> Fin m -> Fin (n + m)
+raise zero    i = i
+raise (suc n) i = fs (raise n i)
 
 -- inject m "n" = "n" (see Data.Fin.Props.inject-lemma).
 
@@ -50,11 +53,13 @@ inject : forall {m} n -> Fin m -> Fin (m + n)
 inject n fz     = fz
 inject n (fs i) = fs (inject n i)
 
-inject' : forall {m} n -> Fin m -> Fin (n + m)
-inject' {m} n i = ≡-subst Fin (+-comm m n) (inject n i)
-  where open CommutativeSemiring ℕ-commutativeSemiring
+inject' : forall {m n} -> Fin m -> m ≤ n -> Fin n
+inject' fz     (s≤s le) = fz
+inject' (fs i) (s≤s le) = fs (inject' i le)
 
 -- n - "m" = n ∸ m.
+
+infixl 6 _-_
 
 _-_ : (n : ℕ) -> Fin (suc n) -> ℕ
 m     - fz    = m
@@ -63,10 +68,9 @@ suc n - fs i  = n - i
 
 -- addFin "m" "n" = "m + n".
 
-addFin : forall {m n} -> Fin (suc m) -> Fin n -> Fin (m + n)
-addFin {m}     {n} fz      j = inject' m j
-addFin {zero}  {n} (fs ()) j
-addFin {suc m} {n} (fs i)  j = fs (addFin i j)
+addFin : forall {m n} (i : Fin m) (j : Fin n) -> Fin (toℕ i + n)
+addFin fz     j = j
+addFin (fs i) j = fs (addFin i j)
 
 ------------------------------------------------------------------------
 -- Queries

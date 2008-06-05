@@ -27,8 +27,8 @@ open import Relation.Binary
 open import Relation.Binary.PropositionalEquality
 
 open import Data.Nat using (ℕ; suc; zero) renaming (_+_ to _ℕ-+_)
-open import Data.Fin.Core
-open import Data.Vec.Core
+open import Data.Fin
+open import Data.Vec
 open import Data.Function
 
 infix  9 _↑-NF :-_ --NF_
