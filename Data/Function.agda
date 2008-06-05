@@ -8,6 +8,7 @@ infixr 9 _∘_ _∘′_ _∘₁_
 infixl 1 _on_ _on₁_
 infixl 1 _⟨_⟩_ _⟨_⟩₁_
 infixr 0 _-[_]₁-_ _-[_]-_ _$_
+infix  0 _∶_
 
 ------------------------------------------------------------------------
 -- Types
@@ -81,3 +82,12 @@ _-[_]₁-_ :  {a b : Set}
          -> (a -> b -> Set) -> (Set -> Set -> Set) -> (a -> b -> Set)
          -> (a -> b -> Set)
 f -[ _*_ ]₁- g = \x y -> f x y * g x y
+
+-- In Agda you cannot annotate every subexpression with a type
+-- signature. This function can be used instead.
+--
+-- You should think of the colon as being mirrored around its vertical
+-- axis; the type comes first.
+
+_∶_ : (a : Set) -> a -> a
+_ ∶ x = x
