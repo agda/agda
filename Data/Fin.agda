@@ -8,7 +8,7 @@
 
 module Data.Fin where
 
-open import Data.Nat
+open import Data.Nat hiding (zero≢suc)
 open import Data.Function
 open import Data.Empty
 open import Relation.Nullary
@@ -20,8 +20,8 @@ open import Algebra
 -- The type
 
 data Fin : ℕ -> Set where
-  fz : {n : ℕ} -> Fin (suc n)
-  fs : {n : ℕ} -> Fin n -> Fin (suc n)
+  zero : {n : ℕ} -> Fin (suc n)
+  suc  : {n : ℕ} -> Fin n -> Fin (suc n)
 
 ------------------------------------------------------------------------
 -- Conversion
@@ -29,14 +29,14 @@ data Fin : ℕ -> Set where
 -- toℕ "n" = n.
 
 toℕ : forall {n} -> Fin n -> ℕ
-toℕ fz     = 0
-toℕ (fs i) = suc (toℕ i)
+toℕ zero    = 0
+toℕ (suc i) = suc (toℕ i)
 
 -- fromℕ n = "n".
 
 fromℕ : (n : ℕ) -> Fin (suc n)
-fromℕ zero    = fz
-fromℕ (suc n) = fs (fromℕ n)
+fromℕ zero    = zero
+fromℕ (suc n) = suc (fromℕ n)
 
 ------------------------------------------------------------------------
 -- Operations
@@ -45,50 +45,52 @@ fromℕ (suc n) = fs (fromℕ n)
 
 raise : forall {m} n -> Fin m -> Fin (n + m)
 raise zero    i = i
-raise (suc n) i = fs (raise n i)
+raise (suc n) i = suc (raise n i)
 
 -- inject m "n" = "n" (see Data.Fin.Props.inject-lemma).
 
 inject : forall {m} n -> Fin m -> Fin (m + n)
-inject n fz     = fz
-inject n (fs i) = fs (inject n i)
+inject n zero    = zero
+inject n (suc i) = suc (inject n i)
 
 inject' : forall {m n} -> Fin m -> m ≤ n -> Fin n
-inject' fz     (s≤s le) = fz
-inject' (fs i) (s≤s le) = fs (inject' i le)
+inject' zero    (s≤s le) = zero
+inject' (suc i) (s≤s le) = suc (inject' i le)
 
 -- n - "m" = n ∸ m.
 
 infixl 6 _-_
 
 _-_ : (n : ℕ) -> Fin (suc n) -> ℕ
-m     - fz    = m
-zero  - fs ()
-suc n - fs i  = n - i
+m     - zero   = m
+zero  - suc ()
+suc n - suc i  = n - i
 
 -- addFin "m" "n" = "m + n".
 
 addFin : forall {m n} (i : Fin m) (j : Fin n) -> Fin (toℕ i + n)
-addFin fz     j = j
-addFin (fs i) j = fs (addFin i j)
+addFin zero    j = j
+addFin (suc i) j = suc (addFin i j)
 
 ------------------------------------------------------------------------
 -- Queries
 
-fz≢fs : forall {n} {x : Fin n} -> ¬ fz ≡ fs x
-fz≢fs ()
+zero≢suc : forall {n} {x : Fin n} ->
+           ¬ zero ≡ (Fin (suc n) ∶ suc x)
+zero≢suc ()
 
 private
-  drop-fs : forall {o} {m n : Fin o} -> fs m ≡ fs n -> m ≡ n
-  drop-fs ≡-refl = ≡-refl
+  drop-suc : forall {o} {m n : Fin o} ->
+             suc m ≡ (Fin (suc o) ∶ suc n) -> m ≡ n
+  drop-suc ≡-refl = ≡-refl
 
 _Fin-≟_ : {n : ℕ} -> Decidable {Fin n} _≡_
-fz   Fin-≟ fz    = yes ≡-refl
-fs m Fin-≟ fs n  with m Fin-≟ n
-fs m Fin-≟ fs .m | yes ≡-refl = yes ≡-refl
-fs m Fin-≟ fs n  | no prf     = no (prf ∘ drop-fs)
-fz   Fin-≟ fs n  = no (⊥-elim ∘ fz≢fs)
-fs m Fin-≟ fz    = no (⊥-elim ∘ fz≢fs ∘ sym)
+zero  Fin-≟ zero   = yes ≡-refl
+suc m Fin-≟ suc n  with m Fin-≟ n
+suc m Fin-≟ suc .m | yes ≡-refl = yes ≡-refl
+suc m Fin-≟ suc n  | no prf     = no (prf ∘ drop-suc)
+zero  Fin-≟ suc n  = no (⊥-elim ∘ zero≢suc)
+suc m Fin-≟ zero   = no (⊥-elim ∘ zero≢suc ∘ sym)
   where sym = IsEquivalence.sym ≡-isEquivalence
 
 ------------------------------------------------------------------------
@@ -104,5 +106,5 @@ Fin-decSetoid : ℕ -> DecSetoid
 Fin-decSetoid n = ≡-decSetoid (_Fin-≟_ {n = n})
 
 Fin-bounded : forall {n} (i : Fin n) -> toℕ i < n
-Fin-bounded fz     = s≤s z≤n
-Fin-bounded (fs i) = s≤s (Fin-bounded i)
+Fin-bounded zero    = s≤s z≤n
+Fin-bounded (suc i) = s≤s (Fin-bounded i)

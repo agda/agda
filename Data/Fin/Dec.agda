@@ -16,22 +16,22 @@ open import Relation.Nullary
 infix 4 _∈?_
 
 _∈?_ : forall {n} x (p : Subset n) -> Dec (x ∈ p)
-fz   ∈? p ▻ inside  = yes fzIn
-fz   ∈? p ▻ outside = no  fz∉
-fs n ∈? (p ▻ s) with n ∈? p
-...             | yes n∈p = yes (fsIn n∈p)
-...             | no  n∉p = no  (n∉p ∘ drop-fsIn)
+zero  ∈? p ▻ inside  = yes zeroIn
+zero  ∈? p ▻ outside = no  zero∉
+suc n ∈? (p ▻ s)     with n ∈? p
+...                  | yes n∈p = yes (sucIn n∈p)
+...                  | no  n∉p = no  (n∉p ∘ drop-sucIn)
 
 private
 
   restrictP : forall {n} -> (Fin (suc n) -> Set) -> (Fin n -> Set)
-  restrictP P f = P (fs f)
+  restrictP P f = P (suc f)
 
   restrict
     :  forall {n} {P : Fin (suc n) -> Set}
     -> (forall f -> Dec (P f))
     -> (forall f -> Dec (restrictP P f))
-  restrict dec f = dec (fs f)
+  restrict dec f = dec (suc f)
 
 any? :  forall {n} {P : Fin n -> Set}
      -> ((f : Fin n) -> Dec (P f))
@@ -40,14 +40,14 @@ any? {zero} {P} dec = no helper
   where
   helper : ¬ Σ₀ P
   helper (() , _)
-any? {suc n} {P} dec with dec fz | any? (restrict dec)
+any? {suc n} {P} dec with dec zero | any? (restrict dec)
 ...                  | yes p | _            = yes (_ , p)
 ...                  | _     | yes (_ , p') = yes (_ , p')
 ...                  | no ¬p | no ¬p'       = no helper
   where
   helper : ¬ Σ₀ P
-  helper (fz   , p)  = ¬p p
-  helper (fs f , p') = contradiction (_ , p') ¬p'
+  helper (zero  , p)  = ¬p p
+  helper (suc f , p') = contradiction (_ , p') ¬p'
 
 nonempty? : forall {n} (p : Subset n) -> Dec (Nonempty p)
 nonempty? p = any? (\x -> x ∈? p)
@@ -58,7 +58,7 @@ private
     :  forall {n} P {Q : Fin (suc n) -> Set}
     -> (forall {f} -> Q f -> Dec (P f))
     -> (forall {f} -> restrictP Q f -> Dec (restrictP P f))
-  restrict∈ _ dec {f} Qf = dec {fs f} Qf
+  restrict∈ _ dec {f} Qf = dec {suc f} Qf
 
 decFinSubset
   :  forall {n} {P Q : Fin n -> Set}
@@ -70,20 +70,20 @@ decFinSubset {suc n} {P} {Q} decQ decP = helper
   where
   helper : Dec (forall {f} -> Q f -> P f)
   helper with decFinSubset (restrict decQ) (restrict∈ P decP)
-  helper | no ¬q⟶p = no (\q⟶p -> ¬q⟶p (\{f} q -> q⟶p {fs f} q))
-  helper | yes q⟶p with decQ fz
+  helper | no ¬q⟶p = no (\q⟶p -> ¬q⟶p (\{f} q -> q⟶p {suc f} q))
+  helper | yes q⟶p with decQ zero
   helper | yes q⟶p | yes q₀ with decP q₀
-  helper | yes q⟶p | yes q₀ | no ¬p₀ = no (\q⟶p -> ¬p₀ (q⟶p {fz} q₀))
+  helper | yes q⟶p | yes q₀ | no ¬p₀ = no (\q⟶p -> ¬p₀ (q⟶p {zero} q₀))
   helper | yes q⟶p | yes q₀ | yes p₀ = yes (\{_} -> hlpr _)
     where
     hlpr : forall f -> Q f -> P f
-    hlpr fz     _  = p₀
-    hlpr (fs f) qf = q⟶p qf
+    hlpr zero    _  = p₀
+    hlpr (suc f) qf = q⟶p qf
   helper | yes q⟶p | no ¬q₀ = yes (\{_} -> hlpr _)
     where
     hlpr : forall f -> Q f -> P f
-    hlpr fz     q₀ = contradiction q₀ ¬q₀
-    hlpr (fs f) qf = q⟶p qf
+    hlpr zero    q₀ = contradiction q₀ ¬q₀
+    hlpr (suc f) qf = q⟶p qf
 
 all∈?
   :  forall {n} {P : Fin n -> Set} {q}

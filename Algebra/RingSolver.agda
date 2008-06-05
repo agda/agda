@@ -106,7 +106,7 @@ private
            -> Normal n p -> Normal (suc n) (p :↑ 1)
     _*x+_  :  forall {n p c}
            -> Normal (suc n) p -> Normal n c
-           -> Normal (suc n) (p :* var fz :+ c :↑ 1)
+           -> Normal (suc n) (p :* var zero :+ c :↑ 1)
     _∷-NF_ :  forall {n p₁ p₂}
            -> Normal n p₁ -> p₁ ≛ p₂ -> Normal n p₂
 
@@ -138,7 +138,7 @@ private
   p₁ *x+ c₁     +-NF p₂ *x+ c₂     = (p₁ +-NF p₂) *x+ (c₁ +-NF c₂) ∷-NF lemma₁ _ _ _ _ _
   p₁ ↑-NF       +-NF p₂ *x+ c₂     = p₂ *x+ (p₁ +-NF c₂)           ∷-NF lemma₂ _ _ _
 
-  _*x : forall {n p} -> Normal (suc n) p -> Normal (suc n) (p :* var fz)
+  _*x : forall {n p} -> Normal (suc n) p -> Normal (suc n) (p :* var zero)
   p *x = p *x+ con-NF⋆ C.0# ∷-NF lemma₀ _
 
   mutual
@@ -177,8 +177,8 @@ private
   --NF_ (p *x+ c)   = --NF_ p *x+ --NF_ c ∷-NF lemma₆ _ _ _
 
   var-NF : forall {n} -> (i : Fin n) -> Normal n (var i)
-  var-NF fz     = con-NF⋆ C.1# *x+ con-NF⋆ C.0# ∷-NF lemma₇ _
-  var-NF (fs i) = var-NF i ↑-NF
+  var-NF zero    = con-NF⋆ C.1# *x+ con-NF⋆ C.0# ∷-NF lemma₇ _
+  var-NF (suc i) = var-NF i ↑-NF
 
   _^-NF_ : forall {n p} -> Normal n p -> (i : ℕ) -> Normal n (p :^ i)
   p ^-NF zero  = con-NF⋆ C.1#    ∷-NF 1-homo

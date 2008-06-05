@@ -27,7 +27,7 @@ open import Relation.Nullary
 
 private
 
-  lem₀ = \n k -> let N = var fz; K = var (fs fz) in
+  lem₀ = \n k -> let N = var zero; K = var (suc zero) in
                  prove (n ∷ k ∷ [])
                        (N :+ (con 1 :+ K)) (con 1 :+ N :+ K) ≡-refl
 

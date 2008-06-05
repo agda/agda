@@ -25,25 +25,25 @@ private
     m
       ≡⟨ inject-lemma m k ⟩
     toℕ (inject k (fromℕ m))
-      ≡⟨ (let X = var fz in
+      ≡⟨ (let X = var zero in
          prove (toℕ (inject k (fromℕ m)) ∷ []) X (X :+ con 0) ≡-refl) ⟩
     toℕ (inject k (fromℕ m)) + 0
       ∎
 
   lem₂ = \n ->
-    let N = var fz in
+    let N = var zero in
     prove (n ∷ []) (con 1 :+ N) (con 1 :+ (N :+ con 0)) ≡-refl
 
   lem₃ = \n k q r eq -> begin
       suc n + k
-        ≡⟨ (let N = var fz; K = var (fs fz) in
+        ≡⟨ (let N = var zero; K = var (suc zero) in
             prove (n ∷ k ∷ [])
                   (con 1 :+ N :+ K) (N :+ (con 1 :+ K))
                   ≡-refl) ⟩
       n + suc k
         ≡⟨ ≡-cong (_+_ n) eq ⟩
       n + (toℕ r + q * n)
-        ≡⟨ (let N = var fz; R = var (fs fz); Q = var (fs (fs fz)) in
+        ≡⟨ (let N = var zero; R = var (suc zero); Q = var (suc (suc zero)) in
             prove (n ∷ toℕ r ∷ q ∷ [])
                   (N :+ (R :+ Q :* N)) (R :+ (con 1 :+ Q) :* N)
                   ≡-refl) ⟩
@@ -89,11 +89,11 @@ _divMod'_ m n {≢0} = <-rec Pred dm m n {≢0}
 
   dm : (dividend : ℕ) -> <-Rec Pred dividend -> Pred dividend
   dm m       rec zero    {≢0 = ()}
-  dm zero    rec (suc n)            = result 0 fz ≡-refl
+  dm zero    rec (suc n)            = result 0 zero ≡-refl
   dm (suc m) rec (suc n)            with compare m n
   dm (suc m) rec (suc .(suc m + k)) | less .m k    = result 0 r  (lem₁ m k)
-                                        where r = fs (inject k (fromℕ m))
-  dm (suc m) rec (suc .m)           | equal .m     = result 1 fz (lem₂ m)
+                                        where r = suc (inject k (fromℕ m))
+  dm (suc m) rec (suc .m)           | equal .m     = result 1 zero (lem₂ m)
   dm (suc .(suc n + k)) rec (suc n) | greater .n k =
     1+ rec (suc k) le (suc n)
     where le = s≤′s (s≤′s (n≤′m+n n k))

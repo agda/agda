@@ -23,8 +23,8 @@ data Vec (a : Set) : ℕ -> Set where
 -- Some operations
 
 lookup : forall {a n} -> Fin n -> Vec a n -> a
-lookup fz     (x ∷ xs) = x
-lookup (fs i) (x ∷ xs) = lookup i xs
+lookup zero    (x ∷ xs) = x
+lookup (suc i) (x ∷ xs) = lookup i xs
 
 head : forall {a n} -> Vec a (1 + n) -> a
 head (x ∷ xs) = x
@@ -85,14 +85,14 @@ concat []         = []
 concat (xs ∷ xss) = xs ++ concat xss
 
 take : forall {a n} (i : Fin (suc n)) -> Vec a n -> Vec a (toℕ i)
-take fz      xs       = []
-take (fs ()) []
-take (fs i)  (x ∷ xs) = x ∷ take i xs
+take zero     xs       = []
+take (suc ()) []
+take (suc i)  (x ∷ xs) = x ∷ take i xs
 
 drop : forall {a n} (i : Fin (suc n)) -> Vec a n -> Vec a (n - i)
-drop fz      xs       = xs
-drop (fs ()) []
-drop (fs i)  (x ∷ xs) = drop i xs
+drop zero     xs       = xs
+drop (suc ()) []
+drop (suc i)  (x ∷ xs) = drop i xs
 
 infixr 5 _++'_
 

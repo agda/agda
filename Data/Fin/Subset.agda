@@ -29,10 +29,8 @@ data Subset : ℕ -> Set where
 -- Membership and subset predicates
 
 data _∈_ : forall {n} -> Fin n -> Subset n -> Set where
-  fzIn : forall {n} {p : Subset n}
-       -> fz ∈ p ▻ inside
-  fsIn : forall {s n x} {p : Subset n}
-       -> x ∈ p -> fs x ∈ p ▻ s
+  zeroIn : forall {n}     {p : Subset n} -> zero ∈ p ▻ inside
+  sucIn  : forall {s n x} {p : Subset n} -> x ∈ p -> suc x ∈ p ▻ s
 
 _∉_ : forall {n} -> Fin n -> Subset n -> Set
 x ∉ p = ¬ (x ∈ p)

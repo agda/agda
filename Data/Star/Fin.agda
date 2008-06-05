@@ -5,7 +5,8 @@
 module Data.Star.Fin where
 
 open import Data.Star
-open import Data.Star.Nat
+import Data.Star.Nat as ℕ
+open ℕ using (ℕ)
 open import Data.Star.Pointer
 open import Data.Unit
 
@@ -16,8 +17,8 @@ Fin = Any (\_ -> ⊤) (\_ -> ⊤)
 
 -- "Constructors".
 
-fz : forall {n} -> Fin (suc n)
-fz = this tt
+zero : forall {n} -> Fin (ℕ.suc n)
+zero = this tt
 
-fs : forall {n} -> Fin n -> Fin (suc n)
-fs = that tt
+suc : forall {n} -> Fin n -> Fin (ℕ.suc n)
+suc = that tt

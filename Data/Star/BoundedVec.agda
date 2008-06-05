@@ -8,7 +8,6 @@ module Data.Star.BoundedVec where
 
 open import Data.Star
 open import Data.Star.Nat
-open import Data.Star.Fin
 open import Data.Star.Decoration
 open import Data.Star.Pointer
 open import Data.Star.List using ([_])

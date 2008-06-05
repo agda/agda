@@ -28,7 +28,7 @@ private
     2 + x
       ≤⟨ m≤m+n _ _ ⟩
     2 + x + (x + (1 + x) * k + r)
-      ≡⟨ (let X = var fz; R = var (fs fz); K = var (fs (fs fz)) in
+      ≡⟨ (let X = var zero; R = var (suc zero); K = var (suc (suc zero)) in
          prove (Vec.fromList (x ∷ r ∷ k ∷ []))
                (con 2 :+ X :+ (X :+ (con 1 :+ X) :* K :+ R))
                (R :+ (con 1 :+ X) :* (con 2 :+ K))
@@ -52,10 +52,10 @@ Bit     = Digit 2
 -- Some named digits.
 
 0b : Bit
-0b = fz
+0b = zero
 
 1b : Bit
-1b = fs fz
+1b = suc zero
 
 ------------------------------------------------------------------------
 -- Showing digits
@@ -68,26 +68,26 @@ Bit     = Digit 2
 
 showDigit : forall {base} {base≤16 : True (base ≤? 16)} ->
             Digit base -> Char
-showDigit fz = '0'
-showDigit (fs fz) = '1'
-showDigit (fs (fs fz)) = '2'
-showDigit (fs (fs (fs fz))) = '3'
-showDigit (fs (fs (fs (fs fz)))) = '4'
-showDigit (fs (fs (fs (fs (fs fz))))) = '5'
-showDigit (fs (fs (fs (fs (fs (fs fz)))))) = '6'
-showDigit (fs (fs (fs (fs (fs (fs (fs fz))))))) = '7'
-showDigit (fs (fs (fs (fs (fs (fs (fs (fs fz)))))))) = '8'
-showDigit (fs (fs (fs (fs (fs (fs (fs (fs (fs fz))))))))) = '9'
-showDigit (fs (fs (fs (fs (fs (fs (fs (fs (fs (fs fz)))))))))) = 'a'
-showDigit (fs (fs (fs (fs (fs (fs (fs (fs (fs (fs (fs fz))))))))))) = 'b'
-showDigit (fs (fs (fs (fs (fs (fs (fs (fs (fs (fs (fs (fs fz)))))))))))) = 'c'
-showDigit (fs (fs (fs (fs (fs (fs (fs (fs (fs (fs (fs (fs (fs fz))))))))))))) = 'd'
-showDigit (fs (fs (fs (fs (fs (fs (fs (fs (fs (fs (fs (fs (fs (fs fz)))))))))))))) = 'e'
-showDigit (fs (fs (fs (fs (fs (fs (fs (fs (fs (fs (fs (fs (fs (fs (fs fz))))))))))))))) = 'f'
+showDigit zero = '0'
+showDigit (suc zero) = '1'
+showDigit (suc (suc zero)) = '2'
+showDigit (suc (suc (suc zero))) = '3'
+showDigit (suc (suc (suc (suc zero)))) = '4'
+showDigit (suc (suc (suc (suc (suc zero))))) = '5'
+showDigit (suc (suc (suc (suc (suc (suc zero)))))) = '6'
+showDigit (suc (suc (suc (suc (suc (suc (suc zero))))))) = '7'
+showDigit (suc (suc (suc (suc (suc (suc (suc (suc zero)))))))) = '8'
+showDigit (suc (suc (suc (suc (suc (suc (suc (suc (suc zero))))))))) = '9'
+showDigit (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc zero)))))))))) = 'a'
+showDigit (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc zero))))))))))) = 'b'
+showDigit (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc zero)))))))))))) = 'c'
+showDigit (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc zero))))))))))))) = 'd'
+showDigit (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc zero)))))))))))))) = 'e'
+showDigit (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc zero))))))))))))))) = 'f'
 showDigit {base≤16 = base≤16}
-          (fs (fs (fs (fs (fs (fs (fs (fs (fs (fs (fs (fs (fs (fs (fs (fs i))))))))))))))))
+          (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc i))))))))))))))))
           with witnessToTruth base≤16
-showDigit (fs (fs (fs (fs (fs (fs (fs (fs (fs (fs (fs (fs (fs (fs (fs (fs ()))))))))))))))))
+showDigit (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc ()))))))))))))))))
   | (s≤s (s≤s (s≤s (s≤s (s≤s (s≤s (s≤s (s≤s (s≤s (s≤s (s≤s (s≤s (s≤s (s≤s (s≤s (s≤s z≤n))))))))))))))))
 
 ------------------------------------------------------------------------

@@ -15,9 +15,9 @@ open import Relation.Binary.PropositionalEquality
 -- Properties
 
 prop-toℕ-≤ : forall {n} (x : Fin n) -> toℕ x ≤ pred n
-prop-toℕ-≤ fz                  = z≤n
-prop-toℕ-≤ (fs {n = zero}  ())
-prop-toℕ-≤ (fs {n = suc n} i)  = s≤s (prop-toℕ-≤ i)
+prop-toℕ-≤ zero                 = z≤n
+prop-toℕ-≤ (suc {n = zero}  ())
+prop-toℕ-≤ (suc {n = suc n} i)  = s≤s (prop-toℕ-≤ i)
 
 inject-lemma : forall m k -> m ≡ toℕ (inject k (fromℕ m))
 inject-lemma zero    k = ≡-refl

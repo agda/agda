@@ -103,7 +103,7 @@ divides-Δ {zero}  ()
 nonZeroDivisor-lemma
   : forall m q (r : Fin (1 + m)) -> toℕ r ≢ 0 ->
     ¬ (1 + m) Divides (toℕ r + q * (1 + m))
-nonZeroDivisor-lemma m zero r r≢fz (divides zero eq) = r≢fz $ begin
+nonZeroDivisor-lemma m zero r r≢zero (divides zero eq) = r≢zero $ begin
   toℕ r
     ≡⟨ ≡-sym $ proj₁ CS.*-identity (toℕ r) ⟩
   1 * toℕ r
@@ -111,10 +111,10 @@ nonZeroDivisor-lemma m zero r r≢fz (divides zero eq) = r≢fz $ begin
   0
     ∎
   where open ≡-Reasoning
-nonZeroDivisor-lemma m zero r r≢fz (divides (suc q) eq) =
+nonZeroDivisor-lemma m zero r r≢zero (divides (suc q) eq) =
   ¬i+1+j≤i m $ begin
     m + suc (q * suc m)
-      ≡⟨ (let M = var fz; Q = var (fs fz) in
+      ≡⟨ (let M = var zero; Q = var (suc zero) in
           prove (m ∷ q * suc m ∷ [])
                 (M :+ (con 1 :+ Q)) (con 1 :+ M :+ Q) ≡-refl) ⟩
     suc (m + q * suc m)
@@ -126,13 +126,13 @@ nonZeroDivisor-lemma m zero r r≢fz (divides (suc q) eq) =
     m
       ∎
   where open ≤-Reasoning
-nonZeroDivisor-lemma m (suc q) r r≢fz d =
-  nonZeroDivisor-lemma m q r r≢fz (divides-Δ d')
+nonZeroDivisor-lemma m (suc q) r r≢zero d =
+  nonZeroDivisor-lemma m q r r≢zero (divides-Δ d')
   where
   lem = prove (suc m ∷ toℕ r ∷ q * suc m ∷ [])
               (R :+ (M :+ Q)) (M :+ (R :+ Q))
               ≡-refl
-    where M = var fz; R = var (fs fz); Q = var (fs (fs fz))
+    where M = var zero; R = var (suc zero); Q = var (suc (suc zero))
   d' = ≡-subst (\x -> (1 + m) Divides x) lem d
 
 -- Divisibility is decidable.
@@ -140,7 +140,7 @@ nonZeroDivisor-lemma m (suc q) r r≢fz d =
 divisible? : Decidable _Divides_
 divisible? zero    n                        = no 0-doesNotDivide
 divisible? (suc m) n                        with n divMod suc m
-divisible? (suc m) .(q * suc m)             | result q fz     =
+divisible? (suc m) .(q * suc m)             | result q zero    =
   yes $ divides q ≡-refl
-divisible? (suc m) .(1 + toℕ r + q * suc m) | result q (fs r) =
-  no $ nonZeroDivisor-lemma m q (fs r) (zero≢suc ∘ ≡-sym)
+divisible? (suc m) .(1 + toℕ r + q * suc m) | result q (suc r) =
+  no $ nonZeroDivisor-lemma m q (suc r) (Data.Nat.zero≢suc ∘ ≡-sym)

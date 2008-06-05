@@ -57,7 +57,7 @@ abstract
     ≡-subst (BoundedVec a) lemma
             (bVec {m = suc m} xs)
     where
-    M = var fz; N = var (fs fz)
+    M = var zero; N = var (suc zero)
     lemma = prove (Vec._∷_ m (Vec._∷_ n Vec.[]))
                   (N :+ (con 1 :+ M))
                   (con 1 :+ (N :+ M))
@@ -73,7 +73,7 @@ abstract
     ≡-subst (BoundedVec a) lemma
             (bVec {m = zero} (Vec.fromList xs))
     where
-    M = var fz
+    M = var zero
     lemma = prove (Vec._∷_ (List.length xs) Vec.[]) (M :+ con 0) M ≡-refl
 
   toList : forall {a n} -> BoundedVec a n -> [ a ]
