@@ -462,6 +462,13 @@ LamBinds
   | DomainFreeBinding		{ $1 }
   | TypedBindings		{ [DomainFull $1] }
 
+-- A possibly empty sequence of lambda bindings.
+LamBindings0 :: { [LamBinding] }
+LamBindings0
+  : DomainFreeBinding LamBindings0	{ $1 ++ $2 }
+  | TypedBindings LamBindings0	        { DomainFull $1 : $2 }
+  |             		        { [] }
+
 -- A domain free binding is either x or {x1 .. xn}
 DomainFreeBinding :: { [LamBinding] }
 DomainFreeBinding
@@ -613,10 +620,10 @@ RHS : '=' Expr	    { RHS Recursive $2 }
 
 -- Data declaration. Can be local.
 Data :: { Declaration }
-Data : 'data' Id TypedBindingss0 ':' Expr 'where'
-	    Constructors	{ Data (getRange ($1, $6, $7)) Inductive $2 $3 $5 $7 }
-     | 'codata' Id TypedBindingss0 ':' Expr 'where'
-	    Constructors	{ Data (getRange ($1, $6, $7)) CoInductive $2 $3 $5 $7 }
+Data : 'data' Id LamBindings0 ':' Expr 'where'
+	    Constructors	{ Data (getRange ($1, $6, $7)) Inductive $2 (map addType $3) $5 $7 }
+     | 'codata' Id LamBindings0 ':' Expr 'where'
+	    Constructors	{ Data (getRange ($1, $6, $7)) CoInductive $2 (map addType $3) $5 $7 }
 
 
 -- Record declarations.
@@ -882,11 +889,12 @@ isName s (_,s')
 -- | Build a forall pi (forall x y z -> ...)
 forallPi :: [LamBinding] -> Expr -> Expr
 forallPi bs e = Pi (map addType bs) e
-    where
-	addType (DomainFull b)	 = b
-	addType (DomainFree h x) = TypedBindings r h [TBind r [x] $ Underscore r Nothing]
-	    where
-		r = getRange x
+
+-- | Converts lambda bindings to typed bindings.
+addType :: LamBinding -> TypedBindings
+addType (DomainFull b)	 = b
+addType (DomainFree h x) = TypedBindings r h [TBind r [x] $ Underscore r Nothing]
+  where r = getRange x
 
 -- | Check that an import directive doesn't contain repeated names
 verifyImportDirective :: ImportDirective -> Parser ImportDirective
