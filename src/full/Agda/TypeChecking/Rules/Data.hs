@@ -43,7 +43,7 @@ checkDataDef i ind name ps cs =
 	let npars = size ps
 
 	-- Look up the type of the datatype.
-	t <- typeOfConst name
+	t <- instantiateFull =<< typeOfConst name
 
 	-- The parameters are in scope when checking the constructors. 
 	(nofIxs, s) <- bindParameters ps t $ \tel t0 -> do
