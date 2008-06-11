@@ -104,12 +104,12 @@ checkConstructor d tel nofIxs s con@(A.Axiom i c e) =
     traceCall (CheckConstructor d tel s con) $ do
 	t <- isType_ e
 	n <- size <$> getContextTelescope
-	verbose 5 $ do
+	verboseS "tc.data.con" 15 $ do
 	    td <- prettyTCM t
 	    liftIO $ putStrLn $ "checking that " ++ show td ++ " ends in " ++ show d
 	    liftIO $ putStrLn $ "  nofPars = " ++ show n
 	constructs n t d
-	verbose 5 $ do
+	verboseS "tc.data.con" 15 $ do
 	    d <- prettyTCM s
 	    liftIO $ putStrLn $ "checking that the type fits in " ++ show d
 	t `fitsIn` s

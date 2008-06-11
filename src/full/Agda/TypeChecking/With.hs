@@ -126,12 +126,18 @@ stripWithClausePatterns gamma qs perm ps = do
             -- Compute the argument telescope for the constructor
             Con c []    <- constructorForm =<< normalise (Con c [])
             Defn _ ct _ _ Constructor{conPars = np}  <- getConstInfo c
-            reportSDoc "tc.with.strip" 20 $ text "ct = " <+> prettyTCM ct
-            let ct' = flip apply (genericTake np us) ct
-            reportSDoc "tc.with.strip" 20 $ text "ct' = " <+> prettyTCM ct
-            reportSDoc "tc.with.strip" 20 $ text "us = " <+> prettyList (map prettyTCM $ genericTake np us)
+            ct <- normalise ct
+            let ct'         = flip apply (genericTake np us) ct
+                TelV tel' _ = telView ct'
 
-            TelV tel' _ <- telView . flip apply (genericTake np us) . defType <$> getConstInfo c
+
+            reportSDoc "tc.with.strip" 20 $
+              vcat [ text "ct  = " <+> prettyTCM ct
+                   , text "ct' = " <+> prettyTCM ct'
+                   , text "np  = " <+> text (show np)
+                   , text "us  = " <+> prettyList (map prettyTCM us)
+                   , text "us' = " <+> prettyList (map prettyTCM $ genericTake np us)
+                   ]
 
             -- Compute the new telescope
             let v     = Con c $ reverse [ Arg h (Var i []) | (i, Arg h _) <- zip [0..] $ reverse qs' ]
