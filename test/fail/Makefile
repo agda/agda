@@ -38,7 +38,7 @@ all : $(allstems)
 debug : 
 	@echo $(allagda)
 
-# Pure agdaLight
+# No error recorded
 
 $(allout) : %.err : %.agda
 	@echo "$*.agda"
@@ -49,16 +49,21 @@ $(allout) : %.err : %.agda
 				 else rm -f $@ $*.tmp; false; \
 				 fi; \
 		fi
-# Agda should fail with non-empty output
+
+# Existing error
 
 $(allstems) : % : %.err
 	@echo "$*.agda"
 	@if $(agda) -v$(V) $(shell if [ -e $*.flags ]; then cat $*.flags; fi) $*.agda \
 		 > $*.tmp.2; \
 		then echo "Unexpected success"; rm -f $*.tmp.2; false; \
-    else sed -e "s/[^ ]*test.fail.//g" $*.tmp.2 > $*.tmp; true; fi
-	@if cmp $*.err $*.tmp; \
-		then rm -f $*.tmp $*.tmp.2; true; \
+    else sed -e "s/[^ ]*test.fail.//g" $*.tmp.2 > $*.tmp; \
+				 echo `cat $*.err` > $*.tmp.2; \
+				 echo `cat $*.tmp` > $*.tmp.3; \
+				 true; \
+		fi
+	@if cmp $*.tmp.2 $*.tmp.3; \
+		then rm -f $*.tmp $*.tmp.2 $*.tmp.3; true; \
 		else echo "== Old error ==="; \
 			 cat $*.err; \
 			 echo "== New error ==="; \
