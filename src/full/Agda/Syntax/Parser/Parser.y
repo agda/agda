@@ -690,10 +690,10 @@ OpenArgs : {- empty -}    { [] }
 
 -- Module instantiation
 ModuleMacro :: { Declaration }
-ModuleMacro : 'module' Id TypedBindingss0 '=' Expr ImportDirective
-		    { ModuleMacro (getRange ($1, $5, $6)) $2 $3 $5 DontOpen $6 }
-	    | 'open' 'module' Id TypedBindingss0 '=' Expr ImportDirective
-		    { ModuleMacro (getRange ($1, $6, $7)) $3 $4 $6 DoOpen $7 }
+ModuleMacro : 'module' Id LamBindings0 '=' Expr ImportDirective
+		    { ModuleMacro (getRange ($1, $5, $6)) $2 (map addType $3) $5 DontOpen $6 }
+	    | 'open' 'module' Id LamBindings0 '=' Expr ImportDirective
+		    { ModuleMacro (getRange ($1, $6, $7)) $3 (map addType $4) $6 DoOpen $7 }
 
 -- Import
 Import :: { Declaration }
@@ -704,8 +704,8 @@ Import : 'import' ModuleName ImportImportDirective
 
 -- Module
 Module :: { Declaration }
-Module : 'module' Id TypedBindingss0 'where' Declarations0
-		    { Module (getRange ($1,$4,$5)) (QName $2) $3 $5 }
+Module : 'module' Id LamBindings0 'where' Declarations0
+		    { Module (getRange ($1,$4,$5)) (QName $2) (map addType $3) $5 }
 
 -- The top-level consist of a bunch of import and open followed by a top-level module.
 TopLevel :: { [Declaration] }
@@ -715,8 +715,8 @@ TopLevel : TeX TopModule       { [$2] }
 
 -- The top-level module can have a qualified name.
 TopModule :: { Declaration }
-TopModule : 'module' ModuleName TypedBindingss0 'where' Declarations0
-		    { Module (getRange ($1,$4,$5)) $2 $3 $5 }
+TopModule : 'module' ModuleName LamBindings0 'where' Declarations0
+		    { Module (getRange ($1,$4,$5)) $2 (map addType $3) $5 }
 
 Pragma :: { Declaration }
 Pragma : DeclarationPragma  { Pragma $1 }

@@ -1,8 +1,14 @@
-module ForallForParameters where
+module ForallForParameters
+         (F : Set -> Set -> Set) X {Y} (Z : F X Y) where
 
-data D (a : Set) : Set where
-  d : a -> D a
+module M A {B} (C : F A B) where
 
-data P a : D a -> Set where
+  data D : Set -> Set where
+    d : A -> D A
 
-codata C {a} x : P a x -> Set where
+  data P A : D A -> Set where
+
+  codata Q {A} X : P A X -> Set where
+
+module N I J K = M I {J} K
+open module O I J K = N I J K
