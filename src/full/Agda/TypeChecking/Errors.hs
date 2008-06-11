@@ -94,6 +94,7 @@ errorString err = case err of
     DifferentArities			       -> "DifferentArities"
     DuplicateBuiltinBinding _ _ _	       -> "DuplicateBuiltinBinding"
     DuplicateFields _			       -> "DuplicateFields"
+    DuplicateConstructors _		       -> "DuplicateConstructors"
     FieldOutsideRecord                         -> "FieldOutsideRecord"
     FileNotFound _ _			       -> "FileNotFound"
     GenericError _			       -> "GenericError"
@@ -245,6 +246,9 @@ instance PrettyTCM TypeError where
 	    TooManyFields r xs -> fsep $
 		pwords "The record type" ++ [prettyTCM r] ++
 		pwords "does not have the fields" ++ punctuate comma (map pretty xs)
+	    DuplicateConstructors xs -> fsep $
+		pwords "Duplicate constructors" ++ punctuate comma (map pretty xs) ++
+		pwords "in datatype"
 	    DuplicateFields xs -> fsep $
 		pwords "Duplicate fields" ++ punctuate comma (map pretty xs) ++
 		pwords "in record"

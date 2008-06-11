@@ -44,6 +44,7 @@ import {-# SOURCE #-} Agda.Interaction.Imports (scopeCheckImport)
 
 import Agda.Utils.Monad
 import Agda.Utils.Tuple
+import Agda.Utils.List
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
@@ -575,11 +576,19 @@ instance ToAbstract NiceDefinition Definition where
     toAbstract d@(C.DataDef r ind f p a x pars cons) =
       traceCall (ScopeCheckDefinition d) $
       withLocalVars $ do
+
+        -- Check for duplicate constructors
+        do let cs = map conName cons
+           unless (distinct cs) $ typeError $ DuplicateConstructors $ nub $ cs \\ nub cs
+
 	pars <- toAbstract pars
 	cons <- toAbstract (map Constr cons)
 	x'   <- toAbstract (OldName x)
         printScope "data" 20 $ "Checked data " ++ show x
 	return $ A.DataDef (mkRangedDefInfo x f p a r) x' ind pars cons
+      where
+        conName (C.Axiom _ _ _ _ c _) = c
+        conName _ = __IMPOSSIBLE__
 
     -- Record definitions (mucho interesting)
     toAbstract d@(C.RecDef r f p a x pars fields) =

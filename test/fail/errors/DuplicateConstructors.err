@@ -1,0 +1,6 @@
+errors/DuplicateConstructors.agda:5,3-6,8
+Duplicate constructors c in datatype
+when scope checking the definition
+  data D : _ where
+    c : D
+    c : D
