@@ -5,7 +5,7 @@
 module Relation.Binary where
 
 open import Data.Product
-open import Data.Sum.Core
+open import Data.Sum
 open import Data.Function
 open import Relation.Nullary.Core
 open import Relation.Binary.PropositionalEquality.Core

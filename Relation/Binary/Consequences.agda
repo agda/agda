@@ -8,7 +8,7 @@ open import Relation.Binary.Core
 open import Relation.Nullary.Core
 open import Relation.Binary.PropositionalEquality.Core
 open import Data.Function
-open import Data.Sum.Core
+open import Data.Sum
 open import Data.Product
 open import Data.Empty
 

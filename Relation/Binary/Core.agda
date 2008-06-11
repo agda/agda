@@ -8,7 +8,7 @@
 module Relation.Binary.Core where
 
 open import Data.Product
-open import Data.Sum.Core
+open import Data.Sum
 open import Data.Function
 open import Data.Unit.Core
 open import Data.Empty

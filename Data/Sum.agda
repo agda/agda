@@ -5,14 +5,15 @@
 module Data.Sum where
 
 open import Data.Function
-open import Relation.Binary.PropositionalEquality
-
-infixr 1 _-⊎-_
 
 ------------------------------------------------------------------------
 -- Definition
 
-open import Data.Sum.Core public
+infixr 1 _⊎_
+
+data _⊎_ (a b : Set) : Set where
+  inj₁ : a -> a ⊎ b
+  inj₂ : b -> a ⊎ b
 
 ------------------------------------------------------------------------
 -- Functions
@@ -26,12 +27,8 @@ map-⊎ :  {a b c d : Set}
       -> (a -> c) -> (b -> d) -> (a ⊎ b -> c ⊎ d)
 map-⊎ f g = [ inj₁ ∘ f , inj₂ ∘ g ]
 
+infixr 1 _-⊎-_
+
 _-⊎-_ :  {a b : Set}
       -> (a -> b -> Set) -> (a -> b -> Set) -> (a -> b -> Set)
 f -⊎- g = f -[ _⊎_ ]₁- g
-
-------------------------------------------------------------------------
--- Properties
-
-inj₁≢inj₂ : forall {a b} {x : a} {y : b} -> inj₁ x ≢ inj₂ y
-inj₁≢inj₂ ()
