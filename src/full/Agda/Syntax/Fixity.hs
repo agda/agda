@@ -35,7 +35,7 @@ defaultFixity = NonAssoc noRange 20
 data Precedence = TopCtx | FunctionSpaceDomainCtx
 		| LeftOperandCtx Fixity | RightOperandCtx Fixity
 		| FunctionCtx | ArgumentCtx | InsideOperandCtx
-                | WithFunCtx | WithArgCtx
+                | WithFunCtx | WithArgCtx | DotPatternCtx
     deriving (Show,Typeable,Data)
 
 
@@ -73,8 +73,9 @@ lamBrackets _			= True
 
 -- | Does a function application need brackets?
 appBrackets :: Precedence -> Bool
-appBrackets ArgumentCtx	= True
-appBrackets _		= False
+appBrackets ArgumentCtx   = True
+appBrackets DotPatternCtx = True
+appBrackets _             = False
 
 -- | Does a with application need brackets?
 withAppBrackets :: Precedence -> Bool
@@ -87,6 +88,10 @@ withAppBrackets _                      = True
 piBrackets :: Precedence -> Bool
 piBrackets TopCtx   = False
 piBrackets _	    = True
+
+roundFixBrackets :: Precedence -> Bool
+roundFixBrackets DotPatternCtx = True
+roundFixBrackets _ = False
 
 instance HasRange Fixity where
     getRange (LeftAssoc  r _)	= r

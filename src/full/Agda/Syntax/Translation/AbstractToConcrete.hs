@@ -601,7 +601,7 @@ instance ToConcrete A.Pattern C.Pattern where
     toConcrete (A.AbsurdP i) = return $ C.AbsurdP (getRange i)
     toConcrete (A.LitP l)    = return $ C.LitP l
     toConcrete (A.DotP i e)  = do
-	e <- toConcreteCtx ArgumentCtx e
+	e <- toConcreteCtx DotPatternCtx e
 	return $ C.DotP (getRange i) e
     -- just for debugging purposes (shouldn't show up in practise)
     toConcrete (A.ImplicitP i) = return $ C.IdentP (C.QName $ C.Name noRange [C.Id noRange "(implicit)"])
@@ -700,5 +700,6 @@ recoverOpApp bracket opApp view e mdefault = case view e of
   -- roundfix
   doCName _ cn as = do
     es <- mapM (toConcreteCtx InsideOperandCtx) as
-    return $ opApp (getRange cn) cn es
+    bracket roundFixBrackets
+      $ return $ opApp (getRange cn) cn es
 
