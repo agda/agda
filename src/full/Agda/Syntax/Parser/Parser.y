@@ -417,10 +417,6 @@ TeleArrow : Telescope1 '->' { $1 }
 Telescope1
     : TypedBindingss	{ {-TeleBind-} $1 }
 
-TypedBindingss0
-    : {- empty -}    { [] }
-    | TypedBindingss { $1 }
-
 TypedBindingss :: { [TypedBindings] }
 TypedBindingss
     : TypedBindings TypedBindingss { $1 : $2 }
@@ -628,8 +624,8 @@ Data : 'data' Id LamBindings0 ':' Expr 'where'
 
 -- Record declarations.
 Record :: { Declaration }
-Record : 'record' Id TypedBindingss0 ':' Expr 'where'
-	    Declarations0 { Record (getRange ($1, $6, $7)) $2 $3 $5 $7 }
+Record : 'record' Id LamBindings0 ':' Expr 'where'
+	    Declarations0 { Record (getRange ($1, $6, $7)) $2 (map addType $3) $5 $7 }
 
 
 -- Fixity declarations.

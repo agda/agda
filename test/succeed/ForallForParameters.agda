@@ -16,3 +16,5 @@ module M A {B} (C : F A B) where
 
 module N I J K = M I {J} K
 open module O I J K = N I J K
+
+record R {I J} (K : F I J) : Set where
