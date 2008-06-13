@@ -40,6 +40,7 @@ import Data.Bool.Properties
 import Data.BoundedVec
 import Data.BoundedVec.Inefficient
 import Data.Char
+import Data.Colist
 import Data.DifferenceList
 import Data.Digit
 import Data.Empty
