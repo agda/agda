@@ -4,9 +4,8 @@
 
 module Data.Unit where
 
-open import Data.Unit.Core public
 open import Data.Sum
-open import Relation.Nullary
+open import Relation.Nullary.Core
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality
 
@@ -14,6 +13,8 @@ open import Relation.Binary.PropositionalEquality
 -- Types
 
 -- Note that the name of this type is "\top", not T.
+
+record ⊤ : Set where
 
 tt : ⊤
 tt = record {}

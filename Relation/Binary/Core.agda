@@ -10,8 +10,6 @@ module Relation.Binary.Core where
 open import Data.Product
 open import Data.Sum
 open import Data.Function
-open import Data.Unit.Core
-open import Data.Empty
 open import Relation.Nullary.Core
 
 ------------------------------------------------------------------------
@@ -19,24 +17,6 @@ open import Relation.Nullary.Core
 
 Rel : Set -> Set1
 Rel a = a -> a -> Set
-
-------------------------------------------------------------------------
--- Some simple relations
-
--- Constant relations.
-
-Const : forall {a} -> Set -> Rel a
-Const I = \_ _ -> I
-
--- The universally true relation.
-
-Always : forall {a} -> Rel a
-Always = Const ⊤
-
--- The universally false relation.
-
-Never : forall {a} -> Rel a
-Never = Const ⊥
 
 ------------------------------------------------------------------------
 -- Propositional equality

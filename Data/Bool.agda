@@ -5,7 +5,7 @@
 module Data.Bool where
 
 open import Data.Function
-open import Data.Unit.Core
+open import Data.Unit
 open import Data.Empty
 open import Relation.Nullary.Core
 open import Relation.Binary

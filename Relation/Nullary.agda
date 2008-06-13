@@ -6,7 +6,6 @@
 
 module Relation.Nullary where
 
-open import Data.Unit.Core
 open import Data.Product
 open import Data.Bool
 open import Data.Empty

@@ -107,6 +107,7 @@ import Relation.Binary.Props.DecTotalOrder
 import Relation.Binary.Props.StrictPartialOrder
 import Relation.Binary.Props.StrictTotalOrder
 import Relation.Binary.Props.TotalOrder
+import Relation.Binary.Simple
 import Relation.Binary.StrictPartialOrderReasoning
 import Relation.Binary.StrictToNonStrict
 import Relation.Binary.Sum
