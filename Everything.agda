@@ -89,6 +89,8 @@ import Induction.Lexicographic
 import Induction.Nat
 import Induction.WellFounded
 
+import IO
+
 import Relation.Binary
 import Relation.Binary.Consequences
 import Relation.Binary.EqReasoning

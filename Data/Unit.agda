@@ -16,6 +16,8 @@ open import Relation.Binary.PropositionalEquality
 
 record ⊤ : Set where
 
+{-# BUILTIN UNIT ⊤ #-}
+
 tt : ⊤
 tt = record {}
 
