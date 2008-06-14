@@ -86,7 +86,7 @@ gcd-refl n = isGCD (divides-refl n , divides-refl n) proj₁
 
 -- 0 and 0 have no gcd.
 
-no-GCD-for-0-0 : ¬ Σ₀ \d -> GCD 0 0 d
+no-GCD-for-0-0 : ∄ \d -> GCD 0 0 d
 no-GCD-for-0-0 (0 , g) = 0-doesNotDivide $ proj₁ $ GCD.commonDivisor g
 no-GCD-for-0-0 (suc n , g) = lem₂ 1+d≤d
   where
@@ -102,7 +102,7 @@ gcd-0-pos n = isGCD (n +1-divides-0 , divides-refl n) proj₂
 
 private
 
-  ∃GCD = \m n -> Σ₀ (GCD m n)
+  ∃GCD = \m n -> ∃ (GCD m n)
 
   step₁ : forall {n k} -> ∃GCD n (suc k) -> ∃GCD n (suc (n + k))
   step₁ (d , g) with GCD.commonDivisor g
@@ -121,7 +121,7 @@ private
 -- it is the gcd of the successors of the arguments that is
 -- calculated.
 
-gcd⁺ : (m n : ℕ) -> Σ₀ \d -> GCD (suc m) (suc n) d
+gcd⁺ : (m n : ℕ) -> ∃ \d -> GCD (suc m) (suc n) d
 gcd⁺ m n = build [ <-rec-builder ⊗ <-rec-builder ] P gcd' (m , n)
   where
   P : ℕ × ℕ -> Set
@@ -139,7 +139,7 @@ gcd⁺ m n = build [ <-rec-builder ⊗ <-rec-builder ] P gcd' (m , n)
 -- positive.
 
 gcd : (m : ℕ) (n : ℕ) {mn≢0 : False ((m * n) ℕ-≟ 0)} ->
-      Σ₀ \d -> GCD m n d
+      ∃ \d -> GCD m n d
 gcd (suc m) (suc n) = gcd⁺ m n
 gcd (suc m) zero    = (suc m , gcd-sym (gcd-0-pos m))
 gcd zero    (suc n) = (suc n , gcd-0-pos n)

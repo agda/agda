@@ -5,6 +5,7 @@
 module Data.Product where
 
 open import Data.Function
+open import Relation.Nullary.Core
 
 infixr 4 _,_
 infixr 2 _×_ _-×-_ _-,-_
@@ -15,8 +16,11 @@ infixr 2 _×_ _-×-_ _-,-_
 data Σ (a : Set) (b : a -> Set) : Set where
   _,_ : (x : a) -> b x -> Σ a b
 
-Σ₀ : {a : Set} -> (a -> Set) -> Set
-Σ₀ = Σ _
+∃ : {a : Set} -> (a -> Set) -> Set
+∃ = Σ _
+
+∄ : {a : Set} -> (a -> Set) -> Set
+∄ P = ¬ ∃ P
 
 _×_ : (a b : Set) -> Set
 a × b = Σ a (\_ -> b)

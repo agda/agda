@@ -35,17 +35,17 @@ private
 
 any? :  forall {n} {P : Fin n -> Set}
      -> ((f : Fin n) -> Dec (P f))
-     -> Dec (Σ₀ P)
+     -> Dec (∃ P)
 any? {zero} {P} dec = no helper
   where
-  helper : ¬ Σ₀ P
+  helper : ∄ P
   helper (() , _)
 any? {suc n} {P} dec with dec zero | any? (restrict dec)
 ...                  | yes p | _            = yes (_ , p)
 ...                  | _     | yes (_ , p') = yes (_ , p')
 ...                  | no ¬p | no ¬p'       = no helper
   where
-  helper : ¬ Σ₀ P
+  helper : ∄ P
   helper (zero  , p)  = ¬p p
   helper (suc f , p') = contradiction (_ , p') ¬p'
 
@@ -119,12 +119,12 @@ private
 
 anySubset? :  forall {n} {P : Subset n -> Set}
            -> (forall s -> Dec (P s))
-           -> Dec (Σ₀ P)
+           -> Dec (∃ P)
 anySubset? {zero} {P} dec with dec ε
 ... | yes Pε = yes (_ , Pε)
 ... | no ¬Pε = no helper
   where
-  helper : ¬ Σ₀ P
+  helper : ∄ P
   helper (ε , Pε) = ¬Pε Pε
 anySubset? {suc n} {P} dec with anySubset? (restrictS inside  dec)
                               | anySubset? (restrictS outside dec)
@@ -132,6 +132,6 @@ anySubset? {suc n} {P} dec with anySubset? (restrictS inside  dec)
 ... | _            | yes (_ , Pp) = yes (_ , Pp)
 ... | no ¬Pp       | no ¬Pp'      = no helper
     where
-    helper : ¬ Σ₀ P
+    helper : ∄ P
     helper (p ▻ inside  , Pp)  = ¬Pp  (_ , Pp)
     helper (p ▻ outside , Pp') = ¬Pp' (_ , Pp')

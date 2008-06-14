@@ -87,8 +87,8 @@ abstract
   prop-map-∈₂
     :  forall {do₁ do₂ f y s}
     -> y ⟨ _∈_ do₂ ⟩₁ map f s
-    -> Σ₀ \x -> (fun f x ⟨ _≈_ do₂ ⟩₁ y) ×
-                (      x ⟨ _∈_ do₁ ⟩₁ s)
+    -> ∃ \x -> (fun f x ⟨ _≈_ do₂ ⟩₁ y) ×
+               (      x ⟨ _∈_ do₁ ⟩₁ s)
 
   prop-mapToSet₁
     :  forall {do₁ do₂ f x s}
@@ -97,5 +97,5 @@ abstract
   prop-mapToSet₂
     :  forall {do₁ do₂ f y s}
     -> y ⟨ _∈_ do₂ ⟩₁ mapToSet f s
-    -> Σ₀ \x -> (y ⟨ _∈_ do₂ ⟩₁ f x) ×
-                (x ⟨ _∈_ do₁ ⟩₁ s)
+    -> ∃ \x -> (y ⟨ _∈_ do₂ ⟩₁ f x) ×
+               (x ⟨ _∈_ do₁ ⟩₁ s)

@@ -52,7 +52,7 @@ all {suc n} s = all s ▻ s
 -- Properties
 
 Nonempty : forall {n} (p : Subset n) -> Set
-Nonempty p = Σ₀ (\f -> f ∈ p)
+Nonempty p = ∃ \f -> f ∈ p
 
 Empty : forall {n} (p : Subset n) -> Set
 Empty p = ¬ Nonempty p
