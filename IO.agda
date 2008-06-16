@@ -16,6 +16,8 @@ open import Category.Monad
 postulate
   IO : Set -> Set
 
+{-# BUILTIN IO IO #-}
+
 postulate
   return : {A : Set} -> A -> IO A
   _>>=_  : {A B : Set} -> IO A -> (A -> IO B) -> IO B
