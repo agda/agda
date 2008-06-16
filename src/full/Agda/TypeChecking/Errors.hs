@@ -131,7 +131,7 @@ errorString err = case err of
     ShouldBeASort _			       -> "ShouldBeASort"
     ShouldBeApplicationOf _ _		       -> "ShouldBeApplicationOf"
     ShouldBeAppliedToTheDatatypeParameters _ _ -> "ShouldBeAppliedToTheDatatypeParameters"
-    ShouldBeEmpty _			       -> "ShouldBeEmpty"
+    ShouldBeEmpty _ _			       -> "ShouldBeEmpty"
     ShouldBePi _			       -> "ShouldBePi"
     ShouldBeRecordType _		       -> "ShouldBeRecordType"
     ShouldEndInApplicationOfTheDatatype _      -> "ShouldEndInApplicationOfTheDatatype"
@@ -220,8 +220,13 @@ instance PrettyTCM TypeError where
                 r = case [ r | r <- map getRange ms, r /= noRange ] of
                       []    -> noRange
                       r : _ -> r
-	    ShouldBeEmpty t -> fsep $
-		[prettyTCM t] ++ pwords "should be empty, but it isn't (as far as I can see)"
+	    ShouldBeEmpty t [] -> fsep $
+		[prettyTCM t] ++ pwords "should be empty, but it isn't obvious that it is."
+	    ShouldBeEmpty t ps -> fsep (
+		[prettyTCM t] ++
+                pwords "should be empty, but the following constructor patterns are valid:"
+              ) $$ nest 2 (vcat $ map (showPat 0) ps)
+
 	    ShouldBeASort t -> fsep $
 		[prettyTCM t] ++ pwords "should be a sort, but it isn't"
 	    ShouldBePi t -> fsep $
@@ -394,23 +399,12 @@ instance PrettyTCM TypeError where
                   display ps = do
                     ps <- nicify f ps
                     prettyTCM f <+> fsep (map showArg ps)
-                  showArg (Arg Hidden x)    = braces $ showPat 0 x
-                  showArg (Arg NotHidden x) = showPat 1 x
-
-                  showPat _ (I.VarP _)      = text "_"
-                  showPat _ (I.DotP _)      = text "._"
-                  showPat n (I.ConP c args) = mpar n args $ prettyTCM c <+> fsep (map showArg args)
-                  showPat _ (I.LitP l)      = text (show l)
 
                   nicify f ps = do
                     showImp <- showImplicitArguments
                     if showImp
                       then return ps
                       else return ps  -- TODO: remove implicit arguments which aren't constructors
-
-                  mpar n args
-                    | n > 0 && not (null args) = parens
-                    | otherwise                = id
 
             CoverageCantSplitOn c -> fsep $
               pwords "Cannot split on the constructor" ++ [prettyTCM c]
@@ -444,6 +438,19 @@ instance PrettyTCM TypeError where
 
 		    com []    = empty
 		    com (_:_) = comma
+          where
+            mpar n args
+              | n > 0 && not (null args) = parens
+              | otherwise                = id
+
+            showArg (Arg Hidden x)    = braces $ showPat 0 x
+            showArg (Arg NotHidden x) = showPat 1 x
+
+            showPat _ (I.VarP _)      = text "_"
+            showPat _ (I.DotP _)      = text "._"
+            showPat n (I.ConP c args) = mpar n args $ prettyTCM c <+> fsep (map showArg args)
+            showPat _ (I.LitP l)      = text (show l)
+
 
 
 instance PrettyTCM Call where

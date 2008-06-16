@@ -18,7 +18,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Primitive (constructorForm)
-import Agda.TypeChecking.Empty (isEmptyType)
+import {-# SOURCE #-} Agda.TypeChecking.Empty (isEmptyType)
 import Agda.TypeChecking.Telescope (renamingR, teleArgs)
 
 import Agda.TypeChecking.Rules.Term (checkExpr)

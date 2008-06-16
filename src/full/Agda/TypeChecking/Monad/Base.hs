@@ -625,7 +625,7 @@ data TypeError
 	| IlltypedPattern A.Pattern Type
 	| TooManyArgumentsInLHS Nat Type
 	| WrongNumberOfConstructorArguments QName Nat Nat
-	| ShouldBeEmpty Type
+	| ShouldBeEmpty Type [Pattern]
 	| ShouldBeASort Type
 	    -- ^ The given type should have been a sort.
 	| ShouldBePi Type
