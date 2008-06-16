@@ -73,7 +73,6 @@ instance PrimTerm Char	  where primTerm _ = primChar
 instance PrimTerm Double  where primTerm _ = primFloat
 instance PrimTerm Str	  where primTerm _ = primString
 instance PrimTerm Nat	  where primTerm _ = primNat
-instance PrimTerm ()	  where primTerm _ = primUnit
 
 instance PrimTerm a => PrimTerm [a] where
     primTerm _ = list (primTerm (undefined :: a))
@@ -371,20 +370,6 @@ primitiveFunctions = Map.fromList
     , "primStringAppend"    |-> mkPrimFun2 (\s1 s2 -> Str $ unStr s1 ++ unStr s2)
     , "primStringEquality"  |-> mkPrimFun2 ((==) :: Rel Str)
     , "primShowString"	    |-> mkPrimFun1 (Str . show . pretty . LitString noRange . unStr)
-
-    -- IO functions
-    , "primPutStr"	    |-> abstractPrim (putStr . unStr)
-
-				-- we can't build polymorphic types automatically
-    , "primIOReturn"	    |-> abstractFromType (
-				    hPi "A" tset $ el (var 0) --> el (io $ var 0)
-				)
-    , "primIOBind"	    |-> abstractFromType (
-				    hPi "A" tset $ hPi "B" tset $
-				    el (io (var 1))
-				    --> (el (var 1) --> el (io (var 0)))
-				    --> el (io (var 0))
-				)
     ]
     where
 	(|->) = (,)

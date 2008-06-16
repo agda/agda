@@ -11,7 +11,7 @@ Agda module A.B.C translates to Haskell module MAlonzo.A.B.C
 (to avoid conflicts between Agda and Haskell standard libraries.)
 
 Those haskell files are then compiled to object files and an executable
-by the command 
+by the command
 
 ghc <GHC FLAGS> -i<DIR> -main-is MAlonzo.<FILE> <DIR>/Malonzo/<FILE>.hs --make
 
@@ -19,23 +19,5 @@ It is assumed that <FILE>.agda contains a definition of main :: IO ().
 If it does not, ghc finishes with an error, but never mind.
 
 
-To do anything useful, you need to add something like
-lib/System/IO.agda shown below to the library.
-Then, main : IO () in <FILE>.agda translates to
-main :: IO () in <FILE>.hs
-
-module System.IO where
-
-open import Data.Unit   using (⊤)
-open import Data.String using (String)
-
-postulate
-  IO : Set -> Set
-
-{-# BUILTIN IO	 IO #-}
-{-# BUILTIN UNIT ⊤  #-}
-
-primitive
-  primPutStr	     : String -> IO ⊤
-  primIOReturn	     : {a : Set} -> a -> IO a
-  primIOBind	     : {a b : Set} -> IO a -> (a -> IO b) -> IO b
+In order to actually perform any side-effects, use the FFI, or the IO
+module from the standard library.

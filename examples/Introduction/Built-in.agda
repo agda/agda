@@ -106,23 +106,13 @@ module StringToList where
   primitive
     primStringToList : String -> List Char
 
--- There are primitive IO functions as well. These functions are treated
--- completely abstractly by the type checker, but the compiler will recognize
--- them.
+-- There is a builtin pragma for the IO type as well. This pragma is
+-- currently unused.
 
 postulate
   IO : Set -> Set
 
-data Unit : Set where
-  unit : Unit
-
-{-# BUILTIN IO	 IO   #-}
-{-# BUILTIN UNIT Unit #-}
-
-module IO where
-
-  primitive
-    primPutStr : String -> IO Unit
+{-# BUILTIN IO IO #-}
 
 -- Below is a partial version of the complete list of primitive
 -- functions.
@@ -178,9 +168,3 @@ primitive
   primStringAppend   : String -> String -> String
   primStringEquality : String -> String -> Bool
   primShowString     : String -> String
-
-    -- IO functions (more to come)
-  primPutStr	     : String -> IO Unit
-  primIOReturn	     : {a : Set} -> a -> IO a
-  primIOBind	     : {a b : Set} -> IO a -> (a -> IO b) -> IO b
-

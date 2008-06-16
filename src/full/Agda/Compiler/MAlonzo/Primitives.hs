@@ -125,6 +125,7 @@ primBody s = (hsVarUQ . HsIdent <$>) $ maybe unimplemented id $ L.lookup s $
   , "primLog"		    |-> return "(log :: Double -> Double)"  -- partial
   , "primSin"		    |-> return "(sin :: Double -> Double)"
   , "primShowFloat"	    |-> return "(show :: Double -> String)"
+  , "primRound"             |-> return "(round :: Double -> Integer)"
 
   -- Character functions
   , "primCharEquality"   |-> rel "(==)" "Char"
@@ -152,13 +153,6 @@ primBody s = (hsVarUQ . HsIdent <$>) $ maybe unimplemented id $ L.lookup s $
   , "primStringAppend"   |-> binAsis "(++)" "String"
   , "primStringEquality" |-> rel "(==)" "String"
   , "primShowString"     |-> return "(show :: String -> String)"
-
-  -- IO functions
-  , "primPutStr"         |-> return "putStr"
-  , "primIOReturn"       |-> return "\\ _ -> (return :: forall a . a -> IO a)"
-  , "primIOBind"         |-> return "\\ _ _ -> ((>>=) :: forall a b .\
-                                    \ IO a -> (a -> IO b) -> IO b)"
-  , "primRound"          |-> return "(round :: Double -> Integer)"
   ]
   where
   (|->) = (,)
