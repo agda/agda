@@ -11,7 +11,24 @@ import Agda.Compiler.MAlonzo.Pretty
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
+import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Pretty
 import Agda.Utils.Monad
+
+-- | Check that the main function has type IO a, for some a.
+checkTypeOfMain :: QName -> Type -> TCM ()
+checkTypeOfMain q ty
+  | show (qnameName q) /= "main" = return ()
+  | otherwise = do
+    Def io [] <- primIO
+    ty <- normalise ty
+    case unEl ty of
+      Def d _ | d == io -> return ()
+      _                 -> do
+        err <- fsep $
+          pwords "The type of main should be" ++
+          [prettyTCM io] ++ pwords " A, for some A. The given type is" ++ [prettyTCM ty]
+        typeError $ GenericError $ show err
 
 -- Haskell modules to be imported for BUILT-INs
 importsForPrim :: TCM [Module]

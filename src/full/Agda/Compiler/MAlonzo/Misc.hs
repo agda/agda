@@ -76,7 +76,7 @@ ihname :: String -> Nat -> HsName
 ihname s i = HsIdent $ s ++ show i
 
 unqhname :: String -> QName -> HsName
-unqhname s q | ("d", "main") == (s, show(qnameName q)) = HsIdent "main :: IO()"
+unqhname s q | ("d", "main") == (s, show(qnameName q)) = HsIdent "main"
              | otherwise = ihname s (idnum $ nameId $ qnameName $ q)
   where idnum (NameId x _) = fromIntegral x
 

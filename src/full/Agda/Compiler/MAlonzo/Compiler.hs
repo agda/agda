@@ -26,6 +26,7 @@ import Agda.Syntax.Literal
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Pretty
 import Agda.Utils.FileName
 import Agda.Utils.Monad
 import Agda.Utils.Unicode
@@ -74,17 +75,19 @@ definitions :: Definitions -> TCM [HsDecl]
 definitions = M.fold (liftM2(++).(definition<.>instantiateFull)) declsForPrim
 
 definition :: Definition -> TCM [HsDecl]
-definition (Defn q ty _ _ d) = (infodecl q :) <$> case d of
-  Axiom mhs                -> return $ fb (maybe axiomErr fakeExp mhs)
-  Function cls _ _ _       -> mkwhere <$> mapM (clause q) (tag 0 cls)
-  Datatype np ni _ cl cs _ _ -> do
-    (ars, cds) <- unzip <$> mapM condecl cs
-    return $ tvaldecl q (maximum (np:ars) - np) (np + ni) cds cl
-  Constructor _ _ _ _ _    -> return []
-  Record _ cl flds _ _ _   -> do
-    ar <- arity <$> normalise ty
-    return $ tvaldecl q (genericLength flds) ar [cdecl q (genericLength flds)] cl  
-  Primitive _ s _          -> fb <$> primBody s
+definition (Defn q ty _ _ d) = do
+  checkTypeOfMain q ty
+  (infodecl q :) <$> case d of
+    Axiom mhs                -> return $ fb (maybe axiomErr fakeExp mhs)
+    Function cls _ _ _       -> mkwhere <$> mapM (clause q) (tag 0 cls)
+    Datatype np ni _ cl cs _ _ -> do
+      (ars, cds) <- unzip <$> mapM condecl cs
+      return $ tvaldecl q (maximum (np:ars) - np) (np + ni) cds cl
+    Constructor _ _ _ _ _    -> return []
+    Record _ cl flds _ _ _   -> do
+      ar <- arity <$> normalise ty
+      return $ tvaldecl q (genericLength flds) ar [cdecl q (genericLength flds)] cl  
+    Primitive _ s _          -> fb <$> primBody s
   where
   tag _ []       = []
   tag i [cl]     = (i, True , cl): []
