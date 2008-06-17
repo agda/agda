@@ -46,6 +46,7 @@ library
                    Agda.Compiler.Alonzo.Names
                    Agda.Compiler.Alonzo.Haskell
                    Agda.Compiler.Alonzo.PatternMonad
+                   Agda.Compiler.HaskellTypes
                    Agda.Compiler.MAlonzo.Compiler
                    Agda.Compiler.MAlonzo.Misc
                    Agda.Compiler.MAlonzo.Pretty

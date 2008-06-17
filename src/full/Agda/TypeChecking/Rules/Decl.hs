@@ -30,6 +30,8 @@ import Agda.TypeChecking.Rules.Record  ( checkRecDef )
 import Agda.TypeChecking.Rules.Def	  ( checkFunDef )
 import Agda.TypeChecking.Rules.Builtin ( bindBuiltin )
 
+import Agda.Compiler.HaskellTypes
+
 import Agda.Utils.Size
 import Agda.Utils.Monad
 
@@ -88,7 +90,10 @@ checkPragma r p =
     traceCall (CheckPragma r p) $ case p of
 	A.BuiltinPragma x e -> bindBuiltin x e
         A.CompiledTypePragma x hs -> do
-          typeError $ NotImplemented "COMPILED_TYPE pragmas"
+          def <- getConstInfo x
+          case theDef def of
+            Axiom{} -> addHaskellType x hs
+            _       -> typeError $ GenericError "COMPILED_TYPE directive only works on postulates."
         A.CompiledDataPragma x hcs -> do
           def <- theDef <$> getConstInfo x
           case def of
@@ -100,10 +105,13 @@ checkPragma r p =
                 sequence_ $ zipWith3 addHaskellCode cs hts hcs
             _ -> fail $ "Not a datatype: " ++ show x  -- TODO: error message
         A.CompiledPragma x hs -> do
-          def <- theDef <$> getConstInfo x
-          case def of
-            Axiom{} -> addHaskellCode x "" hs -- TODO: compute Haskell type
-            _       -> fail "COMPILED directive only works on postulates."
+          def <- getConstInfo x
+          case theDef def of
+            Axiom{} -> do
+              ty <- haskellType $ defType def
+              reportSLn "tc.pragma.compile" 10 $ "Haskell type for " ++ show x ++ ": " ++ ty
+              addHaskellCode x ty hs
+            _   -> fail "COMPILED directive only works on postulates."
 	A.OptionsPragma _   -> __IMPOSSIBLE__	-- not allowed here
 
 -- | Type check a bunch of mutual inductive recursive definitions.
