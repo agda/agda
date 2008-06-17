@@ -283,7 +283,7 @@ callGHC mainICT = do
   (mdir, fp) <- outFile'
   opts       <- gets (optGhcFlags . stOptions)
   let cmd = concat $ L.intersperse " " $
-            "ghc" : opts ++ ["-i"++mdir, "-main-is", hsmod, fp, "--make -fwarn-incomplete-patterns -Werror"]
+            "ghc" : opts ++ ["-i"++mdir, "-main-is", hsmod, fp, "--make -fwarn-incomplete-patterns -fno-warn-overlapping-patterns -Werror"]
   reportLn 1 $ "calling: " ++ cmd
   flush
   exitcode <- liftIO $ system cmd
