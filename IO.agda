@@ -17,6 +17,7 @@ postulate
   IO : Set -> Set
 
 {-# BUILTIN IO IO #-}
+{-# COMPILED_TYPE IO IO #-}
 
 postulate
   return : {A : Set} -> A -> IO A
@@ -36,11 +37,19 @@ IOMonad = record { return = return; _>>=_ = _>>=_ }
 Costring : Set
 Costring = Colist Char
 
+-- The types of writeFile and putStrLn were wrong (there was no COMPILED directives
+-- for ⊤ and at the moment there can't be since it's a record). They return
+-- something in the Haskell unit type. You probably want to move this somewhere else...
+data Unit : Set where
+  unit : Unit
+
+{-# COMPILED_DATA Unit () () #-}
+
 postulate
   getContents : IO Costring
   readFile    : String -> IO Costring
-  writeFile   : String -> Costring -> IO ⊤
-  putStrLn    : String -> IO ⊤
+  writeFile   : String -> Costring -> IO Unit
+  putStrLn    : String -> IO Unit
 
 {-# IMPORT System.IO.UTF8 #-}
 {-# COMPILED getContents System.IO.UTF8.getContents #-}
