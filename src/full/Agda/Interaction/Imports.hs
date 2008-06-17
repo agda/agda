@@ -29,8 +29,7 @@ import Agda.Termination.TermCheck
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
-import qualified Agda.TypeChecking.Serialise
-import Agda.TypeChecking.SerialiseShare
+import Agda.TypeChecking.Serialise
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecker
 

@@ -12,7 +12,6 @@ import Agda.Termination.Lexicographic         as TermLex    (tests)
 import Agda.Termination.Matrix	         as TermMatrix (tests)
 import Agda.Termination.Semiring	         as TermRing   (tests)
 import Agda.Termination.Utilities	         as TermUtil   (tests)
-import Agda.TypeChecking.Serialise	         as TypeSeri   (tests)
 import Agda.TypeChecking.Tests		 as TypeChck   (tests)
 import Agda.Utils.Either	                 as UtilEith   (tests)
 import Agda.Utils.FileName   	         as UtilFile   (tests)
@@ -40,8 +39,6 @@ runTests = do
     TermLex.tests
     putStrLn "Tests in Agda.Termination.CallGraph"
     TermCall.tests
-    putStrLn "Tests in Agda.TypeChecking.Serialise"
-    TypeSeri.tests
     putStrLn "Tests in Agda.TypeChecking.Tests"
     TypeChck.tests
     putStrLn "Tests in Agda.Utils.Either"

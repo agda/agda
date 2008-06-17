@@ -158,7 +158,7 @@ library
                    Agda.TypeChecking.Rules.LHS.Unify
                    Agda.TypeChecking.Rules.Record
                    Agda.TypeChecking.Rules.Term
-                   Agda.TypeChecking.SerialiseShare
+                   Agda.TypeChecking.Serialise
                    Agda.TypeChecking.Substitute
                    Agda.TypeChecking.Telescope
                    Agda.TypeChecking.Test.Generators

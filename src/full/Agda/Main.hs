@@ -45,7 +45,7 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Errors
 import qualified Agda.TypeChecking.Serialise
-import Agda.TypeChecking.SerialiseShare
+import Agda.TypeChecking.Serialise
 
 import Agda.Compiler.Agate.Main as Agate
 import Agda.Compiler.Alonzo.Main as Alonzo

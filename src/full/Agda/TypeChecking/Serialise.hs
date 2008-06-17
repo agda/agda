@@ -11,7 +11,7 @@
 -- TODO: It should be easy to produce a decent QuickCheck test suite
 -- for this file.
 
-module Agda.TypeChecking.SerialiseShare
+module Agda.TypeChecking.Serialise
   ( encode
   , encodeFile
   , decode
