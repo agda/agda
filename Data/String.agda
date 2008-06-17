@@ -10,18 +10,29 @@ import Data.Vec as Vec
 open Vec using (Vec)
 open import Data.Char using (Char)
 open import Data.Bool
+open import Data.Colist using (Colist)
 open import Relation.Nullary
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality
 
 ------------------------------------------------------------------------
--- The type
+-- Types
+
+-- Finite strings.
 
 postulate
   String : Set
 
 {-# BUILTIN STRING String #-}
 {-# COMPILED_TYPE String String #-}
+
+-- Possibly infinite strings.
+
+Costring : Set
+Costring = Colist Char
+
+------------------------------------------------------------------------
+-- Operations
 
 private
  primitive

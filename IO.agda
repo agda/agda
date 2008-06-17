@@ -32,11 +32,6 @@ IOMonad = record { return = return; _>>=_ = _>>=_ }
 ------------------------------------------------------------------------
 -- Simple lazy IO (UTF8-based)
 
--- Possibly infinite strings.
-
-Costring : Set
-Costring = Colist Char
-
 postulate
   getContents : IO Costring
   readFile    : String -> IO Costring
