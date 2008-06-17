@@ -128,18 +128,18 @@ dontUniverseCheckFlag     o = return $ o { optUniverseCheck     = False }
 interactiveFlag o = return $ o { optInteractive   = True
 			       , optAllowUnsolved = True
 			       }
-compileFlag o = return $ o { optCompileAlonzo = True }
-agateFlag o   = return $ o { optCompileAlonzo = False
-                           , optCompileMAlonzo= False
-                           , optCompile       = True
+compileFlag o = return $ o { optCompileMAlonzo = True }
+agateFlag o   = return $ o { optCompileAlonzo  = False
+                           , optCompileMAlonzo = False
+                           , optCompile        = True
                            } 
-alonzoFlag o  = return $ o { optCompileAlonzo = True
-                           , optCompileMAlonzo= False
-                           , optCompile       = False
+alonzoFlag o  = return $ o { optCompileAlonzo  = True
+                           , optCompileMAlonzo = False
+                           , optCompile        = False
                            } 
-malonzoFlag o = return $ o { optCompileAlonzo = False
-                           , optCompileMAlonzo= True
-                           , optCompile       = False
+malonzoFlag o = return $ o { optCompileAlonzo  = False
+                           , optCompileMAlonzo = True
+                           , optCompile        = False
                            } 
 
 malonzoDirFlag f o = case optMAlonzoDir o of
@@ -180,9 +180,9 @@ standardOptions =
     , Option []	    ["agate"] (NoArg agateFlag)
 		    "use the Agate compiler (only with --compile)"
     , Option []     ["alonzo"] (NoArg alonzoFlag)
-		    "use the Alonzo compiler (DEFAULT) (only with --compile)"
+		    "use the Alonzo compiler (only with --compile)"
     , Option []     ["malonzo"] (NoArg malonzoFlag)
-		    "use the MAlonzo compiler (only with --compile and --malonzodir DIR)"
+		    "use the MAlonzo compiler (DEFAULT) (only with --compile)"
     , Option []     ["malonzodir"] (ReqArg malonzoDirFlag "DIR")
 		    "set the directory for MAlonzo output"
     , Option []	    ["test"] (NoArg runTestsFlag)
