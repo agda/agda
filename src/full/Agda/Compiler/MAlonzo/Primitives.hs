@@ -183,7 +183,7 @@ primBody s = (hsVarUQ . HsIdent <$>) $ maybe unimplemented id $ L.lookup s $
   rel' toTy op ty = do
     toHB <- bltQual' "BOOL" mazHBoolToBool
     return $ repl [op, ty, toHB, toTy] $
-      "(\\ x y -> <<2>> ((<<0>> :: <<1>> -> <<1>> -> Bool) (<<3>> x) (<<3>> x)))"
+      "(\\ x y -> <<2>> ((<<0>> :: <<1>> -> <<1>> -> Bool) (<<3>> x) (<<3>> y)))"
   relNat op = do toHI <- bltQual' "NATURAL" mazNatToInteger
                  rel' toHI op "Integer"  
   rel op ty  = rel' "" op ty
