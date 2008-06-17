@@ -68,6 +68,7 @@ import Data.Nat.Show
 import Data.Product
 import Data.Product.Record
 import Data.Sets
+import Data.Sign
 import Data.Star
 import Data.Star.BoundedVec
 import Data.Star.Decoration
