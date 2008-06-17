@@ -1,3 +1,5 @@
+{-# OPTIONS -cpp #-}
+
 module Agda.Compiler.MAlonzo.Compiler where
 
 import Control.Applicative
@@ -30,6 +32,9 @@ import Agda.TypeChecking.Pretty
 import Agda.Utils.FileName
 import Agda.Utils.Monad
 import Agda.Utils.Unicode
+import Agda.Utils.Impossible
+
+#include "../../undefined.h"
 
 compilerMain :: IM () -> IM ()
 compilerMain typecheck = (typecheck >>) $ liftTCM $ ignoreAbstractMode $ do
@@ -78,10 +83,14 @@ definition :: Definition -> TCM [HsDecl]
 definition (Defn q ty _ _ d) = do
   checkTypeOfMain q ty
   (infodecl q :) <$> case d of
-    Axiom{ axHsDef = Just (HsDefn _ hs) } -> return $ fb (fakeExp hs)  -- TODO: type signature
-    Axiom{}                               -> return $ fb axiomErr
+    Axiom{ axHsDef = Just (HsDefn ty hs) } -> return $ fbWithType ty (fakeExp hs)
+    Axiom{}                                -> return $ fb axiomErr
     Function{ funClauses = cls } -> mkwhere <$> mapM (clause q) (tag 0 cls)
-    Datatype{ dataPars = np, dataIxs = ni, dataClause = cl, dataCons = cs } -> do
+    Datatype{ dataPars = np, dataIxs = ni, dataClause = cl, dataCons = cs, dataHsType = Just ty } -> do
+      ccs <- concat <$> mapM checkConstructorType cs
+      cov <- checkCover q ty np cs
+      return $ tvaldecl q 0 (np + ni) [] (Just __IMPOSSIBLE__) ++ ccs ++ cov
+    Datatype{ dataPars = np, dataIxs = ni, dataClause = cl, dataCons = cs, dataHsType = Nothing } -> do
       (ars, cds) <- unzip <$> mapM condecl cs
       return $ tvaldecl q (maximum (np:ars) - np) (np + ni) cds cl
     Constructor{} -> return []
@@ -96,21 +105,62 @@ definition (Defn q ty _ _ d) = do
   mkwhere (HsFunBind [m0, HsMatch _     dn ps rhs [] ] : fbs@(_:_)) =
           [HsFunBind [m0, HsMatch dummy dn ps rhs fbs]]
   mkwhere fbs = fbs
+  fbWithType ty e =
+    [ HsTypeSig dummy [unqhname "d" q] $ fakeType ty ] ++ fb e
   fb e  =[HsFunBind[HsMatch dummy (unqhname "d" q)[] (HsUnGuardedRhs $ e) []]]
   axiomErr = rtmError $ "postulate evaluated: " ++ show q
+
+checkConstructorType :: QName -> TCM [HsDecl]
+checkConstructorType q = do
+  Constructor{ conHsCode = Just (ty, hs) } <- theDef <$> getConstInfo q
+  return [ HsTypeSig dummy [unqhname "check" q] $ fakeType ty
+         , HsFunBind [HsMatch dummy (unqhname "check" q) [] (HsUnGuardedRhs $ fakeExp hs) []]
+         ]
+
+checkCover :: QName -> HaskellType -> Nat -> [QName] -> TCM [HsDecl]
+checkCover q ty n cs = do
+  let tvs = [ "a" ++ show i | i <- [1..n] ]
+      makeClause c = do
+        a <- constructorArity c
+        Just (_, hsc) <- conHsCode . theDef <$> getConstInfo c
+        let pat = HsPApp (UnQual $ HsIdent hsc) $ genericReplicate a HsPWildCard
+        return $ HsAlt dummy pat (HsUnGuardedAlt $ HsTuple []) []
+  cs <- mapM makeClause cs
+  let rhs = case cs of
+              [] -> fakeExp "() -- There is no empty case statement in Haskell"
+              _  -> HsCase (HsVar $ UnQual $ HsIdent "x") cs
+
+  return [ HsTypeSig dummy [unqhname "cover" q] $ fakeType $ unwords (ty : tvs) ++ " -> ()"
+         , HsFunBind [HsMatch dummy (unqhname "cover" q) [HsPVar $ HsIdent "x"]
+            (HsUnGuardedRhs rhs) []]
+         ]
+
+-- | Move somewhere else!
+constructorArity :: MonadTCM tcm => QName -> tcm Nat
+constructorArity q = do
+  def <- getConstInfo q
+  a <- normalise $ defType def
+  case theDef def of
+    Constructor{ conPars = np } -> return $ arity a - np
+    _ -> fail $ "constructorArity: non constructor: " ++ show q
 
 clause :: QName -> (Nat, Bool, Clause) -> TCM HsDecl
 clause q (i, isLast, Clause _ _ ps b) = HsFunBind . (: cont) <$> main where
   main = match <$> argpatts ps (bvars b (0::Nat)) <*> clausebody b
-  cont | isLast    = []
-       | otherwise = [match (L.map HsPVar cvs) crhs]
+  cont | isLast && any isCon ps = [match (L.map HsPVar cvs) failrhs]
+       | isLast                 = []
+       | otherwise              = [match (L.map HsPVar cvs) crhs]
   cvs  = L.map (ihname "v") [0 .. genericLength ps - 1]
   crhs = hsCast$ foldl HsApp (hsVarUQ $ dsubname q (i + 1)) (L.map hsVarUQ cvs)
+  failrhs = rtmError $ "incomplete pattern matching: " ++ show q
   match hps rhs = HsMatch dummy (dsubname q i) hps (HsUnGuardedRhs rhs) []
   bvars (Body _)          _ = []
   bvars (Bind (Abs _ b')) n = HsPVar (ihname "v" n) : bvars b' (n + 1)
   bvars (NoBind      b' ) n = HsPWildCard           : bvars b' n
   bvars NoBody            _ = repeat HsPWildCard -- ?
+
+  isCon (Arg _ ConP{}) = True
+  isCon _              = False
 
 argpatts :: [Arg Pattern] -> [HsPat] -> TCM [HsPat]
 argpatts ps0 bvs = evalStateT (mapM pat' ps0) bvs where
@@ -233,7 +283,7 @@ callGHC mainICT = do
   (mdir, fp) <- outFile'
   opts       <- gets (optGhcFlags . stOptions)
   let cmd = concat $ L.intersperse " " $
-            "ghc" : opts ++ ["-i"++mdir, "-main-is", hsmod, fp, "--make"]
+            "ghc" : opts ++ ["-i"++mdir, "-main-is", hsmod, fp, "--make -fwarn-incomplete-patterns -Werror"]
   reportLn 1 $ "calling: " ++ cmd
   flush
   exitcode <- liftIO $ system cmd

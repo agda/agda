@@ -112,7 +112,16 @@ checkPragma r p =
               | otherwise -> do
                 addHaskellType x hs
                 let computeHaskellType c = do
-                      ty <- haskellType =<< defType <$> getConstInfo c
+                      def <- getConstInfo c
+                      let Constructor{ conPars = np } = theDef def
+                          underPars 0 a = haskellType a
+                          underPars n a = do
+                            a <- reduce a
+                            case unEl a of
+                              Pi a b  -> underAbstraction a b $ underPars (n - 1)
+                              Fun a b -> underPars (n - 1) b
+                              _       -> __IMPOSSIBLE__
+                      ty <- underPars np $ defType def
                       reportSLn "tc.pragma.compile" 10 $ "Haskell type for " ++ show c ++ ": " ++ ty
                       return ty
                 hts <- mapM computeHaskellType cs

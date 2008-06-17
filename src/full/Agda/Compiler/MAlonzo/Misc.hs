@@ -156,6 +156,9 @@ fakeDS = fakeD . HsIdent
 fakeDQ :: QName -> String -> HsDecl
 fakeDQ = fakeD . unqhname "d"
 
+fakeType :: String -> HsQualType
+fakeType = HsQualType [] . HsTyVar . HsIdent
+
 fakeExp :: String -> HsExp
 fakeExp = HsVar . UnQual . HsIdent
 
