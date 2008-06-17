@@ -19,6 +19,8 @@ postulate
   readFile  : FilePath -> IO String
   writeFile : FilePath -> String -> IO Unit
 
+{-# COMPILED_TYPE IO IO #-}
+
 {-# COMPILED putStr putStr #-}
 {-# COMPILED putStrLn putStrLn #-}
 {-# COMPILED bindIO (\_ _ -> (>>=) :: IO a -> (a -> IO b) -> IO b) #-}

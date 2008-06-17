@@ -12,7 +12,7 @@ data List (A : Set) : Set where
   []   : List A
   _::_ : A -> List A -> List A
 
-{-# COMPILED_DATA List [] (:) #-}
+{-# COMPILED_DATA List [] [] (:) #-}
 {-# BUILTIN LIST List #-}
 {-# BUILTIN NIL [] #-}
 {-# BUILTIN CONS _::_ #-}

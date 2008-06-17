@@ -11,7 +11,7 @@ data Bool : Set where
 {-# BUILTIN TRUE true #-}
 {-# BUILTIN FALSE false #-}
 
-{-# COMPILED_DATA Bool True False #-}
+{-# COMPILED_DATA Bool Bool True False #-}
 
 isTrue : Bool -> Set
 isTrue true  = True

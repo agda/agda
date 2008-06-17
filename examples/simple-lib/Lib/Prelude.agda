@@ -15,16 +15,17 @@ _∘_ : {A : Set}{B : A -> Set}{C : {x : A} -> B x -> Set}
 data Unit : Set where
   unit : Unit
 
-{-# COMPILED_DATA Unit () #-}
+{-# COMPILED_DATA Unit () () #-}
 
 postulate String : Set
 
+{-# COMPILED_TYPE String String #-}
 {-# BUILTIN STRING String #-}
 
 data _×_ (A B : Set) : Set where
   _,_ : A -> B -> A × B
 
-{-# COMPILED_DATA _×_ (,) #-}
+{-# COMPILED_DATA _×_ (,) (,) #-}
 
 fst : {A B : Set} -> A × B -> A
 fst (x , y) = x
