@@ -5,6 +5,7 @@
 module Data.Fin.Subset.Props where
 
 open import Data.Nat
+open import Data.Vec hiding (_∈_)
 open import Data.Empty
 open import Data.Function
 open import Data.Fin
@@ -19,30 +20,30 @@ open import Relation.Binary.PropositionalEquality
 fin-0-∅ : Fin zero -> ⊥
 fin-0-∅ ()
 
-zero∉ : forall {n} {p : Subset n} -> zero ∉ p ▻ outside
+zero∉ : forall {n} {p : Subset n} -> zero ∉ outside ∷ p
 zero∉ ()
 
-drop-sucIn : forall {s n x} {p : Subset n} -> suc x ∈ p ▻ s -> x ∈ p
-drop-sucIn (sucIn x∈p) = x∈p
+drop-there : forall {s n x} {p : Subset n} -> suc x ∈ s ∷ p -> x ∈ p
+drop-there (there x∈p) = x∈p
 
-drop-▻-⊆ :  forall {n s₁ s₂} {p₁ p₂ : Subset n}
-         -> p₁ ▻ s₁ ⊆ p₂ ▻ s₂ -> p₁ ⊆ p₂
-drop-▻-⊆ p₁s₁⊆p₂s₂ x∈p₁ = drop-sucIn $ p₁s₁⊆p₂s₂ (sucIn x∈p₁)
+drop-∷-⊆ : forall {n s₁ s₂} {p₁ p₂ : Subset n} ->
+           s₁ ∷ p₁ ⊆ s₂ ∷ p₂ -> p₁ ⊆ p₂
+drop-∷-⊆ p₁s₁⊆p₂s₂ x∈p₁ = drop-there $ p₁s₁⊆p₂s₂ (there x∈p₁)
 
-drop-▻-Empty :  forall {n s} {p : Subset n}
-             -> Empty (p ▻ s) -> Empty p
-drop-▻-Empty ¬¬∅ ¬∅ = contradiction (_ , (sucIn $ proj₂ ¬∅)) ¬¬∅
+drop-∷-Empty :  forall {n s} {p : Subset n}
+             -> Empty (s ∷ p) -> Empty p
+drop-∷-Empty ¬¬∅ (x , x∈p) = ¬¬∅ (suc x , there x∈p)
 
 ------------------------------------------------------------------------
 -- More interesting properties
 
 allInside : forall {n} (x : Fin n) -> x ∈ all inside
-allInside zero    = zeroIn
-allInside (suc x) = sucIn (allInside x)
+allInside zero    = here
+allInside (suc x) = there (allInside x)
 
 allOutside : forall {n} (x : Fin n) -> x ∉ all outside
 allOutside zero    ()
-allOutside (suc x) (sucIn x∈) = allOutside x x∈
+allOutside (suc x) (there x∈) = allOutside x x∈
 
 ⊆⊇⟶≡ :  forall {n} {p₁ p₂ : Subset n}
      -> p₁ ⊆ p₂ -> p₂ ⊆ p₁ -> p₁ ≡ p₂
@@ -50,21 +51,21 @@ allOutside (suc x) (sucIn x∈) = allOutside x x∈
   where
   helper : forall {n} (p₁ p₂ : Subset n)
          -> p₁ ⊆ p₂ -> p₂ ⊆ p₁ -> p₁ ≡ p₂
-  helper ε             ε              _   _   = ≡-refl
-  helper (p₁ ▻ s₁)     (p₂ ▻ s₂)      ₁⊆₂ ₂⊆₁ with ⊆⊇⟶≡ (drop-▻-⊆ ₁⊆₂)
-                                                        (drop-▻-⊆ ₂⊆₁)
-  helper (p ▻ outside) (.p ▻ outside) ₁⊆₂ ₂⊆₁ | ≡-refl = ≡-refl
-  helper (p ▻ inside)  (.p ▻ inside)  ₁⊆₂ ₂⊆₁ | ≡-refl = ≡-refl
-  helper (p ▻ outside) (.p ▻ inside)  ₁⊆₂ ₂⊆₁ | ≡-refl with ₂⊆₁ zeroIn
+  helper []            []             _   _   = ≡-refl
+  helper (s₁ ∷ p₁)     (s₂ ∷ p₂)      ₁⊆₂ ₂⊆₁ with ⊆⊇⟶≡ (drop-∷-⊆ ₁⊆₂)
+                                                        (drop-∷-⊆ ₂⊆₁)
+  helper (outside ∷ p) (outside ∷ .p) ₁⊆₂ ₂⊆₁ | ≡-refl = ≡-refl
+  helper (inside  ∷ p) (inside  ∷ .p) ₁⊆₂ ₂⊆₁ | ≡-refl = ≡-refl
+  helper (outside ∷ p) (inside  ∷ .p) ₁⊆₂ ₂⊆₁ | ≡-refl with ₂⊆₁ here
   ...                                                  | ()
-  helper (p ▻ inside)  (.p ▻ outside) ₁⊆₂ ₂⊆₁ | ≡-refl with ₁⊆₂ zeroIn
+  helper (inside  ∷ p) (outside ∷ .p) ₁⊆₂ ₂⊆₁ | ≡-refl with ₁⊆₂ here
   ...                                                  | ()
 
 ∅⟶allOutside
   :  forall {n} {p : Subset n}
   -> Empty p -> p ≡ all outside
-∅⟶allOutside {p = ε}     ¬¬∅ = ≡-refl
-∅⟶allOutside {p = p ▻ s} ¬¬∅ with ∅⟶allOutside (drop-▻-Empty ¬¬∅)
-∅⟶allOutside {p = .(all outside) ▻ outside} ¬¬∅ | ≡-refl = ≡-refl
-∅⟶allOutside {p = .(all outside) ▻ inside}  ¬¬∅ | ≡-refl =
-    contradiction (_ , zeroIn) ¬¬∅
+∅⟶allOutside {p = []}     ¬¬∅ = ≡-refl
+∅⟶allOutside {p = s ∷ ps} ¬¬∅ with ∅⟶allOutside (drop-∷-Empty ¬¬∅)
+∅⟶allOutside {p = outside ∷ .(all outside)} ¬¬∅ | ≡-refl = ≡-refl
+∅⟶allOutside {p = inside  ∷ .(all outside)} ¬¬∅ | ≡-refl =
+  contradiction (zero , here) ¬¬∅

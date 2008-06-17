@@ -6,6 +6,7 @@ module Data.Fin.Dec where
 
 open import Data.Function
 open import Data.Nat
+open import Data.Vec hiding (_∈_)
 open import Data.Fin
 open import Data.Fin.Subset
 open import Data.Fin.Subset.Props
@@ -16,11 +17,11 @@ open import Relation.Nullary
 infix 4 _∈?_
 
 _∈?_ : forall {n} x (p : Subset n) -> Dec (x ∈ p)
-zero  ∈? p ▻ inside  = yes zeroIn
-zero  ∈? p ▻ outside = no  zero∉
-suc n ∈? (p ▻ s)     with n ∈? p
-...                  | yes n∈p = yes (sucIn n∈p)
-...                  | no  n∉p = no  (n∉p ∘ drop-sucIn)
+zero  ∈? inside  ∷ p = yes here
+zero  ∈? outside ∷ p = no  zero∉
+suc n ∈? s ∷ p       with n ∈? p
+...                  | yes n∈p = yes (there n∈p)
+...                  | no  n∉p = no  (n∉p ∘ drop-there)
 
 private
 
@@ -108,24 +109,24 @@ private
   restrictSP
     :  forall {n}
     -> Side -> (Subset (suc n) -> Set) -> (Subset n -> Set)
-  restrictSP s P p = P (p ▻ s)
+  restrictSP s P p = P (s ∷ p)
 
   restrictS
     :  forall {n} {P : Subset (suc n) -> Set}
     -> (s : Side)
     -> (forall p -> Dec (P p))
     -> (forall p -> Dec (restrictSP s P p))
-  restrictS s dec p = dec (p ▻ s)
+  restrictS s dec p = dec (s ∷ p)
 
 anySubset? :  forall {n} {P : Subset n -> Set}
            -> (forall s -> Dec (P s))
            -> Dec (∃ P)
-anySubset? {zero} {P} dec with dec ε
-... | yes Pε = yes (_ , Pε)
-... | no ¬Pε = no helper
+anySubset? {zero} {P} dec with dec []
+... | yes P[] = yes (_ , P[])
+... | no ¬P[] = no helper
   where
   helper : ∄ P
-  helper (ε , Pε) = ¬Pε Pε
+  helper ([] , P[]) = ¬P[] P[]
 anySubset? {suc n} {P} dec with anySubset? (restrictS inside  dec)
                               | anySubset? (restrictS outside dec)
 ... | yes (_ , Pp) | _            = yes (_ , Pp)
@@ -133,5 +134,5 @@ anySubset? {suc n} {P} dec with anySubset? (restrictS inside  dec)
 ... | no ¬Pp       | no ¬Pp'      = no helper
     where
     helper : ∄ P
-    helper (p ▻ inside  , Pp)  = ¬Pp  (_ , Pp)
-    helper (p ▻ outside , Pp') = ¬Pp' (_ , Pp')
+    helper (inside  ∷ p , Pp)  = ¬Pp  (_ , Pp)
+    helper (outside ∷ p , Pp') = ¬Pp' (_ , Pp')
