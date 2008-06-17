@@ -95,6 +95,8 @@ addHaskellType q hsTy =
   where
     addHs def@Defn{theDef = ax@Axiom{}} =
       def{theDef = ax{axHsDef = Just $ HsType hsTy}}
+    addHs def@Defn{theDef = d@Datatype{}} =
+      def{theDef = d{dataHsType = Just hsTy}}
     addHs def = def
 
 unionSignatures :: [Signature] -> Signature

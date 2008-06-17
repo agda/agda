@@ -753,8 +753,8 @@ CompiledTypePragma
 
 CompiledDataPragma :: { Pragma }
 CompiledDataPragma
-  : '{-#' 'COMPILED_DATA' PragmaName PragmaStrings '#-}'
-    { CompiledDataPragma (fuseRange $1 $5) $3 $4 }
+  : '{-#' 'COMPILED_DATA' PragmaName string PragmaStrings '#-}'
+    { CompiledDataPragma (fuseRange $1 $6) $3 (snd $4) $5 }
 
 ImportPragma :: { Pragma }
 ImportPragma

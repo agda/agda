@@ -248,8 +248,8 @@ instance Pretty Pragma where
       hsep [ text "COMPILED", pretty x, text hs ]
     pretty (CompiledTypePragma _ x hs) =
       hsep [ text "COMPILED_TYPE", pretty x, text hs ]
-    pretty (CompiledDataPragma _ x hcs) =
-      hsep $ [text "COMPILED_DATA", pretty x] ++ map text hcs
+    pretty (CompiledDataPragma _ x hs hcs) =
+      hsep $ [text "COMPILED_DATA", pretty x] ++ map text (hs : hcs)
     pretty (ImportPragma _ i) =
       hsep $ [text "IMPORT", text i]
 

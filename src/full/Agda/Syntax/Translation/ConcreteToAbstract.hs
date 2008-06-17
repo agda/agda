@@ -548,10 +548,10 @@ instance ToAbstract C.Pragma [A.Pragma] where
       case e of
         A.Def x -> return [ A.CompiledTypePragma x hs ]
         _       -> fail $ "Bad compiled type: " ++ show x  -- TODO: error message
-    toAbstract (C.CompiledDataPragma _ x hcs) = do
+    toAbstract (C.CompiledDataPragma _ x hs hcs) = do
       e <- toAbstract $ OldQName x
       case e of
-        A.Def x -> return [ A.CompiledDataPragma x hcs ]
+        A.Def x -> return [ A.CompiledDataPragma x hs hcs ]
         _       -> fail $ "Not a datatype: " ++ show x  -- TODO: error message
     toAbstract (C.CompiledPragma _ x hs) = do
       e <- toAbstract $ OldQName x

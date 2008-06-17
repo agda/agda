@@ -7,6 +7,7 @@ module Agda.Compiler.HaskellTypes where
 
 import Control.Applicative
 import Control.Monad.Error
+import Data.Char
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -32,7 +33,14 @@ hsFun :: HaskellKind -> HaskellKind -> HaskellKind
 hsFun a b = "(" ++ a ++ " -> " ++ b ++ ")"
 
 hsVar :: Name -> HaskellType
-hsVar x = "a" ++ concatMap (show . fromEnum) (show x) -- TODO: better variable names?
+hsVar x = "x" ++ concatMap encode (show x)
+  where
+    okChars = ['a'..'z'] ++ ['A'..'Y'] ++ "_'"
+    encode 'Z' = "ZZ"
+    encode c
+      | c `elem` okChars = [c]
+      | otherwise        = "Z" ++ show (fromEnum c)
+
 
 hsApp :: String -> [HaskellType] -> HaskellType
 hsApp d [] = d
@@ -69,14 +77,16 @@ isHaskellKind a =
   (const True <$> haskellKind a) `catchError` \_ -> return False
 
 haskellKind :: MonadTCM tcm => Type -> tcm HaskellKind
-haskellKind a = case unEl a of
-  Sort _  -> return hsStar
-  Pi a b  -> hsKFun <$> haskellKind (unArg a) <*> underAbstraction a b haskellKind
-  Fun a b -> hsKFun <$> haskellKind (unArg a) <*> haskellKind b
-  _       -> notAHaskellKind a
+haskellKind a = do
+  a <- reduce a
+  case unEl a of
+    Sort _  -> return hsStar
+    Pi a b  -> hsKFun <$> haskellKind (unArg a) <*> underAbstraction a b haskellKind
+    Fun a b -> hsKFun <$> haskellKind (unArg a) <*> haskellKind b
+    _       -> notAHaskellKind a
 
 haskellType :: MonadTCM tcm => Type -> tcm HaskellType
-haskellType a0 = liftTCM $ fromType a0
+haskellType = liftTCM . fromType
   where
     fromArgs = mapM (fromTerm . unArg)
     fromType = fromTerm . unEl
@@ -91,17 +101,17 @@ haskellType a0 = liftTCM $ fromType a0
           (underAbstraction a b $ \b -> do
               x <- getHsVar 0
               b <- fromType b
-              return $ hsForall x b
+              return $ hsForall x $ hsFun "()" b
           )
           (if 0 `freeIn` absBody b
-           then notAHaskellType a0
+           then notAHaskellType (El Prop v)
            else hsFun <$> fromType (unArg a) <*> fromType (absApp b __IMPOSSIBLE__)
           )
-        Con{}      -> notAHaskellType a0
-        Lam{}      -> notAHaskellType a0
-        Lit{}      -> notAHaskellType a0
-        Sort{}     -> notAHaskellType a0
-        MetaV{}    -> notAHaskellType a0
+        Con{}      -> notAHaskellType (El Prop v)
+        Lam{}      -> notAHaskellType (El Prop v)
+        Lit{}      -> notAHaskellType (El Prop v)
+        Sort{}     -> notAHaskellType (El Prop v)
+        MetaV{}    -> notAHaskellType (El Prop v)
         BlockedV{} -> __IMPOSSIBLE__
 
 

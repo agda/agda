@@ -94,16 +94,30 @@ checkPragma r p =
           case theDef def of
             Axiom{} -> addHaskellType x hs
             _       -> typeError $ GenericError "COMPILED_TYPE directive only works on postulates."
-        A.CompiledDataPragma x hcs -> do
+        A.CompiledDataPragma x hs hcs -> do
           def <- theDef <$> getConstInfo x
           case def of
             Datatype{dataCons = cs}
-              | length cs /= length hcs -> fail "Mismatch in number of constructors" -- TODO: error message
+              | length cs /= length hcs -> do
+                  let n_forms_are = case length hcs of
+                        1 -> "1 compiled form is"
+                        n -> show n ++ " compiled forms are"
+                      only | null hcs               = ""
+                           | length hcs < length cs = "only "
+                           | otherwise              = ""
+
+                  err <- fsep $ [prettyTCM x] ++ pwords ("has " ++ show (length cs) ++
+                                " constructors, but " ++ only ++ n_forms_are ++ " given [" ++ unwords hcs ++ "]")
+                  typeError $ GenericError $ show err
               | otherwise -> do
-                let computeHaskellType _ = return ""  -- TODO: compute haskell type
+                addHaskellType x hs
+                let computeHaskellType c = do
+                      ty <- haskellType =<< defType <$> getConstInfo c
+                      reportSLn "tc.pragma.compile" 10 $ "Haskell type for " ++ show c ++ ": " ++ ty
+                      return ty
                 hts <- mapM computeHaskellType cs
                 sequence_ $ zipWith3 addHaskellCode cs hts hcs
-            _ -> fail $ "Not a datatype: " ++ show x  -- TODO: error message
+            _ -> typeError $ GenericError "COMPILED_DATA on non datatype"
         A.CompiledPragma x hs -> do
           def <- getConstInfo x
           case theDef def of
@@ -111,7 +125,7 @@ checkPragma r p =
               ty <- haskellType $ defType def
               reportSLn "tc.pragma.compile" 10 $ "Haskell type for " ++ show x ++ ": " ++ ty
               addHaskellCode x ty hs
-            _   -> fail "COMPILED directive only works on postulates."
+            _   -> typeError $ GenericError "COMPILED directive only works on postulates."
 	A.OptionsPragma _   -> __IMPOSSIBLE__	-- not allowed here
 
 -- | Type check a bunch of mutual inductive recursive definitions.
