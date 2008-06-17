@@ -46,7 +46,7 @@ checkDataDef i ind name ps cs =
 	t <- instantiateFull =<< typeOfConst name
 
 	-- The parameters are in scope when checking the constructors. 
-	(nofIxs, s) <- bindParameters ps t $ \tel t0 -> do
+	dataDef <- bindParameters ps t $ \tel t0 -> do
 
 	    -- Parameters are always hidden in constructors
 	    let tel' = hideTel tel
@@ -56,17 +56,27 @@ checkDataDef i ind name ps cs =
 	    (nofIxs, s) <- splitType =<< normalise t0
 
 	    -- Change the datatype from an axiom to a datatype with no constructors.
+            let dataDef = Datatype { dataPars      = npars
+                                   , dataIxs       = nofIxs
+                                   , dataInduction = ind
+                                   , dataClause    = Nothing
+                                   , dataCons      = []     -- Constructors are added later
+				   , dataSort      = s
+                                   , dataHsType    = Nothing
+                                   , dataAbstr     = Info.defAbstract i
+                                   }
+
 	    escapeContext (size tel) $
-	      addConstant name ( Defn name t (defaultDisplayForm name) 0
-			       $ Datatype npars nofIxs ind Nothing []
-					  s (Info.defAbstract i)
-			       )
+	      addConstant name ( Defn name t (defaultDisplayForm name) 0 dataDef )
 
 	    -- Check the types of the constructors
 	    mapM_ (checkConstructor name tel' nofIxs s) cs
 
-	    -- Return the target sort and the number of indices
-	    return (nofIxs, s)
+	    -- Return the data definition
+	    return dataDef
+
+        let nofIxs = dataIxs dataDef
+            s      = dataSort dataDef
 
 	-- If proof irrelevance is enabled we have to check that datatypes in
 	-- Prop contain at most one element.
@@ -75,11 +85,10 @@ checkDataDef i ind name ps cs =
 		(True, Prop, _:_:_) -> typeError PropMustBeSingleton
 		_		    -> return ()
 
-	-- Add the datatype to the signature as a datatype. It was previously
-	-- added as an axiom.
+	-- Add the datatype to the signature with its constructors. It was previously
+	-- added without them.
 	addConstant name (Defn name t (defaultDisplayForm name) 0 $
-                            Datatype npars nofIxs ind Nothing (map cname cs)
-				     s (Info.defAbstract i)
+                            dataDef { dataCons = map cname cs }
 			 )
     where
 	cname (A.ScopedDecl _ [d]) = cname d

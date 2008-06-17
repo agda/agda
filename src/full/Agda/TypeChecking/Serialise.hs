@@ -61,7 +61,7 @@ import Agda.Utils.Impossible
 
 
 currentInterfaceVersion :: Int
-currentInterfaceVersion = 20080604
+currentInterfaceVersion = 20080617
 
 type Node = [Int] -- constructor tag (maybe omitted) and arg indices
 
@@ -400,21 +400,30 @@ instance EmbPrj Definition where
   value = vcase valu where valu [a, b, c, d, e] = valu5 Defn a b c d e
                            valu _               = __IMPOSSIBLE__
 
-instance EmbPrj Defn where
-  icode (Axiom       a)             = icode1 0 a
-  icode (Function    a b c d)       = icode4 1 a b c d
-  icode (Datatype    a b c d e f g) = icode7 2 a b c d e f g
-  icode (Record      a b c d e f)   = icode6 3 a b c d e f
-  icode (Constructor a b c d e)     = icode5 4 a b c d e
-  icode (Primitive   a b c)         = icode3 5 a b c
+instance EmbPrj HaskellRepresentation where
+  icode (HsType a)   = icode1 0 a
+  icode (HsDefn a b) = icode2 1 a b
+
   value = vcase valu where
-    valu [0, a]                   = valu1 Axiom       a
-    valu [1, a, b, c, d]          = valu4 Function    a b c d
-    valu [2, a, b, c, d, e, f, g] = valu7 Datatype    a b c d e f g
-    valu [3, a, b, c, d, e, f]    = valu6 Record      a b c d e f
-    valu [4, a, b, c, d, e]       = valu5 Constructor a b c d e
-    valu [5, a, b, c]             = valu3 Primitive   a b c
-    valu _                        = __IMPOSSIBLE__
+    valu [0, a]    = valu1 HsType a
+    valu [1, a, b] = valu2 HsDefn a b
+    valu _         = __IMPOSSIBLE__
+
+instance EmbPrj Defn where
+  icode (Axiom       a)               = icode1 0 a
+  icode (Function    a b c d)         = icode4 1 a b c d
+  icode (Datatype    a b c d e f g h) = icode8 2 a b c d e f g h
+  icode (Record      a b c d e f)     = icode6 3 a b c d e f
+  icode (Constructor a b c d e)       = icode5 4 a b c d e
+  icode (Primitive   a b c)           = icode3 5 a b c
+  value = vcase valu where
+    valu [0, a]                      = valu1 Axiom       a
+    valu [1, a, b, c, d]             = valu4 Function    a b c d
+    valu [2, a, b, c, d, e, f, g, h] = valu8 Datatype    a b c d e f g h
+    valu [3, a, b, c, d, e, f]       = valu6 Record      a b c d e f
+    valu [4, a, b, c, d, e]          = valu5 Constructor a b c d e
+    valu [5, a, b, c]                = valu3 Primitive   a b c
+    valu _                           = __IMPOSSIBLE__
 
 instance EmbPrj FunctionInverse where
   icode NotInjective = icode0'
@@ -507,32 +516,35 @@ vcase valu ix = do
           lift $ H.insert memo (ix, aTyp) (U v)
           return v
 
-icode0 tag               = icodeN [tag]
-icode1 tag a             = icodeN . (tag :) =<< sequence [icode a]
-icode2 tag a b           = icodeN . (tag :) =<< sequence [icode a, icode b]
-icode3 tag a b c         = icodeN . (tag :) =<< sequence [icode a, icode b, icode c]
-icode4 tag a b c d       = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d]
-icode5 tag a b c d e     = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e]
-icode6 tag a b c d e f   = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f]
-icode7 tag a b c d e f g = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g]
+icode0 tag                 = icodeN [tag]
+icode1 tag a               = icodeN . (tag :) =<< sequence [icode a]
+icode2 tag a b             = icodeN . (tag :) =<< sequence [icode a, icode b]
+icode3 tag a b c           = icodeN . (tag :) =<< sequence [icode a, icode b, icode c]
+icode4 tag a b c d         = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d]
+icode5 tag a b c d e       = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e]
+icode6 tag a b c d e f     = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f]
+icode7 tag a b c d e f g   = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g]
+icode8 tag a b c d e f g h = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h]
 
-icode0'               = icodeN []
-icode1' a             = icodeN =<< sequence [icode a]
-icode2' a b           = icodeN =<< sequence [icode a, icode b]
-icode3' a b c         = icodeN =<< sequence [icode a, icode b, icode c]
-icode4' a b c d       = icodeN =<< sequence [icode a, icode b, icode c, icode d]
-icode5' a b c d e     = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e]
-icode6' a b c d e f   = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f]
-icode7' a b c d e f g = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g]
+icode0'                 = icodeN []
+icode1' a               = icodeN =<< sequence [icode a]
+icode2' a b             = icodeN =<< sequence [icode a, icode b]
+icode3' a b c           = icodeN =<< sequence [icode a, icode b, icode c]
+icode4' a b c d         = icodeN =<< sequence [icode a, icode b, icode c, icode d]
+icode5' a b c d e       = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e]
+icode6' a b c d e f     = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f]
+icode7' a b c d e f g   = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g]
+icode8' a b c d e f g h = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h]
 
-valu0 h               = return h
-valu1 h a             = fmap  h                  (value a)
-valu2 h a b           = valu1 h a           `ap` (value b)
-valu3 h a b c         = valu2 h a b         `ap` (value c)
-valu4 h a b c d       = valu3 h a b c       `ap` (value d)
-valu5 h a b c d e     = valu4 h a b c d     `ap` (value e)
-valu6 h a b c d e f   = valu5 h a b c d e   `ap` (value f)
-valu7 h a b c d e f g = valu6 h a b c d e f `ap` (value g)
+valu0 z                 = return z
+valu1 z a               = fmap  z                  (value a)
+valu2 z a b             = valu1 z a           `ap` (value b)
+valu3 z a b c           = valu2 z a b         `ap` (value c)
+valu4 z a b c d         = valu3 z a b c       `ap` (value d)
+valu5 z a b c d e       = valu4 z a b c d     `ap` (value e)
+valu6 z a b c d e f     = valu5 z a b c d e   `ap` (value f)
+valu7 z a b c d e f g   = valu6 z a b c d e f `ap` (value g)
+valu8 z a b c d e f g h = valu7 z a b c d e f g `ap` (value h)
 
 test :: EmbPrj a => a -> IO a
 test x = decode =<< encode x

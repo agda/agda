@@ -78,16 +78,17 @@ definition :: Definition -> TCM [HsDecl]
 definition (Defn q ty _ _ d) = do
   checkTypeOfMain q ty
   (infodecl q :) <$> case d of
-    Axiom mhs                -> return $ fb (maybe axiomErr fakeExp mhs)
-    Function cls _ _ _       -> mkwhere <$> mapM (clause q) (tag 0 cls)
-    Datatype np ni _ cl cs _ _ -> do
+    Axiom{ axHsDef = Just (HsDefn _ hs) } -> return $ fb (fakeExp hs)  -- TODO: type signature
+    Axiom{}                               -> return $ fb axiomErr
+    Function{ funClauses = cls } -> mkwhere <$> mapM (clause q) (tag 0 cls)
+    Datatype{ dataPars = np, dataIxs = ni, dataClause = cl, dataCons = cs } -> do
       (ars, cds) <- unzip <$> mapM condecl cs
       return $ tvaldecl q (maximum (np:ars) - np) (np + ni) cds cl
-    Constructor _ _ _ _ _    -> return []
-    Record _ cl flds _ _ _   -> do
+    Constructor{} -> return []
+    Record{ recClause = cl, recFields = flds } -> do
       ar <- arity <$> normalise ty
       return $ tvaldecl q (genericLength flds) ar [cdecl q (genericLength flds)] cl  
-    Primitive _ s _          -> fb <$> primBody s
+    Primitive{ primName = s } -> fb <$> primBody s
   where
   tag _ []       = []
   tag i [cl]     = (i, True , cl): []

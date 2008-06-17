@@ -543,6 +543,11 @@ instance ToAbstract LetDef [A.LetBinding] where
 
 instance ToAbstract C.Pragma [A.Pragma] where
     toAbstract (C.OptionsPragma _ opts) = return [ A.OptionsPragma opts ]
+    toAbstract (C.CompiledTypePragma _ x hs) = do
+      e <- toAbstract $ OldQName x
+      case e of
+        A.Def x -> return [ A.CompiledTypePragma x hs ]
+        _       -> fail $ "Bad compiled type: " ++ show x  -- TODO: error message
     toAbstract (C.CompiledDataPragma _ x hcs) = do
       e <- toAbstract $ OldQName x
       case e of

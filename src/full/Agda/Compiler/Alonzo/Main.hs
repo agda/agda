@@ -145,7 +145,7 @@ processDef (qname,Defn { theDef = Function { funClauses = clauses } }) =  do
                 rhs = HsUnGuardedRhs $ HsVar $ UnQual $ dfNameSub name 1
                 name = qnameName qname
  
-processDef (qname,Defn { theDef = Datatype n nind _ Nothing [] sort isa }) = do
+processDef (qname,Defn { theDef = Datatype{ dataPars = n, dataClause = Nothing, dataCons = [] } }) = do
   return [ddecl,vdecl]  where
       name = qnameName qname
       ddecl = HsDataDecl  dummyLoc [] (dataName name) tvars cons []
@@ -158,7 +158,7 @@ processDef (qname,Defn { theDef = Datatype n nind _ Nothing [] sort isa }) = do
       nDummyArgs 0 = []
       nDummyArgs k = (HsPVar $ HsIdent ("v" ++ (show k))) : nDummyArgs (k-1)
 
-processDef (qname,Defn { theDef = Datatype n nind _ Nothing cs sort isa }) = do
+processDef (qname,Defn { theDef = Datatype{ dataPars = n, dataIxs = nind, dataClause = Nothing, dataCons = cs }}) = do
   cons <- consForName name cs
   arities <- getConArities cs
   return [ddecl cons arities,vdecl]  where
@@ -192,11 +192,11 @@ processDef (qname, Defn { theDef = Record n clauses fields tel sort isa }) =  do
 processDef def@(qname,Defn { theDef = Constructor{} }) =
     return []
 
-processDef def@(qname,Defn { theDef = Axiom{axHsCode = mhs} }) = return
+processDef def@(qname,Defn { theDef = Axiom{axHsDef = mhs} }) = return
   [HsFunBind [HsMatch dummyLoc hsid  [] rhs decls]] where
              rhs = HsUnGuardedRhs $ case mhs of
-                    Nothing -> hsError $ "axiom: " ++ show qname
-                    Just hs -> hsVar hs
+                    Just (HsDefn _ hs) -> hsVar hs
+                    _                  -> hsError $ "axiom: " ++ show qname
              decls = []
              hsid = dfName name
              name = qnameName qname
@@ -353,7 +353,7 @@ processPat (ConP qname args) = do
       Record{}                   -> return Nothing  -- no COMPILED_DATA for records yet
       _                          -> __IMPOSSIBLE__
   cname <- case hsCode of
-        Just h  -> return $ UnQual $ HsIdent h
+        Just (_, h)  -> return $ UnQual $ HsIdent h
         Nothing -> maybeQualConName qname
   hspats <- mapM processArgPat args
   return $ HsPParen $ HsPApp cname hspats
@@ -395,7 +395,7 @@ processTerm (Def qn ts) = do
 processTerm (Con qn ts) = do
   def <- lift $ theDef <$> getConstInfo qn
   case def of
-    Constructor{conHsCode = Just hs} ->
+    Constructor{conHsCode = Just (_, hs)} ->
         processVap (HsCon $ UnQual $ HsIdent hs) ts
     -- Can be a record constructor in which case the def will be for the record.
     _ -> do

@@ -317,9 +317,15 @@ data Definition = Defn { defName     :: QName
     deriving (Typeable, Data)
 
 type HaskellCode = String
+type HaskellType = String
+
+data HaskellRepresentation
+      = HsDefn HaskellType HaskellCode
+      | HsType HaskellType
+  deriving (Typeable, Data, Show)
 
 data Defn = Axiom
-            { axHsCode   :: Maybe HaskellCode
+            { axHsDef   :: Maybe HaskellRepresentation
             }
 	  | Function
             { funClauses   :: [Clause]
@@ -334,6 +340,7 @@ data Defn = Axiom
             , dataClause    :: (Maybe Clause) -- this might be in an instantiated module
             , dataCons      :: [QName]        -- constructor names
             , dataSort      :: Sort
+            , dataHsType    :: Maybe HaskellType
             , dataAbstr     :: IsAbstract
             }
 	  | Record
@@ -348,7 +355,7 @@ data Defn = Axiom
             { conPars   :: Nat         -- nof parameters
 	    , conSrcCon :: QName       -- original constructor (this might be in a module instance)
 	    , conData   :: QName       -- name of datatype
-            , conHsCode :: Maybe HaskellCode -- used by the compiler
+            , conHsCode :: Maybe (HaskellType, HaskellCode) -- used by the compiler
 	    , conAbstr  :: IsAbstract
             }
 	  | Primitive -- PrimFun

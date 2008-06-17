@@ -75,6 +75,7 @@ import Agda.Utils.Monad
     'IMPORT'	{ TokKeyword KwIMPORT $$ }
     'COMPILED'	{ TokKeyword KwCOMPILED $$ }
     'COMPILED_DATA' { TokKeyword KwCOMPILED_DATA $$ }
+    'COMPILED_TYPE' { TokKeyword KwCOMPILED_TYPE $$ }
     'LINE'	{ TokKeyword KwLINE $$ }
 
     setN	{ TokSetN $$ }
@@ -160,6 +161,7 @@ Token
     | 'IMPORT'      { TokKeyword KwIMPORT $1 }
     | 'COMPILED'    { TokKeyword KwCOMPILED $1 }
     | 'COMPILED_DATA'{ TokKeyword KwCOMPILED_DATA $1 }
+    | 'COMPILED_TYPE'{ TokKeyword KwCOMPILED_TYPE $1 }
     | 'LINE'	    { TokKeyword KwLINE $1 }
 
     | setN	    { TokSetN $1 }
@@ -728,6 +730,7 @@ DeclarationPragma
   | LinePragma	       { $1 }
   | CompiledPragma     { $1 }
   | CompiledDataPragma { $1 }
+  | CompiledTypePragma { $1 }
   | ImportPragma       { $1 }
 
 OptionsPragma :: { Pragma }
@@ -742,6 +745,11 @@ CompiledPragma :: { Pragma }
 CompiledPragma
   : '{-#' 'COMPILED' PragmaName PragmaStrings '#-}'
     { CompiledPragma (fuseRange $1 $5) $3 (unwords $4) }
+
+CompiledTypePragma :: { Pragma }
+CompiledTypePragma
+  : '{-#' 'COMPILED_TYPE' PragmaName PragmaStrings '#-}'
+    { CompiledTypePragma (fuseRange $1 $5) $3 (unwords $4) }
 
 CompiledDataPragma :: { Pragma }
 CompiledDataPragma

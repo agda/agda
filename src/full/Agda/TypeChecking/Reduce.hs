@@ -465,19 +465,23 @@ instance InstantiateFull DisplayTerm where
 
 instance InstantiateFull Defn where
     instantiateFull d = case d of
-	Axiom h			-> return (Axiom h)
-	Function cs rec inv a	-> (\cs -> Function cs rec inv a) <$> instantiateFull cs
-	Datatype np ni ind cl cs s a -> do
-	    s  <- instantiateFull s
-	    cl <- instantiateFull cl
-	    return $ Datatype np ni ind cl cs s a
-	Record np cl cs tel s a -> do
-	    s	<- instantiateFull s
-	    cl	<- instantiateFull cl
-	    tel <- instantiateFull tel
-	    return $ Record np cl cs tel s a
-	Constructor n c d hs a	-> return $ Constructor n c d hs a
-	Primitive a s cs	-> Primitive a s <$> instantiateFull cs
+      Axiom{} -> return d
+      Function{ funClauses = cs } -> do
+        cs <- instantiateFull cs
+        return $ d { funClauses = cs }
+      Datatype{ dataSort = s, dataClause = cl } -> do
+	s  <- instantiateFull s
+	cl <- instantiateFull cl
+	return $ d { dataSort = s, dataClause = cl }
+      Record{ recSort = s, recClause = cl, recTel = tel } -> do
+        s   <- instantiateFull s
+        cl  <- instantiateFull cl
+        tel <- instantiateFull tel
+        return $ d { recSort = s, recClause = cl, recTel = tel }
+      Constructor{} -> return d
+      Primitive{ primClauses = cs } -> do
+        cs <- instantiateFull cs
+        return $ d { primClauses = cs }
 
 instance InstantiateFull Clause where
     instantiateFull (Clause tel perm ps b) = Clause <$> instantiateFull tel

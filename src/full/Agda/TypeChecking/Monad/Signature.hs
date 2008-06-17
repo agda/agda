@@ -75,16 +75,26 @@ addConstant q d = liftTCM $ do
     hideTel  EmptyTel		      = EmptyTel
     hideTel (ExtendTel (Arg _ t) tel) = ExtendTel (Arg Hidden t) $ hideTel <$> tel
 
-addHaskellCode :: MonadTCM tcm => QName -> String -> tcm ()
-addHaskellCode q hs =
+addHaskellCode :: MonadTCM tcm => QName -> HaskellType -> HaskellCode -> tcm ()
+addHaskellCode q hsTy hsDef =
   -- TODO: sanity checking
   modifySignature $ \sig -> sig
   { sigDefinitions = Map.adjust addHs q $ sigDefinitions sig }
   where
     addHs def@Defn{theDef = con@Constructor{}} =
-      def{theDef = con{conHsCode = Just hs}}
+      def{theDef = con{conHsCode = Just (hsTy, hsDef)}}
     addHs def@Defn{theDef = ax@Axiom{}} =
-      def{theDef = ax{axHsCode = Just hs}}
+      def{theDef = ax{axHsDef = Just $ HsDefn hsTy hsDef}}
+    addHs def = def
+
+addHaskellType :: MonadTCM tcm => QName -> HaskellType -> tcm ()
+addHaskellType q hsTy =
+  -- TODO: sanity checking
+  modifySignature $ \sig -> sig
+  { sigDefinitions = Map.adjust addHs q $ sigDefinitions sig }
+  where
+    addHs def@Defn{theDef = ax@Axiom{}} =
+      def{theDef = ax{axHsDef = Just $ HsType hsTy}}
     addHs def = def
 
 unionSignatures :: [Signature] -> Signature
@@ -179,13 +189,17 @@ applySection new ptel old ts rd rm = liftTCM $ do
 	t  = defType d `apply` ts
 	-- the name is set by the addConstant function
 	nd y = Defn y t [] (-1) def  -- TODO: mutual block?
-	isCon = case theDef d of
+        oldDef = theDef d
+	isCon = case oldDef of
 	  Constructor{} -> True
 	  _		-> False
-	def  = case theDef d of
-		Constructor n c d hs a      -> Constructor (n - size ts) c (copyName d) hs a
-		Datatype np ni ind _ cs s a -> Datatype (np - size ts) ni ind (Just cl) (map copyName cs) s a
-		Record np _ fs tel s a      -> Record (np - size ts) (Just cl) fs (apply tel ts) s a
+	def  = case oldDef of
+                Constructor{ conPars = np, conData = d } ->
+                  oldDef { conPars = np - size ts, conData = copyName d }
+                Datatype{ dataPars = np, dataCons = cs } ->
+                  oldDef { dataPars = np - size ts, dataClause = Just cl, dataCons = map copyName cs }
+                Record{ recPars = np, recTel = tel } ->
+                  oldDef { recPars = np - size ts, recClause = Just cl, recTel = apply tel ts }
 		_                           -> Function [cl] Recursive NotInjective ConcreteDef
 	cl = Clause EmptyTel (idP 0) [] $ Body $ Def x ts
 

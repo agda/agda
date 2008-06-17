@@ -87,17 +87,22 @@ checkPragma :: Range -> A.Pragma -> TCM ()
 checkPragma r p =
     traceCall (CheckPragma r p) $ case p of
 	A.BuiltinPragma x e -> bindBuiltin x e
+        A.CompiledTypePragma x hs -> do
+          typeError $ NotImplemented "COMPILED_TYPE pragmas"
         A.CompiledDataPragma x hcs -> do
           def <- theDef <$> getConstInfo x
           case def of
             Datatype{dataCons = cs}
               | length cs /= length hcs -> fail "Mismatch in number of constructors" -- TODO: error message
-              | otherwise -> zipWithM_ addHaskellCode cs hcs
+              | otherwise -> do
+                let computeHaskellType _ = return ""  -- TODO: compute haskell type
+                hts <- mapM computeHaskellType cs
+                sequence_ $ zipWith3 addHaskellCode cs hts hcs
             _ -> fail $ "Not a datatype: " ++ show x  -- TODO: error message
         A.CompiledPragma x hs -> do
           def <- theDef <$> getConstInfo x
           case def of
-            Axiom{} -> addHaskellCode x hs
+            Axiom{} -> addHaskellCode x "" hs -- TODO: compute Haskell type
             _       -> fail "COMPILED directive only works on postulates."
 	A.OptionsPragma _   -> __IMPOSSIBLE__	-- not allowed here
 

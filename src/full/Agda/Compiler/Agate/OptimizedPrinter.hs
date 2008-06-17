@@ -58,11 +58,11 @@ showTypeDeclaration definitions name = do
     let defn = definitions ! name
     ty <- normalise $ defType defn
     case theDef defn of
-	Datatype np ni _ _ cnames s a | ni == 0 -> do
+	Datatype{ dataPars = np, dataIxs = ni, dataCons = cnames } | ni == 0 -> do
 	    dparams <- underDatatypeParameters np ty showTypeParameter stop
 	    dargs <- mapM (showConstructorDeclaration np) cnames
 	    showDatatypeDeclaration dtypename dparams dargs
-	Record np clauses flds tel s a -> do
+	Record{ recPars = np, recFields = flds } -> do
 	    let arity = np `div` 2
 	    dparams <- underDatatypeParameters arity ty showTypeParameter stop
 	    dcon <- showAsOptimizedConstructor name
@@ -166,7 +166,7 @@ showValueDefinition definitions typefams (name, defn) = do
 	Function { funClauses = clauses } -> do
 	    dclauses <- mapM (showOptimizedClause dname) clauses
 	    return $ vcat $ dtypedecl : dclauses
-	Datatype np ni _ _ cnames s a -> do
+	Datatype{ dataPars = np, dataIxs = ni, dataCons = cnames } -> do
 	    let dvars = map (\i -> text ("v" ++ show i)) [1 .. np + ni]
 	    let dvaluedef = sep [ sep (dname : dvars), equals ] <+> text "()"
 	    return $ dtypedecl $+$ dvaluedef
@@ -174,7 +174,7 @@ showValueDefinition definitions typefams (name, defn) = do
 	    return empty  -- no o_xxx since we always use D_xxx
 	Constructor{} ->
 	    return empty  -- no o_xxx since we always use D_xxx
-	Primitive a pf _ -> do
+	Primitive { primName = pf } -> do
 	    let dvaluedef = sep [ dname, equals ] <+>
 			    sep [ text (show name), text "{- primitive -}" ]
 	    return $ dtypedecl $+$ dvaluedef

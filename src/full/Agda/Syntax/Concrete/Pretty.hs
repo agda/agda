@@ -246,6 +246,8 @@ instance Pretty Pragma where
     pretty (LinePragma _ n f)	  = hsep [ text "LINE", text (show n), text (show f) ]
     pretty (CompiledPragma _ x hs) =
       hsep [ text "COMPILED", pretty x, text hs ]
+    pretty (CompiledTypePragma _ x hs) =
+      hsep [ text "COMPILED_TYPE", pretty x, text hs ]
     pretty (CompiledDataPragma _ x hcs) =
       hsep $ [text "COMPILED_DATA", pretty x] ++ map text hcs
     pretty (ImportPragma _ i) =

@@ -107,8 +107,8 @@ conhqn :: QName -> TCM HsQName
 conhqn q = do
     cq   <- canonicalName q
     defn <- theDef <$> getConstInfo cq
-    case defn of Constructor{conHsCode = Just hs} -> xqual cq (HsIdent hs)
-                 _                                -> xhqn "C" cq
+    case defn of Constructor{conHsCode = Just (_, hs)} -> xqual cq (HsIdent hs)
+                 _                                     -> xhqn "C" cq
 
 -- qualify name s by the module of builtin b
 bltQual :: String -> String -> TCM HsQName

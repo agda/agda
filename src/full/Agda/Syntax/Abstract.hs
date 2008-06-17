@@ -58,6 +58,7 @@ data Declaration
 data Pragma = OptionsPragma [String]
 	    | BuiltinPragma String Expr
             | CompiledPragma QName String
+            | CompiledTypePragma QName String
             | CompiledDataPragma QName [String]
   deriving (Typeable, Data)
 

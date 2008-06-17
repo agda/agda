@@ -80,18 +80,18 @@ showUntypedDefinition (name, defn) = do
 	    dclauses <- mapM showUntypedClause clauses
 	    return $ (dname <+> equals) <+> drhs <+> text "where" $+$
 		     nest 2 (vcat dclauses)
-	Datatype np ni _ _ cnames s a -> do
+	Datatype{ dataPars = np, dataIxs = ni, dataCons = cnames } -> do
 	    let dvars = map (\i -> text ("v" ++ show i)) [1 .. np + ni]
 	    let drhs = untypedAbs dvars $ text "VNonData"
 	    return $ sep [ dname, equals ] <+> drhs <+> text "{- datatype -}"
-	Record np clauses flds tel s a -> do
+	Record{ recPars = np, recFields = flds } -> do
 	    dcname <- showAsUntypedConstructor name
 	    let arity = length flds
 	    let dvars = map (\i -> text ("v" ++ show i)) [1 .. arity]
 	    let drhs = untypedAbs dvars $ sep $
 		       text "VCon" <> text (show arity) : dcname : dvars
 	    return $ sep [ dname, equals ] <+> drhs
-	Constructor np _ tname _ a -> do
+	Constructor{ conPars = np } -> do
 	    dcname <- showAsUntypedConstructor name
 	    ty <- instantiate $ defType defn
 	    (args,_) <- splitType ty
@@ -100,7 +100,7 @@ showUntypedDefinition (name, defn) = do
 	    let drhs = untypedAbs dvars $ sep $
 		       text "VCon" <> text (show arity) : dcname : dvars
 	    return $ sep [ dname, equals ] <+> drhs
-	Primitive a pf _ -> do
+	Primitive{ primName = pf } -> do
 	    doptname <- showAsOptimizedTerm name
 	    return $ sep [ dname, equals ] <+>
 		     sep [ text "box", doptname, text "{- primitive -}" ]
