@@ -138,7 +138,7 @@ gcd⁺ m n = build [ <-rec-builder ⊗ <-rec-builder ] P gcd' (m , n)
 -- Calculates the gcd of the arguments, of which at least one must be
 -- positive.
 
-gcd : (m : ℕ) (n : ℕ) {mn≢0 : False ((m * n) ℕ-≟ 0)} ->
+gcd : (m : ℕ) (n : ℕ) {mn≢0 : False ((m * n) ≟ 0)} ->
       ∃ \d -> GCD m n d
 gcd (suc m) (suc n) = gcd⁺ m n
 gcd (suc m) zero    = (suc m , gcd-sym (gcd-0-pos m))

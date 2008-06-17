@@ -76,12 +76,12 @@ data DivMod' (dividend divisor : ℕ) : Set where
 -- properly (see "Inductive Families Need Not Store Their Indices"
 -- (Brady, McBride, McKinna, TYPES 2003)).
 
-_divMod'_ : (dividend divisor : ℕ) {≢0 : False (divisor ℕ-≟ 0)} ->
+_divMod'_ : (dividend divisor : ℕ) {≢0 : False (divisor ≟ 0)} ->
             DivMod' dividend divisor
 _divMod'_ m n {≢0} = <-rec Pred dm m n {≢0}
   where
   Pred : ℕ -> Set
-  Pred dividend = (divisor : ℕ) {≢0 : False (divisor ℕ-≟ 0)} ->
+  Pred dividend = (divisor : ℕ) {≢0 : False (divisor ≟ 0)} ->
                   DivMod' dividend divisor
 
   1+_ : forall {k n} -> DivMod' (suc k) n -> DivMod' (suc n + k) n
@@ -100,20 +100,20 @@ _divMod'_ m n {≢0} = <-rec Pred dm m n {≢0}
 
 -- A variant.
 
-_divMod_ : (dividend divisor : ℕ) {≢0 : False (divisor ℕ-≟ 0)} ->
+_divMod_ : (dividend divisor : ℕ) {≢0 : False (divisor ≟ 0)} ->
            DivMod dividend divisor
 _divMod_ m n {≢0} with _divMod'_ m n {≢0}
 .(toℕ r + q * n) divMod n | result q r ≡-refl = result q r
 
 -- Integer division.
 
-_div_ : (dividend divisor : ℕ) {≢0 : False (divisor ℕ-≟ 0)} -> ℕ
+_div_ : (dividend divisor : ℕ) {≢0 : False (divisor ≟ 0)} -> ℕ
 _div_ m n {≢0} with _divMod_ m n {≢0}
 .(toℕ r + q * n) div n | result q r = q
 
 -- The remainder after integer division.
 
-_mod_ : (dividend divisor : ℕ) {≢0 : False (divisor ℕ-≟ 0)} ->
+_mod_ : (dividend divisor : ℕ) {≢0 : False (divisor ≟ 0)} ->
         Fin divisor
 _mod_ m n {≢0} with _divMod_ m n {≢0}
 .(toℕ r + q * n) mod n | result q r = r

@@ -140,13 +140,13 @@ suc m ⊓ suc n = suc (m ⊓ n)
 zero≢suc : forall {n} -> ¬ zero ≡ suc n
 zero≢suc ()
 
-_ℕ-≟_ : Decidable {ℕ} _≡_
-zero  ℕ-≟ zero   = yes ≡-refl
-suc m ℕ-≟ suc n  with m ℕ-≟ n
-suc m ℕ-≟ suc .m | yes ≡-refl = yes ≡-refl
-suc m ℕ-≟ suc n  | no prf     = no (prf ∘ ≡-cong pred)
-zero  ℕ-≟ suc n  = no (⊥-elim ∘ zero≢suc)
-suc m ℕ-≟ zero   = no (⊥-elim ∘ zero≢suc ∘ ≡-sym)
+_≟_ : Decidable {ℕ} _≡_
+zero  ≟ zero   = yes ≡-refl
+suc m ≟ suc n  with m ≟ n
+suc m ≟ suc .m | yes ≡-refl = yes ≡-refl
+suc m ≟ suc n  | no prf     = no (prf ∘ ≡-cong pred)
+zero  ≟ suc n  = no (⊥-elim ∘ zero≢suc)
+suc m ≟ zero   = no (⊥-elim ∘ zero≢suc ∘ ≡-sym)
 
 suc≰zero : forall {n} -> ¬ suc n ≤ zero
 suc≰zero ()
@@ -205,7 +205,7 @@ compare (suc .(suc m + k)) (suc .m)           | greater m k = greater (suc m) k
               }
           ; total = ℕ-total
           }
-      ; _≟_  = _ℕ-≟_
+      ; _≟_  = _≟_
       ; _≤?_ = _≤?_
       }
   }

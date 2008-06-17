@@ -4,7 +4,7 @@
 
 module Data.Char where
 
-open import Data.Nat
+open import Data.Nat using (ℕ)
 open import Data.Bool
 open import Relation.Nullary
 open import Relation.Binary
