@@ -107,7 +107,8 @@ module StringToList where
     primStringToList : String -> List Char
 
 -- There is a builtin pragma for the IO type as well. This pragma is
--- currently unused.
+-- used by the MAlonzo compiler to check that the main function has
+-- the right type.
 
 postulate
   IO : Set -> Set
