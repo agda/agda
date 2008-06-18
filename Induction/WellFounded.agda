@@ -20,15 +20,15 @@ WfRec P x = forall y -> y < x -> P y
 -- well-founded.
 
 data Acc (x : a) : Set where
-  acc : WfRec Acc x -> Acc x
+  acc : (rs : WfRec Acc x) -> Acc x
 
 -- Well-founded induction for the subset of accessible elements:
 
 module Some where
 
   wfRec-builder : SubsetRecursorBuilder Acc WfRec
-  wfRec-builder P f x (acc g) = \y y<x ->
-    f y (wfRec-builder P f y (g y y<x))
+  wfRec-builder P f x (acc rs) = \y y<x ->
+    f y (wfRec-builder P f y (rs y y<x))
 
   wfRec : SubsetRecursor Acc WfRec
   wfRec = subsetBuild wfRec-builder

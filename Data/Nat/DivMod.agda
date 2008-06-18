@@ -63,8 +63,8 @@ data DivMod : ℕ -> ℕ -> Set where
 -- can be inconvenient.
 
 data DivMod' (dividend divisor : ℕ) : Set where
-  result : (q : ℕ) (r : Fin divisor) ->
-           dividend ≡ toℕ r + q * divisor ->
+  result : (q : ℕ) (r : Fin divisor)
+           (eq : dividend ≡ toℕ r + q * divisor) ->
            DivMod' dividend divisor
 
 -- Integer division with remainder.

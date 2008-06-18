@@ -15,11 +15,11 @@ infix 4 _≈-Vec_
 data _≈-Vec_ :  forall {n¹} -> Vec a n¹
              -> forall {n²} -> Vec a n²
              -> Set where
-  []-cong  :  [] ≈-Vec []
-  _∷-cong_ :  forall {x¹ n¹} {xs¹ : Vec a n¹}
-                     {x² n²} {xs² : Vec a n²}
-           -> x¹ ≡ x² -> xs¹ ≈-Vec xs²
-           -> x¹ ∷ xs¹ ≈-Vec x² ∷ xs²
+  []-cong  : [] ≈-Vec []
+  _∷-cong_ : forall {x¹ n¹} {xs¹ : Vec a n¹}
+                    {x² n²} {xs² : Vec a n²}
+             (x¹≡x² : x¹ ≡ x²) (xs¹≈xs² : xs¹ ≈-Vec xs²) ->
+             x¹ ∷ xs¹ ≈-Vec x² ∷ xs²
 
 length-equal :  forall {n¹} {xs¹ : Vec a n¹}
                        {n²} {xs² : Vec a n²}

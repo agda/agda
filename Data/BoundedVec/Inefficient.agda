@@ -16,7 +16,7 @@ infixr 5 _∷_
 
 data BoundedVec (a : Set) : ℕ -> Set where
   []  : forall {n} -> BoundedVec a n
-  _∷_ : forall {n} -> a -> BoundedVec a n -> BoundedVec a (suc n)
+  _∷_ : forall {n} (x : a) (xs : BoundedVec a n) -> BoundedVec a (suc n)
 
 ------------------------------------------------------------------------
 -- Increasing the bound

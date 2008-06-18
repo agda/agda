@@ -14,7 +14,7 @@ infixr 2 _×_ _-×-_ _-,-_
 -- Definition
 
 data Σ (a : Set) (b : a -> Set) : Set where
-  _,_ : (x : a) -> b x -> Σ a b
+  _,_ : (x : a) (y : b x) -> Σ a b
 
 ∃ : {a : Set} -> (a -> Set) -> Set
 ∃ = Σ _

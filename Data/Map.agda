@@ -37,8 +37,8 @@ module Map₁ (key-dto : DecTotalOrder) (elem-s : Setoid) where
     _↦_∈_  : key -> elem -> Map -> Set
 
   data LookupResult (k : key) (s : Map) : Set where
-    found    : (e : elem) -> k ↦ e ∈ s -> LookupResult k s
-    notFound : ¬ k ∈ s -> LookupResult k s
+    found    : (e : elem) (k↦e∈s : k ↦ e ∈ s) -> LookupResult k s
+    notFound : (k∉s : ¬ k ∈ s) -> LookupResult k s
 
   abstract
    postulate

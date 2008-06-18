@@ -37,7 +37,7 @@ data Bin : Set where
   -- Zero.
   0#  : Bin
   -- bs 1# stands for the binary number 1<reverse bs>.
-  _1# : [ Bit ] -> Bin
+  _1# : (bs : [ Bit ]) -> Bin
 
 ------------------------------------------------------------------------
 -- Conversion functions

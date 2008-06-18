@@ -16,9 +16,9 @@ infixr 5 _∷_ _++_
 ------------------------------------------------------------------------
 -- The type
 
-data [_] (a : Set) : Set where
-  []  : [ a ]
-  _∷_ : a -> [ a ] -> [ a ]
+data [_] (A : Set) : Set where
+  []  : [ A ]
+  _∷_ : (x : A) (xs : [ A ]) -> [ A ]
 
 {-# BUILTIN LIST [_] #-}
 {-# BUILTIN NIL  []  #-}

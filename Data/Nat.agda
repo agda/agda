@@ -19,7 +19,7 @@ infixl 6 _∸_ _⊔_
 
 data ℕ : Set where
   zero : ℕ
-  suc  : ℕ -> ℕ
+  suc  : (n : ℕ) -> ℕ
 
 {-# BUILTIN NATURAL ℕ    #-}
 {-# BUILTIN ZERO    zero #-}
@@ -28,8 +28,8 @@ data ℕ : Set where
 infix 4 _≤_ _<_ _≥_ _>_
 
 data _≤_ : Rel ℕ where
-  z≤n : forall {n}            -> zero  ≤ n
-  s≤s : forall {m n} -> m ≤ n -> suc m ≤ suc n
+  z≤n : forall {n}                 -> zero  ≤ n
+  s≤s : forall {m n} (m≤n : m ≤ n) -> suc m ≤ suc n
 
 _<_ : Rel ℕ
 m < n = suc m ≤ n
@@ -46,8 +46,8 @@ m > n = n < m
 infix 4 _≤′_ _<′_ _≥′_ _>′_
 
 data _≤′_ : Rel ℕ where
-  ≤′-refl : forall {n} -> n ≤′ n
-  ≤′-step : forall {m n} -> m ≤′ n -> m ≤′ suc n
+  ≤′-refl : forall {n}                   -> n ≤′ n
+  ≤′-step : forall {m n} (m≤′n : m ≤′ n) -> m ≤′ suc n
 
 _<′_ : Rel ℕ
 m <′ n = suc m ≤′ n

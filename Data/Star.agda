@@ -19,7 +19,10 @@ infixr 5 _◅_
 
 data Star {I : Set} (T : Rel I) : Rel I where
   ε   : Reflexive (Star T)
-  _◅_ : Trans T (Star T) (Star T)
+  _◅_ : forall {i j k} (x : T i j) (xs : Star T j k) -> Star T i k
+        -- The type of _◅_ is Trans T (Star T) (Star T); I expanded
+        -- the definition in order to be able to name the arguments (x
+        -- and xs).
 
 -- Append/transitivity.
 

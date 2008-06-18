@@ -47,12 +47,13 @@ data Op : Set where
 
 -- The polynomials are indexed over the number of variables.
 
-data Polynomial (n : ℕ) : Set where
-  op   : Op -> Polynomial n -> Polynomial n -> Polynomial n
-  con  : C.carrier -> Polynomial n
-  var  : Fin n -> Polynomial n
-  _:^_ : Polynomial n -> ℕ -> Polynomial n
-  :-_  : Polynomial n -> Polynomial n
+data Polynomial (m : ℕ) : Set where
+  op   : (o : Op) (p₁ : Polynomial m) (p₂ : Polynomial m) ->
+         Polynomial m
+  con  : (c : C.carrier) -> Polynomial m
+  var  : (x : Fin m) -> Polynomial m
+  _:^_ : (p : Polynomial m) (n : ℕ) -> Polynomial m
+  :-_  : (p : Polynomial m) -> Polynomial m
 
 -- Short-hand notation.
 
@@ -101,14 +102,14 @@ private
   -- * an equivalent polynomial.
 
   data Normal : (n : ℕ) -> Polynomial n -> Set where
-    con-NF :  (c : C.carrier) -> Normal 0 (con c)
-    _↑-NF  :  forall {n p}
-           -> Normal n p -> Normal (suc n) (p :↑ 1)
-    _*x+_  :  forall {n p c}
-           -> Normal (suc n) p -> Normal n c
-           -> Normal (suc n) (p :* var zero :+ c :↑ 1)
-    _∷-NF_ :  forall {n p₁ p₂}
-           -> Normal n p₁ -> p₁ ≛ p₂ -> Normal n p₂
+    con-NF : (c : C.carrier) -> Normal 0 (con c)
+    _↑-NF  : forall {n p'}
+             (p : Normal n p') -> Normal (suc n) (p' :↑ 1)
+    _*x+_  : forall {n p' c'}
+             (p : Normal (suc n) p') (c : Normal n c') ->
+             Normal (suc n) (p' :* var zero :+ c' :↑ 1)
+    _∷-NF_ : forall {n p₁ p₂}
+             (p : Normal n p₁) (eq : p₁ ≛ p₂) -> Normal n p₂
 
   ⟦_⟧-NF_ : forall {n p} -> Normal n p -> Vec carrier n -> carrier
   ⟦ p ∷-NF _ ⟧-NF ρ       = ⟦ p ⟧-NF ρ
@@ -220,14 +221,14 @@ private
 
   nf-sound :  forall {n p} (nf : Normal n p) ρ
            -> ⟦ nf ⟧-NF ρ ≈ ⟦ p ⟧ ρ
-  nf-sound (nf ∷-NF eq)       ρ       = nf-sound nf ρ ⟨ trans ⟩ eq
-  nf-sound (con-NF c)         ρ       = refl
-  nf-sound (_↑-NF {p = p} nf) (x ∷ ρ) =
-    nf-sound nf ρ ⟨ trans ⟩ sym (raise-sem p ρ)
-  nf-sound (_*x+_ {c = c} nf₁ nf₂) (x ∷ ρ) =
+  nf-sound (nf ∷-NF eq)         ρ       = nf-sound nf ρ ⟨ trans ⟩ eq
+  nf-sound (con-NF c)           ρ       = refl
+  nf-sound (_↑-NF {p' = p'} nf) (x ∷ ρ) =
+    nf-sound nf ρ ⟨ trans ⟩ sym (raise-sem p' ρ)
+  nf-sound (_*x+_ {c' = c'} nf₁ nf₂) (x ∷ ρ) =
     (nf-sound nf₁ (x ∷ ρ) ⟨ *-pres-≈ ⟩ refl)
       ⟨ +-pres-≈ ⟩
-    (nf-sound nf₂ ρ ⟨ trans ⟩ sym (raise-sem c ρ))
+    (nf-sound nf₂ ρ ⟨ trans ⟩ sym (raise-sem c' ρ))
 
 -- Completeness can presumably also be proved (i.e. the normal forms
 -- should be unique, if the casts are ignored).

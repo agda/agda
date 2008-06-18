@@ -36,7 +36,7 @@ infix  1 begin_
 -- infer arguments even if the underlying equality evaluates.
 
 data _IsRelatedTo_ (x y : carrier) : Set where
-  relTo : x ∼ y -> x IsRelatedTo y
+  relTo : (x∼y : x ∼ y) -> x IsRelatedTo y
 
 begin_ : forall {x y} -> x IsRelatedTo y -> x ∼ y
 begin relTo x∼y = x∼y

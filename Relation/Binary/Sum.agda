@@ -23,9 +23,9 @@ infixr 1 _⊎-Rel_ _⊎-<_
 data ⊎ʳ (P : Set) {a₁ : Set} (_∼₁_ : Rel a₁)
                   {a₂ : Set} (_∼₂_ : Rel a₂)
           : a₁ ⊎ a₂ -> a₁ ⊎ a₂ -> Set where
-  ₁∼₂ : forall {x y} -> P      -> ⊎ʳ P _∼₁_ _∼₂_ (inj₁ x) (inj₂ y)
-  ₁∼₁ : forall {x y} -> x ∼₁ y -> ⊎ʳ P _∼₁_ _∼₂_ (inj₁ x) (inj₁ y)
-  ₂∼₂ : forall {x y} -> x ∼₂ y -> ⊎ʳ P _∼₁_ _∼₂_ (inj₂ x) (inj₂ y)
+  ₁∼₂ : forall {x y} (p : P)         -> ⊎ʳ P _∼₁_ _∼₂_ (inj₁ x) (inj₂ y)
+  ₁∼₁ : forall {x y} (x∼₁y : x ∼₁ y) -> ⊎ʳ P _∼₁_ _∼₂_ (inj₁ x) (inj₁ y)
+  ₂∼₂ : forall {x y} (x∼₂y : x ∼₂ y) -> ⊎ʳ P _∼₁_ _∼₂_ (inj₂ x) (inj₂ y)
 
 -- Pointwise sum.
 

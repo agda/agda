@@ -11,9 +11,9 @@ open import Data.Function
 
 infixr 1 _⊎_
 
-data _⊎_ (a b : Set) : Set where
-  inj₁ : a -> a ⊎ b
-  inj₂ : b -> a ⊎ b
+data _⊎_ (A B : Set) : Set where
+  inj₁ : (x : A) -> A ⊎ B
+  inj₂ : (y : B) -> A ⊎ B
 
 ------------------------------------------------------------------------
 -- Functions

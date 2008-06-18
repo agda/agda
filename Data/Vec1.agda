@@ -16,7 +16,7 @@ open import Data.Vec
 
 data Vec₁ (a : Set1) : ℕ -> Set1 where
   []  : Vec₁ a zero
-  _∷_ : forall {n} -> a -> Vec₁ a n -> Vec₁ a (suc n)
+  _∷_ : forall {n} (x : a) (xs : Vec₁ a n) -> Vec₁ a (suc n)
 
 ------------------------------------------------------------------------
 -- Some operations

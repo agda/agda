@@ -116,10 +116,10 @@ Decidable _∼_ = forall x y -> Dec (x ∼ y)
 Total : {a : Set} -> Rel a -> Set
 Total _∼_ = forall x y -> (x ∼ y) ⊎ (y ∼ x)
 
-data Tri (a b c : Set) : Set where
-  tri< :   a -> ¬ b -> ¬ c -> Tri a b c
-  tri≈ : ¬ a ->   b -> ¬ c -> Tri a b c
-  tri> : ¬ a -> ¬ b ->   c -> Tri a b c
+data Tri (A B C : Set) : Set where
+  tri< : ( a :   A) (¬b : ¬ B) (¬c : ¬ C) -> Tri A B C
+  tri≈ : (¬a : ¬ A) ( b :   B) (¬c : ¬ C) -> Tri A B C
+  tri> : (¬a : ¬ A) (¬b : ¬ B) ( c :   C) -> Tri A B C
 
 Trichotomous : {a : Set} -> Rel a -> Rel a -> Set
 Trichotomous _≈_ _<_ = forall x y -> Tri (x < y) (x ≈ y) (x > y)

@@ -84,7 +84,7 @@ _≗_ {a} {b} = Setoid._≈_ (a ->-setoid b)
 -- The inspect idiom
 
 data Inspect {a : Set} (x : a) : Set where
-  _with-≡_ : (y : a) -> y ≡ x -> Inspect x
+  _with-≡_ : (y : a) (eq : y ≡ x) -> Inspect x
 
 inspect : forall {a} (x : a) -> Inspect x
 inspect x = x with-≡ ≡-refl

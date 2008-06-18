@@ -16,11 +16,11 @@ open import Data.Function
 
 data Pointer {I : Set} {T : Rel I} (P Q : EdgePred T)
        : Rel (Maybe (NonEmpty (Star T))) where
-  step : forall {i j k} {x : T i j} {xs : Star T j k} ->
-         P x -> Pointer P Q (just (nonEmpty (x ◅ xs)))
-                            (just (nonEmpty xs))
-  done : forall {i j k} {x : T i j} {xs : Star T j k} ->
-         Q x -> Pointer P Q (just (nonEmpty (x ◅ xs))) nothing
+  step : forall {i j k} {x : T i j} {xs : Star T j k}
+         (p : P x) -> Pointer P Q (just (nonEmpty (x ◅ xs)))
+                                  (just (nonEmpty xs))
+  done : forall {i j k} {x : T i j} {xs : Star T j k}
+         (q : Q x) -> Pointer P Q (just (nonEmpty (x ◅ xs))) nothing
 
 -- Any P Q xs means that some edge in xs satisfies Q, while all
 -- preceding edges satisfy P. A star-list of type Any Always Always xs
@@ -43,8 +43,8 @@ that p = _◅_ (step p)
 -- Safe lookup.
 
 data Result {I : Set} (T : Rel I) (P Q : EdgePred T) : Set where
-  result : forall {i j} {x : T i j} ->
-           P x -> Q x -> Result T P Q
+  result : forall {i j} {x : T i j}
+           (p : P x) (q : Q x) -> Result T P Q
 
 -- The first argument points out which edge to extract. The edge is
 -- returned, together with proofs that it satisfies Q and R.

@@ -7,9 +7,9 @@ module Data.Maybe where
 ------------------------------------------------------------------------
 -- The type
 
-data Maybe (a : Set) : Set where
-  just    : a -> Maybe a
-  nothing : Maybe a
+data Maybe (A : Set) : Set where
+  just    : (x : A) -> Maybe A
+  nothing : Maybe A
 
 ------------------------------------------------------------------------
 -- Some operations

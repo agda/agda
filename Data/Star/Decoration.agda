@@ -15,15 +15,15 @@ EdgePred : forall {I} -> Rel I -> Set1
 EdgePred T = forall {i j} -> T i j -> Set
 
 data NonEmptyEdgePred {I : Set} (T : Rel I) (P : EdgePred T) : Set where
-  nonEmptyEdgePred : forall {i j} {x : T i j} ->
-                     P x -> NonEmptyEdgePred T P
+  nonEmptyEdgePred : forall {i j} {x : T i j}
+                     (p : P x) -> NonEmptyEdgePred T P
 
 -- Decorating an edge with more information.
 
 data DecoratedWith {I : Set} {T : Rel I} (P : EdgePred T)
        : Rel (NonEmpty (Star T)) where
-  ↦ : forall {i j k} {x : T i j} {xs : Star T j k} ->
-      P x -> DecoratedWith P (nonEmpty (x ◅ xs)) (nonEmpty xs)
+  ↦ : forall {i j k} {x : T i j} {xs : Star T j k}
+      (p : P x) -> DecoratedWith P (nonEmpty (x ◅ xs)) (nonEmpty xs)
 
 edge : forall {I} {T : Rel I} {P : EdgePred T} {i j} ->
        DecoratedWith {T = T} P i j -> NonEmpty T

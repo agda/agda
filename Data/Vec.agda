@@ -17,18 +17,18 @@ infixr 5 _∷_
 
 data Vec (a : Set) : ℕ -> Set where
   []  : Vec a zero
-  _∷_ : forall {n} -> a -> Vec a n -> Vec a (suc n)
+  _∷_ : forall {n} (x : a) (xs : Vec a n) -> Vec a (suc n)
 
 infix 4 _∈_ _[_]=_
 
 data _∈_ {a : Set} : a -> {n : ℕ} -> Vec a n -> Set where
   here  : forall {n} {x}   {xs : Vec a n} -> x ∈ x ∷ xs
-  there : forall {n} {x y} {xs : Vec a n} -> x ∈ xs -> x ∈ y ∷ xs
+  there : forall {n} {x y} {xs : Vec a n} (x∈xs : x ∈ xs) -> x ∈ y ∷ xs
 
 data _[_]=_ {a : Set} : {n : ℕ} -> Vec a n -> Fin n -> a -> Set where
   here  : forall {n}     {x}   {xs : Vec a n} -> x ∷ xs [ zero ]= x
-  there : forall {n} {i} {x y} {xs : Vec a n} ->
-          xs [ i ]= x -> y ∷ xs [ suc i ]= x
+  there : forall {n} {i} {x y} {xs : Vec a n}
+          (xs[i]=x : xs [ i ]= x) -> y ∷ xs [ suc i ]= x
 
 ------------------------------------------------------------------------
 -- Some operations
@@ -149,7 +149,7 @@ _∷ʳ_ : forall {a n} -> Vec a n -> a -> Vec a (1 + n)
 infixl 5 _∷ʳ'_
 
 data InitLast {a : Set} (n : ℕ) : Vec a (1 + n) -> Set where
-  _∷ʳ'_ : (xs : Vec a n) -> (x : a) -> InitLast n (xs ∷ʳ x)
+  _∷ʳ'_ : (xs : Vec a n) (x : a) -> InitLast n (xs ∷ʳ x)
 
 initLast : forall {a n} (xs : Vec a (1 + n)) -> InitLast n xs
 initLast {n = zero}  (x ∷ [])         = [] ∷ʳ' x

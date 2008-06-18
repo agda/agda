@@ -13,7 +13,7 @@ infixr 5 _∷_ _++₁_
 
 data [_]₁ (a : Set1) : Set1 where
   []  : [ a ]₁
-  _∷_ : a -> [ a ]₁ -> [ a ]₁
+  _∷_ : (x : a) (xs : [ a ]₁) -> [ a ]₁
 
 _++₁_ : forall {a} -> [ a ]₁ -> [ a ]₁ -> [ a ]₁
 []       ++₁ bs = bs

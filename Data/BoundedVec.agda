@@ -22,7 +22,7 @@ open import Data.Fin
 abstract
 
   data BoundedVec (a : Set) : ℕ -> Set where
-    bVec : forall {m n} -> Vec a n -> BoundedVec a (n + m)
+    bVec : forall {m n} (xs : Vec a n) -> BoundedVec a (n + m)
 
   [] : forall {a n} -> BoundedVec a n
   [] = bVec Vec.[]
@@ -39,7 +39,7 @@ infixr 5 _∷v_
 
 data View (a : Set) : ℕ -> Set where
   []v  : forall {n} -> View a n
-  _∷v_ : forall {n} -> a -> BoundedVec a n -> View a (suc n)
+  _∷v_ : forall {n} (x : a) (xs : BoundedVec a n) -> View a (suc n)
 
 abstract
 

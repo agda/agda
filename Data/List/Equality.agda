@@ -15,8 +15,9 @@ module Equality (S : Setoid) where
 
   data ListEq : [ carrier ] -> [ carrier ] -> Set where
     []-cong  : ListEq [] []
-    _∷-cong_ : forall {x xs y ys} ->
-               x ≈ y -> ListEq xs ys -> ListEq (x ∷ xs) (y ∷ ys)
+    _∷-cong_ : forall {x xs y ys}
+               (x≈y : x ≈ y) (xs≈ys : ListEq xs ys) ->
+               ListEq (x ∷ xs) (y ∷ ys)
 
   setoid : Setoid
   setoid = record

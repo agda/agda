@@ -25,7 +25,7 @@ open import Data.Function
 -- Numbers".)
 
 data _Divides_ : ℕ -> ℕ -> Set where
-  divides : {m n : ℕ} (q : ℕ) -> n ≡ q * suc m -> suc m Divides n
+  divides : {m n : ℕ} (q : ℕ) (eq : n ≡ q * suc m) -> suc m Divides n
 
 -- Extracts the quotient.
 
