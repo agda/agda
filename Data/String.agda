@@ -8,9 +8,11 @@ import Data.List as List
 open List using ([_])
 import Data.Vec as Vec
 open Vec using (Vec)
+import Data.Colist as Colist
+open Colist using (Colist)
 open import Data.Char using (Char)
 open import Data.Bool
-open import Data.Colist using (Colist)
+open import Data.Function
 open import Relation.Nullary
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality
@@ -54,6 +56,9 @@ fromList = primStringFromList
 
 toVec : (s : String) -> Vec Char (List.length (toList s))
 toVec s = Vec.fromList (toList s)
+
+toCostring : String -> Costring
+toCostring = Colist.fromList ∘ toList
 
 infix 4 _==_
 
