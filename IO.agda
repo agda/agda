@@ -36,7 +36,7 @@ postulate
   getContents : IO Costring
   readFile    : String -> IO Costring
   writeFile   : String -> Costring -> IO Unit
-  putStrLn    : String -> IO Unit
+  putStrLn    : Costring -> IO Unit
 
 {-# IMPORT System.IO.UTF8 #-}
 {-# COMPILED getContents System.IO.UTF8.getContents #-}
