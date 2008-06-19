@@ -267,7 +267,7 @@ transCDefn cdefn = case cdefn of
          CRecord cprops pos cletdefs
            -> ctype2typesig flg i [] ctype 
            :  [FunClause (LHS (RawAppP noRange (op : pats)) [] [])
-                         (RHS (Rec noRange $ map decls2namexpr decls))
+                         (RHS Recursive (Rec noRange $ map decls2namexpr decls))
                          (localdefs undefined)]
                where 
                  decls = map transCLetDef cletdefs
@@ -284,7 +284,7 @@ transCDefn cdefn = case cdefn of
   Cnewtype i args ctype csum
     -> transCDefn (Cdata i args (Just ctype) [csum])
   Cdata i args mctype csums
-    -> [Data noRange n tls t (map (csummand2constructor ot) csums)]
+    -> [Data noRange Inductive n tls t (map (csummand2constructor ot) csums)]
        where
         t = maybe (Set noRange) transCExpr mctype 
         tls = concatMap carg2telescope args
@@ -293,7 +293,7 @@ transCDefn cdefn = case cdefn of
   Cidata i args ctype cindsums
     -> if not (isLastSet ctype) || any (not . isSet) args then errorDecls $ pp "" cdefn
        else -- errorDecls $ pp (show cdefn) cdefn
-            [Data noRange n (concatMap carg2telescope args) (transCExpr ctype) (mapMaybe cindsum2constructor cindsums)]
+            [Data noRange Inductive n (concatMap carg2telescope args) (transCExpr ctype) (mapMaybe cindsum2constructor cindsums)]
        where
          isLastSet (CStar _ 0 _)   = True
          isLastSet (CUniv ca cty)  = not (isSet' ca) && isLastSet cty
@@ -335,7 +335,7 @@ cletdef2bind :: CLetDef -> Maybe (Name,Expr)
 cletdef2bind cletdef = case cletdef of
   CSimple cdef 
     -> case [ (lhs,rhs) | FunClause lhs rhs ld <- transCDef cdef ] of
-         (LHS p _ _,RHS e):_
+         (LHS p _ _,RHS _ e):_
            -> case p of 
                 IdentP    qn            -> Just (qn2n qn, e)
                 RawAppP _ (IdentP qn:_) -> Just (qn2n qn, e)
@@ -580,11 +580,11 @@ cclause2funclauses i flg (CClause cpats expr)
        -> liftCcase i flg cpats expr
      _ | flg
        -> [FunClause (LHS (RawAppP noRange (intersperse op pats)) [] [])
-		     (RHS (transCExpr expr))
+		     (RHS Recursive (transCExpr expr))
                      (localdefs expr)]
      _ | otherwise 
        -> [FunClause (LHS (RawAppP noRange (op : pats)) [] [])
-	             (RHS (transCExpr expr))
+	             (RHS Recursive (transCExpr expr))
 		     (localdefs expr)]
   where twoargs = 2 == length cpats
         op  = IdentP $ str2qname $ getIdString i
@@ -628,9 +628,9 @@ liftCcase n flg pats (Ccase cexpr ccasearms)
                x = case cexpr of {CVar v -> v; _ -> error "Never"}
       liftcc n flg pats i (pat,expr)
              | flg = [FunClause (LHS (RawAppP noRange (intersperse (IdentP (QName (id2name n))) (cpat2pattern pat i pats))) [] [])
-                                (RHS (transCExpr expr')) (localdefs expr')]
+                                (RHS Recursive (transCExpr expr')) (localdefs expr')]
              | otherwise = [FunClause (LHS (RawAppP noRange (IdentP (QName (id2name n)):cpat2pattern pat i pats)) [] [])
-                                      (RHS (transCExpr expr')) (localdefs expr')]
+                                      (RHS Recursive (transCExpr expr')) (localdefs expr')]
          where expr' = substcexpr x (cpat2cexpr pat) expr
                x = case cexpr of {CVar v -> v; _ -> error "Never"}
       absurdcc n flg pats i
@@ -681,9 +681,9 @@ parenPattern p = p
 decls2namexpr :: [Declaration] -> (Name,Expr)
 decls2namexpr ds
  = case head $ reverse ds of
-     FunClause (LHS (IdentP (QName name)) _ _) (RHS e) w
+     FunClause (LHS (IdentP (QName name)) _ _) (RHS _ e) w
        -> (name, e)
-     FunClause (LHS pat _ _) (RHS e) w
+     FunClause (LHS pat _ _) (RHS _ e) w
        -> case pat of
            RawAppP _ [IdentP (QName n)] -> (n,e)
            _                            -> (str2name "%%var%%", e)
