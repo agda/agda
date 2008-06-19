@@ -8,6 +8,7 @@ open import Data.Function
 open import Relation.Nullary.Core
 
 infixr 4 _,_
+infix  4 ,_
 infixr 2 _×_ _-×-_ _-,-_
 
 ------------------------------------------------------------------------
@@ -27,6 +28,11 @@ a × b = Σ a (\_ -> b)
 
 ------------------------------------------------------------------------
 -- Functions
+
+-- Sometimes the first component can be inferred.
+
+,_ : forall {A} {B : A -> Set} {x : A} -> B x -> Σ A B
+, y = _ , y
 
 proj₁ : forall {a b} -> Σ a b -> a
 proj₁ (x , y) = x
