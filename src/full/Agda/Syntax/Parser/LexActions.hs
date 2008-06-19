@@ -66,8 +66,14 @@ lexToken =
 	    AlexEOF			-> returnEOF inp
 	    AlexError _			-> parseError "Lexical error"
 	    AlexSkip inp' len		-> skipTo (newInput inp inp' len)
-	    AlexToken inp' len action	-> action inp (newInput inp inp' len) len
-		
+	    AlexToken inp' len action	-> fmap postToken $ action inp (newInput inp inp' len) len
+
+postToken :: Token -> Token
+postToken (TokId (r, "\x22cb")) = TokSymbol SymLambda r
+postToken (TokId (r, "\x2192")) = TokSymbol SymArrow r
+postToken (TokId (r, "\x2200")) = TokKeyword KwForall r
+postToken t = t
+
 -- | Use the input string from the previous input (with the appropriate
 --   number of characters dropped) instead of the fake input string that
 --   was given to Alex (with unicode characters removed).
