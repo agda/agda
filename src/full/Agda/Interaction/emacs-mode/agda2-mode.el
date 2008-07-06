@@ -150,33 +150,30 @@ want settings to this variable to take effect."
 
 (defvar agda2-mode-syntax-table
   (let ((tbl (make-syntax-table))
-        (std (standard-syntax-table))
         (special '((?{ . "(}1n") (?} . "){4n") (?- . "w 123b") (?\n . "> b")
-                   (?. . ".") (?\; . ".")))
+                   (?. . ".") (?\; . ".") (?_ . ".") (?! . ".")))
         (i 0))
-    (with-syntax-table std
+    (with-syntax-table (standard-syntax-table)
       (while (<= i #x7ffff)
         (if (char-valid-p i)
             (let ((syntax (or (cdr-safe (assq i special))
-                              (cond ((equal (char-syntax i) ? ) " ")
-                                    ((equal (char-syntax i) ?\()
-                                     (concat "(" (string (cdr-safe (aref std i)))))
-                                    ((equal (char-syntax i) ?\))
-                                     (concat ")" (string (cdr-safe (aref std i)))))
+                              (cond ((member (char-syntax i)
+                                             (append "() " nil)) "@")
                                     (t "w")))))
               (modify-syntax-entry i syntax tbl)))
         (setq i (1+ i))))
     tbl)
   "Syntax table used by the Agda 2 mode:
 
-{} | Comment characters, matching parentheses.
--  | Comment character, word constituent.
-\n | Comment ender.
-.; | Punctuation.
+{}   | Comment characters, matching parentheses.
+-    | Comment character, word constituent.
+\n   | Comment ender.
+.;_! | Punctuation.
 
-Remaining characters are treated as matching parentheses or
-whitespace if the standard syntax table treats them like that, and
-as word constituents otherwise.")
+Remaining characters inherit their syntax classes from the
+standard syntax table if that table treats them as matching
+parentheses or whitespace. Otherwise they are treated as word
+constituents.")
 
 (defvar agda2-mode-map (make-sparse-keymap "Agda mode") "Keymap for agda2-mode")
 (defvar agda2-goal-map (make-sparse-keymap "Agda goal")
