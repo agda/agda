@@ -4,9 +4,8 @@
 ;;;; Dependency
 
 (require 'cl) ;  haskell-indent requires it anyway.
-(or (fboundp 'cl-simple-expr-p) (load "cl-macs"))
-(or (fboundp 'common-lisp-indent-function) (load "cl-indent"))
-(set (make-local-variable 'lisp-indent-function) 'common-lisp-indent-function)
+(set (make-local-variable 'lisp-indent-function)
+     'common-lisp-indent-function)
 (require 'comint)
 (require 'pp)
 (require 'eri)
