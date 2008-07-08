@@ -10,6 +10,7 @@
 (require 'pp)
 (require 'eri)
 (require 'agda2-highlight)
+(require 'agda2-abbrevs)
 (require 'haskell-indent)
 (require 'haskell-ghci)
 ;; due to a bug in haskell-mode-2.1
@@ -227,8 +228,6 @@ constituents.")
                  (vector 'menu-bar 'Agda2 (make-symbol s1)) (cons s1 f)))
       (if s2 (define-key agda2-goal-map
                  (vector (make-symbol s2)) (cons s2 f))))))
-(defvar agda2-mode-abbrev-table nil "Abbrev table used while in agda2 mode")
-(define-abbrev-table 'agda2-mode-abbrev-table ())
 (defvar agda2-buffer  nil "Agda subprocess buffer.  Set in `agda2-restart'")
 (defvar agda2-process nil "Agda subprocess.  Set in `agda2-restart'")
 
