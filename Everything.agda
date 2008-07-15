@@ -119,4 +119,5 @@ import Relation.Binary.Sum
 import Relation.Nullary
 import Relation.Nullary.Product
 import Relation.Nullary.Sum
+import Relation.Nullary.Universe
 import Relation.Unary
