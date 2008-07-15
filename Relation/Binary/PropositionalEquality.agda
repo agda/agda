@@ -83,6 +83,10 @@ _≗_ {a} {b} = Setoid._≈_ (a ->-setoid b)
 ------------------------------------------------------------------------
 -- The inspect idiom
 
+-- The inspect idiom can be used when you want to pattern match on the
+-- result r of some expression e, and you also need to "remember" that
+-- r ≡ e.
+
 data Inspect {a : Set} (x : a) : Set where
   _with-≡_ : (y : a) (eq : y ≡ x) -> Inspect x
 
@@ -92,7 +96,7 @@ inspect x = x with-≡ ≡-refl
 -- Example usage:
 
 -- f x y with inspect (g x)
--- f x y | z with-≡ eq = ...
+-- f x y | c z with-≡ eq = ...
 
 ------------------------------------------------------------------------
 -- Convenient syntax for equality reasoning

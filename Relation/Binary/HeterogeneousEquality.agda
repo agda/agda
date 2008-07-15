@@ -131,16 +131,13 @@ x ≇₁ y = ¬ x ≅₁ y
 ------------------------------------------------------------------------
 -- The inspect idiom
 
+-- See Relation.Binary.PropositionalEquality.Inspect.
+
 data Inspect {a : Set} (x : a) : Set where
   _with-≅_ : (y : a) (eq : y ≅ x) -> Inspect x
 
 inspect : forall {a} (x : a) -> Inspect x
 inspect x = x with-≅ ≅-refl
-
--- Example usage:
-
--- f x y with inspect (g x)
--- f x y | z with-≅ eq = ...
 
 ------------------------------------------------------------------------
 -- Convenient syntax for equality reasoning
