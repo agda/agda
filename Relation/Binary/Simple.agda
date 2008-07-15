@@ -22,3 +22,11 @@ Always = Const ⊤
 
 Never : forall {a} -> Rel a
 Never = Const ⊥
+
+-- Always is an equivalence.
+
+Always-isEquivalence : forall {a} -> IsEquivalence (Always {a})
+Always-isEquivalence = record { refl  = _
+                              ; sym   = \_ -> _
+                              ; trans = \_ _ -> _
+                              }
