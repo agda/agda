@@ -45,3 +45,24 @@ LiftSetoid s₁ s₂ pres = record
   ; isEquivalence = LiftEquiv pres (isEquivalence s₁) (isEquivalence s₂)
   }
   where open Setoid
+
+≡↝ : {a b : Set} -> Rel b -> Rel (a -> b)
+≡↝ _∼_ = \f g -> forall x -> f x ∼ g x
+
+LiftEquiv≡
+  :  forall {a b} {∼ : Rel b}
+  -> IsEquivalence ∼ -> IsEquivalence (≡↝ {a} ∼)
+LiftEquiv≡ {a} {b} {∼} eq = record
+  { refl  = \_ -> refl
+  ; sym   = \f∼g x -> sym (f∼g x)
+  ; trans = \f∼g g∼h x -> trans (f∼g x) (g∼h x)
+  }
+  where open IsEquivalence eq
+
+LiftSetoid≡ : Set -> Setoid -> Setoid
+LiftSetoid≡ a₁ s₂ = record
+  { carrier       = a₁ -> carrier s₂
+  ; _≈_           = ≡↝ (_≈_ s₂)
+  ; isEquivalence = LiftEquiv≡ (isEquivalence s₂)
+  }
+  where open Setoid
