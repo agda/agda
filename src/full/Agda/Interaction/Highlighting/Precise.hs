@@ -68,7 +68,7 @@ data OtherAspect
     deriving (Eq, Show, Enum, Bounded)
 
 -- | Meta information which can be associated with a
--- character/character range.
+-- character\/character range.
 
 data MetaInfo = MetaInfo
   { aspect       :: Maybe Aspect

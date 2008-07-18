@@ -241,9 +241,9 @@ nameToFile :: [C.Name]
               -- associated with these names are not to be trusted.
            -> C.Name
               -- ^ The base name.
-           -> (Bool -- ^ 'True' iff the name is an operator.
-               -> MetaInfo)
+           -> (Bool -> MetaInfo)
               -- ^ Meta information to be associated with the name.
+              -- The argument is 'True' iff the name is an operator.
            -> Maybe P.Range
               -- ^ The definition site of the name. The calculated
               -- meta information is extended with this information,
@@ -261,9 +261,9 @@ nameToFile xs x m mR = several rs' ((m isOp) { definitionSite = mFilePos =<< mR 
 
 nameToFileA :: A.QName
                -- ^ The name.
-            -> (Bool -- ^ 'True' iff the name is an operator.
-                -> MetaInfo)
+            -> (Bool -> MetaInfo)
                -- ^ Meta information to be associated with the name.
+               -- ^ The argument is 'True' iff the name is an operator.
             -> File
 nameToFileA x m =
   nameToFile (concreteQualifier x)

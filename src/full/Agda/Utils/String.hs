@@ -8,10 +8,10 @@ module Agda.Utils.String
 -- the behaviour of 'show':
 --
 -- @
--- > 'putStrLn' $ 'Agda.Utils.Unicode.toUTF8' $ 'show' \"\\x2200\"
+-- \> 'putStrLn' $ 'Agda.Utils.Unicode.toUTF8' $ 'show' \"\\x2200\"
 -- \"\\8704\"
--- > 'putStrLn' $ 'Agda.Utils.Unicode.toUTF8' $ 'quote' \"\\x2200\"
--- \"∀\"
+-- \> 'putStrLn' $ 'Agda.Utils.Unicode.toUTF8' $ 'quote' \"\\x2200\"
+-- \"&#x2200;\"
 -- @
 
 quote :: String -> String

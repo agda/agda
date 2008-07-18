@@ -5,8 +5,8 @@
 -- Originally copied from Agda1 sources.
 
 module Agda.Termination.CallGraph
-    -- * Structural orderings
-  ( Order(..)
+  ( -- * Structural orderings
+    Order(..)
   , (.*.)
   , supremum
     -- * Call matrices

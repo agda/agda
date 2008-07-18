@@ -32,7 +32,9 @@ import Agda.TypeChecking.Rules.LHS.Problem
 import Agda.Utils.Impossible
 
 newtype Unify a = U { unUnify :: ExceptionT UnifyException (StateT UnifyState TCM) a }
+#ifndef __HADDOCK__
   deriving (Monad, MonadIO, Functor, Applicative, MonadReader TCEnv, MonadException UnifyException)
+#endif
 
 data Equality = Equal Type Term Term
 type Sub = Map Nat Term

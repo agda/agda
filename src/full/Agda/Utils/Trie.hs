@@ -37,7 +37,7 @@ import qualified Data.Map as Map
 import Data.Maybe
 import Control.Monad
 
--- |A Trie with key elements of type @k@ (keys of type @[k]@) and values of type @v at .
+-- |A Trie with key elements of type @k@ (keys of type @[k]@) and values of type @v@.
 data Trie k v = Trie { value    :: Maybe v
                      , children :: Map k (Trie k v)
                      }

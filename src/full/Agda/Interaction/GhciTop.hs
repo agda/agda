@@ -327,7 +327,7 @@ setCommandLineOptions opts = do
   TM.setCommandLineOptions opts
   displayStatus
 
--- | Displays/updates some status information (currently just
+-- | Displays\/updates some status information (currently just
 -- indicates whether or not implicit arguments are shown).
 
 displayStatus :: TCM ()

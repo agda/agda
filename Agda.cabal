@@ -8,7 +8,7 @@ author:          Ulf Norell, Catarina Coquand, Makoto Takeyama, Nils Anders Dani
 maintainer:      Ulf Norell <ulfn@cs.chalmers.se>
 homepage:        http://www.cs.chalmers.se/~ulfn/Agda/
 category:        Dependent types
-synopsis:        A dependently typed proof checker / programming language.
+synopsis:        A dependently typed proof checker \/ programming language.
 tested-with:     GHC == 6.8.2, GHC == 6.8.3
 extra-source-files: src/full/Agda/undefined.h
 
@@ -194,5 +194,6 @@ library
                    Agda.Utils.Tuple
                    Agda.Utils.Unicode
                    Agda.Version
+  extensions:      CPP
   ghc-options:     -Wall -Werror -fno-warn-missing-signatures -fno-warn-name-shadowing -fno-warn-simple-patterns -fno-warn-unused-matches -fno-warn-unused-binds -fno-warn-unused-imports -fno-warn-type-defaults -fno-warn-orphans -auto-all
 

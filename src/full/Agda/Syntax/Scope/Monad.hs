@@ -259,8 +259,9 @@ pushScope name = modifyScopeStack (s:)
 
     @
     scope B: A.x -> Q.B.A.x
-	     y   -> Q.B.y
+             y   -> Q.B.y
     scope Q: ..
+    @
 -}
 popScope :: Access -> ScopeM ()
 popScope acc = do

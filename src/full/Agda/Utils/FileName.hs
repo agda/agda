@@ -38,7 +38,7 @@ setExtension ext x = p ++ n ++ ext
 	(p,n,_) = splitFilePath x
 
 -- | Breaks up a path (possibly including a file) into a list of
--- drives/directories (with the file at the end).
+-- drives\/directories (with the file at the end).
 
 splitPath :: FilePath -> [FilePath]
 #ifdef mingw32_HOST_OS

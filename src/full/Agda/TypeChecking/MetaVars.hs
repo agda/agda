@@ -182,7 +182,7 @@ blockTerm t v m = do
 	    tel   <- getContextTelescope
 	    x	  <- newMeta' (BlockedConst $ abstract tel v)
                               i lowMetaPriority (HasType () $ telePi_ tel t)
-			    -- ^^ we don't instantiate blocked terms
+			    -- we don't instantiate blocked terms
 	    c <- escapeContext (size tel) $ guardConstraint (return cs) (UnBlock x)
             verbose 20 $ do
                 dx  <- prettyTCM (MetaV x [])

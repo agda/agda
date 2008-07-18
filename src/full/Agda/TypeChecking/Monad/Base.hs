@@ -295,10 +295,15 @@ data Section = Section
 emptySignature :: Signature
 emptySignature = Sig Map.empty Map.empty
 
-data DisplayForm = Display Nat	  -- ^ @n@: number of free variables
-			   [Term] -- ^ Patterns for arguments, one extra free
-				  -- var which represents pattern vars. There should @n@ of them.
-			   DisplayTerm -- ^ Display form. @n@ free variables.
+data DisplayForm = Display Nat [Term] DisplayTerm
+		-- ^ The three arguments are:
+		--
+		--   * @n@: number of free variables;
+		--
+		--   * Patterns for arguments, one extra free var which
+		--     represents pattern vars. There should @n@ of them.
+		--
+		--   * Display form. @n@ free variables.
   deriving (Typeable, Data, Show)
 
 data DisplayTerm = DWithApp [DisplayTerm] Args

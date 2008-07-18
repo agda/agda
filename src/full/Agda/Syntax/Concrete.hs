@@ -124,12 +124,10 @@ type Telescope = [TypedBindings]
 
    We use fixity information to see which name is actually defined.
 -}
-data LHS = LHS Pattern   -- ^ original pattern
-               [Pattern] -- ^ with-patterns
-               [Expr]    -- ^ with-expressions
-         | Ellipsis Range
-                    [Pattern] -- ^ new with-patterns
-                    [Expr]    -- ^ with-expressions
+data LHS = LHS Pattern [Pattern] [Expr]
+         -- ^ original pattern, with-patterns and with-expressions
+         | Ellipsis Range [Pattern] [Expr]
+         -- ^ new with-patterns and with-expressions
   deriving (Typeable, Data, Eq)
 
 data RHS = AbsurdRHS

@@ -2,7 +2,7 @@
 module Agda.Utils.Tuple where
 
 infix 2 -*-
-infix 3 /\
+infix 3 /\ -- backslashes at EOL interacts badly with CPP...
 
 (-*-) :: (a -> c) -> (b -> d) -> (a,b) -> (c,d)
 (f -*- g) (x,y) = (f x, g y)

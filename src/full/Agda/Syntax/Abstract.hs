@@ -71,9 +71,8 @@ data Definition
 	= FunDef     DefInfo QName [Clause]
 	| DataDef    DefInfo QName Induction [LamBinding] [Constructor]
 	    -- ^ the 'LamBinding's are 'DomainFree' and binds the parameters of the datatype.
-	| RecDef     DefInfo QName [LamBinding]
-                        Expr          -- ^ Constructor type telescope: @(x1 : A1)..(xn : An) -> Prop@
-                        [Declaration] -- ^ Declarations
+	| RecDef     DefInfo QName [LamBinding] Expr [Declaration]
+	    -- ^ the 'Expr' gives the constructor type telescope: @(x1 : A1)..(xn : An) -> Prop@
   deriving (Typeable, Data)
 
 -- | Only 'Axiom's.

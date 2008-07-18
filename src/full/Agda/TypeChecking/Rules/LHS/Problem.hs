@@ -32,8 +32,8 @@ data Focus	    = Focus   { focusCon      :: QName
 			      , focusIndices  :: [Arg Term]
 			      }
 		    | LitFocus Literal OneHolePatterns Int Type
-data SplitProblem   = Split ProblemPart [Name]	-- ^ as-bindings for the focus
-			    (Arg Focus) (Abs ProblemPart)
+data SplitProblem   = Split ProblemPart [Name] (Arg Focus) (Abs ProblemPart)
+                      -- ^ the [Name]s give the as-bindings for the focus
 
 data SplitError	    = NothingToSplit
 		    | SplitPanic String
