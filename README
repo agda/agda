@@ -60,9 +60,8 @@ Linux.)
 3) If you want to use the Emacs mode, build and install it (see
    below).
 
-4) If you want to use the stand-alone "interpreter", go to the
-   src/main directory, and build and install
-   it:
+4) If you want to use the batch-mode Agda tool, go to the src/main
+   directory, and build and install it:
 
      runhaskell Setup.hs configure
      runhaskell Setup.hs build
