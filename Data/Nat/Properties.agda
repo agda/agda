@@ -394,6 +394,12 @@ m⊓n+n∸m≡n zero    n       = byDef
 m⊓n+n∸m≡n (suc m) zero    = byDef
 m⊓n+n∸m≡n (suc m) (suc n) = ≡-cong suc $ m⊓n+n∸m≡n m n
 
+[m∸n]⊓[n∸m]≡0 : forall m n -> (m ∸ n) ⊓ (n ∸ m) ≡ 0
+[m∸n]⊓[n∸m]≡0 zero zero       = ≡-refl
+[m∸n]⊓[n∸m]≡0 zero (suc n)    = ≡-refl
+[m∸n]⊓[n∸m]≡0 (suc m) zero    = ≡-refl
+[m∸n]⊓[n∸m]≡0 (suc m) (suc n) = [m∸n]⊓[n∸m]≡0 m n
+
 -- TODO: Can this proof be simplified? An automatic solver which can
 -- handle ∸ would be nice...
 
