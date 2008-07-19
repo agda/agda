@@ -63,15 +63,20 @@ Linux.)
 4) If you want to use the batch-mode Agda tool, go to the src/main
    directory, and build and install it:
 
+     runhaskell Setup.hs clean  # To ensure recompilation when upgrading.
      runhaskell Setup.hs configure
      runhaskell Setup.hs build
      runhaskell Setup.hs install
 
    Or:
 
+     runhaskell Setup.hs clean
      runhaskell Setup.hs configure --user --prefix=<the install path>
      runhaskell Setup.hs build
      runhaskell Setup.hs install
+
+   When upgrading Agda, note that the batch-mode tool also needs to be
+   rebuilt.
 
 ------------------------------------------------------------------------
 To use the Agda 2 Emacs mode:
