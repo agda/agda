@@ -46,6 +46,9 @@ id₁ x = x
 const : {a b : Set} -> a -> b -> a
 const x = \_ -> x
 
+const₁ : {a : Set1} {b : Set} -> a -> b -> a
+const₁ x = \_ -> x
+
 flip : {a b c : Set} -> (a -> b -> c) -> (b -> a -> c)
 flip f = \x y -> f y x
 
