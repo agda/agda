@@ -29,3 +29,9 @@ take : {a : Set} -> ℕ -> Colist a -> [ a ]
 take zero    xs       = []
 take (suc n) []       = []
 take (suc n) (x ∷ xs) = take n xs
+
+infixr 5 _++_
+
+_++_ : forall {a} -> Colist a -> Colist a -> Colist a
+[]       ++ ys ~ ys
+(x ∷ xs) ++ ys ~ x ∷ (xs ++ ys)
