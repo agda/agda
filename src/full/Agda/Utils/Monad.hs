@@ -75,7 +75,7 @@ commuteM = traverse id
 
 type Cont r a = (a -> r) -> r
 
--- | 'mapM' for the continuation monad. Terribly useful.
+-- | 'Control.Monad.mapM' for the continuation monad. Terribly useful.
 thread :: (a -> Cont r b) -> [a] -> Cont r [b]
 thread f [] ret = ret []
 thread f (x:xs) ret =
