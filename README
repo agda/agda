@@ -237,37 +237,22 @@ To use the Agda 2 Emacs mode:
    case you should change the agda2-include-dirs variable.
 
 5. If you want some specific settings for the Emacs mode you can add
-   them to agda2-mode-hook. For instance, if you want to enable the
-   TeX input method (for writing mathematical Unicode characters, like
-   ∀≥ℕ→π⟦⟧) whenever the Emacs mode is enabled you can add the
-   following to your .emacs:
+   them to agda2-mode-hook. For instance, if you do not want to use
+   the Agda input method (for writing various symbols like ∀≥ℕ→π⟦⟧)
+   you can add the following to your .emacs:
 
    (add-hook 'agda2-mode-hook
-             '(lambda nil
-                (require 'quail)
-                (set-input-method 'TeX)
+             '(lambda ()
+                ; If you do not want to use any input method:
+                (inactivate-input-method)
+                ; If you want to use the X input method:
+                (set-input-method "X")
                 ))
 
-   A side note: If you want to add your own keybindings to the TeX
-   input method you can add the following to your .emacs:
-
-   (eval-after-load "quail/latin-ltx"
-     '(mapc (lambda (pair)
-              (quail-defrule (car pair) (cadr pair) "TeX"))
-         '(("\\comp" "∘")
-           ("\\[[" "⟦") ("\\]]" "⟧")
-           ; If you find it awkward to write comments using the TeX input
-           ; method the following bindings may make life more bearable
-           ; for you:
-           ("--" ["--"]) ("---" ["---"])
-           ; Add more keybindings here.
-           )))
-
-   Another side note: In order to display Unicode characters you need
-   to use a font which contains the glyphs in question. If such a font
-   is not enabled by default (empty boxes are displayed instead of
-   proper characters) you need to select another font. Do this by
-   running
+   A side note: In order to display Unicode characters you need to use
+   a font which contains the glyphs in question. If such a font is not
+   enabled by default (empty boxes are displayed instead of proper
+   characters) you need to select another font. Do this by running
      M-x customize-face RET agda2-fontset-spec RET
    in Emacs (after you have started the Agda mode) and change the
    setting to a suitable font.
