@@ -67,7 +67,7 @@ recBehaviourInvariant rb =
   &&
   allEqual (calls rb : (map Map.keysSet $ Map.elems $ columns rb))
 
--- | Generates a recursion behaviour.
+-- Generates a recursion behaviour.
 
 instance (Arbitrary call, Arbitrary arg, Ord arg, Ord call)
   => Arbitrary (RecBehaviour call arg) where
