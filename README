@@ -215,9 +215,7 @@ To use the Agda 2 Emacs mode:
 3. Add the following to your .emacs:
 
    (add-to-list 'load-path "<agda-mode-dir>")
-   (autoload 'agda2-mode "agda2-mode" "Agda2 mode." t)
-   (add-to-list 'auto-mode-alist '("\\.l?agda$" . agda2-mode))
-   (modify-coding-system-alist 'file "\\.l?agda$" 'utf-8)
+   (require 'agda2)
 
    If you have already set up the suffix .agda for use with some other
    mode you may need to remove or alter that setting. You are
