@@ -95,16 +95,6 @@ concat : forall {a m n} -> Vec (Vec a m) n -> Vec a (n * m)
 concat []         = []
 concat (xs ∷ xss) = xs ++ concat xss
 
-take : forall {a n} (i : Fin (suc n)) -> Vec a n -> Vec a (toℕ i)
-take zero     xs       = []
-take (suc ()) []
-take (suc i)  (x ∷ xs) = x ∷ take i xs
-
-drop : forall {a n} (i : Fin (suc n)) -> Vec a n -> Vec a (n - i)
-drop zero     xs       = xs
-drop (suc ()) []
-drop (suc i)  (x ∷ xs) = drop i xs
-
 infixr 5 _++'_
 
 data SplitAt {a : Set} (m : ℕ) {n : ℕ} : Vec a (m + n) -> Set where
@@ -114,6 +104,14 @@ splitAt : forall {a} m {n} (xs : Vec a (m + n)) -> SplitAt m xs
 splitAt zero    xs                = [] ++' xs
 splitAt (suc m) (x ∷ xs)          with splitAt m xs
 splitAt (suc m) (x ∷ .(ys ++ zs)) | ys ++' zs = (x ∷ ys) ++' zs
+
+take : forall {a} m {n} -> Vec a (m + n) -> Vec a m
+take m xs with splitAt m xs
+take m .(xs ++ ys) | xs ++' ys = xs
+
+drop : forall {a} m {n} -> Vec a (m + n) -> Vec a n
+drop m xs with splitAt m xs
+drop m .(xs ++ ys) | xs ++' ys = ys
 
 data Group {a : Set} (n k : ℕ) : Vec a (n * k) -> Set where
   concat' : (xss : Vec (Vec a k) n) -> Group n k (concat xss)
