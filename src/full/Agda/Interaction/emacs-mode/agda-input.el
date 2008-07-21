@@ -531,7 +531,6 @@ order for the change to take effect."
   ("copyright"      . ("©"))
   ("ordfeminine"    . ("ª"))
   ("guillemotleft"  . ("«"))
-  ("neg"            . ("¬"))
   ("-"              . ("­"))
   ("registered"     . ("®"))
   ("degree"         . ("°"))
