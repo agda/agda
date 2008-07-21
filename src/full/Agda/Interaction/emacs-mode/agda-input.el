@@ -137,16 +137,18 @@ order for the change to take effect."
 
 (defcustom agda-input-inherit
  `(("TeX" . (agda-input-compose
-             (agda-input-drop '("geq" "leq" "bullet"))
+             (agda-input-drop '("geq" "leq" "bullet" "qed"))
               (agda-input-or
                (agda-input-drop-prefix "\\")
                (agda-input-or
-                (agda-input-prefix "^")
+                (agda-input-compose
+                 (agda-input-drop '("^o"))
+                 (agda-input-prefix "^"))
                 (agda-input-prefix "_")))))
    )
   "A list of Quail input methods whose translations should be
-inherited by the Agda input method (except for translations
-corresponding to ISO8859-1 characters).
+inherited by the Agda input method (in Emacs 23 possibly with the
+exception of translations corresponding to ISO8859-1 characters).
 
 The list consists of pairs (qp . tweak), where qp is the name of
 a Quail package, and tweak is an expression of the same kind as
@@ -267,12 +269,14 @@ order for the change to take effect."
 
   ; Various operators/symbols.
 
-  ("pm"        . ("±"))
-  ("cdot"      . ("·"))
+  ,@(if (>= emacs-major-version 23)
+        '(("pm"    . ("±"))
+          ("cdot"  . ("·"))
+          ("times" . ("×"))
+          ("div"   . ("÷"))
+          ("neg"   . ("¬"))))
+
   ("x"         . ("×"))
-  ("times"     . ("×"))
-  ("div"       . ("÷"))
-  ("neg"       . ("¬"))
   ("o"         . ("∘"))
   ("comp"      . ("∘"))
   ("."         . ("∙"))
@@ -520,93 +524,101 @@ order for the change to take effect."
 
   ; Some ISO8859-1 characters.
 
-  (" "              . (" "))
-  ("!"              . ("¡"))
-  ("cent"           . ("¢"))
-  ("pounds"         . ("£"))
-  ("currency"       . ("¤"))
-  ("yen"            . ("¥"))
-  ("brokenbar"      . ("¦"))
-  ("S"              . ("§"))
-  ("copyright"      . ("©"))
-  ("ordfeminine"    . ("ª"))
-  ("guillemotleft"  . ("«"))
-  ("-"              . ("­"))
-  ("registered"     . ("®"))
-  ("degree"         . ("°"))
-  ("^2"             . ("²"))
-  ("^3"             . ("³"))
-  ("micro"          . ("µ"))
-  ("P"              . ("¶"))
-  ("^1"             . ("¹"))
-  ("ordmasculine"   . ("º"))
-  ("guillemotright" . ("»"))
-  ("frac14"         . ("¼"))
-  ("frac12"         . ("½"))
-  ("frac34"         . ("¾"))
-  ("?"              . ("¿"))
-  ("`A"             . ("À"))
-  ("'A"             . ("Á"))
-  ("^A"             . ("Â"))
-  ("~A"             . ("Ã"))
-  ("\"A"            . ("Ä"))
-  ("AA"             . ("Å"))
-  ("AE"             . ("Æ"))
-  ("cC"             . ("Ç"))
-  ("`E"             . ("È"))
-  ("'E"             . ("É"))
-  ("^E"             . ("Ê"))
-  ("\"E"            . ("Ë"))
-  ("`I"             . ("Ì"))
-  ("'I"             . ("Í"))
-  ("^I"             . ("Î"))
-  ("\"I"            . ("Ï"))
-  ("DH"             . ("Ð"))
-  ("~N"             . ("Ñ"))
-  ("`O"             . ("Ò"))
-  ("'O"             . ("Ó"))
-  ("^O"             . ("Ô"))
-  ("~O"             . ("Õ"))
-  ("\"O"            . ("Ö"))
-  ("O"              . ("Ø"))
-  ("`U"             . ("Ù"))
-  ("'U"             . ("Ú"))
-  ("^U"             . ("Û"))
-  ("\"U"            . ("Ü"))
-  ("'Y"             . ("Ý"))
-  ("TH"             . ("Þ"))
-  ("ss"             . ("ß"))
-  ("`a"             . ("à"))
-  ("'a"             . ("á"))
-  ("^a"             . ("â"))
-  ("~a"             . ("ã"))
-  ("\"a"            . ("ä"))
-  ("aa"             . ("å"))
-  ("ae"             . ("æ"))
-  ("cc"             . ("ç"))
-  ("`e"             . ("è"))
-  ("'e"             . ("é"))
-  ("^e"             . ("ê"))
-  ("\"e"            . ("ë"))
-  ("`i"             . ("ì"))
-  ("'i"             . ("í"))
-  ("^i"             . ("î"))
-  ("\"i"            . ("ï"))
-  ("dh"             . ("ð"))
-  ("~n"             . ("ñ"))
-  ("`o"             . ("ò"))
-  ("'o"             . ("ó"))
-  ("^o"             . ("ô"))
-  ("~o"             . ("õ"))
-  ("\"o"            . ("ö"))
-  ("o"              . ("ø"))
-  ("`u"             . ("ù"))
-  ("'u"             . ("ú"))
-  ("^u"             . ("û"))
-  ("\"u"            . ("ü"))
-  ("'y"             . ("ý"))
-  ("th"             . ("þ"))
-  ("\"y"            . ("ÿ"))
+  (" "         . (" "))
+  ("!"         . ("¡"))
+  ("cent"      . ("¢"))
+  ("brokenbar" . ("¦"))
+  ("degree"    . ("°"))
+  ("?"         . ("¿"))
+  ("^a_"       . ("ª"))
+  ("^o_"       . ("º"))
+
+  ,@(if (>= emacs-major-version 23)
+        '(("pounds"         . ("£"))
+          ("currency"       . ("¤"))
+          ("yen"            . ("¥"))
+          ("S"              . ("§"))
+          ("\"{}"           . ("¨"))
+          ("copyright"      . ("©"))
+          ("flqq"           . ("«"))
+          ("\"<"            . ("«"))
+          ("-"              . ("­"))
+          ("registered"     . ("®"))
+          ("={}"            . ("¯"))
+          ("^2"             . ("²"))
+          ("^3"             . ("³"))
+          ("'{}"            . ("´"))
+          ("micro"          . ("µ"))
+          ("P"              . ("¶"))
+          ("c{}"            . ("¸"))
+          ("^1"             . ("¹"))
+          ("frqq"           . ("»"))
+          ("\">"            . ("»"))
+          ("frac14"         . ("¼"))
+          ("frac12"         . ("½"))
+          ("frac34"         . ("¾"))
+          ("`A"             . ("À"))
+          ("'A"             . ("Á"))
+          ("^A"             . ("Â"))
+          ("~A"             . ("Ã"))
+          ("\"A"            . ("Ä"))
+          ("AA"             . ("Å"))
+          ("AE"             . ("Æ"))
+          ("cC"             . ("Ç"))
+          ("`E"             . ("È"))
+          ("'E"             . ("É"))
+          ("^E"             . ("Ê"))
+          ("\"E"            . ("Ë"))
+          ("`I"             . ("Ì"))
+          ("'I"             . ("Í"))
+          ("^I"             . ("Î"))
+          ("\"I"            . ("Ï"))
+          ("DH"             . ("Ð"))
+          ("~N"             . ("Ñ"))
+          ("`O"             . ("Ò"))
+          ("'O"             . ("Ó"))
+          ("^O"             . ("Ô"))
+          ("~O"             . ("Õ"))
+          ("\"O"            . ("Ö"))
+          ("O"              . ("Ø"))
+          ("`U"             . ("Ù"))
+          ("'U"             . ("Ú"))
+          ("^U"             . ("Û"))
+          ("\"U"            . ("Ü"))
+          ("'Y"             . ("Ý"))
+          ("TH"             . ("Þ"))
+          ("ss"             . ("ß"))
+          ("`a"             . ("à"))
+          ("'a"             . ("á"))
+          ("^a"             . ("â"))
+          ("~a"             . ("ã"))
+          ("\"a"            . ("ä"))
+          ("aa"             . ("å"))
+          ("ae"             . ("æ"))
+          ("cc"             . ("ç"))
+          ("`e"             . ("è"))
+          ("'e"             . ("é"))
+          ("^e"             . ("ê"))
+          ("\"e"            . ("ë"))
+          ("`i"             . ("ì"))
+          ("'i"             . ("í"))
+          ("^i"             . ("î"))
+          ("\"i"            . ("ï"))
+          ("dh"             . ("ð"))
+          ("~n"             . ("ñ"))
+          ("`o"             . ("ò"))
+          ("'o"             . ("ó"))
+          ("^o"             . ("ô"))
+          ("~o"             . ("õ"))
+          ("\"o"            . ("ö"))
+          ("o"              . ("ø"))
+          ("`u"             . ("ù"))
+          ("'u"             . ("ú"))
+          ("^u"             . ("û"))
+          ("\"u"            . ("ü"))
+          ("'y"             . ("ý"))
+          ("th"             . ("þ"))
+          ("\"y"            . ("ÿ"))))
 
   ; Circled, parenthesised etc. numbers and letters.
 
@@ -696,9 +708,9 @@ customizations since by default it is empty."
 
 (defun agda-input-get-translations (qp)
   "Returns a list containing all translations from the Quail
-package QP, except for those corresponding to ISO8859-1
-characters. Each pair in the list has the form (key sequence .
-translation)."
+package QP (except possibly, in Emacs 23, for those corresponding
+to ISO8859-1 characters). Each pair in the list has the form (key
+sequence . translation)."
   (with-temp-buffer
     (activate-input-method qp) ; To make sure that the package is loaded.
     (unless (quail-package qp)
@@ -708,8 +720,9 @@ translation)."
       (cdr decode-map))))
 
 (defun agda-input-show-translations (qp)
-  "Displays all translations used by the Quail package QP (a string),
-except for those corresponding to ISO8859-1 characters."
+  "Displays all translations used by the Quail package QP (a string).
+\(Except possibly, in Emacs 23, for those corresponding to
+ISO8859-1 characters.)"
   (interactive (list (read-input-method-name
                       "Quail input method (default %s): " "Agda")))
   (let ((buf (concat "*" qp " input method translations*")))
@@ -728,8 +741,8 @@ translation)) to the Agda input method."
 
 (defun agda-input-inherit-package (qp &optional fun)
   "Lets the Agda input method inherit the translations from the
-Quail package QP (except for those corresponding to ISO8859-1
-characters).
+Quail package QP (except possibly, in Emacs 23, for those
+corresponding to ISO8859-1 characters).
 
 The optional function FUN can be used to modify the translations.
 It is given a pair (key sequence . translation) and should return
