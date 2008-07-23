@@ -35,7 +35,7 @@ infix  9 _↑-NF :-_ --NF_
 infixr 9 _:^_ _^-NF_ _:↑_
 infix  8 _*x _*x+_
 infixl 8 _:*_ _*-NF_ _↑-*-NF_
-infixl 7 _:+_ _+-NF_
+infixl 7 _:+_ _+-NF_ _:-_
 infixl 0 _∷-NF_
 
 ------------------------------------------------------------------------
@@ -62,6 +62,9 @@ _:+_ = op [+]
 
 _:*_ : forall {n} -> Polynomial n -> Polynomial n -> Polynomial n
 _:*_ = op [*]
+
+_:-_ : forall {n} -> Polynomial n -> Polynomial n -> Polynomial n
+x :- y = x :+ :- y
 
 -- Semantics.
 
