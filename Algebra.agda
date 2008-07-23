@@ -15,11 +15,11 @@ open import Data.Function
 -- Semigroups, (commutative) monoids and (abelian) groups
 
 record Semigroup : Set1 where
-  infixl 7 _•_
+  infixl 7 _∙_
   field
     setoid      : Setoid
-    _•_         : P.Op₂ setoid
-    isSemigroup : IsSemigroup setoid _•_
+    _∙_         : P.Op₂ setoid
+    isSemigroup : IsSemigroup setoid _∙_
 
   open Setoid setoid public
   open IsSemigroup setoid isSemigroup public
@@ -28,21 +28,21 @@ record Semigroup : Set1 where
 -- underlying equality).
 
 record RawMonoid : Set1 where
-  infixl 7 _•_
+  infixl 7 _∙_
   field
     setoid : Setoid
-    _•_    : P.Op₂ setoid
+    _∙_    : P.Op₂ setoid
     ε      : Setoid.carrier setoid
 
   open Setoid setoid public
 
 record Monoid : Set1 where
-  infixl 7 _•_
+  infixl 7 _∙_
   field
     setoid   : Setoid
-    _•_      : P.Op₂ setoid
+    _∙_      : P.Op₂ setoid
     ε        : Setoid.carrier setoid
-    isMonoid : IsMonoid setoid _•_ ε
+    isMonoid : IsMonoid setoid _∙_ ε
 
   open Setoid setoid public
   open IsMonoid setoid isMonoid public
@@ -50,24 +50,24 @@ record Monoid : Set1 where
   semigroup : Semigroup
   semigroup = record
     { setoid      = setoid
-    ; _•_         = _•_
+    ; _∙_         = _∙_
     ; isSemigroup = isSemigroup
     }
 
   rawMonoid : RawMonoid
   rawMonoid = record
     { setoid = setoid
-    ; _•_    = _•_
+    ; _∙_    = _∙_
     ; ε      = ε
     }
 
 record CommutativeMonoid : Set1 where
-  infixl 7 _•_
+  infixl 7 _∙_
   field
     setoid              : Setoid
-    _•_                 : P.Op₂ setoid
+    _∙_                 : P.Op₂ setoid
     ε                   : Setoid.carrier setoid
-    isCommutativeMonoid : IsCommutativeMonoid setoid _•_ ε
+    isCommutativeMonoid : IsCommutativeMonoid setoid _∙_ ε
 
   open Setoid setoid public
   open IsCommutativeMonoid setoid isCommutativeMonoid public
@@ -75,7 +75,7 @@ record CommutativeMonoid : Set1 where
   monoid : Monoid
   monoid = record
     { setoid   = setoid
-    ; _•_      = _•_
+    ; _∙_      = _∙_
     ; ε        = ε
     ; isMonoid = isMonoid
     }
@@ -85,13 +85,13 @@ record CommutativeMonoid : Set1 where
 
 record Group : Set1 where
   infix  8 _⁻¹
-  infixl 7 _•_
+  infixl 7 _∙_
   field
     setoid  : Setoid
-    _•_     : P.Op₂ setoid
+    _∙_     : P.Op₂ setoid
     ε       : Setoid.carrier setoid
     _⁻¹     : P.Op₁ setoid
-    isGroup : IsGroup setoid _•_ ε _⁻¹
+    isGroup : IsGroup setoid _∙_ ε _⁻¹
 
   open Setoid setoid public
   open IsGroup setoid isGroup public
@@ -99,7 +99,7 @@ record Group : Set1 where
   monoid : Monoid
   monoid = record
     { setoid   = setoid
-    ; _•_      = _•_
+    ; _∙_      = _∙_
     ; ε        = ε
     ; isMonoid = isMonoid
     }
@@ -108,13 +108,13 @@ record Group : Set1 where
 
 record AbelianGroup : Set1 where
   infix  8 _⁻¹
-  infixl 7 _•_
+  infixl 7 _∙_
   field
     setoid         : Setoid
-    _•_            : P.Op₂ setoid
+    _∙_            : P.Op₂ setoid
     ε              : Setoid.carrier setoid
     _⁻¹            : P.Op₁ setoid
-    isAbelianGroup : IsAbelianGroup setoid _•_ ε _⁻¹
+    isAbelianGroup : IsAbelianGroup setoid _∙_ ε _⁻¹
 
   open Setoid setoid public
   open IsAbelianGroup setoid isAbelianGroup public
@@ -122,7 +122,7 @@ record AbelianGroup : Set1 where
   group : Group
   group = record
     { setoid  = setoid
-    ; _•_     = _•_
+    ; _∙_     = _∙_
     ; ε       = ε
     ; _⁻¹     = _⁻¹
     ; isGroup = isGroup
@@ -133,7 +133,7 @@ record AbelianGroup : Set1 where
   commutativeMonoid : CommutativeMonoid
   commutativeMonoid = record
     { setoid              = setoid
-    ; _•_                 = _•_
+    ; _∙_                 = _∙_
     ; ε                   = ε
     ; isCommutativeMonoid = isCommutativeMonoid
     }
@@ -157,7 +157,7 @@ record NearSemiring : Set1 where
   +-monoid : Monoid
   +-monoid = record
     { setoid   = setoid
-    ; _•_      = _+_
+    ; _∙_      = _+_
     ; ε        = 0#
     ; isMonoid = +-isMonoid
     }
@@ -169,7 +169,7 @@ record NearSemiring : Set1 where
   *-semigroup : Semigroup
   *-semigroup = record
     { setoid      = setoid
-    ; _•_         = _*_
+    ; _∙_         = _*_
     ; isSemigroup = *-isSemigroup
     }
 
@@ -203,7 +203,7 @@ record SemiringWithoutOne : Set1 where
   +-commutativeMonoid : CommutativeMonoid
   +-commutativeMonoid = record
     { setoid              = setoid
-    ; _•_                 = _+_
+    ; _∙_                 = _+_
     ; ε                   = 0#
     ; isCommutativeMonoid = +-isCommutativeMonoid
     }
@@ -227,7 +227,7 @@ record SemiringWithoutAnnihilatingZero : Set1 where
   +-commutativeMonoid : CommutativeMonoid
   +-commutativeMonoid = record
     { setoid              = setoid
-    ; _•_                 = _+_
+    ; _∙_                 = _+_
     ; ε                   = 0#
     ; isCommutativeMonoid = +-isCommutativeMonoid
     }
@@ -241,7 +241,7 @@ record SemiringWithoutAnnihilatingZero : Set1 where
   *-monoid : Monoid
   *-monoid = record
     { setoid   = setoid
-    ; _•_      = _*_
+    ; _∙_      = _*_
     ; ε        = 1#
     ; isMonoid = *-isMonoid
     }
@@ -361,7 +361,7 @@ record CommutativeSemiring : Set1 where
   *-commutativeMonoid : CommutativeMonoid
   *-commutativeMonoid = record
     { setoid              = setoid
-    ; _•_                 = _*_
+    ; _∙_                 = _*_
     ; ε                   = 1#
     ; isCommutativeMonoid = *-isCommutativeMonoid
     }
@@ -414,7 +414,7 @@ record Ring : Set1 where
   +-abelianGroup : AbelianGroup
   +-abelianGroup = record
     { setoid         = setoid
-    ; _•_            = _+_
+    ; _∙_            = _+_
     ; ε              = 0#
     ; _⁻¹            = -_
     ; isAbelianGroup = +-isAbelianGroup

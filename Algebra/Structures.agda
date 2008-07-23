@@ -22,53 +22,53 @@ private
   -- Some abbreviations:
 
   _Preserves-≈ : Op₁ -> Set
-  • Preserves-≈ = • Preserves _≈_ → _≈_
+  ∙ Preserves-≈ = ∙ Preserves _≈_ → _≈_
 
   _Preserves₂-≈ : Op₂ -> Set
-  • Preserves₂-≈ = • Preserves₂ _≈_ → _≈_ → _≈_
+  ∙ Preserves₂-≈ = ∙ Preserves₂ _≈_ → _≈_ → _≈_
 
 ----------------------------------------------------------------------
 -- One binary operation
 
-record IsSemigroup (• : Op₂) : Set where
+record IsSemigroup (∙ : Op₂) : Set where
   field
-    assoc    : Associative •
-    •-pres-≈ : • Preserves₂-≈
+    assoc    : Associative ∙
+    ∙-pres-≈ : ∙ Preserves₂-≈
 
-record IsMonoid (• : Op₂) (ε : carrier) : Set where
+record IsMonoid (∙ : Op₂) (ε : carrier) : Set where
   field
-    isSemigroup : IsSemigroup •
-    identity    : Identity ε •
+    isSemigroup : IsSemigroup ∙
+    identity    : Identity ε ∙
 
   open IsSemigroup isSemigroup public
 
-record IsCommutativeMonoid (• : Op₂) (ε : carrier) : Set where
+record IsCommutativeMonoid (∙ : Op₂) (ε : carrier) : Set where
   field
-    isMonoid : IsMonoid • ε
-    comm     : Commutative •
+    isMonoid : IsMonoid ∙ ε
+    comm     : Commutative ∙
 
   open IsMonoid isMonoid public
 
-record IsGroup (_•_ : Op₂) (ε : carrier) (_⁻¹ : Op₁) : Set where
+record IsGroup (_∙_ : Op₂) (ε : carrier) (_⁻¹ : Op₁) : Set where
   infixl 7 _-_
   field
-    isMonoid  : IsMonoid _•_ ε
-    inverse   : Inverse ε _⁻¹ _•_
+    isMonoid  : IsMonoid _∙_ ε
+    inverse   : Inverse ε _⁻¹ _∙_
     ⁻¹-pres-≈ : _⁻¹ Preserves-≈
 
   open IsMonoid isMonoid public
 
   _-_ : Op₂
-  x - y = x • (y ⁻¹)
+  x - y = x ∙ (y ⁻¹)
 
-record IsAbelianGroup (• : Op₂) (ε : carrier) (⁻¹ : Op₁) : Set where
+record IsAbelianGroup (∙ : Op₂) (ε : carrier) (⁻¹ : Op₁) : Set where
   field
-    isGroup : IsGroup • ε ⁻¹
-    comm    : Commutative •
+    isGroup : IsGroup ∙ ε ⁻¹
+    comm    : Commutative ∙
 
   open IsGroup isGroup public
 
-  isCommutativeMonoid : IsCommutativeMonoid • ε
+  isCommutativeMonoid : IsCommutativeMonoid ∙ ε
   isCommutativeMonoid = record
     { isMonoid = isMonoid
     ; comm     = comm
@@ -86,14 +86,14 @@ record IsNearSemiring (+ * : Op₂) (0# : carrier) : Set where
 
   open IsMonoid +-isMonoid public
          renaming ( assoc       to +-assoc
-                  ; •-pres-≈    to +-pres-≈
+                  ; ∙-pres-≈    to +-pres-≈
                   ; isSemigroup to +-isSemigroup
                   ; identity    to +-identity
                   )
 
   open IsSemigroup *-isSemigroup public
          renaming ( assoc    to *-assoc
-                  ; •-pres-≈ to *-pres-≈
+                  ; ∙-pres-≈ to *-pres-≈
                   )
 
 record IsSemiringWithoutOne (+ * : Op₂) (0# : carrier) : Set where
@@ -105,7 +105,7 @@ record IsSemiringWithoutOne (+ * : Op₂) (0# : carrier) : Set where
 
   open IsCommutativeMonoid +-isCommutativeMonoid public
          renaming ( assoc       to +-assoc
-                  ; •-pres-≈    to +-pres-≈
+                  ; ∙-pres-≈    to +-pres-≈
                   ; isSemigroup to +-isSemigroup
                   ; identity    to +-identity
                   ; isMonoid    to +-isMonoid
@@ -114,7 +114,7 @@ record IsSemiringWithoutOne (+ * : Op₂) (0# : carrier) : Set where
 
   open IsSemigroup *-isSemigroup public
          renaming ( assoc       to *-assoc
-                  ; •-pres-≈    to *-pres-≈
+                  ; ∙-pres-≈    to *-pres-≈
                   )
 
   isNearSemiring : IsNearSemiring + * 0#
@@ -136,7 +136,7 @@ record IsSemiringWithoutAnnihilatingZero (+ * : Op₂) (0# 1# : carrier)
 
   open IsCommutativeMonoid +-isCommutativeMonoid public
          renaming ( assoc       to +-assoc
-                  ; •-pres-≈    to +-pres-≈
+                  ; ∙-pres-≈    to +-pres-≈
                   ; isSemigroup to +-isSemigroup
                   ; identity    to +-identity
                   ; isMonoid    to +-isMonoid
@@ -145,7 +145,7 @@ record IsSemiringWithoutAnnihilatingZero (+ * : Op₂) (0# 1# : carrier)
 
   open IsMonoid *-isMonoid public
          renaming ( assoc       to *-assoc
-                  ; •-pres-≈    to *-pres-≈
+                  ; ∙-pres-≈    to *-pres-≈
                   ; isSemigroup to *-isSemigroup
                   ; identity    to *-identity
                   )
@@ -206,7 +206,7 @@ record IsRing (_+_ _*_ : Op₂) (-_ : Op₁) (0# 1# : carrier) : Set where
 
   open IsAbelianGroup +-isAbelianGroup public
          renaming ( assoc               to +-assoc
-                  ; •-pres-≈            to +-pres-≈
+                  ; ∙-pres-≈            to +-pres-≈
                   ; isSemigroup         to +-isSemigroup
                   ; identity            to +-identity
                   ; isMonoid            to +-isMonoid
@@ -219,7 +219,7 @@ record IsRing (_+_ _*_ : Op₂) (-_ : Op₁) (0# 1# : carrier) : Set where
 
   open IsMonoid *-isMonoid public
          renaming ( assoc       to *-assoc
-                  ; •-pres-≈    to *-pres-≈
+                  ; ∙-pres-≈    to *-pres-≈
                   ; isSemigroup to *-isSemigroup
                   ; identity    to *-identity
                   )

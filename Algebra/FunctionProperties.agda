@@ -28,37 +28,37 @@ Op₂ = carrier -> carrier -> carrier
 -- Properties of operations
 
 Associative : Op₂ -> Set
-Associative _•_ = forall x y z -> ((x • y) • z) ≈ (x • (y • z))
+Associative _∙_ = forall x y z -> ((x ∙ y) ∙ z) ≈ (x ∙ (y ∙ z))
 
 Commutative : Op₂ -> Set
-Commutative _•_ = forall x y -> (x • y) ≈ (y • x)
+Commutative _∙_ = forall x y -> (x ∙ y) ≈ (y ∙ x)
 
 LeftIdentity : carrier -> Op₂ -> Set
-LeftIdentity e _•_ = forall x -> (e • x) ≈ x
+LeftIdentity e _∙_ = forall x -> (e ∙ x) ≈ x
 
 RightIdentity : carrier -> Op₂ -> Set
-RightIdentity e _•_ = forall x -> (x • e) ≈ x
+RightIdentity e _∙_ = forall x -> (x ∙ e) ≈ x
 
 Identity : carrier -> Op₂ -> Set
-Identity e • = LeftIdentity e • × RightIdentity e •
+Identity e ∙ = LeftIdentity e ∙ × RightIdentity e ∙
 
 LeftZero : carrier -> Op₂ -> Set
-LeftZero z _•_ = forall x -> (z • x) ≈ z
+LeftZero z _∙_ = forall x -> (z ∙ x) ≈ z
 
 RightZero : carrier -> Op₂ -> Set
-RightZero z _•_ = forall x -> (x • z) ≈ z
+RightZero z _∙_ = forall x -> (x ∙ z) ≈ z
 
 Zero : carrier -> Op₂ -> Set
-Zero z • = LeftZero z • × RightZero z •
+Zero z ∙ = LeftZero z ∙ × RightZero z ∙
 
 LeftInverse : carrier -> Op₁ -> Op₂ -> Set
-LeftInverse e _⁻¹ _•_ = forall x -> (x ⁻¹ • x) ≈ e
+LeftInverse e _⁻¹ _∙_ = forall x -> (x ⁻¹ ∙ x) ≈ e
 
 RightInverse : carrier -> Op₁ -> Op₂ -> Set
-RightInverse e _⁻¹ _•_ = forall x -> (x • (x ⁻¹)) ≈ e
+RightInverse e _⁻¹ _∙_ = forall x -> (x ∙ (x ⁻¹)) ≈ e
 
 Inverse : carrier -> Op₁ -> Op₂ -> Set
-Inverse e ⁻¹ • = LeftInverse e ⁻¹ • × RightInverse e ⁻¹ •
+Inverse e ⁻¹ ∙ = LeftInverse e ⁻¹ ∙ × RightInverse e ⁻¹ ∙
 
 _DistributesOverˡ_ : Op₂ -> Op₂ -> Set
 _*_ DistributesOverˡ _+_ =
@@ -72,19 +72,19 @@ _DistributesOver_ : Op₂ -> Op₂ -> Set
 * DistributesOver + = (* DistributesOverˡ +) × (* DistributesOverʳ +)
 
 _IdempotentOn_ : Op₂ -> carrier -> Set
-_•_ IdempotentOn x = (x • x) ≈ x
+_∙_ IdempotentOn x = (x ∙ x) ≈ x
 
 Idempotent : Op₂ -> Set
-Idempotent • = forall x -> • IdempotentOn x
+Idempotent ∙ = forall x -> ∙ IdempotentOn x
 
 IdempotentFun : Op₁ -> Set
 IdempotentFun f = forall x -> f (f x) ≈ f x
 
 _Absorbs_ : Op₂ -> Op₂ -> Set
-_•_ Absorbs _∘_ = forall x y -> (x • (x ∘ y)) ≈ x
+_∙_ Absorbs _∘_ = forall x y -> (x ∙ (x ∘ y)) ≈ x
 
 Absorptive : Op₂ -> Op₂ -> Set
-Absorptive • ∘ = (• Absorbs ∘) × (∘ Absorbs •)
+Absorptive ∙ ∘ = (∙ Absorbs ∘) × (∘ Absorbs ∙)
 
 Involutive : Op₁ -> Set
 Involutive f = forall x -> f (f x) ≈ x

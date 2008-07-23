@@ -169,7 +169,7 @@ private
         { isMonoid = record
           { isSemigroup = record
             { assoc    = +-assoc
-            ; •-pres-≈ = ≡-cong₂ _+_
+            ; ∙-pres-≈ = ≡-cong₂ _+_
             }
           ; identity = +-identity
           }
@@ -178,7 +178,7 @@ private
       ; *-isMonoid = record
         { isSemigroup = record
           { assoc    = *-assoc
-          ; •-pres-≈ = ≡-cong₂ _*_
+          ; ∙-pres-≈ = ≡-cong₂ _*_
           }
         ; identity = *-identity
         }
@@ -291,7 +291,7 @@ private
           { isMonoid = record
               { isSemigroup = record
                   { assoc = ⊔-assoc
-                  ; •-pres-≈ = ≡-cong₂ _⊔_
+                  ; ∙-pres-≈ = ≡-cong₂ _⊔_
                   }
               ; identity = ⊔-identity
               }
@@ -299,7 +299,7 @@ private
           }
       ; *-isSemigroup = record
           { assoc    = ⊓-assoc
-          ; •-pres-≈ = ≡-cong₂ _⊓_
+          ; ∙-pres-≈ = ≡-cong₂ _⊓_
           }
       ; distrib = distrib-⊓-⊔
       ; zero    = ⊓-zero

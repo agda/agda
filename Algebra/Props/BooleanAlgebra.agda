@@ -101,7 +101,7 @@ private
         { isMonoid = record
           { isSemigroup = record
             { assoc    = ∨-assoc
-            ; •-pres-≈ = ∨-pres-≈
+            ; ∙-pres-≈ = ∨-pres-≈
             }
           ; identity  = ∨-identity
           }
@@ -110,7 +110,7 @@ private
       ; *-isMonoid = record
         { isSemigroup = record
           { assoc    = ∧-assoc
-          ; •-pres-≈ = ∧-pres-≈
+          ; ∙-pres-≈ = ∧-pres-≈
           }
         ; identity = ∧-identity
         }
@@ -155,7 +155,7 @@ private
         { isMonoid = record
           { isSemigroup = record
             { assoc    = ∧-assoc
-            ; •-pres-≈ = ∧-pres-≈
+            ; ∙-pres-≈ = ∧-pres-≈
             }
           ; identity  = ∧-identity
           }
@@ -164,7 +164,7 @@ private
       ; *-isMonoid = record
         { isSemigroup = record
           { assoc    = ∨-assoc
-          ; •-pres-≈ = ∨-pres-≈
+          ; ∙-pres-≈ = ∨-pres-≈
           }
         ; identity = ∨-identity
         }
@@ -517,7 +517,7 @@ module XorRing
           { isMonoid = record
             { isSemigroup = record
               { assoc    = ⊕-assoc
-              ; •-pres-≈ = ⊕-pres
+              ; ∙-pres-≈ = ⊕-pres
               }
             ; identity = ⊕-identity
             }
@@ -529,7 +529,7 @@ module XorRing
       ; *-isMonoid = record
         { isSemigroup = record
           { assoc    = ∧-assoc
-          ; •-pres-≈ = ∧-pres-≈
+          ; ∙-pres-≈ = ∧-pres-≈
           }
         ; identity = ∧-identity
         }

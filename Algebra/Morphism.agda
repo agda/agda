@@ -19,14 +19,14 @@ module Definitions (from : Set) (to : Setoid) where
   Morphism = from -> to-carrier
 
   Homomorphic₀ : Morphism -> from -> to-carrier -> Set
-  Homomorphic₀ ⟦_⟧ • ∘ = ⟦ • ⟧ ≈ ∘
+  Homomorphic₀ ⟦_⟧ ∙ ∘ = ⟦ ∙ ⟧ ≈ ∘
 
   Homomorphic₁ : Morphism -> Fun₁ from -> Op₁ to -> Set
-  Homomorphic₁ ⟦_⟧ •_ ∘_ = forall x -> ⟦ • x ⟧ ≈ ∘ ⟦ x ⟧
+  Homomorphic₁ ⟦_⟧ ∙_ ∘_ = forall x -> ⟦ ∙ x ⟧ ≈ ∘ ⟦ x ⟧
 
   Homomorphic₂ : Morphism -> Fun₂ from -> Op₂ to -> Set
-  Homomorphic₂ ⟦_⟧ _•_ _∘_ =
-    forall x y -> ⟦ x • y ⟧ ≈ (⟦ x ⟧ ∘ ⟦ y ⟧)
+  Homomorphic₂ ⟦_⟧ _∙_ _∘_ =
+    forall x y -> ⟦ x ∙ y ⟧ ≈ (⟦ x ⟧ ∘ ⟦ y ⟧)
 
 ------------------------------------------------------------------------
 -- Some specific morphisms
