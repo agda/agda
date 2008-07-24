@@ -84,6 +84,7 @@ import Data.Unit
 import Data.Vec
 import Data.Vec.Equality
 import Data.Vec.N-ary
+import Data.Vec.N-ary1
 import Data.Vec.Properties
 import Data.Vec1
 
