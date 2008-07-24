@@ -161,3 +161,10 @@ init .(ys ∷ʳ y) | ys ∷ʳ' y = ys
 last : forall {a n} -> Vec a (1 + n) -> a
 last xs with initLast xs
 last .(ys ∷ʳ y) | ys ∷ʳ' y = y
+
+-- Generates a vector containing all elements in Fin n. This function
+-- is not placed in Data.Fin since Data.Vec depends on Data.Fin.
+
+allFin : forall n -> Vec (Fin n) n
+allFin zero    = []
+allFin (suc n) = zero ∷ map suc (allFin n)
