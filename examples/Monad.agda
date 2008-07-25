@@ -1,5 +1,5 @@
 
-module examples.Monad where
+module Monad where
 
 module Prelude where
 

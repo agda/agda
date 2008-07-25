@@ -1,6 +1,6 @@
 {-# OPTIONS --allow-unsolved-metas #-}
 
-module T where
+module simple where
 
 module Nat where
 

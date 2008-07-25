@@ -1,5 +1,5 @@
 
-module Builtin where
+module builtinInModule where
 
 module Int where
 

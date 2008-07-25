@@ -14,6 +14,7 @@ import qualified Data.List as List
 import qualified Data.Set as Set
 import qualified Data.ByteString.Lazy as BS
 import Data.Generics
+import Data.List
 import System.Directory
 import System.Time
 import Control.Exception
@@ -300,6 +301,22 @@ type Suffix = String
 moduleNameToFileName :: C.QName -> Suffix -> FilePath
 moduleNameToFileName (C.QName  x) ext = show x ++ ext
 moduleNameToFileName (C.Qual m x) ext = show m ++ [slash] ++ moduleNameToFileName x ext
+
+-- | Move somewhere else.
+matchFileName :: ModuleName -> FilePath -> Bool
+matchFileName mname file = expected `isSuffixOf` given
+  where
+    (given, _)    = splitExt file
+    (expected, _) = splitExt $ moduleNameToFileName (mnameToConcrete mname) ".agda"
+
+-- | Check that the top-level module name matches the file name.
+checkModuleName :: TopLevelInfo -> FilePath -> TCM ()
+checkModuleName topLevel file = do
+  let mname = scopeName $ head $ scopeStack $ insideScope topLevel
+  unless (matchFileName mname file) $ typeError $ GenericError $
+      "The name of the top level module does not match the file name. " ++
+      "The module " ++ show mname ++ " should be defined in the file " ++
+      moduleNameToFileName (mnameToConcrete mname) ".agda" ++ ","
 
 -- | True if the first file is newer than the second file. If a file doesn't
 -- exist it is considered to be infinitely old.

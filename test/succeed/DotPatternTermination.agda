@@ -1,4 +1,4 @@
-module Term where
+module DotPatternTermination where
 
 data Nat : Set where
   zero : Nat

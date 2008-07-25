@@ -1,6 +1,6 @@
 {-# OPTIONS --proof-irrelevance #-}
 
-module examples.Setoid where
+module Setoid where
 
 module Logic where
 

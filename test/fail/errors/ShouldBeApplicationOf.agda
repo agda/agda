@@ -1,5 +1,5 @@
 
-module Foo where
+module errors.ShouldBeApplicationOf where
 
 data One : Set where one : One
 data Two : Set where two : Two

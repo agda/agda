@@ -1,4 +1,4 @@
-module Builtin where
+module builtin where
 
 data Bool : Set where
   false : Bool

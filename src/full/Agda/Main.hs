@@ -106,7 +106,10 @@ runAgda =
 				-- Scope check
 				pragmas  <- concat <$> concreteToAbstract_ pragmas -- identity for top-level pragmas
 				topLevel <- concreteToAbstract_ (TopLevel m)
-				setOptionsFromPragmas pragmas
+                                setOptionsFromPragmas pragmas
+
+                                -- Check module name
+                                checkModuleName topLevel file
 
 				-- Type check
 				checkDecls $ topLevelDecls topLevel

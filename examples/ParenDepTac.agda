@@ -1,6 +1,6 @@
 -- Author: Makoto Takeyama
 
-module ParenExercise where
+module ParenDepTac where
 
 ----------------------------------------------------------------------
 -- Preliminary

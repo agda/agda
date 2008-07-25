@@ -1,5 +1,5 @@
 
-module Lit where
+module LitDistinct where
 
 postulate String : Set
 {-# BUILTIN STRING String #-}

@@ -1,6 +1,6 @@
 {-# OPTIONS --no-termination-check #-}
 
-module Qsort where
+module qsort where
 
   _o_ : {a : Set} -> {b : Set} -> {c : Set} -> (b -> c) -> (a -> b) -> a -> c
   f o g = \x -> f (g x)

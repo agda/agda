@@ -1,6 +1,6 @@
 -- Simple test to check if constraint solving for injective
 -- functions is working.
-module Inj where
+module Injectivity where
 
 data Nat : Set where
   zero : Nat

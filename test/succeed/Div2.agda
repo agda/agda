@@ -1,5 +1,5 @@
 
-module Div where
+module Div2 where
 
 record True : Set where
 

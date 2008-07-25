@@ -85,6 +85,7 @@ import qualified Agda.Interaction.BasicOps as B
 import qualified Agda.Interaction.CommandLine.CommandLine as CL
 import Agda.Interaction.Highlighting.Emacs
 import Agda.Interaction.Highlighting.Generate
+import Agda.Interaction.Imports (checkModuleName)
 
 import Agda.Termination.TermCheck
 
@@ -187,6 +188,8 @@ cmd_load file includes = infoOnException $ do
             -- Note that pragmas can affect scope checking.
             setOptionsFromPragmas pragmas
 	    topLevel <- concreteToAbstract_ (TopLevel m)
+
+            checkModuleName topLevel file
 
             handleError
               -- If there is an error syntax highlighting info can

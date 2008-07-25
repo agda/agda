@@ -1,4 +1,4 @@
-module examples.Vec where
+module Vec where
   {- Computed datatypes -}
   data One : Set where
     unit : One

@@ -1,5 +1,5 @@
 
-module T where
+module list where
 
 module List (A : Set) where
 
