@@ -30,8 +30,9 @@ import qualified Data.Map as Map
 import Data.Monoid
 import Data.Array (Array)
 
-
--- | @'terminates' cs@ checks if the functions represented by @cs@
+-- | TODO: This comment seems to be partly out of date.
+--
+-- @'terminates' cs@ checks if the functions represented by @cs@
 -- terminate. The call graph @cs@ should have one entry ('Call') per
 -- recursive function application.
 --
@@ -44,7 +45,7 @@ import Data.Array (Array)
 --
 -- Note that this function assumes that all data types are strictly
 -- positive.
-
+--
 -- The termination criterion is taken from Jones et al.
 -- In the completed call graph, each idempotent call-matrix 
 -- from a function to itself must have a decreasing argument.
@@ -69,7 +70,8 @@ checkIdem c = let b = target c == source c
                   in
                     (not b) || (not idem) || hasDecr
 
--- matrix is decreasing if any diagonal element is Lt
+-- | Matrix is decreasing if any diagonal element is 'Lt'.
+
 isDecr :: Order -> Bool
 isDecr Lt = True
 isDecr (Mat m) = any isDecr $ Array.elems $ diagonal m
