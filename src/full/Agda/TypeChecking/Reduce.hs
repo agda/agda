@@ -150,8 +150,8 @@ instance Reduce Term where
 		Def f args   -> do
                   rec <- whatRecursion f
                   case rec of
-                    Recursive   -> unfoldDefinition (Def f []) f args
-                    CoRecursive -> return $ Def f args
+                    Just CoRecursive -> return $ Def f args
+                    _                -> unfoldDefinition (Def f []) f args
 		Con c args   -> do
 		    v <- unfoldDefinition (Con c []) c args -- constructors can reduce
 		    reduceNat v			     -- when they come from an instantiated module

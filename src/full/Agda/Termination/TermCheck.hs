@@ -80,8 +80,8 @@ collectCalls f (a : as) = do c1 <- f a
                              c2 <- collectCalls f as
                              return (c1 `Term.union` c2)
 
-sameRecursion :: [Recursion] -> TCM Recursion
-sameRecursion rs = case nub rs of
+sameRecursion :: [Maybe Recursion] -> TCM Recursion
+sameRecursion rs = case nub [ r | Just r <- rs ] of
   []  -> return Recursive
   [r] -> return r
   _   -> typeError $ NotImplemented "mutual recursion and corecursion"

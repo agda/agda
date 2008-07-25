@@ -239,12 +239,20 @@ canonicalName x = do
     extract (Bind (Abs _ b)) = extract b
     extract (NoBind b)	     = extract b
 
-whatRecursion :: MonadTCM tcm => QName -> tcm Recursion
+whatRecursion :: MonadTCM tcm => QName -> tcm (Maybe Recursion)
 whatRecursion f = do
   def <- theDef <$> getConstInfo f
   case def of
-    Function{ funRecursion = r } -> return r
-    _                            -> return Recursive
+    Function{ funRecursion = r, funClauses = cl }
+      | any hasRHS cl -> return $ Just r
+      | otherwise     -> return Nothing
+    _                            -> return $ Just Recursive
+  where
+    hasRHS (Clause _ _ _ b) = hasBody b
+    hasBody (Body _)   = True
+    hasBody NoBody     = False
+    hasBody (Bind b)   = hasBody $ absBody b
+    hasBody (NoBind b) = hasBody b
 
 -- | Can be called on either a (co)datatype or a (co)constructor.
 whatInduction :: MonadTCM tcm => QName -> tcm Induction
