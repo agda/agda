@@ -196,9 +196,8 @@ checkExpr e t =
                           case defn of
                             Datatype{} ->
                               case [ c | (d', c) <- dcs, d == d' ] of
-                                [c]   -> return (Just c)
+                                c:_   -> return (Just c)
                                 []    -> fail $ show (head cs) ++ " does not construct an element of the datatype " ++ show d
-                                _:_:_ -> __IMPOSSIBLE__
                             _ -> return Nothing
                         MetaV _ _  -> return Nothing
                         BlockedV _ -> return Nothing
