@@ -276,6 +276,7 @@ order for the change to take effect."
           ("div"   . ("÷"))
           ("neg"   . ("¬"))))
 
+  ("qed"       . ("∎"))
   ("x"         . ("×"))
   ("o"         . ("∘"))
   ("comp"      . ("∘"))
