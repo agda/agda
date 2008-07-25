@@ -106,9 +106,19 @@ stripWithClausePatterns gamma qs perm ps = do
           ps <- underAbstraction a tel $ \tel -> strip tel ps qs
           return $ p : ps
 
-        DotP v  -> do
-          ps <- strip (tel `absApp` v) ps qs
-          return $ p : ps
+        DotP v  -> case namedThing $ unArg p of
+          A.DotP _ _    -> ok
+          A.ImplicitP _ -> ok
+          _ -> do
+            d <- prettyA p
+            typeError $ GenericError $
+                "Inaccessible (dotted) patterns from the parent clause must " ++
+                "also be inaccesible in the with clause, when checking the " ++
+                "pattern " ++ show d ++ ","
+          where
+            ok = do
+              ps <- strip (tel `absApp` v) ps qs
+              return $ p : ps
 
         ConP c qs' -> case namedThing $ unArg p of
           A.ConP _ cs' ps' -> do
