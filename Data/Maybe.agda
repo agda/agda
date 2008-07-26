@@ -38,7 +38,14 @@ maybe₀₁ j n nothing  = n
 ------------------------------------------------------------------------
 -- Maybe monad
 
+open import Data.Function
+open import Category.Functor
 open import Category.Monad
+
+MaybeFunctor : RawFunctor Maybe
+MaybeFunctor = record
+  { _<$>_ = \f -> maybe (just ∘ f) nothing
+  }
 
 MaybeMonad : RawMonad Maybe
 MaybeMonad = record
