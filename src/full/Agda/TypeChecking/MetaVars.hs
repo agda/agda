@@ -133,6 +133,9 @@ newValueMetaCtx' t vs = do
     liftIO $ putStrLn $ "new meta: " ++ show x ++ " : " ++ show dt
   return $ MetaV x vs
 
+newTelMeta :: MonadTCM tcm => Telescope -> tcm Args
+newTelMeta tel = newArgsMeta (abstract tel $ El Prop $ Sort Prop)
+
 newArgsMeta :: MonadTCM tcm => Type -> tcm Args
 newArgsMeta t = do
   args <- getContextArgs

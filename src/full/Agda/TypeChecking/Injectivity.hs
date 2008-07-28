@@ -2,13 +2,17 @@
 
 module Agda.TypeChecking.Injectivity where
 
+import Prelude hiding (mapM)
 import Control.Applicative
-import Control.Monad
-import Control.Monad.Error
+import Control.Monad hiding (mapM)
+import Control.Monad.Error hiding (mapM)
+import Control.Monad.State hiding (mapM)
+import Control.Monad.Reader hiding (mapM)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe
 import Data.List
+import Data.Traversable
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -22,12 +26,13 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Constraints
 import Agda.Utils.List
 import Agda.Utils.Monad
+import Agda.Utils.Permutation
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
 
 headSymbol :: Term -> TCM (Maybe TermHead)
-headSymbol v = do
+headSymbol v = ignoreAbstractMode $ do
   v <- constructorForm v
   case v of
     Def f _ -> do
@@ -56,19 +61,19 @@ checkInjectivity f cs = do
       let inv = Map.fromList (map fromJust hs `zip` ps)
       reportSLn "tc.inj.check" 20 $ show f ++ " is injective."
       reportSDoc "tc.inj.check" 30 $ nest 2 $ vcat $
-        map (\ (h, ps) -> text (show h) <+> text "-->" <+>
+        map (\ (h, Clause _ _ ps _) -> text (show h) <+> text "-->" <+>
                           fsep (punctuate comma $ map (text . show) ps)
             ) $ Map.toList inv
       return $ Inverse inv
     else return NotInjective
   where
-    entry (Clause _ _ ps b) = do
+    entry c@(Clause _ _ _ b) = do
       mv <- rhs b
       case mv of
         Nothing -> return []
         Just v  -> do
           h <- headSymbol v
-          return [(h, ps)]
+          return [(h, c)]
 
     rhs (NoBind b) = rhs b
     rhs (Bind b)   = underAbstraction_ b rhs
@@ -87,7 +92,7 @@ functionInverse v = case ignoreBlocking v of
       _ -> return NoInv
   _ -> return NoInv
 
-data InvView = Inv QName Args (Map TermHead [Arg Pattern])
+data InvView = Inv QName Args (Map TermHead Clause)
              | NoInv
 
 useInjectivity :: Type -> Term -> Term -> TCM Constraints
@@ -108,60 +113,67 @@ useInjectivity a u v = do
         equalArgs a fArgs gArgs
       | otherwise -> fallBack
     (Inv f args inv, NoInv) -> do
+      a <- defType <$> getConstInfo f
       reportSDoc "tc.inj.use" 20 $ fsep $
-        pwords "inverting injective function" ++ [prettyTCM f, text "for", prettyTCM v]
-      invert inv args =<< headSymbol v
+        pwords "inverting injective function" ++
+        [ prettyTCM f, text ":", prettyTCM a, text "for", prettyTCM v
+        , parens $ text "args =" <+> prettyList (map prettyTCM args)
+        ]
+      invert a inv args =<< headSymbol v
     (NoInv, Inv g args inv) -> do
+      a <- defType <$> getConstInfo g
       reportSDoc "tc.inj.use" 20 $ fsep $
-        pwords "inverting injective function" ++ [prettyTCM g, text "for", prettyTCM u]
-      invert inv args =<< headSymbol u
+        pwords "inverting injective function" ++
+        [ prettyTCM g, text ":", prettyTCM a,  text "for", prettyTCM u
+        , parens $ text "args =" <+> prettyList (map prettyTCM args)
+        ]
+      invert a inv args =<< headSymbol u
     (NoInv, NoInv)          -> fallBack
   where
     fallBack = buildConstraint $ ValueEq a u v
 
-    invert inv args Nothing  = fallBack
-    invert inv args (Just h) = case Map.lookup h inv of
-      Nothing -> typeError $ UnequalTerms u v a
-      Just ps -> instArgs args ps
+    invert a inv args Nothing  = fallBack
+    invert ftype inv args (Just h) = case Map.lookup h inv of
+      Nothing                     -> typeError $ UnequalTerms u v a
+      Just (Clause tel perm ps _) -> do -- instArgs args ps
+          -- These are what dot patterns should be instantiated at
+          ms <- map unArg <$> newTelMeta tel
+          -- and this is the order the variables occur in the patterns
+          let ms' = permute (invertP perm) ms
+          cxt <- getContextTelescope
+          let sub = (reverse ms ++ idSub cxt)
+          margs <- runReaderT (evalStateT (metaArgs ps) ms') sub
+          reportSDoc "tc.inj.invert" 20 $ vcat
+            [ text "inversion"
+            , nest 2 $ vcat
+              [ text "lhs  =" <+> prettyList (map prettyTCM margs)
+              , text "rhs  =" <+> prettyList (map prettyTCM args)
+              , text "type =" <+> prettyTCM ftype
+              ]
+            ]
+          cs <- equalArgs ftype margs args
+          unless (null cs) patternViolation
+          equalTerm a u v
+        `catchError` \err -> case err of
+          TypeError _ _ -> throwError err
+          Exception _ _ -> throwError err
+          PatternErr _  -> fallBack
+          AbortAssign _ -> fallBack
 
-    instArgs args ps = concat <$> zipWithM instArg args ps
-    instArg a p = inst (unArg a) (unArg p)
+    nextMeta = do
+      m : ms <- get
+      put ms
+      return m
 
-    inst (MetaV m vs) (ConP c _) = do
-      HasType _ mty <- mvJudgement <$> lookupMeta m
-      let TelV tel dty = telView mty
-      d <- reduce $ unEl dty
-      case ignoreBlocking d of
-        Def d us -> do
-            Datatype{dataPars = np} <- theDef <$> getConstInfo d
-            def  <- getConstInfo c
-            let cty                       = defType def
-                Constructor{conPars = np} = theDef def
-                cty'                      = cty `piApply` genericTake np us
-            argm <- newArgsMetaCtx cty' tel vs
-            -- Compute the type of the instantiation and the orignial type.
-            -- We need to make sure they are the same to ensure that index
-            -- arguments to the constructor are instantiated.
-            let mtyI = cty' `piApply` argm
-                mtyO = mty `piApply` vs
-            reportSDoc "tc.inj.use" 50 $ text "inversion:" <+> nest 2 (vcat
-              [ sep [ prettyTCM (MetaV m vs) <+> text ":="
-                    , nest 2 $ prettyTCM (Con c argm)
-                    ]
-              , text "of type" <+> prettyTCM mtyO
-              ] )
-            noConstraints $ equalType mtyO mtyI
-            noConstraints $ assignV (mty `piApply` vs) m vs (Con c argm)
-            equalTerm a u v
-          `catchError` \err -> case err of
-            TypeError _ _ -> throwError err
-            Exception _ _ -> throwError err
-            PatternErr _  -> fallBack
-            AbortAssign _ -> fallBack
+    dotP v = do
+      sub <- ask
+      return $ substs sub v
 
-        _ -> fallBack
-    inst (Con c vs) (ConP c' ps)
-      | c == c'   = instArgs vs ps
-      | otherwise = __IMPOSSIBLE__
-    inst _ _ = return []
+    metaArgs args = mapM metaArg args
+    metaArg arg = traverse metaPat arg
+
+    metaPat (DotP v) = dotP v
+    metaPat (VarP _) = nextMeta
+    metaPat (ConP c args) = Con c <$> metaArgs args
+    metaPat (LitP l) = return $ Lit l
 

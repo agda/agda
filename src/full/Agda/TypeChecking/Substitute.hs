@@ -80,7 +80,7 @@ instance Apply Clause where
 
 instance Apply FunctionInverse where
   apply NotInjective  args = NotInjective
-  apply (Inverse inv) args = Inverse $ Map.map (drop $ size args) inv
+  apply (Inverse inv) args = Inverse $ apply inv args
 
 instance Apply ClauseBody where
     apply  b		   []		  = b
@@ -100,6 +100,9 @@ instance Apply t => Apply (Blocked t) where
     apply b args = fmap (`apply` args) b
 
 instance Apply t => Apply (Maybe t) where
+  apply x args = fmap (`apply` args) x
+
+instance Apply v => Apply (Map k v) where
   apply x args = fmap (`apply` args) x
 
 instance (Apply a, Apply b) => Apply (a,b) where
@@ -176,7 +179,7 @@ telVars (ExtendTel arg (Abs x tel)) = fmap (const $ VarP x) arg : telVars tel
 
 instance Abstract FunctionInverse where
   abstract tel NotInjective  = NotInjective
-  abstract tel (Inverse inv) = Inverse $ Map.map (telVars tel ++) inv
+  abstract tel (Inverse inv) = Inverse $ abstract tel inv
 
 instance Abstract ClauseBody where
     abstract EmptyTel		 b = b
@@ -187,6 +190,9 @@ instance Abstract t => Abstract [t] where
 
 instance Abstract t => Abstract (Maybe t) where
   abstract tel x = fmap (abstract tel) x
+
+instance Abstract v => Abstract (Map k v) where
+  abstract tel m = fmap (abstract tel) m
 
 abstractArgs :: Abstract a => Args -> a -> a
 abstractArgs args x = abstract tel x

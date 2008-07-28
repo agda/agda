@@ -405,7 +405,7 @@ defAbstract d = case theDef d of
 ---------------------------------------------------------------------------
 
 data FunctionInverse = NotInjective
-                     | Inverse (Map TermHead [Arg Pattern])
+                     | Inverse (Map TermHead Clause)
   deriving (Typeable, Data)
 
 data TermHead = SortHead
