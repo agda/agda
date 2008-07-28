@@ -151,9 +151,9 @@ instance Reduce Term where
                   rec <- whatRecursion f
                   case rec of
                     Just CoRecursive -> return $ Def f args
-                    _                -> unfoldDefinition (Def f []) f args
+                    _                -> unfoldDefinition reduce (Def f []) f args
 		Con c args   -> do
-		    v <- unfoldDefinition (Con c []) c args -- constructors can reduce
+		    v <- unfoldDefinition reduce (Con c []) c args -- constructors can reduce
 		    reduceNat v			     -- when they come from an instantiated module
 		Sort s	   -> Sort <$> reduce s
 		Pi _ _	   -> return v
@@ -182,11 +182,13 @@ instance Reduce Term where
 -- | The term should already be 'reduced'.
 forceCorecursion :: MonadTCM tcm => Term -> tcm Term
 forceCorecursion v = case v of
-  Def f args  -> unfoldDefinition (Def f []) f args
+  Def f args  -> unfoldDefinition more (Def f []) f args
   _           -> return v
+  where
+    more v = forceCorecursion =<< reduce v
 
-unfoldDefinition :: MonadTCM tcm => Term -> QName -> Args -> tcm Term
-unfoldDefinition v0 f args =
+unfoldDefinition :: MonadTCM tcm => (Term -> tcm Term) -> Term -> QName -> Args -> tcm Term
+unfoldDefinition keepGoing v0 f args =
     {-# SCC "reduceDef" #-}
     do  info <- getConstInfo f
         case theDef info of
@@ -203,7 +205,7 @@ unfoldDefinition v0 f args =
             r <- def args1
             case r of
                 NoReduction args1' -> reduceNormal v0 f (args1' ++ args2) cls
-                YesReduction v	   -> reduce $ v  `apply` args2
+                YesReduction v	   -> keepGoing $ v  `apply` args2
         where
             n	= genericLength args
             ar  = primFunArity pf
@@ -218,7 +220,7 @@ unfoldDefinition v0 f args =
                         ev <- appDef v0 cls args1
                         case ev of
                             NoReduction v  -> return $ v `apply` args2
-                            YesReduction v -> reduce $ v `apply` args2
+                            YesReduction v -> keepGoing $ v `apply` args2
                 | otherwise	-> return $ v0 `apply` args -- partial application
 
     -- Apply a defined function to it's arguments.
