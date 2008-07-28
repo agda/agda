@@ -85,7 +85,7 @@ solveConstraint (UnBlock m) = do
     inst <- mvInstantiation <$> lookupMeta m
     case inst of
       BlockedConst t -> do
-        verbose 5 $ do
+        verboseS "tc.constr.blocked" 15 $ do
             d <- prettyTCM t
             debug $ show m ++ " := " ++ show d
         assignTerm m t

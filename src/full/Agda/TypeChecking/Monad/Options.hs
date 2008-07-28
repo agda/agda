@@ -128,15 +128,3 @@ reportSLn k n s = verboseS k n $ liftIO $ putStrLn s
 reportSDoc :: MonadTCM tcm => VerboseKey -> Int -> tcm Doc -> tcm ()
 reportSDoc k n d = verboseS k n $ liftIO . print =<< d
 
-verbose :: MonadTCM tcm => Int -> tcm () -> tcm ()
-verbose = verboseS ""
-
-report :: MonadTCM tcm => Int -> String -> tcm ()
-report = reportS ""
-
-reportLn :: MonadTCM tcm => Int -> String -> tcm ()
-reportLn = reportSLn ""
-
-reportDoc :: MonadTCM tcm => Int -> tcm Doc -> tcm ()
-reportDoc = reportSDoc ""
-

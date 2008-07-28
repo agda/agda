@@ -327,7 +327,7 @@ renamedCanonicalNames old new s = (,) <$> renamedNames names <*> renamedMods mod
 applyImportDirectiveM :: C.QName -> ImportDirective -> Scope -> ScopeM Scope
 applyImportDirectiveM m dir scope = do
   xs <- filterM doesn'tExist names
-  reportLn 20 $ "non existing names: " ++ show xs
+  reportSLn "scope.import.apply" 20 $ "non existing names: " ++ show xs
   case xs of
     []	-> return $ applyImportDirective dir scope
     _	-> typeError $ ModuleDoesntExport m xs

@@ -52,7 +52,7 @@ findIdx vs v = findIndex (==v) (reverse vs)
 -- | Check whether a meta variable is a place holder for a blocked term.
 isBlockedTerm :: MonadTCM tcm => MetaId -> tcm Bool
 isBlockedTerm x = do
-    report 12 $ "is " ++ show x ++ " a blocked term? "
+    reportS "tc.meta.blocked" 12 $ "is " ++ show x ++ " a blocked term? "
     i <- mvInstantiation <$> lookupMeta x
     let r = case i of
 	    BlockedConst{}                 -> True
@@ -60,7 +60,7 @@ isBlockedTerm x = do
 	    InstV{}                        -> False
 	    InstS{}                        -> False
 	    Open{}                         -> False
-    reportLn 12 $ if r then "yes" else "no"
+    reportSLn "tc.meta.blocked" 12 $ if r then "yes" else "no"
     return r
 
 class HasMeta t where
@@ -128,7 +128,7 @@ newValueMetaCtx' :: MonadTCM tcm => Type -> Args -> tcm Term
 newValueMetaCtx' t vs = do
   i <- createMetaInfo
   x <- newMeta i normalMetaPriority (HasType () t)
-  verbose 50 $ do
+  verboseS "tc.meta.new" 50 $ do
     dt <- prettyTCM t
     liftIO $ putStrLn $ "new meta: " ++ show x ++ " : " ++ show dt
   return $ MetaV x vs
@@ -187,7 +187,7 @@ blockTerm t v m = do
                               i lowMetaPriority (HasType () $ telePi_ tel t)
 			    -- we don't instantiate blocked terms
 	    c <- escapeContext (size tel) $ guardConstraint (return cs) (UnBlock x)
-            verbose 20 $ do
+            verboseS "tc.meta.blocked" 20 $ do
                 dx  <- prettyTCM (MetaV x [])
                 dv  <- escapeContext (size tel) $ prettyTCM $ abstract tel v
                 dcs <- mapM prettyTCM cs
@@ -242,7 +242,7 @@ etaExpandMeta m = do
 	rng <- getMetaRange m
 	u   <- setCurrentRange rng $ newRecordMetaCtx r ps tel args
 	inContext [] $ addCtxTel tel $ do
-	  verbose 20 $ do
+	  verboseS "tc.meta.eta" 20 $ do
 	    du <- prettyTCM u
 	    liftIO $ putStrLn $ "eta expanding: " ++ show m ++ " --> " ++ show du
 	  noConstraints $ assignV b m args u  -- should never produce any constraints
@@ -331,7 +331,7 @@ handleAbort h m = liftTCM $
 assignV :: MonadTCM tcm => Type -> MetaId -> Args -> Term -> tcm Constraints
 assignV t x args v =
     handleAbort handler $ do
-	verbose 10 $ do
+	verboseS "tc.meta.assign" 10 $ do
 	    d1 <- prettyTCM (MetaV x args)
 	    d2 <- prettyTCM v
 	    debug $ show d1 ++ " := " ++ show d2
@@ -340,7 +340,7 @@ assignV t x args v =
 	whenM (isBlockedTerm x) patternViolation	-- TODO: not so nice
 
 	-- Check that the arguments are distinct variables
-        verbose 20 $ do
+        verboseS "tc.meta.assign" 20 $ do
             let pr (Var n []) = show n
                 pr (Def c []) = show c
                 pr _          = ".."
@@ -348,7 +348,7 @@ assignV t x args v =
             
 	ids <- checkArgs x args
 
-	verbose 15 $ do
+	verboseS "tc.meta.assign" 15 $ do
 	    d <- prettyTCM v
 	    debug $ "preparing to instantiate: " ++ show d
 
@@ -365,7 +365,7 @@ assignV t x args v =
 		     ]
 	    liftIO $ print d
 
-	reportLn 15 "passed occursCheck"
+	reportSLn "tc.meta.assign" 15 "passed occursCheck"
 
 	-- Rename the variables in v to make it suitable for abstraction over ids.
 	v' <- do
@@ -387,7 +387,7 @@ assignV t x args v =
 	      return $ ExtendTel (Arg NotHidden t) (Abs (show x) tel)
 	tel' <- foldr extTel (return EmptyTel) ids  -- TODO: this can't be the right way of building the tele
 
-	verbose 15 $ do
+	verboseS "tc.meta.assign" 15 $ do
 	    d <- prettyTCM (abstract tel' v')
 	    debug $ "final instantiation: " ++ show d
 
@@ -403,7 +403,7 @@ assignV t x args v =
 
 	handler :: MonadTCM tcm => tcm Constraints
 	handler = do
-	    reportLn 10 $ "Oops. Undo " ++ show x ++ " := ..."
+	    reportSLn "tc.meta.assign" 10 $ "Oops. Undo " ++ show x ++ " := ..."
 	    equalTerm t (MetaV x args) v
 
 assignS :: MonadTCM tcm => MetaId -> Sort -> tcm Constraints

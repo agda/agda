@@ -177,7 +177,7 @@ checkSection :: Info.ModuleInfo -> ModuleName -> A.Telescope -> [A.Declaration] 
 checkSection i x tel ds =
   checkTelescope tel $ \tel' -> do
     addSection x (size tel')
-    verbose 10 $ do
+    verboseS "tc.section.check" 10 $ do
       dx   <- prettyTCM x
       dtel <- mapM prettyA tel
       dtel' <- prettyTCM =<< lookupSection x

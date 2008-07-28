@@ -51,8 +51,8 @@ compile ict = do
   decl mn ds imp = HsModule dummy mn Nothing imp ds
   uptodate = liftIO =<< (isNewerThan <$> outFile <*> ifile)
   ifile    = findFile InterfaceFile =<< curMName
-  noComp   = reportLn 1.(++ " : no compilation is needed.").show =<< curMName
-  yesComp  = reportLn 1.(`repl` "Compiling <<0>> in <<1>> to <<2>>") =<<
+  noComp   = reportSLn "" 1 . (++ " : no compilation is needed.").show =<< curMName
+  yesComp  = reportSLn "" 1 . (`repl` "Compiling <<0>> in <<1>> to <<2>>") =<<
              sequence [show <$> curMName, ifile, outFile] :: TCM ()
 
 --------------------------------------------------
@@ -284,7 +284,7 @@ callGHC mainICT = do
   opts       <- gets (optGhcFlags . stOptions)
   let cmd = concat $ L.intersperse " " $
             "ghc" : opts ++ ["-i"++mdir, "-main-is", hsmod, fp, "--make -fwarn-incomplete-patterns -fno-warn-overlapping-patterns -Werror"]
-  reportLn 1 $ "calling: " ++ cmd
+  reportSLn "" 1 $ "calling: " ++ cmd
   flush
   exitcode <- liftIO $ system cmd
   case exitcode of

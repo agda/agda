@@ -87,9 +87,9 @@ findFile ft m = do
 
 scopeCheckImport :: ModuleName -> TCM Scope
 scopeCheckImport x = do
-    reportLn 5 $ "Scope checking " ++ show x
+    reportSLn "import.scope" 5 $ "Scope checking " ++ show x
     visited <- Map.keys <$> getVisitedModules
-    reportLn 10 $ "  visited: " ++ show visited
+    reportSLn "import.scope" 10 $ "  visited: " ++ show visited
     (i,t)   <- getInterface x
     addImport x
     return $ iScope i
@@ -100,9 +100,9 @@ alreadyVisited x getIface = do
     case mm of
 	Just it	-> return it
 	Nothing	-> do
-	    reportLn 5 $ "  Getting interface for " ++ show x
+	    reportSLn "import.visit" 5 $ "  Getting interface for " ++ show x
 	    (i, t) <- getIface
-	    reportLn 5 $ "  Now we've looked at " ++ show x
+	    reportSLn "import.visit" 5 $ "  Now we've looked at " ++ show x
 	    visitModule x i t
 	    return (i, t)
 
@@ -111,22 +111,22 @@ getInterface x = alreadyVisited x $ addImportCycleCheck x $ do
     file   <- findFile SourceFile x	-- requires source to exist
     let ifile = setExtension ".agdai" file
 
-    reportLn 5 $ "  Check for cycle"
+    reportSLn "import.iface" 10 $ "  Check for cycle"
     checkForImportCycle
 
     uptodate <- ifM ignoreInterfaces
 		    (return False)
 		    (liftIO $ ifile `isNewerThan` file)
 
-    reportLn 5 $ "  " ++ show x ++ " is " ++ (if uptodate then "" else "not ") ++ "up-to-date."
+    reportSLn "import.iface" 5 $ "  " ++ show x ++ " is " ++ (if uptodate then "" else "not ") ++ "up-to-date."
 
     ic <- if uptodate
 	then skip      ifile file
 	else typeCheck ifile file
 
     visited <- isVisited x
-    reportLn 5 $ if visited then "  We've been here. Don't merge."
-			    else "  New module. Let's check it out."
+    reportSLn "import.iface" 5 $ if visited then "  We've been here. Don't merge."
+			         else "  New module. Let's check it out."
     unless visited $ mergeInterface (fst ic)
 
     return ic
@@ -134,7 +134,7 @@ getInterface x = alreadyVisited x $ addImportCycleCheck x $ do
     where
 	skip ifile file = do
 
-	    reportLn 5 $ "  reading interface file " ++ ifile
+	    reportSLn "import.iface" 5 $ "  reading interface file " ++ ifile
 
 	    -- Read interface file
 	    mi <- liftIO $ readInterface ifile
@@ -142,14 +142,14 @@ getInterface x = alreadyVisited x $ addImportCycleCheck x $ do
 	    -- Check that it's the right version
 	    case mi of
 		Nothing	-> do
-		    reportLn 5 $ "  bad interface, re-type checking"
+		    reportSLn "import.iface" 5 $ "  bad interface, re-type checking"
 		    typeCheck ifile file
 		Just i	-> do
 
 		    -- Check time stamp of imported modules
 		    t  <- liftIO $ getModificationTime ifile
 
-		    reportLn 5 $ "  imports: " ++ show (iImportedModules i)
+		    reportSLn "import.iface" 5 $ "  imports: " ++ show (iImportedModules i)
 
 		    ts <- map snd <$> mapM getInterface (iImportedModules i)
 
@@ -159,13 +159,13 @@ getInterface x = alreadyVisited x $ addImportCycleCheck x $ do
 			    -- liftIO close	-- Close the interface file. See above.
 			    typeCheck ifile file
 			else do
-			    reportLn 1 $ "Skipping " ++ show x ++ " ( " ++ ifile ++ " )"
+			    reportSLn "" 1 $ "Skipping " ++ show x ++ " ( " ++ ifile ++ " )"
 			    return (i, t)
 
 	typeCheck ifile file = do
 
 	    -- Do the type checking
-	    reportLn 1 $ "Checking " ++ show x ++ " ( " ++ file ++ " )"
+	    reportSLn "" 1 $ "Checking " ++ show x ++ " ( " ++ file ++ " )"
 	    ms	  <- getImportPath
 	    vs	  <- getVisitedModules
 	    opts  <- commandLineOptions
@@ -274,14 +274,14 @@ createInterface opts trace path visited mname file = runTCM $ withImportPath pat
 
 buildInterface :: TCM Interface
 buildInterface = do
-    reportLn 5 "Building interface..."
+    reportSLn "import.iface" 5 "Building interface..."
     scope   <- getScope
     sig	    <- getSignature
     builtin <- getBuiltinThings
     ms	    <- getImports
     hsImps  <- getHaskellImports
     let	builtin' = Map.mapWithKey (\x b -> fmap (const x) b) builtin
-    reportLn 7 "  instantiating all meta variables"
+    reportSLn "import.iface" 7 "  instantiating all meta variables"
     i <- instantiateFull $ Interface
 			{ iImportedModules = Set.toList ms
 			, iScope	   = head $ scopeStack scope -- TODO!!
@@ -289,7 +289,7 @@ buildInterface = do
 			, iBuiltin	   = builtin'
                         , iHaskellImports  = hsImps
 			}
-    reportLn 7 "  interface complete"
+    reportSLn "import.iface" 7 "  interface complete"
     return i
 
 

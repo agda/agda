@@ -216,7 +216,7 @@ equalArgs a (arg1 : args1) (arg2 : args2) = do
     a <- reduce a
     case funView (unEl a) of
 	FunV (Arg _ b) _ -> do
-	    verbose 10 $ do
+	    verboseS "tc.conv.args" 10 $ do
 		db <- prettyTCM b
 		darg1 <- prettyTCM arg1
 		darg2 <- prettyTCM arg2
@@ -225,7 +225,7 @@ equalArgs a (arg1 : args1) (arg2 : args2) = do
 	    case (cs1, unEl a) of
 		(_:_, Pi _ c) | 0 `freeIn` absBody c
 		    -> do
-                        verbose 15 $ do
+                        verboseS "tc.conv.args" 15 $ do
                             db <- prettyTCM b
                             darg1 <- prettyTCM arg1
                             darg2 <- prettyTCM arg2
@@ -234,7 +234,7 @@ equalArgs a (arg1 : args1) (arg2 : args2) = do
                             debug $ " --> " ++ show dcs
                         patternViolation   -- TODO: will duplicate work (all arguments checked so far)
 		_   -> do
-                    verbose 15 $ do
+                    verboseS "tc.conv.args" 15 $ do
                         db <- prettyTCM (piApply a [arg1])
                         darg1 <- mapM prettyTCM args1
                         darg2 <- mapM prettyTCM args2
@@ -248,7 +248,7 @@ equalArgs a (arg1 : args1) (arg2 : args2) = do
 equalType :: MonadTCM tcm => Type -> Type -> tcm Constraints
 equalType ty1@(El s1 a1) ty2@(El s2 a2) =
     catchConstraint (TypeEq ty1 ty2) $ do
-	verbose 9 $ do
+	verboseS "tc.conv.type" 9 $ do
 	    d1 <- prettyTCM ty1
 	    d2 <- prettyTCM ty2
 	    s1 <- prettyTCM s1
@@ -257,7 +257,7 @@ equalType ty1@(El s1 a1) ty2@(El s2 a2) =
 	    debug $ "   sorts: " ++ show s1 ++ "  and  " ++ show s2
 	cs1 <- equalSort s1 s2
 	cs2 <- equalTerm (sort s1) a1 a2
-	verbose 9 $ do
+	verboseS "tc.conv.type" 9 $ do
 	    dcs <- mapM prettyTCM $ cs1 ++ cs2
 	    debug $ "   --> " ++ show dcs
 	return $ cs1 ++ cs2

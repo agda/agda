@@ -318,7 +318,7 @@ inferHead (HeadCon [c]) = do
   -- Next get the number of parameters in the current context.
   Constructor{conPars = n} <- theDef <$> (instantiateDef =<< getConstInfo c)
 
-  verbose 7 $ do
+  verboseS "tc.term.con" 7 $ do
     liftIO $ putStrLn $ unwords [show c, "has", show n, "parameters."]
 
   -- So when applying the constructor throw away the parameters.
@@ -330,7 +330,7 @@ inferDef mkTerm x =
     traceCall (InferDef (getRange x) x) $ do
     d  <- instantiateDef =<< getConstInfo x
     vs <- freeVarsToApply x
-    verbose 10 $ do
+    verboseS "tc.term.def" 10 $ do
       ds <- mapM prettyTCM vs
       dx <- prettyTCM x
       dt <- prettyTCM $ defType d

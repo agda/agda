@@ -127,7 +127,7 @@ runAgda =
 				-- Set the scope
 				setScope $ outsideScope topLevel
 
-				reportLn 50 $ "SCOPE " ++ show (insideScope topLevel)
+				reportSLn "scope.top" 50 $ "SCOPE " ++ show (insideScope topLevel)
 
 				-- Generate Vim file
 				whenM (optGenerateVimFile <$> commandLineOptions) $

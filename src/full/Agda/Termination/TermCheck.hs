@@ -132,7 +132,7 @@ termSection :: Info.ModuleInfo -> ModuleName -> A.Telescope -> [A.Declaration] -
 termSection i x tel ds =
   termTelescope tel $ \tel' -> do
     addSection x (size tel')
-    verbose 10 $ do
+    verboseS "term.section" 10 $ do
       dx   <- prettyTCM x
       dtel <- mapM prettyA tel
       dtel' <- prettyTCM =<< lookupSection x
