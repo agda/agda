@@ -141,7 +141,7 @@ reifyDisplayFormP lhs@(A.LHS i x ps wps) =
         argToPat = fmap (unnamed . termToPat)
 
         termToPat (I.Var n []) = ps !! fromIntegral n
-        termToPat (I.Con c vs) = A.ConP info [c] $ map argToPat vs
+        termToPat (I.Con c vs) = A.ConP info (AmbQ [c]) $ map argToPat vs
         termToPat (I.Def _ []) = A.WildP info
         termToPat _ = __IMPOSSIBLE__
 
@@ -170,7 +170,7 @@ instance Reify Term Expr where
                           us = replicate (fromIntegral np) $ Arg Hidden whocares
                       n  <- getDefFreeVars x
                       es <- reify vs
-                      apps (A.Con [x], genericDrop n $ us ++ es)
+                      apps (A.Con (AmbQ [x]), genericDrop n $ us ++ es)
 		I.Lam h b    ->
 		    do	(x,e) <- reify b
 			return $ A.Lam exprInfo (DomainFree h x) e
@@ -335,7 +335,7 @@ reifyPatterns tel perm ps = evalStateT (reifyArgs ps) 0
           then tick >> (return $ A.DotP i $ A.Underscore mi)
           else tick >> lift (A.DotP i <$> reify v)
       I.LitP l    -> return $ A.LitP l
-      I.ConP c ps -> A.ConP i [c] <$> reifyArgs ps
+      I.ConP c ps -> A.ConP i (AmbQ [c]) <$> reifyArgs ps
       where
         i = PatRange noRange
         mi = MetaInfo noRange emptyScopeInfo Nothing

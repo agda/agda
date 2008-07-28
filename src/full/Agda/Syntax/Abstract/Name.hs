@@ -42,6 +42,10 @@ data QName = QName { qnameModule :: ModuleName
 newtype ModuleName = MName { mnameToList :: [Name] }
   deriving (Eq, Ord, Typeable, Data)
 
+-- | Ambiguous qualified names. Used for overloaded constructors.
+newtype AmbiguousQName = AmbQ { unAmbQ :: [QName] }
+  deriving (Typeable, Data, HasRange)
+
 instance HasRange ModuleName where
   getRange (MName []) = noRange
   getRange (MName xs) = getRange $ last xs

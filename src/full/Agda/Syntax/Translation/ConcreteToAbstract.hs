@@ -260,7 +260,7 @@ nameExpr :: AbstractName -> A.Expr
 nameExpr d = mk (anameKind d) $ anameName d
   where
     mk DefName = Def
-    mk ConName = Con . (:[])
+    mk ConName = Con . AmbQ . (:[])
 
 instance ToAbstract OldQName A.Expr where
   toAbstract (OldQName x) = do
@@ -269,7 +269,7 @@ instance ToAbstract OldQName A.Expr where
     case qx of
       VarName x'         -> return $ A.Var x'
       DefinedName d      -> return $ nameExpr d
-      ConstructorName ds -> return $ A.Con (map anameName ds)
+      ConstructorName ds -> return $ A.Con $ AmbQ (map anameName ds)
       UnknownName        -> notInScope x
 
 data APatName = VarPatName A.Name
@@ -830,7 +830,9 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
 	px <- toAbstract (PatName x)
 	case px of
 	    VarPatName y  -> return $ VarP y
-	    ConPatName ds -> return $ ConP (PatRange (getRange p)) (map anameName ds) []
+	    ConPatName ds -> return $ ConP (PatRange (getRange p))
+                                           (AmbQ $ map anameName ds)
+                                           []
 
     toAbstract p0@(AppP p q) = do
 	(p', q') <- toAbstract (p,q)

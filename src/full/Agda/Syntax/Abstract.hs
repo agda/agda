@@ -27,7 +27,7 @@ import Agda.Syntax.Scope.Base
 data Expr
         = Var  Name			     -- ^ Bound variables
         | Def  QName			     -- ^ Constants (i.e. axioms, functions, and datatypes)
-        | Con  [QName]			     -- ^ Constructors
+        | Con  AmbiguousQName		     -- ^ Constructors
 	| Lit Literal			     -- ^ Literals
 	| QuestionMark MetaInfo		     -- ^ meta variable for interaction
         | Underscore   MetaInfo		     -- ^ meta variable for hidden argument (must be inferred locally)
@@ -117,8 +117,8 @@ data LHS	= LHS LHSInfo QName [NamedArg Pattern] [Pattern]
 
 -- | Parameterised over the type of dot patterns.
 data Pattern' e	= VarP Name
-		| ConP PatInfo [QName] [NamedArg (Pattern' e)]
-		| DefP PatInfo QName   [NamedArg (Pattern' e)]  -- ^ defined pattern
+		| ConP PatInfo AmbiguousQName [NamedArg (Pattern' e)]
+		| DefP PatInfo QName          [NamedArg (Pattern' e)]  -- ^ defined pattern
 		| WildP PatInfo
 		| AsP PatInfo Name (Pattern' e)
 		| DotP PatInfo e

@@ -277,10 +277,10 @@ instance ToConcrete A.ModuleName C.QName where
 -- Expression instance ----------------------------------------------------
 
 instance ToConcrete A.Expr C.Expr where
-    toConcrete (Var x)     = Ident . C.QName <$> toConcrete x
-    toConcrete (Def x)     = Ident <$> toConcrete x
-    toConcrete (Con (x:_)) = Ident <$> toConcrete x
-    toConcrete (Con []) = __IMPOSSIBLE__
+    toConcrete (Var x)            = Ident . C.QName <$> toConcrete x
+    toConcrete (Def x)            = Ident <$> toConcrete x
+    toConcrete (Con (AmbQ (x:_))) = Ident <$> toConcrete x
+    toConcrete (Con (AmbQ []))    = __IMPOSSIBLE__
 	-- for names we have to use the name from the info, since the abstract
 	-- name has been resolved to a fully qualified name (except for
 	-- variables)
@@ -585,8 +585,8 @@ instance ToConcrete A.Pattern C.Pattern where
     toConcrete (VarP x)	   = toConcrete x >>= return . IdentP . C.QName
     toConcrete (A.WildP i)	   =
 	return $ C.WildP (getRange i)
-    toConcrete (ConP i [] args) = __IMPOSSIBLE__
-    toConcrete p@(ConP i (x:_) args) =
+    toConcrete (ConP i (AmbQ []) args) = __IMPOSSIBLE__
+    toConcrete p@(ConP i (AmbQ (x:_)) args) =
       tryToRecoverOpAppP p $
 	bracketP_ (appBrackets' args) $ do
 	    x <- toConcrete x
@@ -629,9 +629,9 @@ tryToRecoverOpAppP :: A.Pattern -> AbsToCon C.Pattern -> AbsToCon C.Pattern
 tryToRecoverOpAppP p def = recoverOpApp bracketP_ C.OpAppP view p def
   where
     view p = case p of
-      ConP _ (c:_) ps -> Just (HdCon c, ps)
-      DefP _ f ps     -> Just (HdDef f, ps)
-      _               -> Nothing
+      ConP _ (AmbQ (c:_)) ps -> Just (HdCon c, ps)
+      DefP _ f            ps -> Just (HdDef f, ps)
+      _                      -> Nothing
 
 recoverOpApp :: (ToConcrete a c, HasRange c) =>
                 ((Precedence -> Bool) -> AbsToCon c -> AbsToCon c) ->

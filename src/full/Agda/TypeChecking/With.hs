@@ -121,7 +121,7 @@ stripWithClausePatterns gamma qs perm ps = do
               return $ p : ps
 
         ConP c qs' -> case namedThing $ unArg p of
-          A.ConP _ cs' ps' -> do
+          A.ConP _ (A.AmbQ cs') ps' -> do
           
             Con c  [] <- constructorForm =<< reduce (Con c [])
             let getCon (Con c []) = c

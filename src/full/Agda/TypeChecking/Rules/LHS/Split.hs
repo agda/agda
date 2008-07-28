@@ -65,8 +65,8 @@ splitProblem (Problem ps (perm, qs) tel) = do
                                   | otherwise -> do
           Con z _ <- primZero
           Con s  _ <- primSuc
-          let zero  = A.ConP info [setRange r z] []
-              suc p = A.ConP info [setRange r s] [Arg NotHidden $ unnamed p]
+          let zero  = A.ConP info (A.AmbQ [setRange r z]) []
+              suc p = A.ConP info (A.AmbQ [setRange r s]) [Arg NotHidden $ unnamed p]
               info  = A.PatRange r
               p'    = fmap (fmap $ const $ foldr ($) zero $ replicate (fromIntegral n) suc) p
           splitP (p' : ps) ((i, q) : qs) tel0
@@ -83,7 +83,7 @@ splitProblem (Problem ps (perm, qs) tel) = do
 		    (fmap (LitFocus lit q i) a)
 		    (fmap (Problem ps ()) tel)
 	    else keepGoing
-	(xs, p@(A.ConP _ cs args)) -> do
+	(xs, p@(A.ConP _ (A.AmbQ cs) args)) -> do
 	  a' <- reduce $ unArg a
 	  case unEl a' of
 	    Def d vs	-> do

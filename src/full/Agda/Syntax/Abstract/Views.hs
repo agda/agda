@@ -19,7 +19,7 @@ appView e =
     case e of
 	Var x	       -> Application (HeadVar x) []
 	Def x	       -> Application (HeadDef x) []
-	Con x	       -> Application (HeadCon x) []
+	Con (AmbQ x)   -> Application (HeadCon x) []
 	App i e1 arg   -> apply i (appView e1) arg
 	ScopedExpr _ e -> appView e
 	_	       -> NonApplication e
