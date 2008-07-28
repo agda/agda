@@ -147,8 +147,9 @@ order for the change to take effect."
                 (agda-input-prefix "_")))))
    )
   "A list of Quail input methods whose translations should be
-inherited by the Agda input method (in Emacs 23 possibly with the
-exception of translations corresponding to ISO8859-1 characters).
+inherited by the Agda input method (with the exception of
+translations corresponding to ASCII, or perhaps ISO8859-1,
+characters).
 
 The list consists of pairs (qp . tweak), where qp is the name of
 a Quail package, and tweak is an expression of the same kind as
@@ -709,8 +710,8 @@ customizations since by default it is empty."
 
 (defun agda-input-get-translations (qp)
   "Returns a list containing all translations from the Quail
-package QP (except possibly, in Emacs 23, for those corresponding
-to ISO8859-1 characters). Each pair in the list has the form (key
+package QP (except for those corresponding to ASCII, or perhaps
+ISO8859-1, characters). Each pair in the list has the form (key
 sequence . translation)."
   (with-temp-buffer
     (activate-input-method qp) ; To make sure that the package is loaded.
@@ -722,8 +723,8 @@ sequence . translation)."
 
 (defun agda-input-show-translations (qp)
   "Displays all translations used by the Quail package QP (a string).
-\(Except possibly, in Emacs 23, for those corresponding to
-ISO8859-1 characters.)"
+\(Except for those corresponding to ASCII, or perhaps ISO8859-1,
+characters.)"
   (interactive (list (read-input-method-name
                       "Quail input method (default %s): " "Agda")))
   (let ((buf (concat "*" qp " input method translations*")))
@@ -742,8 +743,8 @@ translation)) to the Agda input method."
 
 (defun agda-input-inherit-package (qp &optional fun)
   "Lets the Agda input method inherit the translations from the
-Quail package QP (except possibly, in Emacs 23, for those
-corresponding to ISO8859-1 characters).
+Quail package QP (except for those corresponding to ASCII, or
+perhaps ISO8859-1, characters).
 
 The optional function FUN can be used to modify the translations.
 It is given a pair (key sequence . translation) and should return
