@@ -11,7 +11,9 @@ module Agda.Syntax.Abstract
 
 import Prelude hiding (foldr)
 import Control.Applicative
-import Data.Foldable
+import Data.Sequence (Seq, (<|), (><))
+import qualified Data.Sequence as Seq
+import Data.Foldable as Fold
 import Data.Traversable
 import Data.Map (Map)
 import Data.Generics (Typeable, Data)
@@ -243,3 +245,35 @@ instance HasRange LetBinding where
     getRange (LetBind  i _ _ _       ) = getRange i
     getRange (LetApply i _ _ _ _ _ _ ) = getRange i
 
+------------------------------------------------------------------------
+-- Queries
+------------------------------------------------------------------------
+
+-- | Extracts all the names which are declared in a 'Declaration'.
+-- This does not include open public or let expressions, but it does
+-- include local modules and where clauses.
+
+allNames :: Declaration -> Seq QName
+allNames (Axiom     _ q _)     = Seq.singleton q
+allNames (Field     _ q _)     = Seq.singleton q
+allNames (Primitive _ q _)     = Seq.singleton q
+allNames (Definition _ _ defs) = Fold.foldMap allNamesD defs
+  where
+  allNamesD :: Definition -> Seq QName
+  allNamesD (FunDef _ q cls)        = q <| Fold.foldMap allNamesC cls
+  allNamesD (DataDef _ q _ _ decls) = q <| Fold.foldMap allNames decls
+  allNamesD (RecDef _ q _ _ decls)  = q <| Fold.foldMap allNames decls
+
+  allNamesC :: Clause -> Seq QName
+  allNamesC (Clause _ rhs decls) = allNamesR rhs ><
+                                   Fold.foldMap allNames decls
+
+  allNamesR :: RHS -> Seq QName
+  allNamesR (RHS {})        = Seq.empty
+  allNamesR (AbsurdRHS {})  = Seq.empty
+  allNamesR (WithRHS _ cls) = Fold.foldMap allNamesC cls
+allNames (Section _ _ _ decls) = Fold.foldMap allNames decls
+allNames (Apply {})            = Seq.empty
+allNames (Import {})           = Seq.empty
+allNames (Pragma {})           = Seq.empty
+allNames (ScopedDecl _ decls)  = Fold.foldMap allNames decls
