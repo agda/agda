@@ -38,6 +38,8 @@ import Agda.Interaction.Monad
 import Agda.Interaction.GhciTop ()	-- to make sure it compiles
 import Agda.Interaction.Highlighting.Vim   (generateVimFile)
 import Agda.Interaction.Highlighting.Emacs (generateEmacsFile)
+import Agda.Interaction.Highlighting.Generate
+  (TypeCheckingState(TypeCheckingDone))
 import Agda.Interaction.Imports
 
 import Agda.TypeChecker
@@ -135,8 +137,7 @@ runAgda =
 
 				-- Generate Emacs file
 				whenM (optGenerateEmacsFile <$> commandLineOptions) $
-			          withScope_ (insideScope topLevel) $
-                                    generateEmacsFile file topLevel errs
+                                    generateEmacsFile file TypeCheckingDone topLevel errs
 
 				-- Give error for unsolved metas
 				unsolved <- getOpenMetas

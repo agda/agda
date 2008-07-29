@@ -6,7 +6,6 @@ module Agda.Interaction.Highlighting.Generate
   ( TypeCheckingState(..)
   , generateSyntaxInfo
   , generateErrorInfo
-  , generateTerminationInfo
   , tests
   ) where
 
@@ -15,22 +14,30 @@ import Agda.Interaction.Highlighting.Range   hiding (tests)
 import Agda.TypeChecking.Monad
   hiding (MetaInfo, Primitive, Constructor, Record, Function, Datatype)
 import qualified Agda.TypeChecking.Monad as M
+import qualified Agda.TypeChecking.Reduce as R
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Concrete as C
+import qualified Agda.Syntax.Internal as I
 import qualified Agda.Syntax.Literal as L
+import qualified Agda.Syntax.Parser as Pa
 import qualified Agda.Syntax.Parser.Tokens as T
 import qualified Agda.Syntax.Position as P
 import qualified Agda.Syntax.Scope.Base as S
 import qualified Agda.Syntax.Translation.ConcreteToAbstract as CA
 import Control.Monad
+import Control.Monad.Trans
+import Control.Applicative
 import Data.Monoid
 import Data.Generics
 import Agda.Utils.Generics
 import Data.Map (Map)
+import qualified Data.Map as Map
+import Data.Maybe
 import Data.Sequence (Seq, (><))
 import Data.List ((\\))
 import qualified Data.Sequence as Seq
-import qualified Data.Foldable as Fold (toList, foldMap)
+import qualified Data.Foldable as Fold (toList, fold, foldMap)
+import qualified Data.Traversable as Trav (mapM)
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
@@ -42,48 +49,42 @@ generateErrorInfo :: P.Range -> String -> File
 generateErrorInfo r s =
   several (rToR r) (mempty { otherAspects = [Error], note = Just s })
 
--- | Generates syntax highlighting info for termination problems.
-
-generateTerminationInfo
-  :: [([A.QName], [Range])]
-     -- ^ Problematic function definitions (grouped if they are
-     -- mutual), and corresponding problematic call sites.
-  -> TCM File
-generateTerminationInfo errs =
-  return $ functionDefs `mappend` callSites
-  where
-  m            = mempty { otherAspects = [TerminationProblem] }
-  functionDefs = Fold.foldMap (\x -> several (rToR $ bindingSite x) m) $
-                 concatMap fst errs
-  callSites    = Fold.foldMap (\r -> singleton r m) $
-                 concatMap snd errs
-
 -- | Has typechecking been done yet?
 
 data TypeCheckingState = TypeCheckingDone | TypeCheckingNotDone
   deriving (Show, Eq)
 
--- | Generates syntax highlighting information from a 'TopLevelInfo'.
---
--- TODO:
---
--- * Generate highlighting info for comments.
---
--- * It would be nice if module names were highlighted.
+-- | Generates syntax highlighting information.
 
 generateSyntaxInfo
-  :: TypeCheckingState -> [T.Token] -> CA.TopLevelInfo -> TCM File
-generateSyntaxInfo tcs toks top = do
-  nameInfo <- fmap mconcat $ mapM (generate tcs) (Fold.toList names)
-  metaInfo <- if tcs == TypeCheckingNotDone
-                 then return mempty
-                 else computeUnsolvedMetaWarnings
-  -- theRest need to be placed before nameInfo here since record field
-  -- declarations contain QNames. tokInfo is placed last since token
-  -- highlighting is more crude than the others.
-  return (theRest `mappend` nameInfo `mappend` tokInfo `mappend` metaInfo)
+  :: FilePath               -- ^ The module to highlight.
+  -> TypeCheckingState      -- ^ Has it been type checked?
+  -> CA.TopLevelInfo        -- ^ The abstract syntax of the module.
+  -> [([A.QName], [Range])] -- ^ Functions which failed to termination
+                            --   check (grouped if they are mutual),
+                            --   along with ranges for problematic
+                            --   call sites.
+  -> TCM File
+generateSyntaxInfo file tcs top termErrs =
+  M.withScope_ (CA.insideScope top) $ M.ignoreAbstractMode $ do
+    tokens   <- liftIO $ Pa.parseFile' Pa.tokensParser file
+    nameInfo <- fmap mconcat $ mapM (generate tcs) (Fold.toList names)
+    metaInfo <- if tcs == TypeCheckingNotDone
+                   then return mempty
+                   else computeUnsolvedMetaWarnings
+    -- theRest need to be placed before nameInfo here since record field
+    -- declarations contain QNames. tokInfo is placed last since token
+    -- highlighting is more crude than the others.
+    return $ mconcat [ theRest
+                     , nameInfo
+                     , metaInfo
+                     , termInfo
+                     , tokInfo tokens
+                     ]
   where
-    tokInfo = Fold.foldMap tokenToFile toks
+    decls = CA.topLevelDecls top
+
+    tokInfo = Fold.foldMap tokenToFile
       where
       aToF a r = several (rToR r) (mempty { aspect = Just a })
 
@@ -106,40 +107,23 @@ generateSyntaxInfo tcs toks top = do
       tokenToFile (T.TokDummy {})                  = mempty
       tokenToFile (T.TokEOF {})                    = mempty
 
-    everything' :: (r -> r -> r) -> GenericQ r -> r
-    everything' (+) q = everythingBut
-                          (+)
-                          (False `mkQ` isString
-                                 `extQ` isAQName `extQ` isAName `extQ` isCName
-                                 `extQ` isScope `extQ` isMap1 `extQ` isMap2)
-                          q
-                          (CA.topLevelDecls top)
+    termInfo = functionDefs `mappend` callSites
       where
-      isString :: String                        -> Bool
-      isAQName :: A.QName                       -> Bool
-      isAName  :: A.Name                        -> Bool
-      isCName  :: C.Name                        -> Bool
-      isScope  :: S.ScopeInfo                   -> Bool
-      isMap1   :: Map A.QName A.QName           -> Bool
-      isMap2   :: Map A.ModuleName A.ModuleName -> Bool
-
-      isString = const True
-      isAQName = const True
-      isAName  = const True
-      isCName  = const True
-      isScope  = const True
-      isMap1   = const True
-      isMap2   = const True
+      m            = mempty { otherAspects = [TerminationProblem] }
+      functionDefs = Fold.foldMap (\x -> several (rToR $ bindingSite x) m) $
+                     concatMap fst termErrs
+      callSites    = Fold.foldMap (\r -> singleton r m) $
+                     concatMap snd termErrs
 
     -- All names mentioned in the syntax tree (not bound variables).
-    names = everything' (><) (Seq.empty `mkQ` getName)
+    names = everything' (><) (Seq.empty `mkQ` getName) decls
       where
       getName :: A.QName -> Seq A.QName
       getName n = Seq.singleton n
 
     -- Bound variables, dotted patterns, record fields and module
     -- names.
-    theRest = everything' mappend query
+    theRest = everything' mappend query decls
       where
       query :: GenericQ File
       query = mempty         `mkQ`
@@ -200,6 +184,9 @@ generateSyntaxInfo tcs toks top = do
       getModuleName :: A.ModuleName -> File
       getModuleName (A.MName { A.mnameToList = xs }) =
         mconcat $ map mod xs
+
+-- | Generates syntax highlighting information for unsolved meta
+-- variables.
 
 computeUnsolvedMetaWarnings :: TCM File
 computeUnsolvedMetaWarnings = do
@@ -274,6 +261,32 @@ nameToFileA x m =
 concreteBase      = A.nameConcrete . A.qnameName
 concreteQualifier = map A.nameConcrete . A.mnameToList . A.qnameModule
 bindingSite       = A.nameBindingSite . A.qnameName
+
+-- | Like 'everything', but modified so that it does not descend into
+-- everything.
+
+everything' :: (r -> r -> r) -> GenericQ r -> GenericQ r
+everything' (+) = everythingBut
+                    (+)
+                    (False `mkQ` isString
+                           `extQ` isAQName `extQ` isAName `extQ` isCName
+                           `extQ` isScope `extQ` isMap1 `extQ` isMap2)
+  where
+  isString    :: String                        -> Bool
+  isAQName    :: A.QName                       -> Bool
+  isAName     :: A.Name                        -> Bool
+  isCName     :: C.Name                        -> Bool
+  isScope     :: S.ScopeInfo                   -> Bool
+  isMap1      :: Map A.QName A.QName           -> Bool
+  isMap2      :: Map A.ModuleName A.ModuleName -> Bool
+
+  isString    = const True
+  isAQName    = const True
+  isAName     = const True
+  isCName     = const True
+  isScope     = const True
+  isMap1      = const True
+  isMap2      = const True
 
 ------------------------------------------------------------------------
 -- All tests

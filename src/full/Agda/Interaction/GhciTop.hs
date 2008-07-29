@@ -192,23 +192,21 @@ cmd_load file includes = infoOnException $ do
             handleError
               -- If there is an error syntax highlighting info can
               -- still be generated.
-              (\e -> do generateAndOutputSyntaxInfo
-                          file TypeCheckingNotDone topLevel
+              (\e -> do generateEmacsFile
+                          file TypeCheckingNotDone topLevel []
                         -- The outer error handler tells Emacs to
                         -- reload the syntax highlighting info.
                         throwError e) $ do
               setUndo
               checkModuleName topLevel file
               checkDecls $ topLevelDecls topLevel
-              setScope $ outsideScope topLevel
-
-              ignoreAbstractMode $
-                generateAndOutputSyntaxInfo file TypeCheckingDone topLevel
 
               -- Do termination checking.
-              whenM (optTerminationCheck <$> commandLineOptions) $ do
-                errs <- termDecls $ topLevelDecls topLevel
-                generateAndOutputTerminationProblemInfo file errs
+              errs <- ifM (optTerminationCheck <$> commandLineOptions)
+                          (termDecls $ topLevelDecls topLevel)
+                          (return [])
+
+              generateEmacsFile file TypeCheckingDone topLevel errs
 
             -- The module type checked, so let us store the abstract
             -- syntax information. (It could be stored before type

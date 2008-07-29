@@ -35,6 +35,7 @@ import Agda.TypeChecking.Primitive
 import Agda.TypeChecker
 
 import Agda.Interaction.Options
+import Agda.Interaction.Highlighting.Generate
 import Agda.Interaction.Highlighting.Emacs
 import Agda.Interaction.Highlighting.Vim
 
@@ -254,8 +255,7 @@ createInterface opts trace path visited mname file = runTCM $ withImportPath pat
 
     -- Generate Emacs file
     whenM (optGenerateEmacsFile <$> commandLineOptions) $
-      withScope_ (insideScope topLevel) $
-        generateEmacsFile file topLevel errs
+      generateEmacsFile file TypeCheckingDone topLevel errs
 
     -- check that metas have been solved
     ms <- getOpenMetas
