@@ -189,8 +189,6 @@ cmd_load file includes = infoOnException $ do
             setOptionsFromPragmas pragmas
 	    topLevel <- concreteToAbstract_ (TopLevel m)
 
-            checkModuleName topLevel file
-
             handleError
               -- If there is an error syntax highlighting info can
               -- still be generated.
@@ -200,6 +198,7 @@ cmd_load file includes = infoOnException $ do
                         -- reload the syntax highlighting info.
                         throwError e) $ do
               setUndo
+              checkModuleName topLevel file
               checkDecls $ topLevelDecls topLevel
               setScope $ outsideScope topLevel
 
@@ -611,7 +610,7 @@ outputErrorInfo
   :: Maybe FilePath
      -- ^ The file we're working with (if it's known).
   -> Range -> String -> IO ()
-outputErrorInfo mFile r s =
+outputErrorInfo mFile r s = do
   case rStart r of
     NoPos                          -> return ()
     -- Errors for expressions entered using the command line sometimes
@@ -622,7 +621,7 @@ outputErrorInfo mFile r s =
         L [A "annotation-goto", Q $ L [A (show f), A ".", A (show p)]]
       when (mFile /= Just f) $ clearSyntaxInfo f
       appendSyntaxInfo f $ generateErrorInfo r s
-      tellEmacsToReloadSyntaxInfo
+  tellEmacsToReloadSyntaxInfo
 
 ------------------------------------------------------------------------
 -- Implicit arguments
