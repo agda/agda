@@ -135,12 +135,6 @@ instance HasRange AbstractName where
 instance SetRange AbstractName where
   setRange r x = x { anameName = setRange r $ anameName x }
 
-instance HasRange AbstractModule where
-  getRange _ = noRange -- TODO: getRange . amodName
-
-instance SetRange AbstractModule where
-  setRange r m = m -- TODO: m { amodName = setRange r $ amodName m }
-
 -- * Operations on name and module maps.
 
 mergeNames :: NamesInScope -> NamesInScope -> NamesInScope
