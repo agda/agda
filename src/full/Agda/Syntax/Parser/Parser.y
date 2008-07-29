@@ -9,6 +9,7 @@ module Agda.Syntax.Parser.Parser (
     ) where
 
 import Control.Monad
+import Control.Monad.State
 import Data.Char  (isDigit)
 import Data.List
 import Data.Maybe
@@ -761,6 +762,10 @@ ImportPragma
   : '{-#' 'IMPORT' PragmaStrings '#-}'
     { ImportPragma (fuseRange $1 $4) (unwords $3) }
 
+-- TODO: When a line pragma is encountered the line and column numbers
+-- are updated, but the linear position is preserved. Is this what we
+-- want?
+
 LinePragma :: { Pragma }
 LinePragma
     : '{-#' 'LINE' string string '#-}' {% do
@@ -773,9 +778,10 @@ LinePragma
 	    | otherwise	    = parseErrorAt (rStart r) $ "Expected line number, found " ++ l
       line <- parseLine $3
       file <- parseFile $4
+      currentPos <- fmap parsePos get
       setParsePos $ Pn
 	{ srcFile = file
-	, posPos  = 1	  -- TODO: what to do about this?
+	, posPos  = posPos currentPos
 	, posLine = line
 	, posCol  = 1
 	}
