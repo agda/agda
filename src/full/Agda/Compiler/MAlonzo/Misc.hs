@@ -48,7 +48,7 @@ mazCurMName :: TCM ModuleName
 mazCurMName = maybe firstTime return .  L.lookup mazCurrentMod .
               L.map (\m -> (show m, m)) . keys =<< getVisitedModules
   where firstTime = concreteToAbstract_ . NewModuleQName . C.QName $
-                    C.Name noRange [C.Id noRange mazCurrentMod]
+                    C.Name noRange [C.Id mazCurrentMod]
 
 curIF :: TCM Interface
 curIF = fst <$> (join $ M.lookup <$> mazCurMName <*> getVisitedModules)

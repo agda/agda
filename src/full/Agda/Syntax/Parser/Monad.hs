@@ -16,7 +16,7 @@ module Agda.Syntax.Parser.Monad
     , parsePosString
     , parseFile
       -- * Manipulating the state
-    , setParsePos, setLastPos, getParseRange
+    , setParsePos, setLastPos, getParseInterval
     , setPrevToken
     , getParseFlags
     , getLexState, pushLexState, popLexState
@@ -152,7 +152,7 @@ instance Show ParseError where
 -- 	    elide _ ""		    = ""
 
 instance HasRange ParseError where
-    getRange err = Range (errPos err) (errPos err)
+    getRange err = posToRange (errPos err) (errPos err)
 
 {--------------------------------------------------------------------------
     Running the parser
@@ -215,11 +215,11 @@ setPrevToken t = modify $ \s -> s { parsePrevToken = t }
 getLastPos :: Parser Position
 getLastPos = get >>= return . parseLastPos
 
--- | The parse range is between the last position and the current position.
-getParseRange :: Parser Range
-getParseRange =
+-- | The parse interval is between the last position and the current position.
+getParseInterval :: Parser Interval
+getParseInterval =
     do	s <- get
-	return $ Range (parseLastPos s) (parsePos s)
+	return $ Interval (parseLastPos s) (parsePos s)
 
 getLexState :: Parser [LexState]
 getLexState = parseLexState <$> get

@@ -25,3 +25,8 @@ instance HasRange Literal where
     getRange (LitString r _)	= r
     getRange (LitChar   r _)	= r
 
+instance SetRange Literal where
+    setRange r (LitInt    _ x)	= LitInt    r x
+    setRange r (LitFloat  _ x)	= LitFloat  r x
+    setRange r (LitString _ x)	= LitString r x
+    setRange r (LitChar   _ x)	= LitChar   r x

@@ -61,7 +61,7 @@ import Agda.Utils.Impossible
 
 
 currentInterfaceVersion :: Int
-currentInterfaceVersion = 20080728
+currentInterfaceVersion = 20080729
 
 type Node = [Int] -- constructor tag (maybe omitted) and arg indices
 
@@ -151,9 +151,7 @@ instance EmbPrj a => EmbPrj (Maybe a) where
 
 instance EmbPrj Position where
   icode (P.Pn file pos line col) = icode4' file pos line col
-  icode (P.NoPos               ) = icode0'
   value = vcase valu where valu [f, p, l, c] = valu4 P.Pn f p l c
-                           valu []           = valu0 P.NoPos
                            valu _            = __IMPOSSIBLE__
 
 instance EmbPrj a => EmbPrj [a] where
@@ -169,24 +167,29 @@ instance (Ord a, EmbPrj a, EmbPrj b) => EmbPrj (Map a b) where
   icode m = icode (M.toList m)
   value m = M.fromList `fmap` value m
 
-instance EmbPrj Range where
-  icode (P.Range p q) = icode2' p q
-  value = vcase valu where valu [p, q] = valu2 P.Range p q
+instance EmbPrj P.Interval where
+  icode (P.Interval p q) = icode2' p q
+  value = vcase valu where valu [p, q] = valu2 P.Interval p q
                            valu _      = __IMPOSSIBLE__
+
+instance EmbPrj Range where
+  icode (P.Range is) = icode1' is
+  value = vcase valu where valu [is] = valu1 P.Range is
+                           valu _    = __IMPOSSIBLE__
 
 instance EmbPrj C.Name where
   icode (C.NoName a b) = icode2 0 a b
-  icode (C.Name r xs ) = icode2 1 r xs
-  value = vcase valu where valu [0, a, b ] = valu2 C.NoName a b
+  icode (C.Name r xs)  = icode2 1 r xs
+  value = vcase valu where valu [0, a, b]  = valu2 C.NoName a b
                            valu [1, r, xs] = valu2 C.Name   r xs
                            valu _          = __IMPOSSIBLE__
 
 instance EmbPrj NamePart where
-  icode Hole     = icode0'
-  icode (Id r a) = icode2' r a
-  value = vcase valu where valu []     = valu0 Hole
-                           valu [r, a] = valu2 Id r a
-                           valu _      = __IMPOSSIBLE__
+  icode Hole   = icode0'
+  icode (Id a) = icode1' a
+  value = vcase valu where valu []  = valu0 Hole
+                           valu [a] = valu1 Id a
+                           valu _   = __IMPOSSIBLE__
 
 instance EmbPrj C.QName where
   icode (Qual    a b) = icode2' a b

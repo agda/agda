@@ -45,7 +45,10 @@ parseExprIn ii rng s = do
     mId <- lookupInteractionId ii
     updateMetaVarRange mId rng       
     mi  <- getMetaInfo <$> lookupMeta mId
-    e <- liftIO $ parsePosString exprParser (rStart (getRange mi)) s
+    let pos = case rStart (getRange mi) of
+                Just pos -> pos
+                Nothing  -> __IMPOSSIBLE__
+    e <- liftIO $ parsePosString exprParser pos s
     concreteToAbstract (clScope mi) e
 
 giveExpr :: MetaId -> Expr -> IM Expr

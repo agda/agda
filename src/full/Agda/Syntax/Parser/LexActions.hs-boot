@@ -10,8 +10,8 @@ lexToken :: Parser Token
 
 token :: (String -> Parser tok) -> LexAction tok
 
-withRange  :: ((Range,String) -> tok) -> LexAction tok
-withRange' :: (String -> a) -> ((Range,a) -> tok) -> LexAction tok
+withInterval  :: ((Interval, String) -> tok) -> LexAction tok
+withInterval' :: (String -> a) -> ((Interval, a) -> tok) -> LexAction tok
 withLayout :: LexAction r -> LexAction r
 
 begin   :: LexState -> LexAction Token

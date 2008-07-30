@@ -8,7 +8,7 @@ module Agda.Syntax.Parser.LexActions
       -- * Lex actions
       -- ** General actions
     , token
-    , withRange, withRange', withRange_
+    , withInterval, withInterval', withInterval_
     , withLayout
     , begin, end, endWith
     , begin_, end_
@@ -20,6 +20,7 @@ module Agda.Syntax.Parser.LexActions
     ) where
 
 import Data.Char
+import Control.Arrow
 
 import Agda.Syntax.Parser.Lexer
 import Agda.Syntax.Parser.Alex
@@ -105,19 +106,19 @@ token action inp inp' len =
     where
 	t = take len $ lexInput inp
 
--- | Parse a token from a 'Range' and the lexed string.
-withRange :: ((Range,String) -> tok) -> LexAction tok
-withRange f = token $ \s ->
-		do  r <- getParseRange
-		    return $ f (r,s)
+-- | Parse a token from an 'Interval' and the lexed string.
+withInterval :: ((Interval, String) -> tok) -> LexAction tok
+withInterval f = token $ \s -> do
+                   r <- getParseInterval
+		   return $ f (r,s)
 
--- | Like 'withRange', but applies a function to the string.
-withRange' :: (String -> a) -> ((Range,a) -> tok) -> LexAction tok
-withRange' f t = withRange (t . (id -*- f))
+-- | Like 'withInterval', but applies a function to the string.
+withInterval' :: (String -> a) -> ((Interval, a) -> tok) -> LexAction tok
+withInterval' f t = withInterval (t . (id -*- f))
 
 -- | Return a token without looking at the lexed string.
-withRange_ :: (Range -> r) -> LexAction r
-withRange_ f = withRange (f . fst)
+withInterval_ :: (Interval -> r) -> LexAction r
+withInterval_ f = withInterval (f . fst)
 
 
 -- | Executed for layout keywords. Enters the 'Agda.Syntax.Parser.Lexer.layout'
@@ -164,7 +165,7 @@ end _ _ _ =
 
 -- | Parse a 'Keyword' token, triggers layout for 'layoutKeywords'.
 keyword :: Keyword -> LexAction Token
-keyword k = layout $ withRange_ (TokKeyword k)
+keyword k = layout $ withInterval_ (TokKeyword k)
     where
 	layout | elem k layoutKeywords	= withLayout
 	       | otherwise		= id
@@ -172,12 +173,13 @@ keyword k = layout $ withRange_ (TokKeyword k)
 
 -- | Parse a 'Symbol' token.
 symbol :: Symbol -> LexAction Token
-symbol s = withRange_ (TokSymbol s)
+symbol s = withInterval_ (TokSymbol s)
 
 
 -- | Parse a literal.
 literal :: Read a => (Range -> a -> Literal) -> LexAction Token
-literal lit = withRange' read (TokLiteral . uncurry lit)
+literal lit =
+  withInterval' read (TokLiteral . uncurry lit . (getRange *** id))
 
 -- | Parse an identifier. Identifiers can be qualified (see 'Name').
 --   Example: @Foo.Bar.f@
@@ -186,26 +188,26 @@ identifier = qualified (either TokId TokQId)
 
 
 -- | Parse a possibly qualified name.
-qualified :: (Either (Range, String) [(Range, String)] -> a) -> LexAction a
+qualified :: (Either (Interval, String) [(Interval, String)] -> a) -> LexAction a
 qualified tok =
     token $ \s ->
-    do  r <- getParseRange
-	case mkName r $ wordsBy (=='.') s of
+    do  i <- getParseInterval
+	case mkName i $ wordsBy (=='.') s of
 	    []	-> lexError "lex error on .."
 	    [x]	-> return $ tok $ Left  x
 	    xs	-> return $ tok $ Right xs
     where
 	-- Compute the ranges for the substrings (separated by '.') of a name.
-	mkName :: Range -> [String] -> [(Range, String)]
+	mkName :: Interval -> [String] -> [(Interval, String)]
 	mkName _ []	= []
-	mkName r [x]	= [(r, x)]
-	mkName r (x:xs) = (r0, x) : mkName r1 xs
+	mkName i [x]	= [(i, x)]
+	mkName i (x:xs) = (i0, x) : mkName i1 xs
 	    where
-		p0 = rStart r
-		p1 = rEnd r
+		p0 = iStart i
+		p1 = iEnd i
 		p' = movePosByString p0 x
-		r0 = Range p0 p'
-		r1 = Range (movePos p' '.') p1
+		i0 = Interval p0 p'
+		i1 = Interval (movePos p' '.') p1
 
 
 {--------------------------------------------------------------------------

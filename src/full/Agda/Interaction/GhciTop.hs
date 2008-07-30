@@ -380,7 +380,7 @@ takenNameStr = do
 		  ]
   return $ concat [ parts $ nameConcrete x | x <- concat xss]
   where
-    parts x = [ s | Id _ s <- nameParts x ]
+    parts x = [ s | Id s <- nameParts x ]
 
 refreshStr :: [String] -> String -> ([String], String)
 refreshStr taken s = go nameModifiers where
@@ -610,11 +610,11 @@ outputErrorInfo
   -> Range -> String -> IO ()
 outputErrorInfo mFile r s = do
   case rStart r of
-    NoPos                          -> return ()
+    Nothing                               -> return ()
     -- Errors for expressions entered using the command line sometimes
     -- have an empty file name component.
-    Pn { srcFile = "" }            -> return ()
-    Pn { srcFile = f, posPos = p } -> do
+    Just (Pn { srcFile = "" })            -> return ()
+    Just (Pn { srcFile = f, posPos = p }) -> do
       putStrLn $ response $
         L [A "annotation-goto", Q $ L [A (show f), A ".", A (show p)]]
       when (mFile /= Just f) $ clearSyntaxInfo f

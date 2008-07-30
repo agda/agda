@@ -1,2 +1,2 @@
-errors/RecordInMutual.agda:5,1-7,16
+errors/RecordInMutual.agda:5,1-9,16
 Record types are not allowed in mutual blocks

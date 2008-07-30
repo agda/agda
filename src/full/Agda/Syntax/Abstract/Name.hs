@@ -56,20 +56,19 @@ mnameFromList = MName
 noModuleName :: ModuleName
 noModuleName = mnameFromList []
 
-mkName_ :: NameId -> String -> Name
-mkName_ = mkName noRange
-
--- TODO: This function is parameterised on a range, but noRange is
--- used for the NameParts created. Either calculate proper ranges for
--- the NameParts, or stop parameterising this function on a range.
+-- | The 'Range' sets the /definition site/ of the name, not the use
+-- site.
 
 mkName :: Range -> NameId -> String -> Name
-mkName r i s = Name i (C.Name r (parseName s)) r defaultFixity
+mkName r i s = Name i (C.Name noRange (parseName s)) r defaultFixity
   where
     parseName ""      = []
     parseName ('_':s) = C.Hole : parseName s
     parseName s = case break (== '_') s of
-      (s0, s1)	-> C.Id noRange s0 : parseName s1
+      (s0, s1)	-> C.Id s0 : parseName s1
+
+mkName_ :: NameId -> String -> Name
+mkName_ = mkName noRange
 
 qnameToList :: QName -> [Name]
 qnameToList (QName m x) = mnameToList m ++ [x]
@@ -119,7 +118,7 @@ freshName_ = freshName noRange
 freshNoName :: (MonadState s m, HasFresh NameId s) => Range -> m Name
 freshNoName r =
     do	i <- fresh
-	return $ Name i (C.NoName r i) r defaultFixity
+	return $ Name i (C.NoName noRange i) r defaultFixity
 
 freshNoName_ :: (MonadState s m, HasFresh NameId s) => m Name
 freshNoName_ = freshNoName noRange
@@ -127,14 +126,14 @@ freshNoName_ = freshNoName noRange
 -- | Get the next version of the concrete name. For instance, @nextName "x" = "x'"@.
 --   The name must not be a 'NoName'.
 nextName :: Name -> Name
-nextName x = x { nameConcrete = C.Name r $ nextSuf ps }
+nextName x = x { nameConcrete = C.Name noRange $ nextSuf ps }
     where
-	C.Name r ps = nameConcrete x
+	C.Name _ ps = nameConcrete x
 	-- NoName cannot appear here
-	nextSuf [C.Id _ s]         = [ C.Id noRange $ nextStr s ]
-	nextSuf [C.Id _ s, C.Hole] = [ C.Id noRange $ nextStr s, C.Hole ]
-	nextSuf (p : ps)           = p : nextSuf ps
-	nextSuf []                 = __IMPOSSIBLE__
+	nextSuf [C.Id s]         = [C.Id $ nextStr s]
+	nextSuf [C.Id s, C.Hole] = [C.Id $ nextStr s, C.Hole]
+	nextSuf (p : ps)         = p : nextSuf ps
+	nextSuf []               = __IMPOSSIBLE__
 	nextStr s = case suffixView s of
 	    (s0, suf) -> addSuffix s0 (nextSuffix suf)
 

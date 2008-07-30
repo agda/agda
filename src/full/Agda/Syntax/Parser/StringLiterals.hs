@@ -26,7 +26,8 @@ import Agda.Utils.Tuple  ( (-*-) )
 
 -- | Lex a string literal. Assumes that a double quote has been lexed.
 litString :: LexAction Token
-litString = stringToken '"' (\r s -> return $ TokLiteral $ LitString r s)
+litString = stringToken '"' (\i s ->
+              return $ TokLiteral $ LitString (getRange i) s)
 
 {-| Lex a character literal. Assumes that a single quote has been lexed.  A
     character literal is lexed in exactly the same way as a string literal.
@@ -35,9 +36,9 @@ litString = stringToken '"' (\r s -> return $ TokLiteral $ LitString r s)
     the other hand it will only be inefficient if there is a lexical error.
 -}
 litChar :: LexAction Token
-litChar = stringToken '\'' $ \r s ->
+litChar = stringToken '\'' $ \i s ->
 	    do	case s of
-		    [c]	-> return $ TokLiteral $ LitChar r c
+		    [c]	-> return $ TokLiteral $ LitChar (getRange i) c
 		    _	-> lexError
 			    "character literal must contain a single character"
 
@@ -61,15 +62,15 @@ litError msg =
 -- | The general function to lex a string or character literal token. The
 --   character argument is the delimiter (@\"@ for strings and @\'@ for
 --   characters).
-stringToken :: Char -> (Range -> String -> Parser tok) -> LexAction tok
+stringToken :: Char -> (Interval -> String -> Parser tok) -> LexAction tok
 stringToken del mkTok inp inp' n =
     do	setLastPos (backupPos $ lexPos inp')
         setLexInput inp'
         -- TODO: Should setPrevToken be run here? Compare with
         -- Agda.Syntax.Parser.LexActions.token.
 	tok <- runLookAhead litError $ lexString del ""
-	r   <- getParseRange
-	mkTok r tok
+	i   <- getParseInterval
+	mkTok i tok
 
 
 -- | This is where the work happens. The string argument is an accumulating

@@ -56,8 +56,8 @@ tokens :-
 
 -- Lexing literate files
 <tex>	 $white_nonl* \\ "begin{code}" $white_nonl* $ { end_ }
-<tex>	 .* $		            { withRange TokTeX }
-<tex>	 .+		            { withRange TokTeX }
+<tex>	 .* $		            { withInterval TokTeX }
+<tex>	 .+		            { withInterval TokTeX }
 <tex>    \n                         ;
 <bol_,layout_>
   \\ "end{code}" / { inState code } { begin_ tex }
@@ -78,7 +78,7 @@ tokens :-
 <pragma_>   "COMPILED"	        { keyword KwCOMPILED }
 <pragma_>   "IMPORT"	        { keyword KwIMPORT }
 <pragma_>   "LINE"		{ keyword KwLINE }
-<pragma_>   . # [ $white ] +    { withRange $ TokString }
+<pragma_>   . # [ $white ] +    { withInterval $ TokString }
 
 -- Comments
     -- We need to rule out pragmas here. Usually longest match would take
@@ -89,9 +89,9 @@ tokens :-
 
 -- Dashes followed by a name symbol should be parsed as a name.
 <0,code,bol_,layout_,empty_layout_,imp_dir_>
-  "--"\-* $endcomment .* / { keepComments } { withRange TokComment }
+  "--"\-* $endcomment .* / { keepComments } { withInterval TokComment }
 <0,code,bol_,layout_,empty_layout_,imp_dir_>
-   "--"\-* / { keepComments .&&. followedBy '\n' } { withRange TokComment }
+   "--"\-* / { keepComments .&&. followedBy '\n' } { withInterval TokComment }
 <0,code,bol_,layout_,empty_layout_,imp_dir_>   "--"\-* $endcomment .* ;
 <0,code,bol_,layout_,empty_layout_,imp_dir_>   "--"\-* $	      ;
 
@@ -140,7 +140,7 @@ tokens :-
 <0,code> Set		{ keyword KwSet }
 <0,code> Prop		{ keyword KwProp }
 <0,code> forall		{ keyword KwForall }
-<0,code> Set @number	{ withRange' (read . drop 3) TokSetN }
+<0,code> Set @number	{ withInterval' (read . drop 3) TokSetN }
 
 -- The parser is responsible to put the lexer in the imp_dir_ state when it
 -- expects an import directive keyword. This means that if you run the

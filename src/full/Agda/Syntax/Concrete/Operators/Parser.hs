@@ -16,7 +16,7 @@ data ExprView e
     = LocalV Name
     | OtherV e
     | AppV e (NamedArg e)
-    | OpAppV Range Name [e]
+    | OpAppV Name [e]
     | HiddenArgV (Named String e)
     | ParenV e
     deriving (Show)
@@ -37,7 +37,7 @@ recursive f = p0
 	p0 = foldr ( $ ) p0 fs
 
 -- Specific combinators
-partP :: IsExpr e => String -> ReadP e NamePart
+partP :: IsExpr e => String -> ReadP e (Range, NamePart)
 partP s = do
     tok <- get
     case isLocal s tok of
@@ -45,40 +45,40 @@ partP s = do
       Nothing -> pfail
     where
 	isLocal x e = case exprView e of
-	    LocalV (Name r [Id _ y]) | x == y -> Just (Id r y)
-	    _			              -> Nothing
+	    LocalV (Name r [Id y]) | x == y -> Just (r, Id y)
+	    _			            -> Nothing
 
 binop :: IsExpr e => ReadP e e -> ReadP e (e -> e -> e)
 binop opP = do
-    OpAppV r (Name r' ps) es <- exprView <$> opP
+    OpAppV (Name r ps) es <- exprView <$> opP
     return $ \x y -> unExprView $
-      OpAppV (fuseRange x y) (Name r' ([Hole] ++ ps ++ [Hole])) ([x] ++ es ++ [y])
+      OpAppV (Name r ([Hole] ++ ps ++ [Hole])) ([x] ++ es ++ [y])
 
 preop :: IsExpr e => ReadP e e -> ReadP e (e -> e)
 preop opP = do
-    OpAppV r (Name r' ps) es <- exprView <$> opP
+    OpAppV (Name r ps) es <- exprView <$> opP
     return $ \x -> unExprView $
-      OpAppV (fuseRange r x) (Name r' (ps ++ [Hole])) (es ++ [x])
+      OpAppV (Name r (ps ++ [Hole])) (es ++ [x])
 
 postop :: IsExpr e => ReadP e e -> ReadP e (e -> e)
 postop opP = do
-    OpAppV r (Name r' ps) es <- exprView <$> opP
+    OpAppV (Name r ps) es <- exprView <$> opP
     return $ \x -> unExprView $
-      OpAppV (fuseRange x r) (Name r' ([Hole] ++ ps)) ([x] ++ es)
+      OpAppV (Name r ([Hole] ++ ps)) ([x] ++ es)
 
 opP :: IsExpr e => ReadP e e -> Name -> ReadP e e
-opP p (NoName _ _)  = pfail
-opP p x@(Name r xs) = do
-    (ps, es) <- mix [ x | Id _ x <- xs ]
-    return $ unExprView $ OpAppV (getRange ps) (Name noRange ps) es
+opP p (NoName _ _) = pfail
+opP p (Name _ xs)  = do
+    (r, ps, es) <- mix [ x | Id x <- xs ]
+    return $ unExprView $ OpAppV (Name r ps) es
     where
 	mix []	   = __IMPOSSIBLE__
-	mix [x]	   = do part <- partP x; return ([part], [])
+	mix [x]	   = do (r, part) <- partP x; return (r, [part], [])
 	mix (x:xs) = do
-	    part <- partP x
-	    e  <- p
-	    (ps, es) <- mix xs
-	    return (part : Hole : ps, e : es)
+	    (r1, part)    <- partP x
+	    e             <- p
+	    (r2 , ps, es) <- mix xs
+	    return (fuseRanges r1 r2, part : Hole : ps, e : es)
 
 prefixP :: IsExpr e => ReadP e e -> ReadP e e -> ReadP e e
 prefixP op p = do

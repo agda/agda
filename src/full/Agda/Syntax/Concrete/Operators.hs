@@ -59,7 +59,7 @@ partsInScope = do
     where
 	parts (NoName _ _)   = []
 	parts x@(Name _ [_]) = [x]
-	parts x@(Name _ xs ) = x : [ Name r [i] | i@(Id r _) <- xs ]
+	parts x@(Name _ xs)  = x : [ Name noRange [i] | i@(Id {}) <- xs ]
 
 -- | Compute all unqualified defined names in scope and their fixities.
 getDefinedNames :: [KindOfName] -> ScopeM [(Name, Fixity)]
@@ -85,7 +85,7 @@ localNames = do
 	    zs = concatMap opOrNot ops
 
     opOrNot (x@(Name _ [_]), fx) = [Left x]
-    opOrNot (x, fx)		 = [Left x, Right (x, fx)]
+    opOrNot (x, fx)	         = [Left x, Right (x, fx)]
 
 data UseBoundNames = UseBoundNames | DontUseBoundNames
 
@@ -138,7 +138,7 @@ buildParser r use = do
     where
 	parts (NoName _ _) = []
 	parts (Name _ [_]) = []
-	parts (Name _ xs ) = [ Name r [i] | i@(Id r _) <- xs ]
+	parts (Name _ xs)  = [ Name noRange [i] | i@(Id {}) <- xs ]
 
 	level = fixityLevel . snd
 
@@ -181,14 +181,14 @@ instance IsExpr Expr where
     exprView e = case e of
 	Ident (QName x)	-> LocalV x
 	App _ e1 e2	-> AppV e1 e2
-	OpApp r d es	-> OpAppV r d es
+	OpApp r d es	-> OpAppV d es
 	HiddenArg _ e	-> HiddenArgV e
 	Paren _ e	-> ParenV e
 	_		-> OtherV e
     unExprView e = case e of
 	LocalV x      -> Ident (QName x)
 	AppV e1 e2    -> App (fuseRange e1 e2) e1 e2
-	OpAppV r d es -> OpApp r d es
+	OpAppV d es   -> OpApp (fuseRange d es) d es
 	HiddenArgV e  -> HiddenArg (getRange e) e
 	ParenV e      -> Paren (getRange e) e
 	OtherV e      -> e
@@ -197,14 +197,14 @@ instance IsExpr Pattern where
     exprView e = case e of
 	IdentP (QName x) -> LocalV x
 	AppP e1 e2	 -> AppV e1 e2
-	OpAppP r d es	 -> OpAppV r d es
+	OpAppP r d es	 -> OpAppV d es
 	HiddenP _ e	 -> HiddenArgV e
 	ParenP _ e	 -> ParenV e
 	_		 -> OtherV e
     unExprView e = case e of
 	LocalV x	 -> IdentP (QName x)
 	AppV e1 e2	 -> AppP e1 e2
-	OpAppV r d es	 -> OpAppP r d es
+	OpAppV d es	 -> OpAppP (fuseRange d es) d es
 	HiddenArgV e	 -> HiddenP (getRange e) e
 	ParenV e	 -> ParenP (getRange e) e
 	OtherV e	 -> e
@@ -305,7 +305,7 @@ fullParen' e = case exprView e of
 	    e2' = case h of
 		Hidden	  -> e2
 		NotHidden -> fullParen' <$> e2
-    OpAppV r x es -> par $ unExprView $ OpAppV r x $ map fullParen' es
+    OpAppV x es -> par $ unExprView $ OpAppV x $ map fullParen' es
     where
 	par = unExprView . ParenV
 

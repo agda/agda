@@ -373,7 +373,7 @@ instance ToAbstract C.Expr A.Expr where
 	return $ A.App (ExprRange r) e1 e2
 
   -- Operator application
-      C.OpApp r op es -> toAbstractOpApp r op es
+      C.OpApp r op es -> toAbstractOpApp op es
 
   -- With application
       C.WithApp r e es -> do
@@ -879,9 +879,9 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
 
 -- | Turn an operator application into abstract syntax. Make sure to record the
 -- right precedences for the various arguments.
-toAbstractOpApp :: Range -> C.Name -> [C.Expr] -> ScopeM A.Expr
-toAbstractOpApp r op@(C.NoName _ _) es = __IMPOSSIBLE__
-toAbstractOpApp r op@(C.Name _ xs) es = do
+toAbstractOpApp :: C.Name -> [C.Expr] -> ScopeM A.Expr
+toAbstractOpApp op@(C.NoName _ _) es = __IMPOSSIBLE__
+toAbstractOpApp op@(C.Name _ xs) es = do
     f  <- getFixity (C.QName op)
     op <- toAbstract (OldQName $ C.QName op)
     foldl app op <$> left f xs es
@@ -894,22 +894,21 @@ toAbstractOpApp r op@(C.Name _ xs) es = do
 	    es <- inside f xs es
 	    return (e : es)
 	left f (Id {} : xs) es = inside f xs es
-	left f (Hole : _) []   = __IMPOSSIBLE__
-	left f [] _	       = __IMPOSSIBLE__
+	left f (Hole  : _)  [] = __IMPOSSIBLE__
+	left f []           _  = __IMPOSSIBLE__
 
-	inside f [x]	      es      = right f x es
-	inside f (Id {} : xs) es      = inside f xs es
-	inside f (Hole : xs) (e : es) = do
+	inside f [x]	      es       = right f x es
+	inside f (Id {} : xs) es       = inside f xs es
+	inside f (Hole  : xs) (e : es) = do
 	    e  <- toAbstractCtx InsideOperandCtx e
 	    es <- inside f xs es
 	    return (e : es)
 	inside _ (Hole : _) [] = __IMPOSSIBLE__
-	inside _ [] _	       = __IMPOSSIBLE__
+	inside _ []         _  = __IMPOSSIBLE__
 
 	right f Hole [e] = do
 	    e <- toAbstractCtx (RightOperandCtx f) e
 	    return [e]
-	right _ (Id {}) [] = return []
-	right _ Hole    _  = __IMPOSSIBLE__
-	right _ (Id {}) _  = __IMPOSSIBLE__
-
+	right _ (Id {})  [] = return []
+	right _ Hole     _  = __IMPOSSIBLE__
+	right _ (Id {})  _  = __IMPOSSIBLE__

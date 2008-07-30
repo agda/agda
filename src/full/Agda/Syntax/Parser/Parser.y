@@ -286,7 +286,7 @@ ModuleName : QId { $1 }
 -- A binding variable. Can be '_'
 BId :: { Name }
 BId : Id    { $1 }
-    | '_'   { Name $1 [Hole] }
+    | '_'   { Name (getRange $1) [Hole] }
 
 
 -- Space separated list of binding identifiers. Used in fixity
@@ -381,11 +381,11 @@ Application3
 Expr3
     : QId				{ Ident $1 }
     | literal				{ Lit $1 }
-    | '?'				{ QuestionMark $1 Nothing }
-    | '_'				{ Underscore $1 Nothing }
-    | 'Prop'				{ Prop $1 }
-    | 'Set'				{ Set $1 }
-    | setN				{ uncurry SetN $1 }
+    | '?'				{ QuestionMark (getRange $1) Nothing }
+    | '_'				{ Underscore (getRange $1) Nothing }
+    | 'Prop'				{ Prop (getRange $1) }
+    | 'Set'				{ Set (getRange $1) }
+    | setN				{ SetN (getRange (fst $1)) (snd $1) }
     | '{' Expr '}'			{ HiddenArg (fuseRange $1 $3) (unnamed $2) }
     | '{' Id '=' Expr '}'		{ HiddenArg (fuseRange $1 $5) (named (show $2) $4) }
     | '(' Expr ')'			{ Paren (fuseRange $1 $3) $2 }
@@ -770,12 +770,12 @@ LinePragma :: { Pragma }
 LinePragma
     : '{-#' 'LINE' string string '#-}' {% do
       let r = fuseRange $1 $5
-	  parseFile (r, f)
+	  parseFile (i, f)
 	    | head f == '"' && last f == '"'  = return $ init (tail f)
-	    | otherwise	= parseErrorAt (rStart r) $ "Expected \"filename\", found " ++ f
-	  parseLine (r, l)
+	    | otherwise	= parseErrorAt (iStart i) $ "Expected \"filename\", found " ++ f
+	  parseLine (i, l)
 	    | all isDigit l = return $ read l
-	    | otherwise	    = parseErrorAt (rStart r) $ "Expected line number, found " ++ l
+	    | otherwise	    = parseErrorAt (iStart i) $ "Expected line number, found " ++ l
       line <- parseLine $3
       file <- parseFile $4
       currentPos <- fmap parsePos get
@@ -856,26 +856,22 @@ happyError = parseError "Parse error"
  --------------------------------------------------------------------------}
 
 -- | Create a name from a string.
---
--- Note that the generated NameParts do not get ranges assigned; the
--- full Name has a proper range.
 
-mkName :: (Range, String) -> Parser Name
-mkName (r,s) = do
+mkName :: (Interval, String) -> Parser Name
+mkName (i, s) = do
     let xs = parts s
     mapM_ isValidId xs
     unless (alternating xs) $ fail $ "a name cannot contain two consecutive underscores"
-    return $ Name r xs
+    return $ Name (getRange i) xs
     where
         parts :: String -> [NamePart]
         parts ""        = []
-        parts ('_' : s) = Hole         : parts s
-        parts s         = Id noRange x : parts s'
-          where
-            (x, s') = break (== '_') s
+        parts ('_' : s) = Hole : parts s
+        parts s         = Id x : parts s'
+          where (x, s') = break (== '_') s
 
-	isValidId Hole     = return ()
-	isValidId (Id _ x) = case parse defaultParseFlags [0] (lexer return) x of
+	isValidId Hole   = return ()
+	isValidId (Id x) = case parse defaultParseFlags [0] (lexer return) x of
 	    ParseOk _ (TokId _) -> return ()
 	    _			-> fail $ "in the name " ++ s ++ ", the part " ++ x ++ " is not valid"
 
@@ -885,13 +881,13 @@ mkName (r,s) = do
 	alternating []		      = True
 
 -- | Create a qualified name from a list of strings
-mkQName :: [(Range, String)] -> Parser QName
+mkQName :: [(Interval, String)] -> Parser QName
 mkQName ss = do
     xs <- mapM mkName ss
     return $ foldr Qual (QName $ last xs) (init xs)
 
 -- | Match a particular name.
-isName :: String -> (Range, String) -> Parser ()
+isName :: String -> (Interval, String) -> Parser ()
 isName s (_,s')
     | s == s'	= return ()
     | otherwise	= fail $ "expected " ++ s ++ ", found " ++ s'
@@ -914,7 +910,8 @@ verifyImportDirective i =
 	 $ sort xs
     of
 	[]  -> return i
-	yss -> parseErrorAt (rStart $ getRange $ head $ concat yss) $
+	yss -> let Just pos = rStart $ getRange $ head $ concat yss in
+               parseErrorAt pos $
 		"repeated name" ++ s ++ " in import directive: " ++
 		concat (intersperse ", " $ map (show . head) yss)
 	    where
@@ -955,6 +952,8 @@ exprToPattern e =
 	HiddenArg r e		-> HiddenP r <$> T.mapM exprToPattern e
 	RawApp r es		-> RawAppP r <$> mapM exprToPattern es
 	OpApp r x es		-> OpAppP r x <$> mapM exprToPattern es
-	_			-> parseErrorAt (rStart $ getRange e) $ "Not a valid pattern: " ++ show e
+	_			->
+          let Just pos = rStart $ getRange e in
+          parseErrorAt pos $ "Not a valid pattern: " ++ show e
 
 }

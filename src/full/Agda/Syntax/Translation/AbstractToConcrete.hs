@@ -121,7 +121,7 @@ lookupQName x =
     do	scope <- asks currentScope
 	case inverseScopeLookupName x scope of
 	    Just y  -> return y
-	    Nothing -> return $ C.Qual (C.Name noRange [Id noRange ""]) $ qnameToConcrete x
+	    Nothing -> return $ C.Qual (C.Name noRange [Id ""]) $ qnameToConcrete x
 		-- this is what happens for names that are not in scope (private names)
 
 lookupModule :: A.ModuleName -> AbsToCon C.QName
@@ -136,11 +136,10 @@ bindName :: A.Name -> (C.Name -> AbsToCon a) -> AbsToCon a
 bindName x ret = do
   names <- asks takenNames
   let y = nameConcrete x
-  case Set.member y names of
+  case (Set.member y names) of
     _ | C.isNoName y -> ret y
-      | y == C.Name noRange [Hole]  -> ret y  -- TODO: shouldn't happen (but it does)
     True	     -> bindName (nextName x) ret
-    False	       ->
+    False	     ->
 	local (\e -> e { takenNames   = Set.insert y $ takenNames e
 		       , currentScope = (currentScope e)
 			  { scopeLocals = (y, x) : scopeLocals (currentScope e)
@@ -607,7 +606,7 @@ instance ToConcrete A.Pattern C.Pattern where
 	e <- toConcreteCtx DotPatternCtx e
 	return $ C.DotP (getRange i) e
     -- just for debugging purposes (shouldn't show up in practise)
-    toConcrete (A.ImplicitP i) = return $ C.IdentP (C.QName $ C.Name noRange [C.Id noRange "(implicit)"])
+    toConcrete (A.ImplicitP i) = return $ C.IdentP (C.QName $ C.Name noRange [C.Id "(implicit)"])
 
 -- Helpers for recovering C.OpApp ------------------------------------------
 

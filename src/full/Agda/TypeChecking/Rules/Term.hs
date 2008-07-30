@@ -165,9 +165,9 @@ checkExpr e t =
                 reportSLn "tc.term.expr.impl" 15 $ "Inserting implicit lambda"
 		checkExpr (A.Lam (Info.ExprRange $ getRange e) (A.DomainFree Hidden x) e) t
 	    where
-		r = emptyR (rStart $ getRange e)
-		    where
-			emptyR r = Range r r
+		r = case rStart $ getRange e of
+                      Nothing  -> noRange
+                      Just pos -> posToRange pos pos
 
 		hiddenLambdaOrHole (A.Lam _ (A.DomainFree Hidden _) _)			   = True
 		hiddenLambdaOrHole (A.Lam _ (A.DomainFull (A.TypedBindings _ Hidden _)) _) = True

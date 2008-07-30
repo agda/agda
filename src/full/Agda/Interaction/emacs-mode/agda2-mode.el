@@ -724,7 +724,7 @@ NEW-TXT is a string to replace OLD-G, or `'paren', or `'no-paren'"
 
 (defun agda2-goal-Range (o)
   "Range of goal overlay O" (interactive)
-  (format "(Range %s %s)"
+  (format "(Range [Interval %s %s])"
           (agda2-mkPos (+ (overlay-start o) 2))
           (agda2-mkPos (- (overlay-end   o) 2))))
 

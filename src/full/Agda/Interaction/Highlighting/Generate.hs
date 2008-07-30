@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, Rank2Types #-}
+{-# LANGUAGE Rank2Types #-}
 
 -- | Generates data used for precise syntax highlighting.
 
@@ -39,9 +39,6 @@ import Data.List ((\\))
 import qualified Data.Sequence as Seq
 import qualified Data.Foldable as Fold (toList, fold, foldMap)
 import qualified Data.Traversable as Trav (mapM)
-
-#include "../../undefined.h"
-import Agda.Utils.Impossible
 
 -- | Generates syntax highlighting information for an error,
 -- represented as a range and a string.
@@ -90,18 +87,18 @@ generateSyntaxInfo file tcs top termErrs =
       aToF a r = several (rToR r) (mempty { aspect = Just a })
 
       tokenToFile :: T.Token -> File
-      tokenToFile (T.TokSetN (r, _))               = aToF PrimitiveType r
-      tokenToFile (T.TokKeyword T.KwSet  r)        = aToF PrimitiveType r
-      tokenToFile (T.TokKeyword T.KwProp r)        = aToF PrimitiveType r
-      tokenToFile (T.TokKeyword T.KwForall r)      = aToF Symbol r
-      tokenToFile (T.TokKeyword _ r)               = aToF Keyword r
-      tokenToFile (T.TokSymbol  _ r)               = aToF Symbol r
+      tokenToFile (T.TokSetN (i, _))               = aToF PrimitiveType (P.getRange i)
+      tokenToFile (T.TokKeyword T.KwSet  i)        = aToF PrimitiveType (P.getRange i)
+      tokenToFile (T.TokKeyword T.KwProp i)        = aToF PrimitiveType (P.getRange i)
+      tokenToFile (T.TokKeyword T.KwForall i)      = aToF Symbol (P.getRange i)
+      tokenToFile (T.TokKeyword _ i)               = aToF Keyword (P.getRange i)
+      tokenToFile (T.TokSymbol  _ i)               = aToF Symbol (P.getRange i)
       tokenToFile (T.TokLiteral (L.LitInt    r _)) = aToF Number r
       tokenToFile (T.TokLiteral (L.LitFloat  r _)) = aToF Number r
       tokenToFile (T.TokLiteral (L.LitString r _)) = aToF String r
       tokenToFile (T.TokLiteral (L.LitChar   r _)) = aToF String r
-      tokenToFile (T.TokComment (r, _))            = aToF Comment r
-      tokenToFile (T.TokTeX (r, _))                = aToF Comment r
+      tokenToFile (T.TokComment (i, _))            = aToF Comment (P.getRange i)
+      tokenToFile (T.TokTeX (i, _))                = aToF Comment (P.getRange i)
       tokenToFile (T.TokId {})                     = mempty
       tokenToFile (T.TokQId {})                    = mempty
       tokenToFile (T.TokString {})                 = mempty
@@ -225,8 +222,7 @@ generate tcs n = do
 nameToFile :: [C.Name]
               -- ^ The name qualifier (may be empty).
               --
-              -- This argument is currently ignored, since the ranges
-              -- associated with these names are not to be trusted.
+              -- This argument is currently ignored.
            -> C.Name
               -- ^ The base name.
            -> (Bool -> MetaInfo)
@@ -241,9 +237,9 @@ nameToFile xs x m mR = several rs' ((m isOp) { definitionSite = mFilePos =<< mR 
   where
   (rs, isOp) = getRanges x
   rs'        = rs -- ++ concatMap (fst . getRanges) xs
-  mFilePos r = case P.rStart r of
-    P.Pn { P.srcFile = f, P.posPos = p } -> Just (f, toInteger p)
-    P.NoPos {}                           -> Nothing
+  mFilePos r = fmap extract (P.rStart r)
+    where
+    extract (P.Pn { P.srcFile = f, P.posPos = p }) = (f, toInteger p)
 
 -- | A variant of 'nameToFile' for qualified abstract names.
 

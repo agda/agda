@@ -37,21 +37,33 @@ data Symbol
 
 data Token
 	  -- Keywords
-	= TokKeyword Keyword Range
+	= TokKeyword Keyword Interval
 	  -- Identifiers and operators
-	| TokId		(Range, String)
-	| TokQId	[(Range, String)] -- non empty namespace
+	| TokId		(Interval, String)
+	| TokQId	[(Interval, String)] -- non empty namespace
 	  -- Literals
 	| TokLiteral	Literal
 	  -- Special symbols
-	| TokSymbol Symbol Range
+	| TokSymbol Symbol Interval
 	  -- Other tokens
-	| TokString (Range, String)  -- arbitrary string, used in pragmas
-	| TokSetN (Range, Integer)
-	| TokTeX (Range, String)
-        | TokComment (Range, String)
+	| TokString (Interval, String)  -- arbitrary string, used in pragmas
+	| TokSetN (Interval, Integer)
+	| TokTeX (Interval, String)
+        | TokComment (Interval, String)
 	| TokDummy	-- Dummy token to make Happy not complain
 			-- about overlapping cases.
 	| TokEOF
     deriving (Eq, Show)
 
+instance HasRange Token where
+  getRange (TokKeyword _ i)    = getRange i
+  getRange (TokId (i, _))      = getRange i
+  getRange (TokQId iss)        = Range $ map fst iss
+  getRange (TokLiteral lit)    = getRange lit
+  getRange (TokSymbol _ i)     = getRange i
+  getRange (TokString (i, _))  = getRange i
+  getRange (TokSetN (i, _))    = getRange i
+  getRange (TokTeX (i, _))     = getRange i
+  getRange (TokComment (i, _)) = getRange i
+  getRange TokDummy            = noRange
+  getRange TokEOF              = noRange

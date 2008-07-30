@@ -194,7 +194,10 @@ metaParseExpr ii s =
         scope <- getMetaScope <$> lookupMeta m
         r <- getRange <$> lookupMeta m
         --liftIO $ putStrLn $ show scope
-	e <- liftIO $ parsePosString exprParser (rStart r) s
+        let pos = case rStart r of
+                    Nothing  -> __IMPOSSIBLE__
+                    Just pos -> pos
+	e <- liftIO $ parsePosString exprParser pos s
 	concreteToAbstract scope e
 
 actOnMeta :: [String] -> (InteractionId -> A.Expr -> IM a) -> IM a

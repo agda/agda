@@ -57,13 +57,11 @@ toList r = [from r .. to r - 1]
 -- A boolean, indicating operatorness, is also returned.
 
 getRanges :: C.Name -> ([Range], Bool)
-getRanges (C.NoName _ _) = ([], False)
-getRanges (C.Name r ps)  =
-  if r == P.noRange then (concatMap getR ps, True)
-                    else (rToR r, False)
+getRanges n = (rToR $ P.getRange n, isOp)
   where
-  getR C.Hole     = []
-  getR (C.Id r _) = rToR r
+  isOp = case n of
+           C.NoName {} -> False
+           C.Name _ ps -> length ps > 1
 
 -- | Like 'getRanges', but for 'A.QName's. Note that the module part
 -- of the name is thrown away; only the base part is used.
@@ -71,17 +69,15 @@ getRanges (C.Name r ps)  =
 getRangesA :: A.QName -> ([Range], Bool)
 getRangesA = getRanges . A.nameConcrete . A.qnameName
 
--- | Converts a 'P.Range' to a 'Range' (if the input range has
--- well-defined positions).
+-- | Converts a 'P.Range' to a list of 'Range's.
 
 rToR :: P.Range -> [Range]
-rToR r = case (p1, p2) of
-  (P.Pn { P.posPos = pos1 }, P.Pn { P.posPos = pos2 }) ->
-    [Range { from = toInteger pos1, to = toInteger pos2 }]
-  _ -> []
+rToR (P.Range is) = map iToR is
   where
-  p1 = P.rStart r
-  p2 = P.rEnd r
+  iToR (P.Interval { P.iStart = P.Pn { P.posPos = pos1 }
+                   , P.iEnd   = P.Pn { P.posPos = pos2 }
+                   }) =
+    Range { from = toInteger pos1, to = toInteger pos2 }
 
 ------------------------------------------------------------------------
 -- Generators

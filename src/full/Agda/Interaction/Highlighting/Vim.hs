@@ -80,7 +80,7 @@ toVim ns = unlines $ matches mcons micons mdefs midefs
 	parts (Qual _ _)	   = []
 	parts (QName (NoName _ _)) = []
 	parts (QName (Name _ [_])) = []
-	parts (QName (Name _ ps))  = [ x | Id _ x <- ps ]
+	parts (QName (Name _ ps))  = [ x | Id x <- ps ]
 
 generateVimFile :: FilePath -> TCM ()
 generateVimFile file = do

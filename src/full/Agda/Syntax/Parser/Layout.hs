@@ -40,8 +40,8 @@ import Agda.Syntax.Position
 openBrace :: LexAction Token
 openBrace = token $ \_ ->
     do	pushContext NoLayout
-	r <- getParseRange
-	return (TokSymbol SymOpenBrace r)
+	i <- getParseInterval
+	return (TokSymbol SymOpenBrace i)
 
 
 {-| Executed upon lexing a close brace (@\'}\'@). Exits the current layout
@@ -52,8 +52,8 @@ openBrace = token $ \_ ->
 closeBrace :: LexAction Token
 closeBrace = token $ \_ ->
     do	popContext
-	r <- getParseRange
-	return (TokSymbol SymCloseBrace r)
+	i <- getParseInterval
+	return (TokSymbol SymCloseBrace i)
 
 
 {-| Executed for the first token in each line (see 'Agda.Syntax.Parser.Lexer.bol').
@@ -79,9 +79,9 @@ offsideRule inp _ _ =
     do	offs <- getOffside p
 	case offs of
 	    LT	-> do	popContext
-			return (TokSymbol SymCloseVirtualBrace (Range p p))
+			return (TokSymbol SymCloseVirtualBrace (Interval p p))
 	    EQ	-> do	popLexState
-			return (TokSymbol SymVirtualSemi (Range p p))
+			return (TokSymbol SymVirtualSemi (Interval p p))
 	    GT	-> do	popLexState
 			lexToken
     where
@@ -97,7 +97,7 @@ emptyLayout :: LexAction Token
 emptyLayout inp _ _ =
     do	popLexState
 	pushLexState bol
-	return (TokSymbol SymCloseVirtualBrace (Range p p))
+	return (TokSymbol SymCloseVirtualBrace (Interval p p))
     where
 	p = lexPos inp
 
@@ -130,10 +130,10 @@ newLayoutContext inp _ _ =
 	case ctx of
 	    Layout prevOffs | prevOffs >= offset ->
 		do  pushLexState empty_layout
-		    return (TokSymbol SymOpenVirtualBrace (Range p p))
+		    return (TokSymbol SymOpenVirtualBrace (Interval p p))
 	    _ ->
 		do  pushContext (Layout offset)
-		    return (TokSymbol SymOpenVirtualBrace (Range p p))
+		    return (TokSymbol SymOpenVirtualBrace (Interval p p))
     where
 	p = lexPos inp
 

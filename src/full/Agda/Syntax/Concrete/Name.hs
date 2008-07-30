@@ -1,14 +1,19 @@
-{-# OPTIONS -fglasgow-exts #-}
+{-# LANGUAGE CPP, DeriveDataTypeable #-}
 
 {-| Names in the concrete syntax are just strings (or lists of strings for
     qualified names).
 -}
 module Agda.Syntax.Concrete.Name where
 
+import Data.Maybe
 import Data.Generics (Typeable, Data)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
+import Agda.Utils.TestHelpers
+
+#include "../../undefined.h"
+import Agda.Utils.Impossible
 
 {-| A name is a non-empty list of alternating 'Id's and 'Hole's. A normal name
     is represented by a singleton list, and operators are represented by a list
@@ -17,15 +22,12 @@ import Agda.Syntax.Position
 
     Equality and ordering on @Name@s are defined to ignore range so same names
     in different locations are equal.
-
-    Invariant: Either the Name has a proper range, or all the
-    NameParts do; never both.
 -}
 data Name = Name !Range [NamePart]
 	  | NoName !Range NameId
     deriving (Typeable, Data)
 
-data NamePart = Hole | Id !Range String
+data NamePart = Hole | Id String
     deriving (Typeable, Data)
 
 -- | @noName_ = 'noName' 'noRange'@
@@ -75,21 +77,21 @@ instance Eq Name where
     _	       == _	     = False
 
 instance Ord Name where
-    compare (Name _ xs) (Name _ ys) = compare xs ys
+    compare (Name _ xs)  (Name _ ys)  = compare xs ys
     compare (NoName _ i) (NoName _ j) = compare i j
-    compare (NoName _ _) (Name _ _)   = LT
-    compare (Name _ _) (NoName _ _)   = GT
+    compare (NoName {})  (Name {})    = LT
+    compare (Name {})    (NoName {})  = GT
 
 instance Eq NamePart where
-  Hole    == Hole    = True
-  Id _ s1 == Id _ s2 = s1 == s2
-  _       == _       = False
+  Hole  == Hole  = True
+  Id s1 == Id s2 = s1 == s2
+  _     == _     = False
 
 instance Ord NamePart where
-  compare Hole      Hole      = EQ
-  compare Hole      (Id _ _)  = LT
-  compare (Id _ _)  Hole      = GT
-  compare (Id _ s1) (Id _ s2) = compare s1 s2
+  compare Hole    Hole    = EQ
+  compare Hole    (Id {}) = LT
+  compare (Id {}) Hole    = GT
+  compare (Id s1) (Id s2) = compare s1 s2
 
 -- | @QName@ is a list of namespaces and the name of the constant.
 --   For the moment assumes namespaces are just @Name@s and not
@@ -99,40 +101,39 @@ instance Ord NamePart where
 --     non-generative namespaces (as well as having some sort of
 --     lookup table for namespace names).
 data QName = Qual  Name QName
-           | QName Name 
+           | QName Name
   deriving (Typeable, Data, Eq, Ord)
 
+isHole :: NamePart -> Bool
+isHole Hole = True
+isHole _    = False
+
 isPrefix, isPostfix, isInfix, isNonfix :: Name -> Bool
-isPrefix  x = head xs /= Hole && last xs == Hole where xs = nameParts x
-isPostfix x = head xs == Hole && last xs /= Hole where xs = nameParts x
-isInfix   x = head xs == Hole && last xs == Hole where xs = nameParts x
-isNonfix  x = head xs /= Hole && last xs /= Hole where xs = nameParts x
+isPrefix  x = not (isHole (head xs)) &&      isHole (last xs)  where xs = nameParts x
+isPostfix x =      isHole (head xs)  && not (isHole (last xs)) where xs = nameParts x
+isInfix   x =      isHole (head xs)  &&      isHole (last xs)  where xs = nameParts x
+isNonfix  x = not (isHole (head xs)) && not (isHole (last xs)) where xs = nameParts x
 
 instance Show Name where
-    show (Name _ xs) = concatMap show xs
+    show (Name _ xs)  = concatMap show xs
     show (NoName _ _) = "_"
 
 instance Show NamePart where
-    show Hole	  = "_"
-    show (Id _ s) = s
+    show Hole   = "_"
+    show (Id s) = s
 
 instance Show QName where
     show (Qual m x) = show m ++ "." ++ show x
     show (QName x)  = show x
 
 instance HasRange Name where
-    getRange (Name r _)	= r
+    getRange (Name r ps)  = r
     getRange (NoName r _) = r
-
-instance HasRange NamePart where
-  getRange Hole     = noRange
-  getRange (Id r _) = r
 
 instance HasRange QName where
     getRange (QName  x) = getRange x
     getRange (Qual n x)	= fuseRange n x
 
 instance SetRange Name where
-  setRange r (Name _ x) = Name r x
+  setRange r (Name _ ps)  = Name r ps
   setRange r (NoName _ i) = NoName r i
-
