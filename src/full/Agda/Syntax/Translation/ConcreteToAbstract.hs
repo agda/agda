@@ -38,9 +38,7 @@ import Agda.TypeChecking.Monad.Trace (traceCall, traceCallCPS)
 import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.Options
 
-#ifndef __HADDOCK__
 import {-# SOURCE #-} Agda.Interaction.Imports (scopeCheckImport)
-#endif
 
 import Agda.Utils.Monad
 import Agda.Utils.Tuple

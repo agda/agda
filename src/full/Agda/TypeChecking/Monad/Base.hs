@@ -748,9 +748,7 @@ newtype TCM a = TCM { unTCM :: UndoT TCState
 			      (ReaderT TCEnv
 			      (ErrorT TCErr IO))) a
 		    }
-#ifndef __HADDOCK__
     deriving (MonadState TCState, MonadReader TCEnv, MonadError TCErr, MonadUndo TCState)
-#endif
 
 class ( Applicative tcm, MonadIO tcm
       , MonadReader TCEnv tcm

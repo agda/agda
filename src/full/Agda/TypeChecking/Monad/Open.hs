@@ -17,9 +17,7 @@ import Agda.Syntax.Common
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Monad.Base
 
-#ifndef __HADDOCK__
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Context
-#endif
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible

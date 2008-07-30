@@ -13,11 +13,9 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Reduce
 
-#ifndef __HADDOCK__
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term (checkExpr)
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
-#endif
 
 import Agda.Utils.Fresh
 

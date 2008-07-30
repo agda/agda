@@ -27,9 +27,7 @@ import Agda.TypeChecking.Free
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Pretty
 
-#ifndef __HADDOCK__
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
-#endif
 
 import Agda.Utils.Fresh
 import Agda.Utils.List

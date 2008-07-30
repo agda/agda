@@ -28,9 +28,7 @@ import Agda.TypeChecking.Primitive
 
 import Agda.Utils.Tuple
 
-#ifndef __HADDOCK__
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkSectionApplication)
-#endif
 
 import Agda.Utils.Monad
 import Agda.Utils.Size

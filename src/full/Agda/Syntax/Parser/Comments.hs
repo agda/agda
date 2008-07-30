@@ -10,9 +10,7 @@
 module Agda.Syntax.Parser.Comments
     where
 
-#ifndef __HADDOCK__
 import {-# SOURCE #-} Agda.Syntax.Parser.LexActions
-#endif
 import Agda.Syntax.Parser.Monad
 import Agda.Syntax.Parser.Tokens
 import Agda.Syntax.Parser.Alex

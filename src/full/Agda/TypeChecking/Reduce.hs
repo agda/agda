@@ -23,9 +23,7 @@ import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Substitute
 
-#ifndef __HADDOCK__
 import {-# SOURCE #-} Agda.TypeChecking.Patterns.Match
-#endif
 
 import Agda.Utils.Monad
 

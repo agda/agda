@@ -18,9 +18,7 @@ import Agda.TypeChecking.Pretty
 
 import Agda.TypeChecking.Rules.Data ( bindParameters, fitsIn )
 import Agda.TypeChecking.Rules.Term ( isType_ )
-#ifndef __HADDOCK__
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkDecl)
-#endif
 
 import Agda.Utils.Size
 import Agda.Utils.Permutation
