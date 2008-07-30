@@ -10,6 +10,7 @@ import Control.Applicative
 import Control.Monad hiding (mapM)
 import Data.Map (Map)
 import Data.Traversable
+import Data.List
 import qualified Data.Map as Map
 
 import Agda.Syntax.Common
@@ -212,11 +213,11 @@ bindName :: Access -> KindOfName -> C.Name -> A.QName -> ScopeM ()
 bindName acc kind x y = do
   r  <- resolveName (C.QName x)
   ys <- case r of
-    DefinedName	d      -> typeError $ ClashingDefinition x $ anameName d
-    VarName z          -> typeError $ ClashingDefinition x $ A.qualify (mnameFromList []) z
+    DefinedName	d      -> typeError $ ClashingDefinition (C.QName x) $ anameName d
+    VarName z          -> typeError $ ClashingDefinition (C.QName x) $ A.qualify (mnameFromList []) z
     ConstructorName ds
       | kind == ConName && all ((==ConName) . anameKind) ds -> return [ AbsName y kind ]
-      | otherwise -> typeError $ ClashingDefinition x $ anameName (head ds) -- TODO: head
+      | otherwise -> typeError $ ClashingDefinition (C.QName x) $ anameName (head ds) -- TODO: head
     UnknownName        -> return [AbsName y kind]
   modifyTopScope $ addNamesToScope acc (C.QName x) ys
 
@@ -354,7 +355,33 @@ openModule_ m dir =
            =<< applyImportDirectiveM m dir
             .  unqualifyScope m =<< matchPrefix m
   where
-    addScope s = modifyTopScope (`mergeScope` s)
+    addScope s
+      | not (publicOpen dir) = modifyTopScope (`mergeScope` s)
+      | otherwise            = do
+        -- In case of a public open we check that there are no
+        -- clashes with previously defined names.
+        pub0 <- scopePublic . head . scopeStack <$> getScope
+        let pub1 = scopePublic s
+            [def0, def1] = map (Map.keys . nsNames) [pub0, pub1]
+            [mod0, mod1] = map (Map.keys . nsModules) [pub0, pub1]
+
+        -- Clashing definitions?
+        case intersect def0 def1 of
+          []    -> return ()
+          x : _ -> case Map.lookup x (nsNames pub0) of
+                    Just [q] -> typeError $ ClashingDefinition x (anameName q)
+                    _        -> __IMPOSSIBLE__
+
+        -- Clashing modules?
+        case intersect mod0 mod1 of
+          []    -> return ()
+          x : _ -> case (Map.lookup x (nsModules pub0), Map.lookup x (nsModules pub1)) of
+                    (Just [q0], Just [q1]) -> typeError $ ClashingModule (amodName q0) (amodName q1)
+                    _                      -> __IMPOSSIBLE__
+
+        -- All is well. Merge.
+        modifyTopScope (`mergeScope` s)
+
     acc | publicOpen dir  = PublicAccess
 	| otherwise	  = PrivateAccess
 

@@ -694,7 +694,7 @@ data TypeError
 	| AmbiguousName C.QName [A.QName]
 	| AmbiguousModule C.QName [A.ModuleName]
 	| UninstantiatedModule C.QName
-	| ClashingDefinition C.Name A.QName
+	| ClashingDefinition C.QName A.QName
 	| ClashingModule A.ModuleName A.ModuleName
 	| ClashingImport C.Name A.QName
 	| ClashingModuleImport C.Name A.ModuleName
