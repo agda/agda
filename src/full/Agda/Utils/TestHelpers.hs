@@ -17,6 +17,8 @@ module Agda.Utils.TestHelpers
   , maybeGen
   , maybeCoGen
   , listOfElements
+    -- * Test driver.
+  , runTests
   )
   where
 
@@ -124,3 +126,15 @@ maybeCoGen :: (a -> Gen b -> Gen b) -> (Maybe a -> Gen b -> Gen b)
 maybeCoGen f Nothing  = variant 0
 maybeCoGen f (Just x) = variant 1 . f x
 
+------------------------------------------------------------------------
+-- Test driver
+
+-- | Runs the tests, and returns 'True' if all tests were successful.
+
+runTests :: String    -- ^ A label for the tests. Used for
+                      --   informational purposes.
+         -> [IO Bool]
+         -> IO Bool
+runTests name tests = do
+  putStrLn name
+  fmap and $ sequence tests

@@ -24,6 +24,7 @@ import qualified Agda.Syntax.Parser.Tokens as T
 import qualified Agda.Syntax.Position as P
 import qualified Agda.Syntax.Scope.Base as S
 import qualified Agda.Syntax.Translation.ConcreteToAbstract as CA
+import Agda.Utils.TestHelpers
 import Control.Monad
 import Control.Monad.Trans
 import Control.Applicative
@@ -293,6 +294,5 @@ everything' (+) = everythingBut
 
 -- | All the properties.
 
-tests :: IO ()
-tests = do
-  return ()
+tests :: IO Bool
+tests = runTests "Agda.Interaction.Highlighting.Generate" []

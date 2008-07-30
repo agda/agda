@@ -3,6 +3,7 @@
 -}
 module Agda.Utils.List where
 
+import Agda.Utils.TestHelpers
 import Test.QuickCheck
 import Text.Show.Functions
 
@@ -74,6 +75,7 @@ prop_groupBy' p xs =
   where gs = groupBy' p xs
         pairInitTail xs ys = zipWith p (init xs) (tail ys)
 
-tests :: IO ()
-tests = do
-  quickCheck prop_groupBy'
+tests :: IO Bool
+tests = runTests "Agda.Utils.List"
+  [ quickCheck' prop_groupBy'
+  ]

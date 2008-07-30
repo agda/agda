@@ -99,6 +99,7 @@ instance CoArbitrary Range where
 
 -- | All the properties.
 
-tests :: IO ()
-tests = do
-  quickCheck rangeInvariant
+tests :: IO Bool
+tests = runTests "Agda.Interaction.Highlighting.Range"
+  [ quickCheck' rangeInvariant
+  ]

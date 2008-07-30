@@ -75,7 +75,9 @@ runAgda =
 	    Right opts
 		| optShowHelp opts	-> liftIO printUsage
 		| optShowVersion opts	-> liftIO printVersion
-		| optRunTests opts	-> liftIO runTests
+		| optRunTests opts	-> liftIO $ do
+                    ok <- testSuite
+                    unless ok exitFailure
 		| isNothing (optInputFile opts)
 		    && not (optInteractive opts)
 					-> liftIO printUsage

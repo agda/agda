@@ -425,12 +425,13 @@ prop_ensureCompletePrecondition =
 ------------------------------------------------------------------------
 -- All tests
 
-tests = do
-  quickCheck prop_orderSemiring
-  quickCheck prop_Arbitrary_CallMatrix
-  quickCheck prop_callMatrix
-  quickCheck prop_cmMul
-  quickCheck prop_Arbitrary_Call
-  quickCheck prop_callGraph
-  quickCheck prop_complete
-  quickCheck prop_ensureCompletePrecondition
+tests = runTests "Agda.Termination.CallGraph"
+  [ quickCheck' prop_orderSemiring
+  , quickCheck' prop_Arbitrary_CallMatrix
+  , quickCheck' prop_callMatrix
+  , quickCheck' prop_cmMul
+  , quickCheck' prop_Arbitrary_Call
+  , quickCheck' prop_callGraph
+  , quickCheck' prop_complete
+  , quickCheck' prop_ensureCompletePrecondition
+  ]

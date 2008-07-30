@@ -242,7 +242,8 @@ instance CoArbitrary File where
 
 -- | All the properties.
 
-tests :: IO ()
-tests = do
-  quickCheck prop_singleton
-  quickCheck prop_compress
+tests :: IO Bool
+tests = runTests "Agda.Interaction.Highlighting.Precise"
+  [ quickCheck' prop_singleton
+  , quickCheck' prop_compress
+  ]

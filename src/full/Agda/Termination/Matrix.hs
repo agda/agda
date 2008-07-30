@@ -320,17 +320,18 @@ zipWith f m1 m2
 ------------------------------------------------------------------------
 -- All tests
 
-tests = do
-  quickCheck prop_Arbitrary_Size
-  quickCheck prop_Arbitrary_Matrix
-  quickCheck prop_Arbitrary_MIx
-  quickCheck prop_fromIndexList
-  quickCheck prop_matrix
-  quickCheck prop_size
-  quickCheck prop_size_fromIndexList
-  quickCheck prop_fromLists_toLists
-  quickCheck prop_add
-  quickCheck prop_mul
-  quickCheck prop_diagonal
-  quickCheck prop_addColumn
-  quickCheck prop_addRow
+tests = runTests "Agda.Termination.Matrix"
+  [ quickCheck' prop_Arbitrary_Size
+  , quickCheck' prop_Arbitrary_Matrix
+  , quickCheck' prop_Arbitrary_MIx
+  , quickCheck' prop_fromIndexList
+  , quickCheck' prop_matrix
+  , quickCheck' prop_size
+  , quickCheck' prop_size_fromIndexList
+  , quickCheck' prop_fromLists_toLists
+  , quickCheck' prop_add
+  , quickCheck' prop_mul
+  , quickCheck' prop_diagonal
+  , quickCheck' prop_addColumn
+  , quickCheck' prop_addRow
+  ]

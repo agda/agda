@@ -60,6 +60,7 @@ prop_boolSemiring = semiringInvariant boolSemiring
 ------------------------------------------------------------------------
 -- All tests
 
-tests = do
-  quickCheck prop_integerSemiring
-  quickCheck prop_boolSemiring
+tests = runTests "Agda.Termination.Semiring"
+  [ quickCheck' prop_integerSemiring
+  , quickCheck' prop_boolSemiring
+  ]

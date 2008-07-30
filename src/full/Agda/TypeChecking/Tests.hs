@@ -84,12 +84,12 @@ prop_splitTelescopePermInv conf =
   in  t1 == t1' && t2 == t2'
 -}
 
-tests :: IO ()
-tests = do
-  quickCheck prop_telToListInv
-  quickCheck prop_flattenTelScope
-  quickCheck prop_flattenTelInv
-  quickCheck prop_reorderTelStable
-  quickCheck prop_splitTelescopeScope
-  quickCheck prop_splitTelescopePermScope
-
+tests :: IO Bool
+tests = runTests "Agda.TypeChecking.Tests"
+  [ quickCheck' prop_telToListInv
+  , quickCheck' prop_flattenTelScope
+  , quickCheck' prop_flattenTelInv
+  , quickCheck' prop_reorderTelStable
+  , quickCheck' prop_splitTelescopeScope
+  , quickCheck' prop_splitTelescopePermScope
+  ]

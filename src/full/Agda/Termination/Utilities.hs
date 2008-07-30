@@ -9,6 +9,7 @@ module Agda.Termination.Utilities
 
 import Test.QuickCheck
 import Data.List
+import Agda.Utils.TestHelpers
 
 -- | @'extractNthElement' n xs@ gives the @n@-th element in @xs@
 -- (counting from 0), plus the remaining elements (preserving order).
@@ -37,5 +38,6 @@ on :: (b -> b -> c) -> (a -> b) -> a -> a -> c
 ------------------------------------------------------------------------
 -- All tests
 
-tests = do
-  quickCheck prop_extractNthElement
+tests = runTests "Agda.Termination.Utilities"
+  [ quickCheck' prop_extractNthElement
+  ]

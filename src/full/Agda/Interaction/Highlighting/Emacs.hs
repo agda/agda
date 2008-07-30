@@ -17,6 +17,7 @@ import Prelude hiding (writeFile, appendFile)
 import Agda.Utils.IO (writeFile, appendFile)
 import Agda.Utils.FileName
 import Agda.Utils.String
+import Agda.Utils.TestHelpers
 import Control.Monad.Trans
 import Data.List
 import Data.Char
@@ -125,6 +126,5 @@ generateEmacsFile file tcs topLevel termErrs = do
 
 -- | All the properties.
 
-tests :: IO ()
-tests = do
-  return ()
+tests :: IO Bool
+tests = runTests "Agda.Interaction.Highlighting.Emacs" []

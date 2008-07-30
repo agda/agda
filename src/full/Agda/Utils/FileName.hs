@@ -235,8 +235,9 @@ prop_pathOfLength =
 ------------------------------------------------------------------------
 -- All tests
 
-tests = do
-  quickCheck prop_splitPath_unsplitPath
-  quickCheck prop_splitPath
-  quickCheck prop_dropDirectory
-  quickCheck prop_pathOfLength
+tests = runTests "Agda.Utils.FileName"
+  [ quickCheck' prop_splitPath_unsplitPath
+  , quickCheck' prop_splitPath
+  , quickCheck' prop_dropDirectory
+  , quickCheck' prop_pathOfLength
+  ]

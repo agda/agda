@@ -224,9 +224,10 @@ prop_lexOrder_noArgs =
 ------------------------------------------------------------------------
 -- All tests
 
-tests = do
-  quickCheck prop_recBehaviour_Arbitrary
-  quickCheck prop_fromDiagonals
-  quickCheck prop_newBehaviour
-  quickCheck prop_lexOrder
-  quickCheck prop_lexOrder_noArgs
+tests = runTests "Agda.Termination.Lexicographic"
+  [ quickCheck' prop_recBehaviour_Arbitrary
+  , quickCheck' prop_fromDiagonals
+  , quickCheck' prop_newBehaviour
+  , quickCheckWith 50 200 20 prop_lexOrder
+  , quickCheck' prop_lexOrder_noArgs
+  ]

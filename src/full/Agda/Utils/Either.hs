@@ -9,7 +9,7 @@ module Agda.Utils.Either
   ) where
 
 import Control.Arrow
-import Test.QuickCheck
+import Agda.Utils.TestHelpers
 
 -- | Extracts the right elements from the list.
 
@@ -36,6 +36,5 @@ isLeft (Left _)  = True
 ------------------------------------------------------------------------
 -- All tests
 
-tests :: IO ()
-tests = return ()
-
+tests :: IO Bool
+tests = runTests "Agda.Utils.Either" []

@@ -19,6 +19,7 @@ import Agda.Termination.Utilities
 import Agda.Termination.CallGraph
 import Agda.Termination.Matrix
 import Agda.Utils.Either
+import Agda.Utils.TestHelpers
 import Control.Arrow
 import Test.QuickCheck
 import qualified Data.Set as Set
@@ -224,10 +225,11 @@ prop_terminates_example6 = isLeft $ terminates example6
 ------------------------------------------------------------------------
 -- All tests
 
-tests = do
-  quickCheck prop_terminates_example1
-  quickCheck prop_terminates_example2
-  quickCheck prop_terminates_example3
-  quickCheck prop_terminates_example4
-  quickCheck prop_terminates_example5
-  quickCheck prop_terminates_example6
+tests = runTests "Agda.Termination.Termination"
+  [ quickCheck' prop_terminates_example1
+  , quickCheck' prop_terminates_example2
+  , quickCheck' prop_terminates_example3
+  , quickCheck' prop_terminates_example4
+  , quickCheck' prop_terminates_example5
+  , quickCheck' prop_terminates_example6
+  ]
