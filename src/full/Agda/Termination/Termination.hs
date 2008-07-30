@@ -15,7 +15,6 @@ module Agda.Termination.Termination
   ) where
 
 import Agda.Termination.Lexicographic
-import Agda.Termination.Utilities
 import Agda.Termination.CallGraph
 import Agda.Termination.Matrix
 import Agda.Utils.Either

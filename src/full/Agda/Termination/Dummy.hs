@@ -17,13 +17,13 @@ checkTermination = do
 			processSig sig
 
 processSig :: Signature -> TCM()
-processSig sig = mapMM processDefinitions defss where
+processSig sig = mapM_ processDefinitions defss where
 	defss {- :: [Definitions] -} = List.map mdefDefs mdefs
 	mdefs {- :: [ModuleDef] -} = List.map snd $ Map.assocs sig
 	-- names ds = Map.keys ds
 
 processDefinitions :: Definitions -> TCM()
-processDefinitions defs = mapMM processDef $ List.map simpleDef $ Map.assocs defs
+processDefinitions defs = mapM_ processDef $ List.map simpleDef $ Map.assocs defs
 
 simpleDef :: (Name, Definition) -> (Name, Defn)
 simpleDef (n, d) = (n,theDef d)
@@ -34,7 +34,7 @@ processDef _ = return ()
 
 
 processFun :: Name -> [Clause] -> TCM()
-processFun name cs = mapMM (processClause name) cs
+processFun name cs = mapM_ (processClause name) cs
 
 processClause name c@(Clause args body) = liftIO $ 
      do
@@ -60,7 +60,3 @@ isRecursiveTerm _ _ = False
 isRecursiveArgs name as = any (isRecursiveTerm name) $ List.map unArg as
 
 cmpQn (QName (Name id _ ) _ _) (Name id' _) = id == id'
-
-mapMM :: Monad m => (a->m())-> [a] -> m ()
-mapMM f [] = return ()
-mapMM f (x:xs) = f x >> mapMM f xs

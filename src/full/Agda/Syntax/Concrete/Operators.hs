@@ -26,6 +26,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Set (Set)
 import Data.List
+import Data.Function
 
 import Agda.Syntax.Concrete.Pretty ()
 import Agda.Syntax.Common
@@ -43,7 +44,6 @@ import Agda.TypeChecking.Monad.State (getScope)
 import Agda.Utils.ReadP
 import Agda.Utils.Monad
 import Agda.Utils.Tuple
-import Agda.Utils.Function
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible

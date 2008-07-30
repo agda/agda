@@ -105,8 +105,6 @@ library
                    Agda.Termination.Semiring
                    Agda.Termination.TermCheck
                    Agda.Termination.Termination
-                   Agda.Termination.Utilities
-                   Agda.Termination.Utils
                    Agda.Tests
                    Agda.TypeChecker
                    Agda.TypeChecking.Abstract

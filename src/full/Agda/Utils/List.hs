@@ -6,6 +6,8 @@ module Agda.Utils.List where
 import Agda.Utils.TestHelpers
 import Test.QuickCheck
 import Text.Show.Functions
+import Data.List
+import Data.Function
 
 type Prefix a = [a]
 type Suffix a = [a] 
@@ -39,15 +41,18 @@ chop _ [] = []
 chop n xs = ys : chop n zs
     where (ys,zs) = splitAt n xs
 
--- | Check whether all elements in a list are distinct from each other.
+-- | Check whether all elements in a list are distinct from each
+-- other. Assumes that the 'Eq' instance stands for an equivalence
+-- relation.
 distinct :: Eq a => [a] -> Bool
 distinct []	= True
 distinct (x:xs) = x `notElem` xs && distinct xs
 
--- | Check whether all elements in a list are equal.
+-- | Checks if all the elements in the list are equal. Assumes that
+-- the 'Eq' instance stands for an equivalence relation.
 allEqual :: Eq a => [a] -> Bool
-allEqual []	= True
-allEqual (x:xs) = all (x==) xs
+allEqual []       = True
+allEqual (x : xs) = all (== x) xs
 
 -- | A variant of 'groupBy' which applies the predicate to consecutive
 -- pairs.
@@ -75,7 +80,30 @@ prop_groupBy' p xs =
   where gs = groupBy' p xs
         pairInitTail xs ys = zipWith p (init xs) (tail ys)
 
+-- | @'groupOn' f = 'groupBy' (('==') \`on\` f) '.' 'sortBy' ('compare' \`on\` f)@.
+
+groupOn :: Ord b => (a -> b) -> [a] -> [[a]]
+groupOn f = groupBy ((==) `on` f) . sortBy (compare `on` f)
+
+-- | @'extractNthElement' n xs@ gives the @n@-th element in @xs@
+-- (counting from 0), plus the remaining elements (preserving order).
+
+extractNthElement :: Integral i => i -> [a] -> (a, [a])
+extractNthElement n xs = (elem, left ++ right)
+  where
+  (left, elem : right) = genericSplitAt n xs
+
+prop_extractNthElement :: Integer -> [Integer] -> Property
+prop_extractNthElement n xs =
+  0 <= n && n < genericLength xs ==>
+    genericTake n rest ++ [elem] ++ genericDrop n rest == xs
+  where (elem, rest) = extractNthElement n xs
+
+------------------------------------------------------------------------
+-- All tests
+
 tests :: IO Bool
 tests = runTests "Agda.Utils.List"
   [ quickCheck' prop_groupBy'
+  , quickCheck' prop_extractNthElement
   ]

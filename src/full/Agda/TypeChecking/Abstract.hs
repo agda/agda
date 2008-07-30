@@ -6,7 +6,7 @@ module Agda.TypeChecking.Abstract where
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Substitute
-import Agda.Utils.Function
+import Data.Function
 
 #include "../undefined.h"
 import Agda.Utils.Impossible

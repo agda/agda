@@ -13,10 +13,10 @@ module Agda.Termination.Lexicographic
   ) where
 
 import Test.QuickCheck
-import Agda.Termination.Utilities
 import Agda.Termination.Matrix (Size (..))
 import qualified Agda.Termination.Matrix as M
 import Agda.Utils.Either
+import Agda.Utils.List
 import Agda.Utils.TestHelpers
 import Agda.Termination.CallGraph
 import Control.Arrow

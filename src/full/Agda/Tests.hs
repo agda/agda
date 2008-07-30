@@ -13,7 +13,6 @@ import Agda.Termination.CallGraph	      as TermCall   (tests)
 import Agda.Termination.Lexicographic         as TermLex    (tests)
 import Agda.Termination.Matrix                as TermMatrix (tests)
 import Agda.Termination.Semiring	      as TermRing   (tests)
-import Agda.Termination.Utilities	      as TermUtil   (tests)
 import Agda.TypeChecking.Tests                as TypeChck   (tests)
 import Agda.Utils.Either	              as UtilEith   (tests)
 import Agda.Utils.FileName                    as UtilFile   (tests)
@@ -26,7 +25,6 @@ testSuite = runTests "QuickCheck test suite:"
   , IntePrec.tests
   , InteRang.tests
   , TermTerm.tests
-  , TermUtil.tests
   , TermRing.tests
   , TermMatrix.tests
   , TermLex.tests

@@ -11,8 +11,6 @@ import Agda.Syntax.Translation.ConcreteToAbstract
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Errors
 
-import Agda.Termination.Utils
-
 import Agda.Utils.Pretty
 import Agda.Utils.Monad
 

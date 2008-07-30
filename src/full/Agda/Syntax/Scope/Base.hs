@@ -8,6 +8,7 @@ import Data.Generics (Typeable, Data)
 import Data.List
 import Data.Map (Map)
 import qualified Data.Map as Map
+import Data.Function
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common
@@ -16,7 +17,6 @@ import Agda.Syntax.Abstract.Name as A
 import Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Concrete (ImportDirective(..), UsingOrHiding(..), ImportedName(..))
 import qualified Agda.Utils.Map as Map
-import Agda.Utils.Function
 import Agda.Utils.Tuple
 
 #include "../../undefined.h"

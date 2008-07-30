@@ -8,6 +8,7 @@ import qualified Data.Set as Set
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.List
+import Data.Function
 
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Common
@@ -25,7 +26,6 @@ import Agda.TypeChecking.Substitute
 import Agda.Utils.Monad
 import Agda.Utils.Map as Map
 import Agda.Utils.Size
-import Agda.Utils.Function
 import Agda.Utils.Permutation
 
 #include "../../undefined.h"

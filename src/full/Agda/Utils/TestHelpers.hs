@@ -9,8 +9,6 @@ module Agda.Utils.TestHelpers
   , identity
   , leftDistributive
   , rightDistributive
-    -- * Other tests
-  , allEqual
     -- * Generators
   , natural
   , positive
@@ -83,16 +81,6 @@ rightDistributive
   -> a -> a -> a -> Bool
 rightDistributive (*) (+) = \x y z ->
   (x + y) * z == (x * z) + (y * z)
-
-------------------------------------------------------------------------
--- Other tests
-
--- | Checks if all the elements in the list are equal. Assumes that
--- the 'Eq' instance stands for an equivalence relation.
-
-allEqual :: Eq a => [a] -> Bool
-allEqual []       = True
-allEqual (x : xs) = all (== x) xs
 
 ------------------------------------------------------------------------
 -- Generators

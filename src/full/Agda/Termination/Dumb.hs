@@ -12,8 +12,6 @@ import Agda.Syntax.Translation.ConcreteToAbstract (concreteToAbstract_, OldName(
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Errors
 
-import Agda.Termination.Utils
-
 import Agda.Utils.Pretty
 import Agda.Utils.Monad
 
@@ -38,7 +36,7 @@ processSig :: Signature -> TCM()
 processSig sig = processDefinitions $ sigDefinitions sig
 
 {-
-processSig sig = mapMM processDefinitions defss where
+processSig sig = mapM_ processDefinitions defss where
 	defss {- :: [Definitions] -} = List.map mdefDefs mdefs
 	mdefs {- :: [ModuleDef] -} = List.map snd $ Map.assocs sig
 	-- names ds = Map.keys ds
@@ -50,7 +48,7 @@ processSig sig = mapMM processDefinitions defss where
 --     defss = mdefDefs m
 
 processDefinitions :: Map QName Definition -> TCM()
-processDefinitions defs = mapMM processDef $ List.map simpleDef $ Map.assocs defs
+processDefinitions defs = mapM_ processDef $ List.map simpleDef $ Map.assocs defs
 
 simpleDef :: (QName, Definition) -> (QName, Defn)
 simpleDef (n, d) = (n, theDef d)
@@ -97,7 +95,7 @@ printCalls cs = do
                   tcmsg . show =<< prettyTCM cs
 
 
-checkCalls targs cs = mapMM (checkCall targs) cs
+checkCalls targs cs = mapM_ (checkCall targs) cs
 
 
 -- For recursive call  

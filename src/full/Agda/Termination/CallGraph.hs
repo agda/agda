@@ -31,9 +31,9 @@ module Agda.Termination.CallGraph
   ) where
 
 import Test.QuickCheck
-import Agda.Utils.Function hiding (on)
+import Agda.Utils.Function
+import Agda.Utils.List
 import Agda.Utils.TestHelpers
-import Agda.Termination.Utilities
 import Agda.Termination.Matrix as Matrix
 import Agda.Termination.Semiring (Semiring)
 import qualified Agda.Termination.Semiring as Semiring
@@ -44,6 +44,8 @@ import qualified Data.Map as Map
 import Data.List hiding (union, insert)
 import Data.Monoid
 import Data.Array (elems)
+import Data.Function
+
 ------------------------------------------------------------------------
 -- Structural orderings
 

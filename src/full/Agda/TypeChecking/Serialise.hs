@@ -35,6 +35,7 @@ import qualified Data.Map as M
 import qualified Data.Binary as B
 import qualified Data.Binary.Get as B
 import qualified Data.List as List
+import Data.Function
 import Data.Generics
 import Data.Typeable
 import qualified Codec.Compression.GZip as G
@@ -54,7 +55,6 @@ import Agda.TypeChecking.Monad
 import qualified Agda.Utils.IO
 import Agda.Utils.Tuple
 import Agda.Utils.Permutation
-import Agda.Utils.Function (on)
 
 #include "../undefined.h"
 import Agda.Utils.Impossible

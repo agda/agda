@@ -7,6 +7,7 @@ module Agda.Syntax.Abstract.Name where
 import Control.Monad.State
 import Data.Generics (Typeable, Data)
 import Data.List
+import Data.Function
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common
@@ -14,7 +15,6 @@ import Agda.Syntax.Fixity
 import qualified Agda.Syntax.Concrete.Name as C
 
 import Agda.Utils.Fresh
-import Agda.Utils.Function
 import Agda.Utils.Size
 import Agda.Utils.Suffix
 

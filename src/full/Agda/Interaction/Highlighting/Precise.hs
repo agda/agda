@@ -14,10 +14,10 @@ module Agda.Interaction.Highlighting.Precise
   ) where
 
 import Agda.Utils.TestHelpers
-import Agda.Utils.Function
 import Agda.Utils.String
 import Agda.Utils.List hiding (tests)
 import Data.List
+import Data.Function
 import Data.Monoid
 import Control.Monad
 import Test.QuickCheck
