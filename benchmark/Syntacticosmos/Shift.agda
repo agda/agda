@@ -4,13 +4,13 @@ open import Basics
 open import Pr
 open import Nom
 import Kind
-open module KindGUEl = Kind Gnd U El
+open Kind Gnd U El
 import Cxt
-open module CxtK = Cxt Kind
+open Cxt Kind
 import Loc
-open module LocK = Loc Kind
+open Loc Kind
 import Term
-open module TermGUEl = Term Gnd U El
+open Term Gnd U El
 
 popH : {D : Cxt}{M : Loc}{S T : Kind} ->
        D [ M / Head ]- T -> D [ M * S / Head ]- T

@@ -77,7 +77,7 @@ Plem Ze (Pu y) ()
 Plem (Su x) (Pu y) p = Plem x (Pu y) p
 Plem (Pu x) (Pu y) p = Plem x y p
 
-asym : (x : Nom) -> [| ~ (x P> x) |]
+asym : (x : Nom) -> [| ∼ (x P> x) |]
 asym Ze ()
 asym (Su x) p = asym x p
 asym (Pu x) p = asym x p

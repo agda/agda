@@ -4,15 +4,15 @@ open import Basics
 open import Pr
 open import Nom
 import Kind
-open module KindGUEl = Kind Gnd U El
+open Kind Gnd U El
 import Cxt
-open module CxtK = Cxt Kind
+open Cxt Kind
 import Loc
-open module LocK = Loc Kind
+open Loc Kind
 import Term
-open module TermGUEl = Term Gnd U El
+open Term Gnd U El
 import Shift
-open module ShiftGUEl = Shift Gnd U El
+open Shift Gnd U El
 
 data Sawn (G : Cxt)(C : Kind)(L : Loc)(R : Kind) : Kind -> Set where
   snil : Sawn G C L R R

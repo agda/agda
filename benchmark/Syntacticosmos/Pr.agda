@@ -37,12 +37,12 @@ s , t = record {fst = s ; snd = t}
 _=>_ : Pr -> Pr -> Pr
 P => Q = all [| P |] \_ -> Q
 
-~ : Pr -> Pr
-~ P = P => ff
+∼ : Pr -> Pr
+∼ P = P => ff
 
 data Decision (P : Pr) : Set where
   yes  : [| P |]   -> Decision P
-  no   : [| ~ P |] -> Decision P
+  no   : [| ∼ P |] -> Decision P
 
 data Bool : Set where
   true : Bool
@@ -60,7 +60,7 @@ so : (b : Bool) -> Decision (So b)
 so true = yes _
 so false = no magic
 
-potahto : (b : Bool) -> [| So (not b) => ~ (So b) |]
+potahto : (b : Bool) -> [| So (not b) => ∼ (So b) |]
 potahto true () _
 potahto false _ ()
 
