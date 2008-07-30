@@ -126,7 +126,7 @@ toDigits (suc (suc k)) n = <-rec Pred helper n
 
   helper : forall n -> <-Rec Pred n -> Pred n
   helper n rec with n divMod base
-  helper .(toℕ r + 0 * base) rec | result zero      r = digits (r ∷ [])
+  helper .(toℕ r + 0     * base) rec | result zero    r = digits (r ∷ [])
   helper .(toℕ r + suc x * base) rec | result (suc x) r =
     cons r (rec (suc x) (lem (pred (suc x)) k (toℕ r)))
 
