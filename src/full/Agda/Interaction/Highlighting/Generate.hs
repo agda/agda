@@ -6,8 +6,9 @@ module Agda.Interaction.Highlighting.Generate
   ( TypeCheckingState(..)
   , generateSyntaxInfo
   , generateErrorInfo
-  , tests
-  ) where
+  , Agda.Interaction.Highlighting.Generate.tests
+  )
+  where
 
 import Agda.Interaction.Highlighting.Precise hiding (tests)
 import Agda.Interaction.Highlighting.Range   hiding (tests)
@@ -30,7 +31,9 @@ import Control.Monad.Trans
 import Control.Applicative
 import Data.Monoid
 import Data.Generics
+import Data.Function
 import Agda.Utils.Generics
+import Agda.Utils.FileName
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe
@@ -66,14 +69,20 @@ generateSyntaxInfo
 generateSyntaxInfo file tcs top termErrs =
   M.withScope_ (CA.insideScope top) $ M.ignoreAbstractMode $ do
     tokens   <- liftIO $ Pa.parseFile' Pa.tokensParser file
-    nameInfo <- fmap mconcat $ mapM (generate tcs) (Fold.toList names)
+    nameInfo <- fmap mconcat $ mapM (generate file tcs) (Fold.toList names)
+    -- Constructors are only highlighted after type checking, since they
+    -- can be overloaded.
+    constructorInfo <- if tcs == TypeCheckingNotDone
+                          then return mempty
+                          else generateConstructorInfo file decls
     metaInfo <- if tcs == TypeCheckingNotDone
                    then return mempty
                    else computeUnsolvedMetaWarnings
     -- theRest need to be placed before nameInfo here since record field
     -- declarations contain QNames. tokInfo is placed last since token
     -- highlighting is more crude than the others.
-    return $ mconcat [ theRest
+    return $ mconcat [ constructorInfo
+                     , theRest
                      , nameInfo
                      , metaInfo
                      , termInfo
@@ -113,7 +122,8 @@ generateSyntaxInfo file tcs top termErrs =
       callSites    = Fold.foldMap (\r -> singleton r m) $
                      concatMap snd termErrs
 
-    -- All names mentioned in the syntax tree (not bound variables).
+    -- All names mentioned in the syntax tree (not ambiguous ones, and
+    -- not bound variables).
     names = everything' (><) (Seq.empty `mkQ` getName) decls
       where
       getName :: A.QName -> Seq A.QName
@@ -133,14 +143,14 @@ generateSyntaxInfo file tcs top termErrs =
               getPattern     `extQ`
               getModuleName
 
-      bound n = nameToFile []
+      bound n = nameToFile file []
                            (A.nameConcrete n)
                            (\isOp -> mempty { aspect = Just $ Name (Just Bound) isOp })
                            (Just $ A.nameBindingSite n)
-      field m n = nameToFile m n
+      field m n = nameToFile file m n
                              (\isOp -> mempty { aspect = Just $ Name (Just Field) isOp })
                              Nothing
-      mod n = nameToFile []
+      mod n = nameToFile file []
                          (A.nameConcrete n)
                          (\isOp -> mempty { aspect = Just $ Name (Just Module) isOp })
                          (Just $ A.nameBindingSite n)
@@ -183,6 +193,48 @@ generateSyntaxInfo file tcs top termErrs =
       getModuleName (A.MName { A.mnameToList = xs }) =
         mconcat $ map mod xs
 
+-- | Generates syntax highlighting information for all constructors
+-- occurring in patterns and expressions in the given declarations.
+--
+-- This function should only be called after type checking.
+-- Constructors can be overloaded, and the overloading is resolved by
+-- the type checker.
+
+generateConstructorInfo :: FilePath -- ^ The module to highlight.
+                        -> [A.Declaration]
+                        -> TCM File
+generateConstructorInfo file decls = do
+  -- Extract all defined names from the declaration list.
+  let names = Fold.toList $ Fold.foldMap A.allNames decls
+
+  -- Look up the corresponding declarations in the internal syntax.
+  defMap <- M.sigDefinitions <$> M.getSignature
+  let defs = catMaybes $ map (flip Map.lookup defMap) names
+
+  -- Instantiate meta variables.
+  clauses <- mapM R.instantiateFull $ concatMap M.defClauses defs
+  types   <- mapM (R.instantiateFull . defType) defs
+
+  -- Find all constructors occurring in type signatures or clauses
+  -- within the given declarations.
+  let constrs = everything' (><) query (types, clauses)
+
+  -- Return suitable syntax highlighting information.
+  Fold.fold <$> Trav.mapM (generate file TypeCheckingDone) constrs
+  where
+  query :: GenericQ (Seq A.QName)
+  query = mempty          `mkQ`
+          getConstructor  `extQ`
+          getConstructorP
+
+  getConstructor :: I.Term -> Seq A.QName
+  getConstructor (I.Con q _) = Seq.singleton q
+  getConstructor _           = Seq.empty
+
+  getConstructorP :: I.Pattern -> Seq A.QName
+  getConstructorP (I.ConP q _) = Seq.singleton q
+  getConstructorP _            = Seq.empty
+
 -- | Generates syntax highlighting information for unsolved meta
 -- variables.
 
@@ -196,18 +248,20 @@ computeUnsolvedMetaWarnings = do
 
 -- | Generates a suitable file for a name.
 
-generate :: TypeCheckingState
+generate :: FilePath
+            -- ^ The module to highlight.
+         -> TypeCheckingState
             -- ^ Some information can only be generated after type
             -- checking. (This can probably be improved.)
          -> A.QName
          -> TCM File
-generate tcs n = do
+generate file tcs n = do
   mNameKind <- if tcs == TypeCheckingDone then
                 fmap (Just . toAspect . theDef) $ getConstInfo n
                else
                 return Nothing
   let m isOp = mempty { aspect = Just $ Name mNameKind isOp }
-  return (nameToFileA n m)
+  return (nameToFileA file n m)
   where
   toAspect :: Defn -> NameKind
   toAspect (M.Axiom {})       = Postulate
@@ -219,7 +273,10 @@ generate tcs n = do
 
 -- | Converts names to suitable 'File's.
 
-nameToFile :: [C.Name]
+nameToFile :: FilePath
+              -- ^ The file name of the current module. Used for
+              -- consistency checking.
+           -> [C.Name]
               -- ^ The name qualifier (may be empty).
               --
               -- This argument is currently ignored.
@@ -233,8 +290,14 @@ nameToFile :: [C.Name]
               -- meta information is extended with this information,
               -- if possible.
            -> File
-nameToFile xs x m mR = several rs' ((m isOp) { definitionSite = mFilePos =<< mR })
+nameToFile file xs x m mR =
+  case fmap P.srcFile $ P.rStart $ P.getRange x of
+    -- Ignore names whose ranges indicate that they were used in
+    -- another file. TODO: This probably indicates an error.
+    Just f | not (f =^= file) -> mempty
+    _ -> several rs' ((m isOp) { definitionSite = mFilePos =<< mR })
   where
+  (=^=)      = (==) `on` last . splitPath
   (rs, isOp) = getRanges x
   rs'        = rs -- ++ concatMap (fst . getRanges) xs
   mFilePos r = fmap extract (P.rStart r)
@@ -243,14 +306,18 @@ nameToFile xs x m mR = several rs' ((m isOp) { definitionSite = mFilePos =<< mR 
 
 -- | A variant of 'nameToFile' for qualified abstract names.
 
-nameToFileA :: A.QName
+nameToFileA :: FilePath
+               -- ^ The file name of the current module. Used for
+               -- consistency checking.
+            -> A.QName
                -- ^ The name.
             -> (Bool -> MetaInfo)
                -- ^ Meta information to be associated with the name.
                -- ^ The argument is 'True' iff the name is an operator.
             -> File
-nameToFileA x m =
-  nameToFile (concreteQualifier x)
+nameToFileA file x m =
+  nameToFile file
+             (concreteQualifier x)
              (concreteBase x)
              m
              (Just $ bindingSite x)
@@ -267,7 +334,8 @@ everything' (+) = everythingBut
                     (+)
                     (False `mkQ` isString
                            `extQ` isAQName `extQ` isAName `extQ` isCName
-                           `extQ` isScope `extQ` isMap1 `extQ` isMap2)
+                           `extQ` isScope `extQ` isMap1 `extQ` isMap2
+                           `extQ` isAmbiguous)
   where
   isString    :: String                        -> Bool
   isAQName    :: A.QName                       -> Bool
@@ -276,6 +344,7 @@ everything' (+) = everythingBut
   isScope     :: S.ScopeInfo                   -> Bool
   isMap1      :: Map A.QName A.QName           -> Bool
   isMap2      :: Map A.ModuleName A.ModuleName -> Bool
+  isAmbiguous :: A.AmbiguousQName              -> Bool
 
   isString    = const True
   isAQName    = const True
@@ -284,6 +353,7 @@ everything' (+) = everythingBut
   isScope     = const True
   isMap1      = const True
   isMap2      = const True
+  isAmbiguous = const True
 
 ------------------------------------------------------------------------
 -- All tests
