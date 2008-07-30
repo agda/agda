@@ -36,10 +36,12 @@ postulate
   getContents : IO Costring
   readFile    : String -> IO Costring
   writeFile   : String -> Costring -> IO Unit
+  putStr      : Costring -> IO Unit
   putStrLn    : Costring -> IO Unit
 
 {-# IMPORT System.IO.UTF8 #-}
 {-# COMPILED getContents System.IO.UTF8.getContents #-}
 {-# COMPILED readFile    System.IO.UTF8.readFile    #-}
 {-# COMPILED writeFile   System.IO.UTF8.writeFile   #-}
+{-# COMPILED putStr      System.IO.UTF8.putStr      #-}
 {-# COMPILED putStrLn    System.IO.UTF8.putStrLn    #-}
