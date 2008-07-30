@@ -80,7 +80,6 @@ record CommutativeMonoid : Set1 where
     ; isMonoid = isMonoid
     }
 
-  open Setoid setoid public
   open Monoid monoid public using (semigroup; rawMonoid)
 
 record Group : Set1 where
