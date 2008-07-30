@@ -5,6 +5,7 @@ module Agda.TypeChecking.Conversion where
 import Control.Applicative
 import Control.Monad
 import Control.Monad.State
+import Control.Monad.Error
 import Data.Generics
 import Data.List hiding (sort)
 
@@ -248,18 +249,17 @@ equalArgs a (arg1 : args1) (arg2 : args2) = do
 equalType :: MonadTCM tcm => Type -> Type -> tcm Constraints
 equalType ty1@(El s1 a1) ty2@(El s2 a2) =
     catchConstraint (TypeEq ty1 ty2) $ do
-	verboseS "tc.conv.type" 9 $ do
-	    d1 <- prettyTCM ty1
-	    d2 <- prettyTCM ty2
-	    s1 <- prettyTCM s1
-	    s2 <- prettyTCM s2
-	    debug $ "equalType " ++ show d1 ++ "  ==  " ++ show d2
-	    debug $ "   sorts: " ++ show s1 ++ "  and  " ++ show s2
-	cs1 <- equalSort s1 s2
+	reportSDoc "tc.conv.type" 9 $ vcat
+          [ hsep [ text "equalType", prettyTCM ty1, text " == ", prettyTCM ty2 ]
+          , hsep [ text "   sorts:", prettyTCM s1, text " and ", prettyTCM s2 ]
+          ]
+	cs1 <- equalSort s1 s2 `catchError` \err -> case err of
+                  TypeError _ _ -> typeError $ UnequalTypes ty1 ty2
+                  _             -> throwError err
 	cs2 <- equalTerm (sort s1) a1 a2
-	verboseS "tc.conv.type" 9 $ do
-	    dcs <- mapM prettyTCM $ cs1 ++ cs2
-	    debug $ "   --> " ++ show dcs
+        unless (null $ cs1 ++ cs2) $
+          reportSDoc "tc.conv.type" 9 $
+            text "   --> " <+> prettyList (map prettyTCM $ cs1 ++ cs2)
 	return $ cs1 ++ cs2
 
 leqType :: MonadTCM tcm => Type -> Type -> tcm Constraints
