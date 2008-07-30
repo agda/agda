@@ -10,6 +10,7 @@ import Agda.Syntax.Internal.Pattern
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common
 import Agda.Syntax.Info
+import Agda.Syntax.Position
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
@@ -112,10 +113,10 @@ instantiatePattern sub perm ps
         mergeP (DotP _)  _         = __IMPOSSIBLE__
         mergeP _         (DotP _)  = __IMPOSSIBLE__
         mergeP (ConP c1 ps) (ConP c2 qs)
-          | c1 == c2               = ConP c1 $ zipWith mergeA ps qs
+          | c1 == c2               = ConP (c1 `withRangeOf` c2) $ zipWith mergeA ps qs
           | otherwise              = __IMPOSSIBLE__
         mergeP (LitP l1) (LitP l2)
-          | l1 == l2               = LitP l1
+          | l1 == l2               = LitP (l1 `withRangeOf` l2)
           | otherwise              = __IMPOSSIBLE__
         mergeP (VarP x) (VarP y)
           | x == y                 = VarP x
@@ -322,7 +323,8 @@ checkLeftHandSide ps a ret = do
                 ]
               ]
 
-            Con c [] <- constructorForm =<< normalise (Con c [])
+            Con c' [] <- constructorForm =<< normalise (Con c [])
+            c <- return $ c' `withRangeOf` c
 
             ca <- defType <$> getConstInfo c
 

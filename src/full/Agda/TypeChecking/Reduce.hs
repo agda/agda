@@ -166,7 +166,7 @@ instance Reduce Term where
 	    reduceNat v@(Con c []) = do
 		mz <- getBuiltin' builtinZero
 		case mz of
-		    Just (Con z []) | c == z -> return $ Lit $ LitInt noRange 0
+		    Just (Con z []) | c == z -> return $ Lit $ LitInt (getRange c) 0
 		    _			     -> return v
 	    reduceNat v@(Con c [Arg NotHidden w]) = do
 		ms <- getBuiltin' builtinSuc
@@ -174,7 +174,7 @@ instance Reduce Term where
 		    Just (Con s []) | c == s -> do
 			w <- reduce w
 			case w of
-			    Lit (LitInt r n) -> return $ Lit $ LitInt r $ n + 1
+			    Lit (LitInt r n) -> return $ Lit $ LitInt (fuseRange c r) $ n + 1
 			    _		     -> return $ Con c [Arg NotHidden w]
 		    _	-> return v
 	    reduceNat v = return v
@@ -195,7 +195,7 @@ unfoldDefinition keepGoing v0 f args =
             Primitive ConcreteDef x cls -> do
                 pf <- getPrimitive x
                 reducePrimitive x v0 f args pf cls
-            Constructor{conSrcCon = c} -> return $ Con c args
+            Constructor{conSrcCon = c} -> return $ Con (c `withRangeOf` f) args
             _		    -> reduceNormal v0 f args $ defClauses info
   where
     reducePrimitive x v0 f args pf cls

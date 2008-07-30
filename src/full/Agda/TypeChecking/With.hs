@@ -11,6 +11,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Abstract (LHS(..), RHS(..))
 import qualified Agda.Syntax.Abstract as A
+import Agda.Syntax.Position
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
@@ -123,7 +124,8 @@ stripWithClausePatterns gamma qs perm ps = do
         ConP c qs' -> case namedThing $ unArg p of
           A.ConP _ (A.AmbQ cs') ps' -> do
           
-            Con c  [] <- constructorForm =<< reduce (Con c [])
+            Con c' [] <- constructorForm =<< reduce (Con c [])
+            c <- return $ c' `withRangeOf` c
             let getCon (Con c []) = c
                 getCon _ = __IMPOSSIBLE__
             cs' <- map getCon <$> (mapM constructorForm =<< mapM (\c' -> reduce $ Con c' []) cs')

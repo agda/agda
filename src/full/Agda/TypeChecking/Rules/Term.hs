@@ -182,7 +182,9 @@ checkExpr e t =
                 -- Get the datatypes of the various constructors
                 let getData Constructor{conData = d} = d
                     getData _                        = __IMPOSSIBLE__
-                cs  <- mapM reduceCon cs
+                reportSLn "tc.check.term" 40 $ "  ranges before: " ++ show (getRange cs)
+                cs  <- zipWith setRange (map getRange cs) <$> mapM reduceCon cs
+                reportSLn "tc.check.term" 40 $ "  ranges after: " ++ show (getRange cs)
                 reportSLn "tc.check.term" 40 $ "  reduced: " ++ show cs
                 dcs <- mapM (\c -> (getData /\ const c) . theDef <$> getConstInfo c) cs
 

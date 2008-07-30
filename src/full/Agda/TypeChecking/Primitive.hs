@@ -32,11 +32,11 @@ import Agda.Utils.Impossible
 
 -- | Rewrite a literal to constructor form if possible.
 constructorForm :: MonadTCM tcm => Term -> tcm Term
-constructorForm v@(Lit (LitInt _ n))
+constructorForm v@(Lit (LitInt r n))
     | n == 0	= primZero
     | n > 0	= do
 	s <- primSuc
-	return $ s `apply` [Arg NotHidden $ Lit $ LitInt noRange $ n - 1]
+	return $ s `apply` [Arg NotHidden $ Lit $ LitInt r $ n - 1]
     | otherwise	= return v
 constructorForm v = return v
 
