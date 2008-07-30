@@ -138,8 +138,14 @@ useInjectivity a u v = do
       Just (Clause tel perm ps _) -> do -- instArgs args ps
           -- These are what dot patterns should be instantiated at
           ms <- map unArg <$> newTelMeta tel
+          reportSDoc "tc.inj.invert" 20 $ vcat
+            [ text "meta patterns" <+> prettyList (map prettyTCM ms)
+            , text "  perm =" <+> text (show perm)
+            , text "  tel  =" <+> prettyTCM tel
+            , text "  ps   =" <+> prettyList (map (text . show) ps)
+            ]
           -- and this is the order the variables occur in the patterns
-          let ms' = permute (invertP perm) ms
+          let ms' = permute (invertP $ compactP perm) ms
           cxt <- getContextTelescope
           let sub = (reverse ms ++ idSub cxt)
           margs <- runReaderT (evalStateT (metaArgs ps) ms') sub

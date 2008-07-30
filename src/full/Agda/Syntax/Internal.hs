@@ -142,6 +142,8 @@ telToList (ExtendTel arg (Abs x tel)) = fmap ((,) x) arg : telToList tel
 --  The telescope contains the types of the pattern variables and
 --  the permutation is how to get from the order the variables
 --  occur in the patterns to the order they occur in the telescope.
+--  For the purpose of the permutation dot patterns counts as variables.
+--  TODO: change this!
 data Clause = Clause Telescope Permutation [Arg Pattern] ClauseBody
   deriving (Typeable, Data, Show)
 data ClauseBody = Body Term 

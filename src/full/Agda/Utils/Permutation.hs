@@ -41,6 +41,15 @@ invertP p@(Perm n xs) = Perm (size xs) $ map inv [0..n - 1]
 	      Just y  -> fromIntegral y
 	      Nothing -> error $ "invertP: non-surjective permutation " ++ show p
 
+-- | Turn a possible non-surjective permutation into a surjective permutation.
+compactP :: Permutation -> Permutation
+compactP (Perm n xs) = Perm m $ map adjust xs
+  where
+    m            = genericLength xs
+    missing      = [0..n - 1] \\ xs
+    holesBelow k = genericLength $ filter (< k) missing
+    adjust k = k - holesBelow k
+
 reverseP :: Permutation -> Permutation
 reverseP (Perm n xs) = Perm n $ map ((n - 1) -) $ reverse xs
 
