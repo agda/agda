@@ -12,6 +12,7 @@ module Agda.Interaction.Highlighting.Generate
 
 import Agda.Interaction.Highlighting.Precise hiding (tests)
 import Agda.Interaction.Highlighting.Range   hiding (tests)
+import Agda.TypeChecking.MetaVars (isBlockedTerm)
 import Agda.TypeChecking.Monad
   hiding (MetaInfo, Primitive, Constructor, Record, Function, Datatype)
 import qualified Agda.TypeChecking.Monad as M
@@ -241,7 +242,13 @@ generateConstructorInfo file decls = do
 computeUnsolvedMetaWarnings :: TCM File
 computeUnsolvedMetaWarnings = do
   is <- getInteractionMetas
-  ms <- getOpenMetas
+
+  -- We don't want to highlight blocked terms, since
+  --   * there is always at least one proper meta responsible for the blocking
+  --   * in many cases the blocked term covers the highlighting for this meta
+  let notBlocked m = not <$> isBlockedTerm m
+  ms <- filterM notBlocked =<< getOpenMetas
+
   rs <- mapM getMetaRange (ms \\ is)
   return $ several (concatMap rToR rs)
          $ mempty { otherAspects = [UnsolvedMeta] }
