@@ -11,6 +11,7 @@ import Data.Generics
 import Data.Foldable
 import Data.Traversable
 
+import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Literal
 import Agda.Syntax.Abstract.Name
@@ -85,6 +86,35 @@ instance Sized Term where
 
 instance Sized Type where
   size = size . unEl
+
+instance KillRange Term where
+  killRange v = case v of
+    Var i vs   -> killRange1 (Var i) vs
+    Def c vs   -> killRange2 Def c vs
+    Con c vs   -> killRange2 Con c vs
+    MetaV m vs -> killRange1 (MetaV m) vs
+    Lam h f    -> killRange2 Lam h f
+    Lit l      -> killRange1 Lit l
+    Pi a b     -> killRange2 Pi a b
+    Fun a b    -> killRange2 Fun a b
+    Sort s     -> killRange1 Sort s
+    BlockedV b -> killRange1 BlockedV b
+
+instance KillRange Type where
+  killRange (El s v) = killRange2 El s v
+
+instance KillRange Sort where
+  killRange = id
+
+instance KillRange Telescope where
+  killRange EmptyTel = EmptyTel
+  killRange (ExtendTel a tel) = killRange2 ExtendTel a tel
+
+instance KillRange a => KillRange (Blocked a) where
+  killRange = fmap killRange
+
+instance KillRange a => KillRange (Abs a) where
+  killRange = fmap killRange
 
 -- | Type of argument lists.
 --                          

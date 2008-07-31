@@ -75,9 +75,9 @@ instance HasMeta Sort where
 
 -- | The instantiation should not be an 'InstV' or 'InstS' and the 'MetaId'
 --   should point to something 'Open' or a 'BlockedConst'.
-(=:) :: (MonadTCM tcm, HasMeta t) => MetaId -> t -> tcm ()
+(=:) :: (MonadTCM tcm, HasMeta t, KillRange t) => MetaId -> t -> tcm ()
 x =: t = do
-    i <- metaInstance t
+    i <- metaInstance (killRange t)
     store <- getMetaStore
     modify $ \st -> st { stMetaStore = ins x i store }
     etaExpandListeners x

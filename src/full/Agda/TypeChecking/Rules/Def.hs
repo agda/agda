@@ -201,7 +201,7 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs wh) =
           , text "body  =" <+> text (show body)
           ]
         ]
-      return $ Clause delta perm ps body  -- TODO: make sure delta and perm are what we want
+      return $ Clause (killRange delta) perm ps body  -- TODO: make sure delta and perm are what we want
 checkClause t (A.Clause (A.LHS _ _ _ ps@(_ : _)) _ _) = typeError $ UnexpectedWithPatterns ps
 
 checkWithFunction :: WithFunctionProblem -> TCM ()

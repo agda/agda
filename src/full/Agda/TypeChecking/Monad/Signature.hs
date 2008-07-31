@@ -61,7 +61,7 @@ withSignature sig m =
 addConstant :: MonadTCM tcm => QName -> Definition -> tcm ()
 addConstant q d = liftTCM $ do
   tel <- getContextTelescope
-  let tel' = case theDef d of
+  let tel' = killRange $ case theDef d of
 	      Constructor{} -> hideTel tel
 	      _		    -> tel
   modifySignature $ \sig -> sig

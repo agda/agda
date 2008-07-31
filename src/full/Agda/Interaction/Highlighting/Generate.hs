@@ -1,3 +1,4 @@
+{-# OPTIONS -cpp #-}
 {-# LANGUAGE Rank2Types #-}
 
 -- | Generates data used for precise syntax highlighting.
@@ -43,6 +44,9 @@ import Data.List ((\\))
 import qualified Data.Sequence as Seq
 import qualified Data.Foldable as Fold (toList, fold, foldMap)
 import qualified Data.Traversable as Trav (mapM)
+
+import Agda.Utils.Impossible
+#include "../../undefined.h"
 
 -- | Generates syntax highlighting information for an error,
 -- represented as a range and a string.
@@ -299,9 +303,8 @@ nameToFile :: FilePath
            -> File
 nameToFile file xs x m mR =
   case fmap P.srcFile $ P.rStart $ P.getRange x of
-    -- Ignore names whose ranges indicate that they were used in
-    -- another file. TODO: This probably indicates an error.
-    Just f | not (f =^= file) -> mempty
+    -- Make sure that we don't get any funny ranges.
+    Just f | not (f =^= file) -> __IMPOSSIBLE__
     _ -> several rs' ((m isOp) { definitionSite = mFilePos =<< mR })
   where
   (=^=)      = (==) `on` last . splitPath

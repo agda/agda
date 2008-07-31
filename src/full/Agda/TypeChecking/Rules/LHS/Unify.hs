@@ -13,6 +13,7 @@ import Data.List
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.Syntax.Position
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Exception
@@ -100,7 +101,7 @@ occursCheck i u a
 i |-> (u, a) = do
   occursCheck i u a
   reportSDoc "tc.lhs.unify" 15 $ prettyTCM (Var i []) <+> text ":=" <+> prettyTCM u
-  modSub $ Map.insert i u
+  modSub $ Map.insert i (killRange u)
 
 makeSubstitution :: Sub -> [Term]
 makeSubstitution sub = map val [0..]

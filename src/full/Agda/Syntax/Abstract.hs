@@ -247,14 +247,6 @@ instance HasRange LetBinding where
     getRange (LetBind  i _ _ _       ) = getRange i
     getRange (LetApply i _ _ _ _ _ _ ) = getRange i
 
-killRange1 f a = f (killRange a)
-killRange2 f a = killRange1 (f $ killRange a)
-killRange3 f a = killRange2 (f $ killRange a)
-killRange4 f a = killRange3 (f $ killRange a)
-killRange5 f a = killRange4 (f $ killRange a)
-killRange6 f a = killRange5 (f $ killRange a)
-killRange7 f a = killRange6 (f $ killRange a)
-
 instance KillRange LamBinding where
   killRange (DomainFree h x) = killRange1 (DomainFree h) x
   killRange (DomainFull b)   = killRange1 DomainFull b

@@ -29,6 +29,7 @@ module Agda.Syntax.Position
   , HasRange(..)
   , SetRange(..)
   , KillRange(..)
+  , killRange1, killRange2, killRange3, killRange4, killRange5, killRange6, killRange7
   , withRangeOf
   , fuseRange
   , fuseRanges
@@ -142,6 +143,14 @@ instance SetRange Range where
 -- | Killing the range of an object sets all range information to 'noRange'.
 class KillRange a where
   killRange :: a -> a
+
+killRange1 f a = f (killRange a)
+killRange2 f a = killRange1 (f $ killRange a)
+killRange3 f a = killRange2 (f $ killRange a)
+killRange4 f a = killRange3 (f $ killRange a)
+killRange5 f a = killRange4 (f $ killRange a)
+killRange6 f a = killRange5 (f $ killRange a)
+killRange7 f a = killRange6 (f $ killRange a)
 
 instance KillRange Range where
   killRange _ = noRange
