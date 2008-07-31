@@ -173,7 +173,7 @@ checkModuleMacro apply r p a x tel m args open dir =
     printScope "mod.inst" 10 $ "after stripping"
     return [ apply info m0 tel' m1 args' renD renM ]
   where
-    info = mkRangedModuleInfo p a r
+    info = ModuleInfo p a r
 
 {--------------------------------------------------------------------------
     Translation
@@ -462,7 +462,7 @@ scopeCheckModule r a c x m tel ds = do
   bindQModule a x qm
   return (scope, ds)
   where
-    info = mkRangedModuleInfo a c r
+    info = ModuleInfo a c r
 
 data TopLevelInfo = TopLevelInfo
 	{ topLevelDecls :: [A.Declaration]
@@ -505,7 +505,7 @@ instance ToAbstract LetDef [A.LetBinding] where
 		do  e <- letToAbstract cl
 		    t <- toAbstract t
 		    x <- toAbstract (NewName x)
-		    return [ A.LetBind (LetSource c) x t e ]
+		    return [ A.LetBind (LetRange $ getRange c) x t e ]
 
             -- You can't open public in a let
             NiceOpen r x dirs | not (C.publicOpen dirs) -> do
@@ -573,7 +573,7 @@ instance ToAbstract NiceDefinition Definition where
     toAbstract d@(C.FunDef r ds f p a x cs) =
       traceCall (ScopeCheckDefinition d) $ do
         (x',cs') <- toAbstract (OldName x,cs)
-	return $ A.FunDef (mkSourcedDefInfo x f p a ds) x' cs'
+	return $ A.FunDef (mkDefInfo x f p a r) x' cs'
 
     -- Data definitions
     toAbstract d@(C.DataDef r ind f p a x pars cons) =
@@ -588,7 +588,7 @@ instance ToAbstract NiceDefinition Definition where
 	cons <- toAbstract (map Constr cons)
 	x'   <- toAbstract (OldName x)
         printScope "data" 20 $ "Checked data " ++ show x
-	return $ A.DataDef (mkRangedDefInfo x f p a r) x' ind pars cons
+	return $ A.DataDef (mkDefInfo x f p a r) x' ind pars cons
       where
         conName (C.Axiom _ _ _ _ c _) = c
         conName _ = __IMPOSSIBLE__
@@ -609,7 +609,7 @@ instance ToAbstract NiceDefinition Definition where
 	popScope p
 	bindModule p x qm
 	printScope "rec" 15 "record complete"
-	return $ A.RecDef (mkRangedDefInfo x f p a r) x' pars contel afields
+	return $ A.RecDef (mkDefInfo x f p a r) x' pars contel afields
 
 -- The only reason why we return a list is that open declarations disappears.
 -- For every other declaration we get a singleton list.
@@ -624,26 +624,26 @@ instance ToAbstract NiceDeclaration A.Declaration where
       t' <- toAbstractCtx TopCtx t
       y  <- freshAbstractQName f x
       bindName p DefName x y
-      return [ A.Axiom (mkRangedDefInfo x f p a r) y t' ]
+      return [ A.Axiom (mkDefInfo x f p a r) y t' ]
 
   -- Fields
     C.NiceField r f p a x t -> do
       t' <- toAbstractCtx TopCtx t
       y  <- freshAbstractQName f x
       bindName p DefName x y
-      return [ A.Field (mkRangedDefInfo x f p a r) y t' ]
+      return [ A.Field (mkDefInfo x f p a r) y t' ]
 
   -- Primitive function
     PrimitiveFunction r f p a x t -> do
       t' <- toAbstractCtx TopCtx t
       y  <- freshAbstractQName f x
       bindName p DefName x y
-      return [ A.Primitive (mkRangedDefInfo x f p a r) y t' ]
+      return [ A.Primitive (mkDefInfo x f p a r) y t' ]
 
   -- Definitions (possibly mutual)
     NiceDef r cs ts ds -> do
       (ts', ds') <- toAbstract (ts, ds)
-      return [ Definition (DeclInfo C.noName_ $ DeclRange r) ts' ds' ]
+      return [ Definition (DeclInfo C.noName_ r) ts' ds' ]
 			  -- TODO: what does the info mean here?
 
   -- TODO: what does an abstract module mean? The syntax doesn't allow it.
@@ -717,7 +717,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
 					 , renaming	 = []
 					 }
 		     ]
-      return $ A.Import (mkRangedModuleInfo PublicAccess ConcreteDef r) m : ds
+      return $ A.Import (ModuleInfo PublicAccess ConcreteDef r) m : ds
       where
 	  name = maybe x C.QName as
 
@@ -728,7 +728,7 @@ instance ToAbstract (Constr C.NiceDeclaration) A.Declaration where
 	t' <- toAbstractCtx TopCtx t
 	y  <- freshAbstractQName f x
 	bindName p' ConName x y
-	return $ A.Axiom (mkRangedDefInfo x f p a r) y t'
+	return $ A.Axiom (mkDefInfo x f p a r) y t'
 	where
 	    -- An abstract constructor is private (abstract constructor means
 	    -- abstract datatype, so the constructor should not be exported).

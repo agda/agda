@@ -25,6 +25,10 @@ data Recursion = Recursive | CoRecursive
 data Hiding  = Hidden | NotHidden
     deriving (Typeable, Data, Show, Eq)
 
+instance KillRange Induction where killRange = id
+instance KillRange Recursion where killRange = id
+instance KillRange Hiding    where killRange = id
+
 -- | A function argument can be hidden.
 data Arg e  = Arg { argHiding :: Hiding, unArg :: e }
     deriving (Typeable, Data, Eq)
@@ -40,6 +44,9 @@ instance Traversable Arg where
 
 instance HasRange a => HasRange (Arg a) where
     getRange = getRange . unArg
+
+instance KillRange a => KillRange (Arg a) where
+  killRange = fmap killRange
 
 instance Sized a => Sized (Arg a) where
   size = size . unArg
@@ -71,6 +78,9 @@ instance Traversable (Named name) where
 
 instance HasRange a => HasRange (Named name a) where
     getRange = getRange . namedThing
+
+instance KillRange a => KillRange (Named name a) where
+  killRange = fmap killRange
 
 instance Sized a => Sized (Named name a) where
   size = size . namedThing

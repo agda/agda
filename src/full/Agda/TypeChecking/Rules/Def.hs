@@ -228,6 +228,7 @@ checkWithFunction (WithFunction f aux gamma delta1 delta2 vs as b qs perm cs) = 
 
   reportSLn "tc.with.top" 20 "created with display form"
 
+  -- Generate the type of the with function
   candidateType <- withFunctionType delta1 vs as delta2 b
   reportSDoc "tc.with.type" 10 $ sep [ text "candidate type:", nest 2 $ prettyTCM candidateType ]
   absAuxType <- setShowImplicitArguments True $ disableDisplayForms $ reify candidateType
@@ -235,7 +236,8 @@ checkWithFunction (WithFunction f aux gamma delta1 delta2 vs as b qs perm cs) = 
     vcat [ text "type of with function:"
          , nest 2 $ prettyTCM absAuxType
          ]
-  auxType <- isType_ absAuxType
+  -- The ranges in the generated type are completely bogus, so we kill them.
+  auxType <- isType_ $ killRange absAuxType
 
   case df of
     OpenThing _ (Display n ts dt) -> reportSDoc "tc.with.top" 20 $ text "Display" <+> fsep
@@ -258,7 +260,7 @@ checkWithFunction (WithFunction f aux gamma delta1 delta2 vs as b qs perm cs) = 
   checkFunDef info aux cs
 
   where
-    info = Info.mkRangedDefInfo (nameConcrete $ qnameName aux) defaultFixity PublicAccess ConcreteDef (getRange cs)
+    info = Info.mkDefInfo (nameConcrete $ qnameName aux) defaultFixity PublicAccess ConcreteDef (getRange cs)
 
 -- | Type check a where clause. The first argument is the number of variables
 --   bound in the left hand side.

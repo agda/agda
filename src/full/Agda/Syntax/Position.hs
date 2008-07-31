@@ -28,6 +28,7 @@ module Agda.Syntax.Position
   , rangeToInterval
   , HasRange(..)
   , SetRange(..)
+  , KillRange(..)
   , withRangeOf
   , fuseRange
   , fuseRanges
@@ -137,6 +138,22 @@ class HasRange t => SetRange t where
 
 instance SetRange Range where
   setRange = const
+
+-- | Killing the range of an object sets all range information to 'noRange'.
+class KillRange a where
+  killRange :: a -> a
+
+instance KillRange Range where
+  killRange _ = noRange
+
+instance KillRange a => KillRange [a] where
+  killRange = map killRange
+
+instance (KillRange a, KillRange b) => KillRange (a, b) where
+  killRange (x, y) = (killRange x, killRange y)
+
+instance KillRange a => KillRange (Maybe a) where
+  killRange = fmap killRange
 
 {--------------------------------------------------------------------------
     Pretty printing

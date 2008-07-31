@@ -173,6 +173,18 @@ instance SetRange Name where
 instance SetRange QName where
   setRange r q = q { qnameName = setRange r $ qnameName q }
 
+instance KillRange QName where
+  killRange q = q { qnameName = killRange $ qnameName q }
+
+instance KillRange Name where
+  killRange x = x { nameConcrete = killRange $ nameConcrete x }
+
+instance KillRange ModuleName where
+  killRange (MName xs) = MName $ killRange xs
+
+instance KillRange AmbiguousQName where
+  killRange (AmbQ xs) = AmbQ $ killRange xs
+
 instance Sized QName where
   size = size . qnameToList
 

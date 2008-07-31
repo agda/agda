@@ -26,6 +26,8 @@ import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Literal
 import Agda.Syntax.Scope.Base
 
+import Agda.Utils.Tuple
+
 data Expr
         = Var  Name			     -- ^ Bound variables
         | Def  QName			     -- ^ Constants (i.e. axioms, functions, and datatypes)
@@ -244,6 +246,85 @@ instance HasRange RHS where
 instance HasRange LetBinding where
     getRange (LetBind  i _ _ _       ) = getRange i
     getRange (LetApply i _ _ _ _ _ _ ) = getRange i
+
+killRange1 f a = f (killRange a)
+killRange2 f a = killRange1 (f $ killRange a)
+killRange3 f a = killRange2 (f $ killRange a)
+killRange4 f a = killRange3 (f $ killRange a)
+killRange5 f a = killRange4 (f $ killRange a)
+killRange6 f a = killRange5 (f $ killRange a)
+killRange7 f a = killRange6 (f $ killRange a)
+
+instance KillRange LamBinding where
+  killRange (DomainFree h x) = killRange1 (DomainFree h) x
+  killRange (DomainFull b)   = killRange1 DomainFull b
+
+instance KillRange TypedBindings where
+  killRange (TypedBindings r h b) = TypedBindings (killRange r) h (killRange b)
+
+instance KillRange TypedBinding where
+  killRange (TBind r xs e) = killRange3 TBind r xs e
+  killRange (TNoBind e)    = killRange1 TNoBind e
+
+instance KillRange Expr where
+  killRange (Var x)          = killRange1 Var x
+  killRange (Def x)          = killRange1 Def x
+  killRange (Con x)          = killRange1 Con x
+  killRange (Lit l)          = killRange1 Lit l
+  killRange (QuestionMark i) = killRange1 QuestionMark i
+  killRange (Underscore  i)  = killRange1 Underscore i
+  killRange (App i e1 e2)    = killRange3 App i e1 e2
+  killRange (WithApp i e es) = killRange3 WithApp i e es
+  killRange (Lam i b e)      = killRange3 Lam i b e
+  killRange (Pi i a b)       = killRange3 Pi i a b
+  killRange (Fun i a b)      = killRange3 Fun i a b
+  killRange (Set i n)        = Set (killRange i) n
+  killRange (Prop i)         = killRange1 Prop i
+  killRange (Let i ds e)     = killRange3 Let i ds e
+  killRange (Rec i fs)       = Rec (killRange i) (map (id -*- killRange) fs)
+  killRange (ScopedExpr s e) = killRange1 (ScopedExpr s) e
+
+instance KillRange Declaration where
+  killRange (Axiom      i a b         ) = killRange3 Axiom      i a b
+  killRange (Field      i a b         ) = killRange3 Field      i a b
+  killRange (Definition i a b         ) = killRange3 Definition i a b
+  killRange (Section    i a b c       ) = killRange4 Section    i a b c
+  killRange (Apply      i a b c d e f ) = killRange5 Apply      i a b c d e f
+  killRange (Import     i a           ) = killRange2 Import     i a
+  killRange (Primitive  i a b         ) = killRange3 Primitive  i a b
+  killRange (Pragma     i a           ) = Pragma (killRange i) a
+  killRange (ScopedDecl a d           ) = killRange1 (ScopedDecl a) d
+
+instance KillRange Definition where
+  killRange (FunDef  i a b    ) = killRange3 FunDef  i a b
+  killRange (DataDef i a b c d) = killRange5 DataDef i a b c d
+  killRange (RecDef  i a b c d) = killRange5 RecDef  i a b c d
+
+instance KillRange e => KillRange (Pattern' e) where
+  killRange (VarP x)      = killRange1 VarP x
+  killRange (ConP i a b)  = killRange3 ConP i a b
+  killRange (DefP i a b)  = killRange3 DefP i a b
+  killRange (WildP i)     = killRange1 WildP i
+  killRange (ImplicitP i) = killRange1 ImplicitP i
+  killRange (AsP i a b)   = killRange3 AsP i a b
+  killRange (DotP i a)    = killRange2 DotP i a
+  killRange (AbsurdP i)   = killRange1 AbsurdP i
+  killRange (LitP l)      = killRange1 LitP l
+
+instance KillRange LHS where
+  killRange (LHS i a b c) = killRange4 LHS i a b c
+
+instance KillRange Clause where
+  killRange (Clause lhs rhs ds) = killRange3 Clause lhs rhs ds
+
+instance KillRange RHS where
+  killRange AbsurdRHS        = AbsurdRHS
+  killRange (RHS a e)        = killRange2 RHS a e
+  killRange (WithRHS q e cs) = killRange3 WithRHS q e cs
+
+instance KillRange LetBinding where
+  killRange (LetBind  i a b c       ) = killRange4 LetBind  i a b c
+  killRange (LetApply i a b c d e f ) = killRange5 LetApply i a b c d e f
 
 ------------------------------------------------------------------------
 -- Queries

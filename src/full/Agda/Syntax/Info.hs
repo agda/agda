@@ -32,7 +32,10 @@ data MetaInfo =
   deriving (Typeable, Data)
 
 instance HasRange MetaInfo where
-    getRange = metaRange
+  getRange = metaRange
+
+instance KillRange MetaInfo where
+  killRange m = m { metaRange = killRange $ metaRange m }
 
 {--------------------------------------------------------------------------
     General expression information
@@ -48,9 +51,12 @@ data ExprInfo
   deriving (Typeable, Data)
 
 instance HasRange ExprInfo where
-    getRange (ExprRange  r  ) = r
-    getRange (ExprSource r _) = r
+  getRange (ExprRange  r  ) = r
+  getRange (ExprSource r _) = r
 
+instance KillRange ExprInfo where
+  killRange (ExprRange r)    = ExprRange (killRange r)
+  killRange (ExprSource r f) = ExprSource (killRange r) f
 
 {--------------------------------------------------------------------------
     Module information
@@ -59,30 +65,28 @@ instance HasRange ExprInfo where
 data ModuleInfo =
 	ModuleInfo { minfoAccess   :: Access
 		   , minfoAbstract :: IsAbstract
-		   , minfoSource   :: DeclSource
+		   , minfoRange    :: Range
 		   }
   deriving (Typeable, Data)
 
-mkRangedModuleInfo :: Access -> IsAbstract -> Range -> ModuleInfo
-mkRangedModuleInfo p a r = ModuleInfo p a (DeclRange r)
-
-mkSourcedModuleInfo :: Access -> IsAbstract -> [Declaration] -> ModuleInfo
-mkSourcedModuleInfo p a ds = ModuleInfo p a (DeclSource ds)
-
 instance HasRange ModuleInfo where
-    getRange = getRange . minfoSource
+  getRange = minfoRange
+
+instance KillRange ModuleInfo where
+  killRange m = m { minfoRange = killRange $ minfoRange m }
 
 ---------------------------------------------------------------------------
 -- Let info
 ---------------------------------------------------------------------------
 
-data LetInfo = LetRange Range
-	     | LetSource [Declaration]
+newtype LetInfo = LetRange Range
   deriving (Typeable, Data)
 
 instance HasRange LetInfo where
-    getRange (LetRange r)   = r
-    getRange (LetSource ds) = getRange ds
+  getRange (LetRange r)   = r
+
+instance KillRange LetInfo where
+  killRange (LetRange r) = LetRange (killRange r)
 
 {--------------------------------------------------------------------------
     Definition information (declarations that actually defines something)
@@ -96,48 +100,43 @@ data DefInfo =
 		}
   deriving (Typeable, Data)
 
-mkRangedDefInfo :: Name -> Fixity -> Access -> IsAbstract -> Range -> DefInfo
-mkRangedDefInfo x f a ab r = DefInfo f a ab (DeclInfo x $ DeclRange r)
-
-mkSourcedDefInfo :: Name -> Fixity -> Access -> IsAbstract -> [Declaration] -> DefInfo
-mkSourcedDefInfo x f a ab ds = DefInfo f a ab (DeclInfo x $ DeclSource ds)
+mkDefInfo :: Name -> Fixity -> Access -> IsAbstract -> Range -> DefInfo
+mkDefInfo x f a ab r = DefInfo f a ab (DeclInfo x r)
 
 instance HasRange DefInfo where
-    getRange = getRange . defInfo
+  getRange = getRange . defInfo
+
+instance KillRange DefInfo where
+  killRange i = i { defInfo = killRange $ defInfo i }
 
 {--------------------------------------------------------------------------
     General declaration information
  --------------------------------------------------------------------------}
 
 data DeclInfo =
-	DeclInfo { declName   :: Name
-		 , declSource :: DeclSource
+	DeclInfo { declName  :: Name
+		 , declRange :: Range
 		 }
   deriving (Eq, Typeable, Data)
 
-data DeclSource
-	= DeclRange  Range
-	| DeclSource [Declaration]
-  deriving (Eq, Typeable, Data)
-
 instance HasRange DeclInfo where
-    getRange = getRange . declSource
+  getRange = declRange
 
-instance HasRange DeclSource where
-    getRange (DeclRange  r)  = r
-    getRange (DeclSource ds) = getRange ds
-
+instance KillRange DeclInfo where
+  killRange i = i { declRange = killRange $ declRange i }
 
 {--------------------------------------------------------------------------
     Left hand side information
  --------------------------------------------------------------------------}
 
-data LHSInfo = LHSRange Range
+newtype LHSInfo = LHSRange Range
   deriving (Typeable, Data)
 
 instance HasRange LHSInfo where
-    getRange (LHSRange r) = r
+  getRange (LHSRange r) = r
 
+instance KillRange LHSInfo where
+  killRange (LHSRange r) = LHSRange (killRange r)
 
 {--------------------------------------------------------------------------
     Pattern information
@@ -151,6 +150,10 @@ data PatInfo = PatRange Range
   deriving (Typeable, Data)
 
 instance HasRange PatInfo where
-    getRange (PatRange r)  = r
-    getRange (PatSource r _) = r
+  getRange (PatRange r)    = r
+  getRange (PatSource r _) = r
+
+instance KillRange PatInfo where
+  killRange (PatRange r)    = PatRange $ killRange r
+  killRange (PatSource r f) = PatSource (killRange r) f
 

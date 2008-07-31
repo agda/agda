@@ -535,8 +535,9 @@ instance ToConcrete A.Declaration [C.Declaration] where
 		(ImportDirective r (Hiding []) [] False)
 	   ]
 
-  toConcrete (A.Import (ModuleInfo _ _ (DeclSource ds)) _) = return ds
-  toConcrete (A.Import _ _) = __IMPOSSIBLE__
+  toConcrete (A.Import i x) = do
+    x <- toConcrete x
+    return [ C.Import (getRange i) x Nothing DontOpen defaultImportDir ]
 
   toConcrete (A.Pragma i p)	= do
     p <- toConcrete $ RangeAndPragma (getRange i) p

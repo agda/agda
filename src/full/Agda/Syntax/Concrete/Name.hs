@@ -137,3 +137,12 @@ instance HasRange QName where
 instance SetRange Name where
   setRange r (Name _ ps)  = Name r ps
   setRange r (NoName _ i) = NoName r i
+
+instance KillRange QName where
+  killRange (QName x) = QName $ killRange x
+  killRange (Qual n x) = killRange n `Qual` killRange x
+
+instance KillRange Name where
+  killRange (Name r ps)  = Name (killRange r) ps
+  killRange (NoName r i) = NoName (killRange r) i
+
