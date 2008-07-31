@@ -237,7 +237,7 @@ checkWithFunction (WithFunction f aux gamma delta1 delta2 vs as b qs perm cs) = 
          , nest 2 $ prettyTCM absAuxType
          ]
   -- The ranges in the generated type are completely bogus, so we kill them.
-  auxType <- isType_ $ killRange absAuxType
+  auxType <- setCurrentRange (getRange cs) $ isType_ $ killRange absAuxType
 
   case df of
     OpenThing _ (Display n ts dt) -> reportSDoc "tc.with.top" 20 $ text "Display" <+> fsep

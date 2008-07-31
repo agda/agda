@@ -52,8 +52,8 @@ sayWhere x d = text (show $ getRange x) $$ d
 
 sayWhen :: MonadTCM tcm => CallTrace -> tcm Doc -> tcm Doc
 sayWhen tr m = case matchCall interestingCall tr of
-  Nothing -> m
-  Just c  -> sayWhere c (m $$ prettyTCM c)
+  Nothing -> sayWhere tr m
+  Just c  -> sayWhere tr (m $$ prettyTCM c)
 
 panic :: MonadTCM tcm => String -> tcm Doc
 panic s = fwords $ "Panic: " ++ s
