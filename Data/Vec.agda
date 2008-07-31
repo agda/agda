@@ -172,6 +172,14 @@ infixl 4 _⊛_
 _⊛_ : forall {A B m n} -> Vec (A -> B) m -> Vec A n -> Vec B (m * n)
 fs ⊛ xs = fs >>= \f -> map f xs
 
+-- Interleaves the two vectors.
+
+infixr 5 _⋎_
+
+_⋎_ : forall {A m n} -> Vec A m -> Vec A n -> Vec A (m +⋎ n)
+[]       ⋎ ys = ys
+(x ∷ xs) ⋎ ys = x ∷ (ys ⋎ xs)
+
 -- Generates a vector containing all elements in Fin n. This function
 -- is not placed in Data.Fin since Data.Vec depends on Data.Fin.
 

@@ -80,11 +80,17 @@ pred : ℕ -> ℕ
 pred zero    = zero
 pred (suc n) = n
 
-infixl 6 _+_
+infixl 6 _+_ _+⋎_
 
 _+_ : ℕ -> ℕ -> ℕ
 zero  + n = n
 suc m + n = suc (m + n)
+
+-- Argument-swapping addition. Used by Data.Vec._⋎_.
+
+_+⋎_ : ℕ -> ℕ -> ℕ
+zero  +⋎ n = n
+suc m +⋎ n = suc (n +⋎ m)
 
 {-# BUILTIN NATPLUS _+_ #-}
 
