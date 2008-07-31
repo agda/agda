@@ -162,6 +162,16 @@ last : forall {a n} -> Vec a (1 + n) -> a
 last xs with initLast xs
 last .(ys ∷ʳ y) | ys ∷ʳ' y = y
 
+infixl 1 _>>=_
+
+_>>=_ : forall {A B m n} -> Vec A m -> (A -> Vec B n) -> Vec B (m * n)
+xs >>= f = concat (map f xs)
+
+infixl 4 _⊛_
+
+_⊛_ : forall {A B m n} -> Vec (A -> B) m -> Vec A n -> Vec B (m * n)
+fs ⊛ xs = fs >>= \f -> map f xs
+
 -- Generates a vector containing all elements in Fin n. This function
 -- is not placed in Data.Fin since Data.Vec depends on Data.Fin.
 
