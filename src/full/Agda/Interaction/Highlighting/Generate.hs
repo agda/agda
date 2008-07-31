@@ -212,8 +212,8 @@ generateConstructorInfo file decls = do
   let defs = catMaybes $ map (flip Map.lookup defMap) names
 
   -- Instantiate meta variables.
-  clauses <- mapM R.instantiateFull $ concatMap M.defClauses defs
-  types   <- mapM (R.instantiateFull . defType) defs
+  clauses <- R.instantiateFull $ concatMap M.defClauses defs
+  types   <- R.instantiateFull $ map defType defs
 
   -- Find all constructors occurring in type signatures or clauses
   -- within the given declarations.

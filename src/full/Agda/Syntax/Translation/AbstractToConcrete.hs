@@ -411,7 +411,7 @@ instance ToConcrete A.RHS (C.RHS, [C.Expr], [C.Declaration]) where
       e <- toConcrete e
       return (C.RHS rec e, [], [])
     toConcrete A.AbsurdRHS = return (C.AbsurdRHS, [], [])
-    toConcrete (A.WithRHS es cs) = do
+    toConcrete (A.WithRHS _ es cs) = do
       es <- toConcrete es
       cs <- toConcrete cs
       return (C.AbsurdRHS, es, concat cs)

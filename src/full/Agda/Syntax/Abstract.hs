@@ -111,7 +111,7 @@ data Clause	= Clause LHS RHS [Declaration]
   deriving (Typeable, Data)
 data RHS	= RHS Recursion Expr
 		| AbsurdRHS
-		| WithRHS [Expr] [Clause]
+		| WithRHS QName [Expr] [Clause] -- ^ The 'QName' is the name of the with function.
   deriving (Typeable, Data)
 
 data LHS	= LHS LHSInfo QName [NamedArg Pattern] [Pattern]
@@ -237,9 +237,9 @@ instance HasRange Clause where
     getRange (Clause lhs rhs ds) = getRange (lhs,rhs,ds)
 
 instance HasRange RHS where
-    getRange AbsurdRHS	    = noRange
-    getRange (RHS _ e)	    = getRange e
-    getRange (WithRHS e cs) = fuseRange e cs
+    getRange AbsurdRHS        = noRange
+    getRange (RHS _ e)        = getRange e
+    getRange (WithRHS _ e cs) = fuseRange e cs
 
 instance HasRange LetBinding where
     getRange (LetBind  i _ _ _       ) = getRange i
@@ -269,9 +269,9 @@ allNames (Definition _ _ defs) = Fold.foldMap allNamesD defs
                                    Fold.foldMap allNames decls
 
   allNamesR :: RHS -> Seq QName
-  allNamesR (RHS {})        = Seq.empty
-  allNamesR (AbsurdRHS {})  = Seq.empty
-  allNamesR (WithRHS _ cls) = Fold.foldMap allNamesC cls
+  allNamesR (RHS {})          = Seq.empty
+  allNamesR (AbsurdRHS {})    = Seq.empty
+  allNamesR (WithRHS q _ cls) = q <| Fold.foldMap allNamesC cls
 allNames (Section _ _ _ decls) = Fold.foldMap allNames decls
 allNames (Apply {})            = Seq.empty
 allNames (Import {})           = Seq.empty

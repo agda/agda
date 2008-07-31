@@ -777,7 +777,10 @@ data AbstractRHS = AbsurdRHS'
 instance ToAbstract AbstractRHS A.RHS where
   toAbstract AbsurdRHS'       = return A.AbsurdRHS
   toAbstract (RHS' rec e)     = return $ A.RHS rec e
-  toAbstract (WithRHS' es cs) = A.WithRHS es <$> toAbstract cs
+  toAbstract (WithRHS' es cs) = do
+    m   <- getCurrentModule
+    aux <- A.qualify m <$> freshName_ "aux"
+    A.WithRHS aux es <$> toAbstract cs
 
 instance ToAbstract RightHandSide AbstractRHS where
   toAbstract (RightHandSide [] (_ : _) _)          = __IMPOSSIBLE__

@@ -53,7 +53,7 @@ buildWithFunction aux gamma qs perm n1 n cs = mapM buildWithClause cs
 
     buildRHS rhs@(RHS _ _)     = return rhs
     buildRHS rhs@AbsurdRHS   = return rhs
-    buildRHS (WithRHS es cs) = WithRHS es <$> mapM buildWithClause cs
+    buildRHS (WithRHS q es cs) = WithRHS q es <$> mapM buildWithClause cs
 
 {-| @stripWithClausePatterns Γ qs π ps = ps'@
 

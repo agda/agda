@@ -64,9 +64,9 @@ getRecursion cs = case nub $ concatMap clRec cs of
   _     -> fail "Cannot mix recursion and corecursion in the same definition"
   where
     clRec (A.Clause _ rhs _) = case rhs of
-      A.RHS rec _    -> [rec]
-      A.AbsurdRHS    -> []
-      A.WithRHS _ cs -> concatMap clRec cs
+      A.RHS rec _      -> [rec]
+      A.AbsurdRHS      -> []
+      A.WithRHS _ _ cs -> concatMap clRec cs
 
 -- | Type check a definition by pattern matching.
 checkFunDef :: Info.DefInfo -> QName -> [A.Clause] -> TCM ()
@@ -141,7 +141,7 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs wh) =
                   | any (containsAbsurdPattern . namedThing . unArg) aps
                               -> return (NoBody, NoWithFunction)
                   | otherwise -> typeError $ NoRHSRequiresAbsurdPattern aps
-                A.WithRHS es cs -> do
+                A.WithRHS aux es cs -> do
 
                   -- Infer the types of the with expressions
                   vas <- mapM inferExpr es
@@ -150,7 +150,6 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs wh) =
                   -- Invent a clever name for the with function
                   m <- currentModule
                   reportSDoc "tc.with.top" 20 $ text "with function module:" <+> prettyList (map prettyTCM $ mnameToList m)
-                  aux <- qualify m <$> freshName_ "aux"
 
                   -- Split the telescope into the part needed to type the with arguments
                   -- and all the other stuff
