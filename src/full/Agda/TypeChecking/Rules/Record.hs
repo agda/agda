@@ -58,7 +58,7 @@ checkRecDef i name ps contel fields =
 
       -- We have to rebind the parameters to make them hidden
       -- Check the field telescope
-      contype <- instantiateFull =<< isType_ contel
+      contype <- killRange <$> (instantiateFull =<< isType_ contel)
       let TelV ftel _ = telView contype
 
       escapeContext (size tel) $ flip (foldr ext) ctx $ extWithR $ do

@@ -283,7 +283,7 @@ checkExpr e t =
 	      let tel = ftel `apply` vs
 	      (args, cs) <- checkArguments_ ExpandLast (getRange e)
 			      (map (Arg NotHidden . unnamed) es) tel
-	      blockTerm t (Con r args) $ return cs
+	      blockTerm t (Con (killRange r) args) $ return cs
             MetaV _ _ -> do
               reportSDoc "tc.term.expr.rec" 10 $ sep
                 [ text "Postponing type checking of"
