@@ -44,3 +44,7 @@ x ≢₁ y = ¬ x ≡₁ y
 ≡₀₁-cong :  forall {a b} -> (f : a -> b)
          -> forall {x y} -> x ≡ y -> f x ≡₁ f y
 ≡₀₁-cong _ ≡-refl = ≡₁-refl
+
+≡₁₀-cong :  forall {a b} -> (f : a -> b)
+         -> forall {x y} -> x ≡₁ y -> f x ≡ f y
+≡₁₀-cong _ ≡₁-refl = ≡-refl
