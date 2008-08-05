@@ -165,7 +165,8 @@ order for the change to take effect."
   :type '(repeat (cons (string :tag "Quail package")
                        (sexp :tag "Tweaking function"))))
 
-(defcustom agda-input-translations `(
+(defcustom agda-input-translations
+  (let ((max-lisp-eval-depth 2800)) `(
 
   ; Equality and similar symbols.
 
@@ -673,7 +674,7 @@ order for the change to take effect."
   ("(y)"  . ,(agda-input-to-string-list "⒴Ⓨⓨ"))
   ("(z)"  . ,(agda-input-to-string-list "⒵Ⓩⓩ"))
 
-  )
+  ))
   "A list of translations specific to the Agda input method. Each
 element is a pair (key sequence string . list of translation
 strings). All the translation strings are possible translations
