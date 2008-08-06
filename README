@@ -36,8 +36,8 @@ Linux.)
 
 1) Download Agda 2, perhaps as follows:
 
-     darcs get http://www.cs.chalmers.se/~ulfn/darcs/Agda2
-     cd Agda2
+     darcs get --partial http://code.haskell.org/Agda
+     cd Agda
 
 2) Build and install the Agda 2 library. If you want to install it in
    the default location (you may need root privileges for this), use
@@ -208,11 +208,11 @@ To use the Agda 2 Emacs mode:
 
 1. Install Agda 2. (See above.)
 
-2. Copy the .el files in src/full/Interaction/emacs-mode to some
+2. Copy the .el files in src/full/Agda/Interaction/emacs-mode to some
    directory <agda-mode-dir>. Example installation:
 
    mkdir <agda-mode-dir>
-   cp src/full/Interaction/emacs-mode/*.el <agda-mode-dir>
+   cp src/full/Agda/Interaction/emacs-mode/*.el <agda-mode-dir>
 
 3. Add the following to your .emacs:
 
@@ -259,15 +259,17 @@ To use the Agda 2 Emacs mode:
 
 ------------------------------------------------------------------
 Appendix: Partial installation scripts for (at least) Ubuntu Linux
+  (tested 080806 on Ubuntu 8.04 LTS)
 
-(This assumes that you have already installed GHC, Alex and Happy
-using the package manager.)
+# A.0 Installing Haskell compilation tools
+
+  sudo apt-get install ghc6 happy alex darcs
 
 # A.1 Installing binary
 
-  wget http://hackage.haskell.org/packages/archive/binary/0.4.1/binary-0.4.1.tar.gz
-  tar -zxf binary-0.4.1.tar.gz
-  cd binary-0.4.1
+  wget http://hackage.haskell.org/packages/archive/binary/0.4.2/binary-0.4.2.tar.gz
+  tar -zxf binary-0.4.2.tar.gz
+  cd binary-0.4.2
   runhaskell Setup.lhs configure
   runhaskell Setup.lhs build
   sudo runhaskell Setup.lhs install
@@ -276,18 +278,47 @@ using the package manager.)
 # A.2 Installing zlib
 
   sudo apt-get install zlib1g-dev
-  wget http://hackage.haskell.org/packages/archive/zlib/0.4.0.1/zlib-0.4.0.1.tar.gz
-  tar -zxf zlib-0.4.0.1.tar.gz
-  cd zlib-0.4.0.1
+  wget http://hackage.haskell.org/packages/archive/zlib/0.4.0.4/zlib-0.4.0.4.tar.gz
+  tar -zxf zlib-0.4.0.4.tar.gz
+  cd zlib-0.4.0.4
   runhaskell Setup.hs configure
   runhaskell Setup.hs build
   sudo runhaskell Setup.hs install
   cd ..
 
-# A.3 Installing Agda (including the stand-alone executable)
+# A.3 Installing mtl
 
-  This has to be done from the root directory of an Agda distribution,
-  see point 1 above.
+  # If ubuntu is fresh enough: 
+  #   sudo apt-get install libghc6-mtl-dev
+  # otherwise
+  wget http://hackage.haskell.org/packages/archive/mtl/1.1.0.1/mtl-1.1.0.1.tar.gz
+  tar -zxf mtl-1.1.0.1.tar.gz
+  cd mtl-1.1.0.1
+  runhaskell Setup.hs configure
+  runhaskell Setup.hs build
+  sudo runhaskell Setup.hs install
+  cd ..
+
+# A.4 Installing QuickCheck 2
+
+  darcs get --partial http://darcs.haskell.org/QuickCheck
+  cd QuickCheck
+  runhaskell Setup.lhs configure
+  runhaskell Setup.lhs build
+  sudo runhaskell Setup.lhs install
+  cd ..
+
+# A.5 Installing haskell-src
+
+  sudo apt-get install libghc6-haskell-src-dev
+  # Alt. get it from hackage: 
+  # wget http://hackage.haskell.org/packages/archive/haskell-src/1.0.1.2/haskell-src-1.0.1.2.tar.gz
+  # ...
+
+# A.6 Installing Agda (including the stand-alone executable)
+
+  # This has to be done from the root directory of an Agda distribution,
+  # see point 1 above.
 
   runhaskell Setup.hs configure
   runhaskell Setup.hs build
@@ -298,4 +329,16 @@ using the package manager.)
   runhaskell Setup.hs build
   sudo runhaskell Setup.hs install
   cd ../..
+
+
+# A.7 [Optional] Download the Agda standard library
+
+  sudo apt-get install autoconf
+  autoconf
+  ./configure
+  make std-lib
+
+# A.8 [Optional] test the build
+
+  make test
 
