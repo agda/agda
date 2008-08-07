@@ -1,3 +1,4 @@
+errors/NotStrictlyPositiveInMutual.agda:5,8-13
 The datatype Cheat is not strictly positive, because it occurs
 negatively in the constructor .NotStrictlyPositiveInMutual.oops of
 Oops

@@ -14,9 +14,11 @@ import Data.Foldable
 import Data.Traversable
 import Data.Set (Set)
 import Data.Monoid
+import Data.List hiding (concat, foldr, elem)
 import qualified Data.Set as Set
 import qualified Data.Map as Map
 
+import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
@@ -32,7 +34,7 @@ import Agda.Utils.Impossible
 
 -- | Check that a set of mutually recursive datatypes are strictly positive.
 checkStrictlyPositive :: [QName] -> TCM ()
-checkStrictlyPositive ds = flip evalStateT noAssumptions $ do
+checkStrictlyPositive ds = flip evalStateT initPosState $ do
     cs <- concat <$> mapM constructors ds
     mapM_ check cs
     where
@@ -52,7 +54,7 @@ checkStrictlyPositive ds = flip evalStateT noAssumptions $ do
 	    mode AbstractDef = inAbstractMode
 	    mode ConcreteDef = inConcreteMode
 
-	constructors :: QName -> StateT Assumptions TCM [(QName, QName)]
+	constructors :: QName -> PosM [(QName, QName)]
 	constructors d = do
 	    def <- lift $ theDef <$> getConstInfo d
 	    case def of
@@ -62,18 +64,28 @@ checkStrictlyPositive ds = flip evalStateT noAssumptions $ do
 -- | Assumptions about arguments to datatypes
 type Assumptions = Set (QName, Nat)
 
+data PosState = PS { assumptions :: Assumptions
+                   , variables   :: Set QName
+                   }
+
 noAssumptions :: Assumptions
 noAssumptions = Set.empty
 
-type PosM = StateT Assumptions TCM
+type PosM = StateT PosState TCM
+
+initPosState = PS noAssumptions Set.empty
 
 isAssumption :: QName -> Nat -> PosM Bool
-isAssumption q i = do
-    a <- get
-    return $ Set.member (q,i) a
+isAssumption q i = gets $ Set.member (q, i) . assumptions
 
 assume :: QName -> Nat -> PosM ()
-assume q i = modify $ Set.insert (q,i)
+assume q i = modify $ \s -> s { assumptions = Set.insert (q,i) $ assumptions s }
+
+addVariables :: [QName] -> PosM ()
+addVariables xs = modify $ \s -> s { variables = Set.union (variables s) (Set.fromList xs) }
+
+isVariable :: QName -> PosM Bool
+isVariable x = gets $ Set.member x . variables
 
 -- | @checkPos ds d c t@: Check that @ds@ only occurs stricly positively in the
 --   type @t@ of the constructor @c@ of datatype @d@.
@@ -83,16 +95,20 @@ checkPos ds mkReason t = mapM_ check ds
 	check d = case Map.lookup d defs of
 	    Nothing  -> return ()    -- non-recursive
 	    Just ocs
-		| NonPositive `elem` ocs -> lift $ typeError $
-		    NotStrictlyPositive d [mkReason NonPositively]
+		| NonPositive `elem` ocs -> negative
 		| otherwise		 -> mapM_ (uncurry checkPosArg') args
 		where
 		    args = [ (q, i) | Argument q i <- Set.toList ocs ]
 	    where
-		checkPosArg' q i = checkPosArg q i
+                negative = lift $ setCurrentRange (getRange d) $ typeError $
+		        NotStrictlyPositive d [mkReason NonPositively]
+		checkPosArg' q i = do
+                  whenM (isVariable q) negative
+                  checkPosArg q i
 		    `catchError` \e -> case e of
 			TypeError _ Closure{clValue = NotStrictlyPositive _ reason} ->
-			    lift $ typeError
+			    lift $ setCurrentRange (getRange d)
+                                 $ typeError
 				 $ NotStrictlyPositive d
 				 $ mkReason (ArgumentTo (fromIntegral i) q) : reason
 			_   -> throwError e
@@ -107,13 +123,16 @@ checkPos ds mkReason t = mapM_ check ds
 --   definition of a datatype.
 checkPosArg :: QName -> Nat -> PosM ()
 checkPosArg d i = unlessM (isAssumption d i) $ do
-    assume d i
     lift $ reportSLn "tc.pos.arg" 20 $ "checkPosArg " ++ show d ++ " " ++ show i
-    def <- lift $ theDef <$> getConstInfo d
-    case def of
-	Datatype{dataCons = cs} -> do
+    assume d i
+    def <- lift $ getConstInfo d
+    case theDef def of
+	Datatype{dataPars = np, dataCons = cs} -> do
+            let TelV tel _ = telView $ defType def
+                pars       = [ x | Arg _ (x, _) <- telToList tel ]
 	    xs <- lift $ map (qnameFromList . (:[])) <$>
-		  replicateM (fromIntegral $ i + 1) (freshName_ "dummy")
+		  mapM (freshName_ . parName) (genericTake (i + 1) pars)
+            addVariables xs
 	    let x = xs !! fromIntegral i
 		args = map (Arg NotHidden . flip Def []) xs
 	    let check c = do
@@ -123,6 +142,8 @@ checkPosArg d i = unlessM (isAssumption d i) $ do
 	    mapM_ check cs
         Function{funClauses = cs} -> zipWithM_ (checkPosClause d i) [0..] cs
 	_   -> lift $ typeError $ NotStrictlyPositive d []
+  where
+    parName x = "the parameter " ++ x
 
 checkPosClause :: QName -> Nat -> Nat -> Clause -> PosM ()
 checkPosClause f i n (Clause _ _ ps body) = do
