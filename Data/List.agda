@@ -210,6 +210,9 @@ inj₂s []            = []
 inj₂s (inj₁ x ∷ xs) = inj₂s xs
 inj₂s (inj₂ x ∷ xs) = x ∷ inj₂s xs
 
+catMaybes : forall {A} -> [ Maybe A ] -> [ A ]
+catMaybes = concat ∘ map (maybe singleton [])
+
 ------------------------------------------------------------------------
 -- List monad
 
