@@ -7,10 +7,12 @@ module Agda.TypeChecking.Errors
 import Control.Applicative ( (<$>) )
 import Control.Monad.State
 import Control.Monad.Error
+import qualified Data.Map as Map (empty)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Fixity
 import Agda.Syntax.Position
+import qualified Agda.Syntax.Info as A
 import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Concrete.Definitions as D
 import Agda.Syntax.Abstract as A
@@ -25,6 +27,7 @@ import Agda.TypeChecking.Pretty
 
 import Agda.Utils.Monad
 import Agda.Utils.Trace
+import Agda.Utils.Size
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
@@ -105,6 +108,7 @@ errorString err = case err of
     LocalVsImportedModuleClash _	       -> "LocalVsImportedModuleClash"
     MetaCannotDependOn _ _ _		       -> "MetaCannotDependOn"
     MetaOccursInItself _		       -> "MetaOccursInItself"
+    ModuleArityMismatch _ _ _                  -> "ModuleArityMismatch"
     ModuleDoesntExport _ _		       -> "ModuleDoesntExport"
     ModuleNameDoesntMatchFileName _ _	       -> "ModuleNameDoesntMatchFileName"
     NoBindingForBuiltin _		       -> "NoBindingForBuiltin"
@@ -220,7 +224,13 @@ instance PrettyTCM TypeError where
                 r = case [ r | r <- map getRange ms, r /= noRange ] of
                       []    -> noRange
                       r : _ -> r
-	    ShouldBeEmpty t [] -> fsep $
+            ModuleArityMismatch m EmptyTel args -> fsep $
+              pwords "The module" ++ [prettyTCM m] ++
+              pwords "is not parameterized, but is being applied to arguments"
+            ModuleArityMismatch m tel@(ExtendTel _ _) args -> fsep $
+              pwords "The arguments to " ++ [prettyTCM m] ++ pwords "does not fit the telescope" ++
+	      [prettyTCM tel]
+            ShouldBeEmpty t [] -> fsep $
 		[prettyTCM t] ++ pwords "should be empty, but it isn't obvious that it is."
 	    ShouldBeEmpty t ps -> fsep (
 		[prettyTCM t] ++
@@ -514,6 +524,11 @@ instance PrettyTCM Call where
 	    fsep $ pwords "when termination checking the definition of" ++ [prettyTCM f]
 	SetRange r _ ->
 	    fsep $ pwords "when doing something at" ++ [text $ show r]
+        CheckSectionApplication _ m1 ptel m2 args _ -> fsep $
+          pwords "when checking the module application" ++
+          [prettyA $ A.Apply info m1 ptel m2 args Map.empty Map.empty]
+          where
+            info = A.ModuleInfo PublicAccess ConcreteDef noRange
 
 	where
 	    hPretty a@(Arg h _) = pretty =<< abstractToConcreteCtx (hiddenArgumentCtx h) a

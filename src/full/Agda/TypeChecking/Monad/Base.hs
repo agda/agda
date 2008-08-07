@@ -452,6 +452,7 @@ data Call = CheckClause Type A.Clause (Maybe Clause)
 	  | CheckFunDef Range Name [A.Clause] (Maybe ())
 	  | CheckPragma Range A.Pragma (Maybe ())
 	  | CheckPrimitive Range Name A.Expr (Maybe ())
+          | CheckSectionApplication Range ModuleName A.Telescope ModuleName [NamedArg A.Expr] (Maybe ())
 	  | ScopeCheckExpr C.Expr (Maybe A.Expr)
 	  | ScopeCheckDeclaration D.NiceDeclaration (Maybe [A.Declaration])
 	  | ScopeCheckLHS C.Name C.Pattern (Maybe A.LHS)
@@ -484,29 +485,30 @@ instance HasRange a => HasRange (ParentCall a) where
     where r = getRange c
 
 instance HasRange Call where
-    getRange (CheckClause _ c _)	  = getRange c
-    getRange (CheckPattern p _ _ _)	  = getRange p
-    getRange (InferExpr e _)		  = getRange e
-    getRange (CheckExpr e _ _)		  = getRange e
-    getRange (CheckLetBinding b _)	  = getRange b
-    getRange (IsTypeCall e s _)		  = getRange e
-    getRange (IsType_ e _)		  = getRange e
-    getRange (InferVar x _)		  = getRange x
-    getRange (InferDef _ f _)		  = getRange f
-    getRange (CheckArguments r _ _ _ _)   = r
-    getRange (CheckDataDef i _ _ _ _)	  = getRange i
-    getRange (CheckRecDef i _ _ _ _)	  = getRange i
-    getRange (CheckConstructor _ _ _ c _) = getRange c
-    getRange (CheckFunDef i _ _ _)	  = getRange i
-    getRange (CheckPragma r _ _)	  = r
-    getRange (CheckPrimitive i _ _ _)	  = getRange i
-    getRange (ScopeCheckExpr e _)	  = getRange e
-    getRange (ScopeCheckDeclaration d _)  = getRange d
-    getRange (ScopeCheckLHS _ p _)	  = getRange p
-    getRange (ScopeCheckDefinition d _)	  = getRange d
-    getRange (CheckDotPattern e _ _)	  = getRange e
-    getRange (TermFunDef i _ _ _)	  = getRange i
-    getRange (SetRange r _)		  = r
+    getRange (CheckClause _ c _)                   = getRange c
+    getRange (CheckPattern p _ _ _)                = getRange p
+    getRange (InferExpr e _)                       = getRange e
+    getRange (CheckExpr e _ _)                     = getRange e
+    getRange (CheckLetBinding b _)                 = getRange b
+    getRange (IsTypeCall e s _)                    = getRange e
+    getRange (IsType_ e _)                         = getRange e
+    getRange (InferVar x _)                        = getRange x
+    getRange (InferDef _ f _)                      = getRange f
+    getRange (CheckArguments r _ _ _ _)            = r
+    getRange (CheckDataDef i _ _ _ _)              = getRange i
+    getRange (CheckRecDef i _ _ _ _)               = getRange i
+    getRange (CheckConstructor _ _ _ c _)          = getRange c
+    getRange (CheckFunDef i _ _ _)                 = getRange i
+    getRange (CheckPragma r _ _)                   = r
+    getRange (CheckPrimitive i _ _ _)              = getRange i
+    getRange (ScopeCheckExpr e _)                  = getRange e
+    getRange (ScopeCheckDeclaration d _)           = getRange d
+    getRange (ScopeCheckLHS _ p _)                 = getRange p
+    getRange (ScopeCheckDefinition d _)            = getRange d
+    getRange (CheckDotPattern e _ _)               = getRange e
+    getRange (TermFunDef i _ _ _)                  = getRange i
+    getRange (SetRange r _)                        = r
+    getRange (CheckSectionApplication r _ _ _ _ _) = r
 
 ---------------------------------------------------------------------------
 -- ** Builtin things
@@ -671,6 +673,7 @@ data TypeError
 	| UnexpectedWithPatterns [A.Pattern]
 	| WithClausePatternMismatch A.Pattern Pattern
         | FieldOutsideRecord
+        | ModuleArityMismatch A.ModuleName Telescope [NamedArg A.Expr]
     -- Coverage errors
 	| IncompletePatternMatching Term Args -- can only happen if coverage checking is switched off
         | CoverageFailure QName [[Arg Pattern]]

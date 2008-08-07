@@ -185,21 +185,45 @@ checkSection i x tel ds =
       liftIO $ putStrLn $ "    actual tele: " ++ show dtel'
     withCurrentModule x $ checkDecls ds
 
+checkModuleArity :: ModuleName -> Telescope -> [NamedArg A.Expr] -> TCM Telescope
+checkModuleArity m tel args = check tel args
+  where
+    bad = typeError $ ModuleArityMismatch m tel args
+
+    check eta []             = return eta
+    check EmptyTel (_:_)     = bad
+    check (ExtendTel (Arg h _) (Abs y tel)) args0@(Arg h' (Named name _) : args) =
+      case (h, h', name) of
+        (Hidden, NotHidden, _)    -> check tel args0
+        (Hidden, Hidden, Nothing) -> check tel args
+        (Hidden, Hidden, Just x)
+          | x == y                -> check tel args
+          | otherwise             -> check tel args0
+        (NotHidden, NotHidden, _) -> check tel args
+        (NotHidden, Hidden, _)    -> bad
+
 -- | Check an application of a section.
 checkSectionApplication ::
   Info.ModuleInfo -> ModuleName -> A.Telescope -> ModuleName -> [NamedArg A.Expr] ->
   Map QName QName -> Map ModuleName ModuleName -> TCM ()
 checkSectionApplication i m1 ptel m2 args rd rm =
+  traceCall (CheckSectionApplication (getRange i) m1 ptel m2 args) $
   checkTelescope ptel $ \ptel -> do
-  addSection m1 (size ptel)
   tel <- lookupSection m2
   vs  <- freeVarsToApply $ qnameFromList $ mnameToList m2
+  let tel' = apply tel vs
+  etaTel <- checkModuleArity m2 tel' args
+  let tel'' = telFromList $ take (size tel' - size etaTel) $ telToList tel'
+  addCtxTel etaTel $ addSection m1 (size ptel + size etaTel)
   reportSDoc "tc.section.apply" 15 $ vcat
     [ text "applying section" <+> prettyTCM m2
     , nest 2 $ text "ptel =" <+> prettyTCM ptel
     , nest 2 $ text "tel  =" <+> prettyTCM tel
+    , nest 2 $ text "tel' =" <+> prettyTCM tel'
+    , nest 2 $ text "tel''=" <+> prettyTCM tel''
+    , nest 2 $ text "eta  =" <+> prettyTCM etaTel
     ]
-  (ts, cs)  <- checkArguments_ DontExpandLast (getRange i) args (apply tel vs)
+  (ts, cs)  <- checkArguments_ DontExpandLast (getRange i) args tel''
   noConstraints $ return cs
   reportSDoc "tc.section.apply" 20 $ vcat
     [ sep [ text "applySection", prettyTCM m1, text "=", prettyTCM m2, fsep $ map prettyTCM (vs ++ ts) ]
