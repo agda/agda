@@ -517,6 +517,10 @@ n≤m+n m n = ≤′⇒≤ (n≤′m+n m n)
 n≤1+n : forall n -> n ≤ 1 + n
 n≤1+n _ = ≤-step ≤-refl
 
+≤pred⇒≤ : forall m n -> m ≤ pred n -> m ≤ n
+≤pred⇒≤ m zero    le = le
+≤pred⇒≤ m (suc n) le = ≤-step le
+
 ¬i+1+j≤i : forall i {j} -> ¬ i + suc j ≤ i
 ¬i+1+j≤i zero    ()
 ¬i+1+j≤i (suc i) le = ¬i+1+j≤i i (≤-pred le)
