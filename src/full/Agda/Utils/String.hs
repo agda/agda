@@ -1,7 +1,10 @@
 module Agda.Utils.String
   ( quote
   , addFinalNewLine
+  , indent
   ) where
+
+import Data.List
 
 -- | 'quote' adds double quotes around the string, and escapes double
 -- quotes and backslashes within the string. This is different from
@@ -28,3 +31,8 @@ addFinalNewLine :: String -> String
 addFinalNewLine "" = "\n"
 addFinalNewLine s | last s == '\n' = s
                   | otherwise      = s ++ "\n"
+
+-- | Indents every line the given number of steps.
+
+indent :: Integral i => i -> String -> String
+indent i = unlines . map (genericReplicate i ' ' ++) . lines
