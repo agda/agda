@@ -26,6 +26,7 @@ module Agda.Termination.CallGraph
   , union
   , insert
   , complete
+  , showBehaviour
     -- * Tests
   , Agda.Termination.CallGraph.tests
   ) where
@@ -423,6 +424,18 @@ prop_ensureCompletePrecondition =
   -- zipZip discards the new elements.
   zipZip :: [[a]] -> [[b]] -> [[(a, b)]]
   zipZip xs ys = map (uncurry zip) $ zip xs ys
+
+-- | Displays the recursion behaviour corresponding to a call graph.
+
+showBehaviour :: Show meta => CallGraph meta -> String
+showBehaviour = concatMap showCall . toList
+  where
+  showCall (c, meta) | source c /= target c = ""
+                     | otherwise            = unlines
+    [ "Function:  " ++ show (source c)
+    , "Behaviour: " ++ show (elems $ diagonal $ mat $ cm c)
+    , "Meta info: " ++ show meta
+    ]
 
 ------------------------------------------------------------------------
 -- All tests

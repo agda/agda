@@ -40,6 +40,7 @@ import Agda.TypeChecking.EtaContract
 import qualified Agda.Interaction.Highlighting.Range as R
 
 import Agda.Utils.Size
+import Agda.Utils.String
 import Agda.Utils.Monad (thread, (<$>))
 
 #include "../undefined.h"
@@ -103,11 +104,18 @@ termMutual i ts ds = if names == [] then return [] else
              case r of
                Left _  -> Term.terminates <$> collect UseDotPatterns
                Right _ -> return r
-     verboseS "term.lex" 30 $ do
-      calls1 <- collect DontUseDotPatterns
-      calls2 <- collect UseDotPatterns
-      liftIO $ putStrLn $ "Calls (no dot patterns): " ++ show calls1
-      liftIO $ putStrLn $ "Calls (dot patterns)   : " ++ show calls2
+     calls1 <- collect DontUseDotPatterns
+     calls2 <- collect UseDotPatterns
+     reportS "term.lex" 30 $ unlines
+       [ "Calls (no dot patterns): " ++ show calls1
+       , "Calls    (dot patterns): " ++ show calls2
+       ]
+     reportS "term.behaviours" 30 $ unlines
+       [ "Recursion behaviours (no dot patterns):"
+       , indent 2 $ Term.showBehaviour (Term.complete calls1)
+       , "Recursion behaviours (dot patterns):"
+       , indent 2 $ Term.showBehaviour (Term.complete calls2)
+       ]
      case r of
        Left  errDesc -> do
          let callSites = Set.toList errDesc
