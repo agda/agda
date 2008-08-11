@@ -186,11 +186,16 @@ tails (x ∷ xs) = (x ∷ xs) ∷ tails xs
 
 -- ** Searching with a predicate
 
+-- A generalised variant of filter.
+
+gfilter : forall {a b} -> (a -> Maybe b) -> [ a ] -> [ b ]
+gfilter p []       = []
+gfilter p (x ∷ xs) with p x
+... | just y  = y ∷ gfilter p xs
+... | nothing =     gfilter p xs
+
 filter : forall {a} -> (a -> Bool) -> [ a ] -> [ a ]
-filter p []       = []
-filter p (x ∷ xs) with p x
-... | true  = x ∷ filter p xs
-... | false =     filter p xs
+filter p = gfilter (\x -> if p x then just x else nothing)
 
 partition : forall {a} -> (a -> Bool) -> [ a ] -> ([ a ] × [ a ])
 partition p []       = ([] , [])
@@ -209,9 +214,6 @@ inj₂s : forall {a b} -> [ a ⊎ b ] -> [ b ]
 inj₂s []            = []
 inj₂s (inj₁ x ∷ xs) = inj₂s xs
 inj₂s (inj₂ x ∷ xs) = x ∷ inj₂s xs
-
-catMaybes : forall {A} -> [ Maybe A ] -> [ A ]
-catMaybes = concat ∘ map (maybe singleton [])
 
 ------------------------------------------------------------------------
 -- List monad
