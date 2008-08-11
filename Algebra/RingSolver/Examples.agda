@@ -30,8 +30,8 @@ example₁ x y =
         ≡-refl
   where
   open ℕ-semiringSolver
-  X = var zero
-  Y = var (suc zero)
+  X = var (# 0)
+  Y = var (# 1)
 
 -- The following example is commented out because it is (currently)
 -- too slow.
@@ -47,11 +47,11 @@ example₁ x y =
 --         ≡-refl
 --   where
 --   open Bool-xor-ringSolver
---   X = var zero
---   Y = var (suc zero)
+--   X = var (# 0)
+--   Y = var (# 1)
 
 example₃ : forall x -> x xor x ≡ false
 example₃ x = prove (x ∷ []) (X :+ X) (con false) ≡-refl
   where
   open Bool-xor-ringSolver
-  X = var zero
+  X = var (# 0)

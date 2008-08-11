@@ -14,7 +14,7 @@ open Vec using (Vec)
 open import Relation.Binary.PropositionalEquality
 open import Data.Nat.Properties
 open ℕ-semiringSolver
-open import Data.Fin
+open import Data.Fin using (#_)
 
 ------------------------------------------------------------------------
 -- The type
@@ -57,7 +57,7 @@ abstract
     ≡-subst (BoundedVec a) lemma
             (bVec {m = suc m} xs)
     where
-    M = var zero; N = var (suc zero)
+    M = var (# 0); N = var (# 1)
     lemma = prove (Vec._∷_ m (Vec._∷_ n Vec.[]))
                   (N :+ (con 1 :+ M))
                   (con 1 :+ (N :+ M))
@@ -73,7 +73,7 @@ abstract
     ≡-subst (BoundedVec a) lemma
             (bVec {m = zero} (Vec.fromList xs))
     where
-    M = var zero
+    M = var (# 0)
     lemma = prove (Vec._∷_ (List.length xs) Vec.[]) (M :+ con 0) M ≡-refl
 
   toList : forall {a n} -> BoundedVec a n -> [ a ]

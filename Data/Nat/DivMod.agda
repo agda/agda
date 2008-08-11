@@ -7,8 +7,9 @@ module Data.Nat.DivMod where
 open import Data.Nat
 open import Data.Nat.Properties
 open ℕ-semiringSolver
-open import Data.Fin
-open import Data.Fin.Props
+import Data.Fin as Fin
+open Fin using (Fin; zero; suc; #_; toℕ; fromℕ)
+import Data.Fin.Props as Fin
 open import Induction.Nat
 open import Relation.Nullary
 open import Relation.Binary.PropositionalEquality
@@ -23,27 +24,28 @@ private
 
   lem₁ = \m k -> ≡-cong suc $ begin
     m
-      ≡⟨ inject-lemma m k ⟩
-    toℕ (inject k (fromℕ m))
-      ≡⟨ (let X = var zero in
-         prove (toℕ (inject k (fromℕ m)) ∷ []) X (X :+ con 0) ≡-refl) ⟩
-    toℕ (inject k (fromℕ m)) + 0
+      ≡⟨ Fin.inject+-lemma m k ⟩
+    toℕ (Fin.inject+ k (fromℕ m))
+      ≡⟨ (let X = var (# 0) in
+         prove (toℕ (Fin.inject+ k (fromℕ m)) ∷ [])
+               X (X :+ con 0) ≡-refl) ⟩
+    toℕ (Fin.inject+ k (fromℕ m)) + 0
       ∎
 
   lem₂ = \n ->
-    let N = var zero in
+    let N = var (# 0) in
     prove (n ∷ []) (con 1 :+ N) (con 1 :+ (N :+ con 0)) ≡-refl
 
   lem₃ = \n k q r eq -> begin
       suc n + k
-        ≡⟨ (let N = var zero; K = var (suc zero) in
+        ≡⟨ (let N = var (# 0); K = var (# 1) in
             prove (n ∷ k ∷ [])
                   (con 1 :+ N :+ K) (N :+ (con 1 :+ K))
                   ≡-refl) ⟩
       n + suc k
         ≡⟨ ≡-cong (_+_ n) eq ⟩
       n + (toℕ r + q * n)
-        ≡⟨ (let N = var zero; R = var (suc zero); Q = var (suc (suc zero)) in
+        ≡⟨ (let N = var (# 0); R = var (# 1); Q = var (# 2) in
             prove (n ∷ toℕ r ∷ q ∷ [])
                   (N :+ (R :+ Q :* N)) (R :+ (con 1 :+ Q) :* N)
                   ≡-refl) ⟩
@@ -92,7 +94,7 @@ _divMod'_ m n {≢0} = <-rec Pred dm m n {≢0}
   dm zero    rec (suc n)            = result 0 zero ≡-refl
   dm (suc m) rec (suc n)            with compare m n
   dm (suc m) rec (suc .(suc m + k)) | less .m k    = result 0 r  (lem₁ m k)
-                                        where r = suc (inject k (fromℕ m))
+                                        where r = suc (Fin.inject+ k (fromℕ m))
   dm (suc m) rec (suc .m)           | equal .m     = result 1 zero (lem₂ m)
   dm (suc .(suc n + k)) rec (suc n) | greater .n k =
     1+ rec (suc k) le (suc n)

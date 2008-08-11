@@ -7,7 +7,8 @@ module Data.Nat.Divisibility where
 open import Data.Nat
 open import Data.Nat.DivMod
 open import Data.Nat.Properties
-open import Data.Fin
+import Data.Fin as Fin
+open Fin using (Fin; zero; suc; #_)
 open import Data.Vec
 open ℕ-semiringSolver
 open import Algebra
@@ -101,12 +102,12 @@ divides-Δ {zero}  ()
 -- not divide the dividend.
 
 nonZeroDivisor-lemma
-  : forall m q (r : Fin (1 + m)) -> toℕ r ≢ 0 ->
-    ¬ (1 + m) Divides (toℕ r + q * (1 + m))
+  : forall m q (r : Fin (1 + m)) -> Fin.toℕ r ≢ 0 ->
+    ¬ (1 + m) Divides (Fin.toℕ r + q * (1 + m))
 nonZeroDivisor-lemma m zero r r≢zero (divides zero eq) = r≢zero $ begin
-  toℕ r
-    ≡⟨ ≡-sym $ proj₁ CS.*-identity (toℕ r) ⟩
-  1 * toℕ r
+  Fin.toℕ r
+    ≡⟨ ≡-sym $ proj₁ CS.*-identity (Fin.toℕ r) ⟩
+  1 * Fin.toℕ r
     ≡⟨ eq ⟩
   0
     ∎
@@ -114,33 +115,33 @@ nonZeroDivisor-lemma m zero r r≢zero (divides zero eq) = r≢zero $ begin
 nonZeroDivisor-lemma m zero r r≢zero (divides (suc q) eq) =
   ¬i+1+j≤i m $ begin
     m + suc (q * suc m)
-      ≡⟨ (let M = var zero; Q = var (suc zero) in
+      ≡⟨ (let M = var (# 0); Q = var (# 1) in
           prove (m ∷ q * suc m ∷ [])
                 (M :+ (con 1 :+ Q)) (con 1 :+ M :+ Q) ≡-refl) ⟩
     suc (m + q * suc m)
       ≡⟨ ≡-sym eq ⟩
-    1 * toℕ r
-      ≡⟨ proj₁ CS.*-identity (toℕ r) ⟩
-    toℕ r
-      ≤⟨ ≤-pred $ Fin-bounded r ⟩
+    1 * Fin.toℕ r
+      ≡⟨ proj₁ CS.*-identity (Fin.toℕ r) ⟩
+    Fin.toℕ r
+      ≤⟨ ≤-pred $ Fin.bounded r ⟩
     m
       ∎
   where open ≤-Reasoning
 nonZeroDivisor-lemma m (suc q) r r≢zero d =
   nonZeroDivisor-lemma m q r r≢zero (divides-Δ d')
   where
-  lem = prove (suc m ∷ toℕ r ∷ q * suc m ∷ [])
+  lem = prove (suc m ∷ Fin.toℕ r ∷ q * suc m ∷ [])
               (R :+ (M :+ Q)) (M :+ (R :+ Q))
               ≡-refl
-    where M = var zero; R = var (suc zero); Q = var (suc (suc zero))
+    where M = var (# 0); R = var (# 1); Q = var (# 2)
   d' = ≡-subst (\x -> (1 + m) Divides x) lem d
 
 -- Divisibility is decidable.
 
 divisible? : Decidable _Divides_
-divisible? zero    n                        = no 0-doesNotDivide
-divisible? (suc m) n                        with n divMod suc m
-divisible? (suc m) .(q * suc m)             | result q zero    =
+divisible? zero    n                            = no 0-doesNotDivide
+divisible? (suc m) n                            with n divMod suc m
+divisible? (suc m) .(q * suc m)                 | result q zero    =
   yes $ divides q ≡-refl
-divisible? (suc m) .(1 + toℕ r + q * suc m) | result q (suc r) =
+divisible? (suc m) .(1 + Fin.toℕ r + q * suc m) | result q (suc r) =
   no $ nonZeroDivisor-lemma m q (suc r) (Data.Nat.zero≢suc ∘ ≡-sym)

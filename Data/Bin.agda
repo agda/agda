@@ -8,8 +8,8 @@ import Data.Nat as Nat
 open Nat using (ℕ)
 open import Data.Digit
 import Data.Fin as Fin
-open Fin using (Fin; zero; Fin-decSetoid)
-open import Data.Fin.Props using (addFin')
+open Fin using (Fin; zero)
+open import Data.Fin.Props using (_+′_)
 open import Data.List
 import Data.Vec as Vec
 open import Data.Function
@@ -20,7 +20,7 @@ open import Relation.Nullary
 import Data.List.Equality as ListEq
 private
   module DecEq  = DecSetoid (ListEq.DecidableEquality.decSetoid
-                               (Fin-decSetoid 2))
+                               (Fin.decSetoid 2))
   module PropEq = ListEq.PropositionalEquality (Fin 2)
 
 ------------------------------------------------------------------------
@@ -133,7 +133,7 @@ private
   Carry = Bit
 
   addBits : Carry -> Bit -> Bit -> Carry × Bit
-  addBits c b₁ b₂ with addFin' c (addFin' b₁ b₂)
+  addBits c b₁ b₂ with c +′ (b₁ +′ b₂)
   ... | zero                 = (0b , 0b)
   ... | suc zero             = (0b , 1b)
   ... | suc (suc zero)       = (1b , 0b)

@@ -12,7 +12,7 @@ private
   module CS = CommutativeSemiring ℕ-commutativeSemiring
 open import Data.Product
 open import Relation.Binary.PropositionalEquality
-open import Data.Fin
+open import Data.Fin using (#_)
 open import Data.Vec
 open ℕ-semiringSolver
 open import Induction
@@ -27,7 +27,7 @@ open import Relation.Nullary
 
 private
 
-  lem₀ = \n k -> let N = var zero; K = var (suc zero) in
+  lem₀ = \n k -> let N = var (# 0); K = var (# 1) in
                  prove (n ∷ k ∷ [])
                        (N :+ (con 1 :+ K)) (con 1 :+ N :+ K) ≡-refl
 

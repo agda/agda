@@ -27,7 +27,8 @@ open import Relation.Binary
 open import Relation.Binary.PropositionalEquality
 
 open import Data.Nat using (ℕ; suc; zero) renaming (_+_ to _ℕ-+_)
-open import Data.Fin
+import Data.Fin as Fin
+open Fin using (Fin; zero; suc)
 open import Data.Vec
 open import Data.Function
 
@@ -91,7 +92,7 @@ private
   _:↑_ : forall {n} -> Polynomial n -> (m : ℕ) -> Polynomial (m ℕ-+ n)
   op o p₁ p₂ :↑ m = op o (p₁ :↑ m) (p₂ :↑ m)
   con c      :↑ m = con c
-  var x      :↑ m = var (raise m x)
+  var x      :↑ m = var (Fin.raise m x)
   (p :^ n)   :↑ m = (p :↑ m) :^ n
   (:- p)     :↑ m = :- (p :↑ m)
 
