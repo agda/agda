@@ -6,18 +6,19 @@
 
 module Data.List1 where
 
-open import Data.List
+import Data.List as List
+open List using ([_]; []; _∷_)
 open import Data.Nat
 
-infixr 5 _∷_ _++₁_
+infixr 5 _∷_ _++_
 
 data [_]₁ (a : Set1) : Set1 where
   []  : [ a ]₁
   _∷_ : (x : a) (xs : [ a ]₁) -> [ a ]₁
 
-_++₁_ : forall {a} -> [ a ]₁ -> [ a ]₁ -> [ a ]₁
-[]       ++₁ bs = bs
-(a ∷ as) ++₁ bs = a ∷ (as ++₁ bs)
+_++_ : forall {a} -> [ a ]₁ -> [ a ]₁ -> [ a ]₁
+[]       ++ bs = bs
+(a ∷ as) ++ bs = a ∷ (as ++ bs)
 
 map₀₁ : forall {a b} -> (a -> b) -> [ a ] -> [ b ]₁
 map₀₁ f []       = []
@@ -27,9 +28,9 @@ map₁₁ : forall {a b} -> (a -> b) -> [ a ]₁ -> [ b ]₁
 map₁₁ f []       = []
 map₁₁ f (x ∷ xs) = f x ∷ map₁₁ f xs
 
-replicate₁ : forall {a} -> (n : ℕ) -> a -> [ a ]₁
-replicate₁ zero    x = []
-replicate₁ (suc n) x = x ∷ replicate₁ n x
+replicate : forall {a} -> (n : ℕ) -> a -> [ a ]₁
+replicate zero    x = []
+replicate (suc n) x = x ∷ replicate n x
 
 foldr₁₀ : {a : Set1} {b : Set} -> (a -> b -> b) -> b -> [ a ]₁ -> b
 foldr₁₀ c n []       = n
