@@ -39,7 +39,7 @@ reduceHead v = ignoreAbstractMode $ do
     Def f args -> do
       def <- theDef <$> getConstInfo f
       case def of
-        Function{ funClauses = [ _ ] }  -> unfoldDefinition reduceHead v f args
+--         Function{ funClauses = [ _ ] }  -> unfoldDefinition reduceHead v f args
         Datatype{ dataClause = Just _ } -> unfoldDefinition reduceHead v f args
         Record{ recClause = Just _ }    -> unfoldDefinition reduceHead v f args
         _                               -> return v
