@@ -31,9 +31,23 @@ import Agda.Utils.Permutation
 #include "../undefined.h"
 import Agda.Utils.Impossible
 
+-- | Reduce simple (single clause) definitions.
+reduceHead :: Term -> TCM Term
+reduceHead v = ignoreAbstractMode $ do
+  v <- constructorForm v
+  case v of
+    Def f args -> do
+      def <- theDef <$> getConstInfo f
+      case def of
+        Function{ funClauses = [ _ ] }  -> unfoldDefinition reduceHead v f args
+        Datatype{ dataClause = Just _ } -> unfoldDefinition reduceHead v f args
+        Record{ recClause = Just _ }    -> unfoldDefinition reduceHead v f args
+        _                               -> return v
+    _ -> return v
+
 headSymbol :: Term -> TCM (Maybe TermHead)
 headSymbol v = ignoreAbstractMode $ do
-  v <- constructorForm v
+  v <- reduceHead v
   case v of
     Def f _ -> do
       def <- theDef <$> getConstInfo f
