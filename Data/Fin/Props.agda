@@ -9,6 +9,7 @@ open import Data.Fin
 import Data.Nat as Nat
 open Nat using (ℕ; zero; suc; _≤_; z≤n; s≤s)
          renaming (_+_ to _ℕ+_)
+open Nat.≤-Reasoning
 open import Data.Nat.Properties
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality
@@ -20,6 +21,14 @@ prop-toℕ-≤ : forall {n} (x : Fin n) -> toℕ x ≤ Nat.pred n
 prop-toℕ-≤ zero                 = z≤n
 prop-toℕ-≤ (suc {n = zero}  ())
 prop-toℕ-≤ (suc {n = suc n} i)  = s≤s (prop-toℕ-≤ i)
+
+nℕ-ℕi≤n : forall n i -> n ℕ-ℕ i ≤ n
+nℕ-ℕi≤n n       zero     = begin n ∎
+nℕ-ℕi≤n zero    (suc ())
+nℕ-ℕi≤n (suc n) (suc i)  = begin
+  n ℕ-ℕ i ≤⟨ nℕ-ℕi≤n n i ⟩
+  n       ≤⟨ n≤1+n n ⟩
+  suc n   ∎
 
 inject+-lemma : forall m k -> m ≡ toℕ (inject+ k (fromℕ m))
 inject+-lemma zero    k = ≡-refl
