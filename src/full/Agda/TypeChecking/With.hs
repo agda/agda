@@ -161,12 +161,12 @@ stripWithClausePatterns gamma qs perm ps = do
               , nest 2 $ text ":" <+> prettyTCM tel''
               ]
 
-            -- Insert implicit patterns (just for error message)
+            -- Insert implicit patterns (just for the constructor arguments)
             psi' <- insertImplicitPatterns ps' tel'
             unless (size psi' == size tel') $ typeError $ WrongNumberOfConstructorArguments c (size tel') (size psi')
 
-            -- Do it again for everything
-            psi' <- insertImplicitPatterns (ps' ++ ps) tel''
+            -- Do it again for everything (is this necessary?)
+            psi' <- insertImplicitPatterns (psi' ++ ps) tel''
 
             -- Keep going
             strip tel'' psi' (qs' ++ qs)
