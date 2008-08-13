@@ -72,3 +72,27 @@ MaybeMonadPlus = record
   _∣_ : forall {a} -> Maybe a -> Maybe a -> Maybe a
   nothing ∣ y = y
   just x  ∣ y = just x
+
+------------------------------------------------------------------------
+-- Equality
+
+open import Relation.Nullary
+open import Relation.Binary
+open import Relation.Binary.PropositionalEquality
+
+drop-just : forall {A} {x y : A} -> just x ≡ just y -> x ≡ y
+drop-just ≡-refl = ≡-refl
+
+just≢nothing : forall {A} {x : A} -> just x ≢ nothing
+just≢nothing ()
+
+decSetoid : forall {A} -> Decidable (_≡_ {A}) -> DecSetoid
+decSetoid {A} _A-≟_ = ≡-decSetoid _≟_
+  where
+  _≟_ : Decidable (_≡_ {Maybe A})
+  just x  ≟ just y  with x A-≟ y
+  just x  ≟ just .x | yes ≡-refl = yes ≡-refl
+  just x  ≟ just y  | no  x≢y    = no (x≢y ∘ drop-just)
+  just x  ≟ nothing = no just≢nothing
+  nothing ≟ just y  = no (just≢nothing ∘ ≡-sym)
+  nothing ≟ nothing = yes ≡-refl
