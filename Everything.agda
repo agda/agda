@@ -67,6 +67,7 @@ import Data.Nat.Properties
 import Data.Nat.Show
 import Data.Product
 import Data.Product.Record
+import Data.Product1
 import Data.Sets
 import Data.Sign
 import Data.Star
@@ -92,6 +93,9 @@ import Induction
 import Induction.Lexicographic
 import Induction.Nat
 import Induction.WellFounded
+import Induction1
+import Induction1.Nat
+import Induction1.WellFounded
 
 import IO
 
@@ -123,3 +127,4 @@ import Relation.Nullary.Product
 import Relation.Nullary.Sum
 import Relation.Nullary.Universe
 import Relation.Unary
+import Relation.Unary1
