@@ -14,7 +14,7 @@ open import Data.Function
 infixr 5 _∷_ _++_
 
 ------------------------------------------------------------------------
--- The type
+-- Types
 
 data [_] (A : Set) : Set where
   []  : [ A ]
@@ -23,6 +23,12 @@ data [_] (A : Set) : Set where
 {-# BUILTIN LIST [_] #-}
 {-# BUILTIN NIL  []  #-}
 {-# BUILTIN CONS _∷_ #-}
+
+infix 4 _∈_
+
+data _∈_ {a : Set} : a -> [ a ] -> Set where
+  here  : forall {x}   {xs : [ a ]} -> x ∈ x ∷ xs
+  there : forall {x y} {xs : [ a ]} (x∈xs : x ∈ xs) -> x ∈ y ∷ xs
 
 ------------------------------------------------------------------------
 -- Some operations
