@@ -75,9 +75,9 @@ instance HasMeta Sort where
 
 -- | The instantiation should not be an 'InstV' or 'InstS' and the 'MetaId'
 --   should point to something 'Open' or a 'BlockedConst'.
-(=:) :: (MonadTCM tcm, HasMeta t, KillRange t) => MetaId -> t -> tcm ()
+(=:) :: (MonadTCM tcm, HasMeta t) => MetaId -> t -> tcm ()
 x =: t = do
-    i <- metaInstance (killRange t)
+    i <- metaInstance t
     store <- getMetaStore
     modify $ \st -> st { stMetaStore = ins x i store }
     etaExpandListeners x
@@ -392,7 +392,7 @@ assignV t x args v =
 	-- Perform the assignment (and wake constraints). Metas
 	-- are top-level so we do the assignment at top-level.
 	n <- size <$> getContextTelescope
-	escapeContext n $ x =: abstract tel' v'
+	escapeContext n $ x =: killRange (abstract tel' v')
 	return []
     where
 	rename ids i arg = case findIndex (==i) ids of
