@@ -52,6 +52,7 @@ import Data.Fin.Props
 import Data.Fin.Subset
 import Data.Fin.Subset.Props
 import Data.Function
+import Data.Graph.Acyclic
 import Data.Integer
 import Data.List
 import Data.List.Equality
