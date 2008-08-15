@@ -11,6 +11,8 @@ open Nat using (ℕ; zero; suc; _≤_; z≤n; s≤s)
          renaming (_+_ to _ℕ+_)
 open Nat.≤-Reasoning
 open import Data.Nat.Properties
+open import Data.Function
+open import Relation.Nullary
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality
 
@@ -48,3 +50,11 @@ i +′ j = inject≤ (i + j) (prop-toℕ-≤ i +-mono refl)
 reverse : forall {n} -> Fin n -> Fin n
 reverse {zero}  ()
 reverse {suc n} i  = inject≤ (n ℕ- i) (n∸m≤n (toℕ i) (suc n))
+
+-- If there is an injection from a set to a finite set, then equality
+-- of the set can be decided.
+
+eq? : forall {A n} -> Injection A (Fin n) -> Decidable (_≡_ {A})
+eq? inj x y with to x ≟ to y  where open Injection inj
+... | yes tox≡toy = yes (Injection.injective inj tox≡toy)
+... | no  tox≢toy = no  (tox≢toy ∘ ≡-cong (Injection.to inj))
