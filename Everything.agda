@@ -38,6 +38,7 @@ import Category.Monad.State
 import Data.Bin
 import Data.Bool
 import Data.Bool.Properties
+import Data.Bool.Show
 import Data.BoundedVec
 import Data.BoundedVec.Inefficient
 import Data.Char
