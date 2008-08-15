@@ -13,6 +13,8 @@ open import Data.Function
 open import Data.Bool
 
 open import Relation.Nullary.Core public
+open import Relation.Binary.PropositionalEquality
+open ≡-Reasoning
 
 ------------------------------------------------------------------------
 -- Equivalence
@@ -109,3 +111,35 @@ False Q = T (not (decToBool Q))
 witnessToTruth : forall {P} {Q : Dec P} -> True Q -> P
 witnessToTruth {Q = yes p} _  = p
 witnessToTruth {Q = no  _} ()
+
+------------------------------------------------------------------------
+-- Injections
+
+-- I cannot be bothered to generalise to an arbitrary setoid.
+
+Injective : forall {A B} -> (A -> B) -> Set
+Injective f = forall {x y} -> f x ≡ f y -> x ≡ y
+
+_LeftInverseOf_ : forall {A B} -> (B -> A) -> (A -> B) -> Set
+f LeftInverseOf g = forall x -> f (g x) ≡ x
+
+record Injection A B : Set where
+  field
+    to        : A -> B
+    injective : Injective to
+
+record LeftInverse A B : Set where
+  field
+    to           : A -> B
+    from         : B -> A
+    left-inverse : from LeftInverseOf to
+
+  injective : Injective to
+  injective {x} {y} eq = begin
+    x            ≡⟨ ≡-sym (left-inverse x)  ⟩
+    from (to x)  ≡⟨ ≡-cong from eq ⟩
+    from (to y)  ≡⟨ left-inverse y ⟩
+    y            ∎
+
+  injection : Injection A B
+  injection = record { to = to; injective = injective }
