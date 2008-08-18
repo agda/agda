@@ -9,7 +9,7 @@ open import Relation.Binary
 open import Relation.Binary.OrderMorphism
 open import Data.Function
 import Data.List as L
-open L using ([_])
+open L using (List)
 open import Data.Product
 
 module Sets₁ (dto : DecTotalOrder) where
@@ -36,7 +36,7 @@ module Sets₁ (dto : DecTotalOrder) where
     _∪_    : <Set> -> <Set> -> <Set>
     _∈_    : carrier -> <Set> -> Set
     _∈?_   : (x : carrier) -> (s : <Set>) -> Dec (x ∈ s)
-    toList : <Set> -> [ carrier ]
+    toList : <Set> -> List carrier
 
    postulate
     prop-∈-insert₁ :  forall {x y s} -> x ≈ y -> x ∈ insert y s
@@ -59,10 +59,10 @@ module Sets₁ (dto : DecTotalOrder) where
   singleton : carrier -> <Set>
   singleton x = insert x empty
 
-  ⋃_ : [ <Set> ] -> <Set>
+  ⋃_ : List <Set> -> <Set>
   ⋃_ = L.foldr _∪_ empty
 
-  fromList : [ carrier ] -> <Set>
+  fromList : List carrier -> <Set>
   fromList = L.foldr insert empty
 
   _⊆_ : <Set> -> <Set> -> Set

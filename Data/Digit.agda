@@ -97,7 +97,7 @@ showDigit (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc 
 -- with the _least_ significant digit, and returns the corresponding
 -- natural number.
 
-fromDigits : forall {base} -> [ Fin base ] -> ℕ
+fromDigits : forall {base} -> List (Fin base) -> ℕ
 fromDigits        []       = 0
 fromDigits {base} (d ∷ ds) = toℕ d + fromDigits ds * base
 
@@ -110,7 +110,7 @@ fromDigits {base} (d ∷ ds) = toℕ d + fromDigits ds * base
 -- Data.Nat.DivMod).
 
 data Digits (base : ℕ) : ℕ -> Set where
-  digits : (ds : [ Fin base ]) -> Digits base (fromDigits ds)
+  digits : (ds : List (Fin base)) -> Digits base (fromDigits ds)
 
 toDigits : (base : ℕ) {base≥2 : True (2 ≤? base)} (n : ℕ) ->
            Digits base n
@@ -131,6 +131,6 @@ toDigits (suc (suc k)) n = <-rec Pred helper n
     cons r (rec (suc x) (lem (pred (suc x)) k (toℕ r)))
 
 theDigits : (base : ℕ) {base≥2 : True (2 ≤? base)} (n : ℕ) ->
-            [ Fin base ]
+            List (Fin base)
 theDigits base {base≥2} n       with toDigits base {base≥2} n
 theDigits base .(fromDigits ds) | digits ds = ds

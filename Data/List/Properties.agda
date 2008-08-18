@@ -18,7 +18,7 @@ import Relation.Binary.EqReasoning as Eq
 open import Algebra
 open import Relation.Binary.FunctionLifting
 
-∷-injective : forall {a} -> {x y : a} {xs ys : [ a ]} ->
+∷-injective : forall {a} -> {x y : a} {xs ys : List a} ->
               (x ∷ xs) ≡ (y ∷ ys) -> (x ≡ y) × (xs ≡ ys)
 ∷-injective ≡-refl = (≡-refl , ≡-refl)
 
@@ -45,7 +45,7 @@ sum-++-commute (x ∷ xs) ys = begin
 
 -- Various properties about folds.
 
-foldr-universal : forall {a b} (h : [ a ] -> b) f e ->
+foldr-universal : forall {a b} (h : List a -> b) f e ->
                   (h [] ≡ e) ->
                   (forall x xs -> h (x ∷ xs) ≡ f x (h xs)) ->
                   h ≗ foldr f e
@@ -67,10 +67,10 @@ foldr-fusion h {f} {g} e fuse =
   foldr-universal (h ∘ foldr f e) g (h e) ≡-refl
                   (\x xs -> fuse x (foldr f e xs))
 
-idIsFold : forall {a} -> id {a = [ a ]} ≗ foldr _∷_ []
+idIsFold : forall {a} -> id {a = List a} ≗ foldr _∷_ []
 idIsFold = foldr-universal id _∷_ [] ≡-refl (\_ _ -> ≡-refl)
 
-++IsFold : forall {a} (xs ys : [ a ]) ->
+++IsFold : forall {a} (xs ys : List a) ->
            xs ++ ys ≡ foldr _∷_ ys xs
 ++IsFold xs ys =
   begin
@@ -156,7 +156,7 @@ map-cong {f = f} {g} f≗g =
 
 -- Take, drop, and splitAt.
 
-take++drop : forall {a} n (xs : [ a ]) ->
+take++drop : forall {a} n (xs : List a) ->
              take n xs ++ drop n xs ≡ xs
 take++drop zero    xs       = ≡-refl
 take++drop (suc n) []       = ≡-refl
@@ -172,7 +172,7 @@ splitAt-defn (suc n) (x ∷ xs) with splitAt n xs | splitAt-defn n xs
 
 -- TakeWhile, dropWhile, and span.
 
-takeWhile++dropWhile : forall {a} (p : a -> Bool) (xs : [ a ]) ->
+takeWhile++dropWhile : forall {a} (p : a -> Bool) (xs : List a) ->
                        takeWhile p xs ++ dropWhile p xs ≡ xs
 takeWhile++dropWhile p []       = ≡-refl
 takeWhile++dropWhile p (x ∷ xs) with p x

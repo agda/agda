@@ -30,10 +30,10 @@ data BoundedVec (a : Set) : ℕ -> Set where
 ------------------------------------------------------------------------
 -- Conversions
 
-fromList : forall {a} -> (xs : [ a ]) -> BoundedVec a (length xs)
+fromList : forall {a} -> (xs : List a) -> BoundedVec a (length xs)
 fromList []l       = []
 fromList (x ∷l xs) = x ∷ fromList xs
 
-toList : forall {a n} -> BoundedVec a n -> [ a ]
+toList : forall {a n} -> BoundedVec a n -> List a
 toList []       = []l
 toList (x ∷ xs) = x ∷l toList xs

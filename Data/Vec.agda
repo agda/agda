@@ -7,7 +7,7 @@ module Data.Vec where
 open import Data.Nat
 open import Data.Fin using (Fin; zero; suc)
 import Data.List as List
-open List using ([_])
+open List using (List)
 open import Data.Product
 
 ------------------------------------------------------------------------
@@ -43,8 +43,8 @@ head (x ∷ xs) = x
 tail : forall {a n} -> Vec a (1 + n) -> Vec a n
 tail (x ∷ xs) = xs
 
-singleton : forall {a} -> a -> Vec a 1
-singleton x = x ∷ []
+[_] : forall {a} -> a -> Vec a 1
+[ x ] = x ∷ []
 
 infixr 5 _++_
 
@@ -128,11 +128,11 @@ reverse {a} = foldl (Vec a) (\rev x -> x ∷ rev) []
 sum : forall {n} -> Vec ℕ n -> ℕ
 sum = foldr _ _+_ 0
 
-toList : forall {a n} -> Vec a n -> [ a ]
+toList : forall {a n} -> Vec a n -> List a
 toList []       = List.[]
 toList (x ∷ xs) = List._∷_ x (toList xs)
 
-fromList : forall {a} -> (xs : [ a ]) -> Vec a (List.length xs)
+fromList : forall {a} -> (xs : List a) -> Vec a (List.length xs)
 fromList List.[]         = []
 fromList (List._∷_ x xs) = x ∷ fromList xs
 
@@ -141,7 +141,7 @@ fromList (List._∷_ x xs) = x ∷ fromList xs
 infixl 5 _∷ʳ_
 
 _∷ʳ_ : forall {a n} -> Vec a n -> a -> Vec a (1 + n)
-[]       ∷ʳ y = singleton y
+[]       ∷ʳ y = [ y ]
 (x ∷ xs) ∷ʳ y = x ∷ (xs ∷ʳ y)
 
 infixl 5 _∷ʳ'_

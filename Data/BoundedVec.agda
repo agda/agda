@@ -8,7 +8,7 @@ module Data.BoundedVec where
 
 open import Data.Nat
 import Data.List as List
-open List using ([_])
+open List using (List)
 import Data.Vec as Vec
 open Vec using (Vec)
 open import Relation.Binary.PropositionalEquality
@@ -68,7 +68,7 @@ abstract
 
 abstract
 
-  fromList : forall {a} -> (xs : [ a ]) -> BoundedVec a (List.length xs)
+  fromList : forall {a} -> (xs : List a) -> BoundedVec a (List.length xs)
   fromList {a = a} xs =
     ≡-subst (BoundedVec a) lemma
             (bVec {m = zero} (Vec.fromList xs))
@@ -76,5 +76,5 @@ abstract
     M = var (# 0)
     lemma = prove (Vec._∷_ (List.length xs) Vec.[]) (M :+ con 0) M ≡-refl
 
-  toList : forall {a n} -> BoundedVec a n -> [ a ]
+  toList : forall {a n} -> BoundedVec a n -> List a
   toList (bVec xs) = Vec.toList xs

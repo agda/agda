@@ -13,7 +13,7 @@ private
 open import Data.Product
 open import Relation.Binary.PropositionalEquality
 open import Data.Fin using (#_)
-open import Data.Vec
+open import Data.Vec hiding ([_])
 open ℕ-semiringSolver
 open import Induction
 open import Induction.Nat

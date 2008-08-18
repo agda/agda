@@ -37,7 +37,7 @@ data Bin : Set where
   -- Zero.
   0#  : Bin
   -- bs 1# stands for the binary number 1<reverse bs>.
-  _1# : (bs : [ Bit ]) -> Bin
+  _1# : (bs : List Bit) -> Bin
 
 ------------------------------------------------------------------------
 -- Conversion functions
@@ -45,9 +45,9 @@ data Bin : Set where
 -- Converting to a list of bits starting with the _least_ significant
 -- one.
 
-toBits : Bin -> [ Bit ]
-toBits 0#      = singleton 0b
-toBits (bs 1#) = bs ++ singleton 1b
+toBits : Bin -> List Bit
+toBits 0#      = [ 0b ]
+toBits (bs 1#) = bs ++ [ 1b ]
 
 -- Converting to a natural number.
 
@@ -57,7 +57,7 @@ toℕ = fromDigits ∘ toBits
 -- Converting from a list of bits, starting with the _most_
 -- significant one.
 
-fromBits' : [ Bit ] -> Bin
+fromBits' : List Bit -> Bin
 fromBits' []                  = 0#
 fromBits' (zero         ∷ bs) = fromBits' bs
 fromBits' (Fin.suc zero ∷ bs) = reverse bs 1#
@@ -66,7 +66,7 @@ fromBits' (Fin.suc (Fin.suc ()) ∷ _)
 -- Converting from a list of bits, starting with the _least_
 -- significant one.
 
-fromBits : [ Bit ] -> Bin
+fromBits : List Bit -> Bin
 fromBits = fromBits' ∘ reverse
 
 -- Converting from a natural number.
@@ -140,7 +140,7 @@ private
   ... | suc (suc (suc zero)) = (1b , 1b)
   ... | suc (suc (suc (suc ())))
 
-  addCarryToBitList : Carry -> [ Bit ] -> [ Bit ]
+  addCarryToBitList : Carry -> List Bit -> List Bit
   addCarryToBitList zero       bs              = bs
   addCarryToBitList (suc zero) []              = 1b ∷ []
   addCarryToBitList (suc zero) (zero     ∷ bs) = 1b ∷ bs
@@ -148,7 +148,7 @@ private
   addCarryToBitList (suc (suc ())) _
   addCarryToBitList _ (suc (suc ()) ∷ _)
 
-  addBitLists : Carry -> [ Bit ] -> [ Bit ] -> [ Bit ]
+  addBitLists : Carry -> List Bit -> List Bit -> List Bit
   addBitLists c []         bs₂        = addCarryToBitList c bs₂
   addBitLists c bs₁        []         = addCarryToBitList c bs₁
   addBitLists c (b₁ ∷ bs₁) (b₂ ∷ bs₂) with addBits c b₁ b₂

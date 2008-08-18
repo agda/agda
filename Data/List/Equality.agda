@@ -13,7 +13,7 @@ module Equality (S : Setoid) where
 
   open Setoid S
 
-  data ListEq : [ carrier ] -> [ carrier ] -> Set where
+  data ListEq : List carrier -> List carrier -> Set where
     []-cong  : ListEq [] []
     _∷-cong_ : forall {x xs y ys}
                (x≈y : x ≈ y) (xs≈ys : ListEq xs ys) ->
@@ -21,7 +21,7 @@ module Equality (S : Setoid) where
 
   setoid : Setoid
   setoid = record
-    { carrier = [ carrier ]
+    { carrier = List carrier
     ; _≈_     = ListEq
     ; isEquivalence = record
       { refl  = refl'
@@ -50,7 +50,7 @@ module DecidableEquality (D : DecSetoid) where
 
   decSetoid : DecSetoid
   decSetoid = record
-    { carrier = [ carrier ]
+    { carrier = List carrier
     ; _≈_     = ListEq
     ; isDecEquivalence = record
       { isEquivalence = Setoid.isEquivalence List-setoid

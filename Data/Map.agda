@@ -8,7 +8,7 @@ module Data.Map where
 open import Relation.Nullary
 open import Relation.Binary
 import Data.List as L
-open L using ([_])
+open L using (List)
 open import Data.Product
 
 module Map₁ (key-dto : DecTotalOrder) (elem-s : Setoid) where
@@ -43,7 +43,7 @@ module Map₁ (key-dto : DecTotalOrder) (elem-s : Setoid) where
   abstract
    postulate
     _∈?_   : (k : key) -> (s : Map) -> LookupResult k s
-    toList : Map -> [ key × elem ]
+    toList : Map -> List (key × elem)
 
    postulate
     prop-∈₁ : forall {x v s}   -> x ↦ v ∈ s -> x ∈ s
@@ -75,10 +75,10 @@ module Map₁ (key-dto : DecTotalOrder) (elem-s : Setoid) where
   singleton : key -> elem -> Map
   singleton k v = insert k v empty
 
-  ⋃_ : [ Map ] -> Map
+  ⋃_ : List Map -> Map
   ⋃_ = L.foldr _∪_ empty
 
-  fromList : [ key × elem ] -> Map
+  fromList : List (key × elem) -> Map
   fromList = L.foldr (uncurry insert) empty
 
 open Map₁ public renaming (Map to _⇰_)

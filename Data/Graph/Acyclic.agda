@@ -22,7 +22,7 @@ open import Data.Unit
 import Data.Vec as Vec
 open Vec using (Vec; []; _∷_)
 import Data.List as List
-open List using ([]; _∷_; _∈_) renaming ([_] to List)
+open List using (List; []; _∷_; _∈_)
 open import Relation.Nullary
 open import Relation.Binary.PropositionalEquality
 open import Induction.Nat

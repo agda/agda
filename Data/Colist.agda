@@ -5,7 +5,7 @@
 module Data.Colist where
 
 open import Data.Nat
-open import Data.List using ([_]; []; _∷_)
+open import Data.List using (List; []; _∷_)
 
 ------------------------------------------------------------------------
 -- The type
@@ -21,11 +21,11 @@ codata Colist (a : Set) : Set where
 ------------------------------------------------------------------------
 -- Some operations
 
-fromList : {a : Set} -> [ a ] -> Colist a
+fromList : {a : Set} -> List a -> Colist a
 fromList []       = []
 fromList (x ∷ xs) = x ∷ fromList xs
 
-take : {a : Set} -> ℕ -> Colist a -> [ a ]
+take : {a : Set} -> ℕ -> Colist a -> List a
 take zero    xs       = []
 take (suc n) []       = []
 take (suc n) (x ∷ xs) = take n xs

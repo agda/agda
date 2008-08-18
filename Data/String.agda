@@ -5,7 +5,7 @@
 module Data.String where
 
 import Data.List as List
-open List using ([_])
+open List using (List)
 import Data.Vec as Vec
 open Vec using (Vec)
 import Data.Colist as Colist
@@ -39,8 +39,8 @@ Costring = Colist Char
 private
  primitive
   primStringAppend   : String -> String -> String
-  primStringToList   : String -> [ Char ]
-  primStringFromList : [ Char ] -> String
+  primStringToList   : String -> List Char
+  primStringFromList : List Char -> String
   primStringEquality : String -> String -> Bool
 
 infixr 5 _++_
@@ -48,10 +48,10 @@ infixr 5 _++_
 _++_ : String -> String -> String
 _++_ = primStringAppend
 
-toList : String -> [ Char ]
+toList : String -> List Char
 toList = primStringToList
 
-fromList : [ Char ] -> String
+fromList : List Char -> String
 fromList = primStringFromList
 
 toVec : (s : String) -> Vec Char (List.length (toList s))

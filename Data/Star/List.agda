@@ -11,20 +11,20 @@ open import Data.Star.Nat
 
 -- Lists.
 
-[_] : Set -> Set
-[ a ] = Star (Const a) tt tt
+List : Set -> Set
+List a = Star (Const a) tt tt
 
 -- Nil and cons.
 
-[] : forall {a} -> [ a ]
+[] : forall {a} -> List a
 [] = ε
 
 infixr 5 _∷_
 
-_∷_ : forall {a} -> a -> [ a ] -> [ a ]
+_∷_ : forall {a} -> a -> List a -> List a
 _∷_ = _◅_
 
 -- The sum of the elements in a list containing natural numbers.
 
-sum : [ ℕ ] -> ℕ
+sum : List ℕ -> ℕ
 sum = fold (Star Always) _+_ zero

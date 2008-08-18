@@ -10,7 +10,7 @@ open import Data.Star
 open import Data.Star.Nat
 open import Data.Star.Decoration
 open import Data.Star.Pointer
-open import Data.Star.List using ([_])
+open import Data.Star.List using (List)
 open import Data.Unit
 open import Data.Function
 open import Data.Maybe
@@ -54,9 +54,9 @@ _∷_ = that
 ------------------------------------------------------------------------
 -- Conversions
 
-fromList : forall {a} -> (xs : [ a ]) -> BoundedVec a (length xs)
+fromList : forall {a} -> (xs : List a) -> BoundedVec a (length xs)
 fromList ε        = []
 fromList (x ◅ xs) = x ∷ fromList xs
 
-toList : forall {a n} -> BoundedVec a n -> [ a ]
+toList : forall {a n} -> BoundedVec a n -> List a
 toList xs = gmap (const tt) decoration (init xs)

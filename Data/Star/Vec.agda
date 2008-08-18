@@ -9,7 +9,7 @@ open import Data.Star.Nat
 open import Data.Star.Fin using (Fin)
 open import Data.Star.Decoration
 open import Data.Star.Pointer
-open import Data.Star.List using ([_])
+open import Data.Star.List using (List)
 open import Relation.Binary
 open import Relation.Binary.Consequences
 open import Data.Function
@@ -55,9 +55,9 @@ Vec-lookup i xs with lookup i xs
 ------------------------------------------------------------------------
 -- Conversions
 
-fromList : forall {a} -> (xs : [ a ]) -> Vec a (length xs)
+fromList : forall {a} -> (xs : List a) -> Vec a (length xs)
 fromList ε        = []
 fromList (x ◅ xs) = x ∷ fromList xs
 
-toList : forall {a n} -> Vec a n -> [ a ]
+toList : forall {a n} -> Vec a n -> List a
 toList = gmap (const tt) decoration

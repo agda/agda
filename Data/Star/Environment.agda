@@ -14,7 +14,7 @@ open import Relation.Binary.PropositionalEquality
 -- Contexts, listing the types of all the elements in an environment.
 
 Ctxt : Set
-Ctxt = [ Ty ]
+Ctxt = List Ty
 
 -- Variables (de Bruijn indices); pointers into environments.
 
