@@ -7,7 +7,7 @@
 module Data.BoundedVec.Inefficient where
 
 open import Data.Nat
-open import Data.List renaming ([] to []l; _∷_ to _∷l_)
+open import Data.List
 
 ------------------------------------------------------------------------
 -- The type
@@ -31,9 +31,9 @@ data BoundedVec (a : Set) : ℕ -> Set where
 -- Conversions
 
 fromList : forall {a} -> (xs : List a) -> BoundedVec a (length xs)
-fromList []l       = []
-fromList (x ∷l xs) = x ∷ fromList xs
+fromList []       = []
+fromList (x ∷ xs) = x ∷ fromList xs
 
 toList : forall {a n} -> BoundedVec a n -> List a
-toList []       = []l
-toList (x ∷ xs) = x ∷l toList xs
+toList []       = []
+toList (x ∷ xs) = x ∷ toList xs
