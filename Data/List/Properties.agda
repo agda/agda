@@ -13,6 +13,7 @@ open import Data.Nat.Properties
 open import Data.Bool
 open import Data.Function
 open import Data.Product
+open import Data.Maybe
 open import Relation.Binary.PropositionalEquality
 import Relation.Binary.EqReasoning as Eq
 open import Algebra
@@ -224,3 +225,17 @@ scanl-defn f e (x ∷ xs) with scanl-defn f (f e x) xs
     ≡⟨ map-compose (inits xs) ⟩
        map (foldl f e) (map (_∷_ x) (inits xs))
     ∎
+
+-- Length.
+
+length-map : forall {A B} (f : A -> B) xs ->
+             length (map f xs) ≡ length xs
+length-map f []       = ≡-refl
+length-map f (x ∷ xs) = ≡-cong suc (length-map f xs)
+
+length-gfilter : forall {A B} (p : A -> Maybe B) xs ->
+                 length (gfilter p xs) ≤ length xs
+length-gfilter p []       = z≤n
+length-gfilter p (x ∷ xs) with p x
+length-gfilter p (x ∷ xs) | just y  = s≤s (length-gfilter p xs)
+length-gfilter p (x ∷ xs) | nothing = ≤-step (length-gfilter p xs)
