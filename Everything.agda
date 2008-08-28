@@ -45,6 +45,8 @@ import Data.BoundedVec.Inefficient
 import Data.Char
 import Data.Colist
 import Data.DifferenceList
+import Data.DifferenceNat
+import Data.DifferenceVec
 import Data.Digit
 import Data.Empty
 import Data.Fin
