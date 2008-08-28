@@ -21,7 +21,7 @@ boolToMaybe : Bool -> Maybe ⊤
 boolToMaybe true  = just _
 boolToMaybe false = nothing
 
-maybeToBool : Maybe ⊤ -> Bool
+maybeToBool : forall {A} -> Maybe A -> Bool
 maybeToBool (just _) = true
 maybeToBool nothing  = false
 
