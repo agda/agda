@@ -18,6 +18,7 @@ open import Data.Nat hiding (compare)
 open StrictTotalOrder OrderedKeySet renaming (carrier to Key)
 open import Data.Product
 open import Data.Maybe
+open import Data.Bool
 import Data.List as List
 open List using (List)
 import Data.DifferenceList as DiffList
@@ -275,6 +276,9 @@ delete k (tree t) with Indexed.delete k t
 
 lookup : Key -> Tree -> Maybe Key
 lookup k (tree t) = Indexed.lookup k t
+
+_∈?_ : Key -> Tree -> Bool
+k ∈? t = maybeToBool (lookup k t)
 
 headTail : Tree -> Maybe (Key × Tree)
 headTail (tree leaf)          = nothing
