@@ -21,14 +21,36 @@ open import Data.Maybe
 import Data.List as List
 open List using (List)
 import Data.DifferenceList as DiffList
-open import Data.Function
+open import Relation.Binary.PropositionalEquality
 
 ------------------------------------------------------------------------
 -- Types and functions which are used to keep track of invariants
 
 module Invariants where
 
-  infix 4 _∼_ _≲_
+  -- Bits. (I would use Fin 2 instead if Agda had "defined patterns",
+  -- so that I could pattern match on 1# instead of suc zero; the text
+  -- "suc zero" takes up a lot more space.)
+
+  data ℕ₂ : Set where
+    0# : ℕ₂
+    1# : ℕ₂
+
+  -- Addition.
+
+  infixl 6 _⊕_
+
+  _⊕_ : ℕ₂ -> ℕ -> ℕ
+  0# ⊕ n = n
+  1# ⊕ n = 1 + n
+
+  -- i ⊕ n -1 = pred (i ⊕ n).
+
+  _⊕_-1 : ℕ₂ -> ℕ -> ℕ
+  i ⊕ zero  -1 = 0
+  i ⊕ suc n -1 = i ⊕ n
+
+  infix 4 _∼_
 
   -- If m ∼ n, then the difference between m and n is at most 1. _∼_
   -- is used to record the balance factor of the AVL trees, and also
@@ -39,12 +61,6 @@ module Invariants where
     ∼+ : forall {n} ->     n ∼ 1 + n
     ∼0 : forall {n} ->     n ∼ n
     ∼- : forall {n} -> 1 + n ∼ n
-
-  -- If m ≲ n, then m ∼ n and m ≤ n.
-
-  data _≲_ : ℕ -> ℕ -> Set where
-    ∼+ : forall {n} -> n ≲ 1 + n
-    ∼0 : forall {n} -> n ≲ n
 
   -- The maximum of m and n.
 
@@ -77,10 +93,10 @@ module Invariants where
   max∼max ∼- = ∼0
 
   max-lemma : forall {m n} (bal : m ∼ n) ->
-              max (1+ (max∼max bal)) ≲ 2 + max bal
-  max-lemma ∼+ = ∼+
-  max-lemma ∼0 = ∼+
-  max-lemma ∼- = ∼+
+              1 + max (1+ (max∼max bal)) ≡ 2 + max bal
+  max-lemma ∼+ = ≡-refl
+  max-lemma ∼0 = ≡-refl
+  max-lemma ∼- = ≡-refl
 
 ------------------------------------------------------------------------
 -- AVL trees
@@ -89,14 +105,103 @@ module Indexed where
 
   open Invariants
 
-  -- The trees are indexed on their height.
+  -- The trees are indexed on their height. (bal is the balance
+  -- factor.)
 
   data Tree : ℕ -> Set where
     leaf : Tree 0
-    node : forall {h₁ h₂}
-           (bal : h₁ ∼ h₂)  -- Balance factor.
-           (l : Tree h₁) (k : Key) (r : Tree h₂) ->
+    node : forall {hˡ hʳ}
+           (l : Tree hˡ) (k : Key) (r : Tree hʳ) (bal : hˡ ∼ hʳ) ->
            Tree (1 + max bal)
+
+  -- Various constant-time functions which construct trees out of
+  -- smaller pieces, sometimes using rotation.
+
+  joinˡ⁺ : forall {hˡ hʳ} ->
+           (∃ \i -> Tree (i ⊕ hˡ)) -> Key -> Tree hʳ ->
+           (bal : hˡ ∼ hʳ) ->
+           ∃ \i -> Tree (i ⊕ (1 + max bal))
+  joinˡ⁺ (1# , node t₁ k₂
+                 (node t₃ k₄ t₅ bal)
+                             ∼+) k₆ t₇ ∼-  = (0# , ≡-subst Tree (max-lemma bal)
+                                                     (node (node t₁ k₂ t₃ (max∼ bal))
+                                                           k₄
+                                                           (node t₅ k₆ t₇ (∼max bal))
+                                                           (1+ (max∼max bal))))
+  joinˡ⁺ (1# , node t₁ k₂ t₃ ∼-) k₄ t₅ ∼-  = (0# , node t₁ k₂ (node t₃ k₄ t₅ ∼0) ∼0)
+  joinˡ⁺ (1# , node t₁ k₂ t₃ ∼0) k₄ t₅ ∼-  = (1# , node t₁ k₂ (node t₃ k₄ t₅ ∼-) ∼+)
+  joinˡ⁺ (1# , t₁)               k₂ t₃ ∼0  = (1# , node t₁ k₂ t₃ ∼-)
+  joinˡ⁺ (1# , t₁)               k₂ t₃ ∼+  = (0# , node t₁ k₂ t₃ ∼0)
+  joinˡ⁺ (0# , t₁)               k₂ t₃ bal = (0# , node t₁ k₂ t₃ bal)
+
+  joinʳ⁺ : forall {hˡ hʳ} ->
+           Tree hˡ -> Key -> (∃ \i -> Tree (i ⊕ hʳ)) ->
+           (bal : hˡ ∼ hʳ) ->
+           ∃ \i -> Tree (i ⊕ (1 + max bal))
+  joinʳ⁺ t₁ k₂ (1# , node
+                       (node t₃ k₄ t₅ bal)
+                             k₆ t₇ ∼-) ∼+  = (0# , ≡-subst Tree (max-lemma bal)
+                                                     (node (node t₁ k₂ t₃ (max∼ bal))
+                                                           k₄
+                                                           (node t₅ k₆ t₇ (∼max bal))
+                                                           (1+ (max∼max bal))))
+  joinʳ⁺ t₁ k₂ (1# , node t₃ k₄ t₅ ∼+) ∼+  = (0# , node (node t₁ k₂ t₃ ∼0) k₄ t₅ ∼0)
+  joinʳ⁺ t₁ k₂ (1# , node t₃ k₄ t₅ ∼0) ∼+  = (1# , node (node t₁ k₂ t₃ ∼+) k₄ t₅ ∼-)
+  joinʳ⁺ t₁ k₂ (1# , t₃)               ∼0  = (1# , node t₁ k₂ t₃ ∼+)
+  joinʳ⁺ t₁ k₂ (1# , t₃)               ∼-  = (0# , node t₁ k₂ t₃ ∼0)
+  joinʳ⁺ t₁ k₂ (0# , t₃)               bal = (0# , node t₁ k₂ t₃ bal)
+
+  joinˡ⁻ : forall hˡ {hʳ} ->
+           (∃ \i -> Tree (i ⊕ hˡ -1)) -> Key -> Tree hʳ ->
+           (bal : hˡ ∼ hʳ) ->
+           ∃ \i -> Tree (i ⊕ max bal)
+  joinˡ⁻ zero    (0# , t₁) k₂ t₃ bal = (1# , node t₁ k₂ t₃ bal)
+  joinˡ⁻ zero    (1# , t₁) k₂ t₃ bal = (1# , node t₁ k₂ t₃ bal)
+  joinˡ⁻ (suc _) (0# , t₁) k₂ t₃ ∼+  = joinʳ⁺ t₁ k₂ (1# , t₃) ∼+
+  joinˡ⁻ (suc _) (0# , t₁) k₂ t₃ ∼0  = (1# , node t₁ k₂ t₃ ∼+)
+  joinˡ⁻ (suc _) (0# , t₁) k₂ t₃ ∼-  = (0# , node t₁ k₂ t₃ ∼0)
+  joinˡ⁻ (suc _) (1# , t₁) k₂ t₃ bal = (1# , node t₁ k₂ t₃ bal)
+
+  joinʳ⁻ : forall {hˡ} hʳ ->
+           Tree hˡ -> Key -> (∃ \i -> Tree (i ⊕ hʳ -1)) ->
+           (bal : hˡ ∼ hʳ) ->
+           ∃ \i -> Tree (i ⊕ max bal)
+  joinʳ⁻ zero    t₁ k₂ (0# , t₃) bal = (1# , node t₁ k₂ t₃ bal)
+  joinʳ⁻ zero    t₁ k₂ (1# , t₃) bal = (1# , node t₁ k₂ t₃ bal)
+  joinʳ⁻ (suc _) t₁ k₂ (0# , t₃) ∼-  = joinˡ⁺ (1# , t₁) k₂ t₃ ∼-
+  joinʳ⁻ (suc _) t₁ k₂ (0# , t₃) ∼0  = (1# , node t₁ k₂ t₃ ∼-)
+  joinʳ⁻ (suc _) t₁ k₂ (0# , t₃) ∼+  = (0# , node t₁ k₂ t₃ ∼0)
+  joinʳ⁻ (suc _) t₁ k₂ (1# , t₃) bal = (1# , node t₁ k₂ t₃ bal)
+
+  -- Extracts the smallest element from the tree, plus the rest.
+  -- Logarithmic in the size of the tree.
+
+  headTail : forall {h} -> Tree (1 + h) ->
+             Key × ∃ \i -> Tree (i ⊕ h)
+  headTail (node leaf k₁ t₂ ∼+) = (k₁ , 0# , t₂)
+  headTail (node leaf k₁ t₂ ∼0) = (k₁ , 0# , t₂)
+  headTail (node {hˡ = suc _} t₁₂ k₃ t₄ bal) with headTail t₁₂
+  ... | (k₁ , t₂) = (k₁ , joinˡ⁻ _ t₂ k₃ t₄ bal)
+
+  -- Extracts the largest element from the tree, plus the rest.
+  -- Logarithmic in the size of the tree.
+
+  initLast : forall {h} -> Tree (1 + h) ->
+             ∃ (\i -> Tree (i ⊕ h)) × Key
+  initLast (node t₁ k₂ leaf ∼-) = ((0# , t₁) , k₂)
+  initLast (node t₁ k₂ leaf ∼0) = ((0# , t₁) , k₂)
+  initLast (node {hʳ = suc _} t₁ k₂ t₃₄ bal) with initLast t₃₄
+  ... | (t₃ , k₄) = (joinʳ⁻ _ t₁ k₂ t₃ bal , k₄)
+
+  -- Another joining function. Logarithmic in the size of the tree.
+
+  join : forall {hˡ hʳ} ->
+         Tree hˡ -> Tree hʳ -> (bal : hˡ ∼ hʳ) ->
+         ∃ \i -> Tree (i ⊕ max bal)
+  join t₁ leaf ∼0 = (0# , t₁)
+  join t₁ leaf ∼- = (0# , t₁)
+  join {hʳ = suc _} t₁ t₂₃ bal with headTail t₂₃
+  ... | (k₂ , t₃) = joinʳ⁻ _ t₁ k₂ t₃ bal
 
   -- An empty tree.
 
@@ -106,77 +211,47 @@ module Indexed where
   -- A singleton tree.
 
   singleton : Key -> Tree 1
-  singleton k = node ∼0 leaf k leaf
-
-  -- joinˡ _ l k r returns a tree containing l before k before r.
-
-  joinˡ : forall {hˡ hʳ} (bal : hˡ ∼ hʳ) ->
-          ∃ (\h -> Tree (1 + h) × h ≲ hˡ) ->
-          Key -> Tree hʳ ->
-          ∃ (\h -> Tree (1 + h) × h ≲ 1 + max bal)
-  joinˡ ∼- (._ , node ∼- t₁ k₂ t₃ , ∼0) k₄ t₅ = (_ , node ∼0 t₁ k₂ (node ∼0 t₃ k₄ t₅) , ∼+)
-  joinˡ ∼- (._ , node ∼0 t₁ k₂ t₃ , ∼0) k₄ t₅ = (_ , node ∼+ t₁ k₂ (node ∼- t₃ k₄ t₅) , ∼0)
-  joinˡ ∼- (._ , node ∼+ t₁ k₂
-                   (node bal t₃ k₄ t₅)
-                                  , ∼0) k₆ t₇ = (_ , node (1+ (max∼max bal))
-                                                       (node (max∼ bal) t₁ k₂ t₃)
-                                                       k₄
-                                                       (node (∼max bal) t₅ k₆ t₇)
-                                                   , max-lemma bal)
-  joinˡ ∼- (._ , t₁ , ∼+) k₂ t₃ = (_ , node ∼- t₁ k₂ t₃ , ∼+)
-  joinˡ ∼0 (_  , t₁ , ∼0) k₂ t₃ = (_ , node ∼- t₁ k₂ t₃ , ∼0)
-  joinˡ ∼0 (_  , t₁ , ∼+) k₂ t₃ = (_ , node ∼0 t₁ k₂ t₃ , ∼+)
-  joinˡ ∼+ (_  , t₁ , ∼0) k₂ t₃ = (_ , node ∼0 t₁ k₂ t₃ , ∼+)
-  joinˡ ∼+ (_  , t₁ , ∼+) k₂ t₃ = (_ , node ∼+ t₁ k₂ t₃ , ∼+)
-
-  -- joinʳ _ l k r also returns a tree containing l before k before r.
-
-  joinʳ : forall {hˡ hʳ} (bal : hˡ ∼ hʳ) ->
-          Tree hˡ -> Key ->
-          ∃ (\h -> Tree (1 + h) × h ≲ hʳ) ->
-          ∃ (\h -> Tree (1 + h) × h ≲ 1 + max bal)
-  joinʳ ∼+ t₁ k₂ (._ , node ∼+ t₃ k₄ t₅ , ∼0) = (_ , node ∼0 (node ∼0 t₁ k₂ t₃) k₄ t₅ , ∼+)
-  joinʳ ∼+ t₁ k₂ (._ , node ∼0 t₃ k₄ t₅ , ∼0) = (_ , node ∼- (node ∼+ t₁ k₂ t₃) k₄ t₅ , ∼0)
-  joinʳ ∼+ t₁ k₂ (._ , node ∼-
-                         (node bal t₃ k₄ t₅)
-                                  k₆ t₇ , ∼0) = (_ , node (1+ (max∼max bal))
-                                                       (node (max∼ bal) t₁ k₂ t₃)
-                                                       k₄
-                                                       (node (∼max bal) t₅ k₆ t₇)
-                                                   , max-lemma bal)
-  joinʳ ∼+ t₁ k₂ (._ , t₃ , ∼+) = (_ , node ∼+ t₁ k₂ t₃ , ∼+)
-  joinʳ ∼0 t₁ k₂ (_  , t₃ , ∼0) = (_ , node ∼+ t₁ k₂ t₃ , ∼0)
-  joinʳ ∼0 t₁ k₂ (_  , t₃ , ∼+) = (_ , node ∼0 t₁ k₂ t₃ , ∼+)
-  joinʳ ∼- t₁ k₂ (_  , t₃ , ∼0) = (_ , node ∼0 t₁ k₂ t₃ , ∼+)
-  joinʳ ∼- t₁ k₂ (_  , t₃ , ∼+) = (_ , node ∼- t₁ k₂ t₃ , ∼+)
+  singleton k = node leaf k leaf ∼0
 
   -- Inserts a key into the tree. If the key already exists, then it
-  -- is replaced.
+  -- is replaced. Logarithmic in the size of the tree.
 
   insert : forall {h} -> Key -> Tree h ->
-           ∃ \h′ -> Tree (1 + h′) × h′ ≲ h
-  insert k leaf              = (_ , singleton k , ∼0)
-  insert k (node bal l k′ r) with compare k k′
-  ... | tri< _ _ _ = joinˡ bal (insert k l) k′ r
-  ... | tri≈ _ _ _ = (_ , node bal l k r , ∼+)
-  ... | tri> _ _ _ = joinʳ bal l k′ (insert k r)
+           ∃ \i -> Tree (i ⊕ h)
+  insert k leaf              = (1# , singleton k)
+  insert k (node l k′ r bal) with compare k k′
+  ... | tri< _ _ _ = joinˡ⁺ (insert k l) k′ r bal
+  ... | tri≈ _ _ _ = (0# , node l k r bal)
+  ... | tri> _ _ _ = joinʳ⁺ l k′ (insert k r) bal
 
-  -- Looks up a key in the tree.
+  -- Deletes the key/value pair containing the given key, if any.
+  -- Logarithmic in the size of the tree.
+
+  delete : forall {h} -> Key -> Tree h ->
+           ∃ \i -> Tree (i ⊕ h -1)
+  delete k leaf              = (0# , leaf)
+  delete k (node l k′ r bal) with compare k k′
+  ... | tri< _ _ _ = joinˡ⁻ _ (delete k l) k′ r bal
+  ... | tri≈ _ _ _ = join l r bal
+  ... | tri> _ _ _ = joinʳ⁻ _ l k′ (delete k r) bal
+
+  -- Looks up a key in the tree. Logarithmic in the size of the tree.
 
   lookup : forall {h} -> Key -> Tree h -> Maybe Key
   lookup k leaf            = nothing
-  lookup k (node h l k′ r) with compare k k′
+  lookup k (node l k′ r _) with compare k k′
   ... | tri< _ _ _ = lookup k l
   ... | tri≈ _ _ _ = just k′
   ... | tri> _ _ _ = lookup k r
 
-  -- Converts the tree to an ordered list.
+  -- Converts the tree to an ordered list. Linear in the size of the
+  -- tree.
 
   open DiffList
 
   toDiffList : forall {h} -> Tree h -> DiffList Key
   toDiffList leaf           = []
-  toDiffList (node _ l k r) = toDiffList l ++ [ k ] ++ toDiffList r
+  toDiffList (node l k r _) = toDiffList l ++ [ k ] ++ toDiffList r
 
 ------------------------------------------------------------------------
 -- Types and functions with hidden indices
@@ -192,10 +267,24 @@ singleton k = tree (Indexed.singleton k)
 
 insert : Key -> Tree -> Tree
 insert k (tree t) with Indexed.insert k t
-... | (_ , t′ , _) = tree t′
+... | (_ , t′) = tree t′
+
+delete : Key -> Tree -> Tree
+delete k (tree t) with Indexed.delete k t
+... | (_ , t′) = tree t′
 
 lookup : Key -> Tree -> Maybe Key
 lookup k (tree t) = Indexed.lookup k t
+
+headTail : Tree -> Maybe (Key × Tree)
+headTail (tree leaf)          = nothing
+headTail (tree {h = suc _} t) with Indexed.headTail t
+... | (k , _ , t′) = just (k , tree t′)
+
+initLast : Tree -> Maybe (Tree × Key)
+initLast (tree leaf)          = nothing
+initLast (tree {h = suc _} t) with Indexed.initLast t
+... | ((_ , t′) , k) = just (tree t′ , k)
 
 -- The input does not need to be ordered.
 
