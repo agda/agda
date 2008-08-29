@@ -14,7 +14,6 @@ module Data.AVL.IndexedMap
          (Value : Index -> Set)
          where
 
-open IsStrictTotalOrder isOrderedKeySet
 import Data.AVL
 open import Data.Function
 open import Data.Maybe
@@ -28,56 +27,29 @@ open RawFunctor MaybeFunctor
 KV : Set
 KV = ∃ \i -> Key i × Value i
 
+-- Conversions.
+
 private
 
-  -- Tree node contents. The value nothing is used to handle lookups
-  -- and deletions; nothing is never stored in the tree.
+  fromKV : KV -> Σ (∃ Key) \ik -> Value (proj₁ ik)
+  fromKV (i , k , v) = ((i , k) , v)
 
-  KMV : Set
-  KMV = ∃ \i -> Key i × Maybe (Value i)
+  toKV : Σ (∃ Key) (\ik -> Value (proj₁ ik)) -> KV
+  toKV ((i , k) , v) = (i , k , v)
 
-  fromKV : KV -> KMV
-  fromKV (_ , k , v) = (_ , k , just v)
+private
 
-  toKV : KMV -> Maybe KV
-  toKV (_ , k , nothing) = nothing  -- Impossible case.
-  toKV (_ , k , just v)  = just (_ , k , v)
-
--- The order ignores the second component of the key/value pairs
--- completely.
-
-Order : StrictTotalOrder
-Order = record
-  { carrier            = KMV
-  ; _≈_                = _≈_ on₁ key
-  ; _<_                = _<_ on₁ key
-  ; isStrictTotalOrder = record
-    { isEquivalence = record
-      { refl  = Eq.refl
-      ; sym   = Eq.sym
-      ; trans = Eq.trans
-      }
-    ; trans         = trans
-    ; compare       = cmp
-    ; ≈-resp-<      = resp
+  Order : StrictTotalOrder
+  Order = record
+    { carrier            = ∃ Key
+    ; _≈_                = _≈_
+    ; _<_                = _<_
+    ; isStrictTotalOrder = isOrderedKeySet
     }
-  }
-  where
-  key : KMV -> ∃ Key
-  key (_ , k , _) = (, k)
-
-  cmp : Trichotomous {KMV} (_≈_ on₁ key) (_<_ on₁ key)
-  cmp (_ , k₁ , v₁) (_ , k₂ , v₂) with compare (, k₁) (, k₂)
-  ... | tri< ≺ ≉ ≯ = tri< ≺ ≉ ≯
-  ... | tri≈ ≮ ≋ ≯ = tri≈ ≮ ≋ ≯
-  ... | tri> ≮ ≉ ≻ = tri> ≮ ≉ ≻
-
-  resp : (_≈_ on₁ key) Respects₂ (_<_ on₁ key)
-  resp = ((\{_ _ _} -> proj₁ ≈-resp-<) , (\{_ _ _} -> proj₂ ≈-resp-<))
 
 -- The map type.
 
-private module AVL = Data.AVL Order
+private module AVL = Data.AVL Order (\ik -> Value (proj₁ ik))
 open AVL public using () renaming (Tree to Map)
 
 -- Repackaged functions.
@@ -86,35 +58,31 @@ empty : Map
 empty = AVL.empty
 
 singleton : forall {i} -> Key i -> Value i -> Map
-singleton k v = AVL.singleton (_ , k , just v)
+singleton k v = AVL.singleton (, k) v
 
 insert : forall {i} -> Key i -> Value i -> Map -> Map
-insert k v = AVL.insert (_ , k , just v)
+insert k v = AVL.insert (, k) v
 
 delete : forall {i} -> Key i -> Map -> Map
-delete k = AVL.delete (_ , k , nothing)
+delete k = AVL.delete (, k)
 
 lookup : forall {i} -> Key i -> Map -> Maybe (Value i)
-lookup k m with AVL.lookup (_ , k , nothing) m
-... | nothing                     = nothing
-... | just ((i′ , k′ , mv′) , eq) with indicesEqual eq
-...   | ≡-refl = mv′
+lookup k m with AVL.lookup (_ , k) m
+... | nothing                    = nothing
+... | just ((i′ , k′) , v′ , eq) with indicesEqual eq
+...   | ≡-refl = just v′
 
 _∈?_ : forall {i} -> Key i -> Map -> Bool
-k ∈? m = AVL._∈?_ (_ , k , nothing) m
+_∈?_ k = AVL._∈?_ (, k)
 
 headTail : Map -> Maybe (KV × Map)
-headTail m with AVL.headTail m
-... | nothing         = nothing
-... | just (kmv , m′) = (\kv -> kv , m′) <$> toKV kmv
+headTail m = map-× toKV id <$> AVL.headTail m
 
 initLast : Map -> Maybe (Map × KV)
-initLast m with AVL.initLast m
-... | nothing         = nothing
-... | just (m′ , kmv) = _,_ m′ <$> toKV kmv
+initLast m = map-× id toKV <$> AVL.initLast m
 
 fromList : List KV -> Map
 fromList = AVL.fromList ∘ map fromKV
 
 toList : Map -> List KV
-toList = gfilter toKV ∘ AVL.toList
+toList = map toKV ∘ AVL.toList

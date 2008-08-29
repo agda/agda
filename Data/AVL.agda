@@ -6,13 +6,11 @@
 -- invariant is not statically enforced in the current implementation,
 -- just the balance invariant.
 
--- There are no "values" in the trees, just keys. Key/value pairs can
--- be handled by defining an equality/ordering relation which ignores
--- the second component.
-
 open import Relation.Binary
 
-module Data.AVL (OrderedKeySet : StrictTotalOrder) where
+module Data.AVL (OrderedKeySet : StrictTotalOrder)
+                (Value : StrictTotalOrder.carrier OrderedKeySet -> Set)
+                where
 
 open import Data.Nat hiding (compare)
 open StrictTotalOrder OrderedKeySet renaming (carrier to Key)
@@ -102,6 +100,11 @@ module Invariants where
 ------------------------------------------------------------------------
 -- AVL trees
 
+-- Key/value pairs.
+
+KV : Set
+KV = Σ Key Value
+
 module Indexed where
 
   open Invariants
@@ -112,14 +115,14 @@ module Indexed where
   data Tree : ℕ -> Set where
     leaf : Tree 0
     node : forall {hˡ hʳ}
-           (l : Tree hˡ) (k : Key) (r : Tree hʳ) (bal : hˡ ∼ hʳ) ->
+           (l : Tree hˡ) (k : KV) (r : Tree hʳ) (bal : hˡ ∼ hʳ) ->
            Tree (1 + max bal)
 
   -- Various constant-time functions which construct trees out of
   -- smaller pieces, sometimes using rotation.
 
   joinˡ⁺ : forall {hˡ hʳ} ->
-           (∃ \i -> Tree (i ⊕ hˡ)) -> Key -> Tree hʳ ->
+           (∃ \i -> Tree (i ⊕ hˡ)) -> KV -> Tree hʳ ->
            (bal : hˡ ∼ hʳ) ->
            ∃ \i -> Tree (i ⊕ (1 + max bal))
   joinˡ⁺ (1# , node t₁ k₂
@@ -136,7 +139,7 @@ module Indexed where
   joinˡ⁺ (0# , t₁)               k₂ t₃ bal = (0# , node t₁ k₂ t₃ bal)
 
   joinʳ⁺ : forall {hˡ hʳ} ->
-           Tree hˡ -> Key -> (∃ \i -> Tree (i ⊕ hʳ)) ->
+           Tree hˡ -> KV -> (∃ \i -> Tree (i ⊕ hʳ)) ->
            (bal : hˡ ∼ hʳ) ->
            ∃ \i -> Tree (i ⊕ (1 + max bal))
   joinʳ⁺ t₁ k₂ (1# , node
@@ -153,7 +156,7 @@ module Indexed where
   joinʳ⁺ t₁ k₂ (0# , t₃)               bal = (0# , node t₁ k₂ t₃ bal)
 
   joinˡ⁻ : forall hˡ {hʳ} ->
-           (∃ \i -> Tree (i ⊕ hˡ -1)) -> Key -> Tree hʳ ->
+           (∃ \i -> Tree (i ⊕ hˡ -1)) -> KV -> Tree hʳ ->
            (bal : hˡ ∼ hʳ) ->
            ∃ \i -> Tree (i ⊕ max bal)
   joinˡ⁻ zero    (0# , t₁) k₂ t₃ bal = (1# , node t₁ k₂ t₃ bal)
@@ -164,7 +167,7 @@ module Indexed where
   joinˡ⁻ (suc _) (1# , t₁) k₂ t₃ bal = (1# , node t₁ k₂ t₃ bal)
 
   joinʳ⁻ : forall {hˡ} hʳ ->
-           Tree hˡ -> Key -> (∃ \i -> Tree (i ⊕ hʳ -1)) ->
+           Tree hˡ -> KV -> (∃ \i -> Tree (i ⊕ hʳ -1)) ->
            (bal : hˡ ∼ hʳ) ->
            ∃ \i -> Tree (i ⊕ max bal)
   joinʳ⁻ zero    t₁ k₂ (0# , t₃) bal = (1# , node t₁ k₂ t₃ bal)
@@ -178,7 +181,7 @@ module Indexed where
   -- Logarithmic in the size of the tree.
 
   headTail : forall {h} -> Tree (1 + h) ->
-             Key × ∃ \i -> Tree (i ⊕ h)
+             KV × ∃ \i -> Tree (i ⊕ h)
   headTail (node leaf k₁ t₂ ∼+) = (k₁ , 0# , t₂)
   headTail (node leaf k₁ t₂ ∼0) = (k₁ , 0# , t₂)
   headTail (node {hˡ = suc _} t₁₂ k₃ t₄ bal) with headTail t₁₂
@@ -188,7 +191,7 @@ module Indexed where
   -- Logarithmic in the size of the tree.
 
   initLast : forall {h} -> Tree (1 + h) ->
-             ∃ (\i -> Tree (i ⊕ h)) × Key
+             ∃ (\i -> Tree (i ⊕ h)) × KV
   initLast (node t₁ k₂ leaf ∼-) = ((0# , t₁) , k₂)
   initLast (node t₁ k₂ leaf ∼0) = ((0# , t₁) , k₂)
   initLast (node {hʳ = suc _} t₁ k₂ t₃₄ bal) with initLast t₃₄
@@ -211,20 +214,20 @@ module Indexed where
 
   -- A singleton tree.
 
-  singleton : Key -> Tree 1
-  singleton k = node leaf k leaf ∼0
+  singleton : (k : Key) -> Value k -> Tree 1
+  singleton k v = node leaf (k , v) leaf ∼0
 
   -- Inserts a key into the tree. If the key already exists, then it
   -- is replaced. Logarithmic in the size of the tree (assuming
   -- constant-time comparisons).
 
-  insert : forall {h} -> Key -> Tree h ->
+  insert : forall {h} -> (k : Key) -> Value k -> Tree h ->
            ∃ \i -> Tree (i ⊕ h)
-  insert k leaf              = (1# , singleton k)
-  insert k (node l k′ r bal) with compare k k′
-  ... | tri< _ _ _ = joinˡ⁺ (insert k l) k′ r bal
-  ... | tri≈ _ _ _ = (0# , node l k r bal)
-  ... | tri> _ _ _ = joinʳ⁺ l k′ (insert k r) bal
+  insert k v leaf             = (1# , singleton k v)
+  insert k v (node l p r bal) with compare k (proj₁ p)
+  ... | tri< _ _ _ = joinˡ⁺ (insert k v l) p r bal
+  ... | tri≈ _ _ _ = (0# , node l (k , v) r bal)
+  ... | tri> _ _ _ = joinʳ⁺ l p (insert k v r) bal
 
   -- Deletes the key/value pair containing the given key, if any.
   -- Logarithmic in the size of the tree (assuming constant-time
@@ -232,20 +235,21 @@ module Indexed where
 
   delete : forall {h} -> Key -> Tree h ->
            ∃ \i -> Tree (i ⊕ h -1)
-  delete k leaf              = (0# , leaf)
-  delete k (node l k′ r bal) with compare k k′
-  ... | tri< _ _ _ = joinˡ⁻ _ (delete k l) k′ r bal
+  delete k leaf             = (0# , leaf)
+  delete k (node l p r bal) with compare k (proj₁ p)
+  ... | tri< _ _ _ = joinˡ⁻ _ (delete k l) p r bal
   ... | tri≈ _ _ _ = join l r bal
-  ... | tri> _ _ _ = joinʳ⁻ _ l k′ (delete k r) bal
+  ... | tri> _ _ _ = joinʳ⁻ _ l p (delete k r) bal
 
   -- Looks up a key in the tree. Logarithmic in the size of the tree
   -- (assuming constant-time comparisons).
 
-  lookup : forall {h} -> (k : Key) -> Tree h -> Maybe (∃ \k′ -> k ≈ k′)
-  lookup k leaf            = nothing
-  lookup k (node l k′ r _) with compare k k′
+  lookup : forall {h} -> (k : Key) -> Tree h ->
+           Maybe (∃ \k′ -> Value k′ × k ≈ k′)
+  lookup k leaf                  = nothing
+  lookup k (node l (k′ , v) r _) with compare k k′
   ... | tri< _ _  _ = lookup k l
-  ... | tri≈ _ eq _ = just (k′ , eq)
+  ... | tri≈ _ eq _ = just (k′ , v , eq)
   ... | tri> _ _  _ = lookup k r
 
   -- Converts the tree to an ordered list. Linear in the size of the
@@ -253,7 +257,7 @@ module Indexed where
 
   open DiffList
 
-  toDiffList : forall {h} -> Tree h -> DiffList Key
+  toDiffList : forall {h} -> Tree h -> DiffList KV
   toDiffList leaf           = []
   toDiffList (node l k r _) = toDiffList l ++ [ k ] ++ toDiffList r
 
@@ -266,39 +270,39 @@ data Tree : Set where
 empty : Tree
 empty = tree Indexed.empty
 
-singleton : Key -> Tree
-singleton k = tree (Indexed.singleton k)
+singleton : (k : Key) -> Value k -> Tree
+singleton k v = tree (Indexed.singleton k v)
 
-insert : Key -> Tree -> Tree
-insert k (tree t) with Indexed.insert k t
+insert : (k : Key) -> Value k -> Tree -> Tree
+insert k v (tree t) with Indexed.insert k v t
 ... | (_ , t′) = tree t′
 
 delete : Key -> Tree -> Tree
 delete k (tree t) with Indexed.delete k t
 ... | (_ , t′) = tree t′
 
-lookup : (k : Key) -> Tree -> Maybe (∃ \k′ -> k ≈ k′)
+lookup : (k : Key) -> Tree -> Maybe (∃ \k′ -> Value k′ × k ≈ k′)
 lookup k (tree t) = Indexed.lookup k t
 
 _∈?_ : Key -> Tree -> Bool
 k ∈? t = maybeToBool (lookup k t)
 
-headTail : Tree -> Maybe (Key × Tree)
+headTail : Tree -> Maybe (KV × Tree)
 headTail (tree leaf)          = nothing
 headTail (tree {h = suc _} t) with Indexed.headTail t
 ... | (k , _ , t′) = just (k , tree t′)
 
-initLast : Tree -> Maybe (Tree × Key)
+initLast : Tree -> Maybe (Tree × KV)
 initLast (tree leaf)          = nothing
 initLast (tree {h = suc _} t) with Indexed.initLast t
 ... | ((_ , t′) , k) = just (tree t′ , k)
 
 -- The input does not need to be ordered.
 
-fromList : List Key -> Tree
-fromList = List.foldr insert empty
+fromList : List KV -> Tree
+fromList = List.foldr (Σ-uncurry insert) empty
 
 -- Returns an ordered list.
 
-toList : Tree -> List Key
+toList : Tree -> List KV
 toList (tree t) = DiffList.toList (Indexed.toDiffList t)
