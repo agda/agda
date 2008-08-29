@@ -215,7 +215,8 @@ module Indexed where
   singleton k = node leaf k leaf ∼0
 
   -- Inserts a key into the tree. If the key already exists, then it
-  -- is replaced. Logarithmic in the size of the tree.
+  -- is replaced. Logarithmic in the size of the tree (assuming
+  -- constant-time comparisons).
 
   insert : forall {h} -> Key -> Tree h ->
            ∃ \i -> Tree (i ⊕ h)
@@ -226,7 +227,8 @@ module Indexed where
   ... | tri> _ _ _ = joinʳ⁺ l k′ (insert k r) bal
 
   -- Deletes the key/value pair containing the given key, if any.
-  -- Logarithmic in the size of the tree.
+  -- Logarithmic in the size of the tree (assuming constant-time
+  -- comparisons).
 
   delete : forall {h} -> Key -> Tree h ->
            ∃ \i -> Tree (i ⊕ h -1)
@@ -236,7 +238,8 @@ module Indexed where
   ... | tri≈ _ _ _ = join l r bal
   ... | tri> _ _ _ = joinʳ⁻ _ l k′ (delete k r) bal
 
-  -- Looks up a key in the tree. Logarithmic in the size of the tree.
+  -- Looks up a key in the tree. Logarithmic in the size of the tree
+  -- (assuming constant-time comparisons).
 
   lookup : forall {h} -> (k : Key) -> Tree h -> Maybe (∃ \k′ -> k ≈ k′)
   lookup k leaf            = nothing
