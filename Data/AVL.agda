@@ -238,12 +238,12 @@ module Indexed where
 
   -- Looks up a key in the tree. Logarithmic in the size of the tree.
 
-  lookup : forall {h} -> Key -> Tree h -> Maybe Key
+  lookup : forall {h} -> (k : Key) -> Tree h -> Maybe (∃ \k′ -> k ≈ k′)
   lookup k leaf            = nothing
   lookup k (node l k′ r _) with compare k k′
-  ... | tri< _ _ _ = lookup k l
-  ... | tri≈ _ _ _ = just k′
-  ... | tri> _ _ _ = lookup k r
+  ... | tri< _ _  _ = lookup k l
+  ... | tri≈ _ eq _ = just (k′ , eq)
+  ... | tri> _ _  _ = lookup k r
 
   -- Converts the tree to an ordered list. Linear in the size of the
   -- tree.
@@ -274,7 +274,7 @@ delete : Key -> Tree -> Tree
 delete k (tree t) with Indexed.delete k t
 ... | (_ , t′) = tree t′
 
-lookup : Key -> Tree -> Maybe Key
+lookup : (k : Key) -> Tree -> Maybe (∃ \k′ -> k ≈ k′)
 lookup k (tree t) = Indexed.lookup k t
 
 _∈?_ : Key -> Tree -> Bool
