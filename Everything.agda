@@ -37,6 +37,7 @@ import Category.Monad.State
 
 import Data.AVL
 import Data.AVL.IndexedMap
+import Data.AVL.Sets
 import Data.Bin
 import Data.Bool
 import Data.Bool.Properties
