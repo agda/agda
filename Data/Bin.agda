@@ -8,7 +8,7 @@ import Data.Nat as Nat
 open Nat using (ℕ)
 open import Data.Digit
 import Data.Fin as Fin
-open Fin using (Fin; zero)
+open Fin using (Fin; zero) renaming (suc to 1+_)
 open import Data.Fin.Props using (_+′_)
 open import Data.List
 import Data.Vec as Vec
@@ -58,10 +58,10 @@ toℕ = fromDigits ∘ toBits
 -- significant one.
 
 fromBits' : List Bit -> Bin
-fromBits' []                  = 0#
-fromBits' (zero         ∷ bs) = fromBits' bs
-fromBits' (Fin.suc zero ∷ bs) = reverse bs 1#
-fromBits' (Fin.suc (Fin.suc ()) ∷ _)
+fromBits' []              = 0#
+fromBits' (zero     ∷ bs) = fromBits' bs
+fromBits' (1+ zero  ∷ bs) = reverse bs 1#
+fromBits' (1+ 1+ () ∷ _)
 
 -- Converting from a list of bits, starting with the _least_
 -- significant one.
@@ -122,58 +122,51 @@ _*2+1 : Bin -> Bin
 ⌊ [] 1#       /2⌋ = 0#
 ⌊ (b ∷ bs) 1# /2⌋ = bs 1#
 
-private
- module Dummy where
+-- Addition.
 
-  open Fin using (suc)
+Carry : Set
+Carry = Bit
 
-  -- Addition.
+addBits : Carry -> Bit -> Bit -> Carry × Bit
+addBits c b₁ b₂ with c +′ (b₁ +′ b₂)
+... | zero          = (0b , 0b)
+... | 1+ zero       = (0b , 1b)
+... | 1+ 1+ zero    = (1b , 0b)
+... | 1+ 1+ 1+ zero = (1b , 1b)
+... | 1+ 1+ 1+ 1+ ()
 
-  Carry : Set
-  Carry = Bit
+addCarryToBitList : Carry -> List Bit -> List Bit
+addCarryToBitList zero      bs             = bs
+addCarryToBitList (1+ zero) []             = 1b ∷ []
+addCarryToBitList (1+ zero) (zero    ∷ bs) = 1b ∷ bs
+addCarryToBitList (1+ zero) (1+ zero ∷ bs) = 0b ∷ addCarryToBitList 1b bs
+addCarryToBitList (1+ 1+ ()) _
+addCarryToBitList _ ((1+ 1+ ()) ∷ _)
 
-  addBits : Carry -> Bit -> Bit -> Carry × Bit
-  addBits c b₁ b₂ with c +′ (b₁ +′ b₂)
-  ... | zero                 = (0b , 0b)
-  ... | suc zero             = (0b , 1b)
-  ... | suc (suc zero)       = (1b , 0b)
-  ... | suc (suc (suc zero)) = (1b , 1b)
-  ... | suc (suc (suc (suc ())))
+addBitLists : Carry -> List Bit -> List Bit -> List Bit
+addBitLists c []         bs₂        = addCarryToBitList c bs₂
+addBitLists c bs₁        []         = addCarryToBitList c bs₁
+addBitLists c (b₁ ∷ bs₁) (b₂ ∷ bs₂) with addBits c b₁ b₂
+... | (c' , b') = b' ∷ addBitLists c' bs₁ bs₂
 
-  addCarryToBitList : Carry -> List Bit -> List Bit
-  addCarryToBitList zero       bs              = bs
-  addCarryToBitList (suc zero) []              = 1b ∷ []
-  addCarryToBitList (suc zero) (zero     ∷ bs) = 1b ∷ bs
-  addCarryToBitList (suc zero) (suc zero ∷ bs) = 0b ∷ addCarryToBitList 1b bs
-  addCarryToBitList (suc (suc ())) _
-  addCarryToBitList _ (suc (suc ()) ∷ _)
+infixl 6 _+_
 
-  addBitLists : Carry -> List Bit -> List Bit -> List Bit
-  addBitLists c []         bs₂        = addCarryToBitList c bs₂
-  addBitLists c bs₁        []         = addCarryToBitList c bs₁
-  addBitLists c (b₁ ∷ bs₁) (b₂ ∷ bs₂) with addBits c b₁ b₂
-  ... | (c' , b') = b' ∷ addBitLists c' bs₁ bs₂
+_+_ : Bin -> Bin -> Bin
+m + n = fromBits (addBitLists 0b (toBits m) (toBits n))
 
-  infixl 6 _+_
+-- Multiplication.
 
-  _+_ : Bin -> Bin -> Bin
-  m + n = fromBits (addBitLists 0b (toBits m) (toBits n))
+infixl 7 _*_
 
-  -- Multiplication.
-
-  infixl 7 _*_
-
-  _*_ : Bin -> Bin -> Bin
-  0#                 * n = 0#
-  []              1# * n = n
-  -- (b + 2 * bs 1#) * n = b * n + 2 * (bs 1# * n)
-  (b        ∷ bs) 1# * n with bs 1# * n
-  (b        ∷ bs) 1# * n | 0#     = 0#
-  (zero     ∷ bs) 1# * n | bs' 1# = (0b ∷ bs') 1#
-  (suc zero ∷ bs) 1# * n | bs' 1# = n + (0b ∷ bs') 1#
-  (suc (suc ()) ∷ _) 1# * _ | _
-
-open Dummy public
+_*_ : Bin -> Bin -> Bin
+0#                 * n = 0#
+[]              1# * n = n
+-- (b + 2 * bs 1#) * n = b * n + 2 * (bs 1# * n)
+(b        ∷ bs) 1# * n with bs 1# * n
+(b        ∷ bs) 1# * n | 0#     = 0#
+(zero     ∷ bs) 1# * n | bs' 1# = (0b ∷ bs') 1#
+(1+ zero  ∷ bs) 1# * n | bs' 1# = n + (0b ∷ bs') 1#
+((1+ 1+ ()) ∷ _) 1# * _ | _
 
 -- Successor.
 
