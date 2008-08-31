@@ -63,6 +63,14 @@ replicate : forall {a} -> (n : ℕ) -> a -> List a
 replicate zero    x = []
 replicate (suc n) x = x ∷ replicate n x
 
+zipWith : forall {A B C} ->
+          (A -> B -> C) -> List A -> List B -> List C
+zipWith f (x ∷ xs) (y ∷ ys) = f x y ∷ zipWith f xs ys
+zipWith f _        _        = []
+
+zip : forall {A B} -> List A -> List B -> List (A × B)
+zip = zipWith (_,_)
+
 -- * Reducing lists (folds)
 
 foldr : {a b : Set} -> (a -> b -> b) -> b -> List a -> b
