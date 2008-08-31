@@ -365,6 +365,129 @@ distributiveLattice = record
   }
 
 ------------------------------------------------------------------------
+-- Converting between ≤ and ≤′
+
+≤-step : forall {m n} -> m ≤ n -> m ≤ 1 + n
+≤-step z≤n       = z≤n
+≤-step (s≤s m≤n) = s≤s (≤-step m≤n)
+
+≤′⇒≤ : _≤′_ ⇒ _≤_
+≤′⇒≤ ≤′-refl        = ≤-refl
+≤′⇒≤ (≤′-step m≤′n) = ≤-step (≤′⇒≤ m≤′n)
+
+z≤′n : forall {n} -> zero ≤′ n
+z≤′n {zero}  = ≤′-refl
+z≤′n {suc n} = ≤′-step z≤′n
+
+s≤′s : forall {m n} -> m ≤′ n -> suc m ≤′ suc n
+s≤′s ≤′-refl        = ≤′-refl
+s≤′s (≤′-step m≤′n) = ≤′-step (s≤′s m≤′n)
+
+≤⇒≤′ : _≤_ ⇒ _≤′_
+≤⇒≤′ z≤n       = z≤′n
+≤⇒≤′ (s≤s m≤n) = s≤′s (≤⇒≤′ m≤n)
+
+------------------------------------------------------------------------
+-- Various order-related properties
+
+≤≥⇒≡ : forall {m n} -> m ≤ n -> m ≥ n -> m ≡ n
+≤≥⇒≡ z≤n       z≤n       = ≡-refl
+≤≥⇒≡ (s≤s m≤n) (s≤s m≥n) = ≡-cong suc (≤≥⇒≡ m≤n m≥n)
+
+m≤m+n : forall m n -> m ≤ m + n
+m≤m+n zero    n = z≤n
+m≤m+n (suc m) n = s≤s (m≤m+n m n)
+
+m≤′m+n : forall m n -> m ≤′ m + n
+m≤′m+n m n = ≤⇒≤′ (m≤m+n m n)
+
+n≤′m+n : forall m n -> n ≤′ m + n
+n≤′m+n zero    n = ≤′-refl
+n≤′m+n (suc m) n = ≤′-step (n≤′m+n m n)
+
+n≤m+n : forall m n -> n ≤ m + n
+n≤m+n m n = ≤′⇒≤ (n≤′m+n m n)
+
+n≤1+n : forall n -> n ≤ 1 + n
+n≤1+n _ = ≤-step ≤-refl
+
+1+n≰n : forall {n} -> ¬ 1 + n ≤ n
+1+n≰n (s≤s le) = 1+n≰n le
+
+≤pred⇒≤ : forall m n -> m ≤ pred n -> m ≤ n
+≤pred⇒≤ m zero    le = le
+≤pred⇒≤ m (suc n) le = ≤-step le
+
+¬i+1+j≤i : forall i {j} -> ¬ i + suc j ≤ i
+¬i+1+j≤i zero    ()
+¬i+1+j≤i (suc i) le = ¬i+1+j≤i i (≤-pred le)
+
+n∸m≤n : forall m n -> n ∸ m ≤ n
+n∸m≤n zero    n       = ≤-refl
+n∸m≤n (suc m) zero    = ≤-refl
+n∸m≤n (suc m) (suc n) = start
+  n ∸ m  ≤⟨ n∸m≤n m n ⟩
+  n      ≤⟨ n≤1+n n ⟩
+  suc n  □
+
+n≤m+n∸m : forall m n -> n ≤ m + (n ∸ m)
+n≤m+n∸m m       zero    = z≤n
+n≤m+n∸m zero    (suc n) = ≤-refl
+n≤m+n∸m (suc m) (suc n) = s≤s (n≤m+n∸m m n)
+
+m⊓n≤m : forall m n -> m ⊓ n ≤ m
+m⊓n≤m zero    _       = z≤n
+m⊓n≤m (suc m) zero    = z≤n
+m⊓n≤m (suc m) (suc n) = s≤s $ m⊓n≤m m n
+
+⌈n/2⌉≤′n : forall n -> ⌈ n /2⌉ ≤′ n
+⌈n/2⌉≤′n zero          = ≤′-refl
+⌈n/2⌉≤′n (suc zero)    = ≤′-refl
+⌈n/2⌉≤′n (suc (suc n)) = s≤′s (≤′-step (⌈n/2⌉≤′n n))
+
+⌊n/2⌋≤′n : forall n -> ⌊ n /2⌋ ≤′ n
+⌊n/2⌋≤′n zero    = ≤′-refl
+⌊n/2⌋≤′n (suc n) = ≤′-step (⌈n/2⌉≤′n n)
+
+<-trans : Transitive _<_
+<-trans {i} {j} {k} i<j j<k = start
+  1 + i  ≤⟨ i<j ⟩
+  j      ≤⟨ n≤1+n j ⟩
+  1 + j  ≤⟨ j<k ⟩
+  k      □
+
+------------------------------------------------------------------------
+-- (ℕ, _≡_, _<_) is a strict total order
+
+private
+
+  2+m+n≰m : forall {m n} -> ¬ 2 + (m + n) ≤ m
+  2+m+n≰m (s≤s le) = 2+m+n≰m le
+
+  m≢1+m+n : forall m {n} -> m ≢ suc (m + n)
+  m≢1+m+n zero    ()
+  m≢1+m+n (suc m) eq = m≢1+m+n m (≡-cong pred eq)
+
+  cmp : Trichotomous _≡_ _<_
+  cmp m n with compare m n
+  cmp .m .(suc (m + k)) | less    m k = tri< (m≤m+n (suc m) k) (m≢1+m+n _) 2+m+n≰m
+  cmp .n             .n | equal   n   = tri≈ 1+n≰n ≡-refl 1+n≰n
+  cmp .(suc (n + k)) .n | greater n k = tri> 2+m+n≰m (m≢1+m+n _ ∘ ≡-sym) (m≤m+n (suc n) k)
+
+strictTotalOrder : StrictTotalOrder
+strictTotalOrder = record
+  { carrier            = ℕ
+  ; _≈_                = _≡_
+  ; _<_                = _<_
+  ; isStrictTotalOrder = record
+    { isEquivalence = ≡-isEquivalence
+    ; trans         = <-trans
+    ; compare       = cmp
+    ; ≈-resp-<      = ≡-resp _<_
+    }
+  }
+
+------------------------------------------------------------------------
 -- Miscellaneous other properties
 
 0∸n≡0 : LeftZero zero _∸_
@@ -474,87 +597,9 @@ im≡jm+n⇒[i∸j]m≡n (suc i) (suc j) m n eq =
     m + (j * m + n)
       ∎
 
-≤≥⇒≡ : forall {m n} -> m ≤ n -> m ≥ n -> m ≡ n
-≤≥⇒≡ z≤n       z≤n       = ≡-refl
-≤≥⇒≡ (s≤s m≤n) (s≤s m≥n) = ≡-cong suc (≤≥⇒≡ m≤n m≥n)
-
--- Converting between ≤ and ≤′.
-
-≤-step : forall {m n} -> m ≤ n -> m ≤ 1 + n
-≤-step z≤n       = z≤n
-≤-step (s≤s m≤n) = s≤s (≤-step m≤n)
-
-≤′⇒≤ : _≤′_ ⇒ _≤_
-≤′⇒≤ ≤′-refl        = ≤-refl
-≤′⇒≤ (≤′-step m≤′n) = ≤-step (≤′⇒≤ m≤′n)
-
-z≤′n : forall {n} -> zero ≤′ n
-z≤′n {zero}  = ≤′-refl
-z≤′n {suc n} = ≤′-step z≤′n
-
-s≤′s : forall {m n} -> m ≤′ n -> suc m ≤′ suc n
-s≤′s ≤′-refl        = ≤′-refl
-s≤′s (≤′-step m≤′n) = ≤′-step (s≤′s m≤′n)
-
-≤⇒≤′ : _≤_ ⇒ _≤′_
-≤⇒≤′ z≤n       = z≤′n
-≤⇒≤′ (s≤s m≤n) = s≤′s (≤⇒≤′ m≤n)
-
-m≤m+n : forall m n -> m ≤ m + n
-m≤m+n zero    n = z≤n
-m≤m+n (suc m) n = s≤s (m≤m+n m n)
-
-m≤′m+n : forall m n -> m ≤′ m + n
-m≤′m+n m n = ≤⇒≤′ (m≤m+n m n)
-
-n≤′m+n : forall m n -> n ≤′ m + n
-n≤′m+n zero    n = ≤′-refl
-n≤′m+n (suc m) n = ≤′-step (n≤′m+n m n)
-
-n≤m+n : forall m n -> n ≤ m + n
-n≤m+n m n = ≤′⇒≤ (n≤′m+n m n)
-
-n≤1+n : forall n -> n ≤ 1 + n
-n≤1+n _ = ≤-step ≤-refl
-
-≤pred⇒≤ : forall m n -> m ≤ pred n -> m ≤ n
-≤pred⇒≤ m zero    le = le
-≤pred⇒≤ m (suc n) le = ≤-step le
-
-¬i+1+j≤i : forall i {j} -> ¬ i + suc j ≤ i
-¬i+1+j≤i zero    ()
-¬i+1+j≤i (suc i) le = ¬i+1+j≤i i (≤-pred le)
-
 i+1+j≢i : forall i {j} -> i + suc j ≢ i
 i+1+j≢i i eq = ¬i+1+j≤i i (reflexive eq)
   where open DecTotalOrder decTotalOrder
-
-n∸m≤n : forall m n -> n ∸ m ≤ n
-n∸m≤n zero    n       = ≤-refl
-n∸m≤n (suc m) zero    = ≤-refl
-n∸m≤n (suc m) (suc n) = start
-  n ∸ m  ≤⟨ n∸m≤n m n ⟩
-  n      ≤⟨ n≤1+n n ⟩
-  suc n  □
-
-n≤m+n∸m : forall m n -> n ≤ m + (n ∸ m)
-n≤m+n∸m m       zero    = z≤n
-n≤m+n∸m zero    (suc n) = ≤-refl
-n≤m+n∸m (suc m) (suc n) = s≤s (n≤m+n∸m m n)
-
-m⊓n≤m : forall m n -> m ⊓ n ≤ m
-m⊓n≤m zero    _       = z≤n
-m⊓n≤m (suc m) zero    = z≤n
-m⊓n≤m (suc m) (suc n) = s≤s $ m⊓n≤m m n
-
-⌈n/2⌉≤′n : forall n -> ⌈ n /2⌉ ≤′ n
-⌈n/2⌉≤′n zero          = ≤′-refl
-⌈n/2⌉≤′n (suc zero)    = ≤′-refl
-⌈n/2⌉≤′n (suc (suc n)) = s≤′s (≤′-step (⌈n/2⌉≤′n n))
-
-⌊n/2⌋≤′n : forall n -> ⌊ n /2⌋ ≤′ n
-⌊n/2⌋≤′n zero    = ≤′-refl
-⌊n/2⌋≤′n (suc n) = ≤′-step (⌈n/2⌉≤′n n)
 
 ⌊n/2⌋-mono : ⌊_/2⌋ Preserves _≤_ → _≤_
 ⌊n/2⌋-mono z≤n             = z≤n
