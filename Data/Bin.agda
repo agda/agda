@@ -13,7 +13,7 @@ import Data.Fin as Fin
 open Fin using (Fin; zero) renaming (suc to 1+_)
 import Data.Fin.Props as FP
 open FP using (_+′_)
-open import Data.List hiding (downFrom)
+import Data.List as List; open List hiding (downFrom)
 open import Data.Function
 open import Data.Product
 open import Algebra
@@ -290,3 +290,67 @@ downFrom n = helper n (fromℕ n)
   -- Impossible cases:
   helper zero   (_ 1#)  = []
   helper (1+ _) 0#      = []
+
+------------------------------------------------------------------------
+-- Tests
+
+-- The tests below are run when this module is type checked.
+
+-- First some test helpers:
+
+private
+
+  testLimit : ℕ
+  testLimit = 5
+
+  nats : List ℕ
+  nats = List.downFrom testLimit
+
+  nats⁺ : List ℕ
+  nats⁺ = filter (\n -> decToBool (Nat._≤?_ 1 n)) nats
+
+  natPairs : List (ℕ × ℕ)
+  natPairs = zip nats (reverse nats)
+
+  _=[_]_ : (ℕ -> ℕ) -> List ℕ -> (Bin -> Bin) -> Set
+  f =[ ns ] g = map f ns ≡ map (toℕ ∘ g ∘ fromℕ) ns
+
+  _=[_]₂_ : (ℕ -> ℕ -> ℕ) -> List (ℕ × ℕ) -> (Bin -> Bin -> Bin) -> Set
+  f =[ ps ]₂ g =
+    map (uncurry f) ps ≡ map (toℕ ∘ uncurry (g on fromℕ)) ps
+
+-- And then the tests:
+
+private
+
+  test-*2+1 : (\n -> Nat._+_ (Nat._*_ n 2) 1) =[ nats ] _*2+1
+  test-*2+1 = ≡-refl
+
+  test-*2 : (\n -> Nat._*_ n 2) =[ nats ] _*2
+  test-*2 = ≡-refl
+
+  test-⌊_/2⌋ : Nat.⌊_/2⌋ =[ nats ] ⌊_/2⌋
+  test-⌊_/2⌋ = ≡-refl
+
+  test-+ : Nat._+_ =[ natPairs ]₂ _+_
+  test-+ = ≡-refl
+
+  test-* : Nat._*_ =[ natPairs ]₂ _*_
+  test-* = ≡-refl
+
+  test-suc : 1+_ =[ nats ] suc
+  test-suc = ≡-refl
+
+  test-⌈_/2⌉ : Nat.⌈_/2⌉ =[ nats ] ⌈_/2⌉
+  test-⌈_/2⌉ = ≡-refl
+
+  drop-1# : Bin -> Bin⁺
+  drop-1# 0#      = []
+  drop-1# (bs 1#) = bs
+
+  test-pred : Nat.pred =[ nats⁺ ] (pred ∘ drop-1#)
+  test-pred = ≡-refl
+
+  test-downFrom : map toℕ (downFrom testLimit) ≡
+                  List.downFrom testLimit
+  test-downFrom = ≡-refl
