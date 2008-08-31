@@ -9,6 +9,7 @@ open import Data.Nat.DivMod
 open import Data.Nat.Properties
 import Data.Fin as Fin
 open Fin using (Fin; zero; suc; #_)
+import Data.Fin.Props as FP
 open import Data.Vec
 open SemiringSolver
 open import Algebra
@@ -123,7 +124,7 @@ nonZeroDivisor-lemma m zero r r≢zero (divides (suc q) eq) =
     1 * Fin.toℕ r
       ≡⟨ proj₁ CS.*-identity (Fin.toℕ r) ⟩
     Fin.toℕ r
-      ≤⟨ ≤-pred $ Fin.bounded r ⟩
+      ≤⟨ ≤-pred $ FP.bounded r ⟩
     m
       ∎
   where open ≤-Reasoning

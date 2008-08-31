@@ -9,7 +9,8 @@ open Nat using (ℕ)
 open import Data.Digit
 import Data.Fin as Fin
 open Fin using (Fin; zero) renaming (suc to 1+_)
-open import Data.Fin.Props using (_+′_)
+import Data.Fin.Props as FP
+open FP using (_+′_)
 open import Data.List
 import Data.Vec as Vec
 open import Data.Function
@@ -20,7 +21,7 @@ open import Relation.Nullary
 import Data.List.Equality as ListEq
 private
   module DecEq  = DecSetoid (ListEq.DecidableEquality.decSetoid
-                               (Fin.decSetoid 2))
+                               (FP.decSetoid 2))
   module PropEq = ListEq.PropositionalEquality (Fin 2)
 
 ------------------------------------------------------------------------

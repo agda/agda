@@ -9,17 +9,17 @@
 module Data.Fin where
 
 import Data.Nat as Nat
-open Nat using (ℕ; zero; suc; _≤_; _<_)
-         renaming (_+_ to _N+_; _∸_ to _N∸_; _≤?_ to _N≤?_)
+open Nat using (ℕ; zero; suc; z≤n; s≤s)
+         renaming ( _+_ to _N+_; _∸_ to _N∸_
+                  ; _≤_ to _N≤_; _<_ to _N<_; _≤?_ to _N≤?_)
 open import Data.Function
-open import Data.Empty
 open import Relation.Nullary
 open import Relation.Binary
-open import Relation.Binary.PropositionalEquality
-open import Algebra
 
 ------------------------------------------------------------------------
 -- The type
+
+-- Fin n is a type with n elements.
 
 data Fin : ℕ -> Set where
   zero : {n : ℕ} -> Fin (suc n)
@@ -42,7 +42,7 @@ fromℕ (suc n) = suc (fromℕ n)
 
 -- fromℕ≤ {m} _ = "m".
 
-fromℕ≤ : forall {m n} -> m < n -> Fin n
+fromℕ≤ : forall {m n} -> m N< n -> Fin n
 fromℕ≤ (Nat.s≤s Nat.z≤n)       = zero
 fromℕ≤ (Nat.s≤s (Nat.s≤s m≤n)) = suc (fromℕ≤ (Nat.s≤s m≤n))
 
@@ -67,7 +67,7 @@ inject₁ : forall {m} -> Fin m -> Fin (suc m)
 inject₁ zero    = zero
 inject₁ (suc i) = suc (inject₁ i)
 
-inject≤ : forall {m n} -> Fin m -> m ≤ n -> Fin n
+inject≤ : forall {m n} -> Fin m -> m N≤ n -> Fin n
 inject≤ zero    (Nat.s≤s le) = zero
 inject≤ (suc i) (Nat.s≤s le) = suc (inject≤ i le)
 
@@ -126,38 +126,12 @@ pred zero    = zero
 pred (suc i) = inject₁ i
 
 ------------------------------------------------------------------------
--- Queries
+-- Order relations
 
-zero≢suc : forall {n} {x : Fin n} ->
-           ¬ zero ≡ (Fin (suc n) ∶ suc x)
-zero≢suc ()
+infix 4 _≤_ _<_
 
-private
-  drop-suc : forall {o} {m n : Fin o} ->
-             suc m ≡ (Fin (suc o) ∶ suc n) -> m ≡ n
-  drop-suc ≡-refl = ≡-refl
+_≤_ : forall {n} -> Rel (Fin n)
+_≤_ = _N≤_ on₁ toℕ
 
-_≟_ : {n : ℕ} -> Decidable {Fin n} _≡_
-zero  ≟ zero   = yes ≡-refl
-suc m ≟ suc n  with m ≟ n
-suc m ≟ suc .m | yes ≡-refl = yes ≡-refl
-suc m ≟ suc n  | no prf     = no (prf ∘ drop-suc)
-zero  ≟ suc n  = no (⊥-elim ∘ zero≢suc)
-suc m ≟ zero   = no (⊥-elim ∘ zero≢suc ∘ sym)
-  where sym = IsEquivalence.sym ≡-isEquivalence
-
-------------------------------------------------------------------------
--- Some properties
-
-preorder : ℕ -> Preorder
-preorder n = ≡-preorder (Fin n)
-
-setoid : ℕ -> Setoid
-setoid n = ≡-setoid (Fin n)
-
-decSetoid : ℕ -> DecSetoid
-decSetoid n = ≡-decSetoid (_≟_ {n = n})
-
-bounded : forall {n} (i : Fin n) -> toℕ i < n
-bounded zero    = Nat.s≤s Nat.z≤n
-bounded (suc i) = Nat.s≤s (bounded i)
+_<_ : forall {n} -> Rel (Fin n)
+_<_ = _N<_ on₁ toℕ

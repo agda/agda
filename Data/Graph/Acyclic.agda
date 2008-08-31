@@ -12,8 +12,9 @@ import Data.Nat as Nat
 open Nat using (ℕ; zero; suc; _<′_)
 import Data.Nat.Properties as Nat
 import Data.Fin as Fin
-open Fin using (Fin; zero; suc; #_; toℕ; _≟_) renaming (_ℕ-ℕ_ to _-_)
-import Data.Fin.Props as Fin
+open Fin using (Fin; zero; suc; #_; toℕ) renaming (_ℕ-ℕ_ to _-_)
+import Data.Fin.Props as FP
+open FP using (_≟_)
 open import Data.Product
 open import Data.Maybe
 open import Data.Function
@@ -34,7 +35,7 @@ private
 
   lemma : forall n (i : Fin n) -> n - suc i <′ n
   lemma zero    ()
-  lemma (suc n) i  = Nat.≤⇒≤′ $ Nat.s≤s $ Fin.nℕ-ℕi≤n n i
+  lemma (suc n) i  = Nat.≤⇒≤′ $ Nat.s≤s $ FP.nℕ-ℕi≤n n i
 
 ------------------------------------------------------------------------
 -- Node contexts
@@ -244,7 +245,7 @@ private
 -- Weakens a node label.
 
 weaken : forall {n} {i : Fin n} -> Fin (n - suc i) -> Fin n
-weaken {n} {i} j = Fin.inject≤ j (Fin.nℕ-ℕi≤n n (suc i))
+weaken {n} {i} j = Fin.inject≤ j (FP.nℕ-ℕi≤n n (suc i))
 
 -- Labels each node with its node number.
 
@@ -271,7 +272,7 @@ reverse : forall {N E n} -> Graph N E n -> Graph N E n
 reverse {N} {E} g =
   foldl (Graph N E)
         (\i g' c -> context (label c)
-                            (List.map (swap ∘ map-× Fin.reverse id) $
+                            (List.map (swap ∘ map-× FP.reverse id) $
                              preds g i)
                     & g')
         ∅ g
