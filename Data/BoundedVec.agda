@@ -13,7 +13,7 @@ import Data.Vec as Vec
 open Vec using (Vec)
 open import Relation.Binary.PropositionalEquality
 open import Data.Nat.Properties
-open ℕ-semiringSolver
+open SemiringSolver
 open import Data.Fin using (#_)
 
 ------------------------------------------------------------------------

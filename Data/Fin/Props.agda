@@ -43,7 +43,7 @@ infixl 6 _+′_
 
 _+′_ : forall {m n} (i : Fin m) (j : Fin n) -> Fin (Nat.pred m ℕ+ n)
 i +′ j = inject≤ (i + j) (prop-toℕ-≤ i +-mono refl)
-  where open Poset Nat.ℕ-poset
+  where open Poset Nat.poset
 
 -- reverse {n} "i" = "n ∸ 1 ∸ i".
 

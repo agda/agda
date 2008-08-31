@@ -10,10 +10,10 @@ open import Data.Nat.Properties
 import Data.Fin as Fin
 open Fin using (Fin; zero; suc; #_)
 open import Data.Vec
-open ℕ-semiringSolver
+open SemiringSolver
 open import Algebra
 private
-  module CS = CommutativeSemiring ℕ-commutativeSemiring
+  module CS = CommutativeSemiring commutativeSemiring
 open import Data.Product
 open import Relation.Nullary
 open import Relation.Binary

@@ -6,7 +6,7 @@ module Data.Digit where
 
 open import Data.Nat
 open import Data.Nat.Properties
-open ℕ-semiringSolver
+open SemiringSolver
 open import Data.Fin using (Fin; zero; suc; #_; toℕ)
 open import Relation.Nullary
 open import Data.Char using (Char)

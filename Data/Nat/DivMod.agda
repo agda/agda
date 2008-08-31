@@ -6,7 +6,7 @@ module Data.Nat.DivMod where
 
 open import Data.Nat
 open import Data.Nat.Properties
-open ℕ-semiringSolver
+open SemiringSolver
 import Data.Fin as Fin
 open Fin using (Fin; zero; suc; #_; toℕ; fromℕ)
 import Data.Fin.Props as Fin

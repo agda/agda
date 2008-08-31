@@ -41,7 +41,7 @@ sum-++-commute (x ∷ xs) ys = begin
   (x + sum xs) + sum ys
                          ∎
   where
-  open CommutativeSemiring ℕ-commutativeSemiring hiding (_+_)
+  open CommutativeSemiring commutativeSemiring hiding (_+_)
   open ≡-Reasoning
 
 -- Various properties about folds.

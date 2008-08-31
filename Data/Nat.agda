@@ -136,13 +136,6 @@ suc m ⊓ suc n = suc (m ⊓ n)
 ------------------------------------------------------------------------
 -- Queries
 
-ℕ-total : Total _≤_
-ℕ-total zero    _       = inj₁ z≤n
-ℕ-total _       zero    = inj₂ z≤n
-ℕ-total (suc m) (suc n) with ℕ-total m n
-...                     | inj₁ m≤n = inj₁ (s≤s m≤n)
-...                     | inj₂ n≤m = inj₂ (s≤s n≤m)
-
 zero≢suc : forall {n} -> ¬ zero ≡ suc n
 zero≢suc ()
 
@@ -187,14 +180,14 @@ compare (suc .(suc m + k)) (suc .m)           | greater m k = greater (suc m) k
 ------------------------------------------------------------------------
 -- Some properties
 
-ℕ-preorder : Preorder
-ℕ-preorder = ≡-preorder ℕ
+preorder : Preorder
+preorder = ≡-preorder ℕ
 
-ℕ-setoid : Setoid
-ℕ-setoid = ≡-setoid ℕ
+setoid : Setoid
+setoid = ≡-setoid ℕ
 
-ℕ-decTotalOrder : DecTotalOrder
-ℕ-decTotalOrder = record
+decTotalOrder : DecTotalOrder
+decTotalOrder = record
   { carrier         = ℕ
   ; _≈_             = _≡_
   ; _≤_             = _≤_
@@ -209,7 +202,7 @@ compare (suc .(suc m + k)) (suc .m)           | greater m k = greater (suc m) k
                   }
               ; antisym  = antisym
               }
-          ; total = ℕ-total
+          ; total = total
           }
       ; _≟_  = _≟_
       ; _≤?_ = _≤?_
@@ -229,12 +222,19 @@ compare (suc .(suc m + k)) (suc .m)           | greater m k = greater (suc m) k
   trans z≤n       _         = z≤n
   trans (s≤s m≤n) (s≤s n≤o) = s≤s (trans m≤n n≤o)
 
-ℕ-decSetoid : DecSetoid
-ℕ-decSetoid = DecTotalOrder.Eq.decSetoid ℕ-decTotalOrder
+  total : Total _≤_
+  total zero    _       = inj₁ z≤n
+  total _       zero    = inj₂ z≤n
+  total (suc m) (suc n) with total m n
+  ...                   | inj₁ m≤n = inj₁ (s≤s m≤n)
+  ...                   | inj₂ n≤m = inj₂ (s≤s n≤m)
 
-ℕ-poset : Poset
-ℕ-poset = DecTotalOrder.poset ℕ-decTotalOrder
+decSetoid : DecSetoid
+decSetoid = DecTotalOrder.Eq.decSetoid decTotalOrder
+
+poset : Poset
+poset = DecTotalOrder.poset decTotalOrder
 
 import Relation.Binary.PartialOrderReasoning as POR
-module ≤-Reasoning = POR ℕ-poset
+module ≤-Reasoning = POR poset
   renaming (_≈⟨_⟩_ to _≡⟨_⟩_; ≈-byDef to ≡-byDef)

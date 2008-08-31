@@ -9,12 +9,12 @@ open import Data.Nat.Divisibility
 open import Data.Nat.Properties
 open import Algebra
 private
-  module CS = CommutativeSemiring ℕ-commutativeSemiring
+  module CS = CommutativeSemiring commutativeSemiring
 open import Data.Product
 open import Relation.Binary.PropositionalEquality
 open import Data.Fin using (#_)
 open import Data.Vec hiding ([_])
-open ℕ-semiringSolver
+open SemiringSolver
 open import Induction
 open import Induction.Nat
 open import Induction.Lexicographic

@@ -11,13 +11,13 @@ open ≤-Reasoning
 open import Data.Function
 open import Algebra
 open import Algebra.Structures
-import Algebra.FunctionProperties as P; open P ℕ-setoid
+import Algebra.FunctionProperties as P; open P setoid
 open import Relation.Nullary
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality
 open import Data.Product
 
-import Relation.Binary.EqReasoning as EqR; open EqR ℕ-setoid
+import Relation.Binary.EqReasoning as EqR; open EqR setoid
 
 ------------------------------------------------------------------------
 -- (ℕ, +, *, 0, 1) is a commutative semiring
@@ -161,8 +161,8 @@ private
         n
       ∎
 
-ℕ-isCommutativeSemiring : IsCommutativeSemiring ℕ-setoid _+_ _*_ 0 1
-ℕ-isCommutativeSemiring = record
+isCommutativeSemiring : IsCommutativeSemiring setoid _+_ _*_ 0 1
+isCommutativeSemiring = record
   { isSemiring = record
     { isSemiringWithoutAnnihilatingZero = record
       { +-isCommutativeMonoid = record
@@ -189,20 +189,20 @@ private
   ; *-comm = *-comm
   }
 
-ℕ-commutativeSemiring : CommutativeSemiring
-ℕ-commutativeSemiring = record
-  { setoid                = ℕ-setoid
+commutativeSemiring : CommutativeSemiring
+commutativeSemiring = record
+  { setoid                = setoid
   ; _+_                   = _+_
   ; _*_                   = _*_
   ; 0#                    = 0
   ; 1#                    = 1
-  ; isCommutativeSemiring = ℕ-isCommutativeSemiring
+  ; isCommutativeSemiring = isCommutativeSemiring
   }
 
 import Algebra.RingSolver.Simple as Solver
 import Algebra.RingSolver.AlmostCommutativeRing as ACR
-module ℕ-semiringSolver =
-  Solver (ACR.fromCommutativeSemiring ℕ-commutativeSemiring)
+module SemiringSolver =
+  Solver (ACR.fromCommutativeSemiring commutativeSemiring)
 
 ------------------------------------------------------------------------
 -- (ℕ, ⊔, ⊓, 0) is a commutative semiring without one
@@ -283,9 +283,9 @@ private
       n ⊓ m ⊔ o ⊓ m  ≈⟨ ⊓-comm n m ⟨ ≡-cong₂ _⊔_ ⟩ ⊓-comm o m ⟩
       m ⊓ n ⊔ m ⊓ o  ∎
 
-ℕ-⊔-⊓-0-isCommutativeSemiringWithoutOne
-  : IsCommutativeSemiringWithoutOne ℕ-setoid _⊔_ _⊓_ 0
-ℕ-⊔-⊓-0-isCommutativeSemiringWithoutOne = record
+⊔-⊓-0-isCommutativeSemiringWithoutOne
+  : IsCommutativeSemiringWithoutOne setoid _⊔_ _⊓_ 0
+⊔-⊓-0-isCommutativeSemiringWithoutOne = record
   { isSemiringWithoutOne = record
       { +-isCommutativeMonoid = record
           { isMonoid = record
@@ -307,14 +307,14 @@ private
   ; *-comm = ⊓-comm
   }
 
-ℕ-⊔-⊓-0-commutativeSemiringWithoutOne : CommutativeSemiringWithoutOne
-ℕ-⊔-⊓-0-commutativeSemiringWithoutOne = record
-  { setoid                          = ℕ-setoid
+⊔-⊓-0-commutativeSemiringWithoutOne : CommutativeSemiringWithoutOne
+⊔-⊓-0-commutativeSemiringWithoutOne = record
+  { setoid                          = setoid
   ; _+_                             = _⊔_
   ; _*_                             = _⊓_
   ; 0#                              = 0
   ; isCommutativeSemiringWithoutOne =
-      ℕ-⊔-⊓-0-isCommutativeSemiringWithoutOne
+      ⊔-⊓-0-isCommutativeSemiringWithoutOne
   }
 
 ------------------------------------------------------------------------
@@ -342,8 +342,8 @@ private
       m
                    ∎
 
-ℕ-isDistributiveLattice : IsDistributiveLattice ℕ-setoid _⊓_ _⊔_
-ℕ-isDistributiveLattice = record
+isDistributiveLattice : IsDistributiveLattice setoid _⊓_ _⊔_
+isDistributiveLattice = record
   { isLattice = record
       { ∨-comm     = ⊓-comm
       ; ∨-assoc    = ⊓-assoc
@@ -356,12 +356,12 @@ private
   ; ∨-∧-distribʳ = proj₂ distrib-⊓-⊔
   }
 
-ℕ-distributiveLattice : DistributiveLattice
-ℕ-distributiveLattice = record
-  { setoid                = ℕ-setoid
+distributiveLattice : DistributiveLattice
+distributiveLattice = record
+  { setoid                = setoid
   ; _∨_                   = _⊓_
   ; _∧_                   = _⊔_
-  ; isDistributiveLattice = ℕ-isDistributiveLattice
+  ; isDistributiveLattice = isDistributiveLattice
   }
 
 ------------------------------------------------------------------------
@@ -371,12 +371,12 @@ private
 0∸n≡0 zero    = byDef
 0∸n≡0 (suc _) = byDef
 
-ℕ-∸-+-assoc : forall m n o -> (m ∸ n) ∸ o ≡ m ∸ (n + o)
-ℕ-∸-+-assoc m       n       zero    = ≡-cong (_∸_ m) (≡-sym $ proj₂ +-identity n)
-ℕ-∸-+-assoc zero    zero    (suc o) = byDef
-ℕ-∸-+-assoc zero    (suc n) (suc o) = byDef
-ℕ-∸-+-assoc (suc m) zero    (suc o) = byDef
-ℕ-∸-+-assoc (suc m) (suc n) (suc o) = ℕ-∸-+-assoc m n (suc o)
+∸-+-assoc : forall m n o -> (m ∸ n) ∸ o ≡ m ∸ (n + o)
+∸-+-assoc m       n       zero    = ≡-cong (_∸_ m) (≡-sym $ proj₂ +-identity n)
+∸-+-assoc zero    zero    (suc o) = byDef
+∸-+-assoc zero    (suc n) (suc o) = byDef
+∸-+-assoc (suc m) zero    (suc o) = byDef
+∸-+-assoc (suc m) (suc n) (suc o) = ∸-+-assoc m n (suc o)
 
 m+n∸n≡m : forall m n -> (m + n) ∸ n ≡ m
 m+n∸n≡m m       zero    = proj₂ +-identity m
@@ -527,7 +527,7 @@ n≤1+n _ = ≤-step ≤-refl
 
 i+1+j≢i : forall i {j} -> i + suc j ≢ i
 i+1+j≢i i eq = ¬i+1+j≤i i (reflexive eq)
-  where open DecTotalOrder ℕ-decTotalOrder
+  where open DecTotalOrder decTotalOrder
 
 n∸m≤n : forall m n -> n ∸ m ≤ n
 n∸m≤n zero    n       = ≤-refl
