@@ -144,6 +144,28 @@ private
     ... | inj₁ x₁<y₁ = inj₁ (inj₁ x₁<y₁)
     ... | inj₂ x₁>y₁ = inj₂ (inj₁ x₁>y₁)
 
+  ×-compare : forall {≈₁ <₁} -> Symmetric ≈₁ -> Trichotomous ≈₁ <₁ ->
+              forall {≈₂ <₂} -> Trichotomous ≈₂ <₂ ->
+              Trichotomous (≈₁ ×-Rel ≈₂) (×-Lex ≈₁ <₁ <₂)
+  ×-compare {≈₁} {<₁} sym₁ compare₁ {≈₂} {<₂} compare₂ = cmp
+    where
+    cmp : Trichotomous (≈₁ ×-Rel ≈₂) (×-Lex ≈₁ <₁ <₂)
+    cmp (x₁ , x₂) (y₁ , y₂) with compare₁ x₁ y₁
+    ... | tri< x₁<y₁ x₁≉y₁ x₁≯y₁ = tri< (inj₁ x₁<y₁) (x₁≉y₁ ∘ proj₁)
+                                        [ x₁≯y₁ , x₁≉y₁ ∘ sym₁ ∘ proj₁ ]
+    ... | tri> x₁≮y₁ x₁≉y₁ x₁>y₁ = tri> [ x₁≮y₁ , x₁≉y₁ ∘ proj₁ ]
+                                        (x₁≉y₁ ∘ proj₁) (inj₁ x₁>y₁)
+    ... | tri≈ x₁≮y₁ x₁≈y₁ x₁≯y₁ with compare₂ x₂ y₂
+    ...   | tri< x₂<y₂ x₂≉y₂ x₂≯y₂ = tri< (inj₂ (x₁≈y₁ , x₂<y₂))
+                                          (x₂≉y₂ ∘ proj₂)
+                                          [ x₁≯y₁ , x₂≯y₂ ∘ proj₂ ]
+    ...   | tri> x₂≮y₂ x₂≉y₂ x₂>y₂ = tri> [ x₁≮y₁ , x₂≮y₂ ∘ proj₂ ]
+                                          (x₂≉y₂ ∘ proj₂)
+                                          (inj₂ (sym₁ x₁≈y₁ , x₂>y₂))
+    ...   | tri≈ x₂≮y₂ x₂≈y₂ x₂≯y₂ = tri≈ [ x₁≮y₁ , x₂≮y₂ ∘ proj₂ ]
+                                          (x₁≈y₁ , x₂≈y₂)
+                                          [ x₁≯y₁ , x₂≯y₂ ∘ proj₂ ]
+
   -- Some collections of properties which are preserved by ×-Lex.
 
   _×-isPreorder_
@@ -187,6 +209,27 @@ private
       }
     where open IsStrictPartialOrder
 
+  _×-isStrictTotalOrder_
+    :  forall {≈₁ <₁} -> IsStrictTotalOrder ≈₁ <₁
+    -> forall {≈₂ <₂} -> IsStrictTotalOrder ≈₂ <₂
+    -> IsStrictTotalOrder (≈₁ ×-Rel ≈₂) (×-Lex ≈₁ <₁ <₂)
+  _×-isStrictTotalOrder_ {<₁ = <₁} spo₁ {<₂ = <₂} spo₂ =
+    record
+      { isEquivalence = Pointwise._×-isEquivalence_
+                          (isEquivalence spo₁) (isEquivalence spo₂)
+      ; trans         = \{x y z} ->
+                        ×-transitive
+                          {<₁ = <₁} (isEquivalence spo₁) (≈-resp-< spo₁)
+                                    (trans spo₁)
+                          {≤₂ = <₂} (trans spo₂) {x} {y} {z}
+      ; compare       = ×-compare (Eq.sym spo₁) (compare spo₁)
+                                                (compare spo₂)
+      ; ≈-resp-<      = ×-≈-respects₂ (isEquivalence spo₁)
+                                      (≈-resp-< spo₁)
+                                      (≈-resp-< spo₂)
+      }
+    where open IsStrictTotalOrder
+
 open Dummy public
 
 -- "Packages" (e.g. preorders) can also be combined.
@@ -211,3 +254,15 @@ s₁ ×-strictPartialOrder s₂ = record
                            isStrictPartialOrder s₂
   }
   where open StrictPartialOrder
+
+_×-strictTotalOrder_
+  : StrictTotalOrder -> StrictTotalOrder -> StrictTotalOrder
+s₁ ×-strictTotalOrder s₂ = record
+  { carrier            = carrier s₁ ×     carrier s₂
+  ; _≈_                = _≈_     s₁ ×-Rel _≈_     s₂
+  ; _<_                = ×-Lex (_≈_ s₁) (_<_ s₁) (_<_ s₂)
+  ; isStrictTotalOrder = isStrictTotalOrder s₁
+                           ×-isStrictTotalOrder
+                         isStrictTotalOrder s₂
+  }
+  where open StrictTotalOrder
