@@ -254,7 +254,16 @@ record IsStrictTotalOrder {a : Set} (_≈_ _<_ : Rel a) : Set where
     compare       : Trichotomous _≈_ _<_
     ≈-resp-<      : _≈_ Respects₂ _<_
 
-  module Eq = IsEquivalence isEquivalence
+  _≟_ : Decidable _≈_
+  _≟_ = tri⟶dec≈ compare
+
+  isDecEquivalence : IsDecEquivalence _≈_
+  isDecEquivalence = record
+    { isEquivalence = isEquivalence
+    ; _≟_           = _≟_
+    }
+
+  module Eq = IsDecEquivalence isDecEquivalence
 
   isStrictPartialOrder : IsStrictPartialOrder _≈_ _<_
   isStrictPartialOrder = record
@@ -266,9 +275,6 @@ record IsStrictTotalOrder {a : Set} (_≈_ _<_ : Rel a) : Set where
 
   open IsStrictPartialOrder isStrictPartialOrder using (irrefl)
 
-  _≟_ : Decidable _≈_
-  _≟_ = tri⟶dec≈ compare
-
 record StrictTotalOrder : Set1 where
   infix 4 _≈_ _<_
   field
@@ -278,6 +284,7 @@ record StrictTotalOrder : Set1 where
     isStrictTotalOrder : IsStrictTotalOrder _≈_ _<_
 
   open IsStrictTotalOrder isStrictTotalOrder public
+    hiding (module Eq)
 
   strictPartialOrder : StrictPartialOrder
   strictPartialOrder = record
@@ -286,3 +293,12 @@ record StrictTotalOrder : Set1 where
     ; _<_                  = _<_
     ; isStrictPartialOrder = isStrictPartialOrder
     }
+
+  decSetoid : DecSetoid
+  decSetoid = record
+    { carrier          = carrier
+    ; _≈_              = _≈_
+    ; isDecEquivalence = isDecEquivalence
+    }
+
+  module Eq = DecSetoid decSetoid
