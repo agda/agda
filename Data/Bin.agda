@@ -5,7 +5,7 @@
 module Data.Bin where
 
 import Data.Nat as Nat
-open Nat using (ℕ; z≤n; s≤s)
+open Nat using (ℕ; zero; z≤n; s≤s) renaming (suc to 1+_)
 open Nat.≤-Reasoning
 import Data.Nat.Properties as NP
 open import Data.Digit
@@ -13,7 +13,7 @@ import Data.Fin as Fin
 open Fin using (Fin; zero) renaming (suc to 1+_)
 import Data.Fin.Props as FP
 open FP using (_+′_)
-open import Data.List
+open import Data.List hiding (downFrom)
 open import Data.Function
 open import Data.Product
 open import Algebra
@@ -266,3 +266,27 @@ suc n = [] 1# + n
 
 ⌈_/2⌉ : Bin -> Bin
 ⌈ n /2⌉ = ⌊ suc n /2⌋
+
+-- Predecessor.
+
+pred : Bin⁺ -> Bin
+pred []              = 0#
+pred (zero     ∷ bs) = pred bs *2+1
+pred (1+ zero  ∷ bs) = (zero ∷ bs) 1#
+pred (1+ 1+ () ∷ bs)
+
+-- downFrom n enumerates all numbers from n - 1 to 0. This function is
+-- linear in n. Analysis: fromℕ takes linear time, and the preds used
+-- take amortised constant time (to see this, let the cost of a pred
+-- be 2, and put 1 debit on every bit which is 1).
+
+downFrom : ℕ -> List Bin
+downFrom n = helper n (fromℕ n)
+  where
+  helper : ℕ -> Bin -> List Bin
+  helper zero   0#      = []
+  helper (1+ n) (bs 1#) = n′ ∷ helper n n′
+    where n′ = pred bs
+  -- Impossible cases:
+  helper zero   (_ 1#)  = []
+  helper (1+ _) 0#      = []
