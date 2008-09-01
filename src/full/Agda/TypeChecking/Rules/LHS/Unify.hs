@@ -94,7 +94,7 @@ occursCheck :: Nat -> Term -> Type -> Unify ()
 occursCheck i u a
   | i `freeIn` u = do
     reportSDoc "tc.lhs.unify" 20 $ prettyTCM (Var i []) <+> text "occurs in" <+> prettyTCM u
-    typeError $ UnequalTerms (Var i []) u a
+    typeError $ UnequalTerms CmpEq (Var i []) u a
   | otherwise	 = return ()
 
 (|->) :: Nat -> (Term, Type) -> Unify ()
@@ -142,7 +142,7 @@ unifyIndices_ flex a us vs = liftTCM $ do
   case r of
     Unifies sub   -> return sub
     DontKnow err  -> throwError err
-    NoUnify a u v -> typeError $ UnequalTerms u v a
+    NoUnify a u v -> typeError $ UnequalTerms CmpEq u v a
 
 unifyIndices :: MonadTCM tcm => FlexibleVars -> Type -> [Arg Term] -> [Arg Term] -> tcm UnificationResult
 unifyIndices flex a us vs = liftTCM $ do

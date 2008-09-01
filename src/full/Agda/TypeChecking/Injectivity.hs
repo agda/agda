@@ -149,7 +149,7 @@ useInjectivity cmp a u v = do
 
     invert _ a inv args Nothing  = fallBack
     invert f ftype inv args (Just h) = case Map.lookup h inv of
-      Nothing                     -> typeError $ UnequalTerms u v a
+      Nothing                     -> typeError $ UnequalTerms cmp u v a
       Just (Clause tel perm ps _) -> do -- instArgs args ps
           -- These are what dot patterns should be instantiated at
           ms <- map unArg <$> newTelMeta tel

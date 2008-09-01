@@ -191,7 +191,7 @@ compareAtom cmp t m n =
 		    else buildConstraint $ ValueCmp cmp t m n
 	    (BlockedV b, _)    -> useInjectivity cmp t m n
 	    (_,BlockedV b)     -> useInjectivity cmp t m n
-	    _		       -> typeError $ UnequalTerms m n t
+	    _		       -> typeError $ UnequalTerms cmp m n t
     where
 	equalFun (FunV arg1@(Arg h1 a1) t1) (FunV (Arg h2 a2) t2)
 	    | h1 /= h2	= typeError $ UnequalHiding ty1 ty2
@@ -278,7 +278,7 @@ compareType cmp ty1@(El s1 a1) ty2@(El s2 a2) =
           , hsep [ text "   sorts:", prettyTCM s1, text " and ", prettyTCM s2 ]
           ]
 	cs1 <- compareSort cmp s1 s2 `catchError` \err -> case err of
-                  TypeError _ _ -> typeError $ UnequalTypes ty1 ty2
+                  TypeError _ _ -> typeError $ UnequalTypes cmp ty1 ty2
                   _             -> throwError err
 	cs2 <- compareTerm cmp (sort s1) a1 a2
         unless (null $ cs1 ++ cs2) $

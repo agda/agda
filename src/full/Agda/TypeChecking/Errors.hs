@@ -144,9 +144,9 @@ errorString err = case err of
     TooManyArgumentsInLHS _ _                  -> "TooManyArgumentsInLHS"
     TooManyFields _ _			       -> "TooManyFields"
     UnequalHiding _ _			       -> "UnequalHiding"
-    UnequalSorts _ _			       -> "UnequalSorts"
-    UnequalTerms _ _ _			       -> "UnequalTerms"
-    UnequalTypes _ _			       -> "UnequalTypes"
+    UnequalSorts{}			       -> "UnequalSorts"
+    UnequalTerms{}			       -> "UnequalTerms"
+    UnequalTypes{}			       -> "UnequalTypes"
     UnexpectedWithPatterns _                   -> "UnexpectedWithPatterns"
     UninstantiatedDotPattern _                 -> "UninstantiatedDotPattern"
     UninstantiatedModule _		       -> "UninstantiatedModule"
@@ -243,10 +243,16 @@ instance PrettyTCM TypeError where
 		[prettyTCM t] ++ pwords "should be a function type, but it isn't"
 	    NotAProperTerm ->
 		fwords "Found a malformed term"
-	    UnequalTerms s t a -> fsep $
-		[prettyTCM s] ++ pwords "!=" ++ [prettyTCM t] ++ pwords "of type" ++ [prettyTCM a]
-	    UnequalTypes a b -> fsep $
-		[prettyTCM a] ++ pwords "!=" ++ [prettyTCM b]
+	    UnequalTerms cmp s t a -> fsep $
+		[prettyTCM s, f cmp, prettyTCM t] ++ pwords "of type" ++ [prettyTCM a]
+                where
+                  f CmpEq  = text "!="
+                  f CmpLeq = text "!=<"
+	    UnequalTypes cmp a b -> fsep $
+		[prettyTCM a, f cmp, prettyTCM b]
+                where
+                  f CmpEq  = text "!="
+                  f CmpLeq = text "!=<"
 	    UnequalHiding a b -> fsep $
 		[prettyTCM a] ++ pwords "!=" ++ [prettyTCM b] ++
 		pwords "because one is an implicit function type and the other is an explicit function type"

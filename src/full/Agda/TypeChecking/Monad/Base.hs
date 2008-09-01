@@ -655,8 +655,8 @@ data TypeError
 	    -- ^ The given type should have been a pi.
 	| ShouldBeRecordType Type
 	| NotAProperTerm
-	| UnequalTerms Term Term Type
-	| UnequalTypes Type Type
+	| UnequalTerms Comparison Term Term Type
+	| UnequalTypes Comparison Type Type
 	| UnequalHiding Type Type
 	    -- ^ The two function types have different hiding.
 	| UnequalSorts Sort Sort
