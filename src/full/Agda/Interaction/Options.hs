@@ -64,6 +64,7 @@ data CommandLineOptions =
 	    , optTerminationCheck  :: Bool
 	    , optCompletenessCheck :: Bool
 	    , optUniverseCheck     :: Bool
+            , optSizedTypes        :: Bool
             , optGhcFlags          :: [String]
 	    }
     deriving Show
@@ -97,6 +98,7 @@ defaultOptions =
             , optTerminationCheck  = True
             , optCompletenessCheck = True
             , optUniverseCheck     = True
+            , optSizedTypes        = False
             , optGhcFlags          = []
 	    }
 
@@ -124,6 +126,7 @@ noPositivityFlag          o = return $ o { optDisablePositivity = True }
 dontTerminationCheckFlag  o = return $ o { optTerminationCheck  = False }
 dontCompletenessCheckFlag o = return $ o { optCompletenessCheck = False }
 dontUniverseCheckFlag     o = return $ o { optUniverseCheck     = False }
+sizedTypes                o = return $ o { optSizedTypes        = True }
 
 interactiveFlag o = return $ o { optInteractive   = True
 			       , optAllowUnsolved = True
@@ -213,6 +216,8 @@ pragmaOptions =
 		    "do not warn about possibly incomplete pattern matches"
     , Option []	    ["type-in-type"] (NoArg dontUniverseCheckFlag)
 		    "ignore universe levels (this makes Agda inconsistent)"
+    , Option []     ["sized-types"] (NoArg sizedTypes)
+                    "use sized datatypes"
     ]
 
 -- | Used for printing usage info.
