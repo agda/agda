@@ -300,6 +300,10 @@ getPolarity q = liftTCM $ do
     Record{ recPolarity    = p } -> return p
     _                            -> return []
 
+getPolarity' :: MonadTCM tcm => Comparison -> QName -> tcm [Polarity]
+getPolarity' CmpEq _  = return []
+getPolarity' CmpLeq q = getPolarity q
+
 -- | Look up the number of free variables of a section. This is equal to the
 --   number of parameters if we're currently inside the section and 0 otherwise.
 getSecFreeVars :: MonadTCM tcm => ModuleName -> tcm Nat

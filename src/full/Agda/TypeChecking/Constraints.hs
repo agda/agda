@@ -51,11 +51,11 @@ guardConstraint m c = do
 	(scs, cs) -> (scs ++) <$> buildConstraint (Guarded c cs)
     where
 	isSortConstraint = isSC . clValue
-	isSC (SortEq _ _)    = True
-	isSC (ValueEq _ _ _) = False
-	isSC (TypeEq _ _)    = False
-	isSC (Guarded c _)   = isSC c
-	isSC (UnBlock _)     = False
+	isSC SortCmp{}     = True
+	isSC ValueCmp{}    = False
+	isSC TypeCmp{}     = False
+	isSC (Guarded c _) = isSC c
+	isSC (UnBlock _)   = False
 
 -- | We ignore the constraint ids and (as in Agda) retry all constraints every time.
 --   We probably generate very few constraints.
@@ -75,11 +75,11 @@ solveConstraints cs = do
 	else return cs
 
 solveConstraint :: MonadTCM tcm => Constraint -> tcm Constraints
-solveConstraint (ValueEq a u v) = equalTerm a u v
-solveConstraint (TypeEq a b)	= equalType a b
-solveConstraint (SortEq s1 s2)	= equalSort s1 s2
-solveConstraint (Guarded c cs)	= guardConstraint (return cs) c
-solveConstraint (UnBlock m) = do
+solveConstraint (ValueCmp cmp a u v) = compareTerm cmp a u v
+solveConstraint (TypeCmp cmp a b)    = compareType cmp a b
+solveConstraint (SortCmp cmp s1 s2)  = compareSort cmp s1 s2
+solveConstraint (Guarded c cs)       = guardConstraint (return cs) c
+solveConstraint (UnBlock m)          = do
     inst <- mvInstantiation <$> lookupMeta m
     case inst of
       BlockedConst t -> do

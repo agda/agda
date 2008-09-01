@@ -117,7 +117,7 @@ checkTypedBinding h (A.TNoBind e) ret = do
 checkLiteral :: Literal -> Type -> TCM Term
 checkLiteral lit t = do
     t' <- litType lit
-    v  <- blockTerm t (Lit lit) $ equalType t t'
+    v  <- blockTerm t (Lit lit) $ leqType t' t
     return v
 
 litType :: Literal -> TCM Type
@@ -210,25 +210,25 @@ checkExpr e t =
                     let hd = HeadCon [c]
                     (f,  t0)     <- inferHead hd
                     (vs, t1, cs) <- checkArguments ExpandLast (getRange hd) args t0 t
-                    blockTerm t (f vs) $ (cs ++) <$> equalType t1 t
+                    blockTerm t (f vs) $ (cs ++) <$> leqType t1 t
                   Nothing -> postponeTypeCheckingProblem e t unblock
 
             | Application hd args <- appView e -> do
 		(f,  t0)     <- inferHead hd
 		(vs, t1, cs) <- checkArguments ExpandLast (getRange hd) args t0 t
-		blockTerm t (f vs) $ (cs ++) <$> equalType t1 t
+		blockTerm t (f vs) $ (cs ++) <$> leqType t1 t
 
 	A.WithApp _ e es -> typeError $ NotImplemented "type checking of with application"
 
 	A.App i e arg -> do
 	    (v0, t0)	 <- inferExpr e
 	    (vs, t1, cs) <- checkArguments ExpandLast (getRange e) [arg] t0 t
-	    blockTerm t (apply v0 vs) $ (cs ++) <$> equalType t1 t
+	    blockTerm t (apply v0 vs) $ (cs ++) <$> leqType t1 t
 
 	A.Lam i (A.DomainFull b) e ->
 	    checkTypedBindings b $ \tel -> do
 	    t1 <- newTypeMeta_
-	    cs <- escapeContext (size tel) $ equalType t (telePi tel t1)
+	    cs <- escapeContext (size tel) $ leqType (telePi tel t1) t
 	    v <- checkExpr e t1
 	    blockTerm t (teleLam tel v) (return cs)
 	    where
@@ -260,18 +260,18 @@ checkExpr e t =
 	A.Pi _ tel e ->
 	    checkTelescope tel $ \tel -> do
 	    t' <- telePi_ tel <$> isType_ e
-	    blockTerm t (unEl t') $ equalType (sort $ getSort t') t
+	    blockTerm t (unEl t') $ leqType (sort $ getSort t') t
 	A.Fun _ (Arg h a) b -> do
 	    a' <- isType_ a
 	    b' <- isType_ b
 	    let s = getSort a' `sLub` getSort b'
-	    blockTerm t (Fun (Arg h a') b') $ equalType (sort s) t
+	    blockTerm t (Fun (Arg h a') b') $ leqType (sort s) t
 	A.Set _ n    -> do
           n <- ifM typeInType (return 0) (return n)
-	  blockTerm t (Sort (Type n)) $ equalType (sort $ Type $ n + 1) t
+	  blockTerm t (Sort (Type n)) $ leqType (sort $ Type $ n + 1) t
 	A.Prop _     -> do
           s <- ifM typeInType (return $ Type 0) (return Prop)
-	  blockTerm t (Sort Prop) $ equalType (sort $ Type 1) t
+	  blockTerm t (Sort Prop) $ leqType (sort $ Type 1) t
 
 	A.Rec _ fs  -> do
 	  t <- normalise t

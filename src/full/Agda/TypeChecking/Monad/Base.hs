@@ -158,11 +158,14 @@ buildClosure x = liftTCM $ do
 
 type ConstraintClosure = Closure Constraint
 
-data Constraint = ValueEq Type Term Term
-		| TypeEq Type Type
-		| SortEq Sort Sort
+data Constraint = ValueCmp Comparison Type Term Term
+		| TypeCmp Comparison Type Type
+		| SortCmp Comparison Sort Sort
 		| UnBlock MetaId
 		| Guarded Constraint Constraints
+  deriving (Typeable)
+
+data Comparison = CmpEq | CmpLeq
   deriving (Typeable)
 
 type Constraints = [ConstraintClosure]

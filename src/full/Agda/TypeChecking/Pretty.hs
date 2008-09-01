@@ -72,21 +72,25 @@ instance (Reify a e, ToConcrete e c, P.Pretty c) => PrettyTCM (Arg a) where
 instance PrettyTCM A.Expr where
     prettyTCM = prettyA
 
+instance PrettyTCM Comparison where
+  prettyTCM CmpEq  = text "=="
+  prettyTCM CmpLeq = text "=<"
+
 instance PrettyTCM Constraint where
     prettyTCM c = case c of
-	ValueEq ty s t ->
+	ValueCmp cmp ty s t ->
 	    sep [ sep [ prettyTCM s
-		      , text "==" <+> prettyTCM t
+		      , prettyTCM cmp <+> prettyTCM t
 		      ]
 		, nest 2 $ text ":" <+> prettyTCM ty
 		]
-	TypeEq a b ->
+	TypeCmp cmp a b ->
 	    sep [ prettyTCM a
-		, text "==" <+> prettyTCM b
+		, prettyTCM cmp <+> prettyTCM b
 		]
-	SortEq s1 s2 ->
+	SortCmp cmp s1 s2 ->
 	    sep [ prettyTCM s1
-		, text "==" <+> prettyTCM s2
+		, prettyTCM cmp <+> prettyTCM s2
 		]
 	Guarded c cs ->
 	    sep [ prettyTCM c

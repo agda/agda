@@ -181,37 +181,37 @@ rewrite Normalised   t = normalise t
 
 
 data OutputForm a b
-      = OfType b a | EqInType a b b
-      | JustType b | EqTypes b b
-      | JustSort b | EqSorts b b
+      = OfType b a | CmpInType Comparison a b b
+      | JustType b | CmpTypes Comparison b b
+      | JustSort b | CmpSorts Comparison b b
       | Guard (OutputForm a b) [OutputForm a b]
       | Assign b a
 
 outputFormId :: OutputForm a b -> b
 outputFormId o = case o of
-  OfType i _	 -> i
-  EqInType _ i _ -> i
-  JustType i	 -> i
-  EqTypes i _	 -> i
-  JustSort i	 -> i
-  EqSorts i _	 -> i
-  Guard o _	 -> outputFormId o
-  Assign i _	 -> i
+  OfType i _        -> i
+  CmpInType _ _ i _ -> i
+  JustType i        -> i
+  CmpTypes _ i _    -> i
+  JustSort i        -> i
+  CmpSorts _ i _    -> i
+  Guard o _         -> outputFormId o
+  Assign i _        -> i
 
 instance Functor (OutputForm a) where
-    fmap f (OfType e t) = OfType (f e) t
-    fmap f (JustType e) = JustType (f e)
-    fmap f (JustSort e) = JustSort (f e)
-    fmap f (EqInType t e e') = EqInType t (f e) (f e')
-    fmap f (EqTypes e e') = EqTypes (f e) (f e')
-    fmap f (EqSorts e e') = EqSorts (f e) (f e')
-    fmap f (Guard o os)	= Guard (fmap f o) (fmap (fmap f) os)
-    fmap f (Assign m e) = Assign (f m) e
+    fmap f (OfType e t)           = OfType (f e) t
+    fmap f (JustType e)           = JustType (f e)
+    fmap f (JustSort e)           = JustSort (f e)
+    fmap f (CmpInType cmp t e e') = CmpInType cmp t (f e) (f e')
+    fmap f (CmpTypes cmp e e')    = CmpTypes cmp (f e) (f e')
+    fmap f (CmpSorts cmp e e')    = CmpSorts cmp (f e) (f e')
+    fmap f (Guard o os)           = Guard (fmap f o) (fmap (fmap f) os)
+    fmap f (Assign m e)           = Assign (f m) e
 
 instance Reify Constraint (OutputForm Expr Expr) where
-    reify (ValueEq t u v) = EqInType <$> reify t <*> reify u <*> reify v 
-    reify (TypeEq t t') = EqTypes <$> reify t <*> reify t'
-    reify (SortEq s s') = EqSorts <$> reify s <*> reify s'
+    reify (ValueCmp cmp t u v) = CmpInType cmp <$> reify t <*> reify u <*> reify v 
+    reify (TypeCmp cmp t t')   = CmpTypes cmp <$> reify t <*> reify t'
+    reify (SortCmp cmp s s')   = CmpSorts cmp <$> reify s <*> reify s'
     reify (Guarded c cs) = do
 	o  <- reify c
 	os <- mapM (withConstraint reify) cs
@@ -230,25 +230,29 @@ instance Reify Constraint (OutputForm Expr Expr) where
           InstS{} -> __IMPOSSIBLE__
           InstV{} -> __IMPOSSIBLE__
 
+showComparison :: Comparison -> String
+showComparison CmpEq  = " = "
+showComparison CmpLeq = " =< "
+
 instance (Show a,Show b) => Show (OutputForm a b) where
-    show (OfType e t) = show e ++ " : " ++ show t
-    show (JustType e) = "Type " ++ show e
-    show (JustSort e) = "Sort " ++ show e
-    show (EqInType t e e') = show e ++ " = " ++ show e' ++ " : " ++ show t
-    show (EqTypes  t t') = show t ++ " = " ++ show t'
-    show (EqSorts s s') = show s ++ " = " ++ show s'
-    show (Guard o os)	= show o ++ "  |  " ++ show os
-    show (Assign m e) = show m ++ " := " ++ show e
+    show (OfType e t)           = show e ++ " : " ++ show t
+    show (JustType e)           = "Type " ++ show e
+    show (JustSort e)           = "Sort " ++ show e
+    show (CmpInType cmp t e e') = show e ++ showComparison cmp ++ show e' ++ " : " ++ show t
+    show (CmpTypes  cmp t t')   = show t ++ showComparison cmp ++ show t'
+    show (CmpSorts cmp s s')    = show s ++ showComparison cmp ++ show s'
+    show (Guard o os)           = show o ++ "  |  " ++ show os
+    show (Assign m e)           = show m ++ " := " ++ show e
 
 instance (ToConcrete a c, ToConcrete b d) => 
          ToConcrete (OutputForm a b) (OutputForm c d) where
     toConcrete (OfType e t) = OfType <$> toConcrete e <*> toConcrete t
     toConcrete (JustType e) = JustType <$> toConcrete e
     toConcrete (JustSort e) = JustSort <$> toConcrete e
-    toConcrete (EqInType t e e') = 
-             EqInType <$> toConcrete t <*> toConcrete e <*> toConcrete e'
-    toConcrete (EqTypes e e') = EqTypes <$> toConcrete e <*> toConcrete e'
-    toConcrete (EqSorts e e') = EqSorts <$> toConcrete e <*> toConcrete e'
+    toConcrete (CmpInType cmp t e e') = 
+             CmpInType cmp <$> toConcrete t <*> toConcrete e <*> toConcrete e'
+    toConcrete (CmpTypes cmp e e') = CmpTypes cmp <$> toConcrete e <*> toConcrete e'
+    toConcrete (CmpSorts cmp e e') = CmpSorts cmp <$> toConcrete e <*> toConcrete e'
     toConcrete (Guard o os) = Guard <$> toConcrete o <*> toConcrete os
     toConcrete (Assign m e) = Assign <$> toConcrete m <*> toConcrete e
 

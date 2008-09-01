@@ -109,8 +109,8 @@ functionInverse v = case ignoreBlocking v of
 data InvView = Inv QName Args (Map TermHead Clause)
              | NoInv
 
-useInjectivity :: Type -> Term -> Term -> TCM Constraints
-useInjectivity a u v = do
+useInjectivity :: Comparison -> Type -> Term -> Term -> TCM Constraints
+useInjectivity cmp a u v = do
   uinv <- functionInverse u
   vinv <- functionInverse v
   case (uinv, vinv) of
@@ -124,7 +124,8 @@ useInjectivity a u v = do
           , nest 2 $ fsep $ punctuate comma $ map prettyTCM gArgs
           , nest 2 $ text "and type" <+> prettyTCM a
           ]
-        equalArgs a fArgs gArgs
+        pol <- getPolarity' cmp f
+        compareArgs pol a fArgs gArgs
       | otherwise -> fallBack
     (Inv f args inv, NoInv) -> do
       a <- defType <$> getConstInfo f
@@ -133,7 +134,7 @@ useInjectivity a u v = do
         [ prettyTCM f, text ":", prettyTCM a, text "for", prettyTCM v
         , parens $ text "args =" <+> prettyList (map prettyTCM args)
         ]
-      invert a inv args =<< headSymbol v
+      invert f a inv args =<< headSymbol v
     (NoInv, Inv g args inv) -> do
       a <- defType <$> getConstInfo g
       reportSDoc "tc.inj.use" 20 $ fsep $
@@ -141,13 +142,13 @@ useInjectivity a u v = do
         [ prettyTCM g, text ":", prettyTCM a,  text "for", prettyTCM u
         , parens $ text "args =" <+> prettyList (map prettyTCM args)
         ]
-      invert a inv args =<< headSymbol u
+      invert g a inv args =<< headSymbol u
     (NoInv, NoInv)          -> fallBack
   where
-    fallBack = buildConstraint $ ValueEq a u v
+    fallBack = buildConstraint $ ValueCmp cmp a u v
 
-    invert a inv args Nothing  = fallBack
-    invert ftype inv args (Just h) = case Map.lookup h inv of
+    invert _ a inv args Nothing  = fallBack
+    invert f ftype inv args (Just h) = case Map.lookup h inv of
       Nothing                     -> typeError $ UnequalTerms u v a
       Just (Clause tel perm ps _) -> do -- instArgs args ps
           -- These are what dot patterns should be instantiated at
@@ -171,9 +172,10 @@ useInjectivity a u v = do
               , text "type =" <+> prettyTCM ftype
               ]
             ]
-          cs <- equalArgs ftype margs args
+          pol <- getPolarity' cmp f
+          cs  <- compareArgs pol ftype margs args
           unless (null cs) patternViolation
-          equalTerm a u v
+          compareTerm cmp a u v
         `catchError` \err -> case err of
           TypeError _ _ -> throwError err
           Exception _ _ -> throwError err

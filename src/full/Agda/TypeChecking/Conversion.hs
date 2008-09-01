@@ -30,6 +30,9 @@ import Agda.TypeChecking.Monad.Debug
 #include "../undefined.h"
 import Agda.Utils.Impossible
 
+nextPolarity []       = (Invariant, [])
+nextPolarity (p : ps) = (p, ps)
+
 -- | Check if to lists of arguments are the same (and all variables).
 --   Precondition: the lists have the same length.
 sameVars :: Args -> Args -> Bool
@@ -38,11 +41,23 @@ sameVars xs ys = and $ zipWith same xs ys
 	same (Arg _ (Var n [])) (Arg _ (Var m [])) = n == m
 	same _ _				   = False
 
+equalTerm :: MonadTCM tcm => Type -> Term -> Term -> tcm Constraints
+equalTerm = compareTerm CmpEq
+
+equalAtom :: MonadTCM tcm => Type -> Term -> Term -> tcm Constraints
+equalAtom = compareAtom CmpEq
+
+equalArgs :: MonadTCM tcm => Type -> Args -> Args -> tcm Constraints
+equalArgs = compareArgs []
+
+equalType :: MonadTCM tcm => Type -> Type -> tcm Constraints
+equalType = compareType CmpEq
+
 -- | Type directed equality on values.
 --
-equalTerm :: MonadTCM tcm => Type -> Term -> Term -> tcm Constraints
-equalTerm a m n =
-    catchConstraint (ValueEq a m n) $
+compareTerm :: MonadTCM tcm => Comparison -> Type -> Term -> Term -> tcm Constraints
+compareTerm cmp a m n =
+    catchConstraint (ValueCmp cmp a m n) $
     do	a'	 <- reduce a
 	proofIrr <- proofIrrelevance
 	s	 <- reduce $ getSort a'
@@ -56,7 +71,7 @@ equalTerm a m n =
 			(m,n) <- normalise (m,n)
 			if m == n
 			    then return []
-			    else buildConstraint (ValueEq a m n)
+			    else buildConstraint (ValueCmp cmp a m n)
 		    Lam _ _   -> __IMPOSSIBLE__
 		    Def r ps  -> do
 		      isrec <- isRecord r
@@ -65,13 +80,14 @@ equalTerm a m n =
 			  (m, n) <- reduce (m, n)
 			  case (m, n) of
 			    _ | isNeutral m && isNeutral n ->
-				equalAtom a' m n
+				compareAtom cmp a' m n
 			    _ -> do
 			      (tel, m') <- etaExpandRecord r ps m
 			      (_  , n') <- etaExpandRecord r ps n
-			      equalArgs (telePi_ tel $ sort Prop) m' n'
-			else equalAtom a' m n
-		    _	      -> equalAtom a' m n
+                              -- No subtyping on record terms
+			      compareArgs [] (telePi_ tel $ sort Prop) m' n'
+			else compareAtom cmp a' m n
+		    _	      -> compareAtom cmp a' m n
     where
 	isNeutral (MetaV _ _)  = False
 	isNeutral (Con _ _)    = False
@@ -80,7 +96,7 @@ equalTerm a m n =
 
 	equalFun (a,t) m n =
 	    do	name <- freshName_ (suggest $ unEl t)
-		addCtx name a $ equalTerm t' m' n'
+		addCtx name a $ compareTerm cmp t' m' n'
 	    where
 		p	= fmap (const $ Var 0 []) a
 		(m',n') = raise 1 (m,n) `apply` [p]
@@ -91,30 +107,32 @@ equalTerm a m n =
 
 -- | Syntax directed equality on atomic values
 --
-equalAtom :: MonadTCM tcm => Type -> Term -> Term -> tcm Constraints
-equalAtom t m n =
-    catchConstraint (ValueEq t m n) $
+compareAtom :: MonadTCM tcm => Comparison -> Type -> Term -> Term -> tcm Constraints
+compareAtom cmp t m n =
+    catchConstraint (ValueCmp cmp t m n) $
     do	m <- constructorForm =<< reduce m
 	n <- constructorForm =<< reduce n
 	reportSDoc "tc.conv.atom" 10 $ fsep
-	  [ text "equalAtom", prettyTCM m, text "==", prettyTCM n, text ":", prettyTCM t ]
+	  [ text "compareAtom", prettyTCM m, text "==", prettyTCM n, text ":", prettyTCM t ]
 	case (m, n) of
 	    _ | f1@(FunV _ _) <- funView m
 	      , f2@(FunV _ _) <- funView n -> equalFun f1 f2
 
-	    (Sort s1, Sort s2) -> equalSort s1 s2
+	    (Sort s1, Sort s2) -> compareSort cmp s1 s2
 
 	    (Lit l1, Lit l2) | l1 == l2 -> return []
 	    (Var i iArgs, Var j jArgs) | i == j -> do
 		a <- typeOfBV i
-		equalArgs a iArgs jArgs
+                -- Variables are invariant in their arguments
+		compareArgs [] a iArgs jArgs
 	    (Def x xArgs, Def y yArgs) | x == y -> do
 		reportSDoc "tc.conv.atom" 20 $
-		  text "equalArgs" <+> sep [ brackets (fsep $ punctuate comma $ map prettyTCM xArgs)
+		  text "compareArgs" <+> sep [ brackets (fsep $ punctuate comma $ map prettyTCM xArgs)
 					  , brackets (fsep $ punctuate comma $ map prettyTCM yArgs)
 					  ]
 		a <- defType <$> getConstInfo x
-		equalArgs a xArgs yArgs
+                pol <- getPolarity' cmp x
+		compareArgs pol a xArgs yArgs
 	    (Con x xArgs, Con y yArgs)
 		| x == y -> do
 		    -- The type is a datatype.
@@ -125,7 +143,9 @@ equalAtom t m n =
 		    -- instantiating the parameters.
 		    a <- defType <$> getConstInfo x
 		    let a' = piApply a (genericTake npars args)
-		    equalArgs a' xArgs yArgs
+                    -- Constructors are invariant in their arguments
+                    -- (could be covariant).
+		    compareArgs [] a' xArgs yArgs
 	    (MetaV x xArgs, MetaV y yArgs)
 		| x == y -> if   sameVars xArgs yArgs
 			    then return []
@@ -135,7 +155,7 @@ equalAtom t m n =
 			      n <- normalise n
 			      if m == n
 				then return []
-				else buildConstraint (ValueEq t m n)
+				else buildConstraint (ValueCmp cmp t m n)
 		| otherwise -> do
 		    [p1, p2] <- mapM getMetaPriority [x,y]
 		    -- instantiate later meta variables first
@@ -168,9 +188,9 @@ equalAtom t m n =
 		m <- normalise m
 		if m == n
 		    then return []	-- Check syntactic equality for blocked terms
-		    else buildConstraint $ ValueEq t m n
-	    (BlockedV b, _)    -> useInjectivity t m n
-	    (_,BlockedV b)     -> useInjectivity t m n
+		    else buildConstraint $ ValueCmp cmp t m n
+	    (BlockedV b, _)    -> useInjectivity cmp t m n
+	    (_,BlockedV b)     -> useInjectivity cmp t m n
 	    _		       -> typeError $ UnequalTerms m n t
     where
 	equalFun (FunV arg1@(Arg h1 a1) t1) (FunV (Arg h2 a2) t2)
@@ -179,8 +199,8 @@ equalAtom t m n =
 		    let (ty1',ty2') = raise 1 (ty1,ty2)
 			arg	    = Arg h1 (Var 0 [])
 		    name <- freshName_ (suggest t1 t2)
-		    cs   <- equalType a1 a2
-		    let c = TypeEq (piApply ty1' [arg]) (piApply ty2' [arg])
+		    cs   <- compareType cmp a2 a1
+		    let c = TypeCmp cmp (piApply ty1' [arg]) (piApply ty2' [arg])
 
 		    -- We only need to require a1 == a2 if t2 is a dependent function type.
 		    -- If it's non-dependent it doesn't matter what we add to the context.
@@ -209,11 +229,12 @@ equalAtom t m n =
 
 -- | Type-directed equality on argument lists
 --
-equalArgs :: MonadTCM tcm => Type -> Args -> Args -> tcm Constraints
-equalArgs _ [] [] = return []
-equalArgs _ [] (_:_) = __IMPOSSIBLE__
-equalArgs _ (_:_) [] = __IMPOSSIBLE__
-equalArgs a (arg1 : args1) (arg2 : args2) = do
+compareArgs :: MonadTCM tcm => [Polarity] -> Type -> Args -> Args -> tcm Constraints
+compareArgs _ _ [] [] = return []
+compareArgs _ _ [] (_:_) = __IMPOSSIBLE__
+compareArgs _ _ (_:_) [] = __IMPOSSIBLE__
+compareArgs pols0 a (arg1 : args1) (arg2 : args2) = do
+    let (pol, pols) = nextPolarity pols0
     a <- reduce a
     case funView (unEl a) of
 	FunV (Arg _ b) _ -> do
@@ -221,8 +242,12 @@ equalArgs a (arg1 : args1) (arg2 : args2) = do
 		db <- prettyTCM b
 		darg1 <- prettyTCM arg1
 		darg2 <- prettyTCM arg2
-		debug $ "equalArgs " ++ show darg1 ++ "  ==  " ++ show darg2 ++ " : " ++ show db
-            cs1 <- equalTerm b (unArg arg1) (unArg arg2)
+		debug $ "compareArgs " ++ show darg1 ++ "  ==  " ++ show darg2 ++ " : " ++ show db
+            let cmp x y = case pol of
+                            Invariant     -> compareTerm CmpEq b x y
+                            Covariant     -> compareTerm CmpLeq b x y
+                            Contravariant -> compareTerm CmpLeq b y x
+            cs1 <- cmp (unArg arg1) (unArg arg2)
 	    case (cs1, unEl a) of
 		(_:_, Pi _ c) | 0 `freeIn` absBody c
 		    -> do
@@ -231,7 +256,7 @@ equalArgs a (arg1 : args1) (arg2 : args2) = do
                             darg1 <- prettyTCM arg1
                             darg2 <- prettyTCM arg2
                             dcs   <- mapM prettyTCM cs1
-                            debug $ "aborting equalArgs " ++ show darg1 ++ "  ==  " ++ show darg2 ++ " : " ++ show db
+                            debug $ "aborting compareArgs " ++ show darg1 ++ "  ==  " ++ show darg2 ++ " : " ++ show db
                             debug $ " --> " ++ show dcs
                         patternViolation   -- TODO: will duplicate work (all arguments checked so far)
 		_   -> do
@@ -239,47 +264,44 @@ equalArgs a (arg1 : args1) (arg2 : args2) = do
                         db <- prettyTCM (piApply a [arg1])
                         darg1 <- mapM prettyTCM args1
                         darg2 <- mapM prettyTCM args2
-                        debug $ "equalArgs " ++ show darg1 ++ "  ==  " ++ show darg2 ++ " : " ++ show db
-		    cs2 <- equalArgs (piApply a [arg1]) args1 args2
+                        debug $ "compareArgs " ++ show darg1 ++ "  ==  " ++ show darg2 ++ " : " ++ show db
+		    cs2 <- compareArgs pols (piApply a [arg1]) args1 args2
 		    return $ cs1 ++ cs2
         _   -> patternViolation
 
-
 -- | Equality on Types
-equalType :: MonadTCM tcm => Type -> Type -> tcm Constraints
-equalType ty1@(El s1 a1) ty2@(El s2 a2) =
-    catchConstraint (TypeEq ty1 ty2) $ do
+compareType :: MonadTCM tcm => Comparison -> Type -> Type -> tcm Constraints
+compareType cmp ty1@(El s1 a1) ty2@(El s2 a2) =
+    catchConstraint (TypeCmp cmp ty1 ty2) $ do
 	reportSDoc "tc.conv.type" 9 $ vcat
-          [ hsep [ text "equalType", prettyTCM ty1, text " == ", prettyTCM ty2 ]
+          [ hsep [ text "compareType", prettyTCM ty1, text " == ", prettyTCM ty2 ]
           , hsep [ text "   sorts:", prettyTCM s1, text " and ", prettyTCM s2 ]
           ]
-	cs1 <- equalSort s1 s2 `catchError` \err -> case err of
+	cs1 <- compareSort cmp s1 s2 `catchError` \err -> case err of
                   TypeError _ _ -> typeError $ UnequalTypes ty1 ty2
                   _             -> throwError err
-	cs2 <- equalTerm (sort s1) a1 a2
+	cs2 <- compareTerm cmp (sort s1) a1 a2
         unless (null $ cs1 ++ cs2) $
           reportSDoc "tc.conv.type" 9 $
             text "   --> " <+> prettyList (map prettyTCM $ cs1 ++ cs2)
 	return $ cs1 ++ cs2
 
 leqType :: MonadTCM tcm => Type -> Type -> tcm Constraints
-leqType ty1@(El s1 a1) ty2@(El s2 a2) = do
-     -- TODO: catchConstraint (?)
-    (a1, a2) <- reduce (a1,a2)
-    case (a1, a2) of
-	(Sort s1, Sort s2) -> leqSort s1 s2
-	_		   -> equalType (El s1 a1) (El s2 a2)
-	    -- TODO: subtyping for function types
+leqType = compareType CmpLeq
 
 ---------------------------------------------------------------------------
 -- * Sorts
 ---------------------------------------------------------------------------
 
+compareSort :: MonadTCM tcm => Comparison -> Sort -> Sort -> tcm Constraints
+compareSort CmpEq  = equalSort
+compareSort CmpLeq = equalSort -- TODO: change to leqSort when we have better constraint solving
+
 -- | Check that the first sort is less or equal to the second.
 leqSort :: MonadTCM tcm => Sort -> Sort -> tcm Constraints
 leqSort s1 s2 =
   ifM typeInType (return []) $
-    catchConstraint (SortEq s1 s2) $
+    catchConstraint (SortCmp CmpLeq s1 s2) $
     do	(s1,s2) <- reduce (s1,s2)
 -- 	do  d1 <- prettyTCM s1
 -- 	    d2 <- prettyTCM s2
@@ -310,7 +332,7 @@ leqSort s1 s2 =
 equalSort :: MonadTCM tcm => Sort -> Sort -> tcm Constraints
 equalSort s1 s2 =
   ifM typeInType (return []) $
-    catchConstraint (SortEq s1 s2) $
+    catchConstraint (SortCmp CmpEq s1 s2) $
     do	(s1,s2) <- reduce (s1,s2)
 -- 	do  d1 <- prettyTCM s1
 -- 	    d2 <- prettyTCM s2
@@ -333,17 +355,17 @@ equalSort s1 s2 =
 				 | otherwise -> notEq s1 s2
 	    (Suc s   , Prop    )	     -> notEq s1 s2
 	    (Suc s   , Type 0  )	     -> notEq s1 s2
-	    (Suc s   , Type 1  )	     -> buildConstraint (SortEq s1 s2)
+	    (Suc s   , Type 1  )	     -> buildConstraint (SortCmp CmpEq s1 s2)
 	    (Suc s   , Type n  )	     -> equalSort s (Type $ n - 1)
 	    (Prop    , Suc s   )	     -> notEq s1 s2
 	    (Type 0  , Suc s   )	     -> notEq s1 s2
-	    (Type 1  , Suc s   )	     -> buildConstraint (SortEq s1 s2)
+	    (Type 1  , Suc s   )	     -> buildConstraint (SortCmp CmpEq s1 s2)
 	    (Type n  , Suc s   )	     -> equalSort (Type $ n - 1) s
-	    (_	     , Suc _   )	     -> buildConstraint (SortEq s1 s2)
-	    (Suc _   , _       )	     -> buildConstraint (SortEq s1 s2)
+	    (_	     , Suc _   )	     -> buildConstraint (SortCmp CmpEq s1 s2)
+	    (Suc _   , _       )	     -> buildConstraint (SortCmp CmpEq s1 s2)
 
-	    (Lub _ _ , _       )	     -> buildConstraint (SortEq s1 s2)
-	    (_	     , Lub _ _ )	     -> buildConstraint (SortEq s1 s2)
+	    (Lub _ _ , _       )	     -> buildConstraint (SortCmp CmpEq s1 s2)
+	    (_	     , Lub _ _ )	     -> buildConstraint (SortCmp CmpEq s1 s2)
 
     where
 	notEq s1 s2 = typeError $ UnequalSorts s1 s2
