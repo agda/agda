@@ -59,6 +59,17 @@ bindBuiltinSuc e = do
     suc <- checkExpr e natToNat
     bindBuiltinName builtinSuc suc
 
+typeOfSizeInf :: TCM Type
+typeOfSizeInf = do
+    sz  <- primSize
+    return $ (El (Type 0) sz)
+
+typeOfSizeSuc :: TCM Type
+typeOfSizeSuc = do
+    sz  <- primSize
+    let	sz' = El (Type 0) sz
+    return $ El (Type 0) $ Fun (Arg NotHidden sz') sz'
+
 -- | Built-in nil should have type @{A:Set} -> List A@
 bindBuiltinNil :: A.Expr -> TCM ()
 bindBuiltinNil e = do
@@ -222,22 +233,49 @@ builtinPrimitives =
 -- | Builtin constructors
 builtinConstructors :: [(String, A.Expr -> TCM ())]
 builtinConstructors =
-  [ (builtinNil,   bindBuiltinNil               )
-  , (builtinCons,  bindBuiltinCons              )
-  , (builtinZero,  bindBuiltinZero              )
-  , (builtinSuc,   bindBuiltinSuc               )
-  , (builtinTrue,  bindBuiltinBool builtinTrue  )
-  , (builtinFalse, bindBuiltinBool builtinFalse )
+  [ (builtinNil,     bindBuiltinNil               )
+  , (builtinCons,    bindBuiltinCons              )
+  , (builtinZero,    bindBuiltinZero              )
+  , (builtinSuc,     bindBuiltinSuc               )
+  , (builtinTrue,    bindBuiltinBool builtinTrue  )
+  , (builtinFalse,   bindBuiltinBool builtinFalse )
+  ]
+
+-- | Builtin postulates
+builtinPostulates :: [(String, TCM Type)]
+builtinPostulates =
+  [ (builtinSize,    return $ sort $ Type 0 )
+  , (builtinSizeSuc, typeOfSizeSuc          )
+  , (builtinSizeInf, typeOfSizeInf          )
   ]
 
 -- | Bind a builtin constructor. Pre-condition: argument is an element of
---   builtinConstructors.
+--   'builtinConstructors'.
 bindConstructor :: String -> (A.Expr -> TCM ()) -> A.Expr -> TCM ()
 bindConstructor s bind (A.ScopedExpr scope e) = do
   setScope scope
   bindConstructor s bind e
 bindConstructor s bind e@(A.Con _) = bind e
 bindConstructor s _ e              = typeError $ BuiltinMustBeConstructor s e
+
+-- | Bind a builtin postulate. Pre-condition: argument is an element of
+--   'builtinPostulates'.
+bindPostulate :: String -> TCM Type -> A.Expr -> TCM ()
+bindPostulate s typ e = do
+  t <- typ
+  v <- checkExpr e t
+
+  let bad = typeError $ GenericError $ "The builtin " ++ s ++ " must be bound to a postulated identifier."
+
+  case v of
+    Def c []  -> ignoreAbstractMode $ do
+      defn <- theDef <$> getConstInfo c
+      case defn of
+        Axiom{} -> return ()
+        _       -> bad
+    _         -> bad
+
+  bindBuiltinName s v
 
 -- | Bind a builtin thing to an expression.
 bindBuiltin :: String -> A.Expr -> TCM ()
@@ -251,5 +289,6 @@ bindBuiltin b e = do
 	    | elem b [builtinList, builtinIO]            = bindBuiltinType1 b e
             | Just bind  <- lookup b builtinConstructors = bindConstructor b bind e
 	    | Just (s,v) <- lookup b builtinPrimitives   = bindBuiltinPrimitive s b e v
+            | Just typ   <- lookup b builtinPostulates   = bindPostulate b typ e
 	    | otherwise                                  = typeError $ NoSuchBuiltinName b
 
