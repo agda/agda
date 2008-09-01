@@ -1,7 +1,7 @@
 {-# OPTIONS_GHC -cpp -fglasgow-exts -fallow-undecidable-instances -fallow-overlapping-instances #-}
 
 -- | Check that a datatype is strictly positive.
-module Agda.TypeChecking.Positivity (checkStrictlyPositive) where
+module Agda.TypeChecking.Positivity (checkStrictlyPositive, checkPosArg, initPosState, PosM) where
 
 import Prelude hiding (foldr, mapM_, mapM, elem, concat)
 
@@ -127,7 +127,8 @@ checkPosArg d i = unlessM (isAssumption d i) $ do
     assume d i
     def <- lift $ getConstInfo d
     case theDef def of
-	Datatype{dataPars = np, dataCons = cs} -> do
+	Datatype{dataPars = np, dataCons = cs}
+          | i < np -> do
             let TelV tel _ = telView $ defType def
                 pars       = [ x | Arg _ (x, _) <- telToList tel ]
 	    xs <- lift $ map (qnameFromList . (:[])) <$>

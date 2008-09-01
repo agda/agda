@@ -22,6 +22,7 @@ import Agda.TypeChecking.Monad.Env
 import Agda.TypeChecking.Monad.Mutual
 import Agda.TypeChecking.Monad.Open
 import Agda.TypeChecking.Substitute
+import {-# SOURCE #-} Agda.TypeChecking.Polarity
 
 import Agda.Utils.Monad
 import Agda.Utils.Map as Map
@@ -184,6 +185,7 @@ applySection new ptel old ts rd rm = liftTCM $ do
 			      -- we won't need it
 	Just y	-> do
 	  addConstant y (nd y)
+          computePolarity y
 	  -- Set display form for the old name if it's not a constructor.
 	  unless (isCon || size ptel > 0) $ do
 	    addDisplayForms y
@@ -303,6 +305,21 @@ getPolarity q = liftTCM $ do
 getPolarity' :: MonadTCM tcm => Comparison -> QName -> tcm [Polarity]
 getPolarity' CmpEq _  = return []
 getPolarity' CmpLeq q = getPolarity q
+
+-- | Set the polarity of a definition.
+setPolarity :: MonadTCM tcm => QName -> [Polarity] -> tcm ()
+setPolarity q pol = liftTCM $ do
+  modifySignature setP
+  where
+    setP sig = sig { sigDefinitions = Map.adjust setPx q defs }
+      where
+	setPx def = def { theDef = setPd $ theDef def }
+        setPd d   = case d of
+          Function{} -> d { funPolarity  = pol }
+          Datatype{} -> d { dataPolarity = pol }
+          Record{}   -> d { recPolarity  = pol }
+          _          -> __IMPOSSIBLE__
+	defs	  = sigDefinitions sig
 
 -- | Look up the number of free variables of a section. This is equal to the
 --   number of parameters if we're currently inside the section and 0 otherwise.

@@ -19,6 +19,7 @@ import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Polarity
 
 import Agda.TypeChecking.Rules.Term ( isType_ )
 
@@ -64,10 +65,10 @@ checkDataDef i ind name ps cs =
 				   , dataSort      = s
                                    , dataHsType    = Nothing
                                    , dataAbstr     = Info.defAbstract i
-                                   , dataPolarity  = [] -- TODO: compute polarity
+                                   , dataPolarity  = []
                                    }
 
-	    escapeContext (size tel) $
+	    escapeContext (size tel) $ do
 	      addConstant name ( Defn name t (defaultDisplayForm name) 0 dataDef )
 
 	    -- Check the types of the constructors
@@ -91,6 +92,7 @@ checkDataDef i ind name ps cs =
 	addConstant name (Defn name t (defaultDisplayForm name) 0 $
                             dataDef { dataCons = map cname cs }
 			 )
+        computePolarity name
     where
 	cname (A.ScopedDecl _ [d]) = cname d
 	cname (A.Axiom _ x _)	   = x

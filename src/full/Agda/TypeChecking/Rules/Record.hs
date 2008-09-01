@@ -15,6 +15,7 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Polarity
 
 import Agda.TypeChecking.Rules.Data ( bindParameters, fitsIn )
 import Agda.TypeChecking.Rules.Term ( isType_ )
@@ -88,8 +89,10 @@ checkRecDef i name ps contel fields =
                                 , recTel = ftel
                                 , recSort = s
 				, recAbstr = Info.defAbstract i
-                                , recPolarity = []  -- TODO: polarity
+                                , recPolarity = []
                                 }
+      computePolarity name
+
       return ()
 
 {-| @checkRecordProjections q tel ftel s vs n fs@:
@@ -166,14 +169,15 @@ checkRecordProjections m q tel ftel s fs = checkProjs EmptyTel ftel fs
 		 $ Body $ Var 0 []
           cltel  = ptel `abstract` ftel
 	  clause = Clause cltel (idP $ size ptel + size ftel) (hps ++ [conp]) body
-      escapeContext (size tel) $
+      escapeContext (size tel) $ do
 	addConstant projname $ Defn projname finalt (defaultDisplayForm projname) 0
           $ Function { funClauses   = [clause]
                      , funRecursion = Recursive
                      , funInv       = NotInjective
                      , funAbstr     = ConcreteDef
-                     , funPolarity  = []  -- TODO: polarity
+                     , funPolarity  = []
                      }
+        computePolarity projname
 
       checkProjs (abstract ftel1 $ ExtendTel (Arg NotHidden t)
                                  $ Abs (show $ qnameName projname) EmptyTel

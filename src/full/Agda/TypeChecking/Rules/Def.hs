@@ -36,6 +36,7 @@ import Agda.TypeChecking.With
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Coverage
 import Agda.TypeChecking.Injectivity
+import Agda.TypeChecking.Polarity
 
 import Agda.TypeChecking.Rules.Term                ( checkExpr, inferExpr, checkTelescope, isType_ )
 import Agda.TypeChecking.Rules.LHS                 ( checkLeftHandSide )
@@ -103,8 +104,9 @@ checkFunDef i name cs =
                             , funRecursion = rec
                             , funInv       = inv
                             , funAbstr     = Info.defAbstract i
-                            , funPolarity  = [] -- TODO: polarity
+                            , funPolarity  = []
                             }
+        computePolarity name
         verboseS "tc.def.fun" 10 $ do
           dx <- prettyTCM name
           t' <- prettyTCM . defType =<< getConstInfo name
