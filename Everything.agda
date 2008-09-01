@@ -112,6 +112,7 @@ import Relation.Binary.EqReasoning
 import Relation.Binary.FunctionLifting
 import Relation.Binary.HeterogeneousEquality
 import Relation.Binary.NonStrictToStrict
+import Relation.Binary.On
 import Relation.Binary.OrderMorphism
 import Relation.Binary.PartialOrderReasoning
 import Relation.Binary.PreorderReasoning
