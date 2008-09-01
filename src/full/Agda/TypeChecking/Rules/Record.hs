@@ -82,9 +82,14 @@ checkRecDef i name ps contel fields =
       telePi ftel t0 `fitsIn` s
 
       addConstant name $ Defn name t0 (defaultDisplayForm name) 0
-		       $ Record (size tel) Nothing
-				(concatMap getName fields) ftel s
-				(Info.defAbstract i)
+		       $ Record { recPars = size tel
+                                , recClause = Nothing
+				, recFields = concatMap getName fields
+                                , recTel = ftel
+                                , recSort = s
+				, recAbstr = Info.defAbstract i
+                                , recPolarity = []  -- TODO: polarity
+                                }
       return ()
 
 {-| @checkRecordProjections q tel ftel s vs n fs@:
@@ -162,8 +167,13 @@ checkRecordProjections m q tel ftel s fs = checkProjs EmptyTel ftel fs
           cltel  = ptel `abstract` ftel
 	  clause = Clause cltel (idP $ size ptel + size ftel) (hps ++ [conp]) body
       escapeContext (size tel) $
-	addConstant projname (Defn projname finalt (defaultDisplayForm projname) 0
-          $ Function [clause] Recursive NotInjective ConcreteDef)
+	addConstant projname $ Defn projname finalt (defaultDisplayForm projname) 0
+          $ Function { funClauses   = [clause]
+                     , funRecursion = Recursive
+                     , funInv       = NotInjective
+                     , funAbstr     = ConcreteDef
+                     , funPolarity  = []  -- TODO: polarity
+                     }
 
       checkProjs (abstract ftel1 $ ExtendTel (Arg NotHidden t)
                                  $ Abs (show $ qnameName projname) EmptyTel

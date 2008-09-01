@@ -187,8 +187,9 @@ termDef rec use names name = do
 	      , nest 2 $ text ":" <+> (prettyTCM $ defType def)
 	      ]
         case (theDef def) of
-           Function cls _ _ isAbstract -> collectCalls (termClause rec use names name) cls
-           _ -> return Term.empty
+          Function{ funClauses = cls, funAbstr = isAbstract } ->
+            collectCalls (termClause rec use names name) cls
+          _ -> return Term.empty
 
 
 -- | Termination check clauses

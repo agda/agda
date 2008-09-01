@@ -195,6 +195,7 @@ applySection new ptel old ts rd rm = liftTCM $ do
 	isCon = case oldDef of
 	  Constructor{} -> True
 	  _		-> False
+        -- TODO: compute polarity for the new definition
 	def  = case oldDef of
                 Constructor{ conPars = np, conData = d } ->
                   oldDef { conPars = np - size ts, conData = copyName d }
@@ -202,7 +203,13 @@ applySection new ptel old ts rd rm = liftTCM $ do
                   oldDef { dataPars = np - size ts, dataClause = Just cl, dataCons = map copyName cs }
                 Record{ recPars = np, recTel = tel } ->
                   oldDef { recPars = np - size ts, recClause = Just cl, recTel = apply tel ts }
-		_                           -> Function [cl] Recursive NotInjective ConcreteDef
+		_                           ->
+                  Function { funClauses   = [cl]
+                           , funRecursion = Recursive
+                           , funInv       = NotInjective
+                           , funPolarity  = []
+                           , funAbstr     = ConcreteDef
+                           }
 	cl = Clause EmptyTel (idP 0) [] $ Body $ Def x ts
 
     copySec :: Args -> (ModuleName, Section) -> TCM ()
@@ -282,6 +289,16 @@ getConstInfo q = liftTCM $ do
 	Nothing	-> typeError $ NotInScope [qnameToConcrete q]
 	  -- the above can happen since the scope checker is a bit sloppy with 'abstract'
     mkAbs False d = return d
+
+-- | Look up the polarity of a definition.
+getPolarity :: MonadTCM tcm => QName -> tcm [Polarity]
+getPolarity q = liftTCM $ do
+  defn <- theDef <$> getConstInfo q
+  case defn of
+    Function{ funPolarity  = p } -> return p
+    Datatype{ dataPolarity = p } -> return p
+    Record{ recPolarity    = p } -> return p
+    _                            -> return []
 
 -- | Look up the number of free variables of a section. This is equal to the
 --   number of parameters if we're currently inside the section and 0 otherwise.

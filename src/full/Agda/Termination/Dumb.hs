@@ -54,7 +54,7 @@ simpleDef :: (QName, Definition) -> (QName, Defn)
 simpleDef (n, d) = (n, theDef d)
  
 processDef :: (QName, Defn) -> TCM()
-processDef (name, (Function cs _ _ isa)) =  processFun name cs
+processDef (name, Function{ funClauses = cs, funAbstr = isa }) =  processFun name cs
 processDef _ = return ()
 
 

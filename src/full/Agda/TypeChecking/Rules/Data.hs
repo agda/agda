@@ -64,6 +64,7 @@ checkDataDef i ind name ps cs =
 				   , dataSort      = s
                                    , dataHsType    = Nothing
                                    , dataAbstr     = Info.defAbstract i
+                                   , dataPolarity  = [] -- TODO: compute polarity
                                    }
 
 	    escapeContext (size tel) $

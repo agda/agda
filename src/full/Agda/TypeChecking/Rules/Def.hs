@@ -98,7 +98,13 @@ checkFunDef i name cs =
 
         -- Add the definition
         addConstant name $ Defn name t (defaultDisplayForm name) 0
-                         $ Function cs rec inv $ Info.defAbstract i
+                         $ Function
+                            { funClauses   = cs
+                            , funRecursion = rec
+                            , funInv       = inv
+                            , funAbstr     = Info.defAbstract i
+                            , funPolarity  = [] -- TODO: polarity
+                            }
         verboseS "tc.def.fun" 10 $ do
           dx <- prettyTCM name
           t' <- prettyTCM . defType =<< getConstInfo name

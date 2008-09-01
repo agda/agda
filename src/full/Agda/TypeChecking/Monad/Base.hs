@@ -329,6 +329,9 @@ data HaskellRepresentation
       | HsType HaskellType
   deriving (Typeable, Data, Show)
 
+data Polarity = Covariant | Contravariant | Invariant
+  deriving (Typeable, Data, Show)
+
 data Defn = Axiom
             { axHsDef   :: Maybe HaskellRepresentation
             }
@@ -336,6 +339,7 @@ data Defn = Axiom
             { funClauses   :: [Clause]
             , funRecursion :: Recursion
             , funInv       :: FunctionInverse
+            , funPolarity  :: [Polarity]
             , funAbstr     :: IsAbstract
             }
 	  | Datatype
@@ -345,16 +349,18 @@ data Defn = Axiom
             , dataClause    :: (Maybe Clause) -- this might be in an instantiated module
             , dataCons      :: [QName]        -- constructor names
             , dataSort      :: Sort
+            , dataPolarity  :: [Polarity]
             , dataHsType    :: Maybe HaskellType
             , dataAbstr     :: IsAbstract
             }
 	  | Record
-            { recPars   :: Nat
-            , recClause :: Maybe Clause
-            , recFields :: [A.QName]
-            , recTel    :: Telescope
-            , recSort   :: Sort
-            , recAbstr  :: IsAbstract
+            { recPars     :: Nat
+            , recClause   :: Maybe Clause
+            , recFields   :: [A.QName]
+            , recTel      :: Telescope
+            , recSort     :: Sort
+            , recPolarity :: [Polarity]
+            , recAbstr    :: IsAbstract
             }
 	  | Constructor
             { conPars   :: Nat         -- nof parameters

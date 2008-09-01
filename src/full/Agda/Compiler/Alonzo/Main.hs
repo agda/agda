@@ -173,7 +173,8 @@ processDef (qname,Defn { theDef = Datatype{ dataPars = n, dataIxs = nind, dataCl
       nDummyArgs k = (HsPVar $ HsIdent ("v" ++ (show k))) : nDummyArgs (k-1)
 
 -- Records are translated to a data with one cons
-processDef (qname, Defn { theDef = Record n clauses fields tel sort isa }) =  do
+processDef (qname, Defn { theDef =
+            Record { recPars = n, recFields = fields, recTel = tel } }) =  do
    return [ddecl arity tel,vdecl tel]  where
       name = qnameName qname
       arity = genericLength fields
