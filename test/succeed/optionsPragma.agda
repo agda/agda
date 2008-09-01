@@ -1,5 +1,5 @@
 {-# OPTIONS --proof-irrelevance #-}
-module Pragma where
+module optionsPragma where
 
 postulate
   Foo : Prop

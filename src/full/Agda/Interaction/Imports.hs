@@ -304,10 +304,11 @@ moduleNameToFileName (C.Qual m x) ext = show m ++ [slash] ++ moduleNameToFileNam
 
 -- | Move somewhere else.
 matchFileName :: ModuleName -> FilePath -> Bool
-matchFileName mname file = expected `isSuffixOf` given
+matchFileName mname file = expected `isSuffixOf` given || literate `isSuffixOf` given
   where
     given    = splitPath file
     expected = splitPath $ moduleNameToFileName (mnameToConcrete mname) ".agda"
+    literate = splitPath $ moduleNameToFileName (mnameToConcrete mname) ".lagda"
 
 -- | Check that the top-level module name matches the file name.
 checkModuleName :: TopLevelInfo -> FilePath -> TCM ()
