@@ -173,8 +173,6 @@ standardOptions =
 		    "look for imports in DIR"
     , Option ['I']  ["interactive"] (NoArg interactiveFlag)
 		    "start in interactive mode"
-    , Option []	    ["show-implicit"] (NoArg showImplicitFlag)
-		    "show implicit arguments when printing"
     , Option ['c']  ["compile"] (NoArg compileFlag)
                     "compile program to Haskell (experimental)"
     , Option []	    ["agate"] (NoArg agateFlag)
@@ -201,6 +199,8 @@ pragmaOptions :: [OptDescr (Flag CommandLineOptions)]
 pragmaOptions =
     [ Option ['v']  ["verbose"]	(ReqArg verboseFlag "N")
 		    "set verbosity level to N"
+    , Option []	    ["show-implicit"] (NoArg showImplicitFlag)
+		    "show implicit arguments when printing"
     , Option []	    ["proof-irrelevance"] (NoArg proofIrrelevanceFlag)
 		    "enable proof irrelevance (experimental feature)"
     , Option []	    ["allow-unsolved-metas"] (NoArg allowUnsolvedFlag)
