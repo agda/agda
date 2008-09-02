@@ -333,7 +333,7 @@ data HaskellRepresentation
   deriving (Typeable, Data, Show)
 
 data Polarity = Covariant | Contravariant | Invariant
-  deriving (Typeable, Data, Show)
+  deriving (Typeable, Data, Show, Eq)
 
 data Defn = Axiom
             { axHsDef   :: Maybe HaskellRepresentation
