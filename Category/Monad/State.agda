@@ -43,18 +43,6 @@ StateTIMonadPlus S Mon = record
   where open RawMonadPlus Mon
 
 ------------------------------------------------------------------------
--- Ordinary state monads
-
-StateT : Set -> (Set -> Set) -> Set -> Set
-StateT S M = IStateT {⊤} (\_ -> S) M _ _
-
-State : Set -> Set -> Set
-State S = StateT S Identity
-
-StateMonad : (S : Set) -> RawMonad (State S)
-StateMonad S = StateTIMonad _ IdentityMonad
-
-------------------------------------------------------------------------
 -- State monad operations
 
 record RawIMonadState {I : Set} (S : I -> Set)
@@ -77,3 +65,50 @@ StateTIMonadState S Mon = record
   ; put   = \s _ -> return (_ , s)
   }
   where open RawIMonad Mon
+
+------------------------------------------------------------------------
+-- Ordinary state monads
+
+RawMonadState : Set -> (Set -> Set) -> Set1
+RawMonadState S M = RawIMonadState {⊤} (\_ -> S) (\_ _ -> M)
+
+module RawMonadState {S : Set} {M : Set -> Set}
+                     (Mon : RawMonadState S M) where
+  open RawIMonadState Mon public
+
+StateT : Set -> (Set -> Set) -> Set -> Set
+StateT S M = IStateT {⊤} (\_ -> S) M _ _
+
+StateTMonad : forall S {M} -> RawMonad M -> RawMonad (StateT S M)
+StateTMonad S = StateTIMonad (\_ -> S)
+
+StateTMonadZero : forall S {M} ->
+                  RawMonadZero M -> RawMonadZero (StateT S M)
+StateTMonadZero S = StateTIMonadZero (\_ -> S)
+
+StateTMonadPlus : forall S {M} ->
+                  RawMonadPlus M -> RawMonadPlus (StateT S M)
+StateTMonadPlus S = StateTIMonadPlus (\_ -> S)
+
+StateTMonadState : forall S {M} ->
+                   RawMonad M -> RawMonadState S (StateT S M)
+StateTMonadState S = StateTIMonadState (\_ -> S)
+
+State : Set -> Set -> Set
+State S = StateT S Identity
+
+StateMonad : (S : Set) -> RawMonad (State S)
+StateMonad S = StateTMonad S IdentityMonad
+
+StateMonadState : forall S -> RawMonadState S (State S)
+StateMonadState S = StateTMonadState S IdentityMonad
+
+LiftMonadState : forall {S₁} S₂ {M} ->
+                 RawMonadState S₁ M ->
+                 RawMonadState S₁ (StateT S₂ M)
+LiftMonadState S₂ Mon = record
+  { monad = StateTIMonad (\_ -> S₂) monad
+  ; get   = \s -> get >>= \x -> return (x , s)
+  ; put   = \s′ s -> put s′ >> return (_ , s)
+  }
+  where open RawIMonadState Mon
