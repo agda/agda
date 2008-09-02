@@ -14,6 +14,7 @@ import Data.Foldable
 import Data.Traversable
 import Data.Set (Set)
 import Data.Monoid
+import Data.Maybe
 import Data.List hiding (concat, foldr, elem)
 import qualified Data.Set as Set
 import qualified Data.Map as Map
@@ -138,13 +139,25 @@ checkPosArg d i = unlessM (isAssumption d i) $ do
 		args = map (Arg NotHidden . flip Def []) xs
 	    let check c = do
 		    t <- lift $ normalise =<< (defType <$> getConstInfo c)
-		    checkPos [x] (OccCon d c) (t `piApply` args)
+                    let it = t `piApply` args
+                        TelV _ target = telView it
+		    checkPos [x] (OccCon d c) it
+                    linear x target
 
 	    mapM_ check cs
         Function{funClauses = cs} -> zipWithM_ (checkPosClause d i) [0..] cs
 	_   -> lift $ typeError $ NotStrictlyPositive d []
   where
     parName x = "the parameter " ++ x
+
+linear :: QName -> Type -> PosM ()
+linear x (El _ (Def _ args)) = do
+  let occ arg = isJust $ Map.lookup x (unMap $ getDefs arg)
+  case [ arg | arg <- args, occ arg ] of
+    []    -> __IMPOSSIBLE__
+    [_]   -> return ()
+    _:_:_ -> lift $ typeError $ NotStrictlyPositive x []
+linear _ _ = __IMPOSSIBLE__
 
 checkPosClause :: QName -> Nat -> Nat -> Clause -> PosM ()
 checkPosClause f i n (Clause _ _ ps body) = do
