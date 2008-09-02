@@ -318,7 +318,7 @@ setPolarity q pol = liftTCM $ do
           Function{} -> d { funPolarity  = pol }
           Datatype{} -> d { dataPolarity = pol }
           Record{}   -> d { recPolarity  = pol }
-          _          -> __IMPOSSIBLE__
+          _          -> d
 	defs	  = sigDefinitions sig
 
 -- | Look up the number of free variables of a section. This is equal to the
