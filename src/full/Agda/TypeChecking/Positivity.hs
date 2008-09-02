@@ -169,7 +169,7 @@ checkPosClause f i n (Clause _ _ ps body) = do
                 | i == j = return [me]
     mkPat _ j _ | i == j = lift $ typeError $ NotStrictlyPositive f []
     mkPat me j (ConP c ps) = map unArg <$> mkArgs me j ps
-    mkPat me j (DotP _) = return []
+    mkPat me j (DotP _) = return [__IMPOSSIBLE__]
     mkPat me j (VarP _) = (:[]) <$> dummy
     mkPat me j (LitP l) = return []
 
