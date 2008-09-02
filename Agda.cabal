@@ -134,6 +134,7 @@ library
                    Agda.TypeChecking.Monad.Open
                    Agda.TypeChecking.Monad.Options
                    Agda.TypeChecking.Monad.Signature
+                   Agda.TypeChecking.Monad.SizedTypes
                    Agda.TypeChecking.Monad.State
                    Agda.TypeChecking.Monad.Statistics
                    Agda.TypeChecking.Monad.Trace
@@ -159,6 +160,7 @@ library
                    Agda.TypeChecking.Rules.Record
                    Agda.TypeChecking.Rules.Term
                    Agda.TypeChecking.Serialise
+                   Agda.TypeChecking.SizedTypes
                    Agda.TypeChecking.Substitute
                    Agda.TypeChecking.Telescope
                    Agda.TypeChecking.Test.Generators

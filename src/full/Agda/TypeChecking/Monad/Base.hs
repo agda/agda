@@ -166,7 +166,7 @@ data Constraint = ValueCmp Comparison Type Term Term
   deriving (Typeable)
 
 data Comparison = CmpEq | CmpLeq
-  deriving (Typeable)
+  deriving (Eq, Typeable)
 
 type Constraints = [ConstraintClosure]
 

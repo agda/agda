@@ -196,8 +196,17 @@ unifyIndices flex a us vs = liftTCM $ do
       i |-> x
       recheckConstraints
 
-    -- TODO: eta for records here
+    unifySizes :: Term -> Term -> Unify ()
+    unifySizes u v = do
+      sz <- sizeType
+      su <- sizeView u
+      sv <- sizeView v
+      case (su, sv) of
+        (SizeSuc u, SizeInf) -> unify sz u v
+        (SizeInf, SizeSuc v) -> unify sz u v
+        _                    -> unifyAtom sz u v
 
+    -- TODO: eta for records here
     unify :: Type -> Term -> Term -> Unify ()
     unify a u v = do
       u <- constructorForm =<< ureduce u
@@ -208,6 +217,12 @@ unifyIndices flex a us vs = liftTCM $ do
 	    , nest 2 $ parens $ prettyTCM v
 	    , nest 2 $ text ":" <+> prettyTCM a
 	    ]
+      isSize <- isSizeType a
+      if isSize then unifySizes u v
+                else unifyAtom a u v
+
+    unifyAtom :: Type -> Term -> Term -> Unify ()
+    unifyAtom a u v =
       case (u, v) of
 	(Var i us, Var j vs) | i == j  -> do
 	    a <- typeOfBV i

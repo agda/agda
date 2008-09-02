@@ -85,9 +85,6 @@ hasInputFile = isJust <$> optInputFile <$> commandLineOptions
 proofIrrelevance :: MonadTCM tcm => tcm Bool
 proofIrrelevance = optProofIrrelevance <$> commandLineOptions
 
-hasSizedTypes :: MonadTCM tcm => tcm Bool
-hasSizedTypes = optSizedTypes <$> commandLineOptions
-
 showImplicitArguments :: MonadTCM tcm => tcm Bool
 showImplicitArguments = optShowImplicit <$> commandLineOptions
 

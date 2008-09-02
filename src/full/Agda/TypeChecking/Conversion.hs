@@ -22,6 +22,7 @@ import Agda.TypeChecking.Free
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Injectivity
+import Agda.TypeChecking.SizedTypes
 
 import Agda.Utils.Monad
 
@@ -60,9 +61,11 @@ compareTerm cmp a m n =
     catchConstraint (ValueCmp cmp a m n) $
     do	a'	 <- reduce a
 	proofIrr <- proofIrrelevance
+        isSize   <- isSizeType a'
 	s	 <- reduce $ getSort a'
-	case (proofIrr, s) of
-	    (True, Prop)    -> return []
+	case s of
+	    Prop | proofIrr -> return []
+            _    | isSize   -> compareSizes cmp m n
 	    _		    ->
 		case unEl a' of
 		    Pi a _    -> equalFun (a,a') m n
