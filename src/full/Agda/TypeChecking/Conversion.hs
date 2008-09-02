@@ -116,7 +116,7 @@ compareAtom cmp t m n =
     do	m <- constructorForm =<< reduce m
 	n <- constructorForm =<< reduce n
 	reportSDoc "tc.conv.atom" 10 $ fsep
-	  [ text "compareAtom", prettyTCM m, text "==", prettyTCM n, text ":", prettyTCM t ]
+	  [ text "compareAtom", prettyTCM m, prettyTCM cmp, prettyTCM n, text ":", prettyTCM t ]
 	case (m, n) of
 	    _ | f1@(FunV _ _) <- funView m
 	      , f2@(FunV _ _) <- funView n -> equalFun f1 f2
@@ -129,12 +129,15 @@ compareAtom cmp t m n =
                 -- Variables are invariant in their arguments
 		compareArgs [] a iArgs jArgs
 	    (Def x xArgs, Def y yArgs) | x == y -> do
-		reportSDoc "tc.conv.atom" 20 $
-		  text "compareArgs" <+> sep [ brackets (fsep $ punctuate comma $ map prettyTCM xArgs)
-					  , brackets (fsep $ punctuate comma $ map prettyTCM yArgs)
-					  ]
-		a <- defType <$> getConstInfo x
                 pol <- getPolarity' cmp x
+		reportSDoc "tc.conv.atom" 20 $
+		  text "compareArgs" <+> sep
+                    [ sep [ brackets (fsep $ punctuate comma $ map prettyTCM xArgs)
+			  , brackets (fsep $ punctuate comma $ map prettyTCM yArgs)
+			  ]
+                    , nest 2 $ text (show pol)
+                    ]
+		a <- defType <$> getConstInfo x
 		compareArgs pol a xArgs yArgs
 	    (Con x xArgs, Con y yArgs)
 		| x == y -> do
@@ -241,11 +244,13 @@ compareArgs pols0 a (arg1 : args1) (arg2 : args2) = do
     a <- reduce a
     case funView (unEl a) of
 	FunV (Arg _ b) _ -> do
-	    verboseS "tc.conv.args" 10 $ do
-		db <- prettyTCM b
-		darg1 <- prettyTCM arg1
-		darg2 <- prettyTCM arg2
-		debug $ "compareArgs " ++ show darg1 ++ "  ==  " ++ show darg2 ++ " : " ++ show db
+	    reportSDoc "tc.conv.args" 10 $ 
+              sep [ text "compareArgs" <+> parens (text $ show pol)
+                  , nest 2 $ sep [ prettyTCM arg1
+                                 , text "~~" <+> prettyTCM arg2
+                                 , text ":" <+> prettyTCM b
+                                 ]
+                  ]
             let cmp x y = case pol of
                             Invariant     -> compareTerm CmpEq b x y
                             Covariant     -> compareTerm CmpLeq b x y
@@ -254,20 +259,26 @@ compareArgs pols0 a (arg1 : args1) (arg2 : args2) = do
 	    case (cs1, unEl a) of
 		(_:_, Pi _ c) | 0 `freeIn` absBody c
 		    -> do
-                        verboseS "tc.conv.args" 15 $ do
-                            db <- prettyTCM b
-                            darg1 <- prettyTCM arg1
-                            darg2 <- prettyTCM arg2
-                            dcs   <- mapM prettyTCM cs1
-                            debug $ "aborting compareArgs " ++ show darg1 ++ "  ==  " ++ show darg2 ++ " : " ++ show db
-                            debug $ " --> " ++ show dcs
+                        reportSDoc "tc.conv.args" 15 $ sep
+                          [ text "aborting compareArgs" <+> parens (text $ show pol)
+                          , nest 2 $ sep
+                              [ parens $ text (show pol)
+                              , prettyTCM arg1
+                              , text "~~" <+> prettyTCM arg2
+                              , text ":" <+> prettyTCM b
+                              , text "-->" <+> prettyList (map prettyTCM cs1)
+                              ]
+                          ]
                         patternViolation   -- TODO: will duplicate work (all arguments checked so far)
 		_   -> do
-                    verboseS "tc.conv.args" 15 $ do
-                        db <- prettyTCM (piApply a [arg1])
-                        darg1 <- mapM prettyTCM args1
-                        darg2 <- mapM prettyTCM args2
-                        debug $ "compareArgs " ++ show darg1 ++ "  ==  " ++ show darg2 ++ " : " ++ show db
+                    reportSDoc "tc.conv.args" 15 $ sep
+                      [ text "compareArgs" <+> parens (text $ show pol)
+                      , nest 2 $ sep
+                        [ prettyTCM arg1
+                        , text "~~" <+> prettyTCM arg2
+                        , text ":" <+> prettyTCM (piApply a [arg1])
+                        ]
+                      ]
 		    cs2 <- compareArgs pols (piApply a [arg1]) args1 args2
 		    return $ cs1 ++ cs2
         _   -> patternViolation
@@ -277,7 +288,7 @@ compareType :: MonadTCM tcm => Comparison -> Type -> Type -> tcm Constraints
 compareType cmp ty1@(El s1 a1) ty2@(El s2 a2) =
     catchConstraint (TypeCmp cmp ty1 ty2) $ do
 	reportSDoc "tc.conv.type" 9 $ vcat
-          [ hsep [ text "compareType", prettyTCM ty1, text " == ", prettyTCM ty2 ]
+          [ hsep [ text "compareType", prettyTCM ty1, prettyTCM cmp, prettyTCM ty2 ]
           , hsep [ text "   sorts:", prettyTCM s1, text " and ", prettyTCM s2 ]
           ]
 	cs1 <- compareSort cmp s1 s2 `catchError` \err -> case err of
