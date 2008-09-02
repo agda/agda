@@ -18,10 +18,9 @@ compareSizes cmp u v = do
   s1   <- sizeView =<< reduce u
   s2   <- sizeView =<< reduce v
   size <- sizeType
-  case (s1, s2) of
-    (SizeSuc u, SizeInf)
-      | cmp == CmpEq     -> compareSizes CmpEq u v
-      | otherwise        -> return []
-    (SizeInf, SizeSuc v) -> compareSizes CmpEq u v
-    _                    -> compareAtom cmp size u v
+  case (cmp, s1, s2) of
+    (CmpLeq, _,         SizeInf)   -> return []
+    (CmpEq,  SizeSuc u, SizeInf)   -> compareSizes CmpEq u v
+    (_,      SizeInf,   SizeSuc v) -> compareSizes CmpEq u v
+    _                              -> compareAtom cmp size u v
 
