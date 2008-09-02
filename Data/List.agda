@@ -251,3 +251,20 @@ ListMonadPlus = record
   { monadZero = ListMonadZero
   ; _∣_       = _++_
   }
+
+------------------------------------------------------------------------
+-- Monadic functions
+
+private
+ module Monadic {M} (Mon : RawMonad M) where
+
+  open RawMonad Mon
+
+  sequence : forall {A} -> List (M A) -> M (List A)
+  sequence []       = return []
+  sequence (x ∷ xs) = _∷_ <$> x ⊛ sequence xs
+
+  mapM : forall {A B} -> (A -> M B) -> List A -> M (List B)
+  mapM f = sequence ∘ map f
+
+open Monadic public
