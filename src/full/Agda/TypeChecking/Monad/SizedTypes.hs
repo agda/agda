@@ -26,6 +26,13 @@ isSizeType (El _ v) = liftTCM $
 sizeType :: MonadTCM tcm => tcm Type
 sizeType = El (Type 0) <$> primSize
 
+sizeSuc :: MonadTCM tcm => tcm (Maybe QName)
+sizeSuc = liftTCM $
+  ifM (not . optSizedTypes <$> commandLineOptions) (return Nothing) $ do
+    Def x [] <- primSizeSuc
+    return $ Just x
+  `catchError` \_ -> return Nothing
+
 -- | A useful view on sizes.
 data SizeView = SizeInf | SizeSuc Term | OtherSize Term
 

@@ -36,12 +36,14 @@ import Agda.TypeChecking.Rules.Term (isType_)
 import Agda.TypeChecking.Substitute (abstract,raise,substs)
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.EtaContract
+import Agda.TypeChecking.Monad.Builtin
 
 import qualified Agda.Interaction.Highlighting.Range as R
+import Agda.Interaction.Options
 
 import Agda.Utils.Size
 import Agda.Utils.String
-import Agda.Utils.Monad (thread, (<$>))
+import Agda.Utils.Monad (thread, (<$>), ifM)
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
@@ -96,16 +98,23 @@ termMutual i ts ds = if names == [] then return [] else
      reportSLn "term.top" 20 $ "Termination checking " ++ show names ++ "..."
      mutualBlock <- findMutualBlock (head names)
      let allNames = Set.elems mutualBlock
+
      -- Get the kind of recursion (you can't mix recursion and corecursion at the moment)
      rec <- sameRecursion =<< mapM whatRecursion allNames
+
      -- collect all recursive calls in the block
      let collect use = collectCalls (termDef rec use allNames) allNames
-     r <- do r <- Term.terminates <$> collect DontUseDotPatterns
+
+     -- Get the name of size suc (if sized types are enabled)
+     suc <- sizeSuc
+
+     let conf = DBPConf { useDotPatterns = False, withSizeSuc = suc }
+     r <- do r <- Term.terminates <$> collect conf{ useDotPatterns = False }
              case r of
-               Left _  -> Term.terminates <$> collect UseDotPatterns
+               Left _  -> Term.terminates <$> collect conf{ useDotPatterns = True }
                Right _ -> return r
-     calls1 <- collect DontUseDotPatterns
-     calls2 <- collect UseDotPatterns
+     calls1 <- collect conf{ useDotPatterns = False }
+     calls2 <- collect conf{ useDotPatterns = True }
      reportS "term.lex" 30 $ unlines
        [ "Calls (no dot patterns): " ++ show calls1
        , "Calls    (dot patterns): " ++ show calls2
@@ -176,7 +185,7 @@ termTypedBinding h (A.TNoBind e) ret = do
     ret [("_",t)]
 
 -- | Termination check a definition by pattern matching.
-termDef :: Recursion -> UseDotPatterns -> MutualNames -> QName -> TCM Calls
+termDef :: Recursion -> DBPConf -> MutualNames -> QName -> TCM Calls
 termDef rec use names name = do
 	-- Retrieve definition
         def <- getConstInfo name
@@ -227,9 +236,9 @@ unusedVar :: DeBruijnPat
 unusedVar = LitDBP (LitString noRange "term.unused.pat.var")
 
 adjIndexDBP :: (Nat -> Nat) -> DeBruijnPat -> DeBruijnPat
-adjIndexDBP f (VarDBP i) = VarDBP (f i)
+adjIndexDBP f (VarDBP i)      = VarDBP (f i)
 adjIndexDBP f (ConDBP c args) = ConDBP c (map (adjIndexDBP f) args)
-adjIndexDBP f (LitDBP l) = LitDBP l
+adjIndexDBP f (LitDBP l)      = LitDBP l
 
 {- | liftDeBruijnPat p n
 
@@ -240,19 +249,24 @@ adjIndexDBP f (LitDBP l) = LitDBP l
 liftDBP :: DeBruijnPat -> DeBruijnPat
 liftDBP = adjIndexDBP (1+)
 
-{- | Indicates whether or not to use dot patterns when checking termination.
+{- | Configuration parameters to termination checker.
 -}
-data UseDotPatterns = UseDotPatterns | DontUseDotPatterns
+data DBPConf = DBPConf { useDotPatterns :: Bool
+                       , withSizeSuc    :: Maybe QName
+                       }
 
 {- | Convert a term (from a dot pattern) to a DeBruijn pattern.
 -}
 
-termToDBP :: UseDotPatterns -> Term -> DeBruijnPat
-termToDBP DontUseDotPatterns _ = unusedVar
-termToDBP UseDotPatterns     t = case t of
-  Var i []    -> VarDBP i
-  Con c args  -> ConDBP c $ map (termToDBP UseDotPatterns . unArg) args
-  _           -> unusedVar
+termToDBP :: DBPConf -> Term -> DeBruijnPat
+termToDBP conf t
+  | not $ useDotPatterns conf = unusedVar
+  | otherwise                 = case t of
+    Var i []    -> VarDBP i
+    Con c args  -> ConDBP c $ map (termToDBP conf . unArg) args
+    Def s [arg]
+      | Just s == withSizeSuc conf -> ConDBP s [termToDBP conf $ unArg arg]
+    _   -> unusedVar
 
 -- | Removes coconstructors from a deBruijn pattern.
 stripCoConstructors :: DeBruijnPat -> TCM DeBruijnPat
@@ -273,17 +287,17 @@ stripCoConstructors p = case p of
   if the clause has no body (b = NoBody), Nothing is returned
 
 -}
-stripBind :: UseDotPatterns -> Nat -> Pattern -> ClauseBody -> Maybe (Nat, DeBruijnPat, ClauseBody)
+stripBind :: DBPConf -> Nat -> Pattern -> ClauseBody -> Maybe (Nat, DeBruijnPat, ClauseBody)
 stripBind _ _ _ NoBody            = Nothing
-stripBind use i (VarP x) (NoBind b) = Just (i, unusedVar, b)
-stripBind use i (VarP x) (Bind b)   = Just (i - 1, VarDBP i, absBody b)
-stripBind use i (VarP x) (Body b)   = __IMPOSSIBLE__
-stripBind use i (DotP t) (NoBind b) = Just (i, termToDBP use t, b)
-stripBind use i (DotP t) (Bind b)   = Just (i - 1, termToDBP use t, absBody b)
-stripBind use i (DotP _) (Body b)   = __IMPOSSIBLE__
-stripBind use i (LitP l) b          = Just (i, LitDBP l, b)
-stripBind use i (ConP c args) b     = do 
-    (i', dbps, b') <- stripBinds use i (map unArg args) b
+stripBind conf i (VarP x) (NoBind b) = Just (i, unusedVar, b)
+stripBind conf i (VarP x) (Bind b)   = Just (i - 1, VarDBP i, absBody b)
+stripBind conf i (VarP x) (Body b)   = __IMPOSSIBLE__
+stripBind conf i (DotP t) (NoBind b) = Just (i, termToDBP conf t, b)
+stripBind conf i (DotP t) (Bind b)   = Just (i - 1, termToDBP conf t, absBody b)
+stripBind conf i (DotP _) (Body b)   = __IMPOSSIBLE__
+stripBind conf i (LitP l) b          = Just (i, LitDBP l, b)
+stripBind conf i (ConP c args) b     = do 
+    (i', dbps, b') <- stripBinds conf i (map unArg args) b
     return (i', ConDBP c dbps, b')
 
 {- | stripBinds i ps b = Just (i', dbps, b')
@@ -291,7 +305,7 @@ stripBind use i (ConP c args) b     = do
   i  is the next free de Bruijn level before consumption of ps
   i' is the next free de Bruijn level after  consumption of ps
 -}
-stripBinds :: UseDotPatterns -> Nat -> [Pattern] -> ClauseBody -> Maybe (Nat, [DeBruijnPat], ClauseBody)
+stripBinds :: DBPConf -> Nat -> [Pattern] -> ClauseBody -> Maybe (Nat, [DeBruijnPat], ClauseBody)
 stripBinds use i [] b     = return (i, [], b)
 stripBinds use i (p:ps) b = do
   (i1,  dbp, b1) <- stripBind use i p b
@@ -299,7 +313,7 @@ stripBinds use i (p:ps) b = do
   return (i2, dbp:dbps, b2)
 
 -- | Extract recursive calls from one clause.
-termClause :: Recursion -> UseDotPatterns -> MutualNames -> QName -> Clause -> TCM Calls
+termClause :: Recursion -> DBPConf -> MutualNames -> QName -> Clause -> TCM Calls
 termClause rec use names name (Clause tel perm argPats' body) = do
     argPats' <- addCtxTel tel $ normalise argPats'
     -- The termination checker doesn't know about reordered telescopes
@@ -337,6 +351,7 @@ termTerm names f pats0 rec t0 = do
        loop :: [DeBruijnPat] -> Order -> Term -> TCM Calls
        loop pats guarded t = do
          t <- instantiate t          -- instantiate top-level MetaVar
+         suc <- sizeSuc
          case ignoreBlocking t of  -- removes BlockedV case
 
             -- call to defined function
@@ -368,7 +383,7 @@ termTerm names f pats0 rec t0 = do
                      -- call is to one of the mutally recursive functions
                      Just gInd' -> do
 
-                        let matrix  = compareArgs pats args
+                        let matrix  = compareArgs suc pats args
                             ncols   = genericLength pats + 1
                             nrows   = genericLength args + 1
                             matrix' = addGuardedness guarded (ncols - 1) matrix
@@ -430,14 +445,16 @@ termTerm names f pats0 rec t0 = do
 
             BlockedV{} -> __IMPOSSIBLE__
 
-{- | compareArgs pats ts
+{- | compareArgs suc pats ts
 
      compare a list of de Bruijn patterns (=parameters) @pats@ 
      with a list of arguments @ts@ and create a call maxtrix 
      with |ts| rows and |pats| columns.
+
+     If sized types are enabled, @suc@ is the name of the size successor.
  -} 
-compareArgs :: [DeBruijnPat] -> [Term] -> [[Term.Order]]
-compareArgs pats ts = map (\t -> map (compareTerm t) pats) ts
+compareArgs :: Maybe QName -> [DeBruijnPat] -> [Term] -> [[Term.Order]]
+compareArgs suc pats ts = map (\t -> map (compareTerm suc t) pats) ts
 
 -- | 'makeCM' turns the result of 'compareArgs' into a proper call matrix
 makeCM :: Index -> Index -> [[Term.Order]] -> Term.CallMatrix
@@ -458,7 +475,7 @@ subPatterns p = case p of
   ConDBP c ps -> ps ++ concatMap subPatterns ps
   LitDBP _    -> []
 
-compareTerm :: Term -> DeBruijnPat -> Term.Order
+compareTerm :: Maybe QName -> Term -> DeBruijnPat -> Term.Order
 compareTerm = compareTerm'
 {-
 compareTerm t p = Term.supremum $ compareTerm' t p : map cmp (subPatterns p)
@@ -468,22 +485,28 @@ compareTerm t p = Term.supremum $ compareTerm' t p : map cmp (subPatterns p)
 
 -- | compareTerm t dbpat
 --   Precondition: t not a BlockedV, top meta variable resolved
-compareTerm' :: Term -> DeBruijnPat -> Term.Order
-compareTerm' (Var i _)  p              = compareVar i p
-compareTerm' (Lit l)    (LitDBP l')    = if l == l' then Term.Le
+compareTerm' :: Maybe QName -> Term -> DeBruijnPat -> Term.Order
+compareTerm' _ (Var i _)  p              = compareVar i p
+compareTerm' _ (Lit l)    (LitDBP l')    = if l == l' then Term.Le
                                                    else Term.Unknown
-compareTerm' (Lit l)    _              = Term.Unknown
-compareTerm' (Con c ts) (ConDBP c' ps) =
-  if c == c' then
+compareTerm' _ (Lit l)    _              = Term.Unknown
+compareTerm' suc (Con c ts) (ConDBP c' ps)
+  | c == c' = compareConArgs suc ts ps
+compareTerm' suc (Def s ts) (ConDBP s' ps)
+  | s == s' && Just s == suc = compareConArgs suc ts ps
+compareTerm' _ _ _ = Term.Unknown
+
+compareConArgs :: Maybe QName -> Args -> [DeBruijnPat] -> Term.Order
+compareConArgs suc ts ps =
   -- we may assume |ps| >= |ts|, otherwise c ps would be of functional type
   -- which is impossible
       case (length ts, length ps) of
         (0,0) -> Term.Le        -- c <= c
         (0,1) -> Term.Unknown   -- c not<= c x
         (1,0) -> __IMPOSSIBLE__ 
-        (1,1) -> compareTerm' (unArg (head ts)) (head ps)
+        (1,1) -> compareTerm' suc (unArg (head ts)) (head ps)
         (_,_) -> -- build "call matrix"
-          let m =  map (\t -> map (compareTerm' (unArg t)) ps) ts
+          let m =  map (\t -> map (compareTerm' suc (unArg t)) ps) ts
               m2 = makeCM (genericLength ps) (genericLength ts) m
           in
             Term.Mat (Term.mat m2)
@@ -494,8 +517,6 @@ compareTerm' (Con c ts) (ConDBP c' ps) =
        -- corresponds to taking the size, not the height
        -- allows examples like (x, y) < (Succ x, y)
 -}
-   else Term.Unknown
-compareTerm' _ _ = Term.Unknown
 
 compareVar :: Nat -> DeBruijnPat -> Term.Order
 compareVar i (VarDBP j)    = if i == j then Term.Le else Term.Unknown
