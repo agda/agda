@@ -22,5 +22,6 @@ compareSizes cmp u v = do
     (CmpLeq, _,         SizeInf)   -> return []
     (CmpEq,  SizeSuc u, SizeInf)   -> compareSizes CmpEq u v
     (_,      SizeInf,   SizeSuc v) -> compareSizes CmpEq u v
+    (CmpLeq, _,         _)         -> buildConstraint $ ValueCmp CmpLeq size u v
     _                              -> compareAtom cmp size u v
 
