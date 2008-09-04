@@ -609,6 +609,10 @@ i+1+j≢i i eq = ¬i+1+j≤i i (reflexive eq)
 ⌈n/2⌉-mono : ⌈_/2⌉ Preserves _≤_ → _≤_
 ⌈n/2⌉-mono m≤n = ⌊n/2⌋-mono (s≤s m≤n)
 
+pred-mono : pred Preserves _≤_ → _≤_
+pred-mono z≤n      = z≤n
+pred-mono (s≤s le) = le
+
 _+-mono_ : _+_ Preserves₂ _≤_ → _≤_ → _≤_
 _+-mono_ {zero} {m₂} {n₁} {n₂} z≤n n₁≤n₂ = start
   n₁      ≤⟨ n₁≤n₂ ⟩
