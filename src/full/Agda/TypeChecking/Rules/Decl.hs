@@ -70,6 +70,7 @@ checkAxiom _ x e = do
     , nest 2 $ prettyTCM x <+> text ":" <+> prettyTCM t
     ]
   addConstant x (Defn x t (defaultDisplayForm x) 0 $ Axiom Nothing)
+  solveSizeConstraints
 
 
 -- | Type check a primitive function declaration.

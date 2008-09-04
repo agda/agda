@@ -20,6 +20,7 @@ import qualified Agda.Utils.Warshall as W
 import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.Impossible
+import Agda.Utils.Size
 
 #include "../undefined.h"
 
@@ -69,6 +70,21 @@ getSizeConstraints = do
       sizeConstraints _ = []
   scs <- mapM computeSizeConstraint $ concatMap sizeConstraints cs
   return [ c | Just c <- scs ]
+
+getSizeMetas :: MonadTCM tcm => tcm [(MetaId, Int)]
+getSizeMetas = do
+  ms <- getOpenMetas
+  sz <- sizeType
+  let sizeCon m = do
+        mi <- lookupMeta m
+        case mvJudgement mi of
+          HasType _ a -> do
+            TelV tel b <- telView <$> instantiateFull a
+            if b /= sz
+              then return []
+              else return [(m, size tel)]
+          _ -> return []
+  concat <$> mapM sizeCon ms
 
 data SizeExpr = SizeMeta MetaId [CtxId]
               | Rigid CtxId
@@ -134,12 +150,14 @@ haveSizedTypes = liftTCM $ do
 solveSizeConstraints :: MonadTCM tcm => tcm ()
 solveSizeConstraints = whenM haveSizedTypes $ do
   cs <- getSizeConstraints
+  ms <- getSizeMetas
+  when (not (null cs) || not (null ms)) $ do
   reportSLn "tc.size.solve" 10 $ "Solving size constraints " ++ show cs
 
-  let metas = map mkMeta $ groupOn fst $ concatMap flexibleVariables cs
+  let metas0 = map mkMeta $ groupOn fst $ concatMap flexibleVariables cs
       mkMeta ms@((m, xs) : _)
         | allEqual (map snd ms) = (m, xs)
-        | otherwise             = __IMPOSSIBLE__  -- is it?
+        | otherwise             = error $ "Inconsistent meta: " ++ show m ++ " " ++ show (map snd ms)
       mkMeta _ = __IMPOSSIBLE__
 
       mkFlex (m, xs) = W.NewFlex (fromIntegral m) $ \i -> fromIntegral i `elem` xs
@@ -148,7 +166,23 @@ solveSizeConstraints = whenM haveSizedTypes $ do
       mkNode (Rigid i)      = W.Rigid $ W.RVar $ fromIntegral i
       mkNode (SizeMeta m _) = W.Flex $ fromIntegral m
 
-  reportSLn "tc.size.solve" 15 $ "Metas: " ++ show metas
+      found (m, _) = elem m $ map fst metas0
+
+  -- Compute unconstrained metas
+  let metas1 = map mkMeta' $ filter (not . found) ms
+      mkMeta' (m, n) = (m, [0..fromIntegral n - 1])
+
+  let metas = metas0 ++ metas1
+
+  reportSLn "tc.size.solve" 15 $ "Metas: " ++ show metas0 ++ ", " ++ show metas1
+
+  verboseS "tc.size.solve" 20 $ do
+    let meta (m, _) = do
+          j <- mvJudgement <$> lookupMeta m
+          reportSDoc "" 0 $ case j of
+            HasType _ t -> text (show m) <+> text ":" <+> prettyTCM t
+            IsSort _    -> text (show m) <+> text "sort"
+    mapM_ meta metas
 
   case W.solve $ map mkFlex metas ++ map mkConstr cs of
     Nothing  -> do

@@ -136,6 +136,8 @@ addFlex :: FlexId -> Scope -> GM ()
 addFlex x scope = do
   st <- get
   put $ st { flexScope = Map.insert x scope (flexScope st) }
+  addNode (Flex x)
+  return ()
 
 
 -- i <- addNode n  returns number of node n. if not present, it is added first

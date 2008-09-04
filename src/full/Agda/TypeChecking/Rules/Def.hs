@@ -37,6 +37,7 @@ import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Coverage
 import Agda.TypeChecking.Injectivity
 import Agda.TypeChecking.Polarity
+import Agda.TypeChecking.SizedTypes
 
 import Agda.TypeChecking.Rules.Term                ( checkExpr, inferExpr, checkTelescope, isType_ )
 import Agda.TypeChecking.Rules.LHS                 ( checkLeftHandSide )
@@ -86,7 +87,11 @@ checkFunDef i name cs =
         rec <- getRecursion cs
 
         -- Check the clauses
-        cs <- mapM (checkClause t) cs
+        let check c = do
+              c <- checkClause t c
+              solveSizeConstraints
+              return c
+        cs <- mapM check cs
 
         -- Check that all clauses have the same number of arguments
         unless (allEqual $ map npats cs) $ typeError DifferentArities
@@ -254,6 +259,7 @@ checkWithFunction (WithFunction f aux gamma delta1 delta2 vs as b qs perm cs) = 
       , prettyTCM dt
       ]
   addConstant aux (Defn aux auxType [df] 0 $ Axiom Nothing)
+  solveSizeConstraints
 
   reportSDoc "tc.with.top" 10 $ sep
     [ text "added with function" <+> (prettyTCM aux) <+> text "of type"
