@@ -585,7 +585,7 @@ data ContextEntry = Ctx { ctxId	   :: CtxId
   deriving (Typeable, Data)
 
 newtype CtxId	  = CtxId Nat
-  deriving (Typeable, Data, Eq, Ord, Show, Enum, Num)
+  deriving (Typeable, Data, Eq, Ord, Show, Enum, Real, Integral, Num)
 
 ---------------------------------------------------------------------------
 -- ** Let bindings

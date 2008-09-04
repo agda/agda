@@ -195,7 +195,7 @@ data Pattern = VarP String  -- name suggestion
   deriving (Typeable, Data, Show)
 
 newtype MetaId = MetaId Nat
-    deriving (Eq, Ord, Num, Typeable, Data)
+    deriving (Eq, Ord, Num, Real, Enum, Integral, Typeable, Data)
 
 instance Show MetaId where
     show (MetaId n) = "_" ++ show n

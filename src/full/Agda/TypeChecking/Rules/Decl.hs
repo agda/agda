@@ -23,6 +23,7 @@ import Agda.TypeChecking.Primitive hiding (Nat)
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.SizedTypes
 
 import Agda.TypeChecking.Rules.Term	  ( checkArguments, checkArguments_, checkTelescope, isType_, ExpandHidden(..) )
 import Agda.TypeChecking.Rules.Data	  ( checkDataDef )
@@ -45,7 +46,7 @@ checkDecls ds = mapM_ checkDecl ds
 
 -- | Type check a single declaration.
 checkDecl :: A.Declaration -> TCM ()
-checkDecl d =
+checkDecl d = do
     case d of
 	A.Axiom i x e		     -> checkAxiom i x e
         A.Field _ _ _                -> typeError FieldOutsideRecord
@@ -57,6 +58,7 @@ checkDecl d =
 	A.Pragma i p		     -> checkPragma i p
 	A.ScopedDecl scope ds	     -> setScope scope >> checkDecls ds
 	    -- open is just an artifact from the concrete syntax
+    solveSizeConstraints
 
 
 -- | Type check an axiom.
