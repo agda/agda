@@ -21,7 +21,7 @@ plus x zero        = x
 -- Actually constructor names does matter until the non-mattering is
 -- implemented properly.
 
-{-
+{- TEMPORARILY REMOVED by Ulf since there are problems with the constructor-name ignoring
 data Bin : Set where
   eps : Bin
   c0  : Bin -> Bin

@@ -108,23 +108,32 @@ termMutual i ts ds = if names == [] then return [] else
      -- Get the name of size suc (if sized types are enabled)
      suc <- sizeSuc
 
+     -- first try to termination check ignoring the dot patterns
      let conf = DBPConf { useDotPatterns = False, withSizeSuc = suc }
-     r <- do r <- Term.terminates <$> collect conf{ useDotPatterns = False }
-             case r of
-               Left _  -> Term.terminates <$> collect conf{ useDotPatterns = True }
-               Right _ -> return r
      calls1 <- collect conf{ useDotPatterns = False }
-     calls2 <- collect conf{ useDotPatterns = True }
      reportS "term.lex" 30 $ unlines
        [ "Calls (no dot patterns): " ++ show calls1
-       , "Calls    (dot patterns): " ++ show calls2
        ]
      reportS "term.behaviours" 30 $ unlines
        [ "Recursion behaviours (no dot patterns):"
        , indent 2 $ Term.showBehaviour (Term.complete calls1)
-       , "Recursion behaviours (dot patterns):"
-       , indent 2 $ Term.showBehaviour (Term.complete calls2)
        ]
+     r <- do let r = Term.terminates calls1
+             case r of
+               Right _ -> return r
+               Left _  -> do
+     -- now try to termination check regarding the dot patterns     
+                 calls2 <- collect conf{ useDotPatterns = True }
+                 reportS "term.lex" 30 $ unlines
+                   [ "Calls    (dot patterns): " ++ show calls2
+                   ]
+                 reportS "term.behaviours" 30 $ unlines
+                   [ "Recursion behaviours (no dot patterns):"
+                   , indent 2 $ Term.showBehaviour (Term.complete calls1)
+                   , "Recursion behaviours (dot patterns):"
+                   , indent 2 $ Term.showBehaviour (Term.complete calls2)
+                   ]
+                 return $ Term.terminates calls2
      case r of
        Left  errDesc -> do
          let callSites = Set.toList errDesc
