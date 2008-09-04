@@ -84,34 +84,31 @@ variable."
                  (const :tag "None" nil))
   :group 'agda2)
 
-(defcustom agda2-change-default-font t
-  "Should the Agda mode change the default font of the current
-frame when activated? (This setting does not apply when Emacs is
-run in a terminal.)"
-  :type '(choice (const :tag "Change" t)
-                 (const :tag "Don't change" nil))
+(defcustom agda2-fontset-name "fontset-agda2"
+  "*The name of fontset to use as the current frame's default font, or nil.
+Note that it affects non Agda buffers as well.  If it is nil, the
+default font is not changed."
+  :type '(choice string (const nil))
   :group 'agda2)
 
-(defcustom agda2-fontset-spec
-  (concat
-   "-misc-fixed-medium-r-normal-*-15-*-*-*-*-*-fontset-agda2"
-   (cond
-    ((eq window-system 'w32) ",
-    ascii:-Misc-Fixed-Medium-R-Normal--15-140-75-75-C-90-ISO8859-1,
-    latin-iso8859-2:-*-Fixed-*-r-*-*-15-*-*-*-c-*-iso8859-2,
-    latin-iso8859-3:-*-Fixed-*-r-*-*-15-*-*-*-c-*-iso8859-3,
-    latin-iso8859-4:-*-Fixed-*-r-*-*-15-*-*-*-c-*-iso8859-4,
-    cyrillic-iso8859-5:-*-Fixed-*-r-*-*-15-*-*-*-c-*-iso8859-5,
-    greek-iso8859-7:-*-Fixed-*-r-*-*-15-*-*-*-c-*-iso8859-7,
-    latin-iso8859-9:-*-Fixed-*-r-*-*-15-*-*-*-c-*-iso8859-9,
-    mule-unicode-0100-24ff:-Misc-Fixed-Medium-R-Normal--15-140-75-75-C-90-ISO10646-1,
-    mule-unicode-2500-33ff:-Misc-Fixed-Medium-R-Normal--15-140-75-75-C-90-ISO10646-1,
-    mule-unicode-e000-ffff:-Misc-Fixed-Medium-R-Normal--15-140-75-75-C-90-ISO10646-1,
-    japanese-jisx0208:-JIS-Fixed-Medium-R-Normal--16-150-75-75-C-160-JISX0208.1983-0,
-    japanese-jisx0208-1978:-Misc-Fixed-Medium-R-Normal--16-150-75-75-C-160-JISC6226.1978-0,
-    japanese-jisx0212:-Misc-Fixed-Medium-R-Normal--16-150-75-75-C-160-JISX0212.1990-0,
-    latin-jisx0201:-*-*-medium-r-normal-*-16-*-*-*-c-*-jisx0201*-*,
-    katakana-jisx0201:-Sony-Fixed-Medium-R-Normal--16-120-100-100-C-80-JISX0201.1976-0,
+(defcustom agda2-fontset-spec-of-fontset-agda2
+  (cond
+   ((not (eq window-system 'w32))
+    "-misc-fixed-medium-r-normal-*-15-*-*-*-*-*-fontset-agda2")
+   ((eq window-system 'w32)
+    "-*-fixed-Medium-r-Normal-*-18-*-*-*-c-*-fontset-agda2,
+    ascii:-Misc-Fixed-Medium-R-Normal--18-120-100-100-C-90-ISO8859-1,
+    latin-iso8859-2:-*-Fixed-*-r-*-*-18-*-*-*-c-*-iso8859-2,
+    latin-iso8859-3:-*-Fixed-*-r-*-*-18-*-*-*-c-*-iso8859-3,
+    latin-iso8859-4:-*-Fixed-*-r-*-*-18-*-*-*-c-*-iso8859-4,
+    cyrillic-iso8859-5:-*-Fixed-*-r-*-*-18-*-*-*-c-*-iso8859-5,
+    greek-iso8859-7:-*-Fixed-*-r-*-*-18-*-*-*-c-*-iso8859-7,
+    latin-iso8859-9:-*-Fixed-*-r-*-*-18-*-*-*-c-*-iso8859-9,
+    mule-unicode-0100-24ff:-Misc-Fixed-Medium-R-Normal--18-120-100-100-C-90-ISO10646-1,
+    mule-unicode-2500-33ff:-Misc-Fixed-Medium-R-Normal--18-120-100-100-C-90-ISO10646-1,
+    mule-unicode-e000-ffff:-Misc-Fixed-Medium-R-Normal--18-120-100-100-C-90-ISO10646-1,
+    japanese-jisx0208:-Misc-Fixed-Medium-R-Normal-ja-18-*-*-*-C-*-JISX0208.1990-0,
+    japanese-jisx0212:-Misc-Fixed-Medium-R-Normal-ja-18-*-*-*-C-*-JISX0212.1990-0,
     thai-tis620:-Misc-Fixed-Medium-R-Normal--24-240-72-72-C-120-TIS620.2529-1,
     lao:-Misc-Fixed-Medium-R-Normal--24-240-72-72-C-120-MuleLao-1,
     tibetan:-TibMdXA-fixed-medium-r-normal--16-160-72-72-m-160-MuleTibetan-0,
@@ -120,11 +117,13 @@ run in a terminal.)"
     chinese-gb2312:-ISAS-Fangsong ti-Medium-R-Normal--16-160-72-72-c-160-GB2312.1980-0,
     chinese-cns11643-1:-HKU-Fixed-Medium-R-Normal--16-160-72-72-C-160-CNS11643.1992.1-0,
     chinese-big5-1:-ETen-Fixed-Medium-R-Normal--16-150-75-75-C-160-Big5.ETen-0,
-    chinese-big5-2:-ETen-Fixed-Medium-R-Normal--16-150-75-75-C-160-Big5.ETen-0")))
-  "*The \"fontset-agda2\" fontset is created based on this
-string (if Emacs is not run in a terminal). The default font of
-the current frame is changed to \"fontset-agda2\" when the Agda2
-mode is activated.
+    chinese-big5-2:-ETen-Fixed-Medium-R-Normal--16-150-75-75-C-160-Big5.ETen-0"))
+  "*The specification of the \"fontset-agda2\" fontset, where
+\"fontset-agda2\" is the standard setting for `agda2-fontset-name'.
+The default font of the current frame is changed to fontset
+`agda2-fontset-name' when the Agda2 mode is activated (if
+`agda2-fontset-name' is not nil and Emacs is not run in a
+terminal).
 
 Note that the text \"fontset-agda2\" has to be part of the
 string (in a certain way; see the default setting) in order for the
@@ -134,18 +133,18 @@ Note also that the default setting may not work unless suitable
 fonts are installed on your system. Refer to the README file
 accompanying the Agda distribution for details.
 
-Note finally that you have to reload the Agda2 library if you
-want settings to this variable to take effect."
+Note finally that you have to restart emacs if you want settings
+to this variable to take effect."
   :group 'agda2
   :type 'string)
 
 (if window-system
-  (create-fontset-from-fontset-spec agda2-fontset-spec))
+    (create-fontset-from-fontset-spec agda2-fontset-spec-of-fontset-agda2 t t))
 
 (defun agda2-fix-ghci-for-windows ()
   (if (string-match "windows" system-configuration)
       (setq haskell-ghci-program-name "ghc"
-            haskell-ghci-program-args '("--interactive" "-package lang"))))
+            haskell-ghci-program-args '("--interactive"))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Global and buffer-local vars, initialization
@@ -271,12 +270,12 @@ side).")
  "Major mode for agda2 files.
 
 Note that when this mode is activated the default font of the
-current frame is changed to \"fontset-agda2\" (see
-`agda2-fontset-spec'). The reason is that Agda programs often use
-mathematical symbols and other Unicode characters, so we try to
-provide a suitable default font setting, which can display many
-of the characters encountered. If you prefer to use your own
-settings, change the setting of `agda2-change-default-font'.
+current frame is changed to the fontset `agda2-fontset-name'.
+The reason is that Agda programs often use mathematical symbols
+and other Unicode characters, so we try to provide a suitable
+default font setting, which can display many of the characters
+encountered.  If you prefer to use your own settings, set
+`agda2-fontset-name' to nil.
 
 Special commands:
 \\{agda2-mode-map}"
@@ -295,11 +294,10 @@ Special commands:
  (let ((l '(max-specpdl-size    2600
             max-lisp-eval-depth 2800)))
    (while l (set (make-local-variable (pop l)) (pop l))))
- (if (and window-system agda2-change-default-font)
+ (if (and window-system agda2-fontset-name)
      (condition-case nil
-       (set-frame-font "fontset-agda2")
-       (error (error "Unable to change the font; toggle agda2-change-default-font
-or tweak agda2-fontset-spec"))))
+         (set-frame-font agda2-fontset-name)
+       (error (error "Unable to change the font; change agda2-fontset-name or tewak agda2-fontset-spec-fontset-agda2"))))
  (agda2-indent-setup)
  (agda2-highlight-setup)
  (agda2-comments-and-paragraphs-setup)
