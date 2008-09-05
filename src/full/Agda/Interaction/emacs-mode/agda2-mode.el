@@ -92,10 +92,6 @@ default font is not changed."
   :group 'agda2)
 
 (defcustom agda2-fontset-spec-of-fontset-agda2
-  (cond
-   ((not (eq window-system 'w32))
-    "-misc-fixed-medium-r-normal-*-15-*-*-*-*-*-fontset-agda2")
-   ((eq window-system 'w32)
     "-*-fixed-Medium-r-Normal-*-18-*-*-*-c-*-fontset-agda2,
     ascii:-Misc-Fixed-Medium-R-Normal--18-120-100-100-C-90-ISO8859-1,
     latin-iso8859-2:-*-Fixed-*-r-*-*-18-*-*-*-c-*-iso8859-2,
@@ -117,7 +113,7 @@ default font is not changed."
     chinese-gb2312:-ISAS-Fangsong ti-Medium-R-Normal--16-160-72-72-c-160-GB2312.1980-0,
     chinese-cns11643-1:-HKU-Fixed-Medium-R-Normal--16-160-72-72-C-160-CNS11643.1992.1-0,
     chinese-big5-1:-ETen-Fixed-Medium-R-Normal--16-150-75-75-C-160-Big5.ETen-0,
-    chinese-big5-2:-ETen-Fixed-Medium-R-Normal--16-150-75-75-C-160-Big5.ETen-0"))
+    chinese-big5-2:-ETen-Fixed-Medium-R-Normal--16-150-75-75-C-160-Big5.ETen-0"
   "*The specification of the \"fontset-agda2\" fontset, where
 \"fontset-agda2\" is the standard setting for `agda2-fontset-name'.
 The default font of the current frame is changed to fontset
