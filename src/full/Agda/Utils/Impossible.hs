@@ -7,7 +7,6 @@
 module Agda.Utils.Impossible where
 
 import Control.Exception
-import System.IO.Unsafe
 import Data.Typeable
 
 -- | \"Impossible\" errors, annotated with a file name and a line
@@ -25,7 +24,7 @@ instance Show Impossible where
 -- this function directly. Instead use the macro in @undefined.h@.
 
 throwImpossible :: Impossible -> a
-throwImpossible i = unsafePerformIO $ throwDyn i
+throwImpossible i = throwDyn i
 
 -- | Catch an \"impossible\" error, if possible.
 
