@@ -99,7 +99,7 @@ reifyDisplayForm x vs fallback = do
         Just d  -> reify d
     else fallback
 
-reifyDisplayFormP :: MonadTCM tcm => A.LHS -> tcm A.LHS
+reifyDisplayFormP :: A.LHS -> TCM A.LHS
 reifyDisplayFormP lhs@(A.LHS i x ps wps) =
   ifM (not <$> displayFormsEnabled) (return lhs) $ do
     let vs = [ Arg h $ I.Var n [] | (n, h) <- zip [0..] $ map argHiding ps]
@@ -107,13 +107,13 @@ reifyDisplayFormP lhs@(A.LHS i x ps wps) =
     reportSLn "syntax.reify.display" 20 $ "display form of " ++ show x ++ ": " ++ show md
     case md of
       Just d  | okDisplayForm d ->
-        reifyDisplayFormP $ displayLHS (map (namedThing . unArg) ps) wps d
+        reifyDisplayFormP =<< displayLHS (map (namedThing . unArg) ps) wps d
       _ -> return lhs
   where
     okDisplayForm (DWithApp (d : ds) []) =
       okDisplayForm d && all okDisplayTerm ds
     okDisplayForm (DTerm (I.Def f vs)) = all okArg vs
-    okDisplayForm _ = False
+    okDisplayForm _ = True -- False
 
     okDisplayTerm (DTerm v) = okTerm v
     okDisplayTerm _ = False
@@ -123,7 +123,7 @@ reifyDisplayFormP lhs@(A.LHS i x ps wps) =
     okTerm (I.Var _ []) = True
     okTerm (I.Con c vs) = all okArg vs
     okTerm (I.Def x []) = show x == "_" -- Handling wildcards in display forms
-    okTerm _            = False
+    okTerm _            = True -- False
 
     flattenWith (DWithApp (d : ds) []) = case flattenWith d of
       (f, vs, ds') -> (f, vs, ds' ++ map unDTerm ds)
@@ -134,16 +134,19 @@ reifyDisplayFormP lhs@(A.LHS i x ps wps) =
     unDTerm _ = __IMPOSSIBLE__
 
     displayLHS ps wps d = case flattenWith d of
-      (f, vs, ds) -> LHS i f (map argToPat vs)
-                             (map termToPat ds ++ wps)
+      (f, vs, ds) -> do
+        ds <- mapM termToPat ds
+        vs <- mapM argToPat vs
+        return $ LHS i f vs (ds ++ wps)
       where
         info = PatRange noRange
-        argToPat = fmap (unnamed . termToPat)
+        argToPat arg = fmap unnamed <$> traverse termToPat arg
 
-        termToPat (I.Var n []) = ps !! fromIntegral n
-        termToPat (I.Con c vs) = A.ConP info (AmbQ [c]) $ map argToPat vs
-        termToPat (I.Def _ []) = A.WildP info
-        termToPat _ = __IMPOSSIBLE__
+        -- TODO: dot variables
+        termToPat (I.Var n []) = return $ ps !! fromIntegral n
+        termToPat (I.Con c vs) = A.ConP info (AmbQ [c]) <$> mapM argToPat vs
+        termToPat (I.Def _ []) = return $ A.WildP info
+        termToPat v = A.DotP info <$> reify v -- __IMPOSSIBLE__
 
 instance Reify Term Expr where
     reify v =
@@ -343,7 +346,7 @@ reifyPatterns tel perm ps = evalStateT (reifyArgs ps) 0
 instance Reify NamedClause A.Clause where
   reify (NamedClause f rec (I.Clause tel perm ps body)) = addCtxTel tel $ do
     ps  <- reifyPatterns tel perm ps
-    lhs <- reifyDisplayFormP $ LHS info f ps []
+    lhs <- liftTCM $ reifyDisplayFormP $ LHS info f ps []
     nfv <- getDefFreeVars f
     lhs <- stripImps $ dropParams nfv lhs
     rhs <- reify body
