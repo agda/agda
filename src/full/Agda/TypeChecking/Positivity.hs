@@ -128,7 +128,7 @@ checkPosArg d i = unlessM (isAssumption d i) $ do
     assume d i
     def <- lift $ getConstInfo d
     case theDef def of
-	Datatype{dataPars = np, dataCons = cs}
+	Datatype{dataPars = np, dataCons = cs, dataClause = Nothing}
           | i < np -> do
             let TelV tel _ = telView $ defType def
                 pars       = [ x | Arg _ (x, _) <- telToList tel ]
@@ -145,13 +145,19 @@ checkPosArg d i = unlessM (isAssumption d i) $ do
                     linear x target
 
 	    mapM_ check cs
+        Datatype{dataClause = Just c} ->
+          checkPosClause d i 0 c
         Function{funClauses = cs} -> zipWithM_ (checkPosClause d i) [0..] cs
 	_   -> lift $ typeError $ NotStrictlyPositive d []
   where
     parName x = "the parameter " ++ x
 
 linear :: QName -> Type -> PosM ()
-linear x (El _ (Def _ args)) = do
+linear x t@(El _ (Def _ args)) = do
+  lift $ reportSDoc "tc.pos.linear" 10 $ sep
+    [ text "linear" <+> prettyTCM x
+    , prettyTCM t
+    ]
   let occ arg = isJust $ Map.lookup x (unMap $ getDefs arg)
   case [ arg | arg <- args, occ arg ] of
     []    -> __IMPOSSIBLE__
