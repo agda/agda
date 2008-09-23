@@ -1,0 +1,5 @@
+MixedInductiveCoinductive.agda:23,3-44
+Could not parse the left-hand side
+eat (put b sp') as ̃ cons b (eat' sp' as)
+when scope checking the left-hand side
+eat (put b sp') as ̃ cons b (eat' sp' as) in the definition of eat
