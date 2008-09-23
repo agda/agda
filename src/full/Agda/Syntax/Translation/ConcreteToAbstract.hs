@@ -43,6 +43,7 @@ import {-# SOURCE #-} Agda.Interaction.Imports (scopeCheckImport)
 import Agda.Utils.Monad
 import Agda.Utils.Tuple
 import Agda.Utils.List
+import Agda.Utils.Fresh
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
@@ -779,7 +780,9 @@ instance ToAbstract AbstractRHS A.RHS where
   toAbstract (RHS' rec e)     = return $ A.RHS rec e
   toAbstract (WithRHS' es cs) = do
     m   <- getCurrentModule
-    aux <- A.qualify m <$> freshName_ "aux"
+    -- Hack
+    NameId i _ <- fresh
+    aux <- A.qualify m <$> freshName_ ("aux" ++ show i)
     A.WithRHS aux es <$> toAbstract cs
 
 instance ToAbstract RightHandSide AbstractRHS where
