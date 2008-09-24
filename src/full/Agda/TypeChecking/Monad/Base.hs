@@ -787,10 +787,14 @@ instance Applicative TCM where
 instance MonadIO TCM where
   liftIO m = TCM $ do tr <- gets stTrace
                       lift $ lift $ lift $ ErrorT $
-                        handle (return . throwError . Exception (getRange tr) . show)
+                        handle (handleIOException $ getRange tr)
                         (failOnException
                          (\r -> return . throwError . Exception r)
                          (return <$> m) )
+    where
+      handleIOException r e = case e of
+        IOException _ -> return . throwError . Exception r . show $ e
+        _             -> throwIO e
 
 patternViolation :: MonadTCM tcm => tcm a
 patternViolation = liftTCM $ do
