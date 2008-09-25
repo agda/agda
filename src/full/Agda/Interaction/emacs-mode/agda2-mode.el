@@ -115,11 +115,12 @@ default font is not changed."
     chinese-big5-1:-ETen-Fixed-Medium-R-Normal--16-150-75-75-C-160-Big5.ETen-0,
     chinese-big5-2:-ETen-Fixed-Medium-R-Normal--16-150-75-75-C-160-Big5.ETen-0"
   "*The specification of the \"fontset-agda2\" fontset, where
-\"fontset-agda2\" is the standard setting for `agda2-fontset-name'.
-The default font of the current frame is changed to fontset
-`agda2-fontset-name' when the Agda2 mode is activated (if
-`agda2-fontset-name' is not nil and Emacs is not run in a
-terminal).
+\"fontset-agda2\" is the standard setting for
+`agda2-fontset-name'. The default font of the current frame is
+changed to fontset `agda2-fontset-name' when the Agda2 mode is
+activated (if `agda2-fontset-name' is not nil and Emacs is not
+run in a terminal). If `agda2-fontset-name' is nil, then
+\"fontset-agda2\" is not created.
 
 Note that the text \"fontset-agda2\" has to be part of the
 string (in a certain way; see the default setting) in order for the
@@ -134,7 +135,7 @@ to this variable to take effect."
   :group 'agda2
   :type 'string)
 
-(if window-system
+(if (and agda2-fontset-name window-system)
     (create-fontset-from-fontset-spec agda2-fontset-spec-of-fontset-agda2 t t))
 
 (defun agda2-fix-ghci-for-windows ()
