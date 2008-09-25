@@ -85,10 +85,16 @@ variable."
   :group 'agda2)
 
 (defcustom agda2-fontset-name "fontset-agda2"
-  "*The name of fontset to use as the current frame's default font, or nil.
-Note that it affects non Agda buffers as well.  If it is nil, the
-default font is not changed."
-  :type '(choice string (const nil))
+  "*The default font of the current frame is changed to the
+fontset `agda2-fontset-name' when the Agda2 mode is activated (if
+`agda2-fontset-name' is not nil and Emacs is not run in a
+terminal).
+
+Note that this setting (if non-nil) affects non-Agda buffers as
+well, and that you have to restart Emacs if you want settings to
+this variable to take effect."
+  :type '(choice (string :tag "Fontset name")
+                 (const :tag "Do not change the font" nil))
   :group 'agda2)
 
 (defcustom agda2-fontset-spec-of-fontset-agda2
@@ -116,11 +122,8 @@ default font is not changed."
     chinese-big5-2:-ETen-Fixed-Medium-R-Normal--16-150-75-75-C-160-Big5.ETen-0"
   "*The specification of the \"fontset-agda2\" fontset, where
 \"fontset-agda2\" is the standard setting for
-`agda2-fontset-name'. The default font of the current frame is
-changed to fontset `agda2-fontset-name' when the Agda2 mode is
-activated (if `agda2-fontset-name' is not nil and Emacs is not
-run in a terminal). If `agda2-fontset-name' is nil, then
-\"fontset-agda2\" is not created.
+`agda2-fontset-name'. If `agda2-fontset-name' is nil, or Emacs is
+run in a terminal, then \"fontset-agda2\" is not created.
 
 Note that the text \"fontset-agda2\" has to be part of the
 string (in a certain way; see the default setting) in order for the
@@ -130,7 +133,7 @@ Note also that the default setting may not work unless suitable
 fonts are installed on your system. Refer to the README file
 accompanying the Agda distribution for details.
 
-Note finally that you have to restart emacs if you want settings
+Note finally that you have to restart Emacs if you want settings
 to this variable to take effect."
   :group 'agda2
   :type 'string)
