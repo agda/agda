@@ -25,10 +25,10 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.SizedTypes
 
-import Agda.TypeChecking.Rules.Term	  ( checkArguments, checkArguments_, checkTelescope, isType_, ExpandHidden(..) )
-import Agda.TypeChecking.Rules.Data	  ( checkDataDef )
+import Agda.TypeChecking.Rules.Term
+import Agda.TypeChecking.Rules.Data    ( checkDataDef )
 import Agda.TypeChecking.Rules.Record  ( checkRecDef )
-import Agda.TypeChecking.Rules.Def	  ( checkFunDef )
+import Agda.TypeChecking.Rules.Def     ( checkFunDef )
 import Agda.TypeChecking.Rules.Builtin ( bindBuiltin )
 
 import Agda.Compiler.HaskellTypes
@@ -97,6 +97,9 @@ checkPragma r p =
           case theDef def of
             Axiom{} -> addHaskellType x hs
             _       -> typeError $ GenericError "COMPILED_TYPE directive only works on postulates."
+          -- TODO: hack
+          when (hs == builtinIO) $
+            bindBuiltin builtinIO (A.Def x)
         A.CompiledDataPragma x hs hcs -> do
           def <- theDef <$> getConstInfo x
           case def of
