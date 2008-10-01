@@ -79,8 +79,7 @@ findFile ft m = do
     files' <- liftIO $ nubFiles files'
     case files' of
 	[]	-> typeError $ FileNotFound m files
-	[file]	-> return file
-	_	-> typeError $ ClashingFileNamesFor m files'
+	file:_	-> return file
     where
 	exts = case ft of
 		SourceFile    -> [".agda", ".lagda", ".agda2", ".lagda2", ".ag2"]
