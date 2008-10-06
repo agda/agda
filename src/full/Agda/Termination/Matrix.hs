@@ -57,7 +57,7 @@ instance (Arbitrary i, Integral i) => Arbitrary (Size i) where
   arbitrary = do
     r <- natural
     c <- natural
-    return $ Size { rows = r, cols = c }
+    return $ Size { rows = fromInteger r, cols = fromInteger c }
 
 instance CoArbitrary i => CoArbitrary (Size i) where
   coarbitrary (Size rs cs) = coarbitrary rs . coarbitrary cs
@@ -244,6 +244,7 @@ mul semiring m1 m2 =
              | i <- [1 .. cols (size m1)]]
 
 prop_mul sz =
+  sized $ \n -> resize (n `div` 2) $
   forAll (vectorOf 2 natural) $ \[c2, c3] ->
   forAll (matrix sz :: Gen TM) $ \m1 ->
   forAll (matrix (Size { rows = cols sz, cols = c2 })) $ \m2 ->

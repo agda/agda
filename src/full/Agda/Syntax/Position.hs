@@ -346,8 +346,9 @@ prop_fuseRanges r1 r2 =
 
 instance Arbitrary Position where
   arbitrary = do
-    NonZero (NonNegative pos) <- arbitrary
-    let line = pred pos `div` 10 + 1
+    NonZero (NonNegative pos') <- arbitrary
+    let pos  = fromInteger pos'
+        line = pred pos `div` 10 + 1
         col  = pred pos `mod` 10 + 1
     return (Pn {srcFile = "file name", posPos = pos,
                 posLine = line, posCol = col })

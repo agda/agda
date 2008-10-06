@@ -312,7 +312,7 @@ callGraph = do
   indices <- fmap nub arbitrary
   n <- natural
   let noMatrices | null indices = 0
-                 | otherwise    = n `max` 3  -- Not too many.
+                 | otherwise    = n `min` 3  -- Not too many.
   fmap fromList $ vectorOf noMatrices (matGen indices)
   where
   matGen indices = do
