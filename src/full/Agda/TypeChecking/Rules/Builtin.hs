@@ -286,7 +286,7 @@ bindBuiltin b e = do
     where
 	bind b e
 	    | elem b builtinTypes                        = bindBuiltinType b e
-	    | elem b [builtinList, builtinIO]            = bindBuiltinType1 b e
+	    | elem b [builtinList]                       = bindBuiltinType1 b e
             | Just bind  <- lookup b builtinConstructors = bindConstructor b bind e
 	    | Just (s,v) <- lookup b builtinPrimitives   = bindBuiltinPrimitive s b e v
             | Just typ   <- lookup b builtinPostulates   = bindPostulate b typ e
