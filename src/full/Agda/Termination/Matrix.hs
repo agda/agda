@@ -33,7 +33,7 @@ module Agda.Termination.Matrix
 
 import Data.Array
 import Data.List as List
-import Test.QuickCheck
+import Agda.Utils.QuickCheck
 import Agda.Utils.TestHelpers
 import Agda.Termination.Semiring (Semiring)
 import qualified Agda.Termination.Semiring as Semiring

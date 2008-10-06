@@ -12,7 +12,7 @@ module Agda.Termination.Lexicographic
   , Agda.Termination.Lexicographic.tests
   ) where
 
-import Test.QuickCheck
+import Agda.Utils.QuickCheck
 import Agda.Termination.Matrix (Size (..))
 import qualified Agda.Termination.Matrix as M
 import Agda.Utils.Either
@@ -228,6 +228,11 @@ tests = runTests "Agda.Termination.Lexicographic"
   [ quickCheck' prop_recBehaviour_Arbitrary
   , quickCheck' prop_fromDiagonals
   , quickCheck' prop_newBehaviour
-  , quickCheckWith 50 200 20 prop_lexOrder
+  , quickCheckWith' Args{ replay     = Nothing
+                        , maxSuccess = 50
+                        , maxDiscard = 200
+                        , maxSize    = 20
+                        }
+                    prop_lexOrder
   , quickCheck' prop_lexOrder_noArgs
   ]

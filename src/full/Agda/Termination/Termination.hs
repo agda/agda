@@ -20,7 +20,7 @@ import Agda.Termination.Matrix
 import Agda.Utils.Either
 import Agda.Utils.TestHelpers
 import Control.Arrow
-import Test.QuickCheck
+import Agda.Utils.QuickCheck
 import qualified Data.Set as Set
 import qualified Data.Array as Array
 import Data.Set (Set)

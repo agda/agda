@@ -7,7 +7,7 @@ import Control.Monad
 import Control.Monad.State
 import qualified Data.Set as Set
 import qualified Data.List as List (sort, nub)
-import Test.QuickCheck
+import Agda.Utils.QuickCheck hiding (Args)
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common

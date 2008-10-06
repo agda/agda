@@ -3,7 +3,7 @@
 module Agda.TypeChecking.Tests where
 
 import qualified Data.Set as Set
-import Test.QuickCheck
+import Agda.Utils.QuickCheck
 
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Test.Generators

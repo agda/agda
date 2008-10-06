@@ -43,7 +43,7 @@ import Data.List
 import Data.Function
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Test.QuickCheck
+import Agda.Utils.QuickCheck
 import Control.Applicative
 import Control.Monad
 import Agda.Utils.TestHelpers

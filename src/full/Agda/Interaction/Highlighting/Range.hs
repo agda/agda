@@ -12,7 +12,7 @@ module Agda.Interaction.Highlighting.Range
   , Agda.Interaction.Highlighting.Range.tests
   ) where
 
-import Test.QuickCheck
+import Agda.Utils.QuickCheck
 import Data.List
 import Agda.Utils.TestHelpers
 import qualified Agda.Syntax.Abstract as A

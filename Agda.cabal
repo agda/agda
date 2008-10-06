@@ -16,7 +16,7 @@ library
   hs-source-dirs:  src/full
   build-depends:   base >= 3 && < 4,
                    mtl >= 1.1 && < 2,
-                   QuickCheck >= 2.0 && < 3,
+                   QuickCheck >= 2.1 && < 3,
                    haskell98 >= 1.0.1 && < 2,
                    haskell-src >= 1.0.1.1 && < 2,
                    containers >= 0.1.0 && < 1,
@@ -183,6 +183,7 @@ library
                    Agda.Utils.Permutation
                    Agda.Utils.Pointer
                    Agda.Utils.Pretty
+                   Agda.Utils.QuickCheck
                    Agda.Utils.ReadLine
                    Agda.Utils.ReadP
                    Agda.Utils.Serialise

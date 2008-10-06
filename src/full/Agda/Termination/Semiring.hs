@@ -8,7 +8,7 @@ module Agda.Termination.Semiring
   , Agda.Termination.Semiring.tests
   ) where
 
-import Test.QuickCheck
+import Agda.Utils.QuickCheck
 import Agda.Utils.TestHelpers
 
 -- | Semirings.

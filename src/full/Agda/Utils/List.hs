@@ -4,7 +4,7 @@
 module Agda.Utils.List where
 
 import Agda.Utils.TestHelpers
-import Test.QuickCheck
+import Agda.Utils.QuickCheck
 import Text.Show.Functions
 import Data.List
 import Data.Function

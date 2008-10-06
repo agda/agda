@@ -4,7 +4,7 @@
 module Agda.Utils.FileName where
 
 import Agda.Utils.TestHelpers
-import Test.QuickCheck
+import Agda.Utils.QuickCheck
 import Data.List
 import Control.Monad
 import System.Directory

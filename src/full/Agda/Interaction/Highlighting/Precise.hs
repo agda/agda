@@ -20,7 +20,7 @@ import Data.List
 import Data.Function
 import Data.Monoid
 import Control.Monad
-import Test.QuickCheck
+import Agda.Utils.QuickCheck
 import Data.Map (Map)
 import qualified Data.Map as Map
 

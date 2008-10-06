@@ -31,7 +31,7 @@ module Agda.Termination.CallGraph
   , Agda.Termination.CallGraph.tests
   ) where
 
-import Test.QuickCheck
+import Agda.Utils.QuickCheck
 import Agda.Utils.Function
 import Agda.Utils.List
 import Agda.Utils.TestHelpers

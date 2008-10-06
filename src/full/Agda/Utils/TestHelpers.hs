@@ -20,7 +20,7 @@ module Agda.Utils.TestHelpers
   )
   where
 
-import Test.QuickCheck
+import Agda.Utils.QuickCheck
 import Data.List
 
 ------------------------------------------------------------------------

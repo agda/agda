@@ -17,7 +17,7 @@ import Agda.Termination.Utilities
 import Agda.Termination.CallGraph
 import Agda.Termination.Matrix
 import Control.Arrow
-import Test.QuickCheck
+import Agda.Utils.QuickCheck
 import qualified Data.Set as Set
 import qualified Data.Array as Array
 import Data.Set (Set)
