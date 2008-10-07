@@ -16,7 +16,6 @@ open import Category.Monad
 postulate
   IO : Set -> Set
 
-{-# BUILTIN IO IO #-}
 {-# COMPILED_TYPE IO IO #-}
 
 postulate
