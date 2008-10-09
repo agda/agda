@@ -97,9 +97,9 @@ splitProblem (Problem ps (perm, qs) tel) = do
                       d'  <- canonicalName d
                       Datatype{dataCons = cs0} <- theDef <$> getConstInfo d'
                       case [ c | (c, c') <- zip cs cs', elem c' cs0 ] of
-                        [c] -> return c
-                        []  -> typeError $ ConstructorPatternInWrongDatatype (head cs) d
-                        _   -> __IMPOSSIBLE__
+                        c : _ -> return c   -- if there are more than one they will
+                                            -- all have the same canonical form
+                        []    -> typeError $ ConstructorPatternInWrongDatatype (head cs) d
 		  let (pars, ixs) = genericSplitAt np vs
 		  reportSDoc "tc.lhs.split" 10 $
 		    vcat [ sep [ text "splitting on"
