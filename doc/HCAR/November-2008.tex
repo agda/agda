@@ -1,0 +1,51 @@
+\documentclass{article}
+
+\usepackage{hcar}
+
+\begin{document}
+
+\begin{hcarentry}[updated]{Agda}
+\label{agda}
+\report{Nils Anders Danielsson}
+\status{Actively developed}
+\participants{Ulf Norell and many others}
+\makeheader
+
+Do you crave for highly expressive types, but do not want to resort to
+type-class hackery? Then Agda might provide a view of what the future
+has in store for you.
+
+Agda is a dependently typed functional programming language (developed
+using Haskell). The language has inductive families, i.e.\ GADTs which
+can be indexed by \emph{values} and not just types. Other goodies
+include parameterised modules, mixfix operators, and an
+\emph{interactive} Emacs interface (the type checker can assist you in
+the development of your code).
+
+A lot of work remains in order for Agda to become a full-fledged
+programming language (good libraries, mature compilers, documentation,
+etc.), but already in its current state it can provide lots of fun as
+a platform for experiments in dependently typed programming.
+
+New since last time:
+\begin{itemize}
+\item Coinductive types (types with possibly infinite values).
+\item Case-split: The user interface can replace a pattern variable
+  with the corresponding constructor patterns. You get one new
+  left-hand side for every possible constructor.
+\item The foreign function interface now ensures that the foreign
+  (Haskell) code has types matching the Agda code.
+\item Sized types, which can make it easier to explain why your code
+  is terminating, are currently being implemented by Ulf Norell and
+  Andreas Abel.
+\item Agda packages for Debian/Ubuntu have been prepared by Liyang HU,
+  and Kuragaki-san has constructed a new Agda installer for Windows.
+\item A new Emacs input method, which contains bindings for many
+  Unicode symbols, has been developed by Nils Anders Danielsson.
+\end{itemize}
+
+\FurtherReading
+  The Agda Wiki: \url{http://www.cs.chalmers.se/~ulfn/Agda/}
+\end{hcarentry}
+
+\end{document}
