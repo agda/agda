@@ -31,6 +31,7 @@ import Category.Applicative
 import Category.Applicative.Indexed
 import Category.Functor
 import Category.Monad
+import Category.Monad.Continuation
 import Category.Monad.Identity
 import Category.Monad.Indexed
 import Category.Monad.State

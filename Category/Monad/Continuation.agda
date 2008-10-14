@@ -1,5 +1,5 @@
 ------------------------------------------------------------------------
--- A Delimited Continuation Monad
+-- A delimited continuation monad
 ------------------------------------------------------------------------
 
 module Category.Monad.Continuation where
@@ -13,7 +13,7 @@ open import Category.Monad.Identity
 open import Data.Function
 
 ------------------------------------------------------------------------
--- Delimited Continuation Monads
+-- Delimited continuation monads
 
 DContT : {I : Set} -> (I -> Set) -> (Set -> Set) -> IFun I
 DContT K M r₂ r₁ a = (a -> M (K r₁)) -> M (K r₂)
@@ -33,7 +33,7 @@ DContIMonad : forall {I}(K : I -> Set) -> RawIMonad (DCont K)
 DContIMonad K = DContTIMonad K IdentityMonad
 
 ------------------------------------------------------------------------
--- Delimited Continuation Operations
+-- Delimited continuation operations
 
 record RawIMonadDCont {I : Set} (K : I -> Set)
                       (M : I -> I -> Set -> Set) : Set1 where
