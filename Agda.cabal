@@ -4,7 +4,7 @@ cabal-version:   >= 1.2 && < 2
 build-type:      Simple
 license:         OtherLicense
 license-file:    LICENSE
-author:          Ulf Norell, Catarina Coquand, Makoto Takeyama, Nils Anders Danielsson, ...
+author:          Ulf Norell, Catarina Coquand, Makoto Takeyama, Nils Anders Danielsson, Andreas Abel, ...
 maintainer:      Ulf Norell <ulfn@cs.chalmers.se>
 homepage:        http://www.cs.chalmers.se/~ulfn/Agda/
 category:        Dependent types
