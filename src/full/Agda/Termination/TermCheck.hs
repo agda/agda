@@ -37,6 +37,7 @@ import Agda.TypeChecking.Substitute (abstract,raise,substs)
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Monad.Builtin
+import Agda.TypeChecking.Primitive (constructorForm)
 
 import qualified Agda.Interaction.Highlighting.Range as R
 import Agda.Interaction.Options
@@ -267,15 +268,18 @@ data DBPConf = DBPConf { useDotPatterns :: Bool
 {- | Convert a term (from a dot pattern) to a DeBruijn pattern.
 -}
 
-termToDBP :: DBPConf -> Term -> DeBruijnPat
+termToDBP :: DBPConf -> Term -> TCM DeBruijnPat
 termToDBP conf t
-  | not $ useDotPatterns conf = unusedVar
-  | otherwise                 = case t of
-    Var i []    -> VarDBP i
-    Con c args  -> ConDBP c $ map (termToDBP conf . unArg) args
-    Def s [arg]
-      | Just s == withSizeSuc conf -> ConDBP s [termToDBP conf $ unArg arg]
-    _   -> unusedVar
+  | not $ useDotPatterns conf = return $ unusedVar
+  | otherwise                 = do
+    t <- constructorForm t
+    case t of
+      Var i []    -> return $ VarDBP i
+      Con c args  -> ConDBP c <$> mapM (termToDBP conf . unArg) args
+      Def s [arg]
+        | Just s == withSizeSuc conf -> ConDBP s . (:[]) <$> termToDBP conf (unArg arg)
+      Lit l       -> return $ LitDBP l
+      _   -> return unusedVar
 
 -- | Removes coconstructors from a deBruijn pattern.
 stripCoConstructors :: DeBruijnPat -> TCM DeBruijnPat
@@ -296,30 +300,41 @@ stripCoConstructors p = case p of
   if the clause has no body (b = NoBody), Nothing is returned
 
 -}
-stripBind :: DBPConf -> Nat -> Pattern -> ClauseBody -> Maybe (Nat, DeBruijnPat, ClauseBody)
-stripBind _ _ _ NoBody            = Nothing
-stripBind conf i (VarP x) (NoBind b) = Just (i, unusedVar, b)
-stripBind conf i (VarP x) (Bind b)   = Just (i - 1, VarDBP i, absBody b)
+stripBind :: DBPConf -> Nat -> Pattern -> ClauseBody -> TCM (Maybe (Nat, DeBruijnPat, ClauseBody))
+stripBind _ _ _ NoBody            = return Nothing
+stripBind conf i (VarP x) (NoBind b) = return $ Just (i, unusedVar, b)
+stripBind conf i (VarP x) (Bind b)   = return $ Just (i - 1, VarDBP i, absBody b)
 stripBind conf i (VarP x) (Body b)   = __IMPOSSIBLE__
-stripBind conf i (DotP t) (NoBind b) = Just (i, termToDBP conf t, b)
-stripBind conf i (DotP t) (Bind b)   = Just (i - 1, termToDBP conf t, absBody b)
+stripBind conf i (DotP t) (NoBind b) = do
+  t <- termToDBP conf t
+  return $ Just (i, t, b)
+stripBind conf i (DotP t) (Bind b)   = do
+  t <- termToDBP conf t
+  return $ Just (i - 1, t, absBody b)
 stripBind conf i (DotP _) (Body b)   = __IMPOSSIBLE__
-stripBind conf i (LitP l) b          = Just (i, LitDBP l, b)
+stripBind conf i (LitP l) b          = return $ Just (i, LitDBP l, b)
 stripBind conf i (ConP c args) b     = do 
-    (i', dbps, b') <- stripBinds conf i (map unArg args) b
-    return (i', ConDBP c dbps, b')
+    r <- stripBinds conf i (map unArg args) b
+    case r of
+      Just (i', dbps, b') -> return $ Just (i', ConDBP c dbps, b')
+      _                   -> return Nothing
 
 {- | stripBinds i ps b = Just (i', dbps, b')
 
   i  is the next free de Bruijn level before consumption of ps
   i' is the next free de Bruijn level after  consumption of ps
 -}
-stripBinds :: DBPConf -> Nat -> [Pattern] -> ClauseBody -> Maybe (Nat, [DeBruijnPat], ClauseBody)
-stripBinds use i [] b     = return (i, [], b)
+stripBinds :: DBPConf -> Nat -> [Pattern] -> ClauseBody -> TCM (Maybe (Nat, [DeBruijnPat], ClauseBody))
+stripBinds use i [] b     = return $ Just (i, [], b)
 stripBinds use i (p:ps) b = do
-  (i1,  dbp, b1) <- stripBind use i p b
-  (i2, dbps, b2) <- stripBinds use i1 ps b1
-  return (i2, dbp:dbps, b2)
+  r1 <- stripBind use i p b
+  case r1 of
+    Just (i1, dbp, b1) -> do
+      r2 <- stripBinds use i1 ps b1
+      case r2 of
+        Just (i2, dbps, b2) -> return $ Just (i2, dbp:dbps, b2)
+        Nothing -> return Nothing
+    Nothing -> return Nothing
 
 -- | Extract recursive calls from one clause.
 termClause :: Recursion -> DBPConf -> MutualNames -> QName -> Clause -> TCM Calls
@@ -327,7 +342,8 @@ termClause rec use names name (Clause tel perm argPats' body) = do
     argPats' <- addCtxTel tel $ normalise argPats'
     -- The termination checker doesn't know about reordered telescopes
     let argPats = substs (renamingR perm) argPats'
-    case stripBinds use (nVars - 1) (map unArg argPats) body  of
+    dbs <- stripBinds use (nVars - 1) (map unArg argPats) body
+    case dbs of
        Nothing -> return Term.empty
        Just (-1, dbpats, Body t) -> do
           dbpats <- mapM stripCoConstructors dbpats
@@ -392,8 +408,8 @@ termTerm names f pats0 rec t0 = do
                      -- call is to one of the mutally recursive functions
                      Just gInd' -> do
 
-                        let matrix  = compareArgs suc pats args
-                            ncols   = genericLength pats + 1
+                        matrix <- compareArgs suc pats args
+                        let ncols   = genericLength pats + 1
                             nrows   = genericLength args + 1
                             matrix' = addGuardedness guarded (ncols - 1) matrix
 
@@ -462,8 +478,8 @@ termTerm names f pats0 rec t0 = do
 
      If sized types are enabled, @suc@ is the name of the size successor.
  -} 
-compareArgs :: Maybe QName -> [DeBruijnPat] -> [Term] -> [[Term.Order]]
-compareArgs suc pats ts = map (\t -> map (compareTerm suc t) pats) ts
+compareArgs :: Maybe QName -> [DeBruijnPat] -> [Term] -> TCM [[Term.Order]]
+compareArgs suc pats ts = mapM (\t -> mapM (compareTerm suc t) pats) ts
 
 -- | 'makeCM' turns the result of 'compareArgs' into a proper call matrix
 makeCM :: Index -> Index -> [[Term.Order]] -> Term.CallMatrix
@@ -484,8 +500,8 @@ subPatterns p = case p of
   ConDBP c ps -> ps ++ concatMap subPatterns ps
   LitDBP _    -> []
 
-compareTerm :: Maybe QName -> Term -> DeBruijnPat -> Term.Order
-compareTerm = compareTerm'
+compareTerm :: Maybe QName -> Term -> DeBruijnPat -> TCM Term.Order
+compareTerm suc t p = compareTerm' suc t p
 {-
 compareTerm t p = Term.supremum $ compareTerm' t p : map cmp (subPatterns p)
   where
@@ -494,31 +510,35 @@ compareTerm t p = Term.supremum $ compareTerm' t p : map cmp (subPatterns p)
 
 -- | compareTerm t dbpat
 --   Precondition: t not a BlockedV, top meta variable resolved
-compareTerm' :: Maybe QName -> Term -> DeBruijnPat -> Term.Order
-compareTerm' _ (Var i _)  p              = compareVar i p
-compareTerm' _ (Lit l)    (LitDBP l')    = if l == l' then Term.Le
-                                                   else Term.Unknown
-compareTerm' _ (Lit l)    _              = Term.Unknown
+compareTerm' :: Maybe QName -> Term -> DeBruijnPat -> TCM Term.Order
+compareTerm' _ (Var i _)  p              = return $ compareVar i p
+compareTerm' _ (Lit l)    (LitDBP l')
+  | l == l'   = return Term.Le
+  | otherwise = return Term.Unknown
+compareTerm' suc (Lit l) p = do
+  t <- constructorForm (Lit l)
+  case t of
+    Lit _ -> return Term.Unknown
+    _     -> compareTerm' suc t p
 compareTerm' suc (Con c ts) (ConDBP c' ps)
   | c == c' = compareConArgs suc ts ps
 compareTerm' suc (Def s ts) (ConDBP s' ps)
   | s == s' && Just s == suc = compareConArgs suc ts ps
-compareTerm' _ _ _ = Term.Unknown
+compareTerm' _ _ _ = return Term.Unknown
 
-compareConArgs :: Maybe QName -> Args -> [DeBruijnPat] -> Term.Order
+compareConArgs :: Maybe QName -> Args -> [DeBruijnPat] -> TCM Term.Order
 compareConArgs suc ts ps =
   -- we may assume |ps| >= |ts|, otherwise c ps would be of functional type
   -- which is impossible
       case (length ts, length ps) of
-        (0,0) -> Term.Le        -- c <= c
-        (0,1) -> Term.Unknown   -- c not<= c x
+        (0,0) -> return Term.Le        -- c <= c
+        (0,1) -> return Term.Unknown   -- c not<= c x
         (1,0) -> __IMPOSSIBLE__ 
         (1,1) -> compareTerm' suc (unArg (head ts)) (head ps)
-        (_,_) -> -- build "call matrix"
-          let m =  map (\t -> map (compareTerm' suc (unArg t)) ps) ts
-              m2 = makeCM (genericLength ps) (genericLength ts) m
-          in
-            Term.Mat (Term.mat m2)
+        (_,_) -> do -- build "call matrix"
+          m <- mapM (\t -> mapM (compareTerm' suc (unArg t)) ps) ts
+          let m2 = makeCM (genericLength ps) (genericLength ts) m
+          return $ Term.Mat (Term.mat m2)
 {-
 --    if null ts then Term.Le
 --               else Term.infimum (zipWith compareTerm' (map unArg ts) ps)
