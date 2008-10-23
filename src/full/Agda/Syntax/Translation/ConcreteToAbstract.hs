@@ -1,4 +1,6 @@
-{-# OPTIONS -cpp -fglasgow-exts -fallow-overlapping-instances -fallow-undecidable-instances #-}
+{-# LANGUAGE CPP, MultiParamTypeClasses, FunctionalDependencies,
+             FlexibleInstances, UndecidableInstances, OverlappingInstances
+  #-}
 
 {-| Translation from "Agda.Syntax.Concrete" to "Agda.Syntax.Abstract". Involves scope analysis,
     figuring out infix operator precedences and tidying up definitions.

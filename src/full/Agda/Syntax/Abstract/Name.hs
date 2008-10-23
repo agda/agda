@@ -1,4 +1,4 @@
-{-# OPTIONS -fglasgow-exts -cpp #-}
+{-# LANGUAGE CPP, DeriveDataTypeable, GeneralizedNewtypeDeriving, FlexibleContexts #-}
 
 {-| Abstract names should carry unique identifiers and stuff. Not right now though.
 -}

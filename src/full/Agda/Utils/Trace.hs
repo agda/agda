@@ -1,5 +1,4 @@
-{-# OPTIONS -fglasgow-exts #-}
-
+{-# LANGUAGE DeriveDataTypeable #-}
 module Agda.Utils.Trace where
 
 import Control.Monad

@@ -1,4 +1,4 @@
-{-# OPTIONS -cpp -fglasgow-exts #-}
+{-# LANGUAGE CPP, PatternGuards #-}
 module Agda.TypeChecking.Monad.Signature where
 
 import Control.Monad.State

@@ -1,4 +1,4 @@
-{-# OPTIONS -cpp -fglasgow-exts #-}
+{-# LANGUAGE CPP #-}
 
 module Agda.Interaction.CommandLine.CommandLine where
 

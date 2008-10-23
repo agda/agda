@@ -1,4 +1,3 @@
-{-# OPTIONS -fglasgow-exts #-}
 
 {-| This modules deals with how to find imported modules and loading their
     interface files.

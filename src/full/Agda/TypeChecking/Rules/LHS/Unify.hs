@@ -1,4 +1,4 @@
-{-# OPTIONS -cpp -fglasgow-exts #-}
+{-# LANGUAGE CPP, MultiParamTypeClasses, GeneralizedNewtypeDeriving #-}
 
 module Agda.TypeChecking.Rules.LHS.Unify where
 

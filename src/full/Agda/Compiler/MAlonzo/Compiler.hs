@@ -1,4 +1,4 @@
-{-# OPTIONS -cpp #-}
+{-# LANGUAGE CPP #-}
 
 module Agda.Compiler.MAlonzo.Compiler where
 

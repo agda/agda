@@ -1,4 +1,4 @@
-{-# OPTIONS -cpp #-}
+{-# LANGUAGE CPP #-}
 
 module Agda.Utils.Maybe
     ( module Agda.Utils.Maybe

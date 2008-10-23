@@ -1,5 +1,4 @@
-{-# OPTIONS -cpp #-}
-{-# LANGUAGE Rank2Types #-}
+{-# LANGUAGE CPP, Rank2Types #-}
 
 -- | Generates data used for precise syntax highlighting.
 

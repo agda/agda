@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -fglasgow-exts -cpp #-}
+{-# LANGUAGE CPP, DeriveDataTypeable #-}
 
 {-| This module defines the notion of a scope and operations on scopes.
 -}

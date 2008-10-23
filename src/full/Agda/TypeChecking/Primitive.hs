@@ -1,4 +1,6 @@
-{-# OPTIONS -fglasgow-exts -fallow-overlapping-instances -fallow-undecidable-instances -cpp #-}
+{-# LANGUAGE CPP, FlexibleInstances, UndecidableInstances,
+             GeneralizedNewtypeDeriving, ScopedTypeVariables
+  #-}
 
 {-| Primitive functions, such as addition on builtin integers.
 -}

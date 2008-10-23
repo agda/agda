@@ -1,4 +1,4 @@
-{-# OPTIONS -cpp -fglasgow-exts #-}
+{-# LANGUAGE CPP, PatternGuards, DeriveDataTypeable #-}
 
 module Agda.Syntax.Concrete.Definitions
     ( NiceDeclaration(..)

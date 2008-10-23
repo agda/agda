@@ -1,5 +1,4 @@
-{-# OPTIONS -fglasgow-exts #-}
-
+{-# LANGUAGE PatternGuards #-}
 module Agda.TypeChecking.Rules.Builtin where
 
 import Control.Applicative

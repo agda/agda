@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -cpp -fglasgow-exts -fallow-undecidable-instances -fallow-overlapping-instances #-}
+{-# LANGUAGE CPP, FlexibleInstances, OverlappingInstances #-}
 
 -- | Check that a datatype is strictly positive.
 module Agda.TypeChecking.Positivity (checkStrictlyPositive, checkPosArg, initPosState, PosM) where

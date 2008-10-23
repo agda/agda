@@ -1,4 +1,4 @@
-{-# OPTIONS -fglasgow-exts -cpp #-}
+{-# LANGUAGE CPP, FlexibleInstances, DeriveDataTypeable #-}
 
 {-| Some common syntactic entities are defined in this module.
 -}

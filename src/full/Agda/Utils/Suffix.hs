@@ -1,5 +1,4 @@
-{-# OPTIONS -fglasgow-exts #-}
-
+{-# LANGUAGE PatternGuards #-}
 module Agda.Utils.Suffix where
 
 import Data.Char

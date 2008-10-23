@@ -1,4 +1,6 @@
-{-# OPTIONS -cpp -fglasgow-exts -fallow-undecidable-instances #-}
+{-# LANGUAGE CPP, MultiParamTypeClasses, FunctionalDependencies,
+             UndecidableInstances, TypeSynonymInstances, FlexibleInstances
+  #-}
 
 {-|
     Translating from internal syntax to abstract syntax. Enables nice

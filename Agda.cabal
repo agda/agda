@@ -9,7 +9,7 @@ maintainer:      Ulf Norell <ulfn@cs.chalmers.se>
 homepage:        http://www.cs.chalmers.se/~ulfn/Agda/
 category:        Dependent types
 synopsis:        A dependently typed proof checker / programming language.
-tested-with:     GHC == 6.8.3
+tested-with:     GHC == 6.8.3 && == 6.10.0
 extra-source-files: src/full/Agda/undefined.h
 
 library
@@ -29,6 +29,8 @@ library
                    zlib >= 0.4.0.1 && < 1,
                    filepath >= 1.1 && < 2,
                    process >= 1.0 && < 2
+  if impl(ghc >= 6.10)
+    build-depends: ghc-prim >= 0.1 && < 1
   if !os(windows)
     build-depends: readline >= 1.0.1 && < 2
   build-tools:     happy >= 1.15 && < 2,

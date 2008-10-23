@@ -1,4 +1,4 @@
-{-# OPTIONS -cpp #-}
+{-# LANGUAGE CPP #-}
 
 -- | Computing the free variables of a term.
 module Agda.TypeChecking.Free 

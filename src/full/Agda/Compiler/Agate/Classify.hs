@@ -1,4 +1,4 @@
-{-# OPTIONS -fglasgow-exts -cpp #-}
+{-# LANGUAGE CPP #-}
 
 {-| Classify type familes and constants
     TODO: optimize by getting rid of !'s

@@ -1,4 +1,3 @@
-{-# OPTIONS -fglasgow-exts #-}
 
 {-| The code to lex string and character literals. Basically the same code
     as in GHC.

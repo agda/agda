@@ -1,5 +1,7 @@
-{-# OPTIONS -fglasgow-exts -fallow-undecidable-instances #-}
-
+{-# LANGUAGE MultiParamTypeClasses, FunctionalDependencies,
+             FlexibleInstances, UndecidableInstances,
+             GeneralizedNewtypeDeriving
+  #-}
 module Agda.Utils.Monad.Undo where
 
 import Control.Monad.Trans

@@ -51,7 +51,12 @@ mazCurMName = maybe firstTime return .  L.lookup mazCurrentMod .
                     C.Name noRange [C.Id mazCurrentMod]
 
 curIF :: TCM Interface
-curIF = fst <$> (join $ M.lookup <$> mazCurMName <*> getVisitedModules)
+curIF = do
+  m  <- mazCurMName
+  mi <- M.lookup m <$> getVisitedModules
+  case mi of
+    Just (i, _) -> return i
+    Nothing     -> fail $ "No such module: " ++ show m
 
 curSig :: TCM Signature
 curSig = iSignature <$> curIF

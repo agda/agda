@@ -1,5 +1,4 @@
-{-# OPTIONS -fglasgow-exts -fallow-overlapping-instances #-}
-
+{-# LANGUAGE TypeSynonymInstances #-}
 module Agda.Utils.Serialise where
 
 import Control.Monad

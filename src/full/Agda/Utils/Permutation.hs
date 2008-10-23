@@ -1,5 +1,4 @@
-{-# OPTIONS -fglasgow-exts #-}
-
+{-# LANGUAGE DeriveDataTypeable #-}
 module Agda.Utils.Permutation where
 
 import Data.Generics (Typeable, Data)

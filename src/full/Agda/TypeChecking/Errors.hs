@@ -1,4 +1,4 @@
-{-# OPTIONS -cpp -fglasgow-exts -fallow-undecidable-instances #-}
+{-# LANGUAGE CPP #-}
 module Agda.TypeChecking.Errors
     ( prettyError
     , PrettyTCM(..)

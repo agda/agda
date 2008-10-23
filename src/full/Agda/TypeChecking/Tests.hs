@@ -1,5 +1,4 @@
-{-# OPTIONS -fglasgow-exts #-}
-
+{-# LANGUAGE PatternSignatures #-}
 module Agda.TypeChecking.Tests where
 
 import qualified Data.Set as Set

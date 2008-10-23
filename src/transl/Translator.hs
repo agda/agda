@@ -225,7 +225,7 @@ transCLetDef cletdef = case cletdef of
                 -> commentDecls cs
     | otherwise -> maybe []
                      (\ md -> [Import noRange
- 		                      (QName (Name noRange [Id noRange md]))
+ 		                      (QName (Name noRange [Id md]))
  				      Nothing
 			              DontOpen
  				      (ImportDirective noRange (Hiding []) [] False) ])
@@ -549,7 +549,7 @@ str2qname :: String -> QName
 str2qname = QName . str2name
 
 str2name :: String -> Name
-str2name s = Name noRange [Id noRange s]
+str2name s = Name noRange [Id s]
 
 ----
 
@@ -560,7 +560,7 @@ id2name :: Id -> Name
 id2name i = str2name (getIdString i)
 
 id2infixName :: Id -> Name
-id2infixName i = Name noRange [Hole,Id noRange (getIdString i),Hole]
+id2infixName i = Name noRange [Hole,Id (getIdString i),Hole]
 
 bool2hiding :: Bool -> Hiding
 bool2hiding True = Hidden

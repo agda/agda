@@ -1,5 +1,4 @@
-{-# OPTIONS_GHC -fglasgow-exts -fallow-undecidable-instances #-}
-
+{-# LANGUAGE TypeSynonymInstances, UndecidableInstances #-}
 module Agda.TypeChecking.Pretty where
 
 import Control.Applicative hiding (empty)

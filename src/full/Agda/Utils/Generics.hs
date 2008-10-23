@@ -1,5 +1,4 @@
-{-# OPTIONS -fglasgow-exts #-}
-
+{-# LANGUAGE Rank2Types #-}
 {-| Contains some generic utility functions.
 -}
 module Agda.Utils.Generics where

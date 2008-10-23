@@ -1,4 +1,4 @@
-{-# OPTIONS -fglasgow-exts #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 {-| A common interface for monads which allow some kind of fresh name
     generation.

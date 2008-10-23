@@ -1,4 +1,4 @@
-{-# OPTIONS -cpp -fglasgow-exts #-}
+{-# LANGUAGE CPP, PatternGuards #-}
 
 module Agda.TypeChecking.Conversion where
 

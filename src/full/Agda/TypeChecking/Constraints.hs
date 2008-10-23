@@ -1,4 +1,4 @@
-{-# OPTIONS -cpp #-}
+{-# LANGUAGE CPP #-}
 module Agda.TypeChecking.Constraints where
 
 import Control.Monad.State

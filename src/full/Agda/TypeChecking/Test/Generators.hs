@@ -1,4 +1,7 @@
-{-# OPTIONS -cpp -fglasgow-exts -fallow-undecidable-instances #-}
+{-# LANGUAGE CPP, MultiParamTypeClasses,
+             FunctionalDependencies, UndecidableInstances,
+             TypeSynonymInstances, FlexibleInstances, PatternSignatures
+  #-}
 
 module Agda.TypeChecking.Test.Generators where
 

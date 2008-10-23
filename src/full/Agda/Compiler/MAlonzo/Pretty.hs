@@ -1,4 +1,3 @@
-{-# OPTIONS_GHC -w #-}
 
 -- M.T: Modified Pretty HsExp instance to print parens right.
 

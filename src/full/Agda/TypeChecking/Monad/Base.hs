@@ -1,4 +1,7 @@
-{-# OPTIONS -fglasgow-exts -fallow-undecidable-instances -cpp #-}
+{-# LANGUAGE CPP, ExistentialQuantification, FlexibleContexts, Rank2Types,
+             TypeSynonymInstances, MultiParamTypeClasses, FlexibleInstances,
+             UndecidableInstances, DeriveDataTypeable, GeneralizedNewtypeDeriving
+  #-}
 module Agda.TypeChecking.Monad.Base where
 
 import Control.Monad.Error

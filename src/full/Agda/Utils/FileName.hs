@@ -1,4 +1,4 @@
-{-# OPTIONS -cpp #-}
+{-# LANGUAGE CPP #-}
 
 {-| Operations on file names. -}
 module Agda.Utils.FileName where

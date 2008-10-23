@@ -1,4 +1,4 @@
-{-# OPTIONS -cpp #-}
+{-# LANGUAGE CPP #-}
 module Agda.TypeChecking.Polarity where
 
 import Control.Applicative

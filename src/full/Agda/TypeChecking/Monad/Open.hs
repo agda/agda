@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -cpp #-}
+{-# LANGUAGE CPP #-}
 
 module Agda.TypeChecking.Monad.Open
 	( makeOpen

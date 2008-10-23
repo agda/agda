@@ -1,4 +1,4 @@
-{-# OPTIONS -cpp #-}
+{-# LANGUAGE CPP #-}
 module Agda.TypeChecking.Substitute where
 
 import Control.Monad.Identity

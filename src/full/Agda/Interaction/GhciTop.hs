@@ -1,4 +1,5 @@
-{-# OPTIONS -fno-cse -cpp -fglasgow-exts -fallow-overlapping-instances #-}
+{-# LANGUAGE CPP, TypeSynonymInstances #-}
+{-# OPTIONS -fno-cse #-}
 
 module Agda.Interaction.GhciTop
   ( module Agda.Interaction.GhciTop

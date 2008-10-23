@@ -1,5 +1,4 @@
-{-# OPTIONS -fglasgow-exts #-}
-
+{-# LANGUAGE MultiParamTypeClasses, DeriveDataTypeable #-}
 module Agda.Syntax.Parser.Monad
     ( -- * The parser monad
       Parser

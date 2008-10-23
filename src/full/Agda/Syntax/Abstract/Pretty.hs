@@ -1,4 +1,4 @@
-{-# OPTIONS -fglasgow-exts -fallow-undecidable-instances -fallow-overlapping-instances #-}
+
 module Agda.Syntax.Abstract.Pretty where
 
 import Control.Applicative

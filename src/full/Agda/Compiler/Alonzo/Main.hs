@@ -403,7 +403,9 @@ processTerm (Con qn ts) = do
       ldefs <- getPDefs
       if (Map.member qn ldefs) 
         then do 
-          definiens <- theDef <$> Map.lookup qn ldefs
+          definiens <- case theDef <$> Map.lookup qn ldefs of
+                          Just df -> return df
+                          Nothing -> fail $ "Alonzo: No such definition: " ++ show qn
           case definiens of
             Constructor{conSrcCon = origqn} -> do
               x <- maybeQualConName origqn

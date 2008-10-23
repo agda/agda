@@ -1,4 +1,5 @@
-{-# OPTIONS -cpp -fno-warn-orphans -fglasgow-exts #-}
+{-# LANGUAGE CPP, FlexibleInstances #-}
+{-# OPTIONS -fno-warn-orphans #-}
 
 {-| Pretty printer for the concrete syntax.
 -}

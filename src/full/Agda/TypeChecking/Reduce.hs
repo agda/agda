@@ -1,4 +1,4 @@
-{-# OPTIONS -cpp -fglasgow-exts #-}
+{-# LANGUAGE CPP #-}
 
 {-| TODO: take care of hidden arguments -}
 module Agda.TypeChecking.Reduce where

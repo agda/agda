@@ -1,4 +1,4 @@
-{-# OPTIONS -fglasgow-exts  #-}
+
 module Agda.Interaction.Monad where
 
 import Agda.TypeChecking.Monad

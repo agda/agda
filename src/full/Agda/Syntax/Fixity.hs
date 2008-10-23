@@ -1,4 +1,4 @@
-{-# OPTIONS -fglasgow-exts #-}
+{-# LANGUAGE CPP, DeriveDataTypeable #-}
 
 {-| Definitions for fixity and precedence levels.
 -}

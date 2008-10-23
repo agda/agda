@@ -1,4 +1,4 @@
-{-# OPTIONS -cpp #-}
+{-# LANGUAGE CPP #-}
 module Agda.TypeChecking.With where
 
 import Control.Applicative
@@ -242,4 +242,21 @@ patsToTerms ps = evalState (toTerms ps) 0
       DotP t    -> return t
       ConP c ps -> Con c <$> toTerms ps
       LitP l    -> return $ Lit l
+
+data ConPos = Here
+            | ArgPat Int ConPos
+
+updateWithConstructorRanges ::
+  [Telescope] -> [Arg Pattern] -> A.RHS -> [Arg Pattern]
+updateWithConstructorRanges tel ps A.RHS{}            = ps
+updateWithConstructorRanges tel ps A.AbsurdRHS{}      = ps
+updateWithConstructorRanges tel ps (A.WithRHS _ _ cs) = ps
+
+constructorsInClauses :: ConPos -> [A.Clause] -> [Range]
+constructorsInClauses pos cs = concatMap (constructorsInClause pos) cs
+
+constructorsInClause :: ConPos -> A.Clause -> [Range]
+constructorsInClause pos (A.Clause (A.LHS _ _ ps wps) rhs _) = []
+
+
 

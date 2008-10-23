@@ -1,4 +1,4 @@
-{-# OPTIONS -fglasgow-exts #-}
+{-# LANGUAGE CPP #-}
 
 {-| Agda 2 main module.
 -}

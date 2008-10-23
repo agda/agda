@@ -1,4 +1,4 @@
-{-# OPTIONS -fglasgow-exts -cpp #-}
+{-# LANGUAGE CPP, PatternGuards #-}
 
 module Agda.TypeChecking.Rules.Term where
 

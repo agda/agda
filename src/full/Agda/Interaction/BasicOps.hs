@@ -1,4 +1,6 @@
-{-# OPTIONS -cpp -fglasgow-exts -fallow-undecidable-instances #-}
+{-# LANGUAGE CPP, MultiParamTypeClasses, FlexibleInstances,
+             UndecidableInstances
+  #-}
 
 module Agda.Interaction.BasicOps where
 {- TODO: The operations in this module should return Expr and not String, 

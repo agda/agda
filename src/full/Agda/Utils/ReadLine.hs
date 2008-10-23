@@ -1,4 +1,4 @@
-{-# OPTIONS -cpp #-}
+{-# LANGUAGE CPP #-}
 
 {-| A wrapper for readline. Makes it easier to handle absence of readline.
 -}
