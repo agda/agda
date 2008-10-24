@@ -177,7 +177,7 @@ useInjectivity cmp a u v = do
           unless (null cs) patternViolation
           -- Check that we made progress, i.e. the head symbol
           -- of the original term should be a constructor.
-          h <- headSymbol org
+          h <- headSymbol =<< reduce org
           case h of
             Just h  -> compareTerm cmp a u v
             Nothing -> patternViolation
