@@ -134,7 +134,7 @@ useInjectivity cmp a u v = do
         [ prettyTCM f, text ":", prettyTCM a, text "for", prettyTCM v
         , parens $ text "args =" <+> prettyList (map prettyTCM args)
         ]
-      invert f a inv args =<< headSymbol v
+      invert u f a inv args =<< headSymbol v
     (NoInv, Inv g args inv) -> do
       a <- defType <$> getConstInfo g
       reportSDoc "tc.inj.use" 20 $ fsep $
@@ -142,13 +142,13 @@ useInjectivity cmp a u v = do
         [ prettyTCM g, text ":", prettyTCM a,  text "for", prettyTCM u
         , parens $ text "args =" <+> prettyList (map prettyTCM args)
         ]
-      invert g a inv args =<< headSymbol u
+      invert v g a inv args =<< headSymbol u
     (NoInv, NoInv)          -> fallBack
   where
     fallBack = buildConstraint $ ValueCmp cmp a u v
 
-    invert _ a inv args Nothing  = fallBack
-    invert f ftype inv args (Just h) = case Map.lookup h inv of
+    invert _ _ a inv args Nothing  = fallBack
+    invert org f ftype inv args (Just h) = case Map.lookup h inv of
       Nothing                     -> typeError $ UnequalTerms cmp u v a
       Just (Clause tel perm ps _) -> do -- instArgs args ps
           -- These are what dot patterns should be instantiated at
@@ -175,7 +175,12 @@ useInjectivity cmp a u v = do
           pol <- getPolarity' cmp f
           cs  <- compareArgs pol ftype margs args
           unless (null cs) patternViolation
-          compareTerm cmp a u v
+          -- Check that we made progress, i.e. the head symbol
+          -- of the original term should be a constructor.
+          h <- headSymbol org
+          case h of
+            Just h  -> compareTerm cmp a u v
+            Nothing -> patternViolation
         `catchError` \err -> case err of
           TypeError _ _ -> throwError err
           Exception _ _ -> throwError err
