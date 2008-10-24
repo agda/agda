@@ -87,13 +87,13 @@ rightDistributive (*) (+) = \x y z ->
 
 -- | Generates natural numbers.
 
-natural :: (Arbitrary i, Integral i) => Gen i
-natural = fmap abs arbitrary
+natural :: (Integral i) => Gen i
+natural = fmap (abs . fromInteger) arbitrary
 
 -- | Generates positive numbers.
 
-positive :: (Arbitrary i, Integral i) => Gen i
-positive = fmap ((+ 1) . abs) arbitrary
+positive :: (Integral i) => Gen i
+positive = fmap ((+ 1) . abs . fromInteger) arbitrary
 
 -- | Generates a list of elements picked from a given list.
 listOfElements :: [a] -> Gen [a]
