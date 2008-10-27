@@ -39,7 +39,7 @@ record RawIMonadZero {I : Set} (M : IFun I) : Set1 where
   open RawIMonad monad public
 
 record RawIMonadPlus {I : Set} (M : IFun I) : Set1 where
-  infixr 5 _∣_
+  infixr 3 _∣_
   field
     monadZero : RawIMonadZero M
     _∣_       : forall {i j A} -> M i j A -> M i j A -> M i j A
