@@ -494,6 +494,8 @@ order for the change to take effect."
   ("die"        . ,(agda-input-to-string-list "⚀⚁⚂⚃⚄⚅"))
   ("asterisk"   . ,(agda-input-to-string-list "⁎⁑⁂✢✣✤✥✱✲✳✺✻✼✽❃❉❊❋"))
   ("8<"         . ("✂" "✄"))
+  ("tie"        . ("⁀"))
+  ("undertie"   . ("‿"))
   ("apl"        . ,(agda-input-to-string-list "⌶⌷⌸⌹⌺⌻⌼⌽⌾⌿⍀⍁⍂⍃⍄⍅⍆⍇⍈
                                                ⍉⍊⍋⍌⍍⍎⍏⍐⍑⍒⍓⍔⍕⍖⍗⍘⍙⍚⍛
                                                ⍜⍝⍞⍟⍠⍡⍢⍣⍤⍥⍦⍧⍨⍩⍪⍫⍬⍭⍮
