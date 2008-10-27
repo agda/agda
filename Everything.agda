@@ -62,6 +62,7 @@ import Data.Graph.Acyclic
 import Data.Integer
 import Data.List
 import Data.List.Equality
+import Data.List.NonEmpty
 import Data.List.Properties
 import Data.List1
 import Data.Map
