@@ -35,6 +35,7 @@ import Agda.TypeChecking.Monad as M
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Pretty
 
 import Agda.Utils.Monad
 import Agda.Utils.Monad.Undo
@@ -68,7 +69,7 @@ giveExpr mi e =
 		    v	<- checkExpr e t'
 		    case mvInstantiation mv of
 			InstV v' ->
-			    addConstraints =<< equalTerm t' v (v' `apply` ctx)
+			  addConstraints =<< equalTerm t' v (v' `apply` ctx)
 			_	 -> updateMeta mi v
 		    reify v
 		 IsSort _ -> __IMPOSSIBLE__
@@ -188,6 +189,7 @@ data OutputForm a b
       | JustSort b | CmpSorts Comparison b b
       | Guard (OutputForm a b) [OutputForm a b]
       | Assign b a
+      | IsEmptyType a
 
 outputFormId :: OutputForm a b -> b
 outputFormId o = case o of
@@ -199,6 +201,7 @@ outputFormId o = case o of
   CmpSorts _ i _    -> i
   Guard o _         -> outputFormId o
   Assign i _        -> i
+  IsEmptyType _     -> __IMPOSSIBLE__   -- Should never be used on IsEmpty constraints
 
 instance Functor (OutputForm a) where
     fmap f (OfType e t)           = OfType (f e) t
@@ -209,6 +212,7 @@ instance Functor (OutputForm a) where
     fmap f (CmpSorts cmp e e')    = CmpSorts cmp (f e) (f e')
     fmap f (Guard o os)           = Guard (fmap f o) (fmap (fmap f) os)
     fmap f (Assign m e)           = Assign (f m) e
+    fmap f (IsEmptyType a)        = IsEmptyType a
 
 instance Reify Constraint (OutputForm Expr Expr) where
     reify (ValueCmp cmp t u v) = CmpInType cmp <$> reify t <*> reify u <*> reify v 
@@ -231,6 +235,7 @@ instance Reify Constraint (OutputForm Expr Expr) where
           Open{}  -> __IMPOSSIBLE__
           InstS{} -> __IMPOSSIBLE__
           InstV{} -> __IMPOSSIBLE__
+    reify (IsEmpty a) = IsEmptyType <$> reify a
 
 showComparison :: Comparison -> String
 showComparison CmpEq  = " = "
@@ -245,6 +250,7 @@ instance (Show a,Show b) => Show (OutputForm a b) where
     show (CmpSorts cmp s s')    = show s ++ showComparison cmp ++ show s'
     show (Guard o os)           = show o ++ "  |  " ++ show os
     show (Assign m e)           = show m ++ " := " ++ show e
+    show (IsEmptyType a)        = "Is empty: " ++ show a
 
 instance (ToConcrete a c, ToConcrete b d) => 
          ToConcrete (OutputForm a b) (OutputForm c d) where
@@ -257,6 +263,7 @@ instance (ToConcrete a c, ToConcrete b d) =>
     toConcrete (CmpSorts cmp e e') = CmpSorts cmp <$> toConcrete e <*> toConcrete e'
     toConcrete (Guard o os) = Guard <$> toConcrete o <*> toConcrete os
     toConcrete (Assign m e) = Assign <$> toConcrete m <*> toConcrete e
+    toConcrete (IsEmptyType a) = IsEmptyType <$> toConcrete a
 
 --ToDo: Move somewhere else
 instance ToConcrete InteractionId C.Expr where

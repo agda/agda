@@ -16,6 +16,7 @@ import Agda.TypeChecking.Reduce
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term (checkExpr)
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
+import {-# SOURCE #-} Agda.TypeChecking.Empty
 
 import Agda.Utils.Fresh
 
@@ -55,7 +56,8 @@ guardConstraint m c = do
 	isSC ValueCmp{}    = False
 	isSC TypeCmp{}     = False
 	isSC (Guarded c _) = isSC c
-	isSC (UnBlock _)   = False
+	isSC UnBlock{}     = False
+        isSC IsEmpty{}     = False
 
 -- | We ignore the constraint ids and (as in Agda) retry all constraints every time.
 --   We probably generate very few constraints.
@@ -79,6 +81,7 @@ solveConstraint (ValueCmp cmp a u v) = compareTerm cmp a u v
 solveConstraint (TypeCmp cmp a b)    = compareType cmp a b
 solveConstraint (SortCmp cmp s1 s2)  = compareSort cmp s1 s2
 solveConstraint (Guarded c cs)       = guardConstraint (return cs) c
+solveConstraint (IsEmpty t)          = isEmptyTypeC t
 solveConstraint (UnBlock m)          = do
     inst <- mvInstantiation <$> lookupMeta m
     case inst of

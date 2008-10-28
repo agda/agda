@@ -166,6 +166,7 @@ data Constraint = ValueCmp Comparison Type Term Term
 		| SortCmp Comparison Sort Sort
 		| UnBlock MetaId
 		| Guarded Constraint Constraints
+                | IsEmpty Type
   deriving (Typeable)
 
 data Comparison = CmpEq | CmpLeq

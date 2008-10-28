@@ -25,11 +25,12 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Primitive
+import Agda.TypeChecking.Constraints
 
 import Agda.Utils.Tuple
 import Agda.Utils.Permutation
 
-import {-# SOURCE #-} Agda.TypeChecking.Empty (isEmptyType)
+import {-# SOURCE #-} Agda.TypeChecking.Empty (isEmptyTypeC)
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkSectionApplication)
 
 import Agda.Utils.Monad
@@ -229,15 +230,19 @@ checkExpr e t =
 	    blockTerm t (apply v0 vs) $ (cs ++) <$> leqType t1 t
 
         A.AbsurdLam i h -> do
-          (t', cs) <- forcePi h "_" t
+          (t', cs) <- forcePi h "mt" t
           case funView $ unEl t' of
             FunV (Arg h' a) _
               | h == h' -> do
-                isEmptyType a
+                cs' <- isEmptyTypeC a
                 -- Add helper function
                 top <- currentModule
                 let name = "absurd"
                 aux <- qualify top <$> freshName (getRange i) name
+                reportSDoc "tc.term.absurd" 10 $ vcat
+                  [ text "Adding absurd function" <+> prettyTCM aux
+                  , nest 2 $ text "of type" <+> prettyTCM t'
+                  ]
                 addConstant aux $ Defn aux t' (defaultDisplayForm aux) 0
                                 $ Function
                                   { funClauses   = [Clause EmptyTel (Perm 0 [])
@@ -248,7 +253,7 @@ checkExpr e t =
                                   , funAbstr     = ConcreteDef
                                   , funPolarity  = [Covariant]
                                   }
-                blockTerm t (Def aux []) (return cs)
+                blockTerm t (Def aux []) $ return (cs ++ cs')
               | otherwise -> typeError $ WrongHidingInLambda t'
             _ -> __IMPOSSIBLE__
 

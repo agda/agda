@@ -100,6 +100,8 @@ instance PrettyTCM Constraint where
 	    sep [ text (show m) <+> text ":="
 		, nest 2 $ prettyTCM t
 		]
+        IsEmpty t ->
+            sep [ text "Is empty:", nest 2 $ prettyTCM t ]
 
 instance PrettyTCM Literal where
   prettyTCM = text . show

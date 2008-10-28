@@ -102,6 +102,7 @@ instance Instantiate Constraint where
     instantiate (SortCmp cmp a b) = uncurry (SortCmp cmp) <$> instantiate (a,b)
     instantiate (Guarded c cs)    = uncurry Guarded <$> instantiate (c,cs)
     instantiate (UnBlock m)       = return $ UnBlock m
+    instantiate (IsEmpty t)       = IsEmpty <$> instantiate t
 
 instance (Ord k, Instantiate e) => Instantiate (Map k e) where
     instantiate = traverse instantiate
@@ -265,6 +266,7 @@ instance Reduce Constraint where
     reduce (SortCmp cmp a b) = uncurry (SortCmp cmp) <$> reduce (a,b)
     reduce (Guarded c cs)    = uncurry Guarded <$> reduce (c,cs)
     reduce (UnBlock m)       = return $ UnBlock m
+    reduce (IsEmpty t)       = IsEmpty <$> reduce t
 
 instance (Ord k, Reduce e) => Reduce (Map k e) where
     reduce = traverse reduce
@@ -333,6 +335,7 @@ instance Normalise Constraint where
     normalise (SortCmp cmp a b) = uncurry (SortCmp cmp) <$> normalise (a,b)
     normalise (Guarded c cs)    = uncurry Guarded <$> normalise (c,cs)
     normalise (UnBlock m)       = return $ UnBlock m
+    normalise (IsEmpty t)       = IsEmpty <$> normalise t
 
 instance Normalise Pattern where
   normalise p = case p of
@@ -425,6 +428,7 @@ instance InstantiateFull Constraint where
     instantiateFull (SortCmp cmp a b) = uncurry (SortCmp cmp) <$> instantiateFull (a,b)
     instantiateFull (Guarded c cs)    = uncurry Guarded <$> instantiateFull (c,cs)
     instantiateFull (UnBlock m)       = return $ UnBlock m
+    instantiateFull (IsEmpty t)       = IsEmpty <$> instantiateFull t
 
 instance (Ord k, InstantiateFull e) => InstantiateFull (Map k e) where
     instantiateFull = traverse instantiateFull
