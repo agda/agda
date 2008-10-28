@@ -12,7 +12,7 @@ nameless : $(srcs)
 	bnfc -d $<
 
 %.hs : %.y
-	happy -agci $<
+	happy -agc -i$*.info $<
 
 %.hs : %.x
 	alex $<

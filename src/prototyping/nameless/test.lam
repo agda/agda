@@ -10,3 +10,27 @@ elimNat : (P : Nat -> *) ->
 id : (A : *) -> A -> A
    = \A x -> x
 
+plus : (n m : Nat) -> Nat
+     = \n m -> elimNat (\z -> Nat) m (\z -> suc) n
+
+List : * -> *
+nil : (A : *) -> List A
+cons : (A : *) -> A -> List A -> List A
+map : (A B : *) -> (A -> B) -> List A -> List B
+
+False : *
+True : *
+tt : True
+And : * -> * -> *
+andI : (A B : *) -> A -> B -> And A B
+fst : (A B : *) -> And A B -> A
+snd : (A B : *) -> And A B -> B
+Or : * -> * -> *
+inl : (A B : *) -> A -> Or A B
+inr : (A B : *) -> B -> Or A B
+orE : (A B C : *) -> (A -> C) -> (B -> C) -> Or A B -> C
+Not : * -> * = \A -> A -> False
+
+nnEM : (P : *) -> Not (Not (Or P (Not P)))
+  = \P H -> H (inr (\p -> H (inl p)))
+

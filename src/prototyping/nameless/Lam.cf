@@ -1,5 +1,5 @@
 
-entrypoints Prog, Exp;
+entrypoints Prog, Expr;
 
 layout toplevel ;
 
@@ -9,18 +9,23 @@ Prog. Prog ::= [Decl] ;
 
 separator Decl ";" ;
 
-Def.   Decl ::= VarName ":" Exp "=" Exp ;
-Axiom. Decl ::= VarName ":" Exp ;
+Def.   Decl ::= VarName ":" Expr "=" Expr ;
+Axiom. Decl ::= VarName ":" Expr ;
 
-Lam.  Exp  ::= "\\" [VarName] "->" Exp ;
-Pi.   Exp  ::= "(" VarName ":" Exp ")" "->" Exp ;
-Fun.  Exp  ::= Exp1 "->" Exp ;
-App.  Exp1 ::= Exp1 Exp2 ;
-Var.  Exp2 ::= VarName ;
-Star. Exp2 ::= "*";
+Lam.  Expr  ::= "\\" [VarName] "->" Expr ;
+Pi.   Expr  ::= [Binding] "->" Expr ;
+Fun.  Expr  ::= Expr1 "->" Expr ;
+_.    Expr  ::= Expr1;
+Apps. Expr1 ::= [Expr2] ;
+Var.  Expr2 ::= VarName ;
+Star. Expr2 ::= "*";
+_.    Expr2 ::= "(" Expr ")";
 
+Bind. Binding ::= "(" [Expr2] ":" Expr ")" ;
+separator nonempty Binding "" ;
+
+separator nonempty Expr2 "" ;
 separator nonempty VarName "" ;
-coercions Exp 2;
 
 comment "--" ;
 
