@@ -386,6 +386,8 @@ instance ToAbstract C.Expr A.Expr where
       C.HiddenArg _ _ -> nothingAppliedToHiddenArg e
 
   -- Lambda
+      C.AbsurdLam r h -> return $ A.AbsurdLam (ExprRange r) h
+
       e0@(C.Lam r bs e) -> do
 	localToAbstract bs $ \(b:bs') -> do
 	e	 <- toAbstractCtx TopCtx e

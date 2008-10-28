@@ -50,6 +50,7 @@ data Expr
         | WithApp !Range Expr [Expr]           -- ^ ex: @e | e1 | .. | en@
 	| HiddenArg !Range (Named String Expr) -- ^ ex: @{e}@ or @{x=e}@
 	| Lam !Range [LamBinding] Expr	       -- ^ ex: @\\x {y} -> e@ or @\\(x:A){y:B} -> e@
+        | AbsurdLam !Range Hiding              -- ^ ex: @\\ ()@
 	| Fun !Range Expr Expr		       -- ^ ex: @e -> e@ or @{e} -> e@
 	| Pi Telescope Expr		       -- ^ ex: @(xs:e) -> e@ or @{xs:e} -> e@
 	| Set !Range			       -- ^ ex: @Set@
@@ -246,6 +247,7 @@ instance HasRange Expr where
 	    OpApp r _ _		-> r
             WithApp r _ _       -> r
 	    Lam r _ _		-> r
+            AbsurdLam r _       -> r
 	    Fun r _ _		-> r
 	    Pi b e		-> fuseRange b e
 	    Set r		-> r

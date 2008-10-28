@@ -27,7 +27,9 @@ import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Primitive
 
 import Agda.Utils.Tuple
+import Agda.Utils.Permutation
 
+import {-# SOURCE #-} Agda.TypeChecking.Empty (isEmptyType)
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkSectionApplication)
 
 import Agda.Utils.Monad
@@ -167,6 +169,7 @@ checkExpr e t =
                       Nothing  -> noRange
                       Just pos -> posToRange pos pos
 
+                hiddenLambdaOrHole (A.AbsurdLam _ Hidden)                                  = True
 		hiddenLambdaOrHole (A.Lam _ (A.DomainFree Hidden _) _)			   = True
 		hiddenLambdaOrHole (A.Lam _ (A.DomainFull (A.TypedBindings _ Hidden _)) _) = True
 		hiddenLambdaOrHole (A.QuestionMark _)					   = True
@@ -224,6 +227,30 @@ checkExpr e t =
 	    (v0, t0)	 <- inferExpr e
 	    (vs, t1, cs) <- checkArguments ExpandLast (getRange e) [arg] t0 t
 	    blockTerm t (apply v0 vs) $ (cs ++) <$> leqType t1 t
+
+        A.AbsurdLam i h -> do
+          (t', cs) <- forcePi h "_" t
+          case funView $ unEl t' of
+            FunV (Arg h' a) _
+              | h == h' -> do
+                isEmptyType a
+                -- Add helper function
+                top <- currentModule
+                let name = "absurd"
+                aux <- qualify top <$> freshName (getRange i) name
+                addConstant aux $ Defn aux t' (defaultDisplayForm aux) 0
+                                $ Function
+                                  { funClauses   = [Clause EmptyTel (Perm 0 [])
+                                                    [Arg h $ VarP "()"] NoBody
+                                                   ]
+                                  , funRecursion = Recursive
+                                  , funInv       = NotInjective
+                                  , funAbstr     = ConcreteDef
+                                  , funPolarity  = [Covariant]
+                                  }
+                blockTerm t (Def aux []) (return cs)
+              | otherwise -> typeError $ WrongHidingInLambda t'
+            _ -> __IMPOSSIBLE__
 
 	A.Lam i (A.DomainFull b) e ->
 	    checkTypedBindings b $ \tel -> do

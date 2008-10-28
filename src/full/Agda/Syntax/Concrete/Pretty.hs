@@ -94,6 +94,8 @@ instance Pretty Expr where
 		sep [ text "\\" <> fsep (map pretty bs) <+> text "->"
 		    , nest 2 $ pretty e
 		    ]
+            AbsurdLam _ NotHidden -> text "\\ ()"
+            AbsurdLam _ Hidden -> text "\\ {}"
 	    Fun _ e1 e2 ->
 		sep [ pretty e1 <+> text "->"
 		    , pretty e2

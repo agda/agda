@@ -301,6 +301,7 @@ instance DotVars A.Expr where
     A.App _ e1 e2    -> dotVars (e1, e2)
     A.WithApp _ e es -> dotVars (e, es)
     A.Lam _ _ e      -> dotVars e
+    A.AbsurdLam _ _  -> Set.empty
     A.Pi _ tel e     ->  dotVars (tel, e)
     A.Fun _ a b      -> dotVars (a, b)
     A.Set _ _        -> Set.empty

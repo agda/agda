@@ -345,7 +345,7 @@ Expr :: { Expr }
 Expr
     : TeleArrow Expr		{ Pi $1 $2 }
     | 'forall' LamBindings Expr	{ forallPi $2 $3 }
-    | Expr1 '->' Expr		{ Fun (fuseRange $1 $3) $1 $3 }
+    | Application3 '->' Expr	{ Fun (fuseRange $1 $3) (RawApp (getRange $1) $1) $3 }
     | Expr1 %prec LOWEST	{ $1 }
 
 -- Level 1: Application
@@ -369,6 +369,10 @@ Application
 -- Level 2: Lambdas and lets
 Expr2
     : '\\' LamBindings Expr	   { Lam (fuseRange $1 $3) $2 $3 }
+    | '\\' AbsurdLamBindings       { let (bs, h) = $2; r = fuseRange $1 bs in
+                                     if null bs then AbsurdLam r h else
+                                     Lam r bs (AbsurdLam r h)
+                                   }
     | 'let' Declarations 'in' Expr { Let (fuseRange $1 $4) $2 $4 }
     | Expr3			   { $1 }
 
@@ -452,14 +456,28 @@ TBind : CommaBIds ':' Expr  { TBind (fuseRange $1 $3) (map mkBoundName_ $1) $3 }
 -- A non-empty sequence of lambda bindings.
 LamBindings :: { [LamBinding] }
 LamBindings
-  : LamBinds '->' { $1 }
+  : LamBinds '->' {%
+      case last $1 of
+        Left _  -> parseError "Absurd lambda cannot have a body."
+        _       -> return [ b | Right b <- $1 ]
+      }
 
-LamBinds :: { [LamBinding] }
+AbsurdLamBindings :: { ([LamBinding], Hiding) }
+AbsurdLamBindings
+  : LamBinds {%
+    case last $1 of
+      Right _ -> parseError "Missing body for lambda"
+      Left h  -> return ([ b | Right b <- init $1], h)
+    }
+
+LamBinds :: { [Either Hiding LamBinding] }
 LamBinds
-  : DomainFreeBinding LamBinds	{ $1 ++ $2 }
-  | TypedBindings LamBinds	{ DomainFull $1 : $2 }
-  | DomainFreeBinding		{ $1 }
-  | TypedBindings		{ [DomainFull $1] }
+  : DomainFreeBinding LamBinds	{ map Right $1 ++ $2 }
+  | TypedBindings LamBinds	{ Right (DomainFull $1) : $2 }
+  | DomainFreeBinding		{ map Right $1 }
+  | TypedBindings		{ [Right $ DomainFull $1] }
+  | '(' ')'                     { [Left NotHidden] }
+  | '{' '}'                     { [Left Hidden] }
 
 -- A possibly empty sequence of lambda bindings.
 LamBindings0 :: { [LamBinding] }

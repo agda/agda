@@ -436,6 +436,7 @@ instance LowerMeta SC.Expr where
         _ -> SC.App r (go e1) (lowerMeta ae2)
       SC.WithApp r e es	   -> SC.WithApp r (lowerMeta e) (lowerMeta es)
       SC.Lam r bs e1       -> SC.Lam r (lowerMeta bs) (go e1)
+      SC.AbsurdLam r h     -> SC.AbsurdLam r h
       SC.Fun r ae1 e2      -> SC.Fun r (lowerMeta ae1) (go e2)
       SC.Pi tb e1          -> SC.Pi (lowerMeta tb) (go e1)
       SC.Set _             -> e
