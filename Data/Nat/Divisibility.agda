@@ -145,4 +145,4 @@ divisible? (suc m) n                            with n divMod suc m
 divisible? (suc m) .(q * suc m)                 | result q zero    =
   yes $ divides q ≡-refl
 divisible? (suc m) .(1 + Fin.toℕ r + q * suc m) | result q (suc r) =
-  no $ nonZeroDivisor-lemma m q (suc r) (Data.Nat.zero≢suc ∘ ≡-sym)
+  no $ nonZeroDivisor-lemma m q (suc r) (\())

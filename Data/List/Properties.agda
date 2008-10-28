@@ -19,9 +19,6 @@ import Relation.Binary.EqReasoning as Eq
 open import Algebra
 open import Relation.Binary.FunctionLifting
 
-[]≢∷ : forall {A : Set} {x : A} {xs} -> [] ≢ x ∷ xs
-[]≢∷ ()
-
 ∷-injective : forall {a} -> {x y : a} {xs ys : List a} ->
               (x ∷ xs) ≡ (y ∷ ys) -> (x ≡ y) × (xs ≡ ys)
 ∷-injective ≡-refl = (≡-refl , ≡-refl)

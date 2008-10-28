@@ -19,10 +19,6 @@ open import Relation.Binary.PropositionalEquality
 ------------------------------------------------------------------------
 -- Properties
 
-zero≢suc : forall {n} {x : Fin n} ->
-           ¬ zero ≡ (Fin (suc n) ∶ suc x)
-zero≢suc ()
-
 private
   drop-suc : forall {o} {m n : Fin o} ->
              suc m ≡ (Fin (suc o) ∶ suc n) -> m ≡ n
@@ -48,9 +44,9 @@ strictTotalOrder n = record
   }
   where
   cmp : forall {n} -> Trichotomous _≡_ (_<_ {n})
-  cmp zero    zero    = tri≈ N.suc≰zero  ≡-refl             N.suc≰zero
-  cmp zero    (suc j) = tri< (s≤s z≤n)   zero≢suc           N.suc≰zero
-  cmp (suc i) zero    = tri> N.suc≰zero  (zero≢suc ∘ ≡-sym) (s≤s z≤n)
+  cmp zero    zero    = tri≈ (\())     ≡-refl (\())
+  cmp zero    (suc j) = tri< (s≤s z≤n) (\())  (\())
+  cmp (suc i) zero    = tri> (\())     (\())  (s≤s z≤n)
   cmp (suc i) (suc j) with cmp i j
   ... | tri<  lt ¬eq ¬gt = tri< (s≤s lt)         (¬eq ∘ drop-suc) (¬gt ∘ N.≤-pred)
   ... | tri> ¬lt ¬eq  gt = tri> (¬lt ∘ N.≤-pred) (¬eq ∘ drop-suc) (s≤s gt)

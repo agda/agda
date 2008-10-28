@@ -47,11 +47,6 @@ _⊎-<_ = ⊎ʳ ⊤
 
 private
 
-  ₂≁₁ :  forall {a₁} -> {∼₁ : Rel a₁}
-      -> forall {a₂} -> {∼₂ : Rel a₂}
-      -> forall {P x y} -> ¬ (inj₂ x ⟨ ⊎ʳ P ∼₁ ∼₂ ⟩₁ inj₁ y)
-  ₂≁₁ ()
-
   ₁≁₂ :  forall {a₁} -> {∼₁ : Rel a₁}
       -> forall {a₂} -> {∼₂ : Rel a₂}
       -> forall {x y} -> ¬ (inj₁ x ⟨ ∼₁ ⊎-Rel ∼₂ ⟩₁ inj₂ y)
@@ -68,11 +63,6 @@ private
             -> forall {P x y}
             -> inj₂ x ⟨ ⊎ʳ P ∼₁ ∼₂ ⟩₁ inj₂ y -> ∼₂ x y
   drop-inj₂ (₂∼₂ x∼y) = x∼y
-
-  ₂≰₁ :  forall {a₁} -> {≤₁ : Rel a₁}
-      -> forall {a₂} -> {≤₂ : Rel a₂}
-      -> forall {x y} -> ¬ (inj₂ x ⟨ ≤₁ ⊎-< ≤₂ ⟩₁ inj₁ y)
-  ₂≰₁ ()
 
 ------------------------------------------------------------------------
 -- Some properties which are preserved by the relation formers above
@@ -205,7 +195,7 @@ subst₁ ⊎-substitutive subst₂ = subst
   ...                   | yes x∼y = yes (₂∼₂ x∼y)
   ...                   | no  x≁y = no (x≁y ∘ drop-inj₂)
   dec (inj₁ x) (inj₂ y) = dec₁₂
-  dec (inj₂ x) (inj₁ y) = no ₂≁₁
+  dec (inj₂ x) (inj₁ y) = no (\())
 
 _⊎-<-total_
   :  forall {a₁} -> {≤₁ : Rel a₁} -> Total ≤₁
@@ -227,8 +217,8 @@ _⊎-<-trichotomous_ {≈₁ = ≈₁} {<₁ = <₁} tri₁
                    {≈₂ = ≈₂} {<₂ = <₂} tri₂ = tri
   where
   tri : Trichotomous (≈₁ ⊎-Rel ≈₂) (<₁ ⊎-< <₂)
-  tri (inj₁ x) (inj₂ y) = tri< (₁∼₂ _) ₁≁₂ ₂≁₁
-  tri (inj₂ x) (inj₁ y) = tri> ₂≁₁ ₂≁₁ (₁∼₂ _)
+  tri (inj₁ x) (inj₂ y) = tri< (₁∼₂ _) ₁≁₂ (\())
+  tri (inj₂ x) (inj₁ y) = tri> (\()) (\()) (₁∼₂ _)
   tri (inj₁ x) (inj₁ y) with tri₁ x y
   ...                   | tri< x<y x≉y x≯y =
     tri< (₁∼₁ x<y)        (x≉y ∘ drop-inj₁) (x≯y ∘ drop-inj₁)

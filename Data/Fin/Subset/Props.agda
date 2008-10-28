@@ -17,12 +17,6 @@ open import Relation.Binary.PropositionalEquality
 ------------------------------------------------------------------------
 -- Constructor mangling
 
-fin-0-∅ : Fin zero -> ⊥
-fin-0-∅ ()
-
-zero∉ : forall {n} {p : Subset n} -> zero ∉ outside ∷ p
-zero∉ ()
-
 drop-there : forall {s n x} {p : Subset n} -> suc x ∈ s ∷ p -> x ∈ p
 drop-there (there x∈p) = x∈p
 

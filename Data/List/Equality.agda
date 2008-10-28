@@ -70,14 +70,8 @@ module DecidableEquality (D : DecSetoid) where
       where
       helper : ¬ ListEq (x ∷ xs) (y ∷ ys)
       helper (_ ∷-cong xs≈ys) = ¬xs≈ys xs≈ys
-    dec []       (y ∷ ys) = no helper
-      where
-      helper : ¬ ListEq [] (y ∷ ys)
-      helper ()
-    dec (x ∷ xs) []       = no helper
-      where
-      helper : ¬ ListEq (x ∷ xs) []
-      helper ()
+    dec []       (y ∷ ys) = no \()
+    dec (x ∷ xs) []       = no \()
 
 module PropositionalEquality (a : Set) where
 

@@ -18,7 +18,7 @@ infix 4 _∈?_
 
 _∈?_ : forall {n} x (p : Subset n) -> Dec (x ∈ p)
 zero  ∈? inside  ∷ p = yes here
-zero  ∈? outside ∷ p = no  zero∉
+zero  ∈? outside ∷ p = no  \()
 suc n ∈? s ∷ p       with n ∈? p
 ...                  | yes n∈p = yes (there n∈p)
 ...                  | no  n∉p = no  (n∉p ∘ drop-there)
@@ -37,10 +37,7 @@ private
 any? :  forall {n} {P : Fin n -> Set}
      -> ((f : Fin n) -> Dec (P f))
      -> Dec (∃ P)
-any? {zero} {P} dec = no helper
-  where
-  helper : ∄ P
-  helper (() , _)
+any? {zero}  {P} dec = no ((\()) ∘ proj₁)
 any? {suc n} {P} dec with dec zero | any? (restrict dec)
 ...                  | yes p | _            = yes (_ , p)
 ...                  | _     | yes (_ , p') = yes (_ , p')
@@ -66,7 +63,7 @@ decFinSubset
   -> (forall f -> Dec (Q f))
   -> (forall {f} -> Q f -> Dec (P f))
   -> Dec (forall {f} -> Q f -> P f)
-decFinSubset {zero} _ _ = yes (\{f} _ -> ⊥-elim (fin-0-∅ f))
+decFinSubset {zero}          _    _    = yes \{}
 decFinSubset {suc n} {P} {Q} decQ decP = helper
   where
   helper : Dec (forall {f} -> Q f -> P f)

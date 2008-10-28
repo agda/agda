@@ -136,26 +136,20 @@ suc m ⊓ suc n = suc (m ⊓ n)
 ------------------------------------------------------------------------
 -- Queries
 
-zero≢suc : forall {n} -> ¬ zero ≡ suc n
-zero≢suc ()
-
 _≟_ : Decidable {ℕ} _≡_
 zero  ≟ zero   = yes ≡-refl
 suc m ≟ suc n  with m ≟ n
 suc m ≟ suc .m | yes ≡-refl = yes ≡-refl
 suc m ≟ suc n  | no prf     = no (prf ∘ ≡-cong pred)
-zero  ≟ suc n  = no (⊥-elim ∘ zero≢suc)
-suc m ≟ zero   = no (⊥-elim ∘ zero≢suc ∘ ≡-sym)
-
-suc≰zero : forall {n} -> ¬ suc n ≤ zero
-suc≰zero ()
+zero  ≟ suc n  = no \()
+suc m ≟ zero   = no \()
 
 ≤-pred : forall {m n} -> suc m ≤ suc n -> m ≤ n
 ≤-pred (s≤s m≤n) = m≤n
 
 _≤?_ : Decidable _≤_
 zero  ≤? _     = yes z≤n
-suc m ≤? zero  = no suc≰zero
+suc m ≤? zero  = no \()
 suc m ≤? suc n with m ≤? n
 ...            | yes m≤n = yes (s≤s m≤n)
 ...            | no  m≰n = no  (m≰n ∘ ≤-pred)

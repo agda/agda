@@ -18,23 +18,13 @@ data Sign : Set where
 
 -- Decidable equality.
 
-private
-  -≢0 : :- ≢ :0
-  -≢0 ()
-
-  -≢+ : :- ≢ :+
-  -≢+ ()
-
-  0≢+ : :0 ≢ :+
-  0≢+ ()
-
 _≟_ : Decidable {Sign} _≡_
 :- ≟ :- = yes ≡-refl
-:- ≟ :0 = no -≢0
-:- ≟ :+ = no -≢+
-:0 ≟ :- = no (-≢0 ∘ ≡-sym)
+:- ≟ :0 = no \()
+:- ≟ :+ = no \()
+:0 ≟ :- = no \()
 :0 ≟ :0 = yes ≡-refl
-:0 ≟ :+ = no 0≢+
-:+ ≟ :- = no (-≢+ ∘ ≡-sym )
-:+ ≟ :0 = no (0≢+ ∘ ≡-sym )
+:0 ≟ :+ = no \()
+:+ ≟ :- = no \()
+:+ ≟ :0 = no \()
 :+ ≟ :+ = yes ≡-refl
