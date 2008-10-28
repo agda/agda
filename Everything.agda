@@ -138,3 +138,5 @@ import Relation.Nullary.Sum
 import Relation.Nullary.Universe
 import Relation.Unary
 import Relation.Unary1
+
+import Size
