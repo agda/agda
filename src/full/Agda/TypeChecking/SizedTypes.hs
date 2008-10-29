@@ -186,7 +186,7 @@ solveSizeConstraints = whenM haveSizedTypes $ do
 
   case W.solve $ map mkFlex metas ++ map mkConstr cs of
     Nothing  -> do
-      typeError $ GenericError $ "Unsolvable size constraints:" ++ show cs
+      typeError $ GenericError $ "Unsolvable size constraints: " ++ show cs
     Just sol -> do
       reportSLn "tc.size.solve" 10 $ "Solved constraints: " ++ show sol
       inf <- primSizeInf
