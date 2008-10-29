@@ -173,7 +173,10 @@ useInjectivity cmp a u v = do
               ]
             ]
           pol <- getPolarity' cmp f
-          cs  <- compareArgs pol ftype margs args
+          -- The clause might not give as many patterns as there
+          -- are arguments (point-free style definitions).
+          let args' = take (length margs) args
+          cs  <- compareArgs pol ftype margs args'
           unless (null cs) patternViolation
           -- Check that we made progress, i.e. the head symbol
           -- of the original term should be a constructor.
