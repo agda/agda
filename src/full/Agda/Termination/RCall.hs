@@ -36,10 +36,3 @@ instance PrettyTCM RCall where
 		  dargs <- prettyTCM  (callArgs r)
 		  return $ dr
 
-instance PrettyTCM  a => PrettyTCM [a] where
-  prettyTCM [] = return $ text ""
-  prettyTCM (r:rs) = do 
-			dr <- prettyTCM r 
-			ds <- prettyTCM rs
-                        return $ dr <> comma <> ds
-

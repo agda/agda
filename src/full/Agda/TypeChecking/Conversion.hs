@@ -58,55 +58,56 @@ equalType = compareType CmpEq
 --
 compareTerm :: MonadTCM tcm => Comparison -> Type -> Term -> Term -> tcm Constraints
 compareTerm cmp a m n =
-    catchConstraint (ValueCmp cmp a m n) $
-    do	a'	 <- reduce a
-	proofIrr <- proofIrrelevance
-        isSize   <- isSizeType a'
-	s	 <- reduce $ getSort a'
-	case s of
-	    Prop | proofIrr -> return []
-            _    | isSize   -> compareSizes cmp m n
-	    _		    ->
-		case unEl a' of
-		    Pi a _    -> equalFun (a,a') m n
-		    Fun a _   -> equalFun (a,a') m n
-		    MetaV x _ -> do
-			(m,n) <- normalise (m,n)
-			if m == n
-			    then return []
-			    else buildConstraint (ValueCmp cmp a m n)
-		    Lam _ _   -> __IMPOSSIBLE__
-		    Def r ps  -> do
-		      isrec <- isRecord r
-		      if isrec
-			then do
-			  (m, n) <- reduce (m, n)
-			  case (m, n) of
-			    _ | isNeutral m && isNeutral n ->
-				compareAtom cmp a' m n
-			    _ -> do
-			      (tel, m') <- etaExpandRecord r ps m
-			      (_  , n') <- etaExpandRecord r ps n
-                              -- No subtyping on record terms
-			      compareArgs [] (telePi_ tel $ sort Prop) m' n'
-			else compareAtom cmp a' m n
-		    _	      -> compareAtom cmp a' m n
-    where
-	isNeutral (MetaV _ _)  = False
-	isNeutral (Con _ _)    = False
-	isNeutral (BlockedV _) = False
-	isNeutral _	       = True
+  catchConstraint (ValueCmp cmp a m n) $ do
+    a'       <- reduce a
+    reportSDoc "tc.conv.term" 10 $ fsep
+      [ text "compareTerm", prettyTCM m, prettyTCM cmp, prettyTCM n, text ":", prettyTCM a ]
+    proofIrr <- proofIrrelevance
+    isSize   <- isSizeType a'
+    s        <- reduce $ getSort a'
+    case s of
+      Prop | proofIrr -> return []
+      _    | isSize   -> compareSizes cmp m n
+      _               -> case unEl a' of
+        Pi a _    -> equalFun (a,a') m n
+        Fun a _   -> equalFun (a,a') m n
+        MetaV x _ -> do
+          (m,n) <- normalise (m,n)
+          if m == n
+            then return []
+            else buildConstraint (ValueCmp cmp a m n)
+        Lam _ _   -> __IMPOSSIBLE__
+        Def r ps  -> do
+          isrec <- isRecord r
+          if isrec
+            then do
+              (m, n) <- reduce (m, n)
+              case (m, n) of
+                _ | isNeutral m && isNeutral n ->
+                    compareAtom cmp a' m n
+                _ -> do
+                  (tel, m') <- etaExpandRecord r ps m
+                  (_  , n') <- etaExpandRecord r ps n
+                  -- No subtyping on record terms
+                  compareArgs [] (telePi_ tel $ sort Prop) m' n'
+            else compareAtom cmp a' m n
+        _ -> compareAtom cmp a' m n
+  where
+    isNeutral (MetaV _ _)  = False
+    isNeutral (Con _ _)    = False
+    isNeutral (BlockedV _) = False
+    isNeutral _	       = True
 
-	equalFun (a,t) m n =
-	    do	name <- freshName_ (suggest $ unEl t)
-		addCtx name a $ compareTerm cmp t' m' n'
-	    where
-		p	= fmap (const $ Var 0 []) a
-		(m',n') = raise 1 (m,n) `apply` [p]
-		t'	= raise 1 t `piApply` [p]
-		suggest (Fun _ _)	 = "x"
-		suggest (Pi _ (Abs x _)) = x
-		suggest _		 = __IMPOSSIBLE__
+    equalFun (a,t) m n = do
+        name <- freshName_ (suggest $ unEl t)
+        addCtx name a $ compareTerm cmp t' m' n'
+      where
+        p	= fmap (const $ Var 0 []) a
+        (m',n') = raise 1 (m,n) `apply` [p]
+        t'	= raise 1 t `piApply` [p]
+        suggest (Fun _ _)	 = "x"
+        suggest (Pi _ (Abs x _)) = x
+        suggest _		 = __IMPOSSIBLE__
 
 -- | Syntax directed equality on atomic values
 --
@@ -132,8 +133,8 @@ compareAtom cmp t m n =
                 pol <- getPolarity' cmp x
 		reportSDoc "tc.conv.atom" 20 $
 		  text "compareArgs" <+> sep
-                    [ sep [ brackets (fsep $ punctuate comma $ map prettyTCM xArgs)
-			  , brackets (fsep $ punctuate comma $ map prettyTCM yArgs)
+                    [ sep [ prettyTCM xArgs
+			  , prettyTCM yArgs
 			  ]
                     , nest 2 $ text (show pol)
                     ]
@@ -266,7 +267,7 @@ compareArgs pols0 a (arg1 : args1) (arg2 : args2) = do
                               , prettyTCM arg1
                               , text "~~" <+> prettyTCM arg2
                               , text ":" <+> prettyTCM b
-                              , text "-->" <+> prettyList (map prettyTCM cs1)
+                              , text "-->" <+> prettyTCM cs1
                               ]
                           ]
                         patternViolation   -- TODO: will duplicate work (all arguments checked so far)
@@ -297,7 +298,7 @@ compareType cmp ty1@(El s1 a1) ty2@(El s2 a2) =
 	cs2 <- compareTerm cmp (sort s1) a1 a2
         unless (null $ cs1 ++ cs2) $
           reportSDoc "tc.conv.type" 9 $
-            text "   --> " <+> prettyList (map prettyTCM $ cs1 ++ cs2)
+            text "   --> " <+> prettyTCM (cs1 ++ cs2)
 	return $ cs1 ++ cs2
 
 leqType :: MonadTCM tcm => Type -> Type -> tcm Constraints

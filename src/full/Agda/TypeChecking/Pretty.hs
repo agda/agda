@@ -60,6 +60,9 @@ class PrettyTCM a where
 instance PrettyTCM a => PrettyTCM (Closure a) where
     prettyTCM cl = enterClosure cl prettyTCM
 
+instance PrettyTCM a => PrettyTCM [a] where
+  prettyTCM = prettyList . map prettyTCM
+
 instance PrettyTCM Term where prettyTCM x = prettyA =<< reify x
 instance PrettyTCM Type where prettyTCM x = prettyA =<< reify x
 instance PrettyTCM Sort where prettyTCM x = prettyA =<< reify x

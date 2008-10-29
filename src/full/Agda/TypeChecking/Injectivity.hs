@@ -167,8 +167,8 @@ useInjectivity cmp a u v = do
           reportSDoc "tc.inj.invert" 20 $ vcat
             [ text "inversion"
             , nest 2 $ vcat
-              [ text "lhs  =" <+> prettyList (map prettyTCM margs)
-              , text "rhs  =" <+> prettyList (map prettyTCM args)
+              [ text "lhs  =" <+> prettyTCM margs
+              , text "rhs  =" <+> prettyTCM args
               , text "type =" <+> prettyTCM ftype
               ]
             ]
