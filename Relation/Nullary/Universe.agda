@@ -71,7 +71,7 @@ map (K P)     f  p = p
 map (F₁ ∨ F₂) f FP = map-⊎ (map F₁ f) (map F₂ f) FP
 map (F₁ ∧ F₂) f FP = map-× (map F₁ f) (map F₂ f) FP
 map (P₁ ⇒ F₂) f FP = map F₂ f ∘ FP
-map (¬¬ F)    f FP = map-¬¬ (map F f) FP
+map (¬¬ F)    f FP = ¬¬-map (map F f) FP
 
 map-id : forall F {P} -> ⟨ ⟦ F ⟧ P ⇒ F ⟩ map F id ≈ id
 map-id Id        x        = ≡-refl
@@ -95,19 +95,19 @@ map-∘ (¬¬ F)    f g x        = _
 
 -- Some lemmas about double negation.
 
-pull-¬¬ : forall F {P} -> ⟦ F ⟧ (¬ ¬ P) -> ¬ ¬ ⟦ F ⟧ P
-pull-¬¬ Id        ¬¬P      ¬P  = ¬¬P ¬P
-pull-¬¬ (K P)     p        ¬P  = ¬P p
-pull-¬¬ (F₁ ∨ F₂) (inj₁ x) ¬FP = map-¬¬ (¬FP ∘ inj₁) (pull-¬¬ F₁ x) id
-pull-¬¬ (F₁ ∨ F₂) (inj₂ y) ¬FP = map-¬¬ (¬FP ∘ inj₂) (pull-¬¬ F₂ y) id
-pull-¬¬ (F₁ ∧ F₂) (x , y)  ¬FP = map-¬¬ ¬FP (lem (pull-¬¬ F₁ x)
-                                                 (pull-¬¬ F₂ y)) id
+¬¬-pull : forall F {P} -> ⟦ F ⟧ (¬ ¬ P) -> ¬ ¬ ⟦ F ⟧ P
+¬¬-pull Id        ¬¬P      ¬P  = ¬¬P ¬P
+¬¬-pull (K P)     p        ¬P  = ¬P p
+¬¬-pull (F₁ ∨ F₂) (inj₁ x) ¬FP = ¬¬-map (¬FP ∘ inj₁) (¬¬-pull F₁ x) id
+¬¬-pull (F₁ ∨ F₂) (inj₂ y) ¬FP = ¬¬-map (¬FP ∘ inj₂) (¬¬-pull F₂ y) id
+¬¬-pull (F₁ ∧ F₂) (x , y)  ¬FP = ¬¬-map ¬FP (lem (¬¬-pull F₁ x)
+                                                 (¬¬-pull F₂ y)) id
   where
   lem : forall {P Q} -> ¬ ¬ P -> ¬ ¬ Q -> ¬ ¬ (P × Q)
   lem ¬¬P ¬¬Q ¬PQ = ¬¬P (\P -> ¬¬Q (\Q -> ¬PQ ((P , Q))))
-pull-¬¬ (P₁ ⇒ F₂) h ¬FP =
-  ¬FP (\p₁ -> ⊥-elim (pull-¬¬ F₂ (h p₁) (\F₂P -> ¬FP (\_ -> F₂P))))
-pull-¬¬ (¬¬ F) h ¬FP = map-¬¬ ¬FP (map-¬¬ (pull-¬¬ F) h) id
+¬¬-pull (P₁ ⇒ F₂) h ¬FP =
+  ¬FP (\p₁ -> ⊥-elim (¬¬-pull F₂ (h p₁) (\F₂P -> ¬FP (\_ -> F₂P))))
+¬¬-pull (¬¬ F) h ¬FP = ¬¬-map ¬FP (¬¬-map (¬¬-pull F) h) id
 
-remove-¬¬ : forall F {P} -> ¬ ¬ ⟦ F ⟧ (¬ ¬ P) -> ¬ ¬ ⟦ F ⟧ P
-remove-¬¬ F = drop-¬¬ ∘ pull-¬¬ (¬¬ F)
+¬¬-remove : forall F {P} -> ¬ ¬ ⟦ F ⟧ (¬ ¬ P) -> ¬ ¬ ⟦ F ⟧ P
+¬¬-remove F = ¬¬-drop ∘ ¬¬-pull (¬¬ F)

@@ -44,22 +44,22 @@ private
 -- And the following use of contradiction:
 
 private
-  add-¬¬ : {P : Set} -> P -> ¬ ¬ P
-  add-¬¬ = contradiction
+  ¬¬-add : {P : Set} -> P -> ¬ ¬ P
+  ¬¬-add = contradiction
 
-map-¬¬ : forall {P Q} -> (P -> Q) -> ¬ ¬ P -> ¬ ¬ Q
-map-¬¬ f = contravariant (contravariant f)
+¬¬-map : forall {P Q} -> (P -> Q) -> ¬ ¬ P -> ¬ ¬ Q
+¬¬-map f = contravariant (contravariant f)
 
-push-¬¬ : {P : Set} {Q : P -> Set} ->
+¬¬-push : {P : Set} {Q : P -> Set} ->
           ¬ ¬ ((x : P) -> Q x) -> (x : P) -> ¬ ¬ Q x
-push-¬¬ ¬¬P⟶Q P ¬Q = ¬¬P⟶Q (\P⟶Q -> ¬Q (P⟶Q P))
+¬¬-push ¬¬P⟶Q P ¬Q = ¬¬P⟶Q (\P⟶Q -> ¬Q (P⟶Q P))
 
-drop-¬¬ : {P : Set} -> ¬ ¬ ¬ P -> ¬ P
-drop-¬¬ ¬¬¬P P = ¬¬¬P (\ ¬P -> ¬P P)
+¬¬-drop : {P : Set} -> ¬ ¬ ¬ P -> ¬ P
+¬¬-drop ¬¬¬P P = ¬¬¬P (\ ¬P -> ¬P P)
 
-drop-¬¬-Dec : {P : Set} -> Dec P -> ¬ ¬ P -> P
-drop-¬¬-Dec (yes p) ¬¬p = p
-drop-¬¬-Dec (no ¬p) ¬¬p = ⊥-elim (¬¬p ¬p)
+¬¬-drop-Dec : {P : Set} -> Dec P -> ¬ ¬ P -> P
+¬¬-drop-Dec (yes p) ¬¬p = p
+¬¬-drop-Dec (no ¬p) ¬¬p = ⊥-elim (¬¬p ¬p)
 
 -- A double-negation-translated variant of excluded middle.
 
@@ -83,7 +83,7 @@ reductio-ad-absurdum-⊎ {P} {Q} f hyp =
 ¬¬-Monad : RawMonad (\P -> ¬ ¬ P)
 ¬¬-Monad = record
   { return = contradiction
-  ; _>>=_  = \x f -> drop-¬¬ (map-¬¬ f x)
+  ; _>>=_  = \x f -> ¬¬-drop (¬¬-map f x)
   }
 
 ∃⟶¬∀¬ : {A : Set} {P : A -> Set} ->
