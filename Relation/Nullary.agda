@@ -12,6 +12,8 @@ open import Data.Empty
 open import Data.Function
 open import Data.Bool
 
+open import Category.Monad
+
 open import Relation.Nullary.Core public
 open import Relation.Binary.PropositionalEquality
 open ≡-Reasoning
@@ -74,6 +76,15 @@ reductio-ad-absurdum-⊎ {P} {Q} f hyp =
   helper : Dec P -> P ⊎ Q
   helper (yes p) = inj₁ p
   helper (no ¬p) = inj₂ (f ¬p)
+
+-- Double-negation is a monad (if we assume that all elements of ¬ ¬ P
+-- are equal).
+
+¬¬-Monad : RawMonad (\P -> ¬ ¬ P)
+¬¬-Monad = record
+  { return = contradiction
+  ; _>>=_  = \x f -> drop-¬¬ (map-¬¬ f x)
+  }
 
 ∃⟶¬∀¬ : {A : Set} {P : A -> Set} ->
         ∃ P -> ¬ (forall x -> ¬ P x)
