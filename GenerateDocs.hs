@@ -46,7 +46,7 @@ parse :: String -> [String]
 parse = map (drop (length imp)) . filter (imp `isPrefixOf`) . lines
   where imp = "import "
 
--- | Translate a module name to the corresponding file name.
+-- | Translates a module name to the corresponding file name.
 
 modToFile :: String -> FilePath
 modToFile = (++ ".agda") . map toSlash
