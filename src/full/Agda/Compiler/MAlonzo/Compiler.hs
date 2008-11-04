@@ -257,7 +257,7 @@ writeModule m = liftIO .(`writeFileUTF8`(preamble ++ prettyPrint m))=<< outFile
   where
   preamble = unlines $ [ "{-# LANGUAGE EmptyDataDecls"
                        , "           , ExistentialQuantification"
-                       , "           , PatternSignatures"
+                       , "           , ScopedTypeVariables"
                        , "           , UnicodeSyntax"
                        , "           , NoMonomorphismRestriction"
                        , "  #-}"

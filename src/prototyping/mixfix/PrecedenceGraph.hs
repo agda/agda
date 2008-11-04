@@ -2,7 +2,7 @@
 -- Precedence graphs
 ------------------------------------------------------------------------
 
-{-# LANGUAGE PatternSignatures #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module PrecedenceGraph
     -- * Precedence graphs

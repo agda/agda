@@ -1,4 +1,4 @@
-{-# LANGUAGE PatternSignatures #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module Agda.TypeChecking.Tests where
 
 import qualified Data.Set as Set

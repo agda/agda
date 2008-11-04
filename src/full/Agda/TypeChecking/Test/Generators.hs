@@ -1,6 +1,6 @@
 {-# LANGUAGE CPP, MultiParamTypeClasses,
              FunctionalDependencies, UndecidableInstances,
-             TypeSynonymInstances, FlexibleInstances, PatternSignatures
+             TypeSynonymInstances, FlexibleInstances, ScopedTypeVariables
   #-}
 
 module Agda.TypeChecking.Test.Generators where

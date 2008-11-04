@@ -9,7 +9,7 @@ maintainer:      Ulf Norell <ulfn@cs.chalmers.se>
 homepage:        http://www.cs.chalmers.se/~ulfn/Agda/
 category:        Dependent types
 synopsis:        A dependently typed proof checker / programming language.
-tested-with:     GHC == 6.8.3 && == 6.10.0
+tested-with:     GHC == 6.8.3 && == 6.10.1
 extra-source-files: src/full/Agda/undefined.h
 
 library
