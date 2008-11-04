@@ -4,4 +4,4 @@ module Whitespace where
 -- characters, and they are all treated as whitespace.
 
 foo :  Set -> Set  ->  Set
-foo  x​_	=  x
+foo x _	=  x
