@@ -390,6 +390,10 @@ s≤′s (≤′-step m≤′n) = ≤′-step (s≤′s m≤′n)
 ------------------------------------------------------------------------
 -- Various order-related properties
 
+≤-steps : forall {m n} k -> m ≤ n -> m ≤ k + n
+≤-steps zero    m≤n = m≤n
+≤-steps (suc k) m≤n = ≤-step (≤-steps k m≤n)
+
 ≤≥⇒≡ : forall {m n} -> m ≤ n -> m ≥ n -> m ≡ n
 ≤≥⇒≡ z≤n       z≤n       = ≡-refl
 ≤≥⇒≡ (s≤s m≤n) (s≤s m≥n) = ≡-cong suc (≤≥⇒≡ m≤n m≥n)
