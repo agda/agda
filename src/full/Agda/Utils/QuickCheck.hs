@@ -4,6 +4,8 @@ module Agda.Utils.QuickCheck
   , module Agda.Utils.QuickCheck
   ) where
 
+import Control.Monad
+import Control.Applicative
 import Test.QuickCheck
 
 isSuccess :: Result -> Bool
@@ -15,4 +17,8 @@ quickCheck' p = fmap isSuccess $ quickCheckResult p
 
 quickCheckWith' :: Testable prop => Args -> prop -> IO Bool
 quickCheckWith' args p = fmap isSuccess $ quickCheckWithResult args p
+
+instance Applicative Gen where
+  pure = return
+  (<*>) = ap
 

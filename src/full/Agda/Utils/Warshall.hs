@@ -1,3 +1,4 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Agda.Utils.Warshall where
 
 {- construct a graph from constraints
@@ -11,12 +12,16 @@ building the graph involves keeping track of the node names.
 We do this in a finite map, assigning consecutive numbers to nodes.
 -}
 
-
+import Control.Applicative
 import Control.Monad.State
 import Data.Maybe -- fromJust
 import Data.Array
 import Data.Map (Map)
 import qualified Data.Map as Map
+import Test.QuickCheck
+import Agda.Utils.TestHelpers
+import Agda.Syntax.Common
+import Agda.Utils.QuickCheck
 
 import Debug.Trace
 
@@ -25,6 +30,15 @@ import Debug.Trace
 class SemiRing a where
   oplus  :: a -> a -> a
   otimes :: a -> a -> a
+
+instance SemiRing a => SemiRing (Maybe a) where
+  oplus Nothing y = y
+  oplus x Nothing = x
+  oplus (Just x) (Just y) = Just (oplus x y)
+
+  otimes Nothing _ = Nothing
+  otimes _ Nothing = Nothing
+  otimes (Just x) (Just y) = Just (otimes x y)
 
 type Matrix a = Array (Int,Int) a
 
@@ -37,6 +51,30 @@ warshall a0 = loop r a0 where
                            (a!(i,j)) `oplus` ((a!(i,k)) `otimes` (a!(k,j))))
                         | i <- [r..r'], j <- [c..c'] ])
            | otherwise = a
+
+-- Warshall's algorithm on a graph represented as an adjacency list.
+type AdjList node edge = Map node [(node, edge)]
+
+warshallG :: (SemiRing edge, Ord node) => AdjList node edge -> AdjList node edge
+warshallG g = fromMatrix $ warshall m
+  where
+    nodes = zip (Map.keys g) [0..]
+    len   = length nodes
+    b     = ((0,0), (len - 1,len - 1))
+
+    edge i j = do
+      es <- Map.lookup i g
+      foldr oplus Nothing [ Just v | (j', v) <- es, j == j' ]
+
+    m = array b [ ((n, m), edge i j) | (i, n) <- nodes, (j, m) <- nodes ] 
+
+    fromMatrix matrix = Map.fromList $ do
+      (i, n) <- nodes
+      let es = [ (fst (nodes !! m), e)
+               | m <- [0..len - 1]
+               , Just e <- [matrix ! (n, m)]
+               ]
+      return (i, es)
 
 -- edge weight in the graph, forming a semi ring 
 
@@ -375,3 +413,100 @@ while flexible variables j left
                         _ -> -- trace ("unusable rigid: " ++ show r ++ " for flex " ++ show f)
                               Nothing  -- NOT: loop3 (col+1) subst
                      _ -> loop3 (col+1) subst
+
+
+
+-- Testing ----------------------------------------------------------------
+
+genGraph :: Ord node => Float -> Gen edge -> [node] -> Gen (AdjList node edge)
+genGraph density edge nodes = do
+  ns <- replicateM (length nodes) $ concat <$> mapM neighbour nodes
+  return $ Map.fromList $ zip nodes ns
+  where
+    k = round (100 * density)
+    neighbour n = frequency
+      [ (k, do e <- edge
+               ns <- neighbour n
+               return ((n, e):ns))
+      , (100 - k, return [])
+      ]
+
+newtype Distance = Dist Nat
+  deriving (Eq, Ord, Num, Integral, Show, Enum, Real)
+
+instance SemiRing Distance where
+  oplus  (Dist a) (Dist b) = Dist (min a b)
+  otimes (Dist a) (Dist b) = Dist (a + b)
+
+genGraph_ :: Nat -> Gen (AdjList Nat Distance)
+genGraph_ n =
+  genGraph 0.2 (Dist <$> natural) [0..n - 1]
+
+lookupEdge :: Ord n => n -> n -> AdjList n e -> Maybe e
+lookupEdge i j g = lookup j =<< Map.lookup i g
+
+edges :: Ord n => AdjList n e -> [(n,n,e)]
+edges g = do
+  (i, ns) <- Map.toList g
+  (j, e)  <- ns
+  return (i, j, e)
+
+-- | Check that no edges get longer when completing a graph.
+prop_smaller n' =
+  forAll (genGraph_ n) $ \g ->
+  let g' = warshallG g in
+  and [ lookupEdge i j g' =< e
+      | (i, j, e) <- edges g
+      ]
+  where
+    n = abs (div n' 2)
+    Nothing =< _ = False
+    Just x  =< y = x <= y
+
+newEdge i j e = Map.insertWith (++) i [(j, e)]
+
+genPath :: Nat -> Nat -> Nat -> AdjList Nat Distance -> Gen (AdjList Nat Distance)
+genPath n i j g = do
+  es <- listOf $ (,) <$> node <*> edge
+  v  <- edge
+  return $ addPath i (es ++ [(j, v)]) g
+  where
+    edge = Dist <$> natural
+    node = choose (0, n - 1)
+    addPath _ [] g = g
+    addPath i ((j, v):es) g =
+      newEdge i j v $ addPath j es g
+
+-- | Check that all transitive edges are added.
+prop_path n' =
+  forAll (genGraph_ n) $ \g ->
+  forAll (replicateM 2 $ choose (0, n - 1)) $ \[i, j] ->
+  forAll (genPath n i j g) $ \g' ->
+  isJust (lookupEdge i j $ warshallG g')
+  where
+    n = abs (div n' 2) + 1
+
+mapNodes :: (Ord node, Ord node') => (node -> node') -> AdjList node edge -> AdjList node' edge
+mapNodes f = Map.map f' . Map.mapKeys f
+  where
+    f' es = [ (f n, e) | (n,e) <- es ]
+
+-- | Check that no edges are added between components.
+prop_disjoint n' =
+  forAll (replicateM 2 $ genGraph_ n) $ \[g1, g2] ->
+  let g  = Map.union (mapNodes Left g1) (mapNodes Right g2)
+      g' = warshallG g
+  in all disjoint (Map.assocs g')
+  where
+    n = abs (div n' 3)
+    disjoint (Left i, es)  = all (isLeft . fst) es
+    disjoint (Right i, es) = all (isRight . fst) es
+    isLeft = either (const True) (const False)
+    isRight = not . isLeft
+
+tests :: IO Bool
+tests = runTests "Agda.Utils.Warshall"
+  [ quickCheck' prop_smaller
+  , quickCheck' prop_path
+  , quickCheck' prop_disjoint
+  ]

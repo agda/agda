@@ -18,6 +18,7 @@ import Agda.TypeChecking.Tests                as TypeChck   (tests)
 import Agda.Utils.Either	              as UtilEith   (tests)
 import Agda.Utils.FileName                    as UtilFile   (tests)
 import Agda.Utils.List                        as UtilList   (tests)
+import Agda.Utils.Warshall                    as UtilWarsh  (tests)
 
 testSuite :: IO Bool
 testSuite = runTests "QuickCheck test suite:"
@@ -35,4 +36,5 @@ testSuite = runTests "QuickCheck test suite:"
   , UtilEith.tests
   , UtilFile.tests
   , UtilList.tests
+  , UtilWarsh.tests
   ]

@@ -22,13 +22,10 @@ import Agda.TypeChecking.Free
 import Agda.TypeChecking.Substitute
 import Agda.Utils.TestHelpers
 import Agda.Utils.Monad
+import Agda.Utils.QuickCheck hiding (Args)
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
-
-instance Applicative Gen where
-  pure	= return
-  (<*>) = ap
 
 data TermConfiguration = TermConf
       { tcDefinedNames	   :: [QName]
