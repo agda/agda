@@ -1,6 +1,6 @@
 {-# LANGUAGE CPP, MultiParamTypeClasses,
              FunctionalDependencies, UndecidableInstances,
-             TypeSynonymInstances, FlexibleInstances, ScopedTypeVariables
+             TypeSynonymInstances, FlexibleInstances
   #-}
 
 module Agda.TypeChecking.Test.Generators where
@@ -506,6 +506,6 @@ isWellScoped conf t = allVars (freeVars t) `Set.isSubsetOf` Set.fromList (tcFree
 -- | Check that the generated terms don't have any out of scope variables.
 prop_wellScopedVars :: TermConfiguration -> Property
 prop_wellScopedVars conf =
-  forAllShrink (genC conf) (shrinkC conf) $ \(t :: Term) ->
-  isWellScoped conf t
+  forAllShrink (genC conf) (shrinkC conf) $ \t ->
+  isWellScoped conf (t :: Term)
 

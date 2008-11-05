@@ -1,4 +1,3 @@
-{-# LANGUAGE ScopedTypeVariables #-}
 module Agda.TypeChecking.Tests where
 
 import qualified Data.Set as Set
@@ -62,8 +61,8 @@ prop_splitTelescopePermScope conf =
       conf1 = extendWithTelConf tel1 conf
       conf2 = conf1 { tcFreeVariables = map (size tel2 +) (tcFreeVariables conf1) }
       conf' = conf  { tcFreeVariables = map (size tel +) (tcFreeVariables conf) ++ vs }
-  in  forAllShrink (genC conf') (shrinkC conf') $ \(t :: Term) ->
-      isWellScoped conf2 (substs (renamingR $ invertP perm) t)
+  in  forAllShrink (genC conf') (shrinkC conf') $ \t ->
+      isWellScoped conf2 (substs (renamingR $ invertP perm) (t :: Term))
 
 {-
 -- | The permutation generated when splitting a telescope correctly translates
