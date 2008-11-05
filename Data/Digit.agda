@@ -7,11 +7,13 @@ module Data.Digit where
 open import Data.Nat
 open import Data.Nat.Properties
 open SemiringSolver
-open import Data.Fin using (Fin; zero; suc; #_; toℕ)
+import Data.Fin as Fin
+open Fin using (Fin; zero; suc; #_; toℕ)
 open import Relation.Nullary
 open import Data.Char using (Char)
 open import Data.List
 import Data.Vec as Vec
+open Vec using (Vec; _∷_; [])
 open import Induction.Nat
 open import Data.Nat.DivMod
 open ≤-Reasoning
@@ -60,35 +62,19 @@ Bit     = Digit 2
 ------------------------------------------------------------------------
 -- Showing digits
 
+-- The characters used to show the first 16 digits.
+
+digitChars : Vec Char 16
+digitChars =
+  '0' ∷ '1' ∷ '2' ∷ '3' ∷ '4' ∷ '5' ∷ '6' ∷ '7' ∷ '8' ∷ '9' ∷
+  'a' ∷ 'b' ∷ 'c' ∷ 'd' ∷ 'e' ∷ 'f' ∷ []
+
 -- showDigit shows digits in base ≤ 16.
---
--- This function could be simplified by making use of some properties
--- of Unicode code points and adding another primitive character
--- function.
 
 showDigit : forall {base} {base≤16 : True (base ≤? 16)} ->
             Digit base -> Char
-showDigit zero = '0'
-showDigit (suc zero) = '1'
-showDigit (suc (suc zero)) = '2'
-showDigit (suc (suc (suc zero))) = '3'
-showDigit (suc (suc (suc (suc zero)))) = '4'
-showDigit (suc (suc (suc (suc (suc zero))))) = '5'
-showDigit (suc (suc (suc (suc (suc (suc zero)))))) = '6'
-showDigit (suc (suc (suc (suc (suc (suc (suc zero))))))) = '7'
-showDigit (suc (suc (suc (suc (suc (suc (suc (suc zero)))))))) = '8'
-showDigit (suc (suc (suc (suc (suc (suc (suc (suc (suc zero))))))))) = '9'
-showDigit (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc zero)))))))))) = 'a'
-showDigit (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc zero))))))))))) = 'b'
-showDigit (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc zero)))))))))))) = 'c'
-showDigit (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc zero))))))))))))) = 'd'
-showDigit (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc zero)))))))))))))) = 'e'
-showDigit (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc zero))))))))))))))) = 'f'
-showDigit {base≤16 = base≤16}
-          (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc i))))))))))))))))
-          with witnessToTruth base≤16
-showDigit (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc ()))))))))))))))))
-  | (s≤s (s≤s (s≤s (s≤s (s≤s (s≤s (s≤s (s≤s (s≤s (s≤s (s≤s (s≤s (s≤s (s≤s (s≤s (s≤s z≤n))))))))))))))))
+showDigit {base≤16 = base≤16} d =
+  Vec.lookup (Fin.inject≤ d (witnessToTruth base≤16)) digitChars
 
 ------------------------------------------------------------------------
 -- Digit expansions
