@@ -294,6 +294,10 @@ downFrom n = helper n (fromℕ n)
 ------------------------------------------------------------------------
 -- Tests
 
+-- The tests below have been commented out since (at least one version
+-- of) Agda is too slow or memory-hungry to type check them.
+
+{-
 -- The tests below are run when this module is type checked.
 
 -- First some test helpers:
@@ -354,3 +358,4 @@ private
   test-downFrom : map toℕ (downFrom testLimit) ≡
                   List.downFrom testLimit
   test-downFrom = ≡-refl
+-}
