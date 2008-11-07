@@ -63,8 +63,8 @@ private
 
 -- A double-negation-translated variant of excluded middle.
 
-excluded-middle : (P : Set) -> ¬ ¬ Dec P
-excluded-middle P ¬h = ¬h (no (\p -> ¬h (yes p)))
+excluded-middle : {P : Set} -> ¬ ¬ Dec P
+excluded-middle ¬h = ¬h (no (\p -> ¬h (yes p)))
 
 -- Double-negation is a monad (if we assume that all elements of ¬ ¬ P
 -- are equal).
