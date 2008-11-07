@@ -66,17 +66,6 @@ private
 excluded-middle : (P : Set) -> ¬ ¬ Dec P
 excluded-middle P ¬h = ¬h (no (\p -> ¬h (yes p)))
 
--- Replace Q by ⊥ and simplify to get a double-negation-translated
--- variant of reductio ad absurdum.
-
-reductio-ad-absurdum-⊎ : {P Q : Set} -> (¬ P -> Q) -> ¬ ¬ (P ⊎ Q)
-reductio-ad-absurdum-⊎ {P} {Q} f hyp =
-  excluded-middle P (hyp ∘ helper)
-  where
-  helper : Dec P -> P ⊎ Q
-  helper (yes p) = inj₁ p
-  helper (no ¬p) = inj₂ (f ¬p)
-
 -- Double-negation is a monad (if we assume that all elements of ¬ ¬ P
 -- are equal).
 
