@@ -86,6 +86,13 @@ reductio-ad-absurdum-⊎ {P} {Q} f hyp =
   ; _>>=_  = \x f -> ¬¬-drop (¬¬-map f x)
   }
 
+-- Call with current continuation in the double-negation monad, or, if
+-- you will, a double-negation translation of Peirce's law.
+
+call/cc : forall {P whatever} ->
+          ((P -> ¬ ¬ whatever) -> ¬ ¬ P) -> ¬ ¬ P
+call/cc hyp ¬p = hyp (\p _ -> ¬p p) ¬p
+
 ∃⟶¬∀¬ : {A : Set} {P : A -> Set} ->
         ∃ P -> ¬ (forall x -> ¬ P x)
 ∃⟶¬∀¬ = flip Σ-uncurry
