@@ -52,7 +52,6 @@ library
                    Agda.Compiler.MAlonzo.Compiler
                    Agda.Compiler.MAlonzo.Encode
                    Agda.Compiler.MAlonzo.Misc
-                   Agda.Compiler.MAlonzo.Pretty
                    Agda.Compiler.MAlonzo.Primitives
                    Agda.Interaction.CommandLine.CommandLine
                    Agda.Interaction.Exceptions
