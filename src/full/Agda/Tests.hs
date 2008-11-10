@@ -4,6 +4,7 @@ module Agda.Tests (testSuite) where
 
 import Agda.Utils.TestHelpers
 
+import Agda.Compiler.MAlonzo.Encode           as CompEnco   (tests)
 import Agda.Interaction.Highlighting.Emacs    as InteEmac   (tests)
 import Agda.Interaction.Highlighting.Generate as InteGene   (tests)
 import Agda.Interaction.Highlighting.Precise  as IntePrec   (tests)
@@ -22,7 +23,8 @@ import Agda.Utils.Warshall                    as UtilWarsh  (tests)
 
 testSuite :: IO Bool
 testSuite = runTests "QuickCheck test suite:"
-  [ InteEmac.tests
+  [ CompEnco.tests
+  , InteEmac.tests
   , InteGene.tests
   , IntePrec.tests
   , InteRang.tests

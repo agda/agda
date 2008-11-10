@@ -50,6 +50,7 @@ library
                    Agda.Compiler.Alonzo.PatternMonad
                    Agda.Compiler.HaskellTypes
                    Agda.Compiler.MAlonzo.Compiler
+                   Agda.Compiler.MAlonzo.Encode
                    Agda.Compiler.MAlonzo.Misc
                    Agda.Compiler.MAlonzo.Pretty
                    Agda.Compiler.MAlonzo.Primitives

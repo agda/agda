@@ -108,6 +108,12 @@ highlighting : syntax/highlighting/All.agda
 	@$(echo) :q | $(run_agda) -isyntax/highlighting $<
 	@$(echo) "ok"
 
+compiler : MAlonzo/main.agda
+	@$(echo) "Testing $<... "
+	@$(echo) :q | $(run_agda) --compile --malonzodir=MAlonzo -iMAlonzo $<
+	@MAlonzo/MAlonzo/Mmain
+	@$(echo) "ok"
+
 test : $(tests)
 
 $(tests) : %.test : %
