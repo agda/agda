@@ -68,11 +68,10 @@ prop_encodeModuleName_OK (M s) =
   where
   ""        ~= ""         = True
   ('.' : s) ~= ('.' : s') = s ~= s'
-  s         ~= s'         = not (null s1 || null s1') &&
-                            all isModChar s1' && s2 ~= s2'
-    where
-    (s1,  s2)  = span (/= '.') s
-    (s1', s2') = span (/= '.') s'
+  s         ~= (c : s')   = isUpper c && all isModChar s1' &&
+                            dropWhile (/= '.') s ~= s2'
+                              where (s1', s2') = span (/= '.') s'
+  _         ~= _          = False
 
   unM (Module s) = s
 
