@@ -20,3 +20,8 @@ mutual
 eat : {A B : Set} -> SP A B -> Stream A -> Stream B
 eat (get f)      (a :: as) ~ eat (f a) as
 eat < put b sp > as        ~ b :: eat sp as
+
+_∘_ : forall {A B C} -> SP B C -> SP A B -> SP A C
+get f₁        ∘ < put x sp₂ > ~ f₁ x ∘ sp₂
+< put x sp₁ > ∘ sp₂           ~ < put x (sp₁ ∘ sp₂) >
+sp₁           ∘ get f₂        ~ get (\x -> sp₁ ∘ f₂ x)
