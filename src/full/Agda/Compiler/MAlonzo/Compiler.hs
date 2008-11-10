@@ -11,6 +11,7 @@ import Data.List as L
 import Data.Map as M
 import Data.Set as S
 import Language.Haskell.Syntax
+import qualified Language.Haskell.Pretty as Pretty
 import System.Cmd
 import System.Directory
 import System.Exit
@@ -19,7 +20,6 @@ import System.Time
 
 import Agda.Compiler.MAlonzo.Encode
 import Agda.Compiler.MAlonzo.Misc
-import qualified Agda.Compiler.MAlonzo.Pretty as Pretty
 import Agda.Compiler.MAlonzo.Primitives
 import Agda.Interaction.Imports
 import Agda.Interaction.Monad
@@ -129,7 +129,7 @@ checkCover q ty n cs = do
         return $ HsAlt dummy pat (HsUnGuardedAlt $ HsTuple []) []
   cs <- mapM makeClause cs
   let rhs = case cs of
-              [] -> fakeExp "() -- There is no empty case statement in Haskell"
+              [] -> fakeExp "()" -- There is no empty case statement in Haskell
               _  -> HsCase (HsVar $ UnQual $ HsIdent "x") cs
 
   return [ HsTypeSig dummy [unqhname "cover" q] $ fakeType $ unwords (ty : tvs) ++ " -> ()"
@@ -228,7 +228,7 @@ tvaldecl q ntv npar cds cl = let
      maybe [HsDataDecl dummy [] tn tvs cds []] (const []) cl
 
 infodecl :: QName -> HsDecl
-infodecl q = fakeD (unqhname "name" q)  $ "\"\" -- " ++ show q
+infodecl q = fakeD (unqhname "name" q) $ show (show q)
 
 --------------------------------------------------
 -- Inserting unsafeCoerce
@@ -254,10 +254,13 @@ hsCast' e = e
 -- Writing out a haskell module
 --------------------------------------------------
 
--- | Encodes module names just before pretty-printing.
+-- | Inserts disambiguating parentheses and encodes module names just
+-- before pretty-printing.
 
 prettyPrint :: (Pretty.Pretty a, Data a) => a -> String
-prettyPrint = Pretty.prettyPrint . everywhere (mkT encodeModuleName)
+prettyPrint = Pretty.prettyPrint .
+              everywhere (mkT HsParen) .
+              everywhere (mkT encodeModuleName)
 
 writeModule :: HsModule -> TCM ()
 writeModule m = liftIO .(`writeFileUTF8`(preamble ++ prettyPrint m))=<< outFile
