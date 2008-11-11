@@ -52,10 +52,7 @@ newtype Value tok r = Value [(r, AnnList tok)]
 
 -- I did not replace the first function space with a reader monad
 -- since the type checker had trouble handling the rank-2 argument
--- type (Parser.Grammar ...). Furthermore I did not use a state monad
--- transformer instead of the AnnList tok -> ... part since the
--- instances below do not quite match those associated with the state
--- monad transformer (see (<|>)).
+-- type (Parser.Grammar ...).
 
 newtype Parser nt tok r =
   P { unP :: Parser.Grammar (Parser nt tok) nt ->
