@@ -6,20 +6,18 @@ import Control.Applicative
 import Control.Monad.Reader
 import Control.Monad.State
 import Data.Char
-import Data.Generics
 import Data.List as L
 import Data.Map as M
 import Data.Set as S
 import Language.Haskell.Syntax
-import qualified Language.Haskell.Pretty as Pretty
 import System.Cmd
 import System.Directory
 import System.Exit
 import System.IO
 import System.Time
 
-import Agda.Compiler.MAlonzo.Encode
 import Agda.Compiler.MAlonzo.Misc
+import Agda.Compiler.MAlonzo.Pretty
 import Agda.Compiler.MAlonzo.Primitives
 import Agda.Interaction.Imports
 import Agda.Interaction.Monad
@@ -253,14 +251,6 @@ hsCast' e = e
 --------------------------------------------------
 -- Writing out a haskell module
 --------------------------------------------------
-
--- | Inserts disambiguating parentheses and encodes module names just
--- before pretty-printing.
-
-prettyPrint :: (Pretty.Pretty a, Data a) => a -> String
-prettyPrint = Pretty.prettyPrint .
-              everywhere (mkT HsParen) .
-              everywhere (mkT encodeModuleName)
 
 writeModule :: HsModule -> TCM ()
 writeModule m = liftIO .(`writeFileUTF8`(preamble ++ prettyPrint m))=<< outFile

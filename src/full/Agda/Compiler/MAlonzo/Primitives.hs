@@ -5,9 +5,9 @@ import Data.Char
 import Data.List as L
 import Data.Map as M
 import Language.Haskell.Syntax
-import Language.Haskell.Pretty
 
 import Agda.Compiler.MAlonzo.Misc
+import Agda.Compiler.MAlonzo.Pretty
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
