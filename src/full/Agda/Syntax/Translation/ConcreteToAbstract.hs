@@ -65,12 +65,12 @@ nothingAppliedToHiddenArg e = typeError $ NothingAppliedToHiddenArg e
 printLocals :: Int -> String -> ScopeM ()
 printLocals v s = verboseS "scope.top" v $ do
   locals <- scopeLocals <$> getScope
-  liftIO $ putStrLn $ s ++ " " ++ show locals
+  reportSLn "" 0 $ s ++ " " ++ show locals
 
 printScope :: String -> Int -> String -> ScopeM ()
 printScope tag v s = verboseS ("scope." ++ tag) v $ do
   scope <- getScope
-  liftIO $ putStrLn $ s ++ " " ++ show scope
+  reportSLn "" 0 $ s ++ " " ++ show scope
 
 {--------------------------------------------------------------------------
     Helpers
@@ -93,16 +93,24 @@ lhsArgs p = case appView p of
 makeSection :: ModuleInfo -> A.ModuleName -> A.Telescope -> [A.Declaration] -> [A.Declaration]
 makeSection info m tel ds = [A.Section info m tel ds]
 
-annotateDecl :: A.Declaration -> ScopeM A.Declaration
-annotateDecl d = annotateDecls [d]
+annotateDecl :: ScopeM A.Declaration -> ScopeM A.Declaration
+annotateDecl m = annotateDecls $ (:[]) <$> m
 
-annotateDecls :: [A.Declaration] -> ScopeM A.Declaration
-annotateDecls ds = do
-  s <- getScope
+annotateDecls :: ScopeM [A.Declaration] -> ScopeM A.Declaration
+annotateDecls m = do
+  ds <- m
+  s  <- getScope
   return $ ScopedDecl s ds
 
-annotateExpr :: A.Expr -> ScopeM A.Expr
-annotateExpr e = do
+annotateDefn :: ScopeM A.Definition -> ScopeM A.Definition
+annotateDefn m = do
+  d <- m
+  s <- getScope
+  return $ ScopedDef s d
+
+annotateExpr :: ScopeM A.Expr -> ScopeM A.Expr
+annotateExpr m = do
+  e <- m
   s <- getScope
   return $ ScopedExpr s e
 
@@ -339,7 +347,7 @@ mkArg e			= Arg NotHidden e
 
 instance ToAbstract C.Expr A.Expr where
   toAbstract e =
-    traceCall (ScopeCheckExpr e) $ annotateExpr =<< case e of
+    traceCall (ScopeCheckExpr e) $ annotateExpr $ case e of
   -- Names
       Ident x -> toAbstract (OldQName x)
 
@@ -574,53 +582,55 @@ instance ToAbstract C.Pragma [A.Pragma] where
 -- Only constructor names are bound by definitions.
 instance ToAbstract NiceDefinition Definition where
 
+    toAbstract d = annotateDefn $ case d of
+
     -- Function definitions
-    toAbstract d@(C.FunDef r ds f p a x cs) =
-      traceCall (ScopeCheckDefinition d) $ do
-        (x',cs') <- toAbstract (OldName x,cs)
-	return $ A.FunDef (mkDefInfo x f p a r) x' cs'
+      C.FunDef r ds f p a x cs ->
+        traceCall (ScopeCheckDefinition d) $ do
+          (x',cs') <- toAbstract (OldName x,cs)
+          return $ A.FunDef (mkDefInfo x f p a r) x' cs'
 
     -- Data definitions
-    toAbstract d@(C.DataDef r ind f p a x pars cons) =
-      traceCall (ScopeCheckDefinition d) $
-      withLocalVars $ do
+      C.DataDef r ind f p a x pars cons ->
+        traceCall (ScopeCheckDefinition d) $
+        withLocalVars $ do
 
-        -- Check for duplicate constructors
-        do let cs = map conName cons
-           unless (distinct cs) $ typeError $ DuplicateConstructors $ nub $ cs \\ nub cs
+          -- Check for duplicate constructors
+          do let cs = map conName cons
+             unless (distinct cs) $ typeError $ DuplicateConstructors $ nub $ cs \\ nub cs
 
-	pars <- toAbstract pars
-	cons <- toAbstract (map Constr cons)
-	x'   <- toAbstract (OldName x)
-        printScope "data" 20 $ "Checked data " ++ show x
-	return $ A.DataDef (mkDefInfo x f p a r) x' ind pars cons
-      where
-        conName (C.Axiom _ _ _ _ c _) = c
-        conName _ = __IMPOSSIBLE__
+          pars <- toAbstract pars
+          cons <- toAbstract (map Constr cons)
+          x'   <- toAbstract (OldName x)
+          printScope "data" 20 $ "Checked data " ++ show x
+          return $ A.DataDef (mkDefInfo x f p a r) x' ind pars cons
+        where
+          conName (C.Axiom _ _ _ _ c _) = c
+          conName _ = __IMPOSSIBLE__
 
     -- Record definitions (mucho interesting)
-    toAbstract d@(C.RecDef r f p a x pars fields) =
-      traceCall (ScopeCheckDefinition d) $
-      withLocalVars $ do
-	pars   <- toAbstract pars
-	x'     <- toAbstract (OldName x)
-        contel <- toAbstract $ recordConstructorType fields
-	let m = mnameFromList $ (:[]) $ last $ qnameToList x'
-	printScope "rec" 15 "before record"
-	pushScope m
-	afields <- toAbstract fields
-	printScope "rec" 15 "checked fields"
-	qm <- getCurrentModule
-	popScope p
-	bindModule p x qm
-	printScope "rec" 15 "record complete"
-	return $ A.RecDef (mkDefInfo x f p a r) x' pars contel afields
+      C.RecDef r f p a x pars fields ->
+        traceCall (ScopeCheckDefinition d) $
+        withLocalVars $ do
+          pars   <- toAbstract pars
+          x'     <- toAbstract (OldName x)
+          contel <- toAbstract $ recordConstructorType fields
+          let m = mnameFromList $ (:[]) $ last $ qnameToList x'
+          printScope "rec" 15 "before record"
+          pushScope m
+          afields <- toAbstract fields
+          printScope "rec" 15 "checked fields"
+          qm <- getCurrentModule
+          popScope p
+          bindModule p x qm
+          printScope "rec" 15 "record complete"
+          return $ A.RecDef (mkDefInfo x f p a r) x' pars contel afields
 
 -- The only reason why we return a list is that open declarations disappears.
 -- For every other declaration we get a singleton list.
 instance ToAbstract NiceDeclaration A.Declaration where
 
-  toAbstract d = (=<<) annotateDecls $
+  toAbstract d = annotateDecls $
     traceCall (ScopeCheckDeclaration d) $
     case d of
 

@@ -77,6 +77,7 @@ data Definition
 	    -- ^ the 'LamBinding's are 'DomainFree' and binds the parameters of the datatype.
 	| RecDef     DefInfo QName [LamBinding] Expr [Declaration]
 	    -- ^ the 'Expr' gives the constructor type telescope: @(x1 : A1)..(xn : An) -> Prop@
+        | ScopedDef ScopeInfo Definition
   deriving (Typeable, Data)
 
 -- | Only 'Axiom's.
@@ -221,6 +222,7 @@ instance HasRange Definition where
     getRange (FunDef  i _ _    )   = getRange i
     getRange (DataDef i _ _ _ _  ) = getRange i
     getRange (RecDef  i _ _ _ _)   = getRange i
+    getRange (ScopedDef _ d)       = getRange d
 
 instance HasRange (Pattern' e) where
     getRange (VarP x)	   = getRange x
@@ -293,6 +295,7 @@ instance KillRange Definition where
   killRange (FunDef  i a b    ) = killRange3 FunDef  i a b
   killRange (DataDef i a b c d) = killRange5 DataDef i a b c d
   killRange (RecDef  i a b c d) = killRange5 RecDef  i a b c d
+  killRange (ScopedDef s a)     = killRange1 (ScopedDef s) a
 
 instance KillRange e => KillRange (Pattern' e) where
   killRange (VarP x)      = killRange1 VarP x
@@ -338,6 +341,7 @@ allNames (Definition _ _ defs) = Fold.foldMap allNamesD defs
   allNamesD (FunDef _ q cls)        = q <| Fold.foldMap allNamesC cls
   allNamesD (DataDef _ q _ _ decls) = q <| Fold.foldMap allNames decls
   allNamesD (RecDef _ q _ _ decls)  = q <| Fold.foldMap allNames decls
+  allNamesD (ScopedDef _ def)       = allNamesD def
 
   allNamesC :: Clause -> Seq QName
   allNamesC (Clause _ rhs decls) = allNamesR rhs ><

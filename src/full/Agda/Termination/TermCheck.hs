@@ -146,6 +146,7 @@ termMutual i ts ds = if names == [] then return [] else
          return []
   where
   getName (A.FunDef i x cs) = [x]
+  getName (A.ScopedDef _ d) = getName d
   getName _                 = []
 
   -- the mutual names mentioned in the abstract syntax

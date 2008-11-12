@@ -429,6 +429,9 @@ instance ToConcrete TypeAndDef [C.Declaration] where
   toConcrete (TypeAndDef (ScopedDecl scope [d]) def) =
     withScope scope $ toConcrete (TypeAndDef d def)
 
+  toConcrete (TypeAndDef d (ScopedDef scope def)) =
+    withScope scope $ toConcrete (TypeAndDef d def)
+
   toConcrete (TypeAndDef (Axiom _ x t) (FunDef i _ cs)) =
     withAbstractPrivate i $ do
     t'  <- toConcreteCtx TopCtx t

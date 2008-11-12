@@ -172,6 +172,7 @@ checkDefinition d =
 	A.FunDef i x cs         -> abstract (Info.defAbstract i) $ checkFunDef i x cs
 	A.DataDef i x ind ps cs -> abstract (Info.defAbstract i) $ checkDataDef i ind x ps cs
 	A.RecDef i x ps tel cs  -> abstract (Info.defAbstract i) $ checkRecDef i x ps tel cs
+        A.ScopedDef scope d     -> setScope scope >> checkDefinition d
     where
 	-- Concrete definitions cannot use information about abstract things.
 	abstract ConcreteDef = inConcreteMode
