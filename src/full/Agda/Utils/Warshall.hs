@@ -16,6 +16,7 @@ import Control.Applicative
 import Control.Monad.State
 import Data.Maybe -- fromJust
 import Data.Array
+import Data.List
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Test.QuickCheck
@@ -58,7 +59,8 @@ type AdjList node edge = Map node [(node, edge)]
 warshallG :: (SemiRing edge, Ord node) => AdjList node edge -> AdjList node edge
 warshallG g = fromMatrix $ warshall m
   where
-    nodes = zip (Map.keys g) [0..]
+    nodes = zip (nub $ Map.keys g ++ map fst (concat $ Map.elems g))
+                [0..]
     len   = length nodes
     b     = ((0,0), (len - 1,len - 1))
 
@@ -420,10 +422,14 @@ while flexible variables j left
 
 genGraph :: Ord node => Float -> Gen edge -> [node] -> Gen (AdjList node edge)
 genGraph density edge nodes = do
-  ns <- replicateM (length nodes) $ concat <$> mapM neighbour nodes
-  return $ Map.fromList $ zip nodes ns
+  Map.fromList . concat <$> mapM neighbours nodes
   where
     k = round (100 * density)
+    neighbours n = do
+      ns <- concat <$> mapM neighbour nodes
+      case ns of
+        []  -> elements [[(n, [])], []]
+        _   -> return [(n, ns)]
     neighbour n = frequency
       [ (k, do e <- edge
                ns <- neighbour n
@@ -504,9 +510,18 @@ prop_disjoint n' =
     isLeft = either (const True) (const False)
     isRight = not . isLeft
 
+prop_stable n' =
+  forAll (genGraph_ n) $ \g ->
+  let g' = warshallG g in
+  g' =~= warshallG g'
+  where
+    n = abs (div n' 2)
+    g =~= g' = sort (edges g) == sort (edges g')
+
 tests :: IO Bool
 tests = runTests "Agda.Utils.Warshall"
   [ quickCheck' prop_smaller
   , quickCheck' prop_path
   , quickCheck' prop_disjoint
+  , quickCheck' prop_stable
   ]

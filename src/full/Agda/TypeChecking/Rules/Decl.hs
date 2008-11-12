@@ -148,8 +148,7 @@ checkMutual :: Info.DeclInfo -> [A.TypeSignature] -> [A.Definition] -> TCM ()
 checkMutual i ts ds = inMutualBlock $ do
   mapM_ checkTypeSignature ts
   mapM_ checkDefinition ds
-  whenM positivityCheckEnabled $
-      checkStrictlyPositive [ name | A.DataDef _ name _ _ _ <- ds ]
+  checkStrictlyPositive =<< currentMutualBlock
 
 
 -- | Type check the type signature of an inductive or recursive definition.

@@ -245,24 +245,26 @@ checkExpr e t =
                   ]
                 addConstant aux $ Defn aux t' (defaultDisplayForm aux) 0
                                 $ Function
-                                  { funClauses   = [Clause EmptyTel (Perm 0 [])
-                                                    [Arg h $ VarP "()"] NoBody
-                                                   ]
-                                  , funRecursion = Recursive
-                                  , funInv       = NotInjective
-                                  , funAbstr     = ConcreteDef
-                                  , funPolarity  = [Covariant]
+                                  { funClauses        = [Clause EmptyTel (Perm 0 [])
+                                                          [Arg h $ VarP "()"] NoBody
+                                                        ]
+                                  , funRecursion      = Recursive
+                                  , funInv            = NotInjective
+                                  , funAbstr          = ConcreteDef
+                                  , funPolarity       = [Covariant]
+                                  , funArgOccurrences = [Unused]
                                   }
                 blockTerm t (Def aux []) $ return (cs ++ cs')
               | otherwise -> typeError $ WrongHidingInLambda t'
             _ -> __IMPOSSIBLE__
 
-	A.Lam i (A.DomainFull b) e ->
-	    checkTypedBindings b $ \tel -> do
-	    t1 <- newTypeMeta_
-	    cs <- escapeContext (size tel) $ leqType (telePi tel t1) t
-	    v <- checkExpr e t1
-	    blockTerm t (teleLam tel v) (return cs)
+	A.Lam i (A.DomainFull b) e -> do
+	    (v, cs) <- checkTypedBindings b $ \tel -> do
+	        t1 <- newTypeMeta_
+                cs <- escapeContext (size tel) $ leqType (telePi tel t1) t
+                v <- checkExpr e t1
+                return (teleLam tel v, cs)
+	    blockTerm t v (return cs)
 	    where
 		name (Arg h (x,_)) = Arg h x
 
@@ -270,12 +272,13 @@ checkExpr e t =
 	    (t',cs) <- forcePi h (show x) t
 	    case funView $ unEl t' of
 		FunV arg0@(Arg h' a) _
-		    | h == h' ->
-			addCtx x arg0 $ do
-			let arg = Arg h (Var 0 [])
-			    tb  = raise 1 t' `piApply` [arg]
-			v <- checkExpr e0 tb
-			blockTerm t (Lam h (Abs (show x) v)) (return cs)
+		    | h == h' -> do
+			v <- addCtx x arg0 $ do
+                              let arg = Arg h (Var 0 [])
+                                  tb  = raise 1 t' `piApply` [arg]
+                              v <- checkExpr e0 tb
+                              return $ Lam h $ Abs (show x) v
+			blockTerm t v (return cs)
 		    | otherwise ->
 			typeError $ WrongHidingInLambda t'
 		_   -> __IMPOSSIBLE__
@@ -289,9 +292,8 @@ checkExpr e t =
 
 	A.Lit lit    -> checkLiteral lit t
 	A.Let i ds e -> checkLetBindings ds $ checkExpr e t
-	A.Pi _ tel e ->
-	    checkTelescope tel $ \tel -> do
-	    t' <- telePi_ tel <$> isType_ e
+	A.Pi _ tel e -> do
+	    t' <- checkTelescope tel $ \tel -> telePi_ tel <$> isType_ e
 	    blockTerm t (unEl t') $ leqType (sort $ getSort t') t
 	A.Fun _ (Arg h a) b -> do
 	    a' <- isType_ a

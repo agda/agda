@@ -1,4 +1,4 @@
 MagicWith.agda:35,1-36,16
-fst p != w of type Nat
+fst p !=< w of type Nat
 when checking that the expression snd {Nat} {IsZero} p has type
 IsZero w

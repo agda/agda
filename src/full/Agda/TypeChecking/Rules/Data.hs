@@ -57,15 +57,16 @@ checkDataDef i ind name ps cs =
 	    (nofIxs, s) <- splitType =<< normalise t0
 
 	    -- Change the datatype from an axiom to a datatype with no constructors.
-            let dataDef = Datatype { dataPars      = npars
-                                   , dataIxs       = nofIxs
-                                   , dataInduction = ind
-                                   , dataClause    = Nothing
-                                   , dataCons      = []     -- Constructors are added later
-				   , dataSort      = s
-                                   , dataHsType    = Nothing
-                                   , dataAbstr     = Info.defAbstract i
-                                   , dataPolarity  = []
+            let dataDef = Datatype { dataPars           = npars
+                                   , dataIxs            = nofIxs
+                                   , dataInduction      = ind
+                                   , dataClause         = Nothing
+                                   , dataCons           = []     -- Constructors are added later
+				   , dataSort           = s
+                                   , dataHsType         = Nothing
+                                   , dataAbstr          = Info.defAbstract i
+                                   , dataPolarity       = []
+                                   , dataArgOccurrences = []
                                    }
 
 	    escapeContext (size tel) $ do

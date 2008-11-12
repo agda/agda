@@ -1,4 +1,4 @@
 Negative2.agda:7,6-9
-The datatype Bad is not strictly positive, because it occurs as the
-first argument to Tree in the constructor .Negative2.bad of Bad,
-which occurs negatively in the constructor node of Tree
+Bad is not strictly positive, because it occurs in the first
+argument to Tree in the type of the constructor bad in the
+definition of Bad

@@ -1,3 +1,4 @@
 Negative3.agda:3,6-8
-The datatype Mu is not strictly positive, because it occurs
-negatively in the constructor .Negative3.inn of Mu
+Mu is not strictly positive, because it occurs in an argument to a
+bound variable in the type of the constructor inn in the definition
+of Mu

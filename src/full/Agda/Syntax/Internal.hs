@@ -163,16 +163,15 @@ telToList (ExtendTel arg (Abs x tel)) = fmap ((,) x) arg : telToList tel
 -- Definitions
 --
 
--- | A clause is a list of patterns and a clause body
---   the number of binding patterns in a clause should
---   match the number of @Bind@s and @NoBind@s in the body
---   The @NoBind@ constructor is an optimisation to avoid
---   substituting for variables that aren't used.
+-- | A clause is a list of patterns and the clause body should @Bind@ or
+-- @NoBind@ in the order the variables occur in the patterns. The @NoBind@
+-- constructor is an optimisation to avoid substituting for variables that
+-- aren't used.
 --
---  The telescope contains the types of the pattern variables and
---  the permutation is how to get from the order the variables
---  occur in the patterns to the order they occur in the telescope.
---  For the purpose of the permutation dot patterns counts as variables.
+--  The telescope contains the types of the pattern variables and the
+--  permutation is how to get from the order the variables occur in the
+--  patterns to the order they occur in the telescope.  For the purpose of the
+--  permutation dot patterns counts as variables.
 --  TODO: change this!
 data Clause = Clause Telescope Permutation [Arg Pattern] ClauseBody
   deriving (Typeable, Data, Show)

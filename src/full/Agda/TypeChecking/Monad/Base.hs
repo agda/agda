@@ -339,35 +339,43 @@ data HaskellRepresentation
 data Polarity = Covariant | Contravariant | Invariant
   deriving (Typeable, Data, Show, Eq)
 
+-- | 'Positive' means strictly positive and 'Negative' means not strictly
+-- positive.
+data Occurrence = Positive | Negative | Unused
+  deriving (Typeable, Data, Show, Eq, Ord)
+
 data Defn = Axiom
             { axHsDef   :: Maybe HaskellRepresentation
             }
 	  | Function
-            { funClauses   :: [Clause]
-            , funRecursion :: Recursion
-            , funInv       :: FunctionInverse
-            , funPolarity  :: [Polarity]
-            , funAbstr     :: IsAbstract
+            { funClauses        :: [Clause]
+            , funRecursion      :: Recursion
+            , funInv            :: FunctionInverse
+            , funPolarity       :: [Polarity]
+            , funArgOccurrences :: [Occurrence]
+            , funAbstr          :: IsAbstract
             }
 	  | Datatype
-            { dataPars      :: Nat           -- nof parameters
-	    , dataIxs       :: Nat           -- nof indices
-            , dataInduction :: Induction  -- data or codata?
-            , dataClause    :: (Maybe Clause) -- this might be in an instantiated module
-            , dataCons      :: [QName]        -- constructor names
-            , dataSort      :: Sort
-            , dataPolarity  :: [Polarity]
-            , dataHsType    :: Maybe HaskellType
-            , dataAbstr     :: IsAbstract
+            { dataPars           :: Nat           -- nof parameters
+	    , dataIxs            :: Nat           -- nof indices
+            , dataInduction      :: Induction  -- data or codata?
+            , dataClause         :: (Maybe Clause) -- this might be in an instantiated module
+            , dataCons           :: [QName]        -- constructor names
+            , dataSort           :: Sort
+            , dataPolarity       :: [Polarity]
+            , dataArgOccurrences :: [Occurrence]
+            , dataHsType         :: Maybe HaskellType
+            , dataAbstr          :: IsAbstract
             }
 	  | Record
-            { recPars     :: Nat
-            , recClause   :: Maybe Clause
-            , recFields   :: [A.QName]
-            , recTel      :: Telescope
-            , recSort     :: Sort
-            , recPolarity :: [Polarity]
-            , recAbstr    :: IsAbstract
+            { recPars           :: Nat
+            , recClause         :: Maybe Clause
+            , recFields         :: [A.QName]
+            , recTel            :: Telescope
+            , recSort           :: Sort
+            , recPolarity       :: [Polarity]
+            , recArgOccurrences :: [Occurrence]
+            , recAbstr          :: IsAbstract
             }
 	  | Constructor
             { conPars   :: Nat         -- nof parameters

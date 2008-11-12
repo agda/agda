@@ -4,6 +4,7 @@ module Agda.TypeChecking.Rules.Record where
 
 import Control.Applicative
 import Control.Monad.Trans
+import Control.Monad.Reader
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common
@@ -33,6 +34,7 @@ import Agda.Utils.Impossible
 
 checkRecDef :: Info.DefInfo -> QName -> [A.LamBinding] -> A.Expr -> [A.Constructor] -> TCM ()
 checkRecDef i name ps contel fields =
+  noMutualBlock $ -- records can't be recursive anyway
   traceCall (CheckRecDef (getRange i) (qnameName name) ps fields) $ do
     t <- instantiateFull =<< typeOfConst name
     bindParameters ps t $ \tel t0 -> do
@@ -83,13 +85,14 @@ checkRecDef i name ps contel fields =
       telePi ftel t0 `fitsIn` s
 
       addConstant name $ Defn name t0 (defaultDisplayForm name) 0
-		       $ Record { recPars = size tel
-                                , recClause = Nothing
-				, recFields = concatMap getName fields
-                                , recTel = ftel
-                                , recSort = s
-				, recAbstr = Info.defAbstract i
-                                , recPolarity = []
+		       $ Record { recPars           = size tel
+                                , recClause         = Nothing
+				, recFields         = concatMap getName fields
+                                , recTel            = ftel
+                                , recSort           = s
+				, recAbstr          = Info.defAbstract i
+                                , recPolarity       = []
+                                , recArgOccurrences = []
                                 }
       computePolarity name
 
@@ -171,11 +174,12 @@ checkRecordProjections m q tel ftel s fs = checkProjs EmptyTel ftel fs
 	  clause = Clause cltel (idP $ size ptel + size ftel) (hps ++ [conp]) body
       escapeContext (size tel) $ do
 	addConstant projname $ Defn projname finalt (defaultDisplayForm projname) 0
-          $ Function { funClauses   = [clause]
-                     , funRecursion = Recursive
-                     , funInv       = NotInjective
-                     , funAbstr     = ConcreteDef
-                     , funPolarity  = []
+          $ Function { funClauses        = [clause]
+                     , funRecursion      = Recursive
+                     , funInv            = NotInjective
+                     , funAbstr          = ConcreteDef
+                     , funPolarity       = []
+                     , funArgOccurrences = map (const Unused) hps ++ [Negative]
                      }
         computePolarity projname
 

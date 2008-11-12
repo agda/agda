@@ -105,11 +105,12 @@ checkFunDef i name cs =
         -- Add the definition
         addConstant name $ Defn name t (defaultDisplayForm name) 0
                          $ Function
-                            { funClauses   = cs
-                            , funRecursion = rec
-                            , funInv       = inv
-                            , funAbstr     = Info.defAbstract i
-                            , funPolarity  = []
+                            { funClauses        = cs
+                            , funRecursion      = rec
+                            , funInv            = inv
+                            , funAbstr          = Info.defAbstract i
+                            , funPolarity       = []
+                            , funArgOccurrences = []
                             }
         computePolarity name
         verboseS "tc.def.fun" 10 $ do

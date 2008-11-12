@@ -206,11 +206,12 @@ applySection new ptel old ts rd rm = liftTCM $ do
                 Record{ recPars = np, recTel = tel } ->
                   oldDef { recPars = np - size ts, recClause = Just cl, recTel = apply tel ts }
 		_                           ->
-                  Function { funClauses   = [cl]
-                           , funRecursion = Recursive
-                           , funInv       = NotInjective
-                           , funPolarity  = []
-                           , funAbstr     = ConcreteDef
+                  Function { funClauses        = [cl]
+                           , funRecursion      = Recursive
+                           , funInv            = NotInjective
+                           , funPolarity       = []
+                           , funArgOccurrences = []
+                           , funAbstr          = ConcreteDef
                            }
 	cl = Clause EmptyTel (idP 0) [] $ Body $ Def x ts
 
@@ -320,6 +321,33 @@ setPolarity q pol = liftTCM $ do
           Record{}   -> d { recPolarity  = pol }
           _          -> d
 	defs	  = sigDefinitions sig
+
+getArgOccurrence :: MonadTCM tcm => QName -> Nat -> tcm Occurrence
+getArgOccurrence d i = do
+  def <- theDef <$> getConstInfo d
+  return $ case def of
+    Function { funArgOccurrences  = os } -> look i os
+    Datatype { dataArgOccurrences = os } -> look i os
+    Record   { recArgOccurrences  = os } -> look i os
+    Constructor{}                        -> Positive
+    _                                    -> Negative
+  where
+    look i os = (os ++ repeat Negative) !! fromIntegral i
+
+setArgOccurrences :: MonadTCM tcm => QName -> [Occurrence] -> tcm ()
+setArgOccurrences d os = liftTCM $
+  modifySignature setO
+  where
+    setO sig = sig { sigDefinitions = Map.adjust setOx d defs }
+      where
+	setOx def = def { theDef = setOd $ theDef def }
+        setOd d   = case d of
+          Function{} -> d { funArgOccurrences  = os }
+          Datatype{} -> d { dataArgOccurrences = os }
+          Record{}   -> d { recArgOccurrences  = os }
+          _          -> d
+	defs	  = sigDefinitions sig
+
 
 -- | Look up the number of free variables of a section. This is equal to the
 --   number of parameters if we're currently inside the section and 0 otherwise.

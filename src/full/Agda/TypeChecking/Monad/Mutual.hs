@@ -16,6 +16,9 @@ import Agda.Utils.Impossible
 
 #include "../../undefined.h"
 
+noMutualBlock :: MonadTCM tcm => tcm a -> tcm a
+noMutualBlock = local $ \e -> e { envMutualBlock = Nothing }
+
 inMutualBlock :: MonadTCM tcm => tcm a -> tcm a
 inMutualBlock m = do
   mi <- asks envMutualBlock
@@ -44,6 +47,13 @@ getMutualBlocks = gets $ Map.elems . stMutualBlocks
 -- | Get the current mutual block.
 currentMutualBlock :: MonadTCM tcm => tcm MutualId
 currentMutualBlock = maybe fresh return =<< asks envMutualBlock
+
+lookupMutualBlock :: MonadTCM tcm => MutualId -> tcm (Set QName)
+lookupMutualBlock mi = do
+  mb <- gets stMutualBlocks
+  case Map.lookup mi mb of
+    Just qs -> return qs
+    Nothing -> fail $ "No such mutual block: " ++ show mi
 
 findMutualBlock :: MonadTCM tcm => QName -> tcm (Set QName)
 findMutualBlock f = do
