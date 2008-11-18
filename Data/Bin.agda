@@ -60,20 +60,16 @@ toBits (bs 1#) = bs ++ [ 1b ]
 toℕ : Bin -> ℕ
 toℕ = fromDigits ∘ toBits
 
--- Converting from a list of bits, starting with the _most_
--- significant one.
-
-fromBits' : List Bit -> Bin
-fromBits' []              = 0#
-fromBits' (zero     ∷ bs) = fromBits' bs
-fromBits' (1+ zero  ∷ bs) = reverse bs 1#
-fromBits' (1+ 1+ () ∷ _)
-
 -- Converting from a list of bits, starting with the _least_
 -- significant one.
 
 fromBits : List Bit -> Bin
-fromBits = fromBits' ∘ reverse
+fromBits []              = 0#
+fromBits (b        ∷ bs) with fromBits bs
+fromBits (b        ∷ bs) | bs′ 1# = (b ∷ bs′) 1#
+fromBits (zero     ∷ bs) | 0#     = 0#
+fromBits (1+ zero  ∷ bs) | 0#     = [] 1#
+fromBits (1+ 1+ () ∷ bs) | _
 
 -- Converting from a natural number.
 
