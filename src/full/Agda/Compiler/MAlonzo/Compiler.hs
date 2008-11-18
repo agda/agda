@@ -282,11 +282,21 @@ callGHC mainICT = do
   hsmod      <- prettyPrint <$> curHsMod
   (mdir, fp) <- outFile'
   opts       <- gets (optGhcFlags . stOptions)
-  let cmd = concat $ L.intersperse " " $
-            "ghc" : opts ++ ["-i"++mdir, "-main-is", hsmod, fp, "--make -fwarn-incomplete-patterns -fno-warn-overlapping-patterns -Werror"]
-  reportSLn "" 1 $ "calling: " ++ cmd
+  let overridableArgs = [ "-O" ]
+      otherArgs       =
+        [ "-i" ++ mdir
+        , "-main-is", hsmod
+        , fp
+        , "--make"
+        , "-fwarn-incomplete-patterns"
+        , "-fno-warn-overlapping-patterns"
+        , "-Werror"
+        ]
+      args     = overridableArgs ++ opts ++ otherArgs
+      compiler = "ghc"
+  reportSLn "" 1 $ "calling: " ++ L.intercalate " " (compiler : args)
   flush
-  exitcode <- liftIO $ system cmd
+  exitcode <- liftIO $ rawSystem compiler args
   case exitcode of
     ExitFailure _ -> flush >> fail ("MAlonzo: GHC failed:\n" ++ show exitcode)
     _             -> return ()
