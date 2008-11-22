@@ -56,7 +56,7 @@ import System.IO
 -- import Agda.Version
 
 -- | The main function
-compilerMain :: IM () -> IM ()
+compilerMain :: TCM () -> TCM ()
 compilerMain typeCheck = ignoreAbstractMode $ do
       typeCheck
       sig <- gets stSignature
@@ -85,7 +85,7 @@ compilerMain typeCheck = ignoreAbstractMode $ do
         -- liftIO $ printAlModule moduleString almod
 
 -- TODO: move somewhere else
-fromCurrentModule :: QName -> IM Bool
+fromCurrentModule :: QName -> TCM Bool
 fromCurrentModule q = do
   m <- qnameFromList . mnameToList <$> currentModule
   return $ moduleId q == moduleId m
@@ -93,7 +93,7 @@ fromCurrentModule q = do
     moduleId q = mi
       where NameId _ mi = nameId $ qnameName q
 
-flattenSubmodules :: QName -> IM QName
+flattenSubmodules :: QName -> TCM QName
 flattenSubmodules q = do
   ifM (fromCurrentModule q)
       (return q)
@@ -123,7 +123,7 @@ isMain n = (show n == "main")
 
 	
 
-processDefWithDebug :: (QName,Definition) -> IM [HsDecl]
+processDefWithDebug :: (QName,Definition) -> TCM [HsDecl]
 processDefWithDebug (qname,def) = do
      def <- instantiateFull def
      hsdecls <- processDef (qname,def)
@@ -138,7 +138,7 @@ infoDecl name val = HsFunBind [ HsMatch dummyLoc hsname [] rhs []] where
     hsname = HsIdent name
 
 
-processDef :: (QName,Definition) -> IM [HsDecl]
+processDef :: (QName,Definition) -> TCM [HsDecl]
 processDef (qname,Defn { theDef = Function { funClauses = clauses } }) =  do
       hsDecls <- foldClauses name 1 clauses
       return [HsFunBind [HsMatch dummyLoc (dfName name) [] rhs hsDecls]] where
@@ -277,16 +277,16 @@ mangleConName :: Nat -> Nat -> HsCode
 mangleConName i j = (HsIdent $ "C"++(show j))
 -}
 
--- consForData :: QName -> IM [Definition]
+-- consForData :: QName -> TCM [Definition]
 -- consForData qn = undefined
 
-consDefs :: [QName] -> IM [Definition]
+consDefs :: [QName] -> TCM [Definition]
 consDefs qns = do
   definitions <- getDefinitions
   return [definitions ! qn | qn <- qns]
 
 
-processClause :: Name -> Nat -> Clause -> IM HsDecl
+processClause :: Name -> Nat -> Clause -> TCM HsDecl
 processClause name number clause@(Clause _ perm args (body)) = do
   reportSLn "comp.alonzo.clause" 20 $
     "processClause " ++ show name ++ "\n" ++
@@ -304,7 +304,7 @@ processClause name number clause@(Clause _ perm args (body)) = do
                     hsid = dfNameSub name $ fromIntegral number
                     -- pats =  processArgPats  args               
                     
-contClause :: Name -> Nat -> Clause -> IM HsDecl
+contClause :: Name -> Nat -> Clause -> TCM HsDecl
 contClause name number (Clause _ _ args (body)) = do
   return $ HsFunBind $ [HsMatch dummyLoc hsid pats rhs decls] where
                 decls = []
@@ -316,7 +316,7 @@ contClause name number (Clause _ _ args (body)) = do
                 expfun = hsCast$ HsVar $ UnQual $ dfNameSub name (fromIntegral $ number+1)
                 expargs = List.map (HsVar . UnQual . HsIdent) rightLetters
 
-foldClauses :: Name -> Nat -> [Clause] -> IM [HsDecl]
+foldClauses :: Name -> Nat -> [Clause] -> TCM [HsDecl]
 foldClauses name n [] = return []
 foldClauses name n [c] = do
         decl <- processClause name n c
@@ -460,7 +460,7 @@ unfoldVap p e ((Arg Hidden t):ts) = do
 
 
 
-getDefinitions :: IM Definitions
+getDefinitions :: TCM Definitions
 getDefinitions = do
   sig <- gets stSignature
   let definitions = sigDefinitions sig -- :: Map QName Definition
@@ -471,7 +471,7 @@ getDefinitions = do
 
 getConArities cs = mapM getConArity cs
 
-getConArity :: QName -> IM Nat
+getConArity :: QName -> TCM Nat
 getConArity qn = do
         Defn _ ty _ _ Constructor{conPars = np} <- getConstInfo qn        
 	ty' <- normalise ty

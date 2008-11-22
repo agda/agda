@@ -36,8 +36,8 @@ import Agda.Utils.Impossible
 
 #include "../../undefined.h"
 
-compilerMain :: IM () -> IM ()
-compilerMain typecheck = (typecheck >>) $ liftTCM $ ignoreAbstractMode $ do
+compilerMain :: TCM () -> TCM ()
+compilerMain typecheck = (typecheck >>) $ ignoreAbstractMode $ do
   mainICT <- (,) <$> buildInterface <*> liftIO getClockTime
   mapM_ compile =<< ((mainICT :) . M.elems <$> getVisitedModules)
   callGHC mainICT

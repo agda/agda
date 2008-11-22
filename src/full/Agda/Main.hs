@@ -66,7 +66,7 @@ import Agda.Tests
 import Agda.Version
 
 -- | The main function
-runAgda :: IM ()
+runAgda :: TCM ()
 runAgda =
     do	progName <- liftIO getProgName
 	argv	 <- liftIO getArgs
@@ -85,21 +85,21 @@ runAgda =
 		| otherwise		-> do setCommandLineOptions opts
 					      checkFile
     where
-	checkFile :: IM ()
+	checkFile :: TCM ()
 	checkFile =
 	    do	i	<- optInteractive <$> liftTCM commandLineOptions
 		compile <- optCompile <$> liftTCM commandLineOptions
 		alonzo <- optCompileAlonzo <$> liftTCM commandLineOptions
                 malonzo <- optCompileMAlonzo <$> liftTCM commandLineOptions
 		when i $ liftIO $ putStr splashScreen
-		let interaction | i	  = interactionLoop
+		let interaction | i	  = runIM . interactionLoop
 				| compile = Agate.compilerMain .(>> return ())
 				| alonzo  = Alonzo.compilerMain .(>> return ())
                                 | malonzo = MAlonzo.compilerMain .(>> return())
 				| otherwise = \m -> do
 				    (_, err) <- m
 				    maybe (return ()) typeError err
-		interaction $ liftTCM $
+		interaction $
 		    do	hasFile <- hasInputFile
 			resetState
 			if hasFile then
@@ -190,7 +190,7 @@ optionError err =
 -- | Main
 main :: IO ()
 main = do
-    r <- runIM $ runAgda `catchError` \err -> do
+    r <- runTCM $ runAgda `catchError` \err -> do
 	s <- prettyError err
 	liftIO $ putStrLn s
 	throwError err

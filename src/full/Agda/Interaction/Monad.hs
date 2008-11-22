@@ -2,11 +2,19 @@
 module Agda.Interaction.Monad where
 
 import Agda.TypeChecking.Monad
-import Control.Monad.State
-import Control.Monad.Error
-import Agda.Utils.Monad.Undo
 
-type IM = TCM 
+import Control.Monad.Trans
+import System.Console.Haskeline
+
+-- | Interaction monad.
+
+type IM = TCMT (InputT IO)
+
+-- | Line reader. The line reader history is not stored between
+-- sessions.
+
+readline :: String -> IM (Maybe String)
+readline s = lift (getInputLine s)
 
 {-
 data CurrentPoint = InInteractionPoint InteractionId | TopLevel
@@ -32,6 +40,5 @@ run
 -- instance MonadTCM IM where
 --     liftTCM = id
 
-runIM :: IM a -> IO (Either TCErr a)
-runIM = runTCM
-
+runIM :: IM a -> TCM a
+runIM = mapTCMT (runInputT defaultSettings)

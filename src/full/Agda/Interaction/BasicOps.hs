@@ -54,7 +54,7 @@ parseExprIn ii rng s = do
     e <- liftIO $ parsePosString exprParser pos s
     concreteToAbstract (clScope mi) e
 
-giveExpr :: MetaId -> Expr -> IM Expr
+giveExpr :: MetaId -> Expr -> TCM Expr
 -- When translater from internal to abstract is given, this function might return
 -- the expression returned by the type checker.
 giveExpr mi e = 
@@ -74,7 +74,7 @@ giveExpr mi e =
 		    reify v
 		 IsSort _ -> __IMPOSSIBLE__
 
-give :: InteractionId -> Maybe Range -> Expr -> IM (Expr,[InteractionId])
+give :: InteractionId -> Maybe Range -> Expr -> TCM (Expr,[InteractionId])
 give ii mr e = liftTCM $  
      do  setUndo
          mi <- lookupInteractionId ii 
@@ -158,7 +158,7 @@ refineExact ii e =
 
 
 {-| Evaluate the given expression in the current environment -}
-evalInCurrent :: Expr -> IM Expr
+evalInCurrent :: Expr -> TCM Expr
 evalInCurrent e = 
     do  t <- newTypeMeta_ 
 	v <- checkExpr e t
@@ -166,7 +166,7 @@ evalInCurrent e =
 	reify v'
 
 
-evalInMeta :: InteractionId -> Expr -> IM Expr
+evalInMeta :: InteractionId -> Expr -> TCM Expr
 evalInMeta ii e = 
    do 	m <- lookupInteractionId ii
 	mi <- getMetaInfo <$> lookupMeta m
@@ -276,24 +276,24 @@ judgToOutputForm (HasType e t) = OfType e t
 judgToOutputForm (IsSort s)    = JustSort s
 
 
-mkUndo :: IM ()
+mkUndo :: TCM ()
 mkUndo = undo
 
 --- Printing Operations
-getConstraint :: Int -> IM (OutputForm Expr Expr)
+getConstraint :: Int -> TCM (OutputForm Expr Expr)
 getConstraint ci = 
     do  cc <- lookupConstraint ci 
         cc <- reduce cc
         withConstraint reify cc
 
 
-getConstraints :: IM [OutputForm Expr Expr] 
+getConstraints :: TCM [OutputForm Expr Expr]
 getConstraints = liftTCM $
     do	cs <- M.getConstraints
 	cs <- reduce cs
 	mapM (withConstraint reify) cs
 
-typeOfMetaMI :: Rewrite -> MetaId -> IM (OutputForm Expr MetaId)
+typeOfMetaMI :: Rewrite -> MetaId -> TCM (OutputForm Expr MetaId)
 typeOfMetaMI norm mi = 
      do mv <- lookupMeta mi
 	withMetaInfo (getMetaInfo mv) $
@@ -307,14 +307,14 @@ typeOfMetaMI norm mi =
     rewriteJudg mv (IsSort i)    = return $ JustSort i
 
 
-typeOfMeta :: Rewrite -> InteractionId -> IM (OutputForm Expr InteractionId)
+typeOfMeta :: Rewrite -> InteractionId -> TCM (OutputForm Expr InteractionId)
 typeOfMeta norm ii = 
      do mi <- lookupInteractionId ii
         out <- typeOfMetaMI norm mi
         return $ fmap (\_ -> ii) out
 
 
-typeOfMetas :: Rewrite -> IM ([OutputForm Expr InteractionId],[OutputForm Expr MetaId])
+typeOfMetas :: Rewrite -> TCM ([OutputForm Expr InteractionId],[OutputForm Expr MetaId])
 -- First visible metas, then hidden
 typeOfMetas norm = liftTCM $
     do	ips <- getInteractionPoints 
@@ -331,7 +331,7 @@ typeOfMetas norm = liftTCM $
 	       openAndImplicit is x (MetaVar _ _ _ (M.BlockedConst _) _) = True
 	       openAndImplicit _ _ _					 = False
 
-contextOfMeta :: InteractionId -> Rewrite -> IM [OutputForm Expr Name]
+contextOfMeta :: InteractionId -> Rewrite -> TCM [OutputForm Expr Name]
 contextOfMeta ii norm = do
   info <- getMetaInfo <$> (lookupMeta =<< lookupInteractionId ii)
   let localVars = map ctxEntry . envContext . clEnv $ info

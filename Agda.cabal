@@ -28,11 +28,10 @@ library
                    binary >= 0.4.4 && < 0.5,
                    zlib >= 0.4.0.1 && < 1,
                    filepath >= 1.1 && < 2,
-                   process >= 1.0 && < 2
+                   process >= 1.0 && < 2,
+                   haskeline >= 0.3 && < 0.4
   if impl(ghc >= 6.10)
     build-depends: ghc-prim >= 0.1 && < 1
-  if !os(windows)
-    build-depends: readline >= 1.0.1 && < 2
   build-tools:     happy >= 1.15 && < 2,
                    alex >= 2.0.1 && < 3
   exposed-modules: Agda.Main
@@ -187,7 +186,6 @@ library
                    Agda.Utils.Pointer
                    Agda.Utils.Pretty
                    Agda.Utils.QuickCheck
-                   Agda.Utils.ReadLine
                    Agda.Utils.ReadP
                    Agda.Utils.Serialise
                    Agda.Utils.Size

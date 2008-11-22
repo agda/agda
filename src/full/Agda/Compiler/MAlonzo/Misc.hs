@@ -30,7 +30,7 @@ import Agda.Utils.Monad
 --------------------------------------------------
 
 -- find the abstract module name from the given file name
-mnameFromFileName :: IM () -> FilePath -> TCM ModuleName
+mnameFromFileName :: TCM () -> FilePath -> TCM ModuleName
 mnameFromFileName typecheck = (sigMName <$>) .
   (maybe (typecheck>> getSignature) (return . iSignature) =<<) .
   liftIO . readInterface . setExtension ".agdai"

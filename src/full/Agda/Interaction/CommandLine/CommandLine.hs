@@ -41,7 +41,6 @@ import Agda.TypeChecking.Substitute
 
 import Agda.Termination.Dumb(checkTermination)
 
-import Agda.Utils.ReadLine
 import Agda.Utils.Monad
 import Agda.Utils.Fresh
 import Agda.Utils.Monad.Undo
@@ -51,15 +50,15 @@ import Agda.Utils.Impossible
 
 data ExitCode a = Continue | ContinueIn TCEnv | Return a
 
-type Command a = (String, [String] -> IM (ExitCode a))
+type Command a = (String, [String] -> TCM (ExitCode a))
 
-matchCommand :: String -> [Command a] -> Either [String] ([String] -> IM (ExitCode a))
+matchCommand :: String -> [Command a] -> Either [String] ([String] -> TCM (ExitCode a))
 matchCommand x cmds =
     case List.filter (isPrefixOf x . fst) cmds of
 	[(_,m)]	-> Right m
 	xs	-> Left $ List.map fst xs
 
-interaction :: String -> [Command a] -> (String -> IM (ExitCode a)) -> IM a
+interaction :: String -> [Command a] -> (String -> TCM (ExitCode a)) -> IM a
 interaction prompt cmds eval = loop
     where
 	go (Return x)	    = return x
@@ -67,14 +66,13 @@ interaction prompt cmds eval = loop
 	go (ContinueIn env) = local (const env) loop
 
 	loop =
-	    do	ms <- liftIO $ readline prompt
+	    do	ms <- readline prompt
 		case fmap words ms of
 		    Nothing		  -> return $ error "** EOF **"
 		    Just []		  -> loop
 		    Just ((':':cmd):args) ->
-			do  liftIO $ addHistory (fromJust ms)
-			    case matchCommand cmd cmds of
-				Right c	-> go =<< c args
+			do  case matchCommand cmd cmds of
+				Right c	-> go =<< liftTCM (c args)
 				Left []	->
 				    do	liftIO $ putStrLn $ "Unknown command '" ++ cmd ++ "'"
 					loop
@@ -82,17 +80,16 @@ interaction prompt cmds eval = loop
 				    do	liftIO $ putStrLn $ "More than one command match: " ++ concat (intersperse ", " xs)
 					loop
 		    Just _ ->
-			do  liftIO $ addHistory (fromJust ms)
-			    go =<< eval (fromJust ms)
+			do  go =<< liftTCM (eval $ fromJust ms)
 	    `catchError` \e ->
 		do  s <- prettyError e
 		    liftIO $ putStrLn s
 		    loop
 
 -- | The interaction loop.
-interactionLoop :: IM (ScopeInfo, a) -> IM ()
+interactionLoop :: TCM (ScopeInfo, a) -> IM ()
 interactionLoop typeCheck =
-    do  reload
+    do  liftTCM reload
 	interaction "Main> " commands evalTerm
     where
 	reload = do
@@ -127,16 +124,16 @@ interactionLoop typeCheck =
 	    where
 		(|>) = (,)
 
-continueAfter :: IM a -> IM (ExitCode b)
+continueAfter :: TCM a -> TCM (ExitCode b)
 continueAfter m = m >> return Continue
 
-loadFile :: IM () -> [String] -> IM ()
+loadFile :: TCM () -> [String] -> TCM ()
 loadFile reload [file] =
     do	setInputFile file
 	reload
 loadFile _ _ = liftIO $ putStrLn ":load file"
 
-showConstraints :: [String] -> IM ()
+showConstraints :: [String] -> TCM ()
 showConstraints [c] =
     do	i  <- readM c
 	cc <- normalise =<< lookupConstraint i
@@ -149,7 +146,7 @@ showConstraints [] =
 showConstraints _ = liftIO $ putStrLn ":constraints [cid]"
 
 	
-showMetas :: [String] -> IM ()
+showMetas :: [String] -> TCM ()
 showMetas [m] =
     do	i <- InteractionId <$> readM m
 	withInteractionId i $ do
@@ -183,12 +180,12 @@ showMetas [] =
 showMetas _ = liftIO $ putStrLn $ ":meta [metaid]"
 
 
-showScope :: IM ()
+showScope :: TCM ()
 showScope = do
   scope <- getScope
   liftIO $ print scope
 
-metaParseExpr ::  InteractionId -> String -> IM A.Expr
+metaParseExpr ::  InteractionId -> String -> TCM A.Expr
 metaParseExpr ii s = 
     do	m <- lookupInteractionId ii
         scope <- getMetaScope <$> lookupMeta m
@@ -200,7 +197,7 @@ metaParseExpr ii s =
 	e <- liftIO $ parsePosString exprParser pos s
 	concreteToAbstract scope e
 
-actOnMeta :: [String] -> (InteractionId -> A.Expr -> IM a) -> IM a
+actOnMeta :: [String] -> (InteractionId -> A.Expr -> TCM a) -> TCM a
 actOnMeta (is:es) f = 
      do  i <- readM is
          let ii = InteractionId i 
@@ -209,7 +206,7 @@ actOnMeta (is:es) f =
 actOnMeta _ _ = __IMPOSSIBLE__
 
 
-giveMeta :: [String] -> IM ()
+giveMeta :: [String] -> TCM ()
 giveMeta s | length s >= 2 = 
     do  actOnMeta s (\ii -> \e  -> give ii Nothing e)
         return ()
@@ -217,7 +214,7 @@ giveMeta _ = liftIO $ putStrLn $ ": give" ++ " metaid expr"
 
 
 
-refineMeta :: [String] -> IM ()
+refineMeta :: [String] -> TCM ()
 refineMeta s | length s >= 2 = 
     do  actOnMeta s (\ii -> \e  -> refine ii Nothing e)
         return ()
@@ -225,7 +222,7 @@ refineMeta _ = liftIO $ putStrLn $ ": refine" ++ " metaid expr"
 
 
 
-retryConstraints :: IM ()
+retryConstraints :: TCM ()
 retryConstraints = liftTCM wakeupConstraints
 
 

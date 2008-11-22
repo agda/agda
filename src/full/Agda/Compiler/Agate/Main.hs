@@ -38,7 +38,7 @@ import Agda.Utils.Monad
 import Agda.Version
 
 -- | The main function
-compilerMain :: IM () -> IM ()
+compilerMain :: TCM () -> TCM ()
 compilerMain typeCheck = do
 	typeCheck
 	sig <- gets stSignature
@@ -135,11 +135,11 @@ enumConstructors = concatMap f . Map.toList where
                         Record{}      -> [name]
                         _             -> []
 
-computeMaxArity :: Definitions -> IM Nat
+computeMaxArity :: Definitions -> TCM Nat
 computeMaxArity dd =
     fmap maximum $ mapM getConstructorArity $ map snd $ Map.toList dd
 
-getConstructorArity :: Definition -> IM Nat
+getConstructorArity :: Definition -> TCM Nat
 getConstructorArity defn = case theDef defn of
     Record{recFields = flds} -> return $ genericLength flds
     Constructor{conPars = np} -> do
