@@ -52,6 +52,9 @@ instance MonadError e m => MonadError e (UndoT s m) where
 runUndoT :: Monad m => UndoT s m a -> m a
 runUndoT (UndoT sm) = evalStateT sm []
 
+mapUndoT :: (m (a, [s]) -> n (b, [s])) -> UndoT s m a -> UndoT s n b
+mapUndoT f = UndoT . mapStateT f . unUndoT
+
 getUndoStateNumber :: MonadUndo s m => m Int
 getUndoStateNumber = length <$> getUndoStack
 
