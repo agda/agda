@@ -1,7 +1,14 @@
-;; agda2-mode.el --- Major mode for Agda2
+;;; agda2-mode.el --- Major mode for Agda2
+
+;;; Commentary:
+
+;; 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Dependency
+
+
+;;; Code:
 
 (require 'cl) ;  haskell-indent requires it anyway.
 (set (make-local-variable 'lisp-indent-function)
@@ -16,7 +23,7 @@
 (require 'haskell-ghci)
 ;; due to a bug in haskell-mode-2.1
 (setq haskell-ghci-mode-map (copy-keymap comint-mode-map))
-; Load filladapt, if it is installed.
+;; Load filladapt, if it is installed.
 (condition-case nil
     (require 'filladapt)
   (error nil))
@@ -37,11 +44,11 @@ properties to add to the result."
 ;;;; Programming utilities
 
 (defmacro agda2-protect (form &optional default)
-  "Expands to (condition-case nil FORM (error DEFAULT))"
+  "Expands to (condition-case nil FORM (error DEFAULT))."
   `(condition-case nil ,form (error ,default)))
 (put 'agda2-protect 'lisp-indent-function 0)
 (defmacro agda2-let (varbind funcbind &rest body)
-  "Expands to (let* VARBIND (labels FUNCBIND BODY...))"
+  "Expands to (let* VARBIND (labels FUNCBIND BODY...))."
   `(let* ,varbind (labels ,funcbind ,@body)))
 (put 'agda2-let 'lisp-indent-function 2)
 
@@ -53,27 +60,26 @@ properties to add to the result."
   :group 'languages)
 
 (defcustom agda2-include-dirs
-  (list ".")
-  "*The directories Agda uses to search for files (relative to the
-top-level of the current project)."
+  '(".")
+  "The directories Agda uses to search for files.
+The directory names should be relative to the root of the current project."
   :type '(repeat directory)
   :group 'agda2)
 
 (defcustom agda2-ghci-options
   (list "-package Agda")
-  "*These options are set in GHCi before `agda2-toplevel-module' is
-loaded. Note that only dynamic options can be set using this
-variable."
+  "Options set in GHCi before loading `agda2-toplevel-module'.
+Note that only dynamic options can be set using this variable."
   :type '(repeat string)
   :group 'agda2)
 
 (defcustom agda2-toplevel-module "Agda.Interaction.GhciTop"
-  "*The name of the Agda2 toplevel module"
+  "The name of the Agda2 toplevel module."
   :type 'string :group 'agda2)
 
 (defcustom agda2-mode-hook
   '(agda2-fix-ghci-for-windows)
-  "*Hooks for agda2-mode."
+  "Hooks for `agda2-mode'."
   :type 'hook :group 'agda2)
 
 (defcustom agda2-indentation
@@ -85,10 +91,10 @@ variable."
   :group 'agda2)
 
 (defcustom agda2-fontset-name "fontset-agda2"
-  "*The default font of the current frame is changed to the
-fontset `agda2-fontset-name' when the Agda2 mode is activated (if
-`agda2-fontset-name' is not nil and Emacs is not run in a
-terminal).
+  "Default font to use in the selected frame when activating the Agda2 mode.
+This is only used if it's non-nil and Emacs is not running in a terminal.
+It is also ignored in Emacs 23 and up, where the improved font handling makes
+it unnecessary.
 
 Note that this setting (if non-nil) affects non-Agda buffers as
 well, and that you have to restart Emacs if you want settings to
@@ -120,9 +126,9 @@ this variable to take effect."
     chinese-cns11643-1:-HKU-Fixed-Medium-R-Normal--16-160-72-72-C-160-CNS11643.1992.1-0,
     chinese-big5-1:-ETen-Fixed-Medium-R-Normal--16-150-75-75-C-160-Big5.ETen-0,
     chinese-big5-2:-ETen-Fixed-Medium-R-Normal--16-150-75-75-C-160-Big5.ETen-0"
-  "*The specification of the \"fontset-agda2\" fontset, where
-\"fontset-agda2\" is the standard setting for
-`agda2-fontset-name'. If `agda2-fontset-name' is nil, or Emacs is
+  "Specification of the \"fontset-agda2\" fontset.
+The \"fontset-agda2\" is the standard setting for `agda2-fontset-name'.
+If `agda2-fontset-name' is nil, or Emacs is
 run in a terminal, then \"fontset-agda2\" is not created.
 
 Note that the text \"fontset-agda2\" has to be part of the
@@ -150,19 +156,24 @@ to this variable to take effect."
 ;;;; Global and buffer-local vars, initialization
 
 (defvar agda2-mode-syntax-table
-  (let ((tbl (make-syntax-table))
-        (special '((?{ . "(}1n") (?} . "){4n") (?- . "w 123b") (?\n . "> b")
-                   (?. . ".") (?\; . ".") (?_ . ".") (?! . ".")))
-        (i 0))
-    (with-syntax-table (standard-syntax-table)
-      (while (<= i #x7ffff)
-        (if (char-valid-p i)
-            (let ((syntax (or (cdr-safe (assq i special))
-                              (cond ((member (char-syntax i)
-                                             (append "() " nil)) "@")
-                                    (t "w")))))
-              (modify-syntax-entry i syntax tbl)))
-        (setq i (1+ i))))
+  (let ((tbl (make-syntax-table)))
+    ;; Set the syntax of every char to "w" except for those whose default
+    ;; syntax in `standard-syntax-table' is `paren' or `whitespace'.
+    (map-char-table (lambda (keys val)
+                      ;; `keys' here can be a normal char, a generic char
+                      ;; (Emacs<23), or a char range (Emacs>=23).
+                      (unless (memq (car val)
+                                    (eval-when-compile
+                                      (mapcar 'car
+                                              (list (string-to-syntax "(")
+                                                    (string-to-syntax ")")
+                                                    (string-to-syntax " ")))))
+                        (modify-syntax-entry keys "w" tbl)))
+                    (standard-syntax-table))
+    ;; Then override the remaining special cases.
+    (dolist (cs '((?{ . "(}1n") (?} . "){4n") (?- . "w 123b") (?\n . "> b")
+                  (?. . ".") (?\; . ".") (?_ . ".") (?! . ".")))
+      (modify-syntax-entry (car cs) (cdr cs) tbl))
     tbl)
   "Syntax table used by the Agda 2 mode:
 
@@ -173,76 +184,87 @@ to this variable to take effect."
 
 Remaining characters inherit their syntax classes from the
 standard syntax table if that table treats them as matching
-parentheses or whitespace. Otherwise they are treated as word
+parentheses or whitespace.  Otherwise they are treated as word
 constituents.")
 
-(defvar agda2-mode-map (make-sparse-keymap "Agda mode") "Keymap for agda2-mode")
-(defvar agda2-goal-map (make-sparse-keymap "Agda goal")
-  "Keymap for agda2 goal menu")
-(let ((l
-       `(
-         (agda2-load                               "\C-c\C-x\C-l"     "Load")
-         (agda2-text-state                         "\C-c\C-x\C-d"     "Deactivate Agda")
-         (agda2-quit                               "\C-c\C-x\C-q"     "Quit")
-         (agda2-restart                            "\C-c\C-x\C-r"     "Restart")
-         (agda2-display-implicit-arguments         "\C-c\C-x\C-h"     "Toggle display of hidden arguments")
-         (agda2-highlight-reload-or-clear          "\C-c\C-x\C-s"     "Reload syntax highlighting information")
-         (agda2-show-constraints                   ,(kbd "C-c C-=")   "Show constraints")
-         (agda2-solveAll                           ,(kbd "C-c C-s")   "Solve constraints")
-         (agda2-show-goals                         ,(kbd "C-c C-?")   "Show goals")
-         (agda2-next-goal                          "\C-c\C-f"         "Next goal")      ; Forward.
-         (agda2-previous-goal                      "\C-c\C-b"         "Previous goal")  ; Back.
-         (agda2-infer-type-maybe-toplevel          nil                "Infer (deduce) type")
-         (agda2-infer-type-toplevel-normalised     nil                "Infer type (normalised)")
-         (agda2-compute-normalised-maybe-toplevel  nil                "Evaluate term to normal form")
-         (agda2-give                               ,(kbd "C-c C-SPC") nil "Give")
-         (agda2-refine                             "\C-c\C-r"         nil "Refine")
-         (agda2-make-case                          "\C-c\C-c"         nil "Case")
-         (agda2-goal-type                          "\C-c\C-t"         nil "Goal type")
-         (agda2-goal-type-normalised               nil                nil "Goal type (normalised)")
-         (agda2-show-context                       "\C-c\C-e"         nil "Context (environment)")
-         (agda2-show-context-normalised            nil                nil "Context (normalised)")
-         (agda2-infer-type-maybe-toplevel          "\C-c\C-d"         nil "Infer (deduce) type")
-         (agda2-infer-type-normalised              nil                nil "Infer type (normalised)")
-         (agda2-goal-and-context                   ,(kbd "C-c C-,")   nil "Goal type and context")
-         (agda2-goal-and-context-normalised        nil                nil "Goal type and context (normalised)")
-         (agda2-goal-and-infer                     ,(kbd "C-c C-.")   nil "Goal type and inferred type")
-         (agda2-goal-and-infer-normalised          nil                nil "Goal type and inferred type (normalised)")
-         (agda2-compute-normalised-maybe-toplevel  "\C-c\C-n"         nil "Evaluate term to normal form")
-         (agda2-indent                ,(kbd "TAB"))
-         (agda2-indent-reverse        [S-iso-lefttab])
-         (agda2-indent-reverse        [S-lefttab])
-         (agda2-indent-reverse        [S-tab])
-         (agda2-goto-definition-mouse [mouse-2])
-         (mouse-face [follow-link])  ; Enables using mouse-1 to click on links in Emacs 22.
-         (agda2-goto-definition-keyboard "\M-.")
-         (agda2-go-back                  "\M-*")
-         )))
-  (define-key agda2-mode-map [menu-bar Agda2]
-    (cons "Agda2" (make-sparse-keymap "Agda2")))
-  (define-key agda2-mode-map [down-mouse-3]  'agda2-popup-menu-3)
-  (dolist (d (reverse l))
-    (let ((f (car d)) (k (cadr d)) (s1 (elt d 2)) (s2 (elt d 3)))
-      (if k  (define-key agda2-mode-map k f))
-      (if s1 (define-key agda2-mode-map
-                 (vector 'menu-bar 'Agda2 (make-symbol s1)) (cons s1 f)))
-      (if s2 (define-key agda2-goal-map
-                 (vector (make-symbol s2)) (cons s2 f))))))
-(defvar agda2-buffer  nil "Agda subprocess buffer.  Set in `agda2-restart'")
-(defvar agda2-process nil "Agda subprocess.  Set in `agda2-restart'")
+(defconst agda2-command-table
+  `(
+    (agda2-load                               "\C-c\C-x\C-l"     "Load")
+    (agda2-text-state                         "\C-c\C-x\C-d"     "Deactivate Agda")
+    (agda2-quit                               "\C-c\C-x\C-q"     "Quit")
+    (agda2-restart                            "\C-c\C-x\C-r"     "Restart")
+    (agda2-display-implicit-arguments         "\C-c\C-x\C-h"     "Toggle display of hidden arguments")
+    (agda2-highlight-reload-or-clear          "\C-c\C-x\C-s"     "Reload syntax highlighting information")
+    (agda2-show-constraints                   ,(kbd "C-c C-=")   "Show constraints")
+    (agda2-solveAll                           ,(kbd "C-c C-s")   "Solve constraints")
+    (agda2-show-goals                         ,(kbd "C-c C-?")   "Show goals")
+    (agda2-next-goal                          "\C-c\C-f"         "Next goal") ; Forward.
+    (agda2-previous-goal                      "\C-c\C-b"         "Previous goal") ; Back.
+    (agda2-infer-type-maybe-toplevel          nil                "Infer (deduce) type")
+    (agda2-infer-type-toplevel-normalised     nil                "Infer type (normalised)")
+    (agda2-compute-normalised-maybe-toplevel  nil                "Evaluate term to normal form")
+    (agda2-give                               ,(kbd "C-c C-SPC") nil "Give")
+    (agda2-refine                             "\C-c\C-r"         nil "Refine")
+    (agda2-make-case                          "\C-c\C-c"         nil "Case")
+    (agda2-goal-type                          "\C-c\C-t"         nil "Goal type")
+    (agda2-goal-type-normalised               nil                nil "Goal type (normalised)")
+    (agda2-show-context                       "\C-c\C-e"         nil "Context (environment)")
+    (agda2-show-context-normalised            nil                nil "Context (normalised)")
+    (agda2-infer-type-maybe-toplevel          "\C-c\C-d"         nil "Infer (deduce) type")
+    (agda2-infer-type-normalised              nil                nil "Infer type (normalised)")
+    (agda2-goal-and-context                   ,(kbd "C-c C-,")   nil "Goal type and context")
+    (agda2-goal-and-context-normalised        nil                nil "Goal type and context (normalised)")
+    (agda2-goal-and-infer                     ,(kbd "C-c C-.")   nil "Goal type and inferred type")
+    (agda2-goal-and-infer-normalised          nil                nil "Goal type and inferred type (normalised)")
+    (agda2-compute-normalised-maybe-toplevel  "\C-c\C-n"         nil "Evaluate term to normal form")
+    (agda2-indent                ,(kbd "TAB"))
+    (agda2-indent-reverse        [S-iso-lefttab])
+    (agda2-indent-reverse        [S-lefttab])
+    (agda2-indent-reverse        [S-tab])
+    (agda2-goto-definition-mouse [mouse-2])
+    (mouse-face [follow-link]) ; Enables using mouse-1 to click on links in Emacs 22.
+    (agda2-goto-definition-keyboard "\M-.")
+    (agda2-go-back                  "\M-*")
+    )
+  "Table of commands, used to build keymaps and menus.
+Each element has the form (CMD KEY &optional NAME GOAL-NAME)
+Where NAME is the name to use in the main Agda2 menu
+and GOAL-NAME is for the Agda goal menu.")
+
+(defvar agda2-mode-map
+  (let ((map (make-sparse-keymap "Agda mode")))
+    (define-key map [menu-bar Agda2]
+      (cons "Agda2" (make-sparse-keymap "Agda2")))
+    (define-key map [down-mouse-3]  'agda2-popup-menu-3)
+    (dolist (d (reverse agda2-command-table))
+      (destructuring-bind (f &optional k s1 s2) d
+        (if k  (define-key map k f))
+        (if s1 (define-key map
+                 (vector 'menu-bar 'Agda2 (intern s1)) (cons s1 f)))))
+    map)
+  "Keymap for `agda2-mode'.")
+(defvar agda2-goal-map
+  (let ((map (make-sparse-keymap "Agda goal")))
+    (dolist (d (reverse agda2-command-table))
+      (destructuring-bind (f &optional k s1 s2) d
+        (if s2 (define-key map
+                 (vector (intern s2)) (cons s2 f)))))
+    map)
+  "Keymap for agda2 goal menu.")
+(defvar agda2-buffer  nil "Agda subprocess buffer.  Set in `agda2-restart'.")
+(defvar agda2-process nil "Agda subprocess.  Set in `agda2-restart'.")
 
 ;; Some buffer locals
 (defvar agda2-buffer-state "Text"
-  "State of an agda2-mode buffer. \"Text\" or \"Checked\".")
+  "State of an `agda2-mode' buffer.  \"Text\" or \"Checked\".")
 (make-variable-buffer-local 'agda2-buffer-state)
 (defvar agda2-buffer-external-status ""
-  "External status of an agda2-mode buffer (dictated by the Haskell
-side).")
+  "External status of an `agda2-mode' buffer (dictated by the Haskell side).")
 (make-variable-buffer-local 'agda2-buffer-external-status)
 
 (defconst agda2-help-address
   ""
-  "Address accepting submissions of bug reports and questions")
+  "Address accepting submissions of bug reports and questions.")
 
 ;; Annotation for a goal
 ;; {! .... !}
@@ -266,7 +288,12 @@ side).")
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; agda2-mode
 
-(defun agda2-mode ()
+;;;###autoload
+(add-to-list 'auto-mode-alist '("\\.l?agda\\'" . agda2-mode))
+;;;###autoload
+(modify-coding-system-alist 'file "\\.l?agda\\'" 'utf-8)
+;;;###autoload
+(define-derived-mode agda2-mode nil "Agda2"
  "Major mode for agda2 files.
 
 Note that when this mode is activated the default font of the
@@ -279,13 +306,7 @@ encountered.  If you prefer to use your own settings, set
 
 Special commands:
 \\{agda2-mode-map}"
- (interactive)
- (kill-all-local-variables)
- (use-local-map    agda2-mode-map)
- (set-syntax-table agda2-mode-syntax-table)
- (setq mode-name          "Agda2"
-       major-mode         'agda2-mode
-       local-abbrev-table agda2-mode-abbrev-table
+ (setq local-abbrev-table agda2-mode-abbrev-table
        indent-tabs-mode   nil
        mode-line-process
          '(":" (:eval agda2-buffer-state)
@@ -294,29 +315,35 @@ Special commands:
  (let ((l '(max-specpdl-size    2600
             max-lisp-eval-depth 2800)))
    (while l (set (make-local-variable (pop l)) (pop l))))
- (if (and window-system agda2-fontset-name)
+ (if (and window-system agda2-fontset-name
+          ;; Emacs-23 uses a revamped font engine which should make
+          ;; agda2-fontset-name unnecessary in most cases.  And if it turns out
+          ;; to be necessary, we should probably use face-remapping-alist
+          ;; rather than set-frame-font so the special font only applies to
+          ;; Agda buffers, and so it applies in all frames where Agda
+          ;; buffers are displayed.
+          (not (boundp 'face-remapping-alist)))
      (condition-case nil
          (set-frame-font agda2-fontset-name)
-       (error (error "Unable to change the font; change agda2-fontset-name or tewak agda2-fontset-spec-fontset-agda2"))))
+       (error (error "Unable to change the font; change agda2-fontset-name or tweak agda2-fontset-spec-fontset-agda2"))))
  (agda2-indent-setup)
  (agda2-highlight-setup)
  (agda2-comments-and-paragraphs-setup)
  (agda2-restart)
  (force-mode-line-update)
- (set-input-method "Agda")
- (run-mode-hooks 'agda2-mode-hook))
+ (set-input-method "Agda"))
 
 (defun agda2-restart (&optional force)
-  "Load agda2-toplevel-module to ghci"
+  "Load `agda2-toplevel-module' to ghci."
   (interactive)
   (if (or force (not (eq 'run (agda2-process-status))))
     (save-excursion (let ((agda2-bufname "*ghci*")
                           (ignore-dot-ghci "-ignore-dot-ghci"))
                       (agda2-protect (kill-buffer agda2-bufname))
-                      ; Make sure that the user's .ghci is not read.
-                      ; Users can override this by adding
-                      ; "-read-dot-ghci" to
-                      ; `haskell-ghci-program-args'.
+                      ;; Make sure that the user's .ghci is not read.
+                      ;; Users can override this by adding
+                      ;; "-read-dot-ghci" to
+                      ;; `haskell-ghci-program-args'.
                       (unless (equal (car-safe haskell-ghci-program-args)
                                      ignore-dot-ghci)
                         (set (make-local-variable 'haskell-ghci-program-args)
@@ -341,8 +368,8 @@ Special commands:
 wait for output and execute responses, if any"
   (interactive)
   (unless (eq 'run (agda2-process-status))
-    ; Try restarting automatically, but only once, in case there is
-    ; some major problem.
+    ;; Try restarting automatically, but only once, in case there is
+    ;; some major problem.
     (agda2-restart)
     (unless (eq 'run (agda2-process-status))
       (error "Agda2 process is not running.  Please M-x agda2-restart")))
@@ -352,9 +379,9 @@ wait for output and execute responses, if any"
   (let (response)
     (with-current-buffer haskell-ghci-process-buffer
       (haskell-ghci-wait-for-output)
-      ; Note that the following code may be prone to race conditions
-      ; (make-temp-file returns a filename, not an open file). This is
-      ; not likely to be a problem, though.
+      ;; Note that the following code may be prone to race conditions
+      ;; (make-temp-file returns a filename, not an open file). This is
+      ;; not likely to be a problem, though.
       (let ((tempfile (make-temp-file "agda2-mode")))
         (unwind-protect
             (progn
@@ -382,7 +409,7 @@ WANT is an optional prompt.  When ASK is non-nil, use minibuffer."
              (agda2-string-quote txt) args))))
 
 (defun agda2-respond (response)
-  "Execute 'agda2_mode_code<sexp>' within RESPONSE string"
+  "Execute 'agda2_mode_code<sexp>' within RESPONSE string."
     (while (string-match "agda2_mode_code" response)
       (setq response (substring response (match-end 0)))
       (let ((inhibit-read-only t)
@@ -393,7 +420,7 @@ WANT is an optional prompt.  When ASK is non-nil, use minibuffer."
 ;;;; User commands and response processing
 
 (defun agda2-load ()
-  "Load current buffer"
+  "Load current buffer."
   (interactive)
   (agda2-go "cmd_load"
             (agda2-string-quote (buffer-file-name))
@@ -416,20 +443,20 @@ annotate new goals NEW-GS"
   (agda2-update old-g paren new-gs))
 
 (defun agda2-refine ()
-  "Refine the goal at point by the expression in it" (interactive)
+  "Refine the goal at point by the expression in it." (interactive)
   (agda2-goal-cmd "cmd_refine" "expression to refine"))
 
 (defun agda2-make-case ()
-  "Refine the pattern var given in the goal. Assumes that
-<clause> = {!<var>!} is on one line"
+  "Refine the pattern var given in the goal.
+Assumes that <clause> = {!<var>!} is on one line."
   (interactive)
   (agda2-goal-cmd "cmd_make_case" "partten var to case"))
 
 (defun agda2-make-case-action (newcls)
-  "Replace the line at point with new clauses NEWCLS and reload"
+  "Replace the line at point with new clauses NEWCLS and reload."
   (agda2-forget-all-goals);; we reload later anyway.
   (let* ((p0 (point))
-         ; (p1 (goto-char (agda2-decl-beginning)))
+         ;; (p1 (goto-char (agda2-decl-beginning)))
          (p1 (goto-char (+ (current-indentation) (line-beginning-position))))
          (indent (current-column))
          cl)
@@ -443,10 +470,10 @@ annotate new goals NEW-GS"
   (agda2-load))
 
 (defun agda2-status-action (status)
-  "Display the string STATUS in the current buffer's mode line
-(precondition: the current buffer has to use the Agda mode as the
+  "Display the string STATUS in the current buffer's mode line.
+\(precondition: the current buffer has to use the Agda mode as the
 major mode)."
-  (interactive)
+  (interactive)                         ;FIXME: Why??
   (setq agda2-buffer-external-status status))
 
 (defun agda2-info-action (name text)
@@ -470,11 +497,11 @@ in the buffer's mode line."
                     (1+ (count-lines (point-min) (point-max))))))))))
 
 (defun agda2-show-goals()
-  "Show all goals" (interactive)
+  "Show all goals." (interactive)
   (agda2-go "cmd_metas"))
 
 (defun agda2-show-constraints()
-  "Show constraints" (interactive)
+  "Show constraints." (interactive)
   (agda2-go "cmd_constraints"))
 
 (defun agda2-text-state ()
@@ -490,9 +517,9 @@ in the buffer's mode line."
     (setq agda2-buffer-state "Text")
     (force-mode-line-update)))
 
-(defun agda2-next-goal ()     "Go to the next goal, if any"     (interactive)
+(defun agda2-next-goal ()     "Go to the next goal, if any."     (interactive)
   (agda2-mv-goal 'next-single-property-change     'agda2-delim2 1 (point-min)))
-(defun agda2-previous-goal () "Go to the previous goal, if any" (interactive)
+(defun agda2-previous-goal () "Go to the previous goal, if any." (interactive)
   (agda2-mv-goal 'previous-single-property-change 'agda2-delim3 0 (point-max)))
 (defun agda2-mv-goal (change delim adjust wrapped)
   (agda2-let ((inhibit-point-motion-hooks t))
@@ -502,13 +529,13 @@ in the buffer's mode line."
     (or (go (point)) (go wrapped) (message "No goals in the buffer"))))
 
 (defun agda2-quit ()
-  "Quit and clean up after agda2" (interactive)
+  "Quit and clean up after agda2." (interactive)
   (agda2-protect (progn (kill-buffer agda2-buffer)
                         (kill-buffer (current-buffer)))))
  
 (defmacro agda2-maybe-normalised (name comment cmd prompt)
   "This macro constructs two functions NAME and NAME-normalised, using
-COMMENT to build the functions' comments. The function NAME takes a
+COMMENT to build the functions' comments.  The function NAME takes a
 prefix argument which tells whether it should normalise types or not
 when running CMD (through `agda2-goal-cmd'; PROMPT, if non-nil, is
 used as the goal command prompt)."
@@ -531,7 +558,7 @@ With a prefix argument the result is normalised.")
 
 (defmacro agda2-maybe-normalised-toplevel (name comment cmd prompt)
   "This macro constructs two functions NAME and NAME-normalised, using
-COMMENT to build the functions' comments. The function NAME takes a
+COMMENT to build the functions' comments.  The function NAME takes a
 prefix argument which tells whether it should normalise types or not
 when running CMD (through `agda2-go'; the string PROMPT is
 used as the goal command prompt)."
@@ -575,13 +602,13 @@ top-level module"
    "Expression")
 
 (defun agda2-infer-type-maybe-toplevel ()
-  "Infers the type of the given expression, using the
-scope of the current goal or, if point is not in a goal, the
+  "Infers the type of the given expression.
+Either uses the scope of the current goal or, if point is not in a goal, the
 top-level scope."
   (interactive)
-  (if (agda2-goal-at (point))
-      (call-interactively 'agda2-infer-type)
-    (call-interactively 'agda2-infer-type-toplevel)))
+  (call-interactively (if (agda2-goal-at (point))
+                          'agda2-infer-type
+                        'agda2-infer-type-toplevel)))
 
 (agda2-maybe-normalised
  agda2-goal-and-context
@@ -603,7 +630,7 @@ given expression"
  nil)
 
 (defun agda2-solveAll ()
-  "Solve all goals that are internally already instantiated" (interactive)
+  "Solve all goals that are internally already instantiated." (interactive)
   (agda2-go "cmd_solveAll" ))
 
 (defun agda2-solveAll-action (iss)
@@ -623,8 +650,8 @@ With a prefix argument \"abstract\" is ignored during the computation."
     (agda2-goal-cmd cmd "expression to normalise")))
 
 (defun agda2-compute-normalised-toplevel (expr &optional arg)
-  "Computes the normal form of the given expression. The scope used for
-the expression is that of the last point inside the current
+  "Computes the normal form of the given expression.
+The scope used for the expression is that of the last point inside the current
 top-level module.
 With a prefix argument \"abstract\" is ignored during the computation."
   (interactive "MExpression: \nP")
@@ -634,8 +661,8 @@ With a prefix argument \"abstract\" is ignored during the computation."
     (agda2-go (concat cmd (agda2-string-quote expr)))))
 
 (defun agda2-compute-normalised-maybe-toplevel ()
-  "Computes the normal form of the given expression, using the
-scope of the current goal or, if point is not in a goal, the
+  "Computes the normal form of the given expression,
+using the scope of the current goal or, if point is not in a goal, the
 top-level scope.
 With a prefix argument \"abstract\" is ignored during the computation."
   (interactive)
@@ -678,7 +705,7 @@ with text-properties"
                          (make (- (point) 5)))))))))))
 
 (defun agda2-make-goal (p q n)
-  "Make a goal with number N at <P>{!...!}<Q>.  Assume the region is clean"
+  "Make a goal with number N at <P>{!...!}<Q>.  Assume the region is clean."
   (flet ((atp (x ps) (add-text-properties x (1+ x) ps)))
     (atp p       `(category agda2-delim1 agda2-gn ,n))
     (atp (1+ p)  '(category agda2-delim2))
@@ -687,13 +714,13 @@ with text-properties"
     (agda2-make-goal-B p q n)))
 
 (defun agda2-make-goal-B (p &optional q n)
-  "Make a goal at <P>{!...!} assuming text-properties are already set"
+  "Make a goal at <P>{!...!} assuming text-properties are already set."
   (or q (setq q (+ 2 (text-property-any p (point-max) 'intangible 'right))))
   (or n (setq n (get-text-property p 'agda2-gn)))
-  (setq o (make-overlay p q nil t nil))
-  (overlay-put o 'agda2-gn      n)
-  (overlay-put o 'face         'highlight)
-  (overlay-put o 'after-string (propertize (format "%s" n) 'face 'highlight)))
+  (let ((o (make-overlay p q nil t nil)))
+    (overlay-put o 'agda2-gn      n)
+    (overlay-put o 'face         'highlight)
+    (overlay-put o 'after-string (propertize (format "%s" n) 'face 'highlight))))
 
 (defun agda2-update (old-g new-txt new-gs)
   "Update the goal OLD-G and annotate new goals NEW-GS.
@@ -714,59 +741,60 @@ NEW-TXT is a string to replace OLD-G, or `'paren', or `'no-paren'"
 ;;;; Misc
 
 (defun agda2-process-status ()
-  "Status of agda2-buffer, or \"no process\""
+  "Status of `agda2-buffer', or \"no process\"."
   (agda2-protect (process-status agda2-process) "no process"))
 
 (defun agda2-intersperse (sep xs) (interactive)
   (let(ys)(while xs (push (pop xs) ys)(push sep ys))(pop ys)(nreverse ys)))
 
 (defun agda2-goal-Range (o)
-  "Range of goal overlay O" (interactive)
+  "Range of goal overlay O." (interactive)
   (format "(Range [Interval %s %s])"
           (agda2-mkPos (+ (overlay-start o) 2))
           (agda2-mkPos (- (overlay-end   o) 2))))
 
 (defun agda2-mkPos (&optional p)
-  "Position value of P or point" (interactive)
+  "Position value of P or point." (interactive)
   (save-excursion
     (if p (goto-char p))
     (format "(Pn \"%s\" %d %d %d)" (buffer-file-name)
             (point) (count-lines (point-min) (point)) (1+ (current-column)))))
 
 (defun agda2-char-quote (c)
-  "Converts non-ASCII characters to the \\xNNNN notation used in
-Haskell strings. (The characters are actually rendered as
+  "Convert character C to the notation used in Haskell strings.
+The non-ASCII characters are actually rendered as
 \"\\xNNNN\\&\", i.e. followed by a \"null character\", to avoid
-problems if they are followed by digits.) ASCII characters (code
+problems if they are followed by digits.  ASCII characters (code
 points < 128) are converted to singleton strings."
   (if (< c 128)
       (list c)
+    ;; FIXME: Why return a list rather than a string?  --Stef
     (append (format "\\x%x\\&" (encode-char c 'ucs)) nil)))
 
 (defun agda2-string-quote (s)
-  "Escape newlines, double quotes, etc. in the string S, add
+  "Convert string S into a string representing it in Haskell syntax.
+Escape newlines, double quotes, etc.. in the string S, add
 surrounding double quotes, and convert non-ASCII characters to the \\xNNNN
 notation used in Haskell strings."
   (let ((pp-escape-newlines t))
     (mapconcat 'agda2-char-quote (pp-to-string s) "")))
 
 (defun agda2-list-quote (strings)
-  "Converts a list of strings into a string representing a Haskell
-list containing the strings."
+  "Convert a list of STRINGS into a string representing it in Haskell syntax."
   (concat "[" (mapconcat 'agda2-string-quote strings ", ") "]"))
 
 (defun agda2-goal-at(pos)
-  "Return (goal overlay, goal number) at POS, or nil"
+  "Return (goal overlay, goal number) at POS, or nil."
   (let ((os (and pos (overlays-at pos))) o g)
     (while (and os (not(setq g (overlay-get (setq o (pop os)) 'agda2-gn)))))
     (if g (list o g))))
 
 (defun agda2-goal-overlay (g)
-  "Return overlay of the goal number G"
+  "Return overlay of the goal number G."
   (car(agda2-goal-at(text-property-any(point-min)(point-max) 'agda2-gn g))))
 
 (defun agda2-range-of-goal (g)
-  "the range of goal G"
+  "The range of goal G."
   (let ((o (agda2-goal-overlay g)))
     (if o (list (overlay-start o) (overlay-end o)))))
 
@@ -775,7 +803,7 @@ list containing the strings."
     (if p (goto-char p))))
 
 (defun agda2-replace-goal (g newtxt)
-  "Replace the content of goal G with newtxt" (interactive)
+  "Replace the content of goal G with NEWTXT." (interactive)
   (save-excursion
     (multiple-value-bind (p q) (agda2-range-of-goal g)
       (setq p (+ p 2) q (- q 2))
@@ -801,7 +829,8 @@ list containing the strings."
 
 
 (defun agda2-decl-beginning ()
-  "Find the beginning point of the declaration containing the point. To do: dealing with semicolon separated decls."
+  "Find the beginning point of the declaration containing the point.
+To do: dealing with semicolon separated decls."
   (interactive)
   (save-excursion
     (let* ((pEnd (point))
@@ -828,31 +857,33 @@ list containing the strings."
   (goto-char (agda2-decl-beginning)))
 
 (defun agda2-no-modified-p (func &rest args)
-  "call FUNC without affecting the buffer-modified flag."
+  "Call FUNC without affecting the `buffer-modified-p' flag."
   (interactive)
   (let ((old-buffer-modified (buffer-modified-p)))
-    (apply func args)
-    (set-buffer-modified-p old-buffer-modified)))
+    (unwind-protect
+        (apply func args)
+      ;; FIXME: Using restore-buffer-modified-p would be slighlty better.
+      (set-buffer-modified-p old-buffer-modified))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Indentation
 
 (defun agda2-indent ()
-  "This is what happens when TAB is pressed. Depends on the setting of
-`agda2-indentation'."
+  "This is what happens when TAB is pressed.
+Depends on the setting of `agda2-indentation'."
   (interactive)
   (cond ((eq agda2-indentation 'haskell) (haskell-indent-cycle))
         ((eq agda2-indentation 'eri) (eri-indent))))
 
 (defun agda2-indent-reverse ()
-  "This is what happens when S-TAB is pressed. Depends on the setting
-of `agda2-indentation'."
+  "This is what happens when S-TAB is pressed.
+Depends on the setting of `agda2-indentation'."
   (interactive)
   (cond ((eq agda2-indentation 'eri) (eri-indent-reverse))))
 
 (defun agda2-indent-setup ()
-  "Sets up and starts the indentation subsystem. Depends on the
-setting of `agda2-indentation'."
+  "Set up and start the indentation subsystem.
+Depends on the setting of `agda2-indentation'."
   (interactive)
   (cond ((eq agda2-indentation 'haskell)
          (labels ((setl (var val) (set (make-local-variable var) val)))
@@ -870,7 +901,7 @@ setting of `agda2-indentation'."
 ;; Comments and paragraphs
 
 (defun agda2-comments-and-paragraphs-setup nil
-  "Sets up comment and paragraph handling for Agda mode."
+  "Set up comment and paragraph handling for Agda mode."
 
   ;; Syntax table setup for comments is done elsewhere.
 
@@ -898,19 +929,21 @@ setting of `agda2-indentation'."
 ;; Go to definition site
 
 (defun agda2-goto-definition-keyboard (&optional other-window)
-  "Go to the definition site of the name under point (if any). If this
-function is invoked with a prefix argument then another window is used
+  "Go to the definition site of the name under point (if any).
+If this function is invoked with a prefix argument then another window is used
 to display the given position."
   (interactive "P")
   (annotation-goto-indirect (point) other-window))
 
 (defun agda2-goto-definition-mouse (ev prefix)
-  "Go to the definition site of the name clicked on, if any, and yank
-otherwise (see `mouse-yank-at-click')."
+  "Go to the definition site of the name clicked on, if any.
+Otherwise, yank (see `mouse-yank-at-click')."
   (interactive "e\nP")
   (let ((pos (posn-point (event-end ev))))
     (if (annotation-goto-possible pos)
         (annotation-goto-indirect pos)
+      ;; FIXME: Shouldn't we use something like
+      ;; (call-interactively (key-binding ev))?  --Stef
       (mouse-yank-at-click ev prefix))))
 
 (defun agda2-go-back nil
@@ -947,3 +980,4 @@ the argument is a positive number, otherwise turn it off."
             (lookup-key agda2-goal-map (apply 'vector choice)))))))
 
 (provide 'agda2-mode)
+;;; agda2-mode.el ends here

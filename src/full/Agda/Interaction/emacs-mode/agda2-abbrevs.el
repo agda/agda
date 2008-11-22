@@ -1,8 +1,9 @@
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Default Agda abbrevs
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; agda2-abbrevs.el --- Default Agda abbrevs
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Commentary:
+
+;;; Code:
+
 ;; Skeletons
 
 (require 'skeleton)
@@ -71,10 +72,9 @@
   "Abbreviations defined by default in the Agda mode.")
 
 (defcustom agda2-mode-abbrevs-use-defaults t
-  "Should the default Agda mode abbrevs be included in
-`agda2-mode-abbrev-table'? The abbrevs are designed to be expanded
-explicitly, so users of `abbrev-mode' probably do not want to include
-them.
+  "If non-nil include the default Agda mode abbrevs in `agda2-mode-abbrev-table'.
+The abbrevs are designed to be expanded explicitly, so users of `abbrev-mode'
+probably do not want to include them.
 
 Restart Emacs in order for this change to take effect."
   :group 'agda2
@@ -97,3 +97,4 @@ Restart Emacs in order for this change to take effect."
 ;; Administrative details
 
 (provide 'agda2-abbrevs)
+;;; agda2-abbrevs.el ends here

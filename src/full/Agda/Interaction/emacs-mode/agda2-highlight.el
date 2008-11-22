@@ -1,6 +1,13 @@
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Syntax highlighting for Agda (version ≥ 2)
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; agda2-highlight.el --- Syntax highlighting for Agda (version ≥ 2)
+
+;;; Commentary:
+
+;; Code to apply syntactic highlighting to Agda source code.
+;; This uses Agda's own annotations to figure out what is what, so the
+;; parsing is always done correctly.  OTOH it's not done on-the-fly.
+;; Also, as of now, the information is more lexical than syntactic.
+
+;;; Code:
 
 (require 'annotation)
 (require 'font-lock)
@@ -13,9 +20,8 @@
 ;; Functions for setting faces
 
 (defun agda2-highlight-set-face-attribute (face attrs)
-  "Clears all attributes of the face FACE, and then sets
-them (globally) according to ATTRS. If the face does not exist,
-then it is created first."
+  "Reset (globally) all attributes of the face FACE according to ATTRS.
+If the face does not exist, then it is created first."
   (make-face face)
   (set-face-attribute face nil
                       :family         'unspecified
@@ -36,7 +42,8 @@ then it is created first."
   (eval `(set-face-attribute face nil ,@attrs)))
 
 (defun agda2-highlight-set-faces (variable group)
-  "Sets all Agda faces according to the value of GROUP."
+  "Set all Agda faces according to the value of GROUP.
+Also sets the default value of VARIABLE to GROUP."
   (set-default variable group)
   (mapc (lambda (face-and-attrs)
           (agda2-highlight-set-face-attribute
@@ -88,10 +95,10 @@ then it is created first."
 ;; Faces
 
 (defcustom agda2-highlight-face-groups nil
-  "*You can change the face settings below to a predefined colour
-scheme by changing this option. Note that changing this option does
-not remove the customisations below; you can get them back by
-resetting this option and restarting Emacs."
+  "Colour scheme to use for agda2 highlight faces.
+Note that changing this option does not remove the customisations
+below; you can get them back by resetting this option and
+restarting Emacs."
   :type '(choice
             (const :tag "Use the settings below." nil)
             (const :tag "Use an approximation of Conor McBride's colour scheme."
@@ -101,22 +108,22 @@ resetting this option and restarting Emacs."
 
 (defface agda2-highlight-comment-face
   '((t (:foreground "firebrick")))
-  "*The face used for comments."
+  "The face used for comments."
   :group 'agda2-highlight)
 
 (defface agda2-highlight-keyword-face
   '((t (:foreground "DarkOrange3")))
-  "*The face used for keywords."
+  "The face used for keywords."
   :group 'agda2-highlight)
 
 (defface agda2-highlight-string-face
   '((t (:foreground "firebrick")))
-  "*The face used for strings."
+  "The face used for strings."
   :group 'agda2-highlight)
 
 (defface agda2-highlight-number-face
   '((t (:foreground "purple")))
-  "*The face used for numbers."
+  "The face used for numbers."
   :group 'agda2-highlight)
 
 (defface agda2-highlight-symbol-face
@@ -124,17 +131,17 @@ resetting this option and restarting Emacs."
      (:foreground "gray25"))
     (((background dark))
      (:foreground "gray75")))
-  "*The face used for symbols like forall, =, ->, etc."
+  "The face used for symbols like forall, =, ->, etc."
   :group 'agda2-highlight)
 
 (defface agda2-highlight-primitive-type-face
   '((t (:foreground "medium blue")))
-  "*The face used for primitive types (like Set and Prop)."
+  "The face used for primitive types (like Set and Prop)."
   :group 'agda2-highlight)
 
 (defface agda2-highlight-bound-variable-face
   '((t nil))
-  "*The face used for bound variables."
+  "The face used for bound variables."
   :group 'agda2-highlight)
 
 (defface agda2-highlight-constructor-face
@@ -144,7 +151,7 @@ resetting this option and restarting Emacs."
 
 (defface agda2-highlight-datatype-face
   '((t (:foreground "dark green")))
-  "*The face used for datatypes."
+  "The face used for datatypes."
   :group 'agda2-highlight)
 
 (defface agda2-highlight-field-face
@@ -154,12 +161,12 @@ resetting this option and restarting Emacs."
 
 (defface agda2-highlight-function-face
   '((t (:foreground "blue2")))
-  "*The face used for functions."
+  "The face used for functions."
   :group 'agda2-highlight)
 
 (defface agda2-highlight-module-face
   '((t (:foreground "purple")))
-  "*The face used for module names."
+  "The face used for module names."
   :group 'agda2-highlight)
 
 (defface agda2-highlight-postulate-face
@@ -174,7 +181,7 @@ resetting this option and restarting Emacs."
 
 (defface agda2-highlight-record-face
   '((t (:foreground "DeepPink4")))
-  "*The face used for record types."
+  "The face used for record types."
   :group 'agda2-highlight)
 
 (defface agda2-highlight-dotted-face
@@ -232,8 +239,7 @@ resetting this option and restarting Emacs."
     (unsolvedmeta       . agda2-highlight-unsolved-meta-face)
     (terminationproblem . agda2-highlight-termination-problem-face)
     (incompletepattern  . agda2-highlight-incomplete-pattern-face))
-  "An association list mapping from a code aspect to the face used when
-displaying the aspect.
+  "Alist mapping code aspects to the face used when displaying them.
 
 The aspects currently recognised are the following:
 
@@ -257,39 +263,36 @@ The aspects currently recognised are the following:
 `string'             Strings.
 `symbol'             Symbols like forall, =, ->, etc.
 `terminationproblem' Termination problems.
-`unsolvedmeta'       Unsolved meta variables.
-")
+`unsolvedmeta'       Unsolved meta variables.")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Functions
 
 (defun agda2-highlight-reload nil
-  "Reloads syntax information from the syntax file associated with the
-current buffer."
+  "Reload current buffer's syntax information from the syntax file."
   (interactive)
-  (let* ((dir (file-name-directory (buffer-file-name)))
-         (name (file-name-nondirectory (buffer-file-name)))
+  (let* ((dir (file-name-directory buffer-file-name))
+         (name (file-name-nondirectory buffer-file-name))
          (file (concat dir "." name ".el"))
          (inhibit-read-only t))
          ; Ignore read-only status, otherwise this function may fail.
     (annotation-load-file file)))
 
 (defun agda2-highlight-setup nil
-  "Sets up the `annotation' library for use with `agda2-mode'."
+  "Set up the `annotation' library for use with `agda2-mode'."
   (font-lock-mode 0)
   (setq annotation-bindings agda2-highlight-faces))
 
 (defun agda2-highlight-clear nil
-  "Removes all syntax highlighting added by
-`agda2-highlight-reload'."
+  "Remove all syntax highlighting added by `agda2-highlight-reload'."
   (interactive)
   (let ((inhibit-read-only t))
        ; Ignore read-only status, otherwise this function may fail.
     (annotation-remove-annotations)))
 
 (defun agda2-highlight-reload-or-clear (&optional arg)
-  "Reloads syntax highlighting information.
-With prefix argument: Removes syntax highlighting."
+  "Reload syntax highlighting information.
+With prefix argument ARG: Remove syntax highlighting."
   (interactive "P")
   (if arg (agda2-highlight-clear)
     (agda2-highlight-reload)))
@@ -298,3 +301,4 @@ With prefix argument: Removes syntax highlighting."
 ;; Administrative details
 
 (provide 'agda2-highlight)
+;;; agda2-highlight.el ends here
