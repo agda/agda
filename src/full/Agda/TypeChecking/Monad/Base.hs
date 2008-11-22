@@ -756,15 +756,21 @@ instance HasRange TCErr where
     getRange (AbortAssign s)  = getRange $ stTrace s
 
 ---------------------------------------------------------------------------
--- * Type checking monad
+-- * Type checking monad transformer
 ---------------------------------------------------------------------------
 
-newtype TCM a = TCM { unTCM :: UndoT TCState
-			      (StateT TCState
-			      (ReaderT TCEnv
-			      (ErrorT TCErr IO))) a
-		    }
-    deriving (MonadState TCState, MonadReader TCEnv, MonadError TCErr, MonadUndo TCState)
+newtype TCMT m a = TCM { unTCM :: UndoT TCState
+			          (StateT TCState
+			          (ReaderT TCEnv
+			          (ErrorT TCErr m))) a
+		       }
+    deriving ( MonadState TCState
+             , MonadReader TCEnv
+             , MonadError TCErr
+             , MonadUndo TCState
+             )
+
+type TCM = TCMT IO
 
 class ( Applicative tcm, MonadIO tcm
       , MonadReader TCEnv tcm
@@ -772,25 +778,33 @@ class ( Applicative tcm, MonadIO tcm
       ) => MonadTCM tcm where
     liftTCM :: TCM a -> tcm a
 
-instance MonadTCM TCM where
-    liftTCM = id
+mapTCMT :: (m (Either TCErr ((a, [TCState]), TCState)) ->
+            n (Either TCErr ((b, [TCState]), TCState))
+           ) -> TCMT m a -> TCMT n b
+mapTCMT f = TCM . mapUndoT (mapStateT (mapReaderT (mapErrorT f))) . unTCM
+
+instance MonadIO m => MonadTCM (TCMT m) where
+    liftTCM = mapTCMT liftIO
+
+instance MonadTrans TCMT where
+    lift = TCM . lift . lift . lift . lift
 
 -- We want a special monad implementation of fail.
-instance Monad TCM where
+instance MonadIO m => Monad (TCMT m) where
     return  = TCM . return
     m >>= k = TCM $ unTCM m >>= unTCM . k
     fail    = internalError
 
-instance Functor TCM where
+instance MonadIO m => Functor (TCMT m) where
     fmap = liftM
 
-instance Applicative TCM where
+instance MonadIO m => Applicative (TCMT m) where
     pure = return
     (<*>) = ap
 
-instance MonadIO TCM where
+instance MonadIO m => MonadIO (TCMT m) where
   liftIO m = TCM $ do tr <- gets stTrace
-                      lift $ lift $ lift $ ErrorT $
+                      lift $ lift $ lift $ ErrorT $ liftIO $
                         handle (handleIOException $ getRange tr)
                         (failOnException
                          (\r -> return . throwError . Exception r)
@@ -820,7 +834,7 @@ handleTypeErrorException m = do
     either typeError return r
 
 -- | Running the type checking monad
-runTCM :: TCM a -> IO (Either TCErr a)
+runTCM :: Monad m => TCMT m a -> m (Either TCErr a)
 runTCM m = runErrorT
 	 $ flip runReaderT initEnv
 	 $ flip evalStateT initState
