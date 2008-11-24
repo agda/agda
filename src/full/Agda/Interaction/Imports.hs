@@ -178,14 +178,15 @@ getInterface x = alreadyVisited x $ addImportCycleCheck x $ do
 	    reportSLn "" 1 $ "Checking " ++ show x ++ " ( " ++ file ++ " )"
 	    ms	  <- getImportPath
 	    vs	  <- getVisitedModules
+	    ds	  <- getDecodedModules
 	    opts  <- commandLineOptions
 	    trace <- getTrace
-	    r  <- liftIO $ createInterface opts trace ms vs x file
+	    r  <- liftIO $ createInterface opts trace ms vs ds x file
 
 	    -- Write interface file and return
 	    case r of
 		Left err -> throwError err
-		Right (vs, i, isig)  -> do
+		Right (vs, ds, i, isig)  -> do
                     -- Merge in the signatures imported by file.
                     modify $ \st -> st { stImports = unionSignatures [stImports st, isig] }
 		    liftIO $ writeInterface ifile i
@@ -194,6 +195,7 @@ getInterface x = alreadyVisited x $ addImportCycleCheck x $ do
                            (getModificationTime ifile)
                            getClockTime
 		    setVisitedModules vs
+		    setDecodedModules ds
 		    return (i, t)
 
 readInterface :: FilePath -> IO (Maybe Interface)
@@ -232,10 +234,11 @@ writeInterface file i = do
     return ()
 
 createInterface :: CommandLineOptions -> CallTrace -> [ModuleName] -> VisitedModules ->
-		   ModuleName -> FilePath ->
-		   IO (Either TCErr (VisitedModules, Interface, Signature))
-createInterface opts trace path visited mname file = runTCM $ withImportPath path $ do
+		   DecodedModules -> ModuleName -> FilePath ->
+		   IO (Either TCErr (VisitedModules, DecodedModules, Interface, Signature))
+createInterface opts trace path visited decoded mname file = runTCM $ withImportPath path $ do
 
+    setDecodedModules decoded
     setTrace trace
     setCommandLineOptions opts
     setVisitedModules visited
@@ -279,7 +282,8 @@ createInterface opts trace path visited mname file = runTCM $ withImportPath pat
     i    <- buildInterface
     isig <- getImportedSignature
     vs   <- getVisitedModules
-    return (vs, i, isig)
+    ds   <- getDecodedModules
+    return (vs, ds, i, isig)
 
 buildInterface :: TCM Interface
 buildInterface = do
