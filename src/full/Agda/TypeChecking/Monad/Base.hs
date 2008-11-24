@@ -48,6 +48,7 @@ data TCState =
 	 , stImports	       :: Signature
 	 , stImportedModules   :: Set ModuleName
 	 , stVisitedModules    :: VisitedModules
+	 , stDecodedModules    :: DecodedModules
 	 , stScope	       :: ScopeInfo
 	 , stOptions	       :: CommandLineOptions
 	 , stStatistics	       :: Statistics
@@ -78,6 +79,7 @@ initState =
 	 , stImports	       = emptySignature
 	 , stImportedModules   = Set.empty
 	 , stVisitedModules    = Map.empty
+	 , stDecodedModules    = Map.empty
 	 , stScope	       = emptyScopeInfo
 	 , stOptions	       = defaultOptions
 	 , stStatistics	       = Map.empty
@@ -122,6 +124,7 @@ instance HasFresh i FreshThings => HasFresh i TCState where
 ---------------------------------------------------------------------------
 
 type VisitedModules = Map ModuleName (Interface, ClockTime)
+type DecodedModules = Map ModuleName (Interface, ClockTime)
 
 data Interface = Interface
 	{ iImportedModules :: [ModuleName]

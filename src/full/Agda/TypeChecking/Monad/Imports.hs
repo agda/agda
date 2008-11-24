@@ -48,6 +48,27 @@ isVisited x = gets $ Map.member x . stVisitedModules
 getVisitedModule :: ModuleName -> TCM (Maybe (Interface, ClockTime))
 getVisitedModule x = gets $ Map.lookup x . stVisitedModules
 
+getDecodedModules :: TCM DecodedModules
+getDecodedModules = gets stDecodedModules
+
+setDecodedModules :: DecodedModules -> TCM ()
+setDecodedModules ms = modify $ \s -> s { stDecodedModules = ms }
+
+preserveDecodedModules :: TCM a -> TCM a
+preserveDecodedModules tcm = do ms <- getDecodedModules
+                                a  <- tcm
+                                setDecodedModules ms
+                                return a
+
+getDecodedModule :: ModuleName -> TCM (Maybe (Interface, ClockTime))
+getDecodedModule x = gets $ Map.lookup x . stDecodedModules
+
+storeDecodedModule :: ModuleName -> Interface -> ClockTime -> TCM ()
+storeDecodedModule x i t = modify $ \s -> s { stDecodedModules = Map.insert x (i,t) $ stDecodedModules s }
+
+dropDecodedModule :: ModuleName -> TCM ()
+dropDecodedModule x = modify $ \s -> s { stDecodedModules = Map.delete x $ stDecodedModules s }
+
 withImportPath :: [ModuleName] -> TCM a -> TCM a
 withImportPath path = local $ \e -> e { envImportPath = path }
 

@@ -182,7 +182,7 @@ cmd_load file includes = infoOnException $ do
             setCommandLineOptions defaultOptions
             enableSyntaxHighlighting
             setIncludeDirectories includes
-	    resetState
+	    preserveDecodedModules resetState
 	    pragmas  <- concat <$> concreteToAbstract_ pragmas	-- identity for top-level pragmas at the moment
             -- Note that pragmas can affect scope checking.
             setOptionsFromPragmas pragmas
@@ -258,7 +258,7 @@ cmd_undo :: IO ()
 cmd_undo = ioTCM undo
 
 cmd_reset :: IO ()
-cmd_reset = ioTCM $ do putUndoStack []; resetState
+cmd_reset = ioTCM $ do putUndoStack []; preserveDecodedModules resetState
 
 type GoalCommand = InteractionId -> Range -> String -> IO()
 

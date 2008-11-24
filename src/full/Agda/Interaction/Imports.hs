@@ -120,24 +120,37 @@ getInterface x = alreadyVisited x $ addImportCycleCheck x $ do
 
     reportSLn "import.iface" 5 $ "  " ++ show x ++ " is " ++ (if uptodate then "" else "not ") ++ "up-to-date."
 
-    ic <- if uptodate
-	then skip      ifile file
+    (i,t) <- if uptodate
+	then skip x ifile file
 	else typeCheck ifile file
 
     visited <- isVisited x
     reportSLn "import.iface" 5 $ if visited then "  We've been here. Don't merge."
 			         else "  New module. Let's check it out."
-    unless visited $ mergeInterface (fst ic)
+    unless visited $ mergeInterface i
 
-    return ic
+    storeDecodedModule x i t
+    return (i,t)
 
     where
-	skip ifile file = do
+	skip x ifile file = do
 
-	    reportSLn "import.iface" 5 $ "  reading interface file " ++ ifile
-
-	    -- Read interface file
-	    mi <- liftIO $ readInterface ifile
+	    -- Examine the mtime of the interface file. If it is newer than the
+	    -- stored version (in stDecodedModules), or if there is no stored version,
+	    -- read and decode it. Otherwise use the stored version.
+	    t  <- liftIO $ getModificationTime ifile
+	    mm <- getDecodedModule x
+	    mi <- case mm of
+		      Just (im, tm) ->
+			 if tm < t
+			 then do dropDecodedModule x
+				 reportSLn "import.iface" 5 $ "  file is newer, re-reading " ++ ifile
+				 liftIO $ readInterface ifile
+			 else do reportSLn "import.iface" 5 $ "  using stored version of " ++ ifile
+				 return (Just im)
+		      Nothing ->
+			 do reportSLn "import.iface" 5 $ "  no stored version, reading " ++ ifile
+			    liftIO $ readInterface ifile
 
 	    -- Check that it's the right version
 	    case mi of
@@ -145,9 +158,6 @@ getInterface x = alreadyVisited x $ addImportCycleCheck x $ do
 		    reportSLn "import.iface" 5 $ "  bad interface, re-type checking"
 		    typeCheck ifile file
 		Just i	-> do
-
-		    -- Check time stamp of imported modules
-		    t  <- liftIO $ getModificationTime ifile
 
 		    reportSLn "import.iface" 5 $ "  imports: " ++ show (iImportedModules i)
 
