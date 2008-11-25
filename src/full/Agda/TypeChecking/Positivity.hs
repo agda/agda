@@ -18,11 +18,13 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 
-import Agda.Utils.Warshall hiding (Node)
 import Agda.Utils.Impossible
 import Agda.Utils.Permutation
 import Agda.Utils.Size
 import Agda.Utils.Monad
+import Agda.Utils.SemiRing
+import qualified Agda.Utils.Graph as Graph
+import Agda.Utils.Graph (Graph)
 
 #include "../undefined.h"
 
@@ -34,30 +36,31 @@ checkStrictlyPositive mi = do
   reportSDoc "tc.pos.tick" 100 $ text "positivity of" <+> prettyTCM (Set.toList qs)
   g  <- buildOccurrenceGraph qs
   reportSDoc "tc.pos.tick" 100 $ text "constructed graph"
-  let cg = warshall' g
+  reportSLn "tc.pos.graph" 5 $ "Positivity graph: N=" ++ show (size $ Graph.nodes g) ++
+                               " E=" ++ show (length $ Graph.edges g)
   reportSDoc "tc.pos.graph" 10 $ vcat
     [ text "positivity graph for" <+> prettyTCM (Set.toList qs)
     , nest 2 $ prettyGraph g
-    , text "completed graph"
-    , nest 2 $ prettyGraph cg
     ]
-  mapM_ (setArgs $ edges cg) $ Set.toList qs
+  mapM_ (setArgs g) $ Set.toList qs
   reportSDoc "tc.pos.tick" 100 $ text "completed graph"
   whenM positivityCheckEnabled $
-    mapM_ (checkPos cg) $ Set.toList qs
+    mapM_ (checkPos g) $ Set.toList qs
   reportSDoc "tc.pos.tick" 100 $ text "checked positivity"
   where
     checkPos g q = whenM (isDatatype q) $ do
-      reportSDoc "tc.pos.check" 10 $ text "checking positivity of" <+> prettyTCM q
-      case lookupEdge (DefNode q) (DefNode q) g of
+      reportSDoc "tc.pos.check" 10 $ text "Checking positivity of" <+> prettyTCM q
+      case Graph.findPath isNegative (DefNode q) (DefNode q) g of
         Nothing                  -> return ()
-        Just (Edge Positive _)   -> return ()
-        Just (Edge Unused _)     -> return ()
+        Just (Edge Positive _)   -> __IMPOSSIBLE__
+        Just (Edge Unused _)     -> __IMPOSSIBLE__
         Just (Edge Negative how) -> do
           err <- fsep $
             [prettyTCM q] ++ pwords "is not strictly positive, because it occurs" ++
             [prettyTCM how]
           setCurrentRange (getRange q) $ typeError $ GenericError (show err)
+
+    isNegative (Edge o _) = o == Negative
 
     isDatatype q = do
       def <- theDef <$> getConstInfo q
@@ -66,27 +69,15 @@ checkStrictlyPositive mi = do
         _ -> False
 
     -- Set the polarity of the arguments to a definition
-    setArgs es q = do
-      let args = expand 0 $ List.sort
-                    [ (i, o) | (ArgNode q1 i, DefNode q2, Edge o _) <- es
-                    , q1 == q, q2 == q ]
-          expand _ [] = []
-          expand i xs@((j, o):xs')
-            | i < j     = Unused : expand (i + 1) xs
-            | i == j    = o : expand (i + 1) xs'
-            | otherwise = __IMPOSSIBLE__
-      setArgOccurrences q args
-
-    g =~= g' = order (edges g) == order (edges g')
-    order xs = List.sort $ map (\(x,y,Edge o _) -> (x, y, o)) xs
-
-    -- We need to iterate warshall since Negative edges
-    -- behave as negative weights.
-    warshall' g
-      | g =~= g'  = g
-      | otherwise = warshall' g'
-      where
-        g' = warshallG g
+    setArgs g q = do
+      let nArgs = maximum $ 0 :
+                    [ i + 1 | (ArgNode q1 i) <- Set.toList $ Graph.nodes g
+                    , q1 == q ]
+          findOcc i = case Graph.allPaths isNegative (ArgNode q i) (DefNode q) g of
+            []                     -> Unused
+            es | any isNegative es -> Negative
+               | otherwise         -> Positive
+      setArgOccurrences q $ map findOcc [0..nArgs - 1]
 
 -- Specification of occurrences -------------------------------------------
 
@@ -333,11 +324,11 @@ instance PrettyTCM Node where
   prettyTCM (DefNode q)   = prettyTCM q
   prettyTCM (ArgNode q i) = prettyTCM q <> text ("." ++ show i)
 
-prettyGraph g = vcat $ map pr $ Map.assocs g
+prettyGraph g = vcat $ map pr $ Map.assocs $ Graph.unGraph g
   where
     pr (n, es) = sep
       [ prettyTCM n
-      , nest 2 $ vcat $ map prE es
+      , nest 2 $ vcat $ map prE $ Map.assocs es
       ]
     prE (n, Edge o _) = prO o <+> prettyTCM n
     prO Positive = text "-[+]->"
@@ -348,24 +339,25 @@ data Edge = Edge Occurrence OccursWhere
   deriving (Show)
 
 instance SemiRing Edge where
-  oplus e@(Edge Negative _) _                   = e
   oplus _                   e@(Edge Negative _) = e
+  oplus e@(Edge Negative _) _                   = e
   oplus (Edge Unused _)     e                   = e
   oplus e                   (Edge Unused _)     = e
-  oplus e@(Edge Positive _) (Edge Positive _)   = e
+  oplus (Edge Positive _)   e@(Edge Positive _) = e
 
   otimes (Edge o1 w1) (Edge o2 w2) = Edge (otimes o1 o2) (w1 >*< w2)
 
-buildOccurrenceGraph :: Set QName -> TCM (AdjList Node Edge)
-buildOccurrenceGraph qs = Map.unionsWith (++) <$> mapM defGraph (Set.toList qs)
+buildOccurrenceGraph :: Set QName -> TCM (Graph Node Edge)
+buildOccurrenceGraph qs = Graph.unions <$> mapM defGraph (Set.toList qs)
   where
-    defGraph :: QName -> TCM (AdjList Node Edge)
+    defGraph :: QName -> TCM (Graph Node Edge)
     defGraph q = do
       occs <- computeOccurrences q
       let onItem (item, occs) = do
             es <- mapM (computeEdge qs) occs
-            return $ Map.singleton (itemToNode item) es
-      Map.unionsWith (++) <$> mapM onItem (Map.assocs occs)
+            return $ Graph.unions $ 
+                map (\(b, w) -> Graph.singleton (itemToNode item) b w) es
+      Graph.unions <$> mapM onItem (Map.assocs occs)
       where
         itemToNode (AnArg i) = ArgNode q i
         itemToNode (ADef q)  = DefNode q

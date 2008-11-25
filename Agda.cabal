@@ -175,6 +175,7 @@ library
                    Agda.Utils.Fresh
                    Agda.Utils.Function
                    Agda.Utils.Generics
+                   Agda.Utils.Graph
                    Agda.Utils.Hash
                    Agda.Utils.Impossible
                    Agda.Utils.IO
@@ -188,6 +189,7 @@ library
                    Agda.Utils.Pretty
                    Agda.Utils.QuickCheck
                    Agda.Utils.ReadP
+                   Agda.Utils.SemiRing
                    Agda.Utils.Serialise
                    Agda.Utils.Size
                    Agda.Utils.String
