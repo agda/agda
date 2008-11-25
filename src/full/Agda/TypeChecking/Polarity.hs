@@ -50,9 +50,11 @@ computePolarity x = do
   where
     getPol :: Nat -> TCM Polarity
     getPol i = do
-        evalStateT (checkPosArg x i) initPosState
-        return Covariant
-      `catchError` \_ -> return Invariant
+        o <- getArgOccurrence x i
+        case o of
+          Positive -> return Covariant
+          Negative -> return Invariant  -- Negative isn't the same as contravariant
+          Unused   -> return Invariant  -- add NonVariant?
 
 -- | Hack for polarity of size indices.
 sizePolarity :: QName -> TCM [Polarity]

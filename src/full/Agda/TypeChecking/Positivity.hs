@@ -26,9 +26,6 @@ import Agda.Utils.Monad
 
 #include "../undefined.h"
 
-checkPosArg _ _ = return ()
-initPosState = error "initPosState"
-
 -- | Check that the datatypes in the given mutual block
 --   are strictly positive.
 checkStrictlyPositive :: MutualId -> TCM ()
