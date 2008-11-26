@@ -43,7 +43,7 @@ checkStrictlyPositive mi = do
     , nest 2 $ prettyGraph g
     ]
   mapM_ (setArgs g) $ Set.toList qs
-  reportSDoc "tc.pos.tick" 100 $ text "completed graph"
+  reportSDoc "tc.pos.tick" 100 $ text "set args"
   whenM positivityCheckEnabled $
     mapM_ (checkPos g) $ Set.toList qs
   reportSDoc "tc.pos.tick" 100 $ text "checked positivity"
@@ -78,6 +78,7 @@ checkStrictlyPositive mi = do
 
     -- Set the polarity of the arguments to a definition
     setArgs g q = do
+      reportSDoc "tc.pos.args" 5 $ text "checking args of" <+> prettyTCM q
       n <- getArity q
       let nArgs = maximum $ n :
                     [ i + 1 | (ArgNode q1 i) <- Set.toList $ Graph.nodes g
@@ -299,12 +300,13 @@ computeOccurrences :: QName -> TCM Occurrences
 computeOccurrences q = do
   def <- getConstInfo q
   occursAs (InDefOf q) <$> case theDef def of
-    Function{funClauses = cs} ->
+    Function{funClauses = cs} -> do
+      cs <- instantiateFull cs
       return
         $ concatOccurs
         $ zipWith (occursAs . InClause) [0..]
         $ map (occurrences []) cs
-    Datatype{dataClause = Just c} -> return $ occurrences [] c
+    Datatype{dataClause = Just c} -> occurrences [] <$> instantiateFull c
     Datatype{dataPars = np, dataCons = cs}       -> do
       let conOcc c = do
             a <- defType <$> getConstInfo c
@@ -313,11 +315,11 @@ computeOccurrences q = do
                 vars = reverse [ Just (AnArg i) | i <- [0..np - 1] ]
             return $ occursAs (ConArgType c) $ occurrences vars tel'
       concatOccurs <$> mapM conOcc cs
-    Record{recClause = Just c} -> return $ occurrences [] c
+    Record{recClause = Just c} -> occurrences [] <$> instantiateFull c
     Record{recPars = np, recTel = tel} -> do
       let tel' = telFromList $ genericDrop np $ telToList tel
           vars = reverse [ Just (AnArg i) | i <- [0..np - 1] ]
-      return $ occurrences vars tel'
+      occurrences vars <$> instantiateFull tel'
 
     -- Arguments to other kinds of definitions are hard-wired.
     Constructor{} -> return Map.empty
@@ -344,7 +346,7 @@ prettyGraph g = vcat $ map pr $ Map.assocs $ Graph.unGraph g
       [ prettyTCM n
       , nest 2 $ vcat $ map prE $ Map.assocs es
       ]
-    prE (n, Edge o _) = prO o <+> prettyTCM n
+    prE (n, Edge o w) = prO o <+> prettyTCM n <+> fsep (pwords $ show w)
     prO Positive = text "-[+]->"
     prO Negative = text "-[-]->"
     prO Unused   = text "-[ ]->"
