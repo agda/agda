@@ -68,16 +68,30 @@ checkStrictlyPositive mi = do
         Datatype{dataClause = Nothing} -> True
         _ -> False
 
+    getArity q = do
+      def <- theDef <$> getConstInfo q
+      return $ case def of
+        Function{ funClauses = Clause _ _ ps _ : _ } -> size ps
+        Datatype{ dataPars = n }                     -> n
+        Record{ recPars = n }                        -> n
+        _                                            -> 0
+
     -- Set the polarity of the arguments to a definition
     setArgs g q = do
-      let nArgs = maximum $ 0 :
+      n <- getArity q
+      let nArgs = maximum $ n :
                     [ i + 1 | (ArgNode q1 i) <- Set.toList $ Graph.nodes g
                     , q1 == q ]
           findOcc i = case Graph.allPaths isNegative (ArgNode q i) (DefNode q) g of
-            []                     -> Unused
+            []                     -> Positive  -- Unused is not good for datatypes
             es | any isNegative es -> Negative
                | otherwise         -> Positive
-      setArgOccurrences q $ map findOcc [0..nArgs - 1]
+          args = map findOcc [0..nArgs - 1]
+      reportSDoc "tc.pos.args" 10 $ sep
+        [ text "args of" <+> prettyTCM q <+> text "="
+        , nest 2 $ prettyList $ map (text . show) args
+        ]
+      setArgOccurrences q args
 
 -- Specification of occurrences -------------------------------------------
 
