@@ -5,6 +5,7 @@ import Control.Monad
 import System.Directory
 import Text.ParserCombinators.ReadP
 import Data.Char
+import Text.PrettyPrint hiding (char)
 
 instance Applicative ReadP where
   pure = return
@@ -170,11 +171,9 @@ stats goodLog goodCase attrs = do
     printStat l = do
       putStrLn $ logDir l
       cs <- filter (goodCase . fst) <$> readLogs l
-      mapM printAttrs cs
-    printAttrs (c, s) = do
-      putStrLn $ "  " ++ c
-      mapM (printAttr s) attrs
-    printAttr s (Attr name f) =
-      putStrLn $ "    " ++ name ++ ": " ++ show (f s)
+      print $ vcat $ map prAttrs cs
+    prAttrs (c, s) = nest 2 $ text c <+> vcat (map (prAttr s) attrs)
+    prAttr s (Attr name f) =
+      text name <> text ":" <+> text (show (f s))
 
 
