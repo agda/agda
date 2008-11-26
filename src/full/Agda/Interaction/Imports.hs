@@ -312,10 +312,11 @@ matchFileName mname file = expected `isSuffixOf` given || literate `isSuffixOf` 
 checkModuleName :: TopLevelInfo -> FilePath -> TCM ()
 checkModuleName topLevel file = do
   let mname = scopeName $ head $ scopeStack $ insideScope topLevel
+      mod = moduleNameToFileName (mnameToConcrete mname)
   unless (matchFileName mname file) $ typeError $ GenericError $
       "The name of the top level module does not match the file name. " ++
-      "The module " ++ show mname ++ " should be defined in the file " ++
-      moduleNameToFileName (mnameToConcrete mname) ".agda" ++ ","
+      "The module " ++ show mname ++ " should be defined in either " ++
+      mod ".agda" ++ " or " ++ mod ".lagda" ++ ","
 
 -- | True if the first file is newer than the second file. If a file doesn't
 -- exist it is considered to be infinitely old.
