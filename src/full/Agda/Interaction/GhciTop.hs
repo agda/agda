@@ -26,19 +26,17 @@ module Agda.Interaction.GhciTop
   )
   where
 
-import Prelude hiding (print, putStr, putStrLn)
-import System.IO hiding (print, putStr, putStrLn)
 import System.Directory
 import System.IO.Unsafe
 import Data.Char
 import Data.IORef
 import qualified Text.PrettyPrint as P
 import Control.Applicative
+import qualified System.IO.UTF8 as UTF8
 
 import Agda.Utils.Fresh
 import Agda.Utils.Monad
 import Agda.Utils.Monad.Undo
-import Agda.Utils.IO
 import Agda.Utils.Pretty
 import Agda.Utils.String
 import Agda.Utils.FileName
@@ -223,7 +221,7 @@ cmd_load file includes = infoOnException $ do
     -- tellEmacsToReloadSyntaxInfo.
     tellEmacsToReloadSyntaxInfo
     System.performGC
-    putStrLn $ response $ L [A "agda2-load-action", is]
+    UTF8.putStrLn $ response $ L [A "agda2-load-action", is]
     cmd_metas
   where lispIP  = format . sortRng <$> (tagRng =<< getInteractionPoints)
         tagRng  = mapM (\i -> (,)i <$> getInteractionRange i)
@@ -277,7 +275,7 @@ give_gen give_ref mk_newtxt ii rng s = infoOnException $ do
       (ae, iis) <- give_ref ii Nothing =<< B.parseExprIn ii rng s
       newtxt <- A . mk_newtxt s <$> abstractToConcreteCtx prec ae
       let newgs  = Q . L $ List.map showNumIId iis
-      liftIO $ putStrLn $ response $
+      liftIO $ UTF8.putStrLn $ response $
                  L[A"agda2-give-action", showNumIId ii, newtxt, newgs]
     cmd_metas
 
@@ -335,7 +333,7 @@ displayStatus :: TCM ()
 displayStatus = do
   showImpl <- showImplicitArguments
   let statusString = if showImpl then "ShowImplicit" else ""
-  liftIO $ putStrLn $ response $
+  liftIO $ UTF8.putStrLn $ response $
     L [A "agda2-status-action", A (quote statusString)]
 
 -- | @display_info header content@ displays @content@ (with header
@@ -351,7 +349,7 @@ display_info bufname content = do
 
 display_info' :: String -> String -> IO ()
 display_info' bufname content =
-  putStrLn $ response $
+  UTF8.putStrLn $ response $
     L [ A "agda2-info-action"
       , A (quote bufname)
       , A (quote content)
@@ -396,7 +394,7 @@ cmd_make_case ii rng s = infoOnException $ ioTCM $ do
   cs <- makeCase ii rng s
   B.withInteractionId ii $ do
     pcs <- mapM prettyA cs
-    liftIO $ putStrLn $ response $
+    liftIO $ UTF8.putStrLn $ response $
       L [ A "agda2-make-case-action",
           Q $ L $ List.map (A . quote . show) pcs
         ]
@@ -404,7 +402,7 @@ cmd_make_case ii rng s = infoOnException $ ioTCM $ do
 cmd_solveAll :: IO ()
 cmd_solveAll = infoOnException $ ioTCM $ do
     out <- getInsts =<< gets stInteractionPoints
-    liftIO $ putStrLn $ response $
+    liftIO $ UTF8.putStrLn $ response $
       L[ A"agda2-solveAll-action" , Q . L $ concatMap prn out]
   where
   getInsts = Map.foldWithKey go (return []) where
@@ -599,7 +597,7 @@ enableSyntaxHighlighting = do
 
 tellEmacsToReloadSyntaxInfo :: IO ()
 tellEmacsToReloadSyntaxInfo =
-  putStrLn $ response $ L [A "agda2-highlight-reload"]
+  UTF8.putStrLn $ response $ L [A "agda2-highlight-reload"]
 
 -- | Output syntax highlighting information for the given error
 -- (represented as a range and a string), and tell the Emacs mode to
@@ -617,7 +615,7 @@ outputErrorInfo mFile r s = do
     -- have an empty file name component.
     Just (Pn { srcFile = "" })            -> return ()
     Just (Pn { srcFile = f, posPos = p }) -> do
-      putStrLn $ response $
+      UTF8.putStrLn $ response $
         L [A "annotation-goto", Q $ L [A (show f), A ".", A (show p)]]
       when (mFile /= Just f) $ clearSyntaxInfo f
       appendSyntaxInfo f $ generateErrorInfo r s

@@ -9,9 +9,9 @@ import Data.Maybe
 import Data.Either
 import qualified Data.ByteString.Lazy as BS
 import Data.ByteString.Lazy (ByteString)
+import Codec.Binary.UTF8.String as UTF8
 
 import Agda.Utils.Tuple
-import Agda.Utils.Unicode
 
 newtype Printer a = Printer { runPrinter :: a -> ShowS }
 newtype Parser  a = Parser  { runParser :: ByteString -> (a, ByteString) }
@@ -26,13 +26,13 @@ class BiMonad m where
 
 instance BiMonad Printer where
     charS = Printer (:)
-    stringS _ = Printer $ \s rest -> toUTF8 s ++ rest
+    stringS _ = Printer $ \s rest -> UTF8.encodeString s ++ rest
     returnS _ = Printer $ const id
     bindS mkA (Printer prA) k =
 	Printer $ \b -> let a = mkA b in prA a . runPrinter (k a) b
 
 bsToString :: ByteString -> String
-bsToString = fromUTF8 . map (toEnum . fromIntegral) . BS.unpack
+bsToString = UTF8.decodeString . map (toEnum . fromIntegral) . BS.unpack
 
 instance BiMonad Parser where
     charS		 = Parser $ \s -> (toEnum . fromIntegral $ BS.head s, BS.tail s)
@@ -140,7 +140,7 @@ instance (Serialisable a, Serialisable b, Serialisable c, Serialisable d, Serial
 		 serialiser
 
 instance Serialisable String where
-    serialiser = {-# SCC "stringS" #-} bindS (length . toUTF8) serialiser stringS
+    serialiser = {-# SCC "stringS" #-} bindS (length . UTF8.encodeString) serialiser stringS
 
 instance Serialisable a => Serialisable [a] where
     serialiser = {-# SCC "listS" #-} bindS length serialiser $ \n -> replicateS n serialiser

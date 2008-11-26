@@ -13,15 +13,15 @@ import Agda.Interaction.Highlighting.Generate
 import Agda.TypeChecking.Monad (TCM)
 import Agda.Syntax.Abstract (QName)
 import Agda.Syntax.Translation.ConcreteToAbstract (TopLevelInfo)
-import Prelude hiding (writeFile, appendFile)
-import Agda.Utils.IO (writeFile, appendFile)
 import Agda.Utils.FileName
 import Agda.Utils.String
 import Agda.Utils.TestHelpers
+
 import Control.Monad.Trans
 import Data.List
 import Data.Char
 import Data.Maybe
+import qualified System.IO.UTF8 as UTF8
 
 ------------------------------------------------------------------------
 -- Read/show functions
@@ -86,7 +86,7 @@ clearSyntaxInfo
      -- ^ The path to the file which should be highlighted
      -- (not the file which should be cleared).
   -> IO ()
-clearSyntaxInfo path = writeFile (infoFileName path) ""
+clearSyntaxInfo path = UTF8.writeFile (infoFileName path) ""
 
 -- | Appends to a file with syntax highlighting information.
 
@@ -95,7 +95,7 @@ appendSyntaxInfo
   -> File      -- ^ The syntax highlighting info which should be added.
   -> IO ()
 appendSyntaxInfo path file =
-  appendFile (infoFileName path) $ showFile file
+  UTF8.appendFile (infoFileName path) $ showFile file
 
 ------------------------------------------------------------------------
 -- Driver which uses the code in

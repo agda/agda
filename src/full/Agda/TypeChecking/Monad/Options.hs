@@ -2,18 +2,16 @@
 
 module Agda.TypeChecking.Monad.Options where
 
-import Prelude hiding (putStr, putStrLn, print)
-
 import Control.Monad.Reader
 import Control.Monad.State
 import Data.Maybe
 import Text.PrettyPrint
+import qualified System.IO.UTF8 as UTF8
 
 import Agda.TypeChecking.Monad.Base
 import Agda.Interaction.Options
 import Agda.Syntax.Abstract
 import Agda.Utils.Monad
-import Agda.Utils.IO
 import Agda.Utils.List
 import Agda.Utils.Trie (Trie)
 import qualified Agda.Utils.Trie as Trie
@@ -120,11 +118,11 @@ verboseS k n action = do
     when (n <= m) action
 
 reportS :: MonadTCM tcm => VerboseKey -> Int -> String -> tcm ()
-reportS k n s = verboseS k n $ liftIO $ putStr s
+reportS k n s = verboseS k n $ liftIO $ UTF8.putStr s
 
 reportSLn :: MonadTCM tcm => VerboseKey -> Int -> String -> tcm ()
-reportSLn k n s = verboseS k n $ liftIO $ putStrLn s
+reportSLn k n s = verboseS k n $ liftIO $ UTF8.putStrLn s
 
 reportSDoc :: MonadTCM tcm => VerboseKey -> Int -> tcm Doc -> tcm ()
-reportSDoc k n d = verboseS k n $ liftIO . print =<< d
+reportSDoc k n d = verboseS k n $ liftIO . UTF8.print =<< d
 

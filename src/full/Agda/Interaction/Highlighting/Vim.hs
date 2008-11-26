@@ -2,13 +2,11 @@
 
 module Agda.Interaction.Highlighting.Vim where
 
-import Prelude hiding (writeFile)
-import Agda.Utils.IO (writeFile)
-
 import Control.Monad.Trans
 import Data.Char
 import Data.Set ( Set )
 import Data.Map ( Map )
+import qualified System.IO.UTF8 as UTF8
 
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -85,7 +83,6 @@ toVim ns = unlines $ matches mcons micons mdefs midefs
 generateVimFile :: FilePath -> TCM ()
 generateVimFile file = do
     scope <- getScope
-    liftIO $ writeFile (vimFile file) $ toVim $ names scope
+    liftIO $ UTF8.writeFile (vimFile file) $ toVim $ names scope
     where
 	names = allNamesInScope . mergeScopes . scopeStack
-

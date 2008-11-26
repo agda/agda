@@ -13,9 +13,6 @@ module Agda.Interaction.Options
     , usage
     ) where
 
-import Prelude hiding (print, putStr, putStrLn)
-import Agda.Utils.IO
-
 import Control.Monad.Error	( MonadError(catchError) )
 import Data.List		( isSuffixOf )
 import System.Console.GetOpt	(getOpt, usageInfo, ArgOrder(ReturnInOrder)

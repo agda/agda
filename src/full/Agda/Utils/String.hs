@@ -11,9 +11,9 @@ import Data.List
 -- the behaviour of 'show':
 --
 -- @
--- \> 'putStrLn' $ 'Agda.Utils.Unicode.toUTF8' $ 'show' \"\\x2200\"
+-- \> 'System.IO.UTF8.putStrLn' $ 'show' \"\\x2200\"
 -- \"\\8704\"
--- \> 'putStrLn' $ 'Agda.Utils.Unicode.toUTF8' $ 'quote' \"\\x2200\"
+-- \> 'System.IO.UTF8.putStrLn' $ 'quote' \"\\x2200\"
 -- \"&#x2200;\"
 -- @
 

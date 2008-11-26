@@ -52,7 +52,6 @@ import Agda.Syntax.Fixity
 import Agda.Syntax.Literal
 
 import Agda.TypeChecking.Monad
-import qualified Agda.Utils.IO
 import Agda.Utils.Tuple
 import Agda.Utils.Permutation
 

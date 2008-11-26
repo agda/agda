@@ -1,11 +1,8 @@
 
 module Agda.TypeChecking.Monad.Debug where
 
-import Prelude hiding ( putStrLn )
-import Agda.Utils.IO	      ( putStrLn )
-
+import qualified System.IO.UTF8 as UTF8
 import Control.Monad.Trans ( MonadIO(liftIO) )
 
 debug :: MonadIO m => String -> m ()
-debug s = liftIO $ putStrLn s
-
+debug s = liftIO $ UTF8.putStrLn s

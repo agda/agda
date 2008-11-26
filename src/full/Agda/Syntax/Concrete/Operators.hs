@@ -15,9 +15,6 @@ module Agda.Syntax.Concrete.Operators
     , mparen
     ) where
 
-import Prelude hiding (putStrLn, print, putStr)
-import Agda.Utils.IO
-
 import Control.Applicative
 import Control.Monad.Trans
 import Data.Typeable

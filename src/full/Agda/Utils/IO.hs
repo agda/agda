@@ -1,61 +1,15 @@
-{-# LANGUAGE CPP #-}
+module Agda.Utils.IO
+  ( readBinaryFile'
+  ) where
 
-module Agda.Utils.IO where
-
-import qualified Prelude (print, putStr, putStrLn, writeFile, readFile, appendFile)
-import Prelude hiding (print, putStr, putStrLn, writeFile, readFile, appendFile)
-import Control.Monad
-import qualified System.IO as IO (hPutStr)
-import System.IO hiding (print, putStr, putStrLn, writeFile, readFile, appendFile, hPutStr)
-import Agda.Utils.Unicode
-import Data.ByteString.Lazy (ByteString)
+import qualified System.IO.UTF8 as UTF8
+import qualified System.IO as IO
 import qualified Data.ByteString.Lazy as BS
-import Control.Exception as CE
-
-print :: Show a => a -> IO ()
-print x = putStrLn (show x)
-
-putStr :: String -> IO ()
-putStr s = Prelude.putStr (toUTF8 s)
-
-hPutStr :: Handle -> String -> IO ()
-hPutStr h s = IO.hPutStr h (toUTF8 s)
-
-putStrLn :: String -> IO ()
-putStrLn s = Prelude.putStrLn (toUTF8 s)
-
-putErrLn :: String -> IO ()
-putErrLn = hPutStrLn stderr . toUTF8
-
-putErr :: String -> IO ()
-putErr = hPutStr stderr . toUTF8
-
-writeFile :: FilePath -> String -> IO ()
-writeFile file = Prelude.writeFile file . toUTF8
-
-appendFile :: FilePath -> String -> IO ()
-appendFile file = Prelude.appendFile file . toUTF8
-
-readFile :: FilePath -> IO String
-readFile file = fmap fromUTF8 $ Prelude.readFile file
-
-readBinaryFile :: FilePath -> IO ByteString
-readBinaryFile file = liftM fst $ readBinaryFile' file
 
 -- | Returns a close function for the file together with the contents.
-readBinaryFile' :: FilePath -> IO (ByteString, IO ())
+
+readBinaryFile' :: FilePath -> IO (BS.ByteString, IO ())
 readBinaryFile' file = do
-    h <- openBinaryFile file ReadMode
+    h <- IO.openBinaryFile file IO.ReadMode
     s <- BS.hGetContents h
-    return (s, hClose h)
-
-writeBinaryFile :: FilePath -> String -> IO ()
-writeBinaryFile file s = do
-    h <- openBinaryFile file WriteMode
-    hPutStr h s `CE.catch` \e -> do
-      putStrLn ("Utils.IO.writeBinaryFile: failed to hPutStr for " ++
-                 file ++ ": " ++ show e)
-      hClose h
-      throwIO e
-    hClose h
-
+    return (s, IO.hClose h)

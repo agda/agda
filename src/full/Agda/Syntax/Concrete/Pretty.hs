@@ -13,7 +13,6 @@ import Agda.Syntax.Fixity
 import Agda.Syntax.Literal
 
 import Agda.Utils.Pretty
-import Agda.Utils.Unicode
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible

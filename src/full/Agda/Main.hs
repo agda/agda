@@ -4,8 +4,6 @@
 -}
 module Agda.Main where
 
-import Prelude hiding (putStrLn, putStr, print)
-
 import Control.Monad.State
 import Control.Monad.Error
 import Control.Applicative
@@ -16,8 +14,8 @@ import qualified Data.Map as Map
 import Data.Maybe
 
 import System.Environment
-import System.IO hiding (putStrLn, putStr, print, hPutStr)
 import System.Exit
+import qualified System.IO.UTF8 as UTF8
 
 import Agda.Syntax.Position
 import Agda.Syntax.Parser
@@ -57,7 +55,6 @@ import Agda.Compiler.MAlonzo.Compiler as MAlonzo
 import Agda.Termination.TermCheck
 
 import Agda.Utils.Monad
-import Agda.Utils.IO
 import Agda.Utils.FileName
 import Agda.Utils.Pretty
 import Agda.Utils.Impossible
@@ -91,7 +88,7 @@ runAgda =
 		compile <- optCompile <$> liftTCM commandLineOptions
 		alonzo <- optCompileAlonzo <$> liftTCM commandLineOptions
                 malonzo <- optCompileMAlonzo <$> liftTCM commandLineOptions
-		when i $ liftIO $ putStr splashScreen
+		when i $ liftIO $ UTF8.putStr splashScreen
 		let interaction | i	  = runIM . interactionLoop
 				| compile = Agate.compilerMain .(>> return ())
 				| alonzo  = Alonzo.compilerMain .(>> return ())
@@ -159,9 +156,9 @@ runAgda =
 				case stats of
 				    []	-> return ()
 				    _	-> liftIO $ do
-					putStrLn "Statistics"
-					putStrLn "----------"
-					mapM_ (\ (s,n) -> putStrLn $ s ++ " : " ++ show n) $
+					UTF8.putStrLn "Statistics"
+					UTF8.putStrLn "----------"
+					mapM_ (\ (s,n) -> UTF8.putStrLn $ s ++ " : " ++ show n) $
 					    sortBy (\x y -> compare (snd x) (snd y)) stats
 
 				return (insideScope topLevel, batchError)
@@ -173,17 +170,17 @@ runAgda =
 printUsage :: IO ()
 printUsage =
     do	progName <- getProgName
-	putStr $ usage standardOptions_ [] progName
+	UTF8.putStr $ usage standardOptions_ [] progName
 
 -- | Print version information.
 printVersion :: IO ()
 printVersion =
-    putStrLn $ "Agda 2 version " ++ version
+    UTF8.putStrLn $ "Agda 2 version " ++ version
 
 -- | What to do for bad options.
 optionError :: String -> IO ()
 optionError err =
-    do	putStr $ "Unrecognised argument: " ++ err
+    do	UTF8.putStr $ "Unrecognised argument: " ++ err
 	printUsage
 	exitFailure
 
@@ -192,12 +189,12 @@ main :: IO ()
 main = do
     r <- runTCM $ runAgda `catchError` \err -> do
 	s <- prettyError err
-	liftIO $ putStrLn s
+	liftIO $ UTF8.putStrLn s
 	throwError err
     case r of
 	Right _	-> return ()
 	Left _	-> exitFailure
   `catchImpossible` \e -> do
-    putStr $ show e
+    UTF8.putStr $ show e
     exitFailure
 

@@ -14,6 +14,7 @@ import System.Cmd
 import System.Directory
 import System.Exit
 import System.IO
+import qualified System.IO.UTF8 as UTF8
 import System.Time
 
 import Agda.Compiler.MAlonzo.Misc
@@ -31,7 +32,6 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
 import Agda.Utils.FileName
 import Agda.Utils.Monad
-import Agda.Utils.Unicode
 import Agda.Utils.Impossible
 
 #include "../../undefined.h"
@@ -253,7 +253,8 @@ hsCast' e = e
 --------------------------------------------------
 
 writeModule :: HsModule -> TCM ()
-writeModule m = liftIO .(`writeFileUTF8`(preamble ++ prettyPrint m))=<< outFile
+writeModule m =
+  liftIO . (`UTF8.writeFile` (preamble ++ prettyPrint m)) =<< outFile
   where
   preamble = unlines $ [ "{-# LANGUAGE EmptyDataDecls"
                        , "           , ExistentialQuantification"

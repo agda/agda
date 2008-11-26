@@ -4,7 +4,7 @@
 -}
 module Agda.Interaction.Imports where
 
-import Prelude hiding (putStrLn, putStr, print, catch)
+import Prelude hiding (catch)
 
 import Control.Monad.Error
 import Control.Monad.State
@@ -17,6 +17,7 @@ import Data.List
 import System.Directory
 import System.Time
 import Control.Exception
+import qualified System.IO.UTF8 as UTF8
 
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Abstract.Name
@@ -208,7 +209,7 @@ readInterface file = do
     handler e = case e of
       ErrorCall _   -> return Nothing
       IOException e -> do
-          putStrLn $ "IO exception: " ++ show e
+          UTF8.putStrLn $ "IO exception: " ++ show e
           return Nothing   -- work-around for file locking bug
       _		    -> throwIO e
 
@@ -216,7 +217,7 @@ writeInterface :: FilePath -> Interface -> IO ()
 writeInterface file i = do
     encodeFile file i
   `catch` \e -> do
-    putStrLn $ "failed to write interface " ++ file ++ " : " ++ show e
+    UTF8.putStrLn $ "failed to write interface " ++ file ++ " : " ++ show e
     removeFile file
     return ()
 
