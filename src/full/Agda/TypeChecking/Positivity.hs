@@ -228,6 +228,7 @@ class ComputeOccurrences a where
 
 instance ComputeOccurrences Clause where
   occurrences vars (Clause _ _ ps body) =
+    concatOccurs (zipWith match [0..] ps) >+<
     walk vars (patItems ps) body
     where
       walk _    _         NoBody     = Map.empty
@@ -242,6 +243,9 @@ instance ComputeOccurrences Clause where
       walkLambdas i vars (Lam _ b) =
         walkLambdas (i + 1) (Just (AnArg i) : vars) (absBody b)
       walkLambdas _ vars v = occurrences vars v
+
+      match i (Arg _ VarP{}) = Map.empty
+      match i _              = Map.singleton (AnArg i) [Unknown]
 
       patItems ps = concat $ zipWith patItem [0..] $ map unArg ps
       patItem i (VarP _) = [Just (AnArg i)]
