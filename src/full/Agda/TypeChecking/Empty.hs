@@ -20,11 +20,12 @@ isEmptyType t = noConstraints $ isEmptyTypeC t
 
 isEmptyTypeC :: MonadTCM tcm => Type -> tcm Constraints
 isEmptyTypeC t = do
-  t <- reduce t
-  case unEl t of
-    MetaV _ _  -> buildConstraint (IsEmpty t)
-    BlockedV _ -> buildConstraint (IsEmpty t)
-    _          -> do
+  tb <- reduceB t
+  let t = ignoreBlocking tb
+  case unEl <$> tb of
+    NotBlocked MetaV{} -> buildConstraint (IsEmpty t)
+    Blocked{}          -> buildConstraint (IsEmpty t)
+    _                  -> do
       tel0 <- getContextTelescope
       let tel = telFromList $ telToList tel0 ++ [Arg NotHidden ("_", t)]
           ps  = [ Arg h $ VarP x | Arg h (x, _) <- telToList tel ]

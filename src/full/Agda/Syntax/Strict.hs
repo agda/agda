@@ -17,7 +17,7 @@ class Strict a where
     force :: a -> Int
 
 instance Strict Term where
-    force t = case ignoreBlocking t of
+    force t = case t of
 	Var _ ts   -> force ts
 	Def _ ts   -> force ts
 	Con _ ts   -> force ts
@@ -27,7 +27,6 @@ instance Strict Term where
 	Fun a b    -> force (a,b)
 	Sort s	   -> force s
 	MetaV _ ts -> force ts
-	BlockedV _ -> __IMPOSSIBLE__
 
 instance Strict Type where
     force (El s t) = force (s,t)

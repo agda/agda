@@ -147,7 +147,7 @@ instance HasPolarity Type where
   polarities i (El _ v) = polarities i v
 
 instance HasPolarity Term where
-  polarities i v = case ignoreBlocking v of
+  polarities i v = case v of
     Var n ts  | n == i -> (Covariant :) <$> polarities i ts
               | otherwise -> polarities i ts
     Lam _ t    -> polarities i t
@@ -161,5 +161,4 @@ instance HasPolarity Term where
     Fun a b    -> (++) <$> (map neg <$> polarities i a) <*> polarities i b
     Sort _     -> return []
     MetaV _ ts -> map (const Invariant) <$> polarities i ts
-    BlockedV b -> __IMPOSSIBLE__
 

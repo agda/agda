@@ -55,7 +55,6 @@ instance ShowAsUntypedTerm Term where
     showAsUntypedTerm (Fun _ _)    = return $ text "VNonData"
     showAsUntypedTerm (Sort _)	   = return $ text "VNonData"
     showAsUntypedTerm (MetaV _ _)  = __IMPOSSIBLE__
-    showAsUntypedTerm (BlockedV _) = __IMPOSSIBLE__
 
 showUntypedApp :: ShowAsUntypedTerm a => a -> [Arg Term] -> TCM Doc
 showUntypedApp head args = do

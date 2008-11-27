@@ -32,7 +32,7 @@ import Agda.Utils.Permutation
 import Agda.Utils.Impossible
 
 -- | Reduce simple (single clause) definitions.
-reduceHead :: Term -> TCM Term
+reduceHead :: Term -> TCM (Blocked Term)
 reduceHead v = ignoreAbstractMode $ do
   v <- constructorForm v
   case v of
@@ -42,12 +42,12 @@ reduceHead v = ignoreAbstractMode $ do
 --         Function{ funClauses = [ _ ] }  -> unfoldDefinition reduceHead v f args
         Datatype{ dataClause = Just _ } -> unfoldDefinition reduceHead v f args
         Record{ recClause = Just _ }    -> unfoldDefinition reduceHead v f args
-        _                               -> return v
-    _ -> return v
+        _                               -> return $ notBlocked v
+    _ -> return $ notBlocked v
 
 headSymbol :: Term -> TCM (Maybe TermHead)
 headSymbol v = ignoreAbstractMode $ do
-  v <- reduceHead v
+  v <- ignoreBlocking <$> reduceHead v
   case v of
     Def f _ -> do
       def <- theDef <$> getConstInfo f
@@ -96,7 +96,7 @@ checkInjectivity f cs = do
 
 -- | Argument should be on weak head normal form.
 functionInverse :: Term -> TCM InvView
-functionInverse v = case ignoreBlocking v of
+functionInverse v = case v of
   Def f args -> do
     d <- theDef <$> getConstInfo f
     case d of

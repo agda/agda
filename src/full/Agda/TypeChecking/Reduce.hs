@@ -1,6 +1,5 @@
 {-# LANGUAGE CPP #-}
 
-{-| TODO: take care of hidden arguments -}
 module Agda.TypeChecking.Reduce where
 
 import Prelude hiding (mapM)
@@ -46,15 +45,18 @@ instance Instantiate Term where
 		BlockedConst _                 -> return t
                 PostponedTypeCheckingProblem _ -> return t
 		InstS _                        -> __IMPOSSIBLE__
-    instantiate v@(BlockedV (Blocked x u)) =
-	do  mi <- mvInstantiation <$> lookupMeta x
-	    case mi of
-		InstV _                        -> instantiate u
-		Open                           -> return v
-		BlockedConst _                 -> return v
-                PostponedTypeCheckingProblem _ -> return v
-		InstS _                        -> __IMPOSSIBLE__
     instantiate t = return t
+
+instance Instantiate a => Instantiate (Blocked a) where
+  instantiate v@NotBlocked{} = return v
+  instantiate v@(Blocked x u) = do
+    mi <- mvInstantiation <$> lookupMeta x
+    case mi of
+      InstV _                        -> notBlocked <$> instantiate u
+      Open                           -> return v
+      BlockedConst _                 -> return v
+      PostponedTypeCheckingProblem _ -> return v
+      InstS _                        -> __IMPOSSIBLE__
 
 instance Instantiate Type where
     instantiate (El s t) = El s <$> instantiate t
@@ -112,10 +114,18 @@ instance (Ord k, Instantiate e) => Instantiate (Map k e) where
 -- Reduction to weak head normal form.
 --
 class Reduce t where
-    reduce :: MonadTCM tcm => t -> tcm t
+    reduce  :: MonadTCM tcm => t -> tcm t
+    reduceB :: MonadTCM tcm => t -> tcm (Blocked t)
+
+    reduce  t = ignoreBlocking <$> reduceB t
+    reduceB t = notBlocked <$> reduce t
 
 instance Reduce Type where
     reduce (El s t) = El <$> reduce s <*> reduce t
+    reduceB (El s t) = do
+      s <- reduce s
+      t <- reduceB t
+      return (El s <$> t)
 
 instance Reduce Sort where
     reduce s =
@@ -128,39 +138,42 @@ instance Reduce Sort where
 		Type _	  -> return s
 		MetaS _   -> return s
 
+-- Lists are never blocked
 instance Reduce t => Reduce [t] where
     reduce = traverse reduce
 
 instance Reduce t => Reduce (Arg t) where
-    reduce = traverse reduce
+    reduce  = traverse reduce
+    reduceB t = traverse id <$> traverse reduceB t
 
+-- Tuples are never blocked
 instance (Reduce a, Reduce b) => Reduce (a,b) where
-    reduce (x,y) = (,) <$> reduce x <*> reduce y
+    reduce (x,y)  = (,) <$> reduce x <*> reduce y
 
 instance (Reduce a, Reduce b,Reduce c) => Reduce (a,b,c) where
     reduce (x,y,z) = (,,) <$> reduce x <*> reduce y <*> reduce z
 
 instance Reduce Term where
-    reduce v =
+    reduceB v =
 	{-# SCC "reduce<Term>" #-}
 	do  v <- instantiate v
 	    case v of
-		MetaV x args -> MetaV x <$> reduce args
+		MetaV x args -> notBlocked . MetaV x <$> reduce args
 		Def f args   -> do
                   rec <- whatRecursion f
                   case rec of
-                    Just CoRecursive -> return $ Def f args
-                    _                -> unfoldDefinition reduce (Def f []) f args
+                    Just CoRecursive -> return $ notBlocked $ Def f args
+                    _                -> unfoldDefinition reduceB (Def f []) f args
 		Con c args   -> do
-		    v <- unfoldDefinition reduce (Con c []) c args -- constructors can reduce
-		    reduceNat v			     -- when they come from an instantiated module
-		Sort s	   -> Sort <$> reduce s
-		Pi _ _	   -> return v
-		Fun _ _    -> return v
-		BlockedV _ -> return v
-		Lit _	   -> return v
-		Var _ _    -> return v
-		Lam _ _    -> return v
+		    v <- unfoldDefinition reduceB (Con c []) c args
+                                          -- constructors can reduce
+		    traverse reduceNat v  -- when they come from an instantiated module
+		Sort s	   -> fmap Sort <$> reduceB s
+		Pi _ _	   -> return $ notBlocked v
+		Fun _ _    -> return $ notBlocked v
+		Lit _	   -> return $ notBlocked v
+		Var _ _    -> return $ notBlocked v
+		Lam _ _    -> return $ notBlocked v
 	where
 	    reduceNat v@(Con c []) = do
 		mz <- getBuiltin' builtinZero
@@ -179,14 +192,16 @@ instance Reduce Term where
 	    reduceNat v = return v
 
 -- | The term should already be 'reduced'.
-forceCorecursion :: MonadTCM tcm => Term -> tcm Term
-forceCorecursion v = case v of
+forceCorecursion :: MonadTCM tcm => Blocked Term -> tcm (Blocked Term)
+forceCorecursion v@Blocked{} = return v
+forceCorecursion v = case ignoreBlocking v of
   Def f args  -> unfoldDefinition more (Def f []) f args
   _           -> return v
   where
-    more v = forceCorecursion =<< reduce v
+    more v = forceCorecursion =<< reduceB v
 
-unfoldDefinition :: MonadTCM tcm => (Term -> tcm Term) -> Term -> QName -> Args -> tcm Term
+unfoldDefinition :: MonadTCM tcm => (Term -> tcm (Blocked Term)) -> Term -> QName -> Args ->
+                    tcm (Blocked Term)
 unfoldDefinition keepGoing v0 f args =
     {-# SCC "reduceDef" #-}
     do  info <- getConstInfo f
@@ -194,11 +209,12 @@ unfoldDefinition keepGoing v0 f args =
             Primitive ConcreteDef x cls -> do
                 pf <- getPrimitive x
                 reducePrimitive x v0 f args pf cls
-            Constructor{conSrcCon = c} -> return $ Con (c `withRangeOf` f) args
-            _		    -> reduceNormal v0 f args $ defClauses info
+            Constructor{conSrcCon = c} ->
+              return $ notBlocked $ Con (c `withRangeOf` f) args
+            _  -> reduceNormal v0 f args $ defClauses info
   where
     reducePrimitive x v0 f args pf cls
-        | n < ar    = return $ v0 `apply` args	-- not fully applied
+        | n < ar    = return $ notBlocked $ v0 `apply` args -- not fully applied
         | otherwise = do
             let (args1,args2) = genericSplitAt ar args
             r <- def args1
@@ -212,7 +228,7 @@ unfoldDefinition keepGoing v0 f args =
 
     reduceNormal v0 f args def = do
         case def of
-            [] -> return $ v0 `apply` args -- no definition for head
+            [] -> return $ notBlocked $ v0 `apply` args -- no definition for head
             cls@(Clause _ _ ps _ : _)
                 | length ps <= length args ->
                     do  let (args1,args2) = splitAt (length ps) args 
@@ -220,24 +236,24 @@ unfoldDefinition keepGoing v0 f args =
                         case ev of
                             NoReduction v  -> return $ v `apply` args2
                             YesReduction v -> keepGoing $ v `apply` args2
-                | otherwise	-> return $ v0 `apply` args -- partial application
+                | otherwise	-> return $ notBlocked $ v0 `apply` args -- partial application
 
     -- Apply a defined function to it's arguments.
     --   The original term is the first argument applied to the third.
-    appDef :: MonadTCM tcm => Term -> [Clause] -> Args -> tcm (Reduced Term Term)
+    appDef :: MonadTCM tcm => Term -> [Clause] -> Args -> tcm (Reduced (Blocked Term) Term)
     appDef v cls args = goCls cls args where
 
-        goCls :: MonadTCM tcm => [Clause] -> Args -> tcm (Reduced Term Term)
+        goCls :: MonadTCM tcm => [Clause] -> Args -> tcm (Reduced (Blocked Term) Term)
         goCls [] args = typeError $ IncompletePatternMatching v args
         goCls (cl@(Clause _ _ pats body) : cls) args = do
             (m, args) <- matchPatterns pats args
             case m of
                 No		  -> goCls cls args
-                DontKnow Nothing  -> return $ NoReduction $ v `apply` args
+                DontKnow Nothing  -> return $ NoReduction $ notBlocked $ v `apply` args
                 DontKnow (Just m) -> return $ NoReduction $ blocked m $ v `apply` args
                 Yes args'
                   | hasBody body  -> return $ YesReduction $ app args' body
-                  | otherwise	  -> return $ NoReduction $ v `apply` args
+                  | otherwise	  -> return $ NoReduction $ notBlocked $ v `apply` args
 
         hasBody (Body _)	 = True
         hasBody NoBody		 = False
@@ -287,7 +303,7 @@ instance Normalise Type where
 instance Normalise Term where
     normalise v =
 	do  v <- reduce v
-	    case ignoreBlocking v of
+	    case v of
 		Var n vs    -> Var n <$> normalise vs
 		Con c vs    -> Con c <$> normalise vs
 		Def f vs    -> Def f <$> normalise vs
@@ -297,7 +313,6 @@ instance Normalise Term where
 		Sort s	    -> Sort <$> normalise s
 		Pi a b	    -> uncurry Pi <$> normalise (a,b)
 		Fun a b     -> uncurry Fun <$> normalise (a,b)
-		BlockedV _  -> __IMPOSSIBLE__
 
 instance Normalise ClauseBody where
     normalise (Body   t) = Body   <$> normalise t
@@ -380,7 +395,7 @@ instance InstantiateFull Type where
 instance InstantiateFull Term where
     instantiateFull v =
 	do  v <- instantiate v
-	    case ignoreBlocking v of
+	    case v of
 		Var n vs   -> Var n <$> instantiateFull vs
 		Con c vs   -> Con c <$> instantiateFull vs
 		Def f vs   -> Def f <$> instantiateFull vs
@@ -390,7 +405,6 @@ instance InstantiateFull Term where
 		Sort s	   -> Sort <$> instantiateFull s
 		Pi a b	   -> uncurry Pi <$> instantiateFull (a,b)
 		Fun a b    -> uncurry Fun <$> instantiateFull (a,b)
-		BlockedV _ -> __IMPOSSIBLE__
 
 instance InstantiateFull ClauseBody where
     instantiateFull (Body   t) = Body   <$> instantiateFull t

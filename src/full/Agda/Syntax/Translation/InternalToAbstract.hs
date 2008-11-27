@@ -153,7 +153,7 @@ reifyDisplayFormP lhs@(A.LHS i x ps wps) =
 instance Reify Term Expr where
     reify v =
 	do  v <- instantiate v
-	    case ignoreBlocking v of
+	    case v of
 		I.Var n vs   -> do
                     x  <- liftTCM $ nameOfBV n `catchError` \_ -> freshName_ ("@" ++ show n)
                     reifyApp (A.Var x) vs
@@ -188,7 +188,6 @@ instance Reify Term Expr where
 				<$> reify (a,b)
 		I.Sort s     -> reify s
 		I.MetaV x vs -> apps =<< reify (x,vs)
-		I.BlockedV _ -> __IMPOSSIBLE__
 
 data NamedClause = NamedClause QName Recursion I.Clause
 

@@ -68,6 +68,10 @@ instance PrettyTCM Type where prettyTCM x = prettyA =<< reify x
 instance PrettyTCM Sort where prettyTCM x = prettyA =<< reify x
 instance PrettyTCM DisplayTerm where prettyTCM x = prettyA =<< reify x
 
+instance PrettyTCM a => PrettyTCM (Blocked a) where
+  prettyTCM (Blocked x a) = text "[" <+> prettyTCM a <+> text "]" <> text (show x)
+  prettyTCM (NotBlocked x) = prettyTCM x
+
 instance (Reify a e, ToConcrete e c, P.Pretty c) => PrettyTCM (Arg a) where
     prettyTCM x = prettyA =<< reify x
 

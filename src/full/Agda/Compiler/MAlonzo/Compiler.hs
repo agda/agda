@@ -189,7 +189,6 @@ term tm0 = case tm0 of
   Fun   _ _  -> return unit_con
   Sort  _    -> return unit_con
   MetaV _ _  -> mazerror "hit MetaV"
-  BlockedV _ -> mazerror "hit BlockedV"
   where apps =  foldM (\h a -> HsApp h <$> term (unArg a))
 
 literal :: Literal -> TCM HsExp

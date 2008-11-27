@@ -407,7 +407,8 @@ instance ShrinkC a b => ShrinkC (Arg a) (Arg b) where
   noShrink = fmap noShrink
 
 instance ShrinkC a b => ShrinkC (Blocked a) (Blocked b) where
-  shrinkC conf (Blocked m x) = Blocked m <$> shrinkC conf x
+  shrinkC conf (Blocked m x)  = Blocked m <$> shrinkC conf x
+  shrinkC conf (NotBlocked x) = NotBlocked <$> shrinkC conf x
   noShrink = fmap noShrink
 
 instance ShrinkC Sort Sort where
@@ -447,11 +448,10 @@ instance ShrinkC Term Term where
 		    (uncurry Fun <$> shrinkC conf (a, b))
     Sort s       -> Sort <$> shrinkC conf s
     MetaV m args -> map unArg args ++ (MetaV m <$> shrinkC conf (NoType args))
-    BlockedV b	 -> blockee b : (BlockedV <$> shrinkC conf b)
     where
       validType t
 	| not (tcIsType conf) = True
-	| otherwise	    = case ignoreBlocking t of
+	| otherwise	    = case t of
 	    Con _ _ -> False
 	    Lam _ _ -> False
 	    Lit _	  -> False
@@ -477,7 +477,6 @@ instance KillVar Term where
     Pi a b		   -> uncurry Pi  $ killVar i (a, b)
     Fun a b		   -> uncurry Fun $ killVar i (a, b)
     MetaV m args	   -> MetaV m	  $ killVar i args
-    BlockedV (Blocked m t) -> BlockedV . Blocked m $ killVar i t
 
 instance KillVar Type where
   killVar i (El s t) = El s $ killVar i t

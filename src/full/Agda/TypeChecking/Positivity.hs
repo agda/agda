@@ -258,7 +258,7 @@ instance ComputeOccurrences Clause where
         LitP{}    -> 0
 
 instance ComputeOccurrences Term where
-  occurrences vars v = case ignoreBlocking v of
+  occurrences vars v = case v of
     Var i args ->
       maybe Map.empty here (vars ! fromIntegral i)
       >+< occursAs VarArg (occurrences vars args)
@@ -274,7 +274,6 @@ instance ComputeOccurrences Term where
     Lam _ b      -> occurrences vars b
     Lit{}        -> Map.empty
     Sort{}       -> Map.empty
-    BlockedV{}   -> __IMPOSSIBLE__
     where
       vs ! i
         | i < length vs = vs !! i

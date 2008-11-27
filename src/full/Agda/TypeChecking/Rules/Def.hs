@@ -549,11 +549,11 @@ checkLHS ps t ret = do
 actualConstructor :: MonadTCM tcm => QName -> tcm QName
 actualConstructor c = do
     v <- constructorForm =<< normalise (Con c [])
-    case ignoreBlocking v of
+    case v of
         Con c _ -> return c
         _       -> actualConstructor =<< stripLambdas v
     where
-        stripLambdas v = case ignoreBlocking v of
+        stripLambdas v = case v of
             Con c _ -> return c
             Lam h b -> do
                 x <- freshName_ $ absName b

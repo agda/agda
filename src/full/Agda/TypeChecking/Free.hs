@@ -55,7 +55,7 @@ class Free a where
   freeVars :: a -> FreeVars
 
 instance Free Term where
-  freeVars t = case ignoreBlocking t of
+  freeVars t = case t of
     Var n ts   -> singleton n `union` freeVars ts
     Lam _ t    -> freeVars t
     Lit _      -> empty
@@ -65,7 +65,6 @@ instance Free Term where
     Fun a b    -> freeVars (a,b)
     Sort _     -> empty
     MetaV _ ts -> flexible $ freeVars ts
-    BlockedV b -> __IMPOSSIBLE__
 
 instance Free Type where
   freeVars (El _ t) = freeVars t

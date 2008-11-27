@@ -22,7 +22,7 @@ class AbstractTerm a where
   abstractTerm :: Term -> a -> a
 
 instance AbstractTerm Term where
-  abstractTerm u v = case ignoreBlocking v of
+  abstractTerm u v = case v of
     v | u == v  -> Var 0 []
     Var i vs    -> Var (i + 1) $ absT vs
     Lam h b     -> Lam h $ absT b
@@ -33,7 +33,6 @@ instance AbstractTerm Term where
     Lit l       -> Lit l
     Sort s      -> Sort s
     MetaV m vs  -> MetaV m $ absT vs
-    BlockedV _  -> __IMPOSSIBLE__
     where
       absT x = abstractTerm u x
 

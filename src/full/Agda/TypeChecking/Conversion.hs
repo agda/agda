@@ -7,6 +7,7 @@ import Control.Monad
 import Control.Monad.State
 import Control.Monad.Error
 import Data.Generics
+import Data.Traversable hiding (mapM)
 import Data.List hiding (sort)
 
 import Agda.Syntax.Common
@@ -61,7 +62,7 @@ compareTerm cmp a m n =
   catchConstraint (ValueCmp cmp a m n) $ do
     a'       <- reduce a
     reportSDoc "tc.conv.term" 10 $ fsep
-      [ text "compareTerm", prettyTCM m, prettyTCM cmp, prettyTCM n, text ":", prettyTCM a ]
+      [ text "compareTerm", prettyTCM m, prettyTCM cmp, prettyTCM n, text ":", prettyTCM a' ]
     proofIrr <- proofIrrelevance
     isSize   <- isSizeType a'
     s        <- reduce $ getSort a'
@@ -81,22 +82,22 @@ compareTerm cmp a m n =
           isrec <- isRecord r
           if isrec
             then do
-              (m, n) <- reduce (m, n)
+              m <- reduceB m
+              n <- reduceB n
               case (m, n) of
                 _ | isNeutral m && isNeutral n ->
-                    compareAtom cmp a' m n
+                    compareAtom cmp a' (ignoreBlocking m) (ignoreBlocking n)
                 _ -> do
-                  (tel, m') <- etaExpandRecord r ps m
-                  (_  , n') <- etaExpandRecord r ps n
+                  (tel, m') <- etaExpandRecord r ps $ ignoreBlocking m
+                  (_  , n') <- etaExpandRecord r ps $ ignoreBlocking n
                   -- No subtyping on record terms
                   compareArgs [] (telePi_ tel $ sort Prop) m' n'
             else compareAtom cmp a' m n
         _ -> compareAtom cmp a' m n
   where
-    isNeutral (MetaV _ _)  = False
-    isNeutral (Con _ _)    = False
-    isNeutral (BlockedV _) = False
-    isNeutral _	       = True
+    isNeutral Blocked{}          = False
+    isNeutral (NotBlocked Con{}) = False
+    isNeutral _                  = True
 
     equalFun (a,t) m n = do
         name <- freshName_ (suggest $ unEl t)
@@ -113,12 +114,60 @@ compareTerm cmp a m n =
 --
 compareAtom :: MonadTCM tcm => Comparison -> Type -> Term -> Term -> tcm Constraints
 compareAtom cmp t m n =
-    catchConstraint (ValueCmp cmp t m n) $
-    do	m <- constructorForm =<< reduce m
-	n <- constructorForm =<< reduce n
-	reportSDoc "tc.conv.atom" 10 $ fsep
-	  [ text "compareAtom", prettyTCM m, prettyTCM cmp, prettyTCM n, text ":", prettyTCM t ]
-	case (m, n) of
+    catchConstraint (ValueCmp cmp t m n) $ do
+      mb <- traverse constructorForm =<< reduceB m
+      nb <- traverse constructorForm =<< reduceB n
+      let m = ignoreBlocking mb
+          n = ignoreBlocking nb
+      reportSDoc "tc.conv.atom" 10 $ fsep
+	[ text "compareAtom", prettyTCM mb, prettyTCM cmp, prettyTCM nb, text ":", prettyTCM t ]
+      case (mb, nb) of
+        (NotBlocked (MetaV x xArgs), NotBlocked (MetaV y yArgs))
+            | x == y -> if   sameVars xArgs yArgs
+                        then return []
+                        else do -- Check syntactic equality on meta-variables
+                                -- (same as for blocked terms)
+                          m <- normalise m
+                          n <- normalise n
+                          if m == n
+                            then return []
+                            else buildConstraint (ValueCmp cmp t m n)
+            | otherwise -> do
+                [p1, p2] <- mapM getMetaPriority [x,y]
+                -- instantiate later meta variables first
+                let (solve1, solve2)
+                      | (p1,x) > (p2,y) = (l,r)
+                      | otherwise	    = (r,l)
+                      where l = assignV t x xArgs n
+                            r = assignV t y yArgs m
+                    try m fallback = do
+                      cs <- m
+                      case cs of
+                        []	-> return []
+                        _	-> fallback cs
+
+                -- First try the one with the highest priority. If that doesn't
+                -- work, try the low priority one. If that doesn't work either,
+                -- go with the first version.
+                rollback <- return . put =<< get
+                try solve1 $ \cs -> do
+                  undoRollback <- return . put =<< get
+                  rollback
+                  try solve2 $ \_ -> do
+                    undoRollback
+                    return cs
+
+	(NotBlocked (MetaV x xArgs), _) -> assignV t x xArgs n
+	(_, NotBlocked (MetaV x xArgs)) -> assignV t x xArgs m
+        (Blocked{}, Blocked{})	-> do
+            n <- normalise n    -- is this what we want?
+            m <- normalise m
+            if m == n
+                then return []	-- Check syntactic equality for blocked terms
+                else buildConstraint $ ValueCmp cmp t m n
+        (Blocked{}, _)    -> useInjectivity cmp t m n
+        (_,Blocked{})     -> useInjectivity cmp t m n
+        _ -> case (m, n) of
 	    _ | f1@(FunV _ _) <- funView m
 	      , f2@(FunV _ _) <- funView n -> equalFun f1 f2
 
@@ -153,51 +202,6 @@ compareAtom cmp t m n =
                     -- Constructors are invariant in their arguments
                     -- (could be covariant).
 		    compareArgs [] a' xArgs yArgs
-	    (MetaV x xArgs, MetaV y yArgs)
-		| x == y -> if   sameVars xArgs yArgs
-			    then return []
-			    else do -- Check syntactic equality on meta-variables
-				    -- (same as for blocked terms)
-			      m <- normalise m
-			      n <- normalise n
-			      if m == n
-				then return []
-				else buildConstraint (ValueCmp cmp t m n)
-		| otherwise -> do
-		    [p1, p2] <- mapM getMetaPriority [x,y]
-		    -- instantiate later meta variables first
-		    let (solve1, solve2)
-			  | (p1,x) > (p2,y) = (l,r)
-			  | otherwise	    = (r,l)
-			  where l = assignV t x xArgs n
-				r = assignV t y yArgs m
-			try m fallback = do
-			  cs <- m
-			  case cs of
-			    []	-> return []
-			    _	-> fallback cs
-
-		    -- First try the one with the highest priority. If that doesn't
-		    -- work, try the low priority one. If that doesn't work either,
-		    -- go with the first version.
-		    rollback <- return . put =<< get
-		    try solve1 $ \cs -> do
-		      undoRollback <- return . put =<< get
-		      rollback
-		      try solve2 $ \_ -> do
-			undoRollback
-			return cs
-
-	    (MetaV x xArgs, _) -> assignV t x xArgs n
-	    (_, MetaV x xArgs) -> assignV t x xArgs m
-	    (BlockedV _, BlockedV _)	-> do
-		n <- normalise n    -- is this what we want?
-		m <- normalise m
-		if m == n
-		    then return []	-- Check syntactic equality for blocked terms
-		    else buildConstraint $ ValueCmp cmp t m n
-	    (BlockedV b, _)    -> useInjectivity cmp t m n
-	    (_,BlockedV b)     -> useInjectivity cmp t m n
 	    _		       -> typeError $ UnequalTerms cmp m n t
     where
 	equalFun (FunV arg1@(Arg h1 a1) t1) (FunV (Arg h2 a2) t2)

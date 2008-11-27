@@ -4,6 +4,7 @@ module Agda.TypeChecking.Patterns.Match where
 
 import Control.Monad
 import Data.Monoid
+import Data.Traversable
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -48,23 +49,25 @@ matchPattern :: MonadTCM tcm => Arg Pattern -> Arg Term -> tcm (Match, Arg Term)
 matchPattern (Arg h' (VarP _))	  arg@(Arg _ v) = return (Yes [v], arg)
 matchPattern (Arg _  (DotP _))    arg@(Arg _ v) = return (Yes [v], arg)
 matchPattern (Arg h' (LitP l))	  arg@(Arg h v) = do
-    v <- forceCorecursion =<< reduce v
-    case v of
-	Lit l'
-	    | l == l'	-> return (Yes [], Arg h v)
-	    | otherwise	-> return (No, Arg h v)
-	MetaV x _	-> return (DontKnow $ Just x, Arg h v)
-	BlockedV b	-> return (DontKnow $ Just $ blockingMeta b, Arg h v)
-	_		-> return (DontKnow Nothing, Arg h v)
+    w <- forceCorecursion =<< reduceB v
+    let v = ignoreBlocking w
+    case w of
+	NotBlocked (Lit l')
+	    | l == l'          -> return (Yes [], Arg h v)
+	    | otherwise        -> return (No, Arg h v)
+	NotBlocked (MetaV x _) -> return (DontKnow $ Just x, Arg h v)
+	Blocked x _            -> return (DontKnow $ Just x, Arg h v)
+	_                      -> return (DontKnow Nothing, Arg h v)
 matchPattern (Arg h' (ConP c ps))     (Arg h v) =
-    do	v <- constructorForm =<< forceCorecursion =<< reduce v
-	case v of
-	    Con c' vs
-		| c == c'   -> do
-		    (m, vs) <- matchPatterns ps vs
-		    return (m, Arg h $ Con c' vs)
-		| otherwise -> return (No, Arg h v)
-	    MetaV x vs -> return (DontKnow $ Just x, Arg h v)
-	    BlockedV b -> return (DontKnow $ Just $ blockingMeta b, Arg h v)
-	    _	       -> return (DontKnow Nothing, Arg h v)
+    do	w <- traverse constructorForm =<< forceCorecursion =<< reduceB v
+        let v = ignoreBlocking w
+	case w of
+	  NotBlocked (Con c' vs)
+	    | c == c'             -> do
+		(m, vs) <- matchPatterns ps vs
+		return (m, Arg h $ Con c' vs)
+	    | otherwise           -> return (No, Arg h v)
+	  NotBlocked (MetaV x vs) -> return (DontKnow $ Just x, Arg h v)
+	  Blocked x _             -> return (DontKnow $ Just x, Arg h v)
+          _                       -> return (DontKnow Nothing, Arg h v)
 

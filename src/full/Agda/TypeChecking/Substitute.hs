@@ -35,7 +35,6 @@ instance Apply Term where
 	    Con c args'   -> Con c (args' ++ args)
 	    Lam _ u	  -> absApp u v `apply` args0
 	    MetaV x args' -> MetaV x (args' ++ args) 
-	    BlockedV b	  -> BlockedV $ b `apply` args
 	    Lit l	  -> __IMPOSSIBLE__
 	    Pi _ _	  -> __IMPOSSIBLE__
 	    Fun _ _	  -> __IMPOSSIBLE__
@@ -225,7 +224,6 @@ instance Subst Term where
 	    Pi a b     -> uncurry Pi $ substs us (a,b)
 	    Fun a b    -> uncurry Fun $ substs us (a,b)
 	    Sort s     -> Sort s
-	    BlockedV b -> BlockedV $ substs us b
         where
             []     !!! n = error "unbound variable"
             (x:xs) !!! 0 = x
@@ -244,7 +242,6 @@ instance Subst Term where
 	    Pi a b     -> uncurry Pi $ substUnder n u (a,b)
 	    Fun a b    -> uncurry Fun $ substUnder n u (a,b)
 	    Sort s     -> Sort s
-	    BlockedV b -> BlockedV $ substUnder n u b
 
 instance Subst Type where
     substs us (El s t) = El s $ substs us t
@@ -330,7 +327,6 @@ instance Raise Term where
 	    Pi a b	    -> uncurry Pi $ rf (a,b)
 	    Fun a b	    -> uncurry Fun $ rf (a,b)
 	    Sort s	    -> Sort s
-	    BlockedV b	    -> BlockedV $ rf b
 	where
 	    rf x = raiseFrom m k x
 

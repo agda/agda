@@ -195,8 +195,9 @@ checkExpr e t =
                 let getCon = do
                       t <- normalise t
                       let TelV _ t1 = telView t
-                      case unEl t1 of
-                        Def d _ -> do
+                      t1 <- reduceB $ unEl t1
+                      case t1 of
+                        NotBlocked (Def d _) -> do
                           defn <- theDef <$> getConstInfo d
                           case defn of
                             Datatype{} ->
@@ -204,8 +205,8 @@ checkExpr e t =
                                 c:_   -> return (Just c)
                                 []    -> fail $ show (head cs) ++ " does not construct an element of the datatype " ++ show d
                             _ -> return Nothing
-                        MetaV _ _  -> return Nothing
-                        BlockedV _ -> return Nothing
+                        NotBlocked (MetaV _ _)  -> return Nothing
+                        Blocked{} -> return Nothing
                              -- TODO: error message
                         _ -> fail $ show (head cs) ++ " does not construct an element of " ++ show t
                 let unblock = isJust <$> getCon

@@ -39,7 +39,6 @@ data Term = Var Nat Args
 	  | Fun (Arg Type) Type
 	  | Sort Sort
 	  | MetaV MetaId Args
-	  | BlockedV (Blocked Term) -- ^ returned by 'Agda.TypeChecking.Reduce.reduce'
   deriving (Typeable, Data, Eq, Show)
 
 data Type = El Sort Term
@@ -52,24 +51,32 @@ data Sort = Type Nat
 	  | MetaS MetaId 
   deriving (Typeable, Data, Eq, Show)
 
--- | Something where a particular meta variable blocks reduction.
-data Blocked t = Blocked { blockingMeta :: MetaId
-			 , blockee	:: t
-			 }
+-- | Something where a meta variable may block reduction.
+data Blocked t = Blocked MetaId t
+               | NotBlocked t
     deriving (Typeable, Data, Eq)
 
 instance Show t => Show (Blocked t) where
   showsPrec p (Blocked m x) = showParen (p > 0) $
     showString "Blocked " . shows m . showString " " . showsPrec 10 x
+  showsPrec p (NotBlocked x) = showsPrec p x
 
 instance Functor Blocked where
-    fmap f (Blocked m t) = Blocked m $ f t
+  fmap f (Blocked m t) = Blocked m $ f t
+  fmap f (NotBlocked t) = NotBlocked $ f t
 
 instance Foldable Blocked where
-    foldr f z (Blocked _ x) = f x z
+  foldr f z (Blocked _ x) = f x z
+  foldr f z (NotBlocked x) = f x z
 
 instance Traversable Blocked where
-    traverse f (Blocked m t) = Blocked m <$> f t
+  traverse f (Blocked m t)  = Blocked m <$> f t
+  traverse f (NotBlocked t) = NotBlocked <$> f t
+
+instance Applicative Blocked where
+  pure = notBlocked
+  Blocked x f  <*> e = Blocked x $ f (ignoreBlocking e)
+  NotBlocked f <*> e = f <$> e
 
 instance Sized Term where
   size v = case v of
@@ -82,7 +89,6 @@ instance Sized Term where
     Pi a b     -> 1 + size a + size b
     Fun a b    -> 1 + size a + size b
     Sort s     -> 1
-    BlockedV b -> size (blockee b)
 
 instance Sized Type where
   size = size . unEl
@@ -98,7 +104,6 @@ instance KillRange Term where
     Pi a b     -> killRange2 Pi a b
     Fun a b    -> killRange2 Fun a b
     Sort s     -> killRange1 Sort s
-    BlockedV b -> killRange1 BlockedV b
 
 instance KillRange Type where
   killRange (El s v) = killRange2 El s v
@@ -233,12 +238,19 @@ funView t	      = NoFunV t
 -- * Smart constructors
 ---------------------------------------------------------------------------
 
-blocked :: MetaId -> Term -> Term
-blocked x t = BlockedV $ Blocked x t
+blockingMeta :: Blocked t -> Maybe MetaId
+blockingMeta (Blocked m _) = Just m
+blockingMeta (NotBlocked _) = Nothing
 
-ignoreBlocking :: Term -> Term
-ignoreBlocking (BlockedV b) = blockee b
-ignoreBlocking v	    = v
+blocked :: MetaId -> a -> Blocked a
+blocked x = Blocked x
+
+notBlocked :: a -> Blocked a
+notBlocked = NotBlocked
+
+ignoreBlocking :: Blocked a -> a
+ignoreBlocking (Blocked _ x) = x
+ignoreBlocking (NotBlocked x) = x
 
 set0   = sort (Type 0)
 set n  = sort (Type n)

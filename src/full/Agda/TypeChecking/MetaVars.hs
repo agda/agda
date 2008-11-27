@@ -202,11 +202,11 @@ postponeTypeCheckingProblem_ e t =
   postponeTypeCheckingProblem e t unblock
   where
     unblock = do
-      t <- reduce t
-      case unEl t of
-        MetaV _ _  -> return False
-        BlockedV _ -> return False
-        _          -> return True
+      t <- reduceB $ unEl t
+      case t of
+        Blocked{}          -> return False
+        NotBlocked MetaV{} -> return False
+        _                  -> return True
 
 postponeTypeCheckingProblem :: MonadTCM tcm => A.Expr -> Type -> TCM Bool -> tcm Term
 postponeTypeCheckingProblem e t unblock = do
@@ -233,10 +233,11 @@ etaExpandMeta m = do
   let args	 = [ Arg h $ Var i []
 		   | (i, Arg h _) <- reverse $ zip [0..] $ reverse $ telToList tel
 		   ]
-  case unEl b of
-    BlockedV b	-> listenToMeta m (blockingMeta b)
-    MetaV i _	-> listenToMeta m i
-    Def r ps	->
+  bb <- reduceB b
+  case unEl <$> bb of
+    Blocked x _            -> listenToMeta m x
+    NotBlocked (MetaV x _) -> listenToMeta m x
+    NotBlocked (Def r ps)  ->
       ifM (isRecord r) (do
 	rng <- getMetaRange m
 	u   <- setCurrentRange rng $ newRecordMetaCtx r ps tel args
@@ -259,13 +260,13 @@ occursCheck m xs = liftTCM . occurs typeError m xs
 
 instance Occurs Term where
     occurs abort m xs v = do
-	v <- reduce v
+	v <- reduceB v
 	case v of
-	    -- Don't fail on blocked terms
-	    BlockedV b	-> occurs' (const patternViolation) v
-	    _		-> occurs' abort v
+	    -- Don't fail on blocked terms or metas
+	    Blocked _ v          -> occurs' (const patternViolation) v
+	    NotBlocked v         -> occurs' abort v
 	where
-	    occurs' abort v = case ignoreBlocking v of
+	    occurs' abort v = case v of
 		Var i vs   -> do
 		  unless (i `elem` xs) $ abort $ MetaCannotDependOn m xs i
 		  Var i <$> occ vs
@@ -280,7 +281,6 @@ instance Occurs Term where
 		    when (m == m') $ abort $ MetaOccursInItself m
 		    -- Don't fail on flexible occurrence
 		    MetaV m' <$> occurs (const patternViolation) m xs vs
-		BlockedV _  -> __IMPOSSIBLE__
 		where
 		    occ x = occurs abort m xs x
 

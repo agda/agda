@@ -43,7 +43,7 @@ import qualified Codec.Compression.GZip as G
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Abstract.Name as A
-import Agda.Syntax.Internal
+import Agda.Syntax.Internal as I
 import Agda.Syntax.Scope.Base
 import Agda.Syntax.Position (Position(..), Range)
 import qualified Agda.Syntax.Position as P
@@ -60,7 +60,7 @@ import Agda.Utils.Impossible
 
 
 currentInterfaceVersion :: Int
-currentInterfaceVersion = 20081104
+currentInterfaceVersion = 20081127
 
 type Node = [Int] -- constructor tag (maybe omitted) and arg indices
 
@@ -306,26 +306,21 @@ instance EmbPrj Agda.Syntax.Common.Hiding where
                            valu [1] = valu0 NotHidden
                            valu _   = __IMPOSSIBLE__
 
-instance EmbPrj Agda.Syntax.Internal.Type where
+instance EmbPrj I.Type where
   icode (El a b) = icode2' a b
   value = vcase valu where valu [a, b] = valu2 El a b
                            valu _      = __IMPOSSIBLE__
 
-instance EmbPrj Agda.Syntax.Internal.MetaId where
+instance EmbPrj I.MetaId where
   icode (MetaId a) = icode a
   value n = MetaId `fmap` value n
 
-instance (EmbPrj a) => EmbPrj (Agda.Syntax.Internal.Blocked a) where
-  icode (Blocked a b) = icode2' a b
-  value = vcase valu where valu [a, b] = valu2 Blocked a b
-                           valu _      = __IMPOSSIBLE__
-
-instance (EmbPrj a) => EmbPrj (Agda.Syntax.Internal.Abs a) where
+instance (EmbPrj a) => EmbPrj (I.Abs a) where
   icode (Abs a b) = icode2' a b
   value = vcase valu where valu [a, b] = valu2 Abs a b
                            valu _      = __IMPOSSIBLE__
 
-instance EmbPrj Agda.Syntax.Internal.Term where
+instance EmbPrj I.Term where
   icode (Var      a b) = icode2 0 a b
   icode (Lam      a b) = icode2 1 a b
   icode (Lit      a  ) = icode1 2 a
@@ -335,7 +330,6 @@ instance EmbPrj Agda.Syntax.Internal.Term where
   icode (Fun      a b) = icode2 6 a b
   icode (Sort     a  ) = icode1 7 a
   icode (MetaV    a b) = icode2 8 a b
-  icode (BlockedV a  ) = icode1 9 a
   value = vcase valu where valu [0, a, b] = valu2 Var   a b 
                            valu [1, a, b] = valu2 Lam   a b 
                            valu [2, a]    = valu1 Lit   a
@@ -345,10 +339,9 @@ instance EmbPrj Agda.Syntax.Internal.Term where
                            valu [6, a, b] = valu2 Fun   a b
                            valu [7, a]    = valu1 Sort  a
                            valu [8, a, b] = valu2 MetaV a b
-                           valu [9, a]    = valu1 BlockedV a
                            valu _         = __IMPOSSIBLE__
 
-instance EmbPrj Agda.Syntax.Internal.Sort where
+instance EmbPrj I.Sort where
   icode (Type  a  ) = icode1 0 a
   icode Prop        = icode0 1
   icode (Lub   a b) = icode2 2 a b
@@ -472,12 +465,12 @@ instance EmbPrj Agda.Syntax.Common.IsAbstract where
                            valu [1] = valu0 ConcreteDef
                            valu _   = __IMPOSSIBLE__
 
-instance EmbPrj Agda.Syntax.Internal.Clause where
+instance EmbPrj I.Clause where
   icode (Clause a b c d) = icode4' a b c d
   value = vcase valu where valu [a, b, c, d] = valu4 Clause a b c d
                            valu _            = __IMPOSSIBLE__
 
-instance EmbPrj Agda.Syntax.Internal.ClauseBody where
+instance EmbPrj I.ClauseBody where
   icode (Body   a) = icode1 0 a
   icode (Bind   a) = icode1 1 a
   icode (NoBind a) = icode1 2 a
@@ -488,7 +481,7 @@ instance EmbPrj Agda.Syntax.Internal.ClauseBody where
                            valu []     = valu0 NoBody
                            valu _      = __IMPOSSIBLE__
 
-instance EmbPrj Agda.Syntax.Internal.Pattern where
+instance EmbPrj I.Pattern where
   icode (VarP a  ) = icode1 0 a
   icode (ConP a b) = icode2 1 a b
   icode (LitP a  ) = icode1 2 a

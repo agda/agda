@@ -379,7 +379,7 @@ termTerm names f pats0 rec t0 = do
        loop pats guarded t = do
          t <- instantiate t          -- instantiate top-level MetaVar
          suc <- sizeSuc
-         case ignoreBlocking t of  -- removes BlockedV case
+         case t of
 
             -- call to defined function
             Def g args0 ->
@@ -390,7 +390,7 @@ termTerm names f pats0 rec t0 = do
                   let reduceCon t@(Con _ _) = reduce t
                       reduceCon t           = return t
                   args2 <- mapM reduceCon args2
-                  let args = map (etaContract . ignoreBlocking) args2
+                  let args = map etaContract args2
 
                   -- collect calls in the arguments of this call
                   calls <- collectCalls (loop pats Unknown) args
@@ -470,8 +470,6 @@ termTerm names f pats0 rec t0 = do
 	    -- will be a warning for them anyway.
             MetaV x args -> return Term.empty
 
-            BlockedV{} -> __IMPOSSIBLE__
-
 {- | compareArgs suc pats ts
 
      compare a list of de Bruijn patterns (=parameters) @pats@ 
@@ -511,7 +509,7 @@ compareTerm t p = Term.supremum $ compareTerm' t p : map cmp (subPatterns p)
 -}
 
 -- | compareTerm t dbpat
---   Precondition: t not a BlockedV, top meta variable resolved
+--   Precondition: top meta variable resolved
 compareTerm' :: Maybe QName -> Term -> DeBruijnPat -> TCM Term.Order
 compareTerm' _ (Var i _)  p              = return $ compareVar i p
 compareTerm' _ (Lit l)    (LitDBP l')

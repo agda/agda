@@ -92,7 +92,7 @@ haskellType = liftTCM . fromType
     fromType = fromTerm . unEl
     fromTerm v = do
       v <- reduce v
-      case ignoreBlocking v of
+      case v of
         Var x args -> hsApp <$> getHsVar x <*> fromArgs args
         Def d args -> hsApp <$> getHsType d <*> fromArgs args
         Fun a b    -> hsFun <$> fromType (unArg a) <*> fromType b
@@ -112,7 +112,6 @@ haskellType = liftTCM . fromType
         Lit{}      -> notAHaskellType (El Prop v)
         Sort{}     -> notAHaskellType (El Prop v)
         MetaV{}    -> notAHaskellType (El Prop v)
-        BlockedV{} -> __IMPOSSIBLE__
 
 
 

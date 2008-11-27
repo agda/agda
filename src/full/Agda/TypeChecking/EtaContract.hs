@@ -17,7 +17,7 @@ data BinAppView = App Term (Arg Term)
                 | NoApp Term
 
 binAppView :: Term -> BinAppView
-binAppView t = case ignoreBlocking t of
+binAppView t = case t of
   Var i xs   -> app (Var i) xs
   Def c xs   -> app (Def c) xs
   Con c xs   -> app (Con c) xs
@@ -27,7 +27,6 @@ binAppView t = case ignoreBlocking t of
   Fun _ _    -> noApp
   Sort _     -> noApp
   MetaV _ _  -> noApp
-  BlockedV _ -> __IMPOSSIBLE__
   where
     noApp = NoApp t
     app f [] = noApp

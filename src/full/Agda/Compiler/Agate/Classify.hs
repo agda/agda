@@ -42,7 +42,7 @@ enumTypeFamilies definitions = fmap concat $ mapM f $ Map.toList definitions
 	let ty = defType d
 	(_,ty2) <- splitType ty
 	(El sort term) <- reduce ty2
-	case ignoreBlocking term of
+	case term of
 	    Sort _ -> return [name]
 	    _      -> return []
 
@@ -79,7 +79,7 @@ enumCompilableTypeFamilies definitions = do
 	isCompilableTypeFamily :: Term -> TCM Bool
 	isCompilableTypeFamily tm = do
 	    tm <- reduce tm
-	    case ignoreBlocking tm of
+	    case tm of
 		Var n args -> allM (isCompilableTypeFamily . unArg) args
 		Sort _     -> return True
 		Lam h abs  -> return False -- this can be too strong
@@ -92,7 +92,6 @@ enumCompilableTypeFamilies definitions = do
 		Lit lit    -> return False
 		Con c args -> return False
 		MetaV _ _  -> return __IMPOSSIBLE__
-		BlockedV _ -> return __IMPOSSIBLE__
 
 ----------------------------------------------------------------
 

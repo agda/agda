@@ -426,7 +426,6 @@ processTerm (Lit l) = return $  (processLit l)
 processTerm (Pi arg abs) = return $ HsVar  unit_con_name
 processTerm (Fun arg typ) = return $ HsVar  unit_con_name
 processTerm (Sort s) =  return $ HsVar  unit_con_name
-processTerm (BlockedV b) =  error "Unimplemented term: Blocked"
 processTerm (MetaV _ _) =  error "Can't have metavariables"
 
 -- processTerm t =  return hsUndefined

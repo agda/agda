@@ -123,7 +123,7 @@ underDatatypeParameters np ty f k = go 0 ty where
     go i (El s tm)           = do
       let varname = show (i + 1)
       tm <- reduce tm
-      case ignoreBlocking tm of
+      case tm of
 	Pi arg abs -> underAbstraction arg abs{absName = varname} $ \ty -> do
 	    dname <- showAsOptimizedTerm $ Var 0 []
 	    cont <- f dname $ unArg arg
@@ -141,7 +141,6 @@ underDatatypeParameters np ty f k = go 0 ty where
 	Lit _	   -> __IMPOSSIBLE__
 	MetaV _ _  -> __IMPOSSIBLE__
 	Lam _ _	   -> __IMPOSSIBLE__
-	BlockedV _ -> __IMPOSSIBLE__
 
 ----------------------------------------------------------------
 -- Generating GHC Value Definitions
@@ -201,7 +200,7 @@ instance ShowAsOptimizedKind Type where
 instance ShowAsOptimizedKind Term where
     showAsOptimizedKind t = do
 	t <- reduce t
-	case ignoreBlocking t of
+	case t of
 	    Pi arg abs -> do
 		dk1 <- showAsOptimizedKind $ unArg arg
 		dk2 <- showAsOptimizedKind $ absBody abs
@@ -217,7 +216,6 @@ instance ShowAsOptimizedKind Term where
 	    Lit _      -> __IMPOSSIBLE__
 	    MetaV _ _  -> __IMPOSSIBLE__
 	    Lam _ _    -> __IMPOSSIBLE__
-	    BlockedV _ -> __IMPOSSIBLE__
 
 ----------------------------------------------------------------
 -- implementation of the "T" function
@@ -234,7 +232,7 @@ instance ShowAsOptimizedType Type where
 instance ShowAsOptimizedType Term where
     showAsOptimizedType t = do
 	t <- reduce t
-	case ignoreBlocking t of
+	case t of
 	    Var n args -> do
 		varname <- nameOfBV n
 		dvar <- showAsOptimizedTerm varname
@@ -265,7 +263,6 @@ instance ShowAsOptimizedType Term where
 	    MetaV id args -> return $ text "<meta (impossible)>"
 	    Lam h t       -> __IMPOSSIBLE__
 	    Lit lit       -> __IMPOSSIBLE__
-	    BlockedV bt   -> __IMPOSSIBLE__
 
 
 ----------------------------------------------------------------
@@ -303,7 +300,6 @@ instance ShowAsOptimizedTerm Term where
     showAsOptimizedTerm (Fun _ _)	 = return $ text "()"
     showAsOptimizedTerm (Sort _)	 = return $ text "()"
     showAsOptimizedTerm (MetaV id args)  = __IMPOSSIBLE__
-    showAsOptimizedTerm (BlockedV bt)    = __IMPOSSIBLE__
 
 ----------------------------------------------------------------
 --

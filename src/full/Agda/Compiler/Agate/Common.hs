@@ -36,7 +36,7 @@ dropArgs n (El s t) = dropArgsTm s n t
 	dropArgsTm s 0 t = return (El s t)
 	dropArgsTm _ n t = do
 	    t <- reduce t
-	    case ignoreBlocking t of
+	    case t of
 		Pi arg abs  -> dropArgs (n - 1) $ absBody abs
 		Fun arg ty  -> dropArgs (n - 1) ty
 		Var _ _	    -> __IMPOSSIBLE__
@@ -46,14 +46,13 @@ dropArgs n (El s t) = dropArgsTm s n t
 		Lam _ _	    -> __IMPOSSIBLE__
 		Sort _	    -> __IMPOSSIBLE__
 		Lit _	    -> __IMPOSSIBLE__
-		BlockedV _  -> __IMPOSSIBLE__
 
 withFunctionDomain :: Type -> (Type -> TCM a) -> ([a] -> Type -> TCM b) -> TCM b
 withFunctionDomain (El s tm) f ret = withDomain s tm
     where
 	withDomain s tm = do
 	    tm <- reduce tm
-	    case ignoreBlocking tm of
+	    case tm of
 		Pi arg abs -> do
 		    res	    <- f $ unArg arg
 		    underAbstraction arg abs $ \ty ->
@@ -70,7 +69,6 @@ withFunctionDomain (El s tm) f ret = withDomain s tm
 		Lit _	   -> __IMPOSSIBLE__
 		MetaV _ _  -> __IMPOSSIBLE__
 		Lam _ _	   -> __IMPOSSIBLE__
-		BlockedV _ -> __IMPOSSIBLE__
 
 splitType :: Type -> TCM ([Type], Type)
 splitType ty = withFunctionDomain ty return $ \tys ty -> return (tys,ty)
