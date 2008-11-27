@@ -2,7 +2,19 @@
 
 ;;; Commentary:
 
-;; An input method derived from others, such as the TeX input method.
+;; A highly customisable input method which can inherit from other
+;; Quail input methods. By default the input method is geared towards
+;; the input of mathematical and other symbols in Agda programs.
+;;
+;; Use M-x customize-group agda-input to customise this input method.
+;; Note that the functions defined under "Functions used to tweak
+;; translation pairs" below can be used to tweak both the key
+;; translations inherited from other input methods as well as the
+;; ones added specifically for this one.
+;;
+;; Use agda-input-show-translations to see all the characters which
+;; can be typed using this input method (except for those
+;; corresponding to ASCII characters).
 
 ;;; Code:
 
