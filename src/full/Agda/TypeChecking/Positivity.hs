@@ -139,7 +139,7 @@ instance PrettyTCM OccursWhere where
       nth 0 = pwords "first"
       nth 1 = pwords "second"
       nth 2 = pwords "third"
-      nth n = pwords $ show (n - 1) ++ "th"
+      nth n = pwords $ show (n + 1) ++ "th"
 
       uniq (x:y:xs)
         | x == y  = uniq (x:xs)
