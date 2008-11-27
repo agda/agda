@@ -11,6 +11,7 @@ import Data.Set (Set)
 import Data.List as List hiding (sort)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import qualified System.IO.UTF8 as UTF8
 
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Info as Info
@@ -128,7 +129,7 @@ newValueMetaCtx' t vs = do
   x <- newMeta i normalMetaPriority (HasType () t)
   verboseS "tc.meta.new" 50 $ do
     dt <- prettyTCM t
-    liftIO $ putStrLn $ "new meta: " ++ show x ++ " : " ++ show dt
+    liftIO $ UTF8.putStrLn $ "new meta: " ++ show x ++ " : " ++ show dt
   return $ MetaV x vs
 
 newTelMeta :: MonadTCM tcm => Telescope -> tcm Args
@@ -189,8 +190,8 @@ blockTerm t v m = do
                 dx  <- prettyTCM (MetaV x [])
                 dv  <- escapeContext (size tel) $ prettyTCM $ abstract tel v
                 dcs <- mapM prettyTCM cs
-                liftIO $ putStrLn $ "blocked " ++ show dx ++ " := " ++ show dv
-                liftIO $ putStrLn $ "     by " ++ show dcs
+                liftIO $ UTF8.putStrLn $ "blocked " ++ show dx ++ " := " ++ show dv
+                liftIO $ UTF8.putStrLn $ "     by " ++ show dcs
 	    addConstraints c
 	    return $ MetaV x vs
   where
@@ -242,7 +243,7 @@ etaExpandMeta m = do
 	inContext [] $ addCtxTel tel $ do
 	  verboseS "tc.meta.eta" 20 $ do
 	    du <- prettyTCM u
-	    liftIO $ putStrLn $ "eta expanding: " ++ show m ++ " --> " ++ show du
+	    liftIO $ UTF8.putStrLn $ "eta expanding: " ++ show m ++ " --> " ++ show du
 	  noConstraints $ assignV b m args u  -- should never produce any constraints
       ) $ return ()
     _		-> return ()
@@ -342,7 +343,7 @@ assignV t x args v =
             let pr (Var n []) = show n
                 pr (Def c []) = show c
                 pr _          = ".."
-            liftIO $ putStrLn $ "args: " ++ unwords (map (pr . unArg) args)
+            liftIO $ UTF8.putStrLn $ "args: " ++ unwords (map (pr . unArg) args)
             
 	ids <- checkArgs x args
 
@@ -361,7 +362,7 @@ assignV t x args v =
 		     , nest 2 $ text "type" <+> prettyTCM t
 		     , nest 2 $ text "term" <+> prettyTCM v
 		     ]
-	    liftIO $ print d
+	    liftIO $ UTF8.print d
 
 	reportSLn "tc.meta.assign" 15 "passed occursCheck"
 

@@ -23,12 +23,13 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.List as List
 import Text.PrettyPrint
+import qualified System.IO.UTF8 as UTF8
 
 import Agda.Termination.RCall
 
 checkTermination :: TCM ()
 checkTermination = do
-			liftIO $ putStrLn "Termination check"
+			liftIO $ UTF8.putStrLn "Termination check"
 			sig <- getSignature
 			processSig sig
 
@@ -90,7 +91,7 @@ printCalls :: [RCall] -> TCM()
 checkCalls :: Args -> [RCall] -> TCM()
 
 printCalls cs = do 
-		  liftIO $ putStr " REC " 
+		  liftIO $ UTF8.putStr " REC " 
 	          -- str <- show <$> prettyTCM cs
                   tcmsg . show =<< prettyTCM cs
 
@@ -145,7 +146,7 @@ cmpArgs (a:as) (b:bs) = (goodhd++goodtl,badhd++badtl) where
 cmpArgs _ _ = ([],[])
         
 tcmsg :: String -> TCM()
-tcmsg = liftIO . putStrLn 
+tcmsg = liftIO . UTF8.putStrLn 
 
 ------------------------------------------------------------
 -- Gathering recursive calls

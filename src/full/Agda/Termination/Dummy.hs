@@ -9,10 +9,11 @@ import Agda.TypeChecking.Monad
 import Control.Monad.Trans
 import Data.Map as Map
 import Data.List as List
+import qualified System.IO.UTF8 as UTF8
 
 checkTermination :: TCM ()
 checkTermination = do
-			liftIO $ putStrLn "Dummy termination checker"
+			liftIO $ UTF8.putStrLn "Dummy termination checker"
 			sig <- getSignature
 			processSig sig
 
@@ -38,9 +39,9 @@ processFun name cs = mapM_ (processClause name) cs
 
 processClause name c@(Clause args body) = liftIO $ 
      do
-	putStr (show name ++ " " ++ show args)
-	if isRecursiveClause name c then putStrLn " REC"
-        			    else putStrLn " nonrec"
+	UTF8.putStr (show name ++ " " ++ show args)
+	if isRecursiveClause name c then UTF8.putStrLn " REC"
+        			    else UTF8.putStrLn " nonrec"
 
 isRecursiveClause :: Name -> Clause -> Bool
 isRecursiveClause name c@(Clause args body) = isRecursiveBody name body

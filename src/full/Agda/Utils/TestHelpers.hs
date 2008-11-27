@@ -22,6 +22,7 @@ module Agda.Utils.TestHelpers
 
 import Agda.Utils.QuickCheck
 import Data.List
+import qualified System.IO.UTF8 as UTF8
 
 ------------------------------------------------------------------------
 -- Algebraic properties
@@ -124,5 +125,5 @@ runTests :: String    -- ^ A label for the tests. Used for
          -> [IO Bool]
          -> IO Bool
 runTests name tests = do
-  putStrLn name
+  UTF8.putStrLn name
   fmap and $ sequence tests

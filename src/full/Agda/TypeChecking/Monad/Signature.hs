@@ -9,6 +9,7 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.List
 import Data.Function
+import qualified System.IO.UTF8 as UTF8
 
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Common
@@ -379,7 +380,7 @@ instantiateDef d = do
   verboseS "tc.sig.inst" 30 $ do
     ctx <- getContext
     m   <- currentModule
-    liftIO $ putStrLn $ "instDef in " ++ show m ++ ": " ++ show (defName d) ++ " " ++
+    liftIO $ UTF8.putStrLn $ "instDef in " ++ show m ++ ": " ++ show (defName d) ++ " " ++
 			unwords (map show . take (size vs) . reverse . map (fst . unArg) $ ctx)
   return $ d `apply` vs
 

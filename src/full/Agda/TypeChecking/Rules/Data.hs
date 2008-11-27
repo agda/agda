@@ -5,6 +5,7 @@ module Agda.TypeChecking.Rules.Data where
 import Control.Applicative
 import Control.Monad
 import Control.Monad.Trans
+import qualified System.IO.UTF8 as UTF8
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Internal
@@ -119,12 +120,12 @@ checkConstructor d tel nofIxs s con@(A.Axiom i c e) =
 	n <- size <$> getContextTelescope
 	verboseS "tc.data.con" 15 $ do
 	    td <- prettyTCM t
-	    liftIO $ putStrLn $ "checking that " ++ show td ++ " ends in " ++ show d
-	    liftIO $ putStrLn $ "  nofPars = " ++ show n
+	    liftIO $ UTF8.putStrLn $ "checking that " ++ show td ++ " ends in " ++ show d
+	    liftIO $ UTF8.putStrLn $ "  nofPars = " ++ show n
 	constructs n t d
 	verboseS "tc.data.con" 15 $ do
 	    d <- prettyTCM s
-	    liftIO $ putStrLn $ "checking that the type fits in " ++ show d
+	    liftIO $ UTF8.putStrLn $ "checking that the type fits in " ++ show d
 	t `fitsIn` s
 	escapeContext (size tel)
 	    $ addConstant c

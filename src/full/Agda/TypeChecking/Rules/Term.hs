@@ -7,6 +7,7 @@ import Control.Monad.Trans
 import Control.Monad.Reader
 import Data.Maybe
 import Data.List hiding (sort)
+import qualified System.IO.UTF8 as UTF8
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common
@@ -353,7 +354,7 @@ inferHead (HeadCon [c]) = do
   Constructor{conPars = n} <- theDef <$> (instantiateDef =<< getConstInfo c)
 
   verboseS "tc.term.con" 7 $ do
-    liftIO $ putStrLn $ unwords [show c, "has", show n, "parameters."]
+    liftIO $ UTF8.putStrLn $ unwords [show c, "has", show n, "parameters."]
 
   -- So when applying the constructor throw away the parameters.
   return (apply u . genericDrop n, a)
@@ -368,7 +369,7 @@ inferDef mkTerm x =
       ds <- mapM prettyTCM vs
       dx <- prettyTCM x
       dt <- prettyTCM $ defType d
-      liftIO $ putStrLn $ "inferred def " ++ unwords (show dx : map show ds) ++ " : " ++ show dt
+      liftIO $ UTF8.putStrLn $ "inferred def " ++ unwords (show dx : map show ds) ++ " : " ++ show dt
     return (mkTerm x vs, defType d)
 
 data ExpandHidden = ExpandLast | DontExpandLast

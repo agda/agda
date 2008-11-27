@@ -6,6 +6,7 @@ import Control.Monad
 import Control.Monad.Trans
 import qualified Data.Map as Map
 import Data.Map (Map)
+import qualified System.IO.UTF8 as UTF8
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Internal
@@ -187,8 +188,8 @@ checkSection i x tel ds =
       dx   <- prettyTCM x
       dtel <- mapM prettyA tel
       dtel' <- prettyTCM =<< lookupSection x
-      liftIO $ putStrLn $ "checking section " ++ show dx ++ " " ++ show dtel
-      liftIO $ putStrLn $ "    actual tele: " ++ show dtel'
+      liftIO $ UTF8.putStrLn $ "checking section " ++ show dx ++ " " ++ show dtel
+      liftIO $ UTF8.putStrLn $ "    actual tele: " ++ show dtel'
     withCurrentModule x $ checkDecls ds
 
 checkModuleArity :: ModuleName -> Telescope -> [NamedArg A.Expr] -> TCM Telescope

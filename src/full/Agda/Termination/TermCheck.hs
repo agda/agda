@@ -17,6 +17,7 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import Data.Set (Set)
 import Text.PrettyPrint (Doc)
+import qualified System.IO.UTF8 as UTF8
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Internal
@@ -164,8 +165,8 @@ termSection i x tel ds =
       dx   <- prettyTCM x
       dtel <- mapM prettyA tel
       dtel' <- prettyTCM =<< lookupSection x
-      liftIO $ putStrLn $ "termination checking section " ++ show dx ++ " " ++ show dtel
-      liftIO $ putStrLn $ "    actual tele: " ++ show dtel'
+      liftIO $ UTF8.putStrLn $ "termination checking section " ++ show dx ++ " " ++ show dtel
+      liftIO $ UTF8.putStrLn $ "    actual tele: " ++ show dtel'
     withCurrentModule x $ termDecls ds
 
 -- | Termination check a telescope. Binds the variables defined by the telescope.

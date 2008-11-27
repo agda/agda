@@ -6,6 +6,7 @@ module Agda.Interaction.Exceptions where
 import Control.Exception
 import Control.Monad.Trans
 import System.Exit
+import qualified System.IO.UTF8 as UTF8
 
 import Agda.Syntax.Position
 import Agda.Syntax.Parser		    ( ParseError(..)	       )
@@ -13,8 +14,8 @@ import Agda.Syntax.Concrete.Definitions  ( DeclarationException(..) )
 
 crash :: Range -> String -> IO b
 crash r x =
-    do	print r
-	putStrLn x
+    do	UTF8.print r
+	UTF8.putStrLn x
 	exitWith (ExitFailure 1)
 
 handleParseException :: (ParseError -> IO a) -> ParseError -> IO a
