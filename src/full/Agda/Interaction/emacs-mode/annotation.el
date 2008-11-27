@@ -25,13 +25,11 @@ position used by your Emacs.")
 (defun annotation-goto-indirect (pos &optional other-window)
   "Follow the `annotation-goto' hyperlink at position POS, if any.
 If OTHER-WINDOW is t, use another window to display the given position."
-  (let ((result (get-text-property pos 'annotation-goto)))
-    (if (consp result)
-        (setq result (cons (car result)
-                           (+ (cdr result) annotations-offset))))
-    (if (and (annotation-goto result other-window)
+  (let ((previous-file-name buffer-file-name))
+    (if (and (annotation-goto (get-text-property pos 'annotation-goto)
+                              other-window)
              (not (eq (point) pos)))
-        (push `(,buffer-file-name . ,pos) annotation-goto-stack))))
+        (push `(,previous-file-name . ,pos) annotation-goto-stack))))
 
 (defun annotation-go-back nil
   "Go back to the previous position in which `annotation-goto' was
@@ -53,7 +51,7 @@ position."
             (if other-window
                 (find-file-other-window file)
               (find-file file))
-            (goto-char (cdr filepos))
+            (goto-char (+ (cdr filepos) annotations-offset))
             t)
         (error "File does not exist or is unreadable: %s." file)))))
 
