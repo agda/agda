@@ -147,7 +147,7 @@ instance PrettyTCM OccursWhere where
       uniq []     = []
 
       prettyOs [] = __IMPOSSIBLE__
-      prettyOs [o] = prettyO o
+      prettyOs [o] = prettyO o <> text "."
       prettyOs (o:os) = prettyO o <> text ", which occurs" <+> prettyOs os
 
       prettyO o = case o of
