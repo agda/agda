@@ -55,7 +55,8 @@ data TCState =
 	 , stTrace	       :: CallTrace
 	     -- ^ record what is happening (for error msgs)
 	 , stMutualBlocks      :: Map MutualId (Set QName)
-	 , stBuiltinThings     :: BuiltinThings PrimFun
+	 , stLocalBuiltins     :: BuiltinThings PrimFun
+         , stImportedBuiltins  :: BuiltinThings PrimFun
          , stHaskellImports    :: [String]  -- ^ imports that should be generated
                                             --   by the compiler
 	 }
@@ -85,9 +86,13 @@ initState =
 	 , stStatistics	       = Map.empty
 	 , stTrace	       = noTrace
 	 , stMutualBlocks      = Map.empty
-	 , stBuiltinThings     = Map.empty
+	 , stLocalBuiltins     = Map.empty
+	 , stImportedBuiltins  = Map.empty
          , stHaskellImports    = []
 	 }
+
+stBuiltinThings :: TCState -> BuiltinThings PrimFun
+stBuiltinThings s = stLocalBuiltins s `Map.union` stImportedBuiltins s
 
 instance HasFresh MetaId FreshThings where
     nextFresh s = (i, s { fMeta = i + 1 })

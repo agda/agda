@@ -60,7 +60,7 @@ import Agda.Utils.Impossible
 
 
 currentInterfaceVersion :: Int
-currentInterfaceVersion = 20081127
+currentInterfaceVersion = 20081128
 
 type Node = [Int] -- constructor tag (maybe omitted) and arg indices
 

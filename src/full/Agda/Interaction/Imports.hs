@@ -1,4 +1,4 @@
-
+{-# LANGUAGE CPP #-}
 {-| This modules deals with how to find imported modules and loading their
     interface files.
 -}
@@ -42,8 +42,9 @@ import Agda.Interaction.Highlighting.Vim
 import Agda.Utils.FileName
 import Agda.Utils.Monad
 import Agda.Utils.IO
--- import Agda.Utils.Serialise
 
+import Agda.Utils.Impossible
+#include "../undefined.h"
 
 -- | Merge an interface into the current proof state.
 mergeInterface :: Interface -> TCM ()
@@ -52,17 +53,34 @@ mergeInterface i = do
 	builtin = Map.toList $ iBuiltin i
 	prim	= [ x | (_,Prim x) <- builtin ]
 	bi	= Map.fromList [ (x,Builtin t) | (x,Builtin t) <- builtin ]
-    modify $ \st -> st { stImports	   = unionSignatures [stImports st, sig]
-		       , stBuiltinThings   = stBuiltinThings st `Map.union` bi
-			    -- TODO: not safe (?) ^
+    bs <- getBuiltinThings
+    reportSLn "import.iface.merge" 10 $ "Merging interface"
+    reportSLn "import.iface.merge" 20 $
+      "  Current builtins " ++ show (Map.keys bs) ++ "\n" ++
+      "  New builtins     " ++ show (Map.keys bi)
+    case Map.toList $ Map.intersection bs bi of
+      []               -> return ()
+      (b, Builtin x):_ -> typeError $ DuplicateBuiltinBinding b x x
+      (_, Prim{}):_    -> __IMPOSSIBLE__
+    modify $ \st -> st { stImports	    = unionSignatures [stImports st, sig]
+		       , stImportedBuiltins = stImportedBuiltins st `Map.union` bi
 		       }
+    reportSLn "import.iface.merge" 20 $
+      "  Rebinding primitives " ++ show prim
     prim <- Map.fromList <$> mapM rebind prim
-    modify $ \st -> st { stBuiltinThings = stBuiltinThings st `Map.union` prim
+    modify $ \st -> st { stImportedBuiltins = stImportedBuiltins st `Map.union` prim
 		       }
     where
 	rebind x = do
-	    pf <- rebindPrimitive x
+	    PrimImpl _ pf <- lookupPrimitiveFunction x
 	    return (x, Prim pf)
+
+addImportedThings :: Signature -> BuiltinThings PrimFun -> TCM ()
+addImportedThings isig ibuiltin =
+  modify $ \st -> st
+    { stImports          = unionSignatures [stImports st, isig]
+    , stImportedBuiltins = Map.union (stImportedBuiltins st) ibuiltin
+    }
 
 -- TODO: move
 data FileType = SourceFile | InterfaceFile
@@ -98,7 +116,9 @@ alreadyVisited :: ModuleName -> TCM (Interface, ClockTime) -> TCM (Interface, Cl
 alreadyVisited x getIface = do
     mm <- getVisitedModule x
     case mm of
-	Just it	-> return it
+	Just it	-> do
+            reportSLn "import.visit" 10 $ "  Already visited " ++ show x
+            return it
 	Nothing	-> do
 	    reportSLn "import.visit" 5 $ "  Getting interface for " ++ show x
 	    (i, t) <- getIface
@@ -176,19 +196,19 @@ getInterface x = alreadyVisited x $ addImportCycleCheck x $ do
 
 	    -- Do the type checking
 	    reportSLn "" 1 $ "Checking " ++ show x ++ " ( " ++ file ++ " )"
-	    ms	  <- getImportPath
-	    vs	  <- getVisitedModules
-	    ds	  <- getDecodedModules
-	    opts  <- commandLineOptions
-	    trace <- getTrace
-	    r  <- liftIO $ createInterface opts trace ms vs ds x file
+	    ms       <- getImportPath
+	    vs       <- getVisitedModules
+	    ds       <- getDecodedModules
+	    opts     <- commandLineOptions
+	    trace    <- getTrace
+            isig     <- getImportedSignature
+            ibuiltin <- gets stImportedBuiltins
+	    r  <- liftIO $ createInterface opts trace ms vs ds isig ibuiltin x file
 
 	    -- Write interface file and return
 	    case r of
 		Left err -> throwError err
-		Right (vs, ds, i, isig)  -> do
-                    -- Merge in the signatures imported by file.
-                    modify $ \st -> st { stImports = unionSignatures [stImports st, isig] }
+		Right (vs, ds, i, isig, ibuiltin)  -> do
 		    liftIO $ writeInterface ifile i
                     -- writeInterface may remove ifile.
 		    t <- liftIO $ ifM (doesFileExist ifile)
@@ -196,6 +216,9 @@ getInterface x = alreadyVisited x $ addImportCycleCheck x $ do
                            getClockTime
 		    setVisitedModules vs
 		    setDecodedModules ds
+                    -- We need to add things imported when checking
+                    -- the imported modules.
+                    addImportedThings isig ibuiltin
 		    return (i, t)
 
 readInterface :: FilePath -> IO (Maybe Interface)
@@ -234,15 +257,21 @@ writeInterface file i = do
     return ()
 
 createInterface :: CommandLineOptions -> CallTrace -> [ModuleName] -> VisitedModules ->
-		   DecodedModules -> ModuleName -> FilePath ->
-		   IO (Either TCErr (VisitedModules, DecodedModules, Interface, Signature))
-createInterface opts trace path visited decoded mname file = runTCM $ withImportPath path $ do
+		   DecodedModules -> Signature -> BuiltinThings PrimFun ->
+                   ModuleName -> FilePath ->
+		   IO (Either TCErr (VisitedModules, DecodedModules, Interface, Signature, BuiltinThings PrimFun))
+createInterface opts trace path visited decoded isig ibuiltin mname file =
+  runTCM $ withImportPath path $ do
 
     setDecodedModules decoded
     setTrace trace
     setCommandLineOptions opts
     setVisitedModules visited
-    mapM_ (mergeInterface . fst) $ Map.elems visited
+
+    reportSLn "import.iface.create" 5  $ "Creating interface for " ++ show mname
+    reportSLn "import.iface.create" 10 $ "  visited: " ++ show (Map.keys visited)
+
+    addImportedThings isig ibuiltin
 
     (pragmas, top) <- liftIO $ parseFile' moduleParser file
     pragmas	   <- concat <$> concreteToAbstract_ pragmas -- identity for top-level pragmas
@@ -279,18 +308,19 @@ createInterface opts trace path visited decoded mname file = runTCM $ withImport
 
     setScope $ outsideScope topLevel
 
-    i    <- buildInterface
-    isig <- getImportedSignature
-    vs   <- getVisitedModules
-    ds   <- getDecodedModules
-    return (vs, ds, i, isig)
+    i        <- buildInterface
+    isig     <- getImportedSignature
+    vs       <- getVisitedModules
+    ds       <- getDecodedModules
+    ibuiltin <- gets stImportedBuiltins
+    return (vs, ds, i, isig, ibuiltin)
 
 buildInterface :: TCM Interface
 buildInterface = do
     reportSLn "import.iface" 5 "Building interface..."
     scope   <- getScope
     sig	    <- getSignature
-    builtin <- getBuiltinThings
+    builtin <- gets stLocalBuiltins
     ms	    <- getImports
     hsImps  <- getHaskellImports
     let	builtin' = Map.mapWithKey (\x b -> fmap (const x) b) builtin

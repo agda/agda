@@ -11,7 +11,7 @@ getBuiltinThings :: MonadTCM tcm => tcm (BuiltinThings PrimFun)
 getBuiltinThings = gets stBuiltinThings
 
 setBuiltinThings :: MonadTCM tcm => BuiltinThings PrimFun -> tcm ()
-setBuiltinThings b = modify $ \s -> s { stBuiltinThings = b }
+setBuiltinThings b = modify $ \s -> s { stLocalBuiltins = b }
 
 bindBuiltinName :: MonadTCM tcm => String -> Term -> tcm ()
 bindBuiltinName b x = do
@@ -19,13 +19,15 @@ bindBuiltinName b x = do
 	case Map.lookup b builtin of
 	    Just (Builtin y) -> typeError $ DuplicateBuiltinBinding b y x
 	    Just (Prim _)    -> typeError $ NoSuchBuiltinName b
-	    Nothing	     -> setBuiltinThings $ Map.insert b (Builtin x) builtin
+	    Nothing	     -> modify $ \st ->
+              st { stLocalBuiltins = 
+                    Map.insert b (Builtin x) $ stLocalBuiltins st
+                 }
 
 bindPrimitive :: MonadTCM tcm => String -> PrimFun -> tcm ()
 bindPrimitive b pf = do
-	builtin <- getBuiltinThings
-	case Map.lookup b builtin :: Maybe (Builtin PrimFun) of
-	    _ -> setBuiltinThings $ Map.insert b (Prim pf) builtin
+  builtin <- gets stLocalBuiltins
+  setBuiltinThings $ Map.insert b (Prim pf) builtin
 
 
 getBuiltin :: MonadTCM tcm => String -> tcm Term
