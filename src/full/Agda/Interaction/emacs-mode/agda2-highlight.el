@@ -2,10 +2,9 @@
 
 ;;; Commentary:
 
-;; Code to apply syntactic highlighting to Agda source code.
-;; This uses Agda's own annotations to figure out what is what, so the
-;; parsing is always done correctly.  OTOH it's not done on-the-fly.
-;; Also, as of now, the information is more lexical than syntactic.
+;; Code to apply syntactic highlighting to Agda source code. This uses
+;; Agda's own annotations to figure out what is what, so the parsing
+;; is always done correctly, but highlighting is not done on the fly.
 
 ;;; Code:
 
