@@ -277,13 +277,24 @@ createInterface opts trace path visited decoded isig ibuiltin mname file =
     pragmas	   <- concat <$> concreteToAbstract_ pragmas -- identity for top-level pragmas
     topLevel	   <- concreteToAbstract_ (TopLevel top)
 
-    -- Check the module name
-    let mname' = scopeName $ head $ scopeStack $ insideScope topLevel
-    unless (mname' == mname) $ typeError $ ModuleNameDoesntMatchFileName mname' mname
+    catchError (do
+      -- Check the module name
+      let mname' = scopeName $ head $ scopeStack $ insideScope topLevel
+      unless (mname' == mname) $
+        typeError $ ModuleNameDoesntMatchFileName mname' mname
+      setOptionsFromPragmas pragmas
 
-    setOptionsFromPragmas pragmas
+      checkDecls (topLevelDecls topLevel))
+      (\e -> do
+        -- If there is an error syntax highlighting info can
+        -- still be generated. Since there is no Vim highlighting for
+        -- errors no Vim highlighting is generated, though.
+        whenM (optGenerateEmacsFile <$> commandLineOptions) $ do
+          generateEmacsFile file TypeCheckingNotDone topLevel []
+          appendErrorToEmacsFile e
+          return ()
+        throwError e)
 
-    checkDecls $ topLevelDecls topLevel
     errs <- ifM (optTerminationCheck <$> commandLineOptions)
                 (termDecls $ topLevelDecls topLevel)
                 (return [])

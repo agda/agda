@@ -126,9 +126,8 @@ ioTCM' mFile cmd = do
       us <- getUndoStack
       return (x,st,us)
     `catchError` \err -> do
-	s <- prettyError err
-        liftIO $ outputErrorInfo mFile (getRange err) s
-	display_info "*Error*" s
+        outputErrorInfo err
+	display_info "*Error*" =<< prettyError err
 	fail "exit"
   case r of
     Right (a,st',ss') -> do
@@ -575,7 +574,7 @@ infoOnException m =
     inform noRange (show e)
   where
   inform rng msg = do
-    outputErrorInfo Nothing rng msg
+    runTCM $ outputErrorInfo (Exception rng msg)
     display_info' "*Error*" $ rng' ++ msg
     exitWith (ExitFailure 1)
     where
@@ -599,27 +598,19 @@ tellEmacsToReloadSyntaxInfo :: IO ()
 tellEmacsToReloadSyntaxInfo =
   UTF8.putStrLn $ response $ L [A "agda2-highlight-reload"]
 
--- | Output syntax highlighting information for the given error
--- (represented as a range and a string), and tell the Emacs mode to
--- reload the highlighting information and go to the first error
--- position.
+-- | Output syntax highlighting information for the given error, and
+-- tell the Emacs mode to reload the highlighting information and go
+-- to the first error position (if any).
 
-outputErrorInfo
-  :: Maybe FilePath
-     -- ^ The file we're working with (if it's known).
-  -> Range -> String -> IO ()
-outputErrorInfo mFile r s = do
-  case rStart r of
+outputErrorInfo :: TCErr -> TCM ()
+outputErrorInfo err = do
+  mPos <- appendErrorToEmacsFile err
+  case mPos of
     Nothing                               -> return ()
-    -- Errors for expressions entered using the command line sometimes
-    -- have an empty file name component.
-    Just (Pn { srcFile = "" })            -> return ()
-    Just (Pn { srcFile = f, posPos = p }) -> do
-      UTF8.putStrLn $ response $
+    Just (Pn { srcFile = f, posPos = p }) ->
+      liftIO $ UTF8.putStrLn $ response $
         L [A "annotation-goto", Q $ L [A (show f), A ".", A (show p)]]
-      when (mFile /= Just f) $ clearSyntaxInfo f
-      appendSyntaxInfo f $ generateErrorInfo r s
-  tellEmacsToReloadSyntaxInfo
+  liftIO tellEmacsToReloadSyntaxInfo
 
 ------------------------------------------------------------------------
 -- Implicit arguments

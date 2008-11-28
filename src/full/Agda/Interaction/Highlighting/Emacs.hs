@@ -2,17 +2,19 @@
 
 module Agda.Interaction.Highlighting.Emacs
   ( clearSyntaxInfo
-  , appendSyntaxInfo
   , generateEmacsFile
+  , appendErrorToEmacsFile
   , Agda.Interaction.Highlighting.Emacs.tests
   ) where
 
 import Agda.Interaction.Highlighting.Precise
 import Agda.Interaction.Highlighting.Range
 import Agda.Interaction.Highlighting.Generate
-import Agda.TypeChecking.Monad (TCM)
+import Agda.TypeChecking.Monad (TCM, TCErr)
 import Agda.Syntax.Abstract (QName)
+import qualified Agda.Syntax.Position as P
 import Agda.Syntax.Translation.ConcreteToAbstract (TopLevelInfo)
+import Agda.TypeChecking.Errors (prettyError)
 import Agda.Utils.FileName
 import Agda.Utils.String
 import Agda.Utils.TestHelpers
@@ -118,6 +120,26 @@ generateEmacsFile file tcs topLevel termErrs = do
   liftIO $ clearSyntaxInfo file
   syntaxInfo <- generateSyntaxInfo file tcs topLevel termErrs
   liftIO $ appendSyntaxInfo file syntaxInfo
+
+-- | Appends information about an error to the highlighting file
+-- relevant for the error.
+
+appendErrorToEmacsFile
+  :: TCErr
+  -> TCM (Maybe P.Position)
+     -- ^ Returns the first position of the error, if any (but only if
+     -- the file name component is non-empty).
+appendErrorToEmacsFile err = do
+  let r = P.getRange err
+  s <- prettyError err
+  case P.rStart r of
+    Nothing                                         -> return Nothing
+    -- Errors for expressions entered using the command line sometimes
+    -- have an empty file name component. This should be fixed.
+    Just     (P.Pn { P.srcFile = "" })              -> return Nothing
+    Just pos@(P.Pn { P.srcFile = f, P.posPos = p }) -> do
+      liftIO $ appendSyntaxInfo f $ generateErrorInfo r s
+      return (Just pos)
 
 ------------------------------------------------------------------------
 -- All tests
