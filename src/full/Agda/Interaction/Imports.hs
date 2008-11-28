@@ -275,6 +275,7 @@ createInterface opts trace path visited decoded isig ibuiltin mname file =
 
     (pragmas, top) <- liftIO $ parseFile' moduleParser file
     pragmas	   <- concat <$> concreteToAbstract_ pragmas -- identity for top-level pragmas
+    setOptionsFromPragmas pragmas
     topLevel	   <- concreteToAbstract_ (TopLevel top)
 
     catchError (do
@@ -282,7 +283,6 @@ createInterface opts trace path visited decoded isig ibuiltin mname file =
       let mname' = scopeName $ head $ scopeStack $ insideScope topLevel
       unless (mname' == mname) $
         typeError $ ModuleNameDoesntMatchFileName mname' mname
-      setOptionsFromPragmas pragmas
 
       checkDecls (topLevelDecls topLevel))
       (\e -> do
