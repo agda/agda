@@ -49,9 +49,9 @@ module SET where
   I a = a
   -- of course I = S K K
 
-  id = \{A} -> I {A}
+  id = \{A : Set} -> I {A}
 
-  const = \{A}{B} -> K {A}{B}
+  const = \{A B : Set} -> K {A}{B}
 
   -- Prop version
   pS : {P Q R : Prop} -> (R -> Q -> P) -> (R -> Q) -> R -> P
@@ -188,8 +188,8 @@ module SET where
   data Succ (A : Set) : Set where
     zerS : Succ A
     sucS : A -> Succ A
-  zerSucc = \{A} -> zerS {A}
-  sucSucc = \{A} -> sucS {A}
+  zerSucc = \{A : Set} -> zerS {A}
+  sucSucc = \{A : Set} -> sucS {A}
   elimSucc : {X : Set} -> (C : Succ X -> Set)
             -> C zerS -> ((x : X) -> C (sucS x)) -> (xx : Succ X) -> (C xx)
   elimSucc C c_z c_s zerS = c_z
@@ -272,7 +272,7 @@ module SET where
           -> (f : (a : A) -> B1 a -> B2 a)
           -> Sum A B1 -> Sum A B2
   mapSum f (sumI fst snd) = depPair fst (f fst snd)
-  elimSum = \{A}{B}{C} -> depUncurry{A}{B}{C}
+  elimSum = \{A : Set}{B : A -> Set}{C : Sum A B -> Set} -> depUncurry{A}{B}{C}
 ---------------------------------------------------------------------------
 -- Nondependent pairs (binary) cartesian product.
 ---------------------------------------------------------------------------
@@ -302,7 +302,7 @@ module SET where
   uncurry : {A : Set} -> {B : Set} -> {C : Times A B -> Set}
            -> ((a : A) -> (b : B) -> C (pair a b)) -> (p : Times A B) -> C p
   uncurry f (sumI a b) = f a b
-  elimTimes = \{A}{B}{C} -> uncurry{A}{B}{C}
+  elimTimes = \{A B : Set}{C : Times A B -> Set} -> uncurry{A}{B}{C}
   ---------------------------------------------------------------------------
   -- Natural numbers.
   ---------------------------------------------------------------------------

@@ -119,7 +119,7 @@ int0 = primNatToInteger nat0
 _+_  = primIntegerPlus
 _*_  = primIntegerTimes
 _-_  = primIntegerMinus
--_   = \x -> int0 - x
+-_   = \(x : Int) -> int0 - x
 _==_ = primIntegerEquality
 _/_  = primFloatDiv
 

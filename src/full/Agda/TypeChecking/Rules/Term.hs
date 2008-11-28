@@ -5,6 +5,7 @@ module Agda.TypeChecking.Rules.Term where
 import Control.Applicative
 import Control.Monad.Trans
 import Control.Monad.Reader
+import Control.Monad.Error
 import Data.Maybe
 import Data.List hiding (sort)
 import qualified System.IO.UTF8 as UTF8
@@ -143,6 +144,19 @@ reduceCon c = do
   Con c [] <- constructorForm =<< reduce (Con c [])
   return c
 
+checkArguments' exph r args t0 t e k = do
+  z <- runErrorT $ checkArguments exph r args t0 t
+  case z of
+    Right (vs, t1, cs) -> k vs t1 cs
+    Left t0 -> do
+      let unblock = do
+            t0 <- reduceB $ unEl t0
+            case t0 of
+              Blocked{}          -> return False
+              NotBlocked MetaV{} -> return False
+              _                  -> return True
+      postponeTypeCheckingProblem e t unblock
+
 -- | Type check an expression.
 checkExpr :: A.Expr -> Type -> TCM Term
 checkExpr e t =
@@ -215,50 +229,53 @@ checkExpr e t =
                   Just c -> do
                     let hd = HeadCon [c]
                     (f,  t0)     <- inferHead hd
-                    (vs, t1, cs) <- checkArguments ExpandLast (getRange hd) args t0 t
-                    blockTerm t (f vs) $ (cs ++) <$> leqType t1 t
+                    checkArguments' ExpandLast (getRange hd) args t0 t e $ \vs t1 cs ->
+                      blockTerm t (f vs) $ (cs ++) <$> leqType t1 t
                   Nothing -> postponeTypeCheckingProblem e t unblock
 
             | Application hd args <- appView e -> do
 		(f,  t0)     <- inferHead hd
-		(vs, t1, cs) <- checkArguments ExpandLast (getRange hd) args t0 t
-		blockTerm t (f vs) $ (cs ++) <$> leqType t1 t
+                checkArguments' ExpandLast (getRange hd) args t0 t e $ \vs t1 cs ->
+                    blockTerm t (f vs) $ (cs ++) <$> leqType t1 t
 
 	A.WithApp _ e es -> typeError $ NotImplemented "type checking of with application"
 
 	A.App i e arg -> do
 	    (v0, t0)	 <- inferExpr e
-	    (vs, t1, cs) <- checkArguments ExpandLast (getRange e) [arg] t0 t
-	    blockTerm t (apply v0 vs) $ (cs ++) <$> leqType t1 t
+	    checkArguments' ExpandLast (getRange e) [arg] t0 t e $ \vs t1 cs ->
+	      blockTerm t (apply v0 vs) $ (cs ++) <$> leqType t1 t
 
         A.AbsurdLam i h -> do
-          (t', cs) <- forcePi h "mt" t
-          case funView $ unEl t' of
-            FunV (Arg h' a) _
-              | h == h' -> do
-                cs' <- isEmptyTypeC a
-                -- Add helper function
-                top <- currentModule
-                let name = "absurd"
-                aux <- qualify top <$> freshName (getRange i) name
-                reportSDoc "tc.term.absurd" 10 $ vcat
-                  [ text "Adding absurd function" <+> prettyTCM aux
-                  , nest 2 $ text "of type" <+> prettyTCM t'
-                  ]
-                addConstant aux $ Defn aux t' (defaultDisplayForm aux) 0
-                                $ Function
-                                  { funClauses        = [Clause EmptyTel (Perm 0 [])
-                                                          [Arg h $ VarP "()"] NoBody
-                                                        ]
-                                  , funRecursion      = Recursive
-                                  , funInv            = NotInjective
-                                  , funAbstr          = ConcreteDef
-                                  , funPolarity       = [Covariant]
-                                  , funArgOccurrences = [Unused]
-                                  }
-                blockTerm t (Def aux []) $ return (cs ++ cs')
-              | otherwise -> typeError $ WrongHidingInLambda t'
-            _ -> __IMPOSSIBLE__
+          t <- reduceB t
+          case t of
+            Blocked{}                 -> postponeTypeCheckingProblem_ e $ ignoreBlocking t
+            NotBlocked (El _ MetaV{}) -> postponeTypeCheckingProblem_ e $ ignoreBlocking t
+            NotBlocked t' -> case funView $ unEl t' of
+              FunV (Arg h' a) _
+                | h == h' -> do
+                  cs' <- isEmptyTypeC a
+                  -- Add helper function
+                  top <- currentModule
+                  let name = "absurd"
+                  aux <- qualify top <$> freshName (getRange i) name
+                  reportSDoc "tc.term.absurd" 10 $ vcat
+                    [ text "Adding absurd function" <+> prettyTCM aux
+                    , nest 2 $ text "of type" <+> prettyTCM t'
+                    ]
+                  addConstant aux $ Defn aux t' (defaultDisplayForm aux) 0
+                                  $ Function
+                                    { funClauses        = [Clause EmptyTel (Perm 0 [])
+                                                            [Arg h $ VarP "()"] NoBody
+                                                          ]
+                                    , funRecursion      = Recursive
+                                    , funInv            = NotInjective
+                                    , funAbstr          = ConcreteDef
+                                    , funPolarity       = [Covariant]
+                                    , funArgOccurrences = [Unused]
+                                    }
+                  blockTerm t' (Def aux []) $ return cs'
+                | otherwise -> typeError $ WrongHidingInLambda t'
+              _ -> typeError $ ShouldBePi t'
 
 	A.Lam i (A.DomainFull b) e -> do
 	    (v, cs) <- checkTypedBindings b $ \tel -> do
@@ -271,8 +288,12 @@ checkExpr e t =
 		name (Arg h (x,_)) = Arg h x
 
 	A.Lam i (A.DomainFree h x) e0 -> do
-	    (t',cs) <- forcePi h (show x) t
-	    case funView $ unEl t' of
+	    -- (t',cs) <- forcePi h (show x) t
+            t <- reduceB t
+            case t of
+              Blocked{}                 -> postponeTypeCheckingProblem_ e $ ignoreBlocking t
+              NotBlocked (El _ MetaV{}) -> postponeTypeCheckingProblem_ e $ ignoreBlocking t
+              NotBlocked t' -> case funView $ unEl t' of
 		FunV arg0@(Arg h' a) _
 		    | h == h' -> do
 			v <- addCtx x arg0 $ do
@@ -280,10 +301,11 @@ checkExpr e t =
                                   tb  = raise 1 t' `piApply` [arg]
                               v <- checkExpr e0 tb
                               return $ Lam h $ Abs (show x) v
-			blockTerm t v (return cs)
+			-- blockTerm t v (return cs)
+                        return v
 		    | otherwise ->
 			typeError $ WrongHidingInLambda t'
-		_   -> __IMPOSSIBLE__
+		_   -> typeError $ ShouldBePi t'
 
 	A.QuestionMark i -> do
 	    setScope (Info.metaScope i)
@@ -375,20 +397,35 @@ inferDef mkTerm x =
 
 data ExpandHidden = ExpandLast | DontExpandLast
 
+instance Error Type where
+  strMsg _ = __IMPOSSIBLE__
+  noMsg = __IMPOSSIBLE__
+
+traceCallE :: Error e => (Maybe r -> Call) -> ErrorT e TCM r -> ErrorT e TCM r
+traceCallE call m = do
+  z <- lift $ traceCall call' $ runErrorT m
+  case z of
+    Right e  -> return e
+    Left err -> throwError err
+  where
+    call' Nothing          = call Nothing
+    call' (Just (Left _))  = call Nothing
+    call' (Just (Right x)) = call (Just x)
+
 -- | Check a list of arguments: @checkArgs args t0 t1@ checks that
 --   @t0 = Delta -> t0'@ and @args : Delta@. Inserts hidden arguments to
 --   make this happen. Returns @t0'@ and any constraints that have to be
 --   solve for everything to be well-formed.
 --   TODO: doesn't do proper blocking of terms
-checkArguments :: ExpandHidden -> Range -> [NamedArg A.Expr] -> Type -> Type -> TCM (Args, Type, Constraints)
+checkArguments :: ExpandHidden -> Range -> [NamedArg A.Expr] -> Type -> Type -> ErrorT Type TCM (Args, Type, Constraints)
 checkArguments DontExpandLast _ [] t0 t1 = return ([], t0, [])
 checkArguments exh r [] t0 t1 =
-    traceCall (CheckArguments r [] t0 t1) $ do
-	t0' <- reduce t0
-	t1' <- reduce t1
+    traceCallE (CheckArguments r [] t0 t1) $ do
+	t0' <- lift $ reduce t0
+	t1' <- lift $ reduce t1
 	case funView $ unEl t0' of -- TODO: clean
 	    FunV (Arg Hidden a) _ | notHPi $ unEl t1'  -> do
-		v  <- newValueMeta a
+		v  <- lift $ newValueMeta a
 		let arg = Arg Hidden v
 		(vs, t0'',cs) <- checkArguments exh r [] (piApply t0' [arg]) t1'
 		return (arg : vs, t0'',cs)
@@ -399,24 +436,29 @@ checkArguments exh r [] t0 t1 =
 	notHPi _		      = True
 
 checkArguments exh r args0@(Arg h e : args) t0 t1 =
-    traceCall (CheckArguments r args0 t0 t1) $ do
-	(t0', cs) <- forcePi h (name e) t0
-	e' <- return $ namedThing e
-	case (h, funView $ unEl t0') of
-	    (NotHidden, FunV (Arg Hidden a) _) -> insertUnderscore
-	    (Hidden, FunV (Arg Hidden a) _)
-		| not $ sameName (nameOf e) (nameInPi $ unEl t0') -> insertUnderscore
-	    (_, FunV (Arg h' a) _) | h == h' -> do
-		u  <- checkExpr e' a
-		let arg = Arg h u
-		(us, t0'', cs') <- checkArguments exh (fuseRange r e) args (piApply t0' [arg]) t1
-		return (arg : us, t0'', cs ++ cs')
-	    (Hidden, FunV (Arg NotHidden _) _) ->
-		typeError $ WrongHidingInApplication t0'
-	    _ -> __IMPOSSIBLE__
+    traceCallE (CheckArguments r args0 t0 t1) $ do
+      t0b <- lift $ reduceB t0
+      case t0b of
+        Blocked{}                 -> throwError $ ignoreBlocking t0b
+        NotBlocked (El _ MetaV{}) -> throwError $ ignoreBlocking t0b
+        NotBlocked t0' -> do
+          -- (t0', cs) <- forcePi h (name e) t0
+          e' <- return $ namedThing e
+          case (h, funView $ unEl t0') of
+              (NotHidden, FunV (Arg Hidden a) _) -> insertUnderscore
+              (Hidden, FunV (Arg Hidden a) _)
+                  | not $ sameName (nameOf e) (nameInPi $ unEl t0') -> insertUnderscore
+              (_, FunV (Arg h' a) _) | h == h' -> do
+                  u  <- lift $ checkExpr e' a
+                  let arg = Arg h u
+                  (us, t0'', cs') <- checkArguments exh (fuseRange r e) args (piApply t0' [arg]) t1
+                  return (arg : us, t0'', cs')
+              (Hidden, FunV (Arg NotHidden _) _) ->
+                  lift $ typeError $ WrongHidingInApplication t0'
+              _ -> lift $ typeError $ ShouldBePi t0'
     where
 	insertUnderscore = do
-	  scope <- getScope
+	  scope <- lift $ getScope
 	  let m = A.Underscore $ Info.MetaInfo
 		  { Info.metaRange  = r
 		  , Info.metaScope  = scope
@@ -439,8 +481,10 @@ checkArguments exh r args0@(Arg h e : args) t0 t1 =
 -- | Check that a list of arguments fits a telescope.
 checkArguments_ :: ExpandHidden -> Range -> [NamedArg A.Expr] -> Telescope -> TCM (Args, Constraints)
 checkArguments_ exh r args tel = do
-    (args, _, cs) <- checkArguments exh r args (telePi tel $ sort Prop) (sort Prop)
-    return (args, cs)
+    z <- runErrorT $ checkArguments exh r args (telePi tel $ sort Prop) (sort Prop)
+    case z of
+      Right (args, _, cs) -> return (args, cs)
+      Left _              -> __IMPOSSIBLE__
 
 
 -- | Infer the type of an expression. Implemented by checking agains a meta

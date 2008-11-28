@@ -23,5 +23,4 @@ assoc zero    = refl
 assoc (suc n) = subst (\ ∙ -> f ∙ == f (\m p -> ((n + m) + p)))
 		      (assoc n) refl
   where
-    f = \g m p -> suc (g m p)
-
+    f = \(g : Nat -> Nat -> Nat)(m p : Nat) -> suc (g m p)

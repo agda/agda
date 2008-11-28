@@ -138,17 +138,19 @@ module Semantics
       less : IsTrue (x < y) -> _
       less x<y = BoolEq.subst {true}{x < y} P x<y
 		  (spine (lem0 xs (y :: ys) ρ))
-	where
-	  spine = \{x'}{xs'}{y'}{ys'}{zs} h ->
+        where
+          spine : forall {x' xs' y' ys' zs} h -> _
+	  spine {x'}{xs'}{y'}{ys'}{zs} h =
 	    eqProof> (x' * xs') * (y' * ys')
 		 === x' * (xs' * (y' * ys'))  by  sym assoc
-		 === x' * zs		  by  congL h
+		 === x' * zs                  by  congL h
 
       more : IsFalse (x < y) -> _
       more x>=y = BoolEq.subst {false}{x < y} P x>=y
 		    (spine (lem0 (x :: xs) ys ρ))
 	where
-	  spine = \{x'}{xs'}{y'}{ys'}{zs} h ->
+          spine : forall {x' xs' y' ys' zs} h -> _
+	  spine {x'}{xs'}{y'}{ys'}{zs} h =
 	    eqProof> (x' * xs') * (y' * ys')
 		 === (y' * ys') * (x' * xs')  by  comm
 		 === y' * (ys' * (x' * xs'))  by  sym assoc
