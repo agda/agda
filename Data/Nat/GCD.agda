@@ -27,7 +27,7 @@ open import Relation.Nullary
 
 private
 
-  lem₀ = \n k -> let N = var (# 0); K = var (# 1) in
+  lem₀ = \(n k : ℕ) -> let N = var (# 0); K = var (# 1) in
                  prove (n ∷ k ∷ [])
                        (N :+ (con 1 :+ K)) (con 1 :+ N :+ K) ≡-refl
 
@@ -102,7 +102,7 @@ gcd-0-pos n = isGCD (n +1-divides-0 , divides-refl n) proj₂
 
 private
 
-  ∃GCD = \m n -> ∃ (GCD m n)
+  ∃GCD = \(m n : ℕ) -> ∃ (GCD m n)
 
   step₁ : forall {n k} -> ∃GCD n (suc k) -> ∃GCD n (suc (n + k))
   step₁ (d , g) with GCD.commonDivisor g

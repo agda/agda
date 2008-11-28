@@ -22,7 +22,8 @@ open import Data.Function
 
 private
 
-  lem₁ = \m k -> ≡-cong suc $ begin
+  lem₁ : forall m k -> _
+  lem₁ m k = ≡-cong suc $ begin
     m
       ≡⟨ Fin.inject+-lemma m k ⟩
     toℕ (Fin.inject+ k (fromℕ m))
@@ -32,11 +33,13 @@ private
     toℕ (Fin.inject+ k (fromℕ m)) + 0
       ∎
 
-  lem₂ = \n ->
+  lem₂ : forall n -> _
+  lem₂ n =
     let N = var (# 0) in
     prove (n ∷ []) (con 1 :+ N) (con 1 :+ (N :+ con 0)) ≡-refl
 
-  lem₃ = \n k q r eq -> begin
+  lem₃ : forall n k q r eq -> _
+  lem₃ n k q r eq = begin
       suc n + k
         ≡⟨ (let N = var (# 0); K = var (# 1) in
             prove (n ∷ k ∷ [])
