@@ -138,6 +138,12 @@ data Constraint = NewFlex FlexId Scope
 -- if k <= 0 this means  $^(-k) v1 <= v2
 -- otherwise                    v1 <= $^k v3
 
+instance Show Constraint where
+  show (NewFlex i s) = "SizeMeta(?" ++ show i ++ ")"
+  show (Arc v1 k v2) | k == 0 = show v1 ++ "<=" ++ show v2
+                     | k < 0  = show v1 ++ "+" ++ show (-k) ++ "<=" ++ show v2
+                     | otherwise  = show v1 ++ "<=" ++ show v2 ++ "+" ++ show k
+
 type Constraints = [Constraint]
 
 emptyConstraints = []
@@ -293,16 +299,18 @@ while flexible variables and rigid rows left
 
 while flexible variables j left
   search the row j for entry i
-    if j --n--> i with n >= 0 (meaning j <= i + n) then j = i 
+    if j --n--> i with n >= 0 (meaning j <= i + n) then j = i + n
 
 -}
 
 solve :: Constraints -> Maybe Solution
-solve cs = -- trace (show lm0) $ 
+solve cs = -- trace (show cs) $ 
+   -- trace (show lm0) $ 
     -- trace (show lm) $ -- trace (show d) $
      let solution = if solvable then loop1 flexs rigids emptySolution
                     else Nothing
-     in {- trace (show solution) $-} solution
+     in -- trace (show solution) $ 
+         solution
    where -- compute the graph and its transitive closure m
          gr  = buildGraph cs
          n   = nextNode gr            -- number of nodes
@@ -396,7 +404,7 @@ while flexible variables j left
                      Just (Rigid r) | not (infinite r) -> 
                        case (inScope f r, m!(row,col)) of
                         (True, Finite z) | z >= 0 -> 
-                            loop2 flxs (extendSolution subst f (sizeRigid r 0)) 
+                            loop2 flxs (extendSolution subst f (sizeRigid r z)) 
                         (_, Infinite) -> loop3 (col+1) subst
                         _ -> -- trace ("unusable rigid: " ++ show r ++ " for flex " ++ show f)
                               Nothing  -- NOT: loop3 (col+1) subst

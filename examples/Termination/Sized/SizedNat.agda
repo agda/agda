@@ -1,4 +1,4 @@
-{-# OPTIONS  --sized-types --show-implicit #-}
+{-# OPTIONS  --sized-types --show-implicit --no-coverage #-}
 
 module SizedNat where
 
@@ -19,14 +19,17 @@ div' : {size : Size} -> Nat {size} -> Nat -> Nat {size}
 div' zero    n = zero
 div' (suc m) n = suc (div' (sub m n) n)
 
--- one can used sized types as if they were not sized
+-- one can use sized types as if they were not sized
 -- sizes default to ∞
 
 add : Nat -> Nat -> Nat
 add (zero ) n = n
 add (suc m) n = suc (add m n)
 
-
+nisse : {i : Size} -> Nat {i} -> Nat {i}
+nisse zero = zero
+nisse (suc zero) = suc zero
+nisse (suc (suc n)) = suc zero 
 
 {- Agda complains about duplicate binding
 
