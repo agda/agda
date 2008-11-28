@@ -17,7 +17,7 @@ data List (A : Set) : {_ : Size} -> Set where
   []   : {size : Size} -> List A {size ^}
   _::_ : {size : Size} -> A -> List A {size} -> List A {size ^}
 
--- CPS split
+-- CPS split (non-size increasing)
 
 split : {A : Set}{i : Size} -> List A {i} -> 
         {C : Set} -> (List A {i} -> List A {i} -> C) -> C
