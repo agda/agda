@@ -2,4 +2,4 @@ Negative5.agda:3,6-11
 Funny is not strictly positive, because it occurs to the left of an
 arrow in the first argument to Funny in the type of the constructor
 funny in the definition of Funny, which occurs in the type of the
-constructor funny in the definition of Funny
+constructor funny in the definition of Funny.
