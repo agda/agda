@@ -189,7 +189,8 @@ constituents.")
 
 (defconst agda2-command-table
   `(
-    (agda2-load                               "\C-c\C-x\C-l"     "Load")
+    (agda2-load                               "\C-c\C-l"         "Load")
+    (agda2-load                               "\C-c\C-x\C-l")
     (agda2-text-state                         "\C-c\C-x\C-d"     "Deactivate Agda")
     (agda2-quit                               "\C-c\C-x\C-q"     "Quit")
     (agda2-restart                            "\C-c\C-x\C-r"     "Restart")
