@@ -331,10 +331,15 @@ solve cs = -- trace (show cs) $
          rigids = foldl (\ l k -> case k of (Flex _) -> l
                                             (Rigid i) -> i : l) [] ns
 
+         -- rigid matrix indices
+         rInds = foldl (\ l r -> let Just i = Map.lookup (Rigid r) (nodeMap gr)
+                                 in i : l) [] rigids
+
          -- check whether there is a solution
-         d   = [ m!(i,i) | i <- [0 .. (n-1)] ]  -- diagonal
--- a rigid variable might not be less than it self, so no -.. on the diagonal
-         solvable = all (\ x -> x >= Finite 0) d &&
+         -- d   = [ m!(i,i) | i <- [0 .. (n-1)] ]  -- diagonal
+-- a rigid variable might not be less than it self, so no -.. on the 
+-- rigid part of the diagonal
+         solvable = all (\ x -> x >= Finite 0) [ m!(i,i) | i <- rInds ] &&
 -- a rigid variable might not be bounded below by infinity or
 -- bounded above by a constant
 -- it might not be related to another rigid variable
