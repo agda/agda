@@ -47,7 +47,7 @@ import Control.Monad.Reader
 import Control.Monad.State hiding (State)
 import Control.Exception
 import Data.List as List
-import Data.Map as Map
+import qualified Data.Map as Map
 import System.Exit
 import qualified System.Mem as System
 
@@ -288,16 +288,25 @@ cmd_infer norm ii rng s = infoOnException $ ioTCM $
   display_info "*Inferred Type*"
     =<< B.withInteractionId ii (showA =<< B.typeInMeta ii norm =<< B.parseExprIn ii rng s)
 
+-- | Shows the type of the metavariable.
+
+showTypeOfMeta :: B.Rewrite -> InteractionId -> TCM String
+showTypeOfMeta norm ii = do
+  form <- B.typeOfMeta norm ii
+  case form of
+    B.OfType _ e -> showA e
+    _            -> showA form
+
 cmd_goal_type :: B.Rewrite -> GoalCommand
 cmd_goal_type norm ii _ _ = infoOnException $ ioTCM $ do
-    s <- B.withInteractionId ii $ showA =<< B.typeOfMeta norm ii
+    s <- B.withInteractionId ii $ showTypeOfMeta norm ii
     display_info "*Current Goal*" s
 
 -- | Displays the current goal and context.
 
 cmd_goal_type_context :: B.Rewrite -> GoalCommand
 cmd_goal_type_context norm ii _ _ = infoOnException $ ioTCM $ do
-    goal <- B.withInteractionId ii $ showA =<< B.typeOfMeta norm ii
+    goal <- B.withInteractionId ii $ showTypeOfMeta norm ii
     ctx  <- B.withInteractionId ii $ mapM showA =<< B.contextOfMeta ii norm
     display_info "*Goal and context*"
                  (unlines $ ctx ++ [replicate 40 '-'] ++ lines goal)
@@ -307,16 +316,20 @@ cmd_goal_type_context norm ii _ _ = infoOnException $ ioTCM $ do
 
 cmd_goal_type_infer :: B.Rewrite -> GoalCommand
 cmd_goal_type_infer norm ii rng s = infoOnException $ ioTCM $ do
-    goal <- B.withInteractionId ii $ showA =<< B.typeOfMeta norm ii
+    goal <- B.withInteractionId ii $ showTypeOfMeta norm ii
     typ  <- B.withInteractionId ii $
                showA =<< B.typeInMeta ii norm =<< B.parseExprIn ii rng s
     display_info "*Goal and inferred type*"
-                 (unlines $
-                    ["Want:"] ++
-                    indent goal ++
-                    ["Have:"] ++
-                    indent typ)
-  where indent = List.map ("  " ++) . lines
+                 (format "Want" goal ++
+                  format "Have" typ)
+  where
+  format title s = unlines $ fmt (lines s)
+    where
+    title' = title ++ ": "
+
+    fmt []       = []
+    fmt (s : ss) = (title' ++ s) :
+                   map (map (const ' ') title' ++) ss
 
 -- | Sets the command line options and updates the status information.
 
@@ -373,8 +386,8 @@ showNumIId = A . tail . show
 takenNameStr :: TCM [String]
 takenNameStr = do
   xss <- sequence [ List.map (fst . unArg) <$> getContext
-                  , keys <$> asks envLetBindings
-                  , List.map qnameName . keys . sigDefinitions <$> getSignature
+                  , Map.keys <$> asks envLetBindings
+                  , List.map qnameName . Map.keys . sigDefinitions <$> getSignature
 		  ]
   return $ concat [ parts $ nameConcrete x | x <- concat xss]
   where
