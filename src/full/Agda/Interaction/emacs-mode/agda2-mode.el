@@ -375,7 +375,7 @@ wait for output and execute responses, if any"
     ;; some major problem.
     (agda2-restart)
     (unless (eq 'run (agda2-process-status))
-      (error "Agda2 process is not running.  Please M-x agda2-restart")))
+      (error "Problem encountered. The *ghci* buffer can perhaps explain why.")))
   (save-excursion
     (haskell-ghci-go (apply 'concat (agda2-intersperse " " args)) nil))
   ;;(display-buffer agda2-buffer 'not-tihs-window)
