@@ -115,6 +115,7 @@ lam {A = A} f =
   λ (\γ -> λ (\x -> f # (γ , x)) (prf₁ γ)) prf₂
   where
     abstract
+      prf₁ : forall γ x y x=y -> _
       prf₁ = \γ x y x=y -> #-cong-R f (eqInΣ refl refl x=y)
 
       prf₂ = \x y x=y ->

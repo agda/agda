@@ -18,6 +18,10 @@ syntaxTests = syntax1 syntax2
 cwf = cwf/CwF.agda --ignore-interfaces -icwf -v0
 cwfTests = cwf
 
+# Parsing monad
+monad = monad/Monad.agda -i../std-lib
+monadTests = monad
+
 # All tests
-allTests = $(catTests) $(acTests) $(syntaxTests) $(cwfTests)
+allTests = $(catTests) $(acTests) $(syntaxTests) $(cwfTests) $(monadTests)
 

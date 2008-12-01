@@ -176,4 +176,6 @@ stats goodLog goodCase attrs = do
     prAttr s (Attr name f) =
       text name <> text ":" <+> text (show (f s))
 
+time = stats (const True) (const True) [Attr "time" totalTime]
+mem  = stats (const True) (const True) [Attr "space" ((`div` 1024) . residency)]
 
