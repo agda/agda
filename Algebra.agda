@@ -1,8 +1,7 @@
 ------------------------------------------------------------------------
--- Algebraic structures
+-- Definitions of algebraic structures like monoids and rings
+-- (packed in records together with setoids and operations)
 ------------------------------------------------------------------------
-
--- Algebraic structures packed up with setoids and operations.
 
 module Algebra where
 
