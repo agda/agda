@@ -20,7 +20,7 @@ data Induction = Inductive | CoInductive
   deriving (Typeable, Data, Show, Eq)
 
 data Recursion = Recursive | CoRecursive
-  deriving (Typeable, Data, Show, Eq)
+  deriving (Typeable, Data, Show, Eq, Ord)
 
 data Hiding  = Hidden | NotHidden
     deriving (Typeable, Data, Show, Eq)

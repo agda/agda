@@ -21,6 +21,7 @@ import Agda.Utils.Either
 import Agda.Utils.TestHelpers
 import Control.Arrow
 import Agda.Utils.QuickCheck
+import Agda.Syntax.Common (Recursion(..))
 import qualified Data.Set as Set
 import qualified Data.Array as Array
 import Data.Set (Set)
@@ -63,12 +64,23 @@ checkIdems :: (Ord meta,Monoid meta) => [(Call,meta)] -> Either meta ()
 checkIdems [] = Right ()
 checkIdems ((c,m):xs) = if (checkIdem c) then checkIdems xs else Left m
 
+{- Convention (see TermCheck): 
+   Guardedness flag is in position (0,0) of the matrix,
+   it is always present even if the functions are all recursive.
+
+   We need to ignore it when the source of the call is recursive.
+ -}
+   
 checkIdem :: Call -> Bool
-checkIdem c = let b = target c == source c
-                  idem = (c >*< c) == c
-                  hasDecr = any isDecr $ Array.elems $ diagonal (mat (cm c))
-                  in
-                    (not b) || (not idem) || hasDecr
+checkIdem c = let
+  b = target c == source c
+  idem = (c >*< c) == c
+  diag =  Array.elems $ diagonal (mat (cm c))
+  -- for corecursive, keep guardedness
+  diag' = if (callRec c == CoRecursive) then diag else (tail diag)
+  hasDecr = any isDecr $ diag'
+  in
+    (not b) || (not idem) || hasDecr
 
 -- | Matrix is decreasing if any diagonal element is 'Lt'.
 
@@ -97,12 +109,15 @@ example1 = buildCallGraph [c1, c2, c3]
   flat = 1
   aux  = 2
   c1 = Call { source = flat, target = aux
-            , cm = CallMatrix $ fromLists (Size 2 1) [[Lt], [Lt]] }
+            , cm = CallMatrix $ fromLists (Size 2 1) [[Lt], [Lt]] 
+            , callRec = Recursive }
   c2 = Call { source = aux,  target = aux
             , cm = CallMatrix $ fromLists (Size 2 2) [ [Lt, Unknown]
-                                                     , [Unknown, Le]] }
+                                                     , [Unknown, Le]] 
+            , callRec = Recursive  }
   c3 = Call { source = aux,  target = flat
-            , cm = CallMatrix $ fromLists (Size 1 2) [[Unknown, Le]] }
+            , cm = CallMatrix $ fromLists (Size 1 2) [[Unknown, Le]] 
+            , callRec = Recursive }
 
 prop_terminates_example1 = isRight $ terminates example1
 
@@ -119,7 +134,8 @@ example2 = buildCallGraph [c]
   plus = 1
   c = Call { source = plus, target = plus
            , cm = CallMatrix $ fromLists (Size 2 2) [ [Unknown, Le]
-                                                    , [Lt, Unknown] ] }
+                                                    , [Lt, Unknown] ]  
+            , callRec = Recursive }
 
 prop_terminates_example2 = isRight $ terminates example2 
 
@@ -141,7 +157,8 @@ example3 = buildCallGraph [c plus plus', c plus' plus]
   plus' = 2
   c f g = Call { source = f, target = g
                , cm = CallMatrix $ fromLists (Size 2 2) [ [Unknown, Le]
-                                                        , [Lt, Unknown] ] }
+                                                        , [Lt, Unknown] ]  
+               , callRec = Recursive }
 
 prop_terminates_example3 = isRight $ terminates example3 
 
@@ -163,13 +180,16 @@ example4 = buildCallGraph [c1, c2, c3]
   g = 2
   c1 = Call { source = f, target = f
             , cm = CallMatrix $ fromLists (Size 2 2) [ [Le, Unknown]
-                                                     , [Unknown, Le] ] }
+                                                     , [Unknown, Le] ]  
+            , callRec = Recursive }
   c2 = Call { source = f, target = g
             , cm = CallMatrix $ fromLists (Size 2 2) [ [Lt, Unknown]
-                                                     , [Unknown, Le] ] }
+                                                     , [Unknown, Le] ]  
+            , callRec = Recursive }
   c3 = Call { source = g, target = f
             , cm = CallMatrix $ fromLists (Size 2 2) [ [Le, Unknown]
-                                                     , [Unknown, Le] ] }
+                                                     , [Unknown, Le] ]  
+            , callRec = Recursive }
 
 prop_terminates_example4 = isLeft $ terminates example4
 
@@ -186,16 +206,20 @@ example5 = buildCallGraph [c1, c2, c3, c4]
   g = 2
   c1 = Call { source = f, target = g
             , cm = CallMatrix $ fromLists (Size 2 2) [ [Lt, Unknown]
-                                                     , [Unknown, Le] ] }
+                                                     , [Unknown, Le] ]  
+            , callRec = Recursive }
   c2 = Call { source = f, target = f
             , cm = CallMatrix $ fromLists (Size 2 2) [ [Unknown, Unknown]
-                                                     , [Unknown, Lt] ] }
+                                                     , [Unknown, Lt] ]  
+            , callRec = Recursive }
   c3 = Call { source = g, target = f
             , cm = CallMatrix $ fromLists (Size 2 2) [ [Le, Unknown]
-                                                     , [Unknown, Le] ] }
+                                                     , [Unknown, Le] ]  
+            , callRec = Recursive }
   c4 = Call { source = g, target = g
             , cm = CallMatrix $ fromLists (Size 2 2) [ [Lt, Unknown]
-                                                     , [Unknown, Le] ] }
+                                                     , [Unknown, Le] ]  
+            , callRec = Recursive }
 
 prop_terminates_example5 = isRight $ terminates example5 
 
@@ -213,11 +237,14 @@ example6 = buildCallGraph [c1, c2, c3]
   where
   f = 1
   c1 = Call { source = f, target = f
-            , cm = CallMatrix $ fromLists (Size 1 1) [ [Lt] ] }
+            , cm = CallMatrix $ fromLists (Size 1 1) [ [Lt] ]  
+            , callRec = Recursive }
   c2 = Call { source = f, target = f
-            , cm = CallMatrix $ fromLists (Size 1 1) [ [Le] ] }
+            , cm = CallMatrix $ fromLists (Size 1 1) [ [Le] ]  
+            , callRec = Recursive }
   c3 = Call { source = f, target = f
-            , cm = CallMatrix $ fromLists (Size 1 1) [ [Le] ] }
+            , cm = CallMatrix $ fromLists (Size 1 1) [ [Le] ]  
+            , callRec = Recursive }
 
 prop_terminates_example6 = isLeft $ terminates example6 
 

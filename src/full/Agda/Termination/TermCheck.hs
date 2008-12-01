@@ -85,11 +85,14 @@ collectCalls f (a : as) = do c1 <- f a
                              c2 <- collectCalls f as
                              return (c1 `Term.union` c2)
 
+{-
 sameRecursion :: [Maybe Recursion] -> TCM Recursion
 sameRecursion rs = case nub [ r | Just r <- rs ] of
   []  -> return Recursive
   [r] -> return r
   _   -> typeError $ NotImplemented "mutual recursion and corecursion"
+-}
+
 
 -- | Termination check a bunch of mutually inductive recursive definitions.
 termMutual :: Info.DeclInfo -> [A.TypeSignature] -> [A.Definition] -> TCM Result
@@ -101,11 +104,13 @@ termMutual i ts ds = if names == [] then return [] else
      mutualBlock <- findMutualBlock (head names)
      let allNames = Set.elems mutualBlock
 
+{-
      -- Get the kind of recursion (you can't mix recursion and corecursion at the moment)
      rec <- sameRecursion =<< mapM whatRecursion allNames
+-}
 
      -- collect all recursive calls in the block
-     let collect use = collectCalls (termDef rec use allNames) allNames
+     let collect use = collectCalls (termDef use allNames) allNames
 
      -- Get the name of size suc (if sized types are enabled)
      suc <- sizeSuc
@@ -197,8 +202,9 @@ termTypedBinding h (A.TNoBind e) ret = do
     ret [("_",t)]
 
 -- | Termination check a definition by pattern matching.
-termDef :: Recursion -> DBPConf -> MutualNames -> QName -> TCM Calls
-termDef rec use names name = do
+-- termDef :: Recursion -> DBPConf -> MutualNames -> QName -> TCM Calls
+termDef :: DBPConf -> MutualNames -> QName -> TCM Calls
+termDef use names name = do
 	-- Retrieve definition
         def <- getConstInfo name
         -- returns a TC.Monad.Base.Definition
@@ -208,7 +214,8 @@ termDef rec use names name = do
 	      , nest 2 $ text ":" <+> (prettyTCM $ defType def)
 	      ]
         case (theDef def) of
-          Function{ funClauses = cls, funAbstr = isAbstract } ->
+          Function{ funClauses   = cls, 
+                    funRecursion = rec } ->
             collectCalls (termClause rec use names name) cls
           _ -> return Term.empty
 
@@ -296,6 +303,8 @@ stripCoConstructors p = case p of
 
 {- | stripBind i p b = Just (i', dbp, b')
 
+  converts a pattern into a de Bruijn pattern
+
   i  is the next free de Bruijn level before consumption of p
   i' is the next free de Bruijn level after  consumption of p
 
@@ -348,7 +357,7 @@ termClause rec use names name (Clause tel perm argPats' body) = do
     case dbs of
        Nothing -> return Term.empty
        Just (-1, dbpats, Body t) -> do
-          dbpats <- mapM stripCoConstructors dbpats
+          dbpats <- mapM stripCoConstructors dbpats 
           termTerm names name dbpats rec t
           -- note: convert dB levels into dB indices
        Just (n, dbpats, Body t) -> internalError $ "termClause: misscalculated number of vars: guess=" ++ show nVars ++ ", real=" ++ show (nVars - 1 - n)
@@ -368,9 +377,9 @@ termTerm names f pats0 rec t0 = do
          , nest 2 $ text "lhs:" <+> hsep (map prettyTCM pats0)
          , nest 2 $ text "rhs:" <+> prettyTCM t0
          ])
-  let guarded = case rec of
+  let guarded = Le {- case rec of
                   Recursive   -> Unknown
-                  CoRecursive -> Le
+                  CoRecursive -> Le -}
   loop pats0 guarded t0
   where 
        Just fInd' = List.elemIndex f names
@@ -428,6 +437,7 @@ termTerm names f pats0 rec t0 = do
                             (Term.Call { Term.source = fInd
                                        , Term.target = toInteger gInd'
                                        , Term.cm     = makeCM ncols nrows matrix'
+                                       , Term.callRec   = rec
                                        })
                             -- Note that only the base part of the
                             -- name is collected here.
@@ -489,6 +499,7 @@ makeCM ncols nrows matrix = Term.CallMatrix $
                             })
                  matrix
 
+-- | 'addGuardedness' adds guardedness flag in the upper left corner (0,0).
 addGuardedness :: Integral n => Order -> n -> [[Term.Order]] -> [[Term.Order]]
 addGuardedness g ncols m =
   (g : genericReplicate ncols Unknown) : map (Unknown :) m
@@ -511,7 +522,7 @@ compareTerm t p = Term.supremum $ compareTerm' t p : map cmp (subPatterns p)
 -- | compareTerm t dbpat
 --   Precondition: top meta variable resolved
 compareTerm' :: Maybe QName -> Term -> DeBruijnPat -> TCM Term.Order
-compareTerm' _ (Var i _)  p              = return $ compareVar i p
+compareTerm' _ (Var i _)  p              = compareVar i p
 compareTerm' _ (Lit l)    (LitDBP l')
   | l == l'   = return Term.Le
   | otherwise = return Term.Unknown
@@ -547,8 +558,21 @@ compareConArgs suc ts ps =
        -- allows examples like (x, y) < (Succ x, y)
 -}
 
-compareVar :: Nat -> DeBruijnPat -> Term.Order
-compareVar i (VarDBP j)    = if i == j then Term.Le else Term.Unknown
-compareVar i (LitDBP _)    = Term.Unknown
-compareVar i (ConDBP c ps) =
-  (Term..*.) Term.Lt (Term.supremum (map (compareVar i) ps))
+compareVar :: Nat -> DeBruijnPat -> TCM Term.Order
+compareVar i (VarDBP j)    = return $ if i == j then Term.Le else Term.Unknown
+compareVar i (LitDBP _)    = return $ Term.Unknown
+compareVar i (ConDBP c ps) = do
+  os <- mapM (compareVar i) ps
+  let o = Term.supremum os 
+  return $ (Term..*.) Term.Lt o
+
+{- CHECK FOR Inductive not necessary since stripCoConstructors
+compareVar :: Nat -> DeBruijnPat -> TCM Term.Order
+compareVar i (VarDBP j)    = return $ if i == j then Term.Le else Term.Unknown
+compareVar i (LitDBP _)    = return $ Term.Unknown
+compareVar i (ConDBP c ps) = do
+  os <- mapM (compareVar i) ps
+  let o = Term.supremum os 
+  ind <- whatInduction c
+  return $ if ind == Inductive then (Term..*.) Term.Lt o else Term.Unknown -- FIX: revert to old def.
+-}
