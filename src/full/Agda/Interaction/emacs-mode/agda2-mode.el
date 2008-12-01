@@ -189,35 +189,35 @@ constituents.")
 
 (defconst agda2-command-table
   `(
-    (agda2-load                               "\C-c\C-l"         "Load")
+    (agda2-load                               "\C-c\C-l"         global "Load")
     (agda2-load                               "\C-c\C-x\C-l")
-    (agda2-text-state                         "\C-c\C-x\C-d"     "Deactivate Agda")
-    (agda2-quit                               "\C-c\C-x\C-q"     "Quit")
-    (agda2-restart                            "\C-c\C-x\C-r"     "Restart")
-    (agda2-display-implicit-arguments         "\C-c\C-x\C-h"     "Toggle display of hidden arguments")
-    (agda2-highlight-reload-or-clear          "\C-c\C-x\C-s"     "Reload syntax highlighting information")
-    (agda2-show-constraints                   ,(kbd "C-c C-=")   "Show constraints")
-    (agda2-solveAll                           ,(kbd "C-c C-s")   "Solve constraints")
-    (agda2-show-goals                         ,(kbd "C-c C-?")   "Show goals")
-    (agda2-next-goal                          "\C-c\C-f"         "Next goal") ; Forward.
-    (agda2-previous-goal                      "\C-c\C-b"         "Previous goal") ; Back.
-    (agda2-infer-type-maybe-toplevel          nil                "Infer (deduce) type")
-    (agda2-infer-type-toplevel-normalised     nil                "Infer type (normalised)")
-    (agda2-compute-normalised-maybe-toplevel  nil                "Evaluate term to normal form")
-    (agda2-give                               ,(kbd "C-c C-SPC") nil "Give")
-    (agda2-refine                             "\C-c\C-r"         nil "Refine")
-    (agda2-make-case                          "\C-c\C-c"         nil "Case")
-    (agda2-goal-type                          "\C-c\C-t"         nil "Goal type")
-    (agda2-goal-type-normalised               nil                nil "Goal type (normalised)")
-    (agda2-show-context                       "\C-c\C-e"         nil "Context (environment)")
-    (agda2-show-context-normalised            nil                nil "Context (normalised)")
-    (agda2-infer-type-maybe-toplevel          "\C-c\C-d"         nil "Infer (deduce) type")
-    (agda2-infer-type-normalised              nil                nil "Infer type (normalised)")
-    (agda2-goal-and-context                   ,(kbd "C-c C-,")   nil "Goal type and context")
-    (agda2-goal-and-context-normalised        nil                nil "Goal type and context (normalised)")
-    (agda2-goal-and-infer                     ,(kbd "C-c C-.")   nil "Goal type and inferred type")
-    (agda2-goal-and-infer-normalised          nil                nil "Goal type and inferred type (normalised)")
-    (agda2-compute-normalised-maybe-toplevel  "\C-c\C-n"         nil "Evaluate term to normal form")
+    (agda2-text-state                         "\C-c\C-x\C-d"     global "Deactivate Agda")
+    (agda2-quit                               "\C-c\C-x\C-q"     global "Quit")
+    (agda2-restart                            "\C-c\C-x\C-r"     global "Restart")
+    (agda2-display-implicit-arguments         "\C-c\C-x\C-h"     global "Toggle display of hidden arguments")
+    (agda2-highlight-reload-or-clear          "\C-c\C-x\C-s"     global "Reload syntax highlighting information")
+    (agda2-show-constraints                   ,(kbd "C-c C-=")   global "Show constraints")
+    (agda2-solveAll                           ,(kbd "C-c C-s")   global "Solve constraints")
+    (agda2-show-goals                         ,(kbd "C-c C-?")   global "Show goals")
+    (agda2-next-goal                          "\C-c\C-f"         global "Next goal") ; Forward.
+    (agda2-previous-goal                      "\C-c\C-b"         global "Previous goal") ; Back.
+    (agda2-infer-type-maybe-toplevel          nil                global "Infer (deduce) type")
+    (agda2-infer-type-toplevel-normalised     nil                global "Infer type (normalised)")
+    (agda2-compute-normalised-maybe-toplevel  nil                global "Evaluate term to normal form")
+    (agda2-give                               ,(kbd "C-c C-SPC") local  "Give")
+    (agda2-refine                             "\C-c\C-r"         local  "Refine")
+    (agda2-make-case                          "\C-c\C-c"         local  "Case")
+    (agda2-goal-type                          "\C-c\C-t"         local  "Goal type")
+    (agda2-goal-type-normalised               nil                local  "Goal type (normalised)")
+    (agda2-show-context                       "\C-c\C-e"         local  "Context (environment)")
+    (agda2-show-context-normalised            nil                local  "Context (normalised)")
+    (agda2-infer-type-maybe-toplevel          "\C-c\C-d"         local  "Infer (deduce) type")
+    (agda2-infer-type-normalised              nil                local  "Infer type (normalised)")
+    (agda2-goal-and-context                   ,(kbd "C-c C-,")   local  "Goal type and context")
+    (agda2-goal-and-context-normalised        nil                local  "Goal type and context (normalised)")
+    (agda2-goal-and-infer                     ,(kbd "C-c C-.")   local  "Goal type and inferred type")
+    (agda2-goal-and-infer-normalised          nil                local  "Goal type and inferred type (normalised)")
+    (agda2-compute-normalised-maybe-toplevel  "\C-c\C-n"         local  "Evaluate term to normal form")
     (agda2-indent                ,(kbd "TAB"))
     (agda2-indent-reverse        [S-iso-lefttab])
     (agda2-indent-reverse        [S-lefttab])
@@ -237,20 +237,24 @@ and GOAL-NAME is for the Agda goal menu.")
       (cons "Agda2" (make-sparse-keymap "Agda2")))
     (define-key map [down-mouse-3]  'agda2-popup-menu-3)
     (dolist (d (reverse agda2-command-table))
-      (destructuring-bind (f &optional k s1 s2) d
-        (if k  (define-key map k f))
-        (if s1 (define-key map
-                 (vector 'menu-bar 'Agda2 (intern s1)) (cons s1 f)))))
+      (destructuring-bind (f &optional keys kind desc) d
+        (if keys (define-key map keys f))
+        (if (equal kind 'global)
+            (define-key map
+              (vector 'menu-bar 'Agda2 (intern desc)) (cons desc f)))))
     map)
   "Keymap for `agda2-mode'.")
+
 (defvar agda2-goal-map
   (let ((map (make-sparse-keymap "Agda goal")))
     (dolist (d (reverse agda2-command-table))
-      (destructuring-bind (f &optional k s1 s2) d
-        (if s2 (define-key map
-                 (vector (intern s2)) (cons s2 f)))))
+      (destructuring-bind (f &optional keys kind desc) d
+        (if (equal kind 'local)
+            (define-key map
+              (vector (intern desc)) (cons desc f)))))
     map)
   "Keymap for agda2 goal menu.")
+
 (defvar agda2-buffer  nil "Agda subprocess buffer.  Set in `agda2-restart'.")
 (defvar agda2-process nil "Agda subprocess.  Set in `agda2-restart'.")
 
