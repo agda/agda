@@ -337,28 +337,27 @@ Special commands:
  (force-mode-line-update)
  (set-input-method "Agda"))
 
-(defun agda2-restart (&optional force)
-  "Load `agda2-toplevel-module' to ghci."
+(defun agda2-restart ()
+  "Kill and restart the *ghci* buffer and load `agda2-toplevel-module'."
   (interactive)
-  (if (or force (not (eq 'run (agda2-process-status))))
-    (save-excursion (let ((agda2-bufname "*ghci*")
-                          (ignore-dot-ghci "-ignore-dot-ghci"))
-                      (agda2-protect (kill-buffer agda2-bufname))
-                      ;; Make sure that the user's .ghci is not read.
-                      ;; Users can override this by adding
-                      ;; "-read-dot-ghci" to
-                      ;; `haskell-ghci-program-args'.
-                      (unless (equal (car-safe haskell-ghci-program-args)
-                                     ignore-dot-ghci)
-                        (set (make-local-variable 'haskell-ghci-program-args)
-                             (cons ignore-dot-ghci haskell-ghci-program-args)))
-                      (haskell-ghci-start-process nil)
-                      (setq agda2-process  haskell-ghci-process
-                            agda2-buffer   haskell-ghci-process-buffer
-                            mode-name "Agda2 GHCi")
-                      (set-buffer-file-coding-system 'utf-8)
-		      (set-buffer-process-coding-system 'utf-8 'utf-8)
-                      (rename-buffer agda2-bufname))))
+  (save-excursion (let ((agda2-bufname "*ghci*")
+                        (ignore-dot-ghci "-ignore-dot-ghci"))
+                    (agda2-protect (kill-buffer agda2-bufname))
+                    ;; Make sure that the user's .ghci is not read.
+                    ;; Users can override this by adding
+                    ;; "-read-dot-ghci" to
+                    ;; `haskell-ghci-program-args'.
+                    (unless (equal (car-safe haskell-ghci-program-args)
+                                   ignore-dot-ghci)
+                      (set (make-local-variable 'haskell-ghci-program-args)
+                           (cons ignore-dot-ghci haskell-ghci-program-args)))
+                    (haskell-ghci-start-process nil)
+                    (setq agda2-process  haskell-ghci-process
+                          agda2-buffer   haskell-ghci-process-buffer
+                          mode-name "Agda2 GHCi")
+                    (set-buffer-file-coding-system 'utf-8)
+                    (set-buffer-process-coding-system 'utf-8 'utf-8)
+                    (rename-buffer agda2-bufname)))
   (apply 'agda2-go ":set" agda2-ghci-options)
   (agda2-go ":mod +" agda2-toplevel-module)
   (agda2-text-state)
