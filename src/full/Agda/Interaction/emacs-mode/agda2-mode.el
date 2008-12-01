@@ -189,33 +189,27 @@ constituents.")
 
 (defconst agda2-command-table
   `(
-    (agda2-load                               "\C-c\C-l"         (global)       "Load")
-    (agda2-load                               "\C-c\C-x\C-l")
-    (agda2-text-state                         "\C-c\C-x\C-d"     (global)       "Deactivate Agda")
-    (agda2-quit                               "\C-c\C-x\C-q"     (global)       "Quit")
-    (agda2-restart                            "\C-c\C-x\C-r"     (global)       "Restart")
-    (agda2-display-implicit-arguments         "\C-c\C-x\C-h"     (global)       "Toggle display of hidden arguments")
-    (agda2-highlight-reload-or-clear          "\C-c\C-x\C-s"     (global)       "Reload syntax highlighting information")
-    (agda2-show-constraints                   ,(kbd "C-c C-=")   (global)       "Show constraints")
-    (agda2-solveAll                           ,(kbd "C-c C-s")   (global)       "Solve constraints")
-    (agda2-show-goals                         ,(kbd "C-c C-?")   (global)       "Show goals")
-    (agda2-next-goal                          "\C-c\C-f"         (global)       "Next goal") ; Forward.
-    (agda2-previous-goal                      "\C-c\C-b"         (global)       "Previous goal") ; Back.
-    (agda2-give                               ,(kbd "C-c C-SPC") (local)        "Give")
-    (agda2-refine                             "\C-c\C-r"         (local)        "Refine")
-    (agda2-make-case                          "\C-c\C-c"         (local)        "Case")
-    (agda2-goal-type                          "\C-c\C-t"         (local)        "Goal type")
-    (agda2-goal-type-non-normalised           nil                (local)        "Goal type (without normalising)")
-    (agda2-show-context                       "\C-c\C-e"         (local)        "Context (environment)")
-    (agda2-show-context-non-normalised        nil                (local)        "Context (without normalising)")
-    (agda2-infer-type-maybe-toplevel          "\C-c\C-d"         (local global) "Infer (deduce) type")
-    (agda2-infer-type-toplevel-non-normalised nil                (global)       "Infer type (without normalising)")
-    (agda2-infer-type-non-normalised          nil                (local)        "Infer type (without normalising)")
-    (agda2-goal-and-context                   ,(kbd "C-c C-,")   (local)        "Goal type and context")
-    (agda2-goal-and-context-non-normalised    nil                (local)        "Goal type and context (without normalising)")
-    (agda2-goal-and-infer                     ,(kbd "C-c C-.")   (local)        "Goal type and inferred type")
-    (agda2-goal-and-infer-non-normalised      nil                (local)        "Goal type and inferred type (without normalising)")
-    (agda2-compute-normalised-maybe-toplevel  "\C-c\C-n"         (local global) "Evaluate term to normal form")
+    (agda2-load                              "\C-c\C-l"         (global)       "Load")
+    (agda2-load                              "\C-c\C-x\C-l")
+    (agda2-text-state                        "\C-c\C-x\C-d"     (global)       "Deactivate Agda")
+    (agda2-quit                              "\C-c\C-x\C-q"     (global)       "Quit")
+    (agda2-restart                           "\C-c\C-x\C-r"     (global)       "Restart")
+    (agda2-display-implicit-arguments        "\C-c\C-x\C-h"     (global)       "Toggle display of hidden arguments")
+    (agda2-highlight-reload-or-clear         "\C-c\C-x\C-s"     (global)       "Reload syntax highlighting information")
+    (agda2-show-constraints                  ,(kbd "C-c C-=")   (global)       "Show constraints")
+    (agda2-solveAll                          ,(kbd "C-c C-s")   (global)       "Solve constraints")
+    (agda2-show-goals                        ,(kbd "C-c C-?")   (global)       "Show goals")
+    (agda2-next-goal                         "\C-c\C-f"         (global)       "Next goal") ; Forward.
+    (agda2-previous-goal                     "\C-c\C-b"         (global)       "Previous goal") ; Back.
+    (agda2-give                              ,(kbd "C-c C-SPC") (local)        "Give")
+    (agda2-refine                            "\C-c\C-r"         (local)        "Refine")
+    (agda2-make-case                         "\C-c\C-c"         (local)        "Case")
+    (agda2-goal-type                         "\C-c\C-t"         (local)        "Goal type")
+    (agda2-show-context                      "\C-c\C-e"         (local)        "Context (environment)")
+    (agda2-infer-type-maybe-toplevel         "\C-c\C-d"         (local global) "Infer (deduce) type")
+    (agda2-goal-and-context                  ,(kbd "C-c C-,")   (local)        "Goal type and context")
+    (agda2-goal-and-infer                    ,(kbd "C-c C-.")   (local)        "Goal type and inferred type")
+    (agda2-compute-normalised-maybe-toplevel "\C-c\C-n"         (local global) "Evaluate term to normal form")
     (agda2-indent                ,(kbd "TAB"))
     (agda2-indent-reverse        [S-iso-lefttab])
     (agda2-indent-reverse        [S-lefttab])
@@ -534,67 +528,52 @@ in the buffer's mode line."
   (agda2-protect (progn (kill-buffer agda2-buffer)
                         (kill-buffer (current-buffer)))))
  
-(defmacro agda2-maybe-non-normalised (name comment cmd prompt)
-  "This macro constructs two functions NAME and NAME-non-normalised, using
-COMMENT to build the functions' comments.  The function NAME takes a
-prefix argument which tells whether it should normalise types or not
-when running CMD (through `agda2-goal-cmd'; PROMPT, if non-nil, is
-used as the goal command prompt)."
+(defmacro agda2-maybe-normalised (name comment cmd prompt)
+  "This macro constructs a function NAME which runs CMD.
+COMMENT is used to build the function's comment. The function
+NAME takes a prefix argument which tells whether it should
+normalise types or not when running CMD (through
+`agda2-goal-cmd'; PROMPT, if non-nil, is used as the goal command
+prompt)."
   (let ((eval (make-symbol "eval")))
-  `(progn
-     (defun ,name (&optional not-normalise)
-       ,(concat comment ".
+  `(defun ,name (&optional not-normalise)
+     ,(concat comment ".
 
 With a prefix argument the result is not explicitly normalised.")
-       (interactive "P")
-       (let ((,eval (if not-normalise "Instantiated" "Normalised")))
-         (agda2-goal-cmd (concat ,cmd " Agda.Interaction.BasicOps." ,eval)
-                         ,prompt)))
+     (interactive "P")
+     (let ((,eval (if not-normalise "Instantiated" "Normalised")))
+       (agda2-goal-cmd (concat ,cmd " Agda.Interaction.BasicOps." ,eval)
+                       ,prompt)))))
 
-     (defun ,(intern (concat (symbol-name name) "-non-normalised")) ()
-       ,(concat comment " (without normalising).")
-       (interactive)
-       (,name t))
-     )))
-
-(defmacro agda2-maybe-non-normalised-toplevel (name comment cmd prompt)
-  "This macro constructs two functions NAME and NAME-non-normalised, using
-COMMENT to build the functions' comments.  The function NAME takes a
-prefix argument which tells whether it should normalise types or not
-when running CMD (through `agda2-go'; the string PROMPT is
-used as the goal command prompt)."
+(defmacro agda2-maybe-normalised-toplevel (name comment cmd prompt)
+  "This macro constructs a function NAME which runs CMD.
+COMMENT is used to build the function's comments. The function
+NAME takes a prefix argument which tells whether it should
+normalise types or not when running CMD (through `agda2-go'; the
+string PROMPT is used as the goal command prompt)."
   (let ((eval (make-symbol "eval")))
-  `(progn
-     (defun ,name (not-normalise expr)
+    `(defun ,name (not-normalise expr)
        ,(concat comment ".
 
 With a prefix argument the result is not explicitly normalised.")
        (interactive ,(concat "P\nM" prompt ": "))
        (let ((,eval (if not-normalise "Instantiated" "Normalised")))
          (agda2-go (concat ,cmd " Agda.Interaction.BasicOps." ,eval " "
-                           (agda2-string-quote expr)))))
+                           (agda2-string-quote expr)))))))
 
-     (defun ,(intern (concat (symbol-name name) "-non-normalised")) (expr)
-       ,(concat comment ".
-
-The result is not explicitly normalised.")
-       (interactive ,(concat "M" prompt ": "))
-       (,name t expr))
-     )))
-
-(agda2-maybe-non-normalised
+(agda2-maybe-normalised
  agda2-goal-type
  "Show the type of the goal at point"
  "cmd_goal_type"
  nil)
 
-(agda2-maybe-non-normalised
+(agda2-maybe-normalised
  agda2-infer-type
  "Infer the type of the goal at point"
  "cmd_infer"
  "expression to type")
 
-(agda2-maybe-non-normalised-toplevel
+(agda2-maybe-normalised-toplevel
    agda2-infer-type-toplevel
    "Infers the type of the given expression. The scope used for
 the expression is that of the last point inside the current
@@ -611,20 +590,20 @@ top-level scope."
                           'agda2-infer-type
                         'agda2-infer-type-toplevel)))
 
-(agda2-maybe-non-normalised
+(agda2-maybe-normalised
  agda2-goal-and-context
  "Shows the type of the goal at point and the currect context"
  "cmd_goal_type_context"
  nil)
 
-(agda2-maybe-non-normalised
+(agda2-maybe-normalised
  agda2-goal-and-infer
  "Shows the type of the goal at point and infers the type of the
 given expression"
  "cmd_goal_type_infer"
  "expression to type")
 
-(agda2-maybe-non-normalised
+(agda2-maybe-normalised
  agda2-show-context
  "Show the context of the goal at point"
  "cmd_context"
