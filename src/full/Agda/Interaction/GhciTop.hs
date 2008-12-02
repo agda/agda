@@ -209,7 +209,7 @@ cmd_load' file includes cmd cmd2 = infoOnException $ do
             setOptionsFromPragmas pragmas
 	    topLevel <- concreteToAbstract_ (TopLevel m)
 
-            ok <- handleError
+            termOK <- handleError
               -- If there is an error syntax highlighting info can
               -- still be generated.
               (\e -> do generateEmacsFile
@@ -236,15 +236,19 @@ cmd_load' file includes cmd cmd2 = infoOnException $ do
             liftIO $ modifyIORef theState $ \s ->
                        s { theTopLevel = Just topLevel }
 
-            -- Generate an interface file if all meta-variables have
-            -- been solved.
             noUnsolvedMetas <- null <$> getOpenMetas
-            when noUnsolvedMetas $ do
+
+            -- True if the file was successfully and completely
+            -- type-checked.
+            let ok = termOK && noUnsolvedMetas
+
+            -- Generate an interface file.
+            when ok $ do
                 i <- buildInterface
                 let ifile = setExtension ".agdai" file
                 liftIO $ encodeFile ifile i
 
-            cmd (ok && noUnsolvedMetas)
+            cmd ok
 
 	    lispIP
 
