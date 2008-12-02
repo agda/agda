@@ -346,6 +346,9 @@ generate file kinds (A.AmbQ qs) = do
   let kind = case (allEqual ks, ks) of
                (True, k : _) -> Just k
                _             -> Nothing
+      -- Note that all names in an AmbiguousQName should have the same
+      -- concrete name, so either they are all operators, or none of
+      -- them are.
       m isOp  = mempty { aspect = Just $ Name kind isOp }
       include = allEqual (map bindingSite qs)
   return $ mconcat $ map (\q -> nameToFileA file q include m) qs

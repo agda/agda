@@ -43,6 +43,9 @@ newtype ModuleName = MName { mnameToList :: [Name] }
   deriving (Eq, Ord, Typeable, Data)
 
 -- | Ambiguous qualified names. Used for overloaded constructors.
+--
+-- Invariant: All the names in the list must have the same concrete,
+-- unqualified name.
 newtype AmbiguousQName = AmbQ { unAmbQ :: [QName] }
   deriving (Typeable, Data, HasRange)
 
