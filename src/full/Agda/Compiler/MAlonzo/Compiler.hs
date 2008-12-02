@@ -280,13 +280,16 @@ outFile = snd <$> outFile'
 callGHC :: (Interface, ClockTime) -> TCM ()
 callGHC mainICT = do
   setInterface mainICT
-  hsmod      <- prettyPrint <$> curHsMod
-  agdaMod    <- curMName
+  hsmod         <- prettyPrint <$> curHsMod
+  MName agdaMod <- curMName
+  let outputName = case agdaMod of
+        [] -> __IMPOSSIBLE__
+        ms -> last ms
   (mdir, fp) <- outFile'
   opts       <- gets (optGhcFlags . stOptions)
   let overridableArgs =
         [ "-O"
-        , "-o", show agdaMod
+        , "-o", show outputName
         ]
       otherArgs       =
         [ "-i" ++ mdir
