@@ -35,7 +35,7 @@ import Control.Monad.State
 import Control.Monad.Error
 import Control.Applicative
 
-import qualified System.IO.UTF8 as UTF8
+import qualified Agda.Utils.IO as UTF8
 
 import Agda.Syntax.Position
 
@@ -196,7 +196,7 @@ parsePosString pos flags st p input = unP p (initStatePos pos flags input st)
 --   'LexState'.
 parseFile :: ParseFlags -> [LexState] -> Parser a -> FilePath -> IO (ParseResult a)
 parseFile flags st p file =
-    do	input <- liftIO $ UTF8.readFile file
+    do	input <- liftIO $ UTF8.readTextFile' file
 	return $ unP p (initState file flags input st)
 
 {--------------------------------------------------------------------------
