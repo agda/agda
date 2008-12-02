@@ -58,6 +58,7 @@ import qualified Agda.TypeChecking.Monad as TM
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Errors
+import Agda.TypeChecking.Serialise (encodeFile)
 
 import Agda.Syntax.Position
 import Agda.Syntax.Parser
@@ -84,9 +85,11 @@ import qualified Agda.Interaction.BasicOps as B
 import qualified Agda.Interaction.CommandLine.CommandLine as CL
 import Agda.Interaction.Highlighting.Emacs
 import Agda.Interaction.Highlighting.Generate
-import Agda.Interaction.Imports (checkModuleName)
+import Agda.Interaction.Imports (checkModuleName, buildInterface)
 
 import Agda.Termination.TermCheck
+
+import qualified Agda.Compiler.MAlonzo.Compiler as MAlonzo
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
@@ -127,7 +130,7 @@ ioTCM' mFile cmd = do
       return (x,st,us)
     `catchError` \err -> do
         outputErrorInfo err
-	display_info "*Error*" =<< prettyError err
+	display_info errorTitle =<< prettyError err
 	fail "exit"
   case r of
     Right (a,st',ss') -> do
@@ -168,8 +171,27 @@ setIncludeDirectories is = do
   opts <- commandLineOptions
   setCommandLineOptions (opts { optIncludeDirs = is })
 
+-- | @cmd_load m includes@ loads the module in file @m@, using
+-- @includes@ as the include directories.
+
 cmd_load :: FilePath -> [FilePath] -> IO ()
-cmd_load file includes = infoOnException $ do
+cmd_load m includes = cmd_load' m includes (\_ -> return ()) cmd_metas
+
+-- | @cmd_load' m includes cmd cmd2@ loads the module in file @m@,
+-- using @includes@ as the include directories.
+--
+-- If type checking completes without any exceptions having been
+-- encountered the command @cmd b@ is executed, where @b@ is 'True'
+-- iff the termination checker did not complain and there were no
+-- unsolved meta variables.
+--
+-- The command @cmd2@ is executed as the final step of @cmd_load'@,
+-- unless an exception is encountered.
+
+cmd_load' :: FilePath -> [FilePath]
+          -> (Bool -> TCM ()) -> IO ()
+          -> IO ()
+cmd_load' file includes cmd cmd2 = infoOnException $ do
     clearSyntaxInfo file
     (pragmas, m) <- parseFile' moduleParser file
     setWorkingDirectory file m
@@ -187,7 +209,7 @@ cmd_load file includes = infoOnException $ do
             setOptionsFromPragmas pragmas
 	    topLevel <- concreteToAbstract_ (TopLevel m)
 
-            handleError
+            ok <- handleError
               -- If there is an error syntax highlighting info can
               -- still be generated.
               (\e -> do generateEmacsFile
@@ -205,6 +227,7 @@ cmd_load file includes = infoOnException $ do
                           (return [])
 
               generateEmacsFile file TypeCheckingDone topLevel errs
+              return (errs == [])
 
             -- The module type checked, so let us store the abstract
             -- syntax information. (It could be stored before type
@@ -212,6 +235,17 @@ cmd_load file includes = infoOnException $ do
             -- the code is not type correct.)
             liftIO $ modifyIORef theState $ \s ->
                        s { theTopLevel = Just topLevel }
+
+            -- Generate an interface file if all meta-variables have
+            -- been solved.
+            noUnsolvedMetas <- null <$> getOpenMetas
+            when noUnsolvedMetas $ do
+                i <- buildInterface
+                let ifile = setExtension ".agdai" file
+                liftIO $ encodeFile ifile i
+
+            cmd (ok && noUnsolvedMetas)
+
 	    lispIP
 
     -- The Emacs mode uses two different annotation mechanisms, and
@@ -221,13 +255,29 @@ cmd_load file includes = infoOnException $ do
     tellEmacsToReloadSyntaxInfo
     System.performGC
     UTF8.putStrLn $ response $ L [A "agda2-load-action", is]
-    cmd_metas
+    cmd2
   where lispIP  = format . sortRng <$> (tagRng =<< getInteractionPoints)
         tagRng  = mapM (\i -> (,)i <$> getInteractionRange i)
         sortRng = sortBy ((.snd) . compare . snd)
         format  = Q . L . List.map (A . tail . show . fst)
 
         handleError = flip catchError
+
+-- | @cmd_compile m includes@ compiles the module in file @m@, using
+-- @includes@ as the include directories.
+
+cmd_compile :: FilePath -> [FilePath] -> IO ()
+cmd_compile file includes =
+  cmd_load' file includes (\ok ->
+    if ok then do
+      MAlonzo.compilerMain (return ())
+      display_info "*Compilation result*"
+                   "The module was successfully compiled."
+     else
+      display_info errorTitle $ unlines
+        [ "You can only compile modules without unsolved metavariables"
+        , "or termination checking problems."
+        ]) (return ())
 
 cmd_constraints :: IO ()
 cmd_constraints = infoOnException $ ioTCM $ do
@@ -366,6 +416,12 @@ display_info' bufname content =
       , A (quote bufname)
       , A (quote content)
       ]
+
+-- | When an error message is displayed the following title should be
+-- used, if appropriate.
+
+errorTitle :: String
+errorTitle = "*Error*"
 
 response :: Lisp String -> String
 response l = show (text "agda2_mode_code" <+> pretty l)
@@ -588,7 +644,7 @@ infoOnException m =
   where
   inform rng msg = do
     runTCM $ outputErrorInfo (Exception rng msg)
-    display_info' "*Error*" $ rng' ++ msg
+    display_info' errorTitle $ rng' ++ msg
     exitWith (ExitFailure 1)
     where
     rng' | rng == noRange = ""

@@ -88,6 +88,7 @@ errorString err = case err of
     ClashingImport _ _			       -> "ClashingImport"
     ClashingModule _ _			       -> "ClashingModule"
     ClashingModuleImport _ _		       -> "ClashingModuleImport"
+    CompilationError _                         -> "CompilationError"
     ConstructorPatternInWrongDatatype _ _      -> "ConstructorPatternInWrongDatatype"
     CoverageFailure _ _                        -> "CoverageFailure"
     CoverageCantSplitOn _                      -> "CoverageCantSplitOn"
@@ -178,6 +179,7 @@ instance PrettyTCM TypeError where
 	    InternalError s  -> panic s
 	    NotImplemented s -> fwords $ "Not implemented: " ++ s
 	    NotSupported s -> fwords $ "Not supported: " ++ s
+	    CompilationError s -> sep [fwords "Compilation error:", text s]
 	    GenericError s   -> fwords s
 	    TerminationCheckFailed -> fwords
 	      "The program did not termination check"

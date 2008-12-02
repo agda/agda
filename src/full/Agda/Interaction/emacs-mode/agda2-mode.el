@@ -191,6 +191,7 @@ constituents.")
   `(
     (agda2-load                              "\C-c\C-l"         (global)       "Load")
     (agda2-load                              "\C-c\C-x\C-l")
+    (agda2-compile                           "\C-c\C-x\C-c"     (global)       "Compile")
     (agda2-text-state                        "\C-c\C-x\C-d"     (global)       "Deactivate Agda")
     (agda2-quit                              "\C-c\C-x\C-q"     (global)       "Quit")
     (agda2-restart                           "\C-c\C-x\C-r"     (global)       "Restart")
@@ -418,6 +419,14 @@ WANT is an optional prompt.  When ASK is non-nil, use minibuffer."
   "Load current buffer."
   (interactive)
   (agda2-go "cmd_load"
+            (agda2-string-quote (buffer-file-name))
+            (agda2-list-quote agda2-include-dirs)
+            ))
+
+(defun agda2-compile ()
+  "Compile the current module."
+  (interactive)
+  (agda2-go "cmd_compile"
             (agda2-string-quote (buffer-file-name))
             (agda2-list-quote agda2-include-dirs)
             ))

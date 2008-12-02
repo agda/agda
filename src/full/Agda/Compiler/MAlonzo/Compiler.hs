@@ -16,6 +16,7 @@ import System.Exit
 import System.IO
 import qualified System.IO.UTF8 as UTF8
 import System.Time
+import System.Process
 
 import Agda.Compiler.MAlonzo.Misc
 import Agda.Compiler.MAlonzo.Pretty
@@ -299,10 +300,7 @@ callGHC mainICT = do
       args     = overridableArgs ++ opts ++ otherArgs
       compiler = "ghc"
   reportSLn "" 1 $ "calling: " ++ L.intercalate " " (compiler : args)
-  flush
-  exitcode <- liftIO $ rawSystem compiler args
+  (exitcode, out, err) <- liftIO $ readProcessWithExitCode compiler args ""
   case exitcode of
-    ExitFailure _ -> flush >> fail ("MAlonzo: GHC failed:\n" ++ show exitcode)
+    ExitFailure _ -> typeError $ CompilationError $ out ++ "\n" ++ err
     _             -> return ()
-  where
-  flush = liftIO $ hFlush stdout >> hFlush stderr

@@ -642,6 +642,7 @@ data TypeError
 	= InternalError String
 	| NotImplemented String
 	| NotSupported String
+        | CompilationError String
 	| TerminationCheckFailed
 	| PropMustBeSingleton
 	| DataMustEndInSort Term

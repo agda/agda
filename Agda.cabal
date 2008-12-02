@@ -30,7 +30,8 @@ library
                    filepath >= 1.1 && < 2,
                    process >= 1.0 && < 2,
                    haskeline >= 0.3 && < 0.4,
-                   utf8-string >= 0.3 && < 0.4
+                   utf8-string >= 0.3 && < 0.4,
+                   process >= 1.0.1.0 && < 2
   if impl(ghc >= 6.10)
     build-depends: ghc-prim >= 0.1 && < 1
   build-tools:     happy >= 1.15 && < 2,
