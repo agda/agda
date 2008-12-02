@@ -26,9 +26,11 @@ import qualified Agda.Syntax.Parser.Tokens as T
 import qualified Agda.Syntax.Position as P
 import qualified Agda.Syntax.Scope.Base as S
 import qualified Agda.Syntax.Translation.ConcreteToAbstract as CA
+import Agda.Utils.List
 import Agda.Utils.TestHelpers
 import Control.Monad
 import Control.Monad.Trans
+import Control.Monad.State
 import Control.Applicative
 import Data.Monoid
 import Data.Generics
@@ -72,19 +74,24 @@ generateSyntaxInfo
   -> TCM File
 generateSyntaxInfo file tcs top termErrs =
   M.withScope_ (CA.insideScope top) $ M.ignoreAbstractMode $ do
-    tokens   <- liftIO $ Pa.parseFile' Pa.tokensParser file
-    nameInfo <- fmap mconcat $ mapM (generate file tcs) (Fold.toList names)
+    tokens    <- liftIO $ Pa.parseFile' Pa.tokensParser file
+    kinds     <- nameKinds tcs decls
+    nameInfo  <- fmap mconcat $ mapM (generate file kinds)
+                                     (Fold.toList names)
     -- Constructors are only highlighted after type checking, since they
     -- can be overloaded.
     constructorInfo <- if tcs == TypeCheckingNotDone
                           then return mempty
-                          else generateConstructorInfo file decls
+                          else generateConstructorInfo file kinds decls
     metaInfo <- if tcs == TypeCheckingNotDone
                    then return mempty
                    else computeUnsolvedMetaWarnings
-    -- theRest need to be placed before nameInfo here since record field
-    -- declarations contain QNames. tokInfo is placed last since token
-    -- highlighting is more crude than the others.
+    -- theRest needs to be placed before nameInfo here since record
+    -- field declarations contain QNames. constructorInfo also needs
+    -- to be placed before nameInfo since, when typechecking is done,
+    -- constructors are included in both lists. Finally tokInfo is
+    -- placed last since token highlighting is more crude than the
+    -- others.
     return $ mconcat [ constructorInfo
                      , theRest
                      , nameInfo
@@ -126,12 +133,16 @@ generateSyntaxInfo file tcs top termErrs =
       callSites    = Fold.foldMap (\r -> singleton r m) $
                      concatMap snd termErrs
 
-    -- All names mentioned in the syntax tree (not ambiguous ones, and
-    -- not bound variables).
-    names = everything' (><) (Seq.empty `mkQ` getName) decls
+    -- All names mentioned in the syntax tree (not bound variables).
+    names = everything' (><) (Seq.empty `mkQ`  getName
+                                        `extQ` getAmbiguous)
+                        decls
       where
-      getName :: A.QName -> Seq A.QName
-      getName n = Seq.singleton n
+      getName :: A.QName -> Seq A.AmbiguousQName
+      getName n = Seq.singleton (A.AmbQ [n])
+
+      getAmbiguous :: A.AmbiguousQName -> Seq A.AmbiguousQName
+      getAmbiguous = Seq.singleton
 
     -- Bound variables, dotted patterns, record fields and module
     -- names.
@@ -197,6 +208,70 @@ generateSyntaxInfo file tcs top termErrs =
       getModuleName (A.MName { A.mnameToList = xs }) =
         mconcat $ map mod xs
 
+-- | A function mapping names to the kind of name they stand for.
+
+type NameKinds = A.QName -> TCM NameKind
+
+-- | Builds a 'NameKinds' function.
+
+nameKinds :: TypeCheckingState
+          -> [A.Declaration]
+          -> TCM NameKinds
+nameKinds tcs decls = do
+  imported <- fix . stImports <$> get
+  local    <- case tcs of
+    TypeCheckingDone    -> fix . stSignature <$> get
+    TypeCheckingNotDone -> return $
+      -- Traverses the syntax tree and constructs a map from qualified
+      -- names to name kinds.
+      everything' union (Map.empty `mkQ` getDef `extQ` getDecl) decls
+  let merged = Map.union local imported
+  return (\n -> Map.lookup n merged)
+  where
+  fix = Map.map (defnToNameKind . theDef) . sigDefinitions
+
+  -- | The 'M.Axiom' constructor is used to represent various things
+  -- which are not really axioms, so when maps are merged 'Postulate's
+  -- are thrown away whenever possible. The 'getDef' and 'getDecl'
+  -- functions below can return several explanations for one qualified
+  -- name; the 'Postulate's are bogus.
+  union = Map.unionWith dropPostulates
+    where
+    dropPostulates Postulate k = k
+    dropPostulates k         _ = k
+
+  defnToNameKind :: Defn -> NameKind
+  defnToNameKind (M.Axiom {})       = Postulate
+  defnToNameKind (M.Function {})    = Function
+  defnToNameKind (M.Datatype {})    = Datatype
+  defnToNameKind (M.Record {})      = Record
+  defnToNameKind (M.Constructor {}) = Constructor
+  defnToNameKind (M.Primitive {})   = Primitive
+
+  getAxiomName :: A.Declaration -> A.QName
+  getAxiomName (A.Axiom _ q _) = q
+  getAxiomName _               = __IMPOSSIBLE__
+
+  getDef :: A.Definition -> Map A.QName NameKind
+  getDef (A.FunDef  _ q _)      = Map.singleton q Function
+  getDef (A.DataDef _ q _ _ cs) = Map.singleton q Datatype `union`
+                                  (Map.unions $
+                                   map (\q -> Map.singleton q Constructor) $
+                                   map getAxiomName cs)
+  getDef (A.RecDef  _ q _ _ _)  = Map.singleton q Record
+  getDef (A.ScopedDef {})       = Map.empty
+
+  getDecl :: A.Declaration -> Map A.QName NameKind
+  getDecl (A.Axiom _ q _)     = Map.singleton q Postulate
+  getDecl (A.Field _ q _)     = Map.singleton q Field
+  getDecl (A.Primitive _ q _) = Map.singleton q Primitive
+  getDecl (A.Definition {})   = Map.empty
+  getDecl (A.Section {})      = Map.empty
+  getDecl (A.Apply {})        = Map.empty
+  getDecl (A.Import {})       = Map.empty
+  getDecl (A.Pragma {})       = Map.empty
+  getDecl (A.ScopedDecl {})   = Map.empty
+
 -- | Generates syntax highlighting information for all constructors
 -- occurring in patterns and expressions in the given declarations.
 --
@@ -205,9 +280,10 @@ generateSyntaxInfo file tcs top termErrs =
 -- the type checker.
 
 generateConstructorInfo :: FilePath -- ^ The module to highlight.
+                        -> NameKinds
                         -> [A.Declaration]
                         -> TCM File
-generateConstructorInfo file decls = do
+generateConstructorInfo file kinds decls = do
   -- Extract all defined names from the declaration list.
   let names = Fold.toList $ Fold.foldMap A.allNames decls
 
@@ -224,8 +300,10 @@ generateConstructorInfo file decls = do
   let constrs = everything' (><) query (types, clauses)
 
   -- Return suitable syntax highlighting information.
-  Fold.fold <$> Trav.mapM (generate file TypeCheckingDone) constrs
+  Fold.fold <$> Trav.mapM (generate file kinds . mkAmb) constrs
   where
+  mkAmb q = A.AmbQ [q]
+
   query :: GenericQ (Seq A.QName)
   query = mempty          `mkQ`
           getConstructor  `extQ`
@@ -256,30 +334,21 @@ computeUnsolvedMetaWarnings = do
   return $ several (concatMap rToR rs)
          $ mempty { otherAspects = [UnsolvedMeta] }
 
--- | Generates a suitable file for a name.
+-- | Generates a suitable file for a possibly ambiguous name.
 
 generate :: FilePath
             -- ^ The module to highlight.
-         -> TypeCheckingState
-            -- ^ Some information can only be generated after type
-            -- checking. (This can probably be improved.)
-         -> A.QName
+         -> NameKinds
+         -> A.AmbiguousQName
          -> TCM File
-generate file tcs n = do
-  mNameKind <- if tcs == TypeCheckingDone then
-                fmap (Just . toAspect . theDef) $ getConstInfo n
-               else
-                return Nothing
-  let m isOp = mempty { aspect = Just $ Name mNameKind isOp }
-  return (nameToFileA file n m)
-  where
-  toAspect :: Defn -> NameKind
-  toAspect (M.Axiom {})       = Postulate
-  toAspect (M.Function {})    = Function
-  toAspect (M.Datatype {})    = Datatype
-  toAspect (M.Record {})      = Record
-  toAspect (M.Constructor {}) = Constructor
-  toAspect (M.Primitive {})   = Primitive
+generate file kinds (A.AmbQ qs) = do
+  ks <- mapM kinds qs
+  let kind = case (allEqual ks, ks) of
+               (True, k : _) -> Just k
+               _             -> Nothing
+      m isOp  = mempty { aspect = Just $ Name kind isOp }
+      include = allEqual (map bindingSite qs)
+  return $ mconcat $ map (\q -> nameToFileA file q include m) qs
 
 -- | Converts names to suitable 'File's.
 
@@ -320,16 +389,18 @@ nameToFileA :: FilePath
                -- consistency checking.
             -> A.QName
                -- ^ The name.
+            -> Bool
+               -- ^ Should the binding site be included in the file?
             -> (Bool -> MetaInfo)
                -- ^ Meta information to be associated with the name.
                -- ^ The argument is 'True' iff the name is an operator.
             -> File
-nameToFileA file x m =
+nameToFileA file x include m =
   nameToFile file
              (concreteQualifier x)
              (concreteBase x)
              m
-             (Just $ bindingSite x)
+             (if include then Just $ bindingSite x else Nothing)
 
 concreteBase      = A.nameConcrete . A.qnameName
 concreteQualifier = map A.nameConcrete . A.mnameToList . A.qnameModule
