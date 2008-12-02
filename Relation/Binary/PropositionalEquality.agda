@@ -1,5 +1,5 @@
 ------------------------------------------------------------------------
--- Propositional equality
+-- Propositional (intensional) equality
 ------------------------------------------------------------------------
 
 module Relation.Binary.PropositionalEquality where
