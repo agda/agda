@@ -194,7 +194,7 @@ restarting Emacs."
   :group 'agda2-highlight)
 
 (defface agda2-highlight-error-face
-  '((t (:foreground "red")))
+  '((t (:foreground "red" :underline t)))
   "The face used for errors."
   :group 'agda2-highlight)
 
