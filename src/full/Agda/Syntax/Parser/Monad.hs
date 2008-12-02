@@ -196,7 +196,7 @@ parsePosString pos flags st p input = unP p (initStatePos pos flags input st)
 --   'LexState'.
 parseFile :: ParseFlags -> [LexState] -> Parser a -> FilePath -> IO (ParseResult a)
 parseFile flags st p file =
-    do	input <- liftIO $ UTF8.readTextFile' file
+    do	input <- liftIO $ UTF8.readTextFile file
 	return $ unP p (initState file flags input st)
 
 {--------------------------------------------------------------------------

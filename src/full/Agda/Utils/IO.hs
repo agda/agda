@@ -1,8 +1,9 @@
 module Agda.Utils.IO
   ( readBinaryFile'
-  , readTextFile'
+  , readTextFile
   , module System.IO.UTF8
   ) where
+
 import System.IO.UTF8
 import qualified System.IO.UTF8 as UTF8
 import qualified System.IO as IO
@@ -19,5 +20,7 @@ readBinaryFile' file = do
     s <- BS.hGetContents h
     return (s, IO.hClose h)
 
-readTextFile' :: FilePath -> IO String
-readTextFile' n = liftM (decode . map (toEnum . ord)) (IO.readFile n)
+-- | Reads a UTF8-encoded file in text mode.
+
+readTextFile :: FilePath -> IO String
+readTextFile n = liftM (decode . map (toEnum . ord)) (IO.readFile n)
