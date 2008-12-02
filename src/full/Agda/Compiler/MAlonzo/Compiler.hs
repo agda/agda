@@ -280,9 +280,13 @@ callGHC :: (Interface, ClockTime) -> TCM ()
 callGHC mainICT = do
   setInterface mainICT
   hsmod      <- prettyPrint <$> curHsMod
+  agdaMod    <- curMName
   (mdir, fp) <- outFile'
   opts       <- gets (optGhcFlags . stOptions)
-  let overridableArgs = [ "-O" ]
+  let overridableArgs =
+        [ "-O"
+        , "-o", show agdaMod
+        ]
       otherArgs       =
         [ "-i" ++ mdir
         , "-main-is", hsmod
