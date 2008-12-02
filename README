@@ -1,5 +1,5 @@
 ------------------------------------------------------------------------
-To install Agda 2, proceed as follows:
+To install Agda 2 from source, proceed as follows:
 
 (An appendix below lists partial installation scripts for Ubuntu
 Linux.)
@@ -57,11 +57,11 @@ Linux.)
    You can also give other options to the installation script, see
    runhaskell Setup.hs configure --help.
 
-3) If you want to use the Emacs mode, build and install it (see
-   below).
+3) If you want to use the Emacs mode (recommended), build and install
+   it (see below).
 
-4) If you want to use the batch-mode Agda tool, go to the src/main
-   directory, and build and install it:
+4) If you want to use the batch-mode Agda tool (not necessary), go to
+   the src/main directory, and build and install it:
 
      runhaskell Setup.hs clean  # To ensure recompilation when upgrading.
      runhaskell Setup.hs configure
