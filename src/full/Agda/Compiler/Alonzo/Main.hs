@@ -287,7 +287,7 @@ consDefs qns = do
 
 
 processClause :: Name -> Nat -> Clause -> TCM HsDecl
-processClause name number clause@(Clause _ perm args (body)) = do
+processClause name number clause@(Clause _ perm args _ (body)) = do
   reportSLn "comp.alonzo.clause" 20 $
     "processClause " ++ show name ++ "\n" ++
     "  perm = " ++ show perm ++ "\n" ++
@@ -305,7 +305,7 @@ processClause name number clause@(Clause _ perm args (body)) = do
                     -- pats =  processArgPats  args               
                     
 contClause :: Name -> Nat -> Clause -> TCM HsDecl
-contClause name number (Clause _ _ args (body)) = do
+contClause name number (Clause _ _ args _ body) = do
   return $ HsFunBind $ [HsMatch dummyLoc hsid pats rhs decls] where
                 decls = []
                 hsid = dfNameSub name (fromIntegral number)
@@ -484,7 +484,7 @@ typeArity (El s t) = ar t where
     ar _ = 0
 
 clauseBody :: Clause -> Term
-clauseBody (Clause _ _ args bound) = stripBinds bound where
+clauseBody (Clause _ _ args _ bound) = stripBinds bound where
   stripBinds (Bind (Abs _ r)) = stripBinds r
   stripBinds (NoBind r) = stripBinds r
   stripBinds (Body r) = r

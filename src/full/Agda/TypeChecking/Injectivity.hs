@@ -40,8 +40,8 @@ reduceHead v = ignoreAbstractMode $ do
       def <- theDef <$> getConstInfo f
       case def of
 --         Function{ funClauses = [ _ ] }  -> unfoldDefinition reduceHead v f args
-        Datatype{ dataClause = Just _ } -> unfoldDefinition reduceHead v f args
-        Record{ recClause = Just _ }    -> unfoldDefinition reduceHead v f args
+        Datatype{ dataClause = Just _ } -> unfoldDefinition True reduceHead v f args
+        Record{ recClause = Just _ }    -> unfoldDefinition True reduceHead v f args
         _                               -> return $ notBlocked v
     _ -> return $ notBlocked v
 
@@ -75,13 +75,13 @@ checkInjectivity f cs = do
       let inv = Map.fromList (map fromJust hs `zip` ps)
       reportSLn "tc.inj.check" 20 $ show f ++ " is injective."
       reportSDoc "tc.inj.check" 30 $ nest 2 $ vcat $
-        map (\ (h, Clause _ _ ps _) -> text (show h) <+> text "-->" <+>
+        map (\ (h, Clause _ _ ps _ _) -> text (show h) <+> text "-->" <+>
                           fsep (punctuate comma $ map (text . show) ps)
             ) $ Map.toList inv
       return $ Inverse inv
     else return NotInjective
   where
-    entry c@(Clause _ _ _ b) = do
+    entry c@(Clause _ _ _ _ b) = do
       mv <- rhs b
       case mv of
         Nothing -> return []
@@ -150,7 +150,7 @@ useInjectivity cmp a u v = do
     invert _ _ a inv args Nothing  = fallBack
     invert org f ftype inv args (Just h) = case Map.lookup h inv of
       Nothing                     -> typeError $ UnequalTerms cmp u v a
-      Just (Clause tel perm ps _) -> do -- instArgs args ps
+      Just (Clause tel perm ps _ _) -> do -- instArgs args ps
           -- These are what dot patterns should be instantiated at
           ms <- map unArg <$> newTelMeta tel
           reportSDoc "tc.inj.invert" 20 $ vcat

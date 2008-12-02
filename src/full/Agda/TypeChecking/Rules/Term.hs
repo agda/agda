@@ -265,7 +265,7 @@ checkExpr e t =
                   addConstant aux $ Defn aux t' (defaultDisplayForm aux) 0
                                   $ Function
                                     { funClauses        = [Clause EmptyTel (Perm 0 [])
-                                                            [Arg h $ VarP "()"] NoBody
+                                                            [Arg h $ VarP "()"] Recursive NoBody
                                                           ]
                                     , funRecursion      = Recursive
                                     , funInv            = NotInjective

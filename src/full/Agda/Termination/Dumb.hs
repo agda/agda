@@ -68,7 +68,7 @@ processFun' name num (c:cs) = processClause name num c
                               >> processFun' name (num+1) cs
 
 processClause :: QName -> Nat -> Clause -> TCM()
-processClause name num c@(Clause _ _ args body) = 
+processClause name num c@(Clause _ _ args _ body) = 
      do
         let targs = exPatTop args
         case callsClause name num c of
@@ -154,7 +154,7 @@ tcmsg = liftIO . UTF8.putStrLn
 
 callsClause, callsClause' :: QName -> Nat -> Clause -> [RCall]
 callsClause name num c = fixCallNums $ callsClause' name num c
-callsClause' name num c@(Clause _ _ args body) = callsBody name num body
+callsClause' name num c@(Clause _ _ args _ body) = callsBody name num body
 
 fixCallNums :: [RCall] -> [RCall]
 fixCallNums cs = zipWith fixCallNum cs [1..]

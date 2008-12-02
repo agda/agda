@@ -60,16 +60,19 @@ import Agda.Utils.Impossible
 -- * Definitions by pattern matching
 ---------------------------------------------------------------------------
 
+-- TODO: remove this (its obsolete)
 getRecursion :: [A.Clause] -> TCM Recursion
 getRecursion cs = case nub $ concatMap clRec cs of
   []  -> return Recursive
   [rec] -> return rec
-  _     -> fail "Cannot mix recursion and corecursion in the same definition"
+  _     -> return Recursive
+--  _     -> fail "Cannot mix recursion and corecursion in the same definition"
   where
     clRec (A.Clause _ rhs _) = case rhs of
       A.RHS rec _      -> [rec]
       A.AbsurdRHS      -> []
       A.WithRHS _ _ cs -> concatMap clRec cs
+
 
 -- | Type check a definition by pattern matching.
 checkFunDef :: Info.DefInfo -> QName -> [A.Clause] -> TCM ()
@@ -122,7 +125,7 @@ checkFunDef i name cs =
         -- Check pattern coverage
         whenM (optCompletenessCheck <$> commandLineOptions) $ checkCoverage name
     where
-        npats (Clause _ _ ps _) = size ps
+        npats (Clause _ _ ps _ _) = size ps
 
 data WithFunctionProblem
       = NoWithFunction
@@ -216,7 +219,11 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs wh) =
           , text "body  =" <+> text (show body)
           ]
         ]
-      return $ Clause (killRange delta) perm ps body  -- TODO: make sure delta and perm are what we want
+      return $ Clause (killRange delta) perm ps (recursion rhs) body  -- TODO: make sure delta and perm are what we want
+      -- only clauses with '~' are CoRecursive, everything else is Recursive
+      where recursion (A.RHS rec e) = rec
+            recursion _ = Recursive
+
 checkClause t (A.Clause (A.LHS _ _ _ ps@(_ : _)) _ _) = typeError $ UnexpectedWithPatterns ps
 
 checkWithFunction :: WithFunctionProblem -> TCM ()

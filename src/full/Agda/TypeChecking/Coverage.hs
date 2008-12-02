@@ -59,14 +59,14 @@ checkCoverage f = do
   t <- normalise $ defType d
   let defn = theDef d
   case defn of
-    Function{ funClauses = cs@((Clause _ _ ps _) : _) } -> do
+    Function{ funClauses = cs@((Clause _ _ ps _ _) : _) } -> do
       let n            = genericLength ps
           TelV gamma _ = telView t
           gamma'       = telFromList $ genericTake n $ telToList gamma
           xs           = map (fmap $ const $ VarP "_") $ telToList gamma'
       reportSDoc "tc.cover.top" 10 $ vcat
         [ text "Coverage checking"
-        , nest 2 $ vcat $ map (\(Clause _ _ ps _) -> text $ show ps) cs
+        , nest 2 $ vcat $ map (\(Clause _ _ ps _ _) -> text $ show ps) cs
         ]
       pss <- cover cs $ SClause gamma' (idP n) xs (idSub gamma')
       case pss of
@@ -263,10 +263,10 @@ computeNeighbourhood delta1 delta2 perm d pars ixs hix hps con = do
 
 -- | split Δ x ps. Δ ⊢ ps, x ∈ Δ (deBruijn index)
 splitClause :: Clause -> Nat -> TCM (Either SplitError Covering)
-splitClause (Clause tel perm ps _) x = split tel perm ps x
+splitClause (Clause tel perm ps _ _) x = split tel perm ps x
 
 splitClauseWithAbs :: Clause -> Nat -> TCM (Either SplitError (Either SplitClause Covering))
-splitClauseWithAbs (Clause tel perm ps _) x = split' tel perm ps x
+splitClauseWithAbs (Clause tel perm ps _ _) x = split' tel perm ps x
 
 split :: MonadTCM tcm => Telescope -> Permutation -> [Arg Pattern] -> Nat ->
          tcm (Either SplitError Covering)

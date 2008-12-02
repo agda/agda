@@ -159,15 +159,20 @@ instance Reduce Term where
 	do  v <- instantiate v
 	    case v of
 		MetaV x args -> notBlocked . MetaV x <$> reduce args
-		Def f args   -> do
+		Def f args   -> unfoldDefinition False reduceB (Def f []) f args
+                                              -- do not force here!
+{- do
                   rec <- whatRecursion f
                   case rec of
                     Just CoRecursive -> return $ notBlocked $ Def f args
                     _                -> unfoldDefinition reduceB (Def f []) f args
+ -}
 		Con c args   -> do
-		    v <- unfoldDefinition reduceB (Con c []) c args
+		    v <- unfoldDefinition True reduceB (Con c []) c args
                                           -- constructors can reduce
 		    traverse reduceNat v  -- when they come from an instantiated module
+                                          -- constructors are not corecursive
+                                          -- so always force!
 		Sort s	   -> fmap Sort <$> reduceB s
 		Pi _ _	   -> return $ notBlocked v
 		Fun _ _    -> return $ notBlocked v
@@ -195,14 +200,16 @@ instance Reduce Term where
 forceCorecursion :: MonadTCM tcm => Blocked Term -> tcm (Blocked Term)
 forceCorecursion v@Blocked{} = return v
 forceCorecursion v = case ignoreBlocking v of
-  Def f args  -> unfoldDefinition more (Def f []) f args
+  Def f args  -> unfoldDefinition True more (Def f []) f args -- force!
   _           -> return v
   where
     more v = forceCorecursion =<< reduceB v
 
-unfoldDefinition :: MonadTCM tcm => (Term -> tcm (Blocked Term)) -> Term -> QName -> Args ->
-                    tcm (Blocked Term)
-unfoldDefinition keepGoing v0 f args =
+{- | The boolean flag indicates whether the unfolding should actually 
+     take place in case of corecursive clauses -}
+unfoldDefinition :: MonadTCM tcm => Bool -> (Term -> tcm (Blocked Term)) -> 
+  Term -> QName -> Args -> tcm (Blocked Term)
+unfoldDefinition forced keepGoing v0 f args =
     {-# SCC "reduceDef" #-}
     do  info <- getConstInfo f
         case theDef info of
@@ -211,7 +218,7 @@ unfoldDefinition keepGoing v0 f args =
                 reducePrimitive x v0 f args pf cls
             Constructor{conSrcCon = c} ->
               return $ notBlocked $ Con (c `withRangeOf` f) args
-            _  -> reduceNormal v0 f args $ defClauses info
+            _  -> reduceNormal forced v0 f args $ defClauses info
   where
     reducePrimitive x v0 f args pf cls
         | n < ar    = return $ notBlocked $ v0 `apply` args -- not fully applied
@@ -219,40 +226,56 @@ unfoldDefinition keepGoing v0 f args =
             let (args1,args2) = genericSplitAt ar args
             r <- def args1
             case r of
-                NoReduction args1' -> reduceNormal v0 f (args1' ++ args2) cls
+                NoReduction args1' -> reduceNormal forced v0 f (args1' ++ args2) cls
                 YesReduction v	   -> keepGoing $ v  `apply` args2
         where
             n	= genericLength args
             ar  = primFunArity pf
             def = primFunImplementation pf
 
-    reduceNormal v0 f args def = do
+    reduceNormal forced v0 f args def = do
         case def of
             [] -> return $ notBlocked $ v0 `apply` args -- no definition for head
-            cls@(Clause _ _ ps _ : _)
+            cls@(Clause _ _ ps _  _ : _)
                 | length ps <= length args ->
                     do  let (args1,args2) = splitAt (length ps) args 
                         ev <- appDef v0 cls args1
                         case ev of
                             NoReduction v  -> return $ v `apply` args2
-                            YesReduction v -> keepGoing $ v `apply` args2
+                            YesReduction (rec, args1', v) ->
+   -- only actually do the reduction for recursive clauses or if forced
+                              if forced || (rec == Recursive) then  
+                                keepGoing $ v `apply` args2
+   -- otherwise reassemble the application, but use the whnf-version args1'
+   -- of args1, in order not to lose the normalization effort which was
+   -- spend when matching the arguments against the patterns
+                              else return $ notBlocked $ (v0 `apply` args1') `apply` args2
                 | otherwise	-> return $ notBlocked $ v0 `apply` args -- partial application
 
     -- Apply a defined function to it's arguments.
     --   The original term is the first argument applied to the third.
-    appDef :: MonadTCM tcm => Term -> [Clause] -> Args -> tcm (Reduced (Blocked Term) Term)
+    -- In case a reduction is possible, the kind of recursiveness of the clause
+    -- and the reduced arguments are returned
+    -- as well as the reduct of the application.
+    appDef :: MonadTCM tcm => Term -> [Clause] -> Args -> tcm (Reduced (Blocked Term) (Recursion, Args, Term))
     appDef v cls args = goCls cls args where
 
-        goCls :: MonadTCM tcm => [Clause] -> Args -> tcm (Reduced (Blocked Term) Term)
+        goCls :: MonadTCM tcm => [Clause] -> Args -> tcm (Reduced (Blocked Term) (Recursion, Args, Term))
         goCls [] args = typeError $ IncompletePatternMatching v args
-        goCls (cl@(Clause _ _ pats body) : cls) args = do
+        goCls (cl@(Clause _ _ pats rec body) : cls) args = do
             (m, args) <- matchPatterns pats args
             case m of
                 No		  -> goCls cls args
                 DontKnow Nothing  -> return $ NoReduction $ notBlocked $ v `apply` args
                 DontKnow (Just m) -> return $ NoReduction $ blocked m $ v `apply` args
                 Yes args'
-                  | hasBody body  -> return $ YesReduction $ app args' body
+                  | hasBody body  -> return $ YesReduction (rec,
+                      -- recover the 'hidden' information for the updated args' 
+                      -- zipWith (\ (Arg h _) x -> (Arg h x)) args args', 
+                      -- TODO: let matchPatterns also return the reduced forms 
+                      -- of the original arguments!
+                      args,
+                      app args' body)
                   | otherwise	  -> return $ NoReduction $ notBlocked $ v `apply` args
 
         hasBody (Body _)	 = True
@@ -502,10 +525,12 @@ instance InstantiateFull Defn where
         return $ d { primClauses = cs }
 
 instance InstantiateFull Clause where
-    instantiateFull (Clause tel perm ps b) = Clause <$> instantiateFull tel
-                                                    <*> return perm
-                                                    <*> return ps
-                                                    <*> instantiateFull b
+    instantiateFull (Clause tel perm ps rec b) = 
+       Clause <$> instantiateFull tel
+       <*> return perm
+       <*> return ps
+       <*> return rec
+       <*> instantiateFull b
 
 instance InstantiateFull Interface where
     instantiateFull (Interface ms scope sig b hsImports) =

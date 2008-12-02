@@ -146,7 +146,7 @@ constructorArity q = do
     _ -> fail $ "constructorArity: non constructor: " ++ show q
 
 clause :: QName -> (Nat, Bool, Clause) -> TCM HsDecl
-clause q (i, isLast, Clause _ _ ps b) = HsFunBind . (: cont) <$> main where
+clause q (i, isLast, Clause _ _ ps _ b) = HsFunBind . (: cont) <$> main where
   main = match <$> argpatts ps (bvars b (0::Nat)) <*> clausebody b
   cont | isLast && any isCon ps = [match (L.map HsPVar cvs) failrhs]
        | isLast                 = []

@@ -1,3 +1,4 @@
+-- {-# OPTIONS --show-implicit #-}
 
 module Issue89 where
 

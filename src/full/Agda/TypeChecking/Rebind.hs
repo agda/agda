@@ -14,8 +14,9 @@ import Agda.Utils.Impossible
 -- | Change 'Bind's to 'NoBind' if the variable is not used in the body.
 --   Also normalises the body in the process. Or not. Disabled.
 rebindClause :: Clause -> TCM Clause
-rebindClause (Clause tel perm ps b) = return $ Clause tel perm ps b
+rebindClause = return
 {-
+rebindClause (Clause tel perm ps rec b) = return $ Clause tel perm ps rec b
   do
     b <- instantiateFull b
     return $ Clause ps $ rebind b

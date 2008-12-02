@@ -178,7 +178,7 @@ telToList (ExtendTel arg (Abs x tel)) = fmap ((,) x) arg : telToList tel
 --  patterns to the order they occur in the telescope.  For the purpose of the
 --  permutation dot patterns counts as variables.
 --  TODO: change this!
-data Clause = Clause Telescope Permutation [Arg Pattern] ClauseBody
+data Clause = Clause Telescope Permutation [Arg Pattern] Recursion ClauseBody
   deriving (Typeable, Data, Show)
 data ClauseBody = Body Term 
 		| Bind (Abs ClauseBody)

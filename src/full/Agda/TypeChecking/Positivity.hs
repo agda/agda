@@ -71,7 +71,7 @@ checkStrictlyPositive mi = do
     getArity q = do
       def <- theDef <$> getConstInfo q
       return $ case def of
-        Function{ funClauses = Clause _ _ ps _ : _ } -> size ps
+        Function{ funClauses = Clause _ _ ps _ _ : _ } -> size ps
         Datatype{ dataPars = n }                     -> n
         Record{ recPars = n }                        -> n
         _                                            -> 0
@@ -227,7 +227,7 @@ class ComputeOccurrences a where
   occurrences :: [Maybe Item] -> a -> Occurrences
 
 instance ComputeOccurrences Clause where
-  occurrences vars (Clause _ _ ps body) =
+  occurrences vars (Clause _ _ ps _ body) =
     concatOccurs (zipWith match [0..] ps) >+<
     walk vars (patItems ps) body
     where

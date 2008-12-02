@@ -349,7 +349,7 @@ stripBinds use i (p:ps) b = do
 
 -- | Extract recursive calls from one clause.
 termClause :: Recursion -> DBPConf -> MutualNames -> QName -> Clause -> TCM Calls
-termClause rec use names name (Clause tel perm argPats' body) = do
+termClause _ use names name (Clause tel perm argPats' rec body) = do
     argPats' <- addCtxTel tel $ normalise argPats'
     -- The termination checker doesn't know about reordered telescopes
     let argPats = substs (renamingR perm) argPats'

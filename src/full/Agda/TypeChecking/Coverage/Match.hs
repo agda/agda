@@ -62,7 +62,7 @@ match :: [Clause] -> [Arg Pattern] -> Permutation -> Match
 match cs ps perm = foldr choice No $ map (flip matchClause $ buildMPatterns perm ps) cs
 
 matchClause :: Clause -> [Arg MPat] -> Match
-matchClause (Clause _ _ ps _) qs = matchPats ps qs
+matchClause (Clause _ _ ps _ _) qs = matchPats ps qs
 
 matchPats :: [Arg Pattern] -> [Arg MPat] -> Match
 matchPats ps qs = mconcat $ zipWith matchPat (map unArg ps) (map unArg qs)

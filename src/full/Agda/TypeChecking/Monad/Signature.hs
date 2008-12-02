@@ -130,7 +130,7 @@ addDisplayForms x = do
     add args top x ps = do
       cs <- defClauses <$> getConstInfo x
       case cs of
-	[ Clause _ _ _ b ]
+	[ Clause _ _ _ _ b ]
 	  | Just (m, Def y vs) <- strip b
 	  , m == length args && args `isPrefixOf` vs -> do
 	      let ps' = raise 1 (map unArg vs) ++ ps
@@ -141,7 +141,7 @@ addDisplayForms x = do
 	      let reason = case cs of
 		    []    -> "no clauses"
 		    _:_:_ -> "many clauses"
-		    [ Clause _ _ _ b ] -> case strip b of
+		    [ Clause _ _ _ _ b ] -> case strip b of
 		      Nothing -> "bad body"
 		      Just (m, Def y vs)
 			| m < length args -> "too few args"
@@ -206,7 +206,7 @@ applySection new ptel old ts rd rm = liftTCM $ do
                   oldDef { dataPars = np - size ts, dataClause = Just cl, dataCons = map copyName cs }
                 Record{ recPars = np, recTel = tel } ->
                   oldDef { recPars = np - size ts, recClause = Just cl, recTel = apply tel ts }
-		_                           ->
+		_ ->
                   Function { funClauses        = [cl]
                            , funRecursion      = Recursive
                            , funInv            = NotInjective
@@ -214,7 +214,7 @@ applySection new ptel old ts rd rm = liftTCM $ do
                            , funArgOccurrences = []
                            , funAbstr          = ConcreteDef
                            }
-	cl = Clause EmptyTel (idP 0) [] $ Body $ Def x ts
+	cl = Clause EmptyTel (idP 0) [] Recursive $ Body $ Def x ts
 
     copySec :: Args -> (ModuleName, Section) -> TCM ()
     copySec ts (x, sec) = case Map.lookup x rm of
@@ -240,8 +240,8 @@ canonicalName x = do
   def <- theDef <$> getConstInfo x
   case def of
     Constructor{conSrcCon = c}                      -> return c
-    Record{recClause = Just (Clause _ _ _ body)}    -> canonicalName $ extract body
-    Datatype{dataClause = Just (Clause _ _ _ body)} -> canonicalName $ extract body
+    Record{recClause = Just (Clause _ _ _ _ body)}    -> canonicalName $ extract body
+    Datatype{dataClause = Just (Clause _ _ _ _ body)} -> canonicalName $ extract body
     _                                               -> return x
   where
     extract NoBody	     = __IMPOSSIBLE__
@@ -250,6 +250,7 @@ canonicalName x = do
     extract (Bind (Abs _ b)) = extract b
     extract (NoBind b)	     = extract b
 
+-- TODO: this goes away, need s.th. clause-wise instead
 whatRecursion :: MonadTCM tcm => QName -> tcm (Maybe Recursion)
 whatRecursion f = do
   def <- theDef <$> getConstInfo f
@@ -259,11 +260,12 @@ whatRecursion f = do
       | otherwise     -> return Nothing
     _                            -> return $ Just Recursive
   where
-    hasRHS (Clause _ _ _ b) = hasBody b
+    hasRHS (Clause _ _ _ _ b) = hasBody b
     hasBody (Body _)   = True
     hasBody NoBody     = False
     hasBody (Bind b)   = hasBody $ absBody b
     hasBody (NoBind b) = hasBody b
+
 
 -- | Can be called on either a (co)datatype or a (co)constructor.
 whatInduction :: MonadTCM tcm => QName -> tcm Induction

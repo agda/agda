@@ -58,8 +58,8 @@ enumCompilableTypeFamilies definitions = do
 	    Axiom{}                                       -> return False -- IO should get True
 	    Primitive{}                                   -> return False -- String should get True
 	    Function{funClauses = []}                     -> __IMPOSSIBLE__
-	    Function{funClauses = [Clause _ _ _ NoBody]}  -> return False
-	    Function{funClauses = [Clause _ _ pats body]} -> return False -- TODO
+	    Function{funClauses = [Clause _ _ _ _ NoBody]}  -> return False
+	    Function{funClauses = [Clause _ _ pats _ body]} -> return False -- TODO
 	    Function{}                                    -> return False
 	    Constructor{}                                 -> return False -- ctor is not a typefam
 	    Datatype{dataCons = cnames} -> do

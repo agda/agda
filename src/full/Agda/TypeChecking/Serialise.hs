@@ -466,8 +466,8 @@ instance EmbPrj Agda.Syntax.Common.IsAbstract where
                            valu _   = __IMPOSSIBLE__
 
 instance EmbPrj I.Clause where
-  icode (Clause a b c d) = icode4' a b c d
-  value = vcase valu where valu [a, b, c, d] = valu4 Clause a b c d
+  icode (Clause a b c d e) = icode5' a b c d e
+  value = vcase valu where valu [a, b, c, d, e] = valu5 Clause a b c d e
                            valu _            = __IMPOSSIBLE__
 
 instance EmbPrj I.ClauseBody where

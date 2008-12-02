@@ -92,6 +92,14 @@ isDecr _ = False
 ------------------------------------------------------------------------
 -- Some examples
 
+{- NOTE: These are examples for *recursion*.  
+   Still, I added |callRec = CoRecursive|, since none of these
+   call matrices includes the guardedness row/col.  If one sets 
+   the flag to |Recursive| then the first col/row will be ignored 
+   for all, failing the tests.
+   Andreas, 2008-12-02
+ -}
+
 -- | The call graph instantiation used by the examples below.
 
 type CG = CallGraph (Set Integer)
@@ -110,14 +118,14 @@ example1 = buildCallGraph [c1, c2, c3]
   aux  = 2
   c1 = Call { source = flat, target = aux
             , cm = CallMatrix $ fromLists (Size 2 1) [[Lt], [Lt]] 
-            , callRec = Recursive }
+            , callRec = CoRecursive }
   c2 = Call { source = aux,  target = aux
             , cm = CallMatrix $ fromLists (Size 2 2) [ [Lt, Unknown]
                                                      , [Unknown, Le]] 
-            , callRec = Recursive  }
+            , callRec = CoRecursive  }
   c3 = Call { source = aux,  target = flat
             , cm = CallMatrix $ fromLists (Size 1 2) [[Unknown, Le]] 
-            , callRec = Recursive }
+            , callRec = CoRecursive }
 
 prop_terminates_example1 = isRight $ terminates example1
 
@@ -135,7 +143,7 @@ example2 = buildCallGraph [c]
   c = Call { source = plus, target = plus
            , cm = CallMatrix $ fromLists (Size 2 2) [ [Unknown, Le]
                                                     , [Lt, Unknown] ]  
-            , callRec = Recursive }
+            , callRec = CoRecursive }
 
 prop_terminates_example2 = isRight $ terminates example2 
 
@@ -158,7 +166,7 @@ example3 = buildCallGraph [c plus plus', c plus' plus]
   c f g = Call { source = f, target = g
                , cm = CallMatrix $ fromLists (Size 2 2) [ [Unknown, Le]
                                                         , [Lt, Unknown] ]  
-               , callRec = Recursive }
+               , callRec = CoRecursive }
 
 prop_terminates_example3 = isRight $ terminates example3 
 
@@ -181,15 +189,15 @@ example4 = buildCallGraph [c1, c2, c3]
   c1 = Call { source = f, target = f
             , cm = CallMatrix $ fromLists (Size 2 2) [ [Le, Unknown]
                                                      , [Unknown, Le] ]  
-            , callRec = Recursive }
+            , callRec = CoRecursive }
   c2 = Call { source = f, target = g
             , cm = CallMatrix $ fromLists (Size 2 2) [ [Lt, Unknown]
                                                      , [Unknown, Le] ]  
-            , callRec = Recursive }
+            , callRec = CoRecursive }
   c3 = Call { source = g, target = f
             , cm = CallMatrix $ fromLists (Size 2 2) [ [Le, Unknown]
                                                      , [Unknown, Le] ]  
-            , callRec = Recursive }
+            , callRec = CoRecursive }
 
 prop_terminates_example4 = isLeft $ terminates example4
 
@@ -207,19 +215,19 @@ example5 = buildCallGraph [c1, c2, c3, c4]
   c1 = Call { source = f, target = g
             , cm = CallMatrix $ fromLists (Size 2 2) [ [Lt, Unknown]
                                                      , [Unknown, Le] ]  
-            , callRec = Recursive }
+            , callRec = CoRecursive }
   c2 = Call { source = f, target = f
             , cm = CallMatrix $ fromLists (Size 2 2) [ [Unknown, Unknown]
                                                      , [Unknown, Lt] ]  
-            , callRec = Recursive }
+            , callRec = CoRecursive }
   c3 = Call { source = g, target = f
             , cm = CallMatrix $ fromLists (Size 2 2) [ [Le, Unknown]
                                                      , [Unknown, Le] ]  
-            , callRec = Recursive }
+            , callRec = CoRecursive }
   c4 = Call { source = g, target = g
             , cm = CallMatrix $ fromLists (Size 2 2) [ [Lt, Unknown]
                                                      , [Unknown, Le] ]  
-            , callRec = Recursive }
+            , callRec = CoRecursive }
 
 prop_terminates_example5 = isRight $ terminates example5 
 
@@ -238,13 +246,13 @@ example6 = buildCallGraph [c1, c2, c3]
   f = 1
   c1 = Call { source = f, target = f
             , cm = CallMatrix $ fromLists (Size 1 1) [ [Lt] ]  
-            , callRec = Recursive }
+            , callRec = CoRecursive }
   c2 = Call { source = f, target = f
             , cm = CallMatrix $ fromLists (Size 1 1) [ [Le] ]  
-            , callRec = Recursive }
+            , callRec = CoRecursive }
   c3 = Call { source = f, target = f
             , cm = CallMatrix $ fromLists (Size 1 1) [ [Le] ]  
-            , callRec = Recursive }
+            , callRec = CoRecursive }
 
 prop_terminates_example6 = isLeft $ terminates example6 
 

@@ -189,7 +189,9 @@ instance Reify Term Expr where
 		I.Sort s     -> reify s
 		I.MetaV x vs -> apps =<< reify (x,vs)
 
-data NamedClause = NamedClause QName Recursion I.Clause
+data NamedClause = NamedClause QName I.Clause
+-- Named clause does not need 'Recursion' flag since I.Clause has it
+-- data NamedClause = NamedClause QName Recursion I.Clause
 
 instance Reify ClauseBody (Recursion -> RHS) where
   reify NoBody     = return $ \_ -> AbsurdRHS
@@ -346,7 +348,7 @@ reifyPatterns tel perm ps = evalStateT (reifyArgs ps) 0
         mi = MetaInfo noRange emptyScopeInfo Nothing
 
 instance Reify NamedClause A.Clause where
-  reify (NamedClause f rec (I.Clause tel perm ps body)) = addCtxTel tel $ do
+  reify (NamedClause f (I.Clause tel perm ps rec body)) = addCtxTel tel $ do
     ps  <- reifyPatterns tel perm ps
     lhs <- liftTCM $ reifyDisplayFormP $ LHS info f ps []
     nfv <- getDefFreeVars f
