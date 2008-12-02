@@ -98,6 +98,11 @@ qualifyQ m x = qnameFromList $ mnameToList m ++ qnameToList x
 qualify :: ModuleName -> Name -> QName
 qualify m x = qualifyQ m (qnameFromList [x])
 
+-- | Is the name an operator?
+
+isOperator :: QName -> Bool
+isOperator q = C.isOperator (nameConcrete (qnameName q))
+
 isSubModuleOf :: ModuleName -> ModuleName -> Bool
 isSubModuleOf x y = xs /= ys && isPrefixOf ys xs
   where

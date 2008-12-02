@@ -57,11 +57,7 @@ toList r = [from r .. to r - 1]
 -- A boolean, indicating operatorness, is also returned.
 
 getRanges :: C.Name -> ([Range], Bool)
-getRanges n = (rToR $ P.getRange n, isOp)
-  where
-  isOp = case n of
-           C.NoName {} -> False
-           C.Name _ ps -> length ps > 1
+getRanges n = (rToR $ P.getRange n, C.isOperator n)
 
 -- | Like 'getRanges', but for 'A.QName's. Note that the module part
 -- of the name is thrown away; only the base part is used.

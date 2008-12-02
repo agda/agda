@@ -43,6 +43,12 @@ isNoName (NoName _ _)    = True
 isNoName (Name _ [Hole]) = True   -- TODO: Track down where these come from
 isNoName _               = False
 
+-- | Is the name an operator?
+
+isOperator :: Name -> Bool
+isOperator (NoName {}) = False
+isOperator (Name _ ps) = length ps > 1
+
 nameParts :: Name -> [NamePart]
 nameParts (Name _ ps)  = ps
 nameParts (NoName _ _) = [Hole]
