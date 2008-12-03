@@ -103,9 +103,10 @@ divmod : arith/DivMod.agda
 	@$(echo) :q | $(run_agda) -isimple-lib $<
 	@$(echo) "ok"
 
-highlighting : syntax/highlighting/All.agda
-	@$(echo) "Testing $<... "
-	@$(echo) :q | $(run_agda) -isyntax/highlighting $<
+highlighting : syntax/highlighting/Test*agda
+	@$(echo) "Testing $^... "
+	@$(echo) :q | $(run_agda) --emacs --vim -isyntax/highlighting syntax/highlighting/Test2.agda
+	@$(echo) :q | $(run_agda) --emacs --vim -isyntax/highlighting syntax/highlighting/Test3.lagda
 	@$(echo) "ok"
 
 compiler : MAlonzo/main.agda
