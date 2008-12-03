@@ -8,6 +8,11 @@
 
 -- | Structure-sharing serialisation of Agda interface files.
 
+-- -!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-
+-- NOTE: Every time the interface format is changed the interface
+-- version number should be bumped _in the same patch_.
+-- -!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-
+
 -- TODO: It should be easy to produce a decent QuickCheck test suite
 -- for this file.
 
@@ -58,9 +63,8 @@ import Agda.Utils.Permutation
 #include "../undefined.h"
 import Agda.Utils.Impossible
 
-
 currentInterfaceVersion :: Int
-currentInterfaceVersion = 20081203
+currentInterfaceVersion = 20081204
 
 type Node = [Int] -- constructor tag (maybe omitted) and arg indices
 
