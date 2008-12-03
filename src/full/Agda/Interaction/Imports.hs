@@ -100,8 +100,8 @@ findFile ft m = do
 	file:_	-> return file
     where
 	exts = case ft of
-		SourceFile    -> [".agda", ".lagda", ".agda2", ".lagda2", ".ag2"]
-		InterfaceFile -> [".agdai", ".ai"]
+		SourceFile    -> [".agda", ".lagda"]
+		InterfaceFile -> [".agdai"]
 
 scopeCheckImport :: ModuleName -> TCM Scope
 scopeCheckImport x = do
