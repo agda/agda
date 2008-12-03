@@ -8,9 +8,24 @@ author:          Ulf Norell, Catarina Coquand, Makoto Takeyama, Nils Anders Dani
 maintainer:      Ulf Norell <ulfn@chalmers.se>
 homepage:        http://www.cs.chalmers.se/~ulfn/Agda/
 category:        Dependent types
-synopsis:        A dependently typed proof checker / programming language.
+synopsis:        A dependently typed functional programming language and proof assistant.
+description:
+  Agda is a dependently typed functional programming language: It has
+  inductive families, which are like Haskell's GADTs, but they can be
+  indexed by values and not just types. It also has parameterised
+  modules, mixfix operators, Unicode characters, and an interactive
+  Emacs interface (the type checker can assist in the development of
+  your code).
+  .
+  Agda is a proof assistant: It is an interactive system for writing
+  and checking proofs. Agda is based on intuitionistic type theory, a
+  foundational system for constructive mathematics developed by the
+  Swedish logician Per Martin-Löf. It has many similarities with other
+  proof assistants based on dependent types, such as Coq, Epigram and
+  NuPRL.
 tested-with:     GHC == 6.8.3 && == 6.10.1
 extra-source-files: src/full/Agda/undefined.h
+                    README
 
 library
   hs-source-dirs:  src/full
