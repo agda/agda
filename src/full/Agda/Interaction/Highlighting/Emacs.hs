@@ -124,22 +124,17 @@ generateEmacsFile file tcs topLevel termErrs = do
 -- | Appends information about an error to the highlighting file
 -- relevant for the error.
 
-appendErrorToEmacsFile
-  :: TCErr
-  -> TCM (Maybe P.Position)
-     -- ^ Returns the first position of the error, if any (but only if
-     -- the file name component is non-empty).
+appendErrorToEmacsFile :: TCErr -> TCM ()
 appendErrorToEmacsFile err = do
   let r = P.getRange err
   s <- prettyError err
   case P.rStart r of
-    Nothing                                         -> return Nothing
+    Nothing                                         -> return ()
     -- Errors for expressions entered using the command line sometimes
     -- have an empty file name component. This should be fixed.
-    Just     (P.Pn { P.srcFile = "" })              -> return Nothing
+    Just     (P.Pn { P.srcFile = "" })              -> return ()
     Just pos@(P.Pn { P.srcFile = f, P.posPos = p }) -> do
       liftIO $ appendSyntaxInfo f $ generateErrorInfo r s
-      return (Just pos)
 
 ------------------------------------------------------------------------
 -- All tests

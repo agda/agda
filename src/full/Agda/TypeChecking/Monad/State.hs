@@ -14,7 +14,9 @@ import Agda.TypeChecking.Monad.Options
 
 import Agda.Utils.Hash
 
--- | Reset the type checking state.
+-- | Resets the type checking state. The command line options are
+-- preserved.
+
 resetState :: MonadTCM tcm => tcm ()
 resetState = liftTCM $ do
     opts <- commandLineOptions

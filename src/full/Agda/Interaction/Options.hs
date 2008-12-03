@@ -118,9 +118,9 @@ type Flag opts	= opts -> Either String opts
 checkOpts :: Flag CommandLineOptions
 checkOpts opts
   | length (filter id compilerOpts) >= 2 =
-    Left "At most one compiler may be used."
+    Left "At most one compiler may be used.\n"
   | optAllowUnsolved opts && or compilerOpts = Left
-      "Unsolved meta variables must not be allowed when compiling."
+      "Unsolved meta variables are not allowed when compiling.\n"
   | otherwise = Right opts
   where
   compilerOpts =

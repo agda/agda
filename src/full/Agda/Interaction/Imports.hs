@@ -19,11 +19,13 @@ import System.Time
 import Control.Exception
 import qualified System.IO.UTF8 as UTF8
 
-import qualified Agda.Syntax.Concrete.Name as C
+import Agda.Syntax.Position
+import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Parser 
 import Agda.Syntax.Scope.Base
 import Agda.Syntax.Translation.ConcreteToAbstract
+import Agda.Syntax.Internal
 
 import Agda.Termination.TermCheck
 
@@ -38,6 +40,7 @@ import Agda.Interaction.Options
 import Agda.Interaction.Highlighting.Generate
 import Agda.Interaction.Highlighting.Emacs
 import Agda.Interaction.Highlighting.Vim
+import qualified Agda.Interaction.Highlighting.Range as R
 
 import Agda.Utils.FileName
 import Agda.Utils.Monad
@@ -45,6 +48,12 @@ import Agda.Utils.IO
 
 import Agda.Utils.Impossible
 #include "../undefined.h"
+
+-- | Converts an Agda file name to the corresponding interface file
+-- name.
+
+toIFile :: FilePath -> FilePath
+toIFile = setExtension ".agdai"
 
 -- | Merge an interface into the current proof state.
 mergeInterface :: Interface -> TCM ()
@@ -91,7 +100,7 @@ findFile ft m = do
     dirs <- getIncludeDirs
     let files = [ dir ++ [slash] ++ file
 		| dir  <- dirs
-		, file <- map (moduleNameToFileName x) exts
+		, file <- map (C.moduleNameToFileName x) exts
 		]
     files' <- liftIO $ filterM doesFileExist files
     files' <- liftIO $ nubFiles files'
@@ -128,21 +137,20 @@ alreadyVisited x getIface = do
 
 getInterface :: ModuleName -> TCM (Interface, ClockTime)
 getInterface x = alreadyVisited x $ addImportCycleCheck x $ do
-    file   <- findFile SourceFile x	-- requires source to exist
-    let ifile = setExtension ".agdai" file
+    file <- findFile SourceFile x	-- requires source to exist
 
     reportSLn "import.iface" 10 $ "  Check for cycle"
     checkForImportCycle
 
     uptodate <- ifM ignoreInterfaces
 		    (return False)
-		    (liftIO $ ifile `isNewerThan` file)
+		    (liftIO $ toIFile file `isNewerThan` file)
 
     reportSLn "import.iface" 5 $ "  " ++ show x ++ " is " ++ (if uptodate then "" else "not ") ++ "up-to-date."
 
     (i,t) <- if uptodate
-	then skip x ifile file
-	else typeCheck ifile file
+	then skip x file
+	else typeCheck file
 
     visited <- isVisited x
     reportSLn "import.iface" 5 $ if visited then "  We've been here. Don't merge."
@@ -153,11 +161,11 @@ getInterface x = alreadyVisited x $ addImportCycleCheck x $ do
     return (i,t)
 
     where
-	skip x ifile file = do
-
+	skip x file = do
 	    -- Examine the mtime of the interface file. If it is newer than the
 	    -- stored version (in stDecodedModules), or if there is no stored version,
 	    -- read and decode it. Otherwise use the stored version.
+            let ifile = toIFile file
 	    t  <- liftIO $ getModificationTime ifile
 	    mm <- getDecodedModule x
 	    mi <- case mm of
@@ -176,7 +184,7 @@ getInterface x = alreadyVisited x $ addImportCycleCheck x $ do
 	    case mi of
 		Nothing	-> do
 		    reportSLn "import.iface" 5 $ "  bad interface, re-type checking"
-		    typeCheck ifile file
+		    typeCheck file
 		Just i	-> do
 
 		    reportSLn "import.iface" 5 $ "  imports: " ++ show (iImportedModules i)
@@ -187,12 +195,12 @@ getInterface x = alreadyVisited x $ addImportCycleCheck x $ do
 		    if any (> t) ts
 			then do
 			    -- liftIO close	-- Close the interface file. See above.
-			    typeCheck ifile file
+			    typeCheck file
 			else do
 			    reportSLn "" 1 $ "Skipping " ++ show x ++ " ( " ++ ifile ++ " )"
 			    return (i, t)
 
-	typeCheck ifile file = do
+	typeCheck file = do
 
 	    -- Do the type checking
 	    reportSLn "" 1 $ "Checking " ++ show x ++ " ( " ++ file ++ " )"
@@ -203,23 +211,29 @@ getInterface x = alreadyVisited x $ addImportCycleCheck x $ do
 	    trace    <- getTrace
             isig     <- getImportedSignature
             ibuiltin <- gets stImportedBuiltins
-	    r  <- liftIO $ createInterface opts trace ms vs ds isig ibuiltin x file
+	    r <- liftIO $ runTCM $ -- Every interface should be
+	                           -- treated in isolation.
+                   createInterface opts trace ms vs ds
+                                   isig ibuiltin (Just x) file False
 
-	    -- Write interface file and return
 	    case r of
 		Left err -> throwError err
-		Right (vs, ds, i, isig, ibuiltin)  -> do
-		    liftIO $ writeInterface ifile i
-                    -- writeInterface may remove ifile.
-		    t <- liftIO $ ifM (doesFileExist ifile)
-                           (getModificationTime ifile)
-                           getClockTime
-		    setVisitedModules vs
-		    setDecodedModules ds
-                    -- We need to add things imported when checking
-                    -- the imported modules.
-                    addImportedThings isig ibuiltin
-		    return (i, t)
+                Right (_, Warnings termErrs@(_:_) []) -> do
+                  typeError $ TerminationCheckFailed termErrs
+                Right (_, Warnings _ _) -> __IMPOSSIBLE__
+		Right (_, Success vs ds i isig ibuiltin)  -> do
+                  -- writeInterface (used by createInterface) may
+                  -- remove ifile.
+                  let ifile = toIFile file
+                  t <- liftIO $ ifM (doesFileExist ifile)
+                         (getModificationTime ifile)
+                         getClockTime
+                  setVisitedModules vs
+                  setDecodedModules ds
+                  -- We need to add things imported when checking
+                  -- the imported modules.
+                  addImportedThings isig ibuiltin
+                  return (i, t)
 
 readInterface :: FilePath -> IO (Maybe Interface)
 readInterface file = do
@@ -256,13 +270,46 @@ writeInterface file i = do
     removeFile file
     return ()
 
-createInterface :: CommandLineOptions -> CallTrace -> [ModuleName] -> VisitedModules ->
-		   DecodedModules -> Signature -> BuiltinThings PrimFun ->
-                   ModuleName -> FilePath ->
-		   IO (Either TCErr (VisitedModules, DecodedModules, Interface, Signature, BuiltinThings PrimFun))
-createInterface opts trace path visited decoded isig ibuiltin mname file =
-  runTCM $ withImportPath path $ do
+-- | Return type used by 'createInterface'.
 
+data CreateInterfaceResult
+  = Success VisitedModules DecodedModules Interface
+            Signature (BuiltinThings PrimFun)
+    -- ^ Everything completed successfully, and an interface file was
+    -- written.
+  | Warnings { terminationProblems   :: [([QName], [R.Range])]
+             , unsolvedMetaVariables :: [Range]
+             }
+    -- ^ Type checking was successful, except for some termination
+    -- checking problems or unsolved meta-variables.
+    --
+    -- Meta-variable problems are reported as type errors unless we
+    -- are type checking a top-level module and the flag to allow
+    -- unsolved meta-variables has been selected.
+
+-- | Tries to type check a module and write out its interface.
+--
+-- If appropriate this function writes out syntax highlighting
+-- information.
+
+createInterface
+  :: CommandLineOptions
+  -> CallTrace
+  -> [ModuleName]
+  -> VisitedModules
+  -> DecodedModules
+  -> Signature
+  -> BuiltinThings PrimFun
+  -> Maybe ModuleName       -- ^ Expected module name.
+  -> FilePath               -- ^ The file to type check.
+  -> Bool                   -- ^ Should the working directory be
+                            --   changed to the root directory of
+                            --   the \"project\" containing the
+                            --   file?
+  -> TCM (TopLevelInfo, CreateInterfaceResult)
+createInterface opts trace path visited decoded
+                isig ibuiltin mname file changeDir =
+  withImportPath path $ do
     setDecodedModules decoded
     setTrace trace
     setCommandLineOptions opts
@@ -274,57 +321,75 @@ createInterface opts trace path visited decoded isig ibuiltin mname file =
     addImportedThings isig ibuiltin
 
     (pragmas, top) <- liftIO $ parseFile' moduleParser file
-    pragmas	   <- concat <$> concreteToAbstract_ pragmas -- identity for top-level pragmas
+    when changeDir $
+      liftIO $ setWorkingDirectory file top
+    pragmas <- concat <$> concreteToAbstract_ pragmas
+               -- identity for top-level pragmas at the moment
+    -- Note that pragmas can affect scope checking.
     setOptionsFromPragmas pragmas
-    topLevel	   <- concreteToAbstract_ (TopLevel top)
+    topLevel <- concreteToAbstract_ (TopLevel top)
 
-    catchError (do
-      -- Check the module name
-      let mname' = scopeName $ head $ scopeStack $ insideScope topLevel
-      unless (mname' == mname) $
-        typeError $ ModuleNameDoesntMatchFileName mname' mname
+    termErrs <- catchError (do
+      checkModuleName mname file topLevel
 
-      checkDecls (topLevelDecls topLevel))
-      (\e -> do
-        -- If there is an error syntax highlighting info can
-        -- still be generated. Since there is no Vim highlighting for
-        -- errors no Vim highlighting is generated, though.
+      -- Type checking.
+      checkDecls (topLevelDecls topLevel)
+
+      -- Termination checking.
+      termErrs <- ifM (optTerminationCheck <$> commandLineOptions)
+                      (termDecls $ topLevelDecls topLevel)
+                      (return [])
+      mapM_ (\e -> reportSLn "term.warn.no" 2
+                     (show (fst e) ++
+                      " does NOT pass the termination checker."))
+            termErrs
+      return termErrs
+      ) (\e -> do
+        -- If there is an error syntax highlighting info can still be
+        -- generated. Since there is no Vim highlighting for errors no
+        -- Vim highlighting is generated, though.
         whenM (optGenerateEmacsFile <$> commandLineOptions) $ do
           generateEmacsFile file TypeCheckingNotDone topLevel []
           appendErrorToEmacsFile e
           return ()
+
         throwError e)
 
-    errs <- ifM (optTerminationCheck <$> commandLineOptions)
-                (termDecls $ topLevelDecls topLevel)
-                (return [])
-    mapM_ (\e -> reportSLn "term.warn.no" 1
-                 (show (fst e) ++ " does NOT termination check")) errs
-
-    -- Generate Vim file
+    -- Generate Vim file.
     whenM (optGenerateVimFile <$> commandLineOptions) $
 	withScope_ (insideScope topLevel) $ generateVimFile file
 
-    -- Generate Emacs file
+    -- Generate Emacs file.
     whenM (optGenerateEmacsFile <$> commandLineOptions) $
-      generateEmacsFile file TypeCheckingDone topLevel errs
+      generateEmacsFile file TypeCheckingDone topLevel termErrs
 
-    -- check that metas have been solved
-    ms <- getOpenMetas
-    case ms of
+    -- Check if there are unsolved meta-variables.
+    unsolvedMetas <- List.nub <$> (mapM getMetaRange =<< getOpenMetas)
+    case unsolvedMetas of
 	[]  -> return ()
 	_   -> do
-	    rs <- mapM getMetaRange ms
-	    typeError $ UnsolvedMetasInImport $ List.nub rs
+          unsolvedOK <- optAllowUnsolved <$> commandLineOptions
+          unless (unsolvedOK && path == []) $ do
+            typeError $ UnsolvedMetas unsolvedMetas
 
     setScope $ outsideScope topLevel
 
-    i        <- buildInterface
-    isig     <- getImportedSignature
-    vs       <- getVisitedModules
-    ds       <- getDecodedModules
-    ibuiltin <- gets stImportedBuiltins
-    return (vs, ds, i, isig, ibuiltin)
+    reportSLn "scope.top" 50 $ "SCOPE " ++ show (insideScope topLevel)
+
+    -- True if the file was successfully and completely
+    -- type-checked.
+    let ok = null termErrs && null unsolvedMetas
+
+    (,) topLevel <$> if ok then do
+      i        <- buildInterface
+      isig     <- getImportedSignature
+      vs       <- getVisitedModules
+      ds       <- getDecodedModules
+      ibuiltin <- gets stImportedBuiltins
+      liftIO $ writeInterface (toIFile file) i
+      return (Success vs ds i isig ibuiltin)
+     else
+      return (Warnings termErrs unsolvedMetas)
 
 buildInterface :: TCM Interface
 buildInterface = do
@@ -348,33 +413,51 @@ buildInterface = do
     reportSLn "import.iface" 7 "  interface complete"
     return i
 
+-- | Set the current working directory based on the file name of the
+-- current module and its module name, so that when the module is
+-- imported qualified it will be found.
+--
+-- The given list of declarations should correspond to a module, i.e.
+-- it should be non-empty and the last declaration should be
+-- 'C.Module' something.
 
--- | Put some of this stuff in a Agda.Utils.File
-type Suffix = String
-
-{-| Turn a module name into a file name with the given suffix.
--}
-moduleNameToFileName :: C.QName -> Suffix -> FilePath
-moduleNameToFileName (C.QName  x) ext = show x ++ ext
-moduleNameToFileName (C.Qual m x) ext = show m ++ [slash] ++ moduleNameToFileName x ext
+setWorkingDirectory :: FilePath -> [C.Declaration] -> IO ()
+setWorkingDirectory _    [] = __IMPOSSIBLE__
+setWorkingDirectory file xs = case last xs of
+  C.Module _ n _ _ -> do
+    absolute <- canonicalizePath file
+    let (path, _, _)  = splitFilePath absolute
+    setCurrentDirectory (dropDirectory (countDots n) path)
+  _                -> __IMPOSSIBLE__
+  where
+  countDots (C.QName _)  = 0
+  countDots (C.Qual _ n) = 1 + countDots n
 
 -- | Move somewhere else.
 matchFileName :: ModuleName -> FilePath -> Bool
 matchFileName mname file = expected `isSuffixOf` given || literate `isSuffixOf` given
   where
     given    = splitPath file
-    expected = splitPath $ moduleNameToFileName (mnameToConcrete mname) ".agda"
-    literate = splitPath $ moduleNameToFileName (mnameToConcrete mname) ".lagda"
+    expected = splitPath $ C.moduleNameToFileName (mnameToConcrete mname) ".agda"
+    literate = splitPath $ C.moduleNameToFileName (mnameToConcrete mname) ".lagda"
 
--- | Check that the top-level module name matches the file name.
-checkModuleName :: TopLevelInfo -> FilePath -> TCM ()
-checkModuleName topLevel file = do
-  let mname = scopeName $ head $ scopeStack $ insideScope topLevel
-      mod = moduleNameToFileName (mnameToConcrete mname)
-  unless (matchFileName mname file) $ typeError $ GenericError $
-      "The name of the top level module does not match the file name. " ++
-      "The module " ++ show mname ++ " should be defined in either " ++
-      mod ".agda" ++ " or " ++ mod ".lagda" ++ ","
+-- | Checks that the top-level module name, the file name and what we
+-- expect are consistent.
+
+checkModuleName
+  :: Maybe ModuleName  -- ^ The module should have this name (might be
+                       --   unknown).
+  -> FilePath          -- ^ The module is defined in this file, whose
+                       --   file name is known to be consistent with the
+                       --   previous argument.
+  -> TopLevelInfo      -- ^ The module.
+  -> TCM ()
+checkModuleName mname file topLevel = case mname of
+    Nothing -> unless (matchFileName actualName file) err
+    Just expectedName -> unless (actualName == expectedName) err
+  where
+  actualName = topLevelModuleName topLevel
+  err = typeError $ ModuleNameDoesntMatchFileName actualName
 
 -- | True if the first file is newer than the second file. If a file doesn't
 -- exist it is considered to be infinitely old.
@@ -388,5 +471,3 @@ isNewerThan new old = do
 	    newT <- getModificationTime new
 	    oldT <- getModificationTime old
 	    return $ newT >= oldT
-
-

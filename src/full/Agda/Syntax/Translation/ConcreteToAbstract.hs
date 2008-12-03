@@ -13,6 +13,7 @@ module Agda.Syntax.Translation.ConcreteToAbstract
     , OldName(..)
     , TopLevel(..)
     , TopLevelInfo(..)
+    , topLevelModuleName
     ) where
 
 import Prelude hiding (mapM)
@@ -482,6 +483,13 @@ data TopLevelInfo = TopLevelInfo
 	, outsideScope  :: ScopeInfo
 	, insideScope	:: ScopeInfo
 	}
+
+-- | The top-level module name.
+
+topLevelModuleName :: TopLevelInfo -> A.ModuleName
+topLevelModuleName topLevel = case scopeStack (insideScope topLevel) of
+  []    -> __IMPOSSIBLE__
+  s : _ -> scopeName s
 
 -- Top-level declarations are always (import|open)* module
 instance ToAbstract (TopLevel [C.Declaration]) TopLevelInfo where

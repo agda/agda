@@ -26,6 +26,7 @@ import Agda.Syntax.Scope.Base
 
 import Agda.Interaction.Exceptions
 import Agda.Interaction.Options
+import qualified Agda.Interaction.Highlighting.Range as R
 
 import Agda.Utils.Fresh
 import Agda.Utils.Monad
@@ -643,7 +644,10 @@ data TypeError
 	| NotImplemented String
 	| NotSupported String
         | CompilationError String
-	| TerminationCheckFailed
+	| TerminationCheckFailed [([QName], [R.Range])]
+          -- ^ Parameterised on functions which failed to termination
+          --   check (grouped if they are mutual), along with ranges
+          --   for problematic call sites.
 	| PropMustBeSingleton
 	| DataMustEndInSort Term
 	| ShouldEndInApplicationOfTheDatatype Type
@@ -713,14 +717,13 @@ data TypeError
 	| NotStrictlyPositive QName [Occ]
     -- Import errors
 	| LocalVsImportedModuleClash ModuleName
-	| UnsolvedMetasInImport [Range]
 	| UnsolvedMetas [Range]
 	| UnsolvedConstraints Constraints
 	| CyclicModuleDependency [ModuleName]
 	| FileNotFound ModuleName [FilePath]
 	| ClashingFileNamesFor ModuleName [FilePath]
     -- Scope errors
-	| ModuleNameDoesntMatchFileName ModuleName ModuleName -- ^ @NoMatch given expected@
+	| ModuleNameDoesntMatchFileName ModuleName -- ^ @NoMatch given@
 	| BothWithAndRHS
 	| NotInScope [C.QName]
 	| NoSuchModule C.QName

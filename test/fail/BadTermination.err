@@ -1,2 +1,2 @@
 
-The program did not termination check
+Termination checking failed for the following functions: f.

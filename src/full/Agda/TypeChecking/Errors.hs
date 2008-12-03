@@ -8,6 +8,7 @@ import Control.Applicative ( (<$>) )
 import Control.Monad.State
 import Control.Monad.Error
 import qualified Data.Map as Map (empty)
+import System.FilePath
 
 import Agda.Syntax.Common
 import Agda.Syntax.Fixity
@@ -111,7 +112,7 @@ errorString err = case err of
     MetaOccursInItself _		       -> "MetaOccursInItself"
     ModuleArityMismatch _ _ _                  -> "ModuleArityMismatch"
     ModuleDoesntExport _ _		       -> "ModuleDoesntExport"
-    ModuleNameDoesntMatchFileName _ _	       -> "ModuleNameDoesntMatchFileName"
+    ModuleNameDoesntMatchFileName _	       -> "ModuleNameDoesntMatchFileName"
     NoBindingForBuiltin _		       -> "NoBindingForBuiltin"
     NoParseForApplication _		       -> "NoParseForApplication"
     NoParseForLHS _			       -> "NoParseForLHS"
@@ -140,7 +141,7 @@ errorString err = case err of
     ShouldBePi _			       -> "ShouldBePi"
     ShouldBeRecordType _		       -> "ShouldBeRecordType"
     ShouldEndInApplicationOfTheDatatype _      -> "ShouldEndInApplicationOfTheDatatype"
-    TerminationCheckFailed		       -> "TerminationCheckFailed"
+    TerminationCheckFailed _		       -> "TerminationCheckFailed"
     TooFewFields _ _			       -> "TooFewFields"
     TooManyArgumentsInLHS _ _                  -> "TooManyArgumentsInLHS"
     TooManyFields _ _			       -> "TooManyFields"
@@ -153,7 +154,6 @@ errorString err = case err of
     UninstantiatedModule _		       -> "UninstantiatedModule"
     UnsolvedConstraints _		       -> "UnsolvedConstraints"
     UnsolvedMetas _			       -> "UnsolvedMetas"
-    UnsolvedMetasInImport _		       -> "UnsolvedMetasInImport"
     WithClausePatternMismatch _ _              -> "WithClausePatternMismatch"
     WrongHidingInApplication _		       -> "WrongHidingInApplication"
     WrongHidingInLHS _			       -> "WrongHidingInLHS"
@@ -181,8 +181,10 @@ instance PrettyTCM TypeError where
 	    NotSupported s -> fwords $ "Not supported: " ++ s
 	    CompilationError s -> sep [fwords "Compilation error:", text s]
 	    GenericError s   -> fwords s
-	    TerminationCheckFailed -> fwords
-	      "The program did not termination check"
+	    TerminationCheckFailed because -> fsep $
+	      pwords "Termination checking failed for the following functions:" ++
+              [ fsep (punctuate comma (map (text . show . qnameName)
+                                           (concatMap fst because))) <> text "." ]
 	    PropMustBeSingleton -> fwords
 		"Datatypes in Prop must have at most one constructor when proof irrelevance is enabled"
 	    DataMustEndInSort t -> fsep $
@@ -319,9 +321,6 @@ instance PrettyTCM TypeError where
 	    UnsolvedMetas rs ->
 		fsep ( pwords "Unsolved metas at the following locations:" )
 		$$ nest 2 (vcat $ map (text . show) rs)
-	    UnsolvedMetasInImport rs ->
-		fsep ( pwords "There were unsolved metas in an imported module at the following locations:" )
-		$$ nest 2 (vcat $ map (text . show) rs)
 	    UnsolvedConstraints cs ->
 		fsep ( pwords "Failed to solve the following constraints:" )
 		$$ nest 2 (vcat $ map prettyTCM cs)
@@ -336,9 +335,14 @@ instance PrettyTCM TypeError where
 		fsep ( pwords "Multiple possible sources for module" ++ [text $ show x] ++
 		       pwords "found:"
 		     ) $$ nest 2 (vcat $ map text files)
-	    ModuleNameDoesntMatchFileName given expected -> fsep $
-	      pwords "The name of the top level module does not match the file name. Expected module" ++
-	      [ text (show expected) <> comma ] ++ pwords "found" ++ [ text (show given) ]
+	    ModuleNameDoesntMatchFileName given -> fsep $
+              pwords "The name of the top level module does not match the file name. The module" ++
+              [ text (show given) ] ++ pwords "should be defined in either" ++
+              [ text ("<top-level>" </> mod ".agda")
+              , text "or"
+              , text ("<top-level>" </> mod ".lagda") <> text "."
+              ]
+              where mod = C.moduleNameToFileName (mnameToConcrete given)
             BothWithAndRHS -> fsep $
               pwords "Unexpected right hand side"
 	    NotInScope xs ->

@@ -3,8 +3,5 @@ Failed to find source of module WildGoose in any of the following
 locations:
   ./WildGoose.agda
   ./WildGoose.lagda
-  ./WildGoose.agda2
-  ./WildGoose.lagda2
-  ./WildGoose.ag2
 when scope checking the declaration
   import WildGoose

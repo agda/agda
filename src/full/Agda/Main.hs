@@ -1,5 +1,3 @@
-{-# LANGUAGE CPP #-}
-
 {-| Agda 2 main module.
 -}
 module Agda.Main where
@@ -38,7 +36,7 @@ import Agda.Interaction.Highlighting.Vim   (generateVimFile)
 import Agda.Interaction.Highlighting.Emacs (generateEmacsFile)
 import Agda.Interaction.Highlighting.Generate
   (TypeCheckingState(TypeCheckingDone))
-import Agda.Interaction.Imports
+import qualified Agda.Interaction.Imports as Imp
 
 import Agda.TypeChecker
 import Agda.TypeChecking.Monad
@@ -69,7 +67,7 @@ runAgda =
 	argv	 <- liftIO getArgs
 	let opts = parseStandardOptions progName argv
 	case opts of
-	    Left err	-> liftIO $ optionError err
+	    Left err -> liftIO $ optionError err
 	    Right opts
 		| optShowHelp opts	-> liftIO printUsage
 		| optShowVersion opts	-> liftIO printVersion
@@ -86,13 +84,16 @@ runAgda =
 	checkFile =
 	    do	i	<- optInteractive <$> liftTCM commandLineOptions
 		compile <- optCompile <$> liftTCM commandLineOptions
-		alonzo <- optCompileAlonzo <$> liftTCM commandLineOptions
+		alonzo  <- optCompileAlonzo <$> liftTCM commandLineOptions
                 malonzo <- optCompileMAlonzo <$> liftTCM commandLineOptions
 		when i $ liftIO $ UTF8.putStr splashScreen
-		let interaction | i	  = runIM . interactionLoop
-				| compile = Agate.compilerMain .(>> return ())
-				| alonzo  = Alonzo.compilerMain .(>> return ())
-                                | malonzo = MAlonzo.compilerMain .(>> return())
+		let failIfError (_, Nothing)  = return ()
+                    failIfError (_, Just err) = typeError err
+
+                    interaction | i	  = runIM . interactionLoop
+				| compile = Agate.compilerMain   . (failIfError =<<)
+				| alonzo  = Alonzo.compilerMain  . (failIfError =<<)
+                                | malonzo = MAlonzo.compilerMain . (failIfError =<<)
 				| otherwise = \m -> do
 				    (_, err) <- m
 				    maybe (return ()) typeError err
@@ -100,56 +101,28 @@ runAgda =
 		    do	hasFile <- hasInputFile
 			resetState
 			if hasFile then
-			    do	file <- getInputFile
+			    do	file    <- getInputFile
+                                options <- commandLineOptions
 
-				-- Parse
-				(pragmas, m) <- liftIO $ parseFile' moduleParser file
+                                (topLevel, ok) <- Imp.createInterface options
+                                  noTrace [] Map.empty
+                                  Map.empty emptySignature
+                                  Map.empty Nothing file False
 
-				-- Scope check
-				pragmas  <- concat <$> concreteToAbstract_ pragmas -- identity for top-level pragmas
-                                setOptionsFromPragmas pragmas
-				topLevel <- concreteToAbstract_ (TopLevel m)
+                                -- The value of options from above
+                                -- cannot be reused here, because then
+                                -- options set in pragmas would have
+                                -- no effect.
+                                unsolvedOK <- optAllowUnsolved <$> commandLineOptions
 
-                                -- Check module name
-                                checkModuleName topLevel file
-
-				-- Type check
-				checkDecls $ topLevelDecls topLevel
-
-                                -- Termination check
-                                errs <- ifM (optTerminationCheck <$> commandLineOptions)
-                                            (termDecls $ topLevelDecls topLevel)
-                                            (return [])
-                                mapM_ (\e -> reportSLn "term.warn.no" 1
-                                             (show (fst e) ++ " does NOT termination check")) errs
-
-				let batchError | null errs = Nothing
-					       | otherwise = Just TerminationCheckFailed
-
-				-- Set the scope
-				setScope $ outsideScope topLevel
-
-				reportSLn "scope.top" 50 $ "SCOPE " ++ show (insideScope topLevel)
-
-				-- Generate Vim file
-				whenM (optGenerateVimFile <$> commandLineOptions) $
-				    withScope_ (insideScope topLevel) $ generateVimFile file
-
-				-- Generate Emacs file
-				whenM (optGenerateEmacsFile <$> commandLineOptions) $
-                                    generateEmacsFile file TypeCheckingDone topLevel errs
-
-				-- Give error for unsolved metas
-				unsolved <- getOpenMetas
-				unlessM (optAllowUnsolved <$> commandLineOptions) $
-				    unless (null unsolved) $
-					typeError . UnsolvedMetas =<< mapM getMetaRange unsolved
-
-				-- Generate interface file (only if no metas)
-				when (null unsolved) $ do
-				    i <- buildInterface
-				    let ifile = setExtension ".agdai" file
-				    liftIO $ encodeFile ifile i
+                                let batchError = case ok of
+                                      Imp.Warnings []             [] -> Nothing
+                                      Imp.Warnings _  unsolved@(_:_)
+                                        | unsolvedOK -> Nothing
+                                        | otherwise  -> Just $ UnsolvedMetas unsolved
+                                      Imp.Warnings termErrs@(_:_) _  ->
+                                        Just (TerminationCheckFailed termErrs)
+                                      Imp.Success {} -> Nothing
 
 				-- Print stats
 				stats <- Map.toList <$> getStatistics
@@ -180,7 +153,7 @@ printVersion =
 -- | What to do for bad options.
 optionError :: String -> IO ()
 optionError err =
-    do	UTF8.putStr $ "Unrecognised argument: " ++ err
+    do	UTF8.putStrLn $ "Error: " ++ err
 	printUsage
 	exitFailure
 

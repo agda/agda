@@ -10,6 +10,7 @@ import Data.Generics (Typeable, Data)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
+import Agda.Utils.FileName
 import Agda.Utils.TestHelpers
 
 #include "../../undefined.h"
@@ -119,6 +120,14 @@ isPrefix  x = not (isHole (head xs)) &&      isHole (last xs)  where xs = namePa
 isPostfix x =      isHole (head xs)  && not (isHole (last xs)) where xs = nameParts x
 isInfix   x =      isHole (head xs)  &&      isHole (last xs)  where xs = nameParts x
 isNonfix  x = not (isHole (head xs)) && not (isHole (last xs)) where xs = nameParts x
+
+type Suffix = String
+
+-- | Turns a module name into a file name with the given suffix.
+
+moduleNameToFileName :: QName -> Suffix -> FilePath
+moduleNameToFileName (QName  x) ext = show x ++ ext
+moduleNameToFileName (Qual m x) ext = show m ++ [slash] ++ moduleNameToFileName x ext
 
 instance Show Name where
     show (Name _ xs)  = concatMap show xs

@@ -85,7 +85,7 @@ import qualified Agda.Interaction.BasicOps as B
 import qualified Agda.Interaction.CommandLine.CommandLine as CL
 import Agda.Interaction.Highlighting.Emacs
 import Agda.Interaction.Highlighting.Generate
-import Agda.Interaction.Imports (checkModuleName, buildInterface)
+import qualified Agda.Interaction.Imports as Imp
 
 import Agda.Termination.TermCheck
 
@@ -124,7 +124,7 @@ ioTCM cmd = do
       us <- getUndoStack
       return (x,st,us)
     `catchError` \err -> do
-        outputErrorInfo err
+        liftIO $ tellEmacsToJumpToError (Just $ getRange err)
 	display_info errorTitle =<< prettyError err
 	fail "exit"
   case r of
@@ -136,41 +136,12 @@ ioTCM cmd = do
       return a
     Left _ -> exitWith $ ExitFailure 1
 
--- | Set the current working directory based on the file name of the
--- current module and its module name, so that when the module is
--- imported qualified it will be found.
---
--- The path is assumed to be absolute.
---
--- The given list of declarations should correspond to a module, i.e.
--- it should be non-empty and the last declaration should be
--- 'SC.Module' something.
-
-setWorkingDirectory :: FilePath -> [SC.Declaration] -> IO ()
-setWorkingDirectory _    [] = __IMPOSSIBLE__
-setWorkingDirectory file xs = case last xs of
-  SC.Module _ n _ _ -> setCurrentDirectory (newDir $ countDots n)
-  _                 -> __IMPOSSIBLE__
-  where
-  countDots (SC.QName _)  = 0
-  countDots (SC.Qual _ n) = 1 + countDots n
-
-  (path, _, _) = splitFilePath file
-  newDir n     = dropDirectory n path
-
--- | Sets the Agda include directories (corresponding to the -i
--- option).
-
-setIncludeDirectories :: [FilePath] -> TCM ()
-setIncludeDirectories is = do
-  opts <- commandLineOptions
-  setCommandLineOptions (opts { optIncludeDirs = is })
-
 -- | @cmd_load m includes@ loads the module in file @m@, using
 -- @includes@ as the include directories.
 
 cmd_load :: FilePath -> [FilePath] -> IO ()
-cmd_load m includes = cmd_load' m includes (\_ -> return ()) cmd_metas
+cmd_load m includes =
+  cmd_load' m includes True (\_ -> return ()) cmd_metas
 
 -- | @cmd_load' m includes cmd cmd2@ loads the module in file @m@,
 -- using @includes@ as the include directories.
@@ -184,66 +155,38 @@ cmd_load m includes = cmd_load' m includes (\_ -> return ()) cmd_metas
 -- unless an exception is encountered.
 
 cmd_load' :: FilePath -> [FilePath]
+          -> Bool -- ^ Allow unsolved meta-variables?
           -> (Bool -> TCM ()) -> IO ()
           -> IO ()
-cmd_load' file includes cmd cmd2 = infoOnException $ do
+cmd_load' file includes unsolvedOK cmd cmd2 = infoOnException $ do
     clearSyntaxInfo file
-    (pragmas, m) <- parseFile' moduleParser file
-    setWorkingDirectory file m
     is <- ioTCM $ do
             clearUndoHistory
+	    preserveDecodedModules resetState
+            decodedModules <- stDecodedModules <$> get
+            setUndo
+
             -- All options are reset when a file is reloaded,
             -- including the choice of whether or not to display
             -- implicit arguments.
-            setCommandLineOptions defaultOptions
-            enableSyntaxHighlighting
-            setIncludeDirectories includes
-	    preserveDecodedModules resetState
-	    pragmas  <- concat <$> concreteToAbstract_ pragmas	-- identity for top-level pragmas at the moment
-            -- Note that pragmas can affect scope checking.
-            setOptionsFromPragmas pragmas
-	    topLevel <- concreteToAbstract_ (TopLevel m)
+            (topLevel, ok) <- Imp.createInterface
+              (defaultOptions { optGenerateEmacsFile = True
+                              , optAllowUnsolved     = unsolvedOK
+                              , optIncludeDirs       = includes })
+              noTrace [] Map.empty
+              decodedModules emptySignature
+              Map.empty Nothing file True
 
-            termOK <- handleError
-              -- If there is an error syntax highlighting info can
-              -- still be generated.
-              (\e -> do generateEmacsFile
-                          file TypeCheckingNotDone topLevel []
-                        -- The outer error handler tells Emacs to
-                        -- reload the syntax highlighting info.
-                        throwError e) $ do
-              setUndo
-              checkModuleName topLevel file
-              checkDecls $ topLevelDecls topLevel
-
-              -- Do termination checking.
-              errs <- ifM (optTerminationCheck <$> commandLineOptions)
-                          (termDecls $ topLevelDecls topLevel)
-                          (return [])
-
-              generateEmacsFile file TypeCheckingDone topLevel errs
-              return (errs == [])
-
-            -- The module type checked, so let us store the abstract
-            -- syntax information. (It could be stored before type
-            -- checking, but the functions using it may not work if
-            -- the code is not type correct.)
+            -- The module type checked, so let us store the
+            -- abstract syntax information. (It could be stored
+            -- before type checking, but the functions using it
+            -- may not work if the code is not type correct.)
             liftIO $ modifyIORef theState $ \s ->
-                       s { theTopLevel = Just topLevel }
+              s { theTopLevel = Just topLevel }
 
-            noUnsolvedMetas <- null <$> getOpenMetas
-
-            -- True if the file was successfully and completely
-            -- type-checked.
-            let ok = termOK && noUnsolvedMetas
-
-            -- Generate an interface file.
-            when ok $ do
-                i <- buildInterface
-                let ifile = setExtension ".agdai" file
-                liftIO $ encodeFile ifile i
-
-            cmd ok
+            cmd $ case ok of
+                    Imp.Success  {} -> True
+                    Imp.Warnings {} -> False
 
 	    lispIP
 
@@ -260,14 +203,12 @@ cmd_load' file includes cmd cmd2 = infoOnException $ do
         sortRng = sortBy ((.snd) . compare . snd)
         format  = Q . L . List.map (A . tail . show . fst)
 
-        handleError = flip catchError
-
 -- | @cmd_compile m includes@ compiles the module in file @m@, using
 -- @includes@ as the include directories.
 
 cmd_compile :: FilePath -> [FilePath] -> IO ()
 cmd_compile file includes =
-  cmd_load' file includes (\ok ->
+  cmd_load' file includes False (\ok ->
     if ok then do
       MAlonzo.compilerMain (return ())
       display_info "*Compilation result*"
@@ -642,23 +583,17 @@ infoOnException m =
     inform noRange (show e)
   where
   inform rng msg = do
-    runTCM $ outputErrorInfo (Exception rng msg)
+    runTCM $ appendErrorToEmacsFile err
+    tellEmacsToJumpToError (Just rng)
     display_info' errorTitle $ rng' ++ msg
     exitWith (ExitFailure 1)
     where
     rng' | rng == noRange = ""
          | otherwise      = show rng ++ "\n"
+    err = Exception rng msg
 
 ------------------------------------------------------------------------
 -- Syntax highlighting
-
--- | Turns on syntax highlighting for other parts of Agda (notably the
--- import chaser, which sometimes type checks things).
-
-enableSyntaxHighlighting :: TCM ()
-enableSyntaxHighlighting = do
-  opts <- commandLineOptions
-  setCommandLineOptions (opts { optGenerateEmacsFile = True })
 
 -- | Tell the Emacs mode to reload the highlighting information.
 
@@ -666,19 +601,17 @@ tellEmacsToReloadSyntaxInfo :: IO ()
 tellEmacsToReloadSyntaxInfo =
   UTF8.putStrLn $ response $ L [A "agda2-highlight-reload"]
 
--- | Output syntax highlighting information for the given error, and
--- tell the Emacs mode to reload the highlighting information and go
--- to the first error position (if any).
+-- | Tells the Emacs mode to reload the highlighting information and
+-- go to the first error position (if any).
 
-outputErrorInfo :: TCErr -> TCM ()
-outputErrorInfo err = do
-  mPos <- appendErrorToEmacsFile err
-  case mPos of
+tellEmacsToJumpToError :: Maybe Range -> IO ()
+tellEmacsToJumpToError r = do
+  case join $ rStart <$> r of
     Nothing                               -> return ()
     Just (Pn { srcFile = f, posPos = p }) ->
-      liftIO $ UTF8.putStrLn $ response $
+      UTF8.putStrLn $ response $
         L [A "annotation-goto", Q $ L [A (show f), A ".", A (show p)]]
-  liftIO tellEmacsToReloadSyntaxInfo
+  tellEmacsToReloadSyntaxInfo
 
 ------------------------------------------------------------------------
 -- Implicit arguments
