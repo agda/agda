@@ -112,12 +112,7 @@ theState :: IORef State
 theState = unsafePerformIO $ newIORef initState
 
 ioTCM :: TCM a -> IO a
-ioTCM = ioTCM' Nothing
-
-ioTCM' :: Maybe FilePath
-         -- ^ The module being checked (if known).
-      -> TCM a -> IO a
-ioTCM' mFile cmd = do
+ioTCM cmd = do
   State { theTCState   = st
         , theUndoStack = us
         } <- readIORef theState
@@ -195,7 +190,7 @@ cmd_load' file includes cmd cmd2 = infoOnException $ do
     clearSyntaxInfo file
     (pragmas, m) <- parseFile' moduleParser file
     setWorkingDirectory file m
-    is <- ioTCM' (Just file) $ do
+    is <- ioTCM $ do
             clearUndoHistory
             -- All options are reset when a file is reloaded,
             -- including the choice of whether or not to display
