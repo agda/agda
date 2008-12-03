@@ -44,7 +44,6 @@ import Data.Sequence (Seq, (><))
 import Data.List ((\\))
 import qualified Data.Sequence as Seq
 import qualified Data.Foldable as Fold (toList, fold, foldMap)
-import qualified Data.Traversable as Trav (mapM)
 
 import Agda.Utils.Impossible
 #include "../../undefined.h"
@@ -76,8 +75,8 @@ generateSyntaxInfo file tcs top termErrs =
   M.withScope_ (CA.insideScope top) $ M.ignoreAbstractMode $ do
     tokens    <- liftIO $ Pa.parseFile' Pa.tokensParser file
     kinds     <- nameKinds tcs decls
-    nameInfo  <- fmap mconcat $ mapM (generate file kinds)
-                                     (Fold.toList names)
+    let nameInfo = mconcat $ map (generate file kinds)
+                                 (Fold.toList names)
     -- Constructors are only highlighted after type checking, since they
     -- can be overloaded.
     constructorInfo <- if tcs == TypeCheckingNotDone
@@ -210,7 +209,7 @@ generateSyntaxInfo file tcs top termErrs =
 
 -- | A function mapping names to the kind of name they stand for.
 
-type NameKinds = A.QName -> TCM NameKind
+type NameKinds = A.QName -> NameKind
 
 -- | Builds a 'NameKinds' function.
 
@@ -226,7 +225,7 @@ nameKinds tcs decls = do
       -- names to name kinds.
       everything' union (Map.empty `mkQ` getDef `extQ` getDecl) decls
   let merged = Map.union local imported
-  return (\n -> Map.lookup n merged)
+  return (\n -> maybe __IMPOSSIBLE__ id $ Map.lookup n merged)
   where
   fix = Map.map (defnToNameKind . theDef) . sigDefinitions
 
@@ -300,7 +299,7 @@ generateConstructorInfo file kinds decls = do
   let constrs = everything' (><) query (types, clauses)
 
   -- Return suitable syntax highlighting information.
-  Fold.fold <$> Trav.mapM (generate file kinds . mkAmb) constrs
+  return $ Fold.fold $ fmap (generate file kinds . mkAmb) constrs
   where
   mkAmb q = A.AmbQ [q]
 
@@ -340,18 +339,19 @@ generate :: FilePath
             -- ^ The module to highlight.
          -> NameKinds
          -> A.AmbiguousQName
-         -> TCM File
-generate file kinds (A.AmbQ qs) = do
-  ks <- mapM kinds qs
-  let kind = case (allEqual ks, ks) of
-               (True, k : _) -> Just k
-               _             -> Nothing
-      -- Note that all names in an AmbiguousQName should have the same
-      -- concrete name, so either they are all operators, or none of
-      -- them are.
-      m isOp  = mempty { aspect = Just $ Name kind isOp }
-      include = allEqual (map bindingSite qs)
-  return $ mconcat $ map (\q -> nameToFileA file q include m) qs
+         -> File
+generate file kinds (A.AmbQ qs) =
+  mconcat $ map (\q -> nameToFileA file q include m) qs
+  where
+    ks   = map kinds qs
+    kind = case (allEqual ks, ks) of
+             (True, k : _) -> Just k
+             _             -> Nothing
+    -- Note that all names in an AmbiguousQName should have the same
+    -- concrete name, so either they are all operators, or none of
+    -- them are.
+    m isOp  = mempty { aspect = Just $ Name kind isOp }
+    include = allEqual (map bindingSite qs)
 
 -- | Converts names to suitable 'File's.
 
