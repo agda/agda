@@ -202,4 +202,5 @@ library
                    Agda.Utils.Unicode
                    Agda.Utils.Warshall
                    Agda.Version
+  other-modules:   Paths_Agda
   ghc-options:     -Wall -Werror -fno-warn-missing-signatures -fno-warn-name-shadowing -fno-warn-simple-patterns -fno-warn-unused-matches -fno-warn-unused-binds -fno-warn-unused-imports -fno-warn-type-defaults -fno-warn-orphans -auto-all

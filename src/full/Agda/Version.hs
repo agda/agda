@@ -1,7 +1,13 @@
 
 module Agda.Version where
 
--- | TODO: cpp this one
-version :: String
-version = "2.1.3"
+import Data.Version
+import Data.List
 
+import qualified Paths_Agda as PA
+
+-- | The version of Agda.
+
+version :: String
+version = intercalate "." $ map show $
+            versionBranch PA.version
