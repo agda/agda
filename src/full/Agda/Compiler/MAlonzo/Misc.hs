@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+
 module Agda.Compiler.MAlonzo.Misc where
 
 import Control.Monad.State
@@ -24,6 +26,9 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.Utils.FileName
 import Agda.Utils.Monad
+
+import Agda.Utils.Impossible
+#include "../../undefined.h"
 
 --------------------------------------------------
 -- Setting up Interface before compile
@@ -71,7 +76,9 @@ curDefs :: TCM Definitions
 curDefs = sigDefinitions <$> curSig
 
 sigMName :: Signature -> ModuleName
-sigMName = head . M.keys . sigSections
+sigMName sig = case M.keys (sigSections sig) of
+  []    -> __IMPOSSIBLE__
+  m : _ -> m
 
 --------------------------------------------------
 -- utilities for haskell names

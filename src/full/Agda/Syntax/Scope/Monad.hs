@@ -193,6 +193,7 @@ getFixity x = do
     VarName y          -> return $ nameFixity y
     DefinedName d      -> return $ nameFixity $ qnameName $ anameName d
     ConstructorName ds
+      | null fs        -> __IMPOSSIBLE__
       | allEqual fs    -> return $ head fs
       | otherwise      -> return defaultFixity
       where
@@ -215,6 +216,7 @@ bindName acc kind x y = do
   ys <- case r of
     DefinedName	d      -> typeError $ ClashingDefinition (C.QName x) $ anameName d
     VarName z          -> typeError $ ClashingDefinition (C.QName x) $ A.qualify (mnameFromList []) z
+    ConstructorName [] -> __IMPOSSIBLE__
     ConstructorName ds
       | kind == ConName && all ((==ConName) . anameKind) ds -> return [ AbsName y kind ]
       | otherwise -> typeError $ ClashingDefinition (C.QName x) $ anameName (head ds) -- TODO: head

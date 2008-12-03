@@ -338,7 +338,9 @@ buildInterface = do
     reportSLn "import.iface" 7 "  instantiating all meta variables"
     i <- instantiateFull $ Interface
 			{ iImportedModules = Set.toList ms
-			, iScope	   = head $ scopeStack scope -- TODO!!
+			, iScope	   = case scopeStack scope of  -- TODO!!
+                                               []    -> __IMPOSSIBLE__
+                                               s : _ -> s
 			, iSignature	   = sig
 			, iBuiltin	   = builtin'
                         , iHaskellImports  = hsImps
