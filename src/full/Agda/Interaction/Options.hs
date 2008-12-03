@@ -3,6 +3,7 @@
 module Agda.Interaction.Options
     ( CommandLineOptions(..)
     , Flag
+    , checkOpts
     , parseStandardOptions
     , parsePragmaOptions
     , parsePluginOptions
@@ -11,6 +12,7 @@ module Agda.Interaction.Options
     , isLiterate
     , mapFlag
     , usage
+    , tests
     ) where
 
 import Control.Monad.Error	( MonadError(catchError) )
@@ -18,6 +20,8 @@ import Data.List		( isSuffixOf )
 import System.Console.GetOpt	(getOpt, usageInfo, ArgOrder(ReturnInOrder)
 				, OptDescr(..), ArgDescr(..)
 				)
+import Agda.Utils.TestHelpers   ( runTests )
+import Agda.Utils.QuickCheck    ( quickCheck' )
 import Agda.Utils.Monad		( readM )
 import Agda.Utils.FileName		( slash )
 import Agda.Utils.List               ( wordsBy )
@@ -99,59 +103,69 @@ defaultOptions =
             , optGhcFlags          = []
 	    }
 
+prop_defaultOptions = case checkOpts defaultOptions of
+  Left  _ -> False
+  Right _ -> True
+
 {- | @f :: Flag opts@  is an action on the option record that results from
      parsing an option.  @f opts@ produces either an error message or an
      updated options record
 -}
 type Flag opts	= opts -> Either String opts
 
+-- | Checks that the given options are consistent.
+
+checkOpts :: Flag CommandLineOptions
+checkOpts opts
+  | length (filter id compilerOpts) >= 2 =
+    Left "At most one compiler may be used."
+  | optAllowUnsolved opts && or compilerOpts = Left
+      "Unsolved meta variables must not be allowed when compiling."
+  | otherwise = Right opts
+  where
+  compilerOpts =
+    map ($ opts)
+      [ optCompile
+      , optCompileAlonzo
+      , optCompileMAlonzo
+      ]
+
 inputFlag f o	    =
     case optInputFile o of
-	Nothing  -> return $ o { optInputFile = Just f }
+	Nothing  -> checkOpts $ o { optInputFile = Just f }
 	Just _	 -> fail "only one input file allowed"
 
-versionFlag               o = return $ o { optShowVersion       = True }
-helpFlag                  o = return $ o { optShowHelp	        = True }
-proofIrrelevanceFlag      o = return $ o { optProofIrrelevance  = True }
-ignoreInterfacesFlag      o = return $ o { optIgnoreInterfaces  = True }
-allowUnsolvedFlag         o = return $ o { optAllowUnsolved     = True }
-showImplicitFlag          o = return $ o { optShowImplicit      = True }
-runTestsFlag              o = return $ o { optRunTests	        = True }
-vimFlag                   o = return $ o { optGenerateVimFile   = True }
-emacsFlag                 o = return $ o { optGenerateEmacsFile = True }
-noPositivityFlag          o = return $ o { optDisablePositivity = True }
-dontTerminationCheckFlag  o = return $ o { optTerminationCheck  = False }
-dontCompletenessCheckFlag o = return $ o { optCompletenessCheck = False }
-dontUniverseCheckFlag     o = return $ o { optUniverseCheck     = False }
-sizedTypes                o = return $ o { optSizedTypes        = True }
+versionFlag               o = checkOpts $ o { optShowVersion       = True }
+helpFlag                  o = checkOpts $ o { optShowHelp	       = True }
+proofIrrelevanceFlag      o = checkOpts $ o { optProofIrrelevance  = True }
+ignoreInterfacesFlag      o = checkOpts $ o { optIgnoreInterfaces  = True }
+allowUnsolvedFlag         o = checkOpts $ o { optAllowUnsolved     = True }
+showImplicitFlag          o = checkOpts $ o { optShowImplicit      = True }
+runTestsFlag              o = checkOpts $ o { optRunTests	       = True }
+vimFlag                   o = checkOpts $ o { optGenerateVimFile   = True }
+emacsFlag                 o = checkOpts $ o { optGenerateEmacsFile = True }
+noPositivityFlag          o = checkOpts $ o { optDisablePositivity = True }
+dontTerminationCheckFlag  o = checkOpts $ o { optTerminationCheck  = False }
+dontCompletenessCheckFlag o = checkOpts $ o { optCompletenessCheck = False }
+dontUniverseCheckFlag     o = checkOpts $ o { optUniverseCheck     = False }
+sizedTypes                o = checkOpts $ o { optSizedTypes        = True }
 
-interactiveFlag o = return $ o { optInteractive   = True
-			       , optAllowUnsolved = True
-			       }
-compileFlag o = return $ o { optCompileMAlonzo = True }
-agateFlag o   = return $ o { optCompileAlonzo  = False
-                           , optCompileMAlonzo = False
-                           , optCompile        = True
-                           } 
-alonzoFlag o  = return $ o { optCompileAlonzo  = True
-                           , optCompileMAlonzo = False
-                           , optCompile        = False
-                           } 
-malonzoFlag o = return $ o { optCompileAlonzo  = False
-                           , optCompileMAlonzo = True
-                           , optCompile        = False
-                           } 
-
+interactiveFlag o = checkOpts $ o { optInteractive   = True
+			          , optAllowUnsolved = True
+			          }
+compileFlag      o = checkOpts $ o { optCompileMAlonzo = True }
+agateFlag        o = checkOpts $ o { optCompile        = True }
+alonzoFlag       o = checkOpts $ o { optCompileAlonzo  = True }
+malonzoFlag      o = checkOpts $ o { optCompileMAlonzo = True }
 malonzoDirFlag f o = case optMAlonzoDir o of
-  Nothing  -> return $ o { optMAlonzoDir = Just f }
+  Nothing  -> checkOpts $ o { optMAlonzoDir = Just f }
   Just _   -> fail "only one MAlonzo directory is allowed"
+ghcFlag        f o = checkOpts $ o { optGhcFlags       = f : optGhcFlags o }
 
-ghcFlag     f o     = return $ o { optGhcFlags      = f : optGhcFlags o }
-
-includeFlag d o	    = return $ o { optIncludeDirs   = d : optIncludeDirs o   }
+includeFlag d o	    = checkOpts $ o { optIncludeDirs   = d : optIncludeDirs o   }
 verboseFlag s o	    =
     do	(k,n) <- parseVerbose s
-	return $ o { optVerbose = Trie.insert k n $ optVerbose o }
+	checkOpts $ o { optVerbose = Trie.insert k n $ optVerbose o }
   where
     parseVerbose s = case wordsBy (`elem` ":.") s of
       []  -> usage
@@ -281,3 +295,10 @@ usage options pluginInfos progName =
 		inheritedOptions pls =
 		    "\n    Inherits options from: " ++ unwords pls
 
+------------------------------------------------------------------------
+-- All tests
+
+tests :: IO Bool
+tests = runTests "Agda.Interaction.Options"
+  [ quickCheck' prop_defaultOptions
+  ]

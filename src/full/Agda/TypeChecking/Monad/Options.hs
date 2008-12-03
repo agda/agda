@@ -21,7 +21,10 @@ import Agda.Utils.Impossible
 
 setCommandLineOptions :: MonadTCM tcm => CommandLineOptions -> tcm ()
 setCommandLineOptions opts =
-    liftTCM $ modify $ \s -> s { stOptions = opts }
+  case checkOpts opts of
+    Left err   -> __IMPOSSIBLE__
+    Right opts ->
+      liftTCM $ modify $ \s -> s { stOptions = opts }
 
 commandLineOptions :: MonadTCM tcm => tcm CommandLineOptions
 commandLineOptions = liftTCM $ gets stOptions

@@ -9,6 +9,7 @@ import Agda.Interaction.Highlighting.Emacs    as InteEmac   (tests)
 import Agda.Interaction.Highlighting.Generate as InteGene   (tests)
 import Agda.Interaction.Highlighting.Precise  as IntePrec   (tests)
 import Agda.Interaction.Highlighting.Range    as InteRang   (tests)
+import Agda.Interaction.Options               as InteOpti   (tests)
 import Agda.Syntax.Position                   as SyntPosi   (tests)
 import Agda.Termination.Termination	      as TermTerm   (tests)
 import Agda.Termination.CallGraph	      as TermCall   (tests)
@@ -28,6 +29,7 @@ testSuite = runTests "QuickCheck test suite:"
   , InteGene.tests
   , IntePrec.tests
   , InteRang.tests
+  , InteOpti.tests
   , SyntPosi.tests
   , TermTerm.tests
   , TermRing.tests
