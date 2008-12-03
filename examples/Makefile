@@ -4,7 +4,7 @@ TOP = ..
 include $(TOP)/mk/paths.mk
 include $(TOP)/mk/config.mk
 
-default : test polydep hello path regexp-talk aim4-bag ac effects minmax real view simplelib lib divmod term1 term2 term3
+default : test polydep hello path regexp-talk aim4-bag ac effects minmax real view simplelib lib divmod highlighting compiler term1 term2 term3
 
 agda = $(AGDA_BIN)
 
