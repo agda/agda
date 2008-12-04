@@ -17,6 +17,7 @@ import System.IO
 import qualified System.IO.UTF8 as UTF8
 import System.Time
 import System.Process
+import System.FilePath ((</>))
 
 import Agda.Compiler.MAlonzo.Misc
 import Agda.Compiler.MAlonzo.Pretty
@@ -265,8 +266,7 @@ writeModule m =
                        ]
 
 outFile' = do
-  mdir <- maybe (liftIO getCurrentDirectory) return =<<
-          gets (optMAlonzoDir . stOptions)
+  mdir <- gets (optMAlonzoDir . stOptions)
   (fdir, fn, _) <- splitFilePath . repldot slash . prettyPrint <$> curHsMod
   let (dir, fp) = (addSlash mdir ++ fdir, addSlash dir ++ fn ++ ".hs")
   liftIO $ createDirectoryIfMissing True dir
@@ -280,6 +280,7 @@ outFile = snd <$> outFile'
 callGHC :: (Interface, ClockTime) -> TCM ()
 callGHC mainICT = do
   setInterface mainICT
+  mdir          <- optMAlonzoDir <$> commandLineOptions
   hsmod         <- prettyPrint <$> curHsMod
   MName agdaMod <- curMName
   let outputName = case agdaMod of
@@ -289,7 +290,7 @@ callGHC mainICT = do
   opts       <- gets (optGhcFlags . stOptions)
   let overridableArgs =
         [ "-O"
-        , "-o", show outputName
+        , "-o", mdir </> show outputName
         ]
       otherArgs       =
         [ "-i" ++ mdir

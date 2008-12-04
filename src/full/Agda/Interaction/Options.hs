@@ -61,7 +61,7 @@ data CommandLineOptions =
 	    , optDisablePositivity :: Bool
 	    , optCompileAlonzo     :: Bool
             , optCompileMAlonzo    :: Bool
-            , optMAlonzoDir        :: Maybe FilePath
+            , optMAlonzoDir        :: FilePath
 	    , optTerminationCheck  :: Bool
 	    , optCompletenessCheck :: Bool
 	    , optUniverseCheck     :: Bool
@@ -95,13 +95,17 @@ defaultOptions =
 	    , optDisablePositivity = False
 	    , optCompileAlonzo     = False
 	    , optCompileMAlonzo    = False
-            , optMAlonzoDir        = Nothing
+            , optMAlonzoDir        = defaultMAlonzoDir
             , optTerminationCheck  = True
             , optCompletenessCheck = True
             , optUniverseCheck     = True
             , optSizedTypes        = False
             , optGhcFlags          = []
 	    }
+
+-- | The default output directory for MAlonzo.
+
+defaultMAlonzoDir = "."
 
 prop_defaultOptions = case checkOpts defaultOptions of
   Left  _ -> False
@@ -157,9 +161,7 @@ compileFlag      o = checkOpts $ o { optCompileMAlonzo = True }
 agateFlag        o = checkOpts $ o { optCompile        = True }
 alonzoFlag       o = checkOpts $ o { optCompileAlonzo  = True }
 malonzoFlag      o = checkOpts $ o { optCompileMAlonzo = True }
-malonzoDirFlag f o = case optMAlonzoDir o of
-  Nothing  -> checkOpts $ o { optMAlonzoDir = Just f }
-  Just _   -> fail "only one MAlonzo directory is allowed"
+malonzoDirFlag f o = checkOpts $ o { optMAlonzoDir     = f }
 ghcFlag        f o = checkOpts $ o { optGhcFlags       = f : optGhcFlags o }
 
 includeFlag d o	    = checkOpts $ o { optIncludeDirs   = d : optIncludeDirs o   }
@@ -196,7 +198,8 @@ standardOptions =
     , Option []     ["malonzo"] (NoArg malonzoFlag)
 		    "use the MAlonzo compiler (DEFAULT) (only with --compile)"
     , Option []     ["malonzodir"] (ReqArg malonzoDirFlag "DIR")
-		    "set the directory for MAlonzo output"
+		    ("directory for MAlonzo output (default: " ++
+                     defaultMAlonzoDir ++ ")")
     , Option []	    ["test"] (NoArg runTestsFlag)
 		    "run internal test suite"
     , Option []	    ["vim"] (NoArg vimFlag)
