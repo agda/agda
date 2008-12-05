@@ -202,7 +202,7 @@ To use the Agda 2 Emacs mode:
 
    Add
 
-     (add-to-list 'load-path "<The directory where you installed haskell-mode>")
+     (load "<The directory where you installed haskell-mode>/haskell-site-file")
 
    to your .emacs file.
 
