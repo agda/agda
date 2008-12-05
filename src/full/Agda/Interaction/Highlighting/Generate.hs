@@ -209,7 +209,7 @@ generateSyntaxInfo file tcs top termErrs =
 
 -- | A function mapping names to the kind of name they stand for.
 
-type NameKinds = A.QName -> NameKind
+type NameKinds = A.QName -> Maybe NameKind
 
 -- | Builds a 'NameKinds' function.
 
@@ -222,10 +222,10 @@ nameKinds tcs decls = do
     TypeCheckingDone    -> fix . stSignature <$> get
     TypeCheckingNotDone -> return $
       -- Traverses the syntax tree and constructs a map from qualified
-      -- names to name kinds.
+      -- names to name kinds. TODO: Handle open public.
       everything' union (Map.empty `mkQ` getDef `extQ` getDecl) decls
   let merged = Map.union local imported
-  return (\n -> maybe __IMPOSSIBLE__ id $ Map.lookup n merged)
+  return (\n -> Map.lookup n merged)
   where
   fix = Map.map (defnToNameKind . theDef) . sigDefinitions
 
@@ -345,8 +345,8 @@ generate file kinds (A.AmbQ qs) =
   where
     ks   = map kinds qs
     kind = case (allEqual ks, ks) of
-             (True, k : _) -> Just k
-             _             -> Nothing
+             (True, Just k : _) -> Just k
+             _                  -> Nothing
     -- Note that all names in an AmbiguousQName should have the same
     -- concrete name, so either they are all operators, or none of
     -- them are.
