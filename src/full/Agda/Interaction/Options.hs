@@ -121,12 +121,16 @@ type Flag opts	= opts -> Either String opts
 
 checkOpts :: Flag CommandLineOptions
 checkOpts opts
-  | length (filter id compilerOpts) >= 2 =
+  | not (atMostOne compilerOpts) =
     Left "At most one compiler may be used.\n"
   | optAllowUnsolved opts && or compilerOpts = Left
       "Unsolved meta variables are not allowed when compiling.\n"
+  | not (atMostOne [or compilerOpts, optInteractive opts]) =
+      Left "Choose at most one: a compiler or the interactive mode.\n"
   | otherwise = Right opts
   where
+  atMostOne bs = length (filter id bs) <= 1
+
   compilerOpts =
     map ($ opts)
       [ optCompile
