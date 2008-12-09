@@ -8,9 +8,9 @@ import System.IO.UTF8
 import qualified System.IO.UTF8 as UTF8
 import qualified System.IO as IO
 import qualified Data.ByteString.Lazy as BS
-import Codec.Binary.UTF8.String (decode)
-import Data.Char (ord)
-import Control.Monad (liftM)
+import Control.Applicative
+
+import Agda.Utils.Unicode
 
 -- | Returns a close function for the file together with the contents.
 
@@ -20,7 +20,8 @@ readBinaryFile' file = do
     s <- BS.hGetContents h
     return (s, IO.hClose h)
 
--- | Reads a UTF8-encoded file in text mode.
+-- | Reads a UTF8-encoded file in binary mode and converts all Unicode
+-- line endings into '\n'.
 
 readTextFile :: FilePath -> IO String
-readTextFile n = liftM (decode . map (toEnum . ord)) (IO.readFile n)
+readTextFile file = convertLineEndings <$> UTF8.readFile file

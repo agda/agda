@@ -1,6 +1,7 @@
 
 module Agda.Utils.Unicode
     ( isUnicodeId
+    , convertLineEndings
     ) where
 
 import Data.Char
@@ -9,3 +10,16 @@ import Data.Char
 
 isUnicodeId :: Char -> Bool
 isUnicodeId c = isPrint c && not (isAscii c)
+
+-- | Converts all Unicode line endings into '\n'.
+
+convertLineEndings :: String -> String
+convertLineEndings ('\x000D' : '\x000A' : s) = '\n' : convertLineEndings s
+convertLineEndings ('\x000A'            : s) = '\n' : convertLineEndings s
+convertLineEndings ('\x000D'            : s) = '\n' : convertLineEndings s
+convertLineEndings ('\x0085'            : s) = '\n' : convertLineEndings s
+convertLineEndings ('\x000C'            : s) = '\n' : convertLineEndings s
+convertLineEndings ('\x2028'            : s) = '\n' : convertLineEndings s
+convertLineEndings ('\x2029'            : s) = '\n' : convertLineEndings s
+convertLineEndings (c                   : s) = c    : convertLineEndings s
+convertLineEndings ""                        = ""
