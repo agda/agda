@@ -119,7 +119,7 @@ tagsN :: TagName name => name -> [Tag]
 tagsN = tags . Name
 
 instance TagName name => HasTags (HsModule name) where
-  tags (HsModule _ export _ decls _ _ _ _) = tags decls -- TODO: filter exports
+  tags (HsModule _ export _ decls _ _ _) = tags decls -- TODO: filter exports
 
 instance TagName name => HasTags (HsDecl name) where
   tags d = case d of

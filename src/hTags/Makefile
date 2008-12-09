@@ -8,8 +8,8 @@ setup		= dist/setup-config
 default : $(bin)
 
 $(setup) : hTags.cabal
-	runhaskell Setup.hs configure
+	cabal configure
 
 $(bin) : $(setup) $(sources)
-	runhaskell Setup.hs build
+	cabal build
 

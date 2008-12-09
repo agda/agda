@@ -5,7 +5,7 @@ author: Ulf Norell, Nils Anders Danielsson
 
 executable hTags
   main-is:       Main.hs
-  build-depends: ghc >= 6.8 && < 6.10,
+  build-depends: ghc == 6.8.3,
                  base >= 3,
                  filepath >= 1.1 && < 2,
                  directory >= 1.0 && < 2,
