@@ -70,7 +70,7 @@ generateSyntaxInfo
                             --   check (grouped if they are mutual),
                             --   along with ranges for problematic
                             --   call sites.
-  -> TCM File
+  -> TCM HighlightingInfo
 generateSyntaxInfo file tcs top termErrs =
   M.withScope_ (CA.insideScope top) $ M.ignoreAbstractMode $ do
     tokens    <- liftIO $ Pa.parseFile' Pa.tokensParser file
@@ -91,13 +91,17 @@ generateSyntaxInfo file tcs top termErrs =
     -- constructors are included in both lists. Finally tokInfo is
     -- placed last since token highlighting is more crude than the
     -- others.
-    return $ mconcat [ constructorInfo
-                     , theRest
-                     , nameInfo
-                     , metaInfo
-                     , termInfo
-                     , tokInfo tokens
-                     ]
+    return $ HighlightingInfo
+               { source = file
+               , info   = compress $
+                            mconcat [ constructorInfo
+                                    , theRest
+                                    , nameInfo
+                                    , metaInfo
+                                    , termInfo
+                                    , tokInfo tokens
+                                    ]
+               }
   where
     decls = CA.topLevelDecls top
 

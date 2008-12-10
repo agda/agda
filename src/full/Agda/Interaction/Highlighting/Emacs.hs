@@ -2,7 +2,7 @@
 
 module Agda.Interaction.Highlighting.Emacs
   ( clearSyntaxInfo
-  , generateEmacsFile
+  , writeEmacsFile
   , appendErrorToEmacsFile
   , Agda.Interaction.Highlighting.Emacs.tests
   ) where
@@ -62,8 +62,8 @@ showMetaInfo (r, m) =
 
 -- | Shows a file in an Emacsy fashion.
 
-showFile :: File -> String
-showFile = unlines . map showMetaInfo . compress
+showFile :: CompressedFile -> String
+showFile = unlines . map showMetaInfo
 
 ------------------------------------------------------------------------
 -- IO
@@ -92,34 +92,23 @@ clearSyntaxInfo path = UTF8.writeFile (infoFileName path) ""
 
 -- | Appends to a file with syntax highlighting information.
 
-appendSyntaxInfo
-  :: FilePath  -- ^ The path to the file which should be highlighted.
-  -> File      -- ^ The syntax highlighting info which should be added.
-  -> IO ()
-appendSyntaxInfo path file =
-  UTF8.appendFile (infoFileName path) $ showFile file
+appendSyntaxInfo :: HighlightingInfo -> IO ()
+appendSyntaxInfo highlighting =
+  UTF8.appendFile (infoFileName $ source highlighting)
+                  (showFile $ info highlighting)
 
 ------------------------------------------------------------------------
 -- Driver which uses the code in
 -- Agda.Interaction.Highlighting.Generate to create syntax
 -- highlighting files
 
--- | Generates and outputs syntax highlighting information, after
--- clearing existing highlighting info.
+-- | Outputs syntax highlighting information after clearing existing
+-- highlighting info.
 
-generateEmacsFile
-  :: FilePath              -- ^ The module to highlight.
-  -> TypeCheckingState     -- ^ Has it been type checked?
-  -> TopLevelInfo          -- ^ The abstract syntax of the module.
-  -> [([QName], [Range])]  -- ^ Functions which failed to termination
-                           --   check (grouped if they are mutual),
-                           --   along with ranges for problematic call
-                           --   sites.
-  -> TCM ()
-generateEmacsFile file tcs topLevel termErrs = do
-  liftIO $ clearSyntaxInfo file
-  syntaxInfo <- generateSyntaxInfo file tcs topLevel termErrs
-  liftIO $ appendSyntaxInfo file syntaxInfo
+writeEmacsFile :: HighlightingInfo -> TCM ()
+writeEmacsFile highlighting = do
+  liftIO $ clearSyntaxInfo (source highlighting)
+  liftIO $ appendSyntaxInfo highlighting
 
 -- | Appends information about an error to the highlighting file
 -- relevant for the error.
@@ -134,7 +123,10 @@ appendErrorToEmacsFile err = do
     -- have an empty file name component. This should be fixed.
     Just     (P.Pn { P.srcFile = "" })              -> return ()
     Just pos@(P.Pn { P.srcFile = f, P.posPos = p }) -> do
-      liftIO $ appendSyntaxInfo f $ generateErrorInfo r s
+      liftIO $ appendSyntaxInfo $
+        HighlightingInfo { source = f
+                         , info   = compress $ generateErrorInfo r s
+                         }
 
 ------------------------------------------------------------------------
 -- All tests

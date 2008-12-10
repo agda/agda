@@ -55,6 +55,8 @@ import qualified Agda.Syntax.Position as P
 import Agda.Syntax.Common
 import Agda.Syntax.Fixity
 import Agda.Syntax.Literal
+import qualified Agda.Interaction.Highlighting.Range   as HR
+import qualified Agda.Interaction.Highlighting.Precise as HP
 
 import Agda.TypeChecking.Monad
 import Agda.Utils.Tuple
@@ -64,7 +66,7 @@ import Agda.Utils.Permutation
 import Agda.Utils.Impossible
 
 currentInterfaceVersion :: Int
-currentInterfaceVersion = 20081204
+currentInterfaceVersion = 20081209
 
 type Node = [Int] -- constructor tag (maybe omitted) and arg indices
 
@@ -145,11 +147,23 @@ instance (EmbPrj a, EmbPrj b) => EmbPrj (a, b) where
   value = vcase valu where valu [a, b] = valu2 (,) a b
                            valu _      = __IMPOSSIBLE__
 
+instance (EmbPrj a, EmbPrj b, EmbPrj c) => EmbPrj (a, b, c) where
+  icode (a, b, c) = icode3' a b c
+  value = vcase valu where valu [a, b, c] = valu3 (,,) a b c
+                           valu _         = __IMPOSSIBLE__
+
 instance EmbPrj a => EmbPrj (Maybe a) where
   icode Nothing  = icode0'
   icode (Just x) = icode1' x
   value = vcase valu where valu []  = valu0 Nothing
                            valu [x] = valu1 Just x
+                           valu _   = __IMPOSSIBLE__
+
+instance EmbPrj Bool where
+  icode True  = icode0 0
+  icode False = icode0 1
+  value = vcase valu where valu [0] = valu0 True
+                           valu [1] = valu0 False
                            valu _   = __IMPOSSIBLE__
 
 instance EmbPrj Position where
@@ -179,6 +193,11 @@ instance EmbPrj Range where
   icode (P.Range is) = icode1' is
   value = vcase valu where valu [is] = valu1 P.Range is
                            valu _    = __IMPOSSIBLE__
+
+instance EmbPrj HR.Range where
+  icode (HR.Range a b) = icode2' a b
+  value = vcase valu where valu [a, b] = valu2 HR.Range a b
+                           valu _      = __IMPOSSIBLE__
 
 instance EmbPrj C.Name where
   icode (C.NoName a b) = icode2 0 a b
@@ -503,10 +522,81 @@ instance EmbPrj a => EmbPrj (Builtin a) where
                            valu [1, a] = valu1 Builtin a
                            valu _      = __IMPOSSIBLE__
 
+instance EmbPrj HP.NameKind where
+  icode HP.Bound       = icode0 0
+  icode HP.Constructor = icode0 1
+  icode HP.Datatype    = icode0 2
+  icode HP.Field       = icode0 3
+  icode HP.Function    = icode0 4
+  icode HP.Module      = icode0 5
+  icode HP.Postulate   = icode0 6
+  icode HP.Primitive   = icode0 7
+  icode HP.Record      = icode0 8
+
+  value = vcase valu where
+    valu [0] = valu0 HP.Bound
+    valu [1] = valu0 HP.Constructor
+    valu [2] = valu0 HP.Datatype
+    valu [3] = valu0 HP.Field
+    valu [4] = valu0 HP.Function
+    valu [5] = valu0 HP.Module
+    valu [6] = valu0 HP.Postulate
+    valu [7] = valu0 HP.Primitive
+    valu [8] = valu0 HP.Record
+    valu _   = __IMPOSSIBLE__
+
+instance EmbPrj HP.Aspect where
+  icode HP.Comment       = icode0 0
+  icode HP.Keyword       = icode0 1
+  icode HP.String        = icode0 2
+  icode HP.Number        = icode0 3
+  icode HP.Symbol        = icode0 4
+  icode HP.PrimitiveType = icode0 5
+  icode (HP.Name mk b)   = icode2 6 mk b
+
+  value = vcase valu where
+    valu [0]        = valu0 HP.Comment
+    valu [1]        = valu0 HP.Keyword
+    valu [2]        = valu0 HP.String
+    valu [3]        = valu0 HP.Number
+    valu [4]        = valu0 HP.Symbol
+    valu [5]        = valu0 HP.PrimitiveType
+    valu [6, mk, b] = valu2 HP.Name mk b
+    valu _          = __IMPOSSIBLE__
+
+instance EmbPrj HP.OtherAspect where
+  icode HP.Error              = icode0 0
+  icode HP.DottedPattern      = icode0 1
+  icode HP.UnsolvedMeta       = icode0 2
+  icode HP.TerminationProblem = icode0 3
+  icode HP.IncompletePattern  = icode0 4
+
+  value = vcase valu where
+    valu [0] = valu0 HP.Error
+    valu [1] = valu0 HP.DottedPattern
+    valu [2] = valu0 HP.UnsolvedMeta
+    valu [3] = valu0 HP.TerminationProblem
+    valu [4] = valu0 HP.IncompletePattern
+    valu _   = __IMPOSSIBLE__
+
+instance EmbPrj HP.MetaInfo where
+  icode (HP.MetaInfo a b c d) = icode4' a b c d
+
+  value = vcase valu where
+    valu [a, b, c, d] = valu4 HP.MetaInfo a b c d
+    valu _            = __IMPOSSIBLE__
+
+instance EmbPrj HP.HighlightingInfo where
+  icode (HP.HighlightingInfo a b) = icode2' a b
+
+  value = vcase valu where
+    valu [a, b] = valu2 HP.HighlightingInfo a b
+    valu _      = __IMPOSSIBLE__
+
 instance EmbPrj Interface where
-  icode (Interface a b c d e) = icode5' a b c d e
-  value = vcase valu where valu [a, b, c, d, e] = valu5 Interface a b c d e
-                           valu _               = __IMPOSSIBLE__
+  icode (Interface a b c d e f) = icode6' a b c d e f
+  value = vcase valu where valu [a, b, c, d, e, f] = valu6 Interface a b c d e f
+                           valu _                  = __IMPOSSIBLE__
 
 
 

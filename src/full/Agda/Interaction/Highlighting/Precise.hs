@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveDataTypeable #-}
+
 -- | Types used for precise syntax highlighting.
 
 module Agda.Interaction.Highlighting.Precise
@@ -6,10 +8,13 @@ module Agda.Interaction.Highlighting.Precise
   , OtherAspect(..)
   , MetaInfo(..)
   , File
+  , HighlightingInfo(..)
   , singleton
   , several
   , smallestPos
+  , CompressedFile
   , compress
+  , decompress
   , Agda.Interaction.Highlighting.Precise.tests
   ) where
 
@@ -23,6 +28,7 @@ import Control.Monad
 import Agda.Utils.QuickCheck
 import Data.Map (Map)
 import qualified Data.Map as Map
+import Data.Generics
 
 import Agda.Interaction.Highlighting.Range
 
@@ -40,7 +46,7 @@ data Aspect
   | Symbol                     -- ^ Symbols like forall, =, ->, etc.
   | PrimitiveType              -- ^ Things like Set and Prop.
   | Name (Maybe NameKind) Bool -- ^ Is the name an operator part?
-    deriving (Eq, Show)
+    deriving (Eq, Show, Typeable, Data)
 
 data NameKind
   = Bound        -- ^ Bound variable.
@@ -52,7 +58,7 @@ data NameKind
   | Postulate
   | Primitive    -- ^ Primitive.
   | Record       -- ^ Record type.
-    deriving (Eq, Show, Enum, Bounded)
+    deriving (Eq, Show, Enum, Bounded, Typeable, Data)
 
 -- | Other aspects. (These can overlap with each other and with
 -- 'Aspect's.)
@@ -65,7 +71,7 @@ data OtherAspect
   | IncompletePattern
     -- ^ When this constructor is used it is probably a good idea to
     -- include a 'note' explaining why the pattern is incomplete.
-    deriving (Eq, Show, Enum, Bounded)
+    deriving (Eq, Show, Enum, Bounded, Typeable, Data)
 
 -- | Meta information which can be associated with a
 -- character\/character range.
@@ -81,19 +87,29 @@ data MetaInfo = MetaInfo
   , definitionSite :: Maybe (FilePath, Integer)
     -- ^ This can be the definition site of the given name.
   }
-  deriving (Eq, Show)
+  deriving (Eq, Show, Typeable, Data)
 
 -- | A 'File' is a mapping from file positions to meta information.
 --
 -- The first position in the file has number 1.
 
 newtype File = File { mapping :: Map Integer MetaInfo }
-  deriving (Eq, Show)
+  deriving (Eq, Show, Typeable, Data)
 
 -- | Returns the smallest position, if any, in the 'File'.
 
 smallestPos :: File -> Maybe Integer
 smallestPos = fmap (fst . fst) . Map.minViewWithKey . mapping
+
+-- | Syntax highlighting information for a given source file.
+
+data HighlightingInfo =
+  HighlightingInfo { source :: FilePath
+                     -- ^ The source file.
+                   , info :: CompressedFile
+                     -- ^ Highlighting info.
+                   }
+  deriving (Typeable, Data)
 
 ------------------------------------------------------------------------
 -- Creation
@@ -103,7 +119,7 @@ smallestPos = fmap (fst . fst) . Map.minViewWithKey . mapping
 
 singleton :: Range -> MetaInfo -> File
 singleton r m = File {
- mapping = Map.fromAscList [ (p, m) | p <- [from r .. to r - 1] ] }
+ mapping = Map.fromAscList [ (p, m) | p <- toList r ] }
 
 prop_singleton r m =
   compress (singleton r m) ==
@@ -154,6 +170,11 @@ instance Monoid File where
 ------------------------------------------------------------------------
 -- Compression
 
+-- | A compressed 'File', in which consecutive positions with the same
+-- 'MetaInfo' are stored together.
+
+type CompressedFile = [(Range, MetaInfo)]
+
 -- | Compresses a file by merging consecutive positions with equal
 -- meta information into longer ranges.
 
@@ -166,16 +187,23 @@ compress f = map join $ groupBy' p (Map.toAscList $ mapping f)
              )
     where (ps, ms) = unzip pms 
 
+-- | Decompresses a compressed file.
+
+decompress :: CompressedFile -> File
+decompress =
+  File .
+  Map.fromList .
+  concat .
+  map (\(r, m) -> [ (p, m) | p <- toList r ])
+
 prop_compress f =
-  toFile c == f
+  decompress c == f
   &&
   and (map (rangeInvariant . fst) c)
   &&
   and [ not (overlapping r1 r2) | (r1, r2) <- allPairs (map fst c) ]
   where
     c = compress f
-
-    toFile = mconcat . map (uncurry singleton)
 
     allPairs []       = []
     allPairs (x : xs) = map ((,) x) xs ++ allPairs xs

@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+
 {-| Agda 2 main module.
 -}
 module Agda.Main where
@@ -32,10 +34,6 @@ import Agda.Interaction.CommandLine.CommandLine
 import Agda.Interaction.Options
 import Agda.Interaction.Monad
 import Agda.Interaction.GhciTop ()	-- to make sure it compiles
-import Agda.Interaction.Highlighting.Vim   (generateVimFile)
-import Agda.Interaction.Highlighting.Emacs (generateEmacsFile)
-import Agda.Interaction.Highlighting.Generate
-  (TypeCheckingState(TypeCheckingDone))
 import qualified Agda.Interaction.Imports as Imp
 
 import Agda.TypeChecker
@@ -59,6 +57,9 @@ import Agda.Utils.Impossible
 
 import Agda.Tests
 import Agda.Version
+
+#include "undefined.h"
+import Agda.Utils.Impossible
 
 -- | The main function
 runAgda :: TCM ()
@@ -87,16 +88,20 @@ runAgda =
 		alonzo  <- optCompileAlonzo <$> liftTCM commandLineOptions
                 malonzo <- optCompileMAlonzo <$> liftTCM commandLineOptions
 		when i $ liftIO $ UTF8.putStr splashScreen
-		let failIfError (_, Nothing)  = return ()
-                    failIfError (_, Just err) = typeError err
+		let failIfError (_, Right _)  = return ()
+                    failIfError (_, Left err) = typeError err
+
+                    failIfNoInt (_, Right (Just i)) = return i
+                    -- The allowed combinations of command-line
+                    -- options should rule out Right Nothing here.
+                    failIfNoInt (_, Right Nothing)  = __IMPOSSIBLE__
+                    failIfNoInt (_, Left err)       = typeError err
 
                     interaction | i	  = runIM . interactionLoop
 				| compile = Agate.compilerMain   . (failIfError =<<)
 				| alonzo  = Alonzo.compilerMain  . (failIfError =<<)
-                                | malonzo = MAlonzo.compilerMain . (failIfError =<<)
-				| otherwise = \m -> do
-				    (_, err) <- m
-				    maybe (return ()) typeError err
+                                | malonzo = MAlonzo.compilerMain . (failIfNoInt =<<)
+				| otherwise = (failIfError =<<)
 		interaction $
 		    do	hasFile <- hasInputFile
 			resetState
@@ -115,14 +120,15 @@ runAgda =
                                 -- no effect.
                                 unsolvedOK <- optAllowUnsolved <$> commandLineOptions
 
-                                let batchError = case ok of
-                                      Imp.Warnings []             [] -> Nothing
+                                let result = case ok of
+                                      Imp.Warnings []             [] -> __IMPOSSIBLE__
                                       Imp.Warnings _  unsolved@(_:_)
-                                        | unsolvedOK -> Nothing
-                                        | otherwise  -> Just $ UnsolvedMetas unsolved
+                                        | unsolvedOK -> Right Nothing
+                                        | otherwise  -> Left $ UnsolvedMetas unsolved
                                       Imp.Warnings termErrs@(_:_) _  ->
-                                        Just (TerminationCheckFailed termErrs)
-                                      Imp.Success {} -> Nothing
+                                        Left (TerminationCheckFailed termErrs)
+                                      Imp.Success { Imp.cirInterface = i } ->
+                                        Right (Just i)
 
 				-- Print stats
 				stats <- Map.toList <$> getStatistics
@@ -134,8 +140,8 @@ runAgda =
 					mapM_ (\ (s,n) -> UTF8.putStrLn $ s ++ " : " ++ show n) $
 					    sortBy (\x y -> compare (snd x) (snd y)) stats
 
-				return (insideScope topLevel, batchError)
-			  else return (emptyScopeInfo, Nothing)
+				return (insideScope topLevel, result)
+			  else return (emptyScopeInfo, Right Nothing)
 
 		return ()
 

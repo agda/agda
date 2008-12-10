@@ -147,16 +147,15 @@ cmd_load m includes =
 -- using @includes@ as the include directories.
 --
 -- If type checking completes without any exceptions having been
--- encountered the command @cmd b@ is executed, where @b@ is 'True'
--- iff the termination checker did not complain and there were no
--- unsolved meta variables.
+-- encountered then the command @cmd r@ is executed, where @r@ is the
+-- second component of the result of 'Imp.createInterface'.
 --
 -- The command @cmd2@ is executed as the final step of @cmd_load'@,
 -- unless an exception is encountered.
 
 cmd_load' :: FilePath -> [FilePath]
           -> Bool -- ^ Allow unsolved meta-variables?
-          -> (Bool -> TCM ()) -> IO ()
+          -> (Imp.CreateInterfaceResult -> TCM ()) -> IO ()
           -> IO ()
 cmd_load' file includes unsolvedOK cmd cmd2 = infoOnException $ do
     clearSyntaxInfo file
@@ -184,9 +183,7 @@ cmd_load' file includes unsolvedOK cmd cmd2 = infoOnException $ do
             liftIO $ modifyIORef theState $ \s ->
               s { theTopLevel = Just topLevel }
 
-            cmd $ case ok of
-                    Imp.Success  {} -> True
-                    Imp.Warnings {} -> False
+            cmd ok
 
 	    lispIP
 
@@ -208,16 +205,18 @@ cmd_load' file includes unsolvedOK cmd cmd2 = infoOnException $ do
 
 cmd_compile :: FilePath -> [FilePath] -> IO ()
 cmd_compile file includes =
-  cmd_load' file includes False (\ok ->
-    if ok then do
-      MAlonzo.compilerMain (return ())
-      display_info "*Compilation result*"
+  cmd_load' file includes False (\r ->
+    case r of
+      Imp.Success { Imp.cirInterface = i } -> do
+        MAlonzo.compilerMain (return i)
+        display_info "*Compilation result*"
                    "The module was successfully compiled."
-     else
-      display_info errorTitle $ unlines
-        [ "You can only compile modules without unsolved metavariables"
-        , "or termination checking problems."
-        ]) (return ())
+      Imp.Warnings {} ->
+        display_info errorTitle $ unlines
+          [ "You can only compile modules without unsolved metavariables"
+          , "or termination checking problems."
+          ])
+    (return ())
 
 cmd_constraints :: IO ()
 cmd_constraints = infoOnException $ ioTCM $ do

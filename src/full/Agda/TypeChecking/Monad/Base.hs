@@ -27,6 +27,7 @@ import Agda.Syntax.Scope.Base
 import Agda.Interaction.Exceptions
 import Agda.Interaction.Options
 import qualified Agda.Interaction.Highlighting.Range as R
+import Agda.Interaction.Highlighting.Precise (HighlightingInfo)
 
 import Agda.Utils.Fresh
 import Agda.Utils.Monad
@@ -138,6 +139,7 @@ data Interface = Interface
 	, iSignature	   :: Signature
 	, iBuiltin	   :: BuiltinThings String
         , iHaskellImports  :: [String]
+        , iHighlighting    :: HighlightingInfo
 	}
     deriving (Typeable, Data)
 

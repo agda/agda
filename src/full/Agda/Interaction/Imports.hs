@@ -37,6 +37,7 @@ import Agda.TypeChecking.Primitive
 import Agda.TypeChecker
 
 import Agda.Interaction.Options
+import Agda.Interaction.Highlighting.Precise (HighlightingInfo)
 import Agda.Interaction.Highlighting.Generate
 import Agda.Interaction.Highlighting.Emacs
 import Agda.Interaction.Highlighting.Vim
@@ -273,8 +274,12 @@ writeInterface file i = do
 -- | Return type used by 'createInterface'.
 
 data CreateInterfaceResult
-  = Success VisitedModules DecodedModules Interface
-            Signature (BuiltinThings PrimFun)
+  = Success { cirVisited   :: VisitedModules
+            , cirDecoded   :: DecodedModules
+            , cirInterface :: Interface
+            , cirSignature :: Signature
+            , cirBuiltin   :: BuiltinThings PrimFun
+            }
     -- ^ Everything completed successfully, and an interface file was
     -- written.
   | Warnings { terminationProblems   :: [([QName], [R.Range])]
@@ -349,19 +354,24 @@ createInterface opts trace path visited decoded
         -- generated. Since there is no Vim highlighting for errors no
         -- Vim highlighting is generated, though.
         whenM (optGenerateEmacsFile <$> commandLineOptions) $ do
-          generateEmacsFile file TypeCheckingNotDone topLevel []
+          writeEmacsFile =<<
+            generateSyntaxInfo file TypeCheckingNotDone topLevel []
           appendErrorToEmacsFile e
           return ()
 
         throwError e)
 
+    -- Generate syntax highlighting info.
+    syntaxInfo <- generateSyntaxInfo file TypeCheckingDone
+                                     topLevel termErrs
+
+    -- Write Emacs file.
+    whenM (optGenerateEmacsFile <$> commandLineOptions) $
+      writeEmacsFile syntaxInfo
+
     -- Generate Vim file.
     whenM (optGenerateVimFile <$> commandLineOptions) $
 	withScope_ (insideScope topLevel) $ generateVimFile file
-
-    -- Generate Emacs file.
-    whenM (optGenerateEmacsFile <$> commandLineOptions) $
-      generateEmacsFile file TypeCheckingDone topLevel termErrs
 
     -- Check if there are unsolved meta-variables.
     unsolvedMetas <- List.nub <$> (mapM getMetaRange =<< getOpenMetas)
@@ -381,7 +391,7 @@ createInterface opts trace path visited decoded
     let ok = null termErrs && null unsolvedMetas
 
     (,) topLevel <$> if ok then do
-      i        <- buildInterface
+      i        <- buildInterface syntaxInfo
       isig     <- getImportedSignature
       vs       <- getVisitedModules
       ds       <- getDecodedModules
@@ -391,13 +401,18 @@ createInterface opts trace path visited decoded
      else
       return (Warnings termErrs unsolvedMetas)
 
-buildInterface :: TCM Interface
-buildInterface = do
+-- | Builds an interface for the current module, which should already
+-- have been successfully type checked.
+
+buildInterface :: HighlightingInfo
+                  -- ^ Syntax highlighting info for the module.
+               -> TCM Interface
+buildInterface syntaxInfo = do
     reportSLn "import.iface" 5 "Building interface..."
     scope   <- getScope
-    sig	    <- getSignature
+    sig     <- getSignature
     builtin <- gets stLocalBuiltins
-    ms	    <- getImports
+    ms      <- getImports
     hsImps  <- getHaskellImports
     let	builtin' = Map.mapWithKey (\x b -> fmap (const x) b) builtin
     reportSLn "import.iface" 7 "  instantiating all meta variables"
@@ -409,6 +424,7 @@ buildInterface = do
 			, iSignature	   = sig
 			, iBuiltin	   = builtin'
                         , iHaskellImports  = hsImps
+                        , iHighlighting    = syntaxInfo
 			}
     reportSLn "import.iface" 7 "  interface complete"
     return i
