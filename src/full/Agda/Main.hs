@@ -141,8 +141,11 @@ runAgda =
 					mapM_ (\ (s,n) -> UTF8.putStrLn $ s ++ " : " ++ show n) $
 					    sortBy (\x y -> compare (snd x) (snd y)) stats
 
-                                whenM (optGenerateHTML <$> commandLineOptions) $
-                                  generateHTML $ topLevelModuleName topLevel
+                                whenM (optGenerateHTML <$> commandLineOptions) $ do
+                                  case ok of
+                                    Imp.Success {} -> generateHTML $ topLevelModuleName topLevel
+                                    _ -> return ()
+                                         -- The error will be handled by interaction.
 
 				return (insideScope topLevel, result)
 			  else return (emptyScopeInfo, Right Nothing)
