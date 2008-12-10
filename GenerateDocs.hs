@@ -10,7 +10,7 @@ import System.Exit
 
 -- | The base URL of the darcs repository of the library.
 
-baseURL = "http://www.cs.nott.ac.uk/~nad/repos/lib"
+baseURL = "http://www.cs.nott.ac.uk/~nad/listings/lib"
 
 main = do
   args <- getArgs
@@ -54,6 +54,11 @@ modToFile = (++ ".agda") . map toSlash
   toSlash '.' = '/'
   toSlash c   = c
 
+-- | Translates a module name to the corresponding URL.
+
+modToURL :: String -> FilePath
+modToURL m = baseURL ++ "/" ++ m ++ ".html"
+
 -- | Reads a module and extracts the header.
 
 extractHeader :: String -> IO String
@@ -76,8 +81,6 @@ format :: [( String -- ^ Module name.
        -> String
 format = unlines . map fmt
   where
-  fmt (mod, header) = ":[[" ++ url ++ "|" ++ mod ++ "]]: "
+  fmt (mod, header) = ":[[" ++ modToURL mod ++ "|" ++ mod ++ "]]: "
                       ++ simplify header
-    where
-    url = baseURL ++ "/" ++ modToFile mod
-    simplify = unwords . words
+    where simplify = unwords . words
