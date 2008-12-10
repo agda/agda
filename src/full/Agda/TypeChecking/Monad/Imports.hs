@@ -4,6 +4,7 @@ module Agda.TypeChecking.Monad.Imports where
 import Control.Monad.State
 import Control.Monad.Reader
 
+import Data.Maybe
 import Data.Map (Map)
 import Data.Set (Set)
 import qualified Data.Map as Map
@@ -47,6 +48,17 @@ isVisited x = gets $ Map.member x . stVisitedModules
 
 getVisitedModule :: ModuleName -> TCM (Maybe (Interface, ClockTime))
 getVisitedModule x = gets $ Map.lookup x . stVisitedModules
+
+-- | This map includes the current module, if it has been type
+-- checked, along with the visited modules.
+
+getAllModules :: TCM (Map ModuleName Interface)
+getAllModules = do
+  visited <- Map.map fst <$> getVisitedModules
+  current <- stCurrentModule <$> get
+  case current of
+    Nothing      -> return visited
+    Just (m, i)  -> return (Map.insert m i visited)
 
 getDecodedModules :: TCM DecodedModules
 getDecodedModules = gets stDecodedModules

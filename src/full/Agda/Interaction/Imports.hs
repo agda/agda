@@ -397,6 +397,8 @@ createInterface opts trace path visited decoded
       ds       <- getDecodedModules
       ibuiltin <- gets stImportedBuiltins
       liftIO $ writeInterface (toIFile file) i
+      modify (\s -> s { stCurrentModule =
+                          Just (topLevelModuleName topLevel, i) })
       return (Success vs ds i isig ibuiltin)
      else
       return (Warnings termErrs unsolvedMetas)

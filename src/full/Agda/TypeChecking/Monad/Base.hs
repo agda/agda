@@ -51,6 +51,9 @@ data TCState =
 	 , stImportedModules   :: Set ModuleName
 	 , stVisitedModules    :: VisitedModules
 	 , stDecodedModules    :: DecodedModules
+         , stCurrentModule     :: Maybe (ModuleName, Interface)
+           -- ^ The current module is available after it has been type
+           -- checked.
 	 , stScope	       :: ScopeInfo
 	 , stOptions	       :: CommandLineOptions
 	 , stStatistics	       :: Statistics
@@ -83,6 +86,7 @@ initState =
 	 , stImportedModules   = Set.empty
 	 , stVisitedModules    = Map.empty
 	 , stDecodedModules    = Map.empty
+         , stCurrentModule     = Nothing
 	 , stScope	       = emptyScopeInfo
 	 , stOptions	       = defaultOptions
 	 , stStatistics	       = Map.empty
