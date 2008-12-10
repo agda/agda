@@ -7,6 +7,7 @@ import Control.Monad.State
 import Data.Maybe
 import Text.PrettyPrint
 import qualified System.IO.UTF8 as UTF8
+import System.Directory
 
 import Agda.TypeChecking.Monad.Base
 import Agda.Interaction.Options
@@ -19,11 +20,20 @@ import qualified Agda.Utils.Trie as Trie
 #include "../../undefined.h"
 import Agda.Utils.Impossible
 
+-- | Sets the command line options. Ensures that the 'optInputFile'
+-- field contains an absolute path.
+
 setCommandLineOptions :: MonadTCM tcm => CommandLineOptions -> tcm ()
 setCommandLineOptions opts =
   case checkOpts opts of
     Left err   -> __IMPOSSIBLE__
-    Right opts ->
+    Right opts -> do
+      opts <- case optInputFile opts of
+        Nothing -> return opts
+        Just f  -> do
+          -- canonicalizePath seems to return absolute paths.
+          f <- liftIO $ canonicalizePath f
+          return (opts { optInputFile = Just f })
       liftTCM $ modify $ \s -> s { stOptions = opts }
 
 commandLineOptions :: MonadTCM tcm => tcm CommandLineOptions

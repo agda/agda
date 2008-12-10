@@ -70,15 +70,8 @@ parsePosString :: Strict a => Parser a -> Position -> String -> IO a
 parsePosString p pos =
   wrapM . return . M.parsePosString pos (parseFlags p) [normal] (parser p)
 
--- | 'parseFile'' first converts the path into an absolute one, to
--- ensure that all the resulting ranges are absolute.
---
--- (It is good to have absolute paths in interface files, since
--- otherwise the interactive mode gets confused.)
-
 parseFile' :: Strict a => Parser a -> FilePath -> IO a
-parseFile' p file = do
-  file <- canonicalizePath file
+parseFile' p file =
   if "lagda" `isSuffixOf` file then
     Agda.Syntax.Parser.parseLiterateFile p file
    else

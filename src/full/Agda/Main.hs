@@ -35,6 +35,7 @@ import Agda.Interaction.Options
 import Agda.Interaction.Monad
 import Agda.Interaction.GhciTop ()	-- to make sure it compiles
 import qualified Agda.Interaction.Imports as Imp
+import Agda.Interaction.Highlighting.HTML
 
 import Agda.TypeChecker
 import Agda.TypeChecking.Monad
@@ -139,6 +140,9 @@ runAgda =
 					UTF8.putStrLn "----------"
 					mapM_ (\ (s,n) -> UTF8.putStrLn $ s ++ " : " ++ show n) $
 					    sortBy (\x y -> compare (snd x) (snd y)) stats
+
+                                whenM (optGenerateHTML <$> commandLineOptions) $
+                                  generateHTML $ topLevelModuleName topLevel
 
 				return (insideScope topLevel, result)
 			  else return (emptyScopeInfo, Right Nothing)

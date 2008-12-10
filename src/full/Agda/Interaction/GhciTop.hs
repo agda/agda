@@ -158,6 +158,8 @@ cmd_load' :: FilePath -> [FilePath]
           -> (Imp.CreateInterfaceResult -> TCM ()) -> IO ()
           -> IO ()
 cmd_load' file includes unsolvedOK cmd cmd2 = infoOnException $ do
+    -- canonicalizePath seems to return absolute paths.
+    file <- liftIO $ canonicalizePath file
     clearSyntaxInfo file
     is <- ioTCM $ do
             clearUndoHistory

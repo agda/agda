@@ -18,6 +18,7 @@ import System.Directory
 import System.Time
 import Control.Exception
 import qualified System.IO.UTF8 as UTF8
+import System.FilePath (isAbsolute)
 
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Concrete as C
@@ -307,14 +308,16 @@ createInterface
   -> BuiltinThings PrimFun
   -> Maybe ModuleName       -- ^ Expected module name.
   -> FilePath               -- ^ The file to type check.
+                            --   Must be an absolute path.
   -> Bool                   -- ^ Should the working directory be
                             --   changed to the root directory of
                             --   the \"project\" containing the
                             --   file?
   -> TCM (TopLevelInfo, CreateInterfaceResult)
 createInterface opts trace path visited decoded
-                isig ibuiltin mname file changeDir =
-  withImportPath path $ do
+                isig ibuiltin mname file changeDir
+  | not (isAbsolute file) = __IMPOSSIBLE__
+  | otherwise             = withImportPath path $ do
     setDecodedModules decoded
     setTrace trace
     setCommandLineOptions opts
@@ -443,6 +446,7 @@ setWorkingDirectory :: FilePath -> [C.Declaration] -> IO ()
 setWorkingDirectory _    [] = __IMPOSSIBLE__
 setWorkingDirectory file xs = case last xs of
   C.Module _ n _ _ -> do
+    -- canonicalizePath seems to return absolute paths.
     absolute <- canonicalizePath file
     let (path, _, _)  = splitFilePath absolute
     setCurrentDirectory (dropDirectory (countDots n) path)

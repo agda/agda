@@ -103,6 +103,7 @@ errorString err = case err of
     FieldOutsideRecord                         -> "FieldOutsideRecord"
     FileNotFound _ _			       -> "FileNotFound"
     GenericError _			       -> "GenericError"
+    HTMLDirUndefined                           -> "HTMLDirUndefined"
     IlltypedPattern _ _                        -> "IlltypedPattern"
     IncompletePatternMatching _ _	       -> "IncompletePatternMatching"
     InternalError _			       -> "InternalError"
@@ -460,6 +461,8 @@ instance PrettyTCM TypeError where
 
 		    com []    = empty
 		    com (_:_) = comma
+            HTMLDirUndefined ->
+              fwords "You have to specify where to place the HTML files."
           where
             mpar n args
               | n > 0 && not (null args) = parens

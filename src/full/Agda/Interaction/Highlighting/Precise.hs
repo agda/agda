@@ -12,6 +12,7 @@ module Agda.Interaction.Highlighting.Precise
   , singleton
   , several
   , smallestPos
+  , toMap
   , CompressedFile
   , compress
   , decompress
@@ -29,6 +30,8 @@ import Agda.Utils.QuickCheck
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Generics
+
+import qualified Agda.Syntax.Abstract.Name as A
 
 import Agda.Interaction.Highlighting.Range
 
@@ -84,8 +87,11 @@ data MetaInfo = MetaInfo
     -- something like that. It should contain useful information about
     -- the range (like the module containing a certain identifier, or
     -- the fixity of an operator).
-  , definitionSite :: Maybe (FilePath, Integer)
-    -- ^ This can be the definition site of the given name.
+  , definitionSite :: Maybe ([String], FilePath, Integer)
+    -- ^ The definition site of the annotated thing, if applicable and
+    --   known. File positions are counted from 1. The list of strings
+    --   is the name of the /top-level/ module in which the thing is
+    --   defined.
   }
   deriving (Eq, Show, Typeable, Data)
 
@@ -168,6 +174,15 @@ instance Monoid File where
   mappend = merge
 
 ------------------------------------------------------------------------
+-- Inspection
+
+-- | Convert the 'File' to a map from file positions (counting from 1)
+-- to meta information.
+
+toMap :: File -> Map Integer MetaInfo
+toMap = mapping
+
+------------------------------------------------------------------------
 -- Compression
 
 -- | A compressed 'File', in which consecutive positions with the same
@@ -244,20 +259,18 @@ instance Arbitrary MetaInfo where
   arbitrary = do
     aspect  <- maybeGen arbitrary
     other   <- arbitrary
-    note    <- maybeGen (listOfElements "abcdefABCDEF/\\.\"'@()åäö\n")
-    defSite <- maybeGen (liftM2 (,)
-                                (listOfElements "abcdefABCDEF/\\.\"'@()åäö\n")
-                                arbitrary)
-    return (MetaInfo { aspect = aspect, otherAspects = other, note = note
-                     , definitionSite = defSite })
+    note    <- maybeGen string
+    defSite <- maybeGen (liftM3 (,,) (listOf string) string arbitrary)
+    return (MetaInfo { aspect = aspect, otherAspects = other
+                     , note = note, definitionSite = defSite })
+    where string = listOfElements "abcdefABCDEF/\\.\"'@()åäö\n"
 
 instance CoArbitrary MetaInfo where
   coarbitrary (MetaInfo aspect otherAspects note defSite) =
-    maybeCoGen coarbitrary aspect .
+    coarbitrary aspect .
     coarbitrary otherAspects .
-    maybeCoGen (coarbitrary . map fromEnum) note .
-    maybeCoGen (\(f, p) -> coarbitrary p . coarbitrary (map fromEnum f))
-               defSite
+    coarbitrary note .
+    coarbitrary defSite
 
 instance Arbitrary File where
   arbitrary = fmap (File . Map.fromList) $ listOf arbitrary

@@ -26,6 +26,8 @@ description:
 tested-with:     GHC == 6.8.3 && == 6.10.1
 extra-source-files: src/full/Agda/undefined.h
                     README
+data-dir:        src/data
+data-files:      Agda.css
 
 library
   hs-source-dirs:  src/full
@@ -47,7 +49,8 @@ library
                    process >= 1.0 && < 2,
                    haskeline >= 0.3 && < 0.4,
                    utf8-string >= 0.3 && < 0.4,
-                   process >= 1.0.1.0 && < 2
+                   process >= 1.0.1.0 && < 2,
+                   xhtml >= 3000.2 && < 3000.3
   if impl(ghc >= 6.10)
     build-depends: ghc-prim >= 0.1 && < 1
   build-tools:     happy >= 1.15 && < 2,
@@ -75,6 +78,7 @@ library
                    Agda.Interaction.Exceptions
                    Agda.Interaction.Highlighting.Emacs
                    Agda.Interaction.Highlighting.Generate
+                   Agda.Interaction.Highlighting.HTML
                    Agda.Interaction.Highlighting.Precise
                    Agda.Interaction.Highlighting.Range
                    Agda.Interaction.Highlighting.Vim

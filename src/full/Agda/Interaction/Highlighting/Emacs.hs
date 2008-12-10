@@ -56,7 +56,8 @@ showMetaInfo (r, m) =
   ++ concat (intersperse " " (toAtoms m))
   ++ ")"
   ++ (maybe " nil" ((" " ++) . quote) $ note m)
-  ++ (maybe "" (\(f, p) -> " '(" ++ quote f ++ " . " ++ show p ++ ")")
+  ++ (maybe ""
+            (\(_, f, p) -> " '(" ++ quote f ++ " . " ++ show p ++ ")")
         $ definitionSite m)
   ++ ")"
 

@@ -73,15 +73,17 @@ generateSyntaxInfo
   -> TCM HighlightingInfo
 generateSyntaxInfo file tcs top termErrs =
   M.withScope_ (CA.insideScope top) $ M.ignoreAbstractMode $ do
-    tokens    <- liftIO $ Pa.parseFile' Pa.tokensParser file
-    kinds     <- nameKinds tcs decls
-    let nameInfo = mconcat $ map (generate file kinds)
+    modMap <- sourceToModule file (CA.topLevelModuleName top)
+    tokens <- liftIO $ Pa.parseFile' Pa.tokensParser file
+    kinds  <- nameKinds tcs decls
+    let nameInfo = mconcat $ map (generate modMap file kinds)
                                  (Fold.toList names)
     -- Constructors are only highlighted after type checking, since they
     -- can be overloaded.
-    constructorInfo <- if tcs == TypeCheckingNotDone
-                          then return mempty
-                          else generateConstructorInfo file kinds decls
+    constructorInfo <-
+      if tcs == TypeCheckingNotDone
+         then return mempty
+         else generateConstructorInfo modMap file kinds decls
     metaInfo <- if tcs == TypeCheckingNotDone
                    then return mempty
                    else computeUnsolvedMetaWarnings
@@ -95,7 +97,7 @@ generateSyntaxInfo file tcs top termErrs =
                { source = file
                , info   = compress $
                             mconcat [ constructorInfo
-                                    , theRest
+                                    , theRest modMap
                                     , nameInfo
                                     , metaInfo
                                     , termInfo
@@ -149,7 +151,7 @@ generateSyntaxInfo file tcs top termErrs =
 
     -- Bound variables, dotted patterns, record fields and module
     -- names.
-    theRest = everything' mappend query decls
+    theRest modMap = everything' mappend query decls
       where
       query :: GenericQ File
       query = mempty         `mkQ`
@@ -161,14 +163,14 @@ generateSyntaxInfo file tcs top termErrs =
               getPattern     `extQ`
               getModuleName
 
-      bound n = nameToFile file []
+      bound n = nameToFile modMap file []
                            (A.nameConcrete n)
                            (\isOp -> mempty { aspect = Just $ Name (Just Bound) isOp })
                            (Just $ A.nameBindingSite n)
-      field m n = nameToFile file m n
+      field m n = nameToFile modMap file m n
                              (\isOp -> mempty { aspect = Just $ Name (Just Field) isOp })
                              Nothing
-      mod n = nameToFile file []
+      mod n = nameToFile modMap file []
                          (A.nameConcrete n)
                          (\isOp -> mempty { aspect = Just $ Name (Just Module) isOp })
                          (Just $ A.nameBindingSite n)
@@ -282,11 +284,13 @@ nameKinds tcs decls = do
 -- Constructors can be overloaded, and the overloading is resolved by
 -- the type checker.
 
-generateConstructorInfo :: FilePath -- ^ The module to highlight.
-                        -> NameKinds
-                        -> [A.Declaration]
-                        -> TCM File
-generateConstructorInfo file kinds decls = do
+generateConstructorInfo
+  :: SourceToModule  -- ^ Maps source file paths to module names.
+  -> FilePath        -- ^ The module to highlight.
+  -> NameKinds
+  -> [A.Declaration]
+  -> TCM File
+generateConstructorInfo modMap file kinds decls = do
   -- Extract all defined names from the declaration list.
   let names = Fold.toList $ Fold.foldMap A.allNames decls
 
@@ -303,7 +307,7 @@ generateConstructorInfo file kinds decls = do
   let constrs = everything' (><) query (types, clauses)
 
   -- Return suitable syntax highlighting information.
-  return $ Fold.fold $ fmap (generate file kinds . mkAmb) constrs
+  return $ Fold.fold $ fmap (generate modMap file kinds . mkAmb) constrs
   where
   mkAmb q = A.AmbQ [q]
 
@@ -339,13 +343,15 @@ computeUnsolvedMetaWarnings = do
 
 -- | Generates a suitable file for a possibly ambiguous name.
 
-generate :: FilePath
+generate :: SourceToModule
+            -- ^ Maps source file paths to module names.
+         -> FilePath
             -- ^ The module to highlight.
          -> NameKinds
          -> A.AmbiguousQName
          -> File
-generate file kinds (A.AmbQ qs) =
-  mconcat $ map (\q -> nameToFileA file q include m) qs
+generate modMap file kinds (A.AmbQ qs) =
+  mconcat $ map (\q -> nameToFileA modMap file q include m) qs
   where
     ks   = map kinds qs
     kind = case (allEqual ks, ks) of
@@ -359,7 +365,9 @@ generate file kinds (A.AmbQ qs) =
 
 -- | Converts names to suitable 'File's.
 
-nameToFile :: FilePath
+nameToFile :: SourceToModule
+              -- ^ Maps source file paths to module names.
+           -> FilePath
               -- ^ The file name of the current module. Used for
               -- consistency checking.
            -> [C.Name]
@@ -376,22 +384,26 @@ nameToFile :: FilePath
               -- meta information is extended with this information,
               -- if possible.
            -> File
-nameToFile file xs x m mR =
+nameToFile modMap file xs x m mR =
   case fmap P.srcFile $ P.rStart $ P.getRange x of
     -- Make sure that we don't get any funny ranges.
     Just f | not (f =^= file) -> __IMPOSSIBLE__
-    _ -> several rs' ((m isOp) { definitionSite = mFilePos =<< mR })
+    _ -> several rs' ((m isOp) { definitionSite = mFilePos })
   where
   (=^=)      = (==) `on` last . splitPath
   (rs, isOp) = getRanges x
   rs'        = rs -- ++ concatMap (fst . getRanges) xs
-  mFilePos r = fmap extract (P.rStart r)
-    where
-    extract (P.Pn { P.srcFile = f, P.posPos = p }) = (f, toInteger p)
+  mFilePos   = do
+    r <- mR
+    P.Pn { P.srcFile = f, P.posPos = p } <- P.rStart r
+    mod <- Map.lookup f modMap
+    return (toStrings mod, f, toInteger p)
 
 -- | A variant of 'nameToFile' for qualified abstract names.
 
-nameToFileA :: FilePath
+nameToFileA :: SourceToModule
+               -- ^ Maps source file paths to module names.
+            -> FilePath
                -- ^ The file name of the current module. Used for
                -- consistency checking.
             -> A.QName
@@ -402,8 +414,9 @@ nameToFileA :: FilePath
                -- ^ Meta information to be associated with the name.
                -- ^ The argument is 'True' iff the name is an operator.
             -> File
-nameToFileA file x include m =
-  nameToFile file
+nameToFileA modMap file x include m =
+  nameToFile modMap
+             file
              (concreteQualifier x)
              (concreteBase x)
              m
@@ -412,6 +425,23 @@ nameToFileA file x include m =
 concreteBase      = A.nameConcrete . A.qnameName
 concreteQualifier = map A.nameConcrete . A.mnameToList . A.qnameModule
 bindingSite       = A.nameBindingSite . A.qnameName
+toStrings         = map show . A.mnameToList
+
+-- | Maps source file names to the corresponding top-level module
+-- names.
+
+type SourceToModule = Map FilePath A.ModuleName
+
+sourceToModule
+  :: FilePath            -- ^ The current source file.
+  -> A.ModuleName        -- ^ The current top-level module name.
+  -> TCM SourceToModule
+sourceToModule file mod =
+  Map.fromList .
+  (:) (file, mod) .
+  map (\(m, (i, _)) -> (source $ M.iHighlighting i, m)) .
+  Map.toList <$>
+  M.getVisitedModules
 
 -- | Like 'everything', but modified so that it does not descend into
 -- everything.

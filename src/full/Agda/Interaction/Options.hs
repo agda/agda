@@ -57,6 +57,9 @@ data CommandLineOptions =
 	    , optCompile	   :: Bool
 	    , optGenerateVimFile   :: Bool
 	    , optGenerateEmacsFile :: Bool
+	    , optGenerateHTML      :: Bool
+	    , optHTMLDir           :: Maybe FilePath
+	    , optCSSFile           :: Maybe FilePath
 	    , optIgnoreInterfaces  :: Bool
 	    , optDisablePositivity :: Bool
 	    , optCompileAlonzo     :: Bool
@@ -91,6 +94,9 @@ defaultOptions =
 	    , optCompile	   = False
 	    , optGenerateVimFile   = False
 	    , optGenerateEmacsFile = False
+	    , optGenerateHTML      = False
+	    , optHTMLDir           = Nothing
+	    , optCSSFile           = Nothing
 	    , optIgnoreInterfaces  = False
 	    , optDisablePositivity = False
 	    , optCompileAlonzo     = False
@@ -126,7 +132,9 @@ checkOpts opts
   | optAllowUnsolved opts && or compilerOpts = Left
       "Unsolved meta variables are not allowed when compiling.\n"
   | not (atMostOne [or compilerOpts, optInteractive opts]) =
-      Left "Choose at most one: a compiler or the interactive mode.\n"
+      Left "Choose at most one: compiler or interactive mode.\n"
+  | not (atMostOne [optGenerateHTML opts, optInteractive opts]) =
+      Left "Choose at most one: HTML generator or interactive mode.\n"
   | otherwise = Right opts
   where
   atMostOne bs = length (filter id bs) <= 1
@@ -167,6 +175,10 @@ alonzoFlag       o = checkOpts $ o { optCompileAlonzo  = True }
 malonzoFlag      o = checkOpts $ o { optCompileMAlonzo = True }
 malonzoDirFlag f o = checkOpts $ o { optMAlonzoDir     = f }
 ghcFlag        f o = checkOpts $ o { optGhcFlags       = f : optGhcFlags o }
+
+htmlFlag      o = checkOpts $ o { optGenerateHTML = True }
+htmlDirFlag d o = checkOpts $ o { optHTMLDir      = Just d }
+cssFlag     f o = checkOpts $ o { optCSSFile      = Just f }
 
 includeFlag d o	    = checkOpts $ o { optIncludeDirs   = d : optIncludeDirs o   }
 verboseFlag s o	    =
@@ -210,6 +222,12 @@ standardOptions =
 		    "generate Vim highlighting files"
     , Option []	    ["emacs"] (NoArg emacsFlag)
 		    "generate Emacs highlighting files"
+    , Option []	    ["html"] (NoArg htmlFlag)
+		    "generate HTML files with highlighted source code"
+    , Option []	    ["html-dir"] (ReqArg htmlDirFlag "DIR")
+		    "directory in which HTML files are placed"
+    , Option []	    ["css"] (ReqArg cssFlag "URL")
+		    "the CSS file used by the HTML file (can be relative)"
     , Option []	    ["ignore-interfaces"] (NoArg ignoreInterfacesFlag)
 		    "ignore interface files (re-type check everything)"
     , Option []     ["ghc-flag"] (ReqArg ghcFlag "GHC-FLAG")
