@@ -159,7 +159,7 @@ restarting Emacs."
   :group 'agda2-highlight)
 
 (defface agda2-highlight-function-face
-  '((t (:foreground "blue2")))
+  '((t (:foreground "medium blue")))
   "The face used for functions."
   :group 'agda2-highlight)
 
