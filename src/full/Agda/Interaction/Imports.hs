@@ -199,13 +199,11 @@ getInterface x = alreadyVisited x $ addImportCycleCheck x $ do
 			    -- liftIO close	-- Close the interface file. See above.
 			    typeCheck file
 			else do
-			    reportSLn "" 1 $ "Skipping " ++ show x ++ " ( " ++ ifile ++ " )"
+			    reportSLn "" 1 $ "Skipping " ++ show x ++ " (" ++ ifile ++ ")."
 			    return (i, t)
 
 	typeCheck file = do
-
 	    -- Do the type checking
-	    reportSLn "" 1 $ "Checking " ++ show x ++ " ( " ++ file ++ " )"
 	    ms       <- getImportPath
 	    vs       <- getVisitedModules
 	    ds       <- getDecodedModules
@@ -318,6 +316,10 @@ createInterface opts trace path visited decoded
                 isig ibuiltin mname file changeDir
   | not (isAbsolute file) = __IMPOSSIBLE__
   | otherwise             = withImportPath path $ do
+    reportSLn "" 1 $ "Checking " ++ (case mname of
+                        Nothing -> file
+                        Just m  -> show m ++ " (" ++ file ++ ")") ++ "."
+
     setDecodedModules decoded
     setTrace trace
     setCommandLineOptions opts
