@@ -325,8 +325,8 @@ Special commands:
        (error (error "Unable to change the font; change agda2-fontset-name or tweak agda2-fontset-spec-fontset-agda2"))))
  (agda2-indent-setup)
  (agda2-highlight-setup)
+ (agda2-highlight-reload)
  (agda2-comments-and-paragraphs-setup)
- (agda2-restart)
  (force-mode-line-update)
  (set-input-method "Agda"))
 
@@ -353,8 +353,7 @@ Special commands:
                     (rename-buffer agda2-bufname)))
   (apply 'agda2-go ":set" agda2-ghci-options)
   (agda2-go ":mod +" agda2-toplevel-module)
-  (agda2-text-state)
-  (agda2-highlight-reload))
+  (agda2-text-state))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Communicating with Agda2
