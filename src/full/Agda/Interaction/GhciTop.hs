@@ -124,7 +124,7 @@ ioTCM cmd = do
       us <- getUndoStack
       return (x,st,us)
     `catchError` \err -> do
-        liftIO $ tellEmacsToJumpToError (Just $ getRange err)
+        liftIO $ tellEmacsToJumpToError (getRange err)
 	display_info errorTitle =<< prettyError err
 	fail "exit"
   case r of
@@ -585,7 +585,7 @@ infoOnException m =
   where
   inform rng msg = do
     runTCM $ appendErrorToEmacsFile err
-    tellEmacsToJumpToError (Just rng)
+    tellEmacsToJumpToError rng
     display_info' errorTitle $ rng' ++ msg
     exitWith (ExitFailure 1)
     where
@@ -605,11 +605,14 @@ tellEmacsToReloadSyntaxInfo =
 -- | Tells the Emacs mode to reload the highlighting information and
 -- go to the first error position (if any).
 
-tellEmacsToJumpToError :: Maybe Range -> IO ()
+tellEmacsToJumpToError :: Range -> IO ()
 tellEmacsToJumpToError r = do
-  case join $ rStart <$> r of
-    Nothing                               -> return ()
-    Just (Pn { srcFile = f, posPos = p }) ->
+  case rStart r of
+    Nothing                                -> return ()
+    -- Errors for expressions entered using the command line sometimes
+    -- have an empty file name component. This should be fixed.
+    Just (Pn { srcFile = "" })             -> return ()
+    Just (Pn { srcFile = f,  posPos = p }) ->
       UTF8.putStrLn $ response $
         L [A "annotation-goto", Q $ L [A (show f), A ".", A (show p)]]
   tellEmacsToReloadSyntaxInfo
