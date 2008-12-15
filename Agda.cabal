@@ -223,4 +223,10 @@ library
                    Agda.Utils.Warshall
                    Agda.Version
   other-modules:   Paths_Agda
-  ghc-options:     -Wall -Werror -fno-warn-missing-signatures -fno-warn-name-shadowing -fno-warn-simple-patterns -fno-warn-unused-matches -fno-warn-unused-binds -fno-warn-unused-imports -fno-warn-type-defaults -fno-warn-orphans -auto-all
+  ghc-options:     -auto-all -w -Werror -fwarn-dodgy-imports
+                   -fwarn-duplicate-exports -fwarn-hi-shadowing
+                   -fwarn-incomplete-patterns -fwarn-missing-fields
+                   -fwarn-missing-methods -fwarn-overlapping-patterns
+  if impl(ghc >= 6.10)
+    ghc-options:   -fwarn-warnings-deprecations -fwarn-deprecated-flags
+                   -fwarn-dodgy-foreign-imports
