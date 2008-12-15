@@ -23,6 +23,9 @@ record RawIMonad {I : Set} (M : IFun I) : Set1 where
   _=<<_ : forall {i j k A B} -> (A -> M j k B) -> M i j A -> M i k B
   f =<< c = c >>= f
 
+  join : forall {i j k A} -> M i j (M j k A) -> M i k A
+  join m = m >>= id
+
   rawIApplicative : RawIApplicative M
   rawIApplicative = record
     { pure = return
