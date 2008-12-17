@@ -1,3 +1,4 @@
+Checking CyclicModuleDependency (errors/CyclicModuleDependency.agda).
 errors/CyclicModuleDependency.agda:3,1-30
 cyclic module dependency:
   CyclicModuleDependency
