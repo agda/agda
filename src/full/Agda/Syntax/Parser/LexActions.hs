@@ -69,7 +69,7 @@ lexToken =
 	    AlexToken inp' len action	-> fmap postToken $ action inp (newInput inp inp' len) len
 
 postToken :: Token -> Token
-postToken (TokId (r, "\x22cb")) = TokSymbol SymLambda r
+postToken (TokId (r, "\x03bb")) = TokSymbol SymLambda r
 postToken (TokId (r, "\x2192")) = TokSymbol SymArrow r
 postToken (TokId (r, "\x2200")) = TokKeyword KwForall r
 postToken t = t
