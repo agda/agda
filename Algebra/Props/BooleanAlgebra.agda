@@ -318,7 +318,7 @@ module XorRing
     ¬ x ⊕ ¬ y    ∎
 
   private
-    ⊕-pres : _⊕_ Preserves₂ _≈_ → _≈_ → _≈_
+    ⊕-pres : _⊕_ Preserves₂ _≈_ ⟶ _≈_ ⟶ _≈_
     ⊕-pres {x} {y} {u} {v} x≈y u≈v = begin
       x ⊕ u                ≈⟨ ⊕-def _ _ ⟩
       (x ∨ u) ∧ ¬ (x ∧ u)  ≈⟨ helper (x≈y ⟨ ∨-pres-≈ ⟩ u≈v)

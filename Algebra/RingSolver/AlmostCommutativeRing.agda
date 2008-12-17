@@ -22,7 +22,7 @@ record IsAlmostCommutativeRing (s : Setoid)
   open Setoid s
   field
     isCommutativeSemiring : IsCommutativeSemiring s _+_ _*_ 0# 1#
-    --pres-≈              : -_ Preserves _≈_ → _≈_
+    --pres-≈              : -_ Preserves _≈_ ⟶ _≈_
     --*-distribˡ          : forall x y -> (- x) * y ≈ - (x * y)
     --+-comm              : forall x y -> (- x) + (- y) ≈ - (x + y)
 

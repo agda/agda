@@ -605,25 +605,25 @@ i+1+j≢i : forall i {j} -> i + suc j ≢ i
 i+1+j≢i i eq = ¬i+1+j≤i i (reflexive eq)
   where open DecTotalOrder decTotalOrder
 
-⌊n/2⌋-mono : ⌊_/2⌋ Preserves _≤_ → _≤_
+⌊n/2⌋-mono : ⌊_/2⌋ Preserves _≤_ ⟶ _≤_
 ⌊n/2⌋-mono z≤n             = z≤n
 ⌊n/2⌋-mono (s≤s z≤n)       = z≤n
 ⌊n/2⌋-mono (s≤s (s≤s m≤n)) = s≤s (⌊n/2⌋-mono m≤n)
 
-⌈n/2⌉-mono : ⌈_/2⌉ Preserves _≤_ → _≤_
+⌈n/2⌉-mono : ⌈_/2⌉ Preserves _≤_ ⟶ _≤_
 ⌈n/2⌉-mono m≤n = ⌊n/2⌋-mono (s≤s m≤n)
 
-pred-mono : pred Preserves _≤_ → _≤_
+pred-mono : pred Preserves _≤_ ⟶ _≤_
 pred-mono z≤n      = z≤n
 pred-mono (s≤s le) = le
 
-_+-mono_ : _+_ Preserves₂ _≤_ → _≤_ → _≤_
+_+-mono_ : _+_ Preserves₂ _≤_ ⟶ _≤_ ⟶ _≤_
 _+-mono_ {zero} {m₂} {n₁} {n₂} z≤n n₁≤n₂ = start
   n₁      ≤⟨ n₁≤n₂ ⟩
   n₂      ≤⟨ n≤m+n m₂ n₂ ⟩
   m₂ + n₂ □
 s≤s m₁≤m₂ +-mono n₁≤n₂ = s≤s (m₁≤m₂ +-mono n₁≤n₂)
 
-_*-mono_ : _*_ Preserves₂ _≤_ → _≤_ → _≤_
+_*-mono_ : _*_ Preserves₂ _≤_ ⟶ _≤_ ⟶ _≤_
 z≤n       *-mono n₁≤n₂ = z≤n
 s≤s m₁≤m₂ *-mono n₁≤n₂ = n₁≤n₂ +-mono (m₁≤m₂ *-mono n₁≤n₂)

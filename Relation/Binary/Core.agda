@@ -49,13 +49,13 @@ P =[ f ]⇒ Q = P ⇒ (Q on₁ f)
 
 -- A synonym, along with a binary variant.
 
-_Preserves_→_ : forall {a₁ a₂} -> (a₁ -> a₂) -> Rel a₁ -> Rel a₂ -> Set
-f Preserves P → Q = P =[ f ]⇒ Q
+_Preserves_⟶_ : forall {a₁ a₂} -> (a₁ -> a₂) -> Rel a₁ -> Rel a₂ -> Set
+f Preserves P ⟶ Q = P =[ f ]⇒ Q
 
-_Preserves₂_→_→_
+_Preserves₂_⟶_⟶_
   :  forall {a₁ a₂ a₃}
   -> (a₁ -> a₂ -> a₃) -> Rel a₁ -> Rel a₂ -> Rel a₃ -> Set
-_+_ Preserves₂ P → Q → R =
+_+_ Preserves₂ P ⟶ Q ⟶ R =
   forall {x y u v} -> P x y -> Q u v -> R (x + u) (y + v)
 
 -- Reflexivity of _∼_ can be expressed as _≈_ ⇒ _∼_, for some
@@ -104,11 +104,11 @@ Substitutive : {a : Set} -> Rel a -> Set1
 Substitutive {a} ∼ = (P : a -> Set) -> ∼ Respects P
 
 Congruential : ({a : Set} -> Rel a) -> Set1
-Congruential ∼ = forall {a b} -> (f : a -> b) -> f Preserves ∼ → ∼
+Congruential ∼ = forall {a b} -> (f : a -> b) -> f Preserves ∼ ⟶ ∼
 
 Congruential₂ : ({a : Set} -> Rel a) -> Set1
 Congruential₂ ∼ =
-  forall {a b c} -> (f : a -> b -> c) -> f Preserves₂ ∼ → ∼ → ∼
+  forall {a b c} -> (f : a -> b -> c) -> f Preserves₂ ∼ ⟶ ∼ ⟶ ∼
 
 Decidable : {a : Set} -> Rel a -> Set
 Decidable _∼_ = forall x y -> Dec (x ∼ y)

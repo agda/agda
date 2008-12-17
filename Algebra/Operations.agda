@@ -37,22 +37,22 @@ x ^ suc n = x * x ^ n
 ------------------------------------------------------------------------
 -- Some properties
 
-×-pres-≈ : _×_ Preserves₂ _≡_ → _≈_ → _≈_
+×-pres-≈ : _×_ Preserves₂ _≡_ ⟶ _≈_ ⟶ _≈_
 ×-pres-≈ {n} {n'} {x} {x'} n≡n' x≈x' = begin
   n  × x   ≈⟨ reflexive $ ≡-cong (\n -> n × x) n≡n' ⟩
   n' × x   ≈⟨ ×-pres-≈ʳ n' x≈x' ⟩
   n' × x'  ∎
   where
-  ×-pres-≈ʳ : forall n -> (_×_ n) Preserves _≈_ → _≈_
+  ×-pres-≈ʳ : forall n -> (_×_ n) Preserves _≈_ ⟶ _≈_
   ×-pres-≈ʳ zero    x≈x' = byDef
   ×-pres-≈ʳ (suc n) x≈x' = x≈x' ⟨ +-pres-≈ ⟩ ×-pres-≈ʳ n x≈x'
 
-^-pres-≈ : _^_ Preserves₂ _≈_ → _≡_ → _≈_
+^-pres-≈ : _^_ Preserves₂ _≈_ ⟶ _≡_ ⟶ _≈_
 ^-pres-≈ {x} {x'} {n} {n'} x≈x' n≡n' = begin
   x  ^ n   ≈⟨ reflexive $ ≡-cong (_^_ x) n≡n' ⟩
   x  ^ n'  ≈⟨ ^-pres-≈ˡ n' x≈x' ⟩
   x' ^ n'  ∎
   where
-  ^-pres-≈ˡ : forall n -> (\x -> x ^ n) Preserves _≈_ → _≈_
+  ^-pres-≈ˡ : forall n -> (\x -> x ^ n) Preserves _≈_ ⟶ _≈_
   ^-pres-≈ˡ zero    x≈x' = byDef
   ^-pres-≈ˡ (suc n) x≈x' = x≈x' ⟨ *-pres-≈ ⟩ ^-pres-≈ˡ n x≈x'

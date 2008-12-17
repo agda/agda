@@ -11,7 +11,7 @@ _∼₁_ ↝ _∼₂_ = \f g -> forall {x y} -> x ∼₁ y -> f x ∼₂ g y
 
 LiftEquiv
   :  forall {a b} {∼₁ : Rel a} {∼₂ : Rel b}
-  -> (forall f -> f Preserves ∼₁ → ∼₂)
+  -> (forall f -> f Preserves ∼₁ ⟶ ∼₂)
   -> IsEquivalence ∼₁ -> IsEquivalence ∼₂
   -> IsEquivalence (∼₁ ↝ ∼₂)
 LiftEquiv {a} {b} {∼₁} {∼₂} pres eq₁ eq₂ = record
@@ -37,7 +37,7 @@ LiftEquiv {a} {b} {∼₁} {∼₂} pres eq₁ eq₂ = record
     trans₂ (f∼g refl₁) (g∼h x∼y)
 
 LiftSetoid :  (s₁ s₂ : Setoid)
-           -> (forall f -> f Preserves Setoid._≈_ s₁ → Setoid._≈_ s₂)
+           -> (forall f -> f Preserves Setoid._≈_ s₁ ⟶ Setoid._≈_ s₂)
            -> Setoid
 LiftSetoid s₁ s₂ pres = record
   { carrier       = carrier s₁ -> carrier s₂

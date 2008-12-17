@@ -210,7 +210,7 @@ private
 -- Correctness
 
 private
-  sem-pres-≈ : forall op -> sem op Preserves₂ _≈_ → _≈_ → _≈_
+  sem-pres-≈ : forall op -> sem op Preserves₂ _≈_ ⟶ _≈_ ⟶ _≈_
   sem-pres-≈ [+] = +-pres-≈
   sem-pres-≈ [*] = *-pres-≈
 
