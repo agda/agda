@@ -100,7 +100,7 @@ lem-Π/ B (el < σ , pσ >) =
 {-
 lem-β : {Γ : Con}{A : Type Γ}{B : Type (Γ , A)}
 	(v : Elem (Γ , A) B)(u : Elem Γ A) ->
-	(λ v) ∙ u =El v // [ u ]
+	(ƛ v) ∙ u =El v // [ u ]
 lem-β {Γ}{A}{B} (elem (el < v , pv >)) (elem (el < u , pu >)) = eqEl (eq \x -> prf x _ _)
   where
     prf : (x : El Γ)(q : _ =S _)(p : _ =S _) ->

@@ -43,10 +43,10 @@ mutual
   [ /Σ/ S T ]  = Σ [ S ] \s -> [ T s ]
   [ /W/ S T ]  = W [ S ] \s -> [ T s ]
 
-infixr 40 _→_
+infixr 40 _⟶_
 
-_→_ : ∗ -> ∗ -> ∗
-S → T = /Π/ S \_ -> T
+_⟶_ : ∗ -> ∗ -> ∗
+S ⟶ T = /Π/ S \_ -> T
 
 {-
 _Ψ_ : Zero -> (S : ∗) -> [ S ]
@@ -54,7 +54,7 @@ _Ψ_ : Zero -> (S : ∗) -> [ S ]
 -}
 
 _Ψ : Zero -> {S : Set} -> S
-() Ψ 
+() Ψ
 
 Case : Two -> ∗ -> ∗ -> ∗
 Case tt St Sf = St
@@ -77,7 +77,7 @@ rec P (s <| f) p = p s f \t -> rec P (f t) p
 zero : [ /Nat/ ]
 zero = tt <| \z -> z Ψ
 
-suc : [ /Nat/ → /Nat/ ]
+suc : [ /Nat/ ⟶ /Nat/ ]
 suc n = ff <| \_ -> n
 
 {-
@@ -95,13 +95,13 @@ data † : Set where
   ⊥   : †
   TT  : †
   _∧_ : † -> † -> †
-  ∀   : (S : ∗) -> ([ S ] -> †) -> †
+  ∏   : (S : ∗) -> ([ S ] -> †) -> †
 
 |- : † -> ∗
 |- ⊥       = /0/
 |- TT      = /1/
 |- (P ∧ Q) = /Σ/ (|- P) \_ -> |- Q
-|- (∀ S P) = /Π/ S \s -> |- (P s)
+|- (∏ S P) = /Π/ S \s -> |- (P s)
 
 Prf : † -> Set
 Prf P = [ |- P ]
@@ -109,7 +109,7 @@ Prf P = [ |- P ]
 infixr 40 _⇒_
 
 _⇒_ : † -> † -> †
-P ⇒ Q = ∀ (|- P) \_ -> Q
+P ⇒ Q = ∏ (|- P) \_ -> Q
 
 infix 80 _⇔_
 
@@ -121,13 +121,13 @@ mutual
   /2/        ⇔  /2/        =  TT
   /Π/ S0 T0  ⇔  /Π/ S1 T1  =
     S1 ⇔ S0  ∧
-    ∀ S1 \s1 -> ∀ S0 \s0 -> (S1 > s1 ≅ S0 > s0) ⇒ (T0 s0 ⇔ T1 s1)
+    ∏ S1 \s1 -> ∏ S0 \s0 -> (S1 > s1 ≅ S0 > s0) ⇒ (T0 s0 ⇔ T1 s1)
   /Σ/ S0 T0  ⇔  /Σ/ S1 T1  =
     S0 ⇔ S1  ∧
-    ∀ S0 \s0 -> ∀ S1 \s1 -> (S0 > s0 ≅ S1 > s1) ⇒ (T0 s0 ⇔ T1 s1)
+    ∏ S0 \s0 -> ∏ S1 \s1 -> (S0 > s0 ≅ S1 > s1) ⇒ (T0 s0 ⇔ T1 s1)
   /W/ S0 T0  ⇔  /W/ S1 T1  =
     S0 ⇔ S1  ∧
-    ∀ S0 \s0 -> ∀ S1 \s1 -> (S0 > s0 ≅ S1 > s1) ⇒ (T1 s1 ⇔ T0 s0)
+    ∏ S0 \s0 -> ∏ S1 \s1 -> (S0 > s0 ≅ S1 > s1) ⇒ (T1 s1 ⇔ T0 s0)
   _          ⇔  _ = ⊥
 
   _>_≅_>_ : (S : ∗) -> [ S ] -> (T : ∗) -> [ T ] -> †
@@ -137,7 +137,7 @@ mutual
   /2/ > ff ≅ /2/ > ff = TT
 
   /Π/ S0 T0 > f0 ≅ /Π/ S1 T1 > f1 =
-    ∀ S0 \s0 -> ∀ S1 \s1 -> (S0 > s0 ≅ S1 > s1) ⇒
+    ∏ S0 \s0 -> ∏ S1 \s1 -> (S0 > s0 ≅ S1 > s1) ⇒
       (T0 s0 > f0 s0 ≅ T1 s1 > f1 s1)
 
   /Σ/ S0 T0 > p0 ≅ /Σ/ S1 T1 > p1 =
@@ -146,7 +146,7 @@ mutual
 
   /W/ S0 T0 > (s0 <| f0) ≅ /W/ S1 T1 > (s1 <| f1) =
     (S0 > s0 ≅ S1 > s1)  ∧
-    ∀ (T0 s0) \t0 -> ∀ (T1 s1) \t1 ->
+    ∏ (T0 s0) \t0 -> ∏ (T1 s1) \t1 ->
        (T0 s0 > t0 ≅ T1 s1 > t1) ⇒
        (/W/ S0 T0 > f0 t0 ≅ /W/ S1 T1 > f1 t1)
 
@@ -163,7 +163,7 @@ mutual
   /Π/ S0 T0 > f0 < /Π/ S1 T1 ! Q =
     let S1S0 : Prf (S1 ⇔ S0)
         S1S0 = fst Q
-        T0T1 : Prf (∀ S1 \s1 -> ∀ S0 \s0 -> (S1 > s1 ≅ S0 > s0) ⇒
+        T0T1 : Prf (∏ S1 \s1 -> ∏ S0 \s0 -> (S1 > s1 ≅ S0 > s0) ⇒
                       (T0 s0 ⇔ T1 s1))
         T0T1 = snd Q
     in  \s1 ->
@@ -176,7 +176,7 @@ mutual
   /Σ/ S0 T0 > p0 < /Σ/ S1 T1 ! Q =
     let S0S1 : Prf (S0 ⇔ S1)
         S0S1 = fst Q
-        T0T1 : Prf (∀ S0 \s0 -> ∀ S1 \s1 -> (S0 > s0 ≅ S1 > s1) ⇒
+        T0T1 : Prf (∏ S0 \s0 -> ∏ S1 \s1 -> (S0 > s0 ≅ S1 > s1) ⇒
                       (T0 s0 ⇔ T1 s1))
         T0T1 = snd Q
         s0   : [ S0 ]
@@ -194,7 +194,7 @@ mutual
   /W/ S0 T0 > (s0 <| f0) < /W/ S1 T1 ! Q =
     let S0S1 : Prf (S0 ⇔ S1)
         S0S1 = fst Q
-        T1T0 : Prf (∀ S0 \s0 -> ∀ S1 \s1 -> (S0 > s0 ≅ S1 > s1) ⇒
+        T1T0 : Prf (∏ S0 \s0 -> ∏ S1 \s1 -> (S0 > s0 ≅ S1 > s1) ⇒
                       (T1 s1 ⇔ T0 s0))
         T1T0 = snd Q
         s1   : [ S1 ]
@@ -256,7 +256,7 @@ sym : (S0 : ∗)(s0 : [ S0 ])(S1 : ∗)(s1 : [ S1 ]) ->
 sym = {! !}
 
 elimNat∗ : (P : [ /Nat/ ] -> ∗) ->
-           [( P zero → (/Π/ /Nat/ \k -> P k → P (suc k)) →
+           [( P zero ⟶ (/Π/ /Nat/ \k -> P k ⟶ P (suc k)) ⟶
               /Π/ /Nat/ \n -> P n )]
 {-
 elimNat∗ P pz ps (tt <| g) = P zero > pz < P (tt <| g) !
@@ -265,24 +265,24 @@ elimNat∗ P pz ps (ff <| g) =
   let n = g _
   in  P (suc n) > ps n (elimNat∗ P pz ps n) < P (ff <| g) !
          Resp /Nat/ P
-           (_ , \u0 u1 u0u1 -> [| (/1/ → /Nat/) > g |] _ u1 _)
+           (_ , \u0 u1 u0u1 -> [| (/1/ ⟶ /Nat/) > g |] _ u1 _)
 -}
 elimNat∗ P pz ps n = rec P n
-  \b -> case (\ b -> /Π/ ((Case b /0/ /1/) → /Nat/) \g ->
-                        (/Π/ (Case b /0/ /1/) \t -> P (g t)) →
+  \b -> case (\ b -> /Π/ ((Case b /0/ /1/) ⟶ /Nat/) \g ->
+                        (/Π/ (Case b /0/ /1/) \t -> P (g t)) ⟶
                         P (b <| g)) b
     (\g _ -> P zero > pz < P (tt <| g) ! Resp /Nat/ P (_ , \z0 -> z0 Ψ))
     (\g h ->
        let n = g _
        in  P (suc n) > ps n (h _) < P (ff <| g) !
              Resp /Nat/ P
-               (_ , \u0 u1 u0u1 -> [| (/1/ → /Nat/) > g |] _ u1 _))
+               (_ , \u0 u1 u0u1 -> [| (/1/ ⟶ /Nat/) > g |] _ u1 _))
 
-plus : [ /Nat/ → /Nat/ → /Nat/ ]
+plus : [ /Nat/ ⟶ /Nat/ ⟶ /Nat/ ]
 plus x y = elimNat∗ (\_ -> /Nat/) y (\_ -> suc) x
 
 irr : (P0 P1 : †) -> Prf ((|- P0 ⇔ |- P1) ⇒
-      ∀ (|- P0) \p0 -> ∀ (|- P1) \p1 -> |- P0 > p0 ≅ |- P1 > p1)
+      ∏ (|- P0) \p0 -> ∏ (|- P1) \p1 -> |- P0 > p0 ≅ |- P1 > p1)
 
 irr ⊥  ⊥  _ _ _ = _
 
@@ -293,21 +293,21 @@ irr (P0 ∧ Q0) (P1 ∧ Q1) PQ01 pq0 pq1 =
       p01 = irr P0 P1 (fst PQ01) (fst pq0) (fst pq1)
   in  p01 , irr Q0 Q1 (snd PQ01 (fst pq0) (fst pq1) p01) (snd pq0) (snd pq1)
 
-irr (∀ S0 P0) (∀ S1 P1) SP01 f0 f1 = \s0 s1 s0s1 ->
+irr (∏ S0 P0) (∏ S1 P1) SP01 f0 f1 = \s0 s1 s0s1 ->
   irr (P0 s0) (P1 s1) (snd SP01 s1 s0 (sym S0 s0 S1 s1 s0s1)) (f0 s0) (f1 s1)
 
 irr        ⊥  TT       () _ _
 irr        ⊥  (_ ∧ _)  () _ _
-irr        ⊥  (∀ _ _)  () _ _
+irr        ⊥  (∏ _ _)  () _ _
 irr       TT  ⊥        () _ _
 irr       TT  (_ ∧ _)  () _ _
-irr       TT  (∀ _ _)  () _ _
+irr       TT  (∏ _ _)  () _ _
 irr  (_ ∧ _)  TT       () _ _
 irr  (_ ∧ _)  ⊥        () _ _
-irr  (_ ∧ _)  (∀ _ _)  () _ _
-irr  (∀ _ _)  TT       () _ _
-irr  (∀ _ _)  ⊥        () _ _
-irr  (∀ _ _)  (_ ∧ _)  () _ _
+irr  (_ ∧ _)  (∏ _ _)  () _ _
+irr  (∏ _ _)  TT       () _ _
+irr  (∏ _ _)  ⊥        () _ _
+irr  (∏ _ _)  (_ ∧ _)  () _ _
 
 {---------------------------------------------------------------------------
 

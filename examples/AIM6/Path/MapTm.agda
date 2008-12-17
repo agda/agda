@@ -28,9 +28,9 @@ mapTm {T₁ = T₁}{T₂}{Γ} F ss =
   where
     _-eq⟶_ = eq⟶ T₂
     Tm₂ = Tm T₂ (map _ (TyArrow.apply F) Γ)
-mapTm {T₂ = T₂}{Γ} F (λ t)   =
+mapTm {T₂ = T₂}{Γ} F (ƛ t)   =
   subst Tm₂ (TyArrow.resp⟶ F)
-        (λ (mapTm F t))
+        (ƛ (mapTm F t))
   where Tm₂ = Tm T₂ (map _ (TyArrow.apply F) Γ)
 mapTm {T₂ = T₂}{Γ} F (s $ t) =
   subst Tm₂ (sym (TyArrow.resp⟶ F)) (mapTm F s)

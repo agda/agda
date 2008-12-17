@@ -34,13 +34,13 @@ data ∃ (A : Set)(P : A -> Set) : Set where
 ¬_ : Set -> Set
 ¬ A = A -> False
 
-∀ : (A : Set)(P : A -> Set) -> Set
-∀ A P = (x : A) -> P x
+∏ : (A : Set)(P : A -> Set) -> Set
+∏ A P = (x : A) -> P x
 
 -- Some simple examples
 
 const : {A B : Set} -> A -> (B -> A)
-const = \x y -> x  
+const = \x y -> x
 
 swap : {P Q : Set} -> P ∧ Q -> Q ∧ P
 swap (p , q) = (q , p)

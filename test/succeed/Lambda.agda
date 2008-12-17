@@ -70,11 +70,11 @@ Name = String
 
 data Exp : Set where
   var  : Name -> Exp
-  λ_→_ : Name -> Exp -> Exp
+  ƛ_⟶_ : Name -> Exp -> Exp
   _$_  : Exp -> Exp -> Exp
 
 infixl 50 _$_
-infix  20 λ_→_
+infix  20 ƛ_⟶_
 
 infix 80 _[_/_]
 infix 15 _∈_
@@ -87,7 +87,7 @@ x ∈ nil	   = false
 FV : Exp -> List Name
 FV (var x)   = x :: nil
 FV (s $ t)   = FV s ++ FV t
-FV (λ x → t) = filter (\y -> ¬ (x == y)) (FV t)
+FV (ƛ x ⟶ t) = filter (\y -> ¬ (x == y)) (FV t)
 
 -- Fresh names
 fresh : Name -> Exp -> Name
@@ -100,11 +100,11 @@ fresh x e = fresh' (FV e)
 _[_/_] : Exp -> Exp -> Name -> Exp
 var x	  [ r / z ] = if x == z then r else var x
 (s $ t)	  [ r / z ] = s [ r / z ] $ t [ r / z ]
-(λ x → t) [ r / z ] =
-       if x == z   then λ x → t
+(ƛ x ⟶ t) [ r / z ] =
+       if x == z   then ƛ x ⟶ t
   else if x ∈ FV r then ( let y : Name
 			      y = fresh x r
-			  in  λ y → t [ var y / x ] [ r / z ]
+			  in  ƛ y ⟶ t [ var y / x ] [ r / z ]
 			)
-  else			λ x → t [ r / z ]
+  else			ƛ x ⟶ t [ r / z ]
 

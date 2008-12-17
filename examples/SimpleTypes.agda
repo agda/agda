@@ -38,10 +38,10 @@ infixl 25 _,_
 data Expr : Set where
   varʳ : Nat -> Expr
   _•ʳ_ : Expr -> Expr -> Expr
-  λʳ_  : Expr -> Expr
+  ƛʳ_  : Expr -> Expr
 
 infixl 90 _•ʳ_
-infix  50 λʳ_
+infix  50 ƛʳ_
 
 -- Types
 
@@ -62,10 +62,10 @@ data Var : Ctx -> Type -> Set where
 data Term : Ctx -> Type -> Set where
   var : forall {Γ τ} -> Var Γ τ -> Term Γ τ
   _•_ : forall {Γ τ σ} -> Term Γ (τ ⟶ σ) -> Term Γ τ -> Term Γ σ
-  λ_  : forall {Γ τ σ} -> Term (Γ , σ) τ -> Term Γ (σ ⟶ τ)
+  ƛ_  : forall {Γ τ σ} -> Term (Γ , σ) τ -> Term Γ (σ ⟶ τ)
 
 infixl 90 _•_
-infix  50 λ_
+infix  50 ƛ_
 
 -- Type erasure
 
@@ -76,7 +76,7 @@ infix  50 λ_
 ⌊_⌋ : forall {Γ τ} -> Term Γ τ -> Expr
 ⌊ var v ⌋ = varʳ ⌊ v ⌋ˣ
 ⌊ s • t ⌋ = ⌊ s ⌋ •ʳ ⌊ t ⌋
-⌊ λ t   ⌋ = λʳ ⌊ t ⌋
+⌊ ƛ t   ⌋ = ƛʳ ⌊ t ⌋
 
 -- Type equality
 
@@ -116,10 +116,10 @@ infix 20 _⊢_∋_ _⊢_∈
 
 mutual
   _⊢_∋_ : (Γ : Ctx)(τ : Type)(e : Expr) -> Check Γ τ e
-  Γ ⊢ ι       ∋ λʳ e = bad
-  Γ ⊢ (σ ⟶ τ) ∋ λʳ e with Γ , σ ⊢ τ ∋ e
-  Γ ⊢ (σ ⟶ τ) ∋ λʳ .(⌊ t ⌋) | ok t = ok (λ t)
-  Γ ⊢ (σ ⟶ τ) ∋ λʳ _        | bad  = bad
+  Γ ⊢ ι       ∋ ƛʳ e = bad
+  Γ ⊢ (σ ⟶ τ) ∋ ƛʳ e with Γ , σ ⊢ τ ∋ e
+  Γ ⊢ (σ ⟶ τ) ∋ ƛʳ .(⌊ t ⌋) | ok t = ok (ƛ t)
+  Γ ⊢ (σ ⟶ τ) ∋ ƛʳ _        | bad  = bad
   Γ ⊢ τ ∋ e with Γ ⊢ e ∈
   Γ ⊢ τ ∋ .(⌊ t ⌋) | yes σ t with τ ≟ σ
   Γ ⊢ τ ∋ .(⌊ t ⌋) | yes .τ t | just refl = ok t
@@ -136,7 +136,7 @@ mutual
   Γ ⊢ .(⌊ t₁ ⌋) •ʳ e₂ ∈        | yes (σ ⟶ τ) t₁ with Γ ⊢ σ ∋ e₂
   Γ ⊢ .(⌊ t₁ ⌋) •ʳ .(⌊ t₂ ⌋) ∈ | yes (σ ⟶ τ) t₁ | ok t₂ = yes τ (t₁ • t₂)
   Γ ⊢ .(⌊ t₁ ⌋) •ʳ _         ∈ | yes (σ ⟶ τ) t₁ | bad   = no
-  Γ ⊢ λʳ e     ∈ = no
+  Γ ⊢ ƛʳ e     ∈ = no
 
 -- Proving completeness (for normal terms)
 
@@ -145,7 +145,7 @@ mutual
 {-
 mutual
   data Nf : forall {Γ τ} -> Term Γ τ -> Set where
-    λ-nf  : forall {Γ σ τ} -> {t : Term (Γ , σ) τ} -> Nf t -> Nf (λ t)
+    ƛ-nf  : forall {Γ σ τ} -> {t : Term (Γ , σ) τ} -> Nf t -> Nf (ƛ t)
     ne-nf : forall {Γ τ} -> {t : Term Γ τ} -> Ne t -> Nf t
 
   data Ne : forall {Γ τ} -> Term Γ τ -> Set where
@@ -157,7 +157,7 @@ mutual
 mutual
   complete-check : forall {Γ τ} -> (t : Term Γ τ) -> Nf t ->
                    Γ ⊢ τ ∋ ⌊ t ⌋ == ok t
-  complete-check ._ (λ-nf t) = {! !}
+  complete-check ._ (ƛ-nf t) = {! !}
   complete-check _ (ne-nf n) with complete-infer _ n
   complete-check t (ne-nf n) | p = {! !}
 
@@ -168,5 +168,5 @@ mutual
 
 -- Testing
 
-test1 = ε ⊢ ι ⟶ ι ∋ λʳ varʳ zero
+test1 = ε ⊢ ι ⟶ ι ∋ ƛʳ varʳ zero
 test2 = ε , ι , ι ⟶ ι ⊢ varʳ zero •ʳ varʳ (suc zero) ∈

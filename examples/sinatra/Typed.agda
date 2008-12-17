@@ -45,7 +45,7 @@ Cxt = List VTy
 mutual
   data InC : Cxt -> CTy -> Set where
 
-    λ_  : forall {V C Γ} ->
+    ƛ_  : forall {V C Γ} ->
           InC (Γ ◄ V) C -> InC Γ (V ⟶ C)
 
     exC : forall {M N Γ V} ->
@@ -83,7 +83,7 @@ mutual
   CTy⟦_⟧ : CTy -> Set
   CTy⟦ V ⟶ C   ⟧ = VTy⟦ V ⟧ -> CTy⟦ C ⟧
   CTy⟦ [ M ] V ⟧ = Monad M VTy⟦ V ⟧
-  
+
   VTy⟦_⟧ : VTy -> Set
   VTy⟦ ⟨ C ⟩   ⟧ = CTy⟦ C ⟧
   VTy⟦ TyCon D ⟧ = El D
@@ -99,10 +99,10 @@ mutual
   inDs⟦_⟧ : forall {M Γ Ds} ->
             InDs M Γ Ds -> Env Γ -> Monad M (Els Ds)
   inDs⟦ ⟨⟩     ⟧ ρ = return ⟨⟩
-  inDs⟦ Ds ◃ v ⟧ ρ = return _◃_ <*> inDs⟦ Ds ⟧ ρ <*> inV⟦ v ⟧ ρ 
+  inDs⟦ Ds ◃ v ⟧ ρ = return _◃_ <*> inDs⟦ Ds ⟧ ρ <*> inV⟦ v ⟧ ρ
 
   inC⟦_⟧ : forall {Γ C} -> InC Γ C -> Env Γ -> CTy⟦ C ⟧
-  inC⟦ λ c     ⟧ ρ = \v -> inC⟦ c ⟧ (ρ ◃ v)
+  inC⟦ ƛ c     ⟧ ρ = \v -> inC⟦ c ⟧ (ρ ◃ v)
   inC⟦ exC c m ⟧ ρ = morph m _ =<< exC⟦ c ⟧ ρ
   inC⟦ inV v   ⟧ ρ = inV⟦ v ⟧ ρ
 

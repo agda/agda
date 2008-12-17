@@ -31,6 +31,6 @@ module ユーニコード where
   data ¬_ (P : Prop) : Prop where
     ¬-intro : (P -> ⊥) -> ¬ P
 
-  data ∀ {A : Set}(P : A -> Prop) : Prop where
-    ∀-intro : ((x : A) -> P x) -> ∀ P
+  data ∏ {A : Set}(P : A -> Prop) : Prop where
+    ∏-intro : ((x : A) -> P x) -> ∏ P
 

@@ -24,7 +24,7 @@ wk : {Γ : Ctx}{σ τ : Type}
      (x : Var Γ σ) -> Term (Γ - x) τ -> Term Γ τ
 wk x (var y) = var (wkˣ x y)
 wk x (s • t) = wk x s • wk x t
-wk x (λ t)   = λ wk (vs x) t 
+wk x (ƛ t)   = ƛ wk (vs x) t
 
 _↑ : {Γ : Ctx}{σ τ : Type} -> Term Γ τ -> Term (Γ , σ) τ
 t ↑ = wk vz t
@@ -53,7 +53,7 @@ var y   [ x := u ] with x ≟ y
 var .x         [ x := u ] | same = u
 var .(wkˣ x y) [ x := u ] | diff y = var y
 (s • t) [ x := u ] = s [ x := u ] • t [ x := u ]
-(λ t)   [ x := u ] = λ t [ vs x := u ↑ ]
+(ƛ t)   [ x := u ] = ƛ t [ vs x := u ↑ ]
 -}
 
 infix 30 _─⟶_
@@ -81,7 +81,7 @@ _/_ : forall {Γ Δ τ} -> Term Δ τ -> Γ ─⟶ Δ -> Term Γ τ
 vz      / (θ ◄ u) = u
 wk t    / (θ ◄ u) = t / θ
 (s • t) / θ       = s / θ • t / θ
-(λ t)   / θ       = λ t / θ ↑
+(ƛ t)   / θ       = ƛ t / θ ↑
 
 _∘ˢ_ : forall {Γ Δ Θ} -> Δ ─⟶ Θ -> Γ ─⟶ Δ -> Γ ─⟶ Θ
 ∅       ∘ˢ θ = ∅
@@ -133,7 +133,7 @@ t [ u ] = t / [ u ]
 vz      [ u ] = u
 wk t    [ u ] = {! !}
 (s • t) [ u ] = {! !}
-(λ_ {τ = ρ} t)   [ u ] = λ {! !} 
+(ƛ_ {τ = ρ} t)   [ u ] = ƛ {! !}
 -}
 
 {-
@@ -177,7 +177,7 @@ postulate
 {-
 lem-wk-[] y x (var z) = {! !}
 lem-wk-[] y x (t • u) = {! !}
-lem-wk-[] y x (λ t)   = {! !}
+lem-wk-[] y x (ƛ t)   = {! !}
 -}
 
 lem-wk-[]' : {Γ : Ctx}{σ τ ρ : Type}

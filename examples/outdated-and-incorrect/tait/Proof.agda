@@ -96,6 +96,6 @@ mutual
 
 lem-⟦⟧subst : {Γ Δ : Ctx}{τ : Type}(σ : Type)
               {t : Term (Γ , τ) (Δ ⇒ σ)}{u : Term Γ τ}{vs : Terms Γ Δ} ->
-              ⟦ σ ⟧ ∋ (t / [ u ]) •ˢ vs -> ⟦ σ ⟧ ∋ (λ t) • u •ˢ vs
-lem-⟦⟧subst ι         h = {!h !} 
+              ⟦ σ ⟧ ∋ (t / [ u ]) •ˢ vs -> ⟦ σ ⟧ ∋ (ƛ t) • u •ˢ vs
+lem-⟦⟧subst ι         h = {!h !}
 lem-⟦⟧subst (σ₁ ⟶ σ₂) h = {! !}

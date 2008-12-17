@@ -26,7 +26,7 @@ mutual
           Pats Θ₁ (ρ ⟶ σ) Θ₃ τ
 
   data Pat : Ctx -> Ctx -> Ty -> Ctx -> Set where
-    λ    : forall {Δ Θ Θ' σ τ} -> Pat (Δ ◄ σ) Θ τ Θ' ->
+    ƛ    : forall {Δ Θ Θ' σ τ} -> Pat (Δ ◄ σ) Θ τ Θ' ->
            Pat Δ Θ (σ ⟶ τ) Θ'
     _[_] : forall {Θ Θ' Δ σ τ} ->
            Take Θ σ Θ' -> Pats Δ σ • τ -> Pat Δ Θ τ Θ'

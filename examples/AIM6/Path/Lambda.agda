@@ -58,7 +58,7 @@ module Term {ty : Set}(T : TyAlg ty) where
     var : forall {Γ τ}   -> Var Γ τ -> Tm Γ τ
     zz  : forall {Γ}     -> Tm Γ nat
     ss  : forall {Γ}     -> Tm Γ (nat ⟶ nat)
-    λ   : forall {Γ σ τ} -> Tm (σ • Γ) τ -> Tm Γ (σ ⟶ τ)
+    ƛ   : forall {Γ σ τ} -> Tm (σ • Γ) τ -> Tm Γ (σ ⟶ τ)
     _$_ : forall {Γ σ τ} -> Tm Γ (σ ⟶ τ) -> Tm Γ σ -> Tm Γ τ
 
 module Eval where
@@ -80,7 +80,7 @@ module Eval where
  ⟦ var x ⟧ ρ = ρ [ x ]
  ⟦ zz    ⟧ ρ = zero
  ⟦ ss    ⟧ ρ = suc
- ⟦ λ t   ⟧ ρ = \x -> ⟦ t ⟧ (check x • ρ)
+ ⟦ ƛ t   ⟧ ρ = \x -> ⟦ t ⟧ (check x • ρ)
  ⟦ s $ t ⟧ ρ = (⟦ s ⟧ ρ) (⟦ t ⟧ ρ)
 
 module MoreExamples where
@@ -93,13 +93,13 @@ module MoreExamples where
   tm-one = ss $ zz
 
   tm-id : Tm ε (nat ⟶ nat)
-  tm-id = λ (var (done refl • ε))
+  tm-id = ƛ (var (done refl • ε))
 
   tm    : Tm ε nat
   tm    = tm-id $ tm-one
 
   tm-twice : Tm ε ((nat ⟶ nat) ⟶ (nat ⟶ nat))
-  tm-twice = λ (λ (f $ (f $ x)))
+  tm-twice = ƛ (ƛ (f $ (f $ x)))
     where Γ : Ctx
           Γ = nat • (nat ⟶ nat) • ε
           f : Tm Γ (nat ⟶ nat)

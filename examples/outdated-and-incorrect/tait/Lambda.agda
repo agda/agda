@@ -15,13 +15,13 @@ Ctx : Set
 Ctx = List Type
 
 infixl 80 _•_
-infix  20  λ_
+infix  20  ƛ_
 
 data Term : Ctx -> Type -> Set where
   vz  : forall {Γ τ  } -> Term (Γ , τ) τ
   wk  : forall {Γ σ τ} -> Term Γ τ -> Term (Γ , σ) τ
   _•_ : forall {Γ σ τ} -> Term Γ (σ ⟶ τ) -> Term Γ σ -> Term Γ τ
-  λ_  : forall {Γ σ τ} -> Term (Γ , σ) τ -> Term Γ (σ ⟶ τ)
+  ƛ_  : forall {Γ σ τ} -> Term (Γ , σ) τ -> Term Γ (σ ⟶ τ)
 
 Terms : Ctx -> Ctx -> Set
 Terms Γ Δ = All (Term Γ) Δ

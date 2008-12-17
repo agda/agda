@@ -70,12 +70,12 @@ case pps  fz     = fst pps
 case pps (fs x)  = case (snd pps) x
 
 
-infixr 40 _→_
+infixr 40 _⟶_
 
 infixr 60 _×_
 
-_→_ : ∗ -> ∗ -> ∗
-S → T = /Π/ S \_ -> T
+_⟶_ : ∗ -> ∗ -> ∗
+S ⟶ T = /Π/ S \_ -> T
 
 _×_ : ∗ -> ∗ -> ∗
 S × T = /Σ/ S \_ -> T
@@ -90,7 +90,7 @@ NatR _ (fs fz)  = fz :: ε
 /zero/ : [ /Nat/ ]
 /zero/ = fz , fz
 
-/suc/ : [ /Nat/ → /Nat/ ]
+/suc/ : [ /Nat/ ⟶ /Nat/ ]
 /suc/ n = fs fz , n , fz
 
 Hyps : (I : ∗)(K : [ I ] -> ∗)
@@ -110,22 +110,22 @@ elim : (I : ∗)(A : [ I ] -> ∗)(R : (i : [ I ]) -> [ A i ] -> List [ I ])
        (P : (i : [ I ]) -> [ /D/ I A R i ] -> ∗) ->
        [( (/Π/ I \i -> /Π/ (A i) \a ->
           /Π/ (Kids I (/D/ I A R) (R i a)) \ks ->
-          Hyps I (/D/ I A R) P (R i a) ks → P i (a , ks)) →
+          Hyps I (/D/ I A R) P (R i a) ks ⟶ P i (a , ks)) ⟶
          /Π/ I \i -> /Π/ (/D/ I A R i) \x -> P i x )]
 elim I A R P p i (a , ks) =
-  p i a ks (recs I (/D/ I A R) P (elim I A R P p) (R i a) ks) 
+  p i a ks (recs I (/D/ I A R) P (elim I A R P p) (R i a) ks)
 
 natElim : (P : [ /Nat/ ] -> ∗) ->
-          [( P /zero/ →
-             (/Π/ /Nat/ \n -> P n → P (/suc/ n)) →
+          [( P /zero/ ⟶
+             (/Π/ /Nat/ \n -> P n ⟶ P (/suc/ n)) ⟶
              /Π/ /Nat/ P )]
 natElim P pz ps = elim /1/ (\_ -> /2/) NatR (case (P , _))
-  (case ( case (case ((\_ -> pz ) , _ )  
+  (case ( case (case ((\_ -> pz ) , _ )
   , (split \n -> case (split (\h _ -> ps n h)   , _ ))   , _ )  , _ ))
   fz
 
 
-plus : [ /Nat/ → /Nat/ → /Nat/ ]
+plus : [ /Nat/ ⟶ /Nat/ ⟶ /Nat/ ]
 plus x y = natElim (\_ -> /Nat/) y (\_ -> /suc/) x
 
 {-
@@ -140,10 +140,10 @@ mutual
   _⇔_ : ∗ -> ∗ -> ∗
   /Π/ S0 T0 ⇔ /Π/ S1 T1 =
     (S1 ⇔ S0) ×
-    /Π/ S1 \s1 -> /Π/ S0 \s0 -> (S1 > s1 ≅ S0 > s0) → (T0 s0 ⇔ T1 s1)
+    /Π/ S1 \s1 -> /Π/ S0 \s0 -> (S1 > s1 ≅ S0 > s0) ⟶ (T0 s0 ⇔ T1 s1)
   /Σ/ S0 T0 ⇔ /Σ/ S1 T1 =
     (S0 ⇔ S1) ×
-    /Π/ S0 \s0 -> /Π/ S1 \s1 -> (S0 > s0 ≅ S1 > s1) → (T0 s0 ⇔ T1 s1)
+    /Π/ S0 \s0 -> /Π/ S1 \s1 -> (S0 > s0 ≅ S1 > s1) ⟶ (T0 s0 ⇔ T1 s1)
   /Fin/ _ ⇔ /Π/ _ _ = /0/
   /Fin/ _ ⇔ /Σ/ _ _ = /0/
   /Fin/ _ ⇔ /D/ _ _ _ _ = /0/
@@ -154,9 +154,9 @@ mutual
   /Fin/ (suc m) ⇔ /Fin/ (suc n) = /Fin/ m ⇔ /Fin/ n
   /D/ I0 A0 R0 i0 ⇔ /D/ I1 A1 R1 i1 =
     (I0 ⇔ I1) ×
-    (/Π/ I0 \i0 -> /Π/ I1 \i1 -> (I0 > i0 ≅ I1 > i1) → (A0 i0 ⇔ A1 i1)) ×
-    (/Π/ I0 \i0 -> /Π/ I1 \i1 -> (I0 > i0 ≅ I1 > i1) →
-     /Π/ (A0 i0) \a0 -> /Π/ (A1 i1) \a1 -> (A0 i0 > a0 ≅ A1 i1 > a1) →
+    (/Π/ I0 \i0 -> /Π/ I1 \i1 -> (I0 > i0 ≅ I1 > i1) ⟶ (A0 i0 ⇔ A1 i1)) ×
+    (/Π/ I0 \i0 -> /Π/ I1 \i1 -> (I0 > i0 ≅ I1 > i1) ⟶
+     /Π/ (A0 i0) \a0 -> /Π/ (A1 i1) \a1 -> (A0 i0 > a0 ≅ A1 i1 > a1) ⟶
      Eqs I0 (R0 i0 a0) I1 (R1 i1 a1)) ×
     (I0 > i0 ≅ I1 > i1)
   _ ⇔ _ = /0/
@@ -168,7 +168,7 @@ mutual
 
   _>_≅_>_ : (S : ∗) -> [ S ] -> (T : ∗) -> [ T ] -> ∗
   /Π/ S0 T0 > f0 ≅ /Π/ S1 T1 > f1 =
-    /Π/ S0 \s0 -> /Π/ S1 \s1 -> (S0 > s0 ≅ S1 > s1) →
+    /Π/ S0 \s0 -> /Π/ S1 \s1 -> (S0 > s0 ≅ S1 > s1) ⟶
        (T0 s0 > f0 s0 ≅ T1 s1 > f1 s1)
   /Σ/ S0 T0 > p0 ≅ /Σ/ S1 T1 > p1 =
     let s0 : [ S0 ] ; s0 = fst p0
@@ -185,7 +185,7 @@ mutual
   _ > _ ≅ _ > _ = /0/
 
 Resp : (S : ∗)(P : [ S ] -> ∗)
-       {s0 s1 : [ S ]} -> [ (S > s0 ≅ S > s1) → (P s0 ⇔ P s1) ]
+       {s0 s1 : [ S ]} -> [ (S > s0 ≅ S > s1) ⟶ (P s0 ⇔ P s1) ]
 Resp = {! !}
 
 [_>_] : (S : ∗)(s : [ S ]) -> [ S > s ≅ S > s ]
@@ -193,7 +193,7 @@ Resp = {! !}
 
 KidsResp : (I0 : ∗)(I1 : ∗) -> [ I0 ⇔ I1 ] ->
            (P0 : [ I0 ] -> ∗)(P1 : [ I1 ] -> ∗) ->
-           [( /Π/ I0 \i0 -> /Π/ I1 \i1 -> (I0 > i0 ≅ I1 > i1) →
+           [( /Π/ I0 \i0 -> /Π/ I1 \i1 -> (I0 > i0 ≅ I1 > i1) ⟶
               (P0 i0 ⇔ P1 i1) )] ->
            (is0 : List [ I0 ])(is1 : List [ I1 ]) ->
            [ Eqs I0 is0 I1 is1 ] ->
@@ -206,7 +206,7 @@ mutual
   /Π/ S0 T0 > f0 < /Π/ S1 T1 ! Q =
     let S1S0 : [ S1 ⇔ S0 ]
         S1S0 = fst Q
-        T0T1 : [( /Π/ S1 \s1 -> /Π/ S0 \s0 -> (S1 > s1 ≅ S0 > s0) →
+        T0T1 : [( /Π/ S1 \s1 -> /Π/ S0 \s0 -> (S1 > s1 ≅ S0 > s0) ⟶
                   (T0 s0 ⇔ T1 s1) )]
         T0T1 = snd Q
     in  \s1 ->
@@ -219,7 +219,7 @@ mutual
   /Σ/ S0 T0 > p0 < /Σ/ S1 T1 ! Q =
     let S0S1 : [ S0 ⇔ S1 ]
         S0S1 = fst Q
-        T0T1 : [( /Π/ S0 \s0 -> /Π/ S1 \s1 -> (S0 > s0 ≅ S1 > s1) →
+        T0T1 : [( /Π/ S0 \s0 -> /Π/ S1 \s1 -> (S0 > s0 ≅ S1 > s1) ⟶
                       (T0 s0 ⇔ T1 s1) )]
         T0T1 = snd Q
         s0   : [ S0 ]
@@ -240,11 +240,11 @@ mutual
   /D/ I0 A0 R0 i0 > (a0 , ks0) < /D/ I1 A1 R1 i1 ! Q =
     let I01 : [ I0 ⇔ I1 ] ; I01 = fst Q
         A01 : [( /Π/ I0 \i0 -> /Π/ I1 \i1 ->
-                 (I0 > i0 ≅ I1 > i1) → (A0 i0 ⇔ A1 i1) )]
+                 (I0 > i0 ≅ I1 > i1) ⟶ (A0 i0 ⇔ A1 i1) )]
         A01 = fst (snd Q)
-        R01 : [( /Π/ I0 \i0 -> /Π/ I1 \i1 -> (I0 > i0 ≅ I1 > i1) →
+        R01 : [( /Π/ I0 \i0 -> /Π/ I1 \i1 -> (I0 > i0 ≅ I1 > i1) ⟶
                  /Π/ (A0 i0) \a0 -> /Π/ (A1 i1) \a1 ->
-                 (A0 i0 > a0 ≅ A1 i1 > a1) →
+                 (A0 i0 > a0 ≅ A1 i1 > a1) ⟶
                  Eqs I0 (R0 i0 a0) I1 (R1 i1 a1) )]
         R01 = fst (snd (snd Q))
         i01 : [ I0 > i0 ≅ I1 > i1 ] ; i01 = snd (snd (snd Q))
@@ -254,8 +254,8 @@ mutual
         \x0 x1 x01 ->
           KidsResp I0 I1 I01
           (/D/ I0 A0 R0) (/D/ I1 A1 R1) (\j0 j1 j01 -> I01 , A01 , R01 , j01 )
-          (R0 i0 x0) (R1 i1 x1) (R01 i0 i1 i01 x0 x1 x01)  
-  
+          (R0 i0 x0) (R1 i1 x1) (R01 i0 i1 i01 x0 x1 x01)
+
   /Π/ _ _ > _ < /Σ/ _ _ ! ()
   /Π/ _ _ > _ < /Fin/ _ ! ()
   /Π/ _ _ > _ < /D/ _ _ _ _ ! ()
@@ -279,11 +279,11 @@ ext : (S : ∗)(T : [ S ] -> ∗)(f g : [ /Π/ S T ]) ->
       [ /Π/ S T > f ≅ /Π/ S T > g ]
 ext S T f g h s0 s1 s01 =
   (T s0 > f s0 ≅ T s0 > g s0) > h s0 < (T s0 > f s0 ≅ T s1 > g s1) !
-  Resp S (\s1 -> T s0 > f s0 ≅ T s1 > g s1) s01 
+  Resp S (\s1 -> T s0 > f s0 ≅ T s1 > g s1) s01
 
-plusZeroLemma : [ (/Nat/ → /Nat/) > (\x -> plus x /zero/) ≅
-                  (/Nat/ → /Nat/) > (\x -> plus /zero/ x) ]
+plusZeroLemma : [ (/Nat/ ⟶ /Nat/) > (\x -> plus x /zero/) ≅
+                  (/Nat/ ⟶ /Nat/) > (\x -> plus /zero/ x) ]
 plusZeroLemma = ext /Nat/ (\_ -> /Nat/)
    (\x -> plus x /zero/) (\x -> plus /zero/ x) (natElim (\x ->
      /Nat/ > plus x /zero/ ≅ /Nat/ > plus /zero/ x) (fz , fz)
-    (\n h -> [ (/Nat/ → /Nat/) > /suc/ ] (plus n /zero/) n h  )) 
+    (\n h -> [ (/Nat/ ⟶ /Nat/) > /suc/ ] (plus n /zero/) n h  ))

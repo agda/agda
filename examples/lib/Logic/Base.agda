@@ -36,6 +36,6 @@ elim-\/ = elimD-\/ (\_ -> _)
 data ∃ {A : Set}(P : A -> Set) : Set where
   ∃-I : (w : A) -> P w -> ∃ P
 
-∀ : {A : Set}(P : A -> Set) -> Set
-∀ {A} P = (x : A) -> P x
+∏ : {A : Set}(P : A -> Set) -> Set
+∏ {A} P = (x : A) -> P x
 

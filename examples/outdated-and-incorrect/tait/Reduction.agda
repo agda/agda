@@ -10,15 +10,15 @@ infix 10 _⟶β_
 
 data _⟶β_ : forall {Γ τ} -> (t u : Term Γ τ) -> Set where
   β   : forall {Γ σ τ}{t : Term (Γ , σ) τ} Δ {u : Term (Γ ++ Δ) σ} ->
-        (λ t) ↑ Δ • u ⟶β t ↑ Δ / [ Δ ⟵ u ]
+        (ƛ t) ↑ Δ • u ⟶β t ↑ Δ / [ Δ ⟵ u ]
   wk⟶ : forall {Γ σ τ}{t₁ t₂ : Term Γ τ} ->
         t₁ ⟶β t₂ -> wk {σ = σ} t₁ ⟶β wk t₂
   •⟶L : forall {Γ σ τ}{t₁ t₂ : Term Γ (σ ⟶ τ)}{u : Term Γ σ} ->
         t₁ ⟶β t₂ -> t₁ • u ⟶β t₂ • u
   •⟶R : forall {Γ σ τ}{t : Term Γ (σ ⟶ τ)}{u₁ u₂ : Term Γ σ} ->
         u₁ ⟶β u₂ -> t • u₁ ⟶β t • u₂
-  λ⟶  : forall {Γ σ τ}{t₁ t₂ : Term (Γ , σ) τ} ->
-        t₁ ⟶β t₂ -> λ t₁ ⟶β λ t₂
+  ƛ⟶  : forall {Γ σ τ}{t₁ t₂ : Term (Γ , σ) τ} ->
+        t₁ ⟶β t₂ -> ƛ t₁ ⟶β ƛ t₂
 
 _⟶β*_ : {Γ : Ctx}{τ : Type}(x y : Term Γ τ) -> Set
 x ⟶β* y = [ _⟶β_ ]* x y

@@ -51,9 +51,9 @@ module Syntax where
     _WHERE_ : {σ τ ρ : Type} -> Expr (Γ , σ ─→ τ) ρ -> Expr (Γ , σ) τ -> Expr Γ ρ
     _PP_    : {σ τ ρ : Type} -> Expr (Γ , σ ─→ τ) ρ -> Expr (Γ , σ) ρ -> Expr Γ ρ
 
-  -- λ x. e = f where f x = e
-  λ : {Γ : Context}{σ τ : Type} -> Expr (Γ , σ) τ -> Expr Γ (σ ─→ τ)
-  λ e = var vz WHERE e
+  -- ƛ x. e = f where f x = e
+  ƛ : {Γ : Context}{σ τ : Type} -> Expr (Γ , σ) τ -> Expr Γ (σ ─→ τ)
+  ƛ e = var vz WHERE e
 
 module Cont (R : Set) where
 

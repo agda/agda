@@ -199,8 +199,8 @@ _,,_ {Γ}{Δ}{A} (el < σ , pσ >) (elem (el < u , pu >)) = build δ pδ
 
 -}
 
-λ : {Γ : Con}{A : Type Γ}{B : Type (Γ , A)} -> Elem (Γ , A) B -> Elem Γ (Π A B)
-λ {Γ}{A}{B} (elem u) = elem (mkFun f pf)
+ƛ : {Γ : Con}{A : Type Γ}{B : Type (Γ , A)} -> Elem (Γ , A) B -> Elem Γ (Π A B)
+ƛ {Γ}{A}{B} (elem u) = elem (mkFun f pf)
   where
     f : (x : El Γ) -> El (Π A B ! x)
     f x = el < g , (\{x}{y} -> pg) >
@@ -279,10 +279,10 @@ _∙_ {Γ}{A}{B} (elem w) (elem u) = elem (el < f , (\{x}{y} -> pf) >)
 
 {- TODO: Prove
 
-  (λ v) ∙ u = v // [ u ]    (β)
-  w = λ ((w // wk) ∙ vz)    (η)
+  (ƛ v) ∙ u = v // [ u ]    (β)
+  w = ƛ ((w // wk) ∙ vz)    (η)
 
-  λ v // σ = λ (v // (σ ∘ wk ,, vz))
+  ƛ v // σ = ƛ (v // (σ ∘ wk ,, vz))
   w ∙ u // σ = (w // σ) ∙ (u // σ)
 
 -}
