@@ -52,6 +52,7 @@ import Data.DifferenceNat
 import Data.DifferenceVec
 import Data.Digit
 import Data.Empty
+import Data.Empty1
 import Data.Fin
 import Data.Fin.Dec
 import Data.Fin.Props
