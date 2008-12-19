@@ -49,6 +49,11 @@
   nil
   "renaming (" _ " to " _ ")")
 
+(define-skeleton agda2-abbrevs-forall
+  "Inserts a forall template."
+  nil
+  "∀ {" _ "} ")
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Abbrevs
 
@@ -67,7 +72,7 @@
   ("pr" "private\n")
   ("pu" "public")
   ("mu" "mutual\n")
-  ("f"  "forall ")
+  ("f"  "" agda2-abbrevs-forall)
   ("oi" "open import "))
   "Abbreviations defined by default in the Agda mode.")
 
