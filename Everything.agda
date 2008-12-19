@@ -91,6 +91,7 @@ import Data.Star.Vec
 import Data.String
 import Data.Sum
 import Data.Unit
+import Data.Unit1
 import Data.Vec
 import Data.Vec.Equality
 import Data.Vec.N-ary
