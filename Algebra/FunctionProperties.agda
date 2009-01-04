@@ -19,72 +19,72 @@ open Setoid s
 -- Unary and binary operations
 
 Op₁ : Set
-Op₁ = carrier -> carrier
+Op₁ = carrier → carrier
 
 Op₂ : Set
-Op₂ = carrier -> carrier -> carrier
+Op₂ = carrier → carrier → carrier
 
 ------------------------------------------------------------------------
 -- Properties of operations
 
-Associative : Op₂ -> Set
-Associative _∙_ = forall x y z -> ((x ∙ y) ∙ z) ≈ (x ∙ (y ∙ z))
+Associative : Op₂ → Set
+Associative _∙_ = ∀ x y z → ((x ∙ y) ∙ z) ≈ (x ∙ (y ∙ z))
 
-Commutative : Op₂ -> Set
-Commutative _∙_ = forall x y -> (x ∙ y) ≈ (y ∙ x)
+Commutative : Op₂ → Set
+Commutative _∙_ = ∀ x y → (x ∙ y) ≈ (y ∙ x)
 
-LeftIdentity : carrier -> Op₂ -> Set
-LeftIdentity e _∙_ = forall x -> (e ∙ x) ≈ x
+LeftIdentity : carrier → Op₂ → Set
+LeftIdentity e _∙_ = ∀ x → (e ∙ x) ≈ x
 
-RightIdentity : carrier -> Op₂ -> Set
-RightIdentity e _∙_ = forall x -> (x ∙ e) ≈ x
+RightIdentity : carrier → Op₂ → Set
+RightIdentity e _∙_ = ∀ x → (x ∙ e) ≈ x
 
-Identity : carrier -> Op₂ -> Set
+Identity : carrier → Op₂ → Set
 Identity e ∙ = LeftIdentity e ∙ × RightIdentity e ∙
 
-LeftZero : carrier -> Op₂ -> Set
-LeftZero z _∙_ = forall x -> (z ∙ x) ≈ z
+LeftZero : carrier → Op₂ → Set
+LeftZero z _∙_ = ∀ x → (z ∙ x) ≈ z
 
-RightZero : carrier -> Op₂ -> Set
-RightZero z _∙_ = forall x -> (x ∙ z) ≈ z
+RightZero : carrier → Op₂ → Set
+RightZero z _∙_ = ∀ x → (x ∙ z) ≈ z
 
-Zero : carrier -> Op₂ -> Set
+Zero : carrier → Op₂ → Set
 Zero z ∙ = LeftZero z ∙ × RightZero z ∙
 
-LeftInverse : carrier -> Op₁ -> Op₂ -> Set
-LeftInverse e _⁻¹ _∙_ = forall x -> (x ⁻¹ ∙ x) ≈ e
+LeftInverse : carrier → Op₁ → Op₂ → Set
+LeftInverse e _⁻¹ _∙_ = ∀ x → (x ⁻¹ ∙ x) ≈ e
 
-RightInverse : carrier -> Op₁ -> Op₂ -> Set
-RightInverse e _⁻¹ _∙_ = forall x -> (x ∙ (x ⁻¹)) ≈ e
+RightInverse : carrier → Op₁ → Op₂ → Set
+RightInverse e _⁻¹ _∙_ = ∀ x → (x ∙ (x ⁻¹)) ≈ e
 
-Inverse : carrier -> Op₁ -> Op₂ -> Set
+Inverse : carrier → Op₁ → Op₂ → Set
 Inverse e ⁻¹ ∙ = LeftInverse e ⁻¹ ∙ × RightInverse e ⁻¹ ∙
 
-_DistributesOverˡ_ : Op₂ -> Op₂ -> Set
+_DistributesOverˡ_ : Op₂ → Op₂ → Set
 _*_ DistributesOverˡ _+_ =
-  forall x y z -> (x * (y + z)) ≈ ((x * y) + (x * z))
+  ∀ x y z → (x * (y + z)) ≈ ((x * y) + (x * z))
 
-_DistributesOverʳ_ : Op₂ -> Op₂ -> Set
+_DistributesOverʳ_ : Op₂ → Op₂ → Set
 _*_ DistributesOverʳ _+_ =
-  forall x y z -> ((y + z) * x) ≈ ((y * x) + (z * x))
+  ∀ x y z → ((y + z) * x) ≈ ((y * x) + (z * x))
 
-_DistributesOver_ : Op₂ -> Op₂ -> Set
+_DistributesOver_ : Op₂ → Op₂ → Set
 * DistributesOver + = (* DistributesOverˡ +) × (* DistributesOverʳ +)
 
-_IdempotentOn_ : Op₂ -> carrier -> Set
+_IdempotentOn_ : Op₂ → carrier → Set
 _∙_ IdempotentOn x = (x ∙ x) ≈ x
 
-Idempotent : Op₂ -> Set
-Idempotent ∙ = forall x -> ∙ IdempotentOn x
+Idempotent : Op₂ → Set
+Idempotent ∙ = ∀ x → ∙ IdempotentOn x
 
-IdempotentFun : Op₁ -> Set
-IdempotentFun f = forall x -> f (f x) ≈ f x
+IdempotentFun : Op₁ → Set
+IdempotentFun f = ∀ x → f (f x) ≈ f x
 
-_Absorbs_ : Op₂ -> Op₂ -> Set
-_∙_ Absorbs _∘_ = forall x y -> (x ∙ (x ∘ y)) ≈ x
+_Absorbs_ : Op₂ → Op₂ → Set
+_∙_ Absorbs _∘_ = ∀ x y → (x ∙ (x ∘ y)) ≈ x
 
-Absorptive : Op₂ -> Op₂ -> Set
+Absorptive : Op₂ → Op₂ → Set
 Absorptive ∙ ∘ = (∙ Absorbs ∘) × (∘ Absorbs ∙)
 
-Involutive : Op₁ -> Set
-Involutive f = forall x -> f (f x) ≈ x
+Involutive : Op₁ → Set
+Involutive f = ∀ x → f (f x) ≈ x

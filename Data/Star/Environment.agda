@@ -20,23 +20,22 @@ Ctxt = List Ty
 
 infix 4 _∋_
 
-_∋_ : Ctxt -> Ty -> Set
-Γ ∋ σ = Any (\_ -> ⊤) (_≡_ σ) Γ
+_∋_ : Ctxt → Ty → Set
+Γ ∋ σ = Any (λ _ → ⊤) (_≡_ σ) Γ
 
-vz : forall {Γ σ} -> Γ ▻ σ ∋ σ
+vz : ∀ {Γ σ} → Γ ▻ σ ∋ σ
 vz = this ≡-refl
 
-vs : forall {Γ σ τ} -> Γ ∋ τ -> Γ ▻ σ ∋ τ
+vs : ∀ {Γ σ τ} → Γ ∋ τ → Γ ▻ σ ∋ τ
 vs = that tt
 
 -- Environments. The T function maps types to element types.
 
-Env : (Ty -> Set) -> Ctxt -> Set
+Env : (Ty → Set) → Ctxt → Set
 Env T Γ = All T Γ
 
 -- A safe lookup function for environments.
 
-Env-lookup : forall {Γ σ} {T : Ty -> Set} ->
-         Γ ∋ σ -> Env T Γ -> T σ
+Env-lookup : ∀ {Γ σ} {T : Ty → Set} → Γ ∋ σ → Env T Γ → T σ
 Env-lookup i ρ with lookup i ρ
 ... | result ≡-refl x = x

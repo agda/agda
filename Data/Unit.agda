@@ -59,8 +59,8 @@ _ ⊤-≤? _ = yes _
           { isPartialOrder = record
               { isPreorder = record
                   { isEquivalence = ≡-isEquivalence
-                  ; reflexive     = \_ -> _
-                  ; trans         = \_ _ -> _
+                  ; reflexive     = λ _ → _
+                  ; trans         = λ _ _ → _
                   ; ≈-resp-∼      = ≡-resp _⊤-≤_
                   }
               ; antisym  = antisym

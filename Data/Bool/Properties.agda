@@ -49,13 +49,13 @@ private
   ∧-comm false false = byDef
 
   ∨-identity : Identity false _∨_
-  ∨-identity = (\_ -> byDef) , (\x -> ∨-comm x false)
+  ∨-identity = (λ _ → byDef) , (λ x → ∨-comm x false)
 
   ∧-identity : Identity true _∧_
-  ∧-identity = (\_ -> byDef) , (\x -> ∧-comm x true)
+  ∧-identity = (λ _ → byDef) , (λ x → ∧-comm x true)
 
   zero-∧ : Zero false _∧_
-  zero-∧ = (\_ -> byDef) , (\x -> ∧-comm x false)
+  zero-∧ = (λ _ → byDef) , (λ x → ∧-comm x false)
 
   distrib-∧-∨ : _∧_ DistributesOver _∨_
   distrib-∧-∨ = distˡ , distʳ
@@ -124,7 +124,7 @@ module Bool-ringSolver =
 private
 
   zero-∨ : Zero true _∨_
-  zero-∨ = (\_ -> byDef) , (\x -> ∨-comm x true)
+  zero-∨ = (λ _ → byDef) , (λ x → ∨-comm x true)
 
   distrib-∨-∧ : _∨_ DistributesOver _∧_
   distrib-∨-∧ = distˡ , distʳ
@@ -202,7 +202,7 @@ private
 
   not-∧-inverse : Inverse false not _∧_
   not-∧-inverse =
-    ¬x∧x≡⊥ , (\x -> ∧-comm x (not x) ⟨ ≡-trans ⟩ ¬x∧x≡⊥ x)
+    ¬x∧x≡⊥ , (λ x → ∧-comm x (not x) ⟨ ≡-trans ⟩ ¬x∧x≡⊥ x)
     where
     ¬x∧x≡⊥ : LeftInverse false not _∧_
     ¬x∧x≡⊥ false = byDef
@@ -210,7 +210,7 @@ private
 
   not-∨-inverse : Inverse true not _∨_
   not-∨-inverse =
-    ¬x∨x≡⊤ , (\x -> ∨-comm x (not x) ⟨ ≡-trans ⟩ ¬x∨x≡⊤ x)
+    ¬x∨x≡⊤ , (λ x → ∨-comm x (not x) ⟨ ≡-trans ⟩ ¬x∨x≡⊤ x)
     where
     ¬x∨x≡⊤ : LeftInverse true not _∨_
     ¬x∨x≡⊤ false = byDef
@@ -252,7 +252,7 @@ Bool-booleanAlgebra = record
 
 private
 
-  xor-is-ok : forall x y -> x xor y ≡ (x ∨ y) ∧ not (x ∧ y)
+  xor-is-ok : ∀ x y → x xor y ≡ (x ∨ y) ∧ not (x ∧ y)
   xor-is-ok true  y = byDef
   xor-is-ok false y = ≡-sym $ proj₂ ∧-identity _
 

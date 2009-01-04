@@ -27,29 +27,29 @@ open S public using () renaming (Tree to ⟨Set⟩)
 empty : ⟨Set⟩
 empty = S.empty
 
-singleton : Key -> ⟨Set⟩
+singleton : Key → ⟨Set⟩
 singleton k = S.singleton k _
 
-insert : Key -> ⟨Set⟩ -> ⟨Set⟩
+insert : Key → ⟨Set⟩ → ⟨Set⟩
 insert k = S.insert k _
 
-delete : Key -> ⟨Set⟩ -> ⟨Set⟩
+delete : Key → ⟨Set⟩ → ⟨Set⟩
 delete = S.delete
 
-lookup : Key -> ⟨Set⟩ -> Maybe Key
+lookup : Key → ⟨Set⟩ → Maybe Key
 lookup k s = proj₁ <$> S.lookup k s
 
-_∈?_ : Key -> ⟨Set⟩ -> Bool
+_∈?_ : Key → ⟨Set⟩ → Bool
 _∈?_ = S._∈?_
 
-headTail : ⟨Set⟩ -> Maybe (Key × ⟨Set⟩)
+headTail : ⟨Set⟩ → Maybe (Key × ⟨Set⟩)
 headTail s = map-× proj₁ id <$> S.headTail s
 
-initLast : ⟨Set⟩ -> Maybe (⟨Set⟩ × Key)
+initLast : ⟨Set⟩ → Maybe (⟨Set⟩ × Key)
 initLast s = map-× id proj₁ <$> S.initLast s
 
-fromList : List Key -> ⟨Set⟩
-fromList = S.fromList ∘ map (\k -> (k , _))
+fromList : List Key → ⟨Set⟩
+fromList = S.fromList ∘ map (λ k → (k , _))
 
-toList : ⟨Set⟩ -> List Key
+toList : ⟨Set⟩ → List Key
 toList = map proj₁ ∘ S.toList

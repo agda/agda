@@ -10,23 +10,23 @@ open import Data.Empty
 
 -- Constant relations.
 
-Const : forall {a} -> Set -> Rel a
-Const I = \_ _ -> I
+Const : ∀ {a} → Set → Rel a
+Const I = λ _ _ → I
 
 -- The universally true relation.
 
-Always : forall {a} -> Rel a
+Always : ∀ {a} → Rel a
 Always = Const ⊤
 
 -- The universally false relation.
 
-Never : forall {a} -> Rel a
+Never : ∀ {a} → Rel a
 Never = Const ⊥
 
 -- Always is an equivalence.
 
-Always-isEquivalence : forall {a} -> IsEquivalence (Always {a})
+Always-isEquivalence : ∀ {a} → IsEquivalence (Always {a})
 Always-isEquivalence = record { refl  = _
-                              ; sym   = \_ -> _
-                              ; trans = \_ _ -> _
+                              ; sym   = λ _ → _
+                              ; trans = λ _ _ → _
                               }

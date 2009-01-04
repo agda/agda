@@ -13,10 +13,9 @@ module Equality (S : Setoid) where
 
   open Setoid S
 
-  data ListEq : List carrier -> List carrier -> Set where
+  data ListEq : List carrier → List carrier → Set where
     []-cong  : ListEq [] []
-    _∷-cong_ : forall {x xs y ys}
-               (x≈y : x ≈ y) (xs≈ys : ListEq xs ys) ->
+    _∷-cong_ : ∀ {x xs y ys} (x≈y : x ≈ y) (xs≈ys : ListEq xs ys) →
                ListEq (x ∷ xs) (y ∷ ys)
 
   setoid : Setoid
@@ -70,8 +69,8 @@ module DecidableEquality (D : DecSetoid) where
       where
       helper : ¬ ListEq (x ∷ xs) (y ∷ ys)
       helper (_ ∷-cong xs≈ys) = ¬xs≈ys xs≈ys
-    dec []       (y ∷ ys) = no \()
-    dec (x ∷ xs) []       = no \()
+    dec []       (y ∷ ys) = no λ()
+    dec (x ∷ xs) []       = no λ()
 
 module PropositionalEquality (a : Set) where
 

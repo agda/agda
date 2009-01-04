@@ -11,7 +11,7 @@ import Relation.Binary.EqReasoning as EqR; open EqR setoid
 open import Data.Function
 open import Data.Product
 
---*-distribˡ : forall x y -> - x * y ≈ - (x * y)
+--*-distribˡ : ∀ x y → - x * y ≈ - (x * y)
 --*-distribˡ x y = begin
   - x * y                        ≈⟨ sym $ proj₂ +-identity _ ⟩
   - x * y + 0#                   ≈⟨ byDef ⟨ +-pres-≈ ⟩ sym (proj₂ --inverse _) ⟩
@@ -24,7 +24,7 @@ open import Data.Product
   0# + - (x * y)                 ≈⟨ proj₁ +-identity _ ⟩
   - (x * y)                      ∎
 
---*-distribʳ : forall x y -> x * - y ≈ - (x * y)
+--*-distribʳ : ∀ x y → x * - y ≈ - (x * y)
 --*-distribʳ x y = begin
   x * - y                        ≈⟨ sym $ proj₁ +-identity _ ⟩
   0# + x * - y                   ≈⟨ sym (proj₁ --inverse _) ⟨ +-pres-≈ ⟩ byDef ⟩

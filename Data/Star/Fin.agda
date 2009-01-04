@@ -12,13 +12,13 @@ open import Data.Unit
 
 -- Finite sets are undecorated pointers into natural numbers.
 
-Fin : ℕ -> Set
-Fin = Any (\_ -> ⊤) (\_ -> ⊤)
+Fin : ℕ → Set
+Fin = Any (λ _ → ⊤) (λ _ → ⊤)
 
 -- "Constructors".
 
-zero : forall {n} -> Fin (ℕ.suc n)
+zero : ∀ {n} → Fin (ℕ.suc n)
 zero = this tt
 
-suc : forall {n} -> Fin n -> Fin (ℕ.suc n)
+suc : ∀ {n} → Fin n → Fin (ℕ.suc n)
 suc = that tt

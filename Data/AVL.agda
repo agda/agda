@@ -9,7 +9,7 @@
 open import Relation.Binary
 
 module Data.AVL (OrderedKeySet : StrictTotalOrder)
-                (Value : StrictTotalOrder.carrier OrderedKeySet -> Set)
+                (Value : StrictTotalOrder.carrier OrderedKeySet → Set)
                 where
 
 open import Data.Nat hiding (compare)
@@ -39,13 +39,13 @@ module Invariants where
 
   infixl 6 _⊕_
 
-  _⊕_ : ℕ₂ -> ℕ -> ℕ
+  _⊕_ : ℕ₂ → ℕ → ℕ
   0# ⊕ n = n
   1# ⊕ n = 1 + n
 
   -- i ⊕ n -1 = pred (i ⊕ n).
 
-  _⊕_-1 : ℕ₂ -> ℕ -> ℕ
+  _⊕_-1 : ℕ₂ → ℕ → ℕ
   i ⊕ zero  -1 = 0
   i ⊕ suc n -1 = i ⊕ n
 
@@ -56,42 +56,41 @@ module Invariants where
   -- to ensure that the absolute value of the balance factor is never
   -- more than 1.
 
-  data _∼_ : ℕ -> ℕ -> Set where
-    ∼+ : forall {n} ->     n ∼ 1 + n
-    ∼0 : forall {n} ->     n ∼ n
-    ∼- : forall {n} -> 1 + n ∼ n
+  data _∼_ : ℕ → ℕ → Set where
+    ∼+ : ∀ {n} →     n ∼ 1 + n
+    ∼0 : ∀ {n} →     n ∼ n
+    ∼- : ∀ {n} → 1 + n ∼ n
 
   -- The maximum of m and n.
 
-  max : forall {m n} -> m ∼ n -> ℕ
+  max : ∀ {m n} → m ∼ n → ℕ
   max (∼+ {n}) = 1 + n
   max (∼0 {n}) =     n
   max (∼- {n}) = 1 + n
 
   -- Some lemmas.
 
-  1+ : forall {m n} -> m ∼ n -> 1 + m ∼ 1 + n
+  1+ : ∀ {m n} → m ∼ n → 1 + m ∼ 1 + n
   1+ ∼+ = ∼+
   1+ ∼0 = ∼0
   1+ ∼- = ∼-
 
-  max∼ : forall {i j} (bal : i ∼ j) -> max bal ∼ i
+  max∼ : ∀ {i j} (bal : i ∼ j) → max bal ∼ i
   max∼ ∼+ = ∼-
   max∼ ∼0 = ∼0
   max∼ ∼- = ∼0
 
-  ∼max : forall {i j} (bal : i ∼ j) -> j ∼ max bal
+  ∼max : ∀ {i j} (bal : i ∼ j) → j ∼ max bal
   ∼max ∼+ = ∼0
   ∼max ∼0 = ∼0
   ∼max ∼- = ∼+
 
-  max∼max : forall {i j} (bal : i ∼ j) ->
-            max (max∼ bal) ∼ max (∼max bal)
+  max∼max : ∀ {i j} (bal : i ∼ j) → max (max∼ bal) ∼ max (∼max bal)
   max∼max ∼+ = ∼0
   max∼max ∼0 = ∼0
   max∼max ∼- = ∼0
 
-  max-lemma : forall {m n} (bal : m ∼ n) ->
+  max-lemma : ∀ {m n} (bal : m ∼ n) →
               1 + max (1+ (max∼max bal)) ≡ 2 + max bal
   max-lemma ∼+ = ≡-refl
   max-lemma ∼0 = ≡-refl
@@ -112,19 +111,18 @@ module Indexed where
   -- The trees are indexed on their height. (bal is the balance
   -- factor.)
 
-  data Tree : ℕ -> Set where
+  data Tree : ℕ → Set where
     leaf : Tree 0
-    node : forall {hˡ hʳ}
-           (l : Tree hˡ) (k : KV) (r : Tree hʳ) (bal : hˡ ∼ hʳ) ->
+    node : ∀ {hˡ hʳ}
+           (l : Tree hˡ) (k : KV) (r : Tree hʳ) (bal : hˡ ∼ hʳ) →
            Tree (1 + max bal)
 
   -- Various constant-time functions which construct trees out of
   -- smaller pieces, sometimes using rotation.
 
-  joinˡ⁺ : forall {hˡ hʳ} ->
-           (∃ \i -> Tree (i ⊕ hˡ)) -> KV -> Tree hʳ ->
-           (bal : hˡ ∼ hʳ) ->
-           ∃ \i -> Tree (i ⊕ (1 + max bal))
+  joinˡ⁺ : ∀ {hˡ hʳ} →
+           (∃ λ i → Tree (i ⊕ hˡ)) → KV → Tree hʳ → (bal : hˡ ∼ hʳ) →
+           ∃ λ i → Tree (i ⊕ (1 + max bal))
   joinˡ⁺ (1# , node t₁ k₂
                  (node t₃ k₄ t₅ bal)
                              ∼+) k₆ t₇ ∼-  = (0# , ≡-subst Tree (max-lemma bal)
@@ -138,10 +136,9 @@ module Indexed where
   joinˡ⁺ (1# , t₁)               k₂ t₃ ∼+  = (0# , node t₁ k₂ t₃ ∼0)
   joinˡ⁺ (0# , t₁)               k₂ t₃ bal = (0# , node t₁ k₂ t₃ bal)
 
-  joinʳ⁺ : forall {hˡ hʳ} ->
-           Tree hˡ -> KV -> (∃ \i -> Tree (i ⊕ hʳ)) ->
-           (bal : hˡ ∼ hʳ) ->
-           ∃ \i -> Tree (i ⊕ (1 + max bal))
+  joinʳ⁺ : ∀ {hˡ hʳ} →
+           Tree hˡ → KV → (∃ λ i → Tree (i ⊕ hʳ)) → (bal : hˡ ∼ hʳ) →
+           ∃ λ i → Tree (i ⊕ (1 + max bal))
   joinʳ⁺ t₁ k₂ (1# , node
                        (node t₃ k₄ t₅ bal)
                              k₆ t₇ ∼-) ∼+  = (0# , ≡-subst Tree (max-lemma bal)
@@ -155,10 +152,9 @@ module Indexed where
   joinʳ⁺ t₁ k₂ (1# , t₃)               ∼-  = (0# , node t₁ k₂ t₃ ∼0)
   joinʳ⁺ t₁ k₂ (0# , t₃)               bal = (0# , node t₁ k₂ t₃ bal)
 
-  joinˡ⁻ : forall hˡ {hʳ} ->
-           (∃ \i -> Tree (i ⊕ hˡ -1)) -> KV -> Tree hʳ ->
-           (bal : hˡ ∼ hʳ) ->
-           ∃ \i -> Tree (i ⊕ max bal)
+  joinˡ⁻ : ∀ hˡ {hʳ} →
+           (∃ λ i → Tree (i ⊕ hˡ -1)) → KV → Tree hʳ → (bal : hˡ ∼ hʳ) →
+           ∃ λ i → Tree (i ⊕ max bal)
   joinˡ⁻ zero    (0# , t₁) k₂ t₃ bal = (1# , node t₁ k₂ t₃ bal)
   joinˡ⁻ zero    (1# , t₁) k₂ t₃ bal = (1# , node t₁ k₂ t₃ bal)
   joinˡ⁻ (suc _) (0# , t₁) k₂ t₃ ∼+  = joinʳ⁺ t₁ k₂ (1# , t₃) ∼+
@@ -166,10 +162,9 @@ module Indexed where
   joinˡ⁻ (suc _) (0# , t₁) k₂ t₃ ∼-  = (0# , node t₁ k₂ t₃ ∼0)
   joinˡ⁻ (suc _) (1# , t₁) k₂ t₃ bal = (1# , node t₁ k₂ t₃ bal)
 
-  joinʳ⁻ : forall {hˡ} hʳ ->
-           Tree hˡ -> KV -> (∃ \i -> Tree (i ⊕ hʳ -1)) ->
-           (bal : hˡ ∼ hʳ) ->
-           ∃ \i -> Tree (i ⊕ max bal)
+  joinʳ⁻ : ∀ {hˡ} hʳ →
+           Tree hˡ → KV → (∃ λ i → Tree (i ⊕ hʳ -1)) → (bal : hˡ ∼ hʳ) →
+           ∃ λ i → Tree (i ⊕ max bal)
   joinʳ⁻ zero    t₁ k₂ (0# , t₃) bal = (1# , node t₁ k₂ t₃ bal)
   joinʳ⁻ zero    t₁ k₂ (1# , t₃) bal = (1# , node t₁ k₂ t₃ bal)
   joinʳ⁻ (suc _) t₁ k₂ (0# , t₃) ∼-  = joinˡ⁺ (1# , t₁) k₂ t₃ ∼-
@@ -180,8 +175,8 @@ module Indexed where
   -- Extracts the smallest element from the tree, plus the rest.
   -- Logarithmic in the size of the tree.
 
-  headTail : forall {h} -> Tree (1 + h) ->
-             KV × ∃ \i -> Tree (i ⊕ h)
+  headTail : ∀ {h} → Tree (1 + h) →
+             KV × ∃ λ i → Tree (i ⊕ h)
   headTail (node leaf k₁ t₂ ∼+) = (k₁ , 0# , t₂)
   headTail (node leaf k₁ t₂ ∼0) = (k₁ , 0# , t₂)
   headTail (node {hˡ = suc _} t₁₂ k₃ t₄ bal) with headTail t₁₂
@@ -190,8 +185,8 @@ module Indexed where
   -- Extracts the largest element from the tree, plus the rest.
   -- Logarithmic in the size of the tree.
 
-  initLast : forall {h} -> Tree (1 + h) ->
-             ∃ (\i -> Tree (i ⊕ h)) × KV
+  initLast : ∀ {h} → Tree (1 + h) →
+             ∃ (λ i → Tree (i ⊕ h)) × KV
   initLast (node t₁ k₂ leaf ∼-) = ((0# , t₁) , k₂)
   initLast (node t₁ k₂ leaf ∼0) = ((0# , t₁) , k₂)
   initLast (node {hʳ = suc _} t₁ k₂ t₃₄ bal) with initLast t₃₄
@@ -199,9 +194,9 @@ module Indexed where
 
   -- Another joining function. Logarithmic in the size of the tree.
 
-  join : forall {hˡ hʳ} ->
-         Tree hˡ -> Tree hʳ -> (bal : hˡ ∼ hʳ) ->
-         ∃ \i -> Tree (i ⊕ max bal)
+  join : ∀ {hˡ hʳ} →
+         Tree hˡ → Tree hʳ → (bal : hˡ ∼ hʳ) →
+         ∃ λ i → Tree (i ⊕ max bal)
   join t₁ leaf ∼0 = (0# , t₁)
   join t₁ leaf ∼- = (0# , t₁)
   join {hʳ = suc _} t₁ t₂₃ bal with headTail t₂₃
@@ -214,15 +209,15 @@ module Indexed where
 
   -- A singleton tree.
 
-  singleton : (k : Key) -> Value k -> Tree 1
+  singleton : (k : Key) → Value k → Tree 1
   singleton k v = node leaf (k , v) leaf ∼0
 
   -- Inserts a key into the tree. If the key already exists, then it
   -- is replaced. Logarithmic in the size of the tree (assuming
   -- constant-time comparisons).
 
-  insert : forall {h} -> (k : Key) -> Value k -> Tree h ->
-           ∃ \i -> Tree (i ⊕ h)
+  insert : ∀ {h} → (k : Key) → Value k → Tree h →
+           ∃ λ i → Tree (i ⊕ h)
   insert k v leaf             = (1# , singleton k v)
   insert k v (node l p r bal) with compare k (proj₁ p)
   ... | tri< _ _ _ = joinˡ⁺ (insert k v l) p r bal
@@ -233,8 +228,8 @@ module Indexed where
   -- Logarithmic in the size of the tree (assuming constant-time
   -- comparisons).
 
-  delete : forall {h} -> Key -> Tree h ->
-           ∃ \i -> Tree (i ⊕ h -1)
+  delete : ∀ {h} → Key → Tree h →
+           ∃ λ i → Tree (i ⊕ h -1)
   delete k leaf             = (0# , leaf)
   delete k (node l p r bal) with compare k (proj₁ p)
   ... | tri< _ _ _ = joinˡ⁻ _ (delete k l) p r bal
@@ -244,8 +239,8 @@ module Indexed where
   -- Looks up a key in the tree. Logarithmic in the size of the tree
   -- (assuming constant-time comparisons).
 
-  lookup : forall {h} -> (k : Key) -> Tree h ->
-           Maybe (∃ \k′ -> Value k′ × k ≈ k′)
+  lookup : ∀ {h} → (k : Key) → Tree h →
+           Maybe (∃ λ k′ → Value k′ × k ≈ k′)
   lookup k leaf                  = nothing
   lookup k (node l (k′ , v) r _) with compare k k′
   ... | tri< _ _  _ = lookup k l
@@ -257,7 +252,7 @@ module Indexed where
 
   open DiffList
 
-  toDiffList : forall {h} -> Tree h -> DiffList KV
+  toDiffList : ∀ {h} → Tree h → DiffList KV
   toDiffList leaf           = []
   toDiffList (node l k r _) = toDiffList l ++ [ k ] ++ toDiffList r
 
@@ -265,44 +260,44 @@ module Indexed where
 -- Types and functions with hidden indices
 
 data Tree : Set where
-  tree : forall {h} -> Indexed.Tree h -> Tree
+  tree : ∀ {h} → Indexed.Tree h → Tree
 
 empty : Tree
 empty = tree Indexed.empty
 
-singleton : (k : Key) -> Value k -> Tree
+singleton : (k : Key) → Value k → Tree
 singleton k v = tree (Indexed.singleton k v)
 
-insert : (k : Key) -> Value k -> Tree -> Tree
+insert : (k : Key) → Value k → Tree → Tree
 insert k v (tree t) with Indexed.insert k v t
 ... | (_ , t′) = tree t′
 
-delete : Key -> Tree -> Tree
+delete : Key → Tree → Tree
 delete k (tree t) with Indexed.delete k t
 ... | (_ , t′) = tree t′
 
-lookup : (k : Key) -> Tree -> Maybe (∃ \k′ -> Value k′ × k ≈ k′)
+lookup : (k : Key) → Tree → Maybe (∃ λ k′ → Value k′ × k ≈ k′)
 lookup k (tree t) = Indexed.lookup k t
 
-_∈?_ : Key -> Tree -> Bool
+_∈?_ : Key → Tree → Bool
 k ∈? t = maybeToBool (lookup k t)
 
-headTail : Tree -> Maybe (KV × Tree)
+headTail : Tree → Maybe (KV × Tree)
 headTail (tree leaf)          = nothing
 headTail (tree {h = suc _} t) with Indexed.headTail t
 ... | (k , _ , t′) = just (k , tree t′)
 
-initLast : Tree -> Maybe (Tree × KV)
+initLast : Tree → Maybe (Tree × KV)
 initLast (tree leaf)          = nothing
 initLast (tree {h = suc _} t) with Indexed.initLast t
 ... | ((_ , t′) , k) = just (tree t′ , k)
 
 -- The input does not need to be ordered.
 
-fromList : List KV -> Tree
+fromList : List KV → Tree
 fromList = List.foldr (Σ-uncurry insert) empty
 
 -- Returns an ordered list.
 
-toList : Tree -> List KV
+toList : Tree → List KV
 toList (tree t) = DiffList.toList (Indexed.toDiffList t)

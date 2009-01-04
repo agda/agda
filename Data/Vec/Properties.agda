@@ -9,12 +9,12 @@ open import Data.Vec.Equality
 open import Data.Nat
 open import Relation.Binary.PropositionalEquality
 
-replicate-lemma : forall {a m} n x (xs : Vec a m)
-  -> replicate {n = n}     x ++ (x ∷ xs) ≈-Vec
-     replicate {n = 1 + n} x ++      xs
+replicate-lemma : ∀ {a m} n x (xs : Vec a m) →
+                  replicate {n = n}     x ++ (x ∷ xs) ≈-Vec
+                  replicate {n = 1 + n} x ++      xs
 replicate-lemma zero    x xs = Vec-refl (x ∷ xs)
 replicate-lemma (suc n) x xs = ≡-refl ∷-cong replicate-lemma n x xs
 
-xs++[]=xs : forall {a n} (xs : Vec a n) -> xs ++ [] ≈-Vec xs
+xs++[]=xs : ∀ {a n} (xs : Vec a n) → xs ++ [] ≈-Vec xs
 xs++[]=xs []       = []-cong
 xs++[]=xs (x ∷ xs) = ≡-refl ∷-cong xs++[]=xs xs

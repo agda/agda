@@ -65,27 +65,27 @@ open import Data.Product
 private
 
   ∧-identity : Identity ⊤ _∧_
-  ∧-identity = (\_ -> ∧-comm _ _ ⟨ trans ⟩ x∧⊤=x _) , x∧⊤=x
+  ∧-identity = (λ _ → ∧-comm _ _ ⟨ trans ⟩ x∧⊤=x _) , x∧⊤=x
     where
-    x∧⊤=x : forall x -> x ∧ ⊤ ≈ x
+    x∧⊤=x : ∀ x → x ∧ ⊤ ≈ x
     x∧⊤=x x = begin
       x ∧ ⊤          ≈⟨ byDef ⟨ ∧-pres-≈ ⟩ sym (proj₂ ∨-complement _) ⟩
       x ∧ (x ∨ ¬ x)  ≈⟨ proj₂ absorptive _ _ ⟩
       x              ∎
 
   ∨-identity : Identity ⊥ _∨_
-  ∨-identity = (\_ -> ∨-comm _ _ ⟨ trans ⟩ x∨⊥=x _) , x∨⊥=x
+  ∨-identity = (λ _ → ∨-comm _ _ ⟨ trans ⟩ x∨⊥=x _) , x∨⊥=x
     where
-    x∨⊥=x : forall x -> x ∨ ⊥ ≈ x
+    x∨⊥=x : ∀ x → x ∨ ⊥ ≈ x
     x∨⊥=x x = begin
       x ∨ ⊥          ≈⟨ byDef ⟨ ∨-pres-≈ ⟩ sym (proj₂ ∧-complement _) ⟩
       x ∨ x ∧ ¬ x    ≈⟨ proj₁ absorptive _ _ ⟩
       x              ∎
 
   ∧-zero : Zero ⊥ _∧_
-  ∧-zero = (\_ -> ∧-comm _ _ ⟨ trans ⟩ x∧⊥=⊥ _) , x∧⊥=⊥
+  ∧-zero = (λ _ → ∧-comm _ _ ⟨ trans ⟩ x∧⊥=⊥ _) , x∧⊥=⊥
     where
-    x∧⊥=⊥ : forall x -> x ∧ ⊥ ≈ ⊥
+    x∧⊥=⊥ : ∀ x → x ∧ ⊥ ≈ ⊥
     x∧⊥=⊥ x = begin
       x ∧ ⊥          ≈⟨ byDef ⟨ ∧-pres-≈ ⟩ sym (proj₂ ∧-complement _) ⟩
       x ∧  x  ∧ ¬ x  ≈⟨ sym $ ∧-assoc _ _ _ ⟩
@@ -137,9 +137,9 @@ private
 private
 
   ∨-zero : Zero ⊤ _∨_
-  ∨-zero = (\_ -> ∨-comm _ _ ⟨ trans ⟩ x∨⊤=⊤ _) , x∨⊤=⊤
+  ∨-zero = (λ _ → ∨-comm _ _ ⟨ trans ⟩ x∨⊤=⊤ _) , x∨⊤=⊤
     where
-    x∨⊤=⊤ : forall x -> x ∨ ⊤ ≈ ⊤
+    x∨⊤=⊤ : ∀ x → x ∨ ⊤ ≈ ⊤
     x∨⊤=⊤ x = begin
       x ∨ ⊤          ≈⟨ byDef ⟨ ∨-pres-≈ ⟩ sym (proj₂ ∨-complement _) ⟩
       x ∨  x  ∨ ¬ x  ≈⟨ sym $ ∨-assoc _ _ _ ⟩
@@ -193,7 +193,7 @@ private
 -- by Gert Smolka.
 
 private
-  lemma : forall x y -> x ∧ y ≈ ⊥ -> x ∨ y ≈ ⊤ -> ¬ x ≈ y
+  lemma : ∀ x y → x ∧ y ≈ ⊥ → x ∨ y ≈ ⊤ → ¬ x ≈ y
   lemma x y x∧y=⊥ x∨y=⊤ = begin
     ¬ x                ≈⟨ sym $ proj₂ ∧-identity _ ⟩
     ¬ x ∧ ⊤            ≈⟨ byDef ⟨ ∧-pres-≈ ⟩ sym x∨y=⊤ ⟩
@@ -214,7 +214,7 @@ private
 ¬-involutive : Involutive ¬_
 ¬-involutive x = lemma (¬ x) x (proj₁ ∧-complement _) (proj₁ ∨-complement _)
 
-deMorgan₁ : forall x y -> ¬ (x ∧ y) ≈ ¬ x ∨ ¬ y
+deMorgan₁ : ∀ x y → ¬ (x ∧ y) ≈ ¬ x ∨ ¬ y
 deMorgan₁ x y = lemma (x ∧ y) (¬ x ∨ ¬ y) lem₁ lem₂
   where
   lem₁ = begin
@@ -242,7 +242,7 @@ deMorgan₁ x y = lemma (x ∧ y) (¬ x ∨ ¬ y) lem₁ lem₂
     ¬ x ∨ ⊤                ≈⟨ proj₂ ∨-zero _ ⟩
     ⊤                      ∎
 
-deMorgan₂ : forall x y -> ¬ (x ∨ y) ≈ ¬ x ∧ ¬ y
+deMorgan₂ : ∀ x y → ¬ (x ∨ y) ≈ ¬ x ∧ ¬ y
 deMorgan₂ x y = begin
   ¬ (x ∨ y)          ≈⟨ ¬-pres-≈ $ sym (¬-involutive _) ⟨ ∨-pres-≈ ⟩
                                    sym (¬-involutive _) ⟩
@@ -257,7 +257,7 @@ deMorgan₂ x y = begin
 
 module XorRing
   (xor : Op₂)
-  (⊕-def : forall x y -> xor x y ≈ (x ∨ y) ∧ ¬ (x ∧ y))
+  (⊕-def : ∀ x y → xor x y ≈ (x ∨ y) ∧ ¬ (x ∧ y))
   where
 
   private
@@ -267,11 +267,10 @@ module XorRing
     _⊕_ = xor
 
   private
-    helper :  forall {x y u v}
-           -> x ≈ y -> u ≈ v -> x ∧ ¬ u ≈ y ∧ ¬ v
+    helper : ∀ {x y u v} → x ≈ y → u ≈ v → x ∧ ¬ u ≈ y ∧ ¬ v
     helper x≈y u≈v = x≈y ⟨ ∧-pres-≈ ⟩ ¬-pres-≈ u≈v
 
-  ⊕-¬-distribˡ : forall x y -> ¬ (x ⊕ y) ≈ ¬ x ⊕ y
+  ⊕-¬-distribˡ : ∀ x y → ¬ (x ⊕ y) ≈ ¬ x ⊕ y
   ⊕-¬-distribˡ x y = begin
     ¬ (x ⊕ y)                              ≈⟨ ¬-pres-≈ $ ⊕-def _ _ ⟩
     ¬ ((x ∨ y) ∧ (¬ (x ∧ y)))              ≈⟨ ¬-pres-≈ (proj₂ ∧-∨-distrib _ _ _) ⟩
@@ -287,7 +286,7 @@ module XorRing
     (¬ x ∨ y) ∧ ¬ (¬ x ∧ y)                ≈⟨ sym $ ⊕-def _ _ ⟩
     ¬ x ⊕ y                                ∎
     where
-    lem : forall x y -> x ∧ ¬ (x ∧ y) ≈ x ∧ ¬ y
+    lem : ∀ x y → x ∧ ¬ (x ∧ y) ≈ x ∧ ¬ y
     lem x y = begin
       x ∧ ¬ (x ∧ y)          ≈⟨ byDef ⟨ ∧-pres-≈ ⟩ deMorgan₁ _ _ ⟩
       x ∧ (¬ x ∨ ¬ y)        ≈⟨ proj₁ ∧-∨-distrib _ _ _ ⟩
@@ -303,14 +302,14 @@ module XorRing
       (y ∨ x) ∧ ¬ (y ∧ x)  ≈⟨ sym $ ⊕-def _ _ ⟩
       y ⊕ x                ∎
 
-  ⊕-¬-distribʳ : forall x y -> ¬ (x ⊕ y) ≈ x ⊕ ¬ y
+  ⊕-¬-distribʳ : ∀ x y → ¬ (x ⊕ y) ≈ x ⊕ ¬ y
   ⊕-¬-distribʳ x y = begin
     ¬ (x ⊕ y)  ≈⟨ ¬-pres-≈ $ ⊕-comm _ _ ⟩
     ¬ (y ⊕ x)  ≈⟨ ⊕-¬-distribˡ _ _ ⟩
     ¬ y ⊕ x    ≈⟨ ⊕-comm _ _ ⟩
     x ⊕ ¬ y    ∎
 
-  ⊕-annihilates-¬ : forall x y -> x ⊕ y ≈ ¬ x ⊕ ¬ y
+  ⊕-annihilates-¬ : ∀ x y → x ⊕ y ≈ ¬ x ⊕ ¬ y
   ⊕-annihilates-¬ x y = begin
     x ⊕ y        ≈⟨ sym $ ¬-involutive _ ⟩
     ¬ ¬ (x ⊕ y)  ≈⟨ ¬-pres-≈ $ ⊕-¬-distribˡ _ _ ⟩
@@ -327,9 +326,9 @@ module XorRing
       y ⊕ v                ∎
 
     ⊕-identity : Identity ⊥ _⊕_
-    ⊕-identity = ⊥⊕x=x , (\_ -> ⊕-comm _ _ ⟨ trans ⟩ ⊥⊕x=x _)
+    ⊕-identity = ⊥⊕x=x , (λ _ → ⊕-comm _ _ ⟨ trans ⟩ ⊥⊕x=x _)
       where
-      ⊥⊕x=x : forall x -> ⊥ ⊕ x ≈ x
+      ⊥⊕x=x : ∀ x → ⊥ ⊕ x ≈ x
       ⊥⊕x=x x = begin
         ⊥ ⊕ x                ≈⟨ ⊕-def _ _ ⟩
         (⊥ ∨ x) ∧ ¬ (⊥ ∧ x)  ≈⟨ helper (proj₁ ∨-identity _)
@@ -339,9 +338,9 @@ module XorRing
         x                    ∎
 
     ⊕-inverse : Inverse ⊥ id _⊕_
-    ⊕-inverse = x⊕x=⊥ , (\_ -> ⊕-comm _ _ ⟨ trans ⟩ x⊕x=⊥ _)
+    ⊕-inverse = x⊕x=⊥ , (λ _ → ⊕-comm _ _ ⟨ trans ⟩ x⊕x=⊥ _)
       where
-      x⊕x=⊥ : forall x -> x ⊕ x ≈ ⊥
+      x⊕x=⊥ : ∀ x → x ⊕ x ≈ ⊥
       x⊕x=⊥ x = begin
         x ⊕ x                ≈⟨ ⊕-def _ _ ⟩
         (x ∨ x) ∧ ¬ (x ∧ x)  ≈⟨ helper (∨-idempotent _)
@@ -406,10 +405,10 @@ module XorRing
         (x ∧ y) ⊕ (x ∧ z)  ≈⟨ ∧-comm _ _ ⟨ ⊕-pres ⟩ ∧-comm _ _ ⟩
         (y ∧ x) ⊕ (z ∧ x)  ∎
 
-    lemma₂ :  forall x y u v
-           -> (x ∧ y) ∨ (u ∧ v) ≈
-              ((x ∨ u) ∧ (y ∨ u)) ∧
-              ((x ∨ v) ∧ (y ∨ v))
+    lemma₂ : ∀ x y u v →
+             (x ∧ y) ∨ (u ∧ v) ≈
+             ((x ∨ u) ∧ (y ∨ u)) ∧
+             ((x ∨ v) ∧ (y ∨ v))
     lemma₂ x y u v = begin
         (x ∧ y) ∨ (u ∧ v)              ≈⟨ proj₁ ∨-∧-distrib _ _ _ ⟩
         ((x ∧ y) ∨ u) ∧ ((x ∧ y) ∨ v)  ≈⟨ proj₂ ∨-∧-distrib _ _ _
@@ -554,4 +553,4 @@ infixl 6 _⊕_
 _⊕_ : Op₂
 x ⊕ y = (x ∨ y) ∧ ¬ (x ∧ y)
 
-module DefaultXorRing = XorRing _⊕_ (\_ _ -> byDef)
+module DefaultXorRing = XorRing _⊕_ (λ _ _ → byDef)

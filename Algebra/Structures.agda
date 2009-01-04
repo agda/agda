@@ -21,10 +21,10 @@ private
 
   -- Some abbreviations:
 
-  _Preserves-≈ : Op₁ -> Set
+  _Preserves-≈ : Op₁ → Set
   ∙ Preserves-≈ = ∙ Preserves _≈_ ⟶ _≈_
 
-  _Preserves₂-≈ : Op₂ -> Set
+  _Preserves₂-≈ : Op₂ → Set
   ∙ Preserves₂-≈ = ∙ Preserves₂ _≈_ ⟶ _≈_ ⟶ _≈_
 
 ----------------------------------------------------------------------

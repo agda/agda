@@ -21,15 +21,15 @@ open import Data.Fin using (#_)
 
 abstract
 
-  data BoundedVec (a : Set) : ℕ -> Set where
-    bVec : forall {m n} (xs : Vec a n) -> BoundedVec a (n + m)
+  data BoundedVec (a : Set) : ℕ → Set where
+    bVec : ∀ {m n} (xs : Vec a n) → BoundedVec a (n + m)
 
-  [] : forall {a n} -> BoundedVec a n
+  [] : ∀ {a n} → BoundedVec a n
   [] = bVec Vec.[]
 
   infixr 5 _∷_
 
-  _∷_ : forall {a n} -> a -> BoundedVec a n -> BoundedVec a (suc n)
+  _∷_ : ∀ {a n} → a → BoundedVec a n → BoundedVec a (suc n)
   x ∷ bVec xs = bVec (Vec._∷_ x xs)
 
 ------------------------------------------------------------------------
@@ -37,13 +37,13 @@ abstract
 
 infixr 5 _∷v_
 
-data View (a : Set) : ℕ -> Set where
-  []v  : forall {n} -> View a n
-  _∷v_ : forall {n} (x : a) (xs : BoundedVec a n) -> View a (suc n)
+data View (a : Set) : ℕ → Set where
+  []v  : ∀ {n} → View a n
+  _∷v_ : ∀ {n} (x : a) (xs : BoundedVec a n) → View a (suc n)
 
 abstract
 
-  view : forall {a n} -> BoundedVec a n -> View a n
+  view : ∀ {a n} → BoundedVec a n → View a n
   view (bVec Vec.[])         = []v
   view (bVec (Vec._∷_ x xs)) = x ∷v bVec xs
 
@@ -52,7 +52,7 @@ abstract
 
 abstract
 
-  ↑ : forall {a n} -> BoundedVec a n -> BoundedVec a (suc n)
+  ↑ : ∀ {a n} → BoundedVec a n → BoundedVec a (suc n)
   ↑ {a = a} (bVec {m = m} {n = n} xs) =
     ≡-subst (BoundedVec a) lemma
             (bVec {m = suc m} xs)
@@ -68,13 +68,14 @@ abstract
 
 abstract
 
-  fromList : forall {a} -> (xs : List a) -> BoundedVec a (List.length xs)
+  fromList : ∀ {a} → (xs : List a) → BoundedVec a (List.length xs)
   fromList {a = a} xs =
     ≡-subst (BoundedVec a) lemma
             (bVec {m = zero} (Vec.fromList xs))
     where
     M = var (# 0)
-    lemma = prove (Vec._∷_ (List.length xs) Vec.[]) (M :+ con 0) M ≡-refl
+    lemma = prove (Vec._∷_ (List.length xs) Vec.[])
+                  (M :+ con 0) M ≡-refl
 
-  toList : forall {a n} -> BoundedVec a n -> List a
+  toList : ∀ {a n} → BoundedVec a n → List a
   toList (bVec xs) = Vec.toList xs

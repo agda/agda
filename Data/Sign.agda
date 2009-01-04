@@ -20,11 +20,11 @@ data Sign : Set where
 
 _≟_ : Decidable {Sign} _≡_
 :- ≟ :- = yes ≡-refl
-:- ≟ :0 = no \()
-:- ≟ :+ = no \()
-:0 ≟ :- = no \()
+:- ≟ :0 = no λ()
+:- ≟ :+ = no λ()
+:0 ≟ :- = no λ()
 :0 ≟ :0 = yes ≡-refl
-:0 ≟ :+ = no \()
-:+ ≟ :- = no \()
-:+ ≟ :0 = no \()
+:0 ≟ :+ = no λ()
+:+ ≟ :- = no λ()
+:+ ≟ :0 = no λ()
 :+ ≟ :+ = yes ≡-refl

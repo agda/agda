@@ -31,54 +31,54 @@ module Map₁ (key-dto : DecTotalOrder) (elem-s : Setoid) where
   abstract
    postulate
     empty  : Map
-    insert : key -> elem -> Map -> Map
-    _∪_    : Map -> Map -> Map
-    _∈_    : key -> Map -> Set
-    _↦_∈_  : key -> elem -> Map -> Set
+    insert : key → elem → Map → Map
+    _∪_    : Map → Map → Map
+    _∈_    : key → Map → Set
+    _↦_∈_  : key → elem → Map → Set
 
   data LookupResult (k : key) (s : Map) : Set where
-    found    : (e : elem) (k↦e∈s : k ↦ e ∈ s) -> LookupResult k s
-    notFound : (k∉s : ¬ k ∈ s) -> LookupResult k s
+    found    : (e : elem) (k↦e∈s : k ↦ e ∈ s) → LookupResult k s
+    notFound : (k∉s : ¬ k ∈ s) → LookupResult k s
 
   abstract
    postulate
-    _∈?_   : (k : key) -> (s : Map) -> LookupResult k s
-    toList : Map -> List (key × elem)
+    _∈?_   : (k : key) → (s : Map) → LookupResult k s
+    toList : Map → List (key × elem)
 
    postulate
-    prop-∈₁ : forall {x v s}   -> x ↦ v ∈ s -> x ∈ s
-    prop-∈₂ : forall {x s}     -> x ∈ s -> Σ elem (\v -> x ↦ v ∈ s)
-    prop-∈₃ : forall {x v w s} -> x ↦ v ∈ s -> x ↦ w ∈ s -> v ≗ w
+    prop-∈₁ : ∀ {x v s}   → x ↦ v ∈ s → x ∈ s
+    prop-∈₂ : ∀ {x s}     → x ∈ s → Σ elem (λ v → x ↦ v ∈ s)
+    prop-∈₃ : ∀ {x v w s} → x ↦ v ∈ s → x ↦ w ∈ s → v ≗ w
 
-    prop-∈-insert₁ :  forall {x y v w s}
-                   -> x ≈ y -> v ≗ w -> x ↦ v ∈ insert y w s
-    prop-∈-insert₂ :  forall {x y v w s}
-                   -> ¬ x ≈ y -> x ↦ v ∈ s -> x ↦ v ∈ insert y w s
-    prop-∈-insert₃ :  forall {x y v w s}
-                   -> ¬ x ≈ y -> x ↦ v ∈ insert y w s -> x ↦ v ∈ s
+    prop-∈-insert₁ : ∀ {x y v w s} →
+                     x ≈ y → v ≗ w → x ↦ v ∈ insert y w s
+    prop-∈-insert₂ : ∀ {x y v w s} →
+                     ¬ x ≈ y → x ↦ v ∈ s → x ↦ v ∈ insert y w s
+    prop-∈-insert₃ : ∀ {x y v w s} →
+                     ¬ x ≈ y → x ↦ v ∈ insert y w s → x ↦ v ∈ s
 
-    prop-∈-empty : forall {x} -> ¬ x ∈ empty
+    prop-∈-empty : ∀ {x} → ¬ x ∈ empty
 
-    prop-∈-∪ : forall {x s₁ s₂} -> x ∈ s₁ -> x ∈ s₁ ∪ s₂
+    prop-∈-∪ : ∀ {x s₁ s₂} → x ∈ s₁ → x ∈ s₁ ∪ s₂
 
-    prop-∪₁ : forall {s₁ s₂}    -> s₁ ∪ s₂        |≈| s₂ ∪ s₁
-    prop-∪₂ : forall {s₁ s₂ s₃} -> s₁ ∪ (s₂ ∪ s₃) |≈| (s₁ ∪ s₂) ∪ s₃
+    prop-∪₁ : ∀ {s₁ s₂}    → s₁ ∪ s₂        |≈| s₂ ∪ s₁
+    prop-∪₂ : ∀ {s₁ s₂ s₃} → s₁ ∪ (s₂ ∪ s₃) |≈| (s₁ ∪ s₂) ∪ s₃
 
-    prop-∈-|≈|₁ : forall {x}   -> _|≈|_ Respects (\s -> x ∈ s)
-    prop-∈-|≈|₂ : forall {x v} -> _|≈|_ Respects (\s -> x ↦ v ∈ s)
-    prop-∈-≈₁   : forall {s}   -> _≈_   Respects (\x -> x ∈ s)
-    prop-∈-≈₂   : forall {v s} -> _≈_   Respects (\x -> x ↦ v ∈ s)
-    prop-∈-≗    : forall {x s} -> _≗_   Respects (\v -> x ↦ v ∈ s)
+    prop-∈-|≈|₁ : ∀ {x}   → _|≈|_ Respects (λ s → x ∈ s)
+    prop-∈-|≈|₂ : ∀ {x v} → _|≈|_ Respects (λ s → x ↦ v ∈ s)
+    prop-∈-≈₁   : ∀ {s}   → _≈_   Respects (λ x → x ∈ s)
+    prop-∈-≈₂   : ∀ {v s} → _≈_   Respects (λ x → x ↦ v ∈ s)
+    prop-∈-≗    : ∀ {x s} → _≗_   Respects (λ v → x ↦ v ∈ s)
 
     -- TODO: Postulates for toList.
 
-  singleton : key -> elem -> Map
+  singleton : key → elem → Map
   singleton k v = insert k v empty
 
-  ⋃_ : List Map -> Map
+  ⋃_ : List Map → Map
   ⋃_ = L.foldr _∪_ empty
 
-  fromList : List (key × elem) -> Map
+  fromList : List (key × elem) → Map
   fromList = L.foldr (uncurry insert) empty
 
 open Map₁ public renaming (Map to _⇰_)

@@ -25,7 +25,7 @@ open import Data.Function
 
 private
 
-  lem : forall x k r -> 2 + x ≤′ r + (1 + x) * (2 + k)
+  lem : ∀ x k r → 2 + x ≤′ r + (1 + x) * (2 + k)
   lem x k r = ≤⇒≤′ $ begin
     2 + x
       ≤⟨ m≤m+n _ _ ⟩
@@ -43,7 +43,7 @@ private
 
 -- Digit b is the type of digits in base b.
 
-Digit : ℕ -> Set
+Digit : ℕ → Set
 Digit b = Fin b
 
 -- Some specific digit kinds.
@@ -71,8 +71,8 @@ digitChars =
 
 -- showDigit shows digits in base ≤ 16.
 
-showDigit : forall {base} {base≤16 : True (base ≤? 16)} ->
-            Digit base -> Char
+showDigit : ∀ {base} {base≤16 : True (base ≤? 16)} →
+            Digit base → Char
 showDigit {base≤16 = base≤16} d =
   Vec.lookup (Fin.inject≤ d (witnessToTruth base≤16)) digitChars
 
@@ -83,7 +83,7 @@ showDigit {base≤16 = base≤16} d =
 -- with the _least_ significant digit, and returns the corresponding
 -- natural number.
 
-fromDigits : forall {base} -> List (Fin base) -> ℕ
+fromDigits : ∀ {base} → List (Fin base) → ℕ
 fromDigits        []       = 0
 fromDigits {base} (d ∷ ds) = toℕ d + fromDigits ds * base
 
@@ -95,10 +95,10 @@ fromDigits {base} (d ∷ ds) = toℕ d + fromDigits ds * base
 -- This function should be linear in n, if optimised properly (see
 -- Data.Nat.DivMod).
 
-data Digits (base : ℕ) : ℕ -> Set where
-  digits : (ds : List (Fin base)) -> Digits base (fromDigits ds)
+data Digits (base : ℕ) : ℕ → Set where
+  digits : (ds : List (Fin base)) → Digits base (fromDigits ds)
 
-toDigits : (base : ℕ) {base≥2 : True (2 ≤? base)} (n : ℕ) ->
+toDigits : (base : ℕ) {base≥2 : True (2 ≤? base)} (n : ℕ) →
            Digits base n
 toDigits zero       {base≥2 = ()} _
 toDigits (suc zero) {base≥2 = ()} _
@@ -107,16 +107,16 @@ toDigits (suc (suc k)) n = <-rec Pred helper n
   base = suc (suc k)
   Pred = Digits base
 
-  cons : forall {n} (r : Fin base) -> Pred n -> Pred (toℕ r + n * base)
+  cons : ∀ {n} (r : Fin base) → Pred n → Pred (toℕ r + n * base)
   cons r (digits ds) = digits (r ∷ ds)
 
-  helper : forall n -> <-Rec Pred n -> Pred n
+  helper : ∀ n → <-Rec Pred n → Pred n
   helper n rec with n divMod base
   helper .(toℕ r + 0     * base) rec | result zero    r = digits (r ∷ [])
   helper .(toℕ r + suc x * base) rec | result (suc x) r =
     cons r (rec (suc x) (lem (pred (suc x)) k (toℕ r)))
 
-theDigits : (base : ℕ) {base≥2 : True (2 ≤? base)} (n : ℕ) ->
+theDigits : (base : ℕ) {base≥2 : True (2 ≤? base)} (n : ℕ) →
             List (Fin base)
 theDigits base {base≥2} n       with toDigits base {base≥2} n
 theDigits base .(fromDigits ds) | digits ds = ds

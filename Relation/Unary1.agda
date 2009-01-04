@@ -9,8 +9,8 @@ module Relation.Unary1 where
 ------------------------------------------------------------------------
 -- Unary relations
 
-Pred : Set -> Set2
-Pred a = a -> Set1
+Pred : Set → Set2
+Pred a = a → Set1
 
 ------------------------------------------------------------------------
 -- Unary relations can be seen as sets
@@ -25,22 +25,22 @@ private
 
   infix 4 _∈_
 
-  _∈_ : a -> Pred a -> Set1
+  _∈_ : a → Pred a → Set1
   x ∈ P = P x
 
   -- The property of being universal.
 
-  Universal : Pred a -> Set1
-  Universal P = forall x -> x ∈ P
+  Universal : Pred a → Set1
+  Universal P = ∀ x → x ∈ P
 
   -- P ⊆ Q means that P is a subset of Q.
 
   infix 4 _⊆_ _⊇_
 
-  _⊆_ : Pred a -> Pred a -> Set1
-  P ⊆ Q = forall x -> x ∈ P -> x ∈ Q
+  _⊆_ : Pred a → Pred a → Set1
+  P ⊆ Q = ∀ x → x ∈ P → x ∈ Q
 
-  _⊇_ : Pred a -> Pred a -> Set1
+  _⊇_ : Pred a → Pred a → Set1
   Q ⊇ P = P ⊆ Q
 
 open Dummy public

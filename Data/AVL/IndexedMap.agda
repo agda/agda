@@ -7,11 +7,11 @@ open import Relation.Binary.PropositionalEquality
 open import Data.Product
 
 module Data.AVL.IndexedMap
-         {Index : Set} {Key : Index -> Set} {_≈_ _<_ : Rel (∃ Key)}
+         {Index : Set} {Key : Index → Set} {_≈_ _<_ : Rel (∃ Key)}
          (isOrderedKeySet : IsStrictTotalOrder _≈_ _<_)
          -- Equal keys must have equal indices.
          (indicesEqual : _≈_ =[ proj₁ ]⇒ _≡_)
-         (Value : Index -> Set)
+         (Value : Index → Set)
          where
 
 import Data.AVL
@@ -25,16 +25,16 @@ open RawFunctor MaybeFunctor
 -- Key/value pairs.
 
 KV : Set
-KV = ∃ \i -> Key i × Value i
+KV = ∃ λ i → Key i × Value i
 
 -- Conversions.
 
 private
 
-  fromKV : KV -> Σ (∃ Key) \ik -> Value (proj₁ ik)
+  fromKV : KV → Σ (∃ Key) λ ik → Value (proj₁ ik)
   fromKV (i , k , v) = ((i , k) , v)
 
-  toKV : Σ (∃ Key) (\ik -> Value (proj₁ ik)) -> KV
+  toKV : Σ (∃ Key) (λ ik → Value (proj₁ ik)) → KV
   toKV ((i , k) , v) = (i , k , v)
 
 private
@@ -49,7 +49,7 @@ private
 
 -- The map type.
 
-private module AVL = Data.AVL Order (\ik -> Value (proj₁ ik))
+private module AVL = Data.AVL Order (λ ik → Value (proj₁ ik))
 open AVL public using () renaming (Tree to Map)
 
 -- Repackaged functions.
@@ -57,32 +57,32 @@ open AVL public using () renaming (Tree to Map)
 empty : Map
 empty = AVL.empty
 
-singleton : forall {i} -> Key i -> Value i -> Map
+singleton : ∀ {i} → Key i → Value i → Map
 singleton k v = AVL.singleton (, k) v
 
-insert : forall {i} -> Key i -> Value i -> Map -> Map
+insert : ∀ {i} → Key i → Value i → Map → Map
 insert k v = AVL.insert (, k) v
 
-delete : forall {i} -> Key i -> Map -> Map
+delete : ∀ {i} → Key i → Map → Map
 delete k = AVL.delete (, k)
 
-lookup : forall {i} -> Key i -> Map -> Maybe (Value i)
+lookup : ∀ {i} → Key i → Map → Maybe (Value i)
 lookup k m with AVL.lookup (_ , k) m
 ... | nothing                    = nothing
 ... | just ((i′ , k′) , v′ , eq) with indicesEqual eq
 ...   | ≡-refl = just v′
 
-_∈?_ : forall {i} -> Key i -> Map -> Bool
+_∈?_ : ∀ {i} → Key i → Map → Bool
 _∈?_ k = AVL._∈?_ (, k)
 
-headTail : Map -> Maybe (KV × Map)
+headTail : Map → Maybe (KV × Map)
 headTail m = map-× toKV id <$> AVL.headTail m
 
-initLast : Map -> Maybe (Map × KV)
+initLast : Map → Maybe (Map × KV)
 initLast m = map-× id toKV <$> AVL.initLast m
 
-fromList : List KV -> Map
+fromList : List KV → Map
 fromList = AVL.fromList ∘ map fromKV
 
-toList : Map -> List KV
+toList : Map → List KV
 toList = map toKV ∘ AVL.toList

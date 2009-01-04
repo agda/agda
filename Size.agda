@@ -6,7 +6,7 @@ module Size where
 
 postulate
   Size : Set
-  ↑_   : Size -> Size
+  ↑_   : Size → Size
   ∞    : Size
 
 {-# BUILTIN SIZE    Size #-}

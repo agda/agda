@@ -49,31 +49,30 @@ data Op : Set where
 -- The polynomials are indexed over the number of variables.
 
 data Polynomial (m : ℕ) : Set where
-  op   : (o : Op) (p₁ : Polynomial m) (p₂ : Polynomial m) ->
-         Polynomial m
-  con  : (c : C.carrier) -> Polynomial m
-  var  : (x : Fin m) -> Polynomial m
-  _:^_ : (p : Polynomial m) (n : ℕ) -> Polynomial m
-  :-_  : (p : Polynomial m) -> Polynomial m
+  op   : (o : Op) (p₁ : Polynomial m) (p₂ : Polynomial m) → Polynomial m
+  con  : (c : C.carrier) → Polynomial m
+  var  : (x : Fin m) → Polynomial m
+  _:^_ : (p : Polynomial m) (n : ℕ) → Polynomial m
+  :-_  : (p : Polynomial m) → Polynomial m
 
 -- Short-hand notation.
 
-_:+_ : forall {n} -> Polynomial n -> Polynomial n -> Polynomial n
+_:+_ : ∀ {n} → Polynomial n → Polynomial n → Polynomial n
 _:+_ = op [+]
 
-_:*_ : forall {n} -> Polynomial n -> Polynomial n -> Polynomial n
+_:*_ : ∀ {n} → Polynomial n → Polynomial n → Polynomial n
 _:*_ = op [*]
 
-_:-_ : forall {n} -> Polynomial n -> Polynomial n -> Polynomial n
+_:-_ : ∀ {n} → Polynomial n → Polynomial n → Polynomial n
 x :- y = x :+ :- y
 
 -- Semantics.
 
-sem : Op -> Op₂
+sem : Op → Op₂
 sem [+] = _+_
 sem [*] = _*_
 
-⟦_⟧_ : forall {n} -> Polynomial n -> Vec carrier n -> carrier
+⟦_⟧_ : ∀ {n} → Polynomial n → Vec carrier n → carrier
 ⟦ op o p₁ p₂ ⟧ ρ = ⟦ p₁ ⟧ ρ ⟨ sem o ⟩ ⟦ p₂ ⟧ ρ
 ⟦ con c ⟧      ρ = ⟦ c ⟧'
 ⟦ var x ⟧      ρ = lookup x ρ
@@ -84,12 +83,12 @@ private
 
   -- Equality.
 
-  _≛_ : forall {n} -> Polynomial n -> Polynomial n -> Set
-  p₁ ≛ p₂ = forall {ρ} -> ⟦ p₁ ⟧ ρ ≈ ⟦ p₂ ⟧ ρ
+  _≛_ : ∀ {n} → Polynomial n → Polynomial n → Set
+  p₁ ≛ p₂ = ∀ {ρ} → ⟦ p₁ ⟧ ρ ≈ ⟦ p₂ ⟧ ρ
 
   -- Reindexing.
 
-  _:↑_ : forall {n} -> Polynomial n -> (m : ℕ) -> Polynomial (m ℕ-+ n)
+  _:↑_ : ∀ {n} → Polynomial n → (m : ℕ) → Polynomial (m ℕ-+ n)
   op o p₁ p₂ :↑ m = op o (p₁ :↑ m) (p₂ :↑ m)
   con c      :↑ m = con c
   var x      :↑ m = var (Fin.raise m x)
@@ -105,17 +104,14 @@ private
   -- * the number of variables in the polynomial, and
   -- * an equivalent polynomial.
 
-  data Normal : (n : ℕ) -> Polynomial n -> Set where
-    con-NF : (c : C.carrier) -> Normal 0 (con c)
-    _↑-NF  : forall {n p'}
-             (p : Normal n p') -> Normal (suc n) (p' :↑ 1)
-    _*x+_  : forall {n p' c'}
-             (p : Normal (suc n) p') (c : Normal n c') ->
+  data Normal : (n : ℕ) → Polynomial n → Set where
+    con-NF : (c : C.carrier) → Normal 0 (con c)
+    _↑-NF  : ∀ {n p'} (p : Normal n p') → Normal (suc n) (p' :↑ 1)
+    _*x+_  : ∀ {n p' c'} (p : Normal (suc n) p') (c : Normal n c') →
              Normal (suc n) (p' :* var zero :+ c' :↑ 1)
-    _∷-NF_ : forall {n p₁ p₂}
-             (p : Normal n p₁) (eq : p₁ ≛ p₂) -> Normal n p₂
+    _∷-NF_ : ∀ {n p₁ p₂} (p : Normal n p₁) (eq : p₁ ≛ p₂) → Normal n p₂
 
-  ⟦_⟧-NF_ : forall {n p} -> Normal n p -> Vec carrier n -> carrier
+  ⟦_⟧-NF_ : ∀ {n p} → Normal n p → Vec carrier n → carrier
   ⟦ p ∷-NF _ ⟧-NF ρ       = ⟦ p ⟧-NF ρ
   ⟦ con-NF c ⟧-NF ρ       = ⟦ c ⟧'
   ⟦ p ↑-NF   ⟧-NF (x ∷ ρ) = ⟦ p ⟧-NF ρ
@@ -126,14 +122,12 @@ private
 
 private
 
-  con-NF⋆ : forall {n} -> (c : C.carrier) -> Normal n (con c)
+  con-NF⋆ : ∀ {n} → (c : C.carrier) → Normal n (con c)
   con-NF⋆ {zero}  c = con-NF c
   con-NF⋆ {suc _} c = con-NF⋆ c ↑-NF
 
-  _+-NF_
-    :  forall {n p₁ p₂}
-    -> Normal n p₁ -> Normal n p₂
-    -> Normal n (p₁ :+ p₂)
+  _+-NF_ : ∀ {n p₁ p₂} →
+           Normal n p₁ → Normal n p₂ → Normal n (p₁ :+ p₂)
   (p₁ ∷-NF eq₁) +-NF (p₂ ∷-NF eq₂) = p₁ +-NF p₂                    ∷-NF eq₁  ⟨ +-pres-≈ ⟩ eq₂
   (p₁ ∷-NF eq)  +-NF p₂            = p₁ +-NF p₂                    ∷-NF eq   ⟨ +-pres-≈ ⟩ refl
   p₁            +-NF (p₂ ∷-NF eq)  = p₁ +-NF p₂                    ∷-NF refl ⟨ +-pres-≈ ⟩ eq
@@ -143,7 +137,7 @@ private
   p₁ *x+ c₁     +-NF p₂ *x+ c₂     = (p₁ +-NF p₂) *x+ (c₁ +-NF c₂) ∷-NF lemma₁ _ _ _ _ _
   p₁ ↑-NF       +-NF p₂ *x+ c₂     = p₂ *x+ (p₁ +-NF c₂)           ∷-NF lemma₂ _ _ _
 
-  _*x : forall {n p} -> Normal (suc n) p -> Normal (suc n) (p :* var zero)
+  _*x : ∀ {n p} → Normal (suc n) p → Normal (suc n) (p :* var zero)
   p *x = p *x+ con-NF⋆ C.0# ∷-NF lemma₀ _
 
   mutual
@@ -152,18 +146,15 @@ private
     -- make the termination checker believe that the code is
     -- terminating.
 
-    _↑-*-NF_
-      :  forall {n p₁ p₂}
-      -> Normal n p₁ -> Normal (suc n) p₂
-      -> Normal (suc n) (p₁ :↑ 1 :* p₂)
+    _↑-*-NF_ : ∀ {n p₁ p₂} →
+               Normal n p₁ → Normal (suc n) p₂ →
+               Normal (suc n) (p₁ :↑ 1 :* p₂)
     p₁ ↑-*-NF (p₂ ∷-NF eq) = p₁ ↑-*-NF p₂                    ∷-NF refl ⟨ *-pres-≈ ⟩ eq
     p₁ ↑-*-NF p₂ ↑-NF      = (p₁ *-NF p₂) ↑-NF               ∷-NF refl
     p₁ ↑-*-NF (p₂ *x+ c₂)  = (p₁ ↑-*-NF p₂) *x+ (p₁ *-NF c₂) ∷-NF lemma₄ _ _ _ _
 
-    _*-NF_
-      :  forall {n p₁ p₂}
-      -> Normal n p₁ -> Normal n p₂
-      -> Normal n (p₁ :* p₂)
+    _*-NF_ : ∀ {n p₁ p₂} →
+             Normal n p₁ → Normal n p₂ → Normal n (p₁ :* p₂)
     (p₁ ∷-NF eq₁) *-NF (p₂ ∷-NF eq₂) = p₁ *-NF p₂                         ∷-NF eq₁  ⟨ *-pres-≈ ⟩ eq₂
     (p₁ ∷-NF eq)  *-NF p₂            = p₁ *-NF p₂                         ∷-NF eq   ⟨ *-pres-≈ ⟩ refl
     p₁            *-NF (p₂ ∷-NF eq)  = p₁ *-NF p₂                         ∷-NF refl ⟨ *-pres-≈ ⟩ eq
@@ -175,47 +166,45 @@ private
       (p₁ *-NF p₂) *x *x +-NF
       (p₁ *-NF c₂ ↑-NF +-NF c₁ ↑-*-NF p₂) *x+ (c₁ *-NF c₂)                ∷-NF lemma₅ _ _ _ _ _
 
-  --NF_ :  forall {n p} -> Normal n p -> Normal n (:- p)
+  --NF_ : ∀ {n p} → Normal n p → Normal n (:- p)
   --NF_ (p ∷-NF eq) = --NF_ p ∷-NF --pres-≈ eq
   --NF_ (con-NF c)  = con-NF (C.-_ c) ∷-NF --homo _
   --NF_ (p ↑-NF)    = --NF_ p ↑-NF
   --NF_ (p *x+ c)   = --NF_ p *x+ --NF_ c ∷-NF lemma₆ _ _ _
 
-  var-NF : forall {n} -> (i : Fin n) -> Normal n (var i)
+  var-NF : ∀ {n} → (i : Fin n) → Normal n (var i)
   var-NF zero    = con-NF⋆ C.1# *x+ con-NF⋆ C.0# ∷-NF lemma₇ _
   var-NF (suc i) = var-NF i ↑-NF
 
-  _^-NF_ : forall {n p} -> Normal n p -> (i : ℕ) -> Normal n (p :^ i)
+  _^-NF_ : ∀ {n p} → Normal n p → (i : ℕ) → Normal n (p :^ i)
   p ^-NF zero  = con-NF⋆ C.1#    ∷-NF 1-homo
   p ^-NF suc n = p *-NF p ^-NF n ∷-NF refl
 
-  normaliseOp
-    :  (o : Op)
-    -> forall {n p₁ p₂}
-    -> Normal n p₁ -> Normal n p₂ -> Normal n (p₁ ⟨ op o ⟩ p₂)
+  normaliseOp : ∀ (o : Op) {n p₁ p₂} →
+                Normal n p₁ → Normal n p₂ → Normal n (p₁ ⟨ op o ⟩ p₂)
   normaliseOp [+] = _+-NF_
   normaliseOp [*] = _*-NF_
 
-  normalise : forall {n} (p : Polynomial n) -> Normal n p
+  normalise : ∀ {n} (p : Polynomial n) → Normal n p
   normalise (op o p₁ p₂) = normalise p₁ ⟨ normaliseOp o ⟩ normalise p₂
   normalise (con c)      = con-NF⋆ c
   normalise (var i)      = var-NF i
   normalise (p :^ n)     = normalise p ^-NF n
   normalise (:- p)       = --NF normalise p
 
-⟦_⟧↓_ : forall {n} -> Polynomial n -> Vec carrier n -> carrier
+⟦_⟧↓_ : ∀ {n} → Polynomial n → Vec carrier n → carrier
 ⟦ p ⟧↓ ρ = ⟦ normalise p ⟧-NF ρ
 
 ------------------------------------------------------------------------
 -- Correctness
 
 private
-  sem-pres-≈ : forall op -> sem op Preserves₂ _≈_ ⟶ _≈_ ⟶ _≈_
+  sem-pres-≈ : ∀ op → sem op Preserves₂ _≈_ ⟶ _≈_ ⟶ _≈_
   sem-pres-≈ [+] = +-pres-≈
   sem-pres-≈ [*] = *-pres-≈
 
-  raise-sem :  forall {n x} (p : Polynomial n) ρ
-            -> ⟦ p :↑ 1 ⟧ (x ∷ ρ) ≈ ⟦ p ⟧ ρ
+  raise-sem : ∀ {n x} (p : Polynomial n) ρ →
+              ⟦ p :↑ 1 ⟧ (x ∷ ρ) ≈ ⟦ p ⟧ ρ
   raise-sem (op o p₁ p₂) ρ = raise-sem p₁ ρ ⟨ sem-pres-≈ o ⟩
                              raise-sem p₂ ρ
   raise-sem (con c)      ρ = refl
@@ -223,8 +212,8 @@ private
   raise-sem (p :^ n)     ρ = raise-sem p ρ ⟨ ^-pres-≈ ⟩ ≡-refl {x = n}
   raise-sem (:- p)       ρ = --pres-≈ (raise-sem p ρ)
 
-  nf-sound :  forall {n p} (nf : Normal n p) ρ
-           -> ⟦ nf ⟧-NF ρ ≈ ⟦ p ⟧ ρ
+  nf-sound : ∀ {n p} (nf : Normal n p) ρ →
+             ⟦ nf ⟧-NF ρ ≈ ⟦ p ⟧ ρ
   nf-sound (nf ∷-NF eq)         ρ       = nf-sound nf ρ ⟨ trans ⟩ eq
   nf-sound (con-NF c)           ρ       = refl
   nf-sound (_↑-NF {p' = p'} nf) (x ∷ ρ) =
@@ -240,9 +229,9 @@ private
 ------------------------------------------------------------------------
 -- "Tactic"
 
-prove :  forall {n} (ρ : Vec carrier n) p₁ p₂
-      -> ⟦ p₁ ⟧↓ ρ ≈ ⟦ p₂ ⟧↓ ρ
-      -> ⟦ p₁ ⟧  ρ ≈ ⟦ p₂ ⟧  ρ
+prove : ∀ {n} (ρ : Vec carrier n) p₁ p₂ →
+        ⟦ p₁ ⟧↓ ρ ≈ ⟦ p₂ ⟧↓ ρ →
+        ⟦ p₁ ⟧  ρ ≈ ⟦ p₂ ⟧  ρ
 prove ρ p₁ p₂ eq =
   sym (nf-sound (normalise p₁) ρ)
     ⟨ trans ⟩

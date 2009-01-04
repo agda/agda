@@ -22,7 +22,7 @@ open EqR setoid
 
 infixr 7 _×_
 
-_×_ : ℕ -> carrier -> carrier
+_×_ : ℕ → carrier → carrier
 zero  × x = 0#
 suc n × x = x + n × x
 
@@ -30,7 +30,7 @@ suc n × x = x + n × x
 
 infixr 8 _^_
 
-_^_ : carrier -> ℕ -> carrier
+_^_ : carrier → ℕ → carrier
 x ^ zero  = 1#
 x ^ suc n = x * x ^ n
 
@@ -39,11 +39,11 @@ x ^ suc n = x * x ^ n
 
 ×-pres-≈ : _×_ Preserves₂ _≡_ ⟶ _≈_ ⟶ _≈_
 ×-pres-≈ {n} {n'} {x} {x'} n≡n' x≈x' = begin
-  n  × x   ≈⟨ reflexive $ ≡-cong (\n -> n × x) n≡n' ⟩
+  n  × x   ≈⟨ reflexive $ ≡-cong (λ n → n × x) n≡n' ⟩
   n' × x   ≈⟨ ×-pres-≈ʳ n' x≈x' ⟩
   n' × x'  ∎
   where
-  ×-pres-≈ʳ : forall n -> (_×_ n) Preserves _≈_ ⟶ _≈_
+  ×-pres-≈ʳ : ∀ n → (_×_ n) Preserves _≈_ ⟶ _≈_
   ×-pres-≈ʳ zero    x≈x' = byDef
   ×-pres-≈ʳ (suc n) x≈x' = x≈x' ⟨ +-pres-≈ ⟩ ×-pres-≈ʳ n x≈x'
 
@@ -53,6 +53,6 @@ x ^ suc n = x * x ^ n
   x  ^ n'  ≈⟨ ^-pres-≈ˡ n' x≈x' ⟩
   x' ^ n'  ∎
   where
-  ^-pres-≈ˡ : forall n -> (\x -> x ^ n) Preserves _≈_ ⟶ _≈_
+  ^-pres-≈ˡ : ∀ n → (λ x → x ^ n) Preserves _≈_ ⟶ _≈_
   ^-pres-≈ˡ zero    x≈x' = byDef
   ^-pres-≈ˡ (suc n) x≈x' = x≈x' ⟨ *-pres-≈ ⟩ ^-pres-≈ˡ n x≈x'

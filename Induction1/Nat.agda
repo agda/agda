@@ -14,10 +14,10 @@ import Induction1.WellFounded as WF
 
 open WF _<′_ using (Acc; acc)
 
-allAcc : forall n -> Acc n
+allAcc : ∀ n → Acc n
 allAcc n = acc (helper n)
   where
-  helper : forall n m -> m <′ n -> Acc m
+  helper : ∀ n m → m <′ n → Acc m
   helper zero     _ ()
   helper (suc n) .n ≤′-refl        = acc (helper n)
   helper (suc n)  m (≤′-step m<′n) = helper n m m<′n

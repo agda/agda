@@ -29,30 +29,30 @@ data Bool : Set where
 ------------------------------------------------------------------------
 -- Some operations
 
-not : Bool -> Bool
+not : Bool → Bool
 not true  = false
 not false = true
 
 -- A function mapping true to an inhabited type and false to an empty
 -- type.
 
-T : Bool -> Set
+T : Bool → Set
 T true  = ⊤
 T false = ⊥
 
-if_then_else_ : {a : Set} -> Bool -> a -> a -> a
+if_then_else_ : {a : Set} → Bool → a → a → a
 if true  then t else f = t
 if false then t else f = f
 
-_∧_ : Bool -> Bool -> Bool
+_∧_ : Bool → Bool → Bool
 true  ∧ b = b
 false ∧ b = false
 
-_∨_ : Bool -> Bool -> Bool
+_∨_ : Bool → Bool → Bool
 true  ∨ b = true
 false ∨ b = b
 
-_xor_ : Bool -> Bool -> Bool
+_xor_ : Bool → Bool → Bool
 true  xor b = not b
 false xor b = b
 
@@ -62,8 +62,8 @@ false xor b = b
 _Bool-≟_ : Decidable {Bool} _≡_
 true  Bool-≟ true  = yes ≡-refl
 false Bool-≟ false = yes ≡-refl
-true  Bool-≟ false = no \()
-false Bool-≟ true  = no \()
+true  Bool-≟ false = no λ()
+false Bool-≟ true  = no λ()
 
 ------------------------------------------------------------------------
 -- Some properties

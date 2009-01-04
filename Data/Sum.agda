@@ -12,23 +12,20 @@ open import Data.Function
 infixr 1 _⊎_
 
 data _⊎_ (A B : Set) : Set where
-  inj₁ : (x : A) -> A ⊎ B
-  inj₂ : (y : B) -> A ⊎ B
+  inj₁ : (x : A) → A ⊎ B
+  inj₂ : (y : B) → A ⊎ B
 
 ------------------------------------------------------------------------
 -- Functions
 
-[_,_] :  {a b c : Set}
-      -> (a -> c) -> (b -> c) -> (a ⊎ b -> c)
+[_,_] : ∀ {a b c} → (a → c) → (b → c) → (a ⊎ b → c)
 [ f , g ] (inj₁ x) = f x
 [ f , g ] (inj₂ y) = g y
 
-map-⊎ :  {a b c d : Set}
-      -> (a -> c) -> (b -> d) -> (a ⊎ b -> c ⊎ d)
+map-⊎ : ∀ {a b c d} → (a → c) → (b → d) → (a ⊎ b → c ⊎ d)
 map-⊎ f g = [ inj₁ ∘ f , inj₂ ∘ g ]
 
 infixr 1 _-⊎-_
 
-_-⊎-_ :  {a b : Set}
-      -> (a -> b -> Set) -> (a -> b -> Set) -> (a -> b -> Set)
+_-⊎-_ : ∀ {a b} → (a → b → Set) → (a → b → Set) → (a → b → Set)
 f -⊎- g = f -[ _⊎_ ]₁- g

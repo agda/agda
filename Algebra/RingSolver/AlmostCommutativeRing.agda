@@ -23,8 +23,8 @@ record IsAlmostCommutativeRing (s : Setoid)
   field
     isCommutativeSemiring : IsCommutativeSemiring s _+_ _*_ 0# 1#
     --pres-≈              : -_ Preserves _≈_ ⟶ _≈_
-    --*-distribˡ          : forall x y -> (- x) * y ≈ - (x * y)
-    --+-comm              : forall x y -> (- x) + (- y) ≈ - (x + y)
+    --*-distribˡ          : ∀ x y → (- x) * y ≈ - (x * y)
+    --+-comm              : ∀ x y → (- x) + (- y) ≈ - (x + y)
 
   open IsCommutativeSemiring s isCommutativeSemiring public
 
@@ -74,18 +74,18 @@ record AlmostCommutativeRing : Set1 where
 ------------------------------------------------------------------------
 -- Homomorphisms
 
-_-Raw-AlmostCommutative⟶_ : RawRing -> AlmostCommutativeRing -> Set
+_-Raw-AlmostCommutative⟶_ : RawRing → AlmostCommutativeRing → Set
 from -Raw-AlmostCommutative⟶ to = from -RawRing⟶ rawRing to
   where open AlmostCommutativeRing
 
 -raw-almostCommutative⟶
-  : forall r ->
+  : ∀ r →
     AlmostCommutativeRing.rawRing r -Raw-AlmostCommutative⟶ r
 -raw-almostCommutative⟶ r = record
   { ⟦_⟧    = id
-  ; +-homo = \_ _ -> refl
-  ; *-homo = \_ _ -> refl
-  ; --homo = \_ -> refl
+  ; +-homo = λ _ _ → refl
+  ; *-homo = λ _ _ → refl
+  ; --homo = λ _ → refl
   ; 0-homo = refl
   ; 1-homo = refl
   }
@@ -96,7 +96,7 @@ from -Raw-AlmostCommutative⟶ to = from -RawRing⟶ rawRing to
 
 -- Commutative rings are almost commutative rings.
 
-fromCommutativeRing : CommutativeRing -> AlmostCommutativeRing
+fromCommutativeRing : CommutativeRing → AlmostCommutativeRing
 fromCommutativeRing cr = record
   { setoid                  = setoid
   ; _+_                     = _+_
@@ -119,7 +119,7 @@ fromCommutativeRing cr = record
 -- Commutative semirings can be viewed as almost commutative rings by
 -- using identity as the "almost negation".
 
-fromCommutativeSemiring : CommutativeSemiring -> AlmostCommutativeRing
+fromCommutativeSemiring : CommutativeSemiring → AlmostCommutativeRing
 fromCommutativeSemiring cs = record
   { setoid                  = setoid
   ; _+_                     = _+_
@@ -130,8 +130,8 @@ fromCommutativeSemiring cs = record
   ; isAlmostCommutativeRing = record
       { isCommutativeSemiring = isCommutativeSemiring
       ; --pres-≈              = id
-      ; --*-distribˡ          = \_ _ -> refl
-      ; --+-comm              = \_ _ -> refl
+      ; --*-distribˡ          = λ _ _ → refl
+      ; --+-comm              = λ _ _ → refl
       }
   }
   where open CommutativeSemiring cs

@@ -23,15 +23,15 @@ open import Category.Monad
 
 -- Finite sets decorated with elements (note the use of suc).
 
-BoundedVec : Set -> ℕ -> Set
-BoundedVec a n = Any (\_ -> a) (\_ -> ⊤) (suc n)
+BoundedVec : Set → ℕ → Set
+BoundedVec a n = Any (λ _ → a) (λ _ → ⊤) (suc n)
 
-[] : forall {a n} -> BoundedVec a n
+[] : ∀ {a n} → BoundedVec a n
 [] = this tt
 
 infixr 5 _∷_
 
-_∷_ : forall {a n} -> a -> BoundedVec a n -> BoundedVec a (suc n)
+_∷_ : ∀ {a n} → a → BoundedVec a n → BoundedVec a (suc n)
 _∷_ = that
 
 ------------------------------------------------------------------------
@@ -39,24 +39,24 @@ _∷_ = that
 
 -- Note that this operation is linear in the length of the list.
 
-↑ : forall {a n} -> BoundedVec a n -> BoundedVec a (suc n)
+↑ : ∀ {a n} → BoundedVec a n → BoundedVec a (suc n)
 ↑ {a} = gmap inc lift
   where
   open RawMonad MaybeMonad
 
   inc = _<$>_ (map-NonEmpty suc)
 
-  lift : Pointer (\_ -> a) (\_ -> ⊤) =[ inc ]⇒
-         Pointer (\_ -> a) (\_ -> ⊤)
+  lift : Pointer (λ _ → a) (λ _ → ⊤) =[ inc ]⇒
+         Pointer (λ _ → a) (λ _ → ⊤)
   lift (step x) = step x
   lift (done _) = done _
 
 ------------------------------------------------------------------------
 -- Conversions
 
-fromList : forall {a} -> (xs : List a) -> BoundedVec a (length xs)
+fromList : ∀ {a} → (xs : List a) → BoundedVec a (length xs)
 fromList ε        = []
 fromList (x ◅ xs) = x ∷ fromList xs
 
-toList : forall {a n} -> BoundedVec a n -> List a
+toList : ∀ {a n} → BoundedVec a n → List a
 toList xs = gmap (const tt) decoration (init xs)

@@ -19,9 +19,8 @@ open Ops (CommutativeSemiring.semiring ℕ-commutativeSemiring)
 open Ops (CommutativeRing.semiring Bool-commutativeRing-xor-∧)
   renaming (_^_ to _↑_)
 
-example₁
-  :  forall x y
-  -> (x + y) ^ 3 ≡ x ^ 3 + 3 * x ^ 2 * y + 3 * x * y ^ 2 + y ^ 3
+example₁ : ∀ x y →
+           (x + y) ^ 3 ≡ x ^ 3 + 3 * x ^ 2 * y + 3 * x * y ^ 2 + y ^ 3
 example₁ x y =
   prove (x ∷ y ∷ [])
         ((X :+ Y) :^ 3)
@@ -36,10 +35,9 @@ example₁ x y =
 -- The following example is commented out because it is (currently)
 -- too slow.
 
--- example₂
---   :  forall x y
---   -> (x xor y) ↑ 3 ≡
---      (x ↑ 3) xor ((x ↑ 2) ∧ y) xor (x ∧ (y ↑ 2)) xor (y ↑ 3)
+-- example₂ : ∀ x y →
+--            (x xor y) ↑ 3 ≡
+--            (x ↑ 3) xor ((x ↑ 2) ∧ y) xor (x ∧ (y ↑ 2)) xor (y ↑ 3)
 -- example₂ x y =
 --   prove (x ∷ y ∷ [])
 --         ((X :+ Y) :^ 3)
@@ -50,7 +48,7 @@ example₁ x y =
 --   X = var (# 0)
 --   Y = var (# 1)
 
-example₃ : forall x -> x xor x ≡ false
+example₃ : ∀ x → x xor x ≡ false
 example₃ x = prove (x ∷ []) (X :+ X) (con false) ≡-refl
   where
   open Bool-xor-ringSolver

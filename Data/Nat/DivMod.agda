@@ -22,7 +22,7 @@ open import Data.Function
 
 private
 
-  lem₁ : forall m k -> _
+  lem₁ : ∀ m k → _
   lem₁ m k = ≡-cong suc $ begin
     m
       ≡⟨ Fin.inject+-lemma m k ⟩
@@ -33,12 +33,12 @@ private
     toℕ (Fin.inject+ k (fromℕ m)) + 0
       ∎
 
-  lem₂ : forall n -> _
+  lem₂ : ∀ n → _
   lem₂ n =
     let N = var (# 0) in
     prove (n ∷ []) (con 1 :+ N) (con 1 :+ (N :+ con 0)) ≡-refl
 
-  lem₃ : forall n k q r eq -> _
+  lem₃ : ∀ n k q r eq → _
   lem₃ n k q r eq = begin
       suc n + k
         ≡⟨ (let N = var (# 0); K = var (# 1) in
@@ -60,8 +60,8 @@ private
 
 -- A specification of integer division.
 
-data DivMod : ℕ -> ℕ -> Set where
-  result : {divisor : ℕ} (q : ℕ) (r : Fin divisor) ->
+data DivMod : ℕ → ℕ → Set where
+  result : {divisor : ℕ} (q : ℕ) (r : Fin divisor) →
            DivMod (toℕ r + q * divisor) divisor
 
 -- Sometimes the following type is more usable; functions in indices
@@ -69,7 +69,7 @@ data DivMod : ℕ -> ℕ -> Set where
 
 data DivMod' (dividend divisor : ℕ) : Set where
   result : (q : ℕ) (r : Fin divisor)
-           (eq : dividend ≡ toℕ r + q * divisor) ->
+           (eq : dividend ≡ toℕ r + q * divisor) →
            DivMod' dividend divisor
 
 -- Integer division with remainder.
@@ -81,18 +81,18 @@ data DivMod' (dividend divisor : ℕ) : Set where
 -- properly (see "Inductive Families Need Not Store Their Indices"
 -- (Brady, McBride, McKinna, TYPES 2003)).
 
-_divMod'_ : (dividend divisor : ℕ) {≢0 : False (divisor ≟ 0)} ->
+_divMod'_ : (dividend divisor : ℕ) {≢0 : False (divisor ≟ 0)} →
             DivMod' dividend divisor
 _divMod'_ m n {≢0} = <-rec Pred dm m n {≢0}
   where
-  Pred : ℕ -> Set
-  Pred dividend = (divisor : ℕ) {≢0 : False (divisor ≟ 0)} ->
+  Pred : ℕ → Set
+  Pred dividend = (divisor : ℕ) {≢0 : False (divisor ≟ 0)} →
                   DivMod' dividend divisor
 
-  1+_ : forall {k n} -> DivMod' (suc k) n -> DivMod' (suc n + k) n
+  1+_ : ∀ {k n} → DivMod' (suc k) n → DivMod' (suc n + k) n
   1+_ {k} {n} (result q r eq) = result (1 + q) r (lem₃ n k q r eq)
 
-  dm : (dividend : ℕ) -> <-Rec Pred dividend -> Pred dividend
+  dm : (dividend : ℕ) → <-Rec Pred dividend → Pred dividend
   dm m       rec zero    {≢0 = ()}
   dm zero    rec (suc n)            = result 0 zero ≡-refl
   dm (suc m) rec (suc n)            with compare m n
@@ -105,20 +105,19 @@ _divMod'_ m n {≢0} = <-rec Pred dm m n {≢0}
 
 -- A variant.
 
-_divMod_ : (dividend divisor : ℕ) {≢0 : False (divisor ≟ 0)} ->
+_divMod_ : (dividend divisor : ℕ) {≢0 : False (divisor ≟ 0)} →
            DivMod dividend divisor
 _divMod_ m n {≢0} with _divMod'_ m n {≢0}
 .(toℕ r + q * n) divMod n | result q r ≡-refl = result q r
 
 -- Integer division.
 
-_div_ : (dividend divisor : ℕ) {≢0 : False (divisor ≟ 0)} -> ℕ
+_div_ : (dividend divisor : ℕ) {≢0 : False (divisor ≟ 0)} → ℕ
 _div_ m n {≢0} with _divMod_ m n {≢0}
 .(toℕ r + q * n) div n | result q r = q
 
 -- The remainder after integer division.
 
-_mod_ : (dividend divisor : ℕ) {≢0 : False (divisor ≟ 0)} ->
-        Fin divisor
+_mod_ : (dividend divisor : ℕ) {≢0 : False (divisor ≟ 0)} → Fin divisor
 _mod_ m n {≢0} with _divMod_ m n {≢0}
 .(toℕ r + q * n) mod n | result q r = r

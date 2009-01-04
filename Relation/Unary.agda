@@ -13,8 +13,8 @@ open import Relation.Nullary
 ------------------------------------------------------------------------
 -- Unary relations
 
-Pred : Set -> Set1
-Pred a = a -> Set
+Pred : Set → Set1
+Pred a = a → Set
 
 ------------------------------------------------------------------------
 -- Unary relations can be seen as sets
@@ -29,21 +29,21 @@ private
 
   infix 4 _∈_ _∉_
 
-  _∈_ : a -> Pred a -> Set
+  _∈_ : a → Pred a → Set
   x ∈ P = P x
 
-  _∉_ : a -> Pred a -> Set
+  _∉_ : a → Pred a → Set
   x ∉ P = ¬ x ∈ P
 
   -- The empty set.
 
   ∅ : Pred a
-  ∅ = \_ -> ⊥
+  ∅ = λ _ → ⊥
 
   -- The property of being empty.
 
-  Empty : Pred a -> Set
-  Empty P = forall x -> x ∉ P
+  Empty : Pred a → Set
+  Empty P = ∀ x → x ∉ P
 
   ∅-Empty : Empty ∅
   ∅-Empty x ()
@@ -51,55 +51,55 @@ private
   -- The universe, i.e. the subset containing all elements in a.
 
   U : Pred a
-  U = \_ -> ⊤
+  U = λ _ → ⊤
 
   -- The property of being universal.
 
-  Universal : Pred a -> Set
-  Universal P = forall x -> x ∈ P
+  Universal : Pred a → Set
+  Universal P = ∀ x → x ∈ P
 
   U-Universal : Universal U
-  U-Universal = \_ -> _
+  U-Universal = λ _ → _
 
   -- Set complement.
 
-  ∁ : Pred a -> Pred a
-  ∁ P = \x -> x ∉ P
+  ∁ : Pred a → Pred a
+  ∁ P = λ x → x ∉ P
 
   ∁∅-Universal : Universal (∁ ∅)
-  ∁∅-Universal = \x x∈∅ -> x∈∅
+  ∁∅-Universal = λ x x∈∅ → x∈∅
 
   ∁U-Empty : Empty (∁ U)
-  ∁U-Empty = \x x∈∁U -> x∈∁U _
+  ∁U-Empty = λ x x∈∁U → x∈∁U _
 
   -- P ⊆ Q means that P is a subset of Q.
 
   infix 4 _⊆_ _⊇_
 
-  _⊆_ : Pred a -> Pred a -> Set
-  P ⊆ Q = forall x -> x ∈ P -> x ∈ Q
+  _⊆_ : Pred a → Pred a → Set
+  P ⊆ Q = ∀ x → x ∈ P → x ∈ Q
 
-  _⊇_ : Pred a -> Pred a -> Set
+  _⊇_ : Pred a → Pred a → Set
   Q ⊇ P = P ⊆ Q
 
-  ∅-⊆ : (P : Pred a) -> ∅ ⊆ P
+  ∅-⊆ : (P : Pred a) → ∅ ⊆ P
   ∅-⊆ P x ()
 
-  ⊆-U : (P : Pred a) -> P ⊆ U
+  ⊆-U : (P : Pred a) → P ⊆ U
   ⊆-U P x _ = _
 
   -- Set union.
 
   infixl 6 _∪_
 
-  _∪_ : Pred a -> Pred a -> Pred a
-  P ∪ Q = \x -> x ∈ P ⊎ x ∈ Q
+  _∪_ : Pred a → Pred a → Pred a
+  P ∪ Q = λ x → x ∈ P ⊎ x ∈ Q
 
   -- Set intersection.
 
   infixl 7 _∩_
 
-  _∩_ : Pred a -> Pred a -> Pred a
-  P ∩ Q = \x -> x ∈ P × x ∈ Q
+  _∩_ : Pred a → Pred a → Pred a
+  P ∩ Q = λ x → x ∈ P × x ∈ Q
 
 open Dummy public

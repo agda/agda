@@ -36,22 +36,22 @@ infix  1 begin_
 -- infer arguments even if the underlying equality evaluates.
 
 data _IsRelatedTo_ (x y : carrier) : Set where
-  relTo : (x∼y : x ∼ y) -> x IsRelatedTo y
+  relTo : (x∼y : x ∼ y) → x IsRelatedTo y
 
-begin_ : forall {x y} -> x IsRelatedTo y -> x ∼ y
+begin_ : ∀ {x y} → x IsRelatedTo y → x ∼ y
 begin relTo x∼y = x∼y
 
-_∼⟨_⟩_ : forall x {y z} -> x ∼ y -> y IsRelatedTo z -> x IsRelatedTo z
+_∼⟨_⟩_ : ∀ x {y z} → x ∼ y → y IsRelatedTo z → x IsRelatedTo z
 _ ∼⟨ x∼y ⟩ relTo y∼z = relTo (trans x∼y y∼z)
 
-_≈⟨_⟩_ : forall x {y z} -> x ≈ y -> y IsRelatedTo z -> x IsRelatedTo z
+_≈⟨_⟩_ : ∀ x {y z} → x ≈ y → y IsRelatedTo z → x IsRelatedTo z
 _ ≈⟨ x≈y ⟩ relTo y∼z = relTo (trans (reflexive x≈y) y∼z)
 
-≈-byDef : forall {x} -> x ≈ x
+≈-byDef : ∀ {x} → x ≈ x
 ≈-byDef = Eq.refl
 
-byDef : forall {x} -> x ∼ x
+byDef : ∀ {x} → x ∼ x
 byDef = reflexive ≈-byDef
 
-_∎ : forall x -> x IsRelatedTo x
+_∎ : ∀ x → x IsRelatedTo x
 _∎ _ = relTo byDef

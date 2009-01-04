@@ -18,8 +18,7 @@ open import Relation.Binary.PropositionalEquality.Core public
 ------------------------------------------------------------------------
 -- Some properties
 
-≡-subst₁ :  {a : Set} -> (P : a -> Set1)
-         -> forall {x y} -> x ≡ y -> P x -> P y
+≡-subst₁ : ∀ {a} (P : a → Set1) → ∀ {x y} → x ≡ y → P x → P y
 ≡-subst₁ P ≡-refl p = p
 
 ≡-cong : Congruential _≡_
@@ -28,14 +27,14 @@ open import Relation.Binary.PropositionalEquality.Core public
 ≡-cong₂ : Congruential₂ _≡_
 ≡-cong₂ = cong+trans⟶cong₂ ≡-cong ≡-trans
 
-≡-setoid : Set -> Setoid
+≡-setoid : Set → Setoid
 ≡-setoid a = record
   { carrier       = a
   ; _≈_           = _≡_
   ; isEquivalence = ≡-isEquivalence
   }
 
-≡-decSetoid : forall {a} -> Decidable (_≡_ {a}) -> DecSetoid
+≡-decSetoid : ∀ {a} → Decidable (_≡_ {a}) → DecSetoid
 ≡-decSetoid ≡-dec = record
   { carrier = _
   ; _≈_     = _≡_
@@ -45,7 +44,7 @@ open import Relation.Binary.PropositionalEquality.Core public
       }
   }
 
-≡-isPreorder : forall {a} -> IsPreorder {a} _≡_ _≡_
+≡-isPreorder : ∀ {a} → IsPreorder {a} _≡_ _≡_
 ≡-isPreorder = record
   { isEquivalence = ≡-isEquivalence
   ; reflexive     = id
@@ -53,7 +52,7 @@ open import Relation.Binary.PropositionalEquality.Core public
   ; ≈-resp-∼      = ≡-resp _≡_
   }
 
-≡-preorder : Set -> Preorder
+≡-preorder : Set → Preorder
 ≡-preorder a = record
   { carrier    = a
   ; _≈_        = _≡_
@@ -66,19 +65,19 @@ open import Relation.Binary.PropositionalEquality.Core public
 
 infix 4 _≗_
 
-_->-setoid_ : (a b : Set) -> Setoid
-a ->-setoid b = record
-  { carrier       = a -> b
-  ; _≈_           = \f g -> forall x -> f x ≡ g x
+_→-setoid_ : (a b : Set) → Setoid
+a →-setoid b = record
+  { carrier       = a → b
+  ; _≈_           = λ f g → ∀ x → f x ≡ g x
   ; isEquivalence = record
-    { refl  = \        _ -> ≡-refl
-    ; sym   = \f≗g     x -> ≡-sym   (f≗g x)
-    ; trans = \f≗g g≗h x -> ≡-trans (f≗g x) (g≗h x)
+    { refl  = λ         _ → ≡-refl
+    ; sym   = λ f≗g     x → ≡-sym   (f≗g x)
+    ; trans = λ f≗g g≗h x → ≡-trans (f≗g x) (g≗h x)
     }
   }
 
-_≗_ : {a b : Set} -> (f g : a -> b) -> Set
-_≗_ {a} {b} = Setoid._≈_ (a ->-setoid b)
+_≗_ : ∀ {a b} (f g : a → b) → Set
+_≗_ {a} {b} = Setoid._≈_ (a →-setoid b)
 
 ------------------------------------------------------------------------
 -- The inspect idiom
@@ -88,9 +87,9 @@ _≗_ {a} {b} = Setoid._≈_ (a ->-setoid b)
 -- r ≡ e.
 
 data Inspect {a : Set} (x : a) : Set where
-  _with-≡_ : (y : a) (eq : y ≡ x) -> Inspect x
+  _with-≡_ : (y : a) (eq : y ≡ x) → Inspect x
 
-inspect : forall {a} (x : a) -> Inspect x
+inspect : ∀ {a} (x : a) → Inspect x
 inspect x = x with-≡ ≡-refl
 
 -- Example usage:

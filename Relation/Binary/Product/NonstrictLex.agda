@@ -19,22 +19,20 @@ import Relation.Binary.Product.StrictLex as Strict
 private
  module Dummy {a₁ a₂ : Set} where
 
-  ×-Lex : (≈₁ ≤₁ : Rel a₁) -> (≤₂ : Rel a₂) -> Rel (a₁ × a₂)
+  ×-Lex : (≈₁ ≤₁ : Rel a₁) → (≤₂ : Rel a₂) → Rel (a₁ × a₂)
   ×-Lex ≈₁ ≤₁ ≤₂ = Strict.×-Lex ≈₁ (Conv._<_ ≈₁ ≤₁) ≤₂
 
   -- Some properties which are preserved by ×-Lex (under certain
   -- assumptions).
 
-  ×-reflexive
-    :  forall ≈₁ ≤₁ {≈₂} ≤₂
-    -> ≈₂ ⇒ ≤₂ -> (≈₁ ×-Rel ≈₂) ⇒ (×-Lex ≈₁ ≤₁ ≤₂)
+  ×-reflexive : ∀ ≈₁ ≤₁ {≈₂} ≤₂ →
+                ≈₂ ⇒ ≤₂ → (≈₁ ×-Rel ≈₂) ⇒ (×-Lex ≈₁ ≤₁ ≤₂)
   ×-reflexive ≈₁ ≤₁ ≤₂ refl₂ {x} {y} =
     Strict.×-reflexive ≈₁ (Conv._<_ ≈₁ ≤₁) ≤₂ refl₂ {x} {y}
 
-  ×-transitive
-    :  forall {≈₁ ≤₁} -> IsPartialOrder ≈₁ ≤₁
-    -> forall {≤₂} -> Transitive ≤₂
-    -> Transitive (×-Lex ≈₁ ≤₁ ≤₂)
+  ×-transitive : ∀ {≈₁ ≤₁} → IsPartialOrder ≈₁ ≤₁ →
+                 ∀ {≤₂} → Transitive ≤₂ →
+                 Transitive (×-Lex ≈₁ ≤₁ ≤₂)
   ×-transitive {≈₁ = ≈₁} {≤₁ = ≤₁} po₁ {≤₂ = ≤₂} trans₂
                {x} {y} {z} =
     Strict.×-transitive
@@ -44,10 +42,9 @@ private
       {≤₂ = ≤₂} trans₂ {x} {y} {z}
     where open IsPartialOrder po₁
 
-  ×-antisymmetric
-    :  forall {≈₁ ≤₁} -> IsPartialOrder ≈₁ ≤₁
-    -> forall {≈₂ ≤₂} -> Antisymmetric ≈₂ ≤₂
-    -> Antisymmetric (≈₁ ×-Rel ≈₂) (×-Lex ≈₁ ≤₁ ≤₂)
+  ×-antisymmetric : ∀ {≈₁ ≤₁} → IsPartialOrder ≈₁ ≤₁ →
+                    ∀ {≈₂ ≤₂} → Antisymmetric ≈₂ ≤₂ →
+                    Antisymmetric (≈₁ ×-Rel ≈₂) (×-Lex ≈₁ ≤₁ ≤₂)
   ×-antisymmetric {≈₁ = ≈₁} {≤₁ = ≤₁} po₁ {≤₂ = ≤₂} antisym₂
                   {x} {y} =
     Strict.×-antisymmetric {<₁ = Conv._<_ ≈₁ ≤₁} ≈-sym₁ irrefl₁ asym₁
@@ -63,27 +60,23 @@ private
     asym₁ = trans∧irr⟶asym {≈ = ≈₁}
                            ≈-refl₁ (Conv.<-trans _ _ po₁) irrefl₁
 
-  ×-≈-respects₂
-    :  forall {≈₁ ≤₁} -> IsEquivalence ≈₁ -> ≈₁ Respects₂ ≤₁
-    -> forall {≈₂ ≤₂} -> ≈₂ Respects₂ ≤₂
-    -> (≈₁ ×-Rel ≈₂) Respects₂ (×-Lex ≈₁ ≤₁ ≤₂)
+  ×-≈-respects₂ : ∀ {≈₁ ≤₁} → IsEquivalence ≈₁ → ≈₁ Respects₂ ≤₁ →
+                  ∀ {≈₂ ≤₂} → ≈₂ Respects₂ ≤₂ →
+                  (≈₁ ×-Rel ≈₂) Respects₂ (×-Lex ≈₁ ≤₁ ≤₂)
   ×-≈-respects₂ eq₁ resp₁ resp₂ =
     Strict.×-≈-respects₂ eq₁ (Conv.≈-resp-< _ _ eq₁ resp₁) resp₂
 
-  ×-decidable
-    :  forall {≈₁ ≤₁} -> Decidable ≈₁ -> Decidable ≤₁
-    -> forall {≤₂} -> Decidable ≤₂
-    -> Decidable (×-Lex ≈₁ ≤₁ ≤₂)
+  ×-decidable : ∀ {≈₁ ≤₁} → Decidable ≈₁ → Decidable ≤₁ →
+                ∀ {≤₂} → Decidable ≤₂ →
+                Decidable (×-Lex ≈₁ ≤₁ ≤₂)
   ×-decidable dec-≈₁ dec-≤₁ dec-≤₂ =
     Strict.×-decidable dec-≈₁ (Conv.<-decidable _ _ dec-≈₁ dec-≤₁)
                        dec-≤₂
 
-  ×-total
-    :  forall {≈₁ ≤₁}
-    -> Symmetric ≈₁ -> Decidable ≈₁
-    -> Antisymmetric ≈₁ ≤₁ -> Total ≤₁
-    -> forall {≤₂} -> Total ≤₂
-    -> Total (×-Lex ≈₁ ≤₁ ≤₂)
+  ×-total : ∀ {≈₁ ≤₁} → Symmetric ≈₁ → Decidable ≈₁ →
+                        Antisymmetric ≈₁ ≤₁ → Total ≤₁ →
+            ∀ {≤₂} → Total ≤₂ →
+            Total (×-Lex ≈₁ ≤₁ ≤₂)
   ×-total {≈₁ = ≈₁} {≤₁ = ≤₁} sym₁ dec₁ antisym₁ total₁
                     {≤₂ = ≤₂} total₂ = total
     where
@@ -101,34 +94,32 @@ private
   -- Some collections of properties which are preserved by ×-Lex
   -- (under certain assumptions).
 
-  _×-isPartialOrder_
-    :  forall {≈₁ ≤₁} -> IsPartialOrder ≈₁ ≤₁
-    -> forall {≈₂ ≤₂} -> IsPartialOrder ≈₂ ≤₂
-    -> IsPartialOrder (≈₁ ×-Rel ≈₂) (×-Lex ≈₁ ≤₁ ≤₂)
+  _×-isPartialOrder_ : ∀ {≈₁ ≤₁} → IsPartialOrder ≈₁ ≤₁ →
+                       ∀ {≈₂ ≤₂} → IsPartialOrder ≈₂ ≤₂ →
+                       IsPartialOrder (≈₁ ×-Rel ≈₂) (×-Lex ≈₁ ≤₁ ≤₂)
   _×-isPartialOrder_ {≈₁ = ≈₁} {≤₁ = ≤₁} po₁ {≤₂ = ≤₂} po₂ = record
     { isPreorder = record
         { isEquivalence = Pointwise._×-isEquivalence_
                             (isEquivalence po₁)
                             (isEquivalence po₂)
-        ; reflexive     = \{x y} ->
+        ; reflexive     = λ {x y} →
                           ×-reflexive ≈₁ ≤₁ ≤₂ (reflexive po₂) {x} {y}
-        ; trans         = \{x y z} ->
+        ; trans         = λ {x y z} →
                           ×-transitive po₁ {≤₂ = ≤₂} (trans po₂)
                                        {x} {y} {z}
         ; ≈-resp-∼      = ×-≈-respects₂ (isEquivalence po₁)
                                         (≈-resp-≤ po₁)
                                         (≈-resp-≤ po₂)
         }
-    ; antisym = \{x y} ->
+    ; antisym = λ {x y} →
                 ×-antisymmetric {≤₁ = ≤₁} po₁
                                 {≤₂ = ≤₂} (antisym po₂) {x} {y}
     }
     where open IsPartialOrder
 
-  ×-isTotalOrder
-    :  forall {≈₁ ≤₁} -> Decidable ≈₁ -> IsTotalOrder ≈₁ ≤₁
-    -> forall {≈₂ ≤₂} -> IsTotalOrder ≈₂ ≤₂
-    -> IsTotalOrder (≈₁ ×-Rel ≈₂) (×-Lex ≈₁ ≤₁ ≤₂)
+  ×-isTotalOrder : ∀ {≈₁ ≤₁} → Decidable ≈₁ → IsTotalOrder ≈₁ ≤₁ →
+                   ∀ {≈₂ ≤₂} → IsTotalOrder ≈₂ ≤₂ →
+                   IsTotalOrder (≈₁ ×-Rel ≈₂) (×-Lex ≈₁ ≤₁ ≤₂)
   ×-isTotalOrder {≤₁ = ≤₁} ≈₁-dec to₁ {≤₂ = ≤₂} to₂ = record
     { isPartialOrder = isPartialOrder to₁ ×-isPartialOrder
                        isPartialOrder to₂
@@ -138,10 +129,9 @@ private
     }
     where open IsTotalOrder
 
-  _×-isDecTotalOrder_
-    :  forall {≈₁ ≤₁} -> IsDecTotalOrder ≈₁ ≤₁
-    -> forall {≈₂ ≤₂} -> IsDecTotalOrder ≈₂ ≤₂
-    -> IsDecTotalOrder (≈₁ ×-Rel ≈₂) (×-Lex ≈₁ ≤₁ ≤₂)
+  _×-isDecTotalOrder_ : ∀ {≈₁ ≤₁} → IsDecTotalOrder ≈₁ ≤₁ →
+                        ∀ {≈₂ ≤₂} → IsDecTotalOrder ≈₂ ≤₂ →
+                        IsDecTotalOrder (≈₁ ×-Rel ≈₂) (×-Lex ≈₁ ≤₁ ≤₂)
   _×-isDecTotalOrder_ {≤₁ = ≤₁} to₁ {≤₂ = ≤₂} to₂ = record
     { isTotalOrder = ×-isTotalOrder (_≟_ to₁)
                                     (isTotalOrder to₁)
@@ -155,7 +145,7 @@ open Dummy public
 
 -- "Packages" (e.g. posets) can also be combined.
 
-_×-poset_ : Poset -> Poset -> Poset
+_×-poset_ : Poset → Poset → Poset
 p₁ ×-poset p₂ = record
   { carrier        = carrier p₁ ×     carrier p₂
   ; _≈_            = _≈_     p₁ ×-Rel _≈_     p₂
@@ -165,7 +155,7 @@ p₁ ×-poset p₂ = record
   }
   where open Poset
 
-_×-totalOrder_ : DecTotalOrder -> TotalOrder -> TotalOrder
+_×-totalOrder_ : DecTotalOrder → TotalOrder → TotalOrder
 t₁ ×-totalOrder t₂ = record
   { carrier      = T₁.carrier ×     T₂.carrier
   ; _≈_          = T₁._≈_     ×-Rel T₂._≈_
@@ -176,7 +166,7 @@ t₁ ×-totalOrder t₂ = record
   module T₁ = DecTotalOrder t₁
   module T₂ =    TotalOrder t₂
 
-_×-decTotalOrder_ : DecTotalOrder -> DecTotalOrder -> DecTotalOrder
+_×-decTotalOrder_ : DecTotalOrder → DecTotalOrder → DecTotalOrder
 t₁ ×-decTotalOrder t₂ = record
   { carrier         = carrier t₁ ×     carrier t₂
   ; _≈_             = _≈_     t₁ ×-Rel _≈_     t₂

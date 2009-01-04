@@ -18,46 +18,46 @@ open import Data.Unit
 -- The vector type. Vectors are natural numbers decorated with extra
 -- information (i.e. elements).
 
-Vec : Set -> ℕ -> Set
-Vec a = All (\_ -> a)
+Vec : Set → ℕ → Set
+Vec a = All (λ _ → a)
 
 -- Nil and cons.
 
-[] : forall {a} -> Vec a zero
+[] : ∀ {a} → Vec a zero
 [] = ε
 
 infixr 5 _∷_
 
-_∷_ : forall {a n} -> a -> Vec a n -> Vec a (suc n)
+_∷_ : ∀ {a n} → a → Vec a n → Vec a (suc n)
 x ∷ xs = ↦ x ◅ xs
 
 -- Projections.
 
-head : forall {a n} -> Vec a (1# + n) -> a
+head : ∀ {a n} → Vec a (1# + n) → a
 head (↦ x ◅ _) = x
 
-tail : forall {a n} -> Vec a (1# + n) -> Vec a n
+tail : ∀ {a n} → Vec a (1# + n) → Vec a n
 tail (↦ _ ◅ xs) = xs
 
 -- Append.
 
 infixr 5 _++_
 
-_++_ : forall {a m n} -> Vec a m -> Vec a n -> Vec a (m + n)
+_++_ : ∀ {a m n} → Vec a m → Vec a n → Vec a (m + n)
 _++_ = _◅◅◅_
 
 -- Safe lookup.
 
-Vec-lookup : forall {a n} -> Fin n -> Vec a n -> a
+Vec-lookup : ∀ {a n} → Fin n → Vec a n → a
 Vec-lookup i xs with lookup i xs
 ... | result _ x = x
 
 ------------------------------------------------------------------------
 -- Conversions
 
-fromList : forall {a} -> (xs : List a) -> Vec a (length xs)
+fromList : ∀ {a} → (xs : List a) → Vec a (length xs)
 fromList ε        = []
 fromList (x ◅ xs) = x ∷ fromList xs
 
-toList : forall {a n} -> Vec a n -> List a
+toList : ∀ {a n} → Vec a n → List a
 toList = gmap (const tt) decoration

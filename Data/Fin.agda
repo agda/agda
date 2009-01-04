@@ -21,53 +21,53 @@ open import Relation.Binary
 
 -- Fin n is a type with n elements.
 
-data Fin : ℕ -> Set where
-  zero : {n : ℕ} -> Fin (suc n)
-  suc  : {n : ℕ} (i : Fin n) -> Fin (suc n)
+data Fin : ℕ → Set where
+  zero : {n : ℕ} → Fin (suc n)
+  suc  : {n : ℕ} (i : Fin n) → Fin (suc n)
 
 ------------------------------------------------------------------------
 -- Conversions
 
 -- toℕ "n" = n.
 
-toℕ : forall {n} -> Fin n -> ℕ
+toℕ : ∀ {n} → Fin n → ℕ
 toℕ zero    = 0
 toℕ (suc i) = suc (toℕ i)
 
 -- fromℕ n = "n".
 
-fromℕ : (n : ℕ) -> Fin (suc n)
+fromℕ : (n : ℕ) → Fin (suc n)
 fromℕ zero    = zero
 fromℕ (suc n) = suc (fromℕ n)
 
 -- fromℕ≤ {m} _ = "m".
 
-fromℕ≤ : forall {m n} -> m N< n -> Fin n
+fromℕ≤ : ∀ {m n} → m N< n → Fin n
 fromℕ≤ (Nat.s≤s Nat.z≤n)       = zero
 fromℕ≤ (Nat.s≤s (Nat.s≤s m≤n)) = suc (fromℕ≤ (Nat.s≤s m≤n))
 
 -- # m = "m".
 
-#_ : forall m {n} {m<n : True (suc m N≤? n)} -> Fin n
+#_ : ∀ m {n} {m<n : True (suc m N≤? n)} → Fin n
 #_ _ {m<n = m<n} = fromℕ≤ (witnessToTruth m<n)
 
 -- raise m "n" = "m + n".
 
-raise : forall {m} n -> Fin m -> Fin (n N+ m)
+raise : ∀ {m} n → Fin m → Fin (n N+ m)
 raise zero    i = i
 raise (suc n) i = suc (raise n i)
 
 -- inject⋆ m "n" = "n".
 
-inject+ : forall {m} n -> Fin m -> Fin (m N+ n)
+inject+ : ∀ {m} n → Fin m → Fin (m N+ n)
 inject+ n zero    = zero
 inject+ n (suc i) = suc (inject+ n i)
 
-inject₁ : forall {m} -> Fin m -> Fin (suc m)
+inject₁ : ∀ {m} → Fin m → Fin (suc m)
 inject₁ zero    = zero
 inject₁ (suc i) = suc (inject₁ i)
 
-inject≤ : forall {m n} -> Fin m -> m N≤ n -> Fin n
+inject≤ : ∀ {m n} → Fin m → m N≤ n → Fin n
 inject≤ zero    (Nat.s≤s le) = zero
 inject≤ (suc i) (Nat.s≤s le) = suc (inject≤ i le)
 
@@ -76,10 +76,10 @@ inject≤ (suc i) (Nat.s≤s le) = suc (inject≤ i le)
 
 -- Fold.
 
-fold : forall (T : ℕ -> Set) {m} ->
-       (forall {n} -> T n -> T (suc n)) ->
-       (forall {n} -> T (suc n)) ->
-       Fin m -> T m
+fold : ∀ (T : ℕ → Set) {m} →
+       (∀ {n} → T n → T (suc n)) →
+       (∀ {n} → T (suc n)) →
+       Fin m → T m
 fold T f x zero    = x
 fold T f x (suc i) = f (fold T f x i)
 
@@ -87,7 +87,7 @@ fold T f x (suc i) = f (fold T f x i)
 
 infixl 6 _+_
 
-_+_ : forall {m n} (i : Fin m) (j : Fin n) -> Fin (toℕ i N+ n)
+_+_ : ∀ {m n} (i : Fin m) (j : Fin n) → Fin (toℕ i N+ n)
 zero  + j = j
 suc i + j = suc (i + j)
 
@@ -95,8 +95,7 @@ suc i + j = suc (i + j)
 
 infixl 6 _-_
 
-_-_ : forall {m}
-      (i : Fin m) (j : Fin (suc (toℕ i))) -> Fin (m N∸ toℕ j)
+_-_ : ∀ {m} (i : Fin m) (j : Fin (suc (toℕ i))) → Fin (m N∸ toℕ j)
 i     - zero   = i
 zero  - suc ()
 suc i - suc j  = i - j
@@ -105,7 +104,7 @@ suc i - suc j  = i - j
 
 infixl 6 _ℕ-_
 
-_ℕ-_ : (n : ℕ) (j : Fin (suc n)) -> Fin (suc n N∸ toℕ j)
+_ℕ-_ : (n : ℕ) (j : Fin (suc n)) → Fin (suc n N∸ toℕ j)
 n     ℕ- zero   = fromℕ n
 zero  ℕ- suc ()
 suc n ℕ- suc i  = n ℕ- i
@@ -114,14 +113,14 @@ suc n ℕ- suc i  = n ℕ- i
 
 infixl 6 _ℕ-ℕ_
 
-_ℕ-ℕ_ : (n : ℕ) -> Fin (suc n) -> ℕ
+_ℕ-ℕ_ : (n : ℕ) → Fin (suc n) → ℕ
 n     ℕ-ℕ zero   = n
 zero  ℕ-ℕ suc ()
 suc n ℕ-ℕ suc i  = n ℕ-ℕ i
 
 -- pred "n" = "pred n".
 
-pred : forall {n} -> Fin n -> Fin n
+pred : ∀ {n} → Fin n → Fin n
 pred zero    = zero
 pred (suc i) = inject₁ i
 
@@ -130,8 +129,8 @@ pred (suc i) = inject₁ i
 
 infix 4 _≤_ _<_
 
-_≤_ : forall {n} -> Rel (Fin n)
+_≤_ : ∀ {n} → Rel (Fin n)
 _≤_ = _N≤_ on₁ toℕ
 
-_<_ : forall {n} -> Rel (Fin n)
+_<_ : ∀ {n} → Rel (Fin n)
 _<_ = _N<_ on₁ toℕ

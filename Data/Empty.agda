@@ -6,5 +6,5 @@ module Data.Empty where
 
 data ⊥ : Set where
 
-⊥-elim : {whatever : Set} -> ⊥ -> whatever
+⊥-elim : {whatever : Set} → ⊥ → whatever
 ⊥-elim ()

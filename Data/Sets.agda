@@ -32,41 +32,40 @@ module Sets₁ (dto : DecTotalOrder) where
   abstract
    postulate
     empty  : <Set>
-    insert : carrier -> <Set> -> <Set>
-    _∪_    : <Set> -> <Set> -> <Set>
-    _∈_    : carrier -> <Set> -> Set
-    _∈?_   : (x : carrier) -> (s : <Set>) -> Dec (x ∈ s)
-    toList : <Set> -> List carrier
+    insert : carrier → <Set> → <Set>
+    _∪_    : <Set> → <Set> → <Set>
+    _∈_    : carrier → <Set> → Set
+    _∈?_   : (x : carrier) → (s : <Set>) → Dec (x ∈ s)
+    toList : <Set> → List carrier
 
    postulate
-    prop-∈-insert₁ :  forall {x y s} -> x ≈ y -> x ∈ insert y s
-    prop-∈-insert₂ :  forall {x y s} -> x ∈ s -> x ∈ insert y s
-    prop-∈-insert₃ :  forall {x y s}
-                   -> ¬ x ≈ y -> x ∈ insert y s -> x ∈ s
+    prop-∈-insert₁ : ∀ {x y s} → x ≈ y → x ∈ insert y s
+    prop-∈-insert₂ : ∀ {x y s} → x ∈ s → x ∈ insert y s
+    prop-∈-insert₃ : ∀ {x y s} → ¬ x ≈ y → x ∈ insert y s → x ∈ s
 
-    prop-∈-empty : forall {x} -> ¬ x ∈ empty
+    prop-∈-empty : ∀ {x} → ¬ x ∈ empty
 
-    prop-∈-∪ : forall {x s₁ s₂} -> x ∈ s₁ -> x ∈ s₁ ∪ s₂
+    prop-∈-∪ : ∀ {x s₁ s₂} → x ∈ s₁ → x ∈ s₁ ∪ s₂
 
-    prop-∪₁ : forall {s₁ s₂}    -> s₁ ∪ s₂        |≈| s₂ ∪ s₁
-    prop-∪₂ : forall {s₁ s₂ s₃} -> s₁ ∪ (s₂ ∪ s₃) |≈| (s₁ ∪ s₂) ∪ s₃
+    prop-∪₁ : ∀ {s₁ s₂}    → s₁ ∪ s₂        |≈| s₂ ∪ s₁
+    prop-∪₂ : ∀ {s₁ s₂ s₃} → s₁ ∪ (s₂ ∪ s₃) |≈| (s₁ ∪ s₂) ∪ s₃
 
-    prop-∈-|≈| : forall {x} -> _|≈|_ Respects (\s -> x ∈ s)
-    prop-∈-≈   : forall {s} -> _≈_   Respects (\x -> x ∈ s)
+    prop-∈-|≈| : ∀ {x} → _|≈|_ Respects (λ s → x ∈ s)
+    prop-∈-≈   : ∀ {s} → _≈_   Respects (λ x → x ∈ s)
 
     -- TODO: Postulates for toList.
 
-  singleton : carrier -> <Set>
+  singleton : carrier → <Set>
   singleton x = insert x empty
 
-  ⋃_ : List <Set> -> <Set>
+  ⋃_ : List <Set> → <Set>
   ⋃_ = L.foldr _∪_ empty
 
-  fromList : List carrier -> <Set>
+  fromList : List carrier → <Set>
   fromList = L.foldr insert empty
 
-  _⊆_ : <Set> -> <Set> -> Set
-  s₁ ⊆ s₂ = forall x -> x ∈ s₁ -> x ∈ s₂
+  _⊆_ : <Set> → <Set> → Set
+  s₁ ⊆ s₂ = ∀ x → x ∈ s₁ → x ∈ s₂
 
 open Sets₁ public
 open DecTotalOrder hiding (_≈_)
@@ -74,28 +73,23 @@ open _⇒-Poset_
 
 abstract
  postulate
-  map : forall {do₁ do₂} -> do₁ ⇒-DTO do₂ -> <Set> do₁ -> <Set> do₂
-  mapToSet
-    :  forall {do₁ do₂}
-    -> (carrier do₁ -> <Set> do₂)
-    -> <Set> do₁ -> <Set> do₂
+  map : ∀ {do₁ do₂} → do₁ ⇒-DTO do₂ → <Set> do₁ → <Set> do₂
+  mapToSet : ∀ {do₁ do₂} →
+             (carrier do₁ → <Set> do₂) →
+             <Set> do₁ → <Set> do₂
 
-  prop-map-∈₁
-    :  forall {do₁ do₂ f x s}
-    ->       x ⟨ _∈_ do₁ ⟩₁       s
-    -> fun f x ⟨ _∈_ do₂ ⟩₁ map f s
-  prop-map-∈₂
-    :  forall {do₁ do₂ f y s}
-    -> y ⟨ _∈_ do₂ ⟩₁ map f s
-    -> ∃ \x -> (fun f x ⟨ _≈_ do₂ ⟩₁ y) ×
-               (      x ⟨ _∈_ do₁ ⟩₁ s)
+  prop-map-∈₁ : ∀ {do₁ do₂ f x s} →
+                      x ⟨ _∈_ do₁ ⟩₁       s →
+                fun f x ⟨ _∈_ do₂ ⟩₁ map f s
+  prop-map-∈₂ : ∀ {do₁ do₂ f y s} →
+                y ⟨ _∈_ do₂ ⟩₁ map f s →
+                ∃ λ x → (fun f x ⟨ _≈_ do₂ ⟩₁ y) ×
+                        (      x ⟨ _∈_ do₁ ⟩₁ s)
 
-  prop-mapToSet₁
-    :  forall {do₁ do₂ f x s}
-    ->   x ⟨ _∈_ do₁ ⟩₁            s
-    -> f x ⟨ _⊆_ do₂ ⟩₁ mapToSet f s
-  prop-mapToSet₂
-    :  forall {do₁ do₂ f y s}
-    -> y ⟨ _∈_ do₂ ⟩₁ mapToSet f s
-    -> ∃ \x -> (y ⟨ _∈_ do₂ ⟩₁ f x) ×
-               (x ⟨ _∈_ do₁ ⟩₁ s)
+  prop-mapToSet₁ : ∀ {do₁ do₂ f x s} →
+                     x ⟨ _∈_ do₁ ⟩₁            s →
+                   f x ⟨ _⊆_ do₂ ⟩₁ mapToSet f s
+  prop-mapToSet₂ : ∀ {do₁ do₂ f y s} →
+                   y ⟨ _∈_ do₂ ⟩₁ mapToSet f s →
+                   ∃ λ x → (y ⟨ _∈_ do₂ ⟩₁ f x) ×
+                           (x ⟨ _∈_ do₁ ⟩₁ s)

@@ -8,7 +8,7 @@ module Data.Maybe where
 -- The type
 
 data Maybe (A : Set) : Set where
-  just    : (x : A) -> Maybe A
+  just    : (x : A) → Maybe A
   nothing : Maybe A
 
 ------------------------------------------------------------------------
@@ -17,21 +17,21 @@ data Maybe (A : Set) : Set where
 open import Data.Bool
 open import Data.Unit
 
-boolToMaybe : Bool -> Maybe ⊤
+boolToMaybe : Bool → Maybe ⊤
 boolToMaybe true  = just _
 boolToMaybe false = nothing
 
-maybeToBool : forall {A} -> Maybe A -> Bool
+maybeToBool : ∀ {A} → Maybe A → Bool
 maybeToBool (just _) = true
 maybeToBool nothing  = false
 
 -- A non-dependent eliminator.
 
-maybe : {a b : Set} -> (a -> b) -> b -> Maybe a -> b
+maybe : {a b : Set} → (a → b) → b → Maybe a → b
 maybe j n (just x) = j x
 maybe j n nothing  = n
 
-maybe₀₁ : {a : Set} {b : Set1} -> (a -> b) -> b -> Maybe a -> b
+maybe₀₁ : {a : Set} {b : Set1} → (a → b) → b → Maybe a → b
 maybe₀₁ j n (just x) = j x
 maybe₀₁ j n nothing  = n
 
@@ -44,7 +44,7 @@ open import Category.Monad
 
 MaybeFunctor : RawFunctor Maybe
 MaybeFunctor = record
-  { _<$>_ = \f -> maybe (just ∘ f) nothing
+  { _<$>_ = λ f → maybe (just ∘ f) nothing
   }
 
 MaybeMonad : RawMonad Maybe
@@ -53,7 +53,7 @@ MaybeMonad = record
   ; _>>=_  = _>>=_
   }
   where
-  _>>=_ : forall {a b} -> Maybe a -> (a -> Maybe b) -> Maybe b
+  _>>=_ : ∀ {a b} → Maybe a → (a → Maybe b) → Maybe b
   nothing >>= f = nothing
   just x  >>= f = f x
 
@@ -69,7 +69,7 @@ MaybeMonadPlus = record
   ; _∣_       = _∣_
   }
   where
-  _∣_ : forall {a} -> Maybe a -> Maybe a -> Maybe a
+  _∣_ : ∀ {a} → Maybe a → Maybe a → Maybe a
   nothing ∣ y = y
   just x  ∣ y = just x
 
@@ -80,16 +80,16 @@ open import Relation.Nullary
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality
 
-drop-just : forall {A} {x y : A} -> just x ≡ just y -> x ≡ y
+drop-just : ∀ {A} {x y : A} → just x ≡ just y → x ≡ y
 drop-just ≡-refl = ≡-refl
 
-decSetoid : forall {A} -> Decidable (_≡_ {A}) -> DecSetoid
+decSetoid : ∀ {A} → Decidable (_≡_ {A}) → DecSetoid
 decSetoid {A} _A-≟_ = ≡-decSetoid _≟_
   where
   _≟_ : Decidable (_≡_ {Maybe A})
   just x  ≟ just y  with x A-≟ y
   just x  ≟ just .x | yes ≡-refl = yes ≡-refl
   just x  ≟ just y  | no  x≢y    = no (x≢y ∘ drop-just)
-  just x  ≟ nothing = no \()
-  nothing ≟ just y  = no \()
+  just x  ≟ nothing = no λ()
+  nothing ≟ just y  = no λ()
   nothing ≟ nothing = yes ≡-refl

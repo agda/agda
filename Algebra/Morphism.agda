@@ -16,17 +16,17 @@ module Definitions (from : Set) (to : Setoid) where
   open Setoid to renaming (carrier to to-carrier)
 
   Morphism : Set
-  Morphism = from -> to-carrier
+  Morphism = from → to-carrier
 
-  Homomorphic₀ : Morphism -> from -> to-carrier -> Set
+  Homomorphic₀ : Morphism → from → to-carrier → Set
   Homomorphic₀ ⟦_⟧ ∙ ∘ = ⟦ ∙ ⟧ ≈ ∘
 
-  Homomorphic₁ : Morphism -> Fun₁ from -> Op₁ to -> Set
-  Homomorphic₁ ⟦_⟧ ∙_ ∘_ = forall x -> ⟦ ∙ x ⟧ ≈ ∘ ⟦ x ⟧
+  Homomorphic₁ : Morphism → Fun₁ from → Op₁ to → Set
+  Homomorphic₁ ⟦_⟧ ∙_ ∘_ = ∀ x → ⟦ ∙ x ⟧ ≈ ∘ ⟦ x ⟧
 
-  Homomorphic₂ : Morphism -> Fun₂ from -> Op₂ to -> Set
+  Homomorphic₂ : Morphism → Fun₂ from → Op₂ to → Set
   Homomorphic₂ ⟦_⟧ _∙_ _∘_ =
-    forall x y -> ⟦ x ∙ y ⟧ ≈ (⟦ x ⟧ ∘ ⟦ y ⟧)
+    ∀ x y → ⟦ x ∙ y ⟧ ≈ (⟦ x ⟧ ∘ ⟦ y ⟧)
 
 ------------------------------------------------------------------------
 -- Some specific morphisms
@@ -44,6 +44,6 @@ record _-RawRing⟶_ (from to : RawRing) : Set where
     0-homo : Homomorphic₀ ⟦_⟧ (0#  from) (0#  to)
     1-homo : Homomorphic₀ ⟦_⟧ (1#  from) (1#  to)
 
-_-Ring⟶_ : Ring -> Ring -> Set
+_-Ring⟶_ : Ring → Ring → Set
 from -Ring⟶ to = rawRing from -RawRing⟶ rawRing to
   where open Ring

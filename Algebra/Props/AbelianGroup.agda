@@ -12,7 +12,7 @@ open import Data.Function
 open import Data.Product
 
 private
-  lemma : forall x y -> x ∙ y ∙ x ⁻¹ ≈ y
+  lemma : ∀ x y → x ∙ y ∙ x ⁻¹ ≈ y
   lemma x y = begin
     x ∙ y ∙ x ⁻¹    ≈⟨ comm _ _ ⟨ ∙-pres-≈ ⟩ byDef ⟩
     y ∙ x ∙ x ⁻¹    ≈⟨ assoc _ _ _ ⟩
@@ -20,7 +20,7 @@ private
     y ∙ ε           ≈⟨ proj₂ identity _ ⟩
     y               ∎
 
---∙-comm : forall x y -> x ⁻¹ ∙ y ⁻¹ ≈ (x ∙ y) ⁻¹
+--∙-comm : ∀ x y → x ⁻¹ ∙ y ⁻¹ ≈ (x ∙ y) ⁻¹
 --∙-comm x y = begin
   x ⁻¹ ∙ y ⁻¹                         ≈⟨ comm _ _ ⟩
   y ⁻¹ ∙ x ⁻¹                         ≈⟨ sym $ lem ⟨ ∙-pres-≈ ⟩ byDef ⟩

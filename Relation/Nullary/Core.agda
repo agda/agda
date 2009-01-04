@@ -12,11 +12,11 @@ open import Data.Empty
 
 infix 3 ¬_
 
-¬_ : Set -> Set
-¬ P = P -> ⊥
+¬_ : Set → Set
+¬ P = P → ⊥
 
 -- Decidable relations.
 
 data Dec (P : Set) : Set where
-  yes : ( p :   P) -> Dec P
-  no  : (¬p : ¬ P) -> Dec P
+  yes : ( p :   P) → Dec P
+  no  : (¬p : ¬ P) → Dec P

@@ -14,16 +14,16 @@ open import Category.Monad
 -- The IO monad
 
 postulate
-  IO : Set -> Set
+  IO : Set → Set
 
 {-# COMPILED_TYPE IO IO #-}
 
 postulate
-  return : {A : Set} -> A -> IO A
-  _>>=_  : {A B : Set} -> IO A -> (A -> IO B) -> IO B
+  return : {A : Set} → A → IO A
+  _>>=_  : {A B : Set} → IO A → (A → IO B) → IO B
 
-{-# COMPILED return (\_ -> return :: a -> IO a) #-}
-{-# COMPILED _>>=_  (\_ _ -> (>>=) :: IO a -> (a -> IO b) -> IO b) #-}
+{-# COMPILED return (λ _ → return :: a → IO a) #-}
+{-# COMPILED _>>=_  (λ _ _ → (>>=) :: IO a → (a → IO b) → IO b) #-}
 
 IOMonad : RawMonad IO
 IOMonad = record { return = return; _>>=_ = _>>=_ }
@@ -33,10 +33,10 @@ IOMonad = record { return = return; _>>=_ = _>>=_ }
 
 postulate
   getContents : IO Costring
-  readFile    : String -> IO Costring
-  writeFile   : String -> Costring -> IO Unit
-  putStr      : Costring -> IO Unit
-  putStrLn    : Costring -> IO Unit
+  readFile    : String → IO Costring
+  writeFile   : String → Costring → IO Unit
+  putStr      : Costring → IO Unit
+  putStrLn    : Costring → IO Unit
 
 {-# IMPORT System.IO.UTF8 #-}
 {-# COMPILED getContents System.IO.UTF8.getContents #-}

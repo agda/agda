@@ -38,31 +38,31 @@ Costring = Colist Char
 
 private
  primitive
-  primStringAppend   : String -> String -> String
-  primStringToList   : String -> List Char
-  primStringFromList : List Char -> String
-  primStringEquality : String -> String -> Bool
+  primStringAppend   : String → String → String
+  primStringToList   : String → List Char
+  primStringFromList : List Char → String
+  primStringEquality : String → String → Bool
 
 infixr 5 _++_
 
-_++_ : String -> String -> String
+_++_ : String → String → String
 _++_ = primStringAppend
 
-toList : String -> List Char
+toList : String → List Char
 toList = primStringToList
 
-fromList : List Char -> String
+fromList : List Char → String
 fromList = primStringFromList
 
-toVec : (s : String) -> Vec Char (List.length (toList s))
+toVec : (s : String) → Vec Char (List.length (toList s))
 toVec s = Vec.fromList (toList s)
 
-toCostring : String -> Costring
+toCostring : String → Costring
 toCostring = Colist.fromList ∘ toList
 
 infix 4 _==_
 
-_==_ : String -> String -> Bool
+_==_ : String → String → Bool
 _==_ = primStringEquality
 
 _≟_ : Decidable {String} _≡_

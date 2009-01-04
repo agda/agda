@@ -17,114 +17,109 @@ open import Data.Product
 
 infix 4 _≅_ _≇_ _≅₁_ _≇₁_
 
-data _≅_ {a : Set} (x : a) : {b : Set} -> b -> Set where
+data _≅_ {a : Set} (x : a) : {b : Set} → b → Set where
   ≅-refl : x ≅ x
 
-data _≅₁_ {a : Set1} (x : a) : {b : Set1} -> b -> Set where
+data _≅₁_ {a : Set1} (x : a) : {b : Set1} → b → Set where
   ≅₁-refl : x ≅₁ x
 
 -- Nonequality.
 
-_≇_ : {a : Set} -> a -> {b : Set} -> b -> Set
+_≇_ : {a : Set} → a → {b : Set} → b → Set
 x ≇ y = ¬ x ≅ y
 
-_≇₁_ : {a : Set1} -> a -> {b : Set1} -> b -> Set
+_≇₁_ : {a : Set1} → a → {b : Set1} → b → Set
 x ≇₁ y = ¬ x ≅₁ y
 
 ------------------------------------------------------------------------
 -- Conversion
 
-≡-to-≅ : forall {a} {x y : a} -> x ≡ y -> x ≅ y
+≡-to-≅ : ∀ {a} {x y : a} → x ≡ y → x ≅ y
 ≡-to-≅ ≡-refl = ≅-refl
 
-≅-to-≡ : forall {a} {x y : a} -> x ≅ y -> x ≡ y
+≅-to-≡ : ∀ {a} {x y : a} → x ≅ y → x ≡ y
 ≅-to-≡ ≅-refl = ≡-refl
 
 ------------------------------------------------------------------------
 -- Some properties
 
-≅-reflexive : {a : Set} -> _⇒_ {a} _≡_ (\x y -> x ≅ y)
+≅-reflexive : ∀ {a} → _⇒_ {a} _≡_ (λ x y → x ≅ y)
 ≅-reflexive ≡-refl = ≅-refl
 
-≅-sym : forall {a b} {x : a} {y : b} -> x ≅ y -> y ≅ x
+≅-sym : ∀ {a b} {x : a} {y : b} → x ≅ y → y ≅ x
 ≅-sym ≅-refl = ≅-refl
 
-≅-trans :  forall {a b c} {x : a} {y : b} {z : c}
-        -> x ≅ y -> y ≅ z -> x ≅ z
+≅-trans : ∀ {a b c} {x : a} {y : b} {z : c} → x ≅ y → y ≅ z → x ≅ z
 ≅-trans ≅-refl ≅-refl = ≅-refl
 
-≅-subst : {a : Set} -> Substitutive {a} (\x y -> x ≅ y)
+≅-subst : ∀ {a} → Substitutive {a} (λ x y → x ≅ y)
 ≅-subst P ≅-refl p = p
 
-≅-subst₁ :  {a : Set} -> (P : a -> Set1)
-         -> forall {x y} -> x ≅ y -> P x -> P y
+≅-subst₁ : ∀ {a} (P : a → Set1) → ∀ {x y} → x ≅ y → P x → P y
 ≅-subst₁ P ≅-refl p = p
 
-≅-subst-removable
-  :  forall {a} (P : a -> Set) {x y} (eq : x ≅ y) z
-  -> ≅-subst P eq z ≅ z
+≅-subst-removable : ∀ {a} (P : a → Set) {x y} (eq : x ≅ y) z →
+                    ≅-subst P eq z ≅ z
 ≅-subst-removable P ≅-refl z = ≅-refl
 
-≡-subst-removable
-  :  forall {a} (P : a -> Set) {x y} (eq : x ≡ y) z
-  -> Homo.≡-subst P eq z ≅ z
+≡-subst-removable : ∀ {a} (P : a → Set) {x y} (eq : x ≡ y) z →
+                    Homo.≡-subst P eq z ≅ z
 ≡-subst-removable P ≡-refl z = ≅-refl
 
-≅-cong : Congruential (\x y -> x ≅ y)
+≅-cong : Congruential (λ x y → x ≅ y)
 ≅-cong = subst⟶cong ≅-refl ≅-subst
 
-≅-cong₂ : Congruential₂ (\x y -> x ≅ y)
+≅-cong₂ : Congruential₂ (λ x y → x ≅ y)
 ≅-cong₂ = cong+trans⟶cong₂ ≅-cong ≅-trans
 
-≅-resp : forall {a} (∼ : Rel a) -> (\x y -> x ≅ y) Respects₂ ∼
+≅-resp : ∀ {a} (∼ : Rel a) → (λ x y → x ≅ y) Respects₂ ∼
 ≅-resp _∼_ = subst⟶resp₂ _∼_ ≅-subst
 
-≅-isEquivalence : forall {a} -> IsEquivalence {a} (\x y -> x ≅ y)
+≅-isEquivalence : ∀ {a} → IsEquivalence {a} (λ x y → x ≅ y)
 ≅-isEquivalence = record
   { refl  = ≅-refl
   ; sym   = ≅-sym
   ; trans = ≅-trans
   }
 
-≅-setoid : Set -> Setoid
+≅-setoid : Set → Setoid
 ≅-setoid a = record
   { carrier       = a
-  ; _≈_           = \x y -> x ≅ y
+  ; _≈_           = λ x y → x ≅ y
   ; isEquivalence = ≅-isEquivalence
   }
 
-≅-decSetoid : forall {a} -> Decidable (\x y -> _≅_ {a} x y) -> DecSetoid
+≅-decSetoid : ∀ {a} → Decidable (λ x y → _≅_ {a} x y) → DecSetoid
 ≅-decSetoid ≅-dec = record
   { carrier = _
-  ; _≈_     = \x y -> x ≅ y
+  ; _≈_     = λ x y → x ≅ y
   ; isDecEquivalence = record
       { isEquivalence = ≅-isEquivalence
       ; _≟_           = ≅-dec
       }
   }
 
-≅-isPreorder : forall {a} ->
-               IsPreorder {a} (\x y -> x ≅ y) (\x y -> x ≅ y)
+≅-isPreorder : ∀ {a} → IsPreorder {a} (λ x y → x ≅ y) (λ x y → x ≅ y)
 ≅-isPreorder = record
   { isEquivalence = ≅-isEquivalence
   ; reflexive     = id
   ; trans         = ≅-trans
-  ; ≈-resp-∼      = ≅-resp (\x y -> x ≅ y)
+  ; ≈-resp-∼      = ≅-resp (λ x y → x ≅ y)
   }
 
-≅-isPreorder-≡ : forall {a} -> IsPreorder {a} _≡_ (\x y -> x ≅ y)
+≅-isPreorder-≡ : ∀ {a} → IsPreorder {a} _≡_ (λ x y → x ≅ y)
 ≅-isPreorder-≡ = record
   { isEquivalence = Homo.≡-isEquivalence
   ; reflexive     = ≅-reflexive
   ; trans         = ≅-trans
-  ; ≈-resp-∼      = Homo.≡-resp (\x y -> x ≅ y)
+  ; ≈-resp-∼      = Homo.≡-resp (λ x y → x ≅ y)
   }
 
-≅-preorder : Set -> Preorder
+≅-preorder : Set → Preorder
 ≅-preorder a = record
   { carrier    = a
   ; _≈_        = _≡_
-  ; _∼_        = \x y -> x ≅ y
+  ; _∼_        = λ x y → x ≅ y
   ; isPreorder = ≅-isPreorder-≡
   }
 
@@ -134,9 +129,9 @@ x ≇₁ y = ¬ x ≅₁ y
 -- See Relation.Binary.PropositionalEquality.Inspect.
 
 data Inspect {a : Set} (x : a) : Set where
-  _with-≅_ : (y : a) (eq : y ≅ x) -> Inspect x
+  _with-≅_ : (y : a) (eq : y ≅ x) → Inspect x
 
-inspect : forall {a} (x : a) -> Inspect x
+inspect : ∀ {a} (x : a) → Inspect x
 inspect x = x with-≅ ≅-refl
 
 ------------------------------------------------------------------------

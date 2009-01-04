@@ -20,12 +20,12 @@ open import Data.Function
 zero : ℕ
 zero = ε
 
-suc : ℕ -> ℕ
+suc : ℕ → ℕ
 suc = _◅_ tt
 
 -- The length of a star-list.
 
-length : forall {I} {T : Rel I} {i j} -> Star T i j -> ℕ
+length : ∀ {I} {T : Rel I} {i j} → Star T i j → ℕ
 length = gmap (const tt) (const tt)
 
 -- Arithmetic.
@@ -33,13 +33,13 @@ length = gmap (const tt) (const tt)
 infixl 7 _*_
 infixl 6 _+_ _∸_
 
-_+_ : ℕ -> ℕ -> ℕ
+_+_ : ℕ → ℕ → ℕ
 _+_ = _◅◅_
 
-_*_ : ℕ -> ℕ -> ℕ
+_*_ : ℕ → ℕ → ℕ
 _*_ m = const m ⋆
 
-_∸_ : ℕ -> ℕ -> ℕ
+_∸_ : ℕ → ℕ → ℕ
 m       ∸ ε       = m
 ε       ∸ (_ ◅ n) = zero
 (_ ◅ m) ∸ (_ ◅ n) = m ∸ n

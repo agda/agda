@@ -9,7 +9,7 @@ module Relation.Binary.Props.TotalOrder (t : TotalOrder) where
 open Relation.Binary.TotalOrder t
 open import Relation.Binary.Consequences
 
-decTotalOrder : Decidable _≈_ -> DecTotalOrder
+decTotalOrder : Decidable _≈_ → DecTotalOrder
 decTotalOrder ≟ = record
   { carrier         = carrier
   ; _≈_             = _≈_

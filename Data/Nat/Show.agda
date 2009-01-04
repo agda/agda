@@ -17,8 +17,8 @@ open import Data.List
 
 showInBase : (base : ℕ)
              {base≥2 : True (2 ≤? base)}
-             {base≤16 : True (base ≤? 16)} ->
-             ℕ -> String
+             {base≤16 : True (base ≤? 16)} →
+             ℕ → String
 showInBase base {base≥2} {base≤16} =
   String.fromList ∘
   map (showDigit {base≤16 = base≤16}) ∘
@@ -28,5 +28,5 @@ showInBase base {base≥2} {base≤16} =
 -- show n is a string containing the decimal expansion of n (starting
 -- with the most significant digit).
 
-show : ℕ -> String
+show : ℕ → String
 show = showInBase 10
