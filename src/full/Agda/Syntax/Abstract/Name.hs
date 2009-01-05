@@ -32,13 +32,20 @@ data Name = Name { nameId	   :: NameId
     deriving (Typeable, Data)
 
 -- | Qualified names are non-empty lists of names. Equality on qualified names
---   are just equality on the last name, i.e. the module part is just for show.
+--   are just equality on the last name, i.e. the module part is just
+--   for show.
+--
+-- The 'SetRange' instance for qualified names sets all individual
+-- ranges (including those of the module prefix) to the given one.
 data QName = QName { qnameModule :: ModuleName
 		   , qnameName	 :: Name
 		   }
     deriving (Typeable, Data)
 
 -- | A module name is just a qualified name.
+--
+-- The 'SetRange' instance for module names sets all individual ranges
+-- to the given one.
 newtype ModuleName = MName { mnameToList :: [Name] }
   deriving (Eq, Ord, Typeable, Data)
 
@@ -51,7 +58,38 @@ newtype AmbiguousQName = AmbQ { unAmbQ :: [QName] }
 
 instance HasRange ModuleName where
   getRange (MName []) = noRange
-  getRange (MName xs) = getRange $ last xs
+  getRange (MName xs) = getRange xs
+
+-- | Sets the ranges of the individual names in the module name to
+-- match those of the corresponding concrete names. If the concrete
+-- names are fewer than the number of module name name parts, then the
+-- initial name parts get the range 'noRange'.
+--
+-- @C.D.E `withRangesOf` [A, B]@ returns @C.D.E@ but with ranges set
+-- as follows:
+--
+-- * @C@: 'noRange'.
+--
+-- * @D@: the range of @A@.
+--
+-- * @E@: the range of @B@.
+--
+-- Precondition: The number of module name name parts has to be at
+-- least as large as the length of the list.
+
+withRangesOf :: ModuleName -> [C.Name] -> ModuleName
+MName ms `withRangesOf` ns
+  | length ms < length ns  = __IMPOSSIBLE__
+  | otherwise              = MName $
+      reverse $ zipWith setRange
+                        (reverse (map getRange ns) ++ repeat noRange)
+                        (reverse ms)
+
+-- | Like 'withRangesOf', but uses the name parts (qualifier + name)
+-- of the qualified name as the list of concrete names.
+
+withRangesOfQ :: ModuleName -> C.QName -> ModuleName
+m `withRangesOfQ` q = m `withRangesOf` C.qnameParts q
 
 mnameFromList :: [Name] -> ModuleName
 mnameFromList = MName
@@ -173,16 +211,23 @@ instance HasRange Name where
   getRange = getRange . nameConcrete
 
 instance HasRange QName where
-  getRange = getRange . qnameName
+  getRange q = getRange (qnameModule q, qnameName q)
 
 instance SetRange Name where
   setRange r x = x { nameConcrete = setRange r $ nameConcrete x }
 
 instance SetRange QName where
-  setRange r q = q { qnameName = setRange r $ qnameName q }
+  setRange r q = q { qnameModule = setRange r $ qnameModule q
+                   , qnameName   = setRange r $ qnameName   q
+                   }
+
+instance SetRange ModuleName where
+  setRange r (MName ns) = MName (map (setRange r) ns)
 
 instance KillRange QName where
-  killRange q = q { qnameName = killRange $ qnameName q }
+  killRange q = q { qnameModule = killRange $ qnameModule q
+                  , qnameName   = killRange $ qnameName   q
+                  }
 
 instance KillRange Name where
   killRange x = x { nameConcrete = killRange $ nameConcrete x }

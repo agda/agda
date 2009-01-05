@@ -180,7 +180,7 @@ checkModuleMacro apply r p a x tel m args open dir =
     printScope "mod.inst" 10 $ "before stripping"
     stripNoNames
     printScope "mod.inst" 10 $ "after stripping"
-    return [ apply info m0 tel' m1 args' renD renM ]
+    return [ apply info (m0 `withRangesOf` [x]) tel' m1 args' renD renM ]
   where
     info = ModuleInfo p a r
 
@@ -323,7 +323,8 @@ instance ToAbstract NewModuleQName A.ModuleName where
     ms <- resolveModule' q
     case ms of
       [] -> foldr1 A.qualifyM <$> mapM (toAbstract . NewModuleName) (toList q)
-      ms -> typeError $ ShadowedModule $ map amodName ms
+      ms -> typeError $ ShadowedModule $
+                          map ((`withRangesOfQ` q) . amodName) ms
     where
       toList (C.QName  x) = [x]
       toList (C.Qual m x) = m : toList x
@@ -467,7 +468,8 @@ scopeCheckModule r a c x m tel ds = do
   qm <- getCurrentModule
   ds <- withLocalVars $ do
 	  tel <- toAbstract tel
-	  (:[]) . A.Section info qm tel <$> toAbstract ds
+	  (:[]) . A.Section info (qm `withRangesOfQ` x) tel <$>
+            toAbstract ds
   scope <- getScope
   popScope a
   bindQModule a x qm
@@ -706,7 +708,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
       (m, i) <- withTopLevelModule x $ do
 	m <- toAbstract $ NewModuleQName x
 	printScope "import" 10 "before import:"
-	i <- scopeCheckImport m
+	(m, i) <- scopeCheckImport m
 	printScope "import" 10 $ "scope checked import: " ++ show i
 	return (m, i)
 

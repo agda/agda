@@ -372,8 +372,6 @@ nameToFile :: SourceToModule
               -- consistency checking.
            -> [C.Name]
               -- ^ The name qualifier (may be empty).
-              --
-              -- This argument is currently ignored.
            -> C.Name
               -- ^ The base name.
            -> (Bool -> MetaInfo)
@@ -385,14 +383,15 @@ nameToFile :: SourceToModule
               -- if possible.
            -> File
 nameToFile modMap file xs x m mR =
-  case fmap P.srcFile $ P.rStart $ P.getRange x of
-    -- Make sure that we don't get any funny ranges.
-    Just f | not (f =^= file) -> __IMPOSSIBLE__
-    _ -> several rs' ((m isOp) { definitionSite = mFilePos })
+  -- Make sure that we don't get any funny ranges.
+  if all (== file) $ catMaybes $
+     map (fmap P.srcFile . P.rStart . P.getRange) (x : xs) then
+    several rs' ((m isOp) { definitionSite = mFilePos })
+   else
+    __IMPOSSIBLE__
   where
-  (=^=)      = (==) `on` last . splitPath
   (rs, isOp) = getRanges x
-  rs'        = rs -- ++ concatMap (fst . getRanges) xs
+  rs'        = rs ++ concatMap (fst . getRanges) xs
   mFilePos   = do
     r <- mR
     P.Pn { P.srcFile = f, P.posPos = p } <- P.rStart r

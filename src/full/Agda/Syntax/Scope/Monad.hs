@@ -127,10 +127,13 @@ freshAbstractQName fx x = do
 
 -- * Simple queries
 
--- | Return the name of the current module.
+-- | Returns the name of the current module, with the range set to
+-- 'noRange'.
 getCurrentModule :: ScopeM ModuleName
 getCurrentModule =
-  A.mnameFromList . concatMap A.mnameToList . reverse . map scopeName . scopeStack <$> getScope
+  setRange noRange .
+  A.mnameFromList . concatMap A.mnameToList .
+  reverse . map scopeName . scopeStack <$> getScope
 
 -- * Resolving names
 
@@ -165,18 +168,9 @@ resolveModule :: C.QName -> ScopeM AbstractModule
 resolveModule x = do
   ms <- resolveModule' x
   case ms of
-    [m] -> return $ updateRange m x
-    []  -> typeError $ NoSuchModule x
-    ms  -> typeError $ AmbiguousModule x (map amodName ms)
-  where
-  -- Sets the ranges of name parts present in the concrete name to
-  -- those used in that name, and sets other ranges to 'noRange'.
-  updateRange :: AbstractModule -> C.QName -> AbstractModule
-  updateRange (AbsModule (MName ms)) x = AbsModule $ MName $
-    reverse $ zipWith setRange
-                      (reverse (map getRange $ qnameParts x)
-                       ++ repeat noRange)
-                      (reverse ms)
+    [AbsModule m] -> return $ AbsModule (m `withRangesOfQ` x)
+    []            -> typeError $ NoSuchModule x
+    ms            -> typeError $ AmbiguousModule x (map amodName ms)
 
 resolveModule' :: C.QName -> ScopeM [AbstractModule]
 resolveModule' x = do

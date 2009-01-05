@@ -533,8 +533,8 @@ instance InstantiateFull Clause where
        <*> instantiateFull b
 
 instance InstantiateFull Interface where
-    instantiateFull (Interface ms scope sig b hsImports highlighting) =
-	Interface ms scope
+    instantiateFull (Interface ms mod scope sig b hsImports highlighting) =
+	Interface ms mod scope
 	    <$> instantiateFull sig
 	    <*> instantiateFull b
             <*> return hsImports

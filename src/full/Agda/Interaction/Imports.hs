@@ -25,6 +25,7 @@ import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Parser 
 import Agda.Syntax.Scope.Base
+import Agda.Syntax.Scope.Monad
 import Agda.Syntax.Translation.ConcreteToAbstract
 import Agda.Syntax.Internal
 
@@ -114,14 +115,17 @@ findFile ft m = do
 		SourceFile    -> [".agda", ".lagda"]
 		InterfaceFile -> [".agdai"]
 
-scopeCheckImport :: ModuleName -> TCM Scope
+-- | Scope checks the given module. A proper version of the module
+-- name (with correct definition sites) is returned.
+
+scopeCheckImport :: ModuleName -> TCM (ModuleName, Scope)
 scopeCheckImport x = do
     reportSLn "import.scope" 5 $ "Scope checking " ++ show x
     visited <- Map.keys <$> getVisitedModules
     reportSLn "import.scope" 10 $ "  visited: " ++ show visited
     (i,t)   <- getInterface x
     addImport x
-    return $ iScope i
+    return (iModuleName i `withRangesOfQ` mnameToConcrete x, iScope i)
 
 alreadyVisited :: ModuleName -> TCM (Interface, ClockTime) -> TCM (Interface, ClockTime)
 alreadyVisited x getIface = do
@@ -396,7 +400,7 @@ createInterface opts trace path visited decoded
     let ok = null termErrs && null unsolvedMetas
 
     (,) topLevel <$> if ok then do
-      i        <- buildInterface syntaxInfo
+      i        <- buildInterface (topLevelModuleName topLevel) syntaxInfo
       isig     <- getImportedSignature
       vs       <- getVisitedModules
       ds       <- getDecodedModules
@@ -411,10 +415,12 @@ createInterface opts trace path visited decoded
 -- | Builds an interface for the current module, which should already
 -- have been successfully type checked.
 
-buildInterface :: HighlightingInfo
+buildInterface :: ModuleName
+                  -- ^ The name of the current module.
+               -> HighlightingInfo
                   -- ^ Syntax highlighting info for the module.
                -> TCM Interface
-buildInterface syntaxInfo = do
+buildInterface m syntaxInfo = do
     reportSLn "import.iface" 5 "Building interface..."
     scope   <- getScope
     sig     <- getSignature
@@ -425,6 +431,7 @@ buildInterface syntaxInfo = do
     reportSLn "import.iface" 7 "  instantiating all meta variables"
     i <- instantiateFull $ Interface
 			{ iImportedModules = Set.toList ms
+                        , iModuleName      = m
 			, iScope	   = case scopeStack scope of  -- TODO!!
                                                []    -> __IMPOSSIBLE__
                                                s : _ -> s

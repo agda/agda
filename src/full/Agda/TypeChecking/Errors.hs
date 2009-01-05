@@ -226,9 +226,13 @@ instance PrettyTCM TypeError where
               pwords "Shadowing of module" ++ [prettyTCM m] ++ pwords "defined at" ++ [text $ show r] ++
               pwords "is not allowed"
               where
-                r = case [ r | r <- map getRange ms, r /= noRange ] of
+                r = case [ r | r <- map (defSiteOfLast . mnameToList) ms
+                             , r /= noRange ] of
                       []    -> noRange
                       r : _ -> r
+
+                defSiteOfLast [] = noRange
+                defSiteOfLast ns = nameBindingSite (last ns)
             ModuleArityMismatch m EmptyTel args -> fsep $
               pwords "The module" ++ [prettyTCM m] ++
               pwords "is not parameterized, but is being applied to arguments"

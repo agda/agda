@@ -60,9 +60,13 @@ qualify (QName m) x	= Qual m (QName x)
 qualify (Qual m m') x	= Qual m $ qualify m' x
 
 -- | @unqualify A.B.x == x@
+--
+-- The range is preserved.
 unqualify :: QName -> Name
-unqualify (QName x)  = x
-unqualify (Qual _ x) = unqualify x
+unqualify q = unqualify' q `withRangeOf` q
+  where
+  unqualify' (QName x)  = x
+  unqualify' (Qual _ x) = unqualify' x
 
 -- | @qnameParts A.B.x = [A, B, x]@
 qnameParts :: QName -> [Name]

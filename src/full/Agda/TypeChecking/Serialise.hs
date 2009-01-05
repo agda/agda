@@ -66,7 +66,7 @@ import Agda.Utils.Permutation
 import Agda.Utils.Impossible
 
 currentInterfaceVersion :: Int
-currentInterfaceVersion = 20081209
+currentInterfaceVersion = 20090105
 
 type Node = [Int] -- constructor tag (maybe omitted) and arg indices
 
@@ -594,9 +594,9 @@ instance EmbPrj HP.HighlightingInfo where
     valu _      = __IMPOSSIBLE__
 
 instance EmbPrj Interface where
-  icode (Interface a b c d e f) = icode6' a b c d e f
-  value = vcase valu where valu [a, b, c, d, e, f] = valu6 Interface a b c d e f
-                           valu _                  = __IMPOSSIBLE__
+  icode (Interface a b c d e f g) = icode7' a b c d e f g
+  value = vcase valu where valu [a, b, c, d, e, f, g] = valu7 Interface a b c d e f g
+                           valu _                     = __IMPOSSIBLE__
 
 
 

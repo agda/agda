@@ -139,6 +139,7 @@ type DecodedModules = Map ModuleName (Interface, ClockTime)
 
 data Interface = Interface
 	{ iImportedModules :: [ModuleName]
+        , iModuleName      :: ModuleName
 	, iScope	   :: Scope
 	, iSignature	   :: Signature
 	, iBuiltin	   :: BuiltinThings String
