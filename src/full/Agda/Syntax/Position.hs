@@ -33,6 +33,7 @@ module Agda.Syntax.Position
   , withRangeOf
   , fuseRange
   , fuseRanges
+  , beginningOf
 
     -- * Tests
   , tests
@@ -284,6 +285,14 @@ fuseRanges (Range is) (Range js) = Range (helper is js)
 fuseRange :: (HasRange u, HasRange t) => u -> t -> Range
 fuseRange x y = fuseRanges (getRange x) (getRange y)
 
+-- | @beginningOf r@ is an empty range (a single, empty interval)
+-- positioned at the beginning of @r@. If @r@ does not have a
+-- beginning, then 'noRange' is returned.
+beginningOf :: Range -> Range
+beginningOf r = case rStart r of
+  Just pos -> Range [Interval { iStart = pos, iEnd = pos }]
+  Nothing  -> noRange
+
 -- | @x `withRangeOf` y@ sets the range of @x@ to the range of @y@.
 withRangeOf :: (SetRange t, HasRange u) => t -> u -> t
 x `withRangeOf` y = setRange (getRange y) x
@@ -344,6 +353,8 @@ prop_fuseRanges r1 r2 =
   rPositions r == Set.union (rPositions r1) (rPositions r2)
   where r = fuseRanges r1 r2
 
+prop_beginningOf r = rangeInvariant (beginningOf r)
+
 instance Arbitrary Position where
   arbitrary = do
     NonZero (NonNegative pos') <- arbitrary
@@ -379,4 +390,5 @@ tests = runTests "Agda.Syntax.Position"
   , quickCheck' prop_rangeToInterval
   , quickCheck' prop_fuseIntervals
   , quickCheck' prop_fuseRanges
+  , quickCheck' prop_beginningOf
   ]
