@@ -83,7 +83,7 @@ instance Eq Position where
 instance Ord Position where
   compare = compare `on` importantPart
 
--- | An interval. The @rEnd@ position is not included in the interval.
+-- | An interval. The @iEnd@ position is not included in the interval.
 --
 -- Note the invariant which intervals have to satisfy: 'intervalInvariant'.
 data Interval = Interval { iStart, iEnd :: !Position }
