@@ -23,7 +23,7 @@ data Σ (A : Set) (B : A → Set) : Set where
 ∄ : {A : Set} → (A → Set) → Set
 ∄ P = ¬ ∃ P
 
-∃₂ : {A B : Set} (C : A → B → Set) → Set
+∃₂ : {A : Set} {B : A → Set} (C : (x : A) → B x → Set) → Set
 ∃₂ C = ∃ λ a → ∃ λ b → C a b
 
 _×_ : (A B : Set) → Set
