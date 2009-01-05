@@ -268,7 +268,6 @@ pushScope name = modifyScopeStack (s:)
 -}
 popScope :: Access -> ScopeM ()
 popScope acc = do
-  top <- getCurrentModule
   modifyScopeStack $ \(s0:s1:ss) ->
     mergeScope s1 (setScopeAccess acc $ mapScope_ (qual s0) (qual s0) $ noPrivate s0) : ss
   where

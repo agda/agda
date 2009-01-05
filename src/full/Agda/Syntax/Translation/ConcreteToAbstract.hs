@@ -91,9 +91,6 @@ lhsArgs p = case appView p of
 	    RawAppP _ _	  -> __IMPOSSIBLE__
 	    _		  -> [ mkHead p ]
 
-makeSection :: ModuleInfo -> A.ModuleName -> A.Telescope -> [A.Declaration] -> [A.Declaration]
-makeSection info m tel ds = [A.Section info m tel ds]
-
 annotateDecl :: ScopeM A.Declaration -> ScopeM A.Declaration
 annotateDecl m = annotateDecls $ (:[]) <$> m
 
@@ -470,7 +467,7 @@ scopeCheckModule r a c x m tel ds = do
   qm <- getCurrentModule
   ds <- withLocalVars $ do
 	  tel <- toAbstract tel
-	  makeSection info qm tel <$> toAbstract ds
+	  (:[]) . A.Section info qm tel <$> toAbstract ds
   scope <- getScope
   popScope a
   bindQModule a x qm
@@ -530,7 +527,6 @@ instance ToAbstract LetDef [A.LetBinding] where
 
             -- You can't open public in a let
             NiceOpen r x dirs | not (C.publicOpen dirs) -> do
-              current <- getCurrentModule
               m	      <- toAbstract (OldModuleName x)
               n	      <- length . scopeLocals <$> getScope
               openModule_ x dirs
@@ -679,7 +675,6 @@ instance ToAbstract NiceDeclaration A.Declaration where
       _                      -> notAModuleExpr e
 
     NiceOpen r x dir -> do
-      current <- getCurrentModule
       m	      <- toAbstract (OldModuleName x)
       n	      <- length . scopeLocals <$> getScope
 
