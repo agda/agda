@@ -1,62 +1,35 @@
 /* Aspects. */
-.Comment { color: #B22222;
-         }
-.Keyword { color: #CD6600;
-         }
-.String { color: #B22222;
-        }
-.Number { color: #A020F0;
-        }
-.Symbol { color: #404040;
-        }
-.PrimitiveType { color: #0000CD;
-               }
-.Operator {}
+.Comment       { color: #B22222 }
+.Keyword       { color: #CD6600 }
+.String        { color: #B22222 }
+.Number        { color: #A020F0 }
+.Symbol        { color: #404040 }
+.PrimitiveType { color: #0000CD }
+.Operator      {}
 
 /* NameKinds. */
-.Bound { color: black
-       }
-.InductiveConstructor { color: #006400;
-                      }
-.CoinductiveConstructor { color: #006400;
-                        }
-.Datatype { color: #006400;
-          }
-.Field { color: #EE1289;
-       }
-.Function { color: #0000CD;
-          }
-.Module { color: #A020F0;
-        }
-.Postulate { color: #00008B;
-           }
-.Primitive { color: #1E90FF;
-           }
-.Record { color: #8B0A50;
-        }
+.Bound                  { color: black   }
+.InductiveConstructor   { color: #006400 }
+.CoinductiveConstructor { color: #006400 }
+.Datatype               { color: #006400 }
+.Field                  { color: #EE1289 }
+.Function               { color: #0000CD }
+.Module                 { color: #A020F0 }
+.Postulate              { color: #00008B }
+.Primitive              { color: #1E90FF }
+.Record                 { color: #8B0A50 }
 
 /* OtherAspects. */
-.DottedPattern {}
-.Error { color: red;
-         text-decoration: underline;
-       }
-/* To avoid a:link and a:visited overriding .Error: */
-a.Error:link    { text-decoration: underline;
-                }
-a.Error:visited { text-decoration: underline;
-                }
-.UnsolvedMeta { color: black;
-                background: yellow;
-              }
-.TerminationProblem { color: black;
-                      background: #FFA07A;
-                    }
-.IncompletePattern { color: black;
-                     background: #F5DEB3;
-                   }
+.DottedPattern      {}
+.UnsolvedMeta       { color: black; background: yellow         }
+.TerminationProblem { color: black; background: #FFA07A        }
+.IncompletePattern  { color: black; background: #F5DEB3        }
+.Error              { color: red;   text-decoration: underline }
 
 /* Standard attributes. */
-a:link { text-decoration: none;
-       }
-a:visited { text-decoration: none;
-          }
+a:link    { text-decoration: none }
+a:visited { text-decoration: none }
+
+/* To avoid a:link and a:visited overriding .Error: */
+a.Error:link    { text-decoration: underline }
+a.Error:visited { text-decoration: underline }
