@@ -28,6 +28,7 @@ import qualified Agda.Interaction.Imports as Imp
 import Agda.TypeChecking.Monad (TCM)
 import qualified Agda.TypeChecking.Monad as TCM
 import qualified Agda.Syntax.Abstract as A
+import Agda.Syntax.Common
 import qualified Agda.Syntax.Scope.Monad as Scope
 import Agda.Syntax.Translation.ConcreteToAbstract
 import Agda.Interaction.Options
@@ -135,11 +136,11 @@ code contents info =
   annotate pos mi = anchor ! attributes
     where
     attributes =
+      [name (show pos)] ++
+      maybe [] link (definitionSite mi) ++
       (case classes of
         [] -> []
         cs -> [theclass $ unwords cs])
-      ++ maybe [] link (definitionSite mi)
-      ++ [name (show pos)]
 
     classes =
       maybe [] noteClasses (note mi)
@@ -148,8 +149,13 @@ code contents info =
 
     aspectClasses (Name mKind op) = kindClass ++ opClass
       where
-      kindClass = maybe [] ((: []) . show) mKind
-      opClass   = if op then ["Operator"] else []
+      kindClass = maybe [] ((: []) . showKind) mKind
+
+      showKind (Constructor Inductive)   = "InductiveConstructor"
+      showKind (Constructor CoInductive) = "CoinductiveConstructor"
+      showKind k                         = show k
+
+      opClass = if op then ["Operator"] else []
     aspectClasses a = [show a]
 
     otherAspectClasses = map show

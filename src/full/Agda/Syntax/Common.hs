@@ -8,6 +8,7 @@ import Data.Generics (Typeable, Data)
 import Control.Applicative
 import Data.Foldable
 import Data.Traversable
+import Test.QuickCheck
 
 import Agda.Syntax.Position
 import Agda.Utils.Monad
@@ -119,3 +120,12 @@ instance Enum NameId where
   toEnum n		= __IMPOSSIBLE__  -- should not be used
   fromEnum (NameId n _) = fromIntegral n
 
+------------------------------------------------------------------------
+-- Arbitrary and CoArbitrary instances
+
+instance Arbitrary Induction where
+  arbitrary = elements [Inductive, CoInductive]
+
+instance CoArbitrary Induction where
+  coarbitrary Inductive   = variant 0
+  coarbitrary CoInductive = variant 1

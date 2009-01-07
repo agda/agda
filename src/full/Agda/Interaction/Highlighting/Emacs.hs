@@ -12,6 +12,7 @@ import Agda.Interaction.Highlighting.Range
 import Agda.Interaction.Highlighting.Generate
 import Agda.TypeChecking.Monad (TCM, TCErr)
 import Agda.Syntax.Abstract (QName)
+import Agda.Syntax.Common
 import qualified Agda.Syntax.Position as P
 import Agda.Syntax.Translation.ConcreteToAbstract (TopLevelInfo)
 import Agda.TypeChecking.Errors (prettyError)
@@ -36,9 +37,13 @@ toAtoms m = map toAtom (otherAspects m) ++ toAtoms' (aspect m)
   where
   toAtom x = map toLower (show x)
 
+  kindToAtom (Constructor Inductive)   = "inductiveconstructor"
+  kindToAtom (Constructor CoInductive) = "coinductiveconstructor"
+  kindToAtom k                         = toAtom k
+
   toAtoms' Nothing               = []
   toAtoms' (Just (Name mKind op)) =
-    map toAtom (maybeToList mKind) ++ opAtom
+    map kindToAtom (maybeToList mKind) ++ opAtom
     where opAtom | op        = ["operator"]
                  | otherwise = []
   toAtoms' (Just a) = [toAtom a]

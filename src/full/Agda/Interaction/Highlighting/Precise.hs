@@ -32,6 +32,7 @@ import qualified Data.Map as Map
 import Data.Generics
 
 import qualified Agda.Syntax.Abstract.Name as A
+import qualified Agda.Syntax.Common as C
 
 import Agda.Interaction.Highlighting.Range
 
@@ -52,16 +53,16 @@ data Aspect
     deriving (Eq, Show, Typeable, Data)
 
 data NameKind
-  = Bound        -- ^ Bound variable.
-  | Constructor
+  = Bound                   -- ^ Bound variable.
+  | Constructor C.Induction -- ^ Inductive or coinductive constructor.
   | Datatype
-  | Field        -- ^ Record field.
+  | Field                   -- ^ Record field.
   | Function
-  | Module       -- ^ Module name.
+  | Module                  -- ^ Module name.
   | Postulate
-  | Primitive    -- ^ Primitive.
-  | Record       -- ^ Record type.
-    deriving (Eq, Show, Enum, Bounded, Typeable, Data)
+  | Primitive               -- ^ Primitive.
+  | Record                  -- ^ Record type.
+    deriving (Eq, Show, Typeable, Data)
 
 -- | Other aspects. (These can overlap with each other and with
 -- 'Aspect's.)
@@ -244,13 +245,30 @@ instance CoArbitrary Aspect where
     variant 6 . maybeCoGen coarbitrary nk . coarbitrary b
 
 instance Arbitrary NameKind where
-  arbitrary   = elements [minBound .. maxBound]
+  arbitrary = oneof $ [liftM Constructor arbitrary] ++
+                      map return [ Bound
+                                 , Datatype
+                                 , Field
+                                 , Function
+                                 , Module
+                                 , Postulate
+                                 , Primitive
+                                 , Record
+                                 ]
 
 instance CoArbitrary NameKind where
-  coarbitrary = coarbitrary . fromEnum
+  coarbitrary Bound             = variant 0
+  coarbitrary (Constructor ind) = variant 1 . coarbitrary ind
+  coarbitrary Datatype          = variant 2
+  coarbitrary Field             = variant 3
+  coarbitrary Function          = variant 4
+  coarbitrary Module            = variant 5
+  coarbitrary Postulate         = variant 6
+  coarbitrary Primitive         = variant 7
+  coarbitrary Record            = variant 8
 
 instance Arbitrary OtherAspect where
-  arbitrary   = elements [minBound .. maxBound]
+  arbitrary = elements [minBound .. maxBound]
 
 instance CoArbitrary OtherAspect where
   coarbitrary = coarbitrary . fromEnum

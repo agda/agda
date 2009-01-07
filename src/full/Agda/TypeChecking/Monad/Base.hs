@@ -399,6 +399,7 @@ data Defn = Axiom
 	    , conData   :: QName       -- name of datatype
             , conHsCode :: Maybe (HaskellType, HaskellCode) -- used by the compiler
 	    , conAbstr  :: IsAbstract
+            , conInd    :: Induction   -- ^ Inductive or coinductive?
             }
 	  | Primitive -- PrimFun
             { primAbstr :: IsAbstract

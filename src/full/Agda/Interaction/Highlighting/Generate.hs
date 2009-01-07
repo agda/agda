@@ -246,12 +246,12 @@ nameKinds tcs decls = do
     dropPostulates k         _ = k
 
   defnToNameKind :: Defn -> NameKind
-  defnToNameKind (M.Axiom {})       = Postulate
-  defnToNameKind (M.Function {})    = Function
-  defnToNameKind (M.Datatype {})    = Datatype
-  defnToNameKind (M.Record {})      = Record
-  defnToNameKind (M.Constructor {}) = Constructor
-  defnToNameKind (M.Primitive {})   = Primitive
+  defnToNameKind (M.Axiom {})                     = Postulate
+  defnToNameKind (M.Function {})                  = Function
+  defnToNameKind (M.Datatype {})                  = Datatype
+  defnToNameKind (M.Record {})                    = Record
+  defnToNameKind (M.Constructor { M.conInd = i }) = Constructor i
+  defnToNameKind (M.Primitive {})                 = Primitive
 
   getAxiomName :: A.Declaration -> A.QName
   getAxiomName (A.Axiom _ q _) = q
@@ -259,9 +259,9 @@ nameKinds tcs decls = do
 
   getDef :: A.Definition -> Map A.QName NameKind
   getDef (A.FunDef  _ q _)      = Map.singleton q Function
-  getDef (A.DataDef _ q _ _ cs) = Map.singleton q Datatype `union`
+  getDef (A.DataDef _ q i _ cs) = Map.singleton q Datatype `union`
                                   (Map.unions $
-                                   map (\q -> Map.singleton q Constructor) $
+                                   map (\q -> Map.singleton q (Constructor i)) $
                                    map getAxiomName cs)
   getDef (A.RecDef  _ q _ _ _)  = Map.singleton q Record
   getDef (A.ScopedDef {})       = Map.empty

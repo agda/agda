@@ -66,7 +66,7 @@ import Agda.Utils.Permutation
 import Agda.Utils.Impossible
 
 currentInterfaceVersion :: Int
-currentInterfaceVersion = 20090105
+currentInterfaceVersion = 20090107
 
 type Node = [Int] -- constructor tag (maybe omitted) and arg indices
 
@@ -454,14 +454,14 @@ instance EmbPrj Defn where
   icode (Function    a b c d e f)         = icode6 1 a b c d e f
   icode (Datatype    a b c d e f g h i j) = icode10 2 a b c d e f g h i j
   icode (Record      a b c d e f g h)     = icode8 3 a b c d e f g h
-  icode (Constructor a b c d e)           = icode5 4 a b c d e
+  icode (Constructor a b c d e f)         = icode6 4 a b c d e f
   icode (Primitive   a b c)               = icode3 5 a b c
   value = vcase valu where
     valu [0, a]                            = valu1 Axiom       a
     valu [1, a, b, c, d, e, f]             = valu6 Function    a b c d e f
     valu [2, a, b, c, d, e, f, g, h, i, j] = valu10 Datatype    a b c d e f g h i j
     valu [3, a, b, c, d, e, f, g, h]       = valu8 Record      a b c d e f g h
-    valu [4, a, b, c, d, e]                = valu5 Constructor a b c d e
+    valu [4, a, b, c, d, e, f]             = valu6 Constructor a b c d e f
     valu [5, a, b, c]                      = valu3 Primitive   a b c
     valu _                                 = __IMPOSSIBLE__
 
@@ -523,27 +523,27 @@ instance EmbPrj a => EmbPrj (Builtin a) where
                            valu _      = __IMPOSSIBLE__
 
 instance EmbPrj HP.NameKind where
-  icode HP.Bound       = icode0 0
-  icode HP.Constructor = icode0 1
-  icode HP.Datatype    = icode0 2
-  icode HP.Field       = icode0 3
-  icode HP.Function    = icode0 4
-  icode HP.Module      = icode0 5
-  icode HP.Postulate   = icode0 6
-  icode HP.Primitive   = icode0 7
-  icode HP.Record      = icode0 8
+  icode HP.Bound           = icode0 0
+  icode (HP.Constructor a) = icode1 1 a
+  icode HP.Datatype        = icode0 2
+  icode HP.Field           = icode0 3
+  icode HP.Function        = icode0 4
+  icode HP.Module          = icode0 5
+  icode HP.Postulate       = icode0 6
+  icode HP.Primitive       = icode0 7
+  icode HP.Record          = icode0 8
 
   value = vcase valu where
-    valu [0] = valu0 HP.Bound
-    valu [1] = valu0 HP.Constructor
-    valu [2] = valu0 HP.Datatype
-    valu [3] = valu0 HP.Field
-    valu [4] = valu0 HP.Function
-    valu [5] = valu0 HP.Module
-    valu [6] = valu0 HP.Postulate
-    valu [7] = valu0 HP.Primitive
-    valu [8] = valu0 HP.Record
-    valu _   = __IMPOSSIBLE__
+    valu [0]     = valu0 HP.Bound
+    valu [1 , a] = valu1 HP.Constructor a
+    valu [2]     = valu0 HP.Datatype
+    valu [3]     = valu0 HP.Field
+    valu [4]     = valu0 HP.Function
+    valu [5]     = valu0 HP.Module
+    valu [6]     = valu0 HP.Postulate
+    valu [7]     = valu0 HP.Primitive
+    valu [8]     = valu0 HP.Record
+    valu _       = __IMPOSSIBLE__
 
 instance EmbPrj HP.Aspect where
   icode HP.Comment       = icode0 0

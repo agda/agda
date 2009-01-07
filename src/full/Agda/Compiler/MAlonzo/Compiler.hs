@@ -213,8 +213,8 @@ hslit l = case l of LitInt    _ x -> HsInt    x
 
 condecl :: QName -> TCM (Nat, HsConDecl)
 condecl q = getConstInfo q >>= \d -> case d of
-  Defn _ ty _ _ (Constructor np _ _ _ _) -> do ar <- arity <$> normalise ty
-                                               return $ (ar, cdecl q (ar - np))
+  Defn _ ty _ _ (Constructor {conPars = np}) -> do ar <- arity <$> normalise ty
+                                                   return $ (ar, cdecl q (ar - np))
   _ -> mazerror $ "condecl:" ++ gshow' (q, d)
 
 cdecl :: QName -> Nat -> HsConDecl

@@ -74,7 +74,7 @@ checkDataDef i ind name ps cs =
 	      addConstant name ( Defn name t (defaultDisplayForm name) 0 dataDef )
 
 	    -- Check the types of the constructors
-	    mapM_ (checkConstructor name tel' nofIxs s) cs
+	    mapM_ (checkConstructor name tel' nofIxs s ind) cs
 
 	    -- Return the data definition
 	    return dataDef
@@ -110,11 +110,13 @@ checkDataDef i ind name ps cs =
 
 -- | Type check a constructor declaration. Checks that the constructor targets
 --   the datatype and that it fits inside the declared sort.
-checkConstructor :: QName -> Telescope -> Nat -> Sort -> A.Constructor -> TCM ()
-checkConstructor d tel nofIxs s (A.ScopedDecl scope [con]) = do
+checkConstructor :: QName -> Telescope -> Nat -> Sort
+                 -> Induction -- ^ Is the constructor inductive or coinductive?
+                 -> A.Constructor -> TCM ()
+checkConstructor d tel nofIxs s ind (A.ScopedDecl scope [con]) = do
   setScope scope
-  checkConstructor d tel nofIxs s con
-checkConstructor d tel nofIxs s con@(A.Axiom i c e) =
+  checkConstructor d tel nofIxs s ind con
+checkConstructor d tel nofIxs s ind con@(A.Axiom i c e) =
     traceCall (CheckConstructor d tel s con) $ do
 	t <- isType_ e
 	n <- size <$> getContextTelescope
@@ -130,8 +132,8 @@ checkConstructor d tel nofIxs s con@(A.Axiom i c e) =
 	escapeContext (size tel)
 	    $ addConstant c
 	    $ Defn c (telePi tel t) (defaultDisplayForm c) 0
-	    $ Constructor (size tel) c d Nothing $ Info.defAbstract i
-checkConstructor _ _ _ _ _ = __IMPOSSIBLE__ -- constructors are axioms
+	    $ Constructor (size tel) c d Nothing (Info.defAbstract i) ind
+checkConstructor _ _ _ _ _ _ = __IMPOSSIBLE__ -- constructors are axioms
 
 
 -- | Bind the parameters of a datatype. The bindings should be domain free.

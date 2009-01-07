@@ -16,8 +16,10 @@
 /* NameKinds. */
 .Bound { color: black
        }
-.Constructor { color: #006400;
-             }
+.InductiveConstructor { color: #006400;
+                      }
+.CoinductiveConstructor { color: #006400;
+                        }
 .Datatype { color: #006400;
           }
 .Field { color: #EE1289;

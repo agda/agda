@@ -60,7 +60,9 @@ Also sets the default value of VARIABLE to GROUP."
              :foreground "blue")
             (agda2-highlight-bound-variable-face
              :foreground "purple")
-            (agda2-highlight-constructor-face
+            (agda2-highlight-inductive-constructor-face
+             :foreground "dark red")
+            (agda2-highlight-coinductive-constructor-face
              :foreground "dark red")
             (agda2-highlight-datatype-face
              :foreground "blue")
@@ -143,9 +145,14 @@ restarting Emacs."
   "The face used for bound variables."
   :group 'agda2-highlight)
 
-(defface agda2-highlight-constructor-face
+(defface agda2-highlight-inductive-constructor-face
   '((t (:foreground "green4")))
-  "The face used for constructors."
+  "The face used for inductive constructors."
+  :group 'agda2-highlight)
+
+(defface agda2-highlight-coinductive-constructor-face
+  '((t (:foreground "green4")))
+  "The face used for coinductive constructors."
   :group 'agda2-highlight)
 
 (defface agda2-highlight-datatype-face
@@ -217,52 +224,54 @@ restarting Emacs."
   :group 'agda2-highlight)
 
 (defvar agda2-highlight-faces
-  '((comment            . agda2-highlight-comment-face)
-    (keyword            . agda2-highlight-keyword-face)
-    (string             . agda2-highlight-string-face)
-    (number             . agda2-highlight-number-face)
-    (symbol             . agda2-highlight-symbol-face)
-    (primitivetype      . agda2-highlight-primitive-type-face)
-    (bound              . agda2-highlight-bound-variable-face)
-    (constructor        . agda2-highlight-constructor-face)
-    (datatype           . agda2-highlight-datatype-face)
-    (field              . agda2-highlight-field-face)
-    (function           . agda2-highlight-function-face)
-    (module             . agda2-highlight-module-face)
-    (postulate          . agda2-highlight-postulate-face)
-    (primitive          . agda2-highlight-primitive-face)
-    (record             . agda2-highlight-record-face)
-    (dotted             . agda2-highlight-dotted-face)
-    (operator           . agda2-highlight-operator-face)
-    (error              . agda2-highlight-error-face)
-    (unsolvedmeta       . agda2-highlight-unsolved-meta-face)
-    (terminationproblem . agda2-highlight-termination-problem-face)
-    (incompletepattern  . agda2-highlight-incomplete-pattern-face))
+  '((comment                . agda2-highlight-comment-face)
+    (keyword                . agda2-highlight-keyword-face)
+    (string                 . agda2-highlight-string-face)
+    (number                 . agda2-highlight-number-face)
+    (symbol                 . agda2-highlight-symbol-face)
+    (primitivetype          . agda2-highlight-primitive-type-face)
+    (bound                  . agda2-highlight-bound-variable-face)
+    (inductiveconstructor   . agda2-highlight-inductive-constructor-face)
+    (coinductiveconstructor . agda2-highlight-coinductive-constructor-face)
+    (datatype               . agda2-highlight-datatype-face)
+    (field                  . agda2-highlight-field-face)
+    (function               . agda2-highlight-function-face)
+    (module                 . agda2-highlight-module-face)
+    (postulate              . agda2-highlight-postulate-face)
+    (primitive              . agda2-highlight-primitive-face)
+    (record                 . agda2-highlight-record-face)
+    (dotted                 . agda2-highlight-dotted-face)
+    (operator               . agda2-highlight-operator-face)
+    (error                  . agda2-highlight-error-face)
+    (unsolvedmeta           . agda2-highlight-unsolved-meta-face)
+    (terminationproblem     . agda2-highlight-termination-problem-face)
+    (incompletepattern      . agda2-highlight-incomplete-pattern-face))
   "Alist mapping code aspects to the face used when displaying them.
 
 The aspects currently recognised are the following:
 
-`bound'              Bound variables.
-`comment'            Comments.
-`constructor'        Constructors.
-`datatype'           Data types.
-`dotted'             Dotted patterns.
-`error'              Errors.
-`field'              Record fields.
-`function'           Functions.
-`incompletepattern'  Incomplete patterns.
-`keyword'            Keywords.
-`module'             Module names.
-`number'             Numbers.
-`operator'           Operators.
-`postulate'          Postulates.
-`primitive'          Primitive functions.
-`primitivetype'      Primitive types (like Set and Prop).
-`record'             Record types.
-`string'             Strings.
-`symbol'             Symbols like forall, =, ->, etc.
-`terminationproblem' Termination problems.
-`unsolvedmeta'       Unsolved meta variables.")
+`bound'                  Bound variables.
+`coinductiveconstructor' Coinductive constructors.
+`comment'                Comments.
+`datatype'               Data types.
+`dotted'                 Dotted patterns.
+`error'                  Errors.
+`field'                  Record fields.
+`function'               Functions.
+`incompletepattern'      Incomplete patterns.
+`inductiveconstructor'   Inductive constructors.
+`keyword'                Keywords.
+`module'                 Module names.
+`number'                 Numbers.
+`operator'               Operators.
+`postulate'              Postulates.
+`primitive'              Primitive functions.
+`primitivetype'          Primitive types (like Set and Prop).
+`record'                 Record types.
+`string'                 Strings.
+`symbol'                 Symbols like forall, =, ->, etc.
+`terminationproblem'     Termination problems.
+`unsolvedmeta'           Unsolved meta variables.")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Functions
