@@ -38,6 +38,11 @@
 .Error { color: red;
          text-decoration: underline;
        }
+/* To avoid a:link and a:visited overriding .Error: */
+a.Error:link    { text-decoration: underline;
+                }
+a.Error:visited { text-decoration: underline;
+                }
 .UnsolvedMeta { color: black;
                 background: yellow;
               }
