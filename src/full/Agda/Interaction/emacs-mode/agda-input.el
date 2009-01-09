@@ -495,6 +495,12 @@ order for the change to take effect."
   ("buw" . ("◦"))
   ("but" . ("‣"))
 
+  ;; Musical symbols.
+
+  ("note" . ,(agda-input-to-string-list "♩♪♫♬"))
+  ("b"    . ("♭"))
+  ("#"    . ("♯"))
+
   ;; Other punctuation and symbols.
 
   ("\\"         . ("\\"))
