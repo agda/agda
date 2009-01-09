@@ -36,7 +36,7 @@ mutual
   data El : Setoid -> Set where
     zero : El nat
     suc  : El nat -> El nat
-    λ    : {A : Setoid}{F : Fam A}
+    ƛ    : {A : Setoid}{F : Fam A}
            (f : (x : El A) -> El (F ! x)) ->
            ((x y : El A) -> x =El= y -> f x =El= f y) -> El (Π A F)
     _,_  : {A : Setoid}{F : Fam A}(x : El A) -> El (F ! x) -> El (Σ A F)
@@ -57,7 +57,7 @@ mutual
               {pf₂ : (x y : El A₂) -> x =El= y -> f₂ x =El= f₂ y} ->
               A₂ =S= A₁ ->
               ((x : El A₁)(y : El A₂) -> x =El= y -> f₁ x =El= f₂ y) ->
-              λ f₁ pf₁ =El= λ f₂ pf₂
+              ƛ f₁ pf₁ =El= ƛ f₂ pf₂
     eqInΣ   : {A₁ A₂ : Setoid}{F₁ : Fam A₁}{F₂ : Fam A₂}
               {x₁ : El A₁}{y₁ : El (F₁ ! x₁)}
               {x₂ : El A₂}{y₂ : El (F₂ ! x₂)} ->
@@ -130,7 +130,7 @@ mutual
     -- _=El=_ is an equivalence
     =El=-refl : {A : Setoid}{x : El A} -> x =El= x
     =El=-refl {nat}   = eqInNat
-    =El=-refl {Π A F}{λ f pf} = eqInΠ =S=-refl pf
+    =El=-refl {Π A F}{ƛ f pf} = eqInΠ =S=-refl pf
     =El=-refl {Σ A F}{x , y}  = eqInΣ =Fam=-refl =El=-refl =El=-refl
 
     =El=-sym : {A B : Setoid}{x : El A}{y : El B} -> x =El= y -> y =El= x
@@ -159,7 +159,7 @@ mutual
   _<<_ {Σ _ _}{nat}   () _
   _<<_ {Σ _ _}{Π _ _} () _
   _<<_ {nat}{nat} p x = x
-  _<<_ {Π A₁ F₁}{Π A₂ F₂} p (λ f pf) = λ g pg
+  _<<_ {Π A₁ F₁}{Π A₂ F₂} p (ƛ f pf) = ƛ g pg
     where
       g : (x : El A₁) -> El (F₁ ! x)
       g x = let A₂=A₁ = eqΠ-inv₁ p
@@ -190,7 +190,7 @@ mutual
     cast-id : {A B : Setoid}{x : El A}(p : B =S= A) -> x =El= p << x
     cast-id eqNat = eqInNat
     cast-id {x = x , y } (eqΣ A=B F=G) = eqInΣ (=Fam=-sym F=G) (cast-id _) (cast-id _)
-    cast-id {x = λ f pf} (eqΠ B=A F=G) =
+    cast-id {x = ƛ f pf} (eqΠ B=A F=G) =
       eqInΠ (=S=-sym B=A) \x y x=y ->
         proof f x
             ≡ f (_ << y)      by pf _ _ (=El=-trans x=y (cast-id _))
@@ -276,7 +276,7 @@ _==>_ : Setoid -> Setoid -> Setoid
 A ==> B = Π A (K B)
 
 _#_ : {A : Setoid}{F : Fam A} -> El (Π A F) -> (x : El A) -> El (F ! x)
-λ f _ # x = f x
+ƛ f _ # x = f x
 
 abstract
   #-cong : {A B : Setoid}{F : Fam A}{G : Fam B}
@@ -289,7 +289,7 @@ abstract
   #-cong-R f p = #-cong f f refl p
 
 id : {A : Setoid} -> El (A ==> A)
-id = λ (\x -> x) (\_ _ p -> p)
+id = ƛ (\x -> x) (\_ _ p -> p)
 
 -- Family composition
 _○_ : {A B : Setoid} -> Fam A -> El (B ==> A) -> Fam B
@@ -300,14 +300,14 @@ abstract
   lem-○-id {F = F} = eqFam refl \x y x=y -> !-cong-R F x=y
 
 _∘_ : {A B : Setoid}{F : Fam B} -> El (Π B F) -> (g : El (A ==> B)) -> El (Π A (F ○ g))
-f ∘ g = λ (\x -> f # (g # x)) \x y x=y -> #-cong-R f (#-cong-R g x=y)
+f ∘ g = ƛ (\x -> f # (g # x)) \x y x=y -> #-cong-R f (#-cong-R g x=y)
 
 abstract
   lem-∘-id : {A : Setoid}{F : Fam A}(f : El (Π A F)) -> f ∘ id == f
-  lem-∘-id (λ f pf) = eqInΠ refl pf
+  lem-∘-id (ƛ f pf) = eqInΠ refl pf
 
   lem-id-∘ : {A B : Setoid}(f : El (A ==> B)) -> id ∘ f == f
-  lem-id-∘ (λ f pf) = eqInΠ refl pf
+  lem-id-∘ (ƛ f pf) = eqInΠ refl pf
 
 -- Simply type composition (not quite a special case of ∘ because of proof relevance)
 _·_ : {A B C : Setoid} -> El (B ==> C) -> El (A ==> B) -> El (A ==> C)
@@ -329,5 +329,5 @@ abstract
   snd-eq (eqInΣ _ _ y₁=y₂) = y₁=y₂
 
   η : {A : Setoid}{F : Fam A}(f : El (Π A F)){pf : (x y : El A) -> x == y -> f # x == f # y} -> 
-      f == λ {F = F} (_#_ f) pf
-  η (λ f pf) = eqInΠ refl pf
+      f == ƛ {F = F} (_#_ f) pf
+  η (ƛ f pf) = eqInΠ refl pf
