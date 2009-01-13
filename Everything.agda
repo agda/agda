@@ -100,6 +100,8 @@ import Data.Vec.N-ary1
 import Data.Vec.Properties
 import Data.Vec1
 
+import Foreign.Haskell
+
 import Induction
 import Induction.Lexicographic
 import Induction.Nat

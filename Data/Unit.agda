@@ -21,13 +21,6 @@ tt = record {}
 
 record _⊤-≤_ (x y : ⊤) : Set where
 
--- A one-constructor unit type is useful for the FFI.
-
-data Unit : Set where
-  unit : Unit
-
-{-# COMPILED_DATA Unit () () #-}
-
 ------------------------------------------------------------------------
 -- Operations
 

@@ -4,11 +4,11 @@
 
 module IO where
 
-open import Data.Unit
 open import Data.String
 open import Data.Char
 open import Data.Colist
 open import Category.Monad
+open import Foreign.Haskell
 
 ------------------------------------------------------------------------
 -- The IO monad
