@@ -91,6 +91,7 @@ import Data.Star.List
 import Data.Star.Nat
 import Data.Star.Pointer
 import Data.Star.Vec
+import Data.Stream
 import Data.String
 import Data.Sum
 import Data.Unit
