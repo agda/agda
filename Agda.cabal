@@ -6,7 +6,7 @@ license:         OtherLicense
 license-file:    LICENSE
 author:          Ulf Norell, Catarina Coquand, Makoto Takeyama, Nils Anders Danielsson, Andreas Abel, ...
 maintainer:      Ulf Norell <ulfn@chalmers.se>
-homepage:        http://www.cs.chalmers.se/~ulfn/Agda/
+homepage:        http://wiki.portal.chalmers.se/agda/
 category:        Dependent types
 synopsis:        A dependently typed functional programming language and proof assistant.
 description:

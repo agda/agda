@@ -6,7 +6,7 @@ license:         BSD3
 license-file:    LICENSE
 author:          Ulf Norell, Catarina Coquand, Makoto Takeyama, Nils Anders Danielsson, ...
 maintainer:      Ulf Norell <ulfn@cs.chalmers.se>
-homepage:        http://www.cs.chalmers.se/~ulfn/Agda/
+homepage:        http://wiki.portal.chalmers.se/agda/
 category:        Dependent types
 synopsis:        A dependently typed proof checker / programming language.
 
