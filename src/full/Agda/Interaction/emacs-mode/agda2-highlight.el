@@ -151,12 +151,12 @@ restarting Emacs."
   :group 'agda2-highlight)
 
 (defface agda2-highlight-coinductive-constructor-face
-  '((t (:foreground "green4")))
+  '((t (:foreground "gold4")))
   "The face used for coinductive constructors."
   :group 'agda2-highlight)
 
 (defface agda2-highlight-datatype-face
-  '((t (:foreground "dark green")))
+  '((t (:foreground "medium blue")))
   "The face used for datatypes."
   :group 'agda2-highlight)
 
@@ -176,17 +176,17 @@ restarting Emacs."
   :group 'agda2-highlight)
 
 (defface agda2-highlight-postulate-face
-  '((t (:foreground "blue4")))
+  '((t (:foreground "medium blue")))
   "The face used for postulates."
   :group 'agda2-highlight)
 
 (defface agda2-highlight-primitive-face
-  '((t (:foreground "DodgerBlue1")))
+  '((t (:foreground "medium blue")))
   "The face used for primitive functions."
   :group 'agda2-highlight)
 
 (defface agda2-highlight-record-face
-  '((t (:foreground "DeepPink4")))
+  '((t (:foreground "medium blue")))
   "The face used for record types."
   :group 'agda2-highlight)
 

@@ -9,15 +9,15 @@
 
 /* NameKinds. */
 .Bound                  { color: black   }
-.InductiveConstructor   { color: #006400 }
-.CoinductiveConstructor { color: #006400 }
-.Datatype               { color: #006400 }
+.InductiveConstructor   { color: #008B00 }
+.CoinductiveConstructor { color: #8B7500 }
+.Datatype               { color: #0000CD }
 .Field                  { color: #EE1289 }
 .Function               { color: #0000CD }
 .Module                 { color: #A020F0 }
-.Postulate              { color: #00008B }
-.Primitive              { color: #1E90FF }
-.Record                 { color: #8B0A50 }
+.Postulate              { color: #0000CD }
+.Primitive              { color: #0000CD }
+.Record                 { color: #0000CD }
 
 /* OtherAspects. */
 .DottedPattern      {}
