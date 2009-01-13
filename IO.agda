@@ -4,9 +4,8 @@
 
 module IO where
 
-open import Data.String
+open import Data.String hiding (Costring)
 open import Data.Char
-open import Data.Colist
 open import Category.Monad
 open import Foreign.Haskell
 
@@ -30,6 +29,9 @@ IOMonad = record { return = return; _>>=_ = _>>=_ }
 
 ------------------------------------------------------------------------
 -- Simple lazy IO (UTF8-based)
+
+private
+  Costring = Colist Char
 
 postulate
   getContents : IO Costring

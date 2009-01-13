@@ -36,6 +36,8 @@ import Category.Monad.Identity
 import Category.Monad.Indexed
 import Category.Monad.State
 
+import Coinduction
+
 import Data.AVL
 import Data.AVL.IndexedMap
 import Data.AVL.Sets
