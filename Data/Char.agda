@@ -19,6 +19,9 @@ postulate
 {-# BUILTIN CHAR Char #-}
 {-# COMPILED_TYPE Char Char #-}
 
+------------------------------------------------------------------------
+-- Operations
+
 private
  primitive
   primCharToNat    : Char → ℕ
