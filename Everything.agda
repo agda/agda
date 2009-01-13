@@ -113,6 +113,7 @@ import Induction1.Nat
 import Induction1.WellFounded
 
 import IO
+import IO.Primitive
 
 import Relation.Binary
 import Relation.Binary.Consequences
