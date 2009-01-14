@@ -43,10 +43,10 @@ _∈?_ : Key → ⟨Set⟩ → Bool
 _∈?_ = S._∈?_
 
 headTail : ⟨Set⟩ → Maybe (Key × ⟨Set⟩)
-headTail s = map-× proj₁ id <$> S.headTail s
+headTail s = map-Σ proj₁ id <$> S.headTail s
 
 initLast : ⟨Set⟩ → Maybe (⟨Set⟩ × Key)
-initLast s = map-× id proj₁ <$> S.initLast s
+initLast s = map-Σ id proj₁ <$> S.initLast s
 
 fromList : List Key → ⟨Set⟩
 fromList = S.fromList ∘ map (λ k → (k , _))

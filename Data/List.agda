@@ -181,7 +181,7 @@ dropWhile p (x ∷ xs) with p x
 span : ∀ {a} → (a → Bool) → List a → (List a × List a)
 span p []       = ([] , [])
 span p (x ∷ xs) with p x
-... | true  = map-× (_∷_ x) id (span p xs)
+... | true  = map-Σ (_∷_ x) id (span p xs)
 ... | false = ([] , x ∷ xs)
 
 break : ∀ {a} → (a → Bool) → List a → (List a × List a)

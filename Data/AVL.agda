@@ -295,7 +295,7 @@ initLast (tree {h = suc _} t) with Indexed.initLast t
 -- The input does not need to be ordered.
 
 fromList : List KV → Tree
-fromList = List.foldr (Σ-uncurry insert) empty
+fromList = List.foldr (uncurry insert) empty
 
 -- Returns an ordered list.
 

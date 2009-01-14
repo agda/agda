@@ -166,7 +166,7 @@ splitAt-defn : ∀ {a} n → splitAt {a} n ≗ < take n , drop n >
 splitAt-defn zero    xs       = ≡-refl
 splitAt-defn (suc n) []       = ≡-refl
 splitAt-defn (suc n) (x ∷ xs) with splitAt n xs | splitAt-defn n xs
-... | (ys , zs) | ih = ≡-cong (map-× (_∷_ x) id) ih
+... | (ys , zs) | ih = ≡-cong (map-Σ (_∷_ x) id) ih
 
 -- TakeWhile, dropWhile, and span.
 
@@ -181,7 +181,7 @@ span-defn : ∀ {a} (p : a → Bool) →
             span p ≗ < takeWhile p , dropWhile p >
 span-defn p []       = ≡-refl
 span-defn p (x ∷ xs) with p x
-... | true  = ≡-cong (map-× (_∷_ x) id) (span-defn p xs)
+... | true  = ≡-cong (map-Σ (_∷_ x) id) (span-defn p xs)
 ... | false = ≡-refl
 
 -- Partition.
@@ -191,8 +191,8 @@ partition-defn : ∀ {a} (p : a → Bool) →
 partition-defn p []       = ≡-refl
 partition-defn p (x ∷ xs)
  with p x | partition p xs | partition-defn p xs
-...  | true  | (ys , zs) | eq = ≡-cong (map-× (_∷_ x) id) eq
-...  | false | (ys , zs) | eq = ≡-cong (map-× id (_∷_ x)) eq
+...  | true  | (ys , zs) | eq = ≡-cong (map-Σ (_∷_ x) id) eq
+...  | false | (ys , zs) | eq = ≡-cong (map-Σ id (_∷_ x)) eq
 
 -- Inits, tails, and scanr.
 

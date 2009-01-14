@@ -76,10 +76,10 @@ _∈?_ : ∀ {i} → Key i → Map → Bool
 _∈?_ k = AVL._∈?_ (, k)
 
 headTail : Map → Maybe (KV × Map)
-headTail m = map-× toKV id <$> AVL.headTail m
+headTail m = map-Σ toKV id <$> AVL.headTail m
 
 initLast : Map → Maybe (Map × KV)
-initLast m = map-× id toKV <$> AVL.initLast m
+initLast m = map-Σ id toKV <$> AVL.initLast m
 
 fromList : List KV → Map
 fromList = AVL.fromList ∘ map fromKV

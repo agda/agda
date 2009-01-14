@@ -69,7 +69,7 @@ map : ∀ F {P Q} → (P → Q) → ⟦ F ⟧ P → ⟦ F ⟧ Q
 map Id        f  p = f p
 map (K P)     f  p = p
 map (F₁ ∨ F₂) f FP = map-⊎ (map F₁ f) (map F₂ f) FP
-map (F₁ ∧ F₂) f FP = map-× (map F₁ f) (map F₂ f) FP
+map (F₁ ∧ F₂) f FP = map-Σ (map F₁ f) (map F₂ f) FP
 map (P₁ ⇒ F₂) f FP = map F₂ f ∘ FP
 map (¬¬ F)    f FP = ¬¬-map (map F f) FP
 

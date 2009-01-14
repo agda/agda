@@ -118,7 +118,7 @@ nmap f = map (cmap f id)
 -- Maps over edge labels.
 
 emap : ∀ {N E₁ E₂ n} → (E₁ → E₂) → Graph N E₁ n → Graph N E₂ n
-emap f = map (cmap id (List.map (map-× f id)))
+emap f = map (cmap id (List.map (map-Σ f id)))
 
 -- Zips two graphs with the same number of nodes. Note that one of the
 -- graphs has a type which restricts it to be completely disconnected.
@@ -223,7 +223,7 @@ private
 preds : ∀ {E N n} → Graph N E n → (i : Fin n) → List (Fin (toℕ i) × E)
 preds g       zero    = []
 preds (c & g) (suc i) = List._++_ (List.gfilter (p i) $ successors c)
-                                  (List.map (map-× suc id) $ preds g i)
+                                  (List.map (map-Σ suc id) $ preds g i)
   where
   p : ∀ {E n} (i : Fin n) → E × Fin n → Maybe (Fin (suc (toℕ i)) × E)
   p i (e , j)  with i ≟ j
@@ -249,7 +249,7 @@ weaken {n} {i} j = Fin.inject≤ j (FP.nℕ-ℕi≤n n (suc i))
 number : ∀ {N E n} → Graph N E n → Graph (Fin n × N) E n
 number {N} {E} =
   foldr (λ n → Graph (Fin n × N) E n)
-        (λ c g → cmap (_,_ zero) id c & nmap (map-× suc id) g)
+        (λ c g → cmap (_,_ zero) id c & nmap (map-Σ suc id) g)
         ∅
 
 private
@@ -269,7 +269,7 @@ reverse : ∀ {N E n} → Graph N E n → Graph N E n
 reverse {N} {E} g =
   foldl (Graph N E)
         (λ i g' c → context (label c)
-                            (List.map (swap ∘ map-× FP.reverse id) $
+                            (List.map (swap ∘ map-Σ FP.reverse id) $
                              preds g i)
                     & g')
         ∅ g
@@ -297,7 +297,7 @@ toTree {N} {E} g i = <-rec Pred expand _ (g [ i ])
   expand n rec (c & g) =
     node (label c)
          (List.map
-            (map-× id (λ i → rec (n - suc i) (lemma n i) (g [ i ])))
+            (map-Σ id (λ i → rec (n - suc i) (lemma n i) (g [ i ])))
             (successors c))
 
 -- Performs the toTree expansion once for each node.

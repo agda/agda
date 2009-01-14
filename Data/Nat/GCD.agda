@@ -114,7 +114,7 @@ private
     div' (d₁ , d₂) = GCD.divisible g (d₁ , divides-∸ d₂ d₁)
 
   step₂ : ∀ {n k} → ∃GCD (suc k) n → ∃GCD (suc (n + k)) n
-  step₂ = map-Σ₂ gcd-sym ∘ step₁ ∘ map-Σ₂ gcd-sym
+  step₂ = map-Σ id gcd-sym ∘ step₁ ∘ map-Σ id gcd-sym
 
 -- Gcd calculated using (a variant of) Euclid's algorithm. Note that
 -- it is the gcd of the successors of the arguments that is

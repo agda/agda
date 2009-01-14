@@ -84,7 +84,7 @@ call/cc hyp ¬p = hyp (λ p _ → ¬p p) ¬p
 
 ∃⟶¬∀¬ : {A : Set} {P : A → Set} →
         ∃ P → ¬ (∀ x → ¬ P x)
-∃⟶¬∀¬ = flip Σ-uncurry
+∃⟶¬∀¬ = flip uncurry
 
 ∀⟶¬∃¬ : {A : Set} {P : A → Set} →
         (∀ x → P x) → ¬ ∃ λ x → ¬ P x
@@ -92,11 +92,11 @@ call/cc hyp ¬p = hyp (λ p _ → ¬p p) ¬p
 
 ¬∃⟶∀¬ : {A : Set} {P : A → Set} →
         ¬ ∃ (λ x → P x) → ∀ x → ¬ P x
-¬∃⟶∀¬ = Σ-curry
+¬∃⟶∀¬ = curry
 
 ∀¬⟶¬∃ : {A : Set} {P : A → Set} →
         (∀ x → ¬ P x) → ¬ ∃ (λ x → P x)
-∀¬⟶¬∃ = Σ-uncurry
+∀¬⟶¬∃ = uncurry
 
 ∃¬⟶¬∀ : {A : Set} {P : A → Set} →
         ∃ (λ x → ¬ P x) → ¬ (∀ x → P x)
