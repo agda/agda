@@ -10,12 +10,12 @@ import Data.AVL as AVL
 open StrictTotalOrder OrderedKeySet renaming (carrier to Key)
 open import Data.Unit
 open import Data.Function
-open import Data.Product
-open import Data.Maybe
+import Data.Product as Prod; open Prod using (_×_; _,_; proj₁)
+open import Data.Maybe as Maybe
 open import Data.Bool
 open import Data.List
 open import Category.Functor
-open RawFunctor MaybeFunctor
+open RawFunctor Maybe.functor
 
 -- The set type. (Note that Set is a reserved word.)
 
@@ -43,10 +43,10 @@ _∈?_ : Key → ⟨Set⟩ → Bool
 _∈?_ = S._∈?_
 
 headTail : ⟨Set⟩ → Maybe (Key × ⟨Set⟩)
-headTail s = map-Σ proj₁ id <$> S.headTail s
+headTail s = Prod.map proj₁ id <$> S.headTail s
 
 initLast : ⟨Set⟩ → Maybe (⟨Set⟩ × Key)
-initLast s = map-Σ id proj₁ <$> S.initLast s
+initLast s = Prod.map id proj₁ <$> S.initLast s
 
 fromList : List Key → ⟨Set⟩
 fromList = S.fromList ∘ map (λ k → (k , _))

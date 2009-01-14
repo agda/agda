@@ -4,11 +4,12 @@
 
 module Data.Char where
 
-open import Data.Nat using (ℕ)
-open import Data.Bool
+open import Data.Nat  using (ℕ)
+open import Data.Bool using (Bool; true; false)
 open import Relation.Nullary
 open import Relation.Binary
-open import Relation.Binary.PropositionalEquality
+import Relation.Binary.PropositionalEquality as PropEq
+open PropEq using (_≡_)
 
 ------------------------------------------------------------------------
 -- The type
@@ -43,7 +44,7 @@ s₁ ≟ s₂ with s₁ == s₂
   where postulate trustMe : _
 
 setoid : Setoid
-setoid = ≡-setoid Char
+setoid = PropEq.setoid Char
 
 decSetoid : DecSetoid
-decSetoid = ≡-decSetoid _≟_
+decSetoid = PropEq.decSetoid _≟_

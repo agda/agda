@@ -42,17 +42,17 @@ d Divides m And n = d Divides m × d Divides n
 -- The divisibility relation is reflexive for positive integers.
 
 divides-refl : ∀ n → suc n Divides suc n
-divides-refl n = divides 1 (≡-sym $ proj₁ CS.*-identity (suc n))
+divides-refl n = divides 1 (sym $ proj₁ CS.*-identity (suc n))
 
 -- 1 divides everything.
 
 1-divides_ : ∀ n → 1 Divides n
-1-divides n = divides n (≡-sym $ proj₂ CS.*-identity n)
+1-divides n = divides n (sym $ proj₂ CS.*-identity n)
 
 -- Every positive integer divides 0.
 
 _+1-divides-0 : ∀ n → suc n Divides 0
-n +1-divides-0 = divides 0 ≡-refl
+n +1-divides-0 = divides 0 refl
 
 -- 0 divides nothing.
 
@@ -67,7 +67,7 @@ divides-≤ {suc m} {n} (divides (suc q) eq) = begin
   suc m
     ≤⟨ m≤m+n (suc m) (q * suc m) ⟩
   suc q * suc m
-    ≡⟨ ≡-sym eq ⟩
+    ≡⟨ sym eq ⟩
   suc n
     ∎
   where open ≤-Reasoning
@@ -81,15 +81,15 @@ divides-≡ (divides a₁ b₁) (divides a₂ b₂) =
 -- If i divides m and n, then i divides their sum.
 
 divides-+ : ∀ {i m n} → i Divides m → i Divides n → i Divides (m + n)
-divides-+ (divides {m = i} q ≡-refl) (divides q' ≡-refl) =
-  divides (q + q') (≡-sym $ proj₂ CS.distrib (suc i) q q')
+divides-+ (divides {m = i} q refl) (divides q' refl) =
+  divides (q + q') (sym $ proj₂ CS.distrib (suc i) q q')
 
 -- If i divides m and n, then i divides their difference.
 
 divides-∸ : ∀ {i m n} → i Divides (m + n) → i Divides m → i Divides n
-divides-∸ (divides {m = i} q' eq) (divides q ≡-refl) =
+divides-∸ (divides {m = i} q' eq) (divides q refl) =
   divides (q' ∸ q)
-          (≡-sym $ im≡jm+n⇒[i∸j]m≡n q' q (suc i) _ $ ≡-sym eq)
+          (sym $ im≡jm+n⇒[i∸j]m≡n q' q (suc i) _ $ sym eq)
 
 -- If i divides i + n then i divides n.
 
@@ -105,7 +105,7 @@ nonZeroDivisor-lemma
     ¬ (1 + m) Divides (Fin.toℕ r + q * (1 + m))
 nonZeroDivisor-lemma m zero r r≢zero (divides zero eq) = r≢zero $ begin
   Fin.toℕ r
-    ≡⟨ ≡-sym $ proj₁ CS.*-identity (Fin.toℕ r) ⟩
+    ≡⟨ sym $ proj₁ CS.*-identity (Fin.toℕ r) ⟩
   1 * Fin.toℕ r
     ≡⟨ eq ⟩
   0
@@ -116,9 +116,9 @@ nonZeroDivisor-lemma m zero r r≢zero (divides (suc q) eq) =
     m + suc (q * suc m)
       ≡⟨ (let M = var (# 0); Q = var (# 1) in
           prove (m ∷ q * suc m ∷ [])
-                (M :+ (con 1 :+ Q)) (con 1 :+ M :+ Q) ≡-refl) ⟩
+                (M :+ (con 1 :+ Q)) (con 1 :+ M :+ Q) refl) ⟩
     suc (m + q * suc m)
-      ≡⟨ ≡-sym eq ⟩
+      ≡⟨ sym eq ⟩
     1 * Fin.toℕ r
       ≡⟨ proj₁ CS.*-identity (Fin.toℕ r) ⟩
     Fin.toℕ r
@@ -131,9 +131,9 @@ nonZeroDivisor-lemma m (suc q) r r≢zero d =
   where
   lem = prove (suc m ∷ Fin.toℕ r ∷ q * suc m ∷ [])
               (R :+ (M :+ Q)) (M :+ (R :+ Q))
-              ≡-refl
+              refl
     where M = var (# 0); R = var (# 1); Q = var (# 2)
-  d' = ≡-subst (λ x → (1 + m) Divides x) lem d
+  d' = subst (λ x → (1 + m) Divides x) lem d
 
 -- Divisibility is decidable.
 
@@ -141,6 +141,6 @@ divisible? : Decidable _Divides_
 divisible? zero    n                            = no 0-doesNotDivide
 divisible? (suc m) n                            with n divMod suc m
 divisible? (suc m) .(q * suc m)                 | result q zero    =
-  yes $ divides q ≡-refl
+  yes $ divides q refl
 divisible? (suc m) .(1 + Fin.toℕ r + q * suc m) | result q (suc r) =
   no $ nonZeroDivisor-lemma m q (suc r) (λ())

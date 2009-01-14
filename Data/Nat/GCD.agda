@@ -11,9 +11,10 @@ open import Algebra
 private
   module CS = CommutativeSemiring commutativeSemiring
 open import Data.Product
-open import Relation.Binary.PropositionalEquality
+import Relation.Binary.PropositionalEquality as PropEq
+open PropEq using (_≡_)
 open import Data.Fin using (#_)
-open import Data.Vec hiding ([_])
+open import Data.Vec using ([]; _∷_)
 open SemiringSolver
 open import Induction
 open import Induction.Nat
@@ -30,7 +31,7 @@ private
   lem₀ = λ (n k : ℕ) → let N = var (# 0); K = var (# 1) in
                        prove (n ∷ k ∷ [])
                              (N :+ (con 1 :+ K)) (con 1 :+ N :+ K)
-                             ≡-refl
+                             PropEq.refl
 
   lem₁ : ∀ i j → 1 + i ≤′ 1 + j + i
   lem₁ i j = ≤⇒≤′ $ s≤s $ n≤m+n j i
@@ -63,26 +64,26 @@ isGCD cd div = record
 
 -- The gcd is the largest common divisor.
 
-gcd-largest : ∀ {d d' m n} → GCD m n d → d' Divides m And n → d' ≤ d
-gcd-largest {zero}  g _ = ⊥-elim {_ ≤ 0} $ 0-doesNotDivide $
-                            proj₁ (GCD.commonDivisor g)
-gcd-largest {suc _} g c = divides-≤ (GCD.divisible g c)
+largest : ∀ {d d' m n} → GCD m n d → d' Divides m And n → d' ≤ d
+largest {zero}  g _ = ⊥-elim {_ ≤ 0} $ 0-doesNotDivide $
+                        proj₁ (GCD.commonDivisor g)
+largest {suc _} g c = divides-≤ (GCD.divisible g c)
 
 -- The gcd is unique.
 
-gcd-unique : ∀ {d₁ d₂ m n} → GCD m n d₁ → GCD m n d₂ → d₁ ≡ d₂
-gcd-unique d₁ d₂ = divides-≡ (GCD.divisible d₂ (GCD.commonDivisor d₁))
-                             (GCD.divisible d₁ (GCD.commonDivisor d₂))
+unique : ∀ {d₁ d₂ m n} → GCD m n d₁ → GCD m n d₂ → d₁ ≡ d₂
+unique d₁ d₂ = divides-≡ (GCD.divisible d₂ (GCD.commonDivisor d₁))
+                         (GCD.divisible d₁ (GCD.commonDivisor d₂))
 
 -- The gcd relation is "symmetric".
 
-gcd-sym : ∀ {d m n} → GCD m n d → GCD n m d
-gcd-sym g = isGCD (swap $ GCD.commonDivisor g) (GCD.divisible g ∘ swap)
+sym : ∀ {d m n} → GCD m n d → GCD n m d
+sym g = isGCD (swap $ GCD.commonDivisor g) (GCD.divisible g ∘ swap)
 
 -- The gcd relation is "reflexive" (for positive numbers).
 
-gcd-refl : ∀ n → let m = suc n in GCD m m m
-gcd-refl n = isGCD (divides-refl n , divides-refl n) proj₁
+refl : ∀ n → let m = suc n in GCD m m m
+refl n = isGCD (divides-refl n , divides-refl n) proj₁
 
 -- 0 and 0 have no gcd.
 
@@ -107,14 +108,14 @@ private
   step₁ : ∀ {n k} → ∃GCD n (suc k) → ∃GCD n (suc (n + k))
   step₁ (d , g) with GCD.commonDivisor g
   step₁ {n} {k} (d , g) | (d₁ , d₂) =
-    ≡-subst (∃GCD n) (lem₀ n k) $
+    PropEq.subst (∃GCD n) (lem₀ n k) $
       (d , isGCD (d₁ , divides-+ d₁ d₂) div')
     where
     div' : ∀ {d'} → d' Divides n And (n + suc k) → d' Divides d
     div' (d₁ , d₂) = GCD.divisible g (d₁ , divides-∸ d₂ d₁)
 
   step₂ : ∀ {n k} → ∃GCD (suc k) n → ∃GCD (suc (n + k)) n
-  step₂ = map-Σ id gcd-sym ∘ step₁ ∘ map-Σ id gcd-sym
+  step₂ = map id sym ∘ step₁ ∘ map id sym
 
 -- Gcd calculated using (a variant of) Euclid's algorithm. Note that
 -- it is the gcd of the successors of the arguments that is
@@ -128,7 +129,7 @@ gcd⁺ m n = build [ <-rec-builder ⊗ <-rec-builder ] P gcd' (m , n)
 
   gcd' : ∀ p → (<-Rec ⊗ <-Rec) P p → P p
   gcd' (m , n             ) rec with compare m n
-  gcd' (m , .m            ) rec | equal .m     = (suc m , gcd-refl m)
+  gcd' (m , .m            ) rec | equal .m     = (suc m , refl m)
                                                          -- gcd⁺ m k
   gcd' (m , .(suc (m + k))) rec | less .m k    = step₁ $ proj₁ rec k (lem₁ k m)
                                                          -- gcd⁺ k n
@@ -140,6 +141,6 @@ gcd⁺ m n = build [ <-rec-builder ⊗ <-rec-builder ] P gcd' (m , n)
 gcd : (m : ℕ) (n : ℕ) {m+n≢0 : False ((m + n) ≟ 0)} →
       ∃ λ d → GCD m n d
 gcd (suc m) (suc n) = gcd⁺ m n
-gcd (suc m) zero    = (suc m , gcd-sym (gcd-0-pos m))
+gcd (suc m) zero    = (suc m , sym (gcd-0-pos m))
 gcd zero    (suc n) = (suc n , gcd-0-pos n)
 gcd zero    zero {m+n≢0 = ()}

@@ -43,20 +43,20 @@ allOutside (suc x) (there x∈) = allOutside x x∈
   where
   helper : ∀ {n} (p₁ p₂ : Subset n) →
            p₁ ⊆ p₂ → p₂ ⊆ p₁ → p₁ ≡ p₂
-  helper []            []             _   _   = ≡-refl
+  helper []            []             _   _   = refl
   helper (s₁ ∷ p₁)     (s₂ ∷ p₂)      ₁⊆₂ ₂⊆₁ with ⊆⊇⟶≡ (drop-∷-⊆ ₁⊆₂)
                                                         (drop-∷-⊆ ₂⊆₁)
-  helper (outside ∷ p) (outside ∷ .p) ₁⊆₂ ₂⊆₁ | ≡-refl = ≡-refl
-  helper (inside  ∷ p) (inside  ∷ .p) ₁⊆₂ ₂⊆₁ | ≡-refl = ≡-refl
-  helper (outside ∷ p) (inside  ∷ .p) ₁⊆₂ ₂⊆₁ | ≡-refl with ₂⊆₁ here
-  ...                                                  | ()
-  helper (inside  ∷ p) (outside ∷ .p) ₁⊆₂ ₂⊆₁ | ≡-refl with ₁⊆₂ here
-  ...                                                  | ()
+  helper (outside ∷ p) (outside ∷ .p) ₁⊆₂ ₂⊆₁ | refl = refl
+  helper (inside  ∷ p) (inside  ∷ .p) ₁⊆₂ ₂⊆₁ | refl = refl
+  helper (outside ∷ p) (inside  ∷ .p) ₁⊆₂ ₂⊆₁ | refl with ₂⊆₁ here
+  ...                                                | ()
+  helper (inside  ∷ p) (outside ∷ .p) ₁⊆₂ ₂⊆₁ | refl with ₁⊆₂ here
+  ...                                                | ()
 
 ∅⟶allOutside : ∀ {n} {p : Subset n} →
                Empty p → p ≡ all outside
-∅⟶allOutside {p = []}     ¬¬∅ = ≡-refl
+∅⟶allOutside {p = []}     ¬¬∅ = refl
 ∅⟶allOutside {p = s ∷ ps} ¬¬∅ with ∅⟶allOutside (drop-∷-Empty ¬¬∅)
-∅⟶allOutside {p = outside ∷ .(all outside)} ¬¬∅ | ≡-refl = ≡-refl
-∅⟶allOutside {p = inside  ∷ .(all outside)} ¬¬∅ | ≡-refl =
+∅⟶allOutside {p = outside ∷ .(all outside)} ¬¬∅ | refl = refl
+∅⟶allOutside {p = inside  ∷ .(all outside)} ¬¬∅ | refl =
   contradiction (zero , here) ¬¬∅

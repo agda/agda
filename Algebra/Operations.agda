@@ -11,7 +11,8 @@ open Semiring s hiding (zero)
 open import Data.Nat using (zero; suc; ℕ)
 open import Data.Function
 open import Relation.Binary
-open import Relation.Binary.PropositionalEquality
+import Relation.Binary.PropositionalEquality as PropEq
+open PropEq using (_≡_)
 import Relation.Binary.EqReasoning as EqR
 open EqR setoid
 
@@ -39,7 +40,7 @@ x ^ suc n = x * x ^ n
 
 ×-pres-≈ : _×_ Preserves₂ _≡_ ⟶ _≈_ ⟶ _≈_
 ×-pres-≈ {n} {n'} {x} {x'} n≡n' x≈x' = begin
-  n  × x   ≈⟨ reflexive $ ≡-cong (λ n → n × x) n≡n' ⟩
+  n  × x   ≈⟨ reflexive $ PropEq.cong (λ n → n × x) n≡n' ⟩
   n' × x   ≈⟨ ×-pres-≈ʳ n' x≈x' ⟩
   n' × x'  ∎
   where
@@ -49,7 +50,7 @@ x ^ suc n = x * x ^ n
 
 ^-pres-≈ : _^_ Preserves₂ _≈_ ⟶ _≡_ ⟶ _≈_
 ^-pres-≈ {x} {x'} {n} {n'} x≈x' n≡n' = begin
-  x  ^ n   ≈⟨ reflexive $ ≡-cong (_^_ x) n≡n' ⟩
+  x  ^ n   ≈⟨ reflexive $ PropEq.cong (_^_ x) n≡n' ⟩
   x  ^ n'  ≈⟨ ^-pres-≈ˡ n' x≈x' ⟩
   x' ^ n'  ∎
   where

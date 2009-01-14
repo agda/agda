@@ -14,8 +14,8 @@ data Maybe (A : Set) : Set where
 ------------------------------------------------------------------------
 -- Some operations
 
-open import Data.Bool
-open import Data.Unit
+open import Data.Bool using (Bool; true; false)
+open import Data.Unit using (⊤)
 
 boolToMaybe : Bool → Maybe ⊤
 boolToMaybe true  = just _
@@ -42,13 +42,13 @@ open import Data.Function
 open import Category.Functor
 open import Category.Monad
 
-MaybeFunctor : RawFunctor Maybe
-MaybeFunctor = record
+functor : RawFunctor Maybe
+functor = record
   { _<$>_ = λ f → maybe (just ∘ f) nothing
   }
 
-MaybeMonad : RawMonad Maybe
-MaybeMonad = record
+monad : RawMonad Maybe
+monad = record
   { return = just
   ; _>>=_  = _>>=_
   }
@@ -57,15 +57,15 @@ MaybeMonad = record
   nothing >>= f = nothing
   just x  >>= f = f x
 
-MaybeMonadZero : RawMonadZero Maybe
-MaybeMonadZero = record
-  { monad = MaybeMonad
+monadZero : RawMonadZero Maybe
+monadZero = record
+  { monad = monad
   ; ∅     = nothing
   }
 
-MaybeMonadPlus : RawMonadPlus Maybe
-MaybeMonadPlus = record
-  { monadZero = MaybeMonadZero
+monadPlus : RawMonadPlus Maybe
+monadPlus = record
+  { monadZero = monadZero
   ; _∣_       = _∣_
   }
   where
@@ -78,18 +78,19 @@ MaybeMonadPlus = record
 
 open import Relation.Nullary
 open import Relation.Binary
-open import Relation.Binary.PropositionalEquality
+import Relation.Binary.PropositionalEquality as PropEq
+open PropEq using (_≡_; refl)
 
 drop-just : ∀ {A} {x y : A} → just x ≡ just y → x ≡ y
-drop-just ≡-refl = ≡-refl
+drop-just refl = refl
 
 decSetoid : ∀ {A} → Decidable (_≡_ {A}) → DecSetoid
-decSetoid {A} _A-≟_ = ≡-decSetoid _≟_
+decSetoid {A} _A-≟_ = PropEq.decSetoid _≟_
   where
   _≟_ : Decidable (_≡_ {Maybe A})
   just x  ≟ just y  with x A-≟ y
-  just x  ≟ just .x | yes ≡-refl = yes ≡-refl
+  just x  ≟ just .x | yes refl = yes refl
   just x  ≟ just y  | no  x≢y    = no (x≢y ∘ drop-just)
   just x  ≟ nothing = no λ()
   nothing ≟ just y  = no λ()
-  nothing ≟ nothing = yes ≡-refl
+  nothing ≟ nothing = yes refl

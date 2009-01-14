@@ -5,10 +5,10 @@
 module Data.List where
 
 open import Data.Nat
-open import Data.Sum
+import Data.Sum as Sum; open Sum using (_⊎_; inj₁; inj₂)
 open import Data.Bool
-open import Data.Maybe
-open import Data.Product
+open import Data.Maybe using (Maybe; nothing; just)
+import Data.Product as Prod; open Prod using (_×_; _,_)
 open import Data.Function
 
 infixr 5 _∷_ _++_
@@ -181,7 +181,7 @@ dropWhile p (x ∷ xs) with p x
 span : ∀ {a} → (a → Bool) → List a → (List a × List a)
 span p []       = ([] , [])
 span p (x ∷ xs) with p x
-... | true  = map-Σ (_∷_ x) id (span p xs)
+... | true  = Prod.map (_∷_ x) id (span p xs)
 ... | false = ([] , x ∷ xs)
 
 break : ∀ {a} → (a → Bool) → List a → (List a × List a)
@@ -233,21 +233,21 @@ inj₂s (inj₂ x ∷ xs) = x ∷ inj₂s xs
 
 open import Category.Monad
 
-ListMonad : RawMonad List
-ListMonad = record
+monad : RawMonad List
+monad = record
   { return = λ x → x ∷ []
   ; _>>=_  = λ xs f → concat (map f xs)
   }
 
-ListMonadZero : RawMonadZero List
-ListMonadZero = record
-  { monad = ListMonad
+monadZero : RawMonadZero List
+monadZero = record
+  { monad = monad
   ; ∅     = []
   }
 
-ListMonadPlus : RawMonadPlus List
-ListMonadPlus = record
-  { monadZero = ListMonadZero
+monadPlus : RawMonadPlus List
+monadPlus = record
+  { monadZero = monadZero
   ; _∣_       = _++_
   }
 

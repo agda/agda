@@ -9,7 +9,6 @@ open import Data.Product
 open import Data.Sum
 open import Relation.Nullary.Product
 open import Relation.Binary
-open import Relation.Binary.PropositionalEquality
 
 private
  module Dummy {a₁ a₂ : Set} where

@@ -26,7 +26,7 @@ example₁ x y =
         ((X :+ Y) :^ 3)
         (X :^ 3 :+ con 3 :* X :^ 2 :* Y :+
          con 3 :* X :* Y :^ 2 :+ Y :^ 3)
-        ≡-refl
+        refl
   where
   open ℕ-semiringSolver
   X = var (# 0)
@@ -42,14 +42,14 @@ example₁ x y =
 --   prove (x ∷ y ∷ [])
 --         ((X :+ Y) :^ 3)
 --         (X :^ 3 :+ (X :^ 2 :* Y :+ (X :* Y :^ 2 :+ Y :^ 3)))
---         ≡-refl
+--         refl
 --   where
 --   open Bool-xor-ringSolver
 --   X = var (# 0)
 --   Y = var (# 1)
 
 example₃ : ∀ x → x xor x ≡ false
-example₃ x = prove (x ∷ []) (X :+ X) (con false) ≡-refl
+example₃ x = prove (x ∷ []) (X :+ X) (con false) refl
   where
   open Bool-xor-ringSolver
   X = var (# 0)

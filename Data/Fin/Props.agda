@@ -14,7 +14,8 @@ import Data.Nat.Properties as N
 open import Data.Function
 open import Relation.Nullary
 open import Relation.Binary
-open import Relation.Binary.PropositionalEquality
+import Relation.Binary.PropositionalEquality as PropEq
+open PropEq using (_≡_; refl; cong)
 
 ------------------------------------------------------------------------
 -- Properties
@@ -22,13 +23,13 @@ open import Relation.Binary.PropositionalEquality
 private
   drop-suc : ∀ {o} {m n : Fin o} →
              suc m ≡ (Fin (suc o) ∶ suc n) → m ≡ n
-  drop-suc ≡-refl = ≡-refl
+  drop-suc refl = refl
 
 preorder : ℕ → Preorder
-preorder n = ≡-preorder (Fin n)
+preorder n = PropEq.preorder (Fin n)
 
 setoid : ℕ → Setoid
-setoid n = ≡-setoid (Fin n)
+setoid n = PropEq.setoid (Fin n)
 
 strictTotalOrder : ℕ → StrictTotalOrder
 strictTotalOrder n = record
@@ -36,21 +37,21 @@ strictTotalOrder n = record
   ; _≈_                = _≡_
   ; _<_                = _<_
   ; isStrictTotalOrder = record
-    { isEquivalence = ≡-isEquivalence
+    { isEquivalence = PropEq.isEquivalence
     ; trans         = N.<-trans
     ; compare       = cmp
-    ; ≈-resp-<      = ≡-resp _<_
+    ; ≈-resp-<      = PropEq.resp _<_
     }
   }
   where
   cmp : ∀ {n} → Trichotomous _≡_ (_<_ {n})
-  cmp zero    zero    = tri≈ (λ())     ≡-refl (λ())
-  cmp zero    (suc j) = tri< (s≤s z≤n) (λ())  (λ())
-  cmp (suc i) zero    = tri> (λ())     (λ())  (s≤s z≤n)
+  cmp zero    zero    = tri≈ (λ())     refl  (λ())
+  cmp zero    (suc j) = tri< (s≤s z≤n) (λ()) (λ())
+  cmp (suc i) zero    = tri> (λ())     (λ()) (s≤s z≤n)
   cmp (suc i) (suc j) with cmp i j
   ... | tri<  lt ¬eq ¬gt = tri< (s≤s lt)         (¬eq ∘ drop-suc) (¬gt ∘ N.≤-pred)
   ... | tri> ¬lt ¬eq  gt = tri> (¬lt ∘ N.≤-pred) (¬eq ∘ drop-suc) (s≤s gt)
-  ... | tri≈ ¬lt  eq ¬gt = tri≈ (¬lt ∘ N.≤-pred) (≡-cong suc eq)  (¬gt ∘ N.≤-pred)
+  ... | tri≈ ¬lt  eq ¬gt = tri≈ (¬lt ∘ N.≤-pred) (cong suc eq)    (¬gt ∘ N.≤-pred)
 
 decSetoid : ℕ → DecSetoid
 decSetoid n = StrictTotalOrder.decSetoid (strictTotalOrder n)
@@ -78,8 +79,8 @@ nℕ-ℕi≤n (suc n) (suc i)  = begin
   suc n   ∎
 
 inject+-lemma : ∀ m k → m ≡ toℕ (inject+ k (fromℕ m))
-inject+-lemma zero    k = ≡-refl
-inject+-lemma (suc m) k = ≡-cong suc (inject+-lemma m k)
+inject+-lemma zero    k = refl
+inject+-lemma (suc m) k = cong suc (inject+-lemma m k)
 
 ------------------------------------------------------------------------
 -- Operations
@@ -87,8 +88,8 @@ inject+-lemma (suc m) k = ≡-cong suc (inject+-lemma m k)
 infixl 6 _+′_
 
 _+′_ : ∀ {m n} (i : Fin m) (j : Fin n) → Fin (N.pred m ℕ+ n)
-i +′ j = inject≤ (i + j) (N._+-mono_ (prop-toℕ-≤ i) refl)
-  where open Poset N.poset
+i +′ j = inject≤ (i + j) (N._+-mono_ (prop-toℕ-≤ i) ≤-refl)
+  where open Poset N.poset renaming (refl to ≤-refl)
 
 -- reverse {n} "i" = "n ∸ 1 ∸ i".
 
@@ -102,4 +103,4 @@ reverse {suc n} i  = inject≤ (n ℕ- i) (N.n∸m≤n (toℕ i) (suc n))
 eq? : ∀ {A n} → Injection A (Fin n) → Decidable (_≡_ {A})
 eq? inj x y with to x ≟ to y  where open Injection inj
 ... | yes tox≡toy = yes (Injection.injective inj tox≡toy)
-... | no  tox≢toy = no  (tox≢toy ∘ ≡-cong (Injection.to inj))
+... | no  tox≢toy = no  (tox≢toy ∘ cong (Injection.to inj))

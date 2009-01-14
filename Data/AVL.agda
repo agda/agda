@@ -92,9 +92,9 @@ module Invariants where
 
   max-lemma : ∀ {m n} (bal : m ∼ n) →
               1 + max (1+ (max∼max bal)) ≡ 2 + max bal
-  max-lemma ∼+ = ≡-refl
-  max-lemma ∼0 = ≡-refl
-  max-lemma ∼- = ≡-refl
+  max-lemma ∼+ = refl
+  max-lemma ∼0 = refl
+  max-lemma ∼- = refl
 
 ------------------------------------------------------------------------
 -- AVL trees
@@ -125,7 +125,7 @@ module Indexed where
            ∃ λ i → Tree (i ⊕ (1 + max bal))
   joinˡ⁺ (1# , node t₁ k₂
                  (node t₃ k₄ t₅ bal)
-                             ∼+) k₆ t₇ ∼-  = (0# , ≡-subst Tree (max-lemma bal)
+                             ∼+) k₆ t₇ ∼-  = (0# , subst Tree (max-lemma bal)
                                                      (node (node t₁ k₂ t₃ (max∼ bal))
                                                            k₄
                                                            (node t₅ k₆ t₇ (∼max bal))
@@ -141,7 +141,7 @@ module Indexed where
            ∃ λ i → Tree (i ⊕ (1 + max bal))
   joinʳ⁺ t₁ k₂ (1# , node
                        (node t₃ k₄ t₅ bal)
-                             k₆ t₇ ∼-) ∼+  = (0# , ≡-subst Tree (max-lemma bal)
+                             k₆ t₇ ∼-) ∼+  = (0# , subst Tree (max-lemma bal)
                                                      (node (node t₁ k₂ t₃ (max∼ bal))
                                                            k₄
                                                            (node t₅ k₆ t₇ (∼max bal))

@@ -6,7 +6,7 @@ module Relation.Binary.OrderMorphism where
 
 open import Relation.Binary
 open Poset
-open import Data.Function
+import Data.Function as F
 
 record _⇒-Poset_ (po₁ po₂ : Poset) : Set where
   field
@@ -19,21 +19,21 @@ dto₁ ⇒-DTO dto₂ = poset dto₁ ⇒-Poset poset dto₂
 
 open _⇒-Poset_
 
-idM : ∀ {po} → po ⇒-Poset po
-idM = record
-  { fun      = id
-  ; monotone = id
+id : ∀ {po} → po ⇒-Poset po
+id = record
+  { fun      = F.id
+  ; monotone = F.id
   }
 
-_∘M_ : ∀ {po₁ po₂ po₃} →
-       po₂ ⇒-Poset po₃ → po₁ ⇒-Poset po₂ → po₁ ⇒-Poset po₃
-f ∘M g = record
-  { fun      = fun f      ∘ fun g
-  ; monotone = monotone f ∘ monotone g
+_∘_ : ∀ {po₁ po₂ po₃} →
+      po₂ ⇒-Poset po₃ → po₁ ⇒-Poset po₂ → po₁ ⇒-Poset po₃
+f ∘ g = record
+  { fun      = F._∘_ (fun f)      (fun g)
+  ; monotone = F._∘_ (monotone f) (monotone g)
   }
 
-constM : ∀ {po₁ po₂} → carrier po₂ → po₁ ⇒-Poset po₂
-constM {po₂ = po₂} x = record
-  { fun      = const x
-  ; monotone = const (refl po₂)
+const : ∀ {po₁ po₂} → carrier po₂ → po₁ ⇒-Poset po₂
+const {po₂ = po₂} x = record
+  { fun      = F.const x
+  ; monotone = F.const (refl po₂)
   }

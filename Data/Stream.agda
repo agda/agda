@@ -9,7 +9,6 @@ open import Data.List   using (List;   []; _∷_)
 open import Data.Colist using (Colist; []; _∷_)
 open import Data.Nat using (ℕ; zero; suc)
 open import Relation.Binary
-open import Relation.Binary.PropositionalEquality
 
 ------------------------------------------------------------------------
 -- The type

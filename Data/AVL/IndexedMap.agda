@@ -4,7 +4,8 @@
 
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality
-open import Data.Product
+import Data.Product as Prod
+open Prod hiding (map)
 
 module Data.AVL.IndexedMap
          {Index : Set} {Key : Index → Set} {_≈_ _<_ : Rel (∃ Key)}
@@ -16,11 +17,11 @@ module Data.AVL.IndexedMap
 
 import Data.AVL
 open import Data.Function
-open import Data.Maybe
+open import Data.Maybe as Maybe
 open import Data.Bool
 open import Data.List
 open import Category.Functor
-open RawFunctor MaybeFunctor
+open RawFunctor Maybe.functor
 
 -- Key/value pairs.
 
@@ -70,16 +71,16 @@ lookup : ∀ {i} → Key i → Map → Maybe (Value i)
 lookup k m with AVL.lookup (_ , k) m
 ... | nothing                    = nothing
 ... | just ((i′ , k′) , v′ , eq) with indicesEqual eq
-...   | ≡-refl = just v′
+...   | refl = just v′
 
 _∈?_ : ∀ {i} → Key i → Map → Bool
 _∈?_ k = AVL._∈?_ (, k)
 
 headTail : Map → Maybe (KV × Map)
-headTail m = map-Σ toKV id <$> AVL.headTail m
+headTail m = Prod.map toKV id <$> AVL.headTail m
 
 initLast : Map → Maybe (Map × KV)
-initLast m = map-Σ id toKV <$> AVL.initLast m
+initLast m = Prod.map id toKV <$> AVL.initLast m
 
 fromList : List KV → Map
 fromList = AVL.fromList ∘ map fromKV

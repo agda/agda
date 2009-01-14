@@ -36,10 +36,10 @@ _,_ : ∀ {a b} → (x : a) → b x → Σ a b
         ((x : A) → Σ (B x) C)
 < f , g > x = (f x , g x)
 
-map-Σ : ∀ {A B P Q} →
-        (f : A → B) → (∀ {x} → P x → Q (f x)) →
-        Σ A P → Σ B Q
-map-Σ f g = < f ∘ proj₁ , g ∘ proj₂ >
+map : ∀ {A B P Q} →
+      (f : A → B) → (∀ {x} → P x → Q (f x)) →
+      Σ A P → Σ B Q
+map f g = < f ∘ proj₁ , g ∘ proj₂ >
 
 swap : ∀ {a b} → a × b → b × a
 swap = < proj₂ , proj₁ >

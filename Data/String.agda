@@ -11,11 +11,12 @@ open Vec using (Vec)
 import Data.Colist as Colist
 open Colist using (Colist)
 open import Data.Char using (Char)
-open import Data.Bool
+open import Data.Bool using (Bool)
 open import Data.Function
 open import Relation.Nullary
 open import Relation.Binary
-open import Relation.Binary.PropositionalEquality
+import Relation.Binary.PropositionalEquality as PropEq
+open PropEq using (_≡_)
 
 ------------------------------------------------------------------------
 -- Types
@@ -73,7 +74,7 @@ s₁ ≟ s₂ with s₁ == s₂
   where postulate trustMe : _
 
 setoid : Setoid
-setoid = ≡-setoid String
+setoid = PropEq.setoid String
 
 decSetoid : DecSetoid
-decSetoid = ≡-decSetoid _≟_
+decSetoid = PropEq.decSetoid _≟_

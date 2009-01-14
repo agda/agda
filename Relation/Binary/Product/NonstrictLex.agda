@@ -38,7 +38,7 @@ private
     Strict.×-transitive
       {<₁ = Conv._<_ ≈₁ ≤₁}
       isEquivalence (Conv.≈-resp-< _ _ isEquivalence ≈-resp-≤)
-      (Conv.<-trans _ _ po₁)
+      (Conv.trans _ _ po₁)
       {≤₂ = ≤₂} trans₂ {x} {y} {z}
     where open IsPartialOrder po₁
 
@@ -54,11 +54,11 @@ private
     open Eq renaming (refl to ≈-refl₁; sym to ≈-sym₁)
 
     irrefl₁ : Irreflexive ≈₁ (Conv._<_ ≈₁ ≤₁)
-    irrefl₁ = Conv.<-irrefl ≈₁ ≤₁
+    irrefl₁ = Conv.irrefl ≈₁ ≤₁
 
     asym₁ : Asymmetric (Conv._<_ ≈₁ ≤₁)
     asym₁ = trans∧irr⟶asym {≈ = ≈₁}
-                           ≈-refl₁ (Conv.<-trans _ _ po₁) irrefl₁
+                           ≈-refl₁ (Conv.trans _ _ po₁) irrefl₁
 
   ×-≈-respects₂ : ∀ {≈₁ ≤₁} → IsEquivalence ≈₁ → ≈₁ Respects₂ ≤₁ →
                   ∀ {≈₂ ≤₂} → ≈₂ Respects₂ ≤₂ →
@@ -70,7 +70,7 @@ private
                 ∀ {≤₂} → Decidable ≤₂ →
                 Decidable (×-Lex ≈₁ ≤₁ ≤₂)
   ×-decidable dec-≈₁ dec-≤₁ dec-≤₂ =
-    Strict.×-decidable dec-≈₁ (Conv.<-decidable _ _ dec-≈₁ dec-≤₁)
+    Strict.×-decidable dec-≈₁ (Conv.decidable _ _ dec-≈₁ dec-≤₁)
                        dec-≤₂
 
   ×-total : ∀ {≈₁ ≤₁} → Symmetric ≈₁ → Decidable ≈₁ →
@@ -81,7 +81,7 @@ private
                     {≤₂ = ≤₂} total₂ = total
     where
     tri₁ : Trichotomous ≈₁ (Conv._<_ ≈₁ ≤₁)
-    tri₁ = Conv.<-trichotomous _ _ sym₁ dec₁ antisym₁ total₁
+    tri₁ = Conv.trichotomous _ _ sym₁ dec₁ antisym₁ total₁
 
     total : Total (×-Lex ≈₁ ≤₁ ≤₂)
     total x y with tri₁ (proj₁ x) (proj₁ y)

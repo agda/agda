@@ -9,7 +9,8 @@ open import Data.Sum
 open import Data.Empty
 open import Relation.Nullary
 open import Relation.Binary
-open import Relation.Binary.PropositionalEquality
+import Relation.Binary.PropositionalEquality as PropEq
+open PropEq using (_≡_; refl)
 
 infixl 7 _*_ _⊓_
 infixl 6 _∸_ _⊔_
@@ -137,10 +138,10 @@ suc m ⊓ suc n = suc (m ⊓ n)
 -- Queries
 
 _≟_ : Decidable {ℕ} _≡_
-zero  ≟ zero   = yes ≡-refl
+zero  ≟ zero   = yes refl
 suc m ≟ suc n  with m ≟ n
-suc m ≟ suc .m | yes ≡-refl = yes ≡-refl
-suc m ≟ suc n  | no prf     = no (prf ∘ ≡-cong pred)
+suc m ≟ suc .m | yes refl = yes refl
+suc m ≟ suc n  | no prf   = no (prf ∘ PropEq.cong pred)
 zero  ≟ suc n  = no λ()
 suc m ≟ zero   = no λ()
 
@@ -175,10 +176,10 @@ compare (suc .(suc m + k)) (suc .m)           | greater m k = greater (suc m) k
 -- Some properties
 
 preorder : Preorder
-preorder = ≡-preorder ℕ
+preorder = PropEq.preorder ℕ
 
 setoid : Setoid
-setoid = ≡-setoid ℕ
+setoid = PropEq.setoid ℕ
 
 decTotalOrder : DecTotalOrder
 decTotalOrder = record
@@ -189,10 +190,10 @@ decTotalOrder = record
       { isTotalOrder = record
           { isPartialOrder = record
               { isPreorder = record
-                  { isEquivalence = ≡-isEquivalence
-                  ; reflexive     = refl
+                  { isEquivalence = PropEq.isEquivalence
+                  ; reflexive     = refl′
                   ; trans         = trans
-                  ; ≈-resp-∼      = ≡-resp _≤_
+                  ; ≈-resp-∼      = PropEq.resp _≤_
                   }
               ; antisym  = antisym
               }
@@ -203,14 +204,14 @@ decTotalOrder = record
       }
   }
   where
-  refl : _≡_ ⇒ _≤_
-  refl {zero}  ≡-refl = z≤n
-  refl {suc m} ≡-refl = s≤s (refl ≡-refl)
+  refl′ : _≡_ ⇒ _≤_
+  refl′ {zero}  refl = z≤n
+  refl′ {suc m} refl = s≤s (refl′ refl)
 
   antisym : Antisymmetric _≡_ _≤_
-  antisym z≤n       z≤n       = ≡-refl
+  antisym z≤n       z≤n       = refl
   antisym (s≤s m≤n) (s≤s n≤m) with antisym m≤n n≤m
-  ...                         | ≡-refl = ≡-refl
+  ...                         | refl = refl
 
   trans : Transitive _≤_
   trans z≤n       _         = z≤n

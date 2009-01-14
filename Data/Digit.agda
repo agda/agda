@@ -34,7 +34,7 @@ private
          prove (Vec.fromList (x ∷ r ∷ k ∷ []))
                (con 2 :+ X :+ (X :+ (con 1 :+ X) :* K :+ R))
                (R :+ (con 1 :+ X) :* (con 2 :+ K))
-               ≡-refl) ⟩
+               refl) ⟩
     r + (1 + x) * (2 + k)
       ∎
 

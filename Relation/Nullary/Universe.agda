@@ -7,12 +7,13 @@ module Relation.Nullary.Universe where
 open import Relation.Nullary
 open import Relation.Binary hiding (_⇒_)
 open import Relation.Binary.Simple
-open import Relation.Binary.PropositionalEquality
+import Relation.Binary.PropositionalEquality as PropEq
+open PropEq using (_≡_; refl)
 open import Relation.Binary.Sum
 open import Relation.Binary.Product.Pointwise
 open import Relation.Binary.FunctionLifting
-open import Data.Sum
-open import Data.Product
+import Data.Sum     as Sum;  open Sum  hiding (map)
+import Data.Product as Prod; open Prod hiding (map)
 open import Data.Function
 open import Data.Empty
 
@@ -35,8 +36,8 @@ data PropF : Set1 where
 ⟦_⟧ : PropF → (Set → Set)
 ⟦ Id ⟧      = λ x → x
 ⟦ K P ⟧     = λ _ → P
-⟦ F₁ ∨ F₂ ⟧ = λ x → ⟦ F₁ ⟧ x ⊎  ⟦ F₂ ⟧ x
-⟦ F₁ ∧ F₂ ⟧ = λ x → ⟦ F₁ ⟧ x ×  ⟦ F₂ ⟧ x
+⟦ F₁ ∨ F₂ ⟧ = λ x → ⟦ F₁ ⟧ x ⊎ ⟦ F₂ ⟧ x
+⟦ F₁ ∧ F₂ ⟧ = λ x → ⟦ F₁ ⟧ x × ⟦ F₂ ⟧ x
 ⟦ P₁ ⇒ F₂ ⟧ = λ x → P₁       → ⟦ F₂ ⟧ x
 ⟦ ¬¬ F ⟧    = λ x → ¬ ¬ ⟦ F ⟧ x
 
@@ -53,29 +54,29 @@ Eq (¬¬ F)    = Always
 ⟨_⟩_≈_ : (F : PropF) {P : Set} → Rel (⟦ F ⟧ P)
 ⟨_⟩_≈_ = Eq
 
-Eq-isEquivalence : ∀ F {P} → IsEquivalence (Eq F {P})
-Eq-isEquivalence Id        = ≡-isEquivalence
-Eq-isEquivalence (K P)     = ≡-isEquivalence
-Eq-isEquivalence (F₁ ∨ F₂) = Eq-isEquivalence F₁ ⊎-isEquivalence
-                             Eq-isEquivalence F₂
-Eq-isEquivalence (F₁ ∧ F₂) = Eq-isEquivalence F₁ ×-isEquivalence
-                             Eq-isEquivalence F₂
-Eq-isEquivalence (P₁ ⇒ F₂) = LiftEquiv≡ (Eq-isEquivalence F₂)
-Eq-isEquivalence (¬¬ F)    = Always-isEquivalence
+isEquivalence : ∀ F {P} → IsEquivalence (Eq F {P})
+isEquivalence Id        = PropEq.isEquivalence
+isEquivalence (K P)     = PropEq.isEquivalence
+isEquivalence (F₁ ∨ F₂) = isEquivalence F₁ ⊎-isEquivalence
+                          isEquivalence F₂
+isEquivalence (F₁ ∧ F₂) = isEquivalence F₁ ×-isEquivalence
+                          isEquivalence F₂
+isEquivalence (P₁ ⇒ F₂) = LiftEquiv≡ (isEquivalence F₂)
+isEquivalence (¬¬ F)    = Always-isEquivalence
 
 -- ⟦ F ⟧ is functorial.
 
 map : ∀ F {P Q} → (P → Q) → ⟦ F ⟧ P → ⟦ F ⟧ Q
 map Id        f  p = f p
 map (K P)     f  p = p
-map (F₁ ∨ F₂) f FP = map-⊎ (map F₁ f) (map F₂ f) FP
-map (F₁ ∧ F₂) f FP = map-Σ (map F₁ f) (map F₂ f) FP
+map (F₁ ∨ F₂) f FP = Sum.map  (map F₁ f) (map F₂ f) FP
+map (F₁ ∧ F₂) f FP = Prod.map (map F₁ f) (map F₂ f) FP
 map (P₁ ⇒ F₂) f FP = map F₂ f ∘ FP
 map (¬¬ F)    f FP = ¬¬-map (map F f) FP
 
 map-id : ∀ F {P} → ⟨ ⟦ F ⟧ P ⇒ F ⟩ map F id ≈ id
-map-id Id        x        = ≡-refl
-map-id (K P)     x        = ≡-refl
+map-id Id        x        = refl
+map-id (K P)     x        = refl
 map-id (F₁ ∨ F₂) (inj₁ x) = ₁∼₁ (map-id F₁ x)
 map-id (F₁ ∨ F₂) (inj₂ y) = ₂∼₂ (map-id F₂ y)
 map-id (F₁ ∧ F₂) (x , y)  = (map-id F₁ x , map-id F₂ y)
@@ -84,8 +85,8 @@ map-id (¬¬ F)    ¬¬x      = _
 
 map-∘ : ∀ F {P Q R} (f : Q → R) (g : P → Q) →
         ⟨ ⟦ F ⟧ P ⇒ F ⟩ map F f ∘ map F g ≈ map F (f ∘ g)
-map-∘ Id        f g x        = ≡-refl
-map-∘ (K P)     f g x        = ≡-refl
+map-∘ Id        f g x        = refl
+map-∘ (K P)     f g x        = refl
 map-∘ (F₁ ∨ F₂) f g (inj₁ x) = ₁∼₁ (map-∘ F₁ f g x)
 map-∘ (F₁ ∨ F₂) f g (inj₂ y) = ₂∼₂ (map-∘ F₂ f g y)
 map-∘ (F₁ ∧ F₂) f g x        = (map-∘ F₁ f g (proj₁ x) ,

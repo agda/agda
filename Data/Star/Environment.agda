@@ -7,7 +7,8 @@ module Data.Star.Environment (Ty : Set) where
 open import Data.Star
 open import Data.Star.List
 open import Data.Star.Decoration
-open import Data.Star.Pointer
+import Data.Star.Pointer as Pointer
+open Pointer hiding (lookup)
 open import Data.Unit
 open import Relation.Binary.PropositionalEquality
 
@@ -24,7 +25,7 @@ _∋_ : Ctxt → Ty → Set
 Γ ∋ σ = Any (λ _ → ⊤) (_≡_ σ) Γ
 
 vz : ∀ {Γ σ} → Γ ▻ σ ∋ σ
-vz = this ≡-refl
+vz = this refl
 
 vs : ∀ {Γ σ τ} → Γ ∋ τ → Γ ▻ σ ∋ τ
 vs = that tt
@@ -36,6 +37,6 @@ Env T Γ = All T Γ
 
 -- A safe lookup function for environments.
 
-Env-lookup : ∀ {Γ σ} {T : Ty → Set} → Γ ∋ σ → Env T Γ → T σ
-Env-lookup i ρ with lookup i ρ
-... | result ≡-refl x = x
+lookup : ∀ {Γ σ} {T : Ty → Set} → Γ ∋ σ → Env T Γ → T σ
+lookup i ρ with Pointer.lookup i ρ
+... | result refl x = x

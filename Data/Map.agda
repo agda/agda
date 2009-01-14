@@ -20,13 +20,13 @@ module Map₁ (key-dto : DecTotalOrder) (elem-s : Setoid) where
   infix  5 _∈?_
   infix  4 _∈_ _|≈|_
 
-  abstract postulate Map-decSetoid : DecSetoid
+  abstract postulate decSetoid : DecSetoid
 
   Map : Set
-  Map = Setoid.carrier (DecSetoid.setoid Map-decSetoid)
+  Map = Setoid.carrier (DecSetoid.setoid decSetoid)
 
   _|≈|_ : Rel Map
-  _|≈|_ = Setoid._≈_ (DecSetoid.setoid Map-decSetoid)
+  _|≈|_ = Setoid._≈_ (DecSetoid.setoid decSetoid)
 
   abstract
    postulate

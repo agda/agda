@@ -23,20 +23,20 @@ open import Data.Function
 private
 
   lem₁ : ∀ m k → _
-  lem₁ m k = ≡-cong suc $ begin
+  lem₁ m k = cong suc $ begin
     m
       ≡⟨ Fin.inject+-lemma m k ⟩
     toℕ (Fin.inject+ k (fromℕ m))
       ≡⟨ (let X = var (# 0) in
          prove (toℕ (Fin.inject+ k (fromℕ m)) ∷ [])
-               X (X :+ con 0) ≡-refl) ⟩
+               X (X :+ con 0) refl) ⟩
     toℕ (Fin.inject+ k (fromℕ m)) + 0
       ∎
 
   lem₂ : ∀ n → _
   lem₂ n =
     let N = var (# 0) in
-    prove (n ∷ []) (con 1 :+ N) (con 1 :+ (N :+ con 0)) ≡-refl
+    prove (n ∷ []) (con 1 :+ N) (con 1 :+ (N :+ con 0)) refl
 
   lem₃ : ∀ n k q r eq → _
   lem₃ n k q r eq = begin
@@ -44,14 +44,14 @@ private
         ≡⟨ (let N = var (# 0); K = var (# 1) in
             prove (n ∷ k ∷ [])
                   (con 1 :+ N :+ K) (N :+ (con 1 :+ K))
-                  ≡-refl) ⟩
+                  refl) ⟩
       n + suc k
-        ≡⟨ ≡-cong (_+_ n) eq ⟩
+        ≡⟨ cong (_+_ n) eq ⟩
       n + (toℕ r + q * n)
         ≡⟨ (let N = var (# 0); R = var (# 1); Q = var (# 2) in
             prove (n ∷ toℕ r ∷ q ∷ [])
                   (N :+ (R :+ Q :* N)) (R :+ (con 1 :+ Q) :* N)
-                  ≡-refl) ⟩
+                  refl) ⟩
       toℕ r + suc q * n
         ∎
 
@@ -94,7 +94,7 @@ _divMod'_ m n {≢0} = <-rec Pred dm m n {≢0}
 
   dm : (dividend : ℕ) → <-Rec Pred dividend → Pred dividend
   dm m       rec zero    {≢0 = ()}
-  dm zero    rec (suc n)            = result 0 zero ≡-refl
+  dm zero    rec (suc n)            = result 0 zero refl
   dm (suc m) rec (suc n)            with compare m n
   dm (suc m) rec (suc .(suc m + k)) | less .m k    = result 0 r  (lem₁ m k)
                                         where r = suc (Fin.inject+ k (fromℕ m))
@@ -108,7 +108,7 @@ _divMod'_ m n {≢0} = <-rec Pred dm m n {≢0}
 _divMod_ : (dividend divisor : ℕ) {≢0 : False (divisor ≟ 0)} →
            DivMod dividend divisor
 _divMod_ m n {≢0} with _divMod'_ m n {≢0}
-.(toℕ r + q * n) divMod n | result q r ≡-refl = result q r
+.(toℕ r + q * n) divMod n | result q r refl = result q r
 
 -- Integer division.
 

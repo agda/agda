@@ -6,7 +6,7 @@ open import Relation.Binary
 
 module Relation.Binary.Props.DecTotalOrder (dt : DecTotalOrder) where
 
-open Relation.Binary.DecTotalOrder dt
+open Relation.Binary.DecTotalOrder dt hiding (trans)
 import Relation.Binary.NonStrictToStrict as Conv
 open Conv _≈_ _≤_
 
@@ -17,8 +17,8 @@ strictTotalOrder = record
   ; _<_                = _<_
   ; isStrictTotalOrder = record
       { isEquivalence = isEquivalence
-      ; trans         = <-trans isPartialOrder
-      ; compare       = <-trichotomous Eq.sym _≟_ antisym total
+      ; trans         = trans isPartialOrder
+      ; compare       = trichotomous Eq.sym _≟_ antisym total
       ; ≈-resp-<      = ≈-resp-< isEquivalence ≈-resp-≤
       }
   }

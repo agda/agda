@@ -5,12 +5,11 @@
 module Data.Colist where
 
 open import Coinduction
-open import Data.Bool
-open import Data.Maybe
-open import Data.Nat using (ℕ; zero; suc)
-open import Data.List using (List; []; _∷_)
+open import Data.Bool  using (Bool; true; false)
+open import Data.Maybe using (Maybe; nothing; just)
+open import Data.Nat   using (ℕ; zero; suc)
+open import Data.List  using (List; []; _∷_)
 open import Relation.Binary
-open import Relation.Binary.PropositionalEquality
 
 ------------------------------------------------------------------------
 -- The type

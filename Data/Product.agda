@@ -48,10 +48,16 @@ proj₂ (x , y) = y
         ((x : A) → Σ (B x) C)
 < f , g > x = (f x , g x)
 
-map-Σ : ∀ {A B P Q} →
-        (f : A → B) → (∀ {x} → P x → Q (f x)) →
-        Σ A P → Σ B Q
-map-Σ f g = < f ∘ proj₁ , g ∘ proj₂ >
+map : ∀ {A B P Q} →
+      (f : A → B) → (∀ {x} → P x → Q (f x)) →
+      Σ A P → Σ B Q
+map f g = < f ∘ proj₁ , g ∘ proj₂ >
+
+zip : ∀ {A B C P Q R} →
+      (_∙_ : A → B → C) →
+      (∀ {x y} → P x → Q y → R (x ∙ y)) →
+      Σ A P → Σ B Q → Σ C R
+zip _∙_ _∘_ (x , y) (u , v) = (x ∙ u , y ∘ v)
 
 swap : ∀ {A B} → A × B → B × A
 swap = < proj₂ , proj₁ >
@@ -71,9 +77,3 @@ uncurry : {A : Set} {B : A → Set} {C : Σ A B → Set} →
           ((x : A) → (y : B x) → C (x , y)) →
           ((p : Σ A B) → C p)
 uncurry f (p₁ , p₂) = f p₁ p₂
-
-zip-Σ : ∀ {A B C P Q R} →
-        (_∙_ : A → B → C) →
-        (∀ {x y} → P x → Q y → R (x ∙ y)) →
-        Σ A P → Σ B Q → Σ C R
-zip-Σ _∙_ _∘_ (x , y) (u , v) = (x ∙ u , y ∘ v)

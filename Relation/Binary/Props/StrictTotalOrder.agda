@@ -25,10 +25,10 @@ decTotalOrder = record
   ; isDecTotalOrder = record
     { isTotalOrder = record
       { isPartialOrder = SPO.isPartialOrder strictPartialOrder
-      ; total          = ≤-total compare
+      ; total          = total compare
       }
     ; _≟_  = _≟_
-    ; _≤?_ = ≤-decidable' compare
+    ; _≤?_ = decidable' compare
     }
   }
 

@@ -8,7 +8,7 @@ open import Data.Product
 open import Data.Sum
 open import Data.Function
 open import Relation.Nullary.Core
-open import Relation.Binary.PropositionalEquality.Core
+import Relation.Binary.PropositionalEquality.Core as PropEq
 open import Relation.Binary.Consequences
 import Relation.Binary.Core as Core
 open Core using (_≡_)
@@ -16,7 +16,7 @@ open Core using (_≡_)
 ------------------------------------------------------------------------
 -- Simple properties and equivalence relations
 
-open Core public hiding (_≡_; ≡-refl; _≢_)
+open Core public hiding (_≡_; refl; _≢_)
 
 ------------------------------------------------------------------------
 -- Preorders
@@ -63,10 +63,10 @@ record Setoid : Set1 where
 
   isPreorder : IsPreorder _≡_ _≈_
   isPreorder = record
-    { isEquivalence = ≡-isEquivalence
+    { isEquivalence = PropEq.isEquivalence
     ; reflexive     = reflexive
     ; trans         = trans
-    ; ≈-resp-∼      = ≡-resp _≈_
+    ; ≈-resp-∼      = PropEq.resp _≈_
     }
 
   preorder : Preorder

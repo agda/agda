@@ -12,52 +12,52 @@ open import Data.Product
 
 -- Some of the definitions can be found in the following modules:
 
-open import Relation.Binary.Core public using (_≡_; ≡-refl; _≢_)
+open import Relation.Binary.Core public using (_≡_; refl; _≢_)
 open import Relation.Binary.PropositionalEquality.Core public
 
 ------------------------------------------------------------------------
 -- Some properties
 
-≡-subst₁ : ∀ {a} (P : a → Set1) → ∀ {x y} → x ≡ y → P x → P y
-≡-subst₁ P ≡-refl p = p
+subst₁ : ∀ {a} (P : a → Set1) → ∀ {x y} → x ≡ y → P x → P y
+subst₁ P refl p = p
 
-≡-cong : Congruential _≡_
-≡-cong = subst⟶cong ≡-refl ≡-subst
+cong : Congruential _≡_
+cong = subst⟶cong refl subst
 
-≡-cong₂ : Congruential₂ _≡_
-≡-cong₂ = cong+trans⟶cong₂ ≡-cong ≡-trans
+cong₂ : Congruential₂ _≡_
+cong₂ = cong+trans⟶cong₂ cong trans
 
-≡-setoid : Set → Setoid
-≡-setoid a = record
+setoid : Set → Setoid
+setoid a = record
   { carrier       = a
   ; _≈_           = _≡_
-  ; isEquivalence = ≡-isEquivalence
+  ; isEquivalence = isEquivalence
   }
 
-≡-decSetoid : ∀ {a} → Decidable (_≡_ {a}) → DecSetoid
-≡-decSetoid ≡-dec = record
+decSetoid : ∀ {a} → Decidable (_≡_ {a}) → DecSetoid
+decSetoid dec = record
   { carrier = _
   ; _≈_     = _≡_
   ; isDecEquivalence = record
-      { isEquivalence = ≡-isEquivalence
-      ; _≟_           = ≡-dec
+      { isEquivalence = isEquivalence
+      ; _≟_           = dec
       }
   }
 
-≡-isPreorder : ∀ {a} → IsPreorder {a} _≡_ _≡_
-≡-isPreorder = record
-  { isEquivalence = ≡-isEquivalence
+isPreorder : ∀ {a} → IsPreorder {a} _≡_ _≡_
+isPreorder = record
+  { isEquivalence = isEquivalence
   ; reflexive     = id
-  ; trans         = ≡-trans
-  ; ≈-resp-∼      = ≡-resp _≡_
+  ; trans         = trans
+  ; ≈-resp-∼      = resp _≡_
   }
 
-≡-preorder : Set → Preorder
-≡-preorder a = record
+preorder : Set → Preorder
+preorder a = record
   { carrier    = a
   ; _≈_        = _≡_
   ; _∼_        = _≡_
-  ; isPreorder = ≡-isPreorder
+  ; isPreorder = isPreorder
   }
 
 ------------------------------------------------------------------------
@@ -70,9 +70,9 @@ a →-setoid b = record
   { carrier       = a → b
   ; _≈_           = λ f g → ∀ x → f x ≡ g x
   ; isEquivalence = record
-    { refl  = λ         _ → ≡-refl
-    ; sym   = λ f≗g     x → ≡-sym   (f≗g x)
-    ; trans = λ f≗g g≗h x → ≡-trans (f≗g x) (g≗h x)
+    { refl  = λ         _ → refl
+    ; sym   = λ f≗g     x → sym   (f≗g x)
+    ; trans = λ f≗g g≗h x → trans (f≗g x) (g≗h x)
     }
   }
 
@@ -90,7 +90,7 @@ data Inspect {a : Set} (x : a) : Set where
   _with-≡_ : (y : a) (eq : y ≡ x) → Inspect x
 
 inspect : ∀ {a} (x : a) → Inspect x
-inspect x = x with-≡ ≡-refl
+inspect x = x with-≡ refl
 
 -- Example usage:
 
@@ -98,7 +98,7 @@ inspect x = x with-≡ ≡-refl
 -- f x y | c z with-≡ eq = ...
 
 ------------------------------------------------------------------------
--- Convenient syntax for equality reasoning
+-- Convenient syntax for equational reasoning
 
 import Relation.Binary.EqReasoning as EqR
 
@@ -110,7 +110,7 @@ import Relation.Binary.EqReasoning as EqR
 module ≡-Reasoning where
   private
     module Dummy {a : Set} where
-      open EqR (≡-setoid a) public
+      open EqR (setoid a) public
         hiding (_≡⟨_⟩_; ≡-byDef)
         renaming (_≈⟨_⟩_ to _≡⟨_⟩_)
   open Dummy public

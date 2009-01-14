@@ -7,21 +7,22 @@ module Data.List.Equality where
 open import Data.List
 open import Relation.Nullary
 open import Relation.Binary
-open import Relation.Binary.PropositionalEquality
 
 module Equality (S : Setoid) where
 
-  open Setoid S
+  open Setoid S renaming (_≈_ to _≊_)
 
-  data ListEq : List carrier → List carrier → Set where
-    []-cong  : ListEq [] []
-    _∷-cong_ : ∀ {x xs y ys} (x≈y : x ≈ y) (xs≈ys : ListEq xs ys) →
-               ListEq (x ∷ xs) (y ∷ ys)
+  infix 4 _≈_
+
+  data _≈_ : List carrier → List carrier → Set where
+    []-cong  : [] ≈ []
+    _∷-cong_ : ∀ {x xs y ys} (x≈y : x ≊ y) (xs≈ys : xs ≈ ys) →
+               x ∷ xs ≈ y ∷ ys
 
   setoid : Setoid
   setoid = record
     { carrier = List carrier
-    ; _≈_     = ListEq
+    ; _≈_     = _≈_
     ; isEquivalence = record
       { refl  = refl'
       ; sym   = sym'
@@ -29,54 +30,55 @@ module Equality (S : Setoid) where
       }
     }
     where
-    refl' : Reflexive ListEq
+    refl' : Reflexive _≈_
     refl' {[]}     = []-cong
     refl' {x ∷ xs} = refl ∷-cong refl' {xs}
 
-    sym' : Symmetric ListEq
+    sym' : Symmetric _≈_
     sym' []-cong = []-cong
     sym' (x≈y ∷-cong xs≈ys) = sym x≈y ∷-cong sym' xs≈ys
 
-    trans' : Transitive ListEq
+    trans' : Transitive _≈_
     trans' []-cong            []-cong            = []-cong
     trans' (x≈y ∷-cong xs≈ys) (y≈z ∷-cong ys≈zs) =
       trans x≈y y≈z ∷-cong trans' xs≈ys ys≈zs
 
 module DecidableEquality (D : DecSetoid) where
 
-  open DecSetoid D
+  open DecSetoid D hiding (_≈_)
   open Equality setoid renaming (setoid to List-setoid)
 
   decSetoid : DecSetoid
   decSetoid = record
     { carrier = List carrier
-    ; _≈_     = ListEq
+    ; _≈_     = _≈_
     ; isDecEquivalence = record
       { isEquivalence = Setoid.isEquivalence List-setoid
       ; _≟_           = dec
       }
     }
     where
-    dec : Decidable ListEq
+    dec : Decidable _≈_
     dec []       []       = yes []-cong
     dec (x ∷ xs) (y ∷ ys) with x ≟ y | dec xs ys
     ... | yes x≈y | yes xs≈ys = yes (x≈y ∷-cong xs≈ys)
     ... | no ¬x≈y | _         = no helper
       where
-      helper : ¬ ListEq (x ∷ xs) (y ∷ ys)
+      helper : ¬ _≈_ (x ∷ xs) (y ∷ ys)
       helper (x≈y ∷-cong _) = ¬x≈y x≈y
     ... | _       | no ¬xs≈ys = no helper
       where
-      helper : ¬ ListEq (x ∷ xs) (y ∷ ys)
+      helper : ¬ _≈_ (x ∷ xs) (y ∷ ys)
       helper (_ ∷-cong xs≈ys) = ¬xs≈ys xs≈ys
     dec []       (y ∷ ys) = no λ()
     dec (x ∷ xs) []       = no λ()
 
 module PropositionalEquality (a : Set) where
 
-  open Equality (≡-setoid a)
+  open import Relation.Binary.PropositionalEquality
+  open Equality (setoid a)
 
-  ListEq⇒≡ : ListEq ⇒ _≡_
-  ListEq⇒≡ []-cong               = ≡-refl
-  ListEq⇒≡ (≡-refl ∷-cong xs≈ys) with ListEq⇒≡ xs≈ys
-  ListEq⇒≡ (≡-refl ∷-cong xs≈ys) | ≡-refl = ≡-refl
+  ≈⇒≡ : _≈_ ⇒ _≡_
+  ≈⇒≡ []-cong             = refl
+  ≈⇒≡ (refl ∷-cong xs≈ys) with ≈⇒≡ xs≈ys
+  ≈⇒≡ (refl ∷-cong xs≈ys) | refl = refl

@@ -19,19 +19,6 @@ Rel : Set → Set1
 Rel a = a → a → Set
 
 ------------------------------------------------------------------------
--- Propositional equality
-
-infix 4 _≡_ _≢_
-
-data _≡_ {a : Set} (x : a) : a → Set where
-  ≡-refl : x ≡ x
-
--- Nonequality.
-
-_≢_ : {a : Set} → a → a → Set
-x ≢ y = ¬ x ≡ y
-
-------------------------------------------------------------------------
 -- Simple properties of binary relations
 
 infixr 4 _⇒_ _=[_]⇒_
@@ -134,6 +121,26 @@ nonEmpty : ∀ {I} {T : Rel I} {i j} → T i j → NonEmpty T
 nonEmpty p = record { i = _; j = _; proof = p }
 
 ------------------------------------------------------------------------
+-- Propositional equality
+
+-- This dummy module is used to avoid shadowing of the field named
+-- refl defined in IsEquivalence below. The module is opened publicly
+-- at the end of this file.
+
+private
+ module Dummy where
+
+  infix 4 _≡_ _≢_
+
+  data _≡_ {a : Set} (x : a) : a → Set where
+    refl : x ≡ x
+
+  -- Nonequality.
+
+  _≢_ : {a : Set} → a → a → Set
+  x ≢ y = ¬ x ≡ y
+
+------------------------------------------------------------------------
 -- Equivalence relations
 
 -- The preorders of this library are defined in terms of an underlying
@@ -146,5 +153,7 @@ record IsEquivalence {a : Set} (_≈_ : Rel a) : Set where
     sym   : Symmetric _≈_
     trans : Transitive _≈_
 
-  reflexive : _≡_ ⇒ _≈_
-  reflexive ≡-refl = refl
+  reflexive : Dummy._≡_ ⇒ _≈_
+  reflexive Dummy.refl = refl
+
+open Dummy public

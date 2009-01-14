@@ -14,8 +14,9 @@ open import Data.String using (String; _++_)
 open import Data.Function
 open import Relation.Nullary
 open import Relation.Binary
-open import Relation.Binary.PropositionalEquality
-open ≡-Reasoning
+import Relation.Binary.PropositionalEquality as PropEq
+open PropEq using (_≡_; refl; sym; cong; cong₂)
+open PropEq.≡-Reasoning
 
 infix  8 +_ -_
 infixl 7 _*_ _⊓_
@@ -32,7 +33,7 @@ infixl 6 _+'_ _-'_
 
 data ℤ : Set where
   :-_ : (n : ℕ) → ℤ  -- :- n stands for - (n + 1).
-  :0  : ℤ             -- :0 stands for 0.
+  :0  : ℤ            -- :0 stands for 0.
   :+_ : (n : ℕ) → ℤ  -- :+ n stands for   (n + 1).
 
 -- A non-canonical representation of integers.
@@ -166,16 +167,16 @@ _⊓_ : ℤ → ℤ → ℤ
 -- Equality
 
 ℤ'toℤ-left-inverse : ∀ i → ℤ'toℤ (ℤtoℤ' i) ≡ i
-ℤ'toℤ-left-inverse (:- n) = ≡-refl
-ℤ'toℤ-left-inverse :0     = ≡-refl
-ℤ'toℤ-left-inverse (:+ n) = ≡-refl
+ℤ'toℤ-left-inverse (:- n) = refl
+ℤ'toℤ-left-inverse :0     = refl
+ℤ'toℤ-left-inverse (:+ n) = refl
 
 drop-ℤtoℤ' : ∀ {i j} → ℤtoℤ' i ≡ ℤtoℤ' j → i ≡ j
 drop-ℤtoℤ' {i} {j} eq = begin
   i
-    ≡⟨ ≡-sym (ℤ'toℤ-left-inverse i) ⟩
+    ≡⟨ sym (ℤ'toℤ-left-inverse i) ⟩
   ℤ'toℤ (ℤtoℤ' i)
-    ≡⟨ ≡-cong ℤ'toℤ eq ⟩
+    ≡⟨ cong ℤ'toℤ eq ⟩
   ℤ'toℤ (ℤtoℤ' j)
     ≡⟨ ℤ'toℤ-left-inverse j ⟩
   j
@@ -184,9 +185,9 @@ drop-ℤtoℤ' {i} {j} eq = begin
 _≟_ : Decidable {ℤ} _≡_
 i ≟ j with Sign._≟_ (sign i) (sign j) | N._≟_ ∣ i ∣ ∣ j ∣
 i ≟ j | yes sign-≡ | yes abs-≡ = yes (drop-ℤtoℤ' eq)
-                                   where eq = ≡-cong₂ (_,_) sign-≡ abs-≡
-i ≟ j | no  sign-≢ | _         = no (sign-≢ ∘ ≡-cong sign)
-i ≟ j | _          | no abs-≢  = no (abs-≢  ∘ ≡-cong ∣_∣)
+                                   where eq = cong₂ (_,_) sign-≡ abs-≡
+i ≟ j | no  sign-≢ | _         = no (sign-≢ ∘ cong sign)
+i ≟ j | _          | no abs-≢  = no (abs-≢  ∘ cong ∣_∣)
 
 decSetoid : DecSetoid
-decSetoid = ≡-decSetoid _≟_
+decSetoid = PropEq.decSetoid _≟_

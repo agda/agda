@@ -42,12 +42,12 @@ Eq (suc n) _∼_ f g = ∀ x → Eq n _∼_ (f x) (g x)
 
 left-inverse : ∀ {n A B} (f : Vec A n → B) →
                ∀ xs → curryⁿ f $ⁿ xs ≡ f xs
-left-inverse f []       = ≡-refl
+left-inverse f []       = refl
 left-inverse f (x ∷ xs) = left-inverse (f ∘ _∷_ x) xs
 
 right-inverse : ∀ {A B} n (f : N-ary n A B) →
                 Eq n _≡_ (curryⁿ (_$ⁿ_ {n} f)) f
-right-inverse zero    f = ≡-refl
+right-inverse zero    f = refl
 right-inverse (suc n) f = λ x → right-inverse n (f x)
 
 -- Conversion preserves equality.

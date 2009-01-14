@@ -5,13 +5,12 @@
 module Relation.Binary.Sum where
 
 open import Data.Function
-open import Data.Sum
+open import Data.Sum as Sum
 open import Data.Product
-open import Data.Unit
+open import Data.Unit using (⊤)
 open import Data.Empty
 open import Relation.Nullary
 open import Relation.Binary
-open import Relation.Binary.PropositionalEquality
 
 infixr 1 _⊎-Rel_ _⊎-<_
 
@@ -188,8 +187,8 @@ _⊎-<-total_ : ∀ {a₁} {≤₁ : Rel a₁} → Total ≤₁ →
 total₁ ⊎-<-total total₂ = total
   where
   total : Total (_ ⊎-< _)
-  total (inj₁ x) (inj₁ y) = map-⊎ ₁∼₁ ₁∼₁ $ total₁ x y
-  total (inj₂ x) (inj₂ y) = map-⊎ ₂∼₂ ₂∼₂ $ total₂ x y
+  total (inj₁ x) (inj₁ y) = Sum.map ₁∼₁ ₁∼₁ $ total₁ x y
+  total (inj₂ x) (inj₂ y) = Sum.map ₂∼₂ ₂∼₂ $ total₂ x y
   total (inj₁ x) (inj₂ y) = inj₁ (₁∼₂ _)
   total (inj₂ x) (inj₁ y) = inj₂ (₁∼₂ _)
 

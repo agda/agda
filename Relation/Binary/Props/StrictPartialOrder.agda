@@ -9,6 +9,7 @@ module Relation.Binary.Props.StrictPartialOrder
        where
 
 open Relation.Binary.StrictPartialOrder spo
+  renaming (trans to <-trans)
 import Relation.Binary.StrictToNonStrict as Conv
 open Conv _≈_ _<_
 
@@ -23,11 +24,11 @@ poset = record
   ; isPartialOrder = record
     { isPreorder = record
         { isEquivalence = isEquivalence
-        ; reflexive     = ≤-reflexive
-        ; trans         = ≤-trans isEquivalence ≈-resp-< trans
+        ; reflexive     = reflexive
+        ; trans         = trans isEquivalence ≈-resp-< <-trans
         ; ≈-resp-∼      = ≈-resp-≤ isEquivalence ≈-resp-<
         }
-    ; antisym = ≤-antisym isEquivalence trans irrefl
+    ; antisym = antisym isEquivalence <-trans irrefl
     }
   }
 

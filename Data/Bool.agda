@@ -5,11 +5,12 @@
 module Data.Bool where
 
 open import Data.Function
-open import Data.Unit
+open import Data.Unit using (⊤)
 open import Data.Empty
 open import Relation.Nullary.Core
 open import Relation.Binary
-open import Relation.Binary.PropositionalEquality
+import Relation.Binary.PropositionalEquality as PropEq
+open PropEq using (_≡_; refl)
 
 infixr 6 _∧_
 infixr 5 _∨_ _xor_
@@ -59,20 +60,20 @@ false xor b = b
 ------------------------------------------------------------------------
 -- Queries
 
-_Bool-≟_ : Decidable {Bool} _≡_
-true  Bool-≟ true  = yes ≡-refl
-false Bool-≟ false = yes ≡-refl
-true  Bool-≟ false = no λ()
-false Bool-≟ true  = no λ()
+_≟_ : Decidable {Bool} _≡_
+true  ≟ true  = yes refl
+false ≟ false = yes refl
+true  ≟ false = no λ()
+false ≟ true  = no λ()
 
 ------------------------------------------------------------------------
 -- Some properties
 
-Bool-preorder : Preorder
-Bool-preorder = ≡-preorder Bool
+preorder : Preorder
+preorder = PropEq.preorder Bool
 
-Bool-setoid : Setoid
-Bool-setoid = ≡-setoid Bool
+setoid : Setoid
+setoid = PropEq.setoid Bool
 
-Bool-decSetoid : DecSetoid
-Bool-decSetoid = ≡-decSetoid _Bool-≟_
+decSetoid : DecSetoid
+decSetoid = PropEq.decSetoid _≟_

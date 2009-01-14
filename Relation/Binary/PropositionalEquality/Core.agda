@@ -13,21 +13,21 @@ open import Relation.Binary.Consequences.Core
 ------------------------------------------------------------------------
 -- Some properties
 
-≡-sym : {a : Set} → Symmetric {a} _≡_
-≡-sym ≡-refl = ≡-refl
+sym : {a : Set} → Symmetric {a} _≡_
+sym refl = refl
 
-≡-trans : {a : Set} → Transitive {a} _≡_
-≡-trans ≡-refl ≡-refl = ≡-refl
+trans : {a : Set} → Transitive {a} _≡_
+trans refl refl = refl
 
-≡-subst : {a : Set} → Substitutive {a} _≡_
-≡-subst P ≡-refl p = p
+subst : {a : Set} → Substitutive {a} _≡_
+subst P refl p = p
 
-≡-resp : ∀ {a} (∼ : Rel a) → _≡_ Respects₂ ∼
-≡-resp _∼_ = subst⟶resp₂ _∼_ ≡-subst
+resp : ∀ {a} (∼ : Rel a) → _≡_ Respects₂ ∼
+resp _∼_ = subst⟶resp₂ _∼_ subst
 
-≡-isEquivalence : ∀ {a} → IsEquivalence {a} _≡_
-≡-isEquivalence = record
-  { refl  = ≡-refl
-  ; sym   = ≡-sym
-  ; trans = ≡-trans
+isEquivalence : ∀ {a} → IsEquivalence {a} _≡_
+isEquivalence = record
+  { refl  = refl
+  ; sym   = sym
+  ; trans = trans
   }

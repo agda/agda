@@ -15,11 +15,12 @@ import Data.Fin as Fin
 open Fin using (Fin; zero; suc; #_; toℕ) renaming (_ℕ-ℕ_ to _-_)
 import Data.Fin.Props as FP
 open FP using (_≟_)
-open import Data.Product
+import Data.Product as Prod
+open Prod using (∃; _×_; _,_)
 open import Data.Maybe
 open import Data.Function
 open import Data.Empty
-open import Data.Unit
+open import Data.Unit using (⊤; tt)
 import Data.Vec as Vec
 open Vec using (Vec; []; _∷_)
 import Data.List as List
@@ -118,7 +119,7 @@ nmap f = map (cmap f id)
 -- Maps over edge labels.
 
 emap : ∀ {N E₁ E₂ n} → (E₁ → E₂) → Graph N E₁ n → Graph N E₂ n
-emap f = map (cmap id (List.map (map-Σ f id)))
+emap f = map (cmap id (List.map (Prod.map f id)))
 
 -- Zips two graphs with the same number of nodes. Note that one of the
 -- graphs has a type which restricts it to be completely disconnected.
@@ -179,7 +180,7 @@ private
 
   test-nodes : nodes example ≡ (# 0 , 0) ∷ (# 1 , 1) ∷ (# 2 , 2) ∷
                                (# 3 , 3) ∷ (# 4 , 4) ∷ []
-  test-nodes = ≡-refl
+  test-nodes = refl
 
 -- Topological sort. Gives a vector where earlier nodes are never
 -- successors of later nodes.
@@ -203,7 +204,7 @@ private
 
   test-edges : edges example ≡ (# 1 , 10 , # 1) ∷ (# 1 , 11 , # 1) ∷
                                (# 2 , 12 , # 0) ∷ []
-  test-edges = ≡-refl
+  test-edges = refl
 
 -- The successors of a given node i (edge label × node number relative
 -- to i).
@@ -215,26 +216,27 @@ sucs g i = successors $ head $ g [ i ]
 private
 
   test-sucs : sucs example (# 1) ≡ (10 , # 1) ∷ (11 , # 1) ∷ []
-  test-sucs = ≡-refl
+  test-sucs = refl
 
 -- The predecessors of a given node i (node number relative to i ×
 -- edge label).
 
 preds : ∀ {E N n} → Graph N E n → (i : Fin n) → List (Fin (toℕ i) × E)
 preds g       zero    = []
-preds (c & g) (suc i) = List._++_ (List.gfilter (p i) $ successors c)
-                                  (List.map (map-Σ suc id) $ preds g i)
+preds (c & g) (suc i) =
+  List._++_ (List.gfilter (p i) $ successors c)
+            (List.map (Prod.map suc id) $ preds g i)
   where
   p : ∀ {E n} (i : Fin n) → E × Fin n → Maybe (Fin (suc (toℕ i)) × E)
   p i (e , j)  with i ≟ j
-  p i (e , .i) | yes ≡-refl = just (zero , e)
-  p i (e , j)  | no _       = nothing
+  p i (e , .i) | yes refl = just (zero , e)
+  p i (e , j)  | no _     = nothing
 
 private
 
   test-preds : preds example (# 3) ≡
                (# 1 , 10) ∷ (# 1 , 11) ∷ (# 2 , 12) ∷ []
-  test-preds = ≡-refl
+  test-preds = refl
 
 ------------------------------------------------------------------------
 -- Operations
@@ -249,7 +251,7 @@ weaken {n} {i} j = Fin.inject≤ j (FP.nℕ-ℕi≤n n (suc i))
 number : ∀ {N E n} → Graph N E n → Graph (Fin n × N) E n
 number {N} {E} =
   foldr (λ n → Graph (Fin n × N) E n)
-        (λ c g → cmap (_,_ zero) id c & nmap (map-Σ suc id) g)
+        (λ c g → cmap (_,_ zero) id c & nmap (Prod.map suc id) g)
         ∅
 
 private
@@ -261,23 +263,24 @@ private
                  context (# 3 , 3) [] &
                  context (# 4 , 4) [] &
                  ∅)
-  test-number = ≡-refl
+  test-number = refl
 
 -- Reverses all the edges in the graph.
 
 reverse : ∀ {N E n} → Graph N E n → Graph N E n
 reverse {N} {E} g =
   foldl (Graph N E)
-        (λ i g' c → context (label c)
-                            (List.map (swap ∘ map-Σ FP.reverse id) $
+        (λ i g' c →
+           context (label c)
+                   (List.map (Prod.swap ∘ Prod.map FP.reverse id) $
                              preds g i)
-                    & g')
+           & g')
         ∅ g
 
 private
 
   test-reverse : reverse (reverse example) ≡ example
-  test-reverse = ≡-refl
+  test-reverse = refl
 
 ------------------------------------------------------------------------
 -- Views
@@ -297,7 +300,7 @@ toTree {N} {E} g i = <-rec Pred expand _ (g [ i ])
   expand n rec (c & g) =
     node (label c)
          (List.map
-            (map-Σ id (λ i → rec (n - suc i) (lemma n i) (g [ i ])))
+            (Prod.map id (λ i → rec (n - suc i) (lemma n i) (g [ i ])))
             (successors c))
 
 -- Performs the toTree expansion once for each node.
@@ -315,4 +318,4 @@ private
                     node 3 [] ∷
                     node 4 [] ∷
                     []
-  test-toForest = ≡-refl
+  test-toForest = refl

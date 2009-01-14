@@ -24,7 +24,7 @@ open _-RawRing⟶_ morphism renaming (⟦_⟧ to ⟦_⟧')
 import Algebra.Operations as Ops; open Ops semiring
 
 open import Relation.Binary
-open import Relation.Binary.PropositionalEquality
+import Relation.Binary.PropositionalEquality as PropEq
 
 open import Data.Nat using (ℕ; suc; zero) renaming (_+_ to _ℕ-+_)
 import Data.Fin as Fin
@@ -209,7 +209,8 @@ private
                              raise-sem p₂ ρ
   raise-sem (con c)      ρ = refl
   raise-sem (var x)      ρ = refl
-  raise-sem (p :^ n)     ρ = raise-sem p ρ ⟨ ^-pres-≈ ⟩ ≡-refl {x = n}
+  raise-sem (p :^ n)     ρ = raise-sem p ρ ⟨ ^-pres-≈ ⟩
+                             PropEq.refl {x = n}
   raise-sem (:- p)       ρ = --pres-≈ (raise-sem p ρ)
 
   nf-sound : ∀ {n p} (nf : Normal n p) ρ →

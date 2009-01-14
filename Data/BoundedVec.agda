@@ -54,14 +54,14 @@ abstract
 
   ↑ : ∀ {a n} → BoundedVec a n → BoundedVec a (suc n)
   ↑ {a = a} (bVec {m = m} {n = n} xs) =
-    ≡-subst (BoundedVec a) lemma
+    subst (BoundedVec a) lemma
             (bVec {m = suc m} xs)
     where
     M = var (# 0); N = var (# 1)
     lemma = prove (Vec._∷_ m (Vec._∷_ n Vec.[]))
                   (N :+ (con 1 :+ M))
                   (con 1 :+ (N :+ M))
-                  ≡-refl
+                  refl
 
 ------------------------------------------------------------------------
 -- Conversions
@@ -70,12 +70,12 @@ abstract
 
   fromList : ∀ {a} → (xs : List a) → BoundedVec a (List.length xs)
   fromList {a = a} xs =
-    ≡-subst (BoundedVec a) lemma
+    subst (BoundedVec a) lemma
             (bVec {m = zero} (Vec.fromList xs))
     where
     M = var (# 0)
     lemma = prove (Vec._∷_ (List.length xs) Vec.[])
-                  (M :+ con 0) M ≡-refl
+                  (M :+ con 0) M refl
 
   toList : ∀ {a n} → BoundedVec a n → List a
   toList (bVec xs) = Vec.toList xs

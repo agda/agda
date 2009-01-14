@@ -19,7 +19,8 @@ open import Data.Product
 open import Algebra
 open import Relation.Binary
 open import Relation.Binary.Consequences
-open import Relation.Binary.PropositionalEquality
+import Relation.Binary.PropositionalEquality as PropEq
+open PropEq using (_≡_; _≢_; refl; sym)
 open import Relation.Nullary
 private
   module BitOrd = StrictTotalOrder (FP.strictTotalOrder 2)
@@ -96,35 +97,35 @@ private
     where cmp = StrictTotalOrder.compare NP.strictTotalOrder
 
   irr : ∀ {b₁ b₂} → b₁ < b₂ → b₁ ≢ b₂
-  irr lt eq = asym⟶irr (≡-resp _<_) ≡-sym asym eq lt
+  irr lt eq = asym⟶irr (PropEq.resp _<_) sym asym eq lt
 
   irr′ : ∀ {b} → ¬ b < b
-  irr′ lt = irr lt ≡-refl
+  irr′ lt = irr lt refl
 
   ∷∙ : ∀ {b₁ b₂ bs₁ bs₂} →
        bs₁ 1# < bs₂ 1# → (b₁ ∷ bs₁) 1# < (b₂ ∷ bs₂) 1#
   ∷∙ {b₁} {b₂} {bs₁} {bs₂} (less lt) = less (begin
-      1 + (m₁ + n₁ * 2)  ≤⟨ refl {x = 1} +-mono
-                              (≤-pred (FP.bounded b₁) +-mono refl) ⟩
-      1 + (1  + n₁ * 2)  ≡⟨ ≡-refl ⟩
-            suc n₁ * 2   ≤⟨ lt *-mono refl ⟩
+      1 + (m₁ + n₁ * 2)  ≤⟨ ≤-refl {x = 1} +-mono
+                              (≤-pred (FP.bounded b₁) +-mono ≤-refl) ⟩
+      1 + (1  + n₁ * 2)  ≡⟨ refl ⟩
+            suc n₁ * 2   ≤⟨ lt *-mono ≤-refl ⟩
                 n₂ * 2   ≤⟨ n≤m+n m₂ (n₂ * 2) ⟩
            m₂ + n₂ * 2   ∎
     )
     where
-    open Nat; open NP; open Poset poset using (refl)
+    open Nat; open NP; open Poset poset renaming (refl to ≤-refl)
     m₁ = Fin.toℕ b₁;   m₂ = Fin.toℕ b₂
     n₁ = toℕ (bs₁ 1#); n₂ = toℕ (bs₂ 1#)
 
   ∙∷ : ∀ {b₁ b₂ bs} →
        Fin._<_ b₁ b₂ → (b₁ ∷ bs) 1# < (b₂ ∷ bs) 1#
   ∙∷ {b₁} {b₂} {bs} lt = less (begin
-    1 + (m₁  + n * 2)  ≡⟨ ≡-sym (+-assoc 1 m₁ (n * 2)) ⟩
-    (1 + m₁) + n * 2   ≤⟨ lt +-mono refl ⟩
+    1 + (m₁  + n * 2)  ≡⟨ sym (+-assoc 1 m₁ (n * 2)) ⟩
+    (1 + m₁) + n * 2   ≤⟨ lt +-mono ≤-refl ⟩
          m₂  + n * 2   ∎)
     where
     open Nat; open NP
-    open Poset poset using (refl)
+    open Poset poset renaming (refl to ≤-refl)
     open CommutativeSemiring commutativeSemiring using (+-assoc)
     m₁ = Fin.toℕ b₁; m₂ = Fin.toℕ b₂; n = toℕ (bs 1#)
 
@@ -143,22 +144,22 @@ private
   0<+ {b ∷ bs} = <-trans 0<1 1<2+
 
   compare⁺ : Trichotomous (_≡_ on₁ _1#) (_<_ on₁ _1#)
-  compare⁺ []         []         = tri≈ irr′ ≡-refl irr′
-  compare⁺ []         (b ∷ bs)   = tri<       1<2+  (irr 1<2+)   (asym 1<2+)
-  compare⁺ (b ∷ bs)   []         = tri> (asym 1<2+) (irr 1<2+ ∘ ≡-sym) 1<2+
+  compare⁺ []         []         = tri≈ irr′ refl irr′
+  compare⁺ []         (b ∷ bs)   = tri<       1<2+  (irr 1<2+) (asym 1<2+)
+  compare⁺ (b ∷ bs)   []         = tri> (asym 1<2+) (irr 1<2+ ∘ sym) 1<2+
   compare⁺ (b₁ ∷ bs₁) (b₂ ∷ bs₂) with compare⁺ bs₁ bs₂
-  ... | tri<  lt ¬eq ¬gt = tri<       (∷∙ lt)  (irr (∷∙ lt))   (asym (∷∙ lt))
-  ... | tri> ¬lt ¬eq  gt = tri> (asym (∷∙ gt)) (irr (∷∙ gt) ∘ ≡-sym) (∷∙ gt)
-  compare⁺ (b₁ ∷ bs) (b₂ ∷ .bs) | tri≈ ¬lt ≡-refl ¬gt with BitOrd.compare b₁ b₂
-  compare⁺ (b  ∷ bs) (.b ∷ .bs) | tri≈ ¬lt ≡-refl ¬gt | tri≈ ¬lt′ ≡-refl ¬gt′ =
-    tri≈ irr′ ≡-refl irr′
-  ... | tri<  lt′ ¬eq ¬gt′ = tri<       (∙∷ lt′)  (irr (∙∷ lt′))   (asym (∙∷ lt′))
-  ... | tri> ¬lt′ ¬eq  gt′ = tri> (asym (∙∷ gt′)) (irr (∙∷ gt′) ∘ ≡-sym) (∙∷ gt′)
+  ... | tri<  lt ¬eq ¬gt = tri<       (∷∙ lt)  (irr (∷∙ lt)) (asym (∷∙ lt))
+  ... | tri> ¬lt ¬eq  gt = tri> (asym (∷∙ gt)) (irr (∷∙ gt) ∘ sym) (∷∙ gt)
+  compare⁺ (b₁ ∷ bs) (b₂ ∷ .bs) | tri≈ ¬lt refl ¬gt with BitOrd.compare b₁ b₂
+  compare⁺ (b  ∷ bs) (.b ∷ .bs) | tri≈ ¬lt refl ¬gt | tri≈ ¬lt′ refl ¬gt′ =
+    tri≈ irr′ refl irr′
+  ... | tri<  lt′ ¬eq ¬gt′ = tri<       (∙∷ lt′)  (irr (∙∷ lt′)) (asym (∙∷ lt′))
+  ... | tri> ¬lt′ ¬eq  gt′ = tri> (asym (∙∷ gt′)) (irr (∙∷ gt′) ∘ sym) (∙∷ gt′)
 
   compare : Trichotomous _≡_ _<_
-  compare 0#       0#       = tri≈ irr′ ≡-refl irr′
-  compare 0#       (bs₂ 1#) = tri<       0<+  (irr 0<+)   (asym 0<+)
-  compare (bs₁ 1#) 0#       = tri> (asym 0<+) (irr 0<+ ∘ ≡-sym) 0<+
+  compare 0#       0#       = tri≈ irr′ refl irr′
+  compare 0#       (bs₂ 1#) = tri<       0<+  (irr 0<+) (asym 0<+)
+  compare (bs₁ 1#) 0#       = tri> (asym 0<+) (irr 0<+ ∘ sym) 0<+
   compare (bs₁ 1#) (bs₂ 1#) = compare⁺ bs₁ bs₂
 
 strictTotalOrder : StrictTotalOrder
@@ -167,10 +168,10 @@ strictTotalOrder = record
   ; _≈_                = _≡_
   ; _<_                = _<_
   ; isStrictTotalOrder = record
-    { isEquivalence = ≡-isEquivalence
+    { isEquivalence = PropEq.isEquivalence
     ; trans         = <-trans
     ; compare       = compare
-    ; ≈-resp-<      = ≡-resp _<_
+    ; ≈-resp-<      = PropEq.resp _<_
     }
   }
 
@@ -324,34 +325,34 @@ private
 private
 
   test-*2+1 : (λ n → Nat._+_ (Nat._*_ n 2) 1) =[ nats ] _*2+1
-  test-*2+1 = ≡-refl
+  test-*2+1 = refl
 
   test-*2 : (λ n → Nat._*_ n 2) =[ nats ] _*2
-  test-*2 = ≡-refl
+  test-*2 = refl
 
   test-⌊_/2⌋ : Nat.⌊_/2⌋ =[ nats ] ⌊_/2⌋
-  test-⌊_/2⌋ = ≡-refl
+  test-⌊_/2⌋ = refl
 
   test-+ : Nat._+_ =[ natPairs ]₂ _+_
-  test-+ = ≡-refl
+  test-+ = refl
 
   test-* : Nat._*_ =[ natPairs ]₂ _*_
-  test-* = ≡-refl
+  test-* = refl
 
   test-suc : 1+_ =[ nats ] suc
-  test-suc = ≡-refl
+  test-suc = refl
 
   test-⌈_/2⌉ : Nat.⌈_/2⌉ =[ nats ] ⌈_/2⌉
-  test-⌈_/2⌉ = ≡-refl
+  test-⌈_/2⌉ = refl
 
   drop-1# : Bin → Bin⁺
   drop-1# 0#      = []
   drop-1# (bs 1#) = bs
 
   test-pred : Nat.pred =[ nats⁺ ] (pred ∘ drop-1#)
-  test-pred = ≡-refl
+  test-pred = refl
 
   test-downFrom : map toℕ (downFrom testLimit) ≡
                   List.downFrom testLimit
-  test-downFrom = ≡-refl
+  test-downFrom = refl
 -}

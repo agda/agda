@@ -13,7 +13,7 @@ open import Data.Star.Pointer
 open import Data.Star.List using (List)
 open import Data.Unit
 open import Data.Function
-open import Data.Maybe
+open import Data.Maybe as Maybe
 open import Relation.Binary
 open import Relation.Binary.Consequences
 open import Category.Monad
@@ -42,7 +42,7 @@ _∷_ = that
 ↑ : ∀ {a n} → BoundedVec a n → BoundedVec a (suc n)
 ↑ {a} = gmap inc lift
   where
-  open RawMonad MaybeMonad
+  open RawMonad Maybe.monad
 
   inc = _<$>_ (map-NonEmpty suc)
 

@@ -14,7 +14,8 @@ open import Algebra.Structures
 import Algebra.FunctionProperties as P; open P setoid
 open import Relation.Nullary
 open import Relation.Binary
-open import Relation.Binary.PropositionalEquality
+import Relation.Binary.PropositionalEquality as PropEq
+open PropEq using (_≡_; _≢_; refl; sym; cong; cong₂)
 open import Data.Product
 
 import Relation.Binary.EqReasoning as EqR; open EqR setoid
@@ -26,29 +27,29 @@ private
 
   +-assoc : Associative _+_
   +-assoc zero    _ _ = byDef
-  +-assoc (suc m) n o = ≡-cong suc $ +-assoc m n o
+  +-assoc (suc m) n o = cong suc $ +-assoc m n o
 
   +-identity : Identity 0 _+_
   +-identity = (λ _ → byDef) , n+0≡n
     where
     n+0≡n : RightIdentity 0 _+_
     n+0≡n zero    = byDef
-    n+0≡n (suc n) = ≡-cong suc $ n+0≡n n
+    n+0≡n (suc n) = cong suc $ n+0≡n n
 
   m+1+n≡1+m+n : ∀ m n → m + suc n ≡ suc (m + n)
   m+1+n≡1+m+n zero    n = byDef
-  m+1+n≡1+m+n (suc m) n = ≡-cong suc (m+1+n≡1+m+n m n)
+  m+1+n≡1+m+n (suc m) n = cong suc (m+1+n≡1+m+n m n)
 
   +-comm : Commutative _+_
-  +-comm zero    n = ≡-sym $ proj₂ +-identity n
+  +-comm zero    n = sym $ proj₂ +-identity n
   +-comm (suc m) n =
     begin
       suc m + n
     ≈⟨ byDef ⟩
       suc (m + n)
-    ≈⟨ ≡-cong suc (+-comm m n) ⟩
+    ≈⟨ cong suc (+-comm m n) ⟩
       suc (n + m)
-    ≈⟨ ≡-sym (m+1+n≡1+m+n n m) ⟩
+    ≈⟨ sym (m+1+n≡1+m+n n m) ⟩
       n + suc m
     ∎
 
@@ -59,15 +60,15 @@ private
       suc m * suc n
     ≈⟨ byDef ⟩
       suc n + m * suc n
-    ≈⟨ ≡-cong (λ x → suc n + x) (m*1+n≡m+mn m n) ⟩
+    ≈⟨ cong (λ x → suc n + x) (m*1+n≡m+mn m n) ⟩
       suc n + (m + m * n)
     ≈⟨ byDef ⟩
       suc (n + (m + m * n))
-    ≈⟨ ≡-cong suc (≡-sym $ +-assoc n m (m * n)) ⟩
+    ≈⟨ cong suc (sym $ +-assoc n m (m * n)) ⟩
       suc (n + m + m * n)
-    ≈⟨ ≡-cong (λ x → suc (x + m * n)) (+-comm n m) ⟩
+    ≈⟨ cong (λ x → suc (x + m * n)) (+-comm n m) ⟩
       suc (m + n + m * n)
-    ≈⟨ ≡-cong suc (+-assoc m n (m * n)) ⟩
+    ≈⟨ cong suc (+-assoc m n (m * n)) ⟩
       suc (m + (n + m * n))
     ≈⟨ byDef ⟩
       suc m + suc m * n
@@ -81,15 +82,15 @@ private
     n*0≡0 (suc n) = n*0≡0 n
 
   *-comm : Commutative _*_
-  *-comm zero    n = ≡-sym $ proj₂ *-zero n
+  *-comm zero    n = sym $ proj₂ *-zero n
   *-comm (suc m) n =
     begin
       suc m * n
     ≈⟨ byDef ⟩
       n + m * n
-    ≈⟨ ≡-cong (λ x → n + x) (*-comm m n) ⟩
+    ≈⟨ cong (λ x → n + x) (*-comm m n) ⟩
       n + n * m
-    ≈⟨ ≡-sym (m*1+n≡m+mn n m) ⟩
+    ≈⟨ sym (m*1+n≡m+mn n m) ⟩
       n * suc m
     ∎
 
@@ -103,15 +104,15 @@ private
       suc m * (n + o)
                                  ≈⟨ byDef ⟩
       (n + o) + m * (n + o)
-                                 ≈⟨ ≡-cong (λ x → (n + o) + x) (distˡ m n o) ⟩
+                                 ≈⟨ cong (λ x → (n + o) + x) (distˡ m n o) ⟩
       (n + o) + (m * n + m * o)
-                                 ≈⟨ ≡-sym $ +-assoc (n + o) (m * n) (m * o) ⟩
+                                 ≈⟨ sym $ +-assoc (n + o) (m * n) (m * o) ⟩
       ((n + o) + m * n) + m * o
-                                 ≈⟨ ≡-cong (λ x → x + (m * o)) $ +-assoc n o (m * n) ⟩
+                                 ≈⟨ cong (λ x → x + (m * o)) $ +-assoc n o (m * n) ⟩
       (n + (o + m * n)) + m * o
-                                 ≈⟨ ≡-cong (λ x → (n + x) + m * o) $ +-comm o (m * n) ⟩
+                                 ≈⟨ cong (λ x → (n + x) + m * o) $ +-comm o (m * n) ⟩
       (n + (m * n + o)) + m * o
-                                 ≈⟨ ≡-cong (λ x → x + (m * o)) $ ≡-sym $ +-assoc n (m * n) o ⟩
+                                 ≈⟨ cong (λ x → x + (m * o)) $ sym $ +-assoc n (m * n) o ⟩
       ((n + m * n) + o) + m * o
                                  ≈⟨ +-assoc (n + m * n) o (m * o) ⟩
       (n + m * n) + (o + m * o)
@@ -127,7 +128,7 @@ private
        m * (n + o)
                       ≈⟨ distˡ m n o ⟩
        m * n + m * o
-                      ≈⟨ ≡-cong₂ _+_ (*-comm m n) (*-comm m o) ⟩
+                      ≈⟨ cong₂ _+_ (*-comm m n) (*-comm m o) ⟩
        n * m + o * m
                       ∎
 
@@ -140,7 +141,7 @@ private
     (n + m * n) * o
                          ≈⟨ proj₂ distrib-*-+ o n (m * n) ⟩
     n * o + (m * n) * o
-                         ≈⟨ ≡-cong (λ x → n * o + x) $ *-assoc m n o ⟩
+                         ≈⟨ cong (λ x → n * o + x) $ *-assoc m n o ⟩
     n * o + m * (n * o)
                          ≈⟨ byDef ⟩
     suc m * (n * o)
@@ -169,7 +170,7 @@ isCommutativeSemiring = record
         { isMonoid = record
           { isSemigroup = record
             { assoc    = +-assoc
-            ; ∙-pres-≈ = ≡-cong₂ _+_
+            ; ∙-pres-≈ = cong₂ _+_
             }
           ; identity = +-identity
           }
@@ -178,7 +179,7 @@ isCommutativeSemiring = record
       ; *-isMonoid = record
         { isSemigroup = record
           { assoc    = *-assoc
-          ; ∙-pres-≈ = ≡-cong₂ _*_
+          ; ∙-pres-≈ = cong₂ _*_
           }
         ; identity = *-identity
         }
@@ -213,7 +214,7 @@ private
   ⊔-assoc zero    _       _       = byDef
   ⊔-assoc (suc m) zero    o       = byDef
   ⊔-assoc (suc m) (suc n) zero    = byDef
-  ⊔-assoc (suc m) (suc n) (suc o) = ≡-cong suc $ ⊔-assoc m n o
+  ⊔-assoc (suc m) (suc n) (suc o) = cong suc $ ⊔-assoc m n o
 
   ⊔-identity : Identity 0 _⊔_
   ⊔-identity = (λ _ → byDef) , n⊔0≡n
@@ -223,14 +224,14 @@ private
     n⊔0≡n (suc n) = byDef
 
   ⊔-comm : Commutative _⊔_
-  ⊔-comm zero    n       = ≡-sym $ proj₂ ⊔-identity n
+  ⊔-comm zero    n       = sym $ proj₂ ⊔-identity n
   ⊔-comm (suc m) zero    = byDef
   ⊔-comm (suc m) (suc n) =
     begin
       suc m ⊔ suc n
     ≈⟨ byDef ⟩
       suc (m ⊔ n)
-    ≈⟨ ≡-cong suc (⊔-comm m n) ⟩
+    ≈⟨ cong suc (⊔-comm m n) ⟩
       suc (n ⊔ m)
     ≈⟨ byDef ⟩
       suc n ⊔ suc m
@@ -240,7 +241,7 @@ private
   ⊓-assoc zero    _       _       = byDef
   ⊓-assoc (suc m) zero    o       = byDef
   ⊓-assoc (suc m) (suc n) zero    = byDef
-  ⊓-assoc (suc m) (suc n) (suc o) = ≡-cong suc $ ⊓-assoc m n o
+  ⊓-assoc (suc m) (suc n) (suc o) = cong suc $ ⊓-assoc m n o
 
   ⊓-zero : Zero 0 _⊓_
   ⊓-zero = (λ _ → byDef) , n⊓0≡0
@@ -250,14 +251,14 @@ private
     n⊓0≡0 (suc n) = byDef
 
   ⊓-comm : Commutative _⊓_
-  ⊓-comm zero    n       = ≡-sym $ proj₂ ⊓-zero n
+  ⊓-comm zero    n       = sym $ proj₂ ⊓-zero n
   ⊓-comm (suc m) zero    = byDef
   ⊓-comm (suc m) (suc n) =
     begin
       suc m ⊓ suc n
     ≈⟨ byDef ⟩
       suc (m ⊓ n)
-    ≈⟨ ≡-cong suc (⊓-comm m n) ⟩
+    ≈⟨ cong suc (⊓-comm m n) ⟩
       suc (n ⊓ m)
     ≈⟨ byDef ⟩
       suc n ⊓ suc m
@@ -267,20 +268,20 @@ private
   distrib-⊓-⊔ = (distribˡ-⊓-⊔ , distribʳ-⊓-⊔)
     where
     distribʳ-⊓-⊔ : _⊓_ DistributesOverʳ _⊔_
-    distribʳ-⊓-⊔ (suc m) (suc n) (suc o) = ≡-cong suc $ distribʳ-⊓-⊔ m n o
-    distribʳ-⊓-⊔ (suc m) (suc n) zero    = ≡-cong suc $ byDef
+    distribʳ-⊓-⊔ (suc m) (suc n) (suc o) = cong suc $ distribʳ-⊓-⊔ m n o
+    distribʳ-⊓-⊔ (suc m) (suc n) zero    = cong suc $ byDef
     distribʳ-⊓-⊔ (suc m) zero    o       = byDef
     distribʳ-⊓-⊔ zero    n       o       = begin
       (n ⊔ o) ⊓ 0    ≈⟨ ⊓-comm (n ⊔ o) 0 ⟩
       0 ⊓ (n ⊔ o)    ≈⟨ byDef ⟩
-      0 ⊓ n ⊔ 0 ⊓ o  ≈⟨ ⊓-comm 0 n ⟨ ≡-cong₂ _⊔_ ⟩ ⊓-comm 0 o ⟩
+      0 ⊓ n ⊔ 0 ⊓ o  ≈⟨ ⊓-comm 0 n ⟨ cong₂ _⊔_ ⟩ ⊓-comm 0 o ⟩
       n ⊓ 0 ⊔ o ⊓ 0  ∎
 
     distribˡ-⊓-⊔ : _⊓_ DistributesOverˡ _⊔_
     distribˡ-⊓-⊔ m n o = begin
       m ⊓ (n ⊔ o)    ≈⟨ ⊓-comm m _ ⟩
       (n ⊔ o) ⊓ m    ≈⟨ distribʳ-⊓-⊔ m n o ⟩
-      n ⊓ m ⊔ o ⊓ m  ≈⟨ ⊓-comm n m ⟨ ≡-cong₂ _⊔_ ⟩ ⊓-comm o m ⟩
+      n ⊓ m ⊔ o ⊓ m  ≈⟨ ⊓-comm n m ⟨ cong₂ _⊔_ ⟩ ⊓-comm o m ⟩
       m ⊓ n ⊔ m ⊓ o  ∎
 
 ⊔-⊓-0-isCommutativeSemiringWithoutOne
@@ -291,7 +292,7 @@ private
           { isMonoid = record
               { isSemigroup = record
                   { assoc = ⊔-assoc
-                  ; ∙-pres-≈ = ≡-cong₂ _⊔_
+                  ; ∙-pres-≈ = cong₂ _⊔_
                   }
               ; identity = ⊔-identity
               }
@@ -299,7 +300,7 @@ private
           }
       ; *-isSemigroup = record
           { assoc    = ⊓-assoc
-          ; ∙-pres-≈ = ≡-cong₂ _⊓_
+          ; ∙-pres-≈ = cong₂ _⊓_
           }
       ; distrib = distrib-⊓-⊔
       ; zero    = ⊓-zero
@@ -328,15 +329,15 @@ private
     abs-⊔-⊓ : _⊔_ Absorbs _⊓_
     abs-⊔-⊓ zero    n       = byDef
     abs-⊔-⊓ (suc m) zero    = byDef
-    abs-⊔-⊓ (suc m) (suc n) = ≡-cong suc $ abs-⊔-⊓ m n
+    abs-⊔-⊓ (suc m) (suc n) = cong suc $ abs-⊔-⊓ m n
 
     abs-⊓-⊔ : _⊓_ Absorbs _⊔_
     abs-⊓-⊔ zero    n       = byDef
-    abs-⊓-⊔ (suc m) (suc n) = ≡-cong suc $ abs-⊓-⊔ m n
-    abs-⊓-⊔ (suc m) zero    = ≡-cong suc $
+    abs-⊓-⊔ (suc m) (suc n) = cong suc $ abs-⊓-⊔ m n
+    abs-⊓-⊔ (suc m) zero    = cong suc $
                    begin
       m ⊓ m
-                   ≈⟨ ≡-cong (_⊓_ m) $ ≡-sym $ proj₂ ⊔-identity m ⟩
+                   ≈⟨ cong (_⊓_ m) $ sym $ proj₂ ⊔-identity m ⟩
       m ⊓ (m ⊔ 0)
                    ≈⟨ abs-⊓-⊔ m zero ⟩
       m
@@ -347,10 +348,10 @@ isDistributiveLattice = record
   { isLattice = record
       { ∨-comm     = ⊓-comm
       ; ∨-assoc    = ⊓-assoc
-      ; ∨-pres-≈   = ≡-cong₂ _⊓_
+      ; ∨-pres-≈   = cong₂ _⊓_
       ; ∧-comm     = ⊔-comm
       ; ∧-assoc    = ⊔-assoc
-      ; ∧-pres-≈   = ≡-cong₂ _⊔_
+      ; ∧-pres-≈   = cong₂ _⊔_
       ; absorptive = absorptive-⊓-⊔
       }
   ; ∨-∧-distribʳ = proj₂ distrib-⊓-⊔
@@ -395,8 +396,8 @@ s≤′s (≤′-step m≤′n) = ≤′-step (s≤′s m≤′n)
 ≤-steps (suc k) m≤n = ≤-step (≤-steps k m≤n)
 
 ≤≥⇒≡ : ∀ {m n} → m ≤ n → m ≥ n → m ≡ n
-≤≥⇒≡ z≤n       z≤n       = ≡-refl
-≤≥⇒≡ (s≤s m≤n) (s≤s m≥n) = ≡-cong suc (≤≥⇒≡ m≤n m≥n)
+≤≥⇒≡ z≤n       z≤n       = refl
+≤≥⇒≡ (s≤s m≤n) (s≤s m≥n) = cong suc (≤≥⇒≡ m≤n m≥n)
 
 m≤m+n : ∀ m n → m ≤ m + n
 m≤m+n zero    n = z≤n
@@ -470,13 +471,13 @@ private
 
   m≢1+m+n : ∀ m {n} → m ≢ suc (m + n)
   m≢1+m+n zero    ()
-  m≢1+m+n (suc m) eq = m≢1+m+n m (≡-cong pred eq)
+  m≢1+m+n (suc m) eq = m≢1+m+n m (cong pred eq)
 
   cmp : Trichotomous _≡_ _<_
   cmp m n with compare m n
   cmp .m .(suc (m + k)) | less    m k = tri< (m≤m+n (suc m) k) (m≢1+m+n _) 2+m+n≰m
-  cmp .n             .n | equal   n   = tri≈ 1+n≰n ≡-refl 1+n≰n
-  cmp .(suc (n + k)) .n | greater n k = tri> 2+m+n≰m (m≢1+m+n _ ∘ ≡-sym) (m≤m+n (suc n) k)
+  cmp .n             .n | equal   n   = tri≈ 1+n≰n refl 1+n≰n
+  cmp .(suc (n + k)) .n | greater n k = tri> 2+m+n≰m (m≢1+m+n _ ∘ sym) (m≤m+n (suc n) k)
 
 strictTotalOrder : StrictTotalOrder
 strictTotalOrder = record
@@ -484,10 +485,10 @@ strictTotalOrder = record
   ; _≈_                = _≡_
   ; _<_                = _<_
   ; isStrictTotalOrder = record
-    { isEquivalence = ≡-isEquivalence
+    { isEquivalence = PropEq.isEquivalence
     ; trans         = <-trans
     ; compare       = cmp
-    ; ≈-resp-<      = ≡-resp _<_
+    ; ≈-resp-<      = PropEq.resp _<_
     }
   }
 
@@ -499,7 +500,7 @@ strictTotalOrder = record
 0∸n≡0 (suc _) = byDef
 
 ∸-+-assoc : ∀ m n o → (m ∸ n) ∸ o ≡ m ∸ (n + o)
-∸-+-assoc m       n       zero    = ≡-cong (_∸_ m) (≡-sym $ proj₂ +-identity n)
+∸-+-assoc m       n       zero    = cong (_∸_ m) (sym $ proj₂ +-identity n)
 ∸-+-assoc zero    zero    (suc o) = byDef
 ∸-+-assoc zero    (suc n) (suc o) = byDef
 ∸-+-assoc (suc m) zero    (suc o) = byDef
@@ -510,7 +511,7 @@ m+n∸n≡m m       zero    = proj₂ +-identity m
 m+n∸n≡m zero    (suc n) = m+n∸n≡m zero n
 m+n∸n≡m (suc m) (suc n) = begin
   m + suc n ∸ n
-                 ≈⟨ ≡-cong (λ x → x ∸ n) (m+1+n≡1+m+n m n) ⟩
+                 ≈⟨ cong (λ x → x ∸ n) (m+1+n≡1+m+n m n) ⟩
   suc m + n ∸ n
                  ≈⟨ m+n∸n≡m (suc m) n ⟩
   suc m
@@ -519,12 +520,12 @@ m+n∸n≡m (suc m) (suc n) = begin
 m⊓n+n∸m≡n : ∀ m n → (m ⊓ n) + (n ∸ m) ≡ n
 m⊓n+n∸m≡n zero    n       = byDef
 m⊓n+n∸m≡n (suc m) zero    = byDef
-m⊓n+n∸m≡n (suc m) (suc n) = ≡-cong suc $ m⊓n+n∸m≡n m n
+m⊓n+n∸m≡n (suc m) (suc n) = cong suc $ m⊓n+n∸m≡n m n
 
 [m∸n]⊓[n∸m]≡0 : ∀ m n → (m ∸ n) ⊓ (n ∸ m) ≡ 0
-[m∸n]⊓[n∸m]≡0 zero zero       = ≡-refl
-[m∸n]⊓[n∸m]≡0 zero (suc n)    = ≡-refl
-[m∸n]⊓[n∸m]≡0 (suc m) zero    = ≡-refl
+[m∸n]⊓[n∸m]≡0 zero zero       = refl
+[m∸n]⊓[n∸m]≡0 zero (suc n)    = refl
+[m∸n]⊓[n∸m]≡0 (suc m) zero    = refl
 [m∸n]⊓[n∸m]≡0 (suc m) (suc n) = [m∸n]⊓[n∸m]≡0 m n
 
 -- TODO: Can this proof be simplified? An automatic solver which can
@@ -533,15 +534,14 @@ m⊓n+n∸m≡n (suc m) (suc n) = ≡-cong suc $ m⊓n+n∸m≡n m n
 i∸k∸j+j∸k≡i+j∸k : ∀ i j k → i ∸ (k ∸ j) + (j ∸ k) ≡ i + j ∸ k
 i∸k∸j+j∸k≡i+j∸k zero j k = begin
   0 ∸ (k ∸ j) + (j ∸ k)
-                         ≈⟨ ≡-cong (λ x → x + (j ∸ k))
-                                   (0∸n≡0 (k ∸ j)) ⟩
+                         ≈⟨ cong (λ x → x + (j ∸ k)) (0∸n≡0 (k ∸ j)) ⟩
   0 + (j ∸ k)
                          ≈⟨ byDef ⟩
   j ∸ k
                          ∎
 i∸k∸j+j∸k≡i+j∸k (suc i) j zero = begin
   suc i ∸ (0 ∸ j) + j
-                       ≈⟨ ≡-cong (λ x → suc i ∸ x + j) (0∸n≡0 j) ⟩
+                       ≈⟨ cong (λ x → suc i ∸ x + j) (0∸n≡0 j) ⟩
   suc i ∸ 0 + j
                        ≈⟨ byDef ⟩
   suc (i + j)
@@ -550,25 +550,24 @@ i∸k∸j+j∸k≡i+j∸k (suc i) zero (suc k) = begin
   i ∸ k + 0
              ≈⟨ proj₂ +-identity _ ⟩
   i ∸ k
-             ≈⟨ ≡-cong (λ x → x ∸ k)
-                       (≡-sym (proj₂ +-identity _)) ⟩
+             ≈⟨ cong (λ x → x ∸ k) (sym (proj₂ +-identity _)) ⟩
   i + 0 ∸ k
              ∎
 i∸k∸j+j∸k≡i+j∸k (suc i) (suc j) (suc k) = begin
   suc i ∸ (k ∸ j) + (j ∸ k)
                              ≈⟨ i∸k∸j+j∸k≡i+j∸k (suc i) j k ⟩
   suc i + j ∸ k
-                             ≈⟨ ≡-cong (λ x → x ∸ k)
-                                       (≡-sym (m+1+n≡1+m+n i j)) ⟩
+                             ≈⟨ cong (λ x → x ∸ k)
+                                     (sym (m+1+n≡1+m+n i j)) ⟩
   i + suc j ∸ k
                              ∎
 
 m+n∸m≡n : ∀ {m n} → m ≤ n → m + (n ∸ m) ≡ n
 m+n∸m≡n z≤n       = byDef
-m+n∸m≡n (s≤s m≤n) = ≡-cong suc $ m+n∸m≡n m≤n
+m+n∸m≡n (s≤s m≤n) = cong suc $ m+n∸m≡n m≤n
 
 i+j≡0⇒i≡0 : ∀ i {j} → i + j ≡ 0 → i ≡ 0
-i+j≡0⇒i≡0 zero    eq = ≡-refl
+i+j≡0⇒i≡0 zero    eq = refl
 i+j≡0⇒i≡0 (suc i) ()
 
 i+j≡0⇒j≡0 : ∀ i {j} → i + j ≡ 0 → j ≡ 0
@@ -582,14 +581,14 @@ i+j≡0⇒j≡0 i {j} i+j≡0 = i+j≡0⇒i≡0 j $ begin
 
 i+j≡i+k⇒j≡k : ∀ i {j k} → i + j ≡ i + k → j ≡ k
 i+j≡i+k⇒j≡k zero    eq = eq
-i+j≡i+k⇒j≡k (suc i) eq = i+j≡i+k⇒j≡k i (≡-cong pred eq)
+i+j≡i+k⇒j≡k (suc i) eq = i+j≡i+k⇒j≡k i (cong pred eq)
 
 im≡jm+n⇒[i∸j]m≡n
   : ∀ i j m n →
     i * m ≡ j * m + n → (i ∸ j) * m ≡ n
 im≡jm+n⇒[i∸j]m≡n i       zero    m n eq = eq
 im≡jm+n⇒[i∸j]m≡n zero    (suc j) m n eq =
-  ≡-sym $ i+j≡0⇒j≡0 (m + j * m) $ ≡-sym eq
+  sym $ i+j≡0⇒j≡0 (m + j * m) $ sym eq
 im≡jm+n⇒[i∸j]m≡n (suc i) (suc j) m n eq =
   im≡jm+n⇒[i∸j]m≡n i j m n (i+j≡i+k⇒j≡k m eq')
   where

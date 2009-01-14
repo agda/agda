@@ -4,7 +4,7 @@
 
 module Data.List.NonEmpty where
 
-open import Data.Product
+open import Data.Product hiding (map)
 open import Data.Nat
 import Data.Vec as Vec
 open Vec using (Vec; []; _∷_)

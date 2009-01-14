@@ -9,7 +9,8 @@
 module Data.Star where
 
 open import Relation.Binary
-open import Relation.Binary.PropositionalEquality
+import Relation.Binary.PropositionalEquality as PropEq
+open PropEq using (_≡_; refl; cong)
 open import Data.Function
 import Relation.Binary.PreorderReasoning as PreR
 
@@ -36,8 +37,8 @@ _◅◅_ : ∀ {I} {T : Rel I} → Transitive (Star T)
                   (xs : Star T i j) (ys : Star T j k)
                   (zs : Star T k l) →
            (xs ◅◅ ys) ◅◅ zs ≡ xs ◅◅ (ys ◅◅ zs)
-◅◅-assoc ε        ys zs = ≡-refl
-◅◅-assoc (x ◅ xs) ys zs = ≡-cong (_◅_ x) (◅◅-assoc xs ys zs)
+◅◅-assoc ε        ys zs = refl
+◅◅-assoc (x ◅ xs) ys zs = cong (_◅_ x) (◅◅-assoc xs ys zs)
 
 -- Sometimes you want to view cons-lists as snoc-lists. Then the
 -- following "constructor" is handy. Note that this is _not_ snoc for
@@ -141,26 +142,26 @@ m >>= f = (f ⋆) m
 
 -- Reflexive transitive closures are preorders.
 
-starPreorder : ∀ {I} (T : Rel I) → Preorder
-starPreorder {I} T = record
+preorder : ∀ {I} (T : Rel I) → Preorder
+preorder {I} T = record
   { carrier    = I
   ; _≈_        = _≡_
   ; _∼_        = Star T
   ; isPreorder = record
-    { isEquivalence = ≡-isEquivalence
+    { isEquivalence = PropEq.isEquivalence
     ; reflexive     = reflexive
     ; trans         = _◅◅_
-    ; ≈-resp-∼      = ≡-resp (Star T)
+    ; ≈-resp-∼      = PropEq.resp (Star T)
     }
   }
   where
   reflexive : _≡_ ⇒ Star T
-  reflexive ≡-refl = ε
+  reflexive refl = ε
 
 -- Preorder reasoning for Star.
 
 module StarReasoning {I : Set} (T : Rel I) where
-  open PreR (starPreorder T) public
+  open PreR (preorder T) public
     renaming (_∼⟨_⟩_ to _⟶⋆⟨_⟩_)
 
   infixr 2 _⟶⟨_⟩_

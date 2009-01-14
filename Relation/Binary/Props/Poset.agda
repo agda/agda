@@ -6,7 +6,7 @@ open import Relation.Binary
 
 module Relation.Binary.Props.Poset (p : Poset) where
 
-open Relation.Binary.Poset p
+open Relation.Binary.Poset p hiding (trans)
 import Relation.Binary.NonStrictToStrict as Conv
 open Conv _≈_ _≤_
 
@@ -20,8 +20,8 @@ strictPartialOrder = record
   ; _<_                  = _<_
   ; isStrictPartialOrder = record
     { isEquivalence = isEquivalence
-    ; irrefl        = <-irrefl
-    ; trans         = <-trans isPartialOrder
+    ; irrefl        = irrefl
+    ; trans         = trans isPartialOrder
     ; ≈-resp-<      = ≈-resp-< isEquivalence ≈-resp-≤
     }
   }

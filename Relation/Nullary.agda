@@ -15,8 +15,9 @@ open import Data.Bool
 open import Category.Monad
 
 open import Relation.Nullary.Core public
-open import Relation.Binary.PropositionalEquality
-open ≡-Reasoning
+import Relation.Binary.PropositionalEquality as PropEq
+open PropEq using (_≡_; sym; cong)
+open PropEq.≡-Reasoning
 
 ------------------------------------------------------------------------
 -- Equivalence
@@ -143,8 +144,8 @@ record LeftInverse A B : Set where
 
   injective : Injective to
   injective {x} {y} eq = begin
-    x            ≡⟨ ≡-sym (left-inverse x)  ⟩
-    from (to x)  ≡⟨ ≡-cong from eq ⟩
+    x            ≡⟨ sym (left-inverse x)  ⟩
+    from (to x)  ≡⟨ cong from eq ⟩
     from (to y)  ≡⟨ left-inverse y ⟩
     y            ∎
 
