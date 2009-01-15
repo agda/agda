@@ -9,6 +9,7 @@ open import Data.Bool  using (Bool; true; false)
 open import Data.Maybe using (Maybe; nothing; just)
 open import Data.Nat   using (ℕ; zero; suc)
 open import Data.List  using (List; []; _∷_)
+open import Data.BoundedVec.Inefficient using (BoundedVec; []; _∷_)
 open import Relation.Binary
 
 ------------------------------------------------------------------------
@@ -36,10 +37,10 @@ fromList : ∀ {A} → List A → Colist A
 fromList []       = []
 fromList (x ∷ xs) = x ∷ ♯ fromList xs
 
-take : ∀ {A} → ℕ → Colist A → List A
+take : ∀ {A} (n : ℕ) → Colist A → BoundedVec A n
 take zero    xs       = []
 take (suc n) []       = []
-take (suc n) (x ∷ xs) = take n (♭ xs)
+take (suc n) (x ∷ xs) = x ∷ take n (♭ xs)
 
 lookup : ∀ {A} → ℕ → Colist A → Maybe A
 lookup n       []       = nothing

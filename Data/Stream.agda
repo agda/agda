@@ -5,8 +5,8 @@
 module Data.Stream where
 
 open import Coinduction
-open import Data.List   using (List;   []; _∷_)
 open import Data.Colist using (Colist; []; _∷_)
+open import Data.Vec    using (Vec;    []; _∷_)
 open import Data.Nat using (ℕ; zero; suc)
 open import Relation.Binary
 
@@ -25,9 +25,9 @@ map : ∀ {A B} → (A → B) → Stream A → Stream B
 map f (x ∷ xs) = f x ∷ rec
   where rec ~ ♯ map f (♭ xs)
 
-take : ∀ {A} → ℕ → Stream A → List A
+take : ∀ {A} (n : ℕ) → Stream A → Vec A n
 take zero    xs       = []
-take (suc n) (x ∷ xs) = take n (♭ xs)
+take (suc n) (x ∷ xs) = x ∷ take n (♭ xs)
 
 toColist : ∀ {A} → Stream A → Colist A
 toColist (x ∷ xs) = x ∷ rec
