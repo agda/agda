@@ -502,8 +502,8 @@ noPatternMatchingOnCodata = mapM_ check . map (unArg . snd) . filter fst
   check (DotP {})   = return ()
   check (LitP {})   = return ()  -- Literals are assumed not to be coinductive.
   check (ConP q ps) = do
-    i <- getConstInfo q
-    c <- isCoinductive (defType i)
+    TelV _ t <- telView . defType <$> getConstInfo q
+    c <- isCoinductive =<< normalise t
     case c of
       Nothing    -> __IMPOSSIBLE__
       Just False -> mapM_ (check . unArg) ps

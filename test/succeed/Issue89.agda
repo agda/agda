@@ -33,11 +33,17 @@ mutual
     _∞  : (x : A) -> StreamProg A
     _⋎_ : (xs ys : StreamProg A) -> StreamProg A
 
+head′ : ∀ {A} → Stream′ A → A
+head′ (x ≺ xs) = x
+
+tail′ : ∀ {A} → Stream′ A → StreamProg A
+tail′ (x ≺ xs) = xs
+
 P⇒′ : forall {A} -> StreamProg A -> Stream′ A
 P⇒′ (↓ xs)    = xs
 P⇒′ (x ∞)     = x ≺ x ∞
 P⇒′ (xs ⋎ ys) with P⇒′ xs
-P⇒′ (xs ⋎ ys) | x ≺ xs′ = x ≺ ys ⋎ xs′
+P⇒′ (xs ⋎ ys) | xs′ = head′ xs′ ≺ ys ⋎ tail′ xs′
 
 mutual
 

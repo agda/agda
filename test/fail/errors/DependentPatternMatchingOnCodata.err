@@ -1,3 +1,4 @@
-errors/DependentPatternMatchingOnCodata.agda:10,1-8
+errors/DependentPatternMatchingOnCodata.agda:16,1-22
 Dependent pattern matching on codata is not allowed
-when checking that the clause f c = d has type (x : C) -> D x
+when checking that the clause force-eq (d x) = refl has type
+(x : D) -> x ≡ force x
