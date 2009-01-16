@@ -250,8 +250,6 @@ checkLeftHandSide ps a ret = do
         xs  = replicate (fromIntegral n) "h"
     ret gamma delta rho xs qs b' perm
   where
-    madeUpName "_" = "z"
-    madeUpName s = s
     checkLHS :: Problem -> [Term] -> [DotPatternInst] -> [AsBinding] ->
                 TCM (Problem, [Term], [DotPatternInst], [AsBinding])
     checkLHS problem sigma dpi asb
