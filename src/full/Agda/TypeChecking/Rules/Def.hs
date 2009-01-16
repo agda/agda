@@ -43,6 +43,7 @@ import Agda.TypeChecking.SizedTypes
 import Agda.TypeChecking.Rules.Term                ( checkExpr, inferExpr, checkTelescope, isType_ )
 import Agda.TypeChecking.Rules.LHS                 ( checkLeftHandSide )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl ( checkDecls )
+import Agda.TypeChecking.Rules.Data                ( isCoinductive )
 
 import Agda.Interaction.Options
 
@@ -154,7 +155,12 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs wh) =
                     typeError $ AbsurdPatternRequiresNoRHS aps
                   | otherwise -> do
                     v <- checkExpr e t'
-                    when (rec == CoRecursive) $ checkCoinductive t'
+                    when (rec == CoRecursive) $ do
+                      i <- isCoinductive t'
+                      case i of
+                        Just True -> return ()
+                        _ -> typeError . ShouldBeCoinductiveType =<<
+                               instantiateFull t'
                     return (mkBody v, NoWithFunction)
                 A.AbsurdRHS
                   | any (containsAbsurdPattern . namedThing . unArg) aps
@@ -306,20 +312,6 @@ checkWhere n [A.Section _ m tel ds]  ret = do
     x <- withCurrentModule m $ checkDecls ds >> ret
     return x
 checkWhere _ _ _ = __IMPOSSIBLE__
-
--- | Check that the type is coinductive.
-
-checkCoinductive :: MonadTCM tcm => Type -> tcm ()
-checkCoinductive t = do
-  t <- instantiateFull t
-  let err = typeError $ ShouldBeCoinductiveType t
-  case t of
-    El _ (Def q _) -> do
-      def <- getConstInfo q
-      case theDef def of
-        Datatype { dataInduction = CoInductive } -> return ()
-        _ -> err
-    _ -> err
 
 -- | Check if a pattern contains an absurd pattern. For instance, @suc ()@
 containsAbsurdPattern :: A.Pattern -> Bool

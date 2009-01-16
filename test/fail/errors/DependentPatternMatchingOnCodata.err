@@ -1,0 +1,3 @@
+errors/DependentPatternMatchingOnCodata.agda:10,1-8
+Dependent pattern matching on codata is not allowed
+when checking that the clause f c = d has type (x : C) -> D x

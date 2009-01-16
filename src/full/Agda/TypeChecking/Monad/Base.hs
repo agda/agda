@@ -677,6 +677,7 @@ data TypeError
 	    -- ^ Expected a non-hidden function and found a hidden lambda.
 	| WrongHidingInApplication Type
 	    -- ^ A function is applied to a hidden argument where a non-hidden was expected.
+	| DependentPatternMatchingOnCodata
 	| UninstantiatedDotPattern A.Expr
 	| IlltypedPattern A.Pattern Type
 	| TooManyArgumentsInLHS Nat Type

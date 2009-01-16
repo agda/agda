@@ -218,3 +218,28 @@ forceData d (El s0 t) = liftTCM $ do
 	    reduce $ El s0 t'
 	_ -> typeError $ ShouldBeApplicationOf (El s0 t) d
 
+-- | Is the type coinductive? Returns 'Nothing' if the answer cannot
+-- be determined.
+
+isCoinductive :: MonadTCM tcm => Type -> tcm (Maybe Bool)
+isCoinductive t = do
+  El _ t <- instantiateFull t
+  case t of
+    Def q _ -> do
+      def <- getConstInfo q
+      case theDef def of
+        Axiom       {} -> return (Just False)
+        Function    {} -> return Nothing
+        Datatype    { dataInduction = CoInductive } -> return (Just True)
+        Datatype    { dataInduction = Inductive   } -> return (Just False)
+        Record      {} -> return (Just False)
+        Constructor {} -> __IMPOSSIBLE__
+        Primitive   {} -> __IMPOSSIBLE__
+    Var   {} -> return Nothing
+    Lam   {} -> __IMPOSSIBLE__
+    Lit   {} -> __IMPOSSIBLE__
+    Con   {} -> __IMPOSSIBLE__
+    Pi    {} -> return (Just False)
+    Fun   {} -> return (Just False)
+    Sort  {} -> return (Just False)
+    MetaV {} -> return Nothing

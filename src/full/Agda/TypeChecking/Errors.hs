@@ -96,6 +96,7 @@ errorString err = case err of
     CoverageCantSplitType _                    -> "CoverageCantSplitType"
     CyclicModuleDependency _		       -> "CyclicModuleDependency"
     DataMustEndInSort _			       -> "DataMustEndInSort"
+    DependentPatternMatchingOnCodata           -> "DependentPatternMatchingOnCodata"
     DifferentArities			       -> "DifferentArities"
     DuplicateBuiltinBinding _ _ _	       -> "DuplicateBuiltinBinding"
     DuplicateFields _			       -> "DuplicateFields"
@@ -213,6 +214,8 @@ instance PrettyTCM TypeError where
 		fwords "Found an implicit lambda where an explicit lambda was expected"
 	    WrongHidingInApplication t -> do
 		fwords "Found an implicit application where an explicit application was expected"
+            DependentPatternMatchingOnCodata ->
+              fwords "Dependent pattern matching on codata is not allowed"
             UninstantiatedDotPattern e -> fsep $
               pwords "Failed to infer the value of dotted pattern"
             IlltypedPattern p a -> fsep $

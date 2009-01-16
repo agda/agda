@@ -28,6 +28,7 @@ import Agda.TypeChecking.Rules.LHS.Unify
 import Agda.TypeChecking.Rules.LHS.Split
 import Agda.TypeChecking.Rules.LHS.Implicit
 import Agda.TypeChecking.Rules.LHS.Instantiate
+import Agda.TypeChecking.Rules.Data
 
 import Agda.Utils.Permutation
 import Agda.Utils.Size
@@ -230,6 +231,9 @@ checkLeftHandSide ps a ret = do
 
   (Problem ps (perm, qs) delta, sigma, dpi, asb) <- checkLHS problem idsub [] []
   let b' = substs sigma b
+
+  noPatternMatchingOnCodata $
+    zip (map (not . (== "_") . fst . unArg) as) qs
 
   reportSDoc "tc.lhs.top" 10 $
     vcat [ text "checked lhs:"
@@ -485,3 +489,22 @@ checkLeftHandSide ps a ret = do
             -- Continue splitting
             checkLHS problem' sigma' dpi' asb'
 
+-- Ensures that we are not performing dependent pattern matching on
+-- codata.
+
+noPatternMatchingOnCodata
+  :: MonadTCM tcm
+  => [(Bool, Arg Pattern)]  -- ^ True stands for dependent pattern matching.
+  -> tcm ()
+noPatternMatchingOnCodata = mapM_ check . map (unArg . snd) . filter fst
+  where
+  check (VarP {})   = return ()
+  check (DotP {})   = return ()
+  check (LitP {})   = return ()  -- Literals are assumed not to be coinductive.
+  check (ConP q ps) = do
+    i <- getConstInfo q
+    c <- isCoinductive (defType i)
+    case c of
+      Nothing    -> __IMPOSSIBLE__
+      Just False -> mapM_ (check . unArg) ps
+      Just True  -> typeError DependentPatternMatchingOnCodata
