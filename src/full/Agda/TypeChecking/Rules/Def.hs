@@ -149,11 +149,12 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs wh) =
       let mkBody v = foldr (\x t -> Bind $ Abs x t) (Body $ substs sub v) xs
       (body, with) <- checkWhere (size delta) wh $ 
               case rhs of
-                A.RHS _ e
+                A.RHS rec e
                   | any (containsAbsurdPattern . namedThing . unArg) aps ->
                     typeError $ AbsurdPatternRequiresNoRHS aps
                   | otherwise -> do
                     v <- checkExpr e t'
+                    when (rec == CoRecursive) $ checkCoinductive t'
                     return (mkBody v, NoWithFunction)
                 A.AbsurdRHS
                   | any (containsAbsurdPattern . namedThing . unArg) aps
@@ -305,6 +306,20 @@ checkWhere n [A.Section _ m tel ds]  ret = do
     x <- withCurrentModule m $ checkDecls ds >> ret
     return x
 checkWhere _ _ _ = __IMPOSSIBLE__
+
+-- | Check that the type is coinductive.
+
+checkCoinductive :: MonadTCM tcm => Type -> tcm ()
+checkCoinductive t = do
+  t <- instantiateFull t
+  let err = typeError $ ShouldBeCoinductiveType t
+  case t of
+    El _ (Def q _) -> do
+      def <- getConstInfo q
+      case theDef def of
+        Datatype { dataInduction = CoInductive } -> return ()
+        _ -> err
+    _ -> err
 
 -- | Check if a pattern contains an absurd pattern. For instance, @suc ()@
 containsAbsurdPattern :: A.Pattern -> Bool

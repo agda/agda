@@ -1,0 +1,3 @@
+errors/DelayedButNotCoinductive.agda:7,1-6
+Expected coinductive type, found D
+when checking that the clause x ~ d has type D

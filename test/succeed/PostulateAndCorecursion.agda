@@ -1,6 +1,8 @@
 module PostulateAndCorecursion where
 
-x : Set
+codata C : Set where
+
+x : C
 x ~ y
   where
-  postulate y : Set
+  postulate y : C

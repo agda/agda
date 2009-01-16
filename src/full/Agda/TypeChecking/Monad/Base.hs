@@ -687,6 +687,7 @@ data TypeError
 	| ShouldBePi Type
 	    -- ^ The given type should have been a pi.
 	| ShouldBeRecordType Type
+	| ShouldBeCoinductiveType Type
 	| NotAProperTerm
 	| UnequalTerms Comparison Term Term Type
 	| UnequalTypes Comparison Type Type
