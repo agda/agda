@@ -66,7 +66,7 @@ import Agda.Utils.Permutation
 import Agda.Utils.Impossible
 
 currentInterfaceVersion :: Int
-currentInterfaceVersion = 20090107
+currentInterfaceVersion = 20090116
 
 type Node = [Int] -- constructor tag (maybe omitted) and arg indices
 
