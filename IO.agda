@@ -48,34 +48,34 @@ abstract
 
 getContents : IO Costring
 getContents =
-  ♯ lift Prim.getContents >>= λ s →
-  ♯ return (Haskell.toColist s)
+  ♯₁ lift Prim.getContents >>= λ s →
+  ♯₁ return (Haskell.toColist s)
 
 readFile : String → IO Costring
 readFile f =
-  ♯ lift (Prim.readFile f) >>= λ s →
-  ♯ return (Haskell.toColist s)
+  ♯₁ lift (Prim.readFile f) >>= λ s →
+  ♯₁ return (Haskell.toColist s)
 
 writeFile∞ : String → Costring → IO ⊤
 writeFile∞ f s =
-  ♯ lift (Prim.writeFile f (Haskell.fromColist s)) >>
-  ♯ return _
+  ♯₁ lift (Prim.writeFile f (Haskell.fromColist s)) >>
+  ♯₁ return _
 
 writeFile : String → String → IO ⊤
 writeFile f s = writeFile∞ f (toCostring s)
 
 putStr∞ : Costring → IO ⊤
 putStr∞ s =
-  ♯ lift (Prim.putStr (Haskell.fromColist s)) >>
-  ♯ return _
+  ♯₁ lift (Prim.putStr (Haskell.fromColist s)) >>
+  ♯₁ return _
 
 putStr : String → IO ⊤
 putStr s = putStr∞ (toCostring s)
 
 putStrLn∞ : Costring → IO ⊤
 putStrLn∞ s =
-  ♯ lift (Prim.putStrLn (Haskell.fromColist s)) >>
-  ♯ return _
+  ♯₁ lift (Prim.putStrLn (Haskell.fromColist s)) >>
+  ♯₁ return _
 
 putStrLn : String → IO ⊤
 putStrLn s = putStrLn∞ (toCostring s)

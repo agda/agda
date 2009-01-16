@@ -12,7 +12,7 @@ module Coinduction where
 -- before ♯_, then you can avoid a problem which causes subject
 -- reduction to fail.
 
-infix 10 ♯_
+infix 10 ♯_ ♯₁_
 
 codata ∞ (T : Set) : Set where
   ♯_ : (x : T) → ∞ T
@@ -23,7 +23,7 @@ codata ∞ (T : Set) : Set where
 -- Variant for Set1.
 
 codata ∞₁ (T : Set1) : Set1 where
-  ♯_ : (x : T) → ∞₁ T
+  ♯₁_ : (x : T) → ∞₁ T
 
 ♭₁ : ∀ {T} → ∞₁ T → T
-♭₁ (♯ x) = x
+♭₁ (♯₁ x) = x
