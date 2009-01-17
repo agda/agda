@@ -4,4 +4,4 @@ inaccesible in the with clause, when checking the pattern {i},
 when checking that the clause
 bar (d x) (d y) with y
 bar (d x) (d {i} y) | z = d {i} y
-has type {i : I} -> D i -> D i -> D i
+has type {i : I} → D i → D i → D i

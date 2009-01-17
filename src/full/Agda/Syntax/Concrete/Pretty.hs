@@ -26,6 +26,9 @@ instance Show ImportDirective where show = show . pretty
 instance Show Pragma	      where show = show . pretty
 instance Show RHS	      where show = show . pretty
 
+arrow  = text "\x2192"
+lambda = text "\x03bb"
+
 pHidden :: Pretty a => Hiding -> a -> Doc
 pHidden Hidden	    = braces . pretty
 pHidden NotHidden   = pretty
@@ -90,17 +93,17 @@ instance Pretty Expr where
 
 	    HiddenArg _ e -> braces $ pretty e
 	    Lam _ bs e ->
-		sep [ text "\\" <> fsep (map pretty bs) <+> text "->"
+		sep [ lambda <+> fsep (map pretty bs) <+> arrow
 		    , nest 2 $ pretty e
 		    ]
-            AbsurdLam _ NotHidden -> text "\\ ()"
-            AbsurdLam _ Hidden -> text "\\ {}"
+            AbsurdLam _ NotHidden -> lambda <+> text "()"
+            AbsurdLam _ Hidden -> lambda <+> text "{}"
 	    Fun _ e1 e2 ->
-		sep [ pretty e1 <+> text "->"
+		sep [ pretty e1 <+> arrow
 		    , pretty e2
 		    ]
 	    Pi tel e ->
-		sep [ fsep (map pretty tel ++ [text "->"])
+		sep [ fsep (map pretty tel ++ [arrow])
 		    , pretty e
 		    ]
 	    Set _   -> text "Set"

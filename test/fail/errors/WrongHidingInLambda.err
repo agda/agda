@@ -1,4 +1,4 @@
 errors/WrongHidingInLambda.agda:5,5-16
 Found an implicit lambda where an explicit lambda was expected
-when checking that the expression \{A} x -> x has type
-(A : Set) -> A -> A
+when checking that the expression λ {A} x → x has type
+(A : Set) → A → A
