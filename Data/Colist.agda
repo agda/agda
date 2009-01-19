@@ -10,6 +10,7 @@ open import Data.Maybe using (Maybe; nothing; just)
 open import Data.Nat   using (ℕ; zero; suc)
 open import Data.List  using (List; []; _∷_)
 open import Data.BoundedVec.Inefficient using (BoundedVec; []; _∷_)
+open import Data.Product using (_,_)
 open import Relation.Binary
 
 ------------------------------------------------------------------------
@@ -84,7 +85,7 @@ data _⊑_ {A : Set} : Colist A → Colist A → Set where
 setoid : Set → Setoid
 setoid A = record
   { carrier       = Colist A
-  ; _≈_           = _≈_ {A}
+  ; _≈_           = _≈_
   ; isEquivalence = record
     { refl  = refl
     ; sym   = sym
@@ -106,6 +107,47 @@ setoid A = record
   trans []        []         = []
   trans (x ∷ xs≈) (.x ∷ ys≈) = x ∷ rec
     where rec ~ ♯ trans (♭ xs≈) (♭ ys≈)
+
+poset : Set → Poset
+poset A = record
+  { carrier        = Colist A
+  ; _≈_            = _≈_
+  ; _≤_            = _⊑_
+  ; isPartialOrder = record
+    { isPreorder = record
+      { isEquivalence = Setoid.isEquivalence (setoid A)
+      ; reflexive     = reflexive
+      ; trans         = trans
+      ; ≈-resp-∼      = ((λ {_} → ≈-resp-⊑ˡ) , λ {_} → ≈-resp-⊑ʳ)
+      }
+    ; antisym  = antisym
+    }
+  }
+  where
+  reflexive : _≈_ ⇒ _⊑_
+  reflexive []        = []
+  reflexive (x ∷ xs≈) = x ∷ reflexive′
+    where reflexive′ ~ ♯ reflexive (♭ xs≈)
+
+  trans : Transitive _⊑_
+  trans []        _          = []
+  trans (x ∷ xs≈) (.x ∷ ys≈) = x ∷ trans′
+    where trans′ ~ ♯ trans (♭ xs≈) (♭ ys≈)
+
+  ≈-resp-⊑ˡ : {xs : Colist A} → _≈_ Respects (λ ys → xs ⊑ ys)
+  ≈-resp-⊑ˡ _         []       = []
+  ≈-resp-⊑ˡ (x ∷ xs≈) (.x ∷ p) = x ∷ ≈-resp-⊑ˡ′
+    where ≈-resp-⊑ˡ′ ~ ♯ ≈-resp-⊑ˡ (♭ xs≈) (♭ p)
+
+  ≈-resp-⊑ʳ : {ys : Colist A} → _≈_ Respects (λ xs → xs ⊑ ys)
+  ≈-resp-⊑ʳ []        _        = []
+  ≈-resp-⊑ʳ (x ∷ xs≈) (.x ∷ p) = x ∷ ≈-resp-⊑ʳ′
+    where ≈-resp-⊑ʳ′ ~ ♯ ≈-resp-⊑ʳ (♭ xs≈) (♭ p)
+
+  antisym : Antisymmetric _≈_ _⊑_
+  antisym []       []        = []
+  antisym (x ∷ p₁) (.x ∷ p₂) = x ∷ antisym′
+    where antisym′ ~ ♯ antisym (♭ p₁) (♭ p₂)
 
 map-cong : ∀ {A B} (f : A → B) {xs ys : Colist A} →
            xs ≈ ys → map f xs ≈ map f ys
