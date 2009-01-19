@@ -149,8 +149,7 @@ poset A = record
   antisym (x ∷ p₁) (.x ∷ p₂) = x ∷ antisym′
     where antisym′ ~ ♯ antisym (♭ p₁) (♭ p₂)
 
-map-cong : ∀ {A B} (f : A → B) {xs ys : Colist A} →
-           xs ≈ ys → map f xs ≈ map f ys
+map-cong : ∀ {A B} (f : A → B) → _≈_ =[ map f ]⇒ _≈_
 map-cong f []        = []
 map-cong f (x ∷ xs≈) = f x ∷ rec
   where rec ~ ♯ map-cong f (♭ xs≈)
