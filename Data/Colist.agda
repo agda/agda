@@ -9,8 +9,10 @@ open import Data.Bool  using (Bool; true; false)
 open import Data.Maybe using (Maybe; nothing; just)
 open import Data.Nat   using (ℕ; zero; suc)
 open import Data.List  using (List; []; _∷_)
-open import Data.BoundedVec.Inefficient using (BoundedVec; []; _∷_)
+import Data.BoundedVec.Inefficient as BVec
+open BVec using (BoundedVec; []; _∷_)
 open import Data.Product using (_,_)
+open import Data.Function
 open import Relation.Binary
 
 ------------------------------------------------------------------------
@@ -153,3 +155,11 @@ map-cong : ∀ {A B} (f : A → B) → _≈_ =[ map f ]⇒ _≈_
 map-cong f []        = []
 map-cong f (x ∷ xs≈) = f x ∷ rec
   where rec ~ ♯ map-cong f (♭ xs≈)
+
+take-⊑ : ∀ {A} n (xs : Colist A) →
+         let toColist = fromList ∘ BVec.toList in
+         toColist (take n xs) ⊑ xs
+take-⊑ zero    xs       = []
+take-⊑ (suc n) []       = []
+take-⊑ (suc n) (x ∷ xs) = x ∷ take-⊑′
+  where take-⊑′ ~ ♯ take-⊑ n (♭ xs)
