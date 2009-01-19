@@ -134,3 +134,6 @@ _≤_ = _N≤_ on₁ toℕ
 
 _<_ : ∀ {n} → Rel (Fin n)
 _<_ = _N<_ on₁ toℕ
+
+data _≺_ : ℕ → ℕ → Set where
+  _≻toℕ_ : ∀ n (i : Fin n) → toℕ i ≺ n

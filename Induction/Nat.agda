@@ -6,6 +6,8 @@ module Induction.Nat where
 
 open import Data.Function
 open import Data.Nat
+open import Data.Fin
+open import Data.Fin.Props
 open import Data.Product
 open import Data.Unit
 open import Induction
@@ -42,22 +44,44 @@ cRec : Recursor CRec
 cRec = build cRec-builder
 
 ------------------------------------------------------------------------
--- Complete induction based on <′
+-- Complete induction based on _<′_
 
-open WF _<′_ using (Acc; acc)
+open WF _<′_ using (acc) renaming (Acc to <′-Acc)
 
-allAcc : ∀ n → Acc n
-allAcc n = acc (helper n)
-  where
-  helper : ∀ n m → m <′ n → Acc m
-  helper zero     _ ()
-  helper (suc n) .n ≤′-refl        = acc (helper n)
-  helper (suc n)  m (≤′-step m<′n) = helper n m m<′n
+private
+
+  <′-allAcc : ∀ n → <′-Acc n
+  <′-allAcc n = acc (helper n)
+    where
+    helper : ∀ n m → m <′ n → <′-Acc m
+    helper zero     _ ()
+    helper (suc n) .n ≤′-refl        = acc (helper n)
+    helper (suc n)  m (≤′-step m<′n) = helper n m m<′n
 
 open WF _<′_ public using () renaming (WfRec to <-Rec)
-open WF.All _<′_ allAcc public
+open WF.All _<′_ <′-allAcc public
   renaming ( wfRec-builder to <-rec-builder
            ; wfRec to <-rec
+           )
+
+------------------------------------------------------------------------
+-- Complete induction based on _≺_
+
+open WF _≺_ renaming (Acc to ≺-Acc)
+
+private
+
+  <′-Acc⇒≺-Acc : ∀ {n} → <′-Acc n → ≺-Acc n
+  <′-Acc⇒≺-Acc (acc rs) =
+    acc (λ m m≺n → <′-Acc⇒≺-Acc (rs m (≺⇒<′ m≺n)))
+
+  ≺-allAcc : ∀ n → ≺-Acc n
+  ≺-allAcc n = <′-Acc⇒≺-Acc (<′-allAcc n)
+
+open WF _≺_ public using () renaming (WfRec to ≺-Rec)
+open WF.All _≺_ ≺-allAcc public
+  renaming ( wfRec-builder to ≺-rec-builder
+           ; wfRec to ≺-rec
            )
 
 ------------------------------------------------------------------------

@@ -15,7 +15,7 @@ open import Data.Function
 open import Relation.Nullary
 open import Relation.Binary
 import Relation.Binary.PropositionalEquality as PropEq
-open PropEq using (_≡_; refl; cong)
+open PropEq using (_≡_; refl; cong; subst)
 
 ------------------------------------------------------------------------
 -- Properties
@@ -61,6 +61,10 @@ infix 4 _≟_
 _≟_ : {n : ℕ} → Decidable {Fin n} _≡_
 _≟_ {n} = DecSetoid._≟_ (decSetoid n)
 
+to-from : ∀ n → toℕ (fromℕ n) ≡ n
+to-from zero    = refl
+to-from (suc n) = cong suc (to-from n)
+
 bounded : ∀ {n} (i : Fin n) → toℕ i ℕ< n
 bounded zero    = s≤s z≤n
 bounded (suc i) = s≤s (bounded i)
@@ -81,6 +85,20 @@ nℕ-ℕi≤n (suc n) (suc i)  = begin
 inject+-lemma : ∀ m k → m ≡ toℕ (inject+ k (fromℕ m))
 inject+-lemma zero    k = refl
 inject+-lemma (suc m) k = cong suc (inject+-lemma m k)
+
+inject₁-lemma : ∀ {m} (i : Fin m) → toℕ (inject₁ i) ≡ toℕ i
+inject₁-lemma zero    = refl
+inject₁-lemma (suc i) = cong suc (inject₁-lemma i)
+
+≺⇒<′ : _≺_ ⇒ N._<′_
+≺⇒<′ (n ≻toℕ i) = N.≤⇒≤′ (bounded i)
+
+<′⇒≺ : N._<′_ ⇒ _≺_
+<′⇒≺ {n} N.≤′-refl    = subst (λ i → i ≺ suc n) (to-from n)
+                              (suc n ≻toℕ fromℕ n)
+<′⇒≺ (N.≤′-step m≤′n) with <′⇒≺ m≤′n
+<′⇒≺ (N.≤′-step m≤′n) | n ≻toℕ i =
+  subst (λ i → i ≺ suc n) (inject₁-lemma i) (suc n ≻toℕ (inject₁ i))
 
 ------------------------------------------------------------------------
 -- Operations
