@@ -17,6 +17,8 @@ import Data.Sum     as Sum;  open Sum  hiding (map)
 import Data.Product as Prod; open Prod hiding (map)
 open import Data.Function
 open import Data.Empty
+open import Category.Applicative
+open import Category.Monad
 
 infix  5 ¬¬_
 infixr 4 _⇒_
@@ -95,21 +97,34 @@ map-∘ (F₁ ∧ F₂) f g x        = (map-∘ F₁ f g (proj₁ x) ,
 map-∘ (P₁ ⇒ F₂) f g h        = λ x → map-∘ F₂ f g (h x)
 map-∘ (¬¬ F)    f g x        = _
 
+-- A variant of sequence can be implemented for ⟦ F ⟧.
+
+sequence : ∀ {AF} → RawApplicative AF →
+           (AF ⊥ → ⊥) →
+           ({A B : Set} → (A → AF B) → AF (A → B)) →
+           ∀ F {P} → ⟦ F ⟧ (AF P) → AF (⟦ F ⟧ P)
+sequence {AF} A extract-⊥ sequence-⇒ = helper
+  where
+  open RawApplicative A
+
+  helper : ∀ F {P} → ⟦ F ⟧ (AF P) → AF (⟦ F ⟧ P)
+  helper Id        x        = x
+  helper (K P)     x        = pure x
+  helper (F₁ ∨ F₂) (inj₁ x) = inj₁ <$> helper F₁ x
+  helper (F₁ ∨ F₂) (inj₂ y) = inj₂ <$> helper F₂ y
+  helper (F₁ ∧ F₂) (x , y)  = _,_  <$> helper F₁ x ⊛ helper F₂ y
+  helper (P₁ ⇒ F₂) f        = sequence-⇒ (helper F₂ ∘ f)
+  helper (¬¬ F)    x        =
+    pure (λ ¬FP → x (λ fp → extract-⊥ (¬FP <$> helper F fp)))
+
 -- Some lemmas about double negation.
 
+open RawMonad ¬¬-Monad
+
 ¬¬-pull : ∀ F {P} → ⟦ F ⟧ (¬ ¬ P) → ¬ ¬ ⟦ F ⟧ P
-¬¬-pull Id        ¬¬P      ¬P  = ¬¬P ¬P
-¬¬-pull (K P)     p        ¬P  = ¬P p
-¬¬-pull (F₁ ∨ F₂) (inj₁ x) ¬FP = ¬¬-map (¬FP ∘ inj₁) (¬¬-pull F₁ x) id
-¬¬-pull (F₁ ∨ F₂) (inj₂ y) ¬FP = ¬¬-map (¬FP ∘ inj₂) (¬¬-pull F₂ y) id
-¬¬-pull (F₁ ∧ F₂) (x , y)  ¬FP = ¬¬-map ¬FP (lem (¬¬-pull F₁ x)
-                                                 (¬¬-pull F₂ y)) id
-  where
-  lem : ∀ {P Q} → ¬ ¬ P → ¬ ¬ Q → ¬ ¬ (P × Q)
-  lem ¬¬P ¬¬Q ¬PQ = ¬¬P (λ P → ¬¬Q (λ Q → ¬PQ ((P , Q))))
-¬¬-pull (P₁ ⇒ F₂) h ¬FP =
-  ¬FP (λ p₁ → ⊥-elim (¬¬-pull F₂ (h p₁) (λ F₂P → ¬FP (λ _ → F₂P))))
-¬¬-pull (¬¬ F) h ¬FP = ¬¬-map ¬FP (¬¬-map (¬¬-pull F) h) id
+¬¬-pull = sequence rawIApplicative
+                   (λ f → f id)
+                   (λ f g → g (λ x → ⊥-elim (f x (λ y → g (λ _ → y)))))
 
 ¬¬-remove : ∀ F {P} → ¬ ¬ ⟦ F ⟧ (¬ ¬ P) → ¬ ¬ ⟦ F ⟧ P
 ¬¬-remove F = ¬¬-drop ∘ ¬¬-pull (¬¬ F)
