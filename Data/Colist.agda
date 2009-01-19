@@ -72,12 +72,11 @@ data _∈_ {A : Set} : A → Colist A → Set where
   here  : ∀ {x   xs}                   → x ∈ x ∷ xs
   there : ∀ {x y xs} (x∈xs : x ∈ ♭ xs) → x ∈ y ∷ xs
 
-infix 4 _PrefixOf_
+infix 4 _⊑_
 
-data _PrefixOf_ {A : Set} : Colist A → Colist A → Set where
-  []  : ∀ {ys}                       → []     PrefixOf ys
-  _∷_ : ∀ x {xs ys}
-        (p : ∞ (♭ xs PrefixOf ♭ ys)) → x ∷ xs PrefixOf x ∷ ys
+data _⊑_ {A : Set} : Colist A → Colist A → Set where
+  []  : ∀ {ys}                            → []     ⊑ ys
+  _∷_ : ∀ x {xs ys} (p : ∞ (♭ xs ⊑ ♭ ys)) → x ∷ xs ⊑ x ∷ ys
 
 ------------------------------------------------------------------------
 -- Some proofs
