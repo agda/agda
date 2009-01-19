@@ -5,6 +5,7 @@
 module Relation.Nullary.Universe where
 
 open import Relation.Nullary
+open import Relation.Nullary.Negation
 open import Relation.Binary hiding (_⇒_)
 open import Relation.Binary.Simple
 import Relation.Binary.PropositionalEquality as PropEq

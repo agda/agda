@@ -7,7 +7,6 @@ module Relation.Binary where
 open import Data.Product
 open import Data.Sum
 open import Data.Function
-open import Relation.Nullary.Core
 import Relation.Binary.PropositionalEquality.Core as PropEq
 open import Relation.Binary.Consequences
 import Relation.Binary.Core as Core

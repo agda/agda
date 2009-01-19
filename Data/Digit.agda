@@ -9,7 +9,7 @@ open import Data.Nat.Properties
 open SemiringSolver
 import Data.Fin as Fin
 open Fin using (Fin; zero; suc; #_; toℕ)
-open import Relation.Nullary
+open import Relation.Nullary.Decidable
 open import Data.Char using (Char)
 open import Data.List
 import Data.Vec as Vec

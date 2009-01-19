@@ -5,7 +5,7 @@
 module Data.Unit where
 
 open import Data.Sum
-open import Relation.Nullary.Core
+open import Relation.Nullary
 open import Relation.Binary
 import Relation.Binary.PropositionalEquality as PropEq
 open PropEq using (_≡_; refl)

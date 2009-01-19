@@ -11,7 +11,7 @@ import Data.Fin as Fin
 open Fin using (Fin; zero; suc; #_; toℕ; fromℕ)
 import Data.Fin.Props as Fin
 open import Induction.Nat
-open import Relation.Nullary
+open import Relation.Nullary.Decidable
 open import Relation.Binary.PropositionalEquality
 open ≡-Reasoning
 open import Data.Vec

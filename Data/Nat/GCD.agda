@@ -22,6 +22,7 @@ open import Induction.Lexicographic
 open import Data.Function
 open import Data.Empty
 open import Relation.Nullary
+open import Relation.Nullary.Decidable
 
 ------------------------------------------------------------------------
 -- Boring lemmas

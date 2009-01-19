@@ -5,7 +5,7 @@
 module Data.Nat.Show where
 
 open import Data.Nat
-open import Relation.Nullary
+open import Relation.Nullary.Decidable
 import Data.String as String
 open String using (String)
 open import Data.Digit

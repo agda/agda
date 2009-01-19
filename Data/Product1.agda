@@ -7,7 +7,7 @@
 module Data.Product1 where
 
 open import Data.Function
-open import Relation.Nullary.Core
+open import Relation.Nullary
 
 infixr 4 _,_
 

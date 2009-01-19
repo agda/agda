@@ -13,6 +13,7 @@ open import Data.Fin.Subset.Props
 open import Data.Product
 open import Data.Empty
 open import Relation.Nullary
+open import Relation.Nullary.Negation
 
 infix 4 _∈?_
 

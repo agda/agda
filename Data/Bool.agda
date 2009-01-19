@@ -7,7 +7,7 @@ module Data.Bool where
 open import Data.Function
 open import Data.Unit using (⊤)
 open import Data.Empty
-open import Relation.Nullary.Core
+open import Relation.Nullary
 open import Relation.Binary
 import Relation.Binary.PropositionalEquality as PropEq
 open PropEq using (_≡_; refl)

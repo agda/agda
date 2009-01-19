@@ -11,7 +11,7 @@ open import Data.Function
 open import Data.Fin
 open import Data.Fin.Subset
 open import Data.Product
-open import Relation.Nullary
+open import Relation.Nullary.Negation
 open import Relation.Binary.PropositionalEquality
 
 ------------------------------------------------------------------------

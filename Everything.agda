@@ -141,6 +141,8 @@ import Relation.Binary.StrictPartialOrderReasoning
 import Relation.Binary.StrictToNonStrict
 import Relation.Binary.Sum
 import Relation.Nullary
+import Relation.Nullary.Decidable
+import Relation.Nullary.Negation
 import Relation.Nullary.Product
 import Relation.Nullary.Sum
 import Relation.Nullary.Universe
