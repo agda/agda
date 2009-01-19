@@ -13,9 +13,12 @@ open N.≤-Reasoning
 import Data.Nat.Properties as N
 open import Data.Function
 open import Relation.Nullary
+open import Relation.Unary
 open import Relation.Binary
 import Relation.Binary.PropositionalEquality as PropEq
 open PropEq using (_≡_; refl; cong; subst)
+open import Category.Functor
+open import Category.Applicative
 
 ------------------------------------------------------------------------
 -- Properties
@@ -122,3 +125,31 @@ eq? : ∀ {A n} → Injection A (Fin n) → Decidable (_≡_ {A})
 eq? inj x y with to x ≟ to y  where open Injection inj
 ... | yes tox≡toy = yes (Injection.injective inj tox≡toy)
 ... | no  tox≢toy = no  (tox≢toy ∘ cong (Injection.to inj))
+
+-- Quantification over finite sets commutes with applicative functors.
+
+sequence : ∀ {F n} {P : Pred (Fin n)} → RawApplicative F →
+           (∀ i → F (P i)) → F (∀ i → P i)
+sequence {F} RA = helper _ _
+  where
+  open RawApplicative RA
+
+  helper : ∀ n (P : Pred (Fin n)) → (∀ i → F (P i)) → F (∀ i → P i)
+  helper zero    P ∀iPi = pure (λ())
+  helper (suc n) P ∀iPi =
+    combine <$> ∀iPi zero ⊛ helper n (λ n → P (suc n)) (∀iPi ∘ suc)
+    where
+    combine : P zero → (∀ i → P (suc i)) → ∀ i → P i
+    combine z s zero    = z
+    combine z s (suc i) = s i
+
+private
+
+  -- Included just to show that sequence above has an inverse (under
+  -- an equivalence relation with two equivalence classes, one with
+  -- all inhabited sets and the other with all uninhabited sets).
+
+  sequence⁻¹ : ∀ {F A} {P : Pred A} → RawFunctor F →
+               F (∀ i → P i) → ∀ i → F (P i)
+  sequence⁻¹ RF F∀iPi i = (λ f → f i) <$> F∀iPi
+    where open RawFunctor RF
