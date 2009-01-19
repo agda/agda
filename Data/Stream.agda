@@ -37,15 +37,12 @@ lookup : ∀ {A} → ℕ → Stream A → A
 lookup zero    (x ∷ xs) = x
 lookup (suc n) (x ∷ xs) = lookup n (♭ xs)
 
-infixr 5 _++′_ _++_
+infixr 5 _++_
 
-_++′_ : ∀ {A} → Colist A → Stream A → Stream A
-[]       ++′ ys = ys
-(x ∷ xs) ++′ ys = x ∷ rec
-  where rec ~ ♯ (♭ xs ++′ ys)
-
-_++_ : ∀ {A} → Stream A → Stream A → Stream A
-xs ++ ys = toColist xs ++′ ys
+_++_ : ∀ {A} → Colist A → Stream A → Stream A
+[]       ++ ys = ys
+(x ∷ xs) ++ ys = x ∷ rec
+  where rec ~ ♯ (♭ xs ++ ys)
 
 ------------------------------------------------------------------------
 -- Equality and other relations
