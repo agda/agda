@@ -209,7 +209,7 @@ constituents.")
     (agda2-show-context                      "\C-c\C-e"         (local)        "Context (environment)")
     (agda2-infer-type-maybe-toplevel         "\C-c\C-d"         (local global) "Infer (deduce) type")
     (agda2-goal-and-context                  ,(kbd "C-c C-,")   (local)        "Goal type and context")
-    (agda2-goal-and-infer                    ,(kbd "C-c C-.")   (local)        "Goal type and inferred type")
+    (agda2-goal-and-context-and-inferred     ,(kbd "C-c C-.")   (local)        "Goal type, context and inferred type")
     (agda2-compute-normalised-maybe-toplevel "\C-c\C-n"         (local global) "Evaluate term to normal form")
     (agda2-indent                ,(kbd "TAB"))
     (agda2-indent-reverse        [S-iso-lefttab])
@@ -605,10 +605,9 @@ top-level scope."
  nil)
 
 (agda2-maybe-normalised
- agda2-goal-and-infer
- "Shows the type of the goal at point and infers the type of the
-given expression"
- "cmd_goal_type_infer"
+ agda2-goal-and-context-and-inferred
+ "Shows the context, the goal and the given expression's inferred type"
+ "cmd_goal_type_context_infer"
  "expression to type")
 
 (agda2-maybe-normalised

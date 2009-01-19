@@ -30,14 +30,13 @@ import System.Directory
 import System.IO.Unsafe
 import Data.Char
 import Data.IORef
-import qualified Text.PrettyPrint as P
 import Control.Applicative
 import qualified System.IO.UTF8 as UTF8
 
 import Agda.Utils.Fresh
 import Agda.Utils.Monad
 import Agda.Utils.Monad.Undo
-import Agda.Utils.Pretty
+import Agda.Utils.Pretty as P
 import Agda.Utils.String
 import Agda.Utils.FileName
 import Agda.Utils.Tuple
@@ -269,58 +268,77 @@ give_gen give_ref mk_newtxt ii rng s = infoOnException $ do
                  L[A"agda2-give-action", showNumIId ii, newtxt, newgs]
     cmd_metas
 
+-- | Pretty-prints the type of the meta-variable.
+
+prettyTypeOfMeta :: B.Rewrite -> InteractionId -> TCM Doc
+prettyTypeOfMeta norm ii = do
+  form <- B.typeOfMeta norm ii
+  case form of
+    B.OfType _ e -> prettyA e
+    _            -> text <$> showA form
+
+-- | Pretty-prints the context of the given meta-variable.
+
+prettyContext
+  :: B.Rewrite      -- ^ Normalise?
+  -> InteractionId
+  -> TCM Doc
+prettyContext norm ii = B.withInteractionId ii $ do
+  ctx <- B.contextOfMeta ii norm
+  es  <- mapM (prettyA . B.ofExpr) ctx
+  ns  <- mapM (showA   . B.ofName) ctx
+  let maxLen = maximum $ 0 : filter (< longNameLength) (map length ns)
+  return $ vcat $
+           map (\(n, e) -> text n $$ nest (maxLen + 1) (text ":") <+> e) $
+           zip ns es
+
+-- | 'prettyContext' lays out @n : e@ on (at least) two lines if @n@
+-- has at least @longNameLength@ characters.
+
+longNameLength = 10
+
 cmd_context :: B.Rewrite -> GoalCommand
 cmd_context norm ii _ _ = infoOnException $ ioTCM $
-  display_info "*Context*" . unlines
-    =<< B.withInteractionId ii (mapM showA =<< B.contextOfMeta ii norm)
+  display_infoD "*Context*" =<< prettyContext norm ii
 
 cmd_infer :: B.Rewrite -> GoalCommand
 cmd_infer norm ii rng s = infoOnException $ ioTCM $
-  display_info "*Inferred Type*"
-    =<< B.withInteractionId ii (showA =<< B.typeInMeta ii norm =<< B.parseExprIn ii rng s)
-
--- | Shows the type of the metavariable.
-
-showTypeOfMeta :: B.Rewrite -> InteractionId -> TCM String
-showTypeOfMeta norm ii = do
-  form <- B.typeOfMeta norm ii
-  case form of
-    B.OfType _ e -> showA e
-    _            -> showA form
+  display_infoD "*Inferred Type*"
+    =<< B.withInteractionId ii
+          (prettyA =<< B.typeInMeta ii norm =<< B.parseExprIn ii rng s)
 
 cmd_goal_type :: B.Rewrite -> GoalCommand
 cmd_goal_type norm ii _ _ = infoOnException $ ioTCM $ do
-    s <- B.withInteractionId ii $ showTypeOfMeta norm ii
-    display_info "*Current Goal*" s
+    s <- B.withInteractionId ii $ prettyTypeOfMeta norm ii
+    display_infoD "*Current Goal*" s
+
+-- | Displays the current goal and context plus the given document.
+
+cmd_goal_type_context_and :: Doc -> B.Rewrite -> GoalCommand
+cmd_goal_type_context_and s norm ii _ _ = infoOnException $ ioTCM $ do
+    goal <- B.withInteractionId ii $ prettyTypeOfMeta norm ii
+    ctx  <- prettyContext norm ii
+    display_infoD "*Goal type etc.*"
+                  (ctx $+$
+                   text (replicate 60 '\x2014') $+$
+                   text "Goal:" <+> goal $+$
+                   s)
 
 -- | Displays the current goal and context.
 
 cmd_goal_type_context :: B.Rewrite -> GoalCommand
-cmd_goal_type_context norm ii _ _ = infoOnException $ ioTCM $ do
-    goal <- B.withInteractionId ii $ showTypeOfMeta norm ii
-    ctx  <- B.withInteractionId ii $ mapM showA =<< B.contextOfMeta ii norm
-    display_info "*Goal and context*"
-                 (unlines $ ctx ++ [replicate 40 '-'] ++ lines goal)
-  where indent = List.map ("  " ++) . lines
+cmd_goal_type_context = cmd_goal_type_context_and P.empty
 
--- | Displays the current goal _and_ infers the type of an expression.
+-- | Displays the current goal and context /and/ infers the type of an
+-- expression.
 
-cmd_goal_type_infer :: B.Rewrite -> GoalCommand
-cmd_goal_type_infer norm ii rng s = infoOnException $ ioTCM $ do
-    goal <- B.withInteractionId ii $ showTypeOfMeta norm ii
-    typ  <- B.withInteractionId ii $
-               showA =<< B.typeInMeta ii norm =<< B.parseExprIn ii rng s
-    display_info "*Goal and inferred type*"
-                 (format "Want" goal ++
-                  format "Have" typ)
-  where
-  format title s = unlines $ fmt (lines s)
-    where
-    title' = title ++ ": "
-
-    fmt []       = []
-    fmt (s : ss) = (title' ++ s) :
-                   map (map (const ' ') title' ++) ss
+cmd_goal_type_context_infer :: B.Rewrite -> GoalCommand
+cmd_goal_type_context_infer norm ii rng s = infoOnException $ ioTCM $ do
+    typ <- B.withInteractionId ii $
+             prettyA =<< B.typeInMeta ii norm =<< B.parseExprIn ii rng s
+    liftIO $ cmd_goal_type_context_and
+               (text "Have:" <+> typ)
+               norm ii rng s
 
 -- | Sets the command line options and updates the status information.
 
@@ -347,6 +365,11 @@ display_info :: String -> String -> TCM ()
 display_info bufname content = do
   displayStatus
   liftIO $ display_info' bufname content
+
+-- | Like 'display_info', but takes a 'Doc' instead of a 'String'.
+
+display_infoD :: String -> Doc -> TCM ()
+display_infoD bufname content = display_info bufname (render content)
 
 -- | Like 'display_info', but does not display status information.
 

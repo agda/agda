@@ -13,6 +13,7 @@ import Control.Monad.Reader
 import qualified Data.Map as Map
 import Data.Map (Map)
 import Data.List
+import Data.Maybe
 
 import Agda.Interaction.Monad 
 
@@ -35,10 +36,10 @@ import Agda.TypeChecking.Monad as M
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.Pretty
 
 import Agda.Utils.Monad
 import Agda.Utils.Monad.Undo
+import Agda.Utils.Pretty
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
@@ -191,6 +192,12 @@ data OutputForm a b
       | Assign b a
       | IsEmptyType a
 
+-- | A subset of 'OutputForm'.
+
+data OutputForm' a b = OfType' { ofName :: b
+                               , ofExpr :: a
+                               }
+
 outputFormId :: OutputForm a b -> b
 outputFormId o = case o of
   OfType i _        -> i
@@ -265,6 +272,13 @@ instance (ToConcrete a c, ToConcrete b d) =>
     toConcrete (Assign m e) = Assign <$> toConcrete m <*> toConcrete e
     toConcrete (IsEmptyType a) = IsEmptyType <$> toConcrete a
 
+instance (Pretty a, Pretty b) => Pretty (OutputForm' a b) where
+  pretty (OfType' e t) = pretty e <+> text ":" <+> pretty t
+
+instance (ToConcrete a c, ToConcrete b d) =>
+            ToConcrete (OutputForm' a b) (OutputForm' c d) where
+  toConcrete (OfType' e t) = OfType' <$> toConcrete e <*> toConcrete t
+
 --ToDo: Move somewhere else
 instance ToConcrete InteractionId C.Expr where
     toConcrete (InteractionId i) = return $ C.QuestionMark noRange (Just i)
@@ -331,12 +345,16 @@ typeOfMetas norm = liftTCM $
 	       openAndImplicit is x (MetaVar _ _ _ (M.BlockedConst _) _) = True
 	       openAndImplicit _ _ _					 = False
 
-contextOfMeta :: InteractionId -> Rewrite -> TCM [OutputForm Expr Name]
+-- Gives a list of names and corresponding types.
+
+contextOfMeta :: InteractionId -> Rewrite -> TCM [OutputForm' Expr Name]
 contextOfMeta ii norm = do
   info <- getMetaInfo <$> (lookupMeta =<< lookupInteractionId ii)
   let localVars = map ctxEntry . envContext . clEnv $ info
-  withMetaInfo info $ filter visible <$> reifyContext localVars
-  where visible (OfType x _) = show x /= "_"
+  withMetaInfo info $ gfilter visible <$> reifyContext localVars
+  where gfilter p = catMaybes . map p
+        visible (OfType x y) | show x /= "_" = Just (OfType' x y)
+                             | otherwise     = Nothing
 	visible _	     = __IMPOSSIBLE__
         reifyContext xs = escapeContext (length xs) $ foldr out (return []) $ reverse xs
 	out (Arg h (x,t)) rest = do
