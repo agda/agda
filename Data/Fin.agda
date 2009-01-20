@@ -59,6 +59,11 @@ raise (suc n) i = suc (raise n i)
 
 -- inject⋆ m "n" = "n".
 
+inject : ∀ {n} {i : Fin n} → Fin (toℕ i) → Fin n
+inject {i = zero}  ()
+inject {i = suc i} zero    = zero
+inject {i = suc i} (suc j) = suc (inject j)
+
 inject+ : ∀ {m} n → Fin m → Fin (m N+ n)
 inject+ n zero    = zero
 inject+ n (suc i) = suc (inject+ n i)
