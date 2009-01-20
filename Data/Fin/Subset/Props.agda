@@ -11,7 +11,6 @@ open import Data.Function
 open import Data.Fin
 open import Data.Fin.Subset
 open import Data.Product
-open import Relation.Nullary.Negation
 open import Relation.Binary.PropositionalEquality
 
 ------------------------------------------------------------------------
@@ -59,4 +58,4 @@ allOutside (suc x) (there x∈) = allOutside x x∈
 ∅⟶allOutside {p = s ∷ ps} ¬¬∅ with ∅⟶allOutside (drop-∷-Empty ¬¬∅)
 ∅⟶allOutside {p = outside ∷ .(all outside)} ¬¬∅ | refl = refl
 ∅⟶allOutside {p = inside  ∷ .(all outside)} ¬¬∅ | refl =
-  contradiction (zero , here) ¬¬∅
+  ⊥-elim (¬¬∅ (zero , here))

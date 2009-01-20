@@ -8,7 +8,9 @@ open import Relation.Nullary
 open import Relation.Unary
 open import Data.Empty
 open import Data.Function
-open import Data.Product
+open import Data.Product as Prod
+open import Data.Fin
+open import Data.Fin.Dec
 open import Category.Monad
 
 contradiction : ∀ {P whatever} → P → ¬ P → whatever
@@ -40,6 +42,13 @@ private
 
 ∃¬⟶¬∀ : ∀ {A} {P : Pred A} → ∃ (λ x → ¬ P x) → ¬ (∀ x → P x)
 ∃¬⟶¬∀ = flip ∀⟶¬∃¬
+
+-- When P is a decidable predicate over a finite set the following
+-- lemma can be proved.
+
+¬∀⟶∃¬ : ∀ n (P : Pred (Fin n)) → (∀ i → Dec (P i)) →
+        ¬ (∀ i → P i) → ∃ λ i → ¬ P i
+¬∀⟶∃¬ n P dec ¬P = Prod.map id proj₁ $ ¬∀⟶∃¬-smallest n P dec ¬P
 
 ------------------------------------------------------------------------
 -- Double-negation

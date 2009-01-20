@@ -5,15 +5,15 @@
 module Data.Fin.Dec where
 
 open import Data.Function
-open import Data.Nat
+open import Data.Nat hiding (_<_)
 open import Data.Vec hiding (_∈_)
 open import Data.Fin
 open import Data.Fin.Subset
 open import Data.Fin.Subset.Props
-open import Data.Product
+open import Data.Product as Prod
 open import Data.Empty
 open import Relation.Nullary
-open import Relation.Nullary.Negation
+open import Relation.Unary using (Pred)
 
 infix 4 _∈?_
 
@@ -45,7 +45,7 @@ any? {suc n} {P} dec with dec zero | any? (restrict dec)
   where
   helper : ∄ P
   helper (zero  , p)  = ¬p p
-  helper (suc f , p') = contradiction (_ , p') ¬p'
+  helper (suc f , p') = ¬p' (_ , p')
 
 nonempty? : ∀ {n} (p : Subset n) → Dec (Nonempty p)
 nonempty? p = any? (λ x → x ∈? p)
@@ -78,7 +78,7 @@ decFinSubset {suc n} {P} {Q} decQ decP = helper
   helper | yes q⟶p | no ¬q₀ = yes (λ {_} → hlpr _)
     where
     hlpr : ∀ f → Q f → P f
-    hlpr zero    q₀ = contradiction q₀ ¬q₀
+    hlpr zero    q₀ = ⊥-elim (¬q₀ q₀)
     hlpr (suc f) qf = q⟶p qf
 
 all∈? : ∀ {n} {P : Fin n → Set} {q} →
@@ -127,3 +127,26 @@ anySubset? {suc n} {P} dec with anySubset? (restrictS inside  dec)
     helper : ∄ P
     helper (inside  ∷ p , Pp)  = ¬Pp  (_ , Pp)
     helper (outside ∷ p , Pp') = ¬Pp' (_ , Pp')
+
+-- If a decidable predicate P over a finite set is sometimes false,
+-- then we can find the smallest value for which this is the case.
+
+¬∀⟶∃¬-smallest :
+  ∀ n (P : Pred (Fin n)) → (∀ i → Dec (P i)) →
+  ¬ (∀ i → P i) → ∃ λ i → ¬ P i × ((j : Fin (toℕ i)) → P (inject j))
+¬∀⟶∃¬-smallest zero    P dec ¬∀iPi = ⊥-elim (¬∀iPi (λ()))
+¬∀⟶∃¬-smallest (suc n) P dec ¬∀iPi with dec zero
+¬∀⟶∃¬-smallest (suc n) P dec ¬∀iPi | no ¬P0 = (zero , ¬P0 , λ ())
+¬∀⟶∃¬-smallest (suc n) P dec ¬∀iPi | yes P0 =
+  Prod.map suc (Prod.map id extend′) $
+    ¬∀⟶∃¬-smallest n (λ n → P (suc n)) (dec ∘ suc) (¬∀iPi ∘ extend)
+  where
+  extend : (∀ i → P (suc i)) → (∀ i → P i)
+  extend ∀iP[1+i] zero    = P0
+  extend ∀iP[1+i] (suc i) = ∀iP[1+i] i
+
+  extend′ : ∀ {i : Fin n} →
+            ((j : Fin (toℕ i)) → P (suc (inject j))) →
+            ((j : Fin (suc (toℕ i))) → P (inject j))
+  extend′ g zero    = P0
+  extend′ g (suc j) = g j
