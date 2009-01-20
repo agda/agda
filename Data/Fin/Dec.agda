@@ -133,7 +133,7 @@ anySubset? {suc n} {P} dec with anySubset? (restrictS inside  dec)
 
 ¬∀⟶∃¬-smallest :
   ∀ n (P : Pred (Fin n)) → (∀ i → Dec (P i)) →
-  ¬ (∀ i → P i) → ∃ λ i → ¬ P i × ((j : Fin (toℕ i)) → P (inject j))
+  ¬ (∀ i → P i) → ∃ λ i → ¬ P i × ((j : Fin′ i) → P (inject j))
 ¬∀⟶∃¬-smallest zero    P dec ¬∀iPi = ⊥-elim (¬∀iPi (λ()))
 ¬∀⟶∃¬-smallest (suc n) P dec ¬∀iPi with dec zero
 ¬∀⟶∃¬-smallest (suc n) P dec ¬∀iPi | no ¬P0 = (zero , ¬P0 , λ ())
@@ -146,7 +146,7 @@ anySubset? {suc n} {P} dec with anySubset? (restrictS inside  dec)
   extend ∀iP[1+i] (suc i) = ∀iP[1+i] i
 
   extend′ : ∀ {i : Fin n} →
-            ((j : Fin (toℕ i)) → P (suc (inject j))) →
-            ((j : Fin (suc (toℕ i))) → P (inject j))
+            ((j : Fin′ i) → P (suc (inject j))) →
+            ((j : Fin′ (suc i)) → P (inject j))
   extend′ g zero    = P0
   extend′ g (suc j) = g j

@@ -17,7 +17,7 @@ open import Relation.Nullary.Decidable
 open import Relation.Binary
 
 ------------------------------------------------------------------------
--- The type
+-- Types
 
 -- Fin n is a type with n elements.
 
@@ -25,14 +25,21 @@ data Fin : ℕ → Set where
   zero : {n : ℕ} → Fin (suc n)
   suc  : {n : ℕ} (i : Fin n) → Fin (suc n)
 
-------------------------------------------------------------------------
--- Conversions
-
--- toℕ "n" = n.
+-- A conversion: toℕ "n" = n.
 
 toℕ : ∀ {n} → Fin n → ℕ
 toℕ zero    = 0
 toℕ (suc i) = suc (toℕ i)
+
+-- A Fin-indexed variant of Fin.
+
+Fin′ : ∀ {n} → Fin n → Set
+Fin′ i = Fin (toℕ i)
+
+------------------------------------------------------------------------
+-- Conversions
+
+-- toℕ is defined above.
 
 -- fromℕ n = "n".
 
@@ -59,7 +66,7 @@ raise (suc n) i = suc (raise n i)
 
 -- inject⋆ m "n" = "n".
 
-inject : ∀ {n} {i : Fin n} → Fin (toℕ i) → Fin n
+inject : ∀ {n} {i : Fin n} → Fin′ i → Fin n
 inject {i = zero}  ()
 inject {i = suc i} zero    = zero
 inject {i = suc i} (suc j) = suc (inject j)
@@ -100,7 +107,7 @@ suc i + j = suc (i + j)
 
 infixl 6 _-_
 
-_-_ : ∀ {m} (i : Fin m) (j : Fin (suc (toℕ i))) → Fin (m N∸ toℕ j)
+_-_ : ∀ {m} (i : Fin m) (j : Fin′ (suc i)) → Fin (m N∸ toℕ j)
 i     - zero   = i
 zero  - suc ()
 suc i - suc j  = i - j

@@ -12,7 +12,7 @@ import Data.Nat as Nat
 open Nat using (ℕ; zero; suc; _<′_)
 import Data.Nat.Properties as Nat
 import Data.Fin as Fin
-open Fin using (Fin; zero; suc; #_; toℕ) renaming (_ℕ-ℕ_ to _-_)
+open Fin using (Fin; Fin′; zero; suc; #_; toℕ) renaming (_ℕ-ℕ_ to _-_)
 import Data.Fin.Props as FP
 open FP using (_≟_)
 import Data.Product as Prod
@@ -221,13 +221,13 @@ private
 -- The predecessors of a given node i (node number relative to i ×
 -- edge label).
 
-preds : ∀ {E N n} → Graph N E n → (i : Fin n) → List (Fin (toℕ i) × E)
+preds : ∀ {E N n} → Graph N E n → (i : Fin n) → List (Fin′ i × E)
 preds g       zero    = []
 preds (c & g) (suc i) =
   List._++_ (List.gfilter (p i) $ successors c)
             (List.map (Prod.map suc id) $ preds g i)
   where
-  p : ∀ {E n} (i : Fin n) → E × Fin n → Maybe (Fin (suc (toℕ i)) × E)
+  p : ∀ {E n} (i : Fin n) → E × Fin n → Maybe (Fin′ (suc i) × E)
   p i (e , j)  with i ≟ j
   p i (e , .i) | yes refl = just (zero , e)
   p i (e , j)  | no _     = nothing

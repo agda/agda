@@ -85,7 +85,7 @@ nℕ-ℕi≤n (suc n) (suc i)  = begin
   n       ≤⟨ N.n≤1+n n ⟩
   suc n   ∎
 
-inject-lemma : ∀ {n} {i : Fin n} (j : Fin (toℕ i)) →
+inject-lemma : ∀ {n} {i : Fin n} (j : Fin′ i) →
                toℕ (inject j) ≡ toℕ j
 inject-lemma {i = zero}  ()
 inject-lemma {i = suc i} zero    = refl
