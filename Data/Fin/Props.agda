@@ -93,6 +93,11 @@ inject₁-lemma : ∀ {m} (i : Fin m) → toℕ (inject₁ i) ≡ toℕ i
 inject₁-lemma zero    = refl
 inject₁-lemma (suc i) = cong suc (inject₁-lemma i)
 
+inject≤-lemma : ∀ {m n} (i : Fin m) (le : m ℕ≤ n) →
+                toℕ (inject≤ i le) ≡ toℕ i
+inject≤-lemma zero    (N.s≤s le) = refl
+inject≤-lemma (suc i) (N.s≤s le) = cong suc (inject≤-lemma i le)
+
 ≺⇒<′ : _≺_ ⇒ N._<′_
 ≺⇒<′ (n ≻toℕ i) = N.≤⇒≤′ (bounded i)
 
