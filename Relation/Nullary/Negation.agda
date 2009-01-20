@@ -67,7 +67,8 @@ private
           ¬ ¬ ((x : P) → Q x) → (x : P) → ¬ ¬ Q x
 ¬¬-push ¬¬P⟶Q P ¬Q = ¬¬P⟶Q (λ P⟶Q → ¬Q (P⟶Q P))
 
--- A double-negation-translated variant of excluded middle.
+-- A double-negation-translated variant of excluded middle (or: every
+-- nullary relation is decidable in the double-negation monad).
 
 excluded-middle : {P : Set} → ¬ ¬ Dec P
 excluded-middle ¬h = ¬h (no (λ p → ¬h (yes p)))
