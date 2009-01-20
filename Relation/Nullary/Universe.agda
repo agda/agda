@@ -51,7 +51,7 @@ Eq Id        = _≡_
 Eq (K P)     = _≡_
 Eq (F₁ ∨ F₂) = Eq F₁ ⊎-Rel Eq F₂
 Eq (F₁ ∧ F₂) = Eq F₁ ×-Rel Eq F₂
-Eq (P₁ ⇒ F₂) = ≡↝ (Eq F₂)
+Eq (P₁ ⇒ F₂) = ≡↝ (λ _ → Eq F₂)
 Eq (¬¬ F)    = Always
 
 ⟨_⟩_≈_ : (F : PropF) {P : Set} → Rel (⟦ F ⟧ P)
@@ -64,7 +64,7 @@ isEquivalence (F₁ ∨ F₂) = isEquivalence F₁ ⊎-isEquivalence
                           isEquivalence F₂
 isEquivalence (F₁ ∧ F₂) = isEquivalence F₁ ×-isEquivalence
                           isEquivalence F₂
-isEquivalence (P₁ ⇒ F₂) = LiftEquiv≡ (isEquivalence F₂)
+isEquivalence (P₁ ⇒ F₂) = LiftEquiv≡ (λ _ → isEquivalence F₂)
 isEquivalence (¬¬ F)    = Always-isEquivalence
 
 -- ⟦ F ⟧ is functorial.

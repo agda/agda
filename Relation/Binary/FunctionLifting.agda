@@ -45,22 +45,22 @@ LiftSetoid s₁ s₂ pres = record
   }
   where open Setoid
 
-≡↝ : {a b : Set} → Rel b → Rel (a → b)
-≡↝ _∼_ = λ f g → ∀ x → f x ∼ g x
+≡↝ : ∀ {A} {B : A → Set} → (∀ x → Rel (B x)) → Rel ((x : A) → B x)
+≡↝ R = λ f g → ∀ x → R x (f x) (g x)
 
-LiftEquiv≡ : ∀ {a b} {∼ : Rel b} →
-             IsEquivalence ∼ → IsEquivalence (≡↝ {a} ∼)
-LiftEquiv≡ {a} {b} {∼} eq = record
+LiftEquiv≡ : {A : Set} {B : A → Set} {R : ∀ x → Rel (B x)} →
+             (∀ x → IsEquivalence (R x)) → IsEquivalence (≡↝ R)
+LiftEquiv≡ eq = record
   { refl  = λ _ → refl
   ; sym   = λ f∼g x → sym (f∼g x)
   ; trans = λ f∼g g∼h x → trans (f∼g x) (g∼h x)
   }
-  where open IsEquivalence eq
+  where open module Eq {x} = IsEquivalence (eq x)
 
-LiftSetoid≡ : Set → Setoid → Setoid
-LiftSetoid≡ a₁ s₂ = record
-  { carrier       = a₁ → carrier s₂
-  ; _≈_           = ≡↝ (_≈_ s₂)
-  ; isEquivalence = LiftEquiv≡ (isEquivalence s₂)
+LiftSetoid≡ : (A : Set) → (A → Setoid) → Setoid
+LiftSetoid≡ A S = record
+  { carrier       = (x : A) → carrier (S x)
+  ; _≈_           = ≡↝ (λ x → _≈_ (S x))
+  ; isEquivalence = LiftEquiv≡ (λ x → isEquivalence (S x))
   }
   where open Setoid
