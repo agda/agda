@@ -423,6 +423,13 @@ n≤1+n _ = ≤-step ≤-refl
 ≤pred⇒≤ m zero    le = le
 ≤pred⇒≤ m (suc n) le = ≤-step le
 
+≤⇒pred≤ : ∀ m n → m ≤ n → pred m ≤ n
+≤⇒pred≤ zero    n le = le
+≤⇒pred≤ (suc m) n le = start
+  m     ≤⟨ n≤1+n m ⟩
+  suc m ≤⟨ le ⟩
+  n     □
+
 ¬i+1+j≤i : ∀ i {j} → ¬ i + suc j ≤ i
 ¬i+1+j≤i zero    ()
 ¬i+1+j≤i (suc i) le = ¬i+1+j≤i i (≤-pred le)
