@@ -223,7 +223,7 @@ forceData d (El s0 t) = liftTCM $ do
 
 isCoinductive :: MonadTCM tcm => Type -> tcm (Maybe Bool)
 isCoinductive t = do
-  El _ t <- instantiateFull t
+  El _ t <- normalise t
   case t of
     Def q _ -> do
       def <- getConstInfo q
