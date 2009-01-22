@@ -65,16 +65,8 @@ preorder a = record
 
 infix 4 _≗_
 
-_→-setoid_ : (a b : Set) → Setoid
-a →-setoid b = record
-  { carrier       = a → b
-  ; _≈_           = λ f g → ∀ x → f x ≡ g x
-  ; isEquivalence = record
-    { refl  = λ         _ → refl
-    ; sym   = λ f≗g     x → sym   (f≗g x)
-    ; trans = λ f≗g g≗h x → trans (f≗g x) (g≗h x)
-    }
-  }
+_→-setoid_ : (A B : Set) → Setoid
+A →-setoid B = LiftSetoid≡ A (λ _ → setoid B)
 
 _≗_ : ∀ {a b} (f g : a → b) → Set
 _≗_ {a} {b} = Setoid._≈_ (a →-setoid b)
