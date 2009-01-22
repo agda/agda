@@ -114,15 +114,14 @@ page css modName contents info =
                            , thetype "text/css"
                            ])
   +++
-  body << pre << code modName contents info
+  body << pre << code contents info
 
 -- | Constructs the HTML displaying the code.
 
-code :: A.ModuleName   -- ^ Module to be highlighted.
-     -> String         -- ^ The contents of the module.
+code :: String         -- ^ The contents of the module.
      -> CompressedFile -- ^ Highlighting information.
      -> Html
-code modName contents info =
+code contents info =
   mconcat $
   map (\(pos, s, mi) -> annotate pos mi (stringToHtml s)) $
   map (\cs@((mi, (pos, _)) : _) ->
@@ -147,7 +146,6 @@ code modName contents info =
       maybe [] noteClasses (note mi)
       ++ otherAspectClasses (otherAspects mi)
       ++ maybe [] aspectClasses (aspect mi)
-      ++ maybe [] linkClasses (definitionSite mi)
 
     aspectClasses (Name mKind op) = kindClass ++ opClass
       where
@@ -166,6 +164,3 @@ code modName contents info =
     noteClasses s = []
 
     link (m, f, pos) = [href $ modToFile m ++ "#" ++ show pos]
-    linkClasses (m, f, pos)
-      | m == map show (A.mnameToList modName) = ["InternalLink"]
-      | otherwise                             = ["ExternalLink"]
