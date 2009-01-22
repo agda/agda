@@ -27,9 +27,4 @@
 .Error              { color: red;   text-decoration: underline }
 
 /* Standard attributes. */
-a:link    { text-decoration: none }
-a:visited { text-decoration: none }
-
-/* To avoid a:link and a:visited overriding .Error: */
-a.Error:link    { text-decoration: underline }
-a.Error:visited { text-decoration: underline }
+a { text-decoration: none }
