@@ -33,8 +33,8 @@ null (_ ∷ _) = false
 
 map : ∀ {A B} → (A → B) → Colist A → Colist B
 map f []       = []
-map f (x ∷ xs) = f x ∷ rec
-  where rec ~ ♯ map f (♭ xs)
+map f (x ∷ xs) = f x ∷ map′
+  where map′ ~ ♯ map f (♭ xs)
 
 fromList : ∀ {A} → List A → Colist A
 fromList []       = []
@@ -54,8 +54,8 @@ infixr 5 _++_
 
 _++_ : ∀ {A} → Colist A → Colist A → Colist A
 []       ++ ys = []
-(x ∷ xs) ++ ys = x ∷ rec
-  where rec ~ ♯ (♭ xs ++ ys)
+(x ∷ xs) ++ ys = x ∷ ++′
+  where ++′ ~ ♯ (♭ xs ++ ys)
 
 [_] : ∀ {A} → A → Colist A
 [ x ] = x ∷ ♯ []
@@ -97,18 +97,18 @@ setoid A = record
   where
   refl : Reflexive _≈_
   refl {[]}     = []
-  refl {x ∷ xs} = x ∷ rec
-    where rec ~ ♯ refl
+  refl {x ∷ xs} = x ∷ refl′
+    where refl′ ~ ♯ refl
 
   sym : Symmetric _≈_
   sym []        = []
-  sym (x ∷ xs≈) = x ∷ rec
-    where rec ~ ♯ sym (♭ xs≈)
+  sym (x ∷ xs≈) = x ∷ sym′
+    where sym′ ~ ♯ sym (♭ xs≈)
 
   trans : Transitive _≈_
   trans []        []         = []
-  trans (x ∷ xs≈) (.x ∷ ys≈) = x ∷ rec
-    where rec ~ ♯ trans (♭ xs≈) (♭ ys≈)
+  trans (x ∷ xs≈) (.x ∷ ys≈) = x ∷ trans′
+    where trans′ ~ ♯ trans (♭ xs≈) (♭ ys≈)
 
 poset : Set → Poset
 poset A = record
@@ -153,8 +153,8 @@ poset A = record
 
 map-cong : ∀ {A B} (f : A → B) → _≈_ =[ map f ]⇒ _≈_
 map-cong f []        = []
-map-cong f (x ∷ xs≈) = f x ∷ rec
-  where rec ~ ♯ map-cong f (♭ xs≈)
+map-cong f (x ∷ xs≈) = f x ∷ map-cong′
+  where map-cong′ ~ ♯ map-cong f (♭ xs≈)
 
 take-⊑ : ∀ {A} n (xs : Colist A) →
          let toColist = fromList ∘ BVec.toList in

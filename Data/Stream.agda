@@ -22,16 +22,16 @@ data Stream (A : Set) : Set where
 -- Some operations
 
 map : ∀ {A B} → (A → B) → Stream A → Stream B
-map f (x ∷ xs) = f x ∷ rec
-  where rec ~ ♯ map f (♭ xs)
+map f (x ∷ xs) = f x ∷ map′
+  where map′ ~ ♯ map f (♭ xs)
 
 take : ∀ {A} (n : ℕ) → Stream A → Vec A n
 take zero    xs       = []
 take (suc n) (x ∷ xs) = x ∷ take n (♭ xs)
 
 toColist : ∀ {A} → Stream A → Colist A
-toColist (x ∷ xs) = x ∷ rec
-  where rec ~ ♯ toColist (♭ xs)
+toColist (x ∷ xs) = x ∷ toColist′
+  where toColist′ ~ ♯ toColist (♭ xs)
 
 lookup : ∀ {A} → ℕ → Stream A → A
 lookup zero    (x ∷ xs) = x
@@ -41,8 +41,8 @@ infixr 5 _++_
 
 _++_ : ∀ {A} → Colist A → Stream A → Stream A
 []       ++ ys = ys
-(x ∷ xs) ++ ys = x ∷ rec
-  where rec ~ ♯ (♭ xs ++ ys)
+(x ∷ xs) ++ ys = x ∷ ++′
+  where ++′ ~ ♯ (♭ xs ++ ys)
 
 ------------------------------------------------------------------------
 -- Equality and other relations
@@ -79,18 +79,18 @@ setoid A = record
   }
   where
   refl : Reflexive _≈_
-  refl {x ∷ xs} = x ∷ rec
-    where rec ~ ♯ refl
+  refl {x ∷ xs} = x ∷ refl′
+    where refl′ ~ ♯ refl
 
   sym : Symmetric _≈_
-  sym (x ∷ xs≈) = x ∷ rec
-    where rec ~ ♯ sym (♭ xs≈)
+  sym (x ∷ xs≈) = x ∷ sym′
+    where sym′ ~ ♯ sym (♭ xs≈)
 
   trans : Transitive _≈_
-  trans (x ∷ xs≈) (.x ∷ ys≈) = x ∷ rec
-    where rec ~ ♯ trans (♭ xs≈) (♭ ys≈)
+  trans (x ∷ xs≈) (.x ∷ ys≈) = x ∷ trans′
+    where trans′ ~ ♯ trans (♭ xs≈) (♭ ys≈)
 
 map-cong : ∀ {A B} (f : A → B) {xs ys : Stream A} →
            xs ≈ ys → map f xs ≈ map f ys
-map-cong f (x ∷ xs≈) = f x ∷ rec
-  where rec ~ ♯ map-cong f (♭ xs≈)
+map-cong f (x ∷ xs≈) = f x ∷ map-cong′
+  where map-cong′ ~ ♯ map-cong f (♭ xs≈)

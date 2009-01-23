@@ -33,5 +33,5 @@ fromColist (x ∷ xs) ~ x ∷ fromColist (♭ xs)
 
 toColist : ∀ {A} → Colist A → C.Colist A
 toColist []       = []
-toColist (x ∷ xs) = x ∷ rec
-  where rec ~ ♯ toColist xs
+toColist (x ∷ xs) = x ∷ toColist′
+  where toColist′ ~ ♯ toColist xs
