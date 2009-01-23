@@ -26,6 +26,7 @@ module Agda.Syntax.Position
   , rStart
   , rEnd
   , rangeToInterval
+  , continuous
   , HasRange(..)
   , SetRange(..)
   , KillRange(..)
@@ -42,7 +43,7 @@ module Agda.Syntax.Position
 import Data.Generics (Data, Typeable)
 import Data.List
 import Data.Function
-import Data.Set (Set)
+import Data.Set (Set, (\\))
 import qualified Data.Set as Set
 import Agda.Utils.QuickCheck
 import Control.Applicative
@@ -257,6 +258,12 @@ rangeToInterval (Range is)   = Just $ Interval { iStart = iStart (head is)
                                                , iEnd   = iEnd   (last is)
                                                }
 
+-- | Returns the shortest continuous range containing the given one.
+continuous :: Range -> Range
+continuous r = case rangeToInterval r of
+  Nothing -> Range []
+  Just i  -> Range [i]
+
 -- | The initial position in the range, if any.
 rStart :: Range -> Maybe Position
 rStart r = iStart <$> rangeToInterval r
@@ -341,6 +348,11 @@ prop_rangeToInterval r =
   iPositions i == makeInterval (rPositions r)
   where Just i = rangeToInterval r
 
+prop_continuous r =
+  rangeInvariant cr &&
+  rPositions cr == makeInterval (rPositions r)
+  where cr = continuous r
+
 prop_fuseIntervals i1 i2 =
   intervalInvariant i &&
   iPositions i ==
@@ -388,6 +400,7 @@ tests = runTests "Agda.Syntax.Position"
   , quickCheck' prop_noRange
   , quickCheck' prop_takeI_dropI
   , quickCheck' prop_rangeToInterval
+  , quickCheck' prop_continuous
   , quickCheck' prop_fuseIntervals
   , quickCheck' prop_fuseRanges
   , quickCheck' prop_beginningOf
