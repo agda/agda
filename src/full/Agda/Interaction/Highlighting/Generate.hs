@@ -49,11 +49,13 @@ import Agda.Utils.Impossible
 #include "../../undefined.h"
 
 -- | Generates syntax highlighting information for an error,
--- represented as a range and a string.
+-- represented as a range and a string. The range is first completed
+-- so that there are no gaps in it.
 
 generateErrorInfo :: P.Range -> String -> File
 generateErrorInfo r s =
-  several (rToR r) (mempty { otherAspects = [Error], note = Just s })
+  several (rToR $ P.continuous r)
+          (mempty { otherAspects = [Error], note = Just s })
 
 -- | Has typechecking been done yet?
 
