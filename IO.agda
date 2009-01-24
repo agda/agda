@@ -44,6 +44,29 @@ abstract
   run (m₁ >> m₂) = Prim._>>=_ (run (♭₁ m₁)) λ _ → run (♭₁ m₂)
 
 ------------------------------------------------------------------------
+-- Utilities
+
+-- Because IO A lives in Set1 I hesitate to define sequence, which
+-- would require defining a Set1 variant of Colist.
+
+mapM : ∀ {A B} → (A → IO B) → Colist A → IO (Colist B)
+mapM f []       = return []
+mapM f (x ∷ xs) = ♯₁ f x >>= mapM′
+  where
+  mapM′ : _ → ∞₁ _
+  mapM′ y ~ ♯₁
+    (♯₁ mapM f (♭ xs) >>= λ ys →
+     ♯₁ return (y ∷ ♯ ys))
+
+-- The reason for not defining mapM′ in terms of mapM is efficiency
+-- (the unused results could cause unnecessary memory use).
+
+mapM′ : ∀ {A B} → (A → IO B) → Colist A → IO ⊤
+mapM′ f []       = return _
+mapM′ f (x ∷ xs) = ♯₁ f x >> mapM″
+  where mapM″ ~ ♯₁ mapM′ f (♭ xs)
+
+------------------------------------------------------------------------
 -- Simple lazy IO (UTF8-based)
 
 getContents : IO Costring
