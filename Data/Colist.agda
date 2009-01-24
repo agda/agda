@@ -53,7 +53,7 @@ lookup (suc n) (x ∷ xs) = lookup n (♭ xs)
 infixr 5 _++_
 
 _++_ : ∀ {A} → Colist A → Colist A → Colist A
-[]       ++ ys = []
+[]       ++ ys = ys
 (x ∷ xs) ++ ys = x ∷ ++′
   where ++′ ~ ♯ (♭ xs ++ ys)
 
