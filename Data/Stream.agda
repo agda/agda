@@ -21,13 +21,40 @@ data Stream (A : Set) : Set where
 ------------------------------------------------------------------------
 -- Some operations
 
+head : forall {A} -> Stream A -> A
+head (x ∷ xs) = x
+
+tail : forall {A} -> Stream A -> Stream A
+tail (x ∷ xs) = ♭ xs
+
 map : ∀ {A B} → (A → B) → Stream A → Stream B
 map f (x ∷ xs) = f x ∷ map′
   where map′ ~ ♯ map f (♭ xs)
 
+zipWith : forall {A B C} ->
+          (A -> B -> C) -> Stream A -> Stream B -> Stream C
+zipWith _∙_ (x ∷ xs) (y ∷ ys) = (x ∙ y) ∷ zipWith′
+  where zipWith′ ~ ♯ zipWith _∙_ (♭ xs) (♭ ys)
+
 take : ∀ {A} (n : ℕ) → Stream A → Vec A n
 take zero    xs       = []
 take (suc n) (x ∷ xs) = x ∷ take n (♭ xs)
+
+drop : ∀ {A} -> ℕ -> Stream A -> Stream A
+drop zero    xs       = xs
+drop (suc n) (x ∷ xs) = drop n (♭ xs)
+
+repeat : forall {A} -> A -> Stream A
+repeat x = x ∷ repeat′
+  where repeat′ ~ ♯ repeat x
+
+-- Interleaves the two streams.
+
+infixr 5 _⋎_
+
+_⋎_ : ∀ {A} → Stream A → Stream A → Stream A
+(x ∷ xs) ⋎ ys = x ∷ ⋎′
+  where ⋎′ ~ ♯ (ys ⋎ ♭ xs)
 
 toColist : ∀ {A} → Stream A → Colist A
 toColist (x ∷ xs) = x ∷ toColist′
