@@ -8,6 +8,7 @@ open import Coinduction
 open import Data.Bool  using (Bool; true; false)
 open import Data.Maybe using (Maybe; nothing; just)
 open import Data.Nat   using (ℕ; zero; suc)
+open import Data.Conat
 open import Data.List  using (List; []; _∷_)
 import Data.BoundedVec.Inefficient as BVec
 open BVec using (BoundedVec; []; _∷_)
@@ -44,6 +45,11 @@ take : ∀ {A} (n : ℕ) → Colist A → BoundedVec A n
 take zero    xs       = []
 take (suc n) []       = []
 take (suc n) (x ∷ xs) = x ∷ take n (♭ xs)
+
+replicate : ∀ {A} → Coℕ → A → Colist A
+replicate zero    x = []
+replicate (suc n) x = x ∷ replicate′
+  where replicate′ ~ ♯ replicate (♭ n) x
 
 lookup : ∀ {A} → ℕ → Colist A → Maybe A
 lookup n       []       = nothing
