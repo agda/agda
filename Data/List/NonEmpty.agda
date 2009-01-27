@@ -15,9 +15,9 @@ data List⁺ (A : Set) : Set where
   [_] : (x : A) → List⁺ A
   _∷_ : (x : A) (xs : List⁺ A) → List⁺ A
 
-fromVec : ∀ {A n} → Vec A (suc n) → List⁺ A
-fromVec (x ∷ [])     = [ x ]
-fromVec (x ∷ y ∷ xs) = x ∷ fromVec (y ∷ xs)
+fromVec : ∀ {n A} → Vec A (suc n) → List⁺ A
+fromVec {zero}  (x ∷ []) = [ x ]
+fromVec {suc n} (x ∷ xs) = x ∷ fromVec xs
 
 length_-1 : ∀ {A} → List⁺ A → ℕ
 length [ x ]  -1 = 0
