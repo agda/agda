@@ -64,6 +64,8 @@ _++_ : ∀ {A m n} → Covec A m → Covec A n → Covec A (m + n)
 ------------------------------------------------------------------------
 -- Equality and other relations
 
+-- xs ≈ ys means that xs and ys are equal.
+
 infix 4 _≈_
 
 data _≈_ {A} : ∀ {n} (xs ys : Covec A n) → Set where
@@ -71,11 +73,15 @@ data _≈_ {A} : ∀ {n} (xs ys : Covec A n) → Set where
   _∷_ : ∀ {n} x {xs ys}
         (xs≈ : ∞ (♭ xs ≈ ♭ ys)) → _≈_ {n = suc n} (x ∷ xs) (x ∷ ys)
 
+-- x ∈ xs means that x is a member of xs.
+
 infix 4 _∈_
 
 data _∈_ {A} : ∀ {n} → A → Covec A n → Set where
   here  : ∀ {n x  } {xs}                   → _∈_ {n = suc n} x (x ∷ xs)
   there : ∀ {n x y} {xs} (x∈xs : x ∈ ♭ xs) → _∈_ {n = suc n} x (y ∷ xs)
+
+-- xs ⊑ ys means that xs is a prefix of ys.
 
 infix 4 _⊑_
 

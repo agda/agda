@@ -74,16 +74,22 @@ _++_ : ∀ {A} → Colist A → Stream A → Stream A
 ------------------------------------------------------------------------
 -- Equality and other relations
 
+-- xs ≈ ys means that xs and ys are equal.
+
 infix 4 _≈_
 
 data _≈_ {A} : (xs ys : Stream A) → Set where
   _∷_ : ∀ x {xs ys} (xs≈ : ∞ (♭ xs ≈ ♭ ys)) → x ∷ xs ≈ x ∷ ys
+
+-- x ∈ xs means that x is a member of xs.
 
 infix 4 _∈_
 
 data _∈_ {A : Set} : A → Stream A → Set where
   here  : ∀ {x   xs}                   → x ∈ x ∷ xs
   there : ∀ {x y xs} (x∈xs : x ∈ ♭ xs) → x ∈ y ∷ xs
+
+-- xs ⊑ ys means that xs is a prefix of ys.
 
 infix 4 _⊑_
 
