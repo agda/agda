@@ -36,4 +36,5 @@ map : ∀ {A B} → (A → B) → List⁺ A → List⁺ B
 map f = lift (λ xs → (, Vec.map f xs))
 
 _++_ : ∀ {A} → List⁺ A → List⁺ A → List⁺ A
-xs ++ ys = lift (λ xs → (, Vec._++_ xs (toVec ys))) xs
+[ x ]    ++ ys = x ∷ ys
+(x ∷ xs) ++ ys = x ∷ (xs ++ ys)
