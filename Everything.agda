@@ -48,7 +48,10 @@ import Data.Bool.Show
 import Data.BoundedVec
 import Data.BoundedVec.Inefficient
 import Data.Char
+import Data.Cofin
 import Data.Colist
+import Data.Conat
+import Data.Covec
 import Data.DifferenceList
 import Data.DifferenceNat
 import Data.DifferenceVec
