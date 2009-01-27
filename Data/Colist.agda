@@ -5,11 +5,13 @@
 module Data.Colist where
 
 open import Coinduction
-open import Data.Bool  using (Bool; true; false)
-open import Data.Maybe using (Maybe; nothing; just)
-open import Data.Nat   using (ℕ; zero; suc)
+open import Data.Bool          using (Bool; true; false)
+open import Data.Maybe         using (Maybe; nothing; just)
+open import Data.Nat           using (ℕ; zero; suc)
 open import Data.Conat
-open import Data.List  using (List; []; _∷_)
+open import Data.List          using (List; []; _∷_)
+open import Data.List.NonEmpty using (List⁺; _∷_)
+                               renaming ([_] to [_]⁺)
 import Data.BoundedVec.Inefficient as BVec
 open BVec using (BoundedVec; []; _∷_)
 open import Data.Product using (_,_)
@@ -62,6 +64,11 @@ _++_ : ∀ {A} → Colist A → Colist A → Colist A
 []       ++ ys = ys
 (x ∷ xs) ++ ys = x ∷ ++′
   where ++′ ~ ♯ (♭ xs ++ ys)
+
+concat : ∀ {A} → Colist (List⁺ A) → Colist A
+concat []               = []
+concat ([ x ]⁺   ∷ xss) = x ∷ concat′ where concat′ ~ ♯ concat (♭ xss)
+concat ((x ∷ xs) ∷ xss) = x ∷ concat′ where concat′ ~ ♯ concat (xs ∷ xss)
 
 [_] : ∀ {A} → A → Colist A
 [ x ] = x ∷ ♯ []
