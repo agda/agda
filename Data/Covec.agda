@@ -9,6 +9,7 @@ open import Data.Nat     using (ℕ; zero; suc)
 open import Data.Conat
 open import Data.Cofin   using (Cofin; zero; suc)
 open import Data.Vec     using (Vec; []; _∷_)
+import Data.Colist as Colist; open Colist using (Colist; []; _∷_)
 open import Data.Product using (_,_)
 open import Relation.Binary
 
@@ -32,6 +33,11 @@ map f (x ∷ xs) = f x ∷ map′
 fromVec : ∀ {A n} → Vec A n → Covec A (fromℕ n)
 fromVec []       = []
 fromVec (x ∷ xs) = x ∷ ♯ fromVec xs
+
+fromColist : ∀ {A} (xs : Colist A) → Covec A (Colist.length xs)
+fromColist []       = []
+fromColist (x ∷ xs) = x ∷ fromColist′
+  where fromColist′ ~ ♯ fromColist (♭ xs)
 
 take : ∀ {A} m {n} → Covec A (m + n) → Covec A m
 take zero    xs       = []
