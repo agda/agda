@@ -34,6 +34,11 @@ null : ∀ {A} → Colist A → Bool
 null []      = true
 null (_ ∷ _) = false
 
+length : ∀ {A} → Colist A → Coℕ
+length []       = zero
+length (x ∷ xs) = suc length′
+  where length′ ~ ♯ length (♭ xs)
+
 map : ∀ {A B} → (A → B) → Colist A → Colist B
 map f []       = []
 map f (x ∷ xs) = f x ∷ map′
