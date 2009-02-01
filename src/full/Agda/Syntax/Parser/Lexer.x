@@ -33,8 +33,8 @@ $hexdigit    = [ $digit a-f A-F ]
 $alpha	     = [ A-Z a-z _ ]
 $op	     = [ \- \! \# \$ \% \& \* \+ \/ \< \= \> \^ \| \~ \? \` \[ \] \, \: ]
 $idstart     = [ $digit $alpha $op ]
-$idchar	     = [ $idstart $digit ' \\ ]
-$endcomment  = ~ [ $idchar \\ ]
+$idchar	     = [ $idstart ' \\ ]
+$endcomment  = ~ [ $idchar ]
 $nonalpha    = $idchar # $alpha
 $nonalphanum = $nonalpha # $digit
 
