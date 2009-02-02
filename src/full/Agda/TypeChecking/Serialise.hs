@@ -4,7 +4,7 @@
              ScopedTypeVariables,
              CPP
              #-}
-{-# OPTIONS_GHC -O6 #-}
+{-# OPTIONS_GHC -O2 #-}
 
 -- | Structure-sharing serialisation of Agda interface files.
 
