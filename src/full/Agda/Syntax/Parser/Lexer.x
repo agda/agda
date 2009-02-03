@@ -84,7 +84,7 @@ tokens :-
     -- We need to rule out pragmas here. Usually longest match would take
     -- precedence, but in some states pragmas aren't valid but comments are.
 <0,code,bol_,layout_,empty_layout_,imp_dir_>
-    "{-" / { notFollowedBy '#' }    { nestedComment }
+    "{-" / { not' (followedBy '#') }    { nestedComment }
 
 
 -- Dashes followed by a name symbol should be parsed as a name.
@@ -103,7 +103,7 @@ tokens :-
     {
 	\n		    ;
 --	^ \\ "end{code}"    { end }
-	() / { notEOF }	    { offsideRule }
+	() / { not' eof }	{ offsideRule }
     }
 
 -- After a layout keyword there is either an open brace (no layout) or the

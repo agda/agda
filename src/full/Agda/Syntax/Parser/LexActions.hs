@@ -16,7 +16,7 @@ module Agda.Syntax.Parser.LexActions
       -- ** Specialized actions
     , keyword, symbol, identifier, literal
       -- * Lex predicates
-    , notFollowedBy, followedBy, notEOF, inState
+    , followedBy, eof, inState
     ) where
 
 import Data.Char
@@ -220,20 +220,16 @@ qualified tok =
     Predicates
  --------------------------------------------------------------------------}
 
--- | True when the given character is not the next character of the input string.
-notFollowedBy :: Char -> LexPredicate
-notFollowedBy c' _ _ _ inp =
-    case lexInput inp of
-	[]  -> True
-	c:_ -> c /= c'
-
 -- | True when the given character is the next character of the input string.
 followedBy :: Char -> LexPredicate
-followedBy c' x y z inp = not $ notFollowedBy c' x y z inp
+followedBy c' _ _ _ inp =
+    case lexInput inp of
+	[]  -> False
+	c:_ -> c == c'
 
--- | True if we are not at the end of the file.
-notEOF :: LexPredicate
-notEOF _ _ _ inp = not $ null $ lexInput inp
+-- | True if we are at the end of the file.
+eof :: LexPredicate
+eof _ _ _ inp = null $ lexInput inp
 
 -- | True if the given state appears somewhere on the state stack
 inState :: LexState -> LexPredicate

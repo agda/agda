@@ -24,8 +24,7 @@ symbol     :: Symbol -> LexAction Token
 identifier :: LexAction Token
 literal    :: Read a => (Range -> a -> Literal) -> LexAction Token
 
-notFollowedBy :: Char -> LexPredicate
 followedBy    :: Char -> LexPredicate
-notEOF        :: LexPredicate
+eof           :: LexPredicate
 inState       :: LexState -> LexPredicate
 
