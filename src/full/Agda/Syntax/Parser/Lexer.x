@@ -91,9 +91,11 @@ tokens :-
 <0,code,bol_,layout_,empty_layout_,imp_dir_>
   "--"\-* $endcomment .* / { keepComments } { withInterval TokComment }
 <0,code,bol_,layout_,empty_layout_,imp_dir_>
-   "--"\-* / { keepComments .&&. followedBy '\n' } { withInterval TokComment }
+   "--"\-* / { keepComments .&&. (followedBy '\n' .||. eof) }
+             { withInterval TokComment }
 <0,code,bol_,layout_,empty_layout_,imp_dir_>   "--"\-* $endcomment .* ;
-<0,code,bol_,layout_,empty_layout_,imp_dir_>   "--"\-* $	      ;
+<0,code,bol_,layout_,empty_layout_,imp_dir_>
+  "--"\-* / { followedBy '\n' .||. eof } ;
 
 -- We need to check the offside rule for the first token on each line.  We
 -- should not check the offside rule for the end of file token or an
