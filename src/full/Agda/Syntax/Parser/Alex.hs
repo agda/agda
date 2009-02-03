@@ -9,7 +9,7 @@ module Agda.Syntax.Parser.Alex
     , alexGetChar
       -- * Lex actions
     , LexAction, LexPredicate
-    , (.&&.)
+    , (.&&.), (.||.), not'
     , PreviousInput, CurrentInput, TokenLength
       -- * Monad operations
     , getLexInput, setLexInput
@@ -87,3 +87,11 @@ type LexPredicate   = ([LexState], ParseFlags) -> PreviousInput -> TokenLength -
 -- | Conjunction of 'LexPredicate's.
 (.&&.) :: LexPredicate -> LexPredicate -> LexPredicate
 p1 .&&. p2 = \x y z u -> p1 x y z u && p2 x y z u
+
+-- | Disjunction of 'LexPredicate's.
+(.||.) :: LexPredicate -> LexPredicate -> LexPredicate
+p1 .||. p2 = \x y z u -> p1 x y z u || p2 x y z u
+
+-- | Negation of 'LexPredicate's.
+not' :: LexPredicate -> LexPredicate
+not' p = \x y z u -> not (p x y z u)
