@@ -8,7 +8,7 @@ open import Data.Star
 open import Data.Function
 open import Relation.Binary
 import Relation.Binary.PropositionalEquality as PropEq
-open PropEq using (_≡_; refl; sym; cong)
+open PropEq using (_≡_; refl; sym; cong; cong₂)
 import Relation.Binary.PreorderReasoning as PreR
 
 ◅◅-assoc : ∀ {I} {T : Rel I} {i j k l}
@@ -37,6 +37,14 @@ gmap-◅◅ : ∀ {I} {T : Rel I} {J} {U : Rel J}
           gmap {U = U} f g (xs ◅◅ ys) ≡ gmap f g xs ◅◅ gmap f g ys
 gmap-◅◅ f g ε        ys = refl
 gmap-◅◅ f g (x ◅ xs) ys = cong (_◅_ (g x)) (gmap-◅◅ f g xs ys)
+
+gmap-cong : ∀ {I} {T : Rel I} {J} {U : Rel J}
+            (f : I → J) (g : T =[ f ]⇒ U) (g′ : T =[ f ]⇒ U) →
+            (∀ {i j} (x : T i j) → g x ≡ g′ x) →
+            ∀ {i j} (xs : Star T i j) →
+            gmap {U = U} f g xs ≡ gmap f g′ xs
+gmap-cong f g g′ eq ε        = refl
+gmap-cong f g g′ eq (x ◅ xs) = cong₂ _◅_ (eq x) (gmap-cong f g g′ eq xs)
 
 fold-◅◅ : ∀ {I} (P : Rel I) (_⊕_ : Transitive P) (∅ : Reflexive P) →
           (∀ {i j} (x : P i j) → ∅ ⊕ x ≡ x) →
