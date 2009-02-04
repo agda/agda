@@ -5,9 +5,10 @@
 module Data.Star.Properties where
 
 open import Data.Star
+open import Data.Function
 open import Relation.Binary
 import Relation.Binary.PropositionalEquality as PropEq
-open PropEq using (_≡_; refl; cong)
+open PropEq using (_≡_; refl; sym; cong)
 import Relation.Binary.PreorderReasoning as PreR
 
 ◅◅-assoc : ∀ {I} {T : Rel I} {i j k l}
@@ -16,6 +17,27 @@ import Relation.Binary.PreorderReasoning as PreR
            (xs ◅◅ ys) ◅◅ zs ≡ xs ◅◅ (ys ◅◅ zs)
 ◅◅-assoc ε        ys zs = refl
 ◅◅-assoc (x ◅ xs) ys zs = cong (_◅_ x) (◅◅-assoc xs ys zs)
+
+gmap-◅◅ : ∀ {I} {T : Rel I} {J} {U : Rel J}
+          (f : I → J) (g : T =[ f ]⇒ U)
+          {i j k} (xs : Star T i j) (ys : Star T j k) →
+          gmap {U = U} f g (xs ◅◅ ys) ≡ gmap f g xs ◅◅ gmap f g ys
+gmap-◅◅ f g ε        ys = refl
+gmap-◅◅ f g (x ◅ xs) ys = cong (_◅_ (g x)) (gmap-◅◅ f g xs ys)
+
+fold-◅◅ : ∀ {I} (P : Rel I) (_⊕_ : Transitive P) (∅ : Reflexive P) →
+          (∀ {i j} (x : P i j) → ∅ ⊕ x ≡ x) →
+          (∀ {i j k l} (x : P i j) (y : P j k) (z : P k l) →
+             (x ⊕ y) ⊕ z ≡ x ⊕ (y ⊕ z)) →
+          ∀ {i j k} (xs : Star P i j) (ys : Star P j k) →
+          fold P _⊕_ ∅ (xs ◅◅ ys) ≡ fold P _⊕_ ∅ xs ⊕ fold P _⊕_ ∅ ys
+fold-◅◅ P _⊕_ ∅ left-unit assoc ε        ys = sym (left-unit _)
+fold-◅◅ P _⊕_ ∅ left-unit assoc (x ◅ xs) ys = begin
+  x ⊕  fold P _⊕_ ∅ (xs ◅◅ ys)              ≡⟨ cong (_⊕_ x) $
+                                                 fold-◅◅ P _⊕_ ∅ left-unit assoc xs ys ⟩
+  x ⊕ (fold P _⊕_ ∅ xs  ⊕ fold P _⊕_ ∅ ys)  ≡⟨ sym (assoc x _ _) ⟩
+  (x ⊕ fold P _⊕_ ∅ xs) ⊕ fold P _⊕_ ∅ ys   ∎
+  where open PropEq.≡-Reasoning
 
 -- Reflexive transitive closures are preorders.
 
