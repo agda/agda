@@ -146,6 +146,12 @@ downFrom n = unfold Singleton f (wrap n)
   f : ∀ {n} → Singleton (suc n) → Maybe (ℕ × Singleton n)
   f {n} (wrap .(suc n)) = just (n , wrap n)
 
+-- ** Conversions
+
+fromMaybe : ∀ {A} → Maybe A → List A
+fromMaybe (just x) = [ x ]
+fromMaybe nothing  = []
+
 -- * Sublists
 
 -- ** Extracting sublists
