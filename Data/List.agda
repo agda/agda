@@ -10,6 +10,9 @@ open import Data.Bool
 open import Data.Maybe using (Maybe; nothing; just)
 import Data.Product as Prod; open Prod using (_×_; _,_)
 open import Data.Function
+open import Algebra
+import Relation.Binary.PropositionalEquality as PropEq
+import Algebra.FunctionProperties as FunProp
 
 infixr 5 _∷_ _++_
 
@@ -233,6 +236,34 @@ inj₂s : ∀ {a b} → List (a ⊎ b) → List b
 inj₂s []            = []
 inj₂s (inj₁ x ∷ xs) = inj₂s xs
 inj₂s (inj₂ x ∷ xs) = x ∷ inj₂s xs
+
+------------------------------------------------------------------------
+-- List monoid
+
+monoid : Set → Monoid
+monoid A = record
+  { setoid   = PropEq.setoid (List A)
+  ; _∙_      = _++_
+  ; ε        = []
+  ; isMonoid = record
+    { isSemigroup = record
+      { assoc    = assoc
+      ; ∙-pres-≈ = cong₂ _++_
+      }
+    ; identity = ((λ _ → refl) , identity)
+    }
+  }
+  where
+  open PropEq
+  open FunProp (PropEq.setoid (List A))
+
+  identity : RightIdentity [] _++_
+  identity []       = refl
+  identity (x ∷ xs) = cong (_∷_ x) (identity xs)
+
+  assoc : Associative _++_
+  assoc []       ys zs = refl
+  assoc (x ∷ xs) ys zs = cong (_∷_ x) (assoc xs ys zs)
 
 ------------------------------------------------------------------------
 -- List monad
