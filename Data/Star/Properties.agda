@@ -18,6 +18,19 @@ import Relation.Binary.PreorderReasoning as PreR
 ◅◅-assoc ε        ys zs = refl
 ◅◅-assoc (x ◅ xs) ys zs = cong (_◅_ x) (◅◅-assoc xs ys zs)
 
+gmap-id : ∀ {I} {T : Rel I} {i j} (xs : Star T i j) →
+          gmap id id xs ≡ xs
+gmap-id ε        = refl
+gmap-id (x ◅ xs) = cong (_◅_ x) (gmap-id xs)
+
+gmap-∘ : ∀ {I} {T : Rel I} {J} {U : Rel J} {K} {V : Rel K}
+         (f  : J → K) (g  : U =[ f  ]⇒ V)
+         (f′ : I → J) (g′ : T =[ f′ ]⇒ U)
+         {i j} (xs : Star T i j) →
+         (gmap {U = V} f g ∘ gmap f′ g′) xs ≡ gmap (f ∘ f′) (g ∘ g′) xs
+gmap-∘ f g f′ g′ ε        = refl
+gmap-∘ f g f′ g′ (x ◅ xs) = cong (_◅_ (g (g′ x))) (gmap-∘ f g f′ g′ xs)
+
 gmap-◅◅ : ∀ {I} {T : Rel I} {J} {U : Rel J}
           (f : I → J) (g : T =[ f ]⇒ U)
           {i j k} (xs : Star T i j) (ys : Star T j k) →
