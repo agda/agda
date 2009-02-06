@@ -77,8 +77,8 @@ module HeterogeneousEquality (a : Set) where
   open HetEq using (_≅_)
   open Equality (PropEq.setoid a)
 
-  to-≌ : ∀ {n m}{xs : Vec a n}{ys : Vec a m} 
+  to-≅ : ∀ {n m}{xs : Vec a n}{ys : Vec a m} 
         → xs ≈ ys → xs ≅ ys
-  to-≌ []-cong = HetEq.refl
-  to-≌ (PropEq.refl ∷-cong xs¹≈xs²) with length-equal xs¹≈xs²
-  ... | PropEq.refl = HetEq.cong (_∷_ _) $ to-≌ xs¹≈xs²
+  to-≅ []-cong = HetEq.refl
+  to-≅ (PropEq.refl ∷-cong xs¹≈xs²) with length-equal xs¹≈xs²
+  ... | PropEq.refl = HetEq.cong (_∷_ _) $ to-≅ xs¹≈xs²
