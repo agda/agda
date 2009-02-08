@@ -266,17 +266,15 @@ and GOAL-NAME is for the Agda goal menu.")
 ;; Annotation for a goal
 ;; {! .... !}
 ;; ----------  overlay:    agda2-gn num, face highlight  , after-string num
-;; -           text-props: agda2-gn num, intangible left , read-only
-;;  -          text-props: invisible,    intangible left , read-only
-;;         -   text-props: invisible,    intangible right, read-only
-;;          -  text-props:               intangible right, read-only
-;; Goal number agda2-gn is duplicated in overlay and text-prop so that
-;; overlay can be re-made after undo. (If we had an Agda-aware undo
-;; feature.)
+;; -           text-props: agda2-gn num, intangible left
+;;  -          text-props: invisible,    intangible left
+;;         -   text-props: invisible,    intangible right
+;;          -  text-props:               intangible right
+;; Goal number agda2-gn is duplicated in overlay and text-prop because we
+;; thought it would be useful so that overlay can be re-made after undo.
 ;;
 ;; Char categories for {! ... !}
-(flet ((stpl (c ps) (setplist c (append '(read-only t rear-nonsticky t
-                                          intangible) ps))))
+(flet ((stpl (c ps) (setplist c (append '(rear-nonsticky t intangible) ps))))
   (stpl 'agda2-delim1 '(left))
   (stpl 'agda2-delim2 '(left  invisible t))
   (stpl 'agda2-delim3 '(right invisible t))
@@ -515,8 +513,7 @@ in the buffer's mode line."
   (let ((inhibit-read-only t) (inhibit-point-motion-hooks t))
     (agda2-no-modified-p 'remove-text-properties
                          (point-min) (point-max)
-                         '(category intangible read-only
-                                    invisible agda2-gn))
+                         '(category agda2-gn))
     (setq agda2-buffer-state "Text")
     (force-mode-line-update)))
 
@@ -702,12 +699,33 @@ with text-properties"
 
 (defun agda2-make-goal-B (p &optional q n)
   "Make a goal at <P>{!...!} assuming text-properties are already set."
-  (or q (setq q (+ 2 (text-property-any p (point-max) 'intangible 'right))))
+  (or q (setq q (+ 2 (text-property-any p (point-max) 'category 'agda2-delim3))))
   (or n (setq n (get-text-property p 'agda2-gn)))
   (let ((o (make-overlay p q nil t nil)))
+    (overlay-put o 'modification-hooks     '(agda2-protect-goal-markers))
     (overlay-put o 'agda2-gn      n)
     (overlay-put o 'face         'highlight)
     (overlay-put o 'after-string (propertize (format "%s" n) 'face 'highlight))))
+
+(defun agda2-protect-goal-markers (ol action beg end &optional length)
+  (if action
+      ;; This is the after-change hook.
+      nil
+    ;; This is the before-change hook.
+    (cond
+     ((and (<= beg (overlay-start ol)) (>= end (overlay-end ol)))
+      ;; The user is trying to remove the whole goal:
+      ;; manually evaporate the overlay and add an undo-log entry so
+      ;; it gets re-added if needed.
+      (when (listp buffer-undo-list)
+        (push (list 'apply 0 (overlay-start ol) (overlay-end ol)
+                    'move-overlay ol (overlay-start ol) (overlay-end ol))
+              buffer-undo-list))
+      (delete-overlay ol))
+     ((unless inhibit-read-only
+        (or (< beg (+ (overlay-start ol) 2))
+            (> end (- (overlay-end ol) 2))))
+      (signal 'text-read-only nil)))))
 
 (defun agda2-update (old-g new-txt new-gs)
   "Update the goal OLD-G and annotate new goals NEW-GS.
@@ -800,13 +818,14 @@ notation used in Haskell strings."
           (insert-char ?  indent) (backward-char (1+ indent)))))))
 
 (defun agda2-forget-goal (g &optional remove-braces)
-  (multiple-value-bind (p q) (agda2-range-of-goal g)
-    (let ((o (agda2-goal-overlay g)))
-      (remove-text-properties p q
-        '(category intangible read-only invisible agda2-gn))
-      (when remove-braces
-        (delete-region (- q 2) q)
-        (delete-region p (+ p 2)))
+  (let ((o (agda2-goal-overlay g)))
+    (when o                         ;Don't burp if the overlay is not found.
+      (let ((p (overlay-start o))
+            (q (overlay-end o)))
+        (remove-text-properties p q '(category agda2-gn))
+        (when remove-braces
+          (delete-region (- q 2) q)
+          (delete-region p (+ p 2))))
       (delete-overlay o))))
 
 (defun agda2-forget-all-goals ()
