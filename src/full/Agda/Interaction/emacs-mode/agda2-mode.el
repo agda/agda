@@ -266,19 +266,21 @@ and GOAL-NAME is for the Agda goal menu.")
 ;; Annotation for a goal
 ;; {! .... !}
 ;; ----------  overlay:    agda2-gn num, face highlight  , after-string num
-;; -           text-props: agda2-gn num, intangible left
-;;  -          text-props: invisible,    intangible left
-;;         -   text-props: invisible,    intangible right
-;;          -  text-props:               intangible right
+;; -           text-props: agda2-gn num
+;;  -          text-props: invisible
+;;         -   text-props: invisible
+;;          -  text-props:
 ;; Goal number agda2-gn is duplicated in overlay and text-prop because we
 ;; thought it would be useful so that overlay can be re-made after undo.
 ;;
 ;; Char categories for {! ... !}
-(flet ((stpl (c ps) (setplist c (append '(rear-nonsticky t intangible) ps))))
-  (stpl 'agda2-delim1 '(left))
-  (stpl 'agda2-delim2 '(left  invisible t))
-  (stpl 'agda2-delim3 '(right invisible t))
-  (stpl 'agda2-delim4 '(right)))
+(setplist 'agda2-delim1 '())
+(setplist 'agda2-delim2 '(invisible 'agda2-delim2 front-sticky t rear-nonsticky t))
+(setplist 'agda2-delim3 '(invisible 'agda2-delim3))
+(setplist 'agda2-delim4 '(rear-nonsticky t))
+
+(defvar agda2-font-lock-keywords
+  '())
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; agda2-mode
@@ -405,8 +407,7 @@ WANT is an optional prompt.  When ASK is non-nil, use minibuffer."
   "Execute 'agda2_mode_code<sexp>' within RESPONSE string."
     (while (string-match "agda2_mode_code" response)
       (setq response (substring response (match-end 0)))
-      (let ((inhibit-read-only t)
-            (inhibit-point-motion-hooks t))
+      (let ((inhibit-read-only t))
         (eval (read response)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -510,7 +511,7 @@ in the buffer's mode line."
   (dolist (o (overlays-in (point-min) (point-max)))
     (delete-overlay o))
   (agda2-go "cmd_reset")
-  (let ((inhibit-read-only t) (inhibit-point-motion-hooks t))
+  (let ((inhibit-read-only t))
     (agda2-no-modified-p 'remove-text-properties
                          (point-min) (point-max)
                          '(category agda2-gn))
@@ -522,7 +523,7 @@ in the buffer's mode line."
 (defun agda2-previous-goal () "Go to the previous goal, if any." (interactive)
   (agda2-mv-goal 'previous-single-property-change 'agda2-delim3 0 (point-max)))
 (defun agda2-mv-goal (change delim adjust wrapped)
-  (agda2-let ((inhibit-point-motion-hooks t))
+  (agda2-let ()
       ((go (p) (while (and (setq p (funcall change p 'category))
                            (not (eq (get-text-property p 'category) delim))))
            (if p (goto-char (+ adjust p)))))
@@ -661,7 +662,7 @@ With a prefix argument \"abstract\" is ignored during the computation."
   "Find GOALS in the current buffer starting from POS and annotate them
 with text-properties"
 
-  (agda2-let (stk top (inhibit-point-motion-hooks t))
+  (agda2-let (stk top)
       ((delims() (re-search-forward "[?]\\|[{][-!]\\|[-!][}]\\|--" nil t))
        (is-lone-questionmark ()
           (save-excursion
