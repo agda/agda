@@ -116,6 +116,7 @@ bounds for the current (possibly narrowed) buffer, or END < START."
 
 (defmacro annotation-preserve-mod-p-and-undo (&rest code)
   "Run CODE preserving both its undo data and modification bit."
+  (declare (debug t))
   (let ((modp (make-symbol "modp")))
   `(let ((,modp (buffer-modified-p))
          (buffer-undo-list t))
@@ -155,15 +156,18 @@ modify the undo list.
 
 Note: This function may fail if there is read-only text in the buffer."
   (annotation-preserve-mod-p-and-undo
-   (annotation-remove-annotations)
    (when (file-readable-p file)
      ;; FIXME: Giant security hole!!
      ;; (load file nil 'nomessage)
-     (let ((cmds (with-temp-buffer
-                   (insert "(\n)") (forward-char -2)
-                   (insert-file-contents file)
-                   (goto-char (point-min))
-                   (read (current-buffer)))))
+     (let* ((cmds (with-temp-buffer
+                    (insert "(\n)") (forward-char -2)
+                    (insert-file-contents file)
+                    (goto-char (point-min))
+                    (read (current-buffer))))
+            (anns (delete-dups (apply 'append (mapcar (lambda (x) (cadr (cadddr x)))
+                                                      cmds)))))
+       (unless (member anns '((error) nil))
+         (annotation-remove-annotations))
        (dolist (cmd cmds)
          (destructuring-bind (f start end anns &optional info goto) cmd
            (assert (eq f 'annotation-annotate))
