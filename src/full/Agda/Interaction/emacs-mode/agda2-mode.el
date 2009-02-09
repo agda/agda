@@ -312,6 +312,8 @@ Special commands:
  (let ((l '(max-specpdl-size    2600
             max-lisp-eval-depth 2800)))
    (while l (set (make-local-variable (pop l)) (pop l))))
+ (set (make-local-variable 'font-lock-defaults)
+      '(agda2-font-lock-keywords nil nil nil nil))
  (if (and window-system agda2-fontset-name
           ;; Emacs-23 uses a revamped font engine which should make
           ;; agda2-fontset-name unnecessary in most cases.  And if it turns out

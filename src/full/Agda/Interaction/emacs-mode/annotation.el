@@ -86,15 +86,17 @@ bounds for the current (possibly narrowed) buffer, or END < START."
   (incf end annotations-offset)
   (when (and (<= (point-min) start)
              (<= start end)
-             (<= end (point-max)))
+             (<= end (point-max))
+             ;; Comments are handled by font-lock.
+             (not (member anns '((comment)))))
     (let ((faces (delq nil
                        (mapcar (lambda (ann)
                                  (cdr (assoc ann annotation-bindings)))
                                anns)))
           (props nil))
       (when faces
-        (put-text-property start end 'face faces)
-        (add-to-list 'props 'face))
+        (put-text-property start end 'font-lock-face faces)
+        (add-to-list 'props 'font-lock-face))
       ;; Do this before so `info' can override our default help-echo.
       (when (consp goto)
         (add-text-properties start end
