@@ -11,6 +11,7 @@ import Data.List as List
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Errors
+import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term (checkExpr)
@@ -84,6 +85,7 @@ solveConstraint (Guarded c cs)       = guardConstraint (return cs) c
 solveConstraint (IsEmpty t)          = isEmptyTypeC t
 solveConstraint (UnBlock m)          = do
     inst <- mvInstantiation <$> lookupMeta m
+    reportSDoc "tc.constr.unblock" 15 $ text ("unblocking a metavar yields the constraint:" ++ show inst)        
     case inst of
       BlockedConst t -> do
         verboseS "tc.constr.blocked" 15 $ do
@@ -100,5 +102,12 @@ solveConstraint (UnBlock m)          = do
             v   <- liftTCM $ checkExpr e t
             assignTerm m $ teleLam tel v
             return []
-      _ -> __IMPOSSIBLE__
+      -- Andreas, 2009-02-09, the following were IMPOSSIBLE cases
+      -- somehow they pop up in the context of sized types
+      --
+      -- already solved metavariables: no constraints left (Ulf, is that correct?)
+      InstV{} -> return []
+      InstS{} -> return []
+      -- Open (whatever that means)
+      Open -> __IMPOSSIBLE__
 

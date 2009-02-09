@@ -244,6 +244,13 @@ data MetaInstantiation
         | PostponedTypeCheckingProblem (Closure (A.Expr, Type, TCM Bool))
     deriving (Typeable)
 
+instance Show MetaInstantiation where
+  show (InstV t) = "InstV (" ++ show t ++ ")"
+  show (InstS s) = "InstS (" ++ show s ++ ")"
+  show Open      = "Open"
+  show (BlockedConst t) = "BlockedConst (" ++ show t ++ ")"
+  show (PostponedTypeCheckingProblem{}) = "PostponedTypeCheckingProblem (...)"
+
 newtype MetaPriority = MetaPriority Int
     deriving (Eq, Ord, Show)
 
