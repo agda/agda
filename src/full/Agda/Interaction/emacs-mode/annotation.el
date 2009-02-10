@@ -57,21 +57,18 @@ position."
 
 (defun annotation-annotate (start end anns &optional info goto)
   "Annotate text between START and END in the current buffer.
-ANNS are the annotations to apply.
-All the symbols in ANNS are looked up in
-`annotation-bindings', and the face text property for the given
-character range is set to the resulting list of faces.  If the string
-INFO is non-nil, the mouse-face property is set to highlight, and INFO
-is used as the help-echo string.  If GOTO has the form (FILENAME .
-POSITION), then the mouse-face property is set to highlight and, when
-the user clicks on the annotated text, then point is warped to the
-given position in the given file.
+ANNS are the annotations to apply. All the symbols in ANNS are
+looked up in `annotation-bindings', and the font-lock-face text
+property for the given character range is set to the resulting
+list of faces. If the string INFO is non-nil, the mouse-face
+property is set to highlight, and INFO is used as the help-echo
+string. If GOTO has the form (FILENAME . POSITION), then the
+mouse-face property is set to highlight and, when the user clicks
+on the annotated text, then point is warped to the given position
+in the given file.
 
 Note that if two faces have the same attribute set, then the first one
 takes precedence.
-
-Note also that setting the face text property does not work when
-`font-lock-mode' is activated.
 
 All characters whose text properties get set also have the
 annotation-annotated property set to t, and
@@ -148,17 +145,20 @@ Note: This function may fail if there is read-only text in the buffer."
        (setq pos pos2)))))
 
 (defun annotation-load-file (file)
-  "Load and execute FILE, which should contain calls to `annotation-annotate'.
+  "Apply the annotations in FILE.
 First all existing text properties set by `annotation-annotate'
-in the current buffer are removed.  This function preserves the
-file modification stamp of the current buffer and does not
-modify the undo list.
+in the current buffer are removed.
+
+FILE should contain calls to `annotation-annotate'. The arguments
+to `annotation-annotate' should be in normal form, they are not
+evaluated.
+
+This function preserves the file modification stamp of the
+current buffer and does not modify the undo list.
 
 Note: This function may fail if there is read-only text in the buffer."
   (annotation-preserve-mod-p-and-undo
    (when (file-readable-p file)
-     ;; FIXME: Giant security hole!!
-     ;; (load file nil 'nomessage)
      (let* ((cmds (with-temp-buffer
                     (insert "(\n)") (forward-char -2)
                     (insert-file-contents file)
