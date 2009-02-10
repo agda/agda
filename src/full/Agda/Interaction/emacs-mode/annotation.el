@@ -86,9 +86,7 @@ bounds for the current (possibly narrowed) buffer, or END < START."
   (incf end annotations-offset)
   (when (and (<= (point-min) start)
              (<= start end)
-             (<= end (point-max))
-             ;; Comments are handled by font-lock.
-             (not (member anns '((comment)))))
+             (<= end (point-max)))
     (let ((faces (delq nil
                        (mapcar (lambda (ann)
                                  (cdr (assoc ann annotation-bindings)))

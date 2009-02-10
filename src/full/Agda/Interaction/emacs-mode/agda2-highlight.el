@@ -49,9 +49,7 @@ Also sets the default value of VARIABLE to GROUP."
            (car face-and-attrs) (cdr face-and-attrs)))
         (cond
          ((equal group 'conor)
-          '((agda2-highlight-comment-face
-             :foreground "gray35")
-            (agda2-highlight-keyword-face
+          '((agda2-highlight-keyword-face
              :underline t)
             (agda2-highlight-string-face)
             (agda2-highlight-number-face)
@@ -106,11 +104,6 @@ restarting Emacs."
                    conor))
   :group 'agda2-highlight
   :set 'agda2-highlight-set-faces)
-
-(defface agda2-highlight-comment-face
-  '((t (:foreground "firebrick")))
-  "The face used for comments."
-  :group 'agda2-highlight)
 
 (defface agda2-highlight-keyword-face
   '((t (:foreground "DarkOrange3")))
@@ -224,8 +217,7 @@ restarting Emacs."
   :group 'agda2-highlight)
 
 (defvar agda2-highlight-faces
-  '((comment                . agda2-highlight-comment-face)
-    (keyword                . agda2-highlight-keyword-face)
+  '((keyword                . agda2-highlight-keyword-face)
     (string                 . agda2-highlight-string-face)
     (number                 . agda2-highlight-number-face)
     (symbol                 . agda2-highlight-symbol-face)
@@ -252,7 +244,6 @@ The aspects currently recognised are the following:
 
 `bound'                  Bound variables.
 `coinductiveconstructor' Coinductive constructors.
-`comment'                Comments.
 `datatype'               Data types.
 `dotted'                 Dotted patterns.
 `error'                  Errors.
@@ -271,7 +262,14 @@ The aspects currently recognised are the following:
 `string'                 Strings.
 `symbol'                 Symbols like forall, =, ->, etc.
 `terminationproblem'     Termination problems.
-`unsolvedmeta'           Unsolved meta variables.")
+`unsolvedmeta'           Unsolved meta variables.
+
+The following aspect is ignored:
+
+`comment'                Comments.
+
+Comments are handled by Font Lock mode (which uses the syntax
+table). The face `font-lock-comment-face' is used for comments.")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Functions
