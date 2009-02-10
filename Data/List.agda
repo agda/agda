@@ -225,18 +225,6 @@ partition p (x ∷ xs) with p x | partition p xs
 ... | true  | (ys , zs) = (x ∷ ys , zs)
 ... | false | (ys , zs) = (ys , x ∷ zs)
 
--- Possibly the following functions should be called lefts and rights.
-
-inj₁s : ∀ {a b} → List (a ⊎ b) → List a
-inj₁s []            = []
-inj₁s (inj₁ x ∷ xs) = x ∷ inj₁s xs
-inj₁s (inj₂ x ∷ xs) = inj₁s xs
-
-inj₂s : ∀ {a b} → List (a ⊎ b) → List b
-inj₂s []            = []
-inj₂s (inj₁ x ∷ xs) = inj₂s xs
-inj₂s (inj₂ x ∷ xs) = x ∷ inj₂s xs
-
 ------------------------------------------------------------------------
 -- List monoid
 

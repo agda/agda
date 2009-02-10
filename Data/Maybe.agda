@@ -7,9 +7,7 @@ module Data.Maybe where
 ------------------------------------------------------------------------
 -- The type
 
-data Maybe (A : Set) : Set where
-  just    : (x : A) → Maybe A
-  nothing : Maybe A
+open import Data.Maybe.Core public
 
 ------------------------------------------------------------------------
 -- Some operations
