@@ -47,6 +47,12 @@ toList = Vec.toList ∘ toVec
 ------------------------------------------------------------------------
 -- Other operations
 
+head : ∀ {A} → List⁺ A → A
+head = Vec.head ∘ toVec
+
+tail : ∀ {A} → List⁺ A → List A
+tail = Vec.toList ∘ Vec.tail ∘ toVec
+
 map : ∀ {A B} → (A → B) → List⁺ A → List⁺ B
 map f = lift (λ xs → (, Vec.map f xs))
 
