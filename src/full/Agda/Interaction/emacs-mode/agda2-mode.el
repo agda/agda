@@ -279,9 +279,6 @@ and GOAL-NAME is for the Agda goal menu.")
 (setplist 'agda2-delim3 '(invisible 'agda2-delim3))
 (setplist 'agda2-delim4 '(rear-nonsticky t))
 
-(defvar agda2-font-lock-keywords
-  '())
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; agda2-mode
 
@@ -312,8 +309,6 @@ Special commands:
  (let ((l '(max-specpdl-size    2600
             max-lisp-eval-depth 2800)))
    (while l (set (make-local-variable (pop l)) (pop l))))
- (set (make-local-variable 'font-lock-defaults)
-      '(agda2-font-lock-keywords nil nil nil nil))
  (if (and window-system agda2-fontset-name
           ;; Emacs-23 uses a revamped font engine which should make
           ;; agda2-fontset-name unnecessary in most cases.  And if it turns out
@@ -913,6 +908,11 @@ Depends on the setting of `agda2-indentation'."
   "Set up comment and paragraph handling for Agda mode."
 
   ;; Syntax table setup for comments is done elsewhere.
+
+  ;; Enable highlighting of comments via Font Lock mode (which uses
+  ;; the syntax table).
+  (set (make-local-variable 'font-lock-defaults)
+       '(nil nil nil nil nil))
 
   ;; Empty lines (all white space according to Emacs) delimit
   ;; paragraphs.
