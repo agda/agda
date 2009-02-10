@@ -53,3 +53,6 @@ fileIO/Main$
 src/prototyping/nameless/(nameless|Lam)$
 examples/simple-lib/.*\.hs
 ^std-lib$
+examples/MAlonzo/MAlonzo$
+examples/MAlonzo/main$
+test/fail/MAlonzo$
