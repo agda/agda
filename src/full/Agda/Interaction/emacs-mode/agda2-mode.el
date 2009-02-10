@@ -692,18 +692,12 @@ with text-properties"
     (atp p       `(category agda2-delim1 agda2-gn ,n))
     (atp (1+ p)  '(category agda2-delim2))
     (atp (- q 2) '(category agda2-delim3))
-    (atp (1- q)  '(category agda2-delim4))
-    (agda2-make-goal-B p q n)))
-
-(defun agda2-make-goal-B (p &optional q n)
-  "Make a goal at <P>{!...!} assuming text-properties are already set."
-  (or q (setq q (+ 2 (text-property-any p (point-max) 'category 'agda2-delim3))))
-  (or n (setq n (get-text-property p 'agda2-gn)))
+    (atp (1- q)  '(category agda2-delim4)))
   (let ((o (make-overlay p q nil t nil)))
-    (overlay-put o 'modification-hooks     '(agda2-protect-goal-markers))
-    (overlay-put o 'agda2-gn      n)
-    (overlay-put o 'face         'highlight)
-    (overlay-put o 'after-string (propertize (format "%s" n) 'face 'highlight))))
+    (overlay-put o 'modification-hooks '(agda2-protect-goal-markers))
+    (overlay-put o 'agda2-gn           n)
+    (overlay-put o 'face               'highlight)
+    (overlay-put o 'after-string       (propertize (format "%s" n) 'face 'highlight))))
 
 (defun agda2-protect-goal-markers (ol action beg end &optional length)
   "Ensures that the goal markers cannot be tampered with.
