@@ -281,8 +281,12 @@ table). The face `font-lock-comment-face' is used for comments.")
          (name (file-name-nondirectory buffer-file-name))
          (file (concat dir "." name ".el"))
          (inhibit-read-only t))
-         ; Ignore read-only status, otherwise this function may fail.
-    (annotation-load-file file)))
+         ;; Ignore read-only status, otherwise this function may fail.
+    (annotation-load-file
+     file
+     ;; Do not remove the old annotations if all the new ones
+     ;; correspond to errors, or if there are no new ones.
+     (lambda (anns) (not (member anns '((error) nil)))))))
 
 (defun agda2-highlight-setup nil
   "Set up the `annotation' library for use with `agda2-mode'."

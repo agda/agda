@@ -113,7 +113,6 @@ bounds for the current (possibly narrowed) buffer, or END < START."
 
 (defmacro annotation-preserve-mod-p-and-undo (&rest code)
   "Run CODE preserving both its undo data and modification bit."
-  (declare (debug t))
   (let ((modp (make-symbol "modp")))
   `(let ((,modp (buffer-modified-p))
          (buffer-undo-list t))
@@ -144,10 +143,13 @@ Note: This function may fail if there is read-only text in the buffer."
                               props)))))
        (setq pos pos2)))))
 
-(defun annotation-load-file (file)
+(defun annotation-load-file (file removep)
   "Apply the annotations in FILE.
-First all existing text properties set by `annotation-annotate'
-in the current buffer are removed.
+If (`funcall' REMOVEP anns) is non-nil, then all existing text
+properties set by `annotation-annotate' in the current buffer are
+first removed. Here anns is a list containing all the
+annotations (third argument to `annotation-annotate') to be
+applied (in some order, with duplicates removed).
 
 FILE should contain calls to `annotation-annotate'. The arguments
 to `annotation-annotate' should be in normal form, they are not
@@ -164,9 +166,10 @@ Note: This function may fail if there is read-only text in the buffer."
                     (insert-file-contents file)
                     (goto-char (point-min))
                     (read (current-buffer))))
-            (anns (delete-dups (apply 'append (mapcar (lambda (x) (cadr (cadddr x)))
-                                                      cmds)))))
-       (unless (member anns '((error) nil))
+            (anns (delete-dups
+                   (apply 'append (mapcar (lambda (x) (nth 1 (nth 3 x)))
+                                          cmds)))))
+       (if (funcall removep anns)
          (annotation-remove-annotations))
        (dolist (cmd cmds)
          (destructuring-bind (f start end anns &optional info goto) cmd
