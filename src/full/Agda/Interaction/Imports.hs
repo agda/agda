@@ -365,8 +365,6 @@ createInterface opts trace path visited decoded
         whenM (optGenerateEmacsFile <$> commandLineOptions) $ do
           writeEmacsFile =<<
             generateSyntaxInfo file TypeCheckingNotDone topLevel []
-          appendErrorToEmacsFile e
-          return ()
 
         throwError e)
 

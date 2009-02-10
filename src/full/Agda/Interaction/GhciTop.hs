@@ -111,7 +111,7 @@ theState :: IORef State
 theState = unsafePerformIO $ newIORef initState
 
 ioTCM :: TCM a -> IO a
-ioTCM cmd = do
+ioTCM cmd = infoOnException $ do
   State { theTCState   = st
         , theUndoStack = us
         } <- readIORef theState
@@ -122,10 +122,6 @@ ioTCM cmd = do
       st <- get
       us <- getUndoStack
       return (x,st,us)
-    `catchError` \err -> do
-        liftIO $ tellEmacsToJumpToError (getRange err)
-	display_info errorTitle =<< prettyError err
-	fail "exit"
   case r of
     Right (a,st',ss') -> do
       modifyIORef theState $ \s ->
@@ -133,7 +129,7 @@ ioTCM cmd = do
           , theUndoStack = ss'
           }
       return a
-    Left _ -> exitWith $ ExitFailure 1
+    Left err -> displayErrorAndExit (Left err)
 
 -- | @cmd_load m includes@ loads the module in file @m@, using
 -- @includes@ as the include directories.
@@ -220,13 +216,13 @@ cmd_compile file includes =
     (return ())
 
 cmd_constraints :: IO ()
-cmd_constraints = infoOnException $ ioTCM $ do
+cmd_constraints = ioTCM $ do
     cs <- mapM showA =<< B.getConstraints
     display_info "*Constraints*" (unlines cs)
 
 
 cmd_metas :: IO ()
-cmd_metas = infoOnException $ ioTCM $ do -- CL.showMetas []
+cmd_metas = ioTCM $ do -- CL.showMetas []
   ims <- fst <$> B.typeOfMetas B.AsIs
   hms <- snd <$> B.typeOfMetas B.Normalised -- show unsolved implicit arguments normalised
   di <- mapM (\i -> B.withInteractionId (B.outputFormId i) (showA i)) ims
@@ -258,7 +254,7 @@ cmd_give = give_gen B.give $ \s ce -> case ce of (SC.Paren _ _)-> "'paren"
 cmd_refine :: GoalCommand
 cmd_refine = give_gen B.refine $ \s -> emacsStr . show
 
-give_gen give_ref mk_newtxt ii rng s = infoOnException $ do
+give_gen give_ref mk_newtxt ii rng s = do
     ioTCM $ do
       prec      <- scopePrecedence <$> getInteractionScope ii
       (ae, iis) <- give_ref ii Nothing =<< B.parseExprIn ii rng s
@@ -298,24 +294,24 @@ prettyContext norm ii = B.withInteractionId ii $ do
 longNameLength = 10
 
 cmd_context :: B.Rewrite -> GoalCommand
-cmd_context norm ii _ _ = infoOnException $ ioTCM $
+cmd_context norm ii _ _ = ioTCM $
   display_infoD "*Context*" =<< prettyContext norm ii
 
 cmd_infer :: B.Rewrite -> GoalCommand
-cmd_infer norm ii rng s = infoOnException $ ioTCM $
+cmd_infer norm ii rng s = ioTCM $
   display_infoD "*Inferred Type*"
     =<< B.withInteractionId ii
           (prettyA =<< B.typeInMeta ii norm =<< B.parseExprIn ii rng s)
 
 cmd_goal_type :: B.Rewrite -> GoalCommand
-cmd_goal_type norm ii _ _ = infoOnException $ ioTCM $ do
+cmd_goal_type norm ii _ _ = ioTCM $ do
     s <- B.withInteractionId ii $ prettyTypeOfMeta norm ii
     display_infoD "*Current Goal*" s
 
 -- | Displays the current goal and context plus the given document.
 
 cmd_goal_type_context_and :: Doc -> B.Rewrite -> GoalCommand
-cmd_goal_type_context_and s norm ii _ _ = infoOnException $ ioTCM $ do
+cmd_goal_type_context_and s norm ii _ _ = ioTCM $ do
     goal <- B.withInteractionId ii $ prettyTypeOfMeta norm ii
     ctx  <- prettyContext norm ii
     display_infoD "*Goal type etc.*"
@@ -333,7 +329,7 @@ cmd_goal_type_context = cmd_goal_type_context_and P.empty
 -- expression.
 
 cmd_goal_type_context_infer :: B.Rewrite -> GoalCommand
-cmd_goal_type_context_infer norm ii rng s = infoOnException $ ioTCM $ do
+cmd_goal_type_context_infer norm ii rng s = ioTCM $ do
     typ <- B.withInteractionId ii $
              prettyA =<< B.typeInMeta ii norm =<< B.parseExprIn ii rng s
     liftIO $ cmd_goal_type_context_and
@@ -364,28 +360,16 @@ displayStatus = do
 display_info :: String -> String -> TCM ()
 display_info bufname content = do
   displayStatus
-  liftIO $ display_info' bufname content
-
--- | Like 'display_info', but takes a 'Doc' instead of a 'String'.
-
-display_infoD :: String -> Doc -> TCM ()
-display_infoD bufname content = display_info bufname (render content)
-
--- | Like 'display_info', but does not display status information.
-
-display_info' :: String -> String -> IO ()
-display_info' bufname content =
-  UTF8.putStrLn $ response $
+  liftIO $ UTF8.putStrLn $ response $
     L [ A "agda2-info-action"
       , A (quote bufname)
       , A (quote content)
       ]
 
--- | When an error message is displayed the following title should be
--- used, if appropriate.
+-- | Like 'display_info', but takes a 'Doc' instead of a 'String'.
 
-errorTitle :: String
-errorTitle = "*Error*"
+display_infoD :: String -> Doc -> TCM ()
+display_infoD bufname content = display_info bufname (render content)
 
 response :: Lisp String -> String
 response l = show (text "agda2_mode_code" <+> pretty l)
@@ -422,7 +406,7 @@ refreshStr taken s = go nameModifiers where
 nameModifiers = "" : "'" : "''" : [show i | i <-[3..]]
 
 cmd_make_case :: GoalCommand
-cmd_make_case ii rng s = infoOnException $ ioTCM $ do
+cmd_make_case ii rng s = ioTCM $ do
   cs <- makeCase ii rng s
   B.withInteractionId ii $ do
     pcs <- mapM prettyA cs
@@ -432,7 +416,7 @@ cmd_make_case ii rng s = infoOnException $ ioTCM $ do
         ]
 
 cmd_solveAll :: IO ()
-cmd_solveAll = infoOnException $ ioTCM $ do
+cmd_solveAll = ioTCM $ do
     out <- getInsts =<< gets stInteractionPoints
     liftIO $ UTF8.putStrLn $ response $
       L[ A"agda2-solveAll-action" , Q . L $ concatMap prn out]
@@ -542,7 +526,7 @@ preUscore = SC.Underscore   noRange Nothing
 
 cmd_compute :: Bool -- ^ Ignore abstract?
                -> GoalCommand
-cmd_compute ignore ii rng s = infoOnException $ ioTCM $ do
+cmd_compute ignore ii rng s = ioTCM $ do
   e <- B.parseExprIn ii rng s
   d <- B.withInteractionId ii $ do
          let c = B.evalInCurrent e
@@ -602,20 +586,6 @@ emacsStr s = go (show s) where
   go (c:s) = c : go s
   go []    = []
 
-infoOnException m =
-  failOnException inform m `catchImpossible` \e ->
-    inform noRange (show e)
-  where
-  inform rng msg = do
-    runTCM $ appendErrorToEmacsFile err
-    tellEmacsToJumpToError rng
-    display_info' errorTitle $ rng' ++ msg
-    exitWith (ExitFailure 1)
-    where
-    rng' | rng == noRange = ""
-         | otherwise      = show rng ++ "\n"
-    err = Exception rng msg
-
 ------------------------------------------------------------------------
 -- Syntax highlighting
 
@@ -658,3 +628,45 @@ toggleImplicitArgs = ioTCM $ do
   opts <- commandLineOptions
   setCommandLineOptions (opts { optShowImplicit =
                                   not $ optShowImplicit opts })
+
+------------------------------------------------------------------------
+-- Error handling
+
+-- | When an error message is displayed the following title should be
+-- used, if appropriate.
+
+errorTitle :: String
+errorTitle = "*Error*"
+
+-- | Displays an error (represented either as a 'TCErr' or as a
+-- 'Range' and a message) and terminates the program.
+
+displayErrorAndExit :: Either TCErr (Range, String) -> IO a
+displayErrorAndExit err = do
+  runTCM $ do
+    appendErrorToEmacsFile err'
+    display_info errorTitle =<< msg
+  tellEmacsToJumpToError rng
+  exitWith (ExitFailure 1)
+  where
+  err' = case err of
+    Left e           -> e
+    Right (rng, msg) -> Exception rng msg
+
+  msg = case err of
+    Left e             -> prettyError e
+    Right (rng, msg)
+      | rng == noRange -> return msg
+      | otherwise      -> return (show rng ++ "\n" ++ msg)
+
+  rng = case err of
+    Left  e          -> getRange e
+    Right (rng, msg) -> rng
+
+-- | Outermost error handler. Should wrap all functions called from
+-- Emacs (directly or indirectly).
+
+infoOnException m =
+  failOnException inform m `catchImpossible` \e ->
+    inform noRange (show e)
+  where inform rng msg = displayErrorAndExit (Right (rng, msg))
