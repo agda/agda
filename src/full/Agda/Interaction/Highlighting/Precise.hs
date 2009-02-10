@@ -194,7 +194,7 @@ type CompressedFile = [(Range, MetaInfo)]
 -- | Compresses a file by merging consecutive positions with equal
 -- meta information into longer ranges.
 
-compress :: File -> [(Range, MetaInfo)]
+compress :: File -> CompressedFile
 compress f = map join $ groupBy' p (Map.toAscList $ mapping f)
   where
   p (pos1, m1) (pos2, m2) = pos2 == pos1 + 1 && m1 == m2
