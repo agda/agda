@@ -265,19 +265,27 @@ and GOAL-NAME is for the Agda goal menu.")
 
 ;; Annotation for a goal
 ;; {! .... !}
-;; ----------  overlay:    agda2-gn num, face highlight  , after-string num
-;; -           text-props: agda2-gn num
-;;  -          text-props: invisible
-;;         -   text-props: invisible
-;;          -  text-props:
+;; ----------  overlay:    agda2-gn num, face highlight, after-string num,
+;;                         modification-hooks (agda2-protect-goal-markers)
+;; -           text-props: agda2-gn num, category agda2-delim1
+;;  -          text-props:               category agda2-delim2
+;;         -   text-props:               category agda2-delim3
+;;          -  text-props:               category agda2-delim4
 ;; Goal number agda2-gn is duplicated in overlay and text-prop because we
 ;; thought it would be useful so that overlay can be re-made after undo.
 ;;
 ;; Char categories for {! ... !}
-(setplist 'agda2-delim1 '())
-(setplist 'agda2-delim2 '(invisible 'agda2-delim2 front-sticky t rear-nonsticky t))
-(setplist 'agda2-delim3 '(invisible 'agda2-delim3))
-(setplist 'agda2-delim4 '(rear-nonsticky t))
+(defvar agda2-open-brace  "{")
+(defvar agda2-close-brace " }")
+(setplist 'agda2-delim1 `(display ,agda2-open-brace))
+(setplist 'agda2-delim2 `(display ,agda2-open-brace
+                          front-sticky t rear-nonsticky t agda2-delim2))
+(setplist 'agda2-delim3 `(display ,agda2-close-brace agda2-delim3))
+(setplist 'agda2-delim4 `(display ,agda2-close-brace rear-nonsticky t))
+
+;; Note that strings used with the display property are compared by
+;; reference. If the agda2-*-brace definitions were inlined, then
+;; goals would be displayed as "{{ }}n" instead of "{ }n".
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; agda2-mode
@@ -683,8 +691,8 @@ with text-properties"
                        (err)))
            ((c "?")  (progn
                        (when (and (not stk) (is-lone-questionmark))
-                         (delete-char -1)(insert "{! !}")
-                         (make (- (point) 5)))))))))))
+                         (delete-char -1)(insert "{!!}")
+                         (make (- (point) 4)))))))))))
 
 (defun agda2-make-goal (p q n)
   "Make a goal with number N at <P>{!...!}<Q>.  Assume the region is clean."
