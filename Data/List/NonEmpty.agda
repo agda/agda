@@ -11,6 +11,7 @@ import Data.Vec as Vec
 open Vec using (Vec; []; _∷_)
 import Data.List as List
 open List using (List; []; _∷_)
+open import Category.Monad
 
 infixr 5 _∷_ _++_
 
@@ -59,3 +60,13 @@ map f = lift (λ xs → (, Vec.map f xs))
 _++_ : ∀ {A} → List⁺ A → List⁺ A → List⁺ A
 [ x ]    ++ ys = x ∷ ys
 (x ∷ xs) ++ ys = x ∷ (xs ++ ys)
+
+concat : ∀ {A} → List⁺ (List⁺ A) → List⁺ A
+concat [ xs ]     = xs
+concat (xs ∷ xss) = xs ++ concat xss
+
+monad : RawMonad List⁺
+monad = record
+  { return = [_]
+  ; _>>=_  = λ xs f → concat (map f xs)
+  }
