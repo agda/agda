@@ -70,3 +70,6 @@ monad = record
   { return = [_]
   ; _>>=_  = λ xs f → concat (map f xs)
   }
+
+reverse : ∀ {A} → List⁺ A → List⁺ A
+reverse = lift (,_ ∘′ Vec.reverse)
