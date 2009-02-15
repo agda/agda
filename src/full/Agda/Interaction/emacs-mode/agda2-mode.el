@@ -480,7 +480,6 @@ Assumes that <clause> = {!<var>!} is on one line."
   "Display the string STATUS in the current buffer's mode line.
 \(precondition: the current buffer has to use the Agda mode as the
 major mode)."
-  (interactive)                         ;FIXME: Why??
   (setq agda2-buffer-external-status status))
 
 (defun agda2-info-action (name text)
