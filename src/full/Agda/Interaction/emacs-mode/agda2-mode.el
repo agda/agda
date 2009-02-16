@@ -681,7 +681,7 @@ with text-properties"
       (while (and goals (delims))
         (labels ((c (s) (equal s (match-string 0))))
           (cond
-           ((c "--") (end-of-line))
+           ((and (c "--") (not stk)) (end-of-line))
            ((c "{-") (push  nil          stk))
            ((c "{!") (push (- (point) 2) stk))
            ((c "-}") (unless (and stk (not (pop stk))) (err)))
