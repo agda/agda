@@ -673,8 +673,8 @@ with text-properties"
             (save-match-data
                 (backward-char 3)
                 (looking-at
-                 "\\({!\\|.{\\|(\\|.\\s \\)[?]\\(\\s \\|)\\|}\\|!}\\|$\\)"))))
-       (make(p)  (agda2-make-goal  p (point) (pop goals)))
+                 "\\(.[{(]\\|.\\s \\)[?]\\(\\s \\|[)};]\\|$\\)"))))
+       (make(p)  (agda2-make-goal p (point) (pop goals)))
        (err()    (error "Unbalanced \{- , -\} , \{\! , \!\}")))
     (save-excursion
       (goto-char pos)
@@ -690,7 +690,8 @@ with text-properties"
                        (err)))
            ((c "?")  (progn
                        (when (and (not stk) (is-lone-questionmark))
-                         (delete-char -1)(insert "{!!}")
+                         (delete-char -1)
+                         (insert "{!!}")
                          (make (- (point) 4)))))))))))
 
 (defun agda2-make-goal (p q n)
