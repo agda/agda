@@ -124,6 +124,7 @@ import IO.Primitive
 import Relation.Binary
 import Relation.Binary.Consequences
 import Relation.Binary.EqReasoning
+import Relation.Binary.Flip
 import Relation.Binary.FunctionLifting
 import Relation.Binary.HeterogeneousEquality
 import Relation.Binary.NonStrictToStrict
