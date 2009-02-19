@@ -34,6 +34,7 @@ import Category.Monad
 import Category.Monad.Continuation
 import Category.Monad.Identity
 import Category.Monad.Indexed
+import Category.Monad.Partiality
 import Category.Monad.State
 
 import Coinduction
