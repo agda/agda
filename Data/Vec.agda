@@ -33,10 +33,6 @@ data _[_]=_ {a : Set} : {n : ℕ} → Vec a n → Fin n → a → Set where
 ------------------------------------------------------------------------
 -- Some operations
 
-lookup : ∀ {a n} → Fin n → Vec a n → a
-lookup zero    (x ∷ xs) = x
-lookup (suc i) (x ∷ xs) = lookup i xs
-
 head : ∀ {a n} → Vec a (1 + n) → a
 head (x ∷ xs) = x
 
@@ -179,6 +175,19 @@ infixr 5 _⋎_
 _⋎_ : ∀ {A m n} → Vec A m → Vec A n → Vec A (m +⋎ n)
 []       ⋎ ys = ys
 (x ∷ xs) ⋎ ys = x ∷ (ys ⋎ xs)
+
+lookup : ∀ {a n} → Fin n → Vec a n → a
+lookup zero    (x ∷ xs) = x
+lookup (suc i) (x ∷ xs) = lookup i xs
+
+-- Update.
+
+infixl 6 _[_]≔_
+
+_[_]≔_ : ∀ {A n} → Vec A n → Fin n → A → Vec A n
+[]       [ ()    ]≔ y
+(x ∷ xs) [ zero  ]≔ y = y ∷ xs
+(x ∷ xs) [ suc i ]≔ y = x ∷ xs [ i ]≔ y
 
 -- Generates a vector containing all elements in Fin n. This function
 -- is not placed in Data.Fin since Data.Vec depends on Data.Fin.
