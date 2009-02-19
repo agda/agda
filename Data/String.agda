@@ -11,7 +11,7 @@ open Vec using (Vec)
 import Data.Colist as Colist
 open Colist using (Colist)
 open import Data.Char using (Char)
-open import Data.Bool using (Bool)
+open import Data.Bool using (Bool; true; false)
 open import Data.Function
 open import Relation.Nullary
 open import Relation.Binary
