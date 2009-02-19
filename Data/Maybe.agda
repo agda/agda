@@ -39,21 +39,22 @@ maybe₀₁ j n nothing  = n
 open import Data.Function
 open import Category.Functor
 open import Category.Monad
+open import Category.Monad.Identity
 
 functor : RawFunctor Maybe
 functor = record
   { _<$>_ = λ f → maybe (just ∘ f) nothing
   }
 
-monad : RawMonad Maybe
-monad = record
-  { return = just
-  ; _>>=_  = _>>=_
+monadT : ∀ {M} → RawMonad M → RawMonad (λ A → M (Maybe A))
+monadT M = record
+  { return = M.return ∘ just
+  ; _>>=_  = λ m f → M._>>=_ m (maybe f (M.return nothing))
   }
-  where
-  _>>=_ : ∀ {a b} → Maybe a → (a → Maybe b) → Maybe b
-  nothing >>= f = nothing
-  just x  >>= f = f x
+  where module M = RawMonad M
+
+monad : RawMonad Maybe
+monad = monadT IdentityMonad
 
 monadZero : RawMonadZero Maybe
 monadZero = record
