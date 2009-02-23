@@ -1,5 +1,5 @@
 # Top-level Makefile for Agda 2
-# Author: Ulf Norell
+# Authors: Ulf Norell, Nils Anders Danielsson
 
 ## Includes ###############################################################
 
@@ -23,7 +23,8 @@ endif
 
 .PHONY : default all clean install full prof core \
 		 debug doc dist make_configure clean_test examples \
-		 test succeed fail benchmark
+		 test succeed fail benchmark \
+		 install-lib install-bin install-emacs-mode
 
 ## Default target #########################################################
 
@@ -32,6 +33,32 @@ default : full core transl tags
 else
 default : make_configure
 endif
+
+## Cabal-based installation ###############################################
+
+# Installation prefix.
+PREFIX=/usr/local
+
+# Installation directory used for the Emacs mode.
+LISPDIR=$(PREFIX)/share/emacs/site-lisp/agda2-mode
+
+# The location of a relevant Emacs initialisation file.
+DOTEMACS=$(HOME)/.emacs
+
+install : install-lib install-bin install-emacs-mode
+
+install-lib :
+	cabal install --prefix="$(PREFIX)"
+
+install-bin :
+	cd src/main && cabal clean && cabal install --prefix="$(PREFIX)"
+
+install-emacs-mode :
+	install -d "$(LISPDIR)"
+	cd src/emacs-mode && cp *.el "$(LISPDIR)"
+	([ -e "$(DOTEMACS)" ] && grep -F "(require 'agda2)" "$(DOTEMACS)") || \
+	  echo "\n(add-to-list 'load-path \"$(LISPDIR)\")\n(require 'agda2)" \
+            >> "$(DOTEMACS)"
 
 ## Making the make system #################################################
 
