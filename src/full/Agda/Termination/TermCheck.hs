@@ -85,15 +85,6 @@ collectCalls f (a : as) = do c1 <- f a
                              c2 <- collectCalls f as
                              return (c1 `Term.union` c2)
 
-{-
-sameRecursion :: [Maybe Recursion] -> TCM Recursion
-sameRecursion rs = case nub [ r | Just r <- rs ] of
-  []  -> return Recursive
-  [r] -> return r
-  _   -> typeError $ NotImplemented "mutual recursion and corecursion"
--}
-
-
 -- | Termination check a bunch of mutually inductive recursive definitions.
 termMutual :: Info.DeclInfo -> [A.TypeSignature] -> [A.Definition] -> TCM Result
 termMutual i ts ds = if names == [] then return [] else
@@ -103,11 +94,6 @@ termMutual i ts ds = if names == [] then return [] else
      reportSLn "term.top" 20 $ "Termination checking " ++ show names ++ "..."
      mutualBlock <- findMutualBlock (head names)
      let allNames = Set.elems mutualBlock
-
-{-
-     -- Get the kind of recursion (you can't mix recursion and corecursion at the moment)
-     rec <- sameRecursion =<< mapM whatRecursion allNames
--}
 
      -- collect all recursive calls in the block
      let collect use = collectCalls (termDef use allNames) allNames
@@ -202,7 +188,6 @@ termTypedBinding h (A.TNoBind e) ret = do
     ret [("_",t)]
 
 -- | Termination check a definition by pattern matching.
--- termDef :: Recursion -> DBPConf -> MutualNames -> QName -> TCM Calls
 termDef :: DBPConf -> MutualNames -> QName -> TCM Calls
 termDef use names name = do
 	-- Retrieve definition
@@ -214,9 +199,8 @@ termDef use names name = do
 	      , nest 2 $ text ":" <+> (prettyTCM $ defType def)
 	      ]
         case (theDef def) of
-          Function{ funClauses   = cls, 
-                    funRecursion = rec } ->
-            collectCalls (termClause rec use names name) cls
+          Function{ funClauses = cls } ->
+            collectCalls (termClause use names name) cls
           _ -> return Term.empty
 
 
@@ -348,8 +332,8 @@ stripBinds use i (p:ps) b = do
     Nothing -> return Nothing
 
 -- | Extract recursive calls from one clause.
-termClause :: Recursion -> DBPConf -> MutualNames -> QName -> Clause -> TCM Calls
-termClause _ use names name (Clause tel perm argPats' rec body) = do
+termClause :: DBPConf -> MutualNames -> QName -> Clause -> TCM Calls
+termClause use names name (Clause tel perm argPats' rec body) = do
     argPats' <- addCtxTel tel $ normalise argPats'
     -- The termination checker doesn't know about reordered telescopes
     let argPats = substs (renamingR perm) argPats'
@@ -377,13 +361,9 @@ termTerm names f pats0 rec t0 = do
          , nest 2 $ text "lhs:" <+> hsep (map prettyTCM pats0)
          , nest 2 $ text "rhs:" <+> prettyTCM t0
          ])
-  let guarded = Le {- case rec of
-                  Recursive   -> Unknown
-                  CoRecursive -> Le -}
-  loop pats0 guarded t0
+  loop pats0 Le t0
   where 
-       Just fInd' = List.elemIndex f names
-       fInd = toInteger fInd'
+       Just fInd = toInteger <$> List.elemIndex f names
        loop :: [DeBruijnPat] -> Order -> Term -> TCM Calls
        loop pats guarded t = do
          t <- instantiate t          -- instantiate top-level MetaVar
@@ -565,14 +545,3 @@ compareVar i (ConDBP c ps) = do
   os <- mapM (compareVar i) ps
   let o = Term.supremum os 
   return $ (Term..*.) Term.Lt o
-
-{- CHECK FOR Inductive not necessary since stripCoConstructors
-compareVar :: Nat -> DeBruijnPat -> TCM Term.Order
-compareVar i (VarDBP j)    = return $ if i == j then Term.Le else Term.Unknown
-compareVar i (LitDBP _)    = return $ Term.Unknown
-compareVar i (ConDBP c ps) = do
-  os <- mapM (compareVar i) ps
-  let o = Term.supremum os 
-  ind <- whatInduction c
-  return $ if ind == Inductive then (Term..*.) Term.Lt o else Term.Unknown -- FIX: revert to old def.
--}
