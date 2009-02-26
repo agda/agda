@@ -28,10 +28,9 @@ codata Colist (A : Set) : Set where
 {-# COMPILED_DATA Colist [] [] (:) #-}
 
 fromColist : ∀ {A} → C.Colist A → Colist A
-fromColist []       ~ []
-fromColist (x ∷ xs) ~ x ∷ fromColist (♭ xs)
+fromColist []       = []
+fromColist (x ∷ xs) = x ∷ fromColist (♭ xs)
 
 toColist : ∀ {A} → Colist A → C.Colist A
 toColist []       = []
-toColist (x ∷ xs) = x ∷ toColist′
-  where toColist′ ~ ♯ toColist xs
+toColist (x ∷ xs) = x ∷ ♯ toColist xs

@@ -51,20 +51,16 @@ abstract
 
 mapM : ∀ {A B} → (A → IO B) → Colist A → IO (Colist B)
 mapM f []       = return []
-mapM f (x ∷ xs) = ♯₁ f x >>= mapM′
-  where
-  mapM′ : _ → ∞₁ _
-  mapM′ y ~ ♯₁
-    (♯₁ mapM f (♭ xs) >>= λ ys →
-     ♯₁ return (y ∷ ♯ ys))
+mapM f (x ∷ xs) = ♯₁ f x               >>= λ y  →
+                  ♯₁ (♯₁ mapM f (♭ xs) >>= λ ys →
+                  ♯₁ return (y ∷ ♯ ys))
 
 -- The reason for not defining mapM′ in terms of mapM is efficiency
 -- (the unused results could cause unnecessary memory use).
 
 mapM′ : ∀ {A B} → (A → IO B) → Colist A → IO ⊤
 mapM′ f []       = return _
-mapM′ f (x ∷ xs) = ♯₁ f x >> mapM″
-  where mapM″ ~ ♯₁ mapM′ f (♭ xs)
+mapM′ f (x ∷ xs) = ♯₁ f x >> ♯₁ mapM′ f (♭ xs)
 
 ------------------------------------------------------------------------
 -- Simple lazy IO (UTF8-based)

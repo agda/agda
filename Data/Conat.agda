@@ -19,16 +19,13 @@ data Coℕ : Set where
 
 fromℕ : ℕ → Coℕ
 fromℕ zero    = zero
-fromℕ (suc n) = suc fromℕ′
-  where fromℕ′ ~ ♯ fromℕ n
+fromℕ (suc n) = suc (♯ fromℕ n)
 
 ∞ℕ : Coℕ
-∞ℕ = suc ∞ℕ′
-  where ∞ℕ′ ~ ♯ ∞ℕ
+∞ℕ = suc (♯ ∞ℕ)
 
 infixl 6 _+_
 
 _+_ : Coℕ → Coℕ → Coℕ
 zero  + n = n
-suc m + n = suc +′
-  where +′ ~ ♯ (♭ m + n)
+suc m + n = suc (♯ (♭ m + n))

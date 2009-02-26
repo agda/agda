@@ -27,8 +27,7 @@ data Covec (A : Set) : Coℕ → Set where
 
 map : ∀ {A B n} → (A → B) → Covec A n → Covec B n
 map f []       = []
-map f (x ∷ xs) = f x ∷ map′
-  where map′ ~ ♯ map f (♭ xs)
+map f (x ∷ xs) = f x ∷ ♯ map f (♭ xs)
 
 fromVec : ∀ {A n} → Vec A n → Covec A (fromℕ n)
 fromVec []       = []
@@ -36,13 +35,11 @@ fromVec (x ∷ xs) = x ∷ ♯ fromVec xs
 
 fromColist : ∀ {A} (xs : Colist A) → Covec A (Colist.length xs)
 fromColist []       = []
-fromColist (x ∷ xs) = x ∷ fromColist′
-  where fromColist′ ~ ♯ fromColist (♭ xs)
+fromColist (x ∷ xs) = x ∷ ♯ fromColist (♭ xs)
 
 take : ∀ {A} m {n} → Covec A (m + n) → Covec A m
 take zero    xs       = []
-take (suc n) (x ∷ xs) = x ∷ take′
-  where take′ ~ ♯ take (♭ n) (♭ xs)
+take (suc n) (x ∷ xs) = x ∷ ♯ take (♭ n) (♭ xs)
 
 drop : ∀ {A} m {n} → Covec A (fromℕ m + n) → Covec A n
 drop zero    xs       = xs
@@ -50,8 +47,7 @@ drop (suc n) (x ∷ xs) = drop n (♭ xs)
 
 replicate : ∀ {A} n → A → Covec A n
 replicate zero    x = []
-replicate (suc n) x = x ∷ replicate′
-  where replicate′ ~ ♯ replicate (♭ n) x
+replicate (suc n) x = x ∷ ♯ replicate (♭ n) x
 
 lookup : ∀ {A n} → Cofin n → Covec A n → A
 lookup zero    (x ∷ xs) = x
@@ -61,8 +57,7 @@ infixr 5 _++_
 
 _++_ : ∀ {A m n} → Covec A m → Covec A n → Covec A (m + n)
 []       ++ ys = ys
-(x ∷ xs) ++ ys = x ∷ ++′
-  where ++′ ~ ♯ (♭ xs ++ ys)
+(x ∷ xs) ++ ys = x ∷ ♯ (♭ xs ++ ys)
 
 [_] : ∀ {A} → A → Covec A (suc (♯ zero))
 [ x ] = x ∷ ♯ []
@@ -112,18 +107,15 @@ setoid A n = record
   where
   refl : ∀ {A n} → Reflexive (_≈_ {A} {n})
   refl {x = []}     = []
-  refl {x = x ∷ xs} = x ∷ refl′
-    where refl′ ~ ♯ refl
+  refl {x = x ∷ xs} = x ∷ ♯ refl
 
   sym : ∀ {A n} → Symmetric (_≈_ {A} {n})
   sym []        = []
-  sym (x ∷ xs≈) = x ∷ sym′
-    where sym′ ~ ♯ sym (♭ xs≈)
+  sym (x ∷ xs≈) = x ∷ ♯ sym (♭ xs≈)
 
   trans : ∀ {A n} → Transitive (_≈_ {A} {n})
   trans []        []         = []
-  trans (x ∷ xs≈) (.x ∷ ys≈) = x ∷ trans′
-    where trans′ ~ ♯ trans (♭ xs≈) (♭ ys≈)
+  trans (x ∷ xs≈) (.x ∷ ys≈) = x ∷ ♯ trans (♭ xs≈) (♭ ys≈)
 
 poset : Set → Coℕ → Poset
 poset A n = record
@@ -143,37 +135,30 @@ poset A n = record
   where
   reflexive : ∀ {A n} → _≈_ {A} {n} ⇒ _⊑_
   reflexive []        = []
-  reflexive (x ∷ xs≈) = x ∷ reflexive′
-    where reflexive′ ~ ♯ reflexive (♭ xs≈)
+  reflexive (x ∷ xs≈) = x ∷ ♯ reflexive (♭ xs≈)
 
   trans : ∀ {A n} → Transitive (_⊑_ {A} {n})
   trans []        _          = []
-  trans (x ∷ xs≈) (.x ∷ ys≈) = x ∷ trans′
-    where trans′ ~ ♯ trans (♭ xs≈) (♭ ys≈)
+  trans (x ∷ xs≈) (.x ∷ ys≈) = x ∷ ♯ trans (♭ xs≈) (♭ ys≈)
 
   ≈-resp-⊑ˡ : ∀ {A n} {xs : Covec A n} →
               _≈_ {A} {n} Respects (λ ys → xs ⊑ ys)
   ≈-resp-⊑ˡ _         []       = []
-  ≈-resp-⊑ˡ (x ∷ xs≈) (.x ∷ p) = x ∷ ≈-resp-⊑ˡ′
-    where ≈-resp-⊑ˡ′ ~ ♯ ≈-resp-⊑ˡ (♭ xs≈) (♭ p)
+  ≈-resp-⊑ˡ (x ∷ xs≈) (.x ∷ p) = x ∷ ♯ ≈-resp-⊑ˡ (♭ xs≈) (♭ p)
 
   ≈-resp-⊑ʳ : ∀ {A n} {ys : Covec A n} →
               _≈_ {A} {n} Respects (λ xs → xs ⊑ ys)
   ≈-resp-⊑ʳ []        _        = []
-  ≈-resp-⊑ʳ (x ∷ xs≈) (.x ∷ p) = x ∷ ≈-resp-⊑ʳ′
-    where ≈-resp-⊑ʳ′ ~ ♯ ≈-resp-⊑ʳ (♭ xs≈) (♭ p)
+  ≈-resp-⊑ʳ (x ∷ xs≈) (.x ∷ p) = x ∷ ♯ ≈-resp-⊑ʳ (♭ xs≈) (♭ p)
 
   antisym : ∀ {A n} → Antisymmetric (_≈_ {A} {n}) _⊑_
   antisym []       []        = []
-  antisym (x ∷ p₁) (.x ∷ p₂) = x ∷ antisym′
-    where antisym′ ~ ♯ antisym (♭ p₁) (♭ p₂)
+  antisym (x ∷ p₁) (.x ∷ p₂) = x ∷ ♯ antisym (♭ p₁) (♭ p₂)
 
 map-cong : ∀ {A B n} (f : A → B) → _≈_ {n = n} =[ map f ]⇒ _≈_
 map-cong f []        = []
-map-cong f (x ∷ xs≈) = f x ∷ map-cong′
-  where map-cong′ ~ ♯ map-cong f (♭ xs≈)
+map-cong f (x ∷ xs≈) = f x ∷ ♯ map-cong f (♭ xs≈)
 
 take-⊑ : ∀ {A} m {n} (xs : Covec A (m + n)) → take m xs ⊑ xs
 take-⊑ zero    xs       = []
-take-⊑ (suc n) (x ∷ xs) = x ∷ take-⊑′
-  where take-⊑′ ~ ♯ take-⊑ (♭ n) (♭ xs)
+take-⊑ (suc n) (x ∷ xs) = x ∷ ♯ take-⊑ (♭ n) (♭ xs)

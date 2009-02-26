@@ -23,8 +23,7 @@ monad = record
   where
   _>>=_ : ∀ {A B} → A ⊥ → (A → B ⊥) → B ⊥
   now x   >>= f = f x
-  later x >>= f = later >>=′
-    where >>=′ ~ ♯ ♭ x >>= f
+  later x >>= f = later (♯ ♭ x >>= f)
 
 -- run x for n steps peels off at most n "later" constructors from x.
 
