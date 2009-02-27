@@ -261,13 +261,13 @@ cmd_refine = give_gen B.refine $ \s -> emacsStr . show
 
 give_gen give_ref mk_newtxt ii rng s = do
     ioTCM $ do
-      prec      <- scopePrecedence <$> getInteractionScope ii
+      scope     <- getInteractionScope ii
       (ae, iis) <- give_ref ii Nothing =<< B.parseExprIn ii rng s
+      let newtxt = A . mk_newtxt s $ abstractToConcrete (makeEnv scope) ae
       iis       <- sortInteractionPoints iis
       liftIO $ modifyIORef theState $ \s ->
                  s { theInteractionPoints =
                        replace ii iis (theInteractionPoints s) }
-      newtxt <- A . mk_newtxt s <$> abstractToConcreteCtx prec ae
       liftIO $ UTF8.putStrLn $ response $
                  L [A "agda2-give-action", showNumIId ii, newtxt]
       liftIO tellEmacsToUpdateGoals
