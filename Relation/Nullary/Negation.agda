@@ -63,6 +63,10 @@ private
 ¬¬-drop-Dec (yes p) ¬¬p = p
 ¬¬-drop-Dec (no ¬p) ¬¬p = ⊥-elim (¬¬p ¬p)
 
+¬-drop-Dec : {P : Set} → Dec (¬ ¬ P) → Dec (¬ P)
+¬-drop-Dec (yes ¬¬p) = no ¬¬p
+¬-drop-Dec (no ¬¬¬p) = yes (¬¬-drop ¬¬¬p)
+
 -- Double-negation is a monad (if we assume that all elements of ¬ ¬ P
 -- are equal).
 
