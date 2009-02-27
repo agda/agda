@@ -5,7 +5,7 @@
 module Agda.Utils.Monad.Undo where
 
 import Control.Monad.Trans
-import Control.Monad.State
+import Control.Monad.State.Strict
 import Control.Monad.Reader
 import Control.Monad.Error
 
