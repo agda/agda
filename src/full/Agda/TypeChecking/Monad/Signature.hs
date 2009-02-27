@@ -267,14 +267,16 @@ whatRecursion f = do
     hasBody (NoBind b) = hasBody b
 
 
--- | Can be called on either a (co)datatype or a (co)constructor.
+-- | Can be called on either a (co)datatype, a record type or a
+--   (co)constructor.
 whatInduction :: MonadTCM tcm => QName -> tcm Induction
 whatInduction c = do
   def <- theDef <$> getConstInfo c
   case def of
     Datatype{ dataInduction = i } -> return i
-    Constructor{ conData = d }    -> whatInduction d
-    _                             -> return Inductive   -- fail instead?
+    Record{}                      -> return Inductive
+    Constructor{ conInd = i }     -> return i
+    _                             -> __IMPOSSIBLE__
 
 -- | Lookup the definition of a name. The result is a closed thing, all free
 --   variables have been abstracted over.

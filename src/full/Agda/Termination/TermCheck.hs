@@ -228,6 +228,9 @@ termDef use names name = do
 
 data DeBruijnPat = VarDBP Nat  -- de Bruijn Index
 	         | ConDBP QName [DeBruijnPat]
+                   -- ^ The name refers to either an ordinary
+                   --   constructor or the successor function on sized
+                   --   types.
 	         | LitDBP Literal
 
 instance PrettyTCM DeBruijnPat where
@@ -275,14 +278,17 @@ termToDBP conf t
       _   -> return unusedVar
 
 -- | Removes coconstructors from a deBruijn pattern.
-stripCoConstructors :: DeBruijnPat -> TCM DeBruijnPat
-stripCoConstructors p = case p of
+stripCoConstructors :: DBPConf -> DeBruijnPat -> TCM DeBruijnPat
+stripCoConstructors conf p = case p of
   VarDBP _  -> return p
   LitDBP _ -> return p
   ConDBP c args -> do
-    ind <- whatInduction c
+    ind <- if withSizeSuc conf == Just c then
+             return Inductive
+            else
+             whatInduction c
     case ind of
-      Inductive   -> ConDBP c <$> mapM stripCoConstructors args
+      Inductive   -> ConDBP c <$> mapM (stripCoConstructors conf) args
       CoInductive -> return unusedVar
 
 {- | stripBind i p b = Just (i', dbp, b')
@@ -341,7 +347,7 @@ termClause use names name (Clause tel perm argPats' rec body) = do
     case dbs of
        Nothing -> return Term.empty
        Just (-1, dbpats, Body t) -> do
-          dbpats <- mapM stripCoConstructors dbpats 
+          dbpats <- mapM (stripCoConstructors use) dbpats
           termTerm names name dbpats rec t
           -- note: convert dB levels into dB indices
        Just (n, dbpats, Body t) -> internalError $ "termClause: misscalculated number of vars: guess=" ++ show nVars ++ ", real=" ++ show (nVars - 1 - n)
