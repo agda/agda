@@ -267,20 +267,18 @@ and GOAL-NAME is for the Agda goal menu.")
 ;; {! .... !}
 ;; ----------  overlay:    agda2-gn num, face highlight, after-string num,
 ;;                         modification-hooks (agda2-protect-goal-markers)
-;; -           text-props: agda2-gn num, category agda2-delim1
-;;  -          text-props:               category agda2-delim2
-;;         -   text-props:               category agda2-delim3
-;;          -  text-props:               category agda2-delim4
-;; Goal number agda2-gn is duplicated in overlay and text-prop because we
-;; thought it would be useful so that overlay can be re-made after undo.
+;; -           text-props: category agda2-delim1
+;;  -          text-props: category agda2-delim2
+;;         -   text-props: category agda2-delim3
+;;          -  text-props: category agda2-delim4
 ;;
 ;; Char categories for {! ... !}
 (defvar agda2-open-brace  "{")
 (defvar agda2-close-brace " }")
 (setplist 'agda2-delim1 `(display ,agda2-open-brace))
-(setplist 'agda2-delim2 `(display ,agda2-open-brace
-                          front-sticky t rear-nonsticky t agda2-delim2))
-(setplist 'agda2-delim3 `(display ,agda2-close-brace agda2-delim3))
+(setplist 'agda2-delim2 `(display ,agda2-open-brace rear-nonsticky t
+                                  agda2-delim2 t))
+(setplist 'agda2-delim3 `(display ,agda2-close-brace agda2-delim3 t))
 (setplist 'agda2-delim4 `(display ,agda2-close-brace rear-nonsticky t))
 
 ;; Note that strings used with the display property are compared by
@@ -436,18 +434,16 @@ WANT is an optional prompt.  When ASK is non-nil, use minibuffer."
 
 (defun agda2-load-action (gs)
   "Annotate new goals GS in current buffer."
-  (agda2-forget-all-goals)
-  (agda2-annotate gs (point-min))
+  (agda2-annotate gs)
   (setq agda2-buffer-state "Checked"))
 
 (defun agda2-give()
   "Give to the goal at point the expression in it" (interactive)
   (agda2-goal-cmd "cmd_give" "expression to give"))
 
-(defun agda2-give-action (old-g paren new-gs)
-  "Update the goal OLD-G with the expression in it and
-annotate new goals NEW-GS"
-  (agda2-update old-g paren new-gs))
+(defun agda2-give-action (old-g paren)
+  "Update the goal OLD-G with the expression in it."
+  (agda2-update old-g paren))
 
 (defun agda2-refine ()
   "Refine the goal at point by the expression in it." (interactive)
@@ -516,9 +512,9 @@ in the buffer's mode line."
     (delete-overlay o))
   (agda2-go "cmd_reset")
   (let ((inhibit-read-only t))
-    (agda2-no-modified-p 'remove-text-properties
+    (agda2-no-modified-p 'set-text-properties
                          (point-min) (point-max)
-                         '(category agda2-gn))
+                         '())
     (setq agda2-buffer-state "Text")
     (force-mode-line-update)))
 
@@ -662,10 +658,11 @@ With a prefix argument \"abstract\" is ignored during the computation."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;
 
-(defun agda2-annotate (goals pos)
-  "Find GOALS in the current buffer starting from POS and annotate them
-with text-properties"
-
+(defun agda2-annotate (goals)
+  "Annotates the goals in the current buffer with text properties.
+The goal numbers should be given by GOALS (in the order they
+appear in the buffer)."
+  (agda2-forget-all-goals)
   (agda2-let (stk top)
       ((delims() (re-search-forward "[?]\\|[{][-!]\\|[-!][}]\\|--" nil t))
        (is-lone-questionmark ()
@@ -677,7 +674,7 @@ with text-properties"
        (make(p)  (agda2-make-goal p (point) (pop goals)))
        (err()    (error "Unbalanced \{- , -\} , \{\! , \!\}")))
     (save-excursion
-      (goto-char pos)
+      (goto-char (point-min))
       (while (and goals (delims))
         (labels ((c (s) (equal s (match-string 0))))
           (cond
@@ -697,7 +694,7 @@ with text-properties"
 (defun agda2-make-goal (p q n)
   "Make a goal with number N at <P>{!...!}<Q>.  Assume the region is clean."
   (flet ((atp (x ps) (add-text-properties x (1+ x) ps)))
-    (atp p       `(category agda2-delim1 agda2-gn ,n))
+    (atp p       '(category agda2-delim1))
     (atp (1+ p)  '(category agda2-delim2))
     (atp (- q 2) '(category agda2-delim3))
     (atp (1- q)  '(category agda2-delim4)))
@@ -730,20 +727,24 @@ modified."
             (> end (- (overlay-end ol) 2)))
         (signal 'text-read-only nil))))))
 
-(defun agda2-update (old-g new-txt new-gs)
-  "Update the goal OLD-G and annotate new goals NEW-GS.
-NEW-TXT is a string to replace OLD-G, or `'paren', or `'no-paren'"
-  (interactive)
+(defun agda2-update (old-g new-txt)
+  "Update the goal OLD-G.
+If NEW-TXT is a string, then the goal is replaced by the string,
+and otherwise the text inside the goal is retained (parenthesised
+if NEW-TXT is `'paren').
+
+Removes the goal braces, but does not remove the goal overlay or
+text properties."
   (multiple-value-bind (p q) (agda2-range-of-goal old-g)
-    (if (not p) (message "ignoring an update for the missing goal %d" old-g)
-        (save-excursion
-          (cond ((stringp new-txt)
-                 (agda2-replace-goal old-g new-txt))
-                ((equal new-txt 'paren)
-                 (goto-char (- q 2)) (insert ")")
-                 (goto-char (+ p 2)) (insert "(")))
-          (agda2-forget-goal old-g 'remove-braces)
-          (agda2-annotate new-gs p)))))
+    (save-excursion
+      (cond ((stringp new-txt)
+             (agda2-replace-goal old-g new-txt))
+            ((equal new-txt 'paren)
+             (goto-char (- q 2)) (insert ")")
+             (goto-char (+ p 2)) (insert "(")))
+      (multiple-value-bind (p q) (agda2-range-of-goal old-g)
+        (delete-region (- q 2) q)
+        (delete-region p (+ p 2))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Misc
@@ -798,8 +799,11 @@ notation used in Haskell strings."
     (if g (list o g))))
 
 (defun agda2-goal-overlay (g)
-  "Return overlay of the goal number G."
-  (car(agda2-goal-at(text-property-any(point-min)(point-max) 'agda2-gn g))))
+  "Returns the overlay of goal number G, if any."
+  (car
+   (remove nil
+           (mapcar (lambda (o) (if (equal (overlay-get o 'agda2-gn) g) o))
+                   (overlays-in (point-min) (point-max))))))
 
 (defun agda2-range-of-goal (g)
   "The range of goal G."
@@ -820,22 +824,18 @@ notation used in Haskell strings."
         (while (re-search-backward "^" p t)
           (insert-char ?  indent) (backward-char (1+ indent)))))))
 
-(defun agda2-forget-goal (g &optional remove-braces)
-  (let ((o (agda2-goal-overlay g)))
-    (when o                         ;Don't burp if the overlay is not found.
-      (let ((p (overlay-start o))
-            (q (overlay-end o)))
-        (remove-text-properties p q '(category agda2-gn))
-        (when remove-braces
-          (delete-region (- q 2) q)
-          (delete-region p (+ p 2))))
-      (delete-overlay o))))
-
 (defun agda2-forget-all-goals ()
+  "Remove all goal annotations.
+\(Including some text properties which might be used by other
+\(minor) modes.)"
+  (remove-text-properties (point-min) (point-max)
+                          '(category nil agda2-delim2 nil
+                            agda2-delim3 nil display nil
+                            rear-nonsticky nil))
   (let ((p (point-min)))
-    (while (setq p (next-single-property-change p 'agda2-gn))
-      (agda2-forget-goal (get-text-property p 'agda2-gn)))))
-
+    (while (< (setq p (next-single-char-property-change p 'agda2-gn))
+              (point-max))
+      (delete-overlay (car (agda2-goal-at p))))))
 
 (defun agda2-decl-beginning ()
   "Find the beginning point of the declaration containing the point.

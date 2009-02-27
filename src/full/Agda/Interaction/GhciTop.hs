@@ -30,6 +30,7 @@ import System.Directory
 import System.IO.Unsafe
 import Data.Char
 import Data.IORef
+import Data.Function
 import Control.Applicative
 import qualified System.IO.UTF8 as UTF8
 
@@ -94,16 +95,25 @@ import qualified Agda.Compiler.MAlonzo.Compiler as MAlonzo
 import Agda.Utils.Impossible
 
 data State = State
-  { theTCState   :: TCState
-  , theUndoStack :: [TCState]
-  , theTopLevel  :: Maybe TopLevelInfo
+  { theTCState           :: TCState
+  , theUndoStack         :: [TCState]
+  , theTopLevel          :: Maybe TopLevelInfo
+    -- ^ Invariant: The 'TopLevelInfo' corresponds to a type-correct
+    --   module.
+  , theInteractionPoints :: [InteractionId]
+    -- ^ The interaction points of the buffer, in the order in which
+    --   they appear in the buffer. The interaction points are
+    --   recorded in 'theTCState', but when new interaction points are
+    --   added by give or refine Agda does not ensure that the ranges
+    --   of later interaction points are updated.
   }
 
 initState :: State
 initState = State
-  { theTCState   = TM.initState
-  , theUndoStack = []
-  , theTopLevel  = Nothing
+  { theTCState           = TM.initState
+  , theUndoStack         = []
+  , theTopLevel          = Nothing
+  , theInteractionPoints = []
   }
 
 {-# NOINLINE theState #-}
@@ -156,7 +166,7 @@ cmd_load' file includes unsolvedOK cmd cmd2 = infoOnException $ do
     -- canonicalizePath seems to return absolute paths.
     file <- liftIO $ canonicalizePath file
     clearSyntaxInfo file
-    is <- ioTCM $ do
+    ioTCM $ do
             clearUndoHistory
 	    preserveDecodedModules resetState
             decodedModules <- stDecodedModules <$> get
@@ -173,29 +183,24 @@ cmd_load' file includes unsolvedOK cmd cmd2 = infoOnException $ do
               decodedModules emptySignature
               Map.empty Nothing file True
 
-            -- The module type checked, so let us store the
-            -- abstract syntax information. (It could be stored
-            -- before type checking, but the functions using it
-            -- may not work if the code is not type correct.)
+            -- The module type checked, so let us store the abstract
+            -- syntax information and the interaction points.
+            is <- sortInteractionPoints =<< getInteractionPoints
             liftIO $ modifyIORef theState $ \s ->
-              s { theTopLevel = Just topLevel }
-
+              s { theTopLevel          = Just topLevel
+                , theInteractionPoints = is
+                }
             cmd ok
 
-	    lispIP
+            -- tellEmacsToReloadSyntaxInfo should run before
+            -- tellEmacsToUpdateGoals, because the latter can change
+            -- the contents of the buffer, and this can invalidate the
+            -- ranges of the syntax-info.
+            liftIO tellEmacsToReloadSyntaxInfo
+            liftIO tellEmacsToUpdateGoals
 
-    -- The Emacs mode uses two different annotation mechanisms, and
-    -- they cannot be invoked in any order. The one triggered by
-    -- adga2-load-action has to be run after the one triggered by
-    -- tellEmacsToReloadSyntaxInfo.
-    tellEmacsToReloadSyntaxInfo
-    System.performGC
-    UTF8.putStrLn $ response $ L [A "agda2-load-action", is]
     cmd2
-  where lispIP  = format . sortRng <$> (tagRng =<< getInteractionPoints)
-        tagRng  = mapM (\i -> (,)i <$> getInteractionRange i)
-        sortRng = sortBy ((.snd) . compare . snd)
-        format  = Q . L . List.map (A . tail . show . fst)
+    System.performGC
 
 -- | @cmd_compile m includes@ compiles the module in file @m@, using
 -- @includes@ as the include directories.
@@ -258,11 +263,25 @@ give_gen give_ref mk_newtxt ii rng s = do
     ioTCM $ do
       prec      <- scopePrecedence <$> getInteractionScope ii
       (ae, iis) <- give_ref ii Nothing =<< B.parseExprIn ii rng s
+      iis       <- sortInteractionPoints iis
+      liftIO $ modifyIORef theState $ \s ->
+                 s { theInteractionPoints =
+                       replace ii iis (theInteractionPoints s) }
       newtxt <- A . mk_newtxt s <$> abstractToConcreteCtx prec ae
-      let newgs  = Q . L $ List.map showNumIId iis
       liftIO $ UTF8.putStrLn $ response $
-                 L[A"agda2-give-action", showNumIId ii, newtxt, newgs]
+                 L [A "agda2-give-action", showNumIId ii, newtxt]
+      liftIO tellEmacsToUpdateGoals
     cmd_metas
+  where
+  -- Substitutes xs for x in ys.
+  replace x xs ys = concatMap (\y -> if y == x then xs else [y]) ys
+
+-- | Sorts interaction points based on their ranges.
+
+sortInteractionPoints :: [InteractionId] -> TCM [InteractionId]
+sortInteractionPoints is =
+  map fst . sortBy (compare `on` snd) <$>
+    mapM (\i -> (,) i <$> getInteractionRange i) is
 
 -- | Pretty-prints the type of the meta-variable.
 
@@ -588,6 +607,14 @@ emacsStr s = go (show s) where
 
 ------------------------------------------------------------------------
 -- Syntax highlighting
+
+-- | Tell the Emacs mode to rescan the buffer for goals.
+
+tellEmacsToUpdateGoals :: IO ()
+tellEmacsToUpdateGoals = do
+  is <- theInteractionPoints <$> readIORef theState
+  UTF8.putStrLn $ response $ L [A "agda2-annotate", format is]
+  where format = Q . L . List.map showNumIId
 
 -- | Tell the Emacs mode to reload the highlighting information.
 
