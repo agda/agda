@@ -1,7 +1,7 @@
 
 module BuiltinMustBeConstructor where
 
-postulate Nat : Set
+data Nat : Set where
 
 suc : Nat -> Nat
 suc x = x

@@ -16,6 +16,7 @@ import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Constraints
+import Agda.TypeChecking.Reduce
 
 import Agda.TypeChecking.Rules.Term ( checkExpr )
 
@@ -28,6 +29,18 @@ import Agda.Utils.Size
 bindBuiltinType :: String -> A.Expr -> TCM ()
 bindBuiltinType b e = do
     t <- checkExpr e (sort $ Type 0)
+
+    when (b == builtinNat) $ do
+      let err = typeError NatNotInductive
+      t <- normalise t
+      case t of
+        Def nat [] -> do
+          nat <- theDef <$> getConstInfo nat
+          case nat of
+            Datatype { dataInduction = Inductive } -> return ()
+            _ -> err
+        _ -> err
+
     bindBuiltinName b t
 
 bindBuiltinBool :: String -> A.Expr -> TCM ()

@@ -1,0 +1,3 @@
+errors/CoinductiveBuiltinNatural.agda:7,1-29
+The natural numbers have to be defined as an inductive data type.
+when checking the pragma BUILTIN NATURAL ℕ

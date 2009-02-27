@@ -97,6 +97,7 @@ errorString err = case err of
     CyclicModuleDependency _		       -> "CyclicModuleDependency"
     DataMustEndInSort _			       -> "DataMustEndInSort"
     DependentPatternMatchingOnCodata           -> "DependentPatternMatchingOnCodata"
+    NatNotInductive                            -> "NatNotInductive"
     DifferentArities			       -> "DifferentArities"
     DuplicateBuiltinBinding _ _ _	       -> "DuplicateBuiltinBinding"
     DuplicateFields _			       -> "DuplicateFields"
@@ -216,6 +217,8 @@ instance PrettyTCM TypeError where
 		fwords "Found an implicit application where an explicit application was expected"
             DependentPatternMatchingOnCodata ->
               fwords "Dependent pattern matching on codata is not allowed"
+            NatNotInductive ->
+              fwords "The natural numbers have to be defined as an inductive data type."
             UninstantiatedDotPattern e -> fsep $
               pwords "Failed to infer the value of dotted pattern"
             IlltypedPattern p a -> fsep $

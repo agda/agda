@@ -685,6 +685,7 @@ data TypeError
 	| WrongHidingInApplication Type
 	    -- ^ A function is applied to a hidden argument where a non-hidden was expected.
 	| DependentPatternMatchingOnCodata
+	| NatNotInductive
 	| UninstantiatedDotPattern A.Expr
 	| IlltypedPattern A.Pattern Type
 	| TooManyArgumentsInLHS Nat Type
