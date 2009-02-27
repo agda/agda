@@ -47,10 +47,21 @@ properties to add to the result."
   "Expands to (condition-case nil FORM (error DEFAULT))."
   `(condition-case nil ,form (error ,default)))
 (put 'agda2-protect 'lisp-indent-function 0)
+
 (defmacro agda2-let (varbind funcbind &rest body)
   "Expands to (let* VARBIND (labels FUNCBIND BODY...))."
   `(let* ,varbind (labels ,funcbind ,@body)))
 (put 'agda2-let 'lisp-indent-function 2)
+
+(defmacro agda2-no-modified-p (&rest code)
+  "Evaluate CODE without affecting the `buffer-modified-p' flag."
+  (let ((old-buffer-modified (make-symbol "old-buffer-modified")))
+    `(let ((,old-buffer-modified (buffer-modified-p)))
+       (unwind-protect
+           (progn ,@code)
+         ;; FIXME: Using restore-buffer-modified-p would be slightly
+         ;; better.
+         (set-buffer-modified-p ,old-buffer-modified)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; User options
@@ -512,9 +523,8 @@ in the buffer's mode line."
     (delete-overlay o))
   (agda2-go "cmd_reset")
   (let ((inhibit-read-only t))
-    (agda2-no-modified-p 'set-text-properties
-                         (point-min) (point-max)
-                         '())
+    (agda2-no-modified-p
+     (set-text-properties (point-min) (point-max) '()))
     (setq agda2-buffer-state "Text")
     (force-mode-line-update)))
 
@@ -693,16 +703,17 @@ appear in the buffer)."
 
 (defun agda2-make-goal (p q n)
   "Make a goal with number N at <P>{!...!}<Q>.  Assume the region is clean."
-  (flet ((atp (x ps) (add-text-properties x (1+ x) ps)))
-    (atp p       '(category agda2-delim1))
-    (atp (1+ p)  '(category agda2-delim2))
-    (atp (- q 2) '(category agda2-delim3))
-    (atp (1- q)  '(category agda2-delim4)))
-  (let ((o (make-overlay p q nil t nil)))
-    (overlay-put o 'modification-hooks '(agda2-protect-goal-markers))
-    (overlay-put o 'agda2-gn           n)
-    (overlay-put o 'face               'highlight)
-    (overlay-put o 'after-string       (propertize (format "%s" n) 'face 'highlight))))
+  (agda2-no-modified-p
+   (flet ((atp (x ps) (add-text-properties x (1+ x) ps)))
+     (atp p       '(category agda2-delim1))
+     (atp (1+ p)  '(category agda2-delim2))
+     (atp (- q 2) '(category agda2-delim3))
+     (atp (1- q)  '(category agda2-delim4)))
+   (let ((o (make-overlay p q nil t nil)))
+     (overlay-put o 'modification-hooks '(agda2-protect-goal-markers))
+     (overlay-put o 'agda2-gn           n)
+     (overlay-put o 'face               'highlight)
+     (overlay-put o 'after-string       (propertize (format "%s" n) 'face 'highlight)))))
 
 (defun agda2-protect-goal-markers (ol action beg end &optional length)
   "Ensures that the goal markers cannot be tampered with.
@@ -828,10 +839,10 @@ notation used in Haskell strings."
   "Remove all goal annotations.
 \(Including some text properties which might be used by other
 \(minor) modes.)"
-  (remove-text-properties (point-min) (point-max)
-                          '(category nil agda2-delim2 nil
-                            agda2-delim3 nil display nil
-                            rear-nonsticky nil))
+  (agda2-no-modified-p
+   (remove-text-properties (point-min) (point-max)
+                           '(category nil agda2-delim2 nil agda2-delim3 nil
+                             display nil rear-nonsticky nil)))
   (let ((p (point-min)))
     (while (< (setq p (next-single-char-property-change p 'agda2-gn))
               (point-max))
@@ -864,15 +875,6 @@ To do: dealing with semicolon separated decls."
 (defun agda2-beginning-of-decl ()
   (interactive)
   (goto-char (agda2-decl-beginning)))
-
-(defun agda2-no-modified-p (func &rest args)
-  "Call FUNC without affecting the `buffer-modified-p' flag."
-  (interactive)
-  (let ((old-buffer-modified (buffer-modified-p)))
-    (unwind-protect
-        (apply func args)
-      ;; FIXME: Using restore-buffer-modified-p would be slighlty better.
-      (set-buffer-modified-p old-buffer-modified))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Indentation
