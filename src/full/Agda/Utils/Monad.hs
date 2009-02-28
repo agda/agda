@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 
 module Agda.Utils.Monad
     ( module Agda.Utils.Monad
@@ -15,6 +16,9 @@ import Control.Applicative
 import Data.Traversable
 import Data.Foldable
 import Data.Monoid
+
+#include "../undefined.h"
+import Agda.Utils.Impossible
 
 -- Instances --------------------------------------------------------------
 
@@ -85,8 +89,8 @@ thread f (x:xs) ret =
 zipWithM' :: Monad m => (a -> b -> m c) -> [a] -> [b] -> m [c]
 zipWithM' f []	     []	      = return []
 zipWithM' f (x : xs) (y : ys) = liftM2 (:) (f x y) (zipWithM' f xs ys)
-zipWithM' f []	     (_ : _)  = fail "zipWithM' _ [] (_:_)"
-zipWithM' f (_ : _)  []	      = fail "zipWithM' _ (_:_) []"
+zipWithM' f []	     (_ : _)  = {- ' -} __IMPOSSIBLE__
+zipWithM' f (_ : _)  []	      = {- ' -} __IMPOSSIBLE__
 
 -- Maybe ------------------------------------------------------------------
 
