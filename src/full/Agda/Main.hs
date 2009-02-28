@@ -54,7 +54,6 @@ import Agda.Termination.TermCheck
 import Agda.Utils.Monad
 import Agda.Utils.FileName
 import Agda.Utils.Pretty
-import Agda.Utils.Impossible
 
 import Agda.Tests
 import Agda.Version
