@@ -495,12 +495,12 @@ instance PrettyTCM Call where
     prettyTCM c = case c of
 	CheckClause t cl _  -> fsep $
 	    pwords "when checking that the clause"
-	    ++ [vcat . map pretty =<< abstractToConcrete_ cl] ++ pwords "has type" ++ [prettyTCM t]
+	    ++ [P.prettyA cl] ++ pwords "has type" ++ [prettyTCM t]
 	CheckPattern p tel t _ -> addCtxTel tel $ fsep $
 	    pwords "when checking that the pattern"
 	    ++ [prettyA p] ++ pwords "has type" ++ [prettyTCM t]
 	CheckLetBinding b _ -> fsep $
-	    pwords "when checking the let binding" ++ [vcat . map pretty =<< abstractToConcrete_ b]
+	    pwords "when checking the let binding" ++ [P.prettyA b]
 	InferExpr e _ -> fsep $
 	    pwords "when inferring the type of" ++ [prettyA e]
 	CheckExpr e t _ -> fsep $
