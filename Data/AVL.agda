@@ -283,12 +283,12 @@ _∈?_ : Key → Tree → Bool
 k ∈? t = maybeToBool (lookup k t)
 
 headTail : Tree → Maybe (KV × Tree)
-headTail (tree leaf)          = nothing
+headTail (tree Indexed.leaf)  = nothing
 headTail (tree {h = suc _} t) with Indexed.headTail t
 ... | (k , _ , t′) = just (k , tree t′)
 
 initLast : Tree → Maybe (Tree × KV)
-initLast (tree leaf)          = nothing
+initLast (tree Indexed.leaf)  = nothing
 initLast (tree {h = suc _} t) with Indexed.initLast t
 ... | ((_ , t′) , k) = just (tree t′ , k)
 
