@@ -146,7 +146,7 @@ data WithFunctionProblem
 checkClause :: Type -> A.Clause -> TCM Clause
 checkClause t c@(A.Clause (A.LHS i x aps []) rhs wh) =
     traceCall (CheckClause t c) $
-    checkLeftHandSide aps t $ \gamma delta sub xs ps t' perm -> do
+    checkLeftHandSide c aps t $ \gamma delta sub xs ps t' perm -> do
       let mkBody v = foldr (\x t -> Bind $ Abs x t) (Body $ substs sub v) xs
       (body, with) <- checkWhere (size delta) wh $ 
               case rhs of

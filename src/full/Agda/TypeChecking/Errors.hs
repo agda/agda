@@ -134,6 +134,7 @@ errorString err = case err of
     NotLeqSort _ _			       -> "NotLeqSort"
     NotStrictlyPositive _ _		       -> "NotStrictlyPositive"
     NothingAppliedToHiddenArg _		       -> "NothingAppliedToHiddenArg"
+    PatternShadowsConstructor {}               -> "PatternShadowsConstructor"
     PropMustBeSingleton			       -> "PropMustBeSingleton"
     RepeatedVariablesInPattern _	       -> "RepeatedVariablesInPattern"
     ShadowedModule _                           -> "ShadowedModule"
@@ -394,6 +395,9 @@ instance PrettyTCM TypeError where
 		pwords "Import clash between" ++ [pretty x, text "and", prettyTCM y]
 	    ClashingModuleImport x y -> fsep $
 		pwords "Module import clash between" ++ [pretty x, text "and", prettyTCM y]
+	    PatternShadowsConstructor x c -> fsep $
+                pwords "The pattern variable" ++ [prettyTCM x] ++
+                pwords "has the same name as the constructor" ++ [prettyTCM c]
 	    ModuleDoesntExport m xs -> fsep $
 		pwords "The module" ++ [pretty m] ++ pwords "doesn't export the following:" ++
 		punctuate comma (map pretty xs)
@@ -533,6 +537,8 @@ instance PrettyTCM Call where
         CheckDotPattern e v _ -> fsep $
             pwords "when checking that the given dot pattern" ++ [prettyA e] ++
             pwords "matches the inferred value" ++ [prettyTCM v]
+        CheckPatternShadowing c _ -> fsep $
+            pwords "when checking the clause" ++ [P.prettyA c]
 	InferVar x _ ->
 	    fsep $ pwords "when inferring the type of" ++ [prettyTCM x]
 	InferDef _ x _ ->

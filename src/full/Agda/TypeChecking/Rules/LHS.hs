@@ -2,6 +2,7 @@
 
 module Agda.TypeChecking.Rules.LHS where
 
+import Data.Maybe
 import Control.Applicative
 import Control.Monad
 
@@ -32,6 +33,7 @@ import Agda.TypeChecking.Rules.Data
 
 import Agda.Utils.Permutation
 import Agda.Utils.Size
+import Agda.Utils.Monad
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
@@ -139,6 +141,67 @@ isSolvedProblem = all (isVar . snd . asView . namedThing . unArg) . problemInPat
     isVar (A.AbsurdP _)   = True
     isVar _               = False
 
+-- | For each user-defined pattern variable in the 'Problem', check
+-- that the corresponding data type (if any) does not contain a
+-- constructor of the same name (which is not in scope); this
+-- \"shadowing\" could indicate an error, and is not allowed.
+--
+-- Precondition: The problem has to be solved.
+
+noShadowingOfConstructors
+  :: A.Clause
+     -- ^ The entire clause (used for error reporting).
+  -> Problem -> TCM ()
+noShadowingOfConstructors c problem =
+  traceCall (CheckPatternShadowing c) $ do
+    let pat = map (snd . asView . namedThing . unArg) $
+                  problemInPat problem
+        tel = map (unEl . snd . unArg) $ telToList $ problemTel problem
+    zipWithM' noShadowing pat tel
+    return ()
+  where
+  noShadowing (A.WildP     {}) t = return ()
+  noShadowing (A.AbsurdP   {}) t = return ()
+  noShadowing (A.ImplicitP {}) t = return ()
+  noShadowing (A.ConP      {}) t = __IMPOSSIBLE__
+  noShadowing (A.DefP      {}) t = __IMPOSSIBLE__
+  noShadowing (A.AsP       {}) t = __IMPOSSIBLE__
+  noShadowing (A.DotP      {}) t = __IMPOSSIBLE__
+  noShadowing (A.LitP      {}) t = __IMPOSSIBLE__
+  noShadowing (A.VarP x)       t = do
+    t <- normalise t
+    case t of
+      Def t _ -> do
+        d <- theDef <$> getConstInfo t
+        case d of
+          Datatype { dataCons = cs } -> do
+            let ns = map (\c -> (c, A.nameConcrete $ A.qnameName c)) cs
+                match x = catMaybes $
+                            map (\(c, n) -> if A.nameConcrete x == n
+                                            then Just c else Nothing) ns
+            case match x of
+              []      -> return ()
+              (c : _) -> setCurrentRange (getRange x) $
+                typeError $ PatternShadowsConstructor x c
+          Axiom       {} -> return ()
+          Function    {} -> return ()
+          Record      {} -> return ()
+          Constructor {} -> __IMPOSSIBLE__
+          Primitive   {} -> __IMPOSSIBLE__
+      Var   {} -> return ()
+      Pi    {} -> return ()
+      Fun   {} -> return ()
+      Sort  {} -> return ()
+      MetaV {} -> return ()
+      -- TODO: If the type is a meta-variable, should the test be
+      -- postponed? If there is a problem, then it will be caught when
+      -- the completed module is type checked, so it is safe to skip
+      -- the test here. However, users may be annoyed if they get an
+      -- error in code which has already passed the type checker.
+      Lam   {} -> __IMPOSSIBLE__
+      Lit   {} -> __IMPOSSIBLE__
+      Con   {} -> __IMPOSSIBLE__
+
 -- | Check that a dot pattern matches it's instantiation.
 checkDotPattern :: DotPatternInst -> TCM ()
 checkDotPattern (DPI e v a) =
@@ -195,9 +258,18 @@ useNamesFromPattern ps = telFromList . zipWith ren (toPats ps ++ repeat dummy) .
     toPats = map (namedThing . unArg)
 
 -- | Check a LHS. Main function.
-checkLeftHandSide :: [NamedArg A.Pattern] -> Type ->
-                     (Telescope -> Telescope -> [Term] -> [String] -> [Arg Pattern] -> Type -> Permutation -> TCM a) -> TCM a
-checkLeftHandSide ps a ret = do
+checkLeftHandSide
+  :: A.Clause
+     -- ^ The entire clause.
+  -> [NamedArg A.Pattern]
+     -- ^ The patterns.
+  -> Type
+     -- ^ The expected type.
+  -> (Telescope -> Telescope -> [Term] -> [String] -> [Arg Pattern]
+      -> Type -> Permutation -> TCM a)
+     -- ^ Continuation.
+  -> TCM a
+checkLeftHandSide c ps a ret = do
   a <- normalise a
   let TelV tel0' b0 = telView a
   ps <- insertImplicitPatterns ps tel0'
@@ -258,7 +330,8 @@ checkLeftHandSide ps a ret = do
                 TCM (Problem, [Term], [DotPatternInst], [AsBinding])
     checkLHS problem sigma dpi asb
       | isSolvedProblem problem = do
-        problem <- insertImplicitProblem problem -- inserting implicit patterns preserve solvedness
+        problem <- insertImplicitProblem problem -- inserting implicit patterns preserves solvedness
+        noShadowingOfConstructors c problem
         return (problem, sigma, dpi, asb)
       | otherwise               = do
         sp <- splitProblem =<< insertImplicitProblem problem

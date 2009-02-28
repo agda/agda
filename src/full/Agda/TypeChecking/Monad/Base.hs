@@ -486,6 +486,7 @@ data Call = CheckClause Type A.Clause (Maybe Clause)
 	  | InferExpr A.Expr (Maybe (Term, Type))
 	  | CheckExpr A.Expr Type (Maybe Term)
 	  | CheckDotPattern A.Expr Term (Maybe ())
+	  | CheckPatternShadowing A.Clause (Maybe ())
 	  | IsTypeCall A.Expr Sort (Maybe Type)
 	  | IsType_ A.Expr (Maybe Type)
 	  | InferVar Name (Maybe (Term, Type))
@@ -551,6 +552,7 @@ instance HasRange Call where
     getRange (ScopeCheckLHS _ p _)                 = getRange p
     getRange (ScopeCheckDefinition d _)            = getRange d
     getRange (CheckDotPattern e _ _)               = getRange e
+    getRange (CheckPatternShadowing c _)           = getRange c
     getRange (TermFunDef i _ _ _)                  = getRange i
     getRange (SetRange r _)                        = r
     getRange (CheckSectionApplication r _ _ _ _ _) = r
@@ -752,6 +754,7 @@ data TypeError
 	| ClashingModule A.ModuleName A.ModuleName
 	| ClashingImport C.Name A.QName
 	| ClashingModuleImport C.Name A.ModuleName
+	| PatternShadowsConstructor A.Name A.QName
 	| ModuleDoesntExport C.QName [C.ImportedName]
 	| InvalidPattern C.Pattern
 	| RepeatedVariablesInPattern [C.Name]
