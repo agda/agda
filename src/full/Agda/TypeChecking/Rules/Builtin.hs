@@ -26,21 +26,23 @@ import Agda.Utils.Size
 -- * Checking builtin pragmas
 ---------------------------------------------------------------------------
 
+ensureInductive :: Term -> TCM ()
+ensureInductive t = do
+  t <- normalise t
+  let err = typeError (NotInductive t)
+  case t of
+    Def t _ -> do
+      t <- theDef <$> getConstInfo t
+      case t of
+        Datatype { dataInduction = Inductive } -> return ()
+        _ -> err
+    _ -> err
+
 bindBuiltinType :: String -> A.Expr -> TCM ()
 bindBuiltinType b e = do
     t <- checkExpr e (sort $ Type 0)
-
-    when (b == builtinNat) $ do
-      let err = typeError NatNotInductive
-      t <- normalise t
-      case t of
-        Def nat [] -> do
-          nat <- theDef <$> getConstInfo nat
-          case nat of
-            Datatype { dataInduction = Inductive } -> return ()
-            _ -> err
-        _ -> err
-
+    when (b `elem` [builtinBool, builtinNat]) $ do
+      ensureInductive t
     bindBuiltinName b t
 
 bindBuiltinBool :: String -> A.Expr -> TCM ()
@@ -55,6 +57,8 @@ bindBuiltinType1 thing e = do
     let set	 = sort (Type 0)
 	setToSet = El (Type 1) $ Fun (Arg NotHidden set) set
     f <- checkExpr e setToSet
+    when (thing `elem` [builtinList]) $ do
+      ensureInductive f
     bindBuiltinName thing f
 
 bindBuiltinZero :: A.Expr -> TCM ()

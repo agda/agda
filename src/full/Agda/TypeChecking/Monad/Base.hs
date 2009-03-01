@@ -687,7 +687,8 @@ data TypeError
 	| WrongHidingInApplication Type
 	    -- ^ A function is applied to a hidden argument where a non-hidden was expected.
 	| DependentPatternMatchingOnCodata
-	| NatNotInductive
+	| NotInductive Term
+          -- ^ The term does not correspond to an inductive data type.
 	| UninstantiatedDotPattern A.Expr
 	| IlltypedPattern A.Pattern Type
 	| TooManyArgumentsInLHS Nat Type
