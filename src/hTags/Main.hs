@@ -1,10 +1,11 @@
-{-# LANGUAGE ScopedTypeVariables, PatternSignatures #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Main where
 
 import Control.Applicative
 import Control.Exception
 import Control.Monad
+import Control.Monad.Trans
 import Data.Char
 import Data.List
 import Data.Maybe
@@ -17,7 +18,7 @@ import System.Process
 import System.Console.GetOpt
 
 import GHC
-import Parser
+import Parser as P
 import Lexer
 import DriverPipeline
 import FastString
@@ -25,8 +26,18 @@ import DriverPhases
 import StringBuffer
 import SrcLoc
 import Outputable
+import HscTypes (GhcT(..), Ghc(..))
 
 import Tags
+
+instance MonadTrans GhcT where
+  lift m = GhcT $ \_ -> m
+
+instance MonadIO m => MonadIO (GhcT m) where
+  liftIO = lift . liftIO
+
+instance MonadIO Ghc where
+  liftIO m = Ghc $ \_ -> m
 
 fileLoc :: FilePath -> SrcLoc
 fileLoc file = mkSrcLoc (mkZFastString file) 1 1
@@ -37,29 +48,26 @@ filePState dflags file = do
   return $ mkPState buf (fileLoc file) dflags
 
 pMod :: P (Located (HsModule RdrName))
-pMod = parseModule
+pMod = P.parseModule
 
 parse :: PState -> P a -> ParseResult a
 parse st p = unP p st
 
-debug = hPutStrLn stderr
+debug = liftIO . hPutStrLn stderr
 
-goFile :: Session -> FilePath -> IO [Tag]
-goFile session file = do
-  dflags <- getSessionDynFlags session
-  (dflags, srcFile) <- preprocess dflags (file, Just $ Cpp HsSrcFile)
-    `catchDyn` \(e :: GhcException) -> do
-      debug $ "panic: " ++ show e
-      exitWith $ ExitFailure 1
-  st <- filePState dflags srcFile
-  case parse st parseModule of
+goFile :: FilePath -> Ghc [Tag]
+goFile file = do
+  env <- getSession
+  (dflags, srcFile) <- preprocess env (file, Just $ Cpp HsSrcFile)
+  st <- liftIO $ filePState dflags srcFile
+  case parse st pMod of
     POk _ m   -> return $ tags $ unLoc m
     PFailed loc err -> do
       let file = unpackFS $ srcLocFile $ srcSpanStart loc
           line = srcSpanStartLine loc
       debug $ file ++ ":" ++ show line
       debug $ show $ err defaultDumpStyle
-      exitWith $ ExitFailure 1
+      liftIO $ exitWith $ ExitFailure 1
 
 runCmd :: String -> IO String
 runCmd cmd = do
@@ -74,13 +82,13 @@ main = do
             exitWith ExitSuccess
          | otherwise = do
             top : _ <- lines <$> runCmd "ghc --print-libdir"
-            session <- newSession (Just top)
-            -- This looks like a no-op but it's actually not.
-            -- setSessionDynFlags does interesting (and necessary) things.
-            setSessionDynFlags session =<< getSessionDynFlags session
-            ts <- mapM (\f -> liftM2 ((,,) f) (readFile f)
-                                              (goFile session f)) $
-                       optFiles opts
+            ts <- runGhc (Just top) $ do
+              -- This looks like a no-op but it's actually not.
+              -- setSessionDynFlags does interesting (and necessary) things.
+              setSessionDynFlags =<< getSessionDynFlags
+              mapM (\f -> liftM2 ((,,) f) (liftIO $ readFile f)
+                                          (goFile f)) $
+                         optFiles opts
             when (optCTags opts) $
               let sts = sort $ concat $ map (\(_, _, t) -> t) ts in
               writeFile (optCTagsFile opts) $ unlines $ map show sts

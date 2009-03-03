@@ -2,14 +2,17 @@ name: hTags
 version: 0.1
 cabal-version: >= 1.2 && < 2
 author: Ulf Norell, Nils Anders Danielsson
+build-type: Simple
 
 executable hTags
   main-is:       Main.hs
-  build-depends: ghc == 6.8.3,
+  -- build-depends: ghc == 6.8.3,
+  build-depends: ghc >= 6.10.1 && < 6.11,
                  base >= 3,
                  filepath >= 1.1 && < 2,
                  directory >= 1.0 && < 2,
                  process >= 1.0 && < 2,
-                 containers >= 0.1 && < 1
+                 containers >= 0.1 && < 1,
+                 mtl >= 1.0 && < 2
   ghc-options:   -fwarn-incomplete-patterns -O
 

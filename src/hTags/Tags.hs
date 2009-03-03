@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeSynonymInstances #-}
 
 module Tags where
 
@@ -130,7 +131,7 @@ instance TagName name => HasTags (HsDecl name) where
     DocD _    -> []
     SpliceD _ -> []
     RuleD _   -> []
-    DeprecD _ -> []
+--    DeprecD _ -> []
     DefD _    -> []
     InstD _   -> []
     DerivD _  -> []
