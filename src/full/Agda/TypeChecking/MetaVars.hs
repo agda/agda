@@ -330,29 +330,27 @@ handleAbort h m = liftTCM $
 assignV :: MonadTCM tcm => Type -> MetaId -> Args -> Term -> tcm Constraints
 assignV t x args v =
     handleAbort handler $ do
-	verboseS "tc.meta.assign" 10 $ do
-	    d1 <- prettyTCM (MetaV x args)
-	    d2 <- prettyTCM v
-	    debug $ show d1 ++ " := " ++ show d2
+	reportSDoc "tc.meta.assign" 10 $ do
+	  prettyTCM (MetaV x args) <+> text ":=" <+> prettyTCM v
 
 	-- We don't instantiate blocked terms
 	whenM (isBlockedTerm x) patternViolation	-- TODO: not so nice
 
 	-- Check that the arguments are distinct variables
-        verboseS "tc.meta.assign" 20 $ do
-            let pr (Var n []) = show n
-                pr (Def c []) = show c
-                pr _          = ".."
-            liftIO $ UTF8.putStrLn $ "args: " ++ unwords (map (pr . unArg) args)
+        reportSDoc "tc.meta.assign" 20 $
+            let pr (Var n []) = text (show n)
+                pr (Def c []) = prettyTCM c
+                pr _          = text ".."
+            in
+            text "args:" <+> sep (map (pr . unArg) args)
             
 	ids <- checkArgs x args
 
-	verboseS "tc.meta.assign" 15 $ do
-	    d <- prettyTCM v
-	    debug $ "preparing to instantiate: " ++ show d
+	reportSDoc "tc.meta.assign" 15 $
+	    text "preparing to instantiate: " <+> prettyTCM v
 
 	-- Check that the x doesn't occur in the right hand side
-	v <- liftTCM $ occursCheck x ids v
+	v <- liftTCM $ occursCheck x (map unArg ids) v
 
 	verboseS "tc.conv.assign" 30 $ do
 	  let n = size v
@@ -369,26 +367,25 @@ assignV t x args v =
 	-- Rename the variables in v to make it suitable for abstraction over ids.
 	v' <- do
 	    -- Basically, if
-	    --   Γ	 = a b c d e
+	    --   Γ   = a b c d e
 	    --   ids = d b e
 	    -- then
 	    --   v' = (λ a b c d e. v) _ 1 _ 2 0
 	    tel  <- getContextTelescope
 	    args <- map (Arg NotHidden) <$> getContextTerms
-	    let iargs = reverse $ zipWith (rename $ reverse ids) [0..] $ reverse args
+	    let iargs = reverse $ zipWith (rename $ reverse $ map unArg ids) [0..] $ reverse args
 		v'    = raise (size ids) (abstract tel v) `apply` iargs
 	    return v'
 
-	let extTel i m = do
+	let extTel (Arg h i) m = do
 	      tel <- m
 	      t	  <- typeOfBV i
 	      x	  <- nameOfBV i
-	      return $ ExtendTel (Arg NotHidden t) (Abs (show x) tel)
-	tel' <- foldr extTel (return EmptyTel) ids  -- TODO: this can't be the right way of building the tele
+	      return $ ExtendTel (Arg h t) (Abs (show x) tel)
+	tel' <- foldr extTel (return EmptyTel) ids
 
-	verboseS "tc.meta.assign" 15 $ do
-	    d <- prettyTCM (abstract tel' v')
-	    debug $ "final instantiation: " ++ show d
+	reportSDoc "tc.meta.assign" 15 $
+	  text "final instantiation:" <+> prettyTCM (abstract tel' v')
 
 	-- Perform the assignment (and wake constraints). Metas
 	-- are top-level so we do the assignment at top-level.
@@ -421,19 +418,20 @@ assignS x s =
 --
 --   @reverse@ is necessary because we are directly abstracting over this list @ids@.
 --
-checkArgs :: MonadTCM tcm => MetaId -> Args -> tcm [Nat]
+checkArgs :: MonadTCM tcm => MetaId -> Args -> tcm [Arg Nat]
 checkArgs x args =
     case validParameters args of
 	Just ids    -> return $ reverse ids
 	Nothing	    -> patternViolation
 
 -- | Check that the parameters to a meta variable are distinct variables.
-validParameters :: Monad m => Args -> m [Nat]
+validParameters :: Monad m => Args -> m [Arg Nat]
 validParameters args
-    | all isVar args && distinct vars	= return $ reverse vars
-    | otherwise				= fail "invalid parameters"
+    | all isVar args && distinct (map unArg vars)
+                = return $ reverse vars
+    | otherwise	= fail "invalid parameters"
     where
-	vars = [ i | Arg _ (Var i []) <- args ]
+	vars = [ Arg h i | Arg h (Var i []) <- args ]
 
 isVar :: Arg Term -> Bool
 isVar (Arg _ (Var _ [])) = True

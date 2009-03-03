@@ -12,6 +12,7 @@ import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Pretty
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
@@ -73,7 +74,7 @@ isRecord r = do
     _        -> False
 
 {-| Compute the eta expansion of a record. The first argument should be
-    a record. Given
+    the name of a record type. Given
 
     @record R : Set where x : A; y : B@
 
@@ -84,6 +85,13 @@ etaExpandRecord r pars u = do
   Record{ recFields = xs, recTel = tel } <- getRecordDef r
   let tel'   = apply tel pars
       proj x = Arg NotHidden $ Def x $ map hide pars ++ [Arg NotHidden u]
+  reportSDoc "tc.record.eta" 20 $ vcat
+    [ text "eta expanding" <+> prettyTCM u <+> text ":" <+> prettyTCM r
+    , nest 2 $ vcat
+      [ text "tel' =" <+> prettyTCM tel'
+      , text "args =" <+> prettyTCM (map proj xs)
+      ]
+    ]
   return (tel', map proj xs)
   where
     hide (Arg _ x) = Arg Hidden x

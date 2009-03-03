@@ -38,7 +38,7 @@ import Agda.Syntax.Scope.Monad
 
 import Agda.TypeChecking.Monad as M
 import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.Records
+import {-# SOURCE #-} Agda.TypeChecking.Records
 import Agda.TypeChecking.DisplayForm
 
 import Agda.Utils.Monad
