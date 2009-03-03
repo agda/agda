@@ -157,6 +157,7 @@ errorString err = case err of
     UnexpectedWithPatterns _                   -> "UnexpectedWithPatterns"
     UninstantiatedDotPattern _                 -> "UninstantiatedDotPattern"
     UninstantiatedModule _		       -> "UninstantiatedModule"
+    UnreachableClauses{}                       -> "UnreachableClauses"
     UnsolvedConstraints _		       -> "UnsolvedConstraints"
     UnsolvedMetas _			       -> "UnsolvedMetas"
     WithClausePatternMismatch _ _              -> "WithClausePatternMismatch"
@@ -432,6 +433,11 @@ instance PrettyTCM TypeError where
 	    IncompletePatternMatching v args -> fsep $
 		pwords "Incomplete pattern matching for" ++ [prettyTCM v <> text "."] ++
 		pwords "No match for" ++ map prettyTCM args
+            UnreachableClauses f pss -> fsep $
+                pwords "Unreachable" ++ pwords (plural (length pss) "clause")
+                where
+                  plural 1 thing = thing
+                  plural n thing = thing ++ "s"
             CoverageFailure f pss -> fsep (
                 pwords "Incomplete pattern matching for" ++ [prettyTCM f <> text "."] ++
                 pwords "Missing cases:") $$ nest 2 (vcat $ map display pss)

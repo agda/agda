@@ -211,8 +211,8 @@ processDef (qname,Defn { theDef = Primitive info prim expr }) = return $
              name = qnameName qname
 
 processDef (qname, (Defn { theDef = Datatype{dataClause = Just clause} })) = do
-           -- liftIO $ putStrLn $ gshow $ clauseBody clause 
-    mkSynonym (clauseBody clause) where
+           -- liftIO $ putStrLn $ gshow $ clauseBod clause 
+    mkSynonym (clauseBod clause) where
     name = qnameName qname
     mkSynonym (Lam _ (Abs _ t)) = mkSynonym t
     mkSynonym (Def rhsqname args) = return [ddecl, vdecl] where
@@ -287,7 +287,10 @@ consDefs qns = do
 
 
 processClause :: Name -> Nat -> Clause -> TCM HsDecl
-processClause name number clause@(Clause _ perm args _ (body)) = do
+processClause name number clause@(Clause{ clausePerm = perm
+                                        , clausePats = args
+                                        , clauseBody = body
+                                        }) = do
   reportSLn "comp.alonzo.clause" 20 $
     "processClause " ++ show name ++ "\n" ++
     "  perm = " ++ show perm ++ "\n" ++
@@ -305,7 +308,7 @@ processClause name number clause@(Clause _ perm args _ (body)) = do
                     -- pats =  processArgPats  args               
                     
 contClause :: Name -> Nat -> Clause -> TCM HsDecl
-contClause name number (Clause _ _ args _ body) = do
+contClause name number (Clause{ clausePats = args, clauseBody = body }) = do
   return $ HsFunBind $ [HsMatch dummyLoc hsid pats rhs decls] where
                 decls = []
                 hsid = dfNameSub name (fromIntegral number)
@@ -483,8 +486,8 @@ typeArity (El s t) = ar t where
     ar (Fun a t2) = typeArity t2 + 1
     ar _ = 0
 
-clauseBody :: Clause -> Term
-clauseBody (Clause _ _ args _ bound) = stripBinds bound where
+clauseBod :: Clause -> Term
+clauseBod c = stripBinds (clauseBody c) where
   stripBinds (Bind (Abs _ r)) = stripBinds r
   stripBinds (NoBind r) = stripBinds r
   stripBinds (Body r) = r

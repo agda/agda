@@ -66,7 +66,7 @@ import Agda.Utils.Permutation
 import Agda.Utils.Impossible
 
 currentInterfaceVersion :: Int
-currentInterfaceVersion = 20090116
+currentInterfaceVersion = 20090303
 
 type Node = [Int] -- constructor tag (maybe omitted) and arg indices
 
@@ -489,9 +489,9 @@ instance EmbPrj Agda.Syntax.Common.IsAbstract where
                            valu _   = __IMPOSSIBLE__
 
 instance EmbPrj I.Clause where
-  icode (Clause a b c d e) = icode5' a b c d e
-  value = vcase valu where valu [a, b, c, d, e] = valu5 Clause a b c d e
-                           valu _            = __IMPOSSIBLE__
+  icode (Clause a b c d e f) = icode6' a b c d e f
+  value = vcase valu where valu [a, b, c, d, e, f] = valu6 Clause a b c d e f
+                           valu _                  = __IMPOSSIBLE__
 
 instance EmbPrj I.ClauseBody where
   icode (Body   a) = icode1 0 a

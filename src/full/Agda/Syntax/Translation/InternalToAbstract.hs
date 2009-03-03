@@ -348,7 +348,7 @@ reifyPatterns tel perm ps = evalStateT (reifyArgs ps) 0
         mi = MetaInfo noRange emptyScopeInfo Nothing
 
 instance Reify NamedClause A.Clause where
-  reify (NamedClause f (I.Clause tel perm ps rec body)) = addCtxTel tel $ do
+  reify (NamedClause f (I.Clause _ tel perm ps rec body)) = addCtxTel tel $ do
     ps  <- reifyPatterns tel perm ps
     lhs <- liftTCM $ reifyDisplayFormP $ LHS info f ps []
     nfv <- getDefFreeVars f

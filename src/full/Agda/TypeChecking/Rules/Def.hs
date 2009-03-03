@@ -126,7 +126,7 @@ checkFunDef i name cs =
         -- Check pattern coverage
         whenM (optCompletenessCheck <$> commandLineOptions) $ checkCoverage name
     where
-        npats (Clause _ _ ps _ _) = size ps
+        npats = size . clausePats
 
 data WithFunctionProblem
       = NoWithFunction
@@ -226,7 +226,13 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs wh) =
           , text "body  =" <+> text (show body)
           ]
         ]
-      return $ Clause (killRange delta) perm ps (recursion rhs) body  -- TODO: make sure delta and perm are what we want
+      return $ Clause { clauseRange     = getRange i
+                      , clauseTel       = killRange delta  -- TODO: make sure delta and perm are what we want
+                      , clausePerm      = perm
+                      , clausePats      = ps
+                      , clauseRecursion = recursion rhs
+                      , clauseBody      = body
+                      }
       -- only clauses with '~' are CoRecursive, everything else is Recursive
       where recursion (A.RHS rec e) = rec
             recursion _ = Recursive

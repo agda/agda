@@ -41,8 +41,8 @@ findClause m = do
   let res = do
         def <- Map.elems $ sigDefinitions sig
         Function{funClauses = cs} <- [theDef def]
-        c@(Clause _ _ _ _ body) <- cs
-        unless (rhsIsm body) []
+        c <- cs
+        unless (rhsIsm $ clauseBody c) []
         return (defName def, c)
   case res of
     []  -> fail "Right hand side must be a single hole when making case."
@@ -59,7 +59,7 @@ findClause m = do
 makeCase :: InteractionId -> Range -> String -> TCM [A.Clause]
 makeCase hole rng s = do
   meta        <- lookupInteractionId hole
-  (f, clause@(Clause tel perm ps _ _)) <- findClause meta
+  (f, clause@(Clause{ clauseTel = tel, clausePerm = perm, clausePats = ps })) <- findClause meta
   reportSDoc "interaction.case" 10 $ vcat
     [ text "splitting clause:"
     , nest 2 $ vcat
@@ -91,7 +91,7 @@ makeAbsurdClause f (SClause tel perm ps _) = do
   withCurrentModule (qnameModule f) $ do
     -- Normalise the dot patterns
     ps <- addCtxTel tel $ normalise ps
-    reify $ NamedClause f $ Clause tel perm ps rec NoBody
+    reify $ NamedClause f $ Clause noRange tel perm ps rec NoBody
 
 makeAbstractClause :: QName -> SplitClause -> TCM A.Clause
 makeAbstractClause f cl = do

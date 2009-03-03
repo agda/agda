@@ -23,7 +23,6 @@ data D : Set where
 f : D -> ℕ -> ⊤
 f (d zero c x) (suc n) = f (d 0 c x) n
 f (d .zero c x) n      = f x (suc n)
-f _ _ = _
 
 g : D -> ℕ -> ⊤
 g (d .zero c x) (suc n) = g (d zero c x) n

@@ -97,8 +97,8 @@ showUntypedLiteral (LitChar   _ c) = text "VChar"   <+> text (show c)
 showClause :: (Term -> TCM Doc) ->
 	      (QName -> [Doc] -> TCM Doc) ->
 	      ([Doc] -> Term -> TCM Doc) -> Clause -> TCM Doc
-showClause fTerm fCon fBody (Clause _ _ pats _ NoBody) = return empty
-showClause fTerm fCon fBody (Clause _ _ pats _ body)   = go 0 [] body
+showClause fTerm fCon fBody (Clause{ clauseBody = NoBody }) = return empty
+showClause fTerm fCon fBody (Clause{ clausePats = pats, clauseBody = body })   = go 0 [] body
     where
     go :: Int -> [Doc] -> ClauseBody -> TCM Doc
     go n dvars NoBody        = return empty

@@ -23,7 +23,7 @@ data PState = PSt
   }
 
 initPState :: Clause -> Defs -> PState
-initPState c@(Clause _ perm _ _ _) d = PSt 
+initPState c@(Clause{ clausePerm = perm }) d = PSt 
   { cnt = 0
   , vars = permute perm [0..]
   , lst = []

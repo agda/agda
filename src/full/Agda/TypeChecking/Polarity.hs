@@ -25,13 +25,13 @@ getArity :: QName -> TCM Arity
 getArity x = do
   def <- theDef <$> getConstInfo x
   case def of
-    Axiom{}                                      -> return 0
-    Function{ funClauses = Clause _ _ ps _ _ : _ } -> return $ genericLength ps
-    Function{ funClauses = [] }                  -> return 0
-    Datatype{ dataPars = np, dataIxs = ni }      -> return np
-    Record{ recPars = n }                        -> return n
-    Constructor{}                                -> return 0
-    Primitive{}                                  -> return 0
+    Axiom{}                                 -> return 0
+    Function{ funClauses = c : _ }          -> return $ genericLength (clausePats c)
+    Function{ funClauses = [] }             -> return 0
+    Datatype{ dataPars = np, dataIxs = ni } -> return np
+    Record{ recPars = n }                   -> return n
+    Constructor{}                           -> return 0
+    Primitive{}                             -> return 0
 
 computePolarity :: QName -> TCM ()
 computePolarity x = do

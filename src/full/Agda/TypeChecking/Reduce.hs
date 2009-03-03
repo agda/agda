@@ -236,7 +236,7 @@ unfoldDefinition forced keepGoing v0 f args =
     reduceNormal forced v0 f args def = do
         case def of
             [] -> return $ notBlocked $ v0 `apply` args -- no definition for head
-            cls@(Clause _ _ ps _  _ : _)
+            cls@(Clause{ clausePats = ps } : _)
                 | length ps <= length args ->
                     do  let (args1,args2) = splitAt (length ps) args 
                         ev <- appDef v0 cls args1
@@ -262,7 +262,9 @@ unfoldDefinition forced keepGoing v0 f args =
 
         goCls :: MonadTCM tcm => [Clause] -> Args -> tcm (Reduced (Blocked Term) (Recursion, Args, Term))
         goCls [] args = typeError $ IncompletePatternMatching v args
-        goCls (cl@(Clause _ _ pats rec body) : cls) args = do
+        goCls (cl@(Clause { clausePats = pats
+                          , clauseRecursion = rec
+                          , clauseBody = body }) : cls) args = do
             (m, args) <- matchPatterns pats args
             case m of
                 No		  -> goCls cls args
@@ -525,8 +527,8 @@ instance InstantiateFull Defn where
         return $ d { primClauses = cs }
 
 instance InstantiateFull Clause where
-    instantiateFull (Clause tel perm ps rec b) = 
-       Clause <$> instantiateFull tel
+    instantiateFull (Clause r tel perm ps rec b) = 
+       Clause r <$> instantiateFull tel
        <*> return perm
        <*> return ps
        <*> return rec

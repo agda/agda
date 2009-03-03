@@ -42,40 +42,78 @@ buildMPatterns perm ps = evalState (mapM (traverse build) ps) xs
 -- | If matching is inconclusive (@Block@) we want to know which
 --   variable is blocking the match. If a dot pattern is blocking a match
 --   we're screwed.
-data Match = Yes | No | Block (Maybe Nat)
+data Match a = Yes a | No | Block (Maybe Nat)
 
-instance Monoid Match where
-  mempty                    = Yes
-  Yes     `mappend` Yes     = Yes
-  Yes     `mappend` No      = No
-  Yes     `mappend` Block x = Block x
+instance Functor Match where
+  fmap f (Yes a)   = Yes (f a)
+  fmap f No        = No
+  fmap f (Block x) = Block x
+
+instance Monoid a => Monoid (Match a) where
+  mempty                    = Yes mempty
+  Yes a   `mappend` Yes b   = Yes $ mappend a b
+  Yes _   `mappend` No      = No
+  Yes _   `mappend` Block x = Block x
   No      `mappend` _       = No
   Block x `mappend` _       = Block x
 
-choice :: Match -> Match -> Match
-choice Yes _       = Yes
+choice :: Match a -> Match a -> Match a
+choice (Yes a) _   = Yes a
 choice (Block x) _ = Block x
 choice No m        = m
 
+type MatchLit = Literal -> MPat -> Match ()
+
+noMatchLit :: MatchLit
+noMatchLit _ _ = No
+
+yesMatchLit :: MatchLit
+yesMatchLit _ VarMP{}  = Yes ()
+yesMatchLit _ WildMP{} = Yes ()
+yesMatchLit _ _        = No
+
 -- | Match the given patterns against a list of clauses
-match :: [Clause] -> [Arg Pattern] -> Permutation -> Match
-match cs ps perm = foldr choice No $ map (flip matchClause $ buildMPatterns perm ps) cs
+match :: [Clause] -> [Arg Pattern] -> Permutation -> Match Nat
+match cs ps perm = foldr choice No $ zipWith matchIt [0..] cs
+  where
+    mps = buildMPatterns perm ps
 
-matchClause :: Clause -> [Arg MPat] -> Match
-matchClause (Clause _ _ ps _ _) qs = matchPats ps qs
+    -- If liberal matching on literals fails or blocks we go with that.
+    -- If it succeeds we use the result from conservative literal matching.
+    -- This is to make sure that we split enough when literals are involved.
+    -- For instance,
+    --    f ('x' :: 'y' :: _) = ...
+    --    f (c :: s) = ...
+    -- would never split the tail of the list if we only used conservative
+    -- literal matching.
+    matchIt i c = matchClause yesMatchLit mps i c +++
+                  matchClause noMatchLit  mps i c
 
-matchPats :: [Arg Pattern] -> [Arg MPat] -> Match
-matchPats ps qs = mconcat $ zipWith matchPat (map unArg ps) (map unArg qs)
+    Yes _   +++ m = m
+    No      +++ _ = No
+    Block x +++ _ = Block x
 
-matchPat :: Pattern -> MPat -> Match
-matchPat (VarP _) _ = Yes
-matchPat (DotP _) _ = Yes
-matchPat (LitP l) _ = No
-matchPat (ConP c ps) q = case q of
+-- | Check if a clause could match given generously chosen literals
+matchLits :: Clause -> [Arg Pattern] -> Permutation -> Bool
+matchLits c ps perm = case matchClause yesMatchLit (buildMPatterns perm ps) 0 c of
+  Yes _ -> True
+  _     -> False
+
+matchClause :: MatchLit -> [Arg MPat] -> Nat -> Clause -> Match Nat
+matchClause mlit qs i c = fmap (const i) $ matchPats mlit (clausePats c) qs
+
+matchPats :: MatchLit -> [Arg Pattern] -> [Arg MPat] -> Match ()
+matchPats mlit ps qs = mconcat $ zipWith (matchPat mlit) (map unArg ps) (map unArg qs)
+
+matchPat :: MatchLit -> Pattern -> MPat -> Match ()
+matchPat _    (VarP _) _ = Yes ()
+matchPat _    (DotP _) _ = Yes ()
+matchPat mlit (LitP l) q = mlit l q
+matchPat mlit (ConP c ps) q = case q of
   VarMP x -> Block $ Just x
   WildMP  -> Block Nothing
   ConMP c' qs
-    | c == c'   -> matchPats ps qs
+    | c == c'   -> matchPats mlit ps qs
     | otherwise -> No
   LitMP _ -> __IMPOSSIBLE__
 

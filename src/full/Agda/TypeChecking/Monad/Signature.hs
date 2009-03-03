@@ -130,7 +130,7 @@ addDisplayForms x = do
     add args top x ps = do
       cs <- defClauses <$> getConstInfo x
       case cs of
-	[ Clause _ _ _ _ b ]
+	[ Clause{ clauseBody = b } ]
 	  | Just (m, Def y vs) <- strip b
 	  , m == length args && args `isPrefixOf` vs -> do
 	      let ps' = raise 1 (map unArg vs) ++ ps
@@ -141,7 +141,7 @@ addDisplayForms x = do
 	      let reason = case cs of
 		    []    -> "no clauses"
 		    _:_:_ -> "many clauses"
-		    [ Clause _ _ _ _ b ] -> case strip b of
+		    [ Clause{ clauseBody = b } ] -> case strip b of
 		      Nothing -> "bad body"
 		      Just (m, Def y vs)
 			| m < length args -> "too few args"
@@ -214,7 +214,13 @@ applySection new ptel old ts rd rm = liftTCM $ do
                            , funArgOccurrences = []
                            , funAbstr          = ConcreteDef
                            }
-	cl = Clause EmptyTel (idP 0) [] Recursive $ Body $ Def x ts
+	cl = Clause { clauseRange     = getRange $ defClauses d
+                    , clauseTel       = EmptyTel
+                    , clausePerm      = idP 0
+                    , clausePats      = []
+                    , clauseRecursion = Recursive
+                    , clauseBody      = Body $ Def x ts
+                    }
 
     copySec :: Args -> (ModuleName, Section) -> TCM ()
     copySec ts (x, sec) = case Map.lookup x rm of
@@ -239,10 +245,10 @@ canonicalName :: MonadTCM tcm => QName -> tcm QName
 canonicalName x = do
   def <- theDef <$> getConstInfo x
   case def of
-    Constructor{conSrcCon = c}                      -> return c
-    Record{recClause = Just (Clause _ _ _ _ body)}    -> canonicalName $ extract body
-    Datatype{dataClause = Just (Clause _ _ _ _ body)} -> canonicalName $ extract body
-    _                                               -> return x
+    Constructor{conSrcCon = c}                                -> return c
+    Record{recClause = Just (Clause{ clauseBody = body })}    -> canonicalName $ extract body
+    Datatype{dataClause = Just (Clause{ clauseBody = body })} -> canonicalName $ extract body
+    _                                                         -> return x
   where
     extract NoBody	     = __IMPOSSIBLE__
     extract (Body (Def x _)) = x
@@ -260,7 +266,7 @@ whatRecursion f = do
       | otherwise     -> return Nothing
     _                            -> return $ Just Recursive
   where
-    hasRHS (Clause _ _ _ _ b) = hasBody b
+    hasRHS = hasBody . clauseBody
     hasBody (Body _)   = True
     hasBody NoBody     = False
     hasBody (Bind b)   = hasBody $ absBody b

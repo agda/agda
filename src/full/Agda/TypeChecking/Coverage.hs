@@ -6,12 +6,16 @@ import Control.Monad
 import Control.Monad.Error
 import Control.Applicative
 import Data.List
+import qualified Data.Set as Set
+import Data.Set (Set)
 
+import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 
 import Agda.TypeChecking.Monad.Base
+import Agda.TypeChecking.Monad.Trace
 import Agda.TypeChecking.Monad.Signature
 import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.Exception
@@ -31,6 +35,7 @@ import Agda.TypeChecking.Telescope
 
 import Agda.Utils.Permutation
 import Agda.Utils.Size
+import Agda.Utils.Tuple
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
@@ -59,23 +64,30 @@ checkCoverage f = do
   t <- normalise $ defType d
   let defn = theDef d
   case defn of
-    Function{ funClauses = cs@((Clause _ _ ps _ _) : _) } -> do
-      let n            = genericLength ps
+    Function{ funClauses = cs@(_:_) } -> do
+      let n            = genericLength $ clausePats $ head cs
           TelV gamma _ = telView t
           gamma'       = telFromList $ genericTake n $ telToList gamma
           xs           = map (fmap $ const $ VarP "_") $ telToList gamma'
       reportSDoc "tc.cover.top" 10 $ vcat
         [ text "Coverage checking"
-        , nest 2 $ vcat $ map (\(Clause _ _ ps _ _) -> text $ show ps) cs
+        , nest 2 $ vcat $ map (text . show . clausePats) cs
         ]
-      pss <- cover cs $ SClause gamma' (idP n) xs (idSub gamma')
+      (used, pss) <- cover cs $ SClause gamma' (idP n) xs (idSub gamma')
       case pss of
         []  -> return ()
         _   -> typeError $ CoverageFailure f pss
+      case Set.toList $ Set.difference (Set.fromList [0..genericLength cs - 1]) used of
+        []  -> return ()
+        is  -> do
+          let unreached = map ((cs !!) . fromIntegral) is
+          setCurrentRange (getRange unreached) $
+            typeError $ UnreachableClauses f (map clausePats unreached)
     _             -> __IMPOSSIBLE__
 
--- | Check that the list of clauses covers the given split clause
-cover :: MonadTCM tcm => [Clause] -> SplitClause -> tcm [[Arg Pattern]]
+-- | Check that the list of clauses covers the given split clause.
+--   Returns the missing cases.
+cover :: MonadTCM tcm => [Clause] -> SplitClause -> tcm (Set Nat, [[Arg Pattern]])
 cover cs (SClause tel perm ps _) = do
   reportSDoc "tc.cover.cover" 10 $ vcat
     [ text "checking coverage of pattern:"
@@ -84,10 +96,13 @@ cover cs (SClause tel perm ps _) = do
     , nest 2 $ text "ps   =" <+> text (show ps)
     ]
   case match cs ps perm of
-    Yes            -> do
-      reportSLn "tc.cover.cover" 10 "pattern covered"
-      return []
-    No             -> return [ps]
+    Yes i          -> do
+      reportSLn "tc.cover.cover" 10 $ "pattern covered by clause " ++ show i
+      -- Check if any earlier clauses could match with appropriate literals
+      let is = [ j | (j, c) <- zip [0..] (genericTake i cs), matchLits c ps perm ]
+      reportSLn "tc.cover.cover"  10 $ "literal matches: " ++ show is
+      return (Set.fromList (i : is), [])
+    No             -> return (Set.empty, [ps])
     Block Nothing  -> fail $ "blocked by dot pattern"
     Block (Just x) -> do
       r <- split tel perm ps x
@@ -96,7 +111,7 @@ cover cs (SClause tel perm ps _) = do
           CantSplit c         -> typeError $ CoverageCantSplitOn c
           NotADatatype a      -> typeError $ CoverageCantSplitType a
           GenericSplitError s -> fail $ "failed to split: " ++ s
-        Right scs -> concat <$> mapM (cover cs) scs
+        Right scs -> (Set.unions -*- concat) . unzip <$> mapM (cover cs) scs
 
 -- | Check that a type is a datatype
 isDatatype :: MonadTCM tcm => Type -> tcm (Maybe (QName, [Arg Term], [Arg Term], [QName]))
@@ -263,10 +278,10 @@ computeNeighbourhood delta1 delta2 perm d pars ixs hix hps con = do
 
 -- | split Δ x ps. Δ ⊢ ps, x ∈ Δ (deBruijn index)
 splitClause :: Clause -> Nat -> TCM (Either SplitError Covering)
-splitClause (Clause tel perm ps _ _) x = split tel perm ps x
+splitClause c x = split (clauseTel c) (clausePerm c) (clausePats c) x
 
 splitClauseWithAbs :: Clause -> Nat -> TCM (Either SplitError (Either SplitClause Covering))
-splitClauseWithAbs (Clause tel perm ps _ _) x = split' tel perm ps x
+splitClauseWithAbs c x = split' (clauseTel c) (clausePerm c) (clausePats c) x
 
 split :: MonadTCM tcm => Telescope -> Permutation -> [Arg Pattern] -> Nat ->
          tcm (Either SplitError Covering)

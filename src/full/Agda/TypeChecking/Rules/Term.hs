@@ -264,9 +264,15 @@ checkExpr e t =
                     ]
                   addConstant aux $ Defn aux t' (defaultDisplayForm aux) 0
                                   $ Function
-                                    { funClauses        = [Clause EmptyTel (Perm 0 [])
-                                                            [Arg h $ VarP "()"] Recursive NoBody
-                                                          ]
+                                    { funClauses        =
+                                        [Clause { clauseRange     = getRange e
+                                                , clauseTel       = EmptyTel
+                                                , clausePerm      = Perm 0 []
+                                                , clausePats      = [Arg h $ VarP "()"]
+                                                , clauseRecursion = Recursive
+                                                , clauseBody      = NoBody
+                                                }
+                                        ]
                                     , funRecursion      = Recursive
                                     , funInv            = NotInjective
                                     , funAbstr          = ConcreteDef

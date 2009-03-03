@@ -178,13 +178,23 @@ telToList (ExtendTel arg (Abs x tel)) = fmap ((,) x) arg : telToList tel
 --  patterns to the order they occur in the telescope.  For the purpose of the
 --  permutation dot patterns counts as variables.
 --  TODO: change this!
-data Clause = Clause Telescope Permutation [Arg Pattern] Recursion ClauseBody
+data Clause = Clause
+    { clauseRange     :: Range
+    , clauseTel       :: Telescope
+    , clausePerm      :: Permutation
+    , clausePats      :: [Arg Pattern]
+    , clauseRecursion :: Recursion
+    , clauseBody      :: ClauseBody
+    }
   deriving (Typeable, Data, Show)
 data ClauseBody = Body Term 
 		| Bind (Abs ClauseBody)
 		| NoBind ClauseBody
 		| NoBody    -- for absurd clauses
   deriving (Typeable, Data, Show)
+
+instance HasRange Clause where
+  getRange = clauseRange
 
 -- | Patterns are variables, constructors, or wildcards.
 --   @QName@ is used in @ConP@ rather than @Name@ since

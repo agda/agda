@@ -68,7 +68,7 @@ showTypeDeclaration definitions name = do
 	    dcon <- showAsOptimizedConstructor name
 	    dflds <- mapM (showRecordFieldDeclaration (arity + 1)) flds
 	    showDatatypeDeclaration dtypename dparams [sep $ dcon : dflds]
-     	Function { funClauses = [clause@(Clause _ _ pat _ body)] } -> do
+     	Function { funClauses = [clause@(Clause{ clausePats = pat })] } -> do
 	    (args,_) <- splitType ty
 	    let dextra = map (\i -> text $ "a" ++ show i)
 			     [length pat + 1 .. length args]

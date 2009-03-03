@@ -117,7 +117,7 @@ checkRecordProjections m q tel ftel s fs = checkProjs EmptyTel ftel fs
     checkProjs _ _ [] = return ()
     checkProjs ftel1 ftel2 (A.ScopedDecl scope fs' : fs) =
       setScope scope >> checkProjs ftel1 ftel2 (fs' ++ fs)
-    checkProjs ftel1 (ExtendTel (Arg _ _) ftel2) (A.Field _ x t : fs) = do
+    checkProjs ftel1 (ExtendTel (Arg _ _) ftel2) (A.Field info x t : fs) = do
       -- check the type (in the context of the telescope)
       -- the previous fields will be free in 
       reportSDoc "tc.rec.proj" 5 $ sep
@@ -171,7 +171,13 @@ checkRecordProjections m q tel ftel s fs = checkProjs EmptyTel ftel fs
 		 $ nobind (size ftel2)
 		 $ Body $ Var 0 []
           cltel  = ptel `abstract` ftel
-	  clause = Clause cltel (idP $ size ptel + size ftel) (hps ++ [conp]) Recursive body
+	  clause = Clause { clauseRange     = getRange info
+                          , clauseTel       = cltel
+                          , clausePerm      = idP $ size ptel + size ftel
+                          , clausePats      = hps ++ [conp]
+                          , clauseRecursion = Recursive
+                          , clauseBody      = body
+                          }
       escapeContext (size tel) $ do
 	addConstant projname $ Defn projname finalt (defaultDisplayForm projname) 0
           $ Function { funClauses        = [clause]
