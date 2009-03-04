@@ -3,7 +3,7 @@
 ------------------------------------------------------------------------
 
 -- Note that these proofs use all "almost commutative ring" properties
--- except for zero and --pres-≈.
+-- except for zero and -‿pres-≈.
 
 open import Algebra
 open import Algebra.RingSolver.AlmostCommutativeRing
@@ -104,8 +104,8 @@ lemma₅ a b c d x = begin
 
 lemma₆ : ∀ a b x → - a * x + - b ≈ - (a * x + b)
 lemma₆ a b x = begin
-  - a * x + - b    ≈⟨ --*-distribˡ _ _ ⟨ +-pres-≈ ⟩ byDef ⟩
-  - (a * x) + - b  ≈⟨ --+-comm _ _ ⟩
+  - a * x + - b    ≈⟨ -‿*-distribˡ _ _ ⟨ +-pres-≈ ⟩ byDef ⟩
+  - (a * x) + - b  ≈⟨ -‿+-comm _ _ ⟩
   - (a * x + b)    ∎
 
 lemma₇ : ∀ x → ⟦ C.1# ⟧ * x + ⟦ C.0# ⟧ ≈ x

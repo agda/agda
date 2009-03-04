@@ -32,7 +32,7 @@ open Fin using (Fin; zero; suc)
 open import Data.Vec
 open import Data.Function
 
-infix  9 _↑-NF :-_ --NF_
+infix  9 _↑-NF :-_ -‿NF_
 infixr 9 _:^_ _^-NF_ _:↑_
 infix  8 _*x _*x+_
 infixl 8 _:*_ _*-NF_ _↑-*-NF_
@@ -166,11 +166,11 @@ private
       (p₁ *-NF p₂) *x *x +-NF
       (p₁ *-NF c₂ ↑-NF +-NF c₁ ↑-*-NF p₂) *x+ (c₁ *-NF c₂)                ∷-NF lemma₅ _ _ _ _ _
 
-  --NF_ : ∀ {n p} → Normal n p → Normal n (:- p)
-  --NF_ (p ∷-NF eq) = --NF_ p ∷-NF --pres-≈ eq
-  --NF_ (con-NF c)  = con-NF (C.-_ c) ∷-NF --homo _
-  --NF_ (p ↑-NF)    = --NF_ p ↑-NF
-  --NF_ (p *x+ c)   = --NF_ p *x+ --NF_ c ∷-NF lemma₆ _ _ _
+  -‿NF_ : ∀ {n p} → Normal n p → Normal n (:- p)
+  -‿NF_ (p ∷-NF eq) = -‿NF_ p ∷-NF -‿pres-≈ eq
+  -‿NF_ (con-NF c)  = con-NF (C.-_ c) ∷-NF -‿homo _
+  -‿NF_ (p ↑-NF)    = -‿NF_ p ↑-NF
+  -‿NF_ (p *x+ c)   = -‿NF_ p *x+ -‿NF_ c ∷-NF lemma₆ _ _ _
 
   var-NF : ∀ {n} → (i : Fin n) → Normal n (var i)
   var-NF zero    = con-NF⋆ C.1# *x+ con-NF⋆ C.0# ∷-NF lemma₇ _
@@ -190,7 +190,7 @@ private
   normalise (con c)      = con-NF⋆ c
   normalise (var i)      = var-NF i
   normalise (p :^ n)     = normalise p ^-NF n
-  normalise (:- p)       = --NF normalise p
+  normalise (:- p)       = -‿NF normalise p
 
 ⟦_⟧↓_ : ∀ {n} → Polynomial n → Vec carrier n → carrier
 ⟦ p ⟧↓ ρ = ⟦ normalise p ⟧-NF ρ
@@ -211,7 +211,7 @@ private
   raise-sem (var x)      ρ = refl
   raise-sem (p :^ n)     ρ = raise-sem p ρ ⟨ ^-pres-≈ ⟩
                              PropEq.refl {x = n}
-  raise-sem (:- p)       ρ = --pres-≈ (raise-sem p ρ)
+  raise-sem (:- p)       ρ = -‿pres-≈ (raise-sem p ρ)
 
   nf-sound : ∀ {n p} (nf : Normal n p) ρ →
              ⟦ nf ⟧-NF ρ ≈ ⟦ p ⟧ ρ

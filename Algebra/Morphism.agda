@@ -40,7 +40,7 @@ record _-RawRing⟶_ (from to : RawRing) : Set where
     ⟦_⟧    : Morphism
     +-homo : Homomorphic₂ ⟦_⟧ (_+_ from) (_+_ to)
     *-homo : Homomorphic₂ ⟦_⟧ (_*_ from) (_*_ to)
-    --homo : Homomorphic₁ ⟦_⟧ (-_  from) (-_  to)
+    -‿homo : Homomorphic₁ ⟦_⟧ (-_  from) (-_  to)
     0-homo : Homomorphic₀ ⟦_⟧ (0#  from) (0#  to)
     1-homo : Homomorphic₀ ⟦_⟧ (1#  from) (1#  to)
 

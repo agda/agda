@@ -210,8 +210,8 @@ record IsRing (_+_ _*_ : Op₂) (-_ : Op₁) (0# 1# : carrier) : Set where
                   ; isSemigroup         to +-isSemigroup
                   ; identity            to +-identity
                   ; isMonoid            to +-isMonoid
-                  ; inverse             to --inverse
-                  ; ⁻¹-pres-≈           to --pres-≈
+                  ; inverse             to -‿inverse
+                  ; ⁻¹-pres-≈           to -‿pres-≈
                   ; isGroup             to +-isGroup
                   ; comm                to +-comm
                   ; isCommutativeMonoid to +-isCommutativeMonoid
@@ -230,25 +230,25 @@ record IsRing (_+_ _*_ : Op₂) (-_ : Op₁) (0# 1# : carrier) : Set where
     zeroˡ : LeftZero 0# _*_
     zeroˡ x = begin
         0# * x                              ≈⟨ sym $ proj₂ +-identity _ ⟩
-       (0# * x) +            0#             ≈⟨ byDef ⟨ +-pres-≈ ⟩ sym (proj₂ --inverse _) ⟩
+       (0# * x) +            0#             ≈⟨ byDef ⟨ +-pres-≈ ⟩ sym (proj₂ -‿inverse _) ⟩
        (0# * x) + ((0# * x)  + - (0# * x))  ≈⟨ sym $ +-assoc _ _ _ ⟩
       ((0# * x) +  (0# * x)) + - (0# * x)   ≈⟨ sym (proj₂ distrib _ _ _) ⟨ +-pres-≈ ⟩ byDef ⟩
              ((0# + 0#) * x) + - (0# * x)   ≈⟨ (proj₂ +-identity _ ⟨ *-pres-≈ ⟩ byDef)
                                                  ⟨ +-pres-≈ ⟩
                                                byDef ⟩
-                    (0# * x) + - (0# * x)   ≈⟨ proj₂ --inverse _ ⟩
+                    (0# * x) + - (0# * x)   ≈⟨ proj₂ -‿inverse _ ⟩
                              0#             ∎
 
     zeroʳ : RightZero 0# _*_
     zeroʳ x = begin
       x * 0#                              ≈⟨ sym $ proj₂ +-identity _ ⟩
-      (x * 0#) + 0#                       ≈⟨ byDef ⟨ +-pres-≈ ⟩ sym (proj₂ --inverse _) ⟩
+      (x * 0#) + 0#                       ≈⟨ byDef ⟨ +-pres-≈ ⟩ sym (proj₂ -‿inverse _) ⟩
       (x * 0#) + ((x * 0#) + - (x * 0#))  ≈⟨ sym $ +-assoc _ _ _ ⟩
       ((x * 0#) + (x * 0#)) + - (x * 0#)  ≈⟨ sym (proj₁ distrib _ _ _) ⟨ +-pres-≈ ⟩ byDef ⟩
       (x * (0# + 0#)) + - (x * 0#)        ≈⟨ (byDef ⟨ *-pres-≈ ⟩ proj₂ +-identity _)
                                                ⟨ +-pres-≈ ⟩
                                              byDef ⟩
-      (x * 0#) + - (x * 0#)               ≈⟨ proj₂ --inverse _ ⟩
+      (x * 0#) + - (x * 0#)               ≈⟨ proj₂ -‿inverse _ ⟩
       0#                                  ∎
 
   isSemiringWithoutAnnihilatingZero

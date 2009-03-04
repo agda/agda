@@ -20,8 +20,8 @@ private
     y ∙ ε           ≈⟨ proj₂ identity _ ⟩
     y               ∎
 
---∙-comm : ∀ x y → x ⁻¹ ∙ y ⁻¹ ≈ (x ∙ y) ⁻¹
---∙-comm x y = begin
+-‿∙-comm : ∀ x y → x ⁻¹ ∙ y ⁻¹ ≈ (x ∙ y) ⁻¹
+-‿∙-comm x y = begin
   x ⁻¹ ∙ y ⁻¹                         ≈⟨ comm _ _ ⟩
   y ⁻¹ ∙ x ⁻¹                         ≈⟨ sym $ lem ⟨ ∙-pres-≈ ⟩ byDef ⟩
   x ∙ (y ∙ (x ∙ y) ⁻¹ ∙ y ⁻¹) ∙ x ⁻¹  ≈⟨ lemma _ _ ⟩

@@ -22,9 +22,9 @@ record IsAlmostCommutativeRing (s : Setoid)
   open Setoid s
   field
     isCommutativeSemiring : IsCommutativeSemiring s _+_ _*_ 0# 1#
-    --pres-≈              : -_ Preserves _≈_ ⟶ _≈_
-    --*-distribˡ          : ∀ x y → (- x) * y ≈ - (x * y)
-    --+-comm              : ∀ x y → (- x) + (- y) ≈ - (x + y)
+    -‿pres-≈              : -_ Preserves _≈_ ⟶ _≈_
+    -‿*-distribˡ          : ∀ x y → (- x) * y ≈ - (x * y)
+    -‿+-comm              : ∀ x y → (- x) + (- y) ≈ - (x + y)
 
   open IsCommutativeSemiring s isCommutativeSemiring public
 
@@ -85,7 +85,7 @@ from -Raw-AlmostCommutative⟶ to = from -RawRing⟶ rawRing to
   { ⟦_⟧    = id
   ; +-homo = λ _ _ → refl
   ; *-homo = λ _ _ → refl
-  ; --homo = λ _ → refl
+  ; -‿homo = λ _ → refl
   ; 0-homo = refl
   ; 1-homo = refl
   }
@@ -106,9 +106,9 @@ fromCommutativeRing cr = record
   ; 1#                      = 1#
   ; isAlmostCommutativeRing = record
       { isCommutativeSemiring = isCommutativeSemiring
-      ; --pres-≈              = --pres-≈
-      ; --*-distribˡ          = --*-distribˡ
-      ; --+-comm              = --∙-comm
+      ; -‿pres-≈              = -‿pres-≈
+      ; -‿*-distribˡ          = -‿*-distribˡ
+      ; -‿+-comm              = -‿∙-comm
       }
   }
   where
@@ -129,9 +129,9 @@ fromCommutativeSemiring cs = record
   ; 1#                      = 1#
   ; isAlmostCommutativeRing = record
       { isCommutativeSemiring = isCommutativeSemiring
-      ; --pres-≈              = id
-      ; --*-distribˡ          = λ _ _ → refl
-      ; --+-comm              = λ _ _ → refl
+      ; -‿pres-≈              = id
+      ; -‿*-distribˡ          = λ _ _ → refl
+      ; -‿+-comm              = λ _ _ → refl
       }
   }
   where open CommutativeSemiring cs
