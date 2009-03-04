@@ -1,0 +1,3 @@
+Issue127.agda:20,12-21
+the constructor d does not construct an element of F x (D x)
+when checking that the expression d x (∞ x) has type F x (D x)

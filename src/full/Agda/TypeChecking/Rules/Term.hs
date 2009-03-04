@@ -210,6 +210,8 @@ checkExpr e t =
                       t <- normalise t
                       let TelV _ t1 = telView t
                       t1 <- reduceB $ unEl t1
+                      reportSDoc "tc.check.term.con" 40 $ nest 2 $
+                        text "target type: " <+> prettyTCM t1
                       case t1 of
                         NotBlocked (Def d _) -> do
                           defn <- theDef <$> getConstInfo d
@@ -217,12 +219,12 @@ checkExpr e t =
                             Datatype{} ->
                               case [ c | (d', c) <- dcs, d == d' ] of
                                 c:_   -> return (Just c)
-                                []    -> fail $ show (head cs) ++ " does not construct an element of the datatype " ++ show d
-                            _ -> return Nothing
+                                []    -> typeError $ DoesNotConstructAnElementOf
+                                          (head cs) (Def d [])
+                            _ -> typeError $ DoesNotConstructAnElementOf (head cs) (ignoreBlocking t1)
                         NotBlocked (MetaV _ _)  -> return Nothing
                         Blocked{} -> return Nothing
-                             -- TODO: error message
-                        _ -> fail $ show (head cs) ++ " does not construct an element of " ++ show t
+                        _ -> typeError $ DoesNotConstructAnElementOf (head cs) (ignoreBlocking t1)
                 let unblock = isJust <$> getCon
                 mc <- getCon
                 case mc of

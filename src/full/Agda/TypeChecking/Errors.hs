@@ -98,6 +98,7 @@ errorString err = case err of
     DataMustEndInSort _			       -> "DataMustEndInSort"
     DependentPatternMatchingOnCodata           -> "DependentPatternMatchingOnCodata"
     DifferentArities			       -> "DifferentArities"
+    DoesNotConstructAnElementOf{}              -> "DoesNotConstructAnElementOf"
     DuplicateBuiltinBinding _ _ _	       -> "DuplicateBuiltinBinding"
     DuplicateFields _			       -> "DuplicateFields"
     DuplicateConstructors _		       -> "DuplicateConstructors"
@@ -227,6 +228,9 @@ instance PrettyTCM TypeError where
             WrongNumberOfConstructorArguments c expect given -> fsep $
               pwords "The constructor" ++ [prettyTCM c] ++ pwords "expects" ++
               [text (show expect)] ++ pwords "arguments, but has been given" ++ [text (show given)]
+            DoesNotConstructAnElementOf c t -> fsep $
+              pwords "the constructor" ++ [prettyTCM c] ++
+              pwords "does not construct an element of" ++ [prettyTCM t]
             ConstructorPatternInWrongDatatype c d -> fsep $
               [prettyTCM c] ++ pwords "is not a constructor of the datatype" ++ [prettyTCM d]
             ShadowedModule [] -> __IMPOSSIBLE__
