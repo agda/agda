@@ -1,4 +1,4 @@
-proofIrr.agda:10,3-11,20
+proofIrr.agda:10,3-11,6
 Datatypes in Prop must have at most one constructor when proof
 irrelevance is enabled
 when checking the definition of _\/_
