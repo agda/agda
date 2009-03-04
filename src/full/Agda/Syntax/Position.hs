@@ -272,7 +272,7 @@ continuous r = case rangeToInterval r of
 -- | Removes gaps between intervals on the same line.
 continuousPerLine :: Range -> Range
 continuousPerLine (Range [])     = Range []
-continuousPerLine (Range (i:is)) = Range $ fuse i is
+continuousPerLine (Range (i:is)) = Range $ fuse i $ sortBy (compare `on` iStart) is
   where
     fuse i [] = [i]
     fuse i (j:is)

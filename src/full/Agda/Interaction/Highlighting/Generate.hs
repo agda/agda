@@ -340,7 +340,7 @@ computeUnsolvedMetaWarnings = do
   ms <- filterM notBlocked =<< getOpenMetas
 
   rs <- mapM getMetaRange (ms \\ is)
-  return $ several (concatMap rToR rs)
+  return $ several (concatMap (rToR . P.continuousPerLine) rs)
          $ mempty { otherAspects = [UnsolvedMeta] }
 
 -- | Generates a suitable file for a possibly ambiguous name.
