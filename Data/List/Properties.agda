@@ -23,6 +23,12 @@ open import Relation.Binary.FunctionLifting
               (x ∷ xs) ≡ (y ∷ ys) → (x ≡ y) × (xs ≡ ys)
 ∷-injective refl = (refl , refl)
 
+right-identity-unique : ∀ {A} (xs : List A) {ys} →
+                        xs ≡ xs ++ ys → ys ≡ []
+right-identity-unique []       refl = refl
+right-identity-unique (x ∷ xs) eq   =
+  right-identity-unique xs (proj₂ (∷-injective eq))
+
 -- Map, sum, and append.
 
 map-++-commute : ∀ {a b} (f : a → b) xs ys →
