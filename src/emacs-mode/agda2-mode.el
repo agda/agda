@@ -263,9 +263,6 @@ and GOAL-NAME is for the Agda goal menu.")
 (defvar agda2-process nil "Agda subprocess.  Set in `agda2-restart'.")
 
 ;; Some buffer locals
-(defvar agda2-buffer-state "Text"
-  "State of an `agda2-mode' buffer.  \"Text\" or \"Checked\".")
-(make-variable-buffer-local 'agda2-buffer-state)
 (defvar agda2-buffer-external-status ""
   "External status of an `agda2-mode' buffer (dictated by the Haskell side).")
 (make-variable-buffer-local 'agda2-buffer-external-status)
@@ -320,9 +317,8 @@ Special commands:
  (setq local-abbrev-table agda2-mode-abbrev-table
        indent-tabs-mode   nil
        mode-line-process
-         '(":" (:eval agda2-buffer-state)
-               (:eval (unless (eq 0 (length agda2-buffer-external-status))
-                              (concat "(" agda2-buffer-external-status ")")))))
+         '((:eval (unless (eq 0 (length agda2-buffer-external-status))
+                    (concat ":" agda2-buffer-external-status)))))
  (let ((l '(max-specpdl-size    2600
             max-lisp-eval-depth 2800)))
    (while l (set (make-local-variable (pop l)) (pop l))))
@@ -445,8 +441,7 @@ WANT is an optional prompt.  When ASK is non-nil, use minibuffer."
 
 (defun agda2-load-action (gs)
   "Annotate new goals GS in current buffer."
-  (agda2-annotate gs)
-  (setq agda2-buffer-state "Checked"))
+  (agda2-annotate gs))
 
 (defun agda2-give()
   "Give to the goal at point the expression in it" (interactive)
@@ -525,7 +520,6 @@ in the buffer's mode line."
   (let ((inhibit-read-only t))
     (agda2-no-modified-p
      (set-text-properties (point-min) (point-max) '()))
-    (setq agda2-buffer-state "Text")
     (force-mode-line-update)))
 
 (defun agda2-next-goal ()     "Go to the next goal, if any."     (interactive)
