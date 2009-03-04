@@ -1,0 +1,4 @@
+Issue121.agda:15,6-7
+D is not strictly positive, because it occurs in the second
+argument to F in the type of the constructor nop in the definition
+of D.

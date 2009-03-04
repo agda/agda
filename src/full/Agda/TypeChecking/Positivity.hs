@@ -232,17 +232,12 @@ instance ComputeOccurrences Clause where
     walk vars (patItems ps) body
     where
       walk _    _         NoBody     = Map.empty
-      walk vars []        (Body v)   = walkLambdas (genericLength ps) vars v
+      walk vars []        (Body v)   = occurrences vars v
       walk vars (i : pis) (Bind b)   = walk (i : vars) pis $ absBody b
       walk vars (_ : pis) (NoBind b) = walk vars pis b
       walk _    []        Bind{}     = __IMPOSSIBLE__
       walk _    []        NoBind{}   = __IMPOSSIBLE__
       walk _    (_ : _)   Body{}     = __IMPOSSIBLE__
-
-      -- Lambdas on the top-level of the rhs can be treated as arguments
-      walkLambdas i vars (Lam _ b) =
-        walkLambdas (i + 1) (Just (AnArg i) : vars) (absBody b)
-      walkLambdas _ vars v = occurrences vars v
 
       match i (Arg _ VarP{}) = Map.empty
       match i _              = Map.singleton (AnArg i) [Unknown]
@@ -304,7 +299,8 @@ computeOccurrences q = do
   def <- getConstInfo q
   occursAs (InDefOf q) <$> case theDef def of
     Function{funClauses = cs} -> do
-      cs <- instantiateFull cs
+      n  <- arity <$> instantiateFull (defType def)
+      cs <- map (etaExpandClause n) <$> instantiateFull cs
       return
         $ concatOccurs
         $ zipWith (occursAs . InClause) [0..]
@@ -328,6 +324,29 @@ computeOccurrences q = do
     Constructor{} -> return Map.empty
     Axiom{}       -> return Map.empty
     Primitive{}   -> return Map.empty
+
+-- | Eta expand a clause to have the given number of variables.
+--   Warning: doesn't update telescope or permutation!
+--   This is used instead of special treatment of lambdas
+--   (which was unsound: issue 121)
+etaExpandClause :: Nat -> Clause -> Clause
+etaExpandClause n c@Clause{ clausePats = ps, clauseBody = b }
+  | m <= 0    = c
+  | otherwise = c { clausePats = ps ++ genericReplicate m (Arg NotHidden $ VarP "_")
+                  , clauseBody = liftBody m b
+                  }
+  where
+    m = n - genericLength ps
+
+    bind 0 = id
+    bind n = Bind . Abs "_" . bind (n - 1)
+
+    vars = reverse [ Arg NotHidden $ Var i [] | i <- [0..m - 1] ]
+
+    liftBody m (Bind b)   = Bind $ fmap (liftBody m) b
+    liftBody m (NoBind b) = NoBind $ liftBody m b
+    liftBody m NoBody     = bind m NoBody
+    liftBody m (Body v)   = bind m $ Body $ raise m v `apply` vars
 
 -- Building the occurrence graph ------------------------------------------
 
