@@ -4,6 +4,8 @@ module Agda.Syntax.Internal.Generic where
 
 import Control.Applicative
 import Data.Traversable
+import Data.Monoid
+import Data.Foldable
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
@@ -12,20 +14,23 @@ import Agda.Utils.Impossible
 
 class TermLike a where
   traverseTerm  :: (Term -> Term) -> a -> a
-  -- traverseTermM :: (Applicative m, Monad m) => (Term -> m Term) -> a -> m a
+  foldTerm :: Monoid m => (Term -> m) -> a -> m
 
 instance TermLike a => TermLike (Arg a) where
   traverseTerm f = fmap (traverseTerm f)
-  -- traverseTermM f = traverse (traverseTermM f)
+  foldTerm f = foldMap (foldTerm f)
 
 instance TermLike a => TermLike [a] where
   traverseTerm f = fmap (traverseTerm f)
+  foldTerm f = foldMap (foldTerm f)
 
 instance (TermLike a, TermLike b) => TermLike (a, b) where
   traverseTerm f (x, y) = (traverseTerm f x, traverseTerm f y)
+  foldTerm f (x, y) = foldTerm f x `mappend` foldTerm f y
 
 instance TermLike a => TermLike (Abs a) where
-  traverseTerm f (Abs s x) = Abs s (traverseTerm f x)
+  traverseTerm f = fmap (traverseTerm f)
+  foldTerm f = foldMap (foldTerm f)
 
 instance TermLike Term where
   traverseTerm f t = case t of
@@ -39,6 +44,18 @@ instance TermLike Term where
     Lit _    -> f t
     Sort _   -> f t
 
+  foldTerm f t = f t `mappend` case t of
+    Var i xs   -> foldTerm f xs
+    Def c xs   -> foldTerm f xs
+    Con c xs   -> foldTerm f xs
+    Lam h b    -> foldTerm f b
+    Pi a b     -> foldTerm f (a, b)
+    Fun a b    -> foldTerm f (a, b)
+    MetaV m xs -> foldTerm f xs
+    Lit _      -> mempty
+    Sort _     -> mempty
+
 instance TermLike Type where
   traverseTerm f (El s t) = El s $ traverseTerm f t
+  foldTerm f (El s t) = foldTerm f t
 

@@ -14,6 +14,7 @@ import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Info as A
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.Syntax.Internal.Generic
 import Agda.Syntax.Position
 import Agda.Syntax.Literal
 import Agda.Syntax.Abstract.Views
@@ -248,12 +249,15 @@ checkExpr e t =
 	      blockTerm t (apply v0 vs) $ (cs ++) <$> leqType t1 t
 
         A.AbsurdLam i h -> do
-          t <- reduceB t
+          t <- reduceB =<< instantiateFull t
           case t of
             Blocked{}                 -> postponeTypeCheckingProblem_ e $ ignoreBlocking t
             NotBlocked (El _ MetaV{}) -> postponeTypeCheckingProblem_ e $ ignoreBlocking t
             NotBlocked t' -> case funView $ unEl t' of
               FunV (Arg h' a) _
+                | h == h' && not (null $ foldTerm metas a) ->
+                    postponeTypeCheckingProblem e (ignoreBlocking t) $
+                      null . foldTerm metas <$> instantiateFull a
                 | h == h' -> do
                   cs' <- isEmptyTypeC a
                   -- Add helper function
@@ -282,6 +286,9 @@ checkExpr e t =
                   blockTerm t' (Def aux []) $ return cs'
                 | otherwise -> typeError $ WrongHidingInLambda t'
               _ -> typeError $ ShouldBePi t'
+          where
+            metas (MetaV m _) = [m]
+            metas _           = []
 
 	A.Lam i (A.DomainFull b) e -> do
 	    (v, cs) <- checkTypedBindings b $ \tel -> do

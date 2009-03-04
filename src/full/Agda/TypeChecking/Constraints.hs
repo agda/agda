@@ -85,7 +85,7 @@ solveConstraint (Guarded c cs)       = guardConstraint (return cs) c
 solveConstraint (IsEmpty t)          = isEmptyTypeC t
 solveConstraint (UnBlock m)          = do
     inst <- mvInstantiation <$> lookupMeta m
-    reportSDoc "tc.constr.unblock" 15 $ text ("unblocking a metavar yields the constraint:" ++ show inst)        
+    reportSDoc "tc.constr.unblock" 15 $ text ("unblocking a metavar yields the constraint:" ++ show inst)
     case inst of
       BlockedConst t -> do
         verboseS "tc.constr.blocked" 15 $ do
