@@ -128,16 +128,21 @@ instance PrettyTCM Telescope where
       runAbsToCon $ bindToConcrete tel return
     )
 
+newtype PrettyContext = PrettyContext Context
+
+instance PrettyTCM PrettyContext where
+  prettyTCM (PrettyContext ctx) = P.fsep . reverse <$> pr (map ctxEntry ctx)
+      where
+          pr []		   = return []
+          pr (Arg h (x,t) : ctx) = escapeContext 1 $ do
+              d    <- prettyTCM t
+              x    <- prettyTCM x
+              dctx <- pr ctx
+              return $ par h (P.hsep [ x, P.text ":", d]) : dctx
+            where
+              par NotHidden = P.parens
+              par Hidden    = P.braces
+
 instance PrettyTCM Context where
-    prettyTCM ctx = P.fsep . reverse <$> pr (map ctxEntry ctx)
-	where
-	    pr []		   = return []
-	    pr (Arg h (x,t) : ctx) = escapeContext 1 $ do
-		d    <- prettyTCM t
-		x    <- prettyTCM x
-		dctx <- pr ctx
-		return $ par h (P.hsep [ x, P.text ":", d]) : dctx
-	      where
-		par NotHidden = P.parens
-		par Hidden    = P.braces
+  prettyTCM = prettyTCM . PrettyContext
 

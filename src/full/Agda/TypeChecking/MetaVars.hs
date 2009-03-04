@@ -127,9 +127,11 @@ newValueMetaCtx' :: MonadTCM tcm => Type -> Args -> tcm Term
 newValueMetaCtx' t vs = do
   i <- createMetaInfo
   x <- newMeta i normalMetaPriority (HasType () t)
-  verboseS "tc.meta.new" 50 $ do
-    dt <- prettyTCM t
-    liftIO $ UTF8.putStrLn $ "new meta: " ++ show x ++ " : " ++ show dt
+  reportSDoc "tc.meta.new" 50 $ fsep
+    [ text "new meta:"
+    , nest 2 $ prettyTCM vs <+> text "|-"
+    , nest 2 $ text (show x) <+> text ":" <+> prettyTCM t
+    ]
   return $ MetaV x vs
 
 newTelMeta :: MonadTCM tcm => Telescope -> tcm Args
