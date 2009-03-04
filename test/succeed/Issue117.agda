@@ -1,5 +1,5 @@
 
-module Bug where
+module Issue117 where
 
 Set′ = Set
 
