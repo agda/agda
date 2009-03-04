@@ -38,7 +38,8 @@ checkRecDef i name ps contel fields =
   traceCall (CheckRecDef (getRange i) (qnameName name) ps fields) $ do
     t <- instantiateFull =<< typeOfConst name
     bindParameters ps t $ \tel t0 -> do
-      s <- case unEl t0 of
+      t0' <- normalise t0
+      s <- case unEl t0' of
 	Sort s	-> return s
 	_	-> typeError $ ShouldBeASort t0
       gamma <- getContextTelescope

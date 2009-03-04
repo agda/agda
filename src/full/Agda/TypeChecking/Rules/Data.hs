@@ -55,7 +55,7 @@ checkDataDef i ind name ps cs =
 
 	    -- The type we get from bindParameters is Θ -> s where Θ is the type of
 	    -- the indices. We count the number of indices and return s.
-	    (nofIxs, s) <- splitType =<< normalise t0
+            (nofIxs, s) <- splitType =<< normalise t0
 
 	    -- Change the datatype from an axiom to a datatype with no constructors.
             let dataDef = Datatype { dataPars           = npars

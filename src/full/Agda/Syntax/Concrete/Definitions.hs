@@ -256,7 +256,10 @@ niceDeclarations ds = do
                                   [ Axiom (fuseRange x t) f PublicAccess ConcreteDef
                                           x (Pi tel t)
                                   ]
-                                  [ mkDef (getRange cs) f PublicAccess ConcreteDef x
+                                  -- Setting the range to the range of t makes sense
+                                  -- since the only errors you get at the level of the
+                                  -- definitions are the type not ending in a sort.
+                                  [ mkDef (getRange t) f PublicAccess ConcreteDef x
                                           (concatMap binding tel)
                                           ds
                                   ]
