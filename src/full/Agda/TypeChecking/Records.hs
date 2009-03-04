@@ -13,16 +13,18 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Pretty
+import Agda.Utils.List
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
 
 -- | Order the fields of a record construction.
-orderFields :: MonadTCM tcm => QName -> [C.Name] -> [(C.Name, a)] -> tcm [a]
-orderFields r xs fs = do
+--   Use the second argument for missing fields.
+orderFields :: MonadTCM tcm => QName -> a -> [C.Name] -> [(C.Name, a)] -> tcm [a]
+orderFields r def xs fs = do
   shouldBeNull (ys \\ nub ys) $ DuplicateFields . nub
   shouldBeNull (ys \\ xs)     $ TooManyFields r
-  shouldBeNull (xs \\ ys)     $ TooFewFields r
+  -- shouldBeNull (xs \\ ys)     $ TooFewFields r
   return $ order xs fs
   where
     ys = map fst fs
@@ -30,13 +32,14 @@ orderFields r xs fs = do
     shouldBeNull [] err = return ()
     shouldBeNull xs err = typeError $ err xs
 
-    -- invariant: both arguments contain the same fields
-    -- TODO: a little inefficient
-    order [] []	= []
-    order (x : xs) ((y, e) : fs)
-      | x == y	  = e : order xs fs
-      | otherwise = order (x : xs) (fs ++ [(y, e)])
-    order _ _ = __IMPOSSIBLE__
+    -- invariant: the first list contains at least the fields of the second list
+    order [] [] = []
+    order [] _  = __IMPOSSIBLE__
+    order (x : xs) ys = case lookup x (assocHoles ys) of
+      Just (e, ys') -> e : order xs ys'
+      Nothing       -> def : order xs ys
+
+    assocHoles xs = [ (x, (v, xs')) | ((x, v), xs') <- holes xs ]
 
 -- | The name of the module corresponding to a record.
 recordModule :: QName -> ModuleName

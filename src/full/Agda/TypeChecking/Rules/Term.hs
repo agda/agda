@@ -11,12 +11,12 @@ import Data.List hiding (sort)
 import qualified System.IO.UTF8 as UTF8
 
 import qualified Agda.Syntax.Abstract as A
+import qualified Agda.Syntax.Info as A
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Position
 import Agda.Syntax.Literal
 import Agda.Syntax.Abstract.Views
-import qualified Agda.Syntax.Info as Info
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
@@ -179,7 +179,7 @@ checkExpr e t =
 	    , FunV (Arg Hidden _) _ <- funView (unEl t) -> do
 		x <- freshName r (argName t)
                 reportSLn "tc.term.expr.impl" 15 $ "Inserting implicit lambda"
-		checkExpr (A.Lam (Info.ExprRange $ getRange e) (A.DomainFree Hidden x) e) t
+		checkExpr (A.Lam (A.ExprRange $ getRange e) (A.DomainFree Hidden x) e) t
 	    where
 		r = case rStart $ getRange e of
                       Nothing  -> noRange
@@ -312,10 +312,10 @@ checkExpr e t =
 		_   -> typeError $ ShouldBePi t'
 
 	A.QuestionMark i -> do
-	    setScope (Info.metaScope i)
+	    setScope (A.metaScope i)
 	    newQuestionMark  t
 	A.Underscore i   -> do
-	    setScope (Info.metaScope i)
+	    setScope (A.metaScope i)
 	    newValueMeta t
 
 	A.Lit lit    -> checkLiteral lit t
@@ -339,9 +339,11 @@ checkExpr e t =
 	  t <- normalise t
 	  case unEl t of
 	    Def r vs  -> do
-	      xs   <- getRecordFieldNames r
-	      ftel <- getRecordFieldTypes r
-	      es <- orderFields r xs fs
+	      xs    <- getRecordFieldNames r
+	      ftel  <- getRecordFieldTypes r
+              scope <- getScope
+              let meta = A.Underscore $ A.MetaInfo (getRange e) scope Nothing
+	      es   <- orderFields r meta xs fs
 	      let tel = ftel `apply` vs
 	      (args, cs) <- checkArguments_ ExpandLast (getRange e)
 			      (map (Arg NotHidden . unnamed) es) tel
@@ -463,10 +465,10 @@ checkArguments exh r args0@(Arg h e : args) t0 t1 =
     where
 	insertUnderscore = do
 	  scope <- lift $ getScope
-	  let m = A.Underscore $ Info.MetaInfo
-		  { Info.metaRange  = r
-		  , Info.metaScope  = scope
-		  , Info.metaNumber = Nothing
+	  let m = A.Underscore $ A.MetaInfo
+		  { A.metaRange  = r
+		  , A.metaScope  = scope
+		  , A.metaNumber = Nothing
 		  }
 	  checkArguments exh r (Arg Hidden (unnamed m) : args0) t0 t1
 

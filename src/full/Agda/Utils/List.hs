@@ -5,6 +5,8 @@ module Agda.Utils.List where
 
 import Agda.Utils.TestHelpers
 import Agda.Utils.QuickCheck
+import Agda.Utils.Tuple
+
 import Text.Show.Functions
 import Data.List
 import Data.Function
@@ -40,6 +42,11 @@ chop :: Int -> [a] -> [[a]]
 chop _ [] = []
 chop n xs = ys : chop n zs
     where (ys,zs) = splitAt n xs
+
+-- | All ways of removing one element from a list.
+holes :: [a] -> [(a, [a])]
+holes []     = []
+holes (x:xs) = (x, xs) : map (id -*- (x:)) (holes xs)
 
 -- | Check whether all elements in a list are distinct from each
 -- other. Assumes that the 'Eq' instance stands for an equivalence
