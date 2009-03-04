@@ -601,6 +601,9 @@ data TCEnv =
            --   coinductive constructors.)
           , envDisplayFormsEnabled :: Bool
                 -- ^ Sometimes we want to disable display forms.
+          , envReifyInteractionPoints :: Bool
+                -- ^ should we try to recover interaction points when reifying?
+                --   disabled when generating types for with functions
 	  }
     deriving (Typeable, Data)
 
@@ -614,6 +617,7 @@ initEnv = TCEnv { envContext	         = []
 		, envAbstractMode        = AbstractMode
                 , envUnfold              = True
                 , envDisplayFormsEnabled = True
+                , envReifyInteractionPoints = True
 		}
 
 ---------------------------------------------------------------------------

@@ -71,6 +71,14 @@ disableDisplayForms =
 displayFormsEnabled :: MonadTCM tcm => tcm Bool
 displayFormsEnabled = asks envDisplayFormsEnabled
 
+-- | Don't reify interaction points
+dontReifyInteractionPoints :: MonadTCM tcm => tcm a -> tcm a
+dontReifyInteractionPoints =
+  local $ \e -> e { envReifyInteractionPoints = False }
+
+shouldReifyInteractionPoints :: MonadTCM tcm => tcm Bool
+shouldReifyInteractionPoints = asks envReifyInteractionPoints
+
 getIncludeDirs :: MonadTCM tcm => tcm [FilePath]
 getIncludeDirs = addDot . optIncludeDirs <$> commandLineOptions
     where

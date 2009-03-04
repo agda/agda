@@ -68,17 +68,19 @@ class Reify i a | i -> a where
     reify :: MonadTCM tcm => i -> tcm a
 
 instance Reify MetaId Expr where
-    reify x@(MetaId n) = liftTCM $
-	do  mi  <- getMetaInfo <$> lookupMeta x
-	    let mi' = Info.MetaInfo (getRange mi)
-				    (M.clScope mi)
-				    (Just n)
-	    iis <- map (snd /\ fst) . Map.assocs
-		    <$> gets stInteractionPoints
-	    case lookup x iis of
-		Just ii@(InteractionId n)
-			-> return $ A.QuestionMark $ mi' {metaNumber = Just n}
-		Nothing	-> return $ A.Underscore mi'
+    reify x@(MetaId n) = liftTCM $ do
+      mi  <- getMetaInfo <$> lookupMeta x
+      let mi' = Info.MetaInfo (getRange mi)
+                              (M.clScope mi)
+                              (Just n)
+      ifM shouldReifyInteractionPoints
+          (do iis <- map (snd /\ fst) . Map.assocs
+                      <$> gets stInteractionPoints
+              case lookup x iis of
+                Just ii@(InteractionId n)
+                        -> return $ A.QuestionMark $ mi' {metaNumber = Just n}
+                Nothing	-> return $ A.Underscore mi'
+          ) (return $ A.Underscore mi')
 
 instance Reify DisplayTerm Expr where
   reify d = case d of

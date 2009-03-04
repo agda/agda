@@ -240,7 +240,10 @@ checkWithFunction (WithFunction f aux gamma delta1 delta2 vs as b qs perm cs) = 
   -- Generate the type of the with function
   candidateType <- withFunctionType delta1 vs as delta2 b
   reportSDoc "tc.with.type" 10 $ sep [ text "candidate type:", nest 2 $ prettyTCM candidateType ]
-  absAuxType <- setShowImplicitArguments True $ disableDisplayForms $ reify candidateType
+  absAuxType <- setShowImplicitArguments True
+                $ disableDisplayForms
+                $ dontReifyInteractionPoints
+                $ reify candidateType
   reportSDoc "tc.with.top" 15 $
     vcat [ text "type of with function:"
          , nest 2 $ prettyTCM absAuxType
