@@ -209,7 +209,7 @@ standardOptions =
     , Option ['I']  ["interactive"] (NoArg interactiveFlag)
 		    "start in interactive mode"
     , Option ['c']  ["compile"] (NoArg compileFlag)
-                    "compile program to Haskell (experimental)"
+                    "compile program (experimental)"
     , Option []	    ["agate"] (NoArg agateFlag)
 		    "use the Agate compiler (only with --compile)"
     , Option []     ["alonzo"] (NoArg alonzoFlag)
@@ -219,6 +219,8 @@ standardOptions =
     , Option []     ["malonzodir"] (ReqArg malonzoDirFlag "DIR")
 		    ("directory for MAlonzo output (default: " ++
                      defaultMAlonzoDir ++ ")")
+    , Option []     ["ghc-flag"] (ReqArg ghcFlag "GHC-FLAG")
+                    "give the flag GHC-FLAG to GHC when compiling using MAlonzo"
     , Option []	    ["test"] (NoArg runTestsFlag)
 		    "run internal test suite"
     , Option []	    ["vim"] (NoArg vimFlag)
@@ -230,11 +232,9 @@ standardOptions =
     , Option []	    ["html-dir"] (ReqArg htmlDirFlag "DIR")
 		    "directory in which HTML files are placed"
     , Option []	    ["css"] (ReqArg cssFlag "URL")
-		    "the CSS file used by the HTML file (can be relative)"
+		    "the CSS file used by the HTML files (can be relative)"
     , Option []	    ["ignore-interfaces"] (NoArg ignoreInterfacesFlag)
 		    "ignore interface files (re-type check everything)"
-    , Option []     ["ghc-flag"] (ReqArg ghcFlag "GHC-FLAG")
-                    "use GHC-FLAG for compilation"
     ] ++ pragmaOptions
 
 pragmaOptions :: [OptDescr (Flag CommandLineOptions)]
