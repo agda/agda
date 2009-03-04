@@ -20,14 +20,10 @@ import Agda.Utils.Impossible
 data Induction = Inductive | CoInductive
   deriving (Typeable, Data, Show, Eq)
 
-data Recursion = Recursive | CoRecursive
-  deriving (Typeable, Data, Show, Eq, Ord)
-
 data Hiding  = Hidden | NotHidden
     deriving (Typeable, Data, Show, Eq)
 
 instance KillRange Induction where killRange = id
-instance KillRange Recursion where killRange = id
 instance KillRange Hiding    where killRange = id
 
 -- | A function argument can be hidden.

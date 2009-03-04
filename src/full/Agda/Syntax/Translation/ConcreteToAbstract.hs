@@ -540,7 +540,7 @@ instance ToAbstract LetDef [A.LetBinding] where
 
 	    _	-> notAValidLetBinding d
 	where
-	    letToAbstract (C.Clause top clhs@(C.LHS p [] []) (C.RHS Recursive rhs) NoWhere []) = do
+	    letToAbstract (C.Clause top clhs@(C.LHS p [] []) (C.RHS rhs) NoWhere []) = do
 		p    <- parseLHS (Just top) p
 		localToAbstract (snd $ lhsArgs p) $ \args ->
 		    do	rhs <- toAbstract rhs
@@ -792,11 +792,11 @@ instance ToAbstract C.Clause A.Clause where
 data RightHandSide = RightHandSide [C.Expr] [C.Clause] C.RHS
 data AbstractRHS = AbsurdRHS'
                  | WithRHS' [A.Expr] [C.Clause]  -- ^ The with clauses haven't been translated yet
-                 | RHS' Recursion A.Expr
+                 | RHS' A.Expr
 
 instance ToAbstract AbstractRHS A.RHS where
   toAbstract AbsurdRHS'       = return A.AbsurdRHS
-  toAbstract (RHS' rec e)     = return $ A.RHS rec e
+  toAbstract (RHS' e)         = return $ A.RHS e
   toAbstract (WithRHS' es cs) = do
     m   <- getCurrentModule
     -- Hack
@@ -805,16 +805,16 @@ instance ToAbstract AbstractRHS A.RHS where
     A.WithRHS aux es <$> toAbstract cs
 
 instance ToAbstract RightHandSide AbstractRHS where
-  toAbstract (RightHandSide [] (_ : _) _)          = __IMPOSSIBLE__
-  toAbstract (RightHandSide (_ : _) _ (C.RHS _ _)) = typeError $ BothWithAndRHS
-  toAbstract (RightHandSide [] [] rhs)             = toAbstract rhs
-  toAbstract (RightHandSide es cs C.AbsurdRHS)     = do
+  toAbstract (RightHandSide [] (_ : _) _)        = __IMPOSSIBLE__
+  toAbstract (RightHandSide (_ : _) _ (C.RHS _)) = typeError $ BothWithAndRHS
+  toAbstract (RightHandSide [] [] rhs)           = toAbstract rhs
+  toAbstract (RightHandSide es cs C.AbsurdRHS)   = do
     es <- toAbstractCtx TopCtx es
     return $ WithRHS' es cs
 
 instance ToAbstract C.RHS AbstractRHS where
     toAbstract C.AbsurdRHS = return $ AbsurdRHS'
-    toAbstract (C.RHS rec e)   = RHS' rec <$> toAbstract e
+    toAbstract (C.RHS e)   = RHS' <$> toAbstract e
 
 data LeftHandSide = LeftHandSide C.Name C.Pattern [C.Pattern]
 

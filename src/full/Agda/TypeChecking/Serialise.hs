@@ -66,7 +66,7 @@ import Agda.Utils.Permutation
 import Agda.Utils.Impossible
 
 currentInterfaceVersion :: Int
-currentInterfaceVersion = 20090303
+currentInterfaceVersion = 20090304
 
 type Node = [Int] -- constructor tag (maybe omitted) and arg indices
 
@@ -308,13 +308,6 @@ instance (EmbPrj a) => EmbPrj (Agda.Syntax.Common.Arg a) where
   value = vcase valu where valu [a, b] = valu2 Arg a b
                            valu _      = __IMPOSSIBLE__
 
-instance EmbPrj Agda.Syntax.Common.Recursion where
-  icode Recursive   = icode0 0
-  icode CoRecursive = icode0 1
-  value = vcase valu where valu [0] = valu0 Recursive
-                           valu [1] = valu0 CoRecursive
-                           valu _   = __IMPOSSIBLE__
-
 instance EmbPrj Agda.Syntax.Common.Induction where
   icode Inductive   = icode0 0
   icode CoInductive = icode0 1
@@ -451,14 +444,14 @@ instance EmbPrj Occurrence where
 
 instance EmbPrj Defn where
   icode (Axiom       a)                   = icode1 0 a
-  icode (Function    a b c d e f)         = icode6 1 a b c d e f
+  icode (Function    a b c d e)           = icode5 1 a b c d e
   icode (Datatype    a b c d e f g h i j) = icode10 2 a b c d e f g h i j
   icode (Record      a b c d e f g h)     = icode8 3 a b c d e f g h
   icode (Constructor a b c d e f)         = icode6 4 a b c d e f
   icode (Primitive   a b c)               = icode3 5 a b c
   value = vcase valu where
     valu [0, a]                            = valu1 Axiom       a
-    valu [1, a, b, c, d, e, f]             = valu6 Function    a b c d e f
+    valu [1, a, b, c, d, e]                = valu5 Function    a b c d e
     valu [2, a, b, c, d, e, f, g, h, i, j] = valu10 Datatype    a b c d e f g h i j
     valu [3, a, b, c, d, e, f, g, h]       = valu8 Record      a b c d e f g h
     valu [4, a, b, c, d, e, f]             = valu6 Constructor a b c d e f
@@ -489,9 +482,9 @@ instance EmbPrj Agda.Syntax.Common.IsAbstract where
                            valu _   = __IMPOSSIBLE__
 
 instance EmbPrj I.Clause where
-  icode (Clause a b c d e f) = icode6' a b c d e f
-  value = vcase valu where valu [a, b, c, d, e, f] = valu6 Clause a b c d e f
-                           valu _                  = __IMPOSSIBLE__
+  icode (Clause a b c d e) = icode5' a b c d e
+  value = vcase valu where valu [a, b, c, d, e] = valu5 Clause a b c d e
+                           valu _               = __IMPOSSIBLE__
 
 instance EmbPrj I.ClauseBody where
   icode (Body   a) = icode1 0 a

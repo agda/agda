@@ -9,7 +9,7 @@ codata D : Set where
   d₂ : D
 
 foo : D -> d₁ ≡ d₂ -> D
-foo d₁ eq ~ d₁
+foo d₁ eq = d₁
 foo d₂ eq with eq
 foo d₂ eq | ()
 

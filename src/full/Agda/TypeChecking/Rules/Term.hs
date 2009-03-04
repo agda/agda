@@ -265,15 +265,13 @@ checkExpr e t =
                   addConstant aux $ Defn aux t' (defaultDisplayForm aux) 0
                                   $ Function
                                     { funClauses        =
-                                        [Clause { clauseRange     = getRange e
-                                                , clauseTel       = EmptyTel
-                                                , clausePerm      = Perm 0 []
-                                                , clausePats      = [Arg h $ VarP "()"]
-                                                , clauseRecursion = Recursive
-                                                , clauseBody      = NoBody
+                                        [Clause { clauseRange = getRange e
+                                                , clauseTel   = EmptyTel
+                                                , clausePerm  = Perm 0 []
+                                                , clausePats  = [Arg h $ VarP "()"]
+                                                , clauseBody  = NoBody
                                                 }
                                         ]
-                                    , funRecursion      = Recursive
                                     , funInv            = NotInjective
                                     , funAbstr          = ConcreteDef
                                     , funPolarity       = [Covariant]

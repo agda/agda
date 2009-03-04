@@ -132,7 +132,7 @@ data LHS = LHS Pattern [Pattern] [Expr]
   deriving (Typeable, Data, Eq)
 
 data RHS = AbsurdRHS
-	 | RHS Recursion Expr
+	 | RHS Expr
     deriving (Typeable, Data, Eq)
 
 data WhereClause = NoWhere | AnyWhere [Declaration] | SomeWhere Name [Declaration]
@@ -308,7 +308,7 @@ instance HasRange LHS where
 
 instance HasRange RHS where
     getRange AbsurdRHS = noRange
-    getRange (RHS _ e)   = getRange e
+    getRange (RHS e)   = getRange e
 
 instance HasRange Pragma where
     getRange (OptionsPragma r _)          = r

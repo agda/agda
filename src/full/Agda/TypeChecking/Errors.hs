@@ -141,7 +141,6 @@ errorString err = case err of
     ShouldBeASort _			       -> "ShouldBeASort"
     ShouldBeApplicationOf _ _		       -> "ShouldBeApplicationOf"
     ShouldBeAppliedToTheDatatypeParameters _ _ -> "ShouldBeAppliedToTheDatatypeParameters"
-    ShouldBeCoinductiveType _		       -> "ShouldBeCoinductiveType"
     ShouldBeEmpty _ _			       -> "ShouldBeEmpty"
     ShouldBePi _			       -> "ShouldBePi"
     ShouldBeRecordType _		       -> "ShouldBeRecordType"
@@ -207,8 +206,6 @@ instance PrettyTCM TypeError where
 		pwords "which is not the right datatype"
 	    ShouldBeRecordType t -> fsep $
 		pwords "Expected record type, found " ++ [prettyTCM t]
-	    ShouldBeCoinductiveType t -> fsep $
-		pwords "Expected coinductive type, found " ++ [prettyTCM t]
 	    DifferentArities ->
 		fwords "The number of arguments in the defining equations differ"
 	    WrongHidingInLHS t -> do

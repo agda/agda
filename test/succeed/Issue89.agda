@@ -48,10 +48,10 @@ P⇒′ (xs ⋎ ys) | xs′ = head′ xs′ ≺ ys ⋎ tail′ xs′
 mutual
 
   ′⇒ : forall {A} -> Stream′ A -> Stream A
-  ′⇒ (x ≺ xs) ~ x ≺ P⇒ xs
+  ′⇒ (x ≺ xs) = x ≺ P⇒ xs
 
   P⇒ : forall {A} -> StreamProg A -> Stream A
-  P⇒ xs ~ ′⇒ (P⇒′ xs)
+  P⇒ xs = ′⇒ (P⇒′ xs)
 
 ------------------------------------------------------------------------
 -- Stream equality
@@ -68,7 +68,7 @@ _≊_ : forall {A} (xs ys : StreamProg A) -> Set
 xs ≊ ys = P⇒ xs ≈ P⇒ ys
 
 foo : forall {A} (x : A) -> x ∞ ⋎ x ∞ ≊ x ∞
-foo x ~ ≡-refl ≺ foo x
+foo x = ≡-refl ≺ foo x
 
 -- The first goal has goal type
 --   head (′⇒ (x ≺ x ∞ ⋎ x ∞)) ≡ head (′⇒ (x ≺ x ∞)).

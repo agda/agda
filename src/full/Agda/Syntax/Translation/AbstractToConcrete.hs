@@ -392,7 +392,7 @@ instance ToConcrete A.TypedBinding C.TypedBinding where
 instance ToConcrete LetBinding [C.Declaration] where
     bindToConcrete (LetBind i x t e) ret =
 	bindToConcrete x $ \x ->
-	do  (t,(e, [], [])) <- toConcrete (t, A.RHS Recursive e)
+	do  (t,(e, [], [])) <- toConcrete (t, A.RHS e)
 	    ret [C.TypeSig x t, C.FunClause (C.LHS (C.IdentP $ C.QName x) [] []) e C.NoWhere]
     bindToConcrete (LetApply i x tel y es _ _) ret = do
       x  <- unsafeQNameToName <$> toConcrete x
@@ -412,9 +412,9 @@ instance ToConcrete [A.Declaration] [C.Declaration] where
     toConcrete ds = concat <$> mapM toConcrete ds
 
 instance ToConcrete A.RHS (C.RHS, [C.Expr], [C.Declaration]) where
-    toConcrete (A.RHS rec e)   = do
+    toConcrete (A.RHS e) = do
       e <- toConcrete e
-      return (C.RHS rec e, [], [])
+      return (C.RHS e, [], [])
     toConcrete A.AbsurdRHS = return (C.AbsurdRHS, [], [])
     toConcrete (A.WithRHS _ es cs) = do
       es <- toConcrete es

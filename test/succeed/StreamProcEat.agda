@@ -44,7 +44,7 @@ mutual
 
   -- eat is defined by corecursion into Stream B
   eat  : forall {A B} -> Trans A B -> Stream A -> Stream B
-  eat 〈 sp 〉 as ~ eat' sp as
+  eat 〈 sp 〉 as = eat' sp as
 
   -- eat' is defined by a local recursion on Trans' A B
   eat' : forall {A B} -> Trans' A B -> Stream A -> Stream B
@@ -58,7 +58,7 @@ mutual
 
   -- comb is defined by corecursion into Trans A B
   comb : forall {A B C} -> Trans A B -> Trans B C -> Trans A C
-  comb 〈 p1 〉 〈 p2 〉 ~ 〈 comb' p1 p2 〉
+  comb 〈 p1 〉 〈 p2 〉 = 〈 comb' p1 p2 〉
 
   -- comb' preforms a local lexicographic recursion on (Trans' B C, Trans' A B)
   comb' : forall {A B C} -> Trans' A B -> Trans' B C -> Trans' A C

@@ -88,7 +88,6 @@ import Agda.Utils.Monad
     ';'		{ TokSymbol SymSemi $$ }
     ':'		{ TokSymbol SymColon $$ }
     '='		{ TokSymbol SymEqual $$ }
-    '~'		{ TokSymbol SymSim $$ }
     '_'		{ TokSymbol SymUnderscore $$ }
     '?'		{ TokSymbol SymQuestionMark $$ }
     '->'	{ TokSymbol SymArrow $$ }
@@ -174,7 +173,6 @@ Token
     | ';'	    { TokSymbol SymSemi $1 }
     | ':'	    { TokSymbol SymColon $1 }
     | '='	    { TokSymbol SymEqual $1 }
-    | '~'	    { TokSymbol SymSim $1 }
     | '_'	    { TokSymbol SymUnderscore $1 }
     | '?'	    { TokSymbol SymQuestionMark $1 }
     | '->'	    { TokSymbol SymArrow $1 }
@@ -631,8 +629,7 @@ FunClause :: { Declaration }
 FunClause : LHS RHS WhereClause	{ FunClause $1 $2 $3 }
 
 RHS :: { RHS }
-RHS : '=' Expr	    { RHS Recursive $2 }
-    | '~' Expr	    { RHS CoRecursive $2 }
+RHS : '=' Expr	    { RHS $2 }
     | {- empty -}   { AbsurdRHS }
 
 -- Data declaration. Can be local.

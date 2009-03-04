@@ -7,7 +7,7 @@ codata D : Set where
   d : D → D
 
 e : D
-e ~ d e
+e = d e
 
 force : D → D
 force (d x) = d x

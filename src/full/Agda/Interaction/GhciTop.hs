@@ -499,7 +499,7 @@ instance LowerMeta SC.TypedBinding where
   lowerMeta (SC.TNoBind e)    = SC.TNoBind (lowerMeta e)
 
 instance LowerMeta SC.RHS where
-    lowerMeta (SC.RHS rec e) = SC.RHS rec (lowerMeta e)
+    lowerMeta (SC.RHS e)    = SC.RHS (lowerMeta e)
     lowerMeta  SC.AbsurdRHS = SC.AbsurdRHS
 
 instance LowerMeta SC.Declaration where

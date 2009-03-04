@@ -372,7 +372,6 @@ data Defn = Axiom
             }
 	  | Function
             { funClauses        :: [Clause]
-            , funRecursion      :: Recursion
             , funInv            :: FunctionInverse
             , funPolarity       :: [Polarity]
             , funArgOccurrences :: [Occurrence]
@@ -596,6 +595,10 @@ data TCEnv =
 		--   or the body of a non-abstract definition this is true.
 		--   To prevent information about abstract things leaking
 		--   outside the module.
+         , envUnfold               :: Bool
+           -- ^ 'True' if definitions should be unfolded during
+           --   evaluation. (Set to 'False' during evaluation under
+           --   coinductive constructors.)
           , envDisplayFormsEnabled :: Bool
                 -- ^ Sometimes we want to disable display forms.
 	  }
@@ -609,6 +612,7 @@ initEnv = TCEnv { envContext	         = []
 		, envImportPath          = []
 		, envMutualBlock         = Nothing
 		, envAbstractMode        = AbstractMode
+                , envUnfold              = True
                 , envDisplayFormsEnabled = True
 		}
 
@@ -699,7 +703,6 @@ data TypeError
 	| ShouldBePi Type
 	    -- ^ The given type should have been a pi.
 	| ShouldBeRecordType Type
-	| ShouldBeCoinductiveType Type
 	| NotAProperTerm
 	| UnequalTerms Comparison Term Term Type
 	| UnequalTypes Comparison Type Type

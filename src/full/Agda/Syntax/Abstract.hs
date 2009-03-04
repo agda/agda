@@ -112,7 +112,7 @@ type Telescope	= [TypedBindings]
 --   @where@ clause though, so for the time being we keep it here.
 data Clause	= Clause LHS RHS [Declaration]
   deriving (Typeable, Data)
-data RHS	= RHS Recursion Expr
+data RHS	= RHS Expr
 		| AbsurdRHS
 		| WithRHS QName [Expr] [Clause] -- ^ The 'QName' is the name of the with function.
   deriving (Typeable, Data)
@@ -243,7 +243,7 @@ instance HasRange Clause where
 
 instance HasRange RHS where
     getRange AbsurdRHS        = noRange
-    getRange (RHS _ e)        = getRange e
+    getRange (RHS e)          = getRange e
     getRange (WithRHS _ e cs) = fuseRange e cs
 
 instance HasRange LetBinding where
@@ -316,7 +316,7 @@ instance KillRange Clause where
 
 instance KillRange RHS where
   killRange AbsurdRHS        = AbsurdRHS
-  killRange (RHS a e)        = killRange2 RHS a e
+  killRange (RHS e)          = killRange1 RHS e
   killRange (WithRHS q e cs) = killRange3 WithRHS q e cs
 
 instance KillRange LetBinding where

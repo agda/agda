@@ -61,20 +61,6 @@ import Agda.Utils.Impossible
 -- * Definitions by pattern matching
 ---------------------------------------------------------------------------
 
--- TODO: remove this (its obsolete)
-getRecursion :: [A.Clause] -> TCM Recursion
-getRecursion cs = case nub $ concatMap clRec cs of
-  []  -> return Recursive
-  [rec] -> return rec
-  _     -> return Recursive
---  _     -> fail "Cannot mix recursion and corecursion in the same definition"
-  where
-    clRec (A.Clause _ rhs _) = case rhs of
-      A.RHS rec _      -> [rec]
-      A.AbsurdRHS      -> []
-      A.WithRHS _ _ cs -> concatMap clRec cs
-
-
 -- | Type check a definition by pattern matching.
 checkFunDef :: Info.DefInfo -> QName -> [A.Clause] -> TCM ()
 checkFunDef i name cs =
@@ -88,8 +74,6 @@ checkFunDef i name cs =
               , nest 2 $ text ":" <+> prettyTCM t
               , nest 2 $ text "full type:" <+> (prettyTCM . defType =<< getConstInfo name)
               ]
-
-        rec <- getRecursion cs
 
         -- Check the clauses
         let check c = do
@@ -111,7 +95,6 @@ checkFunDef i name cs =
         addConstant name $ Defn name t (defaultDisplayForm name) 0
                          $ Function
                             { funClauses        = cs
-                            , funRecursion      = rec
                             , funInv            = inv
                             , funAbstr          = Info.defAbstract i
                             , funPolarity       = []
@@ -150,17 +133,11 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs wh) =
       let mkBody v = foldr (\x t -> Bind $ Abs x t) (Body $ substs sub v) xs
       (body, with) <- checkWhere (size delta) wh $ 
               case rhs of
-                A.RHS rec e
+                A.RHS e
                   | any (containsAbsurdPattern . namedThing . unArg) aps ->
                     typeError $ AbsurdPatternRequiresNoRHS aps
                   | otherwise -> do
                     v <- checkExpr e t'
-                    when (rec == CoRecursive) $ do
-                      i <- isCoinductive t'
-                      case i of
-                        Just True -> return ()
-                        _ -> typeError . ShouldBeCoinductiveType =<<
-                               instantiateFull t'
                     return (mkBody v, NoWithFunction)
                 A.AbsurdRHS
                   | any (containsAbsurdPattern . namedThing . unArg) aps
@@ -226,16 +203,12 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs wh) =
           , text "body  =" <+> text (show body)
           ]
         ]
-      return $ Clause { clauseRange     = getRange i
-                      , clauseTel       = killRange delta  -- TODO: make sure delta and perm are what we want
-                      , clausePerm      = perm
-                      , clausePats      = ps
-                      , clauseRecursion = recursion rhs
-                      , clauseBody      = body
+      return $ Clause { clauseRange = getRange i
+                      , clauseTel   = killRange delta  -- TODO: make sure delta and perm are what we want
+                      , clausePerm  = perm
+                      , clausePats  = ps
+                      , clauseBody  = body
                       }
-      -- only clauses with '~' are CoRecursive, everything else is Recursive
-      where recursion (A.RHS rec e) = rec
-            recursion _ = Recursive
 
 checkClause t (A.Clause (A.LHS _ _ _ ps@(_ : _)) _ _) = typeError $ UnexpectedWithPatterns ps
 

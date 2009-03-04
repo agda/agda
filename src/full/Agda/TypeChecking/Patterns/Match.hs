@@ -49,7 +49,7 @@ matchPattern :: MonadTCM tcm => Arg Pattern -> Arg Term -> tcm (Match, Arg Term)
 matchPattern (Arg h' (VarP _))	  arg@(Arg _ v) = return (Yes [v], arg)
 matchPattern (Arg _  (DotP _))    arg@(Arg _ v) = return (Yes [v], arg)
 matchPattern (Arg h' (LitP l))	  arg@(Arg h v) = do
-    w <- forceCorecursion =<< reduceB v
+    w <- reduceB v
     let v = ignoreBlocking w
     case w of
 	NotBlocked (Lit l')
@@ -59,7 +59,7 @@ matchPattern (Arg h' (LitP l))	  arg@(Arg h v) = do
 	Blocked x _            -> return (DontKnow $ Just x, Arg h v)
 	_                      -> return (DontKnow Nothing, Arg h v)
 matchPattern (Arg h' (ConP c ps))     (Arg h v) =
-    do	w <- traverse constructorForm =<< forceCorecursion =<< reduceB v
+    do	w <- traverse constructorForm =<< reduceB v
         let v = ignoreBlocking w
 	case w of
 	  NotBlocked (Con c' vs)

@@ -73,9 +73,9 @@ instance Apply PrimFun where
     apply (PrimFun x ar def) args   = PrimFun x (ar - size args) $ \vs -> def (args ++ vs)
 
 instance Apply Clause where
-    apply (Clause r tel perm ps rec b) args =
+    apply (Clause r tel perm ps b) args =
       Clause r (apply tel args) (apply perm args)
-             (drop (size args) ps) rec (apply b args)
+             (drop (size args) ps) (apply b args)
 
 instance Apply FunctionInverse where
   apply NotInjective  args = NotInjective
@@ -169,9 +169,9 @@ instance Abstract PrimFun where
 	where n = size tel
 
 instance Abstract Clause where
-  abstract tel (Clause r tel' perm ps rec b) =
+  abstract tel (Clause r tel' perm ps b) =
     Clause r (abstract tel tel') (abstract tel perm)
-           (telVars tel ++ ps) rec (abstract tel b)
+           (telVars tel ++ ps) (abstract tel b)
 
 telVars EmptyTel		    = []
 telVars (ExtendTel arg (Abs x tel)) = fmap (const $ VarP x) arg : telVars tel

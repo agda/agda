@@ -61,10 +61,6 @@ instance Pretty Induction where
   pretty Inductive = text "data"
   pretty CoInductive = text "codata"
 
-instance Pretty Recursion where
-  pretty Recursive = text "="
-  pretty CoRecursive = text "~"
-
 instance Pretty Expr where
     pretty e =
 	case e of
@@ -149,7 +145,7 @@ instance Pretty TypedBinding where
 	    ]
 
 instance Pretty RHS where
-    pretty (RHS rec e)   = pretty rec <+> pretty e
+    pretty (RHS e)   = text "=" <+> pretty e
     pretty AbsurdRHS = empty
 
 instance Pretty WhereClause where

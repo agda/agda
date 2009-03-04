@@ -171,17 +171,15 @@ checkRecordProjections m q tel ftel s fs = checkProjs EmptyTel ftel fs
 		 $ nobind (size ftel2)
 		 $ Body $ Var 0 []
           cltel  = ptel `abstract` ftel
-	  clause = Clause { clauseRange     = getRange info
-                          , clauseTel       = cltel
-                          , clausePerm      = idP $ size ptel + size ftel
-                          , clausePats      = hps ++ [conp]
-                          , clauseRecursion = Recursive
-                          , clauseBody      = body
+	  clause = Clause { clauseRange = getRange info
+                          , clauseTel   = cltel
+                          , clausePerm  = idP $ size ptel + size ftel
+                          , clausePats  = hps ++ [conp]
+                          , clauseBody  = body
                           }
       escapeContext (size tel) $ do
 	addConstant projname $ Defn projname finalt (defaultDisplayForm projname) 0
           $ Function { funClauses        = [clause]
-                     , funRecursion      = Recursive
                      , funInv            = NotInjective
                      , funAbstr          = ConcreteDef
                      , funPolarity       = []

@@ -339,11 +339,10 @@ stripBinds use i (p:ps) b = do
 
 -- | Extract recursive calls from one clause.
 termClause :: DBPConf -> MutualNames -> QName -> Clause -> TCM Calls
-termClause use names name (Clause { clauseTel       = tel
-                                  , clausePerm      = perm
-                                  , clausePats      = argPats'
-                                  , clauseRecursion = rec
-                                  , clauseBody      = body }) = do
+termClause use names name (Clause { clauseTel  = tel
+                                  , clausePerm = perm
+                                  , clausePats = argPats'
+                                  , clauseBody = body }) = do
     argPats' <- addCtxTel tel $ normalise argPats'
     -- The termination checker doesn't know about reordered telescopes
     let argPats = substs (renamingR perm) argPats'
@@ -352,7 +351,7 @@ termClause use names name (Clause { clauseTel       = tel
        Nothing -> return Term.empty
        Just (-1, dbpats, Body t) -> do
           dbpats <- mapM (stripCoConstructors use) dbpats
-          termTerm names name dbpats rec t
+          termTerm names name dbpats t
           -- note: convert dB levels into dB indices
        Just (n, dbpats, Body t) -> internalError $ "termClause: misscalculated number of vars: guess=" ++ show nVars ++ ", real=" ++ show (nVars - 1 - n)
        Just (n, dbpats, b)  -> internalError $ "termClause: not a Body" -- ++ show b
@@ -364,8 +363,8 @@ termClause use names name (Clause { clauseTel       = tel
     boundVars (Body _)   = 0
 
 -- | Extract recursive calls from a term.
-termTerm :: MutualNames -> QName -> [DeBruijnPat] -> Recursion -> Term -> TCM Calls
-termTerm names f pats0 rec t0 = do
+termTerm :: MutualNames -> QName -> [DeBruijnPat] -> Term -> TCM Calls
+termTerm names f pats0 t0 = do
   reportSDoc "term.check.clause" 11
     (sep [ text "termination checking clause of" <+> prettyTCM f
          , nest 2 $ text "lhs:" <+> hsep (map prettyTCM pats0)
@@ -427,7 +426,6 @@ termTerm names f pats0 rec t0 = do
                             (Term.Call { Term.source = fInd
                                        , Term.target = toInteger gInd'
                                        , Term.cm     = makeCM ncols nrows matrix'
-                                       , Term.callRec   = rec
                                        })
                             -- Note that only the base part of the
                             -- name is collected here.

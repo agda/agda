@@ -208,18 +208,16 @@ applySection new ptel old ts rd rm = liftTCM $ do
                   oldDef { recPars = np - size ts, recClause = Just cl, recTel = apply tel ts }
 		_ ->
                   Function { funClauses        = [cl]
-                           , funRecursion      = Recursive
                            , funInv            = NotInjective
                            , funPolarity       = []
                            , funArgOccurrences = []
                            , funAbstr          = ConcreteDef
                            }
-	cl = Clause { clauseRange     = getRange $ defClauses d
-                    , clauseTel       = EmptyTel
-                    , clausePerm      = idP 0
-                    , clausePats      = []
-                    , clauseRecursion = Recursive
-                    , clauseBody      = Body $ Def x ts
+	cl = Clause { clauseRange = getRange $ defClauses d
+                    , clauseTel   = EmptyTel
+                    , clausePerm  = idP 0
+                    , clausePats  = []
+                    , clauseBody  = Body $ Def x ts
                     }
 
     copySec :: Args -> (ModuleName, Section) -> TCM ()
@@ -255,23 +253,6 @@ canonicalName x = do
     extract (Body _)	     = __IMPOSSIBLE__
     extract (Bind (Abs _ b)) = extract b
     extract (NoBind b)	     = extract b
-
--- TODO: this goes away, need s.th. clause-wise instead
-whatRecursion :: MonadTCM tcm => QName -> tcm (Maybe Recursion)
-whatRecursion f = do
-  def <- theDef <$> getConstInfo f
-  case def of
-    Function{ funRecursion = r, funClauses = cl }
-      | any hasRHS cl -> return $ Just r
-      | otherwise     -> return Nothing
-    _                            -> return $ Just Recursive
-  where
-    hasRHS = hasBody . clauseBody
-    hasBody (Body _)   = True
-    hasBody NoBody     = False
-    hasBody (Bind b)   = hasBody $ absBody b
-    hasBody (NoBind b) = hasBody b
-
 
 -- | Can be called on either a (co)datatype, a record type or a
 --   (co)constructor.

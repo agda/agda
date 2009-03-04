@@ -183,7 +183,6 @@ data Clause = Clause
     , clauseTel       :: Telescope
     , clausePerm      :: Permutation
     , clausePats      :: [Arg Pattern]
-    , clauseRecursion :: Recursion
     , clauseBody      :: ClauseBody
     }
   deriving (Typeable, Data, Show)

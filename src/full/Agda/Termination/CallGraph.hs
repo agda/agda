@@ -35,7 +35,6 @@ import Agda.Utils.QuickCheck
 import Agda.Utils.Function
 import Agda.Utils.List
 import Agda.Utils.TestHelpers
-import Agda.Syntax.Common (Recursion(..))
 import Agda.Termination.Matrix as Matrix
 import Agda.Termination.Semiring (Semiring)
 import qualified Agda.Termination.Semiring as Semiring
@@ -230,7 +229,6 @@ data Call =
   Call { source :: Index        -- ^ The function making the call.
        , target :: Index        -- ^ The function being called.
        , cm :: CallMatrix       -- ^ The call matrix describing the call.
-       , callRec :: Recursion   -- ^ Is the call 'Recursive' or 'Corecursive'?
        }
   deriving (Eq, Ord, Show)
 
@@ -238,12 +236,11 @@ instance Arbitrary Call where
   arbitrary = do
     [s, t]    <- vectorOf 2 arbitrary
     cm        <- arbitrary
-    callRec   <- arbitrary
-    return (Call { source = s, target = t, cm = cm, callRec = callRec })
+    return (Call { source = s, target = t, cm = cm })
 
 instance CoArbitrary Call where
-  coarbitrary (Call s t cm callRec) =
-    coarbitrary s . coarbitrary t . coarbitrary cm . coarbitrary callRec
+  coarbitrary (Call s t cm) =
+    coarbitrary s . coarbitrary t . coarbitrary cm
 
 prop_Arbitrary_Call :: Call -> Bool
 prop_Arbitrary_Call = callInvariant
@@ -262,20 +259,8 @@ callInvariant = callMatrixInvariant . cm
 c1 >*< c2 =
   Call { source    = source c2
        , target    = target c1
-       , cm        = cm c1 <*> cm c2 
-       , callRec   = callRec c1 `combineRec` callRec c2 }
-
--- | A combined call is lazy (CoRecursive) if one of its component is.
-combineRec :: Recursion -> Recursion -> Recursion
-combineRec CoRecursive r = CoRecursive
-combineRec Recursive r = r
-
-instance Arbitrary Recursion where
-  arbitrary = elements [ Recursive, CoRecursive ]
-
-instance CoArbitrary Recursion where
-  coarbitrary Recursive   = variant 0
-  coarbitrary CoRecursive = variant 1
+       , cm        = cm c1 <*> cm c2
+       }
 
 ------------------------------------------------------------------------
 -- Call graphs
@@ -337,8 +322,7 @@ callGraph = do
     [c, r] <- vectorOf 2 (choose (0, 2))     -- Not too large.
     m <- callMatrix (Size { rows = r, cols = c })
     callId <- arbitrary
-    rec <- arbitrary
-    return (Call { source = s, target = t, cm = m, callRec = rec }, callId)
+    return (Call { source = s, target = t, cm = m }, callId)
 
 prop_callGraph =
   forAll (callGraph :: Gen (CallGraph [Integer])) $ \cs ->
