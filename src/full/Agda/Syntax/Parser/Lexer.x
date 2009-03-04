@@ -89,13 +89,10 @@ tokens :-
 
 -- Dashes followed by a name symbol should be parsed as a name.
 <0,code,bol_,layout_,empty_layout_,imp_dir_>
-  "--"\-* $endcomment .* / { keepComments } { withInterval TokComment }
-<0,code,bol_,layout_,empty_layout_,imp_dir_>
-   "--"\-* / { keepComments .&&. (followedBy '\n' .||. eof) }
+   "--" .* / { keepComments .&&. (followedBy '\n' .||. eof) }
              { withInterval TokComment }
-<0,code,bol_,layout_,empty_layout_,imp_dir_>   "--"\-* $endcomment .* ;
 <0,code,bol_,layout_,empty_layout_,imp_dir_>
-  "--"\-* / { followedBy '\n' .||. eof } ;
+  "--" .* / { followedBy '\n' .||. eof } ;
 
 -- We need to check the offside rule for the first token on each line.  We
 -- should not check the offside rule for the end of file token or an
