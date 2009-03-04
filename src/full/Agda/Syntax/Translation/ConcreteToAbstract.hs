@@ -37,7 +37,7 @@ import Agda.Syntax.Scope.Monad
 import Agda.Syntax.Strict
 
 import Agda.TypeChecking.Monad.Base (TypeError(..), Call(..), typeError, TCErr(..))
-import Agda.TypeChecking.Monad.Trace (traceCall, traceCallCPS)
+import Agda.TypeChecking.Monad.Trace (traceCall, traceCallCPS, setCurrentRange)
 import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.Options
 
@@ -602,8 +602,12 @@ instance ToAbstract NiceDefinition Definition where
         withLocalVars $ do
 
           -- Check for duplicate constructors
-          do let cs = map conName cons
-             unless (distinct cs) $ typeError $ DuplicateConstructors $ nub $ cs \\ nub cs
+          do let cs   = map conName cons
+                 dups = nub $ cs \\ nub cs
+                 bad  = filter (`elem` dups) cs
+             unless (distinct cs) $ 
+               setCurrentRange (getRange bad) $
+                  typeError $ DuplicateConstructors dups
 
           pars <- toAbstract pars
           cons <- toAbstract (map Constr cons)
