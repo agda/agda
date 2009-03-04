@@ -209,19 +209,16 @@ scanr-defn f e (x₁ ∷ x₂ ∷ xs)
 scanl-defn : ∀ {a b} (f : a → b → a) (e : a) →
              scanl f e ≗ map (foldl f e) ∘ inits
 scanl-defn f e []       = refl
-scanl-defn f e (x ∷ xs) with scanl-defn f (f e x) xs
-... | ind-hypothesis = cong (_∷_ e) lemma
-  where
-  open ≡-Reasoning
-  lemma = begin
-       scanl f (f e x) xs
-    ≡⟨ ind-hypothesis ⟩
-       map (foldl f (f e x)) (inits xs)
-    ≡⟨ refl ⟩
-       map (foldl f e ∘ (_∷_ x)) (inits xs)
-    ≡⟨ map-compose (inits xs) ⟩
-       map (foldl f e) (map (_∷_ x) (inits xs))
-    ∎
+scanl-defn f e (x ∷ xs) = cong (_∷_ e) (begin
+     scanl f (f e x) xs
+  ≡⟨ scanl-defn f (f e x) xs ⟩
+     map (foldl f (f e x)) (inits xs)
+  ≡⟨ refl ⟩
+     map (foldl f e ∘ (_∷_ x)) (inits xs)
+  ≡⟨ map-compose (inits xs) ⟩
+     map (foldl f e) (map (_∷_ x) (inits xs))
+  ∎)
+  where open ≡-Reasoning
 
 -- Length.
 
