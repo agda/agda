@@ -37,8 +37,6 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Substitute
 
-import Agda.Termination.Dumb(checkTermination)
-
 import Agda.Utils.Monad
 import Agda.Utils.Fresh
 import Agda.Utils.Monad.Undo
@@ -115,7 +113,6 @@ interactionLoop typeCheck =
             , "typeOf"      |> \args -> continueAfter $ typeOf args
             , "typeIn"      |> \args -> continueAfter $ typeIn args
 	    , "wakeup"	    |> \_ -> continueAfter $ retryConstraints
-	    , "termination" |> \_ -> continueAfter $ checkTermination 
 	    , "noundo"	    |> \_ -> continueAfter $ clearUndoHistory
 	    , "scope"	    |> \_ -> continueAfter $ showScope
 	    ]

@@ -122,10 +122,8 @@ library
                    Agda.Syntax.Translation.ConcreteToAbstract
                    Agda.Syntax.Translation.InternalToAbstract
                    Agda.Termination.CallGraph
-                   Agda.Termination.Dumb
                    Agda.Termination.Lexicographic
                    Agda.Termination.Matrix
-                   Agda.Termination.RCall
                    Agda.Termination.Semiring
                    Agda.Termination.TermCheck
                    Agda.Termination.Termination
