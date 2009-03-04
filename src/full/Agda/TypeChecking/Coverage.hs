@@ -33,9 +33,12 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Primitive (constructorForm)
 import Agda.TypeChecking.Telescope
 
+import Agda.Interaction.Options
+
 import Agda.Utils.Permutation
 import Agda.Utils.Size
 import Agda.Utils.Tuple
+import Agda.Utils.Monad
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
@@ -74,15 +77,19 @@ checkCoverage f = do
         , nest 2 $ vcat $ map (text . show . clausePats) cs
         ]
       (used, pss) <- cover cs $ SClause gamma' (idP n) xs (idSub gamma')
-      case pss of
-        []  -> return ()
-        _   -> typeError $ CoverageFailure f pss
-      case Set.toList $ Set.difference (Set.fromList [0..genericLength cs - 1]) used of
-        []  -> return ()
-        is  -> do
-          let unreached = map ((cs !!) . fromIntegral) is
-          setCurrentRange (getRange unreached) $
-            typeError $ UnreachableClauses f (map clausePats unreached)
+      whenM (optCompletenessCheck <$> commandLineOptions) $
+        case pss of
+          []  -> return ()
+          _   -> 
+            setCurrentRange (getRange cs) $
+              typeError $ CoverageFailure f pss
+      whenM (optUnreachableCheck <$> commandLineOptions) $
+        case Set.toList $ Set.difference (Set.fromList [0..genericLength cs - 1]) used of
+          []  -> return ()
+          is  -> do
+            let unreached = map ((cs !!) . fromIntegral) is
+            setCurrentRange (getRange unreached) $
+              typeError $ UnreachableClauses f (map clausePats unreached)
     _             -> __IMPOSSIBLE__
 
 -- | Check that the list of clauses covers the given split clause.

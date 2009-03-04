@@ -107,7 +107,7 @@ checkFunDef i name cs =
           liftIO $ UTF8.putStrLn $ "added " ++ show dx ++ " : " ++ show t'
 
         -- Check pattern coverage
-        whenM (optCompletenessCheck <$> commandLineOptions) $ checkCoverage name
+        checkCoverage name
     where
         npats = size . clausePats
 

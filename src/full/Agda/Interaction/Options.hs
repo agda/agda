@@ -67,6 +67,7 @@ data CommandLineOptions =
             , optMAlonzoDir        :: FilePath
 	    , optTerminationCheck  :: Bool
 	    , optCompletenessCheck :: Bool
+            , optUnreachableCheck  :: Bool
 	    , optUniverseCheck     :: Bool
             , optSizedTypes        :: Bool
             , optGhcFlags          :: [String]
@@ -104,6 +105,7 @@ defaultOptions =
             , optMAlonzoDir        = defaultMAlonzoDir
             , optTerminationCheck  = True
             , optCompletenessCheck = True
+            , optUnreachableCheck  = True
             , optUniverseCheck     = True
             , optSizedTypes        = False
             , optGhcFlags          = []
@@ -163,6 +165,7 @@ emacsFlag                 o = checkOpts $ o { optGenerateEmacsFile = True }
 noPositivityFlag          o = checkOpts $ o { optDisablePositivity = True }
 dontTerminationCheckFlag  o = checkOpts $ o { optTerminationCheck  = False }
 dontCompletenessCheckFlag o = checkOpts $ o { optCompletenessCheck = False }
+noUnreachableCheckFlag    o = checkOpts $ o { optUnreachableCheck  = False }
 dontUniverseCheckFlag     o = checkOpts $ o { optUniverseCheck     = False }
 sizedTypes                o = checkOpts $ o { optSizedTypes        = True }
 
@@ -250,6 +253,8 @@ pragmaOptions =
 		    "do not warn about possibly nonterminating code"
     , Option []	    ["no-coverage-check"] (NoArg dontCompletenessCheckFlag)
 		    "do not warn about possibly incomplete pattern matches"
+    , Option []	    ["no-unreachable-check"] (NoArg noUnreachableCheckFlag)
+		    "do not warn about unreachable function clauses"
     , Option []	    ["type-in-type"] (NoArg dontUniverseCheckFlag)
 		    "ignore universe levels (this makes Agda inconsistent)"
     , Option []     ["sized-types"] (NoArg sizedTypes)
