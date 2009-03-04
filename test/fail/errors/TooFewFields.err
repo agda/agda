@@ -1,3 +1,0 @@
-errors/TooFewFields.agda:10,5-14
-Missing fields x in an element of the record D
-when checking that the expression record {} has type D

@@ -68,7 +68,7 @@ $(allstems) : % : %.err
 			 cat $*.err; \
 			 echo "== New error ==="; \
 			 cat $*.tmp; \
-			 echo rm -f $*.tmp; echo rm -f $*.tmp.2; \
+			 rm -f $*.tmp; rm -f $*.tmp.2; rm -f $*.tmp.3 \
 			 false; \
 	 fi
 

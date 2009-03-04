@@ -86,7 +86,11 @@ checkDataDef i ind name ps cs =
 	-- Prop contain at most one element.
 	do  proofIrr <- proofIrrelevance
 	    case (proofIrr, s, cs) of
-		(True, Prop, _:_:_) -> typeError PropMustBeSingleton
+		(True, Prop, _:_:_) -> setCurrentRange (getRange $ map conName cs) $
+                                        typeError PropMustBeSingleton
+                  where conName (A.Axiom _ c _) = c
+                        conName (A.ScopedDecl _ (d:_)) = conName d
+                        conName _ = __IMPOSSIBLE__
 		_		    -> return ()
 
 	-- Add the datatype to the signature with its constructors. It was previously
