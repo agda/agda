@@ -136,8 +136,7 @@ showConstraints [c] =
 	liftIO $ UTF8.print d
 showConstraints [] =
     do	cs <- BasicOps.getConstraints
-	ds <- mapM showA cs
-	liftIO $ UTF8.putStrLn $ unlines ds
+	liftIO $ UTF8.putStrLn $ unlines (List.map show cs)
 showConstraints _ = liftIO $ UTF8.putStrLn ":constraints [cid]"
 
 	

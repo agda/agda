@@ -222,7 +222,7 @@ cmd_compile file includes =
 
 cmd_constraints :: IO ()
 cmd_constraints = ioTCM $ do
-    cs <- mapM showA =<< B.getConstraints
+    cs <- map show <$> B.getConstraints
     display_info "*Constraints*" (unlines cs)
 
 
@@ -436,23 +436,16 @@ cmd_make_case ii rng s = ioTCM $ do
 
 cmd_solveAll :: IO ()
 cmd_solveAll = ioTCM $ do
-    out <- getInsts =<< gets stInteractionPoints
+    out <- getInsts
     liftIO $ UTF8.putStrLn $ response $
       L[ A"agda2-solveAll-action" , Q . L $ concatMap prn out]
   where
-  getInsts = Map.foldWithKey go (return []) where
-    go :: InteractionId -> MetaId -> TCM [(InteractionId, SC.Expr)] -> TCM [(InteractionId, SC.Expr)]
-    go ii mi rest = do
-      mv <- lookupMeta mi
-      withMetaInfo (getMetaInfo mv) $ do
-        args <- getContextArgs
-        let out m = do e <- lowerMeta <$> (abstractToConcrete_ =<< reify m)
-                       ((ii, e):) <$> rest
-        case mvInstantiation mv of InstV{}                        -> out (MetaV mi args)
-                                   InstS{}                        -> out (MetaS mi)
-                                   TM.Open{}                      -> rest
-				   BlockedConst{}                 -> rest
-                                   PostponedTypeCheckingProblem{} -> rest
+  getInsts = mapM lowr =<< B.getSolvedInteractionPoints
+    where
+      lowr (i, m, e) = do
+        mi <- getMetaInfo <$> lookupMeta m
+        e <- withMetaInfo mi $ lowerMeta <$> abstractToConcrete_ e
+        return (i, e)
   prn (ii,e)= [showNumIId ii, A $ emacsStr $ show e]
 
 class LowerMeta a where lowerMeta :: a -> a

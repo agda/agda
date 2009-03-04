@@ -293,7 +293,7 @@ getMetaSig m = clSignature $ getMetaInfo m
 type InteractionPoints = Map InteractionId MetaId
 
 newtype InteractionId = InteractionId Nat
-    deriving (Eq,Ord,Num)
+    deriving (Eq,Ord,Num,Integral,Real,Enum)
 
 instance Show InteractionId where
     show (InteractionId x) = "?" ++ show x

@@ -22,7 +22,7 @@ import Agda.Syntax.Position
 import Agda.Syntax.Abstract 
 import Agda.Syntax.Common
 import Agda.Syntax.Info(ExprInfo(..),MetaInfo(..))
-import Agda.Syntax.Internal (MetaId(..),Type(..),Term(..),Sort)
+import Agda.Syntax.Internal (MetaId(..),Type(..),Term(..),Sort(..))
 import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Translation.AbstractToConcrete
 import Agda.Syntax.Translation.ConcreteToAbstract
@@ -301,11 +301,37 @@ getConstraint ci =
         withConstraint reify cc
 
 
-getConstraints :: TCM [OutputForm Expr Expr]
-getConstraints = liftTCM $
-    do	cs <- M.getConstraints
-	cs <- reduce cs
-	mapM (withConstraint reify) cs
+getConstraints :: TCM [OutputForm C.Expr C.Expr]
+getConstraints = liftTCM $ do
+    cs <- mapM (withConstraint (abstractToConcrete_ <.> reify)) =<< reduce =<< M.getConstraints
+    ss <- mapM toOutputForm =<< getSolvedInteractionPoints
+    return $ ss ++ cs
+  where
+    toOutputForm (ii, mi, e) = do
+      mv <- getMetaInfo <$> lookupMeta mi
+      withMetaInfo mv $ do
+        let m = QuestionMark $ MetaInfo noRange emptyScopeInfo (Just $ fromIntegral ii)
+        abstractToConcrete_ $ Assign m e
+
+getSolvedInteractionPoints :: TCM [(InteractionId, MetaId, Expr)]
+getSolvedInteractionPoints = do
+  is <- getInteractionPoints
+  concat <$> mapM solution is
+  where
+    solution i = do
+      m  <- lookupInteractionId i
+      mv <- lookupMeta m
+      withMetaInfo (getMetaInfo mv) $ do
+        args  <- getContextArgs
+        scope <- getScope
+        let sol v = do e <- reify v; return [(i, m, ScopedExpr scope e)]
+            unsol = return []
+        case mvInstantiation mv of
+          InstV{}                        -> sol (MetaV m args)
+          InstS{}                        -> sol (Sort $ MetaS m)
+          Open{}                         -> unsol
+          BlockedConst{}                 -> unsol
+          PostponedTypeCheckingProblem{} -> unsol
 
 typeOfMetaMI :: Rewrite -> MetaId -> TCM (OutputForm Expr MetaId)
 typeOfMetaMI norm mi = 
