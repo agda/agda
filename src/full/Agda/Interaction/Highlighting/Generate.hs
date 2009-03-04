@@ -54,7 +54,7 @@ import Agda.Utils.Impossible
 
 generateErrorInfo :: P.Range -> String -> File
 generateErrorInfo r s =
-  several (rToR $ P.continuous r)
+  several (rToR $ P.continuousPerLine r)
           (mempty { otherAspects = [Error], note = Just s })
 
 -- | Has typechecking been done yet?

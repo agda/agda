@@ -27,6 +27,7 @@ module Agda.Syntax.Position
   , rEnd
   , rangeToInterval
   , continuous
+  , continuousPerLine
   , HasRange(..)
   , SetRange(..)
   , KillRange(..)
@@ -267,6 +268,17 @@ continuous :: Range -> Range
 continuous r = case rangeToInterval r of
   Nothing -> Range []
   Just i  -> Range [i]
+
+-- | Removes gaps between intervals on the same line.
+continuousPerLine :: Range -> Range
+continuousPerLine (Range [])     = Range []
+continuousPerLine (Range (i:is)) = Range $ fuse i is
+  where
+    fuse i [] = [i]
+    fuse i (j:is)
+      | sameLine i j = fuse (fuseIntervals i j) is
+      | otherwise    = i : fuse j is
+    sameLine i j = posLine (iEnd i) == posLine (iStart j)
 
 -- | The initial position in the range, if any.
 rStart :: Range -> Maybe Position
