@@ -277,7 +277,7 @@ instance Occurs Term where
 		Def c vs    -> Def c <$> occ vs
 		Con c vs    -> do
                   ind <- whatInduction c
-                  unfoldingIf (ind == Inductive) $
+                  continueUnfoldingIf (ind == Inductive) $
                     Con c <$> occ vs
 		Pi a b	    -> uncurry Pi <$> occ (a,b)
 		Fun a b	    -> uncurry Fun <$> occ (a,b)

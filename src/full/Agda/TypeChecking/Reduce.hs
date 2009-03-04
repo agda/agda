@@ -190,10 +190,11 @@ instance Reduce Term where
 	    reduceNat v = return v
 
 -- | Runs a local computation in which definitions are only unfolded
--- if the argument is 'True'.
+-- if the argument is 'True' and definitions were previously unfolded.
 
-unfoldingIf :: MonadTCM tcm => Bool -> tcm a -> tcm a
-unfoldingIf b = local $ \e -> e { envUnfold = b }
+continueUnfoldingIf :: MonadTCM tcm => Bool -> tcm a -> tcm a
+continueUnfoldingIf b =
+  local (\e -> e { envUnfold = envUnfold e && b })
 
 unfoldDefinition :: MonadTCM tcm => (Term -> tcm (Blocked Term)) ->
   Term -> QName -> Args -> tcm (Blocked Term)

@@ -202,9 +202,8 @@ compareAtom cmp t m n =
                     -- Applications of coinductive constructors are
                     -- compared for (some notion of) syntactic
                     -- equality.
-                    i1 <- whatInduction x
-                    i2 <- whatInduction y
-                    unfoldingIf (i1 == Inductive && i2 == Inductive) $
+                    ind <- whatInduction x
+                    continueUnfoldingIf (ind == Inductive) $
                       -- Constructors are invariant in their arguments
                       -- (could be covariant).
                       compareArgs [] a' xArgs yArgs
