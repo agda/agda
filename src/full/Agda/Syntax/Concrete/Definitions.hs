@@ -365,19 +365,24 @@ niceDeclarations ds = do
 
 	-- Make a mutual declaration
 	mkMutual :: Range -> [Declaration] -> [NiceDeclaration] -> Nice NiceDeclaration
-	mkMutual r cs ds = setConcrete cs <$> foldM smash (NiceDef r [] [] []) ds
-	    where
-		setConcrete cs (NiceDef r _ ts ds)  = NiceDef r cs ts ds
-		setConcrete cs d		    = __IMPOSSIBLE__
+	mkMutual r cs ds = do
+            when (length ds > 1) $ mapM_ checkMutual ds
+            setConcrete cs <$> foldM smash (NiceDef r [] [] []) ds
+	  where
+            setConcrete cs (NiceDef r _ ts ds)  = NiceDef r cs ts ds
+            setConcrete cs d		    = __IMPOSSIBLE__
 
-		isRecord RecDef{} = True
-		isRecord _	  = False
+            isRecord RecDef{} = True
+            isRecord _	  = False
 
-		smash nd@(NiceDef r0 _ ts0 ds0) (NiceDef r1 _ ts1 ds1)
-		  | any isRecord ds0 = throwError $ NotAllowedInMutual nd
-		  | otherwise	     = return $ NiceDef (fuseRange r0 r1) [] (ts0 ++ ts1) (ds0 ++ ds1)
-		smash (NiceDef _ _ _ _) d = throwError $ NotAllowedInMutual d
-		smash d _		  = throwError $ NotAllowedInMutual d
+            checkMutual nd@(NiceDef _ _ _ ds)
+              | any isRecord ds = throwError $ NotAllowedInMutual nd
+              | otherwise       = return ()
+            checkMutual d = throwError $ NotAllowedInMutual d
+
+            smash nd@(NiceDef r0 _ ts0 ds0) (NiceDef r1 _ ts1 ds1) =
+              return $ NiceDef (fuseRange r0 r1) [] (ts0 ++ ts1) (ds0 ++ ds1)
+            smash _ _ = __IMPOSSIBLE__
 
 	-- Make a declaration abstract
 	mkAbstract d =
