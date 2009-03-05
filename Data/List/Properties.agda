@@ -19,8 +19,8 @@ import Relation.Binary.EqReasoning as Eq
 open import Algebra
 open import Relation.Binary.FunctionLifting
 
-∷-injective : ∀ {a} → {x y : a} {xs ys : List a} →
-              (x ∷ xs) ≡ (y ∷ ys) → (x ≡ y) × (xs ≡ ys)
+∷-injective : ∀ {A} {x y xs ys} →
+              (List A ∶ x ∷ xs) ≡ (y ∷ ys) → (x ≡ y) × (xs ≡ ys)
 ∷-injective refl = (refl , refl)
 
 right-identity-unique : ∀ {A} (xs : List A) {ys} →
