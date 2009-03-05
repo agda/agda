@@ -27,6 +27,14 @@ data Colist (A : Set) : Set where
   []  : Colist A
   _∷_ : (x : A) (xs : ∞ (Colist A)) → Colist A
 
+data Any {A} (P : A → Set) : Colist A → Set where
+  here  : ∀ {x xs} (px  : P x)          → Any P (x ∷ xs)
+  there : ∀ {x xs} (pxs : Any P (♭ xs)) → Any P (x ∷ xs)
+
+data All {A} (P : A → Set) : Colist A → Set where
+  []  : All P []
+  _∷_ : ∀ {x xs} (px : P x) (pxs : ∞ (All P (♭ xs))) → All P (x ∷ xs)
+
 ------------------------------------------------------------------------
 -- Some operations
 
