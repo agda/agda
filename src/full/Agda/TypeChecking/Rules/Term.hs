@@ -13,6 +13,7 @@ import qualified System.IO.UTF8 as UTF8
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Info as A
 import Agda.Syntax.Common
+import Agda.Syntax.Delay
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Generic
 import Agda.Syntax.Position
@@ -215,10 +216,10 @@ checkExpr e t =
                         text "target type: " <+> prettyTCM t1
                       case t1 of
                         NotBlocked (Def d _) -> do
-                          defn <- theDef <$> getConstInfo d
+                          defn <- theDef <$> getConstInfo (force d)
                           case defn of
                             Datatype{} ->
-                              case [ c | (d', c) <- dcs, d == d' ] of
+                              case [ c | (d', c) <- dcs, force d == d' ] of
                                 c:_   -> return (Just c)
                                 []    -> typeError $ DoesNotConstructAnElementOf
                                           (head cs) (Def d [])
@@ -283,7 +284,7 @@ checkExpr e t =
                                     , funPolarity       = [Covariant]
                                     , funArgOccurrences = [Unused]
                                     }
-                  blockTerm t' (Def aux []) $ return cs'
+                  blockTerm t' (Def (NotDelayed aux) []) $ return cs'
                 | otherwise -> typeError $ WrongHidingInLambda t'
               _ -> typeError $ ShouldBePi t'
           where
@@ -348,15 +349,16 @@ checkExpr e t =
 	  t <- normalise t
 	  case unEl t of
 	    Def r vs  -> do
-	      xs    <- getRecordFieldNames r
-	      ftel  <- getRecordFieldTypes r
+              let r' = force r
+	      xs    <- getRecordFieldNames r'
+	      ftel  <- getRecordFieldTypes r'
               scope <- getScope
               let meta = A.Underscore $ A.MetaInfo (getRange e) scope Nothing
-	      es   <- orderFields r meta xs fs
+	      es   <- orderFields r' meta xs fs
 	      let tel = ftel `apply` vs
 	      (args, cs) <- checkArguments_ ExpandLast (getRange e)
 			      (map (Arg NotHidden . unnamed) es) tel
-	      blockTerm t (Con (killRange r) args) $ return cs
+	      blockTerm t (Con (killRange r') args) $ return cs
             MetaV _ _ -> do
               reportSDoc "tc.term.expr.rec" 10 $ sep
                 [ text "Postponing type checking of"
@@ -377,7 +379,7 @@ inferHead (HeadVar x) = do -- traceCall (InferVar x) $ do
   (u, a) <- getVarInfo x
   return (apply u, a)
 inferHead (HeadDef x) = do
-  (u, a) <- inferDef Def x
+  (u, a) <- inferDef (Def . NotDelayed) x
   return (apply u, a)
 inferHead (HeadCon [c]) = do
 

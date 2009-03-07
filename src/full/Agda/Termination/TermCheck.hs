@@ -273,7 +273,8 @@ termToDBP conf t
       Var i []    -> return $ VarDBP i
       Con c args  -> ConDBP c <$> mapM (termToDBP conf . unArg) args
       Def s [arg]
-        | Just s == withSizeSuc conf -> ConDBP s . (:[]) <$> termToDBP conf (unArg arg)
+        | Just (force s) == withSizeSuc conf ->
+            ConDBP (force s) . (:[]) <$> termToDBP conf (unArg arg)
       Lit l       -> return $ LitDBP l
       _   -> return unusedVar
 
@@ -400,7 +401,7 @@ termTerm names f pats0 t0 = do
                 	       ])
 
                   -- insert this call into the call list
-                  case List.elemIndex g names of
+                  case List.elemIndex (force g) names of
  
                      -- call leads outside the mutual block and can be ignored
                      Nothing   -> return calls
@@ -429,7 +430,7 @@ termTerm names f pats0 t0 = do
                                        })
                             -- Note that only the base part of the
                             -- name is collected here.
-                            (Set.fromList $ fst $ R.getRangesA g)
+                            (Set.fromList $ fst $ R.getRangesA (force g))
                             calls)
 
             -- abstraction
@@ -522,7 +523,7 @@ compareTerm' suc (Lit l) p = do
 compareTerm' suc (Con c ts) (ConDBP c' ps)
   | c == c' = compareConArgs suc ts ps
 compareTerm' suc (Def s ts) (ConDBP s' ps)
-  | s == s' && Just s == suc = compareConArgs suc ts ps
+  | force s == s' && Just (force s) == suc = compareConArgs suc ts ps
 compareTerm' _ _ _ = return Term.Unknown
 
 compareConArgs :: Maybe QName -> Args -> [DeBruijnPat] -> TCM Term.Order

@@ -235,7 +235,7 @@ unifyIndices flex a us vs = liftTCM $ do
               -- The type is a datatype or a record.
               Def d args <- reduce $ unEl a
               -- Get the number of parameters.
-              def <- theDef <$> getConstInfo d
+              def <- theDef <$> getConstInfo (force d)
               a'  <- case def of
                 Datatype{dataPars = n} -> do
                   a <- defType <$> getConstInfo c
@@ -248,7 +248,7 @@ unifyIndices flex a us vs = liftTCM $ do
 	(Def d us, Def d' vs)
           | d == d' -> do
               -- d must be a data, record or axiom
-              def <- getConstInfo d
+              def <- getConstInfo (force d)
               let ok = case theDef def of
                     Datatype{} -> True
                     Record{}   -> True
@@ -292,12 +292,12 @@ unifyIndices flex a us vs = liftTCM $ do
         Just (v', b, _) -> do
             margs <- do
               -- The new metas should have the same dependencies as the original meta
-              mi <- getMetaInfo <$> lookupMeta m
+              mi <- getMetaInfo <$> lookupMeta (force m)
               withMetaInfo mi $ do
                 tel <- getContextTelescope
                 -- important: create the meta in the same environment as the original meta
                 newArgsMetaCtx b tel us
-            noConstraints $ assignV a m us (v' `apply` margs)
+            noConstraints $ assignV a (force m) us (v' `apply` margs)
             return True
           `catchError` \_ -> return False
 
@@ -306,7 +306,7 @@ unifyIndices flex a us vs = liftTCM $ do
       case v of
         Con c vs -> do
           Def d args <- reduce $ unEl a
-          def <- theDef <$> getConstInfo d
+          def <- theDef <$> getConstInfo (force d)
           b   <- case def of
             Datatype{dataPars = n} -> do
               a <- defType <$> getConstInfo c
@@ -315,7 +315,7 @@ unifyIndices flex a us vs = liftTCM $ do
             _		    -> __IMPOSSIBLE__
           return $ Just (Con c [], b, vs)
         Def d vs -> do
-          def <- getConstInfo d
+          def <- getConstInfo (force d)
           let ans = Just (Def d [], defType def, vs)
           return $ case theDef def of
             Datatype{} -> ans

@@ -83,7 +83,7 @@ enumCompilableTypeFamilies definitions = do
 		Var n args -> allM (isCompilableTypeFamily . unArg) args
 		Sort _     -> return True
 		Lam h abs  -> return False -- this can be too strong
-		Def c args -> andM (return $ elem c names) $
+		Def c args -> andM (return $ elem (force c) names) $
 		    allM (isCompilableTypeFamily . unArg) args
 		Pi arg abs -> andM (isCompilableType $ unArg arg) $
 		    underAbstraction_ abs isCompilableType

@@ -153,7 +153,7 @@ instance HasPolarity Term where
     Lam _ t    -> polarities i t
     Lit _      -> return []
     Def x ts   -> do
-      pols <- getPolarity x
+      pols <- getPolarity (force x)
       let compose p ps = map (composePol p) ps
       concat . zipWith compose (pols ++ repeat Invariant) <$> mapM (polarities i) ts
     Con _ ts   -> polarities i ts

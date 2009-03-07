@@ -13,6 +13,7 @@ import Data.Traversable
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common
+import Agda.Syntax.Delay
 import Agda.Syntax.Internal
 import Agda.Syntax.Scope.Base (Scope)
 import Agda.Syntax.Literal
@@ -38,9 +39,10 @@ class Instantiate t where
 
 instance Instantiate Term where
     instantiate t@(MetaV x args) =
-	do  mi <- mvInstantiation <$> lookupMeta x
-	    case mi of
-		InstV a                        -> instantiate $ a `apply` args
+	do  m <- lookupMeta (force x)
+	    case mvInstantiation m of
+		InstV a                        -> instantiate $
+                                                    (a `delayedIf` x) `apply` args
 		Open                           -> return t
 		BlockedConst _                 -> return t
                 PostponedTypeCheckingProblem _ -> return t
@@ -64,9 +66,9 @@ instance Instantiate Type where
 instance Instantiate Sort where
     instantiate s = case s of
 	MetaS x -> do
-	    mi <- mvInstantiation <$> lookupMeta x
-	    case mi of
-		InstS s'                       -> instantiate s'
+	    m <- lookupMeta (force x)
+	    case mvInstantiation m of
+		InstS s'                       -> instantiate (s' `delayedIf` x)
 		Open                           -> return s
 		InstV{}                        -> __IMPOSSIBLE__
 		BlockedConst{}                 -> __IMPOSSIBLE__
@@ -160,11 +162,15 @@ instance Reduce Term where
 	do  v <- instantiate v
 	    case v of
 		MetaV x args -> notBlocked . MetaV x <$> reduce args
-		Def f args   -> unfoldDefinition reduceB (Def f []) f args
-		Con c args   -> do
+		Def df@(NotDelayed f) args ->
+                  unfoldDefinition reduceB (Def df []) f args
+		Def (Delayed f) args -> return $ notBlocked v
+		Con c args -> do
+                    ind <- whatInduction c
                     -- Constructors can reduce when they come from an
                     -- instantiated module.
-		    v <- unfoldDefinition reduceB (Con c []) c args
+		    v <- unfoldDefinition __IMPOSSIBLE__ (Con c []) c
+                           (delayedIfCoinductive ind args)
 		    traverse reduceNat v
 		Sort s	   -> fmap Sort <$> reduceB s
 		Pi _ _	   -> return $ notBlocked v
@@ -189,24 +195,14 @@ instance Reduce Term where
 		    _	-> return v
 	    reduceNat v = return v
 
--- | Runs a local computation in which definitions are only unfolded
--- if the argument is 'True' and definitions were previously unfolded.
-
-continueUnfoldingIf :: MonadTCM tcm => Bool -> tcm a -> tcm a
-continueUnfoldingIf b =
-  local (\e -> e { envUnfold = envUnfold e && b })
-
 unfoldDefinition :: MonadTCM tcm => (Term -> tcm (Blocked Term)) ->
   Term -> QName -> Args -> tcm (Blocked Term)
 unfoldDefinition keepGoing v0 f args =
     {-# SCC "reduceDef" #-}
     do  info      <- getConstInfo f
-        unfolding <- envUnfold <$> ask
         case theDef info of
             Constructor{conSrcCon = c} ->
               return $ notBlocked $ Con (c `withRangeOf` f) args
-            _ | not unfolding ->
-              return $ notBlocked $ Def f args
             Primitive ConcreteDef x cls -> do
                 pf <- getPrimitive x
                 reducePrimitive x v0 f args pf cls
@@ -308,11 +304,7 @@ instance Normalise Term where
 	do  v <- reduce v
 	    case v of
 		Var n vs    -> Var n <$> normalise vs
-		Con c vs    -> do
-                  ind <- whatInduction c
-                  case ind of
-                    Inductive   -> Con c <$> normalise vs
-                    CoInductive -> Con c <$> instantiateFull vs
+		Con c vs    -> Con c <$> normalise vs
 		Def f vs    -> Def f <$> normalise vs
 		MetaV x vs  -> MetaV x <$> normalise vs
 		Lit _	    -> return v

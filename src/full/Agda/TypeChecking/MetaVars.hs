@@ -14,6 +14,7 @@ import qualified Data.Set as Set
 import qualified System.IO.UTF8 as UTF8
 
 import Agda.Syntax.Common
+import Agda.Syntax.Delay
 import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Internal
 import Agda.Syntax.Position
@@ -68,11 +69,11 @@ class HasMeta t where
 
 instance HasMeta Term where
     metaInstance = return . InstV
-    metaVariable = MetaV
+    metaVariable = MetaV . NotDelayed
 
 instance HasMeta Sort where
     metaInstance     = return . InstS
-    metaVariable x _ = MetaS x
+    metaVariable x _ = MetaS (NotDelayed x)
 
 -- | The instantiation should not be an 'InstV' or 'InstS' and the 'MetaId'
 --   should point to something 'Open' or a 'BlockedConst'.
@@ -94,7 +95,7 @@ newSortMeta :: MonadTCM tcm => tcm Sort
 newSortMeta =
   ifM typeInType (return $ Type 0) $ do
     i <- createMetaInfo
-    MetaS <$> newMeta i normalMetaPriority (IsSort ())
+    MetaS . NotDelayed <$> newMeta i normalMetaPriority (IsSort ())
 
 newTypeMeta :: MonadTCM tcm => Sort -> tcm Type
 newTypeMeta s = El s <$> newValueMeta (sort s)
@@ -111,7 +112,7 @@ newValueMeta t = do
 
 newValueMetaCtx :: MonadTCM tcm => Type -> Args -> tcm Term
 newValueMetaCtx t ctx = do
-  m@(MetaV i _) <- newValueMetaCtx' t ctx
+  m@(MetaV (NotDelayed i) _) <- newValueMetaCtx' t ctx
   etaExpandMeta i
   instantiateFull m
 
@@ -132,7 +133,7 @@ newValueMetaCtx' t vs = do
     , nest 2 $ prettyTCM vs <+> text "|-"
     , nest 2 $ text (show x) <+> text ":" <+> prettyTCM t
     ]
-  return $ MetaV x vs
+  return $ MetaV (NotDelayed x) vs
 
 newTelMeta :: MonadTCM tcm => Telescope -> tcm Args
 newTelMeta tel = newArgsMeta (abstract tel $ El Prop $ Sort Prop)
@@ -169,8 +170,8 @@ newRecordMetaCtx r pars tel ctx = do
 
 newQuestionMark :: MonadTCM tcm => Type -> tcm Term
 newQuestionMark t = do
-  m@(MetaV x _) <- newValueMeta' t
-  ii		<- fresh
+  m@(MetaV (NotDelayed x) _) <- newValueMeta' t
+  ii <- fresh
   addInteractionPoint ii x
   return m
 
@@ -189,13 +190,13 @@ blockTerm t v m = do
 			    -- we don't instantiate blocked terms
 	    c <- escapeContext (size tel) $ guardConstraint (return cs) (UnBlock x)
             verboseS "tc.meta.blocked" 20 $ do
-                dx  <- prettyTCM (MetaV x [])
+                dx  <- prettyTCM (MetaV (NotDelayed x) [])
                 dv  <- escapeContext (size tel) $ prettyTCM $ abstract tel v
                 dcs <- mapM prettyTCM cs
                 liftIO $ UTF8.putStrLn $ "blocked " ++ show dx ++ " := " ++ show dv
                 liftIO $ UTF8.putStrLn $ "     by " ++ show dcs
 	    addConstraints c
-	    return $ MetaV x vs
+	    return $ MetaV (NotDelayed x) vs
   where
     inst i mv = mv { mvInstantiation = i }
 
@@ -218,7 +219,7 @@ postponeTypeCheckingProblem e t unblock = do
   m   <- newMeta' (PostponedTypeCheckingProblem cl)
                   i normalMetaPriority $ HasType () $ telePi_ tel t
   addConstraints =<< buildConstraint (UnBlock m)
-  MetaV m <$> getContextArgs
+  MetaV (NotDelayed m) <$> getContextArgs
 
 -- | Eta expand metavariables listening on the current meta.
 etaExpandListeners :: MonadTCM tcm => MetaId -> tcm ()
@@ -238,18 +239,19 @@ etaExpandMeta m = do
   bb <- reduceB b
   case unEl <$> bb of
     Blocked x _            -> listenToMeta m x
-    NotBlocked (MetaV x _) -> listenToMeta m x
+    NotBlocked (MetaV x _) -> listenToMeta m (force x)
     NotBlocked (Def r ps)  ->
-      ifM (isRecord r) (do
+      ifM (isRecord (force r)) (do
 	rng <- getMetaRange m
-	u   <- setCurrentRange rng $ newRecordMetaCtx r ps tel args
+	u   <- (`delayedIf` r) <$>
+                 setCurrentRange rng (newRecordMetaCtx (force r) ps tel args)
 	inContext [] $ addCtxTel tel $ do
 	  verboseS "tc.meta.eta" 20 $ do
 	    du <- prettyTCM u
 	    liftIO $ UTF8.putStrLn $ "eta expanding: " ++ show m ++ " --> " ++ show du
 	  noConstraints $ assignV b m args u  -- should never produce any constraints
       ) $ return ()
-    _		-> return ()
+    _ -> return ()
 
   return ()
 
@@ -275,15 +277,12 @@ instance Occurs Term where
 		Lam h f	    -> Lam h <$> occ f
 		Lit l	    -> return v
 		Def c vs    -> Def c <$> occ vs
-		Con c vs    -> do
-                  ind <- whatInduction c
-                  continueUnfoldingIf (ind == Inductive) $
-                    Con c <$> occ vs
+		Con c vs    -> Con c <$> occ vs
 		Pi a b	    -> uncurry Pi <$> occ (a,b)
 		Fun a b	    -> uncurry Fun <$> occ (a,b)
 		Sort s	    -> Sort <$> occ s
 		MetaV m' vs -> do
-		    when (m == m') $ abort $ MetaOccursInItself m
+		    when (m == force m') $ abort $ MetaOccursInItself m
 		    -- Don't fail on flexible occurrence
 		    MetaV m' <$> occurs (const patternViolation) m xs vs
 		where
@@ -297,7 +296,7 @@ instance Occurs Sort where
 	do  s' <- reduce s
 	    case s' of
 		MetaS m'  -> do
-		  when (m == m') $ abort $ MetaOccursInItself m
+		  when (m == force m') $ abort $ MetaOccursInItself m
 		  return s'
 		Lub s1 s2 -> uncurry Lub <$> occurs abort m xs (s1,s2)
 		Suc s	  -> Suc <$> occurs abort m xs s
@@ -336,7 +335,7 @@ assignV :: MonadTCM tcm => Type -> MetaId -> Args -> Term -> tcm Constraints
 assignV t x args v =
     handleAbort handler $ do
 	reportSDoc "tc.meta.assign" 10 $ do
-	  prettyTCM (MetaV x args) <+> text ":=" <+> prettyTCM v
+	  prettyTCM (MetaV (NotDelayed x) args) <+> text ":=" <+> prettyTCM v
 
 	-- We don't instantiate blocked terms
 	whenM (isBlockedTerm x) patternViolation	-- TODO: not so nice
@@ -405,11 +404,11 @@ assignV t x args v =
 	handler :: MonadTCM tcm => tcm Constraints
 	handler = do
 	    reportSLn "tc.meta.assign" 10 $ "Oops. Undo " ++ show x ++ " := ..."
-	    equalTerm t (MetaV x args) v
+	    equalTerm t (MetaV (NotDelayed x) args) v
 
 assignS :: MonadTCM tcm => MetaId -> Sort -> tcm Constraints
 assignS x s =
-    handleAbort (equalSort (MetaS x) s) $ do
+    handleAbort (equalSort (MetaS (NotDelayed x)) s) $ do
 	s <- occursCheck x [] s
 	x =: s
 	return []

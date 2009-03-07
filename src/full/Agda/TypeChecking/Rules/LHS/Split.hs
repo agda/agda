@@ -87,19 +87,19 @@ splitProblem (Problem ps (perm, qs) tel) = do
 	  a' <- reduce $ unArg a
 	  case unEl a' of
 	    Def d vs	-> do
-	      def <- theDef <$> getConstInfo d
+	      def <- theDef <$> getConstInfo (force d)
 	      case def of
 		Datatype{dataPars = np} ->
 		  traceCall (CheckPattern p EmptyTel (unArg a)) $ do  -- TODO: wrong telescope
                   -- Check that we construct something in the right datatype
                   c <- do
                       cs' <- mapM canonicalName cs
-                      d'  <- canonicalName d
+                      d'  <- canonicalName (force d)
                       Datatype{dataCons = cs0} <- theDef <$> getConstInfo d'
                       case [ c | (c, c') <- zip cs cs', elem c' cs0 ] of
                         c : _ -> return c   -- if there are more than one they will
                                             -- all have the same canonical form
-                        []    -> typeError $ ConstructorPatternInWrongDatatype (head cs) d
+                        []    -> typeError $ ConstructorPatternInWrongDatatype (head cs) (force d)
 		  let (pars, ixs) = genericSplitAt np vs
 		  reportSDoc "tc.lhs.split" 10 $
 		    vcat [ sep [ text "splitting on"
@@ -110,7 +110,7 @@ splitProblem (Problem ps (perm, qs) tel) = do
 			 ]
 		  return $ Split mempty
 				 xs
-				 (fmap (const $ Focus c args (getRange p) q i d pars ixs) a)
+				 (fmap (const $ Focus c args (getRange p) q i (force d) pars ixs) a)
 				 (fmap (Problem ps ()) tel)
 		-- TODO: record patterns
 		_ -> keepGoing

@@ -300,8 +300,8 @@ instance PrettyTCM TypeError where
               pwords "With clause pattern" ++ [prettyA p] ++
               pwords "is not an instance of its parent pattern" -- TODO: pretty for internal patterns
 	    MetaCannotDependOn m ps i -> fsep $
-		    pwords "The metavariable" ++ [prettyTCM $ MetaV m []] ++ pwords "cannot depend on" ++ [pvar i] ++
-		    pwords "because it" ++ deps
+		    pwords "The metavariable" ++ [prettyTCM $ MetaV (NotDelayed m) []] ++
+                    pwords "cannot depend on" ++ [pvar i] ++ pwords "because it" ++ deps
 		where
 		    pvar i = prettyTCM $ I.Var i []
 		    deps = case map pvar ps of
@@ -310,7 +310,8 @@ instance PrettyTCM TypeError where
 			xs  -> pwords "only depends on the variables" ++ punctuate comma xs
 
 	    MetaOccursInItself m -> fsep $
-		pwords "Cannot construct infinite solution of metavariable" ++ [prettyTCM $ MetaV m []]
+		pwords "Cannot construct infinite solution of metavariable" ++
+                [prettyTCM $ MetaV (NotDelayed m) []]
             BuiltinMustBeConstructor s e -> fsep $
                 [prettyA e] ++ pwords "must be a constructor in the binding to builtin" ++ [text s]
 	    NoSuchBuiltinName s -> fsep $

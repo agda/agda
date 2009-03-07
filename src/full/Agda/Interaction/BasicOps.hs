@@ -22,7 +22,7 @@ import Agda.Syntax.Position
 import Agda.Syntax.Abstract 
 import Agda.Syntax.Common
 import Agda.Syntax.Info(ExprInfo(..),MetaInfo(..))
-import Agda.Syntax.Internal (MetaId(..),Type(..),Term(..),Sort(..))
+import Agda.Syntax.Internal (MetaId(..),Type(..),Term(..),Sort(..),Delayed(..))
 import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Translation.AbstractToConcrete
 import Agda.Syntax.Translation.ConcreteToAbstract
@@ -234,7 +234,7 @@ instance Reify Constraint (OutputForm Expr Expr) where
         case mi of
           BlockedConst t -> do
             e  <- reify t
-            m' <- reify (MetaV m [])
+            m' <- reify (MetaV (NotDelayed m) [])
             return $ Assign m' e
           PostponedTypeCheckingProblem cl -> enterClosure cl $ \(e, a, _) -> do
             a <- reify a
@@ -327,8 +327,8 @@ getSolvedInteractionPoints = do
         let sol v = do e <- reify v; return [(i, m, ScopedExpr scope e)]
             unsol = return []
         case mvInstantiation mv of
-          InstV{}                        -> sol (MetaV m args)
-          InstS{}                        -> sol (Sort $ MetaS m)
+          InstV{}                        -> sol (MetaV (NotDelayed m) args)
+          InstS{}                        -> sol (Sort $ MetaS (NotDelayed m))
           Open{}                         -> unsol
           BlockedConst{}                 -> unsol
           PostponedTypeCheckingProblem{} -> unsol

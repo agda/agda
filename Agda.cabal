@@ -97,6 +97,7 @@ library
                    Agda.Syntax.Concrete.Operators
                    Agda.Syntax.Concrete.Pretty
                    Agda.Syntax.Concrete
+                   Agda.Syntax.Delay
                    Agda.Syntax.Fixity
                    Agda.Syntax.Info
                    Agda.Syntax.Internal

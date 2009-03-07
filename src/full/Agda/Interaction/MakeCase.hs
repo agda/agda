@@ -53,7 +53,7 @@ findClause m = do
     rhsIsm (NoBind b) = rhsIsm b
     rhsIsm NoBody     = False
     rhsIsm (Body e)   = case e of
-      MetaV m' _  -> m == m'
+      MetaV m' _  -> m == force m'
       _           -> False
 
 makeCase :: InteractionId -> Range -> String -> TCM [A.Clause]

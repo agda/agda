@@ -32,7 +32,7 @@ ensureInductive t = do
   let err = typeError (NotInductive t)
   case t of
     Def t _ -> do
-      t <- theDef <$> getConstInfo t
+      t <- theDef <$> getConstInfo (force t)
       case t of
         Datatype { dataInduction = Inductive } -> return ()
         _ -> err
@@ -285,7 +285,7 @@ bindPostulate s typ e = do
 
   case v of
     Def c []  -> ignoreAbstractMode $ do
-      defn <- theDef <$> getConstInfo c
+      defn <- theDef <$> getConstInfo (force c)
       case defn of
         Axiom{} -> return ()
         _       -> bad

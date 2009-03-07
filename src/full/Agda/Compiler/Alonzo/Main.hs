@@ -217,7 +217,7 @@ processDef (qname, (Defn { theDef = Datatype{dataClause = Just clause} })) = do
     mkSynonym (Lam _ (Abs _ t)) = mkSynonym t
     mkSynonym (Def rhsqname args) = return [ddecl, vdecl] where
       ddecl = HsTypeDecl loc dname [] typ
-      moduleName = qnameModule rhsqname
+      moduleName = qnameModule $ force rhsqname
       hsModuleName = Module $ moduleStr moduleName
       vdecl = HsFunBind [ HsMatch dummyLoc hsname (nDummyArgs 0) rhs []]
       rhs = HsUnGuardedRhs $ HsVar $ unit_con_name
@@ -226,7 +226,7 @@ processDef (qname, (Defn { theDef = Datatype{dataClause = Just clause} })) = do
       nDummyArgs 0 = []
       nDummyArgs k = (HsPVar $ HsIdent ("v" ++ (show k))) : nDummyArgs (k-1)
       dname = dataName name
-      typ = HsTyCon $ Qual hsModuleName $ dataName $ qnameName rhsqname
+      typ = HsTyCon $ Qual hsModuleName $ dataName $ qnameName $ force rhsqname
     mkSynonym t = __IMPOSSIBLE__
 {-          do
               liftIO $ putStrLn $ gshow t 
@@ -390,7 +390,7 @@ processTerm (Var n ts) = do
   processVap (hsVar $ "v" ++ (show (cnt - fromIntegral n - 1))) ts
 
 processTerm (Def qn ts) = do
-  x <- maybeQualDefName qn
+  x <- maybeQualDefName $ force qn
   processVap (HsVar x) ts
 
 -- Check if the con was redefined from other module

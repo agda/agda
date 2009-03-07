@@ -141,7 +141,7 @@ reifyDisplayFormP lhs@(A.LHS i x ps wps) =
       (f, vs, ds) -> do
         ds <- mapM termToPat ds
         vs <- mapM argToPat vs
-        return $ LHS i f vs (ds ++ wps)
+        return $ LHS i (force f) vs (ds ++ wps)
       where
         info = PatRange noRange
         argToPat arg = fmap unnamed <$> traverse termToPat arg
@@ -159,9 +159,10 @@ instance Reify Term Expr where
 		I.Var n vs   -> do
                     x  <- liftTCM $ nameOfBV n `catchError` \_ -> freshName_ ("@" ++ show n)
                     reifyApp (A.Var x) vs
-		I.Def x vs   -> reifyDisplayForm x vs $ do
-		    n <- getDefFreeVars x
-		    reifyApp (A.Def x) $ genericDrop n vs
+		I.Def x vs   -> reifyDisplayForm x' vs $ do
+		    n <- getDefFreeVars x'
+		    reifyApp (A.Def x') $ genericDrop n vs
+                  where x' = force x
 		I.Con x vs   -> do
 		  isR <- isRecord x
 		  case isR of
@@ -189,7 +190,7 @@ instance Reify Term Expr where
 		I.Fun a b    -> uncurry (A.Fun $ exprInfo)
 				<$> reify (a,b)
 		I.Sort s     -> reify s
-		I.MetaV x vs -> apps =<< reify (x,vs)
+		I.MetaV x vs -> apps =<< reify (force x, vs)
 
 data NamedClause = NamedClause QName I.Clause
 -- Named clause does not need 'Recursion' flag since I.Clause has it
@@ -373,7 +374,7 @@ instance Reify Sort Expr where
 	    case s of
 		I.Type n  -> return $ A.Set exprInfo n
 		I.Prop	  -> return $ A.Prop exprInfo
-		I.MetaS x -> reify x
+		I.MetaS x -> reify (force x)
 		I.Suc s	  ->
 		    do	suc <- freshName_ "suc"	-- TODO: hack
 			e   <- reify s

@@ -126,11 +126,11 @@ isDatatype t = do
   t <- normalise t
   case unEl t of
     Def d args -> do
-      def <- theDef <$> getConstInfo d
+      def <- theDef <$> getConstInfo (force d)
       case def of
         Datatype{dataPars = np, dataCons = cs} -> do
           let (ps, is) = genericSplitAt np args
-          return $ Just (d, ps, is, cs)
+          return $ Just (force d, ps, is, cs)
         _ -> return Nothing
     _ -> return Nothing
 

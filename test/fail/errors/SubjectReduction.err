@@ -1,0 +1,4 @@
+errors/SubjectReduction.agda:31,55-57
+ticks != (tick ticks) of type Stream
+when checking that the expression l₁ has type
+(P : Stream → Set) → P ticks → P (tick ticks)

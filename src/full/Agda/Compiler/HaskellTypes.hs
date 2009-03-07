@@ -67,7 +67,8 @@ getHsType x = do
   case d of
     Axiom{ axHsDef = Just (HsType t) } -> return t
     Datatype{ dataHsType = Just t }    -> return t
-    _                                  -> notAHaskellType (El Prop $ Def x [])
+    _                                  ->
+      notAHaskellType (El Prop $ Def (NotDelayed x) [])
 
 getHsVar :: MonadTCM tcm => Nat -> tcm HaskellCode
 getHsVar i = hsVar <$> nameOfBV i
@@ -94,7 +95,7 @@ haskellType = liftTCM . fromType
       v <- reduce v
       case v of
         Var x args -> hsApp <$> getHsVar x <*> fromArgs args
-        Def d args -> hsApp <$> getHsType d <*> fromArgs args
+        Def d args -> hsApp <$> getHsType (force d) <*> fromArgs args
         Fun a b    -> hsFun <$> fromType (unArg a) <*> fromType b
         Pi a b ->
           ifM (isHaskellKind $ unArg a)

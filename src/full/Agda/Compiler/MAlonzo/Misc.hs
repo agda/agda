@@ -124,7 +124,7 @@ conhqn q = do
 
 -- qualify name s by the module of builtin b
 bltQual :: String -> String -> TCM HsQName
-bltQual b s = do (Def q _) <- getBuiltin b; xqual q (HsIdent s) 
+bltQual b s = do (Def q _) <- getBuiltin b; xqual (force q) (HsIdent s)
 
 -- sub-naming for cascaded definitions for concsecutive clauses
 dsubname q i | i == 0    = unqhname "d"                     q

@@ -172,7 +172,7 @@ noShadowingOfConstructors c problem =
     t <- normalise t
     case t of
       Def t _ -> do
-        d <- theDef <$> getConstInfo t
+        d <- theDef <$> getConstInfo (force t)
         case d of
           Datatype { dataCons = cs } -> do
             let ns = map (\c -> (c, A.nameConcrete $ A.qnameName c)) cs
@@ -381,7 +381,7 @@ checkLeftHandSide c ps a ret = do
                   )) p1
                 ) -> traceCall (CheckPattern (A.ConP (PatRange r) (A.AmbQ [c]) qs)
                                              (problemTel p0)
-                                             (El Prop $ Def d $ vs ++ ws)) $ do
+                                             (El Prop $ Def (NotDelayed d) $ vs ++ ws)) $ do
 
             let delta1 = problemTel p0
 
@@ -415,7 +415,7 @@ checkLeftHandSide c ps a ret = do
             let TelV gamma' ca@(El _ (Def d' us)) = telView a
 
             -- This should be the same datatype as we split on
-            unless (d == d') $ typeError $ ShouldBeApplicationOf ca d'
+            unless (d == force d') $ typeError $ ShouldBeApplicationOf ca (force d')
 
             -- Insert implicit patterns
             qs' <- insertImplicitPatterns qs gamma'

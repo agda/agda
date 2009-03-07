@@ -101,7 +101,7 @@ xForPrim table = do
   qs <- keys   <$> curDefs
   bs <- toList <$> gets stBuiltinThings
   concat <$> sequence [ maybe (return []) id $ L.lookup s table
-                        | (s, Builtin (Def q _)) <- bs, q `elem` qs ]
+                        | (s, Builtin (Def q _)) <- bs, force q `elem` qs ]
 
 
 -- Definition bodies for primitive functions

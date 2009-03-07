@@ -79,7 +79,7 @@ compareTerm cmp a m n =
             else buildConstraint (ValueCmp cmp a m n)
         Lam _ _   -> __IMPOSSIBLE__
         Def r ps  -> do
-          isrec <- isRecord r
+          isrec <- isRecord (force r)
           if isrec
             then do
               m <- reduceB m
@@ -88,8 +88,8 @@ compareTerm cmp a m n =
                 _ | isNeutral m && isNeutral n ->
                     compareAtom cmp a' (ignoreBlocking m) (ignoreBlocking n)
                 _ -> do
-                  (tel, m') <- etaExpandRecord r ps $ ignoreBlocking m
-                  (_  , n') <- etaExpandRecord r ps $ ignoreBlocking n
+                  (tel, m') <- etaExpandRecord (force r) ps $ ignoreBlocking m
+                  (_  , n') <- etaExpandRecord (force r) ps $ ignoreBlocking n
                   -- No subtyping on record terms
                   compareArgs [] (telePi_ tel $ sort Prop) m' n'
             else compareAtom cmp a' m n
@@ -133,13 +133,13 @@ compareAtom cmp t m n =
                             then return []
                             else buildConstraint (ValueCmp cmp t m n)
             | otherwise -> do
-                [p1, p2] <- mapM getMetaPriority [x,y]
+                [p1, p2] <- mapM (getMetaPriority . force) [x,y]
                 -- instantiate later meta variables first
                 let (solve1, solve2)
                       | (p1,x) > (p2,y) = (l,r)
                       | otherwise	    = (r,l)
-                      where l = assignV t x xArgs n
-                            r = assignV t y yArgs m
+                      where l = assignV t (force x) xArgs n
+                            r = assignV t (force y) yArgs m
                     try m fallback = do
                       cs <- m
                       case cs of
@@ -157,8 +157,8 @@ compareAtom cmp t m n =
                     undoRollback
                     return cs
 
-	(NotBlocked (MetaV x xArgs), _) -> assignV t x xArgs n
-	(_, NotBlocked (MetaV x xArgs)) -> assignV t x xArgs m
+	(NotBlocked (MetaV x xArgs), _) -> assignV t (force x) xArgs n
+	(_, NotBlocked (MetaV x xArgs)) -> assignV t (force x) xArgs m
         (Blocked{}, Blocked{})	-> do
             n <- normalise n    -- is this what we want?
             m <- normalise m
@@ -179,7 +179,7 @@ compareAtom cmp t m n =
                 -- Variables are invariant in their arguments
 		compareArgs [] a iArgs jArgs
 	    (Def x xArgs, Def y yArgs) | x == y -> do
-                pol <- getPolarity' cmp x
+                pol <- getPolarity' cmp (force x)
 		reportSDoc "tc.conv.atom" 20 $
 		  text "compareArgs" <+> sep
                     [ sep [ prettyTCM xArgs
@@ -187,27 +187,22 @@ compareAtom cmp t m n =
 			  ]
                     , nest 2 $ text (show pol)
                     ]
-		a <- defType <$> getConstInfo x
+		a <- defType <$> getConstInfo (force x)
 		compareArgs pol a xArgs yArgs
 	    (Con x xArgs, Con y yArgs)
 		| x == y -> do
 		    -- The type is a datatype.
 		    Def d args <- reduce $ unEl t
 		    -- Get the number of parameters to the datatype
-		    Datatype{dataPars = npars} <- theDef <$> getConstInfo d
+		    Datatype{dataPars = npars} <- theDef <$> getConstInfo (force d)
 		    -- The type to compare the arguments at is obtained by
 		    -- instantiating the parameters.
 		    a <- defType <$> getConstInfo x
 		    let a' = piApply a (genericTake npars args)
-                    -- Applications of coinductive constructors are
-                    -- compared for (some notion of) syntactic
-                    -- equality.
-                    ind <- whatInduction x
-                    continueUnfoldingIf (ind == Inductive) $
-                      -- Constructors are invariant in their arguments
-                      -- (could be covariant).
-                      compareArgs [] a' xArgs yArgs
-	    _		       -> typeError $ UnequalTerms cmp m n t
+                    -- Constructors are invariant in their arguments
+                    -- (could be covariant).
+                    compareArgs [] a' xArgs yArgs
+	    _ -> typeError $ UnequalTerms cmp m n t
     where
 	equalFun (FunV arg1@(Arg h1 a1) t1) (FunV (Arg h2 a2) t2)
 	    | h1 /= h2	= typeError $ UnequalHiding ty1 ty2
@@ -365,10 +360,10 @@ equalSort s1 s2 =
 
 	    (MetaS x , MetaS y ) | x == y    -> return []
 				 | otherwise -> do
-		[p1, p2] <- mapM getMetaPriority [x, y]
-		if p1 >= p2 then assignS x s2
-			    else assignS y s1
-	    (MetaS x , _       )	     -> assignS x s2
+		[p1, p2] <- mapM (getMetaPriority . force) [x, y]
+		if p1 >= p2 then assignS (force x) s2
+			    else assignS (force y) s1
+	    (MetaS x , _       )	     -> assignS (force x) s2
 	    (_	     , MetaS x )	     -> equalSort s2 s1
 
 	    (Prop    , Prop    )	     -> return []

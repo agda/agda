@@ -239,7 +239,7 @@ instance ShowAsOptimizedType Term where
 		dargs <- mapM (showAsOptimizedType . unArg) args
 		return $ psep $ dvar : dargs
 	    Def name args -> do
-		dname <- showAsOptimizedType name
+		dname <- showAsOptimizedType $ force name
 		dargs <- mapM (showAsOptimizedType . unArg) args
 		return $ psep $ dname : dargs
 	    Con name args -> do
@@ -288,7 +288,7 @@ instance ShowAsOptimizedTerm Term where
     	dt <- showAsOptimizedTerm body
     	return $ parens $ sep [ text "\\" <> dvar, text "->", dt ]
     showAsOptimizedTerm (Def name args) = do
-	dname <- showAsOptimizedTerm name
+	dname <- showAsOptimizedTerm $ force name
 	dargs <- mapM (showAsOptimizedTerm . unArg) args
 	return $ psep $ dname : dargs
     showAsOptimizedTerm (Con name args) = do
