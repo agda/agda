@@ -4,16 +4,8 @@
 
 Important changes since 2.1.2 (2007-08-16):
 
-* The Agda wiki is better organised. It should be easier for a
-  newcomer to find relevant information now.
-
-  http://wiki.portal.chalmers.se/agda/
-
-* Case-split: The user interface can replace a pattern variable with
-  the corresponding constructor patterns. You get one new left-hand
-  side for every possible constructor.
-
-  http://wiki.portal.chalmers.se/agda/pmwiki.php?n=Main.QuickGuideToEditingTypeCheckingAndCompilingAgdaCode
+Language
+--------
 
 * Coinductive types are supported. This feature is under
   development/evaluation, and may change.
@@ -23,10 +15,6 @@ Important changes since 2.1.2 (2007-08-16):
 
 * A third experimental feature: Certain functions can, in some
   situations, be automatically inverted.
-
-* The MAlonzo compiler.
-
-  http://wiki.portal.chalmers.se/agda/pmwiki.php?n=Docs.MAlonzo
 
 * A simple, well-typed foreign function interface, which allows use of
   Haskell functions in Agda code.
@@ -46,14 +34,18 @@ Important changes since 2.1.2 (2007-08-16):
 
   http://thread.gmane.org/gmane.comp.lang.agda/720
 
-* A standard library is under development.
+Tools
+-----
 
-  http://wiki.portal.chalmers.se/agda/pmwiki.php?n=Libraries.StandardLibrary
+* Case-split: The user interface can replace a pattern variable with
+  the corresponding constructor patterns. You get one new left-hand
+  side for every possible constructor.
 
-* Reload times when working on large projects are now considerably
-  better.
+  http://wiki.portal.chalmers.se/agda/pmwiki.php?n=Main.QuickGuideToEditingTypeCheckingAndCompilingAgdaCode
 
-  http://thread.gmane.org/gmane.comp.lang.agda/551
+* The MAlonzo compiler.
+
+  http://wiki.portal.chalmers.se/agda/pmwiki.php?n=Docs.MAlonzo
 
 * A new Emacs input method, which contains bindings for many Unicode
   symbols, is by default activated in the Emacs mode.
@@ -69,6 +61,29 @@ Important changes since 2.1.2 (2007-08-16):
   but should still work.
 
   http://thread.gmane.org/gmane.comp.lang.agda/245
+
+* Reload times when working on large projects are now considerably
+  better.
+
+  http://thread.gmane.org/gmane.comp.lang.agda/551
+
+Libraries
+---------
+
+* A standard library is under development.
+
+  http://wiki.portal.chalmers.se/agda/pmwiki.php?n=Libraries.StandardLibrary
+
+Documentation
+-------------
+
+* The Agda wiki is better organised. It should be easier for a
+  newcomer to find relevant information now.
+
+  http://wiki.portal.chalmers.se/agda/
+
+Infrastructure
+--------------
 
 * Easy-to-install packages for Windows and Debian/Ubuntu have been
   prepared.
