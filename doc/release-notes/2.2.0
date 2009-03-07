@@ -1,0 +1,53 @@
+------------------------------------------------------------------------
+-- Release notes for Agda 2 version 2.2.0
+------------------------------------------------------------------------
+
+Important changes since 2.1.2 (2007-08-16):
+
+* The Agda wiki is better organised. It should be easier for a
+  newcomer to find relevant information now.
+
+  http://wiki.portal.chalmers.se/agda/
+
+* Case-split: The user interface can replace a pattern variable with
+  the corresponding constructor patterns. You get one new left-hand
+  side for every possible constructor.
+
+  http://wiki.portal.chalmers.se/agda/pmwiki.php?n=Main.QuickGuideToEditingTypeCheckingAndCompilingAgdaCode
+
+* Coinductive types are supported. This feature is under
+  development/evaluation, and may change.
+
+* Another experimental feature: Sized types, which can make it easier
+  to explain why your code is terminating.
+
+* A third experimental feature: Certain functions can, in some
+  situations, be automatically inverted.
+
+* The MAlonzo compiler.
+
+  http://wiki.portal.chalmers.se/agda/pmwiki.php?n=Docs.MAlonzo
+
+* A simple, well-typed foreign function interface, which allows use of
+  Haskell functions in Agda code.
+
+  http://wiki.portal.chalmers.se/agda/pmwiki.php?n=Docs.FFI
+
+* A standard library is under development.
+
+  http://wiki.portal.chalmers.se/agda/pmwiki.php?n=Libraries.StandardLibrary
+
+* A new Emacs input method, which contains bindings for many Unicode
+  symbols, is by default activated in the Emacs mode.
+
+  http://wiki.portal.chalmers.se/agda/pmwiki.php?n=Docs.UnicodeInput
+
+* Highlighted, hyperlinked HTML can be generated from Agda source
+  code.
+
+  http://wiki.portal.chalmers.se/agda/pmwiki.php?n=Main.HowToGenerateWebPagesFromSourceCode
+
+* Easy-to-install packages for Windows and Debian/Ubuntu have been
+  prepared.
+
+  http://wiki.portal.chalmers.se/agda/pmwiki.php?n=Main.Download
