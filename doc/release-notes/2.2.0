@@ -33,9 +33,27 @@ Important changes since 2.1.2 (2007-08-16):
 
   http://wiki.portal.chalmers.se/agda/pmwiki.php?n=Docs.FFI
 
+* The tokens forall, -> and \ can be written as ∀, → and λ.
+
+* Absurd lambdas: λ () and λ {}.
+
+  http://thread.gmane.org/gmane.comp.lang.agda/440
+
+* Record fields whose values can be inferred can be omitted.
+
+* Agda complains if it spots an unreachable clause, or if a pattern
+  variable "shadows" a hidden constructor of matching type.
+
+  http://thread.gmane.org/gmane.comp.lang.agda/720
+
 * A standard library is under development.
 
   http://wiki.portal.chalmers.se/agda/pmwiki.php?n=Libraries.StandardLibrary
+
+* Reload times when working on large projects are now considerably
+  better.
+
+  http://thread.gmane.org/gmane.comp.lang.agda/551
 
 * A new Emacs input method, which contains bindings for many Unicode
   symbols, is by default activated in the Emacs mode.
@@ -46,6 +64,11 @@ Important changes since 2.1.2 (2007-08-16):
   code.
 
   http://wiki.portal.chalmers.se/agda/pmwiki.php?n=Main.HowToGenerateWebPagesFromSourceCode
+
+* The command-line interactive mode (agda -I) is no longer supported,
+  but should still work.
+
+  http://thread.gmane.org/gmane.comp.lang.agda/245
 
 * Easy-to-install packages for Windows and Debian/Ubuntu have been
   prepared.
