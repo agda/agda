@@ -70,9 +70,9 @@ concatMapM f xs = concat <$> traverse f xs
 
 -- | Depending on the monad you have to look at the result for
 --   the force to be effective. For the 'IO' monad you do.
-force :: Monad m => [a] -> m ()
-force xs = do () <- length xs `seq` return ()
-	      return ()
+forceM :: Monad m => [a] -> m ()
+forceM xs = do () <- length xs `seq` return ()
+	       return ()
 
 commuteM :: (Traversable f, Applicative m) => f (m a) -> m (f a)
 commuteM = traverse id
