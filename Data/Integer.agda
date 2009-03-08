@@ -12,6 +12,7 @@ open Sign using (Sign)
 open import Data.Product
 open import Data.String using (String; _++_)
 open import Data.Function
+open import Data.Sum
 open import Relation.Nullary
 open import Relation.Binary
 import Relation.Binary.PropositionalEquality as PropEq
@@ -21,6 +22,7 @@ open PropEq.≡-Reasoning
 infix  8 +_ -_
 infixl 7 _*_ _⊓_
 infixl 6 _+_ _-_ _⊔_
+infix  4 _≤_ _≤?_
 
 infix  8 :+_ :-_
 infixl 7 _*'_
@@ -191,3 +193,108 @@ i ≟ j | _          | no abs-≢  = no (abs-≢  ∘ cong ∣_∣)
 
 decSetoid : DecSetoid
 decSetoid = PropEq.decSetoid _≟_
+
+-- ℤ ordering
+
+data _≤_ : ℤ → ℤ → Set where
+  0≤0   :           :0   ≤ :0
+  0≤n   : ∀ {x}   → :0   ≤ :+ x
+  -n≤0  : ∀ {n}   → :- n ≤ :0
+  -n≤+m : ∀ {n m} → :- n ≤ :+ m
+  -n≤-m : ∀ {n m} → (m≤n : N._≤_ m n) → :- n ≤ :- m
+  +n≤+m : ∀ {n m} → (n≤m : N._≤_ n m) → :+ n ≤ :+ m
+
++≤-elim : ∀ {n m} → :+ n ≤ :+ m → N._≤_ n m
++≤-elim (+n≤+m n≤m) = n≤m
+
+-≤-elim : ∀ {n m} → :- m ≤ :- n → N._≤_ n m
+-≤-elim (-n≤-m m≤n) = m≤n
+
+_≤?_ : Decidable _≤_
+(:- n) ≤? :0 = yes -n≤0
+(:- n) ≤? (:+ n') = yes -n≤+m
+:0 ≤? (:- n) = no λ()
+:0 ≤? :0 = yes 0≤0
+:0 ≤? (:+ n) = yes 0≤n
+(:+ n) ≤? (:- n') = no (λ ())
+(:+ n) ≤? :0 = no (λ ())
+(:+ n) ≤? (:+ m) with N._≤?_ n m 
+... | yes n≤m = yes (+n≤+m n≤m)
+... | no  n≰m = no (n≰m ∘ +≤-elim)
+(:- n) ≤? (:- m) with N._≤?_ m n
+... | yes m≤n = yes (-n≤-m m≤n)
+... | no  m≰n = no (m≰n ∘ -≤-elim)
+
+decTotalOrder : DecTotalOrder
+decTotalOrder = record
+  { carrier         = ℤ 
+  ; _≈_             = _≡_
+  ; _≤_             = _≤_
+  ; isDecTotalOrder = record
+      { isTotalOrder = record
+          { isPartialOrder = record
+              { isPreorder = record
+                  { isEquivalence = PropEq.isEquivalence
+                  ; reflexive     = refl'
+                  ; trans         = trans
+                  ; ≈-resp-∼      = PropEq.resp _≤_
+                  }
+                ; antisym  = antisym
+              }
+          ; total          = total
+          }
+      ; _≟_          = _≟_
+      ; _≤?_         = _≤?_
+      }
+  }
+  where
+  refl' : _≡_ ⇒ _≤_
+  refl' {:- N.zero}  refl = -n≤-m N.z≤n
+  refl' {:- N.suc n} refl = -n≤-m (N.s≤s (-≤-elim (refl' refl)))
+  refl' {:0}         refl = 0≤0
+  refl' {:+ 0}       refl = +n≤+m N.z≤n
+  refl' {:+ N.suc n} refl = +n≤+m (N.s≤s (+≤-elim (refl' refl)))
+
+  trans : Transitive _≤_
+  trans 0≤0 0≤0 = 0≤0
+  trans 0≤0 0≤n = 0≤n
+  trans 0≤n (+n≤+m n≤m) = 0≤n
+  trans -n≤0 0≤0 = -n≤0
+  trans -n≤0 0≤n = -n≤+m
+  trans -n≤+m (+n≤+m n≤m) = -n≤+m
+  trans (-n≤-m n≤m) -n≤0 = -n≤0
+  trans (-n≤-m n≤m) -n≤+m = -n≤+m
+  trans (-n≤-m m≤n) (-n≤-m k≤m) = -n≤-m ((DecTotalOrder.trans N.decTotalOrder) k≤m m≤n)
+  trans (+n≤+m n≤m) (+n≤+m m≤k) = +n≤+m ((DecTotalOrder.trans N.decTotalOrder) n≤m m≤k)
+
+  antisym : Antisymmetric _≡_ _≤_
+  antisym 0≤0 0≤0 = refl
+  antisym (-n≤-m m≤n) (-n≤-m n≤m) with (DecTotalOrder.antisym N.decTotalOrder) m≤n n≤m
+  ... | refl = refl
+  antisym (+n≤+m n≤m) (+n≤+m n≤m') with (DecTotalOrder.antisym N.decTotalOrder) n≤m n≤m'
+  ... | refl = refl
+  antisym 0≤n ()
+  antisym -n≤0 ()
+  antisym -n≤+m ()
+
+  total : Total _≤_
+  total (:- n) (:- m) with (DecTotalOrder.total N.decTotalOrder) n m
+  ... | inj₁ n≤m = inj₂ (-n≤-m n≤m)
+  ... | inj₂ m≤n = inj₁ (-n≤-m m≤n)
+  total (:- n) :0 = inj₁ -n≤0
+  total (:- n) (:+ n') = inj₁ -n≤+m
+  total :0 (:- n) = inj₂ -n≤0
+  total :0 :0 = inj₁ 0≤0
+  total :0 (:+ n) = inj₁ 0≤n
+  total (:+ n) (:- n') = inj₂ -n≤+m
+  total (:+ n) :0 = inj₂ 0≤n
+  total (:+ n) (:+ m) with (DecTotalOrder.total N.decTotalOrder) n m
+  ... | inj₁ n≤m = inj₁ (+n≤+m n≤m)
+  ... | inj₂ m≤n = inj₂ (+n≤+m m≤n)
+
+poset : Poset
+poset = DecTotalOrder.poset decTotalOrder
+
+import Relation.Binary.PartialOrderReasoning as POR
+module ≤-Reasoning = POR poset
+  renaming (_≈⟨_⟩_ to _≡⟨_⟩_; ≈-byDef to ≡-byDef)
