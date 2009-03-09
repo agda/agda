@@ -519,7 +519,7 @@ in the buffer's mode line."
     (delete-overlay o))
   (agda2-go "cmd_reset")
   (let ((inhibit-read-only t))
-    (agda2-no-modified-p
+    (annotation-preserve-mod-p-and-undo
      (set-text-properties (point-min) (point-max) '()))
     (force-mode-line-update)))
 
