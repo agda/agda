@@ -101,7 +101,8 @@ Note that only dynamic options can be set using this variable."
                  (const :tag "None" nil))
   :group 'agda2)
 
-(defcustom agda2-fontset-name "fontset-agda2"
+(defcustom agda2-fontset-name
+  (unless (eq window-system 'mac) "fontset-agda2")
   "Default font to use in the selected frame when activating the Agda2 mode.
 This is only used if it's non-nil and Emacs is not running in a terminal.
 It is also ignored in Emacs 23 and up, where the improved font handling makes
