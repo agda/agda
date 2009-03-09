@@ -16,6 +16,7 @@
 (require 'comint)
 (require 'pp)
 (require 'eri)
+(require 'annotation)
 (require 'agda-input)
 (require 'agda2-highlight)
 (require 'agda2-abbrevs)
