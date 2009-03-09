@@ -192,8 +192,7 @@ isCommutativeSemiring = record
 
 commutativeSemiring : CommutativeSemiring
 commutativeSemiring = record
-  { setoid                = setoid
-  ; _+_                   = _+_
+  { _+_                   = _+_
   ; _*_                   = _*_
   ; 0#                    = 0
   ; 1#                    = 1
@@ -310,8 +309,7 @@ private
 
 ⊔-⊓-0-commutativeSemiringWithoutOne : CommutativeSemiringWithoutOne
 ⊔-⊓-0-commutativeSemiringWithoutOne = record
-  { setoid                          = setoid
-  ; _+_                             = _⊔_
+  { _+_                             = _⊔_
   ; _*_                             = _⊓_
   ; 0#                              = 0
   ; isCommutativeSemiringWithoutOne =
@@ -359,8 +357,7 @@ isDistributiveLattice = record
 
 distributiveLattice : DistributiveLattice
 distributiveLattice = record
-  { setoid                = setoid
-  ; _∨_                   = _⊓_
+  { _∨_                   = _⊓_
   ; _∧_                   = _⊔_
   ; isDistributiveLattice = isDistributiveLattice
   }

@@ -18,10 +18,7 @@ open Conv _≈_ _<_
 
 poset : Poset
 poset = record
-  { carrier        = carrier
-  ; _≈_            = _≈_
-  ; _≤_            = _≤_
-  ; isPartialOrder = record
+  { isPartialOrder = record
     { isPreorder = record
         { isEquivalence = isEquivalence
         ; reflexive     = reflexive

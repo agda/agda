@@ -40,8 +40,7 @@ open import Data.Product
 
 ∧-∨-lattice : Lattice
 ∧-∨-lattice = record
-  { setoid    = setoid
-  ; _∧_       = _∨_
+  { _∧_       = _∨_
   ; _∨_       = _∧_
   ; isLattice = ∧-∨-isLattice
   }

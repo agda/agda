@@ -12,10 +12,7 @@ open Conv _≈_ _≤_
 
 strictTotalOrder : StrictTotalOrder
 strictTotalOrder = record
-  { carrier            = carrier
-  ; _≈_                = _≈_
-  ; _<_                = _<_
-  ; isStrictTotalOrder = record
+  { isStrictTotalOrder = record
       { isEquivalence = isEquivalence
       ; trans         = trans isPartialOrder
       ; compare       = trichotomous Eq.sym _≟_ antisym total

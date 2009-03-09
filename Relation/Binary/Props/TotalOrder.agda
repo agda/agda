@@ -11,10 +11,7 @@ open import Relation.Binary.Consequences
 
 decTotalOrder : Decidable _≈_ → DecTotalOrder
 decTotalOrder ≟ = record
-  { carrier         = carrier
-  ; _≈_             = _≈_
-  ; _≤_             = _≤_
-  ; isDecTotalOrder = record
+  { isDecTotalOrder = record
       { isTotalOrder = isTotalOrder
       ; _≟_          = ≟
       ; _≤?_         = total+dec⟶dec reflexive antisym total ≟

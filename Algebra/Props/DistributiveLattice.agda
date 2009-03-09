@@ -56,8 +56,7 @@ open import Data.Product
 
 ∧-∨-distributiveLattice : DistributiveLattice
 ∧-∨-distributiveLattice = record
-  { setoid                = setoid
-  ; _∧_                   = _∨_
+  { _∧_                   = _∨_
   ; _∨_                   = _∧_
   ; isDistributiveLattice = ∧-∨-isDistributiveLattice
   }

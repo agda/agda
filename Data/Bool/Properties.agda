@@ -107,8 +107,7 @@ isCommutativeSemiring-∨-∧ = record
 
 commutativeSemiring-∨-∧ : CommutativeSemiring
 commutativeSemiring-∨-∧ = record
-  { setoid                = Bool.setoid
-  ; _+_                   = _∨_
+  { _+_                   = _∨_
   ; _*_                   = _∧_
   ; 0#                    = false
   ; 1#                    = true
@@ -176,8 +175,7 @@ isCommutativeSemiring-∧-∨ = record
 
 commutativeSemiring-∧-∨ : CommutativeSemiring
 commutativeSemiring-∧-∨ = record
-  { setoid                = Bool.setoid
-  ; _+_                   = _∧_
+  { _+_                   = _∧_
   ; _*_                   = _∨_
   ; 0#                    = true
   ; 1#                    = false
@@ -237,8 +235,7 @@ isBooleanAlgebra = record
 
 booleanAlgebra : BooleanAlgebra
 booleanAlgebra = record
-  { setoid           = Bool.setoid
-  ; _∨_              = _∨_
+  { _∨_              = _∨_
   ; _∧_              = _∧_
   ; ¬_               = not
   ; ⊤                = true

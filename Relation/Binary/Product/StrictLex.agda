@@ -228,33 +228,21 @@ open Dummy public
 
 _×-preorder_ : Preorder → Preorder → Preorder
 p₁ ×-preorder p₂ = record
-  { carrier    = carrier p₁ ×     carrier p₂
-  ; _≈_        = _≈_     p₁ ×-Rel _≈_     p₂
-  ; _∼_        = ×-Lex (_≈_ p₁) (_∼_ p₁) (_∼_ p₂)
-  ; isPreorder = isPreorder p₁ ×-isPreorder isPreorder p₂
-  }
-  where open Preorder
+  { isPreorder = isPreorder p₁ ×-isPreorder isPreorder p₂
+  } where open Preorder
 
 _×-strictPartialOrder_ :
   StrictPartialOrder → StrictPartialOrder → StrictPartialOrder
 s₁ ×-strictPartialOrder s₂ = record
-  { carrier              = carrier s₁ ×     carrier s₂
-  ; _≈_                  = _≈_     s₁ ×-Rel _≈_     s₂
-  ; _<_                  = ×-Lex (_≈_ s₁) (_<_ s₁) (_<_ s₂)
-  ; isStrictPartialOrder = isStrictPartialOrder s₁
+  { isStrictPartialOrder = isStrictPartialOrder s₁
                              ×-isStrictPartialOrder
                            isStrictPartialOrder s₂
-  }
-  where open StrictPartialOrder
+  } where open StrictPartialOrder
 
 _×-strictTotalOrder_ :
   StrictTotalOrder → StrictTotalOrder → StrictTotalOrder
 s₁ ×-strictTotalOrder s₂ = record
-  { carrier            = carrier s₁ ×     carrier s₂
-  ; _≈_                = _≈_     s₁ ×-Rel _≈_     s₂
-  ; _<_                = ×-Lex (_≈_ s₁) (_<_ s₁) (_<_ s₂)
-  ; isStrictTotalOrder = isStrictTotalOrder s₁
+  { isStrictTotalOrder = isStrictTotalOrder s₁
                            ×-isStrictTotalOrder
                          isStrictTotalOrder s₂
-  }
-  where open StrictTotalOrder
+  } where open StrictTotalOrder

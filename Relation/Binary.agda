@@ -69,12 +69,7 @@ record Setoid : Set1 where
     }
 
   preorder : Preorder
-  preorder = record
-    { carrier    = carrier
-    ; _≈_        = _≡_
-    ; _∼_        = _≈_
-    ; isPreorder = isPreorder
-    }
+  preorder = record { isPreorder = isPreorder }
 
 ------------------------------------------------------------------------
 -- Decidable equivalence relations
@@ -96,11 +91,7 @@ record DecSetoid : Set1 where
   open IsDecEquivalence isDecEquivalence public
 
   setoid : Setoid
-  setoid = record
-    { carrier       = carrier
-    ; _≈_           = _≈_
-    ; isEquivalence = isEquivalence
-    }
+  setoid = record { isEquivalence = isEquivalence }
 
   open Setoid setoid public using (preorder)
 
@@ -126,12 +117,7 @@ record Poset : Set1 where
   open IsPartialOrder isPartialOrder public
 
   preorder : Preorder
-  preorder = record
-    { carrier    = carrier
-    ; _≈_        = _≈_
-    ; _∼_        = _≤_
-    ; isPreorder = isPreorder
-    }
+  preorder = record { isPreorder = isPreorder }
 
 ------------------------------------------------------------------------
 -- Strict partial orders
@@ -176,12 +162,7 @@ record TotalOrder : Set1 where
   open IsTotalOrder isTotalOrder public
 
   poset : Poset
-  poset = record
-    { carrier        = carrier
-    ; _≈_            = _≈_
-    ; _≤_            = _≤_
-    ; isPartialOrder = isPartialOrder
-    }
+  poset = record { isPartialOrder = isPartialOrder }
 
   open Poset poset public using (preorder)
 
@@ -221,23 +202,14 @@ record DecTotalOrder : Set1 where
   open DTO public hiding (module Eq)
 
   totalOrder : TotalOrder
-  totalOrder = record
-    { carrier      = carrier
-    ; _≈_          = _≈_
-    ; _≤_          = _≤_
-    ; isTotalOrder = isTotalOrder
-    }
+  totalOrder = record { isTotalOrder = isTotalOrder }
 
   open TotalOrder totalOrder public using (poset; preorder)
 
   module Eq where
 
     decSetoid : DecSetoid
-    decSetoid = record
-      { carrier          = carrier
-      ; _≈_              = _≈_
-      ; isDecEquivalence = DTO.Eq.isDecEquivalence
-      }
+    decSetoid = record { isDecEquivalence = DTO.Eq.isDecEquivalence }
 
     open DecSetoid decSetoid public
 
@@ -286,18 +258,10 @@ record StrictTotalOrder : Set1 where
     hiding (module Eq)
 
   strictPartialOrder : StrictPartialOrder
-  strictPartialOrder = record
-    { carrier              = carrier
-    ; _≈_                  = _≈_
-    ; _<_                  = _<_
-    ; isStrictPartialOrder = isStrictPartialOrder
-    }
+  strictPartialOrder =
+    record { isStrictPartialOrder = isStrictPartialOrder }
 
   decSetoid : DecSetoid
-  decSetoid = record
-    { carrier          = carrier
-    ; _≈_              = _≈_
-    ; isDecEquivalence = isDecEquivalence
-    }
+  decSetoid = record { isDecEquivalence = isDecEquivalence }
 
   module Eq = DecSetoid decSetoid

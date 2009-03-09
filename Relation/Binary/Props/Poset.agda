@@ -15,10 +15,7 @@ open Conv _≈_ _≤_
 
 strictPartialOrder : StrictPartialOrder
 strictPartialOrder = record
-  { carrier              = carrier
-  ; _≈_                  = _≈_
-  ; _<_                  = _<_
-  ; isStrictPartialOrder = record
+  { isStrictPartialOrder = record
     { isEquivalence = isEquivalence
     ; irrefl        = irrefl
     ; trans         = trans isPartialOrder

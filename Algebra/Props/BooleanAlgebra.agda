@@ -50,10 +50,8 @@ open import Data.Product
 
 ∧-∨-booleanAlgebra : BooleanAlgebra
 ∧-∨-booleanAlgebra = record
-  { setoid           = setoid
-  ; _∧_              = _∨_
+  { _∧_              = _∨_
   ; _∨_              = _∧_
-  ; ¬_               = ¬_
   ; ⊤                = ⊥
   ; ⊥                = ⊤
   ; isBooleanAlgebra = ∧-∨-isBooleanAlgebra
@@ -123,8 +121,7 @@ private
 
 ∨-∧-commutativeSemiring : CommutativeSemiring
 ∨-∧-commutativeSemiring = record
-  { setoid                = setoid
-  ; _+_                   = _∨_
+  { _+_                   = _∨_
   ; _*_                   = _∧_
   ; 0#                    = ⊥
   ; 1#                    = ⊤
@@ -176,14 +173,8 @@ private
   }
 
 ∧-∨-commutativeSemiring : CommutativeSemiring
-∧-∨-commutativeSemiring = record
-  { setoid                = setoid
-  ; _+_                   = _∧_
-  ; _*_                   = _∨_
-  ; 0#                    = ⊤
-  ; 1#                    = ⊥
-  ; isCommutativeSemiring = ∧-∨-isCommutativeSemiring
-  }
+∧-∨-commutativeSemiring =
+  record { isCommutativeSemiring = ∧-∨-isCommutativeSemiring }
 
 ------------------------------------------------------------------------
 -- Some other properties
@@ -539,8 +530,7 @@ module XorRing
 
   commutativeRing : CommutativeRing
   commutativeRing = record
-    { setoid            = setoid
-    ; _+_               = _⊕_
+    { _+_               = _⊕_
     ; _*_               = _∧_
     ; -_                = id
     ; 0#                = ⊥

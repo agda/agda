@@ -36,8 +36,7 @@ setoid a = record
 
 decSetoid : ∀ {a} → Decidable (_≡_ {a}) → DecSetoid
 decSetoid dec = record
-  { carrier = _
-  ; _≈_     = _≡_
+  { _≈_              = _≡_
   ; isDecEquivalence = record
       { isEquivalence = isEquivalence
       ; _≟_           = dec

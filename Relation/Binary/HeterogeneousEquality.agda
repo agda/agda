@@ -91,8 +91,7 @@ setoid a = record
 
 decSetoid : ∀ {a} → Decidable (λ x y → _≅_ {a} x y) → DecSetoid
 decSetoid dec = record
-  { carrier = _
-  ; _≈_     = λ x y → x ≅ y
+  { _≈_              = λ x y → x ≅ y
   ; isDecEquivalence = record
       { isEquivalence = isEquivalence
       ; _≟_           = dec

@@ -184,48 +184,30 @@ open Dummy public
 
 _×-preorder_ : Preorder → Preorder → Preorder
 p₁ ×-preorder p₂ = record
-  { carrier    = carrier    p₁ ×            carrier    p₂
-  ; _≈_        = _≈_        p₁ ×-Rel        _≈_        p₂
-  ; _∼_        = _∼_        p₁ ×-Rel        _∼_        p₂
-  ; isPreorder = isPreorder p₁ ×-isPreorder isPreorder p₂
-  }
-  where open Preorder
+  { isPreorder = isPreorder p₁ ×-isPreorder isPreorder p₂
+  } where open Preorder
 
 _×-setoid_ : Setoid → Setoid → Setoid
 s₁ ×-setoid s₂ = record
-  { carrier       = carrier       s₁ ×               carrier       s₂
-  ; _≈_           = _≈_           s₁ ×-Rel           _≈_           s₂
-  ; isEquivalence = isEquivalence s₁ ×-isEquivalence isEquivalence s₂
-  }
-  where open Setoid
+  { isEquivalence = isEquivalence s₁ ×-isEquivalence isEquivalence s₂
+  } where open Setoid
 
 _×-decSetoid_ : DecSetoid → DecSetoid → DecSetoid
 s₁ ×-decSetoid s₂ = record
-  { carrier          = carrier s₁ ×     carrier s₂
-  ; _≈_              = _≈_     s₁ ×-Rel _≈_     s₂
-  ; isDecEquivalence = isDecEquivalence s₁ ×-isDecEquivalence
+  { isDecEquivalence = isDecEquivalence s₁ ×-isDecEquivalence
                        isDecEquivalence s₂
-  }
-  where open DecSetoid
+  } where open DecSetoid
 
 _×-poset_ : Poset → Poset → Poset
 s₁ ×-poset s₂ = record
-  { carrier        = carrier s₁ ×     carrier s₂
-  ; _≈_            = _≈_     s₁ ×-Rel _≈_     s₂
-  ; _≤_            = _≤_     s₁ ×-Rel _≤_     s₂
-  ; isPartialOrder = isPartialOrder s₁ ×-isPartialOrder
+  { isPartialOrder = isPartialOrder s₁ ×-isPartialOrder
                      isPartialOrder s₂
-  }
-  where open Poset
+  } where open Poset
 
 _×-strictPartialOrder_ :
   StrictPartialOrder → StrictPartialOrder → StrictPartialOrder
 s₁ ×-strictPartialOrder s₂ = record
-  { carrier              = carrier s₁ ×     carrier s₂
-  ; _≈_                  = _≈_     s₁ ×-Rel _≈_     s₂
-  ; _<_                  = _<_     s₁ ×-Rel _<_     s₂
-  ; isStrictPartialOrder = isStrictPartialOrder s₁
+  { isStrictPartialOrder = isStrictPartialOrder s₁
                              ×-isStrictPartialOrder
                            isStrictPartialOrder s₂
-  }
-  where open StrictPartialOrder
+  } where open StrictPartialOrder

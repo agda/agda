@@ -41,12 +41,7 @@ private
 private
 
   Order : StrictTotalOrder
-  Order = record
-    { carrier            = ∃ Key
-    ; _≈_                = _≈_
-    ; _<_                = _<_
-    ; isStrictTotalOrder = isOrderedKeySet
-    }
+  Order = record { isStrictTotalOrder = isOrderedKeySet }
 
 -- The map type.
 

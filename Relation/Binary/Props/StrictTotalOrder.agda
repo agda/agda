@@ -19,10 +19,7 @@ open import Relation.Binary.Consequences
 
 decTotalOrder : DecTotalOrder
 decTotalOrder = record
-  { carrier        = carrier
-  ; _≈_            = _≈_
-  ; _≤_            = _≤_
-  ; isDecTotalOrder = record
+  { isDecTotalOrder = record
     { isTotalOrder = record
       { isPartialOrder = SPO.isPartialOrder strictPartialOrder
       ; total          = total compare

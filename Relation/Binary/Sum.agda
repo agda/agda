@@ -299,77 +299,51 @@ to₁ ⊎-<-isDecTotalOrder to₂ = record
 
 _⊎-setoid_ : Setoid → Setoid → Setoid
 s₁ ⊎-setoid s₂ = record
-  { carrier       = carrier       s₁ ⊎               carrier       s₂
-  ; _≈_           = _≈_           s₁ ⊎-Rel           _≈_           s₂
-  ; isEquivalence = isEquivalence s₁ ⊎-isEquivalence isEquivalence s₂
-  }
-  where open Setoid
+  { isEquivalence = isEquivalence s₁ ⊎-isEquivalence isEquivalence s₂
+  } where open Setoid
 
 _⊎-preorder_ : Preorder → Preorder → Preorder
 p₁ ⊎-preorder p₂ = record
-  { carrier      = carrier      p₁ ⊎            carrier      p₂
-  ; _≈_          = _≈_          p₁ ⊎-Rel        _≈_          p₂
-  ; _∼_          = _∼_          p₁ ⊎-Rel        _∼_          p₂
-  ; isPreorder   = isPreorder   p₁ ⊎-isPreorder isPreorder   p₂
-  }
-  where open Preorder
+  { _∼_          = _∼_        p₁ ⊎-Rel        _∼_        p₂
+  ; isPreorder   = isPreorder p₁ ⊎-isPreorder isPreorder p₂
+  } where open Preorder
 
 _⊎-decSetoid_ : DecSetoid → DecSetoid → DecSetoid
 ds₁ ⊎-decSetoid ds₂ = record
-  { carrier          = carrier ds₁ ⊎     carrier ds₂
-  ; _≈_              = _≈_     ds₁ ⊎-Rel _≈_     ds₂
-  ; isDecEquivalence = isDecEquivalence ds₁ ⊎-isDecEquivalence
+  { isDecEquivalence = isDecEquivalence ds₁ ⊎-isDecEquivalence
                        isDecEquivalence ds₂
-  }
-  where open DecSetoid
+  } where open DecSetoid
 
 _⊎-poset_ : Poset → Poset → Poset
 po₁ ⊎-poset po₂ = record
-  { carrier        = carrier        po₁ ⊎     carrier      po₂
-  ; _≈_            = _≈_            po₁ ⊎-Rel _≈_          po₂
-  ; _≤_            = _≤_            po₁ ⊎-Rel _≤_          po₂
+  { _≤_            = _≤_ po₁ ⊎-Rel _≤_ po₂
   ; isPartialOrder = isPartialOrder po₁ ⊎-isPartialOrder
                      isPartialOrder po₂
-  }
-  where open Poset
+  } where open Poset
 
 _⊎-<-poset_ : Poset → Poset → Poset
 po₁ ⊎-<-poset po₂ = record
-  { carrier        = carrier        po₁ ⊎     carrier      po₂
-  ; _≈_            = _≈_            po₁ ⊎-Rel _≈_          po₂
-  ; _≤_            = _≤_            po₁ ⊎-<   _≤_          po₂
+  { _≤_            = _≤_ po₁ ⊎-< _≤_ po₂
   ; isPartialOrder = isPartialOrder po₁ ⊎-isPartialOrder
                      isPartialOrder po₂
-  }
-  where open Poset
+  } where open Poset
 
 _⊎-<-strictPartialOrder_ :
   StrictPartialOrder → StrictPartialOrder → StrictPartialOrder
 spo₁ ⊎-<-strictPartialOrder spo₂ = record
-  { carrier              = carrier      spo₁ ⊎     carrier      spo₂
-  ; _≈_                  = _≈_          spo₁ ⊎-Rel _≈_          spo₂
-  ; _<_                  = _<_          spo₁ ⊎-<   _<_          spo₂
+  { _<_                  = _<_ spo₁ ⊎-< _<_ spo₂
   ; isStrictPartialOrder = isStrictPartialOrder spo₁
                              ⊎-isStrictPartialOrder
                            isStrictPartialOrder spo₂
-  }
-  where open StrictPartialOrder
+  } where open StrictPartialOrder
 
 _⊎-<-totalOrder_ : TotalOrder → TotalOrder → TotalOrder
 to₁ ⊎-<-totalOrder to₂ = record
-  { carrier      = carrier      to₁ ⊎                carrier      to₂
-  ; _≈_          = _≈_          to₁ ⊎-Rel            _≈_          to₂
-  ; _≤_          = _≤_          to₁ ⊎-<              _≤_          to₂
-  ; isTotalOrder = isTotalOrder to₁ ⊎-<-isTotalOrder isTotalOrder to₂
-  }
-  where open TotalOrder
+  { isTotalOrder = isTotalOrder to₁ ⊎-<-isTotalOrder isTotalOrder to₂
+  } where open TotalOrder
 
 _⊎-<-decTotalOrder_ : DecTotalOrder → DecTotalOrder → DecTotalOrder
 to₁ ⊎-<-decTotalOrder to₂ = record
-  { carrier         = carrier      to₁ ⊎     carrier      to₂
-  ; _≈_             = _≈_          to₁ ⊎-Rel _≈_          to₂
-  ; _≤_             = _≤_          to₁ ⊎-<   _≤_          to₂
-  ; isDecTotalOrder = isDecTotalOrder to₁ ⊎-<-isDecTotalOrder
+  { isDecTotalOrder = isDecTotalOrder to₁ ⊎-<-isDecTotalOrder
                       isDecTotalOrder to₂
-  }
-  where open DecTotalOrder
+  } where open DecTotalOrder

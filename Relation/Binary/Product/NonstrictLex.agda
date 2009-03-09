@@ -147,20 +147,13 @@ open Dummy public
 
 _×-poset_ : Poset → Poset → Poset
 p₁ ×-poset p₂ = record
-  { carrier        = carrier p₁ ×     carrier p₂
-  ; _≈_            = _≈_     p₁ ×-Rel _≈_     p₂
-  ; _≤_            = ×-Lex (_≈_ p₁) (_≤_ p₁) (_≤_ p₂)
-  ; isPartialOrder = isPartialOrder p₁ ×-isPartialOrder
+  { isPartialOrder = isPartialOrder p₁ ×-isPartialOrder
                      isPartialOrder p₂
-  }
-  where open Poset
+  } where open Poset
 
 _×-totalOrder_ : DecTotalOrder → TotalOrder → TotalOrder
 t₁ ×-totalOrder t₂ = record
-  { carrier      = T₁.carrier ×     T₂.carrier
-  ; _≈_          = T₁._≈_     ×-Rel T₂._≈_
-  ; _≤_          = ×-Lex T₁._≈_ T₁._≤_ T₂._≤_
-  ; isTotalOrder = ×-isTotalOrder T₁._≟_ T₁.isTotalOrder T₂.isTotalOrder
+  { isTotalOrder = ×-isTotalOrder T₁._≟_ T₁.isTotalOrder T₂.isTotalOrder
   }
   where
   module T₁ = DecTotalOrder t₁
@@ -168,10 +161,6 @@ t₁ ×-totalOrder t₂ = record
 
 _×-decTotalOrder_ : DecTotalOrder → DecTotalOrder → DecTotalOrder
 t₁ ×-decTotalOrder t₂ = record
-  { carrier         = carrier t₁ ×     carrier t₂
-  ; _≈_             = _≈_     t₁ ×-Rel _≈_     t₂
-  ; _≤_             = ×-Lex (_≈_ t₁) (_≤_ t₁) (_≤_ t₂)
-  ; isDecTotalOrder = isDecTotalOrder t₁ ×-isDecTotalOrder
+  { isDecTotalOrder = isDecTotalOrder t₁ ×-isDecTotalOrder
                       isDecTotalOrder t₂
-  }
-  where open DecTotalOrder
+  } where open DecTotalOrder

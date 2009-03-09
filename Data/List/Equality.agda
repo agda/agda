@@ -50,9 +50,7 @@ module DecidableEquality (D : DecSetoid) where
 
   decSetoid : DecSetoid
   decSetoid = record
-    { carrier = List carrier
-    ; _≈_     = _≈_
-    ; isDecEquivalence = record
+    { isDecEquivalence = record
       { isEquivalence = Setoid.isEquivalence List-setoid
       ; _≟_           = dec
       }

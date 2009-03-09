@@ -62,8 +62,7 @@ isEquivalence {≈ = ≈} eq = record
 
 setoid : Setoid → Setoid
 setoid S = record
-  { carrier       = S.carrier
-  ; _≈_           = flip₁ S._≈_
+  { _≈_           = flip₁ S._≈_
   ; isEquivalence = isEquivalence S.isEquivalence
   } where module S = Setoid S
 
@@ -79,8 +78,7 @@ isPreorder {≈ = ≈} {∼} pre = record
 
 preorder : Preorder → Preorder
 preorder P = record
-  { carrier    = P.carrier
-  ; _∼_        = flip₁ P._∼_
+  { _∼_        = flip₁ P._∼_
   ; _≈_        = flip₁ P._≈_
   ; isPreorder = isPreorder P.isPreorder
   } where module P = Preorder P
@@ -95,8 +93,7 @@ isDecEquivalence {≈ = ≈} dec = record
 
 decSetoid : DecSetoid → DecSetoid
 decSetoid S = record
-  { carrier          = S.carrier
-  ; _≈_              = flip₁ S._≈_
+  { _≈_              = flip₁ S._≈_
   ; isDecEquivalence = isDecEquivalence S.isDecEquivalence
   } where module S = DecSetoid S
 
@@ -111,8 +108,7 @@ isPartialOrder {≈ = ≈} {≤} po = record
 
 poset : Poset → Poset
 poset O = record
-  { carrier        = O.carrier
-  ; _≈_            = flip₁ O._≈_
+  { _≈_            = flip₁ O._≈_
   ; _≤_            = flip₁ O._≤_
   ; isPartialOrder = isPartialOrder O.isPartialOrder
   } where module O = Poset O
@@ -130,8 +126,7 @@ isStrictPartialOrder {≈ = ≈} {<} spo = record
 
 strictPartialOrder : StrictPartialOrder → StrictPartialOrder
 strictPartialOrder O = record
-  { carrier              = O.carrier
-  ; _≈_                  = flip₁ O._≈_
+  { _≈_                  = flip₁ O._≈_
   ; _<_                  = flip₁ O._<_
   ; isStrictPartialOrder = isStrictPartialOrder O.isStrictPartialOrder
   } where module O = StrictPartialOrder O
@@ -147,8 +142,7 @@ isTotalOrder {≈ = ≈} {≤} to = record
 
 totalOrder : TotalOrder → TotalOrder
 totalOrder O = record
-  { carrier      = O.carrier
-  ; _≈_          = flip₁ O._≈_
+  { _≈_          = flip₁ O._≈_
   ; _≤_          = flip₁ O._≤_
   ; isTotalOrder = isTotalOrder O.isTotalOrder
   } where module O = TotalOrder O
@@ -165,8 +159,7 @@ isDecTotalOrder {≈ = ≈} {≤} dec = record
 
 decTotalOrder : DecTotalOrder → DecTotalOrder
 decTotalOrder O = record
-  { carrier         = O.carrier
-  ; _≈_             = flip₁ O._≈_
+  { _≈_             = flip₁ O._≈_
   ; _≤_             = flip₁ O._≤_
   ; isDecTotalOrder = isDecTotalOrder O.isDecTotalOrder
   } where module O = DecTotalOrder O
@@ -184,8 +177,7 @@ isStrictTotalOrder {≈ = ≈} {<} sto = record
 
 strictTotalOrder : StrictTotalOrder → StrictTotalOrder
 strictTotalOrder O = record
-  { carrier            = O.carrier
-  ; _≈_                = flip₁ O._≈_
+  { _≈_                = flip₁ O._≈_
   ; _<_                = flip₁ O._<_
   ; isStrictTotalOrder = isStrictTotalOrder O.isStrictTotalOrder
   } where module O = StrictTotalOrder O

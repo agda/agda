@@ -46,14 +46,8 @@ record AlmostCommutativeRing : Set1 where
   open IsAlmostCommutativeRing isAlmostCommutativeRing public
 
   commutativeSemiring : CommutativeSemiring
-  commutativeSemiring = record
-    { setoid                = setoid
-    ; _+_                   = _+_
-    ; _*_                   = _*_
-    ; 0#                    = 0#
-    ; 1#                    = 1#
-    ; isCommutativeSemiring = isCommutativeSemiring
-    }
+  commutativeSemiring =
+    record { isCommutativeSemiring = isCommutativeSemiring }
 
   open CommutativeSemiring commutativeSemiring public
          using ( +-semigroup; +-monoid; +-commutativeMonoid
@@ -98,13 +92,7 @@ from -Raw-AlmostCommutative⟶ to = from -RawRing⟶ rawRing to
 
 fromCommutativeRing : CommutativeRing → AlmostCommutativeRing
 fromCommutativeRing cr = record
-  { setoid                  = setoid
-  ; _+_                     = _+_
-  ; _*_                     = _*_
-  ; -_                      = -_
-  ; 0#                      = 0#
-  ; 1#                      = 1#
-  ; isAlmostCommutativeRing = record
+  { isAlmostCommutativeRing = record
       { isCommutativeSemiring = isCommutativeSemiring
       ; -‿pres-≈              = -‿pres-≈
       ; -‿*-distribˡ          = -‿*-distribˡ
@@ -121,12 +109,7 @@ fromCommutativeRing cr = record
 
 fromCommutativeSemiring : CommutativeSemiring → AlmostCommutativeRing
 fromCommutativeSemiring cs = record
-  { setoid                  = setoid
-  ; _+_                     = _+_
-  ; _*_                     = _*_
-  ; -_                      = id
-  ; 0#                      = 0#
-  ; 1#                      = 1#
+  { -_                      = id
   ; isAlmostCommutativeRing = record
       { isCommutativeSemiring = isCommutativeSemiring
       ; -‿pres-≈              = id

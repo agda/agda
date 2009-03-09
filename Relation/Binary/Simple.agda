@@ -26,7 +26,4 @@ Never = Const ⊥
 -- Always is an equivalence.
 
 Always-isEquivalence : ∀ {a} → IsEquivalence (Always {a})
-Always-isEquivalence = record { refl  = _
-                              ; sym   = λ _ → _
-                              ; trans = λ _ _ → _
-                              }
+Always-isEquivalence = record {}
