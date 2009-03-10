@@ -12,4 +12,4 @@ codata ν (F : Functor) : Set where
 -- Evaluation is required to see that Id · ν Id is a coinductive type.
 
 foo : ∀ F → F · ν F
-foo Id = inn (.foo Id)
+foo Id = inn (foo Id)

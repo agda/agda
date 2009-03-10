@@ -226,10 +226,9 @@ prop_cmMul sz =
 --   above.
 
 data Call =
-  Call { source  :: Index        -- ^ The function making the call.
-       , target  :: Index        -- ^ The function being called.
-       , cm      :: CallMatrix   -- ^ The call matrix describing the call.
-       , delayed :: Bool         -- ^ Was the call delayed?
+  Call { source :: Index        -- ^ The function making the call.
+       , target :: Index        -- ^ The function being called.
+       , cm :: CallMatrix       -- ^ The call matrix describing the call.
        }
   deriving (Eq, Ord, Show)
 
@@ -237,12 +236,11 @@ instance Arbitrary Call where
   arbitrary = do
     [s, t]    <- vectorOf 2 arbitrary
     cm        <- arbitrary
-    d         <- arbitrary
-    return (Call { source = s, target = t, cm = cm, delayed = d })
+    return (Call { source = s, target = t, cm = cm })
 
 instance CoArbitrary Call where
-  coarbitrary (Call s t cm d) =
-    coarbitrary s . coarbitrary t . coarbitrary cm . coarbitrary d
+  coarbitrary (Call s t cm) =
+    coarbitrary s . coarbitrary t . coarbitrary cm
 
 prop_Arbitrary_Call :: Call -> Bool
 prop_Arbitrary_Call = callInvariant
@@ -259,10 +257,9 @@ callInvariant = callMatrixInvariant . cm
 
 (>*<) :: Call -> Call -> Call
 c1 >*< c2 =
-  Call { source  = source c2
-       , target  = target c1
-       , cm      = cm c1 <*> cm c2
-       , delayed = delayed c1 || delayed c2
+  Call { source    = source c2
+       , target    = target c1
+       , cm        = cm c1 <*> cm c2
        }
 
 ------------------------------------------------------------------------
@@ -325,8 +322,7 @@ callGraph = do
     [c, r] <- vectorOf 2 (choose (0, 2))     -- Not too large.
     m <- callMatrix (Size { rows = r, cols = c })
     callId <- arbitrary
-    d      <- arbitrary
-    return (Call { source = s, target = t, cm = m, delayed = d }, callId)
+    return (Call { source = s, target = t, cm = m }, callId)
 
 prop_callGraph =
   forAll (callGraph :: Gen (CallGraph [Integer])) $ \cs ->

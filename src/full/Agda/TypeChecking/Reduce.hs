@@ -160,14 +160,11 @@ instance Reduce Term where
 	do  v <- instantiate v
 	    case v of
 		MetaV x args -> notBlocked . MetaV x <$> reduce args
-		Def df@(Delayed False f) args ->
-                  unfoldDefinition reduceB (Def df []) f args
-		Def (Delayed True f) args -> return $ notBlocked v
-		Con c args -> do
-                    ind <- whatInduction c
+		Def f args   -> unfoldDefinition reduceB (Def f []) f args
+		Con c args   -> do
                     -- Constructors can reduce when they come from an
                     -- instantiated module.
-		    v <- unfoldDefinition __IMPOSSIBLE__ (Con c []) c args
+		    v <- unfoldDefinition reduceB (Con c []) c args
 		    traverse reduceNat v
 		Sort s	   -> fmap Sort <$> reduceB s
 		Pi _ _	   -> return $ notBlocked v
@@ -192,14 +189,24 @@ instance Reduce Term where
 		    _	-> return v
 	    reduceNat v = return v
 
+-- | Runs a local computation in which definitions are only unfolded
+-- if the argument is 'True' and definitions were previously unfolded.
+
+continueUnfoldingIf :: MonadTCM tcm => Bool -> tcm a -> tcm a
+continueUnfoldingIf b =
+  local (\e -> e { envUnfold = envUnfold e && b })
+
 unfoldDefinition :: MonadTCM tcm => (Term -> tcm (Blocked Term)) ->
   Term -> QName -> Args -> tcm (Blocked Term)
 unfoldDefinition keepGoing v0 f args =
     {-# SCC "reduceDef" #-}
     do  info      <- getConstInfo f
+        unfolding <- envUnfold <$> ask
         case theDef info of
             Constructor{conSrcCon = c} ->
               return $ notBlocked $ Con (c `withRangeOf` f) args
+            _ | not unfolding ->
+              return $ notBlocked $ Def f args
             Primitive ConcreteDef x cls -> do
                 pf <- getPrimitive x
                 reducePrimitive x v0 f args pf cls
@@ -301,7 +308,11 @@ instance Normalise Term where
 	do  v <- reduce v
 	    case v of
 		Var n vs    -> Var n <$> normalise vs
-		Con c vs    -> Con c <$> normalise vs
+		Con c vs    -> do
+                  ind <- whatInduction c
+                  case ind of
+                    Inductive   -> Con c <$> normalise vs
+                    CoInductive -> Con c <$> instantiateFull vs
 		Def f vs    -> Def f <$> normalise vs
 		MetaV x vs  -> MetaV x <$> normalise vs
 		Lit _	    -> return v

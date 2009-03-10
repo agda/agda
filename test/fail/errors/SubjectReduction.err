@@ -1,4 +1,0 @@
-errors/SubjectReduction.agda:19,6-16
-.ticks != tick .ticks of type Stream
-when checking that the expression refl ticks has type
-(P : Stream → Set) → P (tick .ticks) → P (tick (tick .ticks))

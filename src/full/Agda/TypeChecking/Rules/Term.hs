@@ -215,10 +215,10 @@ checkExpr e t =
                         text "target type: " <+> prettyTCM t1
                       case t1 of
                         NotBlocked (Def d _) -> do
-                          defn <- theDef <$> getConstInfo (force d)
+                          defn <- theDef <$> getConstInfo d
                           case defn of
                             Datatype{} ->
-                              case [ c | (d', c) <- dcs, force d == d' ] of
+                              case [ c | (d', c) <- dcs, d == d' ] of
                                 c:_   -> return (Just c)
                                 []    -> typeError $ DoesNotConstructAnElementOf
                                           (head cs) (Def d [])
@@ -283,7 +283,7 @@ checkExpr e t =
                                     , funPolarity       = [Covariant]
                                     , funArgOccurrences = [Unused]
                                     }
-                  blockTerm t' (Def (Delayed False aux) []) $ return cs'
+                  blockTerm t' (Def aux []) $ return cs'
                 | otherwise -> typeError $ WrongHidingInLambda t'
               _ -> typeError $ ShouldBePi t'
           where
@@ -348,16 +348,15 @@ checkExpr e t =
 	  t <- normalise t
 	  case unEl t of
 	    Def r vs  -> do
-              let r' = force r
-	      xs    <- getRecordFieldNames r'
-	      ftel  <- getRecordFieldTypes r'
+	      xs    <- getRecordFieldNames r
+	      ftel  <- getRecordFieldTypes r
               scope <- getScope
               let meta = A.Underscore $ A.MetaInfo (getRange e) scope Nothing
-	      es   <- orderFields r' meta xs fs
+	      es   <- orderFields r meta xs fs
 	      let tel = ftel `apply` vs
 	      (args, cs) <- checkArguments_ ExpandLast (getRange e)
 			      (map (Arg NotHidden . unnamed) es) tel
-	      blockTerm t (Con (killRange r') args) $ return cs
+	      blockTerm t (Con (killRange r) args) $ return cs
             MetaV _ _ -> do
               reportSDoc "tc.term.expr.rec" 10 $ sep
                 [ text "Postponing type checking of"
@@ -378,7 +377,7 @@ inferHead (HeadVar x) = do -- traceCall (InferVar x) $ do
   (u, a) <- getVarInfo x
   return (apply u, a)
 inferHead (HeadDef x) = do
-  (u, a) <- inferDef (Def . Delayed (isDelayed x)) (force x)
+  (u, a) <- inferDef Def x
   return (apply u, a)
 inferHead (HeadCon [c]) = do
 

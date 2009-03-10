@@ -1,3 +1,0 @@
-errors/DottedVariable.agda:4,7-9
-The variable A must not be dotted.
-when scope checking .A

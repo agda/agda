@@ -1,3 +1,0 @@
-errors/DottedConstructor.agda:7,5-7
-The constructor d must not be dotted.
-when scope checking .d

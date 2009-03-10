@@ -189,7 +189,7 @@ term tm0 = case tm0 of
   Lam   _ at -> do n <- ask; HsLambda dummy [HsPVar $ ihname "v" n] <$>
                               local (1+) (term $ absBody at)
   Lit   l    -> lift $ literal l
-  Def   q as -> (`apps` as) . HsVar =<< lift (xhqn "d" (force q))
+  Def   q as -> (`apps` as) . HsVar =<< lift (xhqn "d" q)
   Con   q as -> (`apps` as) . HsCon =<< lift (conhqn q)
   Pi    _ _  -> return unit_con
   Fun   _ _  -> return unit_con

@@ -8,7 +8,6 @@ import Language.Haskell.Syntax
 
 import Agda.Compiler.MAlonzo.Misc
 import Agda.Compiler.MAlonzo.Pretty
-import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
@@ -102,7 +101,7 @@ xForPrim table = do
   qs <- keys   <$> curDefs
   bs <- toList <$> gets stBuiltinThings
   concat <$> sequence [ maybe (return []) id $ L.lookup s table
-                        | (s, Builtin (Def q _)) <- bs, force q `elem` qs ]
+                        | (s, Builtin (Def q _)) <- bs, q `elem` qs ]
 
 
 -- Definition bodies for primitive functions

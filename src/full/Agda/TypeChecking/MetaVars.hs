@@ -240,9 +240,9 @@ etaExpandMeta m = do
     Blocked x _            -> listenToMeta m x
     NotBlocked (MetaV x _) -> listenToMeta m x
     NotBlocked (Def r ps)  ->
-      ifM (isRecord (force r)) (do
+      ifM (isRecord r) (do
 	rng <- getMetaRange m
-	u   <- setCurrentRange rng $ newRecordMetaCtx (force r) ps tel args
+	u   <- setCurrentRange rng $ newRecordMetaCtx r ps tel args
 	inContext [] $ addCtxTel tel $ do
 	  verboseS "tc.meta.eta" 20 $ do
 	    du <- prettyTCM u
@@ -275,7 +275,10 @@ instance Occurs Term where
 		Lam h f	    -> Lam h <$> occ f
 		Lit l	    -> return v
 		Def c vs    -> Def c <$> occ vs
-		Con c vs    -> Con c <$> occ vs
+		Con c vs    -> do
+                  ind <- whatInduction c
+                  continueUnfoldingIf (ind == Inductive) $
+                    Con c <$> occ vs
 		Pi a b	    -> uncurry Pi <$> occ (a,b)
 		Fun a b	    -> uncurry Fun <$> occ (a,b)
 		Sort s	    -> Sort <$> occ s

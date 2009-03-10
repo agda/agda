@@ -176,14 +176,14 @@ buildParser r use = do
 
 instance IsExpr Expr where
     exprView e = case e of
-	Ident (Delayed d (QName x)) -> LocalV (Delayed d x)
-	App _ e1 e2                 -> AppV e1 e2
-	OpApp r d es                -> OpAppV d es
-	HiddenArg _ e               -> HiddenArgV e
-	Paren _ e                   -> ParenV e
-	_                           -> OtherV e
+	Ident (QName x)	-> LocalV x
+	App _ e1 e2	-> AppV e1 e2
+	OpApp r d es	-> OpAppV d es
+	HiddenArg _ e	-> HiddenArgV e
+	Paren _ e	-> ParenV e
+	_		-> OtherV e
     unExprView e = case e of
-	LocalV x      -> Ident (fmap QName x)
+	LocalV x      -> Ident (QName x)
 	AppV e1 e2    -> App (fuseRange e1 e2) e1 e2
 	OpAppV d es   -> OpApp (fuseRange d es) d es
 	HiddenArgV e  -> HiddenArg (getRange e) e
@@ -192,21 +192,19 @@ instance IsExpr Expr where
 
 instance IsExpr Pattern where
     exprView e = case e of
-	IdentP (QName x) -> LocalV (Delayed False x)
+	IdentP (QName x) -> LocalV x
 	AppP e1 e2	 -> AppV e1 e2
-	OpAppP r d es	 -> OpAppV (Delayed False d) es
+	OpAppP r d es	 -> OpAppV d es
 	HiddenP _ e	 -> HiddenArgV e
 	ParenP _ e	 -> ParenV e
 	_		 -> OtherV e
     unExprView e = case e of
-	LocalV x | isDelayed x    -> __IMPOSSIBLE__
-                 | otherwise      -> IdentP (QName (force x))
-	AppV e1 e2                -> AppP e1 e2
-	OpAppV d es | isDelayed d -> __IMPOSSIBLE__
-                    | otherwise   -> OpAppP (fuseRange d es) (force d) es
-	HiddenArgV e              -> HiddenP (getRange e) e
-	ParenV e                  -> ParenP (getRange e) e
-	OtherV e                  -> e
+	LocalV x	 -> IdentP (QName x)
+	AppV e1 e2	 -> AppP e1 e2
+	OpAppV d es	 -> OpAppP (fuseRange d es) d es
+	HiddenArgV e	 -> HiddenP (getRange e) e
+	ParenV e	 -> ParenP (getRange e) e
+	OtherV e	 -> e
 
 ---------------------------------------------------------------------------
 -- * Parse functions
@@ -273,8 +271,7 @@ parseApplication es = do
     -- Check that all parts of the application are in scope (else it won't
     -- parse and we can just as well give a nice error).
     inScope <- partsInScope
-    case [ QName x | Ident (Delayed _ (QName x)) <- es
-                   , not (Set.member x inScope) ] of
+    case [ QName x | Ident (QName x) <- es, not (Set.member x inScope) ] of
 	[]  -> return ()
 	xs  -> typeError $ NotInScope xs
 
@@ -311,7 +308,7 @@ fullParen' e = case exprView e of
 
 paren :: Monad m => (Name -> m Fixity) -> Expr -> m (Precedence -> Expr)
 paren _   e@(App _ _ _)	       = return $ \p -> mparen (appBrackets p) e
-paren f	  e@(OpApp _ op _)     = do fx <- f (force op); return $ \p -> mparen (opBrackets fx p) e
+paren f	  e@(OpApp _ op _)     = do fx <- f op; return $ \p -> mparen (opBrackets fx p) e
 paren _   e@(Lam _ _ _)	       = return $ \p -> mparen (lamBrackets p) e
 paren _   e@(AbsurdLam _ _)    = return $ \p -> mparen (lamBrackets p) e
 paren _   e@(Fun _ _ _)	       = return $ \p -> mparen (lamBrackets p) e

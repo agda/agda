@@ -49,7 +49,7 @@ instance ShowAsUntypedTerm Term where
 	return $ parens $ text "VAbs" <+>
 		 parens (sep [ text "\\" <> dvar, text "->", dbody ])
     showAsUntypedTerm (Con name args) = showUntypedApp name args
-    showAsUntypedTerm (Def name args) = showUntypedApp (force name) args
+    showAsUntypedTerm (Def name args) = showUntypedApp name args
     showAsUntypedTerm (Lit lit)    = return $ parens $ showUntypedLiteral lit
     showAsUntypedTerm (Pi _ _)	   = return $ text "VNonData"
     showAsUntypedTerm (Fun _ _)    = return $ text "VNonData"

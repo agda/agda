@@ -1,10 +1,10 @@
 {-# LANGUAGE CPP #-}
 
-module Agda.Syntax.Strict (Strict) where
+module Agda.Syntax.Strict where
 
 import Data.Generics
 
-import Agda.Syntax.Common hiding (force)
+import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Parser.Tokens
 import qualified Agda.Syntax.Concrete as C

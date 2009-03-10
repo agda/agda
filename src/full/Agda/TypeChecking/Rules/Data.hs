@@ -190,7 +190,7 @@ constructs nofPars t q = constrT 0 t
 			   constrT (n + 1) t
 		Fun _ b -> constrT n b
 		Def d vs
-		    | force d == q -> checkParams n =<< reduce (take nofPars vs)
+		    | d == q -> checkParams n =<< reduce (take nofPars vs)
 						    -- we only check the parameters
 		_ -> bad $ El s v
 
@@ -198,6 +198,7 @@ constructs nofPars t q = constrT 0 t
 
 	checkParams n vs = zipWithM_ sameVar (map unArg vs) ps
 	    where
+		def = Def q []
 		ps = reverse [ i | (i,Arg h _) <- zip [n..] vs ]
 
 		sameVar v i = do
@@ -212,12 +213,12 @@ forceData d (El s0 t) = liftTCM $ do
     d  <- canonicalName d
     case t' of
 	Def d' _
-	    | d == force d' -> return $ El s0 t'
-	    | otherwise	    -> fail $ "wrong datatype " ++ show d ++ " != " ++ show d'
+	    | d == d'   -> return $ El s0 t'
+	    | otherwise	-> fail $ "wrong datatype " ++ show d ++ " != " ++ show d'
 	MetaV m vs	    -> do
 	    Defn _ t _ _ Datatype{dataSort = s} <- getConstInfo d
 	    ps <- newArgsMeta t
-	    noConstraints $ equalType (El s0 t') (El s (Def (Delayed False d) ps)) -- TODO: too strict?
+	    noConstraints $ equalType (El s0 t') (El s (Def d ps)) -- TODO: too strict?
 	    reduce $ El s0 t'
 	_ -> typeError $ ShouldBeApplicationOf (El s0 t) d
 
@@ -229,7 +230,7 @@ isCoinductive t = do
   El _ t <- normalise t
   case t of
     Def q _ -> do
-      def <- getConstInfo (force q)
+      def <- getConstInfo q
       case theDef def of
         Axiom       {} -> return (Just False)
         Function    {} -> return Nothing

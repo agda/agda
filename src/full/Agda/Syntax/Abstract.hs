@@ -29,7 +29,7 @@ import Agda.Utils.Tuple
 
 data Expr
         = Var  Name			     -- ^ Bound variables
-        | Def  (Delayed QName)		     -- ^ Constants (i.e. axioms, functions, and datatypes)
+        | Def  QName			     -- ^ Constants (i.e. axioms, functions, and datatypes)
         | Con  AmbiguousQName		     -- ^ Constructors
 	| Lit Literal			     -- ^ Literals
 	| QuestionMark MetaInfo		     -- ^ meta variable for interaction

@@ -10,7 +10,6 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Literal
 
-import Agda.TypeChecking.Delay
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
@@ -65,10 +64,6 @@ matchPattern (Arg h' (ConP c ps))     (Arg h v) =
 	case w of
 	  NotBlocked (Con c' vs)
 	    | c == c'             -> do
-                ind <- whatInduction c
-                vs  <- case ind of
-                         Inductive   -> return vs
-                         CoInductive -> delay False vs
 		(m, vs) <- matchPatterns ps vs
 		return (m, Arg h $ Con c' vs)
 	    | otherwise           -> return (No, Arg h v)

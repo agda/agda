@@ -32,7 +32,7 @@ ensureInductive t = do
   let err = typeError (NotInductive t)
   case t of
     Def t _ -> do
-      t <- theDef <$> getConstInfo (force t)
+      t <- theDef <$> getConstInfo t
       case t of
         Datatype { dataInduction = Inductive } -> return ()
         _ -> err
@@ -114,7 +114,7 @@ bindBuiltinPrimitive :: String -> String -> A.Expr -> (Term -> TCM ()) -> TCM ()
 bindBuiltinPrimitive name builtin (A.ScopedExpr scope e) verify = do
   setScope scope
   bindBuiltinPrimitive name builtin e verify
-bindBuiltinPrimitive name builtin e@(A.Def (Delayed False qx)) verify = do
+bindBuiltinPrimitive name builtin e@(A.Def qx) verify = do
     PrimImpl t pf <- lookupPrimitiveFunction name
     v <- checkExpr e t
 
@@ -285,7 +285,7 @@ bindPostulate s typ e = do
 
   case v of
     Def c []  -> ignoreAbstractMode $ do
-      defn <- theDef <$> getConstInfo (force c)
+      defn <- theDef <$> getConstInfo c
       case defn of
         Axiom{} -> return ()
         _       -> bad

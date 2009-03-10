@@ -40,13 +40,13 @@ import Agda.Syntax.Concrete.Name
 
 -- | Concrete expressions. Should represent exactly what the user wrote.
 data Expr
-	= Ident (Delayed QName)  	       -- ^ ex: @x@, @.x@
+	= Ident QName			       -- ^ ex: @x@
 	| Lit Literal			       -- ^ ex: @1@ or @\"foo\"@
 	| QuestionMark !Range (Maybe Nat)      -- ^ ex: @?@ or @{! ... !}@
 	| Underscore !Range (Maybe Nat)	       -- ^ ex: @_@
 	| RawApp !Range [Expr]		       -- ^ before parsing operators
 	| App !Range Expr (NamedArg Expr)      -- ^ ex: @e e@, @e {e}@, or @e {x = e}@
-	| OpApp !Range (Delayed Name) [Expr]   -- ^ ex: @e + e@, @e .+ e@
+	| OpApp !Range Name [Expr]	       -- ^ ex: @e + e@
         | WithApp !Range Expr [Expr]           -- ^ ex: @e | e1 | .. | en@
 	| HiddenArg !Range (Named String Expr) -- ^ ex: @{e}@ or @{x=e}@
 	| Lam !Range [LamBinding] Expr	       -- ^ ex: @\\x {y} -> e@ or @\\(x:A){y:B} -> e@

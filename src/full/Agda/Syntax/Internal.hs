@@ -1,5 +1,4 @@
-{-# LANGUAGE CPP, DeriveDataTypeable, GeneralizedNewtypeDeriving,
-             FlexibleInstances #-}
+{-# LANGUAGE CPP, DeriveDataTypeable, GeneralizedNewtypeDeriving #-}
 
 module Agda.Syntax.Internal
     ( module Agda.Syntax.Internal
@@ -34,7 +33,7 @@ import Agda.Utils.Impossible
 data Term = Var Nat Args
 	  | Lam Hiding (Abs Term)   -- ^ terms are beta normal
 	  | Lit Literal
-	  | Def (Delayed QName) Args
+	  | Def QName Args
 	  | Con QName Args
 	  | Pi (Arg Type) (Abs Type)
 	  | Fun (Arg Type) Type
@@ -49,7 +48,7 @@ data Sort = Type Nat
 	  | Prop 
 	  | Lub Sort Sort
 	  | Suc Sort
-	  | MetaS MetaId
+	  | MetaS MetaId 
   deriving (Typeable, Data, Eq, Show)
 
 -- | Something where a meta variable may block reduction.

@@ -258,9 +258,8 @@ instance ComputeOccurrences Term where
       maybe Map.empty here (vars ! fromIntegral i)
       >+< occursAs VarArg (occurrences vars args)
     Def d args   ->
-      here (ADef (force d)) >+<
-      concatOccurs (zipWith (occursAs . DefArg (force d)) [0..] $
-                            map (occurrences vars) args)
+      here (ADef d) >+<
+      concatOccurs (zipWith (occursAs . DefArg d) [0..] $ map (occurrences vars) args)
     Con c args   -> occurrences vars args
     MetaV _ args -> occursAs MetaArg $ occurrences vars args
     Pi a b       -> occursAs LeftOfArrow (occurrences vars a) >+<

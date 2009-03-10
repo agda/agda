@@ -99,8 +99,6 @@ errorString err = case err of
     DependentPatternMatchingOnCodata           -> "DependentPatternMatchingOnCodata"
     DifferentArities			       -> "DifferentArities"
     DoesNotConstructAnElementOf{}              -> "DoesNotConstructAnElementOf"
-    DottedVariable {}                          -> "DottedVariable"
-    DottedConstructor {}                       -> "DottedConstructor"
     DuplicateBuiltinBinding _ _ _	       -> "DuplicateBuiltinBinding"
     DuplicateFields _			       -> "DuplicateFields"
     DuplicateConstructors _		       -> "DuplicateConstructors"
@@ -421,10 +419,6 @@ instance PrettyTCM TypeError where
 	    NothingAppliedToHiddenArg e	-> fsep $
 		[pretty e] ++ pwords "cannot appear by itself. It needs to be the argument to" ++
 		pwords "a function expecting an implicit argument."
-            DottedVariable x -> fsep $
-	      pwords "The variable" ++ [pretty x] ++ pwords "must not be dotted."
-            DottedConstructor x -> fsep $
-	      pwords "The constructor" ++ [pretty x] ++ pwords "must not be dotted."
 	    NoParseForApplication es -> fsep $
 		pwords "Could not parse the application" ++ [pretty $ C.RawApp noRange es]
 	    AmbiguousParseForApplication es es' -> fsep (

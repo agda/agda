@@ -49,7 +49,7 @@ mutual
   -- eat' is defined by a local recursion on Trans' A B
   eat' : forall {A B} -> Trans' A B -> Stream A -> Stream B
   eat' (get f) (cons a as) = eat' (f a) as
-  eat' (put b sp) as = cons b (.eat sp as)
+  eat' (put b sp) as = cons b (eat sp as)
 
 
 -- composing two stream transducers
@@ -58,7 +58,7 @@ mutual
 
   -- comb is defined by corecursion into Trans A B
   comb : forall {A B C} -> Trans A B -> Trans B C -> Trans A C
-  comb 〈 p1 〉 〈 p2 〉 = 〈 .comb' p1 p2 〉
+  comb 〈 p1 〉 〈 p2 〉 = 〈 comb' p1 p2 〉
 
   -- comb' preforms a local lexicographic recursion on (Trans' B C, Trans' A B)
   comb' : forall {A B C} -> Trans' A B -> Trans' B C -> Trans' A C

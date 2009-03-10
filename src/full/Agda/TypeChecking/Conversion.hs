@@ -79,7 +79,7 @@ compareTerm cmp a m n =
             else buildConstraint (ValueCmp cmp a m n)
         Lam _ _   -> __IMPOSSIBLE__
         Def r ps  -> do
-          isrec <- isRecord (force r)
+          isrec <- isRecord r
           if isrec
             then do
               m <- reduceB m
@@ -88,8 +88,8 @@ compareTerm cmp a m n =
                 _ | isNeutral m && isNeutral n ->
                     compareAtom cmp a' (ignoreBlocking m) (ignoreBlocking n)
                 _ -> do
-                  (tel, m') <- etaExpandRecord (force r) ps $ ignoreBlocking m
-                  (_  , n') <- etaExpandRecord (force r) ps $ ignoreBlocking n
+                  (tel, m') <- etaExpandRecord r ps $ ignoreBlocking m
+                  (_  , n') <- etaExpandRecord r ps $ ignoreBlocking n
                   -- No subtyping on record terms
                   compareArgs [] (telePi_ tel $ sort Prop) m' n'
             else compareAtom cmp a' m n
@@ -179,7 +179,7 @@ compareAtom cmp t m n =
                 -- Variables are invariant in their arguments
 		compareArgs [] a iArgs jArgs
 	    (Def x xArgs, Def y yArgs) | x == y -> do
-                pol <- getPolarity' cmp (force x)
+                pol <- getPolarity' cmp x
 		reportSDoc "tc.conv.atom" 20 $
 		  text "compareArgs" <+> sep
                     [ sep [ prettyTCM xArgs
@@ -187,22 +187,27 @@ compareAtom cmp t m n =
 			  ]
                     , nest 2 $ text (show pol)
                     ]
-		a <- defType <$> getConstInfo (force x)
+		a <- defType <$> getConstInfo x
 		compareArgs pol a xArgs yArgs
 	    (Con x xArgs, Con y yArgs)
 		| x == y -> do
 		    -- The type is a datatype.
 		    Def d args <- reduce $ unEl t
 		    -- Get the number of parameters to the datatype
-		    Datatype{dataPars = npars} <- theDef <$> getConstInfo (force d)
+		    Datatype{dataPars = npars} <- theDef <$> getConstInfo d
 		    -- The type to compare the arguments at is obtained by
 		    -- instantiating the parameters.
 		    a <- defType <$> getConstInfo x
 		    let a' = piApply a (genericTake npars args)
-                    -- Constructors are invariant in their arguments
-                    -- (could be covariant).
-                    compareArgs [] a' xArgs yArgs
-	    _ -> typeError $ UnequalTerms cmp m n t
+                    -- Applications of coinductive constructors are
+                    -- compared for (some notion of) syntactic
+                    -- equality.
+                    ind <- whatInduction x
+                    continueUnfoldingIf (ind == Inductive) $
+                      -- Constructors are invariant in their arguments
+                      -- (could be covariant).
+                      compareArgs [] a' xArgs yArgs
+	    _		       -> typeError $ UnequalTerms cmp m n t
     where
 	equalFun (FunV arg1@(Arg h1 a1) t1) (FunV (Arg h2 a2) t2)
 	    | h1 /= h2	= typeError $ UnequalHiding ty1 ty2

@@ -141,7 +141,7 @@ reifyDisplayFormP lhs@(A.LHS i x ps wps) =
       (f, vs, ds) -> do
         ds <- mapM termToPat ds
         vs <- mapM argToPat vs
-        return $ LHS i (force f) vs (ds ++ wps)
+        return $ LHS i f vs (ds ++ wps)
       where
         info = PatRange noRange
         argToPat arg = fmap unnamed <$> traverse termToPat arg
@@ -159,10 +159,9 @@ instance Reify Term Expr where
 		I.Var n vs   -> do
                     x  <- liftTCM $ nameOfBV n `catchError` \_ -> freshName_ ("@" ++ show n)
                     reifyApp (A.Var x) vs
-		I.Def x vs   -> reifyDisplayForm x' vs $ do
-		    n <- getDefFreeVars x'
+		I.Def x vs   -> reifyDisplayForm x vs $ do
+		    n <- getDefFreeVars x
 		    reifyApp (A.Def x) $ genericDrop n vs
-                  where x' = force x
 		I.Con x vs   -> do
 		  isR <- isRecord x
 		  case isR of

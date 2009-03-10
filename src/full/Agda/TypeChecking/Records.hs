@@ -52,8 +52,7 @@ getRecordDef r = do
   def <- theDef <$> getConstInfo r
   case def of
     Record{} -> return def
-    _        -> typeError $ ShouldBeRecordType
-                              (El Prop $ Def (Delayed False r) [])
+    _        -> typeError $ ShouldBeRecordType (El Prop $ Def r [])
 
 -- | Get the field names of a record.
 getRecordFieldNames :: MonadTCM tcm => QName -> tcm [C.Name]
@@ -64,9 +63,9 @@ getRecordFieldTypes :: MonadTCM tcm => QName -> tcm Telescope
 getRecordFieldTypes r = recTel <$> getRecordDef r
 
 -- | Get the type of the record constructor.
-getRecordConstructorType :: MonadTCM tcm => Delayed QName -> [Arg Term] -> tcm Type
+getRecordConstructorType :: MonadTCM tcm => QName -> [Arg Term] -> tcm Type
 getRecordConstructorType r pars = do
-  Record{ recTel = tel, recSort = s} <- getRecordDef (force r)
+  Record{ recTel = tel, recSort = s} <- getRecordDef r
   return $ telePi (apply tel pars) $ El s $ Def r pars
 
 -- | Check if a name refers to a record.
@@ -88,8 +87,7 @@ etaExpandRecord :: MonadTCM tcm => QName -> Args -> Term -> tcm (Telescope, Args
 etaExpandRecord r pars u = do
   Record{ recFields = xs, recTel = tel } <- getRecordDef r
   let tel'   = apply tel pars
-      proj x = Arg NotHidden $ Def (Delayed False x) $
-                 map hide pars ++ [Arg NotHidden u]
+      proj x = Arg NotHidden $ Def x $ map hide pars ++ [Arg NotHidden u]
   reportSDoc "tc.record.eta" 20 $ vcat
     [ text "eta expanding" <+> prettyTCM u <+> text ":" <+> prettyTCM r
     , nest 2 $ vcat

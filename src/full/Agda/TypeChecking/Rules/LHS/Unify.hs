@@ -235,7 +235,7 @@ unifyIndices flex a us vs = liftTCM $ do
               -- The type is a datatype or a record.
               Def d args <- reduce $ unEl a
               -- Get the number of parameters.
-              def <- theDef <$> getConstInfo (force d)
+              def <- theDef <$> getConstInfo d
               a'  <- case def of
                 Datatype{dataPars = n} -> do
                   a <- defType <$> getConstInfo c
@@ -248,7 +248,7 @@ unifyIndices flex a us vs = liftTCM $ do
 	(Def d us, Def d' vs)
           | d == d' -> do
               -- d must be a data, record or axiom
-              def <- getConstInfo (force d)
+              def <- getConstInfo d
               let ok = case theDef def of
                     Datatype{} -> True
                     Record{}   -> True
@@ -306,7 +306,7 @@ unifyIndices flex a us vs = liftTCM $ do
       case v of
         Con c vs -> do
           Def d args <- reduce $ unEl a
-          def <- theDef <$> getConstInfo (force d)
+          def <- theDef <$> getConstInfo d
           b   <- case def of
             Datatype{dataPars = n} -> do
               a <- defType <$> getConstInfo c
@@ -315,7 +315,7 @@ unifyIndices flex a us vs = liftTCM $ do
             _		    -> __IMPOSSIBLE__
           return $ Just (Con c [], b, vs)
         Def d vs -> do
-          def <- getConstInfo (force d)
+          def <- getConstInfo d
           let ans = Just (Def d [], defType def, vs)
           return $ case theDef def of
             Datatype{} -> ans

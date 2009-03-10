@@ -64,13 +64,9 @@ checkIdems [] = Right ()
 checkIdems ((c,m):xs) = if (checkIdem c) then checkIdems xs else Left m
 
 {- Convention (see TermCheck): 
-   The guardedness flag is in position (0, 0) of the matrix. It is
-   always present even if no function is delayed. We need to ignore it
-   when the call path does not include any delayed call.
-
-   The examples below do not include the guardedness flag, though, so
-   in order to avoid loosing the first row/column of the matrixes
-   their calls are claimed to be delayed.
+   Guardedness flag is in position (0,0) of the matrix,
+   it is always present even if the functions are all recursive.
+   The examples below do not include the guardedness flag, though.
  -}
    
 checkIdem :: Call -> Bool
@@ -78,9 +74,9 @@ checkIdem c = let
   b = target c == source c
   idem = (c >*< c) == c
   diag =  Array.elems $ diagonal (mat (cm c))
-  hasDecr = any isDecr $ if delayed c then diag else tail diag
+  hasDecr = any isDecr $ diag
   in
-    not b || not idem || hasDecr
+    (not b) || (not idem) || hasDecr
 
 -- | Matrix is decreasing if any diagonal element is 'Lt'.
 
@@ -110,16 +106,13 @@ example1 = buildCallGraph [c1, c2, c3]
   aux  = 2
   c1 = Call { source = flat, target = aux
             , cm = CallMatrix $ fromLists (Size 2 1) [[Lt], [Lt]] 
-            , delayed = True
             }
   c2 = Call { source = aux,  target = aux
             , cm = CallMatrix $ fromLists (Size 2 2) [ [Lt, Unknown]
                                                      , [Unknown, Le]] 
-            , delayed = True
             }
   c3 = Call { source = aux,  target = flat
             , cm = CallMatrix $ fromLists (Size 1 2) [[Unknown, Le]] 
-            , delayed = True
             }
 
 prop_terminates_example1 = isRight $ terminates example1
@@ -138,7 +131,6 @@ example2 = buildCallGraph [c]
   c = Call { source = plus, target = plus
            , cm = CallMatrix $ fromLists (Size 2 2) [ [Unknown, Le]
                                                     , [Lt, Unknown] ]  
-           , delayed = True
            }
 
 prop_terminates_example2 = isRight $ terminates example2 
@@ -162,7 +154,6 @@ example3 = buildCallGraph [c plus plus', c plus' plus]
   c f g = Call { source = f, target = g
                , cm = CallMatrix $ fromLists (Size 2 2) [ [Unknown, Le]
                                                         , [Lt, Unknown] ]  
-               , delayed = True
                }
 
 prop_terminates_example3 = isRight $ terminates example3 
@@ -186,17 +177,14 @@ example4 = buildCallGraph [c1, c2, c3]
   c1 = Call { source = f, target = f
             , cm = CallMatrix $ fromLists (Size 2 2) [ [Le, Unknown]
                                                      , [Unknown, Le] ]  
-            , delayed = True
             }
   c2 = Call { source = f, target = g
             , cm = CallMatrix $ fromLists (Size 2 2) [ [Lt, Unknown]
                                                      , [Unknown, Le] ]  
-            , delayed = True
             }
   c3 = Call { source = g, target = f
             , cm = CallMatrix $ fromLists (Size 2 2) [ [Le, Unknown]
                                                      , [Unknown, Le] ]  
-            , delayed = True
             }
 
 prop_terminates_example4 = isLeft $ terminates example4
@@ -215,22 +203,18 @@ example5 = buildCallGraph [c1, c2, c3, c4]
   c1 = Call { source = f, target = g
             , cm = CallMatrix $ fromLists (Size 2 2) [ [Lt, Unknown]
                                                      , [Unknown, Le] ]  
-            , delayed = True
             }
   c2 = Call { source = f, target = f
             , cm = CallMatrix $ fromLists (Size 2 2) [ [Unknown, Unknown]
                                                      , [Unknown, Lt] ]  
-            , delayed = True
             }
   c3 = Call { source = g, target = f
             , cm = CallMatrix $ fromLists (Size 2 2) [ [Le, Unknown]
                                                      , [Unknown, Le] ]  
-            , delayed = True
             }
   c4 = Call { source = g, target = g
             , cm = CallMatrix $ fromLists (Size 2 2) [ [Lt, Unknown]
                                                      , [Unknown, Le] ]  
-            , delayed = True
             }
 
 prop_terminates_example5 = isRight $ terminates example5 
@@ -250,15 +234,12 @@ example6 = buildCallGraph [c1, c2, c3]
   f = 1
   c1 = Call { source = f, target = f
             , cm = CallMatrix $ fromLists (Size 1 1) [ [Lt] ]  
-            , delayed = True
             }
   c2 = Call { source = f, target = f
             , cm = CallMatrix $ fromLists (Size 1 1) [ [Le] ]  
-            , delayed = True
             }
   c3 = Call { source = f, target = f
             , cm = CallMatrix $ fromLists (Size 1 1) [ [Le] ]  
-            , delayed = True
             }
 
 prop_terminates_example6 = isLeft $ terminates example6 

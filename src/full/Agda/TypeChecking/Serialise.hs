@@ -66,7 +66,7 @@ import Agda.Utils.Permutation
 import Agda.Utils.Impossible
 
 currentInterfaceVersion :: Int
-currentInterfaceVersion = 20090307
+currentInterfaceVersion = 20090304
 
 type Node = [Int] -- constructor tag (maybe omitted) and arg indices
 
@@ -369,11 +369,6 @@ instance EmbPrj I.Sort where
                            valu [3, a]    = valu1 Suc   a
                            valu [4, a]    = valu1 MetaS a
                            valu _         = __IMPOSSIBLE__
-
-instance EmbPrj a => EmbPrj (Delayed a) where
-  icode (Delayed a b) = icode2' a b
-  value = vcase valu where valu [a, b] = valu2 Delayed a b
-                           valu _      = __IMPOSSIBLE__
 
 instance EmbPrj Agda.Syntax.Literal.Literal where
   icode (LitInt    a b) = icode2 0 a b

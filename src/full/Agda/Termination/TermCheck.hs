@@ -273,8 +273,7 @@ termToDBP conf t
       Var i []    -> return $ VarDBP i
       Con c args  -> ConDBP c <$> mapM (termToDBP conf . unArg) args
       Def s [arg]
-        | Just (force s) == withSizeSuc conf ->
-            ConDBP (force s) . (:[]) <$> termToDBP conf (unArg arg)
+        | Just s == withSizeSuc conf -> ConDBP s . (:[]) <$> termToDBP conf (unArg arg)
       Lit l       -> return $ LitDBP l
       _   -> return unusedVar
 
@@ -401,7 +400,7 @@ termTerm names f pats0 t0 = do
                 	       ])
 
                   -- insert this call into the call list
-                  case List.elemIndex (force g) names of
+                  case List.elemIndex g names of
  
                      -- call leads outside the mutual block and can be ignored
                      Nothing   -> return calls
@@ -424,14 +423,13 @@ termTerm names f pats0 t0 = do
                        
                         return
                           (Term.insert
-                            (Term.Call { Term.source  = fInd
-                                       , Term.target  = toInteger gInd'
-                                       , Term.cm      = makeCM ncols nrows matrix'
-                                       , Term.delayed = isDelayed g
+                            (Term.Call { Term.source = fInd
+                                       , Term.target = toInteger gInd'
+                                       , Term.cm     = makeCM ncols nrows matrix'
                                        })
                             -- Note that only the base part of the
                             -- name is collected here.
-                            (Set.fromList $ fst $ R.getRangesA (force g))
+                            (Set.fromList $ fst $ R.getRangesA g)
                             calls)
 
             -- abstraction
@@ -524,7 +522,7 @@ compareTerm' suc (Lit l) p = do
 compareTerm' suc (Con c ts) (ConDBP c' ps)
   | c == c' = compareConArgs suc ts ps
 compareTerm' suc (Def s ts) (ConDBP s' ps)
-  | force s == s' && Just (force s) == suc = compareConArgs suc ts ps
+  | s == s' && Just s == suc = compareConArgs suc ts ps
 compareTerm' _ _ _ = return Term.Unknown
 
 compareConArgs :: Maybe QName -> Args -> [DeBruijnPat] -> TCM Term.Order

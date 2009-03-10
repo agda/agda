@@ -111,9 +111,6 @@ instance Ord NamePart where
 --     equality. We will have to define an equality instance to
 --     non-generative namespaces (as well as having some sort of
 --     lookup table for namespace names).
---
--- The 'SetRange' instance for qualified names sets all individual
--- ranges (including those of the module prefix) to the given one.
 data QName = Qual  Name QName
            | QName Name
   deriving (Typeable, Data, Eq, Ord)
@@ -160,15 +157,11 @@ instance SetRange Name where
   setRange r (Name _ ps)  = Name r ps
   setRange r (NoName _ i) = NoName r i
 
-instance SetRange QName where
-  setRange r (QName x)  = QName (setRange r x)
-  setRange r (Qual n x) = Qual (setRange r n) (setRange r x)
+instance KillRange QName where
+  killRange (QName x) = QName $ killRange x
+  killRange (Qual n x) = killRange n `Qual` killRange x
 
 instance KillRange Name where
   killRange (Name r ps)  = Name (killRange r) ps
   killRange (NoName r i) = NoName (killRange r) i
-
-instance KillRange QName where
-  killRange (QName x)  = QName $ killRange x
-  killRange (Qual n x) = killRange n `Qual` killRange x
 
