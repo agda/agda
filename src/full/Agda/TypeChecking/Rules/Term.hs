@@ -173,6 +173,10 @@ checkExpr e t =
     let scopedExpr (A.ScopedExpr scope e) = setScope scope >> scopedExpr e
 	scopedExpr e			  = return e
     e <- scopedExpr e
+    let checkHeadApplication hd args = do
+          (f,  t0) <- inferHead hd
+          checkArguments' ExpandLast (getRange hd) args t0 t e $ \vs t1 cs ->
+            blockTerm t (f vs) $ (cs ++) <$> leqType t1 t
     case e of
 
 	-- Insert hidden lambda if appropriate
@@ -229,17 +233,10 @@ checkExpr e t =
                 let unblock = isJust <$> getCon
                 mc <- getCon
                 case mc of
-                  Just c -> do
-                    let hd = HeadCon [c]
-                    (f,  t0)     <- inferHead hd
-                    checkArguments' ExpandLast (getRange hd) args t0 t e $ \vs t1 cs ->
-                      blockTerm t (f vs) $ (cs ++) <$> leqType t1 t
+                  Just c  -> checkHeadApplication (HeadCon [c]) args
                   Nothing -> postponeTypeCheckingProblem e t unblock
 
-            | Application hd args <- appView e -> do
-		(f,  t0)     <- inferHead hd
-                checkArguments' ExpandLast (getRange hd) args t0 t e $ \vs t1 cs ->
-                    blockTerm t (f vs) $ (cs ++) <$> leqType t1 t
+            | Application hd args <- appView e -> checkHeadApplication hd args
 
 	A.WithApp _ e es -> typeError $ NotImplemented "type checking of with application"
 
