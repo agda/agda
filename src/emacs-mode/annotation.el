@@ -112,7 +112,7 @@ bounds for the current (possibly narrowed) buffer, or END < START."
                                annotation-annotations ,props))))))
 
 (defmacro annotation-preserve-mod-p-and-undo (&rest code)
-  "Run CODE preserving both its undo data and modification bit."
+  "Run CODE preserving both the undo data and the modification bit."
   (let ((modp (make-symbol "modp")))
   `(let ((,modp (buffer-modified-p))
          (buffer-undo-list t))
