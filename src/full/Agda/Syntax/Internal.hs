@@ -11,7 +11,6 @@ import Control.Applicative
 import Data.Generics
 import Data.Foldable
 import Data.Traversable
-import Data.Function
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common
@@ -40,7 +39,7 @@ data Term = Var Nat Args
 	  | Pi (Arg Type) (Abs Type)
 	  | Fun (Arg Type) Type
 	  | Sort Sort
-	  | MetaV MetaVar Args
+	  | MetaV MetaId Args
   deriving (Typeable, Data, Eq, Show)
 
 data Type = El Sort Term
@@ -50,36 +49,8 @@ data Sort = Type Nat
 	  | Prop 
 	  | Lub Sort Sort
 	  | Suc Sort
-	  | MetaS MetaVar
+	  | MetaS MetaId
   deriving (Typeable, Data, Eq, Show)
-
--- | Used to mark things which may need to be delayed. 'Delayed' names
--- are not unfolded. When evaluation descends under a coinductive
--- constructor all the names and meta-variables in the arguments are
--- delayed. When a delayed meta-variable is instantiated all names and
--- meta-variables in its instantiation are delayed. Delayed things are
--- made non-delayed by pattern matching.
---
--- The 'Eq' and 'Ord' instances ignore the 'Delayed'/'NotDelayed'
--- constructors.
-data Delayed a = Delayed    a
-               | NotDelayed a
-  deriving (Typeable, Data, Show)
-
--- | Extracts the underlying value.
-force :: Delayed a -> a
-force (Delayed    x) = x
-force (NotDelayed x) = x
-
-instance Eq a => Eq (Delayed a) where
-  (==) = (==) `on` force
-
-instance Ord a => Ord (Delayed a) where
-  compare = compare `on` force
-
-instance Functor Delayed where
-  fmap f (   Delayed x) =    Delayed (f x)
-  fmap f (NotDelayed x) = NotDelayed (f x)
 
 -- | Something where a meta variable may block reduction.
 data Blocked t = Blocked MetaId t
@@ -134,10 +105,6 @@ instance KillRange Term where
     Pi a b     -> killRange2 Pi a b
     Fun a b    -> killRange2 Fun a b
     Sort s     -> killRange1 Sort s
-
-instance KillRange a => KillRange (Delayed a) where
-  killRange (   Delayed x) = killRange1    Delayed x
-  killRange (NotDelayed x) = killRange1 NotDelayed x
 
 instance KillRange Type where
   killRange (El s v) = killRange2 El s v
@@ -240,9 +207,6 @@ data Pattern = VarP String  -- name suggestion
 	     | ConP QName [Arg Pattern]
 	     | LitP Literal
   deriving (Typeable, Data, Show)
-
--- | Meta-variables.
-type MetaVar = Delayed MetaId
 
 newtype MetaId = MetaId Nat
     deriving (Eq, Ord, Num, Real, Enum, Integral, Typeable, Data)

@@ -53,7 +53,7 @@ getRecordDef r = do
   case def of
     Record{} -> return def
     _        -> typeError $ ShouldBeRecordType
-                              (El Prop $ Def (NotDelayed r) [])
+                              (El Prop $ Def (Delayed False r) [])
 
 -- | Get the field names of a record.
 getRecordFieldNames :: MonadTCM tcm => QName -> tcm [C.Name]
@@ -88,7 +88,7 @@ etaExpandRecord :: MonadTCM tcm => QName -> Args -> Term -> tcm (Telescope, Args
 etaExpandRecord r pars u = do
   Record{ recFields = xs, recTel = tel } <- getRecordDef r
   let tel'   = apply tel pars
-      proj x = Arg NotHidden $ Def (NotDelayed x) $
+      proj x = Arg NotHidden $ Def (Delayed False x) $
                  map hide pars ++ [Arg NotHidden u]
   reportSDoc "tc.record.eta" 20 $ vcat
     [ text "eta expanding" <+> prettyTCM u <+> text ":" <+> prettyTCM r

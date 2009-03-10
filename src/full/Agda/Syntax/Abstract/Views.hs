@@ -11,7 +11,7 @@ data AppView = Application Head [NamedArg Expr]
 		-- ^ TODO: if we allow beta-redexes (which we currently do) there could be one here.
 
 data Head = HeadVar Name
-	  | HeadDef QName
+	  | HeadDef (Delayed QName)
 	  | HeadCon [QName]
 
 appView :: Expr -> AppView

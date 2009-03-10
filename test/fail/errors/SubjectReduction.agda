@@ -13,7 +13,7 @@ codata Stream : Set where
   tick : Stream → Stream
 
 ticks : Stream
-ticks = tick ticks
+ticks = tick .ticks
 
 l₁ : Eq ticks (tick ticks)
 l₁ = refl ticks
@@ -24,11 +24,8 @@ l₂ eq = λ P Px → eq (λ s → P (tick s)) Px
 Goal : Set1
 Goal = Eq (tick ticks) (tick (tick ticks))
 
-_∶_ : (A : Set1) → A → A
-_ ∶ x = x
-
 l₃ : Goal
-l₃ = ((_ → Eq (tick ticks) (tick (tick ticks))) ∶ l₂) l₁
+l₃ = l₂ l₁
 
 -- If l₃ is accepted, then it evaluates to λ P Px → Px, but the
 -- following code is not accepted:

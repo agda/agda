@@ -298,9 +298,9 @@ SpaceBIds
 -- function spaces: (x,y,z : Nat) -> ...
 CommaBIds :: { [Name] }
 CommaBIds : Application {%
-    let getName (Ident (QName x)) = Just x
-	getName (Underscore r _)  = Just (Name r [Hole])
-	getName _		  = Nothing
+    let getName (Ident (Delayed False (QName x))) = Just x
+	getName (Underscore r _)                  = Just (Name r [Hole])
+	getName _		                  = Nothing
     in
     case partition isJust $ map getName $1 of
 	(good, []) -> return $ map fromJust good
@@ -381,7 +381,7 @@ Application3
 
 -- Level 3: Atoms
 Expr3
-    : QId				{ Ident $1 }
+    : QId				{ Ident (Delayed False $1) }
     | literal				{ Lit $1 }
     | '?'				{ QuestionMark (getRange $1) Nothing }
     | '_'				{ Underscore (getRange $1) Nothing }
@@ -394,7 +394,10 @@ Expr3
     | '{' '}'				{ let r = fuseRange $1 $2 in HiddenArg r $ unnamed $ Absurd r }
     | '(' ')'				{ Absurd (fuseRange $1 $2) }
     | Id '@' Expr3			{ As (fuseRange $1 $3) $1 $3 }
-    | '.' Expr3				{ Dot (fuseRange $1 $2) $2 }
+    | '.' Expr3				{ case $2 of
+                                            Ident (Delayed False x) -> Ident (Delayed True
+                                                                                (setRange (fuseRange $1 x) x))
+                                            e                       -> Dot (fuseRange $1 e) e }
     | 'record' '{' FieldAssignments '}' { Rec (getRange ($1,$4)) $3 }
 
 
@@ -693,7 +696,7 @@ Open : 'open' ModuleName OpenArgs ImportDirective {
     case es of
     { []  -> Open r m dir
     ; _   -> Private r [ ModuleMacro r (noName $ beginningOf $ getRange $2) []
-                           (RawApp (fuseRange m es) (Ident m : es)) DoOpen dir
+                           (RawApp (fuseRange m es) (Ident (Delayed False m) : es)) DoOpen dir
                        ]
     }
   }
@@ -755,7 +758,7 @@ OptionsPragma : '{-#' 'OPTIONS' PragmaStrings '#-}' { OptionsPragma (fuseRange $
 BuiltinPragma :: { Pragma }
 BuiltinPragma
     : '{-#' 'BUILTIN' string PragmaName '#-}'
-      { BuiltinPragma (fuseRange $1 $5) (snd $3) (Ident $4) }
+      { BuiltinPragma (fuseRange $1 $5) (snd $3) (Ident (Delayed False $4)) }
 
 CompiledPragma :: { Pragma }
 CompiledPragma
@@ -953,21 +956,23 @@ exprToLHS e = case e of
 exprToPattern :: Expr -> Parser Pattern
 exprToPattern e =
     case e of
-	Ident x			-> return $ IdentP x
-	App _ e1 e2		-> AppP <$> exprToPattern e1
-					<*> T.mapM (T.mapM exprToPattern) e2
-	Paren r e		-> ParenP r
-					<$> exprToPattern e
-	Underscore r _		-> return $ WildP r
-	Absurd r		-> return $ AbsurdP r
-	As r x e		-> AsP r x <$> exprToPattern e
-	Dot r (HiddenArg _ e)	-> return $ HiddenP r $ fmap (DotP r) e
-	Dot r e			-> return $ DotP r e
-	Lit l			-> return $ LitP l
-	HiddenArg r e		-> HiddenP r <$> T.mapM exprToPattern e
-	RawApp r es		-> RawAppP r <$> mapM exprToPattern es
-	OpApp r x es		-> OpAppP r x <$> mapM exprToPattern es
-	_			->
+	Ident (Delayed False x)      -> return $ IdentP x
+	Ident (Delayed True  x)      -> return $ DotP (getRange x)
+                                                      (Ident (Delayed False x))
+	App _ e1 e2                  -> AppP <$> exprToPattern e1
+					     <*> T.mapM (T.mapM exprToPattern) e2
+	Paren r e                    -> ParenP r
+					     <$> exprToPattern e
+	Underscore r _               -> return $ WildP r
+	Absurd r                     -> return $ AbsurdP r
+	As r x e                     -> AsP r x <$> exprToPattern e
+	Dot r (HiddenArg _ e)        -> return $ HiddenP r $ fmap (DotP r) e
+	Dot r e                      -> return $ DotP r e
+	Lit l                        -> return $ LitP l
+	HiddenArg r e                -> HiddenP r <$> T.mapM exprToPattern e
+	RawApp r es                  -> RawAppP r <$> mapM exprToPattern es
+	OpApp r (Delayed False x) es -> OpAppP r x <$> mapM exprToPattern es
+	_                            ->
           let Just pos = rStart $ getRange e in
           parseErrorAt pos $ "Not a valid pattern: " ++ show e
 

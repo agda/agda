@@ -13,7 +13,6 @@ import Data.Traversable
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common
-import Agda.Syntax.Delay
 import Agda.Syntax.Internal
 import Agda.Syntax.Scope.Base (Scope)
 import Agda.Syntax.Literal
@@ -39,10 +38,9 @@ class Instantiate t where
 
 instance Instantiate Term where
     instantiate t@(MetaV x args) =
-	do  m <- lookupMeta (force x)
-	    case mvInstantiation m of
-		InstV a                        -> instantiate $
-                                                    (a `delayedIf` x) `apply` args
+	do  mi <- mvInstantiation <$> lookupMeta x
+	    case mi of
+		InstV a                        -> instantiate $ a `apply` args
 		Open                           -> return t
 		BlockedConst _                 -> return t
                 PostponedTypeCheckingProblem _ -> return t
@@ -66,9 +64,9 @@ instance Instantiate Type where
 instance Instantiate Sort where
     instantiate s = case s of
 	MetaS x -> do
-	    m <- lookupMeta (force x)
-	    case mvInstantiation m of
-		InstS s'                       -> instantiate (s' `delayedIf` x)
+	    mi <- mvInstantiation <$> lookupMeta x
+	    case mi of
+		InstS s'                       -> instantiate s'
 		Open                           -> return s
 		InstV{}                        -> __IMPOSSIBLE__
 		BlockedConst{}                 -> __IMPOSSIBLE__
@@ -162,15 +160,14 @@ instance Reduce Term where
 	do  v <- instantiate v
 	    case v of
 		MetaV x args -> notBlocked . MetaV x <$> reduce args
-		Def df@(NotDelayed f) args ->
+		Def df@(Delayed False f) args ->
                   unfoldDefinition reduceB (Def df []) f args
-		Def (Delayed f) args -> return $ notBlocked v
+		Def (Delayed True f) args -> return $ notBlocked v
 		Con c args -> do
                     ind <- whatInduction c
                     -- Constructors can reduce when they come from an
                     -- instantiated module.
-		    v <- unfoldDefinition __IMPOSSIBLE__ (Con c []) c
-                           (delayedIfCoinductive ind args)
+		    v <- unfoldDefinition __IMPOSSIBLE__ (Con c []) c args
 		    traverse reduceNat v
 		Sort s	   -> fmap Sort <$> reduceB s
 		Pi _ _	   -> return $ notBlocked v

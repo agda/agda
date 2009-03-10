@@ -135,7 +135,7 @@ addDisplayForms x = do
 	  , m == length args && args `isPrefixOf` vs -> do
 	      let ps' = raise 1 (map unArg vs) ++ ps
 	      reportSLn "tc.section.apply.display" 20 $ "adding display form " ++ show y ++ " --> " ++ show top
-	      addDisplayForm (force y) (Display 0 ps' $ DTerm $ Def (NotDelayed top) args)
+	      addDisplayForm (force y) (Display 0 ps' $ DTerm $ Def (Delayed False top) args)
 	      add args top (force y) $ drop (length args) ps'
 	_ -> do
 	      let reason = case cs of
@@ -217,7 +217,7 @@ applySection new ptel old ts rd rm = liftTCM $ do
                     , clauseTel   = EmptyTel
                     , clausePerm  = idP 0
                     , clausePats  = []
-                    , clauseBody  = Body $ Def (NotDelayed x) ts
+                    , clauseBody  = Body $ Def (Delayed False x) ts
                     }
 
     copySec :: Args -> (ModuleName, Section) -> TCM ()

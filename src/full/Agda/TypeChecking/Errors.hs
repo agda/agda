@@ -99,6 +99,8 @@ errorString err = case err of
     DependentPatternMatchingOnCodata           -> "DependentPatternMatchingOnCodata"
     DifferentArities			       -> "DifferentArities"
     DoesNotConstructAnElementOf{}              -> "DoesNotConstructAnElementOf"
+    DottedVariable {}                          -> "DottedVariable"
+    DottedConstructor {}                       -> "DottedConstructor"
     DuplicateBuiltinBinding _ _ _	       -> "DuplicateBuiltinBinding"
     DuplicateFields _			       -> "DuplicateFields"
     DuplicateConstructors _		       -> "DuplicateConstructors"
@@ -300,8 +302,8 @@ instance PrettyTCM TypeError where
               pwords "With clause pattern" ++ [prettyA p] ++
               pwords "is not an instance of its parent pattern" -- TODO: pretty for internal patterns
 	    MetaCannotDependOn m ps i -> fsep $
-		    pwords "The metavariable" ++ [prettyTCM $ MetaV (NotDelayed m) []] ++
-                    pwords "cannot depend on" ++ [pvar i] ++ pwords "because it" ++ deps
+		    pwords "The metavariable" ++ [prettyTCM $ MetaV m []] ++ pwords "cannot depend on" ++ [pvar i] ++
+		    pwords "because it" ++ deps
 		where
 		    pvar i = prettyTCM $ I.Var i []
 		    deps = case map pvar ps of
@@ -310,8 +312,7 @@ instance PrettyTCM TypeError where
 			xs  -> pwords "only depends on the variables" ++ punctuate comma xs
 
 	    MetaOccursInItself m -> fsep $
-		pwords "Cannot construct infinite solution of metavariable" ++
-                [prettyTCM $ MetaV (NotDelayed m) []]
+		pwords "Cannot construct infinite solution of metavariable" ++ [prettyTCM $ MetaV m []]
             BuiltinMustBeConstructor s e -> fsep $
                 [prettyA e] ++ pwords "must be a constructor in the binding to builtin" ++ [text s]
 	    NoSuchBuiltinName s -> fsep $
@@ -420,6 +421,10 @@ instance PrettyTCM TypeError where
 	    NothingAppliedToHiddenArg e	-> fsep $
 		[pretty e] ++ pwords "cannot appear by itself. It needs to be the argument to" ++
 		pwords "a function expecting an implicit argument."
+            DottedVariable x -> fsep $
+	      pwords "The variable" ++ [pretty x] ++ pwords "must not be dotted."
+            DottedConstructor x -> fsep $
+	      pwords "The constructor" ++ [pretty x] ++ pwords "must not be dotted."
 	    NoParseForApplication es -> fsep $
 		pwords "Could not parse the application" ++ [pretty $ C.RawApp noRange es]
 	    AmbiguousParseForApplication es es' -> fsep (

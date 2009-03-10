@@ -775,6 +775,8 @@ data TypeError
 	| NotAnExpression C.Expr
 	| NotAValidLetBinding D.NiceDeclaration
 	| NothingAppliedToHiddenArg C.Expr
+	| DottedVariable C.QName
+	| DottedConstructor C.QName
     -- Operator errors
 	| NoParseForApplication [C.Expr]
 	| AmbiguousParseForApplication [C.Expr] [C.Expr]

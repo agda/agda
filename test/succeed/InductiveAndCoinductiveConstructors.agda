@@ -49,18 +49,18 @@ whnf (lab xs lss) with whnf xs | whnf lss
 
 ⟦_⟧ : Prog (stream unit) → Stream ⊤
 ⟦ p ⟧ with whnf p
-... | x ≺ xs = x ≺ ♯ ⟦ xs ⟧
+... | x ≺ xs = x ≺ ♯ .⟦ xs ⟧
 
 data _≈_ : Stream ⊤ → Stream ⊤ → Set where
   cons : ∀ {xs xs′} → ∞ ((♭ xs) ≈ (♭ xs′)) → (_ ≺ xs) ≈ (_ ≺ xs′)
 
 lemma : ∀ xs lss → ⟦ fst (lab xs lss) ⟧ ≈ ⟦ xs ⟧
 lemma xs lss with whnf xs | whnf lss
-... | _ ≺ xs′ | (x ≺ ls) ≺ lss′ = cons (♯ lemma xs′ lss′)
+... | _ ≺ xs′ | (x ≺ ls) ≺ lss′ = cons (♯ .lemma xs′ lss′)
 
 label : Prog (stream unit) → Stream ⊤ →
         Prog (stream unit ⊗ stream (stream unit))
-label xs ls = lab xs (↓ (♯ (ls ≺ snd (label xs ls))))
+label xs ls = lab xs (↓ (♯ (ls ≺ snd (.label xs ls))))
 
 shape-preserved : ∀ xs ls → ⟦ fst (label xs ls) ⟧ ≈ ⟦ xs ⟧
-shape-preserved xs ls = lemma xs (↓ (♯ (ls ≺ snd (label xs ls))))
+shape-preserved xs ls = lemma xs (↓ (♯ (ls ≺ snd (.label xs ls))))

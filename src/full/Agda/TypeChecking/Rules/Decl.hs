@@ -100,7 +100,7 @@ checkPragma r p =
             _       -> typeError $ GenericError "COMPILED_TYPE directive only works on postulates."
           -- TODO: hack
           when (hs == builtinIO) $
-            bindBuiltinType1 builtinIO (A.Def x)
+            bindBuiltinType1 builtinIO (A.Def (Delayed False x))
         A.CompiledDataPragma x hs hcs -> do
           def <- theDef <$> getConstInfo x
           case def of

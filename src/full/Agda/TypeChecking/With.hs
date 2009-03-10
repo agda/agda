@@ -186,11 +186,11 @@ withDisplayForm :: QName -> QName -> Telescope -> Telescope -> Nat -> [Arg Patte
 withDisplayForm f aux delta1 delta2 n qs perm = do
   topArgs <- raise (n + size delta1 + size delta2) <$> getContextArgs
   x <- freshNoName_
-  let wild = Def (NotDelayed (qualify (mnameFromList []) x)) []
+  let wild = Def (Delayed False (qualify (mnameFromList []) x)) []
 
   let top = genericLength topArgs
       vs = topArgs ++ raiseFrom (size delta2) n (substs (sub wild) $ patsToTerms qs)
-      dt = DWithApp (map DTerm $ Def (NotDelayed f) vs : withArgs) []
+      dt = DWithApp (map DTerm $ Def (Delayed False f) vs : withArgs) []
       withArgs = reverse $ map var [size delta2..size delta2 + n - 1]
       pats = genericReplicate (n + size delta1 + size delta2 + top) (Var 0 [])
 

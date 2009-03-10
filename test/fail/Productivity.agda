@@ -13,7 +13,7 @@ module Productivity (char : Set) where
   mutual
 
     _⋆ : P -> P
-    p ⋆ = ε ∣ p +
+    p ⋆ = ε ∣ p .+
 
     _+ : P -> P
     p + = p ⊛ p ⋆
@@ -33,17 +33,17 @@ module Productivity (char : Set) where
   mutual
     expr   = term sepBy addOp
     term   = factor sepBy mulOp
-    factor = number ∣ sym openP ⊛ expr ⊛ sym closeP
+    factor = number ∣ sym openP ⊛ .expr ⊛ sym closeP
 
   -- Guarded and incomprehensible:
 
   mutual
     expr₁ = term₁ ⊛ expr₂
-    expr₂ = ε ∣ expr₃
+    expr₂ = ε ∣ .expr₃
     expr₃ = (addOp ⊛ term₁) ⊛ expr₂
 
     term₁ = factor₁ ⊛ term₂
-    term₂ = ε ∣ term₃
+    term₂ = ε ∣ .term₃
     term₃ = (mulOp ⊛ factor₁) ⊛ term₂
 
-    factor₁ = number ∣ sym openP ⊛ expr₁ ⊛ sym closeP
+    factor₁ = number ∣ sym openP ⊛ .expr₁ ⊛ sym closeP

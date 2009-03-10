@@ -114,7 +114,7 @@ bindBuiltinPrimitive :: String -> String -> A.Expr -> (Term -> TCM ()) -> TCM ()
 bindBuiltinPrimitive name builtin (A.ScopedExpr scope e) verify = do
   setScope scope
   bindBuiltinPrimitive name builtin e verify
-bindBuiltinPrimitive name builtin e@(A.Def qx) verify = do
+bindBuiltinPrimitive name builtin e@(A.Def (Delayed False qx)) verify = do
     PrimImpl t pf <- lookupPrimitiveFunction name
     v <- checkExpr e t
 

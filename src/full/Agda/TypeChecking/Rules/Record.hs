@@ -46,7 +46,7 @@ checkRecDef i name ps contel fields =
       let m = mnameFromList $ qnameToList name
 	  hide (Arg _ x) = Arg Hidden x
 	  htel		 = map hide $ telToList tel
-	  rect		 = El s $ Def (NotDelayed name) $ reverse
+	  rect		 = El s $ Def (Delayed False name) $ reverse
 			   [ Arg h (Var i [])
 			   | (i, Arg h _) <- zip [0..] $ reverse $ telToList gamma
 			   ]

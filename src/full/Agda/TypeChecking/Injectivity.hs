@@ -36,7 +36,7 @@ reduceHead :: Term -> TCM (Blocked Term)
 reduceHead v = ignoreAbstractMode $ do
   v <- constructorForm v
   case v of
-    Def (NotDelayed f) args -> do
+    Def (Delayed False f) args -> do
       def <- theDef <$> getConstInfo f
       case def of
 --         Function{ funClauses = [ _ ] }  -> unfoldDefinition reduceHead v f args
@@ -49,8 +49,8 @@ headSymbol :: Term -> TCM (Maybe TermHead)
 headSymbol v = ignoreAbstractMode $ do
   v <- ignoreBlocking <$> reduceHead v
   case v of
-    Def (Delayed    f) _ -> __IMPOSSIBLE__ -- The head symbol cannot be delayed.
-    Def (NotDelayed f) _ -> do
+    Def (Delayed True  f) _ -> return Nothing  -- TODO: Is it safe to handle this case as well?
+    Def (Delayed False f) _ -> do
       def <- theDef <$> getConstInfo f
       case def of
         Datatype{}  -> return (Just $ ConHead f)
@@ -98,7 +98,7 @@ checkInjectivity f cs = do
 -- | Argument should be on weak head normal form.
 functionInverse :: Term -> TCM InvView
 functionInverse v = case v of
-  Def (NotDelayed f) args -> do  -- TODO: Allow delayed names as well?
+  Def (Delayed False f) args -> do  -- TODO: Allow delayed names as well?
     d <- theDef <$> getConstInfo f
     case d of
       Function{ funInv = inv } -> case inv of

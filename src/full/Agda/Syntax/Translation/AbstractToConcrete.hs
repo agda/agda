@@ -279,10 +279,10 @@ instance ToConcrete A.ModuleName C.QName where
 -- Expression instance ----------------------------------------------------
 
 instance ToConcrete A.Expr C.Expr where
-    toConcrete (Var x)            = Ident . C.QName <$> toConcrete x
-    toConcrete (Def x)            = Ident <$> toConcrete x
-    toConcrete (Con (AmbQ (x:_))) = Ident <$> toConcrete x
-    toConcrete (Con (AmbQ []))    = __IMPOSSIBLE__
+    toConcrete (Var x)              = Ident . Delayed False . C.QName <$> toConcrete x
+    toConcrete (Def (Delayed d x))  = Ident . Delayed d     <$> toConcrete x
+    toConcrete (Con (AmbQ (x:_)))   = Ident . Delayed False <$> toConcrete x
+    toConcrete (Con (AmbQ []))      = __IMPOSSIBLE__
 	-- for names we have to use the name from the info, since the abstract
 	-- name has been resolved to a fully qualified name (except for
 	-- variables)
@@ -401,7 +401,7 @@ instance ToConcrete LetBinding [C.Declaration] where
       es <- toConcrete es
       let r = fuseRange y es
       ret [ C.ModuleMacro (getRange i) x tel
-                  (foldl (C.App r) (C.Ident y) es) DontOpen
+                  (foldl (C.App r) (C.Ident (Delayed False y)) es) DontOpen
                   (ImportDirective r (Hiding []) [] False)
           ]
 
@@ -539,7 +539,7 @@ instance ToConcrete A.Declaration [C.Declaration] where
     es <- toConcrete es
     let r = fuseRange y es
     return [ C.ModuleMacro (getRange i) x tel
-		(foldl (C.App r) (C.Ident y) es) DontOpen
+		(foldl (C.App r) (C.Ident (Delayed False y)) es) DontOpen
 		(ImportDirective r (Hiding []) [] False)
 	   ]
 
@@ -619,7 +619,7 @@ instance ToConcrete A.Pattern C.Pattern where
 
 -- Helpers for recovering C.OpApp ------------------------------------------
 
-data Hd = HdVar A.Name | HdCon A.QName | HdDef A.QName
+data Hd = HdVar A.Name | HdCon A.QName | HdDef (Delayed A.QName)
 
 tryToRecoverOpApp :: A.Expr -> AbsToCon C.Expr -> AbsToCon C.Expr
 tryToRecoverOpApp e def = recoverOpApp bracket C.OpApp view e def
@@ -634,49 +634,52 @@ tryToRecoverOpApp e def = recoverOpApp bracket C.OpApp view e def
     mkHd (HeadDef f)     = HdDef f
 
 tryToRecoverOpAppP :: A.Pattern -> AbsToCon C.Pattern -> AbsToCon C.Pattern
-tryToRecoverOpAppP p def = recoverOpApp bracketP_ C.OpAppP view p def
+tryToRecoverOpAppP p def = recoverOpApp bracketP_ opAppP view p def
   where
+    opAppP r (Delayed False x) = C.OpAppP r x
+    opAppP r (Delayed True  x) = __IMPOSSIBLE__
+
     view p = case p of
       ConP _ (AmbQ (c:_)) ps -> Just (HdCon c, ps)
-      DefP _ f            ps -> Just (HdDef f, ps)
+      DefP _ f            ps -> Just (HdDef (Delayed False f), ps)
       _                      -> Nothing
 
 recoverOpApp :: (ToConcrete a c, HasRange c) =>
                 ((Precedence -> Bool) -> AbsToCon c -> AbsToCon c) ->
-                (Range -> C.Name -> [c] -> c) -> (a -> Maybe (Hd, [NamedArg a])) -> a ->
-                AbsToCon c -> AbsToCon c
+                (Range -> Delayed C.Name -> [c] -> c) ->
+                (a -> Maybe (Hd, [NamedArg a])) -> a -> AbsToCon c -> AbsToCon c
 recoverOpApp bracket opApp view e mdefault = case view e of
   Nothing -> mdefault
   Just (hd, args)
     | all notHidden args  -> do
       let  args' = map (namedThing . unArg) args
       case hd of
-	HdVar n  -> do
+	HdVar n -> do
 	  x <- toConcrete n
-	  doCName (nameFixity n) x args'
+	  doCName (nameFixity n) (Delayed False x) args'
 	HdDef qn -> doQName qn args'
-	HdCon qn -> doQName qn args'
+	HdCon qn -> doQName (Delayed False qn) args'
     | otherwise -> mdefault
   where
 
   notHidden (Arg h _) = h == NotHidden
 
   -- qualified names can't use mixfix syntax
-  doQName qn as = do
+  doQName (Delayed d qn) as = do
     x <- toConcrete qn
     case x of
-      C.QName x -> doCName (nameFixity $ qnameName qn) x as
+      C.QName x -> doCName (nameFixity $ qnameName qn) (Delayed d x) as
       _		-> mdefault
 
   -- fall-back (wrong number of arguments or no holes)
-  doCName _ cn@(C.Name _ xs) es
+  doCName _ cn@(Delayed _ (C.Name _ xs)) es
     | length es /= numHoles = mdefault
     | List.null es	    = mdefault
     where numHoles = length [ () | Hole <- xs ]
 	  msg = "doCName " ++ showList xs "" ++ " on " ++ show (length es) ++ " args"
 
   -- binary case
-  doCName fixity cn@(C.Name _ xs) as
+  doCName fixity cn@(Delayed _ (C.Name _ xs)) as
     | Hole <- head xs
     , Hole <- last xs = do
 	let a1	   = head as
@@ -689,7 +692,7 @@ recoverOpApp bracket opApp view e mdefault = case view e of
 	    $ return $ opApp (getRange (e1,en)) cn ([e1] ++ es ++ [en])
 
   -- prefix
-  doCName fixity cn@(C.Name _ xs) as
+  doCName fixity cn@(Delayed _ (C.Name _ xs)) as
     | Hole <- last xs = do
 	let an	= last as
 	    as' = init as
@@ -699,7 +702,7 @@ recoverOpApp bracket opApp view e mdefault = case view e of
 	    $ return $ opApp (getRange (cn,en)) cn (es ++ [en])
 
   -- postfix
-  doCName fixity cn@(C.Name _ xs) as
+  doCName fixity cn@(Delayed _ (C.Name _ xs)) as
     | Hole <- head xs = do
 	let a1	   = head as
 	    as'	   = tail as

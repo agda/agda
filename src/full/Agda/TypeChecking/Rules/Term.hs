@@ -13,7 +13,6 @@ import qualified System.IO.UTF8 as UTF8
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Info as A
 import Agda.Syntax.Common
-import Agda.Syntax.Delay
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Generic
 import Agda.Syntax.Position
@@ -284,7 +283,7 @@ checkExpr e t =
                                     , funPolarity       = [Covariant]
                                     , funArgOccurrences = [Unused]
                                     }
-                  blockTerm t' (Def (NotDelayed aux) []) $ return cs'
+                  blockTerm t' (Def (Delayed False aux) []) $ return cs'
                 | otherwise -> typeError $ WrongHidingInLambda t'
               _ -> typeError $ ShouldBePi t'
           where
@@ -379,7 +378,7 @@ inferHead (HeadVar x) = do -- traceCall (InferVar x) $ do
   (u, a) <- getVarInfo x
   return (apply u, a)
 inferHead (HeadDef x) = do
-  (u, a) <- inferDef (Def . NotDelayed) x
+  (u, a) <- inferDef (Def . Delayed (isDelayed x)) (force x)
   return (apply u, a)
 inferHead (HeadCon [c]) = do
 

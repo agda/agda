@@ -172,7 +172,7 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs wh) =
                       us   = [ Arg h (Var i []) | (i, Arg h _) <- zip [n - 1,n - 2..0] $ telToList ctx ]
                       (us0, us1') = genericSplitAt (n - m) us
                       (us1, us2)  = genericSplitAt (size delta1) $ permute perm' us1'
-                      v    = Def (NotDelayed aux) $ us0 ++ us1 ++ (map (Arg NotHidden) vs) ++ us2
+                      v    = Def (Delayed False aux) $ us0 ++ us1 ++ (map (Arg NotHidden) vs) ++ us2
 
                   -- We need Δ₁Δ₂ ⊢ t'
                   t' <- return $ rename (reverseP perm') t'

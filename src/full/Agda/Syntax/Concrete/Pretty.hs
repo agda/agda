@@ -76,13 +76,13 @@ instance Pretty Expr where
 -- 			    , nest 2 $ fsep $ map pretty args
 -- 			    ]
 	    RawApp _ es   -> fsep $ map pretty es
-	    OpApp _ (Name _ xs) es -> fsep $ prOp xs es
+	    OpApp _ (Delayed d (Name _ xs)) es -> fsep $ prOp xs es
 		where
 		    prOp (Hole : xs) (e : es) = pretty e : prOp xs es
 		    prOp (Hole : _)  []       = __IMPOSSIBLE__
-		    prOp (Id x : xs) es       = text x : prOp xs es
+		    prOp (Id x : xs) es       = pretty (Delayed d x) : prOp xs es
 		    prOp []	     es       = map pretty es
-	    OpApp _ (NoName _ _) _ -> __IMPOSSIBLE__
+	    OpApp _ (Delayed _ (NoName _ _)) _ -> __IMPOSSIBLE__
 
 	    WithApp _ e es -> fsep $
 	      pretty e : map ((text "|" <+>) . pretty) es
@@ -265,6 +265,12 @@ instance Pretty e => Pretty (Arg e) where
 instance Pretty e => Pretty (Named String e) where
     pretty (Named Nothing e) = pretty e
     pretty (Named (Just s) e) = sep [ text s <+> text "=", pretty e ]
+
+instance Pretty a => Pretty (Delayed a) where
+    pretty (Delayed d x) = (if d then (text "." <>) else id) $ pretty x
+
+instance Pretty [Char] where
+    pretty = text
 
 instance Pretty [Pattern] where
     pretty = fsep . map pretty

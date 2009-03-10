@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, TypeSynonymInstances #-}
+{-# LANGUAGE CPP #-}
 {-# OPTIONS -fno-cse #-}
 
 module Agda.Interaction.GhciTop
@@ -399,8 +399,6 @@ instance Pretty a => Pretty (Lisp a) where
   pretty (A a ) = pretty a
   pretty (L xs) = parens (sep (List.map pretty xs))
   pretty (Q x)  = text "'"<>pretty x
-
-instance Pretty String where pretty = text
 
 instance Pretty a => Show (Lisp a) where show = show . pretty
 

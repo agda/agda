@@ -68,7 +68,7 @@ getHsType x = do
     Axiom{ axHsDef = Just (HsType t) } -> return t
     Datatype{ dataHsType = Just t }    -> return t
     _                                  ->
-      notAHaskellType (El Prop $ Def (NotDelayed x) [])
+      notAHaskellType (El Prop $ Def (Delayed False x) [])
 
 getHsVar :: MonadTCM tcm => Nat -> tcm HaskellCode
 getHsVar i = hsVar <$> nameOfBV i

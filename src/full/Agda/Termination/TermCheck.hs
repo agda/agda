@@ -424,9 +424,10 @@ termTerm names f pats0 t0 = do
                        
                         return
                           (Term.insert
-                            (Term.Call { Term.source = fInd
-                                       , Term.target = toInteger gInd'
-                                       , Term.cm     = makeCM ncols nrows matrix'
+                            (Term.Call { Term.source  = fInd
+                                       , Term.target  = toInteger gInd'
+                                       , Term.cm      = makeCM ncols nrows matrix'
+                                       , Term.delayed = isDelayed g
                                        })
                             -- Note that only the base part of the
                             -- name is collected here.

@@ -137,7 +137,7 @@ sizeExpr u = do
       MetaV m args
         | all isVar args && distinct args -> do
           cxt <- getContextId
-          return (SizeMeta (force m) [ cxt !! fromIntegral i | Arg _ (Var i []) <- args ], 0)
+          return (SizeMeta m [ cxt !! fromIntegral i | Arg _ (Var i []) <- args ], 0)
       _ -> patternViolation
   where
     isVar (Arg _ (Var _ [])) = True

@@ -217,7 +217,7 @@ forceData d (El s0 t) = liftTCM $ do
 	MetaV m vs	    -> do
 	    Defn _ t _ _ Datatype{dataSort = s} <- getConstInfo d
 	    ps <- newArgsMeta t
-	    noConstraints $ equalType (El s0 t') (El s (Def (NotDelayed d) ps)) -- TODO: too strict?
+	    noConstraints $ equalType (El s0 t') (El s (Def (Delayed False d) ps)) -- TODO: too strict?
 	    reduce $ El s0 t'
 	_ -> typeError $ ShouldBeApplicationOf (El s0 t) d
 

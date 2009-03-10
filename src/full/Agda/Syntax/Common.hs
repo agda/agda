@@ -8,6 +8,7 @@ import Data.Generics (Typeable, Data)
 import Control.Applicative
 import Data.Foldable
 import Data.Traversable
+import Data.Function
 import Test.QuickCheck
 
 import Agda.Syntax.Position
@@ -115,6 +116,35 @@ instance Enum NameId where
   pred (NameId n m)	= NameId (n - 1) m
   toEnum n		= __IMPOSSIBLE__  -- should not be used
   fromEnum (NameId n _) = fromIntegral n
+
+-- | Used to mark things which may need to be delayed. Delayed names
+-- are not unfolded. Delayed things are made non-delayed by pattern
+-- matching on coinductive constructors (pattern matching on one
+-- \"coconstructor\" undelays names which are under that coconstructor
+-- but not under yet another coconstructor).
+--
+-- The 'Eq' and 'Ord' instances ignore the 'isDelayed' field.
+
+-- TODO: Is not it dangerous to equate f and .f?
+data Delayed a = Delayed { isDelayed :: Bool
+                         , force     :: a
+                         }
+  deriving (Typeable, Data, Show)
+
+instance Eq a => Eq (Delayed a) where
+  (==) = (==) `on` force
+
+instance Ord a => Ord (Delayed a) where
+  compare = compare `on` force
+
+instance Functor Delayed where
+  fmap f d = d { force = f (force d) }
+
+instance HasRange a => HasRange (Delayed a) where
+  getRange = getRange . force
+
+instance KillRange a => KillRange (Delayed a) where
+  killRange = fmap killRange
 
 ------------------------------------------------------------------------
 -- Arbitrary and CoArbitrary instances

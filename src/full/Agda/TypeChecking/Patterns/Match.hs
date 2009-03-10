@@ -7,10 +7,10 @@ import Data.Monoid
 import Data.Traversable
 
 import Agda.Syntax.Common
-import Agda.Syntax.Delay
 import Agda.Syntax.Internal
 import Agda.Syntax.Literal
 
+import Agda.TypeChecking.Delay
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
@@ -56,7 +56,7 @@ matchPattern (Arg h' (LitP l))	  arg@(Arg h v) = do
 	NotBlocked (Lit l')
 	    | l == l'          -> return (Yes [], Arg h v)
 	    | otherwise        -> return (No, Arg h v)
-	NotBlocked (MetaV x _) -> return (DontKnow $ Just (force x), Arg h v)
+	NotBlocked (MetaV x _) -> return (DontKnow $ Just x, Arg h v)
 	Blocked x _            -> return (DontKnow $ Just x, Arg h v)
 	_                      -> return (DontKnow Nothing, Arg h v)
 matchPattern (Arg h' (ConP c ps))     (Arg h v) =
@@ -66,14 +66,13 @@ matchPattern (Arg h' (ConP c ps))     (Arg h v) =
 	  NotBlocked (Con c' vs)
 	    | c == c'             -> do
                 ind <- whatInduction c
-                let del :: Delay a => a -> a
-                    del = case ind of
-                      Inductive   -> id
-                      CoInductive -> delay NotDelayed
-		(m, vs) <- matchPatterns (del ps) (del vs)
+                vs  <- case ind of
+                         Inductive   -> return vs
+                         CoInductive -> delay False vs
+		(m, vs) <- matchPatterns ps vs
 		return (m, Arg h $ Con c' vs)
 	    | otherwise           -> return (No, Arg h v)
-	  NotBlocked (MetaV x vs) -> return (DontKnow $ Just (force x), Arg h v)
+	  NotBlocked (MetaV x vs) -> return (DontKnow $ Just x, Arg h v)
 	  Blocked x _             -> return (DontKnow $ Just x, Arg h v)
           _                       -> return (DontKnow Nothing, Arg h v)
 

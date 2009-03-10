@@ -29,7 +29,7 @@ sizeType = El (Type 0) <$> primSize
 sizeSuc :: MonadTCM tcm => tcm (Maybe QName)
 sizeSuc = liftTCM $
   ifM (not . optSizedTypes <$> commandLineOptions) (return Nothing) $ do
-    Def (NotDelayed x) [] <- primSizeSuc
+    Def (Delayed False x) [] <- primSizeSuc
     return $ Just x
   `catchError` \_ -> return Nothing
 

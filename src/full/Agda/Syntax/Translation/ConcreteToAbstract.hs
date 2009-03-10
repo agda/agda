@@ -247,7 +247,7 @@ instance ToAbstract c a => ToAbstract (Maybe c) (Maybe a) where
 -- Names ------------------------------------------------------------------
 
 newtype NewName a = NewName a
-newtype OldQName  = OldQName C.QName
+newtype OldQName  = OldQName (Delayed C.QName)
 newtype OldName   = OldName C.Name
 newtype PatName   = PatName C.QName
 
@@ -263,21 +263,21 @@ instance ToAbstract (NewName C.BoundName) A.Name where
     bindVariable x y
     return y
 
-nameExpr :: AbstractName -> A.Expr
-nameExpr d = mk (anameKind d) $ anameName d
-  where
-    mk DefName = Def
-    mk ConName = Con . AmbQ . (:[])
-
 instance ToAbstract OldQName A.Expr where
   toAbstract (OldQName x) = do
-    qx <- resolveName x
+    qx <- resolveName (force x)
     reportSLn "scope.name" 10 $ "resolved " ++ show x ++ ": " ++ show qx
     case qx of
-      VarName x'         -> return $ A.Var x'
-      DefinedName d      -> return $ nameExpr d
-      ConstructorName ds -> return $ A.Con $ AmbQ (map anameName ds)
-      UnknownName        -> notInScope x
+      VarName x'         -> if isDelayed x then typeError $ DottedVariable (force x)
+                                           else return $ A.Var x'
+      DefinedName d      -> case anameKind d of
+        DefName            -> return $ Def $ x { force = anameName d }
+        ConName            -> con [anameName d]
+      ConstructorName ds -> con $ map anameName ds
+      UnknownName        -> notInScope (force x)
+    where
+    con cs | isDelayed x = typeError $ DottedConstructor (force x)
+           | otherwise   = return $ A.Con $ AmbQ cs
 
 data APatName = VarPatName A.Name
 	      | ConPatName [AbstractName]
@@ -535,8 +535,9 @@ instance ToAbstract LetDef [A.LetBinding] where
               return []
 
             NiceModuleMacro r p a x tel e open dir | not (C.publicOpen dir) -> case appView e of
-              AppView (Ident m) args -> checkModuleMacro LetApply r p a x tel m args open dir
-              _                      -> notAModuleExpr e
+              AppView (Ident (Delayed False m)) args ->
+                checkModuleMacro LetApply r p a x tel m args open dir
+              _ -> notAModuleExpr e
 
 	    _	-> notAValidLetBinding d
 	where
@@ -561,21 +562,21 @@ instance ToAbstract LetDef [A.LetBinding] where
 instance ToAbstract C.Pragma [A.Pragma] where
     toAbstract (C.OptionsPragma _ opts) = return [ A.OptionsPragma opts ]
     toAbstract (C.CompiledTypePragma _ x hs) = do
-      e <- toAbstract $ OldQName x
+      e <- toAbstract $ OldQName (Delayed False x)
       case e of
-        A.Def x -> return [ A.CompiledTypePragma x hs ]
-        _       -> fail $ "Bad compiled type: " ++ show x  -- TODO: error message
+        A.Def (Delayed False x) -> return [ A.CompiledTypePragma x hs ]
+        _                       -> fail $ "Bad compiled type: " ++ show x  -- TODO: error message
     toAbstract (C.CompiledDataPragma _ x hs hcs) = do
-      e <- toAbstract $ OldQName x
+      e <- toAbstract $ OldQName (Delayed False x)
       case e of
-        A.Def x -> return [ A.CompiledDataPragma x hs hcs ]
-        _       -> fail $ "Not a datatype: " ++ show x  -- TODO: error message
+        A.Def (Delayed False x) -> return [ A.CompiledDataPragma x hs hcs ]
+        _                       -> fail $ "Not a datatype: " ++ show x  -- TODO: error message
     toAbstract (C.CompiledPragma _ x hs) = do
-      e <- toAbstract $ OldQName x
+      e <- toAbstract $ OldQName (Delayed False x)
       y <- case e of
-            A.Def x -> return x
-            A.Con _ -> fail "Use HASKELL_DATA for constructors" -- TODO
-            _       -> __IMPOSSIBLE__
+            A.Def (Delayed False x) -> return x
+            A.Con _                 -> fail "Use HASKELL_DATA for constructors" -- TODO
+            _                       -> __IMPOSSIBLE__
       return [ A.CompiledPragma y hs ]
     toAbstract (C.BuiltinPragma _ b e) = do
 	e <- toAbstract e
@@ -677,8 +678,9 @@ instance ToAbstract NiceDeclaration A.Declaration where
       snd <$> scopeCheckModule r p a name aname tel ds
 
     NiceModuleMacro r p a x tel e open dir -> case appView e of
-      AppView (Ident m) args -> checkModuleMacro Apply r p a x tel m args open dir
-      _                      -> notAModuleExpr e
+      AppView (Ident (Delayed False m)) args ->
+        checkModuleMacro Apply r p a x tel m args open dir
+      _ -> notAModuleExpr e
 
     NiceOpen r x dir -> do
       m	      <- toAbstract (OldModuleName x)
@@ -697,7 +699,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
 	  reportSLn "scope.open" 20 "fancy open"
 	  tmp <- nameConcrete <$> freshNoName (getRange x)
 	  d   <- toAbstract $ NiceModuleMacro r PrivateAccess ConcreteDef
-					    tmp [] (C.Ident x) DoOpen dir
+		                tmp [] (C.Ident (Delayed False x)) DoOpen dir
 	  printScope "open" 20 "result:"
 	  return [d]
 
@@ -906,11 +908,11 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
 
 -- | Turn an operator application into abstract syntax. Make sure to record the
 -- right precedences for the various arguments.
-toAbstractOpApp :: C.Name -> [C.Expr] -> ScopeM A.Expr
-toAbstractOpApp op@(C.NoName _ _) es = __IMPOSSIBLE__
-toAbstractOpApp op@(C.Name _ xs) es = do
+toAbstractOpApp :: Delayed C.Name -> [C.Expr] -> ScopeM A.Expr
+toAbstractOpApp (Delayed _ (C.NoName _ _)) _ = __IMPOSSIBLE__
+toAbstractOpApp (Delayed d op@(C.Name _ xs)) es = do
     f  <- getFixity (C.QName op)
-    op <- toAbstract (OldQName $ C.QName op)
+    op <- toAbstract (OldQName $ Delayed d (C.QName op))
     foldl app op <$> left f xs es
     where
 	app e arg = A.App (ExprRange (fuseRange e arg)) e

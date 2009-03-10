@@ -292,12 +292,12 @@ unifyIndices flex a us vs = liftTCM $ do
         Just (v', b, _) -> do
             margs <- do
               -- The new metas should have the same dependencies as the original meta
-              mi <- getMetaInfo <$> lookupMeta (force m)
+              mi <- getMetaInfo <$> lookupMeta m
               withMetaInfo mi $ do
                 tel <- getContextTelescope
                 -- important: create the meta in the same environment as the original meta
                 newArgsMetaCtx b tel us
-            noConstraints $ assignV a (force m) us (v' `apply` margs)
+            noConstraints $ assignV a m us (v' `apply` margs)
             return True
           `catchError` \_ -> return False
 

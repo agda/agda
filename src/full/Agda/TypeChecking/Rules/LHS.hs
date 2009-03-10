@@ -381,7 +381,7 @@ checkLeftHandSide c ps a ret = do
                   )) p1
                 ) -> traceCall (CheckPattern (A.ConP (PatRange r) (A.AmbQ [c]) qs)
                                              (problemTel p0)
-                                             (El Prop $ Def (NotDelayed d) $ vs ++ ws)) $ do
+                                             (El Prop $ Def (Delayed False d) $ vs ++ ws)) $ do
 
             let delta1 = problemTel p0
 

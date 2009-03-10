@@ -8,6 +8,7 @@ import Language.Haskell.Syntax
 
 import Agda.Compiler.MAlonzo.Misc
 import Agda.Compiler.MAlonzo.Pretty
+import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin

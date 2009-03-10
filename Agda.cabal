@@ -97,7 +97,6 @@ library
                    Agda.Syntax.Concrete.Operators
                    Agda.Syntax.Concrete.Pretty
                    Agda.Syntax.Concrete
-                   Agda.Syntax.Delay
                    Agda.Syntax.Fixity
                    Agda.Syntax.Info
                    Agda.Syntax.Internal
@@ -135,6 +134,7 @@ library
                    Agda.TypeChecking.Conversion
                    Agda.TypeChecking.Coverage
                    Agda.TypeChecking.Coverage.Match
+                   Agda.TypeChecking.Delay
                    Agda.TypeChecking.DisplayForm
                    Agda.TypeChecking.Empty
                    Agda.TypeChecking.EtaContract

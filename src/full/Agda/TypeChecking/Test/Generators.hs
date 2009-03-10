@@ -14,7 +14,6 @@ import Agda.Utils.QuickCheck hiding (Args)
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common
-import Agda.Syntax.Delay
 import Agda.Syntax.Literal
 import Agda.Syntax.Fixity
 import Agda.Syntax.Internal
@@ -289,11 +288,8 @@ instance GenC Term where
 
       genVar, genDef, genCon :: Gen Args -> Gen Term
       genVar args = Var <$> elements vars <*> args
-      genDef args = Def <$> (genDelayed <*> elements defs) <*> args
+      genDef args = Def <$> (Delayed <$> arbitrary <*> elements defs) <*> args
       genCon args = Con <$> elements cons <*> args
-
-      genDelayed :: Gen (a -> Delayed a)
-      genDelayed = elements [Delayed, NotDelayed]
 
       genName :: Gen Args -> Gen Term
       genName args = frequency
@@ -441,7 +437,7 @@ instance ShrinkC Term Term where
     Var i args   -> map unArg args ++
 		    (uncurry Var <$> shrinkC conf (VarName i, NoType args))
     Def d args   -> map unArg args ++
-		    (uncurry (Def . delayer d) <$>
+		    (uncurry (Def . Delayed (isDelayed d)) <$>
                        shrinkC conf (DefName (force d), NoType args))
     Con d args   -> map unArg args ++
 		    (uncurry Con <$> shrinkC conf (ConName d, NoType args))
