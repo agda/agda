@@ -196,8 +196,6 @@ blockTerm t v m = do
                 liftIO $ UTF8.putStrLn $ "     by " ++ show dcs
 	    addConstraints c
 	    return $ MetaV x vs
-  where
-    inst i mv = mv { mvInstantiation = i }
 
 postponeTypeCheckingProblem_ :: MonadTCM tcm => A.Expr -> Type -> tcm Term
 postponeTypeCheckingProblem_ e t =

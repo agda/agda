@@ -198,7 +198,6 @@ constructs nofPars t q = constrT 0 t
 
 	checkParams n vs = zipWithM_ sameVar (map unArg vs) ps
 	    where
-		def = Def q []
 		ps = reverse [ i | (i,Arg h _) <- zip [n..] vs ]
 
 		sameVar v i = do
