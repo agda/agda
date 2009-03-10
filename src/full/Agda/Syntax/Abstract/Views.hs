@@ -29,6 +29,16 @@ appView e =
 		Application hd es -> Application hd $ es ++ [arg]
 		NonApplication e  -> NonApplication (App i e arg)
 
+headToExpr :: Head -> Expr
+headToExpr (HeadVar x)  = Var x
+headToExpr (HeadDef f)  = Def f
+headToExpr (HeadCon cs) = Con (AmbQ cs)
+
+unAppView :: AppView -> Expr
+unAppView (NonApplication e) = e
+unAppView (Application h es) =
+  foldl (App (ExprRange noRange)) (headToExpr h) es
+
 instance HasRange Head where
     getRange (HeadVar x) = getRange x
     getRange (HeadDef x) = getRange x
