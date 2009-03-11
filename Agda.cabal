@@ -9,7 +9,7 @@ maintainer:      Ulf Norell <ulfn@chalmers.se>
 homepage:        http://wiki.portal.chalmers.se/agda/
 bug-reports:     http://code.google.com/p/agda/issues/list
 category:        Dependent types
-synopsis:        A dependently typed functional programming language and proof assistant.
+synopsis:        A dependently typed functional programming language and proof assistant
 description:
   Agda is a dependently typed functional programming language: It has
   inductive families, which are like Haskell's GADTs, but they can be
