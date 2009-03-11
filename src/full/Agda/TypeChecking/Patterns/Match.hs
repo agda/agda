@@ -60,6 +60,19 @@ matchPattern (Arg h' (LitP l))	  arg@(Arg h v) = do
 	_                      -> return (DontKnow Nothing, Arg h v)
 matchPattern (Arg h' (ConP c ps))     (Arg h v) =
     do	w <- traverse constructorForm =<< reduceB v
+        -- Unfold delayed (corecursive) definitions one step. This is
+        -- only necessary if c is a coinductive constructor, but
+        -- 1) it does not hurt to do it all the time, and
+        -- 2) whatInduction c sometimes crashes because c may point to
+        --    an axiom at this stage (if we are checking the
+        --    projection functions for a record type).
+        w <- case w of
+               NotBlocked (Def f args) ->
+                 unfoldDefinition True reduceB (Def f []) f args
+                   -- reduceB is used here because some constructors
+                   -- are actually definitions which need to be
+                   -- unfolded (due to open public).
+               _ -> return w
         let v = ignoreBlocking w
 	case w of
 	  NotBlocked (Con c' vs)

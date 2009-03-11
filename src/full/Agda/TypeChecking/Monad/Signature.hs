@@ -208,6 +208,7 @@ applySection new ptel old ts rd rm = liftTCM $ do
                   oldDef { recPars = np - size ts, recClause = Just cl, recTel = apply tel ts }
 		_ ->
                   Function { funClauses        = [cl]
+                           , funDelayed        = NotDelayed
                            , funInv            = NotInjective
                            , funPolarity       = []
                            , funArgOccurrences = []

@@ -273,10 +273,7 @@ instance Occurs Term where
 		Lam h f	    -> Lam h <$> occ f
 		Lit l	    -> return v
 		Def c vs    -> Def c <$> occ vs
-		Con c vs    -> do
-                  ind <- whatInduction c
-                  continueUnfoldingIf (ind == Inductive) $
-                    Con c <$> occ vs
+		Con c vs    -> Con c <$> occ vs
 		Pi a b	    -> uncurry Pi <$> occ (a,b)
 		Fun a b	    -> uncurry Fun <$> occ (a,b)
 		Sort s	    -> Sort <$> occ s

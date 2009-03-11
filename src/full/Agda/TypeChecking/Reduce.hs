@@ -160,11 +160,11 @@ instance Reduce Term where
 	do  v <- instantiate v
 	    case v of
 		MetaV x args -> notBlocked . MetaV x <$> reduce args
-		Def f args   -> unfoldDefinition reduceB (Def f []) f args
+		Def f args   -> unfoldDefinition False reduceB (Def f []) f args
 		Con c args   -> do
                     -- Constructors can reduce when they come from an
                     -- instantiated module.
-		    v <- unfoldDefinition reduceB (Con c []) c args
+		    v <- unfoldDefinition False reduceB (Con c []) c args
 		    traverse reduceNat v
 		Sort s	   -> fmap Sort <$> reduceB s
 		Pi _ _	   -> return $ notBlocked v
@@ -189,53 +189,49 @@ instance Reduce Term where
 		    _	-> return v
 	    reduceNat v = return v
 
--- | Runs a local computation in which definitions are only unfolded
--- if the argument is 'True' and definitions were previously unfolded.
-
-continueUnfoldingIf :: MonadTCM tcm => Bool -> tcm a -> tcm a
-continueUnfoldingIf b =
-  local (\e -> e { envUnfold = envUnfold e && b })
-
-unfoldDefinition :: MonadTCM tcm => (Term -> tcm (Blocked Term)) ->
+-- | If the first argument is 'True', then a single delayed clause may
+-- be unfolded.
+unfoldDefinition :: MonadTCM tcm =>
+  Bool -> (Term -> tcm (Blocked Term)) ->
   Term -> QName -> Args -> tcm (Blocked Term)
-unfoldDefinition keepGoing v0 f args =
+unfoldDefinition unfoldDelayed keepGoing v0 f args =
     {-# SCC "reduceDef" #-}
-    do  info      <- getConstInfo f
-        unfolding <- envUnfold <$> ask
+    do  info <- getConstInfo f
         case theDef info of
             Constructor{conSrcCon = c} ->
               return $ notBlocked $ Con (c `withRangeOf` f) args
-            _ | not unfolding ->
-              return $ notBlocked $ Def f args
             Primitive ConcreteDef x cls -> do
                 pf <- getPrimitive x
-                reducePrimitive x v0 f args pf cls
-            _  -> reduceNormal v0 f args $ defClauses info
+                reducePrimitive x v0 f args pf (defDelayed info) cls
+            _  -> reduceNormal v0 f args (defDelayed info) (defClauses info)
   where
-    reducePrimitive x v0 f args pf cls
+    reducePrimitive x v0 f args pf delayed cls
         | n < ar    = return $ notBlocked $ v0 `apply` args -- not fully applied
         | otherwise = do
             let (args1,args2) = genericSplitAt ar args
             r <- def args1
             case r of
-                NoReduction args1' -> reduceNormal v0 f (args1' ++ args2) cls
+                NoReduction args1' -> reduceNormal v0 f (args1' ++ args2)
+                                                   delayed cls
                 YesReduction v	   -> keepGoing $ v `apply` args2
         where
             n	= genericLength args
             ar  = primFunArity pf
             def = primFunImplementation pf
 
-    reduceNormal v0 f args def = do
-        case def of
-            [] -> return $ notBlocked $ v0 `apply` args -- no definition for head
-            cls@(Clause{ clausePats = ps } : _)
+    reduceNormal v0 f args delayed def = do
+        case (delayed, def) of
+            (Delayed, _) | not unfoldDelayed -> defaultResult
+            (_, []) -> defaultResult -- no definition for head
+            (_, cls@(Clause{ clausePats = ps } : _))
                 | length ps <= length args ->
                     do  let (args1,args2) = splitAt (length ps) args 
                         ev <- appDef v0 cls args1
                         case ev of
                             NoReduction  v -> return    $ v `apply` args2
                             YesReduction v -> keepGoing $ v `apply` args2
-                | otherwise	-> return $ notBlocked $ v0 `apply` args -- partial application
+                | otherwise	-> defaultResult -- partial application
+      where defaultResult = return $ notBlocked $ v0 `apply` args
 
     -- Apply a defined function to it's arguments.
     --   The original term is the first argument applied to the third.
@@ -308,11 +304,7 @@ instance Normalise Term where
 	do  v <- reduce v
 	    case v of
 		Var n vs    -> Var n <$> normalise vs
-		Con c vs    -> do
-                  ind <- whatInduction c
-                  case ind of
-                    Inductive   -> Con c <$> normalise vs
-                    CoInductive -> Con c <$> instantiateFull vs
+		Con c vs    -> Con c <$> normalise vs
 		Def f vs    -> Def f <$> normalise vs
 		MetaV x vs  -> MetaV x <$> normalise vs
 		Lit _	    -> return v

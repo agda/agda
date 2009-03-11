@@ -61,9 +61,10 @@ import Agda.Utils.Impossible
 -- * Definitions by pattern matching
 ---------------------------------------------------------------------------
 
--- | Type check a definition by pattern matching.
-checkFunDef :: Info.DefInfo -> QName -> [A.Clause] -> TCM ()
-checkFunDef i name cs =
+-- | Type check a definition by pattern matching. The first argument
+-- specifies whether the clauses are delayed or not.
+checkFunDef :: Delayed -> Info.DefInfo -> QName -> [A.Clause] -> TCM ()
+checkFunDef delayed i name cs =
 
     traceCall (CheckFunDef (getRange i) (qnameName name) cs) $ do   -- TODO!! (qnameName)
         -- Get the type of the function
@@ -95,6 +96,7 @@ checkFunDef i name cs =
         addConstant name $ Defn name t (defaultDisplayForm name) 0
                          $ Function
                             { funClauses        = cs
+                            , funDelayed        = delayed
                             , funInv            = inv
                             , funAbstr          = Info.defAbstract i
                             , funPolarity       = []
@@ -194,6 +196,7 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs wh) =
 
                   return (mkBody v, WithFunction x aux gamma delta1 delta2 vs as t' ps finalPerm cs)
       escapeContext (size delta) $ checkWithFunction with
+
       reportSDoc "tc.lhs.top" 10 $ vcat
         [ text "Final clause:"
         , nest 2 $ vcat
@@ -270,7 +273,7 @@ checkWithFunction (WithFunction f aux gamma delta1 delta2 vs as b qs perm cs) = 
   cs <- buildWithFunction aux gamma qs perm (size delta1) (size as) cs
 
   -- Check the with function
-  checkFunDef info aux cs
+  checkFunDef NotDelayed info aux cs
 
   where
     info = Info.mkDefInfo (nameConcrete $ qnameName aux) defaultFixity PublicAccess ConcreteDef (getRange cs)

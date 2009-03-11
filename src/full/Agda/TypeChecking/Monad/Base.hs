@@ -72,12 +72,14 @@ data FreshThings =
 	      , fMutual	     :: MutualId
 	      , fName	     :: NameId
 	      , fCtx	     :: CtxId
+              , fInteger     :: Integer
+                -- ^ Can be used for various things.
 	      }
     deriving (Show)
 
 initState :: TCState
 initState =
-    TCSt { stFreshThings       = Fresh 0 0 0 (NameId 0 0) 0
+    TCSt { stFreshThings       = Fresh 0 0 0 (NameId 0 0) 0 0
 	 , stMetaStore	       = Map.empty
 	 , stInteractionPoints = Map.empty
 	 , stConstraints       = []
@@ -124,6 +126,11 @@ instance HasFresh CtxId FreshThings where
     nextFresh s = (i, s { fCtx = succ i })
 	where
 	    i = fCtx s
+
+instance HasFresh Integer FreshThings where
+    nextFresh s = (i, s { fInteger = succ i })
+	where
+	    i = fInteger s
 
 instance HasFresh i FreshThings => HasFresh i TCState where
     nextFresh s = (i, s { stFreshThings = f })
@@ -376,6 +383,8 @@ data Defn = Axiom
             , funPolarity       :: [Polarity]
             , funArgOccurrences :: [Occurrence]
             , funAbstr          :: IsAbstract
+            , funDelayed        :: Delayed
+              -- ^ Are the clauses of this definition delayed?
             }
 	  | Datatype
             { dataPars           :: Nat           -- nof parameters
@@ -433,6 +442,15 @@ defClauses Defn{theDef = Primitive{primClauses = cs}}	= cs
 defClauses Defn{theDef = Datatype{dataClause = Just c}} = [c]
 defClauses Defn{theDef = Record{recClause = Just c}}    = [c]
 defClauses _					        = []
+
+-- | Used to specify whether something should be delayed.
+data Delayed = Delayed | NotDelayed
+  deriving (Typeable, Data, Show, Eq)
+
+-- | Are the clauses of this definition delayed?
+defDelayed :: Definition -> Delayed
+defDelayed Defn{theDef = Function{funDelayed = d}} = d
+defDelayed _                                       = NotDelayed
 
 defAbstract :: Definition -> IsAbstract
 defAbstract d = case theDef d of
@@ -595,10 +613,15 @@ data TCEnv =
 		--   or the body of a non-abstract definition this is true.
 		--   To prevent information about abstract things leaking
 		--   outside the module.
-         , envUnfold               :: Bool
-           -- ^ 'True' if definitions should be unfolded during
-           --   evaluation. (Set to 'False' during evaluation under
-           --   coinductive constructors.)
+          , envReplace             :: Bool
+                -- ^ Coinductive constructor applications @c args@ get
+                -- replaced by a function application @f tel@, where
+                -- tel corresponds to the current telescope and @f@ is
+                -- defined as @f tel = c args@. The initial occurrence
+                -- of @c@ in the body of @f@ should not be replaced by
+                -- yet another function application, though. To avoid
+                -- that this happens the @envReplace@ flag is set to
+                -- 'False' when @f@ is checked.
           , envDisplayFormsEnabled :: Bool
                 -- ^ Sometimes we want to disable display forms.
           , envReifyInteractionPoints :: Bool
@@ -615,7 +638,7 @@ initEnv = TCEnv { envContext	         = []
 		, envImportPath          = []
 		, envMutualBlock         = Nothing
 		, envAbstractMode        = AbstractMode
-                , envUnfold              = True
+                , envReplace             = True
                 , envDisplayFormsEnabled = True
                 , envReifyInteractionPoints = True
 		}

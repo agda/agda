@@ -1,0 +1,15 @@
+errors/InductiveAndCoinductiveConstructors.agda:66,25-66
+.InductiveAndCoinductiveConstructors.♯-3 xs ls !=
+.InductiveAndCoinductiveConstructors.♯-2 xs ls of type
+∞ (WHNF (stream (stream unit)))
+when checking that the expression
+lemma xs (↓ (♯ (ls ≺ snd (label xs ls)))) has type
+(⟦ fst (lab xs (↓ .InductiveAndCoinductiveConstructors.♯-2 xs ls))
+ ⟧
+ | (whnf
+    (fst (lab xs (↓ .InductiveAndCoinductiveConstructors.♯-2 xs ls)))
+    | (whnf (lab xs (↓ .InductiveAndCoinductiveConstructors.♯-2 xs ls))
+       | whnf xs
+       | ls ≺
+         snd (lab xs (↓ .InductiveAndCoinductiveConstructors.♯-2 xs ls)))))
+≈ (⟦ xs ⟧ | whnf xs)

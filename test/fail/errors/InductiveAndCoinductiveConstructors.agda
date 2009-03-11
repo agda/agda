@@ -63,4 +63,4 @@ label : Prog (stream unit) → Stream ⊤ →
 label xs ls = lab xs (↓ (♯ (ls ≺ snd (label xs ls))))
 
 shape-preserved : ∀ xs ls → ⟦ fst (label xs ls) ⟧ ≈ ⟦ xs ⟧
-shape-preserved xs ls = lemma xs _
+shape-preserved xs ls = lemma xs (↓ (♯ (ls ≺ snd (label xs ls))))

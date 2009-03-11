@@ -199,15 +199,10 @@ compareAtom cmp t m n =
 		    -- instantiating the parameters.
 		    a <- defType <$> getConstInfo x
 		    let a' = piApply a (genericTake npars args)
-                    -- Applications of coinductive constructors are
-                    -- compared for (some notion of) syntactic
-                    -- equality.
-                    ind <- whatInduction x
-                    continueUnfoldingIf (ind == Inductive) $
-                      -- Constructors are invariant in their arguments
-                      -- (could be covariant).
-                      compareArgs [] a' xArgs yArgs
-	    _		       -> typeError $ UnequalTerms cmp m n t
+                    -- Constructors are invariant in their arguments
+                    -- (could be covariant).
+                    compareArgs [] a' xArgs yArgs
+            _ -> typeError $ UnequalTerms cmp m n t
     where
 	equalFun (FunV arg1@(Arg h1 a1) t1) (FunV (Arg h2 a2) t2)
 	    | h1 /= h2	= typeError $ UnequalHiding ty1 ty2

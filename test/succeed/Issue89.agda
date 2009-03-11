@@ -1,7 +1,3 @@
--- It is currently unclear whether this file should type check. The
--- answer depends on what definitional equality we decide to use for
--- corecursive values.
-
 -- {-# OPTIONS --show-implicit #-}
 
 module Issue89 where

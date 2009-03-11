@@ -181,6 +181,7 @@ checkRecordProjections m q tel ftel s fs = checkProjs EmptyTel ftel fs
       escapeContext (size tel) $ do
 	addConstant projname $ Defn projname finalt (defaultDisplayForm projname) 0
           $ Function { funClauses        = [clause]
+                     , funDelayed        = NotDelayed
                      , funInv            = NotInjective
                      , funAbstr          = ConcreteDef
                      , funPolarity       = []

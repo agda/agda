@@ -9,10 +9,13 @@ import Control.Monad.Error
 import Data.Maybe
 import Data.List hiding (sort)
 import qualified System.IO.UTF8 as UTF8
+import qualified Data.Map as Map
 
 import qualified Agda.Syntax.Abstract as A
+import qualified Agda.Syntax.Abstract.Views as A
 import qualified Agda.Syntax.Info as A
 import Agda.Syntax.Common
+import Agda.Syntax.Fixity
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Generic
 import Agda.Syntax.Position
@@ -30,11 +33,13 @@ import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Constraints
 
+import Agda.Utils.Fresh
 import Agda.Utils.Tuple
 import Agda.Utils.Permutation
 
 import {-# SOURCE #-} Agda.TypeChecking.Empty (isEmptyTypeC)
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkSectionApplication)
+import {-# SOURCE #-} Agda.TypeChecking.Rules.Def (checkFunDef)
 
 import Agda.Utils.Monad
 import Agda.Utils.Size
@@ -173,10 +178,6 @@ checkExpr e t =
     let scopedExpr (A.ScopedExpr scope e) = setScope scope >> scopedExpr e
 	scopedExpr e			  = return e
     e <- scopedExpr e
-    let checkHeadApplication hd args = do
-          (f,  t0) <- inferHead hd
-          checkArguments' ExpandLast (getRange hd) args t0 t e $ \vs t1 cs ->
-            blockTerm t (f vs) $ (cs ++) <$> leqType t1 t
     case e of
 
 	-- Insert hidden lambda if appropriate
@@ -233,10 +234,10 @@ checkExpr e t =
                 let unblock = isJust <$> getCon
                 mc <- getCon
                 case mc of
-                  Just c  -> checkHeadApplication (HeadCon [c]) args
+                  Just c  -> checkHeadApplication e t (HeadCon [c]) args
                   Nothing -> postponeTypeCheckingProblem e t unblock
 
-            | Application hd args <- appView e -> checkHeadApplication hd args
+            | Application hd args <- appView e -> checkHeadApplication e t hd args
 
 	A.WithApp _ e es -> typeError $ NotImplemented "type checking of with application"
 
@@ -275,6 +276,7 @@ checkExpr e t =
                                                 , clauseBody  = NoBody
                                                 }
                                         ]
+                                    , funDelayed        = NotDelayed
                                     , funInv            = NotInjective
                                     , funAbstr          = ConcreteDef
                                     , funPolarity       = [Covariant]
@@ -406,6 +408,88 @@ inferDef mkTerm x =
       dt <- prettyTCM $ defType d
       liftIO $ UTF8.putStrLn $ "inferred def " ++ unwords (show dx : map show ds) ++ " : " ++ show dt
     return (mkTerm x vs, defType d)
+
+-- | @checkHeadApplication e t hd args@ checks that @e@ has type @t@,
+-- assuming that @e@ has the form @hd args@. The corresponding
+-- type-checked term is returned.
+--
+-- If the head term @hd@ is a coinductive constructor, then a
+-- top-level definition @fresh tel = hd args@ (where the clause is
+-- delayed) is added, where @tel@ corresponds to the current
+-- telescope. The returned term is @fresh tel@.
+--
+-- Precondition: The head @hd@ has to be unambiguous, and there should
+-- not be any need to insert hidden lambdas.
+checkHeadApplication :: A.Expr -> Type -> A.Head -> [NamedArg A.Expr] -> TCM Term
+checkHeadApplication e t hd args = do
+  replacing <- envReplace <$> ask
+  if not replacing
+   then local (\e -> e { envReplace = True }) defaultResult
+   else case hd of
+    HeadCon [c] -> do
+      info <- getConstInfo c
+      case conInd $ theDef info of
+        Inductive   -> defaultResult
+        CoInductive -> do
+          -- TODO: Handle coinductive constructors under lets.
+          lets <- envLetBindings <$> ask
+          unless (Map.null lets) $
+            typeError $ NotImplemented
+              "coinductive constructor in the scope of a let-bound variable"
+
+          -- The name of the fresh function.
+          i <- fresh :: TCM Integer
+          let name = filter (/= '_') (show $ A.qnameName c) ++ "-" ++ show i
+          c' <- liftM2 qualify currentModule (freshName_ name)
+
+          -- The application of the fresh function to the relevant
+          -- arguments.
+          e' <- Def c' <$> getContextArgs
+
+          -- Add the type signature of the fresh function to the
+          -- signature.
+          i   <- currentMutualBlock
+          tel <- getContextTelescope
+          addConstant c' (Defn c' t (defaultDisplayForm c') i $ Axiom Nothing)
+
+          -- Define and type check the fresh function.
+          ctx <- getContext
+          let info   = A.mkDefInfo (A.nameConcrete $ A.qnameName c') defaultFixity
+                                   PublicAccess ConcreteDef noRange
+              pats   = map (fmap $ \(n, _) -> Named Nothing (A.VarP n)) $
+                           reverse ctx
+              clause = A.Clause (A.LHS (A.LHSRange noRange) c' pats [])
+                                (A.RHS $ unAppView (A.Application hd args))
+                                []
+
+          reportSDoc "tc.term.expr.coind" 15 $ vcat $
+              [ text "The coinductive constructor application"
+              , nest 2 $ prettyTCM e
+              , text "was translated into the application"
+              , nest 2 $ prettyTCM e'
+              , text "and the function"
+              , nest 2 $ prettyTCM c' <+> text ":"
+              , nest 4 $ prettyTCM (telePi tel t)
+              , nest 2 $ prettyA clause <> text "."
+              ]
+
+          local (\e -> e { envReplace = False }) $
+            escapeContext (size ctx) $ checkFunDef Delayed info c' [clause]
+
+          reportSDoc "tc.term.expr.coind" 15 $ do
+            def <- theDef <$> getConstInfo c'
+            text "The definition is" <+> text (show $ funDelayed def) <>
+              text "."
+
+          return e'
+    HeadCon _  -> __IMPOSSIBLE__
+    HeadVar {} -> defaultResult
+    HeadDef {} -> defaultResult
+  where
+  defaultResult = do
+    (f, t0) <- inferHead hd
+    checkArguments' ExpandLast (getRange hd) args t0 t e $ \vs t1 cs ->
+      blockTerm t (f vs) $ (cs ++) <$> leqType t1 t
 
 data ExpandHidden = ExpandLast | DontExpandLast
 
