@@ -114,7 +114,7 @@ commutativeSemiring-∨-∧ = record
   ; isCommutativeSemiring = isCommutativeSemiring-∨-∧
   }
 
-module ringSolver =
+module RingSolver =
   Solver (ACR.fromCommutativeSemiring commutativeSemiring-∨-∧)
 
 ------------------------------------------------------------------------
@@ -259,7 +259,7 @@ commutativeRing-xor-∧ = commutativeRing
   open BA booleanAlgebra
   open XorRing _xor_ xor-is-ok
 
-module xor-ringSolver =
+module XorRingSolver =
   Solver (ACR.fromCommutativeRing commutativeRing-xor-∧)
 
 ------------------------------------------------------------------------
