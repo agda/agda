@@ -54,16 +54,6 @@ properties to add to the result."
   `(let* ,varbind (labels ,funcbind ,@body)))
 (put 'agda2-let 'lisp-indent-function 2)
 
-(defmacro agda2-no-modified-p (&rest code)
-  "Evaluate CODE without affecting the `buffer-modified-p' flag."
-  (let ((old-buffer-modified (make-symbol "old-buffer-modified")))
-    `(let ((,old-buffer-modified (buffer-modified-p)))
-       (unwind-protect
-           (progn ,@code)
-         ;; FIXME: Using restore-buffer-modified-p would be slightly
-         ;; better.
-         (set-buffer-modified-p ,old-buffer-modified)))))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; User options
 
@@ -699,7 +689,7 @@ appear in the buffer)."
 
 (defun agda2-make-goal (p q n)
   "Make a goal with number N at <P>{!...!}<Q>.  Assume the region is clean."
-  (agda2-no-modified-p
+  (annotation-preserve-mod-p-and-undo
    (flet ((atp (x ps) (add-text-properties x (1+ x) ps)))
      (atp p       '(category agda2-delim1))
      (atp (1+ p)  '(category agda2-delim2))
@@ -835,7 +825,7 @@ notation used in Haskell strings."
   "Remove all goal annotations.
 \(Including some text properties which might be used by other
 \(minor) modes.)"
-  (agda2-no-modified-p
+  (annotation-preserve-mod-p-and-undo
    (remove-text-properties (point-min) (point-max)
                            '(category nil agda2-delim2 nil agda2-delim3 nil
                              display nil rear-nonsticky nil)))
