@@ -52,3 +52,18 @@ proj₁₁₁ (x , y) = x
 
 proj₁₁₂ : ∀ {a b} → (p : Σ₁₁ a b) → b (proj₁₁₁ p)
 proj₁₁₂ (x , y) = y
+
+map₀₁ : ∀ {A B P Q} →
+        (f : A → B) → (∀ {x} → P x → Q (f x)) →
+        Σ₀₁ A P → Σ₀₁ B Q
+map₀₁ f g (x , y) = (f x , g y)
+
+map₁₀ : ∀ {A B P Q} →
+        (f : A → B) → (∀ {x} → P x → Q (f x)) →
+        Σ₁₀ A P → Σ₁₀ B Q
+map₁₀ f g (x , y) = (f x , g y)
+
+map₁₁ : ∀ {A B P Q} →
+        (f : A → B) → (∀ {x} → P x → Q (f x)) →
+        Σ₁₁ A P → Σ₁₁ B Q
+map₁₁ f g (x , y) = (f x , g y)
