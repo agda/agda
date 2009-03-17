@@ -34,6 +34,11 @@ Linux.)
      darcs get --partial http://code.haskell.org/Agda
      cd Agda
 
+   If you download Agda from Hackage you may not get all the files you
+   need: the Agda package contains the library (see point 3 below),
+   the Agda-executable package contains the batch-mode tool (point 5),
+   and the Emacs mode is not available from Hackage (point 4).
+
 2) If your system is Unix-like you can now hopefully install the
    Agda 2 library, batch-mode tool and Emacs mode by running
 
