@@ -2,10 +2,13 @@
 -- Release notes for Agda 2 version 2.2.0
 ------------------------------------------------------------------------
 
-Important changes since 2.1.2 (2007-08-16):
+Important changes since 2.1.2 (which was released 2007-08-16):
 
 Language
 --------
+
+* Exhaustive pattern checking. Agda complains if there are missing
+  clauses in a function definition.
 
 * Coinductive types are supported. This feature is under
   development/evaluation, and may change.
@@ -32,9 +35,6 @@ Language
   http://thread.gmane.org/gmane.comp.lang.agda/440
 
 * Record fields whose values can be inferred can be omitted.
-
-* Exhausive pattern checking. Agda complains if there are missing
-  clauses in a function definition.
 
 * Agda complains if it spots an unreachable clause, or if a pattern
   variable "shadows" a hidden constructor of matching type.
@@ -97,6 +97,6 @@ Infrastructure
 
   http://wiki.portal.chalmers.se/agda/pmwiki.php?n=Main.Download
 
-* Agda 2.2.0 will be available from Hackage.
+* Agda 2.2.0 is available from Hackage.
 
   http://hackage.haskell.org/
