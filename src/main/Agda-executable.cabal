@@ -1,5 +1,5 @@
 name:            Agda-executable
-version:         2.2.0
+version:         2.2.1
 cabal-version:   >= 1.4 && < 2
 build-type:      Simple
 license:         OtherLicense
@@ -18,5 +18,5 @@ tested-with:     GHC == 6.8.3 && == 6.10.1
 
 executable agda
   main-is:       Main.hs
-  build-depends: Agda == 2.2.0,
+  build-depends: Agda == 2.2.1,
                  base
