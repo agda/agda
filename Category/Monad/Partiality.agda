@@ -37,3 +37,53 @@ run later x for suc n steps = run ♭ x for n steps
 isNow : ∀ {A} → A ⊥ → Bool
 isNow (now x)   = true
 isNow (later x) = false
+
+------------------------------------------------------------------------
+-- Productivity checker workaround
+
+-- The monad can be awkward to use, due to the limitations of guarded
+-- coinduction. The following code provides a (limited) workaround.
+
+infixl 1 _>>=_
+
+data _⊥-prog : Set → Set1 where
+  now   : ∀ {A} (x : A) → A ⊥-prog
+  later : ∀ {A} (x : ∞₁ (A ⊥-prog)) → A ⊥-prog
+  _>>=_ : ∀ {A B} (x : A ⊥-prog) (f : A → B ⊥-prog) → B ⊥-prog
+
+data _⊥-whnf : Set → Set1 where
+  now   : ∀ {A} (x : A) → A ⊥-whnf
+  later : ∀ {A} (x : A ⊥-prog) → A ⊥-whnf
+
+whnf : ∀ {A} → A ⊥-prog → A ⊥-whnf
+whnf (now   x) = now x
+whnf (later x) = later (♭₁ x)
+whnf (x >>= f) with whnf x
+whnf (x >>= f) | now   x′ = whnf (f x′)
+whnf (x >>= f) | later x′ = later (x′ >>= f)
+
+mutual
+
+  value : ∀ {A} → A ⊥-whnf → A ⊥
+  value (now   x) = now x
+  value (later x) = later (♯ run x)
+
+  run : ∀ {A} → A ⊥-prog → A ⊥
+  run x = value (whnf x)
+
+------------------------------------------------------------------------
+-- Examples
+
+module Examples where
+
+  open import Relation.Nullary
+
+  -- McCarthy's f91:
+
+  f91′ : ℕ → ℕ ⊥-prog
+  f91′ n with n ≤? 100
+  ... | yes _ = later (♯₁ (f91′ (11 + n) >>= f91′))
+  ... | no  _ = now (n ∸ 10)
+
+  f91 : ℕ → ℕ ⊥
+  f91 n = run (f91′ n)
