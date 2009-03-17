@@ -13,8 +13,10 @@ Language
 * Another experimental feature: Sized types, which can make it easier
   to explain why your code is terminating.
 
-* A third experimental feature: Certain functions can, in some
-  situations, be automatically inverted.
+* Improved constraint solving for functions with constructor headed
+  right hand sides.
+
+  http://wiki.portal.chalmers.se/agda/agda.php?n=ReferenceManual.FindingTheValuesOfImplicitArguments
 
 * A simple, well-typed foreign function interface, which allows use of
   Haskell functions in Agda code.
@@ -28,6 +30,9 @@ Language
   http://thread.gmane.org/gmane.comp.lang.agda/440
 
 * Record fields whose values can be inferred can be omitted.
+
+* Exhausive pattern checking. Agda complains if there are missing
+  clauses in a function definition.
 
 * Agda complains if it spots an unreachable clause, or if a pattern
   variable "shadows" a hidden constructor of matching type.
