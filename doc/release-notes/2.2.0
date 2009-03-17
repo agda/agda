@@ -10,6 +10,8 @@ Language
 * Coinductive types are supported. This feature is under
   development/evaluation, and may change.
 
+  http://wiki.portal.chalmers.se/agda/agda.php?n=ReferenceManual.Codatatypes
+
 * Another experimental feature: Sized types, which can make it easier
   to explain why your code is terminating.
 
