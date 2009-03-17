@@ -18,6 +18,9 @@ Linux.)
    GNU Emacs:     http://www.gnu.org/software/emacs/
    haskell-mode:  http://haskell.org/haskell-mode/ (version 2.1 or later)
 
+   Note: If you are downloading a source tar-ball, then you do not
+   need Alex, Happy or darcs.
+
    For non-Windows users:
      The development files for the C library zlib have to be installed
      (see http://zlib.net). Your package manager may be able to
