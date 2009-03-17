@@ -115,6 +115,13 @@ compiler : MAlonzo/main.agda
 	@./MAlonzo/main
 	@$(echo) "ok"
 
+html : AIM6/RegExp/talk/Everything.agda
+	@$(echo) "Testing HTML generation..."
+	@$(run_agda) --html --html-dir=html -iAIM6/RegExp/talk $<
+	@[ -e html/Everything.html ]
+	@rm -rf html
+	@$(echo) "ok"
+
 test : $(tests)
 
 $(tests) : %.test : %
