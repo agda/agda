@@ -405,6 +405,12 @@ WANT is an optional prompt.  When ASK is non-nil, use minibuffer."
              (agda2-goal-Range o)
              (agda2-string-quote txt) args))))
 
+;; Note that the following function is a security risk, since it
+;; evaluates code without first inspecting it. The code (supposedly)
+;; comes from the Agda backend, but there could be bugs in the backend
+;; which can be exploited by an attacker which manages to trick
+;; someone into type-checking compromised Agda code.
+
 (defun agda2-respond (response)
   "Execute 'agda2_mode_code<sexp>' within RESPONSE string."
     (while (string-match "agda2_mode_code" response)
