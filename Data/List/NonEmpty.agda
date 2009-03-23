@@ -12,6 +12,7 @@ open Vec using (Vec; []; _∷_)
 import Data.List as List
 open List using (List; []; _∷_)
 open import Category.Monad
+open import Relation.Binary.PropositionalEquality
 
 infixr 5 _∷_ _++_
 
@@ -73,3 +74,29 @@ monad = record
 
 reverse : ∀ {A} → List⁺ A → List⁺ A
 reverse = lift (,_ ∘′ Vec.reverse)
+
+-- Note that s is only applied to the last element.
+
+foldr : {A B : Set} → (A → B → B) → (A → B) → List⁺ A → B
+foldr c s [ x ]    = s x
+foldr c s (x ∷ xs) = c x (foldr c s xs)
+
+-- Note that s is only applied to the first element.
+
+foldl : {A B : Set} → (B → A → B) → (A → B) → List⁺ A → B
+foldl c s [ x ]    = s x
+foldl c s (x ∷ xs) = foldl c (c (s x)) xs
+
+private
+ module Examples {A B : Set}
+                 (_⊕_ : A → B → B)
+                 (_⊗_ : B → A → B)
+                 (s : A → B)
+                 (a b c : A)
+                 where
+
+  right : foldr _⊕_ s (a ∷ b ∷ [ c ]) ≡ a ⊕ (b ⊕ s c)
+  right = refl
+
+  left : foldl _⊗_ s (a ∷ b ∷ [ c ]) ≡ (s a ⊗ b) ⊗ c
+  left = refl
