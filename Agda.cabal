@@ -24,6 +24,9 @@ description:
   by the Swedish logician Per Martin-Löf. It has many similarities
   with other proof assistants based on dependent types, such as Coq,
   Epigram and NuPRL.
+  .
+  Note that if you want to use the command-line program (agda), then
+  you should also install the Agda-executable package.
 tested-with:     GHC == 6.8.3 && == 6.10.1
 extra-source-files: src/full/Agda/undefined.h
                     README
