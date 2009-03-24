@@ -52,12 +52,10 @@ install-bin : install-lib
 	cd src/main && cabal clean && cabal install --prefix="$(PREFIX)"
 
 install-emacs-mode : install-lib install-bin
-	([ -e "$(DOTEMACS)" ] && grep -F "(require 'agda2)" "$(DOTEMACS)") || \
-	  (echo ""									   >> "$(DOTEMACS)" && \
-	   echo "(add-to-list 'load-path"						   >> "$(DOTEMACS)" && \
-	   echo "             (let ((coding-system-for-read 'utf-8))"			   >> "$(DOTEMACS)" && \
-	   echo "                  (shell-command-to-string \"agda --print-emacs-dir\")))" >> "$(DOTEMACS)" && \
-	   echo "(require 'agda2)"							   >> "$(DOTEMACS)")
+	([ -e "$(DOTEMACS)" ] && grep -F "agda --emacs-mode" "$(DOTEMACS)") || \
+	  (echo ""                                                                  >> "$(DOTEMACS)" && \
+	   echo "(load-file (let ((coding-system-for-read 'utf-8))"                 >> "$(DOTEMACS)" && \
+	   echo "                (shell-command-to-string \"agda --emacs-mode\")))" >> "$(DOTEMACS)")
 
 ## Making the make system #################################################
 

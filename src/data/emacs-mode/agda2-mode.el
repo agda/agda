@@ -10,6 +10,11 @@
 
 ;;; Code:
 
+(defvar agda2-version "2.2.1"
+  "The version of the Agda mode.
+Note that, by default, the same version of the underlying Haskell
+library is used (see `agda2-ghci-options').")
+
 (require 'cl) ;  haskell-indent requires it anyway.
 (set (make-local-variable 'lisp-indent-function)
      'common-lisp-indent-function)
@@ -69,7 +74,7 @@ The directory names should be relative to the root of the current project."
   :group 'agda2)
 
 (defcustom agda2-ghci-options
-  (list "-package Agda")
+  (list (concat "-package Agda-" agda2-version))
   "Options set in GHCi before loading `agda2-toplevel-module'.
 Note that only dynamic options can be set using this variable."
   :type '(repeat string)

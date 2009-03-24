@@ -73,10 +73,10 @@ runAgda =
 	case opts of
 	    Left err -> liftIO $ optionError err
 	    Right opts
-		| optShowHelp opts	-> liftIO printUsage
-		| optShowVersion opts	-> liftIO printVersion
-                | optPrintEmacsDir opts -> liftIO printEmacsDir
-		| optRunTests opts	-> liftIO $ do
+		| optShowHelp opts      -> liftIO printUsage
+		| optShowVersion opts   -> liftIO printVersion
+                | optEmacsModeFile opts -> liftIO printEmacsModeFile
+		| optRunTests opts      -> liftIO $ do
                     ok <- testSuite
                     unless ok exitFailure
 		| isNothing (optInputFile opts)
@@ -166,10 +166,10 @@ printVersion :: IO ()
 printVersion =
     UTF8.putStrLn $ "Agda 2 version " ++ version
 
-printEmacsDir :: IO ()
-printEmacsDir = do
+printEmacsModeFile :: IO ()
+printEmacsModeFile = do
   dataDir <- getDataDir
-  UTF8.putStr $ dataDir </> "emacs-mode"
+  UTF8.putStr $ dataDir </> "emacs-mode" </> "agda2.el"
 
 -- | What to do for bad options.
 optionError :: String -> IO ()

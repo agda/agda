@@ -30,10 +30,8 @@ There are several ways to install Agda.
 
   Finally copy the following text to your .emacs file:
 
-    (add-to-list 'load-path
-                 (let ((coding-system-for-read 'utf-8))
-                      (shell-command-to-string "agda --print-emacs-dir")))
-    (require 'agda2)
+    (load-file (let ((coding-system-for-read 'utf-8))
+                    (shell-command-to-string "agda --emacs-mode")))
 
 * Using the source tar balls available from the Agda Wiki, or the
   development version of the code available from our darcs repository.
@@ -61,13 +59,11 @@ There are several ways to install Agda.
 
       Copy the following text to your .emacs file:
 
-        (add-to-list 'load-path
-                     (let ((coding-system-for-read 'utf-8))
-                          (shell-command-to-string "agda --print-emacs-dir")))
-        (require 'agda2)
+        (load-file (let ((coding-system-for-read 'utf-8))
+                        (shell-command-to-string "agda --emacs-mode")))
 
       If you want to have more control over where files are installed
-      you can give various flags to cabal install, see
+      then you can give various flags to cabal install, see
       cabal install --help.
 
   A section below lists an installation script which should work under
