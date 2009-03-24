@@ -71,7 +71,8 @@ There are several ways to install Agda.
       cabal install --help.
 
   A section below lists an installation script which should work under
-  the Ubuntu distribution of GNU/Linux.
+  the Ubuntu distribution of GNU/Linux, assuming that your
+  configuration is reasonably standard.
 
 ------------------------------------------------------------------------
 Configuring the Emacs mode
