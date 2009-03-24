@@ -39,26 +39,25 @@ endif
 # Installation prefix.
 PREFIX=/usr/local
 
-# Installation directory used for the Emacs mode.
-LISPDIR=$(PREFIX)/share/emacs/site-lisp/agda2-mode
-
 # The location of a relevant Emacs initialisation file.
 DOTEMACS=$(HOME)/.emacs
 
 install : install-lib install-bin install-emacs-mode
 
+# Installs the Emacs mode, but does not set it up.
 install-lib :
 	cabal install --prefix="$(PREFIX)"
 
-install-bin :
+install-bin : install-lib
 	cd src/main && cabal clean && cabal install --prefix="$(PREFIX)"
 
-install-emacs-mode :
-	install -d "$(LISPDIR)"
-	cd src/data/emacs-mode && cp *.el "$(LISPDIR)"
+install-emacs-mode : install-lib install-bin
 	([ -e "$(DOTEMACS)" ] && grep -F "(require 'agda2)" "$(DOTEMACS)") || \
-	  echo "\n(add-to-list 'load-path \"$(LISPDIR)\")\n(require 'agda2)" \
-            >> "$(DOTEMACS)"
+	  (echo ""									   >> "$(DOTEMACS)" && \
+	   echo "(add-to-list 'load-path"						   >> "$(DOTEMACS)" && \
+	   echo "             (let ((coding-system-for-read 'utf-8))"			   >> "$(DOTEMACS)" && \
+	   echo "                  (shell-command-to-string \"agda --print-emacs-dir\")))" >> "$(DOTEMACS)" && \
+	   echo "(require 'agda2)"							   >> "$(DOTEMACS)")
 
 ## Making the make system #################################################
 

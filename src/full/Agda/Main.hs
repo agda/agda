@@ -15,6 +15,7 @@ import Data.Maybe
 
 import System.Environment
 import System.Exit
+import System.FilePath
 import qualified System.IO.UTF8 as UTF8
 
 import Agda.Syntax.Position
@@ -58,6 +59,8 @@ import Agda.Utils.Pretty
 import Agda.Tests
 import Agda.Version
 
+import Paths_Agda (getDataDir)
+
 #include "undefined.h"
 import Agda.Utils.Impossible
 
@@ -72,6 +75,7 @@ runAgda =
 	    Right opts
 		| optShowHelp opts	-> liftIO printUsage
 		| optShowVersion opts	-> liftIO printVersion
+                | optPrintEmacsDir opts -> liftIO printEmacsDir
 		| optRunTests opts	-> liftIO $ do
                     ok <- testSuite
                     unless ok exitFailure
@@ -161,6 +165,11 @@ printUsage =
 printVersion :: IO ()
 printVersion =
     UTF8.putStrLn $ "Agda 2 version " ++ version
+
+printEmacsDir :: IO ()
+printEmacsDir = do
+  dataDir <- getDataDir
+  UTF8.putStr $ dataDir </> "emacs-mode"
 
 -- | What to do for bad options.
 optionError :: String -> IO ()

@@ -57,6 +57,7 @@ data CommandLineOptions =
 	    , optCompile	   :: Bool
 	    , optGenerateVimFile   :: Bool
 	    , optGenerateEmacsFile :: Bool
+            , optPrintEmacsDir     :: Bool
 	    , optGenerateHTML      :: Bool
 	    , optHTMLDir           :: Maybe FilePath
 	    , optCSSFile           :: Maybe FilePath
@@ -95,6 +96,7 @@ defaultOptions =
 	    , optCompile	   = False
 	    , optGenerateVimFile   = False
 	    , optGenerateEmacsFile = False
+	    , optPrintEmacsDir     = False
 	    , optGenerateHTML      = False
 	    , optHTMLDir           = Nothing
 	    , optCSSFile           = Nothing
@@ -162,6 +164,7 @@ showImplicitFlag          o = checkOpts $ o { optShowImplicit      = True }
 runTestsFlag              o = checkOpts $ o { optRunTests	       = True }
 vimFlag                   o = checkOpts $ o { optGenerateVimFile   = True }
 emacsFlag                 o = checkOpts $ o { optGenerateEmacsFile = True }
+printEmacsDirFlag         o = checkOpts $ o { optPrintEmacsDir     = True }
 noPositivityFlag          o = checkOpts $ o { optDisablePositivity = True }
 dontTerminationCheckFlag  o = checkOpts $ o { optTerminationCheck  = False }
 dontCompletenessCheckFlag o = checkOpts $ o { optCompletenessCheck = False }
@@ -227,6 +230,8 @@ standardOptions =
 		    "generate Vim highlighting files"
     , Option []	    ["emacs"] (NoArg emacsFlag)
 		    "generate Emacs highlighting files"
+    , Option []     ["print-emacs-dir"] (NoArg printEmacsDirFlag)
+                    "print out the directory in which the Emacs mode was installed"
     , Option []	    ["html"] (NoArg htmlFlag)
 		    "generate HTML files with highlighted source code"
     , Option []	    ["html-dir"] (ReqArg htmlDirFlag "DIR")
