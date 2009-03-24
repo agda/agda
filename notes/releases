@@ -1,0 +1,49 @@
+When releasing a new version of Agda, the following procedure can be
+followed (note that the code examples are untested):
+
+* Finish the release notes in doc/release-notes/<version>.
+
+* Update the version numbers in Agda.cabal,
+  src/main/Agda-executable.cabal (two places) and
+  ../src/data/emacs-mode/agda2-mode.el.
+
+* Tag and build source distributions.
+
+    darcs tag <version>
+    cabal configure && cabal check && cabal sdist
+    cd src/main && cabal configure && cabal check && cabal sdist && cd -
+    darcs dist --dist-name=Agda-<version>
+
+  Note that configuring Agda-executable will not work unless the Agda
+  library is first installed.
+
+* Ensure that all the packages build properly.
+
+    BASE=`pwd`
+    cd $TMPDIR
+    tar xzf $BASE/Agda-<version>.tar.gz
+    cd Agda-<version>
+    make install PREFIX=<...>
+    autoconf
+    ./configure
+    make test
+    cabal install $BASE/dist/Agda-<version>.tar.gz
+    cabal install $BASE/src/main/dist/Agda-executable-<version>.tar.gz
+    make test
+
+  Do not forget to test the Emacs mode.
+
+* Upload the Cabal packages using cabal upload.
+
+    cabal upload dist/Agda-<version>.tar.gz \
+                 src/main/dist/Agda-executable-<version>.tar.gz
+
+* Upload the darcs tar-ball to code.haskell.org.
+
+    scp Agda-<version>.tar.gz code.haskell.org:/srv/code/Agda/
+
+* Update the download page on the Agda Wiki.
+
+* Update the version numbers again, so that released and development
+  versions are not confused. (This would be unnecessary if we had two
+  repositories, one stable and one for development.)
