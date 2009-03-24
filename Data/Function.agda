@@ -8,7 +8,7 @@ infixr 9 _∘_ _∘′_ _∘₁_
 infixl 1 _on_ _on₁_
 infixl 1 _⟨_⟩_ _⟨_⟩₁_
 infixr 0 _-[_]₁-_ _-[_]-_ _$_
-infix  0 _∶_
+infix  0 _∶_ _∶₁_
 
 ------------------------------------------------------------------------
 -- Types
@@ -92,5 +92,8 @@ f -[ _*_ ]₁- g = λ x y → f x y * g x y
 -- You should think of the colon as being mirrored around its vertical
 -- axis; the type comes first.
 
-_∶_ : (a : Set) → a → a
+_∶_ : (A : Set) → A → A
 _ ∶ x = x
+
+_∶₁_ : (A : Set1) → A → A
+_ ∶₁ x = x
