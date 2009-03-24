@@ -30,8 +30,9 @@ description:
 tested-with:     GHC == 6.8.3 && == 6.10.1
 extra-source-files: src/full/Agda/undefined.h
                     README
-data-dir:        src/data
-data-files:      Agda.css
+data-dir:           src/data
+data-files:         Agda.css
+                    emacs-mode/*.el
 
 library
   hs-source-dirs:  src/full

@@ -55,7 +55,7 @@ install-bin :
 
 install-emacs-mode :
 	install -d "$(LISPDIR)"
-	cd src/emacs-mode && cp *.el "$(LISPDIR)"
+	cd src/data/emacs-mode && cp *.el "$(LISPDIR)"
 	([ -e "$(DOTEMACS)" ] && grep -F "(require 'agda2)" "$(DOTEMACS)") || \
 	  echo "\n(add-to-list 'load-path \"$(LISPDIR)\")\n(require 'agda2)" \
             >> "$(DOTEMACS)"
