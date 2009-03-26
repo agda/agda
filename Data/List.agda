@@ -84,6 +84,11 @@ zipWith f _        _        = []
 zip : ∀ {A B} → List A → List B → List (A × B)
 zip = zipWith (_,_)
 
+intersperse : ∀ {A} → A → List A → List A
+intersperse x []           = []
+intersperse x (y ∷ [])     = [ y ]
+intersperse x (y ∷ z ∷ zs) = y ∷ x ∷ intersperse x (z ∷ zs)
+
 -- * Reducing lists (folds)
 
 foldr : {a b : Set} → (a → b → b) → b → List a → b
