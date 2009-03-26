@@ -14,7 +14,7 @@ open List using (List; []; _∷_)
 open import Category.Monad
 open import Relation.Binary.PropositionalEquality
 
-infixr 5 _∷_ _++_
+infixr 5 _∷_ _∷ʳ_ _++_
 
 data List⁺ (A : Set) : Set where
   [_] : (x : A) → List⁺ A
@@ -100,3 +100,8 @@ private
 
   left : foldl _⊗_ s (a ∷ b ∷ [ c ]) ≡ (s a ⊗ b) ⊗ c
   left = refl
+
+-- Snoc.
+
+_∷ʳ_ : ∀ {A} → List⁺ A → A → List⁺ A
+xs ∷ʳ x = foldr _∷_ (λ y → y ∷ [ x ]) xs
