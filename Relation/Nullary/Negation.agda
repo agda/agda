@@ -16,8 +16,8 @@ open import Category.Monad
 contradiction : ∀ {P whatever} → P → ¬ P → whatever
 contradiction p ¬p = ⊥-elim (¬p p)
 
-contravariant : ∀ {P Q} → (P → Q) → ¬ Q → ¬ P
-contravariant f ¬q p = contradiction (f p) ¬q
+contraposition : ∀ {P Q} → (P → Q) → ¬ Q → ¬ P
+contraposition f ¬q p = contradiction (f p) ¬q
 
 -- Note also the following use of flip:
 
@@ -54,7 +54,7 @@ private
 -- Double-negation
 
 ¬¬-map : ∀ {P Q} → (P → Q) → ¬ ¬ P → ¬ ¬ Q
-¬¬-map f = contravariant (contravariant f)
+¬¬-map f = contraposition (contraposition f)
 
 ¬¬-drop : {P : Set} → ¬ ¬ ¬ P → ¬ P
 ¬¬-drop ¬¬¬P P = ¬¬¬P (λ ¬P → ¬P P)
