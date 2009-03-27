@@ -15,6 +15,7 @@ import Algebra.RingSolver.Simple as Solver
 import Algebra.RingSolver.AlmostCommutativeRing as ACR
 open import Relation.Binary.PropositionalEquality
 open import Data.Product
+open import Data.Empty
 
 import Relation.Binary.EqReasoning as EqR; open EqR Bool.setoid
 
@@ -268,3 +269,13 @@ module XorRingSolver =
 not-involutive : Involutive not
 not-involutive true  = byDef
 not-involutive false = byDef
+
+not-¬ : ∀ {x y} → x ≡ y → x ≢ not y
+not-¬ {true}  refl ()
+not-¬ {false} refl ()
+
+¬-not : ∀ {x y} → x ≢ y → x ≡ not y
+¬-not {true}  {true}  x≢y = ⊥-elim (x≢y refl)
+¬-not {true}  {false} _   = refl
+¬-not {false} {true}  _   = refl
+¬-not {false} {false} x≢y = ⊥-elim (x≢y refl)
