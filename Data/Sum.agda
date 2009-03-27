@@ -19,7 +19,9 @@ data _⊎_ (A B : Set) : Set where
 ------------------------------------------------------------------------
 -- Functions
 
-[_,_] : ∀ {a b c} → (a → c) → (b → c) → (a ⊎ b → c)
+[_,_] : ∀ {A B} {C : A ⊎ B → Set} →
+        ((x : A) → C (inj₁ x)) → ((x : B) → C (inj₂ x)) →
+        ((x : A ⊎ B) → C x)
 [ f , g ] (inj₁ x) = f x
 [ f , g ] (inj₂ y) = g y
 
