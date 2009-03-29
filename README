@@ -23,9 +23,8 @@ There are several ways to install Agda.
 * Using stable packages available from Hackage.
 
   Install the prerequisites mentioned below, then run the following
-  commands:
+  command:
 
-    cabal install Agda
     cabal install Agda-executable
 
   Finally copy the following text to your .emacs file:
