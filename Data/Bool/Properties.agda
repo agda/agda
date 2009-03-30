@@ -13,6 +13,7 @@ import Algebra.FunctionProperties as P; open P Bool.setoid
 open import Algebra.Structures
 import Algebra.RingSolver.Simple as Solver
 import Algebra.RingSolver.AlmostCommutativeRing as ACR
+open import Relation.Nullary using (_⇔_)
 open import Relation.Binary.PropositionalEquality
 open import Data.Product
 open import Data.Empty
@@ -279,3 +280,11 @@ not-¬ {false} refl ()
 ¬-not {true}  {false} _   = refl
 ¬-not {false} {true}  _   = refl
 ¬-not {false} {false} x≢y = ⊥-elim (x≢y refl)
+
+⇔→≡ : {b₁ b₂ b : Bool} → b₁ ≡ b ⇔ b₂ ≡ b → b₁ ≡ b₂
+⇔→≡ {true } {true }         hyp = refl
+⇔→≡ {true } {false} {true } hyp = sym (proj₁ hyp refl)
+⇔→≡ {true } {false} {false} hyp = proj₂ hyp refl
+⇔→≡ {false} {true } {true } hyp = proj₂ hyp refl
+⇔→≡ {false} {true } {false} hyp = sym (proj₁ hyp refl)
+⇔→≡ {false} {false}         hyp = refl
