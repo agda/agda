@@ -75,33 +75,64 @@ monad = record
 reverse : ∀ {A} → List⁺ A → List⁺ A
 reverse = lift (,_ ∘′ Vec.reverse)
 
--- Note that s is only applied to the last element.
+-- Right fold. Note that s is only applied to the last element (see
+-- the examples below).
 
 foldr : {A B : Set} → (A → B → B) → (A → B) → List⁺ A → B
 foldr c s [ x ]    = s x
 foldr c s (x ∷ xs) = c x (foldr c s xs)
 
--- Note that s is only applied to the first element.
+-- Left fold. Note that s is only applied to the first element (see
+-- the examples below).
 
 foldl : {A B : Set} → (B → A → B) → (A → B) → List⁺ A → B
 foldl c s [ x ]    = s x
 foldl c s (x ∷ xs) = foldl c (c (s x)) xs
 
-private
- module Examples {A B : Set}
-                 (_⊕_ : A → B → B)
-                 (_⊗_ : B → A → B)
-                 (s : A → B)
-                 (a b c : A)
-                 where
-
-  right : foldr _⊕_ s (a ∷ b ∷ [ c ]) ≡ a ⊕ (b ⊕ s c)
-  right = refl
-
-  left : foldl _⊗_ s (a ∷ b ∷ [ c ]) ≡ (s a ⊗ b) ⊗ c
-  left = refl
-
 -- Snoc.
 
 _∷ʳ_ : ∀ {A} → List⁺ A → A → List⁺ A
 xs ∷ʳ x = foldr _∷_ (λ y → y ∷ [ x ]) xs
+
+------------------------------------------------------------------------
+-- Examples
+
+-- Note that these examples are simple unit tests, because the type
+-- checker verifies them.
+
+private
+ module Examples {A B : Set}
+                 (_⊕_ : A → B → B)
+                 (_⊗_ : B → A → B)
+                 (f : A → B)
+                 (a b c : A)
+                 where
+
+  hd : head (a ∷ b ∷ [ c ]) ≡ a
+  hd = refl
+
+  tl : tail (a ∷ b ∷ [ c ]) ≡ b ∷ c ∷ []
+  tl = refl
+
+  mp : map f (a ∷ b ∷ [ c ]) ≡ f a ∷ f b ∷ [ f c ]
+  mp = refl
+
+  app : (a ∷ b ∷ [ c ]) ++ (b ∷ [ c ]) ≡
+        a ∷ b ∷ c ∷ b ∷ [ c ]
+  app = refl
+
+  conc : concat ((a ∷ b ∷ [ c ]) ∷ [ b ∷ [ c ] ]) ≡
+         a ∷ b ∷ c ∷ b ∷ [ c ]
+  conc = refl
+
+  rev : reverse (a ∷ b ∷ [ c ]) ≡ c ∷ b ∷ [ a ]
+  rev = refl
+
+  right : foldr _⊕_ f (a ∷ b ∷ [ c ]) ≡ a ⊕ (b ⊕ f c)
+  right = refl
+
+  left : foldl _⊗_ f (a ∷ b ∷ [ c ]) ≡ (f a ⊗ b) ⊗ c
+  left = refl
+
+  snoc : (a ∷ b ∷ [ c ]) ∷ʳ a ≡ a ∷ b ∷ c ∷ [ a ]
+  snoc = refl
