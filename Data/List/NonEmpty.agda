@@ -28,7 +28,7 @@ length x ∷ xs -1 = 1 + length xs -1
 -- Conversion
 
 fromVec : ∀ {n A} → Vec A (suc n) → List⁺ A
-fromVec {zero}  (x ∷ []) = [ x ]
+fromVec {zero}  (x ∷ _)  = [ x ]
 fromVec {suc n} (x ∷ xs) = x ∷ fromVec xs
 
 toVec : ∀ {A} (xs : List⁺ A) → Vec A (suc (length xs -1))
