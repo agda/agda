@@ -14,7 +14,7 @@ open List using (List; []; _∷_)
 open import Category.Monad
 open import Relation.Binary.PropositionalEquality
 
-infixr 5 _∷_ _∷ʳ_ _++_
+infixr 5 _∷_ _∷ʳ_ _⁺++⁺_ _++⁺_ _⁺++_
 
 data List⁺ (A : Set) : Set where
   [_] : (x : A) → List⁺ A
@@ -58,23 +58,6 @@ tail = Vec.toList ∘ Vec.tail ∘ toVec
 map : ∀ {A B} → (A → B) → List⁺ A → List⁺ B
 map f = lift (λ xs → (, Vec.map f xs))
 
-_++_ : ∀ {A} → List⁺ A → List⁺ A → List⁺ A
-[ x ]    ++ ys = x ∷ ys
-(x ∷ xs) ++ ys = x ∷ (xs ++ ys)
-
-concat : ∀ {A} → List⁺ (List⁺ A) → List⁺ A
-concat [ xs ]     = xs
-concat (xs ∷ xss) = xs ++ concat xss
-
-monad : RawMonad List⁺
-monad = record
-  { return = [_]
-  ; _>>=_  = λ xs f → concat (map f xs)
-  }
-
-reverse : ∀ {A} → List⁺ A → List⁺ A
-reverse = lift (,_ ∘′ Vec.reverse)
-
 -- Right fold. Note that s is only applied to the last element (see
 -- the examples below).
 
@@ -88,6 +71,30 @@ foldr c s (x ∷ xs) = c x (foldr c s xs)
 foldl : {A B : Set} → (B → A → B) → (A → B) → List⁺ A → B
 foldl c s [ x ]    = s x
 foldl c s (x ∷ xs) = foldl c (c (s x)) xs
+
+-- Append (several variants).
+
+_⁺++⁺_ : ∀ {A} → List⁺ A → List⁺ A → List⁺ A
+xs ⁺++⁺ ys = foldr _∷_ (λ x → x ∷ ys) xs
+
+_⁺++_ : ∀ {A} → List⁺ A → List A → List⁺ A
+xs ⁺++ ys = foldr _∷_ (λ x → fromList x ys) xs
+
+_++⁺_ : ∀ {A} → List A → List⁺ A → List⁺ A
+xs ++⁺ ys = List.foldr _∷_ ys xs
+
+concat : ∀ {A} → List⁺ (List⁺ A) → List⁺ A
+concat [ xs ]     = xs
+concat (xs ∷ xss) = xs ⁺++⁺ concat xss
+
+monad : RawMonad List⁺
+monad = record
+  { return = [_]
+  ; _>>=_  = λ xs f → concat (map f xs)
+  }
+
+reverse : ∀ {A} → List⁺ A → List⁺ A
+reverse = lift (,_ ∘′ Vec.reverse)
 
 -- Snoc.
 
@@ -117,9 +124,23 @@ private
   mp : map f (a ∷ b ∷ [ c ]) ≡ f a ∷ f b ∷ [ f c ]
   mp = refl
 
-  app : (a ∷ b ∷ [ c ]) ++ (b ∷ [ c ]) ≡
-        a ∷ b ∷ c ∷ b ∷ [ c ]
-  app = refl
+  right : foldr _⊕_ f (a ∷ b ∷ [ c ]) ≡ a ⊕ (b ⊕ f c)
+  right = refl
+
+  left : foldl _⊗_ f (a ∷ b ∷ [ c ]) ≡ (f a ⊗ b) ⊗ c
+  left = refl
+
+  ⁺app⁺ : (a ∷ b ∷ [ c ]) ⁺++⁺ (b ∷ [ c ]) ≡
+          a ∷ b ∷ c ∷ b ∷ [ c ]
+  ⁺app⁺ = refl
+
+  ⁺app : (a ∷ b ∷ [ c ]) ⁺++ (b ∷ c ∷ []) ≡
+          a ∷ b ∷ c ∷ b ∷ [ c ]
+  ⁺app = refl
+
+  app⁺ : (a ∷ b ∷ c ∷ []) ++⁺ (b ∷ [ c ]) ≡
+          a ∷ b ∷ c ∷ b ∷ [ c ]
+  app⁺ = refl
 
   conc : concat ((a ∷ b ∷ [ c ]) ∷ [ b ∷ [ c ] ]) ≡
          a ∷ b ∷ c ∷ b ∷ [ c ]
@@ -127,12 +148,6 @@ private
 
   rev : reverse (a ∷ b ∷ [ c ]) ≡ c ∷ b ∷ [ a ]
   rev = refl
-
-  right : foldr _⊕_ f (a ∷ b ∷ [ c ]) ≡ a ⊕ (b ⊕ f c)
-  right = refl
-
-  left : foldl _⊗_ f (a ∷ b ∷ [ c ]) ≡ (f a ⊗ b) ⊗ c
-  left = refl
 
   snoc : (a ∷ b ∷ [ c ]) ∷ʳ a ≡ a ∷ b ∷ c ∷ [ a ]
   snoc = refl
