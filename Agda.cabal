@@ -29,7 +29,7 @@ description:
   you should also install the Agda-executable package. This package
   includes an Emacs mode for Agda, but you need to set up the Emacs
   mode yourself (see the README).
-tested-with:     GHC == 6.8.3 && == 6.10.1
+tested-with:     GHC == 6.8.3 && == 6.10.2
 extra-source-files: src/full/Agda/undefined.h
                     README
 data-dir:           src/data
