@@ -70,6 +70,7 @@ import Data.Integer
 import Data.List
 import Data.List.Equality
 import Data.List.NonEmpty
+import Data.List.NonEmpty.Properties
 import Data.List.Properties
 import Data.List1
 import Data.Map
