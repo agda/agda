@@ -93,3 +93,41 @@ decSetoid {A} _A-≟_ = PropEq.decSetoid _≟_
   just x  ≟ nothing = no λ()
   nothing ≟ just y  = no λ()
   nothing ≟ nothing = yes refl
+
+------------------------------------------------------------------------
+-- Any and All
+
+open import Data.Product using (_,_)
+open import Data.Empty using (⊥)
+import Relation.Nullary.Decidable as Dec
+
+data Any {A} (P : A → Set) : Maybe A → Set where
+  just : ∀ {x} (px : P x) → Any P (just x)
+
+data All {A} (P : A → Set) : Maybe A → Set where
+  just    : ∀ {x} (px : P x) → All P (just x)
+  nothing : All P nothing
+
+IsJust : ∀ {A} → Maybe A → Set
+IsJust = Any (λ _ → ⊤)
+
+IsNothing : ∀ {A} → Maybe A → Set
+IsNothing = All (λ _ → ⊥)
+
+private
+
+  drop-just-Any : ∀ {A} {P : A → Set} {x} → Any P (just x) → P x
+  drop-just-Any (just px) = px
+
+  drop-just-All : ∀ {A} {P : A → Set} {x} → All P (just x) → P x
+  drop-just-All (just px) = px
+
+anyDec : ∀ {A} {P : A → Set} →
+         (∀ x → Dec (P x)) → (x : Maybe A) → Dec (Any P x)
+anyDec p nothing  = no λ()
+anyDec p (just x) = Dec.map (just , drop-just-Any) (p x)
+
+allDec : ∀ {A} {P : A → Set} →
+         (∀ x → Dec (P x)) → (x : Maybe A) → Dec (All P x)
+allDec p nothing  = yes nothing
+allDec p (just x) = Dec.map (just , drop-just-All) (p x)
