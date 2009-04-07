@@ -115,6 +115,9 @@ programs/libraries:
    GNU Emacs:     http://www.gnu.org/software/emacs/
    haskell-mode:  http://haskell.org/haskell-mode/ (version 2.1 or later)
 
+You should also make sure that programs installed by cabal-install are
+on your shell's search path.
+
 For instructions on installing a suitable version of Emacs under
 Windows, see below.
 
