@@ -59,8 +59,6 @@ import Agda.Utils.Pretty
 import Agda.Tests
 import Agda.Version
 
-import Paths_Agda (getDataDir)
-
 #include "undefined.h"
 import Agda.Utils.Impossible
 
@@ -75,7 +73,6 @@ runAgda =
 	    Right opts
 		| optShowHelp opts      -> liftIO printUsage
 		| optShowVersion opts   -> liftIO printVersion
-                | optEmacsModeFile opts -> liftIO printEmacsModeFile
 		| optRunTests opts      -> liftIO $ do
                     ok <- testSuite
                     unless ok exitFailure
@@ -165,11 +162,6 @@ printUsage =
 printVersion :: IO ()
 printVersion =
     UTF8.putStrLn $ "Agda 2 version " ++ version
-
-printEmacsModeFile :: IO ()
-printEmacsModeFile = do
-  dataDir <- getDataDir
-  UTF8.putStr $ dataDir </> "emacs-mode" </> "agda2.el"
 
 -- | What to do for bad options.
 optionError :: String -> IO ()

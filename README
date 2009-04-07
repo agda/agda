@@ -23,14 +23,16 @@ There are several ways to install Agda.
 * Using stable packages available from Hackage.
 
   Install the prerequisites mentioned below, then run the following
-  command:
+  commands:
 
     cabal install Agda-executable
+    agda-mode setup
 
-  Finally copy the following text to your .emacs file:
+  The second command tries to set up Emacs for use with Agda. As an
+  alternative you can copy the following text to your .emacs file:
 
     (load-file (let ((coding-system-for-read 'utf-8))
-                    (shell-command-to-string "agda --emacs-mode")))
+                    (shell-command-to-string "agda-mode locate")))
 
 * Using the source tar balls available from the Agda Wiki, or the
   development version of the code available from our darcs repository.
@@ -40,10 +42,10 @@ There are several ways to install Agda.
   2a) If your system is Unix-like you can now hopefully install the
       Agda 2 library, batch-mode tool and Emacs mode by running
 
-        make install PREFIX=<installation location> DOTEMACS=<location of your .emacs file>
+        make install PREFIX=<installation location>
 
-      (the PREFIX=<...> and DOTEMACS=<...> parts can be omitted if the
-      default locations are OK for you).
+      (the PREFIX=<...> part can be omitted if the default location is
+      OK for you).
 
       If your system is not sufficiently Unix-like, or you want to have
       more control, follow 2b instead.
@@ -52,14 +54,17 @@ There are several ways to install Agda.
       Agda source tree:
 
         cabal install
+        agda-mode setup
         cd src/main
         cabal clean       # To ensure recompilation when upgrading.
         cabal install
 
-      Copy the following text to your .emacs file:
+      The second command tries to set up Emacs for use with Agda. As
+      an alternative you can copy the following text to your .emacs
+      file:
 
         (load-file (let ((coding-system-for-read 'utf-8))
-                        (shell-command-to-string "agda --emacs-mode")))
+                        (shell-command-to-string "agda-mode locate")))
 
       If you want to have more control over where files are installed
       then you can give various flags to cabal install, see

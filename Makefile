@@ -39,9 +39,6 @@ endif
 # Installation prefix.
 PREFIX=/usr/local
 
-# The location of a relevant Emacs initialisation file.
-DOTEMACS=$(HOME)/.emacs
-
 install : install-lib install-bin install-emacs-mode
 
 # Installs the Emacs mode, but does not set it up.
@@ -51,11 +48,8 @@ install-lib :
 install-bin : install-lib
 	cd src/main && cabal clean && cabal install --prefix="$(PREFIX)"
 
-install-emacs-mode : install-lib install-bin
-	([ -e "$(DOTEMACS)" ] && grep -F "agda --emacs-mode" "$(DOTEMACS)") || \
-	  (echo ""                                                                  >> "$(DOTEMACS)" && \
-	   echo "(load-file (let ((coding-system-for-read 'utf-8))"                 >> "$(DOTEMACS)" && \
-	   echo "                (shell-command-to-string \"agda --emacs-mode\")))" >> "$(DOTEMACS)")
+install-emacs-mode : install-lib
+	agda-mode setup
 
 ## Making the make system #################################################
 
