@@ -1,0 +1,46 @@
+\documentclass{article}
+
+\usepackage{hcar}
+
+\begin{document}
+
+\begin{hcarentry}[updated]{Agda}
+\label{agda}
+\report{Nils Anders Danielsson}
+\status{Actively developed}
+\participants{Ulf Norell and many others}
+\makeheader
+
+Do you crave for highly expressive types, but do not want to resort to
+type-class hackery? Then Agda might provide a view of what the future
+has in store for you.
+
+Agda is a dependently typed functional programming language (developed
+using Haskell). The language has inductive families, i.e.\ GADTs which
+can be indexed by \emph{values} and not just types. Other goodies
+include coinductive types, parameterised modules, mixfix operators,
+and an \emph{interactive} Emacs interface (the type checker can assist
+you in the development of your code).
+
+A lot of work remains in order for Agda to become a full-fledged
+programming language (good libraries, mature compilers, documentation,
+etc.), but already in its current state it can provide lots of fun as
+a platform for experiments in dependently typed programming.
+
+New since last time:
+\begin{itemize}
+\item Version 2.2.0 has been released. The last release was in 2007,
+  so the new version includes lots of changes.
+\item Agda is now available on Hackage (\texttt{cabal install
+    Agda-executable}).
+\item Highlighted, hyperlinked HTML can be generated from Agda source
+  code using \texttt{agda --html}.
+\item The Agda Wiki is better organised, so it should be easier for a
+  newcomer to find relevant information.
+\end{itemize}
+
+\FurtherReading
+  The Agda Wiki: \url{http://wiki.portal.chalmers.se/agda/}
+\end{hcarentry}
+
+\end{document}
