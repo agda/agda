@@ -118,15 +118,15 @@ compiler : MAlonzo/main.agda
 html1 : AIM6/RegExp/talk/Everything.agda
 	@$(echo) "Testing HTML generation in the default directory"
 	@$(run_agda) --html -iAIM6/RegExp/talk $<
-	@[ -e htmlAgda/Everything.html ]
-	@rm -rf htmlAgda
+	@[ -e html/Everything.html ]
+	@rm -rf html
 	@$(echo) "ok"
 
 html2 : AIM6/RegExp/talk/Everything.agda
 	@$(echo) "Testing HTML generation in a particular directory"
-	@$(run_agda) --html --html-dir=html -iAIM6/RegExp/talk $<
-	@[ -e html/Everything.html ]
-	@rm -rf html
+	@$(run_agda) --html --html-dir=HTML -iAIM6/RegExp/talk $<
+	@[ -e HTML/Everything.html ]
+	@rm -rf HTML
 	@$(echo) "ok"
 
 test : $(tests)

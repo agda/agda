@@ -115,9 +115,9 @@ defaultOptions =
 
 defaultMAlonzoDir = "."
 
--- | The default output directory for HTML
+-- | The default output directory for HTML.
 
-defaultHTMLDir = "htmlAgda"
+defaultHTMLDir = "html"
 
 prop_defaultOptions = case checkOpts defaultOptions of
   Left  _ -> False
