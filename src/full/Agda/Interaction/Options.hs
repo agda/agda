@@ -221,7 +221,7 @@ standardOptions =
 		    "use the Alonzo compiler (only with --compile)"
     , Option []     ["malonzo"] (NoArg malonzoFlag)
 		    "use the MAlonzo compiler (DEFAULT) (only with --compile)"
-    , Option []     ["malonzodir"] (ReqArg malonzoDirFlag "DIR")
+    , Option []     ["malonzo-dir"] (ReqArg malonzoDirFlag "DIR")
 		    ("directory for MAlonzo output (default: " ++
                      defaultMAlonzoDir ++ ")")
     , Option []     ["ghc-flag"] (ReqArg ghcFlag "GHC-FLAG")
