@@ -46,10 +46,10 @@ defaultCSSFile = "Agda.css"
 
 generateHTML :: A.ModuleName -> TCM ()
 generateHTML mod = do
-  options <- TCM.commandLineOptions
-  case optHTMLDir options of
-    Nothing  -> TCM.typeError TCM.HTMLDirUndefined
-    Just dir -> do
+      options <- TCM.commandLineOptions
+
+      -- There is a default directory given by 'defaultHTMLDir'
+      let dir = optHTMLDir options
       liftIO $ createDirectoryIfMissing True dir
 
       -- If the default CSS file should be used, then it is copied to

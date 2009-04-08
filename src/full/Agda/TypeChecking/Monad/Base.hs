@@ -803,9 +803,8 @@ data TypeError
 	| AmbiguousParseForApplication [C.Expr] [C.Expr]
 	| NoParseForLHS C.Pattern
 	| AmbiguousParseForLHS C.Pattern [C.Pattern]
-    -- Usage errors.
-        | HTMLDirUndefined
-    deriving (Typeable)
+    -- Usage errors
+          deriving (Typeable)
 
 data TCErr = TypeError TCState (Closure TypeError)
 	   | Exception Range String

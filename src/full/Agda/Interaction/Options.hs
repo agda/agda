@@ -58,7 +58,7 @@ data CommandLineOptions =
 	    , optGenerateVimFile   :: Bool
 	    , optGenerateEmacsFile :: Bool
 	    , optGenerateHTML      :: Bool
-	    , optHTMLDir           :: Maybe FilePath
+	    , optHTMLDir           :: FilePath
 	    , optCSSFile           :: Maybe FilePath
 	    , optIgnoreInterfaces  :: Bool
 	    , optDisablePositivity :: Bool
@@ -96,7 +96,7 @@ defaultOptions =
 	    , optGenerateVimFile   = False
 	    , optGenerateEmacsFile = False
 	    , optGenerateHTML      = False
-	    , optHTMLDir           = Nothing
+	    , optHTMLDir           = defaultHTMLDir
 	    , optCSSFile           = Nothing
 	    , optIgnoreInterfaces  = False
 	    , optDisablePositivity = False
@@ -114,6 +114,10 @@ defaultOptions =
 -- | The default output directory for MAlonzo.
 
 defaultMAlonzoDir = "."
+
+-- | The default output directory for HTML
+
+defaultHTMLDir = "htmlAgda"
 
 prop_defaultOptions = case checkOpts defaultOptions of
   Left  _ -> False
@@ -181,7 +185,7 @@ malonzoDirFlag f o = checkOpts $ o { optMAlonzoDir     = f }
 ghcFlag        f o = checkOpts $ o { optGhcFlags       = f : optGhcFlags o }
 
 htmlFlag      o = checkOpts $ o { optGenerateHTML = True }
-htmlDirFlag d o = checkOpts $ o { optHTMLDir      = Just d }
+htmlDirFlag d o = checkOpts $ o { optHTMLDir      = d }
 cssFlag     f o = checkOpts $ o { optCSSFile      = Just f }
 
 includeFlag d o	    = checkOpts $ o { optIncludeDirs   = d : optIncludeDirs o   }
@@ -231,7 +235,8 @@ standardOptions =
     , Option []	    ["html"] (NoArg htmlFlag)
 		    "generate HTML files with highlighted source code"
     , Option []	    ["html-dir"] (ReqArg htmlDirFlag "DIR")
-		    "directory in which HTML files are placed"
+                    ("directory in which HTML files are placed (default: " ++
+                     defaultHTMLDir ++ ")")
     , Option []	    ["css"] (ReqArg cssFlag "URL")
 		    "the CSS file used by the HTML files (can be relative)"
     , Option []	    ["ignore-interfaces"] (NoArg ignoreInterfacesFlag)

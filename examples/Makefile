@@ -4,7 +4,7 @@ TOP = ..
 include $(TOP)/mk/paths.mk
 include $(TOP)/mk/config.mk
 
-default : test polydep hello path regexp-talk aim4-bag ac effects minmax real view simplelib lib divmod highlighting compiler term1 term2 term3 html
+default : test polydep hello path regexp-talk aim4-bag ac effects minmax real view simplelib lib divmod highlighting compiler term1 term2 term3 html1 html2
 
 agda = $(AGDA_BIN)
 
@@ -115,8 +115,15 @@ compiler : MAlonzo/main.agda
 	@./MAlonzo/main
 	@$(echo) "ok"
 
-html : AIM6/RegExp/talk/Everything.agda
-	@$(echo) "Testing HTML generation..."
+html1 : AIM6/RegExp/talk/Everything.agda
+	@$(echo) "Testing HTML generation in the default directory"
+	@$(run_agda) --html -iAIM6/RegExp/talk $<
+	@[ -e htmlAgda/Everything.html ]
+	@rm -rf htmlAgda
+	@$(echo) "ok"
+
+html2 : AIM6/RegExp/talk/Everything.agda
+	@$(echo) "Testing HTML generation in a particular directory"
 	@$(run_agda) --html --html-dir=html -iAIM6/RegExp/talk $<
 	@[ -e html/Everything.html ]
 	@rm -rf html
