@@ -148,6 +148,7 @@ checkOpts opts
       , optCompileMAlonzo
       ]
 
+inputFlag :: FilePath -> CommandLineOptions -> Either String CommandLineOptions
 inputFlag f o	    =
     case optInputFile o of
 	Nothing  -> checkOpts $ o { optInputFile = Just f }
