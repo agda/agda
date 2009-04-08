@@ -7,6 +7,14 @@ followed (note that the code examples are untested):
   src/main/Agda-executable.cabal (two places) and
   ../src/data/emacs-mode/agda2-mode.el.
 
+* Add a second source-repository section to Agda.cabal and
+  Agda-executable.cabal:
+
+    source-repository this
+      type:     darcs
+      location: http://code.haskell.org/Agda/
+      tag:      <version>
+
 * Tag and build source distributions.
 
     darcs tag <version>
@@ -45,5 +53,6 @@ followed (note that the code examples are untested):
 * Update the download page on the Agda Wiki.
 
 * Update the version numbers again, so that released and development
-  versions are not confused. (This would be unnecessary if we had two
-  repositories, one stable and one for development.)
+  versions are not confused, and remove the "this" source-repository
+  sections from the Cabal files. (This would be unnecessary if we had
+  two repositories, one stable and one for development.)

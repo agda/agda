@@ -36,6 +36,10 @@ data-dir:           src/data
 data-files:         Agda.css
                     emacs-mode/*.el
 
+source-repository head
+  type:     darcs
+  location: http://code.haskell.org/Agda/
+
 library
   hs-source-dirs:  src/full
   build-depends:   base >= 3 && < 4,

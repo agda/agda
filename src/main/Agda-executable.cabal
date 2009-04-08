@@ -16,6 +16,10 @@ description:
   highlighted HTML files from Agda sources.
 tested-with:     GHC == 6.8.3 && == 6.10.2
 
+source-repository head
+  type:     darcs
+  location: http://code.haskell.org/Agda/
+
 executable agda
   main-is:       Main.hs
   build-depends: Agda == 2.2.1,
