@@ -46,7 +46,7 @@ getMetaPriority :: MonadTCM tcm => MetaId -> tcm MetaPriority
 getMetaPriority i = mvPriority <$> lookupMeta i
 
 createMetaInfo :: MonadTCM tcm => tcm MetaInfo
-createMetaInfo = 
+createMetaInfo =
     do  r <- getCurrentRange
 	buildClosure r
 
@@ -79,14 +79,14 @@ isInteractionMeta :: MonadTCM tcm => MetaId -> tcm Bool
 isInteractionMeta m = fmap (m `elem`) getInteractionMetas
 
 lookupInteractionId :: MonadTCM tcm => InteractionId -> tcm MetaId
-lookupInteractionId ii = 
+lookupInteractionId ii =
     do  mmi <- Map.lookup ii <$> gets stInteractionPoints
 	case mmi of
 	    Just mi -> return mi
 	    _	    -> fail $ "no such interaction point: " ++ show ii
 
 judgementInteractionId :: MonadTCM tcm => InteractionId -> tcm (Judgement Type MetaId)
-judgementInteractionId ii = 
+judgementInteractionId ii =
     do  mi <- lookupInteractionId ii
         mvJudgement <$> lookupMeta mi
 
@@ -112,7 +112,7 @@ getMetaRange mi = getRange <$> lookupMeta mi
 
 
 getInteractionScope :: MonadTCM tcm => InteractionId -> tcm ScopeInfo
-getInteractionScope ii = 
+getInteractionScope ii =
     do mi <- lookupInteractionId ii
        mv <- lookupMeta mi
        return $ getMetaScope mv

@@ -14,7 +14,7 @@ import Agda.Utils.Permutation
 import Agda.Utils.Size
 
 type Defs =  Map QName Definition
-data PState = PSt 
+data PState = PSt
   { cnt :: Int
   , vars :: [Int]
   , lst :: [HsPat]
@@ -23,11 +23,11 @@ data PState = PSt
   }
 
 initPState :: Clause -> Defs -> PState
-initPState c@(Clause{ clausePerm = perm }) d = PSt 
+initPState c@(Clause{ clausePerm = perm }) d = PSt
   { cnt = 0
   , vars = permute perm [0..]
   , lst = []
-  , clause = c 
+  , clause = c
   , defs = d
   }
 
@@ -55,7 +55,7 @@ incPcnt :: PM()
 incPcnt = modify $ \s -> s { cnt = 1 + cnt s }
 
 addWildcard :: PM()
-addWildcard = do 
+addWildcard = do
         lst <- getPlst
         putPlst $ lst++[HsPWildCard]
 

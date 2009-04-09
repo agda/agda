@@ -30,8 +30,8 @@ instance MonadError e IM where
 
 
 instance MonadUndo [CurrentPoint] IM where
-    undo = 
-        
+    undo =
+
 
 run
 

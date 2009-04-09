@@ -169,7 +169,7 @@ zipNameSpace fd fm ns1 ns2 =
       }
 
 -- | Map monadic function over a namespace.
-mapNameSpaceM :: Monad m => 
+mapNameSpaceM :: Monad m =>
   (NamesInScope   -> m NamesInScope  ) ->
   (ModulesInScope -> m ModulesInScope) ->
   NameSpace -> m NameSpace

@@ -7,7 +7,7 @@
 
 module Agda.Syntax.Info where
 
-import Data.Generics(Data,Typeable) 
+import Data.Generics(Data,Typeable)
 import Agda.Syntax.Common
 import Agda.Syntax.Position
 import Agda.Syntax.Concrete

@@ -124,7 +124,7 @@ conhqn q = do
 
 -- qualify name s by the module of builtin b
 bltQual :: String -> String -> TCM HsQName
-bltQual b s = do (Def q _) <- getBuiltin b; xqual q (HsIdent s) 
+bltQual b s = do (Def q _) <- getBuiltin b; xqual q (HsIdent s)
 
 -- sub-naming for cascaded definitions for concsecutive clauses
 dsubname q i | i == 0    = unqhname "d"                     q
@@ -149,7 +149,7 @@ mazCoerce = hsVarUQ $ HsIdent "unsafeCoerce"
 rtmMod  = mazMod' "Runtime"
 rtmQual = UnQual . HsIdent
 rtmVar  = HsVar . rtmQual
-rtmError s = rtmVar "error" `HsApp` 
+rtmError s = rtmVar "error" `HsApp`
              (HsLit $ HsString $ "MAlonzo Runtime Error: " ++ s)
 
 unsafeCoerceMod = Module "Unsafe.Coerce"
@@ -176,7 +176,7 @@ fakeExp = HsVar . UnQual . HsIdent
 
 dummy :: a
 dummy = error "MAlonzo : this dummy value should not have been eval'ed."
-    
+
 
 --------------------------------------------------
 -- For Debugging

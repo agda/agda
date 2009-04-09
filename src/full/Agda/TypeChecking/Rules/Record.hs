@@ -46,7 +46,7 @@ checkRecDef i name ps contel fields =
       let m = mnameFromList $ qnameToList name
 	  hide (Arg _ x) = Arg Hidden x
 	  htel		 = map hide $ telToList tel
-	  rect		 = El s $ Def name $ reverse 
+	  rect		 = El s $ Def name $ reverse
 			   [ Arg h (Var i [])
 			   | (i, Arg h _) <- zip [0..] $ reverse $ telToList gamma
 			   ]
@@ -120,7 +120,7 @@ checkRecordProjections m q tel ftel s fs = checkProjs EmptyTel ftel fs
       setScope scope >> checkProjs ftel1 ftel2 (fs' ++ fs)
     checkProjs ftel1 (ExtendTel (Arg _ _) ftel2) (A.Field info x t : fs) = do
       -- check the type (in the context of the telescope)
-      -- the previous fields will be free in 
+      -- the previous fields will be free in
       reportSDoc "tc.rec.proj" 5 $ sep
 	[ text "checking projection"
 	, nest 2 $ vcat

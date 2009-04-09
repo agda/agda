@@ -196,7 +196,7 @@ instance (ToTerm a, FromTerm a) => FromTerm [a] where
 		    _ -> return $ NoReduction t
 
 -- | Conceptually: @redBind m f k = either (return . Left . f) k =<< m@
-redBind :: MonadTCM tcm => tcm (Reduced a a') -> (a -> b) -> 
+redBind :: MonadTCM tcm => tcm (Reduced a a') -> (a -> b) ->
 	     (a' -> tcm (Reduced b b')) -> tcm (Reduced b b')
 redBind ma f k = do
     r <- ma

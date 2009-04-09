@@ -10,7 +10,7 @@ hsModule :: String -> [HsDecl] -> HsModule
 hsModule name decls = HsModule dummyLoc (Module name) Nothing [] decls
 
 hsModuleImporting :: String -> [String] -> [String] -> [HsDecl] -> HsModule
-hsModuleImporting name imps qimps decls = 
+hsModuleImporting name imps qimps decls =
   HsModule dummyLoc (Module name) Nothing
     (map hsImport imps ++ impRTS : impRTP : map hsQImport qimps) decls
 
@@ -39,13 +39,13 @@ hsCast e = HsApp (hsVar "cast") (HsParen e)
 hsVar :: String -> HsExp
 hsVar s = HsVar $ UnQual $ HsIdent s
 
-hsCon :: String -> HsExp 
+hsCon :: String -> HsExp
 hsCon s = HsCon $ UnQual $ HsIdent s
 
 hsLam :: String -> HsExp -> HsExp
 hsLam n e = HsLambda dummyLoc [HsPVar (HsIdent n)] e
 
-hsAp :: HsExp -> HsExp -> HsExp 
+hsAp :: HsExp -> HsExp -> HsExp
 hsAp e1 e2 =  HsApp (hsCast e1) $ HsParen (hsCast e2)
 
 outputHsModule s hsmod numOfMainS = do

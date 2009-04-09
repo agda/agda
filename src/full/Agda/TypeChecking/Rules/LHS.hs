@@ -85,7 +85,7 @@ dotPatternInsts ps s as = dpi (map (namedThing . unArg) ps) (reverse s) as
     -- be longer than the pattern
     dpi []       _             _       = []
     dpi (_ : ps) (Nothing : s) as      = dpi ps s as
-    dpi (p : ps) (Just u : s) (a : as) = 
+    dpi (p : ps) (Just u : s) (a : as) =
       case p of
         A.DotP _ e    -> DPI e u a : dpi ps s as
         A.ImplicitP _ -> dpi ps s as
@@ -274,7 +274,7 @@ checkLeftHandSide c ps a ret = do
   let TelV tel0' b0 = telView a
   ps <- insertImplicitPatterns ps tel0'
   unless (size tel0' >= size ps) $ typeError $ TooManyArgumentsInLHS (size ps) a
-  let tel0     = useNamesFromPattern ps tel0'   
+  let tel0     = useNamesFromPattern ps tel0'
       (as, bs) = splitAt (size ps) $ telToList tel0
       gamma    = telFromList as
       b        = telePi (telFromList bs) b0

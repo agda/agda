@@ -310,10 +310,10 @@ prop_addRow x m =
 ------------------------------------------------------------------------
 -- Zipping (assumes non-empty matrices)
 
-zipWith :: (a -> b -> c) -> 
+zipWith :: (a -> b -> c) ->
            Matrix Integer a -> Matrix Integer b -> Matrix Integer c
-zipWith f m1 m2 
-  = fromLists (Size { rows = toInteger $ length ll, 
+zipWith f m1 m2
+  = fromLists (Size { rows = toInteger $ length ll,
                       cols = toInteger $ length (head ll) }) ll
     where ll = List.zipWith (List.zipWith f) (toLists m1) (toLists m2)
 

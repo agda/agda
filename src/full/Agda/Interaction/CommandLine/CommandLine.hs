@@ -139,7 +139,7 @@ showConstraints [] =
 	liftIO $ UTF8.putStrLn $ unlines (List.map show cs)
 showConstraints _ = liftIO $ UTF8.putStrLn ":constraints [cid]"
 
-	
+
 showMetas :: [String] -> TCM ()
 showMetas [m] =
     do	i <- InteractionId <$> readM m
@@ -154,8 +154,8 @@ showMetas [m,"normal"] =
 	  s <- showA =<< typeOfMeta Normalised i
 	  r <- getInteractionRange i
 	  liftIO $ UTF8.putStrLn $ s ++ " " ++ show r
-showMetas [] = 
-    do  (interactionMetas,hiddenMetas) <- typeOfMetas AsIs 
+showMetas [] =
+    do  (interactionMetas,hiddenMetas) <- typeOfMetas AsIs
         mapM_ (liftIO . UTF8.putStrLn) =<< mapM showII interactionMetas
 	mapM_ print' hiddenMetas
     where
@@ -180,7 +180,7 @@ showScope = do
   liftIO $ UTF8.print scope
 
 metaParseExpr ::  InteractionId -> String -> TCM A.Expr
-metaParseExpr ii s = 
+metaParseExpr ii s =
     do	m <- lookupInteractionId ii
         scope <- getMetaScope <$> lookupMeta m
         r <- getRange <$> lookupMeta m
@@ -192,16 +192,16 @@ metaParseExpr ii s =
 	concreteToAbstract scope e
 
 actOnMeta :: [String] -> (InteractionId -> A.Expr -> TCM a) -> TCM a
-actOnMeta (is:es) f = 
+actOnMeta (is:es) f =
      do  i <- readM is
-         let ii = InteractionId i 
+         let ii = InteractionId i
          e <- metaParseExpr ii (unwords es)
          withInteractionId ii $ f ii e
 actOnMeta _ _ = __IMPOSSIBLE__
 
 
 giveMeta :: [String] -> TCM ()
-giveMeta s | length s >= 2 = 
+giveMeta s | length s >= 2 =
     do  actOnMeta s (\ii -> \e  -> give ii Nothing e)
         return ()
 giveMeta _ = liftIO $ UTF8.putStrLn $ ": give" ++ " metaid expr"
@@ -209,7 +209,7 @@ giveMeta _ = liftIO $ UTF8.putStrLn $ ": give" ++ " metaid expr"
 
 
 refineMeta :: [String] -> TCM ()
-refineMeta s | length s >= 2 = 
+refineMeta s | length s >= 2 =
     do  actOnMeta s (\ii -> \e  -> refine ii Nothing e)
         return ()
 refineMeta _ = liftIO $ UTF8.putStrLn $ ": refine" ++ " metaid expr"
@@ -240,21 +240,21 @@ evalTerm s =
 	return Continue
     where
 	evalInCurrent e = do
-	  t <- newTypeMeta_ 
+	  t <- newTypeMeta_
 	  v <- checkExpr e t
 	  v' <- normalise v
 	  return v'
 
 
 typeOf :: [String] -> TCM ()
-typeOf s = 
+typeOf s =
     do  e  <- parseExpr (unwords s)
         e0 <- typeInCurrent Normalised e
         e1 <- typeInCurrent AsIs e
 	liftIO . UTF8.putStrLn =<< showA e1
 
 typeIn :: [String] -> TCM ()
-typeIn s@(_:_:_) = 
+typeIn s@(_:_:_) =
     actOnMeta s $ \i e ->
     do	e1  <- typeInMeta i Normalised e
         e2 <- typeInMeta i AsIs e

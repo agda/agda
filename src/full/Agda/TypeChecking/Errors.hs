@@ -373,12 +373,12 @@ instance PrettyTCM TypeError where
                       two = zipWith (\a b -> [a,b]) s (tail s)
 	    NoSuchModule x -> fsep $
 		pwords "No such module" ++ [pretty x]
-	    AmbiguousName x ys -> vcat 
+	    AmbiguousName x ys -> vcat
 	      [ fsep $ pwords "Ambiguous name" ++ [pretty x <> text "."] ++
 		       pwords "It could refer to any one of"
 	      , nest 2 $ vcat $ map nameWithBinding ys
 	      ]
-	    AmbiguousModule x ys -> vcat 
+	    AmbiguousModule x ys -> vcat
 	      [ fsep $ pwords "Ambiguous module name" ++ [pretty x <> text "."] ++
 		       pwords "It could refer to any one of"
 	      , nest 2 $ vcat $ map prettyTCM ys

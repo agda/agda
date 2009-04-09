@@ -82,7 +82,7 @@ data OtherAspect
 
 data MetaInfo = MetaInfo
   { aspect       :: Maybe Aspect
-  , otherAspects :: [OtherAspect]  
+  , otherAspects :: [OtherAspect]
   , note         :: Maybe String
     -- ^ This note, if present, can be displayed as a tool-tip or
     -- something like that. It should contain useful information about
@@ -201,7 +201,7 @@ compress f = map join $ groupBy' p (Map.toAscList $ mapping f)
   join pms = ( Range { from = head ps, to = last ps + 1 }
              , head ms
              )
-    where (ps, ms) = unzip pms 
+    where (ps, ms) = unzip pms
 
 -- | Decompresses a compressed file.
 

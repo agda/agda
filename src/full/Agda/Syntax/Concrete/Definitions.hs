@@ -251,7 +251,7 @@ niceDeclarations ds = do
 			  where
 			    dataOrRec mkDef niceD r x tel t cs = do
                               ds <- niceD fixs cs
-                              return $ 
+                              return $
                                 [ NiceDef r [d]
                                   [ Axiom (fuseRange x t) f PublicAccess ConcreteDef
                                           x (Pi tel t)
@@ -435,7 +435,7 @@ niceDeclarations ds = do
 
 	mkPrivateClause (Clause x lhs rhs wh with) =
 	    Clause x lhs rhs (mkPrivateWhere wh) (map mkPrivateClause with)
-	
+
 	mkPrivateWhere  NoWhere		= NoWhere
 	mkPrivateWhere (AnyWhere ds)	= AnyWhere [Private (getRange ds) ds]
 	mkPrivateWhere (SomeWhere m ds) = SomeWhere m [Private (getRange ds) ds]

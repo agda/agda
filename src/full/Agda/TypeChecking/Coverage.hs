@@ -80,7 +80,7 @@ checkCoverage f = do
       whenM (optCompletenessCheck <$> commandLineOptions) $
         case pss of
           []  -> return ()
-          _   -> 
+          _   ->
             setCurrentRange (getRange cs) $
               typeError $ CoverageFailure f pss
       whenM (optUnreachableCheck <$> commandLineOptions) $
@@ -207,7 +207,7 @@ computeNeighbourhood delta1 delta2 perm d pars ixs hix hps con = do
       let theta = delta1 `abstract` gamma `abstract` delta2'
       debugTel "theta" theta
 
-      -- Apply the unifying substitution to Θ 
+      -- Apply the unifying substitution to Θ
       -- We get ρ' : Θ' -> Θ
       --        π  : Θ' -> Θ
       (theta', iperm, rho', _) <- instantiateTel sub' theta

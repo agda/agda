@@ -142,7 +142,7 @@ lexEscape =
 readNum :: (Char -> Bool) -> Int -> (Char -> Int) -> LookAhead Char
 readNum isDigit base conv =
     do	c <- eatNextChar
-	if isDigit c 
+	if isDigit c
 	    then readNumAcc isDigit base conv (conv c)
 	    else fail "non-digit in numeral"
 

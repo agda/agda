@@ -200,7 +200,7 @@ withAbstractPrivate :: DefInfo -> AbsToCon [C.Declaration] -> AbsToCon [C.Declar
 withAbstractPrivate i m =
     case (defAccess i, defAbstract i) of
 	(PublicAccess, ConcreteDef) -> m
-	(p,a)			    -> 
+	(p,a)			    ->
 	    do	ds <- m
 		return $ abst a $ priv p $ ds
     where
@@ -344,7 +344,7 @@ instance ToConcrete A.Expr C.Expr where
 
     toConcrete (A.Fun i a b) =
 	bracket piBrackets
-	$ do a' <- toConcreteCtx FunctionSpaceDomainCtx a 
+	$ do a' <- toConcreteCtx FunctionSpaceDomainCtx a
 	     b' <- toConcreteCtx TopCtx b
 	     return $ C.Fun (getRange i) (mkArg a') b'
 	where

@@ -3,7 +3,7 @@
 -- Module      :  Unstable.Org.Lochan.Trie
 -- Copyright   :  (c) Keith Wansbrough 2005
 -- License     :  BSD-style
--- 
+--
 -- Maintainer  :  keith.hlib at lochan.org
 --             :  modified and extended by Ulf Norell
 -- Stability   :  experimental
@@ -29,7 +29,7 @@ module Agda.Utils.Trie
     -- * Derived operations
     takeWhile, takeWhile_V, fringe,
     ) where
-                
+
 
 import Prelude hiding (takeWhile, lookup)
 import Data.Map (Map)
@@ -78,7 +78,7 @@ unionWith f p1 p2 =
     where lift _ Nothing y = y
           lift _ x Nothing = x
           lift _ (Just x) (Just y) = Just (f x y)
-    
+
 
 -- |Insertion.
 insert :: Ord k => [k] -> v -> Trie k v -> Trie k v

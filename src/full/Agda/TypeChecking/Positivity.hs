@@ -393,7 +393,7 @@ buildOccurrenceGraph qs = Graph.unions <$> mapM defGraph (Set.toList qs)
       occs <- computeOccurrences q
       let onItem (item, occs) = do
             es <- mapM (computeEdge qs) occs
-            return $ Graph.unions $ 
+            return $ Graph.unions $
                 map (\(b, w) -> Graph.singleton (itemToNode item) b w) es
       Graph.unions <$> mapM onItem (Map.assocs occs)
       where

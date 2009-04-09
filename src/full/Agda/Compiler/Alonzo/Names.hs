@@ -41,7 +41,7 @@ dfNameSub name i = HsIdent id where
 	id = (dfStr name) ++ "_" ++  (show i)
 
 dfQName :: QName -> HsQName
-dfQName (QName m n) 
+dfQName (QName m n)
   | (moduleStr m) == "RTP" = Qual (Module $ moduleStr m)(HsIdent $ "_"++(show n))
   | otherwise = Qual (Module $ moduleStr m) (dfName n)
 

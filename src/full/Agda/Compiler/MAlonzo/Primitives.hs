@@ -76,12 +76,12 @@ declsForPrim = xForPrim $
                        ,"     | True = <<1>> (unsafeCoerce (f (x - 1)))"
                        ,"} in f"])
       in decls ["ZERO", "SUC"] to totxt from fromtxt
-    decls cs n1 b1 n2 b2 = 
+    decls cs n1 b1 n2 b2 =
       ifM (hasCompiledData cs)
           (return $ L.map (`fakeDS` "id") [n1, n2])
         $ do cs' <- mapM pconName cs
              return $ zipWith (\ n -> fakeDS n . repl cs') [n1, n2] [b1, b2]
-               
+
 mazNatToInteger  = "mazNatToInteger"
 mazIntegerToNat  = "mazIntegerToNat"
 mazNatToInt      = "mazNatToInt"
@@ -106,7 +106,7 @@ xForPrim table = do
 
 -- Definition bodies for primitive functions
 primBody :: String -> TCM HsExp
-primBody s = (hsVarUQ . HsIdent <$>) $ maybe unimplemented id $ L.lookup s $ 
+primBody s = (hsVarUQ . HsIdent <$>) $ maybe unimplemented id $ L.lookup s $
   [
   -- Integer functions
     "primIntegerPlus"    |-> binAsis "(+)" "Integer"
@@ -187,7 +187,7 @@ primBody s = (hsVarUQ . HsIdent <$>) $ maybe unimplemented id $ L.lookup s $
     return $ repl [op, ty, toHB, toTy] $
       "(\\ x y -> <<2>> ((<<0>> :: <<1>> -> <<1>> -> Bool) (<<3>> x) (<<3>> y)))"
   relNat op = do toHI <- bltQual' "NATURAL" mazNatToInteger
-                 rel' toHI op "Integer"  
+                 rel' toHI op "Integer"
   rel op ty  = rel' "" op ty
   pred p = do toHB <- bltQual' "BOOL" mazHBoolToBool
               return $ repl [p, toHB] $ "(\\ x -> <<1>> (<<0>> x))"
@@ -217,7 +217,7 @@ hasCompiledData (s:_) = toB =<< getBuiltin s where
   toB (Lam _ (Abs _ t)) = toB t
   toB _                 = return False
 hasCompiledData _    = return False
-                       
+
 
 bltQual' b s = prettyPrint <$> bltQual b s
 

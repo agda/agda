@@ -73,7 +73,7 @@ addConstant q d = liftTCM $ do
   where
     d' = d { defName = q }
     new +++ old = new { defDisplay = defDisplay new ++ defDisplay old }
-    
+
     hideTel  EmptyTel		      = EmptyTel
     hideTel (ExtendTel (Arg _ t) tel) = ExtendTel (Arg Hidden t) $ hideTel <$> tel
 
@@ -413,7 +413,7 @@ treatAbstractly' q env = case envAbstractMode env of
     current = envCurrentModule env
     m	    = qnameModule q
 
--- | get type of a constant 
+-- | get type of a constant
 typeOfConst :: MonadTCM tcm => QName -> tcm Type
 typeOfConst q = defType <$> (instantiateDef =<< getConstInfo q)
 

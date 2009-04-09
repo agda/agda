@@ -47,11 +47,11 @@ import Data.Array (Array)
 -- positive.
 --
 -- The termination criterion is taken from Jones et al.
--- In the completed call graph, each idempotent call-matrix 
+-- In the completed call graph, each idempotent call-matrix
 -- from a function to itself must have a decreasing argument.
 -- Idempotency is wrt. matrix multiplication.
 --
--- This criterion is strictly more liberal than searching for a 
+-- This criterion is strictly more liberal than searching for a
 -- lexicographic order (and easier to implement, but harder to justify).
 
 terminates :: (Ord meta, Monoid meta) => CallGraph meta -> Either meta ()
@@ -63,12 +63,12 @@ checkIdems :: (Ord meta,Monoid meta) => [(Call,meta)] -> Either meta ()
 checkIdems [] = Right ()
 checkIdems ((c,m):xs) = if (checkIdem c) then checkIdems xs else Left m
 
-{- Convention (see TermCheck): 
+{- Convention (see TermCheck):
    Guardedness flag is in position (0,0) of the matrix,
    it is always present even if the functions are all recursive.
    The examples below do not include the guardedness flag, though.
  -}
-   
+
 checkIdem :: Call -> Bool
 checkIdem c = let
   b = target c == source c
@@ -105,14 +105,14 @@ example1 = buildCallGraph [c1, c2, c3]
   flat = 1
   aux  = 2
   c1 = Call { source = flat, target = aux
-            , cm = CallMatrix $ fromLists (Size 2 1) [[Lt], [Lt]] 
+            , cm = CallMatrix $ fromLists (Size 2 1) [[Lt], [Lt]]
             }
   c2 = Call { source = aux,  target = aux
             , cm = CallMatrix $ fromLists (Size 2 2) [ [Lt, Unknown]
-                                                     , [Unknown, Le]] 
+                                                     , [Unknown, Le]]
             }
   c3 = Call { source = aux,  target = flat
-            , cm = CallMatrix $ fromLists (Size 1 2) [[Unknown, Le]] 
+            , cm = CallMatrix $ fromLists (Size 1 2) [[Unknown, Le]]
             }
 
 prop_terminates_example1 = isRight $ terminates example1
@@ -130,10 +130,10 @@ example2 = buildCallGraph [c]
   plus = 1
   c = Call { source = plus, target = plus
            , cm = CallMatrix $ fromLists (Size 2 2) [ [Unknown, Le]
-                                                    , [Lt, Unknown] ]  
+                                                    , [Lt, Unknown] ]
            }
 
-prop_terminates_example2 = isRight $ terminates example2 
+prop_terminates_example2 = isRight $ terminates example2
 
 -- | A related example which is anyway handled: argument swapping addition
 -- using two alternating functions.
@@ -153,10 +153,10 @@ example3 = buildCallGraph [c plus plus', c plus' plus]
   plus' = 2
   c f g = Call { source = f, target = g
                , cm = CallMatrix $ fromLists (Size 2 2) [ [Unknown, Le]
-                                                        , [Lt, Unknown] ]  
+                                                        , [Lt, Unknown] ]
                }
 
-prop_terminates_example3 = isRight $ terminates example3 
+prop_terminates_example3 = isRight $ terminates example3
 
 -- | A contrived example.
 --
@@ -176,22 +176,22 @@ example4 = buildCallGraph [c1, c2, c3]
   g = 2
   c1 = Call { source = f, target = f
             , cm = CallMatrix $ fromLists (Size 2 2) [ [Le, Unknown]
-                                                     , [Unknown, Le] ]  
+                                                     , [Unknown, Le] ]
             }
   c2 = Call { source = f, target = g
             , cm = CallMatrix $ fromLists (Size 2 2) [ [Lt, Unknown]
-                                                     , [Unknown, Le] ]  
+                                                     , [Unknown, Le] ]
             }
   c3 = Call { source = g, target = f
             , cm = CallMatrix $ fromLists (Size 2 2) [ [Le, Unknown]
-                                                     , [Unknown, Le] ]  
+                                                     , [Unknown, Le] ]
             }
 
 prop_terminates_example4 = isLeft $ terminates example4
 
 -- | This should terminate.
 --
--- @f (S x) (S y) = g x (S y) + f (S (S x)) y@ 
+-- @f (S x) (S y) = g x (S y) + f (S (S x)) y@
 --
 -- @g (S x) (S y) = f (S x) (S y) + g x (S y)@
 
@@ -202,22 +202,22 @@ example5 = buildCallGraph [c1, c2, c3, c4]
   g = 2
   c1 = Call { source = f, target = g
             , cm = CallMatrix $ fromLists (Size 2 2) [ [Lt, Unknown]
-                                                     , [Unknown, Le] ]  
+                                                     , [Unknown, Le] ]
             }
   c2 = Call { source = f, target = f
             , cm = CallMatrix $ fromLists (Size 2 2) [ [Unknown, Unknown]
-                                                     , [Unknown, Lt] ]  
+                                                     , [Unknown, Lt] ]
             }
   c3 = Call { source = g, target = f
             , cm = CallMatrix $ fromLists (Size 2 2) [ [Le, Unknown]
-                                                     , [Unknown, Le] ]  
+                                                     , [Unknown, Le] ]
             }
   c4 = Call { source = g, target = g
             , cm = CallMatrix $ fromLists (Size 2 2) [ [Lt, Unknown]
-                                                     , [Unknown, Le] ]  
+                                                     , [Unknown, Le] ]
             }
 
-prop_terminates_example5 = isRight $ terminates example5 
+prop_terminates_example5 = isRight $ terminates example5
 
 -- | Another example which should fail.
 --
@@ -233,16 +233,16 @@ example6 = buildCallGraph [c1, c2, c3]
   where
   f = 1
   c1 = Call { source = f, target = f
-            , cm = CallMatrix $ fromLists (Size 1 1) [ [Lt] ]  
+            , cm = CallMatrix $ fromLists (Size 1 1) [ [Lt] ]
             }
   c2 = Call { source = f, target = f
-            , cm = CallMatrix $ fromLists (Size 1 1) [ [Le] ]  
+            , cm = CallMatrix $ fromLists (Size 1 1) [ [Le] ]
             }
   c3 = Call { source = f, target = f
-            , cm = CallMatrix $ fromLists (Size 1 1) [ [Le] ]  
+            , cm = CallMatrix $ fromLists (Size 1 1) [ [Le] ]
             }
 
-prop_terminates_example6 = isLeft $ terminates example6 
+prop_terminates_example6 = isLeft $ terminates example6
 
 ------------------------------------------------------------------------
 -- All tests

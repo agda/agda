@@ -47,7 +47,7 @@ checkDataDef i ind name ps cs =
 	-- Look up the type of the datatype.
 	t <- instantiateFull =<< typeOfConst name
 
-	-- The parameters are in scope when checking the constructors. 
+	-- The parameters are in scope when checking the constructors.
 	dataDef <- bindParameters ps t $ \tel t0 -> do
 
 	    -- Parameters are always hidden in constructors

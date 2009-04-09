@@ -30,7 +30,7 @@ withAnonymousModule m n =
   local $ \e -> e { envAnonymousModules   = (m, n) : envAnonymousModules e
                   }
 
--- | Set the current environment to the given 
+-- | Set the current environment to the given
 withEnv :: MonadTCM tcm => TCEnv -> tcm a -> tcm a
 withEnv env m = local (const env) m
 

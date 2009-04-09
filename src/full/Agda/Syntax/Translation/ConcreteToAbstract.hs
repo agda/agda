@@ -238,7 +238,7 @@ instance (ToAbstract c1 a1, ToAbstract c2 a2, ToAbstract c3 a3) =>
 	    flatten (x,(y,z)) = (x,y,z)
 
 instance ToAbstract c a => ToAbstract [c] [a] where
-    toAbstract = mapM toAbstract 
+    toAbstract = mapM toAbstract
 
 instance ToAbstract c a => ToAbstract (Maybe c) (Maybe a) where
     toAbstract Nothing  = return Nothing
@@ -605,7 +605,7 @@ instance ToAbstract NiceDefinition Definition where
           do let cs   = map conName cons
                  dups = nub $ cs \\ nub cs
                  bad  = filter (`elem` dups) cs
-             unless (distinct cs) $ 
+             unless (distinct cs) $
                setCurrentRange (getRange bad) $
                   typeError $ DuplicateConstructors dups
 

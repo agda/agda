@@ -169,7 +169,7 @@ showValueDefinition definitions typefams (name, defn) = do
 	    let dvars = map (\i -> text ("v" ++ show i)) [1 .. np + ni]
 	    let dvaluedef = sep [ sep (dname : dvars), equals ] <+> text "()"
 	    return $ dtypedecl $+$ dvaluedef
-	Record{} -> 
+	Record{} ->
 	    return empty  -- no o_xxx since we always use D_xxx
 	Constructor{} ->
 	    return empty  -- no o_xxx since we always use D_xxx
@@ -183,7 +183,7 @@ showOptimizedClause dfuncname = showClause fTerm fCon fBody where
     fTerm = showAsOptimizedTerm
     fCon name dargs = do
 	dname <- showAsOptimizedConstructor name
-	return $ parens $ sep (dname : dargs)    
+	return $ parens $ sep (dname : dargs)
     fBody dpats term = do
 	dterm <- showAsOptimizedTerm term
 	return $ (sep (dfuncname : dpats) <+> equals) <+> nest 2 dterm
@@ -192,7 +192,7 @@ showOptimizedClause dfuncname = showClause fTerm fCon fBody where
 -- implementation of the "K" function
 
 class ShowAsOptimizedKind a where
-    showAsOptimizedKind :: a -> TCM Doc 
+    showAsOptimizedKind :: a -> TCM Doc
 
 instance ShowAsOptimizedKind Type where
     showAsOptimizedKind (El s t) = showAsOptimizedKind t
@@ -221,7 +221,7 @@ instance ShowAsOptimizedKind Term where
 -- implementation of the "T" function
 
 class ShowAsOptimizedType a where
-    showAsOptimizedType :: a -> TCM Doc 
+    showAsOptimizedType :: a -> TCM Doc
 
 instance ShowAsOptimizedType QName where
     showAsOptimizedType s = return $ text $ translateNameAsOptimizedType $ show s
@@ -269,7 +269,7 @@ instance ShowAsOptimizedType Term where
 -- implementation of the "O" function
 
 class ShowAsOptimizedTerm a where
-    showAsOptimizedTerm :: a -> TCM Doc 
+    showAsOptimizedTerm :: a -> TCM Doc
 
 instance ShowAsOptimizedTerm Name where
     showAsOptimizedTerm s = return $ text $ translateNameAsOptimizedTerm $ show s

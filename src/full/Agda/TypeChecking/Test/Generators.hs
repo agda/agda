@@ -139,7 +139,7 @@ makeConfiguration ds cs vs = TermConf
   , tcIsType	       = False
   }
   where
-    (defs, cons) = flip evalState 0 $ 
+    (defs, cons) = flip evalState 0 $
 		   (,) <$> mapM mkName ds <*> mapM mkName cs
 
     tick     = do x <- get; put (x + 1); return x
@@ -293,7 +293,7 @@ instance GenC Term where
 
       genName :: Gen Args -> Gen Term
       genName args = frequency
-	[ (varF, genVar args) 
+	[ (varF, genVar args)
 	, (defF, genDef args)
 	, (conF, genCon args)
 	]
@@ -352,14 +352,14 @@ instance ShrinkC a b => ShrinkC [a] [b] where
         xs1 = take n1 xs
         n2  = n - n1
         xs2 = drop n1 xs
-    
+
         []     `ilv` ys     = ys
         xs     `ilv` []     = xs
         (x:xs) `ilv` (y:ys) = x : y : (xs `ilv` ys)
-    
+
     shrinkOne []     = []
     shrinkOne (x:xs) = [ x' : noShrink xs | x'  <- shrinkC conf x ]
-                    ++ [ noShrink x : xs' | xs' <- shrinkOne xs ] 
+                    ++ [ noShrink x : xs' | xs' <- shrinkOne xs ]
 
 instance (ShrinkC a a', ShrinkC b b') => ShrinkC (a, b) (a', b') where
   noShrink (x, y) = (noShrink x, noShrink y)

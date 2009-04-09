@@ -45,7 +45,7 @@ mapS :: BiMonad m => IFun a b -> m a -> m b
 mapS (IFun f g) sa = bindS g sa $ returnS . f
 
 (>->) :: BiMonad m => m a -> m b -> m (a,b)
-sa >-> sb = bindS fst sa $ \a -> 
+sa >-> sb = bindS fst sa $ \a ->
 	    bindS snd sb $ \b ->
 	    returnS (a,b)
 

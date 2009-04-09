@@ -144,7 +144,7 @@ instance Show ParseError where
 
 -- 	    showInp ""  = "at end of file"
 -- 	    showInp t   = "on input " ++ elide 5 t
--- 
+--
 -- 	    elide 3 s
 -- 		| length (take 4 s) < 4 = s
 -- 		| otherwise		    = "..."

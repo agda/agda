@@ -23,7 +23,7 @@ import System.FilePath (isAbsolute)
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Abstract.Name
-import Agda.Syntax.Parser 
+import Agda.Syntax.Parser
 import Agda.Syntax.Scope.Base
 import Agda.Syntax.Scope.Monad
 import Agda.Syntax.Translation.ConcreteToAbstract

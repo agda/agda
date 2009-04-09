@@ -20,7 +20,7 @@ bindBuiltinName b x = do
 	    Just (Builtin y) -> typeError $ DuplicateBuiltinBinding b y x
 	    Just (Prim _)    -> typeError $ NoSuchBuiltinName b
 	    Nothing	     -> modify $ \st ->
-              st { stLocalBuiltins = 
+              st { stLocalBuiltins =
                     Map.insert b (Builtin x) $ stLocalBuiltins st
                  }
 

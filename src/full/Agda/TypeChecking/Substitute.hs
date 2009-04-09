@@ -34,7 +34,7 @@ instance Apply Term where
 	    Def c args'   -> Def c (args' ++ args)
 	    Con c args'   -> Con c (args' ++ args)
 	    Lam _ u	  -> absApp u v `apply` args0
-	    MetaV x args' -> MetaV x (args' ++ args) 
+	    MetaV x args' -> MetaV x (args' ++ args)
 	    Lit l	  -> __IMPOSSIBLE__
 	    Pi _ _	  -> __IMPOSSIBLE__
 	    Fun _ _	  -> __IMPOSSIBLE__
@@ -383,7 +383,7 @@ telePi :: Telescope -> Type -> Type
 telePi  EmptyTel	 t = t
 telePi (ExtendTel u tel) t = el $ fn u b
   where
-    el = El (sLub s1 s2)  
+    el = El (sLub s1 s2)
     b = fmap (flip telePi t) tel
     s1 = getSort $ unArg u
     s2 = getSort $ absBody b
@@ -397,7 +397,7 @@ telePi_ :: Telescope -> Type -> Type
 telePi_  EmptyTel	 t = t
 telePi_ (ExtendTel u tel) t = el $ Pi u b
   where
-    el = El (sLub s1 s2)  
+    el = El (sLub s1 s2)
     b = fmap (flip telePi_ t) tel
     s1 = getSort $ unArg u
     s2 = getSort $ absBody b

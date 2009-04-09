@@ -310,7 +310,7 @@ usage options pluginInfos progName =
 	usageInfo (header progName) options ++
 	"\nPlugins:\n" ++
         indent (concatMap pluginMsg pluginInfos)
-    
+
     where
 	header progName = unlines [ "Agda 2"
 				  , ""
@@ -319,7 +319,7 @@ usage options pluginInfos progName =
 
 	indent = unlines . map ("  " ++) . lines
 
-        pluginMsg (name, help, inherited, opts) 
+        pluginMsg (name, help, inherited, opts)
             | null opts && null inherited = optHeader
             | otherwise = usageInfo (optHeader ++
                                      "  Plugin-specific options:" ++

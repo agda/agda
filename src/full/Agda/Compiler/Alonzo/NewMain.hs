@@ -61,7 +61,7 @@ compilerMain typeCheck = do
         liftIO $ outputHsModule fileBase hsmod mainNum
         -- let almod = List.map AlDecl hsdefs
         -- liftIO $ printAlModule moduleString almod
-       
+
 
 numOfMainS :: [Name] -> Maybe Int
 numOfMainS [] = Nothing
@@ -103,24 +103,24 @@ processArgPat (Arg hid pat) = processPat pat
 
 processPat :: Pattern -> PM HsPat
 processPat (VarP _) = do
-  n <- get 
+  n <- get
   put (n+1)
   return $ HsPVar $ HsIdent ("v" ++ (show n))
 
-processPat (ConP qname args) = do 
-  let name = qnameName qname   
+processPat (ConP qname args) = do
+  let name = qnameName qname
   hspats <- mapM processArgPat args
   return $ HsPParen $ HsPApp (conQName qname) hspats
 
 processPat (LitP (LitInt _ i)) = return $ HsPLit (HsInt i)
-processPat (LitP (LitChar _ c)) = 
+processPat (LitP (LitChar _ c)) =
   return $  HsPParen $ HsPApp (rtpCon "CharT") [HsPLit (HsChar c)]
 processPat (LitP _) = error "Unimplemented literal patttern" -- return HsPWildCard
 processPat AbsurdP = return HsPWildCard
 
-           
+
 processBody :: ClauseBody -> PM HsExp
-processBody (NoBind cb) = processBody cb 
+processBody (NoBind cb) = processBody cb
 processBody (Bind (Abs n cb)) = processBody cb
 
 processBody (Body t) = processTerm t >>= (return . hsCast)
@@ -148,7 +148,7 @@ processTerm (MetaV _ _) =  error "Can't have metavariables"
 
 processLit :: Literal -> HsExp
 processLit (LitInt _ i) =  hsPreludeTypedExp "Integer" $ HsLit $ HsInt i
-processLit (LitFloat _ f) =  hsPreludeTypedExp "Double" $ 
+processLit (LitFloat _ f) =  hsPreludeTypedExp "Double" $
 						HsLit $ HsFrac $ toRational f
 -- processLit (LitFloat _ f) =  HsApp (HsVar $ rtpCon "FloatT")
 --                                   (HsLit $ HsFrac $ toRational f)
@@ -165,7 +165,7 @@ unfoldVap :: PState -> HsExp -> [Arg Term] -> HsExp
 unfoldVap _ e [] = e
 unfoldVap p e ((Arg NotHidden t):ts) = unfoldVap p (hsAp e e1) ts where
  e1 = evalState (processTerm t) p
-unfoldVap p e ((Arg Hidden t):ts) = unfoldVap p e ts 
+unfoldVap p e ((Arg Hidden t):ts) = unfoldVap p e ts
 
 
 processDefWithDebug :: (Name,Definition) -> IM [HsDecl]
@@ -177,7 +177,7 @@ processDefWithDebug (name,def) = do
 
 infoDecl :: String -> String -> HsDecl
 infoDecl name val = HsFunBind [ HsMatch dummyLoc hsname [] rhs []] where
-    rhs = HsUnGuardedRhs $ HsLit $ HsString val 
+    rhs = HsUnGuardedRhs $ HsLit $ HsString val
     hsname = HsIdent name
 
 processClause :: Name -> Int -> Clause -> IM HsDecl
@@ -185,7 +185,7 @@ processClause name number (Clause args (body)) = do
   return $ HsFunBind $ [HsMatch dummyLoc hsid pats rhs decls] where
                     decls = []
                     hsid = dfNameSub name number
-                    -- pats =  processArgPats  args               
+                    -- pats =  processArgPats  args
                     pm = mapM processArgPat args
                     (pats, pst) =  runState pm initPState
                     rhs = HsUnGuardedRhs exp
@@ -199,7 +199,7 @@ contClause name number (Clause args (body)) = do
                 pats = replicate (length args) HsPWildCard
                 rhs = HsUnGuardedRhs exp
                 exp = HsVar $ UnQual $ dfNameSub name (number+1)
-                
+
 
 foldClauses :: Name -> Nat -> [Clause] -> IM [HsDecl]
 foldClauses name n [] = return []
@@ -213,14 +213,14 @@ foldClauses name n (c:cs) = do
 	return (head:cont:tail)
 
 processDef :: (Name,Definition) -> IM [HsDecl]
-processDef (name,Defn typ fvs (Function clauses isa)) = 
+processDef (name,Defn typ fvs (Function clauses isa)) =
     -- mapM (processClause name) clauses
     do
         hsDecls <- foldClauses name 1 clauses
         return [HsFunBind [HsMatch dummyLoc (dfName name) [] rhs hsDecls]] where
                 rhs = HsUnGuardedRhs $ HsVar $ UnQual $ dfNameSub name 1
 
- 
+
 processDef (name,Defn typ fvs (Datatype n [] sort isa)) = do
   return [ddecl,vdecl]  where
       ddecl = HsDataDecl  dummyLoc [] (dataName name) tvars cons []

@@ -45,10 +45,10 @@ data Type = El Sort Term
   deriving (Typeable, Data, Eq, Show)
 
 data Sort = Type Nat
-	  | Prop 
+	  | Prop
 	  | Lub Sort Sort
 	  | Suc Sort
-	  | MetaS MetaId 
+	  | MetaS MetaId
   deriving (Typeable, Data, Eq, Show)
 
 -- | Something where a meta variable may block reduction.
@@ -122,9 +122,9 @@ instance KillRange a => KillRange (Abs a) where
   killRange = fmap killRange
 
 -- | Type of argument lists.
---                          
-type Args = [Arg Term]      
-                            
+--
+type Args = [Arg Term]
+
 -- | Sequence of types. An argument of the first type is bound in later types
 --   and so on.
 data Telescope = EmptyTel
@@ -151,7 +151,7 @@ instance Functor Abs where
 instance Foldable Abs where
   foldr f z (Abs _ t) = f t z
 
-instance Traversable Abs where 
+instance Traversable Abs where
   traverse f (Abs x t) = Abs x <$> f t
 
 instance Sized a => Sized (Abs a) where
@@ -186,7 +186,7 @@ data Clause = Clause
     , clauseBody      :: ClauseBody
     }
   deriving (Typeable, Data, Show)
-data ClauseBody = Body Term 
+data ClauseBody = Body Term
 		| Bind (Abs ClauseBody)
 		| NoBind ClauseBody
 		| NoBody    -- for absurd clauses

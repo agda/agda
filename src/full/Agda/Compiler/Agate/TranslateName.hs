@@ -50,4 +50,4 @@ escape (c:s)   = '_':intToDigit (ord c `div` 16)
                     :intToDigit (ord c `mod` 16):escape s
 
 ----------------------------------------------------------------
-                    
+

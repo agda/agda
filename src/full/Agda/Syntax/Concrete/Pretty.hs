@@ -208,7 +208,7 @@ instance Pretty Declaration where
 		    ] $$ nest 2 (vcat $ map pretty cs)
 	    Infix f xs	->
 		pretty f <+> (fsep $ punctuate comma $ map pretty xs)
-	    
+
 	    Mutual _ ds	    -> namedBlock "mutual" ds
 	    Abstract _ ds   -> namedBlock "abstract" ds
 	    Private _ ds    -> namedBlock "private" ds
@@ -225,7 +225,7 @@ instance Pretty Declaration where
 		    , nest 2 $ text "=" <+> pretty e <+> pretty i
 		    ]
 	    Open _ x i	-> hsep [ text "open", pretty x, pretty i ]
-	    Import _ x rn open i   -> 
+	    Import _ x rn open i   ->
 		hsep [ pretty open, text "import", pretty x, as rn, pretty i ]
 		where
 		    as Nothing	= empty

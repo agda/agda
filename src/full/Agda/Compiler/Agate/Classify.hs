@@ -72,10 +72,10 @@ enumCompilableTypeFamilies definitions = do
 	    Record{} -> return True
 	where -- TODO: implement correctly
 --	isCompilableType (El s tm) = isCompilableTypeFamily tm
-	
+
 	isCompilableType :: Type -> TCM Bool
 	isCompilableType (El s tm) = isCompilableTypeFamily tm
-	
+
 	isCompilableTypeFamily :: Term -> TCM Bool
 	isCompilableTypeFamily tm = do
 	    tm <- reduce tm
@@ -126,7 +126,7 @@ computeLeastFixedPoint f names = go names [] True where
     go2 []           namesNext grantedNames changed =
 	go namesNext grantedNames changed
     go2 (name:names) namesNext grantedNames changed = do
-	b <- f grantedNames name 
+	b <- f grantedNames name
 	case b of
 	    True  -> go2 names namesNext (name : grantedNames) True
 	    -- name is granted to be okay
@@ -134,4 +134,4 @@ computeLeastFixedPoint f names = go names [] True where
 	    -- name is unsettled
 
 --
-	    
+

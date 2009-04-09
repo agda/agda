@@ -343,7 +343,7 @@ assignV t x args v =
                 pr _          = text ".."
             in
             text "args:" <+> sep (map (pr . unArg) args)
-            
+
 	ids <- checkArgs x args
 
 	reportSDoc "tc.meta.assign" 15 $
@@ -439,7 +439,7 @@ isVar _			 = False
 
 
 updateMeta :: (MonadTCM tcm, Data a, Occurs a, Abstract a) => MetaId -> a -> tcm ()
-updateMeta mI t = 
+updateMeta mI t =
     do	mv <- lookupMeta mI
 	withMetaInfo (getMetaInfo mv) $
 	    do	args <- getContextArgs

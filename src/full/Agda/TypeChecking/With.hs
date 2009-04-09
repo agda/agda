@@ -97,7 +97,7 @@ stripWithClausePatterns gamma qs perm ps = do
     strip EmptyTel    []      []      | 0 == 0 = return []
     strip (ExtendTel a tel) (p : ps) (q : qs) = do
       reportSDoc "tc.with.strip" 15 $ vcat
-        [ text "strip" 
+        [ text "strip"
         , nest 2 $ text "ps =" <+> fsep (punctuate comma $ map prettyA (p : ps))
         , nest 2 $ text "qs =" <+> fsep (punctuate comma $ map (showPat . unArg) (q : qs))
         , nest 2 $ text "tel=" <+> prettyTCM (ExtendTel a tel)
@@ -123,7 +123,7 @@ stripWithClausePatterns gamma qs perm ps = do
 
         ConP c qs' -> case namedThing $ unArg p of
           A.ConP _ (A.AmbQ cs') ps' -> do
-          
+
             Con c' [] <- constructorForm =<< reduce (Con c [])
             c <- return $ c' `withRangeOf` c
             let getCon (Con c []) = c

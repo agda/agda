@@ -133,7 +133,7 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs wh) =
     traceCall (CheckClause t c) $
     checkLeftHandSide c aps t $ \gamma delta sub xs ps t' perm -> do
       let mkBody v = foldr (\x t -> Bind $ Abs x t) (Body $ substs sub v) xs
-      (body, with) <- checkWhere (size delta) wh $ 
+      (body, with) <- checkWhere (size delta) wh $
               case rhs of
                 A.RHS e
                   | any (containsAbsurdPattern . namedThing . unArg) aps ->

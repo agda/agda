@@ -64,7 +64,7 @@ compilerMain typeCheck = ignoreAbstractMode $ do
       withCurrentModule moduleName $ do -- TODO: Hack!
         builtinMap <- getBuiltinThings
 	-- let sigs = toList sig
-	-- let definitions = mdefDefs (snd (head sigs)) -- :: Map Name Definition       
+	-- let definitions = mdefDefs (snd (head sigs)) -- :: Map Name Definition
 	let definitions = sigDefinitions sig -- :: Map QName Definition
 	let defs = Map.toList definitions
         let names = List.map fst defs
@@ -121,7 +121,7 @@ numOfMainS (n:ns) | isMain (qnameName n) = Just $ numOfQName n
 -- isMain (Name _ (C.Name _ [C.Id _ "mainS"]) _ _ ) = True
 isMain n = (show n == "main")
 
-	
+
 
 processDefWithDebug :: (QName,Definition) -> TCM [HsDecl]
 processDefWithDebug (qname,def) = do
@@ -131,10 +131,10 @@ processDefWithDebug (qname,def) = do
          nameInfo = infoDecl infoName (show name)
          infoName = "name" ++ (show $ numOfName name)
 	 name = qnameName qname
-        
+
 infoDecl :: String -> String -> HsDecl
 infoDecl name val = HsFunBind [ HsMatch dummyLoc hsname [] rhs []] where
-    rhs = HsUnGuardedRhs $ HsLit $ HsString val 
+    rhs = HsUnGuardedRhs $ HsLit $ HsString val
     hsname = HsIdent name
 
 
@@ -144,7 +144,7 @@ processDef (qname,Defn { theDef = Function { funClauses = clauses } }) =  do
       return [HsFunBind [HsMatch dummyLoc (dfName name) [] rhs hsDecls]] where
                 rhs = HsUnGuardedRhs $ HsVar $ UnQual $ dfNameSub name 1
                 name = qnameName qname
- 
+
 processDef (qname,Defn { theDef = Datatype{ dataPars = n, dataClause = Nothing, dataCons = [] } }) = do
   return [ddecl,vdecl]  where
       name = qnameName qname
@@ -189,7 +189,7 @@ processDef (qname, Defn { theDef =
       hsname = dfName name
       nDummyArgs 0 = []
       nDummyArgs k = (HsPVar $ HsIdent ("v" ++ (show k))) : nDummyArgs (k-1)
-	
+
 processDef def@(qname,Defn { theDef = Constructor{} }) =
     return []
 
@@ -211,7 +211,7 @@ processDef (qname,Defn { theDef = Primitive info prim expr }) = return $
              name = qnameName qname
 
 processDef (qname, (Defn { theDef = Datatype{dataClause = Just clause} })) = do
-           -- liftIO $ putStrLn $ gshow $ clauseBod clause 
+           -- liftIO $ putStrLn $ gshow $ clauseBod clause
     mkSynonym (clauseBod clause) where
     name = qnameName qname
     mkSynonym (Lam _ (Abs _ t)) = mkSynonym t
@@ -229,7 +229,7 @@ processDef (qname, (Defn { theDef = Datatype{dataClause = Just clause} })) = do
       typ = HsTyCon $ Qual hsModuleName $ dataName $ qnameName rhsqname
     mkSynonym t = __IMPOSSIBLE__
 {-          do
-              liftIO $ putStrLn $ gshow t 
+              liftIO $ putStrLn $ gshow t
               return []
 -}
 
@@ -240,12 +240,12 @@ processDef (qname, (Defn { theDef = Datatype{dataClause = Just clause} })) = do
     mkSynonym (Lam _ (Abs _ t)) = mkSynonym t
     mkSynonym (Def newqn args) = return [ddecl, vdecl] where
       ddecl = HsTypeDecl loc dname [] typ
-   
+
       loc = dummyLoc
       dname = dataName name
       typ = HsTyCon $ UnQual $ dataName $ qnameName newqn
     mkSynonym t = do
-              liftIO $ putStrLn $ gshow t 
+              liftIO $ putStrLn $ gshow t
               return []
 -}
 
@@ -301,12 +301,12 @@ processClause name number clause@(Clause{ clausePerm = perm
   (exp, pst) <- runStateT bodyPM pst0
   let rhs = HsUnGuardedRhs exp
   (pats, pst2) <- runStateT (processArgPats args) pst
-  return $ HsFunBind $ [HsMatch dummyLoc hsid pats rhs decls] 
+  return $ HsFunBind $ [HsMatch dummyLoc hsid pats rhs decls]
     where
                     decls = []
                     hsid = dfNameSub name $ fromIntegral number
-                    -- pats =  processArgPats  args               
-                    
+                    -- pats =  processArgPats  args
+
 contClause :: Name -> Nat -> Clause -> TCM HsDecl
 contClause name number (Clause{ clausePats = args, clauseBody = body }) = do
   return $ HsFunBind $ [HsMatch dummyLoc hsid pats rhs decls] where
@@ -340,7 +340,7 @@ processPat :: Pattern -> PM HsPat
 processPat (VarP _) = do
   pats  <- getPlst
   case pats of
-        [] -> do 
+        [] -> do
 	   c <- getPclause
 	   error $ "Oops! empty pattern list in\n" ++ (gshow c)
 	(p:ps) -> do
@@ -363,16 +363,16 @@ processPat (ConP qname args) = do
   return $ HsPParen $ HsPApp cname hspats
 
 processPat (LitP (LitInt _ i)) = return $ HsPLit (HsInt i)
-processPat (LitP (LitChar _ c)) = 
+processPat (LitP (LitChar _ c)) =
   return $  HsPParen $ HsPApp (rtpCon "CharT") [HsPLit (HsChar c)]
-processPat (LitP _) = error "Unimplemented literal patttern" 
+processPat (LitP _) = error "Unimplemented literal patttern"
 -- processPat (AbsurdP _) = return HsPWildCard
 
-           
+
 processBody :: ClauseBody -> PM HsExp
-processBody (NoBind cb) = do 
+processBody (NoBind cb) = do
         addWildcard
-	processBody cb 
+	processBody cb
 processBody (Bind (Abs name cb)) = do
 	-- cnt <- getPcnt
 	addVar
@@ -404,8 +404,8 @@ processTerm (Con qn ts) = do
     -- Can be a record constructor in which case the def will be for the record.
     _ -> do
       ldefs <- getPDefs
-      if (Map.member qn ldefs) 
-        then do 
+      if (Map.member qn ldefs)
+        then do
           definiens <- case theDef <$> Map.lookup qn ldefs of
                           Just df -> return df
                           Nothing -> fail $ "Alonzo: No such definition: " ++ show qn
@@ -437,7 +437,7 @@ processLit :: Literal -> HsExp
 processLit (LitInt _ i) =  HsApp toNat $ intLit i where
 	intLit i = HsParen $ hsPreludeTypedExp "Integer" $ HsLit $ HsInt i
 	toNat = HsVar $ Qual (Module "RTP") $ HsIdent "_primIntegerToNat"
-processLit (LitFloat _ f) =  hsPreludeTypedExp "Double" $ 
+processLit (LitFloat _ f) =  hsPreludeTypedExp "Double" $
 						HsLit $ HsFrac $ toRational f
 -- processLit (LitFloat _ f) =  HsApp (HsVar $ rtpCon "FloatT")
 --                                   (HsLit $ HsFrac $ toRational f)
@@ -455,7 +455,7 @@ unfoldVap _ e [] = return e
 unfoldVap p e ((Arg NotHidden t):ts) = do
   e1 <- evalStateT (processTerm t) p
   unfoldVap p (hsAp e e1) ts
--- unfoldVap p e ((Arg Hidden t):ts) = unfoldVap p e ts 
+-- unfoldVap p e ((Arg Hidden t):ts) = unfoldVap p e ts
 unfoldVap p e ((Arg Hidden t):ts) = do
   e1 <- evalStateT (processTerm t) p
   unfoldVap p (hsAp e e1) ts
@@ -475,7 +475,7 @@ getConArities cs = mapM getConArity cs
 
 getConArity :: QName -> TCM Nat
 getConArity qn = do
-        Defn _ ty _ _ Constructor{conPars = np} <- getConstInfo qn        
+        Defn _ ty _ _ Constructor{conPars = np} <- getConstInfo qn
 	ty' <- normalise ty
         return $ typeArity ty' - np
         -- return $ arity ty'

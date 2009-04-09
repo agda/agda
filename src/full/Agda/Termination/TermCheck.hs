@@ -1,7 +1,7 @@
 {-# LANGUAGE CPP #-}
 
 {- Checking for Structural recursion
-   Authors: Andreas Abel, Nils Anders Danielsson, Ulf Norell, 
+   Authors: Andreas Abel, Nils Anders Danielsson, Ulf Norell,
               Karl Mehltretter and others
    Created: 2007-05-28
    Source : TypeCheck.Rules.Decl
@@ -115,7 +115,7 @@ termMutual i ts ds = if names == [] then return [] else
              case r of
                Right _ -> return r
                Left _  -> do
-     -- now try to termination check regarding the dot patterns     
+     -- now try to termination check regarding the dot patterns
                  calls2 <- collect conf{ useDotPatterns = True }
                  reportS "term.lex" 30 $ unlines
                    [ "Calls    (dot patterns): " ++ show calls2
@@ -236,7 +236,7 @@ data DeBruijnPat = VarDBP Nat  -- de Bruijn Index
 instance PrettyTCM DeBruijnPat where
   prettyTCM (VarDBP i)    = text $ show i
   prettyTCM (ConDBP c ps) = parens (prettyTCM c <+> hsep (map prettyTCM ps))
-  prettyTCM (LitDBP l)    = prettyTCM l 
+  prettyTCM (LitDBP l)    = prettyTCM l
 
 unusedVar :: DeBruijnPat
 unusedVar = LitDBP (LitString noRange "term.unused.pat.var")
@@ -314,7 +314,7 @@ stripBind conf i (DotP t) (Bind b)   = do
   return $ Just (i - 1, t, absBody b)
 stripBind conf i (DotP _) (Body b)   = __IMPOSSIBLE__
 stripBind conf i (LitP l) b          = return $ Just (i, LitDBP l, b)
-stripBind conf i (ConP c args) b     = do 
+stripBind conf i (ConP c args) b     = do
     r <- stripBinds conf i (map unArg args) b
     case r of
       Just (i', dbps, b') -> return $ Just (i', ConDBP c dbps, b')
@@ -371,7 +371,7 @@ termTerm names f pats0 t0 = do
          , nest 2 $ text "rhs:" <+> prettyTCM t0
          ])
   loop pats0 Le t0
-  where 
+  where
        Just fInd = toInteger <$> List.elemIndex f names
        loop :: [DeBruijnPat] -> Order -> Term -> TCM Calls
        loop pats guarded t = do
@@ -394,17 +394,17 @@ termTerm names f pats0 t0 = do
                   calls <- collectCalls (loop pats Unknown) args
 
 
-                  reportSDoc "term.found.call" 10 
+                  reportSDoc "term.found.call" 10
                           (sep [ text "found call from" <+> prettyTCM f
                                , nest 2 $ text "to" <+> prettyTCM g
                 	       ])
 
                   -- insert this call into the call list
                   case List.elemIndex g names of
- 
+
                      -- call leads outside the mutual block and can be ignored
                      Nothing   -> return calls
- 
+
                      -- call is to one of the mutally recursive functions
                      Just gInd' -> do
 
@@ -413,14 +413,14 @@ termTerm names f pats0 t0 = do
                             nrows   = genericLength args + 1
                             matrix' = addGuardedness guarded (ncols - 1) matrix
 
-                        reportSDoc "term.kept.call" 10 
+                        reportSDoc "term.kept.call" 10
                           (sep [ text "kept call from" <+> prettyTCM f
                                   <+> hsep (map prettyTCM pats)
-                               , nest 2 $ text "to" <+> prettyTCM g <+> 
+                               , nest 2 $ text "to" <+> prettyTCM g <+>
                                            hsep (map (parens . prettyTCM) args)
                                , nest 2 $ text ("call matrix: " ++ show matrix)
                 	       ])
-                       
+
                         return
                           (Term.insert
                             (Term.Call { Term.source = fInd
@@ -470,12 +470,12 @@ termTerm names f pats0 t0 = do
 
 {- | compareArgs suc pats ts
 
-     compare a list of de Bruijn patterns (=parameters) @pats@ 
-     with a list of arguments @ts@ and create a call maxtrix 
+     compare a list of de Bruijn patterns (=parameters) @pats@
+     with a list of arguments @ts@ and create a call maxtrix
      with |ts| rows and |pats| columns.
 
      If sized types are enabled, @suc@ is the name of the size successor.
- -} 
+ -}
 compareArgs :: Maybe QName -> [DeBruijnPat] -> [Term] -> TCM [[Term.Order]]
 compareArgs suc pats ts = mapM (\t -> mapM (compareTerm suc t) pats) ts
 
@@ -532,7 +532,7 @@ compareConArgs suc ts ps =
       case (length ts, length ps) of
         (0,0) -> return Term.Le        -- c <= c
         (0,1) -> return Term.Unknown   -- c not<= c x
-        (1,0) -> __IMPOSSIBLE__ 
+        (1,0) -> __IMPOSSIBLE__
         (1,1) -> compareTerm' suc (unArg (head ts)) (head ps)
         (_,_) -> do -- build "call matrix"
           m <- mapM (\t -> mapM (compareTerm' suc (unArg t)) ps) ts
@@ -551,5 +551,5 @@ compareVar i (VarDBP j)    = return $ if i == j then Term.Le else Term.Unknown
 compareVar i (LitDBP _)    = return $ Term.Unknown
 compareVar i (ConDBP c ps) = do
   os <- mapM (compareVar i) ps
-  let o = Term.supremum os 
+  let o = Term.supremum os
   return $ (Term..*.) Term.Lt o

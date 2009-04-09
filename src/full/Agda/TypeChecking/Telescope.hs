@@ -75,7 +75,7 @@ teleArgNames :: Telescope -> [Arg String]
 teleArgNames = map (fmap fst) . telToList
 
 teleArgs :: Telescope -> Args
-teleArgs tel = 
+teleArgs tel =
   reverse [ Arg h (Var i []) | (i, Arg h _) <- zip [0..] $ reverse (telToList tel) ]
 
 -- | A telescope split in two.

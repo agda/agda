@@ -101,7 +101,7 @@ definition (Defn q ty _ _ d) = do
     Constructor{} -> return []
     Record{ recClause = cl, recFields = flds } -> do
       ar <- arity <$> normalise ty
-      return $ tvaldecl q (genericLength flds) ar [cdecl q (genericLength flds)] cl  
+      return $ tvaldecl q (genericLength flds) ar [cdecl q (genericLength flds)] cl
     Primitive{ primName = s } -> fb <$> primBody s
   where
   tag _ []       = []
@@ -204,12 +204,12 @@ literal l = case l of
   LitFloat  _ _   -> return $ typed "Double"
   _               -> return $ l'
   where l'    = HsLit $ hslit l
-        typed = HsExpTypeSig dummy l' . HsQualType [] . HsTyCon . rtmQual 
+        typed = HsExpTypeSig dummy l' . HsQualType [] . HsTyCon . rtmQual
 
 hslit :: Literal -> HsLiteral
 hslit l = case l of LitInt    _ x -> HsInt    x
                     LitFloat  _ x -> HsFrac   (toRational x)
-                    LitString _ x -> HsString x 
+                    LitString _ x -> HsString x
                     LitChar   _ x -> HsChar   x
 
 condecl :: QName -> TCM (Nat, HsConDecl)
@@ -280,7 +280,7 @@ outFile' = do
 
 outFile :: TCM FilePath
 outFile = snd <$> outFile'
-           
+
 callGHC :: (Interface, ClockTime) -> TCM ()
 callGHC mainICT = do
   setInterface mainICT

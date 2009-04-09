@@ -272,7 +272,7 @@ instance EmbPrj A.ModuleName where
   value n = A.MName `fmap` value n
 
 instance EmbPrj A.Name where
-  icode (A.Name a b c d) = icode4' a b c d 
+  icode (A.Name a b c d) = icode4' a b c d
   value = vcase valu where valu [a, b, c, d] = valu4 A.Name a b c d
                            valu _            = __IMPOSSIBLE__
 
@@ -346,8 +346,8 @@ instance EmbPrj I.Term where
   icode (Fun      a b) = icode2 6 a b
   icode (Sort     a  ) = icode1 7 a
   icode (MetaV    a b) = icode2 8 a b
-  value = vcase valu where valu [0, a, b] = valu2 Var   a b 
-                           valu [1, a, b] = valu2 Lam   a b 
+  value = vcase valu where valu [0, a, b] = valu2 Var   a b
+                           valu [1, a, b] = valu2 Lam   a b
                            valu [2, a]    = valu1 Lit   a
                            valu [3, a, b] = valu2 Def   a b
                            valu [4, a, b] = valu2 Con   a b
@@ -623,7 +623,7 @@ vcase valu ix = do
     case maybeU of
       Just (U u) -> maybe (__IMPOSSIBLE__) return (cast u)
       Nothing    -> do
-          v <- valu . (! ix) =<< asks nodeE 
+          v <- valu . (! ix) =<< asks nodeE
           lift $ H.insert memo (ix, aTyp) (U v)
           return v
 
@@ -682,7 +682,7 @@ hashNode is = List.foldl' f golden is
    where f m c = fromIntegral c * magic + hashInt32 m
          magic  = 0xdeadbeef
          golden :: Int32
-         golden = 1013904242 
+         golden = 1013904242
          hashInt32 x = mulHi x golden + x
          mulHi :: Int32 -> Int32 -> Int32
          mulHi a b = fromIntegral (r `shiftR` 32)

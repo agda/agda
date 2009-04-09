@@ -31,7 +31,7 @@ showAsUntypedConstructor name =
 -- implementation of the "X" function
 
 class ShowAsUntypedTerm a where
-    showAsUntypedTerm :: a -> TCM Doc 
+    showAsUntypedTerm :: a -> TCM Doc
 
 instance ShowAsUntypedTerm Name where
     showAsUntypedTerm t = return $ text $ translateNameAsUntypedTerm $ show t

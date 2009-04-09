@@ -101,7 +101,7 @@ infixP  op p = do
     return $ f e
     where
 	restP = return id +++ do
-	    f <- binop op 
+	    f <- binop op
 	    e <- p
 	    return $ flip f e
 

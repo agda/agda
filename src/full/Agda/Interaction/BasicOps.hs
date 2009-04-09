@@ -3,7 +3,7 @@
   #-}
 
 module Agda.Interaction.BasicOps where
-{- TODO: The operations in this module should return Expr and not String, 
+{- TODO: The operations in this module should return Expr and not String,
          for this we need to write a translator from Internal to Abstract syntax.
 -}
 
@@ -15,11 +15,11 @@ import Data.Map (Map)
 import Data.List
 import Data.Maybe
 
-import Agda.Interaction.Monad 
+import Agda.Interaction.Monad
 
 import qualified Agda.Syntax.Concrete as C -- ToDo: Remove with instance of ToConcrete
 import Agda.Syntax.Position
-import Agda.Syntax.Abstract 
+import Agda.Syntax.Abstract
 import Agda.Syntax.Common
 import Agda.Syntax.Info(ExprInfo(..),MetaInfo(..))
 import Agda.Syntax.Internal (MetaId(..),Type(..),Term(..),Sort(..))
@@ -47,7 +47,7 @@ import Agda.Utils.Impossible
 parseExprIn :: InteractionId -> Range -> String -> TCM Expr
 parseExprIn ii rng s = do
     mId <- lookupInteractionId ii
-    updateMetaVarRange mId rng       
+    updateMetaVarRange mId rng
     mi  <- getMetaInfo <$> lookupMeta mId
     let pos = case rStart (getRange mi) of
                 Just pos -> pos
@@ -58,12 +58,12 @@ parseExprIn ii rng s = do
 giveExpr :: MetaId -> Expr -> TCM Expr
 -- When translater from internal to abstract is given, this function might return
 -- the expression returned by the type checker.
-giveExpr mi e = 
-    do  mv <- lookupMeta mi 
+giveExpr mi e =
+    do  mv <- lookupMeta mi
         withMetaInfo (getMetaInfo mv) $ metaTypeCheck' mi e mv
-        
-  where  metaTypeCheck' mi e mv = 
-            case mvJudgement mv of 
+
+  where  metaTypeCheck' mi e mv =
+            case mvJudgement mv of
 		 HasType _ t  -> do
 		    ctx <- getContextArgs
 		    let t' = t `piApply` ctx
@@ -76,42 +76,42 @@ giveExpr mi e =
 		 IsSort _ -> __IMPOSSIBLE__
 
 give :: InteractionId -> Maybe Range -> Expr -> TCM (Expr,[InteractionId])
-give ii mr e = liftTCM $  
+give ii mr e = liftTCM $
      do  setUndo
-         mi <- lookupInteractionId ii 
+         mi <- lookupInteractionId ii
          mis <- getInteractionPoints
          r <- getInteractionRange ii
          updateMetaVarRange mi $ maybe r id mr
          giveExpr mi e
-         removeInteractionPoint ii 
+         removeInteractionPoint ii
          mis' <- getInteractionPoints
-         return (e, mis' \\ mis) 
+         return (e, mis' \\ mis)
 
 
 addDecl :: Declaration -> TCM ([InteractionId])
-addDecl d = 
+addDecl d =
     do   setUndo
          mis <- getInteractionPoints
          checkDecl d
          mis' <- getInteractionPoints
-         return (mis' \\ mis) 
+         return (mis' \\ mis)
 
 
 refine :: InteractionId -> Maybe Range -> Expr -> TCM (Expr,[InteractionId])
--- If constants has a fixed arity, then it might be better to do 
+-- If constants has a fixed arity, then it might be better to do
 -- exact refinement.
-refine ii mr e = 
+refine ii mr e =
     do  mi <- lookupInteractionId ii
-        mv <- lookupMeta mi 
+        mv <- lookupMeta mi
         let range = maybe (getRange mv) id mr
-        let scope = M.getMetaScope mv  
+        let scope = M.getMetaScope mv
         tryRefine 10 range scope e
   where tryRefine :: Int -> Range -> ScopeInfo -> Expr -> TCM (Expr,[InteractionId])
         tryRefine nrOfMetas r scope e = try nrOfMetas e
            where try 0 e = throwError (strMsg "Can not refine")
                  try n e = give ii (Just r) e `catchError` (\_ -> try (n-1) (appMeta e))
                  appMeta :: Expr -> Expr
-                 appMeta e = 
+                 appMeta e =
                       let metaVar = QuestionMark
 				  $ Agda.Syntax.Info.MetaInfo
 				    { Agda.Syntax.Info.metaRange = r
@@ -124,24 +124,24 @@ refine ii mr e =
 
 {-
 refineExact :: InteractionId -> Maybe Range -> Expr -> TCM (Expr,[InteractionId])
-refineExact ii mr e = 
+refineExact ii mr e =
     do  mi <- lookupInteractionId ii
-        mv <- lookupMeta mi 
+        mv <- lookupMeta mi
         let range = maybe (getRange mv) id mr
         let scope = M.getMetaScope mv
-        (_,t) <- withMetaInfo (getMetaInfo mv) $ inferExpr e         
+        (_,t) <- withMetaInfo (getMetaInfo mv) $ inferExpr e
         let arityt = arity t
-        
+
         tryRefine 10 range scope e
   where tryRefine :: Int -> Range -> ScopeInfo -> Expr -> TCM (Expr,[InteractionId])
         tryRefine nrOfMetas r scope e = try nrOfMetas e
            where try 0 e = throwError (strMsg "Can not refine")
                  try n e = give ii (Just r) e `catchError` (\_ -> try (n-1) (appMeta e))
                  appMeta :: Expr -> Expr
-                 appMeta e = 
+                 appMeta e =
                       let metaVar = QuestionMark $ Agda.Syntax.Info.MetaInfo {Agda.Syntax.Info.metaRange = r,
                                                  Agda.Syntax.Info.metaScope = scope}
-                      in App (ExprRange $ r) NotHidden e metaVar    
+                      in App (ExprRange $ r) NotHidden e metaVar
                  --ToDo: The position of metaVar is not correct
 
 
@@ -149,33 +149,33 @@ refineExact ii mr e =
 
 
 abstract :: InteractionId -> Maybe Range -> TCM (Expr,[InteractionId])
-abstract ii mr 
+abstract ii mr
 
 
 refineExact :: InteractionId -> Expr -> TCM (Expr,[InteractionId])
-refineExact ii e = 
-    do  
+refineExact ii e =
+    do
 -}
 
 
 {-| Evaluate the given expression in the current environment -}
 evalInCurrent :: Expr -> TCM Expr
-evalInCurrent e = 
-    do  t <- newTypeMeta_ 
+evalInCurrent e =
+    do  t <- newTypeMeta_
 	v <- checkExpr e t
 	v' <- normalise v
 	reify v'
 
 
 evalInMeta :: InteractionId -> Expr -> TCM Expr
-evalInMeta ii e = 
+evalInMeta ii e =
    do 	m <- lookupInteractionId ii
 	mi <- getMetaInfo <$> lookupMeta m
 	withMetaInfo mi $
 	    evalInCurrent e
 
 
-data Rewrite =  AsIs | Instantiated | HeadNormal | Normalised 
+data Rewrite =  AsIs | Instantiated | HeadNormal | Normalised
 
 --rewrite :: Rewrite -> Term -> TCM Term
 rewrite AsIs	     t = return t
@@ -222,7 +222,7 @@ instance Functor (OutputForm a) where
     fmap f (IsEmptyType a)        = IsEmptyType a
 
 instance Reify Constraint (OutputForm Expr Expr) where
-    reify (ValueCmp cmp t u v) = CmpInType cmp <$> reify t <*> reify u <*> reify v 
+    reify (ValueCmp cmp t u v) = CmpInType cmp <$> reify t <*> reify u <*> reify v
     reify (TypeCmp cmp t t')   = CmpTypes cmp <$> reify t <*> reify t'
     reify (SortCmp cmp s s')   = CmpSorts cmp <$> reify s <*> reify s'
     reify (Guarded c cs) = do
@@ -259,12 +259,12 @@ instance (Show a,Show b) => Show (OutputForm a b) where
     show (Assign m e)           = show m ++ " := " ++ show e
     show (IsEmptyType a)        = "Is empty: " ++ show a
 
-instance (ToConcrete a c, ToConcrete b d) => 
+instance (ToConcrete a c, ToConcrete b d) =>
          ToConcrete (OutputForm a b) (OutputForm c d) where
     toConcrete (OfType e t) = OfType <$> toConcrete e <*> toConcrete t
     toConcrete (JustType e) = JustType <$> toConcrete e
     toConcrete (JustSort e) = JustSort <$> toConcrete e
-    toConcrete (CmpInType cmp t e e') = 
+    toConcrete (CmpInType cmp t e e') =
              CmpInType cmp <$> toConcrete t <*> toConcrete e <*> toConcrete e'
     toConcrete (CmpTypes cmp e e') = CmpTypes cmp <$> toConcrete e <*> toConcrete e'
     toConcrete (CmpSorts cmp e e') = CmpSorts cmp <$> toConcrete e <*> toConcrete e'
@@ -295,8 +295,8 @@ mkUndo = undo
 
 --- Printing Operations
 getConstraint :: Int -> TCM (OutputForm Expr Expr)
-getConstraint ci = 
-    do  cc <- lookupConstraint ci 
+getConstraint ci =
+    do  cc <- lookupConstraint ci
         cc <- reduce cc
         withConstraint reify cc
 
@@ -334,7 +334,7 @@ getSolvedInteractionPoints = do
           PostponedTypeCheckingProblem{} -> unsol
 
 typeOfMetaMI :: Rewrite -> MetaId -> TCM (OutputForm Expr MetaId)
-typeOfMetaMI norm mi = 
+typeOfMetaMI norm mi =
      do mv <- lookupMeta mi
 	withMetaInfo (getMetaInfo mv) $
 	  rewriteJudg mv (mvJudgement mv)
@@ -347,7 +347,7 @@ typeOfMetaMI norm mi =
 
 
 typeOfMeta :: Rewrite -> InteractionId -> TCM (OutputForm Expr InteractionId)
-typeOfMeta norm ii = 
+typeOfMeta norm ii =
      do mi <- lookupInteractionId ii
         out <- typeOfMetaMI norm mi
         return $ fmap (\_ -> ii) out
@@ -356,11 +356,11 @@ typeOfMeta norm ii =
 typeOfMetas :: Rewrite -> TCM ([OutputForm Expr InteractionId],[OutputForm Expr MetaId])
 -- First visible metas, then hidden
 typeOfMetas norm = liftTCM $
-    do	ips <- getInteractionPoints 
+    do	ips <- getInteractionPoints
         js <- mapM (typeOfMeta norm) ips
         hidden <- hiddenMetas
         return $ (js,hidden)
-   where hiddenMetas =    --TODO: Change so that it uses getMetaMI above 
+   where hiddenMetas =    --TODO: Change so that it uses getMetaMI above
             do is <- getInteractionMetas
 	       store <- Map.filterWithKey (openAndImplicit is) <$> getMetaStore
                let mvs = Map.keys store

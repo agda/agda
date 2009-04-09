@@ -13,5 +13,5 @@ enterClosure (Closure sig env scope trace x) k =
     $ withEnv env
     $ withTrace trace
     $ k x
-    
+
 

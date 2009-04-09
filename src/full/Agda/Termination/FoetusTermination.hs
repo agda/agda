@@ -48,7 +48,7 @@ import Data.Array (Array)
 terminates :: (Ord meta, Monoid meta) =>
   CallGraph meta -> Either (Map Index (Set Index, Set meta))
                            (Map Index (LexOrder Index))
-terminates cs | ok        = Right perms 
+terminates cs | ok        = Right perms
               | otherwise = Left problems
   where
   -- Try to find lexicographic orders.
@@ -194,7 +194,7 @@ prop_terminates_example4 =
 
 -- | This should terminate.
 --
--- @f (S x) (S y) = g x (S y) + f (S (S x)) y@ 
+-- @f (S x) (S y) = g x (S y) + f (S (S x)) y@
 --
 -- @g (S x) (S y) = f (S x) (S y) + g x (S y)@
 

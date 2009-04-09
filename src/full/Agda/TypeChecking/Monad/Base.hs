@@ -234,7 +234,7 @@ instance Traversable (Judgement t) where
 -- ** Meta variables
 ---------------------------------------------------------------------------
 
-data MetaVariable = 
+data MetaVariable =
 	MetaVar	{ mvInfo	  :: MetaInfo
 		, mvPriority	  :: MetaPriority -- ^ some metavariables are more eager to be instantiated
 		, mvJudgement	  :: Judgement Type MetaId
@@ -291,7 +291,7 @@ getMetaEnv :: MetaVariable -> TCEnv
 getMetaEnv m = clEnv $ getMetaInfo m
 
 getMetaSig :: MetaVariable -> Signature
-getMetaSig m = clSignature $ getMetaInfo m 
+getMetaSig m = clSignature $ getMetaInfo m
 
 ---------------------------------------------------------------------------
 -- ** Interaction meta variables

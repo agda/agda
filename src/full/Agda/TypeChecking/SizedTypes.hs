@@ -35,7 +35,7 @@ compareSizes cmp u v = do
     ]
   u <- reduce u
   v <- reduce v
-  reportSDoc "tc.conv.size" 15 $ 
+  reportSDoc "tc.conv.size" 15 $
       nest 2 $ sep [ text (show u) <+> prettyTCM cmp
                    , text (show v)
                    ]
@@ -57,7 +57,7 @@ trivial :: MonadTCM tcm => Term -> Term -> tcm Bool
 trivial u v = liftTCM $ do
     a <- sizeExpr u
     b <- sizeExpr v
-    reportSDoc "tc.conv.size" 15 $ 
+    reportSDoc "tc.conv.size" 15 $
       nest 2 $ sep [ text (show a) <+> text "<="
                    , text (show b)
                    ]
@@ -122,7 +122,7 @@ computeSizeConstraint cl = liftTCM $
 -- | Throws a 'patternViolation' if the term isn't a proper size expression.
 sizeExpr :: MonadTCM tcm => Term -> tcm (SizeExpr, Int)
 sizeExpr u = do
-  u <- reduce u -- Andreas, 2009-02-09. 
+  u <- reduce u -- Andreas, 2009-02-09.
                 -- This is necessary to surface the solutions of metavariables.
   s <- sizeView u
   case s of
@@ -234,7 +234,7 @@ solveSizeConstraints = whenM haveSizedTypes $ do
 -- type Solution = Map Int SizeExpr
 -- data SizeExpr = SizeVar Int Int   -- e.g. x + 5
 --               | SizeConst Weight  -- a number or infinity
--- data Weight = Finite Int | Infinite 
+-- data Weight = Finite Int | Infinite
 -- data Node = Rigid Rigid
 --           | Flex  FlexId
 -- data Rigid = RConst Weight

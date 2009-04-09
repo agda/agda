@@ -1,7 +1,7 @@
 {-# LANGUAGE CPP #-}
 
 -- | Computing the free variables of a term.
-module Agda.TypeChecking.Free 
+module Agda.TypeChecking.Free
     ( FreeVars(..)
     , Free(..)
     , allVars

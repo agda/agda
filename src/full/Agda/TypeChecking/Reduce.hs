@@ -225,7 +225,7 @@ unfoldDefinition unfoldDelayed keepGoing v0 f args =
             (_, []) -> defaultResult -- no definition for head
             (_, cls@(Clause{ clausePats = ps } : _))
                 | length ps <= length args ->
-                    do  let (args1,args2) = splitAt (length ps) args 
+                    do  let (args1,args2) = splitAt (length ps) args
                         ev <- appDef v0 cls args1
                         case ev of
                             NoReduction  v -> return    $ v `apply` args2
@@ -249,7 +249,7 @@ unfoldDefinition unfoldDelayed keepGoing v0 f args =
                 DontKnow (Just m) -> return $ NoReduction $ blocked m $ v `apply` args
                 Yes args'
                   | hasBody body  -> return $ YesReduction (
-                      -- TODO: let matchPatterns also return the reduced forms 
+                      -- TODO: let matchPatterns also return the reduced forms
                       -- of the original arguments!
                       app args' body)
                   | otherwise	  -> return $ NoReduction $ notBlocked $ v `apply` args

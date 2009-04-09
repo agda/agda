@@ -12,7 +12,7 @@ import Data.List
 import Data.Function
 
 type Prefix a = [a]
-type Suffix a = [a] 
+type Suffix a = [a]
 
 -- | Check if a list has a given prefix. If so, return the list
 --   minus the prefix.

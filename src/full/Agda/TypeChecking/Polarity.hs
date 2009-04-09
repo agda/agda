@@ -90,7 +90,7 @@ sizePolarity d =
                         isLin <- checkSizeIndex np sizeArg target
 
                         return $ isPos && isLin
-                      
+
           ifM (and <$> mapM check cons)
               (return [Covariant])
               (return [Invariant])

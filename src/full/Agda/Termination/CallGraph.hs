@@ -54,7 +54,7 @@ import Data.Function
 -- @'Unknown' '<=' 'Le' '<=' 'Lt'@.
 --
 -- See 'Call' for more information.
--- 
+--
 -- TODO: document orders which are call-matrices themselves.
 data Order
   = Lt | Le | Unknown | Mat (Matrix Integer Order)
@@ -64,7 +64,7 @@ instance Show Order where
   show Lt      = "<"
   show Le      = "="
   show Unknown = "?"
-  show (Mat m) = "Mat " ++ show m 
+  show (Mat m) = "Mat " ++ show m
 
 --instance Ord Order where
 --    max = maxO
@@ -76,7 +76,7 @@ instance CoArbitrary Order where
   coarbitrary Lt      = variant 0
   coarbitrary Le      = variant 1
   coarbitrary Unknown = variant 2
-  coarbitrary (Mat m) = variant 3 
+  coarbitrary (Mat m) = variant 3
 
 -- | Multiplication of 'Order's. (Corresponds to sequential
 -- composition.)
@@ -87,7 +87,7 @@ Lt      .*. (Mat m)   = Lt .*. (collapse m)
 Lt      .*. _         = Lt
 Le      .*. o         = o
 Unknown .*. _         = Unknown
-(Mat m1) .*. (Mat m2) = if (okM m1 m2) then 
+(Mat m1) .*. (Mat m2) = if (okM m1 m2) then
                             Mat $ mul orderSemiring m1 m2
                         else
                             (collapse m1) .*. (collapse m2)
@@ -107,7 +107,7 @@ supremum :: [Order] -> Order
 supremum = foldr maxO Unknown
 
 maxO :: Order -> Order -> Order
-maxO o1 o2 = case (o1,o2) of 
+maxO o1 o2 = case (o1,o2) of
                (_,Lt) -> Lt
                (Lt,_) -> Lt
                (Unknown,_) -> o2
@@ -123,7 +123,7 @@ maxO o1 o2 = case (o1,o2) of
 -- infimum = foldr min Lt -- DELETE ?
 
 -- | @('Order', 'max', '.*.')@ forms a semiring, with 'Unknown' as zero
--- and 'Le' as one.  
+-- and 'Le' as one.
 
 orderSemiring :: Semiring Order
 orderSemiring =
