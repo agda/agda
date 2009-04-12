@@ -49,7 +49,7 @@ install-bin : install-lib
 	cd src/main && cabal clean && cabal install --prefix="$(PREFIX)"
 
 install-emacs-mode : install-lib
-	agda-mode setup
+	./dist/build/agda-mode/agda-mode setup
 
 ## Making the make system #################################################
 
