@@ -97,6 +97,13 @@ Note that only dynamic options can be set using this variable."
                  (const :tag "None" nil))
   :group 'agda2)
 
+(defcustom agda2-information-window-max-height
+  0.5
+  "*The maximum height of the information window.
+A multiple of the frame height."
+  :type 'number
+  :group 'agda2)
+
 (defcustom agda2-fontset-name
   (unless (eq window-system 'mac) "fontset-agda2")
   "Default font to use in the selected frame when activating the Agda2 mode.
@@ -503,7 +510,8 @@ in the buffer's mode line."
       (pop-to-buffer (current-buffer) 'not-this-window 'norecord)
       (shrink-window
        (- (window-height)
-          (min (/ (frame-height) 2)
+          (min (truncate
+                (* (frame-height) agda2-information-window-max-height))
                (max window-min-height
                     (1+ (count-lines (point-min) (point-max))))))))))
 
