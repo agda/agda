@@ -100,13 +100,11 @@ the following to your .emacs:
              (set-input-method "X")
              ))
 
-A side note: In order to display Unicode characters you need to use
-a font which contains the glyphs in question. If such a font is not
-enabled by default (empty boxes are displayed instead of proper
-characters) you need to select another font. Do this by running
-  M-x customize-face RET agda2-fontset-spec RET
-in Emacs (after you have started the Agda mode) and change the
-setting to a suitable font.
+Note that, on some systems, the Emacs mode changes the default font of
+the current frame in order to enable many Unicode symbols to be
+displayed. This only works if the right fonts are available, though.
+If you want to turn off this feature, then you should customise the
+agda2-fontset-name variable.
 
 ------------------------------------------------------------------------
 Prerequisites
