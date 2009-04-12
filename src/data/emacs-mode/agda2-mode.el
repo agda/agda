@@ -98,7 +98,7 @@ Note that only dynamic options can be set using this variable."
   :group 'agda2)
 
 (defcustom agda2-information-window-max-height
-  0.5
+  0.35
   "*The maximum height of the information window.
 A multiple of the frame height."
   :type 'number
