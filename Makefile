@@ -49,7 +49,13 @@ install-bin : install-lib
 	cd src/main && cabal clean && cabal install --prefix="$(PREFIX)"
 
 install-emacs-mode : install-lib
-	./dist/build/agda-mode/agda-mode setup
+	@echo
+	@echo "If the agda-mode command is not found, make sure that the directory"
+	@echo "in which it was installed is located on your shell's search path."
+	@echo "The command was probably installed in the following directory:"
+	@echo "$(PREFIX)/bin."
+	@echo
+	agda-mode setup
 
 ## Making the make system #################################################
 
