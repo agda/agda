@@ -2,8 +2,7 @@
 -- IO
 ------------------------------------------------------------------------
 
-{-# OPTIONS --no-termination-check
-  #-}
+{-# OPTIONS --no-termination-check #-}
 
 module IO where
 
