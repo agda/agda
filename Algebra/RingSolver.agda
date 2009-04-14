@@ -241,5 +241,5 @@ prove ρ p₁ p₂ eq =
   nf-sound (normalise p₂) ρ
 
 -- For examples of how the function above can be used to
--- semi-automatically prove ring equalities, see
--- Prelude.RingSolver.Examples.
+-- semi-automatically prove ring equalities, see, for instance,
+-- Data.Digit or Data.Nat.DivMod.
