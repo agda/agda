@@ -294,4 +294,4 @@ poset = DecTotalOrder.poset decTotalOrder
 
 import Relation.Binary.PartialOrderReasoning as POR
 module ≤-Reasoning = POR poset
-  renaming (_≈⟨_⟩_ to _≡⟨_⟩_; ≈-byDef to ≡-byDef)
+  renaming (_≈⟨_⟩_ to _≡⟨_⟩_)

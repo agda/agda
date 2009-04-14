@@ -26,5 +26,4 @@ import Relation.Binary.PreorderReasoning as PreR
 open PreR preorder public
        renaming ( _∼⟨_⟩_  to _≈⟨_⟩_
                 ; _≈⟨_⟩_  to _≡⟨_⟩_
-                ; ≈-byDef to ≡-byDef
                 )

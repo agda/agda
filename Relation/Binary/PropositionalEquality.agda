@@ -102,6 +102,5 @@ module ≡-Reasoning where
   private
     module Dummy {a : Set} where
       open EqR (setoid a) public
-        hiding (_≡⟨_⟩_; ≡-byDef)
-        renaming (_≈⟨_⟩_ to _≡⟨_⟩_)
+        hiding (_≡⟨_⟩_) renaming (_≈⟨_⟩_ to _≡⟨_⟩_)
   open Dummy public

@@ -31,40 +31,40 @@ import Relation.Binary.EqReasoning as EqR; open EqR Bool.setoid
 private
 
   ∨-assoc : Associative _∨_
-  ∨-assoc true  y z = byDef
-  ∨-assoc false y z = byDef
+  ∨-assoc true  y z = refl
+  ∨-assoc false y z = refl
 
   ∧-assoc : Associative _∧_
-  ∧-assoc true  y z = byDef
-  ∧-assoc false y z = byDef
+  ∧-assoc true  y z = refl
+  ∧-assoc false y z = refl
 
   ∨-comm : Commutative _∨_
-  ∨-comm true  true  = byDef
-  ∨-comm true  false = byDef
-  ∨-comm false true  = byDef
-  ∨-comm false false = byDef
+  ∨-comm true  true  = refl
+  ∨-comm true  false = refl
+  ∨-comm false true  = refl
+  ∨-comm false false = refl
 
   ∧-comm : Commutative _∧_
-  ∧-comm true  true  = byDef
-  ∧-comm true  false = byDef
-  ∧-comm false true  = byDef
-  ∧-comm false false = byDef
+  ∧-comm true  true  = refl
+  ∧-comm true  false = refl
+  ∧-comm false true  = refl
+  ∧-comm false false = refl
 
   ∨-identity : Identity false _∨_
-  ∨-identity = (λ _ → byDef) , (λ x → ∨-comm x false)
+  ∨-identity = (λ _ → refl) , (λ x → ∨-comm x false)
 
   ∧-identity : Identity true _∧_
-  ∧-identity = (λ _ → byDef) , (λ x → ∧-comm x true)
+  ∧-identity = (λ _ → refl) , (λ x → ∧-comm x true)
 
   zero-∧ : Zero false _∧_
-  zero-∧ = (λ _ → byDef) , (λ x → ∧-comm x false)
+  zero-∧ = (λ _ → refl) , (λ x → ∧-comm x false)
 
   distrib-∧-∨ : _∧_ DistributesOver _∨_
   distrib-∧-∨ = distˡ , distʳ
     where
     distˡ : _∧_ DistributesOverˡ _∨_
-    distˡ true  y z = byDef
-    distˡ false y z = byDef
+    distˡ true  y z = refl
+    distˡ false y z = refl
 
     distʳ : _∧_ DistributesOverʳ _∨_
     distʳ x y z =
@@ -125,14 +125,14 @@ module RingSolver =
 private
 
   zero-∨ : Zero true _∨_
-  zero-∨ = (λ _ → byDef) , (λ x → ∨-comm x true)
+  zero-∨ = (λ _ → refl) , (λ x → ∨-comm x true)
 
   distrib-∨-∧ : _∨_ DistributesOver _∧_
   distrib-∨-∧ = distˡ , distʳ
     where
     distˡ : _∨_ DistributesOverˡ _∧_
-    distˡ true  y z = byDef
-    distˡ false y z = byDef
+    distˡ true  y z = refl
+    distˡ false y z = refl
 
     distʳ : _∨_ DistributesOverʳ _∧_
     distʳ x y z =
@@ -193,28 +193,28 @@ private
   absorptive = abs-∨-∧ , abs-∧-∨
     where
     abs-∨-∧ : _∨_ Absorbs _∧_
-    abs-∨-∧ true  y = byDef
-    abs-∨-∧ false y = byDef
+    abs-∨-∧ true  y = refl
+    abs-∨-∧ false y = refl
 
     abs-∧-∨ : _∧_ Absorbs _∨_
-    abs-∧-∨ true  y = byDef
-    abs-∧-∨ false y = byDef
+    abs-∧-∨ true  y = refl
+    abs-∧-∨ false y = refl
 
   not-∧-inverse : Inverse false not _∧_
   not-∧-inverse =
     ¬x∧x≡⊥ , (λ x → ∧-comm x (not x) ⟨ trans ⟩ ¬x∧x≡⊥ x)
     where
     ¬x∧x≡⊥ : LeftInverse false not _∧_
-    ¬x∧x≡⊥ false = byDef
-    ¬x∧x≡⊥ true  = byDef
+    ¬x∧x≡⊥ false = refl
+    ¬x∧x≡⊥ true  = refl
 
   not-∨-inverse : Inverse true not _∨_
   not-∨-inverse =
     ¬x∨x≡⊤ , (λ x → ∨-comm x (not x) ⟨ trans ⟩ ¬x∨x≡⊤ x)
     where
     ¬x∨x≡⊤ : LeftInverse true not _∨_
-    ¬x∨x≡⊤ false = byDef
-    ¬x∨x≡⊤ true  = byDef
+    ¬x∨x≡⊤ false = refl
+    ¬x∨x≡⊤ true  = refl
 
 isBooleanAlgebra : IsBooleanAlgebra Bool.setoid _∨_ _∧_ not true false
 isBooleanAlgebra = record
@@ -251,7 +251,7 @@ booleanAlgebra = record
 private
 
   xor-is-ok : ∀ x y → x xor y ≡ (x ∨ y) ∧ not (x ∧ y)
-  xor-is-ok true  y = byDef
+  xor-is-ok true  y = refl
   xor-is-ok false y = sym $ proj₂ ∧-identity _
 
 commutativeRing-xor-∧ : CommutativeRing
@@ -268,8 +268,8 @@ module XorRingSolver =
 -- Miscellaneous other properties
 
 not-involutive : Involutive not
-not-involutive true  = byDef
-not-involutive false = byDef
+not-involutive true  = refl
+not-involutive false = refl
 
 not-¬ : ∀ {x y} → x ≡ y → x ≢ not y
 not-¬ {true}  refl ()

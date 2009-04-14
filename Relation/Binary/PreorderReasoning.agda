@@ -47,11 +47,5 @@ _ ∼⟨ x∼y ⟩ relTo y∼z = relTo (trans x∼y y∼z)
 _≈⟨_⟩_ : ∀ x {y z} → x ≈ y → y IsRelatedTo z → x IsRelatedTo z
 _ ≈⟨ x≈y ⟩ relTo y∼z = relTo (trans (reflexive x≈y) y∼z)
 
-≈-byDef : ∀ {x} → x ≈ x
-≈-byDef = Eq.refl
-
-byDef : ∀ {x} → x ∼ x
-byDef = reflexive ≈-byDef
-
 _∎ : ∀ x → x IsRelatedTo x
-_∎ _ = relTo byDef
+_∎ _ = relTo refl

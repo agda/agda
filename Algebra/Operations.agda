@@ -45,7 +45,7 @@ x ^ suc n = x * x ^ n
   n' × x'  ∎
   where
   ×-pres-≈ʳ : ∀ n → (_×_ n) Preserves _≈_ ⟶ _≈_
-  ×-pres-≈ʳ zero    x≈x' = byDef
+  ×-pres-≈ʳ zero    x≈x' = refl
   ×-pres-≈ʳ (suc n) x≈x' = x≈x' ⟨ +-pres-≈ ⟩ ×-pres-≈ʳ n x≈x'
 
 ^-pres-≈ : _^_ Preserves₂ _≈_ ⟶ _≡_ ⟶ _≈_
@@ -55,5 +55,5 @@ x ^ suc n = x * x ^ n
   x' ^ n'  ∎
   where
   ^-pres-≈ˡ : ∀ n → (λ x → x ^ n) Preserves _≈_ ⟶ _≈_
-  ^-pres-≈ˡ zero    x≈x' = byDef
+  ^-pres-≈ˡ zero    x≈x' = refl
   ^-pres-≈ˡ (suc n) x≈x' = x≈x' ⟨ *-pres-≈ ⟩ ^-pres-≈ˡ n x≈x'
