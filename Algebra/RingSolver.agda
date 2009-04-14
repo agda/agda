@@ -30,14 +30,14 @@ open import Data.Nat using (ℕ; suc; zero) renaming (_+_ to _ℕ-+_)
 import Data.Fin as Fin
 open Fin using (Fin; zero; suc)
 open import Data.Vec
-open import Data.Function
+open import Data.Function hiding (_∶_)
 
-infix  9 _↑-NF :-_ -‿NF_
+infix  9 _↑ :-_ -‿NF_
 infixr 9 _:^_ _^-NF_ _:↑_
 infix  8 _*x _*x+_
 infixl 8 _:*_ _*-NF_ _↑-*-NF_
 infixl 7 _:+_ _+-NF_ _:-_
-infixl 0 _∷-NF_
+infixl 0 _∶_
 
 ------------------------------------------------------------------------
 -- Polynomials
@@ -105,40 +105,39 @@ private
   -- * an equivalent polynomial.
 
   data Normal : (n : ℕ) → Polynomial n → Set where
-    con-NF : (c : C.carrier) → Normal 0 (con c)
-    _↑-NF  : ∀ {n p'} (p : Normal n p') → Normal (suc n) (p' :↑ 1)
-    _*x+_  : ∀ {n p' c'} (p : Normal (suc n) p') (c : Normal n c') →
-             Normal (suc n) (p' :* var zero :+ c' :↑ 1)
-    _∷-NF_ : ∀ {n p₁ p₂} (p : Normal n p₁) (eq : p₁ ≛ p₂) → Normal n p₂
+    con   : (c : C.carrier) → Normal 0 (con c)
+    _↑    : ∀ {n p'} (p : Normal n p') → Normal (suc n) (p' :↑ 1)
+    _*x+_ : ∀ {n p' c'} (p : Normal (suc n) p') (c : Normal n c') →
+            Normal (suc n) (p' :* var zero :+ c' :↑ 1)
+    _∶_   : ∀ {n p₁ p₂} (p : Normal n p₁) (eq : p₁ ≛ p₂) → Normal n p₂
 
   ⟦_⟧-NF_ : ∀ {n p} → Normal n p → Vec carrier n → carrier
-  ⟦ p ∷-NF _ ⟧-NF ρ       = ⟦ p ⟧-NF ρ
-  ⟦ con-NF c ⟧-NF ρ       = ⟦ c ⟧'
-  ⟦ p ↑-NF   ⟧-NF (x ∷ ρ) = ⟦ p ⟧-NF ρ
-  ⟦ p *x+ c  ⟧-NF (x ∷ ρ) = (⟦ p ⟧-NF (x ∷ ρ) * x) + ⟦ c ⟧-NF ρ
+  ⟦ p ∶ _   ⟧-NF ρ       = ⟦ p ⟧-NF ρ
+  ⟦ con c   ⟧-NF ρ       = ⟦ c ⟧'
+  ⟦ p ↑     ⟧-NF (x ∷ ρ) = ⟦ p ⟧-NF ρ
+  ⟦ p *x+ c ⟧-NF (x ∷ ρ) = (⟦ p ⟧-NF (x ∷ ρ) * x) + ⟦ c ⟧-NF ρ
 
 ------------------------------------------------------------------------
 -- Normalisation
 
 private
 
-  con-NF⋆ : ∀ {n} → (c : C.carrier) → Normal n (con c)
-  con-NF⋆ {zero}  c = con-NF c
-  con-NF⋆ {suc _} c = con-NF⋆ c ↑-NF
+  con-NF : ∀ {n} → (c : C.carrier) → Normal n (con c)
+  con-NF {zero}  c = con c
+  con-NF {suc _} c = con-NF c ↑
 
-  _+-NF_ : ∀ {n p₁ p₂} →
-           Normal n p₁ → Normal n p₂ → Normal n (p₁ :+ p₂)
-  (p₁ ∷-NF eq₁) +-NF (p₂ ∷-NF eq₂) = p₁ +-NF p₂                    ∷-NF eq₁  ⟨ +-pres-≈ ⟩ eq₂
-  (p₁ ∷-NF eq)  +-NF p₂            = p₁ +-NF p₂                    ∷-NF eq   ⟨ +-pres-≈ ⟩ refl
-  p₁            +-NF (p₂ ∷-NF eq)  = p₁ +-NF p₂                    ∷-NF refl ⟨ +-pres-≈ ⟩ eq
-  con-NF c₁     +-NF con-NF c₂     = con-NF (C._+_ c₁ c₂)          ∷-NF +-homo _ _
-  p₁ ↑-NF       +-NF p₂ ↑-NF       = (p₁ +-NF p₂) ↑-NF             ∷-NF refl
-  p₁ *x+ c₁     +-NF p₂ ↑-NF       = p₁ *x+ (c₁ +-NF p₂)           ∷-NF sym (+-assoc _ _ _)
-  p₁ *x+ c₁     +-NF p₂ *x+ c₂     = (p₁ +-NF p₂) *x+ (c₁ +-NF c₂) ∷-NF lemma₁ _ _ _ _ _
-  p₁ ↑-NF       +-NF p₂ *x+ c₂     = p₂ *x+ (p₁ +-NF c₂)           ∷-NF lemma₂ _ _ _
+  _+-NF_ : ∀ {n p₁ p₂} → Normal n p₁ → Normal n p₂ → Normal n (p₁ :+ p₂)
+  (p₁ ∶ eq₁) +-NF (p₂ ∶ eq₂) = p₁ +-NF p₂                    ∶ eq₁  ⟨ +-pres-≈ ⟩ eq₂
+  (p₁ ∶ eq)  +-NF p₂         = p₁ +-NF p₂                    ∶ eq   ⟨ +-pres-≈ ⟩ refl
+  p₁         +-NF (p₂ ∶ eq)  = p₁ +-NF p₂                    ∶ refl ⟨ +-pres-≈ ⟩ eq
+  con c₁     +-NF con c₂     = con (C._+_ c₁ c₂)             ∶ +-homo _ _
+  p₁ ↑       +-NF p₂ ↑       = (p₁ +-NF p₂) ↑                ∶ refl
+  p₁ *x+ c₁  +-NF p₂ ↑       = p₁ *x+ (c₁ +-NF p₂)           ∶ sym (+-assoc _ _ _)
+  p₁ *x+ c₁  +-NF p₂ *x+ c₂  = (p₁ +-NF p₂) *x+ (c₁ +-NF c₂) ∶ lemma₁ _ _ _ _ _
+  p₁ ↑       +-NF p₂ *x+ c₂  = p₂ *x+ (p₁ +-NF c₂)           ∶ lemma₂ _ _ _
 
   _*x : ∀ {n p} → Normal (suc n) p → Normal (suc n) (p :* var zero)
-  p *x = p *x+ con-NF⋆ C.0# ∷-NF lemma₀ _
+  p *x = p *x+ con-NF C.0# ∶ lemma₀ _
 
   mutual
 
@@ -149,36 +148,36 @@ private
     _↑-*-NF_ : ∀ {n p₁ p₂} →
                Normal n p₁ → Normal (suc n) p₂ →
                Normal (suc n) (p₁ :↑ 1 :* p₂)
-    p₁ ↑-*-NF (p₂ ∷-NF eq) = p₁ ↑-*-NF p₂                    ∷-NF refl ⟨ *-pres-≈ ⟩ eq
-    p₁ ↑-*-NF p₂ ↑-NF      = (p₁ *-NF p₂) ↑-NF               ∷-NF refl
-    p₁ ↑-*-NF (p₂ *x+ c₂)  = (p₁ ↑-*-NF p₂) *x+ (p₁ *-NF c₂) ∷-NF lemma₄ _ _ _ _
+    p₁ ↑-*-NF (p₂ ∶ eq)   = p₁ ↑-*-NF p₂                    ∶ refl ⟨ *-pres-≈ ⟩ eq
+    p₁ ↑-*-NF p₂ ↑        = (p₁ *-NF p₂) ↑                  ∶ refl
+    p₁ ↑-*-NF (p₂ *x+ c₂) = (p₁ ↑-*-NF p₂) *x+ (p₁ *-NF c₂) ∶ lemma₄ _ _ _ _
 
     _*-NF_ : ∀ {n p₁ p₂} →
              Normal n p₁ → Normal n p₂ → Normal n (p₁ :* p₂)
-    (p₁ ∷-NF eq₁) *-NF (p₂ ∷-NF eq₂) = p₁ *-NF p₂                         ∷-NF eq₁  ⟨ *-pres-≈ ⟩ eq₂
-    (p₁ ∷-NF eq)  *-NF p₂            = p₁ *-NF p₂                         ∷-NF eq   ⟨ *-pres-≈ ⟩ refl
-    p₁            *-NF (p₂ ∷-NF eq)  = p₁ *-NF p₂                         ∷-NF refl ⟨ *-pres-≈ ⟩ eq
-    con-NF c₁     *-NF con-NF c₂     = con-NF (C._*_ c₁ c₂)               ∷-NF *-homo _ _
-    p₁ ↑-NF       *-NF p₂ ↑-NF       = (p₁ *-NF p₂) ↑-NF                  ∷-NF refl
-    (p₁ *x+ c₁)   *-NF p₂ ↑-NF       = (p₁ *-NF p₂ ↑-NF) *x+ (c₁ *-NF p₂) ∷-NF lemma₃ _ _ _ _
-    p₁ ↑-NF       *-NF (p₂ *x+ c₂)   = (p₁ ↑-NF *-NF p₂) *x+ (p₁ *-NF c₂) ∷-NF lemma₄ _ _ _ _
-    (p₁ *x+ c₁)   *-NF (p₂ *x+ c₂)   =
+    (p₁ ∶ eq₁)  *-NF (p₂ ∶ eq₂)  = p₁ *-NF p₂                      ∶ eq₁  ⟨ *-pres-≈ ⟩ eq₂
+    (p₁ ∶ eq)   *-NF p₂          = p₁ *-NF p₂                      ∶ eq   ⟨ *-pres-≈ ⟩ refl
+    p₁          *-NF (p₂ ∶ eq)   = p₁ *-NF p₂                      ∶ refl ⟨ *-pres-≈ ⟩ eq
+    con c₁      *-NF con c₂      = con (C._*_ c₁ c₂)               ∶ *-homo _ _
+    p₁ ↑        *-NF p₂ ↑        = (p₁ *-NF p₂) ↑                  ∶ refl
+    (p₁ *x+ c₁) *-NF p₂ ↑        = (p₁ *-NF p₂ ↑) *x+ (c₁ *-NF p₂) ∶ lemma₃ _ _ _ _
+    p₁ ↑        *-NF (p₂ *x+ c₂) = (p₁ ↑ *-NF p₂) *x+ (p₁ *-NF c₂) ∶ lemma₄ _ _ _ _
+    (p₁ *x+ c₁) *-NF (p₂ *x+ c₂) =
       (p₁ *-NF p₂) *x *x +-NF
-      (p₁ *-NF c₂ ↑-NF +-NF c₁ ↑-*-NF p₂) *x+ (c₁ *-NF c₂)                ∷-NF lemma₅ _ _ _ _ _
+      (p₁ *-NF c₂ ↑ +-NF c₁ ↑-*-NF p₂) *x+ (c₁ *-NF c₂)            ∶ lemma₅ _ _ _ _ _
 
   -‿NF_ : ∀ {n p} → Normal n p → Normal n (:- p)
-  -‿NF_ (p ∷-NF eq) = -‿NF_ p ∷-NF -‿pres-≈ eq
-  -‿NF_ (con-NF c)  = con-NF (C.-_ c) ∷-NF -‿homo _
-  -‿NF_ (p ↑-NF)    = -‿NF_ p ↑-NF
-  -‿NF_ (p *x+ c)   = -‿NF_ p *x+ -‿NF_ c ∷-NF lemma₆ _ _ _
+  -‿NF (p ∶ eq)  = -‿NF p ∶ -‿pres-≈ eq
+  -‿NF con c     = con (C.-_ c) ∶ -‿homo _
+  -‿NF (p ↑)     = (-‿NF p) ↑
+  -‿NF (p *x+ c) = -‿NF p *x+ -‿NF c ∶ lemma₆ _ _ _
 
   var-NF : ∀ {n} → (i : Fin n) → Normal n (var i)
-  var-NF zero    = con-NF⋆ C.1# *x+ con-NF⋆ C.0# ∷-NF lemma₇ _
-  var-NF (suc i) = var-NF i ↑-NF
+  var-NF zero    = con-NF C.1# *x+ con-NF C.0# ∶ lemma₇ _
+  var-NF (suc i) = var-NF i ↑
 
   _^-NF_ : ∀ {n p} → Normal n p → (i : ℕ) → Normal n (p :^ i)
-  p ^-NF zero  = con-NF⋆ C.1#    ∷-NF 1-homo
-  p ^-NF suc n = p *-NF p ^-NF n ∷-NF refl
+  p ^-NF zero  = con-NF C.1#     ∶ 1-homo
+  p ^-NF suc n = p *-NF p ^-NF n ∶ refl
 
   normaliseOp : ∀ (o : Op) {n p₁ p₂} →
                 Normal n p₁ → Normal n p₂ → Normal n (p₁ ⟨ op o ⟩ p₂)
@@ -187,7 +186,7 @@ private
 
   normalise : ∀ {n} (p : Polynomial n) → Normal n p
   normalise (op o p₁ p₂) = normalise p₁ ⟨ normaliseOp o ⟩ normalise p₂
-  normalise (con c)      = con-NF⋆ c
+  normalise (con c)      = con-NF c
   normalise (var i)      = var-NF i
   normalise (p :^ n)     = normalise p ^-NF n
   normalise (:- p)       = -‿NF normalise p
@@ -215,9 +214,9 @@ private
 
   nf-sound : ∀ {n p} (nf : Normal n p) ρ →
              ⟦ nf ⟧-NF ρ ≈ ⟦ p ⟧ ρ
-  nf-sound (nf ∷-NF eq)         ρ       = nf-sound nf ρ ⟨ trans ⟩ eq
-  nf-sound (con-NF c)           ρ       = refl
-  nf-sound (_↑-NF {p' = p'} nf) (x ∷ ρ) =
+  nf-sound (nf ∶ eq)         ρ       = nf-sound nf ρ ⟨ trans ⟩ eq
+  nf-sound (con c)           ρ       = refl
+  nf-sound (_↑ {p' = p'} nf) (x ∷ ρ) =
     nf-sound nf ρ ⟨ trans ⟩ sym (raise-sem p' ρ)
   nf-sound (_*x+_ {c' = c'} nf₁ nf₂) (x ∷ ρ) =
     (nf-sound nf₁ (x ∷ ρ) ⟨ *-pres-≈ ⟩ refl)
