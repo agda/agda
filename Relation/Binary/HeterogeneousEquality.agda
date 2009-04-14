@@ -143,7 +143,7 @@ import Relation.Binary.EqReasoning as EqR
 -- instead of being locked to a fixed type at module instantiation
 -- time.
 
-module Reasoning where
+module ≅-Reasoning where
   private
     module Dummy {a : Set} where
       open EqR (setoid a) public
