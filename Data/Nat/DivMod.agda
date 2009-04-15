@@ -8,13 +8,12 @@ open import Data.Nat
 open import Data.Nat.Properties
 open SemiringSolver
 import Data.Fin as Fin
-open Fin using (Fin; zero; suc; #_; toℕ; fromℕ)
+open Fin using (Fin; zero; suc; toℕ; fromℕ)
 import Data.Fin.Props as Fin
 open import Induction.Nat
 open import Relation.Nullary.Decidable
 open import Relation.Binary.PropositionalEquality
 open ≡-Reasoning
-open import Data.Vec
 open import Data.Function
 
 ------------------------------------------------------------------------
@@ -27,31 +26,24 @@ private
     m
       ≡⟨ Fin.inject+-lemma m k ⟩
     toℕ (Fin.inject+ k (fromℕ m))
-      ≡⟨ (let X = var (# 0) in
-         prove (toℕ (Fin.inject+ k (fromℕ m)) ∷ [])
-               X (X :+ con 0) refl) ⟩
+      ≡⟨ solve 1 (λ x → x := x :+ con 0) refl _ ⟩
     toℕ (Fin.inject+ k (fromℕ m)) + 0
       ∎
 
   lem₂ : ∀ n → _
-  lem₂ n =
-    let N = var (# 0) in
-    prove (n ∷ []) (con 1 :+ N) (con 1 :+ (N :+ con 0)) refl
+  lem₂ = solve 1 (λ n → con 1 :+ n  :=  con 1 :+ (n :+ con 0)) refl
 
   lem₃ : ∀ n k q r eq → _
   lem₃ n k q r eq = begin
       suc n + k
-        ≡⟨ (let N = var (# 0); K = var (# 1) in
-            prove (n ∷ k ∷ [])
-                  (con 1 :+ N :+ K) (N :+ (con 1 :+ K))
-                  refl) ⟩
+        ≡⟨ solve 2 (λ n k → con 1 :+ n :+ k  :=  n :+ (con 1 :+ k))
+                   refl n k ⟩
       n + suc k
         ≡⟨ cong (_+_ n) eq ⟩
       n + (toℕ r + q * n)
-        ≡⟨ (let N = var (# 0); R = var (# 1); Q = var (# 2) in
-            prove (n ∷ toℕ r ∷ q ∷ [])
-                  (N :+ (R :+ Q :* N)) (R :+ (con 1 :+ Q) :* N)
-                  refl) ⟩
+        ≡⟨ solve 3 (λ n r q → n :+ (r :+ q :* n)  :=
+                              r :+ (con 1 :+ q) :* n)
+                   refl n (toℕ r) q ⟩
       toℕ r + suc q * n
         ∎
 

@@ -13,8 +13,6 @@ private
 open import Data.Product
 import Relation.Binary.PropositionalEquality as PropEq
 open PropEq using (_≡_)
-open import Data.Fin using (#_)
-open import Data.Vec using ([]; _∷_)
 open SemiringSolver
 open import Induction
 open import Induction.Nat
@@ -29,10 +27,8 @@ open import Relation.Nullary.Decidable using (False)
 
 private
 
-  lem₀ = λ (n k : ℕ) → let N = var (# 0); K = var (# 1) in
-                       prove (n ∷ k ∷ [])
-                             (N :+ (con 1 :+ K)) (con 1 :+ N :+ K)
-                             PropEq.refl
+  lem₀ = solve 2 (λ n k → n :+ (con 1 :+ k)  :=  con 1 :+ n :+ k)
+                 PropEq.refl
 
   lem₁ : ∀ i j → 1 + i ≤′ 1 + j + i
   lem₁ i j = ≤⇒≤′ $ s≤s $ n≤m+n j i

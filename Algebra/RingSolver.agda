@@ -21,7 +21,8 @@ open AlmostCommutativeRing r hiding (zero)
 import Algebra.FunctionProperties as P; open P setoid
 open import Algebra.Morphism
 open _-RawRing⟶_ morphism renaming (⟦_⟧ to ⟦_⟧')
-import Algebra.Operations as Ops; open Ops semiring
+import Algebra.Operations as Ops
+open Ops semiring using (_^_; ^-pres-≈)
 
 open import Relation.Binary
 import Relation.Binary.PropositionalEquality as PropEq
@@ -30,13 +31,16 @@ open import Data.Nat using (ℕ; suc; zero) renaming (_+_ to _ℕ-+_)
 import Data.Fin as Fin
 open Fin using (Fin; zero; suc)
 open import Data.Vec
+open import Data.Vec.N-ary
 open import Data.Function hiding (_∶_)
+open import Data.Product using (_×_; proj₁; proj₂; _,_)
 
 infix  9 _↑ :-_ -‿NF_
 infixr 9 _:^_ _^-NF_ _:↑_
 infix  8 _*x _*x+_
 infixl 8 _:*_ _*-NF_ _↑-*-NF_
 infixl 7 _:+_ _+-NF_ _:-_
+infix  4 _:=_
 infixl 0 _∶_
 
 ------------------------------------------------------------------------
@@ -72,7 +76,7 @@ sem : Op → Op₂
 sem [+] = _+_
 sem [*] = _*_
 
-⟦_⟧_ : ∀ {n} → Polynomial n → Vec carrier n → carrier
+⟦_⟧ : ∀ {n} → Polynomial n → Vec carrier n → carrier
 ⟦ op o p₁ p₂ ⟧ ρ = ⟦ p₁ ⟧ ρ ⟨ sem o ⟩ ⟦ p₂ ⟧ ρ
 ⟦ con c ⟧      ρ = ⟦ c ⟧'
 ⟦ var x ⟧      ρ = lookup x ρ
@@ -111,7 +115,7 @@ private
             Normal (suc n) (p' :* var zero :+ c' :↑ 1)
     _∶_   : ∀ {n p₁ p₂} (p : Normal n p₁) (eq : p₁ ≛ p₂) → Normal n p₂
 
-  ⟦_⟧-NF_ : ∀ {n p} → Normal n p → Vec carrier n → carrier
+  ⟦_⟧-NF : ∀ {n p} → Normal n p → Vec carrier n → carrier
   ⟦ p ∶ _   ⟧-NF ρ       = ⟦ p ⟧-NF ρ
   ⟦ con c   ⟧-NF ρ       = ⟦ c ⟧'
   ⟦ p ↑     ⟧-NF (x ∷ ρ) = ⟦ p ⟧-NF ρ
@@ -191,7 +195,7 @@ private
   normalise (p :^ n)     = normalise p ^-NF n
   normalise (:- p)       = -‿NF normalise p
 
-⟦_⟧↓_ : ∀ {n} → Polynomial n → Vec carrier n → carrier
+⟦_⟧↓ : ∀ {n} → Polynomial n → Vec carrier n → carrier
 ⟦ p ⟧↓ ρ = ⟦ normalise p ⟧-NF ρ
 
 ------------------------------------------------------------------------
@@ -229,6 +233,10 @@ private
 ------------------------------------------------------------------------
 -- "Tactic"
 
+-- Two variants of the tactic are defined. The first one, prove, may
+-- be easier to understand, but the second one, solve, is easier to
+-- use.
+
 prove : ∀ {n} (ρ : Vec carrier n) p₁ p₂ →
         ⟦ p₁ ⟧↓ ρ ≈ ⟦ p₂ ⟧↓ ρ →
         ⟦ p₁ ⟧  ρ ≈ ⟦ p₂ ⟧  ρ
@@ -239,6 +247,32 @@ prove ρ p₁ p₂ eq =
     ⟨ trans ⟩
   nf-sound (normalise p₂) ρ
 
--- For examples of how the function above can be used to
+private
+
+  -- Applies the function to all possible variables.
+
+  app : ∀ {A} n → N-ary n (Polynomial n) A → A
+  app n f = f $ⁿ map var (allFin n)
+
+-- The type signature of this function may be a bit daunting, but once
+-- n and f are instantiated with well-behaved concrete values the
+-- remaining type evaluates nicely.
+
+solve : ∀ n (f : N-ary n (Polynomial n) (Polynomial n × Polynomial n)) →
+  Eqʰ n _≈_ (curryⁿ ⟦ proj₁ (app n f) ⟧↓) (curryⁿ ⟦ proj₂ (app n f) ⟧↓) →
+  Eq  n _≈_ (curryⁿ ⟦ proj₁ (app n f) ⟧ ) (curryⁿ ⟦ proj₂ (app n f) ⟧ )
+solve n f hyp =
+  curryⁿ-pres ⟦ proj₁ (app n f) ⟧ ⟦ proj₂ (app n f) ⟧
+    (λ ρ → prove ρ (proj₁ (app n f)) (proj₂ (app n f))
+             (curryⁿ-pres⁻¹ ⟦ proj₁ (app n f) ⟧↓ ⟦ proj₂ (app n f) ⟧↓
+                            (Eqʰ-to-Eq n hyp) ρ))
+
+-- A variant of _,_ which is intended to make uses of solve look a bit
+-- nicer.
+
+_:=_ : ∀ {A} → A → A → A × A
+_:=_ = _,_
+
+-- For examples of how solve and _:=_ can be used to
 -- semi-automatically prove ring equalities, see, for instance,
 -- Data.Digit or Data.Nat.DivMod.

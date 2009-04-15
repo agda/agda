@@ -14,7 +14,6 @@ open Vec using (Vec)
 open import Relation.Binary.PropositionalEquality
 open import Data.Nat.Properties
 open SemiringSolver
-open import Data.Fin using (#_)
 
 ------------------------------------------------------------------------
 -- The type
@@ -57,11 +56,8 @@ abstract
     subst (BoundedVec a) lemma
             (bVec {m = suc m} xs)
     where
-    M = var (# 0); N = var (# 1)
-    lemma = prove (Vec._∷_ m (Vec._∷_ n Vec.[]))
-                  (N :+ (con 1 :+ M))
-                  (con 1 :+ (N :+ M))
-                  refl
+    lemma = solve 2 (λ m n → n :+ (con 1 :+ m)  :=  con 1 :+ (n :+ m))
+                    refl m n
 
 ------------------------------------------------------------------------
 -- Conversions
@@ -72,10 +68,7 @@ abstract
   fromList {a = a} xs =
     subst (BoundedVec a) lemma
             (bVec {m = zero} (Vec.fromList xs))
-    where
-    M = var (# 0)
-    lemma = prove (Vec._∷_ (List.length xs) Vec.[])
-                  (M :+ con 0) M refl
+    where lemma = solve 1 (λ m → m :+ con 0  :=  m) refl _
 
   toList : ∀ {a n} → BoundedVec a n → List a
   toList (bVec xs) = Vec.toList xs

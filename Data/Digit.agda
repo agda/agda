@@ -8,7 +8,7 @@ open import Data.Nat
 open import Data.Nat.Properties
 open SemiringSolver
 import Data.Fin as Fin
-open Fin using (Fin; zero; suc; #_; toℕ)
+open Fin using (Fin; zero; suc; toℕ)
 open import Relation.Nullary.Decidable
 open import Data.Char using (Char)
 open import Data.List
@@ -30,11 +30,10 @@ private
     2 + x
       ≤⟨ m≤m+n _ _ ⟩
     2 + x + (x + (1 + x) * k + r)
-      ≡⟨ (let X = var (# 0); R = var (# 1); K = var (# 2) in
-         prove (Vec.fromList (x ∷ r ∷ k ∷ []))
-               (con 2 :+ X :+ (X :+ (con 1 :+ X) :* K :+ R))
-               (R :+ (con 1 :+ X) :* (con 2 :+ K))
-               refl) ⟩
+      ≡⟨ solve 3 (λ x r k → con 2 :+ x :+ (x :+ (con 1 :+ x) :* k :+ r)
+                              :=
+                            r :+ (con 1 :+ x) :* (con 2 :+ k))
+                 refl x r k ⟩
     r + (1 + x) * (2 + k)
       ∎
 

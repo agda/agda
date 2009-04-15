@@ -8,9 +8,8 @@ open import Data.Nat
 open import Data.Nat.DivMod
 open import Data.Nat.Properties
 import Data.Fin as Fin
-open Fin using (Fin; zero; suc; #_)
+open Fin using (Fin; zero; suc)
 import Data.Fin.Props as FP
-open import Data.Vec
 open SemiringSolver
 open import Algebra
 private
@@ -114,9 +113,8 @@ nonZeroDivisor-lemma m zero r r≢zero (divides zero eq) = r≢zero $ begin
 nonZeroDivisor-lemma m zero r r≢zero (divides (suc q) eq) =
   ¬i+1+j≤i m $ begin
     m + suc (q * suc m)
-      ≡⟨ (let M = var (# 0); Q = var (# 1) in
-          prove (m ∷ q * suc m ∷ [])
-                (M :+ (con 1 :+ Q)) (con 1 :+ M :+ Q) refl) ⟩
+      ≡⟨ solve 2 (λ m q → m :+ (con 1 :+ q)  :=  con 1 :+ m :+ q)
+                 refl m (q * suc m) ⟩
     suc (m + q * suc m)
       ≡⟨ sym eq ⟩
     1 * Fin.toℕ r
@@ -129,10 +127,8 @@ nonZeroDivisor-lemma m zero r r≢zero (divides (suc q) eq) =
 nonZeroDivisor-lemma m (suc q) r r≢zero d =
   nonZeroDivisor-lemma m q r r≢zero (divides-Δ d')
   where
-  lem = prove (suc m ∷ Fin.toℕ r ∷ q * suc m ∷ [])
-              (R :+ (M :+ Q)) (M :+ (R :+ Q))
-              refl
-    where M = var (# 0); R = var (# 1); Q = var (# 2)
+  lem = solve 3 (λ m r q → r :+ (m :+ q)  :=  m :+ (r :+ q))
+                refl (suc m) (Fin.toℕ r) (q * suc m)
   d' = subst (λ x → (1 + m) Divides x) lem d
 
 -- Divisibility is decidable.
