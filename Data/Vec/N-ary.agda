@@ -38,7 +38,7 @@ Eq (suc n) _∼_ f g = ∀ x → Eq n _∼_ (f x) (g x)
 ------------------------------------------------------------------------
 -- Some lemmas
 
--- The two functions are inverses.
+-- The functions curryⁿ and _$ⁿ_ are inverses.
 
 left-inverse : ∀ {n A B} (f : Vec A n → B) →
                ∀ xs → curryⁿ f $ⁿ xs ≡ f xs
