@@ -100,6 +100,9 @@ getOptions :: IO Options
 getOptions = do
   args <- getArgs
   case getOpt Permute options args of
+    ([], [], []) -> do
+      printUsage stdout
+      exitWith ExitSuccess
     (opts, files, []) -> return $ foldr ($) (defaultOptions files) opts
     (_, _, errs) -> do
       hPutStr stderr $ unlines errs
