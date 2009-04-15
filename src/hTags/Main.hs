@@ -121,7 +121,7 @@ data Options = Options
 
 defaultOptions :: [FilePath] -> Options
 defaultOptions files = Options
-  { optCTags     = True
+  { optCTags     = False
   , optETags     = False
   , optCTagsFile = "tags"
   , optETagsFile = "TAGS"
@@ -132,7 +132,7 @@ defaultOptions files = Options
 options :: [OptDescr (Options -> Options)]
 options =
   [ Option []    ["help"]  (NoArg setHelp)  "Show help."
-  , Option ['c'] ["ctags"] (OptArg setCTagsFile "FILE") "Generate ctags (default) (default file=tags)"
+  , Option ['c'] ["ctags"] (OptArg setCTagsFile "FILE") "Generate ctags (default file=tags)"
   , Option ['e'] ["etags"] (OptArg setETagsFile "FILE") "Generate etags (default file=TAGS)"
   ]
   where
