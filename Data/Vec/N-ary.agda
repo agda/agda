@@ -35,6 +35,12 @@ Eq : ∀ {A B} n → Rel B → (f g : N-ary n A B) → Set
 Eq zero    _∼_ f g = f ∼ g
 Eq (suc n) _∼_ f g = ∀ x → Eq n _∼_ (f x) (g x)
 
+-- A variant where all the arguments are implicit (hidden).
+
+Eqʰ : ∀ {A B} n → Rel B → (f g : N-ary n A B) → Set
+Eqʰ zero    _∼_ f g = f ∼ g
+Eqʰ (suc n) _∼_ f g = ∀ {x} → Eqʰ n _∼_ (f x) (g x)
+
 ------------------------------------------------------------------------
 -- Some lemmas
 
@@ -78,3 +84,15 @@ appⁿ-pres⁻¹ : ∀ {n A B _∼_} (f g : N-ary n A B) →
 appⁿ-pres⁻¹ {zero}  f g hyp = hyp []
 appⁿ-pres⁻¹ {suc n} f g hyp = λ x →
   appⁿ-pres⁻¹ (f x) (g x) (λ xs → hyp (x ∷ xs))
+
+-- Eq and Eqʰ are equivalent.
+
+Eq-to-Eqʰ : ∀ {A B} n {_∼_ : Rel B} {f g : N-ary n A B} →
+            Eq n _∼_ f g → Eqʰ n _∼_ f g
+Eq-to-Eqʰ zero    eq = eq
+Eq-to-Eqʰ (suc n) eq = Eq-to-Eqʰ n (eq _)
+
+Eqʰ-to-Eq : ∀ {A B} n {_∼_ : Rel B} {f g : N-ary n A B} →
+            Eqʰ n _∼_ f g → Eq n _∼_ f g
+Eqʰ-to-Eq zero    eq = eq
+Eqʰ-to-Eq (suc n) eq = λ _ → Eqʰ-to-Eq n eq
