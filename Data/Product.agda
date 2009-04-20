@@ -57,7 +57,7 @@ zip : ∀ {A B C P Q R} →
       (_∙_ : A → B → C) →
       (∀ {x y} → P x → Q y → R (x ∙ y)) →
       Σ A P → Σ B Q → Σ C R
-zip _∙_ _∘_ (x , y) (u , v) = (x ∙ u , y ∘ v)
+zip _∙_ _∘_ p₁ p₂ = (proj₁ p₁ ∙ proj₁ p₂ , proj₂ p₁ ∘ proj₂ p₂)
 
 swap : ∀ {A B} → A × B → B × A
 swap = < proj₂ , proj₁ >

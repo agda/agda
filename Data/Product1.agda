@@ -56,14 +56,14 @@ proj₁₁₂ (x , y) = y
 map₀₁ : ∀ {A B P Q} →
         (f : A → B) → (∀ {x} → P x → Q (f x)) →
         Σ₀₁ A P → Σ₀₁ B Q
-map₀₁ f g (x , y) = (f x , g y)
+map₀₁ f g p = (f (proj₀₁₁ p) , g (proj₀₁₂ p))
 
 map₁₀ : ∀ {A B P Q} →
         (f : A → B) → (∀ {x} → P x → Q (f x)) →
         Σ₁₀ A P → Σ₁₀ B Q
-map₁₀ f g (x , y) = (f x , g y)
+map₁₀ f g p = (f (proj₁₀₁ p) , g (proj₁₀₂ p))
 
 map₁₁ : ∀ {A B P Q} →
         (f : A → B) → (∀ {x} → P x → Q (f x)) →
         Σ₁₁ A P → Σ₁₁ B Q
-map₁₁ f g (x , y) = (f x , g y)
+map₁₁ f g p = (f (proj₁₁₁ p) , g (proj₁₁₂ p))
