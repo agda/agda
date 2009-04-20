@@ -190,7 +190,7 @@ to this variable to take effect."
                   (?. . ".") (?\; . ".") (?_ . ".") (?! . ".")))
       (modify-syntax-entry (car cs) (cdr cs) tbl))
     tbl)
-  "Syntax table used by the Agda 2 mode:
+  "Syntax table used by the Agda mode:
 
 {}   | Comment characters, matching parentheses.
 -    | Comment character, word constituent.

@@ -312,7 +312,7 @@ usage options pluginInfos progName =
         indent (concatMap pluginMsg pluginInfos)
 
     where
-	header progName = unlines [ "Agda 2"
+	header progName = unlines [ "Agda"
 				  , ""
 				  , "Usage: " ++ progName ++ " [OPTIONS...] FILE"
 				  ]

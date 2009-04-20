@@ -1,6 +1,6 @@
 {-# LANGUAGE CPP #-}
 
-{-| Agda 2 main module.
+{-| Agda main module.
 -}
 module Agda.Main where
 

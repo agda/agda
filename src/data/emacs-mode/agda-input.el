@@ -125,7 +125,7 @@ This suffix is dropped."
 ;; until agda-input-setup is called at the end of this file.
 
 (defgroup agda-input nil
-  "The Agda 2 input method.
+  "The Agda input method.
 After tweaking these settings you may want to inspect the resulting
 translations using `agda-input-show-translations'."
   :group 'agda2
