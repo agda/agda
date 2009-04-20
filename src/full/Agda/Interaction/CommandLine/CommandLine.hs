@@ -277,16 +277,16 @@ showContext (meta:args) = do
 	    liftIO $ UTF8.print $ text x <+> text ":" <+> d
 showContext _ = liftIO $ UTF8.putStrLn ":Context meta"
 
--- | The logo that prints when agdaLight is started in interactive mode.
+-- | The logo that prints when Agda is started in interactive mode.
 splashScreen :: String
 splashScreen = unlines
-    [ "                 _        ______"
-    , "   ____         | |      |_ __ _|"
-    , "  / __ \\        | |       | || |"
-    , " | |__| |___  __| | ___   | || |"
-    , " |  __  / _ \\/ _  |/ __\\  | || |   Agda 2 Interactive"
-    , " | |  |/ /_\\ \\/_| / /_| \\ | || |"
-    , " |_|  |\\___  /____\\_____/|______|  Type :? for help."
+    [ "                 _ "
+    , "   ____         | |"
+    , "  / __ \\        | |"
+    , " | |__| |___  __| | ___"
+    , " |  __  / _ \\/ _  |/ __\\     Agda Interactive"
+    , " | |  |/ /_\\ \\/_| / /_| \\"
+    , " |_|  |\\___  /____\\_____/    Type :? for help."
     , "        __/ /"
     , "        \\__/"
     , ""
