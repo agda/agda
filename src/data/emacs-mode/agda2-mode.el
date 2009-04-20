@@ -1,4 +1,4 @@
-;;; agda2-mode.el --- Major mode for Agda2
+;;; agda2-mode.el --- Major mode for Agda
 
 ;;; Commentary:
 
@@ -81,7 +81,7 @@ Note that only dynamic options can be set using this variable."
   :group 'agda2)
 
 (defcustom agda2-toplevel-module "Agda.Interaction.GhciTop"
-  "The name of the Agda2 toplevel module."
+  "The name of the Agda toplevel module."
   :type 'string :group 'agda2)
 
 (defcustom agda2-mode-hook
@@ -106,7 +106,7 @@ A multiple of the frame height."
 
 (defcustom agda2-fontset-name
   (unless (eq window-system 'mac) "fontset-agda2")
-  "Default font to use in the selected frame when activating the Agda2 mode.
+  "Default font to use in the selected frame when activating the Agda mode.
 This is only used if it's non-nil and Emacs is not running in a terminal.
 It is also ignored in Emacs 23 and up, where the improved font handling makes
 it unnecessary.
@@ -236,20 +236,20 @@ constituents.")
     )
   "Table of commands, used to build keymaps and menus.
 Each element has the form (CMD KEY &optional NAME GOAL-NAME)
-Where NAME is the name to use in the main Agda2 menu
+Where NAME is the name to use in the main Agda menu
 and GOAL-NAME is for the Agda goal menu.")
 
 (defvar agda2-mode-map
   (let ((map (make-sparse-keymap "Agda mode")))
-    (define-key map [menu-bar Agda2]
-      (cons "Agda2" (make-sparse-keymap "Agda2")))
+    (define-key map [menu-bar Agda]
+      (cons "Agda" (make-sparse-keymap "Agda")))
     (define-key map [down-mouse-3]  'agda2-popup-menu-3)
     (dolist (d (reverse agda2-command-table))
       (destructuring-bind (f &optional keys kinds desc) d
         (if keys (define-key map keys f))
         (if (member 'global kinds)
             (define-key map
-              (vector 'menu-bar 'Agda2 (intern desc)) (cons desc f)))))
+              (vector 'menu-bar 'Agda (intern desc)) (cons desc f)))))
     map)
   "Keymap for `agda2-mode'.")
 
@@ -305,8 +305,8 @@ and GOAL-NAME is for the Agda goal menu.")
 ;;;###autoload
 (modify-coding-system-alist 'file "\\.l?agda\\'" 'utf-8)
 ;;;###autoload
-(define-derived-mode agda2-mode nil "Agda2"
- "Major mode for agda2 files.
+(define-derived-mode agda2-mode nil "Agda"
+ "Major mode for agda files.
 
 Note that when this mode is activated the default font of the
 current frame is changed to the fontset `agda2-fontset-name'.
@@ -361,7 +361,7 @@ Special commands:
                     (haskell-ghci-start-process nil)
                     (setq agda2-process  haskell-ghci-process
                           agda2-buffer   haskell-ghci-process-buffer
-                          mode-name "Agda2 GHCi")
+                          mode-name "Agda GHCi")
                     (set-buffer-file-coding-system 'utf-8)
                     (set-buffer-process-coding-system 'utf-8 'utf-8)
                     (rename-buffer agda2-bufname)))
@@ -370,7 +370,7 @@ Special commands:
   (agda2-text-state))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;; Communicating with Agda2
+;;;; Communicating with Agda
 
 (defun agda2-go (&rest args)
   "Send the list ARGS of strings to ghci, then
@@ -498,7 +498,7 @@ major mode)."
   "Insert TEXT into the Agda info buffer, display it, and display NAME
 in the buffer's mode line."
   (interactive)
-  (with-current-buffer (get-buffer-create "*Agda2 information*")
+  (with-current-buffer (get-buffer-create "*Agda information*")
     (erase-buffer)
     (insert text)
     (set-syntax-table agda2-mode-syntax-table)
