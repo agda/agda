@@ -10,6 +10,7 @@ open import Data.Function
 open import Relation.Nullary
 
 infixr 4 _,_
+infixr 2 _×₀₁_ _×₁₀_ _×₁₁_
 
 ------------------------------------------------------------------------
 -- Definition
@@ -31,6 +32,15 @@ data Σ₁₁ (a : Set1) (b : a → Set1) : Set1 where
 
 ∃₁₁ : {A : Set1} → (A → Set1) → Set1
 ∃₁₁ = Σ₁₁ _
+
+_×₀₁_ : Set → Set1 → Set1
+A ×₀₁ B = Σ₀₁ A (λ _ → B)
+
+_×₁₀_ : Set1 → Set → Set1
+A ×₁₀ B = Σ₁₀ A (λ _ → B)
+
+_×₁₁_ : Set1 → Set1 → Set1
+A ×₁₁ B = Σ₁₁ A (λ _ → B)
 
 ------------------------------------------------------------------------
 -- Functions
