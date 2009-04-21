@@ -687,19 +687,20 @@ appear in the buffer)."
                 (looking-at
                  "\\(.[{(]\\|.\\s \\)[?]\\(\\s \\|[)};]\\|$\\)"))))
        (make(p)  (agda2-make-goal p (point) (pop goals)))
-       (err()    (error "Unbalanced \{- , -\} , \{\! , \!\}")))
+       (inside-comment() (and stk (null     (car stk))))
+       (inside-goal()    (and stk (integerp (car stk)))))
     (save-excursion
       (goto-char (point-min))
       (while (and goals (delims))
         (labels ((c (s) (equal s (match-string 0))))
           (cond
-           ((and (c "--") (not stk)) (end-of-line))
-           ((c "{-") (push  nil          stk))
-           ((c "{!") (push (- (point) 2) stk))
-           ((c "-}") (unless (and stk (not (pop stk))) (err)))
-           ((c "!}") (if (and stk (setq top (pop stk)))
-                         (or stk (make top))
-                       (err)))
+           ((c "--") (when (not stk)              (end-of-line)))
+           ((c "{-") (when (not (inside-goal))    (push nil           stk)))
+           ((c "{!") (when (not (inside-comment)) (push (- (point) 2) stk)))
+           ((c "-}") (when (inside-comment) (pop stk)))
+           ((c "!}") (when (inside-goal)
+                       (setq top (pop stk))
+                       (unless stk (make top))))
            ((c "?")  (progn
                        (when (and (not stk) (is-lone-questionmark))
                          (delete-char -1)
