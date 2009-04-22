@@ -5,4 +5,3 @@ module A where
 module A where
 
 open A
-

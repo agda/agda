@@ -14,6 +14,7 @@ import qualified Data.Set as Set
 import qualified Data.ByteString.Lazy as BS
 import Data.Generics
 import Data.List
+import Data.Map (Map)
 import System.Directory
 import System.Time
 import Control.Exception
@@ -118,7 +119,7 @@ findFile ft m = do
 -- | Scope checks the given module. A proper version of the module
 -- name (with correct definition sites) is returned.
 
-scopeCheckImport :: ModuleName -> TCM (ModuleName, Scope)
+scopeCheckImport :: ModuleName -> TCM (ModuleName, Map ModuleName Scope)
 scopeCheckImport x = do
     reportSLn "import.scope" 5 $ "Scope checking " ++ show x
     visited <- Map.keys <$> getVisitedModules
@@ -430,9 +431,7 @@ buildInterface m syntaxInfo = do
     i <- instantiateFull $ Interface
 			{ iImportedModules = Set.toList ms
                         , iModuleName      = m
-			, iScope	   = case scopeStack scope of  -- TODO!!
-                                               []    -> __IMPOSSIBLE__
-                                               s : _ -> s
+			, iScope	   = scopeModules scope
 			, iSignature	   = sig
 			, iBuiltin	   = builtin'
                         , iHaskellImports  = hsImps

@@ -1,6 +1,5 @@
 errors/ClashingModule.agda:5,1-15
-Shadowing of module A defined at
+Duplicate definition of module A. Previous definition at
 errors/ClashingModule.agda:4,8-9
-is not allowed
 when scope checking the declaration
   module A where

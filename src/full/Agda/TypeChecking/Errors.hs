@@ -234,8 +234,8 @@ instance PrettyTCM TypeError where
               [prettyTCM c] ++ pwords "is not a constructor of the datatype" ++ [prettyTCM d]
             ShadowedModule [] -> __IMPOSSIBLE__
             ShadowedModule ms@(m : _) -> fsep $
-              pwords "Shadowing of module" ++ [prettyTCM m] ++ pwords "defined at" ++ [text $ show r] ++
-              pwords "is not allowed"
+              pwords "Duplicate definition of module" ++ [prettyTCM m <> text "."] ++
+              pwords "Previous definition at" ++ [text $ show r]
               where
                 r = case [ r | r <- map (defSiteOfLast . mnameToList) ms
                              , r /= noRange ] of

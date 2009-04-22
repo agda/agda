@@ -75,14 +75,13 @@ toVim ns = unlines $ matches mcons micons mdefs midefs
 	micons = concatMap parts cons
 	midefs = concatMap parts defs
 
-	parts (Qual _ _)	   = []
-	parts (QName (NoName _ _)) = []
-	parts (QName (Name _ [_])) = []
-	parts (QName (Name _ ps))  = [ x | Id x <- ps ]
+	parts (NoName _ _) = []
+	parts (Name _ [_]) = []
+	parts (Name _ ps)  = [ x | Id x <- ps ]
 
 generateVimFile :: FilePath -> TCM ()
 generateVimFile file = do
     scope <- getScope
     liftIO $ UTF8.writeFile (vimFile file) $ toVim $ names scope
     where
-	names = allNamesInScope . mergeScopes . scopeStack
+	names = nsNames . everythingInScope

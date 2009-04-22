@@ -8,6 +8,7 @@ module Agda.Syntax.Scope.Monad where
 import Prelude hiding (mapM)
 import Control.Applicative
 import Control.Monad hiding (mapM)
+import Control.Monad.Writer hiding (mapM)
 import Data.Map (Map)
 import Data.Traversable
 import Data.List
@@ -45,37 +46,86 @@ notInScope x = typeError $ NotInScope [x]
 
 -- * General operations
 
+getCurrentModule :: ScopeM A.ModuleName
+getCurrentModule = setRange noRange . scopeCurrent <$> getScope
+
+setCurrentModule :: A.ModuleName -> ScopeM ()
+setCurrentModule m = modifyScopeInfo $ \s -> s { scopeCurrent = m }
+
+withCurrentModule :: A.ModuleName -> ScopeM a -> ScopeM a
+withCurrentModule new action = do
+  old <- getCurrentModule
+  setCurrentModule new
+  x   <- action
+  setCurrentModule old
+  return x
+
+getNamedScope :: A.ModuleName -> ScopeM Scope
+getNamedScope m = do
+  scope <- getScope
+  case Map.lookup m (scopeModules scope) of
+    Just s  -> return s
+    Nothing -> do
+      reportSLn "" 0 $ "ERROR: In scope\n" ++ show scope ++ "\nNO SUCH SCOPE " ++ show m
+      __IMPOSSIBLE__
+
+getCurrentScope :: ScopeM Scope
+getCurrentScope = getNamedScope =<< getCurrentModule
+
+-- | Create a new module with an empty scope
+createModule :: A.ModuleName -> ScopeM ()
+createModule m = do
+  s <- getCurrentScope
+  let parents = scopeName s : scopeParents s
+  modifyScopes $ Map.insert m emptyScope { scopeName = m, scopeParents = parents }
+
 -- | Apply a function to the scope info.
 modifyScopeInfo :: (ScopeInfo -> ScopeInfo) -> ScopeM ()
 modifyScopeInfo f = do
   scope <- getScope
   setScope $ f scope
 
--- | Apply a function to the scope stack.
-modifyScopeStack :: (ScopeStack -> ScopeStack) -> ScopeM ()
-modifyScopeStack f = modifyScopeInfo $ \s -> s { scopeStack = f $ scopeStack s }
+-- | Apply a function to the scope map.
+modifyScopes :: (Map A.ModuleName Scope -> Map A.ModuleName Scope) -> ScopeM ()
+modifyScopes f = modifyScopeInfo $ \s -> s { scopeModules = f $ scopeModules s }
 
--- | Apply a function to the top scope.
-modifyTopScope :: (Scope -> Scope) -> ScopeM ()
-modifyTopScope f = modifyScopeStack $ \(s:ss) -> f s : ss
+-- | Apply a function to the given scope.
+modifyNamedScope :: A.ModuleName -> (Scope -> Scope) -> ScopeM ()
+modifyNamedScope m f = modifyScopes $ Map.mapWithKey f'
+  where
+    f' m' s | m' == m   = f s
+            | otherwise = s
+
+-- | Apply a function to the current scope.
+modifyCurrentScope :: (Scope -> Scope) -> ScopeM ()
+modifyCurrentScope f = do
+  m <- getCurrentModule
+  modifyNamedScope m f
 
 -- | Apply a monadic function to the top scope.
-modifyTopScopeM :: (Scope -> ScopeM Scope) -> ScopeM ()
-modifyTopScopeM f = do
-  s : _ <- scopeStack <$> getScope
-  s'	<- f s
-  modifyTopScope (const s')
+modifyNamedScopeM :: A.ModuleName -> (Scope -> ScopeM Scope) -> ScopeM ()
+modifyNamedScopeM m f = do
+  s  <- getNamedScope m
+  s' <- f s
+  modifyNamedScope m (const s')
+
+modifyCurrentScopeM :: (Scope -> ScopeM Scope) -> ScopeM ()
+modifyCurrentScopeM f = do
+  m <- getCurrentModule
+  modifyNamedScopeM m f
 
 -- | Apply a function to the public or private name space.
-modifyTopNameSpace :: Access -> (NameSpace -> NameSpace) -> ScopeM ()
-modifyTopNameSpace acc f = modifyTopScope action
+modifyCurrentNameSpace :: NameSpaceId -> (NameSpace -> NameSpace) -> ScopeM ()
+modifyCurrentNameSpace acc f = modifyCurrentScope action
   where
-    action s = s { scopePublic	= pub $ scopePublic  s
-		 , scopePrivate = pri $ scopePrivate s
-		 }
-    (pub, pri) = case acc of
-      PublicAccess  -> (f, id)
-      PrivateAccess -> (id, f)
+    action s = s { scopePublic   = pub $ scopePublic  s
+                 , scopePrivate  = pri $ scopePrivate s
+                 , scopeImported = imp $ scopeImported s
+                 }
+    (pub, pri, imp) = case acc of
+      PublicNS   -> (f, id, id)
+      PrivateNS  -> (id, f, id)
+      ImportedNS -> (id, id, f)
 
 -- | Set context precedence
 setContextPrecedence :: Precedence -> ScopeM ()
@@ -125,22 +175,12 @@ freshAbstractQName fx x = do
   m <- getCurrentModule
   return $ A.qualify m y
 
--- * Simple queries
-
--- | Returns the name of the current module, with the range set to
--- 'noRange'.
-getCurrentModule :: ScopeM ModuleName
-getCurrentModule =
-  setRange noRange .
-  A.mnameFromList . concatMap A.mnameToList .
-  reverse . map scopeName . scopeStack <$> getScope
-
 -- * Resolving names
 
 data ResolvedName = VarName A.Name
-		  | DefinedName AbstractName
+                  | DefinedName AbstractName
                   | ConstructorName [AbstractName]
-		  | UnknownName
+                  | UnknownName
   deriving (Show)
 
 -- | Look up the abstract name referred to by a given concrete name.
@@ -148,16 +188,15 @@ resolveName :: C.QName -> ScopeM ResolvedName
 resolveName x = do
   scope <- getScope
   let vars = map (C.QName -*- id) $ scopeLocals scope
-      defs = allNamesInScope . mergeScopes . scopeStack $ scope
   case lookup x vars of
     Just y  -> return $ VarName $ y { nameConcrete = unqualify x }
-    Nothing -> case Map.lookup x defs of
-      Just ds | all ((==ConName) . anameKind) ds ->
+    Nothing -> case scopeLookup x scope of
+      [] -> return UnknownName
+      ds | all ((==ConName) . anameKind) ds ->
         return $ ConstructorName
                $ map (\d -> updateConcreteName d $ unqualify x) ds
-      Just [d] -> return $ DefinedName $ updateConcreteName d (unqualify x)
-      Just ds  -> typeError $ AmbiguousName x (map anameName ds)
-      Nothing  -> return UnknownName
+      [d] -> return $ DefinedName $ updateConcreteName d (unqualify x)
+      ds  -> typeError $ AmbiguousName x (map anameName ds)
   where
   updateConcreteName :: AbstractName -> C.Name -> AbstractName
   updateConcreteName d@(AbsName { anameName = an@(A.QName { qnameName = qn }) }) x =
@@ -166,18 +205,11 @@ resolveName x = do
 -- | Look up a module in the scope.
 resolveModule :: C.QName -> ScopeM AbstractModule
 resolveModule x = do
-  ms <- resolveModule' x
+  ms <- scopeLookup x <$> getScope
   case ms of
     [AbsModule m] -> return $ AbsModule (m `withRangesOfQ` x)
     []            -> typeError $ NoSuchModule x
     ms            -> typeError $ AmbiguousModule x (map amodName ms)
-
-resolveModule' :: C.QName -> ScopeM [AbstractModule]
-resolveModule' x = do
-  ms <- allModulesInScope . mergeScopes . scopeStack <$> getScope
-  case Map.lookup x ms of
-    Just ms -> return ms
-    Nothing -> return []
 
 -- | Get the fixity of a name. The name is assumed to be in scope.
 getFixity :: C.QName -> ScopeM Fixity
@@ -200,46 +232,68 @@ getFixity x = do
 bindVariable :: C.Name -> A.Name -> ScopeM ()
 bindVariable x y = do
   scope <- getScope
-  let scope' = scope { scopeLocals = (x, y) : scopeLocals scope }
-  setScope scope'
+  setScope scope { scopeLocals = (x, y) : scopeLocals scope }
 
 -- | Bind a defined name. Must not shadow anything.
 bindName :: Access -> KindOfName -> C.Name -> A.QName -> ScopeM ()
 bindName acc kind x y = do
   r  <- resolveName (C.QName x)
   ys <- case r of
-    DefinedName	d      -> typeError $ ClashingDefinition (C.QName x) $ anameName d
+    DefinedName d      -> typeError $ ClashingDefinition (C.QName x) $ anameName d
     VarName z          -> typeError $ ClashingDefinition (C.QName x) $ A.qualify (mnameFromList []) z
     ConstructorName [] -> __IMPOSSIBLE__
     ConstructorName ds
       | kind == ConName && all ((==ConName) . anameKind) ds -> return [ AbsName y kind ]
       | otherwise -> typeError $ ClashingDefinition (C.QName x) $ anameName (head ds) -- TODO: head
     UnknownName        -> return [AbsName y kind]
-  modifyTopScope $ addNamesToScope acc (C.QName x) ys
+  modifyCurrentScope $ addNamesToScope (localNameSpace acc) x ys
 
 -- | Bind a module name.
 bindModule :: Access -> C.Name -> A.ModuleName -> ScopeM ()
-bindModule acc x m = bindQModule acc (C.QName x) m
+bindModule acc x m = modifyCurrentScope $
+  addModuleToScope (localNameSpace acc) x (AbsModule m)
 
--- | Bind a qualified module name.
+-- | Bind a qualified module name. Adds it to the imports field of the scope.
 bindQModule :: Access -> C.QName -> A.ModuleName -> ScopeM ()
-bindQModule acc x m = modifyTopScope $ addModuleToScope acc x $ AbsModule m
+bindQModule acc q m = modifyCurrentScope $ \s ->
+  s { scopeImports = Map.insert q m (scopeImports s) }
+--   m0 <- getCurrentModule
+--   bind q [] (A.mnameToList m) m0
+--   where
+--     ns = localNameSpace acc
+--     bind (C.QName x) _ _ current = modifyNamedScope current $
+--       addModuleToScope ns x (AbsModule m)
+--     bind (C.Qual x q) m0 (y : ys) current = do
+--       let m1  = m0 ++ [y]
+--           new = A.mnameFromList m1 -- amodName <$> resolveModule (C.QName x)
+--       maybeAddModule x new current
+--       bind q m1 ys new
+--     bind C.Qual{} _ [] _ = __IMPOSSIBLE__
+-- 
+--     -- Add a module if it hasn't been added already
+--     maybeAddModule x new current = do
+--       s <- getNamedScope current
+--       case maybe [] id $ Map.lookup x (nsModules $ scopeNameSpace ns s) of
+--         ms | new `elem` map amodName ms -> return ()
+--         _ -> modifyNamedScope current
+--              $ addModuleToScope ns x (AbsModule new)
 
 -- * Module manipulation operations
 
 -- | Clear the scope of any no names.
 stripNoNames :: ScopeM ()
-stripNoNames = modifyScopeStack $ map strip
+stripNoNames = modifyScopes $ Map.map strip
   where
     strip     = mapScope (\_ -> stripN) (\_ -> stripN)
     stripN m  = Map.filterWithKey (const . notNoName) m
-    notNoName = not . any isNoName . qnameParts
+    notNoName = not . isNoName
 
 -- | Push a new scope onto the scope stack
-pushScope :: A.ModuleName -> ScopeM ()
-pushScope name = modifyScopeStack (s:)
-  where
-    s = emptyScope { scopeName = name }
+-- TODO: remove pushScope
+-- pushScope :: A.ModuleName -> ScopeM ()
+-- pushScope name = modifyScopeStack (s:)
+--   where
+--     s = emptyScope { scopeName = name }
 
 {-| Pop the top scope from the scope stack and incorporate its (public)
     contents in the new top scope. Depending on the first argument the contents
@@ -260,92 +314,174 @@ pushScope name = modifyScopeStack (s:)
     scope Q: ..
     @
 -}
-popScope :: Access -> ScopeM ()
-popScope acc = do
-  modifyScopeStack $ \(s0:s1:ss) ->
-    mergeScope s1 (setScopeAccess acc $ mapScope_ (qual s0) (qual s0) $ noPrivate s0) : ss
-  where
-    qual s m	= Map.mapKeys (qual' (mnameToList $ scopeName s)) m
-      where
-	qual' xs x = foldr C.Qual x $ map nameConcrete xs
-    noPrivate s = s { scopePrivate = emptyNameSpace }
+-- TODO: remove popScope
+-- popScope :: Access -> ScopeM ()
+-- popScope acc = do
+--   modifyScopeStack $ \(s0:s1:ss) ->
+--     mergeScope s1 (setScopeAccess acc $ mapScope_ (qual s0) (qual s0) $ noPrivate s0) : ss
+--   where
+--     qual s m = Map.mapKeys (qual' (mnameToList $ scopeName s)) m
+--       where
+--      qual' xs x = foldr C.Qual x $ map nameConcrete xs
+--     noPrivate s = s { scopePrivate = emptyNameSpace }
 
 -- | Pop the top scope from the stack and discard its contents.
-popScope_ :: ScopeM ()
-popScope_ = modifyScopeStack tail
+-- popScope_ :: ScopeM ()
+-- popScope_ = modifyScopeStack tail
 
 -- | Returns a scope containing everything starting with a particular module
 --   name. Used to open a module.
-matchPrefix :: C.QName -> ScopeM Scope
-matchPrefix m = filterScope (isPrefix m) (isPrefix m)
-	      . mergeScopes . scopeStack <$> getScope
-  where
-    isPrefix _		   (C.QName _  ) = False
-    isPrefix (C.QName m)   (C.Qual m' x) = m == m'
-    isPrefix (C.Qual m m2) (C.Qual m' x) = m == m' && isPrefix m2 x
+-- TODO: remove matchPrefix
+-- matchPrefix :: C.QName -> ScopeM Scope
+-- matchPrefix m = filterScope (isPrefix m) (isPrefix m)
+--            . mergeScopes . scopeStack <$> getScope
+--   where
+--     isPrefix _                  (C.QName _  ) = False
+--     isPrefix (C.QName m)   (C.Qual m' x) = m == m'
+--     isPrefix (C.Qual m m2) (C.Qual m' x) = m == m' && isPrefix m2 x
 
 -- | @renamedCanonicalNames old new s@ returns a renaming replacing all
 --   (abstract) names @old.m.x@ with @new.m.x@. Any other names are left
 --   untouched.
 renamedCanonicalNames :: ModuleName -> ModuleName -> Scope ->
-		       ScopeM (Map A.QName A.QName, Map A.ModuleName A.ModuleName)
+                       ScopeM (Map A.QName A.QName, Map A.ModuleName A.ModuleName)
 renamedCanonicalNames old new s = (,) <$> renamedNames names <*> renamedMods mods
   where
-    ns	  = scopePublic $ setScopeAccess PublicAccess s
+    ns    = allThingsInScope s
     names = nsNames ns
     mods  = nsModules ns
 
     renamedNames ds = Map.fromList <$> zip xs <$> mapM renName xs
       where
-	xs = filter (`isInModule` old) $ map anameName $ concat $ Map.elems ds
+        xs = filter (`isInModule` old) $ map anameName $ concat $ Map.elems ds
 
     renamedMods ms = Map.fromList <$> zip xs <$> mapM renMod xs
       where
-	xs = filter (`isSubModuleOf` old) $ map amodName $ concat $ Map.elems ms
+        xs = filter (`isSubModuleOf` old) $ map amodName $ concat $ Map.elems ms
 
     -- Change a binding M.x -> old.M'.y to M.x -> new.M'.y
     renName :: A.QName -> ScopeM A.QName
     renName y = do
       i <- fresh
       return . qualifyQ new . dequalify
-	     $ y { qnameName = (qnameName y) { nameId = i } }
+             $ y { qnameName = (qnameName y) { nameId = i } }
       where
-	dequalify = A.qnameFromList . drop (size old) . A.qnameToList
+        dequalify = A.qnameFromList . drop (size old) . A.qnameToList
 
     -- Change a binding M.x -> old.M'.y to M.x -> new.M'.y
     renMod :: A.ModuleName -> ScopeM A.ModuleName
     renMod = return . qualifyM new . dequalify
       where
-	dequalify = A.mnameFromList . drop (size old) . A.mnameToList
+        dequalify = A.mnameFromList . drop (size old) . A.mnameToList
+
+type Ren a = Map a a
+type Out = [Either (Ren A.ModuleName) (Ren A.QName)]
+type WSM = WriterT Out ScopeM
+
+-- | Create a new scope with the given name from an old scope. Renames
+--   public names in the old scope to match the new name and returns the
+--   renamings.
+copyScope :: A.ModuleName -> Scope -> ScopeM (Scope, Ren A.ModuleName, Ren A.QName)
+copyScope new s = do
+  s0 <- getNamedScope new
+  (s', rho) <- runWriterT $ mapScopeM copyD copyM s
+  let s'' = s' { scopeName    = scopeName s0
+               , scopeParents = scopeParents s0
+               }
+  return (s'', modRenaming rho, defRenaming rho)
+  where
+    new' = killRange new
+    old  = scopeName s
+    modRenaming rho = Map.unions [ m | Left m  <- rho ]
+    defRenaming rho = Map.unions [ m | Right m <- rho ]
+
+    copyM :: NameSpaceId -> ModulesInScope -> WSM ModulesInScope
+    copyM ImportedNS ms = return ms
+    copyM PrivateNS  _  = return Map.empty
+    copyM PublicNS   ms = traverse (mapM $ onMod renMod) ms
+
+    copyD :: NameSpaceId -> NamesInScope -> WSM NamesInScope
+    copyD ImportedNS ds = return ds
+    copyD PrivateNS  _  = return Map.empty
+    copyD PublicNS   ds = traverse (mapM $ onName renName) ds
+
+    onMod f m = do
+      x <- f $ amodName m
+      return m { amodName = x }
+
+    onName f d = do
+      x <- f $ anameName d
+      return d { anameName = x }
+
+    -- Change a binding M.x -> old.M'.y to M.x -> new.M'.y
+    renName :: A.QName -> WSM A.QName
+    renName x = do
+      i <- lift fresh
+      let y = qualifyQ new' . dequalify
+            $ x { qnameName = (qnameName x) { nameId = i } }
+      tell [Right $ Map.singleton x y]
+      return y
+      where
+        dequalify = A.qnameFromList . drop (size old) . A.qnameToList
+
+    -- Change a binding M.x -> old.M'.y to M.x -> new.M'.y
+    renMod :: A.ModuleName -> WSM A.ModuleName
+    renMod x = do
+
+      -- Create the name of the new module
+      let y = qualifyM new' $ dequalify x
+      tell [Left $ Map.singleton x y]
+
+      -- We need to copy the contents of included modules recursively
+      (s, renM, renD) <- lift $ do
+        createModule y
+        s0 <- getNamedScope x
+        withCurrentModule y $ copyScope y s0
+      lift $ modifyNamedScope y (const s)
+      tell [Left renM, Right renD]
+      return y
+      where
+        dequalify = A.mnameFromList . drop (size old) . A.mnameToList
 
 -- | Apply an importdirective and check that all the names mentioned actually
 --   exist.
 applyImportDirectiveM :: C.QName -> ImportDirective -> Scope -> ScopeM Scope
 applyImportDirectiveM m dir scope = do
-  xs <- filterM doesn'tExist names
+  xs <- filterM doesntExist names
   reportSLn "scope.import.apply" 20 $ "non existing names: " ++ show xs
   case xs of
-    []	-> return $ applyImportDirective dir scope
-    _	-> typeError $ ModuleDoesntExport m xs
+    []  -> return $ applyImportDirective dir scope
+    _   -> typeError $ ModuleDoesntExport m xs
   where
     names :: [ImportedName]
     names = map fst (renaming dir) ++ case usingOrHiding dir of
       Using  xs -> xs
       Hiding xs -> xs
 
-    doesn'tExist (ImportedName x) =
-      case Map.lookup (C.QName x) $ allNamesInScope scope of
-	Just _	-> return False
-	Nothing	-> return True
-    doesn'tExist (ImportedModule x) =
-      case Map.lookup (C.QName x) $ allModulesInScope scope of
-	Just _	-> return False
-	Nothing	-> return True
+    doesntExist (ImportedName x) =
+      case Map.lookup x (allNamesInScope scope :: ThingsInScope AbstractName) of
+        Just _  -> return False
+        Nothing -> return True
+    doesntExist (ImportedModule x) =
+      case Map.lookup x (allNamesInScope scope :: ThingsInScope AbstractModule) of
+        Just _  -> return False
+        Nothing -> return True
 
--- | Open a module. Assumes that all preconditions have been checked, i.e. that
---   the module is not opened into a different context than it was defined.
+-- | Open a module.
 openModule_ :: C.QName -> ImportDirective -> ScopeM ()
-openModule_ m dir =
+openModule_ cm dir = do
+  current <- getCurrentModule
+  m <- amodName <$> resolveModule cm
+  s <- applyImportDirectiveM cm dir . restrictPrivate =<< getNamedScope m
+  let ns = namespace current m
+  modifyCurrentScope (`mergeScope` setScopeAccess ns s)
+  where
+    namespace m0 m1
+      | not (publicOpen dir)  = PrivateNS
+      | m1 `isSubModuleOf` m0 = PublicNS
+      | otherwise             = ImportedNS
+
+{- TODO: remove old version of openModule_
   addScope  .  setScopeAccess acc
            =<< applyImportDirectiveM m dir
             .  unqualifyScope m =<< matchPrefix m
@@ -376,7 +512,5 @@ openModule_ m dir =
 
         -- All is well. Merge.
         modifyTopScope (`mergeScope` s)
-
-    acc | publicOpen dir  = PublicAccess
-	| otherwise	  = PrivateAccess
+-}
 

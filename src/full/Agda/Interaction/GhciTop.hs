@@ -71,7 +71,7 @@ import Agda.Syntax.Abstract as SA
 import Agda.Syntax.Abstract.Pretty
 import Agda.Syntax.Internal as SI
 import Agda.Syntax.Scope.Base
-import Agda.Syntax.Scope.Monad hiding (bindName)
+import Agda.Syntax.Scope.Monad hiding (bindName, withCurrentModule)
 import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Translation.ConcreteToAbstract
 import Agda.Syntax.Translation.AbstractToConcrete hiding (withScope)

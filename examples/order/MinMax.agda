@@ -14,8 +14,10 @@ module Order {A : Set}(Ord : DecidableOrder A) where
 
   infix 80 _≤_ _≥_
 
+  _≤_ : A → A → Set
   _≤_ = Ord._≤_
-  _≥_ = \x y -> y ≤ x
+
+  _≥_ = \(x y : A) -> y ≤ x
 
 module Min {A : Set}(Ord : DecidableOrder A) where
 
@@ -151,4 +153,3 @@ open module MinMaxX = MinMax OrdX
 open module DistrX = Distributivity OrdX
 
 open Logic.ChainReasoning.Mono.Homogenous
-

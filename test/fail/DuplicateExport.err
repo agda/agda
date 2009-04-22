@@ -1,5 +1,0 @@
-DuplicateExport.agda:10,3-9
-Multiple definitions of x. Previous definition at
-DuplicateExport.agda:4,15-16
-when scope checking the declaration
-  open module _ = B public

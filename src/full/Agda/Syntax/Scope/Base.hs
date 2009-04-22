@@ -1,9 +1,10 @@
-{-# LANGUAGE CPP, DeriveDataTypeable #-}
+{-# LANGUAGE CPP, DeriveDataTypeable, GADTs, ScopedTypeVariables #-}
 
 {-| This module defines the notion of a scope and operations on scopes.
 -}
 module Agda.Syntax.Scope.Base where
 
+import Control.Applicative
 import Data.Generics (Typeable, Data)
 import Data.List
 import Data.Map (Map)
@@ -27,20 +28,36 @@ import Agda.Utils.Impossible
 -- | A scope is a named collection of names partitioned into public and private
 --   names.
 data Scope = Scope
-      { scopeName    :: A.ModuleName
-      , scopePrivate :: NameSpace
-      , scopePublic  :: NameSpace
+      { scopeName     :: A.ModuleName
+      , scopeParents  :: [A.ModuleName]
+      , scopePrivate  :: NameSpace
+      , scopePublic   :: NameSpace 
+      , scopeImported :: NameSpace -- ^ public opened names
+      , scopeImports  :: Map C.QName A.ModuleName
       }
   deriving (Typeable, Data)
 
--- | The scope at a particular point in the program is determined by the stack
---   of all enclosing scopes.
-type ScopeStack = [Scope]
+data NameSpaceId = PrivateNS | PublicNS | ImportedNS
+  deriving (Typeable, Data, Eq)
+
+localNameSpace :: Access -> NameSpaceId
+localNameSpace PublicAccess  = PublicNS
+localNameSpace PrivateAccess = PrivateNS
+
+importedNameSpace :: Access -> NameSpaceId
+importedNameSpace PublicAccess  = ImportedNS
+importedNameSpace PrivateAccess = PrivateNS
+
+scopeNameSpace :: NameSpaceId -> Scope -> NameSpace
+scopeNameSpace PublicNS   = scopePublic
+scopeNameSpace PrivateNS  = scopePrivate
+scopeNameSpace ImportedNS = scopeImported
 
 -- | The complete information about the scope at a particular program point
 --   includes the scope stack, the local variables, and the context precedence.
 data ScopeInfo = ScopeInfo
-      { scopeStack	:: ScopeStack
+      { scopeCurrent    :: A.ModuleName
+      , scopeModules    :: Map A.ModuleName Scope
       , scopeLocals	:: LocalVars
       , scopePrecedence :: Precedence
       }
@@ -58,8 +75,27 @@ data NameSpace = NameSpace
       }
   deriving (Typeable, Data)
 
-type NamesInScope   = Map C.QName [AbstractName]
-type ModulesInScope = Map C.QName [AbstractModule]
+type ThingsInScope a = Map C.Name [a]
+type NamesInScope    = ThingsInScope AbstractName
+type ModulesInScope  = ThingsInScope AbstractModule
+
+data InScopeTag a where
+  NameTag   :: InScopeTag AbstractName
+  ModuleTag :: InScopeTag AbstractModule
+
+class Eq a => InScope a where
+  inScopeTag :: InScopeTag a
+
+inNameSpace :: forall a. InScope a => NameSpace -> ThingsInScope a
+inNameSpace = case inScopeTag :: InScopeTag a of
+  NameTag   -> nsNames
+  ModuleTag -> nsModules
+
+instance InScope AbstractName where
+  inScopeTag = NameTag
+
+instance InScope AbstractModule where
+  inScopeTag = ModuleTag
 
 -- | We distinguish constructor names from other names.
 data KindOfName = ConName | DefName
@@ -92,13 +128,15 @@ instance Ord AbstractModule where
   compare = compare `on` amodName
 
 instance Show ScopeInfo where
-  show (ScopeInfo stack locals ctx) =
+  show (ScopeInfo this mods locals ctx) =
     unlines $
-      [ "ScopeInfo" ] ++
+      [ "ScopeInfo"
+      , "  current = " ++ show this
+      ] ++
       (if null locals then [] else [ "  locals  = " ++ show locals ]) ++
       [ "  context = " ++ show ctx
-      , "  stack"
-      ] ++ map ("    "++) (relines . map show $ stack)
+      , "  modules"
+      ] ++ map ("    "++) (relines . map show $ Map.elems mods)
     where
       relines = filter (not . null) . lines . unlines
 
@@ -107,11 +145,19 @@ blockOfLines _  [] = []
 blockOfLines hd ss = hd : map ("  "++) ss
 
 instance Show Scope where
-  show (Scope { scopeName = name, scopePublic = pub, scopePrivate = pri }) =
+  show (Scope { scopeName = name, scopeParents = parents, scopeImports = imps
+              , scopePublic = pub, scopePrivate = pri, scopeImported = imp }) =
     unlines $
-      [ "scope " ++ show name ]
-      ++ blockOfLines "public"  (lines $ show pub)
-      ++ blockOfLines "private" (lines $ show pri)
+      [ "* scope " ++ show name ] ++ ind (
+         blockOfLines "public"   (lines $ show pub)
+      ++ blockOfLines "imported" (lines $ show imp)
+      ++ blockOfLines "private"  (lines $ show pri)
+      ++ blockOfLines "imports"  (case Map.keys imps of
+                                    [] -> []
+                                    ks -> [ show ks ]
+                                 )
+      )
+    where ind = map ("  " ++)
 
 instance Show NameSpace where
   show (NameSpace names mods) =
@@ -137,11 +183,8 @@ instance SetRange AbstractName where
 
 -- * Operations on name and module maps.
 
-mergeNames :: NamesInScope -> NamesInScope -> NamesInScope
+mergeNames :: InScope a => ThingsInScope a -> ThingsInScope a -> ThingsInScope a
 mergeNames = Map.unionWith union
-
-mergeModules :: ModulesInScope -> ModulesInScope -> ModulesInScope
-mergeModules = Map.unionWith union
 
 -- * Operations on name spaces
 
@@ -182,32 +225,36 @@ mapNameSpaceM fd fm ns = do
 
 -- | The empty scope.
 emptyScope :: Scope
-emptyScope = Scope { scopeName	  = noModuleName
-		   , scopePublic  = emptyNameSpace
-		   , scopePrivate = emptyNameSpace
+emptyScope = Scope { scopeName	   = noModuleName
+                   , scopeParents  = []
+		   , scopePublic   = emptyNameSpace
+		   , scopePrivate  = emptyNameSpace
+                   , scopeImported = emptyNameSpace
+                   , scopeImports  = Map.empty
 		   }
 
 -- | The empty scope info.
 emptyScopeInfo :: ScopeInfo
 emptyScopeInfo = ScopeInfo
-		  { scopeStack	    = [emptyScope]
+		  { scopeCurrent    = noModuleName
+                  , scopeModules    = Map.singleton noModuleName emptyScope
 		  , scopeLocals	    = []
 		  , scopePrecedence = TopCtx
 		  }
 
 -- | Map functions over the names and modules in a scope.
-mapScope :: (Access -> NamesInScope   -> NamesInScope  ) ->
-	    (Access -> ModulesInScope -> ModulesInScope) ->
+mapScope :: (NameSpaceId -> NamesInScope   -> NamesInScope  ) ->
+	    (NameSpaceId -> ModulesInScope -> ModulesInScope) ->
 	    Scope -> Scope
 mapScope fd fm s =
-  s { scopePrivate = mapNS PrivateAccess $ scopePrivate s
-    , scopePublic  = mapNS PublicAccess  $ scopePublic  s
+  s { scopePrivate  = mapNS PrivateNS  $ scopePrivate  s
+    , scopePublic   = mapNS PublicNS   $ scopePublic   s
+    , scopeImported = mapNS ImportedNS $ scopeImported s
     }
   where
     mapNS acc = mapNameSpace (fd acc) (fm acc)
 
--- | Same as 'mapScope' but applies the same function to both the public and
---   private name spaces.
+-- | Same as 'mapScope' but applies the same function to all name spaces.
 mapScope_ :: (NamesInScope   -> NamesInScope  ) ->
 	     (ModulesInScope -> ModulesInScope) ->
 	     Scope -> Scope
@@ -215,13 +262,14 @@ mapScope_ fd fm = mapScope (const fd) (const fm)
 
 -- | Map monadic functions over the names and modules in a scope.
 mapScopeM :: Monad m =>
-  (Access -> NamesInScope   -> m NamesInScope  ) ->
-  (Access -> ModulesInScope -> m ModulesInScope) ->
+  (NameSpaceId -> NamesInScope   -> m NamesInScope  ) ->
+  (NameSpaceId -> ModulesInScope -> m ModulesInScope) ->
   Scope -> m Scope
 mapScopeM fd fm s = do
-  pri <- mapNS PrivateAccess $ scopePrivate s
-  pub <- mapNS PublicAccess  $ scopePublic  s
-  return $ s { scopePrivate = pri, scopePublic = pub }
+  pri <- mapNS PrivateNS  $ scopePrivate  s
+  pub <- mapNS PublicNS   $ scopePublic   s
+  imp <- mapNS ImportedNS $ scopeImported s
+  return $ s { scopePrivate = pri, scopePublic = pub, scopeImported = imp }
   where
     mapNS acc = mapNameSpaceM (fd acc) (fm acc)
 
@@ -235,12 +283,14 @@ mapScopeM_ fd fm = mapScopeM (const fd) (const fm)
 
 -- | Zip together two scopes. The resulting scope has the same name as the
 --   first scope.
-zipScope :: (Access -> NamesInScope   -> NamesInScope   -> NamesInScope  ) ->
-	    (Access -> ModulesInScope -> ModulesInScope -> ModulesInScope) ->
+zipScope :: (NameSpaceId -> NamesInScope   -> NamesInScope   -> NamesInScope  ) ->
+	    (NameSpaceId -> ModulesInScope -> ModulesInScope -> ModulesInScope) ->
 	    Scope -> Scope -> Scope
 zipScope fd fm s1 s2 =
-  s1 { scopePrivate = zipNS PrivateAccess (scopePrivate s1) (scopePrivate s2)
-     , scopePublic  = zipNS PublicAccess  (scopePublic  s1) (scopePublic  s2)
+  s1 { scopePrivate  = zipNS PrivateNS  (scopePrivate  s1) (scopePrivate  s2)
+     , scopePublic   = zipNS PublicNS   (scopePublic   s1) (scopePublic   s2)
+     , scopeImported = zipNS ImportedNS (scopeImported s1) (scopeImported s2)
+     , scopeImports  = Map.union (scopeImports s1) (scopeImports s2)
      }
   where
     zipNS acc = zipNameSpace (fd acc) (fm acc)
@@ -254,20 +304,23 @@ zipScope_ fd fm = zipScope (const fd) (const fm)
 
 -- | Filter a scope keeping only concrete names matching the predicates.
 --   The first predicate is applied to the names and the second to the modules.
-filterScope :: (C.QName -> Bool) -> (C.QName -> Bool) -> Scope -> Scope
+filterScope :: (C.Name -> Bool) -> (C.Name -> Bool) -> Scope -> Scope
 filterScope pd pm = mapScope_ (Map.filterKeys pd) (Map.filterKeys pm)
 
--- | Return all names in a scope, both public and private.
-allNamesInScope :: Scope -> NamesInScope
-allNamesInScope s = (mergeNames `on` nsNames) (scopePublic s) (scopePrivate s)
+-- | Return all names in a scope.
+allNamesInScope :: InScope a => Scope -> ThingsInScope a
+allNamesInScope s =
+  foldr1 mergeNames [ inNameSpace (f s) | f <- [ scopePublic, scopePrivate, scopeImported ] ]
 
--- | Return all modules in a scope, both public and private.
-allModulesInScope :: Scope -> ModulesInScope
-allModulesInScope s = (mergeModules `on` nsModules) (scopePublic s) (scopePrivate s)
+allThingsInScope :: Scope -> NameSpace
+allThingsInScope s =
+  NameSpace { nsNames   = allNamesInScope s
+            , nsModules = allNamesInScope s
+            }
 
 -- | Merge two scopes. The result has the name of the first scope.
 mergeScope :: Scope -> Scope -> Scope
-mergeScope = zipScope_ mergeNames mergeModules
+mergeScope = zipScope_ mergeNames mergeNames
 
 -- | Merge a non-empty list of scopes. The result has the name of the first
 --   scope in the list.
@@ -280,6 +333,8 @@ mergeScopes ss = foldr1 mergeScope ss
 -- | Given a scope where all concrete names start with @M@, remove all the
 --   @M@s. Used when opening a module @M@, in which case only those names
 --   starting with @M@ are considered.
+-- TODO: remove unqualifyScope
+{-
 unqualifyScope :: C.QName -> Scope -> Scope
 unqualifyScope m = mapScope_ unqual unqual
   where
@@ -292,34 +347,34 @@ unqualifyScope m = mapScope_ unqual unqual
     unq (C.QName m)  (C.Qual m' q)
       | m == m'	  = q
       | otherwise = __IMPOSSIBLE__
+-}
 
--- | Move all names in a scope to the public or private section, depending on
---   the first argument. Used when opening a module.
-setScopeAccess :: Access -> Scope -> Scope
-setScopeAccess a s = s { scopePublic  = pub
-		       , scopePrivate = pri
+-- | Move all names in a scope to the given name space.
+setScopeAccess :: NameSpaceId -> Scope -> Scope
+setScopeAccess a s = s { scopeImported = ns ImportedNS
+		       , scopePrivate  = ns PrivateNS
+                       , scopePublic   = ns PublicNS
 		       }
   where
-    one  = zipNameSpace mergeNames mergeModules (scopePublic s) (scopePrivate s)
+    one  = allThingsInScope s
     zero = emptyNameSpace
 
-    (pub, pri) = case a of
-      PublicAccess  -> (one, zero)
-      PrivateAccess -> (zero, one)
+    ns b | a == b    = one
+         | otherwise = zero
 
 -- | Add names to a scope.
-addNamesToScope :: Access -> C.QName -> [AbstractName] -> Scope -> Scope
+addNamesToScope :: NameSpaceId -> C.Name -> [AbstractName] -> Scope -> Scope
 addNamesToScope acc x ys s = mergeScope s s1
   where
     s1 = setScopeAccess acc $ emptyScope
 	 { scopePublic = emptyNameSpace { nsNames = Map.singleton x ys } }
 
 -- | Add a name to a scope.
-addNameToScope :: Access -> C.QName -> AbstractName -> Scope -> Scope
+addNameToScope :: NameSpaceId -> C.Name -> AbstractName -> Scope -> Scope
 addNameToScope acc x y s = addNamesToScope acc x [y] s
 
 -- | Add a module to a scope.
-addModuleToScope :: Access -> C.QName -> AbstractModule -> Scope -> Scope
+addModuleToScope :: NameSpaceId -> C.Name -> AbstractModule -> Scope -> Scope
 addModuleToScope acc x m s = mergeScope s s1
   where
     s1 = setScopeAccess acc $ emptyScope
@@ -342,13 +397,6 @@ applyImportDirective dir s = mergeScope usedOrHidden renamed
     useOrHide (Hiding xs) s = filterNames notElem notElem xs s
     useOrHide (Using  xs) s = filterNames elem	  elem	  xs s
 
-    -- Qualified names are only ok if the top-most module is ok.
-    okName pd pm (C.QName  x) = pd x
-    okName pd pm (C.Qual m _) = pm m
-
-    okModule pm (C.QName  x) = pm x
-    okModule pm (C.Qual m _) = pm m
-
     filterNames :: (C.Name -> [C.Name] -> Bool) -> (C.Name -> [C.Name] -> Bool) ->
 		   [ImportedName] -> Scope -> Scope
     filterNames pd pm xs = filterScope' (flip pd ds) (flip pm ms)
@@ -356,25 +404,19 @@ applyImportDirective dir s = mergeScope usedOrHidden renamed
 	ds = [ x | ImportedName   x <- xs ]
 	ms = [ m | ImportedModule m <- xs ]
 
-    filterScope' pd pm = filterScope (okName pd pm) (okModule pm)
+    filterScope' pd pm = filterScope pd pm
 
     -- Renaming
     rename :: [(ImportedName, C.Name)] -> Scope -> Scope
-    rename rho = mapScope_ (Map.mapKeys $ renName drho mrho)
-			   (Map.mapKeys $ renMod mrho)
+    rename rho = mapScope_ (Map.mapKeys $ ren drho)
+			   (Map.mapKeys $ ren mrho)
       where
 	mrho = [ (x, y) | (ImportedModule x, y) <- rho ]
 	drho = [ (x, y) | (ImportedName	  x, y) <- rho ]
 
 	ren r x = maybe x id $ lookup x r
 
-	renName dr mr (C.QName  x) = C.QName $ ren dr x
-	renName dr mr (C.Qual m x) = flip C.Qual x $ ren mr m
-
-	renMod mr (C.QName  x) = C.QName $ ren mr x
-	renMod mr (C.Qual m x) = flip C.Qual x $ ren mr m
-
--- | Rename the canical names in a scope.
+-- | Rename the abstract names in a scope.
 renameCanonicalNames :: Map A.QName A.QName -> Map A.ModuleName A.ModuleName ->
 			Scope -> Scope
 renameCanonicalNames renD renM = mapScope_ renameD renameM
@@ -388,45 +430,133 @@ renameCanonicalNames renD renM = mapScope_ renameD renameM
     rD x = maybe x id $ Map.lookup x renD
     rM x = maybe x id $ Map.lookup x renM
 
+-- | Restrict the private name space of a scope
+restrictPrivate :: Scope -> Scope
+restrictPrivate s = s { scopePrivate = emptyNameSpace, scopeImports = Map.empty }
+
+everythingInScope :: ScopeInfo -> NameSpace
+everythingInScope scope =
+    allThingsInScope
+    $ mergeScopes
+    [ s | (m, s) <- Map.toList (scopeModules scope), m `elem` current ]
+  where
+    this    = scopeCurrent scope
+    parents = case Map.lookup this (scopeModules scope) of
+      Just s  -> scopeParents s
+      Nothing -> __IMPOSSIBLE__
+    current = this : parents
+
+-- | Look up a name in the scope
+scopeLookup :: forall a. InScope a => C.QName -> ScopeInfo -> [a]
+scopeLookup q scope = findName q root ++ imports
+  where
+    this    = scopeCurrent scope
+    current = moduleScope this
+    root    = mergeScopes $ current : map moduleScope (scopeParents current)
+
+    tag = inScopeTag :: InScopeTag a
+
+    splitName (C.QName x) = []
+    splitName (C.Qual x q) = (C.QName x, q) : do
+      (m, r) <- splitName q
+      return (C.Qual x m, r)
+
+    imported q = maybe [] (:[]) $ Map.lookup q $ scopeImports root
+
+    topImports :: [a]
+    topImports = case tag of
+      NameTag   -> []
+      ModuleTag -> map AbsModule (imported q)
+
+    imports :: [a]
+    imports = topImports ++ do
+      (m, x) <- splitName q
+      m <- imported m
+      x <- findName x (restrictPrivate $ moduleScope m)
+      return x
+
+    moduleScope name = case Map.lookup name (scopeModules scope) of
+      Nothing -> __IMPOSSIBLE__
+      Just s  -> s
+
+    lookupName x s = maybe [] id $ Map.lookup x (allNamesInScope s)
+
+    findName (C.QName x)  s = lookupName x s
+    findName (C.Qual x q) s = do
+      m <- amodName <$> lookupName x s
+      findName q (restrictPrivate $ moduleScope m)
+
 -- * Inverse look-up
 
 -- | Find the shortest concrete name that maps (uniquely) to a given abstract
---   name. Find defined names (first component of result) and module names
---   (second component) simultaneously.
+--   name.
+inverseScopeLookup :: Either A.ModuleName A.QName -> ScopeInfo -> Maybe C.QName
+inverseScopeLookup name scope = case name of
+  Left  m -> best $ filter unambiguousModule $ findModule m
+  Right q -> best $ filter unambiguousName   $ findName nameMap q
+  where
+    this = scopeCurrent scope
+    current = this : scopeParents (moduleScope this)
+    scopes  = [ (m, restrict m s) | (m, s) <- Map.toList (scopeModules scope) ]
+
+    moduleScope name = case Map.lookup name (scopeModules scope) of
+      Nothing -> __IMPOSSIBLE__
+      Just s  -> s
+
+    restrict m s | m `elem` current = s
+                 | otherwise = restrictPrivate s
+
+    len :: C.QName -> Int
+    len (C.QName _)  = 1
+    len (C.Qual _ x) = 1 + len x
+
+    best xs = case sortBy (compare `on` len) xs of
+      []    -> Nothing
+      x : _ -> Just x
+
+    unique []      = __IMPOSSIBLE__
+    unique [_]     = True
+    unique (_:_:_) = False
+
+    unambiguousModule q = unique (scopeLookup q scope :: [AbstractModule])
+    unambiguousName   q = unique xs || all ((ConName ==) . anameKind) xs
+      where xs = scopeLookup q scope
+
+    findName :: Ord a => Map a [(A.ModuleName, C.Name)] -> a -> [C.QName]
+    findName table q = do
+      (m, x) <- maybe [] id $ Map.lookup q table
+      if m `elem` current
+        then return (C.QName x)
+        else do
+          y <- findModule m
+          return $ C.qualify y x
+
+    findModule :: A.ModuleName -> [C.QName]
+    findModule q = findName moduleMap q ++
+                   maybe [] id (Map.lookup q importMap)
+
+    importMap = Map.unionsWith (++) $ do
+      (m, s) <- scopes
+      (x, y) <- Map.toList $ scopeImports s
+      return $ Map.singleton y [x]
+
+    moduleMap = Map.unionsWith (++) $ do
+      (m, s)  <- scopes
+      (x, ms) <- Map.toList (allNamesInScope s)
+      q       <- amodName <$> ms
+      return $ Map.singleton q [(m, x)]
+
+    nameMap = Map.unionsWith (++) $ do
+      (m, s)  <- scopes
+      (x, ms) <- Map.toList (allNamesInScope s)
+      q       <- anameName <$> ms
+      return $ Map.singleton q [(m, x)]
 
 -- | Takes the first component of 'inverseScopeLookup'.
 inverseScopeLookupName :: A.QName -> ScopeInfo -> Maybe C.QName
-inverseScopeLookupName x s = best $ invert x $ mergeScopes $ scopeStack s
-  where
-    len :: C.QName -> Int
-    len (C.QName _)  = 1
-    len (C.Qual _ x) = 1 + len x
-
-    best xs = case sortBy (compare `on` len) xs of
-      []    -> Nothing
-      x : _ -> Just x
-
-    invert x s = ds
-      where
-	ds = [ y | (y, zs) <- Map.toList $ allNamesInScope s
-                 , x `elem` map anameName zs
-                 , length zs == 1 || all ((==ConName) . anameKind) zs
-             ]
+inverseScopeLookupName x = inverseScopeLookup (Right x)
 
 -- | Takes the second component of 'inverseScopeLookup'.
 inverseScopeLookupModule :: A.ModuleName -> ScopeInfo -> Maybe C.QName
-inverseScopeLookupModule x s = best $ invert x $ mergeScopes $ scopeStack s
-  where
-    len :: C.QName -> Int
-    len (C.QName _)  = 1
-    len (C.Qual _ x) = 1 + len x
-
-    best xs = case sortBy (compare `on` len) xs of
-      []    -> Nothing
-      x : _ -> Just x
-
-    invert x s = ms
-      where
-	ms = [ y | (y, [m]) <- Map.toList $ allModulesInScope s, x == amodName m  ]
-
+inverseScopeLookupModule x = inverseScopeLookup (Left x)
 

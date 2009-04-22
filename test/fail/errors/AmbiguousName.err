@@ -1,6 +1,5 @@
 errors/AmbiguousName.agda:8,3-9,22
-Shadowing of module A defined at
+Duplicate definition of module A. Previous definition at
 errors/AmbiguousName.agda:4,8-9
-is not allowed
 when scope checking the declaration
   module A where

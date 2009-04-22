@@ -37,6 +37,7 @@ import Agda.Syntax.Scope.Monad
 
 import Agda.TypeChecking.Monad.Base (typeError, TypeError(..))
 import Agda.TypeChecking.Monad.State (getScope)
+import Agda.TypeChecking.Monad.Options
 
 import Agda.Utils.ReadP
 import Agda.Utils.Monad
@@ -54,19 +55,20 @@ partsInScope = do
     xs <- uncurry (++) . (id -*- map fst) <$> localNames
     return $ Set.fromList $ concatMap parts xs
     where
-	parts (NoName _ _)   = []
-	parts x@(Name _ [_]) = [x]
-	parts x@(Name _ xs)  = x : [ Name noRange [i] | i@(Id {}) <- xs ]
+        parts (NoName _ _)   = []
+        parts x@(Name _ [_]) = [x]
+        parts x@(Name _ xs)  = x : [ Name noRange [i] | i@(Id {}) <- xs ]
 
 -- | Compute all unqualified defined names in scope and their fixities.
 getDefinedNames :: [KindOfName] -> ScopeM [(Name, Fixity)]
 getDefinedNames kinds = do
-  names <- allNamesInScope . mergeScopes . scopeStack <$> getScope
+  names <- nsNames . everythingInScope <$> getScope
+  reportSLn "scope.operators" 20 $ "everythingInScope: " ++ show names
   return [ (x, A.nameFixity $ A.qnameName $ anameName d)
-	 | (QName x, ds) <- Map.assocs names
-	 , d		 <- take 1 ds
-	 , anameKind d `elem` kinds
-	 ]
+         | (x, ds) <- Map.assocs names
+         , d       <- take 1 ds
+         , anameKind d `elem` kinds
+         ]
 
 -- | Compute all names (first component) and operators (second component) in
 --   scope.
@@ -78,11 +80,11 @@ localNames = do
   where
     localOp (x, y) = (x, A.nameFixity y)
     split ops = ([ x | Left x <- zs], [ y | Right y <- zs ])
-	where
-	    zs = concatMap opOrNot ops
+        where
+            zs = concatMap opOrNot ops
 
     opOrNot (x@(Name _ [_]), fx) = [Left x]
-    opOrNot (x, fx)	         = [Left x, Right (x, fx)]
+    opOrNot (x, fx)              = [Left x, Right (x, fx)]
 
 data UseBoundNames = UseBoundNames | DontUseBoundNames
 
@@ -119,56 +121,56 @@ data UseBoundNames = UseBoundNames | DontUseBoundNames
 buildParser :: IsExpr e => Range -> UseBoundNames -> ScopeM (ReadP e e)
 buildParser r use = do
     (names, ops) <- localNames
-    cons	 <- getDefinedNames [ConName]
+    cons         <- getDefinedNames [ConName]
     let conparts   = Set.fromList $ concatMap (parts . fst) cons
-	connames   = Set.fromList $ map fst cons
-	(non, fix) = partition nonfix ops
-	set	   = Set.fromList names
-	isLocal    = case use of
-	    UseBoundNames     -> \x -> Set.member x set
-	    DontUseBoundNames -> \x -> Set.member x connames || not (Set.member x conparts)
+        connames   = Set.fromList $ map fst cons
+        (non, fix) = partition nonfix ops
+        set        = Set.fromList names
+        isLocal    = case use of
+            UseBoundNames     -> \x -> Set.member x set
+            DontUseBoundNames -> \x -> Set.member x connames || not (Set.member x conparts)
     return $ recursive $ \p ->
-	concatMap (mkP p) (order fix)
-	++ [ appP p ]
-	++ map (nonfixP . opP p . fst) non
-	++ [ const $ atomP isLocal ]
+        concatMap (mkP p) (order fix)
+        ++ [ appP p ]
+        ++ map (nonfixP . opP p . fst) non
+        ++ [ const $ atomP isLocal ]
     where
-	parts (NoName _ _) = []
-	parts (Name _ [_]) = []
-	parts (Name _ xs)  = [ Name noRange [i] | i@(Id {}) <- xs ]
+        parts (NoName _ _) = []
+        parts (Name _ [_]) = []
+        parts (Name _ xs)  = [ Name noRange [i] | i@(Id {}) <- xs ]
 
-	level = fixityLevel . snd
+        level = fixityLevel . snd
 
-	isinfixl (op, LeftAssoc _ _)  = isInfix op
-	isinfixl _		      = False
+        isinfixl (op, LeftAssoc _ _)  = isInfix op
+        isinfixl _                    = False
 
-	isinfixr (op, RightAssoc _ _) = isInfix op
-	isinfixr _		      = False
+        isinfixr (op, RightAssoc _ _) = isInfix op
+        isinfixr _                    = False
 
-	isinfix (op, NonAssoc _ _)    = isInfix op
-	isinfix _		      = False
+        isinfix (op, NonAssoc _ _)    = isInfix op
+        isinfix _                     = False
 
-	on f g x y = f (g x) (g y)
+        on f g x y = f (g x) (g y)
 
-	nonfix = isNonfix . fst
-	order = groupBy ((==) `on` level) . sortBy (compare `on` level)
+        nonfix = isNonfix . fst
+        order = groupBy ((==) `on` level) . sortBy (compare `on` level)
 
-	mkP p0 ops = case concat [infx, inlfx, inrfx, prefx, postfx] of
-	    []	    -> [id]
-	    fs	    -> fs
-	    where
-		choice' = foldr1 (++++)
-		f ++++ g = \p -> f p +++ g p
-		inlfx	= fixP infixlP  isinfixl
-		inrfx	= fixP infixrP  isinfixr
-		infx	= fixP infixP   isinfix
-		prefx	= fixP prefixP  (isPrefix . fst)
-		postfx	= fixP postfixP (isPostfix . fst)
+        mkP p0 ops = case concat [infx, inlfx, inrfx, prefx, postfx] of
+            []      -> [id]
+            fs      -> fs
+            where
+                choice' = foldr1 (++++)
+                f ++++ g = \p -> f p +++ g p
+                inlfx   = fixP infixlP  isinfixl
+                inrfx   = fixP infixrP  isinfixr
+                infx    = fixP infixP   isinfix
+                prefx   = fixP prefixP  (isPrefix . fst)
+                postfx  = fixP postfixP (isPostfix . fst)
 
-		fixP f g =
-		    case filter g ops of
-			[]  -> []
-			ops -> [ f $ choice $ map (opP p0 . fst) ops ]
+                fixP f g =
+                    case filter g ops of
+                        []  -> []
+                        ops -> [ f $ choice $ map (opP p0 . fst) ops ]
 
 ---------------------------------------------------------------------------
 -- * Expression instances
@@ -176,35 +178,35 @@ buildParser r use = do
 
 instance IsExpr Expr where
     exprView e = case e of
-	Ident (QName x)	-> LocalV x
-	App _ e1 e2	-> AppV e1 e2
-	OpApp r d es	-> OpAppV d es
-	HiddenArg _ e	-> HiddenArgV e
-	Paren _ e	-> ParenV e
-	_		-> OtherV e
+        Ident (QName x) -> LocalV x
+        App _ e1 e2     -> AppV e1 e2
+        OpApp r d es    -> OpAppV d es
+        HiddenArg _ e   -> HiddenArgV e
+        Paren _ e       -> ParenV e
+        _               -> OtherV e
     unExprView e = case e of
-	LocalV x      -> Ident (QName x)
-	AppV e1 e2    -> App (fuseRange e1 e2) e1 e2
-	OpAppV d es   -> OpApp (fuseRange d es) d es
-	HiddenArgV e  -> HiddenArg (getRange e) e
-	ParenV e      -> Paren (getRange e) e
-	OtherV e      -> e
+        LocalV x      -> Ident (QName x)
+        AppV e1 e2    -> App (fuseRange e1 e2) e1 e2
+        OpAppV d es   -> OpApp (fuseRange d es) d es
+        HiddenArgV e  -> HiddenArg (getRange e) e
+        ParenV e      -> Paren (getRange e) e
+        OtherV e      -> e
 
 instance IsExpr Pattern where
     exprView e = case e of
-	IdentP (QName x) -> LocalV x
-	AppP e1 e2	 -> AppV e1 e2
-	OpAppP r d es	 -> OpAppV d es
-	HiddenP _ e	 -> HiddenArgV e
-	ParenP _ e	 -> ParenV e
-	_		 -> OtherV e
+        IdentP (QName x) -> LocalV x
+        AppP e1 e2       -> AppV e1 e2
+        OpAppP r d es    -> OpAppV d es
+        HiddenP _ e      -> HiddenArgV e
+        ParenP _ e       -> ParenV e
+        _                -> OtherV e
     unExprView e = case e of
-	LocalV x	 -> IdentP (QName x)
-	AppV e1 e2	 -> AppP e1 e2
-	OpAppV d es	 -> OpAppP (fuseRange d es) d es
-	HiddenArgV e	 -> HiddenP (getRange e) e
-	ParenV e	 -> ParenP (getRange e) e
-	OtherV e	 -> e
+        LocalV x         -> IdentP (QName x)
+        AppV e1 e2       -> AppP e1 e2
+        OpAppV d es      -> OpAppP (fuseRange d es) d es
+        HiddenArgV e     -> HiddenP (getRange e) e
+        ParenV e         -> ParenP (getRange e) e
+        OtherV e         -> e
 
 ---------------------------------------------------------------------------
 -- * Parse functions
@@ -216,53 +218,53 @@ parsePattern prs p = case p of
     AppP p (Arg h q) -> fullParen' <$> (AppP <$> parsePattern prs p <*> (Arg h <$> traverse (parsePattern prs) q))
     RawAppP _ ps     -> fullParen' <$> (parsePattern prs =<< parse prs ps)
     OpAppP r d ps    -> fullParen' . OpAppP r d <$> mapM (parsePattern prs) ps
-    HiddenP _ _	     -> fail "bad hidden argument"
-    AsP r x p	     -> AsP r x <$> parsePattern prs p
-    DotP r e	     -> return $ DotP r e
-    ParenP r p	     -> fullParen' <$> parsePattern prs p
-    WildP _	     -> return p
-    AbsurdP _	     -> return p
-    LitP _	     -> return p
-    IdentP _	     -> return p
+    HiddenP _ _      -> fail "bad hidden argument"
+    AsP r x p        -> AsP r x <$> parsePattern prs p
+    DotP r e         -> return $ DotP r e
+    ParenP r p       -> fullParen' <$> parsePattern prs p
+    WildP _          -> return p
+    AbsurdP _        -> return p
+    LitP _           -> return p
+    IdentP _         -> return p
 
 
 -- | Parses a left-hand side, and makes sure that it defined the expected name.
 --   TODO: check the arities of constructors. There is a possible ambiguity with
 --   postfix constructors:
---	Assume _ * is a constructor. Then 'true *' can be parsed as either the
---	intended _* applied to true, or as true applied to a variable *. If we
---	check arities this problem won't appear.
+--      Assume _ * is a constructor. Then 'true *' can be parsed as either the
+--      intended _* applied to true, or as true applied to a variable *. If we
+--      check arities this problem won't appear.
 parseLHS :: Maybe Name -> Pattern -> ScopeM Pattern
 parseLHS top p = do
     patP <- buildParser (getRange p) DontUseBoundNames
     cons <- getNames [ConName]
     case filter (validPattern top cons) $ parsePattern patP p of
-	[p] -> return p
-	[]  -> typeError $ NoParseForLHS p
-	ps  -> typeError $ AmbiguousParseForLHS p $ map fullParen ps
+        [p] -> return p
+        []  -> typeError $ NoParseForLHS p
+        ps  -> typeError $ AmbiguousParseForLHS p $ map fullParen ps
     where
-	getNames kinds = map fst <$> getDefinedNames kinds
+        getNames kinds = map fst <$> getDefinedNames kinds
 
-	validPattern :: Maybe Name -> [Name] -> Pattern -> Bool
-	validPattern (Just top) cons p = case appView p of
-	    IdentP (QName x) : ps -> x == top && all (validPat cons) ps
-	    _			  -> False
-	validPattern Nothing cons p = validPat cons p
+        validPattern :: Maybe Name -> [Name] -> Pattern -> Bool
+        validPattern (Just top) cons p = case appView p of
+            IdentP (QName x) : ps -> x == top && all (validPat cons) ps
+            _                     -> False
+        validPattern Nothing cons p = validPat cons p
 
-	validPat :: [Name] -> Pattern -> Bool
-	validPat cons p = case appView p of
-	    [_]			  -> True
-	    IdentP (QName x) : ps -> elem x cons && all (validPat cons) ps
-	    ps			  -> all (validPat cons) ps
+        validPat :: [Name] -> Pattern -> Bool
+        validPat cons p = case appView p of
+            [_]                   -> True
+            IdentP (QName x) : ps -> elem x cons && all (validPat cons) ps
+            ps                    -> all (validPat cons) ps
 
-	appView :: Pattern -> [Pattern]
-	appView p = case p of
-	    AppP p (Arg _ q) -> appView p ++ [namedThing q]
-	    OpAppP _ op ps   -> IdentP (QName op) : ps
-	    ParenP _ p	     -> appView p
-	    RawAppP _ _	     -> __IMPOSSIBLE__
-	    HiddenP _ _	     -> __IMPOSSIBLE__
-	    _		     -> [p]
+        appView :: Pattern -> [Pattern]
+        appView p = case p of
+            AppP p (Arg _ q) -> appView p ++ [namedThing q]
+            OpAppP _ op ps   -> IdentP (QName op) : ps
+            ParenP _ p       -> appView p
+            RawAppP _ _      -> __IMPOSSIBLE__
+            HiddenP _ _      -> __IMPOSSIBLE__
+            _                -> [p]
 
 parseApplication :: [Expr] -> ScopeM Expr
 parseApplication [e] = return e
@@ -272,63 +274,63 @@ parseApplication es = do
     -- parse and we can just as well give a nice error).
     inScope <- partsInScope
     case [ QName x | Ident (QName x) <- es, not (Set.member x inScope) ] of
-	[]  -> return ()
-	xs  -> typeError $ NotInScope xs
+        []  -> return ()
+        xs  -> typeError $ NotInScope xs
 
     -- Build the parser
     p <- buildParser (getRange es) UseBoundNames
 
     -- Parse
     case parse p es of
-	[e] -> return e
-	[]  -> typeError $ NoParseForApplication es
-	es' -> typeError $ AmbiguousParseForApplication es $ map fullParen es'
+        [e] -> return e
+        []  -> typeError $ NoParseForApplication es
+        es' -> typeError $ AmbiguousParseForApplication es $ map fullParen es'
 
 -- Inserting parenthesis --------------------------------------------------
 
 fullParen :: IsExpr e => e -> e
 fullParen e = case exprView $ fullParen' e of
-    ParenV e	-> e
-    e'		-> unExprView e'
+    ParenV e    -> e
+    e'          -> unExprView e'
 
 fullParen' :: IsExpr e => e -> e
 fullParen' e = case exprView e of
-    LocalV _	 -> e
-    OtherV _	 -> e
+    LocalV _     -> e
+    OtherV _     -> e
     HiddenArgV _ -> e
-    ParenV _	 -> e
+    ParenV _     -> e
     AppV e1 (Arg h e2) -> par $ unExprView $ AppV (fullParen' e1) (Arg h e2')
-	where
-	    e2' = case h of
-		Hidden	  -> e2
-		NotHidden -> fullParen' <$> e2
+        where
+            e2' = case h of
+                Hidden    -> e2
+                NotHidden -> fullParen' <$> e2
     OpAppV x es -> par $ unExprView $ OpAppV x $ map fullParen' es
     where
-	par = unExprView . ParenV
+        par = unExprView . ParenV
 
 paren :: Monad m => (Name -> m Fixity) -> Expr -> m (Precedence -> Expr)
-paren _   e@(App _ _ _)	       = return $ \p -> mparen (appBrackets p) e
-paren f	  e@(OpApp _ op _)     = do fx <- f op; return $ \p -> mparen (opBrackets fx p) e
-paren _   e@(Lam _ _ _)	       = return $ \p -> mparen (lamBrackets p) e
+paren _   e@(App _ _ _)        = return $ \p -> mparen (appBrackets p) e
+paren f   e@(OpApp _ op _)     = do fx <- f op; return $ \p -> mparen (opBrackets fx p) e
+paren _   e@(Lam _ _ _)        = return $ \p -> mparen (lamBrackets p) e
 paren _   e@(AbsurdLam _ _)    = return $ \p -> mparen (lamBrackets p) e
-paren _   e@(Fun _ _ _)	       = return $ \p -> mparen (lamBrackets p) e
-paren _   e@(Pi _ _)	       = return $ \p -> mparen (lamBrackets p) e
-paren _   e@(Let _ _ _)	       = return $ \p -> mparen (lamBrackets p) e
-paren _	  e@(Rec _ _)	       = return $ \p -> mparen (appBrackets p) e
+paren _   e@(Fun _ _ _)        = return $ \p -> mparen (lamBrackets p) e
+paren _   e@(Pi _ _)           = return $ \p -> mparen (lamBrackets p) e
+paren _   e@(Let _ _ _)        = return $ \p -> mparen (lamBrackets p) e
+paren _   e@(Rec _ _)          = return $ \p -> mparen (appBrackets p) e
 paren _   e@(WithApp _ _ _)    = return $ \p -> mparen (withAppBrackets p) e
-paren _	  e@(Ident _)	       = return $ \p -> e
-paren _	  e@(Lit _)	       = return $ \p -> e
-paren _	  e@(QuestionMark _ _) = return $ \p -> e
-paren _	  e@(Underscore _ _)   = return $ \p -> e
-paren _	  e@(Set _)	       = return $ \p -> e
-paren _	  e@(SetN _ _)	       = return $ \p -> e
-paren _	  e@(Prop _)	       = return $ \p -> e
-paren _	  e@(Paren _ _)	       = return $ \p -> e
-paren _	  e@(As _ _ _)	       = return $ \p -> e
-paren _	  e@(Dot _ _)	       = return $ \p -> e
-paren _	  e@(Absurd _)	       = return $ \p -> e
-paren _	  e@(RawApp _ _)       = __IMPOSSIBLE__
-paren _	  e@(HiddenArg _ _)    = __IMPOSSIBLE__
+paren _   e@(Ident _)          = return $ \p -> e
+paren _   e@(Lit _)            = return $ \p -> e
+paren _   e@(QuestionMark _ _) = return $ \p -> e
+paren _   e@(Underscore _ _)   = return $ \p -> e
+paren _   e@(Set _)            = return $ \p -> e
+paren _   e@(SetN _ _)         = return $ \p -> e
+paren _   e@(Prop _)           = return $ \p -> e
+paren _   e@(Paren _ _)        = return $ \p -> e
+paren _   e@(As _ _ _)         = return $ \p -> e
+paren _   e@(Dot _ _)          = return $ \p -> e
+paren _   e@(Absurd _)         = return $ \p -> e
+paren _   e@(RawApp _ _)       = __IMPOSSIBLE__
+paren _   e@(HiddenArg _ _)    = __IMPOSSIBLE__
 
 mparen :: Bool -> Expr -> Expr
 mparen True  e = Paren (getRange e) e

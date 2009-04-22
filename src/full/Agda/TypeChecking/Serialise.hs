@@ -66,7 +66,7 @@ import Agda.Utils.Permutation
 import Agda.Utils.Impossible
 
 currentInterfaceVersion :: Int
-currentInterfaceVersion = 20090312
+currentInterfaceVersion = 20090421 * 10 + 2
 
 type Node = [Int] -- constructor tag (maybe omitted) and arg indices
 
@@ -221,9 +221,9 @@ instance EmbPrj C.QName where
                            valu _      = __IMPOSSIBLE__
 
 instance EmbPrj Scope where
-  icode (Scope a b c) = icode3' a b c
-  value = vcase valu where valu [a, b, c] = valu3 Scope a b c
-                           valu _         = __IMPOSSIBLE__
+  icode (Scope a b c d e f) = icode6' a b c d e f
+  value = vcase valu where valu [a, b, c, d, e, f] = valu6 Scope a b c d e f
+                           valu _                  = __IMPOSSIBLE__
 
 instance EmbPrj Access where
   icode PrivateAccess = icode0 0
