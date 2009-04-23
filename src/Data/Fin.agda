@@ -71,6 +71,13 @@ inject {i = zero}  ()
 inject {i = suc i} zero    = zero
 inject {i = suc i} (suc j) = suc (inject j)
 
+-- A stronger version of the above
+inject' : {n : ℕ} -> {i : Fin (suc n)} -> Fin′ i -> Fin n
+inject' {n = zero} {i = suc ()} l
+inject' {i = zero} ()
+inject' {n = suc _} {i = suc _} zero = zero
+inject' {n = suc _} {i = suc _} (suc i) = suc (inject' i)
+
 inject+ : ∀ {m} n → Fin m → Fin (m N+ n)
 inject+ n zero    = zero
 inject+ n (suc i) = suc (inject+ n i)
@@ -156,3 +163,21 @@ _<_ = _N<_ on₁ toℕ
 
 data _≺_ : ℕ → ℕ → Set where
   _≻toℕ_ : ∀ n (i : Fin n) → toℕ i ≺ n
+
+
+-- Compare two values. The relation is made explicit by giving: (least : Fin′ greatest)
+data Ordering {i : ℕ} : Fin i -> Fin i -> Set where
+  less    : (greatest : Fin i) -> (least : Fin′ greatest) -> Ordering (inject least) greatest
+  equal   : (m : Fin i) -> Ordering m m
+  greater : (greatest : Fin i) -> (least : Fin′ greatest) -> Ordering greatest (inject least)
+
+
+compare : ∀ {i} m n → Ordering {i} m n
+compare zero zero = equal zero
+compare zero (suc n) = less (suc n) zero
+compare (suc m) zero = greater (suc m) zero
+compare (suc m)               (suc n)             with compare m n 
+compare (suc .(inject least)) (suc .greatest)       | less    greatest least = less    (suc greatest) (suc least)
+compare (suc .greatest)       (suc .(inject least)) | greater greatest least = greater (suc greatest) (suc least) 
+compare (suc .m)              (suc .m)              | equal m = equal (suc m)
+
