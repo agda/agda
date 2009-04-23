@@ -1,14 +1,15 @@
 {-# LANGUAGE PatternGuards #-}
 
--- This program requires that the filepath and process packages from
+-- This program requires that the filepath and FileManip packages from
 -- Hackage are installed.
 
-import Data.List
+import qualified Data.List as List
+import Control.Applicative
 import System.Environment
 import System.IO
 import System.Exit
 import System.FilePath
-import System.Process
+import System.FilePath.Find
 
 headerFile = "Header"
 outputFile = "Everything.agda"
@@ -19,9 +20,11 @@ main = do
     [] -> return ()
     _  -> hPutStr stderr usage >> exitFailure
 
-  header   <- readFile headerFile
-  allFiles <- readProcess "darcs" ["show", "files"] ""
-  let modules = filter isLibraryModule $ sort $ lines allFiles
+  header  <- readFile headerFile
+  modules <- filter isLibraryModule . List.sort <$>
+             find always
+                    (extension ~~? ".agda" ||? extension ~~? ".lagda")
+                    "."
   headers <- mapM extractHeader modules
 
   writeFile outputFile $
@@ -33,7 +36,8 @@ usage :: String
 usage = unlines
   [ "Usage: runhaskell GenerateDocs.hs"
   , ""
-  , "This program has to be run from the library's base directory."
+  , "This program should be run in the base directory of a clean checkout of"
+  , "the library."
   , ""
   , "The program generates documentation for the library by extracting"
   , "headers from library modules. The output is written to " ++ outputFile
@@ -58,7 +62,7 @@ extractHeader mod = fmap (extract . lines) $ readFile mod
 
   extract (d1 : ss)
     | delimiter d1
-    , (info, d2 : rest) <- span ("-- " `isPrefixOf`) ss
+    , (info, d2 : rest) <- span ("-- " `List.isPrefixOf`) ss
     , delimiter d2
     = info
   extract _ = error $ mod ++ " is malformed."
