@@ -4,8 +4,7 @@
 
 module Data.DifferenceList where
 
-import Data.List as L
-open L using (List)
+open import Data.List as L using (List)
 open import Data.Function
 open import Data.Nat
 

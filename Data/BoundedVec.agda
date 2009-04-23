@@ -7,10 +7,8 @@
 module Data.BoundedVec where
 
 open import Data.Nat
-import Data.List as List
-open List using (List)
-import Data.Vec as Vec
-open Vec using (Vec)
+open import Data.List as List using (List)
+open import Data.Vec as Vec using (Vec)
 open import Relation.Binary.PropositionalEquality
 open import Data.Nat.Properties
 open SemiringSolver

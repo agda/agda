@@ -11,8 +11,7 @@ open import Algebra
 private
   module CS = CommutativeSemiring commutativeSemiring
 open import Data.Product
-import Relation.Binary.PropositionalEquality as PropEq
-open PropEq using (_≡_)
+open import Relation.Binary.PropositionalEquality as PropEq using (_≡_)
 open SemiringSolver
 open import Induction
 open import Induction.Nat

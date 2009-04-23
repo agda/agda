@@ -5,8 +5,7 @@
 module Data.DifferenceVec where
 
 open import Data.DifferenceNat
-import Data.Vec as V
-open V using (Vec)
+open import Data.Vec as V using (Vec)
 open import Data.Function
 import Data.Nat as N
 

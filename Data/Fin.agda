@@ -8,10 +8,10 @@
 
 module Data.Fin where
 
-import Data.Nat as Nat
-open Nat using (ℕ; zero; suc; z≤n; s≤s)
-         renaming ( _+_ to _N+_; _∸_ to _N∸_
-                  ; _≤_ to _N≤_; _<_ to _N<_; _≤?_ to _N≤?_)
+open import Data.Nat as Nat
+  using (ℕ; zero; suc; z≤n; s≤s)
+  renaming ( _+_ to _N+_; _∸_ to _N∸_
+           ; _≤_ to _N≤_; _<_ to _N<_; _≤?_ to _N≤?_)
 open import Data.Function
 open import Relation.Nullary.Decidable
 open import Relation.Binary

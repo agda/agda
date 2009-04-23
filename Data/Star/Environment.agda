@@ -7,8 +7,7 @@ module Data.Star.Environment (Ty : Set) where
 open import Data.Star
 open import Data.Star.List
 open import Data.Star.Decoration
-import Data.Star.Pointer as Pointer
-open Pointer hiding (lookup)
+open import Data.Star.Pointer as Pointer hiding (lookup)
 open import Data.Unit
 open import Relation.Binary.PropositionalEquality
 

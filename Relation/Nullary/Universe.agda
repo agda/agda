@@ -8,13 +8,13 @@ open import Relation.Nullary
 open import Relation.Nullary.Negation
 open import Relation.Binary hiding (_⇒_)
 open import Relation.Binary.Simple
-import Relation.Binary.PropositionalEquality as PropEq
-open PropEq using (_≡_; refl)
+open import Relation.Binary.PropositionalEquality as PropEq
+  using (_≡_; refl)
 open import Relation.Binary.Sum
 open import Relation.Binary.Product.Pointwise
 open import Relation.Binary.FunctionLifting
-import Data.Sum     as Sum;  open Sum  hiding (map)
-import Data.Product as Prod; open Prod hiding (map)
+open import Data.Sum     as Sum  hiding (map)
+open import Data.Product as Prod hiding (map)
 open import Data.Function
 open import Data.Empty
 open import Category.Applicative

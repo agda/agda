@@ -4,23 +4,21 @@
 
 module Data.Bin where
 
-import Data.Nat as Nat
-open Nat using (ℕ; zero; z≤n; s≤s) renaming (suc to 1+_)
+open import Data.Nat as Nat
+  using (ℕ; zero; z≤n; s≤s) renaming (suc to 1+_)
 open Nat.≤-Reasoning
 import Data.Nat.Properties as NP
 open import Data.Digit
-import Data.Fin as Fin
-open Fin using (Fin; zero) renaming (suc to 1+_)
-import Data.Fin.Props as FP
-open FP using (_+′_)
-import Data.List as List; open List hiding (downFrom)
+open import Data.Fin as Fin using (Fin; zero) renaming (suc to 1+_)
+open import Data.Fin.Props as FP using (_+′_)
+open import Data.List as List hiding (downFrom)
 open import Data.Function
 open import Data.Product
 open import Algebra
 open import Relation.Binary
 open import Relation.Binary.Consequences
-import Relation.Binary.PropositionalEquality as PropEq
-open PropEq using (_≡_; _≢_; refl; sym)
+open import Relation.Binary.PropositionalEquality as PropEq
+  using (_≡_; _≢_; refl; sym)
 open import Relation.Nullary
 private
   module BitOrd = StrictTotalOrder (FP.strictTotalOrder 2)

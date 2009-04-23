@@ -9,7 +9,7 @@ open import Data.Nat     using (ℕ; zero; suc)
 open import Data.Conat
 open import Data.Cofin   using (Cofin; zero; suc)
 open import Data.Vec     using (Vec; []; _∷_)
-import Data.Colist as Colist; open Colist using (Colist; []; _∷_)
+open import Data.Colist as Colist using (Colist; []; _∷_)
 open import Data.Product using (_,_)
 open import Relation.Binary
 

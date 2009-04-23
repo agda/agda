@@ -7,8 +7,8 @@ module Data.Star.Properties where
 open import Data.Star
 open import Data.Function
 open import Relation.Binary
-import Relation.Binary.PropositionalEquality as PropEq
-open PropEq using (_≡_; refl; sym; cong; cong₂)
+open import Relation.Binary.PropositionalEquality as PropEq
+  using (_≡_; refl; sym; cong; cong₂)
 import Relation.Binary.PreorderReasoning as PreR
 
 ◅◅-assoc : ∀ {I} {T : Rel I} {i j k l}

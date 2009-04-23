@@ -6,17 +6,17 @@
 module Data.Fin.Props where
 
 open import Data.Fin
-import Data.Nat as N
-open N using (ℕ; zero; suc; s≤s; z≤n)
-       renaming (_≤_ to _ℕ≤_; _<_ to _ℕ<_; _+_ to _ℕ+_)
+open import Data.Nat as N
+  using (ℕ; zero; suc; s≤s; z≤n)
+  renaming (_≤_ to _ℕ≤_; _<_ to _ℕ<_; _+_ to _ℕ+_)
 open N.≤-Reasoning
 import Data.Nat.Properties as N
 open import Data.Function
 open import Relation.Nullary
 open import Relation.Unary
 open import Relation.Binary
-import Relation.Binary.PropositionalEquality as PropEq
-open PropEq using (_≡_; refl; cong; subst)
+open import Relation.Binary.PropositionalEquality as PropEq
+  using (_≡_; refl; cong; subst)
 open import Category.Functor
 open import Category.Applicative
 

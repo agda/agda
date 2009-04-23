@@ -7,10 +7,8 @@ module Data.List.NonEmpty where
 open import Data.Product hiding (map)
 open import Data.Nat
 open import Data.Function
-import Data.Vec as Vec
-open Vec using (Vec; []; _∷_)
-import Data.List as List
-open List using (List; []; _∷_)
+open import Data.Vec as Vec using (Vec; []; _∷_)
+open import Data.List as List using (List; []; _∷_)
 open import Category.Monad
 open import Relation.Binary.PropositionalEquality
 

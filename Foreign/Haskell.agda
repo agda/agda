@@ -5,7 +5,7 @@
 module Foreign.Haskell where
 
 open import Coinduction
-import Data.Colist as C; open C using ([]; _∷_)
+open import Data.Colist as C using ([]; _∷_)
 
 ------------------------------------------------------------------------
 -- Simple types

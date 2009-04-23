@@ -77,8 +77,8 @@ monadPlus = record
 
 open import Relation.Nullary
 open import Relation.Binary
-import Relation.Binary.PropositionalEquality as PropEq
-open PropEq using (_≡_; refl)
+open import Relation.Binary.PropositionalEquality as PropEq
+  using (_≡_; refl)
 
 drop-just : ∀ {A} {x y : A} → just x ≡ just y → x ≡ y
 drop-just refl = refl

@@ -12,8 +12,8 @@ open import Data.Sum
 open import Relation.Binary
 open import Relation.Binary.Consequences
 import Relation.Binary.NonStrictToStrict as Conv
-import Relation.Binary.Product.Pointwise as Pointwise
-open Pointwise using (_×-Rel_)
+open import Relation.Binary.Product.Pointwise as Pointwise
+  using (_×-Rel_)
 import Relation.Binary.Product.StrictLex as Strict
 
 private

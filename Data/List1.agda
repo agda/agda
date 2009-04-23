@@ -6,8 +6,7 @@
 
 module Data.List1 where
 
-import Data.List as List
-open List using (List; []; _∷_)
+open import Data.List as List using (List; []; _∷_)
 open import Data.Nat
 
 infixr 5 _∷_ _++_

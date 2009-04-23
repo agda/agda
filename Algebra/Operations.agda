@@ -11,8 +11,7 @@ open Semiring s hiding (zero)
 open import Data.Nat using (zero; suc; ℕ)
 open import Data.Function
 open import Relation.Binary
-import Relation.Binary.PropositionalEquality as PropEq
-open PropEq using (_≡_)
+open import Relation.Binary.PropositionalEquality as PropEq using (_≡_)
 import Relation.Binary.EqReasoning as EqR
 open EqR setoid
 

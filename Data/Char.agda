@@ -8,8 +8,7 @@ open import Data.Nat  using (ℕ)
 open import Data.Bool using (Bool; true; false)
 open import Relation.Nullary
 open import Relation.Binary
-import Relation.Binary.PropositionalEquality as PropEq
-open PropEq using (_≡_)
+open import Relation.Binary.PropositionalEquality as PropEq using (_≡_)
 
 ------------------------------------------------------------------------
 -- The type

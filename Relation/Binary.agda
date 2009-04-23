@@ -9,8 +9,7 @@ open import Data.Sum
 open import Data.Function
 import Relation.Binary.PropositionalEquality.Core as PropEq
 open import Relation.Binary.Consequences
-import Relation.Binary.Core as Core
-open Core using (_≡_)
+open import Relation.Binary.Core as Core using (_≡_)
 
 ------------------------------------------------------------------------
 -- Simple properties and equivalence relations

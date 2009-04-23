@@ -8,8 +8,8 @@ module Relation.Nullary where
 
 open import Data.Empty
 open import Data.Product
-import Relation.Binary.PropositionalEquality as PropEq
-open PropEq using (_≡_; sym; cong)
+open import Relation.Binary.PropositionalEquality as PropEq
+  using (_≡_; sym; cong)
 open PropEq.≡-Reasoning
 import Relation.Nullary.Core as Core
 

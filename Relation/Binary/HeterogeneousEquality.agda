@@ -7,8 +7,8 @@ module Relation.Binary.HeterogeneousEquality where
 open import Relation.Nullary
 open import Relation.Binary
 open import Relation.Binary.Consequences
-import Relation.Binary.PropositionalEquality as PropEq
-open PropEq using (_≡_; refl)
+open import Relation.Binary.PropositionalEquality as PropEq
+  using (_≡_; refl)
 open import Data.Function
 open import Data.Product
 

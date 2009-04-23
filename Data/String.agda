@@ -4,19 +4,15 @@
 
 module Data.String where
 
-import Data.List as List
-open List using (List)
-import Data.Vec as Vec
-open Vec using (Vec)
-import Data.Colist as Colist
-open Colist using (Colist)
+open import Data.List as List using (List)
+open import Data.Vec as Vec using (Vec)
+open import Data.Colist as Colist using (Colist)
 open import Data.Char using (Char)
 open import Data.Bool using (Bool; true; false)
 open import Data.Function
 open import Relation.Nullary
 open import Relation.Binary
-import Relation.Binary.PropositionalEquality as PropEq
-open PropEq using (_≡_)
+open import Relation.Binary.PropositionalEquality as PropEq using (_≡_)
 
 ------------------------------------------------------------------------
 -- Types

@@ -5,8 +5,7 @@
 
 module Data.DifferenceNat where
 
-import Data.Nat as N
-open N using (ℕ)
+open import Data.Nat as N using (ℕ)
 open import Data.Function
 
 infixl 6 _+_

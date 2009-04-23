@@ -5,7 +5,7 @@
 module Data.Cofin where
 
 open import Coinduction
-import Data.Conat as Conat; open Conat using (Coℕ; suc; ∞ℕ)
+open import Data.Conat as Conat using (Coℕ; suc; ∞ℕ)
 open import Data.Nat using (ℕ; zero; suc)
 open import Data.Fin using (Fin; zero; suc)
 

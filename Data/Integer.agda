@@ -4,11 +4,9 @@
 
 module Data.Integer where
 
-import Data.Nat as N
-open N using (ℕ)
+open import Data.Nat as N using (ℕ)
 import Data.Nat.Show as N
-import Data.Sign as Sign
-open Sign using (Sign)
+open import Data.Sign as Sign using (Sign)
 open import Data.Product
 open import Data.String using (String; _++_)
 open import Data.Function
@@ -16,8 +14,8 @@ open import Data.Sum as Sum
 open import Relation.Nullary
 import Relation.Nullary.Decidable as Dec
 open import Relation.Binary
-import Relation.Binary.PropositionalEquality as PropEq
-open PropEq using (_≡_; refl; sym; cong; cong₂)
+open import Relation.Binary.PropositionalEquality as PropEq
+  using (_≡_; refl; sym; cong; cong₂)
 open PropEq.≡-Reasoning
 
 infix  8 +_ -_

@@ -5,8 +5,7 @@
 module Data.Star.Fin where
 
 open import Data.Star
-import Data.Star.Nat as ℕ
-open ℕ using (ℕ)
+open import Data.Star.Nat as ℕ using (ℕ)
 open import Data.Star.Pointer
 open import Data.Unit
 

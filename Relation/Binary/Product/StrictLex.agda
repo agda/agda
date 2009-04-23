@@ -15,8 +15,8 @@ open import Relation.Nullary.Product
 open import Relation.Nullary.Sum
 open import Relation.Binary
 open import Relation.Binary.Consequences
-import Relation.Binary.Product.Pointwise as Pointwise
-open Pointwise using (_×-Rel_)
+open import Relation.Binary.Product.Pointwise as Pointwise
+  using (_×-Rel_)
 
 private
  module Dummy {a₁ a₂ : Set} where

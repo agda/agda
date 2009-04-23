@@ -17,8 +17,7 @@ open StrictTotalOrder OrderedKeySet renaming (carrier to Key)
 open import Data.Product
 open import Data.Maybe
 open import Data.Bool
-import Data.List as List
-open List using (List)
+open import Data.List as List using (List)
 import Data.DifferenceList as DiffList
 open import Relation.Binary.PropositionalEquality
 

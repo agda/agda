@@ -7,8 +7,7 @@ module Data.Map where
 
 open import Relation.Nullary
 open import Relation.Binary
-import Data.List as L
-open L using (List)
+open import Data.List as L using (List)
 open import Data.Product
 
 module Map₁ (key-dto : DecTotalOrder) (elem-s : Setoid) where

@@ -12,8 +12,8 @@ open import Data.Conat
 open import Data.List          using (List; []; _∷_)
 open import Data.List.NonEmpty using (List⁺; _∷_)
                                renaming ([_] to [_]⁺)
-import Data.BoundedVec.Inefficient as BVec
-open BVec using (BoundedVec; []; _∷_)
+open import Data.BoundedVec.Inefficient as BVec
+  using (BoundedVec; []; _∷_)
 open import Data.Product using (_,_)
 open import Data.Function
 open import Relation.Binary

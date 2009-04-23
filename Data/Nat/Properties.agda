@@ -14,8 +14,8 @@ open import Algebra
 open import Algebra.Structures
 import Algebra.FunctionProperties as P; open P setoid
 open import Relation.Nullary
-import Relation.Binary.PropositionalEquality as PropEq
-open PropEq using (_≡_; _≢_; refl; sym; cong; cong₂)
+open import Relation.Binary.PropositionalEquality as PropEq
+  using (_≡_; _≢_; refl; sym; cong; cong₂)
 open import Data.Product
 
 import Relation.Binary.EqReasoning as EqR; open EqR setoid

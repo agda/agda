@@ -5,10 +5,10 @@
 module Data.List where
 
 open import Data.Nat
-import Data.Sum as Sum; open Sum using (_⊎_; inj₁; inj₂)
+open import Data.Sum as Sum using (_⊎_; inj₁; inj₂)
 open import Data.Bool
 open import Data.Maybe using (Maybe; nothing; just)
-import Data.Product as Prod; open Prod using (_×_; _,_)
+open import Data.Product as Prod using (_×_; _,_)
 open import Data.Function
 open import Data.Empty
 open import Algebra

@@ -6,8 +6,7 @@ module Data.Vec where
 
 open import Data.Nat
 open import Data.Fin using (Fin; zero; suc)
-import Data.List as List
-open List using (List)
+open import Data.List as List using (List)
 open import Data.Product using (_×_; _,_)
 
 ------------------------------------------------------------------------

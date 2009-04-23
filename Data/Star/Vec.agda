@@ -8,8 +8,7 @@ open import Data.Star
 open import Data.Star.Nat
 open import Data.Star.Fin using (Fin)
 open import Data.Star.Decoration
-import Data.Star.Pointer as Pointer
-open Pointer hiding (lookup)
+open import Data.Star.Pointer as Pointer hiding (lookup)
 open import Data.Star.List using (List)
 open import Relation.Binary
 open import Relation.Binary.Consequences

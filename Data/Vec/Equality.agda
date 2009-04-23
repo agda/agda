@@ -8,8 +8,7 @@ open import Data.Vec
 open import Data.Nat using (suc)
 open import Data.Function
 open import Relation.Binary
-import Relation.Binary.PropositionalEquality as PropEq
-open PropEq using (_≡_)
+open import Relation.Binary.PropositionalEquality as PropEq using (_≡_)
 
 module Equality (S : Setoid) where
 
@@ -78,8 +77,8 @@ module DecidableEquality (D : DecSetoid) where
 
 module HeterogeneousEquality {A : Set} where
 
-  import Relation.Binary.HeterogeneousEquality as HetEq
-  open HetEq using (_≅_)
+  open import Relation.Binary.HeterogeneousEquality as HetEq
+    using (_≅_)
   open Equality (PropEq.setoid A)
 
   to-≅ : ∀ {n m} {xs : Vec A n} {ys : Vec A m} →

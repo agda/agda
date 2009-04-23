@@ -8,23 +8,18 @@
 
 module Data.Graph.Acyclic where
 
-import Data.Nat as Nat
-open Nat using (ℕ; zero; suc; _<′_)
+open import Data.Nat as Nat using (ℕ; zero; suc; _<′_)
 import Data.Nat.Properties as Nat
-import Data.Fin as Fin
-open Fin using (Fin; Fin′; zero; suc; #_; toℕ) renaming (_ℕ-ℕ_ to _-_)
-import Data.Fin.Props as FP
-open FP using (_≟_)
-import Data.Product as Prod
-open Prod using (∃; _×_; _,_)
+open import Data.Fin as Fin
+  using (Fin; Fin′; zero; suc; #_; toℕ) renaming (_ℕ-ℕ_ to _-_)
+open import Data.Fin.Props as FP using (_≟_)
+open import Data.Product as Prod using (∃; _×_; _,_)
 open import Data.Maybe
 open import Data.Function
 open import Data.Empty
 open import Data.Unit using (⊤; tt)
-import Data.Vec as Vec
-open Vec using (Vec; []; _∷_)
-import Data.List as List
-open List using (List; []; _∷_; _∈_)
+open import Data.Vec as Vec using (Vec; []; _∷_)
+open import Data.List as List using (List; []; _∷_; _∈_)
 open import Relation.Nullary
 open import Relation.Binary.PropositionalEquality
 open import Induction.Nat

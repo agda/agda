@@ -4,8 +4,7 @@
 
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality
-import Data.Product as Prod
-open Prod hiding (map)
+open import Data.Product as Prod hiding (map)
 
 module Data.AVL.IndexedMap
          {Index : Set} {Key : Index → Set} {_≈_ _<_ : Rel (∃ Key)}

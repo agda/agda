@@ -10,7 +10,7 @@ import Data.AVL as AVL
 open StrictTotalOrder OrderedKeySet renaming (carrier to Key)
 open import Data.Unit
 open import Data.Function
-import Data.Product as Prod; open Prod using (_×_; _,_; proj₁)
+open import Data.Product as Prod using (_×_; _,_; proj₁)
 open import Data.Maybe as Maybe
 open import Data.Bool
 open import Data.List

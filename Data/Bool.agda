@@ -9,8 +9,8 @@ open import Data.Unit using (⊤)
 open import Data.Empty
 open import Relation.Nullary
 open import Relation.Binary
-import Relation.Binary.PropositionalEquality as PropEq
-open PropEq using (_≡_; refl)
+open import Relation.Binary.PropositionalEquality as PropEq
+  using (_≡_; refl)
 
 infixr 6 _∧_
 infixr 5 _∨_ _xor_

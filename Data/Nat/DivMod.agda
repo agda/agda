@@ -7,8 +7,7 @@ module Data.Nat.DivMod where
 open import Data.Nat
 open import Data.Nat.Properties
 open SemiringSolver
-import Data.Fin as Fin
-open Fin using (Fin; zero; suc; toℕ; fromℕ)
+open import Data.Fin as Fin using (Fin; zero; suc; toℕ; fromℕ)
 import Data.Fin.Props as Fin
 open import Induction.Nat
 open import Relation.Nullary.Decidable

@@ -12,8 +12,8 @@ open import Data.Nat
 open import Data.Nat.Properties
 open import Data.Bool
 open import Data.Function
-import Data.Product as Prod; open Prod hiding (map)
-import Data.Sum as Sum; open Sum using (_⊎_; inj₁; inj₂)
+open import Data.Product as Prod hiding (map)
+open import Data.Sum as Sum using (_⊎_; inj₁; inj₂)
 open import Data.Maybe
 open import Relation.Binary.PropositionalEquality
 import Relation.Binary.EqReasoning as Eq

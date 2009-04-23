@@ -7,8 +7,7 @@ module Data.Nat.Divisibility where
 open import Data.Nat
 open import Data.Nat.DivMod
 open import Data.Nat.Properties
-import Data.Fin as Fin
-open Fin using (Fin; zero; suc)
+open import Data.Fin as Fin using (Fin; zero; suc)
 import Data.Fin.Props as FP
 open SemiringSolver
 open import Algebra
