@@ -235,9 +235,12 @@ constituents.")
     (agda2-go-back                  "\M-*")
     )
   "Table of commands, used to build keymaps and menus.
-Each element has the form (CMD KEY &optional NAME GOAL-NAME)
-Where NAME is the name to use in the main Agda menu
-and GOAL-NAME is for the Agda goal menu.")
+Each element has the form (CMD &optional KEYS WHERE DESC) where
+CMD is a command; KEYS is its key binding (if any); WHERE is a
+list which should contain 'local if the command should exist in
+the goal menu and 'global if the command should exist in the main
+menu; and DESC is the description of the command used in the
+menus.")
 
 (defvar agda2-mode-map
   (let ((map (make-sparse-keymap "Agda mode")))
