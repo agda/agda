@@ -15,7 +15,7 @@ import System.FilePath.Find
 
 main :: IO ()
 main = do
-  agdaFiles <- find (fileName /~? "_darcs")
+  agdaFiles <- find always
                     (extension ~~? ".agda" ||? extension ~~? ".lagda")
                     "."
   nonAsciiChars <-
