@@ -63,12 +63,12 @@ property for the given character range is set to the resulting
 list of faces. If the string INFO is non-nil, the mouse-face
 property is set to highlight, and INFO is used as the help-echo
 string. If GOTO has the form (FILENAME . POSITION), then the
-mouse-face property is set to highlight and, when the user clicks
-on the annotated text, then point is warped to the given position
-in the given file.
+mouse-face property is set to highlight, and the given
+filename/position will be used by `annotation-goto-indirect' when
+it is invoked with a position in the given range.
 
-Note that if two faces have the same attribute set, then the first one
-takes precedence.
+Note that if a given attribute is defined by several faces, then
+the first face's setting takes precedence.
 
 All characters whose text properties get set also have the
 annotation-annotated property set to t, and
@@ -92,15 +92,12 @@ bounds for the current (possibly narrowed) buffer, or END < START."
       (when faces
         (put-text-property start end 'font-lock-face faces)
         (add-to-list 'props 'font-lock-face))
-      ;; Do this before so `info' can override our default help-echo.
       (when (consp goto)
         (add-text-properties start end
                              `(annotation-goto ,goto
-                               mouse-face highlight
-                               help-echo "Click mouse-2 to jump to definition"))
+                               mouse-face highlight))
         (add-to-list 'props 'annotation-goto)
-        (add-to-list 'props 'mouse-face)
-        (add-to-list 'props 'help-echo))
+        (add-to-list 'props 'mouse-face))
       (when info
         (add-text-properties start end
                              `(mouse-face highlight help-echo ,info))
@@ -143,7 +140,7 @@ Note: This function may fail if there is read-only text in the buffer."
                               props)))))
        (setq pos pos2)))))
 
-(defun annotation-load-file (file removep)
+(defun annotation-load-file (file removep &optional goto-help)
   "Apply the annotations in FILE.
 If (`funcall' REMOVEP anns) is non-nil, then all existing text
 properties set by `annotation-annotate' in the current buffer are
@@ -154,6 +151,11 @@ applied (in some order, with duplicates removed).
 FILE should contain calls to `annotation-annotate'. The arguments
 to `annotation-annotate' should be in normal form, they are not
 evaluated.
+
+If INFO is nil in a call to `annotation-annotate', and the GOTO
+argument is a cons-cell, then the INFO argument is set to
+GOTO-HELP. The intention is that the default help text should
+inform the user about the \"goto\" facility.
 
 This function preserves the file modification stamp of the
 current buffer and does not modify the undo list.
@@ -176,7 +178,9 @@ Note: This function may fail if there is read-only text in the buffer."
            (assert (eq f 'annotation-annotate))
            (setq anns (cadr anns))      ;Strip the `quote'.
            (setq goto (cadr goto))      ;Strip the `quote'.
-           (annotation-annotate start end anns info goto)))))))
+           (if (and (not info) (consp goto))
+               (annotation-annotate start end anns goto-help goto)
+           (annotation-annotate start end anns info goto))))))))
 
 (provide 'annotation)
 ;;; annotation.el ends here

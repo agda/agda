@@ -286,7 +286,8 @@ table). The face `font-lock-comment-face' is used for comments.")
      file
      ;; Do not remove the old annotations if all the new ones
      ;; correspond to errors, or if there are no new ones.
-     (lambda (anns) (not (member anns '((error) nil)))))))
+     (lambda (anns) (not (member anns '((error) nil))))
+     "Click mouse-2 to jump to definition")))
 
 (defun agda2-highlight-setup nil
   "Set up the `annotation' library for use with `agda2-mode'."
