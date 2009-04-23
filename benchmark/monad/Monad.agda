@@ -52,7 +52,7 @@ import Data.AVL.IndexedMap as Map renaming (Map to MemoTable)
 open import Category.Monad
 open import Category.Monad.State
 import Data.List as List; open List using (List)
-open import Data.Unit
+open import Data.Unit hiding (poset; _≤_)
 open import Data.Function
 open import Data.Maybe
 open import Relation.Binary.Product.StrictLex
@@ -107,7 +107,7 @@ isOrdered = On.isStrictTotalOrder shuffle
 indicesEqual′ : Eq =[ proj₁ ]⇒ _≡_
 indicesEqual′ {((_ , _ , _) , key _ ._)}
               {((_ , _ , _) , key _ ._)} (eq₁ , eq₂) =
-  ≡-cong₂ _,_ eq₁ (≡-cong₂ _,_ (funsEqual eq₂) (resultsEqual eq₂))
+  cong₂ _,_ eq₁ (cong₂ _,_ (funsEqual eq₂) (resultsEqual eq₂))
 
 open Map isOrdered (\{k₁} {k₂} -> indicesEqual′ {k₁} {k₂}) Value
 
