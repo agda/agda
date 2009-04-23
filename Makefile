@@ -196,14 +196,14 @@ fail :
 	@$(MAKE) -C test/fail
 
 std-lib :
-	darcs get --partial --repo-name=$@ \
+	darcs get --lazy --repo-name=$@ \
 		 http://www.cs.nott.ac.uk/~nad/repos/lib/
 
 library-test : std-lib
 	@echo "======================================================================"
 	@echo "========================== Standard library =========================="
 	@echo "======================================================================"
-	@(cd std-lib; darcs pull -a && ../$(AGDA_BIN) Everything.agda $(AGDA_TEST_FLAGS))
+	@(cd std-lib && darcs pull -a && make Everything.agda && ../$(AGDA_BIN) README.agda $(AGDA_TEST_FLAGS))
 
 benchmark :
 	@$(MAKE) -C benchmark
