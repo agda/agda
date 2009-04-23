@@ -64,8 +64,10 @@ tokens :-
   -- \end{code} should only be recognized if the bottom of the stack is <code>
 
 -- White space
-<0,code,bol_,layout_,empty_layout_,imp_dir_,pragma_>
+<0,code,bol_,layout_,empty_layout_,imp_dir_>
     $white_nonl+    ;
+
+<pragma_> $white ;
 
 -- Pragmas
 <0,code>    "{-#"		{ begin pragma }
@@ -97,7 +99,7 @@ tokens :-
 -- We need to check the offside rule for the first token on each line.  We
 -- should not check the offside rule for the end of file token or an
 -- '\end{code}'
-<0,code,imp_dir_,pragma_> \n	{ begin bol_ }
+<0,code,imp_dir_> \n	{ begin bol_ }
 <bol_>
     {
 	\n		    ;
