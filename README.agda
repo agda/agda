@@ -1,8 +1,10 @@
 module README where
 
 ------------------------------------------------------------------------
--- The Agda "standard" library
+-- The Agda "standard" library, version 0.1
 ------------------------------------------------------------------------
+
+-- This release has been tested using Agda 2.2.2.
 
 -- Note that no guarantees are currently made about forwards or
 -- backwards compatibility.
