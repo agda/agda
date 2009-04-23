@@ -26,7 +26,7 @@ record IsPreorder {a : Set}
                   : Set where
   field
     isEquivalence : IsEquivalence _≈_
-    -- Reflexivity is expressed in terms of an underlying equality.
+    -- Reflexivity is expressed in terms of an underlying equality:
     reflexive     : _≈_ ⇒ _∼_
     trans         : Transitive _∼_
     ≈-resp-∼      : _≈_ Respects₂ _∼_

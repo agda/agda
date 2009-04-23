@@ -1,7 +1,0 @@
-The "standard" Agda library
----------------------------
-
-To compile the library you need to install the Haskell package
-utf8-string (available from Hackage).
-
-For more information, see the Agda Wiki.
