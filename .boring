@@ -1,3 +1,4 @@
-\.agda\.el$
+\.l?agda\.el$
 \.agdai$
 (^|/)MAlonzo($|/)
+^html($|/)
