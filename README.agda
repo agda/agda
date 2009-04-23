@@ -1,13 +1,15 @@
 module README where
 
 ------------------------------------------------------------------------
--- The Agda "standard" library, version 0.1
+-- The Agda "standard" library
 ------------------------------------------------------------------------
 
--- This release has been tested using Agda 2.2.2.
+-- Note that the development version of the library often requires the
+-- latest development version of Agda.
 
--- Note that no guarantees are currently made about forwards or
--- backwards compatibility.
+-- Note also that no guarantees are currently made about forwards or
+-- backwards compatibility, the library is still at an experimental
+-- stage.
 
 -- To make use of the library, add the path to the library’s root
 -- directory to the Agda search path, either using the --include-path
