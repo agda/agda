@@ -1,5 +1,5 @@
 ------------------------------------------------------------------------
--- Type used to make recursive arguments coinductive
+-- Types used to make recursive arguments coinductive
 ------------------------------------------------------------------------
 
 -- See Data.Colist for examples of how this type is used, or
@@ -7,10 +7,6 @@
 -- explanation.
 
 module Coinduction where
-
--- If you never pattern match on ♯_, and never use ~ except right
--- before ♯_, then you can avoid a problem which causes subject
--- reduction to fail.
 
 infix 10 ♯_ ♯₁_
 
