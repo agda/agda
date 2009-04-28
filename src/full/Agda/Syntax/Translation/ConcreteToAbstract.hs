@@ -161,10 +161,17 @@ checkModuleMacro apply r p a x tel m args open dir =
                                 , args
                                 )
     printScope "mod.inst" 20 "module macro"
+
+    -- If we're opening, the import directive is applied to the open,
+    -- otherwise to the module itself.
+    let dir' = case open of
+                DontOpen  -> dir
+                DoOpen    -> defaultImportDir
+
     (renD, renM) <- withCurrentModule m0 $ do
       s  <- getNamedScope m1
       (s', renM, renD) <- copyScope m0 =<< getNamedScope m1
-      s' <- applyImportDirectiveM (C.QName x) dir s'
+      s' <- applyImportDirectiveM (C.QName x) dir' s'
       modifyCurrentScope $ const s'
       printScope "mod.inst" 20 "copied source module"
       return (renD, renM)
@@ -172,10 +179,8 @@ checkModuleMacro apply r p a x tel m args open dir =
     printScope "mod.inst" 20 "after copying"
     case open of
       DontOpen -> return ()
-      DoOpen   -> openModule_ (C.QName x) $ defaultImportDir { C.publicOpen = C.publicOpen dir }
-    printScope "mod.inst" 20 $ case open of
-      DontOpen  -> "didn't open"
-      DoOpen    -> "opened"
+      DoOpen   -> openModule_ (C.QName x) dir
+    printScope "mod.inst" 20 $ show open
     stripNoNames
     printScope "mod.inst" 10 $ "after stripping"
     return [ apply info (m0 `withRangesOf` [x]) tel' m1 args' renD renM ]
