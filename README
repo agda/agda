@@ -117,7 +117,7 @@ You need recent versions of the following programs/libraries:
    Alex:          http://www.haskell.org/alex/
    Happy:         http://www.haskell.org/happy/
    GNU Emacs:     http://www.gnu.org/software/emacs/
-   haskell-mode:  http://haskell.org/haskell-mode/ (version 2.1 or later)
+   haskell-mode:  http://haskell.org/haskell-mode/
 
 You should also make sure that programs installed by cabal-install are
 on your shell's search path.
