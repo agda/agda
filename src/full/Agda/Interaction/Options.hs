@@ -209,8 +209,6 @@ standardOptions :: [OptDescr (Flag CommandLineOptions)]
 standardOptions =
     [ Option ['V']  ["version"]	(NoArg versionFlag) "show version number"
     , Option ['?']  ["help"]	(NoArg helpFlag)    "show this help"
-    , Option ['i']  ["include-path"] (ReqArg includeFlag "DIR")
-		    "look for imports in DIR"
     , Option ['I']  ["interactive"] (NoArg interactiveFlag)
 		    "start in interactive mode"
     , Option ['c']  ["compile"] (NoArg compileFlag)
@@ -245,7 +243,9 @@ standardOptions =
 
 pragmaOptions :: [OptDescr (Flag CommandLineOptions)]
 pragmaOptions =
-    [ Option ['v']  ["verbose"]	(ReqArg verboseFlag "N")
+    [ Option ['i']  ["include-path"] (ReqArg includeFlag "DIR")
+		    "look for imports in DIR"
+    , Option ['v']  ["verbose"]	(ReqArg verboseFlag "N")
 		    "set verbosity level to N"
     , Option []	    ["show-implicit"] (NoArg showImplicitFlag)
 		    "show implicit arguments when printing"
