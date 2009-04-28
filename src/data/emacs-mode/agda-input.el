@@ -170,6 +170,9 @@ a Quail package, and tweak is an expression of the same kind as
 `agda-input-tweak-all' which is used to tweak the translation
 pairs of the input method.
 
+The inherited translation pairs are added last, after
+`agda-input-user-translations' and `agda-input-translations'.
+
 If you change this setting manually (without using the
 customization buffer) you need to call `agda-input-setup' in
 order for the change to take effect."
@@ -616,6 +619,10 @@ default value when the library is updated.  If you just want to
 add some bindings it is probably a better idea to customize
 `agda-input-user-translations'.
 
+These translation pairs are included after those in
+`agda-input-user-translations', but before the ones inherited
+from other input methods (see `agda-input-inherit').
+
 If you change this setting manually (without using the
 customization buffer) you need to call `agda-input-setup' in
 order for the change to take effect."
@@ -625,10 +632,13 @@ order for the change to take effect."
   :type '(repeat (cons (string :tag "Key sequence")
                        (repeat :tag "Translations" string))))
 
-
 (defcustom agda-input-user-translations nil
   "Like `agda-input-translations', but more suitable for user
-customizations since by default it is empty."
+customizations since by default it is empty.
+
+These translation pairs are included first, before those in
+`agda-input-translations' and the ones inherited from other input
+methods."
   :group 'agda-input
   :set 'agda-input-incorporate-changed-setting
   :initialize 'custom-initialize-default
@@ -663,7 +673,8 @@ Each pair in the list has the form (KEY-SEQUENCE . TRANSLATION)."
 
 (defun agda-input-add-translations (trans)
   "Add the given translations TRANS to the Agda input method.
-TRANS is a list of pairs (KEY-SEQUENCE . TRANSLATION)."
+TRANS is a list of pairs (KEY-SEQUENCE . TRANSLATION). The
+translations are appended to the current translations."
   (with-temp-buffer
     (dolist (tr (agda-input-concat-map (eval agda-input-tweak-all) trans))
       (quail-defrule (car tr) (cdr tr) "Agda" t))))
