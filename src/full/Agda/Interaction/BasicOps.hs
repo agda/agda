@@ -382,11 +382,11 @@ contextOfMeta ii norm = do
         visible (OfType x y) | show x /= "_" = Just (OfType' x y)
                              | otherwise     = Nothing
 	visible _	     = __IMPOSSIBLE__
-        reifyContext xs = escapeContext (length xs) $ foldr out (return []) $ reverse xs
-	out (Arg h (x,t)) rest = do
-	  t' <- reify =<< rewrite norm t
-	  ts <- addCtx x (Arg h t) rest
-	  return $ OfType x t' : ts
+        reifyContext xs = reverse <$> zipWithM out [1..] xs
+
+        out i (Arg h (x, t)) = escapeContext i $ do
+          t' <- reify =<< rewrite norm t
+          return $ OfType x t'
 
 
 {-| Returns the type of the expression in the current environment -}
