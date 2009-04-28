@@ -388,7 +388,7 @@ termTerm names f pats0 t0 = do
                   let reduceCon t@(Con _ _) = reduce t
                       reduceCon t           = return t
                   args2 <- mapM reduceCon args2
-                  let args = map etaContract args2
+                  args  <- mapM etaContract args2
 
                   -- collect calls in the arguments of this call
                   calls <- collectCalls (loop pats Unknown) args

@@ -36,6 +36,7 @@ import Agda.TypeChecking.Monad as M
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.EtaContract (etaContract)
 
 import Agda.Utils.Monad
 import Agda.Utils.Monad.Undo
@@ -163,7 +164,7 @@ evalInCurrent :: Expr -> TCM Expr
 evalInCurrent e =
     do  t <- newTypeMeta_
 	v <- checkExpr e t
-	v' <- normalise v
+	v' <- etaContract =<< normalise v
 	reify v'
 
 
@@ -180,8 +181,8 @@ data Rewrite =  AsIs | Instantiated | HeadNormal | Normalised
 --rewrite :: Rewrite -> Term -> TCM Term
 rewrite AsIs	     t = return t
 rewrite Instantiated t = return t   -- reify does instantiation
-rewrite HeadNormal   t = reduce t
-rewrite Normalised   t = normalise t
+rewrite HeadNormal   t = etaContract =<< reduce t
+rewrite Normalised   t = etaContract =<< normalise t
 
 
 data OutputForm a b

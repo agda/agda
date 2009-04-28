@@ -27,6 +27,7 @@ import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.EtaContract
 
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
 
@@ -419,10 +420,11 @@ assignS x s =
 --   @reverse@ is necessary because we are directly abstracting over this list @ids@.
 --
 checkArgs :: MonadTCM tcm => MetaId -> Args -> tcm [Arg Nat]
-checkArgs x args =
-    case validParameters args of
-	Just ids    -> return $ reverse ids
-	Nothing	    -> patternViolation
+checkArgs x args = do
+  args <- etaContract =<< instantiateFull args
+  case validParameters args of
+    Just ids -> return $ reverse ids
+    Nothing  -> patternViolation
 
 -- | Check that the parameters to a meta variable are distinct variables.
 validParameters :: Monad m => Args -> m [Arg Nat]

@@ -99,3 +99,22 @@ etaExpandRecord r pars u = do
   where
     hide (Arg _ x) = Arg Hidden x
 
+-- | The fields should be eta contracted already.
+etaContractRecord :: MonadTCM tcm => QName -> Args -> tcm Term
+etaContractRecord r args = do
+  Record{ recFields = xs } <- getRecordDef r
+  let check (Arg _ v) x = do
+        case v of
+          Def y args@(_:_) | x == y -> return (Just $ unArg $ last args)
+          _                         -> return Nothing
+  unless (length args == length xs) __IMPOSSIBLE__
+  cs <- zipWithM check args xs
+  case sequence cs of
+    Just (c:cs) -> do
+      if all (c ==) cs
+        then return c
+        else fallBack
+    _ -> fallBack
+  where
+    fallBack = return (Con r args)
+

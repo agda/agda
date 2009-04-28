@@ -14,22 +14,27 @@ import Agda.Utils.Impossible
 
 class TermLike a where
   traverseTerm  :: (Term -> Term) -> a -> a
-  foldTerm :: Monoid m => (Term -> m) -> a -> m
+  traverseTermM :: (Monad m, Applicative m) => (Term -> m Term) -> a -> m a
+  foldTerm      :: Monoid m => (Term -> m) -> a -> m
 
 instance TermLike a => TermLike (Arg a) where
-  traverseTerm f = fmap (traverseTerm f)
+  traverseTerm  f = fmap (traverseTerm f)
+  traverseTermM f = traverse (traverseTermM f)
   foldTerm f = foldMap (foldTerm f)
 
 instance TermLike a => TermLike [a] where
   traverseTerm f = fmap (traverseTerm f)
+  traverseTermM f = traverse (traverseTermM f)
   foldTerm f = foldMap (foldTerm f)
 
 instance (TermLike a, TermLike b) => TermLike (a, b) where
   traverseTerm f (x, y) = (traverseTerm f x, traverseTerm f y)
+  traverseTermM f (x, y) = (,) <$> traverseTermM f x <*> traverseTermM f y
   foldTerm f (x, y) = foldTerm f x `mappend` foldTerm f y
 
 instance TermLike a => TermLike (Abs a) where
   traverseTerm f = fmap (traverseTerm f)
+  traverseTermM f = traverse (traverseTermM f)
   foldTerm f = foldMap (foldTerm f)
 
 instance TermLike Term where
@@ -41,6 +46,17 @@ instance TermLike Term where
     Pi a b   -> f $ uncurry Pi $ traverseTerm f (a, b)
     Fun a b  -> f $ uncurry Fun $ traverseTerm f (a, b)
     MetaV m xs -> f $ MetaV m $ traverseTerm f xs
+    Lit _    -> f t
+    Sort _   -> f t
+
+  traverseTermM f t = case t of
+    Var i xs -> f =<< Var i <$> traverseTermM f xs
+    Def c xs -> f =<< Def c <$> traverseTermM f xs
+    Con c xs -> f =<< Con c <$> traverseTermM f xs
+    Lam h b  -> f =<< Lam h <$> traverseTermM f b
+    Pi a b   -> f =<< uncurry Pi <$> traverseTermM f (a, b)
+    Fun a b  -> f =<< uncurry Fun <$> traverseTermM f (a, b)
+    MetaV m xs -> f =<< MetaV m <$> traverseTermM f xs
     Lit _    -> f t
     Sort _   -> f t
 
@@ -57,5 +73,6 @@ instance TermLike Term where
 
 instance TermLike Type where
   traverseTerm f (El s t) = El s $ traverseTerm f t
+  traverseTermM f (El s t) = El s <$> traverseTermM f t
   foldTerm f (El s t) = foldTerm f t
 
