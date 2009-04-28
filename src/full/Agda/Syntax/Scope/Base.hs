@@ -434,6 +434,20 @@ renameCanonicalNames renD renM = mapScope_ renameD renameM
 restrictPrivate :: Scope -> Scope
 restrictPrivate s = s { scopePrivate = emptyNameSpace, scopeImports = Map.empty }
 
+-- | Get the public parts of the public modules of a scope
+publicModules :: ScopeInfo -> Map A.ModuleName Scope
+publicModules scope = Map.filterWithKey (\m _ -> reachable m) allMods
+  where
+    allMods   = Map.map restrictPrivate $ scopeModules scope
+    root      = scopeCurrent scope
+    modules s = map amodName $ concat $ Map.elems $ allNamesInScope s
+
+    chase m = m : case Map.lookup m allMods of
+      Just s  -> concatMap chase $ modules s
+      Nothing -> __IMPOSSIBLE__
+
+    reachable = (`elem` chase root)
+
 everythingInScope :: ScopeInfo -> NameSpace
 everythingInScope scope =
     allThingsInScope

@@ -420,7 +420,8 @@ buildInterface :: ModuleName
                -> TCM Interface
 buildInterface m syntaxInfo = do
     reportSLn "import.iface" 5 "Building interface..."
-    scope   <- getScope
+    scope'  <- getScope
+    let scope = scope' { scopeCurrent = m }
     sig     <- getSignature
     builtin <- gets stLocalBuiltins
     ms      <- getImports
@@ -430,7 +431,7 @@ buildInterface m syntaxInfo = do
     i <- instantiateFull $ Interface
 			{ iImportedModules = Set.toList ms
                         , iModuleName      = m
-			, iScope	   = scopeModules scope
+			, iScope	   = publicModules scope
 			, iSignature	   = sig
 			, iBuiltin	   = builtin'
                         , iHaskellImports  = hsImps
