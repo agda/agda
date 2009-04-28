@@ -110,11 +110,12 @@ agda2-fontset-name variable.
 Prerequisites
 ------------------------------------------------------------------------
 
-For stable packages you need recent versions of the following
-programs/libraries:
+You need recent versions of the following programs/libraries:
 
    GHC:           http://www.haskell.org/ghc/
    cabal-install: http://www.haskell.org/cabal/
+   Alex:          http://www.haskell.org/alex/
+   Happy:         http://www.haskell.org/happy/
    GNU Emacs:     http://www.gnu.org/software/emacs/
    haskell-mode:  http://haskell.org/haskell-mode/ (version 2.1 or later)
 
@@ -132,12 +133,6 @@ Ubuntu it should suffice to run
   apt-get install zlib1g-dev
 
 as root to get the correct files installed.
-
-For the development version of Agda you also need recent versions of
-the following programs:
-
-   Alex:  http://www.haskell.org/alex/
-   Happy: http://www.haskell.org/happy/
 
 ------------------------------------------------------------------------
 Installing a suitable version of Emacs under Windows
