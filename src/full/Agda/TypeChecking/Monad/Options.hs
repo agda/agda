@@ -50,13 +50,6 @@ setOptionsFromPragma _ = return ()
 setOptionsFromPragmas :: MonadTCM tcm => [Pragma] -> tcm ()
 setOptionsFromPragmas = foldr (>>) (return ()) . map setOptionsFromPragma
 
-bracketOptions :: MonadTCM tcm => tcm a -> tcm a
-bracketOptions m = do
-    opts <- commandLineOptions
-    x    <- m
-    setCommandLineOptions opts
-    return x
-
 -- | Disable display forms.
 enableDisplayForms :: MonadTCM tcm => tcm a -> tcm a
 enableDisplayForms =
