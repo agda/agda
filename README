@@ -1,0 +1,12 @@
+------------------------------------------------------------------------
+The Agda "standard" library
+------------------------------------------------------------------------
+
+For information about the library, see README.agda.
+
+The README module imports the Everything module. This module is
+generated automatically; if you have downloaded the library from its
+darcs repository and want to type check README you can construct
+Everything by running "runhaskell GenerateDocs.hs". Note that the
+GenerateDocs program depends on the filepath and FileManip packages
+from Hackage.
