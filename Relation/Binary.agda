@@ -35,7 +35,7 @@ record IsPreorder {a : Set}
   refl : Reflexive _∼_
   refl = reflexive Eq.refl
 
-record Preorder : Set1 where
+record Preorder : Set₁ where
   infix 4 _≈_ _∼_
   field
     carrier    : Set
@@ -50,7 +50,7 @@ record Preorder : Set1 where
 
 -- Equivalence relations are defined in Relation.Binary.Core.
 
-record Setoid : Set1 where
+record Setoid : Set₁ where
   infix 4 _≈_
   field
     carrier       : Set
@@ -80,7 +80,7 @@ record IsDecEquivalence {a : Set} (_≈_ : Rel a) : Set where
 
   open IsEquivalence isEquivalence public
 
-record DecSetoid : Set1 where
+record DecSetoid : Set₁ where
   infix 4 _≈_
   field
     carrier          : Set
@@ -105,7 +105,7 @@ record IsPartialOrder {a : Set} (_≈_ _≤_ : Rel a) : Set where
   open IsPreorder isPreorder public
          renaming (≈-resp-∼ to ≈-resp-≤)
 
-record Poset : Set1 where
+record Poset : Set₁ where
   infix 4 _≈_ _≤_
   field
     carrier        : Set
@@ -130,7 +130,7 @@ record IsStrictPartialOrder {a : Set} (_≈_ _<_ : Rel a) : Set where
 
   module Eq = IsEquivalence isEquivalence
 
-record StrictPartialOrder : Set1 where
+record StrictPartialOrder : Set₁ where
   infix 4 _≈_ _<_
   field
     carrier              : Set
@@ -150,7 +150,7 @@ record IsTotalOrder {a : Set} (_≈_ _≤_ : Rel a) : Set where
 
   open IsPartialOrder isPartialOrder public
 
-record TotalOrder : Set1 where
+record TotalOrder : Set₁ where
   infix 4 _≈_ _≤_
   field
     carrier      : Set
@@ -188,7 +188,7 @@ record IsDecTotalOrder {a : Set} (_≈_ _≤_ : Rel a) : Set where
 
     open IsDecEquivalence isDecEquivalence public
 
-record DecTotalOrder : Set1 where
+record DecTotalOrder : Set₁ where
   infix 4 _≈_ _≤_
   field
     carrier         : Set
@@ -245,7 +245,7 @@ record IsStrictTotalOrder {a : Set} (_≈_ _<_ : Rel a) : Set where
 
   open IsStrictPartialOrder isStrictPartialOrder using (irrefl)
 
-record StrictTotalOrder : Set1 where
+record StrictTotalOrder : Set₁ where
   infix 4 _≈_ _<_
   field
     carrier            : Set

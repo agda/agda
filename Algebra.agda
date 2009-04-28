@@ -13,7 +13,7 @@ open import Data.Function
 ------------------------------------------------------------------------
 -- Semigroups, (commutative) monoids and (abelian) groups
 
-record Semigroup : Set1 where
+record Semigroup : Set₁ where
   infixl 7 _∙_
   field
     setoid      : Setoid
@@ -26,7 +26,7 @@ record Semigroup : Set1 where
 -- A raw monoid is a monoid without any laws (except for the
 -- underlying equality).
 
-record RawMonoid : Set1 where
+record RawMonoid : Set₁ where
   infixl 7 _∙_
   field
     setoid : Setoid
@@ -35,7 +35,7 @@ record RawMonoid : Set1 where
 
   open Setoid setoid public
 
-record Monoid : Set1 where
+record Monoid : Set₁ where
   infixl 7 _∙_
   field
     setoid   : Setoid
@@ -56,7 +56,7 @@ record Monoid : Set1 where
     ; ε      = ε
     }
 
-record CommutativeMonoid : Set1 where
+record CommutativeMonoid : Set₁ where
   infixl 7 _∙_
   field
     setoid              : Setoid
@@ -72,7 +72,7 @@ record CommutativeMonoid : Set1 where
 
   open Monoid monoid public using (semigroup; rawMonoid)
 
-record Group : Set1 where
+record Group : Set₁ where
   infix  8 _⁻¹
   infixl 7 _∙_
   field
@@ -90,7 +90,7 @@ record Group : Set1 where
 
   open Monoid monoid public using (semigroup; rawMonoid)
 
-record AbelianGroup : Set1 where
+record AbelianGroup : Set₁ where
   infix  8 _⁻¹
   infixl 7 _∙_
   field
@@ -115,7 +115,7 @@ record AbelianGroup : Set1 where
 ------------------------------------------------------------------------
 -- Various kinds of semirings
 
-record NearSemiring : Set1 where
+record NearSemiring : Set₁ where
   infixl 7 _*_
   infixl 6 _+_
   field
@@ -138,7 +138,7 @@ record NearSemiring : Set1 where
   *-semigroup : Semigroup
   *-semigroup = record { isSemigroup = *-isSemigroup }
 
-record SemiringWithoutOne : Set1 where
+record SemiringWithoutOne : Set₁ where
   infixl 7 _*_
   infixl 6 _+_
   field
@@ -163,7 +163,7 @@ record SemiringWithoutOne : Set1 where
   +-commutativeMonoid =
     record { isCommutativeMonoid = +-isCommutativeMonoid }
 
-record SemiringWithoutAnnihilatingZero : Set1 where
+record SemiringWithoutAnnihilatingZero : Set₁ where
   infixl 7 _*_
   infixl 6 _+_
   field
@@ -197,7 +197,7 @@ record SemiringWithoutAnnihilatingZero : Set1 where
                   ; rawMonoid to *-rawMonoid
                   )
 
-record Semiring : Set1 where
+record Semiring : Set₁ where
   infixl 7 _*_
   infixl 6 _+_
   field
@@ -231,7 +231,7 @@ record Semiring : Set1 where
   open SemiringWithoutOne semiringWithoutOne public
          using (nearSemiring)
 
-record CommutativeSemiringWithoutOne : Set1 where
+record CommutativeSemiringWithoutOne : Set₁ where
   infixl 7 _*_
   infixl 6 _+_
   field
@@ -257,7 +257,7 @@ record CommutativeSemiringWithoutOne : Set1 where
                ; nearSemiring
                )
 
-record CommutativeSemiring : Set1 where
+record CommutativeSemiring : Set₁ where
   infixl 7 _*_
   infixl 6 _+_
   field
@@ -297,7 +297,7 @@ record CommutativeSemiring : Set1 where
 -- A raw ring is a ring without any laws (except for the underlying
 -- equality).
 
-record RawRing : Set1 where
+record RawRing : Set₁ where
   infix  8 -_
   infixl 7 _*_
   infixl 6 _+_
@@ -311,7 +311,7 @@ record RawRing : Set1 where
 
   open Setoid setoid public
 
-record Ring : Set1 where
+record Ring : Set₁ where
   infix  8 -_
   infixl 7 _*_
   infixl 6 _+_
@@ -351,7 +351,7 @@ record Ring : Set1 where
     ; 1#     = 1#
     }
 
-record CommutativeRing : Set1 where
+record CommutativeRing : Set₁ where
   infix  8 -_
   infixl 7 _*_
   infixl 6 _+_
@@ -386,7 +386,7 @@ record CommutativeRing : Set1 where
 ------------------------------------------------------------------------
 -- (Distributive) lattices and boolean algebras
 
-record Lattice : Set1 where
+record Lattice : Set₁ where
   infixr 7 _∧_
   infixr 6 _∨_
   field
@@ -398,7 +398,7 @@ record Lattice : Set1 where
   open Setoid setoid public
   open IsLattice setoid isLattice public
 
-record DistributiveLattice : Set1 where
+record DistributiveLattice : Set₁ where
   infixr 7 _∧_
   infixr 6 _∨_
   field
@@ -413,7 +413,7 @@ record DistributiveLattice : Set1 where
   lattice : Lattice
   lattice = record { isLattice = isLattice }
 
-record BooleanAlgebra : Set1 where
+record BooleanAlgebra : Set₁ where
   infix  8 ¬_
   infixr 7 _∧_
   infixr 6 _∨_

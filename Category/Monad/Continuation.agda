@@ -36,7 +36,7 @@ DContIMonad K = DContTIMonad K IdentityMonad
 -- Delimited continuation operations
 
 record RawIMonadDCont {I : Set} (K : I → Set)
-                      (M : I → I → Set → Set) : Set1 where
+                      (M : I → I → Set → Set) : Set₁ where
   field
     monad : RawIMonad M
     reset : ∀ {r₁ r₂ r₃} → M r₁ r₂ (K r₂) → M r₃ r₃ (K r₁)

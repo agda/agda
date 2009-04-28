@@ -46,12 +46,12 @@ isNow (later x) = false
 
 infixl 1 _>>=_
 
-data _⊥-prog : Set → Set1 where
+data _⊥-prog : Set → Set₁ where
   now   : ∀ {A} (x : A) → A ⊥-prog
   later : ∀ {A} (x : ∞₁ (A ⊥-prog)) → A ⊥-prog
   _>>=_ : ∀ {A B} (x : A ⊥-prog) (f : A → B ⊥-prog) → B ⊥-prog
 
-data _⊥-whnf : Set → Set1 where
+data _⊥-whnf : Set → Set₁ where
   now   : ∀ {A} (x : A) → A ⊥-whnf
   later : ∀ {A} (x : A ⊥-prog) → A ⊥-whnf
 

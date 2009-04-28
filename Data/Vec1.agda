@@ -1,5 +1,5 @@
 ------------------------------------------------------------------------
--- Vectors parameterised on types in Set1
+-- Vectors parameterised on types in Set₁
 ------------------------------------------------------------------------
 
 -- I want universe polymorphism.
@@ -15,7 +15,7 @@ open import Data.Fin
 ------------------------------------------------------------------------
 -- The type
 
-data Vec₁ (a : Set1) : ℕ → Set1 where
+data Vec₁ (a : Set₁) : ℕ → Set₁ where
   []  : Vec₁ a zero
   _∷_ : ∀ {n} (x : a) (xs : Vec₁ a n) → Vec₁ a (suc n)
 

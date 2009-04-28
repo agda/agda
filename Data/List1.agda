@@ -1,5 +1,5 @@
 ------------------------------------------------------------------------
--- Lists parameterised on things in Set1
+-- Lists parameterised on things in Set₁
 ------------------------------------------------------------------------
 
 -- I want universe polymorphism.
@@ -11,7 +11,7 @@ open import Data.Nat
 
 infixr 5 _∷_ _++_
 
-data List₁ (a : Set1) : Set1 where
+data List₁ (a : Set₁) : Set₁ where
   []  : List₁ a
   _∷_ : (x : a) (xs : List₁ a) → List₁ a
 
@@ -31,11 +31,11 @@ replicate : ∀ {a} → (n : ℕ) → a → List₁ a
 replicate zero    x = []
 replicate (suc n) x = x ∷ replicate n x
 
-foldr₁₀ : {a : Set1} {b : Set} → (a → b → b) → b → List₁ a → b
+foldr₁₀ : {a : Set₁} {b : Set} → (a → b → b) → b → List₁ a → b
 foldr₁₀ c n []       = n
 foldr₁₀ c n (x ∷ xs) = c x (foldr₁₀ c n xs)
 
-foldr₁₁ : {a b : Set1} → (a → b → b) → b → List₁ a → b
+foldr₁₁ : {a b : Set₁} → (a → b → b) → b → List₁ a → b
 foldr₁₁ c n []       = n
 foldr₁₁ c n (x ∷ xs) = c x (foldr₁₁ c n xs)
 

@@ -11,7 +11,7 @@ open import Data.Unit
 
 -- A predicate on relation "edges" (think of the relation as a graph).
 
-EdgePred : ∀ {I} → Rel I → Set1
+EdgePred : ∀ {I} → Rel I → Set₁
 EdgePred T = ∀ {i j} → T i j → Set
 
 data NonEmptyEdgePred {I : Set} (T : Rel I) (P : EdgePred T) : Set where

@@ -28,7 +28,7 @@ infix  1 ⟨_⟩_≈_
 
 -- The universe.
 
-data PropF : Set1 where
+data PropF : Set₁ where
   Id   : PropF
   K    : (P : Set) → PropF
   _∨_  : (F₁ F₂ : PropF) → PropF

@@ -45,7 +45,7 @@ if_then_else_ : {a : Set} → Bool → a → a → a
 if true  then t else f = t
 if false then t else f = f
 
-if₁_then_else_ : {A : Set1} → Bool → A → A → A
+if₁_then_else_ : {A : Set₁} → Bool → A → A → A
 if₁ true  then x else y = x
 if₁ false then x else y = y
 

@@ -9,7 +9,7 @@ module Category.Monad.Indexed where
 open import Data.Function
 open import Category.Applicative.Indexed
 
-record RawIMonad {I : Set} (M : IFun I) : Set1 where
+record RawIMonad {I : Set} (M : IFun I) : Set₁ where
   infixl 1 _>>=_ _>>_
   infixr 1 _=<<_
 
@@ -34,14 +34,14 @@ record RawIMonad {I : Set} (M : IFun I) : Set1 where
 
   open RawIApplicative rawIApplicative public
 
-record RawIMonadZero {I : Set} (M : IFun I) : Set1 where
+record RawIMonadZero {I : Set} (M : IFun I) : Set₁ where
   field
     monad : RawIMonad M
     ∅     : ∀ {i j A} → M i j A
 
   open RawIMonad monad public
 
-record RawIMonadPlus {I : Set} (M : IFun I) : Set1 where
+record RawIMonadPlus {I : Set} (M : IFun I) : Set₁ where
   infixr 3 _∣_
   field
     monadZero : RawIMonadZero M

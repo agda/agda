@@ -8,7 +8,7 @@ module Category.Functor where
 
 open import Data.Function
 
-record RawFunctor (f : Set → Set) : Set1 where
+record RawFunctor (f : Set → Set) : Set₁ where
   infixl 4 _<$>_ _<$_
 
   field

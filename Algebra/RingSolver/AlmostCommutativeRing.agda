@@ -28,7 +28,7 @@ record IsAlmostCommutativeRing (s : Setoid)
 
   open IsCommutativeSemiring s isCommutativeSemiring public
 
-record AlmostCommutativeRing : Set1 where
+record AlmostCommutativeRing : Set₁ where
   infix  8 -_
   infixl 7 _*_
   infixl 6 _+_

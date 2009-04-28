@@ -1,5 +1,5 @@
 ------------------------------------------------------------------------
--- Products (variants for Set1)
+-- Products (variants for Set₁)
 ------------------------------------------------------------------------
 
 -- I want universe polymorphism.
@@ -15,31 +15,31 @@ infixr 2 _×₀₁_ _×₁₀_ _×₁₁_
 ------------------------------------------------------------------------
 -- Definition
 
-data Σ₀₁ (a : Set) (b : a → Set1) : Set1 where
+data Σ₀₁ (a : Set) (b : a → Set₁) : Set₁ where
   _,_ : (x : a) (y : b x) → Σ₀₁ a b
 
-data Σ₁₀ (a : Set1) (b : a → Set) : Set1 where
+data Σ₁₀ (a : Set₁) (b : a → Set) : Set₁ where
   _,_ : (x : a) (y : b x) → Σ₁₀ a b
 
-data Σ₁₁ (a : Set1) (b : a → Set1) : Set1 where
+data Σ₁₁ (a : Set₁) (b : a → Set₁) : Set₁ where
   _,_ : (x : a) (y : b x) → Σ₁₁ a b
 
-∃₀₁ : {A : Set} → (A → Set1) → Set1
+∃₀₁ : {A : Set} → (A → Set₁) → Set₁
 ∃₀₁ = Σ₀₁ _
 
-∃₁₀ : {A : Set1} → (A → Set) → Set1
+∃₁₀ : {A : Set₁} → (A → Set) → Set₁
 ∃₁₀ = Σ₁₀ _
 
-∃₁₁ : {A : Set1} → (A → Set1) → Set1
+∃₁₁ : {A : Set₁} → (A → Set₁) → Set₁
 ∃₁₁ = Σ₁₁ _
 
-_×₀₁_ : Set → Set1 → Set1
+_×₀₁_ : Set → Set₁ → Set₁
 A ×₀₁ B = Σ₀₁ A (λ _ → B)
 
-_×₁₀_ : Set1 → Set → Set1
+_×₁₀_ : Set₁ → Set → Set₁
 A ×₁₀ B = Σ₁₀ A (λ _ → B)
 
-_×₁₁_ : Set1 → Set1 → Set1
+_×₁₁_ : Set₁ → Set₁ → Set₁
 A ×₁₁ B = Σ₁₁ A (λ _ → B)
 
 ------------------------------------------------------------------------

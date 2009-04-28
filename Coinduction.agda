@@ -16,9 +16,9 @@ codata ∞ (T : Set) : Set where
 ♭ : ∀ {T} → ∞ T → T
 ♭ (♯ x) = x
 
--- Variant for Set1.
+-- Variant for Set₁.
 
-codata ∞₁ (T : Set1) : Set1 where
+codata ∞₁ (T : Set₁) : Set₁ where
   ♯₁_ : (x : T) → ∞₁ T
 
 ♭₁ : ∀ {T} → ∞₁ T → T

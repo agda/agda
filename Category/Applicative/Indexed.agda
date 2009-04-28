@@ -10,10 +10,10 @@ module Category.Applicative.Indexed where
 open import Data.Function
 open import Category.Functor
 
-IFun : Set → Set1
+IFun : Set → Set₁
 IFun I = I → I → Set → Set
 
-record RawIApplicative {I : Set} (F : IFun I) : Set1 where
+record RawIApplicative {I : Set} (F : IFun I) : Set₁ where
   infixl 4 _⊛_ _<⊛_ _⊛>_
 
   field

@@ -10,13 +10,13 @@ open import Data.Function
 open import Category.Monad.Indexed
 open import Data.Unit
 
-RawMonad : (Set → Set) → Set1
+RawMonad : (Set → Set) → Set₁
 RawMonad M = RawIMonad {⊤} (λ _ _ → M)
 
-RawMonadZero : (Set → Set) → Set1
+RawMonadZero : (Set → Set) → Set₁
 RawMonadZero M = RawIMonadZero {⊤} (λ _ _ → M)
 
-RawMonadPlus : (Set → Set) → Set1
+RawMonadPlus : (Set → Set) → Set₁
 RawMonadPlus M = RawIMonadPlus {⊤} (λ _ _ → M)
 
 module RawMonad {M : Set → Set} (Mon : RawMonad M) where

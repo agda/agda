@@ -1,7 +1,7 @@
 ------------------------------------------------------------------------
--- The unit type (in Set1)
+-- The unit type (in Set₁)
 ------------------------------------------------------------------------
 
 module Data.Unit1 where
 
-record ⊤₁ : Set1 where
+record ⊤₁ : Set₁ where

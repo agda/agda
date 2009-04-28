@@ -21,7 +21,7 @@ WfRec P x = ∀ y → y < x → P y
 -- well-founded; if all elements are accessible, then _<_ is
 -- well-founded.
 
-data Acc (x : a) : Set1 where
+data Acc (x : a) : Set₁ where
   acc : (rs : WfRec Acc x) → Acc x
 
 -- Well-founded induction for the subset of accessible elements:

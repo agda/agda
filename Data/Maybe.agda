@@ -29,7 +29,7 @@ maybe : {a b : Set} → (a → b) → b → Maybe a → b
 maybe j n (just x) = j x
 maybe j n nothing  = n
 
-maybe₀₁ : {a : Set} {b : Set1} → (a → b) → b → Maybe a → b
+maybe₀₁ : {a : Set} {b : Set₁} → (a → b) → b → Maybe a → b
 maybe₀₁ j n (just x) = j x
 maybe₀₁ j n nothing  = n
 

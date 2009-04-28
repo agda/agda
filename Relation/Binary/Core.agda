@@ -15,7 +15,7 @@ open import Relation.Nullary.Core
 ------------------------------------------------------------------------
 -- Homogeneous binary relations
 
-Rel : Set → Set1
+Rel : Set → Set₁
 Rel a = a → a → Set
 
 ------------------------------------------------------------------------
@@ -86,13 +86,13 @@ _Respects₂_ : {a : Set} → Rel a → Rel a → Set
   (∀ {x} → ∼ Respects (P x)      ) ×
   (∀ {y} → ∼ Respects (flip₁ P y))
 
-Substitutive : {a : Set} → Rel a → Set1
+Substitutive : {a : Set} → Rel a → Set₁
 Substitutive {a} ∼ = (P : a → Set) → ∼ Respects P
 
-Congruential : ({a : Set} → Rel a) → Set1
+Congruential : ({a : Set} → Rel a) → Set₁
 Congruential ∼ = ∀ {a b} → (f : a → b) → f Preserves ∼ ⟶ ∼
 
-Congruential₂ : ({a : Set} → Rel a) → Set1
+Congruential₂ : ({a : Set} → Rel a) → Set₁
 Congruential₂ ∼ =
   ∀ {a b c} → (f : a → b → c) → f Preserves₂ ∼ ⟶ ∼ ⟶ ∼
 

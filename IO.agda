@@ -25,7 +25,7 @@ import IO.Primitive as Prim
 
 infixl 1 _>>=_ _>>_
 
-data IO : Set → Set1 where
+data IO : Set → Set₁ where
   lift   : ∀ {A} (m : Prim.IO A) → IO A
   return : ∀ {A} (x : A) → IO A
   _>>=_  : ∀ {A B} (m : ∞₁ (IO A)) (f : (x : A) → ∞₁ (IO B)) → IO B
@@ -45,8 +45,8 @@ abstract
 ------------------------------------------------------------------------
 -- Utilities
 
--- Because IO A lives in Set1 I hesitate to define sequence, which
--- would require defining a Set1 variant of Colist.
+-- Because IO A lives in Set₁ I hesitate to define sequence, which
+-- would require defining a Set₁ variant of Colist.
 
 mapM : ∀ {A B} → (A → IO B) → Colist A → IO (Colist B)
 mapM f []       = return []

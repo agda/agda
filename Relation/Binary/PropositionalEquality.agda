@@ -18,7 +18,7 @@ open import Relation.Binary.PropositionalEquality.Core public
 ------------------------------------------------------------------------
 -- Some properties
 
-subst₁ : ∀ {a} (P : a → Set1) → ∀ {x y} → x ≡ y → P x → P y
+subst₁ : ∀ {a} (P : a → Set₁) → ∀ {x y} → x ≡ y → P x → P y
 subst₁ P refl p = p
 
 cong : Congruential _≡_

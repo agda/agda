@@ -46,7 +46,7 @@ StateTIMonadPlus S Mon = record
 -- State monad operations
 
 record RawIMonadState {I : Set} (S : I → Set)
-                      (M : I → I → Set → Set) : Set1 where
+                      (M : I → I → Set → Set) : Set₁ where
   field
     monad : RawIMonad M
     get   : ∀ {i} → M i i (S i)
@@ -69,7 +69,7 @@ StateTIMonadState S Mon = record
 ------------------------------------------------------------------------
 -- Ordinary state monads
 
-RawMonadState : Set → (Set → Set) → Set1
+RawMonadState : Set → (Set → Set) → Set₁
 RawMonadState S M = RawIMonadState {⊤} (λ _ → S) (λ _ _ → M)
 
 module RawMonadState {S : Set} {M : Set → Set}

@@ -188,7 +188,7 @@ import IO
 -- Records packing up properties with the corresponding operations,
 -- sets, etc. are sometimes also defined:
 --
---   record Semigroup : Set1 where
+--   record Semigroup : Set₁ where
 --     infixl 7 _∙_
 --     field
 --       setoid      : Setoid
@@ -198,7 +198,7 @@ import IO
 --     open Setoid setoid public
 --     open IsSemigroup setoid isSemigroup public
 --
---   record Monoid : Set1 where
+--   record Monoid : Set₁ where
 --     infixl 7 _∙_
 --     field
 --       setoid   : Setoid

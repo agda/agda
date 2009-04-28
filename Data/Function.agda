@@ -34,7 +34,7 @@ f ∘ g = λ x → f (g x)
 _∘′_ : {A B C : Set} → (B → C) → (A → B) → (A → C)
 f ∘′ g = _∘_ f g
 
-_∘₁_ : {A : Set1} {B : A → Set1} {C : {x : A} → B x → Set1} →
+_∘₁_ : {A : Set₁} {B : A → Set₁} {C : {x : A} → B x → Set₁} →
        (∀ {x} (y : B x) → C y) → (g : (x : A) → B x) →
        ((x : A) → C (g x))
 f ∘₁ g = λ x → f (g x)
@@ -42,13 +42,13 @@ f ∘₁ g = λ x → f (g x)
 id : {a : Set} → a → a
 id x = x
 
-id₁ : {a : Set1} → a → a
+id₁ : {a : Set₁} → a → a
 id₁ x = x
 
 const : {a b : Set} → a → b → a
 const x = λ _ → x
 
-const₁ : {a : Set1} {b : Set} → a → b → a
+const₁ : {a : Set₁} {b : Set} → a → b → a
 const₁ x = λ _ → x
 
 flip : {a b c : Set} → (a → b → c) → (b → a → c)
@@ -74,7 +74,7 @@ x ⟨ f ⟩₁ y = f x y
 _on_ : {a b c : Set} → (b → b → c) → (a → b) → (a → a → c)
 _*_ on f = λ x y → f x * f y
 
-_on₁_ : {a b : Set} {c : Set1} → (b → b → c) → (a → b) → (a → a → c)
+_on₁_ : {a b : Set} {c : Set₁} → (b → b → c) → (a → b) → (a → a → c)
 _*_ on₁ f = λ x y → f x * f y
 
 _-[_]-_ : {a b c d e : Set} →
@@ -95,5 +95,5 @@ f -[ _*_ ]₁- g = λ x y → f x y * g x y
 _∶_ : (A : Set) → A → A
 _ ∶ x = x
 
-_∶₁_ : (A : Set1) → A → A
+_∶₁_ : (A : Set₁) → A → A
 _ ∶₁ x = x

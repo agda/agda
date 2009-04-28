@@ -13,7 +13,7 @@ open import Relation.Binary.PropositionalEquality1
 ------------------------------------------------------------------------
 -- N-ary functions
 
-N-ary : ℕ → Set1 → Set1 → Set1
+N-ary : ℕ → Set₁ → Set₁ → Set₁
 N-ary zero    A B = B
 N-ary (suc n) A B = A → N-ary n A B
 
@@ -31,7 +31,7 @@ f $ⁿ (x ∷ xs) = f x $ⁿ xs
 ------------------------------------------------------------------------
 -- N-ary function equality
 
-Eq : ∀ {A B} n → (B → B → Set1) → (f g : N-ary n A B) → Set1
+Eq : ∀ {A B} n → (B → B → Set₁) → (f g : N-ary n A B) → Set₁
 Eq zero    _∼_ f g = f ∼ g
 Eq (suc n) _∼_ f g = ∀ x → Eq n _∼_ (f x) (g x)
 
@@ -45,7 +45,7 @@ left-inverse : ∀ {n A B} (f : Vec₁ A n → B) →
 left-inverse f []       = refl
 left-inverse f (x ∷ xs) = left-inverse (λ xs → f (x ∷ xs)) xs
 
-data Lift {A : Set1} (R : A → A → Set) x y : Set1 where
+data Lift {A : Set₁} (R : A → A → Set) x y : Set₁ where
   lift : R x y → Lift R x y
 
 right-inverse : ∀ {A B} n (f : N-ary n A B) →

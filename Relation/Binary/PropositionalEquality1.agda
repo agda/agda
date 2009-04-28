@@ -13,12 +13,12 @@ open import Relation.Binary.PropositionalEquality using (_≡_; refl)
 
 infix 4 _≡₁_ _≢₁_
 
-data _≡₁_ {a : Set1} (x : a) : a → Set where
+data _≡₁_ {a : Set₁} (x : a) : a → Set where
   refl : x ≡₁ x
 
 -- Nonequality.
 
-_≢₁_ : {a : Set1} → a → a → Set
+_≢₁_ : {a : Set₁} → a → a → Set
 x ≢₁ y = ¬ x ≡₁ y
 
 ------------------------------------------------------------------------

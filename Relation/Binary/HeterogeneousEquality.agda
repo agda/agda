@@ -20,7 +20,7 @@ infix 4 _≅_ _≇_ _≅₁_ _≇₁_
 data _≅_ {a : Set} (x : a) : {b : Set} → b → Set where
   refl : x ≅ x
 
-data _≅₁_ {a : Set1} (x : a) : {b : Set1} → b → Set where
+data _≅₁_ {a : Set₁} (x : a) : {b : Set₁} → b → Set where
   refl : x ≅₁ x
 
 -- Nonequality.
@@ -28,7 +28,7 @@ data _≅₁_ {a : Set1} (x : a) : {b : Set1} → b → Set where
 _≇_ : {a : Set} → a → {b : Set} → b → Set
 x ≇ y = ¬ x ≅ y
 
-_≇₁_ : {a : Set1} → a → {b : Set1} → b → Set
+_≇₁_ : {a : Set₁} → a → {b : Set₁} → b → Set
 x ≇₁ y = ¬ x ≅₁ y
 
 ------------------------------------------------------------------------
@@ -55,7 +55,7 @@ trans refl refl = refl
 subst : ∀ {a} → Substitutive {a} (λ x y → x ≅ y)
 subst P refl p = p
 
-subst₁ : ∀ {a} (P : a → Set1) → ∀ {x y} → x ≅ y → P x → P y
+subst₁ : ∀ {a} (P : a → Set₁) → ∀ {x y} → x ≅ y → P x → P y
 subst₁ P refl p = p
 
 subst-removable : ∀ {a} (P : a → Set) {x y} (eq : x ≅ y) z →
