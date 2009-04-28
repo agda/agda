@@ -124,8 +124,10 @@ getVerbosity = optVerbose <$> commandLineOptions
 
 type VerboseKey = String
 
+-- | Precondition: The level must be positive.
 verboseS :: MonadTCM tcm => VerboseKey -> Int -> tcm () -> tcm ()
-verboseS k n action = do
+verboseS k n action | n <= 0    = __IMPOSSIBLE__
+                    | otherwise = do
     t <- getVerbosity
     let ks = wordsBy (`elem` ".:") k
 	m  = maximum $ 0 : Trie.lookupPath ks t
