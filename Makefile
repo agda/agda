@@ -52,7 +52,7 @@ install-emacs-mode : install-lib
 	@echo
 	@echo "If the agda-mode command is not found, make sure that the directory"
 	@echo "in which it was installed is located on your shell's search path."
-	@echo "The command was probably installed in the following directory:"
+	@echo "The command may have been installed in the following directory:"
 	@echo "$(PREFIX)/bin."
 	@echo
 	agda-mode setup
