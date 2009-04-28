@@ -72,6 +72,12 @@ postToken :: Token -> Token
 postToken (TokId (r, "\x03bb")) = TokSymbol SymLambda r
 postToken (TokId (r, "\x2192")) = TokSymbol SymArrow r
 postToken (TokId (r, "\x2200")) = TokKeyword KwForall r
+postToken (TokId (r, s))
+  | set == "Set" && all isSub n = TokSetN (r, readSubscript n)
+  where
+    (set, n)      = splitAt 3 s
+    isSub c       = c `elem` ['\x2080'..'\x2089']
+    readSubscript = read . map (\c -> toEnum (fromEnum c - 0x2080 + fromEnum '0'))
 postToken t = t
 
 -- | Use the input string from the previous input (with the appropriate

@@ -4,10 +4,10 @@
 
 Important changes since 2.2.2:
 
-* Change to open import semantics
+* Change to open import and open module semantics
   
     open import M <using/hiding/renaming>
-  
+
   now translates to
 
     import A
@@ -18,9 +18,11 @@ Important changes since 2.2.2:
     import A <using/hiding/renaming>
     open A
 
+  The same translation is used for "open module M = E ..."
+
   This means that import directives does not affect the qualified names when
-  using open import. To get the old behaviour simply use the expanded version
-  above.
+  using open import/module. To get the old behaviour simply use the expanded
+  version above.
 
 * Public open in parameterised modules no longer inherit the module
   parameters. Example:
@@ -31,6 +33,10 @@ Important changes since 2.2.2:
     module B (Y : Set) where
       open A public
 
-    -- Now    B.X : Set
-    -- Before B.X : (Y : Set) -> Set
+    -- Agda-2.2.2   B.X : (Y : Set) -> Set
+    -- Agda-2.2.4   B.X : Set
+
+* Unicode subscript digits are now allowed for higher universes:
+
+    Set₁ is equivalent to Set1
 
