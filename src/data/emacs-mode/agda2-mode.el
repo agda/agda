@@ -105,11 +105,19 @@ A multiple of the frame height."
   :group 'agda2)
 
 (defcustom agda2-fontset-name
-  (unless (eq window-system 'mac) "fontset-agda2")
+  (unless (or (eq window-system 'mac)
+              ;; Emacs-23 uses a revamped font engine which should
+              ;; make agda2-fontset-name unnecessary in most cases.
+              ;; And if it turns out to be necessary, we should
+              ;; probably use face-remapping-alist rather than
+              ;; set-frame-font so the special font only applies to
+              ;; Agda buffers, and so it applies in all frames where
+              ;; Agda buffers are displayed.
+              (boundp 'face-remapping-alist))
+    "fontset-agda2")
   "Default font to use in the selected frame when activating the Agda mode.
-This is only used if it's non-nil and Emacs is not running in a terminal.
-It is also ignored in Emacs 23 and up, where the improved font handling makes
-it unnecessary.
+This is only used if it's non-nil and Emacs is not running in a
+terminal.
 
 Note that this setting (if non-nil) affects non-Agda buffers as
 well, and that you have to restart Emacs if you want settings to
@@ -142,9 +150,8 @@ this variable to take effect."
     chinese-big5-1:-ETen-Fixed-Medium-R-Normal--16-150-75-75-C-160-Big5.ETen-0,
     chinese-big5-2:-ETen-Fixed-Medium-R-Normal--16-150-75-75-C-160-Big5.ETen-0"
   "Specification of the \"fontset-agda2\" fontset.
-The \"fontset-agda2\" is the standard setting for `agda2-fontset-name'.
-If `agda2-fontset-name' is nil, or Emacs is
-run in a terminal, then \"fontset-agda2\" is not created.
+This fontset is only created if `agda2-fontset-name' is
+\"fontset-agda2\" and Emacs is not run in a terminal.
 
 Note that the text \"fontset-agda2\" has to be part of the
 string (in a certain way; see the default setting) in order for the
@@ -152,14 +159,14 @@ agda2 fontset to be created properly.
 
 Note also that the default setting may not work unless suitable
 fonts are installed on your system. Refer to the README file
-accompanying the Agda distribution for details.
+accompanying the Agda distribution for more details.
 
 Note finally that you have to restart Emacs if you want settings
 to this variable to take effect."
   :group 'agda2
   :type 'string)
 
-(if (and agda2-fontset-name window-system)
+(if (and (equal agda2-fontset-name "fontset-agda2") window-system)
     (create-fontset-from-fontset-spec agda2-fontset-spec-of-fontset-agda2 t t))
 
 (defun agda2-fix-ghci-for-windows ()
@@ -329,17 +336,10 @@ Special commands:
  (let ((l '(max-specpdl-size    2600
             max-lisp-eval-depth 2800)))
    (while l (set (make-local-variable (pop l)) (pop l))))
- (if (and window-system agda2-fontset-name
-          ;; Emacs-23 uses a revamped font engine which should make
-          ;; agda2-fontset-name unnecessary in most cases.  And if it turns out
-          ;; to be necessary, we should probably use face-remapping-alist
-          ;; rather than set-frame-font so the special font only applies to
-          ;; Agda buffers, and so it applies in all frames where Agda
-          ;; buffers are displayed.
-          (not (boundp 'face-remapping-alist)))
+ (if (and window-system agda2-fontset-name)
      (condition-case nil
          (set-frame-font agda2-fontset-name)
-       (error (error "Unable to change the font; change agda2-fontset-name or tweak agda2-fontset-spec-fontset-agda2"))))
+       (error (error "Unable to change the font; change agda2-fontset-name or tweak agda2-fontset-spec-of-fontset-agda2"))))
  (agda2-indent-setup)
  (agda2-highlight-setup)
  (agda2-highlight-reload)
