@@ -321,15 +321,14 @@ createInterface opts trace path visited decoded
                 isig ibuiltin mname file changeDir
   | not (isAbsolute file) = __IMPOSSIBLE__
   | otherwise             = withImportPath path $ do
-    reportSLn "" 1 $ "Checking " ++ (case mname of
-                        Nothing -> file
-                        Just m  -> show m ++ " (" ++ file ++ ")") ++ "."
-
     setDecodedModules decoded
     setTrace trace
     setCommandLineOptions opts
     setVisitedModules visited
 
+    reportSLn "" 1 $ "Checking " ++ (case mname of
+                        Nothing -> file
+                        Just m  -> show m ++ " (" ++ file ++ ")") ++ "."
     reportSLn "import.iface.create" 5  $ "Creating interface for " ++ show mname
     reportSLn "import.iface.create" 10 $ "  visited: " ++ show (Map.keys visited)
 
