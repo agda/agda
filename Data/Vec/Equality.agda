@@ -12,8 +12,9 @@ open import Relation.Binary.PropositionalEquality as PropEq using (_≡_)
 
 module Equality (S : Setoid) where
 
-  private module SS = Setoid S
-  open SS using () renaming (_≈_ to _≊_; carrier to A)
+  private
+    open module SS = Setoid S
+      using () renaming (_≈_ to _≊_; carrier to A)
 
   infix 4 _≈_
 

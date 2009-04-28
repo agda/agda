@@ -44,8 +44,9 @@ private
 
 -- The map type.
 
-private module AVL = Data.AVL Order (λ ik → Value (proj₁ ik))
-open AVL public using () renaming (Tree to Map)
+private
+  open module AVL = Data.AVL Order (λ ik → Value (proj₁ ik))
+    public using () renaming (Tree to Map)
 
 -- Repackaged functions.
 
