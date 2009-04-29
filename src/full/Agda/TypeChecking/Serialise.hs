@@ -21,7 +21,7 @@ module Agda.TypeChecking.Serialise
   , encodeFile
   , decode
   , decodeFile
-  , EmbPrj  -- To avoid warnings from haddock
+  , EmbPrj
   )
   where
 

@@ -9,7 +9,7 @@
 
 module Agda.Termination.TermCheck
     ( termDecls
-    , Result, DeBruijnPat  -- To avoid warnings from haddock
+    , Result, DeBruijnPat
     ) where
 
 import Control.Monad.Error

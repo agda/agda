@@ -18,7 +18,7 @@ module Agda.Syntax.Translation.AbstractToConcrete
     , withScope
     , makeEnv
     , abstractToConcrete
-    , AbsToCon, TypeAndDef, DontTouchMe, Env -- To avoid warnings from haddock
+    , AbsToCon, TypeAndDef, DontTouchMe, Env
     ) where
 
 import Control.Applicative
