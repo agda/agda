@@ -9,7 +9,16 @@
     for the concrete to abstract translation: translating from concrete to
     abstract and then back again should be (more or less) the identity.
 -}
-module Agda.Syntax.Translation.AbstractToConcrete where
+module Agda.Syntax.Translation.AbstractToConcrete
+    ( ToConcrete(..)
+    , abstractToConcrete_
+    , runAbsToCon
+    , RangeAndPragma(..)
+    , abstractToConcreteCtx
+    , withScope
+    , makeEnv
+    , abstractToConcrete
+    ) where
 
 import Control.Applicative
 import Control.Monad.Reader
