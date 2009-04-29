@@ -1,3 +1,4 @@
+{-# OPTIONS -i ../lib #-}
 
 module DecidableOrder where
 
@@ -14,3 +15,7 @@ record DecidableOrder (A : Set) : Set1 where
     trans   : Transitive _≤_
     total   : Total _≤_
     decide  : forall x y -> Decidable (x ≤ y)
+
+  infix 80 _≤_ _≥_
+
+  _≥_ = \(x y : A) -> y ≤ x
