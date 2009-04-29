@@ -321,6 +321,7 @@ zipWith f m1 m2
 ------------------------------------------------------------------------
 -- All tests
 
+tests :: IO Bool
 tests = runTests "Agda.Termination.Matrix"
   [ quickCheck' prop_Arbitrary_Size
   , quickCheck' prop_Arbitrary_Matrix

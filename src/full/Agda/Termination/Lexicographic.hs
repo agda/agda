@@ -224,6 +224,7 @@ prop_lexOrder_noArgs =
 ------------------------------------------------------------------------
 -- All tests
 
+tests :: IO Bool
 tests = runTests "Agda.Termination.Lexicographic"
   [ quickCheck' prop_recBehaviour_Arbitrary
   , quickCheck' prop_fromDiagonals

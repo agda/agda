@@ -20,6 +20,7 @@ module Agda.Syntax.Concrete
     , Declaration(..)
     , TypeSignature
     , Constructor
+    , Field  -- To avoid warnings from haddock
     , ImportDirective(..), UsingOrHiding(..), ImportedName(..)
     , defaultImportDir
     , OpenShortHand(..)

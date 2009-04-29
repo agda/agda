@@ -442,6 +442,7 @@ showBehaviour = concatMap showCall . toList
 ------------------------------------------------------------------------
 -- All tests
 
+tests :: IO Bool
 tests = runTests "Agda.Termination.CallGraph"
   [ quickCheck' prop_orderSemiring
   , quickCheck' prop_Arbitrary_CallMatrix

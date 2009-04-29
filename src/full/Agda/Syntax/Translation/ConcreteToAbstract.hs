@@ -14,6 +14,11 @@ module Agda.Syntax.Translation.ConcreteToAbstract
     , TopLevel(..)
     , TopLevelInfo(..)
     , topLevelModuleName
+    , AbstractRHS                        -- To avoid warnings from haddock
+    , NewModuleName, OldModuleName       -- To avoid warnings from haddock
+    , NewName, OldQName                  -- To avoid warnings from haddock
+    , LeftHandSide, RightHandSide        -- To avoid warnings from haddock
+    , PatName, APatName, LetDef, LetDefs -- To avoid warnings from haddock
     ) where
 
 import Prelude hiding (mapM)

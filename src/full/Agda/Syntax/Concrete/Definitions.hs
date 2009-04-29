@@ -4,6 +4,7 @@ module Agda.Syntax.Concrete.Definitions
     ( NiceDeclaration(..)
     , NiceDefinition(..)
     , NiceConstructor, NiceTypeSignature
+    , NiceField   -- To avoid warnings from haddock
     , Clause(..)
     , DeclarationException(..)
     , Nice, runNice

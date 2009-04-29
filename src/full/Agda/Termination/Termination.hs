@@ -247,6 +247,7 @@ prop_terminates_example6 = isLeft $ terminates example6
 ------------------------------------------------------------------------
 -- All tests
 
+tests :: IO Bool
 tests = runTests "Agda.Termination.Termination"
   [ quickCheck' prop_terminates_example1
   , quickCheck' prop_terminates_example2

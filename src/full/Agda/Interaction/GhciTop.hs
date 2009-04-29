@@ -4,14 +4,12 @@
 module Agda.Interaction.GhciTop
   ( module Agda.Interaction.GhciTop
   , module Agda.TypeChecker
-  , module TM
   , module Agda.TypeChecking.MetaVars
   , module Agda.TypeChecking.Reduce
   , module Agda.TypeChecking.Errors
 
   , module Agda.Syntax.Position
   , module Agda.Syntax.Parser
-  , module SCo
 --  , module SC  -- trivial clash removal: remove all!
 --  , module SA
 --  , module SI

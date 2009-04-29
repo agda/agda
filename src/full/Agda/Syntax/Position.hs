@@ -75,6 +75,7 @@ data Position = Pn { srcFile :: FilePath
 		   }
     deriving (Typeable, Data)
 
+positionInvariant :: Position -> Bool
 positionInvariant p =
   posPos p > 0 && posLine p > 0 && posCol p > 0
 
@@ -407,6 +408,7 @@ instance Arbitrary Range where
     fixUp is = is
 
 -- | Test suite.
+tests :: IO Bool
 tests = runTests "Agda.Syntax.Position"
   [ quickCheck' positionInvariant
   , quickCheck' intervalInvariant

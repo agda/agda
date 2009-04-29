@@ -7,7 +7,10 @@
    Source : TypeCheck.Rules.Decl
  -}
 
-module Agda.Termination.TermCheck (termDecls) where
+module Agda.Termination.TermCheck
+    ( termDecls
+    , Result, DeBruijnPat  -- To avoid warnings from haddock
+    ) where
 
 import Control.Monad.Error
 import Data.List as List
