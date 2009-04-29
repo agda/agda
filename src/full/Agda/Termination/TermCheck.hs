@@ -77,6 +77,7 @@ termDecl d =
 	A.Import {}		 -> return []
 	A.Pragma {}		 -> return []
 	A.ScopedDecl scope ds	 -> setScope scope >> termDecls ds
+        A.Open {}                -> return []
 	    -- open is just an artifact from the concrete syntax
 
 collectCalls :: (a -> TCM Calls) -> [a] -> TCM Calls

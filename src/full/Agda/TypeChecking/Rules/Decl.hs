@@ -58,7 +58,9 @@ checkDecl d = do
 	A.Import i x		     -> checkImport i x
 	A.Pragma i p		     -> checkPragma i p
 	A.ScopedDecl scope ds	     -> setScope scope >> checkDecls ds
+        A.Open _                     -> return ()
 	    -- open is just an artifact from the concrete syntax
+            -- retained for highlighting purposes
     solveSizeConstraints
 
 

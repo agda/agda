@@ -185,6 +185,7 @@ generateSyntaxInfo file tcs top termErrs =
       getLet :: A.LetBinding -> File
       getLet (A.LetBind _ x _ _) = bound x
       getLet A.LetApply{}        = mempty
+      getLet A.LetOpen{}         = mempty
 
       getLam :: A.LamBinding -> File
       getLam (A.DomainFree _ x) = bound x
@@ -278,6 +279,7 @@ nameKinds tcs decls = do
   getDecl (A.Import {})       = Map.empty
   getDecl (A.Pragma {})       = Map.empty
   getDecl (A.ScopedDecl {})   = Map.empty
+  getDecl (A.Open {})         = Map.empty
 
 -- | Generates syntax highlighting information for all constructors
 -- occurring in patterns and expressions in the given declarations.

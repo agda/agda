@@ -56,6 +56,7 @@ data Declaration
 	| Apply	     ModuleInfo ModuleName [TypedBindings] ModuleName [NamedArg Expr] (Map QName QName) (Map ModuleName ModuleName)
 	| Import     ModuleInfo ModuleName
 	| Pragma     Range	Pragma
+        | Open ModuleName -- ^ only retained for highlighting purposes
 	| ScopedDecl ScopeInfo [Declaration]  -- ^ scope annotation
   deriving (Typeable, Data)
 
@@ -68,6 +69,7 @@ data Pragma = OptionsPragma [String]
 
 data LetBinding = LetBind LetInfo Name Expr Expr    -- ^ LetBind info name type defn
                 | LetApply ModuleInfo ModuleName [TypedBindings] ModuleName [NamedArg Expr] (Map QName QName) (Map ModuleName ModuleName)
+                | LetOpen ModuleName  -- ^ only for highlighting
   deriving (Typeable, Data)
 
 -- | A definition without its type signature.
@@ -216,6 +218,7 @@ instance HasRange Declaration where
     getRange (Import     i _	       ) = getRange i
     getRange (Primitive  i _ _	       ) = getRange i
     getRange (Pragma	 i _	       ) = getRange i
+    getRange (Open       x             ) = getRange x
     getRange (ScopedDecl _ d	       ) = getRange d
 
 instance HasRange Definition where
@@ -249,6 +252,7 @@ instance HasRange RHS where
 instance HasRange LetBinding where
     getRange (LetBind  i _ _ _       ) = getRange i
     getRange (LetApply i _ _ _ _ _ _ ) = getRange i
+    getRange (LetOpen  x             ) = getRange x
 
 instance KillRange LamBinding where
   killRange (DomainFree h x) = killRange1 (DomainFree h) x
@@ -289,6 +293,7 @@ instance KillRange Declaration where
   killRange (Import     i a           ) = killRange2 Import     i a
   killRange (Primitive  i a b         ) = killRange3 Primitive  i a b
   killRange (Pragma     i a           ) = Pragma (killRange i) a
+  killRange (Open       x             ) = Open (killRange x)
   killRange (ScopedDecl a d           ) = killRange1 (ScopedDecl a) d
 
 instance KillRange Definition where
@@ -322,6 +327,7 @@ instance KillRange RHS where
 instance KillRange LetBinding where
   killRange (LetBind  i a b c       ) = killRange4 LetBind  i a b c
   killRange (LetApply i a b c d e f ) = killRange5 LetApply i a b c d e f
+  killRange (LetOpen  x             ) = killRange1 LetOpen  x
 
 ------------------------------------------------------------------------
 -- Queries
@@ -348,11 +354,12 @@ allNames (Definition _ _ defs) = Fold.foldMap allNamesD defs
                                    Fold.foldMap allNames decls
 
   allNamesR :: RHS -> Seq QName
-  allNamesR (RHS {})          = Seq.empty
-  allNamesR (AbsurdRHS {})    = Seq.empty
+  allNamesR RHS {}            = Seq.empty
+  allNamesR AbsurdRHS {}      = Seq.empty
   allNamesR (WithRHS q _ cls) = q <| Fold.foldMap allNamesC cls
 allNames (Section _ _ _ decls) = Fold.foldMap allNames decls
-allNames (Apply {})            = Seq.empty
-allNames (Import {})           = Seq.empty
-allNames (Pragma {})           = Seq.empty
+allNames Apply {}              = Seq.empty
+allNames Import {}             = Seq.empty
+allNames Pragma {}             = Seq.empty
+allNames Open {}               = Seq.empty
 allNames (ScopedDecl _ decls)  = Fold.foldMap allNames decls

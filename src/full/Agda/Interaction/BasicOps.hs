@@ -19,7 +19,7 @@ import Agda.Interaction.Monad
 
 import qualified Agda.Syntax.Concrete as C -- ToDo: Remove with instance of ToConcrete
 import Agda.Syntax.Position
-import Agda.Syntax.Abstract
+import Agda.Syntax.Abstract hiding (Open)
 import Agda.Syntax.Common
 import Agda.Syntax.Info(ExprInfo(..),MetaInfo(..))
 import Agda.Syntax.Internal (MetaId(..),Type(..),Term(..),Sort(..))

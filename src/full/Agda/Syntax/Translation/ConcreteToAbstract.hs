@@ -612,7 +612,7 @@ instance ToAbstract LetDef [A.LetBinding] where
               m       <- toAbstract (OldModuleName x)
               n       <- length . scopeLocals <$> getScope
               openModule_ x dirs
-              return []
+              return [A.LetOpen m]
 
             NiceModuleMacro r p a x tel e open dir | not (C.publicOpen dir) -> case appView e of
               AppView (Ident m) args -> checkModuleMacro LetApply r p a x tel m args open dir
@@ -769,25 +769,11 @@ instance ToAbstract NiceDeclaration A.Declaration where
       _                      -> notAModuleExpr e
 
     NiceOpen r x dir -> do
-      m       <- toAbstract (OldModuleName x)
-      n       <- length . scopeLocals <$> getScope
-
+      m <- toAbstract (OldModuleName x)
       printScope "open" 20 $ "opening " ++ show x
-      -- Opening (privately) a submodule or opening into a non-parameterised module
-      -- is fine. Otherwise we have to create a temporary module.
---       if not (C.publicOpen dir) -- && (m `isSubModuleOf` current || n == 0)
---      then do
-      reportSLn "scope.open" 20 "normal open"
       openModule_ x dir
       printScope "open" 20 $ "result:"
-      return []
---      else do
---        reportSLn "scope.open" 20 "fancy open"
---        tmp <- nameConcrete <$> freshNoName (getRange x)
---        d   <- toAbstract $ NiceModuleMacro r PrivateAccess ConcreteDef
---                                          tmp [] (C.Ident x) DoOpen dir
---        printScope "open" 20 "result:"
---        return [d]
+      return [A.Open m]
 
     NicePragma r p -> do
       ps <- toAbstract p

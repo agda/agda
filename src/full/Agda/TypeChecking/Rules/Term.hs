@@ -613,4 +613,6 @@ checkLetBinding (A.LetApply i x tel m args rd rm) ret = do
   reportSLn "tc.term.let.apply" 10 $ "Applying " ++ show m ++ " with " ++ show new ++ " free variables"
   checkSectionApplication i x tel m args rd rm
   withAnonymousModule x new ret
+-- LetOpen is only used for highlighting and has no semantics
+checkLetBinding A.LetOpen{} ret = ret
 
