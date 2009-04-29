@@ -818,8 +818,6 @@ instance ToAbstract NiceDeclaration A.Declaration where
           modifyNamedScopeM m $ applyImportDirectiveM x dir
       return [ A.Import (ModuleInfo PublicAccess ConcreteDef r) m ]
 
-newtype Constr a = Constr a
-
 instance ToAbstract (Constr C.NiceDeclaration) A.Declaration where
     toAbstract (Constr (C.Axiom r f p a x t)) = do
         t' <- toAbstractCtx TopCtx t

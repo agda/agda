@@ -116,6 +116,8 @@ instance Enum NameId where
   toEnum n		= __IMPOSSIBLE__  -- should not be used
   fromEnum (NameId n _) = fromIntegral n
 
+newtype Constr a = Constr a
+
 ------------------------------------------------------------------------
 -- Arbitrary and CoArbitrary instances
 

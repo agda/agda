@@ -468,8 +468,6 @@ instance ToConcrete TypeAndDef [C.Declaration] where
 
   toConcrete _ = __IMPOSSIBLE__
 
-newtype Constr a = Constr a
-
 instance ToConcrete (Constr A.Constructor) C.Declaration where
   toConcrete (Constr (A.ScopedDecl scope [d])) =
     withScope scope $ toConcrete (Constr d)
