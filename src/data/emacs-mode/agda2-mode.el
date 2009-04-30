@@ -724,23 +724,23 @@ appear in the buffer)."
   "Ensures that the goal markers cannot be tampered with.
 Except if `inhibit-read-only' is non-nil or /all/ of the goal is
 modified."
-  (unless inhibit-read-only
-    (if action
-        ;; This is the after-change hook.
-        nil
-      ;; This is the before-change hook.
-      (cond
-       ((and (<= beg (overlay-start ol)) (>= end (overlay-end ol)))
-        ;; The user is trying to remove the whole goal:
-        ;; manually evaporate the overlay and add an undo-log entry so
-        ;; it gets re-added if needed.
-        (when (listp buffer-undo-list)
-          (push (list 'apply 0 (overlay-start ol) (overlay-end ol)
-                      'move-overlay ol (overlay-start ol) (overlay-end ol))
-                buffer-undo-list))
-        (delete-overlay ol))
-       ((or (< beg (+ (overlay-start ol) 2))
-            (> end (- (overlay-end ol) 2)))
+  (if action
+      ;; This is the after-change hook.
+      nil
+    ;; This is the before-change hook.
+    (cond
+     ((and (<= beg (overlay-start ol)) (>= end (overlay-end ol)))
+      ;; The user is trying to remove the whole goal:
+      ;; manually evaporate the overlay and add an undo-log entry so
+      ;; it gets re-added if needed.
+      (when (listp buffer-undo-list)
+        (push (list 'apply 0 (overlay-start ol) (overlay-end ol)
+                    'move-overlay ol (overlay-start ol) (overlay-end ol))
+              buffer-undo-list))
+      (delete-overlay ol))
+     ((or (< beg (+ (overlay-start ol) 2))
+          (> end (- (overlay-end ol) 2)))
+      (unless inhibit-read-only
         (signal 'text-read-only nil))))))
 
 (defun agda2-update (old-g new-txt)
