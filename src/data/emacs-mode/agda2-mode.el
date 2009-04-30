@@ -345,6 +345,8 @@ Special commands:
  (agda2-highlight-reload)
  (agda2-comments-and-paragraphs-setup)
  (force-mode-line-update)
+ ;; Protect global value of default-input-method from set-input-method.
+ (make-local-variable 'default-input-method)
  (set-input-method "Agda"))
 
 (defun agda2-restart ()
