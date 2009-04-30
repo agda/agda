@@ -511,12 +511,9 @@ in the buffer's mode line."
     (setq mode-line-buffer-identification name)
     (save-selected-window
       (pop-to-buffer (current-buffer) 'not-this-window 'norecord)
-      (shrink-window
-       (- (window-height)
-          (min (truncate
-                (* (frame-height) agda2-information-window-max-height))
-               (max window-min-height
-                    (1+ (count-lines (point-min) (point-max))))))))))
+      (fit-window-to-buffer
+       nil (truncate
+            (* (frame-height) agda2-information-window-max-height))))))
 
 (defun agda2-show-goals()
   "Show all goals." (interactive)
