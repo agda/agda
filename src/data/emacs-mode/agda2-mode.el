@@ -935,8 +935,7 @@ Depends on the setting of `agda2-indentation'."
   (set (make-local-variable 'paragraph-separate) paragraph-start)
 
   ;; Support for adding/removing comments.
-  (set (make-local-variable 'comment-padding) " ")
-  (set (make-local-variable 'comment-start) "--")
+  (set (make-local-variable 'comment-start) "-- ")
 
   ;; Support for proper filling of text in comments (requires that
   ;; Filladapt is activated).
