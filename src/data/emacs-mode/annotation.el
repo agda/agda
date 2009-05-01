@@ -112,11 +112,13 @@ bounds for the current (possibly narrowed) buffer, or END < START."
   "Run CODE preserving both the undo data and the modification bit."
   (let ((modp (make-symbol "modp")))
   `(let ((,modp (buffer-modified-p))
+         ;; Don't check if the file is being modified by some other process.
+         (buffer-file-name nil)
+         ;; Don't record those changes on the undo-log.
          (buffer-undo-list t))
      (unwind-protect
          (progn ,@code)
-       ;; FIXME: `restore-buffer-modified-p' would be more efficient.
-       (set-buffer-modified-p ,modp)))))
+       (restore-buffer-modified-p ,modp)))))
 
 (defun annotation-remove-annotations ()
   "Remove all text properties set by `annotation-annotate' in the current buffer.
