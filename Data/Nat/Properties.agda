@@ -579,9 +579,16 @@ i+j≡0⇒j≡0 i {j} i+j≡0 = i+j≡0⇒i≡0 j $ begin
   0
     ∎
 
-i+j≡i+k⇒j≡k : ∀ i {j k} → i + j ≡ i + k → j ≡ k
-i+j≡i+k⇒j≡k zero    eq = eq
-i+j≡i+k⇒j≡k (suc i) eq = i+j≡i+k⇒j≡k i (cong pred eq)
+cancel-+-left : ∀ i {j k} → i + j ≡ i + k → j ≡ k
+cancel-+-left zero    eq = eq
+cancel-+-left (suc i) eq = cancel-+-left i (cong pred eq)
+
+cancel-*-right : ∀ i j {k} → i * suc k ≡ j * suc k → i ≡ j
+cancel-*-right zero    zero        eq = refl
+cancel-*-right zero    (suc j)     ()
+cancel-*-right (suc i) zero        ()
+cancel-*-right (suc i) (suc j) {k} eq =
+  cong suc (cancel-*-right i j (cancel-+-left (suc k) eq))
 
 im≡jm+n⇒[i∸j]m≡n
   : ∀ i j m n →
@@ -590,7 +597,7 @@ im≡jm+n⇒[i∸j]m≡n i       zero    m n eq = eq
 im≡jm+n⇒[i∸j]m≡n zero    (suc j) m n eq =
   sym $ i+j≡0⇒j≡0 (m + j * m) $ sym eq
 im≡jm+n⇒[i∸j]m≡n (suc i) (suc j) m n eq =
-  im≡jm+n⇒[i∸j]m≡n i j m n (i+j≡i+k⇒j≡k m eq')
+  im≡jm+n⇒[i∸j]m≡n i j m n (cancel-+-left m eq')
   where
   eq' = begin
     m + i * m
