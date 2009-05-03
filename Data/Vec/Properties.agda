@@ -35,3 +35,21 @@ lookup-natural : ∀ {A B n} (f : A → B) (i : Fin n) →
                  lookup i ∘ map f ≗ f ∘ lookup i
 lookup-natural f zero    (x ∷ xs) = refl
 lookup-natural f (suc i) (x ∷ xs) = lookup-natural f i xs
+
+-- map is a congruence.
+
+map-cong : ∀ {A B n} {f g : A → B} →
+           f ≗ g → _≗_ {Vec A n} (map f) (map g)
+map-cong f≗g []       = refl
+map-cong f≗g (x ∷ xs) = cong₂ _∷_ (f≗g x) (map-cong f≗g xs)
+
+-- map is functorial.
+
+map-id : ∀ {A n} → _≗_ {Vec A n} (map id) id
+map-id []       = refl
+map-id (x ∷ xs) = cong (_∷_ x) (map-id xs)
+
+map-∘ : ∀ {A B C n} (f : B → C) (g : A → B) →
+        _≗_ {Vec A n} (map (f ∘ g)) (map f ∘ map g)
+map-∘ f g []       = refl
+map-∘ f g (x ∷ xs) = cong (_∷_ (f (g x))) (map-∘ f g xs)
