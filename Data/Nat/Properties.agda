@@ -579,6 +579,23 @@ i+j≡0⇒j≡0 i {j} i+j≡0 = i+j≡0⇒i≡0 j $ begin
   0
     ∎
 
+i*j≡1⇒i≡1 : ∀ i j → i * j ≡ 1 → i ≡ 1
+i*j≡1⇒i≡1 (suc zero)    j             _  = refl
+i*j≡1⇒i≡1 zero          j             ()
+i*j≡1⇒i≡1 (suc (suc i)) (suc (suc j)) ()
+i*j≡1⇒i≡1 (suc (suc i)) (suc zero)    ()
+i*j≡1⇒i≡1 (suc (suc i)) zero          eq with begin
+  0      ≡⟨ *-comm 0 i ⟩
+  i * 0  ≡⟨ eq ⟩
+  1      ∎
+... | ()
+
+i*j≡1⇒j≡1 : ∀ i j → i * j ≡ 1 → j ≡ 1
+i*j≡1⇒j≡1 i j eq = i*j≡1⇒i≡1 j i (begin
+  j * i  ≡⟨ *-comm j i ⟩
+  i * j  ≡⟨ eq ⟩
+  1      ∎)
+
 cancel-+-left : ∀ i {j k} → i + j ≡ i + k → j ≡ k
 cancel-+-left zero    eq = eq
 cancel-+-left (suc i) eq = cancel-+-left i (cong pred eq)
