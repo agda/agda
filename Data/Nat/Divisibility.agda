@@ -74,7 +74,8 @@ divides-≤ {suc m} {n} (divides (suc q) eq) = begin
 
 divides-≡ : ∀ {m n} → m Divides n → n Divides m → m ≡ n
 divides-≡ (divides a₁ b₁) (divides a₂ b₂) =
-  ≤≥⇒≡ (divides-≤ (divides a₁ b₁)) (divides-≤ (divides a₂ b₂))
+  antisym (divides-≤ (divides a₁ b₁)) (divides-≤ (divides a₂ b₂))
+  where open Poset Nat.poset
 
 -- If i divides m and n, then i divides their sum.
 

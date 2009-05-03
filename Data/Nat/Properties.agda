@@ -392,10 +392,6 @@ s≤′s (≤′-step m≤′n) = ≤′-step (s≤′s m≤′n)
 ≤-steps zero    m≤n = m≤n
 ≤-steps (suc k) m≤n = ≤-step (≤-steps k m≤n)
 
-≤≥⇒≡ : ∀ {m n} → m ≤ n → m ≥ n → m ≡ n
-≤≥⇒≡ z≤n       z≤n       = refl
-≤≥⇒≡ (s≤s m≤n) (s≤s m≥n) = cong suc (≤≥⇒≡ m≤n m≥n)
-
 m≤m+n : ∀ m n → m ≤ m + n
 m≤m+n zero    n = z≤n
 m≤m+n (suc m) n = s≤s (m≤m+n m n)
