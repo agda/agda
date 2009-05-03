@@ -58,7 +58,7 @@ sym c = c ∘ swap
 0-coprimeTo-1 {zero}        c with c (1 +1-divides-0 , 1 +1-divides-0)
 ... | ()
 0-coprimeTo-1 {suc (suc m)} c with c ( (1 + m) +1-divides-0
-                                     , divides-refl (1 + m) )
+                                     , refl∘suc (1 + m) )
 ... | ()
 
 -- If m and n are coprime, then n + m and n are also coprime.

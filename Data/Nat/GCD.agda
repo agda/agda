@@ -68,8 +68,8 @@ largest {suc _} g c = divides-≤ (GCD.divisible g c)
 -- The gcd is unique.
 
 unique : ∀ {d₁ d₂ m n} → GCD m n d₁ → GCD m n d₂ → d₁ ≡ d₂
-unique d₁ d₂ = divides-≡ (GCD.divisible d₂ (GCD.commonDivisor d₁))
-                         (GCD.divisible d₁ (GCD.commonDivisor d₂))
+unique d₁ d₂ = antisym (GCD.divisible d₂ (GCD.commonDivisor d₁))
+                       (GCD.divisible d₁ (GCD.commonDivisor d₂))
 
 -- The gcd relation is "symmetric".
 
@@ -79,7 +79,7 @@ sym g = isGCD (swap $ GCD.commonDivisor g) (GCD.divisible g ∘ swap)
 -- The gcd relation is "reflexive" (for positive numbers).
 
 refl : ∀ n → let m = suc n in GCD m m m
-refl n = isGCD (divides-refl n , divides-refl n) proj₁
+refl n = isGCD (refl∘suc n , refl∘suc n) proj₁
 
 -- 0 and 0 have no gcd.
 
@@ -95,7 +95,7 @@ no-GCD-for-0-0 (suc n , g) = lem₂ 1+d≤d
 -- The GCD of 0 and n, for positive n, is n.
 
 gcd-0-pos : ∀ n → GCD 0 (suc n) (suc n)
-gcd-0-pos n = isGCD (n +1-divides-0 , divides-refl n) proj₂
+gcd-0-pos n = isGCD (n +1-divides-0 , refl∘suc n) proj₂
 
 private
 

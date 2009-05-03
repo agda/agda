@@ -4,7 +4,7 @@
 
 module Data.Nat.Divisibility where
 
-open import Data.Nat
+open import Data.Nat as Nat hiding (poset)
 open import Data.Nat.DivMod
 open import Data.Nat.Properties
 open import Data.Fin as Fin using (Fin; zero; suc)
@@ -16,7 +16,8 @@ private
 open import Data.Product
 open import Relation.Nullary
 open import Relation.Binary
-open import Relation.Binary.PropositionalEquality
+open import Relation.Binary.PropositionalEquality as PropEq
+  using (_≡_; _≢_; refl; sym; cong; subst)
 open import Data.Function
 
 -- m Divides n is inhabited iff m is non-zero and divides n. (The
@@ -37,10 +38,61 @@ quotient (divides q _) = q
 _Divides_And_ : (d m n : ℕ) → Set
 d Divides m And n = d Divides m × d Divides n
 
--- The divisibility relation is reflexive for positive integers.
+-- If m divides n, and n is positive, then m ≤ n.
 
-divides-refl : ∀ n → suc n Divides suc n
-divides-refl n = divides 1 (sym $ proj₁ CS.*-identity (suc n))
+divides-≤ : ∀ {m n} → m Divides suc n → m ≤ suc n
+divides-≤             (divides 0       ())
+divides-≤ {suc m} {n} (divides (suc q) eq) = begin
+  suc m
+    ≤⟨ m≤m+n (suc m) (q * suc m) ⟩
+  suc q * suc m
+    ≡⟨ sym eq ⟩
+  suc n
+    ∎
+  where open ≤-Reasoning
+
+-- _Divides_ is reflexive for positive integers.
+
+refl∘suc : ∀ n → suc n Divides suc n
+refl∘suc n = divides 1 (sym $ proj₁ CS.*-identity (suc n))
+
+-- _Divides_ is antisymmetric.
+
+antisym : Antisymmetric _≡_ _Divides_
+antisym (divides a₁ b₁) (divides a₂ b₂) =
+  P.antisym (divides-≤ (divides a₁ b₁)) (divides-≤ (divides a₂ b₂))
+  where module P = Poset Nat.poset
+
+-- _Divides_ is transitive.
+
+trans : Transitive _Divides_
+trans  (divides {m₁} q₁ eq₁) (divides {m₂} q₂ refl) =
+  divides (q₂ * q₁) (begin
+    q₂ * suc m₂         ≡⟨ cong (_*_ q₂) eq₁ ⟩
+    q₂ * (q₁ * suc m₁)  ≡⟨ sym (CS.*-assoc q₂ _ _) ⟩
+    q₂ * q₁ * suc m₁    ∎)
+  where open PropEq.≡-Reasoning
+
+-- _Divides_ restricted to positive integers is a poset.
+
+poset : Poset
+poset = record
+  { carrier        = ℕ
+  ; _≈_            = _≡_
+  ; _≤_            = _Divides_ on₁ suc
+  ; isPartialOrder = record
+    { isPreorder = record
+      { isEquivalence = PropEq.isEquivalence
+      ; reflexive     = reflexive
+      ; trans         = trans
+      ; ≈-resp-∼      = PropEq.resp (_Divides_ on₁ suc)
+      }
+    ; antisym = λ m∣n n∣m → cong pred (antisym m∣n n∣m)
+    }
+  }
+  where
+  reflexive : _≡_ =[ suc ]⇒ _Divides_
+  reflexive refl = refl∘suc _
 
 -- 1 divides everything.
 
@@ -56,26 +108,6 @@ n +1-divides-0 = divides 0 refl
 
 0-doesNotDivide : ∀ {n} → ¬ 0 Divides n
 0-doesNotDivide ()
-
--- If m divides n, and n is positive, then m ≤ n.
-
-divides-≤ : ∀ {m n} → m Divides suc n → m ≤ suc n
-divides-≤             (divides 0       ())
-divides-≤ {suc m} {n} (divides (suc q) eq) = begin
-  suc m
-    ≤⟨ m≤m+n (suc m) (q * suc m) ⟩
-  suc q * suc m
-    ≡⟨ sym eq ⟩
-  suc n
-    ∎
-  where open ≤-Reasoning
-
--- If m and n divide each other, then they are equal.
-
-divides-≡ : ∀ {m n} → m Divides n → n Divides m → m ≡ n
-divides-≡ (divides a₁ b₁) (divides a₂ b₂) =
-  antisym (divides-≤ (divides a₁ b₁)) (divides-≤ (divides a₂ b₂))
-  where open Poset Nat.poset
 
 -- If i divides m and n, then i divides their sum.
 
@@ -93,7 +125,7 @@ divides-∸ (divides {m = i} q' eq) (divides q refl) =
 -- If i divides i + n then i divides n.
 
 divides-Δ : ∀ {i n} → i Divides (i + n) → i Divides n
-divides-Δ {suc i} d  = divides-∸ d (divides-refl i)
+divides-Δ {suc i} d  = divides-∸ d (refl∘suc i)
 divides-Δ {zero}  ()
 
 -- If the remainder after division is non-zero, then the divisor does
@@ -109,7 +141,7 @@ nonZeroDivisor-lemma m zero r r≢zero (divides zero eq) = r≢zero $ begin
     ≡⟨ eq ⟩
   0
     ∎
-  where open ≡-Reasoning
+  where open PropEq.≡-Reasoning
 nonZeroDivisor-lemma m zero r r≢zero (divides (suc q) eq) =
   ¬i+1+j≤i m $ begin
     m + suc (q * suc m)
