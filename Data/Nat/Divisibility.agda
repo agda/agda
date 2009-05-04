@@ -125,6 +125,39 @@ n ∣0 = divides 0 refl
   divides (q' ∸ q)
           (sym $ NatProp.im≡jm+n⇒[i∸j]m≡n q' q i _ $ sym eq)
 
+-- A simple lemma: n divides kn.
+
+∣-* : ∀ k {n} → n ∣ k * n
+∣-* k = divides k refl
+
+-- If i divides j, then ki divides kj.
+
+*-cong : ∀ {i j} k → i ∣ j → k * i ∣ k * j
+*-cong {i} {j} k (divides q eq) = divides q lemma
+  where
+  open PropEq.≡-Reasoning
+  lemma = begin
+    k * j        ≡⟨ cong (_*_ k) eq ⟩
+    k * (q * i)  ≡⟨ solve 3 (λ k q i → k :* (q :* i)
+                                   :=  q :* (k :* i))
+                            refl k q i ⟩
+    q * (k * i)  ∎
+
+-- If ki divides kj, and k is positive, then i divides j.
+
+/-cong : ∀ {i j} k → suc k * i ∣ suc k * j → i ∣ j
+/-cong {i} {j} k (divides q eq) = divides q lemma
+  where
+  open PropEq.≡-Reasoning
+  k′    = suc k
+  lemma = NatProp.cancel-*-right j (q * i) (begin
+    j * k′        ≡⟨ CS.*-comm j k′ ⟩
+    k′ * j        ≡⟨ eq ⟩
+    q * (k′ * i)  ≡⟨ solve 3 (λ q k i → q :* (k :* i)
+                                    :=  q :* i :* k)
+                             refl q k′ i ⟩
+    q * i * k′    ∎)
+
 -- If the remainder after division is non-zero, then the divisor does
 -- not divide the dividend.
 
