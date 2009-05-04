@@ -6,111 +6,173 @@ module Data.Nat.GCD where
 
 open import Data.Nat
 open import Data.Nat.Divisibility as Div
-import Data.Nat.Properties as NatProp
+open import Relation.Binary
+private module P = Poset Div.poset
 open import Data.Product
 open import Relation.Binary.PropositionalEquality as PropEq using (_≡_)
-open NatProp.SemiringSolver
 open import Induction
 open import Induction.Nat
 open import Induction.Lexicographic
 open import Data.Function
-open import Relation.Binary
-private
-  module P = Poset Div.poset
-
-------------------------------------------------------------------------
--- Boring lemmas
-
-private
-
-  lem₀ = solve 2 (λ n k → n :+ (con 1 :+ k)  :=  con 1 :+ n :+ k)
-                 PropEq.refl
-
-  lem₁ : ∀ i j → 1 + i ≤′ 1 + j + i
-  lem₁ i j = NatProp.≤⇒≤′ $ s≤s $ NatProp.n≤m+n j i
+open import Data.Nat.GCD.Lemmas
 
 ------------------------------------------------------------------------
 -- Greatest common divisor
 
--- Specification of the greatest common divisor (gcd) of two natural
--- numbers.
+module GCD where
 
-record GCD (m n gcd : ℕ) : Set where
-  field
-    -- The gcd is a common divisor.
-    commonDivisor : gcd ∣ m × gcd ∣ n
+  -- Specification of the greatest common divisor (gcd) of two natural
+  -- numbers.
 
-    -- All common divisors divide the gcd, i.e. the gcd is the
-    -- greatest common divisor according to the partial order _∣_.
-    greatest : ∀ {d} → d ∣ m × d ∣ n → d ∣ gcd
+  record GCD (m n gcd : ℕ) : Set where
+    field
+      -- The gcd is a common divisor.
+      commonDivisor : gcd ∣ m × gcd ∣ n
 
-isGCD : ∀ {gcd m n} →
-        gcd ∣ m × gcd ∣ n →
-        (∀ {d} → d ∣ m × d ∣ n → d ∣ gcd) →
-        GCD m n gcd
-isGCD cd div = record
-  { commonDivisor = cd
-  ; greatest      = div
-  }
+      -- All common divisors divide the gcd, i.e. the gcd is the
+      -- greatest common divisor according to the partial order _∣_.
+      greatest : ∀ {d} → d ∣ m × d ∣ n → d ∣ gcd
 
--- The gcd is unique.
+  is : ∀ {gcd m n} →
+       gcd ∣ m × gcd ∣ n →
+       (∀ {d} → d ∣ m × d ∣ n → d ∣ gcd) →
+       GCD m n gcd
+  is cd div = record
+    { commonDivisor = cd
+    ; greatest      = div
+    }
 
-unique : ∀ {d₁ d₂ m n} → GCD m n d₁ → GCD m n d₂ → d₁ ≡ d₂
-unique d₁ d₂ = P.antisym (GCD.greatest d₂ (GCD.commonDivisor d₁))
-                         (GCD.greatest d₁ (GCD.commonDivisor d₂))
+  -- The gcd is unique.
 
--- The gcd relation is "symmetric".
+  unique : ∀ {d₁ d₂ m n} → GCD m n d₁ → GCD m n d₂ → d₁ ≡ d₂
+  unique d₁ d₂ = P.antisym (GCD.greatest d₂ (GCD.commonDivisor d₁))
+                           (GCD.greatest d₁ (GCD.commonDivisor d₂))
 
-sym : ∀ {d m n} → GCD m n d → GCD n m d
-sym g = isGCD (swap $ GCD.commonDivisor g) (GCD.greatest g ∘ swap)
+  -- The gcd relation is "symmetric".
 
--- The gcd relation is "reflexive".
+  sym : ∀ {d m n} → GCD m n d → GCD n m d
+  sym g = is (swap $ GCD.commonDivisor g) (GCD.greatest g ∘ swap)
 
-refl : ∀ n → GCD n n n
-refl n = isGCD (P.refl , P.refl) proj₁
+  -- The gcd relation is "reflexive".
 
--- The GCD of 0 and n is n.
+  refl : ∀ {n} → GCD n n n
+  refl = is (P.refl , P.refl) proj₁
 
-gcd-0 : ∀ n → GCD 0 n n
-gcd-0 n = isGCD (n ∣0 , P.refl) proj₂
+  -- The GCD of 0 and n is n.
 
-private
+  base : ∀ {n} → GCD 0 n n
+  base {n} = is (n ∣0 , P.refl) proj₂
 
-  ∃GCD = λ (m n : ℕ) → ∃ (GCD m n)
+  -- If d is the gcd of n and k, then it is also the gcd of n and
+  -- n + k.
 
-  step₁ : ∀ {n k} → ∃GCD n (suc k) → ∃GCD n (suc (n + k))
-  step₁ (d , g) with GCD.commonDivisor g
-  step₁ {n} {k} (d , g) | (d₁ , d₂) =
-    PropEq.subst (∃GCD n) (lem₀ n k) $
-      (d , isGCD (d₁ , ∣-+ d₁ d₂) div')
+  step : ∀ {n k d} → GCD n k d → GCD n (n + k) d
+  step g with GCD.commonDivisor g
+  step {n} {k} {d} g | (d₁ , d₂) = is (d₁ , ∣-+ d₁ d₂) greatest
     where
-    div' : ∀ {d'} → d' ∣ n × d' ∣ n + suc k → d' ∣ d
-    div' (d₁ , d₂) = GCD.greatest g (d₁ , ∣-∸ d₂ d₁)
+    greatest : ∀ {d′} → d′ ∣ n × d′ ∣ n + k → d′ ∣ d
+    greatest (d₁ , d₂) = GCD.greatest g (d₁ , ∣-∸ d₂ d₁)
 
-  step₂ : ∀ {n k} → ∃GCD (suc k) n → ∃GCD (suc (n + k)) n
-  step₂ = map id sym ∘ step₁ ∘ map id sym
+open GCD public using (GCD; module GCD)
 
--- Gcd calculated using (a variant of) Euclid's algorithm. Note that
--- it is the gcd of the successors of the arguments that is
--- calculated.
+------------------------------------------------------------------------
+-- Calculating the gcd
 
-gcd⁺ : (m n : ℕ) → ∃ λ d → GCD (suc m) (suc n) d
-gcd⁺ m n = build [ <-rec-builder ⊗ <-rec-builder ] P gcd' (m , n)
-  where
-  P : ℕ × ℕ → Set
-  P (m , n) = ∃GCD (suc m) (suc n)
+-- The calculation also proves Bézout's lemma.
 
-  gcd' : ∀ p → (<-Rec ⊗ <-Rec) P p → P p
-  gcd' (m , n             ) rec with compare m n
-  gcd' (m , .m            ) rec | equal .m     = (suc m , refl (suc m))
-                                                         -- gcd⁺ m k
-  gcd' (m , .(suc (m + k))) rec | less .m k    = step₁ $ proj₁ rec k (lem₁ k m)
-                                                         -- gcd⁺ k n
-  gcd' (.(suc (n + k)) , n) rec | greater .n k = step₂ $ proj₂ rec k (lem₁ k n) n
+module Bézout where
+
+  -- If m and n have greatest common divisor d, then one of the
+  -- following two equations is satisfied, for some numbers x and y.
+  -- The proof is "lemma" below (Bézout's lemma).
+  --
+  -- (If this identity was stated using integers instead of natural
+  -- numbers, then it would not be necessary to have two equations.)
+
+  data Identity (d m n : ℕ) : Set where
+    +- : (x y : ℕ) (eq : d + y * n ≡ x * m) → Identity d m n
+    -+ : (x y : ℕ) (eq : d + x * m ≡ y * n) → Identity d m n
+
+  module Identity where
+
+    -- Various properties about Identity.
+
+    sym : ∀ {d} → Symmetric (Identity d)
+    sym (+- x y eq) = -+ y x eq
+    sym (-+ x y eq) = +- y x eq
+
+    refl : ∀ {d} → Identity d d d
+    refl = -+ 0 1 PropEq.refl
+
+    base : ∀ {d} → Identity d 0 d
+    base = -+ 0 1 PropEq.refl
+
+    private
+      infixl 7 _⊕_
+
+      _⊕_ : ℕ → ℕ → ℕ
+      m ⊕ n = 1 + m + n
+
+    step : ∀ {d n k} → Identity d n k → Identity d n (n + k)
+    step {d}     (+-  x  y       eq) with compare x y
+    step {d}     (+- .x .x       eq) | equal x     = +- (2 * x)     x       (lem₂ d x   eq)
+    step {d}     (+- .x .(x ⊕ i) eq) | less x i    = +- (2 * x ⊕ i) (x ⊕ i) (lem₃ d x   eq)
+    step {d} {n} (+- .(y ⊕ i) .y eq) | greater y i = +- (2 * y ⊕ i) y       (lem₄ d y n eq)
+    step {d}     (-+  x  y       eq) with compare x y
+    step {d}     (-+ .x .x       eq) | equal x     = -+ (2 * x)     x       (lem₅ d x   eq)
+    step {d}     (-+ .x .(x ⊕ i) eq) | less x i    = -+ (2 * x ⊕ i) (x ⊕ i) (lem₆ d x   eq)
+    step {d} {n} (-+ .(y ⊕ i) .y eq) | greater y i = -+ (2 * y ⊕ i) y       (lem₇ d y n eq)
+
+  -- This type packs up the gcd, the proof that it is a gcd, and the
+  -- proof that it satisfies Bézout's identity.
+
+  data Lemma (m n : ℕ) : Set where
+    result : (d : ℕ) (g : GCD m n d) (b : Identity d m n) → Lemma m n
+
+  module Lemma where
+
+    -- Various properties about Lemma.
+
+    sym : Symmetric Lemma
+    sym (result d g b) = result d (GCD.sym g) (Identity.sym b)
+
+    base : ∀ d → Lemma 0 d
+    base d = result d GCD.base Identity.base
+
+    refl : ∀ d → Lemma d d
+    refl d = result d GCD.refl Identity.refl
+
+    stepˡ : ∀ {n k} → Lemma n (suc k) → Lemma n (suc (n + k))
+    stepˡ {n} {k} (result d g b) =
+      PropEq.subst (Lemma n) (lem₀ n k) $
+        result d (GCD.step g) (Identity.step b)
+
+    stepʳ : ∀ {n k} → Lemma (suc k) n → Lemma (suc (n + k)) n
+    stepʳ = sym ∘ stepˡ ∘ sym
+
+  -- Bézout's lemma proved using some variant of the extended
+  -- Euclidean algorithm.
+
+  lemma : (m n : ℕ) → Lemma m n
+  lemma m n = build [ <-rec-builder ⊗ <-rec-builder ] P gcd (m , n)
+    where
+    P : ℕ × ℕ → Set
+    P (m , n) = Lemma m n
+
+    gcd : ∀ p → (<-Rec ⊗ <-Rec) P p → P p
+    gcd (zero  , n                 ) rec = Lemma.base n
+    gcd (suc m , zero              ) rec = Lemma.sym (Lemma.base (suc m))
+    gcd (suc m , suc n             ) rec with compare m n
+    gcd (suc m , suc .m            ) rec | equal .m     = Lemma.refl (suc m)
+    gcd (suc m , suc .(suc (m + k))) rec | less .m k    =
+                      -- "gcd (suc m) (suc k)"
+      Lemma.stepˡ $ proj₁ rec (suc k) (lem₁ k m)
+    gcd (suc .(suc (n + k)) , suc n) rec | greater .n k =
+                      -- "gcd (suc k) (suc n)"
+      Lemma.stepʳ $ proj₂ rec (suc k) (lem₁ k n) (suc n)
 
 -- Calculates the gcd of the arguments.
 
 gcd : (m n : ℕ) → ∃ λ d → GCD m n d
-gcd (suc m) (suc n) = gcd⁺ m n
-gcd zero    n       = (n , gcd-0 n)
-gcd m       zero    = (m , sym (gcd-0 m))
+gcd m n with Bézout.lemma m n
+gcd m n | Bézout.result d g _ = (d , g)

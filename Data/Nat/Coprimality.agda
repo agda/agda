@@ -7,7 +7,7 @@ module Data.Nat.Coprimality where
 open import Data.Nat
 import Data.Nat.Properties as NatProp
 open import Data.Nat.Divisibility as Div
-open import Data.Nat.GCD hiding (refl; sym)
+open import Data.Nat.GCD
 open import Data.Product
 open import Data.Function
 open import Relation.Binary.PropositionalEquality as PropEq
@@ -25,11 +25,11 @@ Coprime m n = ∀ {i} → i ∣ m × i ∣ n → i ≡ 1
 -- Coprime numbers have 1 as their gcd.
 
 coprime-gcd : ∀ {m n} → Coprime m n → GCD m n 1
-coprime-gcd {m} {n} c = isGCD (1∣ m , 1∣ n) div
+coprime-gcd {m} {n} c = GCD.is (1∣ m , 1∣ n) greatest
   where
-  div : ∀ {d} → d ∣ m × d ∣ n → d ∣ 1
-  div      cd with c cd
-  div .{1} cd | refl = 1∣ 1
+  greatest : ∀ {d} → d ∣ m × d ∣ n → d ∣ 1
+  greatest      cd with c cd
+  greatest .{1} cd | refl = 1∣ 1
 
 -- If two numbers have 1 as their gcd, then they are coprime.
 
