@@ -5,21 +5,18 @@
 module Data.Nat.GCD where
 
 open import Data.Nat
-open import Data.Nat.Divisibility
-open import Data.Nat.Properties
-open import Algebra
-private
-  module CS = CommutativeSemiring commutativeSemiring
+open import Data.Nat.Divisibility as Div
+import Data.Nat.Properties as NatProp
 open import Data.Product
 open import Relation.Binary.PropositionalEquality as PropEq using (_≡_)
-open SemiringSolver
+open NatProp.SemiringSolver
 open import Induction
 open import Induction.Nat
 open import Induction.Lexicographic
 open import Data.Function
-open import Data.Empty
-open import Relation.Nullary
-open import Relation.Nullary.Decidable using (False)
+open import Relation.Binary
+private
+  module P = Poset Div.poset
 
 ------------------------------------------------------------------------
 -- Boring lemmas
@@ -30,10 +27,7 @@ private
                  PropEq.refl
 
   lem₁ : ∀ i j → 1 + i ≤′ 1 + j + i
-  lem₁ i j = ≤⇒≤′ $ s≤s $ n≤m+n j i
-
-  lem₂ : ∀ {n} → ¬ 1 + n ≤ n
-  lem₂ (s≤s 1+n≤n) = lem₂ 1+n≤n
+  lem₁ i j = NatProp.≤⇒≤′ $ s≤s $ NatProp.n≤m+n j i
 
 ------------------------------------------------------------------------
 -- Greatest common divisor
@@ -46,8 +40,9 @@ record GCD (m n gcd : ℕ) : Set where
     -- The gcd is a common divisor.
     commonDivisor : gcd Divides m And n
 
-    -- All common divisors divide the gcd.
-    divisible     : ∀ {d} → d Divides m And n → d Divides gcd
+    -- All common divisors divide the gcd, i.e. the gcd is the largest
+    -- common divisor according to the partial order _Divides_.
+    greatest : ∀ {d} → d Divides m And n → d Divides gcd
 
 isGCD : ∀ {gcd m n} →
         gcd Divides m And n →
@@ -55,47 +50,29 @@ isGCD : ∀ {gcd m n} →
         GCD m n gcd
 isGCD cd div = record
   { commonDivisor = cd
-  ; divisible     = div
+  ; greatest      = div
   }
-
--- The gcd is the largest common divisor.
-
-largest : ∀ {d d' m n} → GCD m n d → d' Divides m And n → d' ≤ d
-largest {zero}  g _ = ⊥-elim {_ ≤ 0} $ 0-doesNotDivide $
-                        proj₁ (GCD.commonDivisor g)
-largest {suc _} g c = divides-≤ (GCD.divisible g c)
 
 -- The gcd is unique.
 
 unique : ∀ {d₁ d₂ m n} → GCD m n d₁ → GCD m n d₂ → d₁ ≡ d₂
-unique d₁ d₂ = antisym (GCD.divisible d₂ (GCD.commonDivisor d₁))
-                       (GCD.divisible d₁ (GCD.commonDivisor d₂))
+unique d₁ d₂ = P.antisym (GCD.greatest d₂ (GCD.commonDivisor d₁))
+                         (GCD.greatest d₁ (GCD.commonDivisor d₂))
 
 -- The gcd relation is "symmetric".
 
 sym : ∀ {d m n} → GCD m n d → GCD n m d
-sym g = isGCD (swap $ GCD.commonDivisor g) (GCD.divisible g ∘ swap)
+sym g = isGCD (swap $ GCD.commonDivisor g) (GCD.greatest g ∘ swap)
 
--- The gcd relation is "reflexive" (for positive numbers).
+-- The gcd relation is "reflexive".
 
-refl : ∀ n → let m = suc n in GCD m m m
-refl n = isGCD (refl∘suc n , refl∘suc n) proj₁
+refl : ∀ n → GCD n n n
+refl n = isGCD (P.refl , P.refl) proj₁
 
--- 0 and 0 have no gcd.
+-- The GCD of 0 and n is n.
 
-no-GCD-for-0-0 : ∄ λ d → GCD 0 0 d
-no-GCD-for-0-0 (0 , g) = 0-doesNotDivide $ proj₁ $ GCD.commonDivisor g
-no-GCD-for-0-0 (suc n , g) = lem₂ 1+d≤d
-  where
-  d = suc n
-  1+d|0 = d +1-divides-0
-  1+d|d = GCD.divisible g (1+d|0 , 1+d|0)
-  1+d≤d = divides-≤ 1+d|d
-
--- The GCD of 0 and n, for positive n, is n.
-
-gcd-0-pos : ∀ n → GCD 0 (suc n) (suc n)
-gcd-0-pos n = isGCD (n +1-divides-0 , refl∘suc n) proj₂
+gcd-0 : ∀ n → GCD 0 n n
+gcd-0 n = isGCD (n divides-0 , P.refl) proj₂
 
 private
 
@@ -108,7 +85,7 @@ private
       (d , isGCD (d₁ , divides-+ d₁ d₂) div')
     where
     div' : ∀ {d'} → d' Divides n And (n + suc k) → d' Divides d
-    div' (d₁ , d₂) = GCD.divisible g (d₁ , divides-∸ d₂ d₁)
+    div' (d₁ , d₂) = GCD.greatest g (d₁ , divides-∸ d₂ d₁)
 
   step₂ : ∀ {n k} → ∃GCD (suc k) n → ∃GCD (suc (n + k)) n
   step₂ = map id sym ∘ step₁ ∘ map id sym
@@ -125,18 +102,15 @@ gcd⁺ m n = build [ <-rec-builder ⊗ <-rec-builder ] P gcd' (m , n)
 
   gcd' : ∀ p → (<-Rec ⊗ <-Rec) P p → P p
   gcd' (m , n             ) rec with compare m n
-  gcd' (m , .m            ) rec | equal .m     = (suc m , refl m)
+  gcd' (m , .m            ) rec | equal .m     = (suc m , refl (suc m))
                                                          -- gcd⁺ m k
   gcd' (m , .(suc (m + k))) rec | less .m k    = step₁ $ proj₁ rec k (lem₁ k m)
                                                          -- gcd⁺ k n
   gcd' (.(suc (n + k)) , n) rec | greater .n k = step₂ $ proj₂ rec k (lem₁ k n) n
 
--- Calculates the gcd of the arguments, of which at least one must be
--- positive.
+-- Calculates the gcd of the arguments.
 
-gcd : (m : ℕ) (n : ℕ) {m+n≢0 : False ((m + n) ≟ 0)} →
-      ∃ λ d → GCD m n d
+gcd : (m n : ℕ) → ∃ λ d → GCD m n d
 gcd (suc m) (suc n) = gcd⁺ m n
-gcd (suc m) zero    = (suc m , sym (gcd-0-pos m))
-gcd zero    (suc n) = (suc n , gcd-0-pos n)
-gcd zero    zero {m+n≢0 = ()}
+gcd zero    n       = (n , gcd-0 n)
+gcd m       zero    = (m , sym (gcd-0 m))
