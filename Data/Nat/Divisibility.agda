@@ -16,6 +16,7 @@ private
 open import Data.Product
 open import Relation.Nullary
 open import Relation.Binary
+import Relation.Binary.PartialOrderReasoning as PartialOrderReasoning
 open import Relation.Binary.PropositionalEquality as PropEq
   using (_≡_; _≢_; refl; sym; cong; subst)
 open import Data.Function
@@ -85,6 +86,9 @@ poset = record
   trans : Transitive _∣_
   trans (divides q₁ refl) (divides q₂ refl) =
     divides (q₂ * q₁) (sym (CS.*-assoc q₂ q₁ _))
+
+module ∣-Reasoning = PartialOrderReasoning poset
+  renaming (_≤⟨_⟩_ to _∣⟨_⟩_; _≈⟨_⟩_ to _≡⟨_⟩_)
 
 private module P = Poset poset
 
