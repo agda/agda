@@ -20,16 +20,16 @@ private
 -- prime), i.e. if their only common divisor is 1.
 
 Coprime : (m n : ℕ) → Set
-Coprime m n = ∀ {i} → i Divides m And n → i ≡ 1
+Coprime m n = ∀ {i} → i ∣ m × i ∣ n → i ≡ 1
 
 -- Coprime numbers have 1 as their gcd.
 
 coprime-gcd : ∀ {m n} → Coprime m n → GCD m n 1
-coprime-gcd {m} {n} c = isGCD (1-divides m , 1-divides n) (div _)
+coprime-gcd {m} {n} c = isGCD (1∣ m , 1∣ n) div
   where
-  div : ∀ d → d Divides m And n → d Divides 1
-  div  d cd with c cd
-  div .1 cd | refl = 1-divides 1
+  div : ∀ {d} → d ∣ m × d ∣ n → d ∣ 1
+  div      cd with c cd
+  div .{1} cd | refl = 1∣ 1
 
 -- If two numbers have 1 as their gcd, then they are coprime.
 
@@ -46,17 +46,14 @@ sym c = c ∘ swap
 -- Everything is coprime to 1.
 
 1-coprimeTo : ∀ m → Coprime 1 m
-1-coprimeTo m = c ∘ proj₁
-  where
-  c : ∀ {i} → i Divides 1 → i ≡ 1
-  c {i} i∣1 = P.antisym i∣1 (1-divides i)
+1-coprimeTo m = 1∣1 ∘ proj₁
 
 -- Nothing except for 1 is coprime to 0.
 
 0-coprimeTo-1 : ∀ {m} → Coprime 0 m → m ≡ 1
-0-coprimeTo-1 {m} c = c (m divides-0 , P.refl)
+0-coprimeTo-1 {m} c = c (m ∣0 , P.refl)
 
 -- If m and n are coprime, then n + m and n are also coprime.
 
 coprime-+ : ∀ {m n} → Coprime m n → Coprime (n + m) n
-coprime-+ c (d₁ , d₂) = c (divides-∸ d₁ d₂ , d₂)
+coprime-+ c (d₁ , d₂) = c (∣-∸ d₁ d₂ , d₂)

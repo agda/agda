@@ -38,15 +38,15 @@ private
 record GCD (m n gcd : ℕ) : Set where
   field
     -- The gcd is a common divisor.
-    commonDivisor : gcd Divides m And n
+    commonDivisor : gcd ∣ m × gcd ∣ n
 
-    -- All common divisors divide the gcd, i.e. the gcd is the largest
-    -- common divisor according to the partial order _Divides_.
-    greatest : ∀ {d} → d Divides m And n → d Divides gcd
+    -- All common divisors divide the gcd, i.e. the gcd is the
+    -- greatest common divisor according to the partial order _∣_.
+    greatest : ∀ {d} → d ∣ m × d ∣ n → d ∣ gcd
 
 isGCD : ∀ {gcd m n} →
-        gcd Divides m And n →
-        (∀ {d} → d Divides m And n → d Divides gcd) →
+        gcd ∣ m × gcd ∣ n →
+        (∀ {d} → d ∣ m × d ∣ n → d ∣ gcd) →
         GCD m n gcd
 isGCD cd div = record
   { commonDivisor = cd
@@ -72,7 +72,7 @@ refl n = isGCD (P.refl , P.refl) proj₁
 -- The GCD of 0 and n is n.
 
 gcd-0 : ∀ n → GCD 0 n n
-gcd-0 n = isGCD (n divides-0 , P.refl) proj₂
+gcd-0 n = isGCD (n ∣0 , P.refl) proj₂
 
 private
 
@@ -82,10 +82,10 @@ private
   step₁ (d , g) with GCD.commonDivisor g
   step₁ {n} {k} (d , g) | (d₁ , d₂) =
     PropEq.subst (∃GCD n) (lem₀ n k) $
-      (d , isGCD (d₁ , divides-+ d₁ d₂) div')
+      (d , isGCD (d₁ , ∣-+ d₁ d₂) div')
     where
-    div' : ∀ {d'} → d' Divides n And (n + suc k) → d' Divides d
-    div' (d₁ , d₂) = GCD.greatest g (d₁ , divides-∸ d₂ d₁)
+    div' : ∀ {d'} → d' ∣ n × d' ∣ n + suc k → d' ∣ d
+    div' (d₁ , d₂) = GCD.greatest g (d₁ , ∣-∸ d₂ d₁)
 
   step₂ : ∀ {n k} → ∃GCD (suc k) n → ∃GCD (suc (n + k)) n
   step₂ = map id sym ∘ step₁ ∘ map id sym
