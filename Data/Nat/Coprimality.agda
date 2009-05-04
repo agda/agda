@@ -8,6 +8,7 @@ open import Data.Nat
 import Data.Nat.Properties as NatProp
 open import Data.Nat.Divisibility as Div
 open import Data.Nat.GCD
+open import Data.Nat.GCD.Lemmas
 open import Data.Product
 open import Data.Function
 open import Relation.Binary.PropositionalEquality as PropEq
@@ -57,3 +58,16 @@ sym c = c ∘ swap
 
 coprime-+ : ∀ {m n} → Coprime m n → Coprime (n + m) n
 coprime-+ c (d₁ , d₂) = c (∣-∸ d₁ d₂ , d₂)
+
+-- If i divides jk and is coprime to j, then it divides k.
+
+coprime-∣-* : ∀ {i j k} → Coprime i j → i ∣ j * k → i ∣ k
+coprime-∣-* {i} {j} c _ with Bézout.lemma i j
+coprime-∣-*         c _ | Bézout.result _ g _
+                          with c (GCD.commonDivisor g)
+coprime-∣-* {k = k} c (divides q eq′)
+  | Bézout.result .1 g (Bézout.+- x y eq) | refl =
+    divides (x * k ∸ y * q) (lem₈ x y eq eq′)
+coprime-∣-* {k = k} c (divides q eq′)
+  | Bézout.result .1 g (Bézout.-+ x y eq) | refl =
+    divides (y * q ∸ x * k) (lem₉ x y eq eq′)

@@ -1,5 +1,5 @@
 ------------------------------------------------------------------------
--- Boring lemmas used in Data.Nat.GCD
+-- Boring lemmas used in Data.Nat.GCD and Data.Nat.Coprimality
 ------------------------------------------------------------------------
 
 module Data.Nat.GCD.Lemmas where
@@ -92,3 +92,40 @@ lem₇ d y {i} n {k} eq = begin
   d + (1 + y + i) * n + y * n  ≡⟨ cong₂ _+_ eq refl ⟩
   y * k + y * n                ≡⟨ distrib-comm y k n ⟩
   y * (n + k)                  ∎
+
+lem₈ : ∀ {i j k q} x y →
+       1 + y * j ≡ x * i → j * k ≡ q * i →
+       k ≡ (x * k ∸ y * q) * i
+lem₈ {i} {j} {k} {q} x y eq eq′ =
+  sym (NatProp.im≡jm+n⇒[i∸j]m≡n (x * k) (y * q) i k lemma)
+  where
+  lemma = begin
+    x * k * i        ≡⟨ solve 3 (λ x k i → x :* k :* i
+                                       :=  x :* i :* k)
+                                refl x k i ⟩
+    x * i * k        ≡⟨ cong (λ n → n * k) (sym eq) ⟩
+    (1 + y * j) * k  ≡⟨ solve 3 (λ y j k → (con 1 :+ y :* j) :* k
+                                       :=  y :* (j :* k) :+ k)
+                                refl y j k ⟩
+    y * (j * k) + k  ≡⟨ cong (λ n → y * n + k) eq′ ⟩
+    y * (q * i) + k  ≡⟨ solve 4 (λ y q i k → y :* (q :* i) :+ k
+                                         :=  y :*  q :* i  :+ k)
+                                refl y q i k ⟩
+    y *  q * i  + k  ∎
+
+lem₉ : ∀ {i j k q} x y →
+       1 + x * i ≡ y * j → j * k ≡ q * i →
+       k ≡ (y * q ∸ x * k) * i
+lem₉ {i} {j} {k} {q} x y eq eq′ =
+  sym (NatProp.im≡jm+n⇒[i∸j]m≡n (y * q) (x * k) i k lemma)
+  where
+  lem   = solve 3 (λ a b c → a :* b :* c  :=  b :* c :* a) refl
+  lemma = begin
+    y * q * i        ≡⟨ lem y q i ⟩
+    q * i * y        ≡⟨ cong (λ n → n * y) (sym eq′) ⟩
+    j * k * y        ≡⟨ sym (lem y j k) ⟩
+    y * j * k        ≡⟨ cong (λ n → n * k) (sym eq) ⟩
+    (1 + x * i) * k  ≡⟨ solve 3 (λ x i k → (con 1 :+ x :* i) :* k
+                                       :=  x :* k :* i :+ k)
+                                refl x i k ⟩
+    x * k * i + k    ∎
