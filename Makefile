@@ -29,7 +29,7 @@ endif
 ## Default target #########################################################
 
 ifeq ($(is_configured),Yes)
-default : full core transl tags
+default : sudo-install-bin core transl tags
 else
 default : make_configure
 endif
@@ -45,8 +45,14 @@ install : install-lib install-bin install-emacs-mode
 install-lib :
 	cabal install --prefix="$(PREFIX)"
 
+sudo-install-lib :
+	sudo cabal install --prefix="$(PREFIX)"
+
 install-bin : install-lib
 	cd src/main && cabal clean && cabal install --prefix="$(PREFIX)"
+
+sudo-install-bin : sudo-install-lib
+	cd src/main && sudo cabal clean && sudo cabal install --prefix="$(PREFIX)"
 
 install-emacs-mode : install-lib
 	@echo
@@ -130,7 +136,7 @@ core :
 ## Making the Agda 1 to Agda 2 translator #################################
 
 transl :
-	(cd $(TRANSL_SRC_DIR); $(RUNSETUP) build)
+	(cd $(TRANSL_SRC_DIR); cabal configure && cabal build)
 
 ## Making the source distribution #########################################
 
@@ -177,7 +183,7 @@ tests :
 	@echo "======================================================================"
 	$(AGDA_BIN) --test
 
-succeed : 
+succeed :
 	@echo "======================================================================"
 	@echo "===================== Suite of successfull tests ====================="
 	@echo "======================================================================"
@@ -203,7 +209,7 @@ library-test : std-lib
 	@echo "======================================================================"
 	@echo "========================== Standard library =========================="
 	@echo "======================================================================"
-	@(cd std-lib && darcs pull -a && make Everything.agda && ../$(AGDA_BIN) README.agda $(AGDA_TEST_FLAGS))
+	@(cd std-lib && darcs pull -a && make Everything.agda && time ../$(AGDA_BIN) README.agda $(AGDA_TEST_FLAGS))
 
 benchmark :
 	@$(MAKE) -C benchmark
