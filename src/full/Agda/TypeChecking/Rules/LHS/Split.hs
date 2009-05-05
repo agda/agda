@@ -6,6 +6,7 @@ import Control.Applicative
 import Control.Monad.Error
 import Data.Monoid
 import Data.List
+import Data.Traversable hiding (mapM)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Literal
@@ -42,6 +43,27 @@ asView :: A.Pattern -> ([Name], A.Pattern)
 asView (A.AsP _ x p) = (x :) -*- id $ asView p
 asView p	     = ([], p)
 
+-- | TODO: move somewhere else
+expandLitPattern :: NamedArg A.Pattern -> TCM (NamedArg A.Pattern)
+expandLitPattern p = traverse (traverse expand) p
+  where
+    expand p = case asView p of
+      (xs, A.LitP (LitInt r n))
+        | n < 0     -> __IMPOSSIBLE__
+        | n > 20    -> typeError $ GenericError $
+                        "Matching on natural number literals is done by expanding "
+                        ++ "the literal to the corresponding constructor pattern, so "
+                        ++ "you probably don't want to do it this way."
+        | otherwise -> do
+          Con z _ <- primZero
+          Con s _ <- primSuc
+          let zero  = A.ConP info (A.AmbQ [setRange r z]) []
+              suc p = A.ConP info (A.AmbQ [setRange r s]) [Arg NotHidden $ unnamed p]
+              info  = A.PatRange r
+              p'    = foldr ($) zero $ genericReplicate n suc
+          return $ foldr (A.AsP info) p' xs
+      _ -> return p
+
 -- | Split a problem at the first constructor of datatype type. Implicit
 --   patterns should have been inserted.
 splitProblem :: Problem -> TCM (Either SplitError SplitProblem)
@@ -55,21 +77,9 @@ splitProblem (Problem ps (perm, qs) tel) = do
     splitP _	    (_:_)	  EmptyTel		 = __IMPOSSIBLE__
     splitP []	     _		  _			 = throwError $ NothingToSplit
     splitP ps	    []		  EmptyTel		 = __IMPOSSIBLE__
-    splitP (p : ps) ((i, q) : qs) tel0@(ExtendTel a tel) =
+    splitP (p : ps) ((i, q) : qs) tel0@(ExtendTel a tel) = do
+      p <- lift $ expandLitPattern p
       case asView $ namedThing $ unArg p of
-	(xs, A.LitP (LitInt r n)) | n < 0     -> __IMPOSSIBLE__
-                                  | n > 20    -> typeError $ GenericError $
-                                                "Matching on natural number literals is done by expanding "
-                                                ++ "the literal to the corresponding constructor pattern, so "
-                                                ++ "you probably don't want to do it this way."
-                                  | otherwise -> do
-          Con z _ <- primZero
-          Con s  _ <- primSuc
-          let zero  = A.ConP info (A.AmbQ [setRange r z]) []
-              suc p = A.ConP info (A.AmbQ [setRange r s]) [Arg NotHidden $ unnamed p]
-              info  = A.PatRange r
-              p'    = fmap (fmap $ const $ foldr ($) zero $ replicate (fromIntegral n) suc) p
-          splitP (p' : ps) ((i, q) : qs) tel0
 	(xs, A.LitP lit)  -> do
 	  b <- lift $ litType lit
 	  ok <- lift $ do

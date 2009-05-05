@@ -19,6 +19,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Primitive hiding (Nat)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Rules.LHS.Implicit
+import Agda.TypeChecking.Rules.LHS.Split (expandLitPattern)
 import Agda.TypeChecking.Abstract
 import Agda.TypeChecking.EtaContract
 
@@ -95,12 +96,14 @@ stripWithClausePatterns gamma qs perm ps = do
     strip EmptyTel    (_ : _) _       = __IMPOSSIBLE__
     strip ExtendTel{} []      _       = __IMPOSSIBLE__
     strip EmptyTel    []      []      | 0 == 0 = return []
-    strip (ExtendTel a tel) (p : ps) (q : qs) = do
+    strip (ExtendTel a tel) (p0 : ps) (q : qs) = do
+      p <- expandLitPattern p0
       reportSDoc "tc.with.strip" 15 $ vcat
         [ text "strip"
-        , nest 2 $ text "ps =" <+> fsep (punctuate comma $ map prettyA (p : ps))
-        , nest 2 $ text "qs =" <+> fsep (punctuate comma $ map (showPat . unArg) (q : qs))
-        , nest 2 $ text "tel=" <+> prettyTCM (ExtendTel a tel)
+        , nest 2 $ text "ps  =" <+> fsep (punctuate comma $ map prettyA (p0 : ps))
+        , nest 2 $ text "exp =" <+> prettyA p
+        , nest 2 $ text "qs  =" <+> fsep (punctuate comma $ map (showPat . unArg) (q : qs))
+        , nest 2 $ text "tel =" <+> prettyTCM (ExtendTel a tel)
         ]
       case unArg q of
         VarP _  -> do
@@ -176,7 +179,7 @@ stripWithClausePatterns gamma qs perm ps = do
           A.LitP lit' | lit == lit' -> strip (tel `absApp` Lit lit) ps qs
           _ -> mismatch
       where
-        mismatch = typeError $ WithClausePatternMismatch (namedThing $ unArg p) (unArg q)
+        mismatch = typeError $ WithClausePatternMismatch (namedThing $ unArg p0) (unArg q)
     strip tel ps qs = error $ "huh? " ++ show (size tel) ++ " " ++ show (size ps) ++ " " ++ show (size qs)
 
 -- | Construct the display form for a with function. It will display
