@@ -308,25 +308,42 @@ generateConstructorInfo modMap file kinds decls = do
 
   -- Find all constructors occurring in type signatures or clauses
   -- within the given declarations.
-  let constrs = everything' (><) query (types, clauses)
+  constrs <- everything' (liftM2 (><)) query (types, clauses)
 
   -- Return suitable syntax highlighting information.
   return $ Fold.fold $ fmap (generate modMap file kinds . mkAmb) constrs
   where
   mkAmb q = A.AmbQ [q]
 
-  query :: GenericQ (Seq A.QName)
-  query = mempty          `mkQ`
+  query :: GenericQ (TCM (Seq A.QName))
+  query = return mempty   `mkQ`
           getConstructor  `extQ`
           getConstructorP
 
-  getConstructor :: I.Term -> Seq A.QName
-  getConstructor (I.Con q _) = Seq.singleton q
-  getConstructor _           = Seq.empty
+  getConstructor :: I.Term -> TCM (Seq A.QName)
+  getConstructor (I.Con q _) = return $ Seq.singleton q
+  getConstructor (I.Def c _) = retrieveCoconstructor c
+  getConstructor _           = return Seq.empty
 
-  getConstructorP :: I.Pattern -> Seq A.QName
-  getConstructorP (I.ConP q _) = Seq.singleton q
-  getConstructorP _            = Seq.empty
+  getConstructorP :: I.Pattern -> TCM (Seq A.QName)
+  getConstructorP (I.ConP q _) = return $ Seq.singleton q
+  getConstructorP _            = return Seq.empty
+
+  retrieveCoconstructor :: A.QName -> TCM (Seq A.QName)
+  retrieveCoconstructor c = do
+    def <- getConstInfo c
+    case defDelayed def of
+      NotDelayed -> return Seq.empty  -- not a coconstructor
+      Delayed -> case defClauses def of
+        [I.Clause{ I.clauseBody = body}] -> case getRHS body of
+          Just (I.Con c _) -> return $ Seq.singleton c
+          _                -> return Seq.empty
+        _ -> return Seq.empty
+    where
+      getRHS (I.Body v)   = Just v
+      getRHS I.NoBody     = Nothing
+      getRHS (I.Bind b)   = getRHS (I.absBody b)
+      getRHS (I.NoBind b) = getRHS b
 
 -- | Generates syntax highlighting information for unsolved meta
 -- variables.
