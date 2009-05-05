@@ -124,9 +124,9 @@ getVerbosity = optVerbose <$> commandLineOptions
 
 type VerboseKey = String
 
--- | Precondition: The level must be positive.
+-- | Precondition: The level must be non-negative.
 verboseS :: MonadTCM tcm => VerboseKey -> Int -> tcm () -> tcm ()
-verboseS k n action | n <= 0    = __IMPOSSIBLE__
+verboseS k n action | n < 0     = __IMPOSSIBLE__
                     | otherwise = do
     t <- getVerbosity
     let ks = wordsBy (`elem` ".:") k
