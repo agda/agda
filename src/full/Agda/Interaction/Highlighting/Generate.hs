@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, Rank2Types #-}
+{-# LANGUAGE CPP, Rank2Types, RelaxedPolyRec #-}
 
 -- | Generates data used for precise syntax highlighting.
 
@@ -322,7 +322,9 @@ generateConstructorInfo modMap file kinds decls = do
 
   getConstructor :: I.Term -> TCM (Seq A.QName)
   getConstructor (I.Con q _) = return $ Seq.singleton q
-  getConstructor (I.Def c _) = retrieveCoconstructor c
+  getConstructor (I.Def c _)
+    | fmap P.srcFile (P.rStart (P.getRange c)) == Just file
+                             = retrieveCoconstructor c
   getConstructor _           = return Seq.empty
 
   getConstructorP :: I.Pattern -> TCM (Seq A.QName)
@@ -336,8 +338,10 @@ generateConstructorInfo modMap file kinds decls = do
       NotDelayed -> return Seq.empty  -- not a coconstructor
       Delayed -> case defClauses def of
         [I.Clause{ I.clauseBody = body}] -> case getRHS body of
-          Just (I.Con c _) -> return $ Seq.singleton c
-          _                -> return Seq.empty
+          Just (I.Con c args) -> do
+            s <- everything' (liftM2 (><)) query args
+            return $ Seq.singleton c >< s
+          _                   -> return Seq.empty
         _ -> return Seq.empty
     where
       getRHS (I.Body v)   = Just v
