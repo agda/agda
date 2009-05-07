@@ -110,6 +110,33 @@ compareTerm cmp a m n =
         suggest (Pi _ (Abs x _)) = x
         suggest _		 = __IMPOSSIBLE__
 
+compareTel :: MonadTCM tcm => Comparison -> Telescope -> Telescope -> tcm Constraints
+compareTel cmp tel1 tel2 =
+  catchConstraint (TelCmp cmp tel1 tel2) $ case (tel1, tel2) of
+    (EmptyTel, EmptyTel) -> return []
+    (EmptyTel, _)        -> bad
+    (_, EmptyTel)        -> bad
+    (ExtendTel arg1@(Arg h1 a1) tel1, ExtendTel arg2@(Arg h2 a2) tel2)
+      | h1 /= h2  -> bad
+      | otherwise -> do
+          let (tel1', tel2') = raise 1 (tel1, tel2)
+              arg            = Var 0 []
+          name <- freshName_ (suggest (absName tel1) (absName tel2))
+          cs   <- compareType cmp a1 a2
+          let c = TelCmp cmp (absApp tel1' arg) (absApp tel2' arg)
+
+	  let dependent = 0 `freeIn` absBody tel2
+	  
+          if dependent
+	    then addCtx name arg1 $ guardConstraint (return cs) c
+	    else do cs' <- addCtx name arg1 $ solveConstraint c
+		    return $ cs ++ cs'
+          where
+            suggest "_" y = y
+            suggest  x  _ = x
+  where
+    bad = typeError $ UnequalTelescopes cmp tel1 tel2
+
 -- | Syntax directed equality on atomic values
 --
 compareAtom :: MonadTCM tcm => Comparison -> Type -> Term -> Term -> tcm Constraints

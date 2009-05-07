@@ -186,6 +186,7 @@ type ConstraintClosure = Closure Constraint
 
 data Constraint = ValueCmp Comparison Type Term Term
 		| TypeCmp Comparison Type Type
+                | TelCmp Comparison Telescope Telescope
 		| SortCmp Comparison Sort Sort
 		| UnBlock MetaId
 		| Guarded Constraint Constraints
@@ -734,6 +735,7 @@ data TypeError
 	| NotAProperTerm
 	| UnequalTerms Comparison Term Term Type
 	| UnequalTypes Comparison Type Type
+	| UnequalTelescopes Comparison Telescope Telescope
 	| UnequalHiding Type Type
 	    -- ^ The two function types have different hiding.
 	| UnequalSorts Sort Sort

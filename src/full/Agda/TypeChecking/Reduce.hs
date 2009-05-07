@@ -89,18 +89,20 @@ instance (Instantiate a, Instantiate b) => Instantiate (a,b) where
 instance (Instantiate a, Instantiate b,Instantiate c) => Instantiate (a,b,c) where
     instantiate (x,y,z) = (,,) <$> instantiate x <*> instantiate y <*> instantiate z
 
-
-
 instance Instantiate a => Instantiate (Closure a) where
     instantiate cl = do
 	x <- enterClosure cl instantiate
 	return $ cl { clValue = x }
+
+instance Instantiate Telescope where
+  instantiate tel = return tel
 
 instance Instantiate Constraint where
     instantiate (ValueCmp cmp t u v) =
 	do  (t,u,v) <- instantiate (t,u,v)
 	    return $ ValueCmp cmp t u v
     instantiate (TypeCmp cmp a b) = uncurry (TypeCmp cmp) <$> instantiate (a,b)
+    instantiate (TelCmp cmp a b)  = uncurry (TelCmp cmp)  <$> instantiate (a,b)
     instantiate (SortCmp cmp a b) = uncurry (SortCmp cmp) <$> instantiate (a,b)
     instantiate (Guarded c cs)    = uncurry Guarded <$> instantiate (c,cs)
     instantiate (UnBlock m)       = return $ UnBlock m
@@ -273,11 +275,15 @@ instance Reduce a => Reduce (Closure a) where
 	x <- enterClosure cl reduce
 	return $ cl { clValue = x }
 
+instance Reduce Telescope where
+  reduce tel = return tel
+
 instance Reduce Constraint where
     reduce (ValueCmp cmp t u v) =
 	do  (t,u,v) <- reduce (t,u,v)
 	    return $ ValueCmp cmp t u v
     reduce (TypeCmp cmp a b) = uncurry (TypeCmp cmp) <$> reduce (a,b)
+    reduce (TelCmp  cmp a b) = uncurry (TelCmp cmp)  <$> reduce (a,b)
     reduce (SortCmp cmp a b) = uncurry (SortCmp cmp) <$> reduce (a,b)
     reduce (Guarded c cs)    = uncurry Guarded <$> reduce (c,cs)
     reduce (UnBlock m)       = return $ UnBlock m
@@ -341,11 +347,16 @@ instance Normalise a => Normalise (Closure a) where
 	x <- enterClosure cl normalise
 	return $ cl { clValue = x }
 
+instance Normalise Telescope where
+  normalise EmptyTel = return EmptyTel
+  normalise (ExtendTel a b) = uncurry ExtendTel <$> normalise (a, b)
+
 instance Normalise Constraint where
     normalise (ValueCmp cmp t u v) =
 	do  (t,u,v) <- normalise (t,u,v)
 	    return $ ValueCmp cmp t u v
     normalise (TypeCmp cmp a b) = uncurry (TypeCmp cmp) <$> normalise (a,b)
+    normalise (TelCmp cmp a b)  = uncurry (TelCmp cmp)  <$> normalise (a,b)
     normalise (SortCmp cmp a b) = uncurry (SortCmp cmp) <$> normalise (a,b)
     normalise (Guarded c cs)    = uncurry Guarded <$> normalise (c,cs)
     normalise (UnBlock m)       = return $ UnBlock m
@@ -438,6 +449,7 @@ instance InstantiateFull Constraint where
 	do  (t,u,v) <- instantiateFull (t,u,v)
 	    return $ ValueCmp cmp t u v
     instantiateFull (TypeCmp cmp a b) = uncurry (TypeCmp cmp) <$> instantiateFull (a,b)
+    instantiateFull (TelCmp cmp a b)  = uncurry (TelCmp cmp)  <$> instantiateFull (a,b)
     instantiateFull (SortCmp cmp a b) = uncurry (SortCmp cmp) <$> instantiateFull (a,b)
     instantiateFull (Guarded c cs)    = uncurry Guarded <$> instantiateFull (c,cs)
     instantiateFull (UnBlock m)       = return $ UnBlock m

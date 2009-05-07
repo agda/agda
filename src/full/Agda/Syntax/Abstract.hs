@@ -43,6 +43,7 @@ data Expr
         | Set  ExprInfo Nat		     -- ^
         | Prop ExprInfo			     -- ^
         | Let  ExprInfo [LetBinding] Expr    -- ^
+        | ETel Telescope                     -- ^ only used when printing telescopes
 	| Rec  ExprInfo [(C.Name, Expr)]     -- ^ record construction
 	| ScopedExpr ScopeInfo Expr	     -- ^ scope annotation
   deriving (Typeable, Data)
@@ -207,6 +208,7 @@ instance HasRange Expr where
     getRange (Prop i)		= getRange i
     getRange (Let i _ _)	= getRange i
     getRange (Rec i _)		= getRange i
+    getRange (ETel tel)         = getRange tel
     getRange (ScopedExpr _ e)	= getRange e
 
 instance HasRange Declaration where
@@ -282,6 +284,7 @@ instance KillRange Expr where
   killRange (Prop i)         = killRange1 Prop i
   killRange (Let i ds e)     = killRange3 Let i ds e
   killRange (Rec i fs)       = Rec (killRange i) (map (id -*- killRange) fs)
+  killRange (ETel tel)       = killRange1 ETel tel
   killRange (ScopedExpr s e) = killRange1 (ScopedExpr s) e
 
 instance KillRange Declaration where

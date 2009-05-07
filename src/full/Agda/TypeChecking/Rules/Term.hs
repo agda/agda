@@ -368,6 +368,8 @@ checkExpr e t =
 	A.Def _    -> __IMPOSSIBLE__
 	A.Con _    -> __IMPOSSIBLE__
 
+        A.ETel _   -> __IMPOSSIBLE__
+
 	A.ScopedExpr scope e -> setScope scope >> checkExpr e t
 
 -- | Infer the type of a head thing (variable, function symbol, or constructor)
@@ -429,7 +431,28 @@ checkHeadApplication e t hd args = do
     HeadCon [c] -> do
       info <- getConstInfo c
       case conInd $ theDef info of
-        Inductive   -> defaultResult
+        Inductive   -> do
+          (f, t0) <- inferHead hd
+          checkArguments' ExpandLast (getRange hd) args t0 t e $ \vs t1 cs -> do
+            TelV eTel eType <- telView <$> normalise t
+            TelV fTel fType <- telView <$> normalise t1
+            blockTerm t (f vs) $ (cs ++) <$> do
+              -- We know that the target type of the constructor (fType)
+              -- does not depend on fTel so we can compare fType and eType
+              -- first.
+                                             -- This will fail
+              when (size eTel > size fTel) $ compareTel CmpLeq eTel fTel >> return ()
+
+              -- If the expected type is a metavariable we have to make
+              -- sure it's instantiated to the proper pi type
+              let (fTel0, fTel1) = telFromList -*- telFromList
+                                 $ splitAt (size eTel)
+                                 $ telToList fTel
+                  fType' = abstract fTel1 fType
+
+              cs1 <- addCtxTel eTel $ leqType fType' eType
+              cs2 <- compareTel CmpLeq eTel fTel0
+              return $ cs1 ++ cs2
         CoInductive -> do
           -- TODO: Handle coinductive constructors under lets.
           lets <- envLetBindings <$> ask

@@ -377,6 +377,10 @@ instance ToConcrete A.Expr C.Expr where
         es <- toConcreteCtx TopCtx es
         return $ C.Rec (getRange i) $ zip xs es
 
+    toConcrete (A.ETel tel) = do
+      tel <- toConcrete tel
+      return $ C.ETel tel
+
     toConcrete (A.ScopedExpr _ e) = toConcrete e
 
 -- Binder instances -------------------------------------------------------

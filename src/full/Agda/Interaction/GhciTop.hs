@@ -466,6 +466,7 @@ instance LowerMeta SC.Expr where
       SC.Set _             -> e
       SC.Prop _            -> e
       SC.SetN _ _          -> e
+      SC.ETel tel          -> SC.ETel (lowerMeta tel)
       SC.Let r ds e1       -> SC.Let r (lowerMeta ds) (go e1)
       Paren r e1           -> case go e1 of
         q@(SC.QuestionMark _ Nothing) -> q

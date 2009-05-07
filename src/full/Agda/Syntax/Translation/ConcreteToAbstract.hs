@@ -461,6 +461,9 @@ instance ToAbstract C.Expr A.Expr where
       C.Dot _ _  -> notAnExpression e
       C.Absurd _ -> notAnExpression e
 
+  -- Impossible things
+      C.ETel _   -> __IMPOSSIBLE__
+
 instance ToAbstract C.LamBinding A.LamBinding where
   toAbstract (C.DomainFree h x) = A.DomainFree h <$> toAbstract (NewName x)
   toAbstract (C.DomainFull tb)  = A.DomainFull <$> toAbstract tb

@@ -94,6 +94,10 @@ instance PrettyTCM Constraint where
 	    sep [ prettyTCM a
 		, prettyTCM cmp <+> prettyTCM b
 		]
+	TelCmp cmp a b ->
+	    sep [ prettyTCM a
+		, prettyTCM cmp <+> prettyTCM b
+		]
 	SortCmp cmp s1 s2 ->
 	    sep [ prettyTCM s1
 		, prettyTCM cmp <+> prettyTCM s2

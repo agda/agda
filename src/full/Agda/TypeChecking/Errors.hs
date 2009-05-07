@@ -153,6 +153,7 @@ errorString err = case err of
     UnequalSorts{}			       -> "UnequalSorts"
     UnequalTerms{}			       -> "UnequalTerms"
     UnequalTypes{}			       -> "UnequalTypes"
+    UnequalTelescopes{}			       -> "UnequalTelescopes"
     UnexpectedWithPatterns _                   -> "UnexpectedWithPatterns"
     UninstantiatedDotPattern _                 -> "UninstantiatedDotPattern"
     UninstantiatedModule _		       -> "UninstantiatedModule"
@@ -265,6 +266,11 @@ instance PrettyTCM TypeError where
 		fwords "Found a malformed term"
 	    UnequalTerms cmp s t a -> fsep $
 		[prettyTCM s, f cmp, prettyTCM t] ++ pwords "of type" ++ [prettyTCM a]
+                where
+                  f CmpEq  = text "!="
+                  f CmpLeq = text "!=<"
+	    UnequalTelescopes cmp a b -> fsep $
+		[prettyTCM a, f cmp, prettyTCM b]
                 where
                   f CmpEq  = text "!="
                   f CmpLeq = text "!=<"

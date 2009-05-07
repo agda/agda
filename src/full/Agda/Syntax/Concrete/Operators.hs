@@ -329,6 +329,7 @@ paren _   e@(Paren _ _)        = return $ \p -> e
 paren _   e@(As _ _ _)         = return $ \p -> e
 paren _   e@(Dot _ _)          = return $ \p -> e
 paren _   e@(Absurd _)         = return $ \p -> e
+paren _   e@(ETel _)           = return $ \p -> e
 paren _   e@(RawApp _ _)       = __IMPOSSIBLE__
 paren _   e@(HiddenArg _ _)    = __IMPOSSIBLE__
 

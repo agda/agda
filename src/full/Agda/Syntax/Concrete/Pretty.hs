@@ -121,6 +121,8 @@ instance Pretty Expr where
 		pr (x, e) = sep [ pretty x <+> text "="
 				, nest 2 $ pretty e
 				]
+            ETel []  -> text "()"
+            ETel tel -> fsep $ map pretty tel
 
 instance Pretty BoundName where
   pretty = pretty . boundName
