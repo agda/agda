@@ -115,7 +115,7 @@ cover cs (SClause tel perm ps _) = do
       r <- split tel perm ps x
       case r of
         Left err  -> case err of
-          CantSplit c         -> typeError $ CoverageCantSplitOn c
+          CantSplit c _ _ _ _ -> typeError $ CoverageCantSplitOn c
           NotADatatype a      -> typeError $ CoverageCantSplitType a
           GenericSplitError s -> fail $ "failed to split: " ++ s
         Right scs -> (Set.unions -*- concat) . unzip <$> mapM (cover cs) scs
@@ -135,7 +135,7 @@ isDatatype t = do
     _ -> return Nothing
 
 data SplitError = NotADatatype Type
-                | CantSplit QName
+                | CantSplit QName Telescope Args Args [Term]
                 | GenericSplitError String
   deriving (Show)
 
@@ -167,8 +167,11 @@ computeNeighbourhood delta1 delta2 perm d pars ixs hix hps con = do
   let flex = [0..size delta1 + size gamma - 1]
 
   -- Unify constructor target and given type (in Δ₁Γ)
+  let conIxs   = drop (size pars) cixs
+      givenIxs = raise (size gamma) ixs
+
   r <- addCtxTel (delta1 `abstract` gamma) $
-       unifyIndices flex (raise (size gamma) dtype) (drop (size pars) cixs) (raise (size gamma) ixs)
+       unifyIndices flex (raise (size gamma) dtype) conIxs givenIxs
 
   case r of
     NoUnify _ _ _ -> do
@@ -176,7 +179,8 @@ computeNeighbourhood delta1 delta2 perm d pars ixs hix hps con = do
       return []
     DontKnow _    -> do
       debugCantSplit
-      throwException $ CantSplit con
+      throwException $ CantSplit con (delta1 `abstract` gamma) conIxs givenIxs
+                                 [ Var i [] | i <- flex ]
     Unifies sub   -> do
       debugSubst "sub" sub
 
@@ -240,7 +244,7 @@ computeNeighbourhood delta1 delta2 perm d pars ixs hix hps con = do
           , text "ctype  =" <+> prettyTCM ctype
           , text "hps    =" <+> text (show hps)
           , text "pars   =" <+> prettyList (map prettyTCM pars)
-          , text "ixs    =" <+> prettyList (map prettyTCM ixs)
+          , text "ixs    =" <+> addCtxTel (delta1 `abstract` gamma) (prettyList (map prettyTCM ixs))
           , text "cixs   =" <+> prettyList (map prettyTCM cixs)
           , text "delta1 =" <+> prettyTCM delta1
           , text "delta2 =" <+> prettyTCM delta2

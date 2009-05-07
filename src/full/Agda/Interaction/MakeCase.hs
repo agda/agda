@@ -45,7 +45,7 @@ findClause m = do
         unless (rhsIsm $ clauseBody c) []
         return (defName def, c)
   case res of
-    []  -> fail "Right hand side must be a single hole when making case."
+    []  -> typeError $ GenericError "Right hand side must be a single hole when making a case distinction."
     [r] -> return r
     _   -> __IMPOSSIBLE__
   where
@@ -57,7 +57,7 @@ findClause m = do
       _           -> False
 
 makeCase :: InteractionId -> Range -> String -> TCM [A.Clause]
-makeCase hole rng s = do
+makeCase hole rng s = withInteractionId hole $ do
   meta        <- lookupInteractionId hole
   (f, clause@(Clause{ clauseTel = tel, clausePerm = perm, clausePats = ps })) <- findClause meta
   reportSDoc "interaction.case" 10 $ vcat
@@ -69,12 +69,27 @@ makeCase hole rng s = do
       , text "ps      =" <+> text (show ps)
       ]
     ]
-  var         <- withInteractionId hole $ deBruijnIndex =<< parseExprIn hole rng s
+  var         <- {-withInteractionId hole $-} deBruijnIndex =<< parseExprIn hole rng s
   z           <- splitClauseWithAbs clause var
   case z of
-    Left err        -> fail $ show err
+    Left err        -> typeError . GenericError . show =<< prettySplitError err
     Right (Left cl) -> (:[]) <$> makeAbsurdClause f cl
     Right (Right c) -> mapM (makeAbstractClause f) c
+
+prettySplitError :: SplitError -> TCM Doc
+prettySplitError err = case err of
+  NotADatatype t -> fsep $
+    pwords "Cannot pattern match on non-datatype" ++ [prettyTCM t]
+  CantSplit c tel cIxs gIxs flex -> addCtxTel tel $ vcat
+    [ fsep $ pwords "Cannot pattern match on constructor" ++ [prettyTCM c <> text ","] ++
+             pwords "since the inferred indices"
+    , nest 2 $ prettyTCM cIxs
+    , fsep $ pwords "cannot be unified with the expected indices"
+    , nest 2 $ prettyTCM gIxs
+    , fsep $ pwords "for some" ++ punctuate comma (map prettyTCM flex)
+    ]
+  GenericSplitError s -> fsep $
+    pwords "Split failed:" ++ pwords s
 
 makeAbsurdClause :: QName -> SplitClause -> TCM A.Clause
 makeAbsurdClause f (SClause tel perm ps _) = do
@@ -107,5 +122,7 @@ deBruijnIndex e = do
   (v, _) <- inferExpr e
   case v of
     Var n _ -> return n
-    _       -> fail $ "Should be a variable: " ++ show v
+    _       -> typeError . GenericError . show =<< (fsep $
+                pwords "The scrutinee of a case distinction must be a variable,"
+                ++ [ prettyTCM v ] ++ pwords "isn't.")
 
