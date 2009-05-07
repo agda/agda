@@ -82,7 +82,7 @@ format = unlines . concat . map fmt
 -- it starts with \"./\".
 
 fileToMod :: FilePath -> String
-fileToMod ('.' : '/' : f) = map slashToDot (dropExtension f)
+fileToMod = map slashToDot . dropExtension . makeRelative "."
   where
-  slashToDot '/' = '.'
-  slashToDot c   = c
+  slashToDot c | isPathSeparator c = '.'
+               | otherwise         = c
