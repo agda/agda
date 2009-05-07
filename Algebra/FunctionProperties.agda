@@ -7,84 +7,79 @@
 
 open import Relation.Binary
 
--- The properties are specified using the equality in the given
--- setoid.
+-- The properties are specified using the following relation as
+-- "equality".
 
-module Algebra.FunctionProperties (s : Setoid) where
+module Algebra.FunctionProperties {A} (_≈_ : Rel A) where
 
 open import Data.Product
-open Setoid s
 
 ------------------------------------------------------------------------
 -- Unary and binary operations
 
-Op₁ : Set
-Op₁ = carrier → carrier
-
-Op₂ : Set
-Op₂ = carrier → carrier → carrier
+open import Algebra.FunctionProperties.Core public
 
 ------------------------------------------------------------------------
 -- Properties of operations
 
-Associative : Op₂ → Set
+Associative : Op₂ A → Set
 Associative _∙_ = ∀ x y z → ((x ∙ y) ∙ z) ≈ (x ∙ (y ∙ z))
 
-Commutative : Op₂ → Set
+Commutative : Op₂ A → Set
 Commutative _∙_ = ∀ x y → (x ∙ y) ≈ (y ∙ x)
 
-LeftIdentity : carrier → Op₂ → Set
+LeftIdentity : A → Op₂ A → Set
 LeftIdentity e _∙_ = ∀ x → (e ∙ x) ≈ x
 
-RightIdentity : carrier → Op₂ → Set
+RightIdentity : A → Op₂ A → Set
 RightIdentity e _∙_ = ∀ x → (x ∙ e) ≈ x
 
-Identity : carrier → Op₂ → Set
+Identity : A → Op₂ A → Set
 Identity e ∙ = LeftIdentity e ∙ × RightIdentity e ∙
 
-LeftZero : carrier → Op₂ → Set
+LeftZero : A → Op₂ A → Set
 LeftZero z _∙_ = ∀ x → (z ∙ x) ≈ z
 
-RightZero : carrier → Op₂ → Set
+RightZero : A → Op₂ A → Set
 RightZero z _∙_ = ∀ x → (x ∙ z) ≈ z
 
-Zero : carrier → Op₂ → Set
+Zero : A → Op₂ A → Set
 Zero z ∙ = LeftZero z ∙ × RightZero z ∙
 
-LeftInverse : carrier → Op₁ → Op₂ → Set
+LeftInverse : A → Op₁ A → Op₂ A → Set
 LeftInverse e _⁻¹ _∙_ = ∀ x → (x ⁻¹ ∙ x) ≈ e
 
-RightInverse : carrier → Op₁ → Op₂ → Set
+RightInverse : A → Op₁ A → Op₂ A → Set
 RightInverse e _⁻¹ _∙_ = ∀ x → (x ∙ (x ⁻¹)) ≈ e
 
-Inverse : carrier → Op₁ → Op₂ → Set
+Inverse : A → Op₁ A → Op₂ A → Set
 Inverse e ⁻¹ ∙ = LeftInverse e ⁻¹ ∙ × RightInverse e ⁻¹ ∙
 
-_DistributesOverˡ_ : Op₂ → Op₂ → Set
+_DistributesOverˡ_ : Op₂ A → Op₂ A → Set
 _*_ DistributesOverˡ _+_ =
   ∀ x y z → (x * (y + z)) ≈ ((x * y) + (x * z))
 
-_DistributesOverʳ_ : Op₂ → Op₂ → Set
+_DistributesOverʳ_ : Op₂ A → Op₂ A → Set
 _*_ DistributesOverʳ _+_ =
   ∀ x y z → ((y + z) * x) ≈ ((y * x) + (z * x))
 
-_DistributesOver_ : Op₂ → Op₂ → Set
+_DistributesOver_ : Op₂ A → Op₂ A → Set
 * DistributesOver + = (* DistributesOverˡ +) × (* DistributesOverʳ +)
 
-_IdempotentOn_ : Op₂ → carrier → Set
+_IdempotentOn_ : Op₂ A → A → Set
 _∙_ IdempotentOn x = (x ∙ x) ≈ x
 
-Idempotent : Op₂ → Set
+Idempotent : Op₂ A → Set
 Idempotent ∙ = ∀ x → ∙ IdempotentOn x
 
-IdempotentFun : Op₁ → Set
+IdempotentFun : Op₁ A → Set
 IdempotentFun f = ∀ x → f (f x) ≈ f x
 
-_Absorbs_ : Op₂ → Op₂ → Set
+_Absorbs_ : Op₂ A → Op₂ A → Set
 _∙_ Absorbs _∘_ = ∀ x y → (x ∙ (x ∘ y)) ≈ x
 
-Absorptive : Op₂ → Op₂ → Set
+Absorptive : Op₂ A → Op₂ A → Set
 Absorptive ∙ ∘ = (∙ Absorbs ∘) × (∘ Absorbs ∙)
 
-Involutive : Op₁ → Set
+Involutive : Op₁ A → Set
 Involutive f = ∀ x → f (f x) ≈ x

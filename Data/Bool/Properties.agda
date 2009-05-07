@@ -9,12 +9,12 @@ open import Data.Fin
 open import Data.Vec
 open import Data.Function
 open import Algebra
-import Algebra.FunctionProperties as P; open P Bool.setoid
 open import Algebra.Structures
 import Algebra.RingSolver.Simple as Solver
 import Algebra.RingSolver.AlmostCommutativeRing as ACR
 open import Relation.Nullary using (_⇔_)
 open import Relation.Binary.PropositionalEquality
+import Algebra.FunctionProperties as P; open P _≡_
 open import Data.Product
 open import Data.Empty
 
@@ -79,15 +79,16 @@ private
                       ∎
 
 isCommutativeSemiring-∨-∧
-  : IsCommutativeSemiring Bool.setoid _∨_ _∧_ false true
+  : IsCommutativeSemiring _≡_ _∨_ _∧_ false true
 isCommutativeSemiring-∨-∧ = record
   { isSemiring = record
     { isSemiringWithoutAnnihilatingZero = record
       { +-isCommutativeMonoid = record
         { isMonoid = record
           { isSemigroup = record
-            { assoc    = ∨-assoc
-            ; ∙-pres-≈ = cong₂ _∨_
+            { isEquivalence = isEquivalence
+            ; assoc         = ∨-assoc
+            ; ∙-pres-≈      = cong₂ _∨_
             }
           ; identity = ∨-identity
           }
@@ -95,8 +96,9 @@ isCommutativeSemiring-∨-∧ = record
         }
       ; *-isMonoid = record
         { isSemigroup = record
-          { assoc    = ∧-assoc
-          ; ∙-pres-≈ = cong₂ _∧_
+          { isEquivalence = isEquivalence
+          ; assoc         = ∧-assoc
+          ; ∙-pres-≈      = cong₂ _∧_
           }
         ; identity = ∧-identity
         }
@@ -147,15 +149,16 @@ private
                           ∎
 
 isCommutativeSemiring-∧-∨
-  : IsCommutativeSemiring Bool.setoid _∧_ _∨_ true false
+  : IsCommutativeSemiring _≡_ _∧_ _∨_ true false
 isCommutativeSemiring-∧-∨ = record
   { isSemiring = record
     { isSemiringWithoutAnnihilatingZero = record
       { +-isCommutativeMonoid = record
         { isMonoid = record
           { isSemigroup = record
-            { assoc    = ∧-assoc
-            ; ∙-pres-≈ = cong₂ _∧_
+            { isEquivalence = isEquivalence
+            ; assoc         = ∧-assoc
+            ; ∙-pres-≈      = cong₂ _∧_
             }
           ; identity = ∧-identity
           }
@@ -163,8 +166,9 @@ isCommutativeSemiring-∧-∨ = record
         }
       ; *-isMonoid = record
         { isSemigroup = record
-          { assoc    = ∨-assoc
-          ; ∙-pres-≈ = cong₂ _∨_
+          { isEquivalence = isEquivalence
+          ; assoc         = ∨-assoc
+          ; ∙-pres-≈      = cong₂ _∨_
           }
         ; identity = ∨-identity
         }
@@ -216,17 +220,18 @@ private
     ¬x∨x≡⊤ false = refl
     ¬x∨x≡⊤ true  = refl
 
-isBooleanAlgebra : IsBooleanAlgebra Bool.setoid _∨_ _∧_ not true false
+isBooleanAlgebra : IsBooleanAlgebra _≡_ _∨_ _∧_ not true false
 isBooleanAlgebra = record
   { isDistributiveLattice = record
       { isLattice = record
-          { ∨-comm     = ∨-comm
-          ; ∨-assoc    = ∨-assoc
-          ; ∨-pres-≈   = cong₂ _∨_
-          ; ∧-comm     = ∧-comm
-          ; ∧-assoc    = ∧-assoc
-          ; ∧-pres-≈   = cong₂ _∧_
-          ; absorptive = absorptive
+          { isEquivalence = isEquivalence
+          ; ∨-comm        = ∨-comm
+          ; ∨-assoc       = ∨-assoc
+          ; ∨-pres-≈      = cong₂ _∨_
+          ; ∧-comm        = ∧-comm
+          ; ∧-assoc       = ∧-assoc
+          ; ∧-pres-≈      = cong₂ _∧_
+          ; absorptive    = absorptive
           }
       ; ∨-∧-distribʳ = proj₂ distrib-∨-∧
       }

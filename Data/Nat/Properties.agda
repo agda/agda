@@ -12,10 +12,10 @@ open DecTotalOrder Nat.decTotalOrder using () renaming (refl to ≤-refl)
 open import Data.Function
 open import Algebra
 open import Algebra.Structures
-import Algebra.FunctionProperties as P; open P setoid
 open import Relation.Nullary
 open import Relation.Binary.PropositionalEquality as PropEq
   using (_≡_; _≢_; refl; sym; cong; cong₂)
+import Algebra.FunctionProperties as P; open P _≡_
 open import Data.Product
 
 import Relation.Binary.EqReasoning as EqR; open EqR setoid
@@ -162,15 +162,16 @@ private
         n
       ∎
 
-isCommutativeSemiring : IsCommutativeSemiring setoid _+_ _*_ 0 1
+isCommutativeSemiring : IsCommutativeSemiring _≡_ _+_ _*_ 0 1
 isCommutativeSemiring = record
   { isSemiring = record
     { isSemiringWithoutAnnihilatingZero = record
       { +-isCommutativeMonoid = record
         { isMonoid = record
           { isSemigroup = record
-            { assoc    = +-assoc
-            ; ∙-pres-≈ = cong₂ _+_
+            { isEquivalence = PropEq.isEquivalence
+            ; assoc         = +-assoc
+            ; ∙-pres-≈      = cong₂ _+_
             }
           ; identity = +-identity
           }
@@ -178,8 +179,9 @@ isCommutativeSemiring = record
         }
       ; *-isMonoid = record
         { isSemigroup = record
-          { assoc    = *-assoc
-          ; ∙-pres-≈ = cong₂ _*_
+          { isEquivalence = PropEq.isEquivalence
+          ; assoc         = *-assoc
+          ; ∙-pres-≈      = cong₂ _*_
           }
         ; identity = *-identity
         }
@@ -284,22 +286,24 @@ private
       m ⊓ n ⊔ m ⊓ o  ∎
 
 ⊔-⊓-0-isCommutativeSemiringWithoutOne
-  : IsCommutativeSemiringWithoutOne setoid _⊔_ _⊓_ 0
+  : IsCommutativeSemiringWithoutOne _≡_ _⊔_ _⊓_ 0
 ⊔-⊓-0-isCommutativeSemiringWithoutOne = record
   { isSemiringWithoutOne = record
       { +-isCommutativeMonoid = record
           { isMonoid = record
               { isSemigroup = record
-                  { assoc = ⊔-assoc
-                  ; ∙-pres-≈ = cong₂ _⊔_
+                  { isEquivalence = PropEq.isEquivalence
+                  ; assoc         = ⊔-assoc
+                  ; ∙-pres-≈      = cong₂ _⊔_
                   }
               ; identity = ⊔-identity
               }
           ; comm = ⊔-comm
           }
       ; *-isSemigroup = record
-          { assoc    = ⊓-assoc
-          ; ∙-pres-≈ = cong₂ _⊓_
+          { isEquivalence = PropEq.isEquivalence
+          ; assoc         = ⊓-assoc
+          ; ∙-pres-≈      = cong₂ _⊓_
           }
       ; distrib = distrib-⊓-⊔
       ; zero    = ⊓-zero
@@ -341,16 +345,17 @@ private
       m
                    ∎
 
-isDistributiveLattice : IsDistributiveLattice setoid _⊓_ _⊔_
+isDistributiveLattice : IsDistributiveLattice _≡_ _⊓_ _⊔_
 isDistributiveLattice = record
   { isLattice = record
-      { ∨-comm     = ⊓-comm
-      ; ∨-assoc    = ⊓-assoc
-      ; ∨-pres-≈   = cong₂ _⊓_
-      ; ∧-comm     = ⊔-comm
-      ; ∧-assoc    = ⊔-assoc
-      ; ∧-pres-≈   = cong₂ _⊔_
-      ; absorptive = absorptive-⊓-⊔
+      { isEquivalence = PropEq.isEquivalence
+      ; ∨-comm        = ⊓-comm
+      ; ∨-assoc       = ⊓-assoc
+      ; ∨-pres-≈      = cong₂ _⊓_
+      ; ∧-comm        = ⊔-comm
+      ; ∧-assoc       = ⊔-assoc
+      ; ∧-pres-≈      = cong₂ _⊔_
+      ; absorptive    = absorptive-⊓-⊔
       }
   ; ∨-∧-distribʳ = proj₂ distrib-⊓-⊔
   }

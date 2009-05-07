@@ -246,20 +246,22 @@ partition p (x ∷ xs) with p x | partition p xs
 
 monoid : Set → Monoid
 monoid A = record
-  { setoid   = PropEq.setoid (List A)
+  { carrier  = List A
+  ; _≈_      = _≡_
   ; _∙_      = _++_
   ; ε        = []
   ; isMonoid = record
     { isSemigroup = record
-      { assoc    = assoc
-      ; ∙-pres-≈ = cong₂ _++_
+      { isEquivalence = PropEq.isEquivalence
+      ; assoc         = assoc
+      ; ∙-pres-≈      = cong₂ _++_
       }
     ; identity = ((λ _ → refl) , identity)
     }
   }
   where
   open PropEq
-  open FunProp (PropEq.setoid (List A))
+  open FunProp _≡_
 
   identity : RightIdentity [] _++_
   identity []       = refl

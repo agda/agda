@@ -18,7 +18,7 @@ module Algebra.RingSolver
 import Algebra.RingSolver.Lemmas as L; open L coeff r morphism
 private module C = RawRing coeff
 open AlmostCommutativeRing r hiding (zero)
-import Algebra.FunctionProperties as P; open P setoid
+import Algebra.FunctionProperties as P; open P _≈_
 open import Algebra.Morphism
 open _-RawRing⟶_ morphism renaming (⟦_⟧ to ⟦_⟧')
 import Algebra.Operations as Ops; open Ops semiring
@@ -68,7 +68,7 @@ x :- y = x :+ :- y
 
 -- Semantics.
 
-sem : Op → Op₂
+sem : Op → Op₂ carrier
 sem [+] = _+_
 sem [*] = _*_
 

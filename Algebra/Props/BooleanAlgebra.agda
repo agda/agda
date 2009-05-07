@@ -9,8 +9,8 @@ module Algebra.Props.BooleanAlgebra (b : BooleanAlgebra) where
 open BooleanAlgebra b
 import Algebra.Props.DistributiveLattice as DL
 open DL distributiveLattice public
-import Algebra.Structures as S; open S setoid
-import Algebra.FunctionProperties as P; open P setoid
+open import Algebra.Structures
+import Algebra.FunctionProperties as P; open P _≈_
 import Relation.Binary.EqReasoning as EqR; open EqR setoid
 open import Relation.Binary
 open import Data.Function
@@ -40,7 +40,7 @@ open import Data.Product
 ------------------------------------------------------------------------
 -- The dual construction is also a boolean algebra
 
-∧-∨-isBooleanAlgebra : IsBooleanAlgebra _∧_ _∨_ ¬_ ⊥ ⊤
+∧-∨-isBooleanAlgebra : IsBooleanAlgebra _≈_ _∧_ _∨_ ¬_ ⊥ ⊤
 ∧-∨-isBooleanAlgebra = record
   { isDistributiveLattice = ∧-∨-isDistributiveLattice
   ; ∨-complementʳ         = proj₂ ∧-complement
@@ -91,15 +91,16 @@ private
       x       ∧ ¬ x  ≈⟨ proj₂ ∧-complement _ ⟩
       ⊥              ∎
 
-∨-∧-isCommutativeSemiring : IsCommutativeSemiring _∨_ _∧_ ⊥ ⊤
+∨-∧-isCommutativeSemiring : IsCommutativeSemiring _≈_ _∨_ _∧_ ⊥ ⊤
 ∨-∧-isCommutativeSemiring = record
   { isSemiring = record
     { isSemiringWithoutAnnihilatingZero = record
       { +-isCommutativeMonoid = record
         { isMonoid = record
           { isSemigroup = record
-            { assoc    = ∨-assoc
-            ; ∙-pres-≈ = ∨-pres-≈
+            { isEquivalence = isEquivalence
+            ; assoc         = ∨-assoc
+            ; ∙-pres-≈      = ∨-pres-≈
             }
           ; identity  = ∨-identity
           }
@@ -107,8 +108,9 @@ private
         }
       ; *-isMonoid = record
         { isSemigroup = record
-          { assoc    = ∧-assoc
-          ; ∙-pres-≈ = ∧-pres-≈
+          { isEquivalence = isEquivalence
+          ; assoc         = ∧-assoc
+          ; ∙-pres-≈      = ∧-pres-≈
           }
         ; identity = ∧-identity
         }
@@ -144,15 +146,16 @@ private
       x       ∨ ¬ x  ≈⟨ proj₂ ∨-complement _ ⟩
       ⊤              ∎
 
-∧-∨-isCommutativeSemiring : IsCommutativeSemiring _∧_ _∨_ ⊤ ⊥
+∧-∨-isCommutativeSemiring : IsCommutativeSemiring _≈_ _∧_ _∨_ ⊤ ⊥
 ∧-∨-isCommutativeSemiring = record
   { isSemiring = record
     { isSemiringWithoutAnnihilatingZero = record
       { +-isCommutativeMonoid = record
         { isMonoid = record
           { isSemigroup = record
-            { assoc    = ∧-assoc
-            ; ∙-pres-≈ = ∧-pres-≈
+            { isEquivalence = isEquivalence
+            ; assoc         = ∧-assoc
+            ; ∙-pres-≈      = ∧-pres-≈
             }
           ; identity  = ∧-identity
           }
@@ -160,8 +163,9 @@ private
         }
       ; *-isMonoid = record
         { isSemigroup = record
-          { assoc    = ∨-assoc
-          ; ∙-pres-≈ = ∨-pres-≈
+          { isEquivalence = isEquivalence
+          ; assoc         = ∨-assoc
+          ; ∙-pres-≈      = ∨-pres-≈
           }
         ; identity = ∨-identity
         }
@@ -247,14 +251,14 @@ deMorgan₂ x y = begin
 -- This construction is parameterised over the definition of xor.
 
 module XorRing
-  (xor : Op₂)
+  (xor : Op₂ carrier)
   (⊕-def : ∀ x y → xor x y ≈ (x ∨ y) ∧ ¬ (x ∧ y))
   where
 
   private
     infixl 6 _⊕_
 
-    _⊕_ : Op₂
+    _⊕_ : Op₂ carrier
     _⊕_ = xor
 
   private
@@ -499,15 +503,16 @@ module XorRing
         ((¬ x ∨ ¬ y) ∨ z) ∧
         (((x ∨ ¬ y) ∨ ¬ z) ∧ ((¬ x ∨ y) ∨ ¬ z))    ∎
 
-  isCommutativeRing : IsCommutativeRing _⊕_ _∧_ id ⊥ ⊤
+  isCommutativeRing : IsCommutativeRing _≈_ _⊕_ _∧_ id ⊥ ⊤
   isCommutativeRing = record
     { isRing = record
       { +-isAbelianGroup = record
         { isGroup = record
           { isMonoid = record
             { isSemigroup = record
-              { assoc    = ⊕-assoc
-              ; ∙-pres-≈ = ⊕-pres
+              { isEquivalence = isEquivalence
+              ; assoc         = ⊕-assoc
+              ; ∙-pres-≈      = ⊕-pres
               }
             ; identity = ⊕-identity
             }
@@ -518,8 +523,9 @@ module XorRing
         }
       ; *-isMonoid = record
         { isSemigroup = record
-          { assoc    = ∧-assoc
-          ; ∙-pres-≈ = ∧-pres-≈
+          { isEquivalence = isEquivalence
+          ; assoc         = ∧-assoc
+          ; ∙-pres-≈      = ∧-pres-≈
           }
         ; identity = ∧-identity
         }
@@ -540,7 +546,7 @@ module XorRing
 
 infixl 6 _⊕_
 
-_⊕_ : Op₂
+_⊕_ : Op₂ carrier
 x ⊕ y = (x ∨ y) ∧ ¬ (x ∧ y)
 
 module DefaultXorRing = XorRing _⊕_ (λ _ _ → refl)

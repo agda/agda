@@ -1,12 +1,12 @@
 ------------------------------------------------------------------------
 -- Definitions of algebraic structures like monoids and rings
--- (packed in records together with setoids and operations)
+-- (packed in records together with sets, operations, etc.)
 ------------------------------------------------------------------------
 
 module Algebra where
 
 open import Relation.Binary
-import Algebra.FunctionProperties as P
+open import Algebra.FunctionProperties
 open import Algebra.Structures
 open import Data.Function
 
@@ -15,98 +15,107 @@ open import Data.Function
 
 record Semigroup : Set₁ where
   infixl 7 _∙_
+  infix  4 _≈_
   field
-    setoid      : Setoid
-    _∙_         : P.Op₂ setoid
-    isSemigroup : IsSemigroup setoid _∙_
+    carrier     : Set
+    _≈_         : Rel carrier
+    _∙_         : Op₂ carrier
+    isSemigroup : IsSemigroup _≈_ _∙_
 
-  open Setoid setoid public
-  open IsSemigroup setoid isSemigroup public
+  open IsSemigroup isSemigroup public
 
--- A raw monoid is a monoid without any laws (except for the
--- underlying equality).
+  setoid : Setoid
+  setoid = record { isEquivalence = isEquivalence }
+
+-- A raw monoid is a monoid without any laws.
 
 record RawMonoid : Set₁ where
   infixl 7 _∙_
+  infix  4 _≈_
   field
-    setoid : Setoid
-    _∙_    : P.Op₂ setoid
-    ε      : Setoid.carrier setoid
-
-  open Setoid setoid public
+    carrier : Set
+    _≈_     : Rel carrier
+    _∙_     : Op₂ carrier
+    ε       : carrier
 
 record Monoid : Set₁ where
   infixl 7 _∙_
+  infix  4 _≈_
   field
-    setoid   : Setoid
-    _∙_      : P.Op₂ setoid
-    ε        : Setoid.carrier setoid
-    isMonoid : IsMonoid setoid _∙_ ε
+    carrier  : Set
+    _≈_      : Rel carrier
+    _∙_      : Op₂ carrier
+    ε        : carrier
+    isMonoid : IsMonoid _≈_ _∙_ ε
 
-  open Setoid setoid public
-  open IsMonoid setoid isMonoid public
+  open IsMonoid isMonoid public
 
   semigroup : Semigroup
   semigroup = record { isSemigroup = isSemigroup }
 
+  open Semigroup semigroup public using (setoid)
+
   rawMonoid : RawMonoid
   rawMonoid = record
-    { setoid = setoid
-    ; _∙_    = _∙_
-    ; ε      = ε
+    { _≈_ = _≈_
+    ; _∙_ = _∙_
+    ; ε   = ε
     }
 
 record CommutativeMonoid : Set₁ where
   infixl 7 _∙_
+  infix  4 _≈_
   field
-    setoid              : Setoid
-    _∙_                 : P.Op₂ setoid
-    ε                   : Setoid.carrier setoid
-    isCommutativeMonoid : IsCommutativeMonoid setoid _∙_ ε
+    carrier             : Set
+    _≈_                 : Rel carrier
+    _∙_                 : Op₂ carrier
+    ε                   : carrier
+    isCommutativeMonoid : IsCommutativeMonoid _≈_ _∙_ ε
 
-  open Setoid setoid public
-  open IsCommutativeMonoid setoid isCommutativeMonoid public
+  open IsCommutativeMonoid isCommutativeMonoid public
 
   monoid : Monoid
   monoid = record { isMonoid = isMonoid }
 
-  open Monoid monoid public using (semigroup; rawMonoid)
+  open Monoid monoid public using (setoid; semigroup; rawMonoid)
 
 record Group : Set₁ where
   infix  8 _⁻¹
   infixl 7 _∙_
+  infix  4 _≈_
   field
-    setoid  : Setoid
-    _∙_     : P.Op₂ setoid
-    ε       : Setoid.carrier setoid
-    _⁻¹     : P.Op₁ setoid
-    isGroup : IsGroup setoid _∙_ ε _⁻¹
+    carrier : Set
+    _≈_     : Rel carrier
+    _∙_     : Op₂ carrier
+    ε       : carrier
+    _⁻¹     : Op₁ carrier
+    isGroup : IsGroup _≈_ _∙_ ε _⁻¹
 
-  open Setoid setoid public
-  open IsGroup setoid isGroup public
+  open IsGroup isGroup public
 
   monoid : Monoid
   monoid = record { isMonoid = isMonoid }
 
-  open Monoid monoid public using (semigroup; rawMonoid)
+  open Monoid monoid public using (setoid; semigroup; rawMonoid)
 
 record AbelianGroup : Set₁ where
   infix  8 _⁻¹
   infixl 7 _∙_
+  infix  4 _≈_
   field
-    setoid         : Setoid
-    _∙_            : P.Op₂ setoid
-    ε              : Setoid.carrier setoid
-    _⁻¹            : P.Op₁ setoid
-    isAbelianGroup : IsAbelianGroup setoid _∙_ ε _⁻¹
+    carrier        : Set
+    _≈_            : Rel carrier
+    _∙_            : Op₂ carrier
+    ε              : carrier
+    _⁻¹            : Op₁ carrier
+    isAbelianGroup : IsAbelianGroup _≈_ _∙_ ε _⁻¹
 
-  open Setoid setoid public
-  open IsAbelianGroup setoid isAbelianGroup public
+  open IsAbelianGroup isAbelianGroup public
 
   group : Group
   group = record { isGroup = isGroup }
 
-  open Group group public using (semigroup; monoid; rawMonoid)
+  open Group group public using (setoid; semigroup; monoid; rawMonoid)
 
   commutativeMonoid : CommutativeMonoid
   commutativeMonoid =
@@ -118,22 +127,24 @@ record AbelianGroup : Set₁ where
 record NearSemiring : Set₁ where
   infixl 7 _*_
   infixl 6 _+_
+  infix  4 _≈_
   field
-    setoid         : Setoid
-    _+_            : P.Op₂ setoid
-    _*_            : P.Op₂ setoid
-    0#             : Setoid.carrier setoid
-    isNearSemiring : IsNearSemiring setoid _+_ _*_ 0#
+    carrier        : Set
+    _≈_            : Rel carrier
+    _+_            : Op₂ carrier
+    _*_            : Op₂ carrier
+    0#             : carrier
+    isNearSemiring : IsNearSemiring _≈_ _+_ _*_ 0#
 
-  open Setoid setoid public
-  open IsNearSemiring setoid isNearSemiring public
+  open IsNearSemiring isNearSemiring public
 
   +-monoid : Monoid
   +-monoid = record { isMonoid = +-isMonoid }
 
   open Monoid +-monoid public
-         using () renaming ( semigroup to +-semigroup
-                           ; rawMonoid to +-rawMonoid)
+         using (setoid)
+         renaming ( semigroup to +-semigroup
+                  ; rawMonoid to +-rawMonoid)
 
   *-semigroup : Semigroup
   *-semigroup = record { isSemigroup = *-isSemigroup }
@@ -141,21 +152,23 @@ record NearSemiring : Set₁ where
 record SemiringWithoutOne : Set₁ where
   infixl 7 _*_
   infixl 6 _+_
+  infix  4 _≈_
   field
-    setoid               : Setoid
-    _+_                  : P.Op₂ setoid
-    _*_                  : P.Op₂ setoid
-    0#                   : Setoid.carrier setoid
-    isSemiringWithoutOne : IsSemiringWithoutOne setoid _+_ _*_ 0#
+    carrier              : Set
+    _≈_                  : Rel carrier
+    _+_                  : Op₂ carrier
+    _*_                  : Op₂ carrier
+    0#                   : carrier
+    isSemiringWithoutOne : IsSemiringWithoutOne _≈_ _+_ _*_ 0#
 
-  open Setoid setoid public
-  open IsSemiringWithoutOne setoid isSemiringWithoutOne public
+  open IsSemiringWithoutOne isSemiringWithoutOne public
 
   nearSemiring : NearSemiring
   nearSemiring = record { isNearSemiring = isNearSemiring }
 
   open NearSemiring nearSemiring public
-         using ( +-semigroup; +-rawMonoid; +-monoid
+         using ( setoid
+               ; +-semigroup; +-rawMonoid; +-monoid
                ; *-semigroup
                )
 
@@ -166,24 +179,26 @@ record SemiringWithoutOne : Set₁ where
 record SemiringWithoutAnnihilatingZero : Set₁ where
   infixl 7 _*_
   infixl 6 _+_
+  infix  4 _≈_
   field
-    setoid                            : Setoid
-    _+_                               : P.Op₂ setoid
-    _*_                               : P.Op₂ setoid
-    0#                                : Setoid.carrier setoid
-    1#                                : Setoid.carrier setoid
+    carrier                           : Set
+    _≈_                               : Rel carrier
+    _+_                               : Op₂ carrier
+    _*_                               : Op₂ carrier
+    0#                                : carrier
+    1#                                : carrier
     isSemiringWithoutAnnihilatingZero :
-      IsSemiringWithoutAnnihilatingZero setoid _+_ _*_ 0# 1#
+      IsSemiringWithoutAnnihilatingZero _≈_ _+_ _*_ 0# 1#
 
-  open Setoid setoid public
   open IsSemiringWithoutAnnihilatingZero
-         setoid isSemiringWithoutAnnihilatingZero public
+         isSemiringWithoutAnnihilatingZero public
 
   +-commutativeMonoid : CommutativeMonoid
   +-commutativeMonoid =
     record { isCommutativeMonoid = +-isCommutativeMonoid }
 
-  open CommutativeMonoid +-commutativeMonoid public using ()
+  open CommutativeMonoid +-commutativeMonoid public
+         using (setoid)
          renaming ( semigroup to +-semigroup
                   ; rawMonoid to +-rawMonoid
                   ; monoid    to +-monoid
@@ -192,7 +207,8 @@ record SemiringWithoutAnnihilatingZero : Set₁ where
   *-monoid : Monoid
   *-monoid = record { isMonoid = *-isMonoid }
 
-  open Monoid *-monoid public using ()
+  open Monoid *-monoid public
+         using ()
          renaming ( semigroup to *-semigroup
                   ; rawMonoid to *-rawMonoid
                   )
@@ -200,16 +216,17 @@ record SemiringWithoutAnnihilatingZero : Set₁ where
 record Semiring : Set₁ where
   infixl 7 _*_
   infixl 6 _+_
+  infix  4 _≈_
   field
-    setoid     : Setoid
-    _+_        : P.Op₂ setoid
-    _*_        : P.Op₂ setoid
-    0#         : Setoid.carrier setoid
-    1#         : Setoid.carrier setoid
-    isSemiring : IsSemiring setoid _+_ _*_ 0# 1#
+    carrier    : Set
+    _≈_        : Rel carrier
+    _+_        : Op₂ carrier
+    _*_        : Op₂ carrier
+    0#         : carrier
+    1#         : carrier
+    isSemiring : IsSemiring _≈_ _+_ _*_ 0# 1#
 
-  open Setoid setoid public
-  open IsSemiring setoid isSemiring public
+  open IsSemiring isSemiring public
 
   semiringWithoutAnnihilatingZero : SemiringWithoutAnnihilatingZero
   semiringWithoutAnnihilatingZero = record
@@ -219,7 +236,8 @@ record Semiring : Set₁ where
 
   open SemiringWithoutAnnihilatingZero
          semiringWithoutAnnihilatingZero public
-         using ( +-semigroup; +-rawMonoid; +-monoid
+         using ( setoid
+               ; +-semigroup; +-rawMonoid; +-monoid
                ; +-commutativeMonoid
                ; *-semigroup; *-rawMonoid; *-monoid
                )
@@ -234,24 +252,26 @@ record Semiring : Set₁ where
 record CommutativeSemiringWithoutOne : Set₁ where
   infixl 7 _*_
   infixl 6 _+_
+  infix  4 _≈_
   field
-    setoid                          : Setoid
-    _+_                             : P.Op₂ setoid
-    _*_                             : P.Op₂ setoid
-    0#                              : Setoid.carrier setoid
+    carrier                         : Set
+    _≈_                             : Rel carrier
+    _+_                             : Op₂ carrier
+    _*_                             : Op₂ carrier
+    0#                              : carrier
     isCommutativeSemiringWithoutOne :
-      IsCommutativeSemiringWithoutOne setoid _+_ _*_ 0#
+      IsCommutativeSemiringWithoutOne _≈_ _+_ _*_ 0#
 
-  open Setoid setoid public
   open IsCommutativeSemiringWithoutOne
-         setoid isCommutativeSemiringWithoutOne public
+         isCommutativeSemiringWithoutOne public
 
   semiringWithoutOne : SemiringWithoutOne
   semiringWithoutOne =
     record { isSemiringWithoutOne = isSemiringWithoutOne }
 
   open SemiringWithoutOne semiringWithoutOne public
-         using ( +-semigroup; +-rawMonoid; +-monoid
+         using ( setoid
+               ; +-semigroup; +-rawMonoid; +-monoid
                ; +-commutativeMonoid
                ; *-semigroup
                ; nearSemiring
@@ -260,22 +280,24 @@ record CommutativeSemiringWithoutOne : Set₁ where
 record CommutativeSemiring : Set₁ where
   infixl 7 _*_
   infixl 6 _+_
+  infix  4 _≈_
   field
-    setoid                : Setoid
-    _+_                   : P.Op₂ setoid
-    _*_                   : P.Op₂ setoid
-    0#                    : Setoid.carrier setoid
-    1#                    : Setoid.carrier setoid
-    isCommutativeSemiring : IsCommutativeSemiring setoid _+_ _*_ 0# 1#
+    carrier               : Set
+    _≈_                   : Rel carrier
+    _+_                   : Op₂ carrier
+    _*_                   : Op₂ carrier
+    0#                    : carrier
+    1#                    : carrier
+    isCommutativeSemiring : IsCommutativeSemiring _≈_ _+_ _*_ 0# 1#
 
-  open Setoid setoid public
-  open IsCommutativeSemiring setoid isCommutativeSemiring public
+  open IsCommutativeSemiring isCommutativeSemiring public
 
   semiring : Semiring
   semiring = record { isSemiring = isSemiring }
 
   open Semiring semiring public
-         using ( +-semigroup; +-rawMonoid; +-monoid
+         using ( setoid
+               ; +-semigroup; +-rawMonoid; +-monoid
                ; +-commutativeMonoid
                ; *-semigroup; *-rawMonoid; *-monoid
                ; nearSemiring; semiringWithoutOne
@@ -294,38 +316,38 @@ record CommutativeSemiring : Set₁ where
 ------------------------------------------------------------------------
 -- (Commutative) rings
 
--- A raw ring is a ring without any laws (except for the underlying
--- equality).
+-- A raw ring is a ring without any laws.
 
 record RawRing : Set₁ where
   infix  8 -_
   infixl 7 _*_
   infixl 6 _+_
+  infix  4 _≈_
   field
-    setoid : Setoid
-    _+_    : P.Op₂ setoid
-    _*_    : P.Op₂ setoid
-    -_     : P.Op₁ setoid
-    0#     : Setoid.carrier setoid
-    1#     : Setoid.carrier setoid
-
-  open Setoid setoid public
+    carrier : Set
+    _≈_     : Rel carrier
+    _+_     : Op₂ carrier
+    _*_     : Op₂ carrier
+    -_      : Op₁ carrier
+    0#      : carrier
+    1#      : carrier
 
 record Ring : Set₁ where
   infix  8 -_
   infixl 7 _*_
   infixl 6 _+_
+  infix  4 _≈_
   field
-    setoid : Setoid
-    _+_    : P.Op₂ setoid
-    _*_    : P.Op₂ setoid
-    -_     : P.Op₁ setoid
-    0#     : Setoid.carrier setoid
-    1#     : Setoid.carrier setoid
-    isRing : IsRing setoid _+_ _*_ -_ 0# 1#
+    carrier : Set
+    _≈_     : Rel carrier
+    _+_     : Op₂ carrier
+    _*_     : Op₂ carrier
+    -_      : Op₁ carrier
+    0#      : carrier
+    1#      : carrier
+    isRing  : IsRing _≈_ _+_ _*_ -_ 0# 1#
 
-  open Setoid setoid public
-  open IsRing setoid isRing public
+  open IsRing isRing public
 
   +-abelianGroup : AbelianGroup
   +-abelianGroup = record { isAbelianGroup = +-isAbelianGroup }
@@ -334,7 +356,8 @@ record Ring : Set₁ where
   semiring = record { isSemiring = isSemiring }
 
   open Semiring semiring public
-         using ( +-semigroup; +-rawMonoid; +-monoid
+         using ( setoid
+               ; +-semigroup; +-rawMonoid; +-monoid
                ; +-commutativeMonoid
                ; *-semigroup; *-rawMonoid; *-monoid
                ; nearSemiring; semiringWithoutOne
@@ -343,29 +366,30 @@ record Ring : Set₁ where
 
   rawRing : RawRing
   rawRing = record
-    { setoid = setoid
-    ; _+_    = _+_
-    ; _*_    = _*_
-    ; -_     = -_
-    ; 0#     = 0#
-    ; 1#     = 1#
+    { _≈_ = _≈_
+    ; _+_ = _+_
+    ; _*_ = _*_
+    ; -_  = -_
+    ; 0#  = 0#
+    ; 1#  = 1#
     }
 
 record CommutativeRing : Set₁ where
   infix  8 -_
   infixl 7 _*_
   infixl 6 _+_
+  infix  4 _≈_
   field
-    setoid            : Setoid
-    _+_               : P.Op₂ setoid
-    _*_               : P.Op₂ setoid
-    -_                : P.Op₁ setoid
-    0#                : Setoid.carrier setoid
-    1#                : Setoid.carrier setoid
-    isCommutativeRing : IsCommutativeRing setoid _+_ _*_ -_ 0# 1#
+    carrier           : Set
+    _≈_               : Rel carrier
+    _+_               : Op₂ carrier
+    _*_               : Op₂ carrier
+    -_                : Op₁ carrier
+    0#                : carrier
+    1#                : carrier
+    isCommutativeRing : IsCommutativeRing _≈_ _+_ _*_ -_ 0# 1#
 
-  open Setoid setoid public
-  open IsCommutativeRing setoid isCommutativeRing public
+  open IsCommutativeRing isCommutativeRing public
 
   ring : Ring
   ring = record { isRing = isRing }
@@ -376,7 +400,8 @@ record CommutativeRing : Set₁ where
 
   open Ring ring public using (rawRing; +-abelianGroup)
   open CommutativeSemiring commutativeSemiring public
-         using ( +-semigroup; +-rawMonoid; +-monoid; +-commutativeMonoid
+         using ( setoid
+               ; +-semigroup; +-rawMonoid; +-monoid; +-commutativeMonoid
                ; *-semigroup; *-rawMonoid; *-monoid; *-commutativeMonoid
                ; nearSemiring; semiringWithoutOne
                ; semiringWithoutAnnihilatingZero; semiring
@@ -389,49 +414,57 @@ record CommutativeRing : Set₁ where
 record Lattice : Set₁ where
   infixr 7 _∧_
   infixr 6 _∨_
+  infix  4 _≈_
   field
-    setoid    : Setoid
-    _∨_       : P.Op₂ setoid
-    _∧_       : P.Op₂ setoid
-    isLattice : IsLattice setoid _∨_ _∧_
+    carrier   : Set
+    _≈_       : Rel carrier
+    _∨_       : Op₂ carrier
+    _∧_       : Op₂ carrier
+    isLattice : IsLattice _≈_ _∨_ _∧_
 
-  open Setoid setoid public
-  open IsLattice setoid isLattice public
+  open IsLattice isLattice public
+
+  setoid : Setoid
+  setoid = record { isEquivalence = isEquivalence }
 
 record DistributiveLattice : Set₁ where
   infixr 7 _∧_
   infixr 6 _∨_
+  infix  4 _≈_
   field
-    setoid                : Setoid
-    _∨_                   : P.Op₂ setoid
-    _∧_                   : P.Op₂ setoid
-    isDistributiveLattice : IsDistributiveLattice setoid _∨_ _∧_
+    carrier               : Set
+    _≈_                   : Rel carrier
+    _∨_                   : Op₂ carrier
+    _∧_                   : Op₂ carrier
+    isDistributiveLattice : IsDistributiveLattice _≈_ _∨_ _∧_
 
-  open Setoid setoid public
-  open IsDistributiveLattice setoid isDistributiveLattice public
+  open IsDistributiveLattice isDistributiveLattice public
 
   lattice : Lattice
   lattice = record { isLattice = isLattice }
+
+  open Lattice lattice public using (setoid)
 
 record BooleanAlgebra : Set₁ where
   infix  8 ¬_
   infixr 7 _∧_
   infixr 6 _∨_
+  infix  4 _≈_
   field
-    setoid           : Setoid
-    _∨_              : P.Op₂ setoid
-    _∧_              : P.Op₂ setoid
-    ¬_               : P.Op₁ setoid
-    ⊤                : Setoid.carrier setoid
-    ⊥                : Setoid.carrier setoid
-    isBooleanAlgebra : IsBooleanAlgebra setoid _∨_ _∧_ ¬_ ⊤ ⊥
+    carrier          : Set
+    _≈_              : Rel carrier
+    _∨_              : Op₂ carrier
+    _∧_              : Op₂ carrier
+    ¬_               : Op₁ carrier
+    ⊤                : carrier
+    ⊥                : carrier
+    isBooleanAlgebra : IsBooleanAlgebra _≈_ _∨_ _∧_ ¬_ ⊤ ⊥
 
-  open Setoid setoid public
-  open IsBooleanAlgebra setoid isBooleanAlgebra public
+  open IsBooleanAlgebra isBooleanAlgebra public
 
   distributiveLattice : DistributiveLattice
   distributiveLattice =
     record { isDistributiveLattice = isDistributiveLattice }
 
   open DistributiveLattice distributiveLattice public
-         using (lattice)
+         using (setoid; lattice)

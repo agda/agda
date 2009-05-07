@@ -140,21 +140,21 @@ import IO
 -- containing just properties, parameterised on the underlying
 -- operations, sets etc.:
 --
---   module Algebra.Structures (S : Setoid) where
---
---   ⋮
---
---   record IsSemigroup (∙ : Op₂) : Set where
+--   record IsSemigroup {A} (≈ : Rel A) (∙ : Op₂ A) : Set where
+--     open FunctionProperties ≈
 --     field
---       assoc    : Associative ∙
---       ∙-pres-≈ : ∙ Preserves₂ _≈_ ⟶ _≈_ ⟶ _≈_
+--       isEquivalence : IsEquivalence ≈
+--       assoc         : Associative ∙
+--       ∙-pres-≈      : ∙ Preserves₂ ≈ ⟶ ≈ ⟶ ≈
 --
--- More specific concepts are then specified in terms of the simpler ones:
+-- More specific concepts are then specified in terms of the simpler
+-- ones:
 --
---   record IsMonoid (∙ : Op₂) (ε : carrier) : Set where
---     field
---       isSemigroup : IsSemigroup ∙
---       identity    : Identity ε ∙
+--     record IsMonoid {A} (≈ : Rel A) (∙ : Op₂ A) (ε : A) : Set where
+--       open FunctionProperties ≈
+--       field
+--         isSemigroup : IsSemigroup ≈ ∙
+--         identity    : Identity ε ∙
 --
 --     open IsSemigroup isSemigroup public
 --
@@ -190,27 +190,34 @@ import IO
 --
 --   record Semigroup : Set₁ where
 --     infixl 7 _∙_
+--     infix  4 _≈_
 --     field
---       setoid      : Setoid
---       _∙_         : P.Op₂ setoid
---       isSemigroup : IsSemigroup setoid _∙_
+--       carrier     : Set
+--       _≈_         : Rel carrier
+--       _∙_         : Op₂ carrier
+--       isSemigroup : IsSemigroup _≈_ _∙_
 --
---     open Setoid setoid public
---     open IsSemigroup setoid isSemigroup public
+--     open IsSemigroup isSemigroup public
+--
+--     setoid : Setoid
+--     setoid = record { isEquivalence = isEquivalence }
 --
 --   record Monoid : Set₁ where
 --     infixl 7 _∙_
+--     infix  4 _≈_
 --     field
---       setoid   : Setoid
---       _∙_      : P.Op₂ setoid
---       ε        : Setoid.carrier setoid
---       isMonoid : IsMonoid setoid _∙_ ε
+--       carrier  : Set
+--       _≈_      : Rel carrier
+--       _∙_      : Op₂ carrier
+--       ε        : carrier
+--       isMonoid : IsMonoid _≈_ _∙_ ε
 --
---     open Setoid setoid public
---     open IsMonoid setoid isMonoid public
+--     open IsMonoid isMonoid public
 --
 --     semigroup : Semigroup
 --     semigroup = record { isSemigroup = isSemigroup }
+--
+--     open Semigroup semigroup public using (setoid)
 --
 -- Note that the Monoid record does not include a Semigroup field.
 -- Instead the Monoid /module/ includes a "repackaging function"
@@ -225,9 +232,9 @@ import IO
 ------------------------------------------------------------------------
 
 -- Some modules have names ending in ".Core". These modules are
--- internal, and have been created to avoid mutual recursion between
--- modules. They should not be imported directly; their contents are
--- reexported by other modules.
+-- internal, and have (mostly) been created to avoid mutual recursion
+-- between modules. They should not be imported directly; their
+-- contents are reexported by other modules.
 
 ------------------------------------------------------------------------
 -- All library modules

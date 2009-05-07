@@ -12,19 +12,17 @@ open import Data.Function
 ------------------------------------------------------------------------
 -- Basic definitions
 
-module Definitions (from : Set) (to : Setoid) where
-  open Setoid to renaming (carrier to to-carrier)
-
+module Definitions (From To : Set) (_≈_ : Rel To) where
   Morphism : Set
-  Morphism = from → to-carrier
+  Morphism = From → To
 
-  Homomorphic₀ : Morphism → from → to-carrier → Set
+  Homomorphic₀ : Morphism → From → To → Set
   Homomorphic₀ ⟦_⟧ ∙ ∘ = ⟦ ∙ ⟧ ≈ ∘
 
-  Homomorphic₁ : Morphism → Fun₁ from → Op₁ to → Set
+  Homomorphic₁ : Morphism → Fun₁ From → Op₁ To → Set
   Homomorphic₁ ⟦_⟧ ∙_ ∘_ = ∀ x → ⟦ ∙ x ⟧ ≈ ∘ ⟦ x ⟧
 
-  Homomorphic₂ : Morphism → Fun₂ from → Op₂ to → Set
+  Homomorphic₂ : Morphism → Fun₂ From → Op₂ To → Set
   Homomorphic₂ ⟦_⟧ _∙_ _∘_ =
     ∀ x y → ⟦ x ∙ y ⟧ ≈ (⟦ x ⟧ ∘ ⟦ y ⟧)
 
@@ -33,17 +31,17 @@ module Definitions (from : Set) (to : Setoid) where
 
 -- Other morphisms could of course be defined.
 
-record _-RawRing⟶_ (from to : RawRing) : Set where
+record _-RawRing⟶_ (From To : RawRing) : Set where
   open RawRing
-  open Definitions (carrier from) (setoid to)
+  open Definitions (carrier From) (carrier To) (_≈_ To)
   field
     ⟦_⟧    : Morphism
-    +-homo : Homomorphic₂ ⟦_⟧ (_+_ from) (_+_ to)
-    *-homo : Homomorphic₂ ⟦_⟧ (_*_ from) (_*_ to)
-    -‿homo : Homomorphic₁ ⟦_⟧ (-_  from) (-_  to)
-    0-homo : Homomorphic₀ ⟦_⟧ (0#  from) (0#  to)
-    1-homo : Homomorphic₀ ⟦_⟧ (1#  from) (1#  to)
+    +-homo : Homomorphic₂ ⟦_⟧ (_+_ From) (_+_ To)
+    *-homo : Homomorphic₂ ⟦_⟧ (_*_ From) (_*_ To)
+    -‿homo : Homomorphic₁ ⟦_⟧ (-_  From) (-_  To)
+    0-homo : Homomorphic₀ ⟦_⟧ (0#  From) (0#  To)
+    1-homo : Homomorphic₀ ⟦_⟧ (1#  From) (1#  To)
 
 _-Ring⟶_ : Ring → Ring → Set
-from -Ring⟶ to = rawRing from -RawRing⟶ rawRing to
+From -Ring⟶ To = rawRing From -RawRing⟶ rawRing To
   where open Ring

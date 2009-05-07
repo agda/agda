@@ -8,41 +8,39 @@ module Algebra.RingSolver.AlmostCommutativeRing where
 open import Relation.Binary
 open import Algebra
 open import Algebra.Structures
-import Algebra.FunctionProperties as P
+open import Algebra.FunctionProperties
 open import Algebra.Morphism
 open import Data.Function
 
 ------------------------------------------------------------------------
 -- Definitions
 
-record IsAlmostCommutativeRing (s : Setoid)
-                               (_+_ _*_ : P.Op₂ s)
-                               (-_ : P.Op₁ s)
-                               (0# 1# : Setoid.carrier s) : Set where
-  open Setoid s
+record IsAlmostCommutativeRing {A} (_≈_ : Rel A)
+         (_+_ _*_ : Op₂ A) (-_ : Op₁ A) (0# 1# : A) : Set where
   field
-    isCommutativeSemiring : IsCommutativeSemiring s _+_ _*_ 0# 1#
+    isCommutativeSemiring : IsCommutativeSemiring _≈_ _+_ _*_ 0# 1#
     -‿pres-≈              : -_ Preserves _≈_ ⟶ _≈_
-    -‿*-distribˡ          : ∀ x y → (- x) * y ≈ - (x * y)
-    -‿+-comm              : ∀ x y → (- x) + (- y) ≈ - (x + y)
+    -‿*-distribˡ          : ∀ x y → ((- x) * y)     ≈ (- (x * y))
+    -‿+-comm              : ∀ x y → ((- x) + (- y)) ≈ (- (x + y))
 
-  open IsCommutativeSemiring s isCommutativeSemiring public
+  open IsCommutativeSemiring isCommutativeSemiring public
 
 record AlmostCommutativeRing : Set₁ where
   infix  8 -_
   infixl 7 _*_
   infixl 6 _+_
+  infix  4 _≈_
   field
-    setoid                  : Setoid
-    _+_                     : P.Op₂ setoid
-    _*_                     : P.Op₂ setoid
-    -_                      : P.Op₁ setoid
-    0#                      : Setoid.carrier setoid
-    1#                      : Setoid.carrier setoid
+    carrier                 : Set
+    _≈_                     : Rel carrier
+    _+_                     : Op₂ carrier
+    _*_                     : Op₂ carrier
+    -_                      : Op₁ carrier
+    0#                      : carrier
+    1#                      : carrier
     isAlmostCommutativeRing :
-      IsAlmostCommutativeRing setoid _+_ _*_ -_ 0# 1#
+      IsAlmostCommutativeRing _≈_ _+_ _*_ -_ 0# 1#
 
-  open Setoid setoid public
   open IsAlmostCommutativeRing isAlmostCommutativeRing public
 
   commutativeSemiring : CommutativeSemiring
@@ -50,19 +48,20 @@ record AlmostCommutativeRing : Set₁ where
     record { isCommutativeSemiring = isCommutativeSemiring }
 
   open CommutativeSemiring commutativeSemiring public
-         using ( +-semigroup; +-monoid; +-commutativeMonoid
+         using ( setoid
+               ; +-semigroup; +-monoid; +-commutativeMonoid
                ; *-semigroup; *-monoid; *-commutativeMonoid
                ; semiring
                )
 
   rawRing : RawRing
   rawRing = record
-    { setoid = setoid
-    ; _+_    = _+_
-    ; _*_    = _*_
-    ; -_     = -_
-    ; 0#     = 0#
-    ; 1#     = 1#
+    { _≈_ = _≈_
+    ; _+_ = _+_
+    ; _*_ = _*_
+    ; -_  = -_
+    ; 0#  = 0#
+    ; 1#  = 1#
     }
 
 ------------------------------------------------------------------------

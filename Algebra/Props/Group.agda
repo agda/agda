@@ -7,7 +7,7 @@ open import Algebra
 module Algebra.Props.Group (g : Group) where
 
 open Group g
-import Algebra.FunctionProperties as P; open P setoid
+import Algebra.FunctionProperties as P; open P _≈_
 import Relation.Binary.EqReasoning as EqR; open EqR setoid
 open import Data.Function
 open import Data.Product

@@ -10,8 +10,8 @@ module Algebra.Props.DistributiveLattice
 
 open DistributiveLattice dl
 import Algebra.Props.Lattice as L; open L lattice public
-import Algebra.Structures as S; open S setoid
-import Algebra.FunctionProperties as P; open P setoid
+open import Algebra.Structures
+import Algebra.FunctionProperties as P; open P _≈_
 import Relation.Binary.EqReasoning as EqR; open EqR setoid
 open import Data.Function
 open import Data.Product
@@ -48,7 +48,7 @@ open import Data.Product
 
 -- The dual construction is also a distributive lattice.
 
-∧-∨-isDistributiveLattice : IsDistributiveLattice _∧_ _∨_
+∧-∨-isDistributiveLattice : IsDistributiveLattice _≈_ _∧_ _∨_
 ∧-∨-isDistributiveLattice = record
   { isLattice    = ∧-∨-isLattice
   ; ∨-∧-distribʳ = proj₂ ∧-∨-distrib
