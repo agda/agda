@@ -12,9 +12,9 @@ module README where
 -- stage.
 
 -- To make use of the library, add the path to the library’s root
--- directory to the Agda search path, either using the --include-path
--- flag or by customising the Emacs mode variable agda2-include-dirs
--- (M-x customize-group RET agda2 RET).
+-- directory (src) to the Agda search path, either using the
+-- --include-path flag or by customising the Emacs mode variable
+-- agda2-include-dirs (M-x customize-group RET agda2 RET).
 
 -- To compile programs using some of the IO functions you need to
 -- install the Haskell package utf8-string (available from Hackage).

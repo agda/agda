@@ -17,7 +17,7 @@ main :: IO ()
 main = do
   agdaFiles <- find always
                     (extension ~~? ".agda" ||? extension ~~? ".lagda")
-                    "."
+                    "src"
   nonAsciiChars <-
     filter (not . isAscii) . concat <$> mapM U.readFile agdaFiles
   let table = reverse $

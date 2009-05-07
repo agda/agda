@@ -13,6 +13,7 @@ import System.FilePath.Find
 
 headerFile = "Header"
 outputFile = "Everything.agda"
+srcDir     = "src"
 
 main = do
   args <- getArgs
@@ -22,9 +23,9 @@ main = do
 
   header  <- readFile headerFile
   modules <- filter isLibraryModule . List.sort <$>
-             find always
+               find always
                     (extension ~~? ".agda" ||? extension ~~? ".lagda")
-                    "."
+                    srcDir
   headers <- mapM extractHeader modules
 
   writeFile outputFile $
@@ -44,14 +45,12 @@ usage = unlines
   , "with the file " ++ headerFile ++ " inserted verbatim at the beginning."
   ]
 
--- | Returns 'True' for all Agda files except for README, Everything
--- and core modules.
+-- | Returns 'True' for all Agda files except for core modules.
 
 isLibraryModule :: FilePath -> Bool
 isLibraryModule f =
-  takeExtension f `elem` [".agda", ".lagda"]            &&
-  dropExtension (takeFileName f) /= "Core"              &&
-  not (f `elem` ["./README.agda", "./Everything.agda"])
+  takeExtension f `elem` [".agda", ".lagda"] &&
+  dropExtension (takeFileName f) /= "Core"
 
 -- | Reads a module and extracts the header.
 
@@ -78,11 +77,11 @@ format = unlines . concat . map fmt
   fmt (mod, header) = "" : header ++ ["import " ++ fileToMod mod]
 
 -- | Translates a file name to the corresponding module name. It is
--- assumed that the file name corresponds to an Agda module, and that
--- it starts with \"./\".
+-- assumed that the file name corresponds to an Agda module under
+-- 'srcDir'.
 
 fileToMod :: FilePath -> String
-fileToMod = map slashToDot . dropExtension . makeRelative "."
+fileToMod = map slashToDot . dropExtension . makeRelative srcDir
   where
   slashToDot c | isPathSeparator c = '.'
                | otherwise         = c

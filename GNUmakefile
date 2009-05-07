@@ -1,5 +1,5 @@
 test: Everything.agda
-	agda README.agda
+	agda -i. -isrc README.agda
 
 .PHONY: Everything.agda
 Everything.agda:
