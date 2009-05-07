@@ -416,15 +416,24 @@ openModule_ cm dir = do
     checkForClashes new
       | not (publicOpen dir) = return ()
       | otherwise = do
+
         old <- allThingsInScope . restrictPrivate <$> (getNamedScope =<< getCurrentModule)
+
         let defClashes = Map.toList $ Map.intersectionWith (,) (nsNames new) (nsNames old)
             modClashes = Map.toList $ Map.intersectionWith (,) (nsModules new) (nsModules old)
-            noCons (_, (qs0, qs1)) =
+
+            realClash (_, ([x],[y])) = x /= y
+            realClash _              = True
+
+            defClash (_, (qs0, qs1)) =
               any ((/= ConName) . anameKind) (qs0 ++ qs1)
-        case filter noCons defClashes of
+
+            (f & g) x = f x && g x
+
+        case filter (realClash & defClash) defClashes of
           (x, (_, q:_)):_ -> typeError $ ClashingDefinition (C.QName x) (anameName q)
           _               -> return ()
-        case modClashes of
+        case filter realClash modClashes of
           (_, (m0:_, m1:_)):_ -> typeError $ ClashingModule (amodName m0) (amodName m1)
           _                   -> return ()
 
