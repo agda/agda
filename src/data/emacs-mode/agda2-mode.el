@@ -393,9 +393,6 @@ wait for output and execute responses, if any"
   (let (response)
     (with-current-buffer haskell-ghci-process-buffer
       (haskell-ghci-wait-for-output)
-      ;; Note that the following code may be prone to race conditions
-      ;; (make-temp-file returns a filename, not an open file). This is
-      ;; not likely to be a problem, though.
       (let ((tempfile (make-temp-file "agda2-mode")))
         (unwind-protect
             (progn
