@@ -36,6 +36,12 @@ checkRecDef :: Info.DefInfo -> QName -> [A.LamBinding] -> A.Expr -> [A.Construct
 checkRecDef i name ps contel fields =
   noMutualBlock $ -- records can't be recursive anyway
   traceCall (CheckRecDef (getRange i) (qnameName name) ps fields) $ do
+    reportSDoc "tc.rec" 10 $ vcat
+      [ text "checking record def" <+> prettyTCM name
+      , nest 2 $ text "ps ="     <+> prettyList (map prettyA ps)
+      , nest 2 $ text "contel =" <+> prettyA contel
+      , nest 2 $ text "fields =" <+> prettyA fields
+      ]
     t <- instantiateFull =<< typeOfConst name
     bindParameters ps t $ \tel t0 -> do
       t0' <- normalise t0

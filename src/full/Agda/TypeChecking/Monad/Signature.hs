@@ -352,13 +352,17 @@ getSecFreeVars m = do
     True  -> return $ maybe 0 secFreeVars $ Map.lookup m sig
     False -> return 0
 
+-- | Compute the number of free variables of a module. This is the sum of
+--   the free variables of its sections.
+getModuleFreeVars :: MonadTCM tcm => ModuleName -> tcm Nat
+getModuleFreeVars m = sum <$> ((:) <$> getAnonymousVariables m <*> mapM getSecFreeVars ms)
+  where
+    ms = map mnameFromList . inits . mnameToList $ m
+
 -- | Compute the number of free variables of a defined name. This is the sum of
 --   the free variables of the sections it's contained in.
 getDefFreeVars :: MonadTCM tcm => QName -> tcm Nat
-getDefFreeVars q = sum <$> ((:) <$> getAnonymousVariables m <*> mapM getSecFreeVars ms)
-  where
-    m  = qnameModule q
-    ms = map mnameFromList . inits . mnameToList $ m
+getDefFreeVars q = getModuleFreeVars (qnameModule q)
 
 -- | Compute the context variables to apply a definition to.
 freeVarsToApply :: MonadTCM tcm => QName -> tcm Args

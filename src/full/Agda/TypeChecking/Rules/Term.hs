@@ -607,10 +607,16 @@ checkLetBinding b@(A.LetBind i x t e) ret =
 checkLetBinding (A.LetApply i x tel m args rd rm) ret = do
   -- Any variables in the context that doesn't belong to the current
   -- module should go with the new module.
-  fv   <- getDefFreeVars =<< (qnameFromList . mnameToList) <$> currentModule
+  -- fv   <- getDefFreeVars =<< (qnameFromList . mnameToList) <$> currentModule
+  fv   <- getModuleFreeVars =<< currentModule
   n    <- size <$> getContext
   let new = n - fv
   reportSLn "tc.term.let.apply" 10 $ "Applying " ++ show m ++ " with " ++ show new ++ " free variables"
+  reportSDoc "tc.term.let.apply" 20 $ vcat
+    [ text "context =" <+> (prettyTCM =<< getContextTelescope)
+    , text "module  =" <+> (prettyTCM =<< currentModule)
+    , text "fv      =" <+> (text $ show fv)
+    ]
   checkSectionApplication i x tel m args rd rm
   withAnonymousModule x new ret
 -- LetOpen is only used for highlighting and has no semantics
