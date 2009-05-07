@@ -189,30 +189,6 @@ checkModuleMacro apply r p a x tel m args open dir =
     stripNoNames
     printScope "mod.inst" 10 $ "after stripping"
     return [ apply info (m0 `withRangesOf` [x]) tel' m1 args' renD renM ]
-
-{-
-    pushScope x'
-    m0 <- getCurrentModule
-    openModule_ m $ dir { C.publicOpen = True }
-    printScope "mod.inst" 20 "opened source module"
-    s : _ <- scopeStack <$> getScope
-    (renD, renM) <- renamedCanonicalNames m1 m0 s
-    modifyTopScope $ renameCanonicalNames renD renM
-    printScope "mod.inst" 20 "renamed stuff"
-    popScope p
-    printScope "mod.inst" 20 "popped"
-    bindModule p x m0
-    case open of
-      DontOpen -> return ()
-      DoOpen   -> openModule_ (C.QName x) $ defaultImportDir { C.publicOpen = C.publicOpen dir }
-    printScope "mod.inst" 20 $ case open of
-      DontOpen  -> "didn't open"
-      DoOpen    -> "opened"
-    printScope "mod.inst" 10 $ "before stripping"
-    stripNoNames
-    printScope "mod.inst" 10 $ "after stripping"
-    return [ apply info (m0 `withRangesOf` [x]) tel' m1 args' renD renM ]
--}
   where
     info = ModuleInfo p a r
 
@@ -371,45 +347,6 @@ instance ToAbstract NewModuleQName A.ModuleName where
       toAbs m (C.Qual x q) = do
         m' <- freshQModule m x
         toAbs m' q
-
-{-
-  toAbs noModuleName m
-    where
-      toAbs m (C.QName x)  = do
-        y <- freshQModule m x
-        createModule y
-        return y
-      toAbs m (C.Qual x q) = do
-        ms <- scopeLookup (C.QName x) <$> getScope
-        m' <- case ms of
-          []   -> freshQModule m x
-          [m'] -> return $ amodName m'
-          ms   -> typeError $ AmbiguousModule (C.QName x) (map amodName ms)
-        toAbs m' q
--}
-
---     case m of
---     C.QName x  -> toAbstract (NewModuleName x)
---     C.Qual x q -> do
---       ms <- scopeLookup (C.QName x) <$> getScope
---       m1 <- case ms of
---         []   -> toAbstract (NewModuleName x)
---         [m1] -> return $ amodName m1
---         ms   -> typeError $ AmbiguousModule (C.QName x) (map amodName ms)
---       withCurrentModule m1 $
---         toAbstract (NewModuleQName q)
-
-{- TODO: remove
-  toAbstract (NewModuleQName ) = do
-    ms <- scopeLookup q =<< getScope
-    case ms of
-      [] -> foldr1 A.qualifyM <$> mapM (toAbstract . NewModuleName) (toList q)
-      ms -> typeError $ ShadowedModule $
-                          map ((`withRangesOfQ` q) . amodName) ms
-    where
-      toList (C.QName  x) = [x]
-      toList (C.Qual m x) = m : toList x
--}
 
 instance ToAbstract OldModuleName A.ModuleName where
   toAbstract (OldModuleName q) = amodName <$> resolveModule q

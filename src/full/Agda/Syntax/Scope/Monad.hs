@@ -257,26 +257,6 @@ bindModule acc x m = modifyCurrentScope $
 bindQModule :: Access -> C.QName -> A.ModuleName -> ScopeM ()
 bindQModule acc q m = modifyCurrentScope $ \s ->
   s { scopeImports = Map.insert q m (scopeImports s) }
---   m0 <- getCurrentModule
---   bind q [] (A.mnameToList m) m0
---   where
---     ns = localNameSpace acc
---     bind (C.QName x) _ _ current = modifyNamedScope current $
---       addModuleToScope ns x (AbsModule m)
---     bind (C.Qual x q) m0 (y : ys) current = do
---       let m1  = m0 ++ [y]
---           new = A.mnameFromList m1 -- amodName <$> resolveModule (C.QName x)
---       maybeAddModule x new current
---       bind q m1 ys new
---     bind C.Qual{} _ [] _ = __IMPOSSIBLE__
--- 
---     -- Add a module if it hasn't been added already
---     maybeAddModule x new current = do
---       s <- getNamedScope current
---       case maybe [] id $ Map.lookup x (nsModules $ scopeNameSpace ns s) of
---         ms | new `elem` map amodName ms -> return ()
---         _ -> modifyNamedScope current
---              $ addModuleToScope ns x (AbsModule new)
 
 -- * Module manipulation operations
 
@@ -287,58 +267,6 @@ stripNoNames = modifyScopes $ Map.map strip
     strip     = mapScope (\_ -> stripN) (\_ -> stripN)
     stripN m  = Map.filterWithKey (const . notNoName) m
     notNoName = not . isNoName
-
--- | Push a new scope onto the scope stack
--- TODO: remove pushScope
--- pushScope :: A.ModuleName -> ScopeM ()
--- pushScope name = modifyScopeStack (s:)
---   where
---     s = emptyScope { scopeName = name }
-
-{-| Pop the top scope from the scope stack and incorporate its (public)
-    contents in the new top scope. Depending on the first argument the contents
-    is added to the public or private part of the top scope. Basically if the
-    stack looks like this:
-
-    @
-    scope A: x -> Q.B.A.x
-    scope B: y -> Q.B.y
-    scope Q: ..
-    @
-
-    then after popping it will look like
-
-    @
-    scope B: A.x -> Q.B.A.x
-             y   -> Q.B.y
-    scope Q: ..
-    @
--}
--- TODO: remove popScope
--- popScope :: Access -> ScopeM ()
--- popScope acc = do
---   modifyScopeStack $ \(s0:s1:ss) ->
---     mergeScope s1 (setScopeAccess acc $ mapScope_ (qual s0) (qual s0) $ noPrivate s0) : ss
---   where
---     qual s m = Map.mapKeys (qual' (mnameToList $ scopeName s)) m
---       where
---      qual' xs x = foldr C.Qual x $ map nameConcrete xs
---     noPrivate s = s { scopePrivate = emptyNameSpace }
-
--- | Pop the top scope from the stack and discard its contents.
--- popScope_ :: ScopeM ()
--- popScope_ = modifyScopeStack tail
-
--- | Returns a scope containing everything starting with a particular module
---   name. Used to open a module.
--- TODO: remove matchPrefix
--- matchPrefix :: C.QName -> ScopeM Scope
--- matchPrefix m = filterScope (isPrefix m) (isPrefix m)
---            . mergeScopes . scopeStack <$> getScope
---   where
---     isPrefix _                  (C.QName _  ) = False
---     isPrefix (C.QName m)   (C.Qual m' x) = m == m'
---     isPrefix (C.Qual m m2) (C.Qual m' x) = m == m' && isPrefix m2 x
 
 -- | @renamedCanonicalNames old new s@ returns a renaming replacing all
 --   (abstract) names @old.m.x@ with @new.m.x@. Any other names are left
@@ -472,45 +400,31 @@ openModule_ :: C.QName -> ImportDirective -> ScopeM ()
 openModule_ cm dir = do
   current <- getCurrentModule
   m <- amodName <$> resolveModule cm
-  s <- applyImportDirectiveM cm dir . restrictPrivate =<< getNamedScope m
   let ns = namespace current m
-  modifyCurrentScope (`mergeScope` setScopeAccess ns s)
+  s <- setScopeAccess ns <$> 
+        (applyImportDirectiveM cm dir . restrictPrivate =<< getNamedScope m)
+  checkForClashes (scopeNameSpace ns s)
+  modifyCurrentScope (`mergeScope` s)
   where
     namespace m0 m1
       | not (publicOpen dir)  = PrivateNS
       | m1 `isSubModuleOf` m0 = PublicNS
       | otherwise             = ImportedNS
 
-{- TODO: remove old version of openModule_
-  addScope  .  setScopeAccess acc
-           =<< applyImportDirectiveM m dir
-            .  unqualifyScope m =<< matchPrefix m
-  where
-    addScope s
-      | not (publicOpen dir) = modifyTopScope (`mergeScope` s)
-      | otherwise            = do
-        -- In case of a public open we check that there are no
-        -- clashes with previously defined names.
-        pub0 <- scopePublic . head . scopeStack <$> getScope
-        let pub1 = scopePublic s
-            [def0, def1] = map (Map.keys . nsNames) [pub0, pub1]
-            [mod0, mod1] = map (Map.keys . nsModules) [pub0, pub1]
-
-        -- Clashing definitions?
-        case intersect def0 def1 of
-          []    -> return ()
-          x : _ -> case Map.lookup x (nsNames pub0) of
-                    Just [q] -> typeError $ ClashingDefinition x (anameName q)
-                    _        -> __IMPOSSIBLE__
-
-        -- Clashing modules?
-        case intersect mod0 mod1 of
-          []    -> return ()
-          x : _ -> case (Map.lookup x (nsModules pub0), Map.lookup x (nsModules pub1)) of
-                    (Just [q0], Just [q1]) -> typeError $ ClashingModule (amodName q0) (amodName q1)
-                    _                      -> __IMPOSSIBLE__
-
-        -- All is well. Merge.
-        modifyTopScope (`mergeScope` s)
--}
+    -- Only checks for clashes that would lead to the same
+    -- name being exported twice from the module.
+    checkForClashes new
+      | not (publicOpen dir) = return ()
+      | otherwise = do
+        old <- allThingsInScope . restrictPrivate <$> (getNamedScope =<< getCurrentModule)
+        let defClashes = Map.toList $ Map.intersectionWith (,) (nsNames new) (nsNames old)
+            modClashes = Map.toList $ Map.intersectionWith (,) (nsModules new) (nsModules old)
+            noCons (_, (qs0, qs1)) =
+              any ((/= ConName) . anameKind) (qs0 ++ qs1)
+        case filter noCons defClashes of
+          (x, (_, q:_)):_ -> typeError $ ClashingDefinition (C.QName x) (anameName q)
+          _               -> return ()
+        case modClashes of
+          (_, (m0:_, m1:_)):_ -> typeError $ ClashingModule (amodName m0) (amodName m1)
+          _                   -> return ()
 
