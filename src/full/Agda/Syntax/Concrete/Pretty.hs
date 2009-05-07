@@ -293,7 +293,7 @@ instance Pretty Pattern where
 
 instance Pretty ImportDirective where
     pretty i =
-	cat [ public (publicOpen i)
+	sep [ public (publicOpen i)
 	    , pretty $ usingOrHiding i
 	    , rename $ renaming i
 	    ]
