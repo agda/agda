@@ -64,9 +64,7 @@ instance KillRange ExprInfo where
  --------------------------------------------------------------------------}
 
 data ModuleInfo =
-	ModuleInfo { minfoAccess   :: Access
-		   , minfoAbstract :: IsAbstract
-		   , minfoRange    :: Range
+	ModuleInfo { minfoRange    :: Range
                    , minfoAsTo     :: Range
                      -- The range of the \"as\" and \"to\" keywords,
                      -- if any. Retained for highlighting purposes.

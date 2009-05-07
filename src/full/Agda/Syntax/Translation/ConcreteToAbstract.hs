@@ -158,7 +158,7 @@ recordConstructorType fields = build fs
     build (d : fs)                     = C.Let noRange (notSoNiceDeclarations [d]) $ build fs
     build []                           = C.Prop noRange
 
-checkModuleMacro apply r p a x tel m args open dir =
+checkModuleMacro apply r p x tel m args open dir =
     withLocalVars $ do
     tel' <- toAbstract tel
     (m0,m1,args') <- toAbstract ( NewModuleName x
@@ -191,11 +191,9 @@ checkModuleMacro apply r p a x tel m args open dir =
     return [ apply info (m0 `withRangesOf` [x]) tel' m1 args' renD renM ]
   where
     info = ModuleInfo
-             { minfoAccess   = p
-             , minfoAbstract = a
-             , minfoRange    = r
-             , minfoAsName   = Nothing
-             , minfoAsTo     = renamingRange dir
+             { minfoRange  = r
+             , minfoAsName = Nothing
+             , minfoAsTo   = renamingRange dir
              }
 
 -- | Computes the range of all the \"to\" keywords used in a renaming
@@ -492,9 +490,9 @@ instance ToAbstract C.TypedBinding A.TypedBinding where
     return (A.TNoBind e)
 
 -- | Returns the scope inside the checked module.
-scopeCheckModule :: Range -> Access -> IsAbstract -> C.QName -> A.ModuleName -> C.Telescope -> [C.Declaration] ->
+scopeCheckModule :: Range -> C.QName -> A.ModuleName -> C.Telescope -> [C.Declaration] ->
                     ScopeM (ScopeInfo, [A.Declaration])
-scopeCheckModule r a c x qm tel ds = do
+scopeCheckModule r x qm tel ds = do
   printScope "module" 20 $ "checking module " ++ show x
   res <- withCurrentModule qm $ do
     -- pushScope m
@@ -511,7 +509,7 @@ scopeCheckModule r a c x qm tel ds = do
   printScope "module" 20 $ "after module " ++ show x
   return res
   where
-    info = ModuleInfo a c r noRange Nothing
+    info = ModuleInfo r noRange Nothing
 
 newtype TopLevel a = TopLevel a
 
@@ -533,7 +531,7 @@ instance ToAbstract (TopLevel [C.Declaration]) TopLevelInfo where
           setTopLevelModule m
           am           <- toAbstract (NewModuleQName m)
           ds'          <- toAbstract ds'
-          (scope0, ds) <- scopeCheckModule r PublicAccess ConcreteDef m am tel ds
+          (scope0, ds) <- scopeCheckModule r m am tel ds
           scope        <- getScope
           return $ TopLevelInfo (ds' ++ ds) scope scope0
         _ -> __IMPOSSIBLE__
@@ -569,16 +567,14 @@ instance ToAbstract LetDef [A.LetBinding] where
               n       <- length . scopeLocals <$> getScope
               openModule_ x dirs
               return [A.LetOpen (ModuleInfo
-                                   { minfoAccess   = PrivateAccess
-                                   , minfoAbstract = ConcreteDef
-                                   , minfoRange    = r
-                                   , minfoAsName   = Nothing
-                                   , minfoAsTo     = renamingRange dirs
+                                   { minfoRange  = r
+                                   , minfoAsName = Nothing
+                                   , minfoAsTo   = renamingRange dirs
                                    })
                                 m]
 
             NiceModuleMacro r p a x tel e open dir | not (C.publicOpen dir) -> case appView e of
-              AppView (Ident m) args -> checkModuleMacro LetApply r p a x tel m args open dir
+              AppView (Ident m) args -> checkModuleMacro LetApply r p x tel m args open dir
               _                      -> notAModuleExpr e
 
             _   -> notAValidLetBinding d
@@ -721,14 +717,14 @@ instance ToAbstract NiceDeclaration A.Declaration where
   -- TODO: what does an abstract module mean? The syntax doesn't allow it.
     NiceModule r p a (C.QName name) tel ds -> do
       aname <- toAbstract (NewModuleName name)
-      x <- snd <$> scopeCheckModule r p a (C.QName name) aname tel ds
+      x <- snd <$> scopeCheckModule r (C.QName name) aname tel ds
       bindModule p name aname
       return x
 
     NiceModule _ _ _ C.Qual{} _ _ -> __IMPOSSIBLE__
 
     NiceModuleMacro r p a x tel e open dir -> case appView e of
-      AppView (Ident m) args -> checkModuleMacro Apply r p a x tel m args open dir
+      AppView (Ident m) args -> checkModuleMacro Apply r p x tel m args open dir
       _                      -> notAModuleExpr e
 
     NiceOpen r x dir -> do
@@ -737,11 +733,9 @@ instance ToAbstract NiceDeclaration A.Declaration where
       openModule_ x dir
       printScope "open" 20 $ "result:"
       return [A.Open (ModuleInfo
-                        { minfoAccess   = PrivateAccess
-                        , minfoAbstract = ConcreteDef
-                        , minfoRange    = r
-                        , minfoAsName   = Nothing
-                        , minfoAsTo     = renamingRange dir
+                        { minfoRange  = r
+                        , minfoAsName = Nothing
+                        , minfoAsTo   = renamingRange dir
                         })
                      m]
 
@@ -789,11 +783,9 @@ instance ToAbstract NiceDeclaration A.Declaration where
           -- If not opening import directives are applied to the original scope
           modifyNamedScopeM m $ applyImportDirectiveM x dir
       return [ A.Import (ModuleInfo
-                           { minfoAccess   = PublicAccess
-                           , minfoAbstract = ConcreteDef
-                           , minfoRange    = r
-                           , minfoAsName   = theAsName
-                           , minfoAsTo     =
+                           { minfoRange  = r
+                           , minfoAsName = theAsName
+                           , minfoAsTo   =
                                getRange (theAsSymbol, renamingRange dir)
                            })
                         m ]
@@ -833,7 +825,7 @@ instance ToAbstract C.Clause A.Clause where
           let tel = []
           old <- getCurrentModule
           am  <- toAbstract (NewModuleName m)
-          (scope, ds) <- scopeCheckModule (getRange wh) acc ConcreteDef (C.QName m) am tel whds
+          (scope, ds) <- scopeCheckModule (getRange wh) (C.QName m) am tel whds
           setScope scope
           -- the right hand side is checked inside the module of the local definitions
           rhs <- toAbstractCtx TopCtx (RightHandSide with wcs' rhs)
