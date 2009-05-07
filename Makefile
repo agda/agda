@@ -209,7 +209,7 @@ library-test : std-lib
 	@echo "======================================================================"
 	@echo "========================== Standard library =========================="
 	@echo "======================================================================"
-	@(cd std-lib && darcs pull -a && make Everything.agda && time ../$(AGDA_BIN) README.agda $(AGDA_TEST_FLAGS))
+	@(cd std-lib && darcs pull -a && make Everything.agda && time ../$(AGDA_BIN) -i. -isrc README.agda $(AGDA_TEST_FLAGS))
 
 benchmark :
 	@$(MAKE) -C benchmark
