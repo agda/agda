@@ -50,7 +50,7 @@ data NiceDeclaration
 	| NiceModule Range Access IsAbstract QName Telescope [Declaration]
 	| NiceModuleMacro Range Access IsAbstract Name Telescope Expr OpenShortHand ImportDirective
 	| NiceOpen Range QName ImportDirective
-	| NiceImport Range QName (Maybe Name) OpenShortHand ImportDirective
+	| NiceImport Range QName (Maybe AsName) OpenShortHand ImportDirective
 	| NicePragma Range Pragma
     deriving (Typeable, Data)
 

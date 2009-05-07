@@ -231,7 +231,7 @@ instance Pretty Declaration where
 		hsep [ pretty open, text "import", pretty x, as rn, pretty i ]
 		where
 		    as Nothing	= empty
-		    as (Just x) = text "as" <+> pretty x
+		    as (Just x) = text "as" <+> pretty (asName x)
 	    Pragma pr	-> sep [ text "{-#" <+> pretty pr, text "#-}" ]
 	where
 	    namedBlock s ds =
@@ -308,7 +308,7 @@ instance Pretty ImportDirective where
 			     , parens $ fsep $ punctuate (text ";") $ map pr xs
 			     ]
 
-	    pr (x,y) = hsep [ pretty x, text "to", pretty y ]
+	    pr r = hsep [ pretty (renFrom r), text "to", pretty (renTo r) ]
 
 instance Pretty UsingOrHiding where
     pretty (Hiding [])	= empty

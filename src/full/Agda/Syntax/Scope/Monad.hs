@@ -382,7 +382,7 @@ applyImportDirectiveM m dir scope = do
     _   -> typeError $ ModuleDoesntExport m xs
   where
     names :: [ImportedName]
-    names = map fst (renaming dir) ++ case usingOrHiding dir of
+    names = map renFrom (renaming dir) ++ case usingOrHiding dir of
       Using  xs -> xs
       Hiding xs -> xs
 

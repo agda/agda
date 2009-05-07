@@ -19,6 +19,7 @@ import qualified Agda.TypeChecking.Monad as M
 import qualified Agda.TypeChecking.Reduce as R
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Concrete as C
+import qualified Agda.Syntax.Info as SI
 import qualified Agda.Syntax.Internal as I
 import qualified Agda.Syntax.Literal as L
 import qualified Agda.Syntax.Parser as Pa
@@ -109,10 +110,11 @@ generateSyntaxInfo file tcs top termErrs =
   where
     decls = CA.topLevelDecls top
 
+    -- Converts an aspect and a range to a file.
+    aToF a r = several (rToR r) (mempty { aspect = Just a })
+
     tokInfo = Fold.foldMap tokenToFile
       where
-      aToF a r = several (rToR r) (mempty { aspect = Just a })
-
       tokenToFile :: T.Token -> File
       tokenToFile (T.TokSetN (i, _))               = aToF PrimitiveType (P.getRange i)
       tokenToFile (T.TokKeyword T.KwSet  i)        = aToF PrimitiveType (P.getRange i)
@@ -151,8 +153,8 @@ generateSyntaxInfo file tcs top termErrs =
       getAmbiguous :: A.AmbiguousQName -> Seq A.AmbiguousQName
       getAmbiguous = Seq.singleton
 
-    -- Bound variables, dotted patterns, record fields and module
-    -- names.
+    -- Bound variables, dotted patterns, record fields, module names,
+    -- the "as" and "to" symbols.
     theRest modMap = everything' mappend query decls
       where
       query :: GenericQ File
@@ -163,7 +165,8 @@ generateSyntaxInfo file tcs top termErrs =
               getLam         `extQ`
               getTyped       `extQ`
               getPattern     `extQ`
-              getModuleName
+              getModuleName  `extQ`
+              getModuleInfo
 
       bound n = nameToFile modMap file []
                            (A.nameConcrete n)
@@ -176,6 +179,10 @@ generateSyntaxInfo file tcs top termErrs =
                          (A.nameConcrete n)
                          (\isOp -> mempty { aspect = Just $ Name (Just Module) isOp })
                          (Just $ A.nameBindingSite n)
+      asName n = nameToFile modMap file []
+                            n
+                            (\isOp -> mempty { aspect = Just $ Name (Just Module) isOp })
+                            Nothing
 
       getVarAndField :: A.Expr -> File
       getVarAndField (A.Var x)    = bound x
@@ -215,6 +222,11 @@ generateSyntaxInfo file tcs top termErrs =
       getModuleName :: A.ModuleName -> File
       getModuleName (A.MName { A.mnameToList = xs }) =
         mconcat $ map mod xs
+
+      getModuleInfo :: SI.ModuleInfo -> File
+      getModuleInfo (SI.ModuleInfo { SI.minfoAsTo   = asTo
+                                   , SI.minfoAsName = name }) =
+        aToF Symbol asTo `mappend` maybe mempty asName name
 
 -- | A function mapping names to the kind of name they stand for.
 

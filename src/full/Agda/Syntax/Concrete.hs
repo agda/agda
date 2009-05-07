@@ -22,6 +22,7 @@ module Agda.Syntax.Concrete
     , Constructor
     , Field
     , ImportDirective(..), UsingOrHiding(..), ImportedName(..)
+    , Renaming(..), AsName(..)
     , defaultImportDir
     , OpenShortHand(..)
     , LHS(..), Pattern(..)
@@ -147,7 +148,7 @@ data ImportDirective
 	= ImportDirective
 	    { importDirRange	:: !Range
 	    , usingOrHiding	:: UsingOrHiding
-	    , renaming		:: [(ImportedName, Name)]
+	    , renaming		:: [Renaming]
 	    , publicOpen	:: Bool	-- ^ Only for @open@. Exports the opened names from the current module.
 	    }
     deriving (Typeable, Data, Eq)
@@ -168,6 +169,24 @@ data ImportedName = ImportedModule  { importedName :: Name }
 instance Show ImportedName where
     show (ImportedModule x) = "module " ++ show x
     show (ImportedName   x) = show x
+
+data Renaming = Renaming { renFrom    :: ImportedName
+                           -- ^ Rename from this name.
+                         , renTo      :: Name
+                           -- ^ To this one.
+                         , renToRange :: Range
+                           -- ^ The range of the \"to\" keyword. Retained
+                           --   for highlighting purposes.
+                         }
+    deriving (Eq, Typeable, Data)
+
+data AsName = AsName { asName  :: Name
+                       -- ^ The \"as\" name.
+                     , asRange :: Range
+                       -- ^ The range of the \"as\" keyword. Retained
+                       --   for highlighting purposes.
+                     }
+    deriving (Eq, Typeable, Data)
 
 {--------------------------------------------------------------------------
     Declarations
@@ -196,7 +215,7 @@ data Declaration
 	| Postulate   !Range [TypeSignature]
 	| Primitive   !Range [TypeSignature]
 	| Open        !Range QName ImportDirective
-	| Import      !Range QName (Maybe Name) OpenShortHand ImportDirective
+	| Import      !Range QName (Maybe AsName) OpenShortHand ImportDirective
 	| ModuleMacro !Range  Name [TypedBindings] Expr OpenShortHand ImportDirective
 	| Module      !Range QName [TypedBindings] [Declaration]
 	| Pragma      Pragma
@@ -332,6 +351,12 @@ instance HasRange ImportDirective where
 instance HasRange ImportedName where
     getRange (ImportedName x)	= getRange x
     getRange (ImportedModule x)	= getRange x
+
+instance HasRange Renaming where
+  getRange r = getRange (renFrom r, renTo r)
+
+instance HasRange AsName where
+  getRange a = getRange (asRange a, asName a)
 
 instance HasRange Pattern where
     getRange (IdentP x)		= getRange x

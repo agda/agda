@@ -8,6 +8,7 @@
 module Agda.Syntax.Info where
 
 import Data.Generics(Data,Typeable)
+import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Common
 import Agda.Syntax.Position
 import Agda.Syntax.Concrete
@@ -66,6 +67,12 @@ data ModuleInfo =
 	ModuleInfo { minfoAccess   :: Access
 		   , minfoAbstract :: IsAbstract
 		   , minfoRange    :: Range
+                   , minfoAsTo     :: Range
+                     -- The range of the \"as\" and \"to\" keywords,
+                     -- if any. Retained for highlighting purposes.
+                   , minfoAsName   :: Maybe C.Name
+                     -- The \"as\" module name, if any. Retained for
+                     -- highlighting purposes.
 		   }
   deriving (Typeable, Data)
 

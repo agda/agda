@@ -190,7 +190,18 @@ checkModuleMacro apply r p a x tel m args open dir =
     printScope "mod.inst" 10 $ "after stripping"
     return [ apply info (m0 `withRangesOf` [x]) tel' m1 args' renD renM ]
   where
-    info = ModuleInfo p a r
+    info = ModuleInfo
+             { minfoAccess   = p
+             , minfoAbstract = a
+             , minfoRange    = r
+             , minfoAsName   = Nothing
+             , minfoAsTo     = renamingRange dir
+             }
+
+-- | Computes the range of all the \"to\" keywords used in a renaming
+-- directive.
+
+renamingRange = getRange . map renToRange . renaming
 
 {--------------------------------------------------------------------------
     Translation
@@ -500,7 +511,7 @@ scopeCheckModule r a c x qm tel ds = do
   printScope "module" 20 $ "after module " ++ show x
   return res
   where
-    info = ModuleInfo a c r
+    info = ModuleInfo a c r noRange Nothing
 
 newtype TopLevel a = TopLevel a
 
@@ -557,7 +568,14 @@ instance ToAbstract LetDef [A.LetBinding] where
               m       <- toAbstract (OldModuleName x)
               n       <- length . scopeLocals <$> getScope
               openModule_ x dirs
-              return [A.LetOpen m]
+              return [A.LetOpen (ModuleInfo
+                                   { minfoAccess   = PrivateAccess
+                                   , minfoAbstract = ConcreteDef
+                                   , minfoRange    = r
+                                   , minfoAsName   = Nothing
+                                   , minfoAsTo     = renamingRange dirs
+                                   })
+                                m]
 
             NiceModuleMacro r p a x tel e open dir | not (C.publicOpen dir) -> case appView e of
               AppView (Ident m) args -> checkModuleMacro LetApply r p a x tel m args open dir
@@ -718,7 +736,14 @@ instance ToAbstract NiceDeclaration A.Declaration where
       printScope "open" 20 $ "opening " ++ show x
       openModule_ x dir
       printScope "open" 20 $ "result:"
-      return [A.Open m]
+      return [A.Open (ModuleInfo
+                        { minfoAccess   = PrivateAccess
+                        , minfoAbstract = ConcreteDef
+                        , minfoRange    = r
+                        , minfoAsName   = Nothing
+                        , minfoAsTo     = renamingRange dir
+                        })
+                     m]
 
     NicePragma r p -> do
       ps <- toAbstract p
@@ -748,12 +773,14 @@ instance ToAbstract NiceDeclaration A.Declaration where
       -- Bind the desired module name to the right abstract name.
       case as of
         Nothing -> bindQModule PrivateAccess x m
-        Just y  -> bindModule PrivateAccess y m
+        Just y  -> bindModule PrivateAccess (asName y) m
 
       printScope "import" 10 "merged imported sig:"
 
       -- Open if specified, otherwise apply import directives
-      let name = maybe x C.QName as
+      let (name, theAsSymbol, theAsName) = case as of
+            Nothing -> (x,                  noRange,   Nothing)
+            Just a  -> (C.QName (asName a), asRange a, Just (asName a))
       case open of
         DoOpen   -> do
           toAbstract [ C.Open r name dir ]
@@ -761,7 +788,15 @@ instance ToAbstract NiceDeclaration A.Declaration where
         DontOpen -> do
           -- If not opening import directives are applied to the original scope
           modifyNamedScopeM m $ applyImportDirectiveM x dir
-      return [ A.Import (ModuleInfo PublicAccess ConcreteDef r) m ]
+      return [ A.Import (ModuleInfo
+                           { minfoAccess   = PublicAccess
+                           , minfoAbstract = ConcreteDef
+                           , minfoRange    = r
+                           , minfoAsName   = theAsName
+                           , minfoAsTo     =
+                               getRange (theAsSymbol, renamingRange dir)
+                           })
+                        m ]
 
 instance ToAbstract (Constr C.NiceDeclaration) A.Declaration where
     toAbstract (Constr (C.Axiom r f p a x t)) = do

@@ -16,7 +16,8 @@ import Agda.Syntax.Common
 import Agda.Syntax.Fixity
 import Agda.Syntax.Abstract.Name as A
 import Agda.Syntax.Concrete.Name as C
-import Agda.Syntax.Concrete (ImportDirective(..), UsingOrHiding(..), ImportedName(..))
+import Agda.Syntax.Concrete
+  (ImportDirective(..), UsingOrHiding(..), ImportedName(..), Renaming(..))
 import qualified Agda.Utils.Map as Map
 import Agda.Utils.Tuple
 
@@ -387,11 +388,11 @@ applyImportDirective dir s = mergeScope usedOrHidden renamed
     usedOrHidden = useOrHide (hideLHS (renaming dir) $ usingOrHiding dir) s
     renamed	 = rename (renaming dir) $ useOrHide useRenamedThings s
 
-    useRenamedThings = Using $ map fst $ renaming dir
+    useRenamedThings = Using $ map renFrom $ renaming dir
 
-    hideLHS :: [(ImportedName, C.Name)] -> UsingOrHiding -> UsingOrHiding
+    hideLHS :: [Renaming] -> UsingOrHiding -> UsingOrHiding
     hideLHS _	i@(Using _) = i
-    hideLHS ren (Hiding xs) = Hiding $ xs ++ map fst ren
+    hideLHS ren (Hiding xs) = Hiding $ xs ++ map renFrom ren
 
     useOrHide :: UsingOrHiding -> Scope -> Scope
     useOrHide (Hiding xs) s = filterNames notElem notElem xs s
@@ -407,12 +408,12 @@ applyImportDirective dir s = mergeScope usedOrHidden renamed
     filterScope' pd pm = filterScope pd pm
 
     -- Renaming
-    rename :: [(ImportedName, C.Name)] -> Scope -> Scope
+    rename :: [Renaming] -> Scope -> Scope
     rename rho = mapScope_ (Map.mapKeys $ ren drho)
 			   (Map.mapKeys $ ren mrho)
       where
-	mrho = [ (x, y) | (ImportedModule x, y) <- rho ]
-	drho = [ (x, y) | (ImportedName	  x, y) <- rho ]
+	mrho = [ (x, y) | Renaming { renFrom = ImportedModule x, renTo = y } <- rho ]
+	drho = [ (x, y) | Renaming { renFrom = ImportedName   x, renTo = y } <- rho ]
 
 	ren r x = maybe x id $ lookup x r
 

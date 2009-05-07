@@ -418,9 +418,9 @@ instance ToConcrete LetBinding [C.Declaration] where
                   (foldl (C.App r) (C.Ident y) es) DontOpen
                   (ImportDirective r (Hiding []) [] False)
           ]
-    bindToConcrete (LetOpen x) ret = do
+    bindToConcrete (LetOpen i x) ret = do
       x <- toConcrete x
-      ret [ C.Open (getRange x) x defaultImportDir ]
+      ret [ C.Open (getRange i) x defaultImportDir ]
 
 
 -- Declaration instances --------------------------------------------------
@@ -566,9 +566,9 @@ instance ToConcrete A.Declaration [C.Declaration] where
     p <- toConcrete $ RangeAndPragma (getRange i) p
     return [C.Pragma p]
 
-  toConcrete (A.Open x) = do
+  toConcrete (A.Open i x) = do
     x <- toConcrete x
-    return [C.Open (getRange x) x defaultImportDir]
+    return [C.Open (getRange i) x defaultImportDir]
 
 data RangeAndPragma = RangeAndPragma Range A.Pragma
 

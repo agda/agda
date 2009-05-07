@@ -496,10 +496,11 @@ DomainFreeBinding
  --------------------------------------------------------------------------}
 
 -- You can rename imports
-ImportImportDirective :: { (Maybe Name, ImportDirective) }
+ImportImportDirective :: { (Maybe AsName, ImportDirective) }
 ImportImportDirective
     : ImportDirective	    { (Nothing, $1) }
-    | id Id ImportDirective {% isName "as" $1 >> return (Just $2, $3) }
+    | id Id ImportDirective {% isName "as" $1 >>
+                               return (Just (AsName $2 (getRange (fst $1))), $3) }
 
 -- Import directives
 ImportDirective :: { ImportDirective }
@@ -524,19 +525,19 @@ UsingOrHiding
 	-- only using can have an empty list
     | 'hiding' '(' CommaImportNames1 ')' { Hiding $3 }
 
-RenamingDir :: { [(ImportedName, Name)] }
+RenamingDir :: { [Renaming] }
 RenamingDir
     : 'renaming' '(' Renamings ')'	{ $3 }
 
 -- Renamings of the form 'x to y'
-Renamings :: { [(ImportedName, Name)] }
+Renamings :: { [Renaming] }
 Renamings
     : Renaming ';' Renamings	{ $1 : $3 }
     | Renaming			{ [$1] }
 
-Renaming :: { (ImportedName, Name) }
+Renaming :: { Renaming }
 Renaming
-    : ImportName_ 'to' Id { ($1,$3) }
+    : ImportName_ 'to' Id { Renaming $1 $3 (getRange $2) }
 
 -- We need a special imported name here, since we have to trigger
 -- the imp_dir state exactly one token before the 'to'
@@ -934,7 +935,7 @@ verifyImportDirective i =
 			[_] -> ""
 			_   -> "s"
     where
-	xs = names (usingOrHiding i) ++ map fst (renaming i)
+	xs = names (usingOrHiding i) ++ map renFrom (renaming i)
 	names (Using xs)    = xs
 	names (Hiding xs)   = xs
 

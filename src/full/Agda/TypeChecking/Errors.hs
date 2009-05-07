@@ -573,7 +573,7 @@ instance PrettyTCM Call where
           pwords "when checking the module application" ++
           [prettyA $ A.Apply info m1 ptel m2 args Map.empty Map.empty]
           where
-            info = A.ModuleInfo PublicAccess ConcreteDef noRange
+            info = A.ModuleInfo PublicAccess ConcreteDef noRange noRange Nothing
 
 	where
 	    hPretty a@(Arg h _) = pretty =<< abstractToConcreteCtx (hiddenArgumentCtx h) a
