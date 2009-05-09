@@ -26,9 +26,10 @@ description:
   Epigram and NuPRL.
   .
   Note that if you want to use the command-line program (agda), then
-  you should also install the Agda-executable package. This package
-  includes an Emacs mode for Agda, but you need to set up the Emacs
-  mode yourself (see the README).
+  you should also install the Agda-executable package. The Agda
+  package includes an Emacs mode for Agda, but you need to set up the
+  Emacs mode yourself (for instance by running @agda-mode setup@; see
+  the README).
 tested-with:     GHC == 6.8.3 && == 6.10.2
 extra-source-files: src/full/Agda/undefined.h
                     README
