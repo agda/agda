@@ -98,6 +98,9 @@ runAgda =
                     failIfNoInt (_, Right Nothing)  = __IMPOSSIBLE__
                     failIfNoInt (_, Left err)       = typeError err
 
+                    interaction
+                      :: TCM (ScopeInfo, Either TypeError (Maybe Interface))
+                      -> TCM ()
                     interaction | i	  = runIM . interactionLoop
 				| compile = Agate.compilerMain   . (failIfError =<<)
 				| alonzo  = Alonzo.compilerMain  . (failIfError =<<)
