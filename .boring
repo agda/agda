@@ -2,3 +2,4 @@
 \.agdai$
 (^|/)MAlonzo($|/)
 ^html($|/)
+^Everything\.agda$
