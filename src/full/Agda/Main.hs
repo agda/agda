@@ -153,8 +153,6 @@ runAgda =
 				return (insideScope topLevel, result)
 			  else return (emptyScopeInfo, Right Nothing)
 
-		return ()
-
 -- | Print usage information.
 printUsage :: IO ()
 printUsage =
