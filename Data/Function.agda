@@ -54,7 +54,7 @@ const₁ x = λ _ → x
 flip : {a b c : Set} → (a → b → c) → (b → a → c)
 flip f = λ x y → f y x
 
-flip₁ : {a b : Set} → (a → b → Set) → (b → a → Set)
+flip₁ : {A B : Set} {C : Set₁} → (A → B → C) → (B → A → C)
 flip₁ f = λ x y → f y x
 
 -- Note that _$_ is right associative, like in Haskell. If you want a
