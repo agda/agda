@@ -225,9 +225,7 @@ unifyIndices flex a us vs = liftTCM $ do
     unifyAtom :: Type -> Term -> Term -> Unify ()
     unifyAtom a u v =
       case (u, v) of
-	(Var i us, Var j vs) | i == j  -> do
-	    a <- typeOfBV i
-	    unifyArgs a us vs
+	(Var i us, Var j vs) | i == j  -> addEquality a u v
 	(Var i [], v) | flexible i -> i |->> (v, a)
 	(u, Var j []) | flexible j -> j |->> (u, a)
 	(Con c us, Con c' vs)

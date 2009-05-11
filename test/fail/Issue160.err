@@ -1,0 +1,3 @@
+Issue160.agda:13,7-11
+a != b of type A
+when checking that the pattern refl has type f a ≡ f b
