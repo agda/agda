@@ -59,17 +59,22 @@ gmap f g (x ◅ xs) = g x ◅ gmap f g xs
 map : ∀ {I} {T U : Rel I} → T ⇒ U → Star T ⇒ Star U
 map = gmap id
 
+-- TransFlip is used to state the type signature of gfold.
+
+TransFlip : ∀ {a} → Rel a → Rel a → Rel a → Set
+TransFlip P Q R = ∀ {i j k} → Q j k → P i j → R i k
+
 -- A generalised variant of fold.
 
 gfold : ∀ {I J T} (f : I → J) P →
-        Trans T (P on₁ f) (P on₁ f) → Reflexive (P on₁ f) →
-        Star T =[ f ]⇒ P
+        Trans     T        (P on₁ f) (P on₁ f) →
+        TransFlip (Star T) (P on₁ f) (P on₁ f)
 gfold f P _⊕_ ∅ ε        = ∅
 gfold f P _⊕_ ∅ (x ◅ xs) = x ⊕ gfold f P _⊕_ ∅ xs
 
 fold : ∀ {I T} (P : Rel I) →
        Trans T P P → Reflexive P → Star T ⇒ P
-fold = gfold id
+fold P _⊕_ ∅ = gfold id P _⊕_ ∅
 
 gfoldl : ∀ {I J T} (f : I → J) P →
          Trans (P on₁ f) T        (P on₁ f) →
@@ -78,9 +83,8 @@ gfoldl f P _⊕_ ∅ ε        = ∅
 gfoldl f P _⊕_ ∅ (x ◅ xs) = gfoldl f P _⊕_ (∅ ⊕ x) xs
 
 foldl : ∀ {I T} (P : Rel I) →
-        Trans P T        P →
-        Trans P (Star T) P
-foldl = gfoldl id
+        Trans P T P → Reflexive P → Star T ⇒ P
+foldl P _⊕_ ∅ = gfoldl id P _⊕_ ∅
 
 concat : ∀ {I} {T : Rel I} → Star (Star T) ⇒ Star T
 concat {T = T} = fold (Star T) _◅◅_ ε
