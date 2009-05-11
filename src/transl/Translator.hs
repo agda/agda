@@ -404,11 +404,13 @@ copenargs2importdirective :: [COArg] -> ImportDirective
 copenargs2importdirective coargs 
  = case unzip $ map coarg2urm coargs of
      (ns, rns) -> ImportDirective noRange (Using (map ImportedName (catMaybes ns)))
-                                             (catMaybes rns) False
+                                             (map mkRenaming $ catMaybes rns) False
   where coarg2urm (COArgT _ i t)     = (Just $ id2name i,Nothing)
         coarg2urm (COArg _ i)        = (Just $ id2name i,Nothing)
         coarg2urm (COArgAs _ i j)    = (Nothing,Just (ImportedName $ id2name i,id2name j))
         coarg2urm (COArgAsT _ i t j) = (Nothing,Just (ImportedName $ id2name i,id2name j))
+
+        mkRenaming (i, x) = Renaming i x noRange
 
 -- Translator from Agda1 expression syntax to Agda2 expression syntax
 
