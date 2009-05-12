@@ -95,6 +95,13 @@ fold : ∀ (T : ℕ → Set) {m} →
 fold T f x zero    = x
 fold T f x (suc i) = f (fold T f x i)
 
+-- Lifts functions.
+
+lift : ∀ {m n} k → (Fin m → Fin n) → Fin (k N+ m) → Fin (k N+ n)
+lift zero    f i       = f i
+lift (suc k) f zero    = zero
+lift (suc k) f (suc i) = suc (lift k f i)
+
 -- "m" + "n" = "m + n".
 
 infixl 6 _+_

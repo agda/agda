@@ -93,10 +93,10 @@ all? dec with all∈? {q = all inside} (λ {f} _ → dec f)
 ...      | yes ∀p = yes (λ f → ∀p (allInside f))
 ...      | no ¬∀p = no  (λ ∀p → ¬∀p (λ {f} _ → ∀p f))
 
-lift : ∀ {n} {P : Fin n → Set} →
-       (∀ x → Dec (P x)) →
-       (∀ p → Dec (Lift P p))
-lift dec p = all∈? (λ {x} _ → dec x)
+decLift : ∀ {n} {P : Fin n → Set} →
+          (∀ x → Dec (P x)) →
+          (∀ p → Dec (Lift P p))
+decLift dec p = all∈? (λ {x} _ → dec x)
 
 private
 
