@@ -65,10 +65,10 @@ record Lemmas₁ (T : ℕ → Set) : Set where
 
   field weaken-var : ∀ {n} {x : Fin n} → weaken (var x) ≡ var (suc x)
 
-  lookup-map-weaken : ∀ {m n} x {y} (ρ : Sub T m n) →
+  lookup-map-weaken : ∀ {m n} x {y} {ρ : Sub T m n} →
                       lookup x             ρ  ≡ var      y →
                       lookup x (map weaken ρ) ≡ var (suc y)
-  lookup-map-weaken x {y} ρ hyp = begin
+  lookup-map-weaken x {y} {ρ} hyp = begin
     lookup x (map weaken ρ)  ≡⟨ VecProp.lookup-natural weaken x ρ ⟩
     weaken (lookup x ρ)      ≡⟨ cong weaken hyp ⟩
     weaken (var y)           ≡⟨ weaken-var ⟩
@@ -81,29 +81,36 @@ record Lemmas₁ (T : ℕ → Set) : Set where
     lookup-id (suc x) = lookup-wk x
 
     lookup-wk : ∀ {n} (x : Fin n) → lookup x wk ≡ var (suc x)
-    lookup-wk x = lookup-map-weaken x id (lookup-id x)
+    lookup-wk x = lookup-map-weaken x (lookup-id x)
 
-  lookup-sub-↑⋆ : ∀ {n} k (x : Fin (k + n)) {t} →
-                  lookup (lift k suc x) (sub t ↑⋆ k) ≡ var x
-  lookup-sub-↑⋆ zero    x           = lookup-id x
-  lookup-sub-↑⋆ (suc k) zero        = refl
-  lookup-sub-↑⋆ (suc k) (suc x) {t} =
-    lookup-map-weaken (lift k suc x) (sub t ↑⋆ k) (lookup-sub-↑⋆ k x)
+  lookup-↑⋆ : ∀ {m n} (f : Fin m → Fin n) {ρ : Sub T m n} →
+              (∀ x → lookup x ρ ≡ var (f x)) →
+              ∀ k x → lookup x (ρ ↑⋆ k) ≡ var (lift k f x)
+  lookup-↑⋆ f hyp zero    x       = hyp x
+  lookup-↑⋆ f hyp (suc k) zero    = refl
+  lookup-↑⋆ f hyp (suc k) (suc x) =
+    lookup-map-weaken x (lookup-↑⋆ f hyp k x)
+
+  lookup-lift-↑⋆ : ∀ {m n} (f : Fin n → Fin m) {ρ : Sub T m n} →
+                   (∀ x → lookup (f x) ρ ≡ var x) →
+                   ∀ k x → lookup (lift k f x) (ρ ↑⋆ k) ≡ var x
+  lookup-lift-↑⋆ f hyp zero    x       = hyp x
+  lookup-lift-↑⋆ f hyp (suc k) zero    = refl
+  lookup-lift-↑⋆ f hyp (suc k) (suc x) =
+    lookup-map-weaken (lift k f x) (lookup-lift-↑⋆ f hyp k x)
 
   lookup-wk-↑⋆ : ∀ {n} k (x : Fin (k + n)) →
                  lookup x (wk ↑⋆ k) ≡ var (lift k suc x)
-  lookup-wk-↑⋆ zero    x       = lookup-wk x
-  lookup-wk-↑⋆ (suc k) zero    = refl
-  lookup-wk-↑⋆ (suc k) (suc x) =
-    lookup-map-weaken x (wk ↑⋆ k) (lookup-wk-↑⋆ k x)
+  lookup-wk-↑⋆ = lookup-↑⋆ suc lookup-wk
 
   lookup-wk-↑⋆-↑⋆ : ∀ {n} k j (x : Fin (j + (k + n))) →
                     lookup x (wk ↑⋆ k ↑⋆ j) ≡
                     var (lift j (lift k suc) x)
-  lookup-wk-↑⋆-↑⋆ k zero    x       = lookup-wk-↑⋆ k x
-  lookup-wk-↑⋆-↑⋆ k (suc j) zero    = refl
-  lookup-wk-↑⋆-↑⋆ k (suc j) (suc x) =
-    lookup-map-weaken x (wk ↑⋆ k ↑⋆ j) (lookup-wk-↑⋆-↑⋆ k j x)
+  lookup-wk-↑⋆-↑⋆ k = lookup-↑⋆ (lift k suc) (lookup-wk-↑⋆ k)
+
+  lookup-sub-↑⋆ : ∀ {n t} k (x : Fin (k + n)) →
+                  lookup (lift k suc x) (sub t ↑⋆ k) ≡ var x
+  lookup-sub-↑⋆ = lookup-lift-↑⋆ suc lookup-id
 
   open Lemmas₀ lemmas₀ public
 
