@@ -33,6 +33,8 @@ module GCD where
       -- greatest common divisor according to the partial order _∣_.
       greatest : ∀ {d} → d ∣ m × d ∣ n → d ∣ gcd
 
+  open GCD public
+
   is : ∀ {gcd m n} →
        gcd ∣ m × gcd ∣ n →
        (∀ {d} → d ∣ m × d ∣ n → d ∣ gcd) →
@@ -68,12 +70,12 @@ module GCD where
 
   step : ∀ {n k d} → GCD n k d → GCD n (n + k) d
   step g with GCD.commonDivisor g
-  step {n} {k} {d} g | (d₁ , d₂) = is (d₁ , ∣-+ d₁ d₂) greatest
+  step {n} {k} {d} g | (d₁ , d₂) = is (d₁ , ∣-+ d₁ d₂) greatest′
     where
-    greatest : ∀ {d′} → d′ ∣ n × d′ ∣ n + k → d′ ∣ d
-    greatest (d₁ , d₂) = GCD.greatest g (d₁ , ∣-∸ d₂ d₁)
+    greatest′ : ∀ {d′} → d′ ∣ n × d′ ∣ n + k → d′ ∣ d
+    greatest′ (d₁ , d₂) = GCD.greatest g (d₁ , ∣-∸ d₂ d₁)
 
-open GCD public using (GCD; module GCD)
+open GCD public using (GCD)
 
 ------------------------------------------------------------------------
 -- Calculating the gcd
