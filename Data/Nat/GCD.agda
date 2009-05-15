@@ -173,6 +173,13 @@ module Bézout where
                       -- "gcd (suc k) (suc n)"
       Lemma.stepʳ $ proj₂ rec (suc k) (lem₁ k n) (suc n)
 
+  -- Bézout's identity can be recovered from the GCD.
+
+  identity : ∀ {m n d} → GCD m n d → Identity d m n
+  identity {m} {n} g with lemma m n
+  identity g | result d g′ b with GCD.unique g g′
+  identity g | result d g′ b | PropEq.refl = b
+
 -- Calculates the gcd of the arguments.
 
 gcd : (m n : ℕ) → ∃ λ d → GCD m n d
