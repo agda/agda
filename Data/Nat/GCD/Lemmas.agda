@@ -129,3 +129,40 @@ lem₉ {i} {j} {k} {q} x y eq eq′ =
                                        :=  x :* k :* i :+ k)
                                 refl x i k ⟩
     x * k * i + k    ∎
+
+lem₁₀ : ∀ {a′} b c {d} e f → let a = suc a′ in
+        a + b * (c * d * a) ≡ e * (f * d * a) →
+        d ≡ 1
+lem₁₀ {a′} b c {d} e f eq =
+  NatProp.i*j≡1⇒j≡1 (e * f ∸ b * c) d
+    (NatProp.im≡jm+n⇒[i∸j]m≡n (e * f) (b * c) d 1
+       (NatProp.cancel-*-right (e * f * d) (b * c * d + 1) (begin
+          e * f * d * a        ≡⟨ solve 4 (λ e f d a → e :* f :* d :* a
+                                                   :=  e :* (f :* d :* a))
+                                          refl e f d a ⟩
+          e * (f * d * a)      ≡⟨ sym eq ⟩
+          a + b * (c * d * a)  ≡⟨ solve 4 (λ a b c d → a :+ b :* (c :* d :* a)
+                                                   :=  (b :* c :* d :+ con 1) :* a)
+                                          refl a b c d ⟩
+          (b * c * d + 1) * a  ∎)))
+  where a = suc a′
+
+lem₁₁ : ∀ {i j m n k d} x y →
+       1 + y * j ≡ x * i → i * k ≡ m * d → j * k ≡ n * d →
+       k ≡ (x * m ∸ y * n) * d
+lem₁₁ {i} {j} {m} {n} {k} {d} x y eq eq₁ eq₂ =
+  sym (NatProp.im≡jm+n⇒[i∸j]m≡n (x * m) (y * n) d k lemma)
+  where
+  assoc = solve 3 (λ x y z → x :* y :* z  :=  x :* (y :* z)) refl
+
+  lemma = begin
+    x * m * d        ≡⟨ assoc x m d ⟩
+    x * (m * d)      ≡⟨ cong (_*_ x) (sym eq₁) ⟩
+    x * (i * k)      ≡⟨ sym (assoc x i k) ⟩
+    x * i * k        ≡⟨ cong₂ _*_ (sym eq) refl ⟩
+    (1 + y * j) * k  ≡⟨ solve 3 (λ y j k → (con 1 :+ y :* j) :* k
+                                       :=  y :* (j :* k) :+ k)
+                                refl y j k ⟩
+    y * (j * k) + k  ≡⟨ cong (λ p → y * p + k) eq₂ ⟩
+    y * (n * d) + k  ≡⟨ cong₂ _+_ (sym $ assoc y n d) refl ⟩
+    y * n * d + k    ∎

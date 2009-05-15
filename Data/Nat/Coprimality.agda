@@ -59,11 +59,34 @@ sym c = c ∘ swap
 coprime-+ : ∀ {m n} → Coprime m n → Coprime (n + m) n
 coprime-+ c (d₁ , d₂) = c (∣-∸ d₁ d₂ , d₂)
 
+-- If the "gcd" in Bézout's identity is non-zero, then the "other"
+-- divisors are coprime.
+
+Bézout-coprime : ∀ {i j d} →
+                 Bézout.Identity (suc d) (i * suc d) (j * suc d) →
+                 Coprime i j
+Bézout-coprime (Bézout.+- x y eq) (divides q₁ refl , divides q₂ refl) =
+  lem₁₀ y q₂ x q₁ eq
+Bézout-coprime (Bézout.-+ x y eq) (divides q₁ refl , divides q₂ refl) =
+  lem₁₀ x q₁ y q₂ eq
+
+-- Coprime numbers satisfy Bézout's identity.
+
+coprime-Bézout : ∀ {i j} → Coprime i j → Bézout.Identity 1 i j
+coprime-Bézout = Bézout.identity ∘ coprime-gcd
+
 -- If i divides jk and is coprime to j, then it divides k.
 
 coprime-divisor : ∀ {k i j} → Coprime i j → i ∣ j * k → i ∣ k
-coprime-divisor     c _ with Bézout.identity (coprime-gcd c)
-coprime-divisor {k} c (divides q eq′) | Bézout.+- x y eq =
-  divides (x * k ∸ y * q) (lem₈ x y eq eq′)
-coprime-divisor {k} c (divides q eq′) | Bézout.-+ x y eq =
-  divides (y * q ∸ x * k) (lem₉ x y eq eq′)
+coprime-divisor {k} c (divides q eq′) with coprime-Bézout c
+... | Bézout.+- x y eq = divides (x * k ∸ y * q) (lem₈ x y eq eq′)
+... | Bézout.-+ x y eq = divides (y * q ∸ x * k) (lem₉ x y eq eq′)
+
+-- If d is a common divisor of mk and nk, and m and n are coprime,
+-- then d divides k.
+
+coprime-factors : ∀ {d m n k} →
+                  Coprime m n → d ∣ m * k × d ∣ n * k → d ∣ k
+coprime-factors c (divides q₁ eq₁ , divides q₂ eq₂) with coprime-Bézout c
+... | Bézout.+- x y eq = divides (x * q₁ ∸ y * q₂) (lem₁₁ x y eq eq₁ eq₂)
+... | Bézout.-+ x y eq = divides (y * q₂ ∸ x * q₁) (lem₁₁ y x eq eq₂ eq₁)
