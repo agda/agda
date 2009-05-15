@@ -9,13 +9,15 @@ import Data.Nat.Properties as NatProp
 open import Data.Nat.Divisibility as Div
 open import Data.Nat.GCD
 open import Data.Nat.GCD.Lemmas
-open import Data.Product
+open import Data.Product as Prod
 open import Data.Function
 open import Relation.Binary.PropositionalEquality as PropEq
   using (_≡_; refl)
 open import Relation.Binary
+open import Algebra
 private
-  module P = Poset Div.poset
+  module P  = Poset Div.poset
+  module CS = CommutativeSemiring NatProp.commutativeSemiring
 
 -- Coprime m n is inhabited iff m and n are coprime (relatively
 -- prime), i.e. if their only common divisor is 1.
@@ -90,3 +92,29 @@ coprime-factors : ∀ {d m n k} →
 coprime-factors c (divides q₁ eq₁ , divides q₂ eq₂) with coprime-Bézout c
 ... | Bézout.+- x y eq = divides (x * q₁ ∸ y * q₂) (lem₁₁ x y eq eq₁ eq₂)
 ... | Bézout.-+ x y eq = divides (y * q₂ ∸ x * q₁) (lem₁₁ y x eq eq₂ eq₁)
+
+-- A variant of GCD.
+
+data GCD′ : ℕ → ℕ → ℕ → Set where
+  gcd-* : ∀ {d} q₁ q₂ (c : Coprime q₁ q₂) →
+          GCD′ (q₁ * d) (q₂ * d) d
+
+-- The two definitions are equivalent.
+
+gcd-gcd′ : ∀ {d m n} → GCD m n d → GCD′ m n d
+gcd-gcd′         g with GCD.commonDivisor g
+gcd-gcd′ {zero}  g | (divides q₁ refl , divides q₂ refl)
+                     with q₁ * 0 | CS.*-comm 0 q₁
+                        | q₂ * 0 | CS.*-comm 0 q₂
+...                  | .0 | refl | .0 | refl = gcd-* 1 1 (1-coprimeTo 1)
+gcd-gcd′ {suc d} g | (divides q₁ refl , divides q₂ refl) =
+  gcd-* q₁ q₂ (Bézout-coprime (Bézout.identity g))
+
+gcd′-gcd : ∀ {m n d} → GCD′ m n d → GCD m n d
+gcd′-gcd (gcd-* q₁ q₂ c) = GCD.is (∣-* q₁ , ∣-* q₂) (coprime-factors c)
+
+-- Calculates (the alternative representation of) the gcd of the
+-- arguments.
+
+gcd′ : ∀ m n → ∃ λ d → GCD′ m n d
+gcd′ m n = Prod.map id gcd-gcd′ (gcd m n)
