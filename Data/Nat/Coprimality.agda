@@ -61,9 +61,9 @@ coprime-+ c (d₁ , d₂) = c (∣-∸ d₁ d₂ , d₂)
 
 -- If i divides jk and is coprime to j, then it divides k.
 
-coprime-∣-* : ∀ {k i j} → Coprime i j → i ∣ j * k → i ∣ k
-coprime-∣-*     c _               with Bézout.identity (coprime-gcd c)
-coprime-∣-* {k} c (divides q eq′) | Bézout.+- x y eq =
+coprime-divisor : ∀ {k i j} → Coprime i j → i ∣ j * k → i ∣ k
+coprime-divisor     c _ with Bézout.identity (coprime-gcd c)
+coprime-divisor {k} c (divides q eq′) | Bézout.+- x y eq =
   divides (x * k ∸ y * q) (lem₈ x y eq eq′)
-coprime-∣-* {k} c (divides q eq′) | Bézout.-+ x y eq =
+coprime-divisor {k} c (divides q eq′) | Bézout.-+ x y eq =
   divides (y * q ∸ x * k) (lem₉ x y eq eq′)
