@@ -345,7 +345,10 @@ record Lemmas₄ (T : ℕ → Set) : Set where
     hiding (/✶-↑✶; /✶-↑✶′; wk-↑⋆-⊙-wk;
             lookup-wk-↑⋆-⊙; lookup-map-weaken-↑⋆)
 
--- The lemmas above specialised to variable substitutions.
+------------------------------------------------------------------------
+-- Instantiations and code for facilitating instantiations
+
+-- Lemmas about variable substitutions (renamings).
 
 module VarLemmas where
 
@@ -374,19 +377,65 @@ module VarLemmas where
     ; /-wk    = L₃.lookup-wk _
     }
 
-  -- A lemma which can be useful when proving /-wk (see
-  -- Data.Fin.Substitution.Example).
+  open Lemmas₄ lemmas₄ public hiding (lemmas₃)
 
-  var-/-wk-↑⋆ :
-    {T′ : ℕ → Set} (lemmas₂ : Lemmas₂ T′) →
-    let module L = Lemmas₂ lemmas₂ in
-    ∀ {n} k {x : Fin (k + n)} →
-    L._/_ (L.var x) (L._↑⋆_ L.wk k) ≡ L.var (var x / wk ↑⋆ k)
-  var-/-wk-↑⋆ lemmas₂ k {x} = begin
-    L._/_ (L.var x) (L._↑⋆_ L.wk k)  ≡⟨ L.var-/ ⟩
-    lookup x (L._↑⋆_ L.wk k)         ≡⟨ L.lookup-wk-↑⋆ k x ⟩
-    L.var (lift k suc x)             ≡⟨ cong L.var (sym (L₃.lookup-wk-↑⋆ k x)) ⟩
-    L.var (lookup x (wk ↑⋆ k))       ∎
-    where module L = Lemmas₂ lemmas₂
+-- Lemmas about "term" substitutions.
+
+record TermLemmas (T : ℕ → Set) : Set₁ where
+  field
+    termSubst : TermSubst T
+
+  open TermSubst termSubst
+
+  field
+    app-var : ∀ {T′} {lift : Lift T′ T} {m n x} {ρ : Sub T′ m n} →
+              app lift (var x) ρ ≡ Lift.lift lift (lookup x ρ)
+    /✶-↑✶   : ∀ {T₁ T₂} {lift₁ : Lift T₁ T} {lift₂ : Lift T₂ T} →
+              let open Lifted lift₁
+                    using () renaming (_↑✶_ to _↑✶₁_; _/✶_ to _/✶₁_)
+                  open Lifted lift₂
+                    using () renaming (_↑✶_ to _↑✶₂_; _/✶_ to _/✶₂_)
+              in
+              ∀ {m n} (ρs₁ : Subs T₁ m n) (ρs₂ : Subs T₂ m n) →
+              (∀ k {x} → var x /✶₁ ρs₁ ↑✶₁ k ≡ var x /✶₂ ρs₂ ↑✶₂ k) →
+              ∀ k {t} → t /✶₁ ρs₁ ↑✶₁ k ≡ t /✶₂ ρs₂ ↑✶₂ k
+
+  lemmas₃ : Lemmas₃ T
+  lemmas₃ = record
+    { lemmas₂ = record
+      { lemmas₁ = record
+        { lemmas₀ = record
+          { simple = simple
+          }
+        ; weaken-var = λ {_ x} → begin
+            var x /Var VarSubst.wk      ≡⟨ app-var ⟩
+            var (lookup x VarSubst.wk)  ≡⟨ cong var (VarLemmas.lookup-wk x) ⟩
+            var (suc x)                 ∎
+        }
+      ; application = Subst.application subst
+      ; var-/       = app-var
+      }
+    ; /✶-↑✶ = /✶-↑✶
+    }
+
+  var-/-wk-↑⋆ : ∀ {n} k {x : Fin (k + n)} →
+                var x / wk ↑⋆ k ≡
+                var x /Var VarSubst._↑⋆_ VarSubst.wk k
+  var-/-wk-↑⋆ k {x} = begin
+    var x / wk ↑⋆ k                               ≡⟨ app-var ⟩
+    lookup x (wk ↑⋆ k)                            ≡⟨ Lemmas₃.lookup-wk-↑⋆ lemmas₃ k x ⟩
+    var (lift k suc x)                            ≡⟨ cong var (sym (VarLemmas.lookup-wk-↑⋆ k x)) ⟩
+    var (lookup x (VarSubst._↑⋆_ VarSubst.wk k))  ≡⟨ sym app-var ⟩
+    var x /Var VarSubst._↑⋆_ VarSubst.wk k        ∎
+
+  lemmas₄ : Lemmas₄ T
+  lemmas₄ = record
+    { lemmas₃ = lemmas₃
+    ; /-wk    = λ {_ t} → begin
+        t / wk              ≡⟨ /✶-↑✶ (ε ▻ wk) (ε ▻ VarSubst.wk)
+                                     var-/-wk-↑⋆ zero ⟩
+        t /Var VarSubst.wk  ≡⟨ refl ⟩
+        weaken t            ∎
+    }
 
   open Lemmas₄ lemmas₄ public hiding (lemmas₃)

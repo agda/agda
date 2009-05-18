@@ -10,14 +10,12 @@ open import Data.Fin.Substitution.Lemmas
 open import Data.Nat
 open import Data.Fin using (Fin)
 open import Data.Vec
-import Data.Function as Fun
 open import Relation.Binary.PropositionalEquality as PropEq
   using (_≡_; refl; sym; cong; cong₂)
 open PropEq.≡-Reasoning
-open import Data.Star using (Star; ε; _◅_; _▻_)
+open import Data.Star using (Star; ε; _◅_)
 
--- A representation of the untyped λ-calculus. Uses de Bruijn
--- notation.
+-- A representation of the untyped λ-calculus. Uses de Bruijn indices.
 
 infixl 9 _·_
 
@@ -26,36 +24,23 @@ data Tm (n : ℕ) : Set where
   ƛ   : (t : Tm (suc n)) → Tm n
   _·_ : (t₁ t₂ : Tm n) → Tm n
 
--- Some Tm-related substitution functions.
+-- Code for applying substitutions.
 
-record TmSubst (T : ℕ → Set) : Set where
-  field
-    simple : Simple T
-    term   : ∀ {n} → T n → Tm n  -- Takes Ts to terms.
+module TmApp {T} (l : Lift T Tm) where
+  open Lift l hiding (var)
 
-  open Simple simple public hiding (var; weaken)
+  -- Applies a substitution to a term.
 
-  -- Application of a substitution to a term.
-
-  infixl 8 _/_
+  infix 8 _/_
 
   _/_ : ∀ {m n} → Tm m → Sub T m n → Tm n
-  var x   / ρ = term (lookup x ρ)
+  var x   / ρ = lift (lookup x ρ)
   ƛ t     / ρ = ƛ (t / ρ ↑)
   t₁ · t₂ / ρ = (t₁ / ρ) · (t₂ / ρ)
 
-  application : Application Tm T
-  application = record { _/_ = _/_ }
+  open Application (record { _/_ = _/_ }) using (_/✶_)
 
-  open Application application public hiding (_/_)
-
-  -- Weakening of terms.
-
-  weaken : ∀ {n} → Tm n → Tm (suc n)
-  weaken t = t / wk
-
-  -- Some lemmas which are specific to the definition of _/_ given
-  -- above.
+  -- Some lemmas about _/_.
 
   ƛ-/✶-↑✶ : ∀ k {m n t} (ρs : Subs T m n) →
             ƛ t /✶ ρs ↑✶ k ≡ ƛ (t /✶ ρs ↑✶ suc k)
@@ -67,83 +52,39 @@ record TmSubst (T : ℕ → Set) : Set where
   ·-/✶-↑✶ k ε        = refl
   ·-/✶-↑✶ k (ρ ◅ ρs) = cong₂ _/_ (·-/✶-↑✶ k ρs) refl
 
--- Another lemma.
+tmSubst : TermSubst Tm
+tmSubst = record { var = var; app = TmApp._/_ }
 
-module TmSubstLemma
-         {T₁ T₂ : ℕ → Set}
-         (tmSubst₁ : TmSubst T₁)
-         (tmSubst₂ : TmSubst T₂)
-         where
+open TermSubst tmSubst hiding (var)
 
-  private
-    open module T₁ = TmSubst tmSubst₁ using ()
-      renaming (_/✶_ to _/✶₁_; _↑✶_ to _↑✶₁_)
-    open module T₂ = TmSubst tmSubst₂ using ()
-      renaming (_/✶_ to _/✶₂_; _↑✶_ to _↑✶₂_)
+-- Substitution lemmas.
 
-  /✶-↑✶ : ∀ {m n} (ρs₁ : Subs T₁ m n) (ρs₂ : Subs T₂ m n) →
-          (∀ k {x} → var x /✶₁ ρs₁ ↑✶₁ k ≡ var x /✶₂ ρs₂ ↑✶₂ k) →
-          ∀ k {t} → t /✶₁ ρs₁ ↑✶₁ k ≡ t /✶₂ ρs₂ ↑✶₂ k
-  /✶-↑✶ ρs₁ ρs₂ hyp k {var x} = hyp k
-  /✶-↑✶ ρs₁ ρs₂ hyp k {ƛ t}   = begin
-    ƛ t /✶₁ ρs₁ ↑✶₁ k        ≡⟨ T₁.ƛ-/✶-↑✶ k ρs₁ ⟩
-    ƛ (t /✶₁ ρs₁ ↑✶₁ suc k)  ≡⟨ cong ƛ (/✶-↑✶ ρs₁ ρs₂ hyp (suc k)) ⟩
-    ƛ (t /✶₂ ρs₂ ↑✶₂ suc k)  ≡⟨ sym (T₂.ƛ-/✶-↑✶ k ρs₂) ⟩
-    ƛ t /✶₂ ρs₂ ↑✶₂ k        ∎
-  /✶-↑✶ ρs₁ ρs₂ hyp k {t₁ · t₂} = begin
-    t₁ · t₂ /✶₁ ρs₁ ↑✶₁ k                    ≡⟨ T₁.·-/✶-↑✶ k ρs₁ ⟩
-    (t₁ /✶₁ ρs₁ ↑✶₁ k) · (t₂ /✶₁ ρs₁ ↑✶₁ k)  ≡⟨ cong₂ _·_ (/✶-↑✶ ρs₁ ρs₂ hyp k)
-                                                          (/✶-↑✶ ρs₁ ρs₂ hyp k) ⟩
-    (t₁ /✶₂ ρs₂ ↑✶₂ k) · (t₂ /✶₂ ρs₂ ↑✶₂ k)  ≡⟨ sym (T₂.·-/✶-↑✶ k ρs₂) ⟩
-    t₁ · t₂ /✶₂ ρs₂ ↑✶₂ k                    ∎
+tmLemmas : TermLemmas Tm
+tmLemmas = record
+  { termSubst = tmSubst
+  ; app-var   = refl
+  ; /✶-↑✶     = Lemma./✶-↑✶
+  }
+  where
+  module Lemma {T₁ T₂} {lift₁ : Lift T₁ Tm} {lift₂ : Lift T₂ Tm} where
 
--- Variable substitutions (for terms).
+    open Lifted lift₁ using () renaming (_↑✶_ to _↑✶₁_; _/✶_ to _/✶₁_)
+    open Lifted lift₂ using () renaming (_↑✶_ to _↑✶₂_; _/✶_ to _/✶₂_)
 
-module VarTmSubst where
+    /✶-↑✶ : ∀ {m n} (ρs₁ : Subs T₁ m n) (ρs₂ : Subs T₂ m n) →
+            (∀ k {x} → var x /✶₁ ρs₁ ↑✶₁ k ≡ var x /✶₂ ρs₂ ↑✶₂ k) →
+             ∀ k {t} → t     /✶₁ ρs₁ ↑✶₁ k ≡ t     /✶₂ ρs₂ ↑✶₂ k
+    /✶-↑✶ ρs₁ ρs₂ hyp k {var x} = hyp k
+    /✶-↑✶ ρs₁ ρs₂ hyp k {ƛ t}   = begin
+      ƛ t /✶₁ ρs₁ ↑✶₁ k        ≡⟨ TmApp.ƛ-/✶-↑✶ _ k ρs₁ ⟩
+      ƛ (t /✶₁ ρs₁ ↑✶₁ suc k)  ≡⟨ cong ƛ (/✶-↑✶ ρs₁ ρs₂ hyp (suc k)) ⟩
+      ƛ (t /✶₂ ρs₂ ↑✶₂ suc k)  ≡⟨ sym (TmApp.ƛ-/✶-↑✶ _ k ρs₂) ⟩
+      ƛ t /✶₂ ρs₂ ↑✶₂ k        ∎
+    /✶-↑✶ ρs₁ ρs₂ hyp k {t₁ · t₂} = begin
+      t₁ · t₂ /✶₁ ρs₁ ↑✶₁ k                    ≡⟨ TmApp.·-/✶-↑✶ _ k ρs₁ ⟩
+      (t₁ /✶₁ ρs₁ ↑✶₁ k) · (t₂ /✶₁ ρs₁ ↑✶₁ k)  ≡⟨ cong₂ _·_ (/✶-↑✶ ρs₁ ρs₂ hyp k)
+                                                            (/✶-↑✶ ρs₁ ρs₂ hyp k) ⟩
+      (t₁ /✶₂ ρs₂ ↑✶₂ k) · (t₂ /✶₂ ρs₂ ↑✶₂ k)  ≡⟨ sym (TmApp.·-/✶-↑✶ _ k ρs₂) ⟩
+      t₁ · t₂ /✶₂ ρs₂ ↑✶₂ k                    ∎
 
-  tmSubst : TmSubst Fin
-  tmSubst = record { simple = VarSubst.simple; term = var }
-
-  open TmSubst tmSubst public
-
--- Term substitutions.
-
-module TmTmSubst where
-
-  tmSubst : TmSubst Tm
-  tmSubst = record
-    { simple = record
-      { var    = var
-      ; weaken = VarTmSubst.weaken
-      }
-    ; term = Fun.id
-    }
-
-  open TmSubst tmSubst
-
-  lemmas₃ : Lemmas₃ Tm
-  lemmas₃ = record
-    { lemmas₂ = record
-      { lemmas₁ = record
-        { lemmas₀ = record
-          { simple = simple
-          }
-        ; weaken-var = cong var (VarLemmas.lookup-wk _)
-        }
-      ; application = application
-      ; var-/       = refl
-      }
-    ; /✶-↑✶ = TmSubstLemma./✶-↑✶ tmSubst tmSubst
-    }
-
-  lemmas₄ : Lemmas₄ Tm
-  lemmas₄ = record
-    { lemmas₃ = lemmas₃
-    ; /-wk    = λ {_ t} →
-        TmSubstLemma./✶-↑✶ tmSubst VarTmSubst.tmSubst
-          (ε ▻ wk) (ε ▻ VarSubst.wk)
-          (VarLemmas.var-/-wk-↑⋆ (Lemmas₃.lemmas₂ lemmas₃))
-          zero {t}
-    }
-
-  open Lemmas₄ lemmas₄ public hiding (lemmas₃; subst)
+open TermLemmas tmLemmas public hiding (var)

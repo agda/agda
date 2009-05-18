@@ -17,6 +17,9 @@ open import Data.Vec
 open import Data.Function as Fun using (flip; flip₁)
 open import Data.Star as Star using (Star; ε; _◅_)
 
+------------------------------------------------------------------------
+-- General functionality
+
 -- A Sub T m n is a substitution which, when applied to something with
 -- at most m variables, yields something with at most n variables.
 
@@ -103,14 +106,65 @@ record Subst (T : ℕ → Set) : Set where
   ⨀ (ρ ◅ ε)  = ρ  -- Convenient optimisation; simplifies some proofs.
   ⨀ (ρ ◅ ρs) = ⨀ ρs ⊙ ρ
 
--- Variable substitutions.
+------------------------------------------------------------------------
+-- Instantiations and code for facilitating instantiations
+
+-- Liftings from T₁ to T₂.
+
+record Lift (T₁ T₂ : ℕ → Set) : Set where
+  field
+    simple : Simple T₁
+    lift   : ∀ {n} → T₁ n → T₂ n
+
+  open Simple simple public
+
+-- Variable substitutions (renamings).
 
 module VarSubst where
 
- subst : Subst Fin
- subst = record
-   { simple      = record { var = Fun.id; weaken = suc }
-   ; application = record { _/_ = lookup }
-   }
+  subst : Subst Fin
+  subst = record
+    { simple      = record { var = Fun.id; weaken = suc }
+    ; application = record { _/_ = lookup }
+    }
 
- open Subst subst public
+  open Subst subst public
+
+-- "Term" substitutions.
+
+record TermSubst (T : ℕ → Set) : Set₁ where
+  field
+    var : ∀ {n} → Fin n → T n
+    app : ∀ {T′} → Lift T′ T → ∀ {m n} → T m → Sub T′ m n → T n
+
+  module Lifted {T′} (lift : Lift T′ T) where
+    application : Application T T′
+    application = record { _/_ = app lift }
+
+    open Lift lift public
+    open Application application public
+
+  varLift : Lift Fin T
+  varLift = record { simple = VarSubst.simple; lift = var }
+
+  infix 8 _/Var_
+
+  _/Var_ : ∀ {m n} → T m → Sub Fin m n → T n
+  _/Var_ = app varLift
+
+  simple : Simple T
+  simple = record
+    { var    = var
+    ; weaken = λ t → t /Var VarSubst.wk
+    }
+
+  termLift : Lift T T
+  termLift = record { simple = simple; lift = Fun.id }
+
+  subst : Subst T
+  subst = record
+    { simple      = simple
+    ; application = Lifted.application termLift
+    }
+
+  open Subst subst public hiding (var; simple)
