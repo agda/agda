@@ -40,7 +40,7 @@ instance MonadIO Ghc where
   liftIO m = Ghc $ \_ -> m
 
 fileLoc :: FilePath -> SrcLoc
-fileLoc file = mkSrcLoc (mkZFastString file) 1 1
+fileLoc file = mkSrcLoc (mkZFastString file) 1 0
 
 filePState :: DynFlags -> FilePath -> IO PState
 filePState dflags file = do
