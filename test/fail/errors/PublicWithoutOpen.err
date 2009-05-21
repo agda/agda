@@ -1,0 +1,4 @@
+errors/PublicWithoutOpen.agda:5,1-13
+The public keyword must only be used together with open
+when scope checking the declaration
+  module B = A public
