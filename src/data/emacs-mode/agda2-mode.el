@@ -395,7 +395,8 @@ wait for output and execute responses, if any"
       (haskell-ghci-wait-for-output)
       (let ((tempfile (make-temp-file "agda2-mode")))
         (unwind-protect
-            (progn
+            (let ((coding-system-for-read 'utf-8)
+                  (coding-system-for-write 'utf-8))
               (comint-write-output tempfile)
               (with-temp-buffer
                 (insert-file-contents tempfile)
