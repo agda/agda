@@ -190,12 +190,7 @@ cmd_load' file includes unsolvedOK cmd cmd2 = infoOnException $ do
                 }
             cmd ok
 
-            -- tellEmacsToReloadSyntaxInfo should run before
-            -- tellEmacsToUpdateGoals, because the latter can change
-            -- the contents of the buffer, and this can invalidate the
-            -- ranges of the syntax-info.
             liftIO tellEmacsToReloadSyntaxInfo
-            liftIO tellEmacsToUpdateGoals
 
     cmd2
     System.performGC
@@ -608,11 +603,16 @@ tellEmacsToUpdateGoals = do
   UTF8.putStrLn $ response $ L [A "agda2-annotate", format is]
   where format = Q . L . List.map showNumIId
 
--- | Tell the Emacs mode to reload the highlighting information.
+-- | Tell the Emacs mode to reload the highlighting information. This
+-- includes rescanning the buffer for goals.
 
 tellEmacsToReloadSyntaxInfo :: IO ()
-tellEmacsToReloadSyntaxInfo =
+tellEmacsToReloadSyntaxInfo = do
+  -- agda2-highlight-reload should run before agda2-annotate, because
+  -- the latter command can change the contents of the buffer, and
+  -- this can invalidate the ranges of the syntax-info.
   UTF8.putStrLn $ response $ L [A "agda2-highlight-reload"]
+  tellEmacsToUpdateGoals
 
 -- | Tells the Emacs mode to reload the highlighting information and
 -- go to the first error position (if any).
