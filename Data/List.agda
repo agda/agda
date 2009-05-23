@@ -8,7 +8,7 @@ open import Data.Nat
 open import Data.Sum as Sum using (_⊎_; inj₁; inj₂)
 open import Data.Bool
 open import Data.Maybe using (Maybe; nothing; just)
-open import Data.Product as Prod using (_×_; _,_)
+open import Data.Product as Prod using (∃; _×_; _,_)
 open import Data.Function
 open import Data.Empty
 open import Algebra
@@ -313,6 +313,14 @@ open Monadic public
 
 ------------------------------------------------------------------------
 -- Functions related to Any and All
+
+find : ∀ {A} {P : A → Set} {xs} → Any P xs → ∃ λ x → x ∈ xs × P x
+find (here px)   = (_ , here , px)
+find (there pxs) = Prod.map id (Prod.map there id) (find pxs)
+
+lookup : ∀ {A} {P : A → Set} {x xs} → x ∈ xs → All P xs → P x
+lookup here         (px ∷ pxs) = px
+lookup (there x∈xs) (px ∷ pxs) = lookup x∈xs pxs
 
 anyDec : ∀ {A} {P : A → Set} →
          (∀ x → Dec (P x)) → (xs : List A) → Dec (Any P xs)
