@@ -89,7 +89,7 @@ rightDistributive (*) (+) = \x y z ->
 -- | Generates natural numbers.
 
 natural :: (Integral i) => Gen i
-natural = fmap (abs . fromInteger) arbitrary
+natural = fmap (fromInteger . abs) arbitrary
 
 -- | Generates positive numbers.
 
