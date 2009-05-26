@@ -21,10 +21,13 @@ data Any {A} (P : A → Set) : List A → Set where
 
 -- List membership.
 
-infix 4 _∈_
+infix 4 _∈_ _∉_
 
 _∈_ : ∀ {A} → A → List A → Set
 x ∈ xs = Any (_≡_ x) xs
+
+_∉_ : ∀ {A} → A → List A → Set
+x ∉ xs = ¬ x ∈ xs
 
 find : ∀ {A} {P : A → Set} {xs} → Any P xs → ∃ λ x → x ∈ xs × P x
 find (here px)   = (_ , here refl , px)
