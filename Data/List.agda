@@ -27,12 +27,6 @@ data List (A : Set) : Set where
 {-# BUILTIN NIL  []   #-}
 {-# BUILTIN CONS _∷_  #-}
 
-infix 4 _∈_
-
-data _∈_ {A : Set} : A → List A → Set where
-  here  : ∀ {x   xs}                 → x ∈ x ∷ xs
-  there : ∀ {x y xs} (x∈xs : x ∈ xs) → x ∈ y ∷ xs
-
 ------------------------------------------------------------------------
 -- Some operations
 

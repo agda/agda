@@ -8,6 +8,7 @@
 module Data.List.Properties where
 
 open import Data.List as List
+open import Data.List.Any as Any hiding (map)
 open import Data.Nat
 open import Data.Nat.Properties
 open import Data.Bool
@@ -246,7 +247,7 @@ length-gfilter p (x ∷ xs) | nothing = ≤-step (length-gfilter p xs)
 -- _∈_.
 
 ∈-++ˡ : ∀ {A} {x : A} {xs ys} → x ∈ xs → x ∈ xs ++ ys
-∈-++ˡ here         = here
+∈-++ˡ (here refl)  = here refl
 ∈-++ˡ (there x∈xs) = there (∈-++ˡ x∈xs)
 
 ∈-++ʳ : ∀ {A} {x : A} xs {ys} → x ∈ ys → x ∈ xs ++ ys
@@ -255,34 +256,34 @@ length-gfilter p (x ∷ xs) | nothing = ≤-step (length-gfilter p xs)
 
 ++-∈ : ∀ {A} {x : A} xs {ys} → x ∈ xs ++ ys → x ∈ xs ⊎ x ∈ ys
 ++-∈ []       x∈ys             = inj₂ x∈ys
-++-∈ (x ∷ xs) here             = inj₁ here
+++-∈ (x ∷ xs) (here refl)      = inj₁ (here refl)
 ++-∈ (x ∷ xs) (there x∈xs++ys) = Sum.map there id (++-∈ xs x∈xs++ys)
 
 ∈-map : ∀ {A B} {f : A → B} {x xs} →
         x ∈ xs → f x ∈ map f xs
-∈-map here         = here
+∈-map (here refl)  = here refl
 ∈-map (there x∈xs) = there (∈-map x∈xs)
 
 map-∈ : ∀ {A B} {f : A → B} {fx} xs →
         fx ∈ map f xs → ∃ λ x → x ∈ xs × f x ≡ fx
 map-∈ []       ()
-map-∈ (x ∷ xs) here           = (x , here , refl)
+map-∈ (x ∷ xs) (here refl)    = (x , here refl , refl)
 map-∈ (x ∷ xs) (there fx∈fxs) =
   Prod.map id (Prod.map there id) (map-∈ xs fx∈fxs)
 
 ∈-concat : ∀ {A} {x : A} {xs xss} →
            x ∈ xs → xs ∈ xss → x ∈ concat xss
-∈-concat x∈xs here                    = ∈-++ˡ x∈xs
-∈-concat x∈xs (there {y = ys} xs∈xss) = ∈-++ʳ ys (∈-concat x∈xs xs∈xss)
+∈-concat x∈xs (here refl)             = ∈-++ˡ x∈xs
+∈-concat x∈xs (there {x = ys} xs∈xss) = ∈-++ʳ ys (∈-concat x∈xs xs∈xss)
 
 concat-∈ : ∀ {A} {x : A} xss →
            x ∈ concat xss → ∃ λ xs → x ∈ xs × xs ∈ xss
 concat-∈ []               ()
 concat-∈ ([]       ∷ xss) x∈cxss         = Prod.map id (Prod.map id there)
                                              (concat-∈ xss x∈cxss)
-concat-∈ ((x ∷ xs) ∷ xss) here           = (x ∷ xs , here , here)
+concat-∈ ((x ∷ xs) ∷ xss) (here refl)    = (x ∷ xs , here refl , here refl)
 concat-∈ ((y ∷ xs) ∷ xss) (there x∈cxss) with concat-∈ (xs ∷ xss) x∈cxss
-... | (.xs , x∈xs , here)         = (y ∷ xs , there x∈xs , here)
+... | (.xs , x∈xs , here refl)    = (y ∷ xs , there x∈xs , here refl)
 ... | (ys  , x∈ys , there ys∈xss) = (ys     , x∈ys       , there ys∈xss)
 
 ∈->>= : ∀ {A B} (f : A → List B) {x y xs} →
@@ -298,13 +299,13 @@ concat-∈ ((y ∷ xs) ∷ xss) (there x∈cxss) with concat-∈ (xs ∷ xss) x�
 
 ∈-⊛ : ∀ {A B} {fs : List (A → B)} {xs f x} →
       f ∈ fs → x ∈ xs → f x ∈ fs ⊛ xs
-∈-⊛ f∈xs x∈xs = ∈->>= _ f∈xs (∈->>= _ x∈xs here)
+∈-⊛ f∈xs x∈xs = ∈->>= _ f∈xs (∈->>= _ x∈xs (here refl))
 
 ⊛-∈ : ∀ {A B} (fs : List (A → B)) xs {fx} →
       fx ∈ fs ⊛ xs → ∃₂ λ f x → f ∈ fs × x ∈ xs × f x ≡ fx
 ⊛-∈ fs xs fx∈fs⊛xs with >>=-∈ _ fs fx∈fs⊛xs
 ⊛-∈ fs xs fx∈fs⊛xs | (f , f∈fs , fx∈) with >>=-∈ _ xs fx∈
-⊛-∈ fs xs fx∈fs⊛xs | (f , f∈fs , fx∈) | (x , x∈xs , here) =
+⊛-∈ fs xs fx∈fs⊛xs | (f , f∈fs , fx∈) | (x , x∈xs , here refl) =
   (f , x , f∈fs , x∈xs , refl)
 ⊛-∈ fs xs fx∈fs⊛xs | (f , f∈fs , fx∈) | (x , x∈xs , there ())
 
@@ -312,15 +313,15 @@ any-∈ : ∀ {A} (p : A → Bool) xs →
         any p xs ≡ true → ∃ λ x → x ∈ xs × p x ≡ true
 any-∈ p []       ()
 any-∈ p (x ∷ xs) eq with inspect (p x)
-any-∈ p (x ∷ xs) eq | true  with-≡ eq′  = (x , here , sym eq′)
+any-∈ p (x ∷ xs) eq | true  with-≡ eq′  = (x , here refl , sym eq′)
 any-∈ p (x ∷ xs) eq | false with-≡ eq′  with p x
 any-∈ p (x ∷ xs) eq | false with-≡ refl | .false =
   Prod.map id (Prod.map there id) (any-∈ p xs eq)
 
 ∈-any : ∀ {A x} (p : A → Bool) {xs} →
         x ∈ xs → p x ≡ true → any p xs ≡ true
-∈-any p (here {x = x})       eq   with p x
-∈-any p here                 refl | .true = refl
-∈-any p (there {y = y} x∈xs) eq   with p y
-∈-any p (there {y = y} x∈xs) eq   | true  = refl
-∈-any p (there {y = y} x∈xs) eq   | false = ∈-any p x∈xs eq
+∈-any p (here {x = x} refl)  eq   with p x
+∈-any p (here         refl)  refl | .true = refl
+∈-any p (there {x = y} x∈xs) eq   with p y
+∈-any p (there {x = y} x∈xs) eq   | true  = refl
+∈-any p (there {x = y} x∈xs) eq   | false = ∈-any p x∈xs eq

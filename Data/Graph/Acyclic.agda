@@ -19,7 +19,7 @@ open import Data.Function
 open import Data.Empty
 open import Data.Unit using (⊤; tt)
 open import Data.Vec as Vec using (Vec; []; _∷_)
-open import Data.List as List using (List; []; _∷_; _∈_)
+open import Data.List as List using (List; []; _∷_)
 open import Relation.Nullary
 open import Relation.Binary.PropositionalEquality
 open import Induction.Nat

@@ -11,6 +11,7 @@ open import Data.Product as Prod using (∃; _×_; _,_)
 open import Relation.Nullary
 import Relation.Nullary.Decidable as Dec
 open import Relation.Unary using (Pred; _⊆_)
+open import Relation.Binary.PropositionalEquality
 
 -- Any P xs means that at least one element in xs satisfies P.
 
@@ -18,8 +19,15 @@ data Any {A} (P : A → Set) : List A → Set where
   here  : ∀ {x xs} (px  : P x)      → Any P (x ∷ xs)
   there : ∀ {x xs} (pxs : Any P xs) → Any P (x ∷ xs)
 
+-- List membership.
+
+infix 4 _∈_
+
+_∈_ : ∀ {A} → A → List A → Set
+x ∈ xs = Any (_≡_ x) xs
+
 find : ∀ {A} {P : A → Set} {xs} → Any P xs → ∃ λ x → x ∈ xs × P x
-find (here px)   = (_ , here , px)
+find (here px)   = (_ , here refl , px)
 find (there pxs) = Prod.map id (Prod.map there id) (find pxs)
 
 gmap : ∀ {A B} {P : A → Set} {Q : B → Set} {f : A → B} →
