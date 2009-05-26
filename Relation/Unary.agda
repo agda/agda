@@ -72,21 +72,27 @@ private
   ∁U-Empty : Empty (∁ U)
   ∁U-Empty = λ x x∈∁U → x∈∁U _
 
-  -- P ⊆ Q means that P is a subset of Q.
+  -- P ⊆ Q means that P is a subset of Q. _⊆′_ is a variant of _⊆_.
 
-  infix 4 _⊆_ _⊇_
+  infix 4 _⊆_ _⊇_ _⊆′_ _⊇′_
 
   _⊆_ : Pred a → Pred a → Set
-  P ⊆ Q = ∀ x → x ∈ P → x ∈ Q
+  P ⊆ Q = ∀ {x} → x ∈ P → x ∈ Q
+
+  _⊆′_ : Pred a → Pred a → Set
+  P ⊆′ Q = ∀ x → x ∈ P → x ∈ Q
 
   _⊇_ : Pred a → Pred a → Set
   Q ⊇ P = P ⊆ Q
 
+  _⊇′_ : Pred a → Pred a → Set
+  Q ⊇′ P = P ⊆′ Q
+
   ∅-⊆ : (P : Pred a) → ∅ ⊆ P
-  ∅-⊆ P x ()
+  ∅-⊆ P ()
 
   ⊆-U : (P : Pred a) → P ⊆ U
-  ⊆-U P x _ = _
+  ⊆-U P _ = _
 
   -- Set union.
 

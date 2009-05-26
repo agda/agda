@@ -18,12 +18,12 @@ RecStruct a = Pred a → Pred a
 -- for a given input.
 
 RecursorBuilder : ∀ {a} → RecStruct a → Set₂
-RecursorBuilder {a} Rec = (P : Pred a) → Rec P ⊆ P → Universal (Rec P)
+RecursorBuilder {a} Rec = (P : Pred a) → Rec P ⊆′ P → Universal (Rec P)
 
 -- A recursor can be used to actually compute/prove something useful.
 
 Recursor : ∀ {a} → RecStruct a → Set₂
-Recursor {a} Rec = (P : Pred a) → Rec P ⊆ P → Universal P
+Recursor {a} Rec = (P : Pred a) → Rec P ⊆′ P → Universal P
 
 -- And recursors can be constructed from recursor builders.
 
@@ -36,10 +36,10 @@ build builder P f x = f x (builder P f x)
 -- recursing over.
 
 SubsetRecursorBuilder : ∀ {a} → Pred a → RecStruct a → Set₂
-SubsetRecursorBuilder {a} Q Rec = (P : Pred a) → Rec P ⊆ P → Q ⊆ Rec P
+SubsetRecursorBuilder {a} Q Rec = (P : Pred a) → Rec P ⊆′ P → Q ⊆′ Rec P
 
 SubsetRecursor : ∀ {a} → Pred a → RecStruct a → Set₂
-SubsetRecursor {a} Q Rec = (P : Pred a) → Rec P ⊆ P → Q ⊆ P
+SubsetRecursor {a} Q Rec = (P : Pred a) → Rec P ⊆′ P → Q ⊆′ P
 
 subsetBuild : ∀ {a} {Q : Pred a} {Rec : RecStruct a} →
               SubsetRecursorBuilder Q Rec →

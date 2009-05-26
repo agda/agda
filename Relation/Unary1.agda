@@ -33,14 +33,20 @@ private
   Universal : Pred a → Set₁
   Universal P = ∀ x → x ∈ P
 
-  -- P ⊆ Q means that P is a subset of Q.
+  -- P ⊆ Q means that P is a subset of Q. _⊆′_ is a variant of _⊆_.
 
-  infix 4 _⊆_ _⊇_
+  infix 4 _⊆_ _⊇_ _⊆′_ _⊇′_
 
   _⊆_ : Pred a → Pred a → Set₁
-  P ⊆ Q = ∀ x → x ∈ P → x ∈ Q
+  P ⊆ Q = ∀ {x} → x ∈ P → x ∈ Q
+
+  _⊆′_ : Pred a → Pred a → Set₁
+  P ⊆′ Q = ∀ x → x ∈ P → x ∈ Q
 
   _⊇_ : Pred a → Pred a → Set₁
   Q ⊇ P = P ⊆ Q
+
+  _⊇′_ : Pred a → Pred a → Set₁
+  Q ⊇′ P = P ⊆′ Q
 
 open Dummy public
