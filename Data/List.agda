@@ -8,12 +8,9 @@ open import Data.Nat
 open import Data.Sum as Sum using (_⊎_; inj₁; inj₂)
 open import Data.Bool
 open import Data.Maybe using (Maybe; nothing; just)
-open import Data.Product as Prod using (∃; _×_; _,_)
+open import Data.Product as Prod using (_×_; _,_)
 open import Data.Function
-open import Data.Empty
 open import Algebra
-open import Relation.Nullary
-import Relation.Nullary.Decidable as Dec
 import Relation.Binary.PropositionalEquality as PropEq
 import Algebra.FunctionProperties as FunProp
 
@@ -35,14 +32,6 @@ infix 4 _∈_
 data _∈_ {A : Set} : A → List A → Set where
   here  : ∀ {x   xs}                 → x ∈ x ∷ xs
   there : ∀ {x y xs} (x∈xs : x ∈ xs) → x ∈ y ∷ xs
-
-data Any {A} (P : A → Set) : List A → Set where
-  here  : ∀ {x xs} (px  : P x)      → Any P (x ∷ xs)
-  there : ∀ {x xs} (pxs : Any P xs) → Any P (x ∷ xs)
-
-data All {A} (P : A → Set) : List A → Set where
-  []  : All P []
-  _∷_ : ∀ {x xs} (px : P x) (pxs : All P xs) → All P (x ∷ xs)
 
 ------------------------------------------------------------------------
 -- Some operations
@@ -310,40 +299,3 @@ private
   mapM f = sequence ∘ map f
 
 open Monadic public
-
-------------------------------------------------------------------------
--- Functions related to Any and All
-
-find : ∀ {A} {P : A → Set} {xs} → Any P xs → ∃ λ x → x ∈ xs × P x
-find (here px)   = (_ , here , px)
-find (there pxs) = Prod.map id (Prod.map there id) (find pxs)
-
-lookup : ∀ {A} {P : A → Set} {x xs} → x ∈ xs → All P xs → P x
-lookup here         (px ∷ pxs) = px
-lookup (there x∈xs) (px ∷ pxs) = lookup x∈xs pxs
-
-anyDec : ∀ {A} {P : A → Set} →
-         (∀ x → Dec (P x)) → (xs : List A) → Dec (Any P xs)
-anyDec p []       = no λ()
-anyDec p (x ∷ xs) with p x
-anyDec p (x ∷ xs) | yes px = yes (here px)
-anyDec p (x ∷ xs) | no ¬px = Dec.map (there , helper) (anyDec p xs)
-  where
-  helper : Any _ (x ∷ xs) → Any _ xs
-  helper (here  px)  = ⊥-elim (¬px px)
-  helper (there pxs) = pxs
-
-private
-
-  head : ∀ {A} {P : A → Set} {x xs} → All P (x ∷ xs) → P x
-  head (px ∷ pxs) = px
-
-  tail : ∀ {A} {P : A → Set} {x xs} → All P (x ∷ xs) → All P xs
-  tail (px ∷ pxs) = pxs
-
-allDec : ∀ {A} {P : A → Set} →
-         (∀ x → Dec (P x)) → (xs : List A) → Dec (All P xs)
-allDec p []       = yes []
-allDec p (x ∷ xs) with p x
-allDec p (x ∷ xs) | yes px = Dec.map (_∷_ px , tail) (allDec p xs)
-allDec p (x ∷ xs) | no ¬px = no (¬px ∘ head)
