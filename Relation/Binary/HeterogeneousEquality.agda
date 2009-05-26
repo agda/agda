@@ -66,11 +66,13 @@ subst-removable P refl z = refl
                     PropEq.subst P eq z ≅ z
 ≡-subst-removable P refl z = refl
 
-cong : Congruential (λ x y → x ≅ y)
-cong = subst⟶cong refl subst
+cong : ∀ {A : Set} {B : A → Set} {x y}
+       (f : (x : A) → B x) → x ≅ y → f x ≅ f y
+cong f refl = refl
 
-cong₂ : Congruential₂ (λ x y → x ≅ y)
-cong₂ = cong+trans⟶cong₂ cong trans
+cong₂ : ∀ {A : Set} {B : A → Set} {C : ∀ x → B x → Set} {x y u v}
+        (f : (x : A) (y : B x) → C x y) → x ≅ y → u ≅ v → f x u ≅ f y v
+cong₂ f refl refl = refl
 
 resp : ∀ {a} (∼ : Rel a) → (λ x y → x ≅ y) Respects₂ ∼
 resp _∼_ = subst⟶resp₂ _∼_ subst
