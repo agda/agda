@@ -185,7 +185,8 @@ checkModuleMacro apply r p x tel m args open dir =
     case open of
       DoOpen   -> openModule_ (C.QName x) dir
       DontOpen -> when (publicOpen dir) $ typeError $
-        GenericError "The public keyword must only be used together with open"
+        GenericError
+          "The public keyword must only be used together with the open keyword"
     printScope "mod.inst" 20 $ show open
     stripNoNames
     printScope "mod.inst" 10 $ "after stripping"
