@@ -158,8 +158,9 @@ recordConstructorType fields = build fs
     build (d : fs)                     = C.Let noRange (notSoNiceDeclarations [d]) $ build fs
     build []                           = C.Prop noRange
 
-checkModuleMacro apply r p x tel m args open dir =
-    withLocalVars $ do
+checkModuleMacro apply r p x tel m args open dir = withLocalVars $ do
+    notPublicWithoutOpen open dir
+
     tel' <- toAbstract tel
     (m0,m1,args') <- toAbstract ( NewModuleName x
                                 , OldModuleName m
@@ -184,9 +185,7 @@ checkModuleMacro apply r p x tel m args open dir =
     printScope "mod.inst" 20 "after copying"
     case open of
       DoOpen   -> openModule_ (C.QName x) dir
-      DontOpen -> when (publicOpen dir) $ typeError $
-        GenericError
-          "The public keyword must only be used together with the open keyword"
+      DontOpen -> return ()
     printScope "mod.inst" 20 $ show open
     stripNoNames
     printScope "mod.inst" 10 $ "after stripping"
@@ -197,6 +196,14 @@ checkModuleMacro apply r p x tel m args open dir =
              , minfoAsName = Nothing
              , minfoAsTo   = renamingRange dir
              }
+
+-- | The @public@ keyword must only be used together with @open@.
+
+notPublicWithoutOpen :: OpenShortHand -> ImportDirective -> ScopeM ()
+notPublicWithoutOpen DoOpen   dir = return ()
+notPublicWithoutOpen DontOpen dir = when (publicOpen dir) $ typeError $
+  GenericError
+    "The public keyword must only be used together with the open keyword"
 
 -- | Computes the range of all the \"to\" keywords used in a renaming
 -- directive.
@@ -746,6 +753,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
       return $ map (A.Pragma r) ps
 
     NiceImport r x as open dir -> do
+      notPublicWithoutOpen open dir
 
       -- First scope check the imported module and return its name and
       -- interface. This is done with that module as the top-level module.
