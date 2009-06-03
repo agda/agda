@@ -23,5 +23,6 @@ source-repository head
 executable agda
   main-is:       Main.hs
   build-depends: Agda == 2.2.3,
-                 base >= 3 && < 4
-
+                 -- Nothing is used from the following package, except
+                 -- for one use of the module name "Prelude".
+                 base >= 3 && < 6

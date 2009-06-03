@@ -6,5 +6,6 @@
 module Main (main) where
 
 import qualified Agda.Main
+import qualified Prelude ()
 
 main = Agda.Main.main
