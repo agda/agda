@@ -138,16 +138,29 @@ inspect x = x with-≅ refl
 ------------------------------------------------------------------------
 -- Convenient syntax for equational reasoning
 
-import Relation.Binary.EqReasoning as EqR
-
--- Relation.Binary.EqReasoning is more convenient to use with _≅_ if
--- the combinators take the type argument (a) as a hidden argument,
--- instead of being locked to a fixed type at module instantiation
--- time.
-
 module ≅-Reasoning where
-  private
-    module Dummy {a : Set} where
-      open EqR (setoid a) public
-        renaming (_≈⟨_⟩_ to _≅⟨_⟩_)
-  open Dummy public
+
+  -- The code in Relation.Binary.EqReasoning cannot handle
+  -- heterogeneous equalities, hence the code duplication here.
+
+  infix  4 _IsRelatedTo_
+  infix  2 _∎
+  infixr 2 _≅⟨_⟩_ _≡⟨_⟩_
+  infix  1 begin_
+
+  data _IsRelatedTo_ {A} (x : A) {B} (y : B) : Set where
+    relTo : (x≅y : x ≅ y) → x IsRelatedTo y
+
+  begin_ : ∀ {A} {x : A} {B} {y : B} → x IsRelatedTo y → x ≅ y
+  begin relTo x≅y = x≅y
+
+  _≅⟨_⟩_ : ∀ {A} (x : A) {B} {y : B} {C} {z : C} →
+           x ≅ y → y IsRelatedTo z → x IsRelatedTo z
+  _ ≅⟨ x≅y ⟩ relTo y≅z = relTo (trans x≅y y≅z)
+
+  _≡⟨_⟩_ : ∀ {A} (x : A) {y} {C} {z : C} →
+           x ≡ y → y IsRelatedTo z → x IsRelatedTo z
+  _ ≡⟨ x≡y ⟩ relTo y≅z = relTo (trans (reflexive x≡y) y≅z)
+
+  _∎ : ∀ {A} (x : A) → x IsRelatedTo x
+  _∎ _ = relTo refl
