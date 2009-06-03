@@ -5,7 +5,7 @@
 module Data.List.All where
 
 open import Data.Function
-open import Data.List as List hiding (map)
+open import Data.List as List hiding (map; all)
 open import Data.List.Any using (_∈_; here; there)
 open import Data.Product as Prod using (_,_)
 open import Relation.Nullary
@@ -40,9 +40,9 @@ map : ∀ {A} {P Q : Pred A} → P ⊆ Q → All P ⊆ All Q
 map g []         = []
 map g (px ∷ pxs) = g px ∷ map g pxs
 
-dec : ∀ {A} {P : A → Set} →
+all : ∀ {A} {P : A → Set} →
       (∀ x → Dec (P x)) → (xs : List A) → Dec (All P xs)
-dec p []       = yes []
-dec p (x ∷ xs) with p x
-dec p (x ∷ xs) | yes px = Dec.map (_∷_ px , tail) (dec p xs)
-dec p (x ∷ xs) | no ¬px = no (¬px ∘ head)
+all p []       = yes []
+all p (x ∷ xs) with p x
+all p (x ∷ xs) | yes px = Dec.map (_∷_ px , tail) (all p xs)
+all p (x ∷ xs) | no ¬px = no (¬px ∘ head)
