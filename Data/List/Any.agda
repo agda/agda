@@ -6,7 +6,7 @@ module Data.List.Any where
 
 open import Data.Empty
 open import Data.Function
-open import Data.List as List hiding (map)
+open import Data.List as List hiding (map; any)
 open import Data.Product as Prod using (∃; _×_; _,_)
 open import Relation.Nullary
 import Relation.Nullary.Decidable as Dec
@@ -42,12 +42,12 @@ map : ∀ {A} {P Q : Pred A} → P ⊆ Q → Any P ⊆ Any Q
 map g (here px)   = here (g px)
 map g (there pxs) = there (map g pxs)
 
-dec : ∀ {A} {P : A → Set} →
+any : ∀ {A} {P : A → Set} →
       (∀ x → Dec (P x)) → (xs : List A) → Dec (Any P xs)
-dec p []       = no λ()
-dec p (x ∷ xs) with p x
-dec p (x ∷ xs) | yes px = yes (here px)
-dec p (x ∷ xs) | no ¬px = Dec.map (there , helper) (dec p xs)
+any p []       = no λ()
+any p (x ∷ xs) with p x
+any p (x ∷ xs) | yes px = yes (here px)
+any p (x ∷ xs) | no ¬px = Dec.map (there , helper) (any p xs)
   where
   helper : Any _ (x ∷ xs) → Any _ xs
   helper (here  px)  = ⊥-elim (¬px px)

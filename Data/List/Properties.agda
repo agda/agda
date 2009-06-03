@@ -8,7 +8,7 @@
 module Data.List.Properties where
 
 open import Data.List as List
-open import Data.List.Any as Any hiding (map)
+open import Data.List.Any as Any using (_∈_; here; there)
 open import Data.Nat
 open import Data.Nat.Properties
 open import Data.Bool
