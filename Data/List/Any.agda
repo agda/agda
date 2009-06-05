@@ -5,6 +5,7 @@
 module Data.List.Any where
 
 open import Data.Empty
+open import Data.Fin
 open import Data.Function
 open import Data.List as List hiding (map; any)
 open import Data.Product as Prod using (∃; _×_; _,_)
@@ -52,3 +53,7 @@ any p (x ∷ xs) | no ¬px = Dec.map (there , helper) (any p xs)
   helper : Any _ (x ∷ xs) → Any _ xs
   helper (here  px)  = ⊥-elim (¬px px)
   helper (there pxs) = pxs
+
+index : ∀ {A} {P : A → Set} {xs} → Any P xs → Fin (length xs)
+index (here  px)  = zero
+index (there pxs) = suc (index pxs)
