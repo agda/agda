@@ -25,6 +25,9 @@ data _⊎_ (A B : Set) : Set where
 [ f , g ] (inj₁ x) = f x
 [ f , g ] (inj₂ y) = g y
 
+[_,_]′ : ∀ {A B C : Set} → (A → C) → (B → C) → (A ⊎ B → C)
+[_,_]′ = [_,_]
+
 map : ∀ {a b c d} → (a → c) → (b → d) → (a ⊎ b → c ⊎ d)
 map f g = [ inj₁ ∘ f , inj₂ ∘ g ]
 
