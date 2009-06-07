@@ -6,7 +6,6 @@ module Data.Bool.Properties where
 
 open import Data.Bool as Bool
 open import Data.Fin
-open import Data.Vec
 open import Data.Function
 open import Algebra
 open import Algebra.Structures
@@ -16,6 +15,7 @@ open import Relation.Nullary using (_⇔_)
 open import Relation.Binary.PropositionalEquality
 import Algebra.FunctionProperties as P; open P _≡_
 open import Data.Product
+open import Data.Sum
 open import Data.Empty
 
 import Relation.Binary.EqReasoning as EqR; open EqR Bool.setoid
@@ -293,3 +293,17 @@ not-¬ {false} refl ()
 ⇔→≡ {false} {true } {true } hyp = proj₂ hyp refl
 ⇔→≡ {false} {true } {false} hyp = sym (proj₁ hyp refl)
 ⇔→≡ {false} {false}         hyp = refl
+
+T-≡ : ∀ {b} → T b ⇔ b ≡ true
+T-≡ {false} = ((λ ())     , λ ())
+T-≡ {true}  = (const refl , const _)
+
+T-∧ : ∀ {b₁ b₂} → T (b₁ ∧ b₂) ⇔ (T b₁ × T b₂)
+T-∧ {true}  {true}  = (const (_ , _) , const _)
+T-∧ {true}  {false} = ((λ ()) , proj₂)
+T-∧ {false} {_}     = ((λ ()) , proj₁)
+
+T-∨ : ∀ {b₁ b₂} → T (b₁ ∨ b₂) ⇔ (T b₁ ⊎ T b₂)
+T-∨ {true}  {b₂}    = (inj₁ , const _)
+T-∨ {false} {true}  = (inj₂ , const _)
+T-∨ {false} {false} = (inj₁ , [ id , id ])
