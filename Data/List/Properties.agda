@@ -122,6 +122,13 @@ concat-map {f = f} =
   ∎
   where open Eq (_ →-setoid _)
 
+map-id : ∀ {A} → map id ≗ id {List A}
+map-id = begin
+  map id        ≈⟨ mapIsFold ⟩
+  foldr _∷_ []  ≈⟨ sym ∘ idIsFold ⟩
+  id            ∎
+  where open Eq (_ →-setoid _)
+
 map-compose : ∀ {a b c} {g : b → c} {f : a → b} →
               map (g ∘ f) ≗ map g ∘ map f
 map-compose {g = g} {f} =
