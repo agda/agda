@@ -69,10 +69,6 @@ module ⊆-Reasoning {A : Set} where
   _∈⟨_⟩_ : ∀ x {xs ys} → x ∈ xs → xs IsRelatedTo ys → x ∈ ys
   x ∈⟨ x∈xs ⟩ xs⊆ys = (begin xs⊆ys) x∈xs
 
-find : ∀ {A} {P : A → Set} {xs} → Any P xs → ∃ λ x → x ∈ xs × P x
-find (here px)   = (_ , here refl , px)
-find (there pxs) = Prod.map id (Prod.map there id) (find pxs)
-
 gmap : ∀ {A B} {P : A → Set} {Q : B → Set} {f : A → B} →
        P ⋐ Q ∘₀ f → Any P ⋐ Any Q ∘₀ List.map f
 gmap g (here px)   = here (g px)
@@ -81,6 +77,19 @@ gmap g (there pxs) = there (gmap g pxs)
 map : ∀ {A} {P Q : Pred A} → P ⋐ Q → Any P ⋐ Any Q
 map g (here px)   = here (g px)
 map g (there pxs) = there (map g pxs)
+
+find : ∀ {A} {P : A → Set} {xs} → Any P xs → ∃ λ x → x ∈ xs × P x
+find (here px)   = (_ , here refl , px)
+find (there pxs) = Prod.map id (Prod.map there id) (find pxs)
+
+lose : ∀ {A} {x xs} → x ∈ xs → {P : A → Set} → P x → Any P xs
+lose x∈xs {P} px = map (flip (subst P) px) x∈xs
+
+-- Any is monotone.
+
+mono : ∀ {A} {P : Pred A} {xs ys} → xs ⊆ ys → Any P xs → Any P ys
+mono xs⊆ys pxs with find pxs
+... | (x , x∈xs , px) = lose (xs⊆ys x∈xs) px
 
 any : ∀ {A} {P : A → Set} →
       (∀ x → Dec (P x)) → (xs : List A) → Dec (Any P xs)
