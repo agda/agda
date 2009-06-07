@@ -128,6 +128,13 @@ record Lemmas₂ (T : ℕ → Set) : Set where
 
   field var-/ : ∀ {m n x} {ρ : Sub T m n} → var x / ρ ≡ lookup x ρ
 
+  suc-/-sub : ∀ {n x} {t : T n} → var (suc x) / sub t ≡ var x
+  suc-/-sub {x = x} {t} = begin
+    var (suc x) / sub t     ≡⟨ var-/ ⟩
+    lookup (suc x) (sub t)  ≡⟨ refl ⟩
+    lookup x id             ≡⟨ lookup-id x ⟩
+    var x                   ∎
+
   lookup-⊙ : ∀ {m n k} x {ρ₁ : Sub T m n} {ρ₂ : Sub T n k} →
              lookup x (ρ₁ ⊙ ρ₂) ≡ lookup x ρ₁ / ρ₂
   lookup-⊙ x = VecProp.lookup-natural _ x _
@@ -168,14 +175,20 @@ record Lemmas₂ (T : ℕ → Set) : Set where
   wk-⊙-sub : ∀ {n} {t : T n} → wk ⊙ sub t ≡ id
   wk-⊙-sub = wk-⊙-sub′ zero
 
+  var-/-wk-↑⋆ : ∀ {n} k (x : Fin (k + n)) →
+                var x / wk ↑⋆ k ≡ var (lift k suc x)
+  var-/-wk-↑⋆ k x = begin
+    var x / wk ↑⋆ k     ≡⟨ var-/ ⟩
+    lookup x (wk ↑⋆ k)  ≡⟨ lookup-wk-↑⋆ k x ⟩
+    var (lift k suc x)  ∎
+
   wk-↑⋆-⊙-wk : ∀ {n} k j →
                wk {n} ↑⋆ k ↑⋆ j ⊙ wk ↑⋆ j ≡
                wk ↑⋆ j ⊙ wk ↑⋆ suc k ↑⋆ j
   wk-↑⋆-⊙-wk k j = extensionality λ x → begin
     lookup x (wk ↑⋆ k ↑⋆ j ⊙ wk ↑⋆ j)               ≡⟨ lookup-⊙ x ⟩
     lookup x (wk ↑⋆ k ↑⋆ j) / wk ↑⋆ j               ≡⟨ cong₂ _/_ (lookup-wk-↑⋆-↑⋆ k j x) refl ⟩
-    var (lift j (lift k suc) x) / wk ↑⋆ j           ≡⟨ var-/ ⟩
-    lookup (lift j (lift k suc) x) (wk ↑⋆ j)        ≡⟨ lookup-wk-↑⋆ j (lift j (lift k suc) x) ⟩
+    var (lift j (lift k suc) x) / wk ↑⋆ j           ≡⟨ var-/-wk-↑⋆ j (lift j (lift k suc) x) ⟩
     var (lift j suc (lift j (lift k suc) x))        ≡⟨ cong var (lift-commutes k j x) ⟩
     var (lift j (lift (suc k) suc) (lift j suc x))  ≡⟨ sym (lookup-wk-↑⋆-↑⋆ (suc k) j (lift j suc x)) ⟩
     lookup (lift j suc x) (wk ↑⋆ suc k ↑⋆ j)        ≡⟨ sym var-/ ⟩
@@ -316,6 +329,15 @@ record Lemmas₄ (T : ℕ → Set) : Set where
     t / ρ ∷ map weaken ρ ⊙ sub (t / ρ)  ≡⟨ cong₂ _∷_ (sym var-/) refl ⟩
     ρ ↑ ⊙ sub (t / ρ)                   ∎
 
+  suc-/-↑ : ∀ {m n} {ρ : Sub T m n} x →
+            var (suc x) / ρ ↑ ≡ var x / ρ / wk
+  suc-/-↑ {ρ = ρ} x = begin
+    var (suc x) / ρ ↑        ≡⟨ var-/ ⟩
+    lookup x (map weaken ρ)  ≡⟨ cong (lookup x) map-weaken ⟩
+    lookup x (ρ ⊙ wk)        ≡⟨ lookup-⊙ x ⟩
+    lookup x ρ / wk          ≡⟨ cong₂ _/_ (sym var-/) refl ⟩
+    var x / ρ / wk           ∎
+
   open Lemmas₃ lemmas₃ public
     hiding (/✶-↑✶; /✶-↑✶′; wk-↑⋆-⊙-wk;
             lookup-wk-↑⋆-⊙; lookup-map-weaken-↑⋆)
@@ -379,14 +401,14 @@ record AppLemmas (T₁ T₂ : ℕ → Set) : Set where
 record Lemmas₅ (T : ℕ → Set) : Set where
   field lemmas₄ : Lemmas₄ T
 
-  open Lemmas₄ lemmas₄
+  private module L₄ = Lemmas₄ lemmas₄
 
   appLemmas : AppLemmas T T
   appLemmas = record
-    { application = application
+    { application = L₄.application
     ; lemmas₄     = lemmas₄
-    ; id-vanishes = id-vanishes
-    ; /-⊙         = /-⊙
+    ; id-vanishes = L₄.id-vanishes
+    ; /-⊙         = L₄./-⊙
     }
 
   open AppLemmas appLemmas public hiding (lemmas₄)
@@ -448,6 +470,8 @@ record TermLemmas (T : ℕ → Set) : Set₁ where
               (∀ k x → var x /✶₁ ρs₁ ↑✶₁ k ≡ var x /✶₂ ρs₂ ↑✶₂ k) →
               ∀ k t → t /✶₁ ρs₁ ↑✶₁ k ≡ t /✶₂ ρs₂ ↑✶₂ k
 
+  private module V = VarLemmas
+
   lemmas₃ : Lemmas₃ T
   lemmas₃ = record
     { lemmas₂ = record
@@ -456,9 +480,9 @@ record TermLemmas (T : ℕ → Set) : Set₁ where
           { simple = simple
           }
         ; weaken-var = λ {_ x} → begin
-            var x /Var VarSubst.wk      ≡⟨ app-var ⟩
-            var (lookup x VarSubst.wk)  ≡⟨ cong var (VarLemmas.lookup-wk x) ⟩
-            var (suc x)                 ∎
+            var x /Var V.wk      ≡⟨ app-var ⟩
+            var (lookup x V.wk)  ≡⟨ cong var (V.lookup-wk x) ⟩
+            var (suc x)          ∎
         }
       ; application = Subst.application subst
       ; var-/       = app-var
@@ -468,25 +492,20 @@ record TermLemmas (T : ℕ → Set) : Set₁ where
 
   private module L₃ = Lemmas₃ lemmas₃
 
-  var-/-wk-↑⋆ : ∀ {n} k (x : Fin (k + n)) →
-                var x / wk ↑⋆ k ≡
-                var x /Var VarSubst._↑⋆_ VarSubst.wk k
-  var-/-wk-↑⋆ k x = begin
-    var x / wk ↑⋆ k                               ≡⟨ app-var ⟩
-    lookup x (wk ↑⋆ k)                            ≡⟨ L₃.lookup-wk-↑⋆ k x ⟩
-    var (lift k suc x)                            ≡⟨ cong var (sym (VarLemmas.lookup-wk-↑⋆ k x)) ⟩
-    var (lookup x (VarSubst._↑⋆_ VarSubst.wk k))  ≡⟨ sym app-var ⟩
-    var x /Var VarSubst._↑⋆_ VarSubst.wk k        ∎
-
   lemmas₅ : Lemmas₅ T
   lemmas₅ = record
     { lemmas₄ = record
       { lemmas₃ = lemmas₃
       ; /-wk    = λ {_ t} → begin
-          t / wk              ≡⟨ /✶-↑✶ (ε ▻ wk) (ε ▻ VarSubst.wk)
-                                       var-/-wk-↑⋆ zero t ⟩
-          t /Var VarSubst.wk  ≡⟨ refl ⟩
-          weaken t            ∎
+          t / wk       ≡⟨ /✶-↑✶ (ε ▻ wk) (ε ▻ V.wk)
+                            (λ k x → begin
+                               var x / wk ↑⋆ k                 ≡⟨ L₃.var-/-wk-↑⋆ k x ⟩
+                               var (lift k suc x)              ≡⟨ cong var (sym (V.var-/-wk-↑⋆ k x)) ⟩
+                               var (lookup x (V._↑⋆_ V.wk k))  ≡⟨ sym app-var ⟩
+                               var x /Var V._↑⋆_ V.wk k        ∎)
+                            zero t ⟩
+          t /Var V.wk  ≡⟨ refl ⟩
+          weaken t     ∎
       }
     }
 
