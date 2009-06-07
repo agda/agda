@@ -59,10 +59,14 @@ record Simple (T : ℕ → Set) : Set where
   id {zero}  = []
   id {suc n} = id ↑
 
-  -- A weakening substitution.
+  -- Weakening.
+
+  wk⋆ : ∀ k {n} → Sub T n (k + n)
+  wk⋆ zero    = id
+  wk⋆ (suc k) = map weaken (wk⋆ k)
 
   wk : ∀ {n} → Sub T n (suc n)
-  wk = map weaken id
+  wk = wk⋆ 1
 
   -- A substitution which only replaces the first variable.
 
