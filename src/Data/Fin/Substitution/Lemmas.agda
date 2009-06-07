@@ -24,9 +24,9 @@ lift-commutes k zero    x       = refl
 lift-commutes k (suc j) zero    = refl
 lift-commutes k (suc j) (suc x) = cong suc (lift-commutes k j x)
 
--- The modules Lemmas₀-Lemmas₄ below prove a number of substitution
--- lemmas, on the assumption that the underlying substitution
--- machinery satisfies certain properties.
+-- The modules below prove a number of substitution lemmas, on the
+-- assumption that the underlying substitution machinery satisfies
+-- certain properties.
 
 record Lemmas₀ (T : ℕ → Set) : Set where
   field simple : Simple T
@@ -214,9 +214,6 @@ record Lemmas₃ (T : ℕ → Set) : Set where
     map Fun.id         ρ  ≡⟨ VecProp.map-id ρ ⟩
     ρ                     ∎
 
-  wk-sub-vanishes : ∀ {n t′} (t : T n) → t / wk / sub t′ ≡ t
-  wk-sub-vanishes {t′ = t′} = /✶-↑✶′ (ε ▻ wk ▻ sub t′) ε wk-⊙-sub′ zero
-
   open Lemmas₂ lemmas₂ public hiding (wk-⊙-sub′)
 
 record Lemmas₄ (T : ℕ → Set) : Set where
@@ -295,23 +292,6 @@ record Lemmas₄ (T : ℕ → Set) : Set where
   /-⊙ {ρ₁ = ρ₁} {ρ₂} t =
     /✶-↑✶′ (ε ▻ ρ₁ ⊙ ρ₂) (ε ▻ ρ₁ ▻ ρ₂) ↑⋆-distrib zero t
 
-  /-⨀ : ∀ {m n} t (ρs : Subs T m n) → t / ⨀ ρs ≡ t /✶ ρs
-  /-⨀ t ε                = id-vanishes t
-  /-⨀ t (ρ ◅ ε)          = refl
-  /-⨀ t (ρ ◅ (ρ′ ◅ ρs′)) = begin
-    t / ⨀ ρs ⊙ ρ  ≡⟨ /-⊙ t ⟩
-    t / ⨀ ρs / ρ  ≡⟨ cong₂ _/_ (/-⨀ t ρs) refl ⟩
-    t /✶ ρs / ρ   ∎
-    where ρs = ρ′ ◅ ρs′
-
-  ⨀→/✶ : ∀ {m n} (ρs₁ ρs₂ : Subs T m n) →
-         ⨀ ρs₁ ≡ ⨀ ρs₂ → ∀ t → t /✶ ρs₁ ≡ t /✶ ρs₂
-  ⨀→/✶ ρs₁ ρs₂ hyp t = begin
-    t /✶ ρs₁   ≡⟨ sym (/-⨀ t ρs₁) ⟩
-    t / ⨀ ρs₁  ≡⟨ cong (_/_ t) hyp ⟩
-    t / ⨀ ρs₂  ≡⟨ /-⨀ t ρs₂ ⟩
-    t /✶ ρs₂   ∎
-
   ⊙-assoc : ∀ {m n k o}
               {ρ₁ : Sub T m n} {ρ₂ : Sub T n k} {ρ₃ : Sub T k o} →
             ρ₁ ⊙ (ρ₂ ⊙ ρ₃) ≡ (ρ₁ ⊙ ρ₂) ⊙ ρ₃
@@ -336,14 +316,77 @@ record Lemmas₄ (T : ℕ → Set) : Set where
     t / ρ ∷ map weaken ρ ⊙ sub (t / ρ)  ≡⟨ cong₂ _∷_ (sym var-/) refl ⟩
     ρ ↑ ⊙ sub (t / ρ)                   ∎
 
-  sub-commutes : ∀ {m n} {t′} {ρ : Sub T m n} t →
-                 t / sub t′ / ρ ≡ t / ρ ↑ / sub (t′ / ρ)
-  sub-commutes {t′ = t′} {ρ} =
-    ⨀→/✶ (ε ▻ sub t′ ▻ ρ) (ε ▻ ρ ↑ ▻ sub (t′ / ρ)) (sub-⊙ t′)
-
   open Lemmas₃ lemmas₃ public
     hiding (/✶-↑✶; /✶-↑✶′; wk-↑⋆-⊙-wk;
             lookup-wk-↑⋆-⊙; lookup-map-weaken-↑⋆)
+
+-- For an example of how AppLemmas can be used, see
+-- Data.Fin.Substitution.List.
+
+record AppLemmas (T₁ T₂ : ℕ → Set) : Set where
+  field
+    application : Application T₁ T₂
+    lemmas₄     : Lemmas₄ T₂
+
+  open Application application using (_/_; _/✶_)
+  open Lemmas₄ lemmas₄
+    using (id; _⊙_; wk; sub; _↑; ⨀) renaming (_/_ to _⊘_)
+
+  field
+    id-vanishes : ∀ {n} (t : T₁ n) → t / id ≡ t
+    /-⊙         : ∀ {m n k} {ρ₁ : Sub T₂ m n} {ρ₂ : Sub T₂ n k} t →
+                  t / ρ₁ ⊙ ρ₂ ≡ t / ρ₁ / ρ₂
+
+  private module L₄ = Lemmas₄ lemmas₄
+
+  /-⨀ : ∀ {m n} t (ρs : Subs T₂ m n) → t / ⨀ ρs ≡ t /✶ ρs
+  /-⨀ t ε                = id-vanishes t
+  /-⨀ t (ρ ◅ ε)          = refl
+  /-⨀ t (ρ ◅ (ρ′ ◅ ρs′)) = begin
+    t / ⨀ ρs ⊙ ρ  ≡⟨ /-⊙ t ⟩
+    t / ⨀ ρs / ρ  ≡⟨ cong₂ _/_ (/-⨀ t ρs) refl ⟩
+    t /✶ ρs / ρ   ∎
+    where ρs = ρ′ ◅ ρs′
+
+  ⨀→/✶ : ∀ {m n} (ρs₁ ρs₂ : Subs T₂ m n) →
+         ⨀ ρs₁ ≡ ⨀ ρs₂ → ∀ t → t /✶ ρs₁ ≡ t /✶ ρs₂
+  ⨀→/✶ ρs₁ ρs₂ hyp t = begin
+    t /✶ ρs₁   ≡⟨ sym (/-⨀ t ρs₁) ⟩
+    t / ⨀ ρs₁  ≡⟨ cong (_/_ t) hyp ⟩
+    t / ⨀ ρs₂  ≡⟨ /-⨀ t ρs₂ ⟩
+    t /✶ ρs₂   ∎
+
+  wk-commutes : ∀ {m n} {ρ : Sub T₂ m n} t →
+                t / ρ / wk ≡ t / wk / ρ ↑
+  wk-commutes {ρ = ρ} = ⨀→/✶ (ε ▻ ρ ▻ wk) (ε ▻ wk ▻ ρ ↑) L₄.⊙-wk
+
+  sub-commutes : ∀ {m n} {t′} {ρ : Sub T₂ m n} t →
+                 t / sub t′ / ρ ≡ t / ρ ↑ / sub (t′ ⊘ ρ)
+  sub-commutes {t′ = t′} {ρ} =
+    ⨀→/✶ (ε ▻ sub t′ ▻ ρ) (ε ▻ ρ ↑ ▻ sub (t′ ⊘ ρ)) (L₄.sub-⊙ t′)
+
+  wk-sub-vanishes : ∀ {n t′} (t : T₁ n) → t / wk / sub t′ ≡ t
+  wk-sub-vanishes {t′ = t′} = ⨀→/✶ (ε ▻ wk ▻ sub t′) ε L₄.wk-⊙-sub
+
+  open Application application public
+  open L₄ public
+    hiding (application; _⊙_; _/_; _/✶_;
+            id-vanishes; /-⊙; wk-commutes)
+
+record Lemmas₅ (T : ℕ → Set) : Set where
+  field lemmas₄ : Lemmas₄ T
+
+  open Lemmas₄ lemmas₄
+
+  appLemmas : AppLemmas T T
+  appLemmas = record
+    { application = application
+    ; lemmas₄     = lemmas₄
+    ; id-vanishes = id-vanishes
+    ; /-⊙         = /-⊙
+    }
+
+  open AppLemmas appLemmas public hiding (lemmas₄)
 
 ------------------------------------------------------------------------
 -- Instantiations and code for facilitating instantiations
@@ -371,13 +414,15 @@ module VarLemmas where
 
   private module L₃ = Lemmas₃ lemmas₃
 
-  lemmas₄ : Lemmas₄ Fin
-  lemmas₄ = record
-    { lemmas₃ = lemmas₃
-    ; /-wk    = L₃.lookup-wk _
+  lemmas₅ : Lemmas₅ Fin
+  lemmas₅ = record
+    { lemmas₄ = record
+      { lemmas₃ = lemmas₃
+      ; /-wk    = L₃.lookup-wk _
+      }
     }
 
-  open Lemmas₄ lemmas₄ public hiding (lemmas₃)
+  open Lemmas₅ lemmas₅ public hiding (lemmas₃)
 
 -- Lemmas about "term" substitutions.
 
@@ -418,24 +463,28 @@ record TermLemmas (T : ℕ → Set) : Set₁ where
     ; /✶-↑✶ = /✶-↑✶
     }
 
+  private module L₃ = Lemmas₃ lemmas₃
+
   var-/-wk-↑⋆ : ∀ {n} k (x : Fin (k + n)) →
                 var x / wk ↑⋆ k ≡
                 var x /Var VarSubst._↑⋆_ VarSubst.wk k
   var-/-wk-↑⋆ k x = begin
     var x / wk ↑⋆ k                               ≡⟨ app-var ⟩
-    lookup x (wk ↑⋆ k)                            ≡⟨ Lemmas₃.lookup-wk-↑⋆ lemmas₃ k x ⟩
+    lookup x (wk ↑⋆ k)                            ≡⟨ L₃.lookup-wk-↑⋆ k x ⟩
     var (lift k suc x)                            ≡⟨ cong var (sym (VarLemmas.lookup-wk-↑⋆ k x)) ⟩
     var (lookup x (VarSubst._↑⋆_ VarSubst.wk k))  ≡⟨ sym app-var ⟩
     var x /Var VarSubst._↑⋆_ VarSubst.wk k        ∎
 
-  lemmas₄ : Lemmas₄ T
-  lemmas₄ = record
-    { lemmas₃ = lemmas₃
-    ; /-wk    = λ {_ t} → begin
-        t / wk              ≡⟨ /✶-↑✶ (ε ▻ wk) (ε ▻ VarSubst.wk)
-                                     var-/-wk-↑⋆ zero t ⟩
-        t /Var VarSubst.wk  ≡⟨ refl ⟩
-        weaken t            ∎
+  lemmas₅ : Lemmas₅ T
+  lemmas₅ = record
+    { lemmas₄ = record
+      { lemmas₃ = lemmas₃
+      ; /-wk    = λ {_ t} → begin
+          t / wk              ≡⟨ /✶-↑✶ (ε ▻ wk) (ε ▻ VarSubst.wk)
+                                       var-/-wk-↑⋆ zero t ⟩
+          t /Var VarSubst.wk  ≡⟨ refl ⟩
+          weaken t            ∎
+      }
     }
 
-  open Lemmas₄ lemmas₄ public hiding (lemmas₃)
+  open Lemmas₅ lemmas₅ public hiding (lemmas₃)
