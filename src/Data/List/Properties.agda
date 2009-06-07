@@ -8,14 +8,15 @@
 module Data.List.Properties where
 
 open import Data.List as List
-open import Data.List.Any as Any using (_∈_; _⊆_; here; there)
+open import Data.List.Any as Any using (Any; _∈_; _⊆_; here; there)
 open import Data.Nat
 open import Data.Nat.Properties
 open import Data.Bool
+open import Data.Bool.Properties
 open import Data.Function
 open import Data.Product as Prod hiding (map)
 open import Data.Sum as Sum using (_⊎_; inj₁; inj₂; [_,_]′)
-open import Data.Maybe
+open import Data.Maybe using (Maybe; just; nothing)
 open import Relation.Binary.PropositionalEquality
 import Relation.Binary.EqReasoning as Eq
 open import Algebra
@@ -344,24 +345,24 @@ _⊛-mono_ : ∀ {A B} {fs gs : List (A → B)} {xs ys} →
 _⊛-mono_ {fs = fs} {gs} {xs} fs⊆gs xs⊆ys fx∈ with ⊛-∈ fs xs fx∈
 ... | (f , x , f∈fs , x∈xs , refl) = ∈-⊛ (fs⊆gs f∈fs) (xs⊆ys x∈xs)
 
-∈-any : ∀ {A x} (p : A → Bool) {xs} →
-        x ∈ xs → p x ≡ true → any p xs ≡ true
-∈-any p (here {x = x} refl)  eq   with p x
-∈-any p (here         refl)  refl | .true = refl
-∈-any p (there {x = y} x∈xs) eq   with p y
-∈-any p (there {x = y} x∈xs) eq   | true  = refl
-∈-any p (there {x = y} x∈xs) eq   | false = ∈-any p x∈xs eq
+-- any and all.
 
-any-∈ : ∀ {A} (p : A → Bool) xs →
-        any p xs ≡ true → ∃ λ x → x ∈ xs × p x ≡ true
-any-∈ p []       ()
-any-∈ p (x ∷ xs) eq with inspect (p x)
-any-∈ p (x ∷ xs) eq | true  with-≡ eq′  = (x , here refl , sym eq′)
-any-∈ p (x ∷ xs) eq | false with-≡ eq′  with p x
-any-∈ p (x ∷ xs) eq | false with-≡ refl | .false =
-  Prod.map id (Prod.map there id) (any-∈ p xs eq)
+Any-any : ∀ {A} (p : A → Bool) {xs} →
+          Any (T ∘₀ p) xs → T (any p xs)
+Any-any p (here  px)  = proj₂ T-∨ (inj₁ px)
+Any-any p (there {x = x} pxs) with p x
+... | true  = _
+... | false = Any-any p pxs
+
+any-Any : ∀ {A} (p : A → Bool) xs →
+          T (any p xs) → Any (T ∘₀ p) xs
+any-Any p []       ()
+any-Any p (x ∷ xs) px∷xs with inspect (p x)
+any-Any p (x ∷ xs) px∷xs | true  with-≡ eq   = here (proj₂ T-≡ (sym eq))
+any-Any p (x ∷ xs) px∷xs | false with-≡ eq   with p x
+any-Any p (x ∷ xs) pxs   | false with-≡ refl | .false =
+  there (any-Any p xs pxs)
 
 any-mono : ∀ {A} (p : A → Bool) {xs ys} →
-           xs ⊆ ys → any p xs ≡ true → any p ys ≡ true
-any-mono p {xs} xs⊆ys eq with any-∈ p xs eq
-... | (x , x∈xs , px) = ∈-any p (xs⊆ys x∈xs) px
+           xs ⊆ ys → T (any p xs) → T (any p ys)
+any-mono p xs⊆ys = Any-any p ∘ Any.mono xs⊆ys ∘ any-Any p _
