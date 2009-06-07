@@ -9,6 +9,7 @@ module Data.List.Properties where
 
 open import Data.List as List
 open import Data.List.Any as Any using (Any; _∈_; _⊆_; here; there)
+open import Data.List.All as All using (All; []; _∷_)
 open import Data.Nat
 open import Data.Nat.Properties
 open import Data.Bool
@@ -366,3 +367,20 @@ any-Any p (x ∷ xs) pxs   | false with-≡ refl | .false =
 any-mono : ∀ {A} (p : A → Bool) {xs ys} →
            xs ⊆ ys → T (any p xs) → T (any p ys)
 any-mono p xs⊆ys = Any-any p ∘ Any.mono xs⊆ys ∘ any-Any p _
+
+All-all : ∀ {A} (p : A → Bool) {xs} →
+          All (T ∘₀ p) xs → T (all p xs)
+All-all p []         = _
+All-all p (px ∷ pxs) = proj₂ T-∧ (px , All-all p pxs)
+
+all-All : ∀ {A} (p : A → Bool) xs →
+          T (all p xs) → All (T ∘₀ p) xs
+all-All p []       _     = []
+all-All p (x ∷ xs) px∷xs with proj₁ (T-∧ {p x}) px∷xs
+all-All p (x ∷ xs) px∷xs | (px , pxs) = px ∷ all-All p xs pxs
+
+-- all is /anti/-monotone.
+
+all-anti-mono : ∀ {A} (p : A → Bool) {xs ys} →
+                xs ⊆ ys → T (all p ys) → T (all p xs)
+all-anti-mono p xs⊆ys = All-all p ∘ All.anti-mono xs⊆ys ∘ all-All p _
