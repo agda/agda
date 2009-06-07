@@ -271,6 +271,9 @@ _++-mono_ : ∀ {A} {xs₁ xs₂ ys₁ ys₂ : List A} →
 _++-mono_ {ys₁ = ys₁} xs₁⊆ys₁ xs₂⊆ys₂ =
   [ ∈-++ˡ ∘ xs₁⊆ys₁ , ∈-++ʳ ys₁ ∘ xs₂⊆ys₂ ]′ ∘ ++-∈ _
 
+++-idempotent : ∀ {A} {xs : List A} → xs ++ xs ⊆ xs
+++-idempotent = [ id , id ]′ ∘ ++-∈ _
+
 ∈-map : ∀ {A B} {f : A → B} {x xs} →
         x ∈ xs → f x ∈ map f xs
 ∈-map {f = f} = Any.gmap (cong f)
