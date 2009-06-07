@@ -330,7 +330,7 @@ record AppLemmas (T₁ T₂ : ℕ → Set) : Set where
 
   open Application application using (_/_; _/✶_)
   open Lemmas₄ lemmas₄
-    using (id; _⊙_; wk; sub; _↑; ⨀) renaming (_/_ to _⊘_)
+    using (id; _⊙_; wk; weaken; sub; _↑; ⨀) renaming (_/_ to _⊘_)
 
   field
     id-vanishes : ∀ {n} (t : T₁ n) → t / id ≡ t
@@ -367,6 +367,9 @@ record AppLemmas (T₁ T₂ : ℕ → Set) : Set where
 
   wk-sub-vanishes : ∀ {n t′} (t : T₁ n) → t / wk / sub t′ ≡ t
   wk-sub-vanishes {t′ = t′} = ⨀→/✶ (ε ▻ wk ▻ sub t′) ε L₄.wk-⊙-sub
+
+  /-weaken : ∀ {m n} {ρ : Sub T₂ m n} t → t / map weaken ρ ≡ t / ρ / wk
+  /-weaken {ρ = ρ} = ⨀→/✶ (ε ▻ map weaken ρ) (ε ▻ ρ ▻ wk) L₄.map-weaken
 
   open Application application public
   open L₄ public
