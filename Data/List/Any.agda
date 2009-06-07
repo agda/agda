@@ -11,8 +11,9 @@ open import Data.List as List hiding (map; any)
 open import Data.Product as Prod using (∃; _×_; _,_)
 open import Relation.Nullary
 import Relation.Nullary.Decidable as Dec
-open import Relation.Unary using (Pred; _⊆_)
-open import Relation.Binary.PropositionalEquality
+open import Relation.Unary using (Pred) renaming (_⊆_ to _⋐_)
+open import Relation.Binary
+open import Relation.Binary.PropositionalEquality as PropEq
 
 -- Any P xs means that at least one element in xs satisfies P.
 
@@ -30,16 +31,54 @@ x ∈ xs = Any (_≡_ x) xs
 _∉_ : ∀ {A} → A → List A → Set
 x ∉ xs = ¬ x ∈ xs
 
+-- Subsets.
+
+infix 4 _⊆_ _⊈_
+
+_⊆_ : ∀ {A} → List A → List A → Set
+xs ⊆ ys = ∀ {x} → x ∈ xs → x ∈ ys
+
+_⊈_ : ∀ {A} → List A → List A → Set
+xs ⊈ ys = ¬ xs ⊆ ys
+
+-- _⊆_ is a preorder.
+
+⊆-preorder : Set → Preorder
+⊆-preorder A = record
+  { carrier    = List A
+  ; _≈_        = _≡_
+  ; _∼_        = _⊆_
+  ; isPreorder = record
+    { isEquivalence = PropEq.isEquivalence
+    ; reflexive     = reflexive
+    ; trans         = λ ys⊆zs xs⊆ys → xs⊆ys ∘ ys⊆zs
+    ; ≈-resp-∼      = PropEq.resp _⊆_
+    }
+  }
+  where
+  reflexive : _≡_ ⇒ _⊆_
+  reflexive refl = id
+
+module ⊆-Reasoning {A : Set} where
+  import Relation.Binary.PreorderReasoning as PreR
+  open PreR (⊆-preorder A) public
+    renaming (_∼⟨_⟩_ to _⊆⟨_⟩_; _≈⟨_⟩_ to _≡⟨_⟩_)
+
+  infix 1 _∈⟨_⟩_
+
+  _∈⟨_⟩_ : ∀ x {xs ys} → x ∈ xs → xs IsRelatedTo ys → x ∈ ys
+  x ∈⟨ x∈xs ⟩ xs⊆ys = (begin xs⊆ys) x∈xs
+
 find : ∀ {A} {P : A → Set} {xs} → Any P xs → ∃ λ x → x ∈ xs × P x
 find (here px)   = (_ , here refl , px)
 find (there pxs) = Prod.map id (Prod.map there id) (find pxs)
 
 gmap : ∀ {A B} {P : A → Set} {Q : B → Set} {f : A → B} →
-       P ⊆ Q ∘₀ f → Any P ⊆ Any Q ∘₀ List.map f
+       P ⋐ Q ∘₀ f → Any P ⋐ Any Q ∘₀ List.map f
 gmap g (here px)   = here (g px)
 gmap g (there pxs) = there (gmap g pxs)
 
-map : ∀ {A} {P Q : Pred A} → P ⊆ Q → Any P ⊆ Any Q
+map : ∀ {A} {P Q : Pred A} → P ⋐ Q → Any P ⋐ Any Q
 map g (here px)   = here (g px)
 map g (there pxs) = there (map g pxs)
 
