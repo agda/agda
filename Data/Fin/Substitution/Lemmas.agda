@@ -193,28 +193,28 @@ record Lemmas₃ (T : ℕ → Set) : Set where
 
   field
     /✶-↑✶ : ∀ {m n} (ρs₁ ρs₂ : Subs T m n) →
-            (∀ k {x} → var x /✶ ρs₁ ↑✶ k ≡ var x /✶ ρs₂ ↑✶ k) →
-            ∀ k {t} → t /✶ ρs₁ ↑✶ k ≡ t /✶ ρs₂ ↑✶ k
+            (∀ k x → var x /✶ ρs₁ ↑✶ k ≡ var x /✶ ρs₂ ↑✶ k) →
+            ∀ k t → t /✶ ρs₁ ↑✶ k ≡ t /✶ ρs₂ ↑✶ k
 
   /✶-↑✶′ : ∀ {m n} (ρs₁ ρs₂ : Subs T m n) →
            (∀ k → ⨀ (ρs₁ ↑✶ k) ≡ ⨀ (ρs₂ ↑✶ k)) →
-           ∀ k {t} → t /✶ ρs₁ ↑✶ k ≡ t /✶ ρs₂ ↑✶ k
-  /✶-↑✶′ ρs₁ ρs₂ hyp = /✶-↑✶ ρs₁ ρs₂ (λ k {x} → begin
+           ∀ k t → t /✶ ρs₁ ↑✶ k ≡ t /✶ ρs₂ ↑✶ k
+  /✶-↑✶′ ρs₁ ρs₂ hyp = /✶-↑✶ ρs₁ ρs₂ (λ k x → begin
     var x /✶ ρs₁ ↑✶ k        ≡⟨ sym (lookup-⨀ x (ρs₁ ↑✶ k)) ⟩
     lookup x (⨀ (ρs₁ ↑✶ k))  ≡⟨ cong (lookup x) (hyp k) ⟩
     lookup x (⨀ (ρs₂ ↑✶ k))  ≡⟨ lookup-⨀ x (ρs₂ ↑✶ k) ⟩
     var x /✶ ρs₂ ↑✶ k        ∎)
 
-  id-vanishes : ∀ {n} {t : T n} → t / id ≡ t
+  id-vanishes : ∀ {n} (t : T n) → t / id ≡ t
   id-vanishes = /✶-↑✶′ (ε ▻ id) ε id-↑⋆ zero
 
   ⊙-id : ∀ {m n} {ρ : Sub T m n} → ρ ⊙ id ≡ ρ
   ⊙-id {ρ = ρ} = begin
-    map (λ t → t / id) ρ  ≡⟨ VecProp.map-cong (λ _ → id-vanishes) ρ ⟩
+    map (λ t → t / id) ρ  ≡⟨ VecProp.map-cong id-vanishes ρ ⟩
     map Fun.id         ρ  ≡⟨ VecProp.map-id ρ ⟩
     ρ                     ∎
 
-  wk-sub-vanishes : ∀ {n} {t : T n} {t′} → t / wk / sub t′ ≡ t
+  wk-sub-vanishes : ∀ {n t′} (t : T n) → t / wk / sub t′ ≡ t
   wk-sub-vanishes {t′ = t′} = /✶-↑✶′ (ε ▻ wk ▻ sub t′) ε wk-⊙-sub′ zero
 
   open Lemmas₂ lemmas₂ public hiding (wk-⊙-sub′)
@@ -229,7 +229,7 @@ record Lemmas₄ (T : ℕ → Set) : Set where
   private
 
     ↑-distrib′ : ∀ {m n k} {ρ₁ : Sub T m n} {ρ₂ : Sub T n k} →
-                 (∀ {t} → t / ρ₂ / wk ≡ t / wk / ρ₂ ↑) →
+                 (∀ t → t / ρ₂ / wk ≡ t / wk / ρ₂ ↑) →
                  (ρ₁ ⊙ ρ₂) ↑ ≡ ρ₁ ↑ ⊙ ρ₂ ↑
     ↑-distrib′ {ρ₁ = ρ₁} {ρ₂} hyp = begin
       (ρ₁ ⊙ ρ₂) ↑                             ≡⟨ refl ⟩
@@ -241,14 +241,14 @@ record Lemmas₄ (T : ℕ → Set) : Set where
         map weaken (map (λ t → t / ρ₂) ρ₁)    ≡⟨ sym (VecProp.map-∘ _ _ _) ⟩
         map (λ t → weaken (t / ρ₂)) ρ₁        ≡⟨ VecProp.map-cong (λ t → begin
                                                    weaken (t / ρ₂)  ≡⟨ sym /-wk ⟩
-                                                   t / ρ₂ / wk      ≡⟨ hyp ⟩
+                                                   t / ρ₂ / wk      ≡⟨ hyp t ⟩
                                                    t / wk / ρ₂ ↑    ≡⟨ cong₂ _/_ /-wk refl ⟩
                                                    weaken t / ρ₂ ↑  ∎) ρ₁ ⟩
         map (λ t → weaken t / ρ₂ ↑) ρ₁        ≡⟨ VecProp.map-∘ _ _ _ ⟩
         map (λ t → t / ρ₂ ↑) (map weaken ρ₁)  ∎
 
     ↑⋆-distrib′ : ∀ {m n o} {ρ₁ : Sub T m n} {ρ₂ : Sub T n o} →
-                  (∀ k {t} → t / ρ₂ ↑⋆ k / wk ≡ t / wk / ρ₂ ↑⋆ suc k) →
+                  (∀ k t → t / ρ₂ ↑⋆ k / wk ≡ t / wk / ρ₂ ↑⋆ suc k) →
                   ∀ k → (ρ₁ ⊙ ρ₂) ↑⋆ k ≡ ρ₁ ↑⋆ k ⊙ ρ₂ ↑⋆ k
     ↑⋆-distrib′                hyp zero    = refl
     ↑⋆-distrib′ {ρ₁ = ρ₁} {ρ₂} hyp (suc k) = begin
@@ -269,9 +269,9 @@ record Lemmas₄ (T : ℕ → Set) : Set where
     ⊙-wk′ {ρ = ρ} k = sym (begin
       wk ↑⋆ k ⊙ ρ ↑ ↑⋆ k  ≡⟨ lemma ⟩
       map weaken ρ ↑⋆ k   ≡⟨ cong (λ ρ′ → ρ′ ↑⋆ k) map-weaken ⟩
-      (ρ ⊙ wk) ↑⋆ k       ≡⟨ ↑⋆-distrib′ (λ k →
+      (ρ ⊙ wk) ↑⋆ k       ≡⟨ ↑⋆-distrib′ (λ k t →
                                /✶-↑✶′ (ε ▻ wk ↑⋆ k ▻ wk) (ε ▻ wk ▻ wk ↑⋆ suc k)
-                                      (wk-↑⋆-⊙-wk k) zero) k ⟩
+                                      (wk-↑⋆-⊙-wk k) zero t) k ⟩
       ρ ↑⋆ k ⊙ wk ↑⋆ k    ∎)
       where
       lemma = extensionality λ x → begin
@@ -282,7 +282,7 @@ record Lemmas₄ (T : ℕ → Set) : Set where
   ⊙-wk : ∀ {m n} {ρ : Sub T m n} → ρ ⊙ wk ≡ wk ⊙ ρ ↑
   ⊙-wk = ⊙-wk′ zero
 
-  wk-commutes : ∀ {m n} {t} {ρ : Sub T m n} →
+  wk-commutes : ∀ {m n} {ρ : Sub T m n} t →
                 t / ρ / wk ≡ t / wk / ρ ↑
   wk-commutes {ρ = ρ} = /✶-↑✶′ (ε ▻ ρ ▻ wk) (ε ▻ wk ▻ ρ ↑) ⊙-wk′ zero
 
@@ -290,33 +290,33 @@ record Lemmas₄ (T : ℕ → Set) : Set where
                ∀ k → (ρ₁ ⊙ ρ₂) ↑⋆ k ≡ ρ₁ ↑⋆ k ⊙ ρ₂ ↑⋆ k
   ↑⋆-distrib = ↑⋆-distrib′ (λ _ → wk-commutes)
 
-  /-⊙ : ∀ {m n k} {ρ₁ : Sub T m n} {ρ₂ : Sub T n k} {t} →
+  /-⊙ : ∀ {m n k} {ρ₁ : Sub T m n} {ρ₂ : Sub T n k} t →
         t / ρ₁ ⊙ ρ₂ ≡ t / ρ₁ / ρ₂
-  /-⊙ {ρ₁ = ρ₁} {ρ₂} =
-    /✶-↑✶′ (ε ▻ ρ₁ ⊙ ρ₂) (ε ▻ ρ₁ ▻ ρ₂) ↑⋆-distrib zero
+  /-⊙ {ρ₁ = ρ₁} {ρ₂} t =
+    /✶-↑✶′ (ε ▻ ρ₁ ⊙ ρ₂) (ε ▻ ρ₁ ▻ ρ₂) ↑⋆-distrib zero t
 
-  /-⨀ : ∀ {m n} (ρs : Subs T m n) {t} → t / ⨀ ρs ≡ t /✶ ρs
-  /-⨀ ε                    = id-vanishes
-  /-⨀ (ρ ◅ ε)              = refl
-  /-⨀ (ρ ◅ (ρ′ ◅ ρs′)) {t} = begin
-    t / ⨀ ρs ⊙ ρ  ≡⟨ /-⊙ ⟩
-    t / ⨀ ρs / ρ  ≡⟨ cong₂ _/_ (/-⨀ ρs) refl ⟩
+  /-⨀ : ∀ {m n} t (ρs : Subs T m n) → t / ⨀ ρs ≡ t /✶ ρs
+  /-⨀ t ε                = id-vanishes t
+  /-⨀ t (ρ ◅ ε)          = refl
+  /-⨀ t (ρ ◅ (ρ′ ◅ ρs′)) = begin
+    t / ⨀ ρs ⊙ ρ  ≡⟨ /-⊙ t ⟩
+    t / ⨀ ρs / ρ  ≡⟨ cong₂ _/_ (/-⨀ t ρs) refl ⟩
     t /✶ ρs / ρ   ∎
     where ρs = ρ′ ◅ ρs′
 
   ⨀→/✶ : ∀ {m n} (ρs₁ ρs₂ : Subs T m n) →
-         ⨀ ρs₁ ≡ ⨀ ρs₂ → ∀ {t} → t /✶ ρs₁ ≡ t /✶ ρs₂
-  ⨀→/✶ ρs₁ ρs₂ hyp {t} = begin
-    t /✶ ρs₁   ≡⟨ sym (/-⨀ ρs₁) ⟩
+         ⨀ ρs₁ ≡ ⨀ ρs₂ → ∀ t → t /✶ ρs₁ ≡ t /✶ ρs₂
+  ⨀→/✶ ρs₁ ρs₂ hyp t = begin
+    t /✶ ρs₁   ≡⟨ sym (/-⨀ t ρs₁) ⟩
     t / ⨀ ρs₁  ≡⟨ cong (_/_ t) hyp ⟩
-    t / ⨀ ρs₂  ≡⟨ /-⨀ ρs₂ ⟩
+    t / ⨀ ρs₂  ≡⟨ /-⨀ t ρs₂ ⟩
     t /✶ ρs₂   ∎
 
   ⊙-assoc : ∀ {m n k o}
               {ρ₁ : Sub T m n} {ρ₂ : Sub T n k} {ρ₃ : Sub T k o} →
             ρ₁ ⊙ (ρ₂ ⊙ ρ₃) ≡ (ρ₁ ⊙ ρ₂) ⊙ ρ₃
   ⊙-assoc {ρ₁ = ρ₁} {ρ₂} {ρ₃} = begin
-    map (λ t → t / ρ₂ ⊙ ρ₃) ρ₁                  ≡⟨ VecProp.map-cong (λ _ → /-⊙) ρ₁ ⟩
+    map (λ t → t / ρ₂ ⊙ ρ₃) ρ₁                  ≡⟨ VecProp.map-cong /-⊙ ρ₁ ⟩
     map (λ t → t / ρ₂ / ρ₃) ρ₁                  ≡⟨ VecProp.map-∘ _ _ _ ⟩
     map (λ t → t / ρ₃) (map (λ t → t / ρ₂) ρ₁)  ∎
 
@@ -328,18 +328,18 @@ record Lemmas₄ (T : ℕ → Set) : Set where
     ρ ⊙ id                ≡⟨ ⊙-id ⟩
     ρ                     ∎
 
-  sub-⊙ : ∀ {m n} {t} {ρ : Sub T m n} → sub t ⊙ ρ ≡ ρ ↑ ⊙ sub (t / ρ)
-  sub-⊙ {t = t} {ρ} = begin
+  sub-⊙ : ∀ {m n} {ρ : Sub T m n} t → sub t ⊙ ρ ≡ ρ ↑ ⊙ sub (t / ρ)
+  sub-⊙ {ρ = ρ} t = begin
     sub t ⊙ ρ                           ≡⟨ refl ⟩
     t / ρ ∷ id ⊙ ρ                      ≡⟨ cong (_∷_ (t / ρ)) id-⊙ ⟩
     t / ρ ∷ ρ                           ≡⟨ cong (_∷_ (t / ρ)) (sym map-weaken-⊙-sub) ⟩
     t / ρ ∷ map weaken ρ ⊙ sub (t / ρ)  ≡⟨ cong₂ _∷_ (sym var-/) refl ⟩
     ρ ↑ ⊙ sub (t / ρ)                   ∎
 
-  sub-commutes : ∀ {m n} {t t′} {ρ : Sub T m n} →
+  sub-commutes : ∀ {m n} {t′} {ρ : Sub T m n} t →
                  t / sub t′ / ρ ≡ t / ρ ↑ / sub (t′ / ρ)
   sub-commutes {t′ = t′} {ρ} =
-    ⨀→/✶ (ε ▻ sub t′ ▻ ρ) (ε ▻ ρ ↑ ▻ sub (t′ / ρ)) sub-⊙
+    ⨀→/✶ (ε ▻ sub t′ ▻ ρ) (ε ▻ ρ ↑ ▻ sub (t′ / ρ)) (sub-⊙ t′)
 
   open Lemmas₃ lemmas₃ public
     hiding (/✶-↑✶; /✶-↑✶′; wk-↑⋆-⊙-wk;
@@ -397,8 +397,8 @@ record TermLemmas (T : ℕ → Set) : Set₁ where
                     using () renaming (_↑✶_ to _↑✶₂_; _/✶_ to _/✶₂_)
               in
               ∀ {m n} (ρs₁ : Subs T₁ m n) (ρs₂ : Subs T₂ m n) →
-              (∀ k {x} → var x /✶₁ ρs₁ ↑✶₁ k ≡ var x /✶₂ ρs₂ ↑✶₂ k) →
-              ∀ k {t} → t /✶₁ ρs₁ ↑✶₁ k ≡ t /✶₂ ρs₂ ↑✶₂ k
+              (∀ k x → var x /✶₁ ρs₁ ↑✶₁ k ≡ var x /✶₂ ρs₂ ↑✶₂ k) →
+              ∀ k t → t /✶₁ ρs₁ ↑✶₁ k ≡ t /✶₂ ρs₂ ↑✶₂ k
 
   lemmas₃ : Lemmas₃ T
   lemmas₃ = record
@@ -418,10 +418,10 @@ record TermLemmas (T : ℕ → Set) : Set₁ where
     ; /✶-↑✶ = /✶-↑✶
     }
 
-  var-/-wk-↑⋆ : ∀ {n} k {x : Fin (k + n)} →
+  var-/-wk-↑⋆ : ∀ {n} k (x : Fin (k + n)) →
                 var x / wk ↑⋆ k ≡
                 var x /Var VarSubst._↑⋆_ VarSubst.wk k
-  var-/-wk-↑⋆ k {x} = begin
+  var-/-wk-↑⋆ k x = begin
     var x / wk ↑⋆ k                               ≡⟨ app-var ⟩
     lookup x (wk ↑⋆ k)                            ≡⟨ Lemmas₃.lookup-wk-↑⋆ lemmas₃ k x ⟩
     var (lift k suc x)                            ≡⟨ cong var (sym (VarLemmas.lookup-wk-↑⋆ k x)) ⟩
@@ -433,7 +433,7 @@ record TermLemmas (T : ℕ → Set) : Set₁ where
     { lemmas₃ = lemmas₃
     ; /-wk    = λ {_ t} → begin
         t / wk              ≡⟨ /✶-↑✶ (ε ▻ wk) (ε ▻ VarSubst.wk)
-                                     var-/-wk-↑⋆ zero ⟩
+                                     var-/-wk-↑⋆ zero t ⟩
         t /Var VarSubst.wk  ≡⟨ refl ⟩
         weaken t            ∎
     }

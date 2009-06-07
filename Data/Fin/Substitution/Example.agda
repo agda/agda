@@ -72,18 +72,18 @@ tmLemmas = record
     open Lifted lift₂ using () renaming (_↑✶_ to _↑✶₂_; _/✶_ to _/✶₂_)
 
     /✶-↑✶ : ∀ {m n} (ρs₁ : Subs T₁ m n) (ρs₂ : Subs T₂ m n) →
-            (∀ k {x} → var x /✶₁ ρs₁ ↑✶₁ k ≡ var x /✶₂ ρs₂ ↑✶₂ k) →
-             ∀ k {t} → t     /✶₁ ρs₁ ↑✶₁ k ≡ t     /✶₂ ρs₂ ↑✶₂ k
-    /✶-↑✶ ρs₁ ρs₂ hyp k {var x} = hyp k
-    /✶-↑✶ ρs₁ ρs₂ hyp k {ƛ t}   = begin
+            (∀ k x → var x /✶₁ ρs₁ ↑✶₁ k ≡ var x /✶₂ ρs₂ ↑✶₂ k) →
+             ∀ k t → t     /✶₁ ρs₁ ↑✶₁ k ≡ t     /✶₂ ρs₂ ↑✶₂ k
+    /✶-↑✶ ρs₁ ρs₂ hyp k (var x) = hyp k x
+    /✶-↑✶ ρs₁ ρs₂ hyp k (ƛ t)   = begin
       ƛ t /✶₁ ρs₁ ↑✶₁ k        ≡⟨ TmApp.ƛ-/✶-↑✶ _ k ρs₁ ⟩
-      ƛ (t /✶₁ ρs₁ ↑✶₁ suc k)  ≡⟨ cong ƛ (/✶-↑✶ ρs₁ ρs₂ hyp (suc k)) ⟩
+      ƛ (t /✶₁ ρs₁ ↑✶₁ suc k)  ≡⟨ cong ƛ (/✶-↑✶ ρs₁ ρs₂ hyp (suc k) t) ⟩
       ƛ (t /✶₂ ρs₂ ↑✶₂ suc k)  ≡⟨ sym (TmApp.ƛ-/✶-↑✶ _ k ρs₂) ⟩
       ƛ t /✶₂ ρs₂ ↑✶₂ k        ∎
-    /✶-↑✶ ρs₁ ρs₂ hyp k {t₁ · t₂} = begin
+    /✶-↑✶ ρs₁ ρs₂ hyp k (t₁ · t₂) = begin
       t₁ · t₂ /✶₁ ρs₁ ↑✶₁ k                    ≡⟨ TmApp.·-/✶-↑✶ _ k ρs₁ ⟩
-      (t₁ /✶₁ ρs₁ ↑✶₁ k) · (t₂ /✶₁ ρs₁ ↑✶₁ k)  ≡⟨ cong₂ _·_ (/✶-↑✶ ρs₁ ρs₂ hyp k)
-                                                            (/✶-↑✶ ρs₁ ρs₂ hyp k) ⟩
+      (t₁ /✶₁ ρs₁ ↑✶₁ k) · (t₂ /✶₁ ρs₁ ↑✶₁ k)  ≡⟨ cong₂ _·_ (/✶-↑✶ ρs₁ ρs₂ hyp k t₁)
+                                                            (/✶-↑✶ ρs₁ ρs₂ hyp k t₂) ⟩
       (t₁ /✶₂ ρs₂ ↑✶₂ k) · (t₂ /✶₂ ρs₂ ↑✶₂ k)  ≡⟨ sym (TmApp.·-/✶-↑✶ _ k ρs₂) ⟩
       t₁ · t₂ /✶₂ ρs₂ ↑✶₂ k                    ∎
 
