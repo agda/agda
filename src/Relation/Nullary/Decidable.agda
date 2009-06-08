@@ -4,10 +4,12 @@
 
 module Relation.Nullary.Decidable where
 
-open import Relation.Nullary
+open import Data.Empty
 open import Data.Function
 open import Data.Bool
-open import Data.Product using (_,_)
+open import Data.Product hiding (map)
+open import Relation.Nullary
+open import Relation.Binary.PropositionalEquality
 
 decToBool : ∀ {P} → Dec P → Bool
 decToBool (yes _) = true
@@ -24,5 +26,15 @@ witnessToTruth {Q = yes p} _  = p
 witnessToTruth {Q = no  _} ()
 
 map : ∀ {P Q} → P ⇔ Q → Dec P → Dec Q
-map (to , from) (yes p) = yes (to p)
-map (to , from) (no ¬p) = no (¬p ∘ from)
+map eq (yes p) = yes (proj₁ eq p)
+map eq (no ¬p) = no (¬p ∘ proj₂ eq)
+
+fromYes : ∀ {P} → P → Dec P → P
+fromYes _ (yes p) = p
+fromYes p (no ¬p) = ⊥-elim (¬p p)
+
+fromYes-map-commute :
+  ∀ {P Q p q} (eq : P ⇔ Q) (d : Dec P) →
+  fromYes q (map eq d) ≡ proj₁ eq (fromYes p d)
+fromYes-map-commute         _ (yes p) = refl
+fromYes-map-commute {p = p} _ (no ¬p) = ⊥-elim (¬p p)
