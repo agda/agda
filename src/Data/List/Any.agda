@@ -91,16 +91,16 @@ mono : ∀ {A} {P : Pred A} {xs ys} → xs ⊆ ys → Any P xs → Any P ys
 mono xs⊆ys pxs with find pxs
 ... | (x , x∈xs , px) = lose (xs⊆ys x∈xs) px
 
+tail : ∀ {A x xs} {P : A → Set} → ¬ P x → Any P (x ∷ xs) → Any P xs
+tail ¬px (here  px)  = ⊥-elim (¬px px)
+tail ¬px (there pxs) = pxs
+
 any : ∀ {A} {P : A → Set} →
       (∀ x → Dec (P x)) → (xs : List A) → Dec (Any P xs)
 any p []       = no λ()
 any p (x ∷ xs) with p x
 any p (x ∷ xs) | yes px = yes (here px)
-any p (x ∷ xs) | no ¬px = Dec.map (there , helper) (any p xs)
-  where
-  helper : Any _ (x ∷ xs) → Any _ xs
-  helper (here  px)  = ⊥-elim (¬px px)
-  helper (there pxs) = pxs
+any p (x ∷ xs) | no ¬px = Dec.map (there , tail ¬px) (any p xs)
 
 index : ∀ {A} {P : A → Set} {xs} → Any P xs → Fin (length xs)
 index (here  px)  = zero
