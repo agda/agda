@@ -21,7 +21,6 @@ open import Data.Maybe using (Maybe; just; nothing)
 open import Relation.Binary.PropositionalEquality
 import Relation.Binary.EqReasoning as Eq
 open import Algebra
-open import Relation.Binary.FunctionLifting
 open import Category.Monad
 open RawMonad List.monad
 

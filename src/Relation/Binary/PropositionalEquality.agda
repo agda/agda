@@ -6,7 +6,7 @@ module Relation.Binary.PropositionalEquality where
 
 open import Relation.Binary
 open import Relation.Binary.Consequences
-open import Relation.Binary.FunctionLifting
+open import Relation.Binary.FunctionSetoid
 open import Data.Function
 open import Data.Product
 
@@ -65,7 +65,7 @@ preorder a = record
 infix 4 _≗_
 
 _→-setoid_ : (A B : Set) → Setoid
-A →-setoid B = LiftSetoid≡ A (λ _ → setoid B)
+A →-setoid B = A ≡⇨ λ _ → setoid B
 
 _≗_ : ∀ {a b} (f g : a → b) → Set
 _≗_ {a} {b} = Setoid._≈_ (a →-setoid b)

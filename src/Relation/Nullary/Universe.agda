@@ -12,7 +12,7 @@ open import Relation.Binary.PropositionalEquality as PropEq
   using (_≡_; refl)
 open import Relation.Binary.Sum
 open import Relation.Binary.Product.Pointwise
-open import Relation.Binary.FunctionLifting
+open import Relation.Binary.FunctionSetoid
 open import Data.Sum     as Sum  hiding (map)
 open import Data.Product as Prod hiding (map)
 open import Data.Function
@@ -64,7 +64,7 @@ isEquivalence (F₁ ∨ F₂) = isEquivalence F₁ ⊎-isEquivalence
                           isEquivalence F₂
 isEquivalence (F₁ ∧ F₂) = isEquivalence F₁ ×-isEquivalence
                           isEquivalence F₂
-isEquivalence (P₁ ⇒ F₂) = LiftEquiv≡ (λ _ → isEquivalence F₂)
+isEquivalence (P₁ ⇒ F₂) = ≡↝-isEquivalence (λ _ → isEquivalence F₂)
 isEquivalence (¬¬ F)    = Always-isEquivalence
 
 -- ⟦ F ⟧ is functorial.
