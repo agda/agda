@@ -132,10 +132,11 @@ reverse {suc n} i  = inject≤ (n ℕ- i) (N.n∸m≤n (toℕ i) (suc n))
 -- If there is an injection from a set to a finite set, then equality
 -- of the set can be decided.
 
-eq? : ∀ {A n} → Injection A (Fin n) → Decidable (_≡_ {A})
-eq? inj x y with to x ≟ to y  where open Injection inj
+eq? : ∀ {S n} →
+      Injection S (PropEq.setoid (Fin n)) → Decidable (Setoid._≈_ S)
+eq? inj x y with fun x ≟ fun y where open Injection inj
 ... | yes tox≡toy = yes (Injection.injective inj tox≡toy)
-... | no  tox≢toy = no  (tox≢toy ∘ cong (Injection.to inj))
+... | no  tox≢toy = no  (tox≢toy ∘ Injection.pres inj)
 
 -- Quantification over finite sets commutes with applicative functors.
 
