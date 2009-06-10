@@ -9,7 +9,7 @@ open import Data.Bool.Properties
 open import Data.Function
 open import Data.List as List
 import Data.List.Any as Any
-open Any.ListMembership-≡
+open Any.Membership-≡
 open import Data.List.All as All using (All; []; _∷_)
 open import Data.Product
 open import Relation.Unary using (Pred) renaming (_⊆_ to _⋐_)

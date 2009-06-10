@@ -53,7 +53,7 @@ index (there pxs) = suc (index pxs)
 ------------------------------------------------------------------------
 -- List membership and some related definitions
 
-module ListMembership (S : Setoid) where
+module Membership (S : Setoid) where
 
   private
     open module S = Setoid S using (_≈_) renaming (carrier to A)
@@ -137,14 +137,14 @@ module ListMembership (S : Setoid) where
 -- The code above instantiated (and slightly changed) for
 -- propositional equality.
 
-module ListMembership-≡ {A : Set} where
+module Membership-≡ {A : Set} where
 
   private
-    open module LM = ListMembership (PropEq.setoid A) public
+    open module M = Membership (PropEq.setoid A) public
       hiding (lift-resp; lose; ⊆-preorder; module ⊆-Reasoning)
 
   lose : ∀ {P x xs} → x ∈ xs → P x → Any P xs
-  lose {P} = LM.lose (PropEq.subst P)
+  lose {P} = M.lose (PropEq.subst P)
 
   -- _⊆_ is a preorder.
 

@@ -7,7 +7,7 @@ module Data.List.All where
 open import Data.Function
 open import Data.List as List hiding (map; all)
 open import Data.List.Any as Any using (here; there)
-open Any.ListMembership-≡ using (_∈_; _⊆_)
+open Any.Membership-≡ using (_∈_; _⊆_)
 open import Data.Product as Prod using (_,_)
 open import Relation.Nullary
 import Relation.Nullary.Decidable as Dec
