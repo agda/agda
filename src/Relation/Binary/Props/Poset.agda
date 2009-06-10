@@ -19,7 +19,7 @@ strictPartialOrder = record
     { isEquivalence = isEquivalence
     ; irrefl        = irrefl
     ; trans         = trans isPartialOrder
-    ; ≈-resp-<      = ≈-resp-< isEquivalence ≈-resp-≤
+    ; <-resp-≈      = <-resp-≈ isEquivalence ≤-resp-≈
     }
   }
 

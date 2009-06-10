@@ -33,11 +33,11 @@ asymmetric : ∀ {A} (< : Rel A) → Asymmetric < → Asymmetric (flip₁ <)
 asymmetric _ asym = asym
 
 respects : ∀ {A} (∼ : Rel A) P →
-           Symmetric ∼ → ∼ Respects P → flip₁ ∼ Respects P
+           Symmetric ∼ → P Respects ∼ → P Respects flip₁ ∼
 respects _ _ sym resp ∼ = resp (sym ∼)
 
 respects₂ : ∀ {A} (∼₁ ∼₂ : Rel A) →
-            Symmetric ∼₁ → ∼₁ Respects₂ ∼₂ → flip₁ ∼₁ Respects₂ flip₁ ∼₂
+            Symmetric ∼₂ → ∼₁ Respects₂ ∼₂ → flip₁ ∼₁ Respects₂ flip₁ ∼₂
 respects₂ _ _ sym (resp₁ , resp₂) =
   ((λ {_} {_} {_} ∼ → resp₂ (sym ∼)) , λ {_} {_} {_} ∼ → resp₁ (sym ∼))
 
@@ -72,7 +72,7 @@ isPreorder {≈ = ≈} {∼} pre = record
   { isEquivalence = isEquivalence Pre.isEquivalence
   ; reflexive     = implies ≈ ∼ Pre.reflexive
   ; trans         = transitive ∼ Pre.trans
-  ; ≈-resp-∼      = respects₂ ≈ ∼ Pre.Eq.sym Pre.≈-resp-∼
+  ; ∼-resp-≈      = respects₂ ∼ ≈ Pre.Eq.sym Pre.∼-resp-≈
   }
   where module Pre = IsPreorder pre
 
@@ -120,7 +120,7 @@ isStrictPartialOrder {≈ = ≈} {<} spo = record
   { isEquivalence = isEquivalence Spo.isEquivalence
   ; irrefl        = irreflexive ≈ < Spo.irrefl
   ; trans         = transitive < Spo.trans
-  ; ≈-resp-<      = respects₂ ≈ < Spo.Eq.sym Spo.≈-resp-<
+  ; <-resp-≈      = respects₂ < ≈ Spo.Eq.sym Spo.<-resp-≈
   }
   where module Spo = IsStrictPartialOrder spo
 
@@ -171,7 +171,7 @@ isStrictTotalOrder {≈ = ≈} {<} sto = record
   { isEquivalence = isEquivalence Sto.isEquivalence
   ; trans         = transitive < Sto.trans
   ; compare       = trichotomous ≈ < Sto.compare
-  ; ≈-resp-<      = respects₂ ≈ < Sto.Eq.sym Sto.≈-resp-<
+  ; <-resp-≈      = respects₂ < ≈ Sto.Eq.sym Sto.<-resp-≈
   }
   where module Sto = IsStrictTotalOrder sto
 

@@ -95,7 +95,7 @@ private
     where cmp = StrictTotalOrder.compare NP.strictTotalOrder
 
   irr : ∀ {b₁ b₂} → b₁ < b₂ → b₁ ≢ b₂
-  irr lt eq = asym⟶irr (PropEq.resp _<_) sym asym eq lt
+  irr lt eq = asym⟶irr (PropEq.resp₂ _<_) sym asym eq lt
 
   irr′ : ∀ {b} → ¬ b < b
   irr′ lt = irr lt refl
@@ -169,7 +169,7 @@ strictTotalOrder = record
     { isEquivalence = PropEq.isEquivalence
     ; trans         = <-trans
     ; compare       = compare
-    ; ≈-resp-<      = PropEq.resp _<_
+    ; <-resp-≈      = PropEq.resp₂ _<_
     }
   }
 

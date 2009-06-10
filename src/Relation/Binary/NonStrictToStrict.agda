@@ -45,15 +45,15 @@ trans po = λ x<y y<z →
   lemma x≤y y≤z x≈z =
     PO.antisym x≤y $ PO.trans y≤z (PO.reflexive $ PO.Eq.sym x≈z)
 
-≈-resp-< : IsEquivalence _≈_ → _≈_ Respects₂ _≤_ → _≈_ Respects₂ _<_
-≈-resp-< eq ≈-resp-≤ =
+<-resp-≈ : IsEquivalence _≈_ → _≤_ Respects₂ _≈_ → _<_ Respects₂ _≈_
+<-resp-≈ eq ≤-resp-≈ =
   (λ {x y' y} y'≈y x<y' →
-    ( proj₁ ≈-resp-≤ y'≈y (proj₁ x<y')
+    ( proj₁ ≤-resp-≈ y'≈y (proj₁ x<y')
     , λ x≈y → proj₂ x<y' (Eq.trans x≈y (Eq.sym y'≈y))
     )
   ) ,
   (λ {y x' x} x'≈x x'<y →
-    ( proj₂ ≈-resp-≤ x'≈x (proj₁ x'<y)
+    ( proj₂ ≤-resp-≈ x'≈x (proj₁ x'<y)
     , λ x≈y → proj₂ x'<y (Eq.trans x'≈x x≈y)
     ))
   where module Eq = IsEquivalence eq

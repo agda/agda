@@ -174,7 +174,7 @@ import IO
 --       -- Reflexivity is expressed in terms of an underlying equality:
 --       reflexive     : _≈_ ⇒ _∼_
 --       trans         : Transitive _∼_
---       ≈-resp-∼      : _≈_ Respects₂ _∼_
+--       ∼-resp-≈      : _∼_ Respects₂ _≈_
 --
 --     module Eq = IsEquivalence isEquivalence
 --

@@ -48,29 +48,29 @@ antisym eq trans irrefl = as
   as (inj₁ x<y) (inj₁ y<x) =
     ⊥-elim (trans∧irr⟶asym {≈ = _≈_} Eq.refl trans irrefl x<y y<x)
 
-trans : IsEquivalence _≈_ → _≈_ Respects₂ _<_ →
+trans : IsEquivalence _≈_ → _<_ Respects₂ _≈_ →
         Transitive _<_ → Transitive _≤_
-trans eq ≈-resp-< <-trans = tr
+trans eq <-resp-≈ <-trans = tr
   where
   module Eq = IsEquivalence eq
 
   tr : Transitive _≤_
   tr (inj₁ x<y) (inj₁ y<z) = inj₁ $ <-trans x<y y<z
-  tr (inj₁ x<y) (inj₂ y≈z) = inj₁ $ proj₁ ≈-resp-< y≈z x<y
-  tr (inj₂ x≈y) (inj₁ y<z) = inj₁ $ proj₂ ≈-resp-< (Eq.sym x≈y) y<z
+  tr (inj₁ x<y) (inj₂ y≈z) = inj₁ $ proj₁ <-resp-≈ y≈z x<y
+  tr (inj₂ x≈y) (inj₁ y<z) = inj₁ $ proj₂ <-resp-≈ (Eq.sym x≈y) y<z
   tr (inj₂ x≈y) (inj₂ y≈z) = inj₂ $ Eq.trans x≈y y≈z
 
-≈-resp-≤ : IsEquivalence _≈_ → _≈_ Respects₂ _<_ → _≈_ Respects₂ _≤_
-≈-resp-≤ eq ≈-resp-< = ((λ {_ _ _} → resp₁) , (λ {_ _ _} → resp₂))
+≤-resp-≈ : IsEquivalence _≈_ → _<_ Respects₂ _≈_ → _≤_ Respects₂ _≈_
+≤-resp-≈ eq <-resp-≈ = ((λ {_ _ _} → resp₁) , (λ {_ _ _} → resp₂))
   where
   module Eq = IsEquivalence eq
 
   resp₁ : ∀ {x y' y} → y' ≈ y → x  ≤ y' → x ≤ y
-  resp₁ y'≈y (inj₁ x<y') = inj₁ (proj₁ ≈-resp-< y'≈y x<y')
+  resp₁ y'≈y (inj₁ x<y') = inj₁ (proj₁ <-resp-≈ y'≈y x<y')
   resp₁ y'≈y (inj₂ x≈y') = inj₂ (Eq.trans x≈y' y'≈y)
 
   resp₂ : ∀ {y x' x} → x' ≈ x → x' ≤ y  → x ≤ y
-  resp₂ x'≈x (inj₁ x'<y) = inj₁ (proj₂ ≈-resp-< x'≈x x'<y)
+  resp₂ x'≈x (inj₁ x'<y) = inj₁ (proj₂ <-resp-≈ x'≈x x'<y)
   resp₂ x'≈x (inj₂ x'≈y) = inj₂ (Eq.trans (Eq.sym x'≈x) x'≈y)
 
 total : Trichotomous _≈_ _<_ → Total _≤_

@@ -145,7 +145,7 @@ poset A = record
       { isEquivalence = Setoid.isEquivalence (setoid A)
       ; reflexive     = reflexive
       ; trans         = trans
-      ; ≈-resp-∼      = ((λ {_} → ≈-resp-⊑ˡ) , λ {_} → ≈-resp-⊑ʳ)
+      ; ∼-resp-≈      = ((λ {_} → ⊑-resp-≈ˡ) , λ {_} → ⊑-resp-≈ʳ)
       }
     ; antisym  = antisym
     }
@@ -159,13 +159,13 @@ poset A = record
   trans []        _          = []
   trans (x ∷ xs≈) (.x ∷ ys≈) = x ∷ ♯ trans (♭ xs≈) (♭ ys≈)
 
-  ≈-resp-⊑ˡ : {xs : Colist A} → _≈_ Respects (λ ys → xs ⊑ ys)
-  ≈-resp-⊑ˡ _         []       = []
-  ≈-resp-⊑ˡ (x ∷ xs≈) (.x ∷ p) = x ∷ ♯ ≈-resp-⊑ˡ (♭ xs≈) (♭ p)
+  ⊑-resp-≈ˡ : {xs : Colist A} →  (λ ys → xs ⊑ ys) Respects _≈_
+  ⊑-resp-≈ˡ _         []       = []
+  ⊑-resp-≈ˡ (x ∷ xs≈) (.x ∷ p) = x ∷ ♯ ⊑-resp-≈ˡ (♭ xs≈) (♭ p)
 
-  ≈-resp-⊑ʳ : {ys : Colist A} → _≈_ Respects (λ xs → xs ⊑ ys)
-  ≈-resp-⊑ʳ []        _        = []
-  ≈-resp-⊑ʳ (x ∷ xs≈) (.x ∷ p) = x ∷ ♯ ≈-resp-⊑ʳ (♭ xs≈) (♭ p)
+  ⊑-resp-≈ʳ : {ys : Colist A} →  (λ xs → xs ⊑ ys) Respects _≈_
+  ⊑-resp-≈ʳ []        _        = []
+  ⊑-resp-≈ʳ (x ∷ xs≈) (.x ∷ p) = x ∷ ♯ ⊑-resp-≈ʳ (♭ xs≈) (♭ p)
 
   antisym : Antisymmetric _≈_ _⊑_
   antisym []       []        = []

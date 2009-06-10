@@ -22,8 +22,8 @@ trans refl refl = refl
 subst : {a : Set} → Substitutive {a} _≡_
 subst P refl p = p
 
-resp : ∀ {a} (∼ : Rel a) → _≡_ Respects₂ ∼
-resp _∼_ = subst⟶resp₂ _∼_ subst
+resp₂ : ∀ {a} (∼ : Rel a) → ∼ Respects₂ _≡_
+resp₂ _∼_ = subst⟶resp₂ _∼_ subst
 
 isEquivalence : ∀ {a} → IsEquivalence {a} _≡_
 isEquivalence = record

@@ -49,8 +49,8 @@ module Sets₁ (dto : DecTotalOrder) where
     prop-∪₁ : ∀ {s₁ s₂}    → s₁ ∪ s₂        |≈| s₂ ∪ s₁
     prop-∪₂ : ∀ {s₁ s₂ s₃} → s₁ ∪ (s₂ ∪ s₃) |≈| (s₁ ∪ s₂) ∪ s₃
 
-    prop-∈-|≈| : ∀ {x} → _|≈|_ Respects (λ s → x ∈ s)
-    prop-∈-≈   : ∀ {s} → _≈_   Respects (λ x → x ∈ s)
+    prop-∈-|≈| : ∀ {x} → (λ s → x ∈ s) Respects _|≈|_
+    prop-∈-≈   : ∀ {s} → (λ x → x ∈ s) Respects  _≈_
 
     -- TODO: Postulates for toList.
 

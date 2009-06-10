@@ -31,7 +31,7 @@ antisymmetric _ _ antisym = antisym
 asymmetric : ∀ < → Asymmetric < → Asymmetric (< on₁ f)
 asymmetric _ asym = asym
 
-respects : ∀ ∼ P → ∼ Respects P → (∼ on₁ f) Respects (λ x → P (f x))
+respects : ∀ ∼ P → P Respects ∼ → (P ∘₀ f) Respects (∼ on₁ f)
 respects _ _ resp = resp
 
 respects₂ : ∀ ∼₁ ∼₂ → ∼₁ Respects₂ ∼₂ → (∼₁ on₁ f) Respects₂ (∼₂ on₁ f)
@@ -61,7 +61,7 @@ isPreorder {≈} {∼} pre = record
   { isEquivalence = isEquivalence Pre.isEquivalence
   ; reflexive     = implies ≈ ∼ Pre.reflexive
   ; trans         = transitive ∼ Pre.trans
-  ; ≈-resp-∼      = respects₂ ≈ ∼ Pre.≈-resp-∼
+  ; ∼-resp-≈      = respects₂ ∼ ≈ Pre.∼-resp-≈
   }
   where module Pre = IsPreorder pre
 
@@ -89,7 +89,7 @@ isStrictPartialOrder {≈} {<} spo = record
   { isEquivalence = isEquivalence Spo.isEquivalence
   ; irrefl        = irreflexive ≈ < Spo.irrefl
   ; trans         = transitive < Spo.trans
-  ; ≈-resp-<      = respects₂ ≈ < Spo.≈-resp-<
+  ; <-resp-≈      = respects₂ < ≈ Spo.<-resp-≈
   }
   where module Spo = IsStrictPartialOrder spo
 
@@ -119,6 +119,6 @@ isStrictTotalOrder {≈} {<} sto = record
   { isEquivalence = isEquivalence Sto.isEquivalence
   ; trans         = transitive < Sto.trans
   ; compare       = trichotomous ≈ < Sto.compare
-  ; ≈-resp-<      = respects₂ ≈ < Sto.≈-resp-<
+  ; <-resp-≈      = respects₂ < ≈ Sto.<-resp-≈
   }
   where module Sto = IsStrictTotalOrder sto

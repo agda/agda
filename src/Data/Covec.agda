@@ -127,7 +127,7 @@ poset A n = record
       { isEquivalence = Setoid.isEquivalence (setoid A n)
       ; reflexive     = reflexive
       ; trans         = trans
-      ; ≈-resp-∼      = ((λ {_} → ≈-resp-⊑ˡ) , λ {_} → ≈-resp-⊑ʳ)
+      ; ∼-resp-≈      = ((λ {_} → ⊑-resp-≈ˡ) , λ {_} → ⊑-resp-≈ʳ)
       }
     ; antisym  = antisym
     }
@@ -141,15 +141,15 @@ poset A n = record
   trans []        _          = []
   trans (x ∷ xs≈) (.x ∷ ys≈) = x ∷ ♯ trans (♭ xs≈) (♭ ys≈)
 
-  ≈-resp-⊑ˡ : ∀ {A n} {xs : Covec A n} →
-              _≈_ {A} {n} Respects (λ ys → xs ⊑ ys)
-  ≈-resp-⊑ˡ _         []       = []
-  ≈-resp-⊑ˡ (x ∷ xs≈) (.x ∷ p) = x ∷ ♯ ≈-resp-⊑ˡ (♭ xs≈) (♭ p)
+  ⊑-resp-≈ˡ : ∀ {A n} {xs : Covec A n} →
+              (λ ys → xs ⊑ ys) Respects _≈_ {A} {n}
+  ⊑-resp-≈ˡ _         []       = []
+  ⊑-resp-≈ˡ (x ∷ xs≈) (.x ∷ p) = x ∷ ♯ ⊑-resp-≈ˡ (♭ xs≈) (♭ p)
 
-  ≈-resp-⊑ʳ : ∀ {A n} {ys : Covec A n} →
-              _≈_ {A} {n} Respects (λ xs → xs ⊑ ys)
-  ≈-resp-⊑ʳ []        _        = []
-  ≈-resp-⊑ʳ (x ∷ xs≈) (.x ∷ p) = x ∷ ♯ ≈-resp-⊑ʳ (♭ xs≈) (♭ p)
+  ⊑-resp-≈ʳ : ∀ {A n} {ys : Covec A n} →
+              (λ xs → xs ⊑ ys) Respects _≈_ {A} {n}
+  ⊑-resp-≈ʳ []        _        = []
+  ⊑-resp-≈ʳ (x ∷ xs≈) (.x ∷ p) = x ∷ ♯ ⊑-resp-≈ʳ (♭ xs≈) (♭ p)
 
   antisym : ∀ {A n} → Antisymmetric (_≈_ {A} {n}) _⊑_
   antisym []       []        = []

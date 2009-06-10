@@ -134,22 +134,22 @@ asym₁ ⊎-asymmetric asym₂ = asym
   asym (₂∼₂ x<y) (₂∼₂ y<x) = asym₂ x<y y<x
   asym (₁∼₂ _)   ()
 
-_⊎-≈-respects₂_ : ∀ {a₁} {≈₁ ∼₁ : Rel a₁} → ≈₁ Respects₂ ∼₁ →
-                  ∀ {a₂} {≈₂ ∼₂ : Rel a₂} → ≈₂ Respects₂ ∼₂ →
-                  ∀ {P} → (≈₁ ⊎-Rel ≈₂) Respects₂ (⊎ʳ P ∼₁ ∼₂)
+_⊎-≈-respects₂_ : ∀ {a₁} {≈₁ ∼₁ : Rel a₁} → ∼₁ Respects₂ ≈₁ →
+                  ∀ {a₂} {≈₂ ∼₂ : Rel a₂} → ∼₂ Respects₂ ≈₂ →
+                  ∀ {P} → (⊎ʳ P ∼₁ ∼₂) Respects₂ (≈₁ ⊎-Rel ≈₂)
 _⊎-≈-respects₂_ {≈₁ = ≈₁} {∼₁ = ∼₁} resp₁
                 {≈₂ = ≈₂} {∼₂ = ∼₂} resp₂ {P} =
   (λ {_ _ _} → resp¹) ,
   (λ {_ _ _} → resp²)
   where
-  resp¹ : ∀ {x} → (≈₁ ⊎-Rel ≈₂) Respects ((⊎ʳ P ∼₁ ∼₂) x)
+  resp¹ : ∀ {x} → ((⊎ʳ P ∼₁ ∼₂) x) Respects (≈₁ ⊎-Rel ≈₂)
   resp¹ (₁∼₁ y≈y') (₁∼₁ x∼y) = ₁∼₁ (proj₁ resp₁ y≈y' x∼y)
   resp¹ (₂∼₂ y≈y') (₂∼₂ x∼y) = ₂∼₂ (proj₁ resp₂ y≈y' x∼y)
   resp¹ (₂∼₂ y≈y') (₁∼₂ p)   = (₁∼₂ p)
   resp¹ (₁∼₂ ())   _
 
   resp² :  ∀ {y}
-        → (≈₁ ⊎-Rel ≈₂) Respects (flip₁ (⊎ʳ P ∼₁ ∼₂) y)
+        → (flip₁ (⊎ʳ P ∼₁ ∼₂) y) Respects (≈₁ ⊎-Rel ≈₂)
   resp² (₁∼₁ x≈x') (₁∼₁ x∼y) = ₁∼₁ (proj₂ resp₁ x≈x' x∼y)
   resp² (₂∼₂ x≈x') (₂∼₂ x∼y) = ₂∼₂ (proj₂ resp₂ x≈x' x∼y)
   resp² (₁∼₁ x≈x') (₁∼₂ p)   = (₁∼₂ p)
@@ -237,7 +237,7 @@ pre₁ ⊎-isPreorder pre₂ = record
                     isEquivalence pre₂
   ; reflexive     = reflexive pre₁ ⊎-reflexive   reflexive pre₂
   ; trans         = trans     pre₁ ⊎-transitive  trans     pre₂
-  ; ≈-resp-∼      = ≈-resp-∼  pre₁ ⊎-≈-respects₂ ≈-resp-∼  pre₂
+  ; ∼-resp-≈      = ∼-resp-≈  pre₁ ⊎-≈-respects₂ ∼-resp-≈  pre₂
   }
   where open IsPreorder
 
@@ -269,7 +269,7 @@ spo₁ ⊎-isStrictPartialOrder spo₂ = record
                     isEquivalence spo₂
   ; irrefl        = irrefl   spo₁ ⊎-irreflexive irrefl   spo₂
   ; trans         = trans    spo₁ ⊎-transitive  trans    spo₂
-  ; ≈-resp-<      = ≈-resp-< spo₁ ⊎-≈-respects₂ ≈-resp-< spo₂
+  ; <-resp-≈      = <-resp-≈ spo₁ ⊎-≈-respects₂ <-resp-≈ spo₂
   }
   where open IsStrictPartialOrder
 

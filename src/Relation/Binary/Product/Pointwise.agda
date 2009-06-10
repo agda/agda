@@ -65,8 +65,8 @@ private
   ×-asymmetric₂ asym₂ = λ x<y y<x → asym₂ (proj₂ x<y) (proj₂ y<x)
 
   _×-≈-respects₂_ : ∀ {≈₁ ∼₁ ≈₂ ∼₂} →
-                    ≈₁ Respects₂ ∼₁ → ≈₂ Respects₂ ∼₂ →
-                    (≈₁ ×-Rel ≈₂) Respects₂ (∼₁ ×-Rel ∼₂)
+                    ∼₁ Respects₂ ≈₁ → ∼₂ Respects₂ ≈₂ →
+                    (∼₁ ×-Rel ∼₂) Respects₂ (≈₁ ×-Rel ≈₂)
   _×-≈-respects₂_ {≈₁ = ≈₁} {∼₁ = ∼₁} {≈₂ = ≈₂} {∼₂ = ∼₂}
                   resp₁ resp₂ =
     (λ {x y z} → resp¹ {x} {y} {z}) ,
@@ -74,11 +74,11 @@ private
     where
     ∼ = ∼₁ ×-Rel ∼₂
 
-    resp¹ : ∀ {x} → (≈₁ ×-Rel ≈₂) Respects (∼ x)
+    resp¹ : ∀ {x} → (∼ x) Respects (≈₁ ×-Rel ≈₂)
     resp¹ y≈y' x∼y = proj₁ resp₁ (proj₁ y≈y') (proj₁ x∼y) ,
                      proj₁ resp₂ (proj₂ y≈y') (proj₂ x∼y)
 
-    resp² : ∀ {y} → (≈₁ ×-Rel ≈₂) Respects (flip₁ ∼ y)
+    resp² : ∀ {y} → (flip₁ ∼ y) Respects (≈₁ ×-Rel ≈₂)
     resp² x≈x' x∼y = proj₂ resp₁ (proj₁ x≈x') (proj₁ x∼y) ,
                      proj₂ resp₂ (proj₂ x≈x') (proj₂ x∼y)
 
@@ -133,7 +133,7 @@ private
                       _×-transitive_ {∼₁ = ∼₁} {∼₂ = ∼₂}
                                      (trans pre₁) (trans pre₂)
                                      {x} {y} {z}
-    ; ≈-resp-∼      = ≈-resp-∼ pre₁ ×-≈-respects₂ ≈-resp-∼ pre₂
+    ; ∼-resp-≈      = ∼-resp-≈ pre₁ ×-≈-respects₂ ∼-resp-≈ pre₂
     }
     where open IsPreorder
 
@@ -174,7 +174,7 @@ private
                         _×-transitive_ {∼₁ = <₁} {∼₂ = <₂}
                                        (trans spo₁) (trans spo₂)
                                        {x} {y} {z}
-      ; ≈-resp-<      = ≈-resp-< spo₁ ×-≈-respects₂ ≈-resp-< spo₂
+      ; <-resp-≈      = <-resp-≈ spo₁ ×-≈-respects₂ <-resp-≈ spo₂
       }
     where open IsStrictPartialOrder
 

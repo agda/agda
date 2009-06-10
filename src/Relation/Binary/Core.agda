@@ -78,16 +78,16 @@ Antisymmetric _≈_ _≤_ = ∀ {x y} → x ≤ y → y ≤ x → x ≈ y
 Asymmetric : {a : Set} → (_<_ : Rel a) → Set
 Asymmetric _<_ = ∀ {x y} → x < y → ¬ (y < x)
 
-_Respects_ : {a : Set} → Rel a → (a → Set) → Set
-_∼_ Respects P = ∀ {x y} → x ∼ y → P x → P y
+_Respects_ : {a : Set} → (a → Set) → Rel a → Set
+P Respects _∼_ = ∀ {x y} → x ∼ y → P x → P y
 
 _Respects₂_ : {a : Set} → Rel a → Rel a → Set
-∼ Respects₂ P =
-  (∀ {x} → ∼ Respects (P x)      ) ×
-  (∀ {y} → ∼ Respects (flip₁ P y))
+P Respects₂ _∼_ =
+  (∀ {x} → P x       Respects _∼_) ×
+  (∀ {y} → flip₁ P y Respects _∼_)
 
 Substitutive : {a : Set} → Rel a → Set₁
-Substitutive {a} ∼ = (P : a → Set) → ∼ Respects P
+Substitutive _∼_ = ∀ P → P Respects _∼_
 
 Congruential : ({a : Set} → Rel a) → Set₁
 Congruential ∼ = ∀ {a b} → (f : a → b) → f Preserves ∼ ⟶ ∼

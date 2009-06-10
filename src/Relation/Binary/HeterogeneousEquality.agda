@@ -74,8 +74,8 @@ cong₂ : ∀ {A : Set} {B : A → Set} {C : ∀ x → B x → Set} {x y u v}
         (f : (x : A) (y : B x) → C x y) → x ≅ y → u ≅ v → f x u ≅ f y v
 cong₂ f refl refl = refl
 
-resp : ∀ {a} (∼ : Rel a) → (λ x y → x ≅ y) Respects₂ ∼
-resp _∼_ = subst⟶resp₂ _∼_ subst
+resp₂ : ∀ {a} (∼ : Rel a) → ∼ Respects₂ (λ x y → x ≅ y)
+resp₂ _∼_ = subst⟶resp₂ _∼_ subst
 
 isEquivalence : ∀ {a} → IsEquivalence {a} (λ x y → x ≅ y)
 isEquivalence = record
@@ -105,7 +105,7 @@ isPreorder = record
   { isEquivalence = isEquivalence
   ; reflexive     = id
   ; trans         = trans
-  ; ≈-resp-∼      = resp (λ x y → x ≅ y)
+  ; ∼-resp-≈      = resp₂ (λ x y → x ≅ y)
   }
 
 isPreorder-≡ : ∀ {a} → IsPreorder {a} _≡_ (λ x y → x ≅ y)
@@ -113,7 +113,7 @@ isPreorder-≡ = record
   { isEquivalence = PropEq.isEquivalence
   ; reflexive     = reflexive
   ; trans         = trans
-  ; ≈-resp-∼      = PropEq.resp (λ x y → x ≅ y)
+  ; ∼-resp-≈      = PropEq.resp₂ (λ x y → x ≅ y)
   }
 
 preorder : Set → Preorder

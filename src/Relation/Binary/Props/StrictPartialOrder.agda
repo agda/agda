@@ -22,8 +22,8 @@ poset = record
     { isPreorder = record
         { isEquivalence = isEquivalence
         ; reflexive     = reflexive
-        ; trans         = trans isEquivalence ≈-resp-< <-trans
-        ; ≈-resp-∼      = ≈-resp-≤ isEquivalence ≈-resp-<
+        ; trans         = trans isEquivalence <-resp-≈ <-trans
+        ; ∼-resp-≈      = ≤-resp-≈ isEquivalence <-resp-≈
         }
     ; antisym = antisym isEquivalence <-trans irrefl
     }

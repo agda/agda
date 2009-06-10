@@ -88,7 +88,7 @@ private
   -- Any is monotone.
 
   mono : ∀ {P xs ys} →
-         _≈_ Respects P → xs ⊆ ys → Any P xs → Any P ys
+         P Respects _≈_ → xs ⊆ ys → Any P xs → Any P ys
   mono resp xs⊆ys pxs with find pxs
   ... | (x , x∈xs , px) = lose resp (xs⊆ys x∈xs) px
 
@@ -106,7 +106,7 @@ private
 
   -- Introduction and elimination rules for Any/_∈_ on concat.
 
-  Any-concat : ∀ {P xs xss} → _≈_ Respects P →
+  Any-concat : ∀ {P xs xss} → P Respects _≈_ →
                Any P xs → xs ⟨ LM._∈_ ⟩₁ xss → Any P (concat xss)
   Any-concat {P} {xs} resp p (here {x = ys} eq) =
     Any-++ˡ $ lift-resp resp eq p
@@ -115,7 +115,7 @@ private
 
   ∈-concat : ∀ {x xs xss} →
              x ∈ xs → xs ⟨ LM._∈_ ⟩₁ xss → x ∈ concat xss
-  ∈-concat = Any-concat ≈-resp-∈
+  ∈-concat = Any-concat ∈-resp-≈
 
   concat-Any : ∀ {P} xss →
                Any P (concat xss) →
@@ -137,7 +137,7 @@ private
 
   -- any is monotone.
 
-  any-mono : ∀ p → _≈_ Respects (T ∘₀ p) →
+  any-mono : ∀ p → (T ∘₀ p) Respects _≈_ →
              ∀ {xs ys} → xs ⊆ ys → T (any p xs) → T (any p ys)
   any-mono p resp xs⊆ys = Any-any p ∘ mono resp xs⊆ys ∘ any-Any p _
 
@@ -180,7 +180,7 @@ private
 
   -- Introduction and elimination rules for Any/_∈_ on _>>=_.
 
-  Any->>= : ∀ {P} → S₂._≈_ Respects P →
+  Any->>= : ∀ {P} → P Respects S₂._≈_ →
             ∀ (f : S₁ ⟶ L₂.setoid) {x xs} →
             let open _⟶_ f in
             x ⟨ ALM₁._∈_ ⟩₁ xs → Any P (fun x) → Any P (xs >>= fun)
@@ -190,9 +190,9 @@ private
           let open _⟶_ f in
           x ⟨ ALM₁._∈_ ⟩₁ xs → y ⟨ ALM₂._∈_ ⟩₁ fun x →
           y ⟨ ALM₂._∈_ ⟩₁ (xs >>= fun)
-  ∈->>= f = Any->>= ALM₂.≈-resp-∈ f
+  ∈->>= f = Any->>= ALM₂.∈-resp-≈ f
 
-  >>=-Any : ∀ {P} → S₂._≈_ Respects P →
+  >>=-Any : ∀ {P} → P Respects S₂._≈_ →
             ∀ (f : S₁ ⟶ L₂.setoid) xs →
             let open _⟶_ f in
             Any P (xs >>= fun) →
@@ -207,7 +207,7 @@ private
           let open _⟶_ f in
           y ⟨ ALM₂._∈_ ⟩₁ (xs >>= fun) →
           ∃ λ x → (x ⟨ ALM₁._∈_ ⟩₁ xs) × (y ⟨ ALM₂._∈_ ⟩₁ fun x)
-  >>=-∈ f = >>=-Any ALM₂.≈-resp-∈ f
+  >>=-∈ f = >>=-Any ALM₂.∈-resp-≈ f
 
   -- _>>=_ is monotone.
 

@@ -59,7 +59,7 @@ poset = record
       { isEquivalence = PropEq.isEquivalence
       ; reflexive     = reflexive
       ; trans         = trans
-      ; ≈-resp-∼      = PropEq.resp _∣_
+      ; ∼-resp-≈      = PropEq.resp₂ _∣_
       }
     ; antisym = antisym
     }

@@ -37,7 +37,7 @@ private
                {x} {y} {z} =
     Strict.×-transitive
       {<₁ = Conv._<_ ≈₁ ≤₁}
-      isEquivalence (Conv.≈-resp-< _ _ isEquivalence ≈-resp-≤)
+      isEquivalence (Conv.<-resp-≈ _ _ isEquivalence ≤-resp-≈)
       (Conv.trans _ _ po₁)
       {≤₂ = ≤₂} trans₂ {x} {y} {z}
     where open IsPartialOrder po₁
@@ -60,11 +60,11 @@ private
     asym₁ = trans∧irr⟶asym {≈ = ≈₁}
                            ≈-refl₁ (Conv.trans _ _ po₁) irrefl₁
 
-  ×-≈-respects₂ : ∀ {≈₁ ≤₁} → IsEquivalence ≈₁ → ≈₁ Respects₂ ≤₁ →
-                  ∀ {≈₂ ≤₂} → ≈₂ Respects₂ ≤₂ →
-                  (≈₁ ×-Rel ≈₂) Respects₂ (×-Lex ≈₁ ≤₁ ≤₂)
+  ×-≈-respects₂ : ∀ {≈₁ ≤₁} → IsEquivalence ≈₁ → ≤₁ Respects₂ ≈₁ →
+                  ∀ {≈₂ ≤₂} → ≤₂ Respects₂ ≈₂ →
+                  (×-Lex ≈₁ ≤₁ ≤₂) Respects₂ (≈₁ ×-Rel ≈₂)
   ×-≈-respects₂ eq₁ resp₁ resp₂ =
-    Strict.×-≈-respects₂ eq₁ (Conv.≈-resp-< _ _ eq₁ resp₁) resp₂
+    Strict.×-≈-respects₂ eq₁ (Conv.<-resp-≈ _ _ eq₁ resp₁) resp₂
 
   ×-decidable : ∀ {≈₁ ≤₁} → Decidable ≈₁ → Decidable ≤₁ →
                 ∀ {≤₂} → Decidable ≤₂ →
@@ -107,9 +107,9 @@ private
         ; trans         = λ {x y z} →
                           ×-transitive po₁ {≤₂ = ≤₂} (trans po₂)
                                        {x} {y} {z}
-        ; ≈-resp-∼      = ×-≈-respects₂ (isEquivalence po₁)
-                                        (≈-resp-≤ po₁)
-                                        (≈-resp-≤ po₂)
+        ; ∼-resp-≈      = ×-≈-respects₂ (isEquivalence po₁)
+                                        (≤-resp-≈ po₁)
+                                        (≤-resp-≈ po₂)
         }
     ; antisym = λ {x y} →
                 ×-antisymmetric {≤₁ = ≤₁} po₁

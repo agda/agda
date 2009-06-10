@@ -493,7 +493,7 @@ strictTotalOrder = record
     { isEquivalence = PropEq.isEquivalence
     ; trans         = <-trans
     ; compare       = cmp
-    ; ≈-resp-<      = PropEq.resp _<_
+    ; <-resp-≈      = PropEq.resp₂ _<_
     }
   }
 

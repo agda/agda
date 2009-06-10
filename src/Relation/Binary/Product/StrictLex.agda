@@ -40,7 +40,7 @@ private
     ir₂ (proj₂ x≈y) (proj₂ x≈<y)
 
   ×-transitive :
-    ∀ {≈₁ <₁} → IsEquivalence ≈₁ → ≈₁ Respects₂ <₁ → Transitive <₁ →
+    ∀ {≈₁ <₁} → IsEquivalence ≈₁ → <₁ Respects₂ ≈₁ → Transitive <₁ →
     ∀ {≤₂} → Transitive ≤₂ →
     Transitive (×-Lex ≈₁ <₁ ≤₂)
   ×-transitive {≈₁ = ≈₁} {<₁ = <₁} eq₁ resp₁ trans₁
@@ -77,7 +77,7 @@ private
       proj₁ x≈≤y , antisym₂ (proj₂ x≈≤y) (proj₂ y≈≤x)
 
   ×-asymmetric :
-    ∀ {≈₁ <₁} → Symmetric ≈₁ → ≈₁ Respects₂ <₁ → Asymmetric <₁ →
+    ∀ {≈₁ <₁} → Symmetric ≈₁ → <₁ Respects₂ ≈₁ → Asymmetric <₁ →
     ∀ {<₂} → Asymmetric <₂ →
     Asymmetric (×-Lex ≈₁ <₁ <₂)
   ×-asymmetric {≈₁ = ≈₁} {<₁ = <₁} sym₁ resp₁ asym₁
@@ -93,9 +93,9 @@ private
     asym (inj₂ x≈<y)  (inj₂ y≈<x)  = asym₂ (proj₂ x≈<y) (proj₂ y≈<x)
 
   ×-≈-respects₂ :
-    ∀ {≈₁ <₁} → IsEquivalence ≈₁ → ≈₁ Respects₂ <₁ →
-    ∀ {≈₂ <₂} → ≈₂ Respects₂ <₂ →
-    (≈₁ ×-Rel ≈₂) Respects₂ (×-Lex ≈₁ <₁ <₂)
+    ∀ {≈₁ <₁} → IsEquivalence ≈₁ → <₁ Respects₂ ≈₁ →
+    ∀ {≈₂ <₂} → <₂ Respects₂ ≈₂ →
+    (×-Lex ≈₁ <₁ <₂) Respects₂ (≈₁ ×-Rel ≈₂)
   ×-≈-respects₂ {≈₁ = ≈₁} {<₁ = <₁} eq₁ resp₁
                 {≈₂ = ≈₂} {<₂ = <₂}     resp₂ =
     (λ {x y z} → resp¹ {x} {y} {z}) ,
@@ -105,13 +105,13 @@ private
 
     open IsEquivalence eq₁ renaming (sym to sym₁; trans to trans₁)
 
-    resp¹ : ∀ {x} → (≈₁ ×-Rel ≈₂) Respects (< x)
+    resp¹ : ∀ {x} → (< x) Respects (≈₁ ×-Rel ≈₂)
     resp¹ y≈y' (inj₁ x₁<y₁) = inj₁ (proj₁ resp₁ (proj₁ y≈y') x₁<y₁)
     resp¹ y≈y' (inj₂ x≈<y)  =
       inj₂ ( trans₁ (proj₁ x≈<y) (proj₁ y≈y')
            , proj₁ resp₂ (proj₂ y≈y') (proj₂ x≈<y) )
 
-    resp² : ∀ {y} → (≈₁ ×-Rel ≈₂) Respects (flip₁ < y)
+    resp² : ∀ {y} → (flip₁ < y) Respects (≈₁ ×-Rel ≈₂)
     resp² x≈x' (inj₁ x₁<y₁) = inj₁ (proj₂ resp₁ (proj₁ x≈x') x₁<y₁)
     resp² x≈x' (inj₂ x≈<y)  =
       inj₂ ( trans₁ (sym₁ $ proj₁ x≈x') (proj₁ x≈<y)
@@ -171,11 +171,11 @@ private
                       ×-reflexive ≈₁ ∼₁ ∼₂ (reflexive pre₂) {x} {y}
     ; trans         = λ {x y z} →
                       ×-transitive
-                        (isEquivalence pre₁) (≈-resp-∼ pre₁) (trans pre₁)
+                        (isEquivalence pre₁) (∼-resp-≈ pre₁) (trans pre₁)
                         {≤₂ = ∼₂} (trans pre₂) {x} {y} {z}
-    ; ≈-resp-∼      = ×-≈-respects₂ (isEquivalence pre₁)
-                                        (≈-resp-∼ pre₁)
-                                        (≈-resp-∼ pre₂)
+    ; ∼-resp-≈      = ×-≈-respects₂ (isEquivalence pre₁)
+                                        (∼-resp-≈ pre₁)
+                                        (∼-resp-≈ pre₂)
     }
     where open IsPreorder
 
@@ -192,12 +192,12 @@ private
                                         {<₂ = <₂} (irrefl spo₂) {x} {y}
       ; trans         = λ {x y z} →
                         ×-transitive
-                          {<₁ = <₁} (isEquivalence spo₁) (≈-resp-< spo₁)
+                          {<₁ = <₁} (isEquivalence spo₁) (<-resp-≈ spo₁)
                                     (trans spo₁)
                           {≤₂ = <₂} (trans spo₂) {x} {y} {z}
-      ; ≈-resp-<      = ×-≈-respects₂ (isEquivalence spo₁)
-                                          (≈-resp-< spo₁)
-                                          (≈-resp-< spo₂)
+      ; <-resp-≈      = ×-≈-respects₂ (isEquivalence spo₁)
+                                          (<-resp-≈ spo₁)
+                                          (<-resp-≈ spo₂)
       }
     where open IsStrictPartialOrder
 
@@ -211,14 +211,14 @@ private
                           (isEquivalence spo₁) (isEquivalence spo₂)
       ; trans         = λ {x y z} →
                         ×-transitive
-                          {<₁ = <₁} (isEquivalence spo₁) (≈-resp-< spo₁)
+                          {<₁ = <₁} (isEquivalence spo₁) (<-resp-≈ spo₁)
                                     (trans spo₁)
                           {≤₂ = <₂} (trans spo₂) {x} {y} {z}
       ; compare       = ×-compare (Eq.sym spo₁) (compare spo₁)
                                                 (compare spo₂)
-      ; ≈-resp-<      = ×-≈-respects₂ (isEquivalence spo₁)
-                                      (≈-resp-< spo₁)
-                                      (≈-resp-< spo₂)
+      ; <-resp-≈      = ×-≈-respects₂ (isEquivalence spo₁)
+                                      (<-resp-≈ spo₁)
+                                      (<-resp-≈ spo₂)
       }
     where open IsStrictTotalOrder
 

@@ -63,7 +63,7 @@ module ListMembership (S : Setoid) where
   -- If a predicate P respects the underlying equality then Any P
   -- respects the list equality.
 
-  lift-resp : ∀ {P} → _≈_ Respects P → _≋_ Respects Any P
+  lift-resp : ∀ {P} → P Respects _≈_ → Any P Respects _≋_
   lift-resp resp []            ()
   lift-resp resp (x≈y ∷ xs≈ys) (here px)   = here (resp x≈y px)
   lift-resp resp (x≈y ∷ xs≈ys) (there pxs) =
@@ -92,8 +92,8 @@ module ListMembership (S : Setoid) where
   -- Equality is respected by the predicate which is used to define
   -- _∈_.
 
-  ≈-resp-∈ : ∀ {x} → _≈_ Respects (_≈_ x)
-  ≈-resp-∈ = flip S.trans
+  ∈-resp-≈ : ∀ {x} → (_≈_ x) Respects _≈_
+  ∈-resp-≈ = flip S.trans
 
   -- _⊆_ is a preorder.
 
@@ -106,14 +106,14 @@ module ListMembership (S : Setoid) where
       { isEquivalence = Setoid.isEquivalence L.setoid
       ; reflexive     = reflexive
       ; trans         = λ ys⊆zs xs⊆ys → xs⊆ys ∘ ys⊆zs
-      ; ≈-resp-∼      =
+      ; ∼-resp-≈      =
           (λ ys₁≋ys₂ xs⊆ys₁ → reflexive ys₁≋ys₂ ∘ xs⊆ys₁)
         , (λ xs₁≋xs₂ xs₁⊆ys → xs₁⊆ys ∘ reflexive (L.sym xs₁≋xs₂))
       }
     }
     where
     reflexive : _≋_ ⇒ _⊆_
-    reflexive eq = lift-resp ≈-resp-∈ eq
+    reflexive eq = lift-resp ∈-resp-≈ eq
 
   module ⊆-Reasoning where
     import Relation.Binary.PreorderReasoning as PreR
@@ -131,7 +131,7 @@ module ListMembership (S : Setoid) where
   find (here px)   = (_ , here S.refl , px)
   find (there pxs) = Prod.map id (Prod.map there id) (find pxs)
 
-  lose : ∀ {P x xs} → _≈_ Respects P → x ∈ xs → P x → Any P xs
+  lose : ∀ {P x xs} → P Respects _≈_ → x ∈ xs → P x → Any P xs
   lose resp x∈xs px = map (flip resp px) x∈xs
 
 -- The code above instantiated (and slightly changed) for
@@ -157,7 +157,7 @@ module ListMembership-≡ {A : Set} where
       { isEquivalence = PropEq.isEquivalence
       ; reflexive     = λ eq → PropEq.subst (_∈_ _) eq
       ; trans         = λ ys⊆zs xs⊆ys → xs⊆ys ∘ ys⊆zs
-      ; ≈-resp-∼      = PropEq.resp _⊆_
+      ; ∼-resp-≈      = PropEq.resp₂ _⊆_
       }
     }
 

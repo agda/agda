@@ -55,7 +55,7 @@ decTotalOrder = record
                   { isEquivalence = PropEq.isEquivalence
                   ; reflexive     = λ _ → _
                   ; trans         = λ _ _ → _
-                  ; ≈-resp-∼      = PropEq.resp _≤_
+                  ; ∼-resp-≈      = PropEq.resp₂ _≤_
                   }
               ; antisym  = antisym
               }

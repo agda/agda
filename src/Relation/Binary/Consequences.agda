@@ -36,7 +36,7 @@ asym⟶antisym asym x<y y<x = ⊥-elim (asym x<y y<x)
 
 asym⟶irr :
   ∀ {a} → {≈ < : Rel a} →
-  ≈ Respects₂ < → Symmetric ≈ →
+  < Respects₂ ≈ → Symmetric ≈ →
   Asymmetric < → Irreflexive ≈ <
 asym⟶irr {< = _<_} resp sym asym {x} {y} x≈y x<y = asym x<y y<x
   where
@@ -47,7 +47,7 @@ asym⟶irr {< = _<_} resp sym asym {x} {y} x≈y x<y = asym x<y y<x
 
 total⟶refl :
   ∀ {a} → {≈ ∼ : Rel a} →
-  ≈ Respects₂ ∼ → Symmetric ≈ →
+  ∼ Respects₂ ≈ → Symmetric ≈ →
   Total ∼ → ≈ ⇒ ∼
 total⟶refl {≈ = ≈} {∼ = ∼} resp sym total = refl
   where
@@ -80,7 +80,7 @@ tri⟶asym tri {x} {y} x<y x>y with tri x y
 
 tri⟶irr :
   ∀ {a} → {≈ < : Rel a} →
-  ≈ Respects₂ < → Symmetric ≈ →
+  < Respects₂ ≈ → Symmetric ≈ →
   Trichotomous ≈ < → Irreflexive ≈ <
 tri⟶irr resp sym tri = asym⟶irr resp sym (tri⟶asym tri)
 

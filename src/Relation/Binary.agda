@@ -28,7 +28,7 @@ record IsPreorder {a : Set}
     -- Reflexivity is expressed in terms of an underlying equality:
     reflexive     : _≈_ ⇒ _∼_
     trans         : Transitive _∼_
-    ≈-resp-∼      : _≈_ Respects₂ _∼_
+    ∼-resp-≈      : _∼_ Respects₂ _≈_
 
   module Eq = IsEquivalence isEquivalence
 
@@ -64,7 +64,7 @@ record Setoid : Set₁ where
     { isEquivalence = PropEq.isEquivalence
     ; reflexive     = reflexive
     ; trans         = trans
-    ; ≈-resp-∼      = PropEq.resp _≈_
+    ; ∼-resp-≈      = PropEq.resp₂ _≈_
     }
 
   preorder : Preorder
@@ -103,7 +103,7 @@ record IsPartialOrder {a : Set} (_≈_ _≤_ : Rel a) : Set where
     antisym    : Antisymmetric _≈_ _≤_
 
   open IsPreorder isPreorder public
-         renaming (≈-resp-∼ to ≈-resp-≤)
+         renaming (∼-resp-≈ to ≤-resp-≈)
 
 record Poset : Set₁ where
   infix 4 _≈_ _≤_
@@ -126,7 +126,7 @@ record IsStrictPartialOrder {a : Set} (_≈_ _<_ : Rel a) : Set where
     isEquivalence : IsEquivalence _≈_
     irrefl        : Irreflexive _≈_ _<_
     trans         : Transitive _<_
-    ≈-resp-<      : _≈_ Respects₂ _<_
+    <-resp-≈      : _<_ Respects₂ _≈_
 
   module Eq = IsEquivalence isEquivalence
 
@@ -222,7 +222,7 @@ record IsStrictTotalOrder {a : Set} (_≈_ _<_ : Rel a) : Set where
     isEquivalence : IsEquivalence _≈_
     trans         : Transitive _<_
     compare       : Trichotomous _≈_ _<_
-    ≈-resp-<      : _≈_ Respects₂ _<_
+    <-resp-≈      : _<_ Respects₂ _≈_
 
   _≟_ : Decidable _≈_
   _≟_ = tri⟶dec≈ compare
@@ -238,9 +238,9 @@ record IsStrictTotalOrder {a : Set} (_≈_ _<_ : Rel a) : Set where
   isStrictPartialOrder : IsStrictPartialOrder _≈_ _<_
   isStrictPartialOrder = record
     { isEquivalence = isEquivalence
-    ; irrefl        = tri⟶irr ≈-resp-< Eq.sym compare
+    ; irrefl        = tri⟶irr <-resp-≈ Eq.sym compare
     ; trans         = trans
-    ; ≈-resp-<      = ≈-resp-<
+    ; <-resp-≈      = <-resp-≈
     }
 
   open IsStrictPartialOrder isStrictPartialOrder using (irrefl)

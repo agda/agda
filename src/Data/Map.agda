@@ -63,11 +63,11 @@ module Map₁ (key-dto : DecTotalOrder) (elem-s : Setoid) where
     prop-∪₁ : ∀ {s₁ s₂}    → s₁ ∪ s₂        |≈| s₂ ∪ s₁
     prop-∪₂ : ∀ {s₁ s₂ s₃} → s₁ ∪ (s₂ ∪ s₃) |≈| (s₁ ∪ s₂) ∪ s₃
 
-    prop-∈-|≈|₁ : ∀ {x}   → _|≈|_ Respects (λ s → x ∈ s)
-    prop-∈-|≈|₂ : ∀ {x v} → _|≈|_ Respects (λ s → x ↦ v ∈ s)
-    prop-∈-≈₁   : ∀ {s}   → _≈_   Respects (λ x → x ∈ s)
-    prop-∈-≈₂   : ∀ {v s} → _≈_   Respects (λ x → x ↦ v ∈ s)
-    prop-∈-≗    : ∀ {x s} → _≗_   Respects (λ v → x ↦ v ∈ s)
+    prop-∈-|≈|₁ : ∀ {x}   → (λ s → x ∈ s)     Respects _|≈|_
+    prop-∈-|≈|₂ : ∀ {x v} → (λ s → x ↦ v ∈ s) Respects _|≈|_
+    prop-∈-≈₁   : ∀ {s}   → (λ x → x ∈ s)     Respects _≈_
+    prop-∈-≈₂   : ∀ {v s} → (λ x → x ↦ v ∈ s) Respects _≈_
+    prop-∈-≗    : ∀ {x s} → (λ v → x ↦ v ∈ s) Respects _≗_
 
     -- TODO: Postulates for toList.
 

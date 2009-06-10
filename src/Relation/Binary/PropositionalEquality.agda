@@ -48,7 +48,7 @@ isPreorder = record
   { isEquivalence = isEquivalence
   ; reflexive     = id
   ; trans         = trans
-  ; ≈-resp-∼      = resp _≡_
+  ; ∼-resp-≈      = resp₂ _≡_
   }
 
 preorder : Set → Preorder
