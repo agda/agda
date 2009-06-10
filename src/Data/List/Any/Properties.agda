@@ -155,17 +155,17 @@ private
           x ⟨ M₁._∈_ ⟩₁ xs → fun x ⟨ M₂._∈_ ⟩₁ map fun xs
   ∈-map f = gmap (_⟶_.pres f)
 
-  map-∈ : ∀ {f fx xs} →
+  map-∈ : ∀ {f fx} xs →
           fx ⟨ M₂._∈_ ⟩₁ map f xs →
           ∃ λ x → (x ⟨ M₁._∈_ ⟩₁ xs) × (fx ⟨ S₂._≈_ ⟩₁ f x)
-  map-∈ fx∈ = M₁.find (map-Any fx∈)
+  map-∈ _ fx∈ = M₁.find (map-Any fx∈)
 
   -- map is monotone.
 
   map-mono : ∀ (f : S₁ ⟶ S₂) {xs ys} →
              let open _⟶_ f in
              xs ⟨ M₁._⊆_ ⟩₁ ys → map fun xs ⟨ M₂._⊆_ ⟩₁ map fun ys
-  map-mono f xs⊆ys fx∈ with map-∈ fx∈
+  map-mono f xs⊆ys fx∈ with map-∈ _ fx∈
   ... | (x , x∈ , eq) = Any.map (S₂.trans eq) (∈-map f (xs⊆ys x∈))
 
  module Membership₂₂ (S₁ S₂ : Setoid) where
@@ -198,7 +198,7 @@ private
             Any P (xs >>= fun) →
             ∃ λ x → (x ⟨ AM₁._∈_ ⟩₁ xs) × Any P (fun x)
   >>=-Any resp f xs p
-    with Prod.map id (Prod.map id M₁₂.map-∈) $
+    with Prod.map id (Prod.map id (M₁₂.map-∈ xs)) $
            M₂.concat-Any (map (_⟶_.fun f) xs) p
   >>=-Any resp f xs p | (fx , p′ , (x , x∈xs , eq)) =
     (x , x∈xs , AM₂.lift-resp resp eq p′)
