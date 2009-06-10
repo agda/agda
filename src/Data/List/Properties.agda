@@ -7,22 +7,16 @@
 
 module Data.List.Properties where
 
-open import Data.List as List
-open import Data.List.Any as Any using (Any; _∈_; _⊆_; here; there)
-open import Data.List.All as All using (All; []; _∷_)
+open import Data.List
 open import Data.Nat
 open import Data.Nat.Properties
 open import Data.Bool
-open import Data.Bool.Properties
 open import Data.Function
 open import Data.Product as Prod hiding (map)
-open import Data.Sum as Sum using (_⊎_; inj₁; inj₂; [_,_]′)
-open import Data.Maybe using (Maybe; just; nothing)
+open import Data.Maybe
 open import Relation.Binary.PropositionalEquality
 import Relation.Binary.EqReasoning as Eq
 open import Algebra
-open import Category.Monad
-open RawMonad List.monad
 
 ∷-injective : ∀ {A} {x y xs ys} →
               (List A ∶ x ∷ xs) ≡ (y ∷ ys) → (x ≡ y) × (xs ≡ ys)
@@ -251,135 +245,3 @@ length-gfilter p []       = z≤n
 length-gfilter p (x ∷ xs) with p x
 length-gfilter p (x ∷ xs) | just y  = s≤s (length-gfilter p xs)
 length-gfilter p (x ∷ xs) | nothing = ≤-step (length-gfilter p xs)
-
--- _∈_.
-
-∈-++ˡ : ∀ {A} {x : A} {xs ys} → x ∈ xs → x ∈ xs ++ ys
-∈-++ˡ (here refl)  = here refl
-∈-++ˡ (there x∈xs) = there (∈-++ˡ x∈xs)
-
-∈-++ʳ : ∀ {A} {x : A} xs {ys} → x ∈ ys → x ∈ xs ++ ys
-∈-++ʳ []       x∈ys = x∈ys
-∈-++ʳ (x ∷ xs) x∈ys = there (∈-++ʳ xs x∈ys)
-
-++-∈ : ∀ {A} {x : A} xs {ys} → x ∈ xs ++ ys → x ∈ xs ⊎ x ∈ ys
-++-∈ []       x∈ys             = inj₂ x∈ys
-++-∈ (x ∷ xs) (here refl)      = inj₁ (here refl)
-++-∈ (x ∷ xs) (there x∈xs++ys) = Sum.map there id (++-∈ xs x∈xs++ys)
-
-_++-mono_ : ∀ {A} {xs₁ xs₂ ys₁ ys₂ : List A} →
-            xs₁ ⊆ ys₁ → xs₂ ⊆ ys₂ → xs₁ ++ xs₂ ⊆ ys₁ ++ ys₂
-_++-mono_ {ys₁ = ys₁} xs₁⊆ys₁ xs₂⊆ys₂ =
-  [ ∈-++ˡ ∘ xs₁⊆ys₁ , ∈-++ʳ ys₁ ∘ xs₂⊆ys₂ ]′ ∘ ++-∈ _
-
-++-idempotent : ∀ {A} {xs : List A} → xs ++ xs ⊆ xs
-++-idempotent = [ id , id ]′ ∘ ++-∈ _
-
-∈-map : ∀ {A B} {f : A → B} {x xs} →
-        x ∈ xs → f x ∈ map f xs
-∈-map {f = f} = Any.gmap (cong f)
-
-map-∈ : ∀ {A B} {f : A → B} {fx} xs →
-        fx ∈ map f xs → ∃ λ x → x ∈ xs × f x ≡ fx
-map-∈ []       ()
-map-∈ (x ∷ xs) (here refl)    = (x , here refl , refl)
-map-∈ (x ∷ xs) (there fx∈fxs) =
-  Prod.map id (Prod.map there id) (map-∈ xs fx∈fxs)
-
-map-mono : ∀ {A B} {f : A → B} {xs ys} →
-           xs ⊆ ys → map f xs ⊆ map f ys
-map-mono xs⊆ys fx∈ with map-∈ _ fx∈
-... | (x , x∈ , refl) = ∈-map (xs⊆ys x∈)
-
-∈-concat : ∀ {A} {x : A} {xs xss} →
-           x ∈ xs → xs ∈ xss → x ∈ concat xss
-∈-concat x∈xs (here refl)             = ∈-++ˡ x∈xs
-∈-concat x∈xs (there {x = ys} xs∈xss) = ∈-++ʳ ys (∈-concat x∈xs xs∈xss)
-
-concat-∈ : ∀ {A} {x : A} xss →
-           x ∈ concat xss → ∃ λ xs → x ∈ xs × xs ∈ xss
-concat-∈ []               ()
-concat-∈ ([]       ∷ xss) x∈cxss         = Prod.map id (Prod.map id there)
-                                             (concat-∈ xss x∈cxss)
-concat-∈ ((x ∷ xs) ∷ xss) (here refl)    = (x ∷ xs , here refl , here refl)
-concat-∈ ((y ∷ xs) ∷ xss) (there x∈cxss) with concat-∈ (xs ∷ xss) x∈cxss
-... | (.xs , x∈xs , here refl)    = (y ∷ xs , there x∈xs , here refl)
-... | (ys  , x∈ys , there ys∈xss) = (ys     , x∈ys       , there ys∈xss)
-
-concat-mono : ∀ {A} {xss yss : List (List A)} →
-              xss ⊆ yss → concat xss ⊆ concat yss
-concat-mono {xss = xss} xss⊆yss x∈ with concat-∈ xss x∈
-... | (xs , x∈xs , xs∈xss) = ∈-concat x∈xs (xss⊆yss xs∈xss)
-
-∈->>= : ∀ {A B} (f : A → List B) {x y xs} →
-        x ∈ xs → y ∈ f x → y ∈ (xs >>= f)
-∈->>= f x∈xs y∈fx = ∈-concat y∈fx (∈-map x∈xs)
-
->>=-∈ : ∀ {A B} (f : A → List B) {y} xs →
-        y ∈ (xs >>= f) → ∃ λ x → x ∈ xs × y ∈ f x
->>=-∈ f xs y∈xs>>=f with Prod.map id (Prod.map id (map-∈ xs)) $
-                           concat-∈ (map f xs) y∈xs>>=f
->>=-∈ f xs y∈xs>>=f | (.(f x) , y∈fx , (x , x∈xs , refl)) =
-  (x , x∈xs , y∈fx)
-
-_>>=-mono_ : ∀ {A B} {f g : A → List B} {xs ys} →
-             xs ⊆ ys → (∀ {x} → f x ⊆ g x) →
-             (xs >>= f) ⊆ (ys >>= g)
-_>>=-mono_ {f = f} {g} {xs} xs⊆ys f⊆g z∈ with >>=-∈ f xs z∈
-... | (x , x∈xs , z∈fx) = ∈->>= g (xs⊆ys x∈xs) (f⊆g z∈fx)
-
-∈-⊛ : ∀ {A B} {fs : List (A → B)} {xs f x} →
-      f ∈ fs → x ∈ xs → f x ∈ fs ⊛ xs
-∈-⊛ f∈xs x∈xs = ∈->>= _ f∈xs (∈->>= _ x∈xs (here refl))
-
-⊛-∈ : ∀ {A B} (fs : List (A → B)) xs {fx} →
-      fx ∈ fs ⊛ xs → ∃₂ λ f x → f ∈ fs × x ∈ xs × f x ≡ fx
-⊛-∈ fs xs fx∈fs⊛xs with >>=-∈ _ fs fx∈fs⊛xs
-⊛-∈ fs xs fx∈fs⊛xs | (f , f∈fs , fx∈) with >>=-∈ _ xs fx∈
-⊛-∈ fs xs fx∈fs⊛xs | (f , f∈fs , fx∈) | (x , x∈xs , here refl) =
-  (f , x , f∈fs , x∈xs , refl)
-⊛-∈ fs xs fx∈fs⊛xs | (f , f∈fs , fx∈) | (x , x∈xs , there ())
-
-_⊛-mono_ : ∀ {A B} {fs gs : List (A → B)} {xs ys} →
-           fs ⊆ gs → xs ⊆ ys → fs ⊛ xs ⊆ gs ⊛ ys
-_⊛-mono_ {fs = fs} {gs} {xs} fs⊆gs xs⊆ys fx∈ with ⊛-∈ fs xs fx∈
-... | (f , x , f∈fs , x∈xs , refl) = ∈-⊛ (fs⊆gs f∈fs) (xs⊆ys x∈xs)
-
--- any and all.
-
-Any-any : ∀ {A} (p : A → Bool) {xs} →
-          Any (T ∘₀ p) xs → T (any p xs)
-Any-any p (here  px)  = proj₂ T-∨ (inj₁ px)
-Any-any p (there {x = x} pxs) with p x
-... | true  = _
-... | false = Any-any p pxs
-
-any-Any : ∀ {A} (p : A → Bool) xs →
-          T (any p xs) → Any (T ∘₀ p) xs
-any-Any p []       ()
-any-Any p (x ∷ xs) px∷xs with inspect (p x)
-any-Any p (x ∷ xs) px∷xs | true  with-≡ eq   = here (proj₂ T-≡ (sym eq))
-any-Any p (x ∷ xs) px∷xs | false with-≡ eq   with p x
-any-Any p (x ∷ xs) pxs   | false with-≡ refl | .false =
-  there (any-Any p xs pxs)
-
-any-mono : ∀ {A} (p : A → Bool) {xs ys} →
-           xs ⊆ ys → T (any p xs) → T (any p ys)
-any-mono p xs⊆ys = Any-any p ∘ Any.mono xs⊆ys ∘ any-Any p _
-
-All-all : ∀ {A} (p : A → Bool) {xs} →
-          All (T ∘₀ p) xs → T (all p xs)
-All-all p []         = _
-All-all p (px ∷ pxs) = proj₂ T-∧ (px , All-all p pxs)
-
-all-All : ∀ {A} (p : A → Bool) xs →
-          T (all p xs) → All (T ∘₀ p) xs
-all-All p []       _     = []
-all-All p (x ∷ xs) px∷xs with proj₁ (T-∧ {p x}) px∷xs
-all-All p (x ∷ xs) px∷xs | (px , pxs) = px ∷ all-All p xs pxs
-
--- all is /anti/-monotone.
-
-all-anti-mono : ∀ {A} (p : A → Bool) {xs ys} →
-                xs ⊆ ys → T (all p ys) → T (all p xs)
-all-anti-mono p xs⊆ys = All-all p ∘ All.anti-mono xs⊆ys ∘ all-All p _
