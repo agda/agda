@@ -170,3 +170,11 @@ module Membership-≡ {A : Set} where
 
     _∈⟨_⟩_ : ∀ x {xs ys} → x ∈ xs → xs IsRelatedTo ys → x ∈ ys
     x ∈⟨ x∈xs ⟩ xs⊆ys = (begin xs⊆ys) x∈xs
+
+------------------------------------------------------------------------
+-- Another function
+
+-- If any element satisfies P, then P is satisfied.
+
+satisfied : ∀ {A} {P : A → Set} {xs} → Any P xs → ∃ P
+satisfied = Prod.map id Prod.proj₂ ∘ Membership-≡.find
