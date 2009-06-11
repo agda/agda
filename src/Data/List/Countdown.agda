@@ -12,7 +12,8 @@ open import Data.Fin using (Fin; zero; suc)
 open import Data.Function
 open import Data.List
 open import Data.List.Any as Any using (here; there)
-open import Data.Nat using (ℕ; zero; suc; pred)
+open import Data.Nat using (ℕ; zero; suc)
+open import Data.Product
 open import Data.Sum
 open import Relation.Nullary
 open import Relation.Binary.FunctionSetoid
@@ -215,9 +216,11 @@ insert {counted} {n} counted⊕1+n x x∉counted =
 
 -- Counts an element if it has not already been counted.
 
-lookupOrInsert : ∀ {counted n} →
-                 counted ⊕ n → ∀ x → x ∈ counted ⊎ x ∷ counted ⊕ pred n
-lookupOrInsert {n = zero}  counted⊕n x = inj₁ (lookup! counted⊕n x)
-lookupOrInsert {n = suc n} counted⊕n x with lookup counted⊕n x
+lookupOrInsert : ∀ {counted m} →
+                 counted ⊕ m →
+                 ∀ x → x ∈ counted ⊎
+                       ∃ λ n → m ≡ suc n × x ∷ counted ⊕ n
+lookupOrInsert {m = zero}  counted⊕n x = inj₁ (lookup! counted⊕n x)
+lookupOrInsert {m = suc n} counted⊕n x with lookup counted⊕n x
 ... | yes x∈counted = inj₁ x∈counted
-... | no  x∉counted = inj₂ (insert counted⊕n x x∉counted)
+... | no  x∉counted = inj₂ (_ , refl , insert counted⊕n x x∉counted)
