@@ -108,6 +108,27 @@ concat⁻ ((x ∷ xs) ∷ xss) (there p)
      Any P (fs ⊛ xs) → Any (λ f → Any (P ∘₀ f) xs) fs
 ⊛⁻ fs xs = Any.map (Any.map return⁻ ∘ >>=⁻ xs) ∘ >>=⁻ fs
 
+-- Introduction and elimination rules for _⊗_.
+
+⊗⁺ : ∀ {A B P} {xs : List A} {ys : List B} →
+     Any (λ x → Any (λ y → P (x , y)) ys) xs → Any P (xs ⊗ ys)
+⊗⁺ = ⊛⁺ ∘′ ⊛⁺ ∘′ return⁺
+
+⊗⁺′ : ∀ {A B} {P : Pred A} {Q : Pred B} {xs ys} →
+      Any P xs → Any Q ys → Any (P ⟨×⟩ Q) (xs ⊗ ys)
+⊗⁺′ p q = ⊗⁺ (Any.map (λ p → Any.map (λ q → (p , q)) q) p)
+
+⊗⁻ : ∀ {A B P} (xs : List A) (ys : List B) →
+     Any P (xs ⊗ ys) → Any (λ x → Any (λ y → P (x , y)) ys) xs
+⊗⁻ _ _ = return⁻ ∘ ⊛⁻ _ _ ∘ ⊛⁻ _ _
+
+⊗⁻′ : ∀ {A B} {P : Pred A} {Q : Pred B} xs ys →
+      Any (P ⟨×⟩ Q) (xs ⊗ ys) → Any P xs × Any Q ys
+⊗⁻′ _ _ pq =
+  (Any.map (proj₁ ∘ proj₂ ∘ Any.satisfied) lem ,
+   (Any.map proj₂ $ proj₂ (Any.satisfied lem)))
+  where lem = ⊗⁻ _ _ pq
+
 -- Any and any are related via T.
 
 any⁺ : ∀ {A} (p : A → Bool) {xs} →
@@ -299,6 +320,14 @@ module Membership₂ (S₁ S₂ : Setoid) where
   ... | (f , x , f∈fs , x∈xs , fx≈fx) =
     Any.map (S₂.trans fx≈fx) $ ⊛-∈⁺ f (fs⊆gs {f} f∈fs) (xs⊆ys x∈xs)
 
+  -- _⊗_ is monotone.
+
+  _⊗-mono_ : ∀ {xs₁ xs₂ ys₁ ys₂} →
+             xs₁ ⊆₁ ys₁ → xs₂ ⊆₂ ys₂ → (xs₁ ⊗ xs₂) ⊆₁,₂ (ys₁ ⊗ ys₂)
+  _⊗-mono_ {xs₁ = xs₁} {xs₂} xs₁⊆ys₁ xs₂⊆ys₂ {x , y} x,y∈
+    with ⊗⁻′ {P = _≈₁_ x} {Q = _≈₂_ y} xs₁ xs₂ x,y∈
+  ... | (x∈ , y∈) = ⊗⁺′ (xs₁⊆ys₁ x∈) (xs₂⊆ys₂ y∈)
+
 ------------------------------------------------------------------------
 -- Lemmas related to the variant of _∈_ which is defined using
 -- propositional equality
@@ -401,3 +430,30 @@ module Membership-≡ where
   _⊛-mono_ {fs = fs} {xs = xs} fs⊆gs xs⊆ys fx∈ with ⊛-∈⁻ fs xs fx∈
   ... | (f , x , f∈fs , x∈xs , refl) =
     ⊛-∈⁺ (fs⊆gs f∈fs) (xs⊆ys x∈xs)
+
+  -- Introduction and elimination rules for _⊗_.
+
+  private
+
+    lemma₁ : ∀ {A B} {p q : A × B} →
+             (p ⟨ _≡_ on₁ proj₁ ⟩₁ q) × (p ⟨ _≡_ on₁ proj₂ ⟩₁ q) → p ≡ q
+    lemma₁ {p = (x , y)} {q = (.x , .y)} (refl , refl) = refl
+
+    lemma₂ : ∀ {A B} {p q : A × B} →
+             p ≡ q → (p ⟨ _≡_ on₁ proj₁ ⟩₁ q) × (p ⟨ _≡_ on₁ proj₂ ⟩₁ q)
+    lemma₂ = < PropEq.cong proj₁ , PropEq.cong proj₂ >
+
+  ⊗-∈⁺ : ∀ {A B} {xs : List A} {ys : List B} {x y} →
+         x ∈ xs → y ∈ ys → (x , y) ∈ (xs ⊗ ys)
+  ⊗-∈⁺ x∈xs y∈ys = Any.map lemma₁ (⊗⁺′ x∈xs y∈ys)
+
+  ⊗-∈⁻ : ∀ {A B} (xs : List A) (ys : List B) {p} →
+         p ∈ (xs ⊗ ys) → proj₁ p ∈ xs × proj₂ p ∈ ys
+  ⊗-∈⁻ xs ys = ⊗⁻′ xs ys ∘ Any.map lemma₂
+
+  -- _⊗_ is monotone.
+
+  _⊗-mono_ : ∀ {A B} {xs₁ ys₁ : List A} {xs₂ ys₂ : List B} →
+             xs₁ ⊆ ys₁ → xs₂ ⊆ ys₂ → (xs₁ ⊗ xs₂) ⊆ (ys₁ ⊗ ys₂)
+  _⊗-mono_ xs₁⊆ys₁ xs₂⊆ys₂ {p} =
+    Any.map lemma₁ ∘ M₂._⊗-mono_ xs₁⊆ys₁ xs₂⊆ys₂ {p} ∘ Any.map lemma₂
