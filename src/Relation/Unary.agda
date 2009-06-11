@@ -5,6 +5,7 @@
 module Relation.Unary where
 
 open import Data.Empty
+open import Data.Function
 open import Data.Unit
 open import Data.Product
 open import Data.Sum
@@ -109,3 +110,20 @@ private
   P ∩ Q = λ x → x ∈ P × x ∈ Q
 
 open Dummy public
+
+------------------------------------------------------------------------
+-- Unary relation combinators
+
+infixr 2 _⟨×⟩_
+infixr 1 _⟨⊎⟩_
+infixr 0 _⟨→⟩_
+
+_⟨×⟩_ : ∀ {A B} → Pred A → Pred B → Pred (A × B)
+(P ⟨×⟩ Q) p = P (proj₁ p) × Q (proj₂ p)
+
+_⟨⊎⟩_ : ∀ {A B} → Pred A → Pred B → Pred (A ⊎ B)
+(P ⟨⊎⟩ Q) (inj₁ p) = P p
+(P ⟨⊎⟩ Q) (inj₂ q) = Q q
+
+_⟨→⟩_ : ∀ {A B} → Pred A → Pred B → Pred (A → B)
+(P ⟨→⟩ Q) f = P ⊆ Q ∘₀ f
