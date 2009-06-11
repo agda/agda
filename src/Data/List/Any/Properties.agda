@@ -16,6 +16,7 @@ open import Data.Product as Prod hiding (map)
 open import Data.Sum as Sum using (_⊎_; inj₁; inj₂; [_,_]′)
 open import Relation.Unary using (Pred; _⟨×⟩_; _⟨→⟩_)
 open import Relation.Binary
+import Relation.Binary.EqReasoning as EqReasoning
 open import Relation.Binary.FunctionSetoid
 open import Relation.Binary.Product.Pointwise
 open import Relation.Binary.PropositionalEquality as PropEq
@@ -133,9 +134,11 @@ module Membership₁ (S : Setoid) where
 
   open Any.Membership S
   private
-    open Setoid S using (_≈_)
-    open module M = Any.Membership (ListEq.Equality.setoid S)
+    open module S = Setoid S using (_≈_)
+    open module [M] = Any.Membership (ListEq.Equality.setoid S)
       using () renaming (_∈_ to _[∈]_; _⊆_ to _[⊆]_)
+    open module M≡ = Any.Membership-≡
+      using () renaming (_∈_ to _∈≡_; _⊆_ to _⊆≡_)
 
   -- Any is monotone.
 
@@ -166,7 +169,7 @@ module Membership₁ (S : Setoid) where
 
   concat-∈⁻ : ∀ {x} xss → x ∈ concat xss →
               ∃ λ xs → x ∈ xs × xs [∈] xss
-  concat-∈⁻ xss x∈ = Prod.map id swap $ M.find (concat⁻ xss x∈)
+  concat-∈⁻ xss x∈ = Prod.map id swap $ [M].find (concat⁻ xss x∈)
 
   -- concat is monotone.
 
@@ -180,6 +183,42 @@ module Membership₁ (S : Setoid) where
   any-mono : ∀ p → (T ∘₀ p) Respects _≈_ →
              ∀ {xs ys} → xs ⊆ ys → T (any p xs) → T (any p ys)
   any-mono p resp xs⊆ys = any⁺ p ∘ mono resp xs⊆ys ∘ any⁻ p _
+
+  -- Introduction and elimination rules for map-with-∈.
+
+  map-with-∈-∈⁺ : ∀ {A} {xs : List A}
+                  (f : ∀ {x} → x ∈≡ xs → S.carrier) {x} →
+                  (x∈xs : x ∈≡ xs) → f x∈xs ∈ M≡.map-with-∈ xs f
+  map-with-∈-∈⁺ f (here refl)  = here S.refl
+  map-with-∈-∈⁺ f (there x∈xs) = there $ map-with-∈-∈⁺ (f ∘ there) x∈xs
+
+  map-with-∈-∈⁻ : ∀ {A} {xs : List A}
+                  (f : ∀ {x} → x ∈≡ xs → S.carrier) {fx∈xs} →
+                  fx∈xs ∈ M≡.map-with-∈ xs f →
+                  ∃ λ x → Σ (x ∈≡ xs) λ x∈xs → fx∈xs ≈ f x∈xs
+  map-with-∈-∈⁻ {xs = []}     f ()
+  map-with-∈-∈⁻ {xs = y ∷ xs} f (here fx≈)   = (y , here refl , fx≈)
+  map-with-∈-∈⁻ {xs = y ∷ xs} f (there x∈xs) =
+    Prod.map id (Prod.map there id) $ map-with-∈-∈⁻ (f ∘ there) x∈xs
+
+  -- map-with-∈ is monotone.
+
+  map-with-∈-mono :
+    ∀ {A} {xs : List A} {f : ∀ {x} → x ∈≡ xs → S.carrier}
+          {ys : List A} {g : ∀ {x} → x ∈≡ ys → S.carrier} →
+    (xs⊆ys : xs ⊆≡ ys) →
+    (∀ {x} (x∈xs : x ∈≡ xs) → f x∈xs ≈ g (xs⊆ys x∈xs)) →
+    M≡.map-with-∈ xs f ⊆ M≡.map-with-∈ ys g
+  map-with-∈-mono {f = f} {g = g} xs⊆ys f≈g {fx∈xs} fx∈xs∈
+    with map-with-∈-∈⁻ f fx∈xs∈
+  ... | (x , x∈xs , fx∈xs≈) =
+    Any.map (λ {y} g[xs⊆ys-x∈xs]≈y → begin
+               fx∈xs           ≈⟨ fx∈xs≈ ⟩
+               f x∈xs          ≈⟨ f≈g x∈xs ⟩
+               g (xs⊆ys x∈xs)  ≈⟨ g[xs⊆ys-x∈xs]≈y ⟩
+               y               ∎) $
+            map-with-∈-∈⁺ g (xs⊆ys x∈xs)
+    where open EqReasoning S
 
 module Membership₂ (S₁ S₂ : Setoid) where
 
@@ -270,7 +309,8 @@ module Membership-≡ where
   private
     module P {A} = ListEq.PropositionalEquality {A}
     open module M₁ {A} = Membership₁ (PropEq.setoid A) public
-      using (_++-mono_; ++-idempotent)
+      using (_++-mono_; ++-idempotent;
+             map-with-∈-∈⁺; map-with-∈-∈⁻; map-with-∈-mono)
     open module M₂ {A} {B} =
       Membership₂ (PropEq.setoid A) (PropEq.setoid B) public
       using (map-∈⁻)

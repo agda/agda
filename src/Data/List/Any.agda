@@ -130,6 +130,12 @@ module Membership (S : Setoid) where
     _∈⟨_⟩_ : ∀ x {xs ys} → x ∈ xs → xs IsRelatedTo ys → x ∈ ys
     x ∈⟨ x∈xs ⟩ xs⊆ys = (begin xs⊆ys) x∈xs
 
+  -- A variant of List.map.
+
+  map-with-∈ : ∀ {B} (xs : List A) → (∀ {x} → x ∈ xs → B) → List B
+  map-with-∈ []       f = []
+  map-with-∈ (x ∷ xs) f = f (here S.refl) ∷ map-with-∈ xs (f ∘ there)
+
   -- Finds an element satisfying the predicate.
 
   find : ∀ {P : A → Set} {xs} → Any P xs → ∃ λ x → x ∈ xs × P x
