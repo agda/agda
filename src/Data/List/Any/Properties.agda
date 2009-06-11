@@ -14,76 +14,128 @@ open import Data.List.Any as Any using (Any; here; there)
 import Data.List.Equality as ListEq
 open import Data.Product as Prod hiding (map)
 open import Data.Sum as Sum using (_⊎_; inj₁; inj₂; [_,_]′)
-open import Relation.Unary using (Pred) renaming (_⊆_ to _⋐_)
+open import Relation.Unary using (Pred; _⟨×⟩_; _⟨→⟩_)
 open import Relation.Binary
 open import Relation.Binary.FunctionSetoid
+open import Relation.Binary.Product.Pointwise
 open import Relation.Binary.PropositionalEquality as PropEq
-  using (_≡_; _≗_; inspect; _with-≡_)
+  using (_≡_; refl; inspect; _with-≡_)
 
--- Functions can be shifted between the predicate and the list.
+------------------------------------------------------------------------
+-- Lemmas related to Any
 
-Any-map : ∀ {A B} {P : Pred B} {f : A → B} {xs} →
-          Any (P ∘₀ f) xs → Any P (map f xs)
-Any-map (here p)  = here p
-Any-map (there p) = there $ Any-map p
+-- Introduction (⁺) and elimination (⁻) rules for map.
 
-map-Any : ∀ {A B} {P : Pred B} {f : A → B} {xs} →
-          Any P (map f xs) → Any (P ∘₀ f) xs
-map-Any {xs = []}     ()
-map-Any {xs = x ∷ xs} (here p)  = here p
-map-Any {xs = x ∷ xs} (there p) = there $ map-Any p
+map⁺ : ∀ {A B} {P : Pred B} {f : A → B} {xs} →
+       Any (P ∘₀ f) xs → Any P (map f xs)
+map⁺ (here p)  = here p
+map⁺ (there p) = there $ map⁺ p
 
--- A variant of Any.map.
+map⁻ : ∀ {A B} {P : Pred B} {f : A → B} {xs} →
+       Any P (map f xs) → Any (P ∘₀ f) xs
+map⁻ {xs = []}     ()
+map⁻ {xs = x ∷ xs} (here p)  = here p
+map⁻ {xs = x ∷ xs} (there p) = there $ map⁻ p
 
-gmap : ∀ {A B} {P : A → Set} {Q : B → Set} {f : A → B} →
-       P ⋐ Q ∘₀ f → Any P ⋐ Any Q ∘₀ map f
-gmap g = Any-map ∘ Any.map g
+-- Introduction and elimination rules for _++_.
 
--- Introduction and elimination rules for Any on _++_.
+++⁺ˡ : ∀ {A} {P : Pred A} {xs ys} →
+       Any P xs → Any P (xs ++ ys)
+++⁺ˡ (here p)  = here p
+++⁺ˡ (there p) = there (++⁺ˡ p)
 
-Any-++ˡ : ∀ {A} {P : Pred A} {xs ys} → Any P xs → Any P (xs ++ ys)
-Any-++ˡ (here refl)  = here refl
-Any-++ˡ (there x∈xs) = there (Any-++ˡ x∈xs)
+++⁺ʳ : ∀ {A} {P : Pred A} xs {ys} →
+       Any P ys → Any P (xs ++ ys)
+++⁺ʳ []       p = p
+++⁺ʳ (x ∷ xs) p = there (++⁺ʳ xs p)
 
-Any-++ʳ : ∀ {A} {P : Pred A} xs {ys} → Any P ys → Any P (xs ++ ys)
-Any-++ʳ []       p = p
-Any-++ʳ (x ∷ xs) p = there (Any-++ʳ xs p)
+++⁻ : ∀ {A} {P : Pred A} xs {ys} →
+      Any P (xs ++ ys) → Any P xs ⊎ Any P ys
+++⁻ []       p         = inj₂ p
+++⁻ (x ∷ xs) (here p)  = inj₁ (here p)
+++⁻ (x ∷ xs) (there p) = Sum.map there id (++⁻ xs p)
 
-++-Any : ∀ {A} {P : Pred A} xs {ys} →
-         Any P (xs ++ ys) → Any P xs ⊎ Any P ys
-++-Any []       p           = inj₂ p
-++-Any (x ∷ xs) (here refl) = inj₁ (here refl)
-++-Any (x ∷ xs) (there p)   = Sum.map there id (++-Any xs p)
+-- Introduction and elimination rules for return.
+
+return⁺ : ∀ {A} {P : Pred A} {x} →
+          P x → Any P (return x)
+return⁺ = here
+
+return⁻ : ∀ {A} {P : Pred A} {x} →
+          Any P (return x) → P x
+return⁻ (here p)   = p
+return⁻ (there ())
+
+-- Introduction and elimination rules for concat.
+
+concat⁺ : ∀ {A} {P : Pred A} {xss} →
+          Any (Any P) xss → Any P (concat xss)
+concat⁺ (here p)           = ++⁺ˡ p
+concat⁺ (there {x = xs} p) = ++⁺ʳ xs (concat⁺ p)
+
+concat⁻ : ∀ {A} {P : Pred A} xss →
+          Any P (concat xss) → Any (Any P) xss
+concat⁻ []               ()
+concat⁻ ([]       ∷ xss) p         = there $ concat⁻ xss p
+concat⁻ ((x ∷ xs) ∷ xss) (here p)  = here (here p)
+concat⁻ ((x ∷ xs) ∷ xss) (there p)
+  with concat⁻ (xs ∷ xss) p
+... | here  p′ = here (there p′)
+... | there p′ = there p′
+
+-- Introduction and elimination rules for _>>=_.
+
+>>=⁺ : ∀ {A B P xs} {f : A → List B} →
+       Any (Any P ∘₀ f) xs → Any P (xs >>= f)
+>>=⁺ = concat⁺ ∘ map⁺
+
+>>=⁻ : ∀ {A B P} xs {f : A → List B} →
+       Any P (xs >>= f) → Any (Any P ∘₀ f) xs
+>>=⁻ _ = map⁻ ∘ concat⁻ _
+
+-- Introduction and elimination rules for _⊛_.
+
+⊛⁺ : ∀ {A B P} {fs : List (A → B)} {xs} →
+     Any (λ f → Any (P ∘₀ f) xs) fs → Any P (fs ⊛ xs)
+⊛⁺ = >>=⁺ ∘ Any.map (>>=⁺ ∘ Any.map return⁺)
+
+⊛⁺′ : ∀ {A B P Q} {fs : List (A → B)} {xs} →
+      Any (P ⟨→⟩ Q) fs → Any P xs → Any Q (fs ⊛ xs)
+⊛⁺′ pq p = ⊛⁺ (Any.map (λ pq → Any.map (λ {x} → pq {x}) p) pq)
+
+⊛⁻ : ∀ {A B P} (fs : List (A → B)) xs →
+     Any P (fs ⊛ xs) → Any (λ f → Any (P ∘₀ f) xs) fs
+⊛⁻ fs xs = Any.map (Any.map return⁻ ∘ >>=⁻ xs) ∘ >>=⁻ fs
 
 -- Any and any are related via T.
 
-Any-any : ∀ {A} (p : A → Bool) {xs} →
-          Any (T ∘₀ p) xs → T (any p xs)
-Any-any p (here  px)  = proj₂ T-∨ (inj₁ px)
-Any-any p (there {x = x} pxs) with p x
+any⁺ : ∀ {A} (p : A → Bool) {xs} →
+       Any (T ∘₀ p) xs → T (any p xs)
+any⁺ p (here  px)          = proj₂ T-∨ (inj₁ px)
+any⁺ p (there {x = x} pxs) with p x
 ... | true  = _
-... | false = Any-any p pxs
+... | false = any⁺ p pxs
 
-any-Any : ∀ {A} (p : A → Bool) xs →
-          T (any p xs) → Any (T ∘₀ p) xs
-any-Any p []       ()
-any-Any p (x ∷ xs) px∷xs with inspect (p x)
-any-Any p (x ∷ xs) px∷xs | true  with-≡ eq = here (proj₂ T-≡ (PropEq.sym eq))
-any-Any p (x ∷ xs) px∷xs | false with-≡ eq with p x
-any-Any p (x ∷ xs) pxs   | false with-≡ PropEq.refl | .false =
-  there (any-Any p xs pxs)
+any⁻ : ∀ {A} (p : A → Bool) xs →
+       T (any p xs) → Any (T ∘₀ p) xs
+any⁻ p []       ()
+any⁻ p (x ∷ xs) px∷xs with inspect (p x)
+any⁻ p (x ∷ xs) px∷xs | true  with-≡ eq = here (proj₂ T-≡ $
+                                                  PropEq.sym eq)
+any⁻ p (x ∷ xs) px∷xs | false with-≡ eq with p x
+any⁻ p (x ∷ xs) pxs   | false with-≡ refl | .false =
+  there (any⁻ p xs pxs)
 
--- The following private parameterised modules are reexported from
--- Membership₁ and Membership₂ below.
+------------------------------------------------------------------------
+-- Lemmas related to _∈_, parameterised on underlying equalities
 
-private
- module Membership₁₁ (S : Setoid) where
+module Membership₁ (S : Setoid) where
 
   open Any.Membership S
   private
-    open module S = Setoid S using (_≈_)
-    open module L = ListEq.Equality S using ([]; _∷_)
-    module M = Any.Membership L.setoid
+    open Setoid S using (_≈_)
+    open module M = Any.Membership (ListEq.Equality.setoid S)
+      using () renaming (_∈_ to _[∈]_; _⊆_ to _[⊆]_)
 
   -- Any is monotone.
 
@@ -97,209 +149,120 @@ private
   _++-mono_ : ∀ {xs₁ xs₂ ys₁ ys₂} →
               xs₁ ⊆ ys₁ → xs₂ ⊆ ys₂ → xs₁ ++ xs₂ ⊆ ys₁ ++ ys₂
   _++-mono_ {ys₁ = ys₁} xs₁⊆ys₁ xs₂⊆ys₂ =
-    [ Any-++ˡ ∘ xs₁⊆ys₁ , Any-++ʳ ys₁ ∘ xs₂⊆ys₂ ]′ ∘ ++-Any _
+    [ ++⁺ˡ ∘ xs₁⊆ys₁ , ++⁺ʳ ys₁ ∘ xs₂⊆ys₂ ]′ ∘ ++⁻ _
 
   -- _++_ is idempotent.
 
   ++-idempotent : ∀ {xs} → xs ++ xs ⊆ xs
-  ++-idempotent = [ id , id ]′ ∘ ++-Any _
+  ++-idempotent = [ id , id ]′ ∘ ++⁻ _
 
-  -- Introduction and elimination rules for Any/_∈_ on concat.
+  -- Introduction and elimination rules for concat.
 
-  Any-concat : ∀ {P xs xss} → P Respects _≈_ →
-               Any P xs → xs ⟨ M._∈_ ⟩₁ xss → Any P (concat xss)
-  Any-concat {P} {xs} resp p (here {x = ys} eq) =
-    Any-++ˡ $ lift-resp resp eq p
-  Any-concat resp p (there {x = ys} xs∈xss) =
-    Any-++ʳ ys (Any-concat resp p xs∈xss)
+  concat-∈⁺ : ∀ {x xs xss} →
+              x ∈ xs → xs [∈] xss → x ∈ concat xss
+  concat-∈⁺ x∈xs xs∈xss =
+    concat⁺ (Any.map (λ xs≈ys → P.reflexive xs≈ys x∈xs) xs∈xss)
+    where module P = Preorder ⊆-preorder
 
-  ∈-concat : ∀ {x xs xss} →
-             x ∈ xs → xs ⟨ M._∈_ ⟩₁ xss → x ∈ concat xss
-  ∈-concat = Any-concat ∈-resp-≈
-
-  concat-Any : ∀ {P} xss →
-               Any P (concat xss) →
-               ∃ λ xs → Any P xs × (xs ⟨ M._∈_ ⟩₁ xss)
-  concat-Any []               ()
-  concat-Any ([]       ∷ xss) x∈cxss         = Prod.map id (Prod.map id there)
-                                               (concat-Any xss x∈cxss)
-  concat-Any ((x ∷ xs) ∷ xss) (here refl)    = (x ∷ xs , here refl , here L.refl)
-  concat-Any ((y ∷ xs) ∷ xss) (there x∈cxss) with concat-Any (xs ∷ xss) x∈cxss
-  ... | (zs , x∈zs , here zs≈xs)   = (y ∷ zs , there x∈zs , here (S.refl ∷ zs≈xs))
-  ... | (ys , x∈ys , there ys∈xss) = (ys     , x∈ys       , there ys∈xss)
+  concat-∈⁻ : ∀ {x} xss → x ∈ concat xss →
+              ∃ λ xs → x ∈ xs × xs [∈] xss
+  concat-∈⁻ xss x∈ = Prod.map id swap $ M.find (concat⁻ xss x∈)
 
   -- concat is monotone.
 
   concat-mono : ∀ {xss yss} →
-                xss ⟨ M._⊆_ ⟩₁ yss → concat xss ⊆ concat yss
-  concat-mono {xss = xss} xss⊆yss x∈ with concat-Any xss x∈
-  ... | (xs , x∈xs , xs∈xss) = ∈-concat x∈xs (xss⊆yss xs∈xss)
+                xss [⊆] yss → concat xss ⊆ concat yss
+  concat-mono {xss = xss} xss⊆yss x∈ with concat-∈⁻ xss x∈
+  ... | (xs , x∈xs , xs∈xss) = concat-∈⁺ x∈xs (xss⊆yss xs∈xss)
 
   -- any is monotone.
 
   any-mono : ∀ p → (T ∘₀ p) Respects _≈_ →
              ∀ {xs ys} → xs ⊆ ys → T (any p xs) → T (any p ys)
-  any-mono p resp xs⊆ys = Any-any p ∘ mono resp xs⊆ys ∘ any-Any p _
+  any-mono p resp xs⊆ys = any⁺ p ∘ mono resp xs⊆ys ∘ any⁻ p _
 
- module Membership₂₁ (S₁ S₂ : Setoid) where
+module Membership₂ (S₁ S₂ : Setoid) where
 
   private
-    module S₂ = Setoid S₂
-    module M₁ = Any.Membership S₁
-    module M₂ = Any.Membership S₂
+    open module S₁ = Setoid S₁ using () renaming (_≈_ to _≈₁_)
+    open module S₂ = Setoid S₂ using () renaming (_≈_ to _≈₂_)
+    module L₂      = ListEq.Equality S₂
+    open module M₁ = Any.Membership S₁
+      using () renaming (_∈_ to _∈₁_; _⊆_ to _⊆₁_)
+    open module M₂ = Any.Membership S₂
+      using () renaming (_∈_ to _∈₂_; _⊆_ to _⊆₂_)
+    open module M₁₂ = Any.Membership (S₁ ⇨ S₂)
+      using () renaming (_∈_ to _∈₁₂_; _⊆_ to _⊆₁₂_)
+    open Any.Membership (S₁ ×-setoid S₂)
+      using () renaming (_⊆_ to _⊆₁,₂_)
 
-  -- Introduction and elimination rules for _∈_ on map.
+  -- Introduction and elimination rules for map.
 
-  ∈-map : ∀ (f : S₁ ⟶ S₂) {x xs} →
-          x ⟨ M₁._∈_ ⟩₁ xs → f ⟨$⟩ x ⟨ M₂._∈_ ⟩₁ map (_⟨$⟩_ f) xs
-  ∈-map f = gmap (_⟶_.pres f)
+  map-∈⁺ : ∀ (f : S₁ ⟶ S₂) {x xs} →
+          x ∈₁ xs → f ⟨$⟩ x ∈₂ map (_⟨$⟩_ f) xs
+  map-∈⁺ f = map⁺ ∘ Any.map (pres f)
 
-  map-∈ : ∀ {f fx} xs →
-          fx ⟨ M₂._∈_ ⟩₁ map f xs →
-          ∃ λ x → (x ⟨ M₁._∈_ ⟩₁ xs) × (fx ⟨ S₂._≈_ ⟩₁ f x)
-  map-∈ _ fx∈ = M₁.find (map-Any fx∈)
+  map-∈⁻ : ∀ {f fx} xs →
+           fx ∈₂ map f xs → ∃ λ x → x ∈₁ xs × fx ≈₂ f x
+  map-∈⁻ _ fx∈ = M₁.find (map⁻ fx∈)
 
   -- map is monotone.
 
   map-mono : ∀ (f : S₁ ⟶ S₂) {xs ys} →
-             xs ⟨ M₁._⊆_ ⟩₁ ys →
-             map (_⟨$⟩_ f) xs ⟨ M₂._⊆_ ⟩₁ map (_⟨$⟩_ f) ys
-  map-mono f xs⊆ys fx∈ with map-∈ _ fx∈
-  ... | (x , x∈ , eq) = Any.map (S₂.trans eq) (∈-map f (xs⊆ys x∈))
+             xs ⊆₁ ys → map (_⟨$⟩_ f) xs ⊆₂ map (_⟨$⟩_ f) ys
+  map-mono f xs⊆ys fx∈ with map-∈⁻ _ fx∈
+  ... | (x , x∈ , eq) = Any.map (S₂.trans eq) (map-∈⁺ f (xs⊆ys x∈))
 
- module Membership₂₂ (S₁ S₂ : Setoid) where
+  -- Introduction and elimination rules for _>>=_.
 
-  private
-    module S₂  = Setoid S₂
-    module L₂  = ListEq.Equality S₂
-    module AM₁ = Any.Membership S₁
-    module AM₂ = Any.Membership S₂
-    module M₂  = Membership₁₁ S₂
-    module M₁₂ = Membership₂₁ S₁ L₂.setoid
+  >>=-∈⁺ : ∀ (f : S₁ ⟶ L₂.setoid) {x y xs} →
+           x ∈₁ xs → y ∈₂ f ⟨$⟩ x → y ∈₂ (xs >>= _⟨$⟩_ f)
+  >>=-∈⁺ f x∈xs y∈fx =
+    >>=⁺ (Any.map (flip M₂.∈-resp-list-≈ y∈fx ∘ pres f) x∈xs)
 
-  -- Introduction and elimination rules for Any/_∈_ on _>>=_.
-
-  Any->>= : ∀ {P} → P Respects S₂._≈_ →
-            ∀ (f : S₁ ⟶ L₂.setoid) {x xs} →
-            x ⟨ AM₁._∈_ ⟩₁ xs → Any P (f ⟨$⟩ x) → Any P (xs >>= _⟨$⟩_ f)
-  Any->>= resp f x∈xs y∈fx = M₂.Any-concat resp y∈fx (M₁₂.∈-map f x∈xs)
-
-  ∈->>= : ∀ (f : S₁ ⟶ L₂.setoid) {x y xs} →
-          x ⟨ AM₁._∈_ ⟩₁ xs → y ⟨ AM₂._∈_ ⟩₁ f ⟨$⟩ x →
-          y ⟨ AM₂._∈_ ⟩₁ (xs >>= _⟨$⟩_ f)
-  ∈->>= f = Any->>= AM₂.∈-resp-≈ f
-
-  >>=-Any : ∀ {P} → P Respects S₂._≈_ →
-            ∀ (f : S₁ ⟶ L₂.setoid) xs →
-            Any P (xs >>= _⟨$⟩_ f) →
-            ∃ λ x → (x ⟨ AM₁._∈_ ⟩₁ xs) × Any P (f ⟨$⟩ x)
-  >>=-Any resp f xs p
-    with Prod.map id (Prod.map id (M₁₂.map-∈ xs)) $
-           M₂.concat-Any (map (_⟨$⟩_ f) xs) p
-  >>=-Any resp f xs p | (fx , p′ , (x , x∈xs , eq)) =
-    (x , x∈xs , AM₂.lift-resp resp eq p′)
-
-  >>=-∈ : ∀ (f : S₁ ⟶ L₂.setoid) {y} xs →
-          y ⟨ AM₂._∈_ ⟩₁ (xs >>= _⟨$⟩_ f) →
-          ∃ λ x → (x ⟨ AM₁._∈_ ⟩₁ xs) × (y ⟨ AM₂._∈_ ⟩₁ f ⟨$⟩ x)
-  >>=-∈ f = >>=-Any AM₂.∈-resp-≈ f
+  >>=-∈⁻ : ∀ (f : S₁ ⟶ L₂.setoid) {y} xs →
+           y ∈₂ (xs >>= _⟨$⟩_ f) → ∃ λ x → x ∈₁ xs × y ∈₂ f ⟨$⟩ x
+  >>=-∈⁻ f xs y∈ = M₁.find (>>=⁻ xs y∈)
 
   -- _>>=_ is monotone.
 
   >>=-mono : ∀ (f g : S₁ ⟶ L₂.setoid) {xs ys} →
-             xs ⟨ AM₁._⊆_ ⟩₁ ys →
-             (∀ {x} → f ⟨$⟩ x ⟨ AM₂._⊆_ ⟩₁ g ⟨$⟩ x) →
-             (xs >>= _⟨$⟩_ f) ⟨ AM₂._⊆_ ⟩₁ (ys >>= _⟨$⟩_ g)
-  >>=-mono f g {xs} xs⊆ys f⊆g z∈ with >>=-∈ f xs z∈
-  ... | (x , x∈xs , z∈fx) = ∈->>= g (xs⊆ys x∈xs) (f⊆g z∈fx)
+             xs ⊆₁ ys → (∀ {x} → f ⟨$⟩ x ⊆₂ g ⟨$⟩ x) →
+             (xs >>= _⟨$⟩_ f) ⊆₂ (ys >>= _⟨$⟩_ g)
+  >>=-mono f g {xs} xs⊆ys f⊆g z∈ with >>=-∈⁻ f xs z∈
+  ... | (x , x∈xs , z∈fx) = >>=-∈⁺ g (xs⊆ys x∈xs) (f⊆g z∈fx)
 
- module Membership₁₂ (S : Setoid) where
+  -- Introduction and elimination rules for _⊛_.
 
   private
-    open module L   = ListEq.Equality S using ([]; _∷_)
-    module S        = Setoid S
-    _→S             = λ (A : Set) → A ≡⇨ λ _ → S
-    _→S′            = λ (A : Set) → PropEq.setoid (A → S.carrier)
-    module →S {A}   = Setoid (A →S)
-    module AM-≡     = Any.Membership-≡
-    module AM       = Any.Membership S
-    module AM→S {A} = Any.Membership (A →S)
 
-    ret : ∀ {S′} → S′ ⟶ S → S′ ⟶ L.setoid
-    ret f = record { _⟨$⟩_ = return ∘ _⟨$⟩_ f
-                   ; pres  = λ x≈y → pres f x≈y ∷ []
-                   }
+    infixl 4 _⟨⊛⟩_
 
-    ret′ : ∀ {A} → (A → S.carrier) → PropEq.setoid A ⟶ L.setoid
-    ret′ f = ret record { _⟨$⟩_ = f
-                        ; pres  = S.reflexive ∘ PropEq.cong f
-                        }
+    _⟨⊛⟩_ : List (S₁ ⟶ S₂) → List S₁.carrier → List S₂.carrier
+    fs ⟨⊛⟩ xs = map _⟨$⟩_ fs ⊛ xs
 
-    cong : ∀ {A} (xs : List A) {f g} → f ⟨ →S._≈_ ⟩₁ g →
-           (xs >>= return ∘ f) ⟨ L._≈_ ⟩₁ (xs >>= return ∘ g)
-    cong []       f≈g = []
-    cong (x ∷ xs) f≈g = f≈g x ∷ cong xs f≈g
+  ⊛-∈⁺ : ∀ f {fs x xs} →
+         f ∈₁₂ fs → x ∈₁ xs → f ⟨$⟩ x ∈₂ fs ⟨⊛⟩ xs
+  ⊛-∈⁺ _ f∈fs x∈xs =
+    ⊛⁺′ (map⁺ (Any.map (λ f≈g x≈y → f≈g x≈y) f∈fs)) x∈xs
 
-    app : ∀ {A} → List A → (A →S) ⟶ L.setoid
-    app xs = record { _⟨$⟩_ = λ f' → xs >>= λ x' → return (f' x')
-                    ; pres  = cong xs
-                    }
-
-    app′ : ∀ {A} → List A → (A →S′) ⟶ L.setoid
-    app′ xs = record { _⟨$⟩_ = _⟨$⟩_ (app xs)
-                     ; pres  = L.reflexive ∘
-                               PropEq.cong (λ f → xs >>= return ∘ f)
-                     }
-
-  -- Introduction and elimination rules for _∈_ on _⊛_.
-
-  ∈-⊛ : ∀ {S′} (f : S′ ⟶ S) {fs xs x} →
-        let module M = Any.Membership S′ in
-        _⟨$⟩_ f ⟨ AM→S._∈_ ⟩₁ fs → x ⟨ M._∈_ ⟩₁ xs →
-        f ⟨$⟩ x ⟨ AM._∈_ ⟩₁ fs ⊛ xs
-  ∈-⊛ {S′} f {fs} {xs} {x} f∈fs x∈xs =
-    M₁.∈->>= (app xs) f∈fs (M₂.∈->>= (ret f) x∈xs (here S.refl))
-    where
-    module M₁ = Membership₂₂ (Setoid.carrier S′ →S) S
-    module M₂ = Membership₂₂ S′                     S
-
-  ⊛-∈ : ∀ {A} fs (xs : List A) {fx} →
-        fx ⟨ AM._∈_ ⟩₁ fs ⊛ xs →
-        ∃₂ λ f x → (f ⟨ AM-≡._∈_ ⟩₁ fs) ×
-                   (x ⟨ AM-≡._∈_ ⟩₁ xs) ×
-                   (fx ⟨ S._≈_ ⟩₁ f x)
-  ⊛-∈ {A} fs xs fx∈ with M.>>=-∈ (app′ xs) fs fx∈
-    where module M = Membership₂₂ (A →S′) S
-  ... | (f , f∈fs , fx∈′) with M.>>=-∈ (ret′ f) xs fx∈′
-    where module M = Membership₂₂ (PropEq.setoid A) S
-  ... | (x , x∈xs , here fx≈fx) = (f , x , f∈fs , x∈xs , fx≈fx)
-  ... | (x , x∈xs , there ())
+  ⊛-∈⁻ : ∀ fs xs {fx} → fx ∈₂ fs ⟨⊛⟩ xs →
+         ∃₂ λ f x → f ∈₁₂ fs × x ∈₁ xs × fx ≈₂ f ⟨$⟩ x
+  ⊛-∈⁻ fs xs fx∈ with M₁₂.find $ map⁻ (⊛⁻ (map _⟨$⟩_ fs) xs fx∈)
+  ... | (f , f∈fs , x∈) with M₁.find x∈
+  ...   | (x , x∈xs , fx≈fx) = (f , x , f∈fs , x∈xs , fx≈fx)
 
   -- _⊛_ is monotone.
 
-  _⊛-mono_ : ∀ {A} {fs gs} {xs ys : List A} →
-             fs ⟨ AM→S._⊆_ ⟩₁ gs → xs ⟨ AM-≡._⊆_ ⟩₁ ys →
-             fs ⊛ xs ⟨ AM._⊆_ ⟩₁ gs ⊛ ys
-  _⊛-mono_ {fs = fs} {xs = xs} fs⊆gs xs⊆ys fx∈ with ⊛-∈ fs xs fx∈
-  ... | (f , x , f∈fs , x∈xs , fx≈fx) = Any.map (S.trans fx≈fx) $
-    ∈-⊛ {PropEq.setoid _}
-        (record { _⟨$⟩_ = f; pres = S.reflexive ∘ PropEq.cong f })
-        (fs⊆gs (Any.map (λ f≡g x → S.reflexive $
-                                     PropEq.cong (λ f → f x) f≡g) f∈fs))
-        (xs⊆ys x∈xs)
+  _⊛-mono_ : ∀ {fs gs xs ys} →
+             fs ⊆₁₂ gs → xs ⊆₁ ys → fs ⟨⊛⟩ xs ⊆₂ gs ⟨⊛⟩ ys
+  _⊛-mono_ {fs = fs} {xs = xs} fs⊆gs xs⊆ys fx∈ with ⊛-∈⁻ fs xs fx∈
+  ... | (f , x , f∈fs , x∈xs , fx≈fx) =
+    Any.map (S₂.trans fx≈fx) $ ⊛-∈⁺ f (fs⊆gs {f} f∈fs) (xs⊆ys x∈xs)
 
--- Lemmas related to _∈_, parameterised on underlying equalities.
-
-module Membership₁ (S : Setoid) where
-  open Membership₁₁ S public
-  open Membership₁₂ S public
-
-module Membership₂ (S₁ S₂ : Setoid) where
-  open Membership₂₁ S₁ S₂ public
-  open Membership₂₂ S₁ S₂ public
-
--- The following module instantiates/modifies most of the lemmas from
--- Membership₁ and Membership₂ for propositional equality.
+------------------------------------------------------------------------
+-- Lemmas related to the variant of _∈_ which is defined using
+-- propositional equality
 
 module Membership-≡ where
 
@@ -307,27 +270,26 @@ module Membership-≡ where
   private
     module P {A} = ListEq.PropositionalEquality {A}
     open module M₁ {A} = Membership₁ (PropEq.setoid A) public
-      using (_++-mono_; ++-idempotent; ⊛-∈)
+      using (_++-mono_; ++-idempotent)
     open module M₂ {A} {B} =
       Membership₂ (PropEq.setoid A) (PropEq.setoid B) public
-      using (map-∈)
+      using (map-∈⁻)
 
   -- Any is monotone.
 
   mono : ∀ {A xs ys} {P : Pred A} → xs ⊆ ys → Any P xs → Any P ys
   mono {P = P} = M₁.mono (PropEq.subst P)
 
-  -- Introduction and elimination rules for Any on concat.
+  -- Introduction and elimination rules for concat.
 
-  Any-concat : ∀ {A} {P : Pred A} {xs xss} →
-               Any P xs → xs ∈ xss → Any P (concat xss)
-  Any-concat {P = P} p = M₁.Any-concat (PropEq.subst P) p ∘
-                         Any.map P.reflexive
+  concat-∈⁺ : ∀ {A} {x : A} {xs xss} →
+              x ∈ xs → xs ∈ xss → x ∈ concat xss
+  concat-∈⁺ x∈xs = M₁.concat-∈⁺ x∈xs ∘ Any.map P.reflexive
 
-  concat-Any : ∀ {A} {P : Pred A} xss →
-               Any P (concat xss) → ∃ λ xs → Any P xs × xs ∈ xss
-  concat-Any xss p =
-    Prod.map id (Prod.map id (Any.map P.≈⇒≡)) $ M₁.concat-Any xss p
+  concat-∈⁻ : ∀ {A} {x : A} xss →
+              x ∈ concat xss → ∃ λ xs → x ∈ xs × xs ∈ xss
+  concat-∈⁻ xss x∈ =
+    Prod.map id (Prod.map id (Any.map P.≈⇒≡)) $ M₁.concat-∈⁻ xss x∈
 
   -- concat is monotone.
 
@@ -342,11 +304,11 @@ module Membership-≡ where
              xs ⊆ ys → T (any p xs) → T (any p ys)
   any-mono p = M₁.any-mono p (PropEq.subst (T ∘₀ p))
 
-  -- Introduction rule for _∈_ on map.
+  -- Introduction rule for map.
 
-  ∈-map : ∀ {A B} {f : A → B} {x xs} →
-          x ∈ xs → f x ∈ map f xs
-  ∈-map {f = f} = M₂.∈-map (PropEq.→-to-⟶ f)
+  map-∈⁺ : ∀ {A B} {f : A → B} {x xs} →
+           x ∈ xs → f x ∈ map f xs
+  map-∈⁺ {f = f} = M₂.map-∈⁺ (PropEq.→-to-⟶ f)
 
   -- map is monotone.
 
@@ -354,45 +316,48 @@ module Membership-≡ where
              xs ⊆ ys → map f xs ⊆ map f ys
   map-mono {f = f} = M₂.map-mono (PropEq.→-to-⟶ f)
 
-  -- Introduction and elimination rules for Any on _>>=_.
+  -- Introduction and elimination rules for _>>=_.
 
-  Any->>= : ∀ {A B P} (f : A → List B) {x xs} →
-            x ∈ xs → Any P (f x) → Any P (xs >>= f)
-  Any->>= {P = P} f =
-    M₂.Any->>= (PropEq.subst P)
-               (record { _⟨$⟩_ = f; pres = P.reflexive ∘ PropEq.cong f })
+  private
 
-  >>=-Any : ∀ {A B P} (f : A → List B) xs →
-            Any P (xs >>= f) → ∃ λ x → x ∈ xs × Any P (f x)
-  >>=-Any {P = P} f =
-    M₂.>>=-Any (PropEq.subst P)
-               (record { _⟨$⟩_ = f; pres = P.reflexive ∘ PropEq.cong f })
+    [→-to-⟶] : ∀ {A B} → (A → List B) →
+               PropEq.setoid A ⟶
+               ListEq.Equality.setoid (PropEq.setoid B)
+    [→-to-⟶] f =
+      record { _⟨$⟩_ = f; pres = P.reflexive ∘ PropEq.cong f }
+
+  >>=-∈⁺ : ∀ {A B} (f : A → List B) {x y xs} →
+           x ∈ xs → y ∈ f x → y ∈ (xs >>= f)
+  >>=-∈⁺ f = M₂.>>=-∈⁺ ([→-to-⟶] f)
+
+  >>=-∈⁻ : ∀ {A B} (f : A → List B) {y} xs →
+           y ∈ (xs >>= f) → ∃ λ x → x ∈ xs × y ∈ f x
+  >>=-∈⁻ f = M₂.>>=-∈⁻ ([→-to-⟶] f)
 
   -- _>>=_ is monotone.
 
   _>>=-mono_ : ∀ {A B} {f g : A → List B} {xs ys} →
                xs ⊆ ys → (∀ {x} → f x ⊆ g x) →
                (xs >>= f) ⊆ (ys >>= g)
-  _>>=-mono_ {f = f} {g} =
-    M₂.>>=-mono (record { _⟨$⟩_ = f; pres = P.reflexive ∘ PropEq.cong f })
-                (record { _⟨$⟩_ = g; pres = P.reflexive ∘ PropEq.cong g })
+  _>>=-mono_ {f = f} {g} = M₂.>>=-mono ([→-to-⟶] f) ([→-to-⟶] g)
 
-  -- Introduction rule for _∈_ on _⊛_.
+  -- Introduction and elimination rules for _⊛_.
 
-  ∈-⊛ : ∀ {A B} {fs : List (A → B)} {xs f x} →
-        f ∈ fs → x ∈ xs → f x ∈ fs ⊛ xs
-  ∈-⊛ {f = f} f∈fs =
-    M₁.∈-⊛ (PropEq.→-to-⟶ f)
-           (Any.map (λ f≡g x → PropEq.cong (λ f → f x) f≡g) f∈fs)
+  ⊛-∈⁺ : ∀ {A B} {fs : List (A → B)} {xs f x} →
+         f ∈ fs → x ∈ xs → f x ∈ fs ⊛ xs
+  ⊛-∈⁺ f∈fs x∈xs =
+    ⊛⁺′ (Any.map (λ f≡g x≡y → PropEq.cong₂ _$_ f≡g x≡y) f∈fs) x∈xs
+
+  ⊛-∈⁻ : ∀ {A B} (fs : List (A → B)) xs {fx} →
+         fx ∈ fs ⊛ xs → ∃₂ λ f x → f ∈ fs × x ∈ xs × fx ≡ f x
+  ⊛-∈⁻ fs xs fx∈ with find $ ⊛⁻ fs xs fx∈
+  ... | (f , f∈fs , x∈) with find x∈
+  ...   | (x , x∈xs , fx≡fx) = (f , x , f∈fs , x∈xs , fx≡fx)
 
   -- _⊛_ is monotone.
 
   _⊛-mono_ : ∀ {A B} {fs gs : List (A → B)} {xs ys} →
              fs ⊆ gs → xs ⊆ ys → fs ⊛ xs ⊆ gs ⊛ ys
-  _⊛-mono_ {fs = fs} {gs} fs⊆gs = M₁._⊛-mono_ helper
-    where
-    helper : ∀ {f} → Any (_≗_ f) fs → Any (_≗_ f) gs
-    helper {f} f∈fs with find f∈fs
-    ... | (g , g∈fs , f≗g) =
-      Any.map (λ g≡h x → PropEq.subst (λ h → f x ≡ h x) g≡h (f≗g x))
-              (fs⊆gs g∈fs)
+  _⊛-mono_ {fs = fs} {xs = xs} fs⊆gs xs⊆ys fx∈ with ⊛-∈⁻ fs xs fx∈
+  ... | (f , x , f∈fs , x∈xs , refl) =
+    ⊛-∈⁺ (fs⊆gs f∈fs) (xs⊆ys x∈xs)

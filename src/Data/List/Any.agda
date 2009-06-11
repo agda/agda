@@ -95,6 +95,11 @@ module Membership (S : Setoid) where
   ∈-resp-≈ : ∀ {x} → (_≈_ x) Respects _≈_
   ∈-resp-≈ = flip S.trans
 
+  -- List equality is respected by _∈_.
+
+  ∈-resp-list-≈ : ∀ {x} → _∈_ x Respects _≋_
+  ∈-resp-list-≈ = lift-resp ∈-resp-≈
+
   -- _⊆_ is a preorder.
 
   ⊆-preorder : Preorder
@@ -113,7 +118,7 @@ module Membership (S : Setoid) where
     }
     where
     reflexive : _≋_ ⇒ _⊆_
-    reflexive eq = lift-resp ∈-resp-≈ eq
+    reflexive eq = ∈-resp-list-≈ eq
 
   module ⊆-Reasoning where
     import Relation.Binary.PreorderReasoning as PreR
