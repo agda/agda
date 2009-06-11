@@ -34,25 +34,19 @@ open Core public using (Dec; yes; no)
 -- Injections
 
 Injective : ∀ {A B} → A ⟶ B → Set
-Injective {A} {B} f = ∀ {x y} → fun x ≈₂ fun y → x ≈₁ y
+Injective {A} {B} f = ∀ {x y} → f ⟨$⟩ x ≈₂ f ⟨$⟩ y → x ≈₁ y
   where
-  open _⟶_ f
   open Setoid A renaming (_≈_ to _≈₁_)
   open Setoid B renaming (_≈_ to _≈₂_)
 
 _LeftInverseOf_ : ∀ {A B} → B ⟶ A → A ⟶ B → Set
-_LeftInverseOf_ {A} F G = ∀ x → f (g x) ≈₁ x
-  where
-  open _⟶_ F renaming (fun to f)
-  open _⟶_ G renaming (fun to g)
-  open Setoid A renaming (_≈_ to _≈₁_)
+_LeftInverseOf_ {A} f g = ∀ x → f ⟨$⟩ (g ⟨$⟩ x) ≈₁ x
+  where open Setoid A renaming (_≈_ to _≈₁_)
 
 record Injection (From To : Setoid) : Set where
   field
     to        : From ⟶ To
     injective : Injective to
-
-  open _⟶_ to public
 
 record LeftInverse (From To : Setoid) : Set where
   field
@@ -60,17 +54,14 @@ record LeftInverse (From To : Setoid) : Set where
     from         : To ⟶ From
     left-inverse : from LeftInverseOf to
 
-  open _⟶_ to   public renaming (fun to to-fun;   pres to to-pres)
-  open _⟶_ from public renaming (fun to from-fun; pres to from-pres)
-
   open Setoid      From
   open EqReasoning From
 
   injective : Injective to
   injective {x} {y} eq = begin
     x                    ≈⟨ sym (left-inverse x) ⟩
-    from-fun (to-fun x)  ≈⟨ from-pres eq ⟩
-    from-fun (to-fun y)  ≈⟨ left-inverse y ⟩
+    from ⟨$⟩ (to ⟨$⟩ x)  ≈⟨ pres from eq ⟩
+    from ⟨$⟩ (to ⟨$⟩ y)  ≈⟨ left-inverse y ⟩
     y                    ∎
 
   injection : Injection From To

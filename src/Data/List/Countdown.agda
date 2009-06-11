@@ -15,6 +15,7 @@ open import Data.List.Any as Any using (here; there)
 open import Data.Nat using (ℕ; zero; suc; pred)
 open import Data.Sum
 open import Relation.Nullary
+open import Relation.Binary.FunctionSetoid
 open import Relation.Binary.PropositionalEquality as PropEq
   using (_≡_; _≢_; refl; cong)
 open PropEq.≡-Reasoning
@@ -145,11 +146,11 @@ record _⊕_ (counted : List Elem) (n : ℕ) : Set where
 
 empty : ∀ {n} → Injection D.setoid (PropEq.setoid (Fin n)) → [] ⊕ n
 empty inj =
-  record { kind      = inj₂ ∘ fun
+  record { kind      = inj₂ ∘ _⟨$⟩_ to
          ; injective = λ {x} {y} {i} eq₁ eq₂ → injective (begin
-             fun x  ≡⟨ drop-inj₂ eq₁ ⟩
-             i      ≡⟨ PropEq.sym $ drop-inj₂ eq₂ ⟩
-             fun y  ∎)
+             to ⟨$⟩ x  ≡⟨ drop-inj₂ eq₁ ⟩
+             i         ≡⟨ PropEq.sym $ drop-inj₂ eq₂ ⟩
+             to ⟨$⟩ y  ∎)
          }
   where open Injection inj
 
@@ -159,8 +160,8 @@ emptyFromList : (counted : List Elem) → (∀ x → x ∈ counted) →
                 [] ⊕ length counted
 emptyFromList counted complete = empty record
   { to = record
-    { fun  = λ x → first-index x (complete x)
-    ; pres = first-index-pres (complete _) (complete _)
+    { _⟨$⟩_ = λ x → first-index x (complete x)
+    ; pres  = first-index-pres (complete _) (complete _)
     }
   ; injective = first-index-injective (complete _) (complete _)
   }

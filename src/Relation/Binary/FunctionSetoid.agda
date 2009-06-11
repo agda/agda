@@ -19,9 +19,12 @@ _∼₁_ ↝ _∼₂_ = λ f g → ∀ {x y} → x ∼₁ y → f x ∼₂ g y
 
 record _⟶_ (From To : Setoid) : Set where
   open Setoid
+  infixl 5 _⟨$⟩_
   field
-    fun  : carrier From → carrier To
-    pres : fun Preserves _≈_ From ⟶ _≈_ To
+    _⟨$⟩_ : carrier From → carrier To
+    pres  : _⟨$⟩_ Preserves _≈_ From ⟶ _≈_ To
+
+open _⟶_ public
 
 ↝-isEquivalence : ∀ {A B C} {∼₁ : Rel A} {∼₂ : Rel B}
                   (fun : C → (A → B)) →
@@ -39,9 +42,9 @@ record _⟶_ (From To : Setoid) : Set where
 _⇨_ : Setoid → Setoid → Setoid
 S₁ ⇨ S₂ = record
   { carrier       = S₁ ⟶ S₂
-  ; _≈_           = (_≈_ S₁ ↝ _≈_ S₂) on₁ fun
+  ; _≈_           = (_≈_ S₁ ↝ _≈_ S₂) on₁ _⟨$⟩_
   ; isEquivalence =
-      ↝-isEquivalence fun pres (isEquivalence S₁) (isEquivalence S₂)
+      ↝-isEquivalence _⟨$⟩_ pres (isEquivalence S₁) (isEquivalence S₂)
   } where open Setoid; open _⟶_
 
 -- A generalised variant of (_↝_ _≡_).

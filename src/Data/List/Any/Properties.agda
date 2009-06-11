@@ -151,8 +151,7 @@ private
   -- Introduction and elimination rules for _∈_ on map.
 
   ∈-map : ∀ (f : S₁ ⟶ S₂) {x xs} →
-          let open _⟶_ f in
-          x ⟨ M₁._∈_ ⟩₁ xs → fun x ⟨ M₂._∈_ ⟩₁ map fun xs
+          x ⟨ M₁._∈_ ⟩₁ xs → f ⟨$⟩ x ⟨ M₂._∈_ ⟩₁ map (_⟨$⟩_ f) xs
   ∈-map f = gmap (_⟶_.pres f)
 
   map-∈ : ∀ {f fx} xs →
@@ -163,8 +162,8 @@ private
   -- map is monotone.
 
   map-mono : ∀ (f : S₁ ⟶ S₂) {xs ys} →
-             let open _⟶_ f in
-             xs ⟨ M₁._⊆_ ⟩₁ ys → map fun xs ⟨ M₂._⊆_ ⟩₁ map fun ys
+             xs ⟨ M₁._⊆_ ⟩₁ ys →
+             map (_⟨$⟩_ f) xs ⟨ M₂._⊆_ ⟩₁ map (_⟨$⟩_ f) ys
   map-mono f xs⊆ys fx∈ with map-∈ _ fx∈
   ... | (x , x∈ , eq) = Any.map (S₂.trans eq) (∈-map f (xs⊆ys x∈))
 
@@ -182,39 +181,35 @@ private
 
   Any->>= : ∀ {P} → P Respects S₂._≈_ →
             ∀ (f : S₁ ⟶ L₂.setoid) {x xs} →
-            let open _⟶_ f in
-            x ⟨ AM₁._∈_ ⟩₁ xs → Any P (fun x) → Any P (xs >>= fun)
+            x ⟨ AM₁._∈_ ⟩₁ xs → Any P (f ⟨$⟩ x) → Any P (xs >>= _⟨$⟩_ f)
   Any->>= resp f x∈xs y∈fx = M₂.Any-concat resp y∈fx (M₁₂.∈-map f x∈xs)
 
   ∈->>= : ∀ (f : S₁ ⟶ L₂.setoid) {x y xs} →
-          let open _⟶_ f in
-          x ⟨ AM₁._∈_ ⟩₁ xs → y ⟨ AM₂._∈_ ⟩₁ fun x →
-          y ⟨ AM₂._∈_ ⟩₁ (xs >>= fun)
+          x ⟨ AM₁._∈_ ⟩₁ xs → y ⟨ AM₂._∈_ ⟩₁ f ⟨$⟩ x →
+          y ⟨ AM₂._∈_ ⟩₁ (xs >>= _⟨$⟩_ f)
   ∈->>= f = Any->>= AM₂.∈-resp-≈ f
 
   >>=-Any : ∀ {P} → P Respects S₂._≈_ →
             ∀ (f : S₁ ⟶ L₂.setoid) xs →
-            let open _⟶_ f in
-            Any P (xs >>= fun) →
-            ∃ λ x → (x ⟨ AM₁._∈_ ⟩₁ xs) × Any P (fun x)
+            Any P (xs >>= _⟨$⟩_ f) →
+            ∃ λ x → (x ⟨ AM₁._∈_ ⟩₁ xs) × Any P (f ⟨$⟩ x)
   >>=-Any resp f xs p
     with Prod.map id (Prod.map id (M₁₂.map-∈ xs)) $
-           M₂.concat-Any (map (_⟶_.fun f) xs) p
+           M₂.concat-Any (map (_⟨$⟩_ f) xs) p
   >>=-Any resp f xs p | (fx , p′ , (x , x∈xs , eq)) =
     (x , x∈xs , AM₂.lift-resp resp eq p′)
 
   >>=-∈ : ∀ (f : S₁ ⟶ L₂.setoid) {y} xs →
-          let open _⟶_ f in
-          y ⟨ AM₂._∈_ ⟩₁ (xs >>= fun) →
-          ∃ λ x → (x ⟨ AM₁._∈_ ⟩₁ xs) × (y ⟨ AM₂._∈_ ⟩₁ fun x)
+          y ⟨ AM₂._∈_ ⟩₁ (xs >>= _⟨$⟩_ f) →
+          ∃ λ x → (x ⟨ AM₁._∈_ ⟩₁ xs) × (y ⟨ AM₂._∈_ ⟩₁ f ⟨$⟩ x)
   >>=-∈ f = >>=-Any AM₂.∈-resp-≈ f
 
   -- _>>=_ is monotone.
 
   >>=-mono : ∀ (f g : S₁ ⟶ L₂.setoid) {xs ys} →
              xs ⟨ AM₁._⊆_ ⟩₁ ys →
-             (∀ {x} → _⟶_.fun f x ⟨ AM₂._⊆_ ⟩₁ _⟶_.fun g x) →
-             (xs >>= _⟶_.fun f) ⟨ AM₂._⊆_ ⟩₁ (ys >>= _⟶_.fun g)
+             (∀ {x} → f ⟨$⟩ x ⟨ AM₂._⊆_ ⟩₁ g ⟨$⟩ x) →
+             (xs >>= _⟨$⟩_ f) ⟨ AM₂._⊆_ ⟩₁ (ys >>= _⟨$⟩_ g)
   >>=-mono f g {xs} xs⊆ys f⊆g z∈ with >>=-∈ f xs z∈
   ... | (x , x∈xs , z∈fx) = ∈->>= g (xs⊆ys x∈xs) (f⊆g z∈fx)
 
@@ -231,13 +226,13 @@ private
     module AM→S {A} = Any.Membership (A →S)
 
     ret : ∀ {S′} → S′ ⟶ S → S′ ⟶ L.setoid
-    ret f = record { fun  = return ∘ _⟶_.fun f
-                   ; pres = λ x≈y → _⟶_.pres f x≈y ∷ []
+    ret f = record { _⟨$⟩_ = return ∘ _⟨$⟩_ f
+                   ; pres  = λ x≈y → pres f x≈y ∷ []
                    }
 
     ret′ : ∀ {A} → (A → S.carrier) → PropEq.setoid A ⟶ L.setoid
-    ret′ f = ret record { fun  = f
-                        ; pres = S.reflexive ∘ PropEq.cong f
+    ret′ f = ret record { _⟨$⟩_ = f
+                        ; pres  = S.reflexive ∘ PropEq.cong f
                         }
 
     cong : ∀ {A} (xs : List A) {f g} → f ⟨ →S._≈_ ⟩₁ g →
@@ -246,22 +241,22 @@ private
     cong (x ∷ xs) f≈g = f≈g x ∷ cong xs f≈g
 
     app : ∀ {A} → List A → (A →S) ⟶ L.setoid
-    app xs = record { fun  = λ f' → xs >>= λ x' → return (f' x')
-                    ; pres = cong xs
+    app xs = record { _⟨$⟩_ = λ f' → xs >>= λ x' → return (f' x')
+                    ; pres  = cong xs
                     }
 
     app′ : ∀ {A} → List A → (A →S′) ⟶ L.setoid
-    app′ xs = record { fun  = _⟶_.fun (app xs)
-                     ; pres = L.reflexive ∘
-                              PropEq.cong (λ f → xs >>= return ∘ f)
+    app′ xs = record { _⟨$⟩_ = _⟨$⟩_ (app xs)
+                     ; pres  = L.reflexive ∘
+                               PropEq.cong (λ f → xs >>= return ∘ f)
                      }
 
   -- Introduction and elimination rules for _∈_ on _⊛_.
 
   ∈-⊛ : ∀ {S′} (f : S′ ⟶ S) {fs xs x} →
-        let open _⟶_ f; module M = Any.Membership S′ in
-        fun ⟨ AM→S._∈_ ⟩₁ fs → x ⟨ M._∈_ ⟩₁ xs →
-        fun x ⟨ AM._∈_ ⟩₁ fs ⊛ xs
+        let module M = Any.Membership S′ in
+        _⟨$⟩_ f ⟨ AM→S._∈_ ⟩₁ fs → x ⟨ M._∈_ ⟩₁ xs →
+        f ⟨$⟩ x ⟨ AM._∈_ ⟩₁ fs ⊛ xs
   ∈-⊛ {S′} f {fs} {xs} {x} f∈fs x∈xs =
     M₁.∈->>= (app xs) f∈fs (M₂.∈->>= (ret f) x∈xs (here S.refl))
     where
@@ -288,7 +283,7 @@ private
   _⊛-mono_ {fs = fs} {xs = xs} fs⊆gs xs⊆ys fx∈ with ⊛-∈ fs xs fx∈
   ... | (f , x , f∈fs , x∈xs , fx≈fx) = Any.map (S.trans fx≈fx) $
     ∈-⊛ {PropEq.setoid _}
-        (record { fun = f; pres = S.reflexive ∘ PropEq.cong f })
+        (record { _⟨$⟩_ = f; pres = S.reflexive ∘ PropEq.cong f })
         (fs⊆gs (Any.map (λ f≡g x → S.reflexive $
                                      PropEq.cong (λ f → f x) f≡g) f∈fs))
         (xs⊆ys x∈xs)
@@ -365,13 +360,13 @@ module Membership-≡ where
             x ∈ xs → Any P (f x) → Any P (xs >>= f)
   Any->>= {P = P} f =
     M₂.Any->>= (PropEq.subst P)
-               (record { fun = f; pres = P.reflexive ∘ PropEq.cong f })
+               (record { _⟨$⟩_ = f; pres = P.reflexive ∘ PropEq.cong f })
 
   >>=-Any : ∀ {A B P} (f : A → List B) xs →
             Any P (xs >>= f) → ∃ λ x → x ∈ xs × Any P (f x)
   >>=-Any {P = P} f =
     M₂.>>=-Any (PropEq.subst P)
-               (record { fun = f; pres = P.reflexive ∘ PropEq.cong f })
+               (record { _⟨$⟩_ = f; pres = P.reflexive ∘ PropEq.cong f })
 
   -- _>>=_ is monotone.
 
@@ -379,8 +374,8 @@ module Membership-≡ where
                xs ⊆ ys → (∀ {x} → f x ⊆ g x) →
                (xs >>= f) ⊆ (ys >>= g)
   _>>=-mono_ {f = f} {g} =
-    M₂.>>=-mono (record { fun = f; pres = P.reflexive ∘ PropEq.cong f })
-                (record { fun = g; pres = P.reflexive ∘ PropEq.cong g })
+    M₂.>>=-mono (record { _⟨$⟩_ = f; pres = P.reflexive ∘ PropEq.cong f })
+                (record { _⟨$⟩_ = g; pres = P.reflexive ∘ PropEq.cong g })
 
   -- Introduction rule for _∈_ on _⊛_.
 
