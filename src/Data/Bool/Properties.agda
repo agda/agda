@@ -307,3 +307,7 @@ T-∨ : ∀ {b₁ b₂} → T (b₁ ∨ b₂) ⇔ (T b₁ ⊎ T b₂)
 T-∨ {true}  {b₂}    = (inj₁ , const _)
 T-∨ {false} {true}  = (inj₂ , const _)
 T-∨ {false} {false} = (inj₁ , [ id , id ])
+
+proof-irrelevance : ∀ {b} (p q : T b) → p ≡ q
+proof-irrelevance {true}  _  _  = refl
+proof-irrelevance {false} () ()
