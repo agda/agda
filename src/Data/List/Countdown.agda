@@ -180,6 +180,16 @@ lookup! counted⊕0 x with _⊕_.kind counted⊕0 x
 ... | inj₁ x∈counted = x∈counted
 ... | inj₂ ()
 
+private
+
+  -- A variant of lookup!.
+
+  lookup‼ : ∀ {m counted} →
+            counted ⊕ m → ∀ x → x ∉ counted → ∃ λ n → m ≡ suc n
+  lookup‼ {suc m} counted⊕n x x∉counted = (m , refl)
+  lookup‼ {zero}  counted⊕n x x∉counted =
+    ⊥-elim (x∉counted $ lookup! counted⊕n x)
+
 -- Counts a previously uncounted element.
 
 insert : ∀ {counted n} →
@@ -220,7 +230,7 @@ lookupOrInsert : ∀ {counted m} →
                  counted ⊕ m →
                  ∀ x → x ∈ counted ⊎
                        ∃ λ n → m ≡ suc n × x ∷ counted ⊕ n
-lookupOrInsert {m = zero}  counted⊕n x = inj₁ (lookup! counted⊕n x)
-lookupOrInsert {m = suc n} counted⊕n x with lookup counted⊕n x
+lookupOrInsert counted⊕n x with lookup counted⊕n x
 ... | yes x∈counted = inj₁ x∈counted
-... | no  x∉counted = inj₂ (_ , refl , insert counted⊕n x x∉counted)
+... | no  x∉counted with lookup‼ counted⊕n x x∉counted
+...   | (n , refl) = inj₂ (n , refl , insert counted⊕n x x∉counted)
