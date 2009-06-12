@@ -12,7 +12,8 @@ open import Data.Nat.GCD.Lemmas
 open import Data.Product as Prod
 open import Data.Function
 open import Relation.Binary.PropositionalEquality as PropEq
-  using (_≡_; refl)
+  using (_≡_; _≢_; refl)
+open import Relation.Nullary
 open import Relation.Binary
 open import Algebra
 private
@@ -40,6 +41,21 @@ gcd-coprime : ∀ {m n} → GCD m n 1 → Coprime m n
 gcd-coprime g cd with GCD.greatest g cd
 gcd-coprime g cd | divides q eq =
   NatProp.i*j≡1⇒j≡1 q _ (PropEq.sym eq)
+
+-- Coprime is decidable.
+
+private
+  0≢1 : 0 ≢ 1
+  0≢1 ()
+
+  2+≢1 : ∀ {n} → suc (suc n) ≢ 1
+  2+≢1 ()
+
+coprime? : Decidable Coprime
+coprime? i j with gcd i j
+... | (0           , g) = no  (0≢1  ∘ GCD.unique g ∘ coprime-gcd)
+... | (1           , g) = yes (λ {i} → gcd-coprime g {i})
+... | (suc (suc d) , g) = no  (2+≢1 ∘ GCD.unique g ∘ coprime-gcd)
 
 -- The coprimality relation is symmetric.
 
