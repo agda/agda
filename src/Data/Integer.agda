@@ -4,10 +4,10 @@
 
 module Data.Integer where
 
-open import Data.Nat as N using (ℕ)
+open import Data.Nat as N using (ℕ) renaming (_*_ to _ℕ*_)
 import Data.Nat.Show as N
-open import Data.Sign as Sign using (Sign)
-open import Data.Product
+open import Data.Sign as Sign using (Sign) renaming (_*_ to _S*_)
+open import Data.Product as Prod
 open import Data.String using (String; _++_)
 open import Data.Function
 open import Data.Sum as Sum
@@ -24,8 +24,7 @@ infixl 6 _+_ _-_ _⊔_
 infix  4 _≤_ _≤?_
 
 infix  8 :+_ :-_
-infixl 7 _*'_
-infixl 6 _+'_ _-'_
+infixl 6 _+′_ _-′_
 
 ------------------------------------------------------------------------
 -- The types
@@ -36,11 +35,6 @@ data ℤ : Set where
   :-_ : (n : ℕ) → ℤ  -- :- n stands for - (n + 1).
   :0  : ℤ            -- :0 stands for 0.
   :+_ : (n : ℕ) → ℤ  -- :+ n stands for   (n + 1).
-
--- A non-canonical representation of integers.
-
-ℤ' : Set
-ℤ' = Sign × ℕ
 
 ------------------------------------------------------------------------
 -- Conversions
@@ -58,13 +52,6 @@ data ℤ : Set where
 - :0   = :0
 - :+ n = :- n
 
--- Conversion from sign + absolute value.
-
-ℤ'toℤ : ℤ' → ℤ
-ℤ'toℤ (Sign.:- , n) = - + n
-ℤ'toℤ (Sign.:0 , _) = :0
-ℤ'toℤ (Sign.:+ , n) = + n
-
 -- Absolute value.
 
 ∣_∣ : ℤ → ℕ
@@ -72,17 +59,12 @@ data ℤ : Set where
 ∣ :0   ∣ = N.zero
 ∣ :- n ∣ = N.suc n
 
--- Gives the sign.
+-- Gives the sign. For :0 the sign is arbitrarily chosen to be :+.
 
 sign : ℤ → Sign
 sign (:- _) = Sign.:-
-sign :0     = Sign.:0
+sign :0     = Sign.:+
 sign (:+ _) = Sign.:+
-
--- Conversion to sign + absolute value.
-
-ℤtoℤ' : ℤ → ℤ'
-ℤtoℤ' i = (sign i , ∣ i ∣)
 
 -- Decimal string representation.
 
@@ -91,7 +73,48 @@ show i = showSign (sign i) ++ N.show ∣ i ∣
   where
   showSign : Sign → String
   showSign Sign.:- = "-"
-  showSign _       = ""
+  showSign Sign.:+ = ""
+
+------------------------------------------------------------------------
+-- A view of integers as sign + absolute value
+
+infix 5 _◂_ _◃_
+
+_◃_ : Sign → ℕ → ℤ
+_       ◃ N.zero  = :0
+Sign.:- ◃ N.suc n = :- n
+Sign.:+ ◃ N.suc n = :+ n
+
+◃-left-inverse : ∀ i → sign i ◃ ∣ i ∣ ≡ i
+◃-left-inverse (:- n) = refl
+◃-left-inverse :0     = refl
+◃-left-inverse (:+ n) = refl
+
+◃-cong : ∀ {i j} → sign i ≡ sign j → ∣ i ∣ ≡ ∣ j ∣ → i ≡ j
+◃-cong {i} {j} sign-≡ abs-≡ = begin
+  i               ≡⟨ sym $ ◃-left-inverse i ⟩
+  sign i ◃ ∣ i ∣  ≡⟨ cong₂ _◃_ sign-≡ abs-≡ ⟩
+  sign j ◃ ∣ j ∣  ≡⟨ ◃-left-inverse j ⟩
+  j               ∎
+
+data SignAbs : ℤ → Set where
+  _◂_ : (s : Sign) (n : ℕ) → SignAbs (s ◃ n)
+
+signAbs : ∀ i → SignAbs i
+signAbs i = PropEq.subst SignAbs (◃-left-inverse i) $
+              sign i ◂ ∣ i ∣
+
+------------------------------------------------------------------------
+-- Equality is decidable
+
+_≟_ : Decidable {ℤ} _≡_
+i ≟ j with Sign._≟_ (sign i) (sign j) | N._≟_ ∣ i ∣ ∣ j ∣
+i ≟ j | yes sign-≡ | yes abs-≡ = yes (◃-cong sign-≡ abs-≡)
+i ≟ j | no  sign-≢ | _         = no (sign-≢ ∘ cong sign)
+i ≟ j | _          | no abs-≢  = no (abs-≢  ∘ cong ∣_∣)
+
+decSetoid : DecSetoid
+decSetoid = PropEq.decSetoid _≟_
 
 ------------------------------------------------------------------------
 -- Arithmetic
@@ -113,34 +136,28 @@ pred (:+ N.zero)  = :0
 pred (:+ N.suc n) = :+ n
 
 private
-  _+'_ : ℕ → ℤ → ℤ
-  _+'_ = G.add
+  _+′_ : ℕ → ℤ → ℤ
+  _+′_ = G.add
 
-  _-'_ : ℕ → ℤ → ℤ
-  n       -' :0         = + n
-  N.zero  -' i          = - i
-  N.suc n -' :+ N.zero  = + n
-  N.suc n -' :+ N.suc m = n -' :+ m
-  n       -' :- i       = n +' :+ i
+  _-′_ : ℕ → ℤ → ℤ
+  n       -′ :0         = + n
+  N.zero  -′ i          = - i
+  N.suc n -′ :+ N.zero  = + n
+  N.suc n -′ :+ N.suc m = n -′ :+ m
+  n       -′ :- i       = n +′ :+ i
 
 _+_ : ℤ → ℤ → ℤ
-:- n + i = - (N.suc n -' i)
+:- n + i = - (N.suc n -′ i)
 :0   + i = i
-:+ n + i = N.suc n +' i
+:+ n + i = N.suc n +′ i
 
 _-_ : ℤ → ℤ → ℤ
-:- n - i = - (N.suc n +' i)
+:- n - i = - (N.suc n +′ i)
 :0   - i = - i
-:+ n - i = N.suc n -' i
-
-private
-  _*'_ : ℕ → ℤ → ℤ
-  _*'_ = G.mul _+_
+:+ n - i = N.suc n -′ i
 
 _*_ : ℤ → ℤ → ℤ
-:- n * i = - (N.suc n *' i)
-:0   * i = :0
-:+ n * i = N.suc n *' i
+i * j = sign i S* sign j ◃ ∣ i ∣ ℕ* ∣ j ∣
 
 _⊔_ : ℤ → ℤ → ℤ
 :- m ⊔ :- n = :- (N._⊓_ m n)
@@ -165,35 +182,6 @@ _⊓_ : ℤ → ℤ → ℤ
 :+ m ⊓ :+ n = :+ (N._⊓_ m n)
 
 ------------------------------------------------------------------------
--- Equality
-
-ℤ'toℤ-left-inverse : ∀ i → ℤ'toℤ (ℤtoℤ' i) ≡ i
-ℤ'toℤ-left-inverse (:- n) = refl
-ℤ'toℤ-left-inverse :0     = refl
-ℤ'toℤ-left-inverse (:+ n) = refl
-
-drop-ℤtoℤ' : ∀ {i j} → ℤtoℤ' i ≡ ℤtoℤ' j → i ≡ j
-drop-ℤtoℤ' {i} {j} eq = begin
-  i
-    ≡⟨ sym (ℤ'toℤ-left-inverse i) ⟩
-  ℤ'toℤ (ℤtoℤ' i)
-    ≡⟨ cong ℤ'toℤ eq ⟩
-  ℤ'toℤ (ℤtoℤ' j)
-    ≡⟨ ℤ'toℤ-left-inverse j ⟩
-  j
-    ∎
-
-_≟_ : Decidable {ℤ} _≡_
-i ≟ j with Sign._≟_ (sign i) (sign j) | N._≟_ ∣ i ∣ ∣ j ∣
-i ≟ j | yes sign-≡ | yes abs-≡ = yes (drop-ℤtoℤ' eq)
-                                   where eq = cong₂ (_,_) sign-≡ abs-≡
-i ≟ j | no  sign-≢ | _         = no (sign-≢ ∘ cong sign)
-i ≟ j | _          | no abs-≢  = no (abs-≢  ∘ cong ∣_∣)
-
-decSetoid : DecSetoid
-decSetoid = PropEq.decSetoid _≟_
-
-------------------------------------------------------------------------
 -- Ordering
 
 data _≤_ : ℤ → ℤ → Set where
@@ -212,11 +200,11 @@ data _≤_ : ℤ → ℤ → Set where
 
 _≤?_ : Decidable _≤_
 (:- n) ≤? :0      = yes -n≤0
-(:- n) ≤? (:+ n') = yes -n≤+m
+(:- n) ≤? (:+ n′) = yes -n≤+m
 :0     ≤? (:- n)  = no λ()
 :0     ≤? :0      = yes 0≤0
 :0     ≤? (:+ n)  = yes 0≤n
-(:+ n) ≤? (:- n') = no λ()
+(:+ n) ≤? (:- n′) = no λ()
 (:+ n) ≤? :0      = no λ()
 (:+ n) ≤? (:+ m)  = Dec.map (+n≤+m , +≤-elim) (N._≤?_ n m)
 (:- n) ≤? (:- m)  = Dec.map (-n≤-m , -≤-elim) (N._≤?_ m n)
@@ -231,7 +219,7 @@ decTotalOrder = record
           { isPartialOrder = record
               { isPreorder = record
                   { isEquivalence = PropEq.isEquivalence
-                  ; reflexive     = refl'
+                  ; reflexive     = refl′
                   ; trans         = trans
                   ; ∼-resp-≈      = PropEq.resp₂ _≤_
                   }
@@ -244,12 +232,12 @@ decTotalOrder = record
       }
   }
   where
-  refl' : _≡_ ⇒ _≤_
-  refl' {:- N.zero}  refl = -n≤-m N.z≤n
-  refl' {:- N.suc n} refl = -n≤-m (N.s≤s (-≤-elim (refl' refl)))
-  refl' {:0}         refl = 0≤0
-  refl' {:+ 0}       refl = +n≤+m N.z≤n
-  refl' {:+ N.suc n} refl = +n≤+m (N.s≤s (+≤-elim (refl' refl)))
+  refl′ : _≡_ ⇒ _≤_
+  refl′ {:- N.zero}  refl = -n≤-m N.z≤n
+  refl′ {:- N.suc n} refl = -n≤-m (N.s≤s (-≤-elim (refl′ refl)))
+  refl′ {:0}         refl = 0≤0
+  refl′ {:+ 0}       refl = +n≤+m N.z≤n
+  refl′ {:+ N.suc n} refl = +n≤+m (N.s≤s (+≤-elim (refl′ refl)))
 
   trans : Transitive _≤_
   trans 0≤0         0≤0         = 0≤0
@@ -267,7 +255,7 @@ decTotalOrder = record
   antisym 0≤0         0≤0          = refl
   antisym (-n≤-m m≤n) (-n≤-m n≤m)  with DecTotalOrder.antisym N.decTotalOrder m≤n n≤m
   ... | refl = refl
-  antisym (+n≤+m n≤m) (+n≤+m n≤m') with DecTotalOrder.antisym N.decTotalOrder n≤m n≤m'
+  antisym (+n≤+m n≤m) (+n≤+m n≤m′) with DecTotalOrder.antisym N.decTotalOrder n≤m n≤m′
   ... | refl = refl
   antisym 0≤n   ()
   antisym -n≤0  ()
@@ -278,11 +266,11 @@ decTotalOrder = record
   ... | inj₁ n≤m = inj₂ (-n≤-m n≤m)
   ... | inj₂ m≤n = inj₁ (-n≤-m m≤n)
   total (:- n) :0      = inj₁ -n≤0
-  total (:- n) (:+ n') = inj₁ -n≤+m
+  total (:- n) (:+ n′) = inj₁ -n≤+m
   total :0     (:- n)  = inj₂ -n≤0
   total :0     :0      = inj₁ 0≤0
   total :0     (:+ n)  = inj₁ 0≤n
-  total (:+ n) (:- n') = inj₂ -n≤+m
+  total (:+ n) (:- n′) = inj₂ -n≤+m
   total (:+ n) :0      = inj₂ 0≤n
   total (:+ n) (:+ m)  =
     Sum.map +n≤+m +n≤+m (DecTotalOrder.total N.decTotalOrder n m)
