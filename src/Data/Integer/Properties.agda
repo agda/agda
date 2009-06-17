@@ -53,9 +53,9 @@ abs-*-commute i j = abs-◃ _ _
 -- Multiplication is right cancellative for non-zero integers.
 
 cancel-*-right : ∀ i j k →
-                 k ≢ :0 → i * k ≡ j * k → i ≡ j
+                 k ≢ + 0 → i * k ≡ j * k → i ≡ j
 cancel-*-right i j k            ≢0 eq with signAbs k
-cancel-*-right i j .:0          ≢0 eq | s ◂ zero  = ⊥-elim (≢0 refl)
+cancel-*-right i j .(+ 0)       ≢0 eq | s ◂ zero  = ⊥-elim (≢0 refl)
 cancel-*-right i j .(s ◃ suc n) ≢0 eq | s ◂ suc n
   with ∣ s ◃ suc n ∣ | abs-◃ s (suc n) | sign (s ◃ suc n) | sign-◃ s n
 ...  | .(suc n)      | refl            | .s               | refl =
@@ -67,14 +67,16 @@ cancel-*-right i j .(s ◃ suc n) ≢0 eq | s ◂ suc n
                   sign j S* s ◃ ∣ j ∣ ℕ* suc n →
                   sign i ≡ sign j
   sign-i≡sign-j i              j              eq with signAbs i | signAbs j
-  sign-i≡sign-j .:0            .:0            eq | s₁ ◂ zero   | s₂ ◂ zero   = refl
-  sign-i≡sign-j .:0            .(s₂ ◃ suc n₂) eq | s₁ ◂ zero   | s₂ ◂ suc n₂
+  sign-i≡sign-j .(+ 0)         .(+ 0)         eq | s₁ ◂ zero   | s₂ ◂ zero   = refl
+  sign-i≡sign-j .(+ 0)         .(s₂ ◃ suc n₂) eq | s₁ ◂ zero   | s₂ ◂ suc n₂
     with ∣ s₂ ◃ suc n₂ ∣ | abs-◃ s₂ (suc n₂)
-  ... | .(suc n₂) | refl with abs-cong {s₁ = s₁} eq
+  ... | .(suc n₂) | refl
+    with abs-cong {s₁} {sign (s₂ ◃ suc n₂) S* s} {0} {suc n₂ ℕ* suc n} eq
   ...   | ()
-  sign-i≡sign-j .(s₁ ◃ suc n₁) .:0            eq | s₁ ◂ suc n₁ | s₂ ◂ zero
+  sign-i≡sign-j .(s₁ ◃ suc n₁) .(+ 0)         eq | s₁ ◂ suc n₁ | s₂ ◂ zero
     with ∣ s₁ ◃ suc n₁ ∣ | abs-◃ s₁ (suc n₁)
-  ... | .(suc n₁) | refl with abs-cong {s₂ = s₂} eq
+  ... | .(suc n₁) | refl
+    with abs-cong {sign (s₁ ◃ suc n₁) S* s} {s₁} {suc n₁ ℕ* suc n} {0} eq
   ...   | ()
   sign-i≡sign-j .(s₁ ◃ suc n₁) .(s₂ ◃ suc n₂) eq | s₁ ◂ suc n₁ | s₂ ◂ suc n₂
     with ∣ s₁ ◃ suc n₁ ∣ | abs-◃ s₁ (suc n₁)

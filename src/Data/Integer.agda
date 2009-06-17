@@ -4,8 +4,9 @@
 
 module Data.Integer where
 
-open import Data.Nat as N using (ℕ) renaming (_*_ to _ℕ*_)
-import Data.Nat.Show as N
+open import Data.Nat as ℕ
+  using (ℕ) renaming (_+_ to _ℕ+_; _*_ to _ℕ*_)
+import Data.Nat.Show as ℕ
 open import Data.Sign as Sign using (Sign) renaming (_*_ to _S*_)
 open import Data.Product as Prod
 open import Data.String using (String; _++_)
@@ -20,11 +21,8 @@ open PropEq.≡-Reasoning
 
 infix  8 +_ -_
 infixl 7 _*_ _⊓_
-infixl 6 _+_ _-_ _⊔_
+infixl 6 _+_ _-_ _⊖_ _⊔_
 infix  4 _≤_ _≤?_
-
-infix  8 :+_ :-_
-infixl 6 _+′_ _-′_
 
 ------------------------------------------------------------------------
 -- The types
@@ -32,44 +30,28 @@ infixl 6 _+′_ _-′_
 -- Integers.
 
 data ℤ : Set where
-  :-_ : (n : ℕ) → ℤ  -- :- n stands for - (n + 1).
-  :0  : ℤ            -- :0 stands for 0.
-  :+_ : (n : ℕ) → ℤ  -- :+ n stands for   (n + 1).
+  -[1+_] : (n : ℕ) → ℤ  -- -[1+ n ] stands for - (1 + n).
+  +_     : (n : ℕ) → ℤ  -- + n stands for n.
 
 ------------------------------------------------------------------------
 -- Conversions
 
--- From natural numbers.
-
-+_ : ℕ → ℤ
-+ N.zero  = :0
-+ N.suc n = :+ n
-
--- Negation.
-
--_ : ℤ → ℤ
-- :- n = :+ n
-- :0   = :0
-- :+ n = :- n
-
 -- Absolute value.
 
 ∣_∣ : ℤ → ℕ
-∣ :+ n ∣ = N.suc n
-∣ :0   ∣ = N.zero
-∣ :- n ∣ = N.suc n
+∣ + n      ∣ = n
+∣ -[1+ n ] ∣ = ℕ.suc n
 
--- Gives the sign. For :0 the sign is arbitrarily chosen to be :+.
+-- Gives the sign. For zero the sign is arbitrarily chosen to be +.
 
 sign : ℤ → Sign
-sign (:- _) = Sign.:-
-sign :0     = Sign.:+
-sign (:+ _) = Sign.:+
+sign (+ _)    = Sign.:+
+sign -[1+ _ ] = Sign.:-
 
 -- Decimal string representation.
 
 show : ℤ → String
-show i = showSign (sign i) ++ N.show ∣ i ∣
+show i = showSign (sign i) ++ ℕ.show ∣ i ∣
   where
   showSign : Sign → String
   showSign Sign.:- = "-"
@@ -81,14 +63,14 @@ show i = showSign (sign i) ++ N.show ∣ i ∣
 infix 5 _◂_ _◃_
 
 _◃_ : Sign → ℕ → ℤ
-_       ◃ N.zero  = :0
-Sign.:- ◃ N.suc n = :- n
-Sign.:+ ◃ N.suc n = :+ n
+_       ◃ ℕ.zero  = + ℕ.zero
+Sign.:+ ◃ n       = + n
+Sign.:- ◃ ℕ.suc n = -[1+ n ]
 
 ◃-left-inverse : ∀ i → sign i ◃ ∣ i ∣ ≡ i
-◃-left-inverse (:- n) = refl
-◃-left-inverse :0     = refl
-◃-left-inverse (:+ n) = refl
+◃-left-inverse -[1+ n ]    = refl
+◃-left-inverse (+ ℕ.zero)  = refl
+◃-left-inverse (+ ℕ.suc n) = refl
 
 ◃-cong : ∀ {i j} → sign i ≡ sign j → ∣ i ∣ ≡ ∣ j ∣ → i ≡ j
 ◃-cong {i} {j} sign-≡ abs-≡ = begin
@@ -108,7 +90,7 @@ signAbs i = PropEq.subst SignAbs (◃-left-inverse i) $
 -- Equality is decidable
 
 _≟_ : Decidable {ℤ} _≡_
-i ≟ j with Sign._≟_ (sign i) (sign j) | N._≟_ ∣ i ∣ ∣ j ∣
+i ≟ j with Sign._≟_ (sign i) (sign j) | ℕ._≟_ ∣ i ∣ ∣ j ∣
 i ≟ j | yes sign-≡ | yes abs-≡ = yes (◃-cong sign-≡ abs-≡)
 i ≟ j | no  sign-≢ | _         = no (sign-≢ ∘ cong sign)
 i ≟ j | _          | no abs-≢  = no (abs-≢  ∘ cong ∣_∣)
@@ -119,95 +101,117 @@ decSetoid = PropEq.decSetoid _≟_
 ------------------------------------------------------------------------
 -- Arithmetic
 
--- Negation is defined above.
+-- Negation.
 
-suc : ℤ → ℤ
-suc (:- N.suc n) = :- n
-suc (:- N.zero)  = :0
-suc :0           = :+ 0
-suc (:+ n)       = :+ N.suc n
+-_ : ℤ → ℤ
+- (+ ℕ.suc n) = -[1+ n ]
+- (+ ℕ.zero)  = + ℕ.zero
+- -[1+ n ]    = + ℕ.suc n
 
-private module G = N.GeneralisedArithmetic :0 suc
+-- Subtraction of natural numbers.
 
-pred : ℤ → ℤ
-pred (:- n)       = :- N.suc n
-pred :0           = :- 0
-pred (:+ N.zero)  = :0
-pred (:+ N.suc n) = :+ n
+_⊖_ : ℕ → ℕ → ℤ
+m       ⊖ ℕ.zero  = + m
+ℕ.zero  ⊖ ℕ.suc n = -[1+ n ]
+ℕ.suc m ⊖ ℕ.suc n = m ⊖ n
 
-private
-  _+′_ : ℕ → ℤ → ℤ
-  _+′_ = G.add
-
-  _-′_ : ℕ → ℤ → ℤ
-  n       -′ :0         = + n
-  N.zero  -′ i          = - i
-  N.suc n -′ :+ N.zero  = + n
-  N.suc n -′ :+ N.suc m = n -′ :+ m
-  n       -′ :- i       = n +′ :+ i
+-- Addition.
 
 _+_ : ℤ → ℤ → ℤ
-:- n + i = - (N.suc n -′ i)
-:0   + i = i
-:+ n + i = N.suc n +′ i
+-[1+ m ] + -[1+ n ] = -[1+ ℕ.suc (m ℕ+ n) ]
+-[1+ m ] + +    n   = n ⊖ ℕ.suc m
++    m   + -[1+ n ] = m ⊖ ℕ.suc n
++    m   + +    n   = + (m ℕ+ n)
+
+-- Subtraction.
 
 _-_ : ℤ → ℤ → ℤ
-:- n - i = - (N.suc n +′ i)
-:0   - i = - i
-:+ n - i = N.suc n -′ i
+-[1+ m ] - -[1+ n ] = n ⊖ m
+-[1+ m ] - +    n   = -[1+ n ℕ+ m ]
++    m   - -[1+ n ] = + (ℕ.suc n ℕ+ m)
++    m   - +    n   = m ⊖ n
+
+private
+
+  -- Note that the definition i - j = - j + i evaluates differently
+  -- from the definition above. For instance, the following property
+  -- would require a nontrivial proof with the alternative definition:
+
+  +-+ : ∀ m n → + m - + n ≡ m ⊖ n
+  +-+ m n = refl
+
+  -- The proof is still easy, though.
+
+  -++ : ∀ m n → - + n + + m ≡ m ⊖ n
+  -++ m ℕ.zero    = refl
+  -++ m (ℕ.suc n) = refl
+
+-- Successor.
+
+suc : ℤ → ℤ
+suc i = + 1 + i
+
+private
+
+  suc-is-lazy⁺ : ∀ n → suc (+ n) ≡ + ℕ.suc n
+  suc-is-lazy⁺ n = refl
+
+  suc-is-lazy⁻ : ∀ n → suc -[1+ ℕ.suc n ] ≡ -[1+ n ]
+  suc-is-lazy⁻ n = refl
+
+-- Predecessor.
+
+pred : ℤ → ℤ
+pred i = i - + 1
+
+private
+
+  pred-is-lazy⁺ : ∀ n → pred (+ ℕ.suc n) ≡ + n
+  pred-is-lazy⁺ n = refl
+
+  pred-is-lazy⁻ : ∀ n → pred -[1+ n ] ≡ -[1+ ℕ.suc n ]
+  pred-is-lazy⁻ n = refl
+
+-- Multiplication.
 
 _*_ : ℤ → ℤ → ℤ
 i * j = sign i S* sign j ◃ ∣ i ∣ ℕ* ∣ j ∣
 
+-- Maximum.
+
 _⊔_ : ℤ → ℤ → ℤ
-:- m ⊔ :- n = :- (N._⊓_ m n)
-:- _ ⊔ :0   = :0
-:- _ ⊔ :+ n = :+ n
-:0   ⊔ :- _ = :0
-:0   ⊔ :0   = :0
-:0   ⊔ :+ n = :+ n
-:+ m ⊔ :- _ = :+ m
-:+ m ⊔ :0   = :+ m
-:+ m ⊔ :+ n = :+ (N._⊔_ m n)
+-[1+ m ] ⊔ -[1+ n ] = -[1+ ℕ._⊓_ m n ]
+-[1+ m ] ⊔ +    n   = + n
++    m   ⊔ -[1+ n ] = + m
++    m   ⊔ +    n   = + (ℕ._⊔_ m n)
+
+-- Minimum.
 
 _⊓_ : ℤ → ℤ → ℤ
-:- m ⊓ :- n = :- (N._⊔_ m n)
-:- m ⊓ :0   = :- m
-:- m ⊓ :+ _ = :- m
-:0   ⊓ :- n = :- n
-:0   ⊓ :0   = :0
-:0   ⊓ :+ _ = :0
-:+ _ ⊓ :- n = :- n
-:+ _ ⊓ :0   = :0
-:+ m ⊓ :+ n = :+ (N._⊓_ m n)
+-[1+ m ] ⊓ -[1+ n ] = -[1+ ℕ._⊔_ m n ]
+-[1+ m ] ⊓ +    n   = -[1+ m ]
++    m   ⊓ -[1+ n ] = -[1+ n ]
++    m   ⊓ +    n   = + (ℕ._⊓_ m n)
 
 ------------------------------------------------------------------------
 -- Ordering
 
 data _≤_ : ℤ → ℤ → Set where
-  0≤0   :           :0   ≤ :0
-  0≤n   : ∀ {x}   → :0   ≤ :+ x
-  -n≤0  : ∀ {n}   → :- n ≤ :0
-  -n≤+m : ∀ {n m} → :- n ≤ :+ m
-  -n≤-m : ∀ {n m} → (m≤n : N._≤_ m n) → :- n ≤ :- m
-  +n≤+m : ∀ {n m} → (n≤m : N._≤_ n m) → :+ n ≤ :+ m
+  -≤+ : ∀ {m n} → -[1+ m ] ≤ + n
+  -≤- : ∀ {m n} → (n≤m : ℕ._≤_ n m) → -[1+ m ] ≤ -[1+ n ]
+  +≤+ : ∀ {m n} → (m≤n : ℕ._≤_ m n) → + m ≤ + n
 
-+≤-elim : ∀ {n m} → :+ n ≤ :+ m → N._≤_ n m
-+≤-elim (+n≤+m n≤m) = n≤m
+drop‿+≤+ : ∀ {m n} → + m ≤ + n → ℕ._≤_ m n
+drop‿+≤+ (+≤+ m≤n) = m≤n
 
--≤-elim : ∀ {n m} → :- m ≤ :- n → N._≤_ n m
--≤-elim (-n≤-m m≤n) = m≤n
+drop‿-≤- : ∀ {m n} → -[1+ m ] ≤ -[1+ n ] → ℕ._≤_ n m
+drop‿-≤- (-≤- n≤m) = n≤m
 
 _≤?_ : Decidable _≤_
-(:- n) ≤? :0      = yes -n≤0
-(:- n) ≤? (:+ n′) = yes -n≤+m
-:0     ≤? (:- n)  = no λ()
-:0     ≤? :0      = yes 0≤0
-:0     ≤? (:+ n)  = yes 0≤n
-(:+ n) ≤? (:- n′) = no λ()
-(:+ n) ≤? :0      = no λ()
-(:+ n) ≤? (:+ m)  = Dec.map (+n≤+m , +≤-elim) (N._≤?_ n m)
-(:- n) ≤? (:- m)  = Dec.map (-n≤-m , -≤-elim) (N._≤?_ m n)
+-[1+ m ] ≤? -[1+ n ] = Dec.map (-≤- , drop‿-≤-) (ℕ._≤?_ n m)
+-[1+ m ] ≤? +    n   = yes -≤+
++    m   ≤? -[1+ n ] = no λ ()
++    m   ≤? +    n   = Dec.map (+≤+ , drop‿+≤+) (ℕ._≤?_ m n)
 
 decTotalOrder : DecTotalOrder
 decTotalOrder = record
@@ -232,48 +236,28 @@ decTotalOrder = record
       }
   }
   where
+  module ℕO = DecTotalOrder ℕ.decTotalOrder
+
   refl′ : _≡_ ⇒ _≤_
-  refl′ {:- N.zero}  refl = -n≤-m N.z≤n
-  refl′ {:- N.suc n} refl = -n≤-m (N.s≤s (-≤-elim (refl′ refl)))
-  refl′ {:0}         refl = 0≤0
-  refl′ {:+ 0}       refl = +n≤+m N.z≤n
-  refl′ {:+ N.suc n} refl = +n≤+m (N.s≤s (+≤-elim (refl′ refl)))
+  refl′ { -[1+ n ]} refl = -≤- ℕO.refl
+  refl′ {+ n}       refl = +≤+ ℕO.refl
 
   trans : Transitive _≤_
-  trans 0≤0         0≤0         = 0≤0
-  trans 0≤0         0≤n         = 0≤n
-  trans 0≤n         (+n≤+m n≤m) = 0≤n
-  trans -n≤0        0≤0         = -n≤0
-  trans -n≤0        0≤n         = -n≤+m
-  trans -n≤+m       (+n≤+m n≤m) = -n≤+m
-  trans (-n≤-m n≤m) -n≤0        = -n≤0
-  trans (-n≤-m n≤m) -n≤+m       = -n≤+m
-  trans (-n≤-m m≤n) (-n≤-m k≤m) = -n≤-m (DecTotalOrder.trans N.decTotalOrder k≤m m≤n)
-  trans (+n≤+m n≤m) (+n≤+m m≤k) = +n≤+m (DecTotalOrder.trans N.decTotalOrder n≤m m≤k)
+  trans -≤+       (+≤+ n≤m) = -≤+
+  trans (-≤- n≤m) -≤+       = -≤+
+  trans (-≤- n≤m) (-≤- k≤n) = -≤- (ℕO.trans k≤n n≤m)
+  trans (+≤+ m≤n) (+≤+ n≤k) = +≤+ (ℕO.trans m≤n n≤k)
 
   antisym : Antisymmetric _≡_ _≤_
-  antisym 0≤0         0≤0          = refl
-  antisym (-n≤-m m≤n) (-n≤-m n≤m)  with DecTotalOrder.antisym N.decTotalOrder m≤n n≤m
-  ... | refl = refl
-  antisym (+n≤+m n≤m) (+n≤+m n≤m′) with DecTotalOrder.antisym N.decTotalOrder n≤m n≤m′
-  ... | refl = refl
-  antisym 0≤n   ()
-  antisym -n≤0  ()
-  antisym -n≤+m ()
+  antisym -≤+       ()
+  antisym (-≤- n≤m) (-≤- m≤n) = cong -[1+_] $ ℕO.antisym m≤n n≤m
+  antisym (+≤+ m≤n) (+≤+ n≤m) = cong +_     $ ℕO.antisym m≤n n≤m
 
   total : Total _≤_
-  total (:- n) (:- m) with DecTotalOrder.total N.decTotalOrder n m
-  ... | inj₁ n≤m = inj₂ (-n≤-m n≤m)
-  ... | inj₂ m≤n = inj₁ (-n≤-m m≤n)
-  total (:- n) :0      = inj₁ -n≤0
-  total (:- n) (:+ n′) = inj₁ -n≤+m
-  total :0     (:- n)  = inj₂ -n≤0
-  total :0     :0      = inj₁ 0≤0
-  total :0     (:+ n)  = inj₁ 0≤n
-  total (:+ n) (:- n′) = inj₂ -n≤+m
-  total (:+ n) :0      = inj₂ 0≤n
-  total (:+ n) (:+ m)  =
-    Sum.map +n≤+m +n≤+m (DecTotalOrder.total N.decTotalOrder n m)
+  total (-[1+ m ]) (-[1+ n ]) = [ inj₂ ∘′ -≤- , inj₁ ∘′ -≤- ]′ $ ℕO.total m n
+  total (-[1+ m ]) (+    n  ) = inj₁ -≤+
+  total (+    m  ) (-[1+ n ]) = inj₂ -≤+
+  total (+    m  ) (+    n  ) = [ inj₁ ∘′ +≤+ , inj₂ ∘′ +≤+ ]′ $ ℕO.total m n
 
 poset : Poset
 poset = DecTotalOrder.poset decTotalOrder
