@@ -2,6 +2,9 @@
 -- A bunch of properties about natural number operations
 ------------------------------------------------------------------------
 
+-- See README.Nat for some examples showing how this module can be
+-- used.
+
 module Data.Nat.Properties where
 
 open import Data.Nat as Nat

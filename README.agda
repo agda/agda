@@ -228,6 +228,15 @@ import IO
 -- flexibility.
 
 ------------------------------------------------------------------------
+-- More documentation
+------------------------------------------------------------------------
+
+-- Some examples showing where the natural numbers and some related
+-- operations and properties are defined, and how they can be used:
+
+import README.Nat
+
+------------------------------------------------------------------------
 -- Core modules
 ------------------------------------------------------------------------
 
