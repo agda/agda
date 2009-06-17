@@ -47,7 +47,7 @@ properties to add to the result."
   (fset 'run-mode-hooks 'run-hooks))  ; For Emacs versions < 21.
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;; Programming utilities
+;;;; Utilities
 
 (defmacro agda2-protect (form &optional default)
   "Expands to (condition-case nil FORM (error DEFAULT))."
@@ -58,6 +58,18 @@ properties to add to the result."
   "Expands to (let* VARBIND (labels FUNCBIND BODY...))."
   `(let* ,varbind (labels ,funcbind ,@body)))
 (put 'agda2-let 'lisp-indent-function 2)
+
+(defun agda2-chunkify (n xs)
+  "Returns a list containing chunks of XS of length at most N.
+All the elements of XS are included, in their original order."
+  (let ((i 0)
+        (len (length xs))
+        out)
+    (while (< i len)
+      (let ((new-i (+ i (min n (- len i)))))
+        (setq out (cons (subseq xs i new-i) out))
+        (setq i new-i)))
+    (nreverse out)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; User options
@@ -367,6 +379,8 @@ Special commands:
                     (setq agda2-process  haskell-ghci-process
                           agda2-buffer   haskell-ghci-process-buffer
                           mode-name "Agda GHCi")
+                    (set (make-local-variable 'comint-input-sender)
+                         'agda2-send)
                     (set-buffer-file-coding-system 'utf-8)
                     (set-buffer-process-coding-system 'utf-8 'utf-8)
                     (rename-buffer agda2-bufname)))
@@ -381,6 +395,16 @@ Special commands:
   "Raises an error.
 The error message directs the user to the *ghci* buffer."
   (error "Problem encountered. The *ghci* buffer can perhaps explain why."))
+
+(defun agda2-send (proc s)
+  "Sends the string S to PROC.
+Splits up S into small chunks and sends them one after the other,
+because when GHCi is used in shell buffers it chokes on overly
+long strings (some versions of GHCi, on some systems)."
+  (let* ((chunk-size 200))
+    (dolist (chunk (agda2-chunkify chunk-size s))
+      (comint-send-string proc chunk)))
+  (comint-send-string proc "\n"))
 
 (defun agda2-go (require-response &rest args)
   "Executes commands in GHCi.
