@@ -396,7 +396,6 @@ then an error is raised if no responses are received."
       (agda2-raise-ghci-error)))
   (save-excursion
     (haskell-ghci-go (apply 'concat (agda2-intersperse " " args)) nil))
-  ;;(display-buffer agda2-buffer 'not-tihs-window)
   (let (response)
     (with-current-buffer haskell-ghci-process-buffer
       (haskell-ghci-wait-for-output)
