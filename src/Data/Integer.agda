@@ -45,8 +45,8 @@ data ℤ : Set where
 -- Gives the sign. For zero the sign is arbitrarily chosen to be +.
 
 sign : ℤ → Sign
-sign (+ _)    = Sign.:+
-sign -[1+ _ ] = Sign.:-
+sign (+ _)    = Sign.+
+sign -[1+ _ ] = Sign.-
 
 -- Decimal string representation.
 
@@ -54,8 +54,8 @@ show : ℤ → String
 show i = showSign (sign i) ++ ℕ.show ∣ i ∣
   where
   showSign : Sign → String
-  showSign Sign.:- = "-"
-  showSign Sign.:+ = ""
+  showSign Sign.- = "-"
+  showSign Sign.+ = ""
 
 ------------------------------------------------------------------------
 -- A view of integers as sign + absolute value
@@ -63,9 +63,9 @@ show i = showSign (sign i) ++ ℕ.show ∣ i ∣
 infix 5 _◂_ _◃_
 
 _◃_ : Sign → ℕ → ℤ
-_       ◃ ℕ.zero  = + ℕ.zero
-Sign.:+ ◃ n       = + n
-Sign.:- ◃ ℕ.suc n = -[1+ n ]
+_      ◃ ℕ.zero  = + ℕ.zero
+Sign.+ ◃ n       = + n
+Sign.- ◃ ℕ.suc n = -[1+ n ]
 
 ◃-left-inverse : ∀ i → sign i ◃ ∣ i ∣ ≡ i
 ◃-left-inverse -[1+ n ]    = refl

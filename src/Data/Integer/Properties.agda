@@ -21,8 +21,8 @@ open Morphism.Definitions ℤ ℕ _≡_
 -- Some properties relating sign and ∣_∣ to _◃_.
 
 sign-◃ : ∀ s n → sign (s ◃ suc n) ≡ s
-sign-◃ Sign.:- _ = refl
-sign-◃ Sign.:+ _ = refl
+sign-◃ Sign.- _ = refl
+sign-◃ Sign.+ _ = refl
 
 sign-cong : ∀ {s₁ s₂ n₁ n₂} →
             s₁ ◃ suc n₁ ≡ s₂ ◃ suc n₂ → s₁ ≡ s₂
@@ -33,9 +33,9 @@ sign-cong {s₁} {s₂} {n₁} {n₂} eq = begin
   s₂                  ∎
 
 abs-◃ : ∀ s n → ∣ s ◃ n ∣ ≡ n
-abs-◃ _       zero    = refl
-abs-◃ Sign.:- (suc n) = refl
-abs-◃ Sign.:+ (suc n) = refl
+abs-◃ _      zero    = refl
+abs-◃ Sign.- (suc n) = refl
+abs-◃ Sign.+ (suc n) = refl
 
 abs-cong : ∀ {s₁ s₂ n₁ n₂} →
            s₁ ◃ n₁ ≡ s₂ ◃ n₂ → n₁ ≡ n₂
