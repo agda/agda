@@ -35,7 +35,7 @@ main = do
 
 usage :: String
 usage = unlines
-  [ "Usage: runhaskell GenerateDocs.hs"
+  [ "Usage: runhaskell GenerateEverything.hs"
   , ""
   , "This program should be run in the base directory of a clean checkout of"
   , "the library."

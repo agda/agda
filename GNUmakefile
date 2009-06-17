@@ -5,4 +5,4 @@ test: Everything.agda
 
 .PHONY: Everything.agda
 Everything.agda:
-	runhaskell GenerateDocs.hs
+	runhaskell GenerateEverything.hs
