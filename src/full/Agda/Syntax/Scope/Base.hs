@@ -310,13 +310,19 @@ filterScope pd pm = mapScope_ (Map.filterKeys pd) (Map.filterKeys pm)
 
 -- | Return all names in a scope.
 allNamesInScope :: InScope a => Scope -> ThingsInScope a
-allNamesInScope s =
-  foldr1 mergeNames [ inNameSpace (f s) | f <- [ scopePublic, scopePrivate, scopeImported ] ]
+allNamesInScope = namesInScope [scopePublic, scopeImported, scopePrivate]
+
+namesInScope :: InScope a => [Scope -> NameSpace] -> Scope -> ThingsInScope a
+namesInScope fs s =
+  foldr1 mergeNames [ inNameSpace (f s) | f <- fs ]
 
 allThingsInScope :: Scope -> NameSpace
-allThingsInScope s =
-  NameSpace { nsNames   = allNamesInScope s
-            , nsModules = allNamesInScope s
+allThingsInScope = thingsInScope [scopePublic, scopeImported, scopePrivate]
+
+thingsInScope :: [Scope -> NameSpace] -> Scope -> NameSpace
+thingsInScope fs s =
+  NameSpace { nsNames   = namesInScope fs s
+            , nsModules = namesInScope fs s
             }
 
 -- | Merge two scopes. The result has the name of the first scope.
@@ -331,37 +337,24 @@ mergeScopes ss = foldr1 mergeScope ss
 
 -- * Specific operations on scopes
 
--- | Given a scope where all concrete names start with @M@, remove all the
---   @M@s. Used when opening a module @M@, in which case only those names
---   starting with @M@ are considered.
--- TODO: remove unqualifyScope
-{-
-unqualifyScope :: C.QName -> Scope -> Scope
-unqualifyScope m = mapScope_ unqual unqual
-  where
-    unqual = Map.mapKeys (unq m)
-
-    unq _	     (C.QName _) = __IMPOSSIBLE__
-    unq (C.Qual m n) (C.Qual m' q)
-      | m == m'   = unq n q
-      | otherwise = __IMPOSSIBLE__
-    unq (C.QName m)  (C.Qual m' q)
-      | m == m'	  = q
-      | otherwise = __IMPOSSIBLE__
--}
-
--- | Move all names in a scope to the given name space.
+-- | Move all names in a scope to the given name space (except never move from
+--   Imported to Public).
 setScopeAccess :: NameSpaceId -> Scope -> Scope
 setScopeAccess a s = s { scopeImported = ns ImportedNS
 		       , scopePrivate  = ns PrivateNS
                        , scopePublic   = ns PublicNS
 		       }
   where
-    one  = allThingsInScope s
-    zero = emptyNameSpace
+    zero  = emptyNameSpace
+    one   = allThingsInScope s
+    imp   = thingsInScope [scopeImported] s
+    noimp = thingsInScope [scopePublic, scopePrivate] s
 
-    ns b | a == b    = one
-         | otherwise = zero
+    ns b = case (a, b) of
+      (PublicNS, PublicNS)   -> noimp
+      (PublicNS, ImportedNS) -> imp
+      _ | a == b             -> one
+        | otherwise          -> zero
 
 -- | Add names to a scope.
 addNamesToScope :: NameSpaceId -> C.Name -> [AbstractName] -> Scope -> Scope
