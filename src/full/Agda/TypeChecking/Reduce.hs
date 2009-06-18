@@ -495,9 +495,9 @@ instance InstantiateFull DisplayTerm where
 instance InstantiateFull Defn where
     instantiateFull d = case d of
       Axiom{} -> return d
-      Function{ funClauses = cs } -> do
-        cs <- instantiateFull cs
-        return $ d { funClauses = cs }
+      Function{ funClauses = cs, funInv = inv } -> do
+        (cs, inv) <- instantiateFull (cs, inv)
+        return $ d { funClauses = cs, funInv = inv }
       Datatype{ dataSort = s, dataClause = cl } -> do
 	s  <- instantiateFull s
 	cl <- instantiateFull cl
@@ -511,6 +511,10 @@ instance InstantiateFull Defn where
       Primitive{ primClauses = cs } -> do
         cs <- instantiateFull cs
         return $ d { primClauses = cs }
+
+instance InstantiateFull FunctionInverse where
+  instantiateFull NotInjective = return NotInjective
+  instantiateFull (Inverse inv) = Inverse <$> instantiateFull inv
 
 instance InstantiateFull Clause where
     instantiateFull (Clause r tel perm ps b) =
