@@ -18,6 +18,10 @@ open import Relation.Binary.PropositionalEquality.Core public
 ------------------------------------------------------------------------
 -- Some properties
 
+subst₂ : ∀ {A B} (P : A → B → Set) →
+         ∀ {x₁ x₂ y₁ y₂} → x₁ ≡ x₂ → y₁ ≡ y₂ → P x₁ y₁ → P x₂ y₂
+subst₂ P refl refl p = p
+
 subst₁ : ∀ {a} (P : a → Set₁) → ∀ {x y} → x ≡ y → P x → P y
 subst₁ P refl p = p
 
