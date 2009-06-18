@@ -341,9 +341,10 @@ reifyPatterns tel perm ps = evalStateT (reifyArgs ps) 0
       I.DotP v -> do
         t <- lift $ reify v
         let vars = Set.map show (dotVars t)
+        tick
         if Set.member "()" vars
-          then tick >> (return $ A.DotP i $ A.Underscore mi)
-          else tick >> lift (A.DotP i <$> reify v)
+          then return $ A.DotP i $ A.Underscore mi
+          else lift $ A.DotP i <$> reify v
       I.LitP l    -> return $ A.LitP l
       I.ConP c ps -> A.ConP i (AmbQ [c]) <$> reifyArgs ps
       where

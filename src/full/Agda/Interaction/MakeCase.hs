@@ -69,7 +69,7 @@ makeCase hole rng s = withInteractionId hole $ do
       , text "ps      =" <+> text (show ps)
       ]
     ]
-  var         <- {-withInteractionId hole $-} deBruijnIndex =<< parseExprIn hole rng s
+  var         <- deBruijnIndex =<< parseExprIn hole rng s
   z           <- splitClauseWithAbs clause var
   case z of
     Left err        -> typeError . GenericError . show =<< prettySplitError err
@@ -105,7 +105,7 @@ makeAbsurdClause f (SClause tel perm ps _) = do
   withCurrentModule (qnameModule f) $ do
     -- Normalise the dot patterns
     ps <- addCtxTel tel $ normalise ps
-    reify $ NamedClause f $ Clause noRange tel perm ps NoBody
+    inContext [] $ reify $ NamedClause f $ Clause noRange tel perm ps NoBody
 
 makeAbstractClause :: QName -> SplitClause -> TCM A.Clause
 makeAbstractClause f cl = do
