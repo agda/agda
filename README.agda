@@ -2,6 +2,10 @@ module README where
 
 ------------------------------------------------------------------------
 -- The Agda "standard" library
+--
+-- Author: Nils Anders Danielsson, with contributions from Samuel
+-- Bronson, Liang-Ting Chen, Dan Doel, Patrik Jansson, Shin-Cheng Mu,
+-- and Ulf Norell
 ------------------------------------------------------------------------
 
 -- Note that the development version of the library often requires the
