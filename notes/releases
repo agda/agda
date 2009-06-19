@@ -6,7 +6,8 @@ followed:
     darcs get http://code.haskell.org/Agda/ Agda.release
     cd Agda.release
 
-* Finish the release notes in doc/release-notes/<version>.
+* Finish the release notes in
+  doc/release-notes/<version-written-with-dashes>.txt.
 
 * Update the version numbers in Agda.cabal,
   src/main/Agda-executable.cabal (two places) and

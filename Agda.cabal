@@ -33,6 +33,7 @@ description:
 tested-with:     GHC == 6.10.3
 extra-source-files: src/full/Agda/undefined.h
                     README
+                    doc/release-notes/*.txt
 data-dir:           src/data
 data-files:         Agda.css
                     emacs-mode/*.el
